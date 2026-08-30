@@ -143,6 +143,21 @@
       "heading": "ポリシーと規約",
       "description": "本アプリが利用者のデータをどう扱うか、そしてどの条件のもとで利用しているかを記した文書です。"
     },
+    "ai": {
+      "heading": "AI 連携",
+      "description": "このアプリのデータベースには Claude Code から直接つながります。パソコンで Claude Code を起動すると MCP サーバー経由で接続され、画面と同じ Todo・予定・ノート・デイリーを読み書きできます。アプリ自体が AI を呼ぶことはありません。",
+      "activityHeading": "最後の朝刊",
+      "activityValue": "{{date}} のデイリーに朝刊が書かれています。",
+      "activityNone": "朝刊が書かれたデイリーはまだありません。",
+      "activityLoading": "確認しています…",
+      "activityCaveat": "デイリーの「朝刊」見出しから読み取った日付です。手で書いた場合も同じように数えます。",
+      "toolsHeading": "Claude Code が使えるツール",
+      "toolsCount": "{{n}} 個",
+      "show": "一覧を開く",
+      "hide": "一覧を閉じる",
+      "argsLabel": "引数:",
+      "argsNone": "なし"
+    },
     "reset": {
       "heading": "リセットとローカルデータ",
       "description": "この端末に保存された設定（テーマ・フォント・ショートカット・レイアウト）をすべて消して再読み込みします。同期済みのデータには影響しません。",
@@ -210,7 +225,6 @@
   "work": {
     "title": "ワーク",
     "sidebar": {
-      "sessions": "{{count}} セッション",
       "targetSessions": "目標",
       "sessionsProgress": "{{completed}} / {{target}} セッション"
     },
@@ -288,7 +302,7 @@
     "delete": "削除",
     "todoDelete": "Todo を削除",
     "todoDeleteConfirm": "「{{name}}」を削除しますか？ ゴミ箱に入るので、あとから元に戻せます。",
-    "todoDeleteCascadeConfirm": "「{{name}}」を削除すると、子 Todo {{count}} 件も一緒に削除されます。削除しますか？",
+    "todoDeleteCascadeConfirm_other": "「{{name}}」を削除すると、子 Todo {{count}} 件も一緒に削除されます。削除しますか？",
     "status": "ステータス",
     "schedule": "日時",
     "scheduleNone": "未設定",
@@ -333,13 +347,10 @@
       "searchPlaceholder": "ノートを検索…",
       "addCta": "ノート",
       "empty": "ノートはまだありません",
-      "trash": "ゴミ箱",
       "content": "内容",
       "deleteNote": "ノートを削除",
       "bodyPlaceholder": "ノートを書く…",
       "untitled": "(無題)",
-      "restoreNote": "{{title}} を復元",
-      "permanentDeleteNote": "{{title}} を完全に削除",
       "lockedHint": "このノートはロックされています",
       "mainEmpty": "ノートを選ぶか、新しく作成してください",
       "recentHeading": "最近開いたノート",
@@ -399,7 +410,8 @@
       "selfLink": "自分自身にはリンクできません。",
       "pickerLabelShort": "リンク",
       "open": "{{title}} を開く",
-      "remove": "{{title}} とのリンクを削除"
+      "remove": "{{title}} とのリンクを削除",
+      "deletedTarget": "{{title}}（削除済み）"
     },
     "related": {
       "open": "関連を開く",
@@ -450,7 +462,7 @@
       "clearIcon": "デフォルトのアイコン",
       "colorClearLabel": "デフォルトの色",
       "colorCustomLabel": "カスタム",
-      "usageCount": "{{count}} 件",
+      "usageCount_other": "{{count}} 件",
       "itemsHeading": "付いているアイテム",
       "itemsEmpty": "このタグが付いたアイテムはありません",
       "unassign": "このタグを外す",
@@ -502,7 +514,7 @@
     "toEventConfirm": "「{{title}}」を予定に変換します。ステータスは失われます。よろしいですか？",
     "toEventConfirmChild": "「{{title}}」を予定に変換します。ステータスは失われ、親 Todo との関係も解除されます。よろしいですか？",
     "routineBlocked": "Todoに繰り返しの機能はないため、変換は不可能です",
-    "childrenBlocked": "「{{title}}」には子タスクが {{count}} 件あるため、予定に変換できません。先に子タスクを移動するか削除してください。",
+    "childrenBlocked_other": "「{{title}}」には子タスクが {{count}} 件あるため、予定に変換できません。先に子タスクを移動するか削除してください。",
     "childrenBlockedServer": "子タスクがあるため、予定に変換できません。ゴミ箱にある子 Todo も対象になります。先に移動するか、完全に削除してください。",
     "failed": "変換に失敗しました"
   },
@@ -587,7 +599,7 @@
     "repeatDeleteConfirm": "「{name}」と、その予定をすべて削除しますか？",
     "repeatDeleteFailed": "繰り返しを削除できませんでした。予定は変更されていません。もう一度お試しください。",
     "repeatFilterHide": "繰り返しを隠す",
-    "repeatFilterHidden": "繰り返し {{count}} 件を非表示",
+    "repeatFilterHidden_other": "繰り返し {{count}} 件を非表示",
     "repeatFilterNotice": "繰り返しの予定はいまカレンダーで非表示です。空いて見える時間に注意してください。",
     "repeatFilterShow": "繰り返しを表示に戻す",
     "loading": "読み込み中…",
@@ -906,7 +918,7 @@
     "selectHint": "タグを選ぶと、そこに集まったものが一覧に出ます。",
     "back": "タグ一覧へ戻る",
     "untagged": "未分類",
-    "itemCount": "{{count}} 件"
+    "itemCount_other": "{{count}} 件"
   },
   "blockMenu": {
     "turnInto": "変換",

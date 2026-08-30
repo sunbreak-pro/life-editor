@@ -70,3 +70,33 @@ export function extractBriefing(
 
   return { paragraphs: texts };
 }
+
+/**
+ * The most recent date (YYYY-MM-DD) whose daily carries a briefing section,
+ * or `null` when none does — Settings' "last AI activity" line (#1210).
+ *
+ * This is EVIDENCE, not a log. The briefing section is where `write_briefing`
+ * puts its comment, but the user can type into the same heading by hand, so
+ * the date answers "when was a briefing last written", never "when did Claude
+ * last run". The UI wording carries that caveat; keeping the ambiguity out of
+ * the function name would only move the lie somewhere harder to see.
+ *
+ * Deleted dailies are skipped: a day the user threw away should not keep
+ * standing as the latest activity.
+ */
+export function lastBriefingDate(
+  dailies: ReadonlyArray<{
+    date: string;
+    content: string;
+    isDeleted?: boolean;
+  }>,
+): string | null {
+  let latest: string | null = null;
+  for (const d of dailies) {
+    if (d.isDeleted === true) continue;
+    if (extractBriefing(d.content) === null) continue;
+    // String compare is the date compare here: YYYY-MM-DD sorts lexically.
+    if (latest === null || d.date > latest) latest = d.date;
+  }
+  return latest;
+}

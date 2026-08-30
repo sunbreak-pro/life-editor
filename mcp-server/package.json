@@ -9,6 +9,8 @@
     "dev": "tsc --watch",
     "_comment_typecheck_tests": "tests/ are outside tsconfig.json's include (that project emits dist/ and must not ship the suites), so they are checked by their own config — see tsconfig.test.json. Blocking in CI (#1001).",
     "typecheck:tests": "tsc -p tsconfig.test.json --noEmit",
+    "_comment_catalog": "Regenerates shared/src/generated/mcpToolCatalog.json from the built registry (#1210). Run after adding or renaming a tool; toolCatalogFreshness.test.ts fails until you do.",
+    "catalog": "npm run build && node scripts/dump-tool-catalog.mjs",
     "test": "vitest run"
   },
   "dependencies": {

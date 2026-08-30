@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  within,
+} from "@testing-library/react";
 import { MobileDrawer, Modal, RightSidebarToggle } from "../src/components";
 import { RightSidebarProvider } from "../src/context";
 
@@ -51,6 +57,24 @@ describe("MobileDrawer", () => {
     const dialog = screen.getByRole("dialog", { name: "Details" });
     expect(dialog).toBeInTheDocument();
     expect(dialog).toHaveAttribute("aria-modal", "true");
+  });
+
+  /*
+   * #1284 removed the in-panel X from the DESKTOP panel only, and the body
+   * both share (RightSidebarContents) is what draws it — so the one thing
+   * keeping the mobile escape hatch alive is MobileDrawer continuing to pass
+   * closeLabel + onClose. Nothing asserted that before, which means the next
+   * "simplify RightSidebarContents" takes the drawer's only visible way out
+   * with it. The drawer is modal and covers the hamburger that opened it.
+   */
+  it("keeps its own close button — the drawer covers the toggle (#1284)", () => {
+    renderDrawer();
+    fireEvent.click(screen.getByRole("button", { name: "Open details" }));
+    const dialog = screen.getByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: LABELS.close }),
+    );
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
   it("closes on Escape", () => {

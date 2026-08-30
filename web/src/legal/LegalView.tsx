@@ -3,6 +3,11 @@ import type { LegalDocument } from "./legalContent";
 
 export interface LegalViewProps {
   document: LegalDocument;
+  /**
+   * `id` for the title, so the dialog that hosts the view can name itself by
+   * it (`aria-labelledby`, #1281).
+   */
+  titleId?: string;
   /** Already-translated label of the back control. */
   backLabel: string;
   /** Already-translated "last updated" prefix, e.g. "Last updated". */
@@ -13,17 +18,18 @@ export interface LegalViewProps {
 /*
  * Reader for the policy and the terms (#1198).
  *
- * A full-screen page rather than a modal: these are documents people scroll,
- * link to and occasionally print, and a dialog that traps focus fights all
- * three. It is still not a route — the app has no router (CLAUDE.md §3.2) —
- * so AuthScreen swaps it in the same way it swaps its other cards, and the
- * `?legal=` query it keeps in the address bar is what makes a link to it
- * possible.
+ * A full-screen page, laid out for documents people scroll, link to and
+ * occasionally print. It is still not a route — the app has no router
+ * (CLAUDE.md §3.2) — so LegalReaderHost overlays it on whatever screen is up,
+ * and the `?legal=` query it keeps in the address bar is what makes a link to
+ * it possible. The host is the dialog (role, focus, Escape, history — #1281);
+ * this view only lends it the title's `id` to be named by.
  *
  * Pure presentation: the document arrives as data and every label as a prop.
  */
 export function LegalView({
   document: doc,
+  titleId,
   backLabel,
   updatedLabel,
   onBack,
@@ -41,7 +47,9 @@ export function LegalView({
         </button>
 
         <header className="flex flex-col gap-1">
-          <h1 className="text-xl font-semibold text-lumen-text">{doc.title}</h1>
+          <h1 id={titleId} className="text-xl font-semibold text-lumen-text">
+            {doc.title}
+          </h1>
           <p className="text-xs text-lumen-text-tertiary">
             {updatedLabel}: {doc.updated}
           </p>

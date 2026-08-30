@@ -30,9 +30,15 @@ export function useNoteLinking({
   // renamed a second ago is right here, where the pool is a snapshot.
   // #749 dropped the "[note] " prefix — the row carries a role icon now, so
   // spelling the role into the title said it twice.
+  //
+  // #1292: a DELETED note is deliberately not answered here. The list keeps
+  // soft-deleted rows (that is what Trash restores from), so answering for one
+  // would hand the panel a live-looking title for an item that is gone — and
+  // the panel's "deleted" reading comes from the pool, which this lookup wins
+  // over. Falling through leaves the pool to say so.
   const resolveTitle = (id: string): string | undefined => {
     const n = notes.notes.find((nn) => nn.id === id);
-    if (!n) return undefined;
+    if (!n || n.isDeleted) return undefined;
     return n.title || undefined;
   };
 

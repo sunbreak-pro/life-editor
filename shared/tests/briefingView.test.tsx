@@ -459,6 +459,45 @@ describe("Visual zone moved to the detail panel (#938)", () => {
   });
 });
 
+/*
+ * AI attribution badge (#1210).
+ *
+ * The comment block is the one paragraph on the paper the user did not write,
+ * and until now it announced itself in the same small grey type every section
+ * hint uses. The wording did not change here — what is pinned is that the
+ * attribution is still SHOWN, still says what it always said, and now carries
+ * a mark of its own rather than sitting flat next to the annotations.
+ */
+describe("AI comment attribution (#1210)", () => {
+  const WITH_BRIEFING = {
+    ...DATA,
+    briefing: { paragraphs: ["Yesterday went well."] },
+  };
+
+  it("shows nothing at all when there is no briefing", () => {
+    renderView();
+    expect(screen.queryByText("Claude")).not.toBeInTheDocument();
+  });
+
+  it("keeps the existing source wording beside the comment", () => {
+    renderView({ data: WITH_BRIEFING });
+    expect(screen.getByText("Yesterday went well.")).toBeInTheDocument();
+    expect(screen.getByText("AI")).toBeInTheDocument();
+    expect(screen.getByText("Claude")).toBeInTheDocument();
+  });
+
+  it("wraps the attribution in a badge rather than plain hint text", () => {
+    renderView({ data: WITH_BRIEFING });
+    const badge = screen.getByText("Claude");
+    expect(badge.className).toContain("rounded-full");
+    expect(badge.className).toContain("border-lumen-briefing-kohaku");
+    // The icon is decorative: it must not add a second reading of the source.
+    expect(badge.querySelector("svg")?.getAttribute("aria-hidden")).toBe(
+      "true",
+    );
+  });
+});
+
 describe("BriefingView intention field (宣言 — Step 4)", () => {
   it("shows the stored declaration and reports edits + blur to the host", () => {
     const { onIntentionChange, onIntentionBlur } = renderView({

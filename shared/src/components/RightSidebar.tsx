@@ -23,8 +23,6 @@ import { RightSidebarContents } from "./RightSidebarContents";
 export interface RightSidebarProps {
   /** Already-translated panel title ("詳細"). */
   title: string;
-  /** Already-translated aria-label for the close button. */
-  closeLabel: string;
   /** Already-translated empty-state copy. */
   emptyLabel: string;
   /** Already-translated aria-label for the resize handle (names the action). */
@@ -41,20 +39,11 @@ function clampWidth(w: number): number {
 
 export function RightSidebar({
   title,
-  closeLabel,
   emptyLabel,
   resizeLabel,
 }: RightSidebarProps) {
-  const {
-    isOpen,
-    // #753: the panel's close button is the user asking, so it goes through the
-    // guarded route — closing takes the portalled panel down with it.
-    requestClose,
-    width,
-    setWidth,
-    contentCount,
-    setPortalTarget,
-  } = useRightSidebarContext();
+  const { isOpen, width, setWidth, contentCount, setPortalTarget } =
+    useRightSidebarContext();
   const asideRef = useRef<HTMLElement>(null);
   const resizingRef = useRef(false);
   /*
@@ -193,11 +182,14 @@ export function RightSidebar({
         onKeyDown={onHandleKeyDown}
         className="absolute inset-y-0 left-0 z-10 w-[6px] cursor-col-resize hover:bg-lumen-accent/30 focus-visible:bg-lumen-accent/30 focus-visible:outline-none"
       />
+      {/* No close × of our own (#1284): the SectionHeader's
+          <RightSidebarToggle> sits right above this panel and already closes
+          it. That path is still the GUARDED one — RightSidebarContext's
+          toggle() calls requestClose while open — so #753's unsaved-draft
+          question is untouched by dropping the button. */}
       <RightSidebarContents
         title={title}
-        closeLabel={closeLabel}
         emptyLabel={emptyLabel}
-        onClose={requestClose}
         contentCount={contentCount}
         setPortalTarget={setPortalTarget}
       />

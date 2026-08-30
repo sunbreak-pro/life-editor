@@ -23,7 +23,6 @@ import {
 
 const LABELS = {
   title: "Details",
-  close: "Close details",
   empty: "Nothing selected yet",
   resize: "Resize details panel",
 };
@@ -65,7 +64,6 @@ function renderShell(children: ReactNode, guarded = true) {
       />
       <RightSidebar
         title={LABELS.title}
-        closeLabel={LABELS.close}
         emptyLabel={LABELS.empty}
         resizeLabel={LABELS.resize}
       />
@@ -84,7 +82,13 @@ function renderShell(children: ReactNode, guarded = true) {
 }
 
 const panel = () => screen.queryByText(LABELS.empty);
-const closeButton = () => screen.getByRole("button", { name: LABELS.close });
+/*
+ * #1284 retired the Desktop panel's own X, so the header toggle is the single
+ * close affordance — and it was always the guarded one too (RightSidebarContext's
+ * toggle() routes to requestClose while open). Its accessible name is the CLOSE
+ * action while the panel is open, which is what this queries.
+ */
+const closeButton = () => screen.getByRole("button", { name: "Hide details" });
 const question = () => screen.queryByText(GUARD_LABELS.message);
 
 describe("UnsavedGuard — closing the right sidebar (#753)", () => {
@@ -142,13 +146,9 @@ describe("UnsavedGuard — closing the right sidebar (#753)", () => {
     expect(question()).toBeNull();
   });
 
-  it("guards the header toggle too, not just the panel's own X", async () => {
-    renderShell(<DraftPanel startDirty />);
-    fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
-
-    await screen.findByText(GUARD_LABELS.message);
-    expect(panel()).not.toBeNull();
-  });
+  // The "guards the header toggle too, not just the panel's own X" case that
+  // used to sit here is now EVERY case above: #1284 made that toggle the
+  // panel's only close affordance, so `closeButton` already drives it.
 
   it("stops asking once the content holding the draft has unmounted", async () => {
     function Host() {

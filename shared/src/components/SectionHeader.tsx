@@ -36,6 +36,16 @@ export interface SectionHeaderProps {
  * panel state. Gutter = the v1 page-gutter tokens, so the left edge lines up
  * with PageContainer content.
  *
+ * VERTICAL RHYTHM (#1283): the row sets a min-height and carries NO vertical
+ * padding of its own, so `self-center` lands on the band's TRUE centre. It
+ * used to centre inside the padding box instead — `pt-4` with no `pb` — which
+ * left the search field about 18px below the top border and 2px above the
+ * divider: low, and cramped. The top padding moved onto the LEFT column, and
+ * only when that column holds a tab band. The strip has to stay glued to the
+ * bottom so its `-mb-px` underline overlaps this row's border-b (HeaderTabs),
+ * while a plain title has no underline to glue and centres with the controls.
+ * Do not put `pt-*` back on the row — that is the regression.
+ *
  * Pure presentation: DataService-free (§3.1), copy injected already-
  * translated (§6.4), lumen-* tokens only (§5).
  */
@@ -49,11 +59,19 @@ export function SectionHeader({
     <div
       className={cn(
         "flex shrink-0 items-stretch border-b border-lumen-border bg-lumen-bg",
-        "px-lumen-gutter pt-3 md:px-lumen-gutter-wide md:pt-4",
+        "min-h-14 px-lumen-gutter md:min-h-15 md:px-lumen-gutter-wide",
         className,
       )}
     >
-      <div className="flex min-w-0 flex-1 items-stretch">
+      <div
+        className={cn(
+          "flex min-w-0 flex-1 items-stretch",
+          // Tabs only: the band's top padding lives HERE so the strip keeps
+          // hugging the divider. A title has no underline to glue down, so it
+          // stays unpadded and self-centres on the same line as the controls.
+          tabs != null && "pt-3 md:pt-4",
+        )}
+      >
         {tabs ?? (
           <h2 className="self-center truncate py-2 text-sm font-semibold text-lumen-text">
             {title}

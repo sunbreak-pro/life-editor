@@ -1,5 +1,24 @@
 # HISTORY (chat-mobile-refine)
 
+### 2026-08-30 - #1290 Mobile のタグ編集導線（PR #1308 open）
+
+#### 概要
+
+タグマスタ編集パネル（改名 / 削除 / アイコン / 色 / 所属アイテムの外し）への入口を narrow にも作った。`origin/main` から切った `claude/mobile-1290-tag-editor-entry` で実装し、CI `verify` ジョブのステップ 14 本 + `docs-lint` をローカルで全部緑にしてから PR #1308 を open（merge は P-001 でユーザー）。#1289（アイコンピッカーの背景透過）が別レーンで同じエディタ内部を直しているため、**エディタ内部（`tagEdit/*` / `TagEditorHost.tsx`）は差分ゼロ**に絞った。
+
+#### 変更点
+
+- **入口**: bottom bar「その他」シートの Quick actions に「タグを編集」行（`web/src/MobileShellActions.tsx`）。パレット行（#473）と同じく**シートを閉じてからパネルを開く**。並びは「開く行（パレット / タグ）→ 直前の操作に効く行（Undo / Redo）」
+- **配線**: `MainScreen.tsx` が同じ `tagEditorOpen` を渡すだけ。開くのは wide と同一の `TagEditorHost` → `TagEditModal` で、narrow は #740 の 2 ステップ配置がそのまま効く（入口が無かっただけで、配置は既に narrow 対応済みだった）
+- **docs**: `mobile-scope.md` #9 行を **Full** に（ユーザー指示 2026-08-30）。`D-20260810-mobile-1`（+ 色）の経緯は残して目標列ごと上書き、§5 Phase 2 に完了行、`TagEditModal` のパス（#896 の分割後）と stale な file:line も修正。目標列の幅が変わったので prettier が表の全行を再整形（差分 46 行はそのため）
+- **テスト**: `web/tests/mobileShellActions.test.tsx` に 2 本追加（シートを閉じてから開く・パレットは呼ばない / 履歴に依存せず常に有効）+ 並び順 4 行
+
+#### 手順・知見
+
+- **`npm ci` と vitest を同時に走らせると「`lucide-react` が解決できない」という偽の赤が出る**。`npm ci` が `node_modules` を入れ替えている最中に vite の transform がそこを読むため。コードは無罪で、`npm ci` 完了後に同じファイルを回し直したら 5/5 緑。install と test は直列にする
+- **バックグラウンドで先に投げた `docs-lint` は 2 分の既定 timeout では死なず生き残る**（`TaskStop` で止めた）。放置するとスイープ末尾の docs-lint と process 起動を取り合って両方遅くなる。長い検証は 1 本の Monitor に束ねる
+- CI 相当の通し実行は **Monitor（60 分上限）+ `[STEP] name exit=N` 行だけを grep** の形が扱いやすかった。合計およそ 20 分（docs-lint 472 秒が最長）
+
 ### 2026-08-18 - shared-fix 5 件を PR 化（#1014 / #1039 / #1035 / #1049 / #1050）
 
 #### 概要
@@ -79,20 +98,3 @@ Epic #321 に唯一残っていた「現状維持で確定する 9 行が本当�
 - 監査報告の file:line は採用前にメイン側で 15 点以上を実際に開いて照合した（`rules/docs-consistency.md` §5）。**捏造はゼロ**で、ズレていたのは 3 件のアンカー位置だけだった
 - 判断キューを増やすと `docs-lint` が索引 stale で落ちる。`node .claude/scripts/records.mjs index` を**同一コミット**で回す（`rules/records.md` §4）
 - **キューのファイルを丸ごと Write で書き直すと、既存の注記を静かに落とす**。実際に「回答済み 3 件は台帳へ昇格済み」の 1 行を落として後から戻した（`6128d86c`）。append 先のファイルは Edit で足す
-
-### 2026-07-31 - #499 再取得をドメイン単位に分割（ノート 1 保存 = 86 リクエスト問題）
-
-#### 概要
-
-ノートを 1 回保存するたびに全 15 テーブルを 4 周取り直し（実測 86 REST リクエスト）、その周回に `timer_settings` への POST が 4 回混ざっていた問題を、再取得の粒度をドメイン単位に落として解消した（PR #501 merged）。
-
-#### 変更点
-
-- **原因は 2 つ**: (1) Realtime のどのテーブル変更も単一 `syncVersion` を bump し、全消費側が deps に入れていたため全ドメインが全件再取得。Realtime は自分の書き込みも自分にエコーするので、ノート編集の 5 PATCH がそのまま 4 周になる。(2) `SupabaseTimerService.fetchTimerSettings` が「行が無ければ作る」upsert を無条件に投げており、**読み取りメソッドが毎回書き込んでいた**
-- **`syncDomains.ts`（新規）**: テーブル → 8 ドメイン（tasks / notes / dailies / schedule / tags / calendars / timer / audio）の対応表 + `domainsForChange()`。`items_meta` は 5 role 共有なので変更行の `role` で振り分け、**hard DELETE はペイロードに PK しか載らない**（`items_meta` の PK は `id` 単独 — `0008` で実測）ため role 不明時は item 系 4 ドメインへ fan-out。取りこぼし = ユーザーが直せない stale / 余分に配る = fetch 1 回、の非対称性から安全側に倒す判断
-- **`SyncContext.tsx`**: `domainVersions` を追加（`syncVersion` は互換で維持だが**もう読み手はいない**）。デバウンス蓄積は `syncBumpQueue.ts` に切り出し（Provider の中では実ブラウザ無しにテストできないため）
-- **`useSyncDomains(...domains)`（新規）**: 指定ドメインのカウンタの合計。単調増加なので「どれかが動いたときだけ合計が変わる」。`?? 0` で NaN 化を防ぐ（NaN は `Object.is` で等しく、deps が永久に再実行されなくなる）
-- **消費側 15 箇所** を自分が読むドメインだけに張り替え。**`MaterialsCountsBridge` はアプリ常駐**で 1 effect が tasks/notes/dailies を一括取得していたため、ドメインごとに 3 effect へ分割（ここを残すと「ノート 1 打鍵で全 role 引き直し」が生き残る）
-- **テスト**: `syncDomainWiring.test.tsx`（1 ドメインずつ bump して「自分のドメインで再取得 / 他 7 つでは再取得しない」を両方向で固定）/ `syncBumpQueue.test.ts`（バーストの複数ドメイン保持・flush 済みドメインを次バーストへ持ち越さない）/ `syncDomains.test.ts`（`REALTIME_TABLES` との lockstep）。既存 Sync スタブ 8 ファイルは全ドメイン一律 bump なので**配線ミスを素通りさせる** — これは QA の指摘で判明し、上記 wiring テストで塞いだ
-- **手順の変更**: 独立レビューを **PR 提出の前**に回した（#471 → #497、#473 → #500 と「レビュー反映が merge に間に合わず main に届かない」事故が 3 本連続したため。memory `push-after-merge-strands-commits` に運用ルールとして記録）
-- **未消化**: DoD の「リクエスト数の実測」は実ブラウザが要るため merge 後に chat-main 側で計測（PR 本文に明記）
