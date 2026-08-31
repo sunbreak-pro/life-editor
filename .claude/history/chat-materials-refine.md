@@ -1,5 +1,19 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-08-31 - #1345 — ノート削除を確認ダイアログ越しにした（PR #1347）
+
+#### 概要
+
+Notes の削除だけ確認が無く、同じ `NotesView.tsx` の中でテンプレート削除（#1248）は聞くのにノートは 1 クリックで消えていた。ノートの削除経路 2 本を既存の `useConfirmDialog()` に通し、削除の作法をファイル内で揃えた。PR #1347 提出（Closes #1345・書いた時点で open）。
+
+#### 変更点
+
+- **経路は 2 本とも 1 つのコールバックに寄せた**: サイドリスト行のゴミ箱（`onDeleteNote`）と詳細ケバブ「その他の操作」→「ノートを削除」（`onDelete`）。どちらも `handleDeleteNote` を通す。**wide / narrow の作法が割れないのはこの一本化のおかげ**で、幅ごとの分岐は書いていない — #876 以降、両幅が同じリストと同じ詳細サーフェスを描くため
+- **ダイアログは view 直下の既存 `<ConfirmDialog>` を再利用**（#1248 が置いたもの）。ケバブから開く経路では**メニューが閉じた後も質問が残る**必要があり、メニューの隣にマウントしていたら消えていた
+- **文言は Todo 削除（`todoDetail.todoDeleteConfirm`）に寄せた**: 「ゴミ箱に入るので、あとから元に戻せます」。テンプレート削除の「戻せません」とは**性質が逆**なので、同じファイルでも書き分けている。追加キーは `materials.notes.deleteConfirmBody` / `deleteConfirmAction` の 2 本を en / ja 両方へ
+- **既存テスト 1 本が仕様変更で赤くなるはずの場所**（`deletes a note from its side-list row`）を、押下＝質問・承諾＝削除の形に書き換えた。追加は拒否ケースと、ケバブ経路を `it.each([true, false])` で wide / narrow 両方。`notesView.test.tsx` は 33 → 36 件
+- **検証**: CI verify のステップ列をローカルで上から全部（shared 4 種 2766 / web 4 種 993 / desktop 3 種 / mcp-server 3 種 322）+ `docs-lint` すべて緑。実ブラウザ確認は worktree では回さない規約なので merge 後に chat-main
+
 ### 2026-08-31 - #1334 — リンク先プールが両方の is_deleted バケツを読むようにした（PR #1340）
 
 #### 概要
@@ -69,18 +83,3 @@
 - **NotesView**: テンプレート系フックが 3 本並ぶ形に（register = #1179 / library = #1180 / apply = #1181）。名前が衝突しないよう分け、3 つのパネルをすべてマウント。#1179 が消した項目の名前だった `createTemplate` ラベルは一緒に削除
 - **apply の picker は鮮度の配線が不要だった**: `begin()` が開くたびに `listNoteTemplatesUnified` を読み直すため、#1221 で必要になった `refresh()` 相当が要らない
 - **検証**: CI verify 相当をローカル全ステップ実行 — shared 2652 / web 934 / desktop 7 / mcp 319 すべて緑、`docs-lint` OK
-
-### 2026-08-30 - PR #1221 の main マージ解決ミスを修復し、テンプレート 2 機能を両立させた
-
-#### 概要
-
-#1180（テンプレート一覧・編集）の PR #1221 で CI の `typecheck + test + build` が赤になっていた。原因は #1179（PR #1216）着地後の main 取り込みで、解決が「main が消した側を残し、main が足した側を落とす」形になっていたこと。両方残す形に直し、両立で露見した読み直しの穴も塞いだ。
-
-#### 変更点
-
-- **materials barrel**: 実在しない `./NoteTemplatePanel` の re-export を除去し、main の `TemplateSavedPanel` の export を復旧（CI が報告した TS2307 はこれ 1 件。tsc は 1 件目で止まるので、以下 2 つはログに出ていなかった）
-- **NotesView**: 本 PR の hook / panel を import しながら main の hook / panel を呼ぶ状態だった（`templates` の二重宣言）。両方を残し、register 側を `templates`・library 側を `templateLibrary` に改名して分離
-- **code-split allowlist**: main で削除済みの `notes/NoteTemplateHost.tsx` が `lazyEditorChunk.test.ts` の ALLOWED に復活していたので除去
-- **両立で出た穴**: 登録は #1179 の hook が書き、サイドバー一覧は #1180 の hook が読む。読み直しは sync カウンタでしか起きず、ローカル書き込みではカウンタが動かないため「登録したテンプレートが一覧に出ない」。library に `refresh()` を足し、`savedId` の両端（書き込みの着地・受領パネルの閉じ = 名前確定）で `NotesView` が呼ぶようにした
-- **テスト**: `web/tests/noteTemplateLibrary.test.tsx` に「三点メニューから登録したテンプレートを一覧が拾う」を追加（8 → 9 件）
-- **main の再取り込み**: Connect 復活 / related panel / Daily サイドバー等を衝突なしで取り込み、CI verify 相当をローカル全ステップ実行（shared 2631 / web 908 / desktop 7 / mcp 319・docs-lint OK）
