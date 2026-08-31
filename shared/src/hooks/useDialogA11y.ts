@@ -16,7 +16,17 @@ const FOCUSABLE =
  * the sheet underneath), and BottomSheet only avoided the clash by listening in
  * the bubble phase, which is why it never had a trap at all (#508).
  */
-const layers: object[] = [];
+interface KeyboardLayer {
+  /**
+   * True for `aria-modal` surfaces (Modal / BottomSheet / MobileDrawer), false
+   * for the non-modal popovers that only borrow Escape (`useEscapeLayer`).
+   * `hasOpenDialogLayer` reads this so a popover joining the stack does not
+   * make the page look "covered by a dialog" to gestures outside it.
+   */
+  modal: boolean;
+}
+
+const layers: KeyboardLayer[] = [];
 
 /*
  * Layout-aware visibility. In a browser a control inside a collapsed region has
@@ -34,7 +44,7 @@ const layers: object[] = [];
  * when the finger lands.
  */
 export function hasOpenDialogLayer(): boolean {
-  return layers.length > 0;
+  return layers.some((layer) => layer.modal);
 }
 
 function hasLayout(): boolean {
@@ -66,6 +76,75 @@ function initialFocusIn(panel: HTMLElement): HTMLElement | null {
   );
 }
 
+/*
+ * Hold a layer for exactly as long as the surface is open. Keyed on `open`
+ * alone: an unrelated re-render (a fresh onClose identity) must not re-order
+ * the stack and steal the keyboard from a layer above.
+ */
+function useKeyboardLayer(
+  open: boolean,
+  modal: boolean,
+): RefObject<KeyboardLayer | null> {
+  const layerRef = useRef<KeyboardLayer | null>(null);
+  useEffect(() => {
+    if (!open) return;
+    const layer: KeyboardLayer = { modal };
+    layerRef.current = layer;
+    layers.push(layer);
+    return () => {
+      const at = layers.indexOf(layer);
+      if (at >= 0) layers.splice(at, 1);
+      layerRef.current = null;
+    };
+  }, [open, modal]);
+  return layerRef;
+}
+
+export interface EscapeLayerOptions {
+  open: boolean;
+  onEscape: () => void;
+}
+
+/**
+ * Escape ownership for a NON-modal surface that opens on top of a dialog — an
+ * inline popover, a menu, a picker grid. It joins the same layer stack the
+ * dialogs use, so while it is open the Escape belongs to it and the dialog
+ * underneath keeps standing.
+ *
+ * Without a layer, a popover's own `keydown` listener never even runs: the
+ * dialog's handler sits on `document` in the CAPTURE phase, so it closes the
+ * whole panel before a bubble-phase listener inside the popover is reached, and
+ * a capture-phase one cannot win either because registration order puts the
+ * dialog (mounted first) ahead of it (#1342 — Escape over the tag icon picker
+ * tore the tag edit modal down with it, losing the unsaved name).
+ *
+ * The surface is not `aria-modal`, so it takes no focus trap and does not count
+ * as an open dialog for `hasOpenDialogLayer`.
+ */
+export function useEscapeLayer({ open, onEscape }: EscapeLayerOptions): void {
+  const layerRef = useKeyboardLayer(open, false);
+
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      // Never intervene mid-composition (Japanese IME) — §frontend gotcha.
+      if (isImeComposing(e)) return;
+      if (e.key !== "Escape") return;
+      if (layerRef.current !== layers[layers.length - 1]) return;
+      // One Escape = one layer. `stopImmediatePropagation` rather than
+      // `stopPropagation` because the dialog below listens on this same node in
+      // this same phase, where only the immediate form stops it — plain
+      // `stopPropagation` would let it run and close the panel anyway whenever
+      // it happened to be registered after this one (a re-registered listener
+      // is enough: its effect re-runs on a fresh `onClose` identity).
+      e.stopImmediatePropagation();
+      onEscape();
+    };
+    document.addEventListener("keydown", onKey, true);
+    return () => document.removeEventListener("keydown", onKey, true);
+  }, [open, onEscape, layerRef]);
+}
+
 export interface DialogA11yOptions {
   open: boolean;
   onClose: () => void;
@@ -90,22 +169,7 @@ export function useDialogA11y<T extends HTMLElement>({
   lockScroll = false,
 }: DialogA11yOptions): RefObject<T | null> {
   const panelRef = useRef<T | null>(null);
-  const layerRef = useRef<object | null>(null);
-
-  // Hold a layer for exactly as long as the dialog is open. Keyed on `open`
-  // alone: an unrelated re-render (a fresh onClose identity) must not re-order
-  // the stack and steal the keyboard from a dialog above.
-  useEffect(() => {
-    if (!open) return;
-    const layer = {};
-    layerRef.current = layer;
-    layers.push(layer);
-    return () => {
-      const at = layers.indexOf(layer);
-      if (at >= 0) layers.splice(at, 1);
-      layerRef.current = null;
-    };
-  }, [open]);
+  const layerRef = useKeyboardLayer(open, true);
 
   useEffect(() => {
     if (!open) return;
@@ -145,7 +209,7 @@ export function useDialogA11y<T extends HTMLElement>({
     };
     document.addEventListener("keydown", onKey, true);
     return () => document.removeEventListener("keydown", onKey, true);
-  }, [open, onClose]);
+  }, [open, onClose, layerRef]);
 
   useEffect(() => {
     if (!open) return;

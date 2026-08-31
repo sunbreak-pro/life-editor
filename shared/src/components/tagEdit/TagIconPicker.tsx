@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Tag as TagIcon } from "lucide-react";
+import { useEscapeLayer } from "../../hooks/useDialogA11y";
 import { cn } from "../cn";
 import { resolveTagIcon, TAG_ICON_CHOICES } from "../tagIcon";
 import { TagHeadingIcon } from "../TagHeadingIcon";
@@ -30,16 +31,18 @@ export function TagIconPicker({
         setOpen(false);
       }
     };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
-    };
     document.addEventListener("mousedown", onDocDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("mousedown", onDocDown);
-      document.removeEventListener("keydown", onKey);
-    };
+    return () => document.removeEventListener("mousedown", onDocDown);
   }, [open]);
+
+  // Escape closes the grid and stops there. The panel this picker lives in is a
+  // dialog whose own Escape handler sits on `document` in the capture phase, so
+  // a listener of our own would never be reached — one keypress used to take
+  // the grid AND the tag edit modal, throwing away the unsaved name beside it
+  // (#1342). Joining the dialog layer stack makes the topmost surface the only
+  // one Escape reaches, so a second press is what closes the panel.
+  const close = useCallback(() => setOpen(false), []);
+  useEscapeLayer({ open, onEscape: close });
 
   const pick = useCallback(
     (name: string | null) => {
