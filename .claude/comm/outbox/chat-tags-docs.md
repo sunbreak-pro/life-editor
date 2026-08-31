@@ -83,3 +83,13 @@ worktree `tags-docs`。担当 = #368（WikiTags 名前フィルタ）/ #474（pl
 - **並走 α（MCP Supabase 化）も完了済みでした**: #256 が 2026-07-18 に close 済みで、`mcp-server/src/handlers/scheduleHandlers.ts` が Supabase を使用していることをコードで確認。計画書 Step 9 のチェック漏れだけが残っていた形です
 - Epic の close は P-001 / 従来運用どおり chat-main（+ こうだいさん）の手番なので、こちらでは close していません
 - なお Epic body の各 Step 行に「実ブラウザ検証は chat-main に残」の注記が複数あります。r2 ラウンド分の実ブラウザ検証は専用計画が作られないまま r3 に引き継がれているので、close 前にそこだけ判断をお願いします
+
+## 2026-08-31 chat-main 宛: ColorPicker にも #1342 と同じ Escape 問題（起票依頼）
+
+**起票をお願いします。** #1342（PR #1346）でタグ編集パネルのアイコンピッカーの Escape を直しましたが、**同じ行の隣にいる `ColorPicker` が同一のコードを持っており、同じ症状が出るはず**です。#1342 のスコープ外にしたので拾えていません。
+
+- **内容**: `shared/src/components/ColorPicker.tsx` は `document` の bubble フェーズで `keydown` を聞いて Escape で閉じます。ダイアログの Escape は `useDialogA11y` が **capture フェーズ**で先に取って `stopPropagation` するため、このリスナには一度も届きません。タグ編集パネルで色ピッカーを開いて Escape を押すと、ピッカーだけでなくパネルごと閉じる（= 未保存の名前が消える）と見込まれます
+- **直し方**: #1346 で追加した `useEscapeLayer`（`shared/src/hooks/useDialogA11y.ts`・shared から export 済み）を当てるだけです。`TagIconPicker.tsx` の該当箇所がそのまま手本になります
+- **なぜ #1342 に混ぜなかったか**: `ColorPicker` は Kanban のカラム色と `web/src/wikitag/TagColorControls.tsx` でも使われており、そちらは**ダイアログの外**にいます。レイヤーを取ると `stopImmediatePropagation` が効く範囲が変わるため、影響確認の対象が Issue の外へ広がります。#1346 は先に merge してもらって、こちらは独立した 1 本にするのが安全だと判断しました
+- **確認の前提**: 実ブラウザでの目視が要ります（jsdom でもレイヤー順は再現するので `shared/tests/` でガードは書けます）
+- **提案ラベル**: `section:tags` + `type:bug` + `sev:minor`（#1342 の follow-up）
