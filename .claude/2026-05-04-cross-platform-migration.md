@@ -346,6 +346,8 @@ life-editor/
 
 > **2026-08-13 進捗 (#530 — Windows 実機 golden path 通過)**: Windows 11 実機で `build:win` exit 0 → NSIS サイレントインストール（`/S`・per-user）→ **インストール先から起動してログイン → Todo の追加・編集・削除まで通過**（目視）。起動判定は「プロセス生存」ではなく **Electron のプロセス 4 本**を基準にする（#545 当時は 1 本だけ立って落ちており、生存だけを見た煙試験がそれを見抜けなかった）。ネイティブ Menu（Edit / View / Window）・Tray 4 項目・ウィンドウサイズ復元も目視 OK — 復元先は `%APPDATA%\desktop\config.json`（`app.getName()` が `desktop/package.json` の `name` を返すため、`productName: Life Editor` とは別名のフォルダになる）。`npm run dev` も 4 本で起動を確認したが、この機械では Electron バイナリの展開が壊れており手動復旧が要った（環境系 = [known-issues 033](./docs/known-issues/033-electron-binary-not-extracted-dev-only.md)）。**macOS / Linux 分は未確認のため上のチェックボックスは未達のまま**
 
+> **2026-08-31 進捗 (#1300 — 配布経路を作った、まだ配っていない)**: `.github/workflows/release-desktop.yml` を新設し、tag `desktop-v*` で electron-builder を回して draft Release に添付する経路が揃った（windows ジョブ + release ジョブ。mac ジョブは #1301）。`desktop/package.json` の version も `0.0.0` → `0.1.0` へ。**上のチェックボックスは引き続き未達**で、変わったのは「作れる」から「配れる形にできる」まで — tag はまだ打っておらず `gh release list` は空のまま。workflow 自体の実行確認は **default branch に入るまでできない**（`workflow_dispatch` は main 上の定義しか見ない）ため、PR 時点での検証はローカル再現（ビルド + 空ビルドガードの両方向）で代替している。計画書 = [`docs/vision/plans/2026-08-30-desktop-app-packaging.md`](./docs/vision/plans/2026-08-30-desktop-app-packaging.md)
+
 #### Phase 3 完了判定
 
 - [ ] macOS で .dmg を起動 → 全 Section 動作

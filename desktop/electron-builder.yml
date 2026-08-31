@@ -3,7 +3,11 @@ productName: Life Editor
 
 directories:
   output: release
-  buildResources: build
+# `buildResources` is intentionally absent. electron-builder defaults it to
+# `build/`, which never existed here — every icon is pointed at ../resources
+# explicitly (mac.icon / win.icon / linux.icon + extraResources), so there is
+# nothing for a buildResources dir to hold. Declaring a path that does not
+# exist only invites "why is this empty?" archaeology later.
 
 # electron-vite output. The renderer is web/index.html bundled into out/renderer.
 files:
@@ -45,6 +49,10 @@ win:
 nsis:
   oneClick: false
   allowToChangeInstallationDirectory: true
+  # Pinned explicitly so the release asset name is stable and matches the dmg
+  # convention above. The default is "${productName} Setup ${version}.${ext}",
+  # which carries no arch and drifts if electron-builder changes its default.
+  artifactName: ${productName}-${version}-${arch}-setup.${ext}
 
 linux:
   target:
