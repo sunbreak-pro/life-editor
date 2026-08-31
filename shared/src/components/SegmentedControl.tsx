@@ -25,6 +25,9 @@ export interface SegmentedOption {
  *  - "md" — the original. Every in-panel use (schedule editors, the sidebar
  *    tab pair) keeps it: those sit in their own boxes where 4px changes
  *    nothing, and shrinking the type there would just make them harder to read.
+ *    The sidebar tabs do end up a step smaller since #1343, but not for
+ *    density — see `singleLineLabels`, where the type is part of what buys
+ *    three long labels a single row.
  *  - "sm" — the mobile SECTION tab band, which is a different problem. It runs
  *    the full width at the very top of every narrow screen, so its height is
  *    subtracted from the content on all seven sections at once ("要素を圧迫
@@ -41,6 +44,29 @@ export type SegmentedControlSize = "md" | "sm";
 const SIZE_CLASSES: Record<SegmentedControlSize, string> = {
   md: "px-3 py-1.5 text-sm",
   sm: `px-2.5 py-1.5 text-xs ${TAP_TARGET_TALL}`,
+};
+
+/*
+ * The same two rows with the horizontal padding and one step of type given
+ * back, used only under `singleLineLabels` (#1343).
+ *
+ * Written as its own table rather than appended to the one above because `cn`
+ * is a plain string join: two px-* classes on the same button do not resolve
+ * "last one wins", they let Tailwind's emit order decide (the #830 bug class,
+ * `.claude/rules/frontend.md` §Gotchas). Exactly one padding class and one
+ * type class must reach the element, so the caller picks a whole row.
+ *
+ * The padding is nearly free here: segments are flex-1, so their width comes
+ * from the track and the label is centred inside whatever it gets — px-1.5
+ * only lowers the floor a long label is allowed to reach, it does not move a
+ * short one. The type step is the part that is actually visible, and it is
+ * small (text-xs is lifted to 0.8125rem in tokens.css, so ~14.6px against
+ * text-sm's ~15.8px at the default 18px root). Both together are what buy
+ * three long labels a single row in a 320px panel.
+ */
+const SINGLE_LINE_SIZE_CLASSES: Record<SegmentedControlSize, string> = {
+  md: "px-1.5 py-1.5 text-xs",
+  sm: `px-1.5 py-1.5 text-xs ${TAP_TARGET_TALL}`,
 };
 
 export interface SegmentedControlProps {
@@ -64,6 +90,31 @@ export interface SegmentedControlProps {
   disabled?: boolean;
   /** Vertical density — see SegmentedControlSize. Default "md". */
   size?: SegmentedControlSize;
+  /**
+   * Keeps every label on ONE line and lets the TRACK wrap instead (#1343).
+   *
+   * Most tracks hold a word or two per segment and never meet this. The
+   * Schedule detail panel is the exception: three tabs (ja 今日の流れ /
+   * 本日の Todo / 繰り返し, en Today's flow / Today's Todo / Repeats) share a
+   * 320px panel, which leaves roughly 67px of text room per segment at the
+   * default 18px root. The two long ones broke mid-label (「今日の流」+「れ」,
+   * "Today's" + "flow") while 繰り返し stayed on one line, so the three tabs
+   * stopped looking like one control. #1207 aligned the broken labels; it did
+   * not stop them breaking.
+   *
+   * The answer is the one #1264 already reached for the tour footer: the text
+   * is nowrap and the ROW is what gives. CJK offers a break between any two
+   * glyphs, so a squeezed flex row will always find one — refusing the break
+   * has to come first, and something else then has to absorb the overrun.
+   * Here that is flex-wrap on the track: at the panel's 240px minimum, or at
+   * the top of the font-size slider, the segments fall into two rows with
+   * every label still intact, instead of one row of shredded ones.
+   *
+   * Not the default. The other four call sites already fit on one line, and
+   * FrequencyEditor's en "Every N days" — four segments inside a phone-width
+   * sheet — is a label that genuinely should keep wrapping.
+   */
+  singleLineLabels?: boolean;
   className?: string;
 }
 
@@ -86,8 +137,12 @@ export function SegmentedControl({
   label,
   disabled = false,
   size = "md",
+  singleLineLabels = false,
   className,
 }: SegmentedControlProps) {
+  const sizeClasses = singleLineLabels
+    ? SINGLE_LINE_SIZE_CLASSES[size]
+    : SIZE_CLASSES[size];
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   // Keeps the tablist keyboard-reachable when value matches no option:
   // the first segment falls back to tabindex 0 (roving-tabindex invariant).
@@ -109,6 +164,10 @@ export function SegmentedControl({
       aria-busy={disabled || undefined}
       className={cn(
         "flex gap-0.5 rounded-lumen-md bg-lumen-bg-secondary p-0.5",
+        // What absorbs the overrun once the labels refuse to break: the row
+        // splits, not the words (see singleLineLabels). gap-0.5 already
+        // spaces both axes, so the second row needs nothing of its own.
+        singleLineLabels && "flex-wrap",
         className,
       )}
     >
@@ -138,7 +197,8 @@ export function SegmentedControl({
               // unaffected: the height is still content + padding, and the
               // text was already in the middle of it.
               "flex flex-1 items-center justify-center rounded-lumen-sm text-center",
-              SIZE_CLASSES[size],
+              singleLineLabels && "whitespace-nowrap",
+              sizeClasses,
               "transition-colors focus-visible:outline-none",
               "focus-visible:ring-2 focus-visible:ring-lumen-accent",
               disabled && "cursor-not-allowed opacity-60",
