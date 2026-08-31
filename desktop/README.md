@@ -53,6 +53,25 @@ npm run build:win    # -> release/Life Editor-<version>-x64-setup.exe
 The app icon is generated from `resources/icon.png` at build time
 (electron-builder converts it to a multi-size `.ico`; no `.ico` is committed).
 
+## macOS build
+
+```bash
+cd desktop
+npm install
+npm run build:mac    # -> release/Life Editor-<version>-arm64.dmg (+ -x64.dmg)
+```
+
+The app icon comes from `resources/icon.icns` (committed; `mac.icon` points at
+it). Unlike Windows there is no conversion step — electron-builder copies the
+`.icns` straight into the bundle.
+
+`electron-builder.yml` declares both `arm64` and `x64`, but only **arm64 is an
+accepted build**. The release runner is Apple Silicon, so an x64 `.dmg` is a
+cross-build that nothing ever launches before it reaches a user; the release
+workflow therefore uploads it as a plain artifact and keeps it off the GitHub
+Release. Whether to ship Intel builds at all is an open call
+(`D-20260830-main-1`).
+
 ## Releasing (distribution)
 
 Installers are **not** built by `ci.yml` — that workflow stops at
@@ -95,6 +114,26 @@ warning in front of the first launch. This is expected, not a broken download.
 **More info** -> **Run anyway**. The installer is per-user and asks where to
 install (`oneClick: false`). This stays until a code-signing certificate is
 purchased (post-completion call).
+
+**macOS**: worse than a warning — Gatekeeper refuses outright with **"Life
+Editor is damaged and can't be opened"**. Nothing is damaged. Since Big Sur,
+macOS requires a signature to *exist* on arm64 binaries, and `identity: null`
+means there is none, so the quarantine check has nothing to evaluate and fails
+closed. Two ways past it, both one-time:
+
+1. Open the app once, then **System Settings -> Privacy & Security**, scroll to
+   the blocked-app notice and press **Open Anyway**.
+2. Or strip the quarantine flag from a terminal:
+
+   ```bash
+   xattr -dr com.apple.quarantine "/Applications/Life Editor.app"
+   ```
+
+Ad-hoc signing (`mac.identity: "-"`) is *not* a fix for this: an ad-hoc
+signature is only valid on the machine that produced it, so it would trade one
+broken download for a confusing one. The real fix is an Apple Developer Program
+membership ($99/year) for signing plus notarization, which the $0 policy defers
+until after completion.
 
 `electron-updater` is deliberately left as a no-op skeleton. Auto-updating an
 unsigned binary means anyone who can spoof the update feed can push arbitrary
