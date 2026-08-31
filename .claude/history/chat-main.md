@@ -13,7 +13,24 @@
 - **宛先の振り直し 4 件**: #1300 / #1301 → `[refactor-core]`（`.github/workflows` と `desktop/` を触った実績が #894 の IPC contract 整備しか無いことを `git log -- <path>` で実測）/ #1211 → `[settings]`（段階 1 の #1210 が PR #1307 で CLOSED = BLOCKED 解除を確認）/ #1337 → `[tags-docs]`。#1300 / #1301 / #1337 には **`shared-fix` ラベルを追加** — section ラベルを持たない横断タスクは、これが無いとどのレーンのクエリにも乗らない
 - **起票 1 件**: **#1345**（`section:materials` / `type:task` / `sev:minor`）= ノート削除だけ確認ダイアログが無い。同じ `web/src/notes/NotesView.tsx` の中でテンプレート削除（`:457`）は `askConfirm` を通るのに、ノート削除（`:543` の `onDeleteNote` / `:605` の `onDelete`）は素通りする。方針はユーザー裁定で「確認を挟む側へ揃える」。重複チェック済み（#1248 はテンプレート削除の件で CLOSED・別物）
 - **`/goal` 配布 5 レーン**: refactor-core（#1300 / #1301 / #1336）/ tags-docs（#1342 / #1337）/ schedule-refine（#1343）/ materials-refine（#1345）/ settings-refine（#1211）。#1301 は Mac 実機受け入れが残るので PR までで止める旨、#1300 は「`workflow_dispatch` は default branch に載るまで起動できない」制約を PR 本文へ書く旨を条件に入れた
-- **chat-main 手番の残り**: **#1335 のみ**（夜間ルーチンの Task Scheduler 登録 = このマシンの OS 操作なのでレーンから実行できない）
+- **chat-main 手番の残り**: **#1335 のみ**（夜間ルーチンの Task Scheduler 登録 = このマシンの OS 操作なのでレーンから実行できない。ただし 2026-08-30 に「今はやらず Issue 化して可視化」とユーザー裁定済みで、着手はその裁定を覆す判断が要る）
+
+#### 巡回 3〜8 回目（同日夕）
+
+- **merge が 7 回連続ゼロ**で open PR 13 本が滞留（全部 CLEAN・CI 赤 0・コンフリクト 0）。レーン側は配布分 8 件を全部 PR に到達させ、#1357（#1211）で打ち止め
+- **merge 順の注意を 2 つ実測**: ⚠️ #1350 は base が `claude/desktop-packaging-win-1300` の **stacked PR** で、#1348 と近接 merge すると「MERGED 表示のまま main に届かない」型（memory の既知の罠）を踏む → #1348 → base の自動 retarget を待つ → #1350 の順。⚠️ #1357 は `shared/src/index.ts` / `shared/src/i18n/locales/{en,ja}.json` / `.claude/CLAUDE.md` で #1346 / #1347 / #1352 と重なる 25 ファイルの大物 → **最後に回すと衝突解決が 1 本で済む**（先に入れると小さい 3 本がやり直しになる）
+- **Epic #716 の DoD 突き合わせ → PR #1358**: 表の**挙動記述と実装の食い違いはゼロ**で、腐っていたのは file:line 参照。`CalendarTab.tsx` の分割で #4 行の引用 4 本（`:2022` / `:2262` / `:2244` / `:2220`）が**ファイル長 1271 行を超えて死んでいた**。行き先 = 分岐は `:1182`、詳細シートは `ScheduleOverlayHost.tsx:175-190`（#889 で Desktop overlay と統合）、FAB は `ScheduleOverlays.tsx:278`、完了トグルは `AgendaList.tsx:257`。ほか `sections.ts` / `AppShell.tsx` / `SettingsScreen.tsx` / `useShellNavigation.ts` の行ズレを修正し、#14 に「AI 連携カード（#1210）は `isWide` ガードを持たないので narrow でも出る」を追記
+- **Epic #1121 の DoD 実測**: i18n = `tour` 配下 33 キーが en / ja 完全一致（欠落 0）/ 守りのテスト 8 本 + CI 緑 / やり直し（Settings の導線は常に概要モーダルから）と全体通しの中断（Escape で `stepId` が保存される）は動く。**「つながり / 集中 / 分析」が disabled + 準備中バッジなのは Epic 本文が初回スコープ外と明記した設計どおりで、判断は不要だった**（memory の「許容するか決める」は Epic を読み直せば決着済み）
+- **#1359 起票**: セクション単位で始めたツアー（`startSection` 経路）だけ、Escape で吹き出しが閉じても `life-editor-tour-progress` が書き換わらない。全体通しでは保存される。2 回再現。`stopAt`（`TourContext.tsx:376-388`）は partial でも persist するので `stopAt` 自体に到達していない疑い。**#1342 / PR #1346 が `useDialogA11y.ts` を触るので merge 後に再実測してから直す** gate 付き
+- **測定ミスの訂正**: 途中で Escape の検証に `[role="tooltip"], [data-tour-popover]` を使い「全経路で保存されない」と読み違えた。ツアーの吹き出しは `role="dialog"` + `aria-modal="true"` で描画されるため、正しいセレクタで測り直して上の結論に至った。検証で触った localStorage は元の値（`skipped: true`）へ復元済み・console error 0
+
+#### 一斉 merge と 2 件の取り残し（同日夜）
+
+- **13 本が 11:49:51〜11:52:10 の約 2 分で全部 merge された**。11 本は正常着地。main は `8e2d5546` まで進めた
+- **① #1350（macOS レーン）が MERGED 表示のまま main に届かなかった** — base が `claude/desktop-packaging-win-1300` の stacked PR で、**#1348 の 19 秒後**に merge したため GitHub の base 自動 retarget が間に合わず、#1348 のブランチにマージされただけで終わった。main の `release-desktop.yml` に `macos` が **0 件**。**stacked PR base retarget race の 2 例目**（1 例目 = 2026-08-14 の #861 / #865）→ 唯一のコミット `3919f71f` を main から切った枝へ cherry-pick（衝突なし・3 ファイル 73 行）して **PR #1360** で復旧
+- **② #1351（chat-main tracker）の追記が取り残された** — 巡回 3〜8 回目の記録 `bb13ba52` を push した直後に、旧 head `d70e07ee` のまま merge された。`Push after merge strands commits` の型 → 同コミットを cherry-pick して `chore/tracker-main-20260831c` で復旧（本エントリを含む PR）
+- **検知方法**: `gh pr list` の MERGED 表示だけではどちらも見抜けない。`gh api repos/.../pulls/<n> --jq '.merged, .base.ref, .head.sha'` で **base が main かどうか**と **head.sha がローカルの最新と一致するか**を照合し、さらに main 側で実物を grep する（今回は `grep -c macos .github/workflows/release-desktop.yml` = 0 が決定打）
+- **予防として言えたこと**: merge 順の警告（#1348 → retarget 待ち → #1350、#1357 は最後）は巡回 3 回目から 3 度出していたが、**待ち時間の具体値を書いていなかった**。19 秒では足りない。次に stacked PR を出すときは base を最初から main にして依存を PR 本文で伝えるか、base PR の merge 後に **子 PR の base が main に変わったことを目視してから** merge する
 
 ### 2026-08-31 - 8/30 着地分の実ブラウザ検証 13 項目 + #1342 / #1343 起票 + 3 レーンへの /goal 組み立て
 
