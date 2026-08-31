@@ -187,6 +187,9 @@ export function useShellChrome({
       moreClose: t("common.close"),
       shortcutHint: isMac ? "⌘K" : "Ctrl K",
       tagEditor: t("nav.tagEditor"),
+      // Wide + desktop only (#1211). SidebarNav needs the label AND the
+      // handler, and MainScreen withholds the handler off the Electron shell.
+      launchClaude: t("nav.launchClaude"),
       // Narrow-only: names the action group in the bottom bar's More sheet (#472).
       bottomBarActionsTitle: t("nav.quickActions"),
     }),

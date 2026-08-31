@@ -51,6 +51,46 @@ function renderSidebar(props?: Partial<Parameters<typeof SidebarNav>[0]>) {
   return { onNavigate };
 }
 
+describe("SidebarNav Claude launcher row (#1211)", () => {
+  it("stays out of the sidebar without a handler", () => {
+    // Withholding the handler is how the browser and the Capacitor shells opt
+    // out — there is no CLI on those devices to launch.
+    renderSidebar({ labels: { ...LABELS, launchClaude: "Start Claude Code" } });
+    expect(
+      screen.queryByRole("button", { name: "Start Claude Code" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("stays out without a label too, rather than rendering untranslated", () => {
+    renderSidebar({ onLaunchClaude: vi.fn() });
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).not.toContain(
+      "launchClaude",
+    );
+  });
+
+  it("launches on click when both halves are passed", () => {
+    const onLaunchClaude = vi.fn();
+    renderSidebar({
+      onLaunchClaude,
+      labels: { ...LABELS, launchClaude: "Start Claude Code" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Start Claude Code" }));
+    expect(onLaunchClaude).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps its label reachable on the collapsed rail", () => {
+    // Icon-only rail: the accessible name has to survive the text being gone.
+    renderSidebar({
+      collapsed: true,
+      onLaunchClaude: vi.fn(),
+      labels: { ...LABELS, launchClaude: "Start Claude Code" },
+    });
+    expect(
+      screen.getByRole("button", { name: "Start Claude Code" }),
+    ).toBeInTheDocument();
+  });
+});
+
 describe("SidebarNav utility group", () => {
   it("renders a divider separating the mainline from the utility group", () => {
     renderSidebar();

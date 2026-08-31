@@ -44,6 +44,8 @@ export const DESKTOP_IPC = {
   authStorageGetItem: "authStorage:getItem",
   authStorageSetItem: "authStorage:setItem",
   authStorageRemoveItem: "authStorage:removeItem",
+  claudeGetProjectPath: "claude:getProjectPath",
+  claudeLaunch: "claude:launch",
 } as const;
 
 export type DesktopIpcChannel = (typeof DESKTOP_IPC)[keyof typeof DESKTOP_IPC];
@@ -51,6 +53,38 @@ export type DesktopIpcChannel = (typeof DESKTOP_IPC)[keyof typeof DESKTOP_IPC];
 /** Every channel, for the tests that check both ends cover the same set. */
 export const DESKTOP_IPC_CHANNELS: readonly DesktopIpcChannel[] =
   Object.values(DESKTOP_IPC);
+
+/**
+ * Claude Code launcher (#1211).
+ *
+ * `projectPath` is the folder the terminal opens in, which is also what decides
+ * whether `claude` finds this app's MCP server: the server is declared in the
+ * repo's `.mcp.json`, so a launch from anywhere else starts a Claude that
+ * cannot see the todos and notes the app is showing. Omit it and main reuses
+ * the folder saved by the last successful launch — that is how the sidebar row
+ * launches without carrying a text field of its own.
+ */
+export interface ClaudeLaunchArgs {
+  projectPath?: string;
+}
+
+/**
+ * Failures are named, not worded: the renderer owns copy (§6.4), so main says
+ * WHICH thing went wrong and the Settings card says it in en / ja. It is also
+ * why a failed launch resolves rather than rejects — every one of these is
+ * something the user can fix in the field they just typed into, not an
+ * exception for an error boundary.
+ */
+export type ClaudeLaunchError =
+  | "no-project-path"
+  | "invalid-project-path"
+  | "claude-not-found"
+  | "spawn-failed";
+
+export interface ClaudeLaunchResult {
+  ok: boolean;
+  error?: ClaudeLaunchError;
+}
 
 /**
  * A main-process handler as `ipcMain.handle` accepts it. Deliberately loose
@@ -90,7 +124,7 @@ export interface DesktopAuthStorageApi {
  * object literal with this type, so the renderer-facing surface and the
  * channels above cannot drift apart in shape.
  *
- * Risk 1 guard (#529): keep the exposed function count <= 10. Current = 7.
+ * Risk 1 guard (#529): keep the exposed function count <= 10. Current = 9.
  */
 export interface DesktopIpcApi {
   /** Read the persisted theme preference. */
@@ -108,4 +142,15 @@ export interface DesktopIpcApi {
    * shared/src/services/supabaseAuthStorage.ts via `window.desktop.authStorage`.
    */
   authStorage: DesktopAuthStorageApi;
+  /**
+   * The folder the last successful `launchClaude` used, or "" when nothing has
+   * been launched from this machine yet. Read by the Settings field so it
+   * shows what a bare sidebar launch would actually do.
+   */
+  getClaudeProjectPath(): Promise<string>;
+  /**
+   * Open an OS terminal running `claude` (#1211). Resolves either way — see
+   * `ClaudeLaunchError` for why a failure is a value and not a rejection.
+   */
+  launchClaude(args: ClaudeLaunchArgs): Promise<ClaudeLaunchResult>;
 }

@@ -3,8 +3,10 @@ import {
   DESKTOP_IPC,
   DESKTOP_IPC_CHANNELS,
   type DesktopAuthStorageApi,
+  type DesktopIpcApi,
 } from "../src/shared/ipcContract";
 import type { DesktopAuthStorageBridge } from "../../shared/src/services/supabaseAuthStorage";
+import type { DesktopClaudeLauncherBridge } from "../../shared/src/utils/claudeLauncher";
 
 /*
  * #894 — desktop's first tests.
@@ -29,6 +31,26 @@ const contractSatisfiesBridge: DesktopAuthStorageBridge =
   {} as DesktopAuthStorageApi;
 const bridgeSatisfiesContract: DesktopAuthStorageApi =
   {} as DesktopAuthStorageBridge;
+
+// The Claude launcher (#1211) re-declares its half in shared/ for the same
+// reason the auth storage does, so it gets the same two-way pin. Only the
+// launcher's own methods are compared: shared asks for a bridge, not for the
+// whole `window.desktop`.
+type ContractLauncherHalf = Pick<
+  DesktopIpcApi,
+  "getClaudeProjectPath" | "launchClaude"
+>;
+const contractSatisfiesLauncher: DesktopClaudeLauncherBridge =
+  {} as ContractLauncherHalf;
+const launcherSatisfiesContract: ContractLauncherHalf =
+  {} as DesktopClaudeLauncherBridge;
+
+describe("claude launcher bridge (#1211)", () => {
+  it("has the same shape on both sides of the boundary", () => {
+    expect(contractSatisfiesLauncher).toBeDefined();
+    expect(launcherSatisfiesContract).toBeDefined();
+  });
+});
 
 describe("authStorage bridge (#894)", () => {
   it("has the same shape on both sides of the boundary", () => {
@@ -94,6 +116,8 @@ describe("preload (#894)", () => {
         setItem: (k: string, v: string) => Promise<unknown>;
         removeItem: (k: string) => Promise<unknown>;
       };
+      getClaudeProjectPath: () => Promise<unknown>;
+      launchClaude: (args: { projectPath?: string }) => Promise<unknown>;
     };
 
     await api.getTheme();
@@ -103,6 +127,8 @@ describe("preload (#894)", () => {
     await api.authStorage.getItem("k");
     await api.authStorage.setItem("k", "v");
     await api.authStorage.removeItem("k");
+    await api.getClaudeProjectPath();
+    await api.launchClaude({});
 
     const used = invoke.mock.calls.map((call) => call[0] as string);
     // Every declared channel is reachable from the renderer, and nothing else
@@ -126,6 +152,38 @@ describe("preload (#894)", () => {
       "session",
       "payload",
     );
+  });
+
+  it("forwards the launcher's argument object as one payload (#1211)", async () => {
+    await import("../src/preload/index");
+    const api = exposeInMainWorld.mock.calls[0][1] as {
+      launchClaude: (args: { projectPath?: string }) => Promise<unknown>;
+    };
+
+    await api.launchClaude({ projectPath: "/home/u/life-editor" });
+
+    // One object, not a positional string: main reads `projectPath` off it and
+    // treats "absent" (the sidebar row) differently from "" (an empty field).
+    expect(invoke).toHaveBeenCalledWith(DESKTOP_IPC.claudeLaunch, {
+      projectPath: "/home/u/life-editor",
+    });
+  });
+
+  it("keeps the exposed surface inside the #529 Risk 1 budget", async () => {
+    // DesktopIpcApi's guard comment names a number; counted here off the real
+    // bridge object so the budget is a fact about what ships rather than a
+    // note somebody has to remember to update.
+    await import("../src/preload/index");
+    const api = exposeInMainWorld.mock.calls[0][1] as Record<string, unknown>;
+    const count = (value: unknown): number => {
+      if (typeof value === "function") return 1;
+      if (typeof value === "object" && value !== null) {
+        return Object.values(value).reduce<number>((n, v) => n + count(v), 0);
+      }
+      return 0;
+    };
+    expect(count(api)).toBe(9);
+    expect(count(api)).toBeLessThanOrEqual(10);
   });
 });
 
