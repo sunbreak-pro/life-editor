@@ -1,81 +1,80 @@
 ---
 name: add-feature
-description: "⚠️ STALE — 起動しないこと。DB=SQLite / IPC / frontend の 3 層前提が現行と合わない。実装タスクの起点は lead-pipeline スキル。"
+description: life-editor で機能を DB から UI まで貫いて足すときの通し手順（supabase/migrations → shared/src/services の DataService 境界 → shared/src/components + web/src → Realtime ドメイン → テスト → 必要なら MCP ツール）。各層の詳細は db-migration / add-component / test-writing へ委譲する。Use when adding a feature that needs new persisted data or crosses the data / service / UI layers. Triggers include "機能追加", "新しいドメインを足す", "テーブルから UI まで", "層をまたぐ", "add feature", "new domain", "end to end".
 ---
 
-> ⚠️ **STALE — この手順に従わないこと**（2026-08-10 確認）
+# Add Feature — DB から UI まで貫くときの順番
+
+> 本スキルは**通し手順（どの層をどの順に触るか）**だけを持つ。各層の中身は `db-migration` / `add-component` / `test-writing` が正本。
 >
-> 本文は「SQLite → IPC → `frontend/`」の 3 層を前提にしているが、現行は Supabase Postgres + DataService 境界 + `shared/` / `web/` 構成で、`electron/` も `frontend/` も実在しない。Phase 5 の「README.md に開発ジャーナルを追加」も廃止済みの運用（記録は per-chat `memory/` + `history/` = CLAUDE.md §9）。
->
-> 参照すべき正本: 実装タスクの起点 = `lead-pipeline` スキル / データ層 = CLAUDE.md §3.1 + `docs/vision/db-conventions.md` / UI = `rules/frontend.md`。
->
-> 以下は書き直しか retire かの判断待ちで残している履歴。
+> 単一層で終わる作業（UI だけ / 文言だけ / バグ修正）ではこれを開かない — `lead-pipeline` の軽・中ティアで足りる。
 
-「add-featureを起動します」と表示する。
+## 0. 着手前に
 
-新機能をデータ層からUI層まで一貫して追加するワークフロー。
-各フェーズの詳細は対応するスキルを参照。
+- **本当に新しいテーブルが要るか**を先に判定する。特化 UI（DnD / カレンダー / ルーチン生成 / リマインダー）が要る → 特化テーブル。型付きフィールド + フィルタ + 集計で済む → 汎用 Database（ただし現在凍結中）。判定基準の正本は CLAUDE.md §4
+- 既存の 5 role（task / event / routine / note / daily）に**寄せられないか**を疑う。`notes_payload.note_type` に `'template'` を足したテンプレート機能（#1047）のように、**列 1 つで済むなら 2 行分割モデルと ID 不変式に手を入れない**のが最良の着地
+- 計画書が要る規模なら `docs/vision/plans/_TEMPLATE.md` ベースで先に書く（Scope 宣言 / Gate 列 / 機械検証可能な AC。CLAUDE.md §7.3）
 
-## Phase 1: Data Layer
+## Phase 1: データ層（DDL）
 
-**データ永続化が必要な場合** → `/db-migration` スキルを参照
+→ 手順の正本は **`db-migration` スキル**。
 
-1. `electron/database/migrations.ts` にマイグレーション追加
-2. `electron/database/` に Repository 作成
-3. `electron/database/db.ts` で Repository 登録
+`supabase/migrations/<連番>_<slug>.sql` を**ローカルに置くだけ**にする。適用（`supabase db push`）はこうだいさんの手番で、`apply_migration` MCP の単独使用は禁止（CLAUDE.md §7.3）。ここで止まるので、**Phase 2 以降は DDL の適用を待たずに書いてよい**（型は自分で書くため）。
 
-## Phase 2: IPC Layer
+## Phase 2: サービス層（DataService 境界）
 
-**メインプロセスとの通信が必要な場合** → `/add-ipc-channel` スキルを参照
+**フロントは `getDataService()` 経由でしかデータに触らない**（CLAUDE.md §3.1）。コンポーネントからバックエンドを直接呼ぶ経路は作らない。触るファイル:
 
-1. `electron/preload.ts` にチャンネル追加
-2. `electron/ipc/` にハンドラ作成 + `registerAll.ts` に登録
-3. `frontend/src/services/DataService.ts` にインターフェース追加
-4. `frontend/src/services/ElectronDataService.ts` に実装追加
+| ファイル | 何をするか |
+| --- | --- |
+| `shared/src/types/` | ドメインの TS 型 |
+| `shared/src/services/<domain>Mapper.ts` | 2 行分割の変換 3 関数（`rowsToType` / `typeToRows` / `typeUpdatesToPatches`）。**I/O を持たない純関数**で `@supabase/supabase-js` に依存しない |
+| `shared/src/services/DataService.ts` | `<Domain>DataService` インターフェースを足し、`DataService` に合成 |
+| `shared/src/services/Supabase<Domain>Service.ts` | 実装クラス + `PHASE2_<DOMAIN>_METHOD_NAMES` / `_METHODS` の export |
+| `shared/src/services/dataServiceRouting.ts` | `PHASE2_ROUTING_DOMAINS` に 1 行足す |
+| `shared/src/services/SupabaseDataService.ts` | `route()` の if 連鎖に足す |
 
-## Phase 3: Frontend
+routing は**型と実行時の二重で守られている**（`DataServiceIsFullyRouted` の型アサート + テストが `PHASE2_ROUTING_DOMAINS` を歩いて「全メソッドがちょうど 1 回ルーティングされている」ことを見る）。足し忘れは型か テストで落ちるので、手で全数を数え直さない。
 
-**UIコンポーネント作成** → `/add-component` スキルを参照
+mapper の 3 つの罠（詳細 = `docs/vision/db-conventions.md` §10）:
 
-1. 型定義: `frontend/src/types/`
-2. カスタムフック: `frontend/src/hooks/`
-3. Context/Provider（必要な場合）: `frontend/src/context/`
-4. UIコンポーネント: `frontend/src/components/`
-5. `App.tsx` にセクション/表示ロジック追加
-6. i18n: `frontend/src/i18n/locales/{en,ja}.json`
+- **`items_meta.updated_at` は payload だけを更新するときも必ず bump する**（LWW cursor がこれ 1 本のため）
+- **生成列（`parent_item_role`）に書き込まない** — PG が 42601 で reject する。Write 用型から `Omit` して型レベルで塞ぐ
+- **upsert が UPDATE に転じると DEFAULT `now()` が効かない** — bulk 経路は caller 側で `updated_at` を spread して bump を強制する
 
-## Phase 4: Tests
+## Phase 3: Realtime ドメイン
 
-**テスト作成** → `/test-writing` スキルを参照
+新テーブルを作ったら 2 箇所を lockstep で更新する。
 
-1. `frontend/src/test/mockDataService.ts` に新メソッドのモック追加
-2. Hook テスト
-3. コンポーネントテスト
-4. `cd frontend && npm run test` で全テスト通過確認
+1. migration 側で `supabase_realtime` publication に追加
+2. `shared/src/context/SyncContext.tsx` の `REALTIME_TABLES` に追加
+3. `shared/src/context/syncDomains.ts` のテーブル → ドメイン対応表に追加（新ドメインが要るなら `SYNC_DOMAINS` にも）
 
-## Phase 5: 検証・仕上げ
+`syncDomains.test.ts` / `syncRealtimeTables.test.ts` が lockstep を見張っているので、片方だけだと落ちる。**読み手が分かれるなら既存ドメインに相乗りさせない**（#993 = 書き込みの多い `timer_sessions` を settings と同居させて、ポモドーロ操作のたびに設定 2 本を取り直していた）。
 
-1. `npm run dev` で動作確認
-2. `cd frontend && npm run lint` で ESLint 通過
-3. `/code-review` スキルでセルフレビュー
-4. `README.md` に開発ジャーナルエントリ追加
-5. `/git-workflow` スキルに従ってコミット
+## Phase 4: UI
 
-## ファイル変更の全体像
+→ 手順の正本は **`add-component` スキル**、デザイン判断は `frontend-react-designer`。
 
-```
-electron/database/migrations.ts      ← Phase 1: スキーマ
-electron/database/*Repository.ts     ← Phase 1: データアクセス
-electron/database/db.ts              ← Phase 1: Repository登録
-electron/preload.ts                  ← Phase 2: チャンネル許可
-electron/ipc/*Handlers.ts            ← Phase 2: ハンドラ
-electron/ipc/registerAll.ts          ← Phase 2: ハンドラ登録
-frontend/src/services/DataService.ts ← Phase 2: インターフェース
-frontend/src/services/ElectronDataService.ts ← Phase 2: 実装
-frontend/src/types/                  ← Phase 3: 型定義
-frontend/src/hooks/                  ← Phase 3: ロジック
-frontend/src/context/                ← Phase 3: 状態管理
-frontend/src/components/             ← Phase 3: UI
-frontend/src/i18n/locales/           ← Phase 3: 翻訳
-frontend/src/test/mockDataService.ts ← Phase 4: モック更新
-```
+hook（`shared/src/hooks/`）→ 必要なら Context（Pattern A）→ 部品（`shared/src/components/`）→ 画面への配線（`web/src/`）の順。読む effect で `useSyncDomains` を宣言する（Phase 3 の申告漏れはここで無言の stale になる）。
+
+## Phase 5: テスト
+
+→ 手順の正本は **`test-writing` スキル**。
+
+最低限: mapper の純関数テスト（変換の往復と生成列の除外）+ hook / 画面のテスト。**`build` はテストファイルを見ず `vitest` は型を見ない**ので、`typecheck:tests` が独立のゲートとして要る。
+
+## Phase 6: MCP に出すか
+
+Claude Code から触れるようにするなら `mcp-server/src/tools/` にツールを足す（`defineTool.ts` の形に倣う）。**汎用 Database は MCP 未対応**なので、新しい PropertyType を足したときは MCP 側も揃える（CLAUDE.md §4）。
+
+## Phase 7: 仕上げ
+
+1. `session-verifier`（CI の `verify` ジョブを上から再現。触っていないパッケージも回す — 依存が shared → web → desktop / mcp-server と繋がっている）
+2. 機能の追加 / 削除なら **CLAUDE.md §8 の Tier 表**と `docs/requirements/` を更新
+3. `task-tracker`（**実装ブランチには載せない** — 専用ブランチ `chore/tracker-<chat>-YYYYMMDD` へ。CLAUDE.md §7.4）
+4. `git-workflow` に従って commit / PR。**merge はこうだいさんの手番**（P-001）
+
+## 実装中に計画外の変更が浮上したら
+
+**実装せずキューへ**（`.claude/comm/decisions/chat-<self>.md`）。現計画を続行し、Scope / AC の自己免除はしない（P-008）。

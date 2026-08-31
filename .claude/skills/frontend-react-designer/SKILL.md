@@ -14,7 +14,7 @@ life-editor は N=1 個人用ツール。市販の見た目より「作者にと
 スコープ境界:
 
 - 機構（どのフォルダに何を置くか / Provider 登録）→ 配置と規約 = `rules/frontend.md` + CLAUDE.md §3.1
-- DB → `docs/vision/db-conventions.md` + CLAUDE.md §7.3（旧 add-component / add-feature / add-ipc-channel / db-migration スキルは STALE・書き直しは #1336）
+- DB → `docs/vision/db-conventions.md` + CLAUDE.md §7.3（手順は `db-migration` スキル。UI の機構は `add-component`、層をまたぐ機能追加は `add-feature` — 5 本とも #1336 で現行アーキへ書き直し済み）
 - 本スキル → **見た目・状態・a11y・motion の判断**（新規 UI 作成 **および既存 UI の系統的 remediation 両方**）
 
 > ⚠️ **UI 2 層モデル（W0 2026-06-07 確定 = 案 A）**: `frontend/`（Tauri 時代）は **削除済み（2026-07-11 #197）**。新規 UI は `shared/src/components/` に集約し、Web / Electron / Capacitor が同一ソースを共用する（トークン / i18n も `shared/` 側）。本スキルは greenfield 作成だけでなく、既存 UI を本ガイドの基準に揃える remediation でも同じ判断軸を適用する。改修時は Anti-Patterns を「これから書かない」ではなく「既存から検出し直す」チェックリストとして使う（SSOT → CLAUDE.md §6 / `.claude/rules/frontend.md`）。
