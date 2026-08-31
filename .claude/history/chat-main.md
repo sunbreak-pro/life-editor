@@ -1,5 +1,22 @@
 # HISTORY (chat-main)
 
+### 2026-08-31 - 8/30 着地分の実ブラウザ検証 13 項目 + #1342 / #1343 起票 + 3 レーンへの /goal 組み立て
+
+#### 概要
+
+セッション開始時の現状把握（open PR 0 / 未回答の判断キュー 0 / outbox 未処理 0 / open Issue 10）を起点に、2026-08-30 に着地した UI 変更群を実ブラウザで検証した。12 項目 PASS・1 項目は runtime 再現不能。検証で見つけた 2 件を起票し、issue-prompter で 3 レーン分の `/goal` を組み立てた。memory の「やること③④⑤」は実測でいずれも済んでいた。
+
+#### 変更点
+
+- **検証環境**: `git pull --ff-only` で main を `c259a5bb` へ（5 コミット）。dev server は 5173 が先客のため 5174 で起動。当初 playwright-ui-verifier に委譲したが API のセッション上限で落ちたため、以降はメインが playwright MCP を直接操作した（「ログイン画面が出た」というエージェント報告は先客 5173 のタブ由来で、5174 は `fstprog@gmail.com` でサインイン済みだった）
+- **PASS 12 件**: #1317（左 nav から Trash セクションが消え、設定カテゴリの「ゴミ箱」から開ける）/ #1323（行チェックボックス + グループ一括選択 + 「1 件を選択中」バー。一括復元で Todo 7→6 を実測、一括削除は「この操作は取り消せません」の確認ダイアログでキャンセル）/ #1322（タグ 2 つを同時 pressed にでき「タグの絞り込みを解除」が出る）/ #1307（AI 連携カード・ツール 35 個・一覧を開くボタン）/ #1332（`RepeatListPanel` の armed 行が消え「〜と、その予定をすべて削除しますか？」の ConfirmDialog になった。復元 → 削除で往復も確認）/ #1313（ノートを開く → 予定へ → 素材へ戻ると同じノートが開いたまま）/ #1316（サイドバーに trash リストなし）/ #1319（ノート行の先頭に `img "Pinned"`）/ #1314（アイコンピッカーが 6 列で潰れず表示）/ #1305（ツアー吹き出しの「1 / 5」「スキップ」が折り返さない）/ #1315（en で「1 item」「0 items」= i18next の plural 解決が動作。対象 5 キーのうち `usageCount` で実測）/ #1306（削除済みリンク先が `note-0954bb2e…` ではなく「PWVERIFY-1306-target（削除済み）」と名前で表示）
+- **runtime 再現不能 1 件**: #1325 — `DeleteAccountDialog.tsx:115` / `NotePasswordDialog.tsx:178` / `LinkPanel.tsx:597` の 3 箇所とも `variant="text"` の NoticePanel を通っているのはコードで確認したが、エラーの発火条件が API 失敗・ロック設定で通常操作から出せず、画面での確認は見送り
+- **起票 2 件**: **#1342**（`section:tags` / type:bug）= アイコンピッカーを開いた状態の Escape 1 回で popover とタグ編集モーダルの両方が閉じる（2 回実測して再現・保存前の入力が失われる）/ **#1343**（`section:schedule` / type:bug）= 予定の詳細パネルで「今日の流れ」「本日の Todo」だけが 2 行折り返し、「繰り返し」だけ 1 行で不揃い
+- **issue-prompter**: 配布可能な 3 レーンへ `/goal` を組み立てた（schedule-refine = #1343 / tags-docs = #1342 / refactor-core = #1336）。chat-main 采配 = #1300 / #1301 / #1211（gate だった #1210 は PR #1307 で merge 済み → BLOCKED 解除）/ #1337 / #1335。Epic #1121 は子 6 件が全 CLOSED、#716 は狭幅の実機目視待ち。凍結 = #898 / #677
+- **やること③④⑤の実測**: ③ r4 計画書は PR #1299 で archive 済み / ④ `C:/Users/user/dev/Claude/hooks-lib/regen-index.sh` に RETIRED 分岐あり（このマシン分は完了・Mac 未確認）/ ⑤ #1135 の方向 (b) は PR #1312 で裁定を記録済み
+- **未起票の気づき**: ノート削除（「その他の操作」→ ノートを削除）だけ確認ダイアログが無く即ゴミ箱行き。Todo 削除・繰り返し削除は確認を挟むので作法が割れている。ゴミ箱から戻せる前提の意図的な差かもしれず、揃えるかはユーザー判断待ち
+- **後片付け**: 検証で復元したノート / ルーチンは再削除して元の状態へ戻し、スクリーンショット 3 枚を削除。作業ツリーは clean
+
 ### 2026-08-30 - fan-out r4 全着地の回収 + /loop 巡回 1 回目（決定昇格 PR #1297・#1296 検証 PASS）
 
 #### 概要
@@ -54,33 +71,3 @@ open Issue 28 件・open PR 0 本の実測スナップショットから、凍�
 - **サブエージェント報告**: worktree 作成時の tool 出力に紛れた偽指示（Bash の sed/cat で編集しろ）を role-engineer が無視した旨の共有あり
 - **スワイプ touch バグ（#1204 → PR #1205）**: playwright + CDP 合成タッチの実測で、edge スワイプ開（#1050）/ スワイプ閉（#792）が**タッチでは 100% 不発**と確定（narrow レイアウト全面が touch-action: auto で、水平 20px 時点の pointercancel により開 56px / 閉 72px に到達不能）。修正 = 追跡中の横サンプルのみ non-passive touchmove で preventDefault + 軸ロックの累積化（初動ジッター救済）+ selectstart/dragstart ガード + 内側スクローラへ touch-pan-y。ブランチ build の vite preview :4174 で再検証し全項目 PASS（開 5/5・ジッター 12px まで救済・41° 5/5・閉 5/5・縦スクロール非干渉・連続 5 回・7 セクション回帰 42/42）。Chrome の縦パンスロップ ~15px 超のジッターは救済外（既知トレードオフ・実測境界つき）
 
-### 2026-08-29 - Connect 後継（Tag hub + Related パネル）の方針確定と起票
-
-#### 概要
-
-connect-refine が #1152（Connect 退役）を実行中の裏で、Connect 機能の後継案 4 つ（Related パネル / Tag hub / Claude 製つながりダイジェスト / 局所ミニグラフ）を比較し、ユーザー確定で案 1 + 案 2 を採用。#1171 / #1172 として起票し、#1153 へ役割分担コメントを残した。
-
-#### 変更点
-
-- **方針確定（2026-08-29 ユーザー確定）**: 新 Connect は Tag 起点の hub ページ（力学グラフは復活させない）。#1153 との役割分担 = 時間軸の入口は Calendar / トピック軸の入口は Connect（「今日への配置」は Calendar サイドバー残留）。タグ無しアイテムは「未分類」疑似タグで受ける
-- **起票**: #1171（[connect] Tag hub セクション新設・`section:connect`）/ #1172（[materials] LinkPanel の Related パネル化・`section:materials`）。どちらも **Blocked by #1152** を本文に明記
-- **#1153 コメント**: 旧カンバンの「タグ軸で Todo を眺めて整理する」役割は #1171 が引き取り、サイドバー側にタグ別グルーピングを作り込まない旨を明記
-- **実測の副産物**: タグの lucide アイコン + カラーはデータ列（`wiki_tags.icon` / `color`）も設定 UI（TagIconPicker / TagColorControls）も実装済みで、欠けているのは表示面（TagPill 等）だけ — 新規機能ではなく #1171 の表示要件として畳み込んだ
-
-### 2026-08-30 - Desktop 配布パッケージ化の現状調査・起票・計画書
-
-#### 概要
-
-「Desktop はビルドできるのに配れない」状態を実測で確定し、mac / Windows それぞれの配布を #1300 / #1301 として起票、実装計画書を PR #1302 で提出した。コード変更はゼロ（ドキュメントのみ）。
-
-#### 変更点
-
-- **調査の実測**: GitHub Release **0 本**（`gh release list` が空）/ リリース自動化なし（`ci.yml` は `electron-vite build` で止まる — 意図的）/ `desktop/package.json` の version が `0.0.0` のまま（`artifactName` に版が乗る）/ **macOS は一度も未ビルド**（`resources/icon.icns` は commit 済みだが未検証）/ `directories.buildResources` が実在しない `desktop/build/` を指す
-- **実現可能性の土台**: repo が **public** なので GitHub-hosted の macOS / Windows ランナーが無料。tag 駆動の GitHub Actions を **\$0 原則を壊さずに**入れられる
-- **裏取り（electron-builder 公式ドキュメント）**: 未署名（`identity: null`）の `.app` は **Apple Silicon で起動を拒否される**（Big Sur / M1 以降は署名の存在自体を要求）。回避はユーザー側の「システム設定 → プライバシーとセキュリティ → このまま開く」or `xattr -dr com.apple.quarantine`。**ad-hoc 署名（`identity: "-"`）はビルドしたマシンでしか動かない**ため配布の代替にならず、代替案表で明示的に却下した
-- **起票**: #1300（[main] Windows 配布パッケージ化 — リリース基盤 + windows ジョブ + 実機受け入れ）/ #1301（[main] macOS 配布パッケージ化 — macos ジョブ + Gatekeeper 導線 + 実機受け入れ）。どちらも `type:feature` / `sev:important` / `area:tooling`
-- **計画書**: `plans/2026-08-30-desktop-app-packaging.md`（PR #1302 open）。11 Step / Gate 付き・代替案 7 件・AC 12 件。署名 / 公証 / `electron-updater` 有効化 / ストア申請は Non-goals（移行 SSOT §8 の完成後判断のまま）
-- **判断キュー**: D-20260830-main-1（Intel Mac 向け x64 `.dmg` を配るか — `macos-latest` は arm64 でクロスビルドの起動検証ができない）。P-005 に従い実装で先行せずキューへ
-- **検証**: CI docs-lint pass（9 秒）。変更 2 ファイルの相対リンク 5 本・Status enum・`records.mjs check` をローカルで個別確認（ローカルの `docs-lint.sh` 全体は Git Bash で極端に遅く、CI の結果を採用した）
-
-> 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
