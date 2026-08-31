@@ -2,6 +2,35 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-29 - Connect 後継（Tag hub + Related パネル）の方針確定と起票
+
+#### 概要
+
+connect-refine が #1152（Connect 退役）を実行中の裏で、Connect 機能の後継案 4 つ（Related パネル / Tag hub / Claude 製つながりダイジェスト / 局所ミニグラフ）を比較し、ユーザー確定で案 1 + 案 2 を採用。#1171 / #1172 として起票し、#1153 へ役割分担コメントを残した。
+
+#### 変更点
+
+- **方針確定（2026-08-29 ユーザー確定）**: 新 Connect は Tag 起点の hub ページ（力学グラフは復活させない）。#1153 との役割分担 = 時間軸の入口は Calendar / トピック軸の入口は Connect（「今日への配置」は Calendar サイドバー残留）。タグ無しアイテムは「未分類」疑似タグで受ける
+- **起票**: #1171（[connect] Tag hub セクション新設・`section:connect`）/ #1172（[materials] LinkPanel の Related パネル化・`section:materials`）。どちらも **Blocked by #1152** を本文に明記
+- **#1153 コメント**: 旧カンバンの「タグ軸で Todo を眺めて整理する」役割は #1171 が引き取り、サイドバー側にタグ別グルーピングを作り込まない旨を明記
+- **実測の副産物**: タグの lucide アイコン + カラーはデータ列（`wiki_tags.icon` / `color`）も設定 UI（TagIconPicker / TagColorControls）も実装済みで、欠けているのは表示面（TagPill 等）だけ — 新規機能ではなく #1171 の表示要件として畳み込んだ
+
+### 2026-08-30 - Desktop 配布パッケージ化の現状調査・起票・計画書
+
+#### 概要
+
+「Desktop はビルドできるのに配れない」状態を実測で確定し、mac / Windows それぞれの配布を #1300 / #1301 として起票、実装計画書を PR #1302 で提出した。コード変更はゼロ（ドキュメントのみ）。
+
+#### 変更点
+
+- **調査の実測**: GitHub Release **0 本**（`gh release list` が空）/ リリース自動化なし（`ci.yml` は `electron-vite build` で止まる — 意図的）/ `desktop/package.json` の version が `0.0.0` のまま（`artifactName` に版が乗る）/ **macOS は一度も未ビルド**（`resources/icon.icns` は commit 済みだが未検証）/ `directories.buildResources` が実在しない `desktop/build/` を指す
+- **実現可能性の土台**: repo が **public** なので GitHub-hosted の macOS / Windows ランナーが無料。tag 駆動の GitHub Actions を **\$0 原則を壊さずに**入れられる
+- **裏取り（electron-builder 公式ドキュメント）**: 未署名（`identity: null`）の `.app` は **Apple Silicon で起動を拒否される**（Big Sur / M1 以降は署名の存在自体を要求）。回避はユーザー側の「システム設定 → プライバシーとセキュリティ → このまま開く」or `xattr -dr com.apple.quarantine`。**ad-hoc 署名（`identity: "-"`）はビルドしたマシンでしか動かない**ため配布の代替にならず、代替案表で明示的に却下した
+- **起票**: #1300（[main] Windows 配布パッケージ化 — リリース基盤 + windows ジョブ + 実機受け入れ）/ #1301（[main] macOS 配布パッケージ化 — macos ジョブ + Gatekeeper 導線 + 実機受け入れ）。どちらも `type:feature` / `sev:important` / `area:tooling`
+- **計画書**: `plans/2026-08-30-desktop-app-packaging.md`（PR #1302 open）。11 Step / Gate 付き・代替案 7 件・AC 12 件。署名 / 公証 / `electron-updater` 有効化 / ストア申請は Non-goals（移行 SSOT §8 の完成後判断のまま）
+- **判断キュー**: D-20260830-main-1（Intel Mac 向け x64 `.dmg` を配るか — `macos-latest` は arm64 でクロスビルドの起動検証ができない）。P-005 に従い実装で先行せずキューへ
+- **検証**: CI docs-lint pass（9 秒）。変更 2 ファイルの相対リンク 5 本・Status enum・`records.mjs check` をローカルで個別確認（ローカルの `docs-lint.sh` 全体は Git Bash で極端に遅く、CI の結果を採用した）
+
 ### 2026-08-23 - #994 モバイル体感の実ブラウザ計測 6 項目（PR #1112）+ follow-up 3 件起票
 
 #### 概要
