@@ -21,6 +21,11 @@ name: Release — desktop installers (unsigned)
 # 有効化しない — 未署名バイナリへの自動更新は feed が乗っ取られた時点で任意
 # コードが流れ込むため、署名導入と同時にしか入れられない。
 #
+# macOS 側は未署名の代償が Windows より重い: `identity: null` で作った `.app` は
+# Big Sur / Apple Silicon 以降だと「壊れているため開けません」と出る（壊れていない —
+# 署名の存在自体を要求されているだけ）。解除手順は desktop/README.md 側。ad-hoc 署名
+# （`identity: "-"`）はビルドしたマシンでしか動かないので配布の答えにならない。
+#
 # 必要な Secrets（2 件・deploy-web.yml と同じものを流用。新規登録は不要）:
 #   VITE_SUPABASE_URL      … Vite はビルド時に import.meta.env を文字列へ焼き
 #   VITE_SUPABASE_ANON_KEY … 込むので、実行時ではなくビルド時に要る
@@ -55,6 +60,17 @@ jobs:
             target: --win
             artifact: desktop-windows
             glob: desktop/release/*.exe
+          # macos-latest は arm64 ランナ。arm64 の dmg はその場で起動を
+          # 確かめられる側だが、x64 はクロスビルドになるので
+          # ランナ上では一度も起動できない。判断キュー
+          # D-20260830-main-1 の「放置時」に従い、両方ビルドしつつ
+          # **Release に載せるのは arm64 だけ**、x64 は artifact に留める
+          - label: macos (dmg arm64 + x64)
+            os: macos-latest
+            target: --mac
+            artifact: desktop-macos
+            glob: desktop/release/*-arm64.dmg
+            extra_glob: desktop/release/*-x64.dmg
     steps:
       - uses: actions/checkout@v4
 
@@ -141,6 +157,18 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      # 受け入れ対象外の成果物。名前が `desktop-` で始まらないので
+      # 下の release ジョブの pattern に拾われず、Release には乗らない。
+      # 落として試したいときは Actions の run 画面から直接取る
+      - name: upload unverified extras
+        if: matrix.extra_glob != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: unverified-${{ matrix.artifact }}-x64
+          path: ${{ matrix.extra_glob }}
+          if-no-files-found: error
+          retention-days: 14
+
   release:
     name: draft GitHub Release
     needs: build
@@ -151,8 +179,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      # `desktop-*` だけを拾う。`unverified-*` は意図的に外している
+      # （ランナで一度も起動できない x64 dmg）
       - uses: actions/download-artifact@v4
         with:
+          pattern: desktop-*
           path: dist
           merge-multiple: true
 
