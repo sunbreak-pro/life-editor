@@ -1,5 +1,41 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-09-01 - [shared-fix] #1359 = セクション再生の中断位置（直すべきは Escape ではなく #1194 の封印だった）
+
+#### 概要
+
+こうだいさんの /goal「#1359 を origin/main から切ったブランチ + CI verify のローカル全緑 + PR まで」を実行し、**PR #1376** に到達（open。merge は P-001 でこうだいさん手番）。
+
+Settings のランチャーからセクションを 1 つ選んで始めたツアーを Escape で閉じると位置が保存されない。**Issue が疑っていた Escape の結線は無罪**で、原因は自分が #1194 で置いた `persist` の封印だった。`stopAt` は両経路とも呼ばれ、正しいステップ ID を持って `persist` まで届いていて、そこの `if (partialRef.current) return;` が飲んでいた。
+
+#### Issue の実測表が Escape を疑わせたのは、2 行が同時に 2 つの変数を動かしていたから
+
+比較していた `briefing-intro` は modal 経路（`useDialogA11y`）、`schedule-create-event` は非 modal 経路（`TourOverlay` 自前のリスナ）。**run の種類と Escape の経路が同時に変わっていた**ので、どちらが効いているか表からは決まらない。欠けていた 2 セル（通し × 非 modal / セクション × modal）を埋めたら、書く / 書かないを決めているのは run の種類だけで Escape の経路は両方とも無罪だった。次に同じ形の表を読むときは、まず交絡していないかを見る。
+
+#### 「素直な直し方」を実装して実測したら、通しツアーが壊れた
+
+セクション再生にも `stepId` を書かせる案を実際に当てて測った。`stepId:"b1"` を持つ人が Materials を再生して m2 で Escape すると保存が `m2` に化け、**次の通し起動が最後のステップから開いて、次へ 1 回で `completed: true`**。1 セクション見ただけの人が、見ていないツアーを使い切って初回の自動提示が永久に沈黙する。#1194 が封印した害そのものが裏口から入ってくる形だった。
+
+**しかもこの状態で既存 42 テストが全部緑のまま通る**。#1194 の suite は `next` で歩く経路しか固定していなくて、Escape 経路のストレージを 1 本も見ていなかった。守りのテストは「起きてほしいこと」だけでなく「起きてほしくないこと」を同じ経路で押さえないと、穴が緑で出荷される。
+
+#### 採ったのは「台帳を分ける」
+
+`TourProgress.sectionStepId` を同じ `life-editor-tour-progress` レコードの中に足し、**読み手を `startSection` だけ**にした（通しツアーは一切見ない）。封印は「partial run は何も書かない」→「partial run は自分の栞しか書かない」へ狭めただけで、`persist` 1 箇所のガードのまま。Escape は栞を置き、Skip は消し、最後まで歩くと消え、`restart` は全部消す。DoD 4 の `skipped` は「再生は両方向とも書かない」で決着（Issue が補足で挙げた `startSection` に `persist({skipped:false})` が無い件は、漏れではなく意図）。
+
+#### 3 コンテキストの独立レビューが、自分の修正の中に実 defect を 1 つ見つけた
+
+栞に読み手を付けた `startSection` で `resumedRef` を立て忘れていた。アンカーが消えている再生（ノート未選択でリロードした直後など）が**前進方向に give-up し続けて何も表示せずに終わり、栞まで焼く** — クリックが効かなかったように見える。#1193 の後退リカバリはまさにこのためにあるので、`resumeAt > 0` で立てるようにして回帰テストを 1 本追加した。DoD が求めたテストは 1 本だが、確定した回帰を無防備で出すほうが悪いと判断して 2 本にしている（PR 本文に明記）。
+
+#### 変更点
+
+- **`shared/src/components/tour/types.ts`**: `TourProgress` に `sectionStepId: string | null` を追加（optional にせず必須にしたので、書き手の漏れを tsc が拾う — 実際に `restart` の literal を 1 件捕まえた）
+- **`shared/src/hooks/useTourProgress.ts`**: `parseTourProgress` が `stepId` と同じ述語で検証。旧 3 フィールドのレコードは `sectionStepId: null` に落ちるだけなのでマイグレーション不要
+- **`shared/src/context/TourContext.tsx`**: `persist` の封印を狭める / `stopAt` を pause・skip で分岐 / `goTo` の完走ブランチで栞をクリア / `startSection` が栞を読み `resumedRef` を立てる / `restart` が栞も消す
+- **`shared/src/context/TourContextValue.ts` + `web/src/settings/SettingsScreen.tsx`**: 「partial run は保存を触らない」と書いてあったコメントを実態に合わせた（このリポジトリはコメントを契約として扱うので、放置は defect）
+- **守り 2 本**（`shared/tests/tourSectionRun.test.tsx`）: 栞が書かれること + 通しの 3 フィールドが凍っていることを 1 つの `toEqual` で同時に見る本体と、アンカーが消えた再生が先頭へ戻る回帰テスト。**どちらも却下案 / バグ版に差し替えると赤くなることを実測**（ミューテーションで確認。1 回目は `start` 側の同名行に当たって空振りしたので、`lastIndexOf` で狙い直した）
+- **検証**: ci.yml の verify 全ステップ + docs-lint をローカル全緑（shared 282 files / 2791 tests・web 107 / 1003・desktop 29・mcp-server 322）
+- **`useTourProgress.ts` が GitHub で `Binary files differ` と出る**: main の時点で `stepIds.join("\0")` にリテラルの NUL バイトが入っているため（初出 #1122・offset 3254）。この PR とは無関係なのでスコープ外に置き、`git diff --text` で読める旨を PR 本文に書いた
+
 ### 2026-08-30 - [shared-fix] PR #1325 に main を取り込んだ（衝突は「両側が同じファイルの末尾に足した」1 件だけ）
 
 #### 概要
@@ -95,19 +131,3 @@
 - **検証**: 4 ブランチとも ci.yml の `verify` 全ステップ（shared → web → desktop → mcp-server）+ `docs-lint` をローカルで全緑。#1193 の初回だけ `web/tests/briefingEveningLazyMount.test.tsx` が 1 本落ちたが、**ツアーを一切参照していない**ファイルで単体・フルスイートとも再実行で緑（マシン負荷によるタイムアウト）。判断を変えないよう verify を丸ごと取り直して全緑を確認してから commit した
 - **worktree 規約**: ブランチを切るたび `.claude/comm/.session-branch` を更新。tracker は実装ブランチに載せず本コミットの専用ブランチへ（D-20260801-main-1）
 
-### 2026-08-29 - [shared-fix] PR #1190 の CI 修正（コンフリクト解決が実装を丸ごと消していた）
-
-#### 概要
-
-こうだいさんの依頼で PR #1190（#1158 = セクションチャンクのアイドル先読み）の CI 赤を直した。**赤の原因は自分の実装ではなく、8/29 に打った main 取り込みマージ b7517bd6 のコンフリクト解決**。`web/src/lazySections.ts` を main 側で丸ごと採用したため `prefetchLazySections` の 135 行が消え、`MainScreen` の import だけが残って `TS2305` になっていた。最新 main（91009af9 = #1187 まで）を取り込み直して復元し、commit 7370ecc3 / CI 緑 / mergeable CLEAN。
-
-#### 変更点
-
-- **なぜコンフリクトが出たのか**: ブランチが古い main 由来で、その間に **#1152 が Connect セクションごと退役**して `lazySections.ts` から `ConnectScreen` の行が消えていた。同じファイルの同じ場所を両側が触ったため衝突し、解決で main 側を採ったときに**衝突していない追記部分（warm-up ブロック全体）まで一緒に落ちた**。`git diff origin/main...branch` で `lazySections.ts` が 1 行も出てこないのが決定的な症状だった
-- **2 本構成へ縮めた**: `web/src/connect/` が存在しないので 3 本目のローダーは削除済みモジュールへの `import()` になる。ローダー表・テストのモック・コメントをすべて Notes + Analytics に揃えた。これで **PR が「Connect を落として絞るか」として判断キューに投げようとしていた問いも消えた**（#1152 が先に答えを出した）
-- **実測を取り直した**: 元の PR 本文の数字（285 KB gzip / 10 .js / entry 921.85 kB）は 2 つの退役より前のもの。main を一度チェックアウトしてビルドし直し、**entry 848.77 → 849.47 kB raw（233.09 → 233.31 gzip）・dist は両側とも 7 .js + 1 .css・warm-up が引く union は約 272 KB gzip**（vite の gzip 列）。fan-out は推測せず **ビルド済みチャンクの静的 import 文を読んで**確かめた（`AnalyticsScreen` が `CartesianChart` と 2 つのウィジェットを、`NotesView` が `RichTextEditor` を静的に引く）
-- **監査で 1 件、コメントの事実誤認が出た**: フォールバック定数の説明が「jsdom, iOS ≤ 16.3」だったが、repo 同梱の caniuse-lite を引くと **`requestIdleCallback` は Safari が macOS でも iOS でも未出荷**（Technology Preview のみ）。スマホの導線が公開 Web URL（D-20260807-main-1）である以上、**実機では常に `load` + 2 秒の setTimeout が本番経路**で、4 秒のアイドル待ちは Chromium / Firefox / Electron 殻だけの話だった。挙動は `typeof` の feature test なので無傷だが、遅延を調整する人が最初に読む数字なので直した
-- **mutation check で守りの穴が 1 つ見つかった**: Save-Data ガード / offline ガード / MainScreen の呼び出し口はどれも外すとテストが赤くなるのに、**順次ループを `Promise.all` に変えても全部緑のまま通った**。モックが同期的に解決するので、どちらでも記録順が map 順になるため。「1 本ずつ」は帯域を食い潰さないための明示的な設計なので、**1 本目のロードを thenable で止めたまま 2 本目が始まっていないことを見る 8 個目のケース**を足し、改変を戻して赤化することまで確認した
-- **`rules/frontend.md` に 1 節**: `SECTION_CHUNK_LOADERS` と `lazy()` は同じ specifier を二重に持つので、重い body を足す / 消すときは 2 箇所セットで直す（片方だけだと削除済みモジュールを `import()` することになる）。今回の壊れ方そのものを次の人が踏まないようにするため
-- **検証**: ci.yml の `verify` 全ステップ + `docs-lint` をローカルで **15/15 緑**。GitHub 側も `typecheck + test + build` / `docs-lint` とも pass
-- **並行作業の退避**: このワークツリーに未コミットで載っていた #1138（MCP の週開始を日曜へ）を `git stash` に逃がしてから着手した。ブランチ側にコミットが 1 件も無いため、**変更は stash にしか存在しない**状態が続いている
