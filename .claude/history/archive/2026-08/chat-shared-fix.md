@@ -1,5 +1,22 @@
 # HISTORY archive (chat-shared-fix) — 2026-08
 
+### 2026-08-29 - [shared-fix] PR #1190 の CI 修正（コンフリクト解決が実装を丸ごと消していた）
+
+#### 概要
+
+こうだいさんの依頼で PR #1190（#1158 = セクションチャンクのアイドル先読み）の CI 赤を直した。**赤の原因は自分の実装ではなく、8/29 に打った main 取り込みマージ b7517bd6 のコンフリクト解決**。`web/src/lazySections.ts` を main 側で丸ごと採用したため `prefetchLazySections` の 135 行が消え、`MainScreen` の import だけが残って `TS2305` になっていた。最新 main（91009af9 = #1187 まで）を取り込み直して復元し、commit 7370ecc3 / CI 緑 / mergeable CLEAN。
+
+#### 変更点
+
+- **なぜコンフリクトが出たのか**: ブランチが古い main 由来で、その間に **#1152 が Connect セクションごと退役**して `lazySections.ts` から `ConnectScreen` の行が消えていた。同じファイルの同じ場所を両側が触ったため衝突し、解決で main 側を採ったときに**衝突していない追記部分（warm-up ブロック全体）まで一緒に落ちた**。`git diff origin/main...branch` で `lazySections.ts` が 1 行も出てこないのが決定的な症状だった
+- **2 本構成へ縮めた**: `web/src/connect/` が存在しないので 3 本目のローダーは削除済みモジュールへの `import()` になる。ローダー表・テストのモック・コメントをすべて Notes + Analytics に揃えた。これで **PR が「Connect を落として絞るか」として判断キューに投げようとしていた問いも消えた**（#1152 が先に答えを出した）
+- **実測を取り直した**: 元の PR 本文の数字（285 KB gzip / 10 .js / entry 921.85 kB）は 2 つの退役より前のもの。main を一度チェックアウトしてビルドし直し、**entry 848.77 → 849.47 kB raw（233.09 → 233.31 gzip）・dist は両側とも 7 .js + 1 .css・warm-up が引く union は約 272 KB gzip**（vite の gzip 列）。fan-out は推測せず **ビルド済みチャンクの静的 import 文を読んで**確かめた（`AnalyticsScreen` が `CartesianChart` と 2 つのウィジェットを、`NotesView` が `RichTextEditor` を静的に引く）
+- **監査で 1 件、コメントの事実誤認が出た**: フォールバック定数の説明が「jsdom, iOS ≤ 16.3」だったが、repo 同梱の caniuse-lite を引くと **`requestIdleCallback` は Safari が macOS でも iOS でも未出荷**（Technology Preview のみ）。スマホの導線が公開 Web URL（D-20260807-main-1）である以上、**実機では常に `load` + 2 秒の setTimeout が本番経路**で、4 秒のアイドル待ちは Chromium / Firefox / Electron 殻だけの話だった。挙動は `typeof` の feature test なので無傷だが、遅延を調整する人が最初に読む数字なので直した
+- **mutation check で守りの穴が 1 つ見つかった**: Save-Data ガード / offline ガード / MainScreen の呼び出し口はどれも外すとテストが赤くなるのに、**順次ループを `Promise.all` に変えても全部緑のまま通った**。モックが同期的に解決するので、どちらでも記録順が map 順になるため。「1 本ずつ」は帯域を食い潰さないための明示的な設計なので、**1 本目のロードを thenable で止めたまま 2 本目が始まっていないことを見る 8 個目のケース**を足し、改変を戻して赤化することまで確認した
+- **`rules/frontend.md` に 1 節**: `SECTION_CHUNK_LOADERS` と `lazy()` は同じ specifier を二重に持つので、重い body を足す / 消すときは 2 箇所セットで直す（片方だけだと削除済みモジュールを `import()` することになる）。今回の壊れ方そのものを次の人が踏まないようにするため
+- **検証**: ci.yml の `verify` 全ステップ + `docs-lint` をローカルで **15/15 緑**。GitHub 側も `typecheck + test + build` / `docs-lint` とも pass
+- **並行作業の退避**: このワークツリーに未コミットで載っていた #1138（MCP の週開始を日曜へ）を `git stash` に逃がしてから着手した。ブランチ側にコミットが 1 件も無いため、**変更は stash にしか存在しない**状態が続いている
+
 ### 2026-08-27 - [shared-fix] /goal 3 件を PR まで（1 件は Issue の指定が今のアーキで踏めず、1 件は自分のバグをレビューが捕まえた）
 
 #### 概要
