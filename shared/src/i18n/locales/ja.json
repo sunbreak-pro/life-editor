@@ -367,6 +367,8 @@
       "empty": "ノートはまだありません",
       "content": "内容",
       "deleteNote": "ノートを削除",
+      "deleteConfirmBody": "「{{name}}」を削除しますか？ ゴミ箱に入るので、あとから元に戻せます。",
+      "deleteConfirmAction": "削除する",
       "bodyPlaceholder": "ノートを書く…",
       "untitled": "(無題)",
       "lockedHint": "このノートはロックされています",

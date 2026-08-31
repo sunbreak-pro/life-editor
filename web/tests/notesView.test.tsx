@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { NoteNode } from "@life-editor/shared";
 import {
@@ -259,12 +265,69 @@ describe("NotesView — desktop (wide)", () => {
     expect(screen.queryByText("Old note")).toBeNull();
   });
 
-  it("deletes a note from its side-list row", () => {
+  /*
+   * #1345 — both of a note's bins ask first now. The template row two lines
+   * down the same sidebar has asked since #1248, so a press that deleted a
+   * NOTE outright was the odd one out. What is pinned is the pause: the press
+   * writes nothing, the answer does.
+   */
+  it("asks before deleting a note from its side-list row, then deletes", async () => {
     render(<NotesView />);
 
     fireEvent.click(screen.getByLabelText("materials.notes.deleteNote: Alpha"));
-    expect(state.softDeleteNote).toHaveBeenCalledExactlyOnceWith("note-a");
+
+    expect(
+      await screen.findByText("materials.notes.deleteConfirmBody|Alpha"),
+    ).toBeTruthy();
+    expect(state.softDeleteNote).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText("materials.notes.deleteConfirmAction"));
+
+    await waitFor(() =>
+      expect(state.softDeleteNote).toHaveBeenCalledExactlyOnceWith("note-a"),
+    );
   });
+
+  it("keeps the note when the delete question is refused", async () => {
+    render(<NotesView />);
+
+    fireEvent.click(screen.getByLabelText("materials.notes.deleteNote: Alpha"));
+    fireEvent.click(await screen.findByText("common.cancel"));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByText("materials.notes.deleteConfirmBody|Alpha"),
+      ).toBeNull(),
+    );
+    expect(state.softDeleteNote).not.toHaveBeenCalled();
+    screen.getByText("Alpha");
+  });
+
+  // Both widths, because the kebab is the ONLY delete a phone can reach with
+  // the drawer shut — and the dialog is mounted at the view root rather than
+  // beside the menu, so it has to outlive the menu closing under it.
+  it.each([true, false])(
+    "asks before deleting from the detail kebab (isWide=%s)",
+    async (isWide) => {
+      state.isWide = isWide;
+      state.selectedId = "note-a";
+      render(<NotesView />);
+
+      fireEvent.click(screen.getByLabelText("notesView.moreActions"));
+      fireEvent.click(screen.getByText("materials.notes.deleteNote"));
+
+      expect(
+        await screen.findByText("materials.notes.deleteConfirmBody|Alpha"),
+      ).toBeTruthy();
+      expect(state.softDeleteNote).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByText("materials.notes.deleteConfirmAction"));
+
+      await waitFor(() =>
+        expect(state.softDeleteNote).toHaveBeenCalledExactlyOnceWith("note-a"),
+      );
+    },
+  );
 
   it("collapses a tag group and hides only that group's rows", () => {
     render(<NotesView />);

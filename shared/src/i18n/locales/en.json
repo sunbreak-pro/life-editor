@@ -369,6 +369,8 @@
       "empty": "No notes yet",
       "content": "Content",
       "deleteNote": "Delete note",
+      "deleteConfirmBody": "Delete “{{name}}”? It goes to the trash, so you can restore it later.",
+      "deleteConfirmAction": "Delete",
       "bodyPlaceholder": "Write your note…",
       "untitled": "(untitled)",
       "lockedHint": "This note is locked",

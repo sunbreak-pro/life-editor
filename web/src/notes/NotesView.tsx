@@ -466,6 +466,40 @@ export function NotesView({
     [askConfirm, removeTemplate, t, templateRows],
   );
 
+  /*
+   * #1345: deleting a NOTE asks the same way.
+   *
+   * Until now this one file treated the smaller thing as the more dangerous
+   * one — the template row above has asked since #1248, while a note went in
+   * one press from both of its bins. Both note routes now come through this
+   * single callback: the side-list row and the detail kebab's "delete note".
+   * That is also what makes the two widths agree for free — wide and narrow
+   * render the SAME list (#876) and the same detail surface, so there is no
+   * second wiring to keep in step.
+   *
+   * The copy names Trash (which moved under Settings in #1293) because a note
+   * DOES land there: this question is a pause, not the template's warning about
+   * an unrecoverable row. The name comes from the note being deleted, so the
+   * dialog repeats back what the user is looking at.
+   */
+  const noteRows = notes.notes;
+  const softDeleteNote = notes.softDeleteNote;
+  const handleDeleteNote = useCallback(
+    (id: string) => {
+      const row = noteRows.find((note) => note.id === id);
+      const name = row?.title || t("materials.notes.untitled");
+      void askConfirm({
+        message: t("materials.notes.deleteConfirmBody", { name }),
+        confirmLabel: t("materials.notes.deleteConfirmAction"),
+        cancelLabel: t("common.cancel"),
+        danger: true,
+      }).then((ok) => {
+        if (ok) softDeleteNote(id);
+      });
+    },
+    [askConfirm, noteRows, softDeleteNote, t],
+  );
+
   // #1255: what the apply confirm says depends on whether there is anything to
   // discard. The copy call is the host's (§6.4), so the branch lives here.
   const selectedBodyIsBlank = isBlankNoteBody(selected?.content);
@@ -540,7 +574,7 @@ export function NotesView({
       error={notes.error}
       selectedNoteId={selected?.id ?? null}
       onSelectNote={handleSelectNote}
-      onDeleteNote={notes.softDeleteNote}
+      onDeleteNote={handleDeleteNote}
       onCreateNote={handleAddNote}
       dnd={dnd}
       // #1180 — only with a DataService, which is what templates are read and
@@ -602,7 +636,7 @@ export function NotesView({
           onUnlock={password.requestUnlock}
           onTitleCommit={(id, title) => notes.updateNote(id, { title })}
           onTogglePin={notes.togglePin}
-          onDelete={(id) => notes.softDeleteNote(id)}
+          onDelete={handleDeleteNote}
           // #1179: the kebab entry, wired only when there is a DataService to
           // write templates through — the same condition the "[[" pool has.
           //
