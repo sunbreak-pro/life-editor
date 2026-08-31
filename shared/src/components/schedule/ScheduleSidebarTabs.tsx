@@ -55,6 +55,13 @@ export function ScheduleSidebarTabs({
           value={value}
           onChange={onChange}
           label={label}
+          /*
+           * The three labels are long for the panel they live in — 「今日の流
+           * れ」and「本日の Todo」were breaking mid-label at the default 320px
+           * width while「繰り返し」was not (#1343). singleLineLabels keeps each
+           * one intact and wraps the track instead; see the prop's own note.
+           */
+          singleLineLabels
         />
       )}
       {/* aria-label (not aria-labelledby): the shell-owned SegmentedControl
