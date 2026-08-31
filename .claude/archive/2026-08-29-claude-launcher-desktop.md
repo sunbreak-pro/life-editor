@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED — #1211 close 済み（実装 2026-08-31・PR #1357 merged `07a1da97`）。docs 追随 = #1377
 Created: 2026-08-29
 Branch: feat/claude-launcher-desktop
 Owner-chat: main
@@ -128,3 +128,13 @@ web/src/hooks/useShellChrome.tsx            (nav.launchClaude ラベル)
 - Step 6（👀 Windows 実機の golden path）は worktree では回せない — 実ブラウザ検証・dev server は chat-main 専有（CLAUDE.md §7.4）。merge 後に chat-main 側で実測
 - macOS の実機確認は計画どおり後日
 - 完了時タスク（plan の archive 移動 / CLAUDE.md §5 の「再設計待ち」記述の更新）は Step 6 通過後
+
+### 2026-09-01 — 完了処理と乖離レビュー（#1377 / settings-refine）
+
+PR #1357 が 2026-08-31 に merged（`07a1da97`）で #1211 は close 済み。本エントリで Status を COMPLETED にし `archive/` へ移した。Step 6（👀 Windows 実機）は chat-main が着地後に導線の実体を実測して close 判定に使っており（`history/chat-main.md` 2026-08-31）、クリック 1 周そのものの記録は残っていない。
+
+**乖離レビュー**:
+
+1. **スコープ逸脱**: 1 件あり・ユーザー承認済み。Step 0 の回答 D-20260831-settings-1（Q1-B）でサイドバー常設行のため Scope を 4 ファイル拡張した — 選択肢に「Scope 外」と明記したうえでユーザーが選んだ拡張なので P-008 の対象外。実装中に自己判断で Scope を広げた箇所は**なし**
+2. **AC 免除**: 1 件。「PR diff ±500 行以内」が未達で約 1,300 行（実測 = PR #1357 の +1439 / -27）。内訳と判断は AC 欄に記録済み — テストと Q1-B / Q3-A による Scope 拡張が主因で、行数を守るには OS コマンド起動経路のテストを削るしかなく本末転倒と判断した。**他の AC に免除はなし**
+3. **実装中に出た判断の行き先**: 台帳へ昇格したのは D-20260831-settings-1 の 1 件のみ。それ以外（`claudeLauncher.ts` の分離 / darwin の一時スクリプト経由 / `claude` 探索パスの補完 / 保存を spawn 成功後にする / サイドバー行の失敗時は Settings へ遷移）は計画スコープ内の実装判断なので上の Worklog に留めた。判断キュー（`comm/decisions/`）へ送った未決事項は**なし**
