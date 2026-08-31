@@ -1,16 +1,17 @@
 #!/usr/bin/env node
-// records — 記録グラフ層の索引生成と検証（docs/vision/plans/2026-08-09-record-graph-layer.md）
+// records — 記録グラフ層の索引生成と検証（archive/2026-08-09-record-graph-layer.md）
 //
 // 使い方:
-//   node .claude/scripts/records.mjs index   # .claude/INDEX.md + .claude/decisions/INDEX.md を再生成
+//   node .claude/scripts/records.mjs index   # .claude/INDEX.md + decisions/INDEX.md + archive/INDEX.md を再生成
 //   node .claude/scripts/records.mjs check   # frontmatter スキーマ / supersede / ANSWERS 突合の検証（CI / docs-lint 用）
 //
 // 決定論の規約: 出力にタイムスタンプ・環境依存パスを含めない / ソートは ID のバイト順
 // （localeCompare 不使用）/ 改行 LF 固定 / 内容が同一なら書かない（無駄 diff ゼロ）。
 // リンク実在チェックは持たない — それは scripts/docs-lint.sh (a) の担当（検査の非複製）。
 //
-// 出力 2 本（.claude/INDEX.md / .claude/decisions/INDEX.md）は git 非追跡の派生ビュー
-// （2026-08-12 #735）。commit に載らないので、いつ再生成しても他レーンとぶつからない。
+// 出力 3 本（.claude/INDEX.md / decisions/INDEX.md / archive/INDEX.md）は git 非追跡の
+// 派生ビュー（2026-08-12 #735）。commit に載らないので、いつ再生成しても他レーンと
+// ぶつからない。archive の索引は D-20260809-main-2 = A（2026-08-11 回答）で追加した。
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -20,6 +21,7 @@ const CLAUDE_DIR = path.dirname(path.dirname(fileURLToPath(import.meta.url))); /
 const DECISIONS_DIR = path.join(CLAUDE_DIR, 'decisions');
 const QUEUE_DIR = path.join(CLAUDE_DIR, 'comm', 'decisions');
 const PLANS_DIR = path.join(CLAUDE_DIR, 'docs', 'vision', 'plans');
+const ARCHIVE_DIR = path.join(CLAUDE_DIR, 'archive');
 
 const STATUS_ENUM = ['answered', 'recorded', 'superseded', 'withdrawn'];
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -161,6 +163,64 @@ function scanPlans() {
   return plans;
 }
 
+/*
+ * archive/ の Status 行は plans/ より書式が広い。archive には計画書だけでなく要件定義書や
+ * 棚卸しメモも同居しており（D-20260801-main-2 で enum の適用外と確定）、`Status:` /
+ * `**Status**:` / 先頭の `-` や `>` 付き、の 4 通りが実在する。docs-consistency.md §3 が
+ * 「先頭 14 行に 2 種類の正規表現を当てる」と書いているのと同じ範囲を 1 本で拾う。
+ * 実測（2026-08-31・直下 99 本）では Status 行はすべて 5 行目までにあり、持たないのは 4 本。
+ */
+const ARCHIVE_STATUS_RE = /^>?\s*-?\s*(?:\*\*Status[^*]*\*\*|Status)\s*:\s*(.+?)\s*$/;
+const ARCHIVE_HEAD_LINES = 14;
+const NO_STATUS = '(Status 行なし)';
+
+/** Markdown の表セルに入れる前に、区切りと衝突する `|` だけ潰す。 */
+const cell = (text) => text.replace(/\|/g, '\\|');
+
+/**
+ * 見出しに使う短い Status。長い注記（`COMPLETED — 〜で全 81 ステップ達成`）は正本側に
+ * 置いたままにし、索引は語だけを出す。`SPECIFICATION（凍結）` のように語の一部が括弧に
+ * 入る形もあるので、切るのは em ダッシュ以降だけにする。
+ *
+ * `#` の扱いが plans と違う点に注意: frontmatter の `Status: COMPLETED # 注記` では
+ * コメント開始だが、本文の `Status: COMPLETED (2026-06-11, PR #34 merged)` では ただの
+ * Issue 番号で、切ると括弧が閉じない見出しになる（実測）。数字が続かない `#` だけを
+ * コメントとみなす。
+ */
+function shortStatus(raw) {
+  const head = raw
+    .split(/\s+[—–]\s+|\s+--\s+/)[0]
+    .split(/\s+#(?!\d)/)[0]
+    .replace(/[。\s]+$/, '')
+    .trim();
+  return head.length > 60 ? `${head.slice(0, 59)}…` : head || NO_STATUS;
+}
+
+/** Status 逆引きの見出し語。注記や日付を落として enum 相当の 1 語に寄せる。 */
+const statusBucket = (short) =>
+  short.split(/\s+/)[0].replace(/[（(].*$/, '').replace(/[.,:;。]$/, '') || NO_STATUS;
+
+function scanArchive() {
+  if (!fs.existsSync(ARCHIVE_DIR)) return [];
+  const skip = new Set(['SUMMARY.md', 'INDEX.md']);
+  const entries = [];
+  for (const f of fs.readdirSync(ARCHIVE_DIR).filter((n) => n.endsWith('.md') && !skip.has(n)).sort()) {
+    const text = read(path.join(ARCHIVE_DIR, f));
+    const lines = text.split('\n');
+    let status = NO_STATUS;
+    for (const line of lines.slice(0, ARCHIVE_HEAD_LINES)) {
+      const m = line.match(ARCHIVE_STATUS_RE);
+      if (m) {
+        status = shortStatus(m[1]);
+        break;
+      }
+    }
+    const h1 = text.match(/^# (.+)$/m);
+    entries.push({ file: f, status, title: h1 ? h1[1].trim() : '—' });
+  }
+  return entries;
+}
+
 // --- 生成 -------------------------------------------------------------------
 
 const sortById = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
@@ -221,6 +281,35 @@ function renderDecisionsIndex(records, open) {
   return lines.join('\n');
 }
 
+function renderArchiveIndex(entries) {
+  const lines = [];
+  lines.push('# Archive Index — 完了・凍結した文書の所在表');
+  lines.push('');
+  lines.push('> **生成物 — 手編集禁止・git 非追跡の派生ビュー。** 再生成: `node .claude/scripts/records.mjs index`（SessionStart hook でも自動実行）。正本 = 各ファイル冒頭の Status 行と git 履歴。');
+  lines.push('> 本索引は所在表で、要約は持たない（[`D-20260809-main-2`](../decisions/D-20260809-main-2.md) = A）。**2026-05-23 以前**に archive 入りした分の圧縮要約（なぜやったか・どうなったか・恒久知見）は [`SUMMARY.md`](./SUMMARY.md) が持つ — 役割が違うので両方を残している。');
+  lines.push('> `archive/` には計画書のほかに要件定義書・棚卸しメモも同居するため、Status は plans の enum に揃わない（[`D-20260801-main-2`](../decisions/D-20260801-main-2.md)）。ここでは各ファイルが名乗る語をそのまま出す。');
+  lines.push('');
+  lines.push(`## 一覧（${entries.length} 本・ファイル名昇順）`);
+  lines.push('');
+  lines.push('| ファイル | Status | 見出し |');
+  lines.push('| --- | --- | --- |');
+  for (const e of entries)
+    lines.push(`| [${cell(e.file)}](./${e.file}) | ${cell(e.status)} | ${cell(e.title)} |`);
+  lines.push('');
+  // 内訳は件数だけ。ファイル名を並べる逆引きも書けるが、COMPLETED だけで 68 本になり
+  // 1 行が画面を埋める（実測）。どのファイルがどの Status かは上の表が 1 行ずつ持っている。
+  lines.push('## Status 別の内訳');
+  lines.push('');
+  const byStatus = new Map();
+  for (const e of entries) {
+    const key = statusBucket(e.status);
+    byStatus.set(key, (byStatus.get(key) ?? 0) + 1);
+  }
+  for (const key of [...byStatus.keys()].sort()) lines.push(`- ${key}: ${byStatus.get(key)} 本`);
+  lines.push('');
+  return lines.join('\n');
+}
+
 function renderRootIndex(records, open, plans) {
   const active = records.filter((r) => ['answered', 'recorded'].includes(r.fm.status) && (r.fm['superseded-by'] ?? []).length === 0);
   const lines = [];
@@ -249,7 +338,7 @@ function renderRootIndex(records, open, plans) {
   lines.push('| レーンの進行中 / 履歴 | `memory/chat-*.md` / `history/chat-*.md`（per-chat SSOT。集約は SessionStart hook 生成の派生 INDEX） |');
   lines.push('| 課題の追跡 | GitHub Issues（`gh issue list -R sunbreak-pro/life-editor`） |');
   lines.push('| 障害知見（環境系含む） | [`docs/known-issues/INDEX.md`](./docs/known-issues/INDEX.md) |');
-  lines.push('| 完了した計画 | `archive/`（2026-05-23 以前の索引 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)） |');
+  lines.push('| 完了した計画 | [`archive/INDEX.md`](./archive/INDEX.md)（2026-05-23 以前の圧縮要約 = [`archive/SUMMARY.md`](./archive/SUMMARY.md)） |');
   lines.push('| チャット間の連絡 | `comm/outbox/chat-*.md`（プロトコル = [`comm/README.md`](./comm/README.md)） |');
   lines.push('| どこに書くかの判定 | [`rules/records.md`](./rules/records.md) |');
   lines.push('');
@@ -263,6 +352,7 @@ function build() {
   const answered = scanAnswers();
   const open = scanQueues(answered);
   const plans = scanPlans();
+  const archived = scanArchive();
   // answered ステータスの D は ANSWERS.md に行があること（監査突合）
   for (const r of records)
     if (r.fm.status === 'answered' && !answered.has(r.id))
@@ -271,6 +361,7 @@ function build() {
     outputs: [
       { path: path.join(DECISIONS_DIR, 'INDEX.md'), content: renderDecisionsIndex(records, open) },
       { path: path.join(CLAUDE_DIR, 'INDEX.md'), content: renderRootIndex(records, open, plans) },
+      { path: path.join(ARCHIVE_DIR, 'INDEX.md'), content: renderArchiveIndex(archived) },
     ],
   };
 }

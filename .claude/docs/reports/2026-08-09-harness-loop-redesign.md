@@ -157,6 +157,6 @@ CLAUDE.md の**構成**変更は D-20260806-main-3（layering Phase 3 は移行�
 ## References
 
 - 調査サブエージェント報告 3 本（本セッション・2026-08-09）
-- `rules/records.md` §1（ID 参照原則）/ `docs/vision/plans/2026-08-09-record-graph-layer.md`（#615 で 6/7 消化）
+- `rules/records.md` §1（ID 参照原則）/ `archive/2026-08-09-record-graph-layer.md`（#615 で 6/7 消化・残り 1 件は #1337 で消化して archive 入り）
 - `docs/vision/claude-md-layering.md`（CLAUDE.md 移送ゲート = D-20260806-main-3）
 - D-20260801-main-1（tracker 分離 → hook 化の先行事例）/ D-20260806-main-1（P-001 維持）
