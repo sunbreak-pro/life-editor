@@ -183,6 +183,7 @@ describe("walking the tour", () => {
       stepId: null,
       completed: true,
       skipped: false,
+      sectionStepId: null,
     });
   });
 
@@ -335,6 +336,7 @@ describe("leaving and coming back", () => {
       stepId: "one",
       completed: false,
       skipped: false,
+      sectionStepId: null,
     });
   });
 
@@ -373,6 +375,7 @@ describe("leaving and coming back", () => {
       stepId: null,
       completed: false,
       skipped: false,
+      sectionStepId: null,
     });
   });
 
@@ -393,6 +396,7 @@ describe("leaving and coming back", () => {
       stepId: "one",
       completed: false,
       skipped: false,
+      sectionStepId: null,
     });
   });
 
@@ -613,6 +617,7 @@ describe("parseTourProgress", () => {
         stepId: null,
         completed: false,
         skipped: false,
+        sectionStepId: null,
       });
     }
   });
@@ -623,7 +628,12 @@ describe("parseTourProgress", () => {
         JSON.stringify({ stepId: "one", completed: "yes", skipped: 1 }),
         ["one"],
       ),
-    ).toEqual({ stepId: "one", completed: false, skipped: false });
+    ).toEqual({
+      stepId: "one",
+      completed: false,
+      skipped: false,
+      sectionStepId: null,
+    });
   });
 });
 

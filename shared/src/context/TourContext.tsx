@@ -11,7 +11,7 @@ import {
   TOUR_ANCHOR_TIMEOUT_MS,
 } from "../components/tour/anchor";
 import { TOUR_STEPS } from "../components/tour/registry";
-import { type TourStep } from "../components/tour/types";
+import { type TourProgress, type TourStep } from "../components/tour/types";
 import { useTourProgress } from "../hooks/useTourProgress";
 import type { SectionId } from "../sections";
 import { TourContext, type TourContextValue } from "./TourContextValue";
@@ -68,13 +68,24 @@ import { TourContext, type TourContextValue } from "./TourContextValue";
  * mechanism above — the probe, the give-up, the counter, the end — already
  * works off "the list this run is walking" rather than off the registry.
  *
- * What a partial run does NOT do is touch storage. The persisted progress
- * answers one question — has this user been offered the whole tour and
- * finished or refused it — and a section replay is not an answer to it.
- * Letting one write there would either mark the tour complete after four
- * Materials steps or, on a Skip, retire the tour for good over a "not this
- * bit". `persist` is the single choke point, so the seal is one guard rather
- * than a rule every caller has to remember.
+ * What a partial run does NOT do is answer the question the persisted
+ * progress exists for — has this user been offered the whole tour and
+ * finished or refused it. A section replay is not an answer to it. Letting
+ * one write `stepId` / `completed` / `skipped` would either mark the tour
+ * complete after four Materials steps or, on a Skip, retire the tour for good
+ * over a "not this bit". `persist` is the single choke point, so the seal is
+ * one guard rather than a rule every caller has to remember.
+ *
+ * A partial run does keep ONE thing (#1359): `sectionStepId`, where it stood
+ * when it was closed, so re-picking that section continues instead of
+ * starting over — the same courtesy the full run has always had. It is a
+ * SEPARATE FIELD rather than a share of `stepId`, and that is the whole
+ * design. `start` resumes at `stepId` and the end of a run writes
+ * `completed`, so a replay allowed to move `stepId` would open the full tour
+ * at a step the user never walked to and spend it on the next "Next" — the
+ * exact harm the seal above exists to prevent, arriving by the back door.
+ * Two fields, two readers, no crossing: `start` reads `stepId`,
+ * `startSection` reads `sectionStepId`.
  */
 
 /** Monotonic-ish clock, falling back where `performance` is absent. */
@@ -185,8 +196,9 @@ export function TourProvider({
    */
   const resumedRef = useRef(false);
   /**
-   * This run walks one section only, so it must not write progress (#1194 —
-   * see the header). Checked inside `persist`, which every write goes through.
+   * This run walks one section only, so it may write nothing but its own
+   * bookmark (#1194 / #1359 — see the header). Checked inside `persist`,
+   * which every write goes through.
    */
   const partialRef = useRef(false);
 
@@ -211,15 +223,22 @@ export function TourProvider({
   const activeKey = activeSteps.map((s) => s.id).join(" ");
 
   const persist = useCallback(
-    (
-      patch: Partial<{
-        stepId: string | null;
-        completed: boolean;
-        skipped: boolean;
-      }>,
-    ) => {
-      // A section run is a replay, not progress through the tour (#1194).
-      if (partialRef.current) return;
+    (patch: Partial<TourProgress>) => {
+      // A section run is a replay, not progress through the tour (#1194), so
+      // the three fields that decide whether the tour is ever offered again
+      // are sealed. Its own bookmark is the one thing it may leave (#1359).
+      //
+      // Still ONE guard, not a rule callers have to remember: a caller that
+      // forgets the distinction and sends the whole patch has the dangerous
+      // half dropped here rather than landing it.
+      if (partialRef.current) {
+        if (patch.sectionStepId === undefined) return;
+        setProgress({
+          ...progressRef.current,
+          sectionStepId: patch.sectionStepId,
+        });
+        return;
+      }
       setProgress({ ...progressRef.current, ...patch });
     },
     [setProgress],
@@ -250,7 +269,12 @@ export function TourProvider({
       setAnchorElement(null);
       setIsRunning(false);
       setIndex(0);
-      if (shownAnyRef.current) {
+      if (partialRef.current) {
+        // A replay that reached its own end has spent its bookmark (#1359).
+        // Without this the next pick of that section would land on its last
+        // step and end immediately, which reads as the launcher being broken.
+        persist({ sectionStepId: null });
+      } else if (shownAnyRef.current) {
         persist({ stepId: null, completed: true, skipped: false });
       } else {
         // Nothing was ever displayable. The resume point was never moved (see
@@ -308,11 +332,19 @@ export function TourProvider({
     setAnchorElement(null);
     setIndex(0);
     setIsRunning(allStepsRef.current.length > 0);
-    setProgress({ stepId: null, completed: false, skipped: false });
+    // The one door that IS the whole tour, so it clears every position —
+    // including a section replay's, which "run it all again from the
+    // beginning" plainly supersedes.
+    setProgress({
+      stepId: null,
+      completed: false,
+      skipped: false,
+      sectionStepId: null,
+    });
   }, [setProgress]);
 
   /*
-   * Walk one section, from its first step (#1194).
+   * Walk one section, from where it was left (#1194, #1359).
    *
    * Unconditional, unlike `start`: this is an explicit pick from the Settings
    * launcher, so a tour that happens to be up is REPLACED rather than left in
@@ -323,12 +355,32 @@ export function TourProvider({
    * was asked for, so landing there with nothing to show is still the right
    * place to be left — bouncing the user back to Settings would read as the
    * click having failed.
+   *
+   * A RESUMED replay sets `resumedRef` exactly as `start` does, and it has to.
+   * Backward give-up (#1193) is what makes a stored position survivable: the
+   * later steps of a section are precisely the ones assuming what the earlier
+   * ones set up — a note is selected, the todo tab is open — and a reload
+   * destroys that. Walking FORWARD from the stored step then meets the same
+   * class of missing anchor every time and the replay ends having shown
+   * nothing, which reads as the launcher click doing nothing at all. Walking
+   * back lands on the section's first step, whose anchor stands on its own,
+   * and asking the user to make a note again is what puts the later anchors
+   * back in the document. There is always somewhere to walk back to, because
+   * `resumeAt > 0` below is the only way this is set.
    */
   const startSection = useCallback((section: SectionId) => {
     const list = allStepsRef.current.filter((s) => s.section === section);
     if (list.length === 0) return;
+    // `> 0` for the same reason `start` uses it: resuming AT the first step is
+    // indistinguishable from starting fresh. A bookmark from ANOTHER section
+    // is simply not in this list, so `findIndex` misses and we start at the
+    // top — one slot, last replay wins, which is also why walking any replay
+    // to its end clears the slot rather than only its own section's entry.
+    const resumeAt = list.findIndex(
+      (s) => s.id === progressRef.current.sectionStepId,
+    );
     partialRef.current = true;
-    resumedRef.current = false;
+    resumedRef.current = resumeAt > 0;
     shownAnyRef.current = false;
     shownStepIdRef.current = null;
     originSectionRef.current = null;
@@ -336,7 +388,7 @@ export function TourProvider({
     setAnchorElement(null);
     setRunSteps(list);
     setRunId((n) => n + 1);
-    setIndex(0);
+    setIndex(resumeAt > 0 ? resumeAt : 0);
     setIsRunning(true);
   }, []);
 
@@ -372,13 +424,31 @@ export function TourProvider({
     goTo(index + 1, "walked");
   }, [goTo, index, isRunning]);
 
+  /**
+   * Put the tour away at the current step, recording where it stood.
+   *
+   * The two run kinds record it in different places, and the branch has to
+   * run BEFORE `partialRef` is cleared below — that ordering is what #1359
+   * was: the write happened, `persist` swallowed it, and the section replay
+   * came back at the top every time.
+   *
+   * A replay's `skipped` splits the two meanings `stopAt` otherwise conflates.
+   * Escape is "not now", so it leaves the bookmark; Skip is "done with this
+   * bit", so it clears it and the next pick starts at the top. Neither may
+   * touch the tour-wide `skipped` flag — that answers "may the tour offer
+   * itself unprompted", and a replay is not an answer to it.
+   */
   const stopAt = useCallback(
     (skipped: boolean) => {
       const step = stepsRef.current[index];
       shownStepIdRef.current = null;
       setAnchorElement(null);
       setIsRunning(false);
-      persist({ stepId: step?.id ?? null, skipped });
+      if (partialRef.current) {
+        persist({ sectionStepId: skipped ? null : (step?.id ?? null) });
+      } else {
+        persist({ stepId: step?.id ?? null, skipped });
+      }
       partialRef.current = false;
       setRunSteps(null);
     },

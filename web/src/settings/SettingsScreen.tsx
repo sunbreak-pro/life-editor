@@ -132,7 +132,9 @@ export function SettingsScreen() {
    *
    * Two doors, both of which navigate off this screen on their own: `restart`
    * clears the stored position and walks every section from step one, and
-   * `startSection` walks one section without touching that position at all.
+   * `startSection` walks one section, leaving that position alone — it keeps
+   * a bookmark of its own instead, so an interrupted replay continues where
+   * it stopped without the full tour ever seeing it (#1359).
    */
   const { restart: restartTour, startSection: startTourSection } =
     useTourContext();
@@ -814,7 +816,9 @@ export function SettingsScreen() {
         </>
       )}
 
-      {tab !== "general" && tab !== "schedule" && tab !== TRASH_TAB_ID &&
+      {tab !== "general" &&
+        tab !== "schedule" &&
+        tab !== TRASH_TAB_ID &&
         placeholder}
 
       <RightSidebarPortal>
