@@ -338,13 +338,37 @@ describe("NotesView — desktop (wide)", () => {
     screen.getByText("Beta");
   });
 
-  it("offers create from the empty state when there are no notes", () => {
+  it("offers create from the toolbar, not from the centre, with no notes", () => {
     state.notes = [];
     render(<NotesView />);
 
     // Both surfaces say it: the side list and the main content each hold their
     // own empty state.
     expect(screen.getAllByText("materials.notes.empty").length).toBe(2);
+    // #1372: TWO add entries, not three. The main content's is the toolbar
+    // pill alone; the third used to sit in the centred empty state, saying the
+    // same thing a few centimetres under the pill. The side list keeps its own.
+    expect(
+      screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
+    ).toBe(2);
+    fireEvent.click(
+      screen.getAllByRole("button", { name: "materials.notes.addCta" })[0],
+    );
+    expect(state.createNote).toHaveBeenCalled();
+  });
+
+  /*
+   * #875 pinned the narrow add entry to the screen's right edge and #1372 took
+   * the centred one away, so narrow is the width where the toolbar pill is the
+   * ONLY way in. Pinned separately from the wide case because that is exactly
+   * the width a removal like this can strand.
+   */
+  it("keeps a working add entry at narrow width with nothing selected", () => {
+    state.isWide = false;
+    state.notes = [];
+    render(<NotesView />);
+
+    screen.getAllByText("materials.notes.empty");
     fireEvent.click(
       screen.getAllByRole("button", { name: "materials.notes.addCta" })[0],
     );
@@ -403,9 +427,12 @@ describe("NotesView — desktop (wide)", () => {
         name: "materials.notes.recentHeading",
       }),
     ).toBeNull();
-    // Still the line + CTA it always was.
+    // Still the line it always was. The CTA that used to sit under it went
+    // with #1372, leaving the toolbar pill as the one add entry on screen.
     screen.getByText("materials.notes.mainEmpty");
-    screen.getAllByRole("button", { name: "materials.notes.addCta" });
+    expect(
+      screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
+    ).toBe(1);
   });
 
   it("surfaces the context error alongside the list", () => {
