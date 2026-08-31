@@ -24,6 +24,14 @@
 - **#1359 起票**: セクション単位で始めたツアー（`startSection` 経路）だけ、Escape で吹き出しが閉じても `life-editor-tour-progress` が書き換わらない。全体通しでは保存される。2 回再現。`stopAt`（`TourContext.tsx:376-388`）は partial でも persist するので `stopAt` 自体に到達していない疑い。**#1342 / PR #1346 が `useDialogA11y.ts` を触るので merge 後に再実測してから直す** gate 付き
 - **測定ミスの訂正**: 途中で Escape の検証に `[role="tooltip"], [data-tour-popover]` を使い「全経路で保存されない」と読み違えた。ツアーの吹き出しは `role="dialog"` + `aria-modal="true"` で描画されるため、正しいセレクタで測り直して上の結論に至った。検証で触った localStorage は元の値（`skipped: true`）へ復元済み・console error 0
 
+#### 一斉 merge と 2 件の取り残し（同日夜）
+
+- **13 本が 11:49:51〜11:52:10 の約 2 分で全部 merge された**。11 本は正常着地。main は `8e2d5546` まで進めた
+- **① #1350（macOS レーン）が MERGED 表示のまま main に届かなかった** — base が `claude/desktop-packaging-win-1300` の stacked PR で、**#1348 の 19 秒後**に merge したため GitHub の base 自動 retarget が間に合わず、#1348 のブランチにマージされただけで終わった。main の `release-desktop.yml` に `macos` が **0 件**。**stacked PR base retarget race の 2 例目**（1 例目 = 2026-08-14 の #861 / #865）→ 唯一のコミット `3919f71f` を main から切った枝へ cherry-pick（衝突なし・3 ファイル 73 行）して **PR #1360** で復旧
+- **② #1351（chat-main tracker）の追記が取り残された** — 巡回 3〜8 回目の記録 `bb13ba52` を push した直後に、旧 head `d70e07ee` のまま merge された。`Push after merge strands commits` の型 → 同コミットを cherry-pick して `chore/tracker-main-20260831c` で復旧（本エントリを含む PR）
+- **検知方法**: `gh pr list` の MERGED 表示だけではどちらも見抜けない。`gh api repos/.../pulls/<n> --jq '.merged, .base.ref, .head.sha'` で **base が main かどうか**と **head.sha がローカルの最新と一致するか**を照合し、さらに main 側で実物を grep する（今回は `grep -c macos .github/workflows/release-desktop.yml` = 0 が決定打）
+- **予防として言えたこと**: merge 順の警告（#1348 → retarget 待ち → #1350、#1357 は最後）は巡回 3 回目から 3 度出していたが、**待ち時間の具体値を書いていなかった**。19 秒では足りない。次に stacked PR を出すときは base を最初から main にして依存を PR 本文で伝えるか、base PR の merge 後に **子 PR の base が main に変わったことを目視してから** merge する
+
 ### 2026-08-31 - 8/30 着地分の実ブラウザ検証 13 項目 + #1342 / #1343 起票 + 3 レーンへの /goal 組み立て
 
 #### 概要
