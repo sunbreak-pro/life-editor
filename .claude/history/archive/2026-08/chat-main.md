@@ -31,7 +31,6 @@ connect-refine が #1152（Connect 退役）を実行中の裏で、Connect 機�
 - **判断キュー**: D-20260830-main-1（Intel Mac 向け x64 `.dmg` を配るか — `macos-latest` は arm64 でクロスビルドの起動検証ができない）。P-005 に従い実装で先行せずキューへ
 - **検証**: CI docs-lint pass（9 秒）。変更 2 ファイルの相対リンク 5 本・Status enum・`records.mjs check` をローカルで個別確認（ローカルの `docs-lint.sh` 全体は Git Bash で極端に遅く、CI の結果を採用した）
 
-> 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
 ### 2026-08-23 - #994 モバイル体感の実ブラウザ計測 6 項目（PR #1112）+ follow-up 3 件起票
 
 #### 概要
