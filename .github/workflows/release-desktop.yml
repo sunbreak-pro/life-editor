@@ -1,0 +1,175 @@
+name: Release — desktop installers (unsigned)
+
+# デスクトップの「配れる形」を作る唯一の経路（#1300 / #1301・計画書 =
+# .claude/docs/vision/plans/2026-08-30-desktop-app-packaging.md）。
+#
+# ci.yml / deploy-web.yml との棲み分け:
+#   ci.yml         … 壊れていないかの検証。PR ごとに走る。desktop は
+#                    electron-vite build（バンドル）まで。electron-builder は
+#                    意図的に回さない（NSIS が Linux ランナーで動かず、OS 別
+#                    ランナーを PR ごとに回すのは分数の無駄 — #529）
+#   deploy-web.yml … 公開 Web URL への配布
+#   このファイル   … インストーラの生成 + GitHub Release（draft）への添付
+#
+# 起動条件は 2 つ:
+#   push tag desktop-v*  … 本番の配布経路。release ジョブまで走って draft を作る
+#   workflow_dispatch    … 手動の動作確認。ビルドと artifact までで止まり、
+#                          Release は作らない（タグが無いので版が決まらない）
+#
+# 署名はしない（$0 原則 — 移行 SSOT §8）。未署名の代償は利用者側の初回起動
+# 操作で、手順は desktop/README.md に書いてある。electron-updater は
+# 有効化しない — 未署名バイナリへの自動更新は feed が乗っ取られた時点で任意
+# コードが流れ込むため、署名導入と同時にしか入れられない。
+#
+# 必要な Secrets（2 件・deploy-web.yml と同じものを流用。新規登録は不要）:
+#   VITE_SUPABASE_URL      … Vite はビルド時に import.meta.env を文字列へ焼き
+#   VITE_SUPABASE_ANON_KEY … 込むので、実行時ではなくビルド時に要る
+# anon key がバンドルに載るのは仕様（公開前提の公開鍵で、実際の防御は RLS）。
+# service_role key は絶対にここへ置かない（RLS を素通りする合鍵）。
+
+on:
+  push:
+    tags: ["desktop-v*"]
+  workflow_dispatch:
+
+# 配布の途中で止めると中途半端な Release が残りうるので、進行中はキャンセル
+# しない（deploy-web.yml と同じ判断）
+concurrency:
+  group: release-desktop-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: build ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      # 片方の OS が落ちても、もう片方の成果物は見たい（切り分けのため）
+      fail-fast: false
+      matrix:
+        include:
+          - label: windows (nsis x64)
+            os: windows-latest
+            target: --win
+            artifact: desktop-windows
+            glob: desktop/release/*.exe
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: |
+            shared/package-lock.json
+            web/package-lock.json
+            desktop/package-lock.json
+
+      # ci.yml の verify ジョブと同じ順序（shared → web → desktop）。
+      # desktop の renderer root は ../web なので、web の node_modules が
+      # 無いと renderer の依存（react / tiptap / supabase）が解決できない。
+      - name: shared — install
+        run: npm ci
+        working-directory: shared
+      - name: shared — build (tsc -b)
+        run: npm run build
+        working-directory: shared
+
+      # web は install だけ。ここで欲しいのは node_modules であって
+      # web/dist ではない（renderer は desktop 側で bundle し直す）
+      - name: web — install
+        run: npm ci
+        working-directory: web
+
+      - name: desktop — install
+        run: npm ci
+        working-directory: desktop
+
+      - name: desktop — build (electron-vite build)
+        run: npm run build
+        working-directory: desktop
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+          VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
+
+      # 中身が空のインストーラを配らないためのガード（deploy-web.yml の
+      # "verify build output" と同じ思想）。env が抜けたままでもビルドは
+      # 成功するので、ここを置かないと「見た目は正常なインストーラができて、
+      # 入れた人の画面だけが真っ白」になる。
+      #
+      # 汎用文字列（"supabase.co" 等）では判定にならない — supabase-js 側の
+      # 文字列に当たって env が空でも緑になりうるため、Secrets に入っている
+      # 実際のホスト名がバンドルに焼けていることを見る。grep -q は一致内容を
+      # 出力しないので、ホスト名がログに漏れることはない。
+      #
+      # windows-latest の既定シェルは pwsh なので bash を明示する。
+      - name: verify renderer bundle is not empty
+        shell: bash
+        env:
+          VITE_SUPABASE_URL: ${{ secrets.VITE_SUPABASE_URL }}
+        run: |
+          set -euo pipefail
+          test -f desktop/out/main/index.js
+          test -f desktop/out/preload/index.js
+          test -f desktop/out/renderer/index.html
+          if [ -z "${VITE_SUPABASE_URL:-}" ]; then
+            echo "::error::VITE_SUPABASE_URL is empty — the repository secret is missing, so the installer would ship an app that cannot reach Supabase"
+            exit 1
+          fi
+          host="${VITE_SUPABASE_URL#*://}"
+          host="${host%%/*}"
+          if ! grep -rqF "$host" desktop/out/renderer/assets/; then
+            echo "::error::the renderer bundle does not contain the configured Supabase host — VITE_SUPABASE_URL did not reach Vite at build time"
+            exit 1
+          fi
+          echo "renderer bundle carries the configured Supabase host"
+
+      # --publish never: Release への添付は下の release ジョブが一括で行う。
+      # 各 OS のジョブに publish させると 2 ジョブが同じ draft を取り合って
+      # 壊れる（計画書の代替案表を参照）
+      - name: desktop — package (electron-builder)
+        run: npx electron-builder ${{ matrix.target }} --publish never
+        working-directory: desktop
+
+      - name: upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: ${{ matrix.glob }}
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: draft GitHub Release
+    needs: build
+    # workflow_dispatch（タグ無し）では Release を作らない。版を決める材料が
+    # 無いまま draft を量産しても混乱するだけなので、手動実行はビルド確認まで
+    if: startsWith(github.ref, 'refs/tags/desktop-v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: list collected assets
+        run: ls -la dist
+
+      # draft で作る（P-001 と同じ考え方 — 外に出す最後の一押しは人が押す）。
+      # 公開は GitHub UI の "Publish release"、もしくは
+      #   gh release edit <tag> --draft=false
+      - name: create draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --draft \
+            --title "Life Editor $GITHUB_REF_NAME" \
+            --notes "未署名ビルドです。初回起動では OS の警告（Windows = SmartScreen / macOS = Gatekeeper）が出ます — 解除手順はリポジトリの desktop/README.md 「Installing an unsigned build」を見てください。" \
+            dist/*

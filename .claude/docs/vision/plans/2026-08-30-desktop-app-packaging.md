@@ -1,8 +1,8 @@
 ---
-Status: Draft
+Status: IN PROGRESS — Step 1-4 / 9-10（Windows レーンとリリース基盤）= #1300 の PR、Step 5（mac ジョブ）= #1301 の PR。Step 6（tag → Release）と Step 7-8（実機受け入れ）は未着手
 Created: 2026-08-30
-Branch: claude/main-desktop-packaging-1300
-Owner-chat: main
+Branch: claude/desktop-packaging-win-1300（#1300）/ claude/desktop-packaging-mac-1301（#1301・前者に stack）
+Owner-chat: main（計画）/ refactor-core（実装）
 Task: Desktop 配布パッケージ化 — mac / Windows のインストーラを tag 駆動で再現可能に作る
 Parent: ../../../2026-05-04-cross-platform-migration.md（Phase 3 完了判定 + Phase 5-B の配布側）
 Related:
@@ -239,3 +239,7 @@ Electron は**プロセス 4 本**で起動する。1 本だけ立って落ち�
 ## Worklog
 
 - **2026-08-30 (chat-main)**: 現状調査 → Issue #1300 / #1301 起票 → 本計画書作成。調査で確定した事実は §Context の実測表。macOS 未署名の挙動（R1）は electron-builder 公式ドキュメントで裏取り済み。x64 mac の可否だけは判断キューへ回した（P-005）。
+- **2026-08-31 (refactor-core / #1300)**: Step 1-4 + 9-10 を実装し、PR へ。`desktop/package.json` を `0.1.0` へ（lock も同時に揃えた）。`electron-builder.yml` は `buildResources` を**削除**した — アイコンは mac / win / linux とも `../resources` を明示参照しており、buildResources ディレクトリに入れるものが実際に無いため（実在化ではなく削除を選んだ）。`nsis.artifactName` は dmg と揃えて pin。
+- **2026-08-31 実測 1（Step 4 のガード）**: `workflow_dispatch` は workflow が default branch に乗るまで起動できないので、workflow と**同じ bash をローカルのビルド成果物に当てて**両方向を確かめた。`VITE_SUPABASE_URL` を渡してビルド → ホストが bundle に焼けて exit 0。env 無し / 焼けていない bundle → exit 1。つまり「空のまま緑になる」経路は塞がっている。
+- **2026-08-31 実測 2（計画書の疑問の回答）**: 「`desktop/.env` が renderer に効いているかは自明でない」の件は、**効いている**が結論。`desktop/.env` だけを置いて process env なしでビルドしたところ、そのホストが `out/renderer/assets/` に焼けていた（renderer `root` は `../web` だが、envDir は desktop/ 側を見ている）。README の記述は正しいので直さない。
+- **2026-08-31 未実行**: Step 6（tag `desktop-v0.1.0` を打つ）は本セッションの指示で禁じられているため未実行。GitHub Release は引き続き 0 本。
