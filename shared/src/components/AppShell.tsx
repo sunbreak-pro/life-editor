@@ -50,6 +50,13 @@ export interface AppShellLabels {
    */
   tagEditor?: string;
   /**
+   * "Launch Claude Code" sidebar footer row (#1211) — wide layout only, and
+   * only on the desktop shell. There is no narrow counterpart on purpose: the
+   * launcher starts a CLI on the machine, which the Capacitor shells and the
+   * browser do not have.
+   */
+  launchClaude?: string;
+  /**
    * Accessible label for the action group in the narrow "More" sheet (#472) —
    * narrow layout only.
    */
@@ -83,6 +90,12 @@ export interface AppShellProps {
    * reaches the very same panel without the shell growing a second prop.
    */
   onOpenTagEditor?: () => void;
+  /**
+   * Launches Claude Code (#1211). Forwarded to the wide sidebar's footer. The
+   * narrow branch ignores it — see `labels.launchClaude` for why it has no
+   * mobile entry.
+   */
+  onLaunchClaude?: () => void;
   userEmail: string;
   onSignOut: () => void;
   labels: AppShellLabels;
@@ -152,6 +165,7 @@ export function AppShell({
   onNavigate,
   onTogglePalette,
   onOpenTagEditor,
+  onLaunchClaude,
   userEmail,
   onSignOut,
   labels,
@@ -197,6 +211,7 @@ export function AppShell({
           onToggleCollapsed={() => setCollapsed((v) => !v)}
           onTogglePalette={onTogglePalette}
           onOpenTagEditor={onOpenTagEditor}
+          onLaunchClaude={onLaunchClaude}
           userEmail={userEmail}
           onSignOut={onSignOut}
           labels={labels}

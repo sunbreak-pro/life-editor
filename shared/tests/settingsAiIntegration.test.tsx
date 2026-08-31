@@ -1,10 +1,11 @@
-import { describe, it, expect } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   SettingsAiIntegration,
   MCP_TOOL_CATALOG,
   toolArgNames,
   type McpToolCatalogEntry,
+  type SettingsAiIntegrationLauncher,
 } from "../src";
 
 /*
@@ -30,6 +31,14 @@ const LABELS = {
   hide: "Hide the list",
   argsLabel: "Arguments:",
   argsNone: "none",
+  launchHeading: "Start Claude Code",
+  launchDescription: "The folder decides the connection.",
+  pathLabel: "Project folder",
+  pathPlaceholder: "Full path",
+  launchButton: "Start",
+  launching: "Starting…",
+  launched: "A terminal opened.",
+  desktopOnly: "Available in the desktop app.",
 };
 
 const TOOLS: McpToolCatalogEntry[] = [
@@ -49,11 +58,15 @@ const TOOLS: McpToolCatalogEntry[] = [
   },
 ];
 
-const renderCard = (lastActivity: string | null = "A briefing exists.") =>
+const renderCard = (
+  lastActivity: string | null = "A briefing exists.",
+  launcher?: SettingsAiIntegrationLauncher,
+) =>
   render(
     <SettingsAiIntegration
       tools={TOOLS}
       lastActivity={lastActivity}
+      launcher={launcher}
       labels={LABELS}
     />,
   );
@@ -99,6 +112,96 @@ describe("SettingsAiIntegration", () => {
     fireEvent.click(screen.getByRole("button", { name: /Show the list/ }));
     fireEvent.click(screen.getByRole("button", { name: /Hide the list/ }));
     expect(screen.queryByText("list_todos")).not.toBeInTheDocument();
+  });
+});
+
+/*
+ * The launcher half (#1211).
+ *
+ * The card is the only place the launcher's failures are ever seen, and the
+ * two ways it could mislead are both about honesty rather than wiring: telling
+ * a web user to press a button that cannot work, and reporting a launch that
+ * did not happen. Everything below is one of those two.
+ */
+describe("SettingsAiIntegration launcher (#1211)", () => {
+  const launcherWith = (
+    onLaunch: SettingsAiIntegrationLauncher["onLaunch"],
+    projectPath = "/home/u/life-editor",
+  ): SettingsAiIntegrationLauncher => ({
+    projectPath,
+    onProjectPathChange: vi.fn(),
+    onLaunch,
+  });
+
+  it("offers no button off the desktop shell, and says why", () => {
+    // No launcher prop is how web and mobile arrive here. A button rendered
+    // anyway would be one whose CLI does not exist on the device.
+    renderCard("A briefing exists.");
+    expect(screen.getByText(LABELS.desktopOnly)).toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: LABELS.launchButton }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("shows the folder field on the desktop shell", () => {
+    renderCard("A briefing exists.", launcherWith(vi.fn()));
+    expect(screen.queryByText(LABELS.desktopOnly)).not.toBeInTheDocument();
+    expect(screen.getByLabelText(LABELS.pathLabel)).toHaveValue(
+      "/home/u/life-editor",
+    );
+  });
+
+  it("hands typing straight back to the host", () => {
+    // The field is controlled by the host because the saved folder arrives
+    // from an async bridge read — the card must not keep a private copy.
+    const onProjectPathChange = vi.fn();
+    renderCard("A briefing exists.", {
+      projectPath: "/a",
+      onProjectPathChange,
+      onLaunch: vi.fn(),
+    });
+    fireEvent.change(screen.getByLabelText(LABELS.pathLabel), {
+      target: { value: "/b" },
+    });
+    expect(onProjectPathChange).toHaveBeenCalledWith("/b");
+  });
+
+  it("confirms only after the launch resolves", async () => {
+    const onLaunch = vi.fn().mockResolvedValue(null);
+    renderCard("A briefing exists.", launcherWith(onLaunch));
+
+    fireEvent.click(screen.getByRole("button", { name: LABELS.launchButton }));
+
+    expect(onLaunch).toHaveBeenCalledTimes(1);
+    await waitFor(() =>
+      expect(screen.getByText(LABELS.launched)).toBeInTheDocument(),
+    );
+  });
+
+  it("shows the host's sentence when the launch failed", async () => {
+    // The code -> sentence mapping is the host's (§6.4); what the card owes is
+    // that a failure never reads like the success line.
+    const onLaunch = vi.fn().mockResolvedValue("No folder at that path.");
+    renderCard("A briefing exists.", launcherWith(onLaunch));
+
+    fireEvent.click(screen.getByRole("button", { name: LABELS.launchButton }));
+
+    await waitFor(() =>
+      expect(screen.getByText("No folder at that path.")).toBeInTheDocument(),
+    );
+    expect(screen.queryByText(LABELS.launched)).not.toBeInTheDocument();
+  });
+
+  it("frees the button again after a rejecting bridge", async () => {
+    // An older desktop build rejects the invoke. Leaving the button stuck on
+    // "Starting…" would strand the user with no way to retry.
+    const onLaunch = vi.fn().mockRejectedValue(new Error("no handler"));
+    renderCard("A briefing exists.", launcherWith(onLaunch));
+
+    const button = screen.getByRole("button", { name: LABELS.launchButton });
+    fireEvent.click(button);
+
+    await waitFor(() => expect(button).not.toBeDisabled());
   });
 });
 

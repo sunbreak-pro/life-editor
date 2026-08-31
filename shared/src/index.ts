@@ -664,7 +664,14 @@ export {
 } from "./components/todoStatusVisuals";
 // Platform detection. isNativeMobile() (Phase 4) lets the hosts gate the
 // Mobile 省略 UI (roster = CLAUDE.md §2) on the Capacitor shells — platform.ts.
-export { isMac, isNativeMobile } from "./utils/platform";
+export { isMac, isNativeMobile, isDesktopShell } from "./utils/platform";
+// Claude Code launcher bridge (#1211) — desktop-only, null everywhere else.
+export {
+  getClaudeLauncherBridge,
+  type ClaudeLaunchErrorCode,
+  type ClaudeLaunchOutcome,
+  type DesktopClaudeLauncherBridge,
+} from "./utils/claudeLauncher";
 // Notes list ordering (#283) — pure port of the useNotesUnifiedAPI
 // `sortedFilteredNotes` comparator, so the host list + the extracted util
 // share one ordering source.

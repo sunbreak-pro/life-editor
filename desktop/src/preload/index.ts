@@ -2,8 +2,8 @@ import { contextBridge, ipcRenderer } from "electron";
 import { DESKTOP_IPC, type DesktopIpcApi } from "../shared/ipcContract";
 
 // Thin, serializable-only bridge. Business logic lives in shared/web; this only
-// exposes the desktop shell's local prefs (theme / window bounds / version)
-// plus the auth-session storage (#838).
+// exposes the desktop shell's local prefs (theme / window bounds / version),
+// the auth-session storage (#838) and the Claude Code launcher (#1211).
 //
 // The channel names and the call signatures both come from ../shared/
 // ipcContract (#894) — main reads the same names, so renaming one end alone
@@ -22,6 +22,9 @@ const api: DesktopIpcApi = {
     removeItem: (key) =>
       ipcRenderer.invoke(DESKTOP_IPC.authStorageRemoveItem, key),
   },
+  getClaudeProjectPath: () =>
+    ipcRenderer.invoke(DESKTOP_IPC.claudeGetProjectPath),
+  launchClaude: (args) => ipcRenderer.invoke(DESKTOP_IPC.claudeLaunch, args),
 };
 
 // contextIsolation is on, so expose via contextBridge only.

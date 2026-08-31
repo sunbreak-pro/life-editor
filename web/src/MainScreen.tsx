@@ -27,6 +27,7 @@ import { HeaderUndoRedo } from "./HeaderUndoRedo";
 import { MobileShellActions } from "./MobileShellActions";
 import { NarrowHeaderRow } from "./NarrowHeaderRow";
 import { SECTION_DESCRIPTORS, type TabBandId } from "./sectionDescriptors";
+import { useClaudeLauncher } from "./hooks/useClaudeLauncher";
 import { prefetchLazySections } from "./lazySections";
 import { useShellNavigation } from "./hooks/useShellNavigation";
 import { TourHost } from "./TourHost";
@@ -118,6 +119,8 @@ export function MainScreen({ session }: { session: Session }) {
   // — the panel itself is mount-on-open (TagEditorHost) and fetches nothing
   // while closed. One state for both entries: there is a single panel.
   const [tagEditorOpen, setTagEditorOpen] = useState(false);
+  // Claude Code launcher (#1211) — `available` is false off the desktop shell.
+  const claudeLauncher = useClaudeLauncher();
   // Narrow-width switch for the in-section tab controls (HeaderTabs ↔
   // Segmented). Independent of AppShell's own wide/narrow switch (same query,
   // own read).
@@ -363,6 +366,27 @@ export function MainScreen({ session }: { session: Session }) {
         onNavigate={(id) => setSection(id as SectionId)}
         onTogglePalette={() => setPaletteOpen((v) => !v)}
         onOpenTagEditor={() => setTagEditorOpen(true)}
+        /*
+         * Claude Code launcher (#1211). Passed only on the desktop shell —
+         * SidebarNav renders the footer row on the handler, so withholding it
+         * here is what keeps the browser and the Capacitor shells from showing
+         * a button with no CLI behind it.
+         *
+         * A failure sends the user to Settings rather than raising a toast:
+         * this component sits ABOVE the ToastProvider AppProviders mounts (the
+         * same reason `bottomBarActions` is a callback and not a node), and
+         * the far more common failure is "no folder saved yet" — for which the
+         * useful answer is the field that sets one, not a message about it.
+         */
+        onLaunchClaude={
+          claudeLauncher.available
+            ? () => {
+                void claudeLauncher.launch().then((error) => {
+                  if (error !== null) setSection("settings");
+                });
+              }
+            : undefined
+        }
         userEmail={session.user.email ?? ""}
         onSignOut={() => void signOut()}
         labels={shellLabels}

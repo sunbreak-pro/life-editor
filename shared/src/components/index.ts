@@ -306,6 +306,7 @@ export {
   SettingsAiIntegration,
   type SettingsAiIntegrationProps,
   type SettingsAiIntegrationLabels,
+  type SettingsAiIntegrationLauncher,
 } from "./SettingsAiIntegration";
 // Day-start hour card (#373) — the write side of the #218 rollover pref.
 export {

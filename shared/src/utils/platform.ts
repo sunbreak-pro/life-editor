@@ -40,3 +40,22 @@ export function isNativeMobile(): boolean {
   const cap = (window as unknown as { Capacitor?: CapacitorGlobal }).Capacitor;
   return cap?.isNativePlatform?.() ?? false;
 }
+
+/*
+ * Electron-shell detection (#1211).
+ *
+ * The counterpart to `isNativeMobile` above, and it reads its runtime global
+ * for the same reason: `window.desktop` is what `desktop/src/preload` exposes
+ * through contextBridge, and shared/ must stay free of any `electron` import
+ * so the one bundle keeps loading in the browser and inside Capacitor.
+ *
+ * Use this for UI that only MAKES SENSE on the desktop shell — the Claude Code
+ * launcher needs a CLI on the machine, which the browser and the mobile shells
+ * do not have. Code that needs a specific bridge should ask for that bridge
+ * instead (`getClaudeLauncherBridge`): an older desktop build has `desktop`
+ * without the newer methods on it.
+ */
+export function isDesktopShell(): boolean {
+  if (typeof window === "undefined") return false;
+  return (window as unknown as { desktop?: unknown }).desktop != null;
+}

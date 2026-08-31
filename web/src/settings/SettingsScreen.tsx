@@ -54,6 +54,7 @@ import {
   WIDE_QUERY,
 } from "@life-editor/shared";
 import { usePasswordUpdate } from "../hooks/usePasswordUpdate";
+import { useClaudeLauncher } from "../hooks/useClaudeLauncher";
 import { TrashScreen } from "../trash/TrashScreen";
 import { openLegalDocument } from "../legal/legalUrl";
 
@@ -391,6 +392,9 @@ export function SettingsScreen() {
     };
   }, []);
 
+  // Claude Code launcher (#1211) — no-op shape off the desktop shell.
+  const claudeLauncher = useClaudeLauncher();
+
   const aiLastActivity =
     lastBriefing === undefined
       ? null
@@ -680,6 +684,23 @@ export function SettingsScreen() {
             <SettingsAiIntegration
               tools={MCP_TOOL_CATALOG}
               lastActivity={aiLastActivity}
+              /*
+               * Desktop-only (#1211). `available` is false in the browser and
+               * inside the Capacitor shells, and the card then shows the
+               * "desktop app" sentence instead of a button with no CLI behind
+               * it. The field's value is held out here rather than in the card
+               * because it is seeded by an async read of the desktop bridge.
+               */
+              launcher={
+                claudeLauncher.available
+                  ? {
+                      projectPath: claudeLauncher.projectPath,
+                      onProjectPathChange: claudeLauncher.setProjectPath,
+                      onLaunch: () =>
+                        claudeLauncher.launch(claudeLauncher.projectPath),
+                    }
+                  : undefined
+              }
               labels={{
                 heading: t("settings.ai.heading"),
                 description: t("settings.ai.description"),
@@ -696,6 +717,14 @@ export function SettingsScreen() {
                 hide: t("settings.ai.hide"),
                 argsLabel: t("settings.ai.argsLabel"),
                 argsNone: t("settings.ai.argsNone"),
+                launchHeading: t("settings.ai.launchHeading"),
+                launchDescription: t("settings.ai.launchDescription"),
+                pathLabel: t("settings.ai.pathLabel"),
+                pathPlaceholder: t("settings.ai.pathPlaceholder"),
+                launchButton: t("settings.ai.launchButton"),
+                launching: t("settings.ai.launching"),
+                launched: t("settings.ai.launched"),
+                desktopOnly: t("settings.ai.desktopOnly"),
               }}
             />
           </div>

@@ -156,7 +156,20 @@
       "show": "一覧を開く",
       "hide": "一覧を閉じる",
       "argsLabel": "引数:",
-      "argsNone": "なし"
+      "argsNone": "なし",
+      "launchHeading": "Claude Code を起動",
+      "launchDescription": "下のフォルダで `claude` が立ち上がるターミナルを開きます。このフォルダが接続先を決めます—— Claude Code はプロジェクトの .mcp.json から MCP サーバーを読むため、別の場所で起動するとこのアプリのデータが見えない Claude になります。",
+      "pathLabel": "プロジェクトのフォルダ",
+      "pathPlaceholder": "life-editor フォルダのフルパス",
+      "launchButton": "起動",
+      "launching": "起動中…",
+      "launched": "ターミナルを開きました。そこで Claude Code が立ち上がります。",
+      "desktopOnly": "デスクトップ版で使えます。Claude Code はパソコンに入っているプログラムなので、ブラウザとスマホアプリには起動する対象がありません。",
+      "errorNoPath": "先にプロジェクトのフォルダを入力してください。",
+      "errorInvalidPath": "そのパスにフォルダがありません。ドライブの一番上からのフルパスを入れてください。",
+      "errorNotFound": "このパソコンで Claude Code が見つかりませんでした。インストールしてからもう一度お試しください。",
+      "errorSpawnFailed": "ターミナルを開けませんでした。何も起動していません。",
+      "errorUnavailable": "このデスクトップ版はまだ Claude Code の起動に対応していません。"
     },
     "reset": {
       "heading": "リセットとローカルデータ",
@@ -896,7 +909,8 @@
     "more": "その他",
     "moreTitle": "その他",
     "quickActions": "クイック操作",
-    "tagEditor": "タグを編集"
+    "tagEditor": "タグを編集",
+    "launchClaude": "Claude Code を起動"
   },
   "itemRole": {
     "task": "Todo",

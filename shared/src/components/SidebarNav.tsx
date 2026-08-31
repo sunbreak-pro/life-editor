@@ -5,6 +5,7 @@ import {
   Command as CommandIcon,
   LogOut,
   Tags as TagsIcon,
+  Terminal as TerminalIcon,
 } from "lucide-react";
 import { cn } from "./cn";
 import { NavItem } from "./NavItem";
@@ -38,6 +39,11 @@ export interface SidebarNavLabels {
    * `onOpenTagEditor` it forms the tag-master entry directly above ⌘K.
    */
   tagEditor?: string;
+  /**
+   * "Launch Claude Code" footer row (#1211). Same two-halves contract as
+   * `tagEditor`: the row needs this AND `onLaunchClaude` to render.
+   */
+  launchClaude?: string;
 }
 
 export interface SidebarNavProps {
@@ -60,6 +66,16 @@ export interface SidebarNavProps {
    * header. Omit (or omit `labels.tagEditor`) to leave the row out.
    */
   onOpenTagEditor?: () => void;
+  /**
+   * Launches Claude Code in the saved project folder (#1211). Rendered as the
+   * FIRST footer row, so the action sits at the bottom of the column with the
+   * other app-global entries rather than posing as a section.
+   *
+   * Desktop-only by construction: the host passes this only where the Electron
+   * bridge exists, which is what keeps the browser and the Capacitor shells
+   * from showing a button that has no CLI to start.
+   */
+  onLaunchClaude?: () => void;
   userEmail: string;
   onSignOut: () => void;
   labels: SidebarNavLabels;
@@ -82,6 +98,7 @@ export function SidebarNav({
   onToggleCollapsed,
   onTogglePalette,
   onOpenTagEditor,
+  onLaunchClaude,
   userEmail,
   onSignOut,
   labels,
@@ -91,6 +108,7 @@ export function SidebarNav({
   // Both halves must be present: a row with no handler does nothing, a row
   // with no label would render untranslated (§6.4 — copy is injected).
   const tagEditorLabel = onOpenTagEditor ? labels.tagEditor : undefined;
+  const launchClaudeLabel = onLaunchClaude ? labels.launchClaude : undefined;
 
   return (
     <aside
@@ -176,8 +194,32 @@ export function SidebarNav({
         )}
       </nav>
 
-      {/* Footer: edit tags + command palette (+ ⌘K keycap) + user + sign out */}
+      {/* Footer: launch Claude + edit tags + ⌘K (+ keycap) + user + sign out */}
       <div className="shrink-0 space-y-1 border-t border-lumen-border p-2">
+        {launchClaudeLabel && (
+          <button
+            type="button"
+            onClick={onLaunchClaude}
+            aria-label={launchClaudeLabel}
+            title={collapsed ? launchClaudeLabel : undefined}
+            className={cn(
+              "flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-sm",
+              "text-lumen-text-secondary transition-colors hover:bg-lumen-hover",
+              "hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2",
+              "focus-visible:ring-lumen-accent",
+              collapsed && "justify-center px-0",
+            )}
+          >
+            <span aria-hidden="true" className="shrink-0">
+              <TerminalIcon size={18} />
+            </span>
+            {!collapsed && (
+              <span className="flex-1 truncate text-left">
+                {launchClaudeLabel}
+              </span>
+            )}
+          </button>
+        )}
         {tagEditorLabel && (
           <button
             type="button"

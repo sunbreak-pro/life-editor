@@ -156,7 +156,20 @@
       "show": "Show the list",
       "hide": "Hide the list",
       "argsLabel": "Arguments:",
-      "argsNone": "none"
+      "argsNone": "none",
+      "launchHeading": "Start Claude Code",
+      "launchDescription": "Opens a terminal running `claude` in the folder below. That folder is what decides the connection: Claude Code reads the MCP server out of the project's .mcp.json, so starting it anywhere else gives you a Claude that cannot see this app's data.",
+      "pathLabel": "Project folder",
+      "pathPlaceholder": "The full path to the life-editor folder",
+      "launchButton": "Start",
+      "launching": "Starting…",
+      "launched": "A terminal opened. Claude Code is starting there.",
+      "desktopOnly": "Available in the desktop app. Claude Code is a program on your computer, so the browser and the phone app have nothing to start.",
+      "errorNoPath": "Enter the project folder first.",
+      "errorInvalidPath": "No folder at that path. Give the full path, starting from the top of the drive.",
+      "errorNotFound": "Could not find Claude Code on this computer. Install it, then try again.",
+      "errorSpawnFailed": "The terminal would not open. Nothing was started.",
+      "errorUnavailable": "This build of the desktop app cannot start Claude Code yet."
     },
     "reset": {
       "heading": "Reset & local data",
@@ -902,7 +915,8 @@
     "more": "More",
     "moreTitle": "More",
     "quickActions": "Quick actions",
-    "tagEditor": "Edit tags"
+    "tagEditor": "Edit tags",
+    "launchClaude": "Start Claude Code"
   },
   "itemRole": {
     "task": "Todo",

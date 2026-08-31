@@ -1,4 +1,11 @@
-import { copyFileSync, existsSync, mkdirSync } from "node:fs";
+import { spawn } from "node:child_process";
+import {
+  copyFileSync,
+  existsSync,
+  mkdirSync,
+  statSync,
+  writeFileSync,
+} from "node:fs";
 import { join } from "node:path";
 import {
   app,
@@ -23,8 +30,16 @@ import electronUpdater from "electron-updater";
 import {
   DESKTOP_IPC,
   DESKTOP_IPC_CHANNELS,
+  type ClaudeLaunchArgs,
+  type ClaudeLaunchResult,
   type DesktopIpcHandlers,
 } from "../shared/ipcContract";
+import {
+  claudeSearchDirs,
+  findClaudeExecutable,
+  normalizeProjectPath,
+  planLaunch,
+} from "./claudeLauncher";
 
 const { autoUpdater } = electronUpdater;
 
@@ -89,6 +104,10 @@ interface DesktopStoreSchema {
   // safeStorage-encrypted (base64, "enc:" prefix) or plaintext ("plain:"
   // prefix) when OS encryption is unavailable. See setupAuthStorageIpc.
   authStorage: Record<string, string>;
+  // Folder the Claude Code launcher opens a terminal in (#1211). Empty until
+  // the user saves one — see the claude:launch handler for why it is written
+  // only after a launch actually succeeds.
+  claudeProjectPath: string;
 }
 
 const store = new Store<DesktopStoreSchema>({
@@ -97,6 +116,7 @@ const store = new Store<DesktopStoreSchema>({
     theme: "system",
     closeToTray: true,
     authStorage: {},
+    claudeProjectPath: "",
   },
 });
 
@@ -458,6 +478,107 @@ function authStorageIpcHandlers() {
   };
 }
 
+// ---------------------------------------------------------------------------
+// Claude Code launcher (#1211).
+//
+// The only place a string the user typed reaches a process launch, so the
+// shape of this handler is deliberate: validate, then check, then spawn with
+// `shell: false` and the folder carried as `cwd` — never concatenated into a
+// command line. The OS branching and the validation itself live in
+// ./claudeLauncher so they can be tested without booting Electron.
+// ---------------------------------------------------------------------------
+const CLAUDE_LAUNCHER_SCRIPT = "life-editor-claude.command";
+
+function claudeIpcHandlers() {
+  return {
+    [DESKTOP_IPC.claudeGetProjectPath]: () => store.get("claudeProjectPath"),
+
+    [DESKTOP_IPC.claudeLaunch]: (
+      _event: unknown,
+      args: unknown,
+    ): Promise<ClaudeLaunchResult> => {
+      // No folder in the call means the sidebar row, which launches with
+      // whatever the Settings field last saved.
+      const requested =
+        typeof args === "object" && args !== null
+          ? (args as ClaudeLaunchArgs).projectPath
+          : undefined;
+      const saved = store.get("claudeProjectPath");
+      const raw = requested === undefined ? saved : requested;
+      const projectPath = normalizeProjectPath(raw);
+      if (projectPath === null) {
+        // Split so the card can say "pick a folder first" to someone who has
+        // never set one, and "that path is not usable" to someone who typed.
+        const empty = typeof raw !== "string" || raw.trim().length === 0;
+        return Promise.resolve({
+          ok: false,
+          error: empty ? "no-project-path" : "invalid-project-path",
+        });
+      }
+
+      let isDirectory = false;
+      try {
+        isDirectory = statSync(projectPath).isDirectory();
+      } catch {
+        isDirectory = false;
+      }
+      if (!isDirectory) {
+        return Promise.resolve({ ok: false, error: "invalid-project-path" });
+      }
+
+      const found = findClaudeExecutable(
+        claudeSearchDirs(process.platform, process.env, app.getPath("home")),
+        process.platform,
+        existsSync,
+      );
+      if (found === null) {
+        return Promise.resolve({ ok: false, error: "claude-not-found" });
+      }
+
+      const scriptPath = join(app.getPath("temp"), CLAUDE_LAUNCHER_SCRIPT);
+      const plan = planLaunch(
+        process.platform,
+        projectPath,
+        scriptPath,
+        process.env,
+      );
+
+      return new Promise<ClaudeLaunchResult>((resolve) => {
+        try {
+          if (plan.script !== undefined) {
+            writeFileSync(scriptPath, plan.script, { mode: 0o700 });
+          }
+          const child = spawn(plan.command, plan.args, {
+            cwd: plan.cwd,
+            detached: true,
+            stdio: "ignore",
+            // Never true: with a shell the folder would be re-parsed as a
+            // command line, which is exactly what this whole path avoids.
+            shell: false,
+          });
+          // ENOENT (no terminal emulator, no `open`) arrives as an event, not
+          // a throw, so both endings have to be waited for — returning early
+          // would report a launch that never happened.
+          child.once("error", (error) => {
+            console.error("[main] could not launch claude", error);
+            resolve({ ok: false, error: "spawn-failed" });
+          });
+          child.once("spawn", () => {
+            // Saved only now: remembering a folder that failed to launch would
+            // hand the sidebar row a path already known not to work.
+            store.set("claudeProjectPath", projectPath);
+            child.unref();
+            resolve({ ok: true });
+          });
+        } catch (error) {
+          console.error("[main] could not launch claude", error);
+          resolve({ ok: false, error: "spawn-failed" });
+        }
+      });
+    },
+  };
+}
+
 /**
  * Register every channel the contract declares (#894).
  *
@@ -471,6 +592,7 @@ function setupIpc(): void {
   const handlers: DesktopIpcHandlers = {
     ...prefsIpcHandlers(),
     ...authStorageIpcHandlers(),
+    ...claudeIpcHandlers(),
   };
   for (const channel of DESKTOP_IPC_CHANNELS) {
     ipcMain.handle(channel, handlers[channel]);
