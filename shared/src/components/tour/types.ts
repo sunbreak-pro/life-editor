@@ -68,6 +68,14 @@ export interface TourStep {
  * "left half way through" and "finished" cannot be confused for each other:
  * a paused tour resumes where it was, a completed or skipped one does not
  * re-open on its own.
+ *
+ * `sectionStepId` is a SECOND, independent position, for the section replays
+ * the Settings launcher offers (#1359). The two are deliberately not one
+ * field: the first three answer "has this user been offered the whole tour
+ * and finished or refused it", and a replay of one section is not an answer
+ * to that question. Writing a replay's position into `stepId` would hand the
+ * full tour a resume point the user never walked to — it would open at that
+ * step, and the next "Next" off the end would mark the whole tour complete.
  */
 export interface TourProgress {
   /** Step to resume at, or null = start from the beginning. */
@@ -76,6 +84,12 @@ export interface TourProgress {
   readonly completed: boolean;
   /** Explicitly dismissed with "Skip" — do not auto-start again. */
   readonly skipped: boolean;
+  /**
+   * Where an interrupted SECTION replay stood, or null = start that section
+   * from its first step. Read only by `startSection`; the full tour never
+   * looks at it (#1359).
+   */
+  readonly sectionStepId: string | null;
 }
 
 /** Nothing seen yet. */
@@ -83,4 +97,5 @@ export const EMPTY_TOUR_PROGRESS: TourProgress = {
   stepId: null,
   completed: false,
   skipped: false,
+  sectionStepId: null,
 };

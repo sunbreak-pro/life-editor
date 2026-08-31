@@ -52,16 +52,21 @@ export interface TourContextValue {
   /** Clear all progress and walk from the first step. */
   restart: () => void;
   /**
-   * Walk ONE section's steps, starting at its first (#1194 — the Settings
-   * launcher's "show me this bit again").
+   * Walk ONE section's steps, from where that section was last left (#1194 —
+   * the Settings launcher's "show me this bit again"; resuming is #1359).
    *
-   * A PARTIAL run, and deliberately sealed off from the persisted progress:
-   * it writes nothing, so finishing the Materials steps on their own does not
-   * mark the whole tour complete, and skipping out of one does not tell the
-   * app never to offer the tour again. Neither is a detail — the stored
-   * progress is what decides whether a first-run user is ever shown the tour
-   * at all, and a "remind me how tags work" click must not be able to spend
-   * that.
+   * A PARTIAL run, and deliberately sealed off from the tour's own progress:
+   * it cannot write `stepId`, `completed` or `skipped`, so finishing the
+   * Materials steps on their own does not mark the whole tour complete, and
+   * skipping out of one does not tell the app never to offer the tour again.
+   * Neither is a detail — the stored progress is what decides whether a
+   * first-run user is ever shown the tour at all, and a "remind me how tags
+   * work" click must not be able to spend that.
+   *
+   * The one thing it does persist is its own position, in a separate field
+   * the full tour never reads, so an interrupted replay continues rather than
+   * starting over. There is a single such slot: replaying a second section
+   * takes it over.
    *
    * No-op for a section with no steps; the launcher does not offer those.
    */
