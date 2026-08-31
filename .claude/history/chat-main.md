@@ -1,5 +1,20 @@
 # HISTORY (chat-main)
 
+### 2026-08-31 - `[main]` 宛 4 件のレーン移譲 + #1345 起票 + 5 レーンへの /goal 配布（45m 巡回 1〜2 回目）
+
+#### 概要
+
+45m 巡回の 1 回目で #1300（Windows 配布パッケージ化）の自前実装に着手しかけたところ、ユーザー指示で「chat-main が抱えず配る」へ方針転換した。`[main]` 宛 4 件の宛先を振り直し、未起票だった 1 件を起票し、5 レーンへ `/goal` を組み立てて渡した。2 回目の巡回で実装 PR が 3 本 open になっていることを確認した。
+
+#### 変更点
+
+- **巡回の実測（1 回目 → 2 回目）**: open PR 0 → 4（#1346 / #1347 / #1348 + tracker #1349）・新規 merge 0・main は origin と同期・outbox の起票依頼は 8/30 以降追加なし・未回答の判断キューは D-20260830-main-1 の 1 件のみ（**ユーザーが「とりあえず放置」と裁定** → 計画書どおり両アーキをビルドし、受け入れは arm64 のみに留める）
+- **方針転換の後始末**: #1300 用の worktree は `git worktree add` がブランチ名重複で失敗して実体が未作成だったため後始末不要（`claude/main-desktop-packaging-1300` は 8/30 の計画書 PR #1302 で使った既存ブランチ）
+- **宛先の振り直し 4 件**: #1300 / #1301 → `[refactor-core]`（`.github/workflows` と `desktop/` を触った実績が #894 の IPC contract 整備しか無いことを `git log -- <path>` で実測）/ #1211 → `[settings]`（段階 1 の #1210 が PR #1307 で CLOSED = BLOCKED 解除を確認）/ #1337 → `[tags-docs]`。#1300 / #1301 / #1337 には **`shared-fix` ラベルを追加** — section ラベルを持たない横断タスクは、これが無いとどのレーンのクエリにも乗らない
+- **起票 1 件**: **#1345**（`section:materials` / `type:task` / `sev:minor`）= ノート削除だけ確認ダイアログが無い。同じ `web/src/notes/NotesView.tsx` の中でテンプレート削除（`:457`）は `askConfirm` を通るのに、ノート削除（`:543` の `onDeleteNote` / `:605` の `onDelete`）は素通りする。方針はユーザー裁定で「確認を挟む側へ揃える」。重複チェック済み（#1248 はテンプレート削除の件で CLOSED・別物）
+- **`/goal` 配布 5 レーン**: refactor-core（#1300 / #1301 / #1336）/ tags-docs（#1342 / #1337）/ schedule-refine（#1343）/ materials-refine（#1345）/ settings-refine（#1211）。#1301 は Mac 実機受け入れが残るので PR までで止める旨、#1300 は「`workflow_dispatch` は default branch に載るまで起動できない」制約を PR 本文へ書く旨を条件に入れた
+- **chat-main 手番の残り**: **#1335 のみ**（夜間ルーチンの Task Scheduler 登録 = このマシンの OS 操作なのでレーンから実行できない）
+
 ### 2026-08-31 - 8/30 着地分の実ブラウザ検証 13 項目 + #1342 / #1343 起票 + 3 レーンへの /goal 組み立て
 
 #### 概要
@@ -55,21 +70,5 @@ open Issue 28 件・open PR 0 本の実測スナップショットから、凍�
 - **宛先振り直し**: #1197 / #1198 / #1199 → `[web-public]`、#1184 → `[refactor-core]` にタイトル prefix 変更（ラベルは維持。shared-fix 9 件集中の是正）
 - **縄張り**: `MainScreen.tsx` の 2 レーン交差は #1199 先行 + #1171 側 rebase で緩和 / Backlinks 部品は #1171・#1172 とも読み取り専用 / tour は Wave 1 中 shared-fix 専有 / パネル統一の先回り禁止（#1184 = Wave 2）を明記
 - **main 同期**: ローカル未コミットだった tracker 2 ファイルは merge 済み PR #1203 と同一内容と実測（`git diff origin/main` 空）→ restore で二重 PR を回避し、`git pull --ff-only` で 9 コミット取り込み（`b95561cf`）
-
-### 2026-08-29 - 配布品質監査（Web 完結）+ ドロワーアイコン変更 PR #1195 + 配布要件 6 件起票
-
-#### 概要
-
-「他の人に Web で配布する」観点の品質監査を実施し、P0×4 / P1×5 / P2×3 のギャップを特定。ユーザー裁定（メール確認 = 実装 / サインアップ = 開放のまま / 配布 = 限定人数 / ポリシー = 作成）を受けて #1197〜#1202 の 6 件を起票した。並行して、モバイルドロワーの開閉アイコンを Desktop と同系（PanelRight / PanelRightClose）へ変更する PR #1195 を worktree drawer-icon から提出（全ゲート緑・open）。
-
-#### 変更点
-
-- **監査の主要発見**: 技術基盤（RLS owner-only + 公開 anon key + Cloudflare Workers デプロイ）は既に第三者対応水準。CLAUDE.md の「N=1 / 友達ビルド flag」はコード実態より古い（flag は実在しない）。ErrorBoundary ゼロ / アカウント削除なし / ポリシー類なしが主なギャップ
-- **起票**: #1197（メール確認 ON + AuthScreen 確認待ち UI）/ #1198（privacy policy + terms）/ #1199（トップレベル ErrorBoundary）/ #1200（アカウント削除 + サインアウト監査・section:settings）/ #1201（チュートリアルに Briefing 説明 — Epic #1121 へ追加）/ #1202（CLAUDE.md 配布記述の整合・[main]）
-- **無料枠の見立て**（web-researcher 実測 2026-08-29）: ボトルネックは DB 500MB + egress 5GB/月。安全圏 10〜20 人・実用上限 30〜50 人
-- **実装**: PR #1195 = `RightSidebarToggle.tsx`（hamburger variant Menu → PanelRight）+ `RightSidebarContents.tsx`（close X → PanelRightClose）。スワイプ開閉は #792 / #1050 で実装済みだったため新規実装なし（playwright 実測は別途）
-- **サブエージェント報告**: worktree 作成時の tool 出力に紛れた偽指示（Bash の sed/cat で編集しろ）を role-engineer が無視した旨の共有あり
-- **スワイプ touch バグ（#1204 → PR #1205）**: playwright + CDP 合成タッチの実測で、edge スワイプ開（#1050）/ スワイプ閉（#792）が**タッチでは 100% 不発**と確定（narrow レイアウト全面が touch-action: auto で、水平 20px 時点の pointercancel により開 56px / 閉 72px に到達不能）。修正 = 追跡中の横サンプルのみ non-passive touchmove で preventDefault + 軸ロックの累積化（初動ジッター救済）+ selectstart/dragstart ガード + 内側スクローラへ touch-pan-y。ブランチ build の vite preview :4174 で再検証し全項目 PASS（開 5/5・ジッター 12px まで救済・41° 5/5・閉 5/5・縦スクロール非干渉・連続 5 回・7 セクション回帰 42/42）。Chrome の縦パンスロップ ~15px 超のジッターは救済外（既知トレードオフ・実測境界つき）
-
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
