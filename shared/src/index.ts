@@ -267,10 +267,14 @@ export {
 } from "./hooks/useLazyStalePool";
 // #508 — Escape / Tab trap / focus restore for aria-modal surfaces. Backs
 // Modal and BottomSheet; exported so web-side dialogs can stop hand-rolling it.
+// #1342 adds useEscapeLayer for the non-modal popovers that open ON a dialog:
+// same stack, Escape only, no focus trap.
 export {
   useDialogA11y,
+  useEscapeLayer,
   hasOpenDialogLayer,
   type DialogA11yOptions,
+  type EscapeLayerOptions,
 } from "./hooks/useDialogA11y";
 // #1050 — drag in from the left screen edge to open the mobile drawer, the
 // entrance matching the swipe-out below.
