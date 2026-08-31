@@ -1,5 +1,23 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-08-31 - #1343 詳細パネルのタブ 3 つを 1 行に揃えた
+
+#### 概要
+
+予定の詳細パネルで「今日の流れ」「本日の Todo」がラベル途中で 2 行に折れ、「繰り返し」だけ 1 行だった件。`SegmentedControl` に opt-in の `singleLineLabels` を足し、ラベルを nowrap にして溢れをトラックの `flex-wrap` に吸わせた（PR #1355 open）。
+
+#### 変更点
+
+- **原因は幅の算数**: 既定 320px のパネル − ボディの `p-3` − トラックの `p-0.5` / `gap-0.5` を 3 分割し、さらにセグメントの `px-3` を引くと、**既定ルートフォント 18px（`constants/fontSize.ts` の既定は 16 ではなく 18）ではラベル 1 つあたり約 67px**。ja は「今日の流れ」約 79px・「本日の Todo」約 83px で入らず、「繰り返し」約 63px だけ入る。en も同じ形（"Today's flow" / "Today's Todo" が折れ "Repeats" は折れない）
+- **#1207 との関係**: あちらはセグメントを flex 中央寄せにして**折れたラベルの高さを揃えた**だけで、折れること自体は残っていた。#1343 はその続き
+- **直し方は #1264 と同じ**: CJK はどの 2 文字の間でも改行できるので、詰まった flex 行は必ずどこかで折る。**まず `whitespace-nowrap` で折るのを禁じ、溢れは別のものに吸わせる**（ツアーフッター #1264 は `shrink-0 whitespace-nowrap` + 行の `flex-wrap`）。ここではトラックに `flex-wrap` を足したので、パネルを最小 240px まで縮めてもフォントスライダー上端でも、**ラベルを刻む代わりにトラックが 2 行に落ちる**（3 つとも同じ高さ = Issue の代替 DoD を満たす）
+- **320px に収めているのは実質パディングと文字サイズ**: `px-3 text-sm` → `px-1.5 text-xs`。`flex-1` が幅を決めるのでパディングは見た目にほぼ出ない（**長いラベルが取れる下限を下げるだけ**で、短いラベルは中央のまま動かない）。文字は `text-xs` が `tokens.css` で 0.8125rem に持ち上げてあるので 18px ルートで約 14.6px（`text-sm` は約 15.8px）
+- **opt-in にした理由**: 他 4 つの呼び出し元（`FrequencyEditor` / `ItemCreatePanel` / `ScheduleToolbar` / mobile section band）は元から 1 行に収まる。特に `FrequencyEditor` の en "Every N days" はスマホ幅のシートに 4 セグメントで、**折り返してよいラベル**。既定を変えるとそこが溢れる
+- **サイズ表を 2 本目として書いた**（`SINGLE_LINE_SIZE_CLASSES`）: `cn` はただの文字列連結なので、`px-*` を 2 つ載せると「後勝ち」ではなく Tailwind の出力順で決まる（#830 と同じ罠・`rules/frontend.md` §Gotchas）。**1 要素に届くパディングと文字サイズはそれぞれ 1 クラスだけ**、を型（`Record<SegmentedControlSize, string>`）で担保する形にした
+- **テスト**: jsdom にレイアウトが無いので「1 行に収まった」は観測できず、クラス契約を固定した — nowrap + flex-wrap の対 / パディングと文字サイズが 1 クラスずつ / **opt-in していない 4 トラックが今も折り返せること**。`ScheduleSidebarTabs` はテストが 1 本も無かったので `shared/tests/scheduleSidebarTabs.test.tsx` を新規追加（switcher の opt-in・1 タブ時に switcher ごと消えること・tabpanel の `aria-label`）
+- **検証**: CI `verify` ジョブと同じ順でローカル全緑（shared 281 files 2,773 / web 106 files 990 / desktop 1 files 7 / mcp-server 25 files 322）+ `docs-lint` OK。**実ブラウザでの ja / en 確認は chat-main の手番**（worktree は build / 型検証まで = worktree-policy）
+- **i18n の文言は変えていない**: Issue が「最後の手段」としていたラベル短縮（「今日の流れ」→「流れ」等）は採らず、`todayFlow` / `tabTodo` / `tabRepeats` は現状維持
+
 ### 2026-08-30 - #1242 タグフィルタの aria-label に単数形を与えた
 
 #### 概要
