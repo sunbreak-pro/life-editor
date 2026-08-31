@@ -1,86 +1,48 @@
 ---
 name: add-ipc-channel
-description: "⚠️ STALE — 起動しないこと。教えている Electron / Tauri IPC 層が実在しない。データアクセスの正本は CLAUDE.md §3.1 の DataService 境界（shared/src/services/）。"
+description: life-editor のデータアクセスは IPC を通らない（正本 = CLAUDE.md §3.1 の DataService 境界）ことの導線と、desktop 殻だけが持つ 7 関数の IPC ブリッジに 1 本足すときの 3 ファイル lockstep。Use when someone reaches for an IPC channel, a preload bridge, or `window.desktop`. Triggers include "IPC", "preload", "contextBridge", "ipcMain", "window.desktop", "チャンネル追加", "メインプロセスと通信".
 ---
 
-> ⚠️ **STALE — この手順に従わないこと**（2026-08-10 確認）
->
-> 本文が指す `electron/preload.ts` / `electron/ipc/` / `frontend/src/services/ElectronDataService.ts` は**いずれも実在しない**。同じ層を監査していた `life-editor-ipc-validator` エージェントは 2026-07-08 に retire 済み（D-20260708-main-1）。
->
-> 参照すべき正本: CLAUDE.md §3.1 — フロントは `getDataService()` 経由でのみデータへ触る。**コンポーネントからの直接バックエンド呼び出しは禁止**。実装は `shared/src/services/`。
->
-> 以下は書き直しか retire かの判断待ちで残している履歴。
+# IPC — まず「それは IPC の仕事ではない」を確認する
 
-「add-ipc-channelを起動します」と表示する。
+## データは IPC を通らない
 
-## 必須ファイル（3点セット）
+**Todo / Note / Schedule / Daily / タグ — アプリのデータに IPC は一切関与しない。** 正本は CLAUDE.md §3.1:
 
-### 1. preload.ts — チャンネル許可
+> フロントは `getDataService()` 経由でのみデータアクセス。**コンポーネントから直接バックエンド呼び出し（`invoke()` 等）禁止**。実装 = `shared/src/services/`
 
-`electron/preload.ts` の `ALLOWED_CHANNELS` に追加:
+Supabase Postgres へは renderer から直接行く。Web / Electron / Capacitor の 3 配布形態が同じ `shared/` を共用するので、**Electron にしか無い経路にデータを乗せた瞬間、web とモバイルでその機能が消える**。データを足すなら行き先は `add-feature` スキルの Phase 2（DataService 境界）で、このファイルではない。
 
-```typescript
-const ALLOWED_CHANNELS = new Set([
-  // ... existing channels
-  "db:newDomain:fetchAll",
-  "db:newDomain:create",
-  "db:newDomain:update",
-  "db:newDomain:delete",
-]);
+「メインプロセスと通信したい」と思ったら、まず**それが renderer で完結しないか**を疑うこと。たいていは完結する。
+
+## 例外: desktop 殻のローカル事情（現在 7 関数）
+
+完結しないのは「OS の外側にしか無いもの」だけ。実在するのはこれだけで、実体は `desktop/src/shared/ipcContract.ts` が正本:
+
+- テーマ設定とウィンドウ位置の永続化（`electron-store`）
+- アプリのバージョン
+- **Supabase の認証セッション保存**（#838）— パッケージ版の renderer は `file://` で動き、そこでは `localStorage` が確実に永続しない。だからセッションだけはメインプロセス側（`safeStorage` 暗号化）に置いている
+
+**Risk 1 の上限 = contextBridge の expose 関数 10 個まで**（現在 7）。上限に当たったら、それは殻が厚くなりすぎたサインなので、足す前に `desktop/README.md` の Constraints を読み直す。
+
+## 足すときの 3 ファイル lockstep
+
+Electron の IPC は「main の `ipcMain.handle` と preload の `ipcRenderer.invoke` に同じ文字列を書く」だけの仕組みで、**文字列同士は型で繋がらない**。片方だけ改名しても typecheck は通り、壊れるのはパッケージ版の実行時だけ（#838 = invoke が "No handler registered" で reject → auth init が「セッション無し」と解釈 → 起動のたびにログインを求められる）。
+
+なので名前と signature を 1 箇所に置き、両端がそれを import する形になっている。
+
+1. **`desktop/src/shared/ipcContract.ts`** — `DESKTOP_IPC` にチャンネル名を足し、`DesktopIpcApi` に呼び出し signature を足す。命名は `<namespace>:<action>`（`config:` / `window:` / `app:` / `authStorage:`）。**このモジュールは依存フリーを保つ**（`electron` を import しない — テストが素の Node から読む）
+2. **`desktop/src/main/index.ts`** — ハンドラ表に `[DESKTOP_IPC.foo]: …` を足す。表は `DesktopIpcHandlers`（= `Record<DesktopIpcChannel, …>`）で注釈されているので、**契約に足してハンドラを書かないとコンパイルが落ちる**。登録は `DESKTOP_IPC_CHANNELS` のループが自動で行うため、登録漏れという失敗モードは存在しない
+3. **`desktop/src/preload/index.ts`** — `api` オブジェクトにメソッドを足す。`DesktopIpcApi` で注釈されているので、抜けと型違いはここで落ちる
+
+引数は**メインプロセス側で必ず検証する**。renderer は TS の型に関係なく任意の値を送れるので、ハンドラの引数型は `unknown` で受けて中で絞る（契約側の `DesktopIpcHandler` がそういう形になっている）。関数は橋を渡らない（シリアライズ可能な値のみ）。
+
+## 検証
+
+`desktop/tests/ipcContract.test.ts` が両端の被覆・チャンネルの重複と名前空間・引数の受け渡しを見張る。`shared/src/services/supabaseAuthStorage.ts` は `electron` を import できないため同じ 3 メソッドを自前で宣言していて、その 2 つもこのテストで突き合わせている — **どちらかの signature を変えると desktop の typecheck が落ちる**のが設計意図。
+
+```bash
+cd desktop && npm run typecheck && npm run test
 ```
 
-命名規則: `db:<domain>:<action>` / `ai:<action>` / `app:<action>`
-
-### 2. \*Handlers.ts — ハンドラ実装
-
-`electron/ipc/` に `newDomainHandlers.ts` を作成:
-
-```typescript
-import { ipcMain } from "electron";
-import type { NewDomainRepository } from "../database/newDomainRepository";
-
-export function registerNewDomainHandlers(repo: NewDomainRepository): void {
-  ipcMain.handle("db:newDomain:fetchAll", async () => {
-    return repo.fetchAll();
-  });
-
-  ipcMain.handle("db:newDomain:create", async (_event, ...args) => {
-    return repo.create(...args);
-  });
-}
-```
-
-`electron/ipc/registerAll.ts` にハンドラ登録を追加。
-
-### 3. ElectronDataService.ts — フロントエンド呼び出し
-
-`frontend/src/services/ElectronDataService.ts` にメソッド追加:
-
-```typescript
-async fetchNewDomains(): Promise<NewDomain[]> {
-  return this.invoke('db:newDomain:fetchAll');
-}
-
-async createNewDomain(data: NewDomainInput): Promise<NewDomain> {
-  return this.invoke('db:newDomain:create', data);
-}
-```
-
-## 任意ファイル（必要に応じて）
-
-### 4. DataService.ts — インターフェース定義
-
-新メソッドのシグネチャを `DataService` インターフェースに追加。
-
-### 5. \*Repository.ts — データアクセス
-
-新テーブルの場合は `/db-migration` スキルを参照して Repository を作成。
-
-## 検証チェックリスト
-
-1. [ ] `ALLOWED_CHANNELS` にチャンネル名が追加されている
-2. [ ] ハンドラが `registerAll.ts` で登録されている
-3. [ ] `ElectronDataService` にメソッドが追加されている
-4. [ ] `DataService` インターフェースにシグネチャがある
-5. [ ] チャンネル名が3箇所で一致している（typoなし）
-6. [ ] ハンドラにエラーハンドリングがある
+`desktop/src` を触るのが配布まわりの作業の途中なら、それは配布の問題ではなくアプリの問題なので **P-008 に従い実装せずキュー / Issue へ**（`2026-08-30-desktop-app-packaging.md` の Scope 宣言）。

@@ -1,110 +1,98 @@
 ---
 name: add-component
-description: "⚠️ STALE — 起動しないこと。削除済みの frontend/ ツリー前提。新規 UI の正本は shared/src/components/ と .claude/rules/frontend.md、デザイン判断は frontend-react-designer スキル。"
+description: life-editor の UI を 1 つ足すときの機構（どこに置くか / Pattern A の Context 3 ファイル / セクションを足す 2 箇所 / i18n と Provider の登録先）。デザイン判断そのものは frontend-react-designer、不変式と配置表の正本は rules/frontend.md。Use when creating a new component, panel, dialog, provider, context, hook, or section in shared/ or web/. Triggers include "コンポーネント追加", "部品を作る", "Provider を足す", "セクション追加", "画面を足す", "add component", "new panel", "new section".
 ---
 
-> ⚠️ **STALE — この手順に従わないこと**（2026-08-10 確認）
+# Add Component — UI を 1 つ足すときの機構
+
+> **役割分担**: 本スキル = 置き場所と登録先（機構）。[`rules/frontend.md`](../../rules/frontend.md) = 不変式と配置表（`shared/src/**` / `web/src/**` を触ると自動ロードされる）。`frontend-react-designer` スキル = 見た目・状態設計・a11y・モーションの判断。
 >
-> 本文の配置先 `frontend/src/...` は **2026-07-11 に削除済み**（#197・復元は git tag `pre-tauri-removal`）。セクション追加も `App.tsx::activeSection` 前提のままで、現行は `shared/src/sections.ts` の registry + `web/src/MainScreen.tsx` の section state。
->
-> 参照すべき正本: 新規 UI の置き場所 = CLAUDE.md §6（`shared/src/components/` に集約）/ 規約 = [`rules/frontend.md`](../../rules/frontend.md)（Provider 順序・Pattern A・`lumen-*` トークン・IME gotcha）/ デザイン判断 = `frontend-react-designer` スキル。
->
-> 以下は書き直しか retire かの判断待ちで残している履歴。
+> **同じ表を 2 箇所に書かない**（CLAUDE.md §0 数値の非複製原則）。配置表・Provider 順序・デザイン不変式は rules 側だけを見ること。
 
-「add-componentを起動します」と表示する。
+## 0. 書く前に決める 2 つ
 
-## パターン 1: シンプルコンポーネント（UI only）
+1. **`shared/` か `web/` か。** 部品（再利用される UI・Context・hook）は `shared/src/`、画面の組み立ては `web/src/`。Web / Electron / Capacitor の 3 配布形態が同じソースを共用するので、**特定の画面にしか出ない見た目でも部品側に置いてよい**が、`web/src` の他ファイルを import する部品は作らない（依存が逆流する）。
+2. **Context が要るか。** 状態を兄弟コンポーネント間で共有するなら Pattern A（§2）。親から props で足りるなら作らない — Provider は 1 本増えるたびに全画面のマウントコストになる。
 
-`frontend/src/components/` にファイルを作成:
+## 1. 単体の UI 部品
 
-```typescript
-import { useTranslation } from 'react-i18next';
+`shared/src/components/` にファイルを 1 つ作る（PascalCase・named export）。
 
+```tsx
 type Props = {
   title: string;
+  actionLabel: string; // ← 文言は props で受ける。部品内で useTranslation() を呼ばない
   onAction: () => void;
 };
 
-export function MyComponent({ title, onAction }: Props) {
-  const { t } = useTranslation();
+export function MyPanel({ title, actionLabel, onAction }: Props) {
   return (
-    <div className="my-component">
+    <div className="bg-lumen-bg-secondary text-lumen-text border-lumen-border rounded-lg border p-4">
       <h2>{title}</h2>
-      <button onClick={onAction}>{t('common.action')}</button>
+      <Button onClick={onAction}>{actionLabel}</Button>
     </div>
   );
 }
 ```
 
-- named export を使う（default export 不可）
-- ファイル名: PascalCase（`MyComponent.tsx`）
-- i18n テキストは `en.json` / `ja.json` 両方に追加
+- **文言は props 経由**。`t()` を呼ぶのは画面層（`web/src/`）。翻訳キーは `shared/src/i18n/locales/en.json` と `ja.json` の**両方**に足す。`fallbackLng: "en"` なので、**ja を忘れてもエラーにならず日本語表示のときだけ英語が出る** — 壊れ方が静かなので見落としやすい
+- **色は `lumen-*` トークンだけ**。ハードコード禁止。主要 UI コンテナの背景に透明度を使わない（未定義クラスは silent fail で「透明落ち」する）
+- **DataService はコールバック注入**。部品や hook の中で `getDataService()` を直接呼ばない
+- `shared/src/components/index.ts` に export を足す（画面層はここから import する）
 
-## パターン 2: Context + Provider
+サブディレクトリを持つ領域（`Analytics/` `briefing/` `items/` `materials/` `schedule/` など）は、その領域の部品ならそちらへ。
 
-参照パターン: `frontend/src/context/CalendarContext.tsx`
+## 2. Context / Provider（Pattern A = 3 ファイル）
 
-### 2a. カスタムフックを作成
-
-```typescript
-// frontend/src/hooks/useNewDomain.ts
-export function useNewDomain() {
-  const [items, setItems] = useState<Item[]>([]);
-  // ... state & effects
-  return { items, addItem, removeItem };
-}
+```
+shared/src/context/FooContextValue.ts   … interface + createContext<Foo | null>(null)
+shared/src/context/FooContext.tsx       … Provider（hook 呼び出し + useMemo）
+shared/src/hooks/useFooContext.ts       … createContextHook(FooContext, "useFooContext")
 ```
 
-### 2b. Context + Provider を作成
+```ts
+// hooks/useFooContext.ts
+import { createContextHook } from "./createContextHook";
+import { FooContext } from "../context/FooContextValue";
 
-```typescript
-// frontend/src/context/NewDomainContext.tsx
-import { createContext, type ReactNode } from 'react';
-import { useNewDomain } from '../hooks/useNewDomain';
-
-export type NewDomainContextValue = ReturnType<typeof useNewDomain>;
-
-export const NewDomainContext = createContext<NewDomainContextValue | null>(null);
-
-export function NewDomainProvider({ children }: { children: ReactNode }) {
-  const value = useNewDomain();
-  return (
-    <NewDomainContext.Provider value={value}>
-      {children}
-    </NewDomainContext.Provider>
-  );
-}
+export const useFooContext = createContextHook(FooContext, "useFooContext");
 ```
 
-### 2c. Consumer フックを作成
+`createContextHook`（`shared/src/hooks/createContextHook.ts`）が「Provider の外で呼んだら投げる」を引き受けるので、null チェックを自分で書かない。
 
-```typescript
-export function useNewDomainContext() {
-  const ctx = useContext(NewDomainContext);
-  if (!ctx)
-    throw new Error(
-      "useNewDomainContext must be used within NewDomainProvider",
-    );
-  return ctx;
-}
-```
+登録:
 
-### 2d. Provider を登録
+1. `shared/src/context/index.ts` に Provider / Context / 型を export
+2. **Provider 鎖に挿す**。グローバル層 = `web/src/main.tsx` + `web/src/AppProviders.tsx`、セクション層 = `web/src/sectionDescriptors.tsx` の該当行。**順序には依存制約がある**（内側は外側の Context に依存可・逆は不可）— 現行の並びは rules/frontend.md §Provider 順序が正本
+3. モバイルで省略する Provider にするなら Optional バリアント必須（消費側は null ガードで no-op）
 
-1. `frontend/src/main.tsx` — Provider stack に追加（順序に注意）
-2. `frontend/src/test/renderWithProviders.tsx` — テスト用Providerにも追加
+例外: 他の Provider から依存されない自己完結なものは 1 ファイルでよい（例 `ToastContext`）。
 
-## パターン 3: セクション/ビュー追加
+## 3. セクションを 1 つ足す（触るのは 2 箇所だけ）
 
-1. `frontend/src/components/` にビューコンポーネントを作成
-2. `App.tsx` の `activeSection` 型にセクション名を追加
-3. `App.tsx` の `MainContent` 内の条件分岐に追加
-4. `Sidebar` にナビゲーション項目を追加
-5. i18n のロケールファイルにラベルを追加
+1. **`shared/src/sections.ts` の registry** — `SectionId` / サイドバー順 / グループ / アイコン / i18n キー / モバイル順が全部ここから派生する
+2. **`web/src/sectionDescriptors.tsx` の `SECTION_DESCRIPTORS`** — PageContainer の width / ヘッダーのタブ帯 / 狭幅の行 / body とその section 層 Provider
+
+`Record<SectionId, …>` なので、registry に足して descriptor 行が無い間は**コンパイルが通らない**。これが「2 箇所で済む」の担保になっている。`MainScreen.tsx` は section id で分岐しないので触らない。
+
+body が重い（Notes / Analytics 級）なら `web/src/lazySections.ts` で `lazy()` する。同じファイルの `SECTION_CHUNK_LOADERS` にも同じ specifier を並べる — **片方だけ直すと守りのテスト（`web/tests/lazySectionChunks.test.ts`）が落ちる**。
+
+## 4. データを読む部品を作ったら
+
+Realtime の更新を受け取るために、読む effect で `useSyncDomains("notes", …)` のように**自分が読むドメインを全部宣言**し、戻り値を deps に入れる。**申告漏れは無言の stale**（更新が来ず、ユーザーに直す手段がない）。迷ったら足す側に倒す — 過剰宣言の代償は余計な fetch 1 回だけ。
+
+## 5. 出す前に
+
+- `cd shared && npm run lint`（`web` の lint は `shared/` を歩かない）
+- テストは `shared/tests/` か `web/tests/` に（コロケーションではない）→ `test-writing` スキル
+- ゲート一式は CLAUDE.md §7.1（正本は `.github/workflows/ci.yml` の `verify` ジョブ）
 
 ## チェックリスト
 
-- [ ] named export を使っている
-- [ ] Context の型は `ReturnType<typeof useHook>` パターン
-- [ ] Provider を `main.tsx` と `renderWithProviders.tsx` の両方に追加
-- [ ] i18n テキストが en/ja 両方にある
+- [ ] named export・PascalCase ファイル名
+- [ ] 文言は props 経由で、en / ja 両方の catalog に追加した
+- [ ] 色は `lumen-*` のみ・主要コンテナ背景に透明度なし
+- [ ] `getDataService()` を部品 / hook 内で直呼びしていない
+- [ ] Pattern A なら 3 ファイル + `shared/src/context/index.ts` + Provider 鎖への登録
+- [ ] セクション追加なら registry と descriptor の両方
+- [ ] データを読むなら `useSyncDomains` でドメインを宣言した

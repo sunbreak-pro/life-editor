@@ -20,7 +20,7 @@ description: >
   - Realtime publication（`supabase_realtime`）への同期対象テーブルの加入漏れ
   - `.claude/docs/vision/db-conventions.md` §10 の規約（DB-Q1〜Q3・R2 orphan recovery・partial UNIQUE）との突き合わせ
 
-  自身では migration ファイルを変更しない。**整合性レポートと修正提案のみ**。実装スキル `db-migration`（現在 STALE・書き直し = #1336）とは役割が異なる
+  自身では migration ファイルを変更しない。**整合性レポートと修正提案のみ**。実装スキル `db-migration` とは役割が異なる
   （db-migration は「これから書く手順」、本エージェントは「既存 DDL の規約整合監査」）。
 model: opus
 effort: xhigh
