@@ -56,4 +56,4 @@ formatter（prettier 系）は 80 桁を超える YAML の flow 配列を複数�
 ## References
 
 - 関連: [026](./026-posttooluse-formatter-deletes-adjacent-heading.md)（同じ PostToolUse formatter の別症状 = 見出し消失。追跡は GitHub #119）
-- 設計の正本: `docs/vision/plans/2026-08-09-record-graph-layer.md`（記録グラフ層 — `records.mjs` の出自）
+- 設計の正本: `archive/2026-08-09-record-graph-layer.md`（記録グラフ層 — `records.mjs` の出自。2026-08-31 に COMPLETED で archive 入り）

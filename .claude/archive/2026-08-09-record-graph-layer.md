@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # 基盤配置 + §後続 6/7 消化。D-20260809-main-2 は 2026-08-11 に A で回答済み — 残 = archive 索引生成の実装（#1337）
+Status: COMPLETED # 基盤配置 + §後続 7/7 消化（最後の 1 件 = archive 索引生成は #1337 で実装）
 Created: 2026-08-09
 Branch: claude/context-design-documentation-j95vnp
 Owner-chat: main # remote（claude.ai）セッションで起案。merge 後の管掌は chat-main
@@ -10,7 +10,7 @@ Parent: .claude/docs/vision/plans/2026-07-28-loop-engineering-harness.md
 
 > **これは何か**: `.claude/` の記録システム（memory / history / comm / decisions / plans / Issue）に「索引 + 決定台帳 + frontmatter メタデータ」の**追加層**を被せ、(1) 検索コスト (2) 設計判断の Why の記録穴 (3) 記録基準の散乱、の 3 課題を解く計画書 + 配置記録。
 > **位置づけ**: loop-harness（Parent）の Phase 0（判断の非同期化）と Phase 1（夜間安全レーン）の間の **Phase 0.5（記録基盤）**。`records.mjs check` が Phase 1 の docs 整合 sweep の機械的道具になる。コンテキストコスト削減ハーネス（`2026-08-04-context-cost-reduction-harness.md`）とは同方向 — 本計画の INDEX は「航法層」の入口を担う。
-> **採用の経緯** = [`D-20260809-main-1`](../../../decisions/D-20260809-main-1.md)（旧「ADR は作らない」を SUPERSEDE — ユーザー確定 2026-08-09）。
+> **採用の経緯** = [`D-20260809-main-1`](../decisions/D-20260809-main-1.md)（旧「ADR は作らない」を SUPERSEDE — ユーザー確定 2026-08-09）。
 
 ---
 
@@ -93,7 +93,7 @@ scripts/docs-lint.sh         # (e) records.mjs check の組み込みのみ
 
 1. ✅ **各レーンの回答済みキュー残の昇格**: mobile-refine 3 件 / tags-docs 3 件 / schedule-refine 1 件をキューから除去（台帳側は基盤 PR で作成済み）。単一書込者原則の一時例外として chat-main が代行し、各キューに代行の旨を 1 行残した
 2. ✅ **memory スタブの退役 sweep**: 500B 未満の休眠レーン memory を実測 25 本（うち他文書からの参照ゼロ 21 本）検出し、全 25 本を削除（ユーザー確定 2026-08-09）。25 本すべて `history/chat-*.md` 側に 1.2〜2.9KB の履歴が残るため、消えた情報はない。残る参照 4 件は archive の Scope 宣言内のパス列挙と outbox のファイル名で、Markdown リンクではない
-3. ⏸ **archive/ 索引の再建判断** → `D-20260809-main-2` としてキューへ（実測を更新: 索引外は約 30 本ではなく **63 / 84 本**）
+3. ✅ **archive/ 索引の再建**: `D-20260809-main-2` としてキューへ出し、2026-08-11 に A（`records.mjs` にスキャンを足して生成）で回答。#1337 で実装し `archive/INDEX.md` を追加（実測を更新: 索引外は約 30 本ではなく **63 / 84 本**だった。現在は直下 96 本すべてが所在表に載る）
 4. ✅ **CLAUDE.md インライン決定注記の台帳バックフィル**: 台帳未登録だった 7 件を `recorded` の最小 D ファイルで起こし（D-20260607-main-1 / D-20260704-main-1 / D-20260705-main-1 / D-20260708-main-1 / D-20260711-main-1 / D-20260723-main-1 / D-20260807-main-1）、CLAUDE.md の該当 10 行に ID 参照を付けた。既存参照 4 行と合わせて計 14 行が ID で台帳へ届く
 5. ✅ **残り hooks 2 本の vendor 実装**: `scripts/hooks-lib/session-start-check.sh`（A/B/C/F の 4 検査。D = mtime 比較と E = worktree dirty 放置は意図的に落とした）と同 `pre-commit-index-guard.sh`（対象は派生 INDEX 2 本のみ・AUTO-FIX 方式）
 6. ✅ **dev-digest スキルの収集元更新**: 「要判断」を `decisions/INDEX.md` §Open から読む形に変更（A/B と放置時だけキュー本体を開く）
@@ -116,4 +116,5 @@ scripts/docs-lint.sh         # (e) records.mjs check の組み込みのみ
 
 - 2026-08-09: remote セッションで全数調査（Explore 3 体）→ 設計（Plan 1 体）→ ユーザー確定 3 点（スコープ / 追加層 / ADR SUPERSEDE）→ 基盤配置。調査はセッション開始時の stale クローン（2026-07-28 断面）に対して行い、実装前に origin/main（2026-08-07 断面）で全事実を再検証した — 壊れリンク 14 本は #528 系で解決済みと判明し、リンク修復と links 検査を計画から削除（検査の非複製）。ANSWERS は 4 → 16 件に増えており移行対象を全件に拡大
 - 2026-08-09（follow-up・chat-main / `claude/main-records-followup`）: §後続の 7 項目を 1 PR で消化（6 実施 + 1 をキューへ）。ローカルマシンから外部 hooks-lib の実体を読めたため Risks 1 本目を実測で解消。数値は再実測で更新（memory スタブ 19 → 25 本 / archive 索引外 約 30 → 63 本）
+- 2026-08-31（#1337・tags-docs）: §後続 3 の実装で残作業ゼロ。`records.mjs` に archive スキャンを足し、直下の `*.md` からファイル名 + Status 行 + H1 を機械抽出して `archive/INDEX.md`（git 非追跡・5 本目の派生ビュー）を生成する。archive は計画書以外も同居するため Status 行の書式が plans より広く（`Status:` / `**Status**:` / 先頭の `-` `>` 付き）、docs-consistency §3 と同じ範囲を 1 本の正規表現で拾っている。本計画は COMPLETED として archive/ へ移動
 - 2026-08-12（#735・ユーザー確定 = 案 B）: 索引 2 本（`.claude/INDEX.md` / `decisions/INDEX.md`）を **git 非追跡の派生ビュー**へ変更。`records.mjs check` から鮮度検査を撤去し、再生成は SessionStart hook（`settings.json`）へ移した。理由 = 決定台帳を全走査して毎回まるごと書き直す生成物を追跡していたため、判断を 1 件足すだけで並行レーンの PR が構造的に衝突していた（同日の #719 / #720 / #733 の衝突箇所はこの 2 本だけ）。本計画の「同一コミットで再生成」規約はこれで無効

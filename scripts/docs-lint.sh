@@ -33,10 +33,11 @@ PLANS_DIR=".claude/docs/vision/plans"
 #     対象: .claude/**/*.md 全部（#528 で docs/ 限定から拡大 — archive/ 移動時の
 #           リンク切れを検出するため）
 #     除外: http(s) / mailto / file: の絶対 URL、ページ内アンカー（#...）、
-#           git 非追跡の派生ビュー 4 本（memory/INDEX.md / history/INDEX.md /
-#           .claude/INDEX.md / .claude/decisions/INDEX.md — hooks/regen-index.sh と
-#           records.mjs index が再生成するため CI の checkout には存在しない。
-#           CLAUDE.md §9 / rules/records.md §4 参照。リンク元としても同様に除外）、
+#           git 非追跡の派生ビュー 5 本（memory/INDEX.md / history/INDEX.md /
+#           .claude/INDEX.md / .claude/decisions/INDEX.md / .claude/archive/INDEX.md —
+#           hooks/regen-index.sh と records.mjs index が再生成するため CI の checkout
+#           には存在しない。CLAUDE.md §9 / rules/records.md §4 参照。リンク元としても
+#           同様に除外）、
 #           旧式 worktree 置き場（.claude/worktrees/ — 別 checkout の実体）
 # ---------------------------------------------------------------------------
 ALL_MD_FILES=$(find .claude -path '.claude/worktrees' -prune -o -name '*.md' -print | sort)
@@ -44,6 +45,7 @@ for f in ${ALL_MD_FILES}; do
   case "$f" in
     *memory/INDEX.md | *history/INDEX.md) continue ;;             # derived views
     .claude/INDEX.md | .claude/decisions/INDEX.md) continue ;;    # derived views (#735)
+    .claude/archive/INDEX.md) continue ;;                         # derived view (#1337)
   esac
   dir=$(dirname "$f")
   while IFS= read -r target; do
