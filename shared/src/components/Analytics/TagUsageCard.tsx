@@ -10,7 +10,7 @@ import {
   type TagUsageItem,
 } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
-import { EmptyState } from "./EmptyState";
+import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
 import type { DateRange } from "./AnalyticsFilterContext";
 
 export interface TagUsageCardLabels {
@@ -105,7 +105,7 @@ export function TagUsageCard({
   if (rows.length === 0) {
     return (
       <ChartCard title={labels.title} meta={labels.rangeLabel}>
-        <EmptyState
+        <AnalyticsEmptyState
           icon={<Tag size={22} />}
           title={labels.empty.title}
           description={labels.empty.description}
