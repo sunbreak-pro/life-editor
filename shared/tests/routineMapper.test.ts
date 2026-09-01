@@ -270,7 +270,6 @@ describe("order ↔ sort_order rename", () => {
       deleted_at: null,
       created_at: NOW,
       updated_at: NOW,
-      version: 1,
     };
     const payload: RoutinesPayloadRow = {
       item_id: "routine-order-2",
@@ -375,7 +374,6 @@ describe("frequency_days JSON ↔ number[] coercion", () => {
       deleted_at: null,
       created_at: NOW,
       updated_at: NOW,
-      version: 1,
     };
     const payload: RoutinesPayloadRow = {
       item_id: "routine-freq-2",
@@ -414,7 +412,6 @@ describe("frequency_days JSON ↔ number[] coercion", () => {
       deleted_at: null,
       created_at: NOW,
       updated_at: NOW,
-      version: 1,
     };
     const payload: RoutinesPayloadRow = {
       item_id: "routine-freq-3",
@@ -459,7 +456,6 @@ describe("defensive validation", () => {
       deleted_at: null,
       created_at: NOW,
       updated_at: NOW,
-      version: 1,
     };
     const payload: RoutinesPayloadRow = {
       item_id: "routine-mismatch-b",
@@ -498,7 +494,6 @@ describe("defensive validation", () => {
       deleted_at: null,
       created_at: NOW,
       updated_at: NOW,
-      version: 1,
     };
     const payload: RoutinesPayloadRow = {
       item_id: "routine-role-1",
@@ -565,18 +560,6 @@ describe("routineUpdatesToPatches — whitelist / partial-clobber safety", () =>
     expect("id" in metaPatch).toBe(false);
     expect("created_at" in metaPatch).toBe(false);
     expect(payloadPatch).toEqual({});
-  });
-
-  it("accepts `version` on purpose — unlike the retired single-row shim", () => {
-    // The 2-row API whitelists version so the service can carry the
-    // optimistic-concurrency value through; the old shim dropped it. Pinned
-    // here so a future 'tighten the whitelist' pass has to be deliberate.
-    const { metaPatch } = routineUpdatesToPatches(
-      { version: 7 },
-      TEST_USER_ID,
-      NOW,
-    );
-    expect(metaPatch.version).toBe(7);
   });
 
   it("ignores undefined values", () => {

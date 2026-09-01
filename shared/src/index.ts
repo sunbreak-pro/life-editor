@@ -23,10 +23,7 @@ export {
   toolArgNames,
   type McpToolCatalogEntry,
 } from "./generated";
-export {
-  getDataService,
-  setDataServiceForTest,
-} from "./services/dataServiceFactory";
+export { getDataService } from "./services/dataServiceFactory";
 export {
   signUp,
   signIn,
@@ -110,6 +107,15 @@ export {
   writeDomainSnapshot,
   type DomainSnapshotKey,
 } from "./state/domainSnapshotStore";
+// #1407 — the body half of the same idea. The snapshot above replays the note
+// LIST across a section switch; list rows are body-free (M1), so the note the
+// user was reading still cost a `getNoteUnified` round trip on every return.
+// `clearNoteBodies` is test isolation, same as `clearDomainSnapshots`.
+export {
+  clearNoteBodies,
+  forgetNoteBody,
+  NOTE_BODY_CACHE_LIMIT,
+} from "./state/noteBodyStore";
 // #1404 — editor attachment limits + the MIME/size helpers the picker, the
 // upload hook and the document node all have to agree on.
 export {
@@ -575,8 +581,8 @@ export {
 // successor surface for the 5-role tag/link graph.
 
 // WikiTags Unified domain (DU-C+) — items_meta-based 5-role tag/link.
-// Coexists with the legacy `frontend/src/context/WikiTagContext.tsx`
-// until DU-F removes the legacy frontend tag UI in cohort.
+// The legacy `frontend/src/context/WikiTagContext.tsx` it used to coexist
+// with is gone — the whole Tauri `frontend/` tree was deleted in #197.
 export {
   WikiTagsUnifiedProvider,
   WikiTagsUnifiedContext,
@@ -678,7 +684,7 @@ export {
 } from "./components/todoStatusVisuals";
 // Platform detection. isNativeMobile() (Phase 4) lets the hosts gate the
 // Mobile 省略 UI (roster = CLAUDE.md §2) on the Capacitor shells — platform.ts.
-export { isMac, isNativeMobile, isDesktopShell } from "./utils/platform";
+export { isMac, isNativeMobile } from "./utils/platform";
 // Claude Code launcher bridge (#1211) — desktop-only, null everywhere else.
 export {
   getClaudeLauncherBridge,

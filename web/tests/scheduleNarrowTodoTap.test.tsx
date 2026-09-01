@@ -67,7 +67,15 @@ function renderDay() {
         NOW,
       )}
       onItemActivate={onItemActivate}
-      labels={{ allDay: "All-day", empty: "empty" }}
+      labels={{
+        allDay: "All-day",
+        empty: "empty",
+        todoStatus: "Status",
+        todoStatusLabels: {
+          statusNotStarted: "Not started",
+          statusDone: "Done",
+        },
+      }}
     />,
   );
   return { onItemActivate };

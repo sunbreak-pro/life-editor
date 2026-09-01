@@ -41,7 +41,6 @@ function tag(id: string, overrides: Partial<WikiTag> = {}): WikiTag {
     icon: null,
     createdAt: NOW,
     updatedAt: NOW,
-    version: 1,
     isDeleted: false,
     deletedAt: null,
     ...overrides,

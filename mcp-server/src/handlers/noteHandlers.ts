@@ -9,6 +9,7 @@ import {
 import {
   META_COLUMNS,
   insertItem,
+  isLegacyFolder,
   requireMeta,
   softDeleteItem,
   updatePayload,
@@ -54,18 +55,6 @@ export interface NoteRecord {
 }
 
 const PAYLOAD_COLUMNS = "item_id, note_type, content_json, is_pinned, color";
-
-/**
- * True for the retired folder note type (#375). NULL is a plain note — the
- * whole filter hinges on that, which is why it is exported for the unit test
- * (a `.neq('note_type','folder')` query-side filter would drop NULL rows and
- * silently hide legacy notes).
- */
-export function isLegacyFolder(
-  payload: Pick<NotesPayloadRow, "note_type">,
-): boolean {
-  return payload.note_type === "folder";
-}
 
 /** Every field but the body — how the body is carried differs per tool. */
 function formatNoteBase(meta: ItemsMetaRow, payload: NotesPayloadRow) {
@@ -158,7 +147,7 @@ export async function fetchLiveNotes(): Promise<NoteRecord[]> {
   for (const meta of metaRows) {
     const payload = payloadById.get(meta.id);
     if (!payload) continue; // meta without payload = orphan
-    if (isLegacyFolder(payload)) continue; // #375: retired folder row
+    if (isLegacyFolder(payload.note_type)) continue; // #375: retired folder row
     out.push({ meta, payload });
   }
   return out;

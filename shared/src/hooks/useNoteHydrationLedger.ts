@@ -9,6 +9,7 @@ import {
 import type { NoteNode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
+import { readNoteBody } from "../state/noteBodyStore";
 
 /**
  * The hydrated-body / own-write ledger behind useNotesUnifiedAPI (#587 split).
@@ -200,6 +201,29 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
           stillHydrated.add(row.id);
           return { ...row, content: prev.content };
         }
+        /*
+         * #1407: the same keep-rule, one mount earlier. A FIRST merge after a
+         * remount has no `prev` for anything — the section providers are
+         * unmounted on every switch away from Materials, so both `notesRef`
+         * and the hydrated set above start empty — and the bodies it is
+         * missing are exactly the ones the user was just reading. The
+         * cross-mount cache answers for them, under the same `updatedAt`
+         * equality the in-memory branch uses, so a note somebody wrote to
+         * while we were away still falls through to a re-hydrate.
+         *
+         * Only when there is no `prev`: live state always outranks the cache,
+         * including the #607 own-write cover above, which the cache has no
+         * equivalent of (our optimistic client stamp never matches a cached
+         * server one, so a hit is impossible for the note being typed in
+         * anyway).
+         */
+        if (prev === undefined) {
+          const cached = readNoteBody(ds, row.id, row.updatedAt);
+          if (cached !== null) {
+            stillHydrated.add(row.id);
+            return { ...row, content: cached };
+          }
+        }
         return row;
       });
       contentLoadedIdsRef.current = stillHydrated;
@@ -218,7 +242,7 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
       );
       return { merged, stillHydrated };
     },
-    [notesRef, selectedNoteIdRef],
+    [ds, notesRef, selectedNoteIdRef],
   );
 
   return {

@@ -364,6 +364,9 @@ const ANALYTICS_READS = {
   fetchTimerSessions: () => [],
   fetchTodoTree: () => [],
   fetchScheduleItemsByDateRange: () => [],
+  // Every live event, for the Overview tag usage card (#1379) — a different
+  // read from the range one above it.
+  fetchEvents: () => [],
   fetchAllRoutines: () => [],
   listNotesUnified: () => [],
   listAllWikiTagsUnified: () => [],

@@ -4,6 +4,7 @@ import { markdownToTiptap } from "../utils/markdownToTiptap.js";
 import {
   META_COLUMNS,
   insertItem,
+  isLegacyFolder,
   requireMeta,
   softDeleteItem,
   updatePayload,
@@ -94,19 +95,6 @@ export function toToolStatus(status: string | null): string | null {
   if (status === null) return null;
   if (status === "IN_PROGRESS") return "not_started";
   return status.toLowerCase();
-}
-
-/**
- * True for the retired folder node type (S3 #225). NULL is a plain todo —
- * the whole in-app filter hinges on that, which is why it is exported for
- * the unit test. `list_todos` used a query-side `.eq('task_type','task')`
- * until #702 ②, which dropped every NULL row and made it disagree with
- * `get_todo_tree` about which todos exist.
- */
-export function isLegacyFolder(
-  row: Pick<TasksPayloadRow, "task_type">,
-): boolean {
-  return row.task_type === "folder";
 }
 
 /** Every field but the body — how the body is carried differs per tool. */
@@ -255,7 +243,7 @@ export async function listTodos(args: {
   // folder type (see above), and a payload whose meta is missing — that one
   // is soft-deleted or an orphan, so it is not a todo the caller can see and
   // must not count towards `total` either.
-  const visible = payloads.filter((p) => !isLegacyFolder(p));
+  const visible = payloads.filter((p) => !isLegacyFolder(p.task_type));
   if (visible.length === 0) return { todos: [], total: 0, hasMore: false };
 
   const metaById = await fetchTodoMetas(visible.map((p) => p.item_id));
@@ -335,7 +323,7 @@ export async function getTodoTree(args: {
   // Live payloads in sort order, paired with their meta parent.
   const rows: Array<{ meta: ItemsMetaRow; payload: TasksPayloadRow }> = [];
   for (const p of payloadRows) {
-    if (isLegacyFolder(p)) continue;
+    if (isLegacyFolder(p.task_type)) continue;
     const m = metaById.get(p.item_id);
     if (m) rows.push({ meta: m, payload: p });
   }

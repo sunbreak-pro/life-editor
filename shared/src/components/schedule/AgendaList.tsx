@@ -7,6 +7,8 @@ import {
 } from "./scheduleVariantVisuals";
 import { minutesFromMidnight } from "../../utils/scheduleGridLayout";
 import { ScheduleStatusTag } from "./ScheduleStatusTag";
+import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
+import type { StatusLabelSet } from "../todoStatusVisuals";
 import type { ScheduleStatus } from "../../utils/scheduleStatus";
 
 /*
@@ -21,6 +23,13 @@ import type { ScheduleStatus } from "../../utils/scheduleStatus";
  * (capped), and free stretches between rows are called out. Without it — the
  * Desktop sidebar column — rows stay one line tall, as before.
  *
+ * #1367: a TODO row's row-end is a <TodoStatusCheckbox>, not the event pill.
+ * 未着手 / 着手中 / 完了 is an EVENT's vocabulary — three values derived from
+ * the clock — while a todo only ever means done or not, and the 朝刊 already
+ * words it that way (EveningView). Two surfaces showing the user's own todos
+ * must not disagree about what a todo's state is called. EVENT / ROUTINE rows
+ * keep the pill here; whether they should is the separate call in #1373.
+ *
  * Pure presentation (CLAUDE.md §3.1 / §6.4): no DataService, no
  * useTranslation. Copy (all-day / empty / now labels) is injected already
  * translated; mutations are injected callbacks. lumen-* tokens only (§5).
@@ -33,7 +42,12 @@ export interface AgendaItem {
   endTime: string; // HH:MM
   isAllDay?: boolean;
   completed?: boolean;
-  /** Derived status (#222) — drives the row-end status tag. */
+  /**
+   * Derived status (#222) — drives the row-end status tag on EVENT / ROUTINE
+   * rows. A todo row ignores it since #1367: its control is binary and reads
+   * `completed`, which is the same fact (`todosToCalendarChips` sets it from
+   * `status === "DONE"`).
+   */
   status?: ScheduleStatus;
   variant?: ScheduleItemVariant;
 }
@@ -49,6 +63,19 @@ export interface AgendaListLabels {
   complete?: string;
   /** Already-translated status-tag labels (#222). */
   statusLabels?: Record<ScheduleStatus, string>;
+  /**
+   * Already-translated name of what a TODO row's checkbox sets, e.g. "Status"
+   * (#1367). Composed with the current status into the accessible name, the
+   * same way the 朝刊 does — see TodoStatusCheckbox.
+   *
+   * Required, unlike the two above: a todo row with no words for its control
+   * would silently fall back to something, and "the todo rows quietly kept
+   * the event pill" is exactly the regression this is about. The type is the
+   * machine guard.
+   */
+  todoStatus: string;
+  /** Already-translated per-status copy for that checkbox (#1367). */
+  todoStatusLabels: StatusLabelSet;
 }
 
 export interface AgendaListProps {
@@ -237,30 +264,56 @@ export function AgendaList({
             />
           )}
         </button>
-        {it.status && labels.statusLabels && (
-          <span className="shrink-0 self-center pr-1">
-            {/* Timed rows: the tag toggles completion (replaces the old round
-                check). All-day EVENTS keep the tag informational (they had no
-                toggle before), so pass onClick only when timed.
+        {variant === "task"
+          ? onToggleComplete && (
+              /*
+               * #1367: the same control the 朝刊 gives a todo row
+               * (role="checkbox" + aria-checked), over the same two values,
+               * with the same words. Rendered only with a handler: the
+               * checkbox has no read-only mode, and a box that answers
+               * nothing is worse than no box (the pill at least had a
+               * <span> form).
+               *
+               * The press keeps going through `onToggleComplete`, which the
+               * host answers by reading the TodoNode's real status and
+               * writing the flip (#761's handleTodoToggleComplete). The next
+               * value the checkbox computes is therefore the same one, and
+               * is deliberately not forwarded.
+               */
+              <span className="shrink-0 self-center pr-1">
+                <TodoStatusCheckbox
+                  status={it.completed ? "DONE" : "NOT_STARTED"}
+                  onChange={() => onToggleComplete(it.id)}
+                  labels={labels.todoStatusLabels}
+                  label={labels.todoStatus}
+                />
+              </span>
+            )
+          : it.status &&
+            labels.statusLabels && (
+              <span className="shrink-0 self-center pr-1">
+                {/* Timed rows: the tag toggles completion (replaces the old
+                    round check). All-day EVENTS keep the tag informational
+                    (they had no toggle before), so pass onClick only when
+                    timed.
 
-                #761: a todo row is the exception. A todo staged as "today,
-                time TBD" is all-day by construction (the #298 tray writes it
-                that way), and "done" is the one thing a todo always means —
-                withholding its toggle would leave the commonest row on the
-                Mobile day list read-only. */}
-            <ScheduleStatusTag
-              status={it.status}
-              label={labels.statusLabels[it.status]}
-              ariaLabel={labels.complete}
-              pressed={it.completed}
-              onClick={
-                onToggleComplete && (!it.isAllDay || variant === "task")
-                  ? () => onToggleComplete(it.id)
-                  : undefined
-              }
-            />
-          </span>
-        )}
+                    #761 carved an exception here for todo rows, whose all-day
+                    form is how a "today, time TBD" todo is staged. #1367 took
+                    those rows out of this branch entirely, so the exception
+                    went with them. */}
+                <ScheduleStatusTag
+                  status={it.status}
+                  label={labels.statusLabels[it.status]}
+                  ariaLabel={labels.complete}
+                  pressed={it.completed}
+                  onClick={
+                    onToggleComplete && !it.isAllDay
+                      ? () => onToggleComplete(it.id)
+                      : undefined
+                  }
+                />
+              </span>
+            )}
       </li>
     );
   };

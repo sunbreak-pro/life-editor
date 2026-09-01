@@ -77,9 +77,6 @@ import { requireSingleRow, requireRowPair } from "./postgrestSingle";
  *     Todo half. Both DELETE sites below carry `.eq("role", "task")`, and
  *     todoMetaRoleGuard.test.ts pins that as a census rather than a sample
  *     so a delete added later cannot quietly skip it.
- *
- * migrateTodosToBackend is a deliberate no-op on web (Supabase-native;
- * nothing to migrate). Kept to satisfy the DataService interface.
  */
 export class SupabaseTodosService implements TodosDataService {
   private readonly client: SupabaseClient;
@@ -452,18 +449,6 @@ export class SupabaseTodosService implements TodosDataService {
         throw new Error(`permanentDeleteTodo ${did}: ${error.message}`);
     }
   }
-
-  /**
-   * Web no-op stub (user-confirmed). On Tauri this migrated local
-   * SQLite todos into the cloud backend; the web build is Supabase-
-   * native so there is nothing to migrate. Kept to satisfy the
-   * DataService interface and any caller that invokes it
-   * unconditionally.
-   */
-  async migrateTodosToBackend(_nodes: TodoNode[]): Promise<void> {
-    void _nodes;
-    void this.client; // explicit no-op — bound method but does not touch DB
-  }
 }
 
 export const PHASE2_TODOS_METHOD_NAMES = [
@@ -476,7 +461,6 @@ export const PHASE2_TODOS_METHOD_NAMES = [
   "softDeleteTodo",
   "restoreTodo",
   "permanentDeleteTodo",
-  "migrateTodosToBackend",
 ] as const;
 
 export type TodosMethodName = (typeof PHASE2_TODOS_METHOD_NAMES)[number];

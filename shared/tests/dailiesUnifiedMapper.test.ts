@@ -25,7 +25,6 @@ function freshMeta(
     deleted_at: null,
     created_at: "2026-05-24T10:00:00.000Z",
     updated_at: "2026-05-24T11:00:00.000Z",
-    version: 1,
     ...overrides,
   };
 }
@@ -58,7 +57,6 @@ describe("dailiesUnifiedMapper", () => {
     expect(insertMeta.id).toBe(meta.id);
     expect(insertMeta.role).toBe("daily");
     expect(insertMeta.title).toBe(payload.date); // title := date by convention
-    expect(insertMeta.version).toBe(1);
 
     expect(insertPayload.item_id).toBe(payload.item_id);
     expect(insertPayload.date).toBe(payload.date);

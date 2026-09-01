@@ -222,8 +222,8 @@ export const ROUTINES_PAYLOAD_COLUMNS =
  * manufacturing `undefined`-vs-absent differences.
  *
  * NOT-NULL columns (is_archived / is_visible / is_deleted /
- * reminder_enabled / version / sort_order / frequency_type /
- * frequency_days) are always materialised. `frequency_days` JSON string
+ * reminder_enabled / sort_order / frequency_type / frequency_days) are
+ * always materialised. `frequency_days` JSON string
  * -> number[] (the only non-trivial coercion).
  *
  * Naming mapping (TS camelCase <-> DB snake_case + 2-table split):
@@ -232,7 +232,6 @@ export const ROUTINES_PAYLOAD_COLUMNS =
  *   meta.deleted_at      <- deletedAt
  *   meta.created_at      <- createdAt
  *   meta.updated_at      <- updatedAt
- *   meta.version         <- version
  *   payload.is_archived  <- isArchived
  *   payload.is_visible   <- isVisible
  *   payload.sort_order   <- order                 (DU-A m1 rename)
@@ -389,7 +388,6 @@ export function routineUpdatesToPatches(
       | "frequencyStartDate"
       | "reminderEnabled"
       | "reminderOffset"
-      | "version"
     >
   >,
   userId: string,
@@ -407,7 +405,6 @@ export function routineUpdatesToPatches(
   if ("isDeleted" in updates && updates.isDeleted !== undefined)
     metaFields.isDeleted = updates.isDeleted;
   if ("deletedAt" in updates) metaFields.deletedAt = updates.deletedAt;
-  if ("version" in updates) metaFields.version = updates.version;
   const metaPatch: ItemsMetaRoutineUpdatePatch = toItemsMetaPatch(
     metaFields,
     now,

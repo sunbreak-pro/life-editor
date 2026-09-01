@@ -22,6 +22,11 @@ const LABELS = {
     inProgress: "In progress",
     done: "Done",
   },
+  todoStatus: "Status",
+  todoStatusLabels: {
+    statusNotStarted: "Not started",
+    statusDone: "Done",
+  },
 };
 
 const ITEMS: AgendaItem[] = [
@@ -123,9 +128,12 @@ describe("AgendaList", () => {
 
   it("fires onToggleComplete from the timed-row status tag", () => {
     const { onToggleComplete } = renderList();
-    // Only timed rows expose a clickable status tag ("a", "b"); the all-day
-    // row's tag is informational (no toggle), so toggles[0] is "a".
+    // Only timed rows expose a clickable status tag; the all-day row's tag is
+    // informational (no toggle), and #1367 moved the todo row to a checkbox —
+    // so this query sees the two EVENT/ROUTINE rows only, and toggles[0] is
+    // "a".
     const toggles = screen.getAllByRole("button", { name: "Toggle complete" });
+    expect(toggles).toHaveLength(2);
     fireEvent.click(toggles[0]);
     expect(onToggleComplete).toHaveBeenCalledWith("a");
   });
@@ -148,25 +156,62 @@ describe("AgendaList", () => {
   });
 
   /*
-   * #761: a todo row answers the same press an event does. Asserted through the
-   * row's own tag rather than a click position — jsdom has no layout, so
-   * anything read off coordinates here would pass on a broken list.
+   * #761: a todo row answers the same press an event does. #1367: it answers
+   * with the 朝刊's checkbox — same role, same aria-checked, same words — not
+   * with the event pill. Asserted through the row's own control rather than a
+   * click position: jsdom has no layout, so anything read off coordinates
+   * here would pass on a broken list.
    */
-  it("fires onToggleComplete from a todo row's status tag", () => {
+  it("fires onToggleComplete from a todo row's checkbox (#1367)", () => {
     const { onToggleComplete } = renderList();
     const row = screen.getByText("Write report").closest("li");
-    const toggle = row?.querySelector<HTMLButtonElement>(
-      'button[aria-label="Toggle complete"]',
-    );
-    expect(toggle).not.toBeNull();
-    fireEvent.click(toggle!);
+    const box = row?.querySelector<HTMLButtonElement>('[role="checkbox"]');
+    expect(box).not.toBeNull();
+    expect(box).toHaveAttribute("aria-label", "Status: Not started");
+    expect(box).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(box!);
     expect(onToggleComplete).toHaveBeenCalledWith("t");
   });
 
-  it("keeps the toggle on an ALL-DAY todo row, unlike an all-day event", () => {
+  it("reads a completed todo as a checked box with a struck title (#1367)", () => {
+    render(
+      <AgendaList
+        items={[
+          {
+            id: "done",
+            title: "Write report",
+            startTime: "09:00",
+            endTime: "10:00",
+            variant: "task",
+            completed: true,
+            status: "done",
+          },
+        ]}
+        onToggleComplete={vi.fn()}
+        labels={LABELS}
+      />,
+    );
+    expect(
+      screen.getByRole("checkbox", { name: "Status: Done" }),
+    ).toHaveAttribute("aria-checked", "true");
+    // The same treatment the 朝刊 gives a DONE row (EveningView).
+    expect(screen.getByText("Write report").className).toContain(
+      "line-through",
+    );
+  });
+
+  it("leaves the EVENT rows on the status pill (#1373 is a separate call)", () => {
+    renderList();
+    const eventRow = screen.getByText("Project review").closest("li");
+    expect(eventRow?.querySelector('[role="checkbox"]')).toBeNull();
+    expect(eventRow?.textContent).toContain("Not started");
+  });
+
+  it("keeps the control on an ALL-DAY todo row, unlike an all-day event", () => {
     // A todo staged as "today, time TBD" is all-day by construction, and it is
     // the commonest row on the Mobile day list — leaving it informational
-    // would put completion out of reach exactly where it is wanted.
+    // would put completion out of reach exactly where it is wanted (#761,
+    // carried across to the checkbox by #1367).
     const onToggleComplete = vi.fn();
     render(
       <AgendaList
@@ -193,9 +238,14 @@ describe("AgendaList", () => {
         labels={LABELS}
       />,
     );
-    const toggles = screen.getAllByRole("button", { name: "Toggle complete" });
-    expect(toggles).toHaveLength(1); // the todo row only
-    fireEvent.click(toggles[0]);
+    // The all-day EVENT's pill stays a read-only span, so nothing on that row
+    // is pressable.
+    expect(
+      screen.queryByRole("button", { name: "Toggle complete" }),
+    ).toBeNull();
+    const boxes = screen.getAllByRole("checkbox");
+    expect(boxes).toHaveLength(1); // the todo row only
+    fireEvent.click(boxes[0]);
     expect(onToggleComplete).toHaveBeenCalledWith("staged");
   });
 });

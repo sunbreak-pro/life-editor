@@ -29,7 +29,6 @@ export interface WikiTagRow {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
-  version: number;
 }
 
 export type WikiTagInsertRow = Omit<WikiTagRow, "created_at" | "updated_at">;
@@ -40,7 +39,7 @@ export type WikiTagUpdatePatch = Partial<
 
 export const WIKI_TAGS_COLUMNS =
   "id, user_id, name, color, icon, is_deleted, deleted_at, " +
-  "created_at, updated_at, version";
+  "created_at, updated_at";
 
 export function rowToWikiTag(row: WikiTagRow): WikiTag {
   return {
@@ -50,7 +49,6 @@ export function rowToWikiTag(row: WikiTagRow): WikiTag {
     icon: row.icon,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
-    version: row.version,
     isDeleted: row.is_deleted,
     deletedAt: row.deleted_at,
   };
@@ -65,7 +63,6 @@ export function wikiTagToRow(tag: WikiTag, userId: string): WikiTagInsertRow {
     icon: tag.icon,
     is_deleted: tag.isDeleted ?? false,
     deleted_at: tag.deletedAt ?? null,
-    version: tag.version ?? 1,
   };
 }
 
@@ -80,7 +77,5 @@ export function wikiTagUpdatesToPatch(
   if ("icon" in updates) patch.icon = updates.icon ?? null;
   if ("isDeleted" in updates) patch.is_deleted = updates.isDeleted ?? false;
   if ("deletedAt" in updates) patch.deleted_at = updates.deletedAt ?? null;
-  if ("version" in updates && updates.version !== undefined)
-    patch.version = updates.version;
   return patch;
 }

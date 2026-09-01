@@ -13,6 +13,8 @@ import {
   aggregateWorkTimeByTag,
   aggregateTodoCompletionTrend,
   aggregateTodoStagnation,
+  aggregateTagUsage,
+  type TagUsageItem,
 } from "../src/utils/analyticsAggregation";
 
 function makeSession(overrides: Partial<TimerSession> = {}): TimerSession {
@@ -166,7 +168,6 @@ function makeUnifiedTag(
     icon: null,
     createdAt: "2025-01-01T00:00:00.000Z",
     updatedAt: "2025-01-01T00:00:00.000Z",
-    version: 1,
     isDeleted: false,
     deletedAt: null,
     ...overrides,
@@ -460,4 +461,177 @@ describe("analytics aggregation over a cyclic todo graph (KI-016 class)", () => 
       ),
     ).toHaveLength(2);
   }, 5000);
+});
+
+/*
+ * Tag usage (#1379). The suite's job is the SEPARATION of the two windows:
+ * `rangeCount` follows the selected preset, `totalCount` never does. Every
+ * timestamp below is midday JST (vitest.config.ts pins TZ=Asia/Tokyo, #449) so
+ * the local calendar key the range is sliced on cannot land on the wrong day.
+ */
+function usageItem(
+  id: string,
+  createdAt: string,
+  isDeleted = false,
+): TagUsageItem {
+  return { id, createdAt, isDeleted };
+}
+
+/** 12:00 JST on the given local date — never near a day boundary. */
+function middayOf(dateKey: string): string {
+  return `${dateKey}T03:00:00.000Z`;
+}
+
+describe("aggregateTagUsage", () => {
+  it("reports the range count and the live total as two separate numbers", () => {
+    const result = aggregateTagUsage(
+      [
+        usageItem("task-1", middayOf("2026-07-10")),
+        usageItem("task-2", middayOf("2026-07-20")),
+        usageItem("task-3", middayOf("2026-08-05")),
+      ],
+      [
+        makeUnifiedAssignment({ id: "asg-1", itemId: "task-1" }),
+        makeUnifiedAssignment({ id: "asg-2", itemId: "task-2" }),
+        makeUnifiedAssignment({ id: "asg-3", itemId: "task-3" }),
+      ],
+      [makeUnifiedTag()],
+      "2026-07-01",
+      "2026-07-31",
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      tagId: "tag-a",
+      tagName: "Tag A",
+      tagColor: "#ff0000",
+      // July only…
+      rangeCount: 2,
+      // …but the total counts the August item too.
+      totalCount: 3,
+    });
+  });
+
+  it("moves the range count when the window changes and leaves the total alone", () => {
+    const items = [
+      usageItem("task-1", middayOf("2026-07-10")),
+      usageItem("task-2", middayOf("2026-08-05")),
+    ];
+    const assignments = [
+      makeUnifiedAssignment({ id: "asg-1", itemId: "task-1" }),
+      makeUnifiedAssignment({ id: "asg-2", itemId: "task-2" }),
+    ];
+    const tags = [makeUnifiedTag()];
+
+    const july = aggregateTagUsage(
+      items,
+      assignments,
+      tags,
+      "2026-07-01",
+      "2026-07-31",
+    );
+    const bothMonths = aggregateTagUsage(
+      items,
+      assignments,
+      tags,
+      "2026-07-01",
+      "2026-08-31",
+    );
+
+    expect(july[0].rangeCount).toBe(1);
+    expect(bothMonths[0].rangeCount).toBe(2);
+    // The one invariant the card's right-hand column rests on.
+    expect(july[0].totalCount).toBe(2);
+    expect(bothMonths[0].totalCount).toBe(2);
+  });
+
+  it("leaves trashed items, deleted tags and deleted assignments out of both numbers (#428)", () => {
+    const result = aggregateTagUsage(
+      [
+        usageItem("task-1", middayOf("2026-07-10")),
+        // Trashed: in the range, tagged, and must count for neither number.
+        usageItem("task-2", middayOf("2026-07-11"), true),
+        usageItem("task-3", middayOf("2026-07-12")),
+        usageItem("task-4", middayOf("2026-07-13")),
+      ],
+      [
+        makeUnifiedAssignment({ id: "asg-1", itemId: "task-1" }),
+        makeUnifiedAssignment({ id: "asg-2", itemId: "task-2" }),
+        // Assignment itself soft-deleted.
+        makeUnifiedAssignment({
+          id: "asg-3",
+          itemId: "task-3",
+          isDeleted: true,
+        }),
+        // Live assignment, but to a tag that is in the trash.
+        makeUnifiedAssignment({
+          id: "asg-4",
+          itemId: "task-4",
+          tagId: "tag-gone",
+        }),
+      ],
+      [makeUnifiedTag(), makeUnifiedTag({ id: "tag-gone", isDeleted: true })],
+      "2026-07-01",
+      "2026-07-31",
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      tagId: "tag-a",
+      rangeCount: 1,
+      totalCount: 1,
+    });
+  });
+
+  it("counts a tag assigned twice to the same item once", () => {
+    const result = aggregateTagUsage(
+      [usageItem("task-1", middayOf("2026-07-10"))],
+      [
+        // e.g. an inline "[[ ]]" link plus a manual chip.
+        makeUnifiedAssignment({ id: "asg-1", itemId: "task-1" }),
+        makeUnifiedAssignment({ id: "asg-2", itemId: "task-1" }),
+      ],
+      [makeUnifiedTag()],
+      "2026-07-01",
+      "2026-07-31",
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ rangeCount: 1, totalCount: 1 });
+  });
+
+  it("ranks by the range count and omits tags with nothing in the window", () => {
+    const result = aggregateTagUsage(
+      [
+        usageItem("task-1", middayOf("2026-07-10")),
+        usageItem("task-2", middayOf("2026-07-11")),
+        // Tag B's only item predates the range: it has a live total but no
+        // bar to draw, so it must not take a row.
+        usageItem("note-1", middayOf("2026-06-01")),
+      ],
+      [
+        makeUnifiedAssignment({ id: "asg-1", itemId: "task-1", tagId: "tag-a" }),
+        makeUnifiedAssignment({ id: "asg-2", itemId: "task-2", tagId: "tag-a" }),
+        makeUnifiedAssignment({ id: "asg-3", itemId: "note-1", tagId: "tag-b" }),
+      ],
+      [makeUnifiedTag(), makeUnifiedTag({ id: "tag-b", name: "Tag B" })],
+      "2026-07-01",
+      "2026-07-31",
+    );
+
+    expect(result.map((b) => b.tagId)).toEqual(["tag-a"]);
+    expect(result[0].rangeCount).toBe(2);
+  });
+
+  it("returns no rows when nothing in the range carries a live tag", () => {
+    expect(
+      aggregateTagUsage(
+        [usageItem("task-1", middayOf("2026-07-10"))],
+        [],
+        [makeUnifiedTag()],
+        "2026-07-01",
+        "2026-07-31",
+      ),
+    ).toEqual([]);
+  });
 });

@@ -127,6 +127,15 @@ export function useScheduleDayLabels({
     nowLabel: minutesToTime(nowMinutes),
     complete: t("scheduleScreen.complete"),
     statusLabels,
+    // #1367: the todo rows wear the 朝刊's checkbox, so they wear the 朝刊's
+    // words — the Todos section's own copy, resolved here rather than through
+    // a scheduleScreen.* paraphrase of the same two values. The sidebar's
+    // other tab (TodayTodoTray) already speaks todoDetail.* since #1368.
+    todoStatus: t("todoDetail.status"),
+    todoStatusLabels: {
+      statusNotStarted: t("todoDetail.statusNotStarted"),
+      statusDone: t("todoDetail.statusDone"),
+    },
   };
   /*
    * #774: the same labels for the Mobile day list, whose empty state has to

@@ -307,8 +307,8 @@ export function scheduleItemToRows(
  *   - content / noteId / templateId — kept on the surface for type
  *     compatibility but DROPPED in the emitted patch (no corresponding
  *     events_payload columns — see header).
- *   - routineId / id / version / createdAt — generator/identity-owned,
- *     NOT mutable through this path.
+ *   - routineId / id / createdAt — generator/identity-owned, NOT mutable
+ *     through this path.
  */
 export function scheduleItemUpdatesToPatches(
   updates: Partial<

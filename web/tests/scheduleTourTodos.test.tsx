@@ -93,6 +93,11 @@ function makeProps(tab: "flow" | "todo" | "repeats"): ScheduleSidebarProps {
           inProgress: "In progress",
           done: "Done",
         },
+        todoStatus: "Status",
+        todoStatusLabels: {
+          statusNotStarted: "Not started",
+          statusDone: "Done",
+        },
       },
       nowMinutes: 540,
       selectedId: null,

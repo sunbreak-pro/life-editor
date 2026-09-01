@@ -21,7 +21,7 @@ import {
   type WorkBreakBalanceLabels,
 } from "./WorkBreakBalance";
 import { DailyTimeline, type DailyTimelineLabels } from "./DailyTimeline";
-import { EmptyState } from "./EmptyState";
+import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
 
 export interface TimeTabLabels {
   /** Summary stat cards. */
@@ -70,7 +70,7 @@ export function TimeTab({
 
   if (sessions.length === 0) {
     return (
-      <EmptyState
+      <AnalyticsEmptyState
         icon={<Timer size={26} />}
         title={labels.empty.title}
         description={labels.empty.description}

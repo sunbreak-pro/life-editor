@@ -7,14 +7,15 @@ import { useUndoRedoOptional } from "../hooks/useUndoRedoContext";
 import { RoutineContext } from "./RoutineContextValue";
 
 /**
- * Pattern A Provider (CLAUDE.md §6.3). Like the shared Note/Daily
- * Providers it takes `UseRoutinesAPIOptions` props so the host injects
- * the DataService / UndoRedo (the shared hook never reaches a module
- * singleton — CLAUDE.md §6.4). Must sit inside a Sync Provider (reads
- * `useSyncContext`) and is the first of the Schedule trio in the
- * §6.2 order (… → Routine → ScheduleItems → CalendarTags → …).
+ * Pattern A Provider (rules/frontend.md §Pattern A). Like the shared
+ * Note/Daily Providers it takes `UseRoutinesAPIOptions` props so the host
+ * injects the DataService / UndoRedo (the shared hook never reaches a module
+ * singleton — CLAUDE.md §6). Must sit inside a Sync Provider (reads
+ * `useSyncContext`) and is the SECOND link of the Schedule section chain
+ * (TagGroup → Routine → ScheduleItems — rules/frontend.md §Provider 順序).
  * Routine is enabled on Mobile too, so no Optional variant is needed
- * (it is not in the Mobile 省略 Provider list — CLAUDE.md §2/§6.2).
+ * (ShortcutConfig is the only Provider omitted on native mobile —
+ * CLAUDE.md §2).
  *
  * Auto-connects to the ambient global UndoRedo stack (D-20260810-refactor-1):
  * `useRoutinesAPI` has pushed create/update/delete commands since the Tauri
