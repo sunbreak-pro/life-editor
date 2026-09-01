@@ -8,16 +8,19 @@ import { fetchMaybeSingleRow, requireSingleRow } from "./postgrestSingle";
  * Notes (SupabaseNotesUnifiedLock, G1) and Dailies (SupabaseDailiesUnified-
  * Service, DU-G G2) grew the same six methods line for line: set / remove /
  * verify password, the lazy PBKDF2 rehash, the edit-lock toggle, and the
- * items_meta version bump they all share. The two copies differed only in
+ * items_meta updated_at bump they all share. The two copies differed only in
  * four values — the role string, the payload table, the error labels, and how
  * the domain object is re-read afterwards — so they are parameters here rather
  * than a second copy of the body.
  *
- * Behaviour is deliberately unchanged: every error string, the order of the
- * round-trips (version SELECT -> items_meta UPDATE -> payload UPDATE ->
- * re-read), and the "verify before clear" rule are preserved verbatim, because
- * both service test suites assert on the message text and on the recorded call
- * shape.
+ * The order of the round-trips (items_meta UPDATE -> payload UPDATE ->
+ * re-read) and the "verify before clear" rule are load-bearing, and both
+ * service test suites assert on the message text and on the recorded call
+ * shape. #1385 dropped the version SELECT that used to open every mutation:
+ * `items_meta.version` is a Tauri-era column nothing reads (CLAUDE.md §3.3),
+ * and PostgREST cannot express `version = version + 1`, so keeping it cost a
+ * whole extra round-trip per write. A missing row now surfaces from the
+ * read-back at the end rather than from that opening SELECT.
  *
  * password_hash stores a PBKDF2-HMAC-SHA256 derivation (`pbkdf2$v1$...`, see
  * utils/passwordHash.ts), NOT plaintext. Legacy plaintext rows (pre-#118) are
@@ -33,35 +36,6 @@ import { fetchMaybeSingleRow, requireSingleRow } from "./postgrestSingle";
  * hand-written: an UPDATE without `.select()` returns no row, so there is
  * nothing for those helpers to unwrap.
  */
-
-/**
- * Read current items_meta.version and return version + 1.
- *
- * A missing row throws (caller invariant: the row exists; this only runs from
- * password / lock / restore paths where the caller has already located the
- * item by id). Exported because Dailies also bumps the version from
- * `restoreDailyUnified`, which is outside the lock gate.
- */
-export async function nextItemVersion(
-  client: SupabaseClient,
-  role: string,
-  id: string,
-  label: string,
-): Promise<number> {
-  // Row type stays nullable so the `?? 0` fallback keeps covering a null row,
-  // not just a null version — the same defensive shape the hand-written read
-  // had before it moved onto the shared helper.
-  const row = await requireSingleRow<{ version: number | null } | null>(
-    client
-      .from("items_meta")
-      .select("version")
-      .eq("id", id)
-      .eq("role", role)
-      .single(),
-    `${label} version read`,
-  );
-  return (row?.version ?? 0) + 1;
-}
 
 /**
  * Method names used verbatim inside the error messages, so each domain keeps
@@ -101,24 +75,24 @@ export interface ItemLockGateConfig<TNode> {
  * The six-method password / edit-lock surface, bound to one domain.
  *
  * Note the DB-Q2 split: the three mutating methods bump
- * `items_meta.updated_at` + `version` so Sync LWW propagates, while the lazy
- * rehash deliberately does NOT (see `lazyRehash` below).
+ * `items_meta.updated_at` so Sync LWW propagates, while the lazy rehash
+ * deliberately does NOT (see `lazyRehash` below).
  */
 export class ItemLockGate<TNode> {
   constructor(private readonly config: ItemLockGateConfig<TNode>) {}
 
   /**
-   * Bump items_meta.updated_at + version for this item. Reads the current
-   * version first (PostgREST cannot express `version = version + 1`).
+   * Bump items_meta.updated_at for this item — the Sync LWW cursor, and the
+   * only column a mutation here has to move (DB-Q2: `<role>_payload` carries
+   * no `updated_at` of its own).
    */
   private async bumpMeta(id: string, label: string): Promise<void> {
     const { client, role } = this.config;
     const now = new Date().toISOString();
-    const nextVersion = await nextItemVersion(client, role, id, label);
 
     const { error } = await client
       .from("items_meta")
-      .update({ updated_at: now, version: nextVersion })
+      .update({ updated_at: now })
       .eq("id", id)
       .eq("role", role);
     if (error) throw new Error(`${label} meta failed: ${error.message}`);
@@ -233,7 +207,7 @@ export class ItemLockGate<TNode> {
   /**
    * Flip `<payload>.is_edit_locked`. Read-modify-write because PostgREST
    * cannot express the SQLite `CASE WHEN ... END` in one statement. Bumps
-   * items_meta.updated_at + version so Sync LWW propagates.
+   * items_meta.updated_at so Sync LWW propagates.
    */
   async toggleEditLock(id: string): Promise<TNode> {
     const { client, payloadTable, labels } = this.config;

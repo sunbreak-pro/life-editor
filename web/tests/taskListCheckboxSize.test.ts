@@ -32,14 +32,21 @@ const indexCss = readFileSync(
   "utf8",
 ).replace(/\r\n/g, "\n");
 
+/**
+ * The text between `marker` and the brace that closes it. `close` is "}" for a
+ * plain rule and "\n}" for an @media block, whose inner rules close first.
+ */
+function block(marker: string, close = "}"): string {
+  const start = indexCss.indexOf(marker);
+  expect(start, `no rule matching \`${marker}\``).toBeGreaterThan(-1);
+  return indexCss.slice(start + marker.length, indexCss.indexOf(close, start));
+}
+
 /** The declaration block of the task-list checkbox rule. */
 function checkboxRule(): string {
-  const marker =
-    '.note-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {';
-  const start = indexCss.indexOf(marker);
-  expect(start, "the task-list checkbox rule is gone").toBeGreaterThan(-1);
-  const end = indexCss.indexOf("}", start);
-  return indexCss.slice(start + marker.length, end);
+  return block(
+    '.note-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {',
+  );
 }
 
 describe("the Materials task-list checkbox keeps its size (#1183 / #1368)", () => {
@@ -82,5 +89,35 @@ describe("the Materials task-list checkbox keeps its size (#1183 / #1368)", () =
     expect(rule).toContain("circle cx='12' cy='12' r='10'");
     // and lucide's `circle-check` for the checked state.
     expect(indexCss).toContain("path d='m9 12 2 2 4-4'");
+  });
+
+  /*
+   * The two things `appearance: none` + `mask` took away, and where they had
+   * to be put back. Both were found by review AFTER the mask landed, and
+   * neither shows up in any rendered assertion: jsdom has no layout, and a
+   * ring that IS declared but silently clipped looks identical to one that is
+   * declared correctly. Source text is the only guard.
+   */
+  it("puts the focus ring on the label, which no mask clips", () => {
+    expect(block("> label:has(input:focus-visible) {")).toMatch(/outline:/);
+    // NOT on the input: a mask composites the whole element it paints, and an
+    // outline is painted outside the border box where the mask's alpha is 0 —
+    // so a ring declared there is drawn and then thrown away. A box-shadow
+    // ring, which is the shape the Tailwind-style fix takes, goes the same way.
+    expect(
+      checkboxRule(),
+      "a ring on the masked input would be clipped away",
+    ).not.toMatch(/outline:|box-shadow:/);
+  });
+
+  it("stays visible in forced colours, in the user's own palette", () => {
+    // Forced colours force every background-color to Canvas, and this mark IS
+    // a background-color — without an opt-out the box is a hole at both
+    // states. What it opts into has to be system colours, never ours.
+    const forced = block("@media (forced-colors: active) {", "\n}");
+    expect(forced).toContain('input[type="checkbox"]');
+    expect(forced).toContain("forced-color-adjust: none");
+    expect(forced).toMatch(/background-color:\s*CanvasText/);
+    expect(forced).toMatch(/background-color:\s*Highlight/);
   });
 });

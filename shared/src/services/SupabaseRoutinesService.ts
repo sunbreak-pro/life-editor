@@ -127,7 +127,6 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       reminderOffset: reminderOffset,
       createdAt: now,
       updatedAt: now,
-      version: 1,
     };
     const { meta, payload } = routineNodeToRows(node, userId);
 

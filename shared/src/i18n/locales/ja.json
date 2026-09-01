@@ -566,7 +566,6 @@
     "itemTypeLabel": "種類",
     "typeEvent": "予定",
     "typeTodo": "Todo",
-    "typeNote": "ノート",
     "sourceLabel": "追加方法",
     "sourceNew": "新規作成",
     "sourceExisting": "既存から選ぶ",
@@ -575,6 +574,10 @@
     "todoPickerNoMatch": "該当する Todo がありません",
     "addTodo": "Todo を追加",
     "placeTodo": "この時間に配置",
+    "attachNote": "ノートを添付",
+    "noteSourceLabel": "リンクするノート",
+    "noteSourceNew": "新規ノート",
+    "noteSourceExisting": "既存のノート",
     "noteTitleLabel": "ノートのタイトル",
     "notePlaceholder": "ノートのタイトルを入力…",
     "searchNotes": "ノートを検索",
@@ -713,6 +716,10 @@
       "mobile": {
         "title": "まだ記録がありません",
         "description": "タイマーやスケジュールを使い始めると、ここに今日のサマリーが表示されます。"
+      },
+      "tagUsage": {
+        "title": "この期間にタグ付きのアイテムがありません",
+        "description": "Todo・予定・ノートにタグを付けると、使ったタグがここに多い順で並びます。"
       }
     },
     "mobile": {
@@ -798,6 +805,12 @@
       "noData": "作業時間の記録がありません",
       "untagged": "タグなし",
       "other": "その他のタグ"
+    },
+    "tagUsage": {
+      "title": "タグ使用状況",
+      "tag": "タグ",
+      "inRange": "期間内に作成",
+      "liveTotal": "現在の合計（全期間）"
     },
     "overview": {
       "todos": "Todo",

@@ -103,6 +103,7 @@ function makeMobileLabels(): AnalyticsLabels {
     emptyWork: { title: "No work sessions yet", description: "Start a timer." },
     emptySchedule: { title: "No events", description: "Add events." },
     emptyMobile: { title: "Nothing recorded yet", description: "Get started." },
+    emptyTagUsage: { title: "No tagged items", description: "Tag something." },
     overview: {
       todos: "Todos",
       events: "Events",
@@ -162,6 +163,12 @@ function makeMobileLabels(): AnalyticsLabels {
       noData: "No data",
       untagged: "Untagged",
       other: "Other",
+    },
+    tagUsage: {
+      title: "Tag Usage",
+      tag: "Tag",
+      inRange: "Created in range",
+      liveTotal: "Current total",
     },
     mobile: {
       weekTitle: "This week",
@@ -334,16 +341,23 @@ describe("Analytics createdAt day key (#420 QA follow-up)", () => {
         sessions={[]}
         nodes={[]}
         todayItems={[]}
+        events={[]}
         notes={[earlyMorningNote()]}
         routines={[]}
-        tagCount={0}
-        assignmentCount={0}
+        tags={[]}
+        assignments={[]}
+        dateRange={{ start: new Date(), end: new Date() }}
         labels={{
           ...labels.overview,
           formatHours: labels.formatHours,
           todayCard: { ...labels.todayCard, formatHours: labels.formatHours },
           weekly: { ...labels.weekly, formatHours: labels.formatHours },
           streak: labels.streak,
+          tagUsage: {
+            ...labels.tagUsage,
+            rangeLabel: labels.datePreset.options["30d"],
+            empty: labels.emptyTagUsage,
+          },
         }}
       />,
     );

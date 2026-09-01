@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { X } from "lucide-react";
+import { useId, useMemo, useState } from "react";
+import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { cn } from "../cn";
 import {
   FIELD,
@@ -19,18 +19,23 @@ import { isImeComposing } from "../../utils/imeGuard";
  * supersedes <EventCreateFields> (#299), the event-only form those two frames
  * used to share.
  *
- * Three tabs, but only TWO of them create something:
+ * Two tabs, and both of them create something (#1370):
  *   - event: creates a ScheduleItem, exactly as before.
  *   - todo:  either creates a NEW TodoNode already scheduled into the target
  *            slot, or takes an EXISTING unscheduled todo and gives it that slot
  *            (Todos AC7). This is the timed sibling of the #298 "Today's Todo"
  *            tray: the tray declares "today, time TBD" (all-day staging), this
  *            panel says "this day, this time".
- *   - note:  STAGES a note (new or existing) to be linked to whatever the panel
- *            creates — "book the meeting, and have its minutes ready" in one
- *            pass. A note has no time of its own, so it cannot be a creation
- *            target here; the submit stays the event/todo one and the panel
- *            remembers which of the two was last chosen (`target`).
+ *
+ * Linking a note is NOT a third tab any more (#1370). It never created a note
+ * of its own — it STAGES one (new or existing) to be linked to whatever the
+ * panel creates — so sitting beside "event" and "todo" it read as a third
+ * thing you could make, and reaching it hid the title field the submit
+ * depends on. It is now a collapsible section BOTH tabs carry, below the
+ * times and above the footer: "book the meeting, and have its minutes ready"
+ * is still one pass, and the fields that pass depends on never leave the
+ * screen. Collapsed by default — most creates attach nothing, and the note
+ * picker is a list several rows tall.
  *
  * The item title and the times are shared across the event/todo tabs on purpose
  * — realising halfway through that "歯医者" is a todo rather than an event
@@ -48,9 +53,10 @@ import { isImeComposing } from "../../utils/imeGuard";
  * slot), it should remount this with a `key` derived from the prefill.
  */
 
-/** Which tab is showing. Only `event` / `task` can be a creation target. */
-export type ItemCreateType = "event" | "task" | "note";
-/** Within the todo and note tabs: make a new one, or pick one that exists. */
+/** Which tab is showing; it is also what the submit acts on (#1370). */
+export type ItemCreateType = "event" | "task";
+/** Within the todo tab and the note section: make a new one, or pick one that
+ *  exists. */
 export type ItemCreateSource = "new" | "existing";
 
 /** One row of a picker (an existing todo, or an existing note). */
@@ -73,7 +79,6 @@ export interface ItemCreatePanelLabels {
   typeLabel: string;
   typeEvent: string;
   typeTodo: string;
-  typeNote: string;
   /** Already-translated aria-label for the shared item-title input. */
   title: string;
   /** Per-type placeholder for the item-title input. */
@@ -91,7 +96,7 @@ export interface ItemCreatePanelLabels {
   /** Todo submit — one label per source, because the acts differ. */
   addTodo: string;
   placeTodo: string;
-  /** Accessible name for the new / existing radiogroup (todo and note tabs). */
+  /** Accessible name for the new / existing radiogroup (todo tab). */
   sourceLabel: string;
   sourceNew: string;
   sourceExisting: string;
@@ -101,7 +106,19 @@ export interface ItemCreatePanelLabels {
   todoPickerEmpty: string;
   /** Shown when the todo search query matches nothing. */
   todoPickerNoMatch: string;
-  /** Note tab. */
+  /** Note attachment (#1370) — the collapsible section BOTH tabs carry. */
+  /** Trigger label of that section, e.g. "Attach a note". */
+  attachNote: string;
+  /**
+   * Accessible name for the note section's new / existing radiogroup, and its
+   * two segment labels. Deliberately NOT `sourceLabel` / `sourceNew` /
+   * `sourceExisting`: on the todo tab both radiogroups are on screen at once,
+   * and two groups reading "How to add: New / From existing" would be one
+   * ambiguous control as far as a screen reader is concerned.
+   */
+  noteSourceLabel: string;
+  noteSourceNew: string;
+  noteSourceExisting: string;
   noteTitleLabel: string;
   notePlaceholder: string;
   searchNotes: string;
@@ -109,7 +126,7 @@ export interface ItemCreatePanelLabels {
   notePickerNoMatch: string;
   /** Explains that the note rides along with the event / todo being created. */
   noteLinkHint: string;
-  /** Heading of the staged-note row shown on the event / todo tabs. */
+  /** Heading of the staged-note row echoed once the section folds up. */
   attachedNote: string;
   /** Accessible name for the button that unstages the note. */
   clearNote: string;
@@ -364,10 +381,6 @@ export function ItemCreatePanel({
   const { onSubmitEvent, onSubmitEventAndOpen, onCreateTodo, onPlaceTodo } =
     handlers;
   const [type, setType] = useState<ItemCreateType>("event");
-  // The note tab creates nothing, so the submit keeps acting on whichever of
-  // event / todo was last open. Without this the footer would have nothing to
-  // do while the note tab is showing.
-  const [target, setTarget] = useState<"event" | "task">("event");
   const [title, setTitle] = useState(initialTitle);
   const [date, setDate] = useState(initialDate);
   const [start, setStart] = useState(initialStart);
@@ -378,28 +391,27 @@ export function ItemCreatePanel({
   const [todoQuery, setTodoQuery] = useState("");
   const [pickedTodoId, setPickedTodoId] = useState<string | null>(null);
 
+  // Collapsed by default (#1370) — see the header. The staged-note state below
+  // is independent of it, so folding the section up never drops the note.
+  const [noteOpen, setNoteOpen] = useState(false);
   const [noteSource, setNoteSource] = useState<ItemCreateSource>("new");
   const [noteTitle, setNoteTitle] = useState("");
   const [noteQuery, setNoteQuery] = useState("");
   const [pickedNoteId, setPickedNoteId] = useState<string | null>(null);
-
-  const selectType = (next: ItemCreateType) => {
-    setType(next);
-    if (next !== "note") setTarget(next);
-  };
+  const noteSectionId = useId();
 
   const pickedTodo = resolvePicked(existingTodos, todoQuery, pickedTodoId);
-  // By id alone, unlike the todo above: the note is staged, then the user
-  // leaves for the event / todo tab to actually submit. Dropping it because
-  // the search box it was picked in still holds a narrower query would throw
-  // the attachment away between picking it and using it.
+  // By id alone, unlike the todo above: the note is staged, then the section
+  // folds up and the user submits the event / todo. Dropping it because the
+  // search box it was picked in still holds a narrower query would throw the
+  // attachment away between picking it and using it.
   const pickedNote = pickedNoteId
     ? (existingNotes.find((o) => o.id === pickedNoteId) ?? null)
     : null;
-  const placing = target === "task" && todoSource === "existing";
+  const placing = type === "task" && todoSource === "existing";
 
   // What rides along with the create. A blank new-note title stages nothing —
-  // opening the note tab and changing your mind must not create an "Untitled".
+  // opening the section and changing your mind must not create an "Untitled".
   const stagedNoteTitle =
     noteSource === "new" ? noteTitle.trim() : (pickedNote?.title ?? "");
   const stagedNote: ItemCreateNoteDraft | null =
@@ -419,7 +431,7 @@ export function ItemCreatePanel({
   // rendered there — and the slot spells the same rule, or turning it on and
   // then switching to the todo tab would smuggle it into a todo that has no
   // way to show it.
-  const isAllDay = target === "event" && allDay;
+  const isAllDay = type === "event" && allDay;
   const slot: ItemCreateSlot = { date, start, end, isAllDay };
 
   const submitTitled = (
@@ -439,14 +451,10 @@ export function ItemCreatePanel({
       onPlaceTodo(pickedTodo.id, slot, stagedNote);
       return;
     }
-    submitTitled(target === "event" ? onSubmitEvent : onCreateTodo);
+    submitTitled(type === "event" ? onSubmitEvent : onCreateTodo);
   };
-  // What the footer needs before it can act. Read on the note tab too, where
-  // neither the title field nor the todo picker is on screen.
+  // What the footer needs before it can act.
   const canSubmit = placing ? !!pickedTodo : !!title.trim();
-
-  const source = type === "note" ? noteSource : todoSource;
-  const setSource = type === "note" ? setNoteSource : setTodoSource;
 
   return (
     <div className="flex flex-col gap-3">
@@ -454,55 +462,23 @@ export function ItemCreatePanel({
         options={[
           { id: "event", label: labels.typeEvent },
           { id: "task", label: labels.typeTodo },
-          { id: "note", label: labels.typeNote },
         ]}
         value={type}
-        onChange={(id) => selectType(id as ItemCreateType)}
+        onChange={(id) => setType(id as ItemCreateType)}
         label={labels.typeLabel}
       />
-      {type !== "event" && (
+      {type === "task" && (
         <SegmentedToggle
           options={[
             { value: "new" as const, label: labels.sourceNew },
             { value: "existing" as const, label: labels.sourceExisting },
           ]}
-          value={source}
-          onChange={setSource}
+          value={todoSource}
+          onChange={setTodoSource}
           label={labels.sourceLabel}
         />
       )}
-      {type === "note" ? (
-        <>
-          {noteSource === "new" ? (
-            <input
-              value={noteTitle}
-              onChange={(e) => setNoteTitle(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
-              }}
-              placeholder={labels.notePlaceholder}
-              aria-label={labels.noteTitleLabel}
-              className={FIELD}
-            />
-          ) : (
-            <PickerList
-              options={existingNotes}
-              query={noteQuery}
-              onQueryChange={setNoteQuery}
-              pickedId={pickedNote?.id ?? null}
-              onPick={setPickedNoteId}
-              searchLabel={labels.searchNotes}
-              emptyLabel={labels.notePickerEmpty}
-              noMatchLabel={labels.notePickerNoMatch}
-            />
-          )}
-          {/* The note is an attachment, not a target — say so, or the submit
-              button below ("Add event") reads like a mistake. */}
-          <p className="text-xs text-lumen-text-secondary">
-            {labels.noteLinkHint}
-          </p>
-        </>
-      ) : placing ? (
+      {placing ? (
         <PickerList
           options={existingTodos}
           query={todoQuery}
@@ -526,30 +502,6 @@ export function ItemCreatePanel({
           aria-label={labels.title}
           className={FIELD}
         />
-      )}
-      {/* Staged note, echoed on the event / todo tabs: the note tab is one
-          click away, so without this the attachment would be invisible at the
-          moment the user commits to it. */}
-      {stagedNote && type !== "note" && (
-        <div className="flex items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2.5 py-1.5">
-          <span className={cn("shrink-0", FIELD_LABEL)}>
-            {labels.attachedNote}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
-            {stagedNoteTitle}
-          </span>
-          <button
-            type="button"
-            aria-label={labels.clearNote}
-            onClick={clearNote}
-            className={cn(
-              "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
-              FOCUS_RING_TIGHT,
-            )}
-          >
-            <X aria-hidden className="size-4" />
-          </button>
-        </div>
       )}
       {/* Date + all-day (#940), laid out and worded exactly like the editing
           side (EventEditorPane): same row, same switch, so "all day" does not
@@ -579,7 +531,7 @@ export function ItemCreatePanel({
             className={cn(FIELD, "tabular-nums")}
           />
         </label>
-        {target === "event" && (
+        {type === "event" && (
           <AllDaySwitch
             checked={allDay}
             onToggle={() => setAllDay((v) => !v)}
@@ -605,10 +557,100 @@ export function ItemCreatePanel({
           formatDuration={formatDuration}
         />
       )}
-      {/* The footer always acts on `target`, so it survives a trip to the note
-          tab unchanged. */}
+      {/* Note attachment (#1370) — was a third tab; see the header. Placed
+          last because it is the optional extra: the fields the submit needs
+          stay at the top whether or not this is open. */}
+      <div className="flex flex-col gap-2 border-t border-lumen-border pt-2">
+        <button
+          type="button"
+          onClick={() => setNoteOpen((v) => !v)}
+          aria-expanded={noteOpen}
+          aria-controls={noteSectionId}
+          className={cn(
+            "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+            FOCUS_RING_TIGHT,
+          )}
+        >
+          {noteOpen ? (
+            <ChevronDown aria-hidden className="size-3.5 shrink-0" />
+          ) : (
+            <ChevronRight aria-hidden className="size-3.5 shrink-0" />
+          )}
+          <span className="truncate">{labels.attachNote}</span>
+        </button>
+        {noteOpen && (
+          <div id={noteSectionId} className="flex flex-col gap-2">
+            <SegmentedToggle
+              options={[
+                { value: "new" as const, label: labels.noteSourceNew },
+                {
+                  value: "existing" as const,
+                  label: labels.noteSourceExisting,
+                },
+              ]}
+              value={noteSource}
+              onChange={setNoteSource}
+              label={labels.noteSourceLabel}
+            />
+            {noteSource === "new" ? (
+              <input
+                value={noteTitle}
+                onChange={(e) => setNoteTitle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
+                }}
+                placeholder={labels.notePlaceholder}
+                aria-label={labels.noteTitleLabel}
+                className={FIELD}
+              />
+            ) : (
+              <PickerList
+                options={existingNotes}
+                query={noteQuery}
+                onQueryChange={setNoteQuery}
+                pickedId={pickedNote?.id ?? null}
+                onPick={setPickedNoteId}
+                searchLabel={labels.searchNotes}
+                emptyLabel={labels.notePickerEmpty}
+                noMatchLabel={labels.notePickerNoMatch}
+              />
+            )}
+            {/* The note is an attachment, not a target — say so, or the submit
+                button below ("Add event") reads like a mistake. */}
+            <p className="text-xs text-lumen-text-secondary">
+              {labels.noteLinkHint}
+            </p>
+          </div>
+        )}
+        {/* Echoed exactly when the controls are off screen — the same rule the
+            tab layout used, and what keeps "clear the selection" reachable
+            after the section folds up. */}
+        {stagedNote && !noteOpen && (
+          <div className="flex items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2.5 py-1.5">
+            <span className={cn("shrink-0", FIELD_LABEL)}>
+              {labels.attachedNote}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
+              {stagedNoteTitle}
+            </span>
+            <button
+              type="button"
+              aria-label={labels.clearNote}
+              onClick={clearNote}
+              className={cn(
+                "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                FOCUS_RING_TIGHT,
+              )}
+            >
+              <X aria-hidden className="size-4" />
+            </button>
+          </div>
+        )}
+      </div>
+      {/* The footer acts on the active tab; opening the note section leaves it
+          alone. */}
       <div className="flex gap-2">
-        {target === "event" ? (
+        {type === "event" ? (
           <>
             <button
               type="button"

@@ -80,7 +80,6 @@ const tag = (id: string): WikiTagUnified => ({
   icon: null,
   createdAt: STAMP,
   updatedAt: STAMP,
-  version: 1,
   isDeleted: false,
   deletedAt: null,
 });

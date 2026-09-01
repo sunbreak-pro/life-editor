@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { REALTIME_TABLES } from "../src/context/SyncContext";
 import {
   SYNC_DOMAINS,
-  TABLE_DOMAIN_MAP,
+  TABLE_DOMAIN,
   domainsForChange,
   type SyncDomain,
 } from "../src/context/syncDomains";
@@ -28,14 +28,14 @@ const ITEM_DOMAINS: SyncDomain[] = ["todos", "notes", "dailies", "schedule"];
 describe("syncDomains — lockstep with REALTIME_TABLES", () => {
   it("routes every subscribed table to a domain", () => {
     const unrouted = REALTIME_TABLES.filter(
-      (t) => t !== "items_meta" && !(t in TABLE_DOMAIN_MAP),
+      (t) => t !== "items_meta" && !(t in TABLE_DOMAIN),
     );
     expect(unrouted).toEqual([]);
   });
 
   it("maps no table that is not subscribed", () => {
     const subscribed = new Set<string>(REALTIME_TABLES);
-    const orphans = Object.keys(TABLE_DOMAIN_MAP).filter(
+    const orphans = Object.keys(TABLE_DOMAIN).filter(
       (t) => !subscribed.has(t),
     );
     expect(orphans).toEqual([]);
@@ -43,7 +43,7 @@ describe("syncDomains — lockstep with REALTIME_TABLES", () => {
 
   it("only names declared domains", () => {
     const declared = new Set<string>(SYNC_DOMAINS);
-    const undeclared = Object.values(TABLE_DOMAIN_MAP).filter(
+    const undeclared = Object.values(TABLE_DOMAIN).filter(
       (d) => !declared.has(d),
     );
     expect(undeclared).toEqual([]);

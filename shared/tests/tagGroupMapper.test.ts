@@ -29,7 +29,6 @@ function groupRow(id: string, name = id): TagGroupRow {
     deleted_at: null,
     created_at: STAMP,
     updated_at: STAMP,
-    version: 1,
   };
 }
 

@@ -24,13 +24,33 @@ tray の分岐は「status を書くか completed を書くか」だけのつも
 
 ProseMirror が `<input>` を所有していて TipTap の TaskItem がそこに listen しているため、要素ごと差し替えるとトグルを書き換えることになる。lucide の `circle` / `circle-check` を CSS マスクにして同じ 20px で被せ、input・change ハンドラ・保存経路は無変更。**44px のタップ目標はここだけ意図的に入れていない** — 文中に流れる箱なので上下の行のクリックを奪う。#1183 が守っていた「em で持つ」は #1368 が理由ごと置き換えたので、`web/tests/taskListCheckboxSize.test.ts` を shared の定数との lockstep に書き換えた。
 
+#### マスクは、フォーカスリングを黙って切り取る
+
+`appearance: none` + `mask` で描き直したら **フォーカスリングが完全に消えていた**。マスクはグループ効果なので、input に置いた `outline` は border box の外＝マスクの alpha が 0 の領域に描かれ、そのまま切り取られる（`box-shadow` のリングも同じ道をたどるので、Tailwind 風の直し方は「直したつもりで直っていない」状態を作る）。置き換える前はネイティブの箱が UA のリングを描いていたので、純粋な退行だった。リングはマスクの無い `label` 側に置く。
+
+同じ変更で **強制カラー（Windows ハイコントラスト）でも消えていた**。強制カラーはすべての `background-color` を Canvas に固定するが、このマークはその `background-color` そのもの。React 側の部品が無事なのは、マークが `currentColor` の SVG ストロークで `color` は CanvasText に固定されるから。`forced-color-adjust: none` で opt out し、ユーザーのパレット（CanvasText / Highlight）で描く。
+
+どちらも **レンダリングを見るテストでは絶対に捕まらない**（jsdom にレイアウトが無く、切り取られたリングは効いているリングと見分けが付かない）。守りはソーステキストの assertion で、「マスクされた input にリングを戻したら落ちる」1 本を含めた。
+
+#### merge が先に来ると、後追い push は無言で main に届かない（3 度目）
+
+レビューの修正を push した直後に **PR #1395 / #1396 が最初のコミットの時点で merge されていた**。GitHub 側の PR head は `c35d9733` のまま更新されず、`c0aa5201`（a11y 修正）と `69e95cb6`（この履歴の追記）は remote branch の先端に取り残された。**CI もこの 2 本には一度も走っていない**（`gh run list --branch` が最初のコミットしか返さない）。
+
+気付けたのは `git ls-remote` の先端と `gh api .../pulls/N -q .head.sha` を突き合わせたからで、`gh pr checks` は「pass」と答えていた — 古いコミットに対する pass を。**push のたびに PR の head SHA を実測で照合する**。`memory/push-after-merge-strands-commits` に既にある罠だが、今回は「レビュー結果を反映している最中に merge が来る」形で踏んだ。レビューを回している間は、その旨を PR 本文か outbox に先に書いておくほうがよい。
+
+出し直し = **PR #1410**（`claude/shared-fix-1368-checkbox-a11y`・新しい main から cherry-pick・verify 14 ステップ全緑）と本 tracker ブランチ。
+
+#### 変異テストは、当てる場所を間違えると「守りが空振り」に見える
+
+日付欄の守りを検証するつもりで、同じ class 文字列を持つ **予定行の時刻欄** を書き換えていた。テストが緑のまま通ったので一瞬「テストが空振りしている」と読みかけたが、正しい方を壊したら落ちた。変異を当てたら、当たった場所を行番号で確認してから結果を読む。
+
 #### 変更点
 
 - **shared/src/components/TodoStatusCheckbox.tsx**: マークを 18 → 20px。`TODO_CHECKBOX_ICON_PX` として export（CSS 側が読む唯一の数値）
 - **shared/src/components/briefing/BriefingView.tsx**: 持ち越し行を `w-14 tabular-nums` の固定日付列 + `TodoStatusCheckbox`（朱）に。`BriefingLabels` に `todoStatus` / `statusNotStarted` / `statusDone` を追加
 - **shared/src/components/schedule/TodayTodoTray.tsx**: 手書きボックスを削除。`labels.complete` 退役・`status` / `statusLabels` 必須化・`extra` の字下げを `pl-13` 一本化
-- **web/src/index.css**: task-list の checkbox を `appearance:none` + lucide 2 種の SVG マスク + `--todo-checkbox-size: 20px`
-- **テスト**: 持ち越し行の 1 桁 / 2 桁を両方含む固定列テスト（shared 4 本）・マークの px（shared 1 本）・CSS と定数の lockstep（web 5 本に書き換え）
+- **web/src/index.css**: task-list の checkbox を `appearance:none` + lucide 2 種の SVG マスク + `--todo-checkbox-size: 20px`。2 コミット目でフォーカスリングを `label:has(input:focus-visible)` へ、強制カラー用の `@media (forced-colors: active)` を追加
+- **テスト**: 持ち越し行の 1 桁 / 2 桁を両方含む固定列テスト（shared 4 本）・マークの px（shared 1 本）・CSS と定数の lockstep + フォーカスリングと強制カラーの守り（web 7 本に書き換え）。3 本とも変異テストで「直しを戻したら落ちる」ことを実測済み
 - **判断キュー**: D-20260901-shared-fix-2 = 朝刊「今日のスケジュール」の Todo 行も揃えるか（#1369 と同じ `<li>` を触るため見送り）
 
 ### 2026-09-01 - [shared-fix] #1359 = セクション再生の中断位置（直すべきは Escape ではなく #1194 の封印だった）

@@ -263,7 +263,6 @@ export function useScheduleCopy({
       typeLabel: t("scheduleScreen.itemTypeLabel"),
       typeEvent: t("scheduleScreen.typeEvent"),
       typeTodo: t("scheduleScreen.typeTodo"),
-      typeNote: t("scheduleScreen.typeNote"),
       title: t("scheduleScreen.title"),
       eventPlaceholder: t("scheduleScreen.quickAddPlaceholder"),
       todoPlaceholder: t("scheduleScreen.todoPlaceholder"),
@@ -286,6 +285,10 @@ export function useScheduleCopy({
       // to schedule") — one key rather than two that can disagree.
       todoPickerEmpty: t("scheduleScreen.todoEmptyAddable"),
       todoPickerNoMatch: t("scheduleScreen.todoPickerNoMatch"),
+      attachNote: t("scheduleScreen.attachNote"),
+      noteSourceLabel: t("scheduleScreen.noteSourceLabel"),
+      noteSourceNew: t("scheduleScreen.noteSourceNew"),
+      noteSourceExisting: t("scheduleScreen.noteSourceExisting"),
       noteTitleLabel: t("scheduleScreen.noteTitleLabel"),
       notePlaceholder: t("scheduleScreen.notePlaceholder"),
       searchNotes: t("scheduleScreen.searchNotes"),

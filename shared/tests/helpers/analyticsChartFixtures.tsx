@@ -123,7 +123,6 @@ function tag(id: string): WikiTag {
     icon: null,
     createdAt: "2020-01-01T00:00:00.000Z",
     updatedAt: "2020-01-01T00:00:00.000Z",
-    version: 1,
     isDeleted: false,
     deletedAt: null,
   };

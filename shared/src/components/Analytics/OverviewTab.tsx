@@ -12,6 +12,7 @@ import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
+import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import { formatDateKey, todayCalendarKey } from "../../utils/dateKey";
 import {
   calendarWeekRange,
@@ -21,6 +22,8 @@ import {
 } from "../../utils/analyticsAggregation";
 import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { AnalyticsStatCard } from "./AnalyticsStatCard";
+import type { DateRange } from "./AnalyticsFilterContext";
+import { TagUsageCard, type TagUsageCardLabels } from "./TagUsageCard";
 import { TodayDashboard, type TodayDashboardLabels } from "./TodayDashboard";
 import { WeeklySummary, type WeeklySummaryLabels } from "./WeeklySummary";
 import { StreakDisplay, type StreakDisplayLabels } from "./StreakDisplay";
@@ -43,6 +46,7 @@ export interface OverviewTabLabels {
   todayCard: TodayDashboardLabels;
   weekly: WeeklySummaryLabels;
   streak: StreakDisplayLabels;
+  tagUsage: TagUsageCardLabels;
 }
 
 interface OverviewTabProps {
@@ -50,10 +54,24 @@ interface OverviewTabProps {
   nodes: TodoNode[];
   /** Schedule items for today (host: fetchScheduleItemsByDateRange today,today). */
   todayItems: ScheduleItem[];
+  /**
+   * EVERY live event (host: `fetchEvents()`), not the Schedule tab's date-range
+   * window — the tag usage card's right-hand total must not move with the
+   * preset. Unused by the stat cards, which read `todayItems`.
+   */
+  events: ScheduleItem[];
   notes: NoteNode[];
   routines: RoutineNode[];
-  tagCount: number;
-  assignmentCount: number;
+  /**
+   * Active life-tags and their assignments. Passed as the LISTS, not as
+   * pre-counted numbers: the stat card's counts are derived from them right
+   * here, so the "N tags / M assigned" headline and the per-tag breakdown
+   * below it read the same data (数値の非複製原則).
+   */
+  tags: WikiTag[];
+  assignments: WikiTagAssignment[];
+  /** Selected analytics range — drives the tag card's left column only. */
+  dateRange: DateRange;
   labels: OverviewTabLabels;
 }
 
@@ -61,10 +79,12 @@ export function OverviewTab({
   sessions,
   nodes,
   todayItems,
+  events,
   notes,
   routines,
-  tagCount,
-  assignmentCount,
+  tags,
+  assignments,
+  dateRange,
   labels,
 }: OverviewTabProps): React.JSX.Element {
   const stats = useMemo(() => {
@@ -129,8 +149,8 @@ export function OverviewTab({
       todayWorkTime: labels.formatHours(todayMinutes),
       activeRoutines: activeRoutines.length,
       routineRate,
-      totalTags: tagCount,
-      totalAssignments: assignmentCount,
+      totalTags: tags.length,
+      totalAssignments: assignments.length,
     };
   }, [
     nodes,
@@ -138,8 +158,8 @@ export function OverviewTab({
     notes,
     sessions,
     routines,
-    tagCount,
-    assignmentCount,
+    tags,
+    assignments,
     labels,
   ]);
 
@@ -205,6 +225,19 @@ export function OverviewTab({
         />
         <StreakDisplay sessions={sessions} labels={labels.streak} />
       </div>
+
+      {/* Tag usage (#1379) — full width because each row carries two numbers
+          plus a bar, and the 3-col track above squeezes the column headers
+          that say WHICH window each number belongs to. */}
+      <TagUsageCard
+        todos={nodes}
+        events={events}
+        notes={notes}
+        assignments={assignments}
+        tags={tags}
+        dateRange={dateRange}
+        labels={labels.tagUsage}
+      />
     </div>
   );
 }

@@ -27,6 +27,7 @@ import {
   clearNotesSelection,
 } from "../state/materialsSelectionStore";
 import { recordNoteOpened } from "../state/recentNotesStore";
+import { rememberNoteBody } from "../state/noteBodyStore";
 
 /**
  * DU-G G4: behaviour-preserving port of the former legacy Notes hook, with the
@@ -163,15 +164,19 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
    * `apply` only runs on a SUCCESSFUL read, so a failed fetch still cannot
    * consume the one-shot or erase the remembered id.
    *
-   * NOT FROM THE SNAPSHOT REPLAY, only from the fetch (`fetchLandedRef` below).
-   * The replay runs in useDomainLoad's LAYOUT effect, so restoring there starts
-   * the body hydrate while the revalidating read is still in flight — and that
-   * read's own `mergeLoadedList` reads `notesRef`, which React updates in a
-   * passive effect and can therefore still be one flush behind the hydrate.
-   * The body it just fetched would be merged away. Waiting for the read costs
-   * one round trip and is exactly the timing this restore had before #1101
-   * introduced snapshots — the list still paints instantly from the snapshot,
-   * which is what that feature was for.
+   * NO HYDRATE FROM THE SNAPSHOT REPLAY (`fetchLandedRef` below is what tells
+   * the two apart). The replay runs in useDomainLoad's LAYOUT effect, so a
+   * hydrate started there is in flight at the same time as the revalidating
+   * read — and that read's own `mergeLoadedList` reads `notesRef`, which React
+   * updates in a passive effect and can therefore still be one flush behind
+   * the hydrate. The body it just fetched would be merged away.
+   *
+   * The replay may still restore a body it does not have to fetch (#1407):
+   * `mergeLoadedList` now fills those in from the cross-mount body cache
+   * before this runs, so coming back to Materials re-opens the note the user
+   * was reading in the SAME frame the list paints in, with no request at all.
+   * Everything else still waits for the read, which is exactly the timing this
+   * restore had before #1101 introduced snapshots.
    *
    * Restore MUST take the same hydrate-first path as selectNote — the web editor
    * initialises its content once per noteId and never re-syncs, so flipping
@@ -183,13 +188,39 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   /** Flipped by the read below, so `apply` can tell a fetch from a replay. */
   const fetchLandedRef = useRef(false);
   const restoreSelection = useCallback(
-    (loaded: NoteNode[]) => {
+    (loaded: NoteNode[], canHydrate: boolean) => {
       if (restoredRef.current) return;
-      restoredRef.current = true;
       const storedId = getNotesSelection();
+      const node =
+        storedId === null ? undefined : loaded.find((n) => n.id === storedId);
+      /*
+       * #1407: the SNAPSHOT REPLAY gets one shot at a free restore — and only
+       * a free one. `canHydrate` is false there, so this branch bails out on
+       * anything that would need the network or would decide the note is
+       * gone, WITHOUT consuming the one-shot: the fetch's own `apply` runs a
+       * few hundred ms later with the authoritative list and takes every path
+       * below exactly as it did before. So the replay can only ever make the
+       * restore happen sooner, never differently.
+       *
+       * The one thing it must not do is start a hydrate (see this hook's
+       * header): a body fetched from the replay lands while the revalidating
+       * read is still in flight, and that read's `mergeLoadedList` can be one
+       * flush behind in `notesRef` and merge it away. A cache hit is not that
+       * — the body is already IN `loaded` when the merge that produced it put
+       * it there, so there is nothing in flight to lose.
+       */
+      if (!canHydrate) {
+        if (storedId === null || node === undefined) return;
+        if (selectedNoteIdRef.current !== null) return;
+        if (!hydratedIdsRef.current.has(storedId)) return;
+        restoredRef.current = true;
+        selectTokenRef.current++;
+        setSelectedNoteId(storedId);
+        return;
+      }
+      restoredRef.current = true;
       if (storedId === null) return;
       if (selectedNoteIdRef.current !== null) return; // user already selected
-      const node = loaded.find((n) => n.id === storedId);
       if (!node) {
         clearNotesSelection(); // stale id — item gone since last session tab
         return;
@@ -247,9 +278,10 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       // useNoteHydrationLedger.mergeLoadedList — see the rationale there.
       const { merged, stillHydrated } = mergeLoadedList(loaded);
       setNotes(merged);
-      // #282 / #1285: the restore reads THIS list, not a render closure — and
-      // only once the read itself has landed (see restoreSelection's header).
-      if (fetchLandedRef.current) restoreSelection(merged);
+      // #282 / #1285: the restore reads THIS list, not a render closure. The
+      // fetch may hydrate; the replay may only take a body the merge above
+      // already had (#1407 — see restoreSelection's header).
+      restoreSelection(merged, fetchLandedRef.current);
       // Keep the currently-open note's body correct after a sync-triggered
       // reload (the editor is keyed by note id so it won't remount; this just
       // refills `notes[id].content` so a later read of `selectedNote.content`
@@ -389,6 +421,36 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   const selectedNote = useMemo(() => {
     return notes.find((n) => n.id === selectedNoteId) ?? null;
   }, [notes, selectedNoteId]);
+
+  /*
+   * #1407 — mirror the OPEN note's body into the cross-mount cache, so the
+   * next mount can put it straight back on screen (see `state/noteBodyStore`).
+   *
+   * Written from the node in `notes` rather than from the `getNoteUnified`
+   * response, because the cache's freshness test is `updatedAt` equality
+   * against a later LIST row, and only this object pairs a body with the
+   * `updatedAt` a list read gave it. `hydrateContent` keeps the row's stamp
+   * and replaces only `content`, so caching the fetched note's own stamp
+   * instead would make every entry a near-guaranteed miss.
+   *
+   * Runs on each edit as well as each open — `selectedNote` is a new object
+   * whenever its row changes — which is what keeps the cache holding what the
+   * user last saw rather than what they first opened. One Map write.
+   *
+   * Guarded on the ledger: an un-hydrated row carries the light `""` body (M1)
+   * and caching that would hand the next mount an empty editor over a note
+   * that has text — the same data loss `selectNote` hydrates first to avoid.
+   */
+  useEffect(() => {
+    if (selectedNote === null) return;
+    if (!isContentLoaded(selectedNote.id)) return;
+    rememberNoteBody(
+      ds,
+      selectedNote.id,
+      selectedNote.updatedAt,
+      selectedNote.content,
+    );
+  }, [selectedNote, ds, isContentLoaded]);
 
   return useMemo(
     () => ({

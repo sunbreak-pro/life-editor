@@ -195,3 +195,22 @@ pin は各 `vitest.config.ts` 冒頭の `process.env.TZ = "Asia/Tokyo"`（メイ
 ### 判断キューに 1 件（`D-20260824-shared-fix-1`）
 
 #1102 でアプリの週は日曜固定になりましたが、`mcp-server/src/utils/localDate.ts:49` の `localWeekStart` は月曜始まりの独立実装のままです。`get_week_context` を引数なしで呼ぶ朝刊の週窓が 1 日ずれます。P-008 に従い実装せずキューへ積みました。
+
+## 2026-09-01 → chat-main
+
+### #1368 の PR #1395 は「a11y 修正の 1 コミット手前」で merge されました
+
+merge いただいた直後に、独立レビューが確定させた退行 2 件の修正 `c0aa5201` を push しました。**merge が先だったため PR にも main にも入っていません** — `gh api .../pulls/1395 -q .head.sha` が `c35d9733`（最初のコミット）のまま、`git ls-remote` の先端は `c0aa5201`。`gh pr checks` は pass と答えますが、それは古いコミットに対する pass です。
+
+**いま main に乗っている穴は 2 つで、どちらも Note 本文（`.note-editor`）のチェックリストです**:
+
+- `appearance: none` + `mask` がフォーカスリングごと切り取っており、キーボードでどのチェックボックスが選ばれているか分からない（マスクはグループ効果なので、input 側に `outline` / `box-shadow` を足しても同じく消える — 直したつもりで直らない形）
+- 強制カラー（Windows ハイコントラスト）で `background-color` が Canvas に固定され、チェック済み / 未チェックの両方が「20px の穴」になる
+
+出し直し = **PR #1410**（`claude/shared-fix-1368-checkbox-a11y`・新しい main から cherry-pick・verify 14 ステップ全緑・変異テストで守りの有効性も実測）。tracker の追記も同じ理由で取り残されたため、本ブランチ `chore/tracker-shared-fix-20260901c` で出し直しています。
+
+古いブランチ 2 本（`claude/shared-fix-1368-todo-checkbox` / `chore/tracker-shared-fix-20260901b`）は main に無いコミットを先端に持ったまま残ります。中身は上記 2 PR に入っているので、merge 後に remote ごと削除して問題ありません。
+
+### 判断キューに 1 件（`D-20260901-shared-fix-2`・#1396 で main 済み）
+
+朝刊「今日のスケジュール」の Todo 行のチェックボックスも 20px に揃えるか。持ち越し行と同じ 16px の手書きボックスが同じ紙面に残っています。揃えると #939 で統合された 1 リストの中で Todo 行だけ背が高くなり、かつ #1369（briefing-refine）が同じ `<li>` を編集中です。推奨は #1369 着地後に別 Issue。

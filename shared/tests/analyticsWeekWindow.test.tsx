@@ -165,6 +165,14 @@ const LABELS: OverviewTabLabels = {
     days: "days",
     noStreak: "No streak yet",
   },
+  tagUsage: {
+    title: "Tag Usage",
+    tag: "Tag",
+    inRange: "Created in range",
+    liveTotal: "Current total",
+    rangeLabel: "Last 30 days",
+    empty: { title: "No tagged items", description: "Tag something." },
+  },
 };
 
 /** Mon 2026-07-13 10:00 local — mid-morning on a Monday. */
@@ -191,10 +199,12 @@ function renderNotesCard(notes: NoteNode[]): void {
       sessions={[]}
       nodes={[]}
       todayItems={[]}
+      events={[]}
       notes={notes}
       routines={[]}
-      tagCount={0}
-      assignmentCount={0}
+      tags={[]}
+      assignments={[]}
+      dateRange={{ start: NOW, end: NOW }}
       labels={LABELS}
     />,
   );

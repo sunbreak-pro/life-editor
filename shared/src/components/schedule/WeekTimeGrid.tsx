@@ -9,7 +9,6 @@ import {
   pxToMinutes,
   minutesToPx,
   snapMinutes,
-  minutesToTime,
   DEFAULT_SNAP_MINUTES,
   type HourRange,
 } from "../../utils/scheduleGridLayout";
@@ -89,10 +88,17 @@ export interface WeekTimeGridData {
   todayKey?: string | null;
   /**
    * Current time as minutes-from-midnight. When set and inside the visible
-   * hourRange, a now-line (2px accent rule + left dot + gutter time label) is
-   * drawn in the `todayKey` column, and the body auto-scrolls near it on mount.
-   * null / out-of-range → no now-line. Also seeds the mount auto-scroll target
+   * hourRange, a now-line (2px accent rule + left dot) is drawn in the
+   * `todayKey` column, and the body auto-scrolls near it on mount. null /
+   * out-of-range → no now-line. Also seeds the mount auto-scroll target
    * (falls back to 08:00 when null).
+   *
+   * No time caption rides the rule (#1362). It sat in the hour axis at the
+   * same y as a tick, so the two overprinted each other and neither could be
+   * read; the rule's own position against the axis already says what time it
+   * is. It also drew on `nowVisible` alone while the rule draws on
+   * `isToday && nowVisible`, so a grid with no today column used to show a
+   * floating caption attached to no line at all.
    */
   nowMinutes?: number | null;
 }
@@ -205,8 +211,6 @@ export interface WeekTimeGridFormat {
   hour?: (hour: number) => string;
   /** Day-heading date formatter. Default `M/D`. */
   dayDate?: (dateKey: string) => string;
-  /** Now-line gutter label. Default `HH:MM`. */
-  nowLabel?: (minutes: number) => string;
 }
 
 export interface WeekTimeGridProps {
@@ -228,10 +232,6 @@ function defaultFormatDayDate(dateKey: string): string {
   const { m, d } = parseDateKey(dateKey);
   return `${m}/${d}`;
 }
-
-// `minutesToTime` is the same HH:MM formatter, plus a 0–24:00 clamp that is
-// a no-op here (nowMinutes is minutes-from-midnight).
-const defaultFormatNowLabel = minutesToTime;
 
 /**
  * Face classes for a timed block by provenance (W8). Routine = 藍 face (an
@@ -289,7 +289,6 @@ export function WeekTimeGrid({
   const {
     hour: formatHour = defaultFormatHour,
     dayDate: formatDayDate = defaultFormatDayDate,
-    nowLabel: formatNowLabel = defaultFormatNowLabel,
   } = format ?? {};
   const [startHour, endHour] = hourRange;
   const dayKeys = useMemo(
@@ -582,16 +581,6 @@ export function WeekTimeGrid({
                 </span>
               </div>
             ))}
-            {/* Now-line time label, aligned to the accent rule in the today column */}
-            {nowVisible && (
-              <span
-                aria-hidden
-                className="absolute right-1 z-20 -translate-y-1/2 rounded-sm bg-lumen-bg px-0.5 text-xs font-bold tabular-nums text-lumen-accent"
-                style={{ top: nowPx }}
-              >
-                {formatNowLabel(nowMinutes as number)}
-              </span>
-            )}
           </div>
 
           {/* Day columns */}
@@ -742,16 +731,21 @@ export function WeekTimeGrid({
                     </button>
                   );
                 })}
-                {/* Now-line: accent rule + left dot in the today column */}
+                {/* Now-line: accent rule + left dot in the today column. No
+                    time caption rides it (#1362) — see the nowMinutes doc.
+                    Both halves are aria-hidden and carry no text, so the
+                    data-week-grid hooks are the only handle a test has. */}
                 {isToday && nowVisible && (
                   <>
                     <div
                       aria-hidden
+                      data-week-grid="now-line"
                       className="pointer-events-none absolute inset-x-0 z-30 border-t-2 border-lumen-accent"
                       style={{ top: nowPx }}
                     />
                     <div
                       aria-hidden
+                      data-week-grid="now-dot"
                       className="pointer-events-none absolute z-30 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full bg-lumen-accent"
                       style={{ top: nowPx, left: 0 }}
                     />

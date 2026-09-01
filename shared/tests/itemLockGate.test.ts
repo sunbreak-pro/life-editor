@@ -1,7 +1,7 @@
 // @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { ItemLockGate, nextItemVersion } from "../src/services/itemLockGate";
+import { ItemLockGate } from "../src/services/itemLockGate";
 import { hashPassword } from "../src/utils/passwordHash";
 
 /*
@@ -12,8 +12,8 @@ import { hashPassword } from "../src/utils/passwordHash";
  * The domain-facing behaviour is already pinned by the two service suites
  * (supabaseNotesUnifiedLock.test.ts / SupabaseDailiesUnifiedService.test.ts),
  * which still exercise the real bindings. What is tested HERE is what only
- * the shared body can guarantee: the round-trip ORDER (version read ->
- * items_meta bump -> payload write -> re-read), the verify-before-clear rule,
+ * the shared body can guarantee: the round-trip ORDER (items_meta bump ->
+ * payload write -> re-read), the verify-before-clear rule,
  * the DB-Q2 exception on the lazy rehash (payload-only, no meta bump), and
  * that the per-domain labels reach every error string.
  */
@@ -121,50 +121,10 @@ function makeGate(
   return { gate, readBackCalls };
 }
 
-/** Stage the items_meta version SELECT + the items_meta UPDATE of a bump. */
-function stageBump(stub: ReturnType<typeof makeStub>, version = 3): void {
-  stub.stage("items_meta", "select", { data: { version }, error: null });
+/** Stage the items_meta UPDATE of a bump. */
+function stageBump(stub: ReturnType<typeof makeStub>): void {
   stub.stage("items_meta", "update", { data: null, error: null });
 }
-
-describe("nextItemVersion", () => {
-  it("returns the stored version + 1, scoped by id AND role", async () => {
-    const stub = makeStub();
-    stub.stage("items_meta", "select", { data: { version: 7 }, error: null });
-
-    await expect(
-      nextItemVersion(stub.client, "daily", "daily-2026-05-25", "label"),
-    ).resolves.toBe(8);
-    expect(
-      stub.calls.filter((c) => c.table === "items_meta" && c.op === "eq"),
-    ).toEqual([
-      { table: "items_meta", op: "eq", args: ["id", "daily-2026-05-25"] },
-      { table: "items_meta", op: "eq", args: ["role", "daily"] },
-    ]);
-  });
-
-  it("treats a null version as 0 so the first bump lands on 1", async () => {
-    const stub = makeStub();
-    stub.stage("items_meta", "select", {
-      data: { version: null },
-      error: null,
-    });
-    await expect(
-      nextItemVersion(stub.client, "note", "n1", "label"),
-    ).resolves.toBe(1);
-  });
-
-  it("throws `<label> version read: <message>`", async () => {
-    const stub = makeStub();
-    stub.stage("items_meta", "select", {
-      data: null,
-      error: { message: "gone" },
-    });
-    await expect(
-      nextItemVersion(stub.client, "note", "n1", "myMethod"),
-    ).rejects.toThrow("myMethod version read: gone");
-  });
-});
 
 describe("ItemLockGate.setPassword", () => {
   let stub: ReturnType<typeof makeStub>;
@@ -173,23 +133,20 @@ describe("ItemLockGate.setPassword", () => {
   });
 
   it("bumps items_meta then writes the hash, and returns the re-read node", async () => {
-    stageBump(stub, 3);
+    stageBump(stub);
     stub.stage("things_payload", "update", { data: null, error: null });
     const { gate, readBackCalls } = makeGate(stub);
 
     await expect(gate.setPassword("t1", "hunter2")).resolves.toBe("node:t1");
 
-    // Order matters: the version SELECT feeds the bump, and the payload write
-    // only happens once the meta write succeeded.
+    // Order matters: the payload write only happens once the meta write
+    // succeeded. There is no opening SELECT any more — #1385 removed the
+    // version read that used to sit in front of every bump.
     expect(
       stub.calls
         .filter((c) => ["select", "update"].includes(c.op))
         .map((c) => `${c.table}.${c.op}`),
-    ).toEqual([
-      "items_meta.select",
-      "items_meta.update",
-      "things_payload.update",
-    ]);
+    ).toEqual(["items_meta.update", "things_payload.update"]);
     expect(readBackCalls).toEqual([["t1", LABELS.setPassword]]);
   });
 
@@ -206,21 +163,20 @@ describe("ItemLockGate.setPassword", () => {
     expect(patch.password_hash).not.toContain("hunter2");
   });
 
-  it("bumps updated_at AND version on items_meta (DB-Q2 LWW cursor)", async () => {
-    stageBump(stub, 41);
+  it("bumps updated_at on items_meta, and nothing else (DB-Q2 LWW cursor)", async () => {
+    stageBump(stub);
     stub.stage("things_payload", "update", { data: null, error: null });
     const { gate } = makeGate(stub);
 
     await gate.setPassword("t1", "pw");
     const patch = stub.calls.find(
       (c) => c.table === "items_meta" && c.op === "update",
-    )?.args[0] as { updated_at: string; version: number };
-    expect(patch.version).toBe(42);
+    )?.args[0] as { updated_at: string };
+    expect(Object.keys(patch)).toEqual(["updated_at"]);
     expect(Number.isNaN(Date.parse(patch.updated_at))).toBe(false);
   });
 
   it("throws `<label> meta failed` and never writes the payload", async () => {
-    stub.stage("items_meta", "select", { data: { version: 1 }, error: null });
     stub.stage("items_meta", "update", {
       data: null,
       error: { message: "meta-err" },
@@ -286,7 +242,7 @@ describe("ItemLockGate.removePassword", () => {
       data: { password_hash: hashed },
       error: null,
     });
-    stageBump(stub, 5);
+    stageBump(stub);
     stub.stage("things_payload", "update", { data: null, error: null });
     const { gate, readBackCalls } = makeGate(stub);
 
@@ -427,7 +383,7 @@ describe("ItemLockGate.toggleEditLock", () => {
       data: { is_edit_locked: false },
       error: null,
     });
-    stageBump(stub, 1);
+    stageBump(stub);
     stub.stage("things_payload", "update", { data: null, error: null });
     const { gate, readBackCalls } = makeGate(stub);
 

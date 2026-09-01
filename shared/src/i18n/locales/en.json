@@ -570,7 +570,6 @@
     "itemTypeLabel": "Item type",
     "typeEvent": "Event",
     "typeTodo": "Todo",
-    "typeNote": "Note",
     "sourceLabel": "How to add",
     "sourceNew": "New",
     "sourceExisting": "From existing",
@@ -579,6 +578,10 @@
     "todoPickerNoMatch": "No matching todos",
     "addTodo": "Add todo",
     "placeTodo": "Place at this time",
+    "attachNote": "Attach a note",
+    "noteSourceLabel": "Note to link",
+    "noteSourceNew": "New note",
+    "noteSourceExisting": "Existing note",
     "noteTitleLabel": "Note title",
     "notePlaceholder": "Enter a note title…",
     "searchNotes": "Search notes",
@@ -719,6 +722,10 @@
       "mobile": {
         "title": "Nothing recorded yet",
         "description": "Once you start using the timer or the schedule, your daily summary will appear here."
+      },
+      "tagUsage": {
+        "title": "No tagged items in this range",
+        "description": "Tag your todos, events and notes and the tags you used will be ranked here."
       }
     },
     "mobile": {
@@ -804,6 +811,12 @@
       "noData": "No work time recorded yet",
       "untagged": "Untagged",
       "other": "Other tags"
+    },
+    "tagUsage": {
+      "title": "Tag Usage",
+      "tag": "Tag",
+      "inRange": "Created in range",
+      "liveTotal": "Current total (all time)"
     },
     "overview": {
       "todos": "Todos",

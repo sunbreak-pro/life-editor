@@ -2,10 +2,9 @@
  * Shared design tokens — single source of truth for the lumen-* color
  * system across web / desktop / mobile (W0-2).
  *
- * Ported verbatim (full set) from frontend/src/index.css `:root` /
- * `[data-theme="dark"]` / `@theme` blocks. frontend is FROZEN (Tauri,
- * to be discarded) so this file is now the canonical token definition;
- * frontend stays untouched.
+ * Ported verbatim (full set) from the now-deleted frontend/src/index.css
+ * `:root` / `[data-theme="dark"]` / `@theme` blocks (the Tauri shell, removed
+ * in #197). This file is the canonical token definition.
  *
  * Hosts import this file from their own entry CSS, e.g. web/src/index.css:
  *   @import "tailwindcss";
