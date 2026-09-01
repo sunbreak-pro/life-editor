@@ -1,4 +1,8 @@
 import { createPortal } from "react-dom";
+import {
+  DEFAULT_MOBILE_FONT_SIZE_STEP,
+  fontSizeToPx,
+} from "../constants/fontSize";
 import { useDialogA11y, hasOpenDialogLayer } from "../hooks/useDialogA11y";
 import { useSwipeToDismiss } from "../hooks/useSwipeToDismiss";
 import { useEdgeSwipeOpen } from "../hooks/useEdgeSwipeOpen";
@@ -41,6 +45,29 @@ import { RightSidebarContents } from "./RightSidebarContents";
  * insets are held INSIDE the drawer so the header/body clear the notch + home
  * indicator. Copy injected already-translated (§6.4).
  */
+
+/**
+ * The panel's width in px, pinned to the "medium" font size (#1400).
+ *
+ * It used to be `w-80` — 20rem — and rem means "whatever the root font size
+ * is", which the appearance setting rewrites on documentElement (ThemeContext).
+ * So the drawer quietly grew and shrank with the type scale: 280px on the small
+ * preset, 440px on the large one, which is wider than the phone it sits on. A
+ * drawer is furniture, not text; it should stay put when the type gets bigger.
+ *
+ * The number is derived rather than typed in, so "the width it had at medium"
+ * stays true if the preset itself ever moves: 20rem at the medium preset's 18px
+ * is 360px. It is an inline style rather than a Tailwind class because that is
+ * the only form jsdom can read back — the test env has no layout and no
+ * stylesheet (CLAUDE.md §7.1), so a class would be unverifiable.
+ *
+ * The `max-w-[85vw]` beside it is the companion guard: 360px covers a 360px
+ * phone edge to edge, leaving no scrim to tap outside of — which the smaller
+ * presets used to provide by accident. vw does not track the font size, so the
+ * cap keeps the pin intact.
+ */
+const DRAWER_WIDTH_PX = 20 * fontSizeToPx(DEFAULT_MOBILE_FONT_SIZE_STEP);
+
 export interface MobileDrawerProps {
   /** Already-translated panel title ("詳細"). */
   title: string;
@@ -104,11 +131,12 @@ export function MobileDrawer({
         onMouseDown={(e) => e.stopPropagation()}
         {...swipe.handlers}
         style={{
+          width: `${DRAWER_WIDTH_PX}px`,
           transform:
             swipe.offset > 0 ? `translateX(-${swipe.offset}px)` : undefined,
           transition: swipe.dragging ? "none" : undefined,
         }}
-        className="lumen-drawer-in-left flex h-full w-80 touch-pan-y flex-col border-r border-lumen-border bg-lumen-bg-subsidebar shadow-lumen-lg pl-[env(safe-area-inset-left)] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] transition-transform duration-200 ease-out"
+        className="lumen-drawer-in-left flex h-full max-w-[85vw] touch-pan-y flex-col border-r border-lumen-border bg-lumen-bg-subsidebar shadow-lumen-lg pl-[env(safe-area-inset-left)] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] transition-transform duration-200 ease-out"
       >
         <RightSidebarContents
           title={title}
