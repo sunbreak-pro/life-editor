@@ -263,6 +263,71 @@ describe("useBriefingData — todo aggregation (#892)", () => {
     expect(result.current.data.briefing).toBeNull();
     expect(result.current.dailyContent).toBeNull();
   });
+
+  /*
+   * #1369 — the paper's todo rows carried no clock, so the hook dropped the
+   * one thing that separates a 09:00 todo from a "sometime today" one. The
+   * time comes from `todoScheduleSlot`, the same selector the tray's chips
+   * read, and the cases below are exactly where a second, hand-rolled parse
+   * would disagree with the grid.
+   */
+  it("hands the paper HH:MM for a timed todo, an empty label for the rest", async () => {
+    const { result } = renderData({
+      todos: [
+        makeTodo({
+          id: "t-timed",
+          title: "Timed",
+          scheduledAt: localDateTimeToISO(TODAY, "09:30"),
+          scheduledEndAt: localDateTimeToISO(TODAY, "10:30"),
+          isAllDay: false,
+        }),
+        makeTodo({
+          id: "t-allday",
+          title: "All day",
+          scheduledAt: localDateTimeToISO(TODAY, "00:00"),
+          isAllDay: true,
+        }),
+        makeTodo({
+          // A degenerate span (end <= start) is an all-day CANDIDATE, not a
+          // block — todoScheduleSlot folds it, so the paper must not print
+          // the 13:00 that instant technically carries (#562).
+          id: "t-degenerate",
+          title: "Degenerate",
+          scheduledAt: localDateTimeToISO(TODAY, "13:00"),
+          scheduledEndAt: localDateTimeToISO(TODAY, "13:00"),
+          isAllDay: false,
+        }),
+      ],
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const byId = new Map(
+      result.current.data.todos.map((t) => [t.id, t.startTime]),
+    );
+    expect(byId.get("t-timed")).toBe("09:30");
+    // An all-day slot reports "00:00" — the grid's placeholder for a band, not
+    // a time the todo has. Printing it would put a fake midnight on the paper.
+    expect(byId.get("t-allday")).toBe("");
+    expect(byId.get("t-degenerate")).toBe("");
+  });
+
+  it("reads the todo's LOCAL clock, not the UTC one", async () => {
+    // Same trap as the local-day rule above: 00:30Z is 09:30 in JST. Slicing
+    // the ISO string would print 00:30 on a row the grid draws at 09:30.
+    const { result } = renderData({
+      todos: [
+        makeTodo({
+          id: "t-utc",
+          title: "Morning in Tokyo",
+          scheduledAt: `${TODAY}T00:30:00Z`,
+          isAllDay: false,
+        }),
+      ],
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.data.todos[0]?.startTime).toBe("09:30");
+  });
 });
 
 describe("useBriefingData — evening blocks (#892)", () => {

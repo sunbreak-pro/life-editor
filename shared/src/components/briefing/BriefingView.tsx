@@ -57,6 +57,13 @@ export interface BriefingTodoEntry {
   id: string;
   title: string;
   status: TodoStatus;
+  /**
+   * "HH:MM" when the todo carries a clock, "" when it does not — all-day or
+   * merely placed on the day (#1369). The host reads it off the same
+   * `todoScheduleSlot` the calendar chips do, so the paper and the grid can
+   * never disagree about when a todo is.
+   */
+  startTime: string;
   /** Titles of linked goal/notes (WikiTagsUnified item↔item links). */
   purposes: string[];
 }
@@ -366,6 +373,25 @@ function DeleteRowButton({
   );
 }
 
+/*
+ * The time column of 「今日のスケジュール」— one width and one type style for every row
+ * in the block, event or todo (#1369). A timed todo prints its HH:MM exactly
+ * where an event prints its own; anything else hands this an empty label and
+ * gets a spacer, which holds the column open so every title stays on one
+ * straight edge without printing a blank the reader could mistake for a
+ * missing time.
+ */
+function TimeCell({ label }: { label: string }) {
+  if (label === "") {
+    return <span aria-hidden="true" className="w-14 flex-shrink-0" />;
+  }
+  return (
+    <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-briefing-shu">
+      {label}
+    </span>
+  );
+}
+
 export function BriefingView({
   loading,
   data,
@@ -547,10 +573,11 @@ export function BriefingView({
             {data.todos.map((todo) => (
               <li key={todo.id} className="py-1">
                 <div className="flex items-baseline gap-3">
-                  {/* The schedule rows' time column, empty: a todo has no
-                      clock, and holding the width is what keeps every title
-                      on one straight edge with the timed rows below. */}
-                  <span aria-hidden="true" className="w-14 flex-shrink-0" />
+                  {/* Same column, same format as the timed rows below — a
+                      todo placed at 09:00 has to read as 09:00 here too
+                      (#1369). Untimed todos pass "" and get the spacer that
+                      used to be unconditional. */}
+                  <TimeCell label={todo.startTime} />
                   <button
                     type="button"
                     onClick={() => onToggleTodo(todo.id)}
@@ -611,9 +638,9 @@ export function BriefingView({
             )}
             {scheduleRows.map((item) => (
               <li key={item.id} className="flex items-baseline gap-3 py-1">
-                <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-briefing-shu">
-                  {item.isAllDay ? labels.allDay : item.startTime}
-                </span>
+                <TimeCell
+                  label={item.isAllDay ? labels.allDay : item.startTime}
+                />
                 <button
                   type="button"
                   onClick={() => onToggleScheduleItem(item.id)}

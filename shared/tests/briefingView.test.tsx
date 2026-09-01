@@ -79,8 +79,20 @@ const DATA: BriefingData = {
     },
   ],
   todos: [
-    { id: "t1", title: "Write report", status: "NOT_STARTED", purposes: [] },
-    { id: "t2", title: "Ship feature", status: "DONE", purposes: [] },
+    {
+      id: "t1",
+      title: "Write report",
+      status: "NOT_STARTED",
+      startTime: "",
+      purposes: [],
+    },
+    {
+      id: "t2",
+      title: "Ship feature",
+      status: "DONE",
+      startTime: "",
+      purposes: [],
+    },
   ],
   carryover: [
     { id: "c1", title: "Old todo", daysLabel: "day 3", completed: false },
@@ -391,12 +403,100 @@ describe("Merged today's-schedule block (#939)", () => {
             id: "t1",
             title: "Write report",
             status: "NOT_STARTED",
+            startTime: "",
             purposes: ["Ship the quarter"],
           },
         ],
       },
     });
     expect(screen.getByText(/Ship the quarter/)).toBeTruthy();
+  });
+});
+
+/*
+ * #1369 — the paper printed no clock at all on a todo row, so a todo placed
+ * at 09:30 and one merely dropped on today read exactly alike; the only way to
+ * tell them apart was to open Schedule. Timed todos now print HH:MM in the
+ * SAME column and the SAME type style as the event rows, and untimed ones keep
+ * the empty column they had (nothing to say ≠ "終日", which is the all-day
+ * band's own label below the hairline). The #939 order is untouched.
+ */
+describe("Timed todo rows print their clock (#1369)", () => {
+  /** The row <li> that prints `title` (todo rows and event rows alike). */
+  function row(title: string): HTMLElement {
+    const li = screen.getByText(title).closest("li");
+    if (li === null) throw new Error(`no row prints "${title}"`);
+    return li;
+  }
+
+  /** A row's leading time cell — the fixed-width column both kinds share. */
+  function timeCell(title: string): HTMLElement {
+    const cell = row(title).querySelector("span.w-14");
+    if (cell === null) throw new Error(`the "${title}" row has no time cell`);
+    return cell as HTMLElement;
+  }
+
+  const TIMED_TODO = {
+    id: "t9",
+    title: "Draft the deck",
+    status: "NOT_STARTED" as const,
+    startTime: "09:30",
+    purposes: [],
+  };
+
+  const ALL_DAY = {
+    id: "s3",
+    title: "Conference day",
+    startTime: "",
+    completed: false,
+    isRoutine: false,
+    isAllDay: true,
+  };
+
+  it("prints a timed todo's HH:MM where an event prints its own", () => {
+    renderView({ data: { ...DATA, todos: [TIMED_TODO] } });
+    expect(timeCell("Draft the deck").textContent).toBe("09:30");
+    // Same cell, not a lookalike: identical class list = one column width and
+    // one type style, so the two kinds of row line up down the page.
+    expect(timeCell("Draft the deck").className).toBe(
+      timeCell("Morning standup").className,
+    );
+  });
+
+  it("leaves an untimed todo's cell empty — no blank label, no 00:00", () => {
+    renderView({ data: { ...DATA, todos: [{ ...TIMED_TODO, startTime: "" }] } });
+    const cell = timeCell("Draft the deck");
+    expect(cell.textContent).toBe("");
+    // A spacer, not an empty label: it holds the width and stays out of the
+    // accessibility tree, so a screen reader hears the title, not a pause.
+    expect(cell.getAttribute("aria-hidden")).toBe("true");
+    expect(row("Draft the deck").textContent).not.toContain("All day");
+  });
+
+  it("keeps the all-day event's own label untouched", () => {
+    renderView({ data: { ...DATA, schedule: [ALL_DAY] } });
+    expect(timeCell("Conference day").textContent).toBe("All day");
+  });
+
+  it("does not move a timed todo out of the todo band (#939 order)", () => {
+    renderView({
+      data: {
+        ...DATA,
+        todos: [TIMED_TODO],
+        schedule: [DATA.schedule[0], ALL_DAY],
+      },
+    });
+    const section = screen.getByText("PROMISES").closest("section");
+    const list = section?.querySelector("ul");
+    const texts = Array.from(list?.children ?? []).map(
+      (el) => el.textContent ?? "",
+    );
+    // todos → hairline → all-day → timed, exactly as before: a clock on a
+    // todo is a label, not a promotion into the timed band.
+    expect(texts[0]).toContain("Draft the deck");
+    expect(texts[1]).toBe("");
+    expect(texts[2]).toContain("Conference day");
+    expect(texts[3]).toContain("Morning standup");
   });
 });
 
