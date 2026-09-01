@@ -1,5 +1,26 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-01 - /goal 5 件（#1362 / #1370 / #1367 / #1373 / #1374）を全部 PR まで
+
+#### 概要
+
+Schedule の見た目と概念を整理する 5 件を指定順に処理し、PR を 5 本出した。#1411 / #1413 / #1414 は merge 済み、#1424（#1373）は origin/main 取り込みのコンフリクトを解消して `MERGEABLE/CLEAN`、#1433（#1374）は DDL があるため 🛑 `supabase db push` 待ちで open。
+
+#### 変更点
+
+- **#1362 = PR #1411（merged）now 線の時刻ラベルを消した**: 週・日ビューの now 線から左端のキャプションを外し、線とドットだけにした。`WeekTimeGridFormat.nowLabel` と `defaultFormatNowLabel` が呼び出し元ゼロになったので型ごと削除。**テストが「時刻の文字列」で now 線を探していたので、消した瞬間に何も掴めなくなる** — `data-week-grid="now-line"` / `"now-dot"` のフックを足して、3 本のテストをそちらへ寄せ替えたうえで「キャプションが無いこと」を 1 本追加した
+- **#1370 = PR #1413（merged）作成パネルを 2 タブに畳んだ**: type が event / task / note の 3 つだったのを 2 つにし、ノートは**両方のタブの中で開閉するディスクロージャ**に移した。`target` / `setTarget` / `selectType` と `source` / `setSource` の間接層が丸ごと不要になる。i18n は `scheduleScreen.typeNote` を落として `attachNote` / `noteSourceLabel` / `noteSourceNew` / `noteSourceExisting` の 4 本へ
+- **#1367 = PR #1414（merged）サイドバーの Todo 行を Todo のチェックボックスにした**: 「未着手 / 着手中 / 完了」は**予定の語彙**（時計から導かれる 3 値）で、Todo は done か否かの 2 値しか持たない。朝刊は既に後者の言い方をしているので、同じ Todo を見せる 2 面が状態の呼び名で食い違っていた。`AgendaListLabels` の `todoStatus` / `todoStatusLabels` は **optional にせず必須にした** — 言葉の無い Todo 行が黙って何かにフォールバックするのが、まさにこの Issue の再発形だから
+- **#1373 = PR #1424（open・CLEAN）予定から完了概念を全部外した**: ステータスピルとトグルを全面撤去し、`ScheduleStatusTag.tsx` / `utils/scheduleStatus.ts` とその 2 本のテスト、`schedule-tag-*` トークン、i18n 4 キー（`scheduleScreen.complete` / `statusNotStarted` / `statusInProgress` / `statusDone`、`briefing.toggleComplete`）を削除。51 ファイル・334 追加 / 1,005 削除。**判断が要ったのは取り消し線**: MCP の `set_schedule_complete` は残す仕様なので、Event 側で素通しすると「消す手段が画面に無いのに永久に消える」。`variant === "task"` でゲートして AgendaList / WeekTimeGrid（ブロックと終日チップ）/ MonthGrid の 4 箇所に同じ形で入れた。`completed` 列と `BriefingScheduleEntry.completed` はデータとして温存（夕刊の `!s.completed` フィルタが読む）
+- **#1374 = PR #1433（open・DDL 待ち）予定ごとのリマインダー**: 開始の N 分前に通知。アプリ内トーストは全プラットフォーム、OS 通知は Desktop のみ。**保存はオフセット**（`events_payload.reminder_offset_min`）で絶対時刻ではない — 絶対時刻だと予定を動かすたびに再計算が要り、その計算にはタイムゾーンの知識が要るが、`scheduleItemMapper` は「TZ を知らない純粋関数」だと自分のヘッダで宣言している。既存の `reminder_at` は 0008 以来ずっと全書き込みが literal null で実データ 0 行なので、互換性の負債ゼロで乗り換えられた（列は DROP せず残置）
+- **リマインダーの既定値は読み取り時に解決せず作成時に行へ書く**: 読み取り時フォールバックだと NULL が「通知しない」なのか「まだ決めていない」なのか DB から区別できず、Settings の既定を変えた瞬間に過去の予定が勝手に再武装する
+- **配信はタイマーではなくスイープ**: 予定ごとに `setTimeout` を張ると Realtime bump のたびに張り直しになり、結局「もう出したか」の集合が要る（集合があるならタイマーは 2 つ目の仕組みで何も買っていない）。加えて Chromium はバックグラウンドのタイマーを丸め、スリープで発火ごと消す。`useMinuteClock` で 1 分ごとに `Date.now()` と比べ直す形なら、スリープ・スロットル・時刻変更のどれの後でも答えを出し直せる。**台帳はモジュールスコープ**（`useRef` だと StrictMode の再マウントで捨てられ dev だけ 2 回出る = レビューで一番見られる DoD 項目がそこで壊れる）
+- **停止中に来た分は `due <= now && now < start` の 1 行**: 開始後に「もうすぐ始まる」と言われても行動は変わらないが、09:50 に届くはずの通知を 09:58 に開いた人へ出さないのは取りこぼし。この条件はリード時間（最大 60 分）が自然な上限になるので、遡り定数も「最後にスイープした時刻」の永続化も要らない
+- **Electron は IPC を 1 本（`notify:show`）だけ足した**: preload の公開関数が 9 → 10 で **#529 Risk 1 の上限ちょうど**。`desktop/tests/ipcContract.test.ts` が実物から数えているので黙って超えられない。**`isNativeMobile()` でゲートしていない** — `getDesktopNotificationBridge()` が Electron 以外で null を返すのが既にゲートで、Provider 層で mobile を切るとスマホでアプリ内通知まで死ぬ
+- **#1424 のコンフリクトは #1367 の squash merge が原因**: ブランチを #1367 の元コミット `c892f789` から生やしたが、#1367 は squash で main に入ったので元コミットが main の祖先でなくなり、同じ 3 ファイル（`AgendaList.tsx` / `agendaList.test.tsx` / `useScheduleDayLabels.ts`）が衝突として返ってきた。**全ハンク ours を「判断」ではなく「証明」にできた** — merge base 以降にその 3 ファイルを触った main のコミットは #1367 の squash 1 本だけで（`git log <base>..origin/main -- <file>`）、その中身は分岐元とバイト単位で同一（`git diff c892f789 70a45aeb -- <file>` が空）。つまり main は自分が既に持っているものしか持ち込まない。マージ後に `ScheduleStatusTag` / `utils/scheduleStatus` / `schedule-tag-*` / 削除した i18n 4 キーの参照ゼロも実測した
+- **#1374 で 1 本落ちたテストが本番の実バグを連れてきた**: ダミー DataService に `updateScheduleItem` が無く、リマインダー既定値の追い書きがそこで死んでいた。**stub を足すだけで済ませなかったのは、追い書きの失敗が `onSaved(null)`（= 作成失敗）として呼び出し側に伝わっていたから** — 行は保存済みなのにエディタが書き込んだばかりの行の上に開きっぱなしになる。追い書きだけを個別に catch して「リマインダー無しで保存済み」に落とし、その挙動をテストで固定した
+- **検証**: 5 本すべて CI `verify` 全ステップ（shared → web → desktop → mcp-server）+ `docs-lint` をローカルで exit 0。#1424 は main 取り込み後のツリーで再実測
+
 ### 2026-08-31 - #1343 詳細パネルのタブ 3 つを 1 行に揃えた
 
 #### 概要
