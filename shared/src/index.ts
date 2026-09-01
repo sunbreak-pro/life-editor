@@ -23,10 +23,7 @@ export {
   toolArgNames,
   type McpToolCatalogEntry,
 } from "./generated";
-export {
-  getDataService,
-  setDataServiceForTest,
-} from "./services/dataServiceFactory";
+export { getDataService } from "./services/dataServiceFactory";
 export {
   signUp,
   signIn,
@@ -668,7 +665,7 @@ export {
 } from "./components/todoStatusVisuals";
 // Platform detection. isNativeMobile() (Phase 4) lets the hosts gate the
 // Mobile 省略 UI (roster = CLAUDE.md §2) on the Capacitor shells — platform.ts.
-export { isMac, isNativeMobile, isDesktopShell } from "./utils/platform";
+export { isMac, isNativeMobile } from "./utils/platform";
 // Claude Code launcher bridge (#1211) — desktop-only, null everywhere else.
 export {
   getClaudeLauncherBridge,

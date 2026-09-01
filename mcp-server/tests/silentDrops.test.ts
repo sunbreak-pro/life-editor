@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { TOOLS, callTool } from "../src/tools.js";
 import { unknownArgNames, type ObjectSchema } from "../src/utils/toolSchema.js";
-import { isLegacyFolder } from "../src/handlers/todoHandlers.js";
+import { isLegacyFolder } from "../src/utils/items.js";
 import { rejection } from "./rejection.js";
 
 /*
@@ -152,15 +152,15 @@ describe("list_todos agrees with get_todo_tree about which todos exist", () => {
    * predicate, which is why it is exported.
    */
   it("flags only the retired 'folder' value", () => {
-    expect(isLegacyFolder({ task_type: "folder" })).toBe(true);
+    expect(isLegacyFolder("folder")).toBe(true);
   });
 
   it("treats a NULL task_type as a plain todo (legacy rows survive)", () => {
-    expect(isLegacyFolder({ task_type: null })).toBe(false);
+    expect(isLegacyFolder(null)).toBe(false);
   });
 
   it("treats 'task' as a plain todo", () => {
-    expect(isLegacyFolder({ task_type: "task" })).toBe(false);
+    expect(isLegacyFolder("task")).toBe(false);
   });
 });
 

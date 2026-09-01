@@ -19,7 +19,7 @@ import {
   getWorkSessions,
 } from "../../utils/analyticsAggregation";
 import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
-import { EmptyState } from "./EmptyState";
+import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
 import type { AnalyticsLabels } from "./labels";
 
 /*
@@ -190,7 +190,7 @@ export function MobileAnalyticsView(
             {labels.title}
           </h2>
         </div>
-        <EmptyState
+        <AnalyticsEmptyState
           icon={<BarChart3 size={26} />}
           title={labels.emptyMobile.title}
           description={labels.emptyMobile.description}

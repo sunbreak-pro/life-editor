@@ -20,29 +20,6 @@ import type {
   WikiTagConnectionOrigin,
 } from "../types/wikiTagUnified";
 
-/**
- * Kinds of calendar-displayed data the user can bulk soft-delete from
- * Settings → Data → "Calendar データ一括削除".
- *
- * - "todos":    scheduled todos (type='task' AND scheduled_at IS NOT NULL)
- * - "events":   schedule_items with no routine_id (manual events)
- * - "routines": routines + their non-completed derived schedule_items (cascade)
- * - "dailies":  dailies rows
- * - "notes":    notes rows
- */
-export type CalendarDataKind =
-  "todos" | "events" | "routines" | "dailies" | "notes";
-
-export interface BulkSoftDeleteResult {
-  todos: number;
-  events: number;
-  routines: number;
-  /** Routine-derived schedule_items removed by the routine cascade. */
-  cascadedScheduleItems: number;
-  dailies: number;
-  notes: number;
-}
-
 /*
  * DataService is split into one interface per routing domain (#671 C4 S5).
  *
