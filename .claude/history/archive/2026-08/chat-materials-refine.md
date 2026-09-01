@@ -1,3 +1,17 @@
+### 2026-08-30 - PR #1227 に main を取り込み、テンプレート 3 機能を両立させた
+
+#### 概要
+
+#1181（テンプレートから反映）の PR #1227 は、兄弟の #1179 / #1180 が先に main へ着地した後も古い base のままだった。CI は緑だったが取り込んでいなかっただけで、取り込むと 4 ファイルが衝突した。すべて「両方残す」で解決し、3 機能が同居する形にした。
+
+#### 変更点
+
+- **ケバブ項目の付け替え**: #1227 の「テンプレートから反映」は #1179 が退役させた `onOpenTemplates` / `createTemplateLabel` に乗っていた。main の `onRegisterTemplate` / `registerTemplateLabel` の下にぶら下げ直し（`NoteDetailPanel` / `NoteDetailSurface` の props・labels も同様）
+- **materials barrel**: main の `TemplateSavedPanel` / `TemplateListPanel` / `TemplateEditPanel` を残し、その後ろに `TemplateApplyPanel` を追加
+- **NotesView**: テンプレート系フックが 3 本並ぶ形に（register = #1179 / library = #1180 / apply = #1181）。名前が衝突しないよう分け、3 つのパネルをすべてマウント。#1179 が消した項目の名前だった `createTemplate` ラベルは一緒に削除
+- **apply の picker は鮮度の配線が不要だった**: `begin()` が開くたびに `listNoteTemplatesUnified` を読み直すため、#1221 で必要になった `refresh()` 相当が要らない
+- **検証**: CI verify 相当をローカル全ステップ実行 — shared 2652 / web 934 / desktop 7 / mcp 319 すべて緑、`docs-lint` OK
+
 ### 2026-08-30 - PR #1221 の main マージ解決ミスを修復し、テンプレート 2 機能を両立させた
 
 #### 概要

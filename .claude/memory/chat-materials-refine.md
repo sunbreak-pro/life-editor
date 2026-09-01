@@ -13,18 +13,23 @@
 
 ## 直近の完了
 
+- **materials 4 件（#1372 / #1363 / #1364 / #1365）を 4 PR に分けて提出** ✅（2026-09-01 — 全部 `origin/main` から独立に切った。書いた時点の実測で PR #1380（#1372）は **merged**、#1384（#1363）/ #1394（#1364）/ #1397（#1365）は **open**。**2 件は「どこを直すか」の特定が本体**だった: (1) #1364 の繰り上げは `NoteTagFilterChips.tsx` の `ordered` メモにあり、**`sort` を呼ばず `filter` 2 回の連結**で並べ替えていたので Issue が試した `selected` + `sort` の grep では出なかった。繰り上げが担保していた #1288 の「選択中チップが `+N` の裏に隠れない」は、折り畳み時に「先頭 6 個 + キャップより下の選択済み」を**元の順のまま**描く形で維持。(2) #1365 の「ここだけアイコンが出ない」は `useNoteListState.tagFilterChips` が**色ドットを手組み**していたためで、`wiki_tags.icon` を一度も読んでいなかった（#1291 の唯一の取りこぼし = リポジトリ内に残っていた最後の手組みタグ表示）。`TagHeadingIcon` に差し替え。残り 2 本 = #1372 空状態中央の追加ボタン撤去（右上 pill が両幅で残るので `isWide=false` のテストを追加）/ #1363 テンプレート編集パネルを Note と同寸に（`Modal` に `reading` サイズを追加 = `max-w-lumen-reading`・本文フロア 320→420px・名前と本文が 1 つのスクローラ / キャンセル・保存はその外）。各 PR で shared → web の CI verify（build / lint / typecheck:tests / vitest）をローカル全緑）
+
 - **#1345 — ノート削除を確認ダイアログ越しにした** ✅（2026-08-31 — PR #1347・書いた時点で open。同じ `NotesView.tsx` の中でテンプレート削除（#1248）は聞くのにノート削除だけワンクリックで消えていた割れを解消。削除経路 2 本（サイドリスト行の `onDeleteNote` / 詳細ケバブ「その他の操作」→「ノートを削除」の `onDelete`）を `handleDeleteNote` 1 本に寄せ、既存の `useConfirmDialog()` を通す。**幅ごとの分岐は書いていない** — #876 以降 wide / narrow が同じリストと同じ詳細サーフェスを描くので、一本化しただけで両幅が揃う。ダイアログは #1248 が view 直下に置いた `<ConfirmDialog>` の再利用で、ケバブが閉じても質問が残る。文言は Todo 削除に寄せて「ゴミ箱に入るので、あとから元に戻せます」— テンプレート削除の「戻せません」とは性質が逆なので書き分け。追加キー `materials.notes.deleteConfirmBody` / `deleteConfirmAction` を en / ja 両方へ。テストは既存 1 本を「押下＝質問」に書き換え + 拒否ケース + ケバブ経路を `it.each([true, false])` で両幅。CI verify のステップ列 + docs-lint をローカル全緑）
 
 - **#1334 — リンク先プールが両方の `is_deleted` バケツを読むようにした** ✅（2026-08-31 — PR #1340・書いた時点で open。前日の #1292（PR #1306）が実データで効いていなかった follow-up。プールは「削除済みをフラグ付きで持つ」形になっていたのに、**フラグの元にしていた `fetchTodoTree` / `listNotesUnified` / `listDailiesUnified` が 3 本とも自分のクエリで `is_deleted = false` を固定**していたため、フラグは構造的に常に false で、削除済み Todo へのリンクは相変わらず id 断片で出ていた。各ドメインで Trash 側の既存メソッド（`fetchDeletedTodos` / `fetchDeletedNotesUnified` / `fetchDeletedDailiesUnified`）も読み、**live を先に**連結する形へ — 新しいクエリも引数も足していない。**`web/tests/linkPanel.test.tsx` がこのバグを丸ごと隠していた**: 削除済み行が入り済みの pool を panel に直接渡すので、壊れていた手前の工程を一度も通らない。新規 `web/tests/useItemLinkTargets.test.tsx` は結果ではなく**分割の方を模す**（ドメインごとに 1 枚の行テーブル + 各読み取りが自分のバケツだけを返す）ので live だけの pool では通らない。4 ケースとも修正前のソースで落ちることを実測。CI verify のステップ列をローカル全緑）
 
-- **materials 5 件（#1292 / #1285 / #1286 / #1287 / #1288）を 5 PR に分けて提出** ✅（2026-08-30 — 2026-08-30 dispatch 分。全部 `origin/main` から独立に切った。PR #1306（#1292）/ #1313（#1285）/ #1316（#1286）/ #1319（#1287）/ #1322（#1288）。**#1292 と #1285 はどちらも「新機能の不在」ではなく既存機能の故障**だった: (1) #1292 = 削除済みアイテムへのリンクが `…56123478` の id 断片で出ていた。候補プール `useItemLinkTargets` が soft-deleted 行を**捨てて**いたため、id を握っている LinkPanel が名前を引けず最後の手段の id 短縮に落ちていた → プールが deleted を**フラグ付きで持つ**形に変え、新しいリンク先を出す面（`[[` メニュー・picker・関連リスト）だけが各自の境界でフラグを落とす。(2) #1285 = セクション往復で選択が消えるのは #282 の故障で、原因は **#1101 のスナップショット**。スナップショットが当たったマウントは 1 レンダー目から `isLoading` false になり、復元 effect がそのレンダーの**まだ空の `notes` クロージャ**を読んで「ノートが消えた」と判断し `clearNotesSelection()` で記憶ごと消して one-shot も使い切っていた → 復元を effect から外し `apply` が適用した配列を引数で受け取る形（隣の `useTodoTreeAPI` と同じ）にし、さらに**スナップショット replay では復元しない**（`fetchLandedRef`）— replay は layout effect なので、そこで hydrate を始めると裏で走る再読み込みの `mergeLoadedList` が passive effect 更新の `notesRef` を読んで**取ってきたばかりの body を merge で消す**。残り 3 本 = #1286 サイドバーのごみ箱撤去（162 行の純減・死にキー 3 本も en/ja で削除）/ #1287 行頭の共通ドキュメントアイコン → ピン留めピン（未ピン行も同幅スロットで桁揃え）/ #1288 タグフィルタの複数選択（**OR**）+ 未フィルタ時のチップ行 8 個上限・グループ 5 行上限。各 PR で CI verify 14 ステップをローカル実行して全緑）
-
 ## 予定
 
-（なし — #1345 まで完了。次は chat-main からの新規 dispatch 待ち）
+（なし — 2026-09-01 dispatch の 4 件まで完了。次は chat-main からの新規 dispatch 待ち）
 
 ## 申し送り
 
+- **2026-09-01 の 4 本の実測**（書いた時点）: PR #1380（#1372）= merged / #1384（#1363）・#1394（#1364）・#1397（#1365）= open で CI は #1384 / #1394 が緑、#1397 は実行中。merge はこうだいさんの手番（P-001）。**実ブラウザでの DoD 確認は merge 後に chat-main 側**で回す — worktree からは実ブラウザを起こさない規約
+- **#1394 と #1397 は同じ `NoteTagFilterChips.tsx` を触る**（#1364 = 並び替えメモとトグル条件 / #1365 = interface のコメント・`VISIBLE_LIMIT`・チップの className）。行が離れているので auto-merge する見込みだが、**2 本目で衝突したら「両方残す」**（#1365 側が `VISIBLE_LIMIT` を 8 → 6 にしている点だけ注意）。`web/tests/notesView.test.tsx` も #1372（中程）と #1365（末尾追記）で重なる
+- **grep で見つからない並び替えは `sort` を使っていないことを疑う**（#1364）: 実体は `filter` 2 回（picked / rest）の連結だった。Issue 側も「`selected` + `sort` の grep では未特定」と書いていたとおりで、**「並べ替え」を動詞ではなく結果（配列の再構築）で探す**方が早い
+- **手組みの表示は「全 UI に反映」の穴になる**（#1365）: #1291 が `TagHeadingIcon` を唯一の読み取り経路にしたのに、Notes のチップ行だけ 6px の色ドットを自前で描いていたので `wiki_tags.icon` を一度も読んでいなかった。**色は出るがアイコンは出ない、という症状は「その面が共通部品を通っていない」サイン**
+- **`Modal` に `reading` サイズを足した**（#1363・`max-w-lumen-reading` = `PageContainer width="reading"` と同じトークン）。テキスト面を載せるパネルは今後これを使う。`shared/tests/modalWidth.test.tsx` の「全サイズに幅が 1 つ」ループにも追加済み
 - **#1345 の PR #1347 は open**（2026-08-31 書いた時点の実測。base = `origin/main`）。merge はこうだいさんの手番（P-001）。**実ブラウザでの DoD 確認**（wide / narrow 両方でダイアログが出る・キャンセルで残る・実行後に Settings → ゴミ箱から復元できる）は merge 後に chat-main 側で回す
 - **同じファイルの中で作法が割れていたら、揃える側の経路を数え直す**（#1345）: Issue は「ノート削除に確認が無い」1 件だが、実体は `onDeleteNote`（行のゴミ箱）と `onDelete`（ケバブ）の 2 経路だった。片方だけ直すと割れ方が変わるだけで残る
 - **#1334 の PR #1340 は open**（2026-08-31 書いた時点の実測。base = `origin/main` の f7179efc）。merge はこうだいさんの手番（P-001）。**実ブラウザでの DoD 確認（ノート「プライベートでやりたいこと」のリンクチップが「todo（削除済み）」相当になる）は merge 後に chat-main 側**で回す — worktree からは実ブラウザを起こさない規約
