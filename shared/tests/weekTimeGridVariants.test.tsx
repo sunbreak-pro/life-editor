@@ -121,19 +121,43 @@ describe("WeekTimeGrid — provenance variants", () => {
 });
 
 describe("WeekTimeGrid — now-line", () => {
-  it("renders the now-line time label when nowMinutes is in range", () => {
-    renderGrid({ nowMinutes: 14 * 60 + 30 }); // 14:30, inside [0,24]
-    expect(screen.getByText("14:30")).toBeInTheDocument();
+  /** The rule and the dot are aria-hidden and carry no text, so the
+   *  data-week-grid hooks are the only handle (#1362 took the caption away). */
+  const nowLineParts = (container: HTMLElement) => ({
+    rule: container.querySelector('[data-week-grid="now-line"]'),
+    dot: container.querySelector('[data-week-grid="now-dot"]'),
+  });
+
+  it("renders the rule and the dot when nowMinutes is in range", () => {
+    const { container } = renderGrid({ nowMinutes: 14 * 60 + 30 }); // inside [0,24]
+    const { rule, dot } = nowLineParts(container);
+    expect(rule).not.toBeNull();
+    expect(dot).not.toBeNull();
+  });
+
+  it("draws no time caption on the now-line (#1362)", () => {
+    // The caption used to land on the hour axis at the same y as a tick, so
+    // "14:30" and the "14:00" label overprinted each other.
+    const { container } = renderGrid({ nowMinutes: 14 * 60 + 30 });
+    expect(screen.queryByText("14:30")).toBeNull();
+    expect(nowLineParts(container).rule).not.toBeNull();
   });
 
   it("omits the now-line when nowMinutes is null", () => {
-    renderGrid({ nowMinutes: null });
-    expect(screen.queryByText("14:30")).toBeNull();
+    const { container } = renderGrid({ nowMinutes: null });
+    const { rule, dot } = nowLineParts(container);
+    expect(rule).toBeNull();
+    expect(dot).toBeNull();
   });
 
   it("omits the now-line when nowMinutes is outside the visible window", () => {
-    renderGrid({ nowMinutes: 14 * 60 + 30, hourRange: [0, 10] });
-    expect(screen.queryByText("14:30")).toBeNull();
+    const { container } = renderGrid({
+      nowMinutes: 14 * 60 + 30,
+      hourRange: [0, 10],
+    });
+    const { rule, dot } = nowLineParts(container);
+    expect(rule).toBeNull();
+    expect(dot).toBeNull();
   });
 });
 
