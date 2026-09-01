@@ -18,8 +18,9 @@ import {
  *     target day),
  *   - the todo contract (new todo vs placing an existing one, and that both
  *     carry the panel's times),
- *   - the note contract (staging only — the note tab creates nothing on its
- *     own and never changes what the submit acts on),
+ *   - the note contract (#1370: staging only, from a section BOTH tabs carry
+ *     — attaching a note never changes what the submit acts on, and folding
+ *     the section up never drops the note),
  *   - the drafts survive a type-tab switch, which is the whole reason the
  *     title/time state lives on the panel rather than per tab.
  */
@@ -28,7 +29,6 @@ const LABELS: ItemCreatePanelLabels = {
   typeLabel: "Item type",
   typeEvent: "Event",
   typeTodo: "Todo",
-  typeNote: "Note",
   title: "Title",
   eventPlaceholder: "Event title",
   todoPlaceholder: "Todo title",
@@ -46,15 +46,20 @@ const LABELS: ItemCreatePanelLabels = {
   searchTodos: "Search todos",
   todoPickerEmpty: "No unscheduled todos",
   todoPickerNoMatch: "No matching todos",
+  attachNote: "Attach a note",
+  noteSourceLabel: "Note to link",
+  noteSourceNew: "New note",
+  noteSourceExisting: "Existing note",
   noteTitleLabel: "Note title",
   notePlaceholder: "Note title placeholder",
   searchNotes: "Search notes",
   notePickerEmpty: "No notes yet",
   notePickerNoMatch: "No matching notes",
   noteLinkHint: "Linked to the item you add below.",
-  // Deliberately NOT "Note": the chip heading must not collide with the tab of
-  // the same name, or a getByText here would silently match the wrong element
-  // and the real UI would read as two different things called the same word.
+  // Deliberately NOT "Attach a note": the chip heading must not collide with
+  // the disclosure trigger, or a getByText here would silently match the wrong
+  // element and the real UI would read as two different things called the
+  // same word. (Pre-#1370 the collision to avoid was the note TAB.)
   attachedNote: "Linked note",
   clearNote: "Remove the note",
 };
@@ -141,13 +146,13 @@ function openTodoTab(source?: "existing") {
   if (source === "existing") fireEvent.click(screen.getByText("From existing"));
 }
 
-/** Stage a brand-new note, then return to the tab that will do the creating. */
-function stageNewNote(title: string, backTo: "Event" | "Todo") {
-  fireEvent.click(screen.getByText("Note"));
+/** Stage a brand-new note through the section, then fold it back up. */
+function stageNewNote(title: string) {
+  fireEvent.click(screen.getByText("Attach a note"));
   fireEvent.change(screen.getByLabelText("Note title"), {
     target: { value: title },
   });
-  fireEvent.click(screen.getByText(backTo));
+  fireEvent.click(screen.getByText("Attach a note"));
 }
 
 describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
@@ -420,7 +425,11 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
     openTodoTab("existing");
     fireEvent.click(screen.getByText("Review PR 376"));
     fireEvent.click(screen.getByText("Place"));
-    expect(onPlaceTodo).toHaveBeenCalledWith("task-2", slot({ start: "16:00", end: "17:00" }), null);
+    expect(onPlaceTodo).toHaveBeenCalledWith(
+      "task-2",
+      slot({ start: "16:00", end: "17:00" }),
+      null,
+    );
   });
 
   it("does nothing until a todo is picked", () => {
@@ -497,51 +506,73 @@ describe("ItemCreatePanel — the footer says when it cannot act (#376)", () => 
     expect(screen.getByText("Place")).toBeEnabled();
   });
 
-  it("stays disabled on the note tab, where the missing field is off screen", () => {
-    // The worst case for a silent no-op: the note tab hides both the title
-    // field and the todo picker, so a lit-but-dead button would leave the user
-    // with no way to see why nothing happened.
+  it("stays disabled while the note section covers the missing field", () => {
+    // A lit-but-dead button would leave the user with no way to see why
+    // nothing happened. #1370 keeps the picker on screen beside the section,
+    // so this now pins "opening the section does not accidentally enable it".
     renderPanel();
     openTodoTab("existing");
-    fireEvent.click(screen.getByText("Note"));
+    fireEvent.click(screen.getByText("Attach a note"));
     expect(screen.getByText("Place")).toBeDisabled();
   });
 });
 
-describe("ItemCreatePanel — note tab (#376 Step B)", () => {
+describe("ItemCreatePanel — the note attachment (#376 Step B / #1370)", () => {
+  it("offers the note attachment on the event tab and on the todo tab", () => {
+    // The load-bearing change of #1370: the note is the panel's, not a tab's.
+    renderPanel();
+    fireEvent.click(screen.getByText("Attach a note"));
+    screen.getByLabelText("Note title");
+    fireEvent.click(screen.getByText("Todo"));
+    screen.getByLabelText("Note title");
+  });
+
+  it("offers two type tabs, and no note tab (#1370)", () => {
+    renderPanel();
+    const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
+    expect(tabs).toEqual(["Event", "Todo"]);
+  });
+
   it("stages a new note and hands it to the event create", () => {
     const { onSubmitEvent } = renderPanel();
-    stageNewNote("Minutes", "Event");
+    stageNewNote("Minutes");
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot({ start: "09:00", end: "10:00" }), {
-      kind: "new",
-      title: "Minutes",
-    });
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Kickoff",
+      slot({ start: "09:00", end: "10:00" }),
+      {
+        kind: "new",
+        title: "Minutes",
+      },
+    );
   });
 
   it("stages an existing note by id", () => {
     const { onSubmitEvent } = renderPanel();
-    fireEvent.click(screen.getByText("Note"));
-    fireEvent.click(screen.getByText("From existing"));
+    fireEvent.click(screen.getByText("Attach a note"));
+    fireEvent.click(screen.getByText("Existing note"));
     fireEvent.click(screen.getByText("Weekly review"));
-    fireEvent.click(screen.getByText("Event"));
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot({ start: "09:00", end: "10:00" }), {
-      kind: "existing",
-      id: "note-2",
-    });
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Kickoff",
+      slot({ start: "09:00", end: "10:00" }),
+      {
+        kind: "existing",
+        id: "note-2",
+      },
+    );
   });
 
   it("rides along with the TODO create too", () => {
     const { onCreateTodo } = renderPanel();
     openTodoTab();
-    stageNewNote("Prep", "Todo");
+    stageNewNote("Prep");
     fireEvent.change(screen.getByPlaceholderText("Todo title"), {
       target: { value: "Write the deck" },
     });
@@ -553,15 +584,18 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     );
   });
 
-  it("keeps the submit on the last event/todo tab while the note tab shows", () => {
-    // The note tab creates nothing, so the footer must not go dead — it keeps
-    // acting on whichever of event / todo was last open.
+  it("leaves the footer and the title field alone while the note section is open", () => {
     const { onCreateTodo } = renderPanel();
     openTodoTab();
     fireEvent.change(screen.getByPlaceholderText("Todo title"), {
       target: { value: "Write the deck" },
     });
-    fireEvent.click(screen.getByText("Note"));
+    fireEvent.click(screen.getByText("Attach a note"));
+    // Unlike the old note TAB, the section is additive: the field the submit
+    // depends on is still on screen.
+    expect(
+      (screen.getByPlaceholderText("Todo title") as HTMLInputElement).value,
+    ).toBe("Write the deck");
     expect(screen.getByText("Add todo")).toBeInTheDocument();
     expect(screen.queryByText("Add and edit")).toBeNull();
     fireEvent.click(screen.getByText("Add todo"));
@@ -572,11 +606,11 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     );
   });
 
-  it("stages nothing when the note tab was opened but left blank", () => {
-    // Opening the tab and changing your mind must not create an "Untitled".
+  it("stages nothing when the note section was opened but left blank", () => {
+    // Opening it and changing your mind must not create an "Untitled".
     const { onSubmitEvent } = renderPanel();
-    fireEvent.click(screen.getByText("Note"));
-    fireEvent.click(screen.getByText("Event"));
+    fireEvent.click(screen.getByText("Attach a note"));
+    fireEvent.click(screen.getByText("Attach a note"));
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Kickoff" },
     });
@@ -588,11 +622,11 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
     );
   });
 
-  it("echoes the staged note on the event tab, and unstages it on demand", () => {
-    // The note tab is one click away, so without the echo the attachment
-    // would be invisible at the moment the user commits to it.
+  it("echoes the staged note once the section folds up, and unstages it on demand", () => {
+    // The controls go off screen when the section closes, so without the echo
+    // the attachment would be invisible at the moment the user commits to it.
     const { onSubmitEvent } = renderPanel();
-    stageNewNote("Minutes", "Event");
+    stageNewNote("Minutes");
     expect(screen.getByText("Linked note")).toBeInTheDocument();
     expect(screen.getByText("Minutes")).toBeInTheDocument();
     fireEvent.click(screen.getByLabelText("Remove the note"));
@@ -610,44 +644,52 @@ describe("ItemCreatePanel — note tab (#376 Step B)", () => {
 
   it("keeps a staged note when the note search narrows past it", () => {
     // The opposite of the todo picker's rule, on purpose: a staged note is
-    // carried to another tab and echoed back as a chip, so it stays visible
-    // after the query moves on. Dropping it would lose the attachment
-    // somewhere between picking it and submitting.
+    // echoed back as a chip once the section folds, so it stays visible after
+    // the query moves on. Dropping it would lose the attachment somewhere
+    // between picking it and submitting.
     const { onSubmitEvent } = renderPanel();
-    fireEvent.click(screen.getByText("Note"));
-    fireEvent.click(screen.getByText("From existing"));
+    fireEvent.click(screen.getByText("Attach a note"));
+    fireEvent.click(screen.getByText("Existing note"));
     fireEvent.click(screen.getByText("Weekly review"));
     fireEvent.change(screen.getByLabelText("Search notes"), {
       target: { value: "standup" },
     });
-    fireEvent.click(screen.getByText("Event"));
+    fireEvent.click(screen.getByText("Attach a note"));
     expect(screen.getByText("Linked note")).toBeInTheDocument();
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot({ start: "09:00", end: "10:00" }), {
-      kind: "existing",
-      id: "note-2",
-    });
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Kickoff",
+      slot({ start: "09:00", end: "10:00" }),
+      {
+        kind: "existing",
+        id: "note-2",
+      },
+    );
   });
 
   it("rides along when an EXISTING todo is placed", () => {
     const { onPlaceTodo } = renderPanel();
     openTodoTab("existing");
     fireEvent.click(screen.getByText("Draft the invoice"));
-    stageNewNote("Prep", "Todo");
+    stageNewNote("Prep");
     fireEvent.click(screen.getByText("Place"));
-    expect(onPlaceTodo).toHaveBeenCalledWith("task-1", slot({ start: "09:00", end: "10:00" }), {
-      kind: "new",
-      title: "Prep",
-    });
+    expect(onPlaceTodo).toHaveBeenCalledWith(
+      "task-1",
+      slot({ start: "09:00", end: "10:00" }),
+      {
+        kind: "new",
+        title: "Prep",
+      },
+    );
   });
 
   it("says the note pool is empty regardless of the query", () => {
     renderPanel({ existingNotes: [] });
-    fireEvent.click(screen.getByText("Note"));
-    fireEvent.click(screen.getByText("From existing"));
+    fireEvent.click(screen.getByText("Attach a note"));
+    fireEvent.click(screen.getByText("Existing note"));
     expect(screen.getByText("No notes yet")).toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Search notes"), {
       target: { value: "zzz" },
