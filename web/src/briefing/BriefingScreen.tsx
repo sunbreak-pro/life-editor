@@ -170,6 +170,11 @@ export function BriefingScreen({
       allDay: t("briefing.allDay"),
       carryoverTitle: t("briefing.carryoverTitle"),
       toggleComplete: t("briefing.toggleComplete"),
+      // The carryover rows draw the shared todo checkbox since #1368, so they
+      // name their status with the same words 夕刊 and the Todos section use.
+      todoStatus: t("todoDetail.status"),
+      statusNotStarted: t("todoDetail.statusNotStarted"),
+      statusDone: t("todoDetail.statusDone"),
       edit: t("briefing.edit"),
       delete: t("briefing.delete"),
       deleteScheduleHint: t("briefing.deleteScheduleHint"),
@@ -442,12 +447,9 @@ export function BriefingScreen({
       allDay: t("briefing.allDay"),
       addAction: t("briefing.todo.addAction"),
       emptyAddable: t("briefing.todo.emptyAddable"),
-      // Same action, same words as the paper's own rows — no near-duplicate
-      // keys inside one namespace.
-      complete: t("briefing.toggleComplete"),
       openInTodos: t("briefing.jumpToTodos"),
-      // Same three statuses the paper's rows show — the tray must not disagree
-      // with the list it sits beside (#796).
+      // Same statuses the paper's rows show — the tray must not disagree with
+      // the list it sits beside (#796).
       status: t("todoDetail.status"),
       statusLabels: {
         statusNotStarted: t("todoDetail.statusNotStarted"),

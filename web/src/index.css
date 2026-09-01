@@ -189,20 +189,49 @@ body {
   flex: 1 1 auto;
   min-width: 0;
 }
-/* The Todo you generate inside a Materials editor IS this checkbox, and at the
-   UA default (~13px) it was small to read and smaller to hit with a thumb
-   (#1183). Sized in `em` rather than px so it tracks the editor's font — which
-   the mobile field floor already raises (#1134) — and so it keeps its
-   proportion to the 1.6em line box the label centres it in, instead of drifting
-   out of that box at one text size and looking lost at another. */
+/*
+ * The one todo checkbox (#1368).
+ *
+ * Everywhere else in the app a todo checkbox is <TodoStatusCheckbox> — lucide's
+ * circle / circle-check drawn at TODO_CHECKBOX_ICON_PX. This one cannot BE that
+ * component: ProseMirror owns the node and TipTap's TaskItem listens to this
+ * very input, so swapping the element would mean rewriting the toggle. It wears
+ * the same two icons as a mask instead — which is why the shapes match exactly
+ * rather than approximately — and the input, its change handler and the save
+ * path are left alone.
+ *
+ * #1183 sized it in `em` so it tracked the editor's font. That reason is spent:
+ * the size that matters now is the one the paper and the Schedule tray draw,
+ * and that is a px. `--todo-checkbox-size` IS the shared TODO_CHECKBOX_ICON_PX
+ * — web/tests/taskListCheckboxSize.test.ts fails if the two numbers drift.
+ *
+ * The 44px touch floor the React control keeps is deliberately NOT copied here.
+ * This box sits inside flowing text: a 44px target would reach into the lines
+ * above and below and swallow clicks meant to put the caret there. The visible
+ * 20px box is the whole target — still half again the ~15px it used to be.
+ */
 .note-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+  --todo-checkbox-size: 20px;
+  --todo-checkbox-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3C/svg%3E");
+  appearance: none;
+  -webkit-appearance: none;
   cursor: pointer;
-  accent-color: var(--color-accent);
-  width: 1.05em;
-  height: 1.05em;
+  margin: 0;
+  width: var(--todo-checkbox-size);
+  height: var(--todo-checkbox-size);
+  background-color: var(--color-text-secondary);
+  -webkit-mask: var(--todo-checkbox-mark) center / contain no-repeat;
+  mask: var(--todo-checkbox-mark) center / contain no-repeat;
   /* The label is a flex row; without this the box is free to be squeezed by a
      long first word rather than the text column giving way. */
   flex: none;
+}
+.note-editor
+  .ProseMirror
+  ul[data-type="taskList"]
+  input[type="checkbox"]:checked {
+  --todo-checkbox-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E");
+  background-color: var(--color-accent);
 }
 .note-editor
   .ProseMirror

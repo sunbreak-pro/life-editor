@@ -385,7 +385,15 @@ export function ScheduleSidebar({
           addHeading: t("scheduleScreen.todoAddHeading"),
           addAction: t("scheduleScreen.todoAddAction"),
           emptyAddable: t("scheduleScreen.todoEmptyAddable"),
-          complete: t("scheduleScreen.complete"),
+          // The tray's rows draw the same checkbox the paper does (#1368), so
+          // they name themselves with the same status words rather than the
+          // old "complete" — even here, where the press still writes the
+          // `completed` flag (no onSetStatus).
+          status: t("todoDetail.status"),
+          statusLabels: {
+            statusNotStarted: t("todoDetail.statusNotStarted"),
+            statusDone: t("todoDetail.statusDone"),
+          },
           // #1153: both open the same detail now — the label no longer
           // promises a trip to another surface.
           openInTodos: t("scheduleScreen.todoOpenDetail"),

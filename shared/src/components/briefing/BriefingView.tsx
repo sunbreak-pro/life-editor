@@ -11,6 +11,7 @@ import {
 import type { TodoNode, TodoStatus } from "../../types/todoTree";
 import type { TimerSession } from "../../types/timer";
 import { SkeletonList } from "../SkeletonList";
+import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { ExtractedBriefing } from "./extractBriefing";
 import { IntentionField } from "./IntentionField";
 import { BRIEFING_HINT_CLASS } from "./briefingStyles";
@@ -120,6 +121,15 @@ export interface BriefingLabels {
   allDay: string;
   carryoverTitle: string;
   toggleComplete: string;
+  /**
+   * Copy for the carryover rows' checkbox (#1368) — `todoStatus` names what
+   * the control sets, the two `status*` members name each value. The same
+   * words 夕刊 and the Todos section use (todoDetail.*), injected rather than
+   * re-worded, because the paper draws the same control they do now.
+   */
+  todoStatus: string;
+  statusNotStarted: string;
+  statusDone: string;
   /**
    * Visible label of every row's jump action —「編集」/ "Edit" (#410). It IS
    * the button's accessible name now that the action is no longer icon-only;
@@ -674,26 +684,32 @@ export function BriefingView({
             {data.carryover.map((item) => (
               <li
                 key={item.id}
-                className="flex items-center gap-2 text-sm text-lumen-text-secondary"
+                className="flex items-center gap-3 text-sm text-lumen-text-secondary"
               >
-                <span className="font-bold text-lumen-briefing-shu">
+                {/* The paper's left rail, held at the width the schedule rows
+                    hold it (#1368). The label is「3日目」on one row and
+                    「12日目」on the next, so a column that sizes itself to its
+                    own text hands each row a different left edge — and the
+                    checkbox after it visibly steps sideways down the list.
+                    tabular-nums keeps the digits themselves from stepping. */}
+                <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-briefing-shu">
                   {item.daysLabel}
                 </span>
+                {/* The one todo checkbox (#1368). 朱 rather than the app
+                    accent, as on 夕刊: a mark the user made is the paper's own
+                    voice, not the app's. */}
+                <TodoStatusCheckbox
+                  status={item.completed ? "DONE" : "NOT_STARTED"}
+                  onChange={() => onToggleTodo(item.id)}
+                  labels={labels}
+                  label={labels.todoStatus}
+                  accentClassName="text-lumen-briefing-shu"
+                />
                 <button
                   type="button"
                   onClick={() => onToggleTodo(item.id)}
-                  className="flex min-w-0 items-center gap-2.5 text-left"
+                  className="min-w-0 text-left"
                 >
-                  <span
-                    aria-hidden="true"
-                    className={
-                      item.completed
-                        ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-briefing-shu text-lumen-on-accent"
-                        : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
-                    }
-                  >
-                    {item.completed && <Check size={11} />}
-                  </span>
                   <span className={item.completed ? "line-through" : undefined}>
                     {item.title}
                   </span>

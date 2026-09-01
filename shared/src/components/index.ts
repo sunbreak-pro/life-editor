@@ -130,6 +130,7 @@ export {
 export {
   TodoStatusCheckbox,
   toggledTodoStatus,
+  TODO_CHECKBOX_ICON_PX,
   type TodoStatusCheckboxProps,
 } from "./TodoStatusCheckbox";
 // Todo add dialog (W-UX) — small centered overlay to create a todo. Pure
