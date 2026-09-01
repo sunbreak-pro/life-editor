@@ -59,6 +59,7 @@
 
 ## 直近の完了
 
+- [chat-main] **main の CI 赤（TagUsageCard の存在しない import）を PR #1430 で修正** ✅（2026-09-01）— `shared/src/components/Analytics/TagUsageCard.tsx` が `./EmptyState` を import していたが、Analytics サブバレルの空状態は名前衝突回避のため `AnalyticsEmptyState`。`shared — build (tsc -b)` が TS2307 で落ち、cb445180 以降の main が赤だった。props 完全一致の rename 2 行。**要注意 = 同じ修正の branch を `materials-refine`（`claude/shared-fix-main-red-20260901`）と `refactor-core`（`claude/shared-fix-analytics-emptystate-import`）が先に切っていた**（どちらも未 commit / 未 push）— 三重作業の芽
 - [chat-main] **コード整理監査 → findings 7 本起票（#1385〜#1391）** ✅（2026-09-01）— Tauri 残骸（version バンプ / migrateTodosToBackend）・未使用コード（dead i18n 33 キー / dead CSS / 参照ゼロ export）・docs 整合（add-ipc-channel 7→9 / #1293 追随漏れ）。実装済み計画書の残置は #1377 既知の 1 本のみ
 - [chat-main] **`[main]` 宛 4 件をレーンへ移譲 + #1345 起票 + 5 レーンへ `/goal` 配布** ✅（2026-08-31）— #1300 / #1301 → `[refactor-core]`・#1211 → `[settings]`・#1337 → `[tags-docs]` へ prefix を振り直し（`.github/workflows` と `desktop/` を触った実績が #894 の IPC contract 整備しか無いことを git log で実測）+ `shared-fix` 付与。ノート削除の確認ダイアログ欠落を **#1345** として起票。配布後まもなく PR #1346 / #1347 / #1348 が open（#1346 は CLEAN）
 - [chat-main] **8/30 着地分の実ブラウザ検証 13 項目 + #1342 / #1343 起票 + 3 レーンへの `/goal` 組み立て** ✅（2026-08-31）— PASS 12（#1317 / #1323 / #1322 / #1307 / #1332 / #1313 / #1316 / #1319 / #1314 / #1305 / #1315 / #1306）・runtime 再現できず 1（#1325 = エラー条件が API 失敗等で人工的・コード上は 3 箇所とも `variant="text"` の NoticePanel を通過）。console error 0。検証で見つけた 2 件を起票（#1342 = アイコンピッカーの Escape がモーダルごと閉じる / #1343 = 予定の詳細パネルでタブラベルが 2 行折り返し）
