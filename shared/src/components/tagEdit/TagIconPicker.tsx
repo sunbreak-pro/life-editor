@@ -85,12 +85,12 @@ export function TagIconPicker({
              `w-max` is load-bearing, not a tidy-up (#1289): this box is
              ABSOLUTE, so its containing block is the trigger — 32px wide — and
              an auto width there shrink-to-fits into whatever that block allows,
-             floored by the content's MIN-content width. Tailwind's grid-cols-6
-             is `repeat(6, minmax(0, 1fr))`, whose min is literally 0, so the
-             floor was the 5 gaps (20px) and the panel painted ~32px wide while
-             its 28px icon buttons spilled out of their zero-width tracks across
-             the name field beside it. That is what "the icon editor breaks and
-             the background falls transparent" was: not a token that resolved to
+             floored by the content's MIN-content width. Tailwind's grid columns
+             are `repeat(n, minmax(0, 1fr))`, whose min is literally 0, so the
+             floor was the gaps alone and the panel painted ~32px wide while its
+             28px icon buttons spilled out of their zero-width tracks across the
+             name field beside it. That is what "the icon editor breaks and the
+             background falls transparent" was: not a token that resolved to
              nothing, but an opaque surface drawn at a sixth of the width of the
              content sitting on it. ColorPicker never showed it because its
              panel is IN FLOW, so its own width feeds the flex item's. */
@@ -99,29 +99,44 @@ export function TagIconPicker({
             "border border-lumen-border-strong bg-lumen-bg-secondary shadow-lumen-lg",
           )}
         >
-          <div className="grid grid-cols-6 gap-1">
-            {TAG_ICON_CHOICES.map((choiceName) => {
-              const Choice = resolveTagIcon(choiceName) ?? TagIcon;
-              const active = current === choiceName;
-              return (
-                <button
-                  key={choiceName}
-                  type="button"
-                  aria-label={choiceName}
-                  aria-pressed={active}
-                  title={choiceName}
-                  onClick={() => pick(choiceName)}
-                  className={cn(
-                    "flex h-7 w-7 items-center justify-center rounded-lumen-sm text-lumen-text-secondary",
-                    "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-                    active && "bg-lumen-accent-subtle text-lumen-accent",
-                  )}
-                >
-                  <Choice size={15} aria-hidden />
-                </button>
-              );
-            })}
+          {/* Scroll frame (#1366). The curated set went 26 → 56, and a grid
+              with no cap grows a 28px row per 8 icons — the popover would hang
+              past the bottom of the modal, and every future icon would push it
+              further. Capping the frame at ~5 rows fixes the panel at roughly
+              the height it had with 26 choices no matter how long
+              TAG_ICON_CHOICES gets, and the row clipped at the fold is the
+              affordance that says there is more below. `overscroll-contain`
+              keeps a flick past the end from scrolling the tag list behind the
+              modal. The explicit width is what makes the scrollbar safe: the
+              panel's `w-max` measures THIS box, and an overflow box does not
+              reserve gutter in its max-content width, so an auto width would
+              let the bar eat into the last column. 17rem leaves every one of
+              the 8 tracks ≥ the 28px button even with a bar drawn. */}
+          <div className="max-h-[10.5rem] w-[17rem] overflow-y-auto overscroll-contain">
+            <div className="grid grid-cols-8 justify-items-center gap-1">
+              {TAG_ICON_CHOICES.map((choiceName) => {
+                const Choice = resolveTagIcon(choiceName) ?? TagIcon;
+                const active = current === choiceName;
+                return (
+                  <button
+                    key={choiceName}
+                    type="button"
+                    aria-label={choiceName}
+                    aria-pressed={active}
+                    title={choiceName}
+                    onClick={() => pick(choiceName)}
+                    className={cn(
+                      "flex h-7 w-7 items-center justify-center rounded-lumen-sm text-lumen-text-secondary",
+                      "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                      active && "bg-lumen-accent-subtle text-lumen-accent",
+                    )}
+                  >
+                    <Choice size={15} aria-hidden />
+                  </button>
+                );
+              })}
+            </div>
           </div>
           <button
             type="button"

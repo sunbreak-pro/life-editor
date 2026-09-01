@@ -152,3 +152,20 @@ describe("tag icon picker — its surface tokens exist (#1289 / #552)", () => {
     expect(dark![1]).toContain(`${source}:`);
   });
 });
+
+describe("tag icon picker — the grid is capped, not as tall as the list (#1366)", () => {
+  it("puts the choices in a bounded, scrollable frame", () => {
+    const popover = openPicker();
+    const grid = popover.querySelector<HTMLElement>(".grid");
+    const frame = grid?.parentElement;
+
+    // The set grew 26 → 56, and a grid with no cap grows a row per 8 icons —
+    // the popover would hang past the bottom of the modal and get worse with
+    // every icon added. jsdom has no layout to measure the cap with (see the
+    // note at the top), so what is checkable is that the frame declares one.
+    expect(frame, "the grid should sit inside a scroll frame").toBeTruthy();
+    const classes = frame!.className.split(/\s+/);
+    expect(classes.some((c) => c.startsWith("max-h-"))).toBe(true);
+    expect(classes).toContain("overflow-y-auto");
+  });
+});
