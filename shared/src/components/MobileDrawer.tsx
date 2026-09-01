@@ -36,6 +36,21 @@ import { RightSidebarContents } from "./RightSidebarContents";
  * hands back any press that commits to the vertical axis, so a scroll that
  * wanders sideways cannot turn into a dismiss.
  *
+ * The closing gesture reaches PAST the panel (#1402): the same handlers sit on
+ * the scrim, so a leftward drag begun beside the drawer closes it too. Aiming a
+ * thumb at the edge of a panel is the fiddly half of the gesture, and the scrim
+ * already answers a tap with "close" — answering a swipe with the same thing
+ * takes nothing away from it. On a mouse the scrim's own mousedown closes first
+ * and the drag never starts, which is the behaviour it already had; touch is
+ * what this is for, and there the compatibility mousedown only arrives after a
+ * press that did NOT become a swipe.
+ *
+ * Both elements share one hook instance, which is safe because the handlers are
+ * idempotent under bubbling: a press inside the panel runs the panel's handler
+ * and then the scrim's with the same pointer id and the same state, and the
+ * panel's release clears the tracked press before the scrim's release reads it,
+ * so the drag still dismisses exactly once.
+ *
  * §5: the drawer panel is opaque (bg-subsidebar); the black/30 scrim is the
  * allowed overlay exception (brief specifies .3 for this drawer). Safe-area
  * insets are held INSIDE the drawer so the header/body clear the notch + home
@@ -92,8 +107,9 @@ export function MobileDrawer({
 
   return createPortal(
     <div
-      className="lumen-scrim-in fixed inset-0 z-50 flex bg-black/30"
+      className="lumen-scrim-in fixed inset-0 z-50 flex touch-pan-y bg-black/30"
       onMouseDown={requestClose}
+      {...swipe.handlers}
     >
       <div
         ref={panelRef}

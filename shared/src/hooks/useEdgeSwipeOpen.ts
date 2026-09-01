@@ -53,8 +53,25 @@ import { useEffect, useRef } from "react";
  * The slide-in animation carries the motion instead.
  */
 
-/** How far from the left edge a press must start, in px. */
-const DEFAULT_EDGE_ZONE = 24;
+/**
+ * How far from the left edge a press must start, in px — widened from 24
+ * (#1402).
+ *
+ * 24px is about half a fingertip, and on Android's gesture navigation the
+ * system claims roughly the outermost 20–24px for its own back swipe. Between
+ * the two, the part of the zone a thumb could actually land in was close to
+ * nothing: a swipe begun a finger's width in did nothing at all, which is the
+ * reported "判定領域が狭い". 44px is the smallest target a finger is expected to
+ * hit reliably — the number the touch-target rules use — so there is a usable
+ * strip left inside the system's.
+ *
+ * Widening this only widens where a gesture may START. The three guards that
+ * keep it from taking anything from the page are untouched: the drag must
+ * commit to the horizontal axis AND head right, it must travel the threshold
+ * below, and `shouldStart` still vetoes the press. So the cost of a wider zone
+ * is still at worst a false open, undone by one tap.
+ */
+const DEFAULT_EDGE_ZONE = 44;
 
 /**
  * Rightward travel past which a release opens. Lower than the dismiss
