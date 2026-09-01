@@ -86,7 +86,6 @@ export class SupabaseTagGroupsService implements TagGroupsDataService {
           deleted_at: null,
           created_at: now,
           updated_at: now,
-          version: 1,
         })
         .select(TAG_GROUP_SELECT_COLUMNS)
         .single(),
@@ -97,8 +96,8 @@ export class SupabaseTagGroupsService implements TagGroupsDataService {
   }
 
   /**
-   * Rename and/or re-bind a group. `name` bumps `version` + `updated_at` the
-   * way `updateCalendar` did; `tagIds` reconciles the membership rows.
+   * Rename and/or re-bind a group. `name` bumps `updated_at`; `tagIds`
+   * reconciles the membership rows.
    *
    * Membership churn also touches `updated_at` on the group row even when the
    * name did not change: the group's identity to every reader IS its tag set,
@@ -129,12 +128,10 @@ export class SupabaseTagGroupsService implements TagGroupsDataService {
     }
 
     if (Object.keys(patch).length > 0 || rebinding) {
-      const next = await this.nextVersion(id, "updateTagGroup");
       const { error } = await this.client
         .from("wiki_tag_groups")
         .update({
           ...patch,
-          version: next,
           updated_at: new Date().toISOString(),
         })
         .eq("id", id);
@@ -162,12 +159,15 @@ export class SupabaseTagGroupsService implements TagGroupsDataService {
    * under a dead group are pure weight on every refresh.
    */
   async deleteTagGroup(id: string): Promise<void> {
-    // The version READ comes first, before anything is mutated. Inlined into
+    // An existence READ comes first, before anything is mutated. Inlined into
     // the update below it would run AFTER the memberships were already
     // soft-deleted, so a throw there (the group is gone, the network dropped)
     // would leave a live group holding no tags — a chip that can only ever
     // empty the grid, which is the one shape the lens must never offer.
-    const next = await this.nextVersion(id, "deleteTagGroup");
+    // This read used to fetch `version` and double as the bump source; #1385
+    // dropped the bump, but the pre-flight it happened to provide is the
+    // load-bearing half and stays.
+    await this.requireLive(id, "deleteTagGroup");
     const now = new Date().toISOString();
     const marked = { is_deleted: true, deleted_at: now, updated_at: now };
     const { error: memberError } = await this.client
@@ -179,7 +179,7 @@ export class SupabaseTagGroupsService implements TagGroupsDataService {
       throw new Error(`deleteTagGroup failed: ${memberError.message}`);
     const { error } = await this.client
       .from("wiki_tag_groups")
-      .update({ ...marked, version: next })
+      .update(marked)
       .eq("id", id);
     if (error) throw new Error(`deleteTagGroup failed: ${error.message}`);
   }
@@ -221,16 +221,12 @@ export class SupabaseTagGroupsService implements TagGroupsDataService {
     if (error) throw new Error(`${label} failed: ${error.message}`);
   }
 
-  private async nextVersion(id: string, label: string): Promise<number> {
-    const data = await requireSingleRow<{ version: number }>(
-      this.client
-        .from("wiki_tag_groups")
-        .select("version")
-        .eq("id", id)
-        .single(),
+  /** Throw unless the group row exists — see `deleteTagGroup`. */
+  private async requireLive(id: string, label: string): Promise<void> {
+    await requireSingleRow<{ id: string }>(
+      this.client.from("wiki_tag_groups").select("id").eq("id", id).single(),
       `${label} failed`,
     );
-    return (data.version ?? 0) + 1;
   }
 }
 

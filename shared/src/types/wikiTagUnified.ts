@@ -26,7 +26,6 @@ export interface WikiTag {
   icon: string | null;
   createdAt: string;
   updatedAt: string;
-  version: number;
   isDeleted: boolean;
   deletedAt: string | null;
 }

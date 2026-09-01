@@ -54,15 +54,15 @@ describe("toItemsMetaPatch (#890)", () => {
     expect(patch.deleted_at).toBeNull();
   });
 
-  it("ignores an undefined title or version rather than writing it", () => {
-    expect(
-      toItemsMetaPatch({ title: undefined, version: undefined }, NOW),
-    ).toEqual({ updated_at: NOW });
+  it("ignores an undefined title rather than writing it", () => {
+    expect(toItemsMetaPatch({ title: undefined }, NOW)).toEqual({
+      updated_at: NOW,
+    });
   });
 });
 
 describe("toItemsMetaInsertRow (#890)", () => {
-  it("defaults version to 1 and the soft-delete pair to live", () => {
+  it("defaults the soft-delete pair to live", () => {
     expect(
       toItemsMetaInsertRow({
         id: "note-1",
@@ -77,20 +77,22 @@ describe("toItemsMetaInsertRow (#890)", () => {
       title: "T",
       is_deleted: false,
       deleted_at: null,
-      version: 1,
     });
   });
 
-  it("carries an explicit version through (the Todos case)", () => {
+  it("writes no `version` — the DDL default owns that column (#1385)", () => {
+    // `items_meta.version` is a Tauri-era leftover nothing reads. The row
+    // still HAS the column; the client just never names it, so a future
+    // "carry a version through" line has to be a deliberate re-add.
     expect(
-      toItemsMetaInsertRow({
-        id: "task-1",
-        userId: "u1",
-        role: "task",
-        title: "T",
-        version: 7,
-      }).version,
-    ).toBe(7);
+      "version" in
+        toItemsMetaInsertRow({
+          id: "task-1",
+          userId: "u1",
+          role: "task",
+          title: "T",
+        }),
+    ).toBe(false);
   });
 
   it("omits created_at / updated_at so the column DEFAULT owns the first write", () => {

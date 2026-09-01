@@ -260,7 +260,6 @@ export class SupabaseItemConversionService implements ItemConversionDataService 
       scheduledAt: slot.scheduledAt,
       scheduledEndAt: slot.scheduledEndAt,
       isAllDay: slot.isAllDay,
-      version: meta.version,
     };
     const { payload: todoPayload } = todoNodeToRows(node, userId);
 
