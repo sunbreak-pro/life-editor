@@ -50,7 +50,15 @@ describe("Modal — the caller's width wins, not the class order (#830)", () => 
   });
 
   it("gives every size exactly one width", () => {
-    for (const size of ["sm", "md", "lg", "xl", "panel", "full"] as const) {
+    for (const size of [
+      "sm",
+      "md",
+      "lg",
+      "xl",
+      "reading",
+      "panel",
+      "full",
+    ] as const) {
       const { unmount } = render(
         <Modal open onClose={vi.fn()} title="T" size={size}>
           body
@@ -73,6 +81,21 @@ describe("Modal — the caller's width wins, not the class order (#830)", () => 
     // default from riding along beside it — the whole point of the record.
     expect(panelClasses().match(ONE_MAX_WIDTH)).toEqual([" max-w-none"]);
     expect(panel()).not.toHaveClass("max-w-md");
+  });
+
+  it("sizes the document column off the shared reading token (#1363)", () => {
+    render(
+      <Modal open onClose={vi.fn()} title="T" size="reading">
+        body
+      </Modal>,
+    );
+
+    // The literal class, not a px number: the point of `reading` is that a
+    // panel hosting a text surface and a page hosting one resolve to the SAME
+    // token, so retuning the column moves both together.
+    expect(panelClasses().match(ONE_MAX_WIDTH)).toEqual([
+      " max-w-lumen-reading",
+    ]);
   });
 
   it("keeps w-full so a window narrower than the size still fits", () => {
