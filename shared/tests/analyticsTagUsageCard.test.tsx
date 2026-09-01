@@ -93,7 +93,6 @@ function tag(id: string, name: string): WikiTag {
     icon: null,
     createdAt: BEFORE_RANGE,
     updatedAt: BEFORE_RANGE,
-    version: 1,
     isDeleted: false,
     deletedAt: null,
   };
