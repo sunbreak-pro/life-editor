@@ -22,7 +22,7 @@
 
 1. **色は必ずトークン経由**。`lumen-*` トークンのみ使用し、hex / Tailwind 既定色（`bg-blue-500` 等）を部品に直書きしない（§3.1）。
 2. **主要 UI コンテナの背景に透明度を使わない**。ポップオーバー / メニュー / ダイアログ / カード / パネル本体は完全不透明トークンで塗る（§3.5）。
-3. **新規 UI は `shared/src/components/` に集約**。`frontend/`（Tauri 時代）は FROZEN。3 配布形態が同一ソースを共用する（§4.2）。
+3. **新規 UI は `shared/src/components/` に集約**。3 配布形態が同一ソースを共用する（§4.2）。
 4. **i18n は props 経由**。共有部品のフック内で `useTranslation()` を呼ばない。文言は en / ja 両 catalog に必ず追加（§6）。
 5. **DataService はコールバック注入**。部品 / フック内で `getDataService()` を直呼びしない。
 6. **本文テキストは WCAG AA（≥ 4.5:1）**。色を決めるときコントラストを検証する（§3.6）。
@@ -173,7 +173,7 @@
 - 部品: `shared/src/components/`（barrel `index.ts` → `shared/src/index.ts`）
 - トークン: `shared/src/styles/tokens.css`（host が `@import` + `@source` でスキャン）
 - i18n: `shared/src/i18n/`（catalog + init）
-- `frontend/`（Tauri 時代）は **FROZEN**。新規はすべて `shared/`。
+- 旧 `frontend/`（Tauri 時代）は 2026-07-11 に**削除済み**（#197・復元は git tag `pre-tauri-removal`）。UI の実体は `shared/` だけ。
 
 ### 4.3 Context/Provider Pattern A（3 ファイル）
 
@@ -187,7 +187,8 @@
 
 ### 4.4 Mobile Optional Providers
 
-- Mobile 省略 Provider（Audio / ScreenLock / FileExplorer / CalendarTags / ShortcutConfig）に依存する共有部品は **Optional バリアント必須**。
+- native mobile で省略する Provider は **ShortcutConfig のみ**（一覧の正本 = CLAUDE.md §2）。Audio は Provider ごと維持し、Ambient mixer の UI だけを native で省略する。ScreenLock / FileExplorer / CalendarTags は Provider ごと撤去済みで対象外。
+- 省略される Provider に依存する共有部品は **Optional バリアント必須**。
 - 必須 hook（`createContextHook`）= Provider 外で throw（Desktop 用）。
 - Optional hook（`createOptionalContextHook`）= Provider 外で null → 共有部品側で `if (!ctx) return null` ガード。
 

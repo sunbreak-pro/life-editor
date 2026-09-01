@@ -9,12 +9,12 @@ import "./resources";
 
 /*
  * Shared i18n — single source of truth for the en/ja translation catalog
- * across web / desktop / mobile (W0-4). Ported verbatim from the FROZEN
- * `frontend/src/i18n/index.ts` (Tauri, to be discarded), with the locale
- * JSON copied 1:1 into ./locales.
+ * across web / desktop / mobile (W0-4). Ported verbatim from the Tauri
+ * shell's `frontend/src/i18n/index.ts` (that tree was deleted in #197), with
+ * the locale JSON copied 1:1 into ./locales.
  *
  * Design-system PRIMITIVES (Button/Input/...) still receive copy via props
- * — they MUST NOT call useTranslation (CLAUDE.md §6.4). This module is for
+ * — they MUST NOT call useTranslation (CLAUDE.md §6). This module is for
  * APP + SCREEN code: host entry points init it, screens call useTranslation
  * (re-exported below so every host resolves the SAME i18next singleton).
  */
