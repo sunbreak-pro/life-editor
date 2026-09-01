@@ -2,6 +2,19 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-30 - fan-out r4 全着地の回収 + /loop 巡回 1 回目（決定昇格 PR #1297・#1296 検証 PASS）
+
+#### 概要
+
+（朝セッション分の追い付き込み）r4 の Wave 1 / Wave 2 全 PR と chat-main 手番 3 件（#1202 / #1137 / #1135 機構分）が merge 着地し、ユーザー実機フィードバック起点の新ラウンド #1275〜#1294 を起票済み。夕方から /loop 巡回（cron 毎時 7 分）を開始し、1 回目で回答済み決定 4 件の台帳昇格と #1296 の実ブラウザ検証を消化した。
+
+#### 変更点
+
+- **決定昇格（PR #1297 open・一時 worktree `decisions-promotion` 経由）**: D-20260829-web-1（A = Confirm email ON・ダッシュボード切替は 2026-08-30 ユーザー実施済み）/ web-2（A = リージョン実名明記・「いずれも日本国外」の事実誤り訂正 = PR #1296）/ web-3（A = 運営者 sunbreak-pro / 連絡先 GitHub Issues で確定）/ connect-1（B = backlink 部品 3 つを P-002 適用で削除 = #1239 / PR #1258）を `.claude/decisions/` へ昇格。キュー 2 ファイル（chat-web-public / chat-connect-refine）から消化済みエントリを削除（前例に合わせ chat-main が代行・records.mjs check 緑）
+- **#1296 実ブラウザ検証 PASS**: `?legal=privacy` で ja / en とも「AWS ap-northeast-1（東京 / Tokyo）」が本文 + 箇条書きに出ることを確認（`web/src/legal/legalContent.ts:74` / `:214`）。旧文面（いずれも日本国外 / transferred abroad）の DOM 全文検索 0 件・生 i18n キー露出 0・390px 横溢れなし・dark / light 崩れなし・8 セクション回帰で新規 console error 0
+- **巡回の実測**: open PR 0（CI 赤 / コンフリクト対象なし）・HEAD = origin/main で取り込み不要・outbox の起票依頼は全処理済み（#1184 残置換 3 グループ → #1275 / #1278 / #1279 起票済み）・未回答の判断キュー 0（settings の G-20260829-settings-1 は判断ではなく 🛑 ユーザー実行待ち 2 手 = `0025_delete_my_account.sql` の db:push → `delete-account` Edge Function deploy の順）
+- **副産物（起票せず記録のみ）**: 細幅で Settings ドロワーを開いたまま legal reader を開くと、同じ z-50 の後勝ちでドロワーが reader を覆う（`web/src/legal/LegalReaderHost.tsx:42`）。実際の操作順（ドロワーを閉じてから開く）では再現しない人工条件のみで #1251 / #1270 由来・#1296 とは無関係のため見送り
+
 ### 2026-08-29 - AI 連携の可視化 + Claude 起動導線の計画書 2 本作成と起票（#1210 / #1211・PR #1212）
 
 #### 概要

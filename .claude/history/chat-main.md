@@ -1,5 +1,17 @@
 # HISTORY (chat-main)
 
+### 2026-09-01 - アプリ内 Note「Issue報告」を回収して Issue 9 本起票（#1399〜#1407）→ Note 削除
+
+#### 概要
+
+MCP 経由でアプリ内 Note「Issue報告」（Desktop 1 / Mobile 4 / 共通 4 の 9 項目）を回収し、重複チェックと実装箇所のあたり付けをしたうえで #1399〜#1407 として起票した。文が途切れていた 1 項目は起票前にユーザーへ確認して内容を確定。全 9 項目の起票完了後、指示どおり Note をソフトデリートした（「Issue報告のテンプレート」Note は対象外として温存）。
+
+#### 変更点
+
+- **起票 9 本**: #1399（Desktop leftSidebar ブランドヘッダーの縦ずれ・`[layout-standard]`）/ #1400（Mobile サイドバー幅をフォントサイズ非連動へ・`[mobile-refine]`）/ #1401（Mobile 月カレンダー刷新 — 横余白ゼロ・丸点→タイトルの縦リスト・省略記号なし。#1148 の後続）/ #1402（サイドバー swipe 判定を外側にも・#1050 の後続）/ #1403（Event 編集の終日トグルと日付フィールドの重なり・#940 の後続）/ #1404（materials スラッシュコマンドに画像・ファイル添付 — Supabase Storage 前提・🛑 バケット作成はユーザー手番と明記）/ #1405（Event→Todo の逆変換を編集パネルへ・#997 / #1043 参照・Materials 側は触らない）/ #1406（「本日のTodo」タブを「本日分 / その他」の 2 分類へ再編 + ホバー移動 + 移動時は日付のみ変更で時刻保持 — 途切れ項目を AskUser で確定）/ #1407（Materials 切替時のノート表示ロード）
+- **Note 削除**: `note-b26afda4-…`（Issue報告）を `delete_note` でソフトデリート（Trash から復元可）
+- **ルーティング**: schedule 4 本 = `section:schedule` / materials 2 本 = `section:materials` / shell 3 本 = `shared-fix`（`[layout-standard]` 1 + `[mobile-refine]` 2）。mobile 系 4 本は Epic #716 を参照に付けた
+
 ### 2026-09-01 - コード整理監査（Tauri 残骸 / 未使用コード / docs 整合）→ Issue 7 本起票（#1385〜#1391）
 
 #### 概要
@@ -75,18 +87,5 @@
 - **やること③④⑤の実測**: ③ r4 計画書は PR #1299 で archive 済み / ④ `C:/Users/user/dev/Claude/hooks-lib/regen-index.sh` に RETIRED 分岐あり（このマシン分は完了・Mac 未確認）/ ⑤ #1135 の方向 (b) は PR #1312 で裁定を記録済み
 - **未起票の気づき**: ノート削除（「その他の操作」→ ノートを削除）だけ確認ダイアログが無く即ゴミ箱行き。Todo 削除・繰り返し削除は確認を挟むので作法が割れている。ゴミ箱から戻せる前提の意図的な差かもしれず、揃えるかはユーザー判断待ち
 - **後片付け**: 検証で復元したノート / ルーチンは再削除して元の状態へ戻し、スクリーンショット 3 枚を削除。作業ツリーは clean
-
-### 2026-08-30 - fan-out r4 全着地の回収 + /loop 巡回 1 回目（決定昇格 PR #1297・#1296 検証 PASS）
-
-#### 概要
-
-（朝セッション分の追い付き込み）r4 の Wave 1 / Wave 2 全 PR と chat-main 手番 3 件（#1202 / #1137 / #1135 機構分）が merge 着地し、ユーザー実機フィードバック起点の新ラウンド #1275〜#1294 を起票済み。夕方から /loop 巡回（cron 毎時 7 分）を開始し、1 回目で回答済み決定 4 件の台帳昇格と #1296 の実ブラウザ検証を消化した。
-
-#### 変更点
-
-- **決定昇格（PR #1297 open・一時 worktree `decisions-promotion` 経由）**: D-20260829-web-1（A = Confirm email ON・ダッシュボード切替は 2026-08-30 ユーザー実施済み）/ web-2（A = リージョン実名明記・「いずれも日本国外」の事実誤り訂正 = PR #1296）/ web-3（A = 運営者 sunbreak-pro / 連絡先 GitHub Issues で確定）/ connect-1（B = backlink 部品 3 つを P-002 適用で削除 = #1239 / PR #1258）を `.claude/decisions/` へ昇格。キュー 2 ファイル（chat-web-public / chat-connect-refine）から消化済みエントリを削除（前例に合わせ chat-main が代行・records.mjs check 緑）
-- **#1296 実ブラウザ検証 PASS**: `?legal=privacy` で ja / en とも「AWS ap-northeast-1（東京 / Tokyo）」が本文 + 箇条書きに出ることを確認（`web/src/legal/legalContent.ts:74` / `:214`）。旧文面（いずれも日本国外 / transferred abroad）の DOM 全文検索 0 件・生 i18n キー露出 0・390px 横溢れなし・dark / light 崩れなし・8 セクション回帰で新規 console error 0
-- **巡回の実測**: open PR 0（CI 赤 / コンフリクト対象なし）・HEAD = origin/main で取り込み不要・outbox の起票依頼は全処理済み（#1184 残置換 3 グループ → #1275 / #1278 / #1279 起票済み）・未回答の判断キュー 0（settings の G-20260829-settings-1 は判断ではなく 🛑 ユーザー実行待ち 2 手 = `0025_delete_my_account.sql` の db:push → `delete-account` Edge Function deploy の順）
-- **副産物（起票せず記録のみ）**: 細幅で Settings ドロワーを開いたまま legal reader を開くと、同じ z-50 の後勝ちでドロワーが reader を覆う（`web/src/legal/LegalReaderHost.tsx:42`）。実際の操作順（ドロワーを閉じてから開く）では再現しない人工条件のみで #1251 / #1270 由来・#1296 とは無関係のため見送り
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
