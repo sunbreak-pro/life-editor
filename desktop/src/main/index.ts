@@ -13,6 +13,7 @@ import {
   BrowserWindow,
   ipcMain,
   Menu,
+  Notification,
   Tray,
   nativeImage,
   nativeTheme,
@@ -579,6 +580,42 @@ function claudeIpcHandlers() {
   };
 }
 
+// ---------------------------------------------------------------------------
+// OS notification (#1374).
+//
+// Self-contained on purpose: the packaging lanes (#1300 / #1301) and the
+// launcher (#1211) both live in this file, so this adds one function and one
+// spread rather than touching window management or the builder config.
+//
+// It RESOLVES rather than rejects on every failure path. The renderer's
+// fallback is its in-app toast, and a rejection there would have to be caught
+// on a notification path that has nothing useful to say about it. Linux
+// without a notification daemon and a user who denied the permission both
+// land here as `false`.
+// ---------------------------------------------------------------------------
+function notificationIpcHandlers() {
+  return {
+    [DESKTOP_IPC.notifyShow]: (_event: unknown, args: unknown): boolean => {
+      if (!Notification.isSupported()) return false;
+      // The renderer can send any value regardless of the TS type, so the
+      // title is validated before it reaches the OS.
+      const raw =
+        typeof args === "object" && args !== null
+          ? (args as { title?: unknown; body?: unknown })
+          : {};
+      const title = typeof raw.title === "string" ? raw.title.trim() : "";
+      if (!title) return false;
+      const body = typeof raw.body === "string" ? raw.body : undefined;
+      try {
+        new Notification({ title, body }).show();
+        return true;
+      } catch {
+        return false;
+      }
+    },
+  };
+}
+
 /**
  * Register every channel the contract declares (#894).
  *
@@ -593,6 +630,7 @@ function setupIpc(): void {
     ...prefsIpcHandlers(),
     ...authStorageIpcHandlers(),
     ...claudeIpcHandlers(),
+    ...notificationIpcHandlers(),
   };
   for (const channel of DESKTOP_IPC_CHANNELS) {
     ipcMain.handle(channel, handlers[channel]);

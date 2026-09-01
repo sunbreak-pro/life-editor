@@ -80,6 +80,8 @@ function renderPane(
     canEditAllDay?: boolean;
     /** #998: render the narrow sheet's Event -> Todo action. */
     convert?: boolean;
+    /** #1374: render the reminder field. */
+    reminder?: boolean;
   },
 ) {
   const fns = {
@@ -101,6 +103,7 @@ function renderPane(
       convert={
         props?.convert ? { label: CONVERT_LABEL, onConvert } : undefined
       }
+      reminder={props?.reminder ? REMINDER_BUNDLE : undefined}
       tagSlot={props?.tagSlot}
     />,
   );
@@ -553,5 +556,82 @@ describe("EventEditorPane — tag slot (#468)", () => {
     // omits the prop.
     renderPane(manualItem);
     expect(screen.queryByText("TAG SLOT")).toBeNull();
+  });
+});
+
+/** #1374: the reminder field's copy, shaped as the host builds it. */
+const REMINDER_BUNDLE = {
+  label: "Reminder",
+  options: [
+    { value: null, label: "No reminder" },
+    { value: 10, label: "10 min before" },
+    { value: 30, label: "30 min before" },
+  ],
+};
+
+describe("EventEditorPane — the reminder field (#1374)", () => {
+  it("renders nothing when the host supplies no reminder bundle", () => {
+    // The same "supplying the object renders the section" idiom the repeat
+    // and convert bundles use — which is what kept every existing host and
+    // every existing item literal compiling unchanged.
+    renderPane(manualItem);
+    expect(screen.queryByLabelText("Reminder")).toBeNull();
+  });
+
+  it("seeds the select from the item and rides the ONE save press (#628)", () => {
+    const { onSave } = renderPane(
+      { ...manualItem, reminderOffset: 10 },
+      { reminder: true },
+    );
+    const select = screen.getByLabelText("Reminder") as HTMLSelectElement;
+    expect(select.value).toBe("10");
+
+    // Changed alongside a title edit: both must arrive in the SAME patch, or
+    // a routine occurrence's scope dialog gets asked twice for one gesture.
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Dentist v2" },
+    });
+    fireEvent.change(select, { target: { value: "30" } });
+    fireEvent.click(saveButton());
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledWith("m1", {
+      title: "Dentist v2",
+      reminderOffset: 30,
+    });
+  });
+
+  it("sends null when the user picks 'no reminder'", () => {
+    const { onSave } = renderPane(
+      { ...manualItem, reminderOffset: 10 },
+      { reminder: true },
+    );
+    fireEvent.change(screen.getByLabelText("Reminder"), {
+      target: { value: "" },
+    });
+    fireEvent.click(saveButton());
+    expect(onSave).toHaveBeenCalledWith("m1", { reminderOffset: null });
+  });
+
+  it("sends nothing when the pick lands back on the stored value", () => {
+    // Same rule every other field follows: the button must not light up for
+    // a change it then declines to send.
+    const { onSave } = renderPane(
+      { ...manualItem, reminderOffset: 10 },
+      { reminder: true },
+    );
+    fireEvent.change(screen.getByLabelText("Reminder"), {
+      target: { value: "30" },
+    });
+    fireEvent.change(screen.getByLabelText("Reminder"), {
+      target: { value: "10" },
+    });
+    expect(saveButton()).toBeDisabled();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("hides the field on an all-day row, which has no time to lead", () => {
+    renderPane({ ...manualItem, isAllDay: true }, { reminder: true });
+    expect(screen.queryByLabelText("Reminder")).toBeNull();
   });
 });

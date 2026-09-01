@@ -49,10 +49,13 @@ import {
  *   - The 0011 BEFORE INSERT trigger initialises is_deleted_cache
  *     from items_meta.is_deleted (defence for the "soft-delete first,
  *     then INSERT" edge case).
- *   - reminder_at write is intentionally NULL — the mapper documents
- *     that timezone math at the call site is required for absolute
- *     reminders; the bulkCreate signature doesn't carry timezone info
- *     so we drop reminderOffset on the floor.
+ *   - reminder_at write is intentionally NULL — #1374 moved the reminder
+ *     to `reminder_offset_min`, and the retained absolute column is
+ *     written by nobody.
+ *   - bulkCreate STILL drops reminderOffset on the floor. Routine-
+ *     generated occurrences therefore get no reminder; wiring the
+ *     template's own offset through the generator is a follow-up, not
+ *     part of #1374.
  */
 /**
  * Composite key of the Issue-011 partial UNIQUE (routine_item_id,
@@ -276,8 +279,10 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
   }
 
   /**
-   * Mapper-driven dual UPDATE with DB-Q2 bump. content/noteId/template
-   * Id/reminderOffset are silently dropped (no events_payload columns).
+   * Mapper-driven dual UPDATE with DB-Q2 bump. content / noteId /
+   * templateId are silently dropped (no events_payload columns).
+   * `reminderOffset` DOES land since #1374 — events_payload gained
+   * `reminder_offset_min` in 0027.
    */
   async updateScheduleItem(
     id: string,
@@ -293,6 +298,7 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
         | "isAllDay"
         | "content"
         | "date"
+        | "reminderOffset"
       >
     >,
   ): Promise<ScheduleItem> {

@@ -46,6 +46,7 @@ export const DESKTOP_IPC = {
   authStorageRemoveItem: "authStorage:removeItem",
   claudeGetProjectPath: "claude:getProjectPath",
   claudeLaunch: "claude:launch",
+  notifyShow: "notify:show",
 } as const;
 
 export type DesktopIpcChannel = (typeof DESKTOP_IPC)[keyof typeof DESKTOP_IPC];
@@ -84,6 +85,16 @@ export type ClaudeLaunchError =
 export interface ClaudeLaunchResult {
   ok: boolean;
   error?: ClaudeLaunchError;
+}
+
+/**
+ * OS notification (#1374). Desktop-only per CLAUDE.md §2 — the browser and
+ * the Capacitor shell simply have no bridge, and the renderer degrades to its
+ * in-app toast without a permission prompt to raise or a rejection to handle.
+ */
+export interface NotifyArgs {
+  title: string;
+  body?: string;
 }
 
 /**
@@ -153,4 +164,14 @@ export interface DesktopIpcApi {
    * `ClaudeLaunchError` for why a failure is a value and not a rejection.
    */
   launchClaude(args: ClaudeLaunchArgs): Promise<ClaudeLaunchResult>;
+  /**
+   * Raise an OS notification (#1374). Resolves `false` — never rejects — when
+   * the platform cannot show one, so the renderer degrades to its in-app
+   * toast instead of handling a rejection on a notification path.
+   *
+   * ⚠️ This takes the exposed surface to 10, exactly the #529 Risk 1 budget.
+   * The next channel has to either raise that budget with a stated reason or
+   * fold into an existing one.
+   */
+  notify(args: NotifyArgs): Promise<boolean>;
 }

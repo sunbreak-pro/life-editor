@@ -199,6 +199,11 @@
     "schedule": {
       "heading": "Schedule",
       "description": "How the Schedule section opens and behaves.",
+      "reminderLabel": "Event reminders",
+      "reminderDescription": "Show a notification before a timed event starts.",
+      "reminderDefaultLabel": "Default lead time",
+      "reminderDefaultHint": "Applies to events you create from now on. Each event keeps its own setting.",
+      "reminderDesktopHint": "The desktop app also raises an OS notification. In a browser or on a phone you get the in-app one only.",
       "initialViewLabel": "Opens on",
       "day": "Day",
       "week": "Week",
@@ -525,6 +530,9 @@
     }
   },
   "schedule": {
+    "reminderNone": "No reminder",
+    "reminderLead": "{{n}} min before",
+    "reminderToast": "{{title}} starts at {{time}}",
     "complete": "Complete"
   },
   "scheduleCalendar": {
@@ -597,6 +605,7 @@
     "startTime": "Start",
     "endTime": "End",
     "complete": "Mark complete",
+    "reminder": "Reminder",
     "memo": "Memo",
     "save": "Save",
     "saved": "Saved",

@@ -199,6 +199,11 @@
     "schedule": {
       "heading": "予定",
       "description": "予定セクションの開き方と動き方を決めます。",
+      "reminderLabel": "予定のリマインダー",
+      "reminderDescription": "時刻のある予定が始まる前に通知を出します。",
+      "reminderDefaultLabel": "既定の通知タイミング",
+      "reminderDefaultHint": "これから作る予定に適用されます。予定ごとの設定はそのまま残ります。",
+      "reminderDesktopHint": "デスクトップアプリでは OS 通知も出ます。ブラウザやスマホではアプリ内の通知だけになります。",
       "initialViewLabel": "最初に開くビュー",
       "day": "日",
       "week": "週",
@@ -522,6 +527,9 @@
     }
   },
   "schedule": {
+    "reminderNone": "通知しない",
+    "reminderLead": "{{n}} 分前",
+    "reminderToast": "{{title}} は {{time}} に始まります",
     "complete": "完了"
   },
   "scheduleCalendar": {
@@ -593,6 +601,7 @@
     "startTime": "開始",
     "endTime": "終了",
     "complete": "完了にする",
+    "reminder": "リマインダー",
     "memo": "メモ",
     "save": "保存",
     "saved": "保存済み",

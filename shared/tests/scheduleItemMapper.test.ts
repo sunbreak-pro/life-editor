@@ -240,10 +240,10 @@ describe("scheduleItemUpdatesToPatches — DB-Q2 updated_at bump", () => {
 });
 
 // ---------------------------------------------------------------------------
-// 3. reminderEnabled derived from reminder_at (Phase 2 compat)
+// 3. reminder offset round-trip (#1374 / 0027)
 // ---------------------------------------------------------------------------
 
-describe("reminderEnabled DERIVED from reminder_at", () => {
+describe("reminder offset round-trip (#1374)", () => {
   function buildMeta(id: string): ItemsMetaEventRow {
     return {
       id,
@@ -259,7 +259,7 @@ describe("reminderEnabled DERIVED from reminder_at", () => {
   }
   function buildPayload(
     id: string,
-    reminder_at: string | null,
+    reminderOffsetMin: number | null,
   ): EventsPayloadRow {
     return {
       item_id: id,
@@ -271,7 +271,9 @@ describe("reminderEnabled DERIVED from reminder_at", () => {
       done: false,
       completed_at: null,
       is_dismissed: false,
-      reminder_at,
+      // Retained-but-unread since #1374 — every writer sets it null.
+      reminder_at: null,
+      reminder_offset_min: reminderOffsetMin,
       memo: null,
       routine_item_id: null,
       routine_item_role: null,
@@ -280,23 +282,54 @@ describe("reminderEnabled DERIVED from reminder_at", () => {
     };
   }
 
-  it("reminder_at non-null → reminderEnabled=true", () => {
+  it("reminder_offset_min non-null → the flag AND the minutes come back", () => {
     const item = rowsToScheduleItem(
       buildMeta("event-r1"),
-      buildPayload("event-r1", "2026-05-24T09:45:00.000Z"),
+      buildPayload("event-r1", 15),
     );
     expect(item.reminderEnabled).toBe(true);
+    expect(item.reminderOffset).toBe(15);
   });
 
-  it("reminder_at null → reminderEnabled=false", () => {
+  it("reminder_offset_min null → flag false, and the field is ABSENT", () => {
+    // Absent rather than null: the same round-trip diff contract deletedAt
+    // and sourceDate follow, so a re-read does not look like an edit.
     const item = rowsToScheduleItem(
       buildMeta("event-r2"),
       buildPayload("event-r2", null),
     );
     expect(item.reminderEnabled).toBe(false);
+    expect("reminderOffset" in item).toBe(false);
   });
 
-  it("UPDATE reminderEnabled=false clears reminder_at to null", () => {
+  it("UPDATE reminderOffset=15 writes reminder_offset_min", () => {
+    const { payloadPatch } = scheduleItemUpdatesToPatches(
+      { reminderOffset: 15 },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(payloadPatch.reminder_offset_min).toBe(15);
+  });
+
+  it("UPDATE reminderOffset=null CLEARS it — present-and-null means clear", () => {
+    const { payloadPatch } = scheduleItemUpdatesToPatches(
+      { reminderOffset: null },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(payloadPatch.reminder_offset_min).toBeNull();
+  });
+
+  it("bumps items_meta.updated_at for a payload-only reminder change (DB-Q2)", () => {
+    const { metaPatch } = scheduleItemUpdatesToPatches(
+      { reminderOffset: 30 },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(metaPatch.updated_at).toBe(NOW);
+  });
+
+  it("UPDATE reminderEnabled=false still clears the retained reminder_at", () => {
     const { payloadPatch } = scheduleItemUpdatesToPatches(
       { reminderEnabled: false },
       TEST_USER_ID,
@@ -449,6 +482,7 @@ describe("defensive validation", () => {
       completed_at: null,
       is_dismissed: false,
       reminder_at: null,
+      reminder_offset_min: null,
       memo: null,
       routine_item_id: null,
       routine_item_role: null,

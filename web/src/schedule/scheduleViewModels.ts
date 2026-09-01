@@ -145,6 +145,8 @@ export function toEditorItem(
     completed: selected.completed,
     status: deriveScheduleStatus(selected, now),
     memo: selected.memo ?? "",
+    // #1374: minutes before the start, or null for no reminder.
+    reminderOffset: selected.reminderOffset ?? null,
     isRoutine: selected.routineId != null,
   };
 }

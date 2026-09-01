@@ -3,7 +3,8 @@ import { DESKTOP_IPC, type DesktopIpcApi } from "../shared/ipcContract";
 
 // Thin, serializable-only bridge. Business logic lives in shared/web; this only
 // exposes the desktop shell's local prefs (theme / window bounds / version),
-// the auth-session storage (#838) and the Claude Code launcher (#1211).
+// the auth-session storage (#838), the Claude Code launcher (#1211) and the
+// OS notification (#1374).
 //
 // The channel names and the call signatures both come from ../shared/
 // ipcContract (#894) — main reads the same names, so renaming one end alone
@@ -25,6 +26,7 @@ const api: DesktopIpcApi = {
   getClaudeProjectPath: () =>
     ipcRenderer.invoke(DESKTOP_IPC.claudeGetProjectPath),
   launchClaude: (args) => ipcRenderer.invoke(DESKTOP_IPC.claudeLaunch, args),
+  notify: (args) => ipcRenderer.invoke(DESKTOP_IPC.notifyShow, args),
 };
 
 // contextIsolation is on, so expose via contextBridge only.
