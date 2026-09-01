@@ -744,3 +744,49 @@ describe("NotesView — multi-select tag filter (#1288)", () => {
     expect(screen.queryByText(/materials\.notes\.groupMoreRows/)).toBeNull();
   });
 });
+
+/*
+ * #1365 — the chip row above the note list drew a hand-rolled colour dot, so
+ * the icon a user picks in the tag editor reached the group headings, the
+ * master list and the detail's picker but stopped here. #1291 made
+ * <TagHeadingIcon> the ONE read path for `wiki_tags.icon`; these pin that the
+ * chips are on it, colour and fallback included.
+ *
+ * lucide stamps its component name onto the rendered <svg> (`lucide-star`),
+ * which is what lets these say WHICH glyph came out without a snapshot.
+ */
+describe("NotesView — the tag chips carry the tag's own icon (#1365)", () => {
+  const glyphNames = (root: HTMLElement): string[] =>
+    [...root.querySelectorAll("svg")]
+      .map((svg) => /lucide-([a-z0-9-]+)/.exec(svg.getAttribute("class") ?? ""))
+      .filter((match): match is RegExpExecArray => match !== null)
+      .map((match) => match[1]);
+
+  const chipRow = () =>
+    screen.getByRole("group", { name: "materials.notes.tagFilterLabel" });
+
+  it("draws the stored icon", () => {
+    state.tags = [{ ...WORK_TAG, icon: "Star" }];
+    render(<NotesView />);
+
+    expect(glyphNames(chipRow())).toContain("star");
+  });
+
+  it("falls back to the generic tag glyph rather than to nothing", () => {
+    render(<NotesView />);
+
+    // Two chips — Work, which has no icon of its own, and untagged. A chip
+    // without a glyph would be the dot's old behaviour for a colourless tag:
+    // a blank where the tag should be.
+    expect(glyphNames(chipRow())).toEqual(["tag", "tag"]);
+  });
+
+  it("keeps the colour on the glyph the dot used to carry", () => {
+    state.tags = [{ ...WORK_TAG, icon: "Star", color: "#336699" }];
+    render(<NotesView />);
+
+    // Colour is user data, so it arrives as an inline style, not a token.
+    const glyph = chipRow().querySelector("svg");
+    expect(glyph?.style.color).toBe("rgb(51, 102, 153)");
+  });
+});

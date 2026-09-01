@@ -36,7 +36,7 @@ export interface NoteTagFilterChip {
   /** Already-translated chip label (§6.4). */
   label: string;
   count: number;
-  /** Leading glyph (the tag's colour dot). */
+  /** Leading glyph — the tag's own icon, tinted with its colour (#1365). */
   icon?: ReactNode;
 }
 
@@ -62,8 +62,16 @@ export interface NoteTagFilterChipsProps {
   labels: NoteTagFilterChipsLabels;
 }
 
-/** How many chips are drawn before the row asks to be expanded. */
-export const VISIBLE_LIMIT = 8;
+/*
+ * How many chips are drawn before the row asks to be expanded.
+ *
+ * 6, down from #1288's 8 (#1365). The chips gained a glyph, which is what
+ * makes them scannable without reading — and also what makes them wider, so
+ * eight of them wrapped to four lines in a ~240px sidebar and pushed the first
+ * note under the fold. Six keeps the row to about half that; the rest are one
+ * press away and the "+N" says how many there are.
+ */
+export const VISIBLE_LIMIT = 6;
 
 export function NoteTagFilterChips({
   chips,
@@ -114,7 +122,11 @@ export function NoteTagFilterChips({
             aria-pressed={active}
             onClick={() => onToggle(chip.id)}
             className={cn(
-              "inline-flex max-w-full items-center gap-1 rounded-lumen-full border px-2 py-0.5 text-xs transition-colors",
+              // A ceiling per chip, not per row (#1365): `max-w-full` let one
+              // long tag name take a whole line to itself while the short ones
+              // that would have shared it wrapped below. The label truncates
+              // inside it, and the glyph and count keep their width either way.
+              "inline-flex max-w-[9.5rem] items-center gap-1 rounded-lumen-full border px-2 py-0.5 text-xs transition-colors",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
               active
                 ? "border-lumen-accent bg-lumen-accent-subtle font-semibold text-lumen-accent"

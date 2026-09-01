@@ -8,7 +8,7 @@ import {
   filterTagGroups,
   sortNotesForList,
   useFrozenNoteSortKey,
-  cn,
+  TagHeadingIcon,
 } from "@life-editor/shared";
 
 /*
@@ -175,15 +175,27 @@ export function useNoteListState() {
         id: groupKey(group),
         label: group.tagName,
         count: group.notes.length,
+        /*
+         * #1365: the tag's OWN icon, resolved through <TagHeadingIcon> — the
+         * single read path #1291 made for `wiki_tags.icon` (it calls
+         * resolveTagIcon and falls back to the generic Tag glyph), tinted with
+         * the tag colour.
+         *
+         * This slot used to hold a hand-rolled colour dot, which is why the
+         * icon a user picks in the tag editor reached the group headings, the
+         * master list and the detail's picker but stopped at these chips: the
+         * dot never read `icon` at all. Drawing tags by hand anywhere is what
+         * makes "everywhere" untrue, so the bespoke dot goes rather than
+         * gaining an icon branch of its own.
+         *
+         * 12px is the chip glyph size TagPill settled on for `size="sm"` —
+         * a step under the label so it reads as part of the name.
+         */
         icon: (
-          <span
-            className={cn(
-              "inline-block h-1.5 w-1.5 shrink-0 rounded-full",
-              group.tagColor ? "" : "bg-lumen-border-strong",
-            )}
-            style={
-              group.tagColor ? { backgroundColor: group.tagColor } : undefined
-            }
+          <TagHeadingIcon
+            icon={group.tagIcon}
+            color={group.tagColor}
+            size={12}
           />
         ),
       })),
