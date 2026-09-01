@@ -1,6 +1,21 @@
 # HISTORY (chat-briefing-refine)
 
-### 2026-08-23 - MCP write_briefing の focus を note-focus へ配線（#1097・PR #1107 open）
+### 2026-09-01 - 朝刊「今日のスケジュール」の Todo 行に時刻を出す（#1369・PR #1382 open）
+
+#### 概要
+
+Todo 行だけ時刻欄が空で、9:30 に置いた Todo と「今日のどこかで」の Todo が紙面上まったく同じに見えていた。原因は View ではなくデータ側で、`useBriefingAggregation` が `BriefingTodoEntry` を組み立てるときに `scheduledAt` の時刻を捨てていた（View は時刻欄を「必ず空のスペーサー」として描く実装）。時刻の供給を足し、View の時刻欄をイベント行と共用の 1 コンポーネントに統合した。
+
+#### 変更点
+
+- **`shared/src/components/briefing/BriefingView.tsx`**: `BriefingTodoEntry.startTime` を追加。時刻欄を `TimeCell` に切り出し、イベント行と Todo 行が同じ幅・同じ文字スタイルを共有する形にした（空ラベル → 従来どおり `aria-hidden` のスペーサー）
+- **`web/src/briefing/hooks/useBriefingAggregation.ts`**: `todoScheduleSlot`（カレンダーのチップと Today トレイと同じ selector）から HH:MM を取る。壊れた instant と潰れた span（#562）は selector 側で all-day に畳まれるため紙面に不正値が出る経路が無い。all-day の `"00:00"` はグリッドの置き値なので**あえて出さず** `""` を渡す
+- **並び順は不変**: todos → 区切り線 → 終日 → 時刻付き（#939）。時刻付き Todo も Todo 帯に留まる — 時刻はラベルであって時刻付き帯への昇格ではない、という読み方を DOM 順のテストで固定
+- **テスト**: shared 4 本（同一クラスの欄に HH:MM / 時刻なしは空・aria-hidden・「終日」を出さない / 終日イベントのラベル不変 / #939 の行順）・web 2 本（timed は 09:30・all-day と潰れた span は `""` / JST で `00:30Z` → `09:30`）
+- **ゲート**: CI verify を全ステップローカル再現し全緑（shared 2793 / web 1005 / desktop 29 / mcp-server 322・docs-lint OK）
+- **記録**: 計画書なし（Issue 直行の軽ティア）。スコープ逸脱なし（触ったのは briefing の View と web の hook、およびその 2 スイート）。AC 免除なし。「時刻なし Todo に『終日』と出すか」は Issue 本文の「今まで通り終日扱い」を現状維持と読んで空欄据え置き — PR 本文に明記済みで、変えるならレビューで指摘が来る形にした
+
+### 2026-08-23 - MCP write_briefing の focus を note-focus へ配線（#1097・PR #1107 merged）
 
 #### 概要
 
@@ -59,21 +74,3 @@
 - **テスト**: `shared/tests/goalSections.test.ts` 33 件（旧 20 → キー対応 + ロールオーバー 7 / 移行 7 / `goalPeriodKeys` 4）。`web/tests/briefingGoals.test.tsx` 12 件（既存 7 はキー付き fixture へ差し替え + 新規 5 = 期間跨ぎで空 / 隣に書く / 旧ノートを 1 回だけキー化 / キー付きなら開いても書かない / ゴミ箱のノートを黙って復活させない）。
 - **ゲート**: shared（lint 0 error / build / test 244 files 2296 件）・web（lint 0 error / build / test 53 files 479 件）すべて exit 0。
 - **記録**: archive 対象なし。スコープ逸脱なし。AC 免除なし。実装中に浮上した判断 1 件を**キューへ**（D-20260816-briefing-1 = 週開始曜日を切り替えたとき今週の目標をどう扱うか。放置時 A = 実装どおり）。**merge 順を PR 本文へ申し送り**（#955 を先に merge するほうが両方の diff が小さい）。
-
-### 2026-08-16 - 「きのうまでの自分」を朝刊本文から右サイドバーへ（#938・PR #971 open）
-
-#### 概要
-
-朝刊が印刷しているものは全部「今日」なのに、真ん中に 3 枚の後ろ向きなグラフ（連続日数 / 直近 7 日の完了 / 作業と休憩の配分）が挟まっていて、上から読むと話の筋が途中で切れていた。しかも今日の話である「持ち越し」を 1 画面ぶん下へ押し下げていた。ブロックごと詳細パネルへ移した。
-
-#### 変更点
-
-- **載せ方**: 新設した共有部品 `BriefingVizPanel.tsx` を、**既存の `RightSidebarPortal` の 2 枚目**として差した。ポータルはマウント順に同じ well へ積まれるので、タブ帯も新しいサイドバー実装も要らない（上 = 今日の Todo トレイ / 下 = グラフ 3 枚）。
-- **朝刊のみ**。トレイは両紙面に載っているが、可視化は朝刊の持ち物で夕刊は Issue のスコープ外。
-- **Mobile は追加作業ゼロ**（Issue やること 4 の回答）: #609 で右サイドバーは narrow でも MobileDrawer として開くため、幅ガードを持たないこのパネルは同じハンバーガーから到達できる。閲覧専用のグラフなので Consumption の範囲内 → `mobile-scope.md` #1 行に 2 枚目のパネルが入ったことを記録。判断が割れる要素が無かったのでキューには積んでいない。
-- **集計は不変**: `useBriefingAggregation` の結果と `analytics.*` のラベル解決はそのままで、渡し先だけ替えた。`BriefingData` の `sessions` / `todoNodes` は残置（同じ host が紙面とパネルの両方へ配る）。
-- **パネル内は 1 カラム**。紙面の `sm:grid-cols-2` を持ち込むと well 幅（既定 320px）で軸ラベルが潰れる。
-- **罫線**: 持ち越しは従来どおり境界線なし。直前セクションの `border-b` が罫になるので、移設で罫の並びは変わらない（`border-t` を足すと二重線になる）。
-- **テスト**: `shared/tests/briefingView.test.tsx` に 4 ケース（紙面に出ない / 持ち越しが罫なしの最終セクション / パネルが見出し + 3 枚を描く / `sm:grid-cols-2` 不使用）。`web/tests/briefingVizPanel.test.tsx` を新規追加し、**ポータル先の DOM** で朝刊のみ・両幅・夕刊除外を検証（#609 のトレイと同じ流儀 — 「どちらのツリーに描かれるか」が本 Issue の本体）。
-- **ゲート**: shared（lint 0 error / build / test 244 files 2271 件）・web（lint 0 error / build / test 55 files 489 件）・`records.mjs check` / `docs-lint.sh` すべて OK。
-- **記録**: 実装プラン無しのため archive 対象なし。スコープ逸脱なし。AC 免除なし。実装中に浮上した判断なし。**merge 順だけ PR 本文へ申し送り**（#969 → #971 を続けて。逆順だと #939 側の削除の後方文脈が消える）。
