@@ -47,7 +47,6 @@ function freshMeta(
     deleted_at: null,
     created_at: "2026-05-24T10:00:00.000Z",
     updated_at: "2026-05-24T11:00:00.000Z",
-    version: 1,
     ...overrides,
   };
 }
@@ -88,7 +87,6 @@ describe("notesUnifiedMapper", () => {
     expect(insertMeta.title).toBe(meta.title);
     expect(insertMeta.is_deleted).toBe(false);
     expect(insertMeta.deleted_at).toBeNull();
-    expect(insertMeta.version).toBe(1);
 
     expect(insertPayload.item_id).toBe(payload.item_id);
     expect(insertPayload.user_id).toBe(USER);
@@ -174,7 +172,6 @@ describe("notesUnifiedMapper", () => {
       title: "t",
       password_hash: "$2b$hacked",
       has_password: false,
-      version: 999,
     } as unknown as Partial<NoteNode>;
     const { metaPatch, payloadPatch } = noteUpdatesToPatches(sneaky, USER, NOW);
     expect(metaPatch).toEqual({ updated_at: NOW, title: "t" });

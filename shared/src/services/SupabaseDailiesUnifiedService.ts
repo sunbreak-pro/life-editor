@@ -14,7 +14,7 @@ import {
 import type { DailyNode } from "../types/daily";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
-import { ItemLockGate, nextItemVersion } from "./itemLockGate";
+import { ItemLockGate } from "./itemLockGate";
 import { fetchMaybeSingleRow } from "./postgrestSingle";
 
 /*
@@ -299,21 +299,19 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
 
   /**
    * Reverse a soft-delete. Clears items_meta.is_deleted / deleted_at and
-   * bumps updated_at + version so Sync LWW propagates the restore. Mirrors
-   * Notes G1 restoreNoteUnified (single-row); Daily has no descendants so
-   * no subtree consideration.
+   * bumps updated_at so Sync LWW propagates the restore. Mirrors Notes G1
+   * restoreNoteUnified (single-row); Daily has no descendants so no subtree
+   * consideration.
    */
   async restoreDailyUnified(id: string): Promise<void> {
     assertDailyId(id);
     const now = new Date().toISOString();
-    const nextVersion = await this.nextVersion(id, "restoreDailyUnified");
     const { error } = await this.client
       .from("items_meta")
       .update({
         is_deleted: false,
         deleted_at: null,
         updated_at: now,
-        version: nextVersion,
       })
       .eq("id", id)
       .eq("role", "daily");
@@ -356,7 +354,7 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
    * Hash `password` (PBKDF2, Issue #118) and write it into dailies_payload.
    * DailyNode round-trip done via id-based re-read so the GENERATED
    * `has_password` column reflects on the returned domain object. Bumps
-   * items_meta.updated_at + version so Sync LWW propagates.
+   * items_meta.updated_at so Sync LWW propagates.
    */
   setDailyPasswordUnified(id: string, password: string): Promise<DailyNode> {
     return this.lock.setPassword(id, password);
@@ -393,7 +391,7 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
   /**
    * Flip dailies_payload.is_edit_locked. Read-modify-write because PostgREST
    * cannot express the SQLite `CASE WHEN ... END` in one statement. Bumps
-   * items_meta.updated_at + version so Sync LWW propagates.
+   * items_meta.updated_at so Sync LWW propagates.
    */
   toggleDailyEditLockUnified(id: string): Promise<DailyNode> {
     return this.lock.toggleEditLock(id);
@@ -433,15 +431,6 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
     if (!payload) throw new Error(`${label}: payload vanished (id="${id}")`);
 
     return rowsToDailyNode(meta, payload);
-  }
-
-  /**
-   * Read current items_meta.version and return version + 1. Thin binding of
-   * the shared `nextItemVersion` (#674 / C7) — kept as a method because
-   * `restoreDailyUnified` bumps the version outside the lock gate.
-   */
-  private nextVersion(id: string, label: string): Promise<number> {
-    return nextItemVersion(this.client, "daily", id, label);
   }
 }
 

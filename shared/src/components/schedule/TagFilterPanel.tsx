@@ -120,9 +120,9 @@ const TEXT_FIELD =
  *
  * A rename is NOT sent per keystroke, which is what the calendars ledger this
  * replaced did (`updateCalendar(cal.id, { title: e.target.value })` on every
- * `onChange`). Each of those calls is a version read plus a PATCH, so typing
- * "Work" was eight round trips and four version bumps for one rename — and
- * every one of them a Realtime echo the section refetches on. It commits on
+ * `onChange`). That was one PATCH per keystroke, so typing "Work" was four
+ * writes for one rename — and every one of them a Realtime echo the section
+ * refetches on. It commits on
  * blur and on Enter instead, IME-guarded (§7: WebKit sends the
  * variant-CONFIRMING Enter with `isComposing: false`, so the flag alone lets
  * the one keypress that matters through).

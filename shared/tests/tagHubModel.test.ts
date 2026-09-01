@@ -24,7 +24,6 @@ const tag = (
   icon: null,
   createdAt: "2026-08-01T00:00:00Z",
   updatedAt: "2026-08-01T00:00:00Z",
-  version: 1,
   isDeleted: false,
   deletedAt: null,
   ...over,

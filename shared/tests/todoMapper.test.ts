@@ -113,7 +113,6 @@ describe("rowsToTodoNode ∘ todoNodeToRows roundtrip — 5 shapes", () => {
       icon: "star",
       timeMemo: "memo",
       updatedAt: "2026-05-23T11:00:00.000Z",
-      version: 5,
       priority: 2,
       reminderEnabled: true,
       reminderOffset: 15,
@@ -220,7 +219,6 @@ describe("#873 two-valued status — legacy row handling", () => {
       deleted_at: null,
       created_at: "2026-08-01T10:00:00.000Z",
       updated_at: "2026-08-01T10:00:00.000Z",
-      version: 1,
     };
     const { payload } = todoNodeToRows(
       {
@@ -368,7 +366,6 @@ describe("order ↔ sort_order rename", () => {
       deleted_at: null,
       created_at: "2026-05-23T10:00:00.000Z",
       updated_at: "2026-05-23T10:00:00.000Z",
-      version: 1,
     };
     const payload: TasksPayloadRow = {
       item_id: "task-8",

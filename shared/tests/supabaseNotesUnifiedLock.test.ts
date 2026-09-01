@@ -38,9 +38,8 @@ describe("SupabaseNotesUnifiedLock", () => {
     vi.restoreAllMocks();
   });
 
-  /** version read + meta bump + payload write, in that order. */
-  function stageHappyMutation(version: number | null = 3) {
-    stub.stage("items_meta", "select", { data: { version }, error: null });
+  /** meta bump + payload write, in that order. */
+  function stageHappyMutation() {
     stub.stage("items_meta", "update", { data: null, error: null });
     stub.stage("notes_payload", "update", { data: null, error: null });
   }
@@ -59,25 +58,16 @@ describe("SupabaseNotesUnifiedLock", () => {
     });
 
     it("bumps items_meta so Sync LWW propagates the change", async () => {
-      stageHappyMutation(3);
+      stageHappyMutation();
       await lock.setNotePasswordUnified("note-1", "hunter2");
 
       const update = stub.calls.find(
         (c) => c.table === "items_meta" && c.op === "update",
       );
-      const patch = update?.args[0] as { version: number; updated_at: string };
-      expect(patch.version).toBe(4);
-      expect(patch.updated_at).toEqual(expect.any(String));
-    });
-
-    it("starts versioning at 1 for a row that never had one", async () => {
-      stageHappyMutation(null);
-      await lock.setNotePasswordUnified("note-1", "hunter2");
-
-      const update = stub.calls.find(
-        (c) => c.table === "items_meta" && c.op === "update",
-      );
-      expect((update?.args[0] as { version: number }).version).toBe(1);
+      // updated_at and nothing else — the legacy `version` column is no
+      // longer written (#1385), which is what removed the extra SELECT that
+      // used to open every one of these mutations.
+      expect(Object.keys(update?.args[0] as object)).toEqual(["updated_at"]);
     });
 
     it("returns the re-read note so the generated has_password shows up", async () => {
@@ -97,19 +87,7 @@ describe("SupabaseNotesUnifiedLock", () => {
       ).rejects.toThrow(/row vanished after update/);
     });
 
-    it("throws a labelled error when the version read fails", async () => {
-      stub.stage("items_meta", "select", {
-        data: null,
-        error: { message: "boom" },
-      });
-
-      await expect(
-        lock.setNotePasswordUnified("note-1", "hunter2"),
-      ).rejects.toThrow(/setNotePasswordUnified version read/);
-    });
-
     it("does not write the payload when the meta bump failed", async () => {
-      stub.stage("items_meta", "select", { data: { version: 3 }, error: null });
       stub.stage("items_meta", "update", {
         data: null,
         error: { message: "boom" },
@@ -126,7 +104,6 @@ describe("SupabaseNotesUnifiedLock", () => {
     });
 
     it("throws a labelled error when the payload write fails", async () => {
-      stub.stage("items_meta", "select", { data: { version: 3 }, error: null });
       stub.stage("items_meta", "update", { data: null, error: null });
       stub.stage("notes_payload", "update", {
         data: null,
@@ -154,13 +131,13 @@ describe("SupabaseNotesUnifiedLock", () => {
       expect(stub.calls.some((c) => c.op === "update")).toBe(false);
     });
 
-    it("clears the hash and bumps the version once verified", async () => {
+    it("clears the hash and bumps updated_at once verified", async () => {
       const stored = await hashPassword("secret", TEST_ITER);
       stub.stage("notes_payload", "select", {
         data: { password_hash: stored },
         error: null,
       });
-      stageHappyMutation(3);
+      stageHappyMutation();
 
       await lock.removeNotePasswordUnified("note-1", "secret");
 
@@ -171,7 +148,7 @@ describe("SupabaseNotesUnifiedLock", () => {
       const meta = stub.calls.find(
         (c) => c.table === "items_meta" && c.op === "update",
       );
-      expect((meta?.args[0] as { version: number }).version).toBe(4);
+      expect(Object.keys(meta?.args[0] as object)).toEqual(["updated_at"]);
     });
 
     it("refuses when the note has no password at all", async () => {
@@ -185,16 +162,15 @@ describe("SupabaseNotesUnifiedLock", () => {
       ).rejects.toThrow("Invalid password");
     });
 
-    // set / remove / toggle run the identical version-read -> meta bump ->
-    // payload write sequence, so the only thing telling their failures apart
-    // is the label. Pin remove's own.
+    // set / remove / toggle run the identical meta bump -> payload write
+    // sequence, so the only thing telling their failures apart is the label.
+    // Pin remove's own.
     it("labels its own write failure", async () => {
       const stored = await hashPassword("secret", TEST_ITER);
       stub.stage("notes_payload", "select", {
         data: { password_hash: stored },
         error: null,
       });
-      stub.stage("items_meta", "select", { data: { version: 3 }, error: null });
       stub.stage("items_meta", "update", { data: null, error: null });
       stub.stage("notes_payload", "update", {
         data: null,
@@ -212,7 +188,7 @@ describe("SupabaseNotesUnifiedLock", () => {
         data: { password_hash: stored },
         error: null,
       });
-      stageHappyMutation(3);
+      stageHappyMutation();
       getNote.mockResolvedValueOnce(null);
 
       await expect(
@@ -335,7 +311,7 @@ describe("SupabaseNotesUnifiedLock", () => {
         data: { is_edit_locked: false },
         error: null,
       });
-      stageHappyMutation(3);
+      stageHappyMutation();
 
       await lock.toggleNoteEditLockUnified("note-1");
 
@@ -350,7 +326,7 @@ describe("SupabaseNotesUnifiedLock", () => {
         data: { is_edit_locked: true },
         error: null,
       });
-      stageHappyMutation(3);
+      stageHappyMutation();
 
       await lock.toggleNoteEditLockUnified("note-1");
 
@@ -365,14 +341,14 @@ describe("SupabaseNotesUnifiedLock", () => {
         data: { is_edit_locked: false },
         error: null,
       });
-      stageHappyMutation(9);
+      stageHappyMutation();
 
       await lock.toggleNoteEditLockUnified("note-1");
 
       const meta = stub.calls.find(
         (c) => c.table === "items_meta" && c.op === "update",
       );
-      expect((meta?.args[0] as { version: number }).version).toBe(10);
+      expect(Object.keys(meta?.args[0] as object)).toEqual(["updated_at"]);
     });
 
     it("throws a labelled error when the current flag cannot be read", async () => {
@@ -391,7 +367,6 @@ describe("SupabaseNotesUnifiedLock", () => {
         data: { is_edit_locked: false },
         error: null,
       });
-      stub.stage("items_meta", "select", { data: { version: 3 }, error: null });
       stub.stage("items_meta", "update", { data: null, error: null });
       stub.stage("notes_payload", "update", {
         data: null,
@@ -408,7 +383,7 @@ describe("SupabaseNotesUnifiedLock", () => {
         data: { is_edit_locked: false },
         error: null,
       });
-      stageHappyMutation(3);
+      stageHappyMutation();
       getNote.mockResolvedValueOnce(null);
 
       await expect(lock.toggleNoteEditLockUnified("note-1")).rejects.toThrow(

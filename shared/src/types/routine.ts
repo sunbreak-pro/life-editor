@@ -23,5 +23,4 @@ export interface RoutineNode {
   reminderOffset?: number;
   createdAt: string;
   updatedAt: string;
-  version?: number;
 }

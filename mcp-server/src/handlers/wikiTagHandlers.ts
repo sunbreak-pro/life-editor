@@ -257,7 +257,6 @@ export async function tagEntity(args: {
       color: DEFAULT_TAG_COLOR,
       is_deleted: false,
       deleted_at: null,
-      version: 1,
     });
     if (error) throw new Error(`create wiki_tag: ${error.message}`);
     tag = await findTagByName(args.tag_name);

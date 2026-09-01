@@ -32,7 +32,6 @@ function freshRow(overrides: Partial<WikiTagRow> = {}): WikiTagRow {
     deleted_at: null,
     created_at: "2026-05-24T10:00:00.000Z",
     updated_at: "2026-05-24T11:00:00.000Z",
-    version: 1,
     ...overrides,
   };
 }
@@ -49,7 +48,9 @@ describe("wikiTagMapper", () => {
     expect(insert.icon).toBe(row.icon);
     expect(insert.is_deleted).toBe(false);
     expect(insert.deleted_at).toBeNull();
-    expect(insert.version).toBe(1);
+    // No `version`: the wiki_tags column is a legacy leftover the client
+    // stopped writing in #1385 — the DDL default owns it.
+    expect("version" in insert).toBe(false);
   });
 
   it("rowToWikiTag preserves null color (no defaulting)", () => {

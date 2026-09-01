@@ -14,7 +14,8 @@ import { getSupabase } from "../supabase.js";
  *     even for payload-only edits (payload tables carry no updated_at) — §10.2
  *   - delete = SOFT delete (items_meta.is_deleted), TrashView-restorable
  *
- * `version` is a legacy column and is intentionally never bumped (CLAUDE.md §3.3).
+ * `version` is a legacy column: never read, never written, not even on the
+ * first INSERT (the DDL default of 1 owns that) — CLAUDE.md §3.3 / #1385.
  */
 
 export type ItemRole = "task" | "event" | "routine" | "note" | "daily";
@@ -97,7 +98,6 @@ export async function insertItem(args: {
     title: args.title,
     is_deleted: false,
     deleted_at: null,
-    version: 1,
   });
   if (mErr) throw new Error(`create items_meta: ${mErr.message}`);
 
