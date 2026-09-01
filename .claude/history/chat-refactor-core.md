@@ -1,6 +1,20 @@
 # HISTORY (chat-refactor-core)
 
-### 2026-08-30 - #1184 警告 / お知らせ / 確認パネルの共通化（PR #1259 open）
+### 2026-09-01 - コード整理監査の findings 5 本を PR まで（#1386 / #1387 / #1389 / #1385 / #1300）
+
+#### 概要
+
+2026-09-01 のコード整理監査で起票された 5 本を、それぞれ `origin/main` から独立したブランチで実装し、`ci.yml` の `verify` 全ステップ + `docs-lint` をローカルで緑にしてから PR まで通した。書いた時点の実測で #1415 / #1418 / #1422 / #1426 は MERGED、#1428（#1300）のみ open。
+
+#### 変更点
+
+- **#1386（PR #1415 merged）**: `migrateTodosToBackend` を DataService から削除。Tauri 時代の「ローカル SQLite → クラウド」移行メソッドで web では no-op。docstring は「無条件に呼ぶ呼び出し元のために残す」と言っていたが、その呼び出し元は 0 件だった。`dataServiceRouting.ts` の `Mismatch<TodosDataService, TodosMethodName>` 型アサーションが interface と名前配列の一致を型検査で見張るため、片方だけ消すと build が落ちる
+- **#1387（PR #1418 merged）**: 削除済み `frontend/`（#197）と撤去済み Provider を前提にしたコメント・規範を一掃。一番効いたのは `PRINCIPLES.md §4.4` で、**存在しない Provider の Optional バリアントを書け**という指示になっていた（列挙 5 つのうち 4 つが実態と違う）。Schedule の Provider 鎖も「Routine → ScheduleItems → CalendarTags」から実際の **TagGroup → Routine → ScheduleItems** に訂正
+- **#1389（PR #1422 merged）**: 参照ゼロ export（`CalendarDataKind` / `BulkSoftDeleteResult` / sound 型 3 本 / `isDesktopShell` / `setDataServiceForTest`）と、テストしか呼んでいなかった WikiTag の書き込み方向 mapper 4 本 + 連鎖して死んだ `softDeleteMapper.ts` を削除。`TABLE_DOMAIN_MAP` は**消さずに間の別名だけ畳んだ**（そのテストは Realtime 購読とドメイン割当の lockstep を見る唯一の警報）。`Analytics/EmptyState` → `AnalyticsEmptyState` に改名（`components/index.ts` が Analytics を `export *` するので、載せた日に別 API の同名部品と衝突する）。mcp-server の `isLegacyFolder` 重複も 1 本へ
+- **#1385（PR #1426 merged）**: `items_meta.version` ほか legacy version カラムのバンプを shared / mcp-server から撤去。PostgREST が `version = version + 1` を書けないため、バンプのたびに専用 SELECT が 1 本余計に飛んでいた（読み手は実測ゼロ）。`supabase/migrations/` は無改変で**カラム自体は DDL に残す**
+- **#1300（PR #1428 open）**: コードは PR #1348 / #1360 で既に main にあったが workflow が一度も走っていなかったので、空ビルドガードをローカルで両方向とも実測して計画書と README に記録。残りは workflow_dispatch / tag / 実機受け入れで、いずれもユーザー手番
+
+### 2026-08-30 - #1184 警告 / お知らせ / 確認パネルの共通化（PR #1259 merged）
 
 #### 概要
 
