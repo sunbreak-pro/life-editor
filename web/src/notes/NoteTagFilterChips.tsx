@@ -23,8 +23,10 @@ import { cn, FOCUS_RING } from "@life-editor/shared";
  * THE CAP is the other half of the Issue: with a dozen tags the row wrapped to
  * four lines inside a ~240px sidebar and pushed the first note off the fold.
  * Only the first `VISIBLE_LIMIT` chips are drawn until the user asks for the
- * rest — and selected chips are ordered first, so what is currently filtering
- * the list can never be the part that is hidden.
+ * rest — plus any selected chip below the cap, so what is currently filtering
+ * the list can never be the part that is hidden. #1288 bought that guarantee
+ * by hoisting selected chips to the front instead; #1364 stopped, because a
+ * row that rearranges itself as you pick from it is a row you cannot aim at.
  *
  * Pure presentation (§6.4): copy arrives already translated, lumen-* only.
  */
@@ -73,17 +75,33 @@ export function NoteTagFilterChips({
   const [expanded, setExpanded] = useState(false);
   const selected = useMemo(() => new Set(value), [value]);
 
-  // Selected first, otherwise the original (name-sorted) order. A stable sort
-  // is what keeps the unselected chips from reshuffling as you pick tags —
-  // only the picked one moves, to the front.
-  const ordered = useMemo(() => {
-    const picked = chips.filter((c) => selected.has(c.id));
-    const rest = chips.filter((c) => !selected.has(c.id));
-    return [...picked, ...rest];
-  }, [chips, selected]);
+  /*
+   * #1364: the row keeps the order it arrives in. Picking a chip used to lift
+   * it to the front, so the next chip you wanted had moved by the time you
+   * looked for it, and a second pick moved the row again. The accent fill and
+   * aria-pressed already say which chips are on, so nothing is lost by leaving
+   * every chip where the caller put it.
+   *
+   * The cap still must not hide what is filtering the list (#1288) — that is
+   * what the hoist was really buying. The collapsed row is therefore "the
+   * first VISIBLE_LIMIT chips PLUS any selected chip below them", drawn in the
+   * caller's order: a tag picked while the row was expanded stays where it is
+   * when the row collapses, at the end rather than at the head.
+   */
+  const shown = useMemo(() => {
+    if (expanded || chips.length <= VISIBLE_LIMIT) return chips;
+    const capped = chips.slice(0, VISIBLE_LIMIT);
+    const keptBelow = chips
+      .slice(VISIBLE_LIMIT)
+      .filter((c) => selected.has(c.id));
+    return keptBelow.length > 0 ? [...capped, ...keptBelow] : capped;
+  }, [chips, expanded, selected]);
 
-  const hidden = Math.max(0, ordered.length - VISIBLE_LIMIT);
-  const shown = expanded || hidden === 0 ? ordered : ordered.slice(0, VISIBLE_LIMIT);
+  // What "+N more" actually offers: the chips NOT drawn. Fewer than the raw
+  // overflow whenever a selection below the cap was kept on screen, and zero
+  // once every one of them was — at which point there is nothing left to ask
+  // for and the toggle goes away with it.
+  const hidden = chips.length - shown.length;
 
   return (
     <div role="group" aria-label={labels.group} className="flex flex-wrap gap-1">
@@ -121,7 +139,7 @@ export function NoteTagFilterChips({
         );
       })}
 
-      {hidden > 0 && (
+      {(expanded || hidden > 0) && (
         <button
           type="button"
           onClick={() => setExpanded((v) => !v)}
