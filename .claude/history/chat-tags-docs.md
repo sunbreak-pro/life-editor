@@ -1,5 +1,26 @@
 # HISTORY (chat-tags-docs)
 
+### 2026-09-01 - #1366 タグアイコンを 26 → 56 に増やす
+
+#### 概要
+
+タグに合うグリフが見つからない状態を、lucide の個別 import を 30 行足して解消した。増やし方そのものが Issue の主眼で、レジストリ参照へ戻さないことが制約（PR #1383 open）。
+
+#### 変更点
+
+- **`TAG_ICONS` 26 → 56**: 生活 4 / 仕事 3 / 学習 4 / 健康 4 / お金 4 / 移動 4 / 食 4 / 趣味 3 を追加。既存 26 個との重複なし。宣言順 = グリッド順なので、汎用ブロックを先頭に置いたままカテゴリごとの連なりで並べた
+- **バンドル実測**: eager チャンクは 955.12 KB → 962.54 KB raw / 264.48 KB → 267.32 KB gzip = **+2.84 KB gzip**（DoD の予算 +15 KB に対し 19%）。1 個あたり約 95 バイト gzip で、`import { icons }` が curate 数に関係なく 466.5 KB 固定なのと対照的。実測値を Issue にコメント済み
+- **ピッカーを 8 列 × 約 5 行のスクロール枠へ**: 旧 6 列・高さ無制限のままだと 56 個でモーダル下端を突き抜け、以後アイコンを足すたびに悪化する。cap を置いたのでリストが伸びてもパネルの高さは 26 個当時とほぼ同じで固定される
+- **スクロール枠に明示幅**: パネルの `w-max` はこの枠を測るが、overflow ボックスは max-content 幅にスクロールバーのガターを含めない。auto 幅だと最終列がバーに食われる（#1289 の再発形）
+- **守りの穴を 1 つ塞いだ**: 既存の「1 行 1 名前」チェックは `TAG_ICONS` リテラル側の行でも満たせるため、import が消えても緑のままだった。**lucide の import 文の中だけを読む**チェックを追加し、未使用 import 禁止 / 55〜60 のバンド / 重複なし / 各カテゴリ 3 個以上 / グリッドが cap を宣言、も足した
+- **検証**: shared（282 files / 2796 tests）・web（107 files / 1003 tests）・desktop・mcp-server・docs-lint すべて緑。web の vitest は 1 回目に `briefingEveningLazyMount` が 1 本落ちたが、単体再実行と warm cache 全件はどちらも緑（既知の冷えた transform キャッシュ由来の flake）
+
+#### 乖離レビュー
+
+- **スコープ逸脱**: なし。Issue の Scope（`tagIcon.ts` / `TagIconPicker.tsx` / 必要なら i18n）の内側で収まった。i18n はカテゴリ見出しも検索も採らなかったため不要
+- **AC 免除**: なし。DoD 6 項目すべて実測で満たしている
+- **途中で出た判断の行き先**: 実ブラウザでのピッカー表示確認は worktree では行わない規約（CLAUDE.md §7.4）のため未実施 — merge 後に chat-main 側の確認事項として PR 本文に残した。それ以外の計画外要望は出ていない
+
 ### 2026-08-31 - #1337 records.mjs の archive スキャンと archive/INDEX.md
 
 #### 概要
@@ -64,18 +85,3 @@
 - **修正**: `w-max` 1 つ。#552 が色トークンを 1 段上げて直そうとしたのは対症で、幅には触れていなかった
 - **テスト**: `shared/tests/tagIconPickerSurface.test.tsx` 新規 7 件。jsdom にレイアウトが無いので 204px そのものは測れないが、(a) ポップオーバーが自前の幅クラスを持つこと（`w-max` を外すと落ちるのを実測で確認）、(b) 塗っている `lumen-*` クラスが全て `tokens.css` に宣言済みであること、(c) その元値が light / dark 両スコープにあること、は宣言から検査できる
 - **申し送り**: 未定義 `bg-lumen-*` の無警告透明落ちを機械で捕まえるゲートは (b) の形で書ける。他の浮遊面にも横展開の余地あり
-
-### 2026-08-13 - #777 テストの DataService スタブ / fixture を共有ヘルパへ集約
-
-#### 概要
-
-30 スイートが手写ししていたテストの足場（DataService スタブとノード fixture）の土台を 1 箇所に置き、名前が 3 通りに割れていた分を寄せた（PR #812 open）。プロダクションコードは無変更。
-
-#### 変更点
-
-- **新設 3 本**: `shared/tests/helpers/dataServiceStub.ts`（`stubDataService` — `as unknown as DataService` のキャストを集約）/ `shared/tests/helpers/nodeFixtures.ts`（完全一致の `makeNote` 5 本・`makeTask` 2 本）/ `web/tests/helpers/index.ts`（`@life-editor/shared` エイリアスは `../shared/src` を指していて `shared/tests` に届かないため、4 段の相対パスをこの 1 本が持つ）
-- **引数型の設計**: `Partial<Record<keyof DataService, unknown>>` — メソッド名だけ型チェックし値は緩いまま。多くのスイートは「本当は TaskNode を返すメソッド」に三つ組を返す（呼ぶ側がそこしか読まない）ため、真の返り値型を要求すると消したかった重複が増える
-- **名前統一**: 18 本のファクトリを `makeDS` に（`makeDataService` 7 + `makeDs` 3 を改名）。うち 16 本が `stubDataService` 経由。残り 2 本（paletteItemSearch / workScreenLayout）は絞り込んだローカル型を返すので改名のみ
-- **挙動不変の根拠**: diff を assertion 系トークンで絞って**増減 0 行**。テスト本数も前後同一（shared 217/1980・web 32/269）
-- **意図的に残した**: 13 スイートのインラインスタブ（Issue の「1 PR で 30 ファイルを書き換えない」）/ Schedule 系の `makeItem`・`makeRoutine`（`frequencyType` と `frequencyDays` が各スイートの試したいケースを決める値で、共有既定を選ぶと他 2 本が何を試しているか黙って変わる）
-- **申し送り**: `shared/tests` と `web/tests` は**どの CI ゲートでも型検査されていない**（両 tsconfig とも `include: ["src"]`・eslint は type-aware でない）。`stubDataService` の名前チェックは型検査を走らせた瞬間から効くもので今日の CI では効かない。検証用に一時 tsconfig で `tsc` を回してテスト木エラー 0 件を実測した（Scope 外なのでファイルは削除）。恒久ゲート化は別 Issue の判断
