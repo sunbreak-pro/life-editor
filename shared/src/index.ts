@@ -565,8 +565,8 @@ export {
 // successor surface for the 5-role tag/link graph.
 
 // WikiTags Unified domain (DU-C+) — items_meta-based 5-role tag/link.
-// Coexists with the legacy `frontend/src/context/WikiTagContext.tsx`
-// until DU-F removes the legacy frontend tag UI in cohort.
+// The legacy `frontend/src/context/WikiTagContext.tsx` it used to coexist
+// with is gone — the whole Tauri `frontend/` tree was deleted in #197.
 export {
   WikiTagsUnifiedProvider,
   WikiTagsUnifiedContext,

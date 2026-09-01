@@ -15,14 +15,14 @@ import { useScheduleItemsTrash } from "./useScheduleItemsTrash";
  * Behaviour-preserving port of the Tauri schedule_items hooks
  * (frontend/src/hooks/useScheduleItems.ts) into one shared API hook —
  * same shape as useRoutinesAPI and the other shared API hooks. Host
- * dependencies are injected, not imported (CLAUDE.md §6.4):
+ * dependencies are injected, not imported (CLAUDE.md §6):
  * - `getDataService()` singleton → `options.dataService`
  * - host UndoRedo Context        → `options.undoRedo` (no-op default;
  *   real UndoRedo lands in S6, same as todos/daily/notes/routines)
  *
- * Must sit inside a Sync Provider (reads `useSyncContext`) — CLAUDE.md
- * §6.2 places ScheduleItems as the SECOND of the Schedule trio, inside
- * Routine (… → Routine → ScheduleItems → CalendarTags → …).
+ * Must sit inside a Sync Provider (reads `useSyncContext`) — the Schedule
+ * section chain is TagGroup → Routine → ScheduleItems, so ScheduleItems is
+ * the innermost of the three (rules/frontend.md §Provider 順序).
  *
  * Scope (S4-4): schedule_items CRUD only (by-date / by-range / create /
  * update / soft-delete / restore / purge / fetch-deleted / toggle-
