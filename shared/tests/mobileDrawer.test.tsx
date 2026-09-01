@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   render,
   screen,
@@ -8,6 +8,10 @@ import {
 } from "@testing-library/react";
 import { MobileDrawer, Modal, RightSidebarToggle } from "../src/components";
 import { RightSidebarProvider } from "../src/context";
+import {
+  MOBILE_FONT_SIZE_STEPS,
+  fontSizeToPx,
+} from "../src/constants/fontSize";
 
 /*
  * App Shell Turn 2 — Mobile left drawer. Same detail content as the Desktop
@@ -152,5 +156,54 @@ describe("MobileDrawer", () => {
     expect(
       screen.queryByRole("dialog", { name: "Details" }),
     ).not.toBeInTheDocument();
+  });
+});
+
+/*
+ * #1400 — the panel's width was `w-80` (20rem), and the appearance setting
+ * writes the root font size onto documentElement (ThemeContext), so the drawer
+ * tracked the type scale: 280px on the small preset, 440px on the large one.
+ *
+ * jsdom resolves neither rem nor Tailwind — no layout, no stylesheet (CLAUDE.md
+ * §7.1) — so the regression itself cannot be measured here. What IS visible is
+ * the shape of the fix: an explicit px the component computes from the medium
+ * preset, and the rem-based class gone. Same reasoning as the class assertions
+ * in bottomSheetSafeArea.
+ */
+describe("MobileDrawer width", () => {
+  afterEach(() => {
+    document.documentElement.style.fontSize = "";
+  });
+
+  function openDrawer() {
+    const view = renderDrawer();
+    fireEvent.click(screen.getByRole("button", { name: "Open details" }));
+    return { dialog: screen.getByRole("dialog", { name: LABELS.title }), view };
+  }
+
+  it("pins the panel to the width the medium preset gave it", () => {
+    // 20rem at the medium preset's 18px. Spelled out rather than recomputed
+    // from the constant, so moving the preset has to be a deliberate edit here.
+    expect(openDrawer().dialog.style.width).toBe("360px");
+  });
+
+  it("keeps that one width across all three mobile font presets", () => {
+    const widths = new Set<string>();
+
+    for (const step of MOBILE_FONT_SIZE_STEPS) {
+      document.documentElement.style.fontSize = `${fontSizeToPx(step)}px`;
+      const { dialog, view } = openDrawer();
+      widths.add(dialog.style.width);
+      view.unmount();
+    }
+
+    expect([...widths]).toEqual(["360px"]);
+  });
+
+  it("caps at the viewport so a narrow phone keeps a strip of scrim to tap", () => {
+    const { dialog } = openDrawer();
+
+    expect(dialog).toHaveClass("max-w-[85vw]");
+    expect(dialog.className).not.toContain("w-80");
   });
 });
