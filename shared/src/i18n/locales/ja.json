@@ -956,6 +956,14 @@
     "untagged": "未分類",
     "itemCount_other": "{{count}} 件"
   },
+  "attachment": {
+    "insertImage": "画像",
+    "insertFile": "ファイル",
+    "unavailable": "この添付を読み込めませんでした",
+    "download": "ダウンロード",
+    "tooLarge": "ファイルが大きすぎます。上限は {{limit}} です。",
+    "uploadFailed": "ファイルをアップロードできませんでした。もう一度お試しください。"
+  },
   "blockMenu": {
     "turnInto": "変換",
     "noMatch": "該当する項目がありません",

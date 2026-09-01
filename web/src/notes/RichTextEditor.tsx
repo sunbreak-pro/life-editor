@@ -14,7 +14,9 @@ import { useTranslation } from "@life-editor/shared";
 import { createSlashCommand } from "./slashCommand";
 import { createItemLinkNode } from "./itemLinkNode";
 import { createItemLinkSuggestion } from "./itemLinkSuggestion";
+import { createAttachmentNode } from "./attachmentNode";
 import type { LoadItemLinkTargets } from "./useItemLinkTargets";
+import type { AttachmentWiring } from "./useAttachmentUpload";
 
 /*
  * Lean web Notes rich-text editor (S3). A deliberately reduced
@@ -137,6 +139,16 @@ interface RichTextEditorBaseProps {
   onResolvedLinkInserted?: (targetId: string) => void;
   /** Create a note for `label` from the "[[" menu; returns its id or null. */
   onCreateNoteForLink?: (label: string) => Promise<{ id: string } | null>;
+  /**
+   * Image / file embedding (#1404) — `useAttachmentUpload(dataService)`.
+   *
+   * Presence adds the two attach entries to the "/" menu and lets stored
+   * attachment nodes resolve their signed URLs. Absence leaves both off: the
+   * node stays REGISTERED either way (the schema must always know it, same as
+   * itemLink) and draws its unavailable state, so a note authored with an
+   * image still opens on a surface that has not wired this.
+   */
+  attachments?: AttachmentWiring;
 }
 
 export type RichTextEditorProps = RichTextEditorBaseProps &
@@ -164,6 +176,7 @@ export function RichTextEditor({
   onNavigateToItem,
   onResolvedLinkInserted,
   onCreateNoteForLink,
+  attachments,
 }: RichTextEditorProps) {
   const { t } = useTranslation();
   const debounceRef = useRef<number | null>(null);
@@ -180,6 +193,7 @@ export function RichTextEditor({
   const onResolvedInsertedRef = useRef(onResolvedLinkInserted);
   const onCreateNoteRef = useRef(onCreateNoteForLink);
   const onNavigateRef = useRef(onNavigateToItem);
+  const attachmentsRef = useRef(attachments);
   const autoFocusRef = useRef(autoFocus);
   const linkEnabled = loadLinkTargets !== undefined;
 
@@ -191,6 +205,7 @@ export function RichTextEditor({
     onResolvedInsertedRef.current = onResolvedLinkInserted;
     onCreateNoteRef.current = onCreateNoteForLink;
     onNavigateRef.current = onNavigateToItem;
+    attachmentsRef.current = attachments;
   });
 
   // Stable getters over the refs above. Wrapping them in useCallback (rather
@@ -207,6 +222,13 @@ export function RichTextEditor({
   );
   const getCreateNote = useCallback(() => onCreateNoteRef.current, []);
   const getOnNavigate = useCallback(() => onNavigateRef.current, []);
+  const getAttachments = useCallback(() => attachmentsRef.current, []);
+  // Read through the same getter the slash menu uses, so a node drawn after
+  // the host wired its uploader picks it up without an editor rebuild.
+  const resolveAttachmentUrl = useCallback(
+    () => attachmentsRef.current?.resolveUrl,
+    [],
+  );
 
   const flushPending = () => {
     if (debounceRef.current) {
@@ -274,15 +296,21 @@ export function RichTextEditor({
         // turn-into catalog so the picker matches the rest of the app.
         ...(slashMenu
           ? [
-              createSlashCommand({
-                heading1: t("blockMenu.turnIntoItems.heading1"),
-                heading2: t("blockMenu.turnIntoItems.heading2"),
-                heading3: t("blockMenu.turnIntoItems.heading3"),
-                bulletList: t("blockMenu.turnIntoItems.bulletList"),
-                orderedList: t("blockMenu.turnIntoItems.orderedList"),
-                taskList: t("blockMenu.turnIntoItems.taskList"),
-                empty: t("blockMenu.noMatch"),
-              }),
+              createSlashCommand(
+                {
+                  heading1: t("blockMenu.turnIntoItems.heading1"),
+                  heading2: t("blockMenu.turnIntoItems.heading2"),
+                  heading3: t("blockMenu.turnIntoItems.heading3"),
+                  bulletList: t("blockMenu.turnIntoItems.bulletList"),
+                  orderedList: t("blockMenu.turnIntoItems.orderedList"),
+                  taskList: t("blockMenu.turnIntoItems.taskList"),
+                  image: t("attachment.insertImage"),
+                  file: t("attachment.insertFile"),
+                  empty: t("blockMenu.noMatch"),
+                },
+                // eslint-disable-next-line react-hooks/refs
+                getAttachments,
+              ),
             ]
           : []),
         // itemLink atom — ALWAYS registered so stored `[[…]]` JSON round-trips
@@ -296,6 +324,17 @@ export function RichTextEditor({
         // eslint-disable-next-line react-hooks/refs
         createItemLinkNode({
           getOnNavigate,
+        }),
+        // attachment atom — registered unconditionally for the same reason as
+        // itemLink above: a note authored with an image must open without a
+        // schema error on a surface that wires no uploader (#1404).
+        // eslint-disable-next-line react-hooks/refs
+        createAttachmentNode({
+          getResolveUrl: resolveAttachmentUrl,
+          labels: {
+            unavailable: t("attachment.unavailable"),
+            download: t("attachment.download"),
+          },
         }),
         // "[[" wiki-link autocomplete — gated on the loadLinkTargets prop. The
         // loader + callbacks are read through refs so they never go stale.

@@ -963,6 +963,14 @@
     "itemCount_one": "{{count}} item",
     "itemCount_other": "{{count}} items"
   },
+  "attachment": {
+    "insertImage": "Image",
+    "insertFile": "File",
+    "unavailable": "Could not load this attachment",
+    "download": "Download",
+    "tooLarge": "That file is too large. The limit is {{limit}}.",
+    "uploadFailed": "Could not upload that file. Please try again."
+  },
   "blockMenu": {
     "turnInto": "Turn Into",
     "noMatch": "No matching blocks",

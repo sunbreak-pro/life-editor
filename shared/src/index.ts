@@ -1,4 +1,4 @@
-export type { DataService } from "./services/DataService";
+export type { DataService, AttachmentRef } from "./services/DataService";
 export { createSupabaseDataService } from "./services/SupabaseDataService";
 // #625: hosts branch their failure message on `reason` (a refusal the DB
 // enforces reads differently from a dropped request), and log the raw error
@@ -110,6 +110,16 @@ export {
   writeDomainSnapshot,
   type DomainSnapshotKey,
 } from "./state/domainSnapshotStore";
+// #1404 — editor attachment limits + the MIME/size helpers the picker, the
+// upload hook and the document node all have to agree on.
+export {
+  ATTACHMENTS_BUCKET,
+  ATTACHMENT_MAX_BYTES,
+  ATTACHMENT_URL_TTL_SECONDS,
+  ATTACHMENT_IMAGE_ACCEPT,
+  isEmbeddableImage,
+  formatAttachmentSize,
+} from "./constants/attachments";
 export {
   SYNC_DOMAINS,
   domainsForChange,
