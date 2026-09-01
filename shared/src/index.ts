@@ -110,6 +110,15 @@ export {
   writeDomainSnapshot,
   type DomainSnapshotKey,
 } from "./state/domainSnapshotStore";
+// #1407 — the body half of the same idea. The snapshot above replays the note
+// LIST across a section switch; list rows are body-free (M1), so the note the
+// user was reading still cost a `getNoteUnified` round trip on every return.
+// `clearNoteBodies` is test isolation, same as `clearDomainSnapshots`.
+export {
+  clearNoteBodies,
+  forgetNoteBody,
+  NOTE_BODY_CACHE_LIMIT,
+} from "./state/noteBodyStore";
 export {
   SYNC_DOMAINS,
   domainsForChange,
