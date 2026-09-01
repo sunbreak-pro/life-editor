@@ -4,10 +4,18 @@ import { useDialogA11y } from "../hooks/useDialogA11y";
 import { cn } from "./cn";
 
 /**
- * Panel width. `panel` is a two-column work surface, not a dialog; `full` is a
- * take-over surface that keeps only the backdrop's own gutter.
+ * Panel width. `reading` is a document column, `panel` a two-column work
+ * surface — neither is a dialog; `full` is a take-over surface that keeps only
+ * the backdrop's own gutter.
  */
-export type ModalSize = "sm" | "md" | "lg" | "xl" | "panel" | "full";
+export type ModalSize =
+  | "sm"
+  | "md"
+  | "lg"
+  | "xl"
+  | "reading"
+  | "panel"
+  | "full";
 
 /*
  * One max-width per size, emitted INSTEAD of the default — never alongside it.
@@ -27,6 +35,10 @@ const MODAL_MAX_WIDTH: Record<ModalSize, string> = {
   md: "max-w-md", // 448px — short forms (default)
   lg: "max-w-lg", // 512px — item detail overlays
   xl: "max-w-[560px]", // shortcut editor
+  // 818px — a panel that hosts a TEXT surface, sized off the same token as
+  // PageContainer width="reading" so writing in one reads at the same measure
+  // as writing in the page (#1363, the template editor).
+  reading: "max-w-lumen-reading",
   panel: "max-w-[860px]", // two-column master–detail (tag editor, #740)
   // Everything but the wrapper's own p-4 gutter. Still exactly ONE max-w-*
   // class, so the emission-order trap above cannot reach it (#1194).

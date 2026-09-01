@@ -47,6 +47,11 @@ export function TemplateEditHost({ library }: TemplateEditHostProps) {
             initialContent={draft.initialContent || undefined}
             placeholder={t("materials.templates.bodyPlaceholder")}
             onDraftChange={library.setDraftContent}
+            // Borderless, exactly as NoteBodyEditor mounts it in the note's
+            // own detail card (#1363). The editor's default is a bordered box,
+            // which drew a second frame inside the panel's — a note being
+            // written has no such frame, and this body is a note.
+            className="pt-1"
           />
         )
       }
