@@ -1,5 +1,18 @@
 # HISTORY (chat-main)
 
+### 2026-09-01 - コード整理監査（Tauri 残骸 / 未使用コード / docs 整合）→ Issue 7 本起票（#1385〜#1391）
+
+#### 概要
+
+ユーザー依頼でコードベースと docs を 3 並列サブエージェント（Tauri 残骸 / 未使用コード / docs 整合）で監査し、file:line の spot check を通った findings を 7 本の Issue として起票した。ファイル・依存としての Tauri は完全に消えており、実装済み計画書の plans/ 残置も #1377 で既知の 1 本（claude-launcher）だけだった。
+
+#### 変更点
+
+- **起票 7 本**: #1385（未使用 `version` カラムのバンプ廃止 — PostgREST が `version = version + 1` を書けないため**全 mutation で version 取得専用 SELECT が 1 本余計に飛んでいる**。LWW cursor は `updated_at` で version は無関係・mcp-server は準拠済みで shared だけが残置）/ #1386（`migrateTodosToBackend` 削除 — 呼び出し元 0 を実測・4 箇所のみ）/ #1387（削除済み `frontend/` FROZEN 前提・撤去済み Provider の陳腐化コメント一掃 — `PRINCIPLES.md:190` は存在しない 3 Provider の Optional バリアントを指示する規範のまま）/ #1388（dead i18n 33 キー + dead CSS — kanban 名前空間は CalendarTab / TagColorControls が 6 キー借用中なので移設してから名前空間ごと削除）/ #1389（参照ゼロ export 5 型 + 使われないテストシーム + `EmptyState` 同名 2 実装の rename）/ #1390（#1293 Trash 移設の design docs 追随 — IA.md が registry に無い Trash をユーティリティ枠として列挙・_COMMON-CONTEXT は Version 3 のまま）/ #1391（add-ipc-channel スキルの「7 関数」が実装 9 と乖離ほか dead path・数値 drift の束）
+- **起票しなかったもの**: claude-launcher 計画書の残置（#1377 で既知）/ `fetchAllPages` の shared↔mcp 重複（#677 の承認済み負債・コードコメントに明記あり）/ mapper の過剰 export 30+（公開 API サーフェス方針の判断が要るため #1389 の備考に留めた）/ REFERENCE 計画書の置き場不統一（A/B 裁定として #1391 内に記載）
+- **監査の白判定**: Tauri ファイル・依存・IPC = 0 / ScreenLock・FileExplorer・Terminal 残骸 = 0 / import グラフ上の orphan ファイル = 0（src 400+ ファイル）/ plans 14 本の Status enum 逸脱 = 0 / d3・Connect グラフ残骸 = 0
+- **運用メモ**: 未使用コード調査のサブエージェントが 600 秒ストール → SendMessage で再開させて完走（SSE バグの既知型）
+
 ### 2026-08-31 - ユーザー実機フィードバック 11 項目を Issue 14 本（#1362〜#1375）へ起票
 
 #### 概要
@@ -75,31 +88,5 @@
 - **#1296 実ブラウザ検証 PASS**: `?legal=privacy` で ja / en とも「AWS ap-northeast-1（東京 / Tokyo）」が本文 + 箇条書きに出ることを確認（`web/src/legal/legalContent.ts:74` / `:214`）。旧文面（いずれも日本国外 / transferred abroad）の DOM 全文検索 0 件・生 i18n キー露出 0・390px 横溢れなし・dark / light 崩れなし・8 セクション回帰で新規 console error 0
 - **巡回の実測**: open PR 0（CI 赤 / コンフリクト対象なし）・HEAD = origin/main で取り込み不要・outbox の起票依頼は全処理済み（#1184 残置換 3 グループ → #1275 / #1278 / #1279 起票済み）・未回答の判断キュー 0（settings の G-20260829-settings-1 は判断ではなく 🛑 ユーザー実行待ち 2 手 = `0025_delete_my_account.sql` の db:push → `delete-account` Edge Function deploy の順）
 - **副産物（起票せず記録のみ）**: 細幅で Settings ドロワーを開いたまま legal reader を開くと、同じ z-50 の後勝ちでドロワーが reader を覆う（`web/src/legal/LegalReaderHost.tsx:42`）。実際の操作順（ドロワーを閉じてから開く）では再現しない人工条件のみで #1251 / #1270 由来・#1296 とは無関係のため見送り
-
-### 2026-08-29 - AI 連携の可視化 + Claude 起動導線の計画書 2 本作成と起票（#1210 / #1211・PR #1212）
-
-#### 概要
-
-「アプリ UI に Claude / AI 連携の要素がゼロ」というユーザー課題を受け、$0 制約（アプリから Claude API を呼ばない = Non-Goal 準拠）での組み込み範囲を 2 段階に分解。実装計画書 2 本を新規作成し、計画書パスを本文に記した Issue を 2 件起票、計画書は docs PR として open した。
-
-#### 変更点
-
-- **計画書**: `.claude/docs/vision/plans/2026-08-29-ai-integration-visibility.md`（段階 1: Settings AI 連携カード + ビルド時生成の MCP ツールカタログ JSON + Briefing 帰属バッジ。DDL なし・既存データ導出のみ）/ `2026-08-29-claude-launcher-desktop.md`（段階 2: IPC `claude:launch` 追加 + OS ターミナルで `claude` spawn + `isDesktopShell()`。段階 1 merge が前提・Step 0 に UI 置き場のユーザー確認ゲート）
-- **起票**: #1210（[settings] 段階 1・shared-fix）/ #1211（[main] 段階 2・shared-fix・Blocked by #1210）。重複チェック済み（隣接 #1201 はスコープ別と明記）
-- **PR**: #1212（docs のみ・計画書 2 本。一時 worktree `plans-ai-integration` 経由で `docs/ai-integration-plans` ブランチから提出・merge はユーザー手番）
-- **実測根拠**: MCP ツールレジストリ = `mcp-server/src/tools.ts:39-60`（heartbeat 機構なし）/ Briefing 書き込みに author メタなし（`briefingHandlers.ts:430-559`）/ desktop IPC は 10 上限中 7（`ipcContract.ts:93`）— Explore 報告を spot check で全数確認してから計画書へ反映
-
-### 2026-08-29 - Open Issue 一斉消化 fan-out r4 計画書（PR #1208）
-
-#### 概要
-
-open Issue 28 件・open PR 0 本の実測スナップショットから、凍結 2 件（#898 / #677）を除く全 Issue を PR に到達させる fan-out r4 計画書を作成し PR #1208 として open した。宛先振り直し 4 件も同日実施。実装は本計画書の `/goal` を各レーンへ貼ってから（このセッションでは着手しない）。
-
-#### 変更点
-
-- **計画書**: `.claude/docs/vision/plans/2026-08-29-open-issue-fanout-r4.md` 新規。Wave 1 = 6 レーン 19 件（schedule 2 / materials 6 / settings 3 / connect 1 / shared-fix 4 / web-public 3）、Wave 2 = #1194（gate: #1174 merge）+ #1184（gate: Wave 1 UI 系 merge）、chat-main 手番 = #1202 / #1137 / #1135 + r3 計画書の COMPLETED 化。貼り付け用 `/goal` 8 本・`/loop`・`/schedule`（任意）と停止条件を同梱
-- **宛先振り直し**: #1197 / #1198 / #1199 → `[web-public]`、#1184 → `[refactor-core]` にタイトル prefix 変更（ラベルは維持。shared-fix 9 件集中の是正）
-- **縄張り**: `MainScreen.tsx` の 2 レーン交差は #1199 先行 + #1171 側 rebase で緩和 / Backlinks 部品は #1171・#1172 とも読み取り専用 / tour は Wave 1 中 shared-fix 専有 / パネル統一の先回り禁止（#1184 = Wave 2）を明記
-- **main 同期**: ローカル未コミットだった tracker 2 ファイルは merge 済み PR #1203 と同一内容と実測（`git diff origin/main` 空）→ restore で二重 PR を回避し、`git pull --ff-only` で 9 コミット取り込み（`b95561cf`）
 
 > 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照

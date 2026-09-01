@@ -2,6 +2,32 @@
 
 ローリングアーカイブ: `history/chat-main.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-29 - AI 連携の可視化 + Claude 起動導線の計画書 2 本作成と起票（#1210 / #1211・PR #1212）
+
+#### 概要
+
+「アプリ UI に Claude / AI 連携の要素がゼロ」というユーザー課題を受け、$0 制約（アプリから Claude API を呼ばない = Non-Goal 準拠）での組み込み範囲を 2 段階に分解。実装計画書 2 本を新規作成し、計画書パスを本文に記した Issue を 2 件起票、計画書は docs PR として open した。
+
+#### 変更点
+
+- **計画書**: `.claude/docs/vision/plans/2026-08-29-ai-integration-visibility.md`（段階 1: Settings AI 連携カード + ビルド時生成の MCP ツールカタログ JSON + Briefing 帰属バッジ。DDL なし・既存データ導出のみ）/ `2026-08-29-claude-launcher-desktop.md`（段階 2: IPC `claude:launch` 追加 + OS ターミナルで `claude` spawn + `isDesktopShell()`。段階 1 merge が前提・Step 0 に UI 置き場のユーザー確認ゲート）
+- **起票**: #1210（[settings] 段階 1・shared-fix）/ #1211（[main] 段階 2・shared-fix・Blocked by #1210）。重複チェック済み（隣接 #1201 はスコープ別と明記）
+- **PR**: #1212（docs のみ・計画書 2 本。一時 worktree `plans-ai-integration` 経由で `docs/ai-integration-plans` ブランチから提出・merge はユーザー手番）
+- **実測根拠**: MCP ツールレジストリ = `mcp-server/src/tools.ts:39-60`（heartbeat 機構なし）/ Briefing 書き込みに author メタなし（`briefingHandlers.ts:430-559`）/ desktop IPC は 10 上限中 7（`ipcContract.ts:93`）— Explore 報告を spot check で全数確認してから計画書へ反映
+
+### 2026-08-29 - Open Issue 一斉消化 fan-out r4 計画書（PR #1208）
+
+#### 概要
+
+open Issue 28 件・open PR 0 本の実測スナップショットから、凍結 2 件（#898 / #677）を除く全 Issue を PR に到達させる fan-out r4 計画書を作成し PR #1208 として open した。宛先振り直し 4 件も同日実施。実装は本計画書の `/goal` を各レーンへ貼ってから（このセッションでは着手しない）。
+
+#### 変更点
+
+- **計画書**: `.claude/docs/vision/plans/2026-08-29-open-issue-fanout-r4.md` 新規。Wave 1 = 6 レーン 19 件（schedule 2 / materials 6 / settings 3 / connect 1 / shared-fix 4 / web-public 3）、Wave 2 = #1194（gate: #1174 merge）+ #1184（gate: Wave 1 UI 系 merge）、chat-main 手番 = #1202 / #1137 / #1135 + r3 計画書の COMPLETED 化。貼り付け用 `/goal` 8 本・`/loop`・`/schedule`（任意）と停止条件を同梱
+- **宛先振り直し**: #1197 / #1198 / #1199 → `[web-public]`、#1184 → `[refactor-core]` にタイトル prefix 変更（ラベルは維持。shared-fix 9 件集中の是正）
+- **縄張り**: `MainScreen.tsx` の 2 レーン交差は #1199 先行 + #1171 側 rebase で緩和 / Backlinks 部品は #1171・#1172 とも読み取り専用 / tour は Wave 1 中 shared-fix 専有 / パネル統一の先回り禁止（#1184 = Wave 2）を明記
+- **main 同期**: ローカル未コミットだった tracker 2 ファイルは merge 済み PR #1203 と同一内容と実測（`git diff origin/main` 空）→ restore で二重 PR を回避し、`git pull --ff-only` で 9 コミット取り込み（`b95561cf`）
+
 ### 2026-08-29 - 配布品質監査（Web 完結）+ ドロワーアイコン変更 PR #1195 + 配布要件 6 件起票
 
 #### 概要
