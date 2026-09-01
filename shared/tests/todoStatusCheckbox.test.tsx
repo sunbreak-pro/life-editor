@@ -1,6 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { TodoStatusCheckbox, toggledTodoStatus } from "../src/components";
+import {
+  TodoStatusCheckbox,
+  toggledTodoStatus,
+  TODO_CHECKBOX_ICON_PX,
+} from "../src/components";
 
 /*
  * #873 — the list-row status control after the three-value cycle was retired.
@@ -27,6 +31,18 @@ describe("toggledTodoStatus", () => {
 describe("TodoStatusCheckbox", () => {
   function renderCheckbox(status: "NOT_STARTED" | "DONE") {
     const onChange = vi.fn();
+    return render(
+      <TodoStatusCheckbox
+        status={status}
+        onChange={onChange}
+        labels={LABELS}
+        label="Status"
+      />,
+    );
+  }
+
+  function renderAndSpy(status: "NOT_STARTED" | "DONE") {
+    const onChange = vi.fn();
     render(
       <TodoStatusCheckbox
         status={status}
@@ -52,13 +68,13 @@ describe("TodoStatusCheckbox", () => {
   });
 
   it("sends the status the press lands on, both ways", () => {
-    const onChange = renderCheckbox("NOT_STARTED");
+    const onChange = renderAndSpy("NOT_STARTED");
     fireEvent.click(screen.getByRole("checkbox"));
     expect(onChange).toHaveBeenCalledExactlyOnceWith("DONE");
   });
 
   it("unchecks a done todo back to not started", () => {
-    const onChange = renderCheckbox("DONE");
+    const onChange = renderAndSpy("DONE");
     fireEvent.click(screen.getByRole("checkbox"));
     expect(onChange).toHaveBeenCalledExactlyOnceWith("NOT_STARTED");
   });
@@ -67,5 +83,18 @@ describe("TodoStatusCheckbox", () => {
     renderCheckbox("NOT_STARTED");
     // mobile-scope.md: 44px is the floor for anything a thumb aims at.
     expect(screen.getByRole("checkbox").className).toContain("min-h-11");
+  });
+
+  /*
+   * #1368 — the drawn mark is one size app-wide, and it is THIS number.
+   * The Notes editor's checkbox is a ProseMirror-owned <input> that only CSS
+   * can size, so the constant has to be reachable from outside this file;
+   * web/tests/taskListCheckboxSize.test.ts reads it and the stylesheet together.
+   */
+  it("draws the mark at the shared size", () => {
+    const { container } = renderCheckbox("NOT_STARTED");
+    const icon = container.querySelector("svg");
+    expect(icon?.getAttribute("width")).toBe(String(TODO_CHECKBOX_ICON_PX));
+    expect(icon?.getAttribute("height")).toBe(String(TODO_CHECKBOX_ICON_PX));
   });
 });

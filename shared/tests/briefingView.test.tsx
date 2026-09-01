@@ -34,6 +34,9 @@ const LABELS: BriefingLabels = {
   allDay: "All day",
   carryoverTitle: "CARRYOVER",
   toggleComplete: "Toggle complete",
+  todoStatus: "Status",
+  statusNotStarted: "Not started",
+  statusDone: "Done",
   edit: "Edit",
   delete: "Delete",
   deleteScheduleHint: "Delete this event",
@@ -165,6 +168,69 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
     onGoalBlur,
   };
 }
+
+/*
+ * #1368 — the carryover rows' date column and their checkbox.
+ *
+ * The label is「3日目」on one row and「12日目」on the next. It used to size
+ * itself, so every row handed the checkbox after it a different left edge and
+ * the column of boxes stepped sideways down the list. jsdom has no layout, so
+ * these cases pin the two structural facts that make the edges line up rather
+ * than measuring them: one width, declared once, for every row.
+ */
+describe("BriefingView carryover date column (#1368)", () => {
+  const MIXED = [
+    { id: "c1", title: "One digit", daysLabel: "day 3", completed: false },
+    { id: "c2", title: "Two digits", daysLabel: "day 12", completed: true },
+  ];
+
+  function renderMixed() {
+    return renderView({ data: { ...DATA, carryover: MIXED } });
+  }
+
+  it("holds the date column at one width for a 1- and a 2-digit day", () => {
+    renderMixed();
+    const oneDigit = screen.getByText("day 3");
+    const twoDigits = screen.getByText("day 12");
+    // Identical classes AND a fixed width: either alone would let the column
+    // grow with its text, which is the whole defect.
+    expect(oneDigit.className).toBe(twoDigits.className);
+    expect(oneDigit.className).toContain("w-14");
+    expect(oneDigit.className).toContain("flex-shrink-0");
+    // 1 is narrower than 2 in a proportional face — the digits must not shift
+    // the label's own text either.
+    expect(oneDigit.className).toContain("tabular-nums");
+  });
+
+  it("starts the checkbox right after that column on both rows", () => {
+    renderMixed();
+    for (const label of [
+      screen.getByText("day 3"),
+      screen.getByText("day 12"),
+    ]) {
+      expect(label.nextElementSibling?.getAttribute("role")).toBe("checkbox");
+    }
+  });
+
+  it("draws the shared todo checkbox, at its touch target", () => {
+    renderMixed();
+    const boxes = screen.getAllByRole("checkbox");
+    expect(boxes).toHaveLength(2);
+    expect(boxes[0]!.getAttribute("aria-checked")).toBe("false");
+    expect(boxes[1]!.getAttribute("aria-checked")).toBe("true");
+    for (const box of boxes) {
+      // mobile-scope.md: 44px is the floor. The 16px box it replaced was the
+      // other half of「小さくて見づらい」.
+      expect(box.className).toContain("min-h-11");
+    }
+  });
+
+  it("toggles from the checkbox, not only from the title", () => {
+    const { onToggleTodo } = renderMixed();
+    fireEvent.click(screen.getAllByRole("checkbox")[0]!);
+    expect(onToggleTodo).toHaveBeenCalledExactlyOnceWith("c1");
+  });
+});
 
 describe("BriefingView row actions", () => {
   it("toggles a schedule item from its title button (no nav)", () => {

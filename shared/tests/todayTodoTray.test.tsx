@@ -20,8 +20,11 @@ const labels: TodayTodoTrayLabels = {
   addHeading: "add",
   addAction: "add to today",
   emptyAddable: "empty addable",
-  complete: "complete",
   openInTodos: "open in todos",
+  // Required since #1368: every row draws <TodoStatusCheckbox>, including a
+  // host that only writes `completed`, so every row has a status to name.
+  status: "Status",
+  statusLabels: { statusNotStarted: "Not started", statusDone: "Done" },
 };
 
 const rows = {
@@ -106,13 +109,16 @@ describe("TodayTodoTray #555 surfaces", () => {
 });
 
 /*
- * #796 — the tray's opt-in status control (two-valued since #873).
+ * #796 — the tray's opt-in status WRITE (two-valued since #873).
  *
  * Briefing shows Not started / Done on its paper, so the tray it mounts beside
  * that paper has to say the same thing about a Todo — and write the same field.
- * Schedule has not asked for it, so its own `completed` checkbox stays the
- * default: leaving `onSetStatus` off must change nothing there, which is what
- * the "absent" case below is for.
+ * Schedule has not asked for it and keeps writing `completed`.
+ *
+ * #1368 took the second checkbox away: the branch used to draw its own 20px
+ * box, so one todo wore two sizes in two panels. Both branches draw the shared
+ * control now, and what `onSetStatus` still decides is the FIELD — which is
+ * what the "absent" cases below pin.
  */
 describe("TodayTodoTray status rows (#796)", () => {
   const statusLabels = {
@@ -156,9 +162,8 @@ describe("TodayTodoTray status rows (#796)", () => {
     return { onSetStatus, onToggleComplete };
   }
 
-  it("replaces the completed checkbox with the status control", () => {
+  it("names each row by the status it will write", () => {
     renderTray();
-    expect(screen.queryByLabelText("complete")).toBeNull();
     expect(screen.getByLabelText("Status: Not started")).toBeTruthy();
     expect(screen.getByLabelText("Status: Done")).toBeTruthy();
   });
@@ -173,7 +178,7 @@ describe("TodayTodoTray status rows (#796)", () => {
     expect(onToggleComplete).not.toHaveBeenCalled();
   });
 
-  it("keeps the binary checkbox for a host that does not opt in", () => {
+  it("keeps writing completed for a host that does not opt in", () => {
     const onToggleComplete = vi.fn();
     render(
       <TodayTodoTray
@@ -184,11 +189,41 @@ describe("TodayTodoTray status rows (#796)", () => {
         labels={labels}
       />,
     );
-    expect(screen.queryByLabelText("Status: Done")).toBeNull();
-    const boxes = screen.getAllByLabelText("complete");
+    // Same control the opt-in host draws (#1368) — down to the touch target.
+    // What differs is the field the press writes, not the box the user sees.
+    const boxes = screen.getAllByRole("checkbox");
     expect(boxes).toHaveLength(2);
+    for (const box of boxes) expect(box.className).toContain("min-h-11");
     fireEvent.click(boxes[0]!);
-    expect(onToggleComplete).toHaveBeenCalledWith("task-1");
+    expect(onToggleComplete).toHaveBeenCalledExactlyOnceWith("task-1");
+  });
+
+  it("reads completed, not a status it has no way to write", () => {
+    render(
+      <TodayTodoTray
+        placed={[
+          {
+            id: "task-1",
+            title: "Placed",
+            completed: false,
+            // Left over from a host that DOES write status — this one does
+            // not, so letting it win would strike a title whose own checkbox
+            // reads unchecked.
+            status: "DONE",
+          },
+        ]}
+        unplaced={[]}
+        addable={[]}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        labels={labels}
+      />,
+    );
+    expect(screen.getByRole("checkbox").getAttribute("aria-checked")).toBe(
+      "false",
+    );
+    expect(screen.getByText("Placed").className).not.toContain("line-through");
   });
 });
 

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Check, Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2 } from "lucide-react";
 import type { TodoStatus } from "../../types/todoTree";
 import { cn } from "../cn";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
@@ -40,8 +40,9 @@ export interface TodayTodoRow {
   timeLabel?: string;
   completed: boolean;
   /**
-   * The Todo's real status. Only read on the three-status branch (#796 — see
-   * `onSetStatus`); the binary branch keeps using `completed`.
+   * The Todo's real status. Read only by a host that also WRITES it (#796 —
+   * see `onSetStatus`); a binary host stays on `completed`, so a status it
+   * never updates cannot contradict its own checkbox.
    */
   status?: TodoStatus;
 }
@@ -69,16 +70,18 @@ export interface TodayTodoTrayLabels {
    */
   openAddable?: string;
   emptyAddable: string;
-  /** Accessible name for the per-row completion toggle. */
-  complete: string;
   /** Accessible name / title for the title button that jumps to Todos. */
   openInTodos: string;
   /** Accessible name for the per-row delete button (pair with onDelete). */
   delete?: string;
-  /** Name of what the status control sets, e.g. "Status" (pair with onSetStatus). */
-  status?: string;
-  /** Per-status copy for the status control (pair with onSetStatus). */
-  statusLabels?: StatusLabelSet;
+  /**
+   * Name of what the row's checkbox sets, e.g. "Status". Required since #1368:
+   * every row draws <TodoStatusCheckbox> now, including a host that only
+   * writes `completed`, so no branch is left that could go without it.
+   */
+  status: string;
+  /** Per-status copy for the row checkbox (§6.4 — already translated). */
+  statusLabels: StatusLabelSet;
 }
 
 export interface TodayTodoTrayProps {
@@ -90,14 +93,15 @@ export interface TodayTodoTrayProps {
   addable: TodayTodoAddableRow[];
   onToggleComplete: (id: string) => void;
   /**
-   * Write the row's `status` instead of its `completed` flag (#796): rows
-   * render <TodoStatusCheckbox> over `row.status`, and this receives the status
-   * the press lands on. Briefing passes it so its tray and its paper say the
-   * same thing about a Todo; Schedule has not asked for it and keeps its own
-   * checkbox until it does. Needs labels.status + labels.statusLabels.
+   * Write the row's `status` instead of its `completed` flag (#796), and read
+   * `row.status` rather than `row.completed`. Briefing passes it so its tray
+   * and its paper say the same thing about a Todo; Schedule has not asked for
+   * it and keeps writing `completed`.
    *
-   * Both branches are binary since #873 — what still separates them is which
-   * field the press writes, not how many values it offers.
+   * What it no longer decides is how the row LOOKS. Until #1368 the branches
+   * drew different boxes — a 44px status control here, a hand-rolled 20px one
+   * there — which is how one todo came to wear two sizes in two panels. Both
+   * draw <TodoStatusCheckbox> now; this prop only picks the field written.
    */
   onSetStatus?: (id: string, status: TodoStatus) => void;
   onOpenTodo: (id: string) => void;
@@ -135,7 +139,6 @@ function TodoRow({
   onOpenTodo,
   onDelete,
   extra,
-  completeLabel,
   openLabel,
   deleteLabel,
   statusLabel,
@@ -148,41 +151,33 @@ function TodoRow({
   onOpenTodo: (id: string) => void;
   onDelete?: (id: string) => void;
   extra?: ReactNode;
-  completeLabel: string;
   openLabel: string;
   deleteLabel?: string;
-  statusLabel?: string;
-  statusLabels?: StatusLabelSet;
+  statusLabel: string;
+  statusLabels: StatusLabelSet;
   allDayLabel?: string;
 }) {
-  const done = row.status === undefined ? row.completed : row.status === "DONE";
+  /*
+   * One value behind both the checkbox and the strike-through, read from the
+   * field this host actually writes: a binary host's `row.status` is whatever
+   * the row happened to carry, and letting it win would strike a title whose
+   * own checkbox reads unchecked.
+   */
+  const status: TodoStatus =
+    (onSetStatus ? row.status : undefined) ??
+    (row.completed ? "DONE" : "NOT_STARTED");
+  const done = status === "DONE";
   return (
     <li className="flex flex-col border-b border-lumen-border">
       <div className="flex items-center gap-2">
-        {onSetStatus && statusLabel && statusLabels ? (
-          <TodoStatusCheckbox
-            status={row.status ?? (row.completed ? "DONE" : "NOT_STARTED")}
-            onChange={(next) => onSetStatus(row.id, next)}
-            labels={statusLabels}
-            label={statusLabel}
-          />
-        ) : (
-          <button
-            type="button"
-            aria-label={completeLabel}
-            aria-pressed={row.completed}
-            onClick={() => onToggleComplete(row.id)}
-            className={cn(
-              "flex size-5 shrink-0 items-center justify-center rounded border",
-              row.completed
-                ? "border-lumen-accent text-lumen-accent"
-                : "border-lumen-border-strong text-transparent",
-              FOCUS,
-            )}
-          >
-            <Check aria-hidden className="size-3.5" strokeWidth={3} />
-          </button>
-        )}
+        <TodoStatusCheckbox
+          status={status}
+          onChange={(next) =>
+            onSetStatus ? onSetStatus(row.id, next) : onToggleComplete(row.id)
+          }
+          labels={statusLabels}
+          label={statusLabel}
+        />
         <button
           type="button"
           onClick={() => onOpenTodo(row.id)}
@@ -234,13 +229,10 @@ function TodoRow({
           </button>
         )}
       </div>
-      {/* Leading control + gap-2, so the extra aligns with the title: pl-7 for
-          the size-5 checkbox, pl-13 for the 44px status button (#796). */}
-      {extra && (
-        <div className={cn("pb-1.5", onSetStatus ? "pl-13" : "pl-7")}>
-          {extra}
-        </div>
-      )}
+      {/* Leading control + gap-2, so the extra aligns with the title: pl-13 =
+          the 44px checkbox plus the row's gap. One value since #1368 — before
+          it, the two branches led with two differently sized boxes. */}
+      {extra && <div className="pl-13 pb-1.5">{extra}</div>}
     </li>
   );
 }
@@ -254,7 +246,6 @@ function Group({
   onOpenTodo,
   onDelete,
   renderRowExtra,
-  completeLabel,
   openLabel,
   deleteLabel,
   statusLabel,
@@ -269,11 +260,10 @@ function Group({
   onOpenTodo: (id: string) => void;
   onDelete?: (id: string) => void;
   renderRowExtra?: (row: TodayTodoRow) => ReactNode;
-  completeLabel: string;
   openLabel: string;
   deleteLabel?: string;
-  statusLabel?: string;
-  statusLabels?: StatusLabelSet;
+  statusLabel: string;
+  statusLabels: StatusLabelSet;
   allDayLabel?: string;
 }) {
   return (
@@ -296,7 +286,6 @@ function Group({
               onOpenTodo={onOpenTodo}
               onDelete={onDelete}
               extra={renderRowExtra?.(row)}
-              completeLabel={completeLabel}
               openLabel={openLabel}
               deleteLabel={deleteLabel}
               statusLabel={statusLabel}
@@ -331,7 +320,6 @@ export function TodayTodoTray({
     onOpenTodo,
     onDelete,
     renderRowExtra,
-    completeLabel: labels.complete,
     openLabel: labels.openInTodos,
     deleteLabel: labels.delete,
     statusLabel: labels.status,

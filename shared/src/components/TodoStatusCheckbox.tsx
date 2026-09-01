@@ -22,7 +22,24 @@ import {
  *
  * Pure presentation (§6.4): labels arrive already translated, the mutation is
  * the injected onChange, lumen-* tokens only (§5).
+ *
+ * #1368 made it the ONE todo checkbox: the paper's carryover rows and the
+ * Schedule tray's binary rows drew their own boxes at their own sizes, so the
+ * same todo wore three looks depending on where the user met it.
  */
+
+/**
+ * Diameter of the drawn mark, in px — and the reason it is 20 rather than the
+ * 18 this control started with: the Schedule rightSidebar tray drew a `size-5`
+ * box, that is the one the user reads comfortably (#1368), so the shared
+ * control adopts ITS size instead of the other way round.
+ *
+ * Exported because one todo checkbox is NOT a React component: the Notes
+ * editor's is a ProseMirror-owned <input> that only CSS can size
+ * (`--todo-checkbox-size` in web/src/index.css).
+ * web/tests/taskListCheckboxSize.test.ts fails if the two numbers drift apart.
+ */
+export const TODO_CHECKBOX_ICON_PX = 20;
 
 export interface TodoStatusCheckboxProps {
   status: TodoStatus;
@@ -77,7 +94,7 @@ export function TodoStatusCheckbox({
         className,
       )}
     >
-      <Icon size={18} aria-hidden className="shrink-0" />
+      <Icon size={TODO_CHECKBOX_ICON_PX} aria-hidden className="shrink-0" />
     </button>
   );
 }
