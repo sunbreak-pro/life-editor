@@ -107,6 +107,17 @@ describe("useScheduleDayLabels — the two agenda bundles (#774)", () => {
     }).toEqual(result.current.agendaLabels);
   });
 
+  it("words the todo checkbox with the Todos section's own copy (#1367)", () => {
+    const { result } = setup();
+    // Not a scheduleScreen.* paraphrase: the 朝刊 draws the same three keys,
+    // and two vocabularies for one todo state is what #796 removed.
+    expect(result.current.agendaLabels.todoStatus).toBe("todoDetail.status");
+    expect(result.current.agendaLabels.todoStatusLabels).toEqual({
+      statusNotStarted: "todoDetail.statusNotStarted",
+      statusDone: "todoDetail.statusDone",
+    });
+  });
+
   it("carries the minute clock into the now-line caption of both", () => {
     const { result, rerender } = setup({ nowMinutes: 540 });
     expect(result.current.agendaLabels.nowLabel).toBe("09:00");
