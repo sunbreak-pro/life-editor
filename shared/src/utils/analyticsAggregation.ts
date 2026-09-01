@@ -896,3 +896,136 @@ export function aggregateRoutineCompletion(
  * number, not a crash. Anything new here should start from the unified shapes
  * (`WikiTag` / `WikiTagAssignment`), which is what every live consumer reads.
  */
+
+/**
+ * One row of the tag usage card (#1379).
+ *
+ * TWO WINDOWS in one row, which is exactly the shape #780 / #860 warn about —
+ * so they are named apart at the type level rather than left to the caller's
+ * memory. `rangeCount` is scoped to the selected date range; `totalCount` is
+ * "carrying this tag right now", with no date filter at all. The card is
+ * required to label which is which (Issue #1379 DoD); a single `count` field
+ * would have made that impossible to get right by construction.
+ */
+export interface TagUsageBucket {
+  tagId: string;
+  tagName: string;
+  tagColor: string | null;
+  /** Live items CREATED inside the requested key range that carry this tag. */
+  rangeCount: number;
+  /** Live items carrying this tag, whenever they were created. */
+  totalCount: number;
+}
+
+/**
+ * The minimum an item must expose to be counted here.
+ *
+ * Structural on purpose: `wiki_tag_assignments` has no `entityType`
+ * discriminator (types/wikiTagUnified.ts) and item ids are unique across roles
+ * (CLAUDE.md §4), so a tag count does not care WHICH role a row is — it needs
+ * an id to match assignments on, a creation instant to slice the range on, and
+ * the soft-delete flag. TodoNode / ScheduleItem / NoteNode all satisfy it, so
+ * the caller concatenates whatever roles it can see the LIVE universe of.
+ */
+export interface TagUsageItem {
+  id: string;
+  createdAt: string;
+  isDeleted?: boolean;
+}
+
+/**
+ * Tag usage: how many items were tagged in the selected range, and how many
+ * carry each tag right now (#1379).
+ *
+ * Deliberately NOT "how many times a tag was applied in the range".
+ * `wiki_tag_assignments` carries only `updated_at` — no `created_at`
+ * (0008_data_unification_schema.sql:850) — so the moment a tag was attached is
+ * not recorded, and re-attaching overwrites it. The range is therefore sliced
+ * on the ITEM's `createdAt`, which is why `rangeCount` reads "items created in
+ * this range that carry the tag" and nothing stronger. The strict version needs
+ * DDL and stays on #1375.
+ *
+ * `items` is the LIVE universe the caller can see, and the totals mean exactly
+ * that much: a role the host does not fetch in full simply contributes nothing,
+ * which is a visible undercount rather than a number that drifts when the range
+ * moves. Feeding a range-windowed list in here would make `totalCount` move
+ * with the date preset — the one thing it must not do.
+ *
+ * Exclusions follow `aggregateWorkTimeByTag` so the two tag cards can never
+ * disagree about what counts: trashed items, deleted tags and deleted
+ * assignments are all dropped (#428), and a tag assigned twice to the same item
+ * counts once (the same Set-dedupe, for the same reason — a manual chip plus an
+ * inline "[[ ]]" link is a routine way to end up with two rows).
+ *
+ * Rows are the tags with a non-zero `rangeCount`: the card ranks "what did I
+ * work on this month", and a tag with nothing in the window has no bar to draw.
+ * The tail past `limit` is dropped rather than folded into an "other" row —
+ * unlike the work-time ring there is no whole for the parts to add up to, so a
+ * cut tail distorts nothing.
+ */
+export function aggregateTagUsage(
+  items: readonly TagUsageItem[],
+  assignments: readonly WikiTagAssignmentUnified[],
+  tags: readonly WikiTagUnified[],
+  startKey: string,
+  endKey: string,
+  limit: number = 10,
+): TagUsageBucket[] {
+  const tagMap = new Map(
+    tags.filter((t) => !t.isDeleted).map((t) => [t.id, t] as const),
+  );
+  const liveItems = items.filter((i) => !i.isDeleted);
+  const liveItemIds = new Set(liveItems.map((i) => i.id));
+
+  // itemId -> its tag ids (Set: the same tag can be assigned twice — counting
+  // both would report more tagged items than exist).
+  const itemTags = new Map<string, Set<string>>();
+  for (const a of assignments) {
+    if (a.isDeleted || !tagMap.has(a.tagId) || !liveItemIds.has(a.itemId)) {
+      continue;
+    }
+    const set = itemTags.get(a.itemId);
+    if (set) set.add(a.tagId);
+    else itemTags.set(a.itemId, new Set([a.tagId]));
+  }
+
+  const totalByTag = new Map<string, number>();
+  for (const tagIds of itemTags.values()) {
+    for (const tagId of tagIds) {
+      totalByTag.set(tagId, (totalByTag.get(tagId) ?? 0) + 1);
+    }
+  }
+
+  const rangeByTag = new Map<string, number>();
+  for (const item of createdWithinRange(liveItems, startKey, endKey)) {
+    const tagIds = itemTags.get(item.id);
+    if (!tagIds) continue;
+    for (const tagId of tagIds) {
+      rangeByTag.set(tagId, (rangeByTag.get(tagId) ?? 0) + 1);
+    }
+  }
+
+  return Array.from(rangeByTag.entries())
+    .map(([tagId, rangeCount]) => {
+      // Non-null by construction — only ids that passed the tagMap.has()
+      // filter above reach these maps. The fallback is belt-and-braces.
+      const tag = tagMap.get(tagId);
+      return {
+        tagId,
+        tagName: tag?.name ?? tagId,
+        tagColor: tag?.color ?? null,
+        rangeCount,
+        totalCount: totalByTag.get(tagId) ?? rangeCount,
+      };
+    })
+    .sort(
+      (a, b) =>
+        b.rangeCount - a.rangeCount ||
+        b.totalCount - a.totalCount ||
+        // Name last so the order is total, not "whatever Map iteration gave" —
+        // two tags with identical counts would otherwise swap places between
+        // renders as assignments come back in a different order.
+        a.tagName.localeCompare(b.tagName),
+    )
+    .slice(0, limit);
+}

@@ -723,6 +723,10 @@
       "mobile": {
         "title": "Nothing recorded yet",
         "description": "Once you start using the timer or the schedule, your daily summary will appear here."
+      },
+      "tagUsage": {
+        "title": "No tagged items in this range",
+        "description": "Tag your todos, events and notes and the tags you used will be ranked here."
       }
     },
     "mobile": {
@@ -808,6 +812,12 @@
       "noData": "No work time recorded yet",
       "untagged": "Untagged",
       "other": "Other tags"
+    },
+    "tagUsage": {
+      "title": "Tag Usage",
+      "tag": "Tag",
+      "inRange": "Created in range",
+      "liveTotal": "Current total (all time)"
     },
     "overview": {
       "todos": "Todos",

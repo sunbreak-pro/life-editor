@@ -49,6 +49,8 @@ export interface AnalyticsLabels {
   emptyWork: { title: string; description: string };
   emptySchedule: { title: string; description: string };
   emptyMobile: { title: string; description: string };
+  /** Tag usage card — no tags, or nothing tagged inside the range. */
+  emptyTagUsage: { title: string; description: string };
 
   overview: {
     todos: string;
@@ -133,6 +135,19 @@ export interface AnalyticsLabels {
     noData: string;
     untagged: string;
     other: string;
+  };
+
+  /**
+   * Overview tab — tag usage across Todo / Event / Note (#1379). Two windows
+   * per row, so each column names its own: `inRange` follows the date preset,
+   * `liveTotal` never does. The preset's own name is not here — it is derived
+   * from `datePreset.options` at the point the range is known.
+   */
+  tagUsage: {
+    title: string;
+    tag: string;
+    inRange: string;
+    liveTotal: string;
   };
 
   /** Mobile-only single-scroll labels. */
