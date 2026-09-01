@@ -80,7 +80,6 @@ export interface TodosDataService {
   softDeleteTodo(id: string): Promise<void>;
   restoreTodo(id: string): Promise<void>;
   permanentDeleteTodo(id: string): Promise<void>;
-  migrateTodosToBackend(nodes: TodoNode[]): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
