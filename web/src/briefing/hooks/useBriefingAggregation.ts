@@ -3,6 +3,7 @@ import {
   dateKeyOfInstant,
   extractBriefing,
   pickAddableTodos,
+  todoScheduleSlot,
   todosToCalendarChips,
   useTranslation,
   type BriefingCarryoverEntry,
@@ -142,16 +143,33 @@ export function useBriefingAggregation({
     return map;
   }, [liveTodos]);
 
+  /*
+   * HH:MM for the paper's todo rows (#1369). The paper used to drop the clock
+   * a todo was placed at, so a 09:00 todo and a someday-today todo printed
+   * identically — the reader had to open Schedule to tell them apart.
+   *
+   * `todoScheduleSlot` is the same selector the calendar chips and the tray
+   * read, so "is this todo timed, and at what?" is answered once: it folds
+   * an unparseable instant and a degenerate span into the all-day case, which
+   * is why the paper cannot print "Invalid Date" or an inverted span here. An
+   * all-day slot's "00:00" is deliberately NOT surfaced — midnight is the
+   * placeholder the grid draws all-day bands with, not a time the todo has —
+   * so those rows pass "" and keep the empty column they have always had.
+   */
   const todayTodos = useMemo<BriefingTodoEntry[]>(
     () =>
       liveTodos
         .filter((n) => dateKeyOf(n.scheduledAt) === todayKey)
-        .map((n) => ({
-          id: n.id,
-          title: n.title,
-          status: n.status ?? "NOT_STARTED",
-          purposes: purposesOf(n.id),
-        })),
+        .map((n) => {
+          const slot = todoScheduleSlot(n);
+          return {
+            id: n.id,
+            title: n.title,
+            status: n.status ?? "NOT_STARTED",
+            startTime: slot !== null && !slot.isAllDay ? slot.startTime : "",
+            purposes: purposesOf(n.id),
+          };
+        }),
     [liveTodos, todayKey, purposesOf],
   );
 
