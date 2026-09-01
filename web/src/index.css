@@ -184,6 +184,37 @@ body {
   height: 1.6em;
   margin-top: 0.4em;
   user-select: none;
+  /* Only ever seen while the box below is focused — declared here so the ring
+     has a shape to follow when it is. */
+  border-radius: 9999px;
+}
+/*
+ * The focus ring belongs to the LABEL, not to the checkbox (#1368).
+ *
+ * `mask` is a group effect: it composites everything the input paints through
+ * the glyph's alpha, and an outline is painted OUTSIDE the border box, where
+ * that alpha is 0. A ring declared on the input is therefore drawn and then
+ * clipped away — silently, and a `box-shadow` ring goes the same way, so the
+ * usual Tailwind-style fix would look like it worked and not be there. Measured
+ * in Chromium: `outline: 6px solid` on a masked box renders nothing at all.
+ * The label carries no mask, so its ring survives.
+ *
+ * The box IS reachable: TipTap's TaskItem builds a real <input type="checkbox">
+ * with no tabindex, so Tab out of a task item lands on it and Space toggles it.
+ * Before #1368 it was a native control drawing the UA's own ring; taking that
+ * away without replacing it would leave a keyboard user unable to tell which
+ * todo Space is about to check.
+ *
+ * `:has(:focus-visible)` rather than `:focus-within` — the same distinction
+ * FOCUS_RING_TIGHT makes on the React control.
+ */
+.note-editor
+  .ProseMirror
+  ul[data-type="taskList"]
+  li
+  > label:has(input:focus-visible) {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
 }
 .note-editor .ProseMirror ul[data-type="taskList"] li > div {
   flex: 1 1 auto;
@@ -232,6 +263,33 @@ body {
   input[type="checkbox"]:checked {
   --todo-checkbox-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='m9 12 2 2 4-4'/%3E%3C/svg%3E");
   background-color: var(--color-accent);
+}
+/*
+ * Forced colours — Windows High Contrast and friends (#1368).
+ *
+ * The mark is a background-color showing through a mask, and forced colours
+ * force EVERY background-color to Canvas: both states would be painted in the
+ * page's own colour and the box would read as a 20px hole, checked and
+ * unchecked alike. The React control escapes this because its mark is an SVG
+ * stroke on `currentColor`, and colour is forced to CanvasText, not Canvas —
+ * so this is the one place the shared look needs its own arrangement.
+ *
+ * `forced-color-adjust: none` is the sanctioned escape hatch, and what it opts
+ * into is still the USER's palette: CanvasText and Highlight, never a colour of
+ * ours. The label keeps the default adjustment, so its focus ring stays in the
+ * palette too.
+ */
+@media (forced-colors: active) {
+  .note-editor .ProseMirror ul[data-type="taskList"] input[type="checkbox"] {
+    forced-color-adjust: none;
+    background-color: CanvasText;
+  }
+  .note-editor
+    .ProseMirror
+    ul[data-type="taskList"]
+    input[type="checkbox"]:checked {
+    background-color: Highlight;
+  }
 }
 .note-editor
   .ProseMirror
