@@ -9,7 +9,6 @@ import {
   formatFullDay as formatFullDayKey,
   formatPeriodLabel,
   formatShortDate,
-  type ScheduleCopy,
 } from "./scheduleCopy";
 
 /*
@@ -62,8 +61,6 @@ export interface UseScheduleDayLabelsArgs {
   weekEnd: string;
   /** Minutes-from-midnight (useMinuteClock) — the now-line's own caption. */
   nowMinutes: number;
-  /** Derived-status copy (#222), already built by useScheduleCopy. */
-  statusLabels: ScheduleCopy["statusLabels"];
 }
 
 export function useScheduleDayLabels({
@@ -74,7 +71,6 @@ export function useScheduleDayLabels({
   weekStart,
   weekEnd,
   nowMinutes,
-  statusLabels,
 }: UseScheduleDayLabelsArgs) {
   const { t, i18n } = useTranslation();
 
@@ -125,8 +121,6 @@ export function useScheduleDayLabels({
     allDay: t("scheduleScreen.allDay"),
     empty: t("scheduleScreen.emptyToday"),
     nowLabel: minutesToTime(nowMinutes),
-    complete: t("scheduleScreen.complete"),
-    statusLabels,
     // #1367: the todo rows wear the 朝刊's checkbox, so they wear the 朝刊's
     // words — the Todos section's own copy, resolved here rather than through
     // a scheduleScreen.* paraphrase of the same two values. The sidebar's

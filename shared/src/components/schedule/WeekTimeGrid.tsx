@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
-import { ScheduleStatusTag } from "./ScheduleStatusTag";
-import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import {
   dayOfWeek,
   parseDateKey,
@@ -65,8 +63,6 @@ export interface WeekTimeGridItem {
   endTime: string; // HH:MM
   isAllDay?: boolean;
   completed?: boolean;
-  /** Derived status (#222) — drives the in-block status tag. */
-  status?: ScheduleStatus;
   /**
    * Provenance color code (W8 target-IA): "routine" = 藍 face + left band +
    * Repeat glyph, "event" (default) = 紫 face + border, "task" = blue face +
@@ -195,11 +191,6 @@ export interface WeekTimeGridLabels {
   weekdays: string[];
   /** Label for the all-day lane. */
   allDay: string;
-  /**
-   * Status-tag labels (#222). When supplied, each timed block renders its
-   * derived-status tag; omitted → no tag (read-only hosts).
-   */
-  status?: Record<ScheduleStatus, string>;
   /** Accessible label for an empty-slot create target. */
   createSlot?: string;
 }
@@ -293,7 +284,6 @@ export function WeekTimeGrid({
   const {
     weekdays: weekdayLabels,
     allDay: allDayLabel,
-    status: statusLabels,
     createSlot: createSlotLabel,
   } = labels;
   const {
@@ -549,7 +539,8 @@ export function WeekTimeGrid({
                             : "block truncate",
                           selected && "ring-2 ring-lumen-accent",
                           placeable && "cursor-grab",
-                          it.completed &&
+                          it.variant === "task" &&
+                            it.completed &&
                             "text-lumen-text-secondary line-through",
                         )}
                         style={placeable ? { touchAction: "none" } : undefined}
@@ -687,7 +678,13 @@ export function WeekTimeGrid({
                         variant === "routine" && "pl-1.5",
                         movable && "z-10 cursor-move",
                         selected && "z-10 ring-2 ring-lumen-accent",
-                        it.completed && "line-through opacity-55",
+                        // Gated on the variant (#1373): the MCP tool still
+                        // writes `completed` for events, and an event struck
+                        // through with no control to clear it would be worse
+                        // than the toggle that went.
+                        variant === "task" &&
+                          it.completed &&
+                          "line-through opacity-55",
                       )}
                       style={{
                         top: `${p.topPct}%`,
@@ -731,15 +728,6 @@ export function WeekTimeGrid({
                         <span className="truncate text-xs opacity-80">
                           {it.startTime}
                         </span>
-                        {/* Derived-status tag (#222). Compact xs; the block's
-                            overflow-hidden clips it on very short blocks. */}
-                        {statusLabels && it.status && (
-                          <ScheduleStatusTag
-                            size="xs"
-                            status={it.status}
-                            label={statusLabels[it.status]}
-                          />
-                        )}
                       </span>
                       {/* Resize handle (bottom edge) — only when host opts in.
                           Todo chips resize only when todoInteractive (A-2). */}

@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import {
   ArrowUpRight,
   Check,
-  Circle,
   Plus,
   Sparkles,
   Sunrise,
@@ -43,6 +42,12 @@ export interface BriefingScheduleEntry {
   title: string;
   /** "HH:MM" (empty for all-day). */
   startTime: string;
+  /**
+   * Data only since #1373 — nothing on the paper draws it. An event has no
+   * completion in the UI any more, but the `completed` column and the MCP
+   * `set_schedule_complete` tool both stay, and 夕刊's「今後の予定」still
+   * drops a row that tool has closed.
+   */
   completed: boolean;
   /** True when the item was generated from a Routine (shows the tag). */
   isRoutine: boolean;
@@ -127,7 +132,6 @@ export interface BriefingLabels {
   routineTag: string;
   allDay: string;
   carryoverTitle: string;
-  toggleComplete: string;
   /**
    * Copy for the carryover rows' checkbox (#1368) — `todoStatus` names what
    * the control sets, the two `status*` members name each value. The same
@@ -191,8 +195,6 @@ export interface BriefingViewProps {
   onGoalChange: (period: GoalPeriod, text: string) => void;
   /** Blur on a goal field — the host flushes a pending debounced save. */
   onGoalBlur: () => void;
-  /** Completes / un-completes a schedule item (host → DataService). */
-  onToggleScheduleItem: (id: string) => void;
   /** Completes / un-completes a todo or carryover row (host → DataService). */
   onToggleTodo: (id: string) => void;
   /**
@@ -414,7 +416,6 @@ export function BriefingView({
   goalLabels,
   onGoalChange,
   onGoalBlur,
-  onToggleScheduleItem,
   onToggleTodo,
   onDeleteScheduleItem,
   onDeleteTodo,
@@ -651,29 +652,13 @@ export function BriefingView({
                 <TimeCell
                   label={item.isAllDay ? labels.allDay : item.startTime}
                 />
-                <button
-                  type="button"
-                  onClick={() => onToggleScheduleItem(item.id)}
-                  aria-label={labels.toggleComplete}
-                  className="flex-shrink-0 self-center text-lumen-text-secondary transition-colors hover:text-lumen-accent"
-                >
-                  {item.completed ? (
-                    <Check size={15} className="text-lumen-briefing-shu" />
-                  ) : (
-                    <Circle size={15} />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onToggleScheduleItem(item.id)}
-                  className={
-                    item.completed
-                      ? "min-w-0 text-left text-sm text-lumen-text-secondary line-through transition-colors hover:text-lumen-accent"
-                      : "min-w-0 text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent"
-                  }
-                >
+                {/* No completion mark and no strikethrough (#1373): an event
+                    has no "done" any more, so the paper reads the schedule
+                    rather than asking the user to tick it off. The todo rows
+                    below keep their checkbox. */}
+                <span className="min-w-0 text-sm text-lumen-text">
                   {item.title}
-                </button>
+                </span>
                 {item.isRoutine && (
                   <span className="rounded-full border border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-2 text-xs text-lumen-briefing-kohaku">
                     {labels.routineTag}

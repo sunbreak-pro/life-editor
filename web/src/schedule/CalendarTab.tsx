@@ -161,7 +161,6 @@ export function CalendarTab({
     loadDateRange,
     createScheduleItem,
     updateScheduleItem,
-    toggleComplete,
     dismiss,
     undismiss,
     deleteScheduleItem,
@@ -310,8 +309,8 @@ export function CalendarTab({
     tagFilterOpen,
     setTagFilterOpen,
   } = useScheduleOverlays();
-  // #889: one clock, two shapes. `now` compares across days for
-  // deriveScheduleStatus (#222); `nowMinutes` places the now-line and the
+  // #889: one clock, two shapes. `now` is the repeat engine's day key
+  // (useScheduleRepeats); `nowMinutes` places the now-line and the
   // agenda divider inside the day. They used to be two states read from the
   // wall clock separately in one interval, which let them straddle a minute
   // boundary and disagree.
@@ -511,7 +510,6 @@ export function CalendarTab({
     allTags,
     allAssignments,
     isWide,
-    now,
     anchorDate,
     selected,
     setSelectedId,
@@ -587,7 +585,6 @@ export function CalendarTab({
     closeScopeRequest,
     handleScopeChoose,
     handleUpdate,
-    handleToggle,
     handleCreate,
     handleMoveItem,
     handleResizeItem,
@@ -613,7 +610,6 @@ export function CalendarTab({
     onSelectItem: handleSelectItem,
     createScheduleItem,
     updateScheduleItem,
-    toggleComplete,
     dismiss,
     deleteScheduleItem,
     routines,
@@ -718,7 +714,6 @@ export function CalendarTab({
     toolbarLabels,
     sidebarTabs,
     repeatLabels,
-    statusLabels,
     createPanelLabels,
     formatDuration,
     formatGapLabel,
@@ -754,7 +749,6 @@ export function CalendarTab({
     weekStart,
     weekEnd,
     nowMinutes,
-    statusLabels,
   });
 
   /*
@@ -793,14 +787,12 @@ export function CalendarTab({
   } = useScheduleTodayAgenda({
     contextItems,
     todayTodoChips,
-    now,
     undismiss,
     reload,
     selected,
     routines,
     freqCopy,
     weekdayLabels,
-    handleToggle,
     handleTodoToggleComplete,
   });
 
@@ -850,7 +842,7 @@ export function CalendarTab({
     [addNode, reportTourAction, setTodoDetailId],
   );
 
-  const editorItem: EventEditorItem | null = toEditorItem(selected, now);
+  const editorItem: EventEditorItem | null = toEditorItem(selected);
 
   // ── Repeat section (#185 Step 3 / #408 / #889) ─────────────────────────────
   const {
@@ -1068,7 +1060,6 @@ export function CalendarTab({
         // The SERIES id, when this occurrence came from one — the tag slot
         // writes against it rather than against the regenerated row (#468).
         routineId: selected?.routineId,
-        statusLabels,
         // #628: one commit per press, carrying everything that changed. It goes
         // to handleUpdate whole — that is what keeps a routine occurrence's
         // scope dialog (#279) to one appearance and makes cancelling it discard
@@ -1078,7 +1069,6 @@ export function CalendarTab({
         // button.
         handlers: {
           onSave: handleUpdateReported,
-          onToggleComplete: handleToggle,
           onDismiss: handleDismiss,
           onDelete: handleDelete,
         },
@@ -1216,7 +1206,7 @@ export function CalendarTab({
             selectedId,
             nowMinutes,
           }}
-          labels={{ weekdays: weekdayLabels, status: statusLabels }}
+          labels={{ weekdays: weekdayLabels }}
           handlers={{
             onItemActivate: handleItemActivate,
             onItemDoubleClick: handleItemOpenDetail,

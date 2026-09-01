@@ -229,27 +229,7 @@ describe("useBriefingData — todo status writes (#892)", () => {
 });
 
 describe("useBriefingData — schedule writes (#892)", () => {
-  it("folds the toggled row back into the paper", async () => {
-    const row = scheduleItem({ id: "s1", date: TODAY, title: "Dentist" });
-    const { result, ds } = renderData(
-      { scheduleByDate: { [TODAY]: [row] } },
-      {
-        toggleScheduleItemComplete: vi
-          .fn()
-          .mockResolvedValue({ ...row, completed: true }),
-      },
-    );
-    await waitFor(() => expect(result.current.loading).toBe(false));
-
-    await act(async () => result.current.handleToggleScheduleItem("s1"));
-
-    expect(mockOf(ds, "toggleScheduleItemComplete")).toHaveBeenCalledWith("s1");
-    await waitFor(() =>
-      expect(result.current.data.schedule[0]?.completed).toBe(true),
-    );
-  });
-
-  it("creates an event on the day the paper is showing", async () => {
+    it("creates an event on the day the paper is showing", async () => {
     const saved = scheduleItem({ id: "s-new", date: TODAY, title: "Coffee" });
     const { result, ds } = renderData(
       {},

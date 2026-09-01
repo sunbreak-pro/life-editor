@@ -20,7 +20,6 @@ import {
 import { ScheduleEventEditor } from "./ScheduleEventEditor";
 import { useEditorCloseGuard } from "./useEditorCloseGuard";
 import { useScheduleRoleLabels } from "./scheduleRoleLabels";
-import type { ScheduleCopy } from "./scheduleCopy";
 
 /*
  * The Calendar's overlay layer, assembled once for both layouts (#889).
@@ -81,8 +80,6 @@ export interface ScheduleOverlayHostProps {
      * null for a manual item. Only the tag slot reads it (#468).
      */
     routineId?: string | null;
-    /** Derived-status copy (#222) — the one label the host already owns. */
-    statusLabels: ScheduleCopy["statusLabels"];
     /**
      * `onDirtyChange` is deliberately NOT part of this: the guard below is the
      * flag's only writer, and a host free to pass its own would be a second one.
@@ -140,7 +137,6 @@ export function ScheduleOverlayHost({
       item={editor.item}
       isWide={isWide}
       routineId={editor.routineId}
-      statusLabels={editor.statusLabels}
       // The dirty flag is spread in LAST so it cannot be shadowed: the guard
       // owns it (its ref is what both exits read), and the host is typed out of
       // supplying one at all.

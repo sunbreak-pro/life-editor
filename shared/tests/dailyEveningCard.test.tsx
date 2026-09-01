@@ -6,7 +6,7 @@ import { DailyEveningCard } from "../src/components/materials/DailyEveningCard";
  * 夕刊カテゴリ (#1046) — the Daily tab's evening block. Pure presentation:
  * what is pinned here is that each sub-block renders exactly what the host
  * extracted (mood → the right star count, reflection → its lines, schedule →
- * time + title with completed rows struck) and that empty sub-blocks vanish
+ * time + title, never struck since #1373) and that empty sub-blocks vanish
  * rather than render empty headings.
  */
 
@@ -23,14 +23,12 @@ const SCHEDULE = [
     title: "Deep work",
     startTime: "09:00",
     isAllDay: false,
-    completed: true,
   },
   {
     id: "s2",
     title: "Errand day",
     startTime: "",
     isAllDay: true,
-    completed: false,
   },
 ];
 
@@ -77,7 +75,7 @@ describe("DailyEveningCard", () => {
     expect(screen.getByText("line B")).toBeTruthy();
   });
 
-  it("renders the schedule rows with time / all-day and strikes completed", () => {
+  it("renders the schedule rows with time / all-day, never struck (#1373)", () => {
     render(
       <DailyEveningCard
         mood={null}
@@ -89,7 +87,11 @@ describe("DailyEveningCard", () => {
     expect(screen.getByText("THE DAY'S SCHEDULE")).toBeTruthy();
     expect(screen.getByText("09:00")).toBeTruthy();
     expect(screen.getByText("All day")).toBeTruthy();
-    expect(screen.getByText("Deep work").className).toContain("line-through");
+    // An event has no completion any more, so no row here can be struck —
+    // "Deep work" was the completed fixture before #1373.
+    expect(screen.getByText("Deep work").className).not.toContain(
+      "line-through",
+    );
     expect(screen.getByText("Errand day").className).not.toContain(
       "line-through",
     );

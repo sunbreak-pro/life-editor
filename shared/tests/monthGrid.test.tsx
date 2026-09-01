@@ -191,3 +191,35 @@ describe("MonthGrid", () => {
     expect(container.querySelector(".bg-lumen-chip-task-dot")).not.toBeNull();
   });
 });
+
+describe("MonthGrid — completion is a TODO's alone (#1373)", () => {
+  /*
+   * Seeded rather than driven: no UI gesture can complete an event any more,
+   * but the MCP set_schedule_complete tool still writes the column, so this
+   * is the only way the rule can be checked at all.
+   */
+  it("strikes a completed TODO chip and never a completed EVENT one", () => {
+    renderGrid({
+      items: [
+        {
+          id: "done-event",
+          date: "2026-07-09",
+          title: "Retro",
+          variant: "event",
+          completed: true,
+        },
+        {
+          id: "done-todo",
+          date: "2026-07-09",
+          title: "Write report",
+          variant: "task",
+          completed: true,
+        },
+      ],
+    });
+    expect(screen.getByTitle("Retro").className).not.toContain("line-through");
+    expect(screen.getByTitle("Write report").className).toContain(
+      "line-through",
+    );
+  });
+});
