@@ -713,7 +713,11 @@ export function NotesView({
               screen, which asked the user to pick from nothing. The recently
               OPENED notes go underneath it as things to actually pick. With no
               history (first run, everything deleted) the list is absent and
-              this is exactly the centred icon + line + CTA it always was. */}
+              this is the centred icon + line on its own.
+
+              #1372: no CTA of its own. The toolbar pill above is the add
+              entry at BOTH widths, so a second button saying the same thing a
+              few centimetres below it only doubled the target. */}
           <div className="flex w-full max-w-sm flex-col items-center">
             <EmptyState
               icon={<FileText aria-hidden />}
@@ -722,10 +726,6 @@ export function NotesView({
                   ? t("materials.notes.mainEmpty")
                   : t("materials.notes.empty")
               }
-              cta={{
-                label: t("materials.notes.addCta"),
-                onClick: handleAddNote,
-              }}
             />
             {recentNotes.length > 0 && (
               <nav
