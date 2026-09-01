@@ -2,6 +2,21 @@
 
 ローリングアーカイブ: `history/chat-tags-docs.md` が 5 件超過した際に最古エントリをここへ移動。時系列降順。
 
+### 2026-08-13 - #777 テストの DataService スタブ / fixture を共有ヘルパへ集約
+
+#### 概要
+
+30 スイートが手写ししていたテストの足場（DataService スタブとノード fixture）の土台を 1 箇所に置き、名前が 3 通りに割れていた分を寄せた（PR #812 open）。プロダクションコードは無変更。
+
+#### 変更点
+
+- **新設 3 本**: `shared/tests/helpers/dataServiceStub.ts`（`stubDataService` — `as unknown as DataService` のキャストを集約）/ `shared/tests/helpers/nodeFixtures.ts`（完全一致の `makeNote` 5 本・`makeTask` 2 本）/ `web/tests/helpers/index.ts`（`@life-editor/shared` エイリアスは `../shared/src` を指していて `shared/tests` に届かないため、4 段の相対パスをこの 1 本が持つ）
+- **引数型の設計**: `Partial<Record<keyof DataService, unknown>>` — メソッド名だけ型チェックし値は緩いまま。多くのスイートは「本当は TaskNode を返すメソッド」に三つ組を返す（呼ぶ側がそこしか読まない）ため、真の返り値型を要求すると消したかった重複が増える
+- **名前統一**: 18 本のファクトリを `makeDS` に（`makeDataService` 7 + `makeDs` 3 を改名）。うち 16 本が `stubDataService` 経由。残り 2 本（paletteItemSearch / workScreenLayout）は絞り込んだローカル型を返すので改名のみ
+- **挙動不変の根拠**: diff を assertion 系トークンで絞って**増減 0 行**。テスト本数も前後同一（shared 217/1980・web 32/269）
+- **意図的に残した**: 13 スイートのインラインスタブ（Issue の「1 PR で 30 ファイルを書き換えない」）/ Schedule 系の `makeItem`・`makeRoutine`（`frequencyType` と `frequencyDays` が各スイートの試したいケースを決める値で、共有既定を選ぶと他 2 本が何を試しているか黙って変わる）
+- **申し送り**: `shared/tests` と `web/tests` は**どの CI ゲートでも型検査されていない**（両 tsconfig とも `include: ["src"]`・eslint は type-aware でない）。`stubDataService` の名前チェックは型検査を走らせた瞬間から効くもので今日の CI では効かない。検証用に一時 tsconfig で `tsc` を回してテスト木エラー 0 件を実測した（Scope 外なのでファイルは削除）。恒久ゲート化は別 Issue の判断
+
 ### 2026-08-13 - #674 services 層の PostgREST 定型畳み込み（残作業）
 
 #### 概要
