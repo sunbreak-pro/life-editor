@@ -2,20 +2,22 @@
 import { describe, it, expect } from "vitest";
 import {
   rowToWikiTagConnection,
-  wikiTagConnectionToRow,
-  wikiTagConnectionUpdatesToPatch,
   type WikiTagConnectionRow,
 } from "../src/services/wikiTagConnectionMapper";
 
 /*
  * wikiTagConnectionMapper vitest suite (DU-C+ Step 3). RELATION table,
- * directional items↔items link, self-loop rejected at mapper + DB.
+ * directional items↔items link.
+ *
+ * Read direction only since #1389 — the write-direction pair was deleted
+ * there for having no caller outside this file, self-loop guard included.
+ * Self-loops are still refused where an actual write meets them:
+ * `check (from_item_id <> to_item_id)` on the table (0008 §13).
  *
  * Cases:
- *   1. roundtrip row -> domain -> insert-row
- *   2. self-loop throws at mapper layer (defence-in-depth before DB CHECK)
- *   3. cross-role link is supported (todo -> note etc)
- *   4. updates patch ALWAYS emits updated_at
+ *   1. row -> domain carries every column
+ *   2. cross-role link is supported (event -> daily)
+ *   3. origin normalisation (#372) — anything but 'inline' is 'manual'
  */
 
 const USER = "00000000-0000-0000-0000-000000000000";
@@ -38,46 +40,28 @@ function fresh(
 }
 
 describe("wikiTagConnectionMapper", () => {
-  it("roundtrips row -> domain -> insert-row", () => {
+  it("maps every row column onto the domain object", () => {
     const row = fresh();
     const dom = rowToWikiTagConnection(row);
-    const ins = wikiTagConnectionToRow(dom, USER);
-    expect(ins.id).toBe(row.id);
-    expect(ins.from_item_id).toBe(row.from_item_id);
-    expect(ins.to_item_id).toBe(row.to_item_id);
-    expect(ins.is_deleted).toBe(false);
-  });
-
-  it("rejects self-loop at mapper layer (before DB CHECK)", () => {
-    expect(() =>
-      wikiTagConnectionToRow(
-        {
-          id: "link-self",
-          fromItemId: "task-same",
-          toItemId: "task-same",
-          origin: "manual",
-          updatedAt: NOW,
-          isDeleted: false,
-          deletedAt: null,
-        },
-        USER,
-      ),
-    ).toThrow(/self-loop/);
+    expect(dom.id).toBe(row.id);
+    expect(dom.fromItemId).toBe(row.from_item_id);
+    expect(dom.toItemId).toBe(row.to_item_id);
+    expect(dom.updatedAt).toBe(row.updated_at);
+    expect(dom.isDeleted).toBe(false);
   });
 
   it("supports cross-role link (event -> daily)", () => {
-    const row = fresh({ from_item_id: "event-1", to_item_id: "daily-2" });
-    const dom = rowToWikiTagConnection(row);
-    const ins = wikiTagConnectionToRow(dom, USER);
-    expect(ins.from_item_id).toBe("event-1");
-    expect(ins.to_item_id).toBe("daily-2");
+    const dom = rowToWikiTagConnection(
+      fresh({ from_item_id: "event-1", to_item_id: "daily-2" }),
+    );
+    expect(dom.fromItemId).toBe("event-1");
+    expect(dom.toItemId).toBe("daily-2");
   });
 
-  it("roundtrips origin (#372) — inline survives row -> domain -> insert-row", () => {
-    const row = fresh({ origin: "inline" });
-    const dom = rowToWikiTagConnection(row);
-    expect(dom.origin).toBe("inline");
-    expect(wikiTagConnectionToRow(dom, USER).origin).toBe("inline");
+  it("carries origin 'inline' through (#372)", () => {
+    expect(rowToWikiTagConnection(fresh({ origin: "inline" })).origin).toBe(
+      "inline",
+    );
   });
 
   it("normalizes anything but 'inline' to 'manual' (#372 safe side)", () => {
@@ -91,17 +75,11 @@ describe("wikiTagConnectionMapper", () => {
     );
   });
 
-  it("updates patch ALWAYS emits updated_at", () => {
-    const empty = wikiTagConnectionUpdatesToPatch({}, NOW);
-    expect(empty).toEqual({ updated_at: NOW });
-  });
-
-  it("soft-delete patch shape", () => {
-    const patch = wikiTagConnectionUpdatesToPatch(
-      { isDeleted: true, deletedAt: NOW },
-      NOW,
+  it("carries the soft-delete columns through", () => {
+    const dom = rowToWikiTagConnection(
+      fresh({ is_deleted: true, deleted_at: NOW }),
     );
-    expect(patch.is_deleted).toBe(true);
-    expect(patch.deleted_at).toBe(NOW);
+    expect(dom.isDeleted).toBe(true);
+    expect(dom.deletedAt).toBe(NOW);
   });
 });

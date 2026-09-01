@@ -1,5 +1,4 @@
 import type { WikiTagConnection } from "../types/wikiTagUnified";
-import { relationSoftDeleteUpdatesToPatch } from "./softDeleteMapper";
 
 /*
  * Pure WikiTagConnection <-> wiki_tag_connections row mapper (DU-C+).
@@ -54,29 +53,11 @@ export function rowToWikiTagConnection(
   };
 }
 
-export function wikiTagConnectionToRow(
-  connection: WikiTagConnection,
-  userId: string,
-): WikiTagConnectionInsertRow {
-  if (connection.fromItemId === connection.toItemId) {
-    throw new Error(
-      `wikiTagConnectionMapper: self-loop rejected (fromItemId === toItemId === "${connection.fromItemId}")`,
-    );
-  }
-  return {
-    id: connection.id,
-    user_id: userId,
-    from_item_id: connection.fromItemId,
-    to_item_id: connection.toItemId,
-    origin: connection.origin ?? "manual",
-    is_deleted: connection.isDeleted ?? false,
-    deleted_at: connection.deletedAt ?? null,
-  };
-}
-
-export function wikiTagConnectionUpdatesToPatch(
-  updates: Partial<WikiTagConnection>,
-  now: string,
-): WikiTagConnectionUpdatePatch {
-  return relationSoftDeleteUpdatesToPatch(updates, now);
-}
+/*
+ * Read direction only (#1389). The `...ToRow` / `...UpdatesToPatch` pair this
+ * file used to carry never gained a caller — SupabaseWikiTagsUnifiedService
+ * writes connection rows inline — so the only thing exercising them was their
+ * own suite, self-loop guard included. That guard was always the SECOND line
+ * of defence: `check (from_item_id <> to_item_id)` on the table (0008 §13) is
+ * the one an actual write hits. The row / patch TYPES stay.
+ */

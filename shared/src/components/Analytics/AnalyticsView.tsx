@@ -57,6 +57,15 @@ export interface AnalyticsViewProps {
   /** True while the host is (re)fetching schedule items for the range. */
   scheduleLoading?: boolean;
   /**
+   * EVERY live event (host: `fetchEvents()`) — the third event list here, and
+   * the only range-INDEPENDENT one. `todayItems` is one day, `scheduleItems`
+   * is the selected preset's window; the tag usage card (#1379) needs neither,
+   * because its right-hand total is defined as "carrying this tag right now"
+   * and its left column slices on the item's `createdAt`, which a fetch keyed
+   * on the event's scheduled date cannot answer.
+   */
+  liveEvents: ScheduleItem[];
+  /**
    * True while the host's initial (mount) fetch is in flight. Drives the
    * first-load skeleton so the dashboard lays out its frame instead of
    * flashing zeros before the data lands.
@@ -67,12 +76,13 @@ export interface AnalyticsViewProps {
   /** Pre-built todoId → display name map (Work tab todo chart). */
   todoNameMap: Map<string, string>;
   /**
-   * Active life-tags. Feeds both the Overview tag count and the Todos tab's
-   * tag work-time ring — the counts are derived here rather than passed
-   * separately so the two can never disagree (数値の非複製原則).
+   * Active life-tags. Feeds the Overview tag count, the Overview tag usage
+   * card (#1379) and the Todos tab's tag work-time ring. Passed as the list,
+   * never as a pre-counted number, so every surface counts the same rows
+   * (数値の非複製原則).
    */
   tags: WikiTag[];
-  /** Active tag assignments (Overview count + tag work-time attribution). */
+  /** Active tag assignments (Overview counts + tag work-time attribution). */
   assignments: WikiTagAssignment[];
   /** Pomodoro daily target (Work tab; host: fetchTimerSettings().targetSessions). */
   targetPerDay: number;
@@ -124,6 +134,7 @@ function DesktopAnalytics({
   todayItems,
   scheduleItems,
   scheduleLoading,
+  liveEvents,
   initialLoading,
   notes,
   routines,
@@ -135,7 +146,7 @@ function DesktopAnalytics({
   onTabChange,
   labels,
 }: AnalyticsViewProps): React.JSX.Element {
-  const { preset, applyPreset } = useAnalyticsFilter();
+  const { dateRange, preset, applyPreset } = useAnalyticsFilter();
   // Controlled when the shell supplies `activeTab` (v2 §1: tab band lifts into
   // the standard SectionHeader); otherwise the in-body HeaderTabs owns its
   // state, exactly as before. Backward-compatible.
@@ -201,10 +212,12 @@ function DesktopAnalytics({
                   sessions={sessions}
                   nodes={nodes}
                   todayItems={todayItems}
+                  events={liveEvents}
                   notes={notes}
                   routines={routines}
-                  tagCount={tags.length}
-                  assignmentCount={assignments.length}
+                  tags={tags}
+                  assignments={assignments}
+                  dateRange={dateRange}
                   labels={{
                     todos: labels.overview.todos,
                     events: labels.overview.events,
@@ -233,6 +246,14 @@ function DesktopAnalytics({
                       formatHours: labels.formatHours,
                     },
                     streak: labels.streak,
+                    tagUsage: {
+                      ...labels.tagUsage,
+                      // The preset's own name, resolved where the preset
+                      // lives — the card only has to render it beside the
+                      // column it qualifies.
+                      rangeLabel: labels.datePreset.options[preset],
+                      empty: labels.emptyTagUsage,
+                    },
                   }}
                 />
               )}

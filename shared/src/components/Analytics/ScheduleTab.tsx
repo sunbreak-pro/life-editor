@@ -12,7 +12,7 @@ import type { RoutineNode } from "../../types/routine";
 import { useAnalyticsFilter } from "./AnalyticsFilterContext";
 import { formatDateKey } from "../../utils/dateKey";
 import { AnalyticsStatCard } from "./AnalyticsStatCard";
-import { EmptyState } from "./EmptyState";
+import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
 import {
   EventCompletionTrend,
   type EventCompletionTrendLabels,
@@ -120,7 +120,7 @@ export function ScheduleTab({
 
   if (items.length === 0) {
     return (
-      <EmptyState
+      <AnalyticsEmptyState
         icon={<CalendarClock size={26} />}
         title={labels.empty.title}
         description={labels.empty.description}

@@ -42,7 +42,6 @@ export interface TodoNode {
   icon?: string;
   timeMemo?: string;
   updatedAt?: string;
-  version?: number;
   priority?: 1 | 2 | 3 | 4 | null;
   reminderEnabled?: boolean;
   reminderOffset?: number;

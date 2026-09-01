@@ -21,8 +21,8 @@ const TEST_ITER = 100_000;
  *    throw before any DB round-trip).
  *  - No hierarchy: permanentDeleteDailyUnified is a single DELETE (no
  *    descendants/cycle-guard loop, unlike permanentDeleteNoteUnified).
- *  - restore bumps `version` (not just updated_at) so Sync LWW propagates
- *    a restore unambiguously even when content is unchanged.
+ *  - restore bumps `updated_at`, the Sync LWW cursor, so the restore
+ *    propagates even when content is unchanged.
  *
  * Password gate (Issue #118): password_hash now stores a PBKDF2 string
  * (utils/passwordHash.ts), not plaintext. verify accepts a legacy plaintext
@@ -153,7 +153,6 @@ function makeMetaRow(overrides: Partial<Record<string, unknown>> = {}) {
     deleted_at: null,
     created_at: "2026-05-24T10:00:00.000Z",
     updated_at: "2026-05-24T11:00:00.000Z",
-    version: 3,
     ...overrides,
   };
 }
@@ -315,12 +314,7 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
   // -------------------------------------------------------------------------
 
   describe("restoreDailyUnified", () => {
-    it("clears is_deleted + deleted_at and bumps updated_at + version on items_meta", async () => {
-      // nextVersion lookup
-      stub.stage("items_meta", "select", {
-        data: { version: 4 },
-        error: null,
-      });
+    it("clears is_deleted + deleted_at and bumps updated_at on items_meta", async () => {
       stub.stage("items_meta", "update", { data: null, error: null });
       await service.restoreDailyUnified(DEFAULT_ID);
 
@@ -332,20 +326,17 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
         is_deleted: boolean;
         deleted_at: string | null;
         updated_at: string;
-        version: number;
       };
       expect(patch.is_deleted).toBe(false);
       expect(patch.deleted_at).toBeNull();
       expect(typeof patch.updated_at).toBe("string");
       expect(patch.updated_at).toMatch(/^\d{4}-\d{2}-\d{2}T/);
-      expect(patch.version).toBe(5);
+      // No `version` — the legacy column stopped being written in #1385,
+      // which is what removed the read that used to precede this UPDATE.
+      expect("version" in patch).toBe(false);
     });
 
     it("filters by id AND role='daily' so a stray role is not flipped", async () => {
-      stub.stage("items_meta", "select", {
-        data: { version: 1 },
-        error: null,
-      });
       stub.stage("items_meta", "update", { data: null, error: null });
       await service.restoreDailyUnified(DEFAULT_ID);
 
@@ -372,10 +363,6 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
     });
 
     it("throws when the UPDATE fails", async () => {
-      stub.stage("items_meta", "select", {
-        data: { version: 1 },
-        error: null,
-      });
       stub.stage("items_meta", "update", {
         data: null,
         error: { message: "pg-err" },
@@ -460,19 +447,14 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
   // -------------------------------------------------------------------------
 
   describe("setDailyPasswordUnified", () => {
-    it("writes password_hash to dailies_payload + bumps version on items_meta", async () => {
-      // nextVersion
-      stub.stage("items_meta", "select", {
-        data: { version: 4 },
-        error: null,
-      });
+    it("writes password_hash to dailies_payload + bumps items_meta", async () => {
       // meta update
       stub.stage("items_meta", "update", { data: null, error: null });
       // payload update
       stub.stage("dailies_payload", "update", { data: null, error: null });
       // readBackById -> meta + payload
       stub.stage("items_meta", "select", {
-        data: makeMetaRow({ version: 5 }),
+        data: makeMetaRow(),
         error: null,
       });
       stub.stage("dailies_payload", "select", {
@@ -497,11 +479,8 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
       const metaUpdate = stub.calls.find(
         (c) => c.table === "items_meta" && c.op === "update",
       );
-      const metaPatch = metaUpdate!.args[0] as {
-        version: number;
-        updated_at: string;
-      };
-      expect(metaPatch.version).toBe(5);
+      const metaPatch = metaUpdate!.args[0] as { updated_at: string };
+      expect(Object.keys(metaPatch)).toEqual(["updated_at"]);
       expect(typeof metaPatch.updated_at).toBe("string");
     });
 
@@ -513,10 +492,6 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
     });
 
     it("throws when the items_meta UPDATE fails (payload not written)", async () => {
-      stub.stage("items_meta", "select", {
-        data: { version: 1 },
-        error: null,
-      });
       stub.stage("items_meta", "update", {
         data: null,
         error: { message: "meta-err" },
@@ -547,16 +522,11 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
       ).toBeUndefined();
     });
 
-    it("nulls password_hash + bumps version on a matching password", async () => {
+    it("nulls password_hash + bumps items_meta on a matching password", async () => {
       // verify: match against an already-hashed row (no lazy rehash fires).
       const hashed = await hashPassword("secret", TEST_ITER);
       stub.stage("dailies_payload", "select", {
         data: { password_hash: hashed },
-        error: null,
-      });
-      // nextVersion
-      stub.stage("items_meta", "select", {
-        data: { version: 7 },
         error: null,
       });
       // meta update
@@ -565,7 +535,7 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
       stub.stage("dailies_payload", "update", { data: null, error: null });
       // readBackById
       stub.stage("items_meta", "select", {
-        data: makeMetaRow({ version: 8 }),
+        data: makeMetaRow(),
         error: null,
       });
       stub.stage("dailies_payload", "select", {
@@ -713,15 +683,10 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
   // -------------------------------------------------------------------------
 
   describe("toggleDailyEditLockUnified", () => {
-    it("flips false -> true and bumps version", async () => {
+    it("flips false -> true and bumps items_meta", async () => {
       // read current
       stub.stage("dailies_payload", "select", {
         data: { is_edit_locked: false },
-        error: null,
-      });
-      // nextVersion
-      stub.stage("items_meta", "select", {
-        data: { version: 2 },
         error: null,
       });
       // meta update
@@ -730,7 +695,7 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
       stub.stage("dailies_payload", "update", { data: null, error: null });
       // readBackById
       stub.stage("items_meta", "select", {
-        data: makeMetaRow({ version: 3 }),
+        data: makeMetaRow(),
         error: null,
       });
       stub.stage("dailies_payload", "select", {
@@ -750,8 +715,9 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
       const metaUpdate = stub.calls.find(
         (c) => c.table === "items_meta" && c.op === "update",
       );
-      const metaPatch = metaUpdate!.args[0] as { version: number };
-      expect(metaPatch.version).toBe(3);
+      expect(Object.keys(metaUpdate!.args[0] as object)).toEqual([
+        "updated_at",
+      ]);
     });
 
     it("flips true -> false on the next call", async () => {
@@ -759,14 +725,10 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
         data: { is_edit_locked: true },
         error: null,
       });
-      stub.stage("items_meta", "select", {
-        data: { version: 5 },
-        error: null,
-      });
       stub.stage("items_meta", "update", { data: null, error: null });
       stub.stage("dailies_payload", "update", { data: null, error: null });
       stub.stage("items_meta", "select", {
-        data: makeMetaRow({ version: 6 }),
+        data: makeMetaRow(),
         error: null,
       });
       stub.stage("dailies_payload", "select", {

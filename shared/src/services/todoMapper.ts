@@ -205,7 +205,7 @@ export function toPriority(value: number | null): 1 | 2 | 3 | 4 | null {
  * underlying column is non-null so `todoNodeToRows ∘ rowsToTodoNode`
  * round-trips without manufacturing `undefined`-vs-absent differences.
  * NOT-NULL columns (is_expanded / is_deleted / is_all_day /
- * reminder_enabled / version) are always materialised.
+ * reminder_enabled) are always materialised.
  *
  * Naming mapping (TS camelCase <-> DB snake_case + 2-table split):
  *   meta.title           <- title
@@ -213,7 +213,6 @@ export function toPriority(value: number | null): 1 | 2 | 3 | 4 | null {
  *   meta.deleted_at      <- deletedAt
  *   meta.created_at      <- createdAt
  *   meta.updated_at      <- updatedAt
- *   meta.version         <- version
  *   payload.parent_item_id <- parentId
  *   payload.task_type    <- type             (S3: only 'task' now; legacy
  *                                             'folder' rows are excluded
@@ -266,7 +265,6 @@ export function rowsToTodoNode(
   if (payload.color !== null) node.color = payload.color;
   if (payload.icon !== null) node.icon = payload.icon;
   if (payload.time_memo !== null) node.timeMemo = payload.time_memo;
-  node.version = meta.version;
   node.priority = toPriority(payload.priority);
   node.reminderEnabled = payload.reminder_enabled;
   if (payload.reminder_offset !== null)
@@ -303,9 +301,6 @@ export function todoNodeToRows(
     title: node.title,
     isDeleted: node.isDeleted,
     deletedAt: node.deletedAt,
-    // Todos is the one role that carries a client-side version onto the
-    // first INSERT; the other four always start at 1.
-    version: node.version,
   });
 
   const payload: TasksPayloadWriteRow = {
@@ -378,7 +373,6 @@ export function todoUpdatesToPatches(
   if ("title" in updates) metaFields.title = updates.title;
   if ("isDeleted" in updates) metaFields.isDeleted = updates.isDeleted;
   if ("deletedAt" in updates) metaFields.deletedAt = updates.deletedAt;
-  if ("version" in updates) metaFields.version = updates.version;
   const metaPatch: ItemsMetaUpdatePatch = toItemsMetaPatch(metaFields, now);
 
   // -- payload side --

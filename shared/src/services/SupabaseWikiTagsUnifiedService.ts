@@ -83,7 +83,6 @@ export class SupabaseWikiTagsUnifiedService implements WikiTagsUnifiedDataServic
           color,
           is_deleted: false,
           deleted_at: null,
-          version: 1,
         })
         .select(WIKI_TAGS_COLUMNS)
         .single(),

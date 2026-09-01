@@ -26,9 +26,10 @@ import {
  * <AnalyticsView>. The shared tree never calls useTranslation / getDataService.
  *
  * Data surface (only what the 4 kept tabs need): timer sessions, todo tree,
- * today's schedule items (Overview), routines, notes, tags + tag assignments
- * (unified API — Overview counts and the Todos tab's tag work-time ring, #334),
- * and the pomodoro daily target from timer settings. The
+ * today's schedule items (Overview), every live event (`fetchEvents()` — the
+ * Overview tag usage card's range-independent totals, #1379), routines, notes,
+ * tags + tag assignments (unified API — Overview counts and the Todos tab's tag
+ * work-time ring, #334), and the pomodoro daily target from timer settings. The
  * Schedule tab's items are fetched separately, per selected date range (see the
  * scheduleRange effect + AnalyticsView.onScheduleRangeChange), so we no longer
  * load all history up front.
@@ -61,6 +62,15 @@ interface AnalyticsData {
   sessions: TimerSession[];
   nodes: TodoNode[];
   todayItems: ScheduleItem[];
+  /**
+   * Every live event (`fetchEvents()`), for the Overview tag usage card
+   * (#1379). Deliberately NOT the `scheduleItems` window below: that one is
+   * refetched per date-range preset, and the card's right-hand column means
+   * "carrying this tag right now" — a number that must not move when the user
+   * changes the range. Its left column slices on the item's `createdAt`, which
+   * a fetch keyed on the event's scheduled DATE cannot answer either.
+   */
+  events: ScheduleItem[];
   notes: NoteNode[];
   routines: RoutineNode[];
   tags: WikiTagUnified[];
@@ -72,6 +82,7 @@ const EMPTY: AnalyticsData = {
   sessions: [],
   nodes: [],
   todayItems: [],
+  events: [],
   notes: [],
   routines: [],
   tags: [],
@@ -127,6 +138,7 @@ export function AnalyticsScreen({
         sessions,
         nodes,
         todayItems,
+        events,
         routines,
         notes,
         tags,
@@ -136,6 +148,7 @@ export function AnalyticsScreen({
         service.fetchTimerSessions(),
         service.fetchTodoTree(),
         service.fetchScheduleItemsByDateRange(today, today),
+        service.fetchEvents(),
         service.fetchAllRoutines(),
         service.listNotesUnified(),
         service.listAllWikiTagsUnified(),
@@ -146,6 +159,7 @@ export function AnalyticsScreen({
         sessions,
         nodes,
         todayItems,
+        events,
         routines,
         notes,
         tags,
@@ -259,6 +273,10 @@ export function AnalyticsScreen({
         title: t("analytics.empty.mobile.title"),
         description: t("analytics.empty.mobile.description"),
       },
+      emptyTagUsage: {
+        title: t("analytics.empty.tagUsage.title"),
+        description: t("analytics.empty.tagUsage.description"),
+      },
       mobile: {
         weekTitle: t("analytics.mobile.weekTitle"),
         routineTitle: t("analytics.mobile.routineTitle"),
@@ -352,6 +370,12 @@ export function AnalyticsScreen({
         untagged: t("analytics.tagTime.untagged"),
         other: t("analytics.tagTime.other"),
       },
+      tagUsage: {
+        title: t("analytics.tagUsage.title"),
+        tag: t("analytics.tagUsage.tag"),
+        inRange: t("analytics.tagUsage.inRange"),
+        liveTotal: t("analytics.tagUsage.liveTotal"),
+      },
       schedule: {
         totalEvents: t("analytics.schedule.totalEvents"),
         completedEvents: t("analytics.schedule.completedEvents"),
@@ -381,6 +405,7 @@ export function AnalyticsScreen({
       nodes={data.nodes}
       todayItems={data.todayItems}
       scheduleItems={scheduleItems}
+      liveEvents={data.events}
       onScheduleRangeChange={handleScheduleRangeChange}
       scheduleLoading={scheduleLoading}
       initialLoading={initialLoading}

@@ -32,7 +32,6 @@ export interface ItemsMetaRow<R extends string = "task"> {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
-  version: number;
 }
 
 /**
@@ -63,8 +62,7 @@ export type ItemsMetaUpdatePatch = Partial<
  * aliases so query call sites keep their role-scoped names.
  */
 export const ITEMS_META_COLUMNS =
-  "id, user_id, role, title, is_deleted, deleted_at, " +
-  "created_at, updated_at, version";
+  "id, user_id, role, title, is_deleted, deleted_at, created_at, updated_at";
 
 /* ==========================================================================
  * The items_meta half of the five role mappers (#890).
@@ -123,8 +121,6 @@ export interface ItemsMetaInsertInput<R extends string> {
   title: string;
   isDeleted?: boolean;
   deletedAt?: string | null;
-  /** Omit to let the row start at 1, which is what four of the five roles do. */
-  version?: number;
 }
 
 /**
@@ -142,7 +138,6 @@ export function toItemsMetaInsertRow<R extends string>(
     title: input.title,
     is_deleted: input.isDeleted ?? false,
     deleted_at: input.deletedAt ?? null,
-    version: input.version ?? 1,
   };
 }
 
@@ -157,7 +152,6 @@ export interface ItemsMetaPatchInput {
   title?: string;
   isDeleted?: boolean;
   deletedAt?: string | null;
-  version?: number;
 }
 
 /**
@@ -181,7 +175,5 @@ export function toItemsMetaPatch(
   // key at all, which leaves the coalesce unreachable for them.
   if ("isDeleted" in fields) patch.is_deleted = fields.isDeleted ?? false;
   if ("deletedAt" in fields) patch.deleted_at = fields.deletedAt ?? null;
-  if ("version" in fields && fields.version !== undefined)
-    patch.version = fields.version;
   return patch;
 }

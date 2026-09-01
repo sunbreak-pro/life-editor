@@ -81,7 +81,7 @@ const ITEMS_META_ROLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
  * (syncDomains.test.ts) fails if the two lists ever drift apart, because a
  * table with no domain would silently stop triggering any refetch at all.
  */
-const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
+export const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   tasks_payload: "todos",
   notes_payload: "notes",
   dailies_payload: "dailies",
@@ -151,6 +151,3 @@ export function uniformDomainVersions(
     number
   >;
 }
-
-/** Test seam: the table→domain map, minus the role-routed `items_meta`. */
-export const TABLE_DOMAIN_MAP = TABLE_DOMAIN;

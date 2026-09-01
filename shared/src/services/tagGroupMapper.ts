@@ -18,7 +18,9 @@ import type { TagGroupNode } from "../types/tagGroup";
 
 /**
  * SELECTED row shape of `public.wiki_tag_groups`. `user_id` is server-derived
- * (RLS default `auth.uid()`); `version` is bumped by the service (LWW).
+ * (RLS default `auth.uid()`). The table's `version` column is deliberately
+ * absent: it is a Tauri-era leftover nothing reads, and `updated_at` is the
+ * sync cursor (CLAUDE.md §3.3 / #1385).
  */
 export interface TagGroupRow {
   id: string;
@@ -28,7 +30,6 @@ export interface TagGroupRow {
   deleted_at: string | null;
   created_at: string;
   updated_at: string;
-  version: number;
 }
 
 /** SELECTED row shape of `public.wiki_tag_group_assignments`. */
@@ -47,7 +48,7 @@ export interface TagGroupAssignmentRow {
  * expression; the S2 recurrence-prevention rule).
  */
 export const TAG_GROUP_SELECT_COLUMNS =
-  "id, user_id, name, is_deleted, deleted_at, created_at, updated_at, version";
+  "id, user_id, name, is_deleted, deleted_at, created_at, updated_at";
 
 export const TAG_GROUP_ASSIGNMENT_SELECT_COLUMNS =
   "id, user_id, tag_id, group_id, updated_at, is_deleted, deleted_at";

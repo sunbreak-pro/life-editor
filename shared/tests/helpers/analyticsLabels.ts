@@ -48,6 +48,7 @@ export function makeAnalyticsLabels(
     emptyWork: { title: "No work sessions yet", description: "Start a timer." },
     emptySchedule: { title: "No events", description: "Add events." },
     emptyMobile: { title: "Nothing recorded yet", description: "Get started." },
+    emptyTagUsage: { title: "No tagged items", description: "Tag something." },
     overview: {
       todos: "Todos",
       events: "Events",
@@ -111,6 +112,12 @@ export function makeAnalyticsLabels(
       noData: "No data",
       untagged: "Untagged",
       other: "Other tags",
+    },
+    tagUsage: {
+      title: "Tag Usage",
+      tag: "Tag",
+      inRange: "Created in range",
+      liveTotal: "Current total",
     },
     mobile: {
       weekTitle: "This Week",
