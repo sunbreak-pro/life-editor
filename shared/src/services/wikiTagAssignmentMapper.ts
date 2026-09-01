@@ -1,5 +1,4 @@
 import type { WikiTagAssignment } from "../types/wikiTagUnified";
-import { relationSoftDeleteUpdatesToPatch } from "./softDeleteMapper";
 
 /*
  * Pure WikiTagAssignment <-> wiki_tag_assignments row mapper (DU-C+).
@@ -49,23 +48,10 @@ export function rowToWikiTagAssignment(
   };
 }
 
-export function wikiTagAssignmentToRow(
-  assignment: WikiTagAssignment,
-  userId: string,
-): WikiTagAssignmentInsertRow {
-  return {
-    id: assignment.id,
-    user_id: userId,
-    item_id: assignment.itemId,
-    tag_id: assignment.tagId,
-    is_deleted: assignment.isDeleted ?? false,
-    deleted_at: assignment.deletedAt ?? null,
-  };
-}
-
-export function wikiTagAssignmentUpdatesToPatch(
-  updates: Partial<WikiTagAssignment>,
-  now: string,
-): WikiTagAssignmentUpdatePatch {
-  return relationSoftDeleteUpdatesToPatch(updates, now);
-}
+/*
+ * Read direction only (#1389). The `...ToRow` / `...UpdatesToPatch` pair this
+ * file used to carry never gained a caller — SupabaseWikiTagsUnifiedService
+ * writes assignment rows inline — so the only thing exercising them was their
+ * own suite. The Row / InsertRow / UpdatePatch TYPES stay: those inline writes
+ * are checked against them.
+ */

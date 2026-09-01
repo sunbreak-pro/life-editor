@@ -2,8 +2,6 @@
 import { describe, it, expect } from "vitest";
 import {
   rowToWikiTagAssignment,
-  wikiTagAssignmentToRow,
-  wikiTagAssignmentUpdatesToPatch,
   type WikiTagAssignmentRow,
 } from "../src/services/wikiTagAssignmentMapper";
 
@@ -11,11 +9,13 @@ import {
  * wikiTagAssignmentMapper vitest suite (DU-C+ Step 3). A relation table,
  * no version, soft-delete-aware.
  *
+ * Read direction only since #1389 — the write-direction pair was deleted
+ * there for having no caller outside this file.
+ *
  * Cases:
- *   1. row -> domain -> insert-row roundtrip
- *   2. updates patch ALWAYS includes updated_at
- *   3. soft-delete patch shape
- *   4. itemId can be any role's items_meta id (no entityType discriminator)
+ *   1. row -> domain carries every column
+ *   2. soft-delete columns survive the mapping
+ *   3. itemId can be any role's items_meta id (no entityType discriminator)
  */
 
 const USER = "00000000-0000-0000-0000-000000000000";
@@ -37,14 +37,14 @@ describe("wikiTagAssignmentMapper", () => {
     };
   }
 
-  it("roundtrips row -> domain -> insert-row", () => {
+  it("maps every row column onto the domain object", () => {
     const row = fresh();
     const dom = rowToWikiTagAssignment(row);
-    const ins = wikiTagAssignmentToRow(dom, USER);
-    expect(ins.id).toBe(row.id);
-    expect(ins.item_id).toBe(row.item_id);
-    expect(ins.tag_id).toBe(row.tag_id);
-    expect(ins.is_deleted).toBe(false);
+    expect(dom.id).toBe(row.id);
+    expect(dom.itemId).toBe(row.item_id);
+    expect(dom.tagId).toBe(row.tag_id);
+    expect(dom.updatedAt).toBe(row.updated_at);
+    expect(dom.isDeleted).toBe(false);
   });
 
   it("supports itemId across all 5 roles (no entityType)", () => {
@@ -56,17 +56,11 @@ describe("wikiTagAssignmentMapper", () => {
     }
   });
 
-  it("updates patch ALWAYS emits updated_at", () => {
-    const empty = wikiTagAssignmentUpdatesToPatch({}, NOW);
-    expect(empty).toEqual({ updated_at: NOW });
-  });
-
-  it("soft-delete patch shape", () => {
-    const patch = wikiTagAssignmentUpdatesToPatch(
-      { isDeleted: true, deletedAt: NOW },
-      NOW,
+  it("carries the soft-delete columns through", () => {
+    const dom = rowToWikiTagAssignment(
+      fresh({ is_deleted: true, deleted_at: NOW }),
     );
-    expect(patch.is_deleted).toBe(true);
-    expect(patch.deleted_at).toBe(NOW);
+    expect(dom.isDeleted).toBe(true);
+    expect(dom.deletedAt).toBe(NOW);
   });
 });

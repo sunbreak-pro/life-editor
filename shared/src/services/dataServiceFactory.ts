@@ -12,24 +12,17 @@ import { createSupabaseDataService } from "./SupabaseDataService";
  * singleton — they take DataService via DI. This factory is for HOSTS
  * (screens), not hooks.
  *
- * testOverride mirrors frontend/src/services/dataServiceFactory.ts: tests
- * inject a fake via setDataServiceForTest(fake) and clear it with
- * setDataServiceForTest(null). The real singleton is created lazily on
- * first access so importing this module has no Supabase side effect.
+ * The singleton is built lazily on first access, so importing this module has
+ * no Supabase side effect. There is no test-override hook (#1389): the
+ * `setDataServiceForTest` seam this file used to carry had no caller left, not
+ * even in the suites — they build a typed fake with `stubDataService` /
+ * `makeDS` and hand it to the unit under test, which is the same DI the hooks
+ * already take.
  */
 
 let dataServiceSingleton: DataService | null = null;
-let testOverride: DataService | null = null;
-
-/** Inject a fake DataService for tests; pass null to clear the override. */
-export function setDataServiceForTest(ds: DataService | null): void {
-  testOverride = ds;
-}
 
 export function getDataService(): DataService {
-  if (testOverride) {
-    return testOverride;
-  }
   if (!dataServiceSingleton) {
     dataServiceSingleton = createSupabaseDataService();
   }

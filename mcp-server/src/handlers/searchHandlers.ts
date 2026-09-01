@@ -4,7 +4,11 @@ import {
   contentPreview,
   PREVIEW_LENGTH,
 } from "../utils/content.js";
-import { META_COLUMNS, type ItemsMetaRow } from "../utils/items.js";
+import {
+  META_COLUMNS,
+  isLegacyFolder,
+  type ItemsMetaRow,
+} from "../utils/items.js";
 import {
   fetchAllPages,
   fetchByIdChunks,
@@ -13,7 +17,6 @@ import {
 } from "../utils/pagination.js";
 import { fetchLiveNotes } from "./noteHandlers.js";
 import { fetchLiveDailies } from "./dailyHandlers.js";
-import { isLegacyFolder } from "./todoHandlers.js";
 import { escapeLikePattern } from "../utils/like.js";
 
 /*
@@ -163,7 +166,7 @@ async function searchTodos(pattern: string, offset: number, limit: number) {
     // A title hit can land on a retired folder row (task_type lives on the
     // payload, so the items_meta query cannot exclude it) — S3 #225. Content
     // hits reach here unfiltered too now, so this is the only folder guard.
-    if (isLegacyFolder(payload)) continue;
+    if (isLegacyFolder(payload.task_type)) continue;
     merged.push({
       id,
       title: meta.title,

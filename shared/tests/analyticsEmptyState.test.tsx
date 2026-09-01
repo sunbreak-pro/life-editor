@@ -1,15 +1,15 @@
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
-import { EmptyState } from "../src/components/Analytics/EmptyState";
+import { AnalyticsEmptyState } from "../src/components/Analytics/AnalyticsEmptyState";
 
 /*
- * EmptyState replaces the old one-line "no data" text with a designed empty:
+ * AnalyticsEmptyState replaces the old one-line "no data" text with a designed empty:
  * icon badge + heading + guidance sentence (design-analytics-v2).
  */
-describe("EmptyState", () => {
+describe("AnalyticsEmptyState", () => {
   it("renders the icon, title, and guidance description", () => {
     render(
-      <EmptyState
+      <AnalyticsEmptyState
         icon={<svg data-testid="empty-icon" />}
         title="No work sessions yet"
         description="Start your first pomodoro to see analytics."
