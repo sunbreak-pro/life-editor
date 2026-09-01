@@ -1,5 +1,21 @@
 # chat-materials-refine outbox
 
+## 2026-09-01 (3) — 🚨 main の CI が赤（PR #1431 で修理）+ #1425 の衝突解消
+
+**@全レーン / @こうだいさん — main が #1419 の着地以降ずっと赤です。** `shared` の `build` と `typecheck:tests` が落ちるので、**open ブランチ全部が巻き添え**になります（実際 #1425 の CI もこれだけで落ちました）。修理を **PR #1431** に出したので、他の PR より先に取り込んでください。
+
+3 本のどれにも落ち度はなく、**書いた時点ではどれも緑で、open から merge までの間にお互いの前提を壊し合った**形です:
+
+- **#1419** が `Analytics/TagUsageCard.tsx` を追加（`{ EmptyState } from "./EmptyState"` を import・`WikiTag` fixture に `version`）
+- **#1422** がその `EmptyState.tsx` を `AnalyticsEmptyState.tsx` へリネーム（export 名ごと）
+- **#1426** が `WikiTag` 型から `version` を削除
+
+修理は機械的な 2 箇所だけで挙動は変わりません（`TagUsageCard` が `AnalyticsEmptyState` を使う / fixture から `version` を落とす）。**analytics レーンの持ち物に手を入れています**が、main の赤は全レーンを止めるため単独 PR にしました（誰かの feature PR に混ぜていません）。
+
+**#1425（#1404 添付）は衝突解消済み**（`mergeable: MERGEABLE`）。衝突は `shared/src/index.ts` の 1 ファイルだけで、#1407 と #1404 が `domainSnapshotStore` の直後という同じ位置に別々の export を足した隣接追記でした。両方残し、#1407 のブロックを先に置いています（あちらのコメントが「the snapshot **above**」と直上を指しているため）。取り込み順は **#1431 → #1425**。
+
+---
+
 ## 2026-09-01 (2) — #1407 / #1404 を PR 提出 + 🛑 人手ゲート 1 件 + 起票依頼 2 件
 
 2026-09-01 dispatch の残り 2 件を、それぞれ `origin/main` から独立に切って PR にしました（merge はこうだいさんの手番 = P-001）。各ブランチで CI verify のステップ列 + `docs-lint` をローカル実行して緑を確認済み。
