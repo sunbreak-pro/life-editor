@@ -667,7 +667,7 @@
     "todoEmptyUnplaced": "No candidates for today",
     "todoAddHeading": "Add from todos",
     "todoAddAction": "Add to today",
-    "todoAddCta": "+ Todo",
+    "todoAddCta": "Todo",
     "todoAddDialogTitle": "New todo",
     "todoOpenDetail": "Open this todo",
     "todoEmptyAddable": "No unscheduled todos",
