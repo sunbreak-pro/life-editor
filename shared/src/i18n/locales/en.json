@@ -986,6 +986,24 @@
     "tooLarge": "That file is too large. The limit is {{limit}}.",
     "uploadFailed": "Could not upload that file. Please try again."
   },
+  "attachmentCleanup": {
+    "heading": "Attachment cleanup",
+    "description": "Removing an image from a note leaves the file in storage, so an undo can bring it back. This finds the files no note or day refers to any more.",
+    "scan": "Check for unused files",
+    "scanning": "Checking…",
+    "rescan": "Check again",
+    "summary": "Checked {{scanned}} files: {{orphans}} unused, {{referenced}} still in use.",
+    "recentNote": "{{n}} uploaded in the last hour were left alone.",
+    "nothing": "There is nothing to clean up.",
+    "listLabel": "Unused attachments",
+    "deleteAll": "Delete {{n}} files ({{size}})",
+    "deleting": "Deleting…",
+    "deleted": "Deleted {{n}} files.",
+    "partialFailure": "{{n}} files could not be deleted. They are still listed above.",
+    "scanFailed": "Couldn't check the stored files. Please try again in a moment.",
+    "confirmMessage": "{{n}} files ({{size}}) will be permanently deleted. This cannot be undone.",
+    "confirmLabel": "Delete permanently"
+  },
   "blockMenu": {
     "turnInto": "Turn Into",
     "noMatch": "No matching blocks",

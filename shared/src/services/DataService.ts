@@ -13,6 +13,13 @@ import type { TagGroupNode } from "../types/tagGroup";
 import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
+// #1438 — the sweep's own vocabulary. Declared next to the pure detection it
+// belongs to and re-exported below, so a consumer of the DataService never
+// has to know which service file implements the scan.
+import type {
+  AttachmentOrphanScan,
+  StoredAttachment,
+} from "./attachmentOrphans";
 import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
@@ -129,6 +136,8 @@ export interface AttachmentRef {
   size: number;
 }
 
+export type { AttachmentOrphanScan, StoredAttachment };
+
 export interface AttachmentsDataService {
   /**
    * Upload one file to the private `attachments` bucket and return its
@@ -142,6 +151,12 @@ export interface AttachmentsDataService {
   getAttachmentUrl(path: string): Promise<string>;
   /** Remove a stored object. Not called on note edits — see the service. */
   deleteAttachment(path: string): Promise<void>;
+  /**
+   * Dry run for the cleanup sweep (#1438): the stored objects no document
+   * references any more. Reads only — the caller shows the list, and deletes
+   * what the user confirms one `deleteAttachment` at a time.
+   */
+  findOrphanAttachments(): Promise<AttachmentOrphanScan>;
 }
 
 // ---------------------------------------------------------------------------

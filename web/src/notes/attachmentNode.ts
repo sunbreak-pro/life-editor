@@ -1,5 +1,9 @@
 import { Node, mergeAttributes } from "@tiptap/core";
-import { isEmbeddableImage, formatAttachmentSize } from "@life-editor/shared";
+import {
+  ATTACHMENT_NODE_TYPE,
+  isEmbeddableImage,
+  formatAttachmentSize,
+} from "@life-editor/shared";
 
 /*
  * attachment — block atom node for an embedded image or an attached file
@@ -54,7 +58,10 @@ export interface AttachmentNodeOptions {
 }
 
 const Attachment = Node.create<AttachmentNodeOptions>({
-  name: "attachment",
+  // Shared, not a literal: the orphan sweep (#1438) decides what to DELETE by
+  // matching this exact type name in stored documents, so the two must not be
+  // able to drift apart.
+  name: ATTACHMENT_NODE_TYPE,
   group: "block",
   atom: true,
   draggable: true,

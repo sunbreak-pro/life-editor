@@ -58,6 +58,7 @@ import {
 import { usePasswordUpdate } from "../hooks/usePasswordUpdate";
 import { useClaudeLauncher } from "../hooks/useClaudeLauncher";
 import { TrashScreen } from "../trash/TrashScreen";
+import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
 import { openLegalDocument } from "../legal/legalUrl";
 
 /*
@@ -825,7 +826,14 @@ export function SettingsScreen() {
             </div>
           </div>
           {trashService ? (
-            <TrashScreen dataService={trashService} />
+            <>
+              <TrashScreen dataService={trashService} />
+              {/*
+               * Under the list, not above it: the sweep (#1438) is the rarer
+               * errand of the two, and it is the one that cannot be undone.
+               */}
+              <AttachmentCleanupCard dataService={trashService} />
+            </>
           ) : (
             <div className={cardClass}>
               <EmptyState
