@@ -510,11 +510,12 @@ export function ItemCreatePanel({
           item elsewhere without moving the calendar the panel was opened
           from. Clearing it back to blank restores the day the panel opened
           on, since a create with no date is not a thing the user can mean. */}
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-3">
         {/* `min-w-0` matches EventEditorPane's row (#1036) — without it the
             date input's intrinsic width floors the flex item and the row
             resolves by overflowing to the right, taking the all-day switch
-            with it. */}
+            with it. `appearance-none` + `min-w-0` on the input and the wider
+            `gap-3` are #1403's half of the same fix (see the note there). */}
         <label className="flex min-w-0 flex-1 flex-col gap-1.5">
           <span className={FIELD_LABEL}>{labels.date}</span>
           <input
@@ -528,7 +529,7 @@ export function ItemCreatePanel({
               if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
             }}
             aria-label={labels.date}
-            className={cn(FIELD, "tabular-nums")}
+            className={cn(FIELD, "min-w-0 appearance-none tabular-nums")}
           />
         </label>
         {type === "event" && (

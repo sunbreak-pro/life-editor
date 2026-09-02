@@ -150,6 +150,29 @@ describe("EventEditorPane date row", () => {
     );
   });
 
+  /*
+   * #1403: the column shrank, the INPUT did not. WebKit pins a date input to
+   * its intrinsic width unless `appearance: none` is set, ignoring `w-full`,
+   * so on iOS the field kept painting past its column and under the switch.
+   * Asserted on the input's own classes and on the row's gap, for the same
+   * jsdom reason as above.
+   */
+  it("lets the date input itself follow its column and keeps a gap to the switch", () => {
+    render(
+      <EventEditorPane
+        item={ITEM}
+        labels={EDITOR_LABELS}
+        handlers={{ onSave: vi.fn()}}
+        options={{ canEditDate: true, canEditAllDay: true }}
+      />,
+    );
+
+    const input = screen.getByLabelText("Date");
+    expect(input.className).toContain("appearance-none");
+    expect(input.className).toContain("min-w-0");
+    expect(columnOf(input)?.parentElement?.className).toContain("gap-3");
+  });
+
   it("keeps the shrink guard on the time pair it renders", () => {
     render(
       <EventEditorPane
@@ -176,6 +199,13 @@ describe("ItemCreatePanel date row", () => {
     expect(columnOf(screen.getByLabelText("Date"))?.className).toContain(
       "min-w-0",
     );
+    // #1403: the input-side half of the fix, mirrored from the editor.
+    expect(screen.getByLabelText("Date").className).toContain(
+      "appearance-none",
+    );
+    expect(
+      columnOf(screen.getByLabelText("Date"))?.parentElement?.className,
+    ).toContain("gap-3");
     // The time pair is on the same screen as the date on every creating tab —
     // the todo tab renders it too, which is why the overflow was reported
     // there as well.
