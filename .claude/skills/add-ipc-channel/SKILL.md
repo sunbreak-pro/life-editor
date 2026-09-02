@@ -1,6 +1,6 @@
 ---
 name: add-ipc-channel
-description: life-editor のデータアクセスは IPC を通らない（正本 = CLAUDE.md §3.1 の DataService 境界）ことの導線と、desktop 殻だけが持つ 7 関数の IPC ブリッジに 1 本足すときの 3 ファイル lockstep。Use when someone reaches for an IPC channel, a preload bridge, or `window.desktop`. Triggers include "IPC", "preload", "contextBridge", "ipcMain", "window.desktop", "チャンネル追加", "メインプロセスと通信".
+description: life-editor のデータアクセスは IPC を通らない（正本 = CLAUDE.md §3.1 の DataService 境界）ことの導線と、desktop 殻だけが持つ IPC ブリッジに 1 本足すときの 3 ファイル lockstep。Use when someone reaches for an IPC channel, a preload bridge, or `window.desktop`. Triggers include "IPC", "preload", "contextBridge", "ipcMain", "window.desktop", "チャンネル追加", "メインプロセスと通信".
 ---
 
 # IPC — まず「それは IPC の仕事ではない」を確認する
@@ -15,15 +15,17 @@ Supabase Postgres へは renderer から直接行く。Web / Electron / Capacito
 
 「メインプロセスと通信したい」と思ったら、まず**それが renderer で完結しないか**を疑うこと。たいていは完結する。
 
-## 例外: desktop 殻のローカル事情（現在 7 関数）
+## 例外: desktop 殻のローカル事情
 
 完結しないのは「OS の外側にしか無いもの」だけ。実在するのはこれだけで、実体は `desktop/src/shared/ipcContract.ts` が正本:
 
 - テーマ設定とウィンドウ位置の永続化（`electron-store`）
 - アプリのバージョン
 - **Supabase の認証セッション保存**（#838）— パッケージ版の renderer は `file://` で動き、そこでは `localStorage` が確実に永続しない。だからセッションだけはメインプロセス側（`safeStorage` 暗号化）に置いている
+- **Claude Code の起動**（#1211）— OS のターミナルを開く操作は renderer から手が届かない
+- **OS 通知**（#1374）— 出せない環境では reject せず `false` を返し、renderer は in-app トーストへ落とす
 
-**Risk 1 の上限 = contextBridge の expose 関数 10 個まで**（現在 7）。上限に当たったら、それは殻が厚くなりすぎたサインなので、足す前に `desktop/README.md` の Constraints を読み直す。
+**Risk 1 の上限 = contextBridge の expose 関数 10 個まで**（#529）。実数はここに転記しない — `DesktopIpcApi` のメソッドを数える（`authStorage` は中の 3 メソッドで数える）。上限に当たったら、それは殻が厚くなりすぎたサインなので、足す前に `desktop/README.md` の Constraints を読み直す。
 
 ## 足すときの 3 ファイル lockstep
 
@@ -31,7 +33,7 @@ Electron の IPC は「main の `ipcMain.handle` と preload の `ipcRenderer.in
 
 なので名前と signature を 1 箇所に置き、両端がそれを import する形になっている。
 
-1. **`desktop/src/shared/ipcContract.ts`** — `DESKTOP_IPC` にチャンネル名を足し、`DesktopIpcApi` に呼び出し signature を足す。命名は `<namespace>:<action>`（`config:` / `window:` / `app:` / `authStorage:`）。**このモジュールは依存フリーを保つ**（`electron` を import しない — テストが素の Node から読む）
+1. **`desktop/src/shared/ipcContract.ts`** — `DESKTOP_IPC` にチャンネル名を足し、`DesktopIpcApi` に呼び出し signature を足す。命名は `<namespace>:<action>`（実在の名前空間は `DESKTOP_IPC` の値が正）。**このモジュールは依存フリーを保つ**（`electron` を import しない — テストが素の Node から読む）
 2. **`desktop/src/main/index.ts`** — ハンドラ表に `[DESKTOP_IPC.foo]: …` を足す。表は `DesktopIpcHandlers`（= `Record<DesktopIpcChannel, …>`）で注釈されているので、**契約に足してハンドラを書かないとコンパイルが落ちる**。登録は `DESKTOP_IPC_CHANNELS` のループが自動で行うため、登録漏れという失敗モードは存在しない
 3. **`desktop/src/preload/index.ts`** — `api` オブジェクトにメソッドを足す。`DesktopIpcApi` で注釈されているので、抜けと型違いはここで落ちる
 
