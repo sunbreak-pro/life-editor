@@ -17,11 +17,15 @@
 
 ## 登録手順（Task Scheduler 案が裁定されたら・ユーザー実行）
 
-**登録前に必ず 1 回、コンソールで手動実行して動作確認する**（`run-routine.ps1` は未実測）:
+**登録前に必ず 1 回、コンソールで手動実行して動作確認する**（起動経路は 2026-09-01 に実測済み。推論を伴う実走はまだ）:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\user\orca\life-editor\.claude\automation\run-routine.ps1 -Routine digest
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\user\orca\life-editor\.claude\automation\run-routine.ps1 -Routine night-safe
 ```
+
+無人用 permissions は `run-routine.ps1` が routine ごとに選んで `--settings` で渡す（digest / night-safe = `settings-unattended-readonly.json`、night = `settings-unattended-implement.json`）。ファイルが無ければスクリプトは起動せずに止まる（柵の無い無人実行を作らないため）。
+
+> **`run-routine.ps1` を編集するときは UTF-8 BOM を保つ。** Windows PowerShell 5.1 は BOM なしを CP932 として読むため、日本語コメントの末尾バイトが改行を飲み込み、次の行がコメントに埋もれる（実際 `$RepoRoot = Split-Path ...` が消えて `Set-Location` が null で落ちていた）。文字列リテラルに日本語を入れないのも同じ理由（閉じ引用符が飲まれる）。
 
 問題なければ登録（管理者不要・現在ユーザーで実行）:
 
