@@ -52,7 +52,6 @@ export function useDayScheduleSummary(
       title: item.title,
       startTime: item.startTime,
       isAllDay: item.isAllDay === true,
-      completed: item.completed,
     }));
     // All-day rows first, then by start time — the papers' reading order.
     return [

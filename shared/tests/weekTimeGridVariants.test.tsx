@@ -180,3 +180,94 @@ describe("WeekTimeGrid — fillHeight", () => {
     expect(container.innerHTML).toContain("flex-1");
   });
 });
+
+describe("WeekTimeGrid — completion is a TODO's alone (#1373)", () => {
+  /*
+   * An event has no completion in the UI any more, but `completed` is still a
+   * column and the MCP set_schedule_complete tool still writes it. So the
+   * rule has to hold against a row that IS completed — which no UI gesture
+   * can produce, hence the seeded fixture: without it a regression is
+   * invisible to manual checking.
+   */
+  const COMPLETED: WeekTimeGridItem[] = [
+    {
+      id: "done-event",
+      date: "2026-07-09",
+      title: "Retro",
+      startTime: "12:00",
+      endTime: "13:00",
+      variant: "event",
+      completed: true,
+    },
+    {
+      id: "done-routine",
+      date: "2026-07-09",
+      title: "Gym",
+      startTime: "19:00",
+      endTime: "20:00",
+      variant: "routine",
+      completed: true,
+    },
+    {
+      id: "done-todo",
+      date: "2026-07-09",
+      title: "Write report",
+      startTime: "09:00",
+      endTime: "10:00",
+      variant: "task",
+      completed: true,
+    },
+    {
+      id: "allday-done-event",
+      date: "2026-07-09",
+      title: "Trash day",
+      startTime: "00:00",
+      endTime: "00:00",
+      isAllDay: true,
+      variant: "event",
+      completed: true,
+    },
+    {
+      id: "allday-done-todo",
+      date: "2026-07-09",
+      title: "Buy stamps",
+      startTime: "00:00",
+      endTime: "00:00",
+      isAllDay: true,
+      variant: "task",
+      completed: true,
+    },
+  ];
+
+  it("never strikes a completed EVENT or ROUTINE block through", () => {
+    renderGrid({ items: COMPLETED });
+    expect(screen.getByTitle("12:00–13:00 Retro").className).not.toContain(
+      "line-through",
+    );
+    expect(screen.getByTitle("19:00–20:00 Gym").className).not.toContain(
+      "line-through",
+    );
+  });
+
+  it("keeps the struck-through look on a completed TODO block", () => {
+    renderGrid({ items: COMPLETED });
+    expect(
+      screen.getByTitle("09:00–10:00 Write report").className,
+    ).toContain("line-through");
+  });
+
+  it("applies the same rule to the all-day lane chips", () => {
+    renderGrid({ items: COMPLETED });
+    expect(screen.getByTitle("Trash day").className).not.toContain(
+      "line-through",
+    );
+    expect(screen.getByTitle("Buy stamps").className).toContain("line-through");
+  });
+
+  it("draws no status pill on any block", () => {
+    renderGrid({ items: COMPLETED });
+    for (const word of ["Not started", "In progress", "Done"]) {
+      expect(screen.queryByText(word)).toBeNull();
+    }
+  });
+});

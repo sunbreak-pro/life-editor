@@ -302,7 +302,13 @@ export function MonthGrid({
                             : "block truncate",
                           CELL_FOCUS,
                           chipFaceClasses(it.variant ?? "event"),
-                          it.completed && "line-through opacity-55",
+                          // Gated on the variant (#1373): the MCP tool still
+                          // writes `completed` for events, and an event struck
+                          // through with no control to clear it would be worse
+                          // than the toggle that went.
+                          it.variant === "task" &&
+                            it.completed &&
+                            "line-through opacity-55",
                         )}
                       >
                         {it.variant === "task" ? (

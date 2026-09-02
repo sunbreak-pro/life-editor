@@ -33,12 +33,6 @@ import {
 const columnOf = (field: HTMLElement) => field.closest("label");
 
 const EDITOR_LABELS: EventEditorLabels = {
-  complete: "Mark complete",
-  statusLabels: {
-    notStarted: "Not started",
-    inProgress: "In progress",
-    done: "Done",
-  },
   title: "Title",
   date: "Date",
   allDay: "All-day",
@@ -60,8 +54,6 @@ const ITEM: EventEditorItem = {
   isAllDay: false,
   startTime: "09:00",
   endTime: "10:00",
-  completed: false,
-  status: "notStarted",
   memo: "",
   isRoutine: false,
 };
@@ -142,7 +134,7 @@ describe("EventEditorPane date row", () => {
       <EventEditorPane
         item={ITEM}
         labels={EDITOR_LABELS}
-        handlers={{ onSave: vi.fn(), onToggleComplete: vi.fn() }}
+        handlers={{ onSave: vi.fn()}}
         options={{ canEditDate: true, canEditAllDay: true }}
       />,
     );
@@ -163,7 +155,7 @@ describe("EventEditorPane date row", () => {
       <EventEditorPane
         item={ITEM}
         labels={EDITOR_LABELS}
-        handlers={{ onSave: vi.fn(), onToggleComplete: vi.fn() }}
+        handlers={{ onSave: vi.fn()}}
         options={{ canEditDate: true, canEditAllDay: true }}
       />,
     );

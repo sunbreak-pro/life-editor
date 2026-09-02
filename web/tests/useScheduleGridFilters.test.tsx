@@ -111,7 +111,6 @@ function setup(overrides: Partial<UseScheduleGridFiltersArgs> = {}) {
     allTags: [],
     allAssignments: [],
     isWide: true,
-    now: new Date("2026-08-16T09:00:00"),
     anchorDate: "2026-08-16",
     selected: null,
     setSelectedId,

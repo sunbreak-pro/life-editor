@@ -33,7 +33,6 @@ const LABELS: BriefingLabels = {
   routineTag: "Routine",
   allDay: "All day",
   carryoverTitle: "CARRYOVER",
-  toggleComplete: "Toggle complete",
   todoStatus: "Status",
   statusNotStarted: "Not started",
   statusDone: "Done",
@@ -119,7 +118,6 @@ const GOAL_LABELS = {
 const NO_GOALS = { week: "", month: "", year: "" };
 
 function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
-  const onToggleScheduleItem = vi.fn();
   const onToggleTodo = vi.fn();
   const onDeleteScheduleItem = vi.fn();
   const onDeleteTodo = vi.fn();
@@ -143,7 +141,6 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       goalLabels={GOAL_LABELS}
       onGoalChange={onGoalChange}
       onGoalBlur={onGoalBlur}
-      onToggleScheduleItem={onToggleScheduleItem}
       onToggleTodo={onToggleTodo}
       onDeleteScheduleItem={onDeleteScheduleItem}
       onDeleteTodo={onDeleteTodo}
@@ -155,7 +152,6 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   );
   return {
     ...result,
-    onToggleScheduleItem,
     onToggleTodo,
     onDeleteScheduleItem,
     onDeleteTodo,
@@ -233,33 +229,25 @@ describe("BriefingView carryover date column (#1368)", () => {
 });
 
 describe("BriefingView row actions", () => {
-  it("toggles a schedule item from its title button (no nav)", () => {
-    const { onToggleScheduleItem, onJumpToSchedule } = renderView();
-    fireEvent.click(screen.getByRole("button", { name: "Morning standup" }));
-    expect(onToggleScheduleItem).toHaveBeenCalledWith("s1");
-    expect(onJumpToSchedule).not.toHaveBeenCalled();
+  it("gives a schedule row no completion control and no strikethrough (#1373)", () => {
+    // An event has no "done" any more. "Done meeting" is completed: true in
+    // the fixture — the flag the MCP tool still writes — and the paper must
+    // neither strike it nor offer a way to flip it.
+    renderView();
+    expect(
+      screen.queryByRole("button", { name: "Toggle complete" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Morning standup" })).toBeNull();
+    expect(screen.getByText("Done meeting").className).not.toContain(
+      "line-through",
+    );
   });
 
-  it("toggles a schedule item from its completion circle", () => {
-    const { onToggleScheduleItem } = renderView();
-    const circles = screen.getAllByRole("button", { name: "Toggle complete" });
-    fireEvent.click(circles[0]);
-    expect(onToggleScheduleItem).toHaveBeenCalledWith("s1");
-  });
-
-  it("jumps to Schedule from the schedule move button (no toggle)", () => {
-    const { onJumpToSchedule, onToggleScheduleItem } = renderView();
+  it("jumps to Schedule from the schedule move button", () => {
+    const { onJumpToSchedule } = renderView();
     const jumps = screen.getAllByTitle("Open in Schedule");
     fireEvent.click(jumps[0]);
     expect(onJumpToSchedule).toHaveBeenCalledTimes(1);
-    expect(onToggleScheduleItem).not.toHaveBeenCalled();
-  });
-
-  it("strikes through a completed schedule row title", () => {
-    renderView();
-    expect(
-      screen.getByRole("button", { name: "Done meeting" }).className,
-    ).toContain("line-through");
   });
 
   it("toggles a todo from its title button (no nav)", () => {
@@ -302,15 +290,13 @@ describe("BriefingView row actions", () => {
   });
 
   it("opens the host's creation panel from the schedule heading + (#623)", () => {
-    const { onAddScheduleItem, onJumpToSchedule, onToggleScheduleItem } =
-      renderView();
+    const { onAddScheduleItem, onJumpToSchedule } = renderView();
     const add = screen.getByRole("button", {
       name: "Add to today's schedule",
     });
     fireEvent.click(add);
     expect(onAddScheduleItem).toHaveBeenCalledTimes(1);
     expect(onJumpToSchedule).not.toHaveBeenCalled();
-    expect(onToggleScheduleItem).not.toHaveBeenCalled();
   });
 
   it("keeps the + reachable when the day has nothing scheduled (#623)", () => {
@@ -328,14 +314,12 @@ describe("BriefingView row actions", () => {
     expect(onAddScheduleItem).toHaveBeenCalledTimes(1);
   });
 
-  it("deletes a schedule row without toggling or navigating (#585)", () => {
-    const { onDeleteScheduleItem, onToggleScheduleItem, onJumpToSchedule } =
-      renderView();
+  it("deletes a schedule row without navigating (#585)", () => {
+    const { onDeleteScheduleItem, onJumpToSchedule } = renderView();
     const deletes = screen.getAllByTitle("Delete this event");
     expect(deletes).toHaveLength(2);
     fireEvent.click(deletes[0]);
     expect(onDeleteScheduleItem).toHaveBeenCalledWith("s1");
-    expect(onToggleScheduleItem).not.toHaveBeenCalled();
     expect(onJumpToSchedule).not.toHaveBeenCalled();
   });
 

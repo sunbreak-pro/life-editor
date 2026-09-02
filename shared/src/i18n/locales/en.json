@@ -604,7 +604,6 @@
     "date": "Date",
     "startTime": "Start",
     "endTime": "End",
-    "complete": "Mark complete",
     "reminder": "Reminder",
     "memo": "Memo",
     "save": "Save",
@@ -680,9 +679,6 @@
     "rename": "Rename",
     "duplicate": "Duplicate",
     "copySuffix": " (copy)",
-    "statusNotStarted": "Not started",
-    "statusInProgress": "In progress",
-    "statusDone": "Done",
     "editScopeTitle": "Edit recurring event",
     "deleteScopeTitle": "Delete recurring event",
     "scopeThisOnly": "This event only",
@@ -982,6 +978,14 @@
     "itemCount_one": "{{count}} item",
     "itemCount_other": "{{count}} items"
   },
+  "attachment": {
+    "insertImage": "Image",
+    "insertFile": "File",
+    "unavailable": "Could not load this attachment",
+    "download": "Download",
+    "tooLarge": "That file is too large. The limit is {{limit}}.",
+    "uploadFailed": "Could not upload that file. Please try again."
+  },
   "blockMenu": {
     "turnInto": "Turn Into",
     "noMatch": "No matching blocks",
@@ -1088,7 +1092,6 @@
     "vizTitle": "YOU, UP TO YESTERDAY",
     "carryoverTitle": "CARRYOVER",
     "carryoverDays": "day {{count}}",
-    "toggleComplete": "Toggle complete",
     "edit": "Edit",
     "delete": "Delete",
     "deleteScheduleHint": "Delete this event",

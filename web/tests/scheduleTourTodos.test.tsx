@@ -87,12 +87,6 @@ function makeProps(tab: "flow" | "todo" | "repeats"): ScheduleSidebarProps {
         allDay: "All-day",
         empty: "Nothing today",
         nowLabel: "09:00",
-        complete: "Complete",
-        statusLabels: {
-          notStarted: "Not started",
-          inProgress: "In progress",
-          done: "Done",
-        },
         todoStatus: "Status",
         todoStatusLabels: {
           statusNotStarted: "Not started",

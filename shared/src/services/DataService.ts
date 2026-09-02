@@ -110,6 +110,41 @@ export interface TimerDataService {
 }
 
 // ---------------------------------------------------------------------------
+// Editor attachments (Storage) — SupabaseAttachmentsService
+// ---------------------------------------------------------------------------
+
+/**
+ * What a stored attachment looks like to the document that references it
+ * (#1404). The `path` is the durable half — it is what lands in the TipTap
+ * node's attrs — while a URL for it is resolved per render and expires.
+ */
+export interface AttachmentRef {
+  /** Object key inside the `attachments` bucket: `<uid>/<uuid>.<ext>`. */
+  path: string;
+  /** The name the user's file had, for the download chip's label. */
+  name: string;
+  /** MIME type, which decides image-embed vs file-chip at render time. */
+  mimeType: string;
+  /** Size in bytes, for the chip's caption. */
+  size: number;
+}
+
+export interface AttachmentsDataService {
+  /**
+   * Upload one file to the private `attachments` bucket and return its
+   * reference. Rejects anything over `ATTACHMENT_MAX_BYTES` before sending.
+   */
+  uploadAttachment(file: File): Promise<AttachmentRef>;
+  /**
+   * A signed, time-limited read URL for a stored object. A real round trip
+   * (unlike `getSoundAssetUrl`), so callers resolve it once per node render.
+   */
+  getAttachmentUrl(path: string): Promise<string>;
+  /** Remove a stored object. Not called on note edits — see the service. */
+  deleteAttachment(path: string): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
 // Sound settings + playlists — SupabaseAudioService
 // ---------------------------------------------------------------------------
 
@@ -593,6 +628,7 @@ export interface DataService
     TodosDataService,
     TimerDataService,
     AudioDataService,
+    AttachmentsDataService,
     TagGroupsDataService,
     RoutinesDataService,
     ScheduleItemsDataService,

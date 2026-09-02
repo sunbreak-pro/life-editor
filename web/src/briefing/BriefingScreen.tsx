@@ -85,7 +85,6 @@ export function BriefingScreen({
     setDailyContent,
     remainingTodos,
     upcoming,
-    handleToggleScheduleItem,
     handleToggleTodo,
     handleSetTodoStatus,
     handleDeleteScheduleItem,
@@ -169,7 +168,6 @@ export function BriefingScreen({
       routineTag: t("briefing.routineTag"),
       allDay: t("briefing.allDay"),
       carryoverTitle: t("briefing.carryoverTitle"),
-      toggleComplete: t("briefing.toggleComplete"),
       // The carryover rows draw the shared todo checkbox since #1368, so they
       // name their status with the same words 夕刊 and the Todos section use.
       todoStatus: t("todoDetail.status"),
@@ -672,7 +670,6 @@ export function BriefingScreen({
         goalLabels={goalLabels}
         onGoalChange={handleGoalChange}
         onGoalBlur={flushGoals}
-        onToggleScheduleItem={handleToggleScheduleItem}
         onToggleTodo={handleToggleTodo}
         onDeleteScheduleItem={handleDeleteScheduleItem}
         onDeleteTodo={handleDeleteTodo}

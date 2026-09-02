@@ -105,6 +105,21 @@ Two things are worth knowing before you cut a tag:
 - **Bump `desktop/package.json` first.** `version` is interpolated into
   `artifactName`, so the tag and the asset names have to agree.
 
+You can rehearse that guard locally before spending a tag on it — the same two
+commands the workflow runs, with a throwaway host:
+
+```bash
+cd desktop
+VITE_SUPABASE_URL=https://probe.supabase.co npm run build
+cd ..
+grep -rqF probe.supabase.co desktop/out/renderer/assets/ && echo baked
+```
+
+Re-run `npm run build` with the variable unset and the grep stops matching while
+the build still exits 0 — which is exactly the failure the guard exists for.
+A `desktop/.env` works the same way as the exported variable (measured: despite
+the renderer `root` pointing at `../web`, `envDir` still resolves to `desktop/`).
+
 ## Installing an unsigned build
 
 Nothing here is code-signed ($0 policy — migration SSOT §8), so each OS puts a

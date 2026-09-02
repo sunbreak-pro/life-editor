@@ -55,7 +55,6 @@ export interface UseScheduleMutationsArgs
     },
   ) => string;
   updateScheduleItem: (id: string, updates: Partial<ScheduleItem>) => void;
-  toggleComplete: (id: string) => void;
   dismiss: (id: string) => void;
   deleteScheduleItem: (id: string) => void;
   // Todo-chip drag-to-write (#297 A-2). Todo chips are derived from the
@@ -93,7 +92,6 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     onSelectItem,
     createScheduleItem,
     updateScheduleItem,
-    toggleComplete,
     dismiss,
     deleteScheduleItem,
     routines,
@@ -224,32 +222,14 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     [findScheduleItem, applyOccurrencePatch, requestScope],
   );
 
-  const handleToggle = useCallback(
-    (id: string) => {
-      // A-1: todo chips don't own a ScheduleItem completion. Completion for
-      // scheduled todos is wired in Step 3 (TodoTree completion API). No-op.
-      if (isTodoChip(id)) return;
-      // Provider first (#568 order invariant — see applyOccurrencePatch): its
-      // undo command snapshots the completion pair through the view mirror,
-      // and the snapshot must not depend on how promptly this store's `find`
-      // reflects the flip below.
-      toggleComplete(id);
-      // Mirror the provider's toggle field set (completed + completedAt) on the
-      // local range copy so the grid/agenda stay consistent without a refetch.
-      setRangeItems((prev) =>
-        prev.map((i) =>
-          i.id === id
-            ? {
-                ...i,
-                completed: !i.completed,
-                completedAt: !i.completed ? new Date().toISOString() : null,
-              }
-            : i,
-        ),
-      );
-    },
-    [setRangeItems, toggleComplete],
-  );
+  /*
+   * #1373 removed `handleToggle`, the event-completion write behind the
+   * status pill and the editor's 完了にする button. Both are gone, so nothing
+   * in the UI can flip an event any more. The provider-side
+   * `toggleComplete` (useScheduleItemsCRUD, with its undo command) STAYS —
+   * the `completed` column and the MCP `set_schedule_complete` tool both
+   * remain, and that hook is their write path.
+   */
 
   // #299: the single create path. Panelled create (Desktop overlay + Mobile
   // QuickCaptureSheet) hands over the target day + title + times already
@@ -450,7 +430,6 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     handleScopeChoose,
     // CRUD + create entry points
     handleUpdate,
-    handleToggle,
     handleCreate,
     handleMoveItem,
     handleResizeItem,

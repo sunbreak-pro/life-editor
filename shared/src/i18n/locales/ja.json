@@ -600,7 +600,6 @@
     "date": "日付",
     "startTime": "開始",
     "endTime": "終了",
-    "complete": "完了にする",
     "reminder": "リマインダー",
     "memo": "メモ",
     "save": "保存",
@@ -675,9 +674,6 @@
     "rename": "名称の変更",
     "duplicate": "複製",
     "copySuffix": "（コピー）",
-    "statusNotStarted": "未着手",
-    "statusInProgress": "着手中",
-    "statusDone": "完了",
     "editScopeTitle": "繰り返しの予定を変更",
     "deleteScopeTitle": "繰り返しの予定を削除",
     "scopeThisOnly": "この予定のみ",
@@ -975,6 +971,14 @@
     "untagged": "未分類",
     "itemCount_other": "{{count}} 件"
   },
+  "attachment": {
+    "insertImage": "画像",
+    "insertFile": "ファイル",
+    "unavailable": "この添付を読み込めませんでした",
+    "download": "ダウンロード",
+    "tooLarge": "ファイルが大きすぎます。上限は {{limit}} です。",
+    "uploadFailed": "ファイルをアップロードできませんでした。もう一度お試しください。"
+  },
   "blockMenu": {
     "turnInto": "変換",
     "noMatch": "該当する項目がありません",
@@ -1081,7 +1085,6 @@
     "vizTitle": "きのうまでの自分",
     "carryoverTitle": "持ち越し",
     "carryoverDays": "{{count}}日目",
-    "toggleComplete": "完了を切り替える",
     "edit": "編集",
     "delete": "削除",
     "deleteScheduleHint": "この予定を削除",

@@ -73,12 +73,6 @@ function makeProps(
         allDay: "All-day",
         empty: "Nothing today",
         nowLabel: "09:00",
-        complete: "Complete",
-        statusLabels: {
-          notStarted: "Not started",
-          inProgress: "In progress",
-          done: "Done",
-        },
         todoStatus: "Status",
         todoStatusLabels: {
           statusNotStarted: "Not started",
@@ -442,7 +436,6 @@ describe("ScheduleSidebar — the flow tab as narrow's day list (#1148)", () => 
     title: "長い予定",
     startTime: "13:00",
     endTime: "16:00",
-    status: "notStarted",
   };
 
   const rowOf = (title: string) =>

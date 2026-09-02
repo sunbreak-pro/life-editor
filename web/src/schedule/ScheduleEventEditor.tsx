@@ -10,7 +10,6 @@ import {
 } from "@life-editor/shared";
 import { TagPicker } from "../wikitag/TagPicker";
 import { TagColorControls } from "../wikitag/TagColorControls";
-import type { ScheduleCopy } from "./scheduleCopy";
 
 /*
  * The Calendar's event editor — <EventEditorPane> with the copy, the tag slot
@@ -47,8 +46,6 @@ export interface ScheduleEventEditorProps {
    * below says why tagging writes against the series rather than the row.
    */
   routineId?: string | null;
-  /** Derived-status copy (#222) — the one label the host already owns. */
-  statusLabels: ScheduleCopy["statusLabels"];
   handlers: EventEditorHandlers;
   options: EventEditorOptions;
   repeat: EventEditorRepeat;
@@ -64,7 +61,6 @@ export function ScheduleEventEditor({
   item,
   isWide,
   routineId,
-  statusLabels,
   handlers,
   options,
   repeat,
@@ -75,8 +71,6 @@ export function ScheduleEventEditor({
   if (!item) return null;
 
   const editorLabels = {
-    complete: t("scheduleScreen.complete"),
-    statusLabels,
     title: t("scheduleScreen.title"),
     date: t("scheduleScreen.date"),
     allDay: t("scheduleScreen.allDay"),
