@@ -70,9 +70,9 @@ describe("pickOtherTodos (#1406)", () => {
   const TODAY = "2026-09-02";
 
   it("lists a day-less leaf with no meta", () => {
-    expect(pickOtherTodos([makeTodo({ id: "a", title: "Buy milk" })], TODAY)).toEqual([
-      { id: "a", title: "Buy milk" },
-    ]);
+    expect(
+      pickOtherTodos([makeTodo({ id: "a", title: "Buy milk" })], TODAY),
+    ).toEqual([{ id: "a", title: "Buy milk" }]);
   });
 
   it("lists a todo parked on another day, with its local day and time", () => {

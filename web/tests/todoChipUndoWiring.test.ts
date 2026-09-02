@@ -193,7 +193,12 @@ describe("todoMoveToTodayWrite (#1406)", () => {
   });
 
   it("stages a day-less row the same way", () => {
-    const free: TodoNode = { ...PLACED, scheduledAt: undefined, scheduledEndAt: undefined, isAllDay: undefined };
+    const free: TodoNode = {
+      ...PLACED,
+      scheduledAt: undefined,
+      scheduledEndAt: undefined,
+      isAllDay: undefined,
+    };
     expect(todoMoveToTodayWrite(free, TODAY)).toEqual(
       todoAddCandidateWrite(TODAY),
     );
@@ -206,7 +211,11 @@ describe("todoMoveToTodayWrite (#1406)", () => {
 describe("todoMoveOutWrite (#1406)", () => {
   it("clears the day, the end and the all-day flag, undoably", () => {
     expect(todoMoveOutWrite()).toEqual({
-      patch: { scheduledAt: undefined, scheduledEndAt: undefined, isAllDay: false },
+      patch: {
+        scheduledAt: undefined,
+        scheduledEndAt: undefined,
+        isAllDay: false,
+      },
       options: { undoLabel: "todoRemoveFromToday" },
     });
   });

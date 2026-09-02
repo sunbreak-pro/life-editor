@@ -155,7 +155,11 @@ export function todoMoveToTodayWrite(
  */
 export function todoMoveOutWrite(): TodoChipWrite {
   return {
-    patch: { scheduledAt: undefined, scheduledEndAt: undefined, isAllDay: false },
+    patch: {
+      scheduledAt: undefined,
+      scheduledEndAt: undefined,
+      isAllDay: false,
+    },
     options: { undoLabel: "todoRemoveFromToday" },
   };
 }
