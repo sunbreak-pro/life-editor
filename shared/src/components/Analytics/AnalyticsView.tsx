@@ -262,6 +262,7 @@ function DesktopAnalytics({
                 <TodosTab
                   sessions={sessions}
                   nodes={nodes}
+                  events={liveEvents}
                   assignments={assignments}
                   tags={tags}
                   labels={{

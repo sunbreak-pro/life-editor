@@ -1,8 +1,9 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
-import type { EventEditorItem } from "@life-editor/shared";
+import { describe, it, expect, vi, beforeEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import type { EventEditorItem, TimerSession } from "@life-editor/shared";
 import { ScheduleEventEditor } from "../src/schedule/ScheduleEventEditor";
 import type { ScheduleEventEditorProps } from "../src/schedule/ScheduleEventEditor";
+import { createBumpableSync } from "./helpers";
 
 /*
  * #889 — the Calendar's event editor, pulled out of CalendarTab where it was
@@ -40,13 +41,31 @@ import type { ScheduleEventEditorProps } from "../src/schedule/ScheduleEventEdit
  * exercise; both echo the id and role they were pointed at, which is the whole
  * fact under test.
  *
+ * #1375 adds a fifth: the logged-time row is COMPOSED here (the pane holds no
+ * copy and no formatter), so which of the four duration sentences a number
+ * turns into is only decidable in this file.
+ *
  * No jest-dom in web/: presence comes from getBy* throwing, absence from
  * queryBy* being null (same convention as scheduleSidebar.test.tsx).
  */
 
+const fetchSessionsByEventId = vi.fn(
+  async (): Promise<TimerSession[]> => [],
+);
+
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@life-editor/shared")>()),
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    // Echo the key AND its interpolations — the logged-time row is the one
+    // place where the NUMBERS the host computed are the fact under test.
+    t: (key: string, opts?: Record<string, unknown>) =>
+      opts ? `${key}|${Object.values(opts).join(",")}` : key,
+  }),
+  // The work-time read (#1375). Stubbed rather than left to the real factory,
+  // which throws synchronously when the app has no Supabase config — the hook
+  // would swallow that and every assertion below would pass for the wrong
+  // reason.
+  getDataService: () => ({ fetchSessionsByEventId }),
 }));
 
 vi.mock("../src/wikitag/TagPicker", () => ({
@@ -71,6 +90,23 @@ const ITEM: EventEditorItem = {
   memo: "",
   isRoutine: false,
 };
+
+const { wrapper: SyncWrapper } = createBumpableSync();
+
+/** A closed WORK session of `minutes` against ITEM. */
+function workSession(id: number, minutes: number): TimerSession {
+  return {
+    id,
+    todoId: null,
+    eventId: ITEM.id,
+    sessionType: "WORK",
+    startedAt: new Date("2026-08-20T10:00:00.000Z"),
+    completedAt: new Date("2026-08-20T10:30:00.000Z"),
+    duration: minutes * 60,
+    completed: true,
+    label: null,
+  };
+}
 
 function renderEditor(
   over: {
@@ -103,7 +139,9 @@ function renderEditor(
     },
     onConvertToTodo,
   };
-  const utils = render(<ScheduleEventEditor {...props} />);
+  const utils = render(<ScheduleEventEditor {...props} />, {
+    wrapper: SyncWrapper,
+  });
   return { ...utils, onConvertToTodo };
 }
 
@@ -176,5 +214,62 @@ describe("ScheduleEventEditor — what the tag slot writes against (#468)", () =
     renderEditor({ routineId: null });
     expect(screen.getByText("picker:event:event-1")).toBeTruthy();
     expect(screen.getByText("colors:event-1")).toBeTruthy();
+  });
+});
+
+/*
+ * The logged-time row (#1375). The pane renders whatever string it is handed,
+ * so the only thing that can be wrong here is the composition: which sentence a
+ * given number picks, and that "never measured" does not read as "0 min".
+ */
+describe("ScheduleEventEditor — logged work time (#1375)", () => {
+  beforeEach(() => {
+    fetchSessionsByEventId.mockReset();
+    fetchSessionsByEventId.mockResolvedValue([]);
+  });
+
+  it("says nothing was logged when the timer never ran on this event", async () => {
+    renderEditor();
+    await waitFor(() =>
+      expect(screen.getByText("scheduleScreen.workTimeNone")).toBeTruthy(),
+    );
+  });
+
+  it("reads the log for THIS event's id", async () => {
+    renderEditor();
+    await waitFor(() =>
+      expect(fetchSessionsByEventId).toHaveBeenCalledWith(ITEM.id),
+    );
+  });
+
+  it("renders sub-hour time in minutes", async () => {
+    fetchSessionsByEventId.mockResolvedValue([workSession(1, 45)]);
+    renderEditor();
+    await waitFor(() =>
+      expect(screen.getByText("scheduleScreen.durationMin|45")).toBeTruthy(),
+    );
+  });
+
+  it("drops the minutes half on a whole number of hours", async () => {
+    fetchSessionsByEventId.mockResolvedValue([workSession(1, 120)]);
+    renderEditor();
+    await waitFor(() =>
+      expect(screen.getByText("scheduleScreen.durationHour|2")).toBeTruthy(),
+    );
+  });
+
+  // Two sessions, summed — the number is derived from the log every time, which
+  // is the whole reason no total is stored on the event itself.
+  it("sums every session logged against the event", async () => {
+    fetchSessionsByEventId.mockResolvedValue([
+      workSession(1, 50),
+      workSession(2, 40),
+    ]);
+    renderEditor();
+    await waitFor(() =>
+      expect(
+        screen.getByText("scheduleScreen.durationHourMin|1,30"),
+      ).toBeTruthy(),
+    );
   });
 });

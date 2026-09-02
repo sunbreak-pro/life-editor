@@ -201,6 +201,7 @@ export const CHARTS: ChartFixture[] = [
       <TagWorkTimeChart
         sessions={[session(1, "WORK", 30, "task-1")]}
         nodes={[todo("task-1")]}
+        events={[]}
         assignments={[assignment("task-1", "tag-1")]}
         tags={[tag("tag-1")]}
         labels={{

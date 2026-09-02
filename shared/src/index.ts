@@ -638,7 +638,7 @@ export {
   type TimerSettingsPatch,
   type TimerPresetValues,
   type TimerPhase,
-  type ActiveTodo,
+  type ActiveWorkItem,
 } from "./context";
 export { useTimerContext } from "./hooks/useTimerContext";
 export {
@@ -658,6 +658,9 @@ export type {
   TimerSession,
   PomodoroPreset,
   SessionType,
+  // #1375: what a session is measured against — a Todo or an Event.
+  WorkTarget,
+  WorkTargetKind,
 } from "./types/timer";
 
 // Audio domain (W3-C) — ambient mixer Provider + OPTIONAL context hook + the
@@ -742,6 +745,12 @@ export {
 } from "./utils/dailyListView";
 // jsonb-canonicalization-proof own-echo test (#300) — see file header.
 export { jsonDocEquals } from "./utils/jsonDocEquals";
+// #1375: reading a timer_sessions log — which item a session names, and how
+// much WORK was logged against one of them.
+export {
+  sessionTargetId,
+  totalWorkMinutesForItem,
+} from "./utils/timerSessions";
 // `[[ ]]` edges parked until their source item's first save lands (#371).
 export {
   createPendingItemLinks,

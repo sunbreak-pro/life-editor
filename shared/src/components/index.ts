@@ -417,7 +417,9 @@ export {
   PomodoroTodoSelector,
   type PomodoroTodoSelectorProps,
   type PomodoroTodoSelectorLabels,
-  type TodoOption,
+  type WorkTargetOption,
+  workTargetIcon,
+  workTargetChipClass,
 } from "./PomodoroTodoSelector";
 export {
   PomodoroTodoSheet,

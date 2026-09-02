@@ -2,6 +2,7 @@ import type { TodoNode } from "../types/todoTree";
 import type {
   TimerSettings,
   TimerSession,
+  WorkTarget,
   SessionType,
   PomodoroPreset,
 } from "../types/timer";
@@ -79,9 +80,14 @@ export interface TimerDataService {
       >
     >,
   ): Promise<TimerSettings>;
+  /**
+   * Open a session row. `target` names what the time is measured against —
+   * a Todo or an Event (#1375) — or nothing at all for free measurement
+   * (#1116: an unattributed start creates no item on the user's behalf).
+   */
   startTimerSession(
     sessionType: SessionType,
-    todoId?: string,
+    target?: WorkTarget,
   ): Promise<TimerSession>;
   endTimerSession(
     id: number,
@@ -96,6 +102,8 @@ export interface TimerDataService {
   ): Promise<TimerSession>;
   fetchTimerSessions(): Promise<TimerSession[]>;
   fetchSessionsByTodoId(todoId: string): Promise<TimerSession[]>;
+  /** Sessions measured against one Event (#1375) — the event's logged time. */
+  fetchSessionsByEventId(eventId: string): Promise<TimerSession[]>;
 
   // Pomodoro Presets
   fetchPomodoroPresets(): Promise<PomodoroPreset[]>;
