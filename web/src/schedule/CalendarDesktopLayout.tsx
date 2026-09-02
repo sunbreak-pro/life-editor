@@ -102,8 +102,6 @@ export interface CalendarDesktopData {
 export interface CalendarDesktopLabels {
   /** Weekday names indexed 0 (Sun) - 6 (Sat) — both grids draw the same row. */
   weekdays: ScheduleCopy["weekdayLabels"];
-  /** Derived-status copy (#222), for the week grid's blocks. */
-  status: ScheduleCopy["statusLabels"];
 }
 
 /** Every gesture the two grids can raise. */
@@ -218,7 +216,6 @@ export function CalendarDesktopLayout({
         labels={{
           weekdays: labels.weekdays,
           allDay: t("scheduleScreen.allDay"),
-          status: labels.status,
           createSlot: t("scheduleCalendar.createSlot"),
         }}
         handlers={{

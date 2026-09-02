@@ -141,14 +141,6 @@ describe("useScheduleCopy", () => {
     expect(render().weekdayLabels).toHaveLength(7);
   });
 
-  it("resolves every status label", () => {
-    expect(render().statusLabels).toEqual({
-      notStarted: "Not started",
-      inProgress: "In progress",
-      done: "Done",
-    });
-  });
-
   it("refuses to claim 'no notes yet' when the list failed to load", () => {
     expect(
       render({ notesError: false }).createPanelLabels.notePickerEmpty,

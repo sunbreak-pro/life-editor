@@ -91,7 +91,6 @@ vi.mock("../src/schedule/ScheduleEventEditor", () => ({
     onConvertToTodo,
     isWide,
     routineId,
-    statusLabels,
     options,
     repeat,
   }: ScheduleEventEditorProps) => (
@@ -105,7 +104,7 @@ vi.mock("../src/schedule/ScheduleEventEditor", () => ({
        * body (#995 hangs its sticky footer off exactly that).
        */}
       <span data-testid="pane-forwards">
-        {JSON.stringify({ isWide, routineId, statusLabels, options, repeat })}
+        {JSON.stringify({ isWide, routineId, options, repeat })}
       </span>
       <button type="button" onClick={() => handlers.onDirtyChange?.(true)}>
         type-into-the-draft
@@ -129,8 +128,6 @@ const ITEM: EventEditorItem = {
   startTime: "10:00",
   endTime: "11:00",
   isAllDay: false,
-  completed: false,
-  status: "notStarted",
   memo: "",
   isRoutine: false,
 };
@@ -246,12 +243,7 @@ function renderHost(
       onCloseOverlay,
       onClearSelection,
       askConfirm,
-      statusLabels: {
-        notStarted: "Not started",
-        inProgress: "In progress",
-        done: "Done",
-      },
-      handlers: { onSave: vi.fn(), onToggleComplete: vi.fn() },
+      handlers: { onSave: vi.fn() },
       options: { canEditDate: true, canEditAllDay: true },
       repeat: {
         value: null,
@@ -682,11 +674,6 @@ describe("ScheduleOverlayHost — what the pane is handed", () => {
     expect(got.routineId).toBe("routine-1");
     // The occurrence's series is what tags are written against (#468), so a
     // dropped routineId silently re-points the tag surface at the occurrence.
-    expect(got.statusLabels).toEqual({
-      notStarted: "Not started",
-      inProgress: "In progress",
-      done: "Done",
-    });
     expect(got.options).toEqual({ canEditDate: true, canEditAllDay: true });
     expect(got.repeat.value).toBeNull();
     expect(got.repeat.weekdayLabels).toEqual([

@@ -23,12 +23,6 @@ import {
  */
 
 const LABELS: EventEditorLabels = {
-  complete: "Mark complete",
-  statusLabels: {
-    notStarted: "Not started",
-    inProgress: "In progress",
-    done: "Done",
-  },
   title: "Title",
   date: "Date",
   allDay: "All-day",
@@ -50,8 +44,6 @@ const routineItem: EventEditorItem = {
   isAllDay: false,
   startTime: "19:00",
   endTime: "20:30",
-  completed: false,
-  status: "notStarted",
   memo: "",
   isRoutine: true,
 };
@@ -84,7 +76,6 @@ function renderPane(
 ) {
   const fns = {
     onSave: vi.fn(),
-    onToggleComplete: vi.fn(),
     onDismiss: vi.fn(),
     onDelete: vi.fn(),
   };
@@ -244,7 +235,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave, onToggleComplete: vi.fn() }}
+        handlers={{ onSave}}
       />,
     );
     fireEvent.change(screen.getByLabelText("Memo"), {
@@ -258,7 +249,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={{ ...manualItem, memo: "bring the card" }}
         labels={LABELS}
-        handlers={{ onSave, onToggleComplete: vi.fn() }}
+        handlers={{ onSave}}
       />,
     );
     expect(saveButton()).toBeDisabled();
@@ -304,7 +295,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave, onToggleComplete: vi.fn() }}
+        handlers={{ onSave}}
         options={{ canEditDate: true }}
       />,
     );
@@ -330,7 +321,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={next}
         labels={LABELS}
-        handlers={{ onSave, onToggleComplete: vi.fn() }}
+        handlers={{ onSave}}
       />,
     );
 
@@ -339,7 +330,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave: vi.fn(), onToggleComplete: vi.fn() }}
+        handlers={{ onSave: vi.fn()}}
       />,
     );
     rerenderWith(rerender, { ...manualItem, title: "Dentist (moved)" });
@@ -355,7 +346,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave, onToggleComplete: vi.fn() }}
+        handlers={{ onSave}}
       />,
     );
     fireEvent.change(screen.getByLabelText("Memo"), {
@@ -375,7 +366,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave: vi.fn(), onToggleComplete: vi.fn() }}
+        handlers={{ onSave: vi.fn()}}
       />,
     );
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -410,7 +401,6 @@ describe("EventEditorPane — dirty reporting for the close guard (#628)", () =>
         labels={LABELS}
         handlers={{
           onSave: vi.fn(),
-          onToggleComplete: vi.fn(),
           onDirtyChange,
         }}
       />,

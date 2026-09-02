@@ -24,7 +24,6 @@ export interface DailyEveningScheduleEntry {
   /** "HH:MM" (ignored when isAllDay). */
   startTime: string;
   isAllDay: boolean;
-  completed: boolean;
 }
 
 export interface DailyEveningCardLabels {
@@ -121,15 +120,10 @@ export function DailyEveningCard({
                 <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-briefing-shu">
                   {item.isAllDay ? labels.allDay : item.startTime}
                 </span>
-                <span
-                  className={
-                    item.completed
-                      ? "text-sm text-lumen-text-secondary line-through"
-                      : "text-sm text-lumen-text"
-                  }
-                >
-                  {item.title}
-                </span>
+                {/* No strikethrough (#1373): an event has no completion in
+                    the UI, and the MCP tool's write must not surface as a
+                    state with nothing here to clear it. */}
+                <span className="text-sm text-lumen-text">{item.title}</span>
               </li>
             ))}
           </ul>

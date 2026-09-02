@@ -61,7 +61,6 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   });
 
   const {
-    handleToggleScheduleItem,
     handleToggleTodo,
     handleSetTodoStatus,
     handleDeleteScheduleItem,
@@ -91,7 +90,6 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     setDailyContent,
     remainingTodos,
     upcoming,
-    handleToggleScheduleItem,
     handleToggleTodo,
     handleSetTodoStatus,
     handleDeleteScheduleItem,

@@ -6,10 +6,8 @@ import {
   type ScheduleItemVariant,
 } from "./scheduleVariantVisuals";
 import { minutesFromMidnight } from "../../utils/scheduleGridLayout";
-import { ScheduleStatusTag } from "./ScheduleStatusTag";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
-import type { ScheduleStatus } from "../../utils/scheduleStatus";
 
 /*
  * AgendaList (W8 target-IA) — pure, presentational day agenda. Backs the
@@ -23,12 +21,12 @@ import type { ScheduleStatus } from "../../utils/scheduleStatus";
  * (capped), and free stretches between rows are called out. Without it — the
  * Desktop sidebar column — rows stay one line tall, as before.
  *
- * #1367: a TODO row's row-end is a <TodoStatusCheckbox>, not the event pill.
- * 未着手 / 着手中 / 完了 is an EVENT's vocabulary — three values derived from
- * the clock — while a todo only ever means done or not, and the 朝刊 already
- * words it that way (EveningView). Two surfaces showing the user's own todos
- * must not disagree about what a todo's state is called. EVENT / ROUTINE rows
- * keep the pill here; whether they should is the separate call in #1373.
+ * Completion belongs to TODO rows only. A todo row's row-end is a
+ * <TodoStatusCheckbox> — the control the 朝刊 gives the same todo, over the
+ * same two values, with the same words (#1367). An EVENT row has no
+ * completion at all since #1373: no pill, no toggle, and no strikethrough
+ * either, so an event a Claude tool marked done cannot show as struck with
+ * nothing here to clear it. Its row-end is simply empty.
  *
  * Pure presentation (CLAUDE.md §3.1 / §6.4): no DataService, no
  * useTranslation. Copy (all-day / empty / now labels) is injected already
@@ -42,13 +40,6 @@ export interface AgendaItem {
   endTime: string; // HH:MM
   isAllDay?: boolean;
   completed?: boolean;
-  /**
-   * Derived status (#222) — drives the row-end status tag on EVENT / ROUTINE
-   * rows. A todo row ignores it since #1367: its control is binary and reads
-   * `completed`, which is the same fact (`todosToCalendarChips` sets it from
-   * `status === "DONE"`).
-   */
-  status?: ScheduleStatus;
   variant?: ScheduleItemVariant;
 }
 
@@ -59,10 +50,6 @@ export interface AgendaListLabels {
   empty: string;
   /** Time label rendered on the now-line divider. */
   nowLabel?: string;
-  /** Accessible name for the per-row completion toggle. */
-  complete?: string;
-  /** Already-translated status-tag labels (#222). */
-  statusLabels?: Record<ScheduleStatus, string>;
   /**
    * Already-translated name of what a TODO row's checkbox sets, e.g. "Status"
    * (#1367). Composed with the current status into the accessible name, the
@@ -164,7 +151,7 @@ export function AgendaList({
 
   // Split point for the now-line: index of the first row that has not finished
   // yet. Splitting on the START time (pre-#691) filed an in-progress meeting
-  // under "past" while its own status tag said 着手中.
+  // under "past" while it was still running.
   const splitIndex = useMemo(() => {
     if (nowMinutes == null) return -1;
     return bounds.findIndex((b) => b.end > nowMinutes);
@@ -239,7 +226,10 @@ export function AgendaList({
           <span
             className={cn(
               "min-w-0 flex-1 items-center gap-1 truncate text-sm",
-              it.completed
+              // Gated on the variant (#1373): `completed` is still written for
+              // events by the MCP tool, and an event struck through with no
+              // control to clear it would be worse than the toggle that went.
+              variant === "task" && it.completed
                 ? "text-lumen-text-secondary line-through"
                 : "text-lumen-text",
             )}
@@ -264,56 +254,31 @@ export function AgendaList({
             />
           )}
         </button>
-        {variant === "task"
-          ? onToggleComplete && (
-              /*
-               * #1367: the same control the 朝刊 gives a todo row
-               * (role="checkbox" + aria-checked), over the same two values,
-               * with the same words. Rendered only with a handler: the
-               * checkbox has no read-only mode, and a box that answers
-               * nothing is worse than no box (the pill at least had a
-               * <span> form).
-               *
-               * The press keeps going through `onToggleComplete`, which the
-               * host answers by reading the TodoNode's real status and
-               * writing the flip (#761's handleTodoToggleComplete). The next
-               * value the checkbox computes is therefore the same one, and
-               * is deliberately not forwarded.
-               */
-              <span className="shrink-0 self-center pr-1">
-                <TodoStatusCheckbox
-                  status={it.completed ? "DONE" : "NOT_STARTED"}
-                  onChange={() => onToggleComplete(it.id)}
-                  labels={labels.todoStatusLabels}
-                  label={labels.todoStatus}
-                />
-              </span>
-            )
-          : it.status &&
-            labels.statusLabels && (
-              <span className="shrink-0 self-center pr-1">
-                {/* Timed rows: the tag toggles completion (replaces the old
-                    round check). All-day EVENTS keep the tag informational
-                    (they had no toggle before), so pass onClick only when
-                    timed.
-
-                    #761 carved an exception here for todo rows, whose all-day
-                    form is how a "today, time TBD" todo is staged. #1367 took
-                    those rows out of this branch entirely, so the exception
-                    went with them. */}
-                <ScheduleStatusTag
-                  status={it.status}
-                  label={labels.statusLabels[it.status]}
-                  ariaLabel={labels.complete}
-                  pressed={it.completed}
-                  onClick={
-                    onToggleComplete && !it.isAllDay
-                      ? () => onToggleComplete(it.id)
-                      : undefined
-                  }
-                />
-              </span>
-            )}
+        {variant === "task" && onToggleComplete && (
+          /*
+           * #1367: the same control the 朝刊 gives a todo row (role="checkbox"
+           * + aria-checked), over the same two values, with the same words.
+           * Rendered only with a handler: the checkbox has no read-only mode,
+           * and a box that answers nothing is worse than no box.
+           *
+           * The press goes through `onToggleComplete`, which the host answers
+           * by reading the TodoNode's real status and writing the flip (#761's
+           * handleTodoToggleComplete). The next value the checkbox computes is
+           * therefore the same one, and is deliberately not forwarded.
+           *
+           * #1373 removed the other arm. An event has no completion any more,
+           * so a non-task row's row-end is empty — there is nothing here that
+           * an all-day event or a routine occurrence still shows.
+           */
+          <span className="shrink-0 self-center pr-1">
+            <TodoStatusCheckbox
+              status={it.completed ? "DONE" : "NOT_STARTED"}
+              onChange={() => onToggleComplete(it.id)}
+              labels={labels.todoStatusLabels}
+              label={labels.todoStatus}
+            />
+          </span>
+        )}
       </li>
     );
   };

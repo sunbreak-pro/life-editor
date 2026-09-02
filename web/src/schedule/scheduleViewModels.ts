@@ -1,5 +1,4 @@
 import {
-  deriveScheduleStatus,
   itemVariant,
   sortDayItems,
   todoChipId,
@@ -24,15 +23,13 @@ import {
  * plain data-in / data-out, so scheduleViewModels.test.ts can hold each
  * surface's shape still while #675 splits the host underneath them.
  *
- * PURE: no React, no DataService, no i18n. `now` is passed in rather than read
- * so status derivation is deterministic under test.
+ * PURE: no React, no DataService, no i18n.
  *
- * Behavior is deliberately preserved field-for-field, asymmetries included:
- *   - week grid: schedule items carry `status`, todo chips DO NOT (#761 wired
- *     chip status into the agenda only);
- *   - month grid: nothing carries `status` (month cells render no status tag);
- *   - agenda: BOTH carry `status`, and the merged list is sorted (all-day
- *     first, then by start time) — the grids position by time and need no sort.
+ * #1373 took the derived status out of all four: an event has no completion
+ * concept any more, so nothing here reads the clock and none of these take a
+ * `now`. What is left of the old asymmetry is the sort — the agenda merges the
+ * two lists and orders them (all-day first, then by start time), while the
+ * grids position by time and need no sort.
  * A chip's grid id is the prefixed synthetic id (`todoChipId`) on every
  * surface; the host's handlers tell chips from events by that prefix.
  */
@@ -41,7 +38,6 @@ import {
 export function toWeekGridItems(
   events: ScheduleItem[],
   chips: TodoCalendarChip[],
-  now: Date,
 ): WeekTimeGridItem[] {
   return [
     ...events.map((i) => ({
@@ -52,7 +48,6 @@ export function toWeekGridItems(
       endTime: i.endTime,
       isAllDay: i.isAllDay,
       completed: i.completed,
-      status: deriveScheduleStatus(i, now),
       variant: itemVariant(i),
     })),
     ...chips.map((c) => ({
@@ -100,7 +95,6 @@ export function toMonthGridItems(
 export function toAgendaItems(
   events: ScheduleItem[],
   chips: TodoCalendarChip[],
-  now: Date,
 ): AgendaItem[] {
   const scheduleAgenda: AgendaItem[] = events.map((i) => ({
     id: i.id,
@@ -109,7 +103,6 @@ export function toAgendaItems(
     endTime: i.endTime,
     isAllDay: i.isAllDay,
     completed: i.completed,
-    status: deriveScheduleStatus(i, now),
     variant: itemVariant(i),
   }));
   const todoAgenda: AgendaItem[] = chips.map((c) => ({
@@ -119,7 +112,6 @@ export function toAgendaItems(
     endTime: c.endTime,
     isAllDay: c.isAllDay,
     completed: c.completed,
-    status: deriveScheduleStatus(c, now),
     variant: "task" as const,
   }));
   return sortDayItems([...scheduleAgenda, ...todoAgenda]);
@@ -132,7 +124,6 @@ export function toAgendaItems(
  */
 export function toEditorItem(
   selected: ScheduleItem | null,
-  now: Date,
 ): EventEditorItem | null {
   if (!selected) return null;
   return {
@@ -142,8 +133,6 @@ export function toEditorItem(
     isAllDay: selected.isAllDay ?? false,
     startTime: selected.startTime,
     endTime: selected.endTime,
-    completed: selected.completed,
-    status: deriveScheduleStatus(selected, now),
     memo: selected.memo ?? "",
     isRoutine: selected.routineId != null,
   };

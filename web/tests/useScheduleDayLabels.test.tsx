@@ -53,12 +53,6 @@ const ANCHOR = "2026-08-20";
 const WEEK_START = "2026-08-16";
 const WEEK_END = "2026-08-22";
 
-const STATUS_LABELS = {
-  notStarted: "Not started",
-  inProgress: "In progress",
-  done: "Done",
-};
-
 function setup(over: Partial<UseScheduleDayLabelsArgs> = {}) {
   const initialProps: UseScheduleDayLabelsArgs = {
     anchorDate: ANCHOR,
@@ -68,7 +62,6 @@ function setup(over: Partial<UseScheduleDayLabelsArgs> = {}) {
     weekStart: WEEK_START,
     weekEnd: WEEK_END,
     nowMinutes: 540,
-    statusLabels: STATUS_LABELS,
     ...over,
   };
   return renderHook((a: UseScheduleDayLabelsArgs) => useScheduleDayLabels(a), {
@@ -131,7 +124,6 @@ describe("useScheduleDayLabels — the two agenda bundles (#774)", () => {
       weekStart: WEEK_START,
       weekEnd: WEEK_END,
       nowMinutes: 545,
-      statusLabels: STATUS_LABELS,
     });
     expect(result.current.agendaLabels.nowLabel).toBe("09:05");
   });
@@ -170,7 +162,6 @@ describe("useScheduleDayLabels — the memo boundaries", () => {
       weekStart: WEEK_START,
       weekEnd: WEEK_END,
       nowMinutes: 540,
-      statusLabels: STATUS_LABELS,
       ...over,
     });
 

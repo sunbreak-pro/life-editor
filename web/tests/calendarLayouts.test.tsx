@@ -80,11 +80,6 @@ const WEEK_START = "2026-08-16";
 
 const PERIOD_LABEL = "August 2026";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-const STATUS_LABELS = {
-  notStarted: "Not started",
-  inProgress: "In progress",
-  done: "Done",
-};
 const VIEW_OPTIONS = [
   { id: "day", label: "Day" },
   { id: "week", label: "Week" },
@@ -183,7 +178,7 @@ function renderDesktop(
       nowMinutes: 540,
       ...over.data,
     },
-    labels: { weekdays: WEEKDAYS, status: STATUS_LABELS },
+    labels: { weekdays: WEEKDAYS },
     handlers,
     // Identity for the cell names so a day can be queried by its key, and a
     // marked column caption so the week's columns can be counted.

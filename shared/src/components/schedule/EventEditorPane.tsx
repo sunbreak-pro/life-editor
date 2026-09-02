@@ -9,13 +9,11 @@ import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { TimeRangeField } from "../TimeRangeField";
 import { AllDaySwitch } from "./AllDaySwitch";
-import { ScheduleStatusTag } from "./ScheduleStatusTag";
 import {
   FrequencyEditor,
   type FrequencyEditorValue,
   type FrequencyEditorLabels,
 } from "./FrequencyEditor";
-import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import { timedSpanForAllDayOff } from "../../utils/scheduleAllDay";
 import { seedFrequencyPatch } from "../../utils/routineFrequency";
 import { isImeComposing } from "../../utils/imeGuard";
@@ -98,9 +96,6 @@ export interface EventEditorItem {
   endTime: string; // HH:MM
   /** All-day occupies the day rather than a time span (#469). */
   isAllDay: boolean;
-  completed: boolean;
-  /** Derived status (#222) — shown as a tag on the completion toggle. */
-  status: ScheduleStatus;
   memo: string;
   isRoutine: boolean;
 }
@@ -121,9 +116,6 @@ export interface EventEditorPatch {
 }
 
 export interface EventEditorLabels {
-  complete: string;
-  /** Already-translated status-tag labels (#222). */
-  statusLabels: Record<ScheduleStatus, string>;
   title: string;
   /** Caption for the date picker (#469). */
   date: string;
@@ -163,7 +155,6 @@ export interface EventEditorHandlers {
    * (#279) must not be asked twice for one gesture (#553).
    */
   onSave: (id: string, patch: EventEditorPatch) => void;
-  onToggleComplete: (id: string) => void;
   /**
    * Report whether an unsaved draft is pending. The host owns the close
    * affordances (Esc, backdrop, close button, sheet dismissal) and is the only
@@ -435,7 +426,7 @@ function EventEditorFields({
 }: Omit<EventEditorPaneProps, "className">) {
   // Unpacked back into the flat names the body has always used, so the #893
   // bundles stay a wire-format change and nothing below has to know about them.
-  const { onSave, onToggleComplete, onDirtyChange, onDismiss, onDelete } =
+  const { onSave, onDirtyChange, onDismiss, onDelete } =
     handlers;
   const { originDetail, canEditDate, canEditAllDay, formatDuration } =
     options ?? {};
@@ -584,23 +575,6 @@ function EventEditorFields({
 
   return (
     <div className="flex flex-col gap-3.5">
-      {/* Completion — the status tag (#222) doubles as the toggle. Clicking
-          flips completed; the derived status paints the tag. Not part of the
-          draft: it is an act, not a field (#628). */}
-      <button
-        type="button"
-        aria-pressed={item.completed}
-        aria-label={labels.complete}
-        onClick={() => onToggleComplete(item.id)}
-        className="flex items-center gap-2 self-start rounded-sm text-sm text-lumen-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-      >
-        <ScheduleStatusTag
-          status={item.status}
-          label={labels.statusLabels[item.status]}
-        />
-        <span>{labels.complete}</span>
-      </button>
-
       {/* Title */}
       <label className="flex flex-col gap-1.5">
         <span className={FIELD_LABEL}>{labels.title}</span>

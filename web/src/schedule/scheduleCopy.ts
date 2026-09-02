@@ -7,7 +7,6 @@ import {
   type FrequencyEditorLabels,
   type FrequencyLabelCopy,
   type ItemCreatePanelLabels,
-  type ScheduleStatus,
   type SegmentedOption,
   type TodoScheduleSlot,
 } from "@life-editor/shared";
@@ -168,7 +167,6 @@ export interface ScheduleCopy {
   };
   sidebarTabs: { id: string; label: string; tourId?: string }[];
   repeatLabels: FrequencyEditorLabels;
-  statusLabels: Record<ScheduleStatus, string>;
   createPanelLabels: ItemCreatePanelLabels;
   /** "1時間30分" for a minute count (#553 — the end-time duration suffix). */
   formatDuration: (minutes: number) => string;
@@ -257,15 +255,6 @@ export function useScheduleCopy({
     [t],
   );
 
-  const statusLabels = useMemo<Record<ScheduleStatus, string>>(
-    () => ({
-      notStarted: t("scheduleScreen.statusNotStarted"),
-      inProgress: t("scheduleScreen.statusInProgress"),
-      done: t("scheduleScreen.statusDone"),
-    }),
-    [t],
-  );
-
   // #376: one label bundle for BOTH creation frames (Desktop overlay + Mobile
   // sheet) — they render the same panel, so keeping two literals here is how
   // the two would eventually drift apart.
@@ -345,7 +334,6 @@ export function useScheduleCopy({
     toolbarLabels,
     sidebarTabs,
     repeatLabels,
-    statusLabels,
     createPanelLabels,
     formatDuration,
     formatGapLabel,

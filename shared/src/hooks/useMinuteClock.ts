@@ -3,8 +3,8 @@ import { useEffect, useMemo, useState } from "react";
 /*
  * The one clock a calendar screen needs, ticked once a minute (#889).
  *
- * Schedule wants "now" in two shapes: a Date, because deriveScheduleStatus
- * (#222) has to compare across days, and minutes-from-midnight, because the
+ * Schedule wants "now" in two shapes: a Date, because useScheduleRepeats
+ * resolves today's calendar key from it, and minutes-from-midnight, because the
  * now-line and the agenda divider are positions inside one day. Those were
  * two `useState`s ticked side by side in one interval:
  *

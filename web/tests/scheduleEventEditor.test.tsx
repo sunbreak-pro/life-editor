@@ -68,8 +68,6 @@ const ITEM: EventEditorItem = {
   startTime: "10:00",
   endTime: "11:00",
   isAllDay: false,
-  completed: false,
-  status: "notStarted",
   memo: "",
   isRoutine: false,
 };
@@ -87,12 +85,7 @@ function renderEditor(
     item: over.item === undefined ? ITEM : over.item,
     isWide: over.isWide ?? true,
     routineId: over.routineId,
-    statusLabels: {
-      notStarted: "Not started",
-      inProgress: "In progress",
-      done: "Done",
-    },
-    handlers: { onSave: vi.fn(), onToggleComplete: vi.fn() },
+    handlers: { onSave: vi.fn() },
     options: { canEditDate: true, canEditAllDay: true },
     repeat: {
       value: null,
