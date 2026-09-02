@@ -1,4 +1,10 @@
 export type { DataService, AttachmentRef } from "./services/DataService";
+// #1438 — what a cleanup dry run hands back. The detection itself is pure and
+// lives in services/attachmentOrphans.ts; hosts only need the shapes.
+export type {
+  AttachmentOrphanScan,
+  StoredAttachment,
+} from "./services/DataService";
 export { createSupabaseDataService } from "./services/SupabaseDataService";
 // #625: hosts branch their failure message on `reason` (a refusal the DB
 // enforces reads differently from a dropped request), and log the raw error
@@ -123,6 +129,9 @@ export {
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_URL_TTL_SECONDS,
   ATTACHMENT_IMAGE_ACCEPT,
+  // The node name both packages have to agree on — web builds the TipTap node
+  // with it, shared's orphan sweep recognises a reference by it (#1438).
+  ATTACHMENT_NODE_TYPE,
   isEmbeddableImage,
   formatAttachmentSize,
 } from "./constants/attachments";

@@ -979,6 +979,24 @@
     "tooLarge": "ファイルが大きすぎます。上限は {{limit}} です。",
     "uploadFailed": "ファイルをアップロードできませんでした。もう一度お試しください。"
   },
+  "attachmentCleanup": {
+    "heading": "添付の掃除",
+    "description": "ノートから画像を消しても、元に戻せるようファイル自体は残ります。どのノート・デイリーからも参照されなくなったファイルを探します。",
+    "scan": "使われていないファイルを探す",
+    "scanning": "確認中…",
+    "rescan": "もう一度探す",
+    "summary": "{{scanned}} 件を確認しました。使われていないもの {{orphans}} 件、使用中 {{referenced}} 件です。",
+    "recentNote": "直近 1 時間にアップロードされた {{n}} 件は対象から外しています。",
+    "nothing": "掃除するファイルはありません。",
+    "listLabel": "使われていない添付ファイル",
+    "deleteAll": "{{n}} 件を削除（{{size}}）",
+    "deleting": "削除中…",
+    "deleted": "{{n}} 件を削除しました。",
+    "partialFailure": "{{n}} 件は削除できませんでした。上の一覧に残っています。",
+    "scanFailed": "保存されているファイルを確認できませんでした。少し時間をおいて、もう一度お試しください。",
+    "confirmMessage": "{{n}} 件（{{size}}）を完全に削除します。この操作は取り消せません。",
+    "confirmLabel": "完全に削除"
+  },
   "blockMenu": {
     "turnInto": "変換",
     "noMatch": "該当する項目がありません",
