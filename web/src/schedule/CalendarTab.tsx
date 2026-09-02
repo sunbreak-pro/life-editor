@@ -777,12 +777,9 @@ export function CalendarTab({
   const {
     toAgenda,
     handleAgendaToggle,
-    todayItems,
     skippedToday,
     handleRestoreSkipped,
     todayAgenda,
-    todayDone,
-    todayTotal,
     originDetail,
   } = useScheduleTodayAgenda({
     contextItems,
@@ -848,8 +845,6 @@ export function CalendarTab({
   const {
     repeatValue,
     summaryRows,
-    routineDone,
-    routineTotal,
     listDate,
     repeatRows,
     handleOpenRepeat,
@@ -857,7 +852,6 @@ export function CalendarTab({
   } = useScheduleRepeats({
     routines,
     selected,
-    todayItems,
     sidebarTab,
     now,
     copy: { freq: freqCopy, weekdayLabels, formatFullDay },
@@ -936,12 +930,6 @@ export function CalendarTab({
         anchorDayItems,
         rangeTodoChips.filter((c) => c.date === anchorDate),
       );
-  const narrowDayCounts = isWide
-    ? null
-    : {
-        done: anchorDayItems.filter((i) => i.completed).length,
-        total: anchorDayItems.length,
-      };
 
   /*
    * #1153: the shell's todo intents, each consumed once.
@@ -996,8 +984,6 @@ export function CalendarTab({
           // nothing there.
           nowMinutes: isWide || anchorDate === today ? nowMinutes : null,
           selectedId,
-          doneCount: narrowDayCounts?.done ?? todayDone,
-          totalCount: narrowDayCounts?.total ?? todayTotal,
           // #691, arriving with the day list: narrow stands in for the week
           // grid, so its rows carry their duration and the gaps between them.
           dayflow: !isWide,
@@ -1009,8 +995,6 @@ export function CalendarTab({
           addLabel: isWide ? undefined : t("scheduleScreen.addCta"),
           skipped: skippedToday,
           summaryRows,
-          routineDoneCount: routineDone,
-          routineTotalCount: routineTotal,
           onToggleComplete: handleAgendaToggle,
           onItemActivate: handleItemActivate,
           onItemDoubleClick: handleItemOpenDetail,
