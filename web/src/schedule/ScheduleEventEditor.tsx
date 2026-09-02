@@ -154,6 +154,7 @@ export function ScheduleEventEditor({
       options={options}
       repeat={repeat}
       reminder={reminder}
+      workTime={workTime}
       // #998 put this on the narrow sheet only, leaving Desktop to the
       // single-click bubble (#625). #1405 opens it on both widths: the Todo
       // side has had "convert to Event" INSIDE its edit panel all along
