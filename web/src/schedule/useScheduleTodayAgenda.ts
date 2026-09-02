@@ -110,9 +110,6 @@ export function useScheduleTodayAgenda({
     () => toAgenda(todayItems, todayTodoChips),
     [todayItems, todayTodoChips, toAgenda],
   );
-  const todayDone = todayItems.filter((i) => i.completed).length;
-  const todayTotal = todayItems.length;
-
   const originDetail = useMemo(() => {
     if (!selected || selected.routineId == null) return undefined;
     const r = routines.find((x) => x.id === selected.routineId);
@@ -146,8 +143,6 @@ export function useScheduleTodayAgenda({
     skippedToday,
     handleRestoreSkipped,
     todayAgenda,
-    todayDone,
-    todayTotal,
     originDetail,
   };
 }

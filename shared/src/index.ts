@@ -1,4 +1,10 @@
 export type { DataService, AttachmentRef } from "./services/DataService";
+// #1438 — what a cleanup dry run hands back. The detection itself is pure and
+// lives in services/attachmentOrphans.ts; hosts only need the shapes.
+export type {
+  AttachmentOrphanScan,
+  StoredAttachment,
+} from "./services/DataService";
 export { createSupabaseDataService } from "./services/SupabaseDataService";
 // #625: hosts branch their failure message on `reason` (a refusal the DB
 // enforces reads differently from a dropped request), and log the raw error
@@ -123,6 +129,9 @@ export {
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_URL_TTL_SECONDS,
   ATTACHMENT_IMAGE_ACCEPT,
+  // The node name both packages have to agree on — web builds the TipTap node
+  // with it, shared's orphan sweep recognises a reference by it (#1438).
+  ATTACHMENT_NODE_TYPE,
   isEmbeddableImage,
   formatAttachmentSize,
 } from "./constants/attachments";
@@ -638,7 +647,7 @@ export {
   type TimerSettingsPatch,
   type TimerPresetValues,
   type TimerPhase,
-  type ActiveTodo,
+  type ActiveWorkItem,
 } from "./context";
 export { useTimerContext } from "./hooks/useTimerContext";
 export {
@@ -658,6 +667,9 @@ export type {
   TimerSession,
   PomodoroPreset,
   SessionType,
+  // #1375: what a session is measured against — a Todo or an Event.
+  WorkTarget,
+  WorkTargetKind,
 } from "./types/timer";
 
 // Audio domain (W3-C) — ambient mixer Provider + OPTIONAL context hook + the
@@ -742,6 +754,12 @@ export {
 } from "./utils/dailyListView";
 // jsonb-canonicalization-proof own-echo test (#300) — see file header.
 export { jsonDocEquals } from "./utils/jsonDocEquals";
+// #1375: reading a timer_sessions log — which item a session names, and how
+// much WORK was logged against one of them.
+export {
+  sessionTargetId,
+  totalWorkMinutesForItem,
+} from "./utils/timerSessions";
 // `[[ ]]` edges parked until their source item's first save lands (#371).
 export {
   createPendingItemLinks,

@@ -89,6 +89,17 @@ function makeHarness(): Harness {
       { id: "task-1", type: "task", title: "Write the spec", isDeleted: false },
       { id: "task-x", type: "task", title: "Deleted todo", isDeleted: true },
     ]),
+    // #1375: the picker's ONE load reads todos AND the coming week's events.
+    fetchScheduleItemsByDateRange: vi.fn(async () => [
+      {
+        id: "event-1",
+        title: "Piano lesson",
+        date: "2026-09-02",
+        startTime: "18:00",
+        endTime: "19:00",
+        isDeleted: false,
+      },
+    ]),
     startTimerSession: vi.fn(async () => ({ id: SESSION_ID })),
     endTimerSession: vi.fn(async () => undefined),
     createTodo: vi.fn(async (todo: { id: string; title: string }) => ({
@@ -128,7 +139,7 @@ async function renderWork(): Promise<Harness> {
 const press = (name: string) =>
   fireEvent.click(screen.getByRole("button", { name }));
 
-/** Picks a todo through the desktop selector's menu. */
+/** Picks a candidate (todo or event) through the desktop selector's menu. */
 async function pickTodo(title: string) {
   press("work.todoSelector.placeholder");
   fireEvent.click(within(await screen.findByRole("menu")).getByText(title));
@@ -163,7 +174,26 @@ describe("WorkScreen — starting logs the session the chip names", () => {
 
     await waitFor(() => expect(fns.startTimerSession).toHaveBeenCalled());
     // The id comes from the picked row — the whole point of having picked one.
-    expectOnlyWrite(fns, "startTimerSession", ["WORK", "task-1"]);
+    expectOnlyWrite(fns, "startTimerSession", [
+      "WORK",
+      { kind: "todo", id: "task-1" },
+    ]);
+  });
+
+  // #1375: the same gesture against a calendar entry. `kind` is what sends the
+  // id to `event_id` instead of `task_id`, so it has to survive the whole path
+  // — picker → timer state → service call.
+  it("start after picking an event → startTimerSession('WORK', event target)", async () => {
+    const { fns } = await renderWork();
+    await pickTodo("Piano lesson");
+
+    press("work.controls.start");
+
+    await waitFor(() => expect(fns.startTimerSession).toHaveBeenCalled());
+    expectOnlyWrite(fns, "startTimerSession", [
+      "WORK",
+      { kind: "event", id: "event-1" },
+    ]);
   });
 
   it("start with nothing picked logs the session and creates NO todo", async () => {

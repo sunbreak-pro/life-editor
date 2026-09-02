@@ -3,6 +3,7 @@ import type {
   TimerSession,
   PomodoroPreset,
   SessionType,
+  WorkTarget,
 } from "../types/timer";
 
 /*
@@ -50,6 +51,8 @@ export interface TimerSessionRow {
   id: number;
   user_id: string;
   task_id: string | null;
+  /** The attributed Event (0029). At most one of task_id / event_id is set. */
+  event_id: string | null;
   session_type: SessionType;
   started_at: string;
   ended_at: string | null;
@@ -83,8 +86,8 @@ export const TIMER_SETTINGS_COLUMNS =
   "created_at, updated_at";
 
 export const TIMER_SESSION_COLUMNS =
-  "id, user_id, task_id, session_type, started_at, ended_at, duration, " +
-  "completed, label, created_at, updated_at";
+  "id, user_id, task_id, event_id, session_type, started_at, ended_at, " +
+  "duration, completed, label, created_at, updated_at";
 
 export const POMODORO_PRESET_COLUMNS =
   "id, user_id, name, work_duration, break_duration, long_break_duration, " +
@@ -186,6 +189,7 @@ export function rowToTimerSession(row: TimerSessionRow): TimerSession {
   return {
     id: row.id,
     todoId: row.task_id,
+    eventId: row.event_id,
     sessionType: toSessionType(row.session_type),
     startedAt: new Date(row.started_at),
     completedAt: row.ended_at === null ? null : new Date(row.ended_at),
@@ -199,6 +203,7 @@ export function rowToTimerSession(row: TimerSessionRow): TimerSession {
 export interface TimerSessionInsertRow {
   session_type: SessionType;
   task_id: string | null;
+  event_id: string | null;
   started_at: string;
 }
 
@@ -206,15 +211,21 @@ export interface TimerSessionInsertRow {
  * Build the INSERT row for a freshly started session. `user_id` is left to
  * the DB default (auth.uid()); `id` is identity-generated; `ended_at` /
  * `duration` / `completed` stay at their DB defaults until close.
+ *
+ * `target` decides WHICH column carries the id (#1375). Both columns are
+ * always written — explicitly null for the one the target does not name —
+ * so the row can never inherit a stale value from a reused object literal,
+ * and the 0029 CHECK ("at most one attribution") is satisfied by construction.
  */
 export function newTimerSessionInsert(
   sessionType: SessionType,
-  todoId: string | null,
+  target: WorkTarget | null,
   startedAt: string,
 ): TimerSessionInsertRow {
   return {
     session_type: sessionType,
-    task_id: todoId,
+    task_id: target?.kind === "todo" ? target.id : null,
+    event_id: target?.kind === "event" ? target.id : null,
     started_at: startedAt,
   };
 }

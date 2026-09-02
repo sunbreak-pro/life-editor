@@ -165,6 +165,22 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   };
 }
 
+/** The row <li> that prints `title` — todo, event and carryover rows alike. */
+function rowOf(title: string): HTMLElement {
+  const li = screen.getByText(title).closest("li");
+  if (li === null) throw new Error(`no row prints "${title}"`);
+  return li;
+}
+
+/** That row's status checkbox. Scoped to the row because the paper now draws
+ *  one on the today's-schedule todo rows as well (#1442), so a document-wide
+ *  getAllByRole("checkbox") no longer identifies a row by its index. */
+function checkboxIn(title: string): HTMLElement {
+  const box = rowOf(title).querySelector('[role="checkbox"]');
+  if (box === null) throw new Error(`the "${title}" row has no checkbox`);
+  return box as HTMLElement;
+}
+
 /*
  * #1368 — the carryover rows' date column and their checkbox.
  *
@@ -210,21 +226,86 @@ describe("BriefingView carryover date column (#1368)", () => {
 
   it("draws the shared todo checkbox, at its touch target", () => {
     renderMixed();
-    const boxes = screen.getAllByRole("checkbox");
-    expect(boxes).toHaveLength(2);
-    expect(boxes[0]!.getAttribute("aria-checked")).toBe("false");
-    expect(boxes[1]!.getAttribute("aria-checked")).toBe("true");
-    for (const box of boxes) {
+    expect(checkboxIn("One digit").getAttribute("aria-checked")).toBe("false");
+    expect(checkboxIn("Two digits").getAttribute("aria-checked")).toBe("true");
+    for (const title of ["One digit", "Two digits"]) {
       // mobile-scope.md: 44px is the floor. The 16px box it replaced was the
       // other half of「小さくて見づらい」.
-      expect(box.className).toContain("min-h-11");
+      expect(checkboxIn(title).className).toContain("min-h-11");
     }
   });
 
   it("toggles from the checkbox, not only from the title", () => {
     const { onToggleTodo } = renderMixed();
-    fireEvent.click(screen.getAllByRole("checkbox")[0]!);
+    fireEvent.click(checkboxIn("One digit"));
     expect(onToggleTodo).toHaveBeenCalledExactlyOnceWith("c1");
+  });
+});
+
+/*
+ * #1442 — one page, two kinds of checkbox. #1368 moved the carryover rows onto
+ * the shared <TodoStatusCheckbox>, but the todo rows inside 「今日のスケジュール」
+ * kept a 16px box drawn by hand, so the reader met both within one screen. Both
+ * kinds of row now draw the shared control, and because that control carries
+ * the 44px touch floor the event rows beside it claim the same minimum — a
+ * merged list (#939) that stepped down at the hairline would just move the
+ * inconsistency rather than remove it.
+ */
+describe("One checkbox on the whole paper (#1442)", () => {
+  it("draws the shared control on a today's-schedule todo row", () => {
+    renderView();
+    const box = checkboxIn("Write report");
+    expect(box.getAttribute("aria-checked")).toBe("false");
+    // The accessible name says what the control is about, not just its value.
+    expect(box.getAttribute("aria-label")).toBe("Status: Not started");
+    expect(box.className).toContain("min-h-11");
+  });
+
+  it("reports a DONE todo as checked", () => {
+    renderView();
+    expect(checkboxIn("Ship feature").getAttribute("aria-checked")).toBe(
+      "true",
+    );
+  });
+
+  it("gives the todo row and the carryover row the same control", () => {
+    renderView();
+    // Identical class lists: the same component with the same props, not a
+    // lookalike that happens to measure 44px today. Both are NOT_STARTED in
+    // the fixture, so any difference is the styling, not the status.
+    expect(checkboxIn("Write report").className).toBe(
+      checkboxIn("Old todo").className,
+    );
+  });
+
+  it("toggles the todo from its own checkbox", () => {
+    const { onToggleTodo } = renderView();
+    fireEvent.click(checkboxIn("Write report"));
+    // Same write path as before (#1368's onSetStatus split does not reach the
+    // paper): one call, the row's own id, nothing else.
+    expect(onToggleTodo).toHaveBeenCalledExactlyOnceWith("t1");
+  });
+
+  it("keeps the title button toggling too", () => {
+    const { onToggleTodo } = renderView();
+    fireEvent.click(screen.getByRole("button", { name: /Write report/ }));
+    expect(onToggleTodo).toHaveBeenCalledExactlyOnceWith("t1");
+  });
+
+  it("holds one row height across the merged list", () => {
+    renderView();
+    // jsdom has no layout (CLAUDE.md §7.1), so the floor is pinned as the
+    // declaration both kinds of row carry rather than measured.
+    const todoRow = rowOf("Write report").querySelector("div");
+    expect(todoRow?.className).toContain("min-h-11");
+    // An event row has no control at all (#1373) — without the same floor the
+    // list would shrink by ~18px the moment the todos ran out.
+    expect(rowOf("Morning standup").className).toContain("min-h-11");
+  });
+
+  it("leaves no hand-rolled 16px box behind", () => {
+    const { container } = renderView();
+    expect(container.querySelectorAll("span.h-4.w-4")).toHaveLength(0);
   });
 });
 

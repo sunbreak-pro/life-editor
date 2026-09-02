@@ -481,7 +481,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 
 ### Related Plans
 
-- COMPLETED: `.claude/archive/2026-04-18-service-error-handler-hook.md`（S-5 実装完了）
+- COMPLETED: `2026-04-18-service-error-handler-hook`（S-5 実装完了）— ファイル実体は 2026-05-16 の archive 統合（3b4715cc）で削除済み・要約は [`archive/SUMMARY.md`](../../archive/SUMMARY.md)
 
 ---
 
@@ -503,6 +503,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
   - カスタムサウンドは FS ベースだが TrashView に相当する復元窓口を提供
   - ドメイン別タブ切替（削除済み Todos / Notes 等を別々に表示）
   - 一括完全削除
+  - 添付の孤児回収（#1438）: どのノート / デイリーからも参照されなくなった `attachments` バケットのオブジェクトを、dry-run の一覧 → 確認ダイアログ → 削除の順で掃除する（入口は Settings の Trash 配下）
 - やらない:
   - 削除からの自動パージ（30 日経過等の自動完全削除は未実装）
   - MCP 経由での完全削除（安全性配慮）
@@ -514,6 +515,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 - [ ] AC2: Trash 画面から「復元」を選ぶと該当レコードが元の位置 / 親に戻り、`is_deleted=0` + `deleted_at=NULL` に更新される
 - [ ] AC3: 「完全削除」を選ぶと確認ダイアログ経由で `permanent_delete` が呼ばれ、関連レコード（子タスク / assignments 等）もカスケード削除される
 - [ ] AC4: カスタムサウンドの削除 / 復元は FS ベースでも TrashView に統合され、他ドメインと同じ UI で扱える
+- [ ] AC5: 添付の掃除は対象一覧（dry-run）を出してからでないと削除できず、ゴミ箱内のノートが参照する添付は対象に含まれない（#1438）
 
 ### Dependencies
 

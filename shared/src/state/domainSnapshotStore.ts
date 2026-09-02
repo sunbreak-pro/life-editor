@@ -55,7 +55,7 @@ export type DomainSnapshotKey =
   | "briefingFocus"
   | "analyticsSummary"
   | "trashLists"
-  | "workTodoOptions";
+  | "workTargetOptions";
 
 interface DomainSnapshot {
   /** The DataService instance the data came from (identity compared). */

@@ -7,9 +7,11 @@ import {
   type EventEditorOptions,
   type EventEditorReminder,
   type EventEditorRepeat,
+  type EventEditorWorkTime,
 } from "@life-editor/shared";
 import { TagPicker } from "../wikitag/TagPicker";
 import { TagColorControls } from "../wikitag/TagColorControls";
+import { useEventWorkTime } from "./useEventWorkTime";
 
 /*
  * The Calendar's event editor — <EventEditorPane> with the copy, the tag slot
@@ -68,6 +70,9 @@ export function ScheduleEventEditor({
   onConvertToTodo,
 }: ScheduleEventEditorProps) {
   const { t } = useTranslation();
+  // Before the early return — hooks cannot be called conditionally, and the
+  // hook already treats a null id as "nothing to read".
+  const workMinutes = useEventWorkTime(item?.id ?? null);
 
   if (!item) return null;
 
@@ -102,6 +107,40 @@ export function ScheduleEventEditor({
         label: t("schedule.reminderLead", { n }),
       })),
     ],
+  };
+
+  /*
+   * Logged work time (#1375). The composition lives here for the §6.4 reason
+   * every other string on this screen does — and it reuses the calendar's own
+   * duration words rather than Analytics' "2h 30m", so the panel that says an
+   * event runs 90 minutes says its logged time the same way.
+   *
+   * Rounded to whole minutes: sessions store seconds, and "1 hr 29.7 min" is
+   * not a thing anyone wants to read. Zero — and a read that has not landed or
+   * failed (`null`) — shows the "nothing logged" sentence rather than "0 min":
+   * both mean "there is no logged time to show you", and a loading flicker in a
+   * panel that opens instantly would be noise rather than information.
+   *
+   * Written out inline rather than as a helper taking `t`: the catalog keys are
+   * a TYPE here (i18next's key union), so a helper would have to widen `t` back
+   * to `(key: string) => string` and give up the compile-time key check.
+   */
+  const loggedMinutes = Math.round(workMinutes ?? 0);
+  const loggedHours = Math.floor(loggedMinutes / 60);
+  const loggedRest = loggedMinutes % 60;
+  const workTime: EventEditorWorkTime = {
+    label: t("scheduleScreen.workTime"),
+    value:
+      loggedMinutes <= 0
+        ? t("scheduleScreen.workTimeNone")
+        : loggedHours === 0
+          ? t("scheduleScreen.durationMin", { m: loggedRest })
+          : loggedRest === 0
+            ? t("scheduleScreen.durationHour", { h: loggedHours })
+            : t("scheduleScreen.durationHourMin", {
+                h: loggedHours,
+                m: loggedRest,
+              }),
   };
 
   return (

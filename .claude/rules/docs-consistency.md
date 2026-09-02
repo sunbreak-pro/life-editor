@@ -7,7 +7,7 @@ paths:
 
 # Docs Consistency — 矛盾を作らないための運用ルール
 
-> 出典: `docs/vision/plans/2026-07-07-docs-consistency-cleanup.md`（2026-07-07 監査で矛盾約 60 件を確認・Phase 7 で本ルール化）。docs を更新する全セッションが対象（path-scoped: 上記パスを扱う時のみ自動ロード）。
+> 出典: [`2026-07-07-docs-consistency-cleanup.md`](../archive/2026-07-07-docs-consistency-cleanup.md)（2026-07-07 監査で矛盾約 60 件を確認・Phase 7 で本ルール化。完了後 `archive/` へ移動済み）。docs を更新する全セッションが対象（path-scoped: 上記パスを扱う時のみ自動ロード）。
 
 ## 1. 数値の非複製原則
 
@@ -41,6 +41,7 @@ grep -rn '<旧名>' <claude-dotfiles>/claude/
 `Draft` / `IN PROGRESS` / `BLOCKED` / `COMPLETED` / `SUPERSEDED` / `DEFERRED` / `REFERENCE` / `ACTIVE (adopted policy)`
 
 - `COMPLETED` / `SUPERSEDED` になったファイルは `archive/` へ移動する（plans/ に残置しない）
+- **レーンごと畳んだ `DEFERRED` も `archive/` に置いてよい**（実例 = [`2026-05-23-filechanged-comm-watch.md`](../archive/2026-05-23-filechanged-comm-watch.md)・`comm/README.md` が「DEFERRED で archive 済」として参照している）。ただし Status 行に**畳んだ理由**を書くこと — 理由の無い `DEFERRED` は「まだ生きている計画」と読めるので plans/ に残す
 - 禁止例: In-progress / EXECUTED / READY FOR PR / SKELETON / FROZEN / SHIPPED / CLOSED
 - **enum を当てるのは plans/ 由来の文書だけ**（2026-08-01 ユーザー確定 D-20260801-main-2）: `archive/` には計画書以外（要件定義書・棚卸しメモ）も同居しており、そちらの `**Status**: SPECIFICATION（凍結）` / `ARCHIVED` は**文書種別を表す語**なので enum 化しない。Status 行が無い非計画書に足す必要もない。enum は「計画がどこまで進んだか」の語彙で、要件定義書に `COMPLETED` を当てても意味が通らない
 - **全数チェックには `grep -n "^Status:"` では足りない**（#474 実測・2 本を見落とした）: `**Status**:` 形式と blockquote 前置（`> Status:`）を拾うため、各ファイル先頭 14 行に `^>?\s*Status:` と `^>?\s*-?\s*\*\*Status[^*]*\*\*:` の両方を当てる

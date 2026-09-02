@@ -186,22 +186,18 @@ describe("useScheduleTodayAgenda — the two lists are one partition (#296)", ()
   });
 
   /*
-   * The counters read `todayItems`, so they inherit the split. A skipped row
-   * counted here is the version of the bug the user meets first: "1 / 3" on a
-   * day with two rows on screen.
+   * #1440: no counter reads `todayItems` any more. `completed` on an event is
+   * a column the UI cannot set (#1373), so a "{done}/{total}" built from it
+   * could only say zero — and the hook must not hand one out for a host to
+   * print by accident.
    */
-  it("counts only what is actually on today's list", () => {
+  it("hands out no completion counter for events", () => {
     const { result } = renderAgenda({
-      contextItems: [
-        item("done", { completed: true }),
-        item("open"),
-        item("skipped-and-done", { isDismissed: true, completed: true }),
-        item("trashed", { isDeleted: true }),
-      ],
+      contextItems: [item("done", { completed: true }), item("open")],
     });
 
-    expect(result.current.todayTotal).toBe(2);
-    expect(result.current.todayDone).toBe(1);
+    expect("todayDone" in result.current).toBe(false);
+    expect("todayTotal" in result.current).toBe(false);
   });
 
   /*

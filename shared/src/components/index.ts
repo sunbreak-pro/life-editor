@@ -400,6 +400,13 @@ export {
   // through its own per-category switches.
   type TrashRef,
 } from "./TrashView";
+// #1438 — the Storage janitor that lives under the same Settings row as the
+// Trash: a dry run first, then a delete confined to exactly what it listed.
+export {
+  AttachmentCleanupPanel,
+  type AttachmentCleanupPanelProps,
+  type AttachmentCleanupLabels,
+} from "./AttachmentCleanupPanel";
 // Work / Pomodoro (target-IA import) — pure timer face + phase badge + session
 // dots + todo selector/sheet + settings editor + completion modal.
 export {
@@ -417,7 +424,9 @@ export {
   PomodoroTodoSelector,
   type PomodoroTodoSelectorProps,
   type PomodoroTodoSelectorLabels,
-  type TodoOption,
+  type WorkTargetOption,
+  workTargetIcon,
+  workTargetChipClass,
 } from "./PomodoroTodoSelector";
 export {
   PomodoroTodoSheet,

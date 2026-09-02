@@ -16,6 +16,17 @@
  * a client that skips this check still cannot spend more than the plan allows.
  */
 
+/**
+ * The document node type an embedded image / file is stored as.
+ *
+ * Declared here rather than only in the TipTap extension because TWO packages
+ * have to agree on it and they cannot import each other: `web` builds the node
+ * with this name, and `shared`'s orphan sweep (#1438) recognises a reference
+ * by it. A rename that touched only the extension would leave the sweep seeing
+ * every attachment as unreferenced — i.e. deleting all of them.
+ */
+export const ATTACHMENT_NODE_TYPE = "attachment";
+
 /** The private Storage bucket every editor attachment is written to. */
 export const ATTACHMENTS_BUCKET = "attachments";
 

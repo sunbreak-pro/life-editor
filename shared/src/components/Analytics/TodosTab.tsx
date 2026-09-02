@@ -1,5 +1,6 @@
 import type { TimerSession } from "../../types/timer";
 import type { TodoNode } from "../../types/todoTree";
+import type { ScheduleItem } from "../../types/schedule";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import {
   TodoCompletionTrend,
@@ -23,6 +24,8 @@ export interface TodosTabLabels {
 interface TodosTabProps {
   sessions: TimerSession[];
   nodes: TodoNode[];
+  /** Live events — the tag ring counts work measured against them too (#1375). */
+  events: ScheduleItem[];
   assignments: WikiTagAssignment[];
   tags: WikiTag[];
   labels: TodosTabLabels;
@@ -31,6 +34,7 @@ interface TodosTabProps {
 export function TodosTab({
   sessions,
   nodes,
+  events,
   assignments,
   tags,
   labels,
@@ -43,6 +47,7 @@ export function TodosTab({
         <TagWorkTimeChart
           sessions={sessions}
           nodes={nodes}
+          events={events}
           assignments={assignments}
           tags={tags}
           labels={labels.tagTime}

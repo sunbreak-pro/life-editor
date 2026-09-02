@@ -1,5 +1,5 @@
 ---
-Status: COMPLETED # enum のみ使用: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)
+Status: COMPLETED
 Created: 2026-07-25
 Branch: refactor/code-reduction
 Owner-chat: code-reduction
