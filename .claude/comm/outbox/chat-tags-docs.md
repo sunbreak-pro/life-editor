@@ -93,3 +93,9 @@ worktree `tags-docs`。担当 = #368（WikiTags 名前フィルタ）/ #474（pl
 - **なぜ #1342 に混ぜなかったか**: `ColorPicker` は Kanban のカラム色と `web/src/wikitag/TagColorControls.tsx` でも使われており、そちらは**ダイアログの外**にいます。レイヤーを取ると `stopImmediatePropagation` が効く範囲が変わるため、影響確認の対象が Issue の外へ広がります。#1346 は先に merge してもらって、こちらは独立した 1 本にするのが安全だと判断しました
 - **確認の前提**: 実ブラウザでの目視が要ります（jsdom でもレイヤー順は再現するので `shared/tests/` でガードは書けます）
 - **提案ラベル**: `section:tags` + `type:bug` + `sev:minor`（#1342 の follow-up）
+
+## 2026-09-02 — desktop の IPC ガードコメントが 1 ずれている（#1391 の Scope 外）
+
+`desktop/src/shared/ipcContract.ts:138` の Risk 1 ガードが `keep the exposed function count <= 10. Current = 9.` のままです。同じファイルの `:172`（`notify` の JSDoc）は「⚠️ This takes the exposed surface to 10, exactly the #529 Risk 1 budget.」と書いており、**同一ファイル内で数が食い違っています**。実測は 10（getTheme / setTheme / getWindowBounds / getAppVersion / authStorage の 3 メソッド / getClaudeProjectPath / launchClaude / notify）。
+
+#1391 の Scope は `.claude/` 配下なので触っていません。`desktop/` レーン（refactor-core）宛の 1 行修正としてどなたかに振っていただけると助かります。ちなみに `add-ipc-channel` スキル側は「実数を転記せず `DesktopIpcApi` を数える」形に直したので（PR #1451 merged）、スキルはもう腐りません。
