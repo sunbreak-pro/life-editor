@@ -3,10 +3,7 @@ import { render, screen, within } from "@testing-library/react";
 import type { TodoNode } from "../src/types/todoTree";
 import type { ScheduleItem } from "../src/types/schedule";
 import type { NoteNode } from "../src/types/note";
-import type {
-  WikiTag,
-  WikiTagAssignment,
-} from "../src/types/wikiTagUnified";
+import type { WikiTag, WikiTagAssignment } from "../src/types/wikiTagUnified";
 import {
   TagUsageCard,
   type TagUsageCardLabels,
@@ -93,7 +90,6 @@ function tag(id: string, name: string): WikiTag {
     icon: null,
     createdAt: BEFORE_RANGE,
     updatedAt: BEFORE_RANGE,
-    version: 1,
     isDeleted: false,
     deletedAt: null,
   };
