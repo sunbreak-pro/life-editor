@@ -26,7 +26,7 @@ import {
  *   - No `template_id` — Templates integration deferred to a DU
  *     follow-up plan.
  *   - No `reminder_enabled` column. #1374 added
- *     `reminder_offset_min integer` (0027) — minutes before the start,
+ *     `reminder_offset_min integer` (0028) — minutes before the start,
  *     NULL for no reminder — and the mapper DERIVES `reminderEnabled`
  *     from it. An OFFSET rather than the absolute `reminder_at` this
  *     table shipped with, because an offset is invariant when the event
