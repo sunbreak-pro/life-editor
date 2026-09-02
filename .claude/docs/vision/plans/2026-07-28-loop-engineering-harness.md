@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — Phase 0〜2 実施済み。発火有効化は D-20260804-main-1 = A で回答済み（2026-08-11）・Task Scheduler 登録が未実施（#1335）。Step 5（MCP 疎通 → 朝刊ミラー）・Phase 3 も未消化
+Status: IN PROGRESS — Phase 0〜2 実施済み。Phase 1 の 2 本（digest 06:03 / night-safe 22:33）は 2026-09-02 に Windows Task Scheduler へ登録して稼働開始（#1335 / D-20260804-main-1 = A・台帳 = `automation/routine-ids.md`）。残 = Phase 2 の `night` レーン登録・Step 5（MCP 疎通 → 朝刊ミラー）・Phase 3
 Created: 2026-07-28
 Branch: main # 本書は設計書。commit する場合は一時 worktree 経由（main 直 push 禁止）
 Owner-chat: main

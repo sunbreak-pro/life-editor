@@ -1,5 +1,5 @@
 ---
-Status: BLOCKED — 夜間発火の基盤は D-20260804-main-1 = A（Windows Task Scheduler + claude -p）で 2026-08-11 に確定済み・登録が未実施（#1335）。旧記載の Anthropic Cloud 登録（trig_PENDING）は台帳退役（2026-08-04 Phase 1 改訂）で失効
+Status: SUPERSEDED — 本書の機構（Anthropic Cloud Routine × 2 + trig_ 台帳・Steps 8/9）は 2026-08-04 の Phase 1 改訂で退役し、`2026-07-28-loop-engineering-harness.md` の Phase 1〜2 が後継。後継側で digest / night-safe を 2026-09-02 に Windows Task Scheduler へ登録して稼働開始（#1335 / D-20260804-main-1 = A）。Goal Roadmap の SSOT は `.claude/automation/goals.md` に残る
 Created: 2026-05-26
 Branch: feat/autonomous-dev-routine
 Owner-chat: chat-main
