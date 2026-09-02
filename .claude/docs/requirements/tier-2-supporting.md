@@ -481,7 +481,7 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 
 ### Related Plans
 
-- COMPLETED: `.claude/archive/2026-04-18-service-error-handler-hook.md`（S-5 実装完了）
+- COMPLETED: `2026-04-18-service-error-handler-hook`（S-5 実装完了）— ファイル実体は 2026-05-16 の archive 統合（3b4715cc）で削除済み・要約は [`archive/SUMMARY.md`](../../archive/SUMMARY.md)
 
 ---
 
