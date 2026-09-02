@@ -368,6 +368,7 @@ export interface ScheduleItemsDataService {
         | "isAllDay"
         | "content"
         | "date"
+        | "reminderOffset"
       >
     >,
   ): Promise<ScheduleItem>;

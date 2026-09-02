@@ -46,6 +46,9 @@ vi.mock("../src/GlobalShortcuts", () => ({
 vi.mock("../src/MaterialsCountsBridge", () => ({
   MaterialsCountsBridge: () => <div data-testid="counts" />,
 }));
+vi.mock("../src/ScheduleReminderBridge", () => ({
+  ScheduleReminderBridge: () => <div data-testid="reminders" />,
+}));
 
 const { AppProviders } = await import("../src/AppProviders");
 
@@ -110,9 +113,13 @@ describe("AppProviders", () => {
   it("keeps each headless bridge inside the Provider it reads", () => {
     renderChain();
 
-    // The counts bridge refetches on Realtime bumps (needs Sync); the shortcut
-    // executor reads the live rebindable config (needs ShortcutConfig).
+    // The counts bridge refetches on Realtime bumps (needs Sync); the reminder
+    // sweep refetches AND toasts (needs both, #1374); the shortcut executor
+    // reads the live rebindable config (needs ShortcutConfig).
     expect(providersAround(screen.getByTestId("counts"))).toContain("Sync");
+    const reminders = providersAround(screen.getByTestId("reminders"));
+    expect(reminders).toContain("Sync");
+    expect(reminders).toContain("Toast");
     expect(providersAround(screen.getByTestId("shortcuts"))).toContain(
       "ShortcutConfig",
     );

@@ -36,6 +36,8 @@ import {
   useShortcutConfig,
   useStartupSectionPref,
   useScheduleInitialViewPref,
+  useReminderPrefs,
+  REMINDER_LEAD_CHOICES,
   useDayStartHourPref,
   useRightSidebarOptional,
   useTourContext,
@@ -125,6 +127,12 @@ export function SettingsScreen() {
     useStartupSectionPref();
   const { dayStartHour, setDayStartHour } = useDayStartHourPref();
   const { initialView, setInitialView } = useScheduleInitialViewPref();
+  const {
+    remindersEnabled,
+    setRemindersEnabled,
+    defaultLeadMinutes,
+    setDefaultLeadMinutes,
+  } = useReminderPrefs();
   /*
    * Tutorial (#1123, given a launcher by #1194). REQUIRED Provider, unlike
    * useShortcutConfig below — the tour is global and mounted on every shell,
@@ -772,6 +780,14 @@ export function SettingsScreen() {
           <SettingsSchedule
             initialView={initialView}
             onInitialViewChange={setInitialView}
+            remindersEnabled={remindersEnabled}
+            onRemindersEnabledChange={setRemindersEnabled}
+            defaultLeadMinutes={defaultLeadMinutes}
+            onDefaultLeadMinutesChange={setDefaultLeadMinutes}
+            leadOptions={REMINDER_LEAD_CHOICES.map((n) => ({
+              value: n,
+              label: t("schedule.reminderLead", { n }),
+            }))}
             labels={{
               heading: t("settings.schedule.heading"),
               description: t("settings.schedule.description"),
@@ -780,6 +796,11 @@ export function SettingsScreen() {
               week: t("settings.schedule.week"),
               month: t("settings.schedule.month"),
               hint: t("settings.schedule.hint"),
+              reminderLabel: t("settings.schedule.reminderLabel"),
+              reminderDescription: t("settings.schedule.reminderDescription"),
+              reminderDefaultLabel: t("settings.schedule.reminderDefaultLabel"),
+              reminderDefaultHint: t("settings.schedule.reminderDefaultHint"),
+              reminderDesktopHint: t("settings.schedule.reminderDesktopHint"),
             }}
           />
         </div>

@@ -215,6 +215,26 @@ export {
   DEFAULT_SCHEDULE_INITIAL_VIEW,
   SCHEDULE_INITIAL_VIEWS,
 } from "./hooks/useScheduleInitialView";
+// Event reminder prefs (#1374) — master switch + create-time default lead,
+// the same resolver + Settings-hook shape as the initial-view pref above.
+export {
+  useReminderPrefs,
+  resolveRemindersEnabled,
+  resolveDefaultReminderMinutes,
+  parseReminderLeadMinutes,
+  REMINDERS_ENABLED_STORAGE_KEY,
+  REMINDER_DEFAULT_MINUTES_STORAGE_KEY,
+} from "./hooks/useReminderPrefs";
+// The reminder sweep's pure half (#1374) — which reminders are due, and the
+// dedupe key that survives a re-render and a re-sync.
+export {
+  dueReminders,
+  reminderDueAt,
+  reminderKey,
+  REMINDER_LEAD_CHOICES,
+  DEFAULT_REMINDER_LEAD_MINUTES,
+  type ReminderDue,
+} from "./utils/reminderSchedule";
 // Day-start (rollover) hour preference (#218, split from §216) — pure readers
 // (todayDateKey drives Daily / routine sync "today") + the Settings-side hook.
 export {
@@ -692,6 +712,13 @@ export {
   type ClaudeLaunchOutcome,
   type DesktopClaudeLauncherBridge,
 } from "./utils/claudeLauncher";
+// OS notification bridge (#1374) — desktop-only, null everywhere else, same
+// shape and the same reason as the launcher bridge above.
+export {
+  getDesktopNotificationBridge,
+  type DesktopNotifyArgs,
+  type DesktopNotificationBridge,
+} from "./utils/desktopNotifications";
 // Notes list ordering (#283) — pure port of the useNotesUnifiedAPI
 // `sortedFilteredNotes` comparator, so the host list + the extracted util
 // share one ordering source.

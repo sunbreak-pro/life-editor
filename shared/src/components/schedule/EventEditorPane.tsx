@@ -98,6 +98,12 @@ export interface EventEditorItem {
   isAllDay: boolean;
   memo: string;
   isRoutine: boolean;
+  /**
+   * Minutes before the start to notify, or null for no reminder (#1374).
+   * Optional so the eight existing item literals across the suites keep
+   * compiling — a host that does not wire reminders passes nothing.
+   */
+  reminderOffset?: number | null;
 }
 
 /**
@@ -113,6 +119,7 @@ export interface EventEditorPatch {
   startTime?: string;
   endTime?: string;
   memo?: string;
+  reminderOffset?: number | null;
 }
 
 export interface EventEditorLabels {
@@ -202,6 +209,18 @@ export interface EventEditorOptions {
  * three independent optional props and wiring only some of them rendered
  * nothing at all, with no warning.
  */
+/**
+ * Per-event reminder (#1374). Supplying this object renders the field;
+ * omitting it renders nothing — the same idiom as the repeat and convert
+ * bundles, and the reason no existing host had to change.
+ */
+export interface EventEditorReminder {
+  /** Already-translated field label. */
+  label: string;
+  /** Choices in order; the `null` entry is "no reminder". */
+  options: Array<{ value: number | null; label: string }>;
+}
+
 export interface EventEditorRepeat {
   /**
    * The routine's frequency for a routine occurrence, or null for a manual
@@ -260,6 +279,8 @@ export interface EventEditorPaneProps {
   handlers: EventEditorHandlers;
   options?: EventEditorOptions;
   repeat?: EventEditorRepeat;
+  /** Reminder field (#1374). Omit to render none. */
+  reminder?: EventEditorReminder;
   /** Event → Todo entry (#998). Omit to render no conversion action. */
   convert?: EventEditorConvert;
   /**
@@ -292,6 +313,7 @@ interface EventEditorDraft {
   startTime: string;
   endTime: string;
   memo: string;
+  reminderOffset: number | null;
 }
 
 /**
@@ -316,6 +338,7 @@ function draftFromItem(item: EventEditorItem): EventEditorDraft {
     startTime: item.startTime,
     endTime: item.endTime,
     memo: item.memo,
+    reminderOffset: item.reminderOffset ?? null,
   };
 }
 
@@ -345,6 +368,11 @@ function buildPatch(
     patch.endTime = draft.endTime;
   }
   if (draft.memo !== item.memo) patch.memo = draft.memo;
+  // #1374: dirty-tracked like every other field, so it rides the ONE save
+  // press (#628) alongside a concurrent title edit rather than writing on
+  // change.
+  if (draft.reminderOffset !== (item.reminderOffset ?? null))
+    patch.reminderOffset = draft.reminderOffset;
   return patch;
 }
 
@@ -420,6 +448,7 @@ function EventEditorFields({
   handlers,
   options,
   repeat,
+  reminder,
   convert,
   tagSlot,
   stickyFooter,
@@ -703,6 +732,37 @@ function EventEditorFields({
           className={cn(FIELD, "min-h-[72px] resize-y")}
         />
       </label>
+
+      {/* Reminder (#1374). Hidden rather than disabled while all-day is on:
+          an all-day row has no clock time to lead, so "30 minutes before"
+          would be a control that is present and means nothing — the same rule
+          the time pair follows two fields up.
+
+          A native <select> rather than a SettingsSegment: six choices are too
+          many for an equal-width pill strip, and it keeps the suites'
+          getByRole("radio") queries unambiguous. */}
+      {reminder && !draft.isAllDay && (
+        <label className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>{reminder.label}</span>
+          <select
+            value={draft.reminderOffset === null ? "" : String(draft.reminderOffset)}
+            onChange={(e) =>
+              edit({
+                reminderOffset:
+                  e.target.value === "" ? null : Number(e.target.value),
+              })
+            }
+            aria-label={reminder.label}
+            className={FIELD}
+          >
+            {reminder.options.map((o) => (
+              <option key={o.value ?? "none"} value={o.value ?? ""}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
 
       {/* #998: Event → Todo. Narrow's ONLY entry — the Desktop single-click
           bubble (#625) is not drawn on this layout (ScheduleOverlays gates it

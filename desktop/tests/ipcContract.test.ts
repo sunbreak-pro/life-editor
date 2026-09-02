@@ -7,6 +7,7 @@ import {
 } from "../src/shared/ipcContract";
 import type { DesktopAuthStorageBridge } from "../../shared/src/services/supabaseAuthStorage";
 import type { DesktopClaudeLauncherBridge } from "../../shared/src/utils/claudeLauncher";
+import type { DesktopNotificationBridge } from "../../shared/src/utils/desktopNotifications";
 
 /*
  * #894 — desktop's first tests.
@@ -49,6 +50,21 @@ describe("claude launcher bridge (#1211)", () => {
   it("has the same shape on both sides of the boundary", () => {
     expect(contractSatisfiesLauncher).toBeDefined();
     expect(launcherSatisfiesContract).toBeDefined();
+  });
+});
+
+// The OS notification (#1374) re-declares its half in shared/ for the same
+// reason, so it gets the same two-way pin.
+type ContractNotifyHalf = Pick<DesktopIpcApi, "notify">;
+const contractSatisfiesNotifier: DesktopNotificationBridge =
+  {} as ContractNotifyHalf;
+const notifierSatisfiesContract: ContractNotifyHalf =
+  {} as DesktopNotificationBridge;
+
+describe("notification bridge (#1374)", () => {
+  it("has the same shape on both sides of the boundary", () => {
+    expect(contractSatisfiesNotifier).toBeDefined();
+    expect(notifierSatisfiesContract).toBeDefined();
   });
 });
 
@@ -118,6 +134,7 @@ describe("preload (#894)", () => {
       };
       getClaudeProjectPath: () => Promise<unknown>;
       launchClaude: (args: { projectPath?: string }) => Promise<unknown>;
+      notify: (args: { title: string; body?: string }) => Promise<unknown>;
     };
 
     await api.getTheme();
@@ -129,6 +146,7 @@ describe("preload (#894)", () => {
     await api.authStorage.removeItem("k");
     await api.getClaudeProjectPath();
     await api.launchClaude({});
+    await api.notify({ title: "t" });
 
     const used = invoke.mock.calls.map((call) => call[0] as string);
     // Every declared channel is reachable from the renderer, and nothing else
@@ -182,7 +200,9 @@ describe("preload (#894)", () => {
       }
       return 0;
     };
-    expect(count(api)).toBe(9);
+    // #1374 took it from 9 to 10 — exactly at the cap. The next channel has
+    // to raise the budget with a stated reason or fold into an existing one.
+    expect(count(api)).toBe(10);
     expect(count(api)).toBeLessThanOrEqual(10);
   });
 });

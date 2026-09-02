@@ -134,6 +134,8 @@ export function toEditorItem(
     startTime: selected.startTime,
     endTime: selected.endTime,
     memo: selected.memo ?? "",
+    // #1374: minutes before the start, or null for no reminder.
+    reminderOffset: selected.reminderOffset ?? null,
     isRoutine: selected.routineId != null,
   };
 }

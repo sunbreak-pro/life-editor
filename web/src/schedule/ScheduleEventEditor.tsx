@@ -1,9 +1,11 @@
 import {
   EventEditorPane,
+  REMINDER_LEAD_CHOICES,
   useTranslation,
   type EventEditorHandlers,
   type EventEditorItem,
   type EventEditorOptions,
+  type EventEditorReminder,
   type EventEditorRepeat,
 } from "@life-editor/shared";
 import { TagPicker } from "../wikitag/TagPicker";
@@ -84,6 +86,23 @@ export function ScheduleEventEditor({
     delete: t("scheduleScreen.delete"),
   };
 
+  /*
+   * The reminder choices (#1374). Built here rather than in the pane because
+   * copy is the host's (§6.4), and every t() call is written out LITERALLY —
+   * shared/tests/i18nKeys.test.ts scans for literal `t("…")`, and a key held
+   * in a table is invisible to it.
+   */
+  const reminder: EventEditorReminder = {
+    label: t("scheduleScreen.reminder"),
+    options: [
+      { value: null, label: t("schedule.reminderNone") },
+      ...REMINDER_LEAD_CHOICES.map((n) => ({
+        value: n as number | null,
+        label: t("schedule.reminderLead", { n }),
+      })),
+    ],
+  };
+
   return (
     <EventEditorPane
       item={item}
@@ -94,6 +113,7 @@ export function ScheduleEventEditor({
       handlers={handlers}
       options={options}
       repeat={repeat}
+      reminder={reminder}
       // #998: narrow only. Desktop already reaches the conversion from the
       // single-click bubble (#625) — ScheduleOverlays draws that when isWide —
       // and a second entry inside the overlay would be a Desktop-visible change
