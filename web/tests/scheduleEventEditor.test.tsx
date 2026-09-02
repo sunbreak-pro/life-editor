@@ -17,11 +17,11 @@ import { createBumpableSync } from "./helpers";
  *     instead of null would put a frame on screen with nothing in it — and
  *     would mount the tag slot against a stale id on the way (#889 lifted
  *     `!!editorPane` to `!!editorItem` at the call site for exactly this).
- *   - the Event→Todo entry is NARROW ONLY (#998). Desktop already reaches the
- *     conversion from the single-click bubble (#625, drawn by ScheduleOverlays
- *     when isWide), and a second entry inside the Desktop overlay would be a
- *     Desktop-visible change the Issue does not ask for. `isWide ? undefined :
- *     {…}` is one character away from being wrong in the invisible direction.
+ *   - the Event→Todo entry is on BOTH widths (#1405; #998 had it narrow only,
+ *     leaving Desktop to the single-click bubble of #625). The Todo panel has
+ *     carried its own "to Event" all along, so the Event panel offering nothing
+ *     on Desktop read as a one-way street. The wrapper is the only place the
+ *     width could silently gate it again.
  *   - the save footer is pinned on the narrow sheet and nowhere else (#995).
  *     Written `stickyFooter={isWide}` it regresses in both directions at
  *     once: the sheet's footer drops below the fold again on a long memo, and
@@ -156,15 +156,21 @@ describe("ScheduleEventEditor — nothing selected", () => {
   });
 });
 
-describe("ScheduleEventEditor — the Event→Todo entry is narrow only (#998)", () => {
+describe("ScheduleEventEditor — the Event→Todo entry is on both widths (#998 / #1405)", () => {
   it("offers it on the narrow sheet", () => {
     renderEditor({ isWide: false });
     expect(screen.getByText("itemConvert.toTodo")).toBeTruthy();
   });
 
-  it("withholds it on Desktop, where the bubble already has it (#625)", () => {
+  it("offers it on Desktop too, inside the panel (#1405)", () => {
     renderEditor({ isWide: true });
-    expect(screen.queryByText("itemConvert.toTodo")).toBeNull();
+    expect(screen.getByText("itemConvert.toTodo")).toBeTruthy();
+  });
+
+  it("hands Desktop's press the same id the narrow one gets", () => {
+    const { onConvertToTodo } = renderEditor({ isWide: true });
+    fireEvent.click(screen.getByText("itemConvert.toTodo"));
+    expect(onConvertToTodo).toHaveBeenCalledWith(ITEM.id);
   });
 
   /*
