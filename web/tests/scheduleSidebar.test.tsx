@@ -78,11 +78,6 @@ function makeProps(
           statusNotStarted: "Not started",
           statusDone: "Done",
         },
-        todoStatus: "Status",
-        todoStatusLabels: {
-          statusNotStarted: "Not started",
-          statusDone: "Done",
-        },
       },
       nowMinutes: 540,
       selectedId: null,
