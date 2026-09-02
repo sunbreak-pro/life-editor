@@ -117,7 +117,6 @@ function setup(
   const args: UseScheduleRepeatsArgs = {
     routines: [routine("routine-1")],
     selected: null,
-    todayItems: [],
     sidebarTab: "repeats",
     now: NOW,
     copy: {
@@ -224,8 +223,9 @@ describe("useScheduleRepeats — the #408 list", () => {
 });
 
 describe("useScheduleRepeats — the routine summary", () => {
-  // The opposite rule to the list above: this one backs a completion count, so
-  // an archived routine in it would ask the user to finish something retired.
+  // The opposite rule to the list above: this one is the digest the flow tab
+  // shows, so an archived routine in it would list something retired as if it
+  // were still on the calendar. (It backed a completion count until #1440.)
   it("drops archived and hidden routines", () => {
     const { hook } = setup({
       routines: [
@@ -237,18 +237,6 @@ describe("useScheduleRepeats — the routine summary", () => {
     expect(hook.result.current.summaryRows.map((r) => r.id)).toEqual([
       "visible",
     ]);
-  });
-
-  it("counts only today's routine-generated items", () => {
-    const { hook } = setup({
-      todayItems: [
-        item("manual"),
-        item("from-routine-done", { routineId: "r", completed: true }),
-        item("from-routine-open", { routineId: "r" }),
-      ],
-    });
-    expect(hook.result.current.routineTotal).toBe(2);
-    expect(hook.result.current.routineDone).toBe(1);
   });
 });
 

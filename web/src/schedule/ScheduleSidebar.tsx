@@ -66,8 +66,6 @@ export interface ScheduleSidebarFlow {
    */
   nowMinutes: number | null;
   selectedId: string | null;
-  doneCount: number;
-  totalCount: number;
   /**
    * Dismissed occurrences for today — the #296 restore surface. Structural
    * rather than `ScheduleItem[]`: the row prints a title and, unless it is
@@ -82,8 +80,6 @@ export interface ScheduleSidebarFlow {
     isAllDay?: boolean;
   }>;
   summaryRows: RoutineSummaryRow[];
-  routineDoneCount: number;
-  routineTotalCount: number;
   onToggleComplete: (id: string) => void;
   onItemActivate: (id: string, pos: { x: number; y: number }) => void;
   onItemDoubleClick: (id: string) => void;
@@ -217,12 +213,13 @@ export function ScheduleSidebar({
           pill renders only when `onAdd` is passed, which CalendarTab does only
           on narrow. */}
       <div className="flex shrink-0 items-center justify-between gap-2">
+        {/* #1440: the day alone. The "{done}/{total}" that followed it counted
+            `completed` on events, which #1373 took away from events entirely
+            — so it read "0 of N" on every day. Folded (Issue option C) rather
+            than re-pointed at todos or at the clock, pending the product
+            call. */}
         <p className="min-w-0 truncate text-xs text-lumen-text-secondary">
-          {flow.todayLabel} ·{" "}
-          {t("scheduleScreen.doneSummary", {
-            done: flow.doneCount,
-            total: flow.totalCount,
-          })}
+          {flow.todayLabel}
         </p>
         {flow.onAdd && flow.addLabel && (
           <AddPill
@@ -278,12 +275,6 @@ export function ScheduleSidebar({
       {isWide && (
         <RoutineSummaryCard
           routines={flow.summaryRows}
-          completedCount={flow.routineDoneCount}
-          totalCount={flow.routineTotalCount}
-          summaryText={t("scheduleScreen.doneSummary", {
-            done: flow.routineDoneCount,
-            total: flow.routineTotalCount,
-          })}
           labels={{
             title: t("scheduleScreen.summaryTitle"),
             empty: t("scheduleScreen.summaryEmpty"),
