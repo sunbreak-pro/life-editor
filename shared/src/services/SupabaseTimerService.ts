@@ -5,6 +5,7 @@ import type {
   TimerSession,
   PomodoroPreset,
   SessionType,
+  WorkTarget,
 } from "../types/timer";
 import {
   TIMER_SETTINGS_COLUMNS,
@@ -119,14 +120,10 @@ export class SupabaseTimerService implements TimerDataService {
 
   async startTimerSession(
     sessionType: SessionType,
-    todoId?: string,
+    target?: WorkTarget,
   ): Promise<TimerSession> {
     const startedAt = new Date().toISOString();
-    const insert = newTimerSessionInsert(
-      sessionType,
-      todoId ?? null,
-      startedAt,
-    );
+    const insert = newTimerSessionInsert(sessionType, target ?? null, startedAt);
     const data = await requireSingleRow<TimerSessionRow>(
       this.client
         .from("timer_sessions")
@@ -207,6 +204,27 @@ export class SupabaseTimerService implements TimerDataService {
     return rows.map(rowToTimerSession);
   }
 
+  /**
+   * Sessions measured against one Event (#1375). The `task_id` twin above with
+   * the other column — kept as its own method rather than one call taking a
+   * `WorkTarget`, because PostgREST filters name a COLUMN and a shared
+   * implementation would have to branch on the kind to pick it anyway.
+   */
+  async fetchSessionsByEventId(eventId: string): Promise<TimerSession[]> {
+    const rows = await fetchAllPages<TimerSessionRow>(
+      (from, to) =>
+        this.client
+          .from("timer_sessions")
+          .select(TIMER_SESSION_COLUMNS)
+          .eq("event_id", eventId)
+          .order("started_at", { ascending: false })
+          .order("id")
+          .range(from, to),
+      "fetchSessionsByEventId failed",
+    );
+    return rows.map(rowToTimerSession);
+  }
+
   // -------------------------------------------------------------------------
   // Pomodoro presets
   // -------------------------------------------------------------------------
@@ -278,6 +296,7 @@ export const PHASE2_TIMER_METHOD_NAMES = [
   "endTimerSessionWithLabel",
   "fetchTimerSessions",
   "fetchSessionsByTodoId",
+  "fetchSessionsByEventId",
   "fetchPomodoroPresets",
   "createPomodoroPreset",
   "updatePomodoroPreset",

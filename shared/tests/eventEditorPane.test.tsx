@@ -74,6 +74,8 @@ function renderPane(
     convert?: boolean;
     /** #1374: render the reminder field. */
     reminder?: boolean;
+    /** #1375: render the read-only logged-time row. */
+    workTime?: boolean;
   },
 ) {
   const fns = {
@@ -95,6 +97,7 @@ function renderPane(
         props?.convert ? { label: CONVERT_LABEL, onConvert } : undefined
       }
       reminder={props?.reminder ? REMINDER_BUNDLE : undefined}
+      workTime={props?.workTime ? WORK_TIME_BUNDLE : undefined}
       tagSlot={props?.tagSlot}
     />,
   );
@@ -549,6 +552,9 @@ describe("EventEditorPane — tag slot (#468)", () => {
   });
 });
 
+/** #1375: the logged-time row's copy, shaped as the host builds it. */
+const WORK_TIME_BUNDLE = { label: "Logged time", value: "1 hr 30 min" };
+
 /** #1374: the reminder field's copy, shaped as the host builds it. */
 const REMINDER_BUNDLE = {
   label: "Reminder",
@@ -623,5 +629,36 @@ describe("EventEditorPane — the reminder field (#1374)", () => {
   it("hides the field on an all-day row, which has no time to lead", () => {
     renderPane({ ...manualItem, isAllDay: true }, { reminder: true });
     expect(screen.queryByLabelText("Reminder")).toBeNull();
+  });
+});
+
+/*
+ * The logged-time row (#1375). The pane's half is only the bundle contract:
+ * absent → nothing at all, present → the host's already-formatted string, and
+ * present on an ALL-DAY row too (unlike the reminder, which needs a clock time
+ * to lead). The formatting itself is the host's and is tested there.
+ */
+describe("EventEditorPane — the logged work time row (#1375)", () => {
+  it("renders nothing when the host supplies no workTime bundle", () => {
+    renderPane(manualItem);
+    expect(screen.queryByText("Logged time")).toBeNull();
+  });
+
+  it("renders the host's already-formatted total", () => {
+    renderPane(manualItem, { workTime: true });
+    expect(screen.getByText("Logged time")).toBeInTheDocument();
+    expect(screen.getByText("1 hr 30 min")).toBeInTheDocument();
+  });
+
+  it("shows it on an all-day row as well — a whole day can still be worked", () => {
+    renderPane({ ...manualItem, isAllDay: true }, { workTime: true });
+    expect(screen.getByText("1 hr 30 min")).toBeInTheDocument();
+  });
+
+  // It is a record, not a draft: showing it must never make the save button
+  // think something is pending.
+  it("leaves the save button untouched", () => {
+    renderPane(manualItem, { workTime: true });
+    expect(saveButton()).toBeDisabled();
   });
 });

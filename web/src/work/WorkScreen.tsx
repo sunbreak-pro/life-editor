@@ -17,9 +17,14 @@ import {
   useSyncDomains,
   SOUND_PRESETS,
   cn,
+  formatDateKey,
+  todayCalendarKey,
+  workTargetChipClass,
+  workTargetIcon,
   type DataService,
+  type ScheduleItem,
   type TodoNode,
-  type TodoOption,
+  type WorkTargetOption,
   type TimerPhase,
   type AudioMixerSound,
   WIDE_QUERY,
@@ -30,9 +35,16 @@ import { X, ChevronDown } from "lucide-react";
  * Web Work tab host (target-IA import). Mounts inside the TimerProvider (wired
  * in MainScreen) and reads useTimerContext, then feeds the pure shared Pomodoro
  * primitives with t()-resolved copy (§6.4 — primitives never call
- * useTranslation). It fetches the (leaf, non-deleted) todo list from the
- * injected DataService for the picker — the same "hosts may call getDataService"
- * allowance TrashScreen uses (§6.4).
+ * useTranslation). It fetches the picker's candidates from the injected
+ * DataService — the same "hosts may call getDataService" allowance TrashScreen
+ * uses (§6.4).
+ *
+ * The candidates are todos AND the events of the coming week (#1375): a session
+ * can be measured against either since 0029. The event side is WINDOWED rather
+ * than "every live event" on purpose — the picker answers "what am I working on
+ * right now", and a list carrying every calendar entry the account has ever
+ * held would bury today's three. Seven days forward covers working ahead
+ * without turning the dropdown into an archive.
  *
  * Layout (isWide = min-width 768px):
  *  - Desktop → three cards (timer / todo / ambient) stacked. ALL the section
@@ -54,6 +66,13 @@ import { X, ChevronDown } from "lucide-react";
  * A WORK-session completion (completedSessions increments) opens the
  * SessionCompletionModal.
  */
+
+/**
+ * How far ahead the picker offers events (#1375). A week: far enough to start
+ * on something scheduled for tomorrow, short enough that the dropdown still
+ * reads as "what is coming up" rather than as the whole calendar.
+ */
+const EVENT_WINDOW_DAYS = 7;
 
 /** Filled session dots: completedSessions within the current set. During a
  *  LONG_BREAK the set just wrapped, so show all dots filled (mod === 0). */
@@ -82,6 +101,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   // Optional (Mobile 省略 Provider) — null when no AudioProvider mounted.
   const audio = useAudioContext();
   const [todoNodes, setTodoNodes] = useState<TodoNode[]>([]);
+  const [eventItems, setEventItems] = useState<ScheduleItem[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
 
@@ -95,14 +115,26 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     [t],
   );
 
-  // The pick list is todos, so it follows the todos counter — without this a
-  // task created in another section never appeared here until the screen was
-  // remounted (rules/frontend.md §Sync).
-  const syncVersion = useSyncDomains("todos");
+  // The pick list is todos AND events, so it follows both counters — without
+  // this a task (or an event) created in another section never appeared here
+  // until the screen was remounted (rules/frontend.md §Sync: declare every
+  // domain the effect reads, and over-declare rather than under-declare).
+  const syncVersion = useSyncDomains("todos", "schedule");
+
+  // The event window, resolved once per render pass rather than inside the
+  // load: `useDomainLoad` restarts on any `anchor` change, and a key computed
+  // from `new Date()` inside the fetch would be invisible to it — the list
+  // would keep yesterday's window until something else bumped the version.
+  const eventWindow = useMemo(() => {
+    const startKey = todayCalendarKey();
+    const end = new Date();
+    end.setDate(end.getDate() + EVENT_WINDOW_DAYS);
+    return { startKey, endKey: formatDateKey(end) };
+  }, []);
 
   // #1157: the read used to start from an empty list on every mount, so the
   // selector showed its loading state each time Work was opened. It runs
-  // through `useDomainLoad` under `workTodoOptions` now — its OWN slot, not
+  // through `useDomainLoad` under `workTargetOptions` now — its OWN slot, not
   // `todoTree`: that one holds the `[active, deleted]` tuple useTodoTreeAPI
   // stores, and a bare array written there would break that hook's replay.
   //
@@ -111,24 +143,61 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   // unstable `t` (a test mock returning a fresh function each render) turned
   // that into an endless refetch — the trap that timed the #1038 harness out
   // at 20 s.
-  const { isLoading: todosLoading } = useDomainLoad<TodoNode[]>({
-    domain: "Work todo options",
+  const { isLoading: todosLoading } = useDomainLoad<
+    [TodoNode[], ScheduleItem[]]
+  >({
+    domain: "Work target options",
     dataService: ds,
     version: syncVersion,
-    snapshotKey: "workTodoOptions",
+    anchor: eventWindow.startKey,
+    snapshotKey: "workTargetOptions",
     // Editing a todo while the timer runs must not blank the picker.
     refetchReportsLoading: false,
-    load: (service) => service.fetchTodoTree(),
-    apply: setTodoNodes,
-    fallbackMessage: "Failed to load todos",
+    load: (service) =>
+      Promise.all([
+        service.fetchTodoTree(),
+        service.fetchScheduleItemsByDateRange(
+          eventWindow.startKey,
+          eventWindow.endKey,
+        ),
+      ]),
+    // One load, not two: two `useDomainLoad`s would each own a loading flag,
+    // and the picker would flip out of its skeleton the moment the FASTER one
+    // landed — showing a list that is still missing half its rows.
+    apply: ([nodes, events]) => {
+      setTodoNodes(nodes);
+      setEventItems(events);
+    },
+    fallbackMessage: "Failed to load work targets",
   });
 
-  const todos = useMemo<TodoOption[]>(
-    () =>
-      todoNodes
+  const options = useMemo<WorkTargetOption[]>(
+    () => [
+      ...todoNodes
         .filter((n) => n.type === "task" && !n.isDeleted)
-        .map((n) => ({ id: n.id, title: n.title || t("common.untitled") })),
-    [todoNodes, t],
+        .map((n) => ({
+          id: n.id,
+          title: n.title || t("common.untitled"),
+          kind: "todo" as const,
+        })),
+      // Todos first, then events in calendar order. A routine occurrence is an
+      // ordinary event here — it has its own row and its own id, so the time
+      // lands on the day that was actually worked rather than on the series.
+      ...eventItems
+        .filter((e) => !e.isDeleted && !e.isDismissed)
+        .slice()
+        .sort(
+          (a, b) =>
+            a.date.localeCompare(b.date) ||
+            a.startTime.localeCompare(b.startTime),
+        )
+        .map((e) => ({
+          id: e.id,
+          title: e.title || t("common.untitled"),
+          kind: "event" as const,
+        })),
+    ],
+    [todoNodes, eventItems, t],
   );
 
   const phaseLabels = useMemo(
@@ -162,9 +231,9 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     [timer.totalSeconds],
   );
 
-  const handleSelectTodo = useCallback(
-    (todo: TodoOption | null) => {
-      timer.setActiveTodo(todo);
+  const handleSelectTarget = useCallback(
+    (item: WorkTargetOption | null) => {
+      timer.setActiveItem(item);
     },
     [timer],
   );
@@ -197,10 +266,10 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   const completionTitle = t("work.completion.title", {
     index: timer.completedSessions,
   });
-  const completionBody = timer.activeTodo
+  const completionBody = timer.activeItem
     ? t("work.completion.body", {
         minutes: timer.workDurationMinutes,
-        todo: timer.activeTodo.title,
+        todo: timer.activeItem.title,
         breakMinutes,
       })
     : t("work.completion.bodyNoTodo", {
@@ -289,13 +358,19 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
 
   // Mobile todo slot: the chip (selected) or a "choose a todo" button that
   // opens the BottomSheet picker.
-  const mobileTodoSlot = timer.activeTodo ? (
-    <span className="inline-flex max-w-full items-center gap-2 rounded-lumen-md bg-lumen-chip-task-bg py-2 pl-3.5 pr-2.5 text-sm font-medium text-lumen-chip-task-fg">
-      <span className="truncate">{timer.activeTodo.title}</span>
+  const mobileTodoSlot = timer.activeItem ? (
+    <span
+      className={cn(
+        "inline-flex max-w-full items-center gap-2 rounded-lumen-md py-2 pl-3.5 pr-2.5 text-sm font-medium",
+        workTargetChipClass(timer.activeItem.kind),
+      )}
+    >
+      <span className="shrink-0">{workTargetIcon(timer.activeItem.kind, 15)}</span>
+      <span className="truncate">{timer.activeItem.title}</span>
       <button
         type="button"
         aria-label={t("work.todoSelector.clear")}
-        onClick={() => handleSelectTodo(null)}
+        onClick={() => handleSelectTarget(null)}
         className="inline-flex shrink-0 items-center justify-center rounded p-0.5 hover:opacity-70"
       >
         <X size={14} aria-hidden="true" />
@@ -344,15 +419,15 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
         <PomodoroTodoSheet
           open={sheetOpen}
           onClose={() => setSheetOpen(false)}
-          todos={todos}
-          selectedId={timer.activeTodo?.id ?? null}
+          items={options}
+          selectedId={timer.activeItem?.id ?? null}
           labels={{
             title: t("work.todoSelector.select"),
             close: t("common.close"),
             clearSelection: t("work.todoSelector.clearSelection"),
             emptyHint: t("work.todoSelector.emptyHint"),
           }}
-          onSelect={handleSelectTodo}
+          onSelect={handleSelectTarget}
         />
         {completionModal}
       </div>
@@ -367,8 +442,8 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     <div className="flex flex-col gap-6">
       {timerFace("card")}
       <PomodoroTodoSelector
-        todos={todos}
-        selectedId={timer.activeTodo?.id ?? null}
+        items={options}
+        selectedId={timer.activeItem?.id ?? null}
         loading={todosLoading}
         labels={{
           heading: t("work.todoSelector.heading"),
@@ -377,7 +452,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           emptyHint: t("work.todoSelector.emptyHint"),
           menuLabel: t("work.todoSelector.heading"),
         }}
-        onSelect={handleSelectTodo}
+        onSelect={handleSelectTarget}
       />
       {/*
        * Ambient mixer (W3-C). Desktop/web-only per mobile-scope.md #11 (#320):

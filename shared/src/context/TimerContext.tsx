@@ -23,7 +23,7 @@ import {
   phaseDurationSeconds,
   remainingSeconds as computeRemaining,
   elapsedSeconds as computeElapsed,
-  type ActiveTodo,
+  type ActiveWorkItem,
   type TimerConfig,
   type TimerPhase,
 } from "./timerReducer";
@@ -140,14 +140,18 @@ export function TimerProvider({
 
   // --- session log helpers ---
   const startSession = useCallback(
-    (phase: TimerPhase, todoId: string | null) => {
-      // No todo picked → the row logs a null task_id and nothing is created
-      // on the user's behalf (#1116). Any Todo this path ever mints again must
-      // come from `generateTodoId` (utils/generateId), not `generateId("task")`
-      // — the latter yields `task-<uuid>` and breaks the CLAUDE.md §4 id
-      // invariant, which is the second half of what #1116 reported.
+    (phase: TimerPhase, item: ActiveWorkItem | null) => {
+      // Nothing picked → the row logs a null task_id AND a null event_id, and
+      // nothing is created on the user's behalf (#1116). Any Todo this path
+      // ever mints again must come from `generateTodoId` (utils/generateId),
+      // not `generateId("task")` — the latter yields `task-<uuid>` and breaks
+      // the CLAUDE.md §4 id invariant, which is the second half of what #1116
+      // reported.
       void ds
-        .startTimerSession(phase, todoId ?? undefined)
+        .startTimerSession(
+          phase,
+          item ? { kind: item.kind, id: item.id } : undefined,
+        )
         .then((session) => {
           currentSessionIdRef.current = session.id;
         })
@@ -214,7 +218,7 @@ export function TimerProvider({
       // (#586): elapsedSeconds clamps (stale tickNow − startedAt) to ≥ 0 and
       // the fresh phase has accumulatedMs 0, so the display shows the full
       // target either way until the 1 s pulse takes over.
-      startSession(state.phase, state.activeTodo?.id ?? null);
+      startSession(state.phase, state.activeItem);
       dispatch({ type: "START", now: Date.now() });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -226,7 +230,7 @@ export function TimerProvider({
     const now = Date.now();
     // A fresh segment from elapsed 0 means a new session row.
     if (state.accumulatedMs === 0 && currentSessionIdRef.current === null) {
-      startSession(state.phase, state.activeTodo?.id ?? null);
+      startSession(state.phase, state.activeItem);
     }
     dispatch({ type: "START", now });
     setTickNow(now);
@@ -234,7 +238,7 @@ export function TimerProvider({
     state.isRunning,
     state.accumulatedMs,
     state.phase,
-    state.activeTodo,
+    state.activeItem,
     startSession,
   ]);
 
@@ -267,8 +271,8 @@ export function TimerProvider({
     [state, closeSession],
   );
 
-  const setActiveTodo = useCallback((todo: ActiveTodo | null) => {
-    dispatch({ type: "SET_ACTIVE_TODO", todo });
+  const setActiveItem = useCallback((item: ActiveWorkItem | null) => {
+    dispatch({ type: "SET_ACTIVE_ITEM", item });
   }, []);
 
   const adjustRemainingMinutes = useCallback(
@@ -438,7 +442,7 @@ export function TimerProvider({
       totalSeconds,
       completedSessions: state.completedSessions,
       formatted,
-      activeTodo: state.activeTodo,
+      activeItem: state.activeItem,
     }),
     [
       state.phase,
@@ -448,7 +452,7 @@ export function TimerProvider({
       totalSeconds,
       state.completedSessions,
       formatted,
-      state.activeTodo,
+      state.activeItem,
     ],
   );
 
@@ -465,7 +469,7 @@ export function TimerProvider({
       pause,
       reset,
       setPhase,
-      setActiveTodo,
+      setActiveItem,
       adjustRemainingMinutes,
       saveSettings,
       setAutoStartBreaks,
@@ -485,7 +489,7 @@ export function TimerProvider({
       pause,
       reset,
       setPhase,
-      setActiveTodo,
+      setActiveItem,
       adjustRemainingMinutes,
       saveSettings,
       setAutoStartBreaks,

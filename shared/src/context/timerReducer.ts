@@ -27,6 +27,8 @@
  *    decides whether to auto-start the next phase (auto_start_breaks).
  */
 
+import type { WorkTargetKind } from "../types/timer";
+
 /** Phase the timer can be in. FREE is intentionally unreachable (UI dropped). */
 export type TimerPhase = "WORK" | "BREAK" | "LONG_BREAK";
 
@@ -38,10 +40,20 @@ export interface TimerConfig {
   sessionsBeforeLongBreak: number;
 }
 
-/** The todo a session is attributed to (task_id on timer_sessions). */
-export interface ActiveTodo {
+/**
+ * The item a session is attributed to — a Todo (`task_id`) or an Event
+ * (`event_id`) on timer_sessions (#1375).
+ *
+ * It was `ActiveTodo` while Todo was the only thing a session could name. The
+ * name moved with the meaning rather than staying put with a widened body: a
+ * field called `activeTodo` holding an Event is the kind of thing that reads
+ * fine and is wrong, and there is no compiler check for a stale name.
+ */
+export interface ActiveWorkItem {
   id: string;
   title: string;
+  /** Which column the started row writes the id to. */
+  kind: WorkTargetKind;
 }
 
 export interface TimerState {
@@ -55,7 +67,7 @@ export interface TimerState {
   durationSeconds: number;
   /** Completed WORK sessions in the current run (drives long-break cadence). */
   completedSessions: number;
-  activeTodo: ActiveTodo | null;
+  activeItem: ActiveWorkItem | null;
   config: TimerConfig;
 }
 
@@ -66,7 +78,7 @@ export type TimerAction =
   | { type: "ADVANCE"; now: number }
   | { type: "SET_PHASE"; phase: TimerPhase }
   | { type: "SET_CONFIG"; config: Partial<TimerConfig> }
-  | { type: "SET_ACTIVE_TODO"; todo: ActiveTodo | null }
+  | { type: "SET_ACTIVE_ITEM"; item: ActiveWorkItem | null }
   | { type: "ADJUST_REMAINING"; deltaMinutes: number };
 
 export const DEFAULT_CONFIG: TimerConfig = {
@@ -121,7 +133,7 @@ export function createInitialState(config?: Partial<TimerConfig>): TimerState {
     accumulatedMs: 0,
     durationSeconds: phaseDurationSeconds("WORK", cfg),
     completedSessions: 0,
-    activeTodo: null,
+    activeItem: null,
     config: cfg,
   };
 }
@@ -222,8 +234,8 @@ export function timerReducer(
       return { ...state, config, durationSeconds };
     }
 
-    case "SET_ACTIVE_TODO":
-      return { ...state, activeTodo: action.todo };
+    case "SET_ACTIVE_ITEM":
+      return { ...state, activeItem: action.item };
 
     case "ADJUST_REMAINING": {
       // Nudge the current phase length by ±deltaMinutes while paused/idle so

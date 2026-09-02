@@ -221,6 +221,28 @@ export interface EventEditorReminder {
   options: Array<{ value: number | null; label: string }>;
 }
 
+/**
+ * Logged work time for this occurrence (#1375). Supplying this object renders
+ * the read-only row; omitting it renders nothing — the same idiom as the
+ * reminder / repeat / convert bundles.
+ *
+ * A STRING, not minutes. The pane holds no copy (§6.4) and no formatter, and
+ * "2h 30m" vs "2.5 時間" is a copy decision; the host already owns
+ * `options.formatDuration` for exactly this. It also lets the host say "nothing
+ * logged yet" in the same slot rather than making the pane invent an empty
+ * state for a number that is legitimately zero.
+ *
+ * Read-only on purpose. Time is RECORDED by the timer, never typed: a field the
+ * user could edit would be a second, silent writer into `timer_sessions` and
+ * the two would disagree the first time one of them was wrong.
+ */
+export interface EventEditorWorkTime {
+  /** Already-translated field label — 「実績時間」. */
+  label: string;
+  /** Already-formatted total, or the host's "nothing logged yet" copy. */
+  value: string;
+}
+
 export interface EventEditorRepeat {
   /**
    * The routine's frequency for a routine occurrence, or null for a manual
@@ -281,6 +303,8 @@ export interface EventEditorPaneProps {
   repeat?: EventEditorRepeat;
   /** Reminder field (#1374). Omit to render none. */
   reminder?: EventEditorReminder;
+  /** Logged work time (#1375). Omit to render none. */
+  workTime?: EventEditorWorkTime;
   /** Event → Todo entry (#998). Omit to render no conversion action. */
   convert?: EventEditorConvert;
   /**
@@ -449,6 +473,7 @@ function EventEditorFields({
   options,
   repeat,
   reminder,
+  workTime,
   convert,
   tagSlot,
   stickyFooter,
@@ -770,6 +795,23 @@ function EventEditorFields({
             ))}
           </select>
         </label>
+      )}
+
+      {/* Logged work time (#1375). Read-only, and BELOW the fields the save
+          button commits: everything above is a draft the user is editing,
+          this is a record of what already happened, and mixing the two in one
+          column would invite a press of "save" to look like it wrote this too.
+
+          Shown for an all-day row as well, unlike the reminder — a day-long
+          event can absolutely have been worked on, and the number does not
+          depend on there being a clock time. */}
+      {workTime && (
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>{workTime.label}</span>
+          <span className="text-sm tabular-nums text-lumen-text">
+            {workTime.value}
+          </span>
+        </div>
       )}
 
       {/* #998: Event → Todo. Narrow's ONLY entry — the Desktop single-click

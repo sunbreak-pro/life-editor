@@ -9,6 +9,7 @@ import {
 } from "recharts";
 import type { TimerSession } from "../../types/timer";
 import type { TodoNode } from "../../types/todoTree";
+import type { ScheduleItem } from "../../types/schedule";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import { aggregateWorkTimeByTag } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
@@ -17,7 +18,7 @@ import { CHART_HEIGHT_LG, CHART_TOOLTIP_STYLE } from "./chartTheme";
 export interface TagWorkTimeChartLabels {
   title: string;
   noData: string;
-  /** Slice label for work on todos that carry no tag. */
+  /** Slice label for work on items that carry no tag. */
   untagged: string;
   /** Slice label for the tags folded together past the top-N cap. */
   other: string;
@@ -28,6 +29,13 @@ interface TagWorkTimeChartProps {
   sessions: TimerSession[];
   /** Live todo tree (`fetchTodoTree` — trashed todos are already absent). */
   nodes: TodoNode[];
+  /**
+   * Live events (#1375). A session can be measured against an Event since
+   * 0029, and an event MISSING from this list reads as work on a trashed item
+   * and is dropped from the ring — so this is required, not optional: a host
+   * that forgot it would silently lose event work rather than fail to compile.
+   */
+  events: ScheduleItem[];
   assignments: WikiTagAssignment[];
   tags: WikiTag[];
   labels: TagWorkTimeChartLabels;
@@ -57,20 +65,29 @@ const OTHER_COLOR = "var(--color-lumen-text-secondary)";
  * Work time split by life-tag (#334). Replaces the folder-based "Project work
  * time" chart: folders are gone since #225, so that chart could only ever
  * render empty. A tag's slice is its share of real work time — sessions on
- * multi-tag todos split their minutes evenly, tags past the top-N cap fold into
+ * multi-tag items split their minutes evenly, tags past the top-N cap fold into
  * "other" and untagged work keeps its own slice, so the ring always adds up to
  * the time actually logged.
+ *
+ * Todos AND Events since #1375: the timer can be started against a calendar
+ * entry, and a ring that read only `task_id` would report the same day as
+ * emptier than it was. The two lists are concatenated rather than aggregated
+ * separately — a tag lives above the role split (a "study" tag is the same tag
+ * whether it sits on a todo or on the class in the calendar), so splitting the
+ * ring by role would split each tag's slice in two.
  */
 export function TagWorkTimeChart({
   sessions,
   nodes,
+  events,
   assignments,
   tags,
   labels,
 }: TagWorkTimeChartProps): React.JSX.Element {
+  const liveItems = useMemo(() => [...nodes, ...events], [nodes, events]);
   const data = useMemo(
     () =>
-      aggregateWorkTimeByTag(sessions, assignments, tags, nodes).map((d) => {
+      aggregateWorkTimeByTag(sessions, assignments, tags, liveItems).map((d) => {
         if (d.kind === "untagged") {
           return {
             name: labels.untagged,
@@ -94,7 +111,7 @@ export function TagWorkTimeChart({
           color: d.tagColor,
         };
       }),
-    [sessions, nodes, assignments, tags, labels.untagged, labels.other],
+    [sessions, liveItems, assignments, tags, labels.untagged, labels.other],
   );
 
   if (data.length === 0) {

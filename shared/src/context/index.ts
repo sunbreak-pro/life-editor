@@ -138,7 +138,7 @@ export {
   type TimerSettingsPatch,
   type TimerPresetValues,
 } from "./TimerContextValue";
-export type { TimerPhase, ActiveTodo } from "./timerReducer";
+export type { TimerPhase, ActiveWorkItem } from "./timerReducer";
 
 // Audio (W3-C): Pattern A + OPTIONAL hook. NOT a §2 Mobile 省略 Provider —
 // it is mounted on native mobile too (the completion chime belongs to the
