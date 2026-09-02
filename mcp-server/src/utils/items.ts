@@ -14,10 +14,24 @@ import { getSupabase } from "../supabase.js";
  *     even for payload-only edits (payload tables carry no updated_at) — §10.2
  *   - delete = SOFT delete (items_meta.is_deleted), TrashView-restorable
  *
- * `version` is a legacy column and is intentionally never bumped (CLAUDE.md §3.3).
+ * `version` is a legacy column: never read, never written, not even on the
+ * first INSERT (the DDL default of 1 owns that) — CLAUDE.md §3.3 / #1385.
  */
 
 export type ItemRole = "task" | "event" | "routine" | "note" | "daily";
+
+/**
+ * True for a row of the retired `folder` type. Todos (#225) and Notes (#375)
+ * each froze a `folder` value in their own `<domain>_type` column, and both
+ * filters hinge on the same rule: a NULL type is a PLAIN item, so the filter
+ * has to run in-app. A query-side `.neq(<col>, 'folder')` would drop the NULL
+ * rows too and silently hide every pre-migration item — which is exactly the
+ * bug #702 ② fixed in `list_todos`. One predicate, so the two domains (and
+ * `search_all`, which reads todo payloads) cannot drift apart on it.
+ */
+export function isLegacyFolder(rowType: string | null | undefined): boolean {
+  return rowType === "folder";
+}
 
 /** SELECT list for the items_meta columns every handler formats. */
 export const META_COLUMNS =
@@ -84,7 +98,6 @@ export async function insertItem(args: {
     title: args.title,
     is_deleted: false,
     deleted_at: null,
-    version: 1,
   });
   if (mErr) throw new Error(`create items_meta: ${mErr.message}`);
 

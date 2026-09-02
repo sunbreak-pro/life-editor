@@ -54,7 +54,8 @@ import {
  *       (one local day per cursor step, finite range; reject-order
  *       short-circuits deleted/archived/invisible routines).
  *
- * Scope (S4-5): generator only. CalendarTags (S4-6) is NOT wired here.
+ * Scope (S4-5): generator only. (CalendarTags was S4-6 at the time; that
+ * domain has since been retired, so nothing replaced it here.)
  *
  * 2026-07-25 (#352 Step 4): the three never-wired members
  * (`ensureRoutineItemsForWeek` / `backfillMissedRoutineItems` /

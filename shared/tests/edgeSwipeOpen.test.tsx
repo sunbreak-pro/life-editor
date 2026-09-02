@@ -96,6 +96,25 @@ describe("useEdgeSwipeOpen", () => {
     expect(onOpen).not.toHaveBeenCalled();
   });
 
+  /*
+   * #1402 — the zone was 24px, and Android's gesture navigation claims about
+   * that much for its own back swipe, so a thumb landing a finger's width in
+   * found nothing. 40 is inside the widened zone and outside the old one, which
+   * makes this the case the issue reported; 60 is the other side of the line,
+   * and it is here so that "wider" cannot quietly become "everywhere".
+   */
+  it("opens from a press a thumb's width in, past the old 24px zone", () => {
+    const onOpen = renderProbe();
+    swipeFrom(40, 300, { dx: 120 });
+    expect(onOpen).toHaveBeenCalledTimes(1);
+  });
+
+  it("still ignores a press that lands outside the widened zone", () => {
+    const onOpen = renderProbe();
+    swipeFrom(60, 300, { dx: 120 });
+    expect(onOpen).not.toHaveBeenCalled();
+  });
+
   it("ignores a drag that stops short of the threshold", () => {
     const onOpen = renderProbe();
     swipeFrom(4, 300, { dx: 30 });

@@ -629,19 +629,14 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
   // -------------------------------------------------------------------------
 
   describe("setNotePasswordUnified", () => {
-    it("writes password_hash to notes_payload + bumps version on items_meta", async () => {
-      // nextVersion lookup
-      stub.stage("items_meta", "select", {
-        data: { version: 4 },
-        error: null,
-      });
+    it("writes password_hash to notes_payload + bumps items_meta", async () => {
       // meta update
       stub.stage("items_meta", "update", { data: null, error: null });
       // payload update
       stub.stage("notes_payload", "update", { data: null, error: null });
       // getNoteUnified
       stub.stage("items_meta", "select", {
-        data: makeMetaRow({ version: 5 }),
+        data: makeMetaRow(),
         error: null,
       });
       stub.stage("notes_payload", "select", {
@@ -665,20 +660,17 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
         true,
       );
 
-      // Assert meta UPDATE patch carries version bump (4 -> 5) + updated_at.
+      // Assert the meta UPDATE patch carries updated_at and nothing else —
+      // the legacy `version` column stopped being written in #1385.
       const metaUpdate = stub.calls.find(
         (c) => c.table === "items_meta" && c.op === "update",
       );
-      const metaPatch = metaUpdate!.args[0] as {
-        version: number;
-        updated_at: string;
-      };
-      expect(metaPatch.version).toBe(5);
+      const metaPatch = metaUpdate!.args[0] as { updated_at: string };
+      expect(Object.keys(metaPatch)).toEqual(["updated_at"]);
       expect(typeof metaPatch.updated_at).toBe("string");
     });
 
     it("throws when the items_meta UPDATE fails (payload not written)", async () => {
-      stub.stage("items_meta", "select", { data: { version: 1 }, error: null });
       stub.stage("items_meta", "update", {
         data: null,
         error: { message: "meta-err" },
@@ -710,16 +702,11 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       ).toBeUndefined();
     });
 
-    it("nulls password_hash + bumps version on a matching password", async () => {
+    it("nulls password_hash + bumps items_meta on a matching password", async () => {
       // verify: match against an already-hashed row (no lazy rehash fires).
       const hashed = await hashPassword("secret", TEST_ITER);
       stub.stage("notes_payload", "select", {
         data: { password_hash: hashed },
-        error: null,
-      });
-      // nextVersion
-      stub.stage("items_meta", "select", {
-        data: { version: 7 },
         error: null,
       });
       // meta update
@@ -728,7 +715,7 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       stub.stage("notes_payload", "update", { data: null, error: null });
       // getNoteUnified
       stub.stage("items_meta", "select", {
-        data: makeMetaRow({ version: 8 }),
+        data: makeMetaRow(),
         error: null,
       });
       stub.stage("notes_payload", "select", {
@@ -866,15 +853,10 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
   // -------------------------------------------------------------------------
 
   describe("toggleNoteEditLockUnified", () => {
-    it("flips false -> true and bumps version", async () => {
+    it("flips false -> true and bumps items_meta", async () => {
       // read current
       stub.stage("notes_payload", "select", {
         data: { is_edit_locked: false },
-        error: null,
-      });
-      // nextVersion
-      stub.stage("items_meta", "select", {
-        data: { version: 2 },
         error: null,
       });
       // meta update
@@ -883,7 +865,7 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       stub.stage("notes_payload", "update", { data: null, error: null });
       // getNoteUnified
       stub.stage("items_meta", "select", {
-        data: makeMetaRow({ version: 3 }),
+        data: makeMetaRow(),
         error: null,
       });
       stub.stage("notes_payload", "select", {
@@ -903,8 +885,9 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       const metaUpdate = stub.calls.find(
         (c) => c.table === "items_meta" && c.op === "update",
       );
-      const metaPatch = metaUpdate!.args[0] as { version: number };
-      expect(metaPatch.version).toBe(3);
+      expect(Object.keys(metaUpdate!.args[0] as object)).toEqual([
+        "updated_at",
+      ]);
     });
 
     it("flips true -> false on the next call", async () => {
@@ -912,11 +895,10 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
         data: { is_edit_locked: true },
         error: null,
       });
-      stub.stage("items_meta", "select", { data: { version: 5 }, error: null });
       stub.stage("items_meta", "update", { data: null, error: null });
       stub.stage("notes_payload", "update", { data: null, error: null });
       stub.stage("items_meta", "select", {
-        data: makeMetaRow({ version: 6 }),
+        data: makeMetaRow(),
         error: null,
       });
       stub.stage("notes_payload", "select", {

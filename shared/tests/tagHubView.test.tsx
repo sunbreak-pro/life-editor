@@ -53,7 +53,6 @@ const tag = (id: string, name: string): WikiTag => ({
   icon: null,
   createdAt: "2026-08-01T00:00:00Z",
   updatedAt: "2026-08-01T00:00:00Z",
-  version: 1,
   isDeleted: false,
   deletedAt: null,
 });

@@ -202,6 +202,70 @@ describe("MobileDrawer swipe-to-close", () => {
   });
 });
 
+
+/*
+ * #1402 — the dismiss gesture only lived on the panel, so a swipe that began
+ * just beside the drawer did nothing and the user had to hit a moving edge with
+ * a thumb. The same handlers now sit on the scrim as well.
+ *
+ * The bubbling case (a press INSIDE the panel, which runs both copies of the
+ * handler) is covered by the suite above — those tests all fire at the panel,
+ * and the events reach the scrim's copy too.
+ */
+describe("MobileDrawer swipe-to-close from outside the panel", () => {
+  function scrimOf(dialog: HTMLElement): HTMLElement {
+    const scrim = dialog.parentElement;
+    if (!(scrim instanceof HTMLElement)) throw new Error("scrim missing");
+    return scrim;
+  }
+
+  it("closes on a leftward drag begun beside the drawer", () => {
+    const scrim = scrimOf(renderOpenDrawer());
+
+    swipe(scrim, { dx: -120 });
+
+    expect(
+      screen.queryByRole("dialog", { name: DRAWER_LABELS.title }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("drags the panel with it, and springs back when it stops short", () => {
+    const dialog = renderOpenDrawer();
+    const scrim = scrimOf(dialog);
+
+    fireEvent(scrim, pointerEvent("pointerdown", 0, 0));
+    fireEvent(scrim, pointerEvent("pointermove", -40, 0));
+    expect(dialog.style.transform).toBe("translateX(-40px)");
+
+    fireEvent(scrim, pointerEvent("pointerup", -40, 0));
+
+    expect(
+      screen.getByRole("dialog", { name: DRAWER_LABELS.title }),
+    ).toBeInTheDocument();
+    expect(dialog.style.transform).toBe("");
+  });
+
+  it("ignores a rightward drag on the scrim — that is not the exit axis", () => {
+    const scrim = scrimOf(renderOpenDrawer());
+
+    swipe(scrim, { dx: 200 });
+
+    expect(
+      screen.getByRole("dialog", { name: DRAWER_LABELS.title }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the tap-outside close it always had", () => {
+    const scrim = scrimOf(renderOpenDrawer());
+
+    fireEvent.mouseDown(scrim);
+
+    expect(
+      screen.queryByRole("dialog", { name: DRAWER_LABELS.title }),
+    ).not.toBeInTheDocument();
+  });
+});
+
 /*
  * #1204: on a real finger the browser claimed the pan and cancelled the pointer
  * stream at ~20px, so the 72px threshold was unreachable and the swipe closed

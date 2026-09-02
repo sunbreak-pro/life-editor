@@ -6,8 +6,10 @@ vi.mock("../src/supabase.js", () => ({
   getSupabase: async () => stub,
 }));
 
-const { isLegacyFolder, updateNote, deleteNote } =
-  await import("../src/handlers/noteHandlers.js");
+const { updateNote, deleteNote } = await import(
+  "../src/handlers/noteHandlers.js"
+);
+const { isLegacyFolder } = await import("../src/utils/items.js");
 
 /*
  * Legacy folder exclusion (#375). `fetchLiveNotes` drops these rows in-app
@@ -19,15 +21,15 @@ const { isLegacyFolder, updateNote, deleteNote } =
 
 describe("isLegacyFolder", () => {
   it("flags only the retired 'folder' value", () => {
-    expect(isLegacyFolder({ note_type: "folder" })).toBe(true);
+    expect(isLegacyFolder("folder")).toBe(true);
   });
 
   it("treats a NULL note_type as a plain note (legacy rows survive)", () => {
-    expect(isLegacyFolder({ note_type: null })).toBe(false);
+    expect(isLegacyFolder(null)).toBe(false);
   });
 
   it("treats 'note' as a plain note", () => {
-    expect(isLegacyFolder({ note_type: "note" })).toBe(false);
+    expect(isLegacyFolder("note")).toBe(false);
   });
 });
 

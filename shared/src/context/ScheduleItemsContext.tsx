@@ -7,18 +7,18 @@ import { useUndoRedoOptional } from "../hooks/useUndoRedoContext";
 import { ScheduleItemsContext } from "./ScheduleItemsContextValue";
 
 /**
- * Pattern A Provider (CLAUDE.md §6.3). Like the shared Routine/Note
- * Providers it takes `UseScheduleItemsAPIOptions` props so the host
- * injects the DataService / UndoRedo (the shared hook never reaches a
- * module singleton — CLAUDE.md §6.4). Must sit inside a Sync Provider
- * (reads `useSyncContext`) AND inside RoutineProvider — it is the
- * SECOND of the Schedule trio in the §6.2 order
- * (… → Routine → ScheduleItems → CalendarTags → …); the inner Provider
- * may depend on the outer one.
+ * Pattern A Provider (rules/frontend.md §Pattern A). Like the shared
+ * Routine/Note Providers it takes `UseScheduleItemsAPIOptions` props so the
+ * host injects the DataService / UndoRedo (the shared hook never reaches a
+ * module singleton — CLAUDE.md §6). Must sit inside a Sync Provider
+ * (reads `useSyncContext`) AND inside RoutineProvider — it is the INNERMOST
+ * link of the Schedule section chain (TagGroup → Routine → ScheduleItems —
+ * rules/frontend.md §Provider 順序); the inner Provider may depend on the
+ * outer one.
  *
  * ScheduleItems is enabled on Mobile too (Todos/Schedule are core,
- * CLAUDE.md §2), so no Optional variant is needed (it is not in the
- * Mobile 省略 Provider list — only CalendarTags from this trio is).
+ * CLAUDE.md §2), so no Optional variant is needed (ShortcutConfig is the
+ * only Provider omitted on native mobile).
  *
  * #304 child-2: auto-connects to the ambient global UndoRedo stack when a
  * provider is mounted (useUndoRedoOptional), same pattern as

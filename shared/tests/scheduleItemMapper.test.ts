@@ -254,7 +254,6 @@ describe("reminder offset round-trip (#1374)", () => {
       deleted_at: null,
       created_at: NOW,
       updated_at: NOW,
-      version: 1,
     };
   }
   function buildPayload(
@@ -469,7 +468,6 @@ describe("defensive validation", () => {
       deleted_at: null,
       created_at: NOW,
       updated_at: NOW,
-      version: 1,
     };
     const payload: EventsPayloadRow = {
       item_id: "event-mismatch-b",
@@ -538,7 +536,6 @@ describe("scheduleItemUpdatesToPatches — date/title/time partial safety", () =
       completed: true,
       routineId: "routine-evil",
       id: "si-evil",
-      version: 99,
     } as unknown as Parameters<typeof scheduleItemUpdatesToPatches>[0];
     const { metaPatch, payloadPatch } = scheduleItemUpdatesToPatches(
       sneaky,
