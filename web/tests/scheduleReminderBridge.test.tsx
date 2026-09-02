@@ -10,10 +10,8 @@ import {
   type WebSyncContextValue,
 } from "@life-editor/shared";
 import { stubDataService } from "./helpers";
-import {
-  ScheduleReminderBridge,
-  __resetReminderLedger,
-} from "../src/ScheduleReminderBridge";
+import { ScheduleReminderBridge } from "../src/ScheduleReminderBridge";
+import { __resetReminderLedger } from "../src/schedule/reminderLedger";
 
 /*
  * ScheduleReminderBridge (#1374) — the app-wide sweep.

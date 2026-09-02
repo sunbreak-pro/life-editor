@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { firedKeys, markFired, pruneFired } from "./schedule/reminderLedger";
 import {
   addDaysKey,
   dueReminders,
@@ -33,26 +34,6 @@ import {
  * mobile gate would silently kill the IN-APP reminder on a phone too.
  */
 
-/*
- * The fired ledger, at MODULE scope rather than in a useRef.
- *
- * "Once per page load" is a page-scoped fact, and StrictMode remounts every
- * component on mount in dev — a ref would be discarded and the same reminder
- * would toast twice, in exactly the build a reviewer checks the DoD's
- * no-duplicates clause in. The cost is a module singleton, kept in this file
- * and never exported from shared/.
- *
- * Values are the ms the key fired at, so the map can be pruned rather than
- * growing for the life of the session.
- */
-const FIRED = new Map<string, number>();
-
-/** Tests only — the module singleton has to be resettable between cases. */
-export function __resetReminderLedger(): void {
-  FIRED.clear();
-}
-
-const PRUNE_AFTER_MS = 24 * 60 * 60 * 1000;
 
 export function ScheduleReminderBridge({
   dataService: ds,
@@ -90,8 +71,8 @@ export function ScheduleReminderBridge({
   useEffect(() => {
     if (!resolveRemindersEnabled()) return;
     const nowMs = now.getTime();
-    for (const due of dueReminders(items, now, new Set(FIRED.keys()))) {
-      FIRED.set(due.key, nowMs);
+    for (const due of dueReminders(items, now, firedKeys())) {
+      markFired(due.key, nowMs);
       const body = t("schedule.reminderToast", {
         title: due.title,
         time: due.startTime,
@@ -104,9 +85,7 @@ export function ScheduleReminderBridge({
         ?.notify({ title: due.title, body })
         .catch(() => undefined);
     }
-    for (const [key, firedAt] of FIRED) {
-      if (nowMs - firedAt > PRUNE_AFTER_MS) FIRED.delete(key);
-    }
+    pruneFired(nowMs);
   }, [items, now, t, showToast]);
 
   return null;
