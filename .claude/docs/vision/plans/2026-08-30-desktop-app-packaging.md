@@ -1,7 +1,7 @@
 ---
-Status: IN PROGRESS — Step 1-4 / 9-10（Windows レーンとリリース基盤）= #1300 の PR、Step 5（mac ジョブ）= #1301 の PR。Step 6（tag → Release）と Step 7-8（実機受け入れ）は未着手
+Status: IN PROGRESS — Step 1-5 / 9 は着地済み（PR #1348 / #1360）。Step 4 のガードは 2026-09-01 にローカルで両方向とも実測（下記「空ビルドガード」節）。**残りは Step 3 の workflow_dispatch 実測・Step 6（tag → Release）・Step 7-8（実機受け入れ）・Step 10（受け入れ後の Status 追随）**
 Created: 2026-08-30
-Branch: claude/desktop-packaging-win-1300（#1300）/ claude/desktop-packaging-mac-1301（#1301・前者に stack）
+Branch: claude/desktop-packaging-win-1300（#1300）/ claude/desktop-packaging-mac-1301（#1301・前者に stack）/ claude/desktop-1300-release-verification（#1300 の実測記録）
 Owner-chat: main（計画）/ refactor-core（実装）
 Task: Desktop 配布パッケージ化 — mac / Windows のインストーラを tag 駆動で再現可能に作る
 Parent: ../../../2026-05-04-cross-platform-migration.md（Phase 3 完了判定 + Phase 5-B の配布側）
@@ -93,7 +93,7 @@ desktop/README.md                               ← 未署名の初回起動手�
 | 1   | `desktop/package.json` の version を実バージョンへ            | 🤖 自律 | `node -p "require('./desktop/package.json').version"` が `0.0.0` でない |
 | 2   | `electron-builder.yml` 整備（buildResources / artifactName）  | 🤖 自律 | `cd desktop && npm run build` exit 0・設定読み込み警告なし              |
 | 3   | `release-desktop.yml` 新規作成（win ジョブ + release ジョブ） | 🤖 自律 | `workflow_dispatch` 実行で windows ジョブが success                     |
-| 4   | 空ビルド防止ガードを workflow に追加                          | 🤖 自律 | env 未設定でジョブを回すと**赤くなる**ことを 1 度実測                   |
+| 4   | 空ビルド防止ガードを workflow に追加                          | 🤖 自律 | env 未設定なら**赤くなる**ことを 1 度実測 ✅（2026-09-01 ローカル実測） |
 | 5   | mac ジョブを追加                                              | 🤖 自律 | macos ジョブが success・arm64 `.dmg` が artifact に出る                 |
 | 6   | tag `desktop-v<version>` を打って Release 発行                | 🤖 自律 | `gh release view desktop-v<version> --json assets` に `.dmg` と `.exe`  |
 | 7   | Windows 実機の受け入れ（#1300）                               | 👀 目視 | インストール → 起動 → ログイン → Todo 追加 / 編集 / 削除                |
@@ -153,7 +153,17 @@ test -f desktop/out/renderer/index.html
 grep -rq "supabase.co" desktop/out/renderer/assets/   # URL が焼けているか
 ```
 
-> `desktop/electron.vite.config.ts` は renderer の `root` を `../web` に置いており、Vite の `envDir` は `root` 既定。つまり**ローカルの `desktop/.env` が renderer に効いているかは自明でない**（README は `desktop/.env` と書いている）。CI では `env:` 経由の `process.env` が `envPrefix: "VITE_"` で拾われる経路を使うが、**このガードが「拾えている」ことの唯一の証拠**になる。ローカル側の `.env` 解決の実態は Step 4 の実測でついでに確認する。
+### Step 4 の実測（2026-09-01・ローカル / Windows 11）
+
+計画時に 2 つ分からないことがあった。どちらもガードを一度も走らせていなかったからで、両方 3 回のビルドで潰した。
+
+**(1) ガードの 3 つの `test -f` パスと `assets/` grep は正しいか** → 正しい。`electron-vite build` は `desktop/out/{main,preload}/index.js` と `desktop/out/renderer/index.html` を出し、JS/CSS は `desktop/out/renderer/assets/` に入る。
+
+**(2) `env:` の値は本当に Vite に届くか** → 届く。`VITE_SUPABASE_URL=https://<probe>.supabase.co` を環境変数として渡してビルドすると、そのホスト名が `out/renderer/assets/` の中に文字列として現れる（`envPrefix: "VITE_"` が `process.env` 側も拾う）。**同じ手順を env 無しでやり直すとビルドは exit 0 のまま成功し、ホスト名は現れない** — これが「見た目は正常なインストーラで画面だけ真っ白」の正体で、ガードはここで赤くなる。
+
+おまけで計画時の保留も解けた: **`desktop/.env` は効く**。renderer の `root` は `../web` だが `envDir` はそこには従っておらず、`desktop/.env` に書いた値は renderer のバンドルに焼かれた（実測）。`desktop/README.md` の記述は正しい。
+
+> ここで検証していないのは **workflow 上で実際にこのステップが走ること**（Step 3 の acceptance）。ローカルで証明したのはガードの中身であって、ランナー上での実行ではない。
 
 ### Secrets
 
@@ -170,11 +180,11 @@ anon key がバンドルに載るのは仕様（公開前提の公開鍵で、�
 
 - [ ] `gh run list --workflow release-desktop.yml --limit 1 --json conclusion --jq '.[0].conclusion'` が `success`
 - [ ] `gh release view desktop-v<version> --json assets --jq '[.assets[].name]'` に arm64 `.dmg` と NSIS `.exe` が含まれる
-- [ ] `node -p "require('./desktop/package.json').version"` が `0.0.0` でない
-- [ ] `cd desktop && npm run typecheck` exit 0
-- [ ] `cd desktop && npm run test` exit 0
-- [ ] `cd desktop && npm run build` exit 0（既存 CI の desktop ステップが緑のまま）
-- [ ] `bash scripts/docs-lint.sh` exit 0（ローカル実行時は `LC_ALL=C` を付ける — CLAUDE.md §7.1）
+- [x] `node -p "require('./desktop/package.json').version"` が `0.0.0` でない（`0.1.0`）
+- [x] `cd desktop && npm run typecheck` exit 0
+- [x] `cd desktop && npm run test` exit 0
+- [x] `cd desktop && npm run build` exit 0（既存 CI の desktop ステップが緑のまま）
+- [x] `bash scripts/docs-lint.sh` exit 0（ローカル実行時は `LC_ALL=C` を付ける — CLAUDE.md §7.1）
 - [ ] PR diff が ±500 行以内（workflow + yml + README + 計画書）
 - [ ] 👀 Windows 11 実機で install → 起動 → ログイン → Todo 追加 / 編集 / 削除（#1300）
 - [ ] 👀 macOS 実機で `.dmg` → 起動 → ログイン → 全 Section 表示（#1301）
