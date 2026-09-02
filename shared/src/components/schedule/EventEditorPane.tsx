@@ -621,13 +621,21 @@ function EventEditorFields({
           grid is not showing. A date input steps its value once per segment
           press, which is why it was never committed on change; since #628 no
           field is, and both live in the draft until the save button. */}
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-3">
         {/* `min-w-0` for the same reason the time pair carries it (#1036): a
             flex item is floored at its content's min-content width, and a
             native date input reports a box wide enough for "YYYY/MM/DD" plus
             its picker glyph. The switch beside it is `shrink-0`, so on a phone
             the row could only resolve by growing past the right edge — which
-            put the switch half off screen and under the date field. */}
+            put the switch half off screen and under the date field.
+
+            #1403: releasing the COLUMN was not enough on iOS. WebKit keeps a
+            date input at its intrinsic width unless `appearance: none` is set
+            — `w-full` is simply ignored — so the field kept painting past its
+            shrunken column and under the switch. `appearance-none` + `min-w-0`
+            on the input itself is what finally lets it follow the column, and
+            the row's gap widens to `gap-3` so the two never touch even when
+            the column bottoms out. Same fix on ItemCreatePanel's row. */}
         <label className="flex min-w-0 flex-1 flex-col gap-1.5">
           <span className={FIELD_LABEL}>{labels.date}</span>
           <input
@@ -638,7 +646,7 @@ function EventEditorFields({
             onBlur={restoreClearedDate}
             onKeyDown={saveOnEnter}
             aria-label={labels.date}
-            className={cn(FIELD, "tabular-nums")}
+            className={cn(FIELD, "min-w-0 appearance-none tabular-nums")}
           />
         </label>
         {canEditAllDay && (
