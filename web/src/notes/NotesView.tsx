@@ -27,6 +27,7 @@ import {
   dateKeyOfInstant,
 } from "@life-editor/shared";
 import { useNoteTagDnd } from "./useNoteTagDnd";
+import { useAttachmentUpload } from "./useAttachmentUpload";
 import { NoteBodyEditor } from "./NoteBodyEditor";
 import { NotePasswordDialog } from "./NotePasswordDialog";
 import { LinkPanel } from "../wikitag";
@@ -161,6 +162,11 @@ export function NotesView({
     removeNotePassword: notes.removeNotePassword,
     verifyNotePassword: notes.verifyNotePassword,
   });
+
+  // Image / file embedding for the "/" menu (#1404). Undefined without a
+  // DataService, which is what keeps the two attach entries out of the picker
+  // on a surface that cannot reach Storage — see useAttachmentUpload.
+  const attachments = useAttachmentUpload(dataService);
 
   // "Register this note as a template" (#1179) + the receipt panel it opens.
   // Writes go straight out through the DataService, which is why it is not on
@@ -697,6 +703,7 @@ export function NotesView({
                 note={selected}
                 linking={linking}
                 remountToken={bodyEpoch}
+                attachments={attachments}
                 onNavigateToItem={onNavigateToItem}
                 onSave={(id, content) => notes.updateNote(id, { content })}
                 // Borderless — sit flush inside the detail card so the note

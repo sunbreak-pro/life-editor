@@ -9,6 +9,8 @@ import {
   List,
   ListOrdered,
   ListChecks,
+  Image,
+  Paperclip,
 } from "lucide-react";
 import {
   SlashMenu,
@@ -17,6 +19,7 @@ import {
 } from "./SlashMenu";
 import { createSuggestionPopup, type SuggestionPopup } from "./suggestionPopup";
 import { isImeComposing } from "@life-editor/shared";
+import type { AttachmentKind, AttachmentWiring } from "./useAttachmentUpload";
 
 /*
  * Slash-command extension (web Notes/Daily editor). Types "/" to open a block
@@ -34,11 +37,74 @@ export interface SlashMenuLabels {
   bulletList: string;
   orderedList: string;
   taskList: string;
+  /** #1404 — the two attach entries. Hidden when the host wires no uploader. */
+  image: string;
+  file: string;
   /** Shown when the query matches nothing. */
   empty: string;
 }
 
-function buildSlashItems(labels: SlashMenuLabels): SlashMenuItem[] {
+/**
+ * Getter for the host's attach wiring, read at PICK time rather than captured
+ * when the extension is built — same contract as itemLinkNode's
+ * `getOnNavigate`, and for the same reason (the extension list is built once
+ * per editor mount, so a captured prop would freeze at that render).
+ *
+ * Returning undefined hides the two attach entries entirely: a picker that
+ * uploads nowhere is worse than an entry that is not offered.
+ */
+export type GetAttachmentWiring = () => AttachmentWiring | undefined;
+
+/**
+ * The attach entries' shared body: clear the typed "/query", open the picker,
+ * and insert the node once the upload has landed.
+ *
+ * The insert is deliberately AFTER the await. A node inserted first would sit
+ * in the document — and be saved by the 800ms debounce — pointing at a path
+ * that does not exist yet, so a note closed mid-upload would keep a permanently
+ * broken attachment. The editor is re-checked afterwards because the user can
+ * switch notes while the file dialog is open, and `insertContent` on a
+ * destroyed editor throws.
+ */
+function runAttach(
+  editor: SlashCommandContext["editor"],
+  range: SlashCommandContext["range"],
+  wiring: AttachmentWiring,
+  kind: AttachmentKind,
+): void {
+  editor.chain().focus().deleteRange(range).run();
+  void wiring.attach(kind).then((ref) => {
+    if (!ref || editor.isDestroyed) return;
+    editor
+      .chain()
+      .focus()
+      .insertContent({
+        type: "attachment",
+        attrs: {
+          path: ref.path,
+          name: ref.name,
+          mime: ref.mimeType,
+          size: ref.size,
+        },
+      })
+      .run();
+  });
+}
+
+/** What a slash item's `command` is handed. Named so `runAttach` can take it. */
+type SlashCommandContext = Parameters<SlashMenuItem["command"]>[0];
+
+/*
+ * Exported for `web/tests/slashCommandAttach.test.ts` — same reason as
+ * `slashRender` below: the live copy is buried inside a ProseMirror plugin's
+ * `items()`, so the gating rule (#1404: no uploader, no attach entries) is
+ * unreachable from outside without a full editor mount.
+ */
+export function buildSlashItems(
+  labels: SlashMenuLabels,
+  getAttachment?: GetAttachmentWiring,
+): SlashMenuItem[] {
+  const wiring = getAttachment?.();
   return [
     {
       id: "heading1",
@@ -97,6 +163,25 @@ function buildSlashItems(labels: SlashMenuLabels): SlashMenuItem[] {
       command: ({ editor, range }) =>
         editor.chain().focus().deleteRange(range).toggleTaskList().run(),
     },
+    // #1404 — only when the host wired an uploader (see GetAttachmentWiring).
+    ...(wiring
+      ? [
+          {
+            id: "image",
+            title: labels.image,
+            Icon: Image,
+            command: ({ editor, range }: SlashCommandContext) =>
+              runAttach(editor, range, wiring, "image"),
+          },
+          {
+            id: "file",
+            title: labels.file,
+            Icon: Paperclip,
+            command: ({ editor, range }: SlashCommandContext) =>
+              runAttach(editor, range, wiring, "file"),
+          },
+        ]
+      : []),
   ];
 }
 
@@ -173,7 +258,10 @@ export function slashRender(emptyLabel: string): SlashRender {
 // suggestion are both registered on the same editor.
 const slashCommandPluginKey = new PluginKey("slashCommand");
 
-export function createSlashCommand(labels: SlashMenuLabels): Extension {
+export function createSlashCommand(
+  labels: SlashMenuLabels,
+  getAttachment?: GetAttachmentWiring,
+): Extension {
   return Extension.create({
     name: "slashCommand",
     addProseMirrorPlugins() {
@@ -187,7 +275,10 @@ export function createSlashCommand(labels: SlashMenuLabels): Extension {
             props.command({ editor, range });
           },
           items: ({ query }) => {
-            const all = buildSlashItems(labels);
+            // Rebuilt per keystroke on purpose: `getAttachment` is read here,
+            // so an editor that gains its uploader after mount starts offering
+            // the two entries without being rebuilt.
+            const all = buildSlashItems(labels, getAttachment);
             const q = query.trim().toLowerCase();
             if (!q) return all;
             return all.filter(
