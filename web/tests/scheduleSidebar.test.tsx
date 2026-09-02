@@ -103,6 +103,7 @@ function makeProps(
       addable: [],
       onToggleComplete: vi.fn(),
       onAddCandidate: vi.fn(),
+      onMoveOut: vi.fn(),
       onOpenTodo: vi.fn(),
       onOpenAddable: vi.fn(),
       onDelete: vi.fn(),
@@ -130,7 +131,7 @@ describe("ScheduleSidebar — which tab renders", () => {
         })}
       />,
     );
-    expect(screen.getByText("scheduleScreen.todoPlacedHeading")).toBeTruthy();
+    expect(screen.getByText("scheduleScreen.todoTodayHeading")).toBeTruthy();
     expect(screen.getByText("Buy milk")).toBeTruthy();
     expect(flowIsShowing()).toBe(false);
   });
@@ -387,11 +388,31 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
     render(<ScheduleSidebar {...withTray({ onOpenAddable, onAddCandidate })} />);
 
     fireEvent.click(
-      screen.getByRole("button", { name: "scheduleScreen.todoAddAction" }),
+      screen.getByRole("button", { name: "scheduleScreen.todoMoveToToday" }),
     );
 
     expect(onAddCandidate).toHaveBeenCalledWith("t2");
     expect(onOpenAddable).not.toHaveBeenCalled();
+  });
+
+  // #1406: the reverse move, from a today row, and the two-list shape — one
+  // "today" heading (the placed / unplaced pair merged) over an "others" one.
+  it("takes a today row off today from its own row", () => {
+    const onMoveOut = vi.fn();
+    render(<ScheduleSidebar {...withTray({ onMoveOut })} />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.todoMoveToOthers" }),
+    );
+
+    expect(onMoveOut).toHaveBeenCalledWith("t1");
+  });
+
+  it("draws two lists: today and others", () => {
+    render(<ScheduleSidebar {...withTray()} />);
+    expect(screen.getByText("scheduleScreen.todoTodayHeading")).toBeTruthy();
+    expect(screen.getByText("scheduleScreen.todoOthersHeading")).toBeTruthy();
+    expect(screen.queryByText("scheduleScreen.todoUnplacedHeading")).toBeNull();
   });
 
   it("offers the create pill above the tray", () => {
