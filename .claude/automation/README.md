@@ -12,7 +12,9 @@
 | `README.md`             | このファイル。全体構造の入口                                       | 現行                          |
 | `routine-digest.md`     | 朝 06:03 JST — 采配ダイジェスト生成（dev-digest スキルの薄い外枠） | **Phase 1・発火は裁定待ち**   |
 | `routine-night-safe.md` | 夜 22:33 JST — 読み取り中心の安全レーン（docs / Issue / PR 監査）  | **Phase 1・発火は裁定待ち**   |
-| `run-routine.ps1`       | headless 起動スクリプト（Task Scheduler / 手動の共通入口）         | 未実測 — 初回は手動実行で調整 |
+| `run-routine.ps1`       | headless 起動スクリプト（Task Scheduler / 手動の共通入口）         | 起動経路まで実測済み — 推論を伴う初回実走は未 |
+| `settings-unattended-readonly.json`  | 無人レーンの permissions（digest / night-safe 用・commit も禁止） | 現行 |
+| `settings-unattended-implement.json` | 無人レーンの permissions（night 用・commit 可 / push・PR・Issue 禁止） | 現行 |
 | `routine-ids.md`        | 定期実行の登録台帳（何が・どこで・いつ動くか）                     | 現行                          |
 | `routine-night.md`      | 夜 — 実装レーン（`/loop-implement` の薄い殻・commit 止まり）       | **Phase 2・発火は裁定待ち**   |
 | `goals.md`              | 夜のレーンの選定基準（今夜の 1 件をどう選ぶか。一覧は持たない）    | 現行                          |
@@ -35,9 +37,11 @@
   → 修正が要るものは起票依頼として列挙 → 翌朝 chat-main が裁く
 ```
 
+**報告ファイルを書くのは launcher であってレーンではない**（2026-09-02 実測）: headless の claude は `.claude/` 配下へ Write できず、allow ルールを足しても通らない。そのため各レーンは報告を**最終メッセージとして出力**し、`run-routine.ps1` が `--output-format json` の `result` を所定のファイルへ追記する。ログも launcher が UTF-8 で保存する（PowerShell の `>` は UTF-16 で書くため）。
+
 実装の自走（夜 1 Issue → **commit 止まり** = `routine-night.md`）は **Phase 2**。文書整備は 2026-08-06 に完了（ループカタログ定着の待ちはユーザー指示で前倒し・試験運用 0 件のまま着手）。**発火はまだ有効化していない** — 実行基盤の裁定（D-20260804-main-1）待ち。
 
-「draft PR 止まり」ではなく **commit 止まり**なのは、push と PR 作成を翌朝の人の手番に残すため（解放の可否 = `2026-08-06-autonomous-operation-endpoint.md` §3 第 1 段）。**この抑止は runner 側 settings で担保する** — 2026-08-10 に対話セッション側の `permissions.ask` から `Bash(git push*)` / `Bash(gh pr create*)` を外した（ユーザー裁定 = #618）ので、レーン有効化時は無人専用の permissions を起動コマンドで渡す（`claude -p --settings <無人用 settings>` or `--disallowedTools`）。
+「draft PR 止まり」ではなく **commit 止まり**なのは、push と PR 作成を翌朝の人の手番に残すため（解放の可否 = `2026-08-06-autonomous-operation-endpoint.md` §3 第 1 段）。**この抑止は runner 側 settings で担保している** — 2026-08-10 に対話セッション側の `permissions.ask` から `Bash(git push*)` / `Bash(gh pr create*)` を外した（ユーザー裁定 = #618）ため、プロンプトの禁止文だけでは止まらない。`run-routine.ps1` が routine ごとにプロファイルを選び `claude -p --settings` で渡す（2026-09-01 実測: readonly は `git commit` を拒否 / implement は commit 可・`git push` を拒否）。
 
 ### 実行基盤（D-20260804-main-1 裁定待ち）
 
