@@ -106,4 +106,7 @@
 - D-20260829-web-2: **A**（プライバシーポリシーにリージョン実名を書く。実測で db ホストが AWS `ap-northeast-1`（東京）の IPv6 帯に解決され 3 系統の独立ソースが一致。**従来の「いずれも日本国外」は Supabase について事実誤りだったため訂正込み** → 実装 PR #1296。merge 前にダッシュボード Project Settings → General の Region 表示との一致を要確認。同上）
 - D-20260829-web-3: **A**（運営者 = sunbreak-pro（個人）・連絡先 = GitHub Issues で確定。#1198 / PR #1222 の現行表記から変更なし。個人メールはスクレイピング対策で載せない方針を維持。同上）
 - D-20260830-shared-fix-1: **C**（ConfirmDialog に寄せる。`handleDeleteRepeat` の頭で既存の `askConfirm` を 1 回聞き、RepeatListPanel の armed 行と 3 ラベルを削除。同じサイドバーの Todo 削除（ScheduleTodoDetail.tsx:124）と形が揃い、フォーカス落ち・読み上げ不能の a11y 穴もモーダル側が引き受けて消える。実装先は schedule-refine 推奨 → #1279 の裁定コメント参照。2026-08-30 チャットの AskUserQuestion で回答・chat-main が代行して質問 / 転記 / 昇格）
+- D-20260901-shared-fix-1: **A**（セクション再生は「続きから」再開する = 現状維持。PR #1376 は merge 済みで追加作業なし。2026-09-02 チャットの AskUserQuestion で回答・chat-main が代行して質問 / 転記 / 昇格）
+- D-20260901-shared-fix-2: **B 相当 = 揃える**（回答時の提示ラベルは「揃える（別 Issue を起票）」。キュー原文の B「この PR で一緒に」は PR #1395 / #1410 が merge 済みのため手段だけ変え、別 Issue **#1442**（briefing-refine）で揃える。#1369 は着地済みで同時編集の理由は消えた。同上）
+- D-20260902-main-1: **A**（#1440 = #1373 で凍った進捗の数字 2 つは Todo 由来だけに寄せる。**キュー未提出のまま回答が先行**したため背景は D ファイルで再構成。同上）
 - D-20260831-settings-1: **Q1 = B / Q2 = A / Q3 = A**（起動ボタンは AI 連携カード内 + サイドバー下部に常設（Scope 外の SidebarNav / AppShell / MainScreen を触ることを承知で選択）・プロンプトは渡さず素の `claude` を起動・ターミナルは Settings に追加する「プロジェクトのパス」欄のフォルダで開く（`claude` は起動フォルダの `.mcp.json` から MCP を読むため、ここを決めないと life-editor のデータに繋がらない — この論点は計画書に無く、実装前調査で足した 3 問目）。2026-08-31 チャットの AskUserQuestion で回答・chat-settings-refine が転記を受任）
