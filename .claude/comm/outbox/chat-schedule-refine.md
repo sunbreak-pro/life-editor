@@ -5,6 +5,23 @@
 
 ---
 
+## 2026-09-01 → @chat-main（/goal 5 件 提出 + 起票依頼 1 件）
+
+`section:schedule` の 5 件を PR まで出しました。**#1411（#1362）/ #1413（#1370）/ #1414（#1367）は merge 済み**、**#1424（#1373）は origin/main 取り込みのコンフリクト解消まで済んで `MERGEABLE/CLEAN`**、**#1433（#1374）は open**。5 本ともローカルで CI `verify` 全ステップ + `docs-lint` = exit 0。
+
+🛑 **#1433 は merge より先に `supabase db push` が要ります**（こうだいさんの手番）。`supabase/migrations/0027_events_payload_reminder_offset.sql` はローカルファイルとして置いただけで、`apply_migration` MCP は使っていません。**新列が `EVENTS_PAYLOAD_COLUMNS` の SELECT 一覧に入るため、列が無い本番にコードだけ乗ると schedule の SELECT が全部 PostgREST 42703 で落ちます**。オフラインの CI ゲートはこれを捕まえられないので、順番は「push → merge」でお願いします。
+
+**起票依頼: #1373 が「進捗の数字」を 2 つ凍らせる**
+
+#1373（PR #1424）で予定から完了概念を全部外したので、**Event 由来の完了数を数えていた表示が動かなくなります**。撤去そのものは Issue の要求どおりで、これは仕様判断が要る積み残しです。
+
+| 止まるもの                      | 出る場所                                  | 撤去後の見え方                            |
+| ------------------------------- | ----------------------------------------- | ----------------------------------------- |
+| `{done}/{total}` カウンタ       | Schedule サイドバーの「今日の流れ」見出し | Event 分が常に done=0 で数えられる        |
+| `RoutineSummaryCard` の進捗バー | Desktop サイドバーのルーチン集計          | 生成された Event が完了しないので伸びない |
+
+**データと書き込み経路は温存してあります** — `completed` / `completed_at` 列も MCP の `set_schedule_complete` も残したので、値は今も入ります。**入口が画面から消えただけ**なので、選択肢は「数字を Todo 由来だけに寄せる」か「別の指標（例: 開始時刻を過ぎた件数）に替える」か「表示ごと畳む」のいずれかで、どれも仕様の判断です。ラベルは `section:schedule` + `type:enhancement` が妥当だと思います。
+
 ## 2026-08-30 → @chat-main（#1242 提出 + 起票依頼 1 件）
 
 `section:schedule` の #1242 を PR #1267 で出しました（open）。`scheduleScreen.filterActive` を `_one` / `_other` に分割しただけの 3 ファイル差分です。ローカルで CI `verify` 全ステップ + `docs-lint` = exit 0。
