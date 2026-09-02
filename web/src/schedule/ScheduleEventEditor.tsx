@@ -50,9 +50,10 @@ export interface ScheduleEventEditorProps {
   options: EventEditorOptions;
   repeat: EventEditorRepeat;
   /**
-   * Event → Todo, from the narrow sheet only (#998). The host owns both
-   * questions the press can raise — the unsaved-draft discard and the routine
-   * refusal — so this is handed the id and nothing else.
+   * Event → Todo, from the pane on both widths (#998 narrow, #1405 Desktop).
+   * The host owns both questions the press can raise — the unsaved-draft
+   * discard and the routine refusal — so this is handed the id and nothing
+   * else.
    */
   onConvertToTodo: (id: string) => void;
 }
@@ -114,18 +115,17 @@ export function ScheduleEventEditor({
       options={options}
       repeat={repeat}
       reminder={reminder}
-      // #998: narrow only. Desktop already reaches the conversion from the
-      // single-click bubble (#625) — ScheduleOverlays draws that when isWide —
-      // and a second entry inside the overlay would be a Desktop-visible change
-      // this Issue does not ask for.
-      convert={
-        isWide
-          ? undefined
-          : {
-              label: t("itemConvert.toTodo"),
-              onConvert: onConvertToTodo,
-            }
-      }
+      // #998 put this on the narrow sheet only, leaving Desktop to the
+      // single-click bubble (#625). #1405 opens it on both widths: the Todo
+      // side has had "convert to Event" INSIDE its edit panel all along
+      // (ScheduleTodoDetail), so an Event whose panel offered nothing read as
+      // "no way back" — the bubble is a separate gesture the user has to know
+      // about. Same handler either way; the host still answers the routine
+      // refusal (D-20260810-sched-5) and the undo entry (#997) itself.
+      convert={{
+        label: t("itemConvert.toTodo"),
+        onConvert: onConvertToTodo,
+      }}
       tagSlot={
         // #468: tagging is what files a row into a calendar, so without this
         // the lens above would have nothing to find. A routine occurrence is
