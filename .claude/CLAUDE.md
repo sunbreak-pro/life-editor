@@ -84,6 +84,7 @@
 - **`web` の lint は `web/` 配下しか歩かない**ので、`shared/` に入れた lint error は `cd shared && npm run lint` でしか出ない（2026-07-30 PR #488 で CI だけが落ちた）
 - `web/tsconfig.json` が `../shared` を参照するため、`cd web && npm run build` は shared も **web 側の tsc** で検査する。片方だけ緑でも安心しない
 - `scripts/docs-lint.sh` をローカルで回すときは `LC_ALL=C` を付ける（Git Bash の grep 3.0 + UTF-8 locale では日本語を含む Status 行が偽陽性になる）
+- **`tsc -b` の `.tsbuildinfo` はブランチを跨いで生き残るので、ローカルの `build` は偽の緑を出す**（2026-09-01 実測）: `shared` / `web` / `desktop` はどれも composite で `node_modules/.tmp/*.tsbuildinfo` に前回の結果を残す。ブランチ切替や main 取り込みで入ってきた壊れたファイルが「前に見て OK」の扱いで飛ばされ、**CI（毎回まっさらな checkout）だけが赤くなる**。PR #1424 / #1433 がこれで「ローカル全緑」のまま `error TS2307` で落ちた。**別ブランチを検証した直後は `rm -f <pkg>/node_modules/.tmp/*.tsbuildinfo` してから回す**（CI は素の環境なので影響を受けない = ローカル側だけの問題）
 
 `web/tests/` は jsdom に**レイアウトが無い**（要素の座標がすべて 0）。ProseMirror の `posAtCoords` のように画面座標を文書位置へ戻す経路はここでは検証できないので、UI の入力経路は座標に依存しない形（DOM イベント + `closest()` 等）で組む — 座標依存のままにするとテストが書けず、#475 のように壊れても気付けない。
 
