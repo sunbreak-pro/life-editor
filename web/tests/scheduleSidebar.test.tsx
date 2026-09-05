@@ -373,7 +373,9 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
     // only meant to look at.
     const onOpenAddable = vi.fn();
     const onAddCandidate = vi.fn();
-    render(<ScheduleSidebar {...withTray({ onOpenAddable, onAddCandidate })} />);
+    render(
+      <ScheduleSidebar {...withTray({ onOpenAddable, onAddCandidate })} />,
+    );
 
     fireEvent.click(screen.getByText("Book the dentist"));
 
@@ -384,7 +386,9 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
   it("still places an unscheduled todo on today from the same row", () => {
     const onOpenAddable = vi.fn();
     const onAddCandidate = vi.fn();
-    render(<ScheduleSidebar {...withTray({ onOpenAddable, onAddCandidate })} />);
+    render(
+      <ScheduleSidebar {...withTray({ onOpenAddable, onAddCandidate })} />,
+    );
 
     fireEvent.click(
       screen.getByRole("button", { name: "scheduleScreen.todoAddAction" }),

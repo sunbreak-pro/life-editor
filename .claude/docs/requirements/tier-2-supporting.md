@@ -488,8 +488,8 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 ## Feature: Trash (ソフトデリート復元)
 
 **Tier**: 2
-**Status**: ◎完成
-**Owner Provider/Module**: `frontend/src/components/Trash/` / 全 Repository（`is_deleted` + `deleted_at` カラム）
+**Status**: ◎完成（**2026-08-30 #1293 で入口を Settings 配下へ移設** — nav の独立セクションを畳み `SectionId` からも除外した。ビュー実体は不変で、変わったのは入口だけ → CLAUDE.md §8）
+**Owner Provider/Module**: `shared/src/components/TrashView.tsx` + `web/src/trash/TrashScreen.tsx`（入口 = `web/src/settings/SettingsScreen.tsx` のカテゴリ行）/ 全 Repository（`is_deleted` + `deleted_at` カラム）
 **MCP Coverage**: —
 
 ### Purpose

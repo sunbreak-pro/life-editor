@@ -1,14 +1,18 @@
 import { Check, X } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
-import type { TodoOption } from "./PomodoroTodoSelector";
+import { workTargetIcon, type WorkTargetOption } from "./PomodoroTodoSelector";
 import { cn } from "./cn";
 
 /*
- * Mobile todo picker for the Work tab (target-IA import). The fullscreen timer
- * face has no room for an inline dropdown, so tapping the todo chip opens this
+ * Mobile work-target picker for the Work tab (target-IA import). The fullscreen
+ * timer face has no room for an inline dropdown, so tapping the chip opens this
  * BottomSheet with the candidate list + a "clear selection" row. Pure
- * primitive: host supplies todos + selection + copy (§6.4). Selecting a todo
+ * primitive: host supplies the items + selection + copy (§6.4). Selecting one
  * (or clearing) closes the sheet via the host's onSelect + onClose.
+ *
+ * Todos and Events share one list, for the reason spelled out on the selector.
+ * The kind rides on the leading glyph — the check mark that marks the CURRENT
+ * selection keeps its own column so the two never contend for the same slot.
  */
 
 export interface PomodoroTodoSheetLabels {
@@ -17,29 +21,29 @@ export interface PomodoroTodoSheetLabels {
   close: string;
   /** Row that clears the current attribution. */
   clearSelection: string;
-  /** Shown when there are no candidate todos. */
+  /** Shown when there are no candidates at all. */
   emptyHint: string;
 }
 
 export interface PomodoroTodoSheetProps {
   open: boolean;
   onClose: () => void;
-  todos: readonly TodoOption[];
+  items: readonly WorkTargetOption[];
   selectedId: string | null;
   labels: PomodoroTodoSheetLabels;
-  onSelect: (todo: TodoOption | null) => void;
+  onSelect: (item: WorkTargetOption | null) => void;
 }
 
 export function PomodoroTodoSheet({
   open,
   onClose,
-  todos,
+  items,
   selectedId,
   labels,
   onSelect,
 }: PomodoroTodoSheetProps) {
-  const choose = (todo: TodoOption | null) => {
-    onSelect(todo);
+  const choose = (item: WorkTargetOption | null) => {
+    onSelect(item);
     onClose();
   };
 
@@ -50,7 +54,7 @@ export function PomodoroTodoSheet({
       title={labels.title}
       closeLabel={labels.close}
     >
-      {todos.length === 0 ? (
+      {items.length === 0 ? (
         <p className="py-6 text-center text-sm text-lumen-text-tertiary">
           {labels.emptyHint}
         </p>
@@ -66,7 +70,7 @@ export function PomodoroTodoSheet({
               {labels.clearSelection}
             </button>
           </li>
-          {todos.map((t) => {
+          {items.map((t) => {
             const active = t.id === selectedId;
             return (
               <li key={t.id}>
@@ -85,6 +89,9 @@ export function PomodoroTodoSheet({
                     aria-hidden="true"
                   >
                     {active ? <Check size={16} /> : null}
+                  </span>
+                  <span className="shrink-0 text-lumen-text-tertiary">
+                    {workTargetIcon(t.kind, 16)}
                   </span>
                   <span className="truncate">{t.title}</span>
                 </button>

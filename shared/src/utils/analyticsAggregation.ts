@@ -1,4 +1,5 @@
 import type { TimerSession } from "../types/timer";
+import { sessionTargetId } from "./timerSessions";
 import type { TodoNode } from "../types/todoTree";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
@@ -152,6 +153,21 @@ export interface StagnationBucket {
   label: string;
   count: number;
   color: string;
+}
+
+/**
+ * The minimum an item must expose to be a work-time target (#1375).
+ *
+ * Structural for the same reason `TagUsageItem` is: a session names an id and
+ * nothing else, item ids are unique across roles (CLAUDE.md §4), and the tag
+ * layer carries no role discriminator — so the ring needs an id to match on
+ * and the soft-delete flag, and genuinely nothing more. TodoNode and
+ * ScheduleItem both satisfy it, so a host concatenates whichever roles it can
+ * see the LIVE universe of.
+ */
+export interface WorkTimeItem {
+  id: string;
+  isDeleted?: boolean;
 }
 
 /**
@@ -597,12 +613,12 @@ export function aggregateTodoStagnation(nodes: TodoNode[]): StagnationBucket[] {
  *
  * Rules:
  * - Only WORK sessions count (same filter as every other work-time chart).
- * - A session's minutes are split evenly across its todo's tags.
- * - Work on an untagged todo — or with no todo at all — lands in the trailing
+ * - A session's minutes are split evenly across its item's tags.
+ * - Work on an untagged item — or with no item at all — lands in the trailing
  *   "untagged" bucket, and tags past `limit` are folded into an "other" bucket
  *   rather than dropped, so no tag's share is overstated.
- * - Work on a todo that is NOT in `liveTodos` is dropped entirely — see the
- *   trash rule below. The condition is literally "absent from the live tree",
+ * - Work on an item that is NOT in `liveItems` is dropped entirely — see the
+ *   trash rule below. The condition is literally "absent from the live set",
  *   which is wider than "trashed": `fetchTodoTree` also drops purged rows, R2
  *   orphans (meta with no payload) and legacy folder rows
  *   (`SupabaseDataService.fetchTodoTree`). Sessions attached to any of those
@@ -624,14 +640,25 @@ export function aggregateTodoStagnation(nodes: TodoNode[]): StagnationBucket[] {
  * differ by exactly the time spent on trashed todos — the same kind of gap as
  * the Todos tab not listing trashed todos.
  *
- * Assignments are matched by `itemId` — item ids are unique across roles, so
- * a note/daily/event assignment simply never matches a session's `todoId`.
+ * Assignments are matched by `itemId` — item ids are unique across roles, so a
+ * note/daily assignment simply never matches a session's target id.
+ *
+ * Todo AND Event (#1375). A session names at most one of the two (0029 CHECK),
+ * `sessionTargetId` unfolds the pair, and `liveItems` is whatever LIVE roles
+ * the caller can see — the same structural-list idiom `aggregateTagUsage` uses,
+ * and for the same reason: the tag layer has no role discriminator, so the
+ * aggregation does not need one either. A host that passes only todos gets
+ * exactly the ring it got before this change; one that also passes events sees
+ * event work appear. The order matters in one direction only — an event left
+ * OUT of `liveItems` reads as work on a trashed item and is DROPPED, not
+ * counted as untagged, so a host that starts writing `event_id` has to start
+ * passing its events in the same change.
  */
 export function aggregateWorkTimeByTag(
   sessions: TimerSession[],
   assignments: WikiTagAssignmentUnified[],
   tags: WikiTagUnified[],
-  liveTodos: TodoNode[],
+  liveItems: readonly WorkTimeItem[],
   limit: number = 10,
 ): TagWorkTimeBucket[] {
   const work = getWorkSessions(sessions);
@@ -640,18 +667,18 @@ export function aggregateWorkTimeByTag(
   );
   // `fetchTodoTree` is already live-only; the isDeleted guard keeps callers
   // that hand over a wider list (or a stale cache) from reviving trashed work.
-  const liveTodoIds = new Set(
-    liveTodos.filter((n) => !n.isDeleted).map((n) => n.id),
+  const liveItemIds = new Set(
+    liveItems.filter((n) => !n.isDeleted).map((n) => n.id),
   );
 
   // itemId -> its tag ids (Set: the same tag can be assigned twice — e.g.
   // inline text plus a manual chip — and double counting would skew the split).
-  const todoTags = new Map<string, Set<string>>();
+  const itemTags = new Map<string, Set<string>>();
   for (const a of assignments) {
     if (a.isDeleted || !tagMap.has(a.tagId)) continue;
-    const set = todoTags.get(a.itemId);
+    const set = itemTags.get(a.itemId);
     if (set) set.add(a.tagId);
-    else todoTags.set(a.itemId, new Set([a.tagId]));
+    else itemTags.set(a.itemId, new Set([a.tagId]));
   }
 
   const minutesByTag = new Map<string, number>();
@@ -659,13 +686,14 @@ export function aggregateWorkTimeByTag(
 
   for (const s of work) {
     const minutes = (s.duration ?? 0) / 60;
-    // A session that names a todo no longer in the live tree is work on a
-    // trashed (or purged) todo — dropped, NOT folded into untagged (#428).
-    // A missing todo id is different: that is genuine todo-less work. Tested
-    // for truthiness, matching the tag lookup on the next line — an empty
-    // `todoId` would otherwise count as "trashed" here and as "no todo" there.
-    if (s.todoId && !liveTodoIds.has(s.todoId)) continue;
-    const tagIds = s.todoId ? todoTags.get(s.todoId) : undefined;
+    const targetId = sessionTargetId(s);
+    // A session naming an item that is not in the live set is work on a
+    // trashed (or purged) todo/event — dropped, NOT folded into untagged
+    // (#428). A missing target id is different: that is genuine free work.
+    // `sessionTargetId` already collapses an empty-string id to null, so the
+    // two cases cannot be confused with each other.
+    if (targetId && !liveItemIds.has(targetId)) continue;
+    const tagIds = targetId ? itemTags.get(targetId) : undefined;
     if (!tagIds || tagIds.size === 0) {
       untaggedMinutes += minutes;
       continue;
