@@ -1,5 +1,23 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-09-05 - #1470 検索 0 件の空状態 / #1471 テンプレート編集ダイアログの幅（PR #1502 / #1507）
+
+#### 概要
+
+#1408（Desktop 幅の実ブラウザ点検）の所見 2 件。どちらも `origin/main` から独立にブランチを切って 1 件 1 PR。書いた時点の実測で 2 本とも **open**（merge はこうだいさんの手番 = P-001）。共通していたのは「表示の元にしている量が 1 つずれている」形で、片方は**検索後の集合**を書庫と取り違え、もう片方は**トークンの幅**を実際の列幅と取り違えていた。
+
+#### 変更点
+
+- **#1470 の原因は `hasNotes` の定義そのもの**: `groups.length > 0` は検索後のグループ数なので、一致しない語を打った瞬間に「書庫が空」と同じ値になる。空状態の文言も中央の作成ボタンもここから出ていた。`notes.notes.some(n => !n.isDeleted)` に戻し、検索 0 件は `searchEmpty`（検索中 **かつ** 書庫が非空 **かつ** グループ 0）という別の名前にした
+- **中央パネルも同じ値を読んでいた**: #1372（PR #1380）は中央の CTA を外したが文言は `hasNotes` 分岐のままだったので、検索 0 件のとき本文側も「ノートはまだありません」と言っていた。定義を直した副産物で一緒に直っている
+- **チップ列は「絞り込む道具」なので結果集合から作ってはいけない**: 0 件のあいだは書庫の全タグへ落とす。そのままだと押しても何も起きない飾りになるので、**その状態のチップ押下は検索語を落とす**ようにした（打鍵が `tagFilters` を落とす `handleSearchChange` の裏返し）。一致がある間の挙動は無変更で、検索 + チップの併用も残っている
+- **#1471 は「同じトークン名 ≠ 同じ幅」**: `reading` は PageContainer が `width="reading"` の**ページ**に渡す幅（818px）で、Materials セクションは `width="wide"`。Note の実幅は左ナビ（`w-16` / `w-60` で畳める）と右パネル（240–560px のドラッグ可変・永続化）の残りで、1280x800 の実測は 642px。**静的な class では原理的に一致させられない**ので測る
+- **測り方は ref コールバック + ResizeObserver**（`web/src/notes/hooks/useElementWidth.ts` 新規）。幅が付くまで `null` を返すので、レイアウトの無い jsdom と「測る列が無いホスト」は CSS フォールバックのまま。値は `min(var(--container-lumen-reading), Npx)` にして**トークンを天井に残す** — 広い画面では Note の方が広くなるので、そちらに合わせると 1100px の行になる。px はどこにも書き写していない（`tokens.css` が唯一の在処という規約）
+- **`Modal` の `maxWidth` はインライン style で当てる**のが要点で、実装の都合ではない。インライン宣言は出力順に関係なく class に勝つので、`MODAL_MAX_WIDTH` のコメントが書いている #830 の罠（2 つの `max-w-*` が Tailwind のソート順で決まる）が構造的に届かない。既存の呼び出し元は無変更
+- **テスト**: `web/tests/notesView.test.tsx` に 5 ケース（文言 / CTA が無いこと / チップが残ること / 検索語が落ちること / 本当に空の書庫は今まで通り）、`shared/tests/templateEditPanelLayout.test.tsx` に 2 ケース（測れたとき = `min()` 式 / 測れないとき = class 幅のまま）、`web/tests/elementWidth.test.tsx` 新規 5 ケース（装着時に測る / 小数を丸める / リサイズに追従 / 幅 0 は「未測定」扱い / 外れたら observe をやめる）
+- **踏んだ罠 2 つ**: (1) web の tsconfig は `erasableSyntaxOnly` なので、テスト用フェイクの**コンストラクタ引数プロパティ**が `TS1294` で落ちる（`build` と `vitest` は両方緑のまま `typecheck:tests` だけが赤くなる例）。(2) 全件並列で `briefingEveningLazyMount.test.tsx` が 1 本落ちたが、単体でも静かな状態の全件でも緑 — memory に記録済みの cold-cache flake で、今回の変更とは無関係
+- **検証**: CI verify のステップ列をローカルで上から全部（shared 4 種 / web 4 種 = 114 files 1070 tests / desktop 3 種 / mcp-server 3 種）+ `docs-lint`、2 ブランチとも 15 本すべて exit 0。ビルド後の CSS で `--container-lumen-reading` が `:root, :host` に出ていることも実測（portal 先で解決するため）。実ブラウザでの実測（ダイアログと Note の `getBoundingClientRect().width` 比較）は worktree では回さない規約なので merge 後に chat-main
+
 ### 2026-09-02 - #1439 添付アップロード進捗の方針裁定 / #1438 添付の孤児回収（PR #1455 / #1453・どちらも merged）
 
 #### 概要
@@ -59,19 +77,3 @@ Notes の削除だけ確認が無く、同じ `NotesView.tsx` の中でテンプ
 - **文言は Todo 削除（`todoDetail.todoDeleteConfirm`）に寄せた**: 「ゴミ箱に入るので、あとから元に戻せます」。テンプレート削除の「戻せません」とは**性質が逆**なので、同じファイルでも書き分けている。追加キーは `materials.notes.deleteConfirmBody` / `deleteConfirmAction` の 2 本を en / ja 両方へ
 - **既存テスト 1 本が仕様変更で赤くなるはずの場所**（`deletes a note from its side-list row`）を、押下＝質問・承諾＝削除の形に書き換えた。追加は拒否ケースと、ケバブ経路を `it.each([true, false])` で wide / narrow 両方。`notesView.test.tsx` は 33 → 36 件
 - **検証**: CI verify のステップ列をローカルで上から全部（shared 4 種 2766 / web 4 種 993 / desktop 3 種 / mcp-server 3 種 322）+ `docs-lint` すべて緑。実ブラウザ確認は worktree では回さない規約なので merge 後に chat-main
-
-### 2026-08-31 - #1334 — リンク先プールが両方の is_deleted バケツを読むようにした（PR #1340）
-
-#### 概要
-
-前日の #1292（PR #1306）が実データで効いていなかった件。プールは「削除済みをフラグ付きで持つ」形になっていたのに、**フラグの元にしていた 3 本の読み取りが全部 live 行しか返さない**ままだったので、フラグは構造的に常に false で、削除済み Todo へのリンクは相変わらず id 断片（`…44440797`）で出ていた。PR #1340 提出（Closes #1334・merge = こうだいさん）。
-
-#### 変更点
-
-- **原因は「フラグを立てる側」ではなく「行を取ってくる側」**: `useItemLinkTargets.fetchPool` が呼ぶ `fetchTodoTree` / `listNotesUnified` / `listDailiesUnified` は 3 本とも自分のクエリで `is_deleted = false` を固定している（`SupabaseTodosService` は `isDeleted: false` 直書き、Notes は `listLite(false, …)`、Dailies は `listByDeletedBucket(false, …)`）。#1292 は下流（フラグの読み方）だけを直していた
-- **各ドメインで両方のバケツを読む形にした**: `listNotesUnified` + `fetchDeletedNotesUnified`、daily / todo も同じ対。3 本とも Trash が既に使っている既存メソッドなので、**新しいクエリも新しい引数も足していない**（同じ分割の反対側を足しただけ）。前例は `SupabaseTodosService.permanentDeleteTodo` の `[...live, ...deleted]`
-- **連結は live が先**: ターゲットを*提示する*面（`[[` メニュー・LinkPanel の picker・関連リスト）は自分の境界でフラグ付きを落としてから並べるので、既存の並び順は動かない。削除済みの尾に触るのは id 逆引き（`resolveRow`）だけ
-- **空の Trash の追加コストはドメイン 1 本あたり SELECT 1 回**: `fetchMetaFirstJoin` は meta が 0 行なら payload テーブルに触らず返る
-- **既存テストがこのバグを丸ごと隠していた**（#1285 と同じ形の再発）: `web/tests/linkPanel.test.tsx` は削除済み行が**入り済みの pool** を panel に直接渡す。壊れていたのはまさにその手前の工程なので、緑のまま通っていた
-- **新しいテストは結果ではなく分割の方を模した**: `web/tests/useItemLinkTargets.test.tsx` はドメインごとに 1 枚の行テーブルを置き、各読み取りが自分の `is_deleted` バケツだけを返す（実サービスと同じ契約）。live だけから組んだ pool では通らない。4 ケース = 6 本の読み取りが全部呼ばれる / 3 ドメインの削除済みがフラグ付きで入る / live が unflagged かつ先に並ぶ / **報告された症状そのもの**（実 pool を通した LinkPanel に「Return the extra tiles（削除済み）」が出る）。修正前のソースに戻して 4 本とも落ちることを実測
-- **検証**: CI verify のステップ列をローカルで上から全部（docs-lint / shared 4 種 / web 4 種 / desktop 3 種 / mcp-server 3 種）— shared 2757・web 987・desktop 7・mcp 322 すべて緑。実ブラウザでの DoD 確認は worktree では回さない規約なので merge 後に chat-main
