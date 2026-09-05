@@ -61,7 +61,7 @@ function todo(id: string, ageDays: number): TodoNode {
     title: id,
     parentId: null,
     order: 0,
-    status: "TODO",
+    status: "NOT_STARTED",
     createdAt: created.toISOString(),
   } as TodoNode;
 }

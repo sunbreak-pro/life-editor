@@ -1,3 +1,4 @@
+import type { StagnationBucketId } from "../../utils/analyticsAggregation";
 import type { DatePreset } from "./AnalyticsFilterContext";
 
 /*
@@ -129,6 +130,8 @@ export interface AnalyticsLabels {
   stagnation: {
     title: string;
     todos: string;
+    /** Y-axis bracket names, one per age bucket (#1478). */
+    buckets: Record<StagnationBucketId, string>;
   };
 
   /** Todos tab — work time split by life-tag (successor of the folder ring). */
