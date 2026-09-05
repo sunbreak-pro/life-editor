@@ -2,6 +2,8 @@
 import { describe, it, expect } from "vitest";
 import type { TimerSession } from "../src/types/timer";
 import {
+  ABANDONED_SESSION_SECONDS,
+  isCountedSession,
   sessionTargetId,
   totalWorkMinutesForItem,
 } from "../src/utils/timerSessions";
@@ -118,5 +120,66 @@ describe("totalWorkMinutesForItem", () => {
       "event-1",
     );
     expect(minutes).toBeCloseTo(1.5);
+  });
+});
+
+/*
+ * #1475 — start → pause → reset leaves a seconds-long unfinished row behind
+ * (pause closes it; reset has nothing left to withdraw). Two of those showed up
+ * in the user's analytics as a Todo with logged time and as two sessions in the
+ * weekly comparison. This predicate is the single place that decides a row is
+ * a scrap rather than work, so the boundary cases live here.
+ */
+describe("isCountedSession", () => {
+  it("drops a seconds-long session that never completed", () => {
+    expect(isCountedSession(session({ duration: 12, completed: false }))).toBe(
+      false,
+    );
+  });
+
+  /*
+   * The distinction that rules out "just exclude every unfinished row": being
+   * interrupted 20 minutes into a phase is the ordinary way a phase ends, and
+   * that time was worked.
+   */
+  it("keeps a long session the user paused and never resumed", () => {
+    expect(
+      isCountedSession(session({ duration: 20 * 60, completed: false })),
+    ).toBe(true);
+  });
+
+  it("keeps a short session that ran to its target", () => {
+    expect(isCountedSession(session({ duration: 30, completed: true }))).toBe(
+      true,
+    );
+  });
+
+  it("counts an unfinished session exactly at the threshold", () => {
+    expect(
+      isCountedSession(
+        session({ duration: ABANDONED_SESSION_SECONDS, completed: false }),
+      ),
+    ).toBe(true);
+    expect(
+      isCountedSession(
+        session({ duration: ABANDONED_SESSION_SECONDS - 1, completed: false }),
+      ),
+    ).toBe(false);
+  });
+
+  it("drops a row with no duration yet and a row closed at zero", () => {
+    expect(isCountedSession(session({ duration: null }))).toBe(false);
+    expect(isCountedSession(session({ duration: 0 }))).toBe(false);
+  });
+
+  it("keeps the scrap out of an item's logged minutes", () => {
+    const minutes = totalWorkMinutesForItem(
+      [
+        session({ id: 1, todoId: "task-1", duration: 600 }),
+        session({ id: 2, todoId: "task-1", duration: 12, completed: false }),
+      ],
+      "task-1",
+    );
+    expect(minutes).toBeCloseTo(10);
   });
 });

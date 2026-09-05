@@ -27,13 +27,53 @@ export function sessionTargetId(session: TimerSession): string | null {
 }
 
 /**
+ * How short a never-completed session has to be before it reads as a scrap
+ * rather than as work (#1475).
+ *
+ * Starting the timer and stopping it again seconds later is not a mistake the
+ * UI can prevent — pause closes the in-flight row with the seconds elapsed, and
+ * a reset afterwards has nothing left to withdraw. Those rows then showed up as
+ * a Todo in "work time by todo" and as sessions in the weekly comparison, which
+ * is what #1475 reported: two 12-second rows left by two aborted starts.
+ *
+ * A minute is the resolution the charts themselves work in, so nothing that
+ * survives this cut was ever going to move a bar by a visible amount.
+ */
+export const ABANDONED_SESSION_SECONDS = 60;
+
+/**
+ * True when a row records time worth counting.
+ *
+ * Three kinds of row are dropped: one still in flight (no `duration` yet), one
+ * closed at zero, and an abandoned scrap (never completed AND shorter than
+ * `ABANDONED_SESSION_SECONDS`).
+ *
+ * A long unfinished session is NOT a scrap and stays counted — pausing after 20
+ * real minutes and never coming back is the ordinary way an interrupted phase
+ * ends, and that time was worked. `completed` alone therefore cannot be the
+ * test; it only says whether the phase ran to its target, which is what the
+ * pomodoro-rate card asks separately.
+ *
+ * A type predicate so callers keep the `duration` narrowing they had when this
+ * test was written inline.
+ */
+export function isCountedSession(
+  session: TimerSession,
+): session is TimerSession & { duration: number } {
+  const { duration } = session;
+  if (duration == null || duration <= 0) return false;
+  if (!session.completed && duration < ABANDONED_SESSION_SECONDS) return false;
+  return true;
+}
+
+/**
  * Minutes of real WORK logged against one item.
  *
- * WORK only, and only closed rows: a BREAK is not time spent on the item, and
- * an in-flight session has no `duration` yet — counting it as 0 is the same
- * answer as skipping it, but skipping says so. Fractional minutes are kept
- * (the caller formats), for the same reason the ring keeps them: rounding here
- * would make a list of items add up to less than the total logged.
+ * WORK only, and only rows that count (`isCountedSession`): a BREAK is not time
+ * spent on the item, an in-flight session has no `duration` yet, and an aborted
+ * start is not work. Fractional minutes are kept (the caller formats), for the
+ * same reason the ring keeps them: rounding here would make a list of items add
+ * up to less than the total logged.
  */
 export function totalWorkMinutesForItem(
   sessions: readonly TimerSession[],
@@ -42,7 +82,7 @@ export function totalWorkMinutesForItem(
   let minutes = 0;
   for (const s of sessions) {
     if (s.sessionType !== "WORK") continue;
-    if (s.duration == null || s.duration <= 0) continue;
+    if (!isCountedSession(s)) continue;
     if (sessionTargetId(s) !== itemId) continue;
     minutes += s.duration / 60;
   }

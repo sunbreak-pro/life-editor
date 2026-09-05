@@ -1,5 +1,5 @@
 import type { TimerSession } from "../types/timer";
-import { sessionTargetId } from "./timerSessions";
+import { isCountedSession, sessionTargetId } from "./timerSessions";
 import type { TodoNode } from "../types/todoTree";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
@@ -203,10 +203,17 @@ function startOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), 1);
 }
 
+/**
+ * The WORK sessions every work-time card is allowed to count.
+ *
+ * `isCountedSession` is what decides — in particular it drops the seconds-long
+ * unfinished rows an aborted start leaves behind (#1475), which otherwise
+ * surfaced as a Todo in "work time by todo" and as sessions in the weekly
+ * comparison. Filtering here rather than in the Timer also cleans the rows
+ * already logged by earlier builds.
+ */
 export function getWorkSessions(sessions: TimerSession[]): TimerSession[] {
-  return sessions.filter(
-    (s) => s.sessionType === "WORK" && s.duration != null && s.duration > 0,
-  );
+  return sessions.filter((s) => s.sessionType === "WORK" && isCountedSession(s));
 }
 
 export function aggregateByDay(
@@ -482,7 +489,7 @@ export function aggregateWorkBreakBalance(
   }
 
   for (const s of sessions) {
-    if (s.duration == null || s.duration <= 0) continue;
+    if (!isCountedSession(s)) continue;
     const key = toDateStr(new Date(s.startedAt));
     const bucket = map.get(key);
     if (!bucket) continue;
@@ -503,7 +510,7 @@ export function aggregateDailyTimeline(
   const blocks: TimelineBlock[] = [];
 
   for (const s of sessions) {
-    if (s.duration == null || s.duration <= 0) continue;
+    if (!isCountedSession(s)) continue;
     const started = new Date(s.startedAt);
     if (toDateStr(started) !== date) continue;
     blocks.push({
