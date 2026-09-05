@@ -3,6 +3,7 @@ import { act, renderHook } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { ThemeProvider } from "../src/context/ThemeContext";
 import { useThemeContext } from "../src/hooks/useThemeContext";
+import { i18n, LANGUAGE_STORAGE_KEY } from "../src/i18n";
 
 /*
  * ThemeProvider §216 — themeMode migration + system resolution + fontFamily /
@@ -47,10 +48,17 @@ const wrapper = ({ children }: { children: ReactNode }) => (
   <ThemeProvider>{children}</ThemeProvider>
 );
 
-beforeEach(() => {
+beforeEach(async () => {
   localStorage.clear();
   document.documentElement.removeAttribute("data-theme");
   document.documentElement.removeAttribute("data-reduce-motion");
+  document.documentElement.removeAttribute("lang");
+  // setLanguage writes the i18next SINGLETON, and the Provider derives its
+  // language default back out of that singleton — so without this reset one ja
+  // case would boot every later mount in the file as ja. localStorage.clear()
+  // does not cover it: the singleton reads the key once at import time and
+  // holds the value in module state from then on.
+  await i18n.changeLanguage("en");
   document.documentElement.style.fontFamily = "";
   // jsdom shares one document across the cases in a file — metas injected by
   // the #1007 case would otherwise leak into (and be mutated by) its
@@ -146,6 +154,38 @@ describe("ThemeProvider §216", () => {
     expect(document.documentElement.hasAttribute("data-reduce-motion")).toBe(
       false,
     );
+  });
+
+  /*
+   * #1481 — the UI language has to reach <html lang>, or a Japanese screen is
+   * still announced as English by screen readers, offered for translation by
+   * the browser, and matched by the wrong `:lang()` branch.
+   *
+   * Assert the ATTRIBUTE, not the `.lang` IDL alias. A fix that only wrote the
+   * property would pass vacuously against the alias while everything that
+   * actually consumes the language kept reading the stale attribute.
+   */
+  it("reflects the UI language on <html lang> (#1481)", () => {
+    installMatchMedia(false);
+    const { result } = renderHook(() => useThemeContext(), { wrapper });
+    expect(document.documentElement.getAttribute("lang")).toBe("en");
+
+    act(() => result.current.setLanguage("ja"));
+    expect(document.documentElement.getAttribute("lang")).toBe("ja");
+
+    act(() => result.current.setLanguage("en"));
+    expect(document.documentElement.getAttribute("lang")).toBe("en");
+  });
+
+  it("picks the stored language up on mount, not just on change (#1481)", () => {
+    // A reload restores the choice through useLocalStorage, and the effect has
+    // to run on the FIRST render too — otherwise the attribute is only ever
+    // correct for someone who toggles the setting in this session.
+    localStorage.setItem(LANGUAGE_STORAGE_KEY, "ja");
+    installMatchMedia(false);
+    const { result } = renderHook(() => useThemeContext(), { wrapper });
+    expect(result.current.language).toBe("ja");
+    expect(document.documentElement.getAttribute("lang")).toBe("ja");
   });
 
   it("applies font-family to documentElement (system clears the inline style)", () => {

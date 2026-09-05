@@ -79,7 +79,8 @@ function systemPrefersDark(): boolean {
 
 /*
  * Shared ThemeProvider (W1, extended §216). Applies `data-theme` +
- * `data-reduce-motion` + root font-size + root font-family to documentElement
+ * `data-reduce-motion` + `lang` + root font-size + root font-family to
+ * documentElement
  * and persists via useLocalStorage. `theme` is the RESOLVED value (system mode
  * is resolved here via matchMedia and re-resolved on OS change); `themeMode` is
  * the user's stored choice. Language changes are forwarded to the SHARED
@@ -239,6 +240,26 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       document.documentElement.setAttribute("data-reduce-motion", reduceMotion);
     }
   }, [reduceMotion]);
+
+  useEffect(() => {
+    /*
+     * #1481 — mirror the UI language onto <html lang>. index.html
+     * ships `lang="en"` as the pre-hydration default (it matches i18n's
+     * `fallbackLng`), and nothing ever rewrote it — so a Japanese UI stayed
+     * announced as English. Screen readers used English pronunciation, browsers
+     * offered to translate an already-translated page, and `:lang()` matched
+     * the wrong branch.
+     *
+     * `language` is the validated "en" | "ja" union, so it is already a legal
+     * BCP-47 subtag: no mapping table, no region suffix.
+     *
+     * setAttribute rather than the `lang` IDL property, matching the data-theme
+     * line above: the attribute is what `:lang()`, the accessibility tree and
+     * the translation heuristics all read, and it is the form a test can assert
+     * without leaning on jsdom to reflect an IDL alias.
+     */
+    document.documentElement.setAttribute("lang", language);
+  }, [language]);
 
   // Explicit theme setter (back-compat): record it as an explicit mode so the
   // picker and the resolved value stay consistent. toggleTheme flips the
