@@ -254,6 +254,25 @@ describe("SettingsScreen — the Tips row (#1174)", () => {
     ).toBe("page");
   });
 
+  /*
+   * The tip used to hardcode ⌘K, so Windows read "⌘K から検索・変更" one row
+   * under a command-palette keycap saying "Ctrl K". This suite's t() mock
+   * appends whatever was interpolated, which is what makes the choice visible.
+   * jsdom's userAgent never matches mac, so this pins the Windows / Linux
+   * branch whatever machine it runs on.
+   */
+  it("names the command palette with this platform's modifier", async () => {
+    await renderSettings();
+    pressRow("settings.tabs.tips");
+
+    const dialog = screen.getByRole("dialog", { name: "settings.tabs.tips" });
+    const text = dialog.textContent ?? "";
+    expect(text.includes("settings.detail.tips.palette.title|Ctrl K")).toBe(
+      true,
+    );
+    expect(text.includes("⌘")).toBe(false);
+  });
+
   it("closes again, leaving the body it was opened over", async () => {
     await renderSettings();
 
