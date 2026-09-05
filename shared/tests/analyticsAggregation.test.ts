@@ -10,6 +10,8 @@ import type {
 import {
   aggregateByDay,
   aggregateByTodo,
+  aggregateDailyTimeline,
+  aggregateWorkBreakBalance,
   computeSummary,
   aggregateWorkTimeByTag,
   aggregateTodoCompletionTrend,
@@ -786,5 +788,57 @@ describe("aggregateTagUsage", () => {
         "2026-07-31",
       ),
     ).toEqual([]);
+  });
+});
+
+/*
+ * #1475 — start → pause → reset leaves a seconds-long unfinished row in
+ * timer_sessions (pause closes it as a partial; reset has nothing left to
+ * withdraw). Two aborted starts put a Todo into "work time by todo" and two
+ * sessions into the weekly comparison for 25 seconds of nothing. Every card
+ * that reads work time now goes through `isCountedSession`, which also cleans
+ * the rows earlier builds already wrote — the user cannot delete them from the
+ * app.
+ */
+describe("abandoned session scraps (#1475)", () => {
+  function dayKeyOf(d: Date): string {
+    const m = `${d.getMonth() + 1}`.padStart(2, "0");
+    const day = `${d.getDate()}`.padStart(2, "0");
+    return `${d.getFullYear()}-${m}-${day}`;
+  }
+
+  const scraps = [
+    makeSession({ id: 18, todoId: "task-1", duration: 12, completed: false }),
+    makeSession({ id: 19, todoId: null, duration: 13, completed: false }),
+  ];
+
+  it("leaves no todo in the per-todo work time", () => {
+    const named = new Map([["task-1", "Write the report"]]);
+    expect(aggregateByTodo(scraps, named)).toEqual([]);
+  });
+
+  it("counts no sessions and no minutes in the summary", () => {
+    const summary = computeSummary(scraps);
+    expect(summary.totalSessions).toBe(0);
+    expect(summary.totalMinutes).toBe(0);
+  });
+
+  // The half that must NOT change: an interrupted phase is real work.
+  it("still counts a long session that was paused and never resumed", () => {
+    const summary = computeSummary([
+      makeSession({ duration: 20 * 60, completed: false }),
+    ]);
+    expect(summary.totalSessions).toBe(1);
+    expect(summary.totalMinutes).toBeCloseTo(20);
+  });
+
+  it("adds nothing to the work/break balance", () => {
+    const buckets = aggregateWorkBreakBalance(scraps, 7);
+    expect(buckets.every((b) => b.workMinutes === 0)).toBe(true);
+  });
+
+  it("draws no block on the daily timeline", () => {
+    const today = dayKeyOf(scraps[0].startedAt);
+    expect(aggregateDailyTimeline(scraps, today)).toEqual([]);
   });
 });

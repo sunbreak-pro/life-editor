@@ -252,6 +252,15 @@ export function TimerProvider({
     closeSession(elapsed, false);
   }, [state, closeSession]);
 
+  /*
+   * Reset does NOT retract what was already logged (#1475). By the time it runs
+   * the row is usually closed already — a pause closes it as a partial — so
+   * there is nothing left here to withdraw, and a run abandoned after 20 real
+   * minutes is still time that was worked. Whether a row counts is decided when
+   * the log is read: `isCountedSession` (utils/timerSessions) drops the
+   * seconds-long scraps an aborted start leaves behind, which also cleans the
+   * ones earlier builds already wrote.
+   */
   const reset = useCallback(() => {
     const now = Date.now();
     const elapsed = computeElapsed(state, now);
