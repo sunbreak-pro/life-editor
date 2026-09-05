@@ -134,7 +134,7 @@ describe("EventEditorPane date row", () => {
       <EventEditorPane
         item={ITEM}
         labels={EDITOR_LABELS}
-        handlers={{ onSave: vi.fn()}}
+        handlers={{ onSave: vi.fn() }}
         options={{ canEditDate: true, canEditAllDay: true }}
       />,
     );
@@ -162,7 +162,7 @@ describe("EventEditorPane date row", () => {
       <EventEditorPane
         item={ITEM}
         labels={EDITOR_LABELS}
-        handlers={{ onSave: vi.fn()}}
+        handlers={{ onSave: vi.fn() }}
         options={{ canEditDate: true, canEditAllDay: true }}
       />,
     );
@@ -178,7 +178,7 @@ describe("EventEditorPane date row", () => {
       <EventEditorPane
         item={ITEM}
         labels={EDITOR_LABELS}
-        handlers={{ onSave: vi.fn()}}
+        handlers={{ onSave: vi.fn() }}
         options={{ canEditDate: true, canEditAllDay: true }}
       />,
     );

@@ -121,6 +121,10 @@ const TODOS = [
 function workService(): DataService {
   return stubDataService({
     fetchTodoTree: vi.fn(async () => TODOS),
+    // #1375: the pick list is todos AND the coming week's events, read in one
+    // `Promise.all`. Leaving this out rejects the whole load, which shows up
+    // here as an empty picker rather than as a replayed one.
+    fetchScheduleItemsByDateRange: vi.fn(async () => []),
     fetchTimerSettings: vi.fn(async () => ({ targetSessions: 4 })),
     fetchTimerSessions: vi.fn(async () => []),
     fetchPomodoroPresets: vi.fn(async () => []),
@@ -158,7 +162,7 @@ describe("Work — second visit", () => {
     // While the host is fetching, PomodoroTodoSelector swaps its trigger for a
     // skeleton bar. The trigger being present on the FIRST frame is exactly
     // "the pick list came back without a load".
-    screen.getByRole("button", { name: "Select a todo…" });
+    screen.getByRole("button", { name: "Select a todo or an event…" });
 
     pending.resolve(TODOS);
   });

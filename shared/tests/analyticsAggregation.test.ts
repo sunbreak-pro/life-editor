@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import type { TimerSession } from "../src/types/timer";
 import type { TodoNode } from "../src/types/todoTree";
+import type { ScheduleItem } from "../src/types/schedule";
 import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
@@ -201,6 +202,32 @@ function liveTodos(...ids: string[]): TodoNode[] {
     parentId: null,
     order: i,
     createdAt: "2025-01-01T00:00:00.000Z",
+  }));
+}
+
+/**
+ * Live event stand-in (#1375) — ids absent from the list read as trashed, the
+ * same rule `liveTodos` encodes for the todo side. Only `id` and `isDeleted`
+ * are ever read (`WorkTimeItem`); the rest is there because ScheduleItem
+ * requires it.
+ */
+function liveEvents(...ids: string[]): ScheduleItem[] {
+  return ids.map((id) => ({
+    id,
+    date: "2025-01-01",
+    title: id,
+    startTime: "09:00",
+    endTime: "10:00",
+    completed: false,
+    completedAt: null,
+    routineId: null,
+    templateId: null,
+    memo: null,
+    noteId: null,
+    content: null,
+    isDeleted: false,
+    createdAt: "2025-01-01T00:00:00.000Z",
+    updatedAt: "2025-01-01T00:00:00.000Z",
   }));
 }
 
@@ -406,6 +433,132 @@ describe("aggregateWorkTimeByTag", () => {
         totalMinutes: 10,
       },
     ]);
+  });
+
+  /*
+   * ────────────────────────────────────────────────────────────────────────
+   * #1375 — Events are work-time targets too.
+   *
+   * The regression half comes first and is the point of the block: every test
+   * above this line calls the function the way a Todo-only host does, and they
+   * all still pass unchanged. This one pins the SUM explicitly so a future
+   * change to the event path cannot quietly move a Todo-only number and be
+   * caught only by a `toHaveLength`.
+   * ────────────────────────────────────────────────────────────────────────
+   */
+  it("leaves a Todo-only caller's numbers exactly where they were", () => {
+    const result = aggregateWorkTimeByTag(
+      [
+        makeSession({ id: 1, todoId: "task-1", duration: 1200 }), // 20 min, tagged
+        makeSession({ id: 2, todoId: "task-2", duration: 600 }), // 10 min, untagged
+      ],
+      [makeUnifiedAssignment()],
+      [makeUnifiedTag()],
+      liveTodos("task-1", "task-2"),
+    );
+
+    expect(result).toEqual([
+      {
+        kind: "tag",
+        tagId: "tag-a",
+        tagName: "Tag A",
+        tagColor: "#ff0000",
+        totalMinutes: 20,
+      },
+      {
+        kind: "untagged",
+        tagId: null,
+        tagName: null,
+        tagColor: null,
+        totalMinutes: 10,
+      },
+    ]);
+  });
+
+  it("attributes an event's work time to the event's tag", () => {
+    const result = aggregateWorkTimeByTag(
+      [makeSession({ id: 1, todoId: null, eventId: "event-1", duration: 1800 })],
+      [makeUnifiedAssignment({ itemId: "event-1" })],
+      [makeUnifiedTag()],
+      [...liveTodos(), ...liveEvents("event-1")],
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({ kind: "tag", tagId: "tag-a" });
+    expect(result[0].totalMinutes).toBeCloseTo(30);
+  });
+
+  // The reason the two lists are concatenated rather than aggregated apart: a
+  // tag sits ABOVE the role split, so an hour on the todo and an hour on the
+  // calendar entry are two hours of the same tag — not two half-size slices.
+  it("sums todo work and event work into one slice per tag", () => {
+    const result = aggregateWorkTimeByTag(
+      [
+        makeSession({ id: 1, todoId: "task-1", duration: 1200 }), // 20 min
+        makeSession({
+          id: 2,
+          todoId: null,
+          eventId: "event-1",
+          duration: 600, // 10 min
+        }),
+      ],
+      [
+        makeUnifiedAssignment({ id: "asg-1", itemId: "task-1" }),
+        makeUnifiedAssignment({ id: "asg-2", itemId: "event-1" }),
+      ],
+      [makeUnifiedTag()],
+      [...liveTodos("task-1"), ...liveEvents("event-1")],
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].totalMinutes).toBeCloseTo(30);
+  });
+
+  it("counts work on an untagged event as untagged, not as a missing item", () => {
+    const result = aggregateWorkTimeByTag(
+      [makeSession({ id: 1, todoId: null, eventId: "event-1", duration: 600 })],
+      [],
+      [makeUnifiedTag()],
+      [...liveTodos(), ...liveEvents("event-1")],
+    );
+
+    expect(result).toEqual([
+      {
+        kind: "untagged",
+        tagId: null,
+        tagName: null,
+        tagColor: null,
+        totalMinutes: 10,
+      },
+    ]);
+  });
+
+  // #428 parity: the trash rule has to reach the new column too. An event in
+  // the bin is exactly as absent from `liveItems` as a trashed todo, and its
+  // minutes must vanish rather than pile into "untagged".
+  it("drops work on a trashed event instead of counting it as untagged", () => {
+    const result = aggregateWorkTimeByTag(
+      [
+        makeSession({ id: 1, todoId: "task-1", duration: 1200 }), // 20 min, tagged
+        makeSession({
+          id: 2,
+          todoId: null,
+          eventId: "event-trashed",
+          duration: 1800,
+        }),
+      ],
+      [makeUnifiedAssignment()],
+      [makeUnifiedTag()],
+      // The trashed event is absent, and so is the soft-deleted one the guard
+      // filters out — both routes to "not live" have to behave the same.
+      [
+        ...liveTodos("task-1"),
+        ...liveEvents("event-other").map((e) => ({ ...e, isDeleted: true })),
+      ],
+    );
+
+    expect(result).toHaveLength(1);
+    expect(result[0].totalMinutes).toBeCloseTo(20);
   });
 });
 

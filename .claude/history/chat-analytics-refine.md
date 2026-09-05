@@ -1,5 +1,27 @@
 # HISTORY (chat-analytics-refine)
 
+### 2026-09-02 - Work の実績時間を Event にも紐づける（#1375 / PR #1456）
+
+#### 概要
+
+#1379 で切り出した残り全部。Work タイマーの計測先を Todo だけでなく Event にも広げ、タグ別稼働時間が両方を含むようにした。#1373 で Event から完了ピルを外した穴を「実績時間」で埋める、という Issue の狙いに沿う。DDL 1 本を含むのでマージ順にゲートがある。
+
+#### 変更点
+
+- **DDL `supabase/migrations/0029_timer_sessions_event_link.sql`**: `timer_sessions` に `event_id text` + 索引 + `check (task_id is null or event_id is null)`。ローカルファイル先行で **push はユーザー**（CLAUDE.md §7.3）。「先に決めること」の保存形は**参照列を足す案**を採用し、Event 側に合計値を持つ案は却下した — 集計値の二重持ちはセッションの削除・部分停止のたびに再計算が要り、ズレたときに直す手立てが無い。参照列なら実績時間は常に導出値。FK は張らない（0018 の `task_id` の理由をそのまま踏襲 = セッションは対象より長生きしてよい）。role 判別列は不要（id は role を跨いで一意 = CLAUDE.md §4 なので、どちらの列に入っているかが role そのもの）
+- **Service 境界**: `startTimerSession(type, todoId?)` → `startTimerSession(type, target?: WorkTarget)`。`WorkTarget { kind: "todo" | "event"; id }` の 1 オブジェクトにしたのは、任意引数 2 本にすると両方渡せてしまい 0029 の CHECK まで気付けないため。読み側は `fetchSessionsByEventId` を新設（PostgREST の filter は列名を名指しするので `fetchSessionsByTodoId` と分けた方が素直）
+- **集計 `aggregateWorkTimeByTag`**: 4 番目の引数を `TodoNode[]` → 構造型 `WorkTimeItem[]`（`{ id, isDeleted? }`）に。`aggregateTagUsage` の `TagUsageItem` と同じ考え方で、Todo だけ渡す既存呼び出しは**シグネチャも数値も変わらない**。セッションの対象 id は新設 `shared/src/utils/timerSessions.ts::sessionTargetId` が `todoId || eventId` で畳む（空文字を null に落とす挙動は必須 — 「対象なし = untagged」と「対象が live でない = 破棄」で扱いが真逆のため）
+- **Work のピッカー**: Todo と「今日から 7 日先まで」の予定を **1 つのリスト**で出す。2 つのピッカーに割らないのは「今何をやっているか」が 1 つの問いだから。種類は先頭アイコンと、選択後のチップの色（chip-task 青 / chip-event 紫）で示す。読み込みは `Promise.all` の 1 ロードにまとめた（2 本に割ると速い方が着いた瞬間に skeleton が外れ、半分欠けたリストが見える）。`useSyncDomains("todos", "schedule")`・snapshotKey は `workTodoOptions` → `workTargetOptions`
+- **`ActiveTodo` → `ActiveWorkItem` / `activeTodo` → `activeItem` / `setActiveTodo` → `setActiveItem` に改名**: Event が入る箱を `activeTodo` と呼び続けると「読めてしまうが間違っている」状態になり、名前の古さはコンパイラが検出できない。11 ファイル + テスト 5 本の機械的な追随
+- **予定側の実績時間**: `EventEditorPane` に任意 prop `workTime`（`{ label, value }` の bundle = reminder / convert と同じイディオム）を足し、読み取り専用行として描く。文字列で受けるのは pane が copy も formatter も持たないため（§6.4）。ホスト側 `web/src/schedule/useEventWorkTime.ts` が `fetchSessionsByEventId` → `totalWorkMinutesForItem` で毎回導出する。切り替え時の値の持ち越しは **setState で消さず、結果に id を持たせて導出で判定**した（`useDomainLoad` と同じ形 — effect 内 setState は `react-hooks/set-state-in-effect` に引っかかり、実際に lint が落ちて気付いた）
+- **テスト**: 新規 `shared/tests/timerSessions.test.ts`（`sessionTargetId` の空文字・列欠落・`totalWorkMinutesForItem` の break / 未終了 / 端数）。`analyticsAggregation.test.ts` に #1375 ブロックを追加 — **先頭が「Todo だけの呼び出しの数値を丸ごと固定する回帰テスト」**で、DoD の「既存集計が壊れない」をここで釘打ちしている。続いて Event の計上・Todo と Event を同じタグへ合算・タグ無し Event・**ゴミ箱の Event を破棄（#428 の規則が新列にも届くこと）**。pane / selector / reducer / mapper / WorkScreen / ScheduleEventEditor 側にもそれぞれ追加
+- **検証**: CI verify ジョブを上から全部ローカル実行して緑（shared 286 files 2876 tests / web 112 files 1051 tests / desktop 30 / mcp-server 322 + `docs-lint: OK`）。実ブラウザ確認は chat-main 側
+
+#### つまずき
+
+- **web の vitest が全件並列だと `briefingEveningLazyMount` で 2 本落ちる**。単体では 5 秒で緑、2 回目のフル実行も緑。memory `cold-vite-cache-fails-lazy-mount-tests` の再現で、本変更とは無関係
+- **web の typecheck が「無関係な既存エラー」を大量に出したのは shared の dist が古かったから**。`web/tsconfig.json` は `../shared` を参照するので、shared を build する前の web 型検査は**前回ビルドの d.ts を見ている**。`EventEditorItem` に `completed` が要る等の幻のエラーが並んだら、まず `cd shared && npm run build`
+
 ### 2026-09-01 - タグ使用状況カード（#1379 / PR #1419）
 
 #### 概要

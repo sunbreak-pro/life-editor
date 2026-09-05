@@ -64,15 +64,30 @@ function Probe() {
   const t = useTimerContext();
   return (
     <div>
-      <span data-testid="active">{t.activeTodo?.title ?? "(none)"}</span>
+      <span data-testid="active">{t.activeItem?.title ?? "(none)"}</span>
       <button onClick={t.start}>start</button>
       <button onClick={() => t.setPhase("BREAK")}>to-break</button>
       <button
         onClick={() =>
-          t.setActiveTodo({ id: "task-picked", title: "Write the spec" })
+          t.setActiveItem({
+            id: "task-picked",
+            title: "Write the spec",
+            kind: "todo",
+          })
         }
       >
         pick
+      </button>
+      <button
+        onClick={() =>
+          t.setActiveItem({
+            id: "event-picked",
+            title: "Piano lesson",
+            kind: "event",
+          })
+        }
+      >
+        pick-event
       </button>
     </div>
   );
@@ -126,7 +141,7 @@ describe("TimerProvider — unattributed WORK start (#1116)", () => {
     expect(startTimerSession).toHaveBeenCalledExactlyOnceWith("WORK", undefined);
   });
 
-  it("leaves the active-todo chip empty", async () => {
+  it("leaves the linked-item chip empty", async () => {
     await renderTimer();
     expect(screen.getByTestId("active").textContent).toBe("(none)");
 
@@ -141,10 +156,24 @@ describe("TimerProvider — unattributed WORK start (#1116)", () => {
     await click("start");
 
     expect(createTodo).not.toHaveBeenCalled();
-    expect(startTimerSession).toHaveBeenCalledExactlyOnceWith(
-      "WORK",
-      "task-picked",
-    );
+    expect(startTimerSession).toHaveBeenCalledExactlyOnceWith("WORK", {
+      kind: "todo",
+      id: "task-picked",
+    });
+  });
+
+  // #1375: the same path with an Event picked. The kind is what routes the id
+  // to `event_id`, so it has to reach the service call unchanged.
+  it("passes a picked event through as an event target", async () => {
+    await renderTimer();
+    await click("pick-event");
+    await click("start");
+
+    expect(createTodo).not.toHaveBeenCalled();
+    expect(startTimerSession).toHaveBeenCalledExactlyOnceWith("WORK", {
+      kind: "event",
+      id: "event-picked",
+    });
   });
 
   it("creates nothing for a break either", async () => {

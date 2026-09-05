@@ -213,16 +213,22 @@ describe("SET_CONFIG", () => {
   });
 });
 
-describe("SET_ACTIVE_TODO", () => {
+describe("SET_ACTIVE_ITEM", () => {
   it("sets and clears the attributed todo", () => {
     let s = initial();
-    s = timerReducer(s, {
-      type: "SET_ACTIVE_TODO",
-      todo: { id: "task-1", title: "Write tests" },
-    });
-    expect(s.activeTodo).toEqual({ id: "task-1", title: "Write tests" });
-    s = timerReducer(s, { type: "SET_ACTIVE_TODO", todo: null });
-    expect(s.activeTodo).toBeNull();
+    const item = { id: "task-1", title: "Write tests", kind: "todo" as const };
+    s = timerReducer(s, { type: "SET_ACTIVE_ITEM", item });
+    expect(s.activeItem).toEqual(item);
+    s = timerReducer(s, { type: "SET_ACTIVE_ITEM", item: null });
+    expect(s.activeItem).toBeNull();
+  });
+
+  // #1375: an Event is a first-class target, and the kind has to survive the
+  // reducer — it is what decides which column the started row writes to.
+  it("carries an event target through unchanged", () => {
+    const item = { id: "event-1", title: "Study", kind: "event" as const };
+    const s = timerReducer(initial(), { type: "SET_ACTIVE_ITEM", item });
+    expect(s.activeItem).toEqual(item);
   });
 });
 

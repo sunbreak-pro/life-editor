@@ -41,6 +41,7 @@ function sessionRow(overrides: Partial<TimerSessionRow> = {}): TimerSessionRow {
     id: 7,
     user_id: USER,
     task_id: "task-123",
+    event_id: null,
     session_type: "WORK",
     started_at: "2026-06-10T09:00:00.000Z",
     ended_at: "2026-06-10T09:25:00.000Z",
@@ -115,8 +116,42 @@ describe("timerMapper — timer_sessions", () => {
     expect(ins).toEqual({
       session_type: "FREE",
       task_id: null,
+      event_id: null,
       started_at: NOW,
     });
+  });
+
+  // #1375: the target decides WHICH column carries the id, and the other one
+  // is written null rather than left off — the 0029 CHECK refuses a row that
+  // names both, and an omitted key would let a stale value survive an upsert.
+  it("newTimerSessionInsert routes a todo target to task_id", () => {
+    expect(
+      newTimerSessionInsert("WORK", { kind: "todo", id: "task-9" }, NOW),
+    ).toEqual({
+      session_type: "WORK",
+      task_id: "task-9",
+      event_id: null,
+      started_at: NOW,
+    });
+  });
+
+  it("newTimerSessionInsert routes an event target to event_id", () => {
+    expect(
+      newTimerSessionInsert("WORK", { kind: "event", id: "event-9" }, NOW),
+    ).toEqual({
+      session_type: "WORK",
+      task_id: null,
+      event_id: "event-9",
+      started_at: NOW,
+    });
+  });
+
+  it("rowToTimerSession surfaces event_id as eventId", () => {
+    const s = rowToTimerSession(
+      sessionRow({ task_id: null, event_id: "event-4" }),
+    );
+    expect(s.todoId).toBeNull();
+    expect(s.eventId).toBe("event-4");
   });
 
   it("closeTimerSessionPatch stamps ended_at + bumps updated_at", () => {

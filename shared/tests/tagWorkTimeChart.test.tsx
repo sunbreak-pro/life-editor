@@ -113,6 +113,7 @@ describe("TagWorkTimeChart slice mapping (#334)", () => {
       <TagWorkTimeChart
         sessions={sessions}
         nodes={liveTodos(...tags.map((_, i) => `task-${i}`), "task-none")}
+        events={[]}
         assignments={assignments}
         tags={tags}
         labels={LABELS}
@@ -135,6 +136,7 @@ describe("TagWorkTimeChart slice mapping (#334)", () => {
       <TagWorkTimeChart
         sessions={[session(1, "task-a", 30), session(2, "task-b", 10)]}
         nodes={liveTodos("task-a", "task-b")}
+        events={[]}
         assignments={[
           assignment("task-a", "tag-a"),
           assignment("task-b", "tag-b"),
@@ -152,6 +154,7 @@ describe("TagWorkTimeChart slice mapping (#334)", () => {
       <TagWorkTimeChart
         sessions={[]}
         nodes={liveTodos("task-a")}
+        events={[]}
         assignments={[assignment("task-a", "tag-a")]}
         tags={[tag("tag-a", "Tag A", "#ff0000")]}
         labels={LABELS}

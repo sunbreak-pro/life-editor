@@ -52,7 +52,16 @@ export function RightSidebarContents({
 
   return (
     <>
-      {/* 48px header — same height as the SidebarNav header. */}
+      {/*
+       * 48px header. Deliberately SHORTER than the app's top chrome
+       * (--spacing-lumen-header, 3.5 / 3.75rem) and not tied to it: this row
+       * is not a top-of-screen row. On the wide layout the panel is a sibling of
+       * <main> BELOW <SectionHeader>, so its header starts where the section
+       * divider ends and lines up with nothing above it — it reads as panel
+       * chrome, one step down from the section it belongs to. (It used to
+       * claim parity with the SidebarNav header, which was true only while
+       * that header was wrongly 48px — see #1399.)
+       */}
       <div className="flex h-12 flex-shrink-0 items-center justify-between border-b border-lumen-border pl-4 pr-3">
         <span className="text-sm font-semibold text-lumen-text">{title}</span>
         {onClose && closeLabel && (

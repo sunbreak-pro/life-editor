@@ -119,10 +119,22 @@ export function SidebarNav({
       )}
       aria-label={labels.appName}
     >
-      {/* Header: brand mark (+ name) + collapse toggle */}
+      {/*
+       * Header: brand mark (+ name) + collapse toggle.
+       *
+       * The height is the shared --spacing-lumen-header pair, NOT a literal
+       * (#1399). This row and <SectionHeader> are siblings across the top of
+       * the wide layout — same starting y, both ending in a border-b — so
+       * their heights have to be one number or the seam shows. At this row's
+       * own `h-12` (3rem) against the header's 3.5 / 3.75rem it did: the brand
+       * mark sat above the section title and the two dividers stepped 13.5px
+       * apart at the default font size. Keep it equal to SectionHeader's
+       * minimum; do not re-inline a value.
+       */}
       <div
         className={cn(
-          "flex h-12 shrink-0 items-center justify-between border-b border-lumen-border",
+          "flex shrink-0 items-center justify-between border-b border-lumen-border",
+          "h-lumen-header md:h-lumen-header-wide",
           collapsed ? "px-1.5" : "px-2",
         )}
       >
