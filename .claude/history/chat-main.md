@@ -1,21 +1,23 @@
 # HISTORY (chat-main)
 
-### 2026-09-02 - 夜間ルーチン 2 本を Task Scheduler へ登録（PR #1446 / #1447）+ #1408 の急ぎ案件は解決済みを実測
+### 2026-09-05 - #1408 Desktop 全画面の実ブラウザ点検を実行 — finding 20 件（#1467〜#1486）起票・レポート PR #1487
 
 #### 概要
 
-/clear 後の引き継ぎメモに沿って #1335 の残タスクを消化した。ただし**メモを書いた後に事態が進んでいて、急ぎとされた「main が赤い」も未コミット変更の着地も既に解消済み**だった。実際に残っていたのは Phase 1 の 2 本（digest / night-safe）の登録で、手動実走で報告の自動追記を確認してから `schtasks` に登録し、docs を実態へ揃えた。
+計画書 `2026-09-02-desktop-screen-audit.md` どおりに実行セッションを回した。7 画面を `playwright-ui-verifier` の直列起動で点検し（2026-09-02 に 6 画面・セッションが日付を跨いで 2026-09-05 に settings）、結合 S1〜S10 と後始末はメインが playwright MCP を直接操作。所見はすべてスクリーンショット / コード / SQL で spot check してから 1 件 1 Issue で起票し、レポートを `docs/reports/2026-09-05-desktop-screen-audit.md` に置いて計画書を COMPLETED で archive へ移した（PR #1487 open）。冒頭で issue-prompter も回し、5 レーン分の `/goal` を提示した（配布はユーザー）。
 
 #### 変更点
 
-- **引き継ぎメモとの差分（実測）**: ① `TagUsageCard.tsx:13` は `AnalyticsEmptyState` を正しく import 済みで main（`617d4981`）の CI は緑。重複していた #1430 / #1431 / #1432 は**3 本とも MERGED**（後発が先行版と同じ結果へ収束したため壊れなかった）② `.claude/automation/` の未コミット 8 本は PR #1443（`24c55fd7`）で着地済み ③ `schtasks` は `LifeEditor-Digest` / `LifeEditor-NightSafe` とも**未登録**を実測 — ここだけが本当の残タスクだった
-- **登録前ゲート = 手動実走**: 21:00 に `run-routine.ps1 -Routine night-safe` を 1 回。3 分で完走し、**launcher が `--output-format json` の `result` を `comm/outbox/chat-night-safe/night-safe-report.md` へ自分で追記した**（09-01 の初回実走が落ちていた箇所。headless の claude は `.claude/` 配下へ Write できないため報告の保存を launcher の仕事に移した設計が、実走で機能することを確認）
-- **`schtasks` 登録**: `LifeEditor-NightSafe`（毎日 22:33）/ `LifeEditor-Digest`（毎日 06:03）。`Get-ScheduledTask` + `Get-ScheduledTaskInfo` で `State = Ready` と `NextRunTime`（22:33 / 翌 06:03）を実測。**`schtasks /Query` は Git Bash の MSYS パス変換で `/Query` がパス化して落ちる**ので、確認は PowerShell 側から
-- **docs 追随 = PR #1446**: `routine-ids.md` を PENDING → **ACTIVE**（Registered 2026-09-02）・見出しと「実走はまだ」の注記を実態へ / `README.md` のファイル表 3 行 + §実行基盤の見出しが「裁定待ち」のままだったので稼働中へ（Phase 2 の `routine-night` は**未登録・手動起動のみ**と明示）/ `2026-07-28-loop-engineering-harness` は残りを絞り、`2026-08-06-autonomous-operation-endpoint` は **BLOCKED → IN PROGRESS**
-- **`2026-05-26-autonomous-dev-routine` を SUPERSEDED + `archive/` へ**: 本書が指定する機構（Anthropic Cloud Routine × 2 + `trig_` 台帳・Steps 8/9）は 2026-08-04 の Phase 1 改訂で退役済みで、後継が loop-engineering-harness の Phase 1〜2。Goal Roadmap の SSOT は `automation/goals.md` 側に残るため参照は切れない
-- **監査報告は別 PR #1447**（outbox は通常 PR に混ぜない = D-20260802-sched-1）: 09-01（ログから手で復元）+ 09-02（自動追記）の 2 回分
-- **#1335 は close していない**: DoD に Phase 2 の `night`（実装レーン）の手動確認と「commit 止まりの成果物」が含まれるため。Issue へ進捗コメントを残し、**判断 2 点**を明示 = ① night を登録するか / night-safe の無人発火を数日見てからか ② `run-routine.ps1 -Routine night` の手動確認をどこで走らせるか（素直に走らせると chat-main のチェックアウト = main に commit が落ちる）
-- **検証**: `LC_ALL=C bash scripts/docs-lint.sh` = OK / `node .claude/scripts/records.mjs check` = OK。コードは未変更（`.claude/` 配下のみ）。作業は一時 worktree `main-chore` 経由で、push 後に削除済み・main のツリーは clean
+- **環境**: dev server は同じリポジトリ直下の vite の先客 5174 を流用（8/31 のサインインが残っていた。自分で立てた 5175 はログイン画面 = origin 別で session が無い → 停止）。1280×800・ja・light・console error 0 がベースライン
+- **画面別（共通項目は 7 画面すべて PASS）**: briefing = ストリーク「最長 (日)」折り返し / schedule = 詳細パネル開でツールバー 2 行 / materials = 検索 0 件の空状態が「まだありません」+ 中央ボタン・テンプレ幅 818 vs 642 / connect = 右パネル常時空・戻ると選択リセット / work = リセットしたセッションが `timer_sessions` に未完了行で残る（SQL で id 18 / 19 を実測）・disabled ボタンの見た目 / analytics = 期間プリセットが Todo トレンドに効かない（`TodosTab.tsx:40` の `days={30}` を実測）・円グラフのラベル切れ・英語ラベル残り・生 id 行・タイル省略・`<html lang="en">` / settings = ショートカット競合が無警告・再割当後の `Ctrl Digit9` 表記・ヒントの「⌘K」
+- **結合**: S1〜S4 / S7 / S10 PASS。**S8 で「アイテムを追加」の Todo タブから作った Todo が Undo で消えない**（Event は消える・2 回再現・リロード後も残る）→ #1485。S5 / S6 は PARTIAL（Todo 側のリンク一覧は製品に無い = チェックリストの前提違い / `timer_sessions` の残骸）。日付跨ぎでテストデータが 9/2 付けになったため、当日付の `PWV1408-main-1〜5` を作って S1〜S3 を回した
+- **棄却 / 格下げしたエージェント報告**: 設定の 4 カテゴリのプレースホルダ（`SettingsScreen.tsx:840-843` で by design）/ 予定の「Todo へ変換」の配置（メニュー側にある）/ テンプレ幅の「サイドバーに被る」（中央モーダルとして正常・幅差だけを起票）
+- **エージェント運用**: 6 画面は 1 回で完走（9〜22 分・61〜135 ツール呼び出し）。settings は 1 回目が ToolSearch 直後に stream 停止（600 秒無進捗）→ 再起動で完走。フォールバック（メイン直接）への切替は不要だった。settings エージェントが素材で誤って Untitled ノートを 1 件作ってゴミ箱へ入れたので、後始末で完全削除（08-29 以前の Untitled 6 件は未接触）
+- **後始末**: MCP の `delete_todo` / `delete_note` / `delete_schedule_item` で 9 件をゴミ箱へ → 繰り返しは UI「すべての予定（過去分も含む）」→ タグはタグ編集モーダル（0 件だと確認ダイアログ無し）→ ゴミ箱で 15 件 + Untitled 1 件を一括完全削除。実測 = `search_all("PWV1408")` 0 / `list_wiki_tags` [] / `list_schedule(09-05〜09-12)` 空 / `items_meta ilike PWV1408` 0 行。設定は light / ja / 18px / ショートカット `{}` へ復元（開始時に残っていた `global:new-task = Ctrl+Digit1` の上書きも既定化）
+- **🛑 残るユーザー手番**: `timer_sessions` id 18（task-1788353805055・13 秒）/ id 19（task null・12 秒）。UI にも read-only MCP にも削除経路が無い（#1408 コメントと #1475 の Gate に記載）
+- **PR の経路**: main 直下ではブランチを切れないため一時 worktree `main-docs-1408` から `docs/1408-desktop-screen-audit-report` を切り、レポート追加 + 計画書の `git mv` → docs-lint 緑 → push → PR #1487 → worktree 削除
+- **issue-prompter（セッション冒頭）**: open PR 0 本・0027 適用済みを実測し、briefing（#1442）/ schedule（#1440 / #1406 / #1405 / #1403 / #1401 / #1371）/ materials（#1439 / #1438）/ shared-fix（#1399）/ tags-docs（#1391 / #1390）/ analytics（#1375）の `/goal` 6 本を提示。采配 = #1408 / #1409 / #1335 / #1300（残り = Release 初回実行と実機 = 人手）/ #1301（#1300 依存）/ #1388（`CalendarTab.tsx` と i18n JSON が schedule 6 件と重なるため後回し）/ Epic 2 本 / 凍結 2 本
+- **申し送り（#1409 Mobile へ）**: 横断で出そうなもの = #1481 / #1474 / #1478 / #1486 / #1480。#1476 と #1485 は Mobile の List+FAB でも同じコードを通る。テストデータの日付は実行日に合わせる
 
 ### 2026-09-02 - Issue 棚卸し + 5 レーンへ /goal 組み立て + #1408 計画書（PR #1441）+ #1335 作業分（PR #1443）+ 判断 4 件の回収
 
