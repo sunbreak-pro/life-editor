@@ -480,8 +480,7 @@ function EventEditorFields({
 }: Omit<EventEditorPaneProps, "className">) {
   // Unpacked back into the flat names the body has always used, so the #893
   // bundles stay a wire-format change and nothing below has to know about them.
-  const { onSave, onDirtyChange, onDismiss, onDelete } =
-    handlers;
+  const { onSave, onDirtyChange, onDismiss, onDelete } = handlers;
   const { originDetail, canEditDate, canEditAllDay, formatDuration } =
     options ?? {};
   const [edits, setEdits] = useState<EventEditorEdits>({});
@@ -778,7 +777,9 @@ function EventEditorFields({
         <label className="flex flex-col gap-1.5">
           <span className={FIELD_LABEL}>{reminder.label}</span>
           <select
-            value={draft.reminderOffset === null ? "" : String(draft.reminderOffset)}
+            value={
+              draft.reminderOffset === null ? "" : String(draft.reminderOffset)
+            }
             onChange={(e) =>
               edit({
                 reminderOffset:
