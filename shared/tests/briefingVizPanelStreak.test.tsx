@@ -94,9 +94,9 @@ describe("BriefingVizPanel — the session log reaches the streak (#993)", () =>
     expect(screen.queryByText(LABELS.streak.noStreak)).toBeNull();
     // Both counters read 2; querying by the label's own row keeps this from
     // matching some unrelated "2" the charts might print.
-    const current = screen.getByText(`${LABELS.streak.current} (days)`);
+    const current = screen.getByText(LABELS.streak.current);
     expect(current.parentElement?.textContent).toContain("2");
-    const longest = screen.getByText(`${LABELS.streak.longest} (days)`);
+    const longest = screen.getByText(LABELS.streak.longest);
     expect(longest.parentElement?.textContent).toContain("2");
   });
 
@@ -105,7 +105,7 @@ describe("BriefingVizPanel — the session log reaches the streak (#993)", () =>
     // one more row. Re-rendering with a longer array must move the number —
     // this is what a memo keyed on the wrong thing would break.
     const { rerender } = renderPanel([workSession(1, 0)]);
-    const current = screen.getByText(`${LABELS.streak.current} (days)`);
+    const current = screen.getByText(LABELS.streak.current);
     expect(current.parentElement?.textContent).toContain("1");
 
     rerender(
@@ -119,7 +119,7 @@ describe("BriefingVizPanel — the session log reaches the streak (#993)", () =>
       />,
     );
 
-    const after = screen.getByText(`${LABELS.streak.current} (days)`);
+    const after = screen.getByText(LABELS.streak.current);
     expect(after.parentElement?.textContent).toContain("2");
   });
 
