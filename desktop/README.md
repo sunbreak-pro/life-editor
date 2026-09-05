@@ -98,7 +98,7 @@ Two things are worth knowing before you cut a tag:
   (Vite rewrites `import.meta.env` into string literals — there is no runtime
   hook to read them later). The workflow injects them from the repository
   secrets `VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`, the same two
-  `deploy-web.yml` already uses. A build with those missing still *succeeds* and
+  `deploy-web.yml` already uses. A build with those missing still _succeeds_ and
   produces a perfectly normal-looking installer whose window is blank, so the
   workflow has a `verify renderer bundle is not empty` step that fails the job
   when the configured Supabase host is absent from the emitted bundle.
@@ -132,7 +132,7 @@ purchased (post-completion call).
 
 **macOS**: worse than a warning — Gatekeeper refuses outright with **"Life
 Editor is damaged and can't be opened"**. Nothing is damaged. Since Big Sur,
-macOS requires a signature to *exist* on arm64 binaries, and `identity: null`
+macOS requires a signature to _exist_ on arm64 binaries, and `identity: null`
 means there is none, so the quarantine check has nothing to evaluate and fails
 closed. Two ways past it, both one-time:
 
@@ -144,7 +144,7 @@ closed. Two ways past it, both one-time:
    xattr -dr com.apple.quarantine "/Applications/Life Editor.app"
    ```
 
-Ad-hoc signing (`mac.identity: "-"`) is *not* a fix for this: an ad-hoc
+Ad-hoc signing (`mac.identity: "-"`) is _not_ a fix for this: an ad-hoc
 signature is only valid on the machine that produced it, so it would trade one
 broken download for a confusing one. The real fix is an Apple Developer Program
 membership ($99/year) for signing plus notarization, which the $0 policy defers
@@ -154,6 +154,53 @@ until after completion.
 unsigned binary means anyone who can spoof the update feed can push arbitrary
 code onto the machine, so the feed gets enabled in the same change as signing —
 never before it.
+
+## Accepting a build on a real machine
+
+A green workflow only proves the installer was _produced_. What it cannot see is
+whether the thing it produced actually runs, so every release gets walked
+through on a real machine before the draft is published. Take the installer from
+the run's artifact (or the draft Release), never a local `npm run dist` build —
+the point is to accept the exact bytes users will get.
+
+```bash
+gh run download <run-id> -n desktop-windows -D ./accept
+./accept/"Life Editor-<version>-x64-setup.exe" /S     # silent, per-user
+```
+
+Then check, in order:
+
+1. **The installed app is the version you meant.** `Life Editor <version>` shows
+   up under `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall`.
+2. **The bundle is not hollow.** `resources/app.asar` contains the Supabase host
+   the app is supposed to talk to. The workflow guard already checked this on
+   the runner; this re-checks it survived packaging.
+3. **Four processes, not one.** Electron starts as ~4 processes (main, GPU,
+   renderer, utility). A shell that crashes on boot still leaves one alive for a
+   moment, so "the process exists" is not a launch check — count them (#545).
+4. **The window paints the sign-in card**, not a blank frame. A blank window is
+   the signature of a build whose Supabase env went missing.
+5. **A round trip reaches the server.** Submit a deliberately wrong
+   address/password. The card must answer **"Email or password is incorrect"**,
+   not "Authentication failed. Please wait a moment and try again." The
+   difference is the whole test: `AuthScreen.tsx::errorKeyFor` only picks the
+   first message when it matches Supabase's literal `Invalid login credentials`
+   reply, and falls back to the second for anything it cannot recognise —
+   including a request that never arrived. So the precise wording is the
+   evidence that the packaged `file://` renderer really reached Supabase. Dev
+   builds pass this trivially; packaged ones are where origin/CSP problems would
+   first show up.
+6. **Sign in for real and add / edit / delete a Todo.** This is the part that
+   needs a human with an account, and it is what the acceptance ultimately
+   certifies.
+
+If you script steps 3-5 rather than eyeballing them, make the script
+**DPI-aware** first (`SetProcessDpiAwarenessContext(-4)`). Windows lies to
+DPI-unaware processes: on a 150 %-scaled display `GetWindowRect` reports a
+3840x2088 window as 2560x1392 and `Cursor.Position` takes those same shrunken
+coordinates, so screenshots look mysteriously off-centre and synthetic clicks
+land a third of the screen away from the field you aimed at. Nothing is wrong
+with the app when that happens.
 
 ## Constraints (Risk 1 — keep the shell thin)
 
