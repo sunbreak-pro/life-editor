@@ -256,8 +256,11 @@ describe("One checkbox on the whole paper (#1442)", () => {
     renderView();
     const box = checkboxIn("Write report");
     expect(box.getAttribute("aria-checked")).toBe("false");
-    // The accessible name says what the control is about, not just its value.
-    expect(box.getAttribute("aria-label")).toBe("Status: Not started");
+    // The accessible name says which row it is about, what it sets, and where
+    // that stands — see the #1486 suite below for the row half of it.
+    expect(box.getAttribute("aria-label")).toBe(
+      "Write report — Status: Not started",
+    );
     expect(box.className).toContain("min-h-11");
   });
 
@@ -306,6 +309,63 @@ describe("One checkbox on the whole paper (#1442)", () => {
   it("leaves no hand-rolled 16px box behind", () => {
     const { container } = renderView();
     expect(container.querySelectorAll("span.h-4.w-4")).toHaveLength(0);
+  });
+});
+
+/*
+ * #1486 — the row's checkbox says WHICH todo it checks.
+ *
+ * PR #1449 (#1442) gave these rows the shared control, so `role="checkbox"` and
+ * `aria-checked` have been right since. What stayed wrong is the name: the
+ * control announced "Status: Not started" and nothing else, so a paper printing
+ * five todos put five identical checkboxes in front of a reader who cannot see
+ * the titles beside them. The row's own title now leads the name.
+ *
+ * The title button next to it keeps toggling (#1442 decided that deliberately)
+ * — it is a mouse affordance, and it carries the title as its own name, so the
+ * row no longer has a control whose purpose the user has to guess.
+ */
+describe("Today's-schedule todo checkbox names its row (#1486)", () => {
+  it("leads with the todo's title, then what the control sets", () => {
+    renderView();
+    expect(checkboxIn("Write report").getAttribute("aria-label")).toBe(
+      "Write report — Status: Not started",
+    );
+  });
+
+  it("reports a finished todo's status in that same name", () => {
+    renderView();
+    const box = checkboxIn("Ship feature");
+    expect(box.getAttribute("aria-label")).toBe("Ship feature — Status: Done");
+    expect(box.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("tells the two todo rows apart by name alone", () => {
+    renderView();
+    // The regression this file guards: before #1486 both of these read the
+    // same string, so the name could not identify the row at all.
+    expect(checkboxIn("Write report").getAttribute("aria-label")).not.toBe(
+      checkboxIn("Ship feature").getAttribute("aria-label"),
+    );
+  });
+
+  it("keeps the hover tooltip on the status alone", () => {
+    renderView();
+    // The sighted user already has the title on the row; repeating it in the
+    // tooltip would just cover the row with the text next to it.
+    expect(checkboxIn("Write report").getAttribute("title")).toBe(
+      "Not started",
+    );
+  });
+
+  it("leaves a control that names no row untouched", () => {
+    renderView();
+    // The carryover rows pass no itemName, so the shared component still
+    // produces the short form — the prop is opt-in, not a silent rewrite of
+    // every checkbox in the app.
+    expect(checkboxIn("Old todo").getAttribute("aria-label")).toBe(
+      "Status: Not started",
+    );
   });
 });
 
