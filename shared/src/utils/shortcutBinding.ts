@@ -7,19 +7,44 @@ import type { KeyBinding } from "../types/shortcut";
  * FROZEN frontend, web-lean.
  */
 
+/*
+ * Physical `code` values whose printed label is NOT the code with its
+ * `Key` / `Digit` prefix removed. Letters and digits are handled by the
+ * generic rule in `codeToLabel` rather than listed one by one.
+ */
 const CODE_LABELS: Record<string, string> = {
-  KeyD: "D",
-  KeyJ: "J",
-  KeyK: "K",
-  KeyN: "N",
-  KeyT: "T",
-  KeyW: "W",
-  KeyZ: "Z",
   Comma: ",",
   Period: ".",
-  Enter: "Enter",
+  Slash: "/",
+  Backslash: "\\",
+  Semicolon: ";",
+  Quote: "'",
   Backquote: "`",
+  Minus: "-",
+  Equal: "=",
+  BracketLeft: "[",
+  BracketRight: "]",
+  Space: "Space",
+  Enter: "Enter",
+  NumpadEnter: "Enter",
+  Tab: "Tab",
 };
+
+/**
+ * The label printed on the physical key a `code` names: `KeyA` -> "A",
+ * `Digit9` -> "9", `Numpad9` -> "9", `Comma` -> ",".
+ *
+ * Rebinding stores `KeyboardEvent.code` (eventToBinding) while the nav
+ * DEFAULTS store `key: "1"`..., so before #1483 a rebound digit rendered as
+ * the raw code ("Ctrl Digit9") one row below a default rendered as "Ctrl 1".
+ * Both sides go through here now.
+ */
+function codeToLabel(code: string): string {
+  const named = CODE_LABELS[code];
+  if (named) return named;
+  const stripped = code.replace(/^(?:Key|Digit|Numpad(?=\d))/, "");
+  return stripped || code;
+}
 
 const KEY_LABELS: Record<string, string> = {
   " ": "Space",
@@ -43,7 +68,7 @@ export function bindingToDisplayString(
   if (binding.alt) parts.push(mac ? "⌥" : "Alt");
 
   if (binding.code) {
-    parts.push(CODE_LABELS[binding.code] ?? binding.code.replace(/^Key/, ""));
+    parts.push(codeToLabel(binding.code));
   } else if (binding.key) {
     parts.push(KEY_LABELS[binding.key] ?? binding.key.toUpperCase());
   }
