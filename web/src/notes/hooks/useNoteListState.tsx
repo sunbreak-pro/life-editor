@@ -98,6 +98,27 @@ export function useNoteListState() {
     [searchedNotes, allTags, assignments, t],
   );
 
+  const setSearchQuery = notes.setSearchQuery;
+  const searchActive = notes.searchQuery.trim() !== "";
+
+  /*
+   * The VAULT's emptiness, not the result set's (#1470) — this is what picks
+   * between "No notes yet" (+ its create button) and the nothing-matched copy,
+   * and no query should be able to make the app claim the vault is empty.
+   */
+  const hasNotes = notes.notes.some((n) => !n.isDeleted);
+
+  /*
+   * #1470 — the query is on and NOTHING came back. Worth its own name because
+   * "no groups" has two very different causes: an empty vault (nothing to show
+   * yet) and a query nobody's notes match (plenty to show, just not for this
+   * word). Reading the second as the first is the whole bug — the side list
+   * answered a search with "No notes yet" and an accent create button, so the
+   * one screen that had to say "try another word" instead offered to make a
+   * note the user never asked for.
+   */
+  const searchEmpty = searchActive && hasNotes && groups.length === 0;
+
   // #283 sort controls (desktop sidebar). Mode ids map 1:1 to NoteSortMode.
   // The date labels live in materials.sidebar (shared with the Daily picker
   // since #369); "title" stays under materials.notes — a daily has no title.
@@ -161,17 +182,50 @@ export function useNoteListState() {
    */
   const [tagFilters, setTagFilters] = useState<readonly string[]>([]);
 
-  const toggleTagFilter = useCallback((key: string) => {
-    setTagFilters((prev) =>
-      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
-    );
-  }, []);
+  const toggleTagFilter = useCallback(
+    (key: string) => {
+      /*
+       * #1470: with nothing matching the query the chips describe the VAULT
+       * rather than the result set (see tagFilterChips), so pressing one can
+       * only mean "narrow by this tag instead of that word" — the mirror of
+       * handleSearchChange dropping the chips when you type. Without it the
+       * row restored below would be a control that does nothing.
+       */
+      if (searchEmpty) setSearchQuery("");
+      setTagFilters((prev) =>
+        prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key],
+      );
+    },
+    [searchEmpty, setSearchQuery],
+  );
 
   const clearTagFilters = useCallback(() => setTagFilters([]), []);
 
+  /*
+   * #1470: the chip row is the control you narrow WITH, so it cannot be derived
+   * from the result set alone — a query matching nothing emptied `sortedGroups`,
+   * which emptied the chips, which left the search box as the only way back
+   * out. With no narrowed set left to describe there is still a vault to
+   * describe, so the row falls back to every tag in it.
+   *
+   * Only in that state: while the query DOES match, chips that narrow to the
+   * matches are the more useful row, and search + chip still combine.
+   */
+  const vaultGroups = useMemo(() => {
+    if (!searchEmpty) return [];
+    return buildTagGroups({
+      notes: notes.notes,
+      tags: allTags,
+      assignments: notes.notes.flatMap((n) => getTagsForItem(n.id)),
+      untaggedLabel: t("materials.notes.untagged"),
+    });
+  }, [searchEmpty, notes.notes, allTags, getTagsForItem, t]);
+
+  const chipGroups = searchEmpty ? vaultGroups : sortedGroups;
+
   const tagFilterChips = useMemo(
     () =>
-      sortedGroups.map((group) => ({
+      chipGroups.map((group) => ({
         id: groupKey(group),
         label: group.tagName,
         count: group.notes.length,
@@ -199,7 +253,7 @@ export function useNoteListState() {
           />
         ),
       })),
-    [sortedGroups],
+    [chipGroups],
   );
 
   // filterTagGroups falls back to the full list when every selection goes stale
@@ -236,7 +290,6 @@ export function useNoteListState() {
    * type) instead of leaving dead state behind. Cleared on the CHANGE, not in
    * an effect watching the derived groups (web lint bans setState in effects).
    */
-  const setSearchQuery = notes.setSearchQuery;
   const handleSearchChange = useCallback(
     (value: string) => {
       setSearchQuery(value);
@@ -244,12 +297,6 @@ export function useNoteListState() {
     },
     [setSearchQuery],
   );
-
-  const hasNotes = groups.length > 0;
-  // `hasNotes` is post-search, so a query that matches nothing empties it. The
-  // mobile header must survive that or the box that caused it becomes
-  // unreachable (desktop renders its search unconditionally, so it is safe).
-  const searchActive = notes.searchQuery.trim() !== "";
 
   return {
     collapsedGroups,
@@ -266,5 +313,6 @@ export function useNoteListState() {
     handleSearchChange,
     hasNotes,
     searchActive,
+    searchEmpty,
   };
 }

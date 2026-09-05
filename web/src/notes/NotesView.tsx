@@ -188,6 +188,7 @@ export function NotesView({
     showTagFilter,
     handleSearchChange,
     hasNotes,
+    searchEmpty,
   } = useNoteListState();
 
   // "[[" link plumbing + cross-tab pending-selection handoff (hooks split).
@@ -526,6 +527,7 @@ export function NotesView({
     toggleDirection: t("materials.sidebar.toggleDirection"),
     tagFilter: t("materials.notes.tagFilterLabel"),
     empty: t("materials.notes.empty"),
+    searchEmpty: t("materials.notes.searchEmpty"),
     addCta: t("materials.notes.addCta"),
     collapseGroup: t("materials.notes.collapseGroup"),
     expandGroup: t("materials.notes.expandGroup"),
@@ -565,6 +567,7 @@ export function NotesView({
       onClearTagFilters={clearTagFilters}
       rowCap={rowCap}
       hasNotes={hasNotes}
+      searchEmpty={searchEmpty}
       visibleGroups={visibleGroups}
       collapsedGroups={collapsedGroups}
       onToggleGroup={toggleGroup}
@@ -729,6 +732,10 @@ export function NotesView({
             <EmptyState
               icon={<FileText aria-hidden />}
               message={
+                /* #1470: `hasNotes` is the vault's, so a query that matched
+                   nothing no longer makes this centre panel claim the vault is
+                   empty — the note to select is still there, just not under
+                   that word. */
                 hasNotes
                   ? t("materials.notes.mainEmpty")
                   : t("materials.notes.empty")

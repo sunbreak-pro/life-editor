@@ -385,6 +385,7 @@
       "searchPlaceholder": "Search notes…",
       "addCta": "Note",
       "empty": "No notes yet",
+      "searchEmpty": "No notes match that search",
       "content": "Content",
       "deleteNote": "Delete note",
       "deleteConfirmBody": "Delete “{{name}}”? It goes to the trash, so you can restore it later.",
