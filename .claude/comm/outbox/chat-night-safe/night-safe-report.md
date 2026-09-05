@@ -82,3 +82,46 @@ git commit / push / PR / rebase / merge・Issue への書き込み・実装コ�
 - 修正が必要なもの → 起票依頼: なし。上記はすべて docs 3 箇所の 1 行修正と chat-main の tracker 整理で済む範囲
 
 ファイル書き込みは 0 件で、scope drift はありません。
+
+<!-- run: night-safe / 2026-09-02 22:50 / log: night-safe-2026-09-02_2233.log -->
+## 2026-09-02 22:48 Night Safe Run
+
+- Elapsed: 12 min / 45 min（スキップしたタスクなし）
+- docs 整合: 検出 4 件
+- Issue 台帳: 検出 2 件（close 漏れは 0）
+- PR conflict: 0 件
+- 検証準備: 変化 3 件
+
+### docs 整合（4 件）
+
+1. **`automation/routine-night-safe.md:3` + `automation/routine-digest.md:3`** / 冒頭注記が「**Task Scheduler への登録はまだ**」のままですが、PR #1446 で `LifeEditor-NightSafe`（22:33）と `LifeEditor-Digest`（06:03）が登録済みで、本走もその枠から発火しています。#1446 の変更ファイルにこの 2 本は入っていないため、merge しても drift が残ります / **修正案**: 両行を「Task Scheduler 登録済み（2026-09-02・台帳 = `routine-ids.md`）」へ差し替える。
+2. **`docs/vision/plans/2026-09-02-desktop-screen-audit.md`** / main 上の Status は `Draft` のままです。`IN PROGRESS` への 1 行変更が working tree に未 commit で残り、repo 直下の未追跡 `pwv1408-materials-focus-viewport.png` から実行セッションが既に動いたことが読めます / **修正案**: Status 変更を commit し、PNG は repo 外へ退避する（§9「バイナリは repo に置かない」）。
+3. **`docs/requirements/mobile-scope.md:57`（#16 行）** / 「その他シートの Quick actions に Undo/Redo」「header=wide 専用の `HeaderUndoRedo`」と書いてありますが、#1035（CLOSED）以降は狭幅ヘッダーにも同じ部品が出ます（`web/src/MainScreen.tsx:293`。シート側 `web/src/MobileShellActions.tsx:82` も併存）。PR #1358 は file:line の張り替えだけで本文は直していません / **修正案**: 「その他シート + 狭幅ヘッダーの両方（#1035）」に書き換え、「wide 専用」を削る。
+4. **`docs/vision/plans/2026-09-02-fable-51-harness-retune.md`** / Draft の計画書が git 未追跡で、CI からも INDEX からも見えない状態です / **修正案**: chat-main が commit するか、着手レーンへ渡す。
+
+CLAUDE.md と `rules/` から張られた参照先 32 本は全て実在しました（dead path 0 件）。
+
+### Issue 台帳（2 件）
+
+- **close 漏れ 0 件**: merged PR 45 本の closing issue 22 件と open Issue 23 件を突き合わせて、交差はありませんでした。
+- **Epic #1121**（チュートリアル）: 子 4 件（#1122〜#1125）が全 CLOSED、本文チェックも全て `[x]`。残りは DoD の通しツアー 1 回だけなので、**#1408 / #1409 の巡回チェックリストに 1 項目として足せば close 判定まで行けます**。
+- **Epic #716**（Mobile v2）: 子 2 件 CLOSED・裁定 3 件も `[x]`。残り 2 項のうち「`mobile-scope.md` と実装が食い違っていない」を塞いでいるのが上の docs 3 です。**docs 3 を直せば残りは狭幅の実機目視 1 つになります**。
+- ラベル欠落: #1408 / #1409 / #1335 が `section:*` も `shared-fix` も持ちません。3 件とも `[main]` 直轄なので意図的と読みましたが、レーンのクエリに乗せる気がないならこのままで問題ありません。
+
+### PR conflict（0 件）
+
+open 7 本（#1446〜#1452）は全て `MERGEABLE` です。7 本の変更ファイルを総当たりしても重複が 0 だったので、**merge 順による後発コンフリクトも起きません**。migration を含む PR は 0 で、0027 の版番号衝突は #1445 merge で解消済みです。
+
+### 検証準備（3 件）
+
+- **実行可能になった**: #1408 の実行セッション。gate だった PR #1441 が merge 済みで、`memory/chat-main.md:23` の条件は外れています。
+- **前提が変わった**: `memory/chat-main.md:64` の「claude-launcher の docs が追随していない」は解消済みです（#1377 / PR #1381。計画書は `archive/2026-08-29-claude-launcher-desktop.md` へ移動し、CLAUDE.md §5 も「着地済み」の記述に変わっています）。memory の記述だけが古い状態です。
+- **目視待ちに追加**: #1400 / #1402（2026-09-01 merged）は #1409 へ畳む方針ですが、**#1409 の計画書がまだありません**（#1408 は PR #1441 で作成済み）。
+
+### 修正が必要なもの → 起票依頼（chat-main が裁いてください）
+
+1. `routine-night-safe.md` / `routine-digest.md` の「登録はまだ」注記を実態へ更新（docs のみ・小）
+2. `mobile-scope.md` #16 行を #1035 の実装へ追随（docs のみ・**Epic #716 close の最後のゲート**）
+3. main の working tree 整理 — `pwv1408-materials-focus-viewport.png` の退避、`2026-09-02-desktop-screen-audit.md` の Status commit、未追跡 Draft 計画書 `2026-09-02-fable-51-harness-retune.md` の始末
+
+置いた仮定: Task Scheduler の登録有無は PR #1446 の本文を根拠にしました（`schtasks /Query` は無人プロファイルの permissions で拒否されたため直接確認できていません）。ファイルは 1 つも書いていません。

@@ -1,5 +1,20 @@
 # HISTORY (chat-main)
 
+### 2026-09-05 - #1409 Mobile 幅点検の計画セッション（PR #1489）+ origin 取り込み + night-safe 22:48 走の outbox 保全
+
+#### 概要
+
+ユーザー依頼「#1409 の計画セッションを実行し、並列で origin から main を取り込んで現状把握」。Issue 本文の 2 セッション分割に従い**計画セッション**として計画書 `plans/2026-09-05-mobile-screen-audit.md` を書き（ブラウザ未起動）、Desktop 側 #1408 と同じ一時 worktree 経由で PR #1489 を出した。main は 617d4981 → 47d2ba6d へ fast-forward（23 commit・#1408 のレポート / 計画書 archive / schedule 6 PR / analytics #1375 / 添付 sweep #1438 などを取り込み）。
+
+#### 変更点
+
+- **計画書（PR #1489）**: Desktop 計画の骨格（1 画面 1 エージェント直列 + 結合と後始末はメイン直接・`PWV1409-` 台帳・停止条件・フォールバック 2 回連続）に Mobile 固有を足した = ①**390×844 固定**で各報告の先頭に `innerWidth` 必須（768 以上の報告は無効）②画面別の前に**シェル調査**（下タブ 4 + More シート・ハンバーガーの `MobileDrawer`・`sectionDescriptors.tsx` の `narrowHeader` 形・横スクロールと本文潜り #631・入力欄 16px 下限 #1134）③出ない機能は **`mobile-scope.md` の行と照合して「仕様どおり / 不具合 / 判断待ち」に 3 分類**し、判断待ちはレポートに列挙してユーザーへ回す（計画書も実行も `mobile-scope.md` を書き換えない）④結合 M1〜M10（Quick capture → 朝刊 / ドロワー・**Desktop 幅で作って narrow で読む M4**・More シートと下タブ跨ぎの state・ヘッダーと More シートの Undo が同じスタック・フォント下限の横断実測）⑤**タイマーは開始しない**（#1475 の `timer_sessions` 残骸を作らない）⑥繰り返しの削除は narrow に導線が無い仕様（#5）なので後始末で Desktop 幅へ戻す ⑦除外リスト = Desktop 起票 20 件（Mobile でも出れば既存 Issue にコメント）。Desktop 計画の除外 #1371 / #1399 / #1405 / #1406 / #1442 は全部 CLOSED を実測し回帰項目へ ⑧swipe / ソフトキーボード / safe-area / 実タッチは SKIP 明記 + **実機（Epic #716 DoD）への申し送り節**
+- **origin 取り込みの詰まり**: `git pull --ff-only` が「未追跡の `outbox/chat-night-safe/night-safe-report.md` を merge が上書きする」で abort。origin 側（PR #1447 で着地）は 09-01 と 09-02 21:01 の 2 走で、ローカルの未追跡は **09-02 22:48 の 3 走目**（未着地）だった。退避 → pull → 3 走目を pulled ファイルへ追記して保全（本 tracker PR に同梱）。3 走目の起票依頼 3 件 = `routine-night-safe.md` / `routine-digest.md` の「登録はまだ」注記更新 / `mobile-scope.md` #16 行の #1035 追随（Epic #716 の docs ゲート）/ 未追跡 Draft 計画書 `2026-09-02-fable-51-harness-retune.md` の始末 — **未処理**
+- **現状把握（2026-09-05 実測）**: open PR = #1489 のみ（本セッション前は 0）/ open Issue 25 件（#1467〜#1486 の Desktop 所見 20 + #1409 / #1408 / #1388 / #1335 / #1301）。#1408 は実行完了コメント済みで、残るのはユーザー手番の `timer_sessions` id 18 / 19 と Issue の close。Epic #1121（通しツアー）/ #716（実機目視）はどちらもユーザー手番のまま
+- **git 上の注意**: `git show origin/main:<path>` は Git Bash の MSYS パス変換で `:` が `;` に化けて失敗する。`MSYS_NO_PATHCONV=1` を付けるか、退避 → pull → diff の順で回す
+- **未追跡のまま残るもの**: `plans/2026-09-02-fable-51-harness-retune.md`（Draft・git 未追跡・night-safe が 2 走連続で指摘）。本セッションでは触っていない
+- **一時 worktree**: `C:/Users/user/orca/workspaces/life-editor/plan-1409`（`docs/plan-1409-mobile-screen-audit`）は PR #1489 merge 後に削除する
+
 ### 2026-09-05 - #1408 Desktop 全画面の実ブラウザ点検を実行 — finding 20 件（#1467〜#1486）起票・レポート PR #1487
 
 #### 概要
@@ -62,17 +77,4 @@ MCP 経由でアプリ内 Note「Issue報告」（Desktop 1 / Mobile 4 / 共通 
 - **Note 削除**: `note-b26afda4-…`（Issue報告）を `delete_note` でソフトデリート（Trash から復元可）
 - **ルーティング**: schedule 4 本 = `section:schedule` / materials 2 本 = `section:materials` / shell 3 本 = `shared-fix`（`[layout-standard]` 1 + `[mobile-refine]` 2）。mobile 系 4 本は Epic #716 を参照に付けた
 
-### 2026-09-01 - コード整理監査（Tauri 残骸 / 未使用コード / docs 整合）→ Issue 7 本起票（#1385〜#1391）
-
-#### 概要
-
-ユーザー依頼でコードベースと docs を 3 並列サブエージェント（Tauri 残骸 / 未使用コード / docs 整合）で監査し、file:line の spot check を通った findings を 7 本の Issue として起票した。ファイル・依存としての Tauri は完全に消えており、実装済み計画書の plans/ 残置も #1377 で既知の 1 本（claude-launcher）だけだった。
-
-#### 変更点
-
-- **起票 7 本**: #1385（未使用 `version` カラムのバンプ廃止 — PostgREST が `version = version + 1` を書けないため**全 mutation で version 取得専用 SELECT が 1 本余計に飛んでいる**。LWW cursor は `updated_at` で version は無関係・mcp-server は準拠済みで shared だけが残置）/ #1386（`migrateTodosToBackend` 削除 — 呼び出し元 0 を実測・4 箇所のみ）/ #1387（削除済み `frontend/` FROZEN 前提・撤去済み Provider の陳腐化コメント一掃 — `PRINCIPLES.md:190` は存在しない 3 Provider の Optional バリアントを指示する規範のまま）/ #1388（dead i18n 33 キー + dead CSS — kanban 名前空間は CalendarTab / TagColorControls が 6 キー借用中なので移設してから名前空間ごと削除）/ #1389（参照ゼロ export 5 型 + 使われないテストシーム + `EmptyState` 同名 2 実装の rename）/ #1390（#1293 Trash 移設の design docs 追随 — IA.md が registry に無い Trash をユーティリティ枠として列挙・_COMMON-CONTEXT は Version 3 のまま）/ #1391（add-ipc-channel スキルの「7 関数」が実装 9 と乖離ほか dead path・数値 drift の束）
-- **起票しなかったもの**: claude-launcher 計画書の残置（#1377 で既知）/ `fetchAllPages` の shared↔mcp 重複（#677 の承認済み負債・コードコメントに明記あり）/ mapper の過剰 export 30+（公開 API サーフェス方針の判断が要るため #1389 の備考に留めた）/ REFERENCE 計画書の置き場不統一（A/B 裁定として #1391 内に記載）
-- **監査の白判定**: Tauri ファイル・依存・IPC = 0 / ScreenLock・FileExplorer・Terminal 残骸 = 0 / import グラフ上の orphan ファイル = 0（src 400+ ファイル）/ plans 14 本の Status enum 逸脱 = 0 / d3・Connect グラフ残骸 = 0
-- **運用メモ**: 未使用コード調査のサブエージェントが 600 秒ストール → SendMessage で再開させて完走（SSE バグの既知型）
-
-> 古いエントリは [`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
+> 古いエントリは [`archive/2026-09/chat-main.md`](./archive/2026-09/chat-main.md)・[`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照

@@ -61,9 +61,9 @@
 
 ## 直近の完了
 
+- [chat-main] **#1409 Mobile 幅点検の計画セッション — 計画書 `plans/2026-09-05-mobile-screen-audit.md` = PR #1489 open** ✅（2026-09-05）— 390×844 固定 / シェル調査 / `mobile-scope.md` 照合の 3 分類（仕様どおり・不具合・判断待ち）/ 結合 M1〜M10 / タイマー非開始 / 実機（#716）への申し送り。**次 = merge 後にユーザーが実行セッションを開く（👀）**。同時に origin を取り込み（main 47d2ba6d）、night-safe 09-02 22:48 走の未着地レポートを outbox に保全（起票依頼 3 件は未処理 = routine 2 本の注記 / `mobile-scope.md` #16 行 / 未追跡 Draft 計画書 fable-51）。詳細 = history 2026-09-05
 - [chat-main] **#1408 Desktop 全画面の実ブラウザ点検を実行完了 — finding 20 件を #1467〜#1486 に起票・レポート + 計画書 archive = PR #1487 open** ✅（2026-09-05）— 7 画面をエージェント直列（settings は 1 回目が stream 停止 → 再起動で完走）+ 結合 S1〜S10 はメイン直接。console error は全画面ゼロ。important 3 = #1476（期間プリセットが Todo トレンドに効かない・`TodosTab.tsx:40` の `days={30}`）/ #1482（ショートカット競合が無警告）/ #1485（追加ダイアログの Todo が Undo で消えない）。後始末は `search_all` / `list_wiki_tags` / `list_schedule` / SQL で 0 を実測。**🛑 ユーザー手番 = `timer_sessions` id 18 / 19（未完了 12〜13 秒・削除経路なし）**。次 = #1409（Mobile 側）の計画セッション。詳細 = history 2026-09-05
 - [chat-main] **Issue 棚卸し（open 20 → 配布 5 レーン 11 件）+ #1408 計画書 PR #1441 + #1335 作業分 PR #1443 + 判断 4 件の回収・昇格** ✅（2026-09-02）— 詳細 = history 2026-09-02。ローカル main が tracker コミット 1 つで origin から分岐していたのを rebase で解消し、そのコミットは本日の tracker PR に載せ替えた（main は `git reset --hard origin/main` で origin と一致）
-- [chat-main] **main の CI 赤（TagUsageCard の存在しない import）を PR #1430 で修正** ✅（2026-09-01）— `shared/src/components/Analytics/TagUsageCard.tsx` が `./EmptyState` を import していたが、Analytics サブバレルの空状態は名前衝突回避のため `AnalyticsEmptyState`。`shared — build (tsc -b)` が TS2307 で落ち、cb445180 以降の main が赤だった。props 完全一致の rename 2 行。**要注意 = 同じ修正の branch を `materials-refine`（`claude/shared-fix-main-red-20260901`）と `refactor-core`（`claude/shared-fix-analytics-emptystate-import`）が先に切っていた**（どちらも未 commit / 未 push）— 三重作業の芽
 
 ## 予定
 
