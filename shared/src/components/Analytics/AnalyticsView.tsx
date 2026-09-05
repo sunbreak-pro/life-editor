@@ -306,6 +306,7 @@ function DesktopAnalytics({
                     todoWorkTime: {
                       title: labels.todoWorkTime,
                       sessions: labels.sessions,
+                      noTodo: labels.noTodo,
                     },
                   }}
                 />

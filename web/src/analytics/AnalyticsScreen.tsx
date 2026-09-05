@@ -289,6 +289,7 @@ export function AnalyticsScreen({
       },
       workTime: t("analytics.workTime"),
       todoWorkTime: t("analytics.todoWorkTime"),
+      noTodo: t("analytics.noTodo"),
       totalWorkTime: t("analytics.totalWorkTime"),
       sessions: t("analytics.sessions"),
       avgPerDay: t("analytics.avgPerDay"),
@@ -363,6 +364,13 @@ export function AnalyticsScreen({
       stagnation: {
         title: t("analytics.stagnation.title"),
         todos: t("analytics.stagnation.todos"),
+        buckets: {
+          under1Week: t("analytics.stagnation.buckets.under1Week"),
+          "1to2Weeks": t("analytics.stagnation.buckets.1to2Weeks"),
+          "2to4Weeks": t("analytics.stagnation.buckets.2to4Weeks"),
+          "1to3Months": t("analytics.stagnation.buckets.1to3Months"),
+          over3Months: t("analytics.stagnation.buckets.over3Months"),
+        },
       },
       tagTime: {
         title: t("analytics.tagTime.title"),

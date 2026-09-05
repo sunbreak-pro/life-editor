@@ -49,6 +49,7 @@ function makeLabels(): AnalyticsLabels {
     period: { day: "Day", week: "Week", month: "Month" },
     workTime: "Work Time",
     todoWorkTime: "Work Time by Todo",
+    noTodo: "No Todo",
     totalWorkTime: "Total Work Time",
     sessions: "Sessions",
     avgPerDay: "Avg / Day",
@@ -105,7 +106,17 @@ function makeLabels(): AnalyticsLabels {
     },
     timeline: { title: "Timeline", noSessions: "No sessions" },
     todoTrend: { title: "Trend", completedCount: "Completed" },
-    stagnation: { title: "Stagnation", todos: "todos" },
+    stagnation: {
+      title: "Stagnation",
+      todos: "todos",
+      buckets: {
+        under1Week: "< 1 week",
+        "1to2Weeks": "1-2 weeks",
+        "2to4Weeks": "2-4 weeks",
+        "1to3Months": "1-3 months",
+        over3Months: "3+ months",
+      },
+    },
     tagTime: {
       title: "By Tag",
       noData: "No data",

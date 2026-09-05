@@ -745,6 +745,7 @@
     },
     "workTime": "作業時間",
     "todoWorkTime": "Todo 別作業時間",
+    "noTodo": "Todo なし",
     "period": {
       "day": "日",
       "week": "週",
@@ -808,7 +809,14 @@
     },
     "stagnation": {
       "title": "Todo 経過日数分布",
-      "todos": "件"
+      "todos": "件",
+      "buckets": {
+        "under1Week": "1週間未満",
+        "1to2Weeks": "1〜2週間",
+        "2to4Weeks": "2〜4週間",
+        "1to3Months": "1〜3か月",
+        "over3Months": "3か月以上"
+      }
     },
     "tagTime": {
       "title": "タグ別作業時間",

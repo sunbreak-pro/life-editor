@@ -10,7 +10,10 @@ import {
   Cell,
 } from "recharts";
 import type { TodoNode } from "../../types/todoTree";
-import { aggregateTodoStagnation } from "../../utils/analyticsAggregation";
+import {
+  aggregateTodoStagnation,
+  type StagnationBucketId,
+} from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
 import {
   CHART_GRID,
@@ -22,6 +25,8 @@ import {
 export interface TodoStagnationChartLabels {
   title: string;
   todos: string;
+  /** Y-axis bracket names, one per age bucket (#1478). */
+  buckets: Record<StagnationBucketId, string>;
 }
 
 interface TodoStagnationChartProps {
@@ -33,7 +38,14 @@ export function TodoStagnationChart({
   nodes,
   labels,
 }: TodoStagnationChartProps): React.JSX.Element | null {
-  const data = useMemo(() => aggregateTodoStagnation(nodes), [nodes]);
+  const data = useMemo(
+    () =>
+      aggregateTodoStagnation(nodes).map((b) => ({
+        ...b,
+        label: labels.buckets[b.bucket],
+      })),
+    [nodes, labels.buckets],
+  );
 
   const hasData = data.some((d) => d.count > 0);
   if (!hasData) return null;
@@ -48,7 +60,15 @@ export function TodoStagnationChart({
         >
           <CartesianGrid {...CHART_GRID} horizontal={false} />
           <XAxis type="number" tick={CHART_TICK} allowDecimals={false} />
-          <YAxis dataKey="label" type="category" tick={CHART_TICK} width={80} />
+          {/* 96px, not 80 (#1478): at 80 the longest bracket wrapped to a
+              second line that fell below the plot area and was clipped. */}
+          <YAxis
+            dataKey="label"
+            type="category"
+            tick={CHART_TICK}
+            width={96}
+            interval={0}
+          />
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
             /* [value, name] — the second element is the series name (#943).

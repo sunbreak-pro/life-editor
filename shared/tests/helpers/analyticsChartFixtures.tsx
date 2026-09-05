@@ -234,7 +234,17 @@ export const CHARTS: ChartFixture[] = [
     element: (
       <TodoStagnationChart
         nodes={[todo("task-1")]}
-        labels={{ title: "Stagnation", todos: "todos" }}
+        labels={{
+          title: "Stagnation",
+          todos: "todos",
+          buckets: {
+            under1Week: "< 1 week",
+            "1to2Weeks": "1-2 weeks",
+            "2to4Weeks": "2-4 weeks",
+            "1to3Months": "1-3 months",
+            over3Months: "3+ months",
+          },
+        }}
       />
     ),
   },
@@ -244,7 +254,7 @@ export const CHARTS: ChartFixture[] = [
       <TodoWorkTimeChart
         sessions={[session(1, "WORK", 30, "task-1")]}
         todoNameMap={new Map([["task-1", "Write the thing"]])}
-        labels={{ title: "By todo", sessions: "Sessions" }}
+        labels={{ title: "By todo", sessions: "Sessions", noTodo: "No Todo" }}
       />
     ),
   },
