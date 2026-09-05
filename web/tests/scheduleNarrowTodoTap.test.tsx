@@ -26,8 +26,6 @@ import { itemTapRoute } from "../src/schedule/todoChipPanel";
  * No jest-dom in web/: presence comes from getBy* throwing.
  */
 
-const NOW = new Date(2026, 7, 12, 10, 0, 0);
-
 const event = (over: Partial<ScheduleItem> & { id: string }): ScheduleItem => ({
   date: "2026-08-12",
   title: over.id,
@@ -64,7 +62,6 @@ function renderDay() {
       items={toAgendaItems(
         [event({ id: "s-1", title: "会議" })],
         [chip({ id: "task-1", title: "資料をまとめる" })],
-        NOW,
       )}
       onItemActivate={onItemActivate}
       labels={{

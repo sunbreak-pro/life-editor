@@ -1,5 +1,42 @@
 # chat-materials-refine outbox
 
+## 2026-09-02 — #1439 の方針を裁定 + #1438 を実装、どちらも PR 提出（起票依頼 1 件）
+
+2026-09-01 dispatch の materials 残り 2 件を、それぞれ `origin/main` から独立に切って PR にしました。両ブランチで CI verify のステップ列 14 本 + `docs-lint` をローカル実行して緑を確認済みです。**追記（実測）**: 2 本とも同日中にこうだいさんが merge 済みで、main に着地しています（#1453 = 529ffea1 / #1455 = 39d4d402）。ただし **#1455 の 2 コミット目（このエントリ自体）は push が merge に間に合わず取り残された**ので、本エントリだけ後追いの chore ブランチで載せています。
+
+- **PR #1455 / #1439** — 添付アップロードの進捗表示の**方針**（コードは触っていません）。裁定 = ドキュメントの外に進捗を出し、プレースホルダノードは作らない。台帳 = `D-20260902-materials-1`
+- **PR #1453 / #1438** — 添付の孤児回収。設定 → ゴミ箱の下に「添付の掃除」カードを足し、dry-run の一覧 → 確認 → 一覧に対してだけ削除、の 3 段にしました
+
+**@chat-main（起票依頼 1 件・`section:materials` / `type:feature` / `sev:minor`）**
+
+**添付アップロード中の進捗表示の実装。** 方針は `D-20260902-materials-1` で確定済みなので、実装だけの Issue として起票してください。
+
+- 置き場所 = Notes のエディタ本文の直上に 1 行のステータス帯（ファイル名 + 「アップロード中」 + 不定形インジケータ）。トーストは不可（既定 4000ms で消え、`durationMs: 0` にすると完了時に閉じる手段が無い）
+- ドキュメントには一切触らない（プレースホルダノードを作らない）ため、`RichTextEditor` / `attachmentNode` の変更は不要。触るのは `web/src/notes/NotesView.tsx` 周辺のホストと i18n（`attachment.uploading` を en / ja）
+- 同時アップロードは 1 件でよい。`role="status"` + `aria-live="polite"`
+- 失敗時は既存の danger トーストのみ・再試行導線は付けない（裁定 3）
+- 着地したら `web/src/notes/useAttachmentUpload.ts` のヘッダコメント「WHAT IT DELIBERATELY DOES NOT DO: show progress」を更新する
+
+**@こうだいさん（#1438 の目視ゲート）**: 掃除カードの「削除」は不可逆です。merge 後に実データで回すときは、必ず **dry-run の一覧を目視してから**削除してください。直近 1 時間にアップロードされたものは自動で対象外にしています。
+
+---
+
+## 2026-09-01 (3) — 🚨 main の CI が赤（PR #1431 で修理）+ #1425 の衝突解消
+
+**@全レーン / @こうだいさん — main が #1419 の着地以降ずっと赤です。** `shared` の `build` と `typecheck:tests` が落ちるので、**open ブランチ全部が巻き添え**になります（実際 #1425 の CI もこれだけで落ちました）。修理を **PR #1431** に出したので、他の PR より先に取り込んでください。
+
+3 本のどれにも落ち度はなく、**書いた時点ではどれも緑で、open から merge までの間にお互いの前提を壊し合った**形です:
+
+- **#1419** が `Analytics/TagUsageCard.tsx` を追加（`{ EmptyState } from "./EmptyState"` を import・`WikiTag` fixture に `version`）
+- **#1422** がその `EmptyState.tsx` を `AnalyticsEmptyState.tsx` へリネーム（export 名ごと）
+- **#1426** が `WikiTag` 型から `version` を削除
+
+修理は機械的な 2 箇所だけで挙動は変わりません（`TagUsageCard` が `AnalyticsEmptyState` を使う / fixture から `version` を落とす）。**analytics レーンの持ち物に手を入れています**が、main の赤は全レーンを止めるため単独 PR にしました（誰かの feature PR に混ぜていません）。
+
+**#1425（#1404 添付）は衝突解消済み**（`mergeable: MERGEABLE`）。衝突は `shared/src/index.ts` の 1 ファイルだけで、#1407 と #1404 が `domainSnapshotStore` の直後という同じ位置に別々の export を足した隣接追記でした。両方残し、#1407 のブロックを先に置いています（あちらのコメントが「the snapshot **above**」と直上を指しているため）。取り込み順は **#1431 → #1425**。
+
+---
+
 ## 2026-09-01 (2) — #1407 / #1404 を PR 提出 + 🛑 人手ゲート 1 件 + 起票依頼 2 件
 
 2026-09-01 dispatch の残り 2 件を、それぞれ `origin/main` から独立に切って PR にしました（merge はこうだいさんの手番 = P-001）。各ブランチで CI verify のステップ列 + `docs-lint` をローカル実行して緑を確認済み。

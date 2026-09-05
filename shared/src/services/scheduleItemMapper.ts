@@ -25,12 +25,15 @@ import {
  *     linking uses wiki_tag_connections (DD-3 unified WikiLink).
  *   - No `template_id` — Templates integration deferred to a DU
  *     follow-up plan.
- *   - No `reminder_enabled` / `reminder_offset` columns; only
- *     `reminder_at timestamptz`. The mapper DERIVES `reminderEnabled`
- *     from `reminder_at !== null` for Phase 2 ScheduleItem-type
- *     compatibility, and surfaces `reminderOffset` as `undefined` on
- *     read (no source column). DU follow-up may extend events_payload
- *     with an offset column or migrate the ScheduleItem type.
+ *   - No `reminder_enabled` column. #1374 added
+ *     `reminder_offset_min integer` (0028) — minutes before the start,
+ *     NULL for no reminder — and the mapper DERIVES `reminderEnabled`
+ *     from it. An OFFSET rather than the absolute `reminder_at` this
+ *     table shipped with, because an offset is invariant when the event
+ *     moves, and turning one into the other needs timezone knowledge
+ *     this mapper deliberately does not have (see the DATE/TIME
+ *     contract below). `reminder_at` is retained-but-unread; every
+ *     writer sets it null, and retiring the column is a separate DDL.
  *
  * The 0011 migration (NOT yet applied at DU-C-2 land — Step 1 still
  * pending) will add:
@@ -94,8 +97,8 @@ export type ItemsMetaEventUpdatePatch = ItemsMetaUpdatePatch;
  * instants are unambiguous.
  *
  * NB: events_payload has NO `content` / `note_id` / `template_id` /
- * `reminder_enabled` / `reminder_offset` columns by design — see file
- * header.
+ * `reminder_enabled` columns by design — see file header. The reminder
+ * IS stored, as `reminder_offset_min` (0027).
  */
 export interface EventsPayloadRow {
   item_id: string;
@@ -108,6 +111,8 @@ export interface EventsPayloadRow {
   completed_at: string | null;
   is_dismissed: boolean;
   reminder_at: string | null;
+  /** Minutes before the start (#1374 / 0027). NULL = no reminder. */
+  reminder_offset_min: number | null;
   memo: string | null;
   routine_item_id: string | null;
   /** 0011 generated stored column — SELECT-only. */
@@ -156,7 +161,8 @@ export const ITEMS_META_EVENT_COLUMNS = ITEMS_META_COLUMNS;
  */
 export const EVENTS_PAYLOAD_COLUMNS =
   "item_id, user_id, start_at, start_time, end_time, is_all_day, done, " +
-  "completed_at, is_dismissed, reminder_at, memo, routine_item_id, " +
+  "completed_at, is_dismissed, reminder_at, reminder_offset_min, memo, " +
+  "routine_item_id, " +
   "routine_item_role, source_date, is_deleted_cache";
 
 // ---------------------------------------------------------------------------
@@ -182,10 +188,9 @@ export const EVENTS_PAYLOAD_COLUMNS =
  *   - `content` always `null` (events have no RichEditor — see header).
  *   - `isAllDay` / `isDismissed` always materialised (NOT NULL columns).
  *   - `isDeleted` / `deletedAt` <- items_meta (NOT the cache mirror).
- *   - `reminderEnabled` <- DERIVED from `reminder_at !== null`.
- *   - `reminderOffset` is NOT materialised on read (no source column) —
- *     callers that need an offset must compute it from
- *     `reminder_at - start_at` at the consumption boundary if needed.
+ *   - `reminderEnabled` <- DERIVED from `reminder_offset_min !== null`.
+ *   - `reminderOffset` <- `reminder_offset_min`, absent when null (the
+ *     same round-trip diff contract as `deletedAt` / `sourceDate`).
  *
  * If `payload.start_at` is NULL the mapper still materialises (uses ""
  * — the frontend treats an empty-date event as an unscheduled candidate).
@@ -225,9 +230,10 @@ export function rowsToScheduleItem(
   item.isDismissed = payload.is_dismissed;
   item.isAllDay = payload.is_all_day;
   // Phase 2 compat: derive the flag — events_payload has no
-  // reminder_enabled column.
-  item.reminderEnabled = payload.reminder_at !== null;
-  // reminderOffset is intentionally NOT set on read (no source column).
+  // reminder_enabled column, only the offset (#1374 / 0027).
+  item.reminderEnabled = payload.reminder_offset_min !== null;
+  if (payload.reminder_offset_min !== null)
+    item.reminderOffset = payload.reminder_offset_min;
 
   return item;
 }
@@ -272,8 +278,11 @@ export function scheduleItemToRows(
     done: item.completed,
     completed_at: item.completedAt,
     is_dismissed: item.isDismissed ?? false,
-    // No timezone math at the mapper layer — caller precomputes if needed.
+    // Retained-but-unread (#1374): the reminder is an offset now, and
+    // turning it into an instant would need timezone knowledge this layer
+    // does not have.
     reminder_at: null,
+    reminder_offset_min: item.reminderOffset ?? null,
     memo: item.memo,
     routine_item_id: item.routineId,
     source_date: null,
@@ -301,9 +310,10 @@ export function scheduleItemToRows(
  * MUTABLE SURFACE (mirrors the Phase 2 frontend `ScheduleItemUpdate`):
  *   - title / startTime / endTime / completed / completedAt / memo /
  *     date / isAllDay / isDismissed / isDeleted / deletedAt
- *   - reminderEnabled — flipping FALSE clears events_payload.reminder_at
- *     (no offset column, so flipping TRUE without a precomputed
- *     `reminder_at` is a no-op).
+ *   - reminderOffset — writes events_payload.reminder_offset_min;
+ *     `null` clears it (#1374).
+ *   - reminderEnabled — legacy flag; flipping FALSE also clears the
+ *     retained `reminder_at`. Prefer setting `reminderOffset` directly.
  *   - content / noteId / templateId — kept on the surface for type
  *     compatibility but DROPPED in the emitted patch (no corresponding
  *     events_payload columns — see header).
@@ -377,8 +387,13 @@ export function scheduleItemUpdatesToPatches(
   // for the enable-true case).
   if ("reminderEnabled" in updates && updates.reminderEnabled === false)
     payloadPatch.reminder_at = null;
-  // content / noteId / templateId / reminderOffset are dropped — the
-  // 0008 events_payload schema has no corresponding columns.
+  // #1374: the reminder itself. Byte-identical to todoMapper's handling —
+  // present-and-null means "clear it", which is why the guard is `in`
+  // rather than a truthiness check.
+  if ("reminderOffset" in updates)
+    payloadPatch.reminder_offset_min = updates.reminderOffset ?? null;
+  // content / noteId / templateId are dropped — the 0008 events_payload
+  // schema has no corresponding columns.
 
   return { metaPatch, payloadPatch };
 }

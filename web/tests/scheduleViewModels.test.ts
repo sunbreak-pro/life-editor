@@ -14,15 +14,13 @@ import {
  * rendered in jsdom (whole Provider chain + real grid layout), so nothing
  * covered them and #675 is about to move the code they sit in. What has to
  * survive that move is not "a mapper exists" but the exact per-surface shape:
- * which id a todo chip gets, which surface derives a status and which leaves it
- * off, and whether the list comes back sorted.
+ * which id a todo chip gets, which fields each surface keeps, and whether the
+ * list comes back sorted.
  *
- * `now` is fixed at 2026-08-12 10:00 local so the derived statuses are facts
- * rather than a function of when the suite runs (TZ is pinned to Asia/Tokyo in
- * vitest.config.ts).
+ * #1373 took the derived status out of all four — an event has no completion
+ * concept any more — so none of these reads a clock and none of them takes a
+ * `now`.
  */
-
-const NOW = new Date(2026, 7, 12, 10, 0, 0);
 
 function event(over: Partial<ScheduleItem> & { id: string }): ScheduleItem {
   return {
@@ -58,44 +56,36 @@ function chip(
 }
 
 describe("toWeekGridItems", () => {
-  it("derives status and provenance for schedule items", () => {
-    const [past, future] = toWeekGridItems(
+  it("carries provenance, and no status on either kind (#1373)", () => {
+    const vms = toWeekGridItems(
       [
         event({ id: "e-past", startTime: "09:00", endTime: "09:30" }),
         event({ id: "e-future", startTime: "11:00", endTime: "12:00" }),
       ],
-      [],
-      NOW,
-    );
-    expect(past.status).toBe("inProgress");
-    expect(future.status).toBe("notStarted");
-    expect(past.variant).toBe("event");
+      [chip({ id: "t-1" })],
+      );
+    expect(vms[0].variant).toBe("event");
+    for (const vm of vms) expect("status" in vm).toBe(false);
   });
 
   it("marks a routine occurrence as such", () => {
     const [vm] = toWeekGridItems(
       [event({ id: "e-1", routineId: "routine-9" })],
       [],
-      NOW,
     );
     expect(vm.variant).toBe("routine");
   });
 
-  it("prefixes todo chip ids and leaves their status off", () => {
-    const [vm] = toWeekGridItems([], [chip({ id: "task-1" })], NOW);
+  it("prefixes todo chip ids", () => {
+    const [vm] = toWeekGridItems([], [chip({ id: "task-1" })]);
     expect(vm.id).toBe("todochip-task-1");
     expect(vm.variant).toBe("task");
-    // Deliberate: #761 wired chip status into the AGENDA only. Deriving one
-    // here would put a status tag on every grid chip — a UI change, which C6
-    // is not.
-    expect(vm.status).toBeUndefined();
   });
 
   it("keeps events first, then chips, in input order", () => {
     const vms = toWeekGridItems(
       [event({ id: "e-1" }), event({ id: "e-2" })],
       [chip({ id: "t-1" })],
-      NOW,
     );
     expect(vms.map((v) => v.id)).toEqual(["e-1", "e-2", "todochip-t-1"]);
   });
@@ -141,7 +131,6 @@ describe("toAgendaItems", () => {
         event({ id: "e-allday", isAllDay: true, startTime: "00:00" }),
       ],
       [chip({ id: "t-mid", startTime: "12:00", endTime: "13:00" })],
-      NOW,
     );
     expect(vms.map((v) => v.id)).toEqual([
       "e-allday",
@@ -150,23 +139,16 @@ describe("toAgendaItems", () => {
     ]);
   });
 
-  it("derives a status for todo chips too, unlike the grids (#761)", () => {
-    const [vm] = toAgendaItems(
-      [],
-      [chip({ id: "t-1", startTime: "09:00", endTime: "09:30" })],
-      NOW,
-    );
-    expect(vm.status).toBe("inProgress");
-    expect(vm.variant).toBe("task");
-  });
-
-  it("reports a completed row as done whatever the clock says", () => {
-    const [vm] = toAgendaItems(
+  it("marks todo chips as such, and carries no status on either kind (#1373)", () => {
+    const vms = toAgendaItems(
       [event({ id: "e-1", startTime: "23:00", completed: true })],
-      [],
-      NOW,
+      [chip({ id: "t-1", startTime: "09:00", endTime: "09:30" })],
     );
-    expect(vm.status).toBe("done");
+    expect(vms.map((v) => v.variant)).toEqual(["task", "event"]);
+    for (const vm of vms) expect("status" in vm).toBe(false);
+    // `completed` survives as data — the todo checkbox reads it, and the MCP
+    // tool still writes it for events (AgendaList gates the strikethrough).
+    expect(vms.find((v) => v.id === "e-1")?.completed).toBe(true);
   });
 
   it("does not mutate the arrays it was given", () => {
@@ -174,18 +156,18 @@ describe("toAgendaItems", () => {
       event({ id: "e-late", startTime: "16:00" }),
       event({ id: "e-early", startTime: "08:00" }),
     ];
-    toAgendaItems(events, [], NOW);
+    toAgendaItems(events, []);
     expect(events.map((e) => e.id)).toEqual(["e-late", "e-early"]);
   });
 });
 
 describe("toEditorItem", () => {
   it("returns null when nothing is selected", () => {
-    expect(toEditorItem(null, NOW)).toBeNull();
+    expect(toEditorItem(null)).toBeNull();
   });
 
   it("fills the editor's required fields from the item's optional ones", () => {
-    const vm = toEditorItem(event({ id: "e-1" }), NOW);
+    const vm = toEditorItem(event({ id: "e-1" }));
     // ScheduleItem leaves both undefined/null; EventEditorItem requires them.
     expect(vm?.isAllDay).toBe(false);
     expect(vm?.memo).toBe("");
@@ -195,10 +177,12 @@ describe("toEditorItem", () => {
   it("reads isRoutine off routineId and keeps the memo verbatim", () => {
     const vm = toEditorItem(
       event({ id: "e-1", routineId: "r-1", memo: "bring the form" }),
-      NOW,
     );
     expect(vm?.isRoutine).toBe(true);
     expect(vm?.memo).toBe("bring the form");
-    expect(vm?.status).toBe("inProgress");
+    // No status and no completed: the editor pane has no completion control
+    // since #1373, so neither field reaches it.
+    expect("status" in (vm as object)).toBe(false);
+    expect("completed" in (vm as object)).toBe(false);
   });
 });

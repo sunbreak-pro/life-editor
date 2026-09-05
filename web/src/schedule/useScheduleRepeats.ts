@@ -46,8 +46,6 @@ export interface UseScheduleRepeatsArgs {
   routines: RoutineNode[];
   /** The selected occurrence, for resolving its source routine. */
   selected: ScheduleItem | null;
-  /** Today's items, for the routine-completion counts. */
-  todayItems: ScheduleItem[];
   /** The repeat list only scans while its own tab is showing. */
   sidebarTab: "flow" | "todo" | "repeats";
   /**
@@ -94,7 +92,6 @@ export interface UseScheduleRepeatsArgs {
 export function useScheduleRepeats({
   routines,
   selected,
-  todayItems,
   sidebarTab,
   now,
   copy,
@@ -137,10 +134,6 @@ export function useScheduleRepeats({
         })),
     [routines, freqCopy, weekdayLabels],
   );
-
-  const routineTodayItems = todayItems.filter((i) => i.routineId != null);
-  const routineDone = routineTodayItems.filter((i) => i.completed).length;
-  const routineTotal = routineTodayItems.length;
 
   const listDate = useMemo(() => todayCalendarKey(now), [now]);
 
@@ -285,8 +278,6 @@ export function useScheduleRepeats({
   return {
     repeatValue,
     summaryRows,
-    routineDone,
-    routineTotal,
     /** Today's key off the minute ticker — also the conversion path's day. */
     listDate,
     repeatRows,

@@ -1,6 +1,7 @@
 import { useTranslation, type NoteNode } from "@life-editor/shared";
 import { RichTextEditor } from "./RichTextEditor";
 import type { NoteLinking } from "./hooks/useNoteLinking";
+import type { AttachmentWiring } from "./useAttachmentUpload";
 
 /*
  * The note body, wired (extracted from NotesView.tsx — #588 split, zero
@@ -37,6 +38,12 @@ export interface NoteBodyEditorProps {
    * any reason other than a note switch, i.e. the pre-#1181 behaviour.
    */
   remountToken?: number;
+  /**
+   * Image / file embedding (#1404). Forwarded verbatim — same reason the "[["
+   * wiring is passed as one bundle: two mount sites hand-copying half of it is
+   * exactly what produced #475.
+   */
+  attachments?: AttachmentWiring;
   className?: string;
 }
 
@@ -46,6 +53,7 @@ export function NoteBodyEditor({
   onNavigateToItem,
   onSave,
   remountToken = 0,
+  attachments,
   className,
 }: NoteBodyEditorProps) {
   const { t } = useTranslation();
@@ -71,6 +79,7 @@ export function NoteBodyEditor({
         linking.handleResolvedLinkInserted(note.id, targetId)
       }
       onCreateNoteForLink={linking.handleCreateNoteForLink}
+      attachments={attachments}
       className={className}
     />
   );

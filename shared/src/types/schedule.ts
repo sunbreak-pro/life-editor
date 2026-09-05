@@ -21,7 +21,12 @@ export interface ScheduleItem {
   isDismissed?: boolean;
   isAllDay?: boolean;
   reminderEnabled?: boolean;
-  reminderOffset?: number;
+  /**
+   * Minutes before `startTime` to notify (#1374). null / absent = no
+   * reminder. Stored as an offset rather than an instant so it survives
+   * the event being moved — see the scheduleItemMapper header.
+   */
+  reminderOffset?: number | null;
   createdAt: string;
   updatedAt: string;
 }

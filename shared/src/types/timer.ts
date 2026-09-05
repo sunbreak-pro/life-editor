@@ -11,9 +11,35 @@ export interface TimerSettings {
   updatedAt: Date;
 }
 
+/** Which kind of item a session is attributed to (#1375). */
+export type WorkTargetKind = "todo" | "event";
+
+/**
+ * What a session is measured against — a Todo or an Event (#1375).
+ *
+ * One object rather than two optional ids: the DB says the same thing with a
+ * CHECK (`task_id is null or event_id is null`, 0029), and a pair of optional
+ * arguments would let a caller pass both and only find out at the round trip.
+ * Item ids are unique across roles (CLAUDE.md §4), so `kind` is not there to
+ * disambiguate the id — it names the COLUMN the row is written to.
+ */
+export interface WorkTarget {
+  kind: WorkTargetKind;
+  id: string;
+}
+
 export interface TimerSession {
   id: number;
   todoId: string | null;
+  /**
+   * The Event this session was measured against (`event_id`, 0029), or null.
+   * At most one of `todoId` / `eventId` is set — the DB enforces it.
+   *
+   * Optional so the session literals already spread across the suites keep
+   * compiling; `rowToTimerSession` always fills it, so production values never
+   * carry `undefined`.
+   */
+  eventId?: string | null;
   sessionType: SessionType;
   startedAt: Date;
   completedAt: Date | null;

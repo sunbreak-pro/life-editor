@@ -115,7 +115,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - [ ] ~~AC4: `folderType='complete'` のフォルダは、DONE になったタスクが自動的に収集され、未完了タスクは常にその上に並ぶ~~ → **Retired (2026-07-11 #225)**: DONE タスクは status 並べ替えで兄弟の最下部へ沈む（`applyStatusChange`）
 - [ ] AC5: 任意のタスクを削除するとゴミ箱に移動（`is_deleted=1`）、TrashView から復元または完全削除できる（旧フォルダ行は 2026-07-11 #225 以降 fetch 時に除外され UI に出ない）
 - [ ] AC6: Cmd+Z で直前の作成 / 移動 / 削除 / ステータス変更を 1 ステップずつ取り消し、Cmd+Shift+Z でやり直せる
-- [ ] AC7: タスクに `scheduledAt` を設定すると Schedule ビュー（Calendar / DayFlow）に同じアイテムとして表示され、どちらで編集しても双方に反映される（2026-07-14 注記: **未達** — `scheduledAt` / `scheduledEndAt` / `isAllDay` は型・Mapper・MCP に存在するが UI 出現 0 件。旧 DayFlow は退役済みのため表示先は Calendar（Week / Day / Month / 今日の流れ）に読み替え。Schedule 再設計 Step 1–3 で実装予定 → `docs/vision/plans/2026-07-14-schedule-redesign.md`）
+- [ ] AC7: タスクに `scheduledAt` を設定すると Schedule ビュー（Calendar / DayFlow）に同じアイテムとして表示され、どちらで編集しても双方に反映される（2026-07-14 注記: **未達** — `scheduledAt` / `scheduledEndAt` / `isAllDay` は型・Mapper・MCP に存在するが UI 出現 0 件。旧 DayFlow は退役済みのため表示先は Calendar（Week / Day / Month / 今日の流れ）に読み替え。Schedule 再設計 Step 1–3 で実装予定 → [`2026-07-14-schedule-redesign.md`](../../archive/2026-07-14-schedule-redesign.md)（COMPLETED で archive 済））
 - [ ] AC8: 実行中タスクには TodoTree 行に残り時間 + ミニプログレスバーが表示され、Work 画面 / サイドバーのタイマー表示と同じ値を示す
 - [ ] AC9: Claude Code が MCP `get_todo_tree` を呼ぶと、現在のアプリ UI に表示されているツリー構造と一致する階層（`max_depth` / `include_done` で絞込可）が返る
 - [ ] ~~AC10: フォルダに `color` を設定すると配下の新規タスクに継承され、フォルダ自身は `getColorByIndex` により自動で割当色を持つ~~ → **Retired (2026-07-11 #225)**: 色はタグ（life-tags）側が保持 — folder→tag 変換で色は tag へ継承済み
@@ -139,8 +139,9 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 ### Related Plans
 
-- DROPPED: `.claude/archive/dropped/2026-04-18-tasks-fetch-by-range.md`（I-1, 計測結果で Drop）/ `.claude/archive/dropped/2026-04-18-folder-progress-batch-memo.md`（S-4, 計測結果で Drop）
-- COMPLETED: `.claude/archive/024-task-memo-tree-refactor.md`
+- DROPPED: `dropped/2026-04-18-tasks-fetch-by-range`（I-1, 計測結果で Drop）/ `dropped/2026-04-18-folder-progress-batch-memo`（S-4, 計測結果で Drop）
+- COMPLETED: `024-task-memo-tree-refactor`
+- 上記 3 本のファイル実体は 2026-05-16 の archive 統合（3b4715cc）で削除済み。要約は [`archive/SUMMARY.md`](../../archive/SUMMARY.md) の同名セクションが持つ
 
 ---
 
@@ -159,7 +160,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 > 2026-07-11 #185 決定（現行仕様）: UI 上は「単一アイテム型（Event）+ 繰り返し設定」として提示し、Routine は生成テンプレートという実装詳細に位置づける。詳細 = `archive/2026-07-11-event-routine-unification.md`（COMPLETED・#474 で archive 移動。本節の Provider / IPC / backfill 記述は Tauri 期の履歴）。
 >
-> 2026-07-14 再設計（正本 = `docs/vision/plans/2026-07-14-schedule-redesign.md`）: Schedule は「今日を見る場所」から**「今日を組む場所」（タイムブロッキング特化）**へ再定義し、閲覧責務は Briefing（朝刊）へ移譲する。あわせて実測訂正: 現行で配線済みの自動生成は表示中日付の `ensureRoutineItemsForDate`（materialise のみ — 当日 diff 更新は 2026-07-19 #279 で停止: done / 手動編集済み行を巻き戻すため creation-only 化。既存行への伝播は範囲選択ダイアログ経由の明示操作のみ）で、「1 週間先まで backfill」「Routine 変更の reconciliation」は未配線（デッドコード — 再設計 Step 4 で `reconcileRoutineScheduleItems` のみ配線し、他の未配線生成器は削除予定）。3 サブタブのうち DayFlow は退役済み（Day ビュー + 右サイドバー「今日の流れ」+ Mobile List に分散吸収）、Repeats（旧 Routine）タブは単一 Calendar タブ + 「繰り返しのみ表示」フィルタへ畳む決定（案 B・再設計 Step 5）。
+> 2026-07-14 再設計（正本 = [`2026-07-14-schedule-redesign.md`](../../archive/2026-07-14-schedule-redesign.md)・COMPLETED で archive 済）: Schedule は「今日を見る場所」から**「今日を組む場所」（タイムブロッキング特化）**へ再定義し、閲覧責務は Briefing（朝刊）へ移譲する。あわせて実測訂正: 現行で配線済みの自動生成は表示中日付の `ensureRoutineItemsForDate`（materialise のみ — 当日 diff 更新は 2026-07-19 #279 で停止: done / 手動編集済み行を巻き戻すため creation-only 化。既存行への伝播は範囲選択ダイアログ経由の明示操作のみ）で、「1 週間先まで backfill」「Routine 変更の reconciliation」は未配線（デッドコード — 再設計 Step 4 で `reconcileRoutineScheduleItems` のみ配線し、他の未配線生成器は削除予定）。3 サブタブのうち DayFlow は退役済み（Day ビュー + 右サイドバー「今日の流れ」+ Mobile List に分散吸収）、Repeats（旧 Routine）タブは単一 Calendar タブ + 「繰り返しのみ表示」フィルタへ畳む決定（案 B・再設計 Step 5）。
 
 ### Boundary
 
@@ -248,6 +249,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - やる:
   - `parentId` + `order` による順序管理 — **folder 退役済み (2026-07-27 #375)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換され、`createFolder` は撤去・legacy `note_type='folder'` 行は fetch 時に除外（`isLegacyNoteFolderRow`）。**`NoteNodeType` は 2026-08-18 #1047 で `"note" | "template"` に再拡張**（テンプレートは `note_type='template'` の notes 行。一覧 / 検索 / 件数 / ゴミ箱からは同じ `keep` 節で除外され、`listNoteTemplatesUnified` だけが返す）。まとまりの表現は life-tag が担う（Connect グラフの project ノードも同時退役）。**ノートのネストも 2026-07-27 #418 で Todos と対称に退役**（`moveNodeInto` と `moveNode` の親変更分岐を撤去。`createNote({ parentId })` は API として残るが呼び出し側は常に未指定）
   - TipTap エディタ（`content` は TipTap JSON）+ スラッシュコマンド + バブルツールバー
+  - **画像 / ファイルの添付・埋め込み（2026-09-01 #1404）**: スラッシュコマンドの `image` / `file` から。実体は**非公開** Storage バケット `attachments` の `<uid>/<uuid>.<ext>`（migration 0027 のポリシーが第 1 セグメント = `auth.uid()` で認可）で、ドキュメントが持つのは**パスだけ** — バケットが非公開なので URL は署名付き・1 時間で失効し、ノートに焼き込めない。描画時に `attachment` ノードが毎回署名 URL を引く。$0 厳守のため 1 ファイル 10 MB 上限（無料枠 = 1 GB / 月 5 GB egress / 1 アップロード 50 MB。クライアントとバケット両方で担保）
   - 相互接続（`note_connections` テーブル、1 対 1 で delete_by_note_pair をサポート）
   - ピン留め（`isPinned`）/ 全文検索（`db_notes_search`）/ パスワード保護（`hasPassword` + set/remove/verify）/ 編集ロック（`isEditLocked`）
   - ソフトデリート + 復元 + 完全削除（UI からのみ実行可能）
@@ -276,11 +278,14 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - IPC Commands: `db_notes_fetch_all` / `db_notes_create|update|soft_delete|restore|permanent_delete` / `db_notes_search` / `db_notes_{set,remove,verify}_password` / `db_note_connections_create|delete|delete_by_note_pair`
 - 他機能: WikiTags（タグ付与・検索）/ Memo（日次メモとの位置付け分離）/ Templates（将来的なテンプレート展開）
 - ライブラリ: TipTap (`@tiptap/react`)
+- Storage: 非公開バケット `attachments`（#1404。バケット作成・ポリシー投入は DDL push と同枠の人手ゲート）
 
 ### Known Issues / Tech Debt
 
 - MCP 経由でノートを削除できない（安全性重視の設計判断だが、Claude が大量整理する用途には不向き）
 - `note_connections` の UI が現状ペア単位で、ネットワーク的な関係性可視化がない（Paper Boards で別途）
+- 添付の**孤児回収が無い**（#1404）: ノートから画像ノードを消しても Storage の実体は残る。undo で復活しうる以上、編集のたびに消すのは正しくないため意図的に未実装。容量が問題になったら「全ノートを走査して参照されていないオブジェクトを消す」掃除を別途用意する
+- 添付の**アップロード進捗が出ない**（#1404）: ノード挿入はアップロード完了後（途中で保存されると存在しないパスを指すノードが永続化されるため）。10 MB 上限が待ち時間の歯止め
 
 ### Future Enhancements
 
@@ -354,7 +359,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 ## Feature: Database (Notion 風汎用 DB)
 
 **Tier**: 1
-**Status**: ○基本完成（PropertyType 5 種、フィルタ/ソート/集計） — **移行 SSOT: Phase 1 で Supabase 化を延期、Phase 5 完了後に MCP 拡張と合わせて再開予定**
+**Status**: ✗凍結 (2026-07-04 D-20260704-main-1・移行 SSOT Phase 5-A) — 汎用 Database は凍結し、**現行スタック（Electron + Supabase）に実装は無い**。以下の本文（○基本完成 = PropertyType 5 種 / フィルタ / ソート / 集計）は退役した Tauri 期の履歴として保持する。再開するなら移行 SSOT の Phase 5 完了後に MCP 拡張と合わせて再検討 → CLAUDE.md §4 / §8
 **Owner Provider/Module**: `frontend/src/components/Database/` / `src-tauri/src/commands/database_commands.rs`
 **MCP Coverage**: — （Phase 1 で `list_databases` / `query_database` / `add_database_row` / `update_database_cell` 追加予定、ADR-0005 関連）
 **Supports Value Prop**: V3
@@ -541,7 +546,7 @@ Desktop（primary creation device）↔ iOS（consumption + quick capture）間�
 
 ### Related Plans
 
-- MERGED（2026-04-18 Phase C で archive）: `.claude/archive/2026-03-16-mobile-phase2-realtime-sync.md` / `.claude/archive/2026-03-16-mobile-phase3-offline-standalone.md` — リアルタイム push / オフラインキュー / conflict resolution の概念は本機能の Future Enhancements に吸収済
+- MERGED（2026-04-18 Phase C で archive）: `2026-03-16-mobile-phase2-realtime-sync` / `2026-03-16-mobile-phase3-offline-standalone` — リアルタイム push / オフラインキュー / conflict resolution の概念は本機能の Future Enhancements に吸収済。ファイル実体は 2026-05-16 の archive 統合（3b4715cc）で削除済みで、要約は [`archive/SUMMARY.md`](../../archive/SUMMARY.md) の同名セクションが持つ
 
 ---
 
@@ -603,4 +608,4 @@ Life Editor 内に VSCode 相当の PTY ターミナルを下部パネルとし�
 
 ### Related Plans
 
-- MERGED（2026-04-18 Phase C）: `.claude/archive/023-cmux-terminal-features.md` — 分割ペイン / タブ UI のアイデアは本機能の Future Enhancements に吸収、Socket API / マルチエージェント / ブラウザペインは Tier 1 Terminal の Boundary と矛盾するため不採用
+- MERGED（2026-04-18 Phase C）: `023-cmux-terminal-features`（ファイル実体は 2026-05-16 の archive 統合 = 3b4715cc で削除済み・要約は [`archive/SUMMARY.md`](../../archive/SUMMARY.md)）— 分割ペイン / タブ UI のアイデアは本機能の Future Enhancements に吸収、Socket API / マルチエージェント / ブラウザペインは Tier 1 Terminal の Boundary と矛盾するため不採用

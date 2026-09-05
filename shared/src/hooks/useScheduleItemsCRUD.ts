@@ -10,6 +10,7 @@ import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
 import type { UndoRedoLike } from "./useTodoTreeHistory";
 import { isSameDate } from "./scheduleItemsHelpers";
+import { resolveDefaultReminderMinutes } from "./useReminderPrefs";
 import type { ScheduleItemsMirrorAccess } from "./useScheduleItemsViewMirror";
 
 /**
@@ -64,6 +65,14 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
         noteId?: string;
         memo?: string;
         /**
+         * Minutes before the start to notify (#1374), or null for none.
+         * Defaults to the Settings pref, resolved here rather than by each
+         * caller so every create path picks it up. Written ONTO the row —
+         * see useReminderPrefs for why the default is not inherited at read
+         * time.
+         */
+        reminderOffset?: number | null;
+        /**
          * Called once the write has settled: the saved row, or `null` when it
          * failed (#376). The returned id is the OPTIMISTIC one — it names the
          * row that is about to exist, not one that does. A caller writing
@@ -75,6 +84,18 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
     ): string => {
       const id = generateId("schedule");
       const now = new Date().toISOString();
+      /*
+       * #1374: an all-day row has no clock time to lead, so it never gets a
+       * reminder however the pref is set. Otherwise the caller's value wins
+       * and the Settings default fills in — resolved once, here, so the
+       * optimistic row and the follow-up write cannot disagree.
+       */
+      const reminderOffset =
+        (opts?.isAllDay ?? false)
+          ? null
+          : opts?.reminderOffset !== undefined
+            ? opts.reminderOffset
+            : resolveDefaultReminderMinutes();
       const optimistic: ScheduleItem = {
         id,
         date: itemDate,
@@ -92,8 +113,8 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
         deletedAt: null,
         isDismissed: false,
         isAllDay: opts?.isAllDay ?? false,
-        reminderEnabled: false,
-        reminderOffset: undefined,
+        reminderEnabled: reminderOffset !== null,
+        reminderOffset,
         createdAt: now,
         updatedAt: now,
       };
@@ -116,10 +137,42 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
         opts?.memo,
       )
         .then((saved) => {
-          if (isSameDate(saved, date)) {
-            setItems((prev) => prev.map((i) => (i.id === id ? saved : i)));
+          /*
+           * #1374: a follow-up patch rather than a 12th positional argument
+           * on a create signature four call sites and the whole Supabase
+           * service share. Skipped when there is no reminder, so the common
+           * path is still one write.
+           */
+          if (reminderOffset === null) {
+            if (isSameDate(saved, date)) {
+              setItems((prev) => prev.map((i) => (i.id === id ? saved : i)));
+            }
+            opts?.onSaved?.(saved);
+            return;
           }
-          opts?.onSaved?.(saved);
+          return (
+            ds
+              .updateScheduleItem(saved.id, { reminderOffset })
+              /*
+               * The row already exists at this point, so a failed reminder
+               * patch is "saved without a reminder" and not "create failed".
+               * Letting it fall through to the outer catch would hand the
+               * caller `onSaved(null)` for an event that is on the calendar —
+               * the editor would stay open over a row it just wrote.
+               */
+              .catch((e) => {
+                logServiceError("ScheduleItems", "createReminder", e);
+                return saved;
+              })
+              .then((withReminder) => {
+                if (isSameDate(withReminder, date)) {
+                  setItems((prev) =>
+                    prev.map((i) => (i.id === id ? withReminder : i)),
+                  );
+                }
+                opts?.onSaved?.(withReminder);
+              })
+          );
         })
         .catch((e) => {
           logServiceError("ScheduleItems", "create", e);
@@ -172,6 +225,7 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
           | "isAllDay"
           | "content"
           | "date"
+          | "reminderOffset"
         >
       >,
       opts?: { skipUndo?: boolean },

@@ -1,5 +1,5 @@
 ---
-Status: COMPLETED # enum のみ使用: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)
+Status: COMPLETED
 Created: 2026-08-10
 Branch: claude/main-607-608-mobile-keyboard
 Owner-chat: main

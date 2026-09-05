@@ -9,13 +9,11 @@ import { Repeat, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { TimeRangeField } from "../TimeRangeField";
 import { AllDaySwitch } from "./AllDaySwitch";
-import { ScheduleStatusTag } from "./ScheduleStatusTag";
 import {
   FrequencyEditor,
   type FrequencyEditorValue,
   type FrequencyEditorLabels,
 } from "./FrequencyEditor";
-import type { ScheduleStatus } from "../../utils/scheduleStatus";
 import { timedSpanForAllDayOff } from "../../utils/scheduleAllDay";
 import { seedFrequencyPatch } from "../../utils/routineFrequency";
 import { isImeComposing } from "../../utils/imeGuard";
@@ -98,11 +96,14 @@ export interface EventEditorItem {
   endTime: string; // HH:MM
   /** All-day occupies the day rather than a time span (#469). */
   isAllDay: boolean;
-  completed: boolean;
-  /** Derived status (#222) — shown as a tag on the completion toggle. */
-  status: ScheduleStatus;
   memo: string;
   isRoutine: boolean;
+  /**
+   * Minutes before the start to notify, or null for no reminder (#1374).
+   * Optional so the eight existing item literals across the suites keep
+   * compiling — a host that does not wire reminders passes nothing.
+   */
+  reminderOffset?: number | null;
 }
 
 /**
@@ -118,12 +119,10 @@ export interface EventEditorPatch {
   startTime?: string;
   endTime?: string;
   memo?: string;
+  reminderOffset?: number | null;
 }
 
 export interface EventEditorLabels {
-  complete: string;
-  /** Already-translated status-tag labels (#222). */
-  statusLabels: Record<ScheduleStatus, string>;
   title: string;
   /** Caption for the date picker (#469). */
   date: string;
@@ -163,7 +162,6 @@ export interface EventEditorHandlers {
    * (#279) must not be asked twice for one gesture (#553).
    */
   onSave: (id: string, patch: EventEditorPatch) => void;
-  onToggleComplete: (id: string) => void;
   /**
    * Report whether an unsaved draft is pending. The host owns the close
    * affordances (Esc, backdrop, close button, sheet dismissal) and is the only
@@ -211,6 +209,40 @@ export interface EventEditorOptions {
  * three independent optional props and wiring only some of them rendered
  * nothing at all, with no warning.
  */
+/**
+ * Per-event reminder (#1374). Supplying this object renders the field;
+ * omitting it renders nothing — the same idiom as the repeat and convert
+ * bundles, and the reason no existing host had to change.
+ */
+export interface EventEditorReminder {
+  /** Already-translated field label. */
+  label: string;
+  /** Choices in order; the `null` entry is "no reminder". */
+  options: Array<{ value: number | null; label: string }>;
+}
+
+/**
+ * Logged work time for this occurrence (#1375). Supplying this object renders
+ * the read-only row; omitting it renders nothing — the same idiom as the
+ * reminder / repeat / convert bundles.
+ *
+ * A STRING, not minutes. The pane holds no copy (§6.4) and no formatter, and
+ * "2h 30m" vs "2.5 時間" is a copy decision; the host already owns
+ * `options.formatDuration` for exactly this. It also lets the host say "nothing
+ * logged yet" in the same slot rather than making the pane invent an empty
+ * state for a number that is legitimately zero.
+ *
+ * Read-only on purpose. Time is RECORDED by the timer, never typed: a field the
+ * user could edit would be a second, silent writer into `timer_sessions` and
+ * the two would disagree the first time one of them was wrong.
+ */
+export interface EventEditorWorkTime {
+  /** Already-translated field label — 「実績時間」. */
+  label: string;
+  /** Already-formatted total, or the host's "nothing logged yet" copy. */
+  value: string;
+}
+
 export interface EventEditorRepeat {
   /**
    * The routine's frequency for a routine occurrence, or null for a manual
@@ -269,6 +301,10 @@ export interface EventEditorPaneProps {
   handlers: EventEditorHandlers;
   options?: EventEditorOptions;
   repeat?: EventEditorRepeat;
+  /** Reminder field (#1374). Omit to render none. */
+  reminder?: EventEditorReminder;
+  /** Logged work time (#1375). Omit to render none. */
+  workTime?: EventEditorWorkTime;
   /** Event → Todo entry (#998). Omit to render no conversion action. */
   convert?: EventEditorConvert;
   /**
@@ -301,6 +337,7 @@ interface EventEditorDraft {
   startTime: string;
   endTime: string;
   memo: string;
+  reminderOffset: number | null;
 }
 
 /**
@@ -325,6 +362,7 @@ function draftFromItem(item: EventEditorItem): EventEditorDraft {
     startTime: item.startTime,
     endTime: item.endTime,
     memo: item.memo,
+    reminderOffset: item.reminderOffset ?? null,
   };
 }
 
@@ -354,6 +392,11 @@ function buildPatch(
     patch.endTime = draft.endTime;
   }
   if (draft.memo !== item.memo) patch.memo = draft.memo;
+  // #1374: dirty-tracked like every other field, so it rides the ONE save
+  // press (#628) alongside a concurrent title edit rather than writing on
+  // change.
+  if (draft.reminderOffset !== (item.reminderOffset ?? null))
+    patch.reminderOffset = draft.reminderOffset;
   return patch;
 }
 
@@ -429,14 +472,15 @@ function EventEditorFields({
   handlers,
   options,
   repeat,
+  reminder,
+  workTime,
   convert,
   tagSlot,
   stickyFooter,
 }: Omit<EventEditorPaneProps, "className">) {
   // Unpacked back into the flat names the body has always used, so the #893
   // bundles stay a wire-format change and nothing below has to know about them.
-  const { onSave, onToggleComplete, onDirtyChange, onDismiss, onDelete } =
-    handlers;
+  const { onSave, onDirtyChange, onDismiss, onDelete } = handlers;
   const { originDetail, canEditDate, canEditAllDay, formatDuration } =
     options ?? {};
   const [edits, setEdits] = useState<EventEditorEdits>({});
@@ -584,23 +628,6 @@ function EventEditorFields({
 
   return (
     <div className="flex flex-col gap-3.5">
-      {/* Completion — the status tag (#222) doubles as the toggle. Clicking
-          flips completed; the derived status paints the tag. Not part of the
-          draft: it is an act, not a field (#628). */}
-      <button
-        type="button"
-        aria-pressed={item.completed}
-        aria-label={labels.complete}
-        onClick={() => onToggleComplete(item.id)}
-        className="flex items-center gap-2 self-start rounded-sm text-sm text-lumen-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-      >
-        <ScheduleStatusTag
-          status={item.status}
-          label={labels.statusLabels[item.status]}
-        />
-        <span>{labels.complete}</span>
-      </button>
-
       {/* Title */}
       <label className="flex flex-col gap-1.5">
         <span className={FIELD_LABEL}>{labels.title}</span>
@@ -618,13 +645,21 @@ function EventEditorFields({
           grid is not showing. A date input steps its value once per segment
           press, which is why it was never committed on change; since #628 no
           field is, and both live in the draft until the save button. */}
-      <div className="flex items-end gap-2">
+      <div className="flex items-end gap-3">
         {/* `min-w-0` for the same reason the time pair carries it (#1036): a
             flex item is floored at its content's min-content width, and a
             native date input reports a box wide enough for "YYYY/MM/DD" plus
             its picker glyph. The switch beside it is `shrink-0`, so on a phone
             the row could only resolve by growing past the right edge — which
-            put the switch half off screen and under the date field. */}
+            put the switch half off screen and under the date field.
+
+            #1403: releasing the COLUMN was not enough on iOS. WebKit keeps a
+            date input at its intrinsic width unless `appearance: none` is set
+            — `w-full` is simply ignored — so the field kept painting past its
+            shrunken column and under the switch. `appearance-none` + `min-w-0`
+            on the input itself is what finally lets it follow the column, and
+            the row's gap widens to `gap-3` so the two never touch even when
+            the column bottoms out. Same fix on ItemCreatePanel's row. */}
         <label className="flex min-w-0 flex-1 flex-col gap-1.5">
           <span className={FIELD_LABEL}>{labels.date}</span>
           <input
@@ -635,7 +670,7 @@ function EventEditorFields({
             onBlur={restoreClearedDate}
             onKeyDown={saveOnEnter}
             aria-label={labels.date}
-            className={cn(FIELD, "tabular-nums")}
+            className={cn(FIELD, "min-w-0 appearance-none tabular-nums")}
           />
         </label>
         {canEditAllDay && (
@@ -729,6 +764,56 @@ function EventEditorFields({
           className={cn(FIELD, "min-h-[72px] resize-y")}
         />
       </label>
+
+      {/* Reminder (#1374). Hidden rather than disabled while all-day is on:
+          an all-day row has no clock time to lead, so "30 minutes before"
+          would be a control that is present and means nothing — the same rule
+          the time pair follows two fields up.
+
+          A native <select> rather than a SettingsSegment: six choices are too
+          many for an equal-width pill strip, and it keeps the suites'
+          getByRole("radio") queries unambiguous. */}
+      {reminder && !draft.isAllDay && (
+        <label className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>{reminder.label}</span>
+          <select
+            value={
+              draft.reminderOffset === null ? "" : String(draft.reminderOffset)
+            }
+            onChange={(e) =>
+              edit({
+                reminderOffset:
+                  e.target.value === "" ? null : Number(e.target.value),
+              })
+            }
+            aria-label={reminder.label}
+            className={FIELD}
+          >
+            {reminder.options.map((o) => (
+              <option key={o.value ?? "none"} value={o.value ?? ""}>
+                {o.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      )}
+
+      {/* Logged work time (#1375). Read-only, and BELOW the fields the save
+          button commits: everything above is a draft the user is editing,
+          this is a record of what already happened, and mixing the two in one
+          column would invite a press of "save" to look like it wrote this too.
+
+          Shown for an all-day row as well, unlike the reminder — a day-long
+          event can absolutely have been worked on, and the number does not
+          depend on there being a clock time. */}
+      {workTime && (
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>{workTime.label}</span>
+          <span className="text-sm tabular-nums text-lumen-text">
+            {workTime.value}
+          </span>
+        </div>
+      )}
 
       {/* #998: Event → Todo. Narrow's ONLY entry — the Desktop single-click
           bubble (#625) is not drawn on this layout (ScheduleOverlays gates it

@@ -1,6 +1,6 @@
 import { createContext } from "react";
 import type { PomodoroPreset } from "../types/timer";
-import type { ActiveTodo, TimerPhase } from "./timerReducer";
+import type { ActiveWorkItem, TimerPhase } from "./timerReducer";
 
 /*
  * Timer context value (W3-B). Pattern A (CLAUDE.md §6.3). Timer is enabled on
@@ -49,7 +49,7 @@ export interface TimerContextValue {
   completedSessions: number;
   /** "MM:SS" of `remainingSeconds`. */
   formatted: string;
-  activeTodo: ActiveTodo | null;
+  activeItem: ActiveWorkItem | null;
 
   // --- settings (minutes) ---
   workDurationMinutes: number;
@@ -68,8 +68,12 @@ export interface TimerContextValue {
   reset: () => void;
   /** Force the timer onto a given phase (idle, elapsed reset). */
   setPhase: (phase: TimerPhase) => void;
-  /** Attribute future sessions to this todo (or clear with null). */
-  setActiveTodo: (todo: ActiveTodo | null) => void;
+  /**
+   * Attribute future sessions to this Todo or Event (or clear with null).
+   * Only the NEXT started row is affected — an in-flight session keeps the
+   * attribution it opened with (#1375).
+   */
+  setActiveItem: (item: ActiveWorkItem | null) => void;
   /**
    * Nudge the current phase's remaining time by ±`delta` minutes. Only takes
    * effect while paused/idle (no-op while running); remaining never drops

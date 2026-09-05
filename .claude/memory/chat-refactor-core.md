@@ -2,6 +2,14 @@
 
 ## 進行中
 
+### 🔧 コード整理監査の findings 消化（着手日: 2026-09-01）
+
+**対象**: `shared/src/**` / `mcp-server/src/**` / `desktop/**` / `.claude/docs/vision/plans/`
+
+- 前回: —
+- 現在: **5 本すべて PR 到達（#1386 / #1387 / #1389 / #1385 / #1300）**。2026-09-01 実測で **#1415 / #1418 / #1422 / #1426 は MERGED**、**#1428（#1300）だけ open**
+- 次: **#1300 の残りはユーザー手番**。(a) `release-desktop.yml` を workflow_dispatch で 1 回回す（Claude 側は権限で実行不可）→ (b) `desktop-v0.1.0` タグ → (c) 👀 Windows 11 実機受け入れ（起動判定は **Electron プロセス 4 本** = #545 の教訓）。#1301 の macOS 実機は別レーン
+
 ### 🔧 コア構造のリファクタリング（着手日: 2026-08-10）
 
 **対象**: `shared/src/**` / `web/src/**` / `mcp-server/**` / CI・tsconfig 群
@@ -17,7 +25,10 @@
 
 ## 直近の完了
 
-- **#1184 警告 / お知らせ / 確認パネルの共通化 — PR #1259 open・CI 全緑** ✅（2026-08-30）: `NoticePanel` は **ConfirmDialog（#707）の非モーダル側の片割れ**で、境界は「次の一手を誰が持つか」— ダイアログは進めない質問のために画面を奪い、パネルは読み飛ばせる報告をその場に置く。**トーンは `ToastVariant` の 4 つに合わせた**（同じ文言がトーストとその場表示で違う色になるのを防ぐ）。`info` / `warning` に `-subtle` の面を新設（既存レシピ = トーンを 6%（light）/ 8%（dark）で bg-secondary に焼き込む。**success-subtle が両テーマとも 1 バイト違わず再現したのでレシピを信用した**）。ビルド後の CSS に 4 トーンとも出ていることを実測 — **動的な `bg-lumen-${tone}-subtle` は Tailwind のスキャナに見えず、エラーにならず透明落ちする**（§5）
+- **コード整理監査の findings 5 本を一気通貫で PR 化** ✅（2026-09-01）: #1386（`migrateTodosToBackend` 削除 = PR #1415 merged）/ #1387（削除済み `frontend/` 前提のコメント・規範一掃 = PR #1418 merged）/ #1389（参照ゼロ export 削除 + EmptyState 改名 = PR #1422 merged）/ #1385（未使用 version カラムのバンプ廃止 = PR #1426 merged）/ #1300（desktop リリース基盤の実測記録 = PR #1428 open）。5 本とも `ci.yml` の `verify` 全ステップ + `docs-lint` をローカルで緑にしてから PR
+- **#1385 で分かったこと 3 つ**: (1) **`items_meta.version` のバンプは PostgREST の制約でそのたびに SELECT を 1 本増やす**（`version = version + 1` を書けない）。読み手は shared / web 全域でゼロだった。(2) **`deleteTagGroup` の version READ は消せない** — バンプの材料であると同時に「メンバーシップを消す前に投げる」pre-flight で、後者が本体。`select("id")` に置き換えて存置した。(3) **`web/tests` の fixture は `web build` でも `web test` でも捕まらない**（build は tests を見ず vitest は型を見ない）— `typecheck:tests` だけが赤くなった実例が出た（CLAUDE.md §7.1 のとおり）
+- **#1300 は「コードは既に main」だった**: PR #1348 / #1360 で version・workflow・ガード・README まで着地済みで、残っていたのは**一度も走らせていない**こと（`gh run list` も `gh release list` も空）。ローカルで空ビルドガードを両方向とも実測 — env 付きならホスト名がバンドルに焼かれ、**env 無しでもビルドは exit 0 で成功したまま**ホスト名だけが無い。計画書が保留していた `desktop/.env` の疑問も解けた（renderer の `root` は `../web` だが `envDir` はそこに従わず、`desktop/.env` は効く = README は正しい）
+- **#1184 警告 / お知らせ / 確認パネルの共通化 — PR #1259 merged** ✅（2026-08-30）: `NoticePanel` は **ConfirmDialog（#707）の非モーダル側の片割れ**で、境界は「次の一手を誰が持つか」— ダイアログは進めない質問のために画面を奪い、パネルは読み飛ばせる報告をその場に置く。**トーンは `ToastVariant` の 4 つに合わせた**（同じ文言がトーストとその場表示で違う色になるのを防ぐ）。`info` / `warning` に `-subtle` の面を新設（既存レシピ = トーンを 6%（light）/ 8%（dark）で bg-secondary に焼き込む。**success-subtle が両テーマとも 1 バイト違わず再現したのでレシピを信用した**）。ビルド後の CSS に 4 トーンとも出ていることを実測 — **動的な `bg-lumen-${tone}-subtle` は Tailwind のスキャナに見えず、エラーにならず透明落ちする**（§5）
 - **#1184 で残した判断 2 つ**: (1) **オフラインバナーのトーンを danger → warning に下げた**（何も失敗していない・`danger` は隣の画面で本物のエラーが使う色）。文言 / `role="status"` / `WifiOff` は据え置きで、merge 後の目視だけ chat-main 手番。(2) **auth の帯は成功トーンでも `role="alert"` を明示で渡す** — 両トーンとも「今出したフォームの結果」なので割り込むのが正で、`authCard.test.tsx` がそれを固定している。既定（success = polite）に任せると静かに退行する
 
 - **#1101 セクション切替に stale-while-revalidate — PR #1108 open** ✅（2026-08-23）: #1038 案 A-1 の実装。`useDomainLoad` の任意オプション `snapshotKey` で、成功した読みを `state/domainSnapshotStore.ts`（モジュール store）に置き、次の mount が同じ (dataService, anchor) ならそれを **layout effect** で `apply` に流し、`settled` を埋めた状態で始める（`isLoading` が true にならない）。7 ドメインが opt-in。**メモリのみ**（D-20260818-refactor-1）で localStorage には書かない。テスト 8 件で「往復で骨組みが挟まらない / 再取得が確実に差し替わる / localStorage に書かない」を固定し、失敗した再取得・race に負けた応答は store を汚さないことも併せて固定

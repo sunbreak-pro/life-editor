@@ -1,0 +1,176 @@
+<title>Schedule Six PRs</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --ink2: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --ink2: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --ink2: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink2); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--ink2); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.skip .tag { color: var(--stop); }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--ink2); font-size: 15px; }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink2); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.state { white-space: nowrap; font-weight: 700; }
+  td.state.yes { color: var(--ok); }
+  td.state.no { color: var(--ink2); font-weight: 400; }
+  td.state.maybe { color: var(--warn); }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .note { font-size: 14px; color: var(--ink2); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0 0 16px; font-size: 15px; }
+  dt { font-weight: 700; white-space: nowrap; }
+  dd { margin: 0; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-02 / 進捗 / life-editor · chat-schedule-refine</p>
+    <h1>Schedule の /goal 6 件を PR 6 本にした</h1>
+    <p class="lede">#1371 / #1403 / #1440 / #1405 / #1406 / #1401 をそれぞれ origin/main から切った独立ブランチで実装し、ローカルで CI verify 全ステップ + docs-lint を通して PR を開きました。仕様の裁定が要る 2 点は判断キューに積み、安全側を実装してあります。merge はこうだいさんの手番です。</p>
+  </header>
+
+  <ul class="verdicts">
+    <li class="verdict now"><span class="tag">merge 済み 4 / open 2</span><h3>PR 6 本のうち 4 本が main に</h3><p>#1450 / #1452 / #1454 / #1458 は merge 済み。#1463 / #1464 が open で、どちらも独立ブランチなので順番を問いません。</p></li>
+    <li class="verdict skip"><span class="tag">要 merge</span><h3>main が lint で赤 → fix PR #1466</h3><p>#1456（作業時間）と #1458（変換）が隣接して merge され、<code>workTime={workTime}</code> の 1 行が落ちました。1 行復元と整形 3 ファイルを同梱した #1466 を先に merge してください。</p></li>
+    <li class="verdict later"><span class="tag">回答待ち</span><h3>判断キュー 2 件</h3><p>D-20260902-sched-1（#1406 の「本日分 → その他」で日付を外すか翌日へ送るか）と D-20260902-sched-2（#1440 の A / B / C）。どちらも安全側を実装済みで、回答が別案なら追加 PR になります。</p></li>
+    <li class="verdict later"><span class="tag">目視待ち</span><h3>実機確認 3 件</h3><p>#1403 / #1401 のモバイル幅と #1405 の Desktop 変換 → Undo は、worktree チャットが dev server を持たないので merge 後に chat-main か実機で見てください。</p></li>
+  </ul>
+
+  <div class="callout prose"><strong>前提</strong>: 6 本とも squash merge 前提の独立ブランチです。#1440 と #1406 は同じ <code>ScheduleSidebar.tsx</code> と i18n カタログを触っているので、2 本目を merge するときに小さな衝突が出る可能性があります（見出しのカウンタ削除と、Todo タブの文言差し替えが隣接）。出たら該当ブランチに main を取り込んで解消します。</div>
+
+  <h2>PR 一覧</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Issue</th><th>PR</th><th>要旨</th><th>verify</th><th>備考</th></tr></thead>
+      <tbody>
+        <tr><td>#1371</td><td class="num"><a href="https://github.com/sunbreak-pro/life-editor/pull/1450">#1450</a></td><td>Todo 追加ピルの「＋+Todo」。<code>AddPill</code> がアイコンを描くので、文言側の「+ 」を落として "Todo" に（Materials の "Note" と同じ作法）</td><td class="state yes">全緑</td><td>i18n 2 行のみ。merge 済み</td></tr>
+        <tr><td>#1403</td><td class="num"><a href="https://github.com/sunbreak-pro/life-editor/pull/1452">#1452</a></td><td>終日トグルと日付欄の重なり。#1036 は flex 列だけ縮めていて、中の <code>&lt;input type="date"&gt;</code> は WebKit が intrinsic 幅に固定していた。input に <code>appearance-none min-w-0</code>、行の gap を 3 に。<code>ItemCreatePanel</code> の同一行も同じ 2 クラス</td><td class="state maybe">web vitest 1 件 flaky</td><td>落ちたのは <code>briefingEveningLazyMount</code>（既知・負荷起因）。単体は緑、他 5 本のフル実行では通過。merge 済み。整形 commit は merge 後の push で取り残され → #1466 に同梱</td></tr>
+        <tr><td>#1440</td><td class="num"><a href="https://github.com/sunbreak-pro/life-editor/pull/1454">#1454</a></td><td>凍った進捗数字 2 つを畳んだ（案 C）。「今日の流れ」見出しの {done}/{total} とルーチン集計の進捗バーを撤去し、背後の集計と i18n キーも削除。列・mapper・MCP の書き込み口は温存</td><td class="state yes">全緑</td><td>A / B は C の上に足す形なので後戻りにならない。merge 済み。整形 commit は取り残され → #1466 に同梱</td></tr>
+        <tr><td>#1405</td><td class="num"><a href="https://github.com/sunbreak-pro/life-editor/pull/1458">#1458</a></td><td>Event → Todo 変換を Desktop の編集パネルにも。変換基盤・Undo・ルーチン拒否は既存で、#998 が narrow 限定にしていた <code>convert</code> prop を両幅に渡すだけだった</td><td class="state yes">全緑</td><td>2 ファイル・挙動は既存ハンドラそのまま。merge 済み — ただし直前に merge された #1456 と隣接し、main 側で <code>workTime</code> の 1 行が落ちた（→ #1466）</td></tr>
+        <tr><td>#1406</td><td class="num"><a href="https://github.com/sunbreak-pro/life-editor/pull/1463">#1463</a></td><td>「本日のTodo」タブを 本日分 / その他 の 2 分類に。その他 = 未配置 + 他の日に配置済みの葉 Todo（"9/5 14:00" 付き）。ホバーで移動ボタン。その他 → 本日分は時刻を保って日付だけ変更、本日分 → その他は日付を外す（Undo 可）</td><td class="state yes">全緑</td><td>Briefing のトレイは新 prop を渡さないので描画不変。16 ファイル</td></tr>
+        <tr><td>#1401</td><td class="num"><a href="https://github.com/sunbreak-pro/life-editor/pull/1464">#1464</a></td><td>Mobile 月グリッド刷新。セル固定 70px・端から端・丸点をタイトル 3 行のリストに（4 件以上は 2 行 + "+N"）・長い題名は省略記号なしで端で切る。Desktop は <code>compact</code> ゲートの外</td><td class="state yes">全緑</td><td>初回フル実行で <code>calendarLayouts.test</code> の「narrow は点」の assert を更新し、web の lint / typecheck:tests / test を再実行して緑</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note prose">verify = ci.yml の verify ジョブと同じ 14 ステップ（shared lint / build / typecheck:tests / test → web lint / build / typecheck:tests / test → desktop typecheck / test / build → mcp-server build / typecheck:tests / test）+ docs-lint。ステップごとに終了コードを変数に取り、<code>| tail</code> で握り潰さないランナーで回しました。</p>
+
+  <h2>判断キューに積んだ 2 件</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>ID</th><th>問い</th><th>実装済み（安全側）</th><th>もう一方</th></tr></thead>
+      <tbody>
+        <tr><td class="num">D-20260902-sched-1</td><td>#1406 で「本日分 → その他」に移した Todo の日付をどうするか。Todo の時刻は <code>scheduledAt</code> の中にあるので「日付だけ外して時刻は残す」が保存できない</td><td>A: 日付を外して未配置に戻す（時刻も消える・Undo で戻る）。旧「Todo から追加」の逆操作と対称で、勝手な日付を発明しない</td><td>B: 翌日へ送る（時刻を保つ）</td></tr>
+        <tr><td class="num">D-20260902-sched-2</td><td>#1440 の 👀 ゲート。Event の完了が消えて常に 0 を指す数字 2 つをどうするか</td><td>C: 表示ごと畳む。何も発明せず、A / B に進むときは C の上に足せる</td><td>A: Todo 由来だけ数える（ルーチンのバーは根拠が無いので畳んだまま）／ B: 開始時刻を過ぎた件数 / 全件に替える</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>置いた仮定</h2>
+  <ul class="prose">
+    <li>#1440 の「安全側」= 案 C。Issue は 👀 裁定待ちですが、/goal の指示（A/B をキューに書いて安全側を実装）に従いました。数字が消える UI 変更なので、A か B が正解ならこの PR の上に足す形になります。</li>
+    <li>#1406 の「その他」に他の日へ配置済みの Todo を含めました。Issue の「時間帯が設定されている Todo は日付だけを変え、時刻を引き継ぐ」は、その他側に時刻付きの行があってこそ意味を持つためです。DONE の行はどちらの分類にも出しません（旧ピッカーと同じ）。</li>
+    <li>#1403 は Issue の Scope（編集シート）に加え、同じ行を持つ <code>ItemCreatePanel</code> にも同じ 2 クラスを当てました。#940 / #1036 が 2 つの行を揃えて運用しているためです。</li>
+    <li>#1401 の Issue 本文は「月シート」を前提にしていますが、#1148 以降シートは無く narrow の主画面がそのまま月グリッドです。刷新先は共有部品 <code>MonthGrid</code> の <code>compact</code> 分岐と narrow ホストにしました。</li>
+    <li>判断キューと tracker（memory / history）は実装 PR に載せず、<code>chore/tracker-schedule-refine-20260902</code> の 1 本にまとめました（D-20260801-main-1 / D-20260802-sched-1）。</li>
+  </ul>
+
+  <h2>未確認のこと</h2>
+  <ul class="prose">
+    <li>実ブラウザでの見た目（#1403 の iOS Safari、#1401 の 375px 幅、#1406 のホバー表示、#1405 の Desktop 変換 → Undo）。jsdom にレイアウトが無いので、クラスと配線のテストで固定してあります。</li>
+    <li><code>appearance-none</code> を付けた date input が iOS で空表示にならないこと。値は常に入る設計（blur で復元）なので理屈では出ませんが、実機は未確認です。</li>
+    <li>#1403 のフル web vitest は既知の flaky が 1〜2 件落ち、当該ファイル単体と他 5 本のフル実行で緑を確認した形です。CI の再走が最終判定になります。</li>
+    <li>python でパッチを当てた 7 ファイルは整形フックを通っていなかったので、3 本に prettier だけの追い commit を積み、lint と該当テストを再実行して緑にしました。CI は各 PR で再走します。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+  <ul class="prose">
+    <li><strong>#1466 を先に merge</strong>（main の <code>web — lint</code> を戻す 1 行 + 整形 3 ファイル）。</li>
+    <li>残り 2 本（#1463 / #1464）の merge。#1440 が先に入っているので、#1463 は <code>ScheduleSidebar.tsx</code> 近傍で小さな衝突が出る可能性があり、出たら取り込みます。</li>
+    <li>D-20260902-sched-1 / -2 の回答（ANSWERS.md に 1 行ずつ）。放置時はどちらも実装済みの安全側のままです。</li>
+    <li>tracker PR（<code>chore/tracker-schedule-refine-20260902</code>）の merge。判断キューの本文はこの PR に載っています。</li>
+  </ul>
+</div>

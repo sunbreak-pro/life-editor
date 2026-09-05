@@ -1,5 +1,44 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-02 - /goal 6 件（#1371 / #1403 / #1440 / #1405 / #1406 / #1401）を全部 PR まで
+
+#### 概要
+
+Schedule の小さなバグ 2 件と仕様寄りの 4 件を指定順に処理し、PR を 6 本出した（#1450 / #1452 / #1454 / #1458 / #1463 / #1464）。全ブランチ origin/main から独立に切り、CI `verify` 全ステップ + `docs-lint` をローカルで exit 0（例外は下記の #1403 の web vitest）。仕様の裁定が要る 2 点は判断キュー（D-20260902-sched-1 / -2）に積み、安全側を実装した。
+
+#### 変更点
+
+- **#1371 = PR #1450 「＋+Todo」の二重プラス**: `AddPill` が lucide の `Plus` を描くので、文言側の「+ 」を落として "Todo" にした（Materials の "Note" / 「ノート」と同じ作法）
+- **#1403 = PR #1452 終日トグルと日付欄の重なり（Mobile）**: #1036 は flex 列に `min-w-0` を入れて列を縮められるようにしたが、**中の `<input type="date">` は縮んでいなかった**。WebKit は `appearance: none` が無い date input を intrinsic 幅に固定し `w-full` を無視する。input 自身に `appearance-none min-w-0`、行の gap を `gap-3` に。`ItemCreatePanel` の同一行にも同じ 2 クラス
+- **#1440 = PR #1454 凍った進捗数字 2 つ（C = 表示ごと畳む）**: 「今日の流れ」見出しの `{done}/{total}` と `RoutineSummaryCard` の進捗バーを撤去し、背後の集計（`todayDone` / `routineDone` / `narrowDayCounts`・カードの count props・`scheduleScreen.doneSummary`）も落とした。列・mapper・MCP の `set_schedule_complete` は温存。A / B は C の上に足す形なので、先に C を出しても後戻りにならない
+- **#1405 = PR #1458 Event → Todo を Desktop の編集パネルにも**: 変換基盤・Undo・ルーチン拒否ダイアログはすべて既存（#625 / #739 / #997 / D-20260810-sched-5）で、#998 が narrow シート限定にしていた `convert` prop を両幅に渡すだけだった。**「無い」と書かれた Issue でも grep して「どこまで有るか」を先に測る**（#1000 の教訓の再演）
+- **#1406 = PR #1463 「本日のTodo」タブを 本日分 / その他 の 2 分類に**: 本日分 = 旧 placed / unplaced を `singleList` で合流、その他 = `pickOtherTodos`（未配置 + 他の日に配置済みの葉 Todo・後者は "9/5 14:00" を添える）。ホバーで出る移動ボタン（`hoverActions`・`[@media(hover:none)]` では常時表示）。**その他 → 本日分は日付だけ変えて時刻を保つ**（`todoMoveToTodayWrite`）、**本日分 → その他は日付を外す**（`todoMoveOutWrite`・Undo ラベル `todoRemoveFromToday` を新設）。Briefing のトレイは新 prop を渡さないので描画不変
+- **#1401 = PR #1464 Mobile 月グリッド刷新**: compact セルを固定 70px にし、グリッドを `flex-1` で伸ばすのをやめた（縦長の正体は `auto-rows-fr` × `flex-1` で余りが全部行の高さになっていたこと）。gutter は見出し行だけに残し、グリッドは端から端（compact では角丸と左右罫線も外す）。丸点を**タイトルの縦リスト**（3 行・4 件以上は 2 行 + "+N"）に替え、長い題名は `overflow-hidden whitespace-nowrap` だけ（`truncate` = 省略記号は使わない）で端で切る。Desktop は `compact` ゲートの外で無変更
+- **検証の例外（正直に）**: #1403 のフル web vitest は `briefingEveningLazyMount` の 1〜2 件が負荷で落ちた（既知の flaky・memory `cold-vite-cache-fails-lazy-mount-tests`）。同ファイル単体は緑、他の 5 本のフル実行では同テストが通っている。他ステップは全部緑
+- **prettier の追い commit**: python で当てたパッチは PostToolUse の整形フックを通らないので、push 後の `prettier --check` で 7 ファイルが未整形だった。#1403 / #1440 / #1406 の 3 本に整形だけの commit を積んだが、**#1452 / #1454 は push の前に merge されていて取り残された**（push-after-merge の 4 度目）。#1463 分だけ PR に載った
+- **main が赤になり fix PR #1466 を出した**: 4 本が数分間隔で merge された直後、`web — lint` が `'workTime' is assigned a value but never used` で落ちた。#1456（#1375・analytics レーン）が `ScheduleEventEditor` に `workTime` を足し、#1458（#1405）が隣の `convert` prop を書き換えたため、GitHub 側の merge で `workTime={workTime}` の 1 行が消えていた（値は計算されるが pane に渡らない = 作業時間の表示も消えていた）。1 行復元 + 取り残された整形 3 ファイルの prettier を同梱し、origin/main から切った `style/prettier-schedule-20260902` で PR #1466
+
+### 2026-09-01 - /goal 5 件（#1362 / #1370 / #1367 / #1373 / #1374）を全部 PR まで
+
+#### 概要
+
+Schedule の見た目と概念を整理する 5 件を指定順に処理し、PR を 5 本出した。#1411 / #1413 / #1414 は merge 済み、#1424（#1373）は origin/main 取り込みのコンフリクトを解消して `MERGEABLE/CLEAN`、#1433（#1374）は DDL があるため 🛑 `supabase db push` 待ちで open。
+
+#### 変更点
+
+- **#1362 = PR #1411（merged）now 線の時刻ラベルを消した**: 週・日ビューの now 線から左端のキャプションを外し、線とドットだけにした。`WeekTimeGridFormat.nowLabel` と `defaultFormatNowLabel` が呼び出し元ゼロになったので型ごと削除。**テストが「時刻の文字列」で now 線を探していたので、消した瞬間に何も掴めなくなる** — `data-week-grid="now-line"` / `"now-dot"` のフックを足して、3 本のテストをそちらへ寄せ替えたうえで「キャプションが無いこと」を 1 本追加した
+- **#1370 = PR #1413（merged）作成パネルを 2 タブに畳んだ**: type が event / task / note の 3 つだったのを 2 つにし、ノートは**両方のタブの中で開閉するディスクロージャ**に移した。`target` / `setTarget` / `selectType` と `source` / `setSource` の間接層が丸ごと不要になる。i18n は `scheduleScreen.typeNote` を落として `attachNote` / `noteSourceLabel` / `noteSourceNew` / `noteSourceExisting` の 4 本へ
+- **#1367 = PR #1414（merged）サイドバーの Todo 行を Todo のチェックボックスにした**: 「未着手 / 着手中 / 完了」は**予定の語彙**（時計から導かれる 3 値）で、Todo は done か否かの 2 値しか持たない。朝刊は既に後者の言い方をしているので、同じ Todo を見せる 2 面が状態の呼び名で食い違っていた。`AgendaListLabels` の `todoStatus` / `todoStatusLabels` は **optional にせず必須にした** — 言葉の無い Todo 行が黙って何かにフォールバックするのが、まさにこの Issue の再発形だから
+- **#1373 = PR #1424（open・CLEAN）予定から完了概念を全部外した**: ステータスピルとトグルを全面撤去し、`ScheduleStatusTag.tsx` / `utils/scheduleStatus.ts` とその 2 本のテスト、`schedule-tag-*` トークン、i18n 4 キー（`scheduleScreen.complete` / `statusNotStarted` / `statusInProgress` / `statusDone`、`briefing.toggleComplete`）を削除。51 ファイル・334 追加 / 1,005 削除。**判断が要ったのは取り消し線**: MCP の `set_schedule_complete` は残す仕様なので、Event 側で素通しすると「消す手段が画面に無いのに永久に消える」。`variant === "task"` でゲートして AgendaList / WeekTimeGrid（ブロックと終日チップ）/ MonthGrid の 4 箇所に同じ形で入れた。`completed` 列と `BriefingScheduleEntry.completed` はデータとして温存（夕刊の `!s.completed` フィルタが読む）
+- **#1374 = PR #1433（open・DDL 待ち）予定ごとのリマインダー**: 開始の N 分前に通知。アプリ内トーストは全プラットフォーム、OS 通知は Desktop のみ。**保存はオフセット**（`events_payload.reminder_offset_min`）で絶対時刻ではない — 絶対時刻だと予定を動かすたびに再計算が要り、その計算にはタイムゾーンの知識が要るが、`scheduleItemMapper` は「TZ を知らない純粋関数」だと自分のヘッダで宣言している。既存の `reminder_at` は 0008 以来ずっと全書き込みが literal null で実データ 0 行なので、互換性の負債ゼロで乗り換えられた（列は DROP せず残置）
+- **リマインダーの既定値は読み取り時に解決せず作成時に行へ書く**: 読み取り時フォールバックだと NULL が「通知しない」なのか「まだ決めていない」なのか DB から区別できず、Settings の既定を変えた瞬間に過去の予定が勝手に再武装する
+- **配信はタイマーではなくスイープ**: 予定ごとに `setTimeout` を張ると Realtime bump のたびに張り直しになり、結局「もう出したか」の集合が要る（集合があるならタイマーは 2 つ目の仕組みで何も買っていない）。加えて Chromium はバックグラウンドのタイマーを丸め、スリープで発火ごと消す。`useMinuteClock` で 1 分ごとに `Date.now()` と比べ直す形なら、スリープ・スロットル・時刻変更のどれの後でも答えを出し直せる。**台帳はモジュールスコープ**（`useRef` だと StrictMode の再マウントで捨てられ dev だけ 2 回出る = レビューで一番見られる DoD 項目がそこで壊れる）
+- **停止中に来た分は `due <= now && now < start` の 1 行**: 開始後に「もうすぐ始まる」と言われても行動は変わらないが、09:50 に届くはずの通知を 09:58 に開いた人へ出さないのは取りこぼし。この条件はリード時間（最大 60 分）が自然な上限になるので、遡り定数も「最後にスイープした時刻」の永続化も要らない
+- **Electron は IPC を 1 本（`notify:show`）だけ足した**: preload の公開関数が 9 → 10 で **#529 Risk 1 の上限ちょうど**。`desktop/tests/ipcContract.test.ts` が実物から数えているので黙って超えられない。**`isNativeMobile()` でゲートしていない** — `getDesktopNotificationBridge()` が Electron 以外で null を返すのが既にゲートで、Provider 層で mobile を切るとスマホでアプリ内通知まで死ぬ
+- **#1424 のコンフリクトは #1367 の squash merge が原因**: ブランチを #1367 の元コミット `c892f789` から生やしたが、#1367 は squash で main に入ったので元コミットが main の祖先でなくなり、同じ 3 ファイル（`AgendaList.tsx` / `agendaList.test.tsx` / `useScheduleDayLabels.ts`）が衝突として返ってきた。**全ハンク ours を「判断」ではなく「証明」にできた** — merge base 以降にその 3 ファイルを触った main のコミットは #1367 の squash 1 本だけで（`git log <base>..origin/main -- <file>`）、その中身は分岐元とバイト単位で同一（`git diff c892f789 70a45aeb -- <file>` が空）。つまり main は自分が既に持っているものしか持ち込まない。マージ後に `ScheduleStatusTag` / `utils/scheduleStatus` / `schedule-tag-*` / 削除した i18n 4 キーの参照ゼロも実測した
+- **#1374 で 1 本落ちたテストが本番の実バグを連れてきた**: ダミー DataService に `updateScheduleItem` が無く、リマインダー既定値の追い書きがそこで死んでいた。**stub を足すだけで済ませなかったのは、追い書きの失敗が `onSaved(null)`（= 作成失敗）として呼び出し側に伝わっていたから** — 行は保存済みなのにエディタが書き込んだばかりの行の上に開きっぱなしになる。追い書きだけを個別に catch して「リマインダー無しで保存済み」に落とし、その挙動をテストで固定した
+- **検証**: 5 本すべて CI `verify` 全ステップ（shared → web → desktop → mcp-server）+ `docs-lint` をローカルで exit 0。#1424 は main 取り込み後のツリーで再実測
+
 ### 2026-08-31 - #1343 詳細パネルのタブ 3 つを 1 行に揃えた
 
 #### 概要

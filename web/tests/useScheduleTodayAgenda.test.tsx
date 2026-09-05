@@ -41,7 +41,6 @@ import type { UseScheduleTodayAgendaArgs } from "../src/schedule/useScheduleToda
  * whole reason the group could come out of a host jsdom cannot mount.
  */
 
-const NOW = new Date("2026-08-16T09:30:00+09:00");
 const TODAY = "2026-08-16";
 
 const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
@@ -119,20 +118,17 @@ function renderAgenda(over: Partial<UseScheduleTodayAgendaArgs> = {}) {
   const reload = vi.fn(() => {
     writes.push("reload");
   });
-  const handleToggle = vi.fn();
   const handleTodoToggleComplete = vi.fn();
 
   const args: UseScheduleTodayAgendaArgs = {
     contextItems: [],
     todayTodoChips: [],
-    now: NOW,
     undismiss,
     reload,
     selected: null,
     routines: [],
     freqCopy: FREQ_COPY,
     weekdayLabels: WEEKDAYS,
-    handleToggle,
     handleTodoToggleComplete,
     ...over,
   };
@@ -148,7 +144,6 @@ function renderAgenda(over: Partial<UseScheduleTodayAgendaArgs> = {}) {
     writes,
     undismiss,
     reload,
-    handleToggle,
     handleTodoToggleComplete,
   };
 }
@@ -191,22 +186,18 @@ describe("useScheduleTodayAgenda — the two lists are one partition (#296)", ()
   });
 
   /*
-   * The counters read `todayItems`, so they inherit the split. A skipped row
-   * counted here is the version of the bug the user meets first: "1 / 3" on a
-   * day with two rows on screen.
+   * #1440: no counter reads `todayItems` any more. `completed` on an event is
+   * a column the UI cannot set (#1373), so a "{done}/{total}" built from it
+   * could only say zero — and the hook must not hand one out for a host to
+   * print by accident.
    */
-  it("counts only what is actually on today's list", () => {
+  it("hands out no completion counter for events", () => {
     const { result } = renderAgenda({
-      contextItems: [
-        item("done", { completed: true }),
-        item("open"),
-        item("skipped-and-done", { isDismissed: true, completed: true }),
-        item("trashed", { isDeleted: true }),
-      ],
+      contextItems: [item("done", { completed: true }), item("open")],
     });
 
-    expect(result.current.todayTotal).toBe(2);
-    expect(result.current.todayDone).toBe(1);
+    expect("todayDone" in result.current).toBe(false);
+    expect("todayTotal" in result.current).toBe(false);
   });
 
   /*
@@ -273,28 +264,24 @@ describe("useScheduleTodayAgenda — restoring a skipped row (#296)", () => {
 
 describe("useScheduleTodayAgenda — one agenda, two write paths (#761)", () => {
   /*
-   * The lists mix schedule items and todo chips and the two complete
-   * DIFFERENTLY — a chip's completion is a TodoTree status, an event's is the
-   * row's own flag. The id is all the row hands back, so the prefix is what
-   * decides. Send a chip id to the schedule path and it looks up a
-   * schedule_item that is not there: no error, no write, a tag that never
-   * changes.
+   * The id is all the row hands back, and a chip's id carries a prefix. #1373
+   * left only one write behind this — an event has no completion any more — so
+   * the guard's job is now the reverse of what it was: unwrap a chip id, and
+   * write nothing for anything else.
    */
   it("sends a chip to the TodoTree status write, unwrapped", () => {
-    const { result, handleToggle, handleTodoToggleComplete } = renderAgenda();
+    const { result, handleTodoToggleComplete } = renderAgenda();
 
     act(() => result.current.handleAgendaToggle(todoChipId("task-1")));
 
     expect(handleTodoToggleComplete).toHaveBeenCalledWith("task-1");
-    expect(handleToggle).not.toHaveBeenCalled();
   });
 
-  it("sends an event to the schedule_item write, untouched", () => {
-    const { result, handleToggle, handleTodoToggleComplete } = renderAgenda();
+  it("writes nothing for an event id (#1373)", () => {
+    const { result, handleTodoToggleComplete } = renderAgenda();
 
     act(() => result.current.handleAgendaToggle("event-1"));
 
-    expect(handleToggle).toHaveBeenCalledWith("event-1");
     expect(handleTodoToggleComplete).not.toHaveBeenCalled();
   });
 });

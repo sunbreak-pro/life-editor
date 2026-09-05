@@ -1,4 +1,10 @@
-export type { DataService } from "./services/DataService";
+export type { DataService, AttachmentRef } from "./services/DataService";
+// #1438 — what a cleanup dry run hands back. The detection itself is pure and
+// lives in services/attachmentOrphans.ts; hosts only need the shapes.
+export type {
+  AttachmentOrphanScan,
+  StoredAttachment,
+} from "./services/DataService";
 export { createSupabaseDataService } from "./services/SupabaseDataService";
 // #625: hosts branch their failure message on `reason` (a refusal the DB
 // enforces reads differently from a dropped request), and log the raw error
@@ -116,6 +122,19 @@ export {
   forgetNoteBody,
   NOTE_BODY_CACHE_LIMIT,
 } from "./state/noteBodyStore";
+// #1404 — editor attachment limits + the MIME/size helpers the picker, the
+// upload hook and the document node all have to agree on.
+export {
+  ATTACHMENTS_BUCKET,
+  ATTACHMENT_MAX_BYTES,
+  ATTACHMENT_URL_TTL_SECONDS,
+  ATTACHMENT_IMAGE_ACCEPT,
+  // The node name both packages have to agree on — web builds the TipTap node
+  // with it, shared's orphan sweep recognises a reference by it (#1438).
+  ATTACHMENT_NODE_TYPE,
+  isEmbeddableImage,
+  formatAttachmentSize,
+} from "./constants/attachments";
 export {
   SYNC_DOMAINS,
   domainsForChange,
@@ -205,6 +224,26 @@ export {
   DEFAULT_SCHEDULE_INITIAL_VIEW,
   SCHEDULE_INITIAL_VIEWS,
 } from "./hooks/useScheduleInitialView";
+// Event reminder prefs (#1374) — master switch + create-time default lead,
+// the same resolver + Settings-hook shape as the initial-view pref above.
+export {
+  useReminderPrefs,
+  resolveRemindersEnabled,
+  resolveDefaultReminderMinutes,
+  parseReminderLeadMinutes,
+  REMINDERS_ENABLED_STORAGE_KEY,
+  REMINDER_DEFAULT_MINUTES_STORAGE_KEY,
+} from "./hooks/useReminderPrefs";
+// The reminder sweep's pure half (#1374) — which reminders are due, and the
+// dedupe key that survives a re-render and a re-sync.
+export {
+  dueReminders,
+  reminderDueAt,
+  reminderKey,
+  REMINDER_LEAD_CHOICES,
+  DEFAULT_REMINDER_LEAD_MINUTES,
+  type ReminderDue,
+} from "./utils/reminderSchedule";
 // Day-start (rollover) hour preference (#218, split from §216) — pure readers
 // (todayDateKey drives Daily / routine sync "today") + the Settings-side hook.
 export {
@@ -489,7 +528,12 @@ export {
   type TodoChipSlot,
 } from "./utils/itemConversion";
 // A-3 (#298): "add from todos" selector for the Today's Todo tray.
-export { pickAddableTodos, type AddableTodo } from "./utils/todayTodo";
+export {
+  pickAddableTodos,
+  pickOtherTodos,
+  type AddableTodo,
+  type OtherTodo,
+} from "./utils/todayTodo";
 // Schedule host domain helpers (#280, extracted from web CalendarTab /
 // scheduleLabels): pure label mapping, view-mode normalisation + visible
 // range, and the optimistic-create row factory.
@@ -608,7 +652,7 @@ export {
   type TimerSettingsPatch,
   type TimerPresetValues,
   type TimerPhase,
-  type ActiveTodo,
+  type ActiveWorkItem,
 } from "./context";
 export { useTimerContext } from "./hooks/useTimerContext";
 export {
@@ -628,6 +672,9 @@ export type {
   TimerSession,
   PomodoroPreset,
   SessionType,
+  // #1375: what a session is measured against — a Todo or an Event.
+  WorkTarget,
+  WorkTargetKind,
 } from "./types/timer";
 
 // Audio domain (W3-C) — ambient mixer Provider + OPTIONAL context hook + the
@@ -682,6 +729,13 @@ export {
   type ClaudeLaunchOutcome,
   type DesktopClaudeLauncherBridge,
 } from "./utils/claudeLauncher";
+// OS notification bridge (#1374) — desktop-only, null everywhere else, same
+// shape and the same reason as the launcher bridge above.
+export {
+  getDesktopNotificationBridge,
+  type DesktopNotifyArgs,
+  type DesktopNotificationBridge,
+} from "./utils/desktopNotifications";
 // Notes list ordering (#283) — pure port of the useNotesUnifiedAPI
 // `sortedFilteredNotes` comparator, so the host list + the extracted util
 // share one ordering source.
@@ -705,6 +759,12 @@ export {
 } from "./utils/dailyListView";
 // jsonb-canonicalization-proof own-echo test (#300) — see file header.
 export { jsonDocEquals } from "./utils/jsonDocEquals";
+// #1375: reading a timer_sessions log — which item a session names, and how
+// much WORK was logged against one of them.
+export {
+  sessionTargetId,
+  totalWorkMinutesForItem,
+} from "./utils/timerSessions";
 // `[[ ]]` edges parked until their source item's first save lands (#371).
 export {
   createPendingItemLinks,

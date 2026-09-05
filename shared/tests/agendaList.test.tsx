@@ -9,19 +9,15 @@ import {
 /*
  * AgendaList — pure day agenda. All-day rows first, then timed rows in the
  * order given (host sorts). A now-line divider splits past from upcoming when
- * nowMinutes is supplied; the completion circle fires onToggleComplete.
+ * nowMinutes is supplied. Completion is a TODO row's alone since #1373: its
+ * checkbox fires onToggleComplete, and an event row carries no control and no
+ * strikethrough at all.
  */
 
 const LABELS = {
   allDay: "All-day",
   empty: "Nothing today",
   nowLabel: "Now",
-  complete: "Toggle complete",
-  statusLabels: {
-    notStarted: "Not started",
-    inProgress: "In progress",
-    done: "Done",
-  },
   todoStatus: "Status",
   todoStatusLabels: {
     statusNotStarted: "Not started",
@@ -36,7 +32,6 @@ const ITEMS: AgendaItem[] = [
     startTime: "00:00",
     endTime: "00:00",
     isAllDay: true,
-    status: "inProgress",
   },
   {
     id: "a",
@@ -45,7 +40,6 @@ const ITEMS: AgendaItem[] = [
     endTime: "07:15",
     variant: "routine",
     completed: true,
-    status: "done",
   },
   {
     id: "b",
@@ -53,7 +47,6 @@ const ITEMS: AgendaItem[] = [
     startTime: "15:00",
     endTime: "16:00",
     variant: "event",
-    status: "notStarted",
   },
   {
     id: "t",
@@ -61,7 +54,6 @@ const ITEMS: AgendaItem[] = [
     startTime: "09:00",
     endTime: "10:00",
     variant: "task",
-    status: "notStarted",
   },
 ];
 
@@ -126,16 +118,23 @@ describe("AgendaList", () => {
     ).toBeTruthy();
   });
 
-  it("fires onToggleComplete from the timed-row status tag", () => {
-    const { onToggleComplete } = renderList();
-    // Only timed rows expose a clickable status tag; the all-day row's tag is
-    // informational (no toggle), and #1367 moved the todo row to a checkbox —
-    // so this query sees the two EVENT/ROUTINE rows only, and toggles[0] is
-    // "a".
-    const toggles = screen.getAllByRole("button", { name: "Toggle complete" });
-    expect(toggles).toHaveLength(2);
-    fireEvent.click(toggles[0]);
-    expect(onToggleComplete).toHaveBeenCalledWith("a");
+  it("gives an EVENT / ROUTINE row no completion control at all (#1373)", () => {
+    renderList();
+    // One control on the whole list, and it belongs to the todo row.
+    expect(screen.getAllByRole("checkbox")).toHaveLength(1);
+    for (const title of ["Trash day", "Stretch", "Project review"]) {
+      const row = screen.getByText(title).closest("li");
+      expect(row?.querySelector('[role="checkbox"]')).toBeNull();
+      expect(row?.querySelector("button[aria-pressed]")).toBeNull();
+    }
+  });
+
+  it("never strikes an EVENT row through, even when it is completed (#1373)", () => {
+    // "Stretch" is completed: true. The MCP set_schedule_complete tool still
+    // writes that flag, and with the toggle gone a struck-through event would
+    // be a state the user can see but cannot clear.
+    renderList();
+    expect(screen.getByText("Stretch").className).not.toContain("line-through");
   });
 
   it("shows the empty label when there are no items", () => {
@@ -184,7 +183,6 @@ describe("AgendaList", () => {
             endTime: "10:00",
             variant: "task",
             completed: true,
-            status: "done",
           },
         ]}
         onToggleComplete={vi.fn()}
@@ -198,13 +196,6 @@ describe("AgendaList", () => {
     expect(screen.getByText("Write report").className).toContain(
       "line-through",
     );
-  });
-
-  it("leaves the EVENT rows on the status pill (#1373 is a separate call)", () => {
-    renderList();
-    const eventRow = screen.getByText("Project review").closest("li");
-    expect(eventRow?.querySelector('[role="checkbox"]')).toBeNull();
-    expect(eventRow?.textContent).toContain("Not started");
   });
 
   it("keeps the control on an ALL-DAY todo row, unlike an all-day event", () => {
@@ -223,7 +214,6 @@ describe("AgendaList", () => {
             endTime: "00:00",
             isAllDay: true,
             variant: "task",
-            status: "inProgress",
           },
           {
             id: "trash",
@@ -231,18 +221,13 @@ describe("AgendaList", () => {
             startTime: "00:00",
             endTime: "00:00",
             isAllDay: true,
-            status: "inProgress",
           },
         ]}
         onToggleComplete={onToggleComplete}
         labels={LABELS}
       />,
     );
-    // The all-day EVENT's pill stays a read-only span, so nothing on that row
-    // is pressable.
-    expect(
-      screen.queryByRole("button", { name: "Toggle complete" }),
-    ).toBeNull();
+    // Nothing is pressable on the all-day EVENT row (#1373).
     const boxes = screen.getAllByRole("checkbox");
     expect(boxes).toHaveLength(1); // the todo row only
     fireEvent.click(boxes[0]);

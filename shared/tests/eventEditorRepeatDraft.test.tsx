@@ -25,12 +25,6 @@ import {
  */
 
 const LABELS: EventEditorLabels = {
-  complete: "Mark complete",
-  statusLabels: {
-    notStarted: "Not started",
-    inProgress: "In progress",
-    done: "Done",
-  },
   title: "Title",
   date: "Date",
   allDay: "All-day",
@@ -67,8 +61,6 @@ const manualItem: EventEditorItem = {
   isAllDay: false,
   startTime: "19:00",
   endTime: "20:30",
-  completed: false,
-  status: "notStarted",
   memo: "",
   isRoutine: false,
 };
@@ -99,7 +91,6 @@ function renderPane(
 ) {
   const fns = {
     onSave: vi.fn(),
-    onToggleComplete: vi.fn(),
     onChangeRepeat: vi.fn(),
     onDetachRepeat: vi.fn(),
   };
@@ -107,7 +98,7 @@ function renderPane(
     <EventEditorPane
       item={item}
       labels={LABELS}
-      handlers={{ onSave: fns.onSave, onToggleComplete: fns.onToggleComplete }}
+      handlers={{ onSave: fns.onSave}}
       repeat={{
         value: repeat,
         labels: REPEAT_LABELS,
@@ -262,7 +253,7 @@ describe("EventEditorPane — repeat draft (#712)", () => {
       <EventEditorPane
         item={routineItem}
         labels={LABELS}
-        handlers={{ onSave: vi.fn(), onToggleComplete: vi.fn() }}
+        handlers={{ onSave: vi.fn()}}
         repeat={{
           value: weeklyRepeat,
           labels: REPEAT_LABELS,

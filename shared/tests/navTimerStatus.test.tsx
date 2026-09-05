@@ -23,7 +23,7 @@ function makeTimerValue(
     totalSeconds: 1500,
     completedSessions: 0,
     formatted: "25:00",
-    activeTodo: null,
+    activeItem: null,
     workDurationMinutes: 25,
     breakDurationMinutes: 5,
     longBreakDurationMinutes: 15,
@@ -35,7 +35,7 @@ function makeTimerValue(
     pause: vi.fn(),
     reset: vi.fn(),
     setPhase: vi.fn(),
-    setActiveTodo: vi.fn(),
+    setActiveItem: vi.fn(),
     adjustRemainingMinutes: vi.fn(),
     saveSettings: vi.fn(),
     setAutoStartBreaks: vi.fn(),
@@ -74,7 +74,7 @@ describe("NavTimerStatus (#550)", () => {
       makeTimerValue({
         isRunning: true,
         formatted: "24:31",
-        activeTodo: { id: "task-1", title: "Write the report" },
+        activeItem: { id: "task-1", title: "Write the report", kind: "todo" },
       }),
       <NavTimerStatus />,
     );

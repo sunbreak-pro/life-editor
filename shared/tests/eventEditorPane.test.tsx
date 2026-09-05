@@ -23,12 +23,6 @@ import {
  */
 
 const LABELS: EventEditorLabels = {
-  complete: "Mark complete",
-  statusLabels: {
-    notStarted: "Not started",
-    inProgress: "In progress",
-    done: "Done",
-  },
   title: "Title",
   date: "Date",
   allDay: "All-day",
@@ -50,8 +44,6 @@ const routineItem: EventEditorItem = {
   isAllDay: false,
   startTime: "19:00",
   endTime: "20:30",
-  completed: false,
-  status: "notStarted",
   memo: "",
   isRoutine: true,
 };
@@ -80,11 +72,14 @@ function renderPane(
     canEditAllDay?: boolean;
     /** #998: render the narrow sheet's Event -> Todo action. */
     convert?: boolean;
+    /** #1374: render the reminder field. */
+    reminder?: boolean;
+    /** #1375: render the read-only logged-time row. */
+    workTime?: boolean;
   },
 ) {
   const fns = {
     onSave: vi.fn(),
-    onToggleComplete: vi.fn(),
     onDismiss: vi.fn(),
     onDelete: vi.fn(),
   };
@@ -101,6 +96,8 @@ function renderPane(
       convert={
         props?.convert ? { label: CONVERT_LABEL, onConvert } : undefined
       }
+      reminder={props?.reminder ? REMINDER_BUNDLE : undefined}
+      workTime={props?.workTime ? WORK_TIME_BUNDLE : undefined}
       tagSlot={props?.tagSlot}
     />,
   );
@@ -244,7 +241,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave, onToggleComplete: vi.fn() }}
+        handlers={{ onSave}}
       />,
     );
     fireEvent.change(screen.getByLabelText("Memo"), {
@@ -258,7 +255,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={{ ...manualItem, memo: "bring the card" }}
         labels={LABELS}
-        handlers={{ onSave, onToggleComplete: vi.fn() }}
+        handlers={{ onSave}}
       />,
     );
     expect(saveButton()).toBeDisabled();
@@ -304,7 +301,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave, onToggleComplete: vi.fn() }}
+        handlers={{ onSave}}
         options={{ canEditDate: true }}
       />,
     );
@@ -330,7 +327,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={next}
         labels={LABELS}
-        handlers={{ onSave, onToggleComplete: vi.fn() }}
+        handlers={{ onSave}}
       />,
     );
 
@@ -339,7 +336,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave: vi.fn(), onToggleComplete: vi.fn() }}
+        handlers={{ onSave: vi.fn()}}
       />,
     );
     rerenderWith(rerender, { ...manualItem, title: "Dentist (moved)" });
@@ -355,7 +352,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave, onToggleComplete: vi.fn() }}
+        handlers={{ onSave}}
       />,
     );
     fireEvent.change(screen.getByLabelText("Memo"), {
@@ -375,7 +372,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave: vi.fn(), onToggleComplete: vi.fn() }}
+        handlers={{ onSave: vi.fn()}}
       />,
     );
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -410,7 +407,6 @@ describe("EventEditorPane — dirty reporting for the close guard (#628)", () =>
         labels={LABELS}
         handlers={{
           onSave: vi.fn(),
-          onToggleComplete: vi.fn(),
           onDirtyChange,
         }}
       />,
@@ -553,5 +549,116 @@ describe("EventEditorPane — tag slot (#468)", () => {
     // omits the prop.
     renderPane(manualItem);
     expect(screen.queryByText("TAG SLOT")).toBeNull();
+  });
+});
+
+/** #1375: the logged-time row's copy, shaped as the host builds it. */
+const WORK_TIME_BUNDLE = { label: "Logged time", value: "1 hr 30 min" };
+
+/** #1374: the reminder field's copy, shaped as the host builds it. */
+const REMINDER_BUNDLE = {
+  label: "Reminder",
+  options: [
+    { value: null, label: "No reminder" },
+    { value: 10, label: "10 min before" },
+    { value: 30, label: "30 min before" },
+  ],
+};
+
+describe("EventEditorPane — the reminder field (#1374)", () => {
+  it("renders nothing when the host supplies no reminder bundle", () => {
+    // The same "supplying the object renders the section" idiom the repeat
+    // and convert bundles use — which is what kept every existing host and
+    // every existing item literal compiling unchanged.
+    renderPane(manualItem);
+    expect(screen.queryByLabelText("Reminder")).toBeNull();
+  });
+
+  it("seeds the select from the item and rides the ONE save press (#628)", () => {
+    const { onSave } = renderPane(
+      { ...manualItem, reminderOffset: 10 },
+      { reminder: true },
+    );
+    const select = screen.getByLabelText("Reminder") as HTMLSelectElement;
+    expect(select.value).toBe("10");
+
+    // Changed alongside a title edit: both must arrive in the SAME patch, or
+    // a routine occurrence's scope dialog gets asked twice for one gesture.
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Dentist v2" },
+    });
+    fireEvent.change(select, { target: { value: "30" } });
+    fireEvent.click(saveButton());
+
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).toHaveBeenCalledWith("m1", {
+      title: "Dentist v2",
+      reminderOffset: 30,
+    });
+  });
+
+  it("sends null when the user picks 'no reminder'", () => {
+    const { onSave } = renderPane(
+      { ...manualItem, reminderOffset: 10 },
+      { reminder: true },
+    );
+    fireEvent.change(screen.getByLabelText("Reminder"), {
+      target: { value: "" },
+    });
+    fireEvent.click(saveButton());
+    expect(onSave).toHaveBeenCalledWith("m1", { reminderOffset: null });
+  });
+
+  it("sends nothing when the pick lands back on the stored value", () => {
+    // Same rule every other field follows: the button must not light up for
+    // a change it then declines to send.
+    const { onSave } = renderPane(
+      { ...manualItem, reminderOffset: 10 },
+      { reminder: true },
+    );
+    fireEvent.change(screen.getByLabelText("Reminder"), {
+      target: { value: "30" },
+    });
+    fireEvent.change(screen.getByLabelText("Reminder"), {
+      target: { value: "10" },
+    });
+    expect(saveButton()).toBeDisabled();
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("hides the field on an all-day row, which has no time to lead", () => {
+    renderPane({ ...manualItem, isAllDay: true }, { reminder: true });
+    expect(screen.queryByLabelText("Reminder")).toBeNull();
+  });
+});
+
+/*
+ * The logged-time row (#1375). The pane's half is only the bundle contract:
+ * absent → nothing at all, present → the host's already-formatted string, and
+ * present on an ALL-DAY row too (unlike the reminder, which needs a clock time
+ * to lead). The formatting itself is the host's and is tested there.
+ */
+describe("EventEditorPane — the logged work time row (#1375)", () => {
+  it("renders nothing when the host supplies no workTime bundle", () => {
+    renderPane(manualItem);
+    expect(screen.queryByText("Logged time")).toBeNull();
+  });
+
+  it("renders the host's already-formatted total", () => {
+    renderPane(manualItem, { workTime: true });
+    expect(screen.getByText("Logged time")).toBeInTheDocument();
+    expect(screen.getByText("1 hr 30 min")).toBeInTheDocument();
+  });
+
+  it("shows it on an all-day row as well — a whole day can still be worked", () => {
+    renderPane({ ...manualItem, isAllDay: true }, { workTime: true });
+    expect(screen.getByText("1 hr 30 min")).toBeInTheDocument();
+  });
+
+  // It is a record, not a draft: showing it must never make the save button
+  // think something is pending.
+  it("leaves the save button untouched", () => {
+    renderPane(manualItem, { workTime: true });
+    expect(saveButton()).toBeDisabled();
   });
 });

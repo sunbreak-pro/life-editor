@@ -7,6 +7,13 @@ import { cn } from "../cn";
  * (the rightSidebar "繰り返し" tab since #408 retired the Routines tab). Pure
  * presentation (§3.1 / §6.4): rows + copy injected already translated, the CTA
  * is a callback. lumen-* tokens only (§5).
+ *
+ * #1440: the completion bar and its "N件中M件完了" line are gone. They counted
+ * `completed` on today's routine-generated events, and #1373 took completion
+ * away from events entirely — so the bar could only ever stay at zero (or at
+ * whatever the MCP tool last wrote). Option C of the Issue: fold the readout
+ * rather than invent a second meaning for it; the routine list and the CTA are
+ * what the card is for.
  */
 
 export interface RoutineSummaryRow {
@@ -28,10 +35,6 @@ export interface RoutineSummaryCardLabels {
 
 export interface RoutineSummaryCardProps {
   routines: RoutineSummaryRow[];
-  completedCount: number;
-  totalCount: number;
-  /** Already-translated "N件中M件完了" summary line (§6.4). */
-  summaryText?: string;
   labels: RoutineSummaryCardLabels;
   onOpenRoutines: () => void;
   className?: string;
@@ -39,14 +42,10 @@ export interface RoutineSummaryCardProps {
 
 export function RoutineSummaryCard({
   routines,
-  completedCount,
-  totalCount,
-  summaryText,
   labels,
   onOpenRoutines,
   className,
 }: RoutineSummaryCardProps) {
-  const pct = totalCount > 0 ? (completedCount / totalCount) * 100 : 0;
   return (
     <div
       className={cn(
@@ -54,24 +53,7 @@ export function RoutineSummaryCard({
         className,
       )}
     >
-      <div className="flex flex-col gap-1.5">
-        <h3 className="text-sm font-semibold text-lumen-text">
-          {labels.title}
-        </h3>
-        {summaryText && (
-          <>
-            <span className="text-xs text-lumen-text-secondary">
-              {summaryText}
-            </span>
-            <div className="h-1 overflow-hidden rounded-full bg-lumen-surface-sunken">
-              <div
-                className="h-full rounded-full bg-lumen-accent"
-                style={{ width: `${pct}%` }}
-              />
-            </div>
-          </>
-        )}
-      </div>
+      <h3 className="text-sm font-semibold text-lumen-text">{labels.title}</h3>
 
       {routines.length === 0 ? (
         <p className="py-4 text-center text-sm text-lumen-text-secondary">

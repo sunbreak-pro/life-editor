@@ -69,8 +69,6 @@ export interface UseScheduleGridFiltersArgs {
   allTags: WikiTagUnified[];
   allAssignments: WikiTagAssignmentUnified[];
   isWide: boolean;
-  /** The minute clock, for deriving each row's status (#222). */
-  now: Date;
   /** The day the Mobile list shows. */
   anchorDate: string;
   /** The selected row, for the two selection-drop guards. */
@@ -94,7 +92,6 @@ export function useScheduleGridFilters({
   allTags,
   allAssignments,
   isWide,
-  now,
   anchorDate,
   selected,
   setSelectedId,
@@ -204,8 +201,8 @@ export function useScheduleGridFilters({
   );
 
   const gridItems = useMemo<WeekTimeGridItem[]>(
-    () => toWeekGridItems(gridRangeItems, gridTodoChips, now),
-    [gridRangeItems, now, gridTodoChips],
+    () => toWeekGridItems(gridRangeItems, gridTodoChips),
+    [gridRangeItems, gridTodoChips],
   );
   const monthItems = useMemo<MonthGridItem[]>(
     () => toMonthGridItems(gridRangeItems, gridTodoChips),

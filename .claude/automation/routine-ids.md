@@ -7,21 +7,25 @@
 
 ## Registered Routines
 
-| Routine    | 基盤                      | Schedule       | Task 名（予定）        | Status                           | Registered |
-| ---------- | ------------------------- | -------------- | ---------------------- | -------------------------------- | ---------- |
-| digest     | Windows Task Scheduler 案 | 毎日 06:03 JST | `LifeEditor-Digest`    | **PENDING**（D-20260804-main-1） | —          |
-| night-safe | Windows Task Scheduler 案 | 毎日 22:33 JST | `LifeEditor-NightSafe` | **PENDING**（D-20260804-main-1） | —          |
+| Routine    | 基盤                   | Schedule       | Task 名                | Status     | Registered |
+| ---------- | ---------------------- | -------------- | ---------------------- | ---------- | ---------- |
+| digest     | Windows Task Scheduler | 毎日 06:03 JST | `LifeEditor-Digest`    | **ACTIVE** | 2026-09-02 |
+| night-safe | Windows Task Scheduler | 毎日 22:33 JST | `LifeEditor-NightSafe` | **ACTIVE** | 2026-09-02 |
 
 - 発火時刻を 00 分 / 30 分から外しているのは意図的（ジャストの時刻は負荷が集中しやすい・数分の前後はこの用途で問題にならない）
 - Status 遷移: PENDING（裁定待ち）→ ACTIVE（登録済み）→ PAUSED / RETIRED
 
-## 登録手順（Task Scheduler 案が裁定されたら・ユーザー実行）
+## 登録手順（登録済み — 再登録 / 別マシンへの移設時の手順）
 
-**登録前に必ず 1 回、コンソールで手動実行して動作確認する**（`run-routine.ps1` は未実測）:
+**登録前に必ず 1 回、コンソールで手動実行して動作確認する**（2026-09-02 に実走済み — 3 分で完走し、報告が `comm/outbox/chat-night-safe/` へ自動追記されるところまで確認）:
 
 ```powershell
-powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\user\orca\life-editor\.claude\automation\run-routine.ps1 -Routine digest
+powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\user\orca\life-editor\.claude\automation\run-routine.ps1 -Routine night-safe
 ```
+
+無人用 permissions は `run-routine.ps1` が routine ごとに選んで `--settings` で渡す（digest / night-safe = `settings-unattended-readonly.json`、night = `settings-unattended-implement.json`）。ファイルが無ければスクリプトは起動せずに止まる（柵の無い無人実行を作らないため）。
+
+> **`run-routine.ps1` を編集するときは UTF-8 BOM を保つ。** Windows PowerShell 5.1 は BOM なしを CP932 として読むため、日本語コメントの末尾バイトが改行を飲み込み、次の行がコメントに埋もれる（実際 `$RepoRoot = Split-Path ...` が消えて `Set-Location` が null で落ちていた）。文字列リテラルに日本語を入れないのも同じ理由（閉じ引用符が飲まれる）。
 
 問題なければ登録（管理者不要・現在ユーザーで実行）:
 
@@ -30,7 +34,7 @@ schtasks /Create /TN "LifeEditor-Digest" /SC DAILY /ST 06:03 /TR "powershell -No
 schtasks /Create /TN "LifeEditor-NightSafe" /SC DAILY /ST 22:33 /TR "powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\user\orca\life-editor\.claude\automation\run-routine.ps1 -Routine night-safe"
 ```
 
-登録したら上表の Status を ACTIVE に更新し、Registered に日付を記入する。
+登録したら上表の Status を ACTIVE に更新し、Registered に日付を記入する（`/F` を付けると同名タスクを上書き再登録できる）。登録内容の確認は `Get-ScheduledTaskInfo` の `NextRunTime` を見る。
 
 ## 一時停止 / 削除
 
@@ -59,3 +63,4 @@ Claude Code セッション内の scheduled tasks（CronCreate）は**そのセ�
 
 - 2026-05-26: 台帳初期化（Cloud Routine 前提・Night = PENDING / Morning = DEFERRED のまま未稼働）
 - 2026-08-04: Phase 1 改訂で全面書き換え（Cloud Routine 台帳を退役・Task Scheduler 案 + headless launcher へ。発火は D-20260804-main-1 裁定待ち）
+- 2026-09-02: 2 本を `schtasks` へ登録して ACTIVE 化（#1335）。事前ゲートの手動実走 = `logs/night-safe-2026-09-02_2100.log`（3 分で完走・報告は launcher が `comm/outbox/chat-night-safe/` へ自動追記）

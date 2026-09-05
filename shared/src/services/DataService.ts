@@ -2,6 +2,7 @@ import type { TodoNode } from "../types/todoTree";
 import type {
   TimerSettings,
   TimerSession,
+  WorkTarget,
   SessionType,
   PomodoroPreset,
 } from "../types/timer";
@@ -13,6 +14,13 @@ import type { TagGroupNode } from "../types/tagGroup";
 import type { RoutineNode } from "../types/routine";
 import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
+// #1438 — the sweep's own vocabulary. Declared next to the pure detection it
+// belongs to and re-exported below, so a consumer of the DataService never
+// has to know which service file implements the scan.
+import type {
+  AttachmentOrphanScan,
+  StoredAttachment,
+} from "./attachmentOrphans";
 import type {
   WikiTag as WikiTagUnified,
   WikiTagAssignment as WikiTagAssignmentUnified,
@@ -79,9 +87,14 @@ export interface TimerDataService {
       >
     >,
   ): Promise<TimerSettings>;
+  /**
+   * Open a session row. `target` names what the time is measured against —
+   * a Todo or an Event (#1375) — or nothing at all for free measurement
+   * (#1116: an unattributed start creates no item on the user's behalf).
+   */
   startTimerSession(
     sessionType: SessionType,
-    todoId?: string,
+    target?: WorkTarget,
   ): Promise<TimerSession>;
   endTimerSession(
     id: number,
@@ -96,6 +109,8 @@ export interface TimerDataService {
   ): Promise<TimerSession>;
   fetchTimerSessions(): Promise<TimerSession[]>;
   fetchSessionsByTodoId(todoId: string): Promise<TimerSession[]>;
+  /** Sessions measured against one Event (#1375) — the event's logged time. */
+  fetchSessionsByEventId(eventId: string): Promise<TimerSession[]>;
 
   // Pomodoro Presets
   fetchPomodoroPresets(): Promise<PomodoroPreset[]>;
@@ -107,6 +122,49 @@ export interface TimerDataService {
     updates: Partial<Omit<PomodoroPreset, "id" | "createdAt">>,
   ): Promise<PomodoroPreset>;
   deletePomodoroPreset(id: number): Promise<void>;
+}
+
+// ---------------------------------------------------------------------------
+// Editor attachments (Storage) — SupabaseAttachmentsService
+// ---------------------------------------------------------------------------
+
+/**
+ * What a stored attachment looks like to the document that references it
+ * (#1404). The `path` is the durable half — it is what lands in the TipTap
+ * node's attrs — while a URL for it is resolved per render and expires.
+ */
+export interface AttachmentRef {
+  /** Object key inside the `attachments` bucket: `<uid>/<uuid>.<ext>`. */
+  path: string;
+  /** The name the user's file had, for the download chip's label. */
+  name: string;
+  /** MIME type, which decides image-embed vs file-chip at render time. */
+  mimeType: string;
+  /** Size in bytes, for the chip's caption. */
+  size: number;
+}
+
+export type { AttachmentOrphanScan, StoredAttachment };
+
+export interface AttachmentsDataService {
+  /**
+   * Upload one file to the private `attachments` bucket and return its
+   * reference. Rejects anything over `ATTACHMENT_MAX_BYTES` before sending.
+   */
+  uploadAttachment(file: File): Promise<AttachmentRef>;
+  /**
+   * A signed, time-limited read URL for a stored object. A real round trip
+   * (unlike `getSoundAssetUrl`), so callers resolve it once per node render.
+   */
+  getAttachmentUrl(path: string): Promise<string>;
+  /** Remove a stored object. Not called on note edits — see the service. */
+  deleteAttachment(path: string): Promise<void>;
+  /**
+   * Dry run for the cleanup sweep (#1438): the stored objects no document
+   * references any more. Reads only — the caller shows the list, and deletes
+   * what the user confirms one `deleteAttachment` at a time.
+   */
+  findOrphanAttachments(): Promise<AttachmentOrphanScan>;
 }
 
 // ---------------------------------------------------------------------------
@@ -333,6 +391,7 @@ export interface ScheduleItemsDataService {
         | "isAllDay"
         | "content"
         | "date"
+        | "reminderOffset"
       >
     >,
   ): Promise<ScheduleItem>;
@@ -592,6 +651,7 @@ export interface DataService
     TodosDataService,
     TimerDataService,
     AudioDataService,
+    AttachmentsDataService,
     TagGroupsDataService,
     RoutinesDataService,
     ScheduleItemsDataService,

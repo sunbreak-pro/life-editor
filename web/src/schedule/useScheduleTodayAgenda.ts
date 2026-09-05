@@ -25,10 +25,9 @@ import { toAgendaItems } from "./scheduleViewModels";
  *
  * `toAgenda` comes out with them although the narrow day list also calls it on
  * the ANCHOR day's rows: it is the merge itself (schedule items + todo chips,
- * sorted), and it is bound to `now` because every row carries a derived status.
- * `handleAgendaToggle` followed it in on the same argument (#1000) — it is what
- * a row of that merge does when pressed, and both surfaces the merge feeds pass
- * it as their `onToggleComplete`.
+ * sorted). `handleAgendaToggle` followed it in on the same argument (#1000) —
+ * it is what a row of that merge does when pressed, and both surfaces the merge
+ * feeds pass it as their `onToggleComplete`.
  *
  * The memo boundaries and dependency lists below are exactly the ones that
  * stood in CalendarTab, and they are load-bearing rather than decorative:
@@ -50,8 +49,6 @@ export interface UseScheduleTodayAgendaArgs {
   contextItems: ScheduleItem[];
   /** Today's scheduled TodoNodes as chips (useScheduleTodoChips). */
   todayTodoChips: TodoCalendarChip[];
-  /** Wall clock (useMinuteClock); status derivation compares across days. */
-  now: Date;
   /** Provider write that un-skips a row. */
   undismiss: (id: string) => void;
   /** Range refetch (useVisibleRangeItems) — see handleRestoreSkipped. */
@@ -62,8 +59,6 @@ export interface UseScheduleTodayAgendaArgs {
   routines: RoutineNode[];
   freqCopy: FrequencyLabelCopy;
   weekdayLabels: string[];
-  /** Schedule-item completion (useScheduleMutations) — see handleAgendaToggle. */
-  handleToggle: (id: string) => void;
   /** TodoTree-status completion (useScheduleTodoChips) — the other half. */
   handleTodoToggleComplete: (todoId: string) => void;
 }
@@ -71,29 +66,24 @@ export interface UseScheduleTodayAgendaArgs {
 export function useScheduleTodayAgenda({
   contextItems,
   todayTodoChips,
-  now,
   undismiss,
   reload,
   selected,
   routines,
   freqCopy,
   weekdayLabels,
-  handleToggle,
   handleTodoToggleComplete,
 }: UseScheduleTodayAgendaArgs) {
   // Merge schedule items + todo chips into a single sorted agenda.
   //
-  // #761: todo rows carry a derived status too. They used to be left without
-  // one — the A-3 note said completion "lands in Step 3 (TodoTree API)", and it
-  // did (handleTodoToggleComplete, used by the tray since #298) — but the
-  // agenda was never wired to it, so the Mobile day list ended up with todo
-  // rows that showed no tag and answered no press while the event beside them
-  // did both. The status is derived exactly as an event's is: the chip carries
-  // the same date / start / all-day / completed facts.
+  // #761 wired the todo rows to handleTodoToggleComplete (used by the tray
+  // since #298) so the Mobile day list stopped showing rows that answered no
+  // press. #1373 then took completion off the event rows entirely, so the
+  // press this merge produces is always a todo's.
   const toAgenda = useCallback(
     (arr: ScheduleItem[], chips: TodoCalendarChip[] = []): AgendaItem[] =>
-      toAgendaItems(arr, chips, now),
-    [now],
+      toAgendaItems(arr, chips),
+    [],
   );
 
   const todayItems = useMemo(
@@ -120,9 +110,6 @@ export function useScheduleTodayAgenda({
     () => toAgenda(todayItems, todayTodoChips),
     [todayItems, todayTodoChips, toAgenda],
   );
-  const todayDone = todayItems.filter((i) => i.completed).length;
-  const todayTotal = todayItems.length;
-
   const originDetail = useMemo(() => {
     if (!selected || selected.routineId == null) return undefined;
     const r = routines.find((x) => x.id === selected.routineId);
@@ -130,12 +117,13 @@ export function useScheduleTodayAgenda({
   }, [selected, routines, freqCopy, weekdayLabels]);
 
   /*
-   * #761: the agenda's completion tag, for BOTH kinds of row. The lists mix
-   * schedule items and todo chips, and the two have different write paths — a
-   * chip's completion is a TodoTree status, not a schedule_item's `completed`
-   * flag — so the row's id is what decides which one runs. Sending a chip id to
-   * `handleToggle` would look up a schedule_item that is not there and write
-   * nothing: the same silent no-op the Issue is about.
+   * #761 gave the merged agenda one toggle for BOTH kinds of row, because the
+   * two have different write paths — a chip's completion is a TodoTree status,
+   * not a schedule_item's `completed` flag. #1373 removed the event half: an
+   * event has no completion any more, so AgendaList only presses this for a
+   * todo row. The chip guard stays as the boundary check it always was — an id
+   * that is not a chip has nothing to write, and saying so here is cheaper
+   * than trusting every caller.
    *
    * It lives with `toAgenda` rather than at the host's call site for the same
    * reason that merge does: it is the merged agenda's toggle, answering for
@@ -144,9 +132,8 @@ export function useScheduleTodayAgenda({
   const handleAgendaToggle = useCallback(
     (id: string) => {
       if (isTodoChip(id)) handleTodoToggleComplete(unwrapTodoChipId(id));
-      else handleToggle(id);
     },
-    [handleTodoToggleComplete, handleToggle],
+    [handleTodoToggleComplete],
   );
 
   return {
@@ -156,8 +143,6 @@ export function useScheduleTodayAgenda({
     skippedToday,
     handleRestoreSkipped,
     todayAgenda,
-    todayDone,
-    todayTotal,
     originDetail,
   };
 }

@@ -6,6 +6,8 @@ import {
   todoChipResizeWrite,
   todoChipAllDayWrite,
   todoAddCandidateWrite,
+  todoMoveToTodayWrite,
+  todoMoveOutWrite,
   placeTodoWrite,
 } from "../src/schedule/todoChipUndoWiring";
 
@@ -161,5 +163,60 @@ describe("placeTodoWrite", () => {
     expect(write.options).toBeUndefined();
     // The placement itself is identical either way — only the history differs.
     expect(write.patch).toEqual(timedPlacement("2026-03-09", "14:00", "15:00"));
+  });
+});
+
+/*
+ * #1406 — the tray's two moves. "Move to today" is a DATE change for a row
+ * that already has a time (the Issue's 「日付だけを変え、hour 以下はそのまま」),
+ * and the #298 staging shape for everything else; "take off today" clears the
+ * day, because a todo's time lives inside `scheduledAt` and cannot outlive it.
+ */
+describe("todoMoveToTodayWrite (#1406)", () => {
+  const TODAY = "2026-09-02";
+
+  it("keeps a timed row's clock and moves only the day", () => {
+    const { patch, options } = todoMoveToTodayWrite(PLACED, TODAY);
+    // PLACED is 09:00–10:00 on 2026-03-09; the same local clock, today.
+    expect(patch).toEqual({
+      scheduledAt: new Date(2026, 8, 2, 9, 0).toISOString(),
+      scheduledEndAt: new Date(2026, 8, 2, 10, 0).toISOString(),
+      isAllDay: false,
+    });
+    expect(options).toEqual({ undoLabel: "todoAddToToday" });
+  });
+
+  it("stages an all-day row as today's all-day candidate", () => {
+    expect(todoMoveToTodayWrite(CANDIDATE, TODAY)).toEqual(
+      todoAddCandidateWrite(TODAY),
+    );
+  });
+
+  it("stages a day-less row the same way", () => {
+    const free: TodoNode = {
+      ...PLACED,
+      scheduledAt: undefined,
+      scheduledEndAt: undefined,
+      isAllDay: undefined,
+    };
+    expect(todoMoveToTodayWrite(free, TODAY)).toEqual(
+      todoAddCandidateWrite(TODAY),
+    );
+    expect(todoMoveToTodayWrite(undefined, TODAY)).toEqual(
+      todoAddCandidateWrite(TODAY),
+    );
+  });
+});
+
+describe("todoMoveOutWrite (#1406)", () => {
+  it("clears the day, the end and the all-day flag, undoably", () => {
+    expect(todoMoveOutWrite()).toEqual({
+      patch: {
+        scheduledAt: undefined,
+        scheduledEndAt: undefined,
+        isAllDay: false,
+      },
+      options: { undoLabel: "todoRemoveFromToday" },
+    });
   });
 });

@@ -46,6 +46,10 @@ export {
   type EventEditorHandlers,
   type EventEditorOptions,
   type EventEditorRepeat,
+  // #1374: the per-event reminder field.
+  type EventEditorReminder,
+  // #1375: the read-only logged-work-time row.
+  type EventEditorWorkTime,
   // #998: the narrow sheet's Event → Todo entry.
   type EventEditorConvert,
   // #628: the one patch the save button hands the host.
@@ -152,17 +156,6 @@ export {
   type ScheduleErrorCardProps,
   type ScheduleRangeErrorBannerProps,
 } from "./ScheduleStateCards";
-// #222: derived status tag (未着手 / 着手中 / 完了) shown on calendar surfaces
-// in place of the round completion checkmark.
-export {
-  ScheduleStatusTag,
-  type ScheduleStatusTagProps,
-} from "./ScheduleStatusTag";
-export {
-  deriveScheduleStatus,
-  type ScheduleStatus,
-  type DerivableScheduleItem,
-} from "../../utils/scheduleStatus";
 export {
   layoutDayItems,
   minutesFromMidnight,

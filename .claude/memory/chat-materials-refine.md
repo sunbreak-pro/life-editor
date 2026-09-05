@@ -12,6 +12,10 @@
 - 次: 🛑 残ゲート = 実データ変換のみ（ユーザー `supabase db push` 0020 + 0021 + `scripts/life_tags_verify.sql`・plan Step 5）→ 完了時に plan COMPLETED + archive。chat-main へ起票依頼済み: analytics tag 後継集計 / Notes folder 退役 + Connect グラフ後継
 
 ## 直近の完了
+- **#1439 の方針裁定 + #1438 の孤児回収を 2 PR に分けて提出** ✅（2026-09-02 — どちらも `origin/main` から独立に切った。**書いた時点の実測で 2 本とも merged**: #1453（#1438）= 529ffea1 / #1455（#1439）= 39d4d402。#1404 が意図的に残した 2 つの穴を塞いだ形。
+  - **#1439 = 「進捗はドキュメントの外に出す」**（`D-20260902-materials-1`・`status: recorded`）。プレースホルダノードを作らないので「保存されないノード」の機構が丸ごと要らなくなる。決め手は 2 つで、(1) 保存経路が複数ある以上「保存直前に一時ノードを落とす」処理は落とし忘れが**届いていないパスを指すノートの永続化**になり、壊れ方が静かすぎる、(2) `@supabase/storage-js` 2.105.4 の `FileOptions` に進捗コールバックが無い（実測）ので**どの案でも % は出せず**、不定形インジケータをドキュメント内に置く必然性が消える。派生 = 失敗時は既存トーストのみ・再試行導線なし / 両幅 1 実装・対象は Notes のみ
+  - **#1438 = 「消していい」の定義を純関数 1 か所に閉じ込めた**（`shared/src/services/attachmentOrphans.ts`）。走査は `notes_payload` + `dailies_payload` の**全行・`is_deleted` の絞り込みなし**（ゴミ箱のノートは復元できるので参照は生きている）。**2 つの読み取りの順番（一覧が先・ドキュメントが後）が安全性そのもの**で、逆順だと走査中に添付したファイルが孤児に見える。ページングには `order("item_id")` が要る（PostgREST は行順を保証せず、飛ばされた行 = 参照を見落としたノート）。保険として直近 1 時間のオブジェクトは対象外
+  - 両ブランチで CI verify のステップ列 14 本 + `docs-lint` をローカル全緑）
 
 - **#1407 / #1404 を 2 PR に分けて提出** ✅（2026-09-01 — どちらも `origin/main` から独立に切った。書いた時点の実測で PR #1417（#1407）/ #1425（#1404）とも **open**。**#1404 は 🛑 人手ゲート付き**: `supabase/migrations/0027_attachments_bucket.sql`（非公開バケット + 4 ポリシー）は未適用で、こうだいさんの `supabase db push` 待ち。適用前でもアプリは壊れない設計にしてある（アップロードはトースト、既存ノードは「読み込めませんでした」表示に落ちる）。
   - **#1407 = 「一覧は直したが本文は直っていなかった」**: #1101 の snapshot は list を replay するが、**行は本文を持たない**（M1 = `listNotesUnified` は `content: ""`）。本文の台帳（`useNoteHydrationLedger` の ref）はマウント単位なので、Materials に戻るたび開いていたノートの本文だけ `getNoteUnified` を 1 往復していた。Materials だけで起きるのは**メインの表示物が一覧ではなく「アイテム 1 件の遅延読み込み」である唯一のセクション**だから。`shared/src/state/noteBodyStore.ts`（module-level LRU 12 件・DataService identity + `updatedAt` 一致で検証）を足し、`mergeLoadedList` が**メモリ上に行が無いときだけ**キャッシュを見る形にした（ライブ状態が常に優先 = #607 の own-write カバーを壊さない）。`restoreSelection` に `canHydrate` を追加し、replay は**merge が既に本文を持っていた場合だけ**復元して、そうでなければ one-shot を消費せずに戻る — #1285 のヘッダが書いている危険（layout effect から始めた hydrate が飛行中の read に merge で消される）は、新経路が hydrate を始めないので入り込まない
@@ -20,16 +24,21 @@
 
 - **materials 4 件（#1372 / #1363 / #1364 / #1365）を 4 PR に分けて提出** ✅（2026-09-01 — 全部 `origin/main` から独立に切った。書いた時点の実測で PR #1380（#1372）は **merged**、#1384（#1363）/ #1394（#1364）/ #1397（#1365）は **open**。**2 件は「どこを直すか」の特定が本体**だった: (1) #1364 の繰り上げは `NoteTagFilterChips.tsx` の `ordered` メモにあり、**`sort` を呼ばず `filter` 2 回の連結**で並べ替えていたので Issue が試した `selected` + `sort` の grep では出なかった。繰り上げが担保していた #1288 の「選択中チップが `+N` の裏に隠れない」は、折り畳み時に「先頭 6 個 + キャップより下の選択済み」を**元の順のまま**描く形で維持。(2) #1365 の「ここだけアイコンが出ない」は `useNoteListState.tagFilterChips` が**色ドットを手組み**していたためで、`wiki_tags.icon` を一度も読んでいなかった（#1291 の唯一の取りこぼし = リポジトリ内に残っていた最後の手組みタグ表示）。`TagHeadingIcon` に差し替え。残り 2 本 = #1372 空状態中央の追加ボタン撤去（右上 pill が両幅で残るので `isWide=false` のテストを追加）/ #1363 テンプレート編集パネルを Note と同寸に（`Modal` に `reading` サイズを追加 = `max-w-lumen-reading`・本文フロア 320→420px・名前と本文が 1 つのスクローラ / キャンセル・保存はその外）。各 PR で shared → web の CI verify（build / lint / typecheck:tests / vitest）をローカル全緑）
 
-- **#1345 — ノート削除を確認ダイアログ越しにした** ✅（2026-08-31 — PR #1347・書いた時点で open。同じ `NotesView.tsx` の中でテンプレート削除（#1248）は聞くのにノート削除だけワンクリックで消えていた割れを解消。削除経路 2 本（サイドリスト行の `onDeleteNote` / 詳細ケバブ「その他の操作」→「ノートを削除」の `onDelete`）を `handleDeleteNote` 1 本に寄せ、既存の `useConfirmDialog()` を通す。**幅ごとの分岐は書いていない** — #876 以降 wide / narrow が同じリストと同じ詳細サーフェスを描くので、一本化しただけで両幅が揃う。ダイアログは #1248 が view 直下に置いた `<ConfirmDialog>` の再利用で、ケバブが閉じても質問が残る。文言は Todo 削除に寄せて「ゴミ箱に入るので、あとから元に戻せます」— テンプレート削除の「戻せません」とは性質が逆なので書き分け。追加キー `materials.notes.deleteConfirmBody` / `deleteConfirmAction` を en / ja 両方へ。テストは既存 1 本を「押下＝質問」に書き換え + 拒否ケース + ケバブ経路を `it.each([true, false])` で両幅。CI verify のステップ列 + docs-lint をローカル全緑）
-
-- **#1334 — リンク先プールが両方の `is_deleted` バケツを読むようにした** ✅（2026-08-31 — PR #1340・書いた時点で open。前日の #1292（PR #1306）が実データで効いていなかった follow-up。プールは「削除済みをフラグ付きで持つ」形になっていたのに、**フラグの元にしていた `fetchTodoTree` / `listNotesUnified` / `listDailiesUnified` が 3 本とも自分のクエリで `is_deleted = false` を固定**していたため、フラグは構造的に常に false で、削除済み Todo へのリンクは相変わらず id 断片で出ていた。各ドメインで Trash 側の既存メソッド（`fetchDeletedTodos` / `fetchDeletedNotesUnified` / `fetchDeletedDailiesUnified`）も読み、**live を先に**連結する形へ — 新しいクエリも引数も足していない。**`web/tests/linkPanel.test.tsx` がこのバグを丸ごと隠していた**: 削除済み行が入り済みの pool を panel に直接渡すので、壊れていた手前の工程を一度も通らない。新規 `web/tests/useItemLinkTargets.test.tsx` は結果ではなく**分割の方を模す**（ドメインごとに 1 枚の行テーブル + 各読み取りが自分のバケツだけを返す）ので live だけの pool では通らない。4 ケースとも修正前のソースで落ちることを実測。CI verify のステップ列をローカル全緑）
-
 ## 予定
 
-（なし — 2026-09-01 dispatch の 4 件まで完了。次は chat-main からの新規 dispatch 待ち）
+（なし — 2026-09-02 の 2 件（#1439 / #1438）で自分宛 open Issue は消化済み。次は chat-main からの新規 dispatch 待ち。**すぐ来る見込みの 1 件** = アップロード進捗の実装（方針は `D-20260902-materials-1` で確定済み・起票依頼は outbox 2026-09-02））
 
 ## 申し送り
 
+- **PR を出したら push を先に済ませる — merge は思ったより早く来る**（2026-09-02 の実損）: #1455 を作った後に 2 コミット目（outbox の起票依頼）を push したが、その間にこうだいさんが squash merge していて**2 コミット目だけ main に届かなかった**。PR が MERGED でも、載せたつもりの後追いコミットは `git log origin/main` に無い。**後から足す予定があるなら push してから PR を作る**（拾い直しは cherry-pick で済むが、気付かないと消える）
+- **添付の孤児判定は 2 つの読み取りの順番が全部**（#1438）: バケットの一覧が先・ドキュメントの読みが後。逆順にすると「2 つの読み取りの間に添付されたファイル」が孤児に見え、消す対象がユーザーの見ている画像になる。**この順番を入れ替える変更は安全性の変更**なので、コメントを消さない
+- **PostgREST のページングには `order` が要る**（#1438）: 行順の保証が無いので、順序なしの 2 ページ目は 1 ページ目の行を取り直したり別の行を飛ばしたりする。走査で飛ばした行 = 参照を見落としたノート = 使用中のファイルを消す、に直結する
+- **`ATTACHMENT_NODE_TYPE` は 2 パッケージの契約**（#1438）: `web` の TipTap ノード名と `shared` の掃除がこの 1 語で繋がっている。ノード名を改名すると**全添付が孤児に見える**ので、リテラルに戻さない
+- **`@supabase/storage-js` 2.105.4 に upload の進捗コールバックは無い**（2026-09-02 実測・`FileOptions` は `cacheControl` / `contentType` / `upsert` / `duplex` / `metadata` / `headers` のみ）。% を出すには signed upload URL + XHR への載せ替えが要る
+- **web には `@testing-library/user-event` が入っていない**。コンポーネントテストのクリックは `fireEvent`（`@testing-library/react`）を使う
+- **スピナーのアイコンは `LoaderCircle`**（`Loader2` はこの lucide-react に無い）。作法は `className="h-4 w-4 animate-spin motion-reduce:animate-none"` + `aria-hidden`（`AuthCard.tsx` が基準）
+- **main が赤い間は自分の PR の赤を自分のせいだと読まない**（2026-09-01・PR #1431 で修理）: #1425 の CI 失敗は 1 件だけで、しかも `Analytics/TagUsageCard.tsx` — 自分が一度も触っていないファイルだった。**#1419 / #1422 / #1426 が「書いた時点では全部緑」のまま順に入って壊れた**形で、このチャットの申し送りに既にある「CI が緑 ≠ 取り込み済み」の 3 本版。**赤を見たら最初に「落ちているファイルは自分の Scope か」を見る**
+- **取り込み順は #1431 → #1425**。#1431（main の修理）が入るまで #1425 の CI は緑にならない
 - **2026-09-01 (2) の実測**（書いた時点）: PR #1417（#1407）/ #1425（#1404）とも **open**。merge はこうだいさんの手番（P-001）。**実ブラウザでの DoD 確認は merge 後に chat-main 側**で、#1404 は**さらにバケット適用後**
 - **#1404 の添付は孤児回収も進捗表示も無い**（どちらも意図的・outbox で起票依頼済み）。孤児回収 = ノードを消しても実体を残す（undo で復活しうるので編集のたびに消すのは正しくない）。進捗 = 挿入がアップロード完了後（先に入れると 800ms 自動保存に拾われ、届いていないパスを指すノードが永続化される）
 - **#1404 を配線したのは Notes だけ**。エディタは Daily / Briefing / Todo 詳細でも使うが、Issue の Scope が `web/src/notes/**` を名指ししているため。他画面は `attachments` prop を 1 本渡すだけで足りる（`attachment` ノード自体は全画面で**無条件登録**済みなので、画像入りノートは今でもどこでもスキーマエラーなく開き、リゾルバが無い面では読める文言に落ちる）

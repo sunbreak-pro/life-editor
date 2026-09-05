@@ -122,11 +122,15 @@ export function CalendarNarrowLayout({
     /*
      * The narrow column. It used to be the FAB's anchor (#632) and carried
      * `relative` for that; creation left this file entirely with #1148, so
-     * nothing is absolutely positioned in here any more. The inner div keeps
-     * the gutter so the grid lines up with the heading above it.
+     * nothing is absolutely positioned in here any more.
+     *
+     * #1401: the gutter now belongs to the heading row alone. The month grid
+     * below runs edge to edge — its side borders and radius go with the
+     * gutter (MonthGrid's `compact`) — so the seven columns get the whole
+     * width of the phone.
      */
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex min-h-0 flex-1 flex-col gap-3 px-lumen-gutter pt-3">
+      <div className="flex shrink-0 flex-col gap-3 px-lumen-gutter pt-3">
         {/* #1033: no hamburger here any more — the shell draws the one
             hamburger at the left edge of the tab band, where every other
             narrow section has always had it. */}
@@ -168,71 +172,67 @@ export function CalendarNarrowLayout({
           </button>
         </div>
         {banner}
-        {state.loading ? (
-          <div className="min-h-0 flex-1 overflow-y-auto pb-3">
-            <ScheduleLoadingCard label={t("scheduleScreen.loading")} />
-          </div>
-        ) : state.error ? (
-          <div className="min-h-0 flex-1 overflow-y-auto pb-3">
-            <ScheduleErrorCard
-              labels={{
-                message: t("scheduleScreen.loadError"),
-                retry: t("scheduleScreen.retry"),
-              }}
-              onRetry={state.onRetry}
+      </div>
+      {state.loading ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-lumen-gutter pb-3 pt-3">
+          <ScheduleLoadingCard label={t("scheduleScreen.loading")} />
+        </div>
+      ) : state.error ? (
+        <div className="min-h-0 flex-1 overflow-y-auto px-lumen-gutter pb-3 pt-3">
+          <ScheduleErrorCard
+            labels={{
+              message: t("scheduleScreen.loadError"),
+              retry: t("scheduleScreen.retry"),
+            }}
+            onRetry={state.onRetry}
+          />
+        </div>
+      ) : (
+        <>
+          {/*
+           * #878: the month grid IS narrow's main view, and since #1148 the
+           * ONLY thing in the main area. #1401 stopped it stretching into
+           * that space: `auto-rows-fr` over a `flex-1` grid turned every
+           * spare pixel of a tall phone into taller cells, which is how the
+           * rows came to tower. The cells are a fixed height now
+           * (MonthGrid's `compact`), so the grid is as tall as six such rows
+           * and the wrapper scrolls if a short landscape window cannot show
+           * them all — a clipped final week would hide the end of the month
+           * without saying so.
+           *
+           * Consumption only, as it was on the sheet (#692): a cell hands
+           * back its day and nothing else, so `onSelectDay` is the host's
+           * "move the anchor, open the drawer" and NOT the Desktop
+           * `handleMonthCreate` that opens the creation panel (#224).
+           *
+           * `compact` is what makes 42 cells legible on a phone (day badge
+           * over a short list of titles), and no item handlers are passed:
+           * the titles say what a day holds and the day underneath stays the
+           * tap target. Opening one is the drawer's job.
+           */}
+          {/* #1124: the narrow half of the `scheduleCalendar` anchor — the
+              grid is where a created event is found again on this width. */}
+          <div
+            {...tourAnchor(TOUR_ANCHORS.scheduleCalendar)}
+            className="min-h-0 flex-1 overflow-y-auto pb-3 pt-3"
+          >
+            <MonthGrid
+              compact
+              monthKey={month.anchorDate}
+              items={month.items}
+              todayKey={month.today}
+              selectedKey={month.anchorDate}
+              weekdayLabels={month.weekdayLabels}
+              onSelectDay={month.onSelectDay}
+              formatMoreCount={(n) =>
+                t("scheduleScreen.moreCount", { count: n })
+              }
+              formatDayLabel={month.formatDayLabel}
+              ariaLabel={t("scheduleScreen.calendar")}
             />
           </div>
-        ) : (
-          <>
-            {/*
-             * #878: the month grid IS narrow's main view. Since #1148 it is
-             * also the ONLY thing in the main area, so it takes the height the
-             * day list used to hold rather than sitting in a `shrink-0` band
-             * above it. `auto-rows-fr` inside MonthGrid spreads that over the
-             * six week rows, which is what turns the freed space into taller
-             * cells instead of a gap under the grid.
-             *
-             * The wrapper scrolls rather than the grid clipping: cells carry a
-             * `min-h-14` floor, so six rows plus the weekday header need about
-             * 360px. Portrait phones clear that easily; a short landscape
-             * window does not, and a clipped final week would hide the end of
-             * the month without saying so.
-             *
-             * Consumption only, as it was on the sheet (#692): a cell hands
-             * back its day and nothing else, so `onSelectDay` is the host's
-             * "move the anchor, open the drawer" and NOT the Desktop
-             * `handleMonthCreate` that opens the creation panel (#224).
-             *
-             * `compact` is what makes 42 cells legible on a phone (day badge +
-             * a dot row rather than title chips), and no item handlers are
-             * passed: the dots are a density cue and the day underneath stays
-             * the tap target. What a dot IS is answered by the drawer.
-             */}
-            {/* #1124: the narrow half of the `scheduleCalendar` anchor — the
-                grid is where a created event is found again on this width. */}
-            <div
-              {...tourAnchor(TOUR_ANCHORS.scheduleCalendar)}
-              className="flex min-h-0 flex-1 flex-col overflow-y-auto pb-3"
-            >
-              <MonthGrid
-                compact
-                className="flex-1"
-                monthKey={month.anchorDate}
-                items={month.items}
-                todayKey={month.today}
-                selectedKey={month.anchorDate}
-                weekdayLabels={month.weekdayLabels}
-                onSelectDay={month.onSelectDay}
-                formatMoreCount={(n) =>
-                  t("scheduleScreen.moreCount", { count: n })
-                }
-                formatDayLabel={month.formatDayLabel}
-                ariaLabel={t("scheduleScreen.calendar")}
-              />
-            </div>
-          </>
-        )}
-      </div>
+        </>
+      )}
     </div>
   );
 }

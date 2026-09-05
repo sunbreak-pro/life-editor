@@ -6,6 +6,7 @@ import type { UndoRedoLike } from "../src/hooks/useTodoTreeHistory";
 import { createBumpableSync } from "./helpers/bumpableSync";
 import type { ScheduleItem } from "../src/types/schedule";
 import type { DataService } from "../src/services/DataService";
+import { DEFAULT_REMINDER_LEAD_MINUTES } from "../src/utils/reminderSchedule";
 
 /*
  * The write surface pulled out of useScheduleItemsAPI in the #675 split,
@@ -72,6 +73,14 @@ function makeDS(overrides: Partial<Record<string, unknown>> = {}) {
     fetchDeletedScheduleItems: vi.fn(() => Promise.resolve<ScheduleItem[]>([])),
     createScheduleItem: vi.fn((id: string, date: string, title: string) =>
       Promise.resolve(item(id, { date, title })),
+    ),
+    /*
+     * #1374: create resolves the reminder default and, when there is one,
+     * follows up with a patch. Every create in this suite goes through it,
+     * so the stub has to answer or the create path dies before onSaved.
+     */
+    updateScheduleItem: vi.fn((id: string, updates: Partial<ScheduleItem>) =>
+      Promise.resolve(item(id, updates)),
     ),
     softDeleteScheduleItem: vi.fn(() => Promise.resolve()),
     restoreScheduleItem: vi.fn(() => Promise.resolve()),
@@ -154,6 +163,41 @@ describe("create", () => {
     );
     await waitFor(() => expect(saved).toHaveLength(1));
     expect(saved[0].id).toBe(id);
+    expect(hook.result.current.items).toHaveLength(1);
+    // #1374: the create-time reminder default lands as a follow-up patch
+    // rather than a 12th positional argument on the create signature.
+    expect(ds.updateScheduleItem).toHaveBeenCalledWith(id, {
+      reminderOffset: DEFAULT_REMINDER_LEAD_MINUTES,
+    });
+  });
+
+  /*
+   * #1374: the row exists by the time the reminder patch runs, so its
+   * failure must not be reported as a failed create — the caller would see
+   * onSaved(null) for an event already on the calendar.
+   */
+  it("still reports the create as saved when the reminder patch fails", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const { ds } = makeDS({
+      updateScheduleItem: vi.fn(() => Promise.reject(new Error("offline"))),
+    });
+    const { undoRedo } = makeHistory();
+    const hook = await renderAPI(ds, undoRedo);
+
+    const saved: Array<ScheduleItem | null> = [];
+    let id = "";
+    act(() => {
+      id = hook.result.current.createScheduleItem(
+        TODAY,
+        "standup",
+        "09:00",
+        "09:15",
+        { isAllDay: false, onSaved: (s) => saved.push(s) },
+      );
+    });
+
+    await waitFor(() => expect(saved).toHaveLength(1));
+    expect(saved[0]?.id).toBe(id);
     expect(hook.result.current.items).toHaveLength(1);
   });
 

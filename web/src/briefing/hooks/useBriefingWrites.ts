@@ -65,16 +65,12 @@ export function useBriefingWrites({
   const undoRedo = useUndoRedoOptional();
   const push = undoRedo?.push;
 
-  const handleToggleScheduleItem = useCallback(
-    (id: string) => {
-      void ds.toggleScheduleItemComplete(id).then((updated) => {
-        setScheduleItems((prev) =>
-          prev.map((s) => (s.id === updated.id ? updated : s)),
-        );
-      });
-    },
-    [ds, setScheduleItems],
-  );
+  /*
+   * #1373 removed `handleToggleScheduleItem`. The paper's schedule rows used
+   * to carry a completion mark, and an event has no completion any more. The
+   * DataService method it called (`toggleScheduleItemComplete`) stays — the
+   * `completed` column and the MCP tool that writes it both remain.
+   */
 
   /**
    * Write a Todo's status (#796). `completedAt` follows it — DONE stamps the
@@ -457,7 +453,6 @@ export function useBriefingWrites({
   );
 
   return {
-    handleToggleScheduleItem,
     handleToggleTodo,
     handleSetTodoStatus,
     handleDeleteScheduleItem,

@@ -84,6 +84,7 @@
 - **`web` の lint は `web/` 配下しか歩かない**ので、`shared/` に入れた lint error は `cd shared && npm run lint` でしか出ない（2026-07-30 PR #488 で CI だけが落ちた）
 - `web/tsconfig.json` が `../shared` を参照するため、`cd web && npm run build` は shared も **web 側の tsc** で検査する。片方だけ緑でも安心しない
 - `scripts/docs-lint.sh` をローカルで回すときは `LC_ALL=C` を付ける（Git Bash の grep 3.0 + UTF-8 locale では日本語を含む Status 行が偽陽性になる）
+- **ゲートをまとめて回すラッパーを書くなら、`( npm run X | tail )` で終了コードを取らない**（2026-09-02 実測）: 括弧の終了コードは中の**最後のコマンド = `tail`** のものになるので、`npm run` が何本エラーを吐いても常に 0 が返る。エラー本文は画面に出るのに集計行だけが緑になり、PR #1424 / #1433 が「ローカル全緑」の報告のまま CI で落ちた。**出力を先に変数へ取り、`code=$?` を見てから `tail` で表示する**（`set -o pipefail` でも可）。なお #1436 はこの症状を `tsc -b` の `.tsbuildinfo` のせいだと書いたが**それは誤り** — キャッシュが温まった状態で import を壊しても `tsc -b` は `TS2307` で exit 1 する（実測）
 
 `web/tests/` は jsdom に**レイアウトが無い**（要素の座標がすべて 0）。ProseMirror の `posAtCoords` のように画面座標を文書位置へ戻す経路はここでは検証できないので、UI の入力経路は座標に依存しない形（DOM イベント + `closest()` 等）で組む — 座標依存のままにするとテストが書けず、#475 のように壊れても気付けない。
 
@@ -133,4 +134,4 @@ Issue のラベル routing（`section:<id>` / `shared-fix`）・`[all]` 禁止�
 - **課題追跡の正 = GitHub Issues + Projects**（`gh -R sunbreak-pro/life-editor`）。**起票は chat-main に一元化**する — worktree チャットは実装に着手してよいが、自分で起票せず outbox に依頼を append する
 - **Issue はプロダクト課題専用**。判定 = 「life-editor のコードを直せば直るか？」— No（Claude Code の環境 / hook / ツール挙動）なら Issue 化せず `docs/known-issues/` + `rules/` で管理する
 - **実装プラン** = `docs/vision/plans/YYYY-MM-DD-<slug>.md` → 完了で `archive/` へ移動（Status enum の語彙 → [`rules/docs-consistency.md`](./rules/docs-consistency.md)）。移行 SSOT のみ `.claude/` 直下に置く例外。**決定の Why・却下案 = [`decisions/`](./decisions/README.md) 台帳**（回答済みキューを昇格・旧「ADR は作らない」は D-20260809-main-1 で SUPERSEDE。どこに書くかの判定 = `rules/records.md`）
-- **鉄則**: 機能追加 / 削除時は §8 更新 ／ 音源バイナリは repo に置かない — 実体は Supabase Storage の public バケット `sounds` から配信（`shared/src/constants/sounds.ts`。`.gitignore` の機械ガードは無い）／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。`hooks/pre-commit-mcp-check.sh` が commit 時に機械チェック）
+- **鉄則**: 機能追加 / 削除時は §8 更新 ／ バイナリは repo に置かない — 音源の実体は Supabase Storage の **public** バケット `sounds`（`shared/src/constants/sounds.ts`）、ノートの添付は **非公開**バケット `attachments` から（#1404。ドキュメントはパスだけを持ち URL は毎回署名する — `shared/src/constants/attachments.ts`）。どちらも `.gitignore` の機械ガードは無い／ API キーをフロントエンドに直書きしない ／ **`.mcp.json` のトークンは `${SUPABASE_ACCESS_TOKEN}` 等の参照のまま維持・平文展開禁止**（2026-05-17 流出未遂。`hooks/pre-commit-mcp-check.sh` が commit 時に機械チェック）

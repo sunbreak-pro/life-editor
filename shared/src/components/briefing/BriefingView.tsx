@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 import {
   ArrowUpRight,
-  Check,
-  Circle,
   Plus,
   Sparkles,
   Sunrise,
@@ -43,6 +41,12 @@ export interface BriefingScheduleEntry {
   title: string;
   /** "HH:MM" (empty for all-day). */
   startTime: string;
+  /**
+   * Data only since #1373 — nothing on the paper draws it. An event has no
+   * completion in the UI any more, but the `completed` column and the MCP
+   * `set_schedule_complete` tool both stay, and 夕刊's「今後の予定」still
+   * drops a row that tool has closed.
+   */
   completed: boolean;
   /** True when the item was generated from a Routine (shows the tag). */
   isRoutine: boolean;
@@ -127,7 +131,6 @@ export interface BriefingLabels {
   routineTag: string;
   allDay: string;
   carryoverTitle: string;
-  toggleComplete: string;
   /**
    * Copy for the carryover rows' checkbox (#1368) — `todoStatus` names what
    * the control sets, the two `status*` members name each value. The same
@@ -191,8 +194,6 @@ export interface BriefingViewProps {
   onGoalChange: (period: GoalPeriod, text: string) => void;
   /** Blur on a goal field — the host flushes a pending debounced save. */
   onGoalBlur: () => void;
-  /** Completes / un-completes a schedule item (host → DataService). */
-  onToggleScheduleItem: (id: string) => void;
   /** Completes / un-completes a todo or carryover row (host → DataService). */
   onToggleTodo: (id: string) => void;
   /**
@@ -414,7 +415,6 @@ export function BriefingView({
   goalLabels,
   onGoalChange,
   onGoalBlur,
-  onToggleScheduleItem,
   onToggleTodo,
   onDeleteScheduleItem,
   onDeleteTodo,
@@ -581,28 +581,37 @@ export function BriefingView({
         ) : (
           <ul className="space-y-1">
             {data.todos.map((todo) => (
-              <li key={todo.id} className="py-1">
-                <div className="flex items-baseline gap-3">
+              <li key={todo.id}>
+                {/* One height for every row in this list (#1442). The shared
+                    checkbox carries the 44px touch floor, so a row holding one
+                    is 44px tall — and the schedule rows below claim the same
+                    minimum rather than letting the list step down at the point
+                    where the todos end. */}
+                <div className="flex min-h-11 items-center gap-3">
                   {/* Same column, same format as the timed rows below — a
                       todo placed at 09:00 has to read as 09:00 here too
                       (#1369). Untimed todos pass "" and get the spacer that
                       used to be unconditional. */}
                   <TimeCell label={todo.startTime} />
+                  {/* The same control the carryover rows draw (#1442) — the
+                      paper had a 16px hand-drawn box here and the shared 20px
+                      glyph a few rows down, so one page showed two kinds of
+                      checkbox. It sits beside the title button, not inside it:
+                      it is a button itself, and this file's a11y invariant is
+                      that no button nests in another. 朱 rather than the app
+                      accent, as on the carryover rows and 夕刊. */}
+                  <TodoStatusCheckbox
+                    status={todo.status}
+                    onChange={() => onToggleTodo(todo.id)}
+                    labels={labels}
+                    label={labels.todoStatus}
+                    accentClassName="text-lumen-briefing-shu"
+                  />
                   <button
                     type="button"
                     onClick={() => onToggleTodo(todo.id)}
-                    className="flex min-w-0 items-center gap-2.5 text-left"
+                    className="min-w-0 text-left"
                   >
-                    <span
-                      aria-hidden="true"
-                      className={
-                        todo.status === "DONE"
-                          ? "grid h-4 w-4 flex-shrink-0 place-items-center rounded bg-lumen-briefing-shu text-lumen-on-accent"
-                          : "h-4 w-4 flex-shrink-0 rounded border border-lumen-border-strong"
-                      }
-                    >
-                      {todo.status === "DONE" && <Check size={11} />}
-                    </span>
                     <span
                       className={
                         todo.status === "DONE"
@@ -627,9 +636,10 @@ export function BriefingView({
                   </RowActions>
                 </div>
                 {/* Indented past the empty time column + checkbox so the
-                    purpose hangs under its own todo's title. */}
+                    purpose hangs under its own todo's title: the 56px time
+                    column, the 12px gap, the 44px checkbox, the 12px gap. */}
                 {todo.purposes.length > 0 && (
-                  <p className="ml-[82px] mt-0.5 text-xs text-lumen-text-secondary">
+                  <p className="ml-[124px] mt-0.5 text-xs text-lumen-text-secondary">
                     <span className="font-semibold text-lumen-briefing-kohaku">
                       ◈ {todo.purposes.join(" ・ ")}
                     </span>
@@ -647,33 +657,17 @@ export function BriefingView({
               />
             )}
             {scheduleRows.map((item) => (
-              <li key={item.id} className="flex items-baseline gap-3 py-1">
+              <li key={item.id} className="flex min-h-11 items-center gap-3">
                 <TimeCell
                   label={item.isAllDay ? labels.allDay : item.startTime}
                 />
-                <button
-                  type="button"
-                  onClick={() => onToggleScheduleItem(item.id)}
-                  aria-label={labels.toggleComplete}
-                  className="flex-shrink-0 self-center text-lumen-text-secondary transition-colors hover:text-lumen-accent"
-                >
-                  {item.completed ? (
-                    <Check size={15} className="text-lumen-briefing-shu" />
-                  ) : (
-                    <Circle size={15} />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onToggleScheduleItem(item.id)}
-                  className={
-                    item.completed
-                      ? "min-w-0 text-left text-sm text-lumen-text-secondary line-through transition-colors hover:text-lumen-accent"
-                      : "min-w-0 text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent"
-                  }
-                >
+                {/* No completion mark and no strikethrough (#1373): an event
+                    has no "done" any more, so the paper reads the schedule
+                    rather than asking the user to tick it off. The todo rows
+                    below keep their checkbox. */}
+                <span className="min-w-0 text-sm text-lumen-text">
                   {item.title}
-                </button>
+                </span>
                 {item.isRoutine && (
                   <span className="rounded-full border border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-2 text-xs text-lumen-briefing-kohaku">
                     {labels.routineTag}

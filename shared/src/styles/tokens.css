@@ -120,19 +120,6 @@
   --color-chip-event-bg: #f3e8ff;
   --color-chip-event-fg: #6d28d9;
   --color-chip-event-dot: #8b5cf6;
-  /* Schedule status tag (#222). The derived-status pill on calendar surfaces
-     (notStarted=grey / inProgress=blue / done=green). Distinct from the Kanban
-     status bands (progress=amber there) — this is a schedule-only semantic set
-     the user fixed (grey/blue/green). Each has fg (text) / border / bg (tint). */
-  --color-schedule-tag-notstarted-bg: #f1f5f9;
-  --color-schedule-tag-notstarted-fg: #64748b;
-  --color-schedule-tag-notstarted-border: #cbd5e1;
-  --color-schedule-tag-inprogress-bg: #dbeafe;
-  --color-schedule-tag-inprogress-fg: #2563eb;
-  --color-schedule-tag-inprogress-border: #93c5fd;
-  --color-schedule-tag-done-bg: #ecfdf5;
-  --color-schedule-tag-done-fg: #047857;
-  --color-schedule-tag-done-border: #6ee7b7;
   /* Task chip stays in the old cobalt family (entity-encoding, Functional/
      Data §3.2) — it does NOT follow the #269 accent change to 燈色. */
   --color-chip-task-bg: #dbeafe;
@@ -240,16 +227,6 @@
   --color-chip-event-bg: #2e1065;
   --color-chip-event-fg: #c4b5fd;
   --color-chip-event-dot: #a78bfa;
-  /* Schedule status tag (#222) dark counterparts (grey/blue/green). */
-  --color-schedule-tag-notstarted-bg: #1e293b;
-  --color-schedule-tag-notstarted-fg: #94a3b8;
-  --color-schedule-tag-notstarted-border: #475569;
-  --color-schedule-tag-inprogress-bg: #1e2a48;
-  --color-schedule-tag-inprogress-fg: #93c5fd;
-  --color-schedule-tag-inprogress-border: #3b5b80;
-  --color-schedule-tag-done-bg: #052e1f;
-  --color-schedule-tag-done-fg: #6ee7b7;
-  --color-schedule-tag-done-border: #10b981;
   --color-chip-task-bg: #1d2348;
   --color-chip-task-fg: #aebcff;
   --color-chip-task-dot: #5b8cff;
@@ -431,30 +408,6 @@
   --color-lumen-chip-event-bg: var(--color-chip-event-bg);
   --color-lumen-chip-event-fg: var(--color-chip-event-fg);
   --color-lumen-chip-event-dot: var(--color-chip-event-dot);
-  /* Schedule status tag (#222) → bg-/border-/text-lumen-schedule-tag-*-*.
-     ScheduleStatusTag paints the derived status with these (no hardcoded
-     colors, §6). notStarted=grey / inProgress=blue / done=green. */
-  --color-lumen-schedule-tag-notstarted-bg: var(
-    --color-schedule-tag-notstarted-bg
-  );
-  --color-lumen-schedule-tag-notstarted-fg: var(
-    --color-schedule-tag-notstarted-fg
-  );
-  --color-lumen-schedule-tag-notstarted-border: var(
-    --color-schedule-tag-notstarted-border
-  );
-  --color-lumen-schedule-tag-inprogress-bg: var(
-    --color-schedule-tag-inprogress-bg
-  );
-  --color-lumen-schedule-tag-inprogress-fg: var(
-    --color-schedule-tag-inprogress-fg
-  );
-  --color-lumen-schedule-tag-inprogress-border: var(
-    --color-schedule-tag-inprogress-border
-  );
-  --color-lumen-schedule-tag-done-bg: var(--color-schedule-tag-done-bg);
-  --color-lumen-schedule-tag-done-fg: var(--color-schedule-tag-done-fg);
-  --color-lumen-schedule-tag-done-border: var(--color-schedule-tag-done-border);
   /* Elevation tokens → shadow-lumen-sm / -md / -lg utilities. Theme-aware
      (the underlying --shadow-elevation-* vars switch with [data-theme]). */
   --shadow-lumen-sm: var(--shadow-elevation-sm);
@@ -504,6 +457,33 @@
      consumed as px-lumen-gutter / md:px-lumen-gutter-wide. */
   --spacing-lumen-gutter: 16px;
   --spacing-lumen-gutter-wide: 24px;
+  /* Top chrome row height — 3.5rem narrow / 3.75rem ≥md (#1399). The wide
+     layout draws TWO of these rows side by side and they open at the same y:
+     the sidebar's brand header (SidebarNav) and the section header
+     (SectionHeader, mounted in AppShell's `header` slot, which is a sibling
+     COLUMN of the sidebar, not a child of it). Nothing in the layout makes
+     them agree, and they did not: the sidebar sat at its own `h-12` (3rem)
+     against the header's `min-h-14 md:min-h-15` (3.5 / 3.75rem), so on Desktop
+     the brand mark rode above the section title and the two bottom borders
+     drew as a visible step across the top of the app — 13.5px of it at the
+     default font size. Both sides now read this pair, as
+     `h-lumen-header md:h-lumen-header-wide` / `min-h-lumen-header
+     md:min-h-lumen-header-wide`.
+       REM, NOT PX — and these are the section header's own former values, so
+     no section's header changes height and the #1283 rhythm is untouched. The
+     unit is the whole point: `--spacing` is 0.25rem, so every utility around
+     these rows (py-2, pt-4, h-6) and every text-* line box already scales with
+     the Settings font-size step, which drives documentElement from 12px to
+     25px (constants/fontSize.ts). Freezing ONE of the two rows at a px height
+     re-opens the very step this closes — at the top step it would be worse
+     than the bug. In rem the alignment holds at every step: the tallest thing
+     the section header can hold is the tab band (3.25rem + 2px), which stays
+     under 3.75rem for any root size above 4px, so the floor decides the height
+     and both rows land on it exactly.
+       `shared/tests/headerHeightLockstep.test.tsx` fails if either row inlines
+     a number again, or if these values go back to px. */
+  --spacing-lumen-header: 3.5rem;
+  --spacing-lumen-header-wide: 3.75rem;
   /* Minimum legible / tappable sizing (2026-08-02 user request). Unlike the
      px-based radius + spacing scales above, these are REM on purpose: the
      Settings font-size step drives documentElement's font-size, so a rem floor

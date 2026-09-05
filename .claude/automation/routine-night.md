@@ -1,6 +1,6 @@
 # Routine: Night Implement Lane（夜の実装レーン）
 
-> **発火は未有効**（2026-08-06 時点）。有効化には 2 つ要る — ① 実行基盤の裁定（D-20260804-main-1）② `run-routine.ps1` の `ValidateSet` に `night` を足す（現行は `digest` / `night-safe` のみ）。それまでは手動起動もできない。
+> **発火は未有効**（2026-09-01 時点）。実行基盤の裁定（D-20260804-main-1 = A）と `run-routine.ps1` 側の配線（`ValidateSet` の `night` / 無人用 permissions = `settings-unattended-implement.json`）は済んでおり、手動起動（`run-routine.ps1 -Routine night`）はできる。残るのは Phase 2 として実際に走らせる判断だけ（Task Scheduler の 22:33 枠は night-safe が取る）。
 > **実装の進め方はここに書かない。正本は `/loop-implement`**（[`../skills/loop-implement/SKILL.md`](../skills/loop-implement/SKILL.md)）。本ファイルが持つのは**無人実行に固有の事情だけ**。
 > 姉妹レーン = [`routine-night-safe.md`](./routine-night-safe.md)（読み取り中心の監査。あちらは実装しない）。
 
@@ -17,8 +17,7 @@
 書き換えてよいのは:
 
 - 選んだ Issue が指すプロダクトコードと、それに付随する i18n / テスト
-- `.claude/comm/outbox/chat-night/`（報告先。無ければ作る）
-- `.claude/comm/decisions/chat-night.md`（判断キューへの起票。単一書込者 = 自分）
+- （`.claude/` 配下は headless では Write できない = 2026-09-02 実測。**報告も判断キューも最終メッセージに書く** — `run-routine.ps1` が `.claude/comm/outbox/chat-night/night-report.md` へ追記するので、判断キュー行きの内容は報告末尾に「判断キュー行き」として並べ、翌朝 chat-main が `comm/decisions/chat-night.md` へ移す）
 
 触らないのは:
 
@@ -46,7 +45,7 @@
 
 ### 停止条件 — commit まで。PR は作らない
 
-- **`git push` と `gh pr create` は実行しない。** push と PR 作成は**翌朝の人の手番**に残す。**無人実行時の push 抑止は runner 側 settings で担保する** — 2026-08-10 に対話セッション側の柵（`.claude/settings.json` の `permissions.ask`）から両者を外したため（ユーザー裁定 = #618）、このレーンを有効化するときは起動コマンドに無人専用の permissions を渡す（`claude -p --settings <無人用 settings>` or `--disallowedTools`）。プロンプトの禁止文だけに頼らない
+- **`git push` と `gh pr create` は実行しない。** push と PR 作成は**翌朝の人の手番**に残す。**無人実行時の push 抑止は runner 側 settings で担保している** — 2026-08-10 に対話セッション側の柵（`.claude/settings.json` の `permissions.ask`）から両者を外したため（ユーザー裁定 = #618）、プロンプトの禁止文だけでは止まらない。`run-routine.ps1` が `settings-unattended-implement.json` を `--settings` で渡し、commit は通しつつ `git push` / `gh pr create` / Issue 書き込みを拒否する（2026-09-01 実測）
 - `/loop-implement` の停止条件（反復上限 / DDL が要る / Scope の外 / 要件が二義的 / 環境起因の失敗）に当たったら、そこで止めて報告へ回す。押し切らない
 - **検証が緑にならないまま終わるときも、その時点の状態を commit する**（次の夜と翌朝の人が続きから拾えるように）。ただし完走したものと一目で見分けがつくよう、次の 2 点で分ける:
   - ブランチ名 — 完走 `night/<issue>-<slug>` / 未完 `night-wip/<issue>-<slug>`
@@ -56,11 +55,11 @@
 
 ### 質問の出し方
 
-無人セッションでは `AskUserQuestion` が使えない。判断が要ることに当たったら `.claude/comm/decisions/chat-night.md` に A/B で書き（形式 = `decisions/README.md`）、その Issue は保留して終了する。**独断でどちらかに倒さない。** 書く前に `decisions/POLICY.md` を見て、該当する恒久裁定があればそれに従う。
+無人セッションでは `AskUserQuestion` が使えない。判断が要ることに当たったら **報告末尾の「判断キュー行き」節に A/B で書き**（形式 = `decisions/README.md`）、その Issue は保留して終了する。**独断でどちらかに倒さない。** 書く前に `decisions/POLICY.md` を見て、該当する恒久裁定があればそれに従う。
 
 ### 報告
 
-`.claude/comm/outbox/chat-night/night-report.md` に append する。**会話には流さない**（翌朝の digest がここを収集源にする）。
+**最終メッセージとして出力する**（ファイルには書かない）。`run-routine.ps1` が `.claude/comm/outbox/chat-night/night-report.md` へ追記し、翌朝の digest がそこを収集源にする。
 
 ```markdown
 ## YYYY-MM-DD HH:MM Night Implement Run

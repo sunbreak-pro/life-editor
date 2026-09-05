@@ -25,12 +25,6 @@ import {
  */
 
 const LABELS: EventEditorLabels = {
-  complete: "Mark complete",
-  statusLabels: {
-    notStarted: "Not started",
-    inProgress: "In progress",
-    done: "Done",
-  },
   title: "Title",
   date: "Date",
   allDay: "All-day",
@@ -52,8 +46,6 @@ const item: EventEditorItem = {
   isAllDay: false,
   startTime: "19:00",
   endTime: "20:30",
-  completed: false,
-  status: "notStarted",
   memo: "",
   isRoutine: false,
 };
@@ -100,7 +92,6 @@ function Harness({
         labels={LABELS}
         handlers={{
           onSave,
-          onToggleComplete: vi.fn(),
           onDirtyChange: (dirty) => {
             dirtyRef.current = dirty;
           },

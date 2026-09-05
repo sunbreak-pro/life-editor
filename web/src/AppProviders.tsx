@@ -13,6 +13,7 @@ import {
 } from "@life-editor/shared";
 import { GlobalShortcuts } from "./GlobalShortcuts";
 import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
+import { ScheduleReminderBridge } from "./ScheduleReminderBridge";
 import { TimerHost } from "./TimerHost";
 import { UndoRedoHost } from "./UndoRedoHost";
 
@@ -48,11 +49,14 @@ import { UndoRedoHost } from "./UndoRedoHost";
  *   the sections themselves, which is what lets Settings' Tutorial card
  *   (#1123) reach `restart` from inside the section switch.
  *
- * Two headless bridges are interleaved rather than hoisted, because each has
+ * Three headless bridges are interleaved rather than hoisted, because each has
  * to sit inside a specific Provider: MaterialsCountsBridge refetches on
- * Realtime bumps (needs Sync) and GlobalShortcuts reads the live, rebindable
- * config (needs ShortcutConfig). They take their props through this
- * component precisely so callers cannot mount them at the wrong depth.
+ * Realtime bumps (needs Sync), ScheduleReminderBridge sweeps for due event
+ * reminders and so needs BOTH Sync and Toast, and GlobalShortcuts reads the
+ * live, rebindable config (needs ShortcutConfig). They take their props
+ * through this component precisely so callers cannot mount them at the wrong
+ * depth — and the reminder one has to be GLOBAL rather than section-layer, or
+ * it would stop firing the moment the user left Schedule.
  */
 export interface AppProvidersProps {
   /** Injected into every Provider that talks to the backend (§6.4). */
@@ -91,6 +95,7 @@ export function AppProviders({
           dataService={dataService}
           onCounts={onMaterialsCounts}
         />
+        <ScheduleReminderBridge dataService={dataService} />
         <UndoRedoHost>
           <ShortcutConfigHost>
             <GlobalShortcuts {...shortcuts} />

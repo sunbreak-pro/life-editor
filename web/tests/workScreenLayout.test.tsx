@@ -60,21 +60,29 @@ type Timer = TimerContextValue;
 type WorkScreenDataService = Parameters<typeof WorkScreen>[0]["dataService"];
 
 const fetchTodoTree = vi.fn();
+// #1375: the picker offers events too, so the screen's ONE load now reads both
+// lists. Stubbing only the todo half would reject the Promise.all and leave the
+// selector empty for every test in this file.
+const fetchScheduleItemsByDateRange = vi.fn();
 
 function makeDS(): WorkScreenDataService {
   fetchTodoTree.mockResolvedValue([
     { id: "t1", type: "task", title: "Write the spec", isDeleted: false },
     { id: "t-gone", type: "task", title: "Deleted todo", isDeleted: true },
   ]);
-  return { fetchTodoTree } as unknown as WorkScreenDataService;
+  fetchScheduleItemsByDateRange.mockResolvedValue([]);
+  return {
+    fetchTodoTree,
+    fetchScheduleItemsByDateRange,
+  } as unknown as WorkScreenDataService;
 }
 
 /**
- * Idle 25:00 WORK timer. Only the todo attribution is stateful — it is the one
+ * Idle 25:00 WORK timer. Only the linked item is stateful — it is the one
  * piece of timer state these layout tests drive (the mobile picker writes it).
  */
 function useStubTimer(): Timer {
-  const [activeTodo, setActiveTodo] = useState<Timer["activeTodo"]>(null);
+  const [activeItem, setActiveItem] = useState<Timer["activeItem"]>(null);
   const noop = useCallback(() => {}, []);
   const asyncNoop = useCallback(() => Promise.resolve(), []);
   return useMemo(
@@ -86,7 +94,7 @@ function useStubTimer(): Timer {
       totalSeconds: 1500,
       completedSessions: 0,
       formatted: "25:00",
-      activeTodo,
+      activeItem,
       workDurationMinutes: 25,
       breakDurationMinutes: 5,
       longBreakDurationMinutes: 15,
@@ -98,7 +106,7 @@ function useStubTimer(): Timer {
       pause: noop,
       reset: noop,
       setPhase: noop,
-      setActiveTodo,
+      setActiveItem,
       adjustRemainingMinutes: noop,
       saveSettings: noop,
       setAutoStartBreaks: noop,
@@ -106,7 +114,7 @@ function useStubTimer(): Timer {
       applyPreset: noop,
       deletePreset: asyncNoop,
     }),
-    [activeTodo, noop, asyncNoop],
+    [activeItem, noop, asyncNoop],
   );
 }
 
