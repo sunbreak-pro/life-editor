@@ -47,6 +47,8 @@ export interface NotesSidebarListLabels {
   toggleDirection: string;
   tagFilter: string;
   empty: string;
+  /** Shown instead of `empty` when a query matched nothing (#1470). */
+  searchEmpty: string;
   addCta: string;
   collapseGroup: string;
   expandGroup: string;
@@ -93,7 +95,10 @@ export interface NotesSidebarListProps {
 
   // The list itself.
   error: string | null;
+  /** Whether the VAULT holds any note — not whether the query matched (#1470). */
   hasNotes: boolean;
+  /** A query is on and nothing matched it (#1470). */
+  searchEmpty: boolean;
   visibleGroups: NoteTagGroup[];
   collapsedGroups: Set<string>;
   onToggleGroup: (key: string) => void;
@@ -129,6 +134,7 @@ export function NotesSidebarList({
   rowCap,
   error,
   hasNotes,
+  searchEmpty,
   visibleGroups,
   collapsedGroups,
   onToggleGroup,
@@ -215,7 +221,18 @@ export function NotesSidebarList({
       )}
 
       {/* Tag groups. */}
-      {!hasNotes ? (
+      {searchEmpty ? (
+        /*
+         * #1470: a query nobody's notes match is not an empty vault. This used
+         * to fall through to the branch below, so the list answered a typo
+         * with "No notes yet" and an accent CREATE button — an offer to make a
+         * note out of the search term while the term was still in the box, and
+         * the wrong statement about a vault that is full. No CTA of its own:
+         * the answer to "nothing matched" is another word, and the toolbar
+         * pill above is still there for anyone who did mean to create.
+         */
+        <EmptyState icon={<Search aria-hidden />} message={labels.searchEmpty} />
+      ) : !hasNotes ? (
         <EmptyState
           icon={<FileText aria-hidden />}
           message={labels.empty}

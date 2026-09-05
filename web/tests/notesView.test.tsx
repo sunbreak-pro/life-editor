@@ -790,3 +790,75 @@ describe("NotesView — the tag chips carry the tag's own icon (#1365)", () => {
     expect(glyph?.style.color).toBe("rgb(51, 102, 153)");
   });
 });
+
+/*
+ * #1470 — a query nobody's notes match. The list used to answer it with the
+ * empty-VAULT copy ("No notes yet") plus its accent create button, and the tag
+ * chips vanished with the result set, so the search box was the only way back.
+ * Three separate wrong statements about a vault that is full.
+ */
+describe("NotesView — a search that matches nothing (#1470)", () => {
+  beforeEach(() => {
+    state.searchQuery = "ZZZQQNOMATCH";
+  });
+
+  /** The tag-filter row's own wrapper (the #1125 tour anchor). */
+  function chipRow(): HTMLElement {
+    const row = document.querySelector<HTMLElement>(
+      '[data-tour-id="materials-tag-filter"]',
+    );
+    if (!row) throw new Error("the tag filter row is not on screen");
+    return row;
+  }
+
+  it("says nothing matched rather than that the vault is empty", () => {
+    render(<NotesView />);
+
+    screen.getByText("materials.notes.searchEmpty");
+    expect(screen.queryByText("materials.notes.empty")).toBeNull();
+  });
+
+  it("leaves the create offer to the toolbar pill", () => {
+    render(<NotesView />);
+
+    // One entry, not two: the side list's accent CTA belonged to "no notes
+    // yet" and here would offer to create out of a search term.
+    expect(
+      screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
+    ).toBe(1);
+  });
+
+  it("keeps the tag chips on screen, drawn from the whole vault", () => {
+    render(<NotesView />);
+
+    const chips = within(chipRow())
+      .getAllByRole("button")
+      .map((b) => b.textContent ?? "");
+    expect(chips.some((c) => c.startsWith("Work"))).toBe(true);
+    expect(chips.some((c) => c.startsWith("materials.notes.untagged"))).toBe(
+      true,
+    );
+  });
+
+  it("drops the query when one of those chips is pressed", () => {
+    render(<NotesView />);
+
+    const work = within(chipRow())
+      .getAllByRole("button")
+      .find((b) => b.textContent?.startsWith("Work"));
+    if (!work) throw new Error("no Work chip");
+    fireEvent.click(work);
+
+    // Otherwise the restored row would be inert: the chip narrows a set the
+    // query has already emptied.
+    expect(state.setSearchQuery).toHaveBeenCalledWith("");
+  });
+
+  it("still says the vault is empty when it really is", () => {
+    state.notes = [];
+    render(<NotesView />);
+
+    expect(screen.queryByText("materials.notes.searchEmpty")).toBeNull();
+    expect(screen.getAllByText("materials.notes.empty").length).toBe(2);
+  });
+});
