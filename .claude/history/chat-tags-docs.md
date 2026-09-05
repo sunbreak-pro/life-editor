@@ -1,5 +1,38 @@
 # HISTORY (chat-tags-docs)
 
+### 2026-09-02 - #1391 / #1390 docs 整合 2 本（常時ロード面の drift + design docs の追随）
+
+#### 概要
+
+2026-09-01 の docs 整合監査で出た 2 束を、`origin/main` から切った別々のブランチで片付けた。どちらも `.claude/` 配下のみの docs 変更で、コードには触っていない（PR #1451 / #1461 ともに merged）。
+
+#### #1391 — 常時ロード面の数値 drift と dead path
+
+- **主目的は `add-ipc-channel` スキル**: description は毎セッション読まれるので、そこに書いた「7 関数」が全セッションに配られていた。実測は `desktop/src/shared/ipcContract.ts` の **10 チャネル**（Issue 起票時点は 9・その後 `notify:show` が着地）で、**起票から実装までの 1 日で既にもう 1 ずれていた**。個数の転記自体をやめ「`DesktopIpcApi` を数える」形へ。名前空間の列挙も `DESKTOP_IPC` 参照に変え、箇条書きが拾い漏らしていた 2 本（Claude Code 起動 #1211 / OS 通知 #1374）を追加
+- **tier-1-core の Database 節**: `○基本完成` のままで現役機能に読めていたので、Terminal と同じ体裁の `✗凍結`（D-20260704-main-1）へ
+- **dead path を実リンク化**: `docs/vision/plans/2026-07-14-schedule-redesign.md` 等はバッククォート表記だったため **docs-lint(a) の検査対象外**（インラインコードは link 抽出前に落とされる）で腐り続けていた。実リンクに直したので以後は機械が見張る
+- **実在しない archive 直下ファイル 4 箇所**: 2026-05-16 の統合（3b4715cc）で消えたファイルを「archive 済」と断言していた。歴史的事実は残し参照先を `archive/SUMMARY.md` へ
+- **`rules/docs-consistency.md` §3**: 「archive へ移すのは COMPLETED / SUPERSEDED だけ」と書いてあるのに `2026-05-23-filechanged-comm-watch.md` は DEFERRED のまま archive にあり、`comm/README.md` もそう参照している。**意図的な運用だったので規則側に例外を明記**（Status 行に畳んだ理由を書くことが条件）
+- **無変更で済んだもの**: packaging 計画の Status 註記は既に実態化済みだった（`PR #1348 / #1360` = どちらも MERGED を実測）
+
+#### #1390 — design docs の追随
+
+- `IA.md` は「ナビ構成の正本」を名乗るのに、registry（`shared/src/sections.ts`）に無い Trash をユーティリティ枠として列挙していた。実測は **7 セクション = 本流 6 + Settings 1**
+- 決定 1（個数）・決定 3（Mobile 固定 4 タブの中身）は**断定をやめて registry を数える形**へ、決定 2（Trash = ユーティリティ枠）は取り消し線 + SUPERSEDED（#1293）
+- サイドバー表から Trash 行を落とし、**抜けていた Briefing 行を追加**。More シートの中身（旧 `Connect / Settings / Trash`）を実測（固定 = Briefing / Schedule / Materials / Work・More = Analytics / Connect / Settings）へ
+- `design/README.md` が同じ数値を 1 層外側に複製していたので registry 参照へ。tier-2 の Trash 節は Owner が **削除済みの `frontend/src/components/Trash/`** を指していたので現行パスへ
+
+#### 検証
+
+両ブランチとも `LC_ALL=C bash scripts/docs-lint.sh` = OK、CI `verify` の 14 ステップを全数ローカル実行して全緑（shared 2851 tests / web 1045 tests / desktop / mcp-server）。#1391 側は 1 回目に `web — test` の `briefingEveningLazyMount` が落ちたが、docs-lint と並走させた CPU 競合による既知 flake で、静かな状態の単独再実行は緑。
+
+#### 乖離レビュー
+
+- **スコープ逸脱**: なし。両 Issue の Scope 宣言の内側に収めた。`ipcContract.ts:138` のガードコメントが `Current = 9` のまま（同ファイル `:172` は「notify で 10」と書いており 1 ずれている）のを見つけたが `desktop/` は Scope 外なので触らず、PR 本文と outbox に申し送りだけ残した
+- **AC 免除**: なし
+- **途中で出た判断の行き先**: 2 件とも判断キューへ（D-20260902-tags-1 / -2）。chat-main の振り直しコメントが「要判断 A/B は実装せずキューへ」と明示していたのでそれに従った
+- **運用メモ**: `scripts/docs-lint.sh` は vitest と並走させると 38 分かかる（単独なら数分）。**verify と docs-lint は順に回す**のが正解
+
 ### 2026-09-01 - #1366 タグアイコンを 26 → 56 に増やす
 
 #### 概要
