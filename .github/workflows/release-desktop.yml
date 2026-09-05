@@ -74,6 +74,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # Release 名を決めるのはタグだが、成果物のファイル名を決めるのは
+      # desktop/package.json（electron-builder.yml の artifactName が
+      # ${version} を展開する）。この 2 つを揃える仕組みが無いので、版を
+      # 上げ忘れたままタグを打つと「desktop-v0.2.0 という Release の中身は
+      # Life Editor-0.1.0-x64-setup.exe」という取り違えが黙って通る。
+      # desktop/README.md は文章で注意しているだけなので、ランナに守らせる。
+      #
+      # パッケージング（約 5 分）の前に置いてある — 打ち直せば済む間違いに
+      # ビルド 2 OS 分を払わせない。node は GitHub ランナに標準で入っている
+      # ため setup-node より前でも動く。
+      - name: tag matches desktop/package.json version
+        if: startsWith(github.ref, 'refs/tags/desktop-v')
+        shell: bash
+        run: |
+          set -euo pipefail
+          declared=$(node -p "require('./desktop/package.json').version")
+          tagged="${GITHUB_REF_NAME#desktop-v}"
+          if [ "$declared" != "$tagged" ]; then
+            echo "::error::tag $GITHUB_REF_NAME asks for version $tagged but desktop/package.json declares $declared — bump the package first, then re-cut the tag"
+            exit 1
+          fi
+          echo "tag and package.json agree on $declared"
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -187,8 +210,33 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: list collected assets
-        run: ls -la dist
+      # build ジョブ側の「空ビルドを配らない」ガードと対になる、集約側の検査。
+      # 向こうは 1 つの bundle の中身を見るが、こちらは Release に載る**集合**
+      # が揃っているかを見る。`gh release create dist/*` は渡された物をそのまま
+      # 添付するだけなので、artifact が片方欠けても「アセット 1 個の Release」
+      # が普通に出来上がってしまう — draft とはいえ、気付くのは配った後になる。
+      #
+      # 1 MB 判定は雑に見えて実務的: Electron のインストーラは最小構成でも
+      # 数十 MB あるので、これを下回る物が混ざったら中身が空という意味になる。
+      # 単位は必ずバイト（`c`）で書く — `-size -1M` は 1 MB 単位に**切り上げ**
+      # てから比較するため、2 KB のファイルすら「1 単位」に丸められて素通り
+      # する（ローカルで 2 KB の偽 dmg を置いて実測）。
+      - name: verify the collected asset set
+        run: |
+          set -euo pipefail
+          ls -la dist
+          exe=$(find dist -maxdepth 1 -type f -name '*-x64-setup.exe' | wc -l)
+          dmg=$(find dist -maxdepth 1 -type f -name '*-arm64.dmg' | wc -l)
+          if [ "$exe" -ne 1 ] || [ "$dmg" -ne 1 ]; then
+            echo "::error::expected 1 NSIS installer and 1 arm64 dmg, collected exe=$exe dmg=$dmg"
+            exit 1
+          fi
+          if find dist -maxdepth 1 -type f -size -1000000c | grep -q .; then
+            echo "::error::a collected asset is under 1 MB — no Electron installer is that small, so one of them is empty"
+            find dist -maxdepth 1 -type f -size -1000000c -exec ls -la {} +
+            exit 1
+          fi
+          echo "collected 1 NSIS installer and 1 arm64 dmg, both full size"
 
       # draft で作る（P-001 と同じ考え方 — 外に出す最後の一押しは人が押す）。
       # 公開は GitHub UI の "Publish release"、もしくは
