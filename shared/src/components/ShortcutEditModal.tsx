@@ -316,7 +316,10 @@ export function ShortcutEditModal({
                       )}
                     </div>
                     {capturing && conflict && (
-                      <div className="flex items-center gap-1.5 px-0.5 py-1.5">
+                      <div
+                        role="alert"
+                        className="flex items-center gap-1.5 px-0.5 py-1.5"
+                      >
                         <TriangleAlert
                           size={14}
                           className="shrink-0 text-lumen-danger"
