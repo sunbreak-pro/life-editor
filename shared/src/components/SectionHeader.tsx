@@ -36,6 +36,12 @@ export interface SectionHeaderProps {
  * panel state. Gutter = the v1 page-gutter tokens, so the left edge lines up
  * with PageContainer content.
  *
+ * HEIGHT (#1399): the min-height is the shared --spacing-lumen-header pair,
+ * not a local literal. On the wide layout this row and the sidebar's brand
+ * header are two top-of-screen rows that start at the same y, so a number only
+ * one of them knows is a number they can disagree about — which is exactly how
+ * the 12px step this token removed got in. See the token's own comment.
+ *
  * VERTICAL RHYTHM (#1283): the row sets a min-height and carries NO vertical
  * padding of its own, so `self-center` lands on the band's TRUE centre. It
  * used to centre inside the padding box instead — `pt-4` with no `pb` — which
@@ -59,7 +65,8 @@ export function SectionHeader({
     <div
       className={cn(
         "flex shrink-0 items-stretch border-b border-lumen-border bg-lumen-bg",
-        "min-h-14 px-lumen-gutter md:min-h-15 md:px-lumen-gutter-wide",
+        "min-h-lumen-header px-lumen-gutter",
+        "md:min-h-lumen-header-wide md:px-lumen-gutter-wide",
         className,
       )}
     >
