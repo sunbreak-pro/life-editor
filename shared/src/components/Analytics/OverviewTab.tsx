@@ -165,8 +165,10 @@ export function OverviewTab({
 
   return (
     <div className="space-y-4">
-      {/* Multi-domain stat cards (full-width 3-col grid) */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Multi-domain stat cards. Three across only once the DATA COLUMN is
+          wide enough (#1480) — with the detail panel open it is ~612px, where
+          a third of it leaves 「0時間33分」 nowhere to go. */}
+      <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3">
         <AnalyticsStatCard
           icon={<BarChart3 size={16} />}
           label={labels.todos}

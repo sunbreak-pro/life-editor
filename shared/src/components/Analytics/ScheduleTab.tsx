@@ -98,7 +98,7 @@ export function ScheduleTab({
   if (loading && items.length === 0) {
     return (
       <div className="space-y-4" aria-busy="true">
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => (
             <div
               key={i}
@@ -132,7 +132,11 @@ export function ScheduleTab({
 
   return (
     <div className="space-y-4" aria-busy={loading}>
-      <div className="grid grid-cols-3 gap-3 lg:grid-cols-5">
+      {/* Five across needs a genuinely wide column (#1480). `lg:` asked the
+          WINDOW, so the panel-open layout still tried five, and even at a full
+          1280px the row's own 1050px only leaves ~200px per tile — which is
+          why the headings are now allowed to wrap in AnalyticsStatCard. */}
+      <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3 @4xl:grid-cols-5">
         <AnalyticsStatCard
           icon={<CalendarCheck2 size={16} />}
           label={labels.totalEvents}
