@@ -1,5 +1,23 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-02 - /goal 6 件（#1371 / #1403 / #1440 / #1405 / #1406 / #1401）を全部 PR まで
+
+#### 概要
+
+Schedule の小さなバグ 2 件と仕様寄りの 4 件を指定順に処理し、PR を 6 本出した（#1450 / #1452 / #1454 / #1458 / #1463 / #1464）。全ブランチ origin/main から独立に切り、CI `verify` 全ステップ + `docs-lint` をローカルで exit 0（例外は下記の #1403 の web vitest）。仕様の裁定が要る 2 点は判断キュー（D-20260902-sched-1 / -2）に積み、安全側を実装した。
+
+#### 変更点
+
+- **#1371 = PR #1450 「＋+Todo」の二重プラス**: `AddPill` が lucide の `Plus` を描くので、文言側の「+ 」を落として "Todo" にした（Materials の "Note" / 「ノート」と同じ作法）
+- **#1403 = PR #1452 終日トグルと日付欄の重なり（Mobile）**: #1036 は flex 列に `min-w-0` を入れて列を縮められるようにしたが、**中の `<input type="date">` は縮んでいなかった**。WebKit は `appearance: none` が無い date input を intrinsic 幅に固定し `w-full` を無視する。input 自身に `appearance-none min-w-0`、行の gap を `gap-3` に。`ItemCreatePanel` の同一行にも同じ 2 クラス
+- **#1440 = PR #1454 凍った進捗数字 2 つ（C = 表示ごと畳む）**: 「今日の流れ」見出しの `{done}/{total}` と `RoutineSummaryCard` の進捗バーを撤去し、背後の集計（`todayDone` / `routineDone` / `narrowDayCounts`・カードの count props・`scheduleScreen.doneSummary`）も落とした。列・mapper・MCP の `set_schedule_complete` は温存。A / B は C の上に足す形なので、先に C を出しても後戻りにならない
+- **#1405 = PR #1458 Event → Todo を Desktop の編集パネルにも**: 変換基盤・Undo・ルーチン拒否ダイアログはすべて既存（#625 / #739 / #997 / D-20260810-sched-5）で、#998 が narrow シート限定にしていた `convert` prop を両幅に渡すだけだった。**「無い」と書かれた Issue でも grep して「どこまで有るか」を先に測る**（#1000 の教訓の再演）
+- **#1406 = PR #1463 「本日のTodo」タブを 本日分 / その他 の 2 分類に**: 本日分 = 旧 placed / unplaced を `singleList` で合流、その他 = `pickOtherTodos`（未配置 + 他の日に配置済みの葉 Todo・後者は "9/5 14:00" を添える）。ホバーで出る移動ボタン（`hoverActions`・`[@media(hover:none)]` では常時表示）。**その他 → 本日分は日付だけ変えて時刻を保つ**（`todoMoveToTodayWrite`）、**本日分 → その他は日付を外す**（`todoMoveOutWrite`・Undo ラベル `todoRemoveFromToday` を新設）。Briefing のトレイは新 prop を渡さないので描画不変
+- **#1401 = PR #1464 Mobile 月グリッド刷新**: compact セルを固定 70px にし、グリッドを `flex-1` で伸ばすのをやめた（縦長の正体は `auto-rows-fr` × `flex-1` で余りが全部行の高さになっていたこと）。gutter は見出し行だけに残し、グリッドは端から端（compact では角丸と左右罫線も外す）。丸点を**タイトルの縦リスト**（3 行・4 件以上は 2 行 + "+N"）に替え、長い題名は `overflow-hidden whitespace-nowrap` だけ（`truncate` = 省略記号は使わない）で端で切る。Desktop は `compact` ゲートの外で無変更
+- **検証の例外（正直に）**: #1403 のフル web vitest は `briefingEveningLazyMount` の 1〜2 件が負荷で落ちた（既知の flaky・memory `cold-vite-cache-fails-lazy-mount-tests`）。同ファイル単体は緑、他の 5 本のフル実行では同テストが通っている。他ステップは全部緑
+- **prettier の追い commit**: python で当てたパッチは PostToolUse の整形フックを通らないので、push 後の `prettier --check` で 7 ファイルが未整形だった。#1403 / #1440 / #1406 の 3 本に整形だけの commit を積んだが、**#1452 / #1454 は push の前に merge されていて取り残された**（push-after-merge の 4 度目）。#1463 分だけ PR に載った
+- **main が赤になり fix PR #1466 を出した**: 4 本が数分間隔で merge された直後、`web — lint` が `'workTime' is assigned a value but never used` で落ちた。#1456（#1375・analytics レーン）が `ScheduleEventEditor` に `workTime` を足し、#1458（#1405）が隣の `convert` prop を書き換えたため、GitHub 側の merge で `workTime={workTime}` の 1 行が消えていた（値は計算されるが pane に渡らない = 作業時間の表示も消えていた）。1 行復元 + 取り残された整形 3 ファイルの prettier を同梱し、origin/main から切った `style/prettier-schedule-20260902` で PR #1466
+
 ### 2026-09-01 - /goal 5 件（#1362 / #1370 / #1367 / #1373 / #1374）を全部 PR まで
 
 #### 概要
