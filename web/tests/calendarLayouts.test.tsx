@@ -42,9 +42,10 @@ import type { CalendarNarrowLayoutProps } from "../src/schedule/CalendarNarrowLa
  *     panel on it (#224), narrow only moves the picked day (#878). One
  *     callback wired to the other layout's handler is invisible in review.
  *   - the same `monthItems` render at two densities (#878): Desktop draws
- *     title chips, narrow draws dots and answers "what is it" in the drawer
- *     (#1148 — the list that used to answer it under the grid is gone). A
- *     compact grid that lost its flag would put 42 cells of text on a phone.
+ *     title chips (buttons), narrow draws plain title lines in fixed-height
+ *     cells (#1401 — dots until then) and answers "open it" in the drawer
+ *     (#1148). A compact grid that lost its flag would put Desktop's chip
+ *     buttons, and cells that grow, on a phone.
  *   - the two "N hidden" counts are DIFFERENT numbers (#466 repeat filter vs
  *     #468 lens) and now travel in two separate prop bundles.
  *   - Desktop switches ON capabilities in the part below it — the `display`
@@ -371,9 +372,7 @@ describe("CalendarDesktopLayout — the view decides which grid", () => {
     expect(
       screen.getByText("scheduleScreen.repeatFilterHidden:3"),
     ).toBeTruthy();
-    expect(
-      screen.getByText("scheduleScreen.groupFilterHidden:5"),
-    ).toBeTruthy();
+    expect(screen.getByText("scheduleScreen.groupFilterHidden:5")).toBeTruthy();
   });
 });
 
@@ -419,21 +418,25 @@ describe("CalendarNarrowLayout — the month grid, alone (#1148)", () => {
 
 describe("the same month, two densities (#878)", () => {
   /*
-   * `compact` is what makes 42 cells legible on a phone: dots say WHERE
-   * something is, and the list underneath says WHAT. Lose the flag and the
-   * grid puts Desktop's title chips into cells a seventh of a phone wide.
+   * `compact` is what makes 42 cells legible on a phone. Since #1401 both
+   * densities NAME the items; what separates them is the form — Desktop's
+   * chip is a button that opens the bubble, narrow's title is a plain line
+   * in a fixed-height, edge-to-edge cell, and the day stays the tap target.
+   * Lose the flag and the grid puts Desktop's buttons, and cells that grow
+   * with their content, into cells a seventh of a phone wide.
    */
-  it("Desktop names the items in the cells; narrow draws dots instead", () => {
+  it("Desktop names the items as chips; narrow as plain lines in fixed cells", () => {
     const wide = renderDesktop({ view: "month" });
-    expect(screen.getByText(MONTH_ITEM.title)).toBeTruthy();
+    expect(screen.getByRole("button", { name: MONTH_ITEM.title })).toBeTruthy();
     wide.unmount();
 
-    // Since #1148 the answer to "what is that dot?" is the drawer rather than
-    // a list under the grid — but the density rule this case guards is
-    // unchanged, and it is the half that would put 42 cells of text on a
-    // phone.
     renderNarrow();
-    expect(screen.queryByText(MONTH_ITEM.title)).toBeNull();
+    const title = screen.getByText(MONTH_ITEM.title);
+    expect(title.tagName).toBe("SPAN");
+    expect(screen.queryByRole("button", { name: MONTH_ITEM.title })).toBeNull();
+    const cell = title.closest("[role='gridcell']");
+    expect(cell?.className).toContain("h-[4.375rem]");
+    expect(screen.getByRole("grid").className).not.toContain("rounded-md");
   });
 
   /*
@@ -495,11 +498,7 @@ const TOOLBAR_CASES: [ToolbarSpy, () => HTMLElement, unknown[]][] = [
     () => screen.getByText("scheduleScreen.repeatFilterHide"),
     [],
   ],
-  [
-    "onOpenFilter",
-    () => screen.getByLabelText(TOOLBAR_LABELS.openFilter),
-    [],
-  ],
+  ["onOpenFilter", () => screen.getByLabelText(TOOLBAR_LABELS.openFilter), []],
   ["onAddEvent", () => screen.getByText("scheduleScreen.addEvent"), []],
 ];
 
@@ -621,7 +620,6 @@ describe("the item gestures — three presses, three handlers, per surface", () 
     // A press that never moved is not a move — the write path stays shut.
     expect(handlers.onMoveItem).not.toHaveBeenCalled();
   });
-
 });
 
 /*

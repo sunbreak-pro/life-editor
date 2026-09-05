@@ -1,10 +1,7 @@
 import { useMemo } from "react";
 import { CheckSquare } from "lucide-react";
 import { cn } from "../cn";
-import {
-  dotColorClasses,
-  type ScheduleItemVariant,
-} from "./scheduleVariantVisuals";
+import { type ScheduleItemVariant } from "./scheduleVariantVisuals";
 import {
   WEEK_STARTS_ON,
   monthGridKeys,
@@ -15,8 +12,16 @@ import {
 /*
  * MonthGrid (W8 target-IA) — pure, presentational month calendar. Desktop
  * renders a 7-column grid of cells (day-number badge + up to 2 provenance
- * chips + "他 N 件"); Mobile (`compact`) renders a day badge + a dot row, capped
- * at 3 dots and followed by the same "他 N 件" remainder (#1045).
+ * chips + "他 N 件"); Mobile (`compact`) renders a day badge over a short
+ * vertical list of item TITLES (#1401 — it was a dot row until then), cut at
+ * three lines with the same "他 N 件" remainder (#1045) taking the last one.
+ *
+ * The compact cell is a FIXED height and clips: a phone's cell is ~1/7th of
+ * the screen wide, and a title that does not fit is cut at the cell edge with
+ * no ellipsis (the Issue is explicit about that) and never pushes a grid line.
+ * The grid therefore does not stretch to fill the column either — that was
+ * what made the rows tower on a tall phone — and the host lets the column
+ * scroll if the six rows do not fit.
  *
  * Pure presentation (CLAUDE.md §3.1 / §6.4): no DataService, no
  * useTranslation. Weekday labels + the "他 N 件" formatter arrive already
@@ -77,7 +82,11 @@ export interface MonthGridProps {
   formatMoreCount: (n: number) => string;
   /** Accessible name for a day cell. Default = the raw date key. */
   formatDayLabel?: (dateKey: string) => string;
-  /** Mobile density: up to 3 dots + the remainder, instead of chips. */
+  /**
+   * Mobile density (#1401): fixed-height cells, a title list instead of chips
+   * (up to 3 lines, the last one the remainder when there are more), and no
+   * side borders or corner radius, so the grid can run edge to edge.
+   */
   compact?: boolean;
   /** Already-translated accessible name for the grid (§6.4). */
   ariaLabel?: string;
@@ -141,14 +150,23 @@ export function MonthGrid({
   );
 
   const maxChips = 2;
-  const maxDots = 3;
+  // Compact: three lines per cell. A day with more than three items shows two
+  // titles and spends the third line on "+N", so the count is never hidden
+  // behind a clipped list (#1045's argument, carried over from the dots).
+  const maxTitleLines = 3;
 
   return (
     <div
       role="grid"
       aria-label={ariaLabel}
       className={cn(
-        "flex flex-col overflow-hidden rounded-md border border-lumen-border bg-lumen-bg",
+        "flex flex-col overflow-hidden bg-lumen-bg",
+        // #1401: edge to edge on a phone — a radius and side borders would
+        // draw a card sitting inside the screen, which is the margin the
+        // Issue asks to remove.
+        compact
+          ? "border-y border-lumen-border"
+          : "rounded-md border border-lumen-border",
         className,
       )}
     >
@@ -175,11 +193,14 @@ export function MonthGrid({
           const dayItems = byDay.get(dateKey) ?? [];
           // Each density hides a different number of items, so each counts its
           // own remainder (#1045). One shared `overflow` would have printed the
-          // chip figure under a dot row that cut at a different place.
-          const overflow = Math.max(
-            0,
-            dayItems.length - (compact ? maxDots : maxChips),
-          );
+          // chip figure under a list that cut at a different place.
+          const shownCompact =
+            dayItems.length > maxTitleLines
+              ? maxTitleLines - 1
+              : dayItems.length;
+          const overflow = compact
+            ? dayItems.length - shownCompact
+            : Math.max(0, dayItems.length - maxChips);
           return (
             <div
               key={dateKey}
@@ -189,7 +210,10 @@ export function MonthGrid({
               // selection to make, and the overview (#692) has none.
               aria-selected={selectedKey ? isSelected : undefined}
               className={cn(
-                "relative min-h-14 border-b border-r border-lumen-border last:border-r-0",
+                "relative border-b border-r border-lumen-border last:border-r-0",
+                // #1401: a fixed height that clips, so no title can move a
+                // grid line — versus Desktop's floor, which lets a cell grow.
+                compact ? "h-[4.375rem] overflow-hidden" : "min-h-14",
                 isSelected &&
                   "bg-lumen-bg-secondary ring-2 ring-inset ring-lumen-accent",
               )}
@@ -207,8 +231,10 @@ export function MonthGrid({
               />
               <div
                 className={cn(
-                  "pointer-events-none relative z-10 flex h-full flex-col gap-0.5 p-1",
-                  compact && "items-center",
+                  "pointer-events-none relative z-10 flex h-full flex-col gap-0.5",
+                  // Compact keeps the column stretched so each title line can
+                  // use the cell's full width; only the day badge centres.
+                  compact ? "px-0.5 pb-0.5 pt-1" : "p-1",
                   !inMonth && "opacity-40",
                 )}
               >
@@ -228,34 +254,44 @@ export function MonthGrid({
 
                 {compact ? (
                   <>
-                    <div className="flex gap-0.5">
-                      {dayItems.slice(0, maxDots).map((it) => (
-                        <span
-                          key={it.id}
-                          className={cn(
-                            "size-1.5 rounded-full",
-                            dotColorClasses(it.variant ?? "event"),
-                          )}
-                        />
-                      ))}
-                    </div>
                     {/*
-                     * The remainder, spelled out (#1045). The dot row cuts at
-                     * three and used to just stop, so a day with eight items
-                     * looked exactly like a day with three — and the dots are a
-                     * DENSITY cue, which is the one thing that reading makes
-                     * wrong. The day underneath is still where "what are they"
-                     * gets answered; this only says how many are missing.
-                     *
-                     * Same `formatMoreCount` the Desktop overflow line uses, so
-                     * the two densities agree on the wording ("+N more" / "他 N
-                     * 件") rather than inventing a second phrase for the same
-                     * fact. `nowrap` keeps it on one line: a cell is ~1/7th of a
-                     * phone, and wrapping it would push the row taller than the
-                     * others and break the grid's even rows.
+                     * The titles (#1401). One line each, in the item's chip
+                     * colours so an event, a routine and a todo still tell
+                     * apart at this size. `overflow-hidden` + `nowrap` and
+                     * nothing else: a title wider than the cell is cut at the
+                     * cell's edge — no `truncate`, whose ellipsis the Issue
+                     * rules out — and the cell's fixed height means a long one
+                     * can never move a grid line. What a title IS is still
+                     * answered by the drawer the cell opens; these are plain
+                     * spans, not the Desktop chip buttons, because the day
+                     * stays the tap target on a phone.
+                     */}
+                    {dayItems.slice(0, shownCompact).map((it) => (
+                      <span
+                        key={it.id}
+                        className={cn(
+                          "block w-full overflow-hidden whitespace-nowrap rounded-sm px-0.5 text-[0.625rem] font-medium leading-[0.8125rem]",
+                          chipFaceClasses(it.variant ?? "event"),
+                          // Same #1373 gate as the Desktop chip: only a todo
+                          // can be complete.
+                          it.variant === "task" &&
+                            it.completed &&
+                            "line-through opacity-55",
+                        )}
+                      >
+                        {it.title || " "}
+                      </span>
+                    ))}
+                    {/*
+                     * The remainder, spelled out (#1045): a day with eight
+                     * items must not look like a day with two. It takes the
+                     * third line instead of a third title, so it is never the
+                     * thing that gets clipped. Same `formatMoreCount` the
+                     * Desktop overflow line uses, so the two densities agree
+                     * on the wording ("+N more" / "他 N 件").
                      */}
                     {overflow > 0 && (
-                      <span className="whitespace-nowrap text-[0.625rem] leading-none text-lumen-text-tertiary tabular-nums">
+                      <span className="whitespace-nowrap px-0.5 text-[0.625rem] leading-[0.8125rem] text-lumen-text-tertiary tabular-nums">
                         {formatMoreCount(overflow)}
                       </span>
                     )}

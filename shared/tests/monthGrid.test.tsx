@@ -5,7 +5,8 @@ import { MonthGrid, type MonthGridItem } from "../src/components";
 /*
  * MonthGrid — pure month calendar. Desktop cells carry a day badge + up to 2
  * provenance chips + a "他 N 件" overflow line; compact mode swaps chips for a
- * dot row. Cells select a day; chips select an item (and stop the day-select).
+ * short list of plain titles (#1401 — a dot row before that). Cells select a
+ * day; chips select an item (and stop the day-select).
  */
 
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -102,24 +103,74 @@ describe("MonthGrid", () => {
     }
   });
 
-  it("renders dots instead of chips in compact mode", () => {
+  it("renders plain titles instead of chips in compact mode (#1401)", () => {
     renderGrid({ compact: true });
-    // No chip buttons in compact mode — only the per-cell day-select buttons.
+    // No chip buttons in compact mode — only the per-cell day-select buttons —
+    // but the titles themselves are on screen now, where the dots used to be.
     expect(screen.queryByRole("button", { name: "Gym" })).toBeNull();
-    // 7/09 holds exactly 3 items and the dot row caps at 3, so nothing is
+    expect(screen.getByText("Gym")).toBeInTheDocument();
+    expect(screen.getByText("Dentist")).toBeInTheDocument();
+    // 7/09 holds exactly 3 items and the list runs to 3 lines, so nothing is
     // hidden and no remainder is printed — the chip figure ("+1 more", from
     // the tighter cap of 2) must NOT leak into this density (#1045).
+    expect(screen.getByText("Groceries")).toBeInTheDocument();
     expect(screen.queryByText("+1 more")).toBeNull();
   });
 
   /*
-   * The compact remainder (#1045). The dot row cuts at three and used to just
-   * stop, so a day with eight items looked identical to a day with three —
-   * which defeats the only thing dots are for (density).
+   * #1401: a long title is cut at the cell's edge with NO ellipsis, and it
+   * cannot move a grid line. jsdom has no layout, so both are asserted on the
+   * classes that produce them: the title clips (`overflow-hidden` +
+   * `whitespace-nowrap`) without Tailwind's `truncate` (which is the ellipsis),
+   * and the cell has a fixed height that clips rather than a floor that grows.
+   */
+  it("cuts a long title at the cell edge without an ellipsis, on a cell that cannot grow", () => {
+    renderGrid({
+      compact: true,
+      items: [
+        {
+          id: "long",
+          date: "2026-07-20",
+          title: "A very long meeting title that cannot possibly fit",
+          variant: "event",
+        },
+      ],
+    });
+    const title = screen.getByText(/A very long meeting title/);
+    expect(title.className).toContain("overflow-hidden");
+    expect(title.className).toContain("whitespace-nowrap");
+    expect(title.className).not.toContain("truncate");
+    expect(title.className).not.toContain("text-ellipsis");
+
+    const cell = title.closest("[role='gridcell']");
+    expect(cell?.className).toContain("overflow-hidden");
+    expect(cell?.className).toContain("h-[4.375rem]");
+    expect(cell?.className).not.toContain("min-h-14");
+  });
+
+  it("runs edge to edge in compact mode: no radius, no side borders", () => {
+    renderGrid({ compact: true });
+    const grid = screen.getByRole("grid");
+    expect(grid.className).not.toContain("rounded-md");
+    expect(grid.className).toContain("border-y");
+    // Desktop keeps its card.
+    expect(renderGrid().onSelectDay).toBeDefined();
+  });
+
+  it("keeps the Desktop card frame", () => {
+    renderGrid();
+    expect(screen.getByRole("grid").className).toContain("rounded-md");
+  });
+
+  /*
+   * The compact remainder (#1045, re-cut by #1401). The list runs to three
+   * lines; a day with more than three items shows two titles and spends the
+   * third line on the count, so it is never the thing that gets clipped — and
+   * a day with eight items cannot look like a day with two.
    *
-   * The count is asserted as a NUMBER, not as "there is a marker": it is
-   * computed against the dot cap, and the same cell already carries a second
-   * cap (2, for chips) that a plain presence check would happily accept.
+   * The count is asserted as a NUMBER, not as "there is a marker": the same
+   * cell carries a second cap (2, for Desktop chips) that a plain presence
+   * check would happily accept.
    */
   describe("compact overflow count", () => {
     const busyDay = (count: number): MonthGridItem[] =>
@@ -130,28 +181,33 @@ describe("MonthGrid", () => {
         variant: "event" as const,
       }));
 
-    it("counts what the dot row hides, not what the chip row would", () => {
+    it("shows two titles and counts the rest on the third line", () => {
       renderGrid({ compact: true, items: busyDay(8) });
-      // 8 items, 3 dots → 5 hidden. Against the chip cap it would read "+6".
-      expect(screen.getByText("+5 more")).toBeInTheDocument();
-      expect(screen.queryByText("+6 more")).toBeNull();
+      expect(screen.getByText("Item 0")).toBeInTheDocument();
+      expect(screen.getByText("Item 1")).toBeInTheDocument();
+      expect(screen.queryByText("Item 2")).toBeNull();
+      // 8 items, 2 shown → 6 hidden.
+      expect(screen.getByText("+6 more")).toBeInTheDocument();
     });
 
-    it("prints one over the cap as +1", () => {
+    it("prints one over the three lines as +2 (the third line is the count)", () => {
       renderGrid({ compact: true, items: busyDay(4) });
-      expect(screen.getByText("+1 more")).toBeInTheDocument();
+      expect(screen.getByText("+2 more")).toBeInTheDocument();
+      expect(screen.queryByText("Item 2")).toBeNull();
     });
 
-    it("stays silent when the day fits inside the dots", () => {
+    it("stays silent when the day fits inside three lines", () => {
       renderGrid({ compact: true, items: busyDay(3) });
       expect(screen.queryByText(/more$/)).toBeNull();
+      expect(screen.getByText("Item 2")).toBeInTheDocument();
     });
 
     it("leaves the Desktop count on its own cap", () => {
       // Same 8 items without `compact`: 2 chips → 6 hidden. The two densities
-      // share the formatter, so this is what keeps them from sharing the count.
+      // share the formatter; this pins the Desktop side on its own arithmetic.
       renderGrid({ items: busyDay(8) });
       expect(screen.getByText("+6 more")).toBeInTheDocument();
+      expect(screen.queryByText("Item 2")).toBeNull();
     });
   });
 
@@ -168,8 +224,8 @@ describe("MonthGrid", () => {
     ).toBeNull();
   });
 
-  it("paints the todo dot with the todo dot color in compact mode", () => {
-    const { container } = render(
+  it("paints a todo title in the todo chip colours in compact mode", () => {
+    render(
       <MonthGrid
         monthKey="2026-07-15"
         items={[
@@ -188,7 +244,9 @@ describe("MonthGrid", () => {
         compact
       />,
     );
-    expect(container.querySelector(".bg-lumen-chip-task-dot")).not.toBeNull();
+    const title = screen.getByText("Write report");
+    expect(title.className).toContain("bg-lumen-chip-task-bg");
+    expect(title.className).toContain("text-lumen-chip-task-fg");
   });
 });
 
