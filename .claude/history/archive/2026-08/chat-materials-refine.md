@@ -1,3 +1,19 @@
+### 2026-08-31 - #1334 — リンク先プールが両方の is_deleted バケツを読むようにした（PR #1340）
+
+#### 概要
+
+前日の #1292（PR #1306）が実データで効いていなかった件。プールは「削除済みをフラグ付きで持つ」形になっていたのに、**フラグの元にしていた 3 本の読み取りが全部 live 行しか返さない**ままだったので、フラグは構造的に常に false で、削除済み Todo へのリンクは相変わらず id 断片（`…44440797`）で出ていた。PR #1340 提出（Closes #1334・merge = こうだいさん）。
+
+#### 変更点
+
+- **原因は「フラグを立てる側」ではなく「行を取ってくる側」**: `useItemLinkTargets.fetchPool` が呼ぶ `fetchTodoTree` / `listNotesUnified` / `listDailiesUnified` は 3 本とも自分のクエリで `is_deleted = false` を固定している（`SupabaseTodosService` は `isDeleted: false` 直書き、Notes は `listLite(false, …)`、Dailies は `listByDeletedBucket(false, …)`）。#1292 は下流（フラグの読み方）だけを直していた
+- **各ドメインで両方のバケツを読む形にした**: `listNotesUnified` + `fetchDeletedNotesUnified`、daily / todo も同じ対。3 本とも Trash が既に使っている既存メソッドなので、**新しいクエリも新しい引数も足していない**（同じ分割の反対側を足しただけ）。前例は `SupabaseTodosService.permanentDeleteTodo` の `[...live, ...deleted]`
+- **連結は live が先**: ターゲットを*提示する*面（`[[` メニュー・LinkPanel の picker・関連リスト）は自分の境界でフラグ付きを落としてから並べるので、既存の並び順は動かない。削除済みの尾に触るのは id 逆引き（`resolveRow`）だけ
+- **空の Trash の追加コストはドメイン 1 本あたり SELECT 1 回**: `fetchMetaFirstJoin` は meta が 0 行なら payload テーブルに触らず返る
+- **既存テストがこのバグを丸ごと隠していた**（#1285 と同じ形の再発）: `web/tests/linkPanel.test.tsx` は削除済み行が**入り済みの pool** を panel に直接渡す。壊れていたのはまさにその手前の工程なので、緑のまま通っていた
+- **新しいテストは結果ではなく分割の方を模した**: `web/tests/useItemLinkTargets.test.tsx` はドメインごとに 1 枚の行テーブルを置き、各読み取りが自分の `is_deleted` バケツだけを返す（実サービスと同じ契約）。live だけから組んだ pool では通らない。4 ケース = 6 本の読み取りが全部呼ばれる / 3 ドメインの削除済みがフラグ付きで入る / live が unflagged かつ先に並ぶ / **報告された症状そのもの**（実 pool を通した LinkPanel に「Return the extra tiles（削除済み）」が出る）。修正前のソースに戻して 4 本とも落ちることを実測
+- **検証**: CI verify のステップ列をローカルで上から全部（docs-lint / shared 4 種 / web 4 種 / desktop 3 種 / mcp-server 3 種）— shared 2757・web 987・desktop 7・mcp 322 すべて緑。実ブラウザでの DoD 確認は worktree では回さない規約なので merge 後に chat-main
+
 ### 2026-08-30 - PR #1227 に main を取り込み、テンプレート 3 機能を両立させた
 
 #### 概要
