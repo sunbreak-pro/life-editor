@@ -10,6 +10,13 @@ import { cn } from "../cn";
  *   - warning → attention / stagnation metrics
  * Opaque card face (§3.5 / §5), lumen-* tokens only (§5). The value uses
  * tabular-nums so digits stay aligned across cards.
+ *
+ * The label and subtitle WRAP; only the value is allowed to clip (#1480). They
+ * used to truncate too, which is how the Schedule tab's five-across row lost
+ * its headings even at 1280px — the tile is ~200px wide there and
+ * 「アクティブなルーティン」does not fit on one line at any font this card
+ * would use. A second line just makes the row taller (grid children stretch
+ * together), while an ellipsis loses the word that says WHAT the number counts.
  */
 export type StatTone = "accent" | "mint" | "warning";
 
@@ -49,9 +56,11 @@ export function AnalyticsStatCard({
         <p className="truncate text-2xl font-semibold tabular-nums text-lumen-text">
           {value}
         </p>
-        <p className="truncate text-xs text-lumen-text-secondary">{label}</p>
+        <p className="text-xs leading-snug text-lumen-text-secondary">
+          {label}
+        </p>
         {subtitle && (
-          <p className="truncate text-xs text-lumen-text-tertiary">
+          <p className="text-xs leading-snug text-lumen-text-tertiary">
             {subtitle}
           </p>
         )}

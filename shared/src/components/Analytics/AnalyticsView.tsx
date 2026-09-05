@@ -200,9 +200,16 @@ function DesktopAnalytics({
         </div>
       )}
 
-      {/* Content: centered max-w-lumen-data column */}
+      {/* Content: centered max-w-lumen-data column.
+
+          `@container` (#1480): the tabs below pick their column count from the
+          width of THIS column, not the window's. The detail panel squeezes the
+          main pane to ~660px while the viewport stays 1280, so a `md:` / `lg:`
+          breakpoint — which only ever asks the window — kept the tiles three
+          and five across in a space that fits two, and their numbers were
+          clipped ("0時間33分" → "0時間3…"). */}
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-lumen-gutter py-4 md:px-lumen-gutter-wide md:py-6">
-        <div className="mx-auto w-full max-w-lumen-data">
+        <div className="@container mx-auto w-full max-w-lumen-data">
           {initialLoading ? (
             <DesktopSkeleton />
           ) : (

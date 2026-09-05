@@ -91,8 +91,8 @@ export function TimeTab({
 
   return (
     <div className="space-y-4">
-      {/* Summary cards */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Summary cards — same column rule as the other tabs' tiles (#1480). */}
+      <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3">
         <AnalyticsStatCard
           icon={<Clock size={16} />}
           label={labels.totalWorkTime}
