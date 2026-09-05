@@ -129,6 +129,8 @@ export interface ScheduleSidebarTodo {
   addable: TodayTodoAddableRow[];
   onToggleComplete: (id: string) => void;
   onAddCandidate: (id: string) => void;
+  /** "Take off today" on a today row (#1406) — the reverse of onAddCandidate. */
+  onMoveOut: (id: string) => void;
   /** Open a PLACED row's detail. Took an id in #1153 — it used to be the
    *  zero-argument jump to the board. */
   onOpenTodo: (id: string) => void;
@@ -330,15 +332,21 @@ export function ScheduleSidebar({
   );
 
   /*
-   * A-3 (#298): the "本日の Todo" tray — placed / unplaced groups + the
-   * unscheduled pool. #555: rows also soft-delete (softDeleteTodo → Trash) and
-   * carry the same <TagPicker> the todo detail uses, so tags attach without
-   * leaving the tray.
+   * A-3 (#298): the "本日の Todo" tray. #555: rows also soft-delete
+   * (softDeleteTodo → Trash) and carry the same <TagPicker> the todo detail
+   * uses, so tags attach without leaving the tray.
+   *
+   * #1406: TWO lists rather than the three groups #298 drew. "本日分の Todo"
+   * is the old placed / unplaced pair merged (`singleList`, the shape Briefing
+   * already used — a time-less row wears the all-day pill), and "その他の Todo"
+   * is every open todo that is not on today. Each row's hover reveals the one
+   * move that makes sense for it — off today, or onto it — and a row with a
+   * time keeps it across the move (the host's write).
    *
    * #1153 put the create pill in a heading row ABOVE the tray rather than
-   * inside a group: it makes a todo with no day, which belongs to none of the
-   * three groups underneath. Outside the scroller and not floating, for the
-   * reason D-20260827-sched-1 gives.
+   * inside a list: it makes a todo with no day, which lands in "その他" by
+   * itself. Outside the scroller and not floating, for the reason
+   * D-20260827-sched-1 gives.
    */
   const todoBody = (
     // #1124: the tour's "finish one of them" step points at the whole tray
@@ -364,18 +372,21 @@ export function ScheduleSidebar({
         addable={todo.addable}
         onToggleComplete={todo.onToggleComplete}
         onAddCandidate={todo.onAddCandidate}
+        onMoveOut={todo.onMoveOut}
         onOpenTodo={todo.onOpenTodo}
         onOpenAddable={todo.onOpenAddable}
         onDelete={todo.onDelete}
+        singleList
+        hoverActions
         renderRowExtra={(row) => <TagPicker itemId={row.id} />}
         labels={{
-          placedHeading: t("scheduleScreen.todoPlacedHeading"),
-          unplacedHeading: t("scheduleScreen.todoUnplacedHeading"),
-          emptyPlaced: t("scheduleScreen.todoEmptyPlaced"),
-          emptyUnplaced: t("scheduleScreen.todoEmptyUnplaced"),
-          addHeading: t("scheduleScreen.todoAddHeading"),
-          addAction: t("scheduleScreen.todoAddAction"),
-          emptyAddable: t("scheduleScreen.todoEmptyAddable"),
+          placedHeading: t("scheduleScreen.todoTodayHeading"),
+          emptyPlaced: t("scheduleScreen.todoEmptyToday"),
+          allDay: t("scheduleScreen.allDay"),
+          addHeading: t("scheduleScreen.todoOthersHeading"),
+          addAction: t("scheduleScreen.todoMoveToToday"),
+          moveOut: t("scheduleScreen.todoMoveToOthers"),
+          emptyAddable: t("scheduleScreen.todoEmptyOthers"),
           // The tray's rows draw the same checkbox the paper does (#1368), so
           // they name themselves with the same status words rather than the
           // old "complete" — even here, where the press still writes the

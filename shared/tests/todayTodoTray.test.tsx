@@ -304,3 +304,105 @@ describe("TodayTodoTray single list (#795)", () => {
     expect(screen.queryByText("All-day")).toBeNull();
   });
 });
+
+/*
+ * #1406 — the two-list tray Schedule draws: a today row can be sent OFF today
+ * (onMoveOut), an "other" row says where it currently is (meta), and with
+ * hoverActions both move buttons are hidden until the row is hovered or
+ * focused. All three are opt-in, so Briefing's picker is the "absent" case.
+ */
+describe("TodayTodoTray moves between the two lists (#1406)", () => {
+  const two = {
+    placed: [
+      { id: "task-1", title: "Timed", timeLabel: "09:00", completed: false },
+    ],
+    unplaced: [],
+    addable: [{ id: "task-3", title: "Later", meta: "9/5 14:00" }],
+  };
+
+  it("sends a today row off today via onMoveOut", () => {
+    const onMoveOut = vi.fn();
+    render(
+      <TodayTodoTray
+        {...two}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        onMoveOut={onMoveOut}
+        singleList
+        labels={{ ...labels, allDay: "All-day", moveOut: "take off today" }}
+      />,
+    );
+    fireEvent.click(screen.getByLabelText("take off today"));
+    expect(onMoveOut).toHaveBeenCalledWith("task-1");
+  });
+
+  it("draws no move-out button for a host that does not pass one", () => {
+    render(
+      <TodayTodoTray
+        {...two}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        labels={{ ...labels, moveOut: "take off today" }}
+      />,
+    );
+    expect(screen.queryByLabelText("take off today")).toBeNull();
+  });
+
+  it("prints where an 'other' row currently is", () => {
+    render(
+      <TodayTodoTray
+        {...two}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        labels={labels}
+      />,
+    );
+    expect(screen.getByText("9/5 14:00")).toBeTruthy();
+  });
+
+  it("hides both move buttons until hover or focus when hoverActions is on", () => {
+    render(
+      <TodayTodoTray
+        {...two}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        onMoveOut={noop}
+        hoverActions
+        singleList
+        labels={{ ...labels, allDay: "All-day", moveOut: "take off today" }}
+      />,
+    );
+    for (const name of ["take off today", "add to today"]) {
+      const btn = screen.getByLabelText(name);
+      expect(btn.className).toContain("opacity-0");
+      expect(btn.className).toContain("group-hover:opacity-100");
+      expect(btn.className).toContain("group-focus-within:opacity-100");
+      // The row is what gets hovered, so it has to be the group.
+      expect(btn.closest("li")?.className).toContain("group");
+    }
+  });
+
+  it("keeps the buttons always visible for a host that does not opt in", () => {
+    render(
+      <TodayTodoTray
+        {...two}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        onMoveOut={noop}
+        singleList
+        labels={{ ...labels, allDay: "All-day", moveOut: "take off today" }}
+      />,
+    );
+    expect(screen.getByLabelText("add to today").className).not.toContain(
+      "opacity-0",
+    );
+    expect(screen.getByLabelText("take off today").className).not.toContain(
+      "opacity-0",
+    );
+  });
+});

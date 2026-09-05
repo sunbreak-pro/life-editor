@@ -1,6 +1,7 @@
 // @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect } from "vitest";
-import { pickAddableTodos } from "../src/utils/todayTodo";
+import { pickAddableTodos, pickOtherTodos } from "../src/utils/todayTodo";
+import { localDateTimeToISO } from "../src/utils/todoCalendarChips";
 import { makeTodo } from "./helpers/nodeFixtures";
 
 /*
@@ -56,5 +57,61 @@ describe("pickAddableTodos (#298)", () => {
       { id: "a", title: "First" },
       { id: "b", title: "Second" },
     ]);
+  });
+});
+
+/*
+ * todayTodo.pickOtherTodos (#1406) — Schedule's "その他の Todo" list: every open
+ * leaf that is NOT on today, whether it has no day or sits on another one. The
+ * second kind is the whole point of the list (its rows can be moved onto
+ * today keeping their time), so it is asserted with the row's day and time.
+ */
+describe("pickOtherTodos (#1406)", () => {
+  const TODAY = "2026-09-02";
+
+  it("lists a day-less leaf with no meta", () => {
+    expect(
+      pickOtherTodos([makeTodo({ id: "a", title: "Buy milk" })], TODAY),
+    ).toEqual([{ id: "a", title: "Buy milk" }]);
+  });
+
+  it("lists a todo parked on another day, with its local day and time", () => {
+    const later = makeTodo({
+      id: "a",
+      scheduledAt: localDateTimeToISO("2026-09-05", "14:00"),
+      scheduledEndAt: localDateTimeToISO("2026-09-05", "15:00"),
+      isAllDay: false,
+    });
+    const allDayLater = makeTodo({
+      id: "b",
+      scheduledAt: localDateTimeToISO("2026-09-05", "00:00"),
+      isAllDay: true,
+    });
+    expect(pickOtherTodos([later, allDayLater], TODAY)).toEqual([
+      { id: "a", title: "T", scheduledDate: "2026-09-05", startTime: "14:00" },
+      { id: "b", title: "T", scheduledDate: "2026-09-05" },
+    ]);
+  });
+
+  it("leaves out what is on today — that is the other list", () => {
+    const today = makeTodo({
+      id: "a",
+      scheduledAt: localDateTimeToISO(TODAY, "09:00"),
+      isAllDay: false,
+    });
+    const free = makeTodo({ id: "b" });
+    expect(pickOtherTodos([today, free], TODAY).map((x) => x.id)).toEqual([
+      "b",
+    ]);
+  });
+
+  it("keeps the picker's rules: no DONE rows, no parents, no deleted rows", () => {
+    const done = makeTodo({ id: "done", status: "DONE" });
+    const parent = makeTodo({ id: "p" });
+    const child = makeTodo({ id: "c", parentId: "p" });
+    const gone = makeTodo({ id: "gone", isDeleted: true });
+    expect(
+      pickOtherTodos([done, parent, child, gone], TODAY).map((x) => x.id),
+    ).toEqual(["c"]);
   });
 });

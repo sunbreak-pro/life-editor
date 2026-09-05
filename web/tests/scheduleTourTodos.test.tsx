@@ -115,6 +115,7 @@ function makeProps(tab: "flow" | "todo" | "repeats"): ScheduleSidebarProps {
       addable: [],
       onToggleComplete: vi.fn(),
       onAddCandidate: vi.fn(),
+      onMoveOut: vi.fn(),
       onOpenTodo: vi.fn(),
       onOpenAddable: vi.fn(),
       onDelete: vi.fn(),

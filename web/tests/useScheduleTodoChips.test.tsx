@@ -149,7 +149,7 @@ describe("the two chip windows", () => {
   });
 });
 
-describe("the Todo tray's three groups", () => {
+describe("the Todo tray's lists", () => {
   // 案 c staging (#298): a time = placed, all-day = a candidate still waiting
   // for one. Get this split backwards and the tray reads as full when nothing
   // has actually been scheduled.
@@ -171,19 +171,23 @@ describe("the Todo tray's three groups", () => {
     ]);
   });
 
-  // The picker draws from the WHOLE tree, not from today — its job is to find
-  // work that has no day at all yet.
-  it("offers unscheduled incomplete leaves from anywhere in the tree", () => {
+  // The "other" list draws from the WHOLE tree, not from today (#1406): work
+  // with no day yet AND work parked on some other day, the latter saying where.
+  it("lists every open leaf that is not on today, with where it sits", () => {
     const { hook } = renderChips([
       todo("free"),
       todo("parent"),
       todo("child", { parentId: "parent" }),
       todo("finished", { status: "DONE" }),
-      timed("already-placed", "2026-12-24"),
+      timed("already-placed", "2026-12-24", "14:00"),
+      allDay("some-day", "2026-12-24"),
+      timed("on-today", TODAY),
     ]);
-    expect(hook.result.current.todoAddable.map((t) => t.id)).toEqual([
-      "free",
-      "child",
+    expect(hook.result.current.todoAddable).toEqual([
+      { id: "free", title: "free", meta: undefined },
+      { id: "child", title: "child", meta: undefined },
+      { id: "already-placed", title: "already-placed", meta: "12/24 14:00" },
+      { id: "some-day", title: "some-day", meta: "12/24" },
     ]);
   });
 });
@@ -321,6 +325,34 @@ describe("the chip gestures", () => {
         isAllDay: true,
       },
       { undoLabel: "todoAddToToday" },
+    );
+  });
+
+  // #1406: a row parked on another day WITH a time keeps its clock — only the
+  // day moves. The old write would have flattened it to an all-day candidate.
+  it("moves a timed row onto today keeping its time", () => {
+    const { hook, updateNode } = renderChips([
+      timed("later", "2026-12-24", "14:00"),
+    ]);
+    act(() => hook.result.current.handleTodoAddCandidate("later"));
+    expect(updateNode).toHaveBeenCalledWith(
+      "later",
+      {
+        scheduledAt: localDateTimeToISO(TODAY, "14:00"),
+        scheduledEndAt: localDateTimeToISO(TODAY, "15:00"),
+        isAllDay: false,
+      },
+      { undoLabel: "todoAddToToday" },
+    );
+  });
+
+  it("takes a today row off today by clearing its day", () => {
+    const { hook, updateNode } = renderChips([timed("on-today", TODAY)]);
+    act(() => hook.result.current.handleTodoMoveOut("on-today"));
+    expect(updateNode).toHaveBeenCalledWith(
+      "on-today",
+      { scheduledAt: undefined, scheduledEndAt: undefined, isAllDay: false },
+      { undoLabel: "todoRemoveFromToday" },
     );
   });
 });

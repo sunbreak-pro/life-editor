@@ -2,15 +2,15 @@ import { useCallback, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   isTodoChip,
-  pickAddableTodos,
+  pickOtherTodos,
   todosToCalendarChips,
   unwrapTodoChipId,
   useTranslation,
-  type AddableTodo,
   type ConfirmRequest,
   type TodoCalendarChip,
   type TodoNode,
   type TodoStatus,
+  type TodayTodoAddableRow,
   type TodayTodoRow,
   type UpdateNodeOptions,
 } from "@life-editor/shared";
@@ -18,7 +18,8 @@ import {
   todoChipAllDayWrite,
   todoChipMoveWrite,
   todoChipResizeWrite,
-  todoAddCandidateWrite,
+  todoMoveOutWrite,
+  todoMoveToTodayWrite,
 } from "./todoChipUndoWiring";
 import {
   confirmTodoDetailDelete,
@@ -84,7 +85,8 @@ export interface ScheduleTodoChipsApi {
   todayTodoChips: TodoCalendarChip[];
   todoPlaced: TodayTodoRow[];
   todoUnplaced: TodayTodoRow[];
-  todoAddable: AddableTodo[];
+  /** The "その他の Todo" list (#1406): every open leaf not on today. */
+  todoAddable: TodayTodoAddableRow[];
   /** Resolve a chip id (as the grid spells it) to the chip behind it. */
   findTodoChip: (chipId: string) => TodoCalendarChip | null;
   /** #626: the TodoNode id behind an open todo detail, or null. */
@@ -99,7 +101,10 @@ export interface ScheduleTodoChipsApi {
   handleTodoChipResize: (chipId: string, endISO: string) => void;
   handleTodoChipDropAllDay: (chipId: string, dateISO: string) => void;
   handleTodoToggleComplete: (todoId: string) => void;
+  /** Tray, "move to today" — a date change that keeps the row's time (#1406). */
   handleTodoAddCandidate: (todoId: string) => void;
+  /** Tray, "take off today" — the row goes back to having no day (#1406). */
+  handleTodoMoveOut: (todoId: string) => void;
   /** Tray / bubble delete — asks only for a row with children (#573). */
   handleTodoDelete: (id: string) => void;
   /** Detail-panel delete — always asks, and closes the panel (#775). */
@@ -160,8 +165,10 @@ export function useScheduleTodoChips({
   );
 
   // A-3 (#298) Today's Todo tray groups. Reuse today's chips: a time = placed,
-  // all-day = an unplaced candidate (案 c staging). "Add from todos" offers the
-  // incomplete, unscheduled leaves (pickAddableTodos).
+  // all-day = an unplaced candidate (案 c staging). Since #1406 the tray shows
+  // the two as ONE "today" list (singleList) and, under it, "その他の Todo" —
+  // every open leaf that is not on today (pickOtherTodos), day-less or parked
+  // on another day, the latter saying where it is.
   const todoPlaced = useMemo<TodayTodoRow[]>(
     () =>
       todayTodoChips
@@ -181,7 +188,17 @@ export function useScheduleTodoChips({
         .map((c) => ({ id: c.id, title: c.title, completed: c.completed })),
     [todayTodoChips],
   );
-  const todoAddable = useMemo(() => pickAddableTodos(todoNodes), [todoNodes]);
+  const todoAddable = useMemo<TodayTodoAddableRow[]>(
+    () =>
+      pickOtherTodos(todoNodes, today).map((o) => ({
+        id: o.id,
+        title: o.title,
+        meta: o.scheduledDate
+          ? `${shortDate(o.scheduledDate)}${o.startTime ? ` ${o.startTime}` : ""}`
+          : undefined,
+      })),
+    [todoNodes, today],
+  );
 
   /*
    * #564: the chip behind a bubble. Both lists are searched, in this order,
@@ -263,17 +280,30 @@ export function useScheduleTodoChips({
     [todoNodes, setTodoStatus],
   );
 
-  // "Add to today" (案 c staging — the write itself is in
-  // todoChipUndoWiring.ts). #569 made it undoable: it is a single button press
-  // with no gesture to reverse it, and the tray's "add from todos" list drops
-  // the todo the moment it is added, so a mis-tap left the user hunting for the
-  // row in the unplaced group to put it back by hand.
+  // "Move to today" (the write itself is in todoChipUndoWiring.ts). #569 made
+  // it undoable: it is a single button press with no gesture to reverse it,
+  // and the "other" list drops the todo the moment it moves, so a mis-tap left
+  // the user hunting for the row to put it back by hand. #1406: a row that
+  // already has a time on another day keeps that time — only the day changes.
   const handleTodoAddCandidate = useCallback(
     (todoId: string) => {
-      const { patch, options } = todoAddCandidateWrite(today);
+      const { patch, options } = todoMoveToTodayWrite(
+        todoNodes.find((n) => n.id === todoId),
+        today,
+      );
       updateNode(todoId, patch, options);
     },
-    [today, updateNode],
+    [todoNodes, today, updateNode],
+  );
+
+  // "Take off today" (#1406) — the reverse press on a today row. The write
+  // clears the day (see todoMoveOutWrite for why it cannot keep the time).
+  const handleTodoMoveOut = useCallback(
+    (todoId: string) => {
+      const { patch, options } = todoMoveOutWrite();
+      updateNode(todoId, patch, options);
+    },
+    [updateNode],
   );
 
   // #573 (#555 follow-up): softDelete cascades through the subtree and both
@@ -347,7 +377,14 @@ export function useScheduleTodoChips({
     handleTodoChipDropAllDay,
     handleTodoToggleComplete,
     handleTodoAddCandidate,
+    handleTodoMoveOut,
     handleTodoDelete,
     handleTodoDetailDelete,
   };
+}
+
+/** "2026-09-05" → "9/5": the day a row is parked on, as the tray prints it. */
+function shortDate(dateKey: string): string {
+  const [, m, d] = dateKey.split("-");
+  return `${Number(m)}/${Number(d)}`;
 }

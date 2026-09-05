@@ -1,4 +1,4 @@
-import { localDateTimeToISO } from "@life-editor/shared";
+import { localDateTimeToISO, todoScheduleSlot } from "@life-editor/shared";
 import type { TodoNode, UpdateNodeOptions } from "@life-editor/shared";
 
 /*
@@ -117,6 +117,50 @@ export function todoAddCandidateWrite(todayKey: string): TodoChipWrite {
       isAllDay: true,
     },
     options: { undoLabel: "todoAddToToday" },
+  };
+}
+
+/**
+ * Tray, "move to today" (#1406). Since the "other" list holds rows parked on
+ * OTHER days as well as day-less ones, this is a date change, not a fresh
+ * placement: a row that already carries a time keeps it and only the day moves
+ * (the Issue's 「日付だけを変え、hour 以下はそのまま引き継ぐ」). A day-less row,
+ * or an all-day one, takes the #298 staging shape — exactly what
+ * todoAddCandidateWrite writes — so the two routes agree where they overlap.
+ *
+ * The end travels with the start by its LOCAL clock, not by the span's
+ * length: an overnight 23:00–01:00 becomes 23:00 today and 01:00 today, which
+ * todoScheduleSlot rescues into an all-day candidate (#562) rather than
+ * drawing a block backwards. Rare enough to accept over a second write.
+ */
+export function todoMoveToTodayWrite(
+  todo: TodoNode | undefined,
+  todayKey: string,
+): TodoChipWrite {
+  const slot = todo ? todoScheduleSlot(todo) : null;
+  if (!slot || slot.isAllDay) return todoAddCandidateWrite(todayKey);
+  return {
+    patch: timedPlacement(todayKey, slot.startTime, slot.endTime),
+    options: { undoLabel: "todoAddToToday" },
+  };
+}
+
+/**
+ * Tray, "take off today" (#1406) — the reverse of the move above. The row goes
+ * back to having no day at all: a todo stores its time INSIDE `scheduledAt`,
+ * so there is no way to keep "14:00" without also keeping a date, and sending
+ * it to some other day would be inventing one (D-20260902-sched-1 queues the
+ * alternative). `isAllDay` is cleared with it so the next placement starts
+ * from a clean row. Undoable, as the move in is.
+ */
+export function todoMoveOutWrite(): TodoChipWrite {
+  return {
+    patch: {
+      scheduledAt: undefined,
+      scheduledEndAt: undefined,
+      isAllDay: false,
+    },
+    options: { undoLabel: "todoRemoveFromToday" },
   };
 }
 

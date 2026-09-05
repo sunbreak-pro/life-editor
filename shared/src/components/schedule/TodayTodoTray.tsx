@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { CalendarMinus, Plus, Trash2 } from "lucide-react";
 import type { TodoStatus } from "../../types/todoTree";
 import { cn } from "../cn";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
@@ -30,6 +30,15 @@ import type { StatusLabelSet } from "../todoStatusVisuals";
  * timed rows use for their clock — tinted with the chip-todo family so it is
  * still tellable from an all-day EVENT. Schedule stages candidates on purpose
  * and keeps the pair.
+ *
+ * #1406 turns Schedule's tray into TWO lists — "今日の Todo" (the merged list
+ * above) and "その他の Todo" (every open todo that is not on today, `addable`)
+ * — that a row can cross in either direction: `onAddCandidate` still pulls a
+ * row up into today, and the new `onMoveOut` sends a today row back down.
+ * With `hoverActions` the two buttons stay hidden until the row is hovered or
+ * focused (and are always shown where hover does not exist), so the lists
+ * read as lists rather than as rows of controls. Briefing opts into none of
+ * this and keeps its picker exactly as it was.
  */
 
 export interface TodayTodoRow {
@@ -50,6 +59,11 @@ export interface TodayTodoRow {
 export interface TodayTodoAddableRow {
   id: string;
   title: string;
+  /**
+   * Already-formatted "where it is now", e.g. "9/5 14:00" for a row parked on
+   * another day (#1406). Omitted for a row with no day yet.
+   */
+  meta?: string;
 }
 
 export interface TodayTodoTrayLabels {
@@ -74,6 +88,8 @@ export interface TodayTodoTrayLabels {
   openInTodos: string;
   /** Accessible name for the per-row delete button (pair with onDelete). */
   delete?: string;
+  /** Accessible name for the per-row "out of today" button (pair with onMoveOut, #1406). */
+  moveOut?: string;
   /**
    * Name of what the row's checkbox sets, e.g. "Status". Required since #1368:
    * every row draws <TodoStatusCheckbox> now, including a host that only
@@ -117,6 +133,17 @@ export interface TodayTodoTrayProps {
   onOpenAddable?: (id: string) => void;
   /** Soft-delete the row's todo (#555). Rendered only with labels.delete. */
   onDelete?: (id: string) => void;
+  /**
+   * Send a today row back to the "other" list (#1406) — the reverse of
+   * `onAddCandidate`. Rendered only with labels.moveOut.
+   */
+  onMoveOut?: (id: string) => void;
+  /**
+   * Reveal the per-row move buttons (add / moveOut) on hover or focus only
+   * (#1406). Always visible where the pointer cannot hover. Off by default so
+   * Briefing's picker keeps its always-visible "+".
+   */
+  hoverActions?: boolean;
   /** Extra content under the title row (#555 — the host's tag surface). */
   renderRowExtra?: (row: TodayTodoRow) => ReactNode;
   /**
@@ -132,15 +159,28 @@ export interface TodayTodoTrayProps {
 const FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-inset";
 
+/*
+ * The hover reveal (#1406). `group` sits on the row; the button is transparent
+ * until the row is hovered or holds focus, and is simply shown on a device
+ * that cannot hover (a phone has no hover state to reveal it with). Opacity
+ * rather than display, so the button keeps its box — the row does not reflow
+ * when it appears — and stays in the tab order for keyboard users.
+ */
+const HOVER_REVEAL =
+  "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100";
+
 function TodoRow({
   row,
   onToggleComplete,
   onSetStatus,
   onOpenTodo,
   onDelete,
+  onMoveOut,
+  hoverActions,
   extra,
   openLabel,
   deleteLabel,
+  moveOutLabel,
   statusLabel,
   statusLabels,
   allDayLabel,
@@ -150,9 +190,12 @@ function TodoRow({
   onSetStatus?: (id: string, status: TodoStatus) => void;
   onOpenTodo: (id: string) => void;
   onDelete?: (id: string) => void;
+  onMoveOut?: (id: string) => void;
+  hoverActions?: boolean;
   extra?: ReactNode;
   openLabel: string;
   deleteLabel?: string;
+  moveOutLabel?: string;
   statusLabel: string;
   statusLabels: StatusLabelSet;
   allDayLabel?: string;
@@ -168,7 +211,7 @@ function TodoRow({
     (row.completed ? "DONE" : "NOT_STARTED");
   const done = status === "DONE";
   return (
-    <li className="flex flex-col border-b border-lumen-border">
+    <li className="group flex flex-col border-b border-lumen-border">
       <div className="flex items-center gap-2">
         <TodoStatusCheckbox
           status={status}
@@ -214,6 +257,21 @@ function TodoRow({
             )
           )}
         </button>
+        {onMoveOut && moveOutLabel && (
+          <button
+            type="button"
+            aria-label={moveOutLabel}
+            title={moveOutLabel}
+            onClick={() => onMoveOut(row.id)}
+            className={cn(
+              "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+              hoverActions && HOVER_REVEAL,
+              FOCUS,
+            )}
+          >
+            <CalendarMinus aria-hidden className="size-3.5" />
+          </button>
+        )}
         {onDelete && deleteLabel && (
           <button
             type="button"
@@ -245,9 +303,12 @@ function Group({
   onSetStatus,
   onOpenTodo,
   onDelete,
+  onMoveOut,
+  hoverActions,
   renderRowExtra,
   openLabel,
   deleteLabel,
+  moveOutLabel,
   statusLabel,
   statusLabels,
   allDayLabel,
@@ -259,9 +320,12 @@ function Group({
   onSetStatus?: (id: string, status: TodoStatus) => void;
   onOpenTodo: (id: string) => void;
   onDelete?: (id: string) => void;
+  onMoveOut?: (id: string) => void;
+  hoverActions?: boolean;
   renderRowExtra?: (row: TodayTodoRow) => ReactNode;
   openLabel: string;
   deleteLabel?: string;
+  moveOutLabel?: string;
   statusLabel: string;
   statusLabels: StatusLabelSet;
   allDayLabel?: string;
@@ -285,9 +349,12 @@ function Group({
               onSetStatus={onSetStatus}
               onOpenTodo={onOpenTodo}
               onDelete={onDelete}
+              onMoveOut={onMoveOut}
+              hoverActions={hoverActions}
               extra={renderRowExtra?.(row)}
               openLabel={openLabel}
               deleteLabel={deleteLabel}
+              moveOutLabel={moveOutLabel}
               statusLabel={statusLabel}
               statusLabels={statusLabels}
               allDayLabel={allDayLabel}
@@ -309,6 +376,8 @@ export function TodayTodoTray({
   onAddCandidate,
   onOpenAddable,
   onDelete,
+  onMoveOut,
+  hoverActions,
   renderRowExtra,
   singleList,
   labels,
@@ -319,9 +388,12 @@ export function TodayTodoTray({
     onSetStatus,
     onOpenTodo,
     onDelete,
+    onMoveOut,
+    hoverActions,
     renderRowExtra,
     openLabel: labels.openInTodos,
     deleteLabel: labels.delete,
+    moveOutLabel: labels.moveOut,
     statusLabel: labels.status,
     statusLabels: labels.statusLabels,
   };
@@ -357,7 +429,7 @@ export function TodayTodoTray({
             {addable.map((a) => (
               <li
                 key={a.id}
-                className="flex items-center gap-2 border-b border-lumen-border"
+                className="group flex items-center gap-2 border-b border-lumen-border"
               >
                 {onOpenAddable ? (
                   // #1153: the same title, as the way in. A button only when
@@ -379,12 +451,21 @@ export function TodayTodoTray({
                     {a.title}
                   </span>
                 )}
+                {/* #1406: where the row is now — a row on some other day says
+                    so, in the slot today's rows use for their clock. */}
+                {a.meta && (
+                  <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
+                    {a.meta}
+                  </span>
+                )}
                 <button
                   type="button"
                   aria-label={labels.addAction}
+                  title={labels.addAction}
                   onClick={() => onAddCandidate(a.id)}
                   className={cn(
                     "flex size-6 shrink-0 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                    hoverActions && HOVER_REVEAL,
                     FOCUS,
                   )}
                 >
