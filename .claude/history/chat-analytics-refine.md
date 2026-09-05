@@ -1,5 +1,31 @@
 # HISTORY (chat-analytics-refine)
 
+### 2026-09-05 - Analytics の実ブラウザ点検 5 件を 5 本の PR に（#1476〜#1480）
+
+#### 概要
+
+#1408 のデスクトップ画面点検で analytics に出た 5 件を、それぞれ origin/main から切った独立ブランチで直して PR にした。1 Issue = 1 ブランチ = 1 PR で、merge はユーザーの手番（P-001）。
+
+#### 変更点
+
+- **#1476（PR #1494・merged）期間プリセットが Todo タブに効かない**: `TodosTab` の `days={30}` 直書きを期間由来に。日数計算を `AnalyticsFilterContext::dateRangeDays()` に切り出し、`ScheduleTab` の同じ式の写しを消して正本を 1 つにした。**作業タブは意図的に据え置き**、理由を `TimeTab.tsx` の `PERIOD_DAYS` にコメントで残した — 同タブは日/週/月の窓を自前で持ち、`WorkTimeChart` のローリング 14 日は #860 の判断として `workTimeChartWeekStart.test.tsx` に固定済みで、2 つの窓コントロールを束ねるのは設計変更になる（**プリセットを作業タブにも効かせるかはユーザー判断待ち**）
+- **#1477（PR #1500）タグ別作業時間の円グラフがカードをはみ出す**: recharts の `<Pie label>` は**チャートの箱の外**に描かれカードでクリップされないため、長いタグ名が 13px はみ出して切れていた。割合を凡例へ移し、リングからラベルを外した。割合は**名前で引く** — `<Legend>` は既定でアルファベット順に並べ替える（`itemSorter: "value"`）ので、添字対応だと別の行に別のパーセントが付く
+- **#1478（PR #1504）ja UI に残る英語ラベル**: 経過日数分布の区分名と「No Todo」が集計関数の中に直書きされ、i18n 層より下にあってカタログから届かなかった。`StagnationBucket.label`（英語）→ `bucket: StagnationBucketId`（識別子）に変え、表示名は props 経由に。Y 軸幅も 80 → 96px（+ `interval={0}`）— 80 だと最長の区分名が 2 行に折れ、2 行目が描画領域の下に落ちて切れていた
+- **#1479（PR #1508）Todo 別作業時間の Y 軸に生 id**: `todoNameMap` は live なツリーから作るので、ゴミ箱送りの Todo に紐づくセッションは名前を引けず id をそのまま出していた。#428（タグ別集計・#1375 でイベントにも拡大）と同じ規則で**行ごと除外**。「削除済み」1 行に束ねる案は、無関係な複数 Todo が 1 本の棒に積み上がって大きな 1 タスクに見えるため却下。`__none__`（対象なしで始めた作業）は実在の区分なのでガードの対象外
+- **#1480（PR #1511）タイルの省略**: 列数が**ウィンドウ幅**基準だったのが原因。詳細パネルを開くと main は約 660px（データカラム約 612px）になるが窓は 1280px のままなので、`grid-cols-3` / `lg:grid-cols-5` は列を減らさない。データカラムに `@container` を付け、各タブを `grid-cols-2 @2xl:grid-cols-3`（スケジュールは `@4xl:grid-cols-5`）に。あわせて `AnalyticsStatCard` の**見出しと副題を折り返し**に変更 — 1280px でもスケジュールの 5 連はタイル約 200px で、「アクティブなルーティン」はどの字送りでも 1 行に入らない。数値だけ `truncate` を保険として残した。Issue が挙げていた「ストリークの『現在 (日)』が縦に折れる」は **#1467 が先に main へ入って解決済み**
+
+#### つまずき
+
+- **#1478 の「ローカル全緑」報告が誤りだった**: `shared-build` と `shared-typecheck-tests` のログを個別に開かず、テスト件数だけ見て緑と報告した。実際は `AnalyticsLabels.stagnation` がインライン型で `buckets` を欠く TS2741 と、テスト fixture の `status: "TODO"`（`TodoStatus` は `"NOT_STARTED" | "DONE"`）が落ちており、**CI で初めて露見**した。以後は各ログを `error TS` で grep して確認してから緑と言う
+- **`scripts/docs-lint.sh` は stdin が開いたパイプのままだと終わらない**: background 実行のラッパー経由だと数分〜無限に待ち、`< /dev/null` を付けると数秒で `docs-lint: OK`。ローカルでまとめて回すスクリプトを書くときは各ステップの stdin を閉じる
+- **`git push` が `git-credential-manager.exe` で無応答になる**: `git -c credential.helper='!gh auth git-credential' push` で通る（gh は認証済み）
+- **web の vitest は `briefingEveningLazyMount` が 1 本落ちることがある**（memory `cold-vite-cache-fails-lazy-mount-tests`）。静かな状態での再実行は 113 files / 1064 tests 緑で、CI も全 PR で緑
+
+#### 検証
+
+5 ブランチとも CI の verify ジョブ（shared → web → desktop → mcp-server）+ `docs-lint` をローカルで全ステップ実行。最終的に **4 本の open PR すべて GitHub Actions が SUCCESS**（shared 2943 / web 1065 / desktop 30 / mcp-server 322 tests）。実ブラウザ確認（660px / 1280px のタイル・円グラフのラベル・ja のチャートラベル）は worktree では回さない規約のため chat-main 側。
+
+
 ### 2026-09-02 - Work の実績時間を Event にも紐づける（#1375 / PR #1456）
 
 #### 概要
@@ -72,40 +98,3 @@ open-issue fan-out（`plans/2026-07-28-open-issue-fanout.md`）で本レーン�
 - **web 側の監査で潰した 2 件（PR #445 に同梱）**: `items()` が async になった副作用で、**`view.update` の中断中に別 update が exit 経路を完走すると、再開した `onStart` が誰も閉じないポップアップを出す**（ゾンビメニュー）→ プラグイン state の `active` を見てから開くガードを追加。もう 1 件は `inFlightRef` が生の fetch promise を持っていて相乗りした呼び出し側に reject が漏れる件 → settled 済みの形を保持するよう変更
 - **検証**: `cd shared && npm run test`（150 files / 1225 tests）・`shared` / `web` の build いずれも exit 0。実ブラウザ確認は chat-main 側の担当
 - **outbox 起票依頼 1 件**: legacy `WikiTagAssignment` / `WikiTagEntityType` が #429 で宣言のみになったため、DU-F の legacy タグ API 退役とまとめて掃除してほしい旨を append（PR #445 に同梱して main に着地済み）
-
-### 2026-07-27 - タスク入れ子（ネスト）dead code チェーンの退役（#418 / PR #424）
-
-#### 概要
-
-folder 退役（#225）で `NodeType` が `"task"` 単一になった結果、`moveNodeInto` のガード `target.type === "task"` が常に真になり、階層移動が構造的に必ず失敗する状態だった。ただし唯一の呼び出し元 `web/src/tasks/useTaskTreeDnd.ts` が repo 内ゼロ参照で、ユーザーが操作して失敗する場面は存在しなかった。ユーザー判断（入れ子は使わない）により、ガードを直すのではなくチェーンごと退役させた。
-
-#### 変更点
-
-- **撤去した範囲**: `useTaskTreeMovement` / `useNoteTreeMovement` の `moveNodeInto` と `moveNode` の親変更分岐、`web/src/tasks/useTaskTreeDnd.ts`（281 行・ゼロ参照）、`MoveRejectionReason` の `target_is_task` / `parent_is_task`、`useTaskTreeAPI` / `useNotesUnifiedAPI` の context value からの `moveNodeInto` 公開、実態とずれていたコメント群（`useNoteTreeMovement.ts:42` の「`useTaskTreeDnd` は実際に呼んでいる」ほか `useNotesUnifiedAPI` の stale 注記 2 箇所）
-- **新しい reason を増やさずに済ませた**: 親変更分岐を落とした `moveNode` は「active の兄弟リスト内での並び替え専用」になった。非兄弟へのドロップは既存の `findIndex === -1` チェックに落ちて `node_not_found` を返すため、拒否理由は差し引き 2 個減
-- **残置と理由**: `moveNode` の並び替え本体（指示どおり巻き込まない）/ `moveToRoot`（legacy な子行を root に引き上げる唯一の経路）/ `isDescendantOf`（巻き添えでゼロ参照になる候補だったが、実測では `moveNode` が継続使用。KI-016 の visited guard）/ `computeNoteDropIntent`（src 内消費者ゼロになるが barrel 公開 API + 専用テスト持ちの純関数。above/below は並び替え側の primitive のため判断保留としてコメント明記）
-- **Issue 記載との差分 2 点**: `target_is_task` / `parent_is_task` に対応する i18n キーは en / ja とも**元から存在しなかった**（道連れ対象なし）。「常に失敗する」を固定したテストも**存在しなかった**（`useNoteTreeMovement.cycle.test.ts` は `isDescendantOf` の循環安全性のみを見ており退役後も有効）
-- **テスト**: `shared/tests/treeMovementReorderOnly.test.ts` を新設（Tasks 5 / Notes 3）。並び替えの `order` 詰め直し、別の親へのドロップが再親付けされず `node_not_found` で拒否され `persistWithHistory` が呼ばれないこと、soft-delete 拒否、`moveToRoot`、hook の公開キーが `["moveNode","moveToRoot"]` だけであることを固定。move API はどこからも呼ばれていないため型チェックでは巻き戻しを検出できず、この網が唯一の防御
-- **docs 追随**: `.claude/rules/frontend.md` §Gotchas と `shared/design-system/PRINCIPLES.md` §7 の「`moveNode` と `moveNodeInto` は別操作」を退役後の記述へ差し替え。スコープ外で見つけた `docs/design/briefs/materials.md:67` の実在しない `useNoteTreeDnd.ts` 参照は触らず outbox で起票依頼
-- **検証**: `cd shared && npm run test`（147 files / 1184 tests）・`cd shared && npm run build`・`cd web && npm run build` すべて exit 0
-- **独立監査の追随（PR #424 merge 後 → PR #432）**: ランタイムのリグレッションはゼロ（生き残った並び替え経路は退役前の同一親分岐と空白除去して差分ゼロと機械照合）だったが、記述の不正確さを 3 件回収。(1) **requirements SSOT が退役機能を要求したまま** — `tier-1-core.md` の AC3「中央ドロップで階層移動」ほか Purpose / Boundary / AC1 / Notes 節。`rules/frontend.md` と `PRINCIPLES.md` は直したのに requirements を sweep し忘れた（docs-consistency §2 の退役 sweep の穴）。(2) **「親変更分岐は全部 always-true で死んでいた」は誤り** — ガードは `if (newParentId !== null)` の内側にあり、**root ノード隣へのドロップはガードを素通りして success していた**（legacy 子行の位置指定引き出し）。dead の真因は「呼び出し元ゼロ」で、後継 `moveToRoot` は末尾追加のみなので位置指定は失われた。(3) **「もうどの API も親子を作れない」は言い過ぎ** — `createNote({ parentId })` / `addNode(parentId)` / MCP `create_task(parent_id)` の 3 経路が健在。テストも +4（旧コードで success していた逆向き = Tasks/Notes、Notes の `node_not_found`-not-`deleted_node` 非対称、`moveToRoot` の旧兄弟 order 詰め直し = 子 1 件 fixture では詰め直しを消しても通っていた）。1188 tests + 両 build green
-- **失敗の型（記録）**: 「常に真のガード」という起票時の説明を裏取りせずコメントと PR 本文に転記した。実際はガードが条件分岐の内側にあり、片方の経路は成功していた。**退役の理由づけは「なぜ死んでいるか」を分岐ごとに実測してから書く**（今回は「呼び出し元ゼロ」が真因で、ガードは無関係だった）
-
-### 2026-07-27 - Notes folder 退役の後段と Connect の project ノード撤去（#375 / PR #405）
-
-#### 概要
-
-life-tags S3（#225）が Tasks 側だけ folder を撤去し、Notes 側を「意図的な過渡期非対称」として温存していた分の後始末。実データは migration 0020 で変換済みだったので、残っていたのはコードだけ。あわせて Connect グラフの `project` ノード（folder 由来）を退役させ、まとまりの表現を life-tag に一本化した。DDL 変更なし。
-
-#### 変更点
-
-- **型と生成導線**: `NoteNodeType = "note"` の単一値化（union 名は維持 — 再拡張が 1 行で済み、payload 行の列名としても使う）。`useNotesUnifiedAPI.createFolder` を本体・context 公開・undo ラベル i18n（en/ja lockstep）ごと撤去。プロダクション呼び出し側はゼロで、参照していたのは undoRedo の配線テスト 1 本だけだった
-- **legacy 行の除外を新設**: `isLegacyNoteFolderRow` を `listNotesUnified` / `fetchDeletedNotesUnified`（Trash）/ `searchNotesUnified` / MCP `fetchLiveNotes` の 4 経路に配置。Tasks 側 `isLegacyFolderRow` と同型で、クエリ側 `.neq` を避ける（NULL note_type 行まで落ちて素のノートが消えるため）。folder を親に持つノートは孤児許容でそのまま出る。0020 は変換後の folder 行をソフトデリートで残すので、この filter が無いと **Trash に復元可能な「幽霊フォルダ」が並ぶ**
-- **Connect の project 退役**: 選択肢 3 つ（種別ごと退役 / タグを project として描く / 割当ありのタグだけ project）をユーザーに提示し、**種別ごと退役**で確定。`GraphNodeType` から `project` を落とし、凡例・型フィルタ・`graph-theme` のノード色・アイコン表 4 箇所・`connect.graph.typeProject`（en/ja）を撤去。tag ノードは元から `wiki_tags` + `wiki_tag_assignments` で描かれていたので、後継はすでに存在していた形。Analytics #334（`projectTime` → `tagTime`）と同じ考え方
-- **ついでに塞いだ穴**: `flattenedNotes` の再帰は「folder のときだけ潜る」だったため、folder を外すと条件が「展開中なら潜る」に広がる。対象が広がる以上 parentId のサイクルでハングし得るので visited ガードを追加（known-issues 016 と同クラス。`softDeleteNote` は元から同じガードを持っていた）
-- **テスト**: 新規 6 本（mapper の legacy 判定と丸め 2 / service の folder 行除外 3 = list・孤児許容・Trash / Connect の「project ノードが無く tag ノードが後継」1）。更新 4 本（buildTagGroups は folder 除外 → parentId 非依存の確認へ、permanentDelete の subtree 2 本は親を folder から素のネストノートへ、cycle テストの型）
-- **検証**: shared 145 files / 1168 tests 緑・shared / web / mcp-server の build いずれも exit 0。`npm run lint --prefix web` は `NotesView.tsx:269` で error 1 件出るが **main 時点で既存**（stash して実測確認）で本変更とは無関係
-- **docs 追随**: tier-1-core の Notes 節を「過渡期注記」→「退役済み」に、`briefs/connect.md` のノード 4 種を 3 種へ、life-tags 計画の Worklog と横断後継対応行に #375 完了を記録。`briefs/materials.md` の folder 前提記述は materials レーンの持ち物なので outbox で申し送り
-- **QA 追随（PR #405 merge 後・独立監査 → PR #417）**: 機能バグ 0 件だったが締め残しを回収。write 型（`NotesPayloadWriteRow` / `UpdatePatch`）の `note_type` を `NoteNodeType | null` へ narrow / テストが無かった除外 2 経路（search・MCP）を追加 / `permanentDeleteNoteUnified` の doc に「legacy folder 行は pool 外 = 復元も purge も不可」を明記 / analytics 2 ファイルの常時 true な `type === "note"` を除去 / `briefs/connect.md` のモック仕様側 6 箇所を sweep（§2/§3 だけ直して本文が残っていた）
-- **コメントが実装より強い主張をしていた 2 件を訂正**: `flattenedNotes` の「moveNodeInto でネストできる」は誤り（`useNoteTreeMovement` のガードが NodeType 単一化で常に真 = 常に失敗する死んだガードになっていた）。visited Set も「016 class の hang 防止」ではなく防御的措置（null 根の walk は parentId サイクルに到達できない）。**同型の死んだガードが `useTaskTreeMovement.ts:21` に残り、そちらは `useTaskTreeDnd` が実際に呼んでいる** → tasks レーンへ起票依頼
-- **報告の訂正（失敗記録）**: 「web lint の error は main 時点で既存」は誤りだった。`git stash` は自分の古い base との比較でしかなく、実際は同日 merge の PR #402（#364）が解決済み。**main 由来の判定は `git show origin/main:<path>` で行う**。着手前の `git merge origin/main`（CLAUDE.md §7.4）を踏んでいれば防げた
