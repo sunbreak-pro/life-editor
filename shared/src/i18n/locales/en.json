@@ -282,12 +282,12 @@
       "LONG_BREAK": "Long Break"
     },
     "todoSelector": {
-      "heading": "Linked Todo",
-      "placeholder": "Select a todo…",
-      "clear": "Clear todo",
-      "select": "Choose a todo",
+      "heading": "Linked item",
+      "placeholder": "Select a todo or an event…",
+      "clear": "Clear the link",
+      "select": "Choose a todo or an event",
       "clearSelection": "Clear selection",
-      "emptyHint": "No todos to link. Create a todo in Schedule to select one."
+      "emptyHint": "Nothing to link yet. Add a todo, or an event in the next 7 days."
     },
     "completion": {
       "title": "Session {{index}} complete",
@@ -605,6 +605,8 @@
     "startTime": "Start",
     "endTime": "End",
     "reminder": "Reminder",
+    "workTime": "Logged time",
+    "workTimeNone": "Nothing logged yet",
     "memo": "Memo",
     "save": "Save",
     "saved": "Saved",

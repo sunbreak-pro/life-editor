@@ -10,23 +10,24 @@ Owner-chat: frontend (orchestrator)
 
 ## 決定事項（2026-07-05・ユーザー承認済み 4 点）
 
-1. **サイドバーは本流 5 + ユーティリティ枠 2（Settings / Trash）の計 7 セクションに集約**（Materials 内は header タブ）— _2026-08-29 更新: Briefing 追加・Connect の力学グラフ退役（#1152）・Connect の Tag hub としての再新設（#1171）を経て、本流の個数は当時と変わっている。ユーティリティ枠は Settings / Trash の 2 つのまま。**セクション集合の正本は `shared/src/sections.ts` の registry**（個数と並びはコードを数える — 数値の非複製原則）_
-2. **Trash はサイドバー最下部のユーティリティ枠**（Settings と並置・ナビ本流から視覚分離）
-3. **Mobile の下部固定 4 タブ = Schedule / Materials / Work / Analytics**（5 個目は More → ボトムシート）
+1. **サイドバーは本流 + 最下部のユーティリティ枠に集約**（Materials 内は header タブ）— _当時の決定は「本流 5 + ユーティリティ枠 2（Settings / Trash）= 計 7」。2026-08-30 時点ではどちらの枠も当時と違う: Briefing 追加・Connect の力学グラフ退役（#1152）と Tag hub としての再新設（#1171）・**Trash の Settings 配下への移設（#1293）でユーティリティ枠は Settings だけ**になった。**セクション集合の正本は `shared/src/sections.ts` の registry**（個数と並びはコードを数える — 数値の非複製原則）_
+2. ~~**Trash はサイドバー最下部のユーティリティ枠**（Settings と並置・ナビ本流から視覚分離）~~ → **SUPERSEDED（2026-08-30 #1293）**: Trash は **Settings 画面のカテゴリ行**へ移設し、サイドバーの行と `SectionId` の両方から外した。ビュー実体（`shared/src/components/TrashView.tsx` + `web/src/trash/TrashScreen.tsx`）は不変で、変わったのは入口だけ
+3. **Mobile の下部固定タブは 4 枠**（`BottomTabBar` の `maxVisible = 4`）**・5 個目以降は More → ボトムシート** — _どのセクションが固定枠に入るかは `sections.ts` の `mobileOrder` 順が正。当時の Schedule / Materials / Work / Analytics からは Briefing 追加と #1293 の Trash 移設で入れ替わっている_
 4. **rightSidebar（詳細パネル）を全画面標準に追加**（2026-07-05 App Shell デザイン Turn 2 でユーザー指示: Desktop 全パネルに開閉アイコン / Mobile は左上ハンバーガー → drawer に同一内容。詳細 → 下記「rightSidebar」節）
 
 ## Desktop サイドバー
 
 | 位置                 | セクション | header タブ（画面上部の水平タブ）                                                                                                 | lucide アイコン例  |
 | -------------------- | ---------- | --------------------------------------------------------------------------------------------------------------------------------- | ------------------ |
+| 本流                 | Briefing   | 朝刊 / 夕刊（`BriefingTab`・17:00 から夕刊が既定）                                                                                | Sunrise            |
 | 本流                 | Schedule   | Calendar（週グリッド）/ Routines                                                                                                  | Clock              |
 | 本流                 | Materials  | Todos / Notes / Daily / Tags                                                                                                      | Library            |
 | 本流                 | Connect    | Tag hub（タグ一覧 → 種類別のアイテム一覧）— ~~Graph / Backlinks~~ は 2026-08-29 退役（#1152）、同日 Tag hub として再新設（#1171） | Tags（旧 Network） |
 | 本流                 | Work       | （タブなし・単画面）                                                                                                              | Timer              |
 | 本流                 | Analytics  | Overview / Todos / Work / Schedule                                                                                                | BarChart3          |
 | 下部ユーティリティ枠 | Settings   | （タブなし・縦一列）                                                                                                              | Settings           |
-| 下部ユーティリティ枠 | Trash      | （タブなし）                                                                                                                      | Trash2             |
 
+- **Trash はこの表に無い**（2026-08-30 #1293）— サイドバーの行を畳んで Settings 画面のカテゴリ行へ移設し、`SectionId` からも外した。行が残っているのは Settings だけ
 - フッター: CommandPalette 起動（⌘K）/ ユーザー表示（email）/ サインアウト
 - 展開 240px / 折畳 64px（アイコンのみ）は現行踏襲
 
@@ -40,7 +41,7 @@ Owner-chat: frontend (orchestrator)
 
 ## Mobile（Consumption + Quick capture）
 
-- 下部固定 4 タブ: **Schedule / Materials / Work / Analytics** + **More**（ボトムシート: Connect / Settings / Trash — Connect は 2026-08-29 に力学グラフごと退役し、同日 Tag hub として More 枠に戻った = #1152 → #1171）
+- 下部固定 4 タブ + **More**（ボトムシート）。**どのセクションがどちらに入るかは `sections.ts` の `mobileOrder` 順が正**（先頭 4 件が固定タブ・残りが More = `BottomTabBar` の `maxVisible = 4`）— 2026-08-30 時点は固定タブ = Briefing / Schedule / Materials / Work、More = Analytics / Connect / Settings。Connect は 2026-08-29 に力学グラフごと退役し同日 Tag hub として More 枠に戻り（#1152 → #1171）、Trash は #1293 で More 枠ごと畳まれて Settings 配下に入った
 - header タブは Mobile ではセグメントコントロール等の小型表現で継承（例: Materials 上部に Todos|Notes|Daily|Tags）
 - safe-area inset 対応・タブバー込みで 390×844
 
@@ -51,7 +52,7 @@ Owner-chat: frontend (orchestrator)
 - **Desktop**: 全セクション画面の header タブ行右端に開閉トグル（lucide: PanelRight・28×28。open 中 = accent 文字 + accent-subtle 地）。パネル = 右端 **幅 320px（min 240px・左端 6px リサイズハンドル）** の押し込み式（overlay ではない）。背景は subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X
 - **中身**: セクション文脈の詳細・補助 UI を portal する枠。生成デザインの例 = タスク選択中の `TodoDetailPanel`（タイトル / ステータス / 内容）。**セクションごとの中身の設計は各画面 brief / 実装の将来 iterate に委ねる**（本 IA はトグル・枠の標準のみ固定）
 - **Mobile**: セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 border 付き）→ **左から幅 320px の drawer** に Desktop rightSidebar と同一内容 + 黒 30% スクリム。ナビ用 More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
-- **生成デザイン未定義の補完（実装・brief 側で解決する）**: ①タブなし単画面（Work / Settings / Trash）のトグル置き場 = 画面最上部の右端（orchestrator 補完標準・v3 共通ブロックに記載）②タスク未選択などの空状態 ③drawer の safe-area 処理 ④aria 属性（生成 HTML に一切無いため実装で必須補完）⑤パレット外 hex 2 色（`#bfdbfe` スケルトンバー / `#25252b` dark カード地）は実装では既存 lumen トークンへ丸める
+- **生成デザイン未定義の補完（実装・brief 側で解決する）**: ①タブなし単画面（Work / Settings 等・Trash は #1293 で Settings 配下へ）のトグル置き場 = 画面最上部の右端（orchestrator 補完標準・v3 共通ブロックに記載）②タスク未選択などの空状態 ③drawer の safe-area 処理 ④aria 属性（生成 HTML に一切無いため実装で必須補完）⑤パレット外 hex 2 色（`#bfdbfe` スケルトンバー / `#25252b` dark カード地）は実装では既存 lumen トークンへ丸める
 
 ## セクション外の画面
 

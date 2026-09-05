@@ -282,12 +282,12 @@
       "LONG_BREAK": "長い休憩"
     },
     "todoSelector": {
-      "heading": "紐づける Todo",
-      "placeholder": "Todo を選択…",
-      "clear": "Todo を解除",
-      "select": "Todo を選ぶ",
+      "heading": "紐づけ先",
+      "placeholder": "Todo か予定を選ぶ…",
+      "clear": "紐づけを外す",
+      "select": "Todo か予定を選ぶ",
       "clearSelection": "選択を外す",
-      "emptyHint": "紐付けられる Todo がありません。予定で Todo を作成すると選べるようになります。"
+      "emptyHint": "紐づけられるものがありません。Todo を作るか、7 日以内に予定を追加してください。"
     },
     "completion": {
       "title": "セッション {{index}} が完了しました",
@@ -601,6 +601,8 @@
     "startTime": "開始",
     "endTime": "終了",
     "reminder": "リマインダー",
+    "workTime": "実績時間",
+    "workTimeNone": "まだ計測していません",
     "memo": "メモ",
     "save": "保存",
     "saved": "保存済み",
