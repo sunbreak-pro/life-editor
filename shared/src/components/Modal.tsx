@@ -62,6 +62,21 @@ export interface ModalProps {
   children: ReactNode;
   /** Panel width. Default "md". Never pass a max-w-* class in `className`. */
   size?: ModalSize;
+  /**
+   * Explicit panel width as a CSS length, for the panel that has to track a
+   * width nothing static knows (#1471 — the template editor follows the note
+   * column, whose size is left over from a collapsible nav and a
+   * drag-resizable side panel).
+   *
+   * Applied as an INLINE style, which is exactly why it is a prop and not a
+   * class: an inline declaration beats every class regardless of emission
+   * order, so the trap documented on MODAL_MAX_WIDTH cannot reach it.
+   *
+   * `size` stays the ceiling — pass `min(<token>, <measured>)` rather than
+   * replacing the token outright, or a wide screen gets an unreadably long
+   * line.
+   */
+  maxWidth?: string;
   /** Panel padding. Pass false when `children` bring their own insets (rows
       that need to run edge to edge). The title heading stays inset either
       way. Default true. */
@@ -94,6 +109,7 @@ export function Modal({
   labelledBy,
   children,
   size = "md",
+  maxWidth,
   padded = true,
   className,
   closeOnBackdrop = true,
@@ -125,6 +141,7 @@ export function Modal({
           padded ? "p-5" : null,
           className,
         )}
+        style={maxWidth ? { maxWidth } : undefined}
         onMouseDown={(e) => e.stopPropagation()}
       >
         {title ? (

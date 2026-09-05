@@ -56,6 +56,32 @@ describe("TemplateEditPanel is sized like the note it edits (#1363)", () => {
     expect(panel()).not.toHaveClass("max-w-lg");
   });
 
+  it("opens at the note column it was measured over (#1471)", () => {
+    renderPanel({ columnWidth: 642 });
+
+    /*
+     * The token alone was never "the same width as a note": it is what
+     * PageContainer hands a width="reading" page, and Materials is
+     * width="wide", so a note is as wide as whatever the section column has
+     * left — 642px at 1280x800 against this dialog's 818. The measurement
+     * closes that, and the token stays on through min() as the ceiling so a
+     * wide screen still gets a readable line rather than a 1100px one.
+     */
+    expect(panel().style.maxWidth).toBe(
+      "min(var(--container-lumen-reading), 642px)",
+    );
+    expect(panel()).toHaveClass("max-w-lumen-reading");
+  });
+
+  it("keeps the token alone when there is nothing to measure", () => {
+    renderPanel();
+
+    // A host with no column to measure — and jsdom, which has no layout at all
+    // — must leave the panel at its class width rather than collapse it.
+    expect(panel().style.maxWidth).toBe("");
+    expect(panel()).toHaveClass("max-w-lumen-reading");
+  });
+
   it("bounds the panel at the window and lets the body run past it", () => {
     renderPanel();
 

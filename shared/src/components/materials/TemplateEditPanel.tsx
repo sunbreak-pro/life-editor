@@ -44,6 +44,13 @@ export interface TemplateEditPanelProps {
   onNameChange: (value: string) => void;
   /** Host-injected body editor for the template being edited. */
   bodyEditor?: ReactNode;
+  /**
+   * Measured width of the note column this template is edited over, in CSS px
+   * (#1471). Optional: without it the panel keeps the reading token alone,
+   * which is what a host with nothing to measure (and jsdom, which has no
+   * layout) gets.
+   */
+  columnWidth?: number | null;
   /** Discard the draft and close. Also the backdrop / Escape route. */
   onCancel: () => void;
   /** Write the draft and close. */
@@ -56,6 +63,7 @@ export function TemplateEditPanel({
   name,
   onNameChange,
   bodyEditor,
+  columnWidth,
   onCancel,
   onSave,
   labels,
@@ -64,16 +72,30 @@ export function TemplateEditPanel({
     // Escape and the backdrop both CANCEL. A dialog that discarded on one route
     // and saved on the other would make the safe-looking gesture the lossy one.
     //
-    // #1363: sized like the note it edits rather than like a dialog. `reading`
-    // is the same width token PageContainer hands the page body, so a line of
-    // template is as long as a line of note; `max-h-full` caps the panel at the
-    // backdrop's box, so a long draft scrolls INSIDE the panel instead of
-    // pushing Save off the bottom of the window.
+    // #1363: sized like the note it edits rather than like a dialog.
+    // `max-h-full` caps the panel at the backdrop's box, so a long draft
+    // scrolls INSIDE the panel instead of pushing Save off the bottom of the
+    // window.
+    //
+    // #1471 — WHY THE TOKEN ALONE WAS NOT "the same width as a note". The
+    // reading token is the width PageContainer hands a `width="reading"` page,
+    // and the Materials section is `width="wide"`: the note is as wide as
+    // whatever the section column has left after the nav and the right panel,
+    // which measured 642px at 1280x800 against this dialog's 818. Nothing
+    // static can close that gap — the nav collapses and the right panel is
+    // drag-resizable — so the host measures the column and hands it over, and
+    // the token stays on as the CEILING through `min()`. Wide screens keep a
+    // readable line; the 1280 case now matches the note beside it.
     <Modal
       open={open}
       onClose={onCancel}
       title={labels.panelTitle}
       size="reading"
+      maxWidth={
+        columnWidth != null
+          ? `min(var(--container-lumen-reading), ${columnWidth}px)`
+          : undefined
+      }
       className="flex max-h-full flex-col"
     >
       {/* The document half — name and body scroll together, the way the page

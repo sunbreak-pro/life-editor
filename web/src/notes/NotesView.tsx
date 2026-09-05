@@ -43,6 +43,7 @@ import {
   useNoteTemplateApply,
 } from "./hooks/useNoteTemplateApply";
 import { TemplateEditHost } from "./TemplateEditHost";
+import { useElementWidth } from "./hooks/useElementWidth";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -189,6 +190,16 @@ export function NotesView({
     handleSearchChange,
     hasNotes,
   } = useNoteListState();
+
+  /*
+   * The main column's rendered width (#1471). The template editor is a centred
+   * modal portaled out to <body>, so it cannot inherit the column it is edited
+   * over — and the column's size is not knowable statically either (the nav
+   * collapses, the right panel is drag-resizable). Measuring the box the note
+   * detail renders in is what lets the dialog open at the note's width instead
+   * of at a token nothing on this screen uses.
+   */
+  const [measureMainColumn, mainColumnWidth] = useElementWidth();
 
   // "[[" link plumbing + cross-tab pending-selection handoff (hooks split).
   // Kept as one bundle: NoteBodyEditor takes the whole thing, so the two
@@ -768,6 +779,7 @@ export function NotesView({
           supplies its own padding AND owns the scroll. Wide keeps the page
           scroller PageContainer `width="wide"` gives it. */}
       <div
+        ref={measureMainColumn}
         className={cn(
           "flex min-h-0 flex-1 flex-col",
           !isWide && "overflow-y-auto px-4 pt-2",
@@ -806,7 +818,12 @@ export function NotesView({
           rather than inside the sidebar portal: on narrow that portal is the
           MobileDrawer, and a panel living inside it would go away with the
           drawer that opened it. */}
-      {dataService && <TemplateEditHost library={templateLibrary} />}
+      {dataService && (
+        <TemplateEditHost
+          library={templateLibrary}
+          columnWidth={mainColumnWidth}
+        />
+      )}
 
       {/* Pouring a template into this note (#1181) — picker, then confirm.
           Mounted at the view level rather than beside the kebab so the dialog
