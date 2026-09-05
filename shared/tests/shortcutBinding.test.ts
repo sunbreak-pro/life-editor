@@ -35,6 +35,35 @@ describe("bindingToDisplayString", () => {
   it("strips the Key prefix for unmapped codes", () => {
     expect(bindingToDisplayString({ code: "KeyB" }, true)).toBe("B");
   });
+
+  /*
+   * #1483: a rebound shortcut is captured as `code` (eventToBinding), while
+   * the nav DEFAULTS are stored as `key`. The settings sheet lists both, so
+   * the digit row has to read the same either way — it used to print the raw
+   * "Digit2" next to a default's "2".
+   */
+  it("labels digit codes with the digit (rebound rows match the defaults)", () => {
+    expect(bindingToDisplayString({ code: "Digit9", meta: true }, false)).toBe(
+      "Ctrl + 9",
+    );
+    expect(bindingToDisplayString({ code: "Digit2", meta: true }, true)).toBe(
+      bindingToDisplayString({ key: "2", meta: true }, true),
+    );
+  });
+
+  it("labels numpad digits with the digit", () => {
+    expect(bindingToDisplayString({ code: "Numpad9" }, true)).toBe("9");
+  });
+
+  it("labels punctuation codes with the printed character", () => {
+    expect(bindingToDisplayString({ code: "Slash" }, true)).toBe("/");
+    expect(bindingToDisplayString({ code: "Minus" }, true)).toBe("-");
+    expect(bindingToDisplayString({ code: "BracketLeft" }, true)).toBe("[");
+  });
+
+  it("keeps a code it has no rule for rather than emptying the chip", () => {
+    expect(bindingToDisplayString({ code: "F5" }, true)).toBe("F5");
+  });
 });
 
 function evt(
