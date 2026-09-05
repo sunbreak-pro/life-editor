@@ -360,6 +360,22 @@ export function aggregateByTodo(
 
   for (const s of work) {
     const tid = s.todoId ?? "__none__";
+    /*
+     * A session outlives the todo it was measured against: trash a todo and
+     * the timer log keeps its id, but `todoNameMap` is built from the LIVE
+     * tree, so the lookup misses. The old fallback printed the id itself and
+     * a raw "task-7df08c2d-…" showed up on the chart's Y axis (#1479).
+     *
+     * Same rule as the tag ring (#428, widened to events by #1375): work on a
+     * trashed item is dropped rather than shown under a name that means
+     * nothing. A "deleted" catch-all row would be worse — it would pile
+     * unrelated todos into one bar and read as a single big task.
+     *
+     * `__none__` is NOT such a case: it is the real bucket for work started
+     * with no target at all, so it is kept and named by the caller.
+     */
+    if (tid !== "__none__" && !todoNameMap.has(tid)) continue;
+
     let bucket = map.get(tid);
     if (!bucket) {
       bucket = {

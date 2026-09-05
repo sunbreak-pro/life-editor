@@ -101,6 +101,34 @@ describe("aggregateByTodo", () => {
     expect(result[0].todoName).toBe("No Todo");
   });
 
+  it("drops work whose todo is gone instead of printing its id (#1479)", () => {
+    // `todoNameMap` is built from the LIVE tree, so a trashed todo is simply
+    // absent from it. The row used to fall back to the id and rendered as
+    // "task-7df08c2d-…" on the chart's Y axis.
+    const sessions = [
+      makeSession({ todoId: "task-1", duration: 1500 }),
+      makeSession({ id: 2, todoId: "task-trashed", duration: 600 }),
+    ];
+    const result = aggregateByTodo(sessions, new Map([["task-1", "Todo One"]]));
+
+    expect(result).toHaveLength(1);
+    expect(result[0].todoId).toBe("task-1");
+    expect(result.some((b) => b.todoName.startsWith("task-"))).toBe(false);
+  });
+
+  it("keeps the no-todo bucket, which is not a missing name (#1479)", () => {
+    // The guard must not swallow work started with no target at all — that
+    // bucket is real, and only its DISPLAY name comes from the caller.
+    const sessions = [
+      makeSession({ todoId: null, duration: 600 }),
+      makeSession({ id: 2, todoId: "task-trashed", duration: 600 }),
+    ];
+    const result = aggregateByTodo(sessions, new Map());
+
+    expect(result).toHaveLength(1);
+    expect(result[0].todoId).toBe("__none__");
+  });
+
   it("limits to 10 todos", () => {
     const sessions = Array.from({ length: 15 }, (_, i) =>
       makeSession({ id: i, todoId: `task-${i}`, duration: 600 }),
