@@ -262,7 +262,12 @@ export function SidebarNav({
           aria-label={labels.commandPalette}
           title={collapsed ? labels.commandPalette : undefined}
           className={cn(
-            "flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-sm",
+            // `overflow-hidden` is the hard stop behind the #1468 fix below:
+            // once the label stops shrinking, nothing else keeps a pathological
+            // translation inside the 15rem aside, and it would otherwise paint
+            // over the content pane. It clips descendants only, so the
+            // focus-visible ring (drawn outside this box) is unaffected.
+            "flex h-9 w-full items-center gap-2.5 overflow-hidden rounded-md px-2.5 text-sm",
             "text-lumen-text-secondary transition-colors hover:bg-lumen-hover",
             "hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2",
             "focus-visible:ring-lumen-accent",
@@ -274,13 +279,55 @@ export function SidebarNav({
           </span>
           {!collapsed && (
             <>
-              <span className="flex-1 truncate text-left">
+              {/*
+               * #1468 — the label owns its width and the keycap yields, not
+               * the other way round.
+               *
+               * This was `flex-1 truncate`, i.e. flex-basis 0: the span took
+               * only what the <kbd> left over, so 「コマンドパレット」 was
+               * clipped to 「コマンドパレッ…」 inside the 15rem rail. With
+               * `basis-auto shrink-0` the label is laid out at its content
+               * width first and can never be the item that gives way — which
+               * is what holds at every step of the Settings font scale
+               * (constants/fontSize.ts), not just the default one. The row's
+               * only fixed-px term is the 18px icon below, so the smallest
+               * step is the tightest and the one to eyeball. `grow` keeps the
+               * keycap flush right exactly as before.
+               *
+               * Something still has to give when the row is genuinely over
+               * budget, so the order is pinned deliberately: the label (the
+               * button's actual name) never yields, the keycap (aria-hidden
+               * decoration) elides first, and the button's `overflow-hidden`
+               * catches anything past that. Both en and ja run close to the
+               * budget at the smallest font step, and that ranking is what
+               * makes the outcome predictable at every step rather than a
+               * coin-flip decided by font metrics.
+               */}
+              <span className="grow basis-auto shrink-0 whitespace-nowrap text-left">
                 {labels.commandPalette}
               </span>
               {labels.shortcutHint && (
+                /*
+                 * `font-sans` is load-bearing, not cosmetic. Tailwind preflight
+                 * puts every <kbd> on --font-mono, and nothing here overrode
+                 * it, so the Windows hint "Ctrl K" rendered as six fixed-pitch
+                 * advances — far wider than the same string in the UI font the
+                 * rest of the row uses, and on its own enough to overrun the
+                 * budget. macOS never showed the bug because "⌘K" is two
+                 * glyphs. `min-w-0 truncate` makes the keycap the part that
+                 * degrades if a future locale ships a longer palette label.
+                 *
+                 * Yes, this pins a child against the Settings font-family
+                 * preference, which is the shape #228 warns about (see the
+                 * `html { font-family }` note in web/src/index.css). It is
+                 * deliberate and it is the narrower evil: `[font-family:
+                 * inherit]` would follow the preference, but it also hands the
+                 * Monospace setting the exact metrics that caused this bug.
+                 * A keycap is chrome, not body copy.
+                 */
                 <kbd
                   aria-hidden="true"
-                  className="rounded border border-lumen-border bg-lumen-bg px-1.5 py-px text-xs text-lumen-text-tertiary"
+                  className="min-w-0 truncate rounded border border-lumen-border bg-lumen-bg px-1 py-px font-sans text-xs text-lumen-text-tertiary"
                 >
                   {labels.shortcutHint}
                 </kbd>
