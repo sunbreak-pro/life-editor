@@ -50,6 +50,17 @@ interface TimeTabProps {
   labels: TimeTabLabels;
 }
 
+/*
+ * Windows for the two rate charts, in days per granularity.
+ *
+ * DELIBERATELY not the header's date-range preset (#1476). Every other tab has
+ * exactly one window control, so the pills own it there; this tab already ships
+ * its own 日/週/月 selector, and the charts below read "recently" against it —
+ * WorkTimeChart's rolling 14 days is pinned by
+ * `workTimeChartWeekStart.test.tsx` as a decision of its own (#860). Binding
+ * the two controls together is a design change, not this bug fix, so the Work
+ * tab keeps its window and #1476 only unfroze the Todo tab's.
+ */
 const PERIOD_DAYS: Record<Period, number> = {
   day: 14,
   week: 12,

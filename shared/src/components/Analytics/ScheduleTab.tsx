@@ -9,7 +9,7 @@ import {
 } from "lucide-react";
 import type { ScheduleItem } from "../../types/schedule";
 import type { RoutineNode } from "../../types/routine";
-import { useAnalyticsFilter } from "./AnalyticsFilterContext";
+import { dateRangeDays, useAnalyticsFilter } from "./AnalyticsFilterContext";
 import { formatDateKey } from "../../utils/dateKey";
 import { AnalyticsStatCard } from "./AnalyticsStatCard";
 import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
@@ -128,13 +128,7 @@ export function ScheduleTab({
     );
   }
 
-  const days = Math.max(
-    1,
-    Math.ceil(
-      (dateRange.end.getTime() - dateRange.start.getTime()) /
-        (1000 * 60 * 60 * 24),
-    ),
-  );
+  const days = dateRangeDays(dateRange);
 
   return (
     <div className="space-y-4" aria-busy={loading}>

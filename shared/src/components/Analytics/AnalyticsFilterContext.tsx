@@ -27,6 +27,27 @@ export interface DateRange {
 
 export type DatePreset = "7d" | "30d" | "thisMonth" | "3m" | "all";
 
+/*
+ * Length of a selected range in whole days, inclusive of both ends (#1476).
+ *
+ * Every "trend" chart in Analytics draws one bucket per day of the selected
+ * preset, so they all need the same number. It lives here, beside the range
+ * itself, because each tab computing it from `dateRange` on its own is how the
+ * Todo tab ended up frozen on a hardcoded 30 while the Schedule tab followed
+ * the pills (数値の非複製原則).
+ *
+ * A preset's `start` is 00:00 and its `end` is 23:59:59.999 of the last day, so
+ * the raw difference is a hair under the day count and `ceil` lands on it: the
+ * "7d" preset is 6.999… days → 7 buckets.
+ */
+export function dateRangeDays(range: DateRange): number {
+  const MS_PER_DAY = 1000 * 60 * 60 * 24;
+  return Math.max(
+    1,
+    Math.ceil((range.end.getTime() - range.start.getTime()) / MS_PER_DAY),
+  );
+}
+
 interface AnalyticsFilterContextValue {
   dateRange: DateRange;
   /** The active preset (drives the header pill group's checked state). */
