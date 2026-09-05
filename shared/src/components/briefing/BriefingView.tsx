@@ -599,12 +599,17 @@ export function BriefingView({
                       checkbox. It sits beside the title button, not inside it:
                       it is a button itself, and this file's a11y invariant is
                       that no button nests in another. 朱 rather than the app
-                      accent, as on the carryover rows and 夕刊. */}
+                      accent, as on the carryover rows and 夕刊.
+                      `itemName` is the row's own title (#1486): the paper can
+                      print five todos, and a checkbox that only says
+                     「ステータス: 未着手」leaves the reader who cannot see the
+                      title beside it with five identical controls. */}
                   <TodoStatusCheckbox
                     status={todo.status}
                     onChange={() => onToggleTodo(todo.id)}
                     labels={labels}
                     label={labels.todoStatus}
+                    itemName={todo.title}
                     accentClassName="text-lumen-briefing-shu"
                   />
                   <button

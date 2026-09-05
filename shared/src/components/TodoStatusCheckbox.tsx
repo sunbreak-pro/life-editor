@@ -26,6 +26,10 @@ import {
  * #1368 made it the ONE todo checkbox: the paper's carryover rows and the
  * Schedule tray's binary rows drew their own boxes at their own sizes, so the
  * same todo wore three looks depending on where the user met it.
+ *
+ * #1486 let a host add the row's own name to that: in a list, "what the control
+ * sets" is only half an answer — the other half is which of the five identical
+ * rows it sets it on.
  */
 
 /**
@@ -55,6 +59,14 @@ export interface TodoStatusCheckboxProps {
    */
   label: string;
   /**
+   * Already-translated name of the row the status belongs to — a todo's title
+   * (§6.4). Optional, because a control that stands alone is named well enough
+   * by what it sets. In a LIST it is not (#1486): a paper printing five todos
+   * announces "Status: Not started" five times, and the reader who cannot see
+   * the row has no way to tell which todo the checkbox in front of them ticks.
+   */
+  itemName?: string;
+  /**
    * Colour of the icon once the todo is done. Defaults to the app accent; the
    * newspaper surfaces pass their 朱 token so the paper keeps a single voice
    * for the user's own marks.
@@ -73,19 +85,28 @@ export function TodoStatusCheckbox({
   onChange,
   labels,
   label,
+  itemName,
   accentClassName = "text-lumen-accent",
   className,
 }: TodoStatusCheckboxProps) {
   const Icon = STATUS_ICON[status];
   const done = status === "DONE";
+  // "Write report — Status: Not started": which row, then what the control
+  // sets, then where that stands. The row comes first because it is what the
+  // user is listening for while they walk down a list (#1486).
+  const statusText = statusLabel(status, labels);
+  const name =
+    itemName === undefined
+      ? `${label}: ${statusText}`
+      : `${itemName} — ${label}: ${statusText}`;
   return (
     <button
       type="button"
       role="checkbox"
       aria-checked={done}
       onClick={() => onChange(toggledTodoStatus(status))}
-      aria-label={`${label}: ${statusLabel(status, labels)}`}
-      title={statusLabel(status, labels)}
+      aria-label={name}
+      title={statusText}
       className={cn(
         // min-h-11 / min-w-11 = 44px, the touch-target floor (mobile-scope.md).
         "flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lumen-md transition-colors",
