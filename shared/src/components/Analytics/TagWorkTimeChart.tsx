@@ -114,6 +114,19 @@ export function TagWorkTimeChart({
     [sessions, liveItems, assignments, tags, labels.untagged, labels.other],
   );
 
+  /*
+   * Shares are needed by the legend now, so they are derived here instead of
+   * being read off recharts' own label callback (#1477). Keyed by slice name:
+   * <Legend> sorts its items alphabetically by default (`itemSorter: "value"`),
+   * so the legend's index is NOT the index in `data`.
+   */
+  const shareByName = useMemo(() => {
+    const total = data.reduce((sum, d) => sum + d.value, 0);
+    return new Map(
+      data.map((d) => [d.name, total > 0 ? d.value / total : 0] as const),
+    );
+  }, [data]);
+
   if (data.length === 0) {
     return (
       <ChartCard title={labels.title}>
@@ -137,10 +150,6 @@ export function TagWorkTimeChart({
             outerRadius={80}
             innerRadius={40}
             paddingAngle={2}
-            label={({ name, percent }) =>
-              `${name} (${((percent ?? 0) * 100).toFixed(0)}%)`
-            }
-            labelLine={{ strokeWidth: 1 }}
           >
             {data.map((d, index) => (
               <Cell
@@ -155,7 +164,17 @@ export function TagWorkTimeChart({
               labels.formatHours(value ?? 0)
             }
           />
-          <Legend wrapperStyle={{ fontSize: 11 }} />
+          {/* The share rides in the legend rather than on a leader line out of
+              the ring (#1477). recharts draws those labels OUTSIDE the chart's
+              own box and never clips them to it, so a long tag name ran past
+              the card edge and got cut ("PWV1408-tag (" at 1280x800). The
+              legend is inside the card's flow and wraps, so it cannot. */}
+          <Legend
+            wrapperStyle={{ fontSize: 11 }}
+            formatter={(name: string) =>
+              `${name} ${((shareByName.get(name) ?? 0) * 100).toFixed(0)}%`
+            }
+          />
         </PieChart>
       </ResponsiveContainer>
     </ChartCard>
