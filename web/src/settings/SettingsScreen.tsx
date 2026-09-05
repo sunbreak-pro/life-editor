@@ -45,6 +45,7 @@ import {
   useMediaQuery,
   useTranslation,
   getDataService,
+  isMac,
   lastBriefingDate,
   MCP_TOOL_CATALOG,
   type SettingsTabItem,
@@ -486,7 +487,12 @@ export function SettingsScreen() {
       body: t("settings.detail.tips.fontSize.body"),
     },
     {
-      title: t("settings.detail.tips.palette.title"),
+      /* The modifier the rest of this screen already prints (the command
+         palette row + the shortcut list) — the copy used to bake in ⌘K, so
+         Windows read two different names for one key on one screen. */
+      title: t("settings.detail.tips.palette.title", {
+        shortcut: isMac ? "⌘K" : "Ctrl K",
+      }),
       body: t("settings.detail.tips.palette.body"),
     },
   ];

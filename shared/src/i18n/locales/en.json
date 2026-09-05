@@ -67,7 +67,7 @@
           "body": "Headings and UI stay fixed; only body readability is adjusted."
         },
         "palette": {
-          "title": "Search & change from ⌘K",
+          "title": "Search & change from {{shortcut}}",
           "body": "You can also change shortcut assignments from the command palette."
         }
       }
