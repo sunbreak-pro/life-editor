@@ -1,5 +1,51 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-09-05 - [shared-fix] #1408 の findings 3 件（#1468 / #1474 / #1481）をそれぞれ独立ブランチで PR まで
+
+#### 概要
+
+こうだいさんの /goal「3 件それぞれに origin/main から切ったブランチ + CI verify のローカル全緑 + Issue を参照する PR」を実行し、**PR #1493 / #1498 / #1496** に到達（3 本とも open。merge は P-001 でこうだいさん手番）。
+
+| Issue | PR | ブランチ | 触ったファイル |
+| --- | --- | --- | --- |
+| #1468 サイドバーのラベル省略 | #1493 | `claude/shared-fix-1468` | `SidebarNav.tsx` + テスト |
+| #1474 disabled の primary ボタン | #1498 | `claude/shared-fix-1474` | `styleTokens.ts` / `Button.tsx` / `PomodoroSettings.tsx` / `AudioMixer.tsx` + テスト 3 本 |
+| #1481 `<html lang>` | #1496 | `claude/shared-fix-1481` | `ThemeContext.tsx` + テスト |
+
+#### 3 件とも Issue の Scope 行が実際の修正先を外していた
+
+- **#1468** は Scope が「`web/src/` のシェル / サイドバー部品」だが、実体は `shared/src/components/SidebarNav.tsx`。DoD 行の `cd web && ...` では **shared に入れた lint / テストが 1 度も走らない**（CLAUDE.md §7.1）
+- **#1474** は Scope が「共有 Button 部品の disabled 表現。個別画面の上書きは不要」だが、**報告された 2 つの「保存」は共有 `<Button>` を通っていない**（`PomodoroSettings.tsx` の `SAVE_BTN` と `AudioMixer.tsx` のインライン）。`Button.tsx` だけ直しても報告画面は 1px も変わらない
+- **#1481** だけは Scope（`web/src/main.tsx` 周辺の I18n Provider）が近かったが、言語の持ち主は `shared/src/context/ThemeContext.tsx` で、そこは既に `data-theme` / `data-reduce-motion` / root font-size / root font-family という documentElement 副作用を 4 本持っていた。5 本目を隣に足すだけで済んだ
+
+#### #1468 は「バッジ縮小」か「ラベル優先」の片方だけでは足りなかった
+
+DoD は 3 択（バッジの縮小 / ラベル優先 / 省略の解除）を「いずれでも可」としていたが、**1 つでは全フォント段 × 2 ロケールを保証できない**。
+
+- ラベル優先だけ → 今度はバッジが 1 文字も出せない段が出る
+- バッジ縮小だけ → どの段で足りるかがフォントメトリクス次第の賭けになる（実際、調査エージェントの px 見積りは step 1 en で ±3px の境界だった）
+
+**譲る順番を固定する**形にした: ラベルは `basis-auto shrink-0` で絶対に縮まない → 足りなければ `aria-hidden` のバッジが省略される → 最後はボタンの `overflow-hidden` が刈る。加えて **バッジが等幅だったのは Tailwind preflight の `code, kbd, samp, pre { font-family: --font-mono }` がそのまま残っていただけ**（誰も選んでいない）ので `font-sans` で降ろし、実際には譲らずに済む幅を確保した。
+
+#### 実測したこと
+
+- **守りが効くことを全 PR で反転実測**: #1468 = flex 契約と `font-sans` を個別に戻すと 1 本ずつ赤 / #1474 = トークンを `disabled:opacity-50` に戻すと 5 本赤 / #1481 = `setAttribute` を潰すと 2 本赤
+- **#1474 のコントラスト比をトークンから計算**（light / dark）: 無効ラベル 3.72 / 4.90、**新しい塗り vs カード面 1.07 / 1.21** — この 3 桁目がリングを必須にしている（塗りだけだとボタンの箱がカードに溶ける）
+- **ビルド後の CSS に新ユーティリティが実際に出ていることを確認**: `disabled:bg-lumen-surface-sunken` ほか 7 本、および #1468 の `.font-sans{font-family:var(--font-sans)}`。**`font-sans` は 1474 ブランチのビルドには 0 件・1468 ブランチのビルドに 1 件**で、スキャン経由で生成されていることまで確定できた（未生成なら無言で無色になる）
+- `origin/main` に対しても **15 ゲート全緑のベースライン**を先に取った。以降の赤は自分の変更由来と断定できる状態で作業した
+- 各ブランチで CI verify 15 ステップ + docs-lint をローカル全緑。終了コードは **`| tail` に通す前に変数へ取って取得**（CLAUDE.md §7.1 の罠）
+
+#### 独立レビュー（並列 9 エージェント）が自分の作業ツリーを読んで blocking を出した
+
+調査 3 + 批評 6 の並列ワークフローを回した。**批評の 1 本が、実装済みの作業ツリーを読んで blocking を 1 件確定させた**: ラベルを `shrink-0` にした結果、ボタンにも footer の div にも `overflow-hidden` が無いため、**将来ロケールで文言が伸びると `w-60` の aside の外＝本文ペインの上に描画される**。ボタンに `overflow-hidden` を足して塞いだ（`overflow` は子孫だけを刈るので focus リングは無傷）。
+
+ほかに採用した指摘: テストの置き場を `web/tests/` から `shared/tests/` へ（変更が shared 完結なので配置表と逆だった）/ `themeContext.test.tsx` の `beforeEach` に i18next シングルトンのリセットを追加（`setLanguage` がモジュール状態を書き換え、Provider の既定値がそこから導出されるため、リセットが無いと以降のマウントが全部 ja で起動する）/ collapsed 行のテストを「#1468 の柵ではない」と正直に書き直した（className だけの差分なので修正前も緑）。
+
+#### 運用メモ
+
+- **`git push` が Git Credential Manager の対話を要求して失敗する**。`git -c credential.helper='!gh auth git-credential' push` で通した（この機は `gh auth setup-git` が未実行）
+- worktree 規約: ブランチを切るたび `.claude/comm/.session-branch` を更新（4 回）。tracker / outbox / decisions は実装ブランチに載せず本コミットの専用ブランチへ（D-20260801-main-1 / D-20260802-sched-1）
+
 ### 2026-09-01 - [shared-fix] #1368 = Todo のチェックボックスを 1 本に寄せた（基準の「Schedule の現行サイズ」は共有部品ではなかった）
 
 #### 概要

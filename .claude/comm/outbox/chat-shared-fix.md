@@ -214,3 +214,34 @@ merge いただいた直後に、独立レビューが確定させた退行 2 �
 ### 判断キューに 1 件（`D-20260901-shared-fix-2`・#1396 で main 済み）
 
 朝刊「今日のスケジュール」の Todo 行のチェックボックスも 20px に揃えるか。持ち越し行と同じ 16px の手書きボックスが同じ紙面に残っています。揃えると #939 で統合された 1 リストの中で Todo 行だけ背が高くなり、かつ #1369（briefing-refine）が同じ `<li>` を編集中です。推奨は #1369 着地後に別 Issue。
+
+## 2026-09-05 → chat-main
+
+### shared-fix の 3 本（#1468 / #1474 / #1481）を PR 化しました
+
+いずれも #1408 の実ブラウザ点検 findings で、それぞれ `origin/main` から独立ブランチを切っています。**CI verify の 15 ゲートを各ブランチでローカル実測済み**（同セッション内で `origin/main` のベースラインも全緑を確認）。
+
+| Issue | PR | 触ったもの |
+| --- | --- | --- |
+| #1468 | #1493 | `shared/src/components/SidebarNav.tsx` |
+| #1474 | #1498 | `styleTokens.ts` + `Button.tsx` + `PomodoroSettings.tsx` + `AudioMixer.tsx` |
+| #1481 | #1496 | `shared/src/context/ThemeContext.tsx` |
+
+**3 本とも実ブラウザでの目視が残っています**（worktree では起動しない規約）。見どころは各 PR 本文の「残っている確認」に書きましたが、いちばん見落としやすいのは #1474 の**「タイマー稼働中 × ダーク」**です。`WorkScreen.tsx:315` が設定パネル全体を `opacity-[0.55]` で包むため、新しいリングがその減光の下でも見えるかはここでしか分かりません。
+
+### Issue 起票の依頼 1 件: `<kbd>` の書体を揃えるか
+
+`<kbd>` はリポジトリ内に 5 箇所あり、**現状は 5 つとも Tailwind preflight 由来の等幅**です（`SidebarNav.tsx` / `CommandSearchField.tsx:53` / `CommandPalette.tsx:319` / `ShortcutEditModal.tsx:365` / `shortcutParts.tsx:46`）。誰も選んだ書体ではなく、preflight の `code, kbd, samp, pre { font-family: --font-mono }` がそのまま残っているだけです。
+
+#1468 でサイドバーの 1 つだけを `font-sans` にしました。**等幅だと「Ctrl K」が幅を食いすぎてラベルが省略されるため、幅を取り戻す手段として必要だった**からです。結果として、**同じ画面に出るヘッダー検索欄のキーキャップとは書体が割れます**。
+
+これはプロダクト全体のタイポグラフィ判断なので #1468 の Scope 外としました。5 箇所を揃える（sans に寄せる / 等幅を意図として明示する）Issue の起票をお願いします。
+
+### 判断キューに 1 件（`D-20260905-shared-fix-1`）
+
+#1474 で残した塗り disabled ボタン 7 箇所を揃えるか。`danger` の disabled が 3 画面で「処理中」の意味に使われているため、単なる横展開になりません。詳細はキュー本文へ。
+
+### 細かい報告 2 件（Issue 化不要）
+
+- `shared/src/context/ThemeContext.tsx:88` と `web/src/main.tsx:25` が `CLAUDE.md §6.4` / `§6.2` を参照していますが、**CLAUDE.md §6 に小見出しは無く、この節番号は実在しません**。#1481 で同じコメントブロックを触りましたが、参照の張り替えは docs 判断なので触っていません
+- `git push` が Git Credential Manager の対話を要求して失敗します。`git -c credential.helper='!gh auth git-credential' push` で通したので作業はできていますが、**この Windows 機は `gh auth setup-git` が未実行**のようです
