@@ -1,5 +1,23 @@
 # HISTORY (chat-work-refine)
 
+### 2026-09-05 - #1475 中断したタイマーセッションが分析に混ざるのを止めた
+
+#### 概要
+
+集中タイマーを開始してすぐ止めると `timer_sessions` に「12 秒・未完了」の行が残り、分析の Todo 別作業時間と週間比較のセッション数に混ざっていた（#1408 の実ブラウザ点検で発覚・実測 id 18 / 19）。**書いているのは reset ではなく pause** だと判明したため、書き込み側ではなく読み取り側の単一判定で塞いだ。PR #1505 open（Closes #1475・merge = 人手 P-001）。
+
+#### 変更点
+
+- **原因の切り分け**: 一時停止の時点で in-flight の行が「経過秒 + `completed=false`」で閉じられる（`TimerContext.tsx` の `pause`）ため、続く reset には取り消す対象が残っていない。Issue の Scope は「リセット経路」だったが、そこを直しても書き込みは止まらない
+- **方針 = 集計側で除外**（Issue の A/B のうち B。Issue コメントに根拠を記載）: アプリにセッション削除の導線が無いので、書き込み側だけ直しても既存 2 行は残り続ける。読み取り側なら過去行も同時に分析から消える
+- **`shared/src/utils/timerSessions.ts`**: `ABANDONED_SESSION_SECONDS = 60` + `isCountedSession`（type predicate）を追加。落とすのは「未閉鎖（duration null）」「0 秒」「未完了 かつ 1 分未満」の 3 種。**未完了を一律で落とさない** — 20 分やってから中断して戻らなかったのはフェーズの普通の終わり方で、その時間は働いた時間。`completed` は「目標まで走ったか」だけを表し、それはポモドーロ達成率カードが別途見ている
+- **`shared/src/utils/analyticsAggregation.ts`**: `getWorkSessions` / `aggregateWorkBreakBalance` / `aggregateDailyTimeline` が同判定を使用。作業時間・サマリ・ヒートマップ・タグ別・ストリーク・当日タイムライン・アイテム別作業時間がまとめて揃う
+- **`shared/src/context/TimerContext.tsx`**: コメントのみ（reset がログを取り消さない理由と判定の在り処）。挙動は非変更
+- **テスト 12 件**（`timerSessions.test.ts` 6 / `analyticsAggregation.test.ts` 5 + 境界）: しきい値を 0 に落とすと 7 本が落ちることを実測し、ガードが効いていることを確認（変更は差し戻し済み）
+- **検証**: CI `verify` ジョブのステップ列をローカル全通し — shared 2926 / web 1064 / desktop 30 / mcp-server 322、`docs-lint` 含めすべて exit 0
+- **残り**: id 18 / 19 の物理削除はユーザー手番（Issue の Gate どおり）。ただし分析にはもう出ない
+- **未検証**: 実ブラウザ確認は worktree では回さない規約（§7.4）。merge 後 chat-main の宿題
+
 ### 2026-08-27 - #1116 タイマーの `Untitled todo` 自動生成を止め、Todo ID の形を固定した
 
 #### 概要
@@ -62,19 +80,4 @@ fullscreen（Mobile）のタイマー面だけ操作列が Desktop より大き�
 - **未検証**: 重なりが実際に解消したかは実ブラウザ確認が要る（worktree では回せない — §7.4）。merge 後 chat-main 側の宿題
 - **検証**: shared lint（0 error）/ build / test 2135、web lint / build / test 394 — すべて exit 0
 
-### 2026-08-13 - #781 残り 3 箇所の window.confirm / alert を ConfirmDialog へ
-
-#### 概要
-
-裁定 D-20260811-refactor-2 = B に従い、main `da8993dd` 時点で残っていたブラウザ標準ダイアログ 3 箇所（Kanban の変換確認 / 子持ち Todo の拒否 / Settings のリセット確認）をアプリ内 `ConfirmDialog`（#707）へ載せ替えた。PR #810 open（Closes #781・merge = 人手 P-001）。
-
-#### 変更点
-
-- **KanbanView の変換 2 箇所**（`web/src/tasks/KanbanView.tsx`）: 確認は `itemConvert.toEvent` / `common.cancel`、子持ち拒否は **cancel ラベル無しの acknowledge 形**（`common.ok`）。Schedule 側（`CalendarTab.tsx` の同名フロー）と同じ形に揃えた — alert を Toast にしなかった理由はこれ（P-006 として PR 本文にも記載）
-- **Settings のリセット**（`web/src/settings/SettingsScreen.tsx`）: `danger` 指定 + 新規 `settings.reset.confirmButton`（en / ja lockstep）。`resetLocalPreferences()` は `.then` の中だけに置いた
-- **非同期化の罠を明示的に固定**: 標準 confirm はその場で答えが返るが ConfirmDialog は 1 tick 後。旧形のまま書くと「開いた瞬間に変換 / 設定全消し」が走る。`beginConvert`（#434 の in-flight 主張）は答えが返った直後に同期で立てる形を維持
-- **テスト**: `web/tests/kanbanView.test.tsx` の変換 describe を全面更新（`window.confirm` spy 撤去・キャンセルで変換 0 件を含む 6 件）/ `web/tests/settingsScreen.test.tsx` 新規 3 件（質問中は未呼び出し・拒否で 0 回・確定で 1 回）
-- **grep 0 件化**: 説明文として `window.confirm` を含んでいたコメント 5 ファイル分を言い換え（`ConfirmDialog.tsx` / `components/index.ts` / `TagEditModal.tsx` / `CalendarTab.tsx` / `unsavedCloseGuard.ts`）。禁止が grep で機械的に確認できる状態にするため。挙動変更なし
-- **検証**: shared lint（0 error）/ build / test 1980、web lint / build / test 275、`scripts/docs-lint.sh` OK — すべて exit 0。実ブラウザ確認（リセットのキャンセルで何も消えない）は merge 後 chat-main（§7.4）
-
-> 2026-07 のエントリ（#181 の 2 件）は `archive/2026-07/chat-work-refine.md`、#590 は `archive/2026-08/chat-work-refine.md` へ移動。
+> 2026-07 のエントリ（#181 の 2 件）は `archive/2026-07/chat-work-refine.md`、#590 と #781 は `archive/2026-08/chat-work-refine.md` へ移動。
