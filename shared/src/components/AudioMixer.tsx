@@ -1,6 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 import { Card } from "./Card";
-import { FOCUS_RING_ON_ACCENT } from "./styleTokens";
+import { DISABLED_FILLED_BTN, FOCUS_RING_ON_ACCENT } from "./styleTokens";
 import { cn } from "./cn";
 
 /*
@@ -157,7 +157,9 @@ export function AudioMixer({
           className={cn(
             "shrink-0 rounded-lumen-md bg-lumen-accent px-3.5 py-2 text-sm font-semibold text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
             FOCUS_RING_ON_ACCENT,
-            "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
+            // The 環境音 half of the #1474 report — same hand-rolled markup as
+            // PomodoroSettings' save button, same treatment.
+            DISABLED_FILLED_BTN,
           )}
         >
           {labels.save}

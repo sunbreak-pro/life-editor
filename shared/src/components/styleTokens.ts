@@ -79,3 +79,35 @@ export const TAP_TARGET =
  */
 export const TAP_TARGET_TALL =
   "relative after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']";
+
+/**
+ * Disabled treatment for accent-FILLED buttons (#1474).
+ *
+ * `disabled:opacity-50` was the wrong lever. Opacity only composites the fill
+ * against whatever is behind it — it keeps the HUE, and the hue is the entire
+ * signal a user reads as "this is the primary action". In dark theme it is
+ * worst: the accent is a pale indigo, so 50% of it over the card lands close
+ * enough to the enabled fill to be indistinguishable. `cursor: not-allowed`
+ * was the only honest cue, and it is invisible until the pointer is already
+ * on the control.
+ *
+ * Changing the hue instead of the alpha is what "not pressable" actually looks
+ * like: the fill drops to the sunken surface and the label to the tertiary
+ * text tier. Measured against the tokens (light / dark):
+ *   - label on the new fill      3.72:1 / 4.90:1  (legible)
+ *   - new fill against a card    1.07:1 / 1.21:1  (nearly invisible on its own)
+ *   - the ring against a card    1.46:1 / 1.85:1
+ * That middle row is why the ring is here rather than being decoration: the
+ * sunken surface is a recess, so without it the button's BOX disappears into
+ * the card and the control stops looking like a control at all. It is a ring
+ * (a box-shadow) and not a border so nothing reflows on the state change.
+ *
+ * Both `disabled:hover:` entries are load-bearing, not belt-and-braces.
+ * `:hover` still matches a disabled button — that is exactly why
+ * `disabled:cursor-not-allowed` works — and `.hover\:x:hover` and
+ * `.disabled\:y:disabled` are both specificity (0,2,0), a tie broken by source
+ * order. Without the (0,3,0) overrides, hovering a dead button repaints it
+ * accent again.
+ */
+export const DISABLED_FILLED_BTN =
+  "disabled:cursor-not-allowed disabled:bg-lumen-surface-sunken disabled:text-lumen-text-tertiary disabled:ring-1 disabled:ring-inset disabled:ring-lumen-border-strong disabled:hover:bg-lumen-surface-sunken disabled:hover:opacity-100";
