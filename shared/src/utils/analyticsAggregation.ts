@@ -149,8 +149,23 @@ export interface CompletionTrendBucket {
   completedCount: number;
 }
 
+/*
+ * Age brackets for the stagnation chart, as ids rather than text (#1478).
+ *
+ * The aggregation used to hand back the axis text itself ("< 1 week"), which
+ * put five English strings below the i18n layer where no catalog could reach
+ * them — the ja UI showed them untranslated. The chart resolves the id through
+ * its injected labels now, the same way every other Analytics string arrives.
+ */
+export type StagnationBucketId =
+  | "under1Week"
+  | "1to2Weeks"
+  | "2to4Weeks"
+  | "1to3Months"
+  | "over3Months";
+
 export interface StagnationBucket {
-  label: string;
+  bucket: StagnationBucketId;
   count: number;
   color: string;
 }
@@ -560,27 +575,27 @@ export function aggregateTodoStagnation(nodes: TodoNode[]): StagnationBucket[] {
   const now = new Date();
   const buckets: StagnationBucket[] = [
     {
-      label: "< 1 week",
+      bucket: "under1Week",
       count: 0,
       color: "var(--color-chart-stagnation-1, #22c55e)",
     },
     {
-      label: "1-2 weeks",
+      bucket: "1to2Weeks",
       count: 0,
       color: "var(--color-chart-stagnation-2, #84cc16)",
     },
     {
-      label: "2-4 weeks",
+      bucket: "2to4Weeks",
       count: 0,
       color: "var(--color-chart-stagnation-3, #eab308)",
     },
     {
-      label: "1-3 months",
+      bucket: "1to3Months",
       count: 0,
       color: "var(--color-chart-stagnation-4, #f97316)",
     },
     {
-      label: "3+ months",
+      bucket: "over3Months",
       count: 0,
       color: "var(--color-chart-stagnation-5, #ef4444)",
     },

@@ -41,6 +41,8 @@ export interface AnalyticsLabels {
   /** Work tab summary stat-card labels. */
   workTime: string;
   todoWorkTime: string;
+  /** Row name for work logged against no todo (#1478). */
+  noTodo: string;
   totalWorkTime: string;
   sessions: string;
   avgPerDay: string;

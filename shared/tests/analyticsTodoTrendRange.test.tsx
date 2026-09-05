@@ -45,7 +45,17 @@ vi.mock("recharts", () => ({
 
 const LABELS = {
   todoTrend: { title: "Trend", completedCount: "Completed" },
-  stagnation: { title: "Stagnation", todos: "todos" },
+  stagnation: {
+    title: "Stagnation",
+    todos: "todos",
+    buckets: {
+      under1Week: "< 1 week",
+      "1to2Weeks": "1-2 weeks",
+      "2to4Weeks": "2-4 weeks",
+      "1to3Months": "1-3 months",
+      over3Months: "3+ months",
+    },
+  },
   tagTime: {
     title: "By tag",
     noData: "No data",
