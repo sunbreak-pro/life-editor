@@ -96,6 +96,21 @@ describe("AudioMixer", () => {
    * assertion is duplicated on purpose — the two constants are not shared, and
    * a guard on only one of them would let the other drift back.
    */
+  /*
+   * #1474, and duplicated for the same reason the #880 case above is: this
+   * class string and PomodoroSettings' SAVE_BTN are separate constants, so a
+   * guard on one of them would let the other drift back to the accent fade.
+   */
+  it("drops the disabled save button to a surface fill (#1474)", () => {
+    renderMixer({ dirty: false });
+    const classes = screen.getByRole("button", { name: "Save" }).className;
+
+    expect(classes).not.toMatch(/disabled:opacity-\d/);
+    expect(classes).toContain("disabled:bg-lumen-surface-sunken");
+    expect(classes).toContain("disabled:text-lumen-text-tertiary");
+    expect(classes).toContain("disabled:hover:bg-lumen-surface-sunken");
+  });
+
   it("draws its focus ring with outline, not a colored ring offset (#880)", () => {
     renderMixer({ dirty: true });
     const classes = screen.getByRole("button", { name: "Save" }).className;

@@ -1,6 +1,7 @@
 import { forwardRef } from "react";
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { cn } from "./cn";
+import { DISABLED_FILLED_BTN } from "./styleTokens";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger";
 export type ButtonSize = "sm" | "md" | "lg";
@@ -18,13 +19,21 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * already-translated strings (no useTranslation inside shared, §6.4).
  */
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  primary:
-    "bg-lumen-accent text-lumen-on-accent hover:opacity-90 disabled:opacity-50",
+  // `primary` is the only variant on DISABLED_FILLED_BTN so far (#1474). The
+  // other three keep `disabled:opacity-50` on purpose: secondary and ghost are
+  // already surface-coloured, so fading them reads as disabled without help.
+  // `danger` has the identical accent-fill problem and the identical fix, but
+  // its disabled state is a BUSY state on three screens (TrashView,
+  // DeleteAccountDialog, AttachmentCleanupPanel) where a flat grey would read
+  // as "switched off" rather than "working" — converting it is a UX call, not
+  // a mechanical one, so it is queued rather than folded in here.
+  primary: `bg-lumen-accent text-lumen-on-accent hover:opacity-90 ${DISABLED_FILLED_BTN}`,
   secondary:
     "bg-lumen-bg-secondary text-lumen-text hover:bg-lumen-hover disabled:opacity-50",
   ghost:
     "bg-transparent text-lumen-text hover:bg-lumen-hover disabled:opacity-50",
-  danger: "bg-lumen-danger text-lumen-on-accent hover:opacity-90 disabled:opacity-50",
+  danger:
+    "bg-lumen-danger text-lumen-on-accent hover:opacity-90 disabled:opacity-50",
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {

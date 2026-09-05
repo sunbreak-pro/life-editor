@@ -411,3 +411,24 @@ describe("PomodoroSettings — save button focus affordance (#880)", () => {
     expect(classes).toContain("focus-visible:outline-lumen-text");
   });
 });
+
+describe("PomodoroSettings — disabled save button (#1474)", () => {
+  /*
+   * The button this issue was reported against, and it does NOT go through the
+   * shared <Button> — so the variant map alone would have left this screen
+   * unchanged. Same reasoning as the #880 block above: the look is not
+   * observable in jsdom, the class that produces it is. `disabled:opacity-*`
+   * on an accent fill keeps the hue and only fades it; the fix changes the hue.
+   */
+  it("drops to a surface fill rather than fading the accent", () => {
+    renderSettings();
+    const classes = saveButton().className;
+
+    expect(classes).not.toMatch(/disabled:opacity-\d/);
+    expect(classes).toContain("disabled:bg-lumen-surface-sunken");
+    expect(classes).toContain("disabled:text-lumen-text-tertiary");
+    // :hover matches disabled buttons and ties on specificity, so without this
+    // the accent comes back the moment the pointer lands on the dead button.
+    expect(classes).toContain("disabled:hover:bg-lumen-surface-sunken");
+  });
+});

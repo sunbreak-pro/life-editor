@@ -2,7 +2,7 @@ import { useCallback, useState } from "react";
 import { Trash2 } from "lucide-react";
 import { Input } from "./Input";
 import { Modal } from "./Modal";
-import { FOCUS_RING_ON_ACCENT } from "./styleTokens";
+import { DISABLED_FILLED_BTN, FOCUS_RING_ON_ACCENT } from "./styleTokens";
 import { cn } from "./cn";
 
 /*
@@ -147,7 +147,10 @@ const BLOCK_HEADING = "text-sm font-semibold text-lumen-text-secondary";
 const SAVE_BTN = cn(
   "shrink-0 rounded-lumen-md bg-lumen-accent px-3.5 py-2 text-sm font-semibold text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
   FOCUS_RING_ON_ACCENT,
-  "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
+  // This is the button #1474 was reported against. It does not go through the
+  // shared <Button>, so fixing the variant map alone would have left the
+  // reported screen exactly as it was.
+  DISABLED_FILLED_BTN,
 );
 
 /** The five numeric settings, keyed the way `cleared` keys them. */
