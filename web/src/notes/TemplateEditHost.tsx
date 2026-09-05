@@ -22,9 +22,17 @@ import type { NoteTemplateLibrary } from "./hooks/useNoteTemplateLibrary";
 
 export interface TemplateEditHostProps {
   library: NoteTemplateLibrary;
+  /**
+   * Measured width of the note column this panel opens over (#1471) — the view
+   * owns the element, so it does the measuring and this only forwards.
+   */
+  columnWidth?: number | null;
 }
 
-export function TemplateEditHost({ library }: TemplateEditHostProps) {
+export function TemplateEditHost({
+  library,
+  columnWidth,
+}: TemplateEditHostProps) {
   const { t } = useTranslation();
   const draft = library.draft;
 
@@ -35,6 +43,7 @@ export function TemplateEditHost({ library }: TemplateEditHostProps) {
       onNameChange={library.setDraftName}
       onCancel={library.cancelEdit}
       onSave={library.saveEdit}
+      columnWidth={columnWidth}
       bodyEditor={
         draft && (
           // The editor ignores initialContent after mount, so the template id
