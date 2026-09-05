@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   bindingToDisplayString,
   matchBinding,
-  bindingsEqual,
+  bindingsConflict,
   eventToBinding,
 } from "../src/utils/shortcutBinding";
 import type { KeyBinding } from "../src/types/shortcut";
@@ -136,13 +136,16 @@ describe("eventToBinding", () => {
   });
 });
 
-describe("bindingsEqual", () => {
+describe("bindingsConflict", () => {
   it("treats undefined modifiers as false", () => {
-    expect(bindingsEqual({ code: "KeyK", meta: true }, { code: "KeyK", meta: true })).toBe(
-      true,
-    );
     expect(
-      bindingsEqual(
+      bindingsConflict(
+        { code: "KeyK", meta: true },
+        { code: "KeyK", meta: true },
+      ),
+    ).toBe(true);
+    expect(
+      bindingsConflict(
         { code: "KeyK", meta: true },
         { code: "KeyK", meta: true, shift: false },
       ),
@@ -150,9 +153,42 @@ describe("bindingsEqual", () => {
   });
 
   it("distinguishes different keys / modifiers", () => {
-    expect(bindingsEqual({ key: "n" }, { key: "m" })).toBe(false);
+    expect(bindingsConflict({ key: "n" }, { key: "m" })).toBe(false);
     expect(
-      bindingsEqual({ code: "KeyZ", meta: true }, { code: "KeyZ", meta: true, shift: true }),
+      bindingsConflict(
+        { code: "KeyZ", meta: true },
+        { code: "KeyZ", meta: true, shift: true },
+      ),
     ).toBe(false);
+  });
+
+  /*
+   * The bug: a rebind is captured as `code`, the nav DEFAULTS are stored as
+   * `key`. Comparing those two structurally said "free", so Ctrl+2 could end
+   * up on two actions at once even though matchBinding fires on both.
+   */
+  it("sees the code and key spellings of one physical key as one key", () => {
+    expect(
+      bindingsConflict({ code: "Digit2", meta: true }, { key: "2", meta: true }),
+    ).toBe(true);
+    expect(bindingsConflict({ code: "KeyN" }, { key: "n" })).toBe(true);
+    expect(bindingsConflict({ code: "Numpad2" }, { key: "2" })).toBe(true);
+  });
+
+  it("treats ctrl and meta as one accelerator (matchBinding does)", () => {
+    expect(
+      bindingsConflict(
+        { code: "KeyK", ctrl: true },
+        { code: "KeyK", meta: true },
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps a bare key clear of the same key held with the accelerator", () => {
+    expect(bindingsConflict({ key: "n" }, { key: "n", meta: true })).toBe(false);
+  });
+
+  it("never collides on a binding that names no key", () => {
+    expect(bindingsConflict({ meta: true }, { meta: true })).toBe(false);
   });
 });

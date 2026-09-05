@@ -10,7 +10,7 @@ import { isMac } from "../utils/platform";
 import {
   bindingToDisplayString,
   matchBinding,
-  bindingsEqual,
+  bindingsConflict,
 } from "../utils/shortcutBinding";
 import { useLocalStorage } from "../hooks/useLocalStorage";
 import {
@@ -101,7 +101,7 @@ export function ShortcutConfigProvider({ children }: { children: ReactNode }) {
       for (const def of DEFAULT_SHORTCUTS) {
         if (def.id === excludeId) continue;
         const existing = config[def.id] ?? def.defaultBinding;
-        if (bindingsEqual(binding, existing)) {
+        if (bindingsConflict(binding, existing)) {
           return def;
         }
       }
