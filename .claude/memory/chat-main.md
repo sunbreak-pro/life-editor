@@ -13,15 +13,6 @@
 - 次: **2026-08-31 に実装を `[refactor-core]` レーンへ移譲**（chat-main が抱えず配る = ユーザー指示）。PR #1302 は merge 済みで、Windows レーン + tag 駆動 workflow の実装が **PR #1348 open**。chat-main の残務は merge 後の受け入れ采配のみ（Windows 実機 = 👀 / Mac 実機 = #1301 でユーザー手番）
 - 保留: **D-20260830-main-1 = Intel Mac 向け x64 `.dmg` を配るか** — 2026-08-31 に**ユーザーが「とりあえず放置」と裁定**。計画書どおり両アーキをビルドし、受け入れ対象は arm64 のみに留める（安全側）
 
-### 🔧 Desktop 全画面の実ブラウザ点検 #1408（計画 → 実行の 2 セッション）（着手日: 2026-09-02）
-
-**対象**: `.claude/docs/vision/plans/2026-09-02-desktop-screen-audit.md`・`.claude/docs/reports/`・GitHub Issues（finding 起票）。コードは触らない
-**計画書**: `.claude/docs/vision/plans/2026-09-02-desktop-screen-audit.md`
-
-- 前回: —
-- 現在: **計画セッション完了 = 計画書を PR #1441 で提出**（ブラウザ未起動）。画面別チェックリスト 7 本 / 結合 S1〜S10 / 1 画面 1 エージェント直列 + メイン直接操作のフォールバック（2026-08-31 のセッション上限落ちの前例）/ 停止条件 / `PWV1408-` 台帳と後始末（Daily・目標ノート・フォーカス・timer_sessions・添付は書かない）を確定
-- 次: **PR #1441 merge 後にユーザーが実行セッションを開く**（👀 ゲート）→ Status を IN PROGRESS → P0 環境準備から。実行時に「既知の除外リスト」を `gh issue list` で更新する。mobile-refine の #1400 / #1402 実機確認依頼は対の #1409（Mobile 側・別計画書）の実行セッションへ畳む
-
 ### 🔧 Loop Engineering 親計画 Phase 1 + 2（夜間レーン 2 本 + 毎朝 digest）（着手日: 2026-08-04）
 
 **対象**: `.claude/automation/`・`.claude/settings.json`・`.claude/docs/vision/plans/`
@@ -29,9 +20,8 @@
 
 - 前回: **Phase 1 インフラ配置 PR #594 merged**（`3ef1f752`。routine-digest + routine-night-safe + run-routine.ps1 + 台帳 / permissions.ask 二層）。実測補正: CronCreate は**セッション限定 + 7 日期限** → 推奨基盤 = Task Scheduler + `claude -p`（**D-20260804-main-1** 起票済み）
 - 現在: **Phase 2 の文書整備 = PR #597 merged**（`5161a9a1`）。Step 9 ゲート（カタログ定着後に裁定）は**ユーザー指示で前倒し・試験運用 0 件のまま着手**し、その事実を Worklog 先頭に記録。① `goals.md` を役割ごと差し替え（Goal 一覧 + 状態機械 → 「今夜どれを選ぶか」の選定基準。一覧は GitHub が正本なので持たない）② `routine-night.md` を `/loop-implement` の薄い殻へ（無人固有の事情のみ・**commit 止まり**）③ 追随 3 か所（`run-routine.ps1` の ValidateSet に `night` / README 状態列 / `routine-morning.md` 退役）。**§7 の「draft PR 止まり」は permissions 実測と食い違っていたので commit 止まりへ訂正**
-- 現在（2026-09-02 昼）: **#1335 の作業分（22:33 枠を night-safe に確定 + 無人 runner の settings プロファイル 2 本 + `run-routine.ps1` の眠っていたバグ 2 件）を PR #1443 へ**（2026-09-01 に working tree へ置いたままだったもの。ユーザー裁定 2026-09-02 = 「PR にして出す」）→ merged
-- 現在（2026-09-02 夜）: **Phase 1 の 2 本が稼働開始 → PR #1446（docs + 台帳）/ #1447（監査報告）open**。`run-routine.ps1 -Routine night-safe` を 21:00 に手動 1 回（3 分で完走・**報告が launcher 経由で outbox へ自動追記されることを実測** = 09-01 に落ちていた箇所）→ `schtasks` で `LifeEditor-NightSafe`（22:33）/ `LifeEditor-Digest`（06:03）を登録（`Get-ScheduledTaskInfo` の `NextRunTime` で確認）→ `routine-ids.md` を ACTIVE 化 → plans 3 本の Status（`2026-05-26-autonomous-dev-routine` は **SUPERSEDED + archive 移動**。Cloud Routine 機構は 2026-08-04 に退役済みで後継が本計画）
-- 次: **#1335 は open のまま**（DoD に Phase 2 の `night` レーンが含まれるため close していない）。残 = ① `night` を登録するか / まだかの判断 ② `run-routine.ps1 -Routine night` の手動確認を**どこで走らせるか**（素直に走らせると chat-main のチェックアウト（main）に commit が落ちる — 使い捨て worktree を切るか runner 側でブランチを作らせるか要決定）③ 22:33 / 06:03 の初回無人発火の結果確認。**後継のいない機能が 1 つ残る** = merge 済みブランチの worktree 掃除（旧・朝ルーチンのみが持っていた。digest に報告として足すかは未決）
+- 現在（2026-09-02）: **#1335 の作業分（22:33 枠を night-safe に確定 + 無人 runner の settings プロファイル 2 本 + `run-routine.ps1` の眠っていたバグ 2 件）を PR #1443 へ**（2026-09-01 に working tree へ置いたままだったもの。ユーザー裁定 2026-09-02 = 「PR にして出す」）。残りは全部ユーザー手番 = `run-routine.ps1 -Routine night-safe` 手動 1 回 / `schtasks` 登録 / `routine-ids.md` の ACTIVE 化 / plans 3 本の Status
+- 次: **発火の裁定は 2026-08-11 に決着（D-20260804-main-1 = A = Windows タスクスケジューラ + `claude -p`・06:03 / 22:33）** → `run-routine.ps1 -Routine night` を手動 1 回で動作確認 → `schtasks` 登録（手順 = `automation/routine-ids.md`）。**有効化の前提が 1 つ増えた**（PR #619・#618）= repo の `permissions.ask` から `git push*` / `gh pr create*` を外したので、**無人レーンの push 抑止は runner 側 settings で渡す**（`claude -p --settings <無人用>` / `--disallowedTools`）。**後継のいない機能が 1 つ残る** = merge 済みブランチの worktree 掃除（旧・朝ルーチンのみが持っていた。digest に報告として足すかは未決）
 
 ### ⏸️ ループカタログ試験運用 + 自律運転の到達点（着手日: 2026-08-06）
 
@@ -71,10 +61,9 @@
 
 ## 直近の完了
 
+- [chat-main] **#1408 Desktop 全画面の実ブラウザ点検を実行完了 — finding 20 件を #1467〜#1486 に起票・レポート + 計画書 archive = PR #1487 open** ✅（2026-09-05）— 7 画面をエージェント直列（settings は 1 回目が stream 停止 → 再起動で完走）+ 結合 S1〜S10 はメイン直接。console error は全画面ゼロ。important 3 = #1476（期間プリセットが Todo トレンドに効かない・`TodosTab.tsx:40` の `days={30}`）/ #1482（ショートカット競合が無警告）/ #1485（追加ダイアログの Todo が Undo で消えない）。後始末は `search_all` / `list_wiki_tags` / `list_schedule` / SQL で 0 を実測。**🛑 ユーザー手番 = `timer_sessions` id 18 / 19（未完了 12〜13 秒・削除経路なし）**。次 = #1409（Mobile 側）の計画セッション。詳細 = history 2026-09-05
 - [chat-main] **Issue 棚卸し（open 20 → 配布 5 レーン 11 件）+ #1408 計画書 PR #1441 + #1335 作業分 PR #1443 + 判断 4 件の回収・昇格** ✅（2026-09-02）— 詳細 = history 2026-09-02。ローカル main が tracker コミット 1 つで origin から分岐していたのを rebase で解消し、そのコミットは本日の tracker PR に載せ替えた（main は `git reset --hard origin/main` で origin と一致）
 - [chat-main] **main の CI 赤（TagUsageCard の存在しない import）を PR #1430 で修正** ✅（2026-09-01）— `shared/src/components/Analytics/TagUsageCard.tsx` が `./EmptyState` を import していたが、Analytics サブバレルの空状態は名前衝突回避のため `AnalyticsEmptyState`。`shared — build (tsc -b)` が TS2307 で落ち、cb445180 以降の main が赤だった。props 完全一致の rename 2 行。**要注意 = 同じ修正の branch を `materials-refine`（`claude/shared-fix-main-red-20260901`）と `refactor-core`（`claude/shared-fix-analytics-emptystate-import`）が先に切っていた**（どちらも未 commit / 未 push）— 三重作業の芽
-- [chat-main] **コード整理監査 → findings 7 本起票（#1385〜#1391）** ✅（2026-09-01）— Tauri 残骸（version バンプ / migrateTodosToBackend）・未使用コード（dead i18n 33 キー / dead CSS / 参照ゼロ export）・docs 整合（add-ipc-channel 7→9 / #1293 追随漏れ）。実装済み計画書の残置は #1377 既知の 1 本のみ
-- [chat-main] **`[main]` 宛 4 件をレーンへ移譲 + #1345 起票 + 5 レーンへ `/goal` 配布** ✅（2026-08-31）— #1300 / #1301 → `[refactor-core]`・#1211 → `[settings]`・#1337 → `[tags-docs]` へ prefix を振り直し（`.github/workflows` と `desktop/` を触った実績が #894 の IPC contract 整備しか無いことを git log で実測）+ `shared-fix` 付与。ノート削除の確認ダイアログ欠落を **#1345** として起票。配布後まもなく PR #1346 / #1347 / #1348 が open（#1346 は CLEAN）
 
 ## 予定
 
