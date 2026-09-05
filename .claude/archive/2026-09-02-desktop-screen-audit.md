@@ -1,7 +1,7 @@
 ---
-Status: Draft
+Status: COMPLETED
 Created: 2026-09-02
-Branch: docs/plan-1408-desktop-screen-audit（計画書）/ 実行セッションはブランチを切らない（chat-main・`main` 直下）
+Branch: docs/plan-1408-desktop-screen-audit（計画書）/ 実行は chat-main・`main` 直下（レポートと archive 移動は docs/1408-desktop-screen-audit-report）
 Owner-chat: main
 Related:
   - "#1408" — Desktop 全画面の実ブラウザ点検（本計画の対象 Issue）
@@ -53,7 +53,7 @@ Related:
 
 ```
 .claude/docs/vision/plans/2026-09-02-desktop-screen-audit.md   （本計画書）
-.claude/docs/reports/2026-09-DD-desktop-screen-audit.md        （実行レポート — DD は実行日）
+.claude/docs/reports/2026-09-05-desktop-screen-audit.md        （実行レポート — DD は実行日）
 GitHub Issues（finding の起票 — issue-dispatch スキル経由）
 ```
 
@@ -242,7 +242,7 @@ URL: http://localhost:<実ポート>/
 - [ ] 結合 S1〜S10 に PASS / FAIL が記録されている
 - [ ] finding が **1 件 1 Issue** で起票され、`type:bug` + `section:<id>` または `shared-fix` + `sev:*` が付き、レポートの finding 表に Issue 番号が入っている（既知の open Issue と重複する所見は起票せず、既存番号を書く）
 - [ ] `search_all("PWV1408")` が 0 件・`list_wiki_tags` に `PWV1408` が無い（後始末の実測値がレポートと #1408 コメントに転記されている）
-- [ ] レポート `.claude/docs/reports/2026-09-DD-desktop-screen-audit.md` が存在し、`LC_ALL=C bash scripts/docs-lint.sh` が exit 0
+- [ ] レポート `.claude/docs/reports/2026-09-05-desktop-screen-audit.md` が存在し、`LC_ALL=C bash scripts/docs-lint.sh` が exit 0
 - [ ] 本計画書の Status が COMPLETED になり `archive/` へ移動している（PR）
 - [ ] 完了・退役・supersede 時: 対応 plan・per-chat memory の Status を更新した
 
@@ -265,7 +265,7 @@ AC を満たせない見込みになったら、自己免除せず **P-008** に
 
 ---
 
-## レポート書式（`docs/reports/2026-09-DD-desktop-screen-audit.md`）
+## レポート書式（`docs/reports/2026-09-05-desktop-screen-audit.md`）
 
 1. 実施条件（main の commit・実ポート・ブラウザ幅・開始時の設定値・console ベースライン）
 2. 画面別の結果表（画面 × 項目 × PASS/FAIL/SKIP・FAIL は所見 id）
@@ -301,9 +301,11 @@ AC を満たせない見込みになったら、自己免除せず **P-008** に
 ## Worklog
 
 - 2026-09-02: 計画書作成（計画セッション・ブラウザ未起動）。実行セッションは別途ユーザーが開く（#1408 の 👀 ゲート）
+- 2026-09-02 12:40〜14:15 JST: 実行 Step 2〜5（briefing → analytics の 6 画面をエージェント直列で完走）。dev server は同じリポジトリ直下の先客 5174（サインイン済み）を流用
+- 2026-09-05 12:49〜13:25 JST: settings（エージェント 1 回目は stream 停止で失敗 → 再起動で完走）→ 結合 S1〜S10（chat-main 直接・当日付のテストデータを追加）→ 後始末 → finding 20 件を #1467〜#1486 に起票 → レポート `docs/reports/2026-09-05-desktop-screen-audit.md`
 
-完了時（archive する時）の乖離レビュー 3 行は必須:
+乖離レビュー（archive 時）:
 
-1. スコープ逸脱の有無
-2. AC 免除の有無
-3. 途中で出た判断とその行き先（`D-…` / Issue #NNN / 「行き先なし」）
+1. スコープ逸脱: なし。コードは触っていない（所見は起票まで = P-008）。レポートのファイル名は実行日の 09-05
+2. AC 免除: なし。S5 / S6 は PARTIAL だが理由はチェックリスト側の前提違い（Todo 側のリンク一覧は製品に無い）と、削除経路の無い `timer_sessions` 行（🛑 ユーザー手番として #1475 と #1408 コメントに記載）
+3. 途中の判断: 設定の 4 カテゴリのプレースホルダは by design として起票せず（行き先なし）／ 日付跨ぎでテストデータを当日付で作り直した（行き先なし）／ `timer_sessions` の掃除 = ユーザー手番（#1475 Gate）
