@@ -64,6 +64,13 @@ export function SettingsTabsNav({
             label={tab.label}
             active={!tab.opensPanel && tab.id === value}
             onClick={() => onSelect(tab.id)}
+            /* #1562: NavItem's resting row is 36px, which is a mouse target.
+               The floor is applied HERE and not in NavItem because the same
+               primitive draws the Desktop sidebar, where 36px is the whole
+               point of the row's density. `min-h-*` rather than `h-11`: `cn`
+               is a plain string join, so two utilities for one property are
+               settled by Tailwind's emit order (rules/frontend.md). */
+            className="max-md:min-h-11"
           />
         </Fragment>
       ))}

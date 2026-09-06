@@ -40,7 +40,9 @@ export function LegalView({
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex items-center gap-1.5 self-start rounded-lumen-sm text-sm text-lumen-text-secondary transition-colors hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          /* #1562: 56x32 on a phone. `self-start` keeps the box at its own
+             width, so only the height needs the floor. */
+          className="inline-flex items-center gap-1.5 self-start rounded-lumen-sm text-sm text-lumen-text-secondary transition-colors hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11"
         >
           <ArrowLeft aria-hidden className="h-4 w-4" />
           {backLabel}

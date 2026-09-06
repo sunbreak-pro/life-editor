@@ -38,6 +38,13 @@ export interface ColorPickerProps {
   onPick: (color: string | null) => void;
   /** Override the preset palette. Defaults to the shared 12-hue set. */
   presets?: readonly string[];
+  /**
+   * Extra classes for the TRIGGER pill only (#1562). Opt-in rather than a
+   * blanket change to the pill, because the picker is also drawn in the
+   * wikitag row where the floor is not wanted — this way one caller can raise
+   * its touch target without moving the other.
+   */
+  triggerClassName?: string;
 }
 
 export function ColorPicker({
@@ -47,6 +54,7 @@ export function ColorPicker({
   customLabel,
   onPick,
   presets = ITEM_COLOR_PRESETS,
+  triggerClassName,
 }: ColorPickerProps): React.JSX.Element {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
@@ -128,6 +136,7 @@ export function ColorPicker({
           "px-2 py-0.5 text-[0.6875rem] font-semibold text-lumen-text-secondary",
           "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+          triggerClassName,
         )}
       >
         <span aria-hidden className="inline-flex items-center gap-0.5">

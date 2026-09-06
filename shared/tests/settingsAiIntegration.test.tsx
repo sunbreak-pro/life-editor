@@ -113,6 +113,16 @@ describe("SettingsAiIntegration", () => {
     fireEvent.click(screen.getByRole("button", { name: /Hide the list/ }));
     expect(screen.queryByText("list_todos")).not.toBeInTheDocument();
   });
+
+  it("gives the disclosure a 44px touch floor on narrow only (#1562)", () => {
+    renderCard();
+    // 112x32 at 390px width. Height only — the label already carries the box
+    // well past 44px wide. jsdom has no layout, so the size is pinned as the
+    // class that produces it (CLAUDE.md §7.1).
+    const toggle = screen.getByRole("button", { name: /Show the list/ });
+    expect(toggle).toHaveClass("max-md:min-h-11");
+    expect(toggle).not.toHaveClass("min-h-11");
+  });
 });
 
 /*

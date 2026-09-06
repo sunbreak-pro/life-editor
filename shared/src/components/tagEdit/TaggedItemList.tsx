@@ -51,6 +51,10 @@ export function TaggedItemList({
               "shrink-0 rounded-lumen-sm p-0.5 text-lumen-text-tertiary",
               "transition-colors hover:bg-lumen-danger-subtle hover:text-lumen-danger",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+              // #1562: 32x32 on a phone, and icon-only, so it needs the floor
+              // on BOTH axes — the painted glyph stays 13px either way.
+              "max-md:inline-flex max-md:min-h-11 max-md:min-w-11",
+              "max-md:items-center max-md:justify-center",
             )}
           >
             <X size={13} aria-hidden />

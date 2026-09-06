@@ -1,5 +1,6 @@
 import { RotateCcw } from "lucide-react";
 import { Button } from "./Button";
+import { CARD_BTN_TAP } from "./styleTokens";
 
 export interface SettingsResetProps {
   /**
@@ -36,7 +37,7 @@ export function SettingsReset({ onReset, labels }: SettingsResetProps) {
         </p>
       </div>
       <div>
-        <Button variant="danger" onClick={onReset}>
+        <Button variant="danger" className={CARD_BTN_TAP} onClick={onReset}>
           {labels.button}
         </Button>
       </div>

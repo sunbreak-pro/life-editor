@@ -1,5 +1,6 @@
 import { ScrollText } from "lucide-react";
 import { Button } from "./Button";
+import { CARD_BTN_TAP } from "./styleTokens";
 
 export interface SettingsLegalProps {
   onOpenPrivacy: () => void;
@@ -46,10 +47,18 @@ export function SettingsLegal({
         {/* Called, not forwarded: these are zero-arg callbacks, and handing
             the Button's own reference over would deliver the click event as
             its first argument. */}
-        <Button variant="secondary" onClick={() => onOpenPrivacy()}>
+        <Button
+          variant="secondary"
+          className={CARD_BTN_TAP}
+          onClick={() => onOpenPrivacy()}
+        >
           {labels.privacy}
         </Button>
-        <Button variant="secondary" onClick={() => onOpenTerms()}>
+        <Button
+          variant="secondary"
+          className={CARD_BTN_TAP}
+          onClick={() => onOpenTerms()}
+        >
           {labels.terms}
         </Button>
       </div>

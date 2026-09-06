@@ -4,6 +4,7 @@ import { Modal } from "../Modal";
 import { Button } from "../Button";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { cn } from "../cn";
+import { CARD_BTN_TAP } from "../styleTokens";
 import { isImeComposing } from "../../utils/imeGuard";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { WIDE_QUERY } from "../../constants/breakpoints";
@@ -319,6 +320,7 @@ export function TagEditModal({
             <Button
               variant="primary"
               size="sm"
+              className={CARD_BTN_TAP}
               leadingIcon={<Plus size={14} />}
               onClick={submitDraft}
               disabled={!draft.trim()}

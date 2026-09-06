@@ -8,6 +8,7 @@ import { Modal } from "./Modal";
 import { NoticePanel } from "./NoticePanel";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { cn } from "./cn";
+import { CARD_BTN_TAP } from "./styleTokens";
 
 /*
  * Cross-platform Trash view (target IA / ClaudeDesign import 2026-07-05,
@@ -399,6 +400,7 @@ export function TrashView({
             <Button
               variant="secondary"
               size={wide ? "sm" : "md"}
+              className={CARD_BTN_TAP}
               disabled={anyBusy}
               leadingIcon={<RotateCcw size={14} aria-hidden="true" />}
               onClick={restoreSelected}
@@ -408,6 +410,7 @@ export function TrashView({
             <Button
               variant="danger"
               size={wide ? "sm" : "md"}
+              className={CARD_BTN_TAP}
               disabled={anyBusy}
               leadingIcon={<Trash2 size={14} aria-hidden="true" />}
               onClick={() =>
@@ -428,7 +431,7 @@ export function TrashView({
         </>
       ) : (
         <Button
-          className="ml-auto"
+          className={cn("ml-auto", CARD_BTN_TAP)}
           variant="ghost"
           size={wide ? "sm" : "md"}
           disabled={anyBusy}
@@ -471,12 +474,16 @@ export function TrashView({
             className="flex flex-col gap-2"
           >
             <div className="flex items-center gap-2 px-0.5">
+              {/* #1562: this was pinned `wide`, so the bulk checkbox stayed a
+                  24px box on a phone while the ROW checkboxes below it were
+                  already 44. Same control, same list — the header one just
+                  never got the narrow branch. */}
               <SelectBox
                 checked={groupAllSelected}
                 onChange={() => toggleGroup(group, groupAllSelected)}
                 label={labels.selectGroup.replace("{name}", group.title)}
                 disabled={anyBusy}
-                wide
+                wide={wide}
               />
               <h2
                 className={cn(
@@ -548,6 +555,7 @@ export function TrashView({
                   <Button
                     variant="secondary"
                     size={wide ? "sm" : "md"}
+                    className={CARD_BTN_TAP}
                     disabled={anyBusy}
                     leadingIcon={<RotateCcw size={14} aria-hidden="true" />}
                     onClick={() => onRestore(group.category, item.id)}

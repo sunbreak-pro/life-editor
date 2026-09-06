@@ -4,6 +4,7 @@ import { cn } from "./cn";
 import { Button } from "./Button";
 import { Input } from "./Input";
 import { toolArgNames, type McpToolCatalogEntry } from "../generated";
+import { CARD_BTN_TAP } from "./styleTokens";
 
 export interface SettingsAiIntegrationLabels {
   heading: string;
@@ -240,6 +241,9 @@ export function SettingsAiIntegration({
               "inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium",
               "text-lumen-text transition-colors hover:bg-lumen-hover",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+              // #1562: 112x32 on a phone. Height only — the label already
+              // carries it well past 44px wide.
+              CARD_BTN_TAP,
             )}
           >
             {open ? labels.hide : labels.show}

@@ -5,6 +5,7 @@ import {
 } from "./PasswordUpdateForm";
 import { Button } from "./Button";
 import { PASSWORD_MIN_LENGTH } from "../constants/password";
+import { CARD_BTN_TAP } from "./styleTokens";
 
 export interface SettingsAccountLabels extends PasswordUpdateFormLabels {
   heading: string;
@@ -125,7 +126,7 @@ export function SettingsAccount({
             {labels.signOutDescription}
           </span>
         </div>
-        <Button variant="secondary" onClick={onSignOut}>
+        <Button variant="secondary" className={CARD_BTN_TAP} onClick={onSignOut}>
           {labels.signOutButton}
         </Button>
       </div>
@@ -146,7 +147,11 @@ export function SettingsAccount({
           {labels.deleteDescription}
         </p>
         <div>
-          <Button variant="danger" onClick={onDeleteAccount}>
+          <Button
+            variant="danger"
+            className={CARD_BTN_TAP}
+            onClick={onDeleteAccount}
+          >
             {labels.deleteButton}
           </Button>
         </div>

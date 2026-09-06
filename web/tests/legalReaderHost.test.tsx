@@ -223,4 +223,19 @@ describe("LegalReaderHost", () => {
       back.mockRestore();
     });
   });
+
+  describe("as something to tap (#1562)", () => {
+    it("floors the back link at 44px on narrow, not on Desktop", () => {
+      setQuery("?legal=privacy");
+      renderHost();
+
+      // 56x32 at 390px width. Height only: `self-start` holds the box to its
+      // own label, which is already wider than 44px. jsdom has no layout
+      // (CLAUDE.md §7.1), so this pins the class that produces the size.
+      // classList rather than toHaveClass: this suite does not load jest-dom.
+      const back = screen.getByRole("button", { name: BACK });
+      expect(back.classList.contains("max-md:min-h-11")).toBe(true);
+      expect(back.classList.contains("min-h-11")).toBe(false);
+    });
+  });
 });
