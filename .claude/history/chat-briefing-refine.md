@@ -1,5 +1,31 @@
 # HISTORY (chat-briefing-refine)
 
+### 2026-09-07 - 紙面自身のタップ対象を 44px へ（#1559 PR #1569 open）
+
+#### 概要
+
+#1512 の共有部品ぶん（PR #1556 merged）に続く briefing レーンぶん。390×844 で 44×44 を割っていた紙面上の対象を、Desktop の塗られたサイズを変えずに底上げした。手段は 3 通りではなく **2 通りを対象ごとに選び分ける**形で、選択の軸は「隣にボタンが並んでいるか」と「守るべきレイアウトの約束があるか」。
+
+#### 変更点
+
+- **箱ごと広げた（`max-md:min-h-11 max-md:min-w-11`）**: 夕刊の気分★ 5 個（`EveningView.tsx`・35×35 → 44×44。`MOOD_STAR_BASE` を切り出して filled / empty 両分岐に効かせた）と、Todo / 予定 / 持ち越し行の「編集」「削除」（`BriefingView.tsx` の `ROW_ACTION_BASE`）。どちらも隣にボタンが 6px / 2px しか離れずに並ぶため、不可視の `::after` で伸ばすと**隣の当たり判定に重なる**（「削除」を狙って「編集」が反応する）
+- **高さだけ `TAP_TARGET_TALL`（不可視 `::after`）にした**: 紙面見出しの「+」（`BlockHeadAddButton`）。隣にボタンが無く、代わりに `-my-1` が担っている「見出し下の罫線を動かさない」という約束がある。`min-h-11` だと罫線が 18px 下がる。上下 9px のはみ出しは section の `py-5` と `mb-3`（12px）に収まり、下の行の当たり判定まで 3px 余る
+- **幅は 4 対象とも箱で広げた**: `::after` を横に伸ばすとブロックの右端の外へ出るため（横スクロールの誘発を避けた）。見出しの「+」と行アクションはどちらもアイコン中心が右端から 22px になり、`-mr-1.5` を外した #1514 が作った「右端に真っ直ぐな列」は保たれる
+- **Issue に無い 4 つ目**: `web/src/briefing/BriefingScreen.tsx` のトレイ側「+」。「今日のスケジュールに追加」という同じ名前のボタンが**この画面に 2 つ**あり、トレイ側は #609 で 768px 未満のドロワーからも開けるようになっている。点検が見たのは紙面側だけだったが、片方だけ直すと再点検で同じ所見が上がるので揃えた
+
+#### 承知の上で払ったコスト
+
+行アクションの束が 58px → 90px になり、隣の Todo タイトルが 149px → 117px に縮む。#1514 が取り戻した 77px の一部を戻す形（18 文字の Todo が 2 行 → 3 行になりうる）。文字ラベルは `md` 未満で隠れたままなので効果の大半は残る。「破壊的な削除ボタンが床を割ったまま」より幅を払う方を選んだ。戻すなら `ROW_ACTION_BASE` の `max-md:min-w-11` 1 語を消すだけ。
+
+#### 記録
+
+- **テスト**: `shared/tests/briefingTapTargets.test.tsx` 新規 3 case（`sharedTapTargets.test.tsx` のセクション版）+ `web/tests/briefingNarrowTray.test.tsx` に 1 case。jsdom にレイアウトが無いのでサイズを生むクラス契約を固定する形。各 case が **narrow の床と Desktop の不変の両方**を assert する（DoD の「Desktop 幅のサイズが変わっていないことをテストで固定」）
+- **ゲート**: CI verify の 15 ステップ + docs-lint をローカルで同じ順に再現し全緑（shared 300 files / 3011 tests・web 117 files / 1117 tests・desktop / mcp-server も緑）。終了コードは `tail` に通さず変数へ取ってから判定した
+- **意図しない差分 1 行**: `BriefingView.tsx` の `lucide-react` import が 6 行 → 1 行。main が prettier 未整形で、編集時のフォーマッタが直したもの。整形のみ
+- **環境**: この worktree の Bash は PATH が Windows 形式のまま渡り `cat` / `git` すら見つからない。各コマンドの先頭で `export PATH="/usr/bin:/bin:/c/Program Files/Git/cmd:/c/Program Files/GitHub CLI:/c/Program Files/nodejs"` を付けて回避した
+- 計画書なし（Issue 直行の軽ティア）。スコープ逸脱は上記の 4 つ目 1 件のみで PR 本文に明記。AC 免除なし。判断キュー新設なし
+
+
 ### 2026-09-06 - 390px の紙面を 2 件直す: ロゴの語中改行と Todo 行のはみ出し（#1513 PR #1537 merged / #1514 PR #1544 open）
 
 #### 概要
