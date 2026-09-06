@@ -119,12 +119,28 @@ export function FrequencyEditor({
             </span>
           )}
         </div>
+        {/*
+         * singleLineLabels (#1517). #1343 added the flag for the Schedule
+         * sidebar's three tabs and deliberately left this track out, on the
+         * reading that en "Every N days" is long enough to want a wrap. What
+         * the phone showed is that the wrap is not free: a flex track stretches
+         * every segment to the tallest one, so ja「N日ごと」breaking into
+         *「N日ご」+「と」took all FOUR segments to two rows (70×59 each) and the
+         * control stopped reading as one row of choices.
+         *
+         * The flag is the same trade the sidebar took: labels refuse to break
+         * and the TRACK gives instead. At 390px all four fit on one row, and
+         * where they do not — the font-size slider at its top, a narrower
+         * host — they fall into 2×2 with every label intact, which is the
+         * layout #1517's DoD names as the acceptable alternative.
+         */}
         <SegmentedControl
           options={freqOptions}
           value={value?.frequencyType ?? NONE_ID}
           onChange={handleSelect}
           label={labels.frequency}
           disabled={pending}
+          singleLineLabels
         />
       </div>
 

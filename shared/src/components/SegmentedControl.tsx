@@ -124,9 +124,14 @@ export interface SegmentedControlProps {
    * the top of the font-size slider, the segments fall into two rows with
    * every label still intact, instead of one row of shredded ones.
    *
-   * Not the default. The other four call sites already fit on one line, and
-   * FrequencyEditor's en "Every N days" — four segments inside a phone-width
-   * sheet — is a label that genuinely should keep wrapping.
+   * Not the default, but no longer only the sidebar's: #1517 turned it on for
+   * FrequencyEditor too. That call site is named here because this comment used
+   * to hold it up as the counter-example — "en 'Every N days' is a label that
+   * genuinely should keep wrapping" — and the phone disproved it. One segment
+   * wrapping takes the whole track to two rows of double height, so the four
+   * repeat choices stopped reading as one control; 2×2 with intact labels is
+   * the better of the two shapes. The remaining call sites still fit on one
+   * line and do not pass the flag.
    */
   singleLineLabels?: boolean;
   className?: string;
