@@ -1,5 +1,24 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-07 - /goal 4 件（#1515 / #1558 / #1516 / #1517）を 3 本の PR まで
+
+#### 概要
+
+#1409 の Mobile 幅点検（390×844）から切り出された schedule レーンの 4 件を処理し、PR を 3 本出した（#1564 = #1515 + #1558 / #1567 = #1516 / #1571 = #1517）。#1515 と #1558 はドロワーの同じ Todo 行を触るのでユーザー許可のうえ 1 本にまとめた。3 本とも `origin/main`（`9065153e`）から独立に切り、CI `verify` 全ステップ + `docs-lint` をローカルで exit 0。実ブラウザ検証は chat-main の手番（§7.4）なので未実施。
+
+#### 変更点
+
+- **#1515（行末の削除ボタンが 8px はみ出す）**: `TodayTodoTray.tsx` の行タイトルボタンに `min-w-0`。flex item の `min-width` 既定が `auto` なので、ボタンが自分の content 幅より縮めず、末尾の 2 ボタンをパネル外へ押し出していた（内側 span の `truncate` は箱が譲らない限り効かない）
+- **#1558（44px 未満のタップ対象）**: 行の 3 ボタン（削除 / 今日から外す / 「+」）に `max-md:min-h-11 max-md:min-w-11`、`CalendarNarrowLayout.tsx` の月ステッパーに `min-h-11 min-w-11`。**前者だけ `max-md:` なのは 1 部品が Desktop 側も描くから**で、後者は `!isWide` でしか render されない。守り = `shared/tests/scheduleNarrowTapTargets.test.tsx` + `web/tests/scheduleNarrowStepperTap.test.tsx`（Desktop が育っていないことの否定 assert 込み）
+- **#1516（月セルのタイトルが語中で切れる）**: Issue は `text-overflow: ellipsis` を求めていたが、**#1401 point 4 のユーザー指定「「…」のような省略記号は付けない」と衝突する**ので採らず、同 Issue の DoD が併記する「フェード等の意図した省略」にした。`MonthGrid.tsx` の compact タイトルを 2 span に割り、外がチップ地色 + clip、内が `whitespace-nowrap` + 末尾 0.5rem の `mask-image` グラデーション。**内側なのは、外に掛けると溢れていないタイトルまでチップの地色が褪せるため**
+- **#1517（繰り返しタブ 4 つが 2 行高）**: `FrequencyEditor.tsx` が `singleLineLabels` を渡すだけ（#1343 が sidebar 用に足した既存フラグ）。flex トラックは全セグメントを最も高いものに揃えるので、「N日ごと」1 つの折り返しが 4 つ全部を 70×59 にしていた。**#1343 の doc-comment がこの呼び出し側を「折り返すべき例」として名指していたのでコメントだけ訂正**（`SegmentedControl.tsx` は挙動・size 表・props とも無変更）
+
+#### 判断・逸脱
+
+- **スコープ逸脱**: なし。触ったのは各 Issue の Scope 内（`SegmentedControl.tsx` はコメント 1 ブロックのみで、#1558 の「共有部品を触らない」制約は挙動として無違反）
+- **AC 免除**: #1515 の `scrollWidth <= clientWidth` と #1558 / #1517 の実測サイズは jsdom にレイアウトが無いため機械検証できない。`sharedTapTargets.test.tsx`（#1512 / PR #1556）と同じ「クラス契約を固定する」形で代替し、実測は chat-main の実ブラウザ確認に委ねた
+- **途中で出た判断の行き先**: #1516 の ellipsis 却下は判断キューに積まず、コード内コメントと PR 本文へ書いた（Issue の DoD が代替案を明示していて A/B に割れないため）。**chat-main が同じ所見を再起票しないよう、レビュー時に見えるところへ根拠を置いたのが要点**
+
 ### 2026-09-02 - /goal 6 件（#1371 / #1403 / #1440 / #1405 / #1406 / #1401）を全部 PR まで
 
 #### 概要
