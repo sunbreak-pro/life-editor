@@ -121,4 +121,38 @@ describe("Briefing detail panel across widths (#609)", () => {
       expect(panelBody.textContent).toContain("Today's Todo"),
     );
   });
+
+  /*
+   * #1559 — the 44px touch floor reaches the tray's own「+」too.
+   *
+   * The audit that filed the issue named ONE「今日のスケジュールに追加」, but
+   * this screen draws two: the paper's heading control (floored in
+   * shared/tests/briefingTapTargets.test.tsx) and this one. It used to be
+   * wide-only, which is why the audit never saw it — the test above is the
+   * change that made it reachable below 768px, so it is a narrow target now
+   * and a fix that floors only the paper leaves half the issue standing.
+   *
+   * jsdom has no layout (CLAUDE.md §7.1) and web/ carries no jest-dom, so this
+   * reads the class contract off `className` the way the sizing guards
+   * elsewhere in the repo do.
+   */
+  it("floors the tray's own「+」on narrow but not on Desktop (#1559)", async () => {
+    const panelBody = renderWithPanel(false);
+    await waitFor(() =>
+      expect(panelBody.textContent).toContain("Today's Todo"),
+    );
+    const add = panelBody.querySelector<HTMLButtonElement>(
+      'button[aria-label="Add to today\'s schedule"]',
+    );
+    if (add === null) throw new Error("the tray drew no add button");
+    const cls = add.className.split(/\s+/);
+    expect(cls).toContain("max-md:min-h-11");
+    expect(cls).toContain("max-md:min-w-11");
+    expect(cls).toContain("justify-center");
+    // Desktop keeps the 26×26 box #623 chose: the floor is prefixed, and the
+    // painted padding beside it is untouched.
+    expect(cls).toContain("p-1.5");
+    expect(cls).not.toContain("min-h-11");
+    expect(cls).not.toContain("min-w-11");
+  });
 });

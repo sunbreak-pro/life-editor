@@ -493,7 +493,14 @@ export function BriefingScreen({
               onClick={openCreatePanel}
               aria-label={t("briefing.addScheduleItem")}
               title={t("briefing.addScheduleItem")}
-              className="-my-1 -mr-1.5 flex flex-shrink-0 items-center rounded-lumen-sm p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-briefing-shu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+              /* The 44px floor (#1559). This is the SECOND button carrying
+                 「今日のスケジュールに追加」— the paper draws the first — and
+                 since #609 the drawer that holds this one opens below 768px,
+                 so both are narrow targets and both have to clear the floor.
+                 Plain box growth rather than the paper's invisible ::after:
+                 the tray is a stack with a 12px `gap-3` and no ruled rhythm to
+                 protect, so letting the header row grow costs nothing here. */
+              className="-my-1 -mr-1.5 flex flex-shrink-0 items-center justify-center rounded-lumen-sm p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-briefing-shu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:min-w-11"
             >
               <Plus size={14} aria-hidden="true" />
             </button>
