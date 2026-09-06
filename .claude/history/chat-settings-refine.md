@@ -1,5 +1,23 @@
 # HISTORY (chat-settings-refine)
 
+### 2026-09-07 - narrow 幅の TagEditModal と 44px タップ床（#1526 / PR #1563・#1562 / PR #1568）
+
+#### 概要
+
+#1409（Mobile 幅 390×844 の実ブラウザ点検）が拾った settings レーンの open 2 件を、1 課題 = 1 ブランチ（どちらも origin/main 分岐）で直して PR まで出した。どちらも `TagEditModal` を触るが、片方はヘッダー、もう片方は各ボタンの当たり判定で行は重ならない。merge は P-001 でユーザー手番のため未実施。
+
+#### 変更点
+
+- **#1526 → PR #1563**: タグ編集パネルに閉じるボタンが無く、Escape かスクリムでしか閉じられなかった。スマホでは物理キーボードが無く、スクリムはパネルの周りに数 px しか残らないので事実上出口が無い。ヘッダーを `Modal` の `title` に任せるのをやめ `TagEditModal` 側で組み、既存の `labelledBy` でダイアログ名を自分の見出しから取るようにした（`Modal` 自体に閉じるボタン機構を足すのは Scope 外）。ボタンは `size-11` の 44px 角で、負のマージンでヘッダー高さは据え置き。`DIALOG_AUTOFOCUS_SKIP` を付けて開いたときのフォーカスは従来どおり追加フィールドへ。`TagEditModalLabels.closeLabel` は必須にした（BottomSheet の `closeLabel` と同じ理由で、出口を読み上げられないパネルを型で作れなくする）。文言は既存の `common.close`
+- **#1562 → PR #1568**（#1512 の settings レーン残件）: カテゴリ行 41 / ゴミ箱の一括・行ボタン 41 と一括選択チェックボックス 27 / TagEditModal の追加・保存・削除・戻る 32 と色 24 と外す 32×32 / AI 連携「一覧を開く」112×32 / 法務 reader「戻る」56×32 / 一般カード 7 本 41 を底上げ。**呼び出し側に条件付きで載せる**形（新トークン `CARD_BTN_TAP` = `max-md:min-h-11`）で、`Button` の size 表は不動（`size="md"` の 36px は Desktop 15 箇所に効く）。768px = `WIDE_BREAKPOINT_PX` なので `max-md:` と各コンポーネントの `wide` は同じ 1px で切り替わる
+- **形が違った 2 つ**: ゴミ箱のグループチェックボックスは `wide` が**ハードコード**されており、隣の行チェックボックスが 44 なのに自分だけ 24 だった（同じフラグを読むよう修正）。`ColorPicker` は wikitag 行も同じ部品を描くので、部品を太らせず opt-in の `triggerClassName` を足して呼び出し側 1 つだけを上げた
+- **テスト**: 新規 `shared/tests/settingsTapTargets.test.tsx`（14 件）+ `settingsAiIntegration.test.tsx` / `web/tests/legalReaderHost.test.tsx` に各 1 件 + 新規 `shared/tests/tagEditModalClose.test.tsx`（5 件）。jsdom にレイアウトが無いので実測ではなくサイズを生むクラス契約を pin し、**narrow の床と Desktop 据え置きを両方**固定した（`sharedTapTargets.test.tsx` と同じ流儀）
+- **検証**: 2 ブランチそれぞれで CI `verify` の全ステップ（shared / web / desktop / mcp-server）をローカル実行し全緑（shared vitest = 300 files / 3022 tests）。実ブラウザ確認は §7.4 に従い merge 後 chat-main 側
+
+#### 詰まり
+
+`shared` の vitest が 1 回目だけ `[vitest-pool-runner]: Timeout waiting for worker to respond` で落ちた。テストの中身ではなくワーカー起動のタイムアウト（既知の偽シグナル）で、他のゲートが空いた静かな状態で単独実行したら 300 files / 3022 tests 全緑だった。
+
 ### 2026-09-06 - narrow 幅の Settings 2 件（#1525 / PR #1532・#1527 / PR #1534）
 
 #### 概要
