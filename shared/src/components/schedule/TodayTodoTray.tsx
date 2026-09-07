@@ -169,6 +169,26 @@ const FOCUS =
 const HOVER_REVEAL =
   "opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 [@media(hover:none)]:opacity-100";
 
+/*
+ * The 44px touch floor for the per-row icon buttons (#1558, the schedule half
+ * of #1512). `max-md:` because ONE component draws both instances: the same
+ * row is a Desktop sidebar row and a phone drawer row, and an unprefixed floor
+ * would grow the mouse-sized buttons too.
+ *
+ * `min-*` and never `size-11`, because `cn` is a plain string join — two
+ * utilities for one property are settled by Tailwind's emit order rather than
+ * by call order (rules/frontend.md §Gotchas, #830). A `min-width` beats the
+ * `size-6` box without racing it.
+ *
+ * The BOX grows rather than a TAP_TARGET_TALL ::after being hung over it: the
+ * two buttons sit gap-2 apart at the end of one row, so hit areas widened past
+ * their own boxes would reach over each other and the wrong one would answer
+ * the tap (the caveat TAP_TARGET_TALL's own doc-comment asks callers to check).
+ * Growing the boxes costs the row no height — the leading <TodoStatusCheckbox>
+ * is already 44px tall — only width, which the title gives up to `truncate`.
+ */
+const NARROW_TAP_FLOOR = "max-md:min-h-11 max-md:min-w-11";
+
 function TodoRow({
   row,
   onToggleComplete,
@@ -226,7 +246,13 @@ function TodoRow({
           onClick={() => onOpenTodo(row.id)}
           title={openLabel}
           className={cn(
-            "flex min-h-[38px] flex-1 items-center gap-2 rounded-sm py-1 text-left",
+            // min-w-0 (#1515): a flex ITEM defaults to min-width:auto, so
+            // without it this button refuses to shrink below its own content
+            // and the row pushes the trailing buttons past the panel — 8px of
+            // horizontal scrollbar under the narrow drawer's Todo tab. The
+            // `truncate` on the title span inside cannot help while the box
+            // around it is the thing that will not give.
+            "flex min-h-[38px] min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left",
             FOCUS,
           )}
         >
@@ -265,6 +291,7 @@ function TodoRow({
             onClick={() => onMoveOut(row.id)}
             className={cn(
               "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+              NARROW_TAP_FLOOR,
               hoverActions && HOVER_REVEAL,
               FOCUS,
             )}
@@ -280,6 +307,7 @@ function TodoRow({
             onClick={() => onDelete(row.id)}
             className={cn(
               "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger",
+              NARROW_TAP_FLOOR,
               FOCUS,
             )}
           >
@@ -465,6 +493,7 @@ export function TodayTodoTray({
                   onClick={() => onAddCandidate(a.id)}
                   className={cn(
                     "flex size-6 shrink-0 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                    NARROW_TAP_FLOOR,
                     hoverActions && HOVER_REVEAL,
                     FOCUS,
                   )}

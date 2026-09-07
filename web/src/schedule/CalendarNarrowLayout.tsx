@@ -66,8 +66,19 @@ import type { ScheduleCopy } from "./scheduleCopy";
  * piece pulled out of CalendarTab.
  */
 
+/*
+ * The month steppers. `min-h-11 min-w-11` is the 44px touch floor (#1558, the
+ * schedule half of #1512): the painted box stays `size-8`, and the floor lifts
+ * only the HIT area — a `min-*` rather than a second `size-*`, because `cn` is
+ * a plain string join and two utilities for one property are settled by
+ * Tailwind's emit order, not by call order (rules/frontend.md §Gotchas, #830).
+ *
+ * Unprefixed rather than `max-md:`, because this whole component renders only
+ * under `!isWide` (CalendarTab's fold, WIDE_BREAKPOINT_PX = 768). Desktop's own
+ * steppers are CalendarDesktopLayout's toolbar and are not this string.
+ */
 const ICON_BTN =
-  "flex size-8 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+  "flex size-8 min-h-11 min-w-11 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 /** The month heading and the three controls beside it. */
 export interface CalendarNarrowHeader {
