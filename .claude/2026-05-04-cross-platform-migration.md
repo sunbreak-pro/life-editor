@@ -1,5 +1,5 @@
 ---
-Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーンは完了（DU-G G1-G4 = PR #29/#30/#31/#36 全 merge・計画書は archive 済）。Phase 3（Electron 包装 #79）= Windows 実機 golden path 通過（#530・2026-08-13）・mac 実機は未。Phase 4（Capacitor 包装 #88）は scaffold merged（`desktop/` `mobile/` 実在）。Web URL は公開済み（#600・2026-08-09・Cloudflare Workers）。デスクトップ配布のパッケージングは #1300 / #1301 + `docs/vision/plans/2026-08-30-desktop-app-packaging.md` へ。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元
+Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーンは完了（DU-G G1-G4 = PR #29/#30/#31/#36 全 merge・計画書は archive 済）。**Phase 3（Electron 包装 #79）= 完了**（Windows 実機 golden path #530・2026-08-13 / macOS 実機受け入れ #1301・2026-09-07。Linux AppImage の実ビルドだけ未実測）。Phase 4（Capacitor 包装 #88）は scaffold merged（`desktop/` `mobile/` 実在）。Web URL は公開済み（#600・2026-08-09・Cloudflare Workers）。デスクトップ配布のパッケージングは #1300 / #1301 + `docs/vision/plans/2026-08-30-desktop-app-packaging.md` へ。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元
 Created: 2026-05-04
 Updated: 2026-08-31
 Task: クロスプラットフォーム移行 — Tauri / Cloudflare 構成 → Vite + React + TS + Supabase + Electron + Capacitor
@@ -333,14 +333,14 @@ life-editor/
 
 ゴール: `shared/` を Electron で包んで macOS .app として起動できる状態に。Windows / Linux ビルドも CI でビルドが通ることを確認。
 
-- [ ] `desktop/` 新規作成、electron-vite 雛形を投入
-- [ ] `desktop/src/main/index.ts` で BrowserWindow 起動、メニュー、最小 IPC ハンドラ
-- [ ] `desktop/src/preload/index.ts` で contextBridge expose（最大 10 関数まで）
-- [ ] `desktop/src/renderer/` から `shared/` を import して mount
-- [ ] `electron-builder.yml`: macOS / Windows / Linux 3 ターゲット
-- [ ] macOS .dmg / Windows NSIS / Linux AppImage がビルドできる（**未署名**、$0）
-- [ ] 起動 → ログイン → Todos 操作の golden path 通過確認(macOS 実機)
-- [ ] Windows / Linux は GitHub Actions のビルド成否のみ確認（友達 PC 配布は完成後）
+- [x] `desktop/` 新規作成、electron-vite 雛形を投入
+- [x] `desktop/src/main/index.ts` で BrowserWindow 起動、メニュー、最小 IPC ハンドラ
+- [x] `desktop/src/preload/index.ts` で contextBridge expose（最大 10 関数まで）
+- [x] `desktop/src/renderer/` から `shared/` を import して mount
+- [x] `electron-builder.yml`: macOS / Windows / Linux 3 ターゲット
+- [x] macOS .dmg / Windows NSIS がビルドできる（**未署名**、$0。**Linux AppImage だけ未実測** — `release-desktop.yml` に linux ジョブが無く、宣言はあるが一度も焼いていない）
+- [x] 起動 → ログイン → Todos 操作の golden path 通過確認(macOS 実機)
+- [x] Windows / Linux は GitHub Actions のビルド成否のみ確認（友達 PC 配布は完成後）
 
 > **2026-08-01 進捗 (#529)**: Windows NSIS はローカル実測で green（Windows 11 実機・`npm run build:win` exit 0・アイコンは `resources/icon.png` から build 時に .ico 自動変換）。CI には desktop ジョブ（typecheck + electron-vite build）を追加 — electron-builder のフルパッケージングは NSIS が ubuntu ランナーで動かず OS 別ランナーは分数コスト非対応のため CI では回さない（= 「CI ビルド green」の判定対象は typecheck + bundle まで）。Windows 実起動・golden path は #530（chat-main）で確認
 
@@ -348,11 +348,13 @@ life-editor/
 
 > **2026-08-31 進捗 (#1300 — 配布経路を作った、まだ配っていない)**: `.github/workflows/release-desktop.yml` を新設し、tag `desktop-v*` で electron-builder を回して draft Release に添付する経路が揃った（windows ジョブ + release ジョブ。mac ジョブは #1301）。`desktop/package.json` の version も `0.0.0` → `0.1.0` へ。**上のチェックボックスは引き続き未達**で、変わったのは「作れる」から「配れる形にできる」まで — tag はまだ打っておらず `gh release list` は空のまま。workflow 自体の実行確認は **default branch に入るまでできない**（`workflow_dispatch` は main 上の定義しか見ない）ため、PR 時点での検証はローカル再現（ビルド + 空ビルドガードの両方向）で代替している。計画書 = [`docs/vision/plans/2026-08-30-desktop-app-packaging.md`](./docs/vision/plans/2026-08-30-desktop-app-packaging.md)
 
+> **2026-09-07 進捗 (#1301 — macOS 実機受け入れ通過 = Phase 3 完了)**: run 33958069275 の `desktop-macos` artifact（`Life Editor-0.1.0-arm64.dmg`）を Apple Silicon 実機に入れて通した。**ローカル `npm run build:mac` は回していない** — 実 DMG 生成は数 GB 食い、空き容量が細いと Bash ごと止まる（メモリ `electron-dmg-disk-exhaustion`）。「配る物そのものを受け入れる」原則とも合う。通ったのは 起動 → **プロセス 4 本** → サインインカード描画 → ネイティブ Menu → Dock アイコン（`icon.icns` 由来）→ **メニューバーのトレイ常駐** → ログイン → 全 Section 表示（最後の 2 つはこうだいさん目視）。`app.asar` に本番 Supabase ホストが焼けていることも packaging 後に再確認した。**未署名 macOS の体験はダウンロード経路で変わる**（README の「壊れています」は嘘ではないが条件付き）— 詳細と再現手順は [`docs/vision/plans/2026-08-30-desktop-app-packaging.md`](./docs/vision/plans/2026-08-30-desktop-app-packaging.md) の Worklog
+
 #### Phase 3 完了判定
 
-- [ ] macOS で .dmg を起動 → 全 Section 動作
-- [ ] Windows / Linux は CI ビルドが green
-- [ ] Supabase に Electron から接続可能
+- [x] macOS で .dmg を起動 → 全 Section 動作（2026-09-07 / #1301）
+- [x] Windows / Linux は CI ビルドが green（判定対象 = typecheck + bundle — 上の 2026-08-01 注記の定義）
+- [x] Supabase に Electron から接続可能（packaged renderer から実ログイン成立）
 
 ---
 

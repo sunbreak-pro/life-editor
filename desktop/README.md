@@ -131,10 +131,8 @@ install (`oneClick: false`). This stays until a code-signing certificate is
 purchased (post-completion call).
 
 **macOS**: worse than a warning — Gatekeeper refuses outright with **"Life
-Editor is damaged and can't be opened"**. Nothing is damaged. Since Big Sur,
-macOS requires a signature to _exist_ on arm64 binaries, and `identity: null`
-means there is none, so the quarantine check has nothing to evaluate and fails
-closed. Two ways past it, both one-time:
+Editor is damaged and can't be opened"**. Nothing is damaged. Two ways past it,
+both one-time:
 
 1. Open the app once, then **System Settings -> Privacy & Security**, scroll to
    the blocked-app notice and press **Open Anyway**.
@@ -144,11 +142,23 @@ closed. Two ways past it, both one-time:
    xattr -dr com.apple.quarantine "/Applications/Life Editor.app"
    ```
 
-Ad-hoc signing (`mac.identity: "-"`) is _not_ a fix for this: an ad-hoc
-signature is only valid on the machine that produced it, so it would trade one
-broken download for a confusing one. The real fix is an Apple Developer Program
-membership ($99/year) for signing plus notarization, which the $0 policy defers
-until after completion.
+**That refusal only fires when the download carries `com.apple.quarantine`**
+(measured 2026-09-07). Gatekeeper evaluates a bundle because of that flag, so
+with no flag there is no evaluation and the app opens silently. LaunchServices
+attaches it — browsers, Mail — while `gh run download` and `curl` do not. Every
+recipient of a Release download is on the flagged path, so the steps above stay
+mandatory in the handoff note; a maintainer pulling a CI artifact will just
+never see what they are describing.
+
+What the flag exposes is not a _missing_ signature but a _broken_ one. Electron's
+own binary ships a linker-produced ad-hoc signature, so `codesign -dv` on the
+packaged app reports `Signature=adhoc` and `Sealed Resources=none`, and
+`spctl -a -vv` rejects it with `code has no resources but signature indicates
+they must be present`. Re-signing ad-hoc on purpose (`mac.identity: "-"`) does
+not fix that either: an ad-hoc signature is only valid on the machine that
+produced it, so it would trade one broken download for a confusing one. The real
+fix is an Apple Developer Program membership ($99/year) for signing plus
+notarization, which the $0 policy defers until after completion.
 
 `electron-updater` is deliberately left as a no-op skeleton. Auto-updating an
 unsigned binary means anyone who can spoof the update feed can push arbitrary
@@ -163,15 +173,38 @@ through on a real machine before the draft is published. Take the installer from
 the run's artifact (or the draft Release), never a local `npm run dist` build —
 the point is to accept the exact bytes users will get.
 
+Windows:
+
 ```bash
 gh run download <run-id> -n desktop-windows -D ./accept
 ./accept/"Life Editor-<version>-x64-setup.exe" /S     # silent, per-user
 ```
 
+macOS (walked through on Apple Silicon, 2026-09-07):
+
+```bash
+gh run download <run-id> -n desktop-macos -D ./accept
+hdiutil attach "./accept/Life Editor-<version>-arm64.dmg" -nobrowse
+cp -R "/Volumes/Life Editor <version>-arm64/Life Editor.app" /Applications/
+hdiutil detach "/Volumes/Life Editor <version>-arm64"
+open -a "/Applications/Life Editor.app"
+```
+
+Do not substitute a local `npm run build:mac` for this. Beyond accepting bytes
+users will never receive, electron-builder's real DMG step needs several GB of
+scratch space, and filling the disk takes the whole shell down with it. Also
+note that an app already sitting at `/Applications/Life Editor.app` (an older
+build, or the retired Tauri one) is not replaced — move it out first.
+
 Then check, in order:
 
-1. **The installed app is the version you meant.** `Life Editor <version>` shows
-   up under `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall`.
+1. **The installed app is the version you meant.** Windows: `Life Editor
+<version>` under `HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall`.
+   macOS: `CFBundleShortVersionString` from
+   `defaults read "/Applications/Life Editor.app/Contents/Info.plist"` — which
+   also distinguishes this shell (`com.life-editor.app`, ~240 MB, has
+   `Contents/Frameworks/Electron Framework.framework`) from the retired Tauri
+   app (`com.lifeEditor.app.newlife`, ~26 MB, no Frameworks).
 2. **The bundle is not hollow.** `resources/app.asar` contains the Supabase host
    the app is supposed to talk to. The workflow guard already checked this on
    the runner; this re-checks it survived packaging.
@@ -194,6 +227,16 @@ Then check, in order:
    needs a human with an account, and it is what the acceptance ultimately
    certifies.
 
+Two more that only macOS can answer, since Windows generates its icon at build
+time and this is the one path where a committed `.icns` is used verbatim:
+
+7. **The Dock icon is the app's own**, i.e. `resources/icon.png` rendered from
+   `resources/icon.icns`, not a generic Electron placeholder.
+8. **A tray icon sits in the menu bar.** That proves `extraResources` shipped
+   the tray image and that the main process resolved it from
+   `process.resourcesPath` — the prod half of a path that dev reads from the
+   repo instead.
+
 If you script steps 3-5 rather than eyeballing them, make the script
 **DPI-aware** first (`SetProcessDpiAwarenessContext(-4)`). Windows lies to
 DPI-unaware processes: on a 150 %-scaled display `GetWindowRect` reports a
@@ -201,6 +244,14 @@ DPI-unaware processes: on a 150 %-scaled display `GetWindowRect` reports a
 coordinates, so screenshots look mysteriously off-centre and synthetic clicks
 land a third of the screen away from the field you aimed at. Nothing is wrong
 with the app when that happens.
+
+On macOS, do not script them at all with screen-wide synthetic clicks
+(`System Events` `click at {x, y}`). Those land wherever the foreground window
+happens to be, and `activate` does not guarantee you are still it a moment
+later; during the 2026-09-07 acceptance one such click went into an unrelated
+app's checkout screen. Screenshots (`screencapture`) and process counts
+(`pgrep -f "Life Editor"`) observe without touching anything, which covers steps
+3, 4, 7 and 8. Steps 5 and 6 need credentials, so they belong to a human anyway.
 
 ## Constraints (Risk 1 — keep the shell thin)
 

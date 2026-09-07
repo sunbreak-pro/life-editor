@@ -1,5 +1,5 @@
 ---
-Status: DEFERRED — 自律スコープは PR #93 / #95 で merge 済み。残る Mac 実機 golden path / .dmg ゲートは後継 = 2026-08-30-desktop-app-packaging.md（#1300 / #1301）が引き継ぐ
+Status: DEFERRED — 自律スコープは PR #93 / #95 で merge 済み。Mac 実機 golden path / .dmg ゲートは後継 = 2026-08-30-desktop-app-packaging.md（#1300 / #1301）が 2026-09-07 に消化（トレイアイコンの常駐まで実測）。**残るのは常駐挙動 3 点だけ** — 閉じてもトレイに残る / トレイから復帰 / ログイン時自動起動
 Created: 2026-06-19
 Owner-chat: app-dev-roadmap
 Task: STEP 1 — Electron Desktop を「日常使いできる常駐アプリ」ラインへ
@@ -61,7 +61,7 @@ desktop/electron-builder.yml     ← トレイ用 icon を extraResources で同
 7. [x] 自動起動ヘルパ `getAutoLaunch / setAutoLaunch`（`openAsHidden` でトレイ最小化起動）
 8. [x] `electron-builder.yml`: `extraResources` でトレイアイコン同梱 + mac(.icns)/linux(.png) app icon
 9. [x] 機械検証: `cd desktop && npm install && npm run typecheck`（tsc）exit 0 ✅
-10. [ ] 👀 **Mac 実機ゲート**: `npm run dev` → 閉じてトレイ常駐 → トレイから復帰 → ログイン時自動起動 → `npm run build:mac` で .dmg 生成
+10. [~] 👀 **Mac 実機ゲート**（2026-09-07 に部分消化 — #1301）: `.dmg` は CI（run 33958069275）が生成した物を実機で起動し、**メニューバーのトレイアイコン常駐まで確認**。ローカル `npm run build:mac` は回していない（実 DMG のディスク消費を避け、配る物そのものを受け入れる方針）。**未確認 = 閉じてトレイに残る / トレイから復帰 / ログイン時自動起動**
 11. [ ] （任意・後）GitHub Actions で mac/win/linux の `electron-vite build` 成否確認（ユーザー判断で有効化）
 
 ## Gate（§7.3 Plan Gate Convention）
@@ -76,7 +76,7 @@ desktop/electron-builder.yml     ← トレイ用 icon を extraResources で同
 - [x] preload expose 関数が **4 のまま**（renderer 無改変・他レーン非干渉）
 - [x] `git diff` が `desktop/src/main/index.ts` + `desktop/electron-builder.yml` + 本計画書のみ（shared/web/frontend 無改変）
 - [x] 単一 BrowserWindow 維持 / `nodeIntegration:false` / `contextIsolation:true` / `sandbox:true` を温存
-- [ ] 👀 `npm run dev` でトレイ常駐 → 復帰 → 自動起動が動く（Mac 実機ゲート）
+- [~] 👀 トレイ常駐 → 復帰 → 自動起動が動く（Mac 実機ゲート — 2026-09-07 に packaged `.app` でトレイアイコンの常駐だけ実測。復帰と自動起動は未）
 
 ## Risks
 
@@ -88,3 +88,4 @@ desktop/electron-builder.yml     ← トレイ用 icon を extraResources で同
 ## Worklog
 
 - 2026-06-19（app-dev-roadmap・起草+実装）: STEP 1 を Phase 3 残 + Phase 5-A 前倒しとして定義。`desktop/` 完結スコープで Tray 常駐 / 自動起動 / bounds クランプを実装。Mac 実機 golden path と .dmg はユーザーゲート。
+- 2026-09-07（main・#1301）: packaged `.app`（CI artifact 由来の arm64 dmg）を Apple Silicon 実機で起動し、**Step 6 で実装した Tray がメニューバーに出ることを実測**した。`extraResources` でのアイコン同梱と `process.resourcesPath` 側の解決（Risks 1 行目の懸念）が prod 経路で効いていることの確認にもなる。close-to-tray と自動起動は画面操作が要るため人手に残す。
