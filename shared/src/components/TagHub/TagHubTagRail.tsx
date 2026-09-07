@@ -62,6 +62,13 @@ export function TagHubTagRail({
             placeholder={labels.filterPlaceholder}
             ariaLabel={labels.filterLabel}
             size="sm"
+            // #1561 — the 44px touch floor on narrow. The "sm" preset is a
+            // fixed `h-8`; `min-h-*` is a different property so it wins
+            // outright, and the field's own `items-center` re-centres the
+            // input in the taller box. Keyed on the `wide` prop rather than a
+            // `max-md:` prefix because this component already knows which
+            // layout it is in, and the prop is the shell's own breakpoint.
+            className={cn(!wide && "min-h-11")}
           />
         </div>
       )}
@@ -102,6 +109,9 @@ export function TagHubTagRail({
                     className={cn(
                       "flex w-full items-center gap-2 rounded-lumen-md px-2 py-1.5 text-left",
                       "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                      // #1561 — 44px touch floor on narrow only; the Desktop
+                      // rail keeps its 37.5px mouse row.
+                      !wide && "min-h-11",
                       active
                         ? "bg-lumen-accent-subtle text-lumen-text"
                         : "text-lumen-text hover:bg-lumen-hover",

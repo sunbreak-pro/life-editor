@@ -264,3 +264,66 @@ describe("TagHubView — loading", () => {
     expect(screen.queryByText("No tags or items yet.")).toBeNull();
   });
 });
+
+/*
+ * #1561 — the 44px touch floor on the hub's OWN rows (the #1512 split for
+ * this section; the shared chrome is sharedTapTargets.test.tsx).
+ *
+ * jsdom has no layout, so the audit's 37.5 / 33 / 36×36 / 27px cannot be
+ * re-measured here — each case pins the CLASS CONTRACT that produces the
+ * size, the same way sharedTapTargets does. Every floor is keyed on the
+ * `wide` prop, so the Desktop assertions are the ones that matter most:
+ * they are what stops the mouse layout growing with the phone one.
+ */
+describe("TagHubView — #1561 narrow rows meet the 44px touch floor", () => {
+  const tagRows = () =>
+    within(screen.getByRole("list", { name: "Tags" })).getAllByRole("button");
+  const itemRows = () =>
+    screen
+      .getAllByRole("listitem")
+      .map((li) => within(li).getByRole("button"));
+  // The floor rides on the field's OUTER box (the `h-8` one), not the input.
+  const filterBox = () =>
+    screen.getByLabelText("Filter tags by name").parentElement!;
+
+  it("floors the tag rows and the filter field on narrow", () => {
+    renderHub({ wide: false });
+    for (const row of tagRows()) {
+      expect(row).toHaveClass("min-h-11");
+      // `min-*` on top of the padding, never an `h-*` (cn is a string join).
+      expect(row).toHaveClass("py-1.5");
+      expect(row).not.toHaveClass("h-11");
+    }
+    expect(filterBox()).toHaveClass("min-h-11");
+    // The "sm" preset itself is untouched; the floor is layered over it.
+    expect(filterBox()).toHaveClass("h-8");
+  });
+
+  it("leaves the Desktop rail at its mouse height", () => {
+    renderHub({ wide: true });
+    for (const row of tagRows()) expect(row).not.toHaveClass("min-h-11");
+    expect(filterBox()).not.toHaveClass("min-h-11");
+  });
+
+  it("floors the item rows and the back control on narrow", () => {
+    renderHub({ wide: false, selectedTagId: "t-work" });
+    const rows = itemRows();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) {
+      expect(row).toHaveClass("min-h-11");
+      expect(row).not.toHaveClass("h-11");
+    }
+    // 36×36 was short on BOTH axes, so both are floored, and the painted
+    // size="md" box is still what the IconButton contract says.
+    const back = screen.getByRole("button", { name: "Back to tags" });
+    expect(back).toHaveClass("min-h-11", "min-w-11");
+    expect(back).toHaveClass("h-8", "w-8");
+  });
+
+  it("leaves the Desktop item rows at their mouse height", () => {
+    renderHub({ wide: true, selectedTagId: "t-work" });
+    const rows = itemRows();
+    expect(rows.length).toBeGreaterThan(0);
+    for (const row of rows) expect(row).not.toHaveClass("min-h-11");
+  });
+});
