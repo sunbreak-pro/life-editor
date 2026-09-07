@@ -642,6 +642,11 @@ export function NotesView({
           <AddPill
             onClick={handleAddNote}
             label={t("materials.notes.addCta")}
+            // #1560: the pill measured 33 tall at 390px. The floor rides on
+            // THIS call site rather than on AddPill's own recipe because the
+            // part has two other hosts in the Schedule lane, and growing their
+            // pills is that lane's call to make (#1512 splits by section).
+            className="max-md:min-h-11"
           />
         </span>
       </div>

@@ -67,7 +67,12 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
       aria-label={dragHintLabel}
       className={cn(
         "group relative flex items-center gap-2 rounded-lumen-md border px-2",
-        "h-[36px] text-sm",
+        // #1560: 36px is the mouse row; below `md` it floors at 44 (min-h-11).
+        // A `min-h-*` rather than a second `h-*`, because `cn` is a plain
+        // string join — two height utilities would be settled by Tailwind's
+        // emit order instead of by call order (#830) — and min-height beats
+        // height in CSS whichever way that lands.
+        "h-[36px] text-sm max-md:min-h-11",
         isDragging && "opacity-40",
         selected
           ? "border-lumen-accent bg-lumen-accent-subtle"
@@ -99,7 +104,11 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
         type="button"
         onClick={() => onSelect(node.id)}
         className={cn(
-          "flex flex-1 items-center gap-1.5 truncate text-left",
+          // #1560: this button IS the tap target the audit measured at 22.5,
+          // and a row floored at 44 with a 22.5 button inside it is still a
+          // 22.5 tap target. `self-stretch` fills the floored row; below `md`
+          // only, so the Desktop row keeps the content-height box it has had.
+          "flex flex-1 items-center gap-1.5 truncate text-left max-md:self-stretch",
           FOCUS_RING,
         )}
       >

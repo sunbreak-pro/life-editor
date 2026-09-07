@@ -249,6 +249,24 @@ describe("NotesView — desktop (wide)", () => {
     expect(state.createNote).toHaveBeenCalled();
   });
 
+  /*
+   * #1560 — the pill measured 33 tall at 390px. It is asserted HERE rather
+   * than in materialsTapTargets.test.tsx because the floor rides on the CALL
+   * SITE: `AddPill` is shared with two Schedule hosts, so the class has to be
+   * pinned where this view passes it, not where the part defines itself.
+   * The `max-md:` is a media query, so it is on the element at both widths.
+   */
+  it("floors the add pill at 44px on narrow (#1560)", () => {
+    render(<NotesView />);
+
+    const pill = screen.getAllByRole("button", {
+      name: "materials.notes.addCta",
+    })[0];
+    expect(pill.classList.contains("max-md:min-h-11")).toBe(true);
+    // Unprefixed would grow the Desktop toolbar's pill too.
+    expect(pill.classList.contains("min-h-11")).toBe(false);
+  });
+
   it("does not offer a trash list of its own (#1286)", () => {
     render(<NotesView />);
 

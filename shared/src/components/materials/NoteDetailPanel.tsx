@@ -20,6 +20,22 @@ import { FOCUS_RING } from "../styleTokens";
  */
 
 /*
+ * #1560 — the 44px touch floor for THIS menu's rows below `md`, where the
+ * audit read them at 36.
+ *
+ * It rides on the four call sites rather than on `MenuItem`'s own recipe
+ * because that part is also the Daily view's row menu, the "[[" item picker,
+ * the "/" block menu and the Pomodoro todo picker — four surfaces in three
+ * other lanes, and #1512 is being closed one section at a time.
+ *
+ * `min-h-*` rather than a taller `py-*`: the padding is what the Desktop rows
+ * are measured by, and `cn` is a plain string join, so a second `py-*` would
+ * be settled by Tailwind's emit order instead of by call order (#830). A
+ * min-height collides with nothing.
+ */
+const MENU_ITEM_TAP_FLOOR = "max-md:min-h-11";
+
+/*
  * Title field. Mirrors NoteTitleInput / TodoTitleInput debounce-and-flush
  * exactly: a local draft, a 300ms debounced persist, an immediate flush on
  * blur, and a final flush on unmount. The parent remounts this via
@@ -271,6 +287,7 @@ export function NoteDetailPanel({
             label={moreActionsLabel}
           >
             <MenuItem
+              className={MENU_ITEM_TAP_FLOOR}
               icon={<Pin size={14} aria-hidden />}
               onSelect={() => {
                 onTogglePin(noteId);
@@ -284,6 +301,7 @@ export function NoteDetailPanel({
                 so it does not belong next to the destructive row. */}
             {onRegisterTemplate && registerTemplateLabel && (
               <MenuItem
+                className={MENU_ITEM_TAP_FLOOR}
                 icon={<FileStack size={14} aria-hidden />}
                 onSelect={() => {
                   onRegisterTemplate();
@@ -300,6 +318,7 @@ export function NoteDetailPanel({
                 note would overstate it. */}
             {onApplyTemplate && applyTemplateLabel && (
               <MenuItem
+                className={MENU_ITEM_TAP_FLOOR}
                 icon={<FileDown size={14} aria-hidden />}
                 onSelect={() => {
                   onApplyTemplate();
@@ -310,6 +329,7 @@ export function NoteDetailPanel({
               </MenuItem>
             )}
             <MenuItem
+              className={MENU_ITEM_TAP_FLOOR}
               icon={<Trash2 size={14} aria-hidden />}
               variant="danger"
               onSelect={() => {
