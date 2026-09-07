@@ -96,6 +96,28 @@ export interface MonthGridProps {
 const CELL_FOCUS =
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent focus-visible:ring-inset";
 
+/*
+ * How a compact cell's title ENDS when it is wider than the cell (#1516).
+ *
+ * The audit filed this as "no ellipsis", but an ellipsis is exactly what #1401
+ * ruled out ("「…」のような省略記号は付けない", ユーザー指定 point 4), and that
+ * ruling still stands. What it did not ask for is the OTHER half of what the
+ * audit saw: `overflow: hidden` alone cuts a glyph in half at an arbitrary
+ * pixel, which reads as a rendering fault rather than as "there is more here".
+ *
+ * A fade answers both. The last few pixels of the line ramp to transparent, so
+ * the cut is visibly deliberate, and — unlike an ellipsis, which would eat
+ * roughly three of the ~7 characters a 51px cell can hold — it costs the title
+ * no width at all.
+ *
+ * It rides on an INNER span so the mask reaches the text only: the outer span
+ * carries the chip's background, and masking that would fade every chip's
+ * right edge whether its title overflowed or not. On a title that fits, the
+ * faded strip holds no glyphs and nothing changes.
+ */
+const TITLE_FADE =
+  "[mask-image:linear-gradient(to_right,black_calc(100%_-_0.5rem),transparent)]";
+
 function chipFaceClasses(variant: ScheduleItemVariant): string {
   switch (variant) {
     case "routine":
@@ -257,20 +279,22 @@ export function MonthGrid({
                     {/*
                      * The titles (#1401). One line each, in the item's chip
                      * colours so an event, a routine and a todo still tell
-                     * apart at this size. `overflow-hidden` + `nowrap` and
-                     * nothing else: a title wider than the cell is cut at the
-                     * cell's edge — no `truncate`, whose ellipsis the Issue
-                     * rules out — and the cell's fixed height means a long one
-                     * can never move a grid line. What a title IS is still
-                     * answered by the drawer the cell opens; these are plain
-                     * spans, not the Desktop chip buttons, because the day
-                     * stays the tap target on a phone.
+                     * apart at this size. A title wider than the cell is cut
+                     * at the cell's edge — still no `truncate`, whose ellipsis
+                     * the Issue rules out, but the last few pixels now fade
+                     * (#1516 / TITLE_FADE) so the cut reads as deliberate
+                     * rather than as a half-drawn glyph. The cell's fixed
+                     * height means a long title can never move a grid line.
+                     * What a title IS is still answered by the drawer the cell
+                     * opens; these are plain spans, not the Desktop chip
+                     * buttons, because the day stays the tap target on a
+                     * phone.
                      */}
                     {dayItems.slice(0, shownCompact).map((it) => (
                       <span
                         key={it.id}
                         className={cn(
-                          "block w-full overflow-hidden whitespace-nowrap rounded-sm px-0.5 text-[0.625rem] font-medium leading-[0.8125rem]",
+                          "block w-full overflow-hidden rounded-sm px-0.5 text-[0.625rem] font-medium leading-[0.8125rem]",
                           chipFaceClasses(it.variant ?? "event"),
                           // Same #1373 gate as the Desktop chip: only a todo
                           // can be complete.
@@ -279,7 +303,15 @@ export function MonthGrid({
                             "line-through opacity-55",
                         )}
                       >
-                        {it.title || " "}
+                        {/* The text layer, and the only thing the fade
+                            touches — see TITLE_FADE. `nowrap` moved down
+                            here with it, so the mask and the line it fades
+                            are the same box. */}
+                        <span
+                          className={cn("block whitespace-nowrap", TITLE_FADE)}
+                        >
+                          {it.title || " "}
+                        </span>
                       </span>
                     ))}
                     {/*

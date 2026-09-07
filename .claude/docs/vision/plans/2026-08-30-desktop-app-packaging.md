@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — Step 1-5 / 9 は着地済み（PR #1348 / #1360）。Step 3 は 2026-09-05 に `workflow_dispatch` を実走させて win / mac 両ジョブ success を実測（run 33958069275）。Step 7 の Windows 実機受け入れも同日、その run の artifact を入れて 6 項目中 5 項目まで通した。**残りは Step 6（tag → Release — 外向き操作なのでユーザー手番）・Step 7 の最後の 1 項目（実アカウントでのログイン + Todo CRUD）・Step 8（Mac 実機）・Step 10**
+Status: IN PROGRESS — Step 1-5 / 8-10 は着地済み（PR #1348 / #1360）。Step 3 は 2026-09-05 に `workflow_dispatch` を実走させて win / mac 両ジョブ success を実測（run 33958069275）。Step 7 の Windows 実機受け入れも同日、その run の artifact を入れて 6 項目中 5 項目まで通した。**Step 8（Mac 実機）は 2026-09-07 に全項目通過し、移行 SSOT の Phase 3 完了判定が埋まった**。**残りは Step 6（tag → Release — 外向き操作なのでユーザー手番）・Step 7 の最後の 1 項目（Windows 実機での実アカウントログイン + Todo CRUD）・Step 11（merge）**
 Created: 2026-08-30
 Branch: claude/desktop-packaging-win-1300（#1300）/ claude/desktop-packaging-mac-1301（#1301・前者に stack）/ claude/desktop-1300-release-verification（#1300 の実測記録）
 Owner-chat: main（計画）/ refactor-core（実装）
@@ -88,19 +88,19 @@ desktop/README.md                               ← 未署名の初回起動手�
 
 ## Steps
 
-| #   | Step                                                          | Gate    | Acceptance                                                                           |
-| --- | ------------------------------------------------------------- | ------- | ------------------------------------------------------------------------------------ |
-| 1   | `desktop/package.json` の version を実バージョンへ            | 🤖 自律 | `node -p "require('./desktop/package.json').version"` が `0.0.0` でない              |
-| 2   | `electron-builder.yml` 整備（buildResources / artifactName）  | 🤖 自律 | `cd desktop && npm run build` exit 0・設定読み込み警告なし                           |
-| 3   | `release-desktop.yml` 新規作成（win ジョブ + release ジョブ） | 🤖 自律 | `workflow_dispatch` 実行で windows ジョブが success ✅（2026-09-05 run 33958069275） |
-| 4   | 空ビルド防止ガードを workflow に追加                          | 🤖 自律 | env 未設定なら**赤くなる**ことを 1 度実測 ✅（2026-09-01 ローカル実測）              |
-| 5   | mac ジョブを追加                                              | 🤖 自律 | macos ジョブが success・arm64 `.dmg` が artifact に出る ✅（同じ run）               |
-| 6   | tag `desktop-v<version>` を打って Release 発行                | 🤖 自律 | `gh release view desktop-v<version> --json assets` に `.dmg` と `.exe`               |
-| 7   | Windows 実機の受け入れ（#1300）                               | 👀 目視 | インストール → 起動 → ログイン → Todo 追加 / 編集 / 削除                             |
-| 8   | macOS 実機の受け入れ（#1301）                                 | 👀 目視 | `.dmg` → `/Applications` → 未署名解除 → ログイン → 全 Section 表示                   |
-| 9   | `desktop/README.md` に配布手順を追記                          | 🤖 自律 | mac / win 両方の初回起動手順が書かれている                                           |
-| 10  | 移行 SSOT / step1 計画の Status 追随                          | 🤖 自律 | `bash scripts/docs-lint.sh` exit 0                                                   |
-| 11  | PR → main merge                                               | 🛑 人手 | こうだいさんの merge ボタン（P-001）                                                 |
+| #   | Step                                                          | Gate    | Acceptance                                                                                     |
+| --- | ------------------------------------------------------------- | ------- | ---------------------------------------------------------------------------------------------- |
+| 1   | `desktop/package.json` の version を実バージョンへ            | 🤖 自律 | `node -p "require('./desktop/package.json').version"` が `0.0.0` でない                        |
+| 2   | `electron-builder.yml` 整備（buildResources / artifactName）  | 🤖 自律 | `cd desktop && npm run build` exit 0・設定読み込み警告なし                                     |
+| 3   | `release-desktop.yml` 新規作成（win ジョブ + release ジョブ） | 🤖 自律 | `workflow_dispatch` 実行で windows ジョブが success ✅（2026-09-05 run 33958069275）           |
+| 4   | 空ビルド防止ガードを workflow に追加                          | 🤖 自律 | env 未設定なら**赤くなる**ことを 1 度実測 ✅（2026-09-01 ローカル実測）                        |
+| 5   | mac ジョブを追加                                              | 🤖 自律 | macos ジョブが success・arm64 `.dmg` が artifact に出る ✅（同じ run）                         |
+| 6   | tag `desktop-v<version>` を打って Release 発行                | 🤖 自律 | `gh release view desktop-v<version> --json assets` に `.dmg` と `.exe`                         |
+| 7   | Windows 実機の受け入れ（#1300）                               | 👀 目視 | インストール → 起動 → ログイン → Todo 追加 / 編集 / 削除                                       |
+| 8   | macOS 実機の受け入れ（#1301）                                 | 👀 目視 | `.dmg` → `/Applications` → ログイン → 全 Section 表示 ✅（2026-09-07・未署名解除は不要だった） |
+| 9   | `desktop/README.md` に配布手順を追記                          | 🤖 自律 | mac / win 両方の初回起動手順が書かれている                                                     |
+| 10  | 移行 SSOT / step1 計画の Status 追随                          | 🤖 自律 | `bash scripts/docs-lint.sh` exit 0                                                             |
+| 11  | PR → main merge                                               | 🛑 人手 | こうだいさんの merge ボタン（P-001）                                                           |
 
 ### Gate 凡例
 
@@ -187,8 +187,8 @@ anon key がバンドルに載るのは仕様（公開前提の公開鍵で、�
 - [x] `bash scripts/docs-lint.sh` exit 0（ローカル実行時は `LC_ALL=C` を付ける — CLAUDE.md §7.1）
 - [ ] PR diff が ±500 行以内（workflow + yml + README + 計画書）
 - [ ] 👀 Windows 11 実機で install → 起動 → ログイン → Todo 追加 / 編集 / 削除（#1300 — install / 起動 4 プロセス / 画面描画 / Supabase 往復まで 2026-09-05 に実測済み。実アカウントのログイン以降だけ未消化）
-- [ ] 👀 macOS 実機で `.dmg` → 起動 → ログイン → 全 Section 表示（#1301）
-- [ ] 追加コスト **$0**（public repo の無料ランナー枠内）
+- [x] 👀 macOS 実機で `.dmg` → 起動 → ログイン → 全 Section 表示（#1301 — 2026-09-07）
+- [x] 追加コスト **$0**（public repo の無料ランナー枠内・実機受け入れもランナー artifact の再利用で $0）
 - [ ] 完了時: 本計画・移行 SSOT Phase 3 完了判定・per-chat memory の Status を更新した
 
 ---
@@ -201,7 +201,7 @@ anon key がバンドルに載るのは仕様（公開前提の公開鍵で、�
 
 ## Risks / Known Issues 参照
 
-### R1 (高): macOS 未署名は Apple Silicon で「壊れているため開けません」
+### R1 (高): macOS 未署名は Apple Silicon で「壊れているため開けません」— ただし**ダウンロード経路次第**（2026-09-07 実測で条件が判明）
 
 `identity: null`（現行）でビルドした `.app` は、Big Sur / M1 以降では**署名の存在自体を要求されるため**起動を拒否される。
 
@@ -209,6 +209,10 @@ anon key がバンドルに載るのは仕様（公開前提の公開鍵で、�
 - **ad-hoc 署名は答えにならない**: `identity: "-"` はビルドしたマシンでしか動かない
 - **恒久解**: Apple Developer Program（$99/年）での署名 + 公証。SSOT §8 の「完成後の判断」に従い今回は入れない
 - 出典: [electron-builder macOS docs](https://www.electron.build/docs/mac/) / [Code Signing for macOS](https://www.electron.build/docs/features/code-signing/code-signing-mac/)
+
+**2026-09-07 の実測で分かった条件**: この拒否が起きるのは `.dmg` に **`com.apple.quarantine` が付いている場合だけ**。Gatekeeper は「ダウンロードされた物」に付く検疫の付箋を見て評価に入る仕組みで、付箋が無ければ評価そのものが走らない。`gh run download` / `curl` は付箋を貼らないので、**その経路で入れた `.app` は警告ゼロで普通に起動した**（Step 8 はこの経路で通っている）。付箋を貼るのは LaunchServices 経由のダウンロード = **ブラウザや Mail**。つまり **GitHub Release のページから Safari / Chrome で落とした人だけが「壊れています」に当たる** — そして配布先の全員がその経路なので、README の手順は消さずに残す。
+
+ついでに署名の実態も測れた。`codesign -dv` は `Signature=adhoc` / `linker-signed` / `Sealed Resources=none` を返す（electron-builder は署名していないが、Electron 本体のバイナリがリンカ由来の ad-hoc 署名を持っている）。`spctl -a -vv` は `code has no resources but signature indicates they must be present` で **reject** — 検疫の付箋が付いていれば、これがそのまま「壊れています」になる。「署名が無いから落ちる」ではなく「壊れた署名として落ちる」が正確な姿。
 
 ### R2 (中): Windows SmartScreen
 
@@ -261,3 +265,5 @@ Electron は**プロセス 4 本**で起動する。1 本だけ立って落ち�
 - **2026-09-05 実装（release 経路のガード 2 本）**: この run で分かったのは「build 経路は通る」ことだけで、`release` ジョブはタグでしか動かないため**一度も実行されていない**。初回のタグがぶっつけ本番になるので、2 つだけ機械に守らせた。(a) **タグと `desktop/package.json` の版一致**（README が文章で注意していた「先に版を上げる」を強制。約 5 分のパッケージングの前に置いて、打ち直しで済む間違いに 2 OS 分を払わせない）。(b) **集約側の資産検査**（NSIS 1 本 + arm64 dmg 1 本が揃い、どちらも 1 MB 以上）。`gh release create dist/*` は渡された物を素直に添付するので、artifact が片方欠けても「アセット 1 個の Release」が普通に出来上がる。
 - **2026-09-05 実測（ガードの落とし穴）**: (b) を書いたとき最初は `find -size -1M` にしていたが、**2 KB の偽 dmg を置いても素通りした**。GNU find の `-size` は指定単位に**切り上げ**てから比較するため、`-1M` は実質「0 バイトのファイル」しか拾わない。`-size -1000000c`（バイト指定）に直して、full / 片方欠け / 2 KB の 3 ケースで期待どおりになることを確かめた。**書いたガードは一度わざと壊して確かめる**という Step 4 の教訓がそのまま効いた形。
 - **2026-09-05 未実行**: Step 6（tag `desktop-v0.1.0`）は外向き操作（public repo に恒久的な ref が残り、draft とはいえ Release が生える）のため踏んでいない。GitHub Release は引き続き 0 本。判断材料は揃っているので、こうだいさんが `git tag desktop-v0.1.0 && git push origin desktop-v0.1.0` を打てば残りの経路が一度に埋まる。
+- **2026-09-07 (main / #1301) — Step 8 = macOS 実機受け入れ通過**: run 33958069275 の `desktop-macos` artifact（`Life Editor-0.1.0-arm64.dmg`・99 MB）を Apple Silicon 実機へ。**ローカル `npm run build:mac` は選ばなかった** — 実 DMG 生成は数 GB 食い、空きが細いと Bash ごと止まる事故歴がある（この機械の空きは 15 GB）。加えて「配る物そのものを受け入れる」という README の原則にも合う。通した順に: `hdiutil attach` → `/Applications` へコピー → **警告ゼロで起動**（理由は R1 の追記）→ **プロセス 4 本**（main / GPU / network utility / renderer = #545 の基準）→ サインインカード描画 → ネイティブ Menu（Life Editor / Edit / View / Window）→ `app.asar` に本番 Supabase ホストが焼けている（packaging を跨いで生存）→ **Dock アイコンが `icon.icns` から焼かれている**（#1301 の «icns が実際にアイコンになるか» が実測で埋まった）→ **メニューバーにトレイアイコンが常駐**（`2026-06-19-step1-desktop-daily-driver.md` の Mac ゲートの一部）→ **ログイン → 全 Section 表示**（こうだいさん目視）。
+- **2026-09-07 事故と中止**: 上の受け入れの途中、残っていたログイン確認を自動化しようとして `System Events` の座標クリックを 1 回撃った。その時フォアグラウンドにいたのは Life Editor ではなく**別アプリの購入画面**で、無関係なウィンドウにクリックが落ちた（購入ボタンとは別座標のため実害は無し）。**画面全体を対象にした GUI 自動操作は、フォアグラウンドが自分の想定どおりである保証がないので使わない** — Windows 側 README が «スクリプト化するなら DPI-aware にせよ» と書いているのと同じ場所の、もう一段手前の落とし穴。資格情報が要る確認は自動化せず人手に返すのが正しい。

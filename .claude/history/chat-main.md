@@ -1,5 +1,20 @@
 # HISTORY (chat-main)
 
+### 2026-09-07 - macOS 実機受け入れ（#1301 Step 8）通過 — 移行 SSOT の Phase 3 完了 + 未署名起動の条件を訂正
+
+#### 概要
+
+ユーザー依頼「mac でのアプリ化や実機検証を進めたい。古いアプリの方は削除して OK」。**ローカルビルドを選ばず**、2026-09-05 の run 33958069275 が残していた `desktop-macos` artifact（`Life Editor-0.1.0-arm64.dmg`・99 MB・9/19 まで有効）を Apple Silicon 実機に入れて受け入れを通した。判断根拠は 2 つ — 実 DMG 生成は数 GB 食い、空き 15 GB のこの機械では枯渇で Bash ごと止まる事故歴がある（memory `electron-dmg-disk-exhaustion`）／ `desktop/README.md` 自身が「配る物そのものを受け入れる」と定めている。結果、**移行 SSOT の Phase 3 完了判定 3 項目が全部埋まった**。docs 追随 = PR #1565 open。
+
+#### 変更点
+
+- **旧アプリの始末**: `/Applications/Life Editor.app` は**旧 Tauri 版**と特定して `~/.Trash/Life Editor (tauri-2026-05-16).app` へ退避（`com.lifeEditor.app.newlife` / 26 MB / `Contents/Frameworks` 無し / 2026-05-16。新 Electron 版は `com.life-editor.app` / 244 MB / Electron Framework あり）。**`cp -R` は既存 bundle を置き換えない**ので、退けないと古い方が残り続ける — README の受け入れ手順に明記した
+- **通した項目**: `hdiutil attach` → `/Applications` → 起動（**警告ゼロ**）→ **プロセス 4 本**（main / GPU / network utility / renderer = #545 の基準）→ サインインカード描画 → ネイティブ Menu → `app.asar` に本番 Supabase ホスト（packaging を跨いで生存）→ **Dock アイコンが `resources/icon.icns` 由来**（#1301 の «icns が実際にアイコンになるか» が実測で埋まった）→ **メニューバーのトレイ常駐**（`extraResources` + `process.resourcesPath` の prod 経路が効いている = `2026-06-19-step1-desktop-daily-driver.md` Risks 1 行目の懸念が解消）→ **ログイン → 全 Section 表示**（ユーザー目視）
+- **訂正した知見（ここが本題）**: README と計画書 R1 の「未署名だから Apple Silicon で拒否される」は**条件が 2 つ抜けていた**。① 拒否は `.dmg` に `com.apple.quarantine` が付いている時**だけ**起きる（Gatekeeper はこの検疫フラグを見て評価に入るので、無ければ評価自体が走らない）。付けるのは LaunchServices 経由 = **ブラウザ / Mail**、`gh run download` / `curl` は付けない → **Release から落とす配布先は全員が当たり、CI artifact を触る開発側は一生見ない**という非対称がある ② 署名は「無い」のではなく **ad-hoc（linker-signed）が実在**する（`codesign -dv` → `Signature=adhoc` / `Sealed Resources=none`。Electron 本体のバイナリがリンカ由来の署名を持つ）。`spctl -a -vv` は `code has no resources but signature indicates they must be present` で reject — **「署名が無いから落ちる」ではなく「壊れた署名として落ちる」**が正確
+- **事故 1 件（手順に反映）**: 残っていたログイン確認を自動化しようとして `System Events` の座標クリックを 1 回撃ったところ、**フォアグラウンドが Life Editor ではなく無関係なアプリの購入画面**で、そこに落ちた（購入ボタンとは別座標のため実害なし・即中止）。`activate` はその後もフォアグラウンドである保証にならない。**macOS で画面全体対象の合成クリックは使わない**。観測は `screencapture` + `pgrep` で足り（受け入れの 4 項目はこれで測れる）、資格情報が要る確認は人手に返す
+- **docs（PR #1565・4 ファイル）**: 移行 SSOT の Phase 3 チェックボックス群 + 完了判定 3 項目 + Status 行 / packaging 計画書の Status・Step 8・AC・R1・Worklog / step1 計画書の Mac ゲート（トレイ常駐だけ消化・`[~]`）/ `desktop/README.md`（macOS の受け入れコマンド・mac 限定チェック 7・8 = Dock アイコンとトレイ・合成クリック禁止・quarantine の条件・ad-hoc 署名の実態）。`LC_ALL=C bash scripts/docs-lint.sh` exit 0
+- **残り = 🛑 ユーザー手番 2 つ**: ① `git tag desktop-v0.1.0 && git push origin desktop-v0.1.0`（draft Release に `.dmg` / `.exe` が載って #1300 / #1301 の DoD が埋まる）② Windows 実機での実アカウントログイン + Todo CRUD。**Linux AppImage の実ビルドだけ未実測**（`release-desktop.yml` に linux ジョブが無い・宣言だけある。起票要否は未判断）
+
 ### 2026-09-06 - open Issue 33 件を 9 レーンへ /goal 組み立て + 同日 merge の Mobile 修正 6 本を実ブラウザ検証
 
 #### 概要
@@ -63,22 +78,5 @@
 - **PR の経路**: main 直下ではブランチを切れないため一時 worktree `main-docs-1408` から `docs/1408-desktop-screen-audit-report` を切り、レポート追加 + 計画書の `git mv` → docs-lint 緑 → push → PR #1487 → worktree 削除
 - **issue-prompter（セッション冒頭）**: open PR 0 本・0027 適用済みを実測し、briefing（#1442）/ schedule（#1440 / #1406 / #1405 / #1403 / #1401 / #1371）/ materials（#1439 / #1438）/ shared-fix（#1399）/ tags-docs（#1391 / #1390）/ analytics（#1375）の `/goal` 6 本を提示。采配 = #1408 / #1409 / #1335 / #1300（残り = Release 初回実行と実機 = 人手）/ #1301（#1300 依存）/ #1388（`CalendarTab.tsx` と i18n JSON が schedule 6 件と重なるため後回し）/ Epic 2 本 / 凍結 2 本
 - **申し送り（#1409 Mobile へ）**: 横断で出そうなもの = #1481 / #1474 / #1478 / #1486 / #1480。#1476 と #1485 は Mobile の List+FAB でも同じコードを通る。テストデータの日付は実行日に合わせる
-
-### 2026-09-02 - Issue 棚卸し + 5 レーンへ /goal 組み立て + #1408 計画書（PR #1441）+ #1335 作業分（PR #1443）+ 判断 4 件の回収
-
-#### 概要
-
-ユーザー依頼「Issue を整理し、issue-prompter で各 worktree へ渡すプロンプトを作り、画面ごとにエージェントを起動して検証する Issue（#1408）にも手を付ける」。open Issue 20 件を仕分けて 5 レーン 11 件の `/goal` を組み立て、#1408 は Issue 本文の 2 セッション分割に従い**計画セッション**として計画書を書いた（ブラウザ未起動）。あわせて outbox の起票依頼 3 件を処理し、退役レーン宛 3 件の宛先を振り直し、判断 4 件を AskUserQuestion で回収して台帳へ昇格した。
-
-#### 変更点
-
-- **main の分岐解消**: ローカル main に tracker コミット 1 つ（前セッションの直 commit・未 push）だけが取り残され `git pull --ff-only` が失敗。origin 側はその 2 ファイルも `.claude/automation/` も触っていないことを `git diff --stat main...origin/main -- <paths>` で確認してから `git rebase --autostash origin/main`。そのコミットは本日の tracker PR に cherry-pick で載せ替え、main は `git reset --hard origin/main` で origin と一致させた（**chat-main の tracker も PR 経由に統一** — 直 commit は次の pull を割る）
-- **Issue 棚卸し（open 20 + 本日 4）**: 配布 = schedule-refine 5（#1371 / #1406 / #1405 / #1403 / #1401）/ shared-fix 1（#1399）/ tags-docs 2（#1390 / #1391）/ materials-refine 2（#1438 / #1439）/ refactor-core 1（#1388）。除外 = #1374（PR #1433 open）。采配 = #1408 / #1409 / #1335 / #1300 / #1301 / #1375 / Epic #1121 / #716 / 凍結 #898 / #677。**宛先振り直し 3 件** = #1399 `[layout-standard]`→`[shared-fix]`・#1390 / #1391 `[docs-workspace]`→`[tags-docs]`（両レーンとも退役済みで worktree が無く、issue-prompter の宛先解決に乗らなかった。Issue コメントで理由を残した）
-- **起票 4 件**: #1438（添付の孤児回収 / materials outbox）/ #1439（添付アップロード進捗の方針 — 方針決めの Issue / 同）/ #1440（#1373 で凍った進捗の数字 2 つ / schedule outbox）/ #1442（朝刊「今日のスケジュール」Todo 行のチェックボックスを共有部品へ / D-20260901-shared-fix-2 の裁定から）
-- **PR #1433 の migration 版番号衝突を検出**: #1425（2026-09-02 merge）が `0027_attachments_bucket.sql` を先に入れたため、#1433 の `0027_events_payload_reminder_offset.sql` と `0027` が 2 本並ぶ。ファイル名が違うので git は MERGEABLE と言うが `supabase db push` は版番号で並べるので通らない。`0028` への改名を PR コメントで依頼。**ユーザーの db push 順 = 0027 attachments → 0028 reminder → #1433 merge**
-- **#1408 計画書 = PR #1441**（`plans/2026-09-02-desktop-screen-audit.md`・一時 worktree `plan-1408` 経由・docs-lint 緑）: 画面別チェックリスト 7 本（タブ / パネルの一覧は型 `BriefingTab` / `ScheduleSidebarTabId` / `MaterialsTab` / `AnalyticsTab` / `TrashCategory` / `SECTION_TAB_IDS` を指して個数を書かない）/ 結合 S1〜S10 / 1 画面 1 エージェント直列 + メイン直接操作のフォールバック（2026-08-31 に playwright-ui-verifier が API のセッション上限で落ちた前例を手順に組み込んだ）/ 停止条件 / `PWV1408-` 台帳 / 後始末（`search_all` = 0 と `list_wiki_tags` 残無しを AC に）。**書いてはいけないもの**を明示 = Daily / 目標ノート / フォーカスノート / `timer_sessions`（削除 API が無い = grep で `deleteSession` 0 件）/ 添付（0027 未 push）
-- **#1335 作業分 = PR #1443**: 2026-09-01 に working tree へ置いたままだった `.claude/automation/` 6 ファイル + settings-unattended 2 本を、ユーザー裁定（PR にして出す）に従い `git diff` パッチ + 未追跡 2 本のコピーで一時 worktree `automation-1335` へ移して PR。docs-lint 緑
-- **判断 4 件を AskUserQuestion で回収 → 台帳へ**: D-20260901-shared-fix-1 = **A**（ツアー再生は続きから・現状維持）/ D-20260901-shared-fix-2 = **B 相当**（揃える。PR #1395 / #1410 が merge 済みのため別 Issue #1442 で。提示ラベルとキュー原文のズレを D ファイルに注記）/ D-20260902-main-1 = **A**（#1440 は Todo 由来だけに寄せる。キュー未提出のまま回答が先行 — D-20260812-shared-fix-3 と同型）/ #1335 の着地先 = PR。ANSWERS.md へ 3 行転記・shared-fix キューから 2 件削除・#1440 に裁定コメント
-- **未処理で残したもの**: #1442 の briefing-refine への `/goal`（起票直後で未配布）/ #1375 の 3 レーン分割起票（#1440 の裁定後に着手可能・未実施）/ mobile-refine からの #1400 / #1402 実機確認依頼（#1409 の実行セッションへ畳む）
 
 > 古いエントリは [`archive/2026-09/chat-main.md`](./archive/2026-09/chat-main.md)・[`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
