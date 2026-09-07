@@ -370,6 +370,11 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
 
   // Mobile todo slot: the chip (selected) or a "choose a todo" button that
   // opens the BottomSheet picker.
+  //
+  // Both halves carry an unconditional 44px floor (#1557) rather than a
+  // `max-md:` one: this slot is only ever handed to the fullscreen timer face
+  // below, so it does not exist at Desktop width — there the wide branch draws
+  // PomodoroTodoSelector instead, and that component is untouched.
   const mobileTodoSlot = timer.activeItem ? (
     <span
       className={cn(
@@ -383,7 +388,22 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
         type="button"
         aria-label={t("work.todoSelector.clear")}
         onClick={() => handleSelectTarget(null)}
-        className="inline-flex shrink-0 items-center justify-center rounded p-0.5 hover:opacity-70"
+        /*
+         * 44x44 (#1557). What this button had was the icon-only floor from
+         * tokens.css (`--spacing-lumen-tap-min` = 1.75rem, ~32px) — which is
+         * exactly the 32x32 the audit measured.
+         *
+         * `min-*` rather than `h-11 w-11` because `cn` is plain string
+         * concatenation, not tailwind-merge: two classes for the SAME property
+         * are settled by Tailwind's output order rather than by ours (#830).
+         *
+         * The negative margins are what keep the chip from following the
+         * button up to 60px: they let the 44px square eat the chip's own
+         * padding (py-2 / pr-2.5) instead of stacking on top of it, so the
+         * chip lands at exactly 44 and the square sits flush inside it. Same
+         * trick BottomSheet's close button uses.
+         */
+        className="-my-2 -mr-2.5 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded p-0.5 hover:opacity-70"
       >
         <X size={14} aria-hidden="true" />
       </button>
@@ -392,7 +412,13 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     <button
       type="button"
       onClick={() => setSheetOpen(true)}
-      className="inline-flex items-center gap-2 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-sm font-medium text-lumen-text-secondary hover:bg-lumen-hover"
+      /*
+       * min-h-11 (#1557): py-2 around one line of text-sm left this at ~42px.
+       * It is alone in its row on the fullscreen face, so the box is free to
+       * grow — no need for the invisible ::after extension TAP_TARGET_TALL
+       * uses for controls packed side by side.
+       */
+      className="inline-flex min-h-11 items-center gap-2 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-sm font-medium text-lumen-text-secondary hover:bg-lumen-hover"
     >
       {t("work.todoSelector.select")}
       <ChevronDown size={15} aria-hidden="true" />
