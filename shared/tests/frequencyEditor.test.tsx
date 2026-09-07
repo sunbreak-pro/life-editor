@@ -210,3 +210,27 @@ describe("FrequencyEditor — pending (#434)", () => {
     expect(onChange).toHaveBeenCalledWith({ frequencyType: "daily" });
   });
 });
+
+describe("FrequencyEditor — the repeat tabs keep their labels whole (#1517)", () => {
+  /*
+   * jsdom has no layout (CLAUDE.md §7.1), so "all four fit on one row" cannot
+   * be measured here; what is pinned is the class contract behind it. Without
+   * `singleLineLabels` the flex track stretches every segment to the tallest
+   * one, so ja「N日ごと」breaking into two lines took ALL FOUR to double
+   * height (70×59) and the control stopped reading as one row of choices.
+   *
+   * Two halves, because either one alone is broken: nowrap labels with no
+   * flex-wrap would overflow the track instead of falling into 2×2.
+   */
+  it("refuses to break a label and lets the track wrap instead", () => {
+    renderEditor(base, { onSelectNone: vi.fn() });
+    for (const name of ["None", "Daily", "Weekdays", "Every N days"]) {
+      expect(screen.getByRole("tab", { name })).toHaveClass(
+        "whitespace-nowrap",
+      );
+    }
+    expect(screen.getByRole("tablist", { name: "Repeat" })).toHaveClass(
+      "flex-wrap",
+    );
+  });
+});
