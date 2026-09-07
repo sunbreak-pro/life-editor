@@ -38,6 +38,13 @@ export interface TagEditRow {
 
 export interface TagEditModalLabels {
   title: string;
+  /**
+   * #1526 aria-label for the header's close button. Required, not optional:
+   * the button is unconditional, and an optional label would leave "a panel
+   * whose exit no screen reader can announce" constructible (the same reason
+   * BottomSheet's `closeLabel` is required).
+   */
+  closeLabel: string;
   addPlaceholder: string;
   addButton: string;
   empty: string;

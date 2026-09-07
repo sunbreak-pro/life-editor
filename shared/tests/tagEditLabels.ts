@@ -20,6 +20,7 @@ export const TAG_ROLE_LABELS = {
 
 export const TAG_LABELS: TagEditModalLabels = {
   title: "Edit tags",
+  closeLabel: "Close",
   addPlaceholder: "Enter a tag name",
   addButton: "Add",
   empty: "No tags yet",

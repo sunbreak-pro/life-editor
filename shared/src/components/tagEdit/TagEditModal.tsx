@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Plus } from "lucide-react";
+import { Plus, X } from "lucide-react";
 import { Modal } from "../Modal";
 import { Button } from "../Button";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { cn } from "../cn";
+import { FOCUS_RING_TIGHT } from "../styleTokens";
 import { isImeComposing } from "../../utils/imeGuard";
+import { DIALOG_AUTOFOCUS_SKIP } from "../../hooks/useDialogA11y";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { WIDE_QUERY } from "../../constants/breakpoints";
 import { TagMasterList } from "./TagMasterList";
@@ -76,12 +78,30 @@ import { type TagEditModalProps } from "./types";
  * the add row is a creation form, which D-20260811-main-1 puts outside this
  * Epic.
  *
+ * CLOSING IT (#1526). The header carries its own × — a 44px button, matching
+ * what every BottomSheet has had since #525. Before this the panel's only exits
+ * were Escape and the backdrop, and on a phone neither is an affordance: there
+ * is no physical keyboard, and the backdrop is the thin margin around a panel
+ * that fills the screen. So the header is built HERE rather than handed to
+ * Modal as `title` — Modal's heading is a plain <h2> with no room for a control
+ * beside it, and #1526's scope is this panel, not every dialog in the app. The
+ * `labelledBy` prop is the seam that already existed for exactly this: the
+ * dialog takes its accessible name from our own heading.
+ *
  * DataService is unknown here — every mutation is a callback, every string a
  * label, colors reuse the shared ColorPicker, and the icon picker resolves
  * lucide names via the shared `tagIcon` helper (also consumed by #311).
  * lumen-* tokens only; the Modal owns the opaque panel + backdrop + Esc/
  * focus-trap (IME-guarded).
  */
+/**
+ * The heading the dialog is named by (#1526). A module constant rather than a
+ * `useId()` because there is exactly one tag panel on screen at a time — the
+ * host mounts it from the app shell — and a stable id keeps the tests reading
+ * the same thing the browser does.
+ */
+const TITLE_ID = "tag-edit-modal-title";
+
 export function TagEditModal({
   open,
   onClose,
@@ -287,10 +307,41 @@ export function TagEditModal({
       <Modal
         open={open}
         onClose={onClose}
-        title={labels.title}
+        labelledBy={TITLE_ID}
         size="panel"
         padded={false}
       >
+        {/* The heading Modal would otherwise draw, plus the close button it has
+            no place for. Same box as before — `mb-3 px-5 pt-5` on the row, the
+            same type on the <h2> — so the panel's top edge is unchanged. The
+            button's 44px box is pulled back with negative margins (BottomSheet's
+            trick) so a full-size tap target does not make the header taller. */}
+        <div className="mb-3 flex items-center justify-between gap-2 px-5 pt-5">
+          <h2
+            id={TITLE_ID}
+            className="min-w-0 text-base font-semibold text-lumen-text"
+          >
+            {labels.title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={labels.closeLabel}
+            /* The add field stays the panel's opening focus: this button is
+               first in DOM order, and without the opt-out the dialog would
+               land the user on "close" every time it opens. */
+            {...DIALOG_AUTOFOCUS_SKIP}
+            className={cn(
+              "-my-2.5 -mr-2 grid size-11 shrink-0 place-items-center rounded-full",
+              "text-lumen-text-secondary transition-colors",
+              "hover:bg-lumen-hover hover:text-lumen-text",
+              FOCUS_RING_TIGHT,
+            )}
+          >
+            <X size={18} aria-hidden />
+          </button>
+        </div>
+
         {/* A fixed height, not a content-driven one: the panel must not resize
             when a tag with twenty items is selected after one with none. */}
         <div className="flex h-[560px] max-h-[80vh] flex-col">

@@ -205,6 +205,7 @@ function TagEditorPanel({
         formatCount={(count) => t("materials.tags.usageCount", { count })}
         labels={{
           title: t("materials.tags.editTitle"),
+          closeLabel: t("common.close"),
           addPlaceholder: t("materials.tags.addPlaceholder"),
           addButton: t("materials.tags.addTag"),
           empty: t("materials.tags.empty"),
