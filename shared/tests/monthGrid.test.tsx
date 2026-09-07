@@ -136,11 +136,24 @@ describe("MonthGrid", () => {
         },
       ],
     });
-    const title = screen.getByText(/A very long meeting title/);
+    /*
+     * #1516 split the line in two: the chip BOX keeps the clip and the tint,
+     * an inner span holds the text and the fade. `getByText` returns the
+     * innermost element holding the string, so that is the text layer.
+     */
+    const text = screen.getByText(/A very long meeting title/);
+    expect(text.className).toContain("whitespace-nowrap");
+    expect(text.className).toContain("mask-image");
+    // Still no ellipsis — #1401 point 4 (ユーザー指定) rules the character out,
+    // and the fade is what replaced the half-drawn glyph it left behind.
+    expect(text.className).not.toContain("truncate");
+    expect(text.className).not.toContain("text-ellipsis");
+
+    const title = text.parentElement as HTMLElement;
     expect(title.className).toContain("overflow-hidden");
-    expect(title.className).toContain("whitespace-nowrap");
-    expect(title.className).not.toContain("truncate");
-    expect(title.className).not.toContain("text-ellipsis");
+    // The fade rides on the text alone: masking the box would fade the chip
+    // tint of every title, including the ones that fit.
+    expect(title.className).not.toContain("mask-image");
 
     const cell = title.closest("[role='gridcell']");
     expect(cell?.className).toContain("overflow-hidden");
@@ -244,9 +257,10 @@ describe("MonthGrid", () => {
         compact
       />,
     );
-    const title = screen.getByText("Write report");
-    expect(title.className).toContain("bg-lumen-chip-task-bg");
-    expect(title.className).toContain("text-lumen-chip-task-fg");
+    // The face is on the chip BOX; the text sits one span deeper since #1516.
+    const face = screen.getByText("Write report").parentElement as HTMLElement;
+    expect(face.className).toContain("bg-lumen-chip-task-bg");
+    expect(face.className).toContain("text-lumen-chip-task-fg");
   });
 });
 
