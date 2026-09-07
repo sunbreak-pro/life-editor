@@ -126,7 +126,15 @@ export function NoteTagFilterChips({
               // long tag name take a whole line to itself while the short ones
               // that would have shared it wrapped below. The label truncates
               // inside it, and the glyph and count keep their width either way.
-              "inline-flex max-w-[9.5rem] items-center gap-1 rounded-lumen-full border px-2 py-0.5 text-xs transition-colors",
+              //
+              // #1560: `max-md:min-h-11` floors the chip at 44 below `md` (the
+              // audit read it at 25). The BOX grows rather than a `::after`
+              // hit area: this row WRAPS, so chips are neighbours vertically
+              // as well as sideways, and pseudo-elements tall enough to matter
+              // would reach into the line above and below across a 4px gap —
+              // the overlap #1512's own notes warn about. Desktop is untouched;
+              // narrow pays about 25px per chip line, which the drawer has.
+              "inline-flex max-w-[9.5rem] items-center gap-1 rounded-lumen-full border px-2 py-0.5 text-xs transition-colors max-md:min-h-11",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
               active
                 ? "border-lumen-accent bg-lumen-accent-subtle font-semibold text-lumen-accent"
@@ -157,7 +165,9 @@ export function NoteTagFilterChips({
           onClick={() => setExpanded((v) => !v)}
           aria-expanded={expanded}
           className={cn(
-            "inline-flex items-center rounded-lumen-full border border-dashed border-lumen-border px-2 py-0.5 text-xs text-lumen-text-tertiary hover:bg-lumen-hover",
+            // Floored with the chips (#1560) — it sits on the same wrapping
+            // line and is pressed the same way.
+            "inline-flex items-center rounded-lumen-full border border-dashed border-lumen-border px-2 py-0.5 text-xs text-lumen-text-tertiary hover:bg-lumen-hover max-md:min-h-11",
             FOCUS_RING,
           )}
         >
@@ -174,7 +184,10 @@ export function NoteTagFilterChips({
           aria-label={labels.clear}
           title={labels.clear}
           className={cn(
-            "inline-flex items-center gap-0.5 rounded-lumen-full border border-lumen-border bg-lumen-bg px-2 py-0.5 text-xs text-lumen-text-secondary hover:bg-lumen-hover",
+            // #1560 — `min-w-11` as well as `min-h-11` here and nowhere else
+            // in this row: an 11px glyph with no label is the one chip-sized
+            // control that is also too NARROW to aim at.
+            "inline-flex items-center gap-0.5 rounded-lumen-full border border-lumen-border bg-lumen-bg px-2 py-0.5 text-xs text-lumen-text-secondary hover:bg-lumen-hover max-md:min-h-11 max-md:min-w-11 max-md:justify-center",
             FOCUS_RING,
           )}
         >
