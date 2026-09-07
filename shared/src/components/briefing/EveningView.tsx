@@ -176,6 +176,27 @@ function BlockHead({ title, hint }: { title: string; hint?: string }) {
   );
 }
 
+/*
+ * One mood star's box (#1559).
+ *
+ * The 390px audit measured these at 35×35: a 26px glyph in `p-1`. Five of them
+ * sit `gap-1.5` apart in a centred row, so the floor is bought by growing the
+ * BOXES rather than by hanging a `::after` over each — the extensions of two
+ * neighbours 6px apart would overlap and the row would answer the wrong star.
+ * Five 44px boxes plus four 6px gaps come to 244px, well inside the 343px the
+ * paper prints on, so nothing is displaced by the growth.
+ *
+ * `max-md:` and never a bare `min-h-11`: one component draws this row at every
+ * width, and the Desktop star is the 34px box #263 chose.
+ *
+ * `inline-flex` + centring is what makes the floor mean anything — without it
+ * the glyph would sit against the box's leading edge once the box is wider
+ * than its content. It is a no-op at Desktop size, where the box already hugs
+ * the 26px star.
+ */
+const MOOD_STAR_BASE =
+  "inline-flex items-center justify-center p-1 transition-transform hover:scale-110 max-md:min-h-11 max-md:min-w-11";
+
 export function EveningView({
   loading,
   dateLine,
@@ -249,8 +270,8 @@ export function EveningView({
                 aria-pressed={mood === n}
                 className={
                   filled
-                    ? "p-1 text-lumen-briefing-shu transition-transform hover:scale-110"
-                    : "p-1 text-lumen-text-secondary transition-transform hover:scale-110 hover:text-lumen-briefing-shu"
+                    ? `${MOOD_STAR_BASE} text-lumen-briefing-shu`
+                    : `${MOOD_STAR_BASE} text-lumen-text-secondary hover:text-lumen-briefing-shu`
                 }
               >
                 <Star

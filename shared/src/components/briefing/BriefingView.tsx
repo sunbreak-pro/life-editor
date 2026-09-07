@@ -1,14 +1,9 @@
 import type { ReactNode } from "react";
-import {
-  ArrowUpRight,
-  Plus,
-  Sparkles,
-  Sunrise,
-  Trash2,
-} from "lucide-react";
+import { ArrowUpRight, Plus, Sparkles, Sunrise, Trash2 } from "lucide-react";
 import type { TodoNode, TodoStatus } from "../../types/todoTree";
 import type { TimerSession } from "../../types/timer";
 import { SkeletonList } from "../SkeletonList";
+import { TAP_TARGET_TALL } from "../styleTokens";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { ExtractedBriefing } from "./extractBriefing";
 import { IntentionField } from "./IntentionField";
@@ -279,6 +274,20 @@ function BlockHead({
  * there hung the box 6px outside its own container. The icon sits 6px in now,
  * exactly where `RowActions` puts the row actions below it — the straight
  * column down the right edge was the only thing that margin bought.
+ *
+ * The 44px floor (#1559) is bought in two different ways on purpose, because
+ * the two directions cost different things:
+ *
+ *   WIDTH  — `max-md:min-w-11` grows the box. A heading is one short kicker
+ *            and a control, so the 18px comes out of slack the h3 was never
+ *            using, and the icon lands 22px from the right edge — the same
+ *            place the row actions below now centre theirs, so the straight
+ *            column the comment above describes is preserved.
+ *   HEIGHT — `TAP_TARGET_TALL` instead of `min-h-11`, so the painted box stays
+ *            26px tall and the rule below it still does not move. The 9px it
+ *            overhangs at each end lands in the section's own `py-5` above and
+ *            in `BlockHead`'s 12px `mb-3` below, clearing the first row's own
+ *            target by 3px — the check that token's doc-comment asks for.
  */
 function BlockHeadAddButton({
   onClick,
@@ -293,7 +302,7 @@ function BlockHeadAddButton({
       onClick={onClick}
       aria-label={label}
       title={label}
-      className="-my-1 flex flex-shrink-0 items-center self-center rounded-lumen-sm p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-briefing-shu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+      className={`-my-1 flex flex-shrink-0 items-center justify-center self-center rounded-lumen-sm p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-briefing-shu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-w-11 ${TAP_TARGET_TALL}`}
     >
       <Plus size={14} aria-hidden="true" />
     </button>
@@ -339,9 +348,27 @@ function RowActions({ children }: { children: ReactNode }) {
  *
  * `gap-1` is `md:` too: with the label hidden it would be 4px of dead space
  * between the icon and the button's right padding.
+ *
+ * `max-md:min-h-11 max-md:min-w-11` is the 44px floor (#1559), and it grows the
+ * BOX rather than hanging an invisible `::after` over it the way the heading's
+ * 「+」does. These two sit `gap-0.5` apart: an extension wide enough to reach
+ * 44px would reach across its neighbour, so a tap meant for 編集 could answer
+ * 削除 — and 削除 is the last button on the paper that may fire by accident.
+ *
+ * Height is free (every row that draws these is already 44px tall, held there
+ * by its own checkbox or by `min-h-11`). Width is not: the pair goes from 58px
+ * to 90px, which is 32px off the todo title beside it. That is a real cost
+ * against #1514 — it bought the title 77px back — and it is spent knowingly,
+ * because the alternative is a destructive action that stays under the floor.
+ * The words are still hidden below `md`, so the title keeps the larger half of
+ * what that change won.
+ *
+ * `min-*` and never `h-11`/`w-11`: `cn` is a plain string join, so two
+ * utilities for one property are settled by Tailwind's emit order rather than
+ * by call order (rules/frontend.md §Gotchas).
  */
 const ROW_ACTION_BASE =
-  "flex items-center whitespace-nowrap px-1.5 py-1 text-xs transition-colors md:gap-1";
+  "flex items-center justify-center whitespace-nowrap px-1.5 py-1 text-xs transition-colors max-md:min-h-11 max-md:min-w-11 md:gap-1";
 
 /**
  * The action's word —「編集」/「削除」— printed beside its icon on a screen wide
