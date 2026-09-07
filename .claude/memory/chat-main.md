@@ -9,8 +9,9 @@
 
 - 現在: 現状調査 → **#1300（Windows + リリース基盤）/ #1301（macOS）を起票** → 計画書を **PR #1302 open**。調査の実測 = GitHub Release 0 本 / リリース自動化なし / `desktop/package.json` version が `0.0.0` / macOS は一度も未ビルド / `directories.buildResources` が実在しない `desktop/build/` を指す
 - 効いた前提: **repo が public なので macOS / Windows ランナーが無料** — tag 駆動の GitHub Actions を \$0 原則を壊さずに入れられる（private 化するとこの前提が崩れる）
-- 裏取り済み: **未署名 macOS は Apple Silicon で「壊れているため開けません」**（Big Sur / M1 以降は署名の存在自体を要求）。回避はシステム設定の「このまま開く」or `xattr -dr com.apple.quarantine`。**ad-hoc 署名（`identity: "-"`）はビルドしたマシンでしか動かないので配布の答えにならない**
-- 次: **2026-08-31 に実装を `[refactor-core]` レーンへ移譲**（chat-main が抱えず配る = ユーザー指示）。PR #1302 は merge 済みで、Windows レーン + tag 駆動 workflow の実装が **PR #1348 open**。chat-main の残務は merge 後の受け入れ采配のみ（Windows 実機 = 👀 / Mac 実機 = #1301 でユーザー手番）
+- 裏取り済み → **2026-09-07 の実測で条件が判明**: 「壊れているため開けません」が出るのは `.dmg` に `com.apple.quarantine` が付いている時**だけ**。ブラウザ / Mail は付け、`gh run download` / `curl` は付けない → **Release から落とす配布先は全員が当たるので回避手順（システム設定の「このまま開く」or `xattr -dr`）は残す**が、CI artifact 経由なら警告ゼロで起動する。署名も「無い」のではなく **ad-hoc（linker-signed）が実在**し、`spctl -a` が「壊れた署名」として reject する形。**ad-hoc 署名（`identity: "-"`）はビルドしたマシンでしか動かないので配布の答えにならない**（ここは不変）
+- 現在（2026-09-07）: **Step 8 = macOS 実機受け入れ通過 → 移行 SSOT の Phase 3 完了判定 3 項目が全部埋まった**（docs 追随 = **PR #1565 open**）。run 33958069275 の `desktop-macos` artifact を Apple Silicon 実機へ入れ、起動 / **プロセス 4 本** / 描画 / `app.asar` の Supabase ホスト / **Dock アイコン（icns 由来）** / **メニューバーのトレイ常駐** / ログイン → 全 Section を確認（最後の 1 つはユーザー目視）。**ローカル `npm run build:mac` は使っていない** — 実 DMG は数 GB 食う + 「配る物そのものを受け入れる」原則。旧 Tauri 版（`com.lifeEditor.app.newlife` / 26 MB）は `/Applications` から退けた（`cp -R` は既存 bundle を置き換えないので必須手順）。**事故 1 件** = ログイン確認を自動化しようと `System Events` の座標クリックを撃ったら無関係なアプリの画面に落ちた（実害なし・README に禁止として明記）
+- 次: **残りは 🛑 ユーザー手番 2 つだけ** = ① Step 6 = `git tag desktop-v0.1.0 && git push origin desktop-v0.1.0`（draft Release に `.dmg` / `.exe` が載り、#1301 / #1300 の DoD が埋まる）② Step 7 の最後の 1 項目 = Windows 実機での実アカウントログイン + Todo CRUD。#1301 は open のまま（Release 側が DoD に残るため）。Linux AppImage の実ビルドだけは未実測で、`release-desktop.yml` に linux ジョブが無い（起票するかは未判断）
 - 保留: **D-20260830-main-1 = Intel Mac 向け x64 `.dmg` を配るか** — 2026-08-31 に**ユーザーが「とりあえず放置」と裁定**。計画書どおり両アーキをビルドし、受け入れ対象は arm64 のみに留める（安全側）
 
 ### 🔧 Loop Engineering 親計画 Phase 1 + 2（夜間レーン 2 本 + 毎朝 digest）（着手日: 2026-08-04）
