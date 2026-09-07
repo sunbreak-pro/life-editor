@@ -27,6 +27,12 @@ export interface TagHubItemGroupsProps {
   onOpenItem: (item: TagHubItem) => void;
   /** Count → its accessible text, for the per-kind heading. */
   formatCount: (count: number) => string;
+  /**
+   * Wide = the Desktop detail column; narrow = the whole phone screen. Only
+   * the row height depends on it (#1561): narrow rows get the 44px touch
+   * floor, wide rows keep their mouse height.
+   */
+  wide: boolean;
   labels: TagHubLabels;
 }
 
@@ -34,6 +40,7 @@ export function TagHubItemGroups({
   groups,
   onOpenItem,
   formatCount,
+  wide,
   labels,
 }: TagHubItemGroupsProps) {
   return (
@@ -69,6 +76,10 @@ export function TagHubItemGroups({
                     "group flex w-full items-center gap-2 rounded-lumen-sm px-2 py-1.5 text-left",
                     "transition-colors hover:bg-lumen-hover",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                    // #1561 — 44px touch floor on narrow only (the audit read
+                    // 33px here). `min-h-*`, never `h-*`: `cn` is a plain
+                    // string join (rules/frontend.md §Gotchas).
+                    !wide && "min-h-11",
                   )}
                 >
                   <span
