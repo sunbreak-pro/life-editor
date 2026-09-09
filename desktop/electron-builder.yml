@@ -23,12 +23,15 @@ extraResources:
 
 # Unsigned for Phase 1-5 ($0 policy). Signing/notarization is decided after
 # completion (see migration SSOT §8). identity: null disables macOS code signing.
+# arm64 only (D-20260830-main-3). The release runner is Apple Silicon, so an
+# x64 dmg would be a cross-build that nothing launches before it reaches a
+# user. Re-add `x64` here (and widen the release job's asset check) only after
+# an Intel machine is available for acceptance.
 mac:
   target:
     - target: dmg
       arch:
         - arm64
-        - x64
   category: public.app-category.productivity
   identity: null
   icon: ../resources/icon.icns
