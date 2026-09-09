@@ -6,13 +6,12 @@
 
 ## 直近の完了
 
-- 呼び出し元ゼロの backlink 部品を削除（#1239・`D-20260829-connect-1` = B）✅（2026-08-30・**PR #1258 open = merge 待ち**）
-- Connect 退役で未使用になった d3 依存 8 本を削除（#1220）✅（2026-08-30・**PR #1256 open = merge 待ち**）
-- Tag 起点の新 Connect セクション（Tag hub・#1171）✅（2026-08-29 実装 / 2026-08-30 確認・**PR #1230 merged**・Issue #1171 CLOSED・計画書は `archive/2026-08-29-connect-tag-hub.md`）
+- narrow の絞り込み入力の箱を `label` にして余白タップでフォーカスが入るようにした（#1578・#1561 の残件）✅（2026-09-09・**PR #1585 open = merge 待ち**）
+- Tag hub の narrow 行と絞り込み枠を 44px に底上げ（#1561）✅（2026-09-07・**PR #1574 merged**）
+- 呼び出し元ゼロの backlink 部品を削除（#1239・`D-20260829-connect-1` = B）✅（2026-08-30・**PR #1258 merged**。#1220 の PR #1256 も merged）
 
 ## 予定
 
-- **新 Connect の実ブラウザ確認は chat-main 待ち**（CLAUDE.md §7.4 — worktree は build / 型検証まで）。特に狭幅レイアウトの「タグ一覧 → アイテム一覧」1 画面ずつ遷移は jsdom にレイアウトが無く機械検証できていない
+- **PR #1585 の merge 後に chat-main 側で 390 幅の実測**（CLAUDE.md §7.4 — worktree は build / 型検証まで）: 絞り込み枠の上端 4px 下をタップして `document.activeElement === input` になるか。jsdom は label の activation を持たないので、テストは「箱が label で control が input」の契約だけを固定している
 - `web/tests/briefingEveningLazyMount.test.tsx` のフル実行時 flake 起票（outbox に投函済み・chat-main 待ち）
-- **PR #1258 のレビュー論点 1 つ**: #1239 の DoD は「シンボル名の grep = 0」だが、退役理由を残すコメント 3 箇所（バレル 2 + LinkPanel）に名前を残したため実測は 3。実参照はゼロ。字面どおり 0 にしたいならコメントから名前を落とす — PR 本文で判断を仰いでいる
-- `section:connect` の open Issue は 0 になった。次は `shared-fix` ラベルの自分宛を拾う
+- `section:connect` の open Issue は #1578 だけで、PR #1585 で対応済み。次は `shared-fix` ラベルの自分宛を拾う
