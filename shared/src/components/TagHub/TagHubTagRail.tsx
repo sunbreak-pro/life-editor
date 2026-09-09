@@ -65,7 +65,9 @@ export function TagHubTagRail({
             // #1561 — the 44px touch floor on narrow. The "sm" preset is a
             // fixed `h-8`; `min-h-*` is a different property so it wins
             // outright, and the field's own `items-center` re-centres the
-            // input in the taller box. Keyed on the `wide` prop rather than a
+            // input in the taller box. The box is a <label> (#1578), so a tap
+            // on the extra padding still focuses the input rather than only
+            // painting a taller frame. Keyed on the `wide` prop rather than a
             // `max-md:` prefix because this component already knows which
             // layout it is in, and the prop is the shell's own breakpoint.
             className={cn(!wide && "min-h-11")}

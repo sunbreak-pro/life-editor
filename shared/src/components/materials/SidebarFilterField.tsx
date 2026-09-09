@@ -15,6 +15,13 @@ import { cn } from "../cn";
  * onChange (NO keydown/Enter — IME safety, §Gotchas) with already-translated
  * copy as props (§6.4). lumen-* tokens only, opaque surfaces (§5).
  *
+ * The outer box is a <label> wrapping the input (#1578). A caller can grow the
+ * box past the input (the tag hub floors it at 44px on narrow, #1561) and a
+ * tap on that padding must still land in the field; a `label` forwards the
+ * click to its control natively, so there is no focus handler to keep in step
+ * with the input and the a11y name stays the input's own aria-label (the icon
+ * is aria-hidden and the label has no text of its own).
+ *
  * `size` is a preset for the surrounding surface rather than a free knob, since
  * `cn` is a plain joiner (no tailwind-merge) and a caller's className cannot
  * override the defaults:
@@ -50,9 +57,9 @@ export function SidebarFilterField({
   const md = size === "md";
 
   return (
-    <div
+    <label
       className={cn(
-        "flex items-center gap-2 rounded-lumen-md border border-lumen-border",
+        "flex cursor-text items-center gap-2 rounded-lumen-md border border-lumen-border",
         md ? "h-9 bg-lumen-bg px-3" : "h-8 bg-lumen-surface-sunken px-2.5",
         // Focus affordance on the modal preset only (#368 QA): every control
         // beside it inside a dialog draws a ring, so an unringed field loses
@@ -77,6 +84,6 @@ export function SidebarFilterField({
           md ? "text-sm" : "text-[12.5px]",
         )}
       />
-    </div>
+    </label>
   );
 }

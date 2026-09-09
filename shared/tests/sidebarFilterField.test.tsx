@@ -55,4 +55,20 @@ describe("SidebarFilterField (#368)", () => {
     const { input } = renderField();
     expect(input.parentElement?.className).not.toContain("focus-within:ring-2");
   });
+
+  // #1578 — the tag hub floors the OUTER box at 44px on narrow (#1561) while
+  // the input inside stays 27px, so a tap on the padding has to reach the
+  // input. jsdom has no layout and does not run label activation, so this
+  // pins the contract that makes the browser do it: the box is a <label>
+  // whose control is the input, and it does not grow its own text (the a11y
+  // name must stay the input's aria-label).
+  it("wraps the input in a label so a tap on the box's padding focuses it", () => {
+    const { input } = renderField({ className: "min-h-11" });
+    const box = input.parentElement as HTMLLabelElement;
+    expect(box.tagName).toBe("LABEL");
+    expect(box.control).toBe(input);
+    expect(box).toHaveClass("min-h-11", "cursor-text");
+    expect(box.textContent).toBe("");
+    expect(input).toHaveAccessibleName("Filter tags by name");
+  });
 });
