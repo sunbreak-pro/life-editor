@@ -166,6 +166,62 @@ body {
   --note-callout-band: var(--color-chip-event-fg);
   --note-callout-tint: var(--color-chip-event-bg);
 }
+/*
+ * Tables the MCP server wrote (#1579 — web/src/notes/tableNodes.ts).
+ *
+ * Nothing in the editor creates a table, so this only has to make an
+ * MCP-written one readable and safe to type in. `div.tableWrapper` is the
+ * extension's own node view wrapper, and it is the scroll container here: a
+ * `generate_content` table can have more columns than the note pane is wide,
+ * and the 4rem floor on a cell means a wide one overflows on purpose rather
+ * than squeezing every column down to one character. Keeping that scroll
+ * INSIDE the wrapper is what stops it from stretching the editor pane.
+ *
+ * `.selectedCell` is prosemirror-tables' own class for a cell selection
+ * (dragging across cells). It needs the ::after overlay to be visible at all,
+ * and the cell needs `position: relative` for the overlay to sit on it.
+ *
+ * lumen-* tokens only, so light / dark both come out of the theme.
+ */
+.note-editor .ProseMirror .tableWrapper {
+  overflow-x: auto;
+  margin: 0.5em 0;
+}
+.note-editor .ProseMirror table {
+  border-collapse: collapse;
+  table-layout: auto;
+  width: 100%;
+}
+.note-editor .ProseMirror th,
+.note-editor .ProseMirror td {
+  border: 1px solid var(--color-border);
+  padding: 0.375rem 0.5rem;
+  min-width: 4rem;
+  vertical-align: top;
+  position: relative;
+}
+.note-editor .ProseMirror th {
+  background-color: var(--color-bg-secondary);
+  font-weight: 600;
+  text-align: left;
+}
+/* The cell owns its padding; the paragraph inside must not add more. */
+.note-editor .ProseMirror th > :first-child,
+.note-editor .ProseMirror td > :first-child {
+  margin-top: 0;
+}
+.note-editor .ProseMirror th > :last-child,
+.note-editor .ProseMirror td > :last-child {
+  margin-bottom: 0;
+}
+.note-editor .ProseMirror .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-color: var(--color-accent-subtle);
+  pointer-events: none;
+  z-index: 2;
+}
 .note-editor .ProseMirror code {
   background-color: var(--color-bg-secondary);
   border-radius: 0.25rem;

@@ -16,6 +16,7 @@ import { createItemLinkNode } from "./itemLinkNode";
 import { createItemLinkSuggestion } from "./itemLinkSuggestion";
 import { createAttachmentNode } from "./attachmentNode";
 import { createCalloutNode } from "./calloutNode";
+import { createTableNodes } from "./tableNodes";
 import type { LoadItemLinkTargets } from "./useItemLinkTargets";
 import type { AttachmentWiring } from "./useAttachmentUpload";
 
@@ -30,9 +31,10 @@ import type { AttachmentWiring } from "./useAttachmentUpload";
  * Notion/Obsidian-style wiki links to other items (itemLinkNode.ts +
  * itemLinkSuggestion.ts, gated on the `loadLinkTargets` prop; the node itself is
  * ALWAYS registered so stored `[[…]]` JSON round-trips on every surface).
- * Heavier extensions (tables, color, highlight, images, bubble/context menus)
- * are still NOT ported — they land in a later S-step if needed (scope-creep
- * guard).
+ * Heavier extensions (color, highlight, bubble/context menus) are still NOT
+ * ported — they land in a later S-step if needed (scope-creep guard). Tables
+ * ARE in the schema (tableNodes.ts), but only so a table the MCP server wrote
+ * opens and round-trips (#1579); nothing here creates one.
  *
  * Like the source, the StarterKit built-ins for the customised marks are
  * disabled and replaced by `*NoInputRules` variants so typing `**`, `*`,
@@ -404,6 +406,14 @@ export function RichTextEditor({
         // open instead of failing the schema check and being autosaved away
         // as blank (#1521).
         createCalloutNode(),
+        // table container + row / header cell / cell — registered
+        // unconditionally for the same reason as callout above, and for the
+        // same failure: `generate_content` writes a `table` block (the tool
+        // descriptions send writers there for tables specifically), the schema
+        // did not know the four nodes, so the whole document failed the check
+        // and was autosaved away as blank (#1579). Nothing in the editor
+        // creates a table; these exist so those notes open and round-trip.
+        ...createTableNodes(),
         // "[[" wiki-link autocomplete — gated on the loadLinkTargets prop. The
         // loader + callbacks are read through refs so they never go stale.
         ...(linkEnabled
