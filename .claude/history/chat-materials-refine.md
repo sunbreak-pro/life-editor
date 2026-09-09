@@ -1,5 +1,22 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-09-09 - #1579 エディタに table 系ノードを教えた（PR #1587）
+
+#### 概要
+
+MCP の `generate_content` が書く表（`table` / `tableRow` / `tableHeader` / `tableCell`）を web エディタのスキーマが知らず、表入りノートは開いた瞬間に本文全体が捨てられて空の autosave に上書きされていた。#1521（callout・PR #1555）と同型で、その PR 本文が兄弟として名指ししていた残りの片方。`@tiptap/extension-table` を現行 core / pm と同じ 3.23.4 で入れ、4 ノードを無条件登録した。
+
+#### 変更点
+
+- **方針は #1521 に揃えた**（Issue の指示どおり）: MCP の生成をやめず、エディタ側にノードを足す。既存データがそのまま守れて MCP の機能も削らずに済む
+- **ただし手書きの `Node.create` にはしなかった**: callout は属性 2 つの div なので手書きで足りたが、表はセルが colspan / rowspan / colwidth を持ち、編集中に表が壊れないための挙動（セル選択・Tab 移動・修復）は prosemirror-tables の `tableEditing` プラグイン側にある。それは各ノード仕様の `tableRole` を要求し、`tableRole` は `@tiptap/core` がこのパッケージのためだけに宣言しているフィールド。手書きだと「開くけれど編集すると崩れる」= バグの再演になる。旧 Tauri 版も同じパッケージ群だったので、当時のノートも同じノードとして読める
+- **バージョンは 3.23.4 にピン**: このパッケージは peer で core / pm を**完全一致**で要求するため、最新（3.31.3）を取るとバグ修正 PR でエディタ基盤ごと動く。3.23.4 なら peer が現行と一致し、lockfile の増分は 1 パッケージ 15 行
+- **`resizable: false` はどの node view が走るかも決めている**: リサイズ off だと素の `TableView` が使われ、表を `div.tableWrapper` で包む。CSS の `overflow-x: auto` はそこに掛けた。セルに 4rem の下限を置いたので、ノート幅より広い表は列を潰さずスクロールする
+- **mcp-server は触っていない**: Issue の Scope は MCP 側も挙げていたが、突き合わせたらずれが無かった。ビルダーの出力（`table` > `tableRow` > `tableHeader` | `tableCell` > `paragraph`）は公式スキーマにそのまま収まり、空セルの `paragraph()` も `inline*` なので有効。`markdownToTiptap` は表を作らないため経路は `generate_content` だけ
+- **テストは 5 本**（`web/tests/tableNodes.test.tsx`・実 `RichTextEditor` を jsdom で）。登録を外すと 5 本とも落ちることを実測した。開いたときのセル本文と周囲の段落、`th` 2 / `td` 4 と `.tableWrapper`、保存後もヘッダー行がヘッダーのままであること、merged cell の colspan / rowspan が残ること、セルが複数段落を持てること
+- **エディタから表を作る導線は足していない**（slash メニュー項目・input rule なし）。#1521 と同じ判断で DoD の範囲外・i18n カタログ 2 本への追加を伴うため。読み込みと round-trip 専用
+- **検証**: CI verify のステップ列 14 本（shared → web → desktop → mcp-server）+ `docs-lint` をローカル全緑。lockfile を触ったので `npm ls @tiptap/extension-table` でツリーの整合も確認。実ブラウザ確認は worktree では回さない規約なので merge 後に chat-main
+
 ### 2026-09-06 - #1409 の Materials 4 件（PR #1540 / #1543 / #1547 / #1549）
 
 #### 概要
@@ -67,31 +84,3 @@ Mobile 幅点検 #1409 と Desktop 点検 #1408 の所見 4 件。全部 `origin
 - **意図的な線引き（#1404）**: SVG は画像扱いにせずファイルのチップへ（スクリプトや外部参照を持てる「文書」なので inline 描画しない）／挿入はアップロード完了後（先に入れるとエディタの 800ms 自動保存に拾われ、届いていないパスを指すノードが永続化される）／進捗表示なし・孤児回収なし（どちらも outbox で起票依頼済み）／配線したのは Notes だけ（Issue の Scope が `web/src/notes/**` を名指し）
 - **テスト**: #1407 = `shared/tests/noteBodyCache.test.tsx` 7 件。要は `waitFor` を使わない 1 本で、`renderHook` が返った時点で既にノートが本文つきで開いていること・`getNoteUnified` が一度も呼ばれていないことを見る（`await` を挟むと修正前でも緑になり何も証明しない）。逆側の不変式として「離れている間に他デバイスが書き換えたら revalidate が上書きする」も。キャッシュを空振りさせて 7 件中 6 件が落ちることを実測。#1404 = shared 10 件（オブジェクト名の形が中心 — 危険な拡張子 / 拡張子なし / 先頭ドットが全部 uuid だけのキーに落ちること、上限超過が**送る前に**弾かれること）+ web 18 件（実エディタで署名 URL 解決・SVG のチップ化・リゾルバ無し / 失敗のフォールバック、スラッシュ項目のゲートと挿入順序、ピッカーの後片付け）
 - **検証**: 両ブランチで CI verify のステップ列（shared → web → desktop → mcp-server の lint / build / typecheck:tests / test）+ `docs-lint` をローカル全緑
-
-### 2026-09-01 - materials 4 件を 4 PR に分割提出（#1372 / #1363 / #1364 / #1365）
-
-#### 概要
-
-2026-09-01 dispatch の 4 件を、それぞれ `origin/main` から独立に切ったブランチで実装し 4 PR にした（#1380 / #1384 / #1394 / #1397）。うち 2 件は修正そのものより**「直す場所の特定」が本体**で、Issue 側が特定できないまま起票されていた。
-
-#### 変更点
-
-- **#1372（PR #1380・書いた時点で merged）ノート空状態の中央 CTA を撤去**: `NotesView.tsx` の `EmptyState` から `cta` を落とすだけ。アイコン・説明文・#1149 の「最近開いたノート」候補は維持。**両幅で残る入口は右上の `AddPill`** で、main content のツールバー行にあり `isWide` 分岐を持たないため狭幅でも生きる — #875 が狭幅の追加口を右端に固定した経緯があるので、`isWide=false` の空状態でツールバー pill から作成できることをテストで固定した
-- **#1363（PR #1384）テンプレート編集パネルを Note と同寸に**: 512px 幅 + 本文 320px という**ダイアログの寸法**だったのを、`Modal` に新設した `reading` サイズ（`max-w-lumen-reading` = `PageContainer width="reading"` と同じトークン）へ。パネルを `flex max-h-full flex-col` の高さ有界カラムにし、**名前欄と本文を 1 つのスクローラに入れ、キャンセル / 保存はその外**（通常 Note にコミット行は無く、ページスクローラで流れて良いのはタイトルと本文だけ、という対応）。本文フロアは `NoteDetailPanel` の `variant="main"` と同じ 420px。web ホストは `RichTextEditor` に `className="pt-1"` を渡してボーダーレスに（既定は枠付きで、パネルの枠の内側にもう 1 枚枠が出ていた）
-- **#1364（PR #1394）タグフィルタの繰り上げを廃止**: 実体は `web/src/notes/NoteTagFilterChips.tsx` の `ordered` メモで、**`sort` を呼ばず `filter` 2 回（picked / rest）の連結**で並べ替えていた。Issue が試した `selected` + `sort` の grep で出なかったのはこれが理由。繰り上げが担保していた #1288 の不変式（選択中チップが `+N` の裏に隠れない）は**並びを変えずに**維持 — 折り畳み時に描くのは「先頭 `VISIBLE_LIMIT` 個 + キャップより下にある選択済み」で、順序は呼び出し側のまま。`+N more` の N は実際に隠れている数になり、隠れが無くなればトグルも消える。この部品にテストが無かったので新規 8 件
-- **#1365（PR #1397）Notes のタグチップにアイコン**: `useNoteListState.tagFilterChips` が 6px の色ドットを**手組み**していて `wiki_tags.icon` を一度も読んでいなかった（#1291 の唯一の取りこぼし・リポジトリ内で最後に残っていた手組みタグ表示）。`TagHeadingIcon`（`resolveTagIcon` → 無ければ汎用 Tag グリフ・タグ色でティント）に差し替え、**新しいチップは作らず手組みの方を消す**方向で揃えた。グリフの分だけ太るので行の整理も: 1 チップの幅上限を `max-w-full` → `max-w-[9.5rem]`（長い名前 1 個が 1 行を占有していた）、折り畳み時の表示数を 8 → 6（240px 幅で 4 行に折り返して最初のノートを fold の下へ押していた）
-- **検証**: 各ブランチで shared → web の CI verify（`build` / `lint` / `typecheck:tests` / `vitest`）をローカル全緑。#1372 のときだけ web 全件の初回で `briefingEveningLazyMount.test.tsx` が 3 件落ちたが、単体緑・transform キャッシュが温まった 2 回目の全件も緑で、既知の cold-cache フレーク
-
-### 2026-08-31 - #1345 — ノート削除を確認ダイアログ越しにした（PR #1347）
-
-#### 概要
-
-Notes の削除だけ確認が無く、同じ `NotesView.tsx` の中でテンプレート削除（#1248）は聞くのにノートは 1 クリックで消えていた。ノートの削除経路 2 本を既存の `useConfirmDialog()` に通し、削除の作法をファイル内で揃えた。PR #1347 提出（Closes #1345・書いた時点で open）。
-
-#### 変更点
-
-- **経路は 2 本とも 1 つのコールバックに寄せた**: サイドリスト行のゴミ箱（`onDeleteNote`）と詳細ケバブ「その他の操作」→「ノートを削除」（`onDelete`）。どちらも `handleDeleteNote` を通す。**wide / narrow の作法が割れないのはこの一本化のおかげ**で、幅ごとの分岐は書いていない — #876 以降、両幅が同じリストと同じ詳細サーフェスを描くため
-- **ダイアログは view 直下の既存 `<ConfirmDialog>` を再利用**（#1248 が置いたもの）。ケバブから開く経路では**メニューが閉じた後も質問が残る**必要があり、メニューの隣にマウントしていたら消えていた
-- **文言は Todo 削除（`todoDetail.todoDeleteConfirm`）に寄せた**: 「ゴミ箱に入るので、あとから元に戻せます」。テンプレート削除の「戻せません」とは**性質が逆**なので、同じファイルでも書き分けている。追加キーは `materials.notes.deleteConfirmBody` / `deleteConfirmAction` の 2 本を en / ja 両方へ
-- **既存テスト 1 本が仕様変更で赤くなるはずの場所**（`deletes a note from its side-list row`）を、押下＝質問・承諾＝削除の形に書き換えた。追加は拒否ケースと、ケバブ経路を `it.each([true, false])` で wide / narrow 両方。`notesView.test.tsx` は 33 → 36 件
-- **検証**: CI verify のステップ列をローカルで上から全部（shared 4 種 2766 / web 4 種 993 / desktop 3 種 / mcp-server 3 種 322）+ `docs-lint` すべて緑。実ブラウザ確認は worktree では回さない規約なので merge 後に chat-main
