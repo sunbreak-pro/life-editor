@@ -39,6 +39,15 @@ desktop/release/
 # Capacitor-generated .gitignore files inside mobile/ios/ and mobile/android/.
 mobile/node_modules/
 
+# Remote MCP Server (Cloudflare Workers) — mcp-server/wrangler.jsonc
+# .dev.vars は wrangler dev がローカルで読むシークレット（Supabase の
+# email/password と接続トークンの平文）。commit すると流出そのものなので、
+# .mcp.json の ${VAR} 参照ルール（CLAUDE.md §9）と同じ扱いで追跡しない。
+# .wrangler/ は wrangler の作業ディレクトリ（ローカル状態・ビルドキャッシュ）。
+mcp-server/.dev.vars
+mcp-server/.wrangler/
+
+
 # Per-chat session identity & runtime state (FileChanged plan + per-chat MEMORY plan で共有)
 .claude/comm/.session-name
 .claude/comm/.session-branch

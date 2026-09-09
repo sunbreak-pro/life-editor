@@ -1,0 +1,42 @@
+{
+  // Remote MCP Server（スマホからの MCP アクセス = 2026-09-09 の方針転換）。
+  // 設計と手順の正本 = .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md
+  //
+  // web/wrangler.jsonc（静的アセット配信）とは別 Worker。あちらはコードを
+  // 1 行も持たない配信専用で、こちらは fetch ハンドラを持つ実行 Worker。
+  //
+  // main が dist/ を指すのは意図的: このパッケージは tsc でビルドする
+  // （相対 import が Node16 の .js 拡張子付きで書かれており、wrangler の
+  // esbuild は .ts へ読み替えない）。デプロイは必ず
+  //   npm run build && wrangler deploy
+  // の順で、npm run deploy がその 2 本をまとめている。
+  //
+  // Durable Objects / KV は使わない。1 リクエスト = 1 JSON-RPC の
+  // ステートレス構成なので、Workers 無料枠（10 万リクエスト/日）に収まる
+  // = 移行 SSOT の「完成まで $0 厳守」を維持する。
+  "name": "life-editor-mcp",
+  "main": "dist/worker.js",
+  "compatibility_date": "2026-09-09",
+
+  // supabase-js が Node 互換 API（buffer / events など）を踏むため必要。
+  "compatibility_flags": ["nodejs_compat"],
+
+  // 日付ツール（get_today_context / 朝刊）が「今日」を判定する基準。
+  // Workers の isolate は常に UTC で、TZ 環境変数では動かせない。ここを
+  // 消すと 09:00 JST より前のリクエストが前日を返すため、worker.ts は
+  // 未設定なら黙って UTC で動かず例外にする。
+  "vars": {
+    "LIFE_EDITOR_TZ": "Asia/Tokyo"
+  },
+
+  // シークレット（wrangler secret put で投入・このファイルには絶対に書かない）:
+  //   LIFE_EDITOR_MCP_TOKEN          … 接続 URL に載せる共有シークレット
+  //   LIFE_EDITOR_SUPABASE_URL
+  //   LIFE_EDITOR_SUPABASE_ANON_KEY  … anon key のみ。service_role は RLS を
+  //                                    素通りする合鍵なので絶対に置かない
+  //   LIFE_EDITOR_SUPABASE_EMAIL
+  //   LIFE_EDITOR_SUPABASE_PASSWORD
+  "observability": {
+    "enabled": true
+  }
+}

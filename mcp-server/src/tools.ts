@@ -1,17 +1,8 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolArgs, ToolDefinition } from "./tools/defineTool.js";
-import { TODO_TOOLS } from "./tools/todo.js";
-import { DAILY_TOOLS } from "./tools/daily.js";
-import { NOTE_TOOLS } from "./tools/note.js";
-import { NOTE_CONTEXT_TOOLS } from "./tools/noteContext.js";
-import { SCHEDULE_TOOLS } from "./tools/schedule.js";
-import { BRIEFING_TOOLS } from "./tools/briefing.js";
-import { SEARCH_TOOLS } from "./tools/search.js";
-import { CONTENT_TOOLS } from "./tools/content.js";
-import { WIKI_TAG_TOOLS } from "./tools/wikiTag.js";
-import { TRASH_TOOLS } from "./tools/trash.js";
+import { buildRegistry } from "./registry.js";
+import { REMOTE_TOOL_DEFINITIONS } from "./remoteTools.js";
 import { VERIFICATION_TOOLS } from "./tools/verification.js";
-import { validateToolArgs, unknownArgNames } from "./utils/toolSchema.js";
 
 /*
  * The tool registry (#669 / core-refactor C2), split by domain in #895.
@@ -34,60 +25,29 @@ import { validateToolArgs, unknownArgNames } from "./utils/toolSchema.js";
  * dispatch, same argument validation. Only the array's ORDER changed, since it
  * is now domain by domain rather than the order tools happened to be added;
  * nothing reads it positionally (`TOOLS` is looked up by name).
+ *
+ * The composition is now in two pieces (Remote MCP work — plan:
+ * .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md). Everything
+ * portable lives in `remoteTools.ts`, which the Cloudflare Worker serves as
+ * is; THIS list is that one plus the verification domain, which only a local
+ * process can run (it keeps a ledger on disk). Adding a domain therefore means
+ * editing `remoteTools.ts`, not this file — and it reaches both transports.
+ * `tests/remoteRegistry.test.ts` pins the difference to exactly the
+ * verification tools, so a new domain landing in the wrong file fails there.
  */
-
 const TOOL_DEFINITIONS: ToolDefinition[] = [
-  ...TODO_TOOLS,
-  ...DAILY_TOOLS,
-  ...NOTE_TOOLS,
-  ...NOTE_CONTEXT_TOOLS,
-  ...SCHEDULE_TOOLS,
-  ...BRIEFING_TOOLS,
-  ...SEARCH_TOOLS,
-  ...CONTENT_TOOLS,
-  ...WIKI_TAG_TOOLS,
-  ...TRASH_TOOLS,
+  ...REMOTE_TOOL_DEFINITIONS,
   ...VERIFICATION_TOOLS,
 ];
 
-/** The ListTools response — same names, descriptions and schemas as ever. */
-export const TOOLS: Tool[] = TOOL_DEFINITIONS.map((def) => ({
-  name: def.name,
-  description: def.description,
-  inputSchema: def.inputSchema,
-}));
+const registry = buildRegistry(TOOL_DEFINITIONS);
 
-const BY_NAME = new Map(TOOL_DEFINITIONS.map((def) => [def.name, def]));
+/** The ListTools response — same names, descriptions and schemas as ever. */
+export const TOOLS: Tool[] = registry.tools;
 
 export async function callTool(
   name: string,
   args: ToolArgs,
 ): Promise<{ content: Array<{ type: "text"; text: string }> }> {
-  const def = BY_NAME.get(name);
-  if (!def) throw new Error(`Unknown tool: ${name}`);
-
-  // Validate before dispatch: an argument the schema does not allow must not
-  // reach a handler, where it would become a Supabase error or a bad write.
-  validateToolArgs(name, def.inputSchema, args);
-  const ignored = unknownArgNames(def.inputSchema, args);
-  const result = await def.run(args);
-
-  const content: Array<{ type: "text"; text: string }> = [
-    { type: "text", text: JSON.stringify(result, null, 2) },
-  ];
-
-  // #702 ②: an undeclared argument is accepted by the validator and then read
-  // by nobody. Left unsaid, a misremembered name looks exactly like a
-  // successful edit — so say it, next to the result it did not affect.
-  if (ignored.length > 0) {
-    content.push({
-      type: "text",
-      text:
-        `Note: ${name} does not accept ${ignored.join(", ")}. ` +
-        `Nothing was applied for ${ignored.length === 1 ? "it" : "them"} — ` +
-        `check this tool's schema for the argument you meant.`,
-    });
-  }
-
-  return { content };
+  return registry.call(name, args);
 }

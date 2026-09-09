@@ -78,7 +78,7 @@ Related:
 | **完成までのコスト**   | **$0 厳守**。Supabase 無料枠 / Cloudflare 無料 / GitHub 無料 / Electron 未署名配布 / 無料 Apple ID 7 日署名 のみ                                                            |
 | **完成後のコスト判断** | Phase 5 完了後に必要性を再評価: Apple Developer Program $99/年 (iOS 友達配布)、Supabase Pro $25/月 (無料枠超過時)、Windows 署名証明書 $80-500/年 (SmartScreen 警告消すなら) |
 | オフライン             | **常時オンライン前提**。機内モード/圏外では「オンライン時にご利用ください」グローバルバナー表示。Service Worker 不採用                                                      |
-| AI 連携                | stdio MCP Server を terminal-division から起動(Remote MCP は採用しない)                                                                                                     |
+| AI 連携                | stdio MCP Server（Desktop）+ **Remote MCP = Cloudflare Workers（スマホの Claude アプリ用・2026-09-09 に採用へ転換 = D-20260909-mcp-mobile-1）**。旧記述「terminal-division から起動 / Remote MCP は採用しない」は SUPERSEDE（terminal は 2026-07-05 退役・起動導線は Desktop 殻へ）             |
 | 既存資産               | 現状 React / TS コードの **65-70%** を流用。DataService 抽象化はそのまま維持                                                                                                |
 
 ### 4. Electron 採用の判断と明示的デメリット
