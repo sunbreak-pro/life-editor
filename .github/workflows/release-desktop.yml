@@ -60,17 +60,14 @@ jobs:
             target: --win
             artifact: desktop-windows
             glob: desktop/release/*.exe
-          # macos-latest は arm64 ランナ。arm64 の dmg はその場で起動を
-          # 確かめられる側だが、x64 はクロスビルドになるので
-          # ランナ上では一度も起動できない。判断キュー
-          # D-20260830-main-1 の「放置時」に従い、両方ビルドしつつ
-          # **Release に載せるのは arm64 だけ**、x64 は artifact に留める
-          - label: macos (dmg arm64 + x64)
+          # macos-latest は arm64 ランナ。x64 はクロスビルドになって
+          # ランナ上では一度も起動できないので配らない
+          # （D-20260830-main-3 = A。electron-builder.yml も arm64 だけを宣言）
+          - label: macos (dmg arm64)
             os: macos-latest
             target: --mac
             artifact: desktop-macos
             glob: desktop/release/*-arm64.dmg
-            extra_glob: desktop/release/*-x64.dmg
     steps:
       - uses: actions/checkout@v4
 
@@ -180,18 +177,6 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      # 受け入れ対象外の成果物。名前が `desktop-` で始まらないので
-      # 下の release ジョブの pattern に拾われず、Release には乗らない。
-      # 落として試したいときは Actions の run 画面から直接取る
-      - name: upload unverified extras
-        if: matrix.extra_glob != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: unverified-${{ matrix.artifact }}-x64
-          path: ${{ matrix.extra_glob }}
-          if-no-files-found: error
-          retention-days: 14
-
   release:
     name: draft GitHub Release
     needs: build
@@ -202,8 +187,9 @@ jobs:
     permissions:
       contents: write
     steps:
-      # `desktop-*` だけを拾う。`unverified-*` は意図的に外している
-      # （ランナで一度も起動できない x64 dmg）
+      # `desktop-*` だけを拾う（build ジョブが上げる受け入れ済みの成果物の
+      # 命名規約。将来また受け入れ対象外の artifact を足すときは、この接頭辞を
+      # 外した名前にすれば Release に乗らない）
       - uses: actions/download-artifact@v4
         with:
           pattern: desktop-*

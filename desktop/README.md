@@ -38,7 +38,7 @@ npm install          # also runs electron-builder install-app-deps
 npm run dev          # electron-vite dev (launches Electron + dev server)
 npm run build        # electron-vite build (bundles main/preload/renderer)
 npm run dist         # build + electron-builder (creates installers in release/)
-npm run build:mac    # macOS arm64 + x64 .dmg (unsigned)
+npm run build:mac    # macOS arm64 .dmg (unsigned)
 npm run build:win    # Windows x64 NSIS installer (unsigned)
 ```
 
@@ -58,19 +58,17 @@ The app icon is generated from `resources/icon.png` at build time
 ```bash
 cd desktop
 npm install
-npm run build:mac    # -> release/Life Editor-<version>-arm64.dmg (+ -x64.dmg)
+npm run build:mac    # -> release/Life Editor-<version>-arm64.dmg
 ```
 
 The app icon comes from `resources/icon.icns` (committed; `mac.icon` points at
 it). Unlike Windows there is no conversion step — electron-builder copies the
 `.icns` straight into the bundle.
 
-`electron-builder.yml` declares both `arm64` and `x64`, but only **arm64 is an
-accepted build**. The release runner is Apple Silicon, so an x64 `.dmg` is a
-cross-build that nothing ever launches before it reaches a user; the release
-workflow therefore uploads it as a plain artifact and keeps it off the GitHub
-Release. Whether to ship Intel builds at all is an open call
-(`D-20260830-main-1`).
+`electron-builder.yml` declares **arm64 only** (`D-20260830-main-3`). The
+release runner is Apple Silicon, so an x64 `.dmg` would be a cross-build that
+nothing ever launches before it reaches a user. Intel builds come back only
+when an Intel machine is available to accept them.
 
 ## Releasing (distribution)
 
