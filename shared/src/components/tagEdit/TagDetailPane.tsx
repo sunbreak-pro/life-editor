@@ -3,6 +3,7 @@ import { ArrowLeft, Check, Trash2 } from "lucide-react";
 import { Button } from "../Button";
 import { ColorPicker } from "../ColorPicker";
 import { cn } from "../cn";
+import { CARD_BTN_TAP } from "../styleTokens";
 import { isImeComposing } from "../../utils/imeGuard";
 import { TagIconPicker } from "./TagIconPicker";
 import { TaggedItemList } from "./TaggedItemList";
@@ -88,6 +89,10 @@ export function TagDetailPane({
               "flex items-center gap-1.5 rounded-lumen-sm px-1.5 py-1 text-sm font-medium text-lumen-text-secondary",
               "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+              // #1562. This one only ever renders on narrow, but the token is
+              // still the conditional form so every floor in the panel reads
+              // the same way.
+              CARD_BTN_TAP,
             )}
           >
             <ArrowLeft size={14} aria-hidden />
@@ -135,6 +140,7 @@ export function TagDetailPane({
           />
 
           <ColorPicker
+            triggerClassName={CARD_BTN_TAP}
             current={color ?? undefined}
             label={labels.colorLabel}
             clearLabel={labels.colorClearLabel}
@@ -177,6 +183,7 @@ export function TagDetailPane({
             "flex items-center gap-1.5 rounded-lumen-sm px-1.5 py-1 text-sm font-medium text-lumen-danger",
             "transition-colors hover:bg-lumen-danger-subtle",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+            CARD_BTN_TAP,
           )}
         >
           <Trash2 size={14} aria-hidden />
@@ -196,6 +203,7 @@ export function TagDetailPane({
           <Button
             variant="primary"
             size="sm"
+            className={CARD_BTN_TAP}
             leadingIcon={<Check size={13} aria-hidden />}
             onClick={onSave}
             disabled={!dirty}

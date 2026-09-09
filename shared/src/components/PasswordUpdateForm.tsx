@@ -6,6 +6,7 @@ import { NoticePanel } from "./NoticePanel";
 import { Button } from "./Button";
 import { PasswordField, type PasswordFieldLabels } from "./PasswordField";
 import { PASSWORD_MIN_LENGTH } from "../constants/password";
+import { CARD_BTN_TAP } from "./styleTokens";
 
 export interface PasswordUpdateFormLabels {
   newPassword: string;
@@ -171,7 +172,7 @@ export function PasswordUpdateForm({
           type="submit"
           size={fullWidthSubmit ? "lg" : "md"}
           disabled={busy}
-          className={fullWidthSubmit ? "w-full" : undefined}
+          className={fullWidthSubmit ? "w-full" : CARD_BTN_TAP}
         >
           {busy ? (
             <>

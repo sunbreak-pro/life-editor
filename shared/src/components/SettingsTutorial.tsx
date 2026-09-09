@@ -1,5 +1,6 @@
 import { GraduationCap } from "lucide-react";
 import { Button } from "./Button";
+import { CARD_BTN_TAP } from "./styleTokens";
 
 export interface SettingsTutorialProps {
   /**
@@ -50,7 +51,11 @@ export function SettingsTutorial({ onOpen, labels }: SettingsTutorialProps) {
         {/* Called, not forwarded: `onOpen` is a zero-arg callback, and handing
             the Button's own reference over would deliver the click event as
             its first argument. */}
-        <Button variant="secondary" onClick={() => onOpen()}>
+        <Button
+          variant="secondary"
+          className={CARD_BTN_TAP}
+          onClick={() => onOpen()}
+        >
           {labels.button}
         </Button>
       </div>

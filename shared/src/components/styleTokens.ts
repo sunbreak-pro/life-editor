@@ -56,6 +56,26 @@ export const TAP_TARGET =
   "inline-flex items-center justify-center min-h-lumen-tap-min min-w-lumen-tap-min";
 
 /**
+ * Narrow-only 44px floor for a control whose PAINTED size is a mouse size
+ * (#1562).
+ *
+ * The settings cards, the trash actions and the tag panel all reach for
+ * <Button size="md"> — 36px tall, which is right on Desktop and under the
+ * touch floor on a phone. The size table itself cannot move: it feeds 15
+ * Desktop call sites. So the floor is applied per call site, conditionally,
+ * exactly as #1512 did for the shared chrome (see ConfirmDialog).
+ *
+ * `min-h-*` and never `h-11`: `cn` is a plain string join, so two utilities
+ * for one property are settled by Tailwind's emit order rather than by call
+ * order (rules/frontend.md §Gotchas, #830). `min-height` is a different
+ * property from `height`, so it wins outright.
+ *
+ * Height only. Every consumer is a labelled button that is already wider than
+ * 44px; an icon-only control needs `max-md:min-w-11` beside this.
+ */
+export const CARD_BTN_TAP = "max-md:min-h-11";
+
+/**
  * Invisible hit-area extension up to the 44px mobile floor (#1039).
  *
  * TAP_TARGET floors the control's own BOX, which is the right answer wherever

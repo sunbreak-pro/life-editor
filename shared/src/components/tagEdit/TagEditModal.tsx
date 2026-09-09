@@ -4,7 +4,7 @@ import { Modal } from "../Modal";
 import { Button } from "../Button";
 import { ConfirmDialog } from "../ConfirmDialog";
 import { cn } from "../cn";
-import { FOCUS_RING_TIGHT } from "../styleTokens";
+import { CARD_BTN_TAP, FOCUS_RING_TIGHT } from "../styleTokens";
 import { isImeComposing } from "../../utils/imeGuard";
 import { DIALOG_AUTOFOCUS_SKIP } from "../../hooks/useDialogA11y";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
@@ -370,6 +370,7 @@ export function TagEditModal({
             <Button
               variant="primary"
               size="sm"
+              className={CARD_BTN_TAP}
               leadingIcon={<Plus size={14} />}
               onClick={submitDraft}
               disabled={!draft.trim()}
