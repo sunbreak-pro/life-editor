@@ -57,6 +57,9 @@ function assign(
     id,
     itemId,
     tagId,
+    // #1580 / migration 0030 — see wikiTagUnified.ts.
+    createdAt: NOW,
+    isDisplayColor: false,
     updatedAt: NOW,
     isDeleted: false,
     deletedAt: null,

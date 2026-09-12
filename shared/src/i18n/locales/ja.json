@@ -513,6 +513,9 @@
     "tagColor": "「{{name}}」の色",
     "tagColorEmpty": "色はタグに付きます。先にタグを追加してください",
     "tagColorClearLabel": "デフォルト色",
+    "displayColorLegend": "カレンダーで使う色",
+    "displayColorPick": "「{{name}}」の色をこのアイテムに使う",
+    "displayColorDefaultHint": "既定は最初に付けたタグです",
     "tagColorCustomLabel": "カスタム"
   },
   "itemConvert": {

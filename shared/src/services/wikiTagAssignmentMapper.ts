@@ -18,22 +18,30 @@ export interface WikiTagAssignmentRow {
   user_id: string;
   item_id: string;
   tag_id: string;
+  created_at: string;
   updated_at: string;
+  is_display_color: boolean;
   is_deleted: boolean;
   deleted_at: string | null;
 }
 
 export type WikiTagAssignmentInsertRow = Omit<
   WikiTagAssignmentRow,
-  "updated_at"
+  "created_at" | "updated_at"
 >;
 
 export type WikiTagAssignmentUpdatePatch = Partial<
   Omit<WikiTagAssignmentRow, "id" | "user_id" | "item_id" | "tag_id">
 >;
 
+/*
+ * ⚠️ Needs migration 0030 in the database BEFORE this list ships: PostgREST
+ * answers a SELECT naming a column that does not exist with 42703, and this
+ * list feeds `listAllTagAssignments` — the one query every tag-reading screen
+ * waits on. Push before merge (the same order 0028 called for).
+ */
 export const WIKI_TAG_ASSIGNMENTS_COLUMNS =
-  "id, user_id, item_id, tag_id, updated_at, is_deleted, deleted_at";
+  "id, user_id, item_id, tag_id, created_at, updated_at, is_display_color, is_deleted, deleted_at";
 
 export function rowToWikiTagAssignment(
   row: WikiTagAssignmentRow,
@@ -42,7 +50,13 @@ export function rowToWikiTagAssignment(
     id: row.id,
     itemId: row.item_id,
     tagId: row.tag_id,
+    // Defaulted rather than trusted (#1580): the bulk read embeds
+    // `items_meta!inner(...)`, and a row that reached here through some other
+    // shape must not make `createdAt` undefined — the ordering that picks an
+    // item's default colour reads it on every assignment.
+    createdAt: row.created_at ?? row.updated_at,
     updatedAt: row.updated_at,
+    isDisplayColor: row.is_display_color ?? false,
     isDeleted: row.is_deleted,
     deletedAt: row.deleted_at,
   };

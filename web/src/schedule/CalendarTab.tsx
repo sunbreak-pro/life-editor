@@ -498,6 +498,7 @@ export function CalendarTab({
     hiddenByTags,
     gridItems,
     monthItems,
+    tagColors,
     anchorDayItems,
     handleToggleRepeats,
     handleSelectGroup,
@@ -792,6 +793,7 @@ export function CalendarTab({
     freqCopy,
     weekdayLabels,
     handleTodoToggleComplete,
+    tagColors,
   });
 
   /*

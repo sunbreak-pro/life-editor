@@ -515,6 +515,9 @@
     "tagColor": "\"{{name}}\" color",
     "tagColorEmpty": "Colors belong to tags — add a tag first.",
     "tagColorClearLabel": "Default color",
+    "displayColorLegend": "Colour the calendar by",
+    "displayColorPick": "Use \"{{name}}\" for this item's calendar colour",
+    "displayColorDefaultHint": "Default: the tag added first",
     "tagColorCustomLabel": "Custom"
   },
   "itemConvert": {

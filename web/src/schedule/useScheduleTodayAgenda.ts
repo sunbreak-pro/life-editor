@@ -9,7 +9,10 @@ import {
   type ScheduleItem,
   type TodoCalendarChip,
 } from "@life-editor/shared";
-import { toAgendaItems } from "./scheduleViewModels";
+import {
+  toAgendaItems,
+  type ScheduleTagColors,
+} from "./scheduleViewModels";
 
 /*
  * TODAY, as the Calendar's rightSidebar shows it (#889, extracted from
@@ -61,6 +64,12 @@ export interface UseScheduleTodayAgendaArgs {
   weekdayLabels: string[];
   /** TodoTree-status completion (useScheduleTodoChips) — the other half. */
   handleTodoToggleComplete: (todoId: string) => void;
+  /**
+   * itemId → the hex its tag paints it (#1580), from the same map the two
+   * grids draw with (useScheduleGridFilters). Passed in rather than rebuilt so
+   * a row cannot be one colour in the agenda and another on the grid.
+   */
+  tagColors: ScheduleTagColors;
 }
 
 export function useScheduleTodayAgenda({
@@ -73,6 +82,7 @@ export function useScheduleTodayAgenda({
   freqCopy,
   weekdayLabels,
   handleTodoToggleComplete,
+  tagColors,
 }: UseScheduleTodayAgendaArgs) {
   // Merge schedule items + todo chips into a single sorted agenda.
   //
@@ -82,8 +92,8 @@ export function useScheduleTodayAgenda({
   // press this merge produces is always a todo's.
   const toAgenda = useCallback(
     (arr: ScheduleItem[], chips: TodoCalendarChip[] = []): AgendaItem[] =>
-      toAgendaItems(arr, chips),
-    [],
+      toAgendaItems(arr, chips, tagColors),
+    [tagColors],
   );
 
   const todayItems = useMemo(

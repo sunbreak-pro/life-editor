@@ -330,6 +330,44 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [assignmentsByItem, EMPTY_ASSIGNMENTS],
   );
 
+  /**
+   * Point the item's display colour at one of its tags (#1580), or clear the
+   * choice with `tagId = null` so it falls back to the earliest-assigned one.
+   *
+   * Takes a TAG id rather than an assignment id because that is what a caller
+   * has: the picker lists an item's tags. The row is looked up here, from the
+   * bulk cache the caller is already rendering from.
+   *
+   * Local state is updated as one pass over the item's rows — the write is a
+   * swap (see the service), so flipping only the new row would leave the old
+   * one lit until the next refresh and the picker would show two.
+   */
+  const setDisplayColorTag = useCallback(
+    async (itemId: string, tagId: string | null): Promise<void> => {
+      const target = tagId
+        ? (assignmentsByItem.get(itemId) ?? []).find(
+            (a) => a.tagId === tagId && !a.isDeleted,
+          )
+        : null;
+      // A tag the item does not carry cannot speak for it. Silently doing
+      // nothing would read as the click being ignored, so say so.
+      if (tagId && !target) {
+        throw new Error(
+          `setDisplayColorTag: ${tagId} is not assigned to ${itemId}`,
+        );
+      }
+      await ds.setDisplayColorTag(itemId, target?.id ?? null);
+      setAllAssignments((prev) =>
+        prev.map((a) =>
+          a.itemId === itemId
+            ? { ...a, isDisplayColor: target != null && a.id === target.id }
+            : a,
+        ),
+      );
+    },
+    [ds, assignmentsByItem],
+  );
+
   const getLinksForItem = useCallback(
     (
       itemId: string,
@@ -361,6 +399,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       listTagsForItem,
       assignTagToItem,
       unassignTagFromItem,
+      setDisplayColorTag,
       listLinksFromItem,
       listLinksToItem,
       createItemLink,
@@ -385,6 +424,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       listTagsForItem,
       assignTagToItem,
       unassignTagFromItem,
+      setDisplayColorTag,
       listLinksFromItem,
       listLinksToItem,
       createItemLink,

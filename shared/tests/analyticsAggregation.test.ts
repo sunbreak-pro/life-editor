@@ -212,6 +212,9 @@ function makeUnifiedAssignment(
     id: "asg-1",
     itemId: "task-1",
     tagId: "tag-a",
+    // #1580 / migration 0030 — see wikiTagUnified.ts.
+    createdAt: "2025-01-01T00:00:00.000Z",
+    isDisplayColor: false,
     updatedAt: "2025-01-01T00:00:00.000Z",
     isDeleted: false,
     deletedAt: null,

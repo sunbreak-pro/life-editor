@@ -100,6 +100,9 @@ function assign(id: string, itemId: string, tagId: string): WikiTagAssignment {
     id,
     itemId,
     tagId,
+    // #1580 / migration 0030 — see wikiTagUnified.ts.
+    createdAt: BEFORE_RANGE,
+    isDisplayColor: false,
     updatedAt: BEFORE_RANGE,
     isDeleted: false,
     deletedAt: null,

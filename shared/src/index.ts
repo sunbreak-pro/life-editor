@@ -594,6 +594,15 @@ export {
   type CalendarLensResult,
   type CalendarMemberAssignment,
 } from "./utils/scheduleGridFilter";
+// #1580 — which of an item's tags lends it its colour on the calendar, and the
+// ink that stays readable on top of it. Pure (see the file header).
+export {
+  buildItemTagColors,
+  pickDisplayAssignment,
+  readableInkOn,
+  tagFaceStyle,
+  type TagFaceStyle,
+} from "./utils/scheduleTagColor";
 // #503 — cross-item title matching for the command palette (pure; the host
 // owns the fetching and the DataService boundary).
 export {
