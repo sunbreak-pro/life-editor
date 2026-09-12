@@ -105,6 +105,9 @@ function Surface({ section }: { section: SectionId }): ReactNode {
       <button type="button" onClick={tour.skip}>
         skip
       </button>
+      <button type="button" onClick={tour.end}>
+        end
+      </button>
       {/*
        * Escape's handler, reached directly. This harness renders no
        * TourOverlay, so a keypress has nothing to land on — and the
@@ -260,20 +263,42 @@ describe("a section run cannot spend the tour's progress", () => {
     });
   });
 
-  it("does not retire the tour when the user skips out of one", async () => {
+  it("does not retire the tour when the user ends one", async () => {
     render(<Harness />);
 
     press("go-materials");
     await waitFor(() => expect(state()).toContain("m1|run"));
-    press("skip");
+    press("end");
 
     await waitFor(() => expect(state()).toContain("none|idle"));
     // "Not this bit" is not "never offer me the tour again" — and `skipped` is
     // exactly the flag that would silence the first-run auto-start (#1123).
     expect(state()).toContain("|-|-|");
     expect(readProgress()?.skipped ?? false).toBe(false);
-    // Skip is also "done with this bit", so unlike Escape below it leaves no
+    // End is also "done with this bit", so unlike Escape below it leaves no
     // bookmark — the next pick of Materials starts at the top.
+    expect(readProgress()?.sectionStepId ?? null).toBe(null);
+  });
+
+  it("skips one step of a replay at a time, and the last one spends the bookmark (#1583)", async () => {
+    render(<Harness />);
+
+    press("go-materials");
+    await waitFor(() => expect(state()).toContain("m1|run"));
+    press("skip");
+    // One step, not the replay: m2 is next, and the seal still holds — the
+    // full tour's three flags are untouched by a replay's progress.
+    await waitFor(() => expect(state()).toContain("m2|run"));
+    expect(readProgress()?.stepId ?? null).toBe(null);
+
+    press("skip");
+    await waitFor(() => expect(state()).toContain("none|idle"));
+    // Reaching the end by skipping is reaching the end: same as walking it
+    // with Next — the tour is neither completed nor refused, and the
+    // bookmark is spent so the next pick starts at the top.
+    expect(state()).toContain("|-|-|");
+    expect(readProgress()?.completed ?? false).toBe(false);
+    expect(readProgress()?.skipped ?? false).toBe(false);
     expect(readProgress()?.sectionStepId ?? null).toBe(null);
   });
 
