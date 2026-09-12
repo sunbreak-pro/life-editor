@@ -12,6 +12,15 @@
 - 次: 🛑 残ゲート = 実データ変換のみ（ユーザー `supabase db push` 0020 + 0021 + `scripts/life_tags_verify.sql`・plan Step 5）→ 完了時に plan COMPLETED + archive。chat-main へ起票依頼済み: analytics tag 後継集計 / Notes folder 退役 + Connect グラフ後継
 
 ## 直近の完了
+
+- **#1579 エディタに table 系ノードを教えた** ✅（2026-09-09 — `origin/main` から `claude/materials-1579-table-nodes` を切り、書いた時点の実測で **PR #1587 は open**。#1521（callout・PR #1555）の兄弟で、**壊れ方は完全に同型**（知らないノード 1 つで文書全体が弾かれ、空のまま autosave が本文へ上書き）。
+  - **兄弟 Issue は前の PR 本文が名指ししている**: #1555 の「別件として見つけたもの」に table と toggleList が挙がっており、方針（エディタ側に足す / MCP をやめる）の答えもそこにあった。**同型 Issue に着手したら、先に兄弟 PR の本文を読む**のが最短
+  - **table は callout と違って手書きしない**。callout は属性 2 つの div だが、表はセルが colspan / rowspan / colwidth を持ち、「編集中も壊れない」挙動が prosemirror-tables の `tableEditing` プラグイン側にある。それは各ノード仕様の `tableRole` を要求し、`tableRole` は `@tiptap/core` がこのパッケージのためだけに宣言しているフィールド。手書きだと**開くけれど編集すると崩れる** = バグの再演になる
+  - **`@tiptap/extension-*` は peer を完全一致で要求する**（実測）: `@tiptap/extension-table@3.31.3` の peer は `@tiptap/core: 3.31.3` / `@tiptap/pm: 3.31.3` の**ピン**。素直に最新を入れるとバグ修正 PR でエディタ基盤ごと 3.23.4 → 3.31.3 に動く。**入っている core / pm と同じ版を明示指定する**と lockfile の増分は 1 パッケージ 15 行で済む
+  - **リサイズ off がどの node view を使うかも決めている**: `resizable: false` だと素の `TableView` が走り、表を `div.tableWrapper` で包む。CSS の `overflow-x` はそこに掛ける（ノート幅より広い表が、列を潰さずスクロールする）
+  - **mcp-server は触っていない**。Issue の Scope は MCP 側も挙げていたが、突き合わせたらずれが無かった（ビルダーの出力が公式スキーマにそのまま収まる・`markdownToTiptap` は表を作らないので経路は `generate_content` だけ）
+  - テスト 5 本は**登録を外すと 5 本とも落ちる**ことを実測。CI verify のステップ列 14 本 + `docs-lint` をローカル全緑）
+
 - **#1409 の Materials 4 件を 4 PR に分けて提出** ✅（2026-09-06 — 全部 `origin/main` から独立に切った。書いた時点の実測で **#1540（#1523）/ #1543（#1518）/ #1547（#1471）は merged・#1549（#1470）は open**。着手して分かった一番大きいことは、**4 件のうち 2 件は既に main で直っていた**という点。
   - **open Issue の一覧を「未着手の一覧」と読まない**（今回の最大の教訓）: #1470 は PR #1502、#1471 は PR #1507 で**前日に着地済み**だったが、どちらも Issue が close されないまま残っていた。しかも #1470 には「Mobile でも再現」というコメントが付いていて未修正に見えたが、**そのコメントは修正の着地より前**に書かれたものだった。着手前に `git log --oneline origin/main -- <Scope のファイル>` を引くだけで分かる
   - **古いブランチのファイルを読んで設計を組み立てかけた**: worktree は tracker ブランチ（`origin/main` より 20 コミット古い）に居たので、最初に読んだ `TemplateEditPanel.tsx` などは全部旧版だった。**ブランチを切る前にファイルを読まない**、が正しい順序
@@ -26,22 +35,14 @@
   - **#1471 = トークン名が同じでも幅は同じにならない**。`reading`（818px）は PageContainer が `width="reading"` の**ページ**に渡す幅で、Materials は `width="wide"`。つまり Note の幅は「ナビと右パネルの残り」で、1280x800 の実測 642px。左ナビは畳めて右パネルは 240–560px でドラッグ可変なので、**静的な class では原理的に一致させられない**。列を測って `min(var(--container-lumen-reading), Npx)` にした（トークンは天井として残す = 広い画面で 1100px の行にならない）。`Modal` に足した `maxWidth` は**インラインで当てる**のが要点で、#830 が踏んだ「2 つの `max-w-*` が Tailwind の出力順で決まる」罠が構造的に届かない
   - 両ブランチで CI verify のステップ列 14 本 + `docs-lint` をローカル全緑）
 
-- **#1439 の方針裁定 + #1438 の孤児回収を 2 PR に分けて提出** ✅（2026-09-02 — どちらも `origin/main` から独立に切った。**書いた時点の実測で 2 本とも merged**: #1453（#1438）= 529ffea1 / #1455（#1439）= 39d4d402。#1404 が意図的に残した 2 つの穴を塞いだ形。
-  - **#1439 = 「進捗はドキュメントの外に出す」**（`D-20260902-materials-1`・`status: recorded`）。プレースホルダノードを作らないので「保存されないノード」の機構が丸ごと要らなくなる。決め手は 2 つで、(1) 保存経路が複数ある以上「保存直前に一時ノードを落とす」処理は落とし忘れが**届いていないパスを指すノートの永続化**になり、壊れ方が静かすぎる、(2) `@supabase/storage-js` 2.105.4 の `FileOptions` に進捗コールバックが無い（実測）ので**どの案でも % は出せず**、不定形インジケータをドキュメント内に置く必然性が消える。派生 = 失敗時は既存トーストのみ・再試行導線なし / 両幅 1 実装・対象は Notes のみ
-  - **#1438 = 「消していい」の定義を純関数 1 か所に閉じ込めた**（`shared/src/services/attachmentOrphans.ts`）。走査は `notes_payload` + `dailies_payload` の**全行・`is_deleted` の絞り込みなし**（ゴミ箱のノートは復元できるので参照は生きている）。**2 つの読み取りの順番（一覧が先・ドキュメントが後）が安全性そのもの**で、逆順だと走査中に添付したファイルが孤児に見える。ページングには `order("item_id")` が要る（PostgREST は行順を保証せず、飛ばされた行 = 参照を見落としたノート）。保険として直近 1 時間のオブジェクトは対象外
-  - 両ブランチで CI verify のステップ列 14 本 + `docs-lint` をローカル全緑）
-
-- **#1407 / #1404 を 2 PR に分けて提出** ✅（2026-09-01 — どちらも `origin/main` から独立に切った。書いた時点の実測で PR #1417（#1407）/ #1425（#1404）とも **open**。**#1404 は 🛑 人手ゲート付き**: `supabase/migrations/0027_attachments_bucket.sql`（非公開バケット + 4 ポリシー）は未適用で、こうだいさんの `supabase db push` 待ち。適用前でもアプリは壊れない設計にしてある（アップロードはトースト、既存ノードは「読み込めませんでした」表示に落ちる）。
-  - **#1407 = 「一覧は直したが本文は直っていなかった」**: #1101 の snapshot は list を replay するが、**行は本文を持たない**（M1 = `listNotesUnified` は `content: ""`）。本文の台帳（`useNoteHydrationLedger` の ref）はマウント単位なので、Materials に戻るたび開いていたノートの本文だけ `getNoteUnified` を 1 往復していた。Materials だけで起きるのは**メインの表示物が一覧ではなく「アイテム 1 件の遅延読み込み」である唯一のセクション**だから。`shared/src/state/noteBodyStore.ts`（module-level LRU 12 件・DataService identity + `updatedAt` 一致で検証）を足し、`mergeLoadedList` が**メモリ上に行が無いときだけ**キャッシュを見る形にした（ライブ状態が常に優先 = #607 の own-write カバーを壊さない）。`restoreSelection` に `canHydrate` を追加し、replay は**merge が既に本文を持っていた場合だけ**復元して、そうでなければ one-shot を消費せずに戻る — #1285 のヘッダが書いている危険（layout effect から始めた hydrate が飛行中の read に merge で消される）は、新経路が hydrate を始めないので入り込まない
-  - **#1404 = 「本文にはパスを入れる」が全部を決めた**: バケットを非公開にすると URL は署名付き 1 時間で失効するので、本文に URL を焼き込むと「一晩で画像が壊れるノート」か「ずっと公開のバケット」の二択になる。本文はパスだけ持ち、`attachment` ノードが**描画のたびに署名 URL を引き直す**。migration 0027 の 4 ポリシーはどれも**パスの第 1 セグメント = `auth.uid()`** でしか通さないので、`SupabaseAttachmentsService` の `<uid>/<uuid>.<ext>` と**1 つの契約**（片方だけ変えると全アップロードがポリシーエラー）。ファイル名でなく uuid なのは衝突回避 + 「ファイル名は URL パスに入るユーザー入力なので消毒より最初から入れない」。$0 は 1 ファイル 10 MB をクライアントとバケット両方に（無料枠 = 1 GB / 月 5 GB egress / 1 アップロード 50 MB・supabase.com/pricing 2026-09-01 確認）
-  - CI verify のステップ列（shared → web → desktop → mcp-server）+ `docs-lint` を各ブランチでローカル全緑）
-
 ## 予定
 
-（なし — 2026-09-05 の 2 件（#1470 / #1471）で自分宛 open Issue は消化済み。次は chat-main からの新規 dispatch 待ち。**すぐ来る見込みの 1 件** = アップロード進捗の実装（方針は `D-20260902-materials-1` で確定済み・起票依頼は outbox 2026-09-02）。#1409（Mobile 幅の実ブラウザ点検）が走れば materials 宛の所見が続けて来る見込み）
+（なし — 2026-09-09 時点で `section:materials` の open Issue は #1579 のみで、それが PR #1587。次は chat-main からの新規 dispatch 待ち。**すぐ来る見込みの 1 件** = アップロード進捗の実装（方針は `D-20260902-materials-1` で確定済み・起票依頼は outbox 2026-09-02）。**もう 1 件の見込み** = `toggleList` / `toggleSummary` / `toggleContent`（#1555 の PR 本文が table と並べて名指しした残り。table を #1579 で片付けたので、エディタのスキーマに無い MCP ノードはこれだけ。`<details>` 経由で素の markdown からも届くぶん経路が広い））
 
 ## 申し送り
 
+- **エディタのスキーマに無いノードは、その 1 ブロックではなく文書全体を捨てる**（#1521 / #1579 で 2 回）: `RichTextEditor` の `enableContentCheck: true` + `onContentError` が warn だけ + 800ms autosave、の 3 つが揃うと**開くだけで本文が消える**。MCP 側にノードを足したら web のスキーマにも足す、が対になっている
+- **`@tiptap/extension-*` の peer は完全一致のピン**（2026-09-09 実測）: `extension-table@3.31.3` は `@tiptap/core` / `@tiptap/pm` に `3.31.3` を要求する。最新を素で入れるとエディタ基盤ごと上がるので、**入っている core / pm と同じ版を明示して入れる**（3.23.4 なら lockfile の増分は 1 パッケージ 15 行）
 - **PR を出したら push を先に済ませる — merge は思ったより早く来る**（2026-09-02 の実損）: #1455 を作った後に 2 コミット目（outbox の起票依頼）を push したが、その間にこうだいさんが squash merge していて**2 コミット目だけ main に届かなかった**。PR が MERGED でも、載せたつもりの後追いコミットは `git log origin/main` に無い。**後から足す予定があるなら push してから PR を作る**（拾い直しは cherry-pick で済むが、気付かないと消える）
 - **添付の孤児判定は 2 つの読み取りの順番が全部**（#1438）: バケットの一覧が先・ドキュメントの読みが後。逆順にすると「2 つの読み取りの間に添付されたファイル」が孤児に見え、消す対象がユーザーの見ている画像になる。**この順番を入れ替える変更は安全性の変更**なので、コメントを消さない
 - **PostgREST のページングには `order` が要る**（#1438）: 行順の保証が無いので、順序なしの 2 ページ目は 1 ページ目の行を取り直したり別の行を飛ばしたりする。走査で飛ばした行 = 参照を見落としたノート = 使用中のファイルを消す、に直結する
