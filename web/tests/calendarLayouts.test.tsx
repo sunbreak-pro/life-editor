@@ -461,7 +461,7 @@ describe("the same month, two densities (#878)", () => {
     expect(title.tagName).toBe("SPAN");
     expect(screen.queryByRole("button", { name: MONTH_ITEM.title })).toBeNull();
     const cell = title.closest("[role='gridcell']");
-    expect(cell?.className).toContain("h-[4.375rem]");
+    expect(cell?.className).toContain("h-[5.5rem]");
     expect(screen.getByRole("grid").className).not.toContain("rounded-md");
   });
 

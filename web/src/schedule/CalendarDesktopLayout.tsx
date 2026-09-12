@@ -169,6 +169,15 @@ export function CalendarDesktopLayout({
 }: CalendarDesktopLayoutProps) {
   const { t } = useTranslation();
 
+  // #1582: stable identity, so the memoised <MonthGrid> can skip a render it
+  // does not need. An inline arrow here made every cell redraw whenever the
+  // host changed state for something mounted ABOVE the grid — opening the
+  // creation panel spent 7-8ms redoing 42 cells that had not changed.
+  const formatMoreCount = useCallback(
+    (n: number) => t("scheduleScreen.moreCount", { count: n }),
+    [t],
+  );
+
   /*
    * #1584: the + button's accessible name. It carries the DAY, because the +
    * is now the cell's only keyboard stop on this width and 42 buttons all
@@ -215,7 +224,7 @@ export function CalendarDesktopLayout({
         onItemActivate={handlers.onItemActivate}
         onItemDoubleClick={handlers.onItemDoubleClick}
         onItemContextMenu={handlers.onItemContextMenu}
-        formatMoreCount={(n) => t("scheduleScreen.moreCount", { count: n })}
+        formatMoreCount={formatMoreCount}
         formatDayLabel={format.fullDay}
         formatCreateLabel={formatCreateLabel}
         ariaLabel={t("scheduleScreen.calendar")}

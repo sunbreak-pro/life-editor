@@ -148,3 +148,15 @@
 **通知ではないと判定して除外したもの**（再棚卸しの手間を省くため実測結果を残します）: `ErrorBoundary`（全画面のエラー状態）/ `SettingsAccount:142`（danger 色の見出し）/ `TrashScreen:254`（ローディングのスケルトン）/ `MobileAnalyticsView:211`（accent 色の統計カード）。
 
 **1 点だけ見た目を変えています**（PR 本文にも記載）: オフラインバナーのトーンを `danger` → `warning` に下げました。何も失敗していない（アプリが「今できないこと」を伝えているだけ）で、`danger` は隣の画面で本物のエラーが使っている色だからです。文言・`role="status"`・`WifiOff` は据え置き。**merge 後の実ブラウザ確認は §7.4 どおり chat-main の手番**なので、ここだけ目視をお願いします。
+
+## 2026-09-12 → chat-main: mcp-server のテスト 1 件が Windows で必ず落ちる（Issue 起票依頼）
+
+`cd mcp-server && npm run test` が Windows 機で 1 件失敗します。CI（ubuntu）は緑なので、Windows で開発するレーンだけが毎回赤い出力を踏みます。
+
+- 場所: `mcp-server/tests/remoteRegistry.test.ts` の `the remote tool set stays deployable to Workers > would have caught the verification domain`
+- 実測: `AssertionError: expected [ 'utils\verification.ts' ] to include 'utils/verification.ts'`
+- 原因: 収集したパスを `/` 区切り固定で比較しているため。Windows では `path` が `\` を返す
+- 影響: プロダクトの動作ではなくテストの移植性。ただし「ローカル全緑」を条件にしている運用（CLAUDE.md §7.1）では、Windows レーンが毎回この 1 件を手で除外する判断を迫られる
+- 直し方の案: 比較前に `.split(path.sep).join("/")` で正規化する（1 行）
+- 入った PR: #1589（`feat: serve the MCP tools over HTTPS so the phone can reach them`）
+- 実測したブランチ: `claude/desktop-mac-titlebar-1590` と `claude/desktop-packaging-status-1300`（docs しか触っていない後者でも落ちるので、両 PR とは無関係）

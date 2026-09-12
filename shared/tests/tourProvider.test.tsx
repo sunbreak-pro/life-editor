@@ -41,6 +41,7 @@ const LABELS: TourLabels = {
   next: "Next",
   done: "Done",
   skip: "Skip",
+  endTour: "End tour",
   progress: "progress",
   waitingForAction: "Try it",
 };
@@ -148,6 +149,7 @@ function Surface(): ReactNode {
           waitsForAction={tour.activeStep.advanceOn.kind === "action"}
           onNext={tour.next}
           onSkip={tour.skip}
+          onEnd={tour.end}
           onDismiss={tour.pause}
           labels={LABELS}
         />
@@ -219,6 +221,84 @@ describe("walking the tour", () => {
     fireEvent.click(screen.getByText("do-it"));
     await afterFrame();
     expect(state()).toContain("one|run");
+  });
+});
+
+/*
+ * #1583: the bubble's Skip passes ONE step. It used to be the tour-wide
+ * dismissal (now "End tour"), so a user who did not care for step 2 of 9 had
+ * silently turned the whole tutorial off for good — and nothing here told
+ * them, because `skipped: true` only shows as the tour never coming back.
+ */
+describe("Skip passes one step, never the tour (#1583)", () => {
+  it("moves to the next step and leaves the tour offerable", async () => {
+    render(<Harness anchors={["step-one", "step-two"]} />);
+    startTour();
+    await waitFor(() => expect(state()).toContain("one|run"));
+
+    fireEvent.click(screen.getByText(LABELS.skip));
+    await waitFor(() => expect(state()).toContain("two|run"));
+    expect(state()).toContain("2/2");
+    // The resume point walks with it — the user SAW step one and chose to
+    // pass it, which is as much progress as pressing Next — and the two
+    // flags that would silence the tour are both still down.
+    expect(readProgress()).toEqual({
+      stepId: "two",
+      completed: false,
+      skipped: false,
+      sectionStepId: null,
+    });
+  });
+
+  it("completes the tour when the LAST step is skipped", async () => {
+    render(<Harness anchors={["step-one", "step-two"]} />);
+    startTour();
+    await waitFor(() => expect(state()).toContain("one|run"));
+    fireEvent.click(screen.getByText(LABELS.next));
+    await waitFor(() => expect(state()).toContain("two|run"));
+
+    fireEvent.click(screen.getByText(LABELS.skip));
+    await waitFor(() => expect(state()).toContain("none|idle|done"));
+    // Same record Done writes: finished, not refused.
+    expect(readProgress()).toEqual({
+      stepId: null,
+      completed: true,
+      skipped: false,
+      sectionStepId: null,
+    });
+  });
+
+  it("passes an action step without the action being done", async () => {
+    const steps: readonly TourStep[] = [
+      { ...STEPS[0], advanceOn: { kind: "action", event: "did-it" } },
+      STEPS[1],
+    ];
+    render(<Harness steps={steps} anchors={["step-one", "step-two"]} />);
+    startTour();
+    await waitFor(() => expect(state()).toContain("one|run"));
+    // No Next on an action step (pinned above) — Skip is the way past a deed
+    // the user declines, so it must be there.
+    expect(screen.queryByText(LABELS.next)).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText(LABELS.skip));
+    await waitFor(() => expect(state()).toContain("two|run"));
+    expect(readProgress()?.skipped).toBe(false);
+  });
+
+  it("resumes at the step after the skipped one on a fresh mount", async () => {
+    const first = render(<Harness anchors={["step-one", "step-two"]} />);
+    startTour();
+    await waitFor(() => expect(state()).toContain("one|run"));
+    fireEvent.click(screen.getByText(LABELS.skip));
+    await waitFor(() => expect(state()).toContain("two|run"));
+    first.unmount();
+
+    // A reload. The old Skip left `skipped: true` behind, and this is where
+    // that showed: the tour would not open again from anywhere but Settings.
+    render(<Harness anchors={["step-one", "step-two"]} />);
+    expect(state()).toContain("none|idle|-|-|");
+    startTour();
+    await waitFor(() => expect(state()).toContain("two|run"));
   });
 });
 
@@ -340,12 +420,12 @@ describe("leaving and coming back", () => {
     });
   });
 
-  it("stops offering itself once skipped, until asked again", async () => {
+  it("stops offering itself once ended, until asked again", async () => {
     render(<Harness anchors={["step-one", "step-two"]} />);
     startTour();
     await waitFor(() => expect(state()).toContain("one|run"));
 
-    fireEvent.click(screen.getByText(LABELS.skip));
+    fireEvent.click(screen.getByText(LABELS.endTour));
     await waitFor(() => expect(state()).toContain("skipped"));
     expect(readProgress()?.skipped).toBe(true);
 
@@ -647,10 +727,12 @@ describe("the bubble is a dialog", () => {
     expect(dialog).toHaveAttribute("aria-modal", "true");
 
     await afterFrame();
-    // Not the Skip button, which opts out of initial focus — a tour must not
-    // open on its own exit.
+    // Neither the Skip nor the End button, both of which opt out of initial
+    // focus — a tour must not open on its own exit, nor on the button that
+    // passes the very step it is showing.
     expect(dialog.contains(document.activeElement)).toBe(true);
     expect(document.activeElement).not.toBe(screen.getByText(LABELS.skip));
+    expect(document.activeElement).not.toBe(screen.getByText(LABELS.endTour));
   });
 
   it("animates through the shared CSS class, never in JS", async () => {

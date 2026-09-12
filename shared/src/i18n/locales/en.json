@@ -1151,6 +1151,7 @@
     "next": "Next",
     "done": "Done",
     "skip": "Skip",
+    "endTour": "End tour",
     "progress": "{{current}} / {{total}}",
     "waitingForAction": "Try it to continue",
     "launcher": {

@@ -32,17 +32,27 @@ export interface TourContextValue {
   isRunning: boolean;
   /** Reached the end at least once. */
   isComplete: boolean;
-  /** Dismissed with "Skip" — will not auto-start again. */
+  /** Dismissed with "End tour" — will not auto-start again. */
   isSkipped: boolean;
   /** Begin, resuming at the persisted position. No-op while running. */
   start: () => void;
   /** Advance past the current step (the "Next" button). */
   next: () => void;
   /**
-   * Dismiss for good. Distinct from `pause`: this is the user saying "not
-   * this, ever", so the tour stops offering itself.
+   * Skip the current step only — the "Skip" button (#1583). Moves on exactly
+   * as `next` does, and completes the tour from the last step; unlike `next`
+   * it is also offered on a step that waits for a user action, so a step the
+   * user does not want to perform can still be passed. Never SETS
+   * `isSkipped` (the completed-tour record it may write clears it, as Done
+   * does).
    */
   skip: () => void;
+  /**
+   * Dismiss for good — the "End tour" button. Distinct from `pause`: this is
+   * the user saying "not this, ever", so the tour stops offering itself
+   * (`isSkipped`). Distinct from `skip`, which passes one step.
+   */
+  end: () => void;
   /**
    * Put it away for now, keeping the position. Escape does this rather than
    * `skip`, so a mis-keyed Escape costs the user nothing — the tour comes
@@ -58,7 +68,7 @@ export interface TourContextValue {
    * A PARTIAL run, and deliberately sealed off from the tour's own progress:
    * it cannot write `stepId`, `completed` or `skipped`, so finishing the
    * Materials steps on their own does not mark the whole tour complete, and
-   * skipping out of one does not tell the app never to offer the tour again.
+   * ending one does not tell the app never to offer the tour again.
    * Neither is a detail — the stored progress is what decides whether a
    * first-run user is ever shown the tour at all, and a "remind me how tags
    * work" click must not be able to spend that.
