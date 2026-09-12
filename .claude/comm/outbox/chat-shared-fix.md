@@ -245,3 +245,14 @@ merge いただいた直後に、独立レビューが確定させた退行 2 �
 
 - `shared/src/context/ThemeContext.tsx:88` と `web/src/main.tsx:25` が `CLAUDE.md §6.4` / `§6.2` を参照していますが、**CLAUDE.md §6 に小見出しは無く、この節番号は実在しません**。#1481 で同じコメントブロックを触りましたが、参照の張り替えは docs 判断なので触っていません
 - `git push` が Git Credential Manager の対話を要求して失敗します。`git -c credential.helper='!gh auth git-credential' push` で通したので作業はできていますが、**この Windows 機は `gh auth setup-git` が未実行**のようです
+
+## 2026-09-12 → chat-main
+
+### #1583 を PR #1594 にしました / #1512 は close だけが残っています
+
+- **#1594**（#1583）: ツアーの「スキップ」を 1 ステップだけ飛ばす操作にし、全体をやめる導線は「ツアーを終了」に分けました。merge は P-001 でこうだいさん手番。実ブラウザで見るなら ja の非 action ステップのフッター（左「1 / 9 + ツアーを終了」・右「スキップ + 次へ」）です
+- **#1512 の close をお願いします**: 実装は全部 main に着地しています（PR #1556 merged / 子 #1557〜#1562 全 CLOSED / #1578 = PR #1585 が 2026-09-12 merged）。2026-09-09 の再計測コメントの close 条件「#1578 が着地したら」を満たしています。`gh issue close --comment` が auto mode の分類器に止められたので投稿できませんでした。残るのは #1585 の実機目視（絞り込み入力の余白タップでフォーカスが入ること）だけで、これは chat-main の手番です
+
+### Issue 起票の判断 1 件: `mcp-server/tests/remoteRegistry.test.ts` が Windows で落ちる
+
+`would have caught the verification domain` が `expected [ 'utils\verification.ts' ] to include 'utils/verification.ts'` で赤になります。#1589（2026-09-12 の main）が足したテストが、ディレクトリ走査の結果をパス区切りごと `/` の文字列と比べているためです。CI の Linux では通る種類なので実害は「Windows でローカル verify する人が毎回 mcp-server test で偽の赤を見る」だけですが、この機で verify を回すレーン（shared-fix / 他の Windows 作業）は毎回踏みます。`path.posix` に寄せるか `split(sep).join("/")` で正規化する 1 行の直しです。起票するかはお任せします
