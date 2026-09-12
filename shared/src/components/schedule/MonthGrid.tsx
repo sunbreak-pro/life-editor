@@ -14,7 +14,8 @@ import {
  * renders a 7-column grid of cells (day-number badge + up to 2 provenance
  * chips + "他 N 件"); Mobile (`compact`) renders a day badge over a short
  * vertical list of item TITLES (#1401 — it was a dot row until then), cut at
- * three lines with the same "他 N 件" remainder (#1045) taking the last one.
+ * four lines with the same "他 N 件" remainder (#1045) taking the last one
+ * (#1581 — three lines and a taller badge until then).
  *
  * The compact cell is a FIXED height and clips: a phone's cell is ~1/7th of
  * the screen wide, and a title that does not fit is cut at the cell edge with
@@ -84,8 +85,9 @@ export interface MonthGridProps {
   formatDayLabel?: (dateKey: string) => string;
   /**
    * Mobile density (#1401): fixed-height cells, a title list instead of chips
-   * (up to 3 lines, the last one the remainder when there are more), and no
-   * side borders or corner radius, so the grid can run edge to edge.
+   * (up to 4 lines, the last one the remainder when there are more), a smaller
+   * day badge, and no side borders or corner radius, so the grid can run edge
+   * to edge.
    */
   compact?: boolean;
   /** Already-translated accessible name for the grid (§6.4). */
@@ -172,10 +174,17 @@ export function MonthGrid({
   );
 
   const maxChips = 2;
-  // Compact: three lines per cell. A day with more than three items shows two
-  // titles and spends the third line on "+N", so the count is never hidden
-  // behind a clipped list (#1045's argument, carried over from the dots).
-  const maxTitleLines = 3;
+  /*
+   * Compact: FOUR lines per cell since #1581 (three until then). A day with
+   * more than four items shows three titles and spends the fourth line on
+   * "+N", so the count is never hidden behind a clipped list (#1045's
+   * argument, carried over from the dots).
+   *
+   * The number and the cell height below move together — the height is exactly
+   * what these lines need plus a little slack, so raising one without the other
+   * either clips a line or leaves a band of empty cell.
+   */
+  const maxTitleLines = 4;
 
   return (
     <div
@@ -233,9 +242,23 @@ export function MonthGrid({
               aria-selected={selectedKey ? isSelected : undefined}
               className={cn(
                 "relative border-b border-r border-lumen-border last:border-r-0",
-                // #1401: a fixed height that clips, so no title can move a
-                // grid line — versus Desktop's floor, which lets a cell grow.
-                compact ? "h-[4.375rem] overflow-hidden" : "min-h-14",
+                /*
+                 * #1401: a fixed height that clips, so no title can move a
+                 * grid line — versus Desktop's floor, which lets a cell grow.
+                 *
+                 * 88px since #1581 (70px before). 70 was exactly three title
+                 * lines under the badge with nothing to spare, which is what
+                 * made the cell read as packed. 88 is four lines plus ~6px of
+                 * slack, on a badge that is smaller by the same change.
+                 *
+                 * Still a fixed value and NOT `auto-rows-fr`: stretching to
+                 * fill the column is what made the rows tower on a tall phone,
+                 * and #1401 is the issue that stopped it. Six of these are
+                 * taller than most phone viewports, so the host's wrapper
+                 * scrolls (CalendarNarrowLayout) rather than the grid shrinking
+                 * a week out of sight.
+                 */
+                compact ? "h-[5.5rem] overflow-hidden" : "min-h-14",
                 isSelected &&
                   "bg-lumen-bg-secondary ring-2 ring-inset ring-lumen-accent",
               )}
@@ -262,8 +285,27 @@ export function MonthGrid({
               >
                 <span
                   className={cn(
-                    "flex h-5 min-w-5 items-center justify-center self-start rounded-full px-1 text-xs font-semibold tabular-nums",
-                    compact && "self-center",
+                    /*
+                     * No `self-*` here: `cn` is a plain string join, so two
+                     * utilities for one property are settled by Tailwind's
+                     * emit order rather than by call order (#830). The two
+                     * branches below are mutually exclusive instead.
+                     */
+                    "flex items-center justify-center rounded-full px-1 font-semibold tabular-nums",
+                    /*
+                     * #1581: the phone's date was the loudest thing in a cell
+                     * it shares with four titles. 16px box / 10px digits here
+                     * against Desktop's 20 / 13 — the digits land level with
+                     * the titles below them, and what still separates them is
+                     * the weight, the pill and (for today) the accent fill.
+                     *
+                     * The digits are not shrunk the 5px the request names:
+                     * `--text-xs` is 13px in this project, so that would be
+                     * 8px and unreadable at arm's length.
+                     */
+                    compact
+                      ? "h-4 min-w-4 self-center text-[0.625rem]"
+                      : "h-5 min-w-5 self-start text-xs",
                     isToday
                       ? "bg-lumen-accent text-lumen-on-accent"
                       : inMonth
@@ -317,7 +359,7 @@ export function MonthGrid({
                     {/*
                      * The remainder, spelled out (#1045): a day with eight
                      * items must not look like a day with two. It takes the
-                     * third line instead of a third title, so it is never the
+                     * last line instead of a fourth title, so it is never the
                      * thing that gets clipped. Same `formatMoreCount` the
                      * Desktop overflow line uses, so the two densities agree
                      * on the wording ("+N more" / "他 N 件").

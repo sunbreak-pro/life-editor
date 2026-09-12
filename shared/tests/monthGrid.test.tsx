@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { MonthGrid, type MonthGridItem } from "../src/components";
 
 /*
@@ -110,9 +110,10 @@ describe("MonthGrid", () => {
     expect(screen.queryByRole("button", { name: "Gym" })).toBeNull();
     expect(screen.getByText("Gym")).toBeInTheDocument();
     expect(screen.getByText("Dentist")).toBeInTheDocument();
-    // 7/09 holds exactly 3 items and the list runs to 3 lines, so nothing is
-    // hidden and no remainder is printed — the chip figure ("+1 more", from
-    // the tighter cap of 2) must NOT leak into this density (#1045).
+    // 7/09 holds exactly 3 items and the list runs to 4 lines (#1581), so
+    // nothing is hidden and no remainder is printed — the chip figure
+    // ("+1 more", from the tighter cap of 2) must NOT leak into this
+    // density (#1045).
     expect(screen.getByText("Groceries")).toBeInTheDocument();
     expect(screen.queryByText("+1 more")).toBeNull();
   });
@@ -157,7 +158,7 @@ describe("MonthGrid", () => {
 
     const cell = title.closest("[role='gridcell']");
     expect(cell?.className).toContain("overflow-hidden");
-    expect(cell?.className).toContain("h-[4.375rem]");
+    expect(cell?.className).toContain("h-[5.5rem]");
     expect(cell?.className).not.toContain("min-h-14");
   });
 
@@ -194,30 +195,33 @@ describe("MonthGrid", () => {
         variant: "event" as const,
       }));
 
-    it("shows two titles and counts the rest on the third line", () => {
+    it("shows three titles and counts the rest on the fourth line", () => {
       renderGrid({ compact: true, items: busyDay(8) });
       expect(screen.getByText("Item 0")).toBeInTheDocument();
       expect(screen.getByText("Item 1")).toBeInTheDocument();
-      expect(screen.queryByText("Item 2")).toBeNull();
-      // 8 items, 2 shown → 6 hidden.
-      expect(screen.getByText("+6 more")).toBeInTheDocument();
-    });
-
-    it("prints one over the three lines as +2 (the third line is the count)", () => {
-      renderGrid({ compact: true, items: busyDay(4) });
-      expect(screen.getByText("+2 more")).toBeInTheDocument();
-      expect(screen.queryByText("Item 2")).toBeNull();
-    });
-
-    it("stays silent when the day fits inside three lines", () => {
-      renderGrid({ compact: true, items: busyDay(3) });
-      expect(screen.queryByText(/more$/)).toBeNull();
       expect(screen.getByText("Item 2")).toBeInTheDocument();
+      expect(screen.queryByText("Item 3")).toBeNull();
+      // 8 items, 3 shown → 5 hidden.
+      expect(screen.getByText("+5 more")).toBeInTheDocument();
+    });
+
+    it("prints one over the four lines as +2 (the fourth line is the count)", () => {
+      renderGrid({ compact: true, items: busyDay(5) });
+      expect(screen.getByText("+2 more")).toBeInTheDocument();
+      expect(screen.queryByText("Item 3")).toBeNull();
+    });
+
+    it("stays silent when the day fits inside four lines", () => {
+      renderGrid({ compact: true, items: busyDay(4) });
+      expect(screen.queryByText(/more$/)).toBeNull();
+      expect(screen.getByText("Item 3")).toBeInTheDocument();
     });
 
     it("leaves the Desktop count on its own cap", () => {
-      // Same 8 items without `compact`: 2 chips → 6 hidden. The two densities
-      // share the formatter; this pins the Desktop side on its own arithmetic.
+      // Same 8 items without `compact`: 2 chips → 6 hidden, against compact's
+      // 3 shown → 5 hidden. The two densities share the formatter, so this
+      // pins the Desktop side on its own arithmetic — and the two numbers
+      // differing is the point (#1045).
       renderGrid({ items: busyDay(8) });
       expect(screen.getByText("+6 more")).toBeInTheDocument();
       expect(screen.queryByText("Item 2")).toBeNull();
@@ -293,5 +297,85 @@ describe("MonthGrid — completion is a TODO's alone (#1373)", () => {
     expect(screen.getByTitle("Write report").className).toContain(
       "line-through",
     );
+  });
+});
+
+/*
+ * #1581 — the phone's calendar was cramped: 70px cells that fitted three title
+ * lines with nothing to spare, under a date badge sized for Desktop.
+ *
+ * Both halves are asserted on classes, because jsdom has no layout — the same
+ * convention the #1401 clipping case above uses. What matters is that the two
+ * densities are told apart at all: every value here has a Desktop counterpart
+ * that must NOT move, and one shared class string would move both.
+ */
+describe("MonthGrid — compact room and date size (#1581)", () => {
+  const cellOf = (dateKey: string) =>
+    screen.getByRole("button", { name: dateKey }).closest("[role='gridcell']");
+
+  it("gives a compact cell 88px, and leaves Desktop's floor alone", () => {
+    renderGrid({ compact: true });
+    const compactCell = cellOf("2026-07-20");
+    expect(compactCell?.className).toContain("h-[5.5rem]");
+    // Still a fixed height that clips: #1401's rule, not a floor that grows.
+    expect(compactCell?.className).toContain("overflow-hidden");
+    expect(compactCell?.className).not.toContain("min-h-14");
+
+    cleanup();
+    renderGrid();
+    const wideCell = cellOf("2026-07-20");
+    expect(wideCell?.className).toContain("min-h-14");
+    expect(wideCell?.className).not.toContain("h-[5.5rem]");
+  });
+
+  it("shrinks the compact date badge and leaves Desktop's at text-xs", () => {
+    renderGrid({ compact: true });
+    // 7/20 is an ordinary day — today's badge carries the accent fill on top.
+    const compactBadge = screen.getByText("20");
+    expect(compactBadge.className).toContain("text-[0.625rem]");
+    expect(compactBadge.className).toContain("h-4");
+    expect(compactBadge.className).not.toContain("text-xs");
+
+    cleanup();
+    renderGrid();
+    const wideBadge = screen.getByText("20");
+    expect(wideBadge.className).toContain("text-xs");
+    expect(wideBadge.className).toContain("h-5");
+    expect(wideBadge.className).not.toContain("text-[0.625rem]");
+  });
+
+  /*
+   * `cn` is a plain string join, so two utilities for one property are settled
+   * by Tailwind's emit order rather than by call order (#830). The badge used
+   * to carry `self-start` unconditionally with `self-center` added on top in
+   * compact; the branches are exclusive now, and this says so.
+   */
+  it("emits exactly one self-* on the badge", () => {
+    renderGrid({ compact: true });
+    const compactBadge = screen.getByText("20");
+    expect(compactBadge.className).toContain("self-center");
+    expect(compactBadge.className).not.toContain("self-start");
+
+    cleanup();
+    renderGrid();
+    const wideBadge = screen.getByText("20");
+    expect(wideBadge.className).toContain("self-start");
+    expect(wideBadge.className).not.toContain("self-center");
+  });
+
+  it("uses the extra room for a fourth title line", () => {
+    renderGrid({
+      compact: true,
+      items: Array.from({ length: 4 }, (_, i) => ({
+        id: `n${i}`,
+        date: "2026-07-20",
+        title: `Item ${i}`,
+        variant: "event" as const,
+      })),
+    });
+    // The fourth title is drawn rather than folded into a count — that is the
+    // information the taller cell buys.
+    expect(screen.getByText("Item 3")).toBeInTheDocument();
+    expect(screen.queryByText(/more$/)).toBeNull();
   });
 });
