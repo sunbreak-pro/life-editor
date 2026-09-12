@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   MonthGrid,
@@ -129,6 +129,13 @@ export function CalendarNarrowLayout({
 }: CalendarNarrowLayoutProps) {
   const { t } = useTranslation();
 
+  // #1582: same stable identity the Desktop layout passes — <MonthGrid> is
+  // memoised, and an inline arrow here would defeat it on this width too.
+  const formatMoreCount = useCallback(
+    (n: number) => t("scheduleScreen.moreCount", { count: n }),
+    [t],
+  );
+
   return (
     /*
      * The narrow column. It used to be the FAB's anchor (#632) and carried
@@ -235,9 +242,7 @@ export function CalendarNarrowLayout({
               selectedKey={month.anchorDate}
               weekdayLabels={month.weekdayLabels}
               onSelectDay={month.onSelectDay}
-              formatMoreCount={(n) =>
-                t("scheduleScreen.moreCount", { count: n })
-              }
+              formatMoreCount={formatMoreCount}
               formatDayLabel={month.formatDayLabel}
               ariaLabel={t("scheduleScreen.calendar")}
             />

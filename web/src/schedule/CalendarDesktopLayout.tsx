@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useCallback, type ReactNode } from "react";
 import {
   CalendarLensRow,
   MonthGrid,
@@ -165,6 +165,15 @@ export function CalendarDesktopLayout({
 }: CalendarDesktopLayoutProps) {
   const { t } = useTranslation();
 
+  // #1582: stable identity, so the memoised <MonthGrid> can skip a render it
+  // does not need. An inline arrow here made every cell redraw whenever the
+  // host changed state for something mounted ABOVE the grid — opening the
+  // creation panel spent 7-8ms redoing 42 cells that had not changed.
+  const formatMoreCount = useCallback(
+    (n: number) => t("scheduleScreen.moreCount", { count: n }),
+    [t],
+  );
+
   /*
    * #889: the Desktop main area, hoisted out of the return so the layout
    * below reads as what it is — toolbar, lens, body. Same three states the
@@ -194,7 +203,7 @@ export function CalendarDesktopLayout({
         onItemActivate={handlers.onItemActivate}
         onItemDoubleClick={handlers.onItemDoubleClick}
         onItemContextMenu={handlers.onItemContextMenu}
-        formatMoreCount={(n) => t("scheduleScreen.moreCount", { count: n })}
+        formatMoreCount={formatMoreCount}
         formatDayLabel={format.fullDay}
         ariaLabel={t("scheduleScreen.calendar")}
         className="h-full"
