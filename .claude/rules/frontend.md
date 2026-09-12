@@ -89,6 +89,7 @@ jsdom にレイアウトが無い（座標がすべて 0）という環境の事
 ## Gotchas
 
 - **`cn` は tailwind-merge ではない**（`shared/src/components/cn.ts` = ただの文字列連結）。同じプロパティのクラスを 2 つ載せると**後から渡した方ではなく CSS の記述順が勝つ** — Tailwind v4 は接尾辞順に吐くので `.max-w-[860px]` は `.max-w-md` より上に来て負ける。**既定値を呼び出し側に上書きさせたい部品は `className` 任せにせず prop で出し分ける**（実例 = `Modal` の `size` / `padded`。860px を渡したタグ編集パネルが 448px で描かれていた = #830）
+- **狭幅の 44px タップ目標は呼び出し側で `max-md:min-h-11 max-md:min-w-11` を載せる**（#1512 = 共有部品 #1556 + 画面別 #1557〜#1562 / #1578 の 7 レーンで確立）。`--spacing-lumen-tap-min` は**名前に反して `1.75rem`**（既定 root 18px で 31.5px）で、`tokens.css` の `:has()` による icon-only ボタンのフロアも `TAP_TARGET` もこの値 — media gate が無く上げると Desktop の全アイコンボタンが太るので触らない。`Button` の size 表（`h-9` = 40.5px）も Desktop 十数箇所に効くので表は触らず、呼び出し側で足す（実例 = `ConfirmDialog.tsx`）。密な行（タブ帯）は箱を太らせず `TAP_TARGET_TALL`（透明な 44px の `::after`）で当たり判定だけ広げる — ただし `inset-x-0` なので**横には広がらず**、隣り合う 2 ボタン（Undo / Redo）には使えない。**監査は `getBoundingClientRect()` だけで判定しない**: `::after` が見えないので 44px を持つ control も 33 と出る。`document.elementFromPoint()` で外周を叩く（2026-09-09 の再計測手順・#1512 コメント）
 - **IME**: keydown 処理は **`isImeComposing(e)`（`shared/src/utils/imeGuard.ts`）必須**（日本語入力破壊防止）。`isComposing` を直に見ない — WebKit（macOS + iOS = 主ターゲット）は変換を**確定する** Enter を `isComposing: false` + `keyCode === 229` で飛ばすため、フラグ単独だと一番まずいキーだけ素通りする（#737。React 合成イベント・native イベントのどちらも同じヘルパで受ける）
 - **リッチテキスト**: TipTap
 - **DnD**: `@dnd-kit`。ツリーの入れ子は #418 で退役（2026-07-27 ユーザー判断、復活せず = 2026-08-27 確定）。**ツリー移動の API は Todos / Notes とも存在しない** — 旧 `moveNode` / `moveToRoot` は呼び出し元ゼロのまま残っていたため #1156 でフックごと削除した。並び替えは各リスト側の order 更新で行う
