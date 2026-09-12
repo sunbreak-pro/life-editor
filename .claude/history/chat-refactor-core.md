@@ -1,5 +1,21 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-09-12 - #1590 macOS のドラッグ帯 と #1300 の Status 追随（PR #1595 / #1598）
+
+#### 概要
+
+desktop の 2 件を別ブランチで。#1590 は macOS で traffic light がサイドバーのブランドヘッダーに重なり、ヘッダー帯でウィンドウを動かせない問題（`-webkit-app-region` はリポジトリ全体で 0 件だった）。#1300 は**コードが既に main にあった**ため、残っていた Step 10（Status 追随）だけを実測し直して書いた。
+
+#### 変更点
+
+- **#1590 の直し方（PR #1595）**: wide シェルの最上部に **空の 28px 帯**を 1 本挿し、`-webkit-app-region: drag` を持たせた。3 ボタンの逃げ場と窓の取っ手を 1 つの要素で兼ねる。**帯を空にしたのが要点** — drag 領域は内側のクリックを全部飲むので、既存ヘッダー行を中に入れると全ボタンに `no-drag` を付け直すことになり、1 つ漏らすと「押しても無反応のボタン」になる。ヘッダー行には一切触っていないのでクリック挙動は不変
+- **判定の経路**: 殻 → renderer は `window.desktop.platform`（`desktop/src/shared/ipcContract.ts::DesktopHostPlatform` + preload の `hostPlatform()`）。**チャンネルではなく値**なので `ipcMain.handle` は増えず #529 Risk 1 の関数枠（10）を食わない。Promise にしなかったのは初回描画で要る情報のため（await すると非 mac レイアウトが 1 フレーム見える）。`isMac`（userAgent）では答えられない — macOS のブラウザタブでも真になり、タブには本物のタイトルバーがあるので帯が 28px の無駄になる。`platform` は optional で読み、フィールドの無い旧 desktop ビルドは従来レイアウトに落ちる（#1389 が `isDesktopShell()` を消した理由の裏返し）
+- **px を 1 つだけ入れた**: `--spacing-lumen-titlebar-mac: 28px`。tokens.css の高さは Settings の文字サイズ段に追随させるため rem が原則だが、OS の `trafficLightPosition` は px 固定なので rem 帯は大きい段でボタンの下からずれる。例外の理由をトークンのコメントに書き、`desktop/tests/macTitleBar.test.ts` が帯の 28 と殻の y = 8 の一致を文字列で突き合わせる（Windows 機からは traffic light を描けないので他に検出手段が無い。`web/tests/shellHeightLockstep.test.ts` と同型）
+- **テスト**: 新規 2 ファイル + 既存 2 ファイルに追記。`shared/tests/appShellMacTitleBar.test.tsx` は「mac 殻で出る」だけでなく **Web / Windows / Linux / 旧ビルド / narrow で出ない**ことを 4 ケースで固定した（Web を守る側がこの変更の本番）。非 mac の DOM は 1 バイトも変えていない（既存ツリーを fragment に括り、mac 時だけラッパー div を増やす形）
+- **#1300 の追随（PR #1598）**: 直したのは 2 つの食い違い。(1) 計画書の Status 行が「残りは Step 6（tag → Release）」と言う一方、同じファイルの Worklog には 2026-09-09 の実走が書かれていた。(2) 移行 SSOT が 2026-08-31 の「tag はまだ打っておらず `gh release list` は空のまま」で止まっていた。日付つき進捗は書き換えず後継を足す規約（`rules/records.md` §3）に従い、旧文には解消済みの注記だけ足して 2026-09-09 のエントリを下に置いた。実測 = run 34342012501 が 3 ジョブ success / draft Release に `.exe` 84,351,933 B + arm64 `.dmg` 103,608,244 B / **まだ draft**（公開はユーザー手番）
+- **検証**: 両ブランチで `ci.yml` の `verify` 全ステップ（shared → web → desktop → mcp-server）+ `docs-lint` をローカル実行。**mcp-server の test 1 件だけが Windows 限定で落ちる** — `tests/remoteRegistry.test.ts` が `expected [ 'utilserification.ts' ] to include 'utils/verification.ts'`。#1589 で入ったテストがパス区切りを `/` 固定で比較しているためで、docs しか触っていない #1598 のブランチでも同じように落ちることで無関係を確認した（Linux ランナーの CI は緑）。起票依頼は outbox へ
+- **desktop build で一度こけた**: `@tiptap/extension-table` が解決できず失敗したが、原因は #1579 で web に追加された依存がこの worktree の `web/node_modules` に無かったこと。`cd web && npm ci` で解消（desktop の renderer root が `../web` なので、web の install 抜けが desktop のビルドとして出る）
+
 ### 2026-09-06 - #1388 退役機能の dead i18n キー 33 個と dead CSS を一掃（PR #1551 open）
 
 #### 概要
