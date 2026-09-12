@@ -11,6 +11,8 @@
     "typecheck:tests": "tsc -p tsconfig.test.json --noEmit",
     "_comment_catalog": "Regenerates shared/src/generated/mcpToolCatalog.json from the built registry (#1210). Run after adding or renaming a tool; toolCatalogFreshness.test.ts fails until you do.",
     "catalog": "npm run build && node scripts/dump-tool-catalog.mjs",
+    "_comment_deploy": "Remote MCP on Cloudflare Workers. Build first — wrangler.jsonc's main is dist/worker.js, not src/. wrangler is NOT a dependency (same call as deploy-web.yml: npx, major pinned), so nothing here is installed for a package that only deploys. Secrets: npx wrangler@4 secret put <NAME>. Plan: .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md",
+    "deploy": "npm run build && npx --yes wrangler@4 deploy",
     "test": "vitest run"
   },
   "dependencies": {

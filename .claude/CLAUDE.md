@@ -20,7 +20,7 @@
 
 ## 2. Platform
 
-- Desktop（macOS / Windows / Linux）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。MCP は Desktop 専用（Terminal は 2026-07-05 に機能ごと退役決定 = D-20260705-main-1 → §8。MCP Server 自体は存続）
+- Desktop（macOS / Windows / Linux）= 全機能。Mobile（iOS / Android）= Consumption + Quick capture。**MCP は stdio = Desktop 専用のまま、Remote MCP（Cloudflare Workers）を 2 本目の入口として併設**（2026-09-09 ユーザー確定 = D-20260909-mcp-mobile-1 → §5。スマホの Claude アプリはカスタムコネクタで繋ぐ。Terminal は 2026-07-05 に機能ごと退役決定 = D-20260705-main-1 → §8。MCP Server 自体は存続）
 - **画面別 Mobile スコープの正本 = [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md)**（#319 でユーザー確定 = D-20260723-main-1）: 各セクション内機能の Full / Consumption / Quick capture / 省略 と Phase 1/2 の段取り。§2 は大方針のみを持ち、画面別の取捨は同文書が正（数値の非複製原則）
 - **Mobile 省略ガードは配線済み**（#320）: `mobile/` は `web/dist` を包む Capacitor 殻で独自 Provider 構成を持たず、web ホストが `isNativeMobile()` で native mobile 時に ShortcutConfig Provider を省略する。Audio は Provider 維持（完了チャイム = work タイマー Full の一部 — mobile-scope.md #10/#11）で Ambient mixer UI のみ native 省略（ScreenLock / FileExplorer / CalendarTags は Provider ごと撤去済みで対象外）。実装状況とネストの正本 = `web/src/AppProviders.tsx`（#676 で Provider 鎖と `isNativeMobile()` ゲートを移設済み）・規約は [`rules/frontend.md`](./rules/frontend.md) §Provider 順序
 - **スマホからの主導線 = 公開 Web URL**（#600・2026-08-07 ユーザー確定 = D-20260807-main-1）: モバイル UI は画面幅（`useMediaQuery`）で出るため、ブラウザで開けば Capacitor 殻と同じ画面になる。ネイティブ殻は併存。PWA の採用範囲・配布経路 → 移行 SSOT §8 / §9
@@ -46,6 +46,8 @@
 ## 5. AI Integration
 
 - MCP Server = 独立 Node.js プロセス。Claude Code が stdio 接続し同一 DB を直接操作（ツール一覧はコードが正）
+- **入口は 2 本・ハンドラは 1 本**（2026-09-09 = D-20260909-mcp-mobile-1・計画書 = [`2026-09-09-remote-mcp-mobile.md`](./docs/vision/plans/2026-09-09-remote-mcp-mobile.md)）: `mcp-server/src/index.ts` = stdio（Desktop）、`mcp-server/src/worker.ts` = Cloudflare Workers 上の Remote MCP（スマホの Claude アプリのカスタムコネクタ）。**ツール集合の正本は `src/remoteTools.ts`**（どこでも動くドメイン）で、`src/tools.ts` はそれ + verification harness（`node:fs` の台帳を持つため local 専用）。新ドメインは remoteTools 側に足す — 逆にすると Worker 側だけ無言で欠ける
+- **Worker の 2 つの前提**: 認証は URL パスの共有シークレット 1 本（不一致は 404。per-user OAuth は配布ユーザーに開く時の課題）／`vars.LIFE_EDITOR_TZ` 必須（Workers の isolate は UTC 固定で、未設定なら日付ツールが前日を返すため `worker.ts` が例外にする）
 - **ツールを足したら `cd mcp-server && npm run catalog` を回す**（#1210）: Settings の AI 連携カードはビルド時生成の `shared/src/generated/mcpToolCatalog.json` を読む。shared から registry を直 import すると handler 経由で Supabase クライアントがフロントのバンドルに混入するため、パッケージ境界をデータで跨ぐ。再生成漏れは `mcp-server/tests/toolCatalogFreshness.test.ts` が落ちて気付ける
 - `claude`（Claude Code）起動で MCP 自動接続（MCP Server は存続。起動導線だったアプリ内ターミナルは 2026-07-05 退役決定 = D-20260705-main-1 → §8）。**退役後の常設起動導線は Desktop 殻に着地済み**（#1211）: サイドバー下部の常設行と Settings の AI 連携カードのどちらからでも、Settings のパス欄で指定したフォルダを起動ディレクトリにして素の `claude` を立てる（プロンプトは渡さない）。置き場・起動形態・起動フォルダの根拠 = D-20260831-settings-1、経緯 = [`archive/2026-08-29-claude-launcher-desktop.md`](./archive/2026-08-29-claude-launcher-desktop.md)
 

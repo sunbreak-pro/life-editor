@@ -1,0 +1,70 @@
+name: Deploy — Remote MCP to Cloudflare Workers
+
+# スマホから life-editor の MCP ツールを叩くための Remote MCP Server の配布。
+# 設計・手順の正本 = .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md
+#
+# deploy-web.yml（公開 Web URL）とは別 Worker・別ファイル。あちらは静的アセット
+# 配信で main への push で自動配布するが、こちらは push では走らせない:
+#
+#   - 配る先が「オーナーの生データを読み書きできる公開エンドポイント」で、
+#     Plan Gate の 🛑 人手（本番デプロイ）に当たる（CLAUDE.md §7.3）
+#   - シークレット 5 本（下記）が Worker 側に入っていないと、デプロイは成功
+#     するのにツール呼び出しが全部エラーになる。投入は wrangler secret put で
+#     一度だけ手で行う作業なので、その前に自動で配っても意味がない
+#
+# 必要な GitHub Secrets（deploy-web.yml と共用）:
+#   CLOUDFLARE_API_TOKEN … テンプレート「Edit Cloudflare Workers」で発行
+#   CLOUDFLARE_ACCOUNT_ID
+#
+# Worker 側のシークレット（GitHub ではなく Cloudflare に置く。ローカルから
+#   cd mcp-server && npx wrangler@4 secret put <NAME>
+# で 1 本ずつ投入する）:
+#   LIFE_EDITOR_MCP_TOKEN / LIFE_EDITOR_SUPABASE_URL /
+#   LIFE_EDITOR_SUPABASE_ANON_KEY / LIFE_EDITOR_SUPABASE_EMAIL /
+#   LIFE_EDITOR_SUPABASE_PASSWORD
+# anon key 止まりで service_role key は絶対に置かない（RLS を素通りする合鍵）。
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-mcp
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: build + deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+          cache-dependency-path: mcp-server/package-lock.json
+
+      - name: mcp-server — install
+        run: npm ci
+        working-directory: mcp-server
+
+      # wrangler.jsonc の main は dist/worker.js を指す（相対 import が Node16 の
+      # .js 拡張子付きで、wrangler の esbuild はそれを .ts へ読み替えないため）。
+      # tsc を先に通すのは省略できない手順で、飛ばすと "main not found" で落ちる。
+      - name: mcp-server — build (tsc)
+        run: npm run build
+        working-directory: mcp-server
+
+      # 配る前に、配る対象が実在することだけ確かめる（ci.yml が型とテストを
+      # 見ているので、ここでの検査はビルド成果物の有無に絞る）
+      - name: verify build output
+        run: test -f mcp-server/dist/worker.js
+
+      - name: deploy to Cloudflare Workers
+        uses: cloudflare/wrangler-action@v4
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          wranglerVersion: "4"
+          workingDirectory: mcp-server
+          command: deploy

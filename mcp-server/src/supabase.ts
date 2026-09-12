@@ -16,6 +16,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  *   LIFE_EDITOR_SUPABASE_ANON_KEY | VITE_SUPABASE_ANON_KEY
  *   LIFE_EDITOR_SUPABASE_EMAIL
  *   LIFE_EDITOR_SUPABASE_PASSWORD
+ *
+ * Under the Cloudflare Worker (worker.ts) there IS no process env — secrets
+ * arrive as an `env` argument on each request — so credentials can also be
+ * pushed in with `configureSupabase()`. Env reading stays the default rather
+ * than becoming one more thing every stdio caller has to remember.
  */
 
 export interface SupabaseSession {
@@ -23,30 +28,68 @@ export interface SupabaseSession {
   userId: string;
 }
 
+/** The four values a sign-in needs, however they were supplied. */
+export interface SupabaseCredentials {
+  url: string;
+  anonKey: string;
+  email: string;
+  password: string;
+}
+
 let cached: SupabaseSession | null = null;
 let pending: Promise<SupabaseSession> | null = null;
+let configured: SupabaseCredentials | null = null;
+
+/**
+ * Supply credentials directly instead of through the process env.
+ *
+ * Idempotent by value, because the Worker calls it on EVERY request with the
+ * same bindings and the session must survive that — re-signing in per request
+ * would add a Supabase round trip to each tool call. Different values do drop
+ * the cached session, which is what makes the seam usable from a test.
+ */
+export function configureSupabase(credentials: SupabaseCredentials): void {
+  const unchanged =
+    configured !== null &&
+    configured.url === credentials.url &&
+    configured.anonKey === credentials.anonKey &&
+    configured.email === credentials.email &&
+    configured.password === credentials.password;
+  if (unchanged) return;
+
+  configured = credentials;
+  cached = null;
+  pending = null;
+}
+
+function envCredentials(): SupabaseCredentials {
+  // `process` is absent on Workers; there it is configureSupabase() or
+  // nothing, and this branch never runs.
+  const env = typeof process === "undefined" ? {} : (process.env ?? {});
+  const url = env.LIFE_EDITOR_SUPABASE_URL ?? env.VITE_SUPABASE_URL;
+  const anonKey =
+    env.LIFE_EDITOR_SUPABASE_ANON_KEY ?? env.VITE_SUPABASE_ANON_KEY;
+  const email = env.LIFE_EDITOR_SUPABASE_EMAIL;
+  const password = env.LIFE_EDITOR_SUPABASE_PASSWORD;
+
+  if (!url || !anonKey || !email || !password) {
+    throw new Error(
+      "Supabase credentials missing: set LIFE_EDITOR_SUPABASE_URL, " +
+        "LIFE_EDITOR_SUPABASE_ANON_KEY (or VITE_SUPABASE_URL / " +
+        "VITE_SUPABASE_ANON_KEY), LIFE_EDITOR_SUPABASE_EMAIL and " +
+        "LIFE_EDITOR_SUPABASE_PASSWORD in the MCP server environment.",
+    );
+  }
+
+  return { url, anonKey, email, password };
+}
 
 export async function getSupabase(): Promise<SupabaseSession> {
   if (cached) return cached;
   if (pending) return pending;
 
   pending = (async () => {
-    const url =
-      process.env.LIFE_EDITOR_SUPABASE_URL ?? process.env.VITE_SUPABASE_URL;
-    const anonKey =
-      process.env.LIFE_EDITOR_SUPABASE_ANON_KEY ??
-      process.env.VITE_SUPABASE_ANON_KEY;
-    const email = process.env.LIFE_EDITOR_SUPABASE_EMAIL;
-    const password = process.env.LIFE_EDITOR_SUPABASE_PASSWORD;
-
-    if (!url || !anonKey || !email || !password) {
-      throw new Error(
-        "Supabase credentials missing: set LIFE_EDITOR_SUPABASE_URL, " +
-          "LIFE_EDITOR_SUPABASE_ANON_KEY (or VITE_SUPABASE_URL / " +
-          "VITE_SUPABASE_ANON_KEY), LIFE_EDITOR_SUPABASE_EMAIL and " +
-          "LIFE_EDITOR_SUPABASE_PASSWORD in the MCP server environment.",
-      );
-    }
+    const { url, anonKey, email, password } = configured ?? envCredentials();
 
     const client = createClient(url, anonKey, {
       auth: {
@@ -78,8 +121,9 @@ export async function getSupabase(): Promise<SupabaseSession> {
   }
 }
 
-/** Test seam — drop the cached session (unit tests only). */
+/** Test seam — drop the cached session and any pushed credentials. */
 export function resetSupabaseForTests(): void {
   cached = null;
   pending = null;
+  configured = null;
 }
