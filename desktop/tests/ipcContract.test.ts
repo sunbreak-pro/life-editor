@@ -8,6 +8,7 @@ import {
 import type { DesktopAuthStorageBridge } from "../../shared/src/services/supabaseAuthStorage";
 import type { DesktopClaudeLauncherBridge } from "../../shared/src/utils/claudeLauncher";
 import type { DesktopNotificationBridge } from "../../shared/src/utils/desktopNotifications";
+import type { DesktopPlatformBridge } from "../../shared/src/utils/platform";
 
 /*
  * #894 — desktop's first tests.
@@ -65,6 +66,23 @@ describe("notification bridge (#1374)", () => {
   it("has the same shape on both sides of the boundary", () => {
     expect(contractSatisfiesNotifier).toBeDefined();
     expect(notifierSatisfiesContract).toBeDefined();
+  });
+});
+
+// The host platform (#1590) is a VALUE on the bridge rather than a channel, so
+// it gets the same two-way pin as the method halves: shared/ re-declares the
+// field because it must not import from desktop/, and the macOS title-bar band
+// silently never renders if the two spellings drift.
+type ContractPlatformHalf = Pick<DesktopIpcApi, "platform">;
+const contractSatisfiesPlatform: DesktopPlatformBridge =
+  {} as ContractPlatformHalf;
+const platformSatisfiesContract: ContractPlatformHalf =
+  {} as DesktopPlatformBridge;
+
+describe("platform field (#1590)", () => {
+  it("has the same shape on both sides of the boundary", () => {
+    expect(contractSatisfiesPlatform).toBeDefined();
+    expect(platformSatisfiesContract).toBeDefined();
   });
 });
 
@@ -185,6 +203,28 @@ describe("preload (#894)", () => {
     expect(invoke).toHaveBeenCalledWith(DESKTOP_IPC.claudeLaunch, {
       projectPath: "/home/u/life-editor",
     });
+  });
+
+  it("hands the host platform over as a value, not a channel (#1590)", async () => {
+    await import("../src/preload/index");
+    const api = exposeInMainWorld.mock.calls[0][1] as {
+      platform: unknown;
+    };
+
+    // A string, read from process.platform when the preload loaded. If this
+    // ever becomes a function the renderer's first paint has to await it, which
+    // is the flash of non-mac layout the contract comment rules out.
+    expect(typeof api.platform).toBe("string");
+    expect(["darwin", "win32", "linux"]).toContain(api.platform);
+    // Narrowed, not passed through: anything outside the three shipped targets
+    // has to come out as "linux" rather than leak an unhandled platform name.
+    const expected =
+      process.platform === "darwin" || process.platform === "win32"
+        ? process.platform
+        : "linux";
+    expect(api.platform).toBe(expected);
+    // And it costs no IPC — reading it must not reach the main process.
+    expect(invoke).not.toHaveBeenCalled();
   });
 
   it("keeps the exposed surface inside the #529 Risk 1 budget", async () => {
