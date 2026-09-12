@@ -617,3 +617,15 @@ PR #929（#897）の独立監査（role-qa + life-editor-sync-auditor）で、**
 ### (3) `permanentDeleteRoutine` がオカレンスを 1 件ずつ delete している（`section:schedule` + `area:structural` / sev:minor 想定）
 
 `shared/src/services/SupabaseRoutinesService.ts:594-603` が event の `items_meta` を **1 件ずつループで delete** している。コメントは「Todos の descendants-first を真似て 1 件ずつ」と言うが、**削除対象の events は互いに兄弟で順序制約が無い**（順序が要るのは events → routine の間だけ = 0011 composite FK の NO ACTION）。`bulkDeleteScheduleItems` と同じ `forEachIdChunk` に寄せれば **500 オカレンスのルーチンで 500 往復が 3 往復**になります。#897 の DoD が言う「削除順序（子孫→親）」の実体はここで、かつ未テストです。
+
+## 2026-09-12 — 起票依頼 1 件（Windows でだけ落ちる既存テスト・chat-main へ）
+
+/goal 4 件（#1582 / #1584 / #1581 / #1580）を回す過程で、**担当外・この作業と無関係**の既存不具合を実測しました。起票をお願いします。
+
+### `mcp-server/tests/remoteRegistry.test.ts` が Windows でだけ落ちる（`type:bug` / sev:minor 想定・`shared-fix`）
+
+- **症状**: `cd mcp-server && npm run test` が 1 件だけ赤くなる。`expected [ 'utils\verification.ts' ] to include 'utils/verification.ts'`
+- **原因**: 同ファイルの "would have caught the verification domain" が `file.slice(srcDir.length + 1)` で作った相対パスを `"utils/verification.ts"` とスラッシュ固定で比較している。`path.resolve` は Windows でバックスラッシュを返すので一致しない
+- **CI は緑**: ランナーが ubuntu なので気付けない。**ローカル側だけの問題**
+- **実害**: 小さいが毎回効く。CI の `verify` をローカルで全部回すたびに 15 本中 1 本が赤になり、その都度「これは既存か、自分の変更か」を判定する手間がかかる。今回の 4 PR すべての本文に「既存・無関係」と書く必要があった
+- **直し方**: 比較の直前に `.split(path.sep).join("/")` を通すか、`toContain` を `path.join("utils", "verification.ts")` に変える。1 行。同じ形の比較が同ファイルの `offenders` 側（`${file.slice(srcDir.length + 1)} imports ...`）にもあるので、あちらも合わせて直すと将来同じ落ち方をしない
