@@ -1,6 +1,7 @@
 import { memo, useMemo } from "react";
 import { CheckSquare, Plus } from "lucide-react";
 import { cn } from "../cn";
+import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import { type ScheduleItemVariant } from "./scheduleVariantVisuals";
 import {
   WEEK_STARTS_ON,
@@ -49,6 +50,13 @@ export interface MonthGridItem {
   variant?: ScheduleItemVariant;
   completed?: boolean;
   isAllDay?: boolean;
+  /**
+   * The colour of the tag that speaks for this item (#1580), or undefined to
+   * keep the variant colours. A hex, because it is the user's own value off
+   * `wiki_tags.color` — the host resolves WHICH tag (buildItemTagColors) and
+   * this is only the answer.
+   */
+  tagColor?: string | null;
 }
 
 export interface MonthGridProps {
@@ -416,9 +424,15 @@ function MonthGridImpl({
                     {dayItems.slice(0, shownCompact).map((it) => (
                       <span
                         key={it.id}
+                        // #1580: a tag's colour REPLACES the variant face —
+                        // "which tag" beats "where it came from" once the user
+                        // has coloured a tag. Inline, because the value is
+                        // user data (colorPresets.ts), and paired with an ink
+                        // chosen for contrast rather than assumed.
+                        style={tagFaceStyle(it.tagColor)}
                         className={cn(
                           "block w-full overflow-hidden rounded-sm px-0.5 text-[0.625rem] font-medium leading-[0.8125rem]",
-                          chipFaceClasses(it.variant ?? "event"),
+                          !it.tagColor && chipFaceClasses(it.variant ?? "event"),
                           // Same #1373 gate as the Desktop chip: only a todo
                           // can be complete.
                           it.variant === "task" &&
@@ -483,6 +497,8 @@ function MonthGridImpl({
                             : undefined
                         }
                         title={it.title}
+                        // #1580 — see the compact branch above.
+                        style={tagFaceStyle(it.tagColor)}
                         className={cn(
                           // #1584: `cursor-pointer` says it out loud. Tailwind
                           // preflight resets every <button> to the arrow, so a
@@ -495,7 +511,7 @@ function MonthGridImpl({
                             ? "flex items-center gap-1"
                             : "block truncate",
                           CELL_FOCUS,
-                          chipFaceClasses(it.variant ?? "event"),
+                          !it.tagColor && chipFaceClasses(it.variant ?? "event"),
                           // Gated on the variant (#1373): the MCP tool still
                           // writes `completed` for events, and an event struck
                           // through with no control to clear it would be worse

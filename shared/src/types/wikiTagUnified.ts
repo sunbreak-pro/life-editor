@@ -40,7 +40,23 @@ export interface WikiTagAssignment {
   id: string;
   itemId: string;
   tagId: string;
+  /**
+   * When the tag was PUT ON the item (#1580 / migration 0030). Distinct from
+   * `updatedAt`, which is "last touched" and jumps to now when a soft-deleted
+   * assignment is revived — so only this one can answer "which tag was added
+   * first", the default the Schedule colours an item by.
+   */
+  createdAt: string;
   updatedAt: string;
+  /**
+   * Use THIS tag's colour as the item's display colour (#1580). At most one
+   * live assignment per item carries it (partial UNIQUE in 0030).
+   *
+   * All-false is the normal state and means "no explicit choice": readers fall
+   * back to the earliest `createdAt`. The colour itself still belongs to the
+   * tag — this only records which of an item's tags gets to speak for it.
+   */
+  isDisplayColor: boolean;
   isDeleted: boolean;
   deletedAt: string | null;
 }

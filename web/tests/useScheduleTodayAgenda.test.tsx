@@ -130,6 +130,10 @@ function renderAgenda(over: Partial<UseScheduleTodayAgendaArgs> = {}) {
     freqCopy: FREQ_COPY,
     weekdayLabels: WEEKDAYS,
     handleTodoToggleComplete,
+    // #1580: the agenda draws from the SAME map the two grids do, so it is
+    // handed in rather than rebuilt. Empty here — no case below is about
+    // colour, and an empty map is what a user with no coloured tags has.
+    tagColors: new Map<string, string>(),
     ...over,
   };
 

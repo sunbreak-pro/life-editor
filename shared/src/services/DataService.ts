@@ -545,6 +545,18 @@ export interface WikiTagsUnifiedDataService {
     tagId: string,
   ): Promise<WikiTagAssignmentUnified>;
   unassignTagFromItem(assignmentId: string): Promise<void>;
+  /**
+   * Choose which of an item's tags lends it its display colour (#1580), or
+   * pass null to go back to the default (the earliest-assigned one).
+   *
+   * Takes the ITEM as well as the assignment because the write is a swap: the
+   * item's existing mark has to come off before the new one goes on, or the
+   * partial UNIQUE that keeps "at most one per item" true rejects it.
+   */
+  setDisplayColorTag(
+    itemId: string,
+    assignmentId: string | null,
+  ): Promise<void>;
   listLinksFromItem(itemId: string): Promise<WikiTagConnectionUnified[]>;
   listLinksToItem(itemId: string): Promise<WikiTagConnectionUnified[]>;
   /** Bulk-load all active item↔item links (N+1 elimination). */

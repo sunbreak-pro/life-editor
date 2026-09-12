@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from "react";
 import {
   applyCalendarLens,
   applyRepeatFilter,
+  buildItemTagColors,
   buildTagMemberIds,
   pickGroupTagIds,
   type MonthGridItem,
@@ -200,13 +201,27 @@ export function useScheduleGridFilters({
     [allTags, repeatFilteredItems, rangeTodoChips, allAssignments],
   );
 
+  /*
+   * #1580 — itemId → the hex the item's tag paints it.
+   *
+   * Built ONCE per tag change rather than per surface: the two grids and the
+   * agenda ask the same question about the same rows, and the assignment list
+   * is the whole user's, so resolving it per chip would walk it 42 times on a
+   * busy month. It depends only on the tag data — moving the calendar does not
+   * change anyone's colour, so a month step reuses this whole map.
+   */
+  const tagColors = useMemo(
+    () => buildItemTagColors(allAssignments, allTags),
+    [allAssignments, allTags],
+  );
+
   const gridItems = useMemo<WeekTimeGridItem[]>(
-    () => toWeekGridItems(gridRangeItems, gridTodoChips),
-    [gridRangeItems, gridTodoChips],
+    () => toWeekGridItems(gridRangeItems, gridTodoChips, tagColors),
+    [gridRangeItems, gridTodoChips, tagColors],
   );
   const monthItems = useMemo<MonthGridItem[]>(
-    () => toMonthGridItems(gridRangeItems, gridTodoChips),
-    [gridRangeItems, gridTodoChips],
+    () => toMonthGridItems(gridRangeItems, gridTodoChips, tagColors),
+    [gridRangeItems, gridTodoChips, tagColors],
   );
 
   // The Mobile day list — #467 made it the only thing narrow draws, so this is
@@ -316,6 +331,7 @@ export function useScheduleGridFilters({
     gridTodoChips,
     gridItems,
     monthItems,
+    tagColors,
     anchorDayItems,
     handleToggleRepeats,
     handleSelectGroup,

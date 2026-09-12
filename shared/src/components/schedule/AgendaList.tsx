@@ -41,6 +41,13 @@ export interface AgendaItem {
   isAllDay?: boolean;
   completed?: boolean;
   variant?: ScheduleItemVariant;
+  /**
+   * The colour of the tag that speaks for this item (#1580), or undefined to
+   * keep the variant colours. A hex, because it is the user's own value off
+   * `wiki_tags.color` — the host resolves WHICH tag (buildItemTagColors) and
+   * this is only the answer.
+   */
+  tagColor?: string | null;
 }
 
 export interface AgendaListLabels {
@@ -216,11 +223,24 @@ export function AgendaList({
               )}
             </span>
           )}
+          {/*
+           * The row's one colour channel, and since #1580 the tag owns it when
+           * the item has a coloured one.
+           *
+           * The DOT rather than the row face, unlike the month chip and the
+           * week block: an agenda row sits on the page background with its
+           * title in the page ink, so filling it would mean recolouring text
+           * that every other row keeps — and a list of full-width colour bands
+           * reads as a warning stack rather than as a calendar. The dot is
+           * already the thing that says which kind a row is, so handing it to
+           * the tag is the same substitution the other two surfaces make.
+           */}
           <span
             aria-hidden
+            style={it.tagColor ? { backgroundColor: it.tagColor } : undefined}
             className={cn(
               "size-1.5 shrink-0 rounded-full",
-              dotColorClasses(variant),
+              !it.tagColor && dotColorClasses(variant),
             )}
           />
           <span

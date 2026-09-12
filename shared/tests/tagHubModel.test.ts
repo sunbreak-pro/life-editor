@@ -37,6 +37,9 @@ const assign = (
   id: `a-${itemId}-${tagId}`,
   itemId,
   tagId,
+  // #1580 / migration 0030 — see wikiTagUnified.ts.
+  createdAt: "2026-08-01T00:00:00Z",
+  isDisplayColor: false,
   updatedAt: "2026-08-01T00:00:00Z",
   isDeleted: false,
   deletedAt: null,

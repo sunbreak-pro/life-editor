@@ -416,6 +416,77 @@ describe("MonthGrid — chips carry the pointer cursor (#1584)", () => {
 });
 
 /*
+ * #1580 — a tag's colour on the item itself.
+ *
+ * Until now a chip said only WHERE it came from (routine / event / todo) in
+ * three fixed token pairs. Tags already carried a colour and the calendar lens
+ * already painted with it; the items did not. The colour REPLACES the variant
+ * face rather than sitting beside it, which is what "種別の色より優先" asks
+ * for — so each case here checks both halves: the tag colour arrives AND the
+ * variant class is gone.
+ *
+ * The ink is not asserted as a literal here (scheduleTagColor.test.ts owns the
+ * contrast rule); what this file pins is that the chip carries one at all, so
+ * a title can never land on an arbitrary fill in the page's default colour.
+ */
+describe("MonthGrid — tag colour on the chip (#1580)", () => {
+  const TAGGED: MonthGridItem[] = [
+    {
+      id: "e1",
+      date: "2026-07-09",
+      title: "Dentist",
+      variant: "event",
+      tagColor: "#1e3a8a",
+    },
+    { id: "e2", date: "2026-07-09", title: "Gym", variant: "routine" },
+  ];
+
+  it("paints a Desktop chip with the tag colour instead of the variant face", () => {
+    renderGrid({ items: TAGGED });
+    const chip = screen.getByRole("button", { name: "Dentist" });
+    expect(chip.style.backgroundColor).toBe("rgb(30, 58, 138)");
+    expect(chip.style.color).not.toBe("");
+    expect(chip.className).not.toContain("bg-lumen-chip-event-bg");
+  });
+
+  it("leaves an untagged chip on its variant face", () => {
+    renderGrid({ items: TAGGED });
+    const chip = screen.getByRole("button", { name: "Gym" });
+    expect(chip.style.backgroundColor).toBe("");
+    expect(chip.className).toContain("bg-lumen-chip-routine-bg");
+  });
+
+  it("paints a compact title line the same way", () => {
+    renderGrid({ compact: true, items: TAGGED });
+    // The face is on the chip BOX; the text sits one span deeper since #1516.
+    const face = screen.getByText("Dentist").parentElement as HTMLElement;
+    expect(face.style.backgroundColor).toBe("rgb(30, 58, 138)");
+    expect(face.className).not.toContain("bg-lumen-chip-event-bg");
+  });
+
+  it("keeps the todo mark and the strike-through on a coloured chip", () => {
+    // The colour answers "which tag"; the glyph and the line answer "what kind"
+    // and "is it done". Replacing the face must not swallow either.
+    renderGrid({
+      items: [
+        {
+          id: "t1",
+          date: "2026-07-09",
+          title: "Write report",
+          variant: "task",
+          completed: true,
+          tagColor: "#fde68a",
+        },
+      ],
+    });
+    const chip = screen.getByRole("button", { name: "Write report" });
+    expect(chip.style.backgroundColor).toBe("rgb(253, 230, 138)");
+    expect(chip.querySelector("svg")).not.toBeNull();
+    expect(chip.className).toContain("line-through");
+  });
+});
+
+/*
  * #1581 — the phone's calendar was cramped: 70px cells that fitted three title
  * lines with nothing to spare, under a date badge sized for Desktop.
  *

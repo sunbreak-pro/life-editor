@@ -96,6 +96,9 @@ const assign = (itemId: string, tagId: string): WikiTagAssignmentUnified => ({
   id: `${tagId}:${itemId}`,
   itemId,
   tagId,
+  // #1580 / migration 0030 — see wikiTagUnified.ts.
+  createdAt: STAMP,
+  isDisplayColor: false,
   updatedAt: STAMP,
   isDeleted: false,
   deletedAt: null,

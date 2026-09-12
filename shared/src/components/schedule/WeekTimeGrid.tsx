@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, type CSSProperties } from "react";
 import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
+import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import {
   dayOfWeek,
   parseDateKey,
@@ -70,6 +71,13 @@ export interface WeekTimeGridItem {
    * color alone.
    */
   variant?: ScheduleItemVariant;
+  /**
+   * The colour of the tag that speaks for this item (#1580), or undefined to
+   * keep the variant colours. A hex, because it is the user's own value off
+   * `wiki_tags.color` — the host resolves WHICH tag (buildItemTagColors) and
+   * this is only the answer.
+   */
+  tagColor?: string | null;
 }
 
 /**
@@ -663,7 +671,13 @@ export function WeekTimeGrid({
                       title={`${it.startTime}–${it.endTime} ${it.title}`}
                       className={cn(
                         "absolute overflow-hidden rounded px-1 py-0.5 text-left text-xs leading-tight hover:z-10 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-                        variantBlockClasses(variant),
+                        // #1580: the tag's colour REPLACES the variant face
+                        // — "which tag" beats "where it came from" once the
+                        // user has coloured a tag. The provenance GLYPHS (the
+                        // Repeat, the CheckSquare) and the routine's left band
+                        // stay, so nothing about where a block came from is
+                        // lost, only which channel says it.
+                        !it.tagColor && variantBlockClasses(variant),
                         variant === "routine" && "pl-1.5",
                         movable && "z-10 cursor-move",
                         selected && "z-10 ring-2 ring-lumen-accent",
@@ -676,6 +690,7 @@ export function WeekTimeGrid({
                           "line-through opacity-55",
                       )}
                       style={{
+                        ...tagFaceStyle(it.tagColor),
                         top: `${p.topPct}%`,
                         height: `${p.heightPct}%`,
                         left: `calc(${p.column * widthPct}% + 1px)`,
@@ -687,7 +702,17 @@ export function WeekTimeGrid({
                       {variant === "routine" && (
                         <span
                           aria-hidden
-                          className="absolute inset-y-0 left-0 w-[3px] bg-lumen-chip-routine-dot"
+                          className={cn(
+                            "absolute inset-y-0 left-0 w-[3px]",
+                            // #1580: on a tag-coloured block the fixed band
+                            // token can land within a shade of the fill and
+                            // disappear. `currentColor` is the ink the fill
+                            // was already contrast-checked against, so the
+                            // band is guaranteed visible on any tag colour.
+                            it.tagColor
+                              ? "bg-current opacity-60"
+                              : "bg-lumen-chip-routine-dot",
+                          )}
                         />
                       )}
                       <span className="flex items-center gap-1 font-medium">

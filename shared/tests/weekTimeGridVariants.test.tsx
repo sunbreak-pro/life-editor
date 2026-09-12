@@ -271,3 +271,66 @@ describe("WeekTimeGrid — completion is a TODO's alone (#1373)", () => {
     }
   });
 });
+
+/*
+ * #1580 — a tag's colour on the block itself.
+ *
+ * The tag REPLACES the variant face (「種別の色より優先」), so each case checks
+ * both halves: the colour arrives AND the variant class is gone. What does NOT
+ * move is the non-hue half of provenance — the Repeat and CheckSquare glyphs
+ * stay, so a coloured block still says what kind it is without relying on hue
+ * at all, which is the rule the variant faces were written under (#593).
+ *
+ * The ink is not asserted as a literal (scheduleTagColor.test.ts owns the
+ * contrast rule); what matters here is that the block carries one, so a title
+ * can never land on an arbitrary fill in the page's default colour.
+ */
+describe("WeekTimeGrid — tag colour on the block (#1580)", () => {
+  const TAGGED: WeekTimeGridItem[] = ITEMS.map((i) =>
+    i.id === "gym" ? { ...i, tagColor: "#1e3a8a" } : i,
+  );
+
+  it("paints the block with the tag colour instead of the variant face", () => {
+    renderGrid({ items: TAGGED });
+    const block = screen.getByTitle("19:00–20:30 Gym");
+    expect(block.style.backgroundColor).toBe("rgb(30, 58, 138)");
+    expect(block.style.color).not.toBe("");
+    expect(block.className).not.toContain("bg-lumen-schedule-routine-bg");
+  });
+
+  it("leaves an untagged block on its variant face", () => {
+    renderGrid({ items: TAGGED });
+    const block = screen.getByTitle("12:00–13:00 Dinner");
+    expect(block.style.backgroundColor).toBe("");
+    expect(block.className).toContain("bg-lumen-schedule-event-bg");
+  });
+
+  it("keeps the routine glyph, and lights its band off the readable ink", () => {
+    renderGrid({ items: TAGGED });
+    const block = screen.getByTitle("19:00–20:30 Gym");
+    // The provenance glyph survives the recolour.
+    expect(block.querySelector("svg")).not.toBeNull();
+    // The band's own token can land within a shade of an arbitrary fill and
+    // disappear; currentColor is the ink the fill was contrast-checked against.
+    const band = block.querySelector("span[aria-hidden]") as HTMLElement;
+    expect(band.className).toContain("bg-current");
+    expect(band.className).not.toContain("bg-lumen-chip-routine-dot");
+  });
+
+  it("keeps the token band on an untagged routine", () => {
+    renderGrid();
+    const band = screen
+      .getByTitle("19:00–20:30 Gym")
+      .querySelector("span[aria-hidden]") as HTMLElement;
+    expect(band.className).toContain("bg-lumen-chip-routine-dot");
+  });
+
+  it("does not disturb the block's own position styles", () => {
+    // The face style is spread INTO the positioning object; a colour that
+    // wiped `top` / `height` would drop every block to the top of the column.
+    renderGrid({ items: TAGGED });
+    const block = screen.getByTitle("19:00–20:30 Gym");
+    expect(block.style.top).not.toBe("");
+    expect(block.style.height).not.toBe("");
+  });
+});

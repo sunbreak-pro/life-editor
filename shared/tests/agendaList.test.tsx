@@ -335,3 +335,65 @@ describe("AgendaList — dayflow (#691)", () => {
     expect(screen.queryByText(/^Free /)).toBeNull();
   });
 });
+
+/*
+ * #1580 — a tag's colour on an agenda row.
+ *
+ * Here the tag takes the DOT and not the row face, unlike the month chip and
+ * the week block. An agenda row sits on the page background with its title in
+ * the page ink, so filling it would mean recolouring text every other row
+ * keeps — and a list of full-width colour bands reads as a warning stack
+ * rather than as a day. The dot is already what says which kind a row is, so
+ * handing it to the tag is the same substitution the other two surfaces make.
+ */
+describe("AgendaList — tag colour on the row dot (#1580)", () => {
+  const dotOf = (title: string) =>
+    screen
+      .getByText(title)
+      .parentElement?.querySelector("span[aria-hidden]") as HTMLElement;
+
+  it("paints the dot with the tag colour instead of the variant token", () => {
+    renderList({
+      items: [
+        {
+          id: "b",
+          title: "Project review",
+          startTime: "15:00",
+          endTime: "16:00",
+          variant: "event",
+          tagColor: "#1e3a8a",
+        },
+      ],
+    });
+    const dot = dotOf("Project review");
+    expect(dot.style.backgroundColor).toBe("rgb(30, 58, 138)");
+    expect(dot.className).not.toContain("bg-lumen-chip-event-dot");
+  });
+
+  it("leaves an untagged row's dot on its variant token", () => {
+    renderList();
+    const dot = dotOf("Project review");
+    expect(dot.style.backgroundColor).toBe("");
+    expect(dot.className).toContain("bg-lumen-chip-event-dot");
+  });
+
+  it("does not recolour the row's title", () => {
+    // The title keeps the page ink — that is the whole reason this surface
+    // colours the dot rather than the face.
+    renderList({
+      items: [
+        {
+          id: "b",
+          title: "Project review",
+          startTime: "15:00",
+          endTime: "16:00",
+          variant: "event",
+          tagColor: "#1e3a8a",
+        },
+      ],
+    });
+    const title = screen.getByText("Project review");
+    expect(title.style.color).toBe("");
+    expect(title.className).toContain("text-lumen-text");
+  });
+});

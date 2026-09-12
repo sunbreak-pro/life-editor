@@ -95,6 +95,9 @@ describe("SupabaseWikiTagsUnifiedService — bulk loaders (N+1 elimination)", ()
             user_id: "u1",
             item_id: "task-1",
             tag_id: "tag-a",
+            // #1580 / migration 0030.
+            created_at: "2026-05-01T00:00:00.000Z",
+            is_display_color: true,
             updated_at: "2026-06-01T00:00:00.000Z",
             is_deleted: false,
             deleted_at: null,
@@ -120,15 +123,23 @@ describe("SupabaseWikiTagsUnifiedService — bulk loaders (N+1 elimination)", ()
           id: "tag_assign-1",
           itemId: "task-1",
           tagId: "tag-a",
+          createdAt: "2026-05-01T00:00:00.000Z",
           updatedAt: "2026-06-01T00:00:00.000Z",
+          isDisplayColor: true,
           isDeleted: false,
           deletedAt: null,
         },
         {
+          // The second row arrives WITHOUT the #1580 columns — a database that
+          // has not had 0030 pushed yet. The mapper fills them in rather than
+          // handing back `undefined`, which would sort the item's tags at
+          // random (see wikiTagAssignmentMapper).
           id: "tag_assign-2",
           itemId: "task-2",
           tagId: "tag-b",
+          createdAt: "2026-06-01T00:00:00.000Z",
           updatedAt: "2026-06-01T00:00:00.000Z",
+          isDisplayColor: false,
           isDeleted: false,
           deletedAt: null,
         },

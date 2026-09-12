@@ -32,12 +32,28 @@ import {
  * grids position by time and need no sort.
  * A chip's grid id is the prefixed synthetic id (`todoChipId`) on every
  * surface; the host's handlers tell chips from events by that prefix.
+ *
+ * #1580 added a fifth argument to the three list builders: `tagColors`, the
+ * itemId → hex map the host resolves once per render (buildItemTagColors).
+ * It is looked up by the ITEM's id and never by the grid id — a todo's grid id
+ * is `todoChipId(c.id)`, and its tags hang off `c.id`, so the prefixed one
+ * finds nothing. Same trap on all three surfaces, which is why each spells the
+ * lookup out rather than mapping over a shared row shape.
  */
+
+/**
+ * itemId → the hex a tag paints it (#1580). An item that is absent keeps its
+ * variant colours; an empty map is the state before any tag has a colour.
+ */
+export type ScheduleTagColors = ReadonlyMap<string, string>;
+
+const NO_TAG_COLORS: ScheduleTagColors = new Map();
 
 /** Blocks for the week/day time grid (WeekTimeGrid). */
 export function toWeekGridItems(
   events: ScheduleItem[],
   chips: TodoCalendarChip[],
+  tagColors: ScheduleTagColors = NO_TAG_COLORS,
 ): WeekTimeGridItem[] {
   return [
     ...events.map((i) => ({
@@ -49,6 +65,7 @@ export function toWeekGridItems(
       isAllDay: i.isAllDay,
       completed: i.completed,
       variant: itemVariant(i),
+      tagColor: tagColors.get(i.id),
     })),
     ...chips.map((c) => ({
       id: todoChipId(c.id),
@@ -59,6 +76,8 @@ export function toWeekGridItems(
       isAllDay: c.isAllDay,
       completed: c.completed,
       variant: "task" as const,
+      // `c.id`, not the prefixed grid id above: the tags hang off the TodoNode.
+      tagColor: tagColors.get(c.id),
     })),
   ];
 }
@@ -67,6 +86,7 @@ export function toWeekGridItems(
 export function toMonthGridItems(
   events: ScheduleItem[],
   chips: TodoCalendarChip[],
+  tagColors: ScheduleTagColors = NO_TAG_COLORS,
 ): MonthGridItem[] {
   return [
     ...events.map((i) => ({
@@ -76,6 +96,7 @@ export function toMonthGridItems(
       variant: itemVariant(i),
       completed: i.completed,
       isAllDay: i.isAllDay,
+      tagColor: tagColors.get(i.id),
     })),
     ...chips.map((c) => ({
       id: todoChipId(c.id),
@@ -84,6 +105,8 @@ export function toMonthGridItems(
       variant: "task" as const,
       completed: c.completed,
       isAllDay: c.isAllDay,
+      // `c.id`, not the prefixed grid id above — see toWeekGridItems.
+      tagColor: tagColors.get(c.id),
     })),
   ];
 }
@@ -95,6 +118,7 @@ export function toMonthGridItems(
 export function toAgendaItems(
   events: ScheduleItem[],
   chips: TodoCalendarChip[],
+  tagColors: ScheduleTagColors = NO_TAG_COLORS,
 ): AgendaItem[] {
   const scheduleAgenda: AgendaItem[] = events.map((i) => ({
     id: i.id,
@@ -104,6 +128,7 @@ export function toAgendaItems(
     isAllDay: i.isAllDay,
     completed: i.completed,
     variant: itemVariant(i),
+    tagColor: tagColors.get(i.id),
   }));
   const todoAgenda: AgendaItem[] = chips.map((c) => ({
     id: todoChipId(c.id),
@@ -113,6 +138,8 @@ export function toAgendaItems(
     isAllDay: c.isAllDay,
     completed: c.completed,
     variant: "task" as const,
+    // `c.id`, not the prefixed grid id above — see toWeekGridItems.
+    tagColor: tagColors.get(c.id),
   }));
   return sortDayItems([...scheduleAgenda, ...todoAgenda]);
 }

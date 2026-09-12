@@ -206,6 +206,41 @@ export class SupabaseWikiTagsUnifiedService implements WikiTagsUnifiedDataServic
     if (error) throw new Error(`unassignTagFromItem failed: ${error.message}`);
   }
 
+  /**
+   * Point an item's display colour at one of its tags (#1580), or clear the
+   * choice with `assignmentId = null`.
+   *
+   * TWO statements, in this order, and the order is load-bearing: 0030 carries
+   * a partial UNIQUE on `(item_id) WHERE is_display_color AND NOT is_deleted`,
+   * so setting the new mark before clearing the old one is rejected outright.
+   * Clearing first leaves at worst a moment with no choice recorded, which is
+   * the state every item starts in and reads as the default.
+   *
+   * `updated_at` is bumped on both sides so delta sync carries the swap —
+   * a row whose only change is this flag would otherwise never be re-fetched.
+   */
+  async setDisplayColorTag(
+    itemId: string,
+    assignmentId: string | null,
+  ): Promise<void> {
+    const now = new Date().toISOString();
+    const cleared = await this.client
+      .from("wiki_tag_assignments")
+      .update({ is_display_color: false, updated_at: now })
+      .eq("item_id", itemId)
+      .eq("is_display_color", true);
+    if (cleared.error) {
+      throw new Error(`setDisplayColorTag failed: ${cleared.error.message}`);
+    }
+    if (!assignmentId) return;
+    const { error } = await this.client
+      .from("wiki_tag_assignments")
+      .update({ is_display_color: true, updated_at: now })
+      .eq("id", assignmentId)
+      .eq("is_deleted", false);
+    if (error) throw new Error(`setDisplayColorTag failed: ${error.message}`);
+  }
+
   // -------------------------------------------------------------------------
   // Item↔item links (wiki_tag_connections)
   // -------------------------------------------------------------------------
@@ -303,6 +338,7 @@ export const PHASE2_WIKI_TAGS_UNIFIED_METHOD_NAMES = [
   "listAllTagAssignments",
   "assignTagToItem",
   "unassignTagFromItem",
+  "setDisplayColorTag",
   "listLinksFromItem",
   "listLinksToItem",
   "listAllTagConnections",

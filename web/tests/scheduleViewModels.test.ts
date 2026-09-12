@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import type { ScheduleItem, TodoCalendarChip } from "@life-editor/shared";
+import {
+  todoChipId,
+  type ScheduleItem,
+  type TodoCalendarChip,
+} from "@life-editor/shared";
 import {
   toAgendaItems,
   toEditorItem,
@@ -184,5 +188,67 @@ describe("toEditorItem", () => {
     // since #1373, so neither field reaches it.
     expect("status" in (vm as object)).toBe(false);
     expect("completed" in (vm as object)).toBe(false);
+  });
+});
+
+/*
+ * #1580 — the tag colour reaching all three list surfaces.
+ *
+ * One trap, three times: a todo's GRID id is the prefixed `todoChipId(c.id)`,
+ * while its tags hang off the bare `c.id`. Looking the colour up by the id the
+ * row already carries finds nothing, and the failure is silent — the todo just
+ * keeps its variant colour while events beside it turn. Every case below
+ * therefore asks about a todo as well as an event.
+ */
+describe("tag colours (#1580)", () => {
+  const COLORS = new Map([
+    ["e1", "#1e3a8a"],
+    ["t1", "#fde68a"],
+  ]);
+
+  it("puts the colour on week-grid rows, todos included", () => {
+    const rows = toWeekGridItems(
+      [event({ id: "e1" }), event({ id: "e2" })],
+      [chip({ id: "t1" })],
+      COLORS,
+    );
+    expect(rows.find((r) => r.id === "e1")?.tagColor).toBe("#1e3a8a");
+    expect(rows.find((r) => r.id === "e2")?.tagColor).toBeUndefined();
+    // Looked up by the TodoNode id, not by the prefixed grid id.
+    expect(rows.find((r) => r.id === todoChipId("t1"))?.tagColor).toBe(
+      "#fde68a",
+    );
+  });
+
+  it("puts the colour on month-grid cells, todos included", () => {
+    const rows = toMonthGridItems(
+      [event({ id: "e1" }), event({ id: "e2" })],
+      [chip({ id: "t1" })],
+      COLORS,
+    );
+    expect(rows.find((r) => r.id === "e1")?.tagColor).toBe("#1e3a8a");
+    expect(rows.find((r) => r.id === "e2")?.tagColor).toBeUndefined();
+    expect(rows.find((r) => r.id === todoChipId("t1"))?.tagColor).toBe(
+      "#fde68a",
+    );
+  });
+
+  it("puts the colour on agenda rows, todos included", () => {
+    const rows = toAgendaItems(
+      [event({ id: "e1" })],
+      [chip({ id: "t1" })],
+      COLORS,
+    );
+    expect(rows.find((r) => r.id === "e1")?.tagColor).toBe("#1e3a8a");
+    expect(rows.find((r) => r.id === todoChipId("t1"))?.tagColor).toBe(
+      "#fde68a",
+    );
+  });
+
+  it("leaves every row colourless when the argument is omitted", () => {
+    // The default keeps every existing call site — and every surface with no
+    // coloured tags anywhere — on the variant colours.
+    const rows = toMonthGridItems([event({ id: "e1" })], [chip({ id: "t1" })]);
+    expect(rows.every((r) => r.tagColor === undefined)).toBe(true);
   });
 });
