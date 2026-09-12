@@ -13,8 +13,10 @@ export interface TourLabels {
   next: string;
   /** Advance button on the LAST step — `tour.done`. */
   done: string;
-  /** Dismiss-for-good button — `tour.skip`. */
+  /** Skip-this-step button — `tour.skip`. */
   skip: string;
+  /** Dismiss-for-good button — `tour.endTour`. */
+  endTour: string;
   /** Position readout, already interpolated (e.g. "2 / 5") — `tour.progress`. */
   progress: string;
   /**

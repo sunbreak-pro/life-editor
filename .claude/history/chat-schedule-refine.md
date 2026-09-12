@@ -1,5 +1,34 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-12 - /goal 4 件（#1582 / #1584 / #1581 / #1580）を 4 本の PR まで
+
+#### 概要
+
+Schedule の 4 件（月ビュー追加パネルの遅さ / Desktop の + ボタン化 / Mobile のセル高と日付サイズ / タグ色の反映）を処理し、PR を 4 本出した（#1599 / #1601 / #1602 / #1603）。全ブランチを `origin/main` から独立に切り、ローカルで CI `verify` 全ステップ + `docs-lint` を実測、GitHub CI も 4 本とも緑。**#1603 は migration 0030 を伴うので merge より先に 🛑 `supabase db push` が要る**。実ブラウザ検証は chat-main の手番（§7.4）だが、#1581 だけは dev server を立てずに実測した（下記）。
+
+#### 変更点
+
+- **#1582 は「当たり」が外れていた**: 遅さの原因は `ItemCreatePanel` の初期化でもタグ / ノートの取得でもなく、`createPanel` の state が grid と overlay の両方より上にあることだった。パネルを開くクリックが、何も変わっていない 42 セル + 93 chip を巻き添えに描き直していた。jsdom + React `<Profiler>` で内訳を取ると 11ms の commit のうち **grid 7.9ms / パネル本体 2.5ms** で、**4 分の 3 がユーザーが見ていないものの描き直し**。`useCreatePanelNotes` の fetch は非同期で描画を待たせていない
+- **`memo` だけでは 1ms も縮まなかった**: `MonthGrid` を `React.memo` で包んでも再描画回数は 1 のままで、原因は**両レイアウトの `formatMoreCount` がインライン arrow** だったこと。他の props（`items` = useMemo / item ハンドラ = useCallback / `weekdayLabels` / `formatFullDay`）は既に安定していて、穴はこの 1 つだけだった
+- **計測ハーネス自体が 2 回嘘をついた**（今回の最大の教訓）: ① `vi.fn()` を JSX の中に直接書いたので毎レンダー新しい関数が渡り、memo が効かない ② `useTranslation` のスタブが呼ばれるたびに新しい `t` を返すので `useCallback([t])` が毎回無効化される。**react-i18next の実物は `snapshotRef` に `t` をキャッシュしていて言語が変わるまで同一**（`useTranslation.js` 実測）。スタブを実物の性質に合わせて初めて再描画 1 → 0 が出た
+- **before/after は別プロセス比較ではなく同一プロセスの交互 A/B にした**: jsdom の ms は負荷でぶれるので、「memo 済みの grid に不安定な formatter を渡す」ことで before を再現し、30 サンプルずつ交互に取った。median **6.4〜8.5ms → 3.5ms**（3 回流して 45% / 46% / 59%）
+- **恒久テストは ms ではなく再描画回数を検証する**: jsdom にはレイアウトも paint も無いので ms はランナーの値でしかなく、閾値は負荷のかかった CI で飛ぶ。**`format.fullDay` は render 中にセル 1 つにつき 1 回呼ばれる**ので、時計に依存しない正確なカウンタになる（0 = 描き直していない / 42 = 描き直した）
+- **#1584 が #1582 のテストの足場を壊すので先回りした**: #1584 は空白クリックを外すため、#1582 のテストがクリック対象を失う。ブランチはどちらも origin/main から切っており git は衝突を検出しないので、**両方 merge した後に静かに落ちる**形だった。#1582 側をハーネス所有のボタン発火に直して push（ジェスチャは変わるが「パネルを開いても grid は描き直さない」という規則は不変。どの要素が `onMonthCreate` を上げるかは `calendarLayouts.test.tsx` の担当）
+- **#1584 の + ボタンは 28px にした**（Issue の「44px 未満にしない」から外れる）: 44 にすると日付バッジの行を越えて最初の chip の領域に届き、z 順が上なので**その重なりで chip のクリックを奪う** — #1584 が直したかった誤爆が別の形で戻る。このボタンは narrow 幅では一切マウントされず（`!compact && onCreateDay` の二重ガード）、コードベースの 44px 床 `CARD_BTN_TAP` も `max-md:` で narrow 限定。28px は `--spacing-lumen-tap-min` = このプロジェクトの icon-only の床そのもの。PR 本文で判断を仰いだ
+- **`opacity-0` であって `hidden` ではない**（#1584）: a11y ツリーとタブ順に残るので「マウス用のボタン」と「スクリーンリーダー用のボタン」が 2 つに割れない。`focus-visible:opacity-100` でキーボード focus 時は必ず見える。aria-label は日付を含む — 空白クリックを外した結果 + がセル唯一のキーボード停止点になり、42 個が全部「追加」では区別できない
+- **#1581 は高さ・バッジ・行数が 1 つの採寸**: 70px は「3 行入れて余白 3px」でちょうど埋まっており、それが「詰まっている」の正体だった。高さだけ上げると余白が増えるだけで DoD の「1 セルに収まる情報量が増えている」を満たさないので `maxTitleLines` を 3 → 4 にした。88px / 16px 枠 / 10px 数字で **4 行入れて余白 8px**
+- **dev server を立てずに実ブラウザで採寸した**（#1581）: コンポーネントの実マークアップを jsdom から書き出し、`web/dist` のビルド済み CSS と合わせた静的 HTML を 375px 幅の Chrome で測った。§7.4 が禁じているのは dev server と worktree での画面検証だが、これはポートを占有する常設サーバーではない。**1 回目の計測は嘘だった** — 使った CSS が変更前のビルドで `h-[5.5rem]` が未生成、cell が 83px（内容による自然高）と出た。**生成物を使う検証は、その生成物が現ブランチのものか確かめる**
+- **「5px 小さく」は採らなかった**（#1581）: このプロジェクトの `--text-xs` は Tailwind 既定の 12px ではなく **13px**（`tokens.css`）なので、文字どおり引くと 8px になり読めない。Issue 本文が目安に挙げる 10px を採り、3 倍拡大のスクショで可読性を確認
+- **バッジの `self-*` を分岐ごと 1 つに直した**（#1581）: base に `self-start`・compact で `self-center` を上乗せする形だったが、`cn` はただの文字列連結なので**呼び出し順ではなく Tailwind の出力順**で決まる（#830 と同じ罠）。従来はたまたま意図どおりに解決していただけ
+- **#1580 は `items_meta` ではなく `wiki_tag_assignments` に 2 列足した**: `display_tag_id` を items_meta に置くと 5 role 共有表なので task / event / routine の 3 mapper と 3 サービスの SELECT 一覧・書き込み経路が全部動く。Schedule は `listAllTagAssignments` で assignments を丸ごと読んでおり、`created_at` + `is_display_color` の 2 列でその場で解決できる。「アイテムとタグの結びつき」を表すのがこの表なので置き場としても素直
+- **`updated_at` の流用は不可**（#1580）: あれは「最後に触った時刻」で、ソフトデリートした assignment を付け直すと今に飛ぶ。既定の表示色が「最初に付けたタグ」である以上、**付け直すたびにアイテムの色が変わる**。既存行の backfill も `default now()` では全行同時刻になって既定が決まらないので、手元の唯一の履歴 = `updated_at` を写した
+- **文字色は輝度の閾値で分けると間違う**（#1580）: 0.5 が中点に見えるが、白は 1.0・濃いインクはほぼ 0 なので**比が入れ替わるのは 0.21 付近**。0.5 で切ると `#22c55e` に白が乗り、白 2.3:1 に対し濃いインク 7.1:1 だった。**2 つのコントラスト比を直接比べる**形に直した。`(r+g+b)/3` も使えない（緑は輝度の 0.7152・青は 0.0722）
+- **アジェンダだけ face ではなくドットを塗った**（#1580）: 行はページ背景の上にページのインクで書かれているので、face を塗ると他の行が保っている文字色まで変えることになり、幅いっぱいの色帯が縦に並ぶと「1 日の予定」ではなく「警告の山」に見える。ドットは元々その行の種別を言っている場所
+- **Todo の色引きは素の id で**（#1580）: grid id は `todoChipId()` 接頭辞付きだが、タグは TodoNode 側に付く。引き違えると **Todo だけ静かに色が付かない**（周りの Event は色付きなので気付きにくい）。3 面それぞれで lookup を明示的に書き、テストも 3 面で Todo を確認する
+- **共有型を広げると tests の型が 11 ファイル落ちる**（#1580）: `WikiTagAssignment` に必須フィールドを 2 つ足した結果、`typecheck:tests` が shared 9 本 + web 2 本で赤くなった。**`build` と `vitest` はどちらも緑のまま**で、`typecheck:tests` だけが捕まえた（CLAUDE.md §7.1 が名指ししている独立ゲート）
+- **ローカル全ゲートで 1 本だけ落ちるのは既存の Windows 依存**: `mcp-server/tests/remoteRegistry.test.ts` が `path.resolve` の返す `utilserification.ts` を `utils/verification.ts` と比べている。origin/main でも落ち、CI の ubuntu では緑。4 本すべての PR 本文に明記した
+- **stale な node_modules で 4 ゲートが赤くなった**: #1579（PR #1587）が `@tiptap/extension-table` を足していたが worktree 側が未 install で、`web build` / `web typecheck:tests` / `web test` / `desktop build` が落ちた。**main を取り込んだ後は `npm ci` を 4 パッケージぶん回す**
+
 ### 2026-09-07 - /goal 4 件（#1515 / #1558 / #1516 / #1517）を 3 本の PR まで
 
 #### 概要

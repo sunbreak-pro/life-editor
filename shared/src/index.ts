@@ -738,7 +738,11 @@ export {
 } from "./components/todoStatusVisuals";
 // Platform detection. isNativeMobile() (Phase 4) lets the hosts gate the
 // Mobile 省略 UI (roster = CLAUDE.md §2) on the Capacitor shells — platform.ts.
-export { isMac, isNativeMobile } from "./utils/platform";
+export { isMac, isNativeMobile, isMacDesktopShell } from "./utils/platform";
+export type {
+  DesktopShellPlatform,
+  DesktopPlatformBridge,
+} from "./utils/platform";
 // Claude Code launcher bridge (#1211) — desktop-only, null everywhere else.
 export {
   getClaudeLauncherBridge,

@@ -23,6 +23,19 @@
 
 export type ThemePreference = "light" | "dark" | "system";
 
+/**
+ * The OS the shell runs on (#1590), narrowed to the three targets
+ * `electron-builder.yml` ships. Mirrors Node's `process.platform`.
+ *
+ * The renderer needs this because macOS hides the title bar
+ * (`titleBarStyle: "hiddenInset"`), which leaves the traffic lights floating
+ * over the top-left of the content — so the renderer, not the shell, is what
+ * has to leave room for them. `navigator.userAgent` cannot answer it: it says
+ * "Macintosh" for a browser tab on macOS too, and the browser has no traffic
+ * lights to dodge. Only the shell knows it is the shell.
+ */
+export type DesktopHostPlatform = "darwin" | "win32" | "linux";
+
 export interface WindowBounds {
   width: number;
   height: number;
@@ -174,4 +187,19 @@ export interface DesktopIpcApi {
    * fold into an existing one.
    */
   notify(args: NotifyArgs): Promise<boolean>;
+  /**
+   * The host OS (#1590). A VALUE, not a channel: the preload reads
+   * `process.platform` when it loads and hands the string over, so there is no
+   * `ipcMain.handle` for it and the Risk 1 function budget above is untouched.
+   * It is also why it is not a promise — the renderer needs it during its first
+   * paint (the macOS title-bar band is layout, not a later adjustment), and an
+   * await there would flash the non-mac layout first.
+   *
+   * `shared/src/utils/platform.ts::isMacDesktopShell()` reads it as optional
+   * on purpose: a desktop build from before this landed exposes a
+   * `window.desktop` WITHOUT it, and that absence has to mean "not macOS
+   * chrome" rather than a crash (#1389's lesson — the shell being present
+   * never implied the capability being there).
+   */
+  platform: DesktopHostPlatform;
 }

@@ -1,16 +1,44 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-09-12 - [shared-fix] #1583 = ツアーの「スキップ」を 1 ステップだけ飛ばす操作に（全体をやめる導線は別ボタンへ）+ #1512 の着地確認
+
+#### 概要
+
+こうだいさんの /goal「#1512 と #1583 それぞれに origin/main からのブランチ + CI verify のローカル全緑 + Issue 参照の PR」を実行。**#1583 は PR #1594**（open）。**#1512 は実装が全部 main に着地済み**で新しい PR は出していない（出すものが無い）。
+
+| Issue | 状態                                                                   | 根拠                                                                                                                                                                                                                                                              |
+| ----- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1512 | close 待ち（コメント投稿が分類器に止められた）+ 規約化 = PR #1597 open | PR #1556 merged / 子 #1557〜#1562 全 CLOSED / #1578 = PR #1585 merged（`531b89e6` が origin/main 上）。#1597 = `rules/frontend.md` Gotchas に 44px の当て方 1 項目（`docs/1512-narrow-tap-target-rule`・verify 15 ステップ + docs-lint をこのブランチでも通した） |
+| #1583 | PR #1594 open                                                          | `claude/shared-fix-1583-tour-skip-step` = `10ac1a75` + 1 commit                                                                                                                                                                                                   |
+
+#### #1583 で決めたこと
+
+- **`skip` は `next` と同じ機構**（`goTo(index + 1, "walked")`）。違いは「誰が押せるか」だけ — `next` は action ステップで描かれないが、Skip はやりたくない操作を飛ばすための導線なので常に出す。最終ステップの Skip は Done と同じ `{ stepId: null, completed: true, skipped: false }`
+- **旧挙動（`stopAt(true)`）は新設の `end` へ**。ラベルは「ツアーを終了」/ "End tour"（`tour.endTour`）。`skipped: true` を書く唯一の経路で、フラグの意味（以後オファーしない）と autoStart のゲートは不変。partial run（Settings の再生）の封印（#1194 / #1359）もそのまま — 再生中の Skip は 1 歩進み、最後まで飛ばすと栞 `sectionStepId` を消すだけ
+- **「ツアーを終了」の置き場は進捗カウンタの隣（左）**。右のボタン群（ja「スキップ」+「実際に操作すると次に進みます」= 240px）を変えないことで #1264 の折り返し設計を保つ。左群は `shrink-0` + `whitespace-nowrap` なので最悪でも行が折り返すだけで文字は割れない。Skip / End の両方に `DIALOG_AUTOFOCUS_SKIP`
+- テスト: `tourProvider.test.tsx` に describe「Skip passes one step, never the tour」4 件（次へ進む / 最終ステップで完了 / action ステップを操作なしで通る / unmount → 再 mount → `start` で次のステップから再開）、`tourSectionRun.test.tsx` に再生中の Skip 1 件。旧実装では `waitFor("two|run")` がタイムアウトし、End ボタン自体が存在しないので既存の書き換え 2 件も落ちる（role-qa の読みで確認）
+
+#### 検証
+
+verify 15 ステップ + docs-lint をローカルで通した（Monitor で 1 本にまとめ、各ステップの exit code を tail の前に取る）。**mcp-server test の 1 件だけ赤** — `remoteRegistry.test.ts` が `utils\verification.ts` を `utils/verification.ts` と比べており（#1589・2026-09-12 の main）、Windows のパス区切りの問題。`git diff origin/main -- mcp-server` は空。role-qa（ファイル変更禁止で起動）は PASS・確定 defect 0・懸念 5 件のうち docstring 精度 2 件だけ直した。
+
+#### 知見
+
+- **open Issue でも「残りは close だけ」がある**: #1512 は本文の対象が全部着地していて、最後のコメントに close 条件まで書いてあった。/goal の文面は「継続」だったが、着手前に `gh pr list --search` と子 Issue の state を引いたので二重実装を避けられた
+- `gh issue close --comment` は auto mode の分類器に「外部システムへの書き込み」として止められる（`gh pr create` / `gh pr edit` は通った）
+- python の heredoc で `\v` を含む文字列を書くと垂直タブに化ける（PR 本文の 1 行が `utilserification.ts` になり、`gh pr edit --body-file` で出し直した）
+
 ### 2026-09-05 - [shared-fix] #1408 の findings 3 件（#1468 / #1474 / #1481）をそれぞれ独立ブランチで PR まで
 
 #### 概要
 
 こうだいさんの /goal「3 件それぞれに origin/main から切ったブランチ + CI verify のローカル全緑 + Issue を参照する PR」を実行し、**PR #1493 / #1498 / #1496** に到達（3 本とも open。merge は P-001 でこうだいさん手番）。
 
-| Issue | PR | ブランチ | 触ったファイル |
-| --- | --- | --- | --- |
-| #1468 サイドバーのラベル省略 | #1493 | `claude/shared-fix-1468` | `SidebarNav.tsx` + テスト |
+| Issue                            | PR    | ブランチ                 | 触ったファイル                                                                            |
+| -------------------------------- | ----- | ------------------------ | ----------------------------------------------------------------------------------------- |
+| #1468 サイドバーのラベル省略     | #1493 | `claude/shared-fix-1468` | `SidebarNav.tsx` + テスト                                                                 |
 | #1474 disabled の primary ボタン | #1498 | `claude/shared-fix-1474` | `styleTokens.ts` / `Button.tsx` / `PomodoroSettings.tsx` / `AudioMixer.tsx` + テスト 3 本 |
-| #1481 `<html lang>` | #1496 | `claude/shared-fix-1481` | `ThemeContext.tsx` + テスト |
+| #1481 `<html lang>`              | #1496 | `claude/shared-fix-1481` | `ThemeContext.tsx` + テスト                                                               |
 
 #### 3 件とも Issue の Scope 行が実際の修正先を外していた
 
