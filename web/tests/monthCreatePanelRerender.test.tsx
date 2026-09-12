@@ -29,8 +29,15 @@ import type { ScheduleOverlaysProps } from "../src/schedule/ScheduleOverlays";
  *
  * The counter is `format.fullDay`. MonthGrid calls it once per cell while
  * rendering (the accessible name of each day button), so 0 calls after the
- * click means the grid did not render and 42 means it did. Nothing about the
+ * open means the grid did not render and 42 means it did. Nothing about the
  * measurement depends on a clock.
+ *
+ * The panel is opened from a button the HARNESS owns rather than from a month
+ * cell, because which gesture opens it is not what this file is about and it
+ * is about to change: #1584 moves Desktop creation onto an explicit + button
+ * and drops the blank-cell click entirely. What has to keep holding either way
+ * is that opening the panel costs no grid render. Which element raises
+ * `onMonthCreate` is pinned next door, in calendarLayouts.test.tsx.
  */
 
 /*
@@ -210,6 +217,9 @@ function Host({
   const onClose = useCallback(() => setPanel(null), []);
   return (
     <>
+      <button type="button" onClick={() => onMonthCreate("2026-08-21")}>
+        open-create-panel
+      </button>
       <CalendarDesktopLayout
         view="month"
         toolbar={{
@@ -296,7 +306,7 @@ describe("#1582 — opening the month creation panel does not redraw the grid", 
     fullDay.mockClear();
 
     act(() => {
-      fireEvent.click(screen.getByLabelText("2026-08-21"));
+      fireEvent.click(screen.getByText("open-create-panel"));
     });
 
     // The panel is up …
@@ -309,7 +319,7 @@ describe("#1582 — opening the month creation panel does not redraw the grid", 
     const fullDay = vi.fn((k: string) => k);
     render(<Host fullDay={fullDay} />);
     act(() => {
-      fireEvent.click(screen.getByLabelText("2026-08-21"));
+      fireEvent.click(screen.getByText("open-create-panel"));
     });
     fullDay.mockClear();
 
