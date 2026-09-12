@@ -626,6 +626,7 @@
     "loadError": "Could not load your schedule",
     "retry": "Retry",
     "moreCount": "+{{count}} more",
+    "monthCreateOn": "Add on {{date}}",
     "quickAddPlaceholder": "Enter an event…",
     "detailTitle": "Event details",
     "detailPanelLabel": "Detail panel",

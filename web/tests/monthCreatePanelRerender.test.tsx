@@ -34,10 +34,15 @@ import type { ScheduleOverlaysProps } from "../src/schedule/ScheduleOverlays";
  *
  * The panel is opened from a button the HARNESS owns rather than from a month
  * cell, because which gesture opens it is not what this file is about and it
- * is about to change: #1584 moves Desktop creation onto an explicit + button
- * and drops the blank-cell click entirely. What has to keep holding either way
- * is that opening the panel costs no grid render. Which element raises
- * `onMonthCreate` is pinned next door, in calendarLayouts.test.tsx.
+ * has since changed: #1584 moved Desktop creation onto an explicit + button and
+ * dropped the blank-cell click entirely. What holds either way is that opening
+ * the panel costs no grid render. Which element raises `onMonthCreate` is
+ * pinned next door, in calendarLayouts.test.tsx.
+ *
+ * `format.fullDay` still counts cells after that change, just through a
+ * different caller: the face button that used to carry it is gone, and the
+ * layout now spends it on the + button's accessible name instead (one per
+ * cell either way).
  */
 
 /*
@@ -48,8 +53,14 @@ import type { ScheduleOverlaysProps } from "../src/schedule/ScheduleOverlays";
  * which is a property of the stub rather than of the app — and it would hide
  * exactly the bug this file is about.
  */
-const t = (key: string, opts?: { count?: number }) =>
-  opts?.count === undefined ? key : `${key}:${opts.count}`;
+const t = (key: string, opts?: { count?: number; date?: string }) =>
+  opts?.count !== undefined
+    ? `${key}:${opts.count}`
+    : // #1584: the 42 + buttons are told apart only by the day in their name,
+      // so a stub that dropped the interpolation would make them one element.
+      opts?.date !== undefined
+      ? `${key}:${opts.date}`
+      : key;
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@life-editor/shared")>()),
@@ -341,7 +352,11 @@ describe("#1582 — opening the month creation panel does not redraw the grid", 
     // The guard against over-memoising: a grid that never re-renders is a grid
     // stuck on August.
     expect(fullDay).toHaveBeenCalledTimes(SEPTEMBER_CELLS);
-    expect(screen.getByLabelText("2026-09-30")).toBeTruthy();
+    // Named by the + button since #1584 — the bare day label belonged to the
+    // full-cell target that gesture replaced.
+    expect(
+      screen.getByLabelText("scheduleScreen.monthCreateOn:2026-09-30"),
+    ).toBeTruthy();
   });
 
   /*
