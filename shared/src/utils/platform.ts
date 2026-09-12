@@ -42,6 +42,44 @@ export function isNativeMobile(): boolean {
 }
 
 /*
+ * macOS desktop-shell detection (#1590).
+ *
+ * The narrow question `isMac` cannot answer. `isMac` reads the userAgent, which
+ * says "Macintosh" for a browser tab on macOS as well — and a browser tab has
+ * a real title bar, so it needs none of what this gates. What this asks is
+ * "is this window's title bar hidden with the traffic lights floating over my
+ * top-left corner", and only the shell that set `titleBarStyle: "hiddenInset"`
+ * knows that. It hands the answer over as a plain value on the bridge
+ * (`desktop/src/shared/ipcContract.ts::DesktopHostPlatform`), so this is a
+ * synchronous read with no await before the first paint.
+ *
+ * `platform` is read as OPTIONAL, which is the #1389 lesson applied rather than
+ * undone: a desktop build from before that field existed exposes
+ * `window.desktop` without it, and the absence has to resolve to "no mac
+ * chrome" — the old layout — instead of throwing inside a shell that is
+ * otherwise fine.
+ */
+export type DesktopShellPlatform = "darwin" | "win32" | "linux";
+
+/**
+ * The platform half of `window.desktop`. Declared here because `shared/` must
+ * not import from `desktop/`; the two declarations are pinned against each
+ * other in `desktop/tests/ipcContract.test.ts`, the same way the auth-storage
+ * and launcher bridges are.
+ */
+export interface DesktopPlatformBridge {
+  platform: DesktopShellPlatform;
+}
+
+export function isMacDesktopShell(): boolean {
+  if (typeof window === "undefined") return false;
+  const bridge = (
+    window as unknown as { desktop?: Partial<DesktopPlatformBridge> }
+  ).desktop;
+  return bridge?.platform === "darwin";
+}
+
+/*
  * There is deliberately no `isDesktopShell()` here (#1389). It existed for
  * "UI that only MAKES SENSE on the desktop shell", but nothing ever asked it —
  * the Claude Code launcher, its one intended caller, goes through

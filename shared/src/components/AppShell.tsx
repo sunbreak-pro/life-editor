@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { useMediaQuery } from "../hooks/useMediaQuery";
+import { isMacDesktopShell } from "../utils/platform";
 import { WIDE_QUERY } from "../constants/breakpoints";
 import { useSoftKeyboard } from "../hooks/useSoftKeyboard";
 import { useLocalStorage } from "../hooks/useLocalStorage";
@@ -200,8 +201,8 @@ export function AppShell({
     // v2 §4 structure: the section header row sits in the content COLUMN,
     // above the main + detail-panel flex ROW — the header's divider spans
     // both, and the panel pushes only the area below the line.
-    return (
-      <div className="flex h-screen overflow-hidden bg-lumen-bg text-lumen-text">
+    const body = (
+      <>
         <SidebarNav
           sections={sections}
           utilitySections={utilitySections}
@@ -229,6 +230,45 @@ export function AppShell({
             )}
           </div>
         </div>
+      </>
+    );
+
+    /*
+     * macOS shell only (#1590): a drag band across the top of the window.
+     *
+     * The shell hides the title bar (`titleBarStyle: "hiddenInset"`) but macOS
+     * keeps drawing the traffic lights, so without this they land on top of the
+     * sidebar's brand header — and since a frameless window has no chrome left
+     * to grab, there is nowhere to drag the window by either. One empty strip
+     * answers both: the buttons get their own 28px of room above the two header
+     * rows, and the strip is the drag handle.
+     *
+     * Empty on purpose. `-webkit-app-region: drag` swallows clicks on
+     * everything inside it — every button in there would need `no-drag` back,
+     * and one that was missed reads as a dead control — so the band holds no
+     * children and the existing header rows keep every click they had. The
+     * shell's own y offset centers the buttons in it (see main/index.ts).
+     *
+     * Non-mac hosts (browser, Windows / Linux shells, Capacitor) render the
+     * same tree as before: `body` is a fragment, so the wrapper below is the
+     * only difference and it does not exist for them.
+     */
+    if (!isMacDesktopShell()) {
+      return (
+        <div className="flex h-screen overflow-hidden bg-lumen-bg text-lumen-text">
+          {body}
+        </div>
+      );
+    }
+
+    return (
+      <div className="flex h-screen flex-col overflow-hidden bg-lumen-bg text-lumen-text">
+        <div
+          data-mac-titlebar="drag"
+          aria-hidden="true"
+          className="h-lumen-titlebar-mac shrink-0 bg-lumen-bg-subsidebar [-webkit-app-region:drag]"
+        />
+        <div className="flex min-h-0 flex-1 overflow-hidden">{body}</div>
       </div>
     );
   }

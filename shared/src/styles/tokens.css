@@ -484,6 +484,21 @@
      a number again, or if these values go back to px. */
   --spacing-lumen-header: 3.5rem;
   --spacing-lumen-header-wide: 3.75rem;
+  /* macOS drag band above the wide shell (#1590), consumed as
+     `h-lumen-titlebar-mac`. macOS keeps the traffic lights when the title bar
+     is hidden (`titleBarStyle: "hiddenInset"`), so the renderer owes them a
+     strip of its own — without it they sit on top of the sidebar's brand
+     header, and the window has nowhere to be dragged by.
+       PX, NOT REM — and it is the only height here that is. The pair above is
+     rem precisely so the two header rows scale with the Settings font-size
+     step; this one must NOT, because the OS draws the buttons at a px offset
+     that no font-size touches (`trafficLightPosition` in
+     desktop/src/main/index.ts). In rem the band would grow past the buttons at
+     the larger type steps and shrink under them at the smaller ones. 28px is
+     the standard macOS title-bar height, and the shell's y offset centers a
+     12px button in it — `desktop/tests/macTitleBar.test.ts` fails if the two
+     numbers stop agreeing. */
+  --spacing-lumen-titlebar-mac: 28px;
   /* Minimum legible / tappable sizing (2026-08-02 user request). Unlike the
      px-based radius + spacing scales above, these are REM on purpose: the
      Settings font-size step drives documentElement's font-size, so a rem floor

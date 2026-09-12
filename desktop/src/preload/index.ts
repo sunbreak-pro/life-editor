@@ -1,5 +1,25 @@
 import { contextBridge, ipcRenderer } from "electron";
-import { DESKTOP_IPC, type DesktopIpcApi } from "../shared/ipcContract";
+import {
+  DESKTOP_IPC,
+  type DesktopHostPlatform,
+  type DesktopIpcApi,
+} from "../shared/ipcContract";
+
+/*
+ * The host OS, narrowed to what electron-builder.yml ships (#1590).
+ *
+ * A sandboxed preload still gets a `process` polyfill carrying `platform`, so
+ * this needs no IPC round trip. Written as a narrowing function rather than a
+ * cast: `process.platform` is the full NodeJS.Platform union (aix, sunos, ...),
+ * and a cast would tell the renderer "this is one of three" while handing it
+ * something else. Everything that is not macOS or Windows falls to "linux",
+ * which is what the only consumer wants anyway — the question it asks is
+ * "darwin or not".
+ */
+function hostPlatform(): DesktopHostPlatform {
+  const p = process.platform;
+  return p === "darwin" || p === "win32" ? p : "linux";
+}
 
 // Thin, serializable-only bridge. Business logic lives in shared/web; this only
 // exposes the desktop shell's local prefs (theme / window bounds / version),
@@ -27,6 +47,7 @@ const api: DesktopIpcApi = {
     ipcRenderer.invoke(DESKTOP_IPC.claudeGetProjectPath),
   launchClaude: (args) => ipcRenderer.invoke(DESKTOP_IPC.claudeLaunch, args),
   notify: (args) => ipcRenderer.invoke(DESKTOP_IPC.notifyShow, args),
+  platform: hostPlatform(),
 };
 
 // contextIsolation is on, so expose via contextBridge only.

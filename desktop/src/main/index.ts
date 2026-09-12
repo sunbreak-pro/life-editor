@@ -162,6 +162,23 @@ function createWindow(): void {
     autoHideMenuBar: false,
     backgroundColor: "#ffffff",
     titleBarStyle: "hiddenInset",
+    // macOS only: hiddenInset removes the title bar but keeps the traffic
+    // lights, which then float over the renderer's top-left corner — over the
+    // sidebar's brand header, in this app (#1590). The renderer answers with a
+    // drag band across the top of the wide shell (AppShell, gated on
+    // `window.desktop.platform === "darwin"`), and these two numbers place the
+    // buttons inside it: y = (28 - 12) / 2 centers a 12px button in the band's
+    // 28px, x = 12 is the standard left inset.
+    //
+    // The band's height lives in `shared/src/styles/tokens.css`
+    // (`--spacing-lumen-titlebar-mac`) and `desktop/tests/macTitleBar.test.ts`
+    // fails if that value and this y stop agreeing. It is the one px height in
+    // that file on purpose: the OS draws these buttons at a px offset that no
+    // font-size setting scales, so a rem band would drift out from under them
+    // at the Settings type steps.
+    ...(process.platform === "darwin"
+      ? { trafficLightPosition: { x: 12, y: 8 } }
+      : {}),
     webPreferences: {
       preload: join(__dirname, "../preload/index.js"),
       // Security baseline (Electron well-trodden defaults). Do not loosen.
