@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import { CheckSquare } from "lucide-react";
 import { cn } from "../cn";
 import { type ScheduleItemVariant } from "./scheduleVariantVisuals";
@@ -129,7 +129,7 @@ function chipFaceClasses(variant: ScheduleItemVariant): string {
   }
 }
 
-export function MonthGrid({
+function MonthGridImpl({
   monthKey,
   items,
   todayKey,
@@ -408,3 +408,20 @@ export function MonthGrid({
     </div>
   );
 }
+
+/*
+ * Memoised (#1582). Opening the Desktop creation panel is a state change in
+ * CalendarTab, which re-renders the whole host — and this grid, whose 42 cells
+ * and ~90 chips did not change, was 7-8 of the ~11ms that click cost (measured
+ * in web/tests/monthCreatePanelPerf.test.tsx). Nothing about the grid's own
+ * work was slow; it was simply being redone for a panel that opens above it.
+ *
+ * The comparison only pays off while every prop the hosts pass keeps its
+ * identity across such a render: `items` is a memo (useScheduleGridFilters),
+ * the item handlers are useCallbacks (useScheduleSelection), and the two
+ * formatters are useCallbacks in the layouts (`formatMoreCount` was an inline
+ * arrow until this issue — it alone defeated the memo). An inline arrow added
+ * to either call site puts the 7ms straight back, which is what the render
+ * -count assertions in that suite are there to catch.
+ */
+export const MonthGrid = memo(MonthGridImpl);
