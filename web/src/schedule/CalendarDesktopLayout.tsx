@@ -110,9 +110,13 @@ export interface CalendarDesktopHandlers {
   onItemDoubleClick: (id: string) => void;
   onItemContextMenu: (id: string, pos: { x: number; y: number }) => void;
   /**
-   * A month cell was chosen. Desktop opens the creation panel on it (#224) —
+   * A day's + was pressed. Desktop opens the creation panel on it (#224) —
    * deliberately NOT the narrow layout's "show me this day", which is why the
    * two layouts take different callbacks for what looks like one gesture.
+   *
+   * #1584 moved the gesture off the cell face and onto an explicit button in
+   * the cell's corner: the face target was invisible, so nothing said a cell
+   * could be pressed, and a press aimed at a chip opened the panel instead.
    */
   onMonthCreate: (dateKey: string) => void;
   onCreateAt: NonNullable<WeekTimeGridHandlers["onCreateAt"]>;
@@ -175,6 +179,23 @@ export function CalendarDesktopLayout({
   );
 
   /*
+   * #1584: the + button's accessible name. It carries the DAY, because the +
+   * is now the cell's only keyboard stop on this width and 42 buttons all
+   * reading "Add" would be 42 indistinguishable ones.
+   *
+   * The dependency is `format.fullDay` and NOT `format`: the host rebuilds
+   * that bundle object on every render, while the formatter inside it is a
+   * useCallback (useScheduleDayLabels). Naming the bundle would hand
+   * <MonthGrid> a new function once a render.
+   */
+  const fullDay = format.fullDay;
+  const formatCreateLabel = useCallback(
+    (dateKey: string) =>
+      t("scheduleScreen.monthCreateOn", { date: fullDay(dateKey) }),
+    [t, fullDay],
+  );
+
+  /*
    * #889: the Desktop main area, hoisted out of the return so the layout
    * below reads as what it is — toolbar, lens, body. Same three states the
    * narrow branch shows, in the wrappers Desktop needs.
@@ -199,12 +220,13 @@ export function CalendarDesktopLayout({
         items={data.monthItems}
         todayKey={data.today}
         weekdayLabels={labels.weekdays}
-        onSelectDay={handlers.onMonthCreate}
+        onCreateDay={handlers.onMonthCreate}
         onItemActivate={handlers.onItemActivate}
         onItemDoubleClick={handlers.onItemDoubleClick}
         onItemContextMenu={handlers.onItemContextMenu}
         formatMoreCount={formatMoreCount}
         formatDayLabel={format.fullDay}
+        formatCreateLabel={formatCreateLabel}
         ariaLabel={t("scheduleScreen.calendar")}
         className="h-full"
       />
