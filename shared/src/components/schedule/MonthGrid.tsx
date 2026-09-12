@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { CheckSquare } from "lucide-react";
+import { CheckSquare, Plus } from "lucide-react";
 import { cn } from "../cn";
 import { type ScheduleItemVariant } from "./scheduleVariantVisuals";
 import {
@@ -27,8 +27,18 @@ import {
  * useTranslation. Weekday labels + the "他 N 件" formatter arrive already
  * translated. All date math is the "no UTC" local-part helpers in
  * scheduleGridLayout (unit-tested separately). lumen-* tokens only; cells are
- * opaque (§5). A tap on a cell fires onSelectDay; a tap on a chip fires
- * onSelectItem (and stops the cell's day-select).
+ * opaque (§5).
+ *
+ * WHAT A CELL DOES depends on which callback the host supplies, and the two
+ * hosts supply different ones (#1584):
+ *   - onSelectDay  → a full-face button that hands back the day. Narrow's
+ *                    "show me this day", and the only focusable thing in the
+ *                    cell.
+ *   - onCreateDay  → a + button in the cell's top-right that hands back the
+ *                    day. Desktop's "add something here", and Desktop-only:
+ *                    the compact density has no room for it and its cell means
+ *                    something else.
+ * A tap on a chip fires onSelectItem and stops whichever of those is under it.
  */
 
 export interface MonthGridItem {
@@ -59,7 +69,29 @@ export interface MonthGridProps {
   selectedKey?: string | null;
   /** Already-translated weekday labels indexed 0 (Sun) – 6 (Sat) (§6.4). */
   weekdayLabels: string[];
-  onSelectDay: (dateKey: string) => void;
+  /**
+   * A day was picked — the whole cell face is the target. Narrow's gesture
+   * (#878 / #1148: move the anchor and open the drawer).
+   *
+   * Optional since #1584: Desktop used to wire this to "open the creation
+   * panel", which put the only affordance on an invisible full-cell button —
+   * nothing said the cell was pressable, and a press meant for a chip opened
+   * the panel instead. Desktop passes `onCreateDay` now and no face button is
+   * drawn at all.
+   */
+  onSelectDay?: (dateKey: string) => void;
+  /**
+   * Desktop's create gesture (#1584): renders a + in each cell's top-right
+   * corner that hands back that cell's day.
+   *
+   * Ignored in `compact` — a phone cell is ~51px wide and its day already means
+   * "show me this day", so a second target in it would be neither hittable nor
+   * unambiguous.
+   *
+   * When this is the cell's only callback the + IS the cell's keyboard stop,
+   * which is why `formatCreateLabel` has to name the day rather than the act.
+   */
+  onCreateDay?: (dateKey: string) => void;
   onSelectItem?: (id: string) => void;
   /**
    * Single-click on a chip → host opens a bubble popover anchored at the
@@ -82,6 +114,12 @@ export interface MonthGridProps {
   formatMoreCount: (n: number) => string;
   /** Accessible name for a day cell. Default = the raw date key. */
   formatDayLabel?: (dateKey: string) => string;
+  /**
+   * Already-translated accessible name for a cell's + button (§6.4). It has to
+   * carry the DAY: 42 buttons all called "Add" are 42 indistinguishable stops
+   * in the tab order. Default = the raw date key, which at least says which.
+   */
+  formatCreateLabel?: (dateKey: string) => string;
   /**
    * Mobile density (#1401): fixed-height cells, a title list instead of chips
    * (up to 3 lines, the last one the remainder when there are more), and no
@@ -136,12 +174,14 @@ export function MonthGrid({
   selectedKey,
   weekdayLabels,
   onSelectDay,
+  onCreateDay,
   onSelectItem,
   onItemActivate,
   onItemDoubleClick,
   onItemContextMenu,
   formatMoreCount,
   formatDayLabel = (k) => k,
+  formatCreateLabel = (k) => k,
   compact = false,
   ariaLabel,
   className,
@@ -232,7 +272,7 @@ export function MonthGrid({
               // selection to make, and the overview (#692) has none.
               aria-selected={selectedKey ? isSelected : undefined}
               className={cn(
-                "relative border-b border-r border-lumen-border last:border-r-0",
+                "group/cell relative border-b border-r border-lumen-border last:border-r-0",
                 // #1401: a fixed height that clips, so no title can move a
                 // grid line — versus Desktop's floor, which lets a cell grow.
                 compact ? "h-[4.375rem] overflow-hidden" : "min-h-14",
@@ -242,15 +282,54 @@ export function MonthGrid({
             >
               {/* Full-cell day-select target (keyboard reachable). Chips sit
                   above it with pointer-events re-enabled. */}
-              <button
-                type="button"
-                aria-label={formatDayLabel(dateKey)}
-                onClick={() => onSelectDay(dateKey)}
-                className={cn(
-                  "absolute inset-0 z-0 cursor-pointer transition-colors hover:bg-lumen-hover",
-                  CELL_FOCUS,
-                )}
-              />
+              {onSelectDay && (
+                <button
+                  type="button"
+                  aria-label={formatDayLabel(dateKey)}
+                  onClick={() => onSelectDay(dateKey)}
+                  className={cn(
+                    "absolute inset-0 z-0 cursor-pointer transition-colors hover:bg-lumen-hover",
+                    CELL_FOCUS,
+                  )}
+                />
+              )}
+              {/*
+               * The + (#1584). A sibling of the face button rather than a
+               * child of the column below, because that column is
+               * `pointer-events-none` — it exists so a press lands on the face
+               * button underneath, and a control inside it would have to
+               * re-enable pointer events the way the chips do anyway.
+               *
+               * Quiet until asked for: hidden on an untouched cell, shown on
+               * hover, and shown on keyboard focus — `opacity-0` leaves it in
+               * the a11y tree and in the tab order, so the two are the same
+               * button and not a mouse one plus a screen-reader one.
+               *
+               * 28px square, which is this project's own floor for an
+               * icon-only control (tokens.css `--spacing-lumen-tap-min`, the
+               * `:has()` rule). Not the 44px touch floor: 44 would reach down
+               * past the day badge row into the first chip and, sitting above
+               * it, swallow presses meant for that chip — and this control is
+               * never mounted at a narrow width, where that floor applies.
+               */}
+              {!compact && onCreateDay && (
+                <button
+                  type="button"
+                  aria-label={formatCreateLabel(dateKey)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onCreateDay(dateKey);
+                  }}
+                  className={cn(
+                    "absolute right-0.5 top-0.5 z-20 flex size-7 cursor-pointer items-center justify-center rounded",
+                    "text-lumen-text-secondary transition-opacity hover:bg-lumen-hover hover:text-lumen-text",
+                    "opacity-0 focus-visible:opacity-100 group-hover/cell:opacity-100",
+                    CELL_FOCUS,
+                  )}
+                >
+                  <Plus aria-hidden className="size-4" strokeWidth={2.5} />
+                </button>
+              )}
               <div
                 className={cn(
                   "pointer-events-none relative z-10 flex h-full flex-col gap-0.5",
@@ -361,7 +440,10 @@ export function MonthGrid({
                         }
                         title={it.title}
                         className={cn(
-                          "pointer-events-auto rounded px-1 py-0.5 text-left text-xs font-medium",
+                          // #1584: `cursor-pointer` says it out loud. Tailwind
+                          // preflight resets every <button> to the arrow, so a
+                          // chip read as decoration until it was clicked.
+                          "pointer-events-auto cursor-pointer rounded px-1 py-0.5 text-left text-xs font-medium",
                           // #593: todo chips carry the CheckSquare todo mark,
                           // matching the week grid, so the cue does not vanish
                           // when the same item is viewed by month.

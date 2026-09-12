@@ -295,3 +295,118 @@ describe("MonthGrid — completion is a TODO's alone (#1373)", () => {
     );
   });
 });
+
+/*
+ * #1584 — the Desktop create gesture.
+ *
+ * It used to be the cell's whole invisible face: nothing told you a cell could
+ * be pressed, and a press aimed at a chip opened the creation panel behind the
+ * bubble instead. Desktop now draws an explicit + in each cell's corner and
+ * passes no face callback at all, so "click the blank part of a cell" simply
+ * does nothing.
+ *
+ * Narrow is untouched — its cell still means "show me this day" (#1148) and a
+ * second target in a ~51px-wide cell would be neither hittable nor unambiguous.
+ * That is the split every case below is really about.
+ *
+ * jsdom has no layout, so the hover/focus reveal is asserted on the classes
+ * that produce it — the same convention the #1401 clipping cases above use.
+ */
+describe("MonthGrid — the Desktop + button (#1584)", () => {
+  const renderCreatable = (
+    props?: Partial<Parameters<typeof MonthGrid>[0]>,
+  ) => {
+    const onCreateDay = vi.fn();
+    const onSelectItem = vi.fn();
+    render(
+      <MonthGrid
+        monthKey="2026-07-15"
+        items={ITEMS}
+        todayKey="2026-07-09"
+        weekdayLabels={WEEKDAYS}
+        onCreateDay={onCreateDay}
+        onSelectItem={onSelectItem}
+        formatMoreCount={(n) => `+${n} more`}
+        formatCreateLabel={(k) => `add on ${k}`}
+        {...props}
+      />,
+    );
+    return { onCreateDay, onSelectItem };
+  };
+
+  it("gives every cell a + that hands back that cell's day", () => {
+    const { onCreateDay } = renderCreatable();
+    expect(screen.getAllByRole("button", { name: /^add on / })).toHaveLength(
+      35,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "add on 2026-07-20" }));
+    expect(onCreateDay).toHaveBeenCalledWith("2026-07-20");
+  });
+
+  it("draws no full-face target when the host passes no onSelectDay", () => {
+    renderCreatable();
+    // The bare day key was the face button's accessible name. Its absence is
+    // what makes a click on the blank part of a cell a no-op.
+    expect(screen.queryByRole("button", { name: "2026-07-20" })).toBeNull();
+  });
+
+  it("names the + by its day, so 42 of them are not 42 identical stops", () => {
+    renderCreatable();
+    const names = screen
+      .getAllByRole("button", { name: /^add on / })
+      .map((b) => b.getAttribute("aria-label"));
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  it("hides the + until hover or focus, without leaving the tab order", () => {
+    renderCreatable();
+    const plus = screen.getByRole("button", { name: "add on 2026-07-20" });
+    // `opacity-0` rather than `hidden`: the button stays in the a11y tree and
+    // in the tab order, so the mouse one and the keyboard one are one button.
+    expect(plus.className).toContain("opacity-0");
+    expect(plus.className).toContain("group-hover/cell:opacity-100");
+    expect(plus.className).toContain("focus-visible:opacity-100");
+    expect(plus.className).not.toContain("hidden");
+    expect(plus.getAttribute("tabindex")).toBeNull();
+  });
+
+  it("keeps a chip press off the +", () => {
+    const { onCreateDay, onSelectItem } = renderCreatable();
+    fireEvent.click(screen.getByRole("button", { name: "Gym" }));
+    expect(onSelectItem).toHaveBeenCalledWith("a");
+    expect(onCreateDay).not.toHaveBeenCalled();
+  });
+
+  it("draws no + in compact mode, even when the host offers one", () => {
+    renderCreatable({ compact: true, onSelectDay: vi.fn() });
+    expect(screen.queryByRole("button", { name: /^add on / })).toBeNull();
+    // The narrow cell still means "show me this day".
+    expect(screen.getByRole("button", { name: "2026-07-20" })).toBeTruthy();
+  });
+
+  it("lets both callbacks coexist, which is what keeps narrow unchanged", () => {
+    const onSelectDay = vi.fn();
+    const { onCreateDay } = renderCreatable({ onSelectDay });
+    fireEvent.click(screen.getByRole("button", { name: "2026-07-20" }));
+    expect(onSelectDay).toHaveBeenCalledWith("2026-07-20");
+    expect(onCreateDay).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #1584 — a chip is pressable, and now says so. Tailwind's preflight resets
+ * every <button> to the default arrow, so the chips read as decoration until
+ * something was clicked by accident.
+ */
+describe("MonthGrid — chips carry the pointer cursor (#1584)", () => {
+  it("puts cursor-pointer on an item chip", () => {
+    renderGrid();
+    expect(
+      screen.getByRole("button", { name: "Gym" }).className,
+    ).toContain("cursor-pointer");
+    // The todo chip is a different branch of the same className call.
+    expect(
+      screen.getByRole("button", { name: "Write report" }).className,
+    ).toContain("cursor-pointer");
+  });
+});
