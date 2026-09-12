@@ -1144,6 +1144,7 @@
     "next": "次へ",
     "done": "完了",
     "skip": "スキップ",
+    "endTour": "ツアーを終了",
     "progress": "{{current}} / {{total}}",
     "waitingForAction": "実際に操作すると次に進みます",
     "launcher": {

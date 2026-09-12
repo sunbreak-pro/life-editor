@@ -72,7 +72,7 @@ import { TourContext, type TourContextValue } from "./TourContextValue";
  * progress exists for — has this user been offered the whole tour and
  * finished or refused it. A section replay is not an answer to it. Letting
  * one write `stepId` / `completed` / `skipped` would either mark the tour
- * complete after four Materials steps or, on a Skip, retire the tour for good
+ * complete after four Materials steps or, on an End, retire the tour for good
  * over a "not this bit". `persist` is the single choke point, so the seal is
  * one guard rather than a rule every caller has to remember.
  *
@@ -433,7 +433,7 @@ export function TourProvider({
    * came back at the top every time.
    *
    * A replay's `skipped` splits the two meanings `stopAt` otherwise conflates.
-   * Escape is "not now", so it leaves the bookmark; Skip is "done with this
+   * Escape is "not now", so it leaves the bookmark; End is "done with this
    * bit", so it clears it and the next pick starts at the top. Neither may
    * touch the tour-wide `skipped` flag — that answers "may the tour offer
    * itself unprompted", and a replay is not an answer to it.
@@ -455,7 +455,27 @@ export function TourProvider({
     [index, persist],
   );
 
-  const skip = useCallback(() => stopAt(true), [stopAt]);
+  /**
+   * Skip the step ON SCREEN — one step, not the tour (#1583).
+   *
+   * Mechanically the same move as `next`: the resume point walks forward,
+   * and skipping the last step completes the run. The difference is who may
+   * call it. `next` is withheld on an action step (the overlay does not draw
+   * the button, because pressing past the deed is what that step exists to
+   * prevent), whereas "I do not want to do this one" is exactly what Skip is
+   * for — so it takes the same road `notifyAction` would have.
+   *
+   * It used to be `stopAt(true)`, which retired the whole tour for good over
+   * a step the user merely did not care for. That meaning now belongs to
+   * `end` alone, under its own label.
+   */
+  const skip = useCallback(() => {
+    if (!isRunning) return;
+    goTo(index + 1, "walked");
+  }, [goTo, index, isRunning]);
+  /** Leave the tour for good — the only path that SETS the tour-wide
+   *  `skipped` flag (`start` / `restart` / a completed run clear it). */
+  const end = useCallback(() => stopAt(true), [stopAt]);
   const pause = useCallback(() => stopAt(false), [stopAt]);
 
   const notifyAction = useCallback(
@@ -491,7 +511,7 @@ export function TourProvider({
     const list = stepsRef.current;
     const step = list[index];
     // An index past the end is the end — treating it as a no-op would leave
-    // the tour running with nothing on screen and no way out but skip/pause.
+    // the tour running with nothing on screen and no way out but end/pause.
     if (!step) {
       goTo(list.length, "gaveUp");
       return;
@@ -589,6 +609,7 @@ export function TourProvider({
       start,
       next,
       skip,
+      end,
       pause,
       restart,
       startSection,
@@ -598,6 +619,7 @@ export function TourProvider({
       activeStep,
       activeSteps.length,
       anchorElement,
+      end,
       index,
       isRunning,
       next,

@@ -29,6 +29,7 @@ export function TourHost() {
       next: t("tour.next"),
       done: t("tour.done"),
       skip: t("tour.skip"),
+      endTour: t("tour.endTour"),
       progress: t("tour.progress", { current: stepNumber, total: totalSteps }),
       waitingForAction: t("tour.waitingForAction"),
     }),
@@ -48,6 +49,7 @@ export function TourHost() {
       waitsForAction={activeStep.advanceOn.kind === "action"}
       onNext={tour.next}
       onSkip={tour.skip}
+      onEnd={tour.end}
       onDismiss={tour.pause}
       labels={labels}
     />

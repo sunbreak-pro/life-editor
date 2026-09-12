@@ -1,6 +1,10 @@
 import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { hasOpenDialogLayer, useDialogA11y } from "../../hooks/useDialogA11y";
+import {
+  DIALOG_AUTOFOCUS_SKIP,
+  hasOpenDialogLayer,
+  useDialogA11y,
+} from "../../hooks/useDialogA11y";
 import { isImeComposing } from "../../utils/imeGuard";
 import { cn } from "../cn";
 import {
@@ -115,8 +119,11 @@ export interface TourOverlayProps {
   waitsForAction: boolean;
   /** Advance (the Next / Done button). Unused while `waitsForAction`. */
   onNext: () => void;
-  /** Dismiss for good. */
+  /** Pass this one step (the Skip button) — offered on every step, action
+   *  steps included, since it is the way past a deed the user declines. */
   onSkip: () => void;
+  /** Dismiss for good (the End tour button). */
+  onEnd: () => void;
   /** Put the tour away but keep the position (Escape). */
   onDismiss: () => void;
   labels: TourLabels;
@@ -130,6 +137,7 @@ export function TourOverlay({
   waitsForAction,
   onNext,
   onSkip,
+  onEnd,
   onDismiss,
   labels,
 }: TourOverlayProps) {
@@ -355,19 +363,43 @@ export function TourOverlay({
           fits, still renders as a single row. ml-auto is what holds the
           cluster against the right edge once it is alone on its line —
           justify-between on its own would put it at the start.
+
+          "End tour" (#1583) sits on the LEFT with the counter rather than in
+          the cluster, and that placement is what keeps the wrap above intact:
+          the cluster's widest line (ja Skip + waiting copy) is unchanged, and
+          the counter's group only ever costs the row a wrap, never a squeeze.
+          It also keeps the exit apart from the two buttons that move the tour
+          forward — Skip and End used to be one button, and a "skip this step"
+          that quietly ended everything is the bug this separates.
         */}
         <div className="mt-lumen-3 flex flex-wrap items-center justify-between gap-lumen-2">
-          <span className="shrink-0 whitespace-nowrap text-xs text-lumen-text-tertiary">
-            {labels.progress}
-          </span>
+          <div className="flex shrink-0 items-center gap-lumen-2 whitespace-nowrap">
+            <span className="text-xs text-lumen-text-tertiary">
+              {labels.progress}
+            </span>
+            <button
+              type="button"
+              onClick={onEnd}
+              // Opening a tour ON its exit is the one thing it must not do
+              // (the BottomSheet close-button lesson, #525).
+              {...DIALOG_AUTOFOCUS_SKIP}
+              className={cn(
+                "rounded-lumen-sm px-2 py-1 text-xs",
+                "text-lumen-text-tertiary hover:text-lumen-text",
+                FOCUS_RING,
+              )}
+            >
+              {labels.endTour}
+            </button>
+          </div>
 
           <div className="ml-auto flex items-center gap-lumen-2">
             <button
               type="button"
               onClick={onSkip}
-              // Opening a tour ON its dismiss button is the one thing it must
-              // not do (the BottomSheet close-button lesson, #525).
-              data-dialog-autofocus="skip"
+              // Same as End above: a tour must not open with focus on the
+              // button that passes the step it is trying to show.
+              {...DIALOG_AUTOFOCUS_SKIP}
               className={cn(
                 "shrink-0 whitespace-nowrap rounded-lumen-sm px-2 py-1 text-xs",
                 "text-lumen-text-secondary hover:text-lumen-text",

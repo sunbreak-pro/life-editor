@@ -27,6 +27,7 @@ const LABELS: TourLabels = {
   next: "Next",
   done: "Done",
   skip: "Skip",
+  endTour: "End tour",
   progress: "progress",
   waitingForAction: "Try it",
 };
@@ -72,6 +73,7 @@ function renderOverlay(anchor: HTMLElement, waitsForAction: boolean) {
       waitsForAction={waitsForAction}
       onNext={vi.fn()}
       onSkip={vi.fn()}
+      onEnd={vi.fn()}
       onDismiss={vi.fn()}
       labels={LABELS}
     />,
