@@ -2,21 +2,13 @@
 
 ## 進行中
 
-### 🔧 コード整理監査の findings 消化（着手日: 2026-09-01）
-
-**対象**: `shared/src/**` / `mcp-server/src/**` / `desktop/**` / `.claude/docs/vision/plans/`
-
-- 前回: —
-- 現在: **5 本すべて PR 到達（#1386 / #1387 / #1389 / #1385 / #1300）**。2026-09-01 実測で **#1415 / #1418 / #1422 / #1426 は MERGED**、**#1428（#1300）だけ open**
-- 次: **#1300 の残りはユーザー手番**。(a) `release-desktop.yml` を workflow_dispatch で 1 回回す（Claude 側は権限で実行不可）→ (b) `desktop-v0.1.0` タグ → (c) 👀 Windows 11 実機受け入れ（起動判定は **Electron プロセス 4 本** = #545 の教訓）。#1301 の macOS 実機は別レーン
-
 ### 🔧 コア構造のリファクタリング（着手日: 2026-08-10）
 
 **対象**: `shared/src/**` / `web/src/**` / `mcp-server/**` / CI・tsconfig 群
 **計画書**: `.claude/docs/vision/plans/2026-08-10-core-refactor.md`
 
 - 前回: **#1101 = #1038 案 A-1 の stale-while-revalidate（PR #1108 merged）**
-- 現在: **#1184 = 警告 / お知らせ / 確認パネルの共通化（PR #1259 open・CI 全緑）**。`shared/src/components/NoticePanel.tsx` を新設し、代表 4 箇所を置換（AuthAlert を畳んで削除 / notes サイドバーのエラー帯 / オフラインバナー / schedule の繰り返しフィルタ通知）。残置換 3 グループは子 Issue へ回す依頼を outbox に積み済み
+- 現在: **#1184 = 警告 / お知らせ / 確認パネルの共通化（PR #1259 は 2026-09-12 実測で MERGED）**。`shared/src/components/NoticePanel.tsx` を新設し、代表 4 箇所を置換（AuthAlert を畳んで削除 / notes サイドバーのエラー帯 / オフラインバナー / schedule の繰り返しフィルタ通知）。残置換 3 グループは子 Issue へ回す依頼を outbox に積み済み
 - 直前: **#1101 = #1038 案 A-1 の実装（PR #1108 merged）**。`useDomainLoad` に任意の `snapshotKey` を足し、成功した読みをモジュール store に置いて次の mount で layout effect から `apply` に流す stale-while-revalidate。ドメインフック 7 本が opt-in、キー無しの呼び出しは挙動据え置き
 - **#1101 で効いた設計判断 3 つ**（同型のキャッシュを足す人向け）: (1) **replay は layout effect**。passive effect だと commit と effect flush の間に描かれうるフレームが残り、それが消したかった空リストそのもの。`apply` は呼び出し側の setState なので描画前に 1 パス増えるが、増えるだけで blink はしない。(2) **`settled` を snapshot 命中時だけ初期値で埋める**。`isLoading` は従来どおり派生値のままで、書き込む場所を増やしていない。(3) **store は 1 key = 1 エントリ**。anchor（Schedule の日付）ごとに溜めると 30 日辿れば 30 個になるので、直近だけ持って anchor 不一致は miss（= 従来挙動）に倒した
 - **#891 で分かった 3 つの差分**（次に同型の載せ替えをやる人向け）: (1) **notes** — Trash の読み込みは同じトリガでも独自 try/catch を持つので load の `Promise.all` に畳めない（畳むと Trash の失敗がツリーを道連れにする）。別 effect に据え置いた。(2) **dailies** — 元から `isLoading` も `error` も**持っていなかった**ので、載せ替えは新規フィールドの追加になる。UI は未配線（エラーカードは見た目の変更なので範囲外）。(3) **wikitags** — `refetchReportsLoading: false` では足りず `loading = attemptInFlight && !hasLoaded` と書いた。**初回ロードが失敗した後の再試行**で旧コードは旗を立て直しており（`if (!hasLoadedRef.current) setLoading(true)`）、false 固定にすると「読み込み中」を「タグ 0 件」と表示してしまう
@@ -25,6 +17,10 @@
 
 ## 直近の完了
 
+- **#1590 macOS の traffic light にドラッグ帯を与えた — PR #1595 open** ✅（2026-09-12）: `titleBarStyle: "hiddenInset"` は 3 ボタンを消さないので、wide シェルの最上部に **空の 28px 帯**を 1 本置いて逃げ場と取っ手を兼ねさせた。帯を空にしたのは `-webkit-app-region: drag` が**内側のクリックを全部飲む**ため — 既存のヘッダー行を中に入れると全ボタンに `no-drag` を付け直すことになり、1 つ漏らすと「押しても無反応」になる。判定は殻が渡す `window.desktop.platform`（`isMac` は macOS のブラウザタブでも真になるので使えない）で、**チャンネルではなく値**にしたので #529 Risk 1 の関数枠（10）を消費しない
+- **#1590 で効いた判断 2 つ**: (1) **帯の高さだけ px にした** — tokens.css は Settings の文字サイズ段に追随させるため rem が原則だが、OS 側の `trafficLightPosition` は px 固定なので rem にするとボタンの下から帯がずれる。原則の例外なので理由をトークンのコメントに残し、`desktop/tests/macTitleBar.test.ts` で殻の y と突き合わせた（Windows 機からは他に検出手段が無い）。(2) **非 mac の DOM を 1 バイトも変えない**ため、既存のツリーを fragment に括って mac 時だけラッパーを増やす形にした
+- **#1300 Step 10 の Status 追随 — PR #1598 open** ✅（2026-09-12）: 実装は既に main（PR #1348 / #1360 / #1428）で、残っていたのは記録だけ。計画書の Status 行が「残りは Step 6（tag → Release）」と言う一方、同じファイルの Worklog には 2026-09-09 の実走が書かれていた（**1 ファイル内の前後矛盾**）。移行 SSOT も「tag はまだ打っておらず `gh release list` は空」で止まっていた。`gh` で取り直した実測 = run 34342012501 が 3 ジョブ success / draft Release に `.exe` 84,351,933 B + arm64 `.dmg` 103,608,244 B / **まだ draft**。**#1300 の残りは Windows 実機での実アカウントログイン + Todo CRUD だけ**（Step 7 の 6 項目中 5 は 2026-09-05 に通過）
+- **コード整理監査の findings 消化 完了** ✅（2026-09-12）: 5 本（#1386 / #1387 / #1389 / #1385 / #1300）とも main に着地（#1415 / #1418 / #1422 / #1426 / #1428 すべて MERGED）。#1300 に残るのは 👀 実機ゲートのみで、追跡は Issue 側に移した
 - **#1388 退役機能の dead i18n キー 33 個と dead CSS を一掃 — PR #1551 open** ✅（2026-09-06）: `i18nKeys.test.ts` は「call site が挙げるキーが catalog にあるか」の**順方向しか見ない**ため、退役のたびに文字列が残る構造だった（#1153 kanban / #1239 backlinks）。en 986 → 953 キー。死活判定は**フルの dotted path が shared / web / desktop/src / mcp-server / mobile のどこにも現れないこと**で取り、動的キー 4 系統（`section.*` / `undoRedo.labels.*` / `scheduleCalendar.weekday*` / `briefing.saveFailed.*`）が届き得ないことを `sections.ts` registry と `MATERIALS_TABS` / `ANALYTICS_TAB_ORDER` の実値まで辿って確認した。`kanban` / `backlinks` / `sidebar` / `search` は空になったので名前空間ごと削除
 - **#1388 で踏んだ落とし穴 2 つ**: (1) **Issue が「dead」と列挙した `materials.todos.todoCount` は死んでいなかった** — `shared/tests/i18n.test.ts` の #680 複数形テストが、そのキー 1 本のためだけに生かしていた。被写体（KanbanView）は #1153 で退役済みなので、**テストの主張（i18next の複数形解決）は変えずに生きているキー `materials.tags.usageCount` へ付け替えた**。「テストだけが参照しているキー」は逆方向スキャンでは live に見えるので、機械の判定をそのまま信じられない一類型。(2) **借用 2 キーの ja が一致していなかった** — Issue は「文字列まで同一だから `materials.tags.*` へ寄せれば移設不要」と書いていたが、実測では ja が「デフォルト色」/「デフォルトの色」で割れていた。寄せると画面の文言が変わり DoD（表示文言不変）に反するので、`itemActions.tagColor*Label` へ**文字列そのままで移設**し、表記ゆれ自体は PR に申し送りとして残した
 - **コード整理監査の findings 5 本を一気通貫で PR 化** ✅（2026-09-01）: #1386（`migrateTodosToBackend` 削除 = PR #1415 merged）/ #1387（削除済み `frontend/` 前提のコメント・規範一掃 = PR #1418 merged）/ #1389（参照ゼロ export 削除 + EmptyState 改名 = PR #1422 merged）/ #1385（未使用 version カラムのバンプ廃止 = PR #1426 merged）/ #1300（desktop リリース基盤の実測記録 = PR #1428 open）。5 本とも `ci.yml` の `verify` 全ステップ + `docs-lint` をローカルで緑にしてから PR
