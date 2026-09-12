@@ -69,8 +69,15 @@ import type { CalendarNarrowLayoutProps } from "../src/schedule/CalendarNarrowLa
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@life-editor/shared")>()),
   useTranslation: () => ({
-    t: (key: string, opts?: { count?: number }) =>
-      opts?.count === undefined ? key : `${key}:${opts.count}`,
+    // The interpolated value is appended, not dropped: the two hidden-counts
+    // could otherwise swap places unnoticed, and since #1584 the 42 + buttons
+    // are told apart only by the day in their name.
+    t: (key: string, opts?: { count?: number; date?: string }) =>
+      opts?.count !== undefined
+        ? `${key}:${opts.count}`
+        : opts?.date !== undefined
+          ? `${key}:${opts.date}`
+          : key,
   }),
 }));
 
@@ -348,10 +355,29 @@ describe("CalendarDesktopLayout — the view decides which grid", () => {
     expect(screen.getByText(`col:${ANCHOR}`)).toBeTruthy();
   });
 
-  it("opens the creation panel on a month cell (#224)", () => {
+  /*
+   * #1584 moved this gesture off the cell FACE and onto a + in the cell's
+   * corner. The old target was an invisible full-cell button: nothing said a
+   * cell could be pressed, and a press aimed at a chip landed on it instead.
+   * The name of the + carries the day, which is both how a screen-reader user
+   * tells 42 of them apart and how this case picks one.
+   */
+  it("opens the creation panel from a month cell's + (#224 / #1584)", () => {
     const { handlers } = renderDesktop({ view: "month" });
-    fireEvent.click(screen.getByLabelText(ANCHOR));
+    fireEvent.click(screen.getByLabelText(`scheduleScreen.monthCreateOn:${ANCHOR}`));
     expect(handlers.onMonthCreate).toHaveBeenCalledWith(ANCHOR);
+  });
+
+  it("no longer opens it from the blank face of a cell (#1584)", () => {
+    const { handlers } = renderDesktop({ view: "month" });
+    // The face target is gone entirely, so there is nothing labelled with the
+    // bare day to press — the day now reads only as a caption.
+    expect(screen.queryByLabelText(ANCHOR)).toBeNull();
+    const cell = screen
+      .getByLabelText(`scheduleScreen.monthCreateOn:${ANCHOR}`)
+      .closest('[role="gridcell"]') as HTMLElement;
+    fireEvent.click(cell);
+    expect(handlers.onMonthCreate).not.toHaveBeenCalled();
   });
 
   /*
@@ -446,15 +472,24 @@ describe("the same month, two densities (#878)", () => {
    * make, and Desktop's month view has none.
    */
   it("marks the picked cell on narrow and nowhere on Desktop", () => {
-    const cell = () =>
-      screen.getByLabelText(ANCHOR).closest('[role="gridcell"]');
-
+    // The two widths reach the same cell by different handles since #1584:
+    // Desktop's day carries no button of its own any more, only the + .
     const wide = renderDesktop({ view: "month" });
-    expect(cell()?.getAttribute("aria-selected")).toBeNull();
+    expect(
+      screen
+        .getByLabelText(`scheduleScreen.monthCreateOn:${ANCHOR}`)
+        .closest('[role="gridcell"]')
+        ?.getAttribute("aria-selected"),
+    ).toBeNull();
     wide.unmount();
 
     renderNarrow();
-    expect(cell()?.getAttribute("aria-selected")).toBe("true");
+    expect(
+      screen
+        .getByLabelText(ANCHOR)
+        .closest('[role="gridcell"]')
+        ?.getAttribute("aria-selected"),
+    ).toBe("true");
   });
 });
 

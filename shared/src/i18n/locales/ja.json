@@ -622,6 +622,7 @@
     "loadError": "予定を読み込めませんでした",
     "retry": "再試行",
     "moreCount": "他 {{count}} 件",
+    "monthCreateOn": "{{date}} に追加",
     "quickAddPlaceholder": "予定を入力…",
     "detailTitle": "予定の詳細",
     "detailPanelLabel": "詳細パネル",
