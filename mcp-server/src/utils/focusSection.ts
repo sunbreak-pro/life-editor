@@ -11,10 +11,12 @@
  * section lands above the first existing focus section (the note reads
  * newest-first), never at index 0 unconditionally.
  *
- * Deliberate delta from the shared merge: unparseable existing content
- * THROWS here (parseDoc) instead of being treated as empty — an MCP write
- * must refuse to clobber a note body it cannot read, the same rule as
- * briefingSection.ts.
+ * Acceptance of the existing body is shared's (#1592): `parseDoc` reads a
+ * legacy plain-text note as one paragraph per line, the same rule shared's
+ * `parseDailyDoc` gives the focus note on the read side
+ * (shared/src/components/briefing/focusSections.ts). There is no throw and no
+ * "treated as empty" any more — both would have lost the body, and the point
+ * was never to refuse the write but to keep every line of what was there.
  *
  * Pure module (no Supabase, no MCP) — unit-tested in
  * tests/focusSection.test.ts, including a round-trip against the shared
