@@ -107,11 +107,15 @@ export function tagGroupUpdatesToPatch(
  * Which membership rows have to change to take a group from `current` to
  * `next`.
  *
- * Removals are soft-deleted BY ROW ID and additions are fresh inserts — the
- * same convention `wiki_tag_assignments` uses (`unassignTagFromItem` flips
- * `is_deleted`; `assignTagToItem` always mints a new id). Reviving the dead
- * row instead would need `on_conflict` inference over a PARTIAL unique index,
- * which PostgREST cannot be relied on to target.
+ * Removals are soft-deleted BY ROW ID and additions are fresh inserts.
+ * `wiki_tag_assignments` no longer works this way: `assignTagToItem` revives
+ * the pair's dead row (#1593), because the rows it was piling up broke the
+ * MCP side's lookup. Group memberships keep the simpler shape for now — the
+ * revive there would be a second diff pass over `current`, and nothing reads
+ * a membership's age. What is NOT the reason any more is `on_conflict`
+ * inference over a PARTIAL unique index, which PostgREST cannot be relied on
+ * to target: #1593 sidesteps that with a lookup and an update by id, and the
+ * same move is available here whenever a caller needs it.
  *
  * Input order is preserved in `add` so a group's tag order follows the order
  * the user ticked them.
