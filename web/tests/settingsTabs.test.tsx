@@ -101,6 +101,7 @@ const ROWS = [
   "section.materials",
   "section.work",
   "section.analytics",
+  "settings.tabs.claude",
   "settings.tabs.trash",
   "settings.tabs.tips",
 ];
@@ -181,6 +182,24 @@ describe("SettingsScreen — the category list (#1174)", () => {
     pressRow("settings.tabs.general");
 
     expect(generalOnScreen()).toBe(true);
+  });
+
+  /*
+   * The AI card moved out of General into a row of its own. Both halves are
+   * worth pinning: it is no longer on General (where four other suites used to
+   * find it by rendering the screen and looking), and the new row shows the
+   * card rather than the empty-category placeholder.
+   */
+  it("shows the AI card under Claude and no longer under General", async () => {
+    await renderSettings();
+
+    expect(screen.queryByText("settings.ai.heading")).toBeNull();
+
+    pressRow("settings.tabs.claude");
+
+    screen.getByText("settings.ai.heading");
+    expect(screen.queryByText("settings.placeholder.message")).toBeNull();
+    expect(generalOnScreen()).toBe(false);
   });
 });
 

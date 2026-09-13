@@ -182,6 +182,7 @@
     "tabs": {
       "navLabel": "Settings categories",
       "general": "General",
+      "claude": "Claude",
       "trash": "Trash",
       "tips": "Tips"
     },
