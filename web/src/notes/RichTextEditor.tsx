@@ -396,6 +396,7 @@ export function RichTextEditor({
           labels: {
             unavailable: t("attachment.unavailable"),
             download: t("attachment.download"),
+            remove: t("attachment.remove"),
           },
         }),
         // callout container — registered unconditionally for the same reason
