@@ -114,8 +114,15 @@ describe("the Materials task-list checkbox keeps its size (#1183 / #1368)", () =
     // Forced colours force every background-color to Canvas, and this mark IS
     // a background-color — without an opt-out the box is a hole at both
     // states. What it opts into has to be system colours, never ours.
-    const forced = block("@media (forced-colors: active) {", "\n}");
-    expect(forced).toContain('input[type="checkbox"]');
+    // The sheet holds more than one forced-colours block now (#1606 added one
+    // for the attachment chip's delete button), so pick THIS one by what it is
+    // about rather than by it being the first.
+    const forced = indexCss
+      .split("@media (forced-colors: active) {")
+      .slice(1)
+      .map((rest) => rest.slice(0, rest.indexOf("\n}")))
+      .find((rule) => rule.includes('input[type="checkbox"]'));
+    expect(forced, "no forced-colours block for the checkbox").toBeDefined();
     expect(forced).toContain("forced-color-adjust: none");
     expect(forced).toMatch(/background-color:\s*CanvasText/);
     expect(forced).toMatch(/background-color:\s*Highlight/);
