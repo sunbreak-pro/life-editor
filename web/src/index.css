@@ -420,6 +420,123 @@ body {
   outline-offset: 2px;
   border-radius: 0.375rem;
 }
+/*
+ * Link cards (#1607) — a URL alone in a paragraph, drawn as the block the
+ * attachment chip is: the body column's full width, a delete button parked at
+ * the right edge, `var(--color-*)` only so both follow the theme.
+ *
+ * Two lines rather than one, which is the one place it differs: the host is the
+ * heading and the path is underneath it, because that is everything a URL can
+ * tell us without asking the site — and asking the site means a proxy, which
+ * means a bill (see linkCardNode.ts).
+ *
+ * The declarations are a deliberate copy of the chip's rather than a shared
+ * selector list: #1606 and #1607 are independent branches off main, and a
+ * shared rule would have made one wait for the other. Folding the two into one
+ * list once both have landed is a tidy-up, not a behaviour change.
+ */
+.note-editor .ProseMirror .note-link-card {
+  margin: 0.5rem 0;
+  /* The containing block for the delete button's absolute position. */
+  position: relative;
+}
+.note-editor .ProseMirror .note-link-card__link {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.125rem;
+  width: 100%;
+  /* Tall enough to hold a 44px button — the same floor the file chip keeps. */
+  min-height: 2.75rem;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid var(--color-border);
+  border-radius: 0.375rem;
+  background-color: var(--color-bg-secondary);
+  color: var(--color-text-primary);
+  text-decoration: none;
+  cursor: pointer;
+}
+/* Room for the button, so a long path is clipped by the ellipsis below rather
+   than sliding underneath it. */
+.note-editor
+  .ProseMirror
+  .note-link-card--removable
+  .note-link-card__link {
+  padding-right: 2.75rem;
+}
+.note-editor .ProseMirror .note-link-card__link:hover {
+  background-color: var(--color-accent-subtle);
+}
+/* Both lines are one line each: a URL is arbitrarily long and a card that grew
+   to four lines would push the note's own text off the screen. */
+.note-editor .ProseMirror .note-link-card__host,
+.note-editor .ProseMirror .note-link-card__path {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.note-editor .ProseMirror .note-link-card__host {
+  font-weight: 500;
+}
+.note-editor .ProseMirror .note-link-card__path {
+  color: var(--color-text-tertiary);
+  font-size: 0.75rem;
+}
+/*
+ * The delete button — 44x44 at every width, parked over the anchor's right
+ * edge, for the reasons the file chip's own delete rule gives.
+ */
+.note-editor .ProseMirror .note-link-card__delete {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.375rem;
+  background-color: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+.note-editor .ProseMirror .note-link-card__delete:hover {
+  color: var(--color-text-primary);
+}
+.note-editor .ProseMirror .note-link-card__delete:focus-visible {
+  outline: 2px solid var(--color-accent);
+  /* Inset — the button's box reaches the card's border, so an outward ring
+     would be drawn outside the card. */
+  outline-offset: -2px;
+}
+/* lucide's X, drawn the way the taskList checkbox draws its circle: the glyph
+   is a mask and the colour is the button's own, so the icon follows the theme
+   without a second copy per mode. */
+.note-editor .ProseMirror .note-link-card__delete::before {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  background-color: currentColor;
+  -webkit-mask: var(--link-card-delete-mark) center / contain no-repeat;
+  mask: var(--link-card-delete-mark) center / contain no-repeat;
+  --link-card-delete-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18'/%3E%3Cpath d='m6 6 12 12'/%3E%3C/svg%3E");
+}
+/* Forced colours force every background-color to Canvas, and the mark IS a
+   background-color — the same trap the taskList checkbox documents below. */
+@media (forced-colors: active) {
+  .note-editor .ProseMirror .note-link-card__delete::before {
+    forced-color-adjust: none;
+    background-color: CanvasText;
+  }
+}
+.note-editor .ProseMirror .note-link-card.ProseMirror-selectednode {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 0.375rem;
+}
 .note-editor .ProseMirror p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: var(--color-text-secondary);

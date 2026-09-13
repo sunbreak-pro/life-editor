@@ -984,6 +984,10 @@
     "tooLarge": "That file is too large. The limit is {{limit}}.",
     "uploadFailed": "Could not upload that file. Please try again."
   },
+  "linkCard": {
+    "open": "Open link",
+    "remove": "Remove link"
+  },
   "attachmentCleanup": {
     "heading": "Attachment cleanup",
     "description": "Removing an image from a note leaves the file in storage, so an undo can bring it back. This finds the files no note or day refers to any more.",
