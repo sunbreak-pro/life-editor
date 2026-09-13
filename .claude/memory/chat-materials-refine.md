@@ -13,6 +13,15 @@
 
 ## 直近の完了
 
+- **#1606 / #1607 添付チップとリンクブロックを 2 PR に分けて提出** ✅（2026-09-13 — どちらも `origin/main` から独立に切った（stack しない）。書いた時点の実測で **PR #1612（#1606）/ #1617（#1607）とも open**。2 件は「本文の中の埋め込みを、同じ 1 つの形にそろえる」という 1 本の話で、#1606 が形を決め #1607 がそれに乗る。
+  - **DoD が「ブラウザで実測して貼れ」と言うのに、この worktree は dev server を立てられない**（CLAUDE.md §7.4 = 実ブラウザは chat-main）。解いた形は、**ビルド済み CSS + アプリと同じ chrome を書き下ろした計測用ページ**を scratchpad に置き、`file://` は playwright が塞ぐのでポート 8791 の使い捨て静的サーバーで開く、というもの。アプリの dev server ではないのでポートが競合しない。数値（390 で 332.67 / 1280 で 998.67）と前提は Issue コメントに全部書いた
+  - **`editor.isEditable` は node view の中で信用できない**（実測）: `isEditable` は `this.options.editable && this.view && this.view.editable` で、node view は **EditorView の構築中**に作られるので `this.view` がまだ undefined。読み取り専用ゲートに使うと**どの面でも false** になる。見るのは `editor.options.editable`（`setEditable` が同時に更新する）
+  - **削除ボタンは `<a>` の子にできない**（リンクの中のボタンは不正な HTML）。兄弟にして CSS で右端に重ねると、DoD が測る `.note-attachment__file` は**本文カラム幅の要素のまま**でいられる。44x44 はここでは `max-md:` にせず全幅で無条件 — #1560 の narrow 限定はリストの desktop レイアウトを太らせないためで、ラベルの無いアイコン 1 個が横に本文の流れないブロック行にいるこの形には当てはまらない
+  - **index.css の `@media (forced-colors: active)` は 1 つではなくなった**: `taskListCheckboxSize.test.ts` が「最初の 1 つ」を取っていたので、2 本とも中身で選ぶ形に直した（両ブランチに同じ修正が載っている = 片方 merge 後ももう片方は素通りする）
+  - **`new URL()` は http(s) 以外も通す**: `javascript:alert(1)` は例外を投げず、host が空・pathname が `alert(1)` になる。見出しが空のカードになりかけた。`href` はクリックでそのままブラウザに渡る = アプリのオリジンで走るので、**http(s) 以外は href を付けない**を `safeHref` に切り出した（テスト付き）
+  - **入力規則にはテストが無い**（申告済み）: ProseMirror のテキスト入力経路は jsdom のレイアウトと mutation flush を要求する。貼り付け・ラウンドトリップ・削除・URL 解釈は押さえた
+  - 両ブランチで CI verify のステップ列 + `docs-lint` をローカル実行。**`mcp-server — test` だけ Windows 固有で 1 件赤**（`remoteRegistry.test.ts` が `utilserification.ts` と `utils/verification.ts` を比べている = パス区切りの問題で Linux ランナーでは緑。今回の変更は mcp-server に触れていない））
+
 - **#1579 エディタに table 系ノードを教えた** ✅（2026-09-09 — `origin/main` から `claude/materials-1579-table-nodes` を切り、書いた時点の実測で **PR #1587 は open**。#1521（callout・PR #1555）の兄弟で、**壊れ方は完全に同型**（知らないノード 1 つで文書全体が弾かれ、空のまま autosave が本文へ上書き）。
   - **兄弟 Issue は前の PR 本文が名指ししている**: #1555 の「別件として見つけたもの」に table と toggleList が挙がっており、方針（エディタ側に足す / MCP をやめる）の答えもそこにあった。**同型 Issue に着手したら、先に兄弟 PR の本文を読む**のが最短
   - **table は callout と違って手書きしない**。callout は属性 2 つの div だが、表はセルが colspan / rowspan / colwidth を持ち、「編集中も壊れない」挙動が prosemirror-tables の `tableEditing` プラグイン側にある。それは各ノード仕様の `tableRole` を要求し、`tableRole` は `@tiptap/core` がこのパッケージのためだけに宣言しているフィールド。手書きだと**開くけれど編集すると崩れる** = バグの再演になる
@@ -37,10 +46,11 @@
 
 ## 予定
 
-（なし — 2026-09-09 時点で `section:materials` の open Issue は #1579 のみで、それが PR #1587。次は chat-main からの新規 dispatch 待ち。**すぐ来る見込みの 1 件** = アップロード進捗の実装（方針は `D-20260902-materials-1` で確定済み・起票依頼は outbox 2026-09-02）。**もう 1 件の見込み** = `toggleList` / `toggleSummary` / `toggleContent`（#1555 の PR 本文が table と並べて名指しした残り。table を #1579 で片付けたので、エディタのスキーマに無い MCP ノードはこれだけ。`<details>` 経由で素の markdown からも届くぶん経路が広い））
+（なし — 2026-09-13 時点で `section:materials` の open Issue は #1606 / #1607 で、それぞれ PR #1612 / #1617。どちらも merge はこうだいさんの手番（P-001）。次は chat-main からの新規 dispatch 待ち。**両方 merge された後の小さな片付けが 1 件** = `.note-attachment__file` と `.note-link-card__link` の CSS は独立ブランチのため意図的に重複しており、セレクタ 1 本にまとめられる（見た目は変わらない）。**すぐ来る見込みの 1 件** = アップロード進捗の実装（方針は `D-20260902-materials-1` で確定済み・起票依頼は outbox 2026-09-02）。**もう 1 件の見込み** = `toggleList` / `toggleSummary` / `toggleContent`（#1555 の PR 本文が table と並べて名指しした残り。table を #1579 で片付けたので、エディタのスキーマに無い MCP ノードはこれだけ。`<details>` 経由で素の markdown からも届くぶん経路が広い））
 
 ## 申し送り
 
+- **worktree で「ブラウザで実測」を求められたら、アプリではなく CSS を計測用ページに載せる**（2026-09-13）: dev server は chat-main 専有（§7.4）だが、幅の DoD は `web/dist/assets/*.css` + アプリと同じ chrome を書き下ろした静的ページで測れる。playwright MCP は `file://` を塞ぐので使い捨ての静的サーバーを 1 本立てる（アプリの dev server ではないのでポートが競合しない）。前提（どの padding をどこから取ったか）を Issue に併記すれば、数値は読み手が検算できる
 - **エディタのスキーマに無いノードは、その 1 ブロックではなく文書全体を捨てる**（#1521 / #1579 で 2 回）: `RichTextEditor` の `enableContentCheck: true` + `onContentError` が warn だけ + 800ms autosave、の 3 つが揃うと**開くだけで本文が消える**。MCP 側にノードを足したら web のスキーマにも足す、が対になっている
 - **`@tiptap/extension-*` の peer は完全一致のピン**（2026-09-09 実測）: `extension-table@3.31.3` は `@tiptap/core` / `@tiptap/pm` に `3.31.3` を要求する。最新を素で入れるとエディタ基盤ごと上がるので、**入っている core / pm と同じ版を明示して入れる**（3.23.4 なら lockfile の増分は 1 パッケージ 15 行）
 - **PR を出したら push を先に済ませる — merge は思ったより早く来る**（2026-09-02 の実損）: #1455 を作った後に 2 コミット目（outbox の起票依頼）を push したが、その間にこうだいさんが squash merge していて**2 コミット目だけ main に届かなかった**。PR が MERGED でも、載せたつもりの後追いコミットは `git log origin/main` に無い。**後から足す予定があるなら push してから PR を作る**（拾い直しは cherry-pick で済むが、気付かないと消える）
