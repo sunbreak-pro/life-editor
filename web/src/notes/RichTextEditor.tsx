@@ -15,6 +15,7 @@ import { createSlashCommand } from "./slashCommand";
 import { createItemLinkNode } from "./itemLinkNode";
 import { createItemLinkSuggestion } from "./itemLinkSuggestion";
 import { createAttachmentNode } from "./attachmentNode";
+import { createLinkCardNode } from "./linkCardNode";
 import { createCalloutNode } from "./calloutNode";
 import { createTableNodes } from "./tableNodes";
 import type { LoadItemLinkTargets } from "./useItemLinkTargets";
@@ -406,6 +407,16 @@ export function RichTextEditor({
         // open instead of failing the schema check and being autosaved away
         // as blank (#1521).
         createCalloutNode(),
+        // linkCard atom — registered unconditionally for the same reason as
+        // the nodes above (#1607). Unlike the callout it IS created here: a URL
+        // pasted or typed on a line of its own becomes one, which is exactly
+        // why every other surface has to know it.
+        createLinkCardNode({
+          labels: {
+            open: t("linkCard.open"),
+            remove: t("linkCard.remove"),
+          },
+        }),
         // table container + row / header cell / cell — registered
         // unconditionally for the same reason as callout above, and for the
         // same failure: `generate_content` writes a `table` block (the tool
