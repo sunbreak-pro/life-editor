@@ -1,22 +1,22 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import {
-  useCancelDeferredPopover,
+  useClosePopoverOnOtherSurface,
   useScheduleOverlays,
 } from "../src/schedule/useScheduleOverlays";
-import type { UseCancelDeferredPopoverArgs } from "../src/schedule/useScheduleOverlays";
+import type { UseClosePopoverOnOtherSurfaceArgs } from "../src/schedule/useScheduleOverlays";
 
 /*
  * Everything the Calendar can have OPEN on top of the grid (#889), and the one
  * effect that watches it.
  *
- * `useCancelDeferredPopover` is a five-term disjunction whose own comment says
- * the watch-list is maintained BY HAND — three of the five are the state next
- * door, and the other two come from the mutation layer and the todo half. That
- * is the failure mode this file exists for: not a term that stops working, but
- * a SIXTH surface added somewhere else and never added here. #355's bubble then
- * surfaces on top of the new surface a beat after it opens, anchored at
- * coordinates that belonged to the press before it.
+ * `useClosePopoverOnOtherSurface` is a five-term disjunction whose own comment
+ * says the watch-list is maintained BY HAND — three of the five are the state
+ * next door, and the other two come from the mutation layer and the todo half.
+ * That is the failure mode this file exists for: not a term that stops working,
+ * but a SIXTH surface added somewhere else and never added here. The bubble
+ * then sits on top of the new surface, anchored at coordinates that belonged to
+ * the press before it.
  *
  * A term dropped from the list is the same shape of bug, and a suite that
  * opened two surfaces at once would miss it — the other four terms hold the
@@ -25,10 +25,11 @@ import type { UseCancelDeferredPopoverArgs } from "../src/schedule/useScheduleOv
  * changing is what cancelled, which also pins the value into the dependency
  * list rather than just into the condition.
  *
- * `cancelPopover` is `useDeferredAction`'s `cancel`, which no-ops when nothing
- * is pending — so cancelling is cheap and the hook is free to be eager. That is
- * why the cases below assert a CALL rather than any visible consequence: there
- * is none, by design.
+ * `closePopover` is `setPopover(null)`, which no-ops when no bubble is up — so
+ * closing is cheap and the hook is free to be eager. That is why the cases
+ * below assert a CALL rather than any visible consequence: there is none, by
+ * design. (#1608 retired the 350ms wait this used to cancel; the effect now
+ * closes a bubble that is already on screen, and the watch-list is unchanged.)
  *
  * The state half is four `useState`s in one bundle, which is a shape where a
  * mis-wired setter (the fourth line of four, pointing at the third's state)
@@ -98,7 +99,10 @@ describe("useScheduleOverlays — four facts about one question", () => {
 });
 
 /** Nothing open: the baseline every term below is opened alone from. */
-const NOTHING_OPEN: Omit<UseCancelDeferredPopoverArgs, "cancelPopover"> = {
+const NOTHING_OPEN: Omit<
+  UseClosePopoverOnOtherSurfaceArgs,
+  "closePopover"
+> = {
   overlayOpen: false,
   createPanel: null,
   tagFilterOpen: false,
@@ -106,7 +110,7 @@ const NOTHING_OPEN: Omit<UseCancelDeferredPopoverArgs, "cancelPopover"> = {
   todoDetailId: null,
 };
 
-type Watched = Omit<UseCancelDeferredPopoverArgs, "cancelPopover">;
+type Watched = Omit<UseClosePopoverOnOtherSurfaceArgs, "closePopover">;
 
 /*
  * One case per term, and the name says where the term comes FROM — the two that
@@ -131,53 +135,54 @@ const TERMS: [name: string, open: Partial<Watched>][] = [
 ];
 
 function renderWatcher(initial: Watched = NOTHING_OPEN) {
-  const cancelPopover = vi.fn();
+  const closePopover = vi.fn();
   const hook = renderHook(
-    (props: Watched) => useCancelDeferredPopover({ ...props, cancelPopover }),
+    (props: Watched) =>
+      useClosePopoverOnOtherSurface({ ...props, closePopover }),
     { initialProps: initial },
   );
-  return { ...hook, cancelPopover };
+  return { ...hook, closePopover };
 }
 
-describe("useCancelDeferredPopover — every surface drops a waiting bubble (#355)", () => {
+describe("useClosePopoverOnOtherSurface — every surface drops the bubble (#355 / #1608)", () => {
   it("leaves it alone while nothing is open", () => {
-    const { cancelPopover } = renderWatcher();
-    expect(cancelPopover).not.toHaveBeenCalled();
+    const { closePopover } = renderWatcher();
+    expect(closePopover).not.toHaveBeenCalled();
   });
 
-  it.each(TERMS)("%s opening cancels it", (_name, open) => {
-    const { rerender, cancelPopover } = renderWatcher();
-    expect(cancelPopover).not.toHaveBeenCalled();
+  it.each(TERMS)("%s opening closes it", (_name, open) => {
+    const { rerender, closePopover } = renderWatcher();
+    expect(closePopover).not.toHaveBeenCalled();
 
     rerender({ ...NOTHING_OPEN, ...open });
 
-    expect(cancelPopover).toHaveBeenCalledTimes(1);
+    expect(closePopover).toHaveBeenCalledTimes(1);
   });
 
   /*
    * Mounted with a surface ALREADY open — the arrangement a layout swap
    * produces, where the effect's first run is the only one it gets.
    */
-  it.each(TERMS)("%s cancels on the very first render too", (_name, open) => {
-    const { cancelPopover } = renderWatcher({ ...NOTHING_OPEN, ...open });
-    expect(cancelPopover).toHaveBeenCalledTimes(1);
+  it.each(TERMS)("%s closes on the very first render too", (_name, open) => {
+    const { closePopover } = renderWatcher({ ...NOTHING_OPEN, ...open });
+    expect(closePopover).toHaveBeenCalledTimes(1);
   });
 
   /*
-   * The cancel is guarded by the condition, not fired on every change of the
-   * five. Without the `if`, this rerender would cancel a bubble the user just
+   * The close is guarded by the condition, not fired on every change of the
+   * five. Without the `if`, this rerender would shut a bubble the user just
    * asked for by closing the thing that was in its way.
    */
   it("stands down again once the surface closes", () => {
-    const { rerender, cancelPopover } = renderWatcher({
+    const { rerender, closePopover } = renderWatcher({
       ...NOTHING_OPEN,
       tagFilterOpen: true,
     });
-    expect(cancelPopover).toHaveBeenCalledTimes(1);
+    expect(closePopover).toHaveBeenCalledTimes(1);
 
     rerender(NOTHING_OPEN);
 
-    expect(cancelPopover).toHaveBeenCalledTimes(1);
+    expect(closePopover).toHaveBeenCalledTimes(1);
   });
 
   /*
@@ -186,9 +191,9 @@ describe("useCancelDeferredPopover — every surface drops a waiting bubble (#35
    * four terms still standing the `if` fires all the same, and only the
    * one-at-a-time cases can tell which of the five did it.
    */
-  it("cancels once for a change that opens two surfaces together", () => {
-    const { rerender, cancelPopover } = renderWatcher();
+  it("closes once for a change that opens two surfaces together", () => {
+    const { rerender, closePopover } = renderWatcher();
     rerender({ ...NOTHING_OPEN, overlayOpen: true, tagFilterOpen: true });
-    expect(cancelPopover).toHaveBeenCalledTimes(1);
+    expect(closePopover).toHaveBeenCalledTimes(1);
   });
 });

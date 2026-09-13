@@ -19,11 +19,12 @@ import type { SchedulePopover } from "../src/schedule/useScheduleOverlays";
  *
  * What each pair holds:
  *
- *   - #355: the bubble is DEFERRED on a tap and IMMEDIATE on a long press. A
- *     double-click fires `click` on its first press, so an eager bubble flashed
- *     open and shut every time; a contextmenu is never the first half of a
- *     double-click, so it must not pay the delay. Selection stays instant in
- *     both — it is the part that should feel immediate.
+ *   - #355 → #1608: the bubble is IMMEDIATE on both. #355 held the tap's
+ *     bubble back 350ms so a double-click could claim the gesture before it
+ *     appeared; #1608 removed the wait, because every single click paid it and
+ *     the single click is the gesture people make. What keeps a double-click
+ *     from leaving two surfaces up is `handleItemOpenDetail`, which closes the
+ *     bubble in the same callback that opens the overlay — pinned below.
  *   - a todo chip's id is not a schedule item's id. `handleSelectItem` refuses
  *     it outright (it points the EVENT surfaces at a row, and a chip resolves
  *     none of them) while `handleItemActivate` accepts it and routes it — to
@@ -44,16 +45,6 @@ const CHIP_ID = todoChipId(TODO_ID);
 const POS = { x: 12, y: 34 };
 
 function setup(isWide: boolean) {
-  /*
-   * #355's delay, held open. Nothing runs until `flushPopover`, so "the bubble
-   * has not appeared yet" and "the bubble never appears" stay distinguishable
-   * — which is the whole difference between the tap and the long press.
-   */
-  const deferred: (() => void)[] = [];
-  const deferPopover = vi.fn((fn: () => void) => {
-    deferred.push(fn);
-  });
-  const cancelPopover = vi.fn();
   const setPopover = vi.fn((popover: SchedulePopover | null) => void popover);
   const setOverlayOpen = vi.fn((open: boolean) => void open);
   const setTodoDetailId = vi.fn((id: string | null) => void id);
@@ -61,8 +52,6 @@ function setup(isWide: boolean) {
   const { result } = renderHook(() =>
     useScheduleSelection({
       isWide,
-      deferPopover,
-      cancelPopover,
       setPopover,
       setOverlayOpen,
       setTodoDetailId,
@@ -71,59 +60,75 @@ function setup(isWide: boolean) {
 
   return {
     result,
-    deferPopover,
-    cancelPopover,
     setPopover,
     setOverlayOpen,
     setTodoDetailId,
-    /** Let the held-back beat elapse. */
-    flushPopover: () =>
-      act(() => {
-        for (const fn of deferred) fn();
-      }),
   };
 }
 
-describe("useScheduleSelection — the bubble is held back on a tap, not on a long press (#355 / #551)", () => {
-  it("selects at once and lets the bubble wait", () => {
-    const { result, setPopover, flushPopover } = setup(true);
+describe("useScheduleSelection — the bubble answers every gesture at once (#1608 / #551)", () => {
+  it("selects and opens the bubble in the same beat", () => {
+    const { result, setPopover } = setup(true);
     act(() => result.current.handleItemActivate(EVENT_ID, POS));
 
-    // Immediate half.
     expect(result.current.selectedId).toBe(EVENT_ID);
-    // Deferred half: still nothing on screen, which is what stops the bubble
-    // flashing open and shut on the first press of a double-click.
-    expect(setPopover).not.toHaveBeenCalled();
-
-    flushPopover();
+    // #1608: no wait between the two. The 350ms the bubble used to spend
+    // watching for a double-click is the lag this hook was reported for.
     expect(setPopover).toHaveBeenCalledWith({ id: EVENT_ID, ...POS });
   });
 
-  it("opens it straight away on a long press, dropping any bubble still waiting", () => {
-    const { result, cancelPopover, deferPopover, setPopover } = setup(true);
+  /*
+   * #1608's replacement for the wait, and the reason a double-click does not
+   * leave two surfaces up: the bubble is closed IN THE SAME CALLBACK that
+   * opens the overlay, so React commits the swap in one paint — no frame
+   * showing neither, and nothing left in flight to surface afterwards. The
+   * bug this pins is a bubble reappearing on top of the overlay a beat later.
+   */
+  it("swaps the bubble for the overlay in one callback on a double-click", () => {
+    const { result, setPopover, setOverlayOpen } = setup(true);
+
+    // First press of the double-click: the bubble is up.
+    act(() => result.current.handleItemActivate(EVENT_ID, POS));
+    expect(setPopover).toHaveBeenLastCalledWith({ id: EVENT_ID, ...POS });
+
+    // The second press arrives as a `click` too — same bubble, overwritten.
+    act(() => result.current.handleItemActivate(EVENT_ID, POS));
+    // Then `dblclick`.
+    act(() => result.current.handleItemOpenDetail(EVENT_ID));
+
+    expect(setPopover).toHaveBeenLastCalledWith(null);
+    expect(setOverlayOpen).toHaveBeenCalledWith(true);
+    // Three writes, all of them synchronous: nothing is pending that could
+    // re-open the bubble behind the overlay.
+    expect(setPopover).toHaveBeenCalledTimes(3);
+  });
+
+  it("opens the same bubble on a long press, re-anchored at the new press", () => {
+    const { result, setPopover } = setup(true);
     act(() => result.current.handleItemContextMenu(EVENT_ID, POS));
 
     expect(result.current.selectedId).toBe(EVENT_ID);
-    expect(deferPopover).not.toHaveBeenCalled();
+    // One write, not a close-then-open: a bubble already up is overwritten in
+    // place, so the right-click cannot make it blink.
+    expect(setPopover).toHaveBeenCalledTimes(1);
     expect(setPopover).toHaveBeenCalledWith({ id: EVENT_ID, ...POS });
-    // A left-click bubble already in flight would otherwise resurface a beat
-    // later, somewhere else.
-    expect(cancelPopover).toHaveBeenCalledTimes(1);
   });
 
   it("draws no bubble at either gesture on narrow — it is a Desktop surface", () => {
     const tap = setup(false);
     act(() => tap.result.current.handleItemActivate(EVENT_ID, POS));
-    tap.flushPopover();
     expect(tap.result.current.selectedId).toBe(EVENT_ID);
-    expect(tap.deferPopover).not.toHaveBeenCalled();
     expect(tap.setPopover).not.toHaveBeenCalled();
 
     const press = setup(false);
     act(() => press.result.current.handleItemContextMenu(EVENT_ID, POS));
     // The selection alone brings up the narrow editor sheet, same as a tap.
     expect(press.result.current.selectedId).toBe(EVENT_ID);
-    expect(press.setPopover).not.toHaveBeenCalled();
+    // Never a bubble — the only write it makes is the close (#1608).
+    expect(press.setPopover).toHaveBeenCalledWith(null);
+    expect(press.setPopover).not.toHaveBeenCalledWith(
+      expect.objectContaining({ id: EVENT_ID }),
+    );
   });
 });
 
@@ -143,9 +148,8 @@ describe("useScheduleSelection — a todo chip is not a schedule item", () => {
   });
 
   it("answers a Desktop tap with the bubble instead, carrying the CHIP id (#564)", () => {
-    const { result, setPopover, setTodoDetailId, flushPopover } = setup(true);
+    const { result, setPopover, setTodoDetailId } = setup(true);
     act(() => result.current.handleItemActivate(CHIP_ID, POS));
-    flushPopover();
 
     // The host resolves the chip from the bubble's id to pick the todo action
     // set, so the prefixed id is what has to arrive — not the unwrapped one.
@@ -155,22 +159,18 @@ describe("useScheduleSelection — a todo chip is not a schedule item", () => {
 
   /*
    * The other half of that pair, and the one the file was missing: on Desktop
-   * a long press is the same bubble, minus the #355 wait. Nothing but this
-   * case can tell "the chip route ignores width" (which would send the press
-   * to the todo sheet) from "the chip route is Desktop-only" — the three
-   * neighbouring cases pass either way.
+   * a long press is the same bubble. Nothing but this case can tell "the chip
+   * route ignores width" (which would send the press to the todo sheet) from
+   * "the chip route is Desktop-only" — the three neighbouring cases pass
+   * either way.
    */
-  it("answers a Desktop long press with the same bubble, immediately (#355)", () => {
-    const { result, cancelPopover, deferPopover, setPopover, setTodoDetailId } =
-      setup(true);
+  it("answers a Desktop long press with the same bubble (#564)", () => {
+    const { result, setPopover, setTodoDetailId } = setup(true);
     act(() => result.current.handleItemContextMenu(CHIP_ID, POS));
 
+    expect(setPopover).toHaveBeenCalledTimes(1);
     expect(setPopover).toHaveBeenCalledWith({ id: CHIP_ID, ...POS });
-    expect(deferPopover).not.toHaveBeenCalled();
     expect(setTodoDetailId).not.toHaveBeenCalled();
-    // Same drop of a left-click bubble still waiting as the event long press:
-    // the chip route must not cost the gesture its cancellation.
-    expect(cancelPopover).toHaveBeenCalledTimes(1);
   });
 
   it("sends a narrow tap to the todo sheet, unwrapped and unselected (#761)", () => {
@@ -189,13 +189,14 @@ describe("useScheduleSelection — a todo chip is not a schedule item", () => {
    * to fix it separately from the tap. It must land in the same place.
    */
   it("sends a narrow long press to exactly the same place as the tap", () => {
-    const { result, cancelPopover, setPopover, setTodoDetailId } = setup(false);
+    const { result, setPopover, setTodoDetailId } = setup(false);
     act(() => result.current.handleItemContextMenu(CHIP_ID, POS));
 
     expect(setTodoDetailId).toHaveBeenCalledWith(TODO_ID);
     expect(result.current.selectedId).toBeNull();
-    expect(setPopover).not.toHaveBeenCalled();
-    expect(cancelPopover).toHaveBeenCalledTimes(1);
+    // The chip branch has no bubble of its own to overwrite, so it closes
+    // explicitly — a layout swap can leave a Desktop bubble up (#1608).
+    expect(setPopover).toHaveBeenCalledWith(null);
   });
 });
 

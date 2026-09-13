@@ -8,8 +8,8 @@ import { useEffect, useState } from "react";
  * right now.
  *
  * Deliberately state, plus the one effect that reads three quarters of it
- * (useCancelDeferredPopover, below). The closing gestures in particular are
- * NOT gathered here, because they are not the same gesture:
+ * (useClosePopoverOnOtherSurface, below). The closing gestures in particular
+ * are NOT gathered here, because they are not the same gesture:
  * `finishCreatePanel` drops the panel and the calendar lens, the editor's
  * close runs a discard-changes guard first, and the popover's own dismissal
  * is a click-outside. A helper that closed "the overlays" would have to be one
@@ -58,13 +58,18 @@ export function useScheduleOverlays() {
 }
 
 /*
- * #355: whenever ANY other surface opens, drop a bubble still waiting its turn
- * — it would otherwise surface on top of that surface a moment later.
+ * #355 → #1608: whenever ANY other surface opens, the bubble goes.
  *
- * One effect rather than a cancel sprinkled through each opener: the openers
+ * Under #355 this dropped a bubble still WAITING its 350ms turn, which would
+ * otherwise have surfaced on top of that surface a moment later. #1608 removed
+ * the wait, so what it drops now is a bubble already on screen — the same
+ * invariant ("only one thing covers the calendar"), one step earlier in its
+ * life. Closing twice is harmless: setting state to the value it already holds
+ * bails out of the render.
+ *
+ * One effect rather than a close sprinkled through each opener: the openers
  * are spread across CalendarTab and the mutation layer, and the next one added
- * would silently miss it. Cancelling twice is harmless (useDeferredAction
- * no-ops when nothing is pending).
+ * would silently miss it.
  *
  * It sits beside useScheduleOverlays because three of the five things it
  * watches ARE that state — and it takes all five as parameters rather than
@@ -73,7 +78,7 @@ export function useScheduleOverlays() {
  * useScheduleTodoChips, and a surface added to either of those has to be added
  * to this list by hand.
  */
-export interface UseCancelDeferredPopoverArgs {
+export interface UseClosePopoverOnOtherSurfaceArgs {
   /** Detail-edit overlay flag (Desktop). */
   overlayOpen: boolean;
   /** The creation panel, or null when it is closed. */
@@ -83,18 +88,18 @@ export interface UseCancelDeferredPopoverArgs {
   scopeRequest: { mode: "edit" | "delete" } | null;
   /** The todo chip's own detail surface (#626), or null. */
   todoDetailId: string | null;
-  /** useDeferredAction's `cancel` — a no-op when nothing is pending. */
-  cancelPopover: () => void;
+  /** `setPopover(null)` — a no-op when no bubble is up. */
+  closePopover: () => void;
 }
 
-export function useCancelDeferredPopover({
+export function useClosePopoverOnOtherSurface({
   overlayOpen,
   createPanel,
   tagFilterOpen,
   scopeRequest,
   todoDetailId,
-  cancelPopover,
-}: UseCancelDeferredPopoverArgs) {
+  closePopover,
+}: UseClosePopoverOnOtherSurfaceArgs) {
   useEffect(() => {
     if (
       overlayOpen ||
@@ -103,7 +108,7 @@ export function useCancelDeferredPopover({
       scopeRequest ||
       todoDetailId != null
     ) {
-      cancelPopover();
+      closePopover();
     }
   }, [
     overlayOpen,
@@ -111,6 +116,6 @@ export function useCancelDeferredPopover({
     tagFilterOpen,
     scopeRequest,
     todoDetailId,
-    cancelPopover,
+    closePopover,
   ]);
 }

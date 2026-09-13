@@ -303,9 +303,6 @@ export {
 // #608 — is the soft keyboard on screen? The narrow shell stands its bottom
 // bar down while it is.
 export { useSoftKeyboard } from "./hooks/useSoftKeyboard";
-// #355 — hold an action back so a follow-up gesture (a double-click) can
-// cancel it. Backs the Schedule bubble popover's click-vs-double-click wait.
-export { useDeferredAction } from "./hooks/useDeferredAction";
 export { useInFlightGuard } from "./hooks/useInFlightGuard";
 // #889: one minute-ticked clock in the two shapes a calendar reads it in —
 // a Date to compare across days, minutes-from-midnight to place a line.
