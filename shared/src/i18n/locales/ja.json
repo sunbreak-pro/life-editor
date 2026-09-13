@@ -182,6 +182,7 @@
     "tabs": {
       "navLabel": "設定カテゴリ",
       "general": "一般",
+      "claude": "Claude",
       "trash": "ゴミ箱",
       "tips": "ヒント"
     },
