@@ -17,7 +17,9 @@ import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
  * `items_meta.role`, resolved by joining in-app. Both tables are
  * soft-deleted, and `uq_wta_item_tag` only constrains LIVE rows, so
  * re-tagging an item revives the trashed assignment instead of inserting
- * a duplicate.
+ * a duplicate. Shared's `assignTagToItem` agrees since #1593; the rows it
+ * inserted before that are why `tagEntity`'s lookup takes the live row of a
+ * pair rather than assuming there is only one.
  */
 
 interface WikiTagRow {
@@ -267,12 +269,19 @@ export async function tagEntity(args: {
   }
 
   // uq_wta_item_tag only constrains live rows: revive a trashed assignment
-  // instead of inserting a second one for the same pair.
+  // instead of inserting a second one for the same pair. Shared does the
+  // same since #1593 — until then it inserted, so pairs holding a live row
+  // AND a dead one exist in the database. Hence live-row-first + limit(1)
+  // rather than a bare `.maybeSingle()`, which answered such a pair with
+  // PGRST116 and failed the whole call.
   const { data: existing, error: exErr } = await client
     .from("wiki_tag_assignments")
     .select("id, is_deleted")
     .eq("item_id", args.entity_id)
     .eq("tag_id", tag.id)
+    .order("is_deleted", { ascending: true })
+    .order("created_at", { ascending: true })
+    .limit(1)
     .maybeSingle();
   if (exErr) throw new Error(`assignment lookup: ${exErr.message}`);
 

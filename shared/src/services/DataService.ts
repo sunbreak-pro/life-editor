@@ -539,6 +539,13 @@ export interface WikiTagsUnifiedDataService {
   listTagsForItem(itemId: string): Promise<WikiTagAssignmentUnified[]>;
   /** Bulk-load all active item↔tag assignments (N+1 elimination). */
   listAllTagAssignments(): Promise<WikiTagAssignmentUnified[]>;
+  /**
+   * Put a tag on an item. `assignmentId` is the id for a pair that has never
+   * been assigned; a pair that has one already keeps its own row — the
+   * soft-deleted one is revived rather than joined by a second (#1593) — so
+   * callers read the id back off the return value rather than assuming the
+   * one they passed.
+   */
   assignTagToItem(
     assignmentId: string,
     itemId: string,

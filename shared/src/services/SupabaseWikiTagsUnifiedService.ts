@@ -17,7 +17,7 @@ import {
   type WikiTagConnectionRow,
 } from "./wikiTagConnectionMapper";
 import { fetchAllPages } from "./postgrestFetchAll";
-import { requireSingleRow } from "./postgrestSingle";
+import { fetchMaybeSingleRow, requireSingleRow } from "./postgrestSingle";
 import type {
   WikiTag,
   WikiTagAssignment,
@@ -175,11 +175,72 @@ export class SupabaseWikiTagsUnifiedService implements WikiTagsUnifiedDataServic
     return rows.map(rowToWikiTagAssignment);
   }
 
+  /**
+   * Put a tag on an item — reviving the pair's soft-deleted row when there is
+   * one, rather than inserting a second (#1593).
+   *
+   * This used to insert unconditionally, and `uq_wta_item_tag` never objected
+   * because it only constrains LIVE rows. So every tag → untag → tag cycle
+   * left another dead row behind: invisible to the screens, invisible to the
+   * Trash, and fatal to the MCP side, whose `tag_entity` looks the pair up
+   * with `.maybeSingle()` and fails outright (PGRST116) the moment a pair has
+   * two. MCP has revived since #782; this is the two halves agreeing.
+   *
+   * Reviving is what migration 0030 was shaped for: it added `created_at`
+   * BECAUSE reuse moves `updated_at`, so #1580's "the tag put on first" keeps
+   * its answer across a removal. `is_display_color` rides along for the same
+   * reason — the user's explicit pick comes back with the tag — and cannot
+   * collide with 0030's partial UNIQUE, since `setDisplayColorTag` clears
+   * every row of an item before marking one.
+   *
+   * `assignmentId` is therefore the id for a NEW pair only; an existing row
+   * keeps its own, which the caller reads back off the return value.
+   *
+   * The lookup orders live-row-first and takes one instead of asking for a
+   * single row: pairs that already carry two rows exist in the database, and
+   * reviving the dead one of such a pair would violate the index.
+   */
   async assignTagToItem(
     assignmentId: string,
     itemId: string,
     tagId: string,
   ): Promise<WikiTagAssignment> {
+    const existing = await fetchMaybeSingleRow<WikiTagAssignmentRow>(
+      this.client
+        .from("wiki_tag_assignments")
+        .select(WIKI_TAG_ASSIGNMENTS_COLUMNS)
+        .eq("item_id", itemId)
+        .eq("tag_id", tagId)
+        .order("is_deleted", { ascending: true })
+        .order("created_at", { ascending: true })
+        .limit(1)
+        .maybeSingle(),
+      "assignTagToItem lookup failed",
+    );
+
+    // Already assigned: the call is the state the caller asked for, so it
+    // answers with the row rather than writing anything.
+    if (existing && !existing.is_deleted) {
+      return rowToWikiTagAssignment(existing);
+    }
+
+    if (existing) {
+      const revived = await requireSingleRow<WikiTagAssignmentRow>(
+        this.client
+          .from("wiki_tag_assignments")
+          .update({
+            is_deleted: false,
+            deleted_at: null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("id", existing.id)
+          .select(WIKI_TAG_ASSIGNMENTS_COLUMNS)
+          .single(),
+        "assignTagToItem failed",
+      );
+      return rowToWikiTagAssignment(revived);
+    }
+
     const data = await requireSingleRow<WikiTagAssignmentRow>(
       this.client
         .from("wiki_tag_assignments")
