@@ -85,10 +85,16 @@ describe("mergeFocusSection", () => {
     );
   });
 
-  it("refuses to clobber unparseable existing content", () => {
-    expect(() => mergeFocusSection("not json {", "2026-08-19", "f")).toThrow(
-      /refusing/,
+  it("keeps a legacy plain-text note body instead of refusing it (#1592)", () => {
+    const out = mergeFocusSection("走り書き\n二行目", "2026-08-19", "一点集中");
+    // the old body survives line by line, below the new section (a note
+    // with no focus heading yet gets one appended, per firstFocusIndex)
+    const texts = (JSON.parse(out).content as Array<{ type: string }>).map(
+      (n) => JSON.stringify(n),
     );
+    expect(texts[0].includes("走り書き")).toBe(true);
+    expect(texts[1].includes("二行目")).toBe(true);
+    expect(extractFocus(out, "2026-08-19")).toBe("一点集中");
   });
 
   it("returns the input unchanged (===) on a byte-identical merge", () => {
