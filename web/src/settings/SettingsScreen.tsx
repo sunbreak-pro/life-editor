@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Lightbulb, SlidersHorizontal, Trash2 } from "lucide-react";
+import { Lightbulb, SlidersHorizontal, Terminal, Trash2 } from "lucide-react";
 import {
   SettingsAccount,
   SettingsAiIntegration,
@@ -80,6 +80,9 @@ import { openLegalDocument } from "../legal/legalUrl";
  *   Schedule — the initial calendar view (the first per-section preference)
  *   briefing / materials / work / analytics — receptacles, so the list is the
  *     whole map of what Settings will cover rather than only what exists today
+ *   Claude — the MCP connection, its tool catalog and the Claude Code
+ *     launcher. App-wide like General, so it sits after the per-section rows
+ *     rather than under one of them.
  *   Trash — not a preference either, but a PLACE (#1293). It used to be a
  *     sidebar section of its own, which spent a permanent nav row (and a
  *     mobile More slot) on somewhere you visit to undo something. The view is
@@ -102,13 +105,23 @@ const SECTION_TAB_IDS = [
   "analytics",
 ] as const;
 
-type SettingsTabId = "general" | "trash" | (typeof SECTION_TAB_IDS)[number];
+type SettingsTabId =
+  "general" | "trash" | "claude" | (typeof SECTION_TAB_IDS)[number];
 
 /** The one row that opens a dialog instead of swapping the body. */
 const TIPS_ROW_ID = "tips";
 
 /** The row that shows the Trash view rather than a set of preferences (#1293). */
 const TRASH_TAB_ID = "trash";
+
+/**
+ * The AI-integration row. Its own category rather than a card inside General:
+ * the MCP tool list, the connection's last activity and the launcher are three
+ * cards' worth of one subject, and General had grown to eleven cards with this
+ * sitting between the tutorial and the legal links — none of which it has
+ * anything to do with.
+ */
+const CLAUDE_TAB_ID = "claude";
 
 export function SettingsScreen() {
   const { t } = useTranslation();
@@ -270,6 +283,14 @@ export function SettingsScreen() {
         icon: <SlidersHorizontal size={16} />,
       },
       ...sectionRows,
+      // Claude closes the "what this app does" half of the list: app-wide like
+      // General, but a subject of its own rather than a preference, so it goes
+      // after the per-section rows and before the two ways out below.
+      {
+        id: CLAUDE_TAB_ID,
+        label: t("settings.tabs.claude"),
+        icon: <Terminal size={16} />,
+      },
       // Trash sits after the per-section rows and before Tips: it is the one
       // row that opens a place rather than a set of preferences, and Tips is
       // the one row that opens a dialog. Both belong at the end, in that
@@ -692,62 +713,6 @@ export function SettingsScreen() {
           </div>
 
           {/*
-           * AI integration (#1210). General, not a per-section category: the
-           * MCP connection reaches every section's data, so it belongs with
-           * the settings that describe the app rather than under any one of
-           * them. Above Legal and Reset for the same reason Account is —
-           * things you read about the app, then things that change it.
-           */}
-          <div className={cardClass}>
-            <SettingsAiIntegration
-              tools={MCP_TOOL_CATALOG}
-              lastActivity={aiLastActivity}
-              /*
-               * Desktop-only (#1211). `available` is false in the browser and
-               * inside the Capacitor shells, and the card then shows the
-               * "desktop app" sentence instead of a button with no CLI behind
-               * it. The field's value is held out here rather than in the card
-               * because it is seeded by an async read of the desktop bridge.
-               */
-              launcher={
-                claudeLauncher.available
-                  ? {
-                      projectPath: claudeLauncher.projectPath,
-                      onProjectPathChange: claudeLauncher.setProjectPath,
-                      onLaunch: () =>
-                        claudeLauncher.launch(claudeLauncher.projectPath),
-                    }
-                  : undefined
-              }
-              labels={{
-                heading: t("settings.ai.heading"),
-                description: t("settings.ai.description"),
-                activityHeading: t("settings.ai.activityHeading"),
-                activityLoading: t("settings.ai.activityLoading"),
-                activityCaveat: t("settings.ai.activityCaveat"),
-                toolsHeading: t("settings.ai.toolsHeading"),
-                // The count comes from the generated catalog, never a literal
-                // here — the number moves when a tool is added (数値の非複製原則).
-                toolsCount: t("settings.ai.toolsCount", {
-                  n: MCP_TOOL_CATALOG.length,
-                }),
-                show: t("settings.ai.show"),
-                hide: t("settings.ai.hide"),
-                argsLabel: t("settings.ai.argsLabel"),
-                argsNone: t("settings.ai.argsNone"),
-                launchHeading: t("settings.ai.launchHeading"),
-                launchDescription: t("settings.ai.launchDescription"),
-                pathLabel: t("settings.ai.pathLabel"),
-                pathPlaceholder: t("settings.ai.pathPlaceholder"),
-                launchButton: t("settings.ai.launchButton"),
-                launching: t("settings.ai.launching"),
-                launched: t("settings.ai.launched"),
-                desktopOnly: t("settings.ai.desktopOnly"),
-              }}
-            />
-          </div>
-
-          {/*
            * #1251 — the documents shipped with #1198 but only the sign-in
            * screen linked them, so they became unreachable the moment an
            * account existed. The reader itself is mounted in App; this card
@@ -814,6 +779,63 @@ export function SettingsScreen() {
         </div>
       )}
 
+      {/*
+       * AI integration (#1210), its own category since #1606-adjacent work:
+       * the MCP connection reaches every section's data, so it never belonged
+       * under one of them, and General is not a drawer for everything that is
+       * app-wide. The card itself is unchanged — only where it is mounted.
+       */}
+      {tab === CLAUDE_TAB_ID && (
+        <div className={cardClass}>
+          <SettingsAiIntegration
+            tools={MCP_TOOL_CATALOG}
+            lastActivity={aiLastActivity}
+            /*
+             * Desktop-only (#1211). `available` is false in the browser and
+             * inside the Capacitor shells, and the card then shows the
+             * "desktop app" sentence instead of a button with no CLI behind
+             * it. The field's value is held out here rather than in the card
+             * because it is seeded by an async read of the desktop bridge.
+             */
+            launcher={
+              claudeLauncher.available
+                ? {
+                    projectPath: claudeLauncher.projectPath,
+                    onProjectPathChange: claudeLauncher.setProjectPath,
+                    onLaunch: () =>
+                      claudeLauncher.launch(claudeLauncher.projectPath),
+                  }
+                : undefined
+            }
+            labels={{
+              heading: t("settings.ai.heading"),
+              description: t("settings.ai.description"),
+              activityHeading: t("settings.ai.activityHeading"),
+              activityLoading: t("settings.ai.activityLoading"),
+              activityCaveat: t("settings.ai.activityCaveat"),
+              toolsHeading: t("settings.ai.toolsHeading"),
+              // The count comes from the generated catalog, never a literal
+              // here — the number moves when a tool is added (数値の非複製原則).
+              toolsCount: t("settings.ai.toolsCount", {
+                n: MCP_TOOL_CATALOG.length,
+              }),
+              show: t("settings.ai.show"),
+              hide: t("settings.ai.hide"),
+              argsLabel: t("settings.ai.argsLabel"),
+              argsNone: t("settings.ai.argsNone"),
+              launchHeading: t("settings.ai.launchHeading"),
+              launchDescription: t("settings.ai.launchDescription"),
+              pathLabel: t("settings.ai.pathLabel"),
+              pathPlaceholder: t("settings.ai.pathPlaceholder"),
+              launchButton: t("settings.ai.launchButton"),
+              launching: t("settings.ai.launching"),
+              launched: t("settings.ai.launched"),
+              desktopOnly: t("settings.ai.desktopOnly"),
+            }}
+          />
+        </div>
+      )}
+
       {tab === TRASH_TAB_ID && (
         <>
           {/*
@@ -855,6 +877,7 @@ export function SettingsScreen() {
       {tab !== "general" &&
         tab !== "schedule" &&
         tab !== TRASH_TAB_ID &&
+        tab !== CLAUDE_TAB_ID &&
         placeholder}
 
       <RightSidebarPortal>

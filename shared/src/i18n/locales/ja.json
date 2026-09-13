@@ -182,6 +182,7 @@
     "tabs": {
       "navLabel": "設定カテゴリ",
       "general": "一般",
+      "claude": "Claude",
       "trash": "ゴミ箱",
       "tips": "ヒント"
     },
@@ -973,6 +974,7 @@
     "insertFile": "ファイル",
     "unavailable": "この添付を読み込めませんでした",
     "download": "ダウンロード",
+    "remove": "添付を削除",
     "tooLarge": "ファイルが大きすぎます。上限は {{limit}} です。",
     "uploadFailed": "ファイルをアップロードできませんでした。もう一度お試しください。"
   },

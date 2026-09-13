@@ -18,7 +18,7 @@ import type { SchedulePopover } from "./useScheduleOverlays";
  *      must be routed to the chip's own panel instead (#564 / #626 / #761).
  *   2. Is this layout wide? The bubble is a Desktop surface; narrow answers the
  *      same press with the sheet the selection alone opens.
- *   3. Does the bubble open now, later, or not at all (#355)?
+ *   3. Does the bubble open at all, and on which gesture (#355 / #1608)?
  *
  * Each of the three had drifted at least once — #564 left the chip answering a
  * drag but not a click, and #761 had to fix the long press separately from the
@@ -38,16 +38,17 @@ import type { SchedulePopover } from "./useScheduleOverlays";
  * Pure UI state and routing: no writes, no data, nothing to fetch. Which is why
  * it can be lifted at all.
  *
- * Zero behaviour change (#889): every branch, every dependency list and every
- * order of operations below is the code that stood inline in CalendarTab.
+ * The lift itself changed nothing (#889) — every branch below was the code
+ * that stood inline in CalendarTab. The one behaviour change since is #1608:
+ * the bubble no longer waits for a possible double-click.
  */
 
 export interface UseScheduleSelectionArgs {
   isWide: boolean;
-  /** #355: hold the bubble back a beat (useDeferredAction, at the call site). */
-  deferPopover: (fn: () => void) => void;
-  /** Drop a bubble that has not surfaced yet. */
-  cancelPopover: () => void;
+  /**
+   * Opens / closes the bubble. #1608 made this the ONLY timing there is —
+   * every gesture below writes it synchronously (see handleItemActivate).
+   */
   setPopover: (popover: SchedulePopover | null) => void;
   /** Desktop's detail-edit overlay flag (narrow opens on the selection). */
   setOverlayOpen: (open: boolean) => void;
@@ -57,8 +58,6 @@ export interface UseScheduleSelectionArgs {
 
 export function useScheduleSelection({
   isWide,
-  deferPopover,
-  cancelPopover,
   setPopover,
   setOverlayOpen,
   setTodoDetailId,
@@ -93,11 +92,23 @@ export function useScheduleSelection({
   // Mobile a single tap opens the BottomSheet editor directly (selectedId →
   // editorPane → sheet), matching the existing lean-drawer flow.
   //
-  // #355: the bubble is held back for a beat. A double-click fires `click` on
-  // its first press and only announces itself afterwards, so opening the
-  // bubble straight away made it flash open and shut on every double-click.
-  // Selection stays immediate — it is the part that should feel instant, and
-  // the detail surface wants it anyway.
+  // #355 → #1608: the bubble opens AT ONCE. It used to wait 350ms for a
+  // possible double-click, because a double-click fires `click` on its first
+  // press and only announces itself afterwards — an eager bubble flashed open
+  // and shut before the detail overlay took over. But every single click paid
+  // that 350ms, and a single click is the gesture people actually make: the
+  // fix for the rare gesture had become the cost of the common one (measured
+  // click → bubble in the DOM, median of 5: 369ms before, 0.8ms after).
+  //
+  // What replaces the wait is a REPLACEMENT rather than a race.
+  // `handleItemOpenDetail` closes the bubble and opens the overlay in the same
+  // callback, so React commits both in one paint — there is no frame showing
+  // neither, and no fade to catch the eye (ItemActionPopover has no entry
+  // animation). A slow double-click therefore reads as two deliberate steps —
+  // the bubble stands still for the whole gap, then the overlay covers it —
+  // and a fast one shows the bubble for the press-to-press interval only.
+  // That brief showing is the accepted cost; a 350ms tax on every click is
+  // the one that was being complained about.
   //
   // #564: todo chips come through here too. They used to be dropped on the
   // spot (the A-1 "read-only display" rule), which by now was only true of the
@@ -118,15 +129,17 @@ export function useScheduleSelection({
         return;
       }
       setSelectedId(id);
-      if (isWide) deferPopover(() => setPopover({ id, x: pos.x, y: pos.y }));
+      if (isWide) setPopover({ id, x: pos.x, y: pos.y });
     },
-    [isWide, deferPopover, setPopover, setTodoDetailId],
+    [isWide, setPopover, setTodoDetailId],
   );
 
   // #299 "詳細を編集" (bubble) / double-click: open the detail-edit surface —
   // the body-level overlay on Desktop, the BottomSheet on Mobile (selectedId
-  // drives it). Closes any open bubble; one still waiting to appear is dropped
-  // by the "another surface opened" effect in the host (#355).
+  // drives it). Closes the bubble in the same callback that opens the overlay
+  // — one commit, so the swap costs no intermediate frame (#1608). A bubble
+  // opened by some OTHER route is dropped by the "another surface opened"
+  // effect in the host (useClosePopoverOnOtherSurface).
   //
   // #564: a todo chip's detail is not this overlay — EventEditorPane edits a
   // schedule_item, and a todo has none. #626 gives the chip its own in-place
@@ -151,11 +164,11 @@ export function useScheduleSelection({
   );
 
   // #551: right-click opens the SAME bubble as a left-click — one panel for
-  // both gestures (the separate ScheduleItemContextMenu is retired). No #355
-  // deferral here: a contextmenu gesture is never the first half of a
-  // double-click, so the bubble can appear at once; cancelling a deferred
-  // left-click bubble keeps it from resurfacing elsewhere a beat later. On
-  // narrow the selection alone opens the BottomSheet editor, same as a tap.
+  // both gestures (the separate ScheduleItemContextMenu is retired). Since
+  // #1608 that is literally the same call, with no delay on either side; what
+  // is left here is the narrow routing and the explicit close on the chip
+  // branch, which has no bubble of its own to overwrite. On narrow the
+  // selection alone opens the BottomSheet editor, same as a tap.
   //
   // Rename / duplicate / delete are NOT here — they are writes, and they live
   // in the mutation layer. Only where the menu opens is a selection concern.
@@ -165,15 +178,18 @@ export function useScheduleSelection({
       // gesture that produces this on a phone, and it must not land somewhere
       // the tap beside it does not (#761).
       if (itemTapRoute(id, isWide) === "todoSheet") {
-        cancelPopover();
+        setPopover(null);
         setTodoDetailId(unwrapTodoChipId(id));
         return;
       }
-      cancelPopover();
       setSelectedId(id);
-      if (isWide) setPopover({ id, x: pos.x, y: pos.y });
+      // Wide overwrites the bubble in place — one write, so a right-click on
+      // an item that already has one cannot make it blink. Narrow has no
+      // bubble surface at all, and says so rather than leaving whatever a
+      // layout swap left behind (this is where the old cancel() stood).
+      setPopover(isWide ? { id, x: pos.x, y: pos.y } : null);
     },
-    [isWide, cancelPopover, setPopover, setTodoDetailId],
+    [isWide, setPopover, setTodoDetailId],
   );
 
   return {

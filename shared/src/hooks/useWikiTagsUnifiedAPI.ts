@@ -182,7 +182,14 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     async (itemId: string, tagId: string): Promise<WikiTagAssignment> => {
       const assignmentId = generateId("tag_assign");
       const created = await ds.assignTagToItem(assignmentId, itemId, tagId);
-      setAllAssignments((prev) => [...prev, created]);
+      // By id, not by append: the service revives the pair's existing row
+      // when there is one (#1593), so `created` can be a row the cache is
+      // already holding — an assignment the user clicked twice would
+      // otherwise show up as two pills.
+      setAllAssignments((prev) => [
+        ...prev.filter((a) => a.id !== created.id),
+        created,
+      ]);
       return created;
     },
     [ds],

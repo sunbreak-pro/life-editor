@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
+import { dirname, resolve, sep } from "node:path";
 import { TOOLS } from "../src/tools.js";
 import { REMOTE_TOOL_DEFINITIONS, remoteRegistry } from "../src/remoteTools.js";
 import { VERIFICATION_TOOLS } from "../src/tools/verification.js";
@@ -56,6 +56,20 @@ describe("the remote registry is the full one minus verification", () => {
 });
 
 /**
+ * One of the walk's absolute paths as a `src/`-relative POSIX path — the shape
+ * the assertions below name files by.
+ *
+ * The separator has to be forced. `resolve()` answers with the HOST's, so on
+ * Windows the control case reads `utils\\verification.ts` and fails on a
+ * developer machine while CI (Linux) stays green — and a test that only
+ * passes on one OS says nothing about the code on the other. These paths are
+ * only ever compared and printed.
+ */
+function relToSrc(file: string): string {
+  return file.slice(srcDir.length + 1).split(sep).join("/");
+}
+
+/**
  * Every src/ file reachable from `entry` by relative import.
  *
  * Import specifiers are written Node16-style (`./foo.js`) and the sources are
@@ -97,7 +111,7 @@ describe("the remote tool set stays deployable to Workers", () => {
       const source = readFileSync(file, "utf8");
       for (const builtin of FORBIDDEN) {
         if (source.includes(`"${builtin}"`)) {
-          offenders.push(`${file.slice(srcDir.length + 1)} imports ${builtin}`);
+          offenders.push(`${relToSrc(file)} imports ${builtin}`);
         }
       }
     }
@@ -115,7 +129,7 @@ describe("the remote tool set stays deployable to Workers", () => {
     // what the Worker registry exists to avoid bundling.
     const viaFullRegistry = reachableFrom(resolve(srcDir, "tools.ts"))
       .filter((f) => readFileSync(f, "utf8").includes('"node:fs"'))
-      .map((f) => f.slice(srcDir.length + 1));
+      .map(relToSrc);
     expect(viaFullRegistry).toContain("utils/verification.ts");
   });
 });

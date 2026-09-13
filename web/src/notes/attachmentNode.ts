@@ -42,6 +42,8 @@ export interface AttachmentLabels {
   unavailable: string;
   /** Accessible name for the file chip's download link. */
   download: string;
+  /** Accessible name for the file chip's delete button (#1606). */
+  remove: string;
 }
 
 export interface AttachmentNodeOptions {
@@ -70,7 +72,11 @@ const Attachment = Node.create<AttachmentNodeOptions>({
   addOptions() {
     return {
       getResolveUrl: undefined,
-      labels: { unavailable: "Attachment unavailable", download: "Download" },
+      labels: {
+        unavailable: "Attachment unavailable",
+        download: "Download",
+        remove: "Remove attachment",
+      },
     };
   },
 
@@ -130,7 +136,7 @@ const Attachment = Node.create<AttachmentNodeOptions>({
   addNodeView() {
     const getResolveUrl = this.options.getResolveUrl;
     const labels = this.options.labels;
-    return ({ node }) => {
+    return ({ node, editor, getPos }) => {
       const path = String(node.attrs.path ?? "");
       const name = String(node.attrs.name ?? "");
       const mime = String(node.attrs.mime ?? "");
@@ -145,6 +151,7 @@ const Attachment = Node.create<AttachmentNodeOptions>({
       dom.setAttribute("data-size", String(size));
 
       const isImage = isEmbeddableImage(mime);
+      if (!isImage) dom.classList.add("note-attachment--file");
       /*
        * Built up front, before any URL exists, so the node occupies its place
        * in the document from the first frame. The async step below only ever
@@ -181,6 +188,62 @@ const Attachment = Node.create<AttachmentNodeOptions>({
         }
       }
       dom.appendChild(media);
+
+      /*
+       * The delete button (#1606) — the chip's own way out.
+       *
+       * Until now the only way to remove an attachment was to select the atom
+       * and press Backspace, which is no affordance at all on a touch screen.
+       * The button takes the node out of the DOCUMENT; the object stays in the
+       * bucket, where the orphan sweep (#1438) decides its fate. That split is
+       * deliberate — an undo has to be able to bring the node back, and it
+       * cannot bring back a deleted file.
+       *
+       * ALWAYS VISIBLE, never hover-only: a finger has no hover, so a delete
+       * that lived behind `:hover` would be unreachable on the surface that
+       * needs it most. It is a real <button>, so Tab reaches it too.
+       *
+       * A SIBLING of the anchor, not a child: a button inside a link is invalid
+       * HTML and nests two controls the keyboard has to tell apart. CSS parks it
+       * over the anchor's right edge, which is what lets the anchor stay the
+       * full-width element this issue measures.
+       *
+       * IMAGES DO NOT GET ONE — #1606 scopes itself to the file chip and leaves
+       * the image's presentation alone.
+       *
+       * `editor.options.editable` rather than `editor.isEditable`: this runs
+       * while the EditorView is still being constructed, and isEditable reads
+       * `this.view`, which TipTap has not assigned yet — it would be false on
+       * every surface, editable or not. RichTextEditor's setEditable keeps
+       * options.editable in step, so the two agree everywhere else.
+       */
+      if (!isImage && editor.options.editable !== false) {
+        dom.classList.add("note-attachment--removable");
+        const remove = document.createElement("button");
+        remove.type = "button";
+        remove.className = "note-attachment__delete";
+        remove.setAttribute("data-attachment-remove", "");
+        remove.setAttribute(
+          "aria-label",
+          name ? `${labels.remove}: ${name}` : labels.remove,
+        );
+        remove.addEventListener("click", (event) => {
+          event.preventDefault();
+          const pos = typeof getPos === "function" ? getPos() : undefined;
+          if (typeof pos !== "number") return;
+          // The node's own range, so the blocks around it are untouched.
+          // `scrollIntoView: false` for the same reason onCreate's focus passes
+          // it (RichTextEditor.tsx): the scroll runs coordsAtPos, which jsdom
+          // does not implement, and the block being deleted is already on
+          // screen.
+          editor
+            .chain()
+            .focus(undefined, { scrollIntoView: false })
+            .deleteRange({ from: pos, to: pos + node.nodeSize })
+            .run();
+        });
+        dom.appendChild(remove);
+      }
 
       /*
        * Resolving the URL is a real round trip (a signature comes from the
@@ -229,13 +292,17 @@ const Attachment = Node.create<AttachmentNodeOptions>({
          */
         ignoreMutation: () => true,
         /*
-         * Let the download link have its own click. The rest of the node stays
-         * ProseMirror's (click selects the atom, drag moves it).
+         * Let the download link and the delete button have their own clicks.
+         * The rest of the node stays ProseMirror's (click selects the atom,
+         * drag moves it) — without the delete half a press on the button would
+         * be read as "select this atom" and the button would never fire.
          */
         stopEvent: (event: Event) => {
           const target = event.target as Element | null;
           return typeof target?.closest === "function"
-            ? target.closest("[data-attachment-download]") !== null
+            ? target.closest(
+                "[data-attachment-download], [data-attachment-remove]",
+              ) !== null
             : false;
         },
       };

@@ -277,10 +277,34 @@ body {
   border-radius: 0.375rem;
   border: 1px solid var(--color-border);
 }
+/*
+ * The file chip is a ROW, not a pill (#1606).
+ *
+ * It used to be `inline-flex`, so a chip was as wide as its file name: a short
+ * name left a small box stranded at the left of an otherwise empty line, which
+ * read as a stray word rather than as an attachment. The image beside it has
+ * always filled the column (`max-width: 100%` above). This is the two of them
+ * agreeing — the chip spans the body column at every width, which is what the
+ * issue measures with getBoundingClientRect().
+ *
+ * The anchor itself is the full-width element. The delete button is parked over
+ * its right edge by the rule below rather than nested inside it, because a
+ * button inside a link is invalid HTML.
+ */
+.note-editor .ProseMirror .note-attachment--file {
+  /* The containing block for the delete button's absolute position. */
+  position: relative;
+}
 .note-editor .ProseMirror .note-attachment__file {
-  display: inline-flex;
-  align-items: baseline;
+  display: flex;
+  /* `center`, not the old `baseline`: the row now has a height of its own, and
+     baseline alignment would hang the size caption off the name's baseline
+     instead of centring both in it. */
+  align-items: center;
   gap: 0.5rem;
+  width: 100%;
+  /* Tall enough to hold a 44px button. See the button's own note. */
+  min-height: 2.75rem;
   padding: 0.375rem 0.625rem;
   border: 1px solid var(--color-border);
   border-radius: 0.375rem;
@@ -289,12 +313,100 @@ body {
   text-decoration: none;
   cursor: pointer;
 }
+/* Room for the button, so a long name is clipped by the ellipsis below rather
+   than sliding underneath it. */
+.note-editor .ProseMirror .note-attachment--removable .note-attachment__file {
+  padding-right: 2.75rem;
+}
 .note-editor .ProseMirror .note-attachment__file:hover {
   background-color: var(--color-accent-subtle);
 }
+/* The name takes the slack; `min-width: 0` is what lets a flex item shrink
+   below its content and actually reach the ellipsis. */
+.note-editor .ProseMirror .note-attachment__name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
 .note-editor .ProseMirror .note-attachment__meta {
+  flex: none;
   color: var(--color-text-tertiary);
   font-size: 0.75rem;
+}
+/*
+ * The delete button (#1606).
+ *
+ * 44x44 at EVERY width, not `max-md:` like the note rows and filter chips
+ * (#1560). Those floors are narrow-only because growing them would grow the
+ * mouse layout of a list; this is one icon button with no label of its own,
+ * sitting in a block row that has no flowing text beside it to swallow. The
+ * taskList checkbox further down keeps a 20px target for exactly the opposite
+ * reason — it sits INSIDE flowing text, where a 44px area would eat the clicks
+ * that put the caret on the lines above and below.
+ *
+ * Absolutely positioned over the anchor's right edge: it is a sibling in the
+ * DOM (no button inside a link), and it paints after the anchor, so it takes
+ * the clicks in the area it covers.
+ */
+.note-editor .ProseMirror .note-attachment__delete {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0.375rem;
+  background-color: transparent;
+  color: var(--color-text-tertiary);
+  cursor: pointer;
+}
+.note-editor .ProseMirror .note-attachment__delete:hover {
+  color: var(--color-text-primary);
+}
+.note-editor .ProseMirror .note-attachment__delete:focus-visible {
+  outline: 2px solid var(--color-accent);
+  /* Inset — the button's box reaches the chip's border, so an outward ring
+     would be drawn outside the chip. */
+  outline-offset: -2px;
+}
+/* lucide's X, drawn the way the taskList checkbox draws its circle: the glyph
+   is a mask and the colour is the button's own, so the icon follows the theme
+   without a second copy per mode. */
+.note-editor .ProseMirror .note-attachment__delete::before {
+  content: "";
+  width: 1rem;
+  height: 1rem;
+  background-color: currentColor;
+  -webkit-mask: var(--attachment-delete-mark) center / contain no-repeat;
+  mask: var(--attachment-delete-mark) center / contain no-repeat;
+  --attachment-delete-mark: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23000' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 6 6 18'/%3E%3Cpath d='m6 6 12 12'/%3E%3C/svg%3E");
+}
+/* Forced colours force every background-color to Canvas, and the mark IS a
+   background-color — the same trap the taskList checkbox documents below. */
+@media (forced-colors: active) {
+  .note-editor .ProseMirror .note-attachment__delete::before {
+    forced-color-adjust: none;
+    background-color: CanvasText;
+  }
+}
+/* The chip that could not be signed keeps its delete button: a broken
+   attachment is the one a reader most wants gone, and the fallback caption
+   that replaces the anchor brings no height of its own for the button to sit
+   in. */
+.note-editor
+  .ProseMirror
+  .note-attachment--removable.note-attachment--unavailable {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding-right: 2.75rem;
 }
 /* The state a node reaches when no URL could be signed for it — a missing
    object, or a surface that wired no resolver at all. */

@@ -3,11 +3,18 @@ import {
   buildBriefingSectionNodes,
   upsertBriefingSection,
   hasBriefingSection,
+  parseDoc,
+  textOf,
+  type TipTapNode,
 } from "../src/utils/briefingSection.js";
 // Cross-package TEST-ONLY import: the read half of the briefing convention
 // lives in shared. The round-trip below is the machine check for the DoD
 // "extractBriefing can render what write_briefing wrote".
 import { extractBriefing } from "../../shared/src/components/briefing/extractBriefing.js";
+// Same TEST-ONLY link, for the other half of #1592: parseDoc and
+// parseDailyDoc must accept the same bodies, and this is the only place the
+// two packages can be compared.
+import { parseDailyDoc } from "../../shared/src/components/briefing/dailySections.js";
 import {
   localToday,
   addDays,
@@ -110,13 +117,21 @@ describe("upsertBriefingSection", () => {
     expect(headings).toHaveLength(1);
   });
 
-  it("refuses to clobber unparseable existing content", () => {
-    expect(() => upsertBriefingSection("not json {", ["p"])).toThrow(
-      /refusing/,
-    );
-    expect(() => upsertBriefingSection('"just a string"', ["p"])).toThrow(
-      /refusing/,
-    );
+  it("keeps every line of a legacy plain-text daily (#1592)", () => {
+    // The shape of the one plain-text row live in dailies_payload: a jsonb
+    // STRING column, which contentJsonToString hands over as its raw text.
+    const out = JSON.parse(upsertBriefingSection("ハロー\n二行目", ["講評"]));
+    const texts = out.content.map((n: TipTapNode) => textOf(n));
+    // briefing section on top, the old body preserved below it verbatim
+    expect(texts).toEqual(["朝刊", "講評", "ハロー", "二行目"]);
+  });
+
+  it("reads a non-document JSON body as text rather than losing it", () => {
+    // `"just a string"` parses, but a scalar is not a document. Losing it
+    // would be the clobber the old throw was there to prevent (#1592).
+    const out = JSON.parse(upsertBriefingSection('"just a string"', ["p"]));
+    const texts = out.content.map((n: TipTapNode) => textOf(n));
+    expect(texts).toEqual(["朝刊", "p", '"just a string"']);
   });
 
   it("is idempotent: writing twice keeps a single section", () => {
@@ -151,6 +166,37 @@ describe("round-trip with shared extractBriefing (DoD)", () => {
     const content = upsertBriefingSection(existing, ["講評"]);
     const extracted = extractBriefing(content);
     expect(extracted?.paragraphs).toEqual(["講評"]);
+  });
+});
+
+describe("parseDoc agrees with shared parseDailyDoc (#1592)", () => {
+  // Every body shape that has ever reached these two parsers. The screen
+  // reads a daily with parseDailyDoc and MCP writes it through parseDoc, so
+  // a body one accepts and the other rejects is a daily you can read but
+  // cannot write — which is exactly what #1592 measured on daily-2026-05-24.
+  const bodies: Array<[string, string | null | undefined]> = [
+    ["null", null],
+    ["undefined", undefined],
+    ["empty string", ""],
+    ["a TipTap doc", doc(heading("朝刊"), para("講評"))],
+    ["a legacy plain line", "ハロー"],
+    ["a legacy plain body with line breaks", "ハロー\n二行目\n"],
+    ["a CRLF plain body", "一行目\r\n二行目"],
+    ["unparseable JSON", "not json {"],
+    ["a JSON string scalar", '"just a string"'],
+    ["a JSON array", "[1, 2]"],
+    ["a JSON object that is not a doc", '{"foo":1}'],
+    ["a doc without a content array", '{"type":"doc"}'],
+  ];
+
+  for (const [label, body] of bodies) {
+    it(`reads ${label} the same way`, () => {
+      expect(parseDoc(body)).toEqual(parseDailyDoc(body));
+    });
+  }
+
+  it("never throws on a body the screen can render", () => {
+    for (const [, body] of bodies) expect(() => parseDoc(body)).not.toThrow();
   });
 });
 

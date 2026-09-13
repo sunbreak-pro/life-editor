@@ -72,6 +72,50 @@ export function buildBriefingSectionNodes(paragraphs: string[]): TipTapNode[] {
   ];
 }
 
+/**
+ * Legacy plain-text body → paragraph-per-line doc (F-1 rule).
+ *
+ * A copy of shared's `plainTextToTipTapDoc`
+ * (shared/src/components/materials/dailyContent.ts), duplicated rather than
+ * imported: mcp-server has no runtime dependency on shared, and the only
+ * link between the packages is the TEST-ONLY import in
+ * tests/briefingSection.test.ts — which round-trips this copy through
+ * shared's own parser and is what keeps the two honest.
+ */
+function plainTextToTipTapDoc(text: string): TipTapNode {
+  return {
+    type: "doc",
+    // \r?\n: Windows-era plain bodies would otherwise leave a trailing \r
+    // on every paragraph.
+    content: text.split(/\r?\n/).map((line): TipTapNode => {
+      // TipTap forbids empty text nodes — an empty line is a bare paragraph.
+      if (line === "") return { type: "paragraph" };
+      return { type: "paragraph", content: [{ type: "text", text: line }] };
+    }),
+  };
+}
+
+/**
+ * A stored daily / note body → a TipTap doc for section surgery. Same
+ * acceptance rule as shared's `parseDailyDoc`
+ * (shared/src/components/briefing/dailySections.ts): empty → empty doc, a
+ * TipTap doc JSON → parsed as-is, anything else → the body read as legacy
+ * plain text, one paragraph per line.
+ *
+ * This used to THROW on the last case (#1592), on the rule that an MCP write
+ * must not clobber a body it cannot read. The rule stands; the throw was the
+ * wrong tool for it. What it protected against is DISCARDING text, and
+ * paragraphing discards nothing — every line survives verbatim, which is
+ * exactly what the editor already does when the user opens that daily
+ * (`dailyContentToEditorContent`). Meanwhile the throw had a cost measured on
+ * live data: `daily-2026-05-24` is a plain-text body the screen renders fine
+ * and `write_briefing` refused to touch, so the morning paper simply could
+ * not be written for that day.
+ *
+ * `contentJson` reaches here from `contentJsonToString`, so a jsonb string
+ * column (how a legacy plain body is actually stored) arrives as its raw
+ * text and lands on the plain-text branch.
+ */
 export function parseDoc(contentJson: string | null | undefined): TipTapNode {
   if (
     contentJson === null ||
@@ -80,22 +124,23 @@ export function parseDoc(contentJson: string | null | undefined): TipTapNode {
   ) {
     return { type: "doc", content: [] };
   }
-  let doc: unknown;
   try {
-    doc = JSON.parse(contentJson);
+    const parsed: unknown = JSON.parse(contentJson);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      !Array.isArray(parsed) &&
+      (parsed as TipTapNode).type === "doc" &&
+      Array.isArray((parsed as TipTapNode).content)
+    ) {
+      return parsed as TipTapNode;
+    }
   } catch {
-    throw new Error(
-      "write_briefing: existing content is not valid TipTap JSON — refusing to overwrite it",
-    );
+    // fall through — legacy plain text
   }
-  const node = doc as TipTapNode;
-  if (node === null || typeof node !== "object" || Array.isArray(node)) {
-    throw new Error(
-      "write_briefing: existing content is not a TipTap document — refusing to overwrite it",
-    );
-  }
-  if (!Array.isArray(node.content)) node.content = [];
-  return node;
+  // Anything that is not a doc is read as text, the same answer shared
+  // gives, rather than being lost.
+  return plainTextToTipTapDoc(contentJson);
 }
 
 /**
@@ -137,8 +182,8 @@ export function hasBriefingSection(
 /**
  * Upsert the briefing section into a DailyNode content string and return
  * the new content string. Replaces an existing section in place, else
- * prepends. Throws (rather than clobbering user data) when the existing
- * content is unparseable.
+ * prepends. A legacy plain-text body is read as paragraphs first (parseDoc),
+ * so the write converts the body to a doc without losing a line.
  */
 export function upsertBriefingSection(
   contentJson: string | null | undefined,

@@ -1,5 +1,22 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-09-13 - #1592 / #1593 shared と mcp の食い違い 2 件（PR #1609 / #1610）
+
+#### 概要
+
+#677（凍結中）から切り出された、パッケージ境界を触らずに決められる 2 件。どちらも「どちらに寄せるか」が本題だったので、先に本番 DB を計測して判断材料を実測してから実装した。
+
+#### 変更点
+
+- **#1592 受理条件（PR #1609）**: `mcp-server/src/utils/briefingSection.ts` の `parseDoc` を shared の `parseDailyDoc` と同一ルールにした。空 → 空 doc / TipTap doc JSON → そのまま / それ以外 → 1 行 1 段落。throw は全廃。`focusSection.ts` の「Deliberate delta」コメントを実態に差し替え
+- **#1592 計測**: `dailies_payload` 17 行 = doc 15 / NULL 1 / **jsonb 文字列 1**（`daily-2026-05-24`・生存・4 文字・改行あり・JSON 不正）。`notes_payload` は doc 34 / NULL 8 で文字列なし。差は実在した
+- **#1592 テスト**: `parseDoc` と shared `parseDailyDoc` が 10 種類の本文で**同じ doc** を返す照合（cross-package の TEST-ONLY import は `extractBriefing` の前例に乗った）+ 平文 daily / 非 doc JSON への `upsertBriefingSection`。旧実装では 12 件落ちることを実測
+- **#1593 タグ再付与（PR #1610）**: `shared/src/services/SupabaseWikiTagsUnifiedService.ts::assignTagToItem` を revive に変更。生存行はそのまま返し（冪等）、削除済みは戻し、初めてのペアだけ INSERT。`mcp-server/src/handlers/wikiTagHandlers.ts` の照合も「生存行が先・`limit(1)`」に変更。フックは id で dedupe、`DataService.ts` と `tagGroupMapper.ts` のコメントを追随
+- **#1593 判断の根拠**: Issue が挙げた「#1580 の `updated_at` 昇順とぶつかる」は**着地時点で失効**していた。#1580 は `created_at` を見ており、その列を足した migration 0030 のコメントが追加理由として revive を名指ししている。一方 INSERT 側は既に mcp の `.maybeSingle()` を壊す地雷になっており、該当ペアが実データに 1 つあった（assignment 33 行 / 削除済み 6 行 / 2 行ペア 1 組）
+- **#1593 テスト**: 行を実際に保持するスタブ（partial UNIQUE も再現）で「付け外し → 付け直しで行が増えないこと」を固定。呼び出し形だけ記録するスタブでは「何行残るか」を答えられないため。旧実装では shared 4 件中 3 件 + mcp の新規 1 件が落ちる
+- **検証**: 両ブランチとも `ci.yml` の `verify` 14 ステップをローカルで CI と同じ順に実行し、13 緑。唯一の赤は `remoteRegistry.test.ts` の Windows 固有の 1 件（`resolve()` が `\` を返すためのパス区切り比較）で、`origin/main` にも存在し Linux ランナーでは緑。PR #1609 は GitHub CI も両ジョブ SUCCESS。`docs-lint` は 1 回実行して緑（両ブランチとも `.claude/` を触らない）
+- **申し送り**: 上記 Windows 固有の失敗は life-editor のコード側の問題なので Issue 化の余地がある（`f.slice(...)` を `/` へ正規化するだけ）。今回は範囲外として直していない
+
 ### 2026-09-12 - #1590 macOS のドラッグ帯 と #1300 の Status 追随（PR #1595 / #1598）
 
 #### 概要

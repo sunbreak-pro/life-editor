@@ -22,8 +22,15 @@ import { SettingsScreen } from "../src/settings/SettingsScreen";
 const BRIEFING_DOC = JSON.stringify({
   type: "doc",
   content: [
-    { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Briefing" }] },
-    { type: "paragraph", content: [{ type: "text", text: "A word on yesterday." }] },
+    {
+      type: "heading",
+      attrs: { level: 2 },
+      content: [{ type: "text", text: "Briefing" }],
+    },
+    {
+      type: "paragraph",
+      content: [{ type: "text", text: "A word on yesterday." }],
+    },
   ],
 });
 
@@ -77,6 +84,15 @@ const serviceReturning = (dailies: unknown[]) => ({
   listDailiesUnified: () => Promise.resolve(dailies),
 });
 
+/*
+ * The card lives under the "Claude" category now, not General, so every case
+ * here has to walk there first. The read it is testing starts on MOUNT
+ * (Settings asks for the last briefing date before any row is pressed), which
+ * is why the press can come after the render without racing it.
+ */
+const openClaudeTab = () =>
+  fireEvent.click(screen.getByRole("button", { name: "settings.tabs.claude" }));
+
 describe("Settings AI integration card (#1210)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -92,6 +108,7 @@ describe("Settings AI integration card (#1210)", () => {
       ]),
     );
     render(<SettingsScreen />);
+    openClaudeTab();
     await waitFor(() => {
       screen.getByText("settings.ai.activityValue|2026-08-30");
     });
@@ -99,6 +116,7 @@ describe("Settings AI integration card (#1210)", () => {
 
   it("says 'nothing yet' rather than a date when no daily has one", async () => {
     render(<SettingsScreen />);
+    openClaudeTab();
     await waitFor(() => {
       screen.getByText("settings.ai.activityNone");
     });
@@ -106,6 +124,7 @@ describe("Settings AI integration card (#1210)", () => {
 
   it("lists the generated catalog behind a collapsed toggle", async () => {
     render(<SettingsScreen />);
+    openClaudeTab();
     await waitFor(() => {
       screen.getByText("settings.ai.heading");
     });
@@ -124,6 +143,7 @@ describe("Settings AI integration card (#1210)", () => {
     // The rest of the screen is still there…
     screen.getByText("settings.appearance");
     // …and the card settles on the honest answer rather than spinning forever.
+    openClaudeTab();
     await waitFor(() => {
       screen.getByText("settings.ai.activityNone");
     });

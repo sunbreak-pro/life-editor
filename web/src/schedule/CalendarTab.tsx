@@ -14,7 +14,6 @@ import {
   ScheduleRangeErrorBanner,
   useConfirmDialog,
   useScheduleItemsRoutineSync,
-  useDeferredAction,
   useToast,
   useMinuteClock,
   TodoAddDialog,
@@ -36,7 +35,7 @@ import { useTagFilterPanel } from "./useTagFilterPanel";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useScheduleMutations } from "./useScheduleMutations";
 import {
-  useCancelDeferredPopover,
+  useClosePopoverOnOtherSurface,
   useScheduleOverlays,
 } from "./useScheduleOverlays";
 import { useItemConversion } from "./useItemConversion";
@@ -78,18 +77,6 @@ import { selectNarrowDay } from "./narrowDayTap";
  * sidebar portal and the single shared overlay set are mounted, and which
  * layout renders at all.
  */
-
-/*
- * How long the single-click bubble waits for a possible double-click (#355).
- *
- * Only the bubble waits — selection is applied immediately either way — so the
- * cost of a longer window is small, while too short a one leaves the original
- * bug in place: Windows counts anything under 500ms as a double-click, and at
- * 200ms every slower-than-brisk double-click still flashed. 350ms covers the
- * bulk of that range without the click feeling unanswered (the selection ring
- * lands at once). Above ~400ms the wait starts to read as lag.
- */
-const POPOVER_DELAY_MS = 350;
 
 /*
  * What each repeat-write failure says (#434 → #469 → #504). A table rather
@@ -316,10 +303,13 @@ export function CalendarTab({
   // boundary and disagree.
   const { now, nowMinutes } = useMinuteClock();
 
-  // #355: the bubble popover is deferred so a double-click can claim the
-  // gesture before it appears. Cancelled on unmount by the hook.
-  const { defer: deferPopover, cancel: cancelPopover } =
-    useDeferredAction(POPOVER_DELAY_MS);
+  /*
+   * #1608: closing the bubble, as a stable callback for the "another surface
+   * opened" effect below. It is the only thing the calendar's timing story
+   * still needs a name for — the OPENING is now a plain synchronous
+   * `setPopover` inside useScheduleSelection (#355's 350ms wait is gone).
+   */
+  const closePopover = useCallback(() => setPopover(null), [setPopover]);
 
   // #376 note tab: the picker's pool + the "create the note, then link it"
   // write. Loaded only while the creation panel is open (see the hook).
@@ -435,8 +425,6 @@ export function CalendarTab({
     handleItemContextMenu,
   } = useScheduleSelection({
     isWide,
-    deferPopover,
-    cancelPopover,
     setPopover,
     setOverlayOpen,
     setTodoDetailId,
@@ -693,15 +681,15 @@ export function CalendarTab({
     clearTagLens,
   });
 
-  // #355: drop a bubble still waiting its turn the moment anything else
-  // opens (the hook holds the why, and the list of what counts as anything).
-  useCancelDeferredPopover({
+  // #355 → #1608: drop the bubble the moment anything else opens (the hook
+  // holds the why, and the list of what counts as anything).
+  useClosePopoverOnOtherSurface({
     overlayOpen,
     createPanel,
     tagFilterOpen,
     scopeRequest,
     todoDetailId,
-    cancelPopover,
+    closePopover,
   });
 
   // ── Derived data ─────────────────────────────────────────────────────────
