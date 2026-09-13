@@ -1,5 +1,25 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-13 - #1608 予定クリックの 350ms 遅延を撤去（PR #1613）
+
+#### 概要
+
+カレンダーの予定をクリックしてから詳細吹き出しが出るまでの 350ms（`POPOVER_DELAY_MS`）を撤去した。Issue が並べた 3 案のうち **B = 吹き出しを即出しし、ダブルクリックが来たら詳細編集オーバーレイに差し替える**を選択。実測は **368.7ms → 0.8ms**（クリック → 吹き出しが DOM に出るまで・jsdom・5 回の中央値）で、両方の数値を Issue にコメント済み。ローカルで CI `verify` 全ステップ + `docs-lint` = exit 0。
+
+#### 変更点
+
+- **A（200ms に短縮）を却下した根拠はコード内にあった**: `CalendarTab.tsx` の元コメント自身が「Windows は 500ms 未満をダブルクリックと数える / 200ms では遅めのダブルクリックが依然ちらつく」と実測として書いている。A は「遅い」と「ちらつく」の間で目盛りを動かすだけになる。C（ダブルクリック廃止）は既存の操作を 1 つ取り上げるので、この Issue 単体で下すには重い
+- **B が「ちらつかない」と言える理由は 3 つで、どれもコードの性質**: ① `ItemActionPopover` に出現アニメーションが無い（フェードイン → アウトの対が存在しない）② 400ms のダブルクリックでは吹き出しが約 24 フレーム静止してから覆われるので 2 段階の操作に読める ③ `setPopover(null)` と `setOverlayOpen(true)` が同じコールバックにあり React が 1 commit にまとめる。**速いダブルクリック（100ms 前後）では押下間だけ吹き出しが見える** — これは受け入れ、PR 本文に明記した
+- **`useCancelDeferredPopover` → `useClosePopoverOnOtherSurface` に改名**: watch する 5 面（overlayOpen / createPanel / tagFilterOpen / scopeRequest / todoDetailId）は 1 つも変えていない。役割が「出番待ちの吹き出しを取り消す」から「出ている吹き出しを閉じる」に 1 段ずれたので、名前を実態へ寄せた。**invariant はむしろ強くなった** — 以前は他の面が開いても既に出ている吹き出しは残り得た
+- **`shared/src/hooks/useDeferredAction.ts` を削除**（export とテストも）: 呼び出し元は CalendarTab 1 箇所だけだった（#1239 と同じ「呼び出し元ゼロの実測で消す」）
+- **右クリックは吹き出しを 1 回だけ書く**: 旧コードは `cancelPopover()` → `setPopover({...})` の 2 段だったが、即時化した今は上書き 1 回で足りる。narrow の非チップ経路は `setPopover(null)` を明示して、レイアウト切替で残った Desktop の吹き出しを落とす
+- **mcp-server の 1 本だけが Windows で赤かった**: `remoteRegistry.test.ts` の control case が `resolve()` の区切り文字で落ちる（`utils\verification.ts` != `utils/verification.ts`）。`git diff origin/main -- mcp-server` が空であることを確かめたうえで、`relToSrc()` に切り出して POSIX 区切りへ正規化する commit を同 PR に足した
+
+#### 判断が要る点
+
+- **PR #1613 の merge**（P-001 = 常にユーザー）。速いダブルクリックで吹き出しが一瞬見えることを許容するかが唯一の判断で、許容しないなら C（ダブルクリック廃止）へ切り替える
+- 実ブラウザでの体感確認は chat-main の手番（§7.4）。数値は jsdom の実測で、paint までは含んでいない
+
 ### 2026-09-12 - /goal 4 件（#1582 / #1584 / #1581 / #1580）を 4 本の PR まで
 
 #### 概要
