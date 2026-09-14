@@ -1,5 +1,9 @@
 import { localDateTimeToISO, todoScheduleSlot } from "@life-editor/shared";
-import type { TodoNode, UpdateNodeOptions } from "@life-editor/shared";
+import type {
+  TodoCalendarDrop,
+  TodoNode,
+  UpdateNodeOptions,
+} from "@life-editor/shared";
 
 /*
  * What each Schedule gesture writes onto a TodoNode, and whether that write is
@@ -103,6 +107,22 @@ export function todoChipAllDayWrite(dateISO: string): TodoChipWrite {
     },
     options: { undoLabel: "todoChipAllDay" },
   };
+}
+
+/**
+ * A todo dragged from the sidebar's "その他" list onto the calendar (#1627).
+ * A time slot places it exactly the way a grid drag does (same write, same
+ * undo label logic); the all-day lane or a month cell gives it the day with no
+ * time — the #562 all-day shape. Both are undoable: the row leaves the list it
+ * was dragged from, so a mis-drop needs a way back that is not a hunt.
+ */
+export function todoCalendarDropWrite(
+  todo: TodoNode | undefined,
+  drop: TodoCalendarDrop,
+): TodoChipWrite {
+  return drop.startTime && drop.endTime
+    ? todoChipMoveWrite(todo, drop.dateISO, drop.startTime, drop.endTime)
+    : todoChipAllDayWrite(drop.dateISO);
 }
 
 /**

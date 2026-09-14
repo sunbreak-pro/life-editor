@@ -13,6 +13,7 @@ import {
   type DesktopCalendarView,
   type MonthGridItem,
   type ScheduleLoadState,
+  type TodoCalendarDrop,
   type WeekTimeGridHandlers,
   type WeekTimeGridItem,
 } from "@life-editor/shared";
@@ -123,6 +124,11 @@ export interface CalendarDesktopHandlers {
   onMoveItem: NonNullable<WeekTimeGridHandlers["onMoveItem"]>;
   onResizeItem: NonNullable<WeekTimeGridHandlers["onResizeItem"]>;
   onDropAllDay: NonNullable<WeekTimeGridHandlers["onDropAllDay"]>;
+  /**
+   * A todo from the sidebar's "その他" list dropped on either grid (#1627).
+   * Optional: without it neither grid takes a drop.
+   */
+  onDropTodo?: (drop: TodoCalendarDrop) => void;
 }
 
 /** Locale-dependent copy the host has to compute rather than hand over. */
@@ -224,6 +230,7 @@ export function CalendarDesktopLayout({
         onItemActivate={handlers.onItemActivate}
         onItemDoubleClick={handlers.onItemDoubleClick}
         onItemContextMenu={handlers.onItemContextMenu}
+        onDropTodo={handlers.onDropTodo}
         formatMoreCount={formatMoreCount}
         formatDayLabel={format.fullDay}
         formatCreateLabel={formatCreateLabel}
@@ -257,6 +264,7 @@ export function CalendarDesktopLayout({
           onMoveItem: handlers.onMoveItem,
           onResizeItem: handlers.onResizeItem,
           onDropAllDay: handlers.onDropAllDay,
+          onDropTodo: handlers.onDropTodo,
         }}
         display={{ todoInteractive: true, fillHeight: true }}
         format={{ dayDate: format.dayDate }}

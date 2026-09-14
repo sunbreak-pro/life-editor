@@ -4,6 +4,7 @@ import type { TodoStatus } from "../../types/todoTree";
 import { cn } from "../cn";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
+import { setTodoDragData } from "./todoCalendarDrag";
 
 /*
  * TodayTodoTray (schedule redesign A-3 / #298) — the rightSidebar "Today's
@@ -39,6 +40,12 @@ import type { StatusLabelSet } from "../todoStatusVisuals";
  * focused (and are always shown where hover does not exist), so the lists
  * read as lists rather than as rows of controls. Briefing opts into none of
  * this and keeps its picker exactly as it was.
+ *
+ * #1627 gives the "その他" rows what today's rows already had — the status
+ * checkbox and the delete button (`addableControls`) — and lets a Desktop host
+ * make them draggable onto its calendar (`draggableAddable`, the payload is
+ * todoCalendarDrag.ts). Both are opt-in for the same reason as #1406's props:
+ * Briefing's picker is a staging list and stays as it was.
  */
 
 export interface TodayTodoRow {
@@ -144,6 +151,18 @@ export interface TodayTodoTrayProps {
    * Briefing's picker keeps its always-visible "+".
    */
   hoverActions?: boolean;
+  /**
+   * Draw the status checkbox and the delete button on the "other" rows as
+   * well (#1627), wired to the same `onToggleComplete` / `onSetStatus` and
+   * `onDelete` today's rows use. The delete still needs labels.delete.
+   */
+  addableControls?: boolean;
+  /**
+   * Make each "other" row a native drag source carrying its todo id
+   * (#1627 — todoCalendarDrag.ts), so a host calendar can take the drop.
+   * Desktop only in practice: a phone has no calendar beside the list.
+   */
+  draggableAddable?: boolean;
   /** Extra content under the title row (#555 — the host's tag surface). */
   renderRowExtra?: (row: TodayTodoRow) => ReactNode;
   /**
@@ -406,6 +425,8 @@ export function TodayTodoTray({
   onDelete,
   onMoveOut,
   hoverActions,
+  addableControls,
+  draggableAddable,
   renderRowExtra,
   singleList,
   labels,
@@ -457,8 +478,33 @@ export function TodayTodoTray({
             {addable.map((a) => (
               <li
                 key={a.id}
-                className="group flex items-center gap-2 border-b border-lumen-border"
+                draggable={draggableAddable || undefined}
+                onDragStart={
+                  draggableAddable
+                    ? (e) => setTodoDragData(e.dataTransfer, a.id)
+                    : undefined
+                }
+                className={cn(
+                  "group flex items-center gap-2 border-b border-lumen-border",
+                  draggableAddable && "cursor-grab active:cursor-grabbing",
+                )}
               >
+                {/* #1627: the same checkbox today's rows lead with. Every row
+                    in this list is open (pickOtherTodos drops DONE), so it
+                    always starts unchecked and a press completes the todo —
+                    which also takes it off this list. */}
+                {addableControls && (
+                  <TodoStatusCheckbox
+                    status="NOT_STARTED"
+                    onChange={(next) =>
+                      onSetStatus
+                        ? onSetStatus(a.id, next)
+                        : onToggleComplete(a.id)
+                    }
+                    labels={labels.statusLabels}
+                    label={labels.status}
+                  />
+                )}
                 {onOpenAddable ? (
                   // #1153: the same title, as the way in. A button only when
                   // the host has somewhere to open — a dead one would be worse
@@ -500,6 +546,23 @@ export function TodayTodoTray({
                 >
                   <Plus aria-hidden className="size-4" />
                 </button>
+                {/* #1627: to the right of the +, the same soft delete today's
+                    rows carry (always visible, like theirs). */}
+                {addableControls && onDelete && labels.delete && (
+                  <button
+                    type="button"
+                    aria-label={labels.delete}
+                    title={labels.delete}
+                    onClick={() => onDelete(a.id)}
+                    className={cn(
+                      "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger",
+                      NARROW_TAP_FLOOR,
+                      FOCUS,
+                    )}
+                  >
+                    <Trash2 aria-hidden className="size-3.5" />
+                  </button>
+                )}
               </li>
             ))}
           </ul>

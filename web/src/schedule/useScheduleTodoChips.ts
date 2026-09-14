@@ -12,9 +12,11 @@ import {
   type TodoStatus,
   type TodayTodoAddableRow,
   type TodayTodoRow,
+  type TodoCalendarDrop,
   type UpdateNodeOptions,
 } from "@life-editor/shared";
 import {
+  todoCalendarDropWrite,
   todoChipAllDayWrite,
   todoChipMoveWrite,
   todoChipResizeWrite,
@@ -100,6 +102,8 @@ export interface ScheduleTodoChipsApi {
   ) => void;
   handleTodoChipResize: (chipId: string, endISO: string) => void;
   handleTodoChipDropAllDay: (chipId: string, dateISO: string) => void;
+  /** A "その他" row dropped on the week / month grid (#1627). */
+  handleTodoCalendarDrop: (drop: TodoCalendarDrop) => void;
   handleTodoToggleComplete: (todoId: string) => void;
   /** Tray, "move to today" — a date change that keeps the row's time (#1406). */
   handleTodoAddCandidate: (todoId: string) => void;
@@ -269,6 +273,19 @@ export function useScheduleTodoChips({
     [updateNode],
   );
 
+  // #1627: a sidebar row dropped on the calendar. The id is a bare TodoNode id
+  // (the tray's), not a chip id, so there is nothing to unwrap. A row that is
+  // gone by the time it lands (deleted in another tab) writes nothing.
+  const handleTodoCalendarDrop = useCallback(
+    (drop: TodoCalendarDrop) => {
+      const todo = todoNodes.find((n) => n.id === drop.todoId);
+      if (!todo) return;
+      const { patch, options } = todoCalendarDropWrite(todo, drop);
+      updateNode(drop.todoId, patch, options);
+    },
+    [todoNodes, updateNode],
+  );
+
   // A-3 (#298) Today's Todo tray. Completion routes to the TodoTree status API
   // (the tray owns no completion state of its own); a plain binary toggle, not
   // the 3-state cycle (NOT_STARTED ↔ DONE).
@@ -375,6 +392,7 @@ export function useScheduleTodoChips({
     handleTodoChipMove,
     handleTodoChipResize,
     handleTodoChipDropAllDay,
+    handleTodoCalendarDrop,
     handleTodoToggleComplete,
     handleTodoAddCandidate,
     handleTodoMoveOut,

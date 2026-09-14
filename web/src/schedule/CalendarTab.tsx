@@ -386,6 +386,7 @@ export function CalendarTab({
     handleTodoChipMove,
     handleTodoChipResize,
     handleTodoChipDropAllDay,
+    handleTodoCalendarDrop,
     handleTodoToggleComplete,
     handleTodoAddCandidate,
     handleTodoMoveOut,
@@ -1192,6 +1193,7 @@ export function CalendarTab({
             onMoveItem: handleMoveItem,
             onResizeItem: handleResizeItem,
             onDropAllDay: handleDropAllDay,
+            onDropTodo: handleTodoCalendarDrop,
           }}
           format={{ fullDay: formatFullDay, dayDate: formatDayDate }}
         />

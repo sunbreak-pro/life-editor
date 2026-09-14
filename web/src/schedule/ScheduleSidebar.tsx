@@ -378,6 +378,11 @@ export function ScheduleSidebar({
         onDelete={todo.onDelete}
         singleList
         hoverActions
+        // #1627: the "その他" rows get today's checkbox and delete too, and on
+        // Desktop they drag onto the week / month grid beside them. Narrow has
+        // no grid next to the drawer, so the rows stay put there.
+        addableControls
+        draggableAddable={isWide}
         renderRowExtra={(row) => <TagPicker itemId={row.id} />}
         labels={{
           placedHeading: t("scheduleScreen.todoTodayHeading"),

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
 import { tagFaceStyle } from "../../utils/scheduleTagColor";
@@ -9,11 +9,17 @@ import {
   weekDayKeys,
   pxToMinutes,
   minutesToPx,
+  minutesToTime,
   snapMinutes,
   DEFAULT_SNAP_MINUTES,
   type HourRange,
 } from "../../utils/scheduleGridLayout";
 import { useWeekTimeGridDrag } from "./useWeekTimeGridDrag";
+import {
+  hasTodoDragData,
+  readTodoDragData,
+  type TodoCalendarDrop,
+} from "./todoCalendarDrag";
 import type { ScheduleItemVariant } from "./scheduleVariantVisuals";
 
 /*
@@ -166,6 +172,14 @@ export interface WeekTimeGridHandlers {
    * window instead of ever writing an inverted 00:00/00:00 span.
    */
   onDropAllDay?: (id: string, dateISO: string) => void;
+  /**
+   * A todo dragged in from OUTSIDE the grid (the Schedule sidebar's "その他"
+   * list — #1627, todoCalendarDrag.ts) was dropped. A day column hands over
+   * its day plus a snapped start and `defaultCreateDuration` of length; the
+   * all-day lane hands over the day with both times null. When omitted the
+   * grid takes no drops at all.
+   */
+  onDropTodo?: (drop: TodoCalendarDrop) => void;
 }
 
 /** Geometry and interaction knobs. Every member has a working default. */
@@ -280,6 +294,7 @@ export function WeekTimeGrid({
     onMoveItem,
     onResizeItem,
     onDropAllDay,
+    onDropTodo,
   } = handlers ?? {};
   const {
     todoInteractive = false,
@@ -402,6 +417,56 @@ export function WeekTimeGrid({
     onCreateAt(dateKey, Math.min(minutes, Math.max(startHour * 60, maxStart)));
   };
 
+  /*
+   * #1627: drops from outside the grid. Which cell the pointer is over comes
+   * from the element the drop lands on (each cell owns its day), never from a
+   * coordinate lookup; the one coordinate read is the same one an empty-slot
+   * click reads — the height inside a day column — to pick the start time.
+   *
+   * `dropKey` tints the cell under a live drag ("allday:<day>" / "time:<day>").
+   */
+  const [dropKey, setDropKey] = useState<string | null>(null);
+  const dropTargetProps = (key: string, dateKey: string, timed: boolean) =>
+    onDropTodo
+      ? {
+          onDragOver: (e: React.DragEvent<HTMLDivElement>) => {
+            if (!hasTodoDragData(e.dataTransfer)) return;
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "move";
+            if (dropKey !== key) setDropKey(key);
+          },
+          onDragLeave: (e: React.DragEvent<HTMLDivElement>) => {
+            if (!e.currentTarget.contains(e.relatedTarget as Node | null))
+              setDropKey((k) => (k === key ? null : k));
+          },
+          onDrop: (e: React.DragEvent<HTMLDivElement>) => {
+            const todoId = readTodoDragData(e.dataTransfer);
+            setDropKey(null);
+            if (!todoId) return;
+            e.preventDefault();
+            if (!timed) {
+              onDropTodo({ todoId, dateISO: dateKey, startTime: null, endTime: null });
+              return;
+            }
+            const rect = e.currentTarget.getBoundingClientRect();
+            const snapped = snapMinutes(
+              pxToMinutes(e.clientY - rect.top, hourHeight, hourRange),
+              snapMinutesStep,
+            );
+            // Same in-window clamp as handleSlotClick, so the block never
+            // runs past the bottom of the visible hours.
+            const maxStart = endHour * 60 - defaultCreateDuration;
+            const start = Math.min(snapped, Math.max(startHour * 60, maxStart));
+            onDropTodo({
+              todoId,
+              dateISO: dateKey,
+              startTime: minutesToTime(start),
+              endTime: minutesToTime(start + defaultCreateDuration),
+            });
+          },
+        }
+      : {};
+
   const columnsTemplate: CSSProperties = {
     gridTemplateColumns: `${GUTTER} repeat(${days}, minmax(0, 1fr))`,
   };
@@ -492,7 +557,12 @@ export function WeekTimeGrid({
               return (
                 <div
                   key={key}
-                  className="min-h-[1.75rem] space-y-1 border-r border-lumen-border p-1 last:border-r-0"
+                  data-week-grid-allday={key}
+                  {...dropTargetProps(`allday:${key}`, key, false)}
+                  className={cn(
+                    "min-h-[1.75rem] space-y-1 border-r border-lumen-border p-1 last:border-r-0",
+                    dropKey === `allday:${key}` && "bg-lumen-hover",
+                  )}
                 >
                   {allDay.map((it) => {
                     const selected = it.id === selectedId;
@@ -600,12 +670,15 @@ export function WeekTimeGrid({
             return (
               <div
                 key={key}
+                data-week-grid-day={key}
+                {...dropTargetProps(`time:${key}`, key, true)}
                 className={cn(
                   "relative border-r border-lumen-border last:border-r-0",
                   // Today tint only makes sense when there are sibling columns
                   // to contrast with; with days={1} it would wash the whole
                   // day view in accent-subtle (#281).
                   isToday && dayKeys.length > 1 && "bg-lumen-accent-subtle",
+                  dropKey === `time:${key}` && "bg-lumen-hover",
                 )}
                 style={{ height: bodyHeight }}
               >
