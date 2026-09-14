@@ -203,7 +203,6 @@
       "reminderDefaultHint": "これから作る予定に適用されます。予定ごとの設定はそのまま残ります。",
       "reminderDesktopHint": "デスクトップアプリでは OS 通知も出ます。ブラウザやスマホではアプリ内の通知だけになります。",
       "initialViewLabel": "最初に開くビュー",
-      "day": "日",
       "week": "週",
       "month": "月",
       "hint": "次に予定を開いたときから反映されます。幅の狭い画面では常に月グリッドを表示します。"
@@ -533,7 +532,6 @@
   },
   "scheduleScreen": {
     "calendar": "カレンダー",
-    "viewDay": "日",
     "viewWeek": "週",
     "viewMonth": "月",
     "today": "今日",

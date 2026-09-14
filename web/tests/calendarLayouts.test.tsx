@@ -89,7 +89,6 @@ const WEEK_START = "2026-08-16";
 const PERIOD_LABEL = "August 2026";
 const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const VIEW_OPTIONS = [
-  { id: "day", label: "Day" },
   { id: "week", label: "Week" },
   { id: "month", label: "Month" },
 ];
@@ -342,17 +341,6 @@ describe("CalendarDesktopLayout — the view decides which grid", () => {
     expect(screen.getAllByText(/^col:/)).toHaveLength(7);
     expect(screen.getByText(`col:${WEEK_START}`)).toBeTruthy();
     expect(calendarShowing()).toBe(false);
-  });
-
-  /*
-   * Day view is the ANCHOR's column, not the week's first — the two are
-   * different dates whenever the user has stepped within a week, and the
-   * layout picks between them with a conditional that reads as boilerplate.
-   */
-  it("narrows to the anchor day — not the week start — in day view", () => {
-    renderDesktop({ view: "day" });
-    expect(screen.getAllByText(/^col:/)).toHaveLength(1);
-    expect(screen.getByText(`col:${ANCHOR}`)).toBeTruthy();
   });
 
   /*

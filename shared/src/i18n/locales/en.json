@@ -203,7 +203,6 @@
       "reminderDefaultHint": "Applies to events you create from now on. Each event keeps its own setting.",
       "reminderDesktopHint": "The desktop app also raises an OS notification. In a browser or on a phone you get the in-app one only.",
       "initialViewLabel": "Opens on",
-      "day": "Day",
       "week": "Week",
       "month": "Month",
       "hint": "Applies the next time you open Schedule. Narrow windows always show the month grid."
@@ -536,7 +535,6 @@
   },
   "scheduleScreen": {
     "calendar": "Calendar",
-    "viewDay": "Day",
     "viewWeek": "Week",
     "viewMonth": "Month",
     "today": "Today",

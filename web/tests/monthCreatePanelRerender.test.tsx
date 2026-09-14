@@ -102,7 +102,6 @@ const ITEMS: MonthGridItem[] = Array.from(
  */
 const NOOP = () => {};
 const VIEW_OPTIONS = [
-  { id: "day", label: "Day" },
   { id: "week", label: "Week" },
   { id: "month", label: "Month" },
 ];

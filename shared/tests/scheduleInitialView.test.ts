@@ -38,9 +38,20 @@ describe("resolveInitialCalendarView", () => {
   it("maps the retired Mobile option strings onto Desktop views", () => {
     // #467 retired list/time; a browser that stored one still has to open.
     localStorage.setItem(SCHEDULE_INITIAL_VIEW_STORAGE_KEY, "list");
-    expect(resolveInitialCalendarView()).toBe("day");
+    expect(resolveInitialCalendarView()).toBe("week");
     localStorage.setItem(SCHEDULE_INITIAL_VIEW_STORAGE_KEY, "time");
     expect(resolveInitialCalendarView()).toBe("week");
+  });
+
+  it("opens a stored retired day view on the week (#1628)", () => {
+    // A browser whose pref was saved while the day view existed must still
+    // land on something the switcher can show.
+    localStorage.setItem(SCHEDULE_INITIAL_VIEW_STORAGE_KEY, "day");
+    expect(resolveInitialCalendarView()).toBe("week");
+  });
+
+  it("offers only the week and month views (#1628)", () => {
+    expect([...SCHEDULE_INITIAL_VIEWS]).toEqual(["week", "month"]);
   });
 
   it("falls back to the default for a value it does not recognise", () => {
