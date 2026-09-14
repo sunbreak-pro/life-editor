@@ -9,7 +9,9 @@ import { BRIEFING_TOOLS } from "./tools/briefing.js";
 import { SEARCH_TOOLS } from "./tools/search.js";
 import { CONTENT_TOOLS } from "./tools/content.js";
 import { WIKI_TAG_TOOLS } from "./tools/wikiTag.js";
+import { ITEM_LINK_TOOLS } from "./tools/itemLink.js";
 import { TRASH_TOOLS } from "./tools/trash.js";
+import { WORK_TOOLS } from "./tools/work.js";
 
 /*
  * The tool set that runs ANYWHERE — the everyday domains, with nothing that
@@ -43,7 +45,9 @@ export const REMOTE_TOOL_DEFINITIONS: ToolDefinition[] = [
   ...SEARCH_TOOLS,
   ...CONTENT_TOOLS,
   ...WIKI_TAG_TOOLS,
+  ...ITEM_LINK_TOOLS,
   ...TRASH_TOOLS,
+  ...WORK_TOOLS,
 ];
 
 /** The registry the Worker serves (ListTools + dispatch). */

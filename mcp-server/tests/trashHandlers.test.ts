@@ -1,5 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
-import { createSupabaseStub, type SupabaseStub } from "./supabaseStub.js";
+import {
+  createSupabaseStub,
+  fromTables,
+  type SupabaseStub,
+} from "./supabaseStub.js";
 
 let stub: SupabaseStub = createSupabaseStub();
 vi.mock("../src/supabase.js", () => ({
@@ -8,7 +12,8 @@ vi.mock("../src/supabase.js", () => ({
 
 // Dynamic on purpose: a static import would be hoisted above vi.mock and read
 // the real supabase module before the stub exists.
-const { restoreItem } = await import("../src/handlers/trashHandlers.js");
+const { restoreItem, listTrash } =
+  await import("../src/handlers/trashHandlers.js");
 
 /*
  * restore_item (#782 ①) — the way back out of the trash.
@@ -106,5 +111,109 @@ describe("restoreItem", () => {
       /restore_item supports todos, notes and schedule items; daily-2026-08-12 is a "daily"/,
     );
     expect(stub.writes()).toEqual([]);
+  });
+});
+
+/*
+ * list_trash — the read restore_item shipped without.
+ *
+ * What is worth pinning is the inversion: every other read in this package
+ * filters `is_deleted = false`, and this one is only useful if it filters the
+ * other way. A copied-from-next-door `false` would return a page of live
+ * items that restore_item then answers "alreadyLive" for, one at a time.
+ */
+
+const trashed = (over: Record<string, unknown> = {}) => ({
+  id: "task-1",
+  role: "task",
+  title: "write the thing",
+  is_deleted: true,
+  deleted_at: "2026-09-10T00:00:00.000Z",
+  ...over,
+});
+
+describe("listTrash", () => {
+  it("returns only trashed rows, newest first, and writes nothing", async () => {
+    stub = createSupabaseStub(
+      fromTables({
+        items_meta: [
+          trashed({ id: "task-1", deleted_at: "2026-09-10T00:00:00.000Z" }),
+          trashed({
+            id: "note-1",
+            role: "note",
+            title: "old note",
+            deleted_at: "2026-09-12T00:00:00.000Z",
+          }),
+          trashed({ id: "task-live", is_deleted: false, deleted_at: null }),
+        ],
+      }),
+    );
+
+    const result = await listTrash({});
+
+    expect(result.items.map((i) => i.id)).toEqual(["note-1", "task-1"]);
+    expect(result.hasMore).toBe(false);
+    expect(stub.writes()).toEqual([]);
+    expect(stub.calls[0].filters).toMatchObject({ is_deleted: true });
+  });
+
+  it("marks a daily as not restorable, because restore_item refuses it", async () => {
+    stub = createSupabaseStub(
+      fromTables({
+        items_meta: [
+          trashed({ id: "daily-2026-09-01", role: "daily", title: "Sep 1" }),
+          trashed({ id: "event-1", role: "event", title: "dentist" }),
+        ],
+      }),
+    );
+
+    const result = await listTrash({});
+
+    const byId = Object.fromEntries(
+      result.items.map((i) => [i.id, i.restorable]),
+    );
+    expect(byId).toEqual({ "daily-2026-09-01": false, "event-1": true });
+  });
+
+  it("filters by role when asked", async () => {
+    stub = createSupabaseStub(
+      fromTables({
+        items_meta: [
+          trashed({ id: "task-1" }),
+          trashed({ id: "note-1", role: "note" }),
+        ],
+      }),
+    );
+
+    const result = await listTrash({ role: "note" });
+
+    expect(result.items.map((i) => i.id)).toEqual(["note-1"]);
+  });
+
+  it("caps the page and says so rather than dropping the tail in silence", async () => {
+    stub = createSupabaseStub(
+      fromTables({
+        items_meta: [
+          trashed({ id: "a", deleted_at: "2026-09-03T00:00:00.000Z" }),
+          trashed({ id: "b", deleted_at: "2026-09-02T00:00:00.000Z" }),
+          trashed({ id: "c", deleted_at: "2026-09-01T00:00:00.000Z" }),
+        ],
+      }),
+    );
+
+    const result = await listTrash({ limit: 2 });
+
+    expect(result.items.map((i) => i.id)).toEqual(["a", "b"]);
+    expect(result.hasMore).toBe(true);
+    // limit + 1: the extra row is how `hasMore` is known without a count.
+    expect(stub.calls[0].limit).toBe(3);
+  });
+
+  it("clamps an absurd limit instead of refusing the call", async () => {
+    stub = createSupabaseStub(fromTables({ items_meta: [] }));
+
+    await listTrash({ limit: 10_000 });
+
+    expect(stub.calls[0].limit).toBe(201);
   });
 });

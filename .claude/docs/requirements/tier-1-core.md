@@ -434,7 +434,8 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
 ### Boundary
 
 - やる:
-  - Todos / Daily / Notes / Schedule / Wiki Tags / Content / Search の各ドメインツール（内訳・総数はコード `mcp-server/src/tools.ts` が正）
+  - Todos / Daily / Notes / Note context / Schedule / Wiki Tags / Item links / Content / Search / Trash / Work sessions の各ドメインツール（内訳・総数はコード `mcp-server/src/tools.ts` が正）
+  - 稼働時間（`timer_sessions`）は**読むだけ**: 開始・終了はその瞬間の行為なので、ツールから閉じられると「実際には使っていない時間」を書けてしまう
   - Supabase Postgres へ owner 資格（env のメール + パスワード）でサインインし、統合スキーマ（`items_meta` + `<role>_payload`）に RLS 越しでアクセス（web クライアントと同じ権限モデル）
   - stdio JSON-RPC 通信（Claude Code の `claude` コマンドが自動接続）
   - 引数スキーマの型安全性（各 handler で zod / JSON Schema 検証）
