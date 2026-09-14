@@ -126,6 +126,12 @@ export function useShellNavigation({
    * the drawer.
    */
   const [pendingTodoTray, setPendingTodoTray] = useState(false);
+  /*
+   * Profile intent (#1624). The sidebar's account row opens Settings on its
+   * Profile category, which is SettingsScreen's own state — so, like the tray
+   * above, the shell asks and the screen consumes.
+   */
+  const [pendingProfile, setPendingProfile] = useState(false);
 
   // Startup section (§216): remember the last-visited section so the "resume"
   // startup preference can restore it on the next launch. Writes on every
@@ -219,6 +225,17 @@ export function useShellNavigation({
   const consumeNewTodo = useCallback(() => setPendingNewTodo(false), []);
   const consumeTodoTray = useCallback(() => setPendingTodoTray(false), []);
 
+  // Account-row executor (#1624). Raised inside the guard like handleNewTodo:
+  // a refused navigation must not leave a flag that drags the next visit to
+  // Settings onto Profile.
+  const openProfile = useCallback(() => {
+    guarded(() => {
+      applyDestination({ section: "settings" });
+      setPendingProfile(true);
+    });
+  }, [guarded, applyDestination]);
+  const consumeProfile = useCallback(() => setPendingProfile(false), []);
+
   // "[[" wiki-link navigation (Issue #285). A resolved link click in the Notes
   // or Daily editor routes here; the shell owns the section + tab switch (the
   // target view lives behind a different domain Provider), then stashes a
@@ -280,6 +297,9 @@ export function useShellNavigation({
     setMaterialsTab,
     pendingTodoTray,
     consumeTodoTray,
+    pendingProfile,
+    openProfile,
+    consumeProfile,
     analyticsTab,
     setAnalyticsTab,
     briefingTab,

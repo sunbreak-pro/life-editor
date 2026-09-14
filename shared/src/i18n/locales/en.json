@@ -181,6 +181,7 @@
     "fontSizePx": "{{px}}px",
     "tabs": {
       "navLabel": "Settings categories",
+      "profile": "Profile",
       "general": "General",
       "claude": "Claude",
       "trash": "Trash",
@@ -207,6 +208,19 @@
       "week": "Week",
       "month": "Month",
       "hint": "Applies the next time you open Schedule. Narrow windows always show the month grid."
+    },
+    "profile": {
+      "heading": "Profile",
+      "description": "How you appear in the app. Only you can see it.",
+      "displayNameLabel": "Display name",
+      "displayNameHelper": "Shown at the bottom of the sidebar. Leave it empty to show your email address instead.",
+      "emailLabel": "Signed in as",
+      "submit": "Save",
+      "busy": "Saving…",
+      "done": "Saved.",
+      "errors": {
+        "generic": "Could not save the profile. Please wait a moment and try again."
+      }
     }
   },
   "timerSettings": {
@@ -932,7 +946,8 @@
     "moreTitle": "More",
     "quickActions": "Quick actions",
     "tagEditor": "Edit tags",
-    "launchClaude": "Start Claude Code"
+    "launchClaude": "Start Claude Code",
+    "profile": "Edit profile"
   },
   "itemRole": {
     "task": "Todo",

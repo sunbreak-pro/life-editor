@@ -58,6 +58,11 @@ export interface AppShellLabels {
    */
   launchClaude?: string;
   /**
+   * "Edit profile" (#1624) — names the sidebar's account row once it opens
+   * the profile. Wide layout only, like the rest of the sidebar footer.
+   */
+  profile?: string;
+  /**
    * Accessible label for the action group in the narrow "More" sheet (#472) —
    * narrow layout only.
    */
@@ -98,6 +103,13 @@ export interface AppShellProps {
    */
   onLaunchClaude?: () => void;
   userEmail: string;
+  /**
+   * What the sidebar's account row shows (#1624): the display name, or the
+   * address when none is set. Omit to show `userEmail`.
+   */
+  userName?: string;
+  /** Opens the profile editor from the account row (#1624). Wide only. */
+  onOpenProfile?: () => void;
   onSignOut: () => void;
   labels: AppShellLabels;
   /** Section body, rendered into the main content area. */
@@ -168,6 +180,8 @@ export function AppShell({
   onOpenTagEditor,
   onLaunchClaude,
   userEmail,
+  userName,
+  onOpenProfile,
   onSignOut,
   labels,
   children,
@@ -214,6 +228,8 @@ export function AppShell({
           onOpenTagEditor={onOpenTagEditor}
           onLaunchClaude={onLaunchClaude}
           userEmail={userEmail}
+          userName={userName}
+          onOpenProfile={onOpenProfile}
           onSignOut={onSignOut}
           labels={labels}
         />

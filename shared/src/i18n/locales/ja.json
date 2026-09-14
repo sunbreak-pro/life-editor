@@ -181,6 +181,7 @@
     "fontSizePx": "{{px}}px",
     "tabs": {
       "navLabel": "設定カテゴリ",
+      "profile": "プロフィール",
       "general": "一般",
       "claude": "Claude",
       "trash": "ゴミ箱",
@@ -207,6 +208,19 @@
       "week": "週",
       "month": "月",
       "hint": "次に予定を開いたときから反映されます。幅の狭い画面では常に月グリッドを表示します。"
+    },
+    "profile": {
+      "heading": "プロフィール",
+      "description": "アプリの中での表示です。見えるのは自分だけです。",
+      "displayNameLabel": "表示名",
+      "displayNameHelper": "サイドバーの下に表示します。空欄にするとメールアドレスを表示します。",
+      "emailLabel": "ログイン中のメールアドレス",
+      "submit": "保存",
+      "busy": "保存中…",
+      "done": "保存しました。",
+      "errors": {
+        "generic": "プロフィールを保存できませんでした。少し待ってからやり直してください。"
+      }
     }
   },
   "timerSettings": {
@@ -927,7 +941,8 @@
     "moreTitle": "その他",
     "quickActions": "クイック操作",
     "tagEditor": "タグを編集",
-    "launchClaude": "Claude Code を起動"
+    "launchClaude": "Claude Code を起動",
+    "profile": "プロフィールを編集"
   },
   "itemRole": {
     "task": "Todo",

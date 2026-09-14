@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Lightbulb, SlidersHorizontal, Terminal, Trash2 } from "lucide-react";
+import {
+  Lightbulb,
+  SlidersHorizontal,
+  Terminal,
+  Trash2,
+  UserRound,
+} from "lucide-react";
 import {
   SettingsAccount,
+  SettingsProfile,
+  readDisplayName,
   SettingsAiIntegration,
   SettingsAppearance,
   SettingsLegal,
@@ -57,6 +65,7 @@ import {
   WIDE_QUERY,
 } from "@life-editor/shared";
 import { usePasswordUpdate } from "../hooks/usePasswordUpdate";
+import { useProfileUpdate } from "../hooks/useProfileUpdate";
 import { useClaudeLauncher } from "../hooks/useClaudeLauncher";
 import { TrashScreen } from "../trash/TrashScreen";
 import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
@@ -106,7 +115,14 @@ const SECTION_TAB_IDS = [
 ] as const;
 
 type SettingsTabId =
-  "general" | "trash" | "claude" | (typeof SECTION_TAB_IDS)[number];
+  "profile" | "general" | "trash" | "claude" | (typeof SECTION_TAB_IDS)[number];
+
+/**
+ * The account's own row (#1624) — the display name the sidebar shows. First in
+ * the list: it is about who is using the app, before anything about how the
+ * app behaves, and it is where the sidebar's account row lands.
+ */
+const PROFILE_TAB_ID = "profile";
 
 /** The one row that opens a dialog instead of swapping the body. */
 const TIPS_ROW_ID = "tips";
@@ -123,7 +139,20 @@ const TRASH_TAB_ID = "trash";
  */
 const CLAUDE_TAB_ID = "claude";
 
-export function SettingsScreen() {
+export interface SettingsScreenProps {
+  /**
+   * The shell asked for the Profile category (#1624 — the sidebar's account
+   * row). The category is this screen's state, so the shell raises an intent
+   * and this screen consumes it, the same idiom as the todo intents (#1153).
+   */
+  pendingProfile?: boolean;
+  onConsumeProfile?: () => void;
+}
+
+export function SettingsScreen({
+  pendingProfile = false,
+  onConsumeProfile,
+}: SettingsScreenProps = {}) {
   const { t } = useTranslation();
   const {
     theme,
@@ -169,6 +198,22 @@ export function SettingsScreen() {
   const shortcuts = useShortcutConfig();
 
   const [tab, setTab] = useState<SettingsTabId>("general");
+  /*
+   * The shell's Profile ask (#1624), honoured on arrival AND while already
+   * here: the account row can be pressed with Settings open on another
+   * category, where nothing remounts.
+   *
+   * The tab switch happens during render (React's "adjust state when a prop
+   * changes" pattern), not in the effect: a setState in an effect body paints
+   * the old category for a frame first, and the lint rule forbids it. Only the
+   * consume — the shell's state, not ours — waits for the commit, and that
+   * clears the ask before the user can press anything, so the guard below
+   * cannot pin them to Profile.
+   */
+  if (pendingProfile && tab !== PROFILE_TAB_ID) setTab(PROFILE_TAB_ID);
+  useEffect(() => {
+    if (pendingProfile) onConsumeProfile?.();
+  }, [pendingProfile, onConsumeProfile]);
   const [tipsOpen, setTipsOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
@@ -278,6 +323,11 @@ export function SettingsScreen() {
     });
     return [
       {
+        id: PROFILE_TAB_ID,
+        label: t("settings.tabs.profile"),
+        icon: <UserRound size={16} />,
+      },
+      {
         id: "general",
         label: t("settings.tabs.general"),
         icon: <SlidersHorizontal size={16} />,
@@ -371,11 +421,27 @@ export function SettingsScreen() {
    * for a single string.
    */
   const [accountEmail, setAccountEmail] = useState("");
+  /*
+   * Profile card (#1624). Seeded from the same one-shot session read as the
+   * address; `loadProfile` ignores the seed once the user has typed, so a slow
+   * read cannot overwrite them.
+   */
+  const profileMessages = useMemo(
+    () => ({
+      generic: t("settings.profile.errors.generic"),
+      done: t("settings.profile.done"),
+    }),
+    [t],
+  );
+  const profileForm = useProfileUpdate(profileMessages);
+  const { load: loadProfile } = profileForm;
   useEffect(() => {
     let active = true;
     void getSession()
       .then((s) => {
-        if (active) setAccountEmail(s?.user.email ?? "");
+        if (!active) return;
+        setAccountEmail(s?.user.email ?? "");
+        loadProfile(readDisplayName(s?.user));
       })
       // The address is decoration on a form that works without it, so a client
       // that cannot even be constructed (no credentials — the shape tests run
@@ -384,7 +450,7 @@ export function SettingsScreen() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [loadProfile]);
 
   /*
    * Last AI activity for the integration card (#1210).
@@ -553,6 +619,29 @@ export function SettingsScreen() {
 
   return (
     <div className="flex flex-col gap-6 pb-12">
+      {tab === PROFILE_TAB_ID && (
+        <div className={cardClass}>
+          <SettingsProfile
+            displayName={profileForm.displayName}
+            onDisplayNameChange={profileForm.setDisplayName}
+            email={accountEmail}
+            error={profileForm.error}
+            notice={profileForm.notice}
+            busy={profileForm.busy}
+            onSubmit={profileForm.submit}
+            labels={{
+              heading: t("settings.profile.heading"),
+              description: t("settings.profile.description"),
+              displayNameLabel: t("settings.profile.displayNameLabel"),
+              displayNameHelper: t("settings.profile.displayNameHelper"),
+              emailLabel: t("settings.profile.emailLabel"),
+              submit: t("settings.profile.submit"),
+              busy: t("settings.profile.busy"),
+            }}
+          />
+        </div>
+      )}
+
       {tab === "general" && (
         <>
           <div className={cardClass}>
@@ -874,7 +963,8 @@ export function SettingsScreen() {
         </>
       )}
 
-      {tab !== "general" &&
+      {tab !== PROFILE_TAB_ID &&
+        tab !== "general" &&
         tab !== "schedule" &&
         tab !== TRASH_TAB_ID &&
         tab !== CLAUDE_TAB_ID &&

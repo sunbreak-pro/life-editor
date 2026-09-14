@@ -91,6 +91,38 @@ describe("SidebarNav Claude launcher row (#1211)", () => {
   });
 });
 
+describe("SidebarNav account row (#1624)", () => {
+  const WITH_PROFILE = { ...LABELS, profile: "Edit profile" };
+
+  it("shows the display name instead of the address when one is set", () => {
+    renderSidebar({ userName: "Kodai" });
+    expect(screen.getByText("Kodai")).toBeInTheDocument();
+    expect(screen.queryByText("user@example.com")).not.toBeInTheDocument();
+  });
+
+  it("falls back to the address when the name is empty", () => {
+    renderSidebar({ userName: "" });
+    expect(screen.getByText("user@example.com")).toBeInTheDocument();
+  });
+
+  it("opens the profile on click when both halves are passed", () => {
+    const onOpenProfile = vi.fn();
+    renderSidebar({ userName: "Kodai", onOpenProfile, labels: WITH_PROFILE });
+    const row = screen.getByRole("button", { name: /Kodai.*Edit profile/ });
+    // The address is what the name replaced, so it stays reachable on hover.
+    expect(row).toHaveAttribute("title", "user@example.com");
+    fireEvent.click(row);
+    expect(onOpenProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays plain text without a handler", () => {
+    renderSidebar({ userName: "Kodai", labels: WITH_PROFILE });
+    expect(
+      screen.queryByRole("button", { name: /Edit profile/ }),
+    ).not.toBeInTheDocument();
+  });
+});
+
 describe("SidebarNav utility group", () => {
   it("renders a divider separating the mainline from the utility group", () => {
     renderSidebar();
