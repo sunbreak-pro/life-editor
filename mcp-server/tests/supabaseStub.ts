@@ -245,6 +245,13 @@ function applyBound(rows: StubRow[], key: string, value: unknown): StubRow[] {
       return rows.filter((r) => compare(r[column], value) >= 0);
     case "lte":
       return rows.filter((r) => compare(r[column], value) <= 0);
+    // A half-open instant window (`>= start`, `< end`) is how a local day is
+    // read out of a timestamptz column, so `lt` is as load-bearing as `gte`
+    // for the work-session reads.
+    case "gt":
+      return rows.filter((r) => compare(r[column], value) > 0);
+    case "lt":
+      return rows.filter((r) => compare(r[column], value) < 0);
     case "ilike": {
       const re = likeToRegExp(value as string);
       return rows.filter(
@@ -252,9 +259,9 @@ function applyBound(rows: StubRow[], key: string, value: unknown): StubRow[] {
       );
     }
     default:
-      // gt / lt / is / not.is are RECORDED by the builder but not executed
-      // here. Ignoring them would hand a filtered read every row and quietly
-      // change what the test proves, so refuse instead.
+      // is / not.is are RECORDED by the builder but not executed here.
+      // Ignoring them would hand a filtered read every row and quietly change
+      // what the test proves, so refuse instead.
       throw new Error(`fromTables: unimplemented filter "${key}"`);
   }
 }

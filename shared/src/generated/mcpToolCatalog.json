@@ -937,6 +937,72 @@
     }
   },
   {
+    "name": "link_items",
+    "description": "Link one item to another (the same edge a '[[…]]' in a body makes). Works between any two items — todo, note, schedule item, daily — because ids are unique across kinds. The link is DIRECTIONAL: from_id gains an outgoing link, to_id gains a backlink. Read them back with get_note_context. Linking an already-linked pair is a no-op, not an error.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "from_id": {
+          "type": "string",
+          "description": "ID of the item the link points FROM"
+        },
+        "to_id": {
+          "type": "string",
+          "description": "ID of the item the link points TO"
+        }
+      },
+      "required": [
+        "from_id",
+        "to_id"
+      ]
+    }
+  },
+  {
+    "name": "unlink_items",
+    "description": "Remove the link from one item to another — the inverse of link_items. Direction matters: this removes from_id → to_id and leaves any link pointing the other way alone. Removing a link that is not there is a no-op, not an error.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "from_id": {
+          "type": "string",
+          "description": "ID of the item the link points FROM"
+        },
+        "to_id": {
+          "type": "string",
+          "description": "ID of the item the link points TO"
+        }
+      },
+      "required": [
+        "from_id",
+        "to_id"
+      ]
+    }
+  },
+  {
+    "name": "list_trash",
+    "description": "List what is in the trash, newest first. Every other list / search / get tool hides deleted items, so this is the only way to see what restore_item can be pointed at. Returns { items, hasMore }: each entry carries id, role, title, deletedAt and `restorable` (false for a daily or a routine, which restore_item refuses).",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "role": {
+          "type": "string",
+          "enum": [
+            "task",
+            "event",
+            "routine",
+            "note",
+            "daily"
+          ],
+          "description": "Only this kind of item. 'task' is a todo, 'event' a schedule item. Omit for everything."
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max items to return (default: 50, capped at 200). `hasMore` says whether the cap cut anything off."
+        }
+      }
+    }
+  },
+  {
     "name": "restore_item",
     "description": "Restore an item from the trash — the inverse of delete_todo / delete_note / delete_schedule_item. Restorable roles: todo, note, event (schedule item); a daily comes back through upsert_daily instead. Restoring an item that is not in the trash is a no-op, not an error. Restores the one item only — a todo whose parent is still trashed stays out of get_todo_tree (it does appear in list_todos).",
     "inputSchema": {
@@ -950,6 +1016,41 @@
       "required": [
         "id"
       ]
+    }
+  },
+  {
+    "name": "list_work_sessions",
+    "description": "What the Work timer recorded — the time actually spent, as opposed to what was planned. Defaults to today; pass date for one day or start_date/end_date for a range (local days, inclusive). Returns { range, sessions, totals, hasMore }: `totals` covers the WHOLE range (minutesByType, and byItem ranked by minutes) while `sessions` is capped by limit. A session still running has durationMinutes null and is counted in totals.openSessions rather than as zero.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "A single local day, YYYY-MM-DD. Shorthand for start_date = end_date; wins over both."
+        },
+        "start_date": {
+          "type": "string",
+          "description": "First local day of the range, YYYY-MM-DD (inclusive)."
+        },
+        "end_date": {
+          "type": "string",
+          "description": "Last local day of the range, YYYY-MM-DD (inclusive)."
+        },
+        "session_type": {
+          "type": "string",
+          "enum": [
+            "WORK",
+            "BREAK",
+            "LONG_BREAK",
+            "FREE"
+          ],
+          "description": "Only this kind of session. 'FREE' is the open-ended timer, the rest are pomodoro phases. Omit for all."
+        },
+        "limit": {
+          "type": "number",
+          "description": "Max session rows to return (default: 50, capped at 200). Does not affect totals."
+        }
+      }
     }
   },
   {
