@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Pencil } from "lucide-react";
+import { cn } from "../cn";
 import type { ItemAction } from "./types";
 import { ItemActionRow } from "./ItemActionRow";
 import { clampToViewport, useFloatingDismiss } from "./floating";
@@ -66,6 +67,15 @@ export interface ItemActionPopoverProps {
   label?: string;
   /** Popover width in px (default 248). */
   width?: number;
+  /**
+   * How the three blocks are arranged (#1625). "stack" (default) puts summary,
+   * actions and the edit-detail button in one column — what the tour and every
+   * other caller keep. "columns" puts the summary and the edit-detail button
+   * on the left and the actions on the right, so a wide panel spends its width
+   * instead of its height. A prop rather than a className override because
+   * `cn` is a plain join, not tailwind-merge (rules/frontend.md §Gotchas).
+   */
+  layout?: "stack" | "columns";
 }
 
 export function ItemActionPopover({
@@ -77,6 +87,7 @@ export function ItemActionPopover({
   onClose,
   label,
   width = DEFAULT_WIDTH,
+  layout = "stack",
 }: ItemActionPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -136,6 +147,72 @@ export function ItemActionPopover({
     onClose();
   };
 
+  const columns = layout === "columns";
+
+  const summaryBlock = (
+    <div className="px-3 py-2 text-xs text-lumen-text">{summary}</div>
+  );
+
+  // In columns the blocks sit side by side, so the rule that separates them
+  // is the column's left border rather than each block's top border.
+  const blockRule = columns ? "" : "border-t border-lumen-border";
+
+  const inlineBlock = inlineAction?.inlineInput ? (
+    <div className={cn(blockRule, "px-2 py-2")}>
+      <input
+        ref={inputRef}
+        value={draft}
+        placeholder={inlineAction.inlineInput.placeholder}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (isImeComposing(e)) return;
+          if (e.key === "Enter") {
+            e.preventDefault();
+            // Stop the document-level Escape/close listener from also
+            // reacting to this same native event.
+            e.stopPropagation();
+            commitInline();
+          } else if (e.key === "Escape") {
+            e.preventDefault();
+            e.stopPropagation();
+            onClose();
+          }
+        }}
+        aria-label={inlineAction.inlineInput.ariaLabel}
+        // bg-secondary, not bg: same-color + thin border reads as no
+        // input at all (#552's conclusion on this exact pairing).
+        className="w-full rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2 py-1 text-xs text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+      />
+    </div>
+  ) : null;
+
+  const actionsBlock =
+    actions && actions.length > 0 ? (
+      <div className={cn(blockRule, "py-1")}>
+        {actions.map((action) => (
+          <ItemActionRow key={action.id} action={action} onActivate={activate} />
+        ))}
+      </div>
+    ) : null;
+
+  // Hidden while the inline input is up, so Enter has exactly one meaning.
+  const editDetailBlock =
+    onEditDetail && !inlineBlock ? (
+      <div className={cn(columns ? "mt-auto" : blockRule, "p-2")}>
+        <button
+          type="button"
+          onClick={() => {
+            onEditDetail();
+            onClose();
+          }}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3 py-1.5 text-xs font-medium text-lumen-on-accent transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        >
+          <Pencil aria-hidden className="size-3.5 shrink-0" />
+          {editDetailLabel}
+        </button>
+      </div>
+    ) : null;
+
   return createPortal(
     <div
       ref={panelRef}
@@ -153,63 +230,34 @@ export function ItemActionPopover({
         overflowY: maxHeight != null ? "auto" : undefined,
       }}
     >
-      <div className="px-3 py-2 text-xs text-lumen-text">{summary}</div>
-
-      {inlineAction?.inlineInput ? (
-        <div className="border-t border-lumen-border px-2 py-2">
-          <input
-            ref={inputRef}
-            value={draft}
-            placeholder={inlineAction.inlineInput.placeholder}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (isImeComposing(e)) return;
-              if (e.key === "Enter") {
-                e.preventDefault();
-                // Stop the document-level Escape/close listener from also
-                // reacting to this same native event.
-                e.stopPropagation();
-                commitInline();
-              } else if (e.key === "Escape") {
-                e.preventDefault();
-                e.stopPropagation();
-                onClose();
-              }
-            }}
-            aria-label={inlineAction.inlineInput.ariaLabel}
-            // bg-secondary, not bg: same-color + thin border reads as no
-            // input at all (#552's conclusion on this exact pairing).
-            className="w-full rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2 py-1 text-xs text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-          />
+      {columns ? (
+        // #1625: what the item IS on the left (summary, then the hand-off to
+        // its detail pinned to the bottom), what you can DO on the right. The
+        // panel's height becomes the taller column instead of the sum of all
+        // three blocks.
+        <div className="flex">
+          <div
+            data-item-panel-column="summary"
+            className="flex w-1/2 min-w-0 flex-col"
+          >
+            {summaryBlock}
+            {editDetailBlock}
+          </div>
+          <div
+            data-item-panel-column="actions"
+            className="w-1/2 min-w-0 border-l border-lumen-border"
+          >
+            {inlineBlock ?? actionsBlock}
+          </div>
         </div>
       ) : (
         <>
-          {actions && actions.length > 0 && (
-            <div className="border-t border-lumen-border py-1">
-              {actions.map((action) => (
-                <ItemActionRow
-                  key={action.id}
-                  action={action}
-                  onActivate={activate}
-                />
-              ))}
-            </div>
-          )}
-
-          {onEditDetail && (
-            <div className="border-t border-lumen-border p-2">
-              <button
-                type="button"
-                onClick={() => {
-                  onEditDetail();
-                  onClose();
-                }}
-                className="flex w-full items-center justify-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3 py-1.5 text-xs font-medium text-lumen-on-accent transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-              >
-                <Pencil aria-hidden className="size-3.5 shrink-0" />
-                {editDetailLabel}
-              </button>
-            </div>
+          {summaryBlock}
+          {inlineBlock ?? (
+            <>
+              {actionsBlock}
+              {editDetailBlock}
+            </>
           )}
         </>
       )}
@@ -217,3 +265,4 @@ export function ItemActionPopover({
     document.body,
   );
 }
+

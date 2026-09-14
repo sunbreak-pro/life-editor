@@ -48,6 +48,15 @@ export function itemTapRoute(
   return !isWide && isTodoChip(id) ? "todoSheet" : "select";
 }
 
+/**
+ * Width of Schedule's click bubble, for the event AND the todo chip (#1625).
+ * More than twice the popover's 248px default: the panel is two columns now
+ * (what the item is / what you can do with it), so it spends width instead of
+ * stacking three blocks into a tall strip. Viewport clamping still keeps it on
+ * screen at a right or bottom edge (floating.ts).
+ */
+export const SCHEDULE_ITEM_PANEL_WIDTH = 520;
+
 /** Already-translated copy for the todo-chip bubble (§6.4). */
 export interface TodoChipPanelCopy {
   untitled: string;

@@ -14,6 +14,7 @@ import type { ItemAction } from "../src/components";
 function renderPopover(overrides?: {
   onRename?: (v: string) => void;
   onEditDetail?: () => void;
+  layout?: "stack" | "columns";
 }) {
   const onRename = overrides?.onRename ?? vi.fn();
   const onDuplicate = vi.fn();
@@ -38,6 +39,7 @@ function renderPopover(overrides?: {
       editDetailLabel="Edit detail"
       label="Item actions"
       onClose={onClose}
+      layout={overrides?.layout}
     />,
   );
   return { onRename, onDuplicate, onDelete, onEditDetail, onClose };
@@ -132,5 +134,56 @@ describe("ItemActionPopover unified panel (#551)", () => {
     const { onClose } = renderPopover();
     fireEvent.mouseDown(document.body);
     expect(onClose).toHaveBeenCalledTimes(1);
+  });
+});
+
+/*
+ * #1625 — the two-column arrangement Schedule opts into. The stacked default
+ * above is what the tour and every other caller keep, so these cases pin the
+ * split itself: the item on the left with its detail hand-off, the actions on
+ * the right, and the rename swap staying inside the actions column.
+ */
+describe("ItemActionPopover columns layout (#1625)", () => {
+  function column(name: "summary" | "actions"): HTMLElement {
+    const el = screen
+      .getByRole("dialog", { name: "Item actions" })
+      .querySelector(`[data-item-panel-column="${name}"]`);
+    expect(el).not.toBeNull();
+    return el as HTMLElement;
+  }
+
+  it("puts the summary and edit-detail left and the actions right", () => {
+    renderPopover({ layout: "columns" });
+    const summary = column("summary");
+    const actions = column("actions");
+    expect(summary).toHaveTextContent("Gym · 09:00–10:00");
+    expect(
+      summary.querySelector("button")?.textContent,
+    ).toContain("Edit detail");
+    for (const name of ["Rename", "Duplicate", "Delete"]) {
+      expect(actions).toContainElement(
+        screen.getByRole("menuitem", { name }),
+      );
+    }
+  });
+
+  it("keeps the rename input in the actions column and hides edit-detail", () => {
+    renderPopover({ layout: "columns" });
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+    expect(column("actions")).toContainElement(
+      screen.getByRole("textbox", { name: "Rename" }),
+    );
+    expect(screen.queryByRole("button", { name: "Edit detail" })).toBeNull();
+    // The summary still says which item is being renamed.
+    expect(column("summary")).toHaveTextContent("Gym · 09:00–10:00");
+  });
+
+  it("draws no columns for the stacked default", () => {
+    renderPopover();
+    expect(
+      screen
+        .getByRole("dialog", { name: "Item actions" })
+        .querySelector("[data-item-panel-column]"),
+    ).toBeNull();
   });
 });

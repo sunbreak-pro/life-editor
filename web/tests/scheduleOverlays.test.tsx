@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import type { ScheduleItem, TodoCalendarChip } from "@life-editor/shared";
 import { ScheduleOverlays } from "../src/schedule/ScheduleOverlays";
+import { SCHEDULE_ITEM_PANEL_WIDTH } from "../src/schedule/todoChipPanel";
 import type { ScheduleOverlaysProps } from "../src/schedule/ScheduleOverlays";
 
 /*
@@ -308,6 +309,38 @@ describe("ScheduleOverlays — the single-click bubble", () => {
    * disagree for a frame. Drawing the bubble against a stale item would put one
    * row's title above another row's actions.
    */
+  /*
+   * #1625: both variants open as the two-column panel, at least twice the
+   * popover's 248px default. Checked on each variant because they are two
+   * separate <ItemActionPopover> call sites that could drift apart.
+   */
+  it("opens both variants two columns and at least twice as wide (#1625)", () => {
+    expect(SCHEDULE_ITEM_PANEL_WIDTH).toBeGreaterThanOrEqual(248 * 2);
+
+    const first = renderOverlays({
+      popover: { state: POPOVER, selected: ITEM },
+    });
+    const eventPanel = screen.getByRole("dialog", {
+      name: "scheduleScreen.itemActionsLabel",
+    });
+    expect(eventPanel.style.width).toBe(`${SCHEDULE_ITEM_PANEL_WIDTH}px`);
+    expect(
+      eventPanel.querySelector('[data-item-panel-column="actions"]'),
+    ).not.toBeNull();
+    first.unmount();
+
+    renderOverlays({
+      popover: { state: { ...POPOVER, id: CHIP.id }, todoChip: CHIP },
+    });
+    const todoPanel = screen.getByRole("dialog", {
+      name: "scheduleScreen.itemActionsLabel",
+    });
+    expect(todoPanel.style.width).toBe(`${SCHEDULE_ITEM_PANEL_WIDTH}px`);
+    expect(
+      todoPanel.querySelector('[data-item-panel-column="summary"]'),
+    ).not.toBeNull();
+  });
+
   it("draws nothing while the selection and the anchor disagree", () => {
     renderOverlays({
       popover: { state: { ...POPOVER, id: "event-other" }, selected: ITEM },
