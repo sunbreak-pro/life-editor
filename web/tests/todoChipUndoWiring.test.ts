@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import type { TodoNode } from "@life-editor/shared";
 import {
   timedPlacement,
+  todoCalendarDropWrite,
   todoChipMoveWrite,
   todoChipResizeWrite,
   todoChipAllDayWrite,
@@ -135,6 +136,31 @@ describe("todoChipAllDayWrite", () => {
     // scheduledEndAt is deliberately absent: the old end survives so the next
     // place rewrites both ends from a sane pair.
     expect("scheduledEndAt" in write.patch).toBe(false);
+  });
+});
+
+describe("todoCalendarDropWrite (#1627)", () => {
+  it("places a row dropped on a time slot like a grid drag", () => {
+    const write = todoCalendarDropWrite(undefined, {
+      todoId: "task-x",
+      dateISO: "2026-03-12",
+      startTime: "14:00",
+      endTime: "15:00",
+    });
+    expect(write).toEqual(
+      todoChipMoveWrite(undefined, "2026-03-12", "14:00", "15:00"),
+    );
+    expect(write.patch.isAllDay).toBe(false);
+  });
+
+  it("gives a row dropped on a day (lane / month cell) that day and no time", () => {
+    const write = todoCalendarDropWrite(PLACED, {
+      todoId: PLACED.id,
+      dateISO: "2026-03-20",
+      startTime: null,
+      endTime: null,
+    });
+    expect(write).toEqual(todoChipAllDayWrite("2026-03-20"));
   });
 });
 

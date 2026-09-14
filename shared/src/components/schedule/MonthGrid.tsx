@@ -1,8 +1,13 @@
-import { memo, useMemo } from "react";
+import { memo, useMemo, useState } from "react";
 import { CheckSquare, Plus } from "lucide-react";
 import { cn } from "../cn";
 import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import { type ScheduleItemVariant } from "./scheduleVariantVisuals";
+import {
+  hasTodoDragData,
+  readTodoDragData,
+  type TodoCalendarDrop,
+} from "./todoCalendarDrag";
 import {
   WEEK_STARTS_ON,
   monthGridKeys,
@@ -117,6 +122,12 @@ export interface MonthGridProps {
    */
   onItemContextMenu?: (id: string, pos: { x: number; y: number }) => void;
   /**
+   * A todo dragged in from outside the grid (the Schedule sidebar's "その他"
+   * list — #1627) was dropped on a cell: the host gives it that day with no
+   * time (`startTime` / `endTime` null). When omitted no cell takes a drop.
+   */
+  onDropTodo?: (drop: TodoCalendarDrop) => void;
+  /**
    * Already-translated "他 N 件" formatter (§6.4). Both densities call it —
    * the count differs (chips cut at 2, dots at 3) but the phrase must not.
    */
@@ -189,6 +200,7 @@ function MonthGridImpl({
   onItemActivate,
   onItemDoubleClick,
   onItemContextMenu,
+  onDropTodo,
   formatMoreCount,
   formatDayLabel = (k) => k,
   formatCreateLabel = (k) => k,
@@ -220,6 +232,9 @@ function MonthGridImpl({
     { length: 7 },
     (_, i) => weekdayLabels[i] ?? "",
   );
+
+  // #1627: the cell under a live todo drag, tinted until it leaves or drops.
+  const [dropDay, setDropDay] = useState<string | null>(null);
 
   const maxChips = 2;
   /*
@@ -288,6 +303,44 @@ function MonthGridImpl({
               // says aria-selected="false" tells a screen reader there is a
               // selection to make, and the overview (#692) has none.
               aria-selected={selectedKey ? isSelected : undefined}
+              data-month-cell={dateKey}
+              // #1627: the cell owns its day, so a drop needs no coordinates.
+              onDragOver={
+                onDropTodo
+                  ? (e) => {
+                      if (!hasTodoDragData(e.dataTransfer)) return;
+                      e.preventDefault();
+                      e.dataTransfer.dropEffect = "move";
+                      if (dropDay !== dateKey) setDropDay(dateKey);
+                    }
+                  : undefined
+              }
+              onDragLeave={
+                onDropTodo
+                  ? (e) => {
+                      if (
+                        !e.currentTarget.contains(e.relatedTarget as Node | null)
+                      )
+                        setDropDay((k) => (k === dateKey ? null : k));
+                    }
+                  : undefined
+              }
+              onDrop={
+                onDropTodo
+                  ? (e) => {
+                      const todoId = readTodoDragData(e.dataTransfer);
+                      setDropDay(null);
+                      if (!todoId) return;
+                      e.preventDefault();
+                      onDropTodo({
+                        todoId,
+                        dateISO: dateKey,
+                        startTime: null,
+                        endTime: null,
+                      });
+                    }
+                  : undefined
+              }
               className={cn(
                 // `group/cell` is the #1584 + button's hover reveal — the
                 // button hides until this cell is pointed at.
@@ -311,6 +364,7 @@ function MonthGridImpl({
                 compact ? "h-[5.5rem] overflow-hidden" : "min-h-14",
                 isSelected &&
                   "bg-lumen-bg-secondary ring-2 ring-inset ring-lumen-accent",
+                dropDay === dateKey && "bg-lumen-hover",
               )}
             >
               {/* Full-cell day-select target (keyboard reachable). Chips sit

@@ -281,6 +281,64 @@ describe("the chip gestures", () => {
     expect(updateNode).not.toHaveBeenCalled();
   });
 
+  /*
+   * #1627: a "その他" row dropped on the calendar. The id is the tray's bare
+   * TodoNode id — not a chip id — and the write is the grid's own placement.
+   */
+  it("places a sidebar row dropped on a week slot at that day and time", () => {
+    const { hook, updateNode } = renderChips([todo("loose-todo")]);
+    act(() =>
+      hook.result.current.handleTodoCalendarDrop({
+        todoId: "loose-todo",
+        dateISO: "2026-08-14",
+        startTime: "14:00",
+        endTime: "15:00",
+      }),
+    );
+    expect(updateNode).toHaveBeenCalledWith(
+      "loose-todo",
+      {
+        scheduledAt: localDateTimeToISO("2026-08-14", "14:00"),
+        scheduledEndAt: localDateTimeToISO("2026-08-14", "15:00"),
+        isAllDay: false,
+      },
+      { undoLabel: "todoChipMove" },
+    );
+  });
+
+  it("gives a sidebar row dropped on a month cell only its day", () => {
+    const { hook, updateNode } = renderChips([todo("loose-todo")]);
+    act(() =>
+      hook.result.current.handleTodoCalendarDrop({
+        todoId: "loose-todo",
+        dateISO: "2026-08-20",
+        startTime: null,
+        endTime: null,
+      }),
+    );
+    expect(updateNode).toHaveBeenCalledWith(
+      "loose-todo",
+      {
+        scheduledAt: localDateTimeToISO("2026-08-20", "00:00"),
+        isAllDay: true,
+      },
+      { undoLabel: "todoChipAllDay" },
+    );
+  });
+
+  it("writes nothing for a dropped row that no longer exists", () => {
+    const { hook, updateNode } = renderChips([todo("loose-todo")]);
+    act(() =>
+      hook.result.current.handleTodoCalendarDrop({
+        todoId: "gone",
+        dateISO: "2026-08-20",
+        startTime: null,
+        endTime: null,
+      }),
+    );
+    expect(updateNode).not.toHaveBeenCalled();
+  });
+
   it("stages a chip dropped back on the all-day lane", () => {
     const { hook, updateNode } = renderChips([timed("timed-todo", TODAY)]);
     act(() =>

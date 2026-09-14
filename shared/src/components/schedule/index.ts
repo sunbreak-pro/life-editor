@@ -8,6 +8,14 @@
 // shared verbatim, plus the provenance union all three item types name.
 export type { ScheduleItemVariant } from "./scheduleVariantVisuals";
 export { WeekTimeGrid } from "./WeekTimeGrid";
+// #1627: the sidebar → calendar todo drag payload.
+export {
+  TODO_DRAG_MIME,
+  setTodoDragData,
+  hasTodoDragData,
+  readTodoDragData,
+  type TodoCalendarDrop,
+} from "./todoCalendarDrag";
 export type {
   WeekTimeGridProps,
   WeekTimeGridItem,
