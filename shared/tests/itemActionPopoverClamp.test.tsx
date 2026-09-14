@@ -115,6 +115,31 @@ describe("ItemActionPopover viewport clamping (#826)", () => {
   });
 });
 
+describe("ItemActionPopover at Schedule's two-column width (#1625)", () => {
+  it("keeps a 520px panel inside the right and bottom edges", () => {
+    window.innerWidth = 1280;
+    window.innerHeight = 800;
+    stubPanelHeight(160);
+    render(
+      <ItemActionPopover
+        position={{ x: 1270, y: 790 }}
+        summary={<p>Gym · 19:00–23:00</p>}
+        actions={actions(4)}
+        onEditDetail={vi.fn()}
+        editDetailLabel="Edit detail"
+        label="Wide actions"
+        onClose={vi.fn()}
+        width={520}
+        layout="columns"
+      />,
+    );
+    const panel = screen.getByRole("dialog", { name: "Wide actions" });
+    expect(panel.style.width).toBe("520px");
+    expect(panel.style.left).toBe(`${1280 - 520 - GAP}px`);
+    expect(panel.style.top).toBe(`${800 - 160 - GAP}px`);
+  });
+});
+
 describe("clampToViewport", () => {
   it("clamps both edges horizontally", () => {
     window.innerWidth = 1000;

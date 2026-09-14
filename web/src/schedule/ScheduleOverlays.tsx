@@ -17,7 +17,10 @@ import {
   type TagFilterPanelProps,
   type TodoCalendarChip,
 } from "@life-editor/shared";
-import { todoChipPanelModel } from "./todoChipPanel";
+import {
+  SCHEDULE_ITEM_PANEL_WIDTH,
+  todoChipPanelModel,
+} from "./todoChipPanel";
 import type {
   SchedulePopover,
   ScheduleCreatePanel,
@@ -148,6 +151,7 @@ export function ScheduleOverlays({
     : null;
 
   // #299 single-click bubble (Desktop): summary + quick actions + "詳細を編集".
+  // #1625: both variants open two columns wide (SCHEDULE_ITEM_PANEL_WIDTH).
   // `selected` is the popover's item (activate sets selectedId + popover to the
   // same id); guard against a transient mismatch. Portalled to body → does not
   // touch the rightSidebar contentCount invariant.
@@ -158,7 +162,7 @@ export function ScheduleOverlays({
         position={{ x: popover.state.x, y: popover.state.y }}
         summary={
           <div className="flex flex-col gap-0.5">
-            <p className="truncate font-semibold text-lumen-text">
+            <p className="line-clamp-2 break-words font-semibold text-lumen-text">
               {todoChipPanel.title}
             </p>
             <p className="text-lumen-text-secondary">
@@ -173,6 +177,8 @@ export function ScheduleOverlays({
         editDetailLabel={t("scheduleScreen.editDetail")}
         label={t("scheduleScreen.itemActionsLabel")}
         onClose={popover.onClose}
+        width={SCHEDULE_ITEM_PANEL_WIDTH}
+        layout="columns"
       />
     ) : popover.selected && popover.selected.id === popover.state.id ? (
       <ItemActionPopover
@@ -183,7 +189,7 @@ export function ScheduleOverlays({
         position={{ x: popover.state.x, y: popover.state.y }}
         summary={
           <div className="flex flex-col gap-0.5">
-            <p className="truncate font-semibold text-lumen-text">
+            <p className="line-clamp-2 break-words font-semibold text-lumen-text">
               {popover.selected.title || t("scheduleCalendar.newEvent")}
             </p>
             <p className="text-lumen-text-secondary">
@@ -231,6 +237,8 @@ export function ScheduleOverlays({
         editDetailLabel={t("scheduleScreen.editDetail")}
         label={t("scheduleScreen.itemActionsLabel")}
         onClose={popover.onClose}
+        width={SCHEDULE_ITEM_PANEL_WIDTH}
+        layout="columns"
       />
     ) : null;
 
