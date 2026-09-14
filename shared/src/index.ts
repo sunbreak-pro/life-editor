@@ -39,6 +39,8 @@ export {
   sendPasswordResetEmail,
   resendConfirmationEmail,
   updatePassword,
+  // Profile display name in user_metadata (#1624).
+  updateDisplayName,
   // Renamed on main (#1197): the redirect now serves sign-up confirmation as
   // well as password recovery.
   authRedirectUrl,
@@ -51,6 +53,16 @@ export {
 export type { Session } from "@supabase/supabase-js";
 // The password floor the screens enforce and the en / ja copy quotes (#956).
 export { PASSWORD_MIN_LENGTH } from "./constants/password";
+// The account's display name (#1624): where it is stored and how the sidebar
+// falls back to the address when none is set.
+export {
+  DISPLAY_NAME_METADATA_KEY,
+  DISPLAY_NAME_MAX_LENGTH,
+  normalizeDisplayName,
+  readDisplayName,
+  accountDisplayLabel,
+  type ProfileUserLike,
+} from "./utils/profile";
 
 // Section registry (SSOT) — target-IA section list + derived nav views.
 // Hosts import these instead of hand-maintaining parallel section lists.

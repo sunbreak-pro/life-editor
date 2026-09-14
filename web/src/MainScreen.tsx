@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ComponentProps } from "react";
 import {
   getDataService,
   signOut,
+  accountDisplayLabel,
   AppShell,
   PageContainer,
   HeaderTabs,
@@ -388,6 +389,13 @@ export function MainScreen({ session }: { session: Session }) {
             : undefined
         }
         userEmail={session.user.email ?? ""}
+        /*
+         * #1624 — read off the session, not held in state here: saving the
+         * name fires USER_UPDATED, App stores that session, and this re-renders
+         * with the new metadata. One source, so the row cannot lag the save.
+         */
+        userName={accountDisplayLabel(session.user)}
+        onOpenProfile={nav.openProfile}
         onSignOut={() => void signOut()}
         labels={shellLabels}
         detailPanelLabels={detailPanelLabels}

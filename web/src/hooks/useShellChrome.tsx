@@ -190,6 +190,9 @@ export function useShellChrome({
       // Wide + desktop only (#1211). SidebarNav needs the label AND the
       // handler, and MainScreen withholds the handler off the Electron shell.
       launchClaude: t("nav.launchClaude"),
+      // Wide only (#1624): names the sidebar's account row, which opens the
+      // Profile category of Settings.
+      profile: t("nav.profile"),
       // Narrow-only: names the action group in the bottom bar's More sheet (#472).
       bottomBarActionsTitle: t("nav.quickActions"),
     }),

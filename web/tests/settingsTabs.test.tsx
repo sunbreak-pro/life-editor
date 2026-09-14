@@ -93,8 +93,10 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
   };
 });
 
-/** The list, in the order #1174 fixes it. Labels are the mocked t() keys. */
+/** The list, in the order #1174 fixes it (Profile leads since #1624).
+ *  Labels are the mocked t() keys. */
 const ROWS = [
+  "settings.tabs.profile",
   "settings.tabs.general",
   "section.briefing",
   "section.schedule",

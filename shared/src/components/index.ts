@@ -259,6 +259,11 @@ export {
   type SettingsAccountLabels,
 } from "./SettingsAccount";
 export {
+  SettingsProfile,
+  type SettingsProfileProps,
+  type SettingsProfileLabels,
+} from "./SettingsProfile";
+export {
   SegmentedToggle,
   type SegmentedToggleProps,
   type SegmentedToggleOption,

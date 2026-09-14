@@ -44,6 +44,11 @@ export interface SidebarNavLabels {
    * `tagEditor`: the row needs this AND `onLaunchClaude` to render.
    */
   launchClaude?: string;
+  /**
+   * "Edit profile" (#1624). Same two-halves contract: the account row becomes
+   * a button only with this AND `onOpenProfile`.
+   */
+  profile?: string;
 }
 
 export interface SidebarNavProps {
@@ -77,6 +82,16 @@ export interface SidebarNavProps {
    */
   onLaunchClaude?: () => void;
   userEmail: string;
+  /**
+   * Text of the account row (#1624): the display name, or the address when
+   * none is set — the host resolves the fallback. Omit to show `userEmail`.
+   */
+  userName?: string;
+  /**
+   * Opens the profile editor (#1624). With `labels.profile` it turns the
+   * account row into a button; the address moves to its tooltip.
+   */
+  onOpenProfile?: () => void;
   onSignOut: () => void;
   labels: SidebarNavLabels;
 }
@@ -100,6 +115,8 @@ export function SidebarNav({
   onOpenTagEditor,
   onLaunchClaude,
   userEmail,
+  userName,
+  onOpenProfile,
   onSignOut,
   labels,
 }: SidebarNavProps) {
@@ -109,6 +126,8 @@ export function SidebarNav({
   // with no label would render untranslated (§6.4 — copy is injected).
   const tagEditorLabel = onOpenTagEditor ? labels.tagEditor : undefined;
   const launchClaudeLabel = onLaunchClaude ? labels.launchClaude : undefined;
+  const profileLabel = onOpenProfile ? labels.profile : undefined;
+  const accountText = userName || userEmail;
 
   return (
     <aside
@@ -350,12 +369,36 @@ export function SidebarNav({
           />
         ) : (
           <div className="flex items-center gap-1.5 px-1">
-            <span
-              className="min-w-0 flex-1 truncate text-xs text-lumen-text-secondary"
-              title={userEmail}
-            >
-              {userEmail}
-            </span>
+            {profileLabel ? (
+              /*
+               * #1624 — the account row is the way into the profile. The
+               * visible text is the name (or the address when none is set);
+               * the "Edit profile" copy rides along for assistive tech so the
+               * button says what pressing it does, and the address stays one
+               * hover away since the name has taken its place.
+               */
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                title={userEmail}
+                className={cn(
+                  "-mx-1 min-w-0 flex-1 truncate rounded-md px-1 py-0.5 text-left text-xs",
+                  "text-lumen-text-secondary transition-colors hover:bg-lumen-hover",
+                  "hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2",
+                  "focus-visible:ring-lumen-accent",
+                )}
+              >
+                {accountText}
+                <span className="sr-only"> {profileLabel}</span>
+              </button>
+            ) : (
+              <span
+                className="min-w-0 flex-1 truncate text-xs text-lumen-text-secondary"
+                title={userEmail}
+              >
+                {accountText}
+              </span>
+            )}
             <IconButton
               icon={<LogOut size={16} />}
               label={labels.signOut}

@@ -4,6 +4,10 @@ import type {
   Subscription,
 } from "@supabase/supabase-js";
 import { getSupabaseClient } from "./supabaseClient";
+import {
+  DISPLAY_NAME_METADATA_KEY,
+  normalizeDisplayName,
+} from "../utils/profile";
 
 /*
  * Phase 1 Email + Password auth wrapper.
@@ -142,6 +146,23 @@ export async function updatePassword(
   password: string,
 ): Promise<{ error: string | null }> {
   const { error } = await getSupabaseClient().auth.updateUser({ password });
+  return { error: error ? error.message : null };
+}
+
+/**
+ * Save the display name the sidebar shows instead of the address (#1624).
+ *
+ * Written to `user_metadata`, which `updateUser` merges key by key, so this
+ * touches nothing else stored there. A blank name is stored as null — that is
+ * how the user goes back to seeing their address. On success Supabase fires
+ * USER_UPDATED with the new session, which is what refreshes the sidebar.
+ */
+export async function updateDisplayName(
+  name: string,
+): Promise<{ error: string | null }> {
+  const { error } = await getSupabaseClient().auth.updateUser({
+    data: { [DISPLAY_NAME_METADATA_KEY]: normalizeDisplayName(name) },
+  });
   return { error: error ? error.message : null };
 }
 

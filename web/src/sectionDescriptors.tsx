@@ -309,11 +309,18 @@ export const SECTION_DESCRIPTORS: Readonly<
   /*
    * Settings (W1) — reads useThemeContext + useShortcutConfig (the
    * ShortcutConfigProvider wrapping the whole shell) and injects values + t()
-   * copy into the shared pure primitives. No extra Provider needed.
+   * copy into the shared pure primitives. No extra Provider needed. The
+   * sidebar's account row asks for the Profile category through
+   * `pendingProfile` (#1624), since the category is the screen's own state.
    */
   settings: {
     width: "wide",
     narrowHeader: "hamburger",
-    body: () => <SettingsScreen />,
+    body: ({ nav }) => (
+      <SettingsScreen
+        pendingProfile={nav.pendingProfile}
+        onConsumeProfile={nav.consumeProfile}
+      />
+    ),
   },
 };
