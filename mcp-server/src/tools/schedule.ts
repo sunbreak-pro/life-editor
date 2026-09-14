@@ -17,7 +17,8 @@ export const SCHEDULE_TOOLS: ToolDefinition[] = [
     name: "list_schedule",
     description:
       "List schedule items and scheduled todos for a specific date or date range. " +
-      "Pass either date (one day) or start_date AND end_date (a range) — half a range, or both forms at once, is an error rather than a silent fallback to today. Omit all three for today.",
+      "Pass either date (one day) or start_date AND end_date (a range) — half a range, or both forms at once, is an error rather than a silent fallback to today. Omit all three for today. " +
+      "An item with a non-null routineId is one occurrence of a repeating event; pass that id to get_routine for the series.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -43,7 +44,7 @@ export const SCHEDULE_TOOLS: ToolDefinition[] = [
   defineTool({
     name: "create_schedule_item",
     description:
-      "Create a new schedule item (event) on the calendar. start_time and end_time are required unless is_all_day is true (an all-day event stores no times). For routine-based items, use todos instead.",
+      "Create a new schedule item (event) on the calendar. start_time and end_time are required unless is_all_day is true (an all-day event stores no times). This creates a one-off event; for a repeating one use create_routine.",
     inputSchema: {
       type: "object" as const,
       properties: {
