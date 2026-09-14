@@ -13,7 +13,7 @@ import {
 
 /*
  * Calendar navigation state (#280, extracted from CalendarTab): the anchor
- * date, the `view` string (Desktop's day/week/month choice, normalised by the
+ * date, the `view` string (Desktop's week/month choice, normalised by the
  * shared calendarView helper), the derived week/month keys and the visible
  * fetch window, plus prev/next/today stepping. No data access — the range
  * consumer (useVisibleRangeItems) and the mutation layer live separately.
@@ -47,8 +47,8 @@ export function useCalendarNav(isWide: boolean) {
    * a cell) and the period label all read `effView`. One line moves all three.
    *
    * `view` still holds whatever Desktop last chose, which is why narrow must
-   * not read it — a window narrowed while on "day" would page by days under a
-   * month grid.
+   * not read it — a window narrowed while on the week would page by weeks
+   * under a month grid.
    */
   const effView = isWide ? desktopView : "month";
 
@@ -63,7 +63,7 @@ export function useCalendarNav(isWide: boolean) {
     [anchorDate],
   );
 
-  // Visible fetch window per effective view (day/list/time = single day).
+  // Visible fetch window per effective view (#1628: wide is week or month).
   const [rangeStart, rangeEnd] = useMemo<[string, string]>(
     () =>
       visibleCalendarRange({
@@ -79,15 +79,15 @@ export function useCalendarNav(isWide: boolean) {
 
   const step = useCallback(
     (dir: number) => {
+      // #1628: the day view is gone, so anything that is not the month is
+      // the week (narrow is always the month — see effView above).
       const next =
         effView === "month"
           ? addMonthsKey(anchorDate, dir)
-          : isWide && effView === "week"
-            ? addDaysKey(anchorDate, dir * 7)
-            : addDaysKey(anchorDate, dir);
+          : addDaysKey(anchorDate, dir * 7);
       setAnchorDate(next);
     },
-    [effView, isWide, anchorDate],
+    [effView, anchorDate],
   );
   const goToday = useCallback(() => setAnchorDate(today), [today]);
 

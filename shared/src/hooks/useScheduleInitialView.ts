@@ -4,7 +4,7 @@ import { useLocalStorage } from "./useLocalStorage";
 
 /*
  * Schedule initial-view preference (#1174). One persisted key:
- *   - `life-editor-schedule-initial-view` = "day" | "week" | "month" — the
+ *   - `life-editor-schedule-initial-view` = "week" | "month" — the
  *     Desktop calendar view the Schedule section opens on.
  *
  * Same shape as the startup-section pref (§216): a PURE resolver the host uses
@@ -15,8 +15,9 @@ import { useLocalStorage } from "./useLocalStorage";
  * to the NEXT visit to Schedule, which is what "initial view" means.
  *
  * The stored string is run through `normalizeDesktopView`, so a hand-edited or
- * retired value ("list" / "time" from the Mobile option set #467) resolves to
- * something drawable instead of leaving the calendar blank. Narrow widths pin
+ * retired value ("list" / "time" from the Mobile option set #467, or the
+ * Desktop day view #1628) resolves to something drawable instead of leaving
+ * the calendar blank. Narrow widths pin
  * the effective view to "month" regardless (#878) — this pref is the Desktop
  * choice, exactly like the `view` state it seeds.
  */
@@ -28,7 +29,7 @@ export const SCHEDULE_INITIAL_VIEW_STORAGE_KEY =
  * host builds its segment from the same list the resolver accepts — a fourth
  * view would otherwise have to be added in two places.
  */
-export const SCHEDULE_INITIAL_VIEWS = ["day", "week", "month"] as const;
+export const SCHEDULE_INITIAL_VIEWS = ["week", "month"] as const;
 
 /** Fallback when nothing valid is stored — the historical hard-coded default. */
 export const DEFAULT_SCHEDULE_INITIAL_VIEW: DesktopCalendarView = "week";

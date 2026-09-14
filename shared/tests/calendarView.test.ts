@@ -19,12 +19,15 @@ import { monthGridKeys, startOfWeekKey, addDaysKey } from "../src";
 
 describe("normalizeDesktopView", () => {
   it("maps the retired Mobile ids onto the Desktop set", () => {
-    expect(normalizeDesktopView("list")).toBe("day");
+    expect(normalizeDesktopView("list")).toBe("week");
     expect(normalizeDesktopView("time")).toBe("week");
   });
 
+  it("maps the retired Desktop day view onto the week (#1628)", () => {
+    expect(normalizeDesktopView("day")).toBe("week");
+  });
+
   it("passes Desktop ids through and falls back to week", () => {
-    expect(normalizeDesktopView("day")).toBe("day");
     expect(normalizeDesktopView("week")).toBe("week");
     expect(normalizeDesktopView("month")).toBe("month");
     expect(normalizeDesktopView("bogus")).toBe("week");
@@ -65,10 +68,7 @@ describe("visibleCalendarRange", () => {
     ).toEqual([anchorDate, anchorDate]);
   });
 
-  it("day / list views are a single day", () => {
-    expect(
-      visibleCalendarRange({ ...base, effView: "day", isWide: true }),
-    ).toEqual([anchorDate, anchorDate]);
+  it("a narrow list view is a single day", () => {
     expect(
       visibleCalendarRange({ ...base, effView: "list", isWide: false }),
     ).toEqual([anchorDate, anchorDate]);

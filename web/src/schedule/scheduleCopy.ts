@@ -193,7 +193,6 @@ export function useScheduleCopy({
 
   const desktopViewOptions = useMemo<SegmentedOption[]>(
     () => [
-      { id: "day", label: t("scheduleScreen.viewDay") },
       { id: "week", label: t("scheduleScreen.viewWeek") },
       { id: "month", label: t("scheduleScreen.viewMonth") },
     ],

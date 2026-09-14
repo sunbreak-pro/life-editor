@@ -765,7 +765,6 @@ export function SettingsScreen() {
               heading: t("settings.schedule.heading"),
               description: t("settings.schedule.description"),
               initialViewLabel: t("settings.schedule.initialViewLabel"),
-              day: t("settings.schedule.day"),
               week: t("settings.schedule.week"),
               month: t("settings.schedule.month"),
               hint: t("settings.schedule.hint"),

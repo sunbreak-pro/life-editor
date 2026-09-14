@@ -24,7 +24,6 @@ export interface SettingsScheduleProps {
     heading: string;
     description: string;
     initialViewLabel: string;
-    day: string;
     week: string;
     month: string;
     hint: string;
@@ -76,7 +75,6 @@ export function SettingsSchedule({
         value={initialView}
         onChange={onInitialViewChange}
         options={[
-          { value: "day", label: labels.day },
           { value: "week", label: labels.week },
           { value: "month", label: labels.month },
         ]}

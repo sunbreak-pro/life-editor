@@ -129,9 +129,8 @@ describe("useScheduleCopy", () => {
     ]);
   });
 
-  it("offers the three desktop views in order", () => {
+  it("offers the two desktop views in order (#1628 retired the day)", () => {
     expect(render().desktopViewOptions.map((o) => o.label)).toEqual([
-      "Day",
       "Week",
       "Month",
     ]);

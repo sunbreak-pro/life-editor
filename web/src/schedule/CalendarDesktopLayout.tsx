@@ -87,7 +87,7 @@ export interface CalendarDesktopLens {
 
 /** Everything the two grids draw from. */
 export interface CalendarDesktopData {
-  /** The month the grid renders, and the single column of the "day" view. */
+  /** The month the grid renders. */
   anchorDate: string;
   /** First column of the "week" view. */
   weekStart: string;
@@ -237,8 +237,8 @@ export function CalendarDesktopLayout({
     <div className="min-h-0 flex-1">
       <WeekTimeGrid
         data={{
-          weekStart: view === "day" ? data.anchorDate : data.weekStart,
-          days: view === "day" ? 1 : 7,
+          weekStart: data.weekStart,
+          days: 7,
           items: data.gridItems,
           selectedId: data.selectedId,
           todayKey: data.today,

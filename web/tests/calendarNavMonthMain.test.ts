@@ -69,10 +69,10 @@ describe("useCalendarNav — Mobile's month main view (#878)", () => {
 
   it("keeps Desktop's own view state out of it", () => {
     // `view` still holds whatever the Desktop switcher last chose. A window
-    // narrowed while on "day" must not page by days under a month grid.
+    // narrowed while on the week must not page by weeks under a month grid.
     const { result } = renderHook(() => useCalendarNav(NARROW));
 
-    act(() => result.current.setView("day"));
+    act(() => result.current.setView("week"));
 
     expect(result.current.effView).toBe("month");
     const before = monthOf(result.current.anchorDate);
