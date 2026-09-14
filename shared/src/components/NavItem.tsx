@@ -2,9 +2,14 @@ import type { ReactNode } from "react";
 import { cn } from "./cn";
 
 /**
- * Row emphasis. `default` = mainline nav rows; `muted` = the utility group
- * (Settings / Trash) which sits sunk below the mainline via a lighter text
- * token (§ target-IA: utility枠 は本流から分離して沈める).
+ * Row emphasis. `default` = nav rows; `muted` = a row sunk one step below its
+ * neighbours via a lighter text token.
+ *
+ * The sidebar's utility group (Settings) used to be the `muted` caller and no
+ * longer is (#1623): the divider already separates it, and the extra step made
+ * it the one row darker than the text-secondary footer rows next to it. Reach
+ * for `muted` only where the row really should read as quieter than whatever
+ * sits beside it.
  */
 export type NavItemTone = "default" | "muted";
 

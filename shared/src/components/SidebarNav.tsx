@@ -49,9 +49,9 @@ export interface SidebarNavLabels {
 export interface SidebarNavProps {
   sections: SidebarNavSection[];
   /**
-   * Utility group (Settings / Trash). Rendered below the mainline sections,
-   * pushed to the bottom by a spacer + divider and shown muted so it reads
-   * as secondary to the mainline nav.
+   * Utility group (Settings). Rendered below the mainline sections, pushed to
+   * the bottom by a spacer + divider so it reads as secondary to the mainline
+   * nav. Its rows use the same text token as the footer rows below (#1623).
    */
   utilitySections?: SidebarNavSection[];
   activeSection: string;
@@ -84,7 +84,7 @@ export interface SidebarNavProps {
 /*
  * Wide-layout sidebar (W5 app shell). Header (brand mark + name + collapse
  * toggle), a scrollable mainline section list, a bottom-pinned utility group
- * (muted, separated by a divider), and a footer with Cmd+K / user email /
+ * (separated by a divider), and a footer with Cmd+K / user email /
  * sign-out. Collapsible to an icon-only rail. Pure presentation: section
  * state + labels are injected (§3.1 / §6.4), lumen-* tokens only with an
  * opaque container background (§5).
@@ -164,7 +164,7 @@ export function SidebarNav({
         />
       </div>
 
-      {/* Section list: mainline, then a bottom-pinned muted utility group */}
+      {/* Section list: mainline, then a bottom-pinned utility group */}
       <nav
         aria-label={labels.appName}
         className="flex flex-1 flex-col gap-0.5 overflow-y-auto p-2"
@@ -190,6 +190,13 @@ export function SidebarNav({
                 collapsed ? "mx-auto w-10" : "mx-0.5",
               )}
             />
+            {/*
+             * Default tone, not `muted` (#1623). The divider and the bottom
+             * pin already set this group apart; a dimmer text token on top
+             * made Settings the one row a step darker than the footer rows
+             * sitting right under it (Claude / tags / ⌘K are all
+             * text-secondary), which read as a disabled row in dark mode.
+             */}
             {utilitySections.map((s) => (
               <NavItem
                 key={s.id}
@@ -198,7 +205,6 @@ export function SidebarNav({
                 sublabel={s.sublabel}
                 active={activeSection === s.id}
                 collapsed={collapsed}
-                tone="muted"
                 onClick={() => onNavigate(s.id)}
               />
             ))}

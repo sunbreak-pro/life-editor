@@ -5,7 +5,7 @@ import { SidebarNav, type SidebarNavSection } from "../src/components";
 /*
  * Target-IA wide sidebar. The mainline sections render as primary rows; the
  * optional utility group (Settings / Trash) is pushed to the bottom behind a
- * divider and rendered muted (text-tertiary at rest). Pure presentation — no
+ * divider, in the same text token as the footer rows (#1623). Pure presentation — no
  * matchMedia needed (SidebarNav is layout-agnostic; AppShell owns the switch).
  */
 
@@ -97,12 +97,16 @@ describe("SidebarNav utility group", () => {
     expect(screen.getByRole("separator")).toBeInTheDocument();
   });
 
-  it("renders utility rows muted (text-tertiary) while mainline rows are not", () => {
-    renderSidebar();
-    const trash = screen.getByRole("button", { name: "Trash" });
-    expect(trash.className).toContain("text-lumen-text-tertiary");
-    const schedule = screen.getByRole("button", { name: "Schedule" });
-    expect(schedule.className).not.toContain("text-lumen-text-tertiary");
+  it("draws the utility rows with the footer rows' text token, not a dimmer one (#1623)", () => {
+    // Settings was the only row a step darker (text-tertiary) than the ⌘K /
+    // tag / Claude footer rows directly under it, which read as disabled in
+    // dark mode. Same token as the palette row is the contract.
+    renderSidebar({ activeSection: "schedule" });
+    const settings = screen.getByRole("button", { name: "Settings" });
+    const palette = screen.getByRole("button", { name: "Command palette" });
+    expect(palette.className).toContain("text-lumen-text-secondary");
+    expect(settings.className).toContain("text-lumen-text-secondary");
+    expect(settings.className).not.toContain("text-lumen-text-tertiary");
   });
 
   it("does not render a divider when there is no utility group", () => {
@@ -127,8 +131,8 @@ describe("SidebarNav utility group", () => {
  * jsdom has no layout (CLAUDE.md §7.1) and Tailwind's stylesheet is not loaded,
  * so neither the overflow nor the resolved font-family is observable here — the
  * width of the label is unassertable by construction. What these fences hold is
- * the CAUSE, in the same shape the file already uses for `text-lumen-text-
- * tertiary` above: the flex contract that decided WHICH of the two items gives
+ * the CAUSE, in the same shape the file already uses for the utility rows'
+ * `text-lumen-text-secondary` above: the flex contract that decided WHICH of the two items gives
  * way, and the font opt-out that stopped the keycap being ~19% wider per glyph
  * than the row around it. Both were reverted locally and confirmed to turn this
  * block red before the fix was committed.
