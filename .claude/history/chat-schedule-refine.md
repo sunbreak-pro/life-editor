@@ -1,5 +1,26 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-14 - #1620 Routine（繰り返し予定）に MCP ツールを足した（PR #1621）
+
+#### 概要
+
+繰り返し予定を会話から作り・一覧し・消せるよう、MCP ツールを 4 本足した（PR #1621・open）。実装前に 3 つの判断を #1620 のコメントに書き、発生分の生成はアプリに残した。ローカルで CI `verify` 全ステップ + `docs-lint` = exit 0。
+
+#### 変更点
+
+- **ツール 4 本**: `create_routine`（`daily` / `weekdays` / `interval`）/ `list_routines`（アーカイブ除外・`total` / `hasMore`）/ `get_routine`（`list_schedule` の `routineId` から Routine 本体と生成済みの発生分へ）/ `delete_routine`（アプリの `softDeleteRoutine` と同じ順序で Routine → 発生分をゴミ箱へ）。`remoteTools.ts` に spread したので Worker にも出る
+- **生成はアプリに残した**: `create_routine` は `items_meta` + `routines_payload` の 2 行だけを書く。生成規則（`routineFrequency.ts` / `routineScheduleSync.ts` / 競合解決ルール / partial UNIQUE）を写すと #677 の二重実装が増えるため。「作ったのに `list_schedule` に出ない」と迷わないよう、戻り値の `note` と description に書いた
+- **出さなかったもの 3 つ**: `routine_groups`（#352 で group 頻度は撤去済み）/ `update_routine`（頻度変更は生成済みの未来の発生分をアプリの reconcile が揃えるので、テンプレートだけ書き換えると古い日が残る）/ Event → Routine の昇格（`convertEventToRoutine` の #407 / #1140 ガード付き 4 段書き込みを写さない。代替手順を description に記載）
+- **description の修正**: `create_schedule_item` の "For routine-based items, use todos instead"（todo にも繰り返しは無い）を「単発の予定。繰り返しは `create_routine`」へ。`list_schedule` に `routineId` → `get_routine` の導線を追記
+- **テスト**: `mcp-server/tests/routineHandlers.test.ts` を新規（create の書き込み 2 本だけ・全頻度で `events_payload` 無書き込み・不正な組み合わせ 12 通りの拒否 / list / get / delete）。**`mcp-server/src/` 全体で `routine_item_id` に null 以外を代入する箇所がゼロ**、を走査テストで固定。`VALID_CALLS` に新ツールの引数サンプル、`npm run catalog` で catalog 再生成
+- **docs**: `tier-1-core.md` の「Routine の MCP 操作は未対応」3 行を現状へ
+
+#### 判断・逸脱
+
+- **スコープ逸脱**: `tier-1-core.md` の 3 行だけ Issue の Scope 外（CLAUDE.md §0「新機能は requirements に記入」に従った）。`shared/src`・DDL・UI・生成ロジックは無変更
+- **AC 免除**: なし
+- **途中で出た判断の行き先**: `restore_item` が routine を受け付けない件と `trashHandlers.ts` の古いコメント（「routine には削除ツールが無い」）は Scope 外なので直さず、PR #1621 本文に記載。PR #1619 との重なり（`remoteTools.ts` / `toolRegistry.test.ts` / catalog）も PR 本文に記載
+
 ### 2026-09-13 - #1608 予定クリックの 350ms 遅延を撤去（PR #1613）
 
 #### 概要
