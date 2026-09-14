@@ -178,7 +178,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
   - Google Calendar 連携（**2026-07-14 路線変更**: アプリ内蔵・Claude 側ミラーとも当面しない。tier-3 凍結のまま — 再開条件 = 朝刊（Briefing）ループが安定運用に入った後、ユーザーが改めて望んだ場合のみ。旧記述「まずは ICS 購読で片方向」は見送り）
   - 複数ユーザーでの予定共有 / 招待（§1 Non-Goals）
   - Mobile での Calendar Tag 管理（CalendarTagsProvider は §2 Platform 参照。現行は CalendarTags 自体が全プラットフォーム撤去済 — 詳細は Owner 全面改訂 Phase 5）
-  - Routine 自体の MCP 操作（現状 ScheduleItem 経由のみ）
+  - ~~Routine 自体の MCP 操作~~ → **2026-09-14 #1620 で作成 / 一覧 / 取得 / 削除を公開**。発生分の生成はアプリに残し、頻度変更（update）と Event からの昇格は MCP に出さない（理由 = #1620 のコメント）
 
 ### Acceptance Criteria
 
@@ -214,12 +214,12 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 - ADR-0003 統合済み（3 Provider 分割でパフォーマンス改善）
 - CLAUDE.md §2 Platform 参照（Mobile では CalendarTagsProvider 省略 → 現行は CalendarTags 全撤去済・全面改訂 Phase 5）
-- Routine マスタ自体の MCP CRUD 未対応（Claude から頻度変更ができない）
+- Routine の頻度は MCP から変更できない（#1620 で `update_routine` を見送り — 生成済みの未来の発生分を揃える reconcile がアプリ側にしか無いため）
 - ~~conflict: 同じ Routine から手動編集された ScheduleItem と自動再生成の競合解決ルールが未文書化~~ → **解消 (2026-07-14 文書化 / 2026-07-26 #352 でテスト化)**: 上記「競合解決ルール」+ `shared/tests/reconcileRoutine.test.tsx`
 
 ### Future Enhancements
 
-- 短期: Routine の MCP ツール化（handler の Supabase 化は #256 / #360 で完了済 — 残るは Routine マスタ自体のツール追加）
+- ~~短期: Routine の MCP ツール化~~ → **完了（2026-09-14 #1620）**: create / list / get / delete の 4 本
 - 中期: Routine 未達成通知、Claude による「今日のスケジュール提案」（ADR-0005 Phase 2）
 - ~~Google Calendar 連携（ICS 購読 / OAuth 双方向）~~ → **見送り（2026-07-14 路線変更）**: 再開条件 = 朝刊（Briefing）ループの安定運用後にユーザーが改めて望んだ場合のみ（→ `tier-3-experimental.md` §Google Calendar 連携）
 

@@ -5,6 +5,7 @@ import { DAILY_TOOLS } from "./tools/daily.js";
 import { NOTE_TOOLS } from "./tools/note.js";
 import { NOTE_CONTEXT_TOOLS } from "./tools/noteContext.js";
 import { SCHEDULE_TOOLS } from "./tools/schedule.js";
+import { ROUTINE_TOOLS } from "./tools/routine.js";
 import { BRIEFING_TOOLS } from "./tools/briefing.js";
 import { SEARCH_TOOLS } from "./tools/search.js";
 import { CONTENT_TOOLS } from "./tools/content.js";
@@ -41,6 +42,7 @@ export const REMOTE_TOOL_DEFINITIONS: ToolDefinition[] = [
   ...NOTE_TOOLS,
   ...NOTE_CONTEXT_TOOLS,
   ...SCHEDULE_TOOLS,
+  ...ROUTINE_TOOLS,
   ...BRIEFING_TOOLS,
   ...SEARCH_TOOLS,
   ...CONTENT_TOOLS,
