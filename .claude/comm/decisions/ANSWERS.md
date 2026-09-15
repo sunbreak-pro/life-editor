@@ -114,3 +114,4 @@
 - D-20260902-sched-2: **C**（凍った進捗数字 2 つは表示ごと畳む = PR #1454 の実装のまま。同上）
 - D-20260830-main-3: **A**（Intel Mac 向け x64 `.dmg` は配らず arm64 のみ。キューでは `D-20260830-main-1` の ID で起票していたが、台帳で同 ID が退役レーンの裁定に使われ `-2` も採番済みだったため昇格時に `-3` へ振り直し。`electron-builder.yml` の x64 宣言と workflow の `unverified-*` artifact を削除。2026-09-09 チャットで回答「推奨のまま A で OK」・chat-main が転記）
 - D-20260909-mcp-mobile-1: **A + MVP トークン**（MCP をスマホから使う経路は Cloudflare Workers の Remote MCP を新設、認証は当面 URL パスの共有シークレット。2026-09-09 remote セッションの AskUserQuestion で回答・同セッションが転記）
+- D-20260912-main-1: **Q1 = A / Q2 = A / Q3 = A**（Connect をタグとリンクの編集所へ作り替える。タグ編集モーダルを退役して Connect に一本化・リンクは詳細パネルの近傍として出す・ClaudeDesign へは Desktop と Mobile を同時に出す → 計画書 `docs/vision/plans/2026-09-14-connect-tag-link-workbench.md` / 実装 Issue #1631 #1643 #1644 #1645 #1646。2026-09-12 チャットで回答・chat-main が転記）
