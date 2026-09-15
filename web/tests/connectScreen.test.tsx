@@ -84,10 +84,60 @@ function makeDS(over: Partial<Record<keyof DataService, unknown>> = {}) {
         updatedAt: "2026-08-29T00:00:00Z",
       },
     ]),
+    // #1631: no repeat in the base fixture — the series cases below supply
+    // their own, so the counts the other cases assert stay readable.
+    fetchAllRoutines: vi.fn().mockResolvedValue([]),
     listAllWikiTagsUnified: vi.fn().mockResolvedValue(TAGS),
     listAllTagAssignments: vi.fn().mockResolvedValue(ASSIGNMENTS),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
     ...over,
+  });
+}
+
+/*
+ * A tagged repeat (#1631): the tag is on the SERIES, the days are occurrences
+ * carrying `routineId`. Dates sit far either side of the real "today" so the
+ * "next occurrence" pick is deterministic without freezing the clock.
+ */
+const SERIES_ASSIGNMENT = {
+  id: "a-5",
+  itemId: "routine-1",
+  tagId: "t-work",
+  isDeleted: false,
+};
+
+const occurrence = (id: string, date: string) => ({
+  id,
+  title: "Morning review",
+  date,
+  routineId: "routine-1",
+  updatedAt: "2026-08-28T00:00:00Z",
+});
+
+function makeSeriesDS(occurrences: ReturnType<typeof occurrence>[]) {
+  return makeDS({
+    fetchEvents: vi.fn().mockResolvedValue([
+      {
+        id: "event-1",
+        title: "Standup",
+        date: "2026-08-29",
+        updatedAt: "2026-08-28T00:00:00Z",
+      },
+      ...occurrences,
+    ]),
+    fetchAllRoutines: vi.fn().mockResolvedValue([
+      {
+        id: "routine-1",
+        title: "Morning review",
+        updatedAt: "2026-08-28T00:00:00Z",
+      },
+      // Untagged, so it must stay out of the hub — including the untagged
+      // bucket, where its own occurrences already speak for it.
+      { id: "routine-loose", title: "Stretch", updatedAt: "2026-08-27" },
+    ]),
+    listAllTagAssignments: vi
+      .fn()
+      .mockResolvedValue([...ASSIGNMENTS, SERIES_ASSIGNMENT]),
   });
 }
 
@@ -283,7 +333,7 @@ describe("ConnectScreen", () => {
     expect(screen.queryByRole("heading", { level: 2 })).toBeNull();
   });
 
-  it("reads exactly the four item lists, once", async () => {
+  it("reads exactly the five item lists, once", async () => {
     const ds = makeDS();
     await renderScreen(ds);
     for (const method of [
@@ -291,8 +341,96 @@ describe("ConnectScreen", () => {
       "fetchEvents",
       "listNotesUnified",
       "listDailiesUnified",
+      "fetchAllRoutines",
     ] as const) {
       expect(ds[method]).toHaveBeenCalledTimes(1);
     }
+  });
+});
+
+/*
+ * Repeating items (#1631). The tag the user attaches to a repeat is written to
+ * the series, so before this the hub joined it against occurrence ids, matched
+ * nothing, and showed the repeat nowhere while its days piled into "untagged".
+ */
+describe("ConnectScreen — repeating items", () => {
+  it("shows a tagged repeat as ONE row, counted once, whatever the run length", async () => {
+    await renderScreen(
+      makeSeriesDS([
+        occurrence("event-r1", "2099-01-01"),
+        occurrence("event-r2", "2099-02-01"),
+        occurrence("event-r3", "2020-01-01"),
+      ]),
+    );
+    expect(railLabels()).toEqual([
+      "Idle: 0 items",
+      "Work: 5 items",
+      "Untagged: 1 item",
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Work: 5 items" }));
+    // One Event group holding the one-off AND the series — not four rows.
+    expect(
+      screen
+        .getAllByRole("heading", { level: 3 })
+        .map((h) => h.getAttribute("aria-label")),
+    ).toEqual([
+      "Todo: 1 item",
+      "Event: 2 items",
+      "Note: 1 item",
+      "Daily: 1 item",
+    ]);
+    expect(screen.getAllByRole("button", { name: /Morning review/ })).toHaveLength(
+      1,
+    );
+  });
+
+  it("keeps the repeat's days out of the untagged bucket", async () => {
+    await renderScreen(
+      makeSeriesDS([
+        occurrence("event-r1", "2099-01-01"),
+        occurrence("event-r2", "2020-01-01"),
+      ]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Untagged: 1 item" }));
+    // Only the untitled note is in there — not the occurrences, and not the
+    // untagged series either.
+    expect(screen.getByText("Untitled")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Morning review/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Stretch/ })).toBeNull();
+  });
+
+  it("opens the repeat at its NEXT day, which is what the Calendar can select", async () => {
+    const { onNavigateToItem } = await renderScreen(
+      makeSeriesDS([
+        occurrence("event-past", "2020-01-01"),
+        occurrence("event-next", "2099-01-01"),
+        occurrence("event-later", "2099-02-01"),
+      ]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Work: 5 items" }));
+    fireEvent.click(screen.getByRole("button", { name: /Morning review/ }));
+    // The routine id itself would highlight nothing — the row is FILED under
+    // it but OPENS the occurrence.
+    expect(onNavigateToItem).toHaveBeenCalledWith({
+      id: "event-next",
+      role: "event",
+      date: "2099-01-01",
+    });
+  });
+
+  it("falls back to the most recent past day for a repeat that has stopped", async () => {
+    const { onNavigateToItem } = await renderScreen(
+      makeSeriesDS([
+        occurrence("event-old", "2020-01-01"),
+        occurrence("event-last", "2020-02-01"),
+      ]),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Work: 5 items" }));
+    fireEvent.click(screen.getByRole("button", { name: /Morning review/ }));
+    expect(onNavigateToItem).toHaveBeenCalledWith({
+      id: "event-last",
+      role: "event",
+      date: "2020-02-01",
+    });
   });
 });

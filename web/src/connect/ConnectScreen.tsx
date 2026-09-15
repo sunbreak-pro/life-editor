@@ -12,10 +12,12 @@ import {
   useWikiTagsUnifiedContext,
   getConnectTagSelection,
   setConnectTagSelection,
+  todayCalendarKey,
   WIDE_QUERY,
   type DailyNode,
   type DataService,
   type NoteNode,
+  type RoutineNode,
   type ScheduleItem,
   type TagHubDetailLabels,
   type TagHubItem,
@@ -37,10 +39,10 @@ import {
  * `TagHubView`; nothing below this file's boundary knows what a DataService or
  * an i18n catalog is.
  *
- * NO PER-DOMAIN PROVIDER, on purpose. The hub reads across four domains and
- * writes to none, which is the same shape as Briefing and Trash — those call
- * the injected DataService directly rather than mounting four Providers for
- * four read-only lists. The one Provider it does sit inside is
+ * NO PER-DOMAIN PROVIDER, on purpose. The hub reads across the item domains
+ * and writes to none, which is the same shape as Briefing and Trash — those
+ * call the injected DataService directly rather than mounting a Provider per
+ * read-only list. The one Provider it does sit inside is
  * WikiTagsUnifiedProvider (mounted by its descriptor row), because the tag and
  * assignment caches it holds are already loaded and already Realtime-tracked.
  *
@@ -62,12 +64,14 @@ interface ConnectScreenProps {
   }) => void;
 }
 
-/** The four reads, kept raw so the labelling below can depend on `t`. */
+/** The reads, kept raw so the labelling below can depend on `t`. */
 interface ConnectSources {
   todos: TodoNode[];
   events: ScheduleItem[];
   notes: NoteNode[];
   dailies: DailyNode[];
+  /** Repeat series (#1631) — where a repeating item's tags actually live. */
+  routines: RoutineNode[];
 }
 
 const EMPTY_SOURCES: ConnectSources = {
@@ -75,7 +79,32 @@ const EMPTY_SOURCES: ConnectSources = {
   events: [],
   notes: [],
   dailies: [],
+  routines: [],
 };
+
+/**
+ * The occurrence a repeat's row opens (#1631): the next one from today, or —
+ * for a repeat that has stopped firing — the most recent past one. Returns
+ * undefined for a series with no materialised occurrence at all, which is a
+ * routine that has never fired inside the generated window; the row still
+ * lists, it just sends the shell to Schedule without a day to land on.
+ */
+function pickSeriesOccurrence(
+  occurrences: readonly ScheduleItem[] | undefined,
+  today: string,
+): ScheduleItem | undefined {
+  if (!occurrences) return undefined;
+  let next: ScheduleItem | undefined;
+  let previous: ScheduleItem | undefined;
+  for (const item of occurrences) {
+    if (item.date >= today) {
+      if (!next || item.date < next.date) next = item;
+    } else if (!previous || item.date > previous.date) {
+      previous = item;
+    }
+  }
+  return next ?? previous;
+}
 
 export function ConnectScreen({
   dataService,
@@ -86,10 +115,11 @@ export function ConnectScreen({
   const wiki = useWikiTagsUnifiedContext();
 
   // Every domain this screen reads. Under-declaring here is a silent stale the
-  // user has no way to fix (rules/frontend.md §Sync). Tags are NOT listed: the
-  // Provider above already tracks that domain and re-renders us with the new
-  // assignments, so declaring it here would just re-run these four reads for a
-  // change that cannot affect them.
+  // user has no way to fix (rules/frontend.md §Sync). Routines ride along on
+  // `schedule` (syncDomains.ts — a routine IS an Event template). Tags are NOT
+  // listed: the Provider above already tracks that domain and re-renders us
+  // with the new assignments, so declaring it here would just re-run these
+  // reads for a change that cannot affect them.
   const syncVersion = useSyncDomains("todos", "schedule", "notes", "dailies");
 
   const [sources, setSources] = useState<ConnectSources>(EMPTY_SOURCES);
@@ -102,27 +132,43 @@ export function ConnectScreen({
     // the rows are already on screen and a refetch only corrects them.
     refetchReportsLoading: false,
     load: async (service) => {
-      const [todos, events, notes, dailies] = await Promise.all([
+      const [todos, events, notes, dailies, routines] = await Promise.all([
         service.fetchTodoTree(),
         service.fetchEvents(),
         service.listNotesUnified(),
         service.listDailiesUnified(),
+        service.fetchAllRoutines(),
       ]);
-      return { todos, events, notes, dailies };
+      return { todos, events, notes, dailies, routines };
     },
     apply: setSources,
     fallbackMessage: "Failed to load the tag hub",
   });
 
   /*
-   * The four lists flattened into one row shape. The conventions here are the
+   * The lists flattened into one row shape. The conventions here are the
    * command palette's (usePaletteItemSearch), deliberately: an event carries
    * its DATE because the Calendar cannot select a row outside the window it is
    * showing (#503), and a daily has no title of its own — its date IS its
    * name. `updatedAt` is what orders each kind, newest first.
+   *
+   * Repeats take one extra step (#1631). Their tags are written to the SERIES
+   * (the routine row), so the series is what joins with the assignments — the
+   * occurrences carry ids the tag never mentions. Each series therefore gets
+   * ONE row, standing in for the whole run, while every occurrence carries its
+   * `seriesId` so the model can drop it once the series has spoken for it.
    */
   const items = useMemo<TagHubItem[]>(() => {
     const untitled = t("common.untitled");
+    const today = todayCalendarKey();
+    const occurrencesBySeries = new Map<string, ScheduleItem[]>();
+    for (const event of sources.events) {
+      if (event.isDeleted) continue;
+      if (event.routineId === null || event.routineId === undefined) continue;
+      const bucket = occurrencesBySeries.get(event.routineId);
+      if (bucket) bucket.push(event);
+      else occurrencesBySeries.set(event.routineId, [event]);
+    }
     const out: TagHubItem[] = [];
     for (const todo of sources.todos) {
       if (todo.isDeleted) continue;
@@ -142,6 +188,26 @@ export function ConnectScreen({
         detail: event.date,
         date: event.date,
         updatedAt: event.updatedAt,
+        seriesId: event.routineId ?? undefined,
+      });
+    }
+    for (const routine of sources.routines) {
+      if (routine.isDeleted) continue;
+      const occurrence = pickSeriesOccurrence(
+        occurrencesBySeries.get(routine.id),
+        today,
+      );
+      out.push({
+        id: routine.id,
+        role: "event",
+        title: routine.title || untitled,
+        detail: occurrence?.date,
+        date: occurrence?.date,
+        // Filed under the routine id, opened at the occurrence — see the
+        // field's note in TagHub/types.ts.
+        navigateId: occurrence?.id,
+        isSeries: true,
+        updatedAt: routine.updatedAt,
       });
     }
     for (const note of sources.notes) {
@@ -259,7 +325,14 @@ export function ConnectScreen({
 
   const handleOpenItem = useCallback(
     (item: TagHubItem) => {
-      onNavigateToItem({ id: item.id, role: item.role, date: item.date });
+      // `navigateId` when the row is filed under an id the destination cannot
+      // select — today only a repeat series (#1631), which opens at the
+      // occurrence its `date` already points the Calendar at.
+      onNavigateToItem({
+        id: item.navigateId ?? item.id,
+        role: item.role,
+        date: item.date,
+      });
     },
     [onNavigateToItem],
   );
