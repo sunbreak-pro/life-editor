@@ -1,5 +1,32 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-16 - #1642 工程 1: Schedule リファクタリングの計画書（PR #1653）
+
+#### 概要
+
+Schedule のコードを棚卸しして計画書を書き、PR #1653 で提出した（open）。**コードは 1 行も変えていない**。4 領域を並列調査したうえで、主要な主張 16 件をメインが直接 grep / Read で実測した（`rules/docs-consistency.md` §5・棄却ゼロ）。判断キューへ積んだ 2 件は同日中に両方 A で回答を得て、台帳へ昇格した。
+
+#### 変更点
+
+- **計画書** = `.claude/docs/vision/plans/2026-09-16-schedule-refactor.md`（453 行）。Issue が求めた 7 項目（棚卸し 60 件 / 責務の地図 / 分割方針と却下案 / 作業単位 16 本 / open Issue の順序 / 機械検証できる AC / 検証シナリオ 23 本）
+- **決定台帳** = `D-20260916-sched-1`（narrow の省略は意図的 = A）/ `D-20260916-sched-2`（繰り返しの範囲確認は現状維持 = A）。キューから削除し ANSWERS へ転記
+
+#### 分かったこと
+
+- **行数の問題は既に終わっていた**: #675 / #889 / #893 の分割で `CalendarTab.tsx` は 2,392 → 1,239 行、`WeekTimeGrid` の props は 28 → 6 個、`EventEditorPane` は 19 → 11 個。**今回の不具合報告はどれも行数と相関しない**ので、計画の狙いを「同じ操作なのに入口ごとに挙動が違う」だけに絞った。前回と同じ手口（大きいファイルから割る）を続けても今回の報告は減らない
+- **#1637 の第一容疑は変換側ではなかった**: 変換の 4 入口（編集パネル / バブル / Todo 詳細 / チップバブル）はすべて `useItemConversion` に収束し、成功分岐で push している（`:298` / `:371`）。怪しいのは **ドメイン Provider が unmount 時に「グローバルの」Undo スタックを丸ごと消す実装**（`ScheduleItemsContext.tsx:55-58` と同型が計 5 本）で、Provider はセクション配下にマウントされている（`sectionDescriptors.tsx:184-188`）。ただし変換だけで再マウントされる経路は特定できていないので、工程 2 の最初に実ブラウザで切り分ける
+- **Undo の穴は「個別の取りこぼし」ではなく対で空いている**: 繰り返しを ON にするのも「なし」に戻すのも push しない（`useRoutinesAPI.ts:407` / `:364`）。タグの付け外しは予定・繰り返し・Todo のどれも載らない（`useWikiTagsUnifiedAPI.ts:182` `:199`）。スキップは載るのに取り消しは載らない（`useScheduleItemsCRUD.ts:412-426`）
+- **押すタイミングが確定前**: 予定作成は `ds.createScheduleItem` を撃った直後に push する（`:126` → `:182`・await しない）ので、失敗しても履歴だけ残る。`updateRoutine` も同じ形で、`landed` は値であって push を止めない（`useRoutinesAPI.ts:183` `:196`）。完了トグルの undo は「元の値に戻す」ではなく `toggleScheduleItemComplete` をもう一度呼ぶ反転（`:324`）
+- **テストが無い 9 ハンドラと Desktop 限定のグリッド書き込みは同じ集合**: `useScheduleMutations` を読むテストは 1 本も無く（名前に触れる 4 ファイルはコメントか別レイヤの参照）、その 9 本がそのまま narrow に経路の無い操作と一致する。テストを書くことと narrow の穴の決着は同じ作業の表と裏になる
+- **`reload()` が範囲を丸ごと置き換える**（`useVisibleRangeItems.ts:49-67` `:121`）。繰り返し系はこれを `finally` で必ず呼ぶので、await 中のユーザーの編集は黙って捨てられる。同型の競合が Realtime の再取得・スキップ戻し・変換の `refetchTodos`・生成器の `loadDate` にもある
+- **DataService 境界（CLAUDE.md §3.1）は保たれている**: `shared/src/components/schedule/**` から Supabase サービスを直 import している箇所はゼロ（全数 grep）。壊れているのは境界ではなく、境界の手前にある入口の一貫性
+
+#### 判断・逸脱
+
+- **スコープ逸脱**: なし。`web/` `shared/` `desktop/` `mcp-server/` の差分は 0 行（実測）
+- **AC 免除**: なし（工程 1 の AC 4 つはすべて達成。`LC_ALL=C bash scripts/docs-lint.sh` = OK / `node .claude/scripts/records.mjs check` = OK）
+- **途中で出た判断の行き先**: 判断 2 件 → `decisions/D-20260916-sched-1` / `-2`（両方 A で回答済み・計画書へ反映済み）。既存 Issue の無い不具合 6 件（A-01 / B-10 / D-05 / E-12 / F-05 / F-07）→ 計画書の Worklog に記載し、Issue 化の可否は PR 承認時にユーザーが決める（起票は chat-main）
+
 ### 2026-09-14 - #1620 Routine（繰り返し予定）に MCP ツールを足した（PR #1621）
 
 #### 概要

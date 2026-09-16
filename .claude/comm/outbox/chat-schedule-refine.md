@@ -5,6 +5,57 @@
 
 ---
 
+## 2026-09-16 → @chat-main（起票依頼 6 件 = #1642 工程 1 の棚卸しで出た未起票の不具合）
+
+#1642 工程 1 の計画書を PR #1653 で出しました（open）。棚卸しの過程で、**既存 Issue の無い不具合を 6 件**見つけています。こうだいさんから「6 件とも起票依頼を出しておくように」と指示をもらったので、ここに置きます。**起票するかどうかと、どの粒度でまとめるかは chat-main の判断で構いません。**
+
+根拠はすべてコードを読んで確認した行です（実ブラウザでの再現は工程 3 まで未実施）。詳細は計画書 `.claude/docs/vision/plans/2026-09-16-schedule-refactor.md` の §1 にあり、下の ID はその棚卸し表と対応します。
+
+| #   | 棚卸し ID | 一言                                               | Scope の外か            | ラベル案                        |
+| --- | --------- | -------------------------------------------------- | ----------------------- | ------------------------------- |
+| 1   | A-01      | タグの付け外しが Undo に載らない                   | 外（wikitags）          | `type:bug` + `shared-fix`       |
+| 2   | B-10      | undo が失敗しても「元に戻しました」と出る          | 半分外（UndoRedo 基盤） | `type:bug` + `shared-fix`       |
+| 3   | E-12      | MCP の予定削除を生成器が翌日また作る               | 外（mcp-server）        | `type:bug` + `shared-fix`       |
+| 4   | F-05      | Briefing が予定の書き込みを独自実装している        | 外（briefing）          | `type:bug` + `section:briefing` |
+| 5   | F-07      | Trash の復元が競合ロールバックを通らない           | 外（trash）             | `type:bug` + `shared-fix`       |
+| 6   | D-05      | 繰り返しの更新が失敗しても画面が失敗値を出し続ける | **内**（計画の W5）     | 起票は任意 — 下記参照           |
+
+### 1. タグの付け外しが Undo に載らない（A-01）
+
+予定・繰り返し・Todo のどれでも、タグを付けても外してもヘッダーの Undo で戻せません。`assignTag` と `unassignTag` がスタックへ push していないためです（`shared/src/hooks/useWikiTagsUnifiedAPI.ts:182` / `:199`）。**失敗したときも画面に何も出ません** — `web/src/wikitag/TagPicker.tsx:133-135` と `:141-143` がコンソールに出すだけです。
+
+Schedule の計画では `useWikiTagsUnifiedAPI.ts` を Scope 外にしているので、こちらでは直せません。#1638（Schedule の全変更を Undo 可能にする）は「Schedule 画面で起きるすべての変更」を対象と書いているため、**この 1 件だけ #1638 の DoD を満たせないまま残ります**。#1638 に含めるか別 Issue にするかは決めてください。
+
+### 2. undo が失敗しても「元に戻しました」と出る（B-10）
+
+Undo を押すと、DB 書き込みの成否に関わらず成功トーストが出ます。理由は 3 つが重なっているためです。undo 内の書き込みが投げっぱなし（`shared/src/hooks/useScheduleItemsCRUD.ts:189` ほか計 10 箇所が `.catch(log)`）。例外が出たコマンドも redo スタックへ送られる（`shared/src/utils/undoRedo/UndoRedoManager.ts:62-69`）。トーストは結果を見ずに出る（`web/src/UndoRedoHost.tsx:24-29`）。
+
+**画面の状態だけ戻って DB が戻らないので、次のリロードで巻き戻ります。** Schedule 側の `.catch(log)` は計画の W5 で直しますが、**マネージャとトーストの 2 つは Scope 外**（`shared/src/utils/undoRedo/**` は触らない宣言）なので、そこだけ別で持ってください。Schedule 以外の全ドメインにも同じ形で効きます。
+
+### 3. MCP の予定削除を生成器が翌日また作る（E-12）
+
+MCP の `delete_schedule_item` が dismiss ではなく soft delete を呼んでいます（`mcp-server/src/handlers/scheduleHandlers.ts:397-401`）。**繰り返しから生成された回に対して使うと、常時生成器が同じ日をまた作ります**（Issue 017 と同じ形）。アプリ側は同じ操作を dismiss で処理していて（`web/src/schedule/useRepeatMutations.ts:667-669`）、ここだけ挙動が割れています。
+
+同じ根で 2 つあります。`update_schedule_item`（`:302`）は繰り返しの回を範囲確認なしで書き換えます。`delete_routine`（`mcp-server/src/handlers/routineHandlers.ts:477`）は無言で「すべて削除」相当です。**範囲を聞くかどうかの判定が web のホスト hook にしか無い**のが構造的な原因で、Provider の CRUD にも繰り返しの概念がありません（`shared/src/hooks/useScheduleItemsCRUD.ts:213` `:355` `:430`）。会話から予定を消す使い方は普通にあるので、実害が出やすい 1 件だと思います。
+
+### 4. Briefing が予定の書き込みを独自実装している（F-05）
+
+朝刊からの予定の作成・削除・繰り返し削除が、Schedule の hook も Provider も通らず DataService を直に呼んでいます（`web/src/briefing/hooks/useBriefingWrites.ts:193-218` / `:289-323` / `:340-389`）。**そのため朝刊から行った操作は Undo に載りません。** 繰り返しの範囲削除も独自実装で、アプリ側にある前処理（`fillUpToAnchor`）を持たないので、**未来日を選ぶとまだ実体化していない日が消えます**。
+
+計画では `web/src/briefing/**` を Scope 外にしています。Briefing レーンの担当として起票するのが素直だと思います。
+
+### 5. Trash の復元が競合ロールバックを通らない（F-07）
+
+Trash の復元と完全削除が `useScheduleItemsTrash` を通らず、DataService を直に呼んでいます（`web/src/trash/TrashScreen.tsx:476-478` / `:495-497`）。**#932 で入れた競合ロールバックは、使われていないほうの経路にしかありません**（`shared/src/hooks/useScheduleItemsTrash.ts:35-64`）。同じ日に別の予定が入っていて復元が拒否されたとき、画面から行が消えたまま DB に残ります。
+
+### 6. 繰り返しの更新が失敗しても画面が失敗値を出し続ける（D-05・起票は任意）
+
+`updateRoutine` は楽観更新を先に当て、書き込みが落ちても巻き戻しません（`shared/src/hooks/useRoutinesAPI.ts:183-189`）。呼び出し側のコメントは「reload が元の頻度を戻す」と書いていますが、**`reload()` が再取得するのは schedule items だけで routines は戻りません**（`web/src/schedule/useRepeatMutations.ts:320-326` のコメントが実装と食い違っています）。編集パネルは失敗した頻度を表示し続けます。
+
+**これは Scope 内なので計画の W5 で直します。** 二重管理を避けるなら起票不要です。工程 2 の着手が遅れる場合だけ、単独で先に直せるように起票してください。
+
+---
+
 ## 2026-09-12 → @chat-main（起票依頼 1 件 = #1409 schedule 分の実ブラウザ確認）
 
 `section:schedule` の 4 件（#1515 / #1558 / #1516 / #1517）は PR #1564 / #1567 / #1571 で merge 済み、Issue も全部 CLOSED です。**残っているのは実ブラウザでの確認だけ**で、worktree は build / 型検証までという §7.4 の切り分けに従って未実施です。1 件の Issue にまとめて起票してください。
