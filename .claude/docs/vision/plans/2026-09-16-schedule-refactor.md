@@ -201,6 +201,48 @@ G-01〜G-04 は **意図した省略として確定した**（2026-09-16 ユー�
 
 **I-02 と G-01 は同じ集合である。** テストが無いハンドラ 9 本は、そのまま「Desktop でしか起動しないグリッド書き込み」と一致する。テストを書くことと narrow の穴を決着させることは、同じ作業の表と裏になる。
 
+### 1-J. Undo 全経路の一覧（W2 の成果物）
+
+> #1638 手順 1 の「全経路の表」。§1-A（載っていない経路）と §1-B（載っているが戻りきらない）を 1 枚に畳み、**書き込みごとに「push があるか / どの domain か / どの label か」**を並べる。行番号は 2026-09-16 に `origin/main` で grep した実測値で、根拠のある行だけを書いた。
+
+Undo の domain は 4 つある（`scheduleItem` / `routine` / `itemConversion` / `todoTree`）。**1 回の操作が複数 domain にまたがると、Ctrl+Z は 1 回で片方しか戻さない** — B-05 と B-12 はこの形をしている。
+
+| #   | 操作                                | 入口（ホスト hook）                               | 書き込み                                | Undo push                                               | 状態                        |
+| --- | ----------------------------------- | ------------------------------------------------- | --------------------------------------- | ------------------------------------------------------- | --------------------------- |
+| U01 | 予定を作る                          | `useScheduleMutations.ts:250`                     | `useScheduleItemsCRUD.ts:56`            | あり `scheduleItem` / createScheduleItem `:182`         | 確定前に push（B-02・B-03） |
+| U02 | 予定を作る（Briefing）              | `briefing/hooks/useBriefingWrites.ts:196`         | ds 直呼び                               | **なし**                                                | Scope 外（F-05）            |
+| U03 | タイトル / 日時 / 終日を編集        | `useScheduleMutations.ts:209`                     | `useScheduleItemsCRUD.ts:213`           | あり `scheduleItem` / updateScheduleItem `:252`         | 正常                        |
+| U04 | 移動・リサイズ・終日レーンへ drop   | `useScheduleMutations.ts:273` `:308` `:319`       | `useScheduleItemsCRUD.ts:213`           | 同上                                                    | 選択が戻らない（B-11）      |
+| U05 | 複製                                | `useScheduleMutations.ts:371`                     | `useScheduleItemsCRUD.ts:56`            | あり（U01 の push 1 件で戻る）                          | 正常                        |
+| U06 | 完了トグル（MCP 専用・UI 経路なし） | —                                                 | `useScheduleItemsCRUD.ts:290`           | あり `scheduleItem` / toggleScheduleItemComplete `:313` | 反転で戻す（B-09）          |
+| U07 | この日をスキップ                    | `useScheduleMutations.ts:142`                     | `useScheduleItemsCRUD.ts:355`           | あり `scheduleItem` / dismissScheduleItem `:371`        | 選択が戻らない（B-11）      |
+| U08 | スキップを戻す                      | `useScheduleTodayAgenda.ts:112`                   | `useScheduleItemsCRUD.ts:412`           | **なし**                                                | A-02                        |
+| U09 | 削除                                | `useScheduleMutations.ts:340`                     | `useScheduleItemsCRUD.ts:430`           | あり `scheduleItem` / deleteScheduleItem `:449`         | 正常                        |
+| U10 | 一括削除                            | —                                                 | `useScheduleItemsCRUD.ts:490`           | **なし**                                                | A-10                        |
+| U11 | Trash から復元                      | `trash/TrashScreen.tsx:478`                       | `useScheduleItemsTrash.ts:35`（未使用） | **なし**                                                | A-11 / F-07                 |
+| U12 | Trash から完全削除                  | `trash/TrashScreen.tsx:497`                       | `useScheduleItemsTrash.ts:66`（未使用） | **なし**                                                | A-11 / F-07                 |
+| U13 | 繰り返しを ON にする                | `useRepeatMutations.ts:252`（手動分岐 `:343`）    | `useRoutinesAPI.ts:407`                 | **なし**（意図的）                                      | A-03                        |
+| U14 | 繰り返しの頻度を編集                | `useRepeatMutations.ts:255`                       | `useRoutinesAPI.ts:147`                 | あり `routine` / updateRoutine `:196`                   | 確定前に push（B-06）       |
+| U15 | 頻度変更にともなう再生成            | `useRepeatMutations.ts:328`                       | `useScheduleItemsRoutineSync.ts:275`    | **なし**                                                | A-06（B-07 の片側）         |
+| U16 | 繰り返しを「なし」に戻す            | `useRepeatMutations.ts:495`                       | `useRoutinesAPI.ts:364`                 | **なし**                                                | A-04                        |
+| U17 | 「以降すべて / すべて」編集の伝播   | `useRepeatMutations.ts:619`                       | `useRoutinesAPI.ts:449`                 | **なし**（テンプレート側だけ U14 で載る）               | A-05 / B-05                 |
+| U18 | シリーズごと削除                    | `useScheduleRepeats.ts:244`                       | `useRoutinesAPI.ts:230`                 | あり `routine` / deleteRoutine `:277`                   | 枠の競合で一部残る（B-08）  |
+| U19 | 繰り返しを新規作成                  | `useScheduleRepeats.ts:169` 経由                  | `useRoutinesAPI.ts:79`                  | あり `routine` / createRoutine `:126`                   | 正常                        |
+| U20 | 常時生成器（UI 操作なし）           | `RoutineScheduleSync.tsx:68`                      | `useScheduleItemsRoutineSync.ts:150`    | **なし**（意図的）                                      | A-07                        |
+| U21 | Event → Todo 変換                   | `useItemConversion.ts:254`                        | ds 直呼び                               | あり `itemConversion` `:141`                            | #1637 の対象（B-01）        |
+| U22 | Todo → Event 変換                   | `useItemConversion.ts:329`                        | ds 直呼び                               | あり `itemConversion` `:201`                            | 同上                        |
+| U23 | Todo チップの移動 / リサイズ / 終日 | `useScheduleTodoChips.ts:239` `:253` `:268`       | `useTodoTreeCRUD.ts:139`                | あり `todoTree`（undoLabel 経由）                       | 正常                        |
+| U24 | Todo をカレンダーへ drop            | `useScheduleTodoChips.ts:279`                     | `useTodoTreeCRUD.ts:139`                | あり `todoTree`                                         | 入口が 2 本（F-03）         |
+| U25 | Todo をノート付きで配置             | `todoChipUndoWiring.ts:197`（`placeTodoWrite`）   | `useTodoTreeCRUD.ts:139`                | **なし**（意図的除外）                                  | A-09                        |
+| U26 | 作成パネルから付けたノート          | `useCreatePanelNotes.ts:108`                      | ds 直呼び                               | **なし**                                                | A-08 / B-04                 |
+| U27 | タグの付与 / 解除                   | `wikitag/TagPicker.tsx:131` `:140`                | `useWikiTagsUnifiedAPI.ts:181` `:198`   | **なし**                                                | A-01（Scope 外ファイル）    |
+| U28 | 表示色に使うタグの指定              | `wikitag/TagPicker.tsx` 経由                      | `useWikiTagsUnifiedAPI.ts:352`          | **なし**                                                | A-01 と同根                 |
+| U29 | MCP 経由の作成 / 更新 / 削除        | `mcp-server/src/handlers/scheduleHandlers.ts:302` | ds 直呼び                               | **なし**                                                | Scope 外（E-12）            |
+
+**内訳**: 29 経路のうち push があるのは 14（U01 / U03〜U07 / U09 / U14 / U18 / U19 / U21〜U24）で、15 経路には無い。そのうち **W4 / W6 が Scope 内で扱えるのは 9 経路**（U08 / U10 / U13 / U15 / U16 / U17 / U20 / U25 / U26）で、残る U02 / U11 / U12 / U27 / U28 / U29 は書き込みが Scope 外のファイルに居る（Briefing・Trash・タグ・MCP）。§Acceptance Criteria の「Scope 内の 9 経路」はこの 9 本を指す。
+
+**スタックの全消去（B-01）**: `ScheduleItemsContext.tsx:57` が unmount 時に `undoRedo.clear()` を**引数なしで**呼ぶ。`clear(domain?)` は引数が無いと全 domain を消す（`UndoRedoContextValue.ts:20`）ため、Schedule を離れると Notes / Todo の履歴も道連れになる。同型の Provider が 5 本ある。#1637 の第一容疑はここで、切り分けは W3 が実ブラウザで行う。
+
 ---
 
 ## 2. 責務の地図
@@ -453,3 +495,6 @@ S18〜S22 は本計画で足した。**棚卸しで「推定」に留まった�
 - **2026-09-16**: 工程 1。4 領域を並列調査し、主要な主張 16 件をメインが全数 spot check した（結果は §Context の表・棄却ゼロ）。棚卸し 60 件・書き込み経路 20 操作・作業単位 16 本を確定。コードは 1 行も変えていない。
   - 判断キューへ 2 件積み、**同日中に両方 A で回答を得た**（台帳 = D-20260916-sched-1 / D-20260916-sched-2）。narrow のグリッド書き込みが無いのは意図した省略として確定し、繰り返しの範囲確認は現状のまま仕様として固定した。どちらも実装変更を伴わないため、W6 と W13 は記録だけの作業単位に縮んだ。
   - 既存 Issue の無い不具合を 6 件見つけた。Issue 化するかは承認時に決める（起票は chat-main）。A-01 タグ操作が Undo に載らない / B-10 失敗しても成功トーストが出る / D-05 コメントと実装の食い違い / E-12 MCP が範囲の門番を通らず生成器に復活させられる / F-05 Briefing の二重実装 / F-07 Trash の競合ロールバック未適用。
+- **2026-09-16**: 工程 2 着手。W0（`useScheduleMutations` の 9 ハンドラを pin・20 ケース）/ W1（#1632 のタグ移送）/ W2（本書 §1-J）/ W7 / W11 を、それぞれ `origin/main` から切ったブランチで PR 化した。
+  - W2 で §1-J を追加した。push の実在箇所を全数 grep し直した結果、**push がある経路は 14 / 無い経路は 15** で、うち Scope 内で足せるのは 9 経路だと確定した（AC の「9 経路」の定義をこの表に固定する）。
+  - W1 は #1632 の推奨方針（変換の catch に合わせてロールバック）を**採れなかった**。`wiki_tag_assignments.item_id` が `on delete cascade` のため、移送が着地した後にロールバックが走るとタグごと消える。移送を変換の最後の一手にして、失敗はログのみとし、タグは seed に残す形にした。判断の根拠は PR 本文に書いた。
