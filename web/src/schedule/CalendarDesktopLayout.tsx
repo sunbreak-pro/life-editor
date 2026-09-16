@@ -2,8 +2,7 @@ import { useCallback, type ReactNode } from "react";
 import {
   CalendarLensRow,
   MonthGrid,
-  ScheduleErrorCard,
-  ScheduleLoadingCard,
+  ScheduleBodyFold,
   ScheduleToolbar,
   TOUR_ANCHORS,
   WeekTimeGrid,
@@ -209,67 +208,68 @@ export function CalendarDesktopLayout({
    * The overlays that used to close that list stayed behind at the call site:
    * what is mounted ON TOP of the grid belongs to whoever places both layouts.
    */
-  const desktopBody = state.loading ? (
-    <ScheduleLoadingCard label={t("scheduleScreen.loading")} />
-  ) : state.error ? (
-    <ScheduleErrorCard
+  const desktopBody = (
+    <ScheduleBodyFold
+      state={state}
       labels={{
+        loading: t("scheduleScreen.loading"),
         message: t("scheduleScreen.loadError"),
         retry: t("scheduleScreen.retry"),
       }}
-      onRetry={state.onRetry}
-    />
-  ) : view === "month" ? (
-    <div className="min-h-0 flex-1 overflow-y-auto">
-      <MonthGrid
-        monthKey={data.anchorDate}
-        items={data.monthItems}
-        todayKey={data.today}
-        weekdayLabels={labels.weekdays}
-        onCreateDay={handlers.onMonthCreate}
-        onItemActivate={handlers.onItemActivate}
-        onItemDoubleClick={handlers.onItemDoubleClick}
-        onItemContextMenu={handlers.onItemContextMenu}
-        onDropTodo={handlers.onDropTodo}
-        formatMoreCount={formatMoreCount}
-        formatDayLabel={format.fullDay}
-        formatCreateLabel={formatCreateLabel}
-        ariaLabel={t("scheduleScreen.calendar")}
-        className="h-full"
-      />
-    </div>
-  ) : (
-    // Item detail moved into a body-level overlay (#299), so the grid
-    // takes the full width the editor <aside> used to share.
-    <div className="min-h-0 flex-1">
-      <WeekTimeGrid
-        data={{
-          weekStart: data.weekStart,
-          days: 7,
-          items: data.gridItems,
-          selectedId: data.selectedId,
-          todayKey: data.today,
-          nowMinutes: data.nowMinutes,
-        }}
-        labels={{
-          weekdays: labels.weekdays,
-          allDay: t("scheduleScreen.allDay"),
-          createSlot: t("scheduleCalendar.createSlot"),
-        }}
-        handlers={{
-          onItemActivate: handlers.onItemActivate,
-          onItemDoubleClick: handlers.onItemDoubleClick,
-          onItemContextMenu: handlers.onItemContextMenu,
-          onCreateAt: handlers.onCreateAt,
-          onMoveItem: handlers.onMoveItem,
-          onResizeItem: handlers.onResizeItem,
-          onDropAllDay: handlers.onDropAllDay,
-          onDropTodo: handlers.onDropTodo,
-        }}
-        display={{ todoInteractive: true, fillHeight: true }}
-        format={{ dayDate: format.dayDate }}
-      />
-    </div>
+    >
+      {view === "month" ? (
+        <div className="min-h-0 flex-1 overflow-y-auto">
+          <MonthGrid
+            monthKey={data.anchorDate}
+            items={data.monthItems}
+            todayKey={data.today}
+            weekdayLabels={labels.weekdays}
+            onCreateDay={handlers.onMonthCreate}
+            onItemActivate={handlers.onItemActivate}
+            onItemDoubleClick={handlers.onItemDoubleClick}
+            onItemContextMenu={handlers.onItemContextMenu}
+            onDropTodo={handlers.onDropTodo}
+            formatMoreCount={formatMoreCount}
+            formatDayLabel={format.fullDay}
+            formatCreateLabel={formatCreateLabel}
+            ariaLabel={t("scheduleScreen.calendar")}
+            className="h-full"
+          />
+        </div>
+      ) : (
+        // Item detail moved into a body-level overlay (#299), so the grid
+        // takes the full width the editor <aside> used to share.
+        <div className="min-h-0 flex-1">
+          <WeekTimeGrid
+            data={{
+              weekStart: data.weekStart,
+              days: 7,
+              items: data.gridItems,
+              selectedId: data.selectedId,
+              todayKey: data.today,
+              nowMinutes: data.nowMinutes,
+            }}
+            labels={{
+              weekdays: labels.weekdays,
+              allDay: t("scheduleScreen.allDay"),
+              createSlot: t("scheduleCalendar.createSlot"),
+            }}
+            handlers={{
+              onItemActivate: handlers.onItemActivate,
+              onItemDoubleClick: handlers.onItemDoubleClick,
+              onItemContextMenu: handlers.onItemContextMenu,
+              onCreateAt: handlers.onCreateAt,
+              onMoveItem: handlers.onMoveItem,
+              onResizeItem: handlers.onResizeItem,
+              onDropAllDay: handlers.onDropAllDay,
+              onDropTodo: handlers.onDropTodo,
+            }}
+            display={{ todoInteractive: true, fillHeight: true }}
+            format={{ dayDate: format.dayDate }}
+          />
+        </div>
+      )}
+    </ScheduleBodyFold>
   );
 
   return (

@@ -55,6 +55,33 @@ export function minutesFromMidnight(hhmm: string): number {
   return hours * 60 + mins;
 }
 
+// ── Agenda row height (#691, moved here by #1642 W11) ────────────────────
+//
+// The day agenda draws the same fact the week grid does — how long something
+// runs, as a height — and had its own copy of the arithmetic. One pixel scale
+// per surface is how the two came to disagree about what "an hour tall" means.
+// The numbers differ from the grid's on purpose (an agenda row has a floor and
+// a ceiling; a grid block is proportional over a fixed window), which is the
+// reason they are named here rather than folded into `minutesToPx`.
+
+/** Pixels a minute of duration adds to an agenda row. */
+export const AGENDA_PX_PER_MINUTE = 0.4;
+/** A row is never shorter than this — below it there is no tap target. */
+export const AGENDA_MIN_ROW_PX = 42;
+/** …and never taller. A whole afternoon block would otherwise push everything
+ *  after it off the screen, so the scale is honest up to 3 hours and flat
+ *  beyond it. */
+export const AGENDA_MAX_ROW_PX = 84;
+
+/** Height an agenda row claims for `minutes` of duration. */
+export function agendaRowHeightPx(minutes: number): number {
+  if (!Number.isFinite(minutes) || minutes <= 0) return AGENDA_MIN_ROW_PX;
+  return Math.min(
+    AGENDA_MAX_ROW_PX,
+    Math.max(AGENDA_MIN_ROW_PX, minutes * AGENDA_PX_PER_MINUTE),
+  );
+}
+
 // `clamp` moved to `utils/clamp.ts` (#670 C3 PR 3) — it is plain arithmetic,
 // not grid math. Imported (this module uses it 4 times) AND re-exported, so
 // the existing schedule call sites and tests keep importing it from here.

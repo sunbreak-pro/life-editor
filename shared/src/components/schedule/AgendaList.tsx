@@ -5,7 +5,10 @@ import {
   dotColorClasses,
   type ScheduleItemVariant,
 } from "./scheduleVariantVisuals";
-import { minutesFromMidnight } from "../../utils/scheduleGridLayout";
+import {
+  agendaRowHeightPx,
+  minutesFromMidnight,
+} from "../../utils/scheduleGridLayout";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
 
@@ -110,19 +113,6 @@ const FOCUS =
 /** Shorter holes than this are the seams between back-to-back rows, not time
  *  you could put something in — marking them would be noise. */
 const MIN_GAP_MINUTES = 30;
-
-/** Row height per minute, and the ceiling it stops at. A whole afternoon
- *  block would otherwise push everything after it off the screen, so the
- *  scale is honest up to 3 hours and flat beyond it. */
-const PX_PER_MINUTE = 0.4;
-const MIN_ROW_PX = 42;
-const MAX_ROW_PX = 84;
-
-/** Height a timed row claims for `minutes` of duration. */
-export function agendaRowHeightPx(minutes: number): number {
-  if (!Number.isFinite(minutes) || minutes <= 0) return MIN_ROW_PX;
-  return Math.min(MAX_ROW_PX, Math.max(MIN_ROW_PX, minutes * PX_PER_MINUTE));
-}
 
 export function AgendaList({
   items,

@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 /*
  * The calendar's three status surfaces (#296) — "loading", "could not load",
  * and the quiet retry banner that rides above a calendar which still has rows
@@ -75,6 +77,56 @@ export function ScheduleErrorCard({ labels, onRetry }: ScheduleErrorCardProps) {
       </button>
     </div>
   );
+}
+
+export interface ScheduleBodyFoldProps {
+  state: ScheduleLoadState;
+  /** The three lines the fold can say, already translated (§6.4). */
+  labels: ScheduleLoadErrorLabels & {
+    /** "Loading" — the line the first card shows. */
+    loading: string;
+  };
+  /**
+   * Wrapper for the CARD states only. Narrow pads and scrolls them (the phone
+   * grid runs edge to edge, so the gutter belongs to the cards rather than to
+   * the column); Desktop wants them bare. The calendar itself brings its own
+   * wrapper either way, which is why this does not apply to `children`.
+   */
+  cardClassName?: string;
+  /** The calendar — drawn only when neither card is. */
+  children: ReactNode;
+}
+
+/**
+ * The fold between the three EXCLUSIVE body states (#889, shared by #1642
+ * W11).
+ *
+ * Both layouts used to spell this chain out for themselves, which is the
+ * arrangement that let the Calendar's two overlay lists drift apart before
+ * (see the header). Two things it must keep being:
+ *
+ *   - a CHAIN, not three conditions. `{loading && …}{error && …}` passes every
+ *     obvious test and stacks two cards the moment a fetch fails while another
+ *     is in flight;
+ *   - the BODY only. The chrome (period label, steppers) stays outside it, or
+ *     a failed range fetch leaves the retry as the only control on screen —
+ *     no way to step to a range that might load.
+ */
+export function ScheduleBodyFold({
+  state,
+  labels,
+  cardClassName,
+  children,
+}: ScheduleBodyFoldProps) {
+  if (state.loading || state.error) {
+    const card = state.loading ? (
+      <ScheduleLoadingCard label={labels.loading} />
+    ) : (
+      <ScheduleErrorCard labels={labels} onRetry={state.onRetry} />
+    );
+    return cardClassName ? <div className={cardClassName}>{card}</div> : card;
+  }
+  return <>{children}</>;
 }
 
 export interface ScheduleRangeErrorBannerProps {
