@@ -1,15 +1,16 @@
 import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
-  addDaysKey,
   seedFrequencyPatch,
   runSeriesEdit,
-  seriesPropagatableFields,
+  planRepeatScopeChoice,
   useInFlightGuard,
   type FrequencyEditorValue,
   type RepeatScope,
+  type RepeatScopePlan,
   type RoutineNode,
   type ScheduleItem,
+  type SeriesFillRange,
 } from "@life-editor/shared";
 
 /*
@@ -191,6 +192,52 @@ function definedSeedFields(fields?: RepeatSaveFields): RepeatSaveFields {
   return out;
 }
 
+/**
+ * The "nothing known yet" base `seedFrequencyPatch` fills from when there is
+ * no routine to read defaults off — a brand-new conversion, or a series whose
+ * routine is not loaded. Spelled once: seeding the two paths differently is
+ * how a malformed frequency (weekdays with no day) used to reach the DB.
+ */
+const UNSEEDED_FREQUENCY = {
+  frequencyDays: [] as number[],
+  frequencyInterval: null as number | null,
+  frequencyStartDate: null as string | null,
+};
+
+/**
+ * The routine the range materialiser needs before the store has the real one.
+ *
+ * Nothing here is invented: #296 attaches the seed row in place, so the seed's
+ * own title and times ARE the template, and the frequency is what the
+ * conversion just wrote.
+ */
+function optimisticSeedRoutine(
+  id: string,
+  seed: ScheduleItem,
+  frequency: {
+    frequencyType: RoutineNode["frequencyType"];
+    frequencyDays: number[];
+    frequencyInterval: number | null;
+    frequencyStartDate: string | null;
+  },
+): RoutineNode {
+  const now = new Date().toISOString();
+  return {
+    id,
+    title: seed.title,
+    startTime: seed.startTime,
+    endTime: seed.endTime,
+    isArchived: false,
+    isVisible: true,
+    isDeleted: false,
+    deletedAt: null,
+    order: 0,
+    ...frequency,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
 export function useRepeatMutations({
   setRangeItems,
   patchRange,
@@ -241,147 +288,85 @@ export function useRepeatMutations({
     inFlightIds: convertingSeedIds,
   } = useInFlightGuard();
 
-  // Frequency change from the editor. For a routine occurrence this is a
-  // series edit (patch the source routine). For a manual event, choosing a
-  // frequency converts the event IN PLACE (#296): the seed row itself is
-  // attached to a new routine as that day's occurrence — its id, memo,
-  // completion state and the current selection all survive, and a failed
-  // conversion leaves a plain manual event. The old delete-then-recreate
-  // flow soft-deleted the seed BEFORE the replacement was durable, so any
-  // failure in the chain vanished the event beyond a reload.
-  const handleChangeRepeat = useCallback(
-    (patch: Partial<FrequencyEditorValue>, fields?: RepeatSaveFields) => {
-      if (!selected) return;
-      if (selected.routineId != null) {
-        if (Object.keys(patch).length === 0) return;
-        const routineId = selected.routineId;
-        const routine = routines.find((r) => r.id === routineId);
-        if (!routine) {
-          // Routines not loaded (or the routine vanished): patch the
-          // template anyway, but skip reconcile — without the pre-edit
-          // routine there is no rule-2 template and no reliable "does the
-          // new frequency fire here" answer. Seed against an empty template
-          // (#407): pre-fix this path passed the bare patch through, so a
-          // bare type switch could persist a malformed frequency the
-          // fail-closed guard reads as "fires never". Re-read so the
-          // editor's optimistic state returns to DB truth.
-          // #504: awaited, not fired and forgotten. The write can fail here
-          // exactly as it can on the loaded path, and the finally-reload then
-          // puts the OLD frequency back in the editor — which reads as the
-          // control being broken rather than the save having failed. Same
-          // words as that path: from the user's side this IS the frequency
-          // edit not landing.
-          void (async () => {
-            try {
-              const landed = await updateRoutine(
-                routineId,
-                seedFrequencyPatch(
-                  patch,
-                  {
-                    frequencyDays: [],
-                    frequencyInterval: null,
-                    frequencyStartDate: null,
-                  },
-                  selected.date,
-                ),
-              );
-              if (!landed) onRepeatConvertFailed("update");
-            } finally {
-              reload();
-            }
-          })();
-          return;
-        }
-        // A bare type switch carries none of the new type's own fields, so
-        // it would read as "fires never" (weekdays with no day, and since
-        // #407 also interval with no interval — malformed configs fail
-        // closed). Seed them the way the manual→repeat conversion below
-        // does — reconcile acts on this patch immediately, so the
-        // transient is no longer harmless.
-        const seededPatch = seedFrequencyPatch(patch, routine, selected.date);
-        // #352 Step 4: the template update alone only steers FUTURE
-        // generation — occurrences already materialised keep the old
-        // rhythm (rows on days that no longer fire, gaps on days that
-        // now do). Reconcile re-shapes them across the visible range,
-        // skipping done / dismissed / hand-edited rows (tier-1
-        // §Schedule 競合解決ルール 1-3). The routine as it exists BEFORE
-        // this patch is the rule-2 template: title/times are untouched
-        // by a frequency edit, so a row deviating from them was edited
-        // individually and stays the user's.
-        void (async () => {
-          try {
-            // Sequenced, not fired in parallel: reshaping occurrences to a
-            // frequency the routine itself never took would leave template
-            // and series contradicting each other, and the always-on
-            // generators would then fight over every day.
-            const landed = await updateRoutine(routineId, seededPatch);
-            if (!landed) {
-              // #469 小粒: reconcile is skipped on purpose (reshaping to a
-              // rhythm the template never took would leave the two
-              // contradicting each other), but the finally-reload then restores
-              // the OLD frequency in the editor. Without a word, that reads as
-              // the frequency control being broken rather than the write having
-              // failed.
-              onRepeatConvertFailed("update");
-              return;
-            }
-            await reconcileRoutineScheduleItems(
-              { ...routine, ...seededPatch },
-              { startDate: rangeStart, endDate: rangeEnd },
-              {
-                title: routine.title,
-                startTime: routine.startTime,
-                endTime: routine.endTime,
-              },
-            );
-          } finally {
-            reload();
-          }
-        })();
-        return;
+  /**
+   * Fill the rest of the visible range for a series that has just been minted
+   * (#279).
+   *
+   * The always-on generator only covers today and `rangeItems` only reloads on
+   * navigation, so without this pass a fresh repeat shows exactly one
+   * occurrence. Passing ONLY the new routine keeps the range-ensure's
+   * frequency-mismatch cleanup away from other routines' occurrences.
+   *
+   * The window is clamped: never BEFORE today or before the seed — a repeat
+   * conceptually starts at the converted occurrence, and fabricating not-done
+   * rows into past days would pollute the life record (tier-1 rule 1 spirit).
+   * The seed's own day needs no pass: the seed row IS that day's occurrence now
+   * (source_date claims the slot).
+   */
+  const materialiseNewSeries = useCallback(
+    async (routine: RoutineNode, seedDate: string): Promise<void> => {
+      const windowStart = [rangeStart, seedDate, today].reduce((a, b) =>
+        a >= b ? a : b,
+      );
+      if (windowStart > rangeEnd) return;
+      try {
+        await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [routine]);
+        // Second idempotent pass: the always-on today generator can race the
+        // first batch on today's row (23505 leads to a whole-batch rollback
+        // inside ensure). The re-run's pre-check sees the winner and fills in
+        // the remaining days.
+        await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [routine]);
+      } catch {
+        // The repeat itself IS on (convert + attach landed); only filling the
+        // visible range failed. Pre-#434 this threw out of the void-ed promise:
+        // an unhandled rejection that also skipped the reload, leaving the
+        // optimistic band on screen over data that never arrived.
+        onRepeatConvertFailed("materialise");
       }
-      // Manual → turn a repeat on. Only a concrete daily/weekdays/interval
-      // type can reach this branch (the editor offers nothing else).
-      const type = patch.frequencyType;
-      if (!type) return;
-      // #870: the seed is the selected row with the SAME save's field edits
-      // laid over it. `selected` is the committed item, and the field patch is
-      // written after this call returns (the pane sends the repeat first, see
-      // its save()), so reading the times straight off `selected` templates the
-      // series on the values the user just replaced: the seed day showed the
-      // new time and every generated day the old one. Everything below derives
-      // from `seed` — the template, the optimistic routine the materialiser
-      // uses, and the day the conversion claims — so the overlay has to happen
-      // here rather than at each use, or the two would disagree.
-      const seed = { ...selected, ...definedSeedFields(fields) };
+    },
+    [
+      rangeStart,
+      rangeEnd,
+      today,
+      ensureRoutineItemsForDateRange,
+      onRepeatConvertFailed,
+    ],
+  );
+
+  /**
+   * Turn a manual event INTO a repeat (#296): the seed row itself is attached
+   * to a new routine as that day's occurrence, so its id, memo, completion
+   * state and the current selection all survive, and a failed conversion leaves
+   * a plain manual event. The old delete-then-recreate flow soft-deleted the
+   * seed BEFORE the replacement was durable, so any failure in the chain
+   * vanished the event beyond a reload.
+   */
+  const runRepeatConversion = useCallback(
+    (
+      seed: ScheduleItem,
+      type: NonNullable<FrequencyEditorValue["frequencyType"]>,
+      patch: Partial<FrequencyEditorValue>,
+    ) => {
       // #407: one conversion per seed at a time. Check-and-claim is a single
       // call so the two cannot drift apart (#434).
       if (!beginConversion(seed.id)) return;
-      // #712: the patch may now carry the type-specific fields too — the
-      // editor drafts the whole repeat and hands it over in ONE press, so a
-      // weekday the user picked before saving arrives here rather than in a
-      // follow-up click. Ignoring them would drop that choice on the floor and
-      // create the series on the seed's own weekday instead. Absent fields
-      // still fall back to the seed day / every-1-day defaults, which is
-      // exactly what seedFrequencyPatch fills in (same call the series branch
-      // above makes, so both routes seed identically).
+      // #712: the patch may carry the type-specific fields too — the editor
+      // drafts the whole repeat and hands it over in ONE press, so a weekday the
+      // user picked before saving arrives here rather than in a follow-up click.
+      // Absent fields fall back to the seed day / every-1-day defaults.
       const seeded = seedFrequencyPatch(
         { ...patch, frequencyType: type },
-        {
-          frequencyDays: [],
-          frequencyInterval: null,
-          frequencyStartDate: null,
-        },
+        UNSEEDED_FREQUENCY,
         seed.date,
       );
       const frequencyDays = seeded.frequencyDays ?? [];
       const frequencyInterval = seeded.frequencyInterval ?? null;
       const frequencyStartDate = seeded.frequencyStartDate ?? null;
       void (async () => {
-        // Single release point for the #407 guard: the whole conversion
-        // chain runs inside this try so no exit path — success, failed
-        // conversion, or a future throw slipped into the tail — can leave
-        // the seed locked for the rest of the session.
+        // Single release point for the #407 guard: the whole chain runs inside
+        // this try so no exit path — success, failed conversion, or a future
+        // throw slipped into the tail — can leave the seed locked for the rest
+        // of the session.
         try {
           let routineId: string;
           try {
@@ -396,94 +381,149 @@ export function useRepeatMutations({
               sourceDate: seed.date,
             });
           } catch {
-            // Conversion did not land — the seed is untouched server-side
-            // (or already owned by a routine: the #407 conditional attach).
-            // Say so (#434): the snap-back the finally's reload() causes is
+            // Conversion did not land — the seed is untouched server-side (or
+            // already owned by a routine: the #407 conditional attach). Say so
+            // (#434): the snap-back the finally's reload() causes is
             // indistinguishable from "the click did nothing".
             onRepeatConvertFailed("attach");
             return;
           }
           patchRange(seed.id, { routineId, sourceDate: seed.date });
-          // #279: materialise the rest of the visible range right away —
-          // the always-on generator only covers today, and rangeItems only
-          // reloads on navigation. Passing ONLY the new routine keeps the
-          // range-ensure's frequency-mismatch cleanup away from other
-          // routines' occurrences. Clamp the window: never materialise
-          // BEFORE today or before the seed — a repeat conceptually starts
-          // at the converted occurrence, and fabricating not-done rows into
-          // past days would pollute the life record (tier-1 rule 1 spirit).
-          // The seed's own day needs no extra pass: the seed row IS that
-          // day's occurrence now (source_date claims the slot).
-          const now = new Date().toISOString();
-          const optimisticRoutine: RoutineNode = {
-            id: routineId,
-            title: seed.title,
-            startTime: seed.startTime,
-            endTime: seed.endTime,
-            isArchived: false,
-            isVisible: true,
-            isDeleted: false,
-            deletedAt: null,
-            order: 0,
-            frequencyType: type,
-            frequencyDays,
-            frequencyInterval,
-            frequencyStartDate,
-            createdAt: now,
-            updatedAt: now,
-          };
-          const windowStart = [rangeStart, seed.date, today].reduce((a, b) =>
-            a >= b ? a : b,
+          await materialiseNewSeries(
+            optimisticSeedRoutine(routineId, seed, {
+              frequencyType: type,
+              frequencyDays,
+              frequencyInterval,
+              frequencyStartDate,
+            }),
+            seed.date,
           );
-          try {
-            if (windowStart <= rangeEnd) {
-              await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
-                optimisticRoutine,
-              ]);
-              // Second idempotent pass: the always-on today generator can
-              // race the first batch on today's row (23505 → whole-batch
-              // rollback inside ensure). The re-run's pre-check sees the
-              // winner and fills in the remaining days.
-              await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [
-                optimisticRoutine,
-              ]);
-            }
-          } catch {
-            // The repeat itself IS on (convert + attach landed above); only
-            // filling the visible range failed. Pre-#434 this threw out of
-            // the void-ed promise: an unhandled rejection that also skipped
-            // the reload, leaving the optimistic band on screen over data
-            // that never arrived.
-            onRepeatConvertFailed("materialise");
-          }
         } finally {
           // reload() lives here so every exit — landed, refused attach,
           // half-materialised — re-reads exactly once and the editor stops
           // showing optimistic state the server never confirmed.
           reload();
-          // Released only after the routineId patch + reload settle: from
-          // here `selected.routineId` is set, so the next frequency click
-          // routes to the series-edit branch instead of a second conversion.
+          // Released only after the routineId patch + reload settle: from here
+          // `selected.routineId` is set, so the next frequency click routes to
+          // the series-edit branch instead of a second conversion.
           endConversion(seed.id);
         }
       })();
     },
     [
-      selected,
+      beginConversion,
+      endConversion,
+      convertEventToRoutine,
+      patchRange,
+      materialiseNewSeries,
+      onRepeatConvertFailed,
+      reload,
+    ],
+  );
+
+  /**
+   * Patch an EXISTING series' rhythm.
+   *
+   * A bare type switch carries none of the new type's own fields, so it would
+   * read as "fires never" (weekdays with no day, and since #407 also interval
+   * with no interval — malformed configs fail closed). `seedFrequencyPatch`
+   * fills them the same way the conversion above does.
+   *
+   * With the routine not loaded (or gone) the template is patched anyway, but
+   * the reconcile is SKIPPED: without the pre-edit routine there is no rule-2
+   * template and no reliable "does the new frequency fire here" answer. The
+   * awaited write + the finally-reload are what #504 added — a fire-and-forget
+   * failure put the OLD frequency back in the editor, which reads as the
+   * control being broken rather than the save having failed.
+   */
+  const runSeriesFrequencyEdit = useCallback(
+    (
+      routineId: string,
+      patch: Partial<FrequencyEditorValue>,
+      sourceDate: string,
+    ) => {
+      const routine = routines.find((r) => r.id === routineId);
+      const seededPatch = seedFrequencyPatch(
+        patch,
+        routine ?? UNSEEDED_FREQUENCY,
+        sourceDate,
+      );
+      void (async () => {
+        try {
+          // Sequenced, not fired in parallel: reshaping occurrences to a
+          // frequency the routine itself never took would leave template and
+          // series contradicting each other, and the always-on generators would
+          // then fight over every day.
+          const landed = await updateRoutine(routineId, seededPatch);
+          if (!landed) {
+            // #469 小粒: reconcile is skipped on purpose, but the
+            // finally-reload then restores the OLD frequency in the editor.
+            // Without a word, that reads as the frequency control being broken
+            // rather than the write having failed.
+            onRepeatConvertFailed("update");
+            return;
+          }
+          if (!routine) return;
+          // #352 Step 4: the template update alone only steers FUTURE
+          // generation — occurrences already materialised keep the old rhythm
+          // (rows on days that no longer fire, gaps on days that now do).
+          // Reconcile re-shapes them across the visible range, skipping done /
+          // dismissed / hand-edited rows (tier-1 §Schedule 競合解決ルール 1-3).
+          // The routine as it exists BEFORE this patch is the rule-2 template.
+          await reconcileRoutineScheduleItems(
+            { ...routine, ...seededPatch },
+            { startDate: rangeStart, endDate: rangeEnd },
+            {
+              title: routine.title,
+              startTime: routine.startTime,
+              endTime: routine.endTime,
+            },
+          );
+        } finally {
+          reload();
+        }
+      })();
+    },
+    [
       routines,
       updateRoutine,
       reconcileRoutineScheduleItems,
-      convertEventToRoutine,
-      patchRange,
-      ensureRoutineItemsForDateRange,
       rangeStart,
       rangeEnd,
-      today,
       reload,
       onRepeatConvertFailed,
-      beginConversion,
-      endConversion,
     ],
+  );
+
+  // Frequency change from the editor. A routine occurrence is a series edit
+  // (patch the source routine); a manual event converts IN PLACE (#296). The
+  // dispatcher owns neither chain — it only decides which one the selection is
+  // asking for, and refuses the two no-ops (#1642 W7).
+  const handleChangeRepeat = useCallback(
+    (patch: Partial<FrequencyEditorValue>, fields?: RepeatSaveFields) => {
+      if (!selected) return;
+      if (selected.routineId != null) {
+        if (Object.keys(patch).length === 0) return;
+        runSeriesFrequencyEdit(selected.routineId, patch, selected.date);
+        return;
+      }
+      // Only a concrete daily/weekdays/interval type can reach the manual
+      // branch (the editor offers nothing else).
+      const type = patch.frequencyType;
+      if (!type) return;
+      // #870: the seed is the selected row with the SAME save's field edits laid
+      // over it. `selected` is the committed item and the field patch is written
+      // after this call returns (the pane sends the repeat first), so reading the
+      // times straight off `selected` would template the series on the values the
+      // user just replaced — the seed day showing the new time and every
+      // generated day the old one.
+      runRepeatConversion(
+        { ...selected, ...definedSeedFields(fields) },
+        type,
+        patch,
+      );
+    },
+    [selected, runSeriesFrequencyEdit, runRepeatConversion],
   );
 
   // "なし" selected → turn the repeat off (detach the series from today on).
@@ -527,193 +567,178 @@ export function useRepeatMutations({
     })();
   }, [selected, detachRoutine, setRangeItems, reload]);
 
-  // #279: apply the scope the user picked in the RepeatScopeDialog.
-  // Edit — this: single-row patch (the manual edit then wins over any later
-  // series propagation, tier-1 §Schedule rule 2); future/all: patch the
-  // routine template + the still-unedited, not-done, not-dismissed
-  // materialised rows from the anchor date (all = from the epoch).
-  // Delete — this: Dismiss (a plain delete would be revived by the
-  // generator, Issue 017); future: detach the series from this occurrence's
-  // date (past/completed survive as detached records); all: soft-delete the
-  // routine with full cascade (Trash-restorable).
-  const handleScopeChoose = useCallback(
-    (scope: RepeatScope) => {
-      const req = scopeRequest;
-      setScopeRequest(null);
-      if (!req?.item.routineId) return;
-      const routineId = req.item.routineId;
+  /*
+   * #279: apply the scope the user picked in the RepeatScopeDialog.
+   * Edit — this: single-row patch (the manual edit then wins over any later
+   * series propagation, tier-1 §Schedule rule 2); future/all: patch the
+   * routine template + the still-unedited, not-done, not-dismissed
+   * materialised rows from the anchor date (all = from the epoch).
+   * Delete — this: Dismiss (a plain delete would be revived by the
+   * generator, Issue 017); future: detach the series from this occurrence's
+   * date (past/completed survive as detached records); all: soft-delete the
+   * routine with full cascade (Trash-restorable).
+   *
+   * #1642 W7: the DECISION is planRepeatScopeChoice (shared/utils) — which of
+   * those six branches a scope means, and the pre-anchor fill arithmetic, are
+   * pure and can be read without a host. What is left below is the writing:
+   * one runner per plan that needs more than a single call, and a dispatcher
+   * that owns neither.
+   */
 
-      // A FUTURE-dated anchor needs the days between today and the anchor
-      // materialised BEFORE the series is mutated: those occurrences only
-      // exist on demand, and both detachRoutine (routine soft-deleted) and a
-      // template update would otherwise erase / rewrite days the user did
-      // not select. The fresh rows carry the PRE-edit template, so they
-      // survive a "future" edit (fromDate filter) and a "future" delete
-      // (start_at < anchor ⇒ detached survivors) alike.
-      // Returns false when the fill did not fully land (#296) — the caller
-      // must then ABORT its destructive follow-up: detaching / rewriting the
-      // series after a failed fill would erase days the user did not select
-      // (they only exist on demand).
-      const fillUpToAnchor = async (
-        routine: RoutineNode,
-        anchor: string,
-      ): Promise<boolean> => {
-        if (anchor <= today) return true;
-        const end = addDaysKey(anchor, -1);
-        const start = today;
-        if (start <= end) {
-          return ensureRoutineItemsForDateRange(start, end, [routine]);
-        }
-        return true;
-      };
+  /**
+   * The pre-anchor fill, as a step or nothing.
+   *
+   * A FUTURE-dated anchor needs the days between today and it materialised
+   * BEFORE the series is mutated: those occurrences only exist on demand, and
+   * both a detach and a template update would otherwise erase / rewrite days
+   * the user did not select. The fresh rows carry the PRE-edit template, so
+   * they survive a "future" edit (fromDate filter) and a "future" delete
+   * (start_at < anchor, so they become detached survivors) alike.
+   *
+   * The step resolves false when the fill did not fully land (#296) — the
+   * caller must then ABORT its destructive follow-up.
+   */
+  const fillStep = useCallback(
+    (
+      fill: SeriesFillRange | null,
+      routine: RoutineNode | undefined,
+    ): (() => Promise<boolean>) | undefined =>
+      fill && routine
+        ? () =>
+            ensureRoutineItemsForDateRange(fill.startDate, fill.endDate, [
+              routine,
+            ])
+        : undefined,
+    [ensureRoutineItemsForDateRange],
+  );
 
-      if (req.mode === "edit") {
-        const patch = req.patch ?? {};
-        if (scope === "this") {
-          applyOccurrencePatch(req.item.id, patch);
-          return;
-        }
-        const routine = routines.find((r) => r.id === routineId);
-        if (!routine) {
-          // Routines not loaded (or the routine vanished): propagating
-          // without the pre-edit template would drop the manual-edit
-          // protection (rule 2) — degrade to a this-only edit.
-          applyOccurrencePatch(req.item.id, patch);
-          return;
-        }
-        // Same rule that decided to ask in the first place (see handleUpdate),
-        // so the template can never receive a field the question did not cover
-        // — e.g. the fallback span an all-day flip drags along.
-        const updates = seriesPropagatableFields(patch);
-        // The PRE-edit template identifies never-individually-edited rows —
-        // manual edits win over the series edit (tier-1 §Schedule rule 2).
-        const template = {
-          title: routine.title,
-          startTime: routine.startTime,
-          endTime: routine.endTime,
-        };
-        const fromDate = scope === "future" ? req.item.date : "0000-01-01";
-        // Optimistic: the edited occurrence itself reflects the change now.
-        applyOccurrencePatch(req.item.id, patch);
-        void (async () => {
-          try {
-            /*
-             * #504: template BEFORE occurrences, and a lost template write
-             * aborts. The old order did the reverse and did not even await the
-             * template — so when that write lost, the screen was entirely
-             * right (every future row carried the new values) while the
-             * template kept the old ones, and the divergence only surfaced
-             * days later as newly generated occurrences quietly reverting. A
-             * reload could not reveal it either: the rows really were correct.
-             *
-             * `fillUpToAnchor` stays ahead of both — the pre-anchor days it
-             * materialises are the ones the user did NOT select, and they are
-             * supposed to keep the pre-edit values. A partial fill aborts for
-             * the same reason as before: rewriting the series afterwards would
-             * erase days that only exist once materialised.
-             *
-             * `template` is the pre-edit title/times captured above, so
-             * writing the routine first does not change what
-             * updateFutureOccurrences treats as "edited by hand".
-             */
-            const outcome = await runSeriesEdit({
-              prepare:
-                scope === "future"
-                  ? () => fillUpToAnchor(routine, req.item.date)
-                  : undefined,
-              writeTemplate: () => updateRoutine(routineId, updates),
-              // updateFutureOccurrences reports failure by THROWING (it
-              // re-raises after logServiceError). Converting that to `false`
-              // here is the whole point: left as a throw it landed in the outer
-              // catch, which cannot tell "the template already landed" from
-              // "nothing ran", and so said nothing at all.
-              propagate: async () => {
-                try {
-                  await updateFutureOccurrences(
-                    routineId,
-                    updates,
-                    fromDate,
-                    template,
-                  );
-                  return true;
-                } catch {
-                  return false;
-                }
-              },
-            });
-            // A partial fill stays silent, as it was: it is reported by the
-            // generator's own path and nothing was changed. A lost template
-            // write is the new case — and because nothing downstream ran, the
-            // toast can honestly say the edit did not happen.
-            if (outcome === "template-failed") onRepeatConvertFailed("series");
-            // Template in, occurrences out. The reload below shows the truth
-            // (old values on the days already there), but on its own that reads
-            // as "the edit did nothing" — while the NEXT generated day would
-            // quietly disagree. Naming it is the difference.
-            else if (outcome === "propagate-failed")
-              onRepeatConvertFailed("series-partial");
-          } catch {
-            // `prepare` (fillUpToAnchor) is the only step that still reaches
-            // here by throwing, and it runs before anything is written — the
-            // range reload below restores the DB truth.
-          } finally {
-            reload();
-          }
-        })();
-        return;
-      }
-
-      // delete
-      if (scope === "this") {
-        dismissOccurrence(req.item.id);
-        return;
-      }
-      setSelectedId((cur) => (cur === req.item.id ? null : cur));
-      if (scope === "future") {
-        const routine = routines.find((r) => r.id === routineId);
-        void (async () => {
-          try {
-            if (routine) {
-              const ok = await fillUpToAnchor(routine, req.item.date);
-              if (!ok) {
-                // Fill failed — detaching now would erase the un-materialised
-                // days between today and the anchor (#296). Abort and re-read.
-                reload();
-                return;
-              }
-            }
-            const { deletedScheduleItemIds } = await detachRoutine(
-              routineId,
-              req.item.date,
-            );
-            const removed = new Set(deletedScheduleItemIds);
-            setRangeItems((prev) =>
-              prev
-                .filter((i) => !removed.has(i.id))
-                .map((i) =>
-                  i.routineId === routineId
-                    ? { ...i, routineId: null, sourceDate: null }
-                    : i,
-                ),
-            );
-            // The pre-anchor fill may have written rows inside the visible
-            // range — re-read so they show as detached survivors.
-            if (routine && req.item.date > today) reload();
-          } catch {
-            reload();
-          }
-        })();
-        return;
-      }
+  const runSeriesScopeEdit = useCallback(
+    (plan: Extract<RepeatScopePlan, { kind: "edit-series" }>) => {
+      // Optimistic: the edited occurrence itself reflects the change now.
+      applyOccurrencePatch(plan.id, plan.patch);
+      const routine = routines.find((r) => r.id === plan.routineId);
       void (async () => {
         try {
-          // `onCascadeChanged` (#708): an undo restores the occurrences and
-          // the seed event straight through the DataService, which this store
+          /*
+           * #504: template BEFORE occurrences, and a lost template write
+           * aborts. The old order did the reverse and did not even await the
+           * template — so when that write lost, the screen was entirely right
+           * (every future row carried the new values) while the template kept
+           * the old ones, and the divergence only surfaced days later as newly
+           * generated occurrences quietly reverting. A reload could not reveal
+           * it either: the rows really were correct.
+           *
+           * plan.template is the routine's PRE-edit title/times, so writing the
+           * routine first does not change what updateFutureOccurrences treats
+           * as "edited by hand".
+           */
+          const outcome = await runSeriesEdit({
+            prepare: fillStep(plan.fill, routine),
+            writeTemplate: () => updateRoutine(plan.routineId, plan.updates),
+            // updateFutureOccurrences reports failure by THROWING (it
+            // re-raises after logServiceError). Converting that to false here
+            // is the whole point: left as a throw it landed in the outer
+            // catch, which cannot tell "the template already landed" from
+            // "nothing ran", and so said nothing at all.
+            propagate: async () => {
+              try {
+                await updateFutureOccurrences(
+                  plan.routineId,
+                  plan.updates,
+                  plan.fromDate,
+                  plan.template,
+                );
+                return true;
+              } catch {
+                return false;
+              }
+            },
+          });
+          // A partial fill stays silent, as it was: it is reported by the
+          // generator's own path and nothing was changed. A lost template
+          // write is the new case — and because nothing downstream ran, the
+          // toast can honestly say the edit did not happen.
+          if (outcome === "template-failed") onRepeatConvertFailed("series");
+          // Template in, occurrences out. The reload shows the truth (old
+          // values on the days already there), but on its own that reads as
+          // "the edit did nothing" — while the NEXT generated day would
+          // quietly disagree. Naming it is the difference.
+          else if (outcome === "propagate-failed")
+            onRepeatConvertFailed("series-partial");
+        } catch {
+          // The fill is the only step that still reaches here by throwing, and
+          // it runs before anything is written — the reload below restores the
+          // DB truth.
+        } finally {
+          reload();
+        }
+      })();
+    },
+    [
+      applyOccurrencePatch,
+      routines,
+      fillStep,
+      updateRoutine,
+      updateFutureOccurrences,
+      onRepeatConvertFailed,
+      reload,
+    ],
+  );
+
+  const runSeriesDetach = useCallback(
+    (plan: Extract<RepeatScopePlan, { kind: "detach-series" }>) => {
+      const routine = routines.find((r) => r.id === plan.routineId);
+      const fill = fillStep(plan.fill, routine);
+      void (async () => {
+        try {
+          if (fill) {
+            const ok = await fill();
+            if (!ok) {
+              // Detaching now would erase the un-materialised days between
+              // today and the anchor (#296). Abort and re-read.
+              reload();
+              return;
+            }
+          }
+          const { deletedScheduleItemIds } = await detachRoutine(
+            plan.routineId,
+            plan.anchor,
+          );
+          const removed = new Set(deletedScheduleItemIds);
+          setRangeItems((prev) =>
+            prev
+              .filter((i) => !removed.has(i.id))
+              .map((i) =>
+                i.routineId === plan.routineId
+                  ? { ...i, routineId: null, sourceDate: null }
+                  : i,
+              ),
+          );
+          // The pre-anchor fill may have written rows inside the visible
+          // range — re-read so they show as detached survivors.
+          if (plan.reloadAfterFill) reload();
+        } catch {
+          reload();
+        }
+      })();
+    },
+    [routines, fillStep, detachRoutine, setRangeItems, reload],
+  );
+
+  const runSeriesDelete = useCallback(
+    (plan: Extract<RepeatScopePlan, { kind: "delete-series" }>) => {
+      void (async () => {
+        try {
+          // onCascadeChanged (#708): an undo restores the occurrences and the
+          // seed event straight through the DataService, which this store
           // never sees — without the re-read the routine comes back to the
           // list with an empty calendar under it.
-          const { deletedScheduleItemIds } = await deleteRoutine(routineId, {
-            onCascadeChanged: reload,
-          });
+          const { deletedScheduleItemIds } = await deleteRoutine(
+            plan.routineId,
+            {
+              onCascadeChanged: reload,
+            },
+          );
           const removed = new Set(deletedScheduleItemIds);
           // deleteRoutine swallows service errors (hook-wide log-and-continue
           // convention) and returns [] — an empty cascade is also legitimate,
@@ -728,21 +753,50 @@ export function useRepeatMutations({
         }
       })();
     },
+    [deleteRoutine, setRangeItems, reload],
+  );
+
+  const handleScopeChoose = useCallback(
+    (scope: RepeatScope) => {
+      const req = scopeRequest;
+      setScopeRequest(null);
+      if (!req) return;
+      const plan = planRepeatScopeChoice({
+        request: req,
+        scope,
+        routine: routines.find((r) => r.id === req.item.routineId),
+        today,
+      });
+      switch (plan.kind) {
+        case "none":
+          return;
+        case "patch-occurrence":
+          applyOccurrencePatch(plan.id, plan.patch);
+          return;
+        case "dismiss-occurrence":
+          dismissOccurrence(plan.id);
+          return;
+        case "edit-series":
+          runSeriesScopeEdit(plan);
+          return;
+        default:
+          // Both destructive scopes drop the selection first: the row the
+          // dialog was opened on is about to leave the calendar.
+          setSelectedId((cur) => (cur === plan.id ? null : cur));
+          if (plan.kind === "detach-series") runSeriesDetach(plan);
+          else runSeriesDelete(plan);
+      }
+    },
     [
       scopeRequest,
       routines,
-      applyOccurrencePatch,
-      updateFutureOccurrences,
-      updateRoutine,
-      dismissOccurrence,
-      detachRoutine,
-      deleteRoutine,
-      ensureRoutineItemsForDateRange,
       today,
-      setRangeItems,
+      applyOccurrencePatch,
+      dismissOccurrence,
       setSelectedId,
-      reload,
-      onRepeatConvertFailed,
+      runSeriesScopeEdit,
+      runSeriesDetach,
+      runSeriesDelete,
     ],
   );
 
