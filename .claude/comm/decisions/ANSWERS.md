@@ -115,3 +115,5 @@
 - D-20260830-main-3: **A**（Intel Mac 向け x64 `.dmg` は配らず arm64 のみ。キューでは `D-20260830-main-1` の ID で起票していたが、台帳で同 ID が退役レーンの裁定に使われ `-2` も採番済みだったため昇格時に `-3` へ振り直し。`electron-builder.yml` の x64 宣言と workflow の `unverified-*` artifact を削除。2026-09-09 チャットで回答「推奨のまま A で OK」・chat-main が転記）
 - D-20260909-mcp-mobile-1: **A + MVP トークン**（MCP をスマホから使う経路は Cloudflare Workers の Remote MCP を新設、認証は当面 URL パスの共有シークレット。2026-09-09 remote セッションの AskUserQuestion で回答・同セッションが転記）
 - D-20260912-main-1: **Q1 = A / Q2 = A / Q3 = A**（Connect をタグとリンクの編集所へ作り替える。タグ編集モーダルを退役して Connect に一本化・リンクは詳細パネルの近傍として出す・ClaudeDesign へは Desktop と Mobile を同時に出す → 計画書 `docs/vision/plans/2026-09-14-connect-tag-link-workbench.md` / 実装 Issue #1631 #1643 #1644 #1645 #1646。2026-09-12 チャットで回答・chat-main が転記）
+- D-20260916-sched-1: **A**（narrow にグリッドの書き込み経路が無いのは意図した省略 = `mobile-scope.md` の Consumption + Quick capture と整合。計画書に仕様として記録して閉じる。2026-09-16 チャットで回答「どちらも A の推奨のままで OK」・chat-schedule-refine が転記）
+- D-20260916-sched-2: **A**（繰り返しの「範囲」を聞く操作は現状維持。現在の聞く / 聞かないをそのまま仕様として計画書に固定し、実装は揃えない。#1638 の確認ダイアログは今 `requestScope` を通る経路だけを対象にする。同上）
