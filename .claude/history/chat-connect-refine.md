@@ -1,5 +1,25 @@
 # HISTORY (chat-connect-refine)
 
+### 2026-09-16 - タグ編集モーダルを Connect に畳んだ（#1643 / PR #1657 open）
+
+#### 概要
+
+同じタグ一覧が Connect のレールとタグ編集モーダルの 2 画面にあり、行の形まで意図的に揃えてあるのに編集できるのはモーダル側だけ、という二重保守を畳んだ（`D-20260912-main-1` Q1-A）。タグマスタの編集所は Connect セクションに一本化され、モーダルとその host は削除。CI verify の全ステップ + docs-lint をローカル全通しし、PR #1657 を open（**merge はユーザー = P-001**）。
+
+#### 変更点
+
+- **新規 `shared/src/components/TagHub/TagHubEditBlock.tsx`**: 退役した `TagDetailPane` の中身をブロックとして移設。**保存ボタンだけが書き込む**（#715）・blur は何も書かない・未保存ドット + 保存の footer（#681 の配置）。色は共有 `ColorPicker` のトリガー越しではなく 12 スウォッチをインライン展開した（盤面 2a が展開状態で、ブロック自体が既に開閉なので二重の開閉を避けた）
+- **`TagHubTagRail.tsx`**: 行が「ボタンの隣にボタン」になった（`<button>` の入れ子は不正 HTML）。選択バー 2px は wrapper 側に絶対配置。件数 0 のタグを折り畳み「使われていないタグ（N）」へ（D4）、最下部に固定の追加行（D5）、行ホバーの「…」= 改名 / アイコン / 色 / 削除（D2）
+- **`buildTagHubModel.ts`**: `unusedTags` を分けて返す。分岐の規則は `count === 0` だけで、行のチップと同じ導出から取るので「レールの分類と印字された数字が食い違う」が起こらない
+- **`TagHubView.tsx`**: 編集系の props はすべて optional にした（渡さなければ #1643 以前の読み取り専用 hub のまま）。選択タグの解決を `tags` ∪ `unusedTags` に広げた — 折り畳みを開く理由が「編集 / 削除」なので、そこの行が選択できないと導線が死ぬ
+- **`web/src/connect/ConnectScreen.tsx`**: 下書き（tagId keyed）・切替時の破棄確認・削除確認をホストが持つ。view が純粋で、かつレールの絞り込みと選択のどちらもブロックを unmount するため
+- **退役**: `shared/src/components/tagEdit/` 一式・`web/src/tags/TagEditorHost.tsx`・呼び出し元ゼロになった `useTaggedItemIndex`。`TagIconPicker` と `tagRowPatch` は `TagHub/` へ移し、専用の labels 型を持たせた
+- **導線の差し替え**: サイドバー行と Mobile「その他」シートの「タグを編集」は `setSection("connect")`。`SectionHeader` に `subtitle` prop を足して「タグ N ／ アイテム N」を出す（D1・Issue の Scope 外のファイルだが実装先が「header 組み立て」と指定されていたため）
+- **テスト**: 旧 `tagEditorActions.test.tsx` の 11 ケース相当を `connectScreen.test.tsx` へ移設（unassign 2 件だけ #1644 へ持ち越し）。`tagHubView.test.tsx` に編集系 11 ケース、`tagHubLabels.ts` を共通 labels に新設、`tagRowPatch.test.ts` を新規（退役した `tagEditModalSave` が唯一の守りだったため）
+- **検証**: shared 302 files / 3084 tests・web 126 / 1191・desktop・mcp-server 全 pass、lint / build / typecheck:tests 全 exit 0、`LC_ALL=C bash scripts/docs-lint.sh` exit 0
+- **差分量**: `+2,205 / −3,551`。Issue の目安 1,200 行を超えたが、退役と置換を別 PR に割ると「タグを編集できない期間」ができるため分割しなかった（PR 本文に内訳を明記・chat-main へ outbox で報告）
+- **スコープ外へ送った分（P-008）**: アイテム単位のタグ外し（選択バーの領分 = #1644）・タグの統合（同）
+
 ### 2026-09-16 - 繰り返しアイテムのタグを Connect とタグ編集に届かせる（#1631 / PR #1650 open）
 
 #### 概要
@@ -78,19 +98,3 @@ PR #1175（退役）と #1230（Tag hub）が両方 merged・Issue #1152 / #1171
 - **検証**: shared 265 files / 2570 tests・web 91 / 865・desktop 7・mcp-server 24 / 319 全 pass、lint / build / typecheck:tests 全 exit 0、`LC_ALL=C bash scripts/docs-lint.sh` exit 0。rebase 後の再検証で `web/tests/briefingEveningLazyMount.test.tsx` が 1 度だけ落ちたが、単体でも次のフル実行でも緑 = **フル実行時の flake**（#1115 の lazy mount・本 PR と無関係）。起票依頼を outbox に投函
 - **スコープ外へ送った分（P-008）**: TagPill へのアイコン展開（Issue が「計画書で判断」としていた点 → **今回は入れない**と判断）・hub 内編集・`useDomainLoad` の snapshot slot（key の union が本計画の Scope 外にある）
 - **計画書**: `plans/2026-08-29-connect-tag-hub.md`（Status: IN PROGRESS。archive 移動は merge 後）
-
-### 2026-08-29 - Connect セクションを力学グラフごと退役（#1152 / PR #1175 merged）
-
-#### 概要
-
-Connect セクションと力学グラフ描画一式（shared 3,903 行 + web host 177 行）を削除し、タグ・アイテム間リンク・検索のデータと取り出し口は無改変で温存した。DDL 変更ゼロ。CI verify 15 ステップ + docs-lint をローカルで全通しして PR #1175 を open（**merge はユーザー = P-001**）。
-
-#### 変更点
-
-- **削除**: `shared/src/components/Connect/`（simulation / Canvas 2D / 操作パネル / 凡例 / 選択カード / mobile シート / primitives）・`web/src/connect/ConnectScreen.tsx` と `lazy()` 行 + descriptor 行・section registry の `connect` エントリ・i18n の `connect.*` と `section.connect`（en / ja）・グラフ系テスト 8 本。差分は 63 files / +522 -5521
-- **救出（削除せず移設）**: `BacklinkView` → `shared/src/components/Backlinks/`（`GraphNode` 依存を 3 フィールドの `BacklinkNode` に置換）/ `backlinkSourceIds` + `resolveLinkId` → `shared/src/utils/itemLinks.ts` / 該当テスト 2 describe → `shared/tests/itemLinks.test.ts` / `connect.sidebar.incomingLinks` + `connect.graph.selectNodeHint` → 既存 `backlinks.*` ブロック。型手術の裏取りに `shared/tests/backlinkView.test.tsx` を新規追加（4 ケース）
-- **前提の訂正（実測）**: Issue 本文の「BacklinkView / ヘルパは LinkPanel が使用」は実物と異なった。`web/src/wikitag/LinkPanel.tsx:126` は `getLinksForItem()` から自前で読んでおり、`:52` の言及はコメント内の設計参照。移設した 3 つは**現時点で呼び出し元ゼロ**で、`P-002` を適用すれば削除もできる状態 → 判断は `D-20260829-connect-1` としてキューへ（放置時＝保持）
-- **docs 追随**: CLAUDE.md §8 / `rules/frontend.md` の lazy 対象 / `mobile-scope.md` #13（**D-20260723-main-1 の Full 指定を supersede**）/ `tier-2-supporting.md` WikiTags。**計画時に scope 外としていた `docs/design/IA.md` と `docs/design/briefs/connect.md` を sweep 中に追加**（前者は `Status: APPROVED` の現況 SSOT が「本流 5 = … Connect …」のままで、放置すると後続が Connect を再追加しうるため。どちらも決定本文は書き換えず注記のみ）
-- **検証**: shared 266 files / 2545 tests・web 88 / 851・desktop 7・mcp-server 24 / 318 全 pass、lint / build / typecheck:tests 全 exit 0、`LC_ALL=C bash scripts/docs-lint.sh` exit 0。`web` の build 出力から `ConnectScreen-*.js`（約 101KB / gzip 約 29KB）が消えたことも確認
-- **スコープ外へ送った分（P-008）**: d3 依存 4 本 + 型定義 4 本の削除は package.json + lockfile 2 本に及ぶため別 PR へ。起票依頼を `comm/outbox/chat-connect-refine.md` に投函
-- **計画書**: `plans/2026-08-29-connect-section-retirement.md`（Status: IN PROGRESS。実装ブランチ側にあるため本 tracker ブランチには無く、archive 移動は merge 後）
