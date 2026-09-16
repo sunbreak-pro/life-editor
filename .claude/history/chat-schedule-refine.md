@@ -1,5 +1,33 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-16 - #1642 工程 2: W0 / W1 / W2 / W7 / W11 を 5 本の PR で提出
+
+#### 概要
+
+計画書の作業単位 5 本を、それぞれ `origin/main` から切ったブランチで実装し、PR #1655 / #1656 / #1658 / #1660 / #1661 として提出した（全部 open・merge はユーザー）。5 本とも**ローカルで CI `verify` の全ステップ + `LC_ALL=C bash scripts/docs-lint.sh` を回して 15/15 緑**。W3 / W4 / W5 と #1626 / #1639 / #1640 / #1641 には触っていない。
+
+#### 変更点
+
+- **W0 = PR #1655**（`test`）: `web/tests/useScheduleMutations.test.tsx` 新規・20 ケース。9 ハンドラを `renderHook` で直接呼ぶ。挙動変更ゼロ（差分はこの 1 ファイルだけ）
+- **W1 = PR #1656**（`fix` / #1632）: `SupabaseRoutinesService.moveTagAssignments` を足し、変換で seed → routine、detach で routine → 固定した survivor へ live な assignment を移す。`uq_wta_item_tag` に当たるタグは移さず soft delete、表示色（#1580）は行ごと移す。テストは既存 2 スイートに 6 ケース追加
+- **W2 = PR #1658**（`docs`）: 計画書に §1-J「Undo 全経路の一覧」を追加。29 経路・行番号は全部 grep し直した実測値
+- **W7 = PR #1660**（`refactor`）: `planRepeatScopeChoice` を `shared/src/utils/seriesEditSequence.ts` に置き、`handleScopeChoose`（209 行）と `handleChangeRepeat`（236 行）を「決める純関数 + 書く実行器」に割った。ファイル内の最長関数は 79 行。純関数テスト 15 ケースを `shared/tests/seriesEditSequence.test.ts` に追加
+- **W11 = PR #1661**（`refactor`）: アジェンダ行の px 算術を `scheduleGridLayout.ts` へ移し（`AgendaList.tsx` の `PX_PER_MINUTE` は 0 件）、3 状態の折り返しを `ScheduleBodyFold` 1 か所に畳んだ
+
+#### 分かったこと
+
+- **#1632 の推奨方針（変換の catch に合わせてロールバック）は採れない**。`wiki_tag_assignments.item_id` が `on delete cascade`（0008 §12）なので、移送が着地した後にロールバックが走ると**タグごと消える**。さらに attach が着地した後は `events_payload` が routine を参照するため、0011 の複合 FK（NO ACTION）がハード削除を拒む。**移送を変換の最後の一手にし、失敗はログのみ**にした（タグは seed に残り、タグ側からは見える）
+- **Undo の push は 14 経路にあり、15 経路に無い**（W2 の全数 grep）。そのうち計画書 Scope 内で足せるのは 9 経路だけで、残り 6 経路は書き込みが Briefing / Trash 画面 / タグ / MCP に居る。AC の「9 経路」の定義を §1-J に固定した
+- **関数長の計測は `const X = useCallback(` から対応する `  );` まで**で数えると計画書 baseline の 209 行と一致する。hook 本体（580 行）はコールバックの容れ物なので対象外 — この数え方でないと baseline が再現しない
+- **prettier は「フラグメントの .ts ファイル」をトップレベル扱いで整形する**（W7 の実測）: 差し込み用ブロックを scratchpad に書くと PostToolUse フォーマッタが 2 スペースのインデントを剥がす。`awk` で差し込むときに 1 行ずつ `"  "` を足して戻した
+- **ヒアドキュメントに長い TypeScript を流し込むと bash の引用解析が落ちることがある**（W7 で 1 回・`unexpected EOF`）。**ブロックは Write ツールでファイルに落とし、`awk` で行範囲を差し替える**方が安全
+
+#### 判断・逸脱
+
+- **スコープ逸脱**: なし。5 本とも計画書 §Scope の宣言パス内
+- **AC 免除**: なし。ただし **W7 の diff churn は 1,185 行**（+803 / −382）で、「±1,000 行以内」を「追加・削除それぞれ 1,000 行以内」と読んでいる。合計で読む解釈なら超過するので、PR 本文に数字を明記した
+- **判断キュー行き**: なし（P-008 に当たる計画外の変更は出ていない）
+
 ### 2026-09-16 - #1642 工程 1: Schedule リファクタリングの計画書（PR #1653）
 
 #### 概要
