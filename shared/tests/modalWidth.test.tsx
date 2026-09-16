@@ -3,8 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { join } from "node:path";
-import { Modal, TagEditModal, type TagEditRow } from "../src/components";
-import { TAG_LABELS } from "./tagEditLabels";
+import { Modal } from "../src/components";
 
 /*
  * #830 — the tag panel asked for 860px and rendered at 448.
@@ -128,34 +127,14 @@ describe("Modal — the caller's width wins, not the class order (#830)", () => 
   });
 });
 
-describe("TagEditModal opens at the width it asks for (#830)", () => {
-  const ROWS: TagEditRow[] = [
-    { id: "tag-1", name: "work", color: null, icon: null, count: 2, items: [] },
-  ];
-
-  it("renders an 860px panel with no competing default", () => {
-    render(
-      <TagEditModal
-        open
-        onClose={vi.fn()}
-        tags={ROWS}
-        onCreate={vi.fn()}
-        onRename={vi.fn()}
-        onDelete={vi.fn()}
-        onSetColor={vi.fn()}
-        onSetIcon={vi.fn()}
-        onUnassign={vi.fn()}
-        formatCount={(count) => `${count} items`}
-        labels={TAG_LABELS}
-      />,
-    );
-
-    // The regression itself: 448px worth of panel minus a 260px rail left the
-    // right column too narrow to read.
-    expect(panelClasses().match(ONE_MAX_WIDTH)).toEqual([" max-w-[860px]"]);
-    expect(panel()).not.toHaveClass("p-5");
-  });
-});
+/*
+ * The panel-width call site the regression was reported on — the tag edit modal
+ * — was retired into the Connect hub in #1643, so there is no longer a second
+ * component to assert the same class list from. What replaced it as the guard
+ * is the source scan below: it walks every <Modal> in the tree, so the next
+ * caller that reaches for `className="max-w-…"` instead of `size` is caught
+ * whether or not a suite renders it.
+ */
 
 /*
  * The prop only helps while call sites use it. This walks the JSX by hand

@@ -8,7 +8,7 @@ import {
 export interface MobileShellActionsProps {
   /** Open the command palette (#473). */
   onOpenPalette: () => void;
-  /** Open the global tag editor (#1290). */
+  /** Walk to the Connect section, where tags are edited (#1290 / #1643). */
   onOpenTagEditor: () => void;
   /** Dismiss the "More" sheet, so a surface opened from a row is not behind it. */
   closeSheet: () => void;
@@ -31,13 +31,12 @@ export interface MobileShellActionsProps {
  * palette: this flips MainScreen's one `paletteOpen` state, so mobile and
  * Desktop drive a single mounted <CommandPalette>.
  *
- * The tag editor row (#1290) is the palette row's twin. On the wide layout the
- * tag master's entry is the sidebar footer row above ⌘K (SidebarNav), and the
- * narrow layout renders no sidebar — so until #1290 a phone could not reach the
- * panel at all, even though the panel itself has folded into a two-step
- * list → editor layout on narrow since #740. This row flips MainScreen's one
- * `tagEditorOpen`, so both widths drive the single mount-on-open
- * <TagEditorHost>; nothing about the panel is forked for mobile.
+ * The tag row (#1290) is the palette row's twin. On the wide layout the tag
+ * master's entry is the sidebar footer row above ⌘K (SidebarNav), and the
+ * narrow layout renders no sidebar — so until #1290 a phone could not reach it
+ * at all. Since #1643 both entries walk to the Connect SECTION rather than
+ * opening a panel over whatever is on screen: the tag edit modal was retired
+ * into that section (D-20260912-main-1 Q1-A), so there is nothing left to open.
  *
  * This is a component rather than a hook called in MainScreen's body for the
  * same reason HeaderUndoRedo is: MainScreen MOUNTS <UndoRedoHost> (its own body
@@ -49,8 +48,8 @@ export interface MobileShellActionsProps {
  *
  * Undo/redo deliberately do NOT call `closeSheet` — undo repeats, and closing
  * on the first tap would turn a three-step undo into three reopens. The palette
- * and tag-editor rows are the opposite case: each opens a surface of its own,
- * so it must clear the sheet out of the way first.
+ * and tag rows are the opposite case: each takes the user somewhere, so the
+ * sheet has to be cleared out of the way first.
  */
 export function MobileShellActions({
   onOpenPalette,

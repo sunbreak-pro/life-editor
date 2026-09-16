@@ -23,7 +23,6 @@ import {
   WIDE_QUERY,
 } from "@life-editor/shared";
 import { AppProviders } from "./AppProviders";
-import { TagEditorHost } from "./tags/TagEditorHost";
 import { HeaderUndoRedo } from "./HeaderUndoRedo";
 import { MobileShellActions } from "./MobileShellActions";
 import { NarrowHeaderRow } from "./NarrowHeaderRow";
@@ -114,12 +113,18 @@ export function MainScreen({ session }: { session: Session }) {
     setMaterialsTab: nav.setMaterialsTab,
   });
   const [paletteOpen, setPaletteOpen] = useState(false);
-  // Global tag editor (#409). Opened from the sidebar footer row above ⌘K on
-  // the wide layout and from the bottom bar's "More" sheet on the narrow one
-  // (#1290), so the tag master is reachable from every section at every width
-  // — the panel itself is mount-on-open (TagEditorHost) and fetches nothing
-  // while closed. One state for both entries: there is a single panel.
-  const [tagEditorOpen, setTagEditorOpen] = useState(false);
+  /*
+   * The Connect hub's totals, for the section header's subtitle (D1 / #1643).
+   * The numbers can only be counted where the caches are, so the screen reports
+   * them up and clears them on unmount; the header only draws them while
+   * Connect is the section, so a stale pair can never be shown against another
+   * title. This is the same headless shape as MaterialsCountsBridge, minus the
+   * bridge: the reporter is the section body itself.
+   */
+  const [connectCounts, setConnectCounts] = useState<{
+    tags: number;
+    items: number;
+  } | null>(null);
   // Claude Code launcher (#1211) — `available` is false off the desktop shell.
   const claudeLauncher = useClaudeLauncher();
   // Narrow-width switch for the in-section tab controls (HeaderTabs ↔
@@ -240,6 +245,11 @@ export function MainScreen({ session }: { session: Session }) {
   ) : (
     <SectionHeader
       title={t(`section.${section}`, { defaultValue: section })}
+      subtitle={
+        section === "connect" && connectCounts
+          ? t("connect.headerCounts", connectCounts)
+          : undefined
+      }
       controls={headerControls}
     />
   );
@@ -317,6 +327,7 @@ export function MainScreen({ session }: { session: Session }) {
   const sectionBody = descriptor.body({
     ds,
     nav,
+    onConnectCounts: setConnectCounts,
     // Briefing hosts its narrow band inside its own body (at the top of the
     // paper, above the masthead — #879); every other section puts it in the
     // PageContainer header below.
@@ -366,7 +377,7 @@ export function MainScreen({ session }: { session: Session }) {
         activeSection={section}
         onNavigate={(id) => setSection(id as SectionId)}
         onTogglePalette={() => setPaletteOpen((v) => !v)}
-        onOpenTagEditor={() => setTagEditorOpen(true)}
+        onOpenTagEditor={() => setSection("connect")}
         /*
          * Claude Code launcher (#1211). Passed only on the desktop shell —
          * SidebarNav renders the footer row on the handler, so withholding it
@@ -412,7 +423,7 @@ export function MainScreen({ session }: { session: Session }) {
         bottomBarActions={(closeSheet) => (
           <MobileShellActions
             onOpenPalette={() => setPaletteOpen(true)}
-            onOpenTagEditor={() => setTagEditorOpen(true)}
+            onOpenTagEditor={() => setSection("connect")}
             closeSheet={closeSheet}
           />
         )}
@@ -463,19 +474,6 @@ export function MainScreen({ session }: { session: Session }) {
         noResultsLabel={t("commandPalette.noResults")}
         dataService={ds}
         onOpenItem={nav.navigateToItem}
-      />
-
-      {/*
-       * Global tag editor (#409), mounted beside the palette at the shell level
-       * so it opens over any section. It owns its own tag hook instance rather
-       * than a WikiTagsUnifiedProvider — that Provider is section-layer and
-       * absent on Briefing / Work / Analytics / Settings / Trash (see
-       * TagEditorHost).
-       */}
-      <TagEditorHost
-        open={tagEditorOpen}
-        onClose={() => setTagEditorOpen(false)}
-        dataService={ds}
       />
 
       {/*

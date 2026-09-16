@@ -349,19 +349,12 @@ export {
   type ShortcutEditModalProps,
   type ShortcutEditModalLabels,
 } from "./ShortcutEditModal";
-// Tag edit modal (#310, globalized in #409) — add/rename/delete/icon/color a
-// wiki_tag with usage counts, plus an expandable per-tag item list with
-// unassign. Pure presentational: DataService callbacks + labels injected
-// (§6.4). `tagIcon` resolves lucide names for the picker (and #311 tag
-// headings). #896 split the panel into ./tagEdit; these four names are
-// unchanged, and its own barrel is what keeps the internals internal.
-export {
-  TagEditModal,
-  type TagEditModalProps,
-  type TagEditModalLabels,
-  type TagEditRow,
-  type TagEditItem,
-} from "./tagEdit";
+// The tag edit modal (#310 / #409 / #740 / #715 / #896) was retired in #1643:
+// its list duplicated the Connect hub's rail row for row, and only the modal
+// could edit them (D-20260912-main-1 Q1-A). Everything it did now lives in
+// ./TagHub — the rail's "…" and add row, and TagHubEditBlock — which this
+// barrel already re-exports with `export *` below. `tagIcon` resolves lucide
+// names for the icon picker (and #311's tag headings).
 export { resolveTagIcon, TAG_ICON_CHOICES } from "./tagIcon";
 // Item-kind display contract (#409) — the SSOT for how a cross-role item list
 // announces what each row is. Shared with #412's item-side tag picker so both

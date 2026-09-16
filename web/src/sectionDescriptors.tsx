@@ -85,6 +85,16 @@ export interface SectionBodyContext {
   readonly narrowTabRow: ReactNode;
   /** Shared Suspense fallback for the code-split bodies (#676 (a)). */
   readonly loadingFallback: ReactNode;
+  /**
+   * Connect only (#1643): report the hub's tag / item totals so the shell can
+   * print them beside the section title (D1). It is on the shared context
+   * rather than on a Connect-specific one because there is one context, and a
+   * second per-section shape would be the five-places-to-edit problem this
+   * table exists to have removed.
+   */
+  readonly onConnectCounts: (
+    counts: { tags: number; items: number } | null,
+  ) => void;
 }
 
 export interface SectionDescriptor {
@@ -271,9 +281,13 @@ export const SECTION_DESCRIPTORS: Readonly<
   connect: {
     width: "fluid",
     narrowHeader: "hamburger",
-    body: ({ ds, nav }) => (
+    body: ({ ds, nav, onConnectCounts }) => (
       <WikiTagsUnifiedProvider dataService={ds}>
-        <ConnectScreen dataService={ds} onNavigateToItem={nav.navigateToItem} />
+        <ConnectScreen
+          dataService={ds}
+          onNavigateToItem={nav.navigateToItem}
+          onCountsChange={onConnectCounts}
+        />
       </WikiTagsUnifiedProvider>
     ),
   },

@@ -111,8 +111,20 @@ export interface TagHubGroup {
 
 /** What the view renders: the rail's tags, plus each tag's grouped rows. */
 export interface TagHubModel {
-  /** Live tags by name, with the untagged bucket pinned last (when non-empty). */
+  /**
+   * Tags holding at least one item, by name, with the untagged bucket pinned
+   * last (when non-empty).
+   */
   readonly tags: readonly TagHubTagSummary[];
+  /**
+   * Live tags nothing is filed under (#1643 / D4), by name. Split out rather
+   * than mixed into `tags`: a tag that has never been used is a topic the user
+   * declared and then left, and a rail that files it alphabetically between
+   * two working topics makes the working ones harder to scan. The rail folds
+   * these behind one disclosure — they are still reachable, because editing or
+   * deleting one is exactly why you would go looking.
+   */
+  readonly unusedTags: readonly TagHubTagSummary[];
   /** tagId → its groups. A tag with no items is absent, not an empty array. */
   readonly groupsByTag: ReadonlyMap<string, readonly TagHubGroup[]>;
 }
@@ -137,4 +149,48 @@ export interface TagHubLabels {
   back: string;
   /** Kind names for the group headings (shared with the tag editor). */
   roles: ItemRoleLabels;
+  /** Rail disclosure over the tags nothing is filed under (D4). */
+  unusedTagsHeading: string;
+  /** Rail's pinned creation row (D5): field placeholder and its button. */
+  addPlaceholder: string;
+  addButton: string;
+  /** D15 — the primary action under the "nothing here yet" copy. */
+  emptyAction: string;
+  /** D16 — what a screen reader is told while the hub is still reading. */
+  loading: string;
+  /**
+   * D2 — the per-row "…" trigger. Composed with the tag's own name at the call
+   * site (`"Work: Tag actions"`), the same way the row's count is, so a rail of
+   * fourteen tags does not present fourteen identically-named buttons.
+   */
+  rowMenu: string;
+  /** D2 menu items. Rename / icon / color open the edit block on that field. */
+  renameTag: string;
+  changeIcon: string;
+  changeColor: string;
+  deleteTag: string;
+  /** D6 — the header's pencil, which opens the edit block (#1643). */
+  editTag: string;
+  /** Everything the edit block itself draws (D7). */
+  edit: TagHubEditLabels;
+}
+
+/** The edit block's own copy (D7), already translated (§6.4). */
+export interface TagHubEditLabels {
+  /** Field captions down the block's left column. */
+  nameLabel: string;
+  iconLabel: string;
+  colorLabel: string;
+  /** The button beside the current glyph that opens the icon grid. */
+  iconChange: string;
+  /** "Default / no icon" inside that grid. */
+  iconClear: string;
+  /** The two buttons beside the swatch grid. */
+  colorDefault: string;
+  colorCustom: string;
+  /** Footer: the destructive link at the left, then the save pair. */
+  deleteTag: string;
+  saved: string;
+  unsaved: string;
+  save: string;
 }

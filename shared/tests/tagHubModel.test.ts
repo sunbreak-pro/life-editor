@@ -74,22 +74,36 @@ describe("buildTagHubModel — the rail", () => {
         tag("t-a", "Health"),
         tag("t-x", "Gone", { isDeleted: true }),
       ],
+      assignments: [assign("task-1", "t-b"), assign("note-1", "t-a")],
+      items: [item("task-1", "task"), item("note-1", "note")],
     });
     expect(model.tags.map((t) => t.name)).toEqual(["Health", "Work"]);
+    expect(model.unusedTags).toEqual([]);
   });
 
-  it("keeps a live tag with nothing behind it, at count 0", () => {
-    // A tag created a moment ago in the tag editor must not look like it
-    // failed to save just because nothing carries it yet.
+  it("splits a live tag with nothing behind it into unusedTags (#1643)", () => {
+    // A tag created a moment ago must not look like it failed to save just
+    // because nothing carries it yet — so it keeps a row, behind the rail's
+    // disclosure rather than among the topics that are being read.
     const model = build({ tags: [tag("t-1", "Empty")] });
-    expect(model.tags).toHaveLength(1);
-    expect(model.tags[0].count).toBe(0);
+    expect(model.tags).toEqual([]);
+    expect(model.unusedTags).toHaveLength(1);
+    expect(model.unusedTags[0].count).toBe(0);
     expect(model.groupsByTag.get("t-1")).toBeUndefined();
+  });
+
+  it("orders the unused run by name too", () => {
+    const model = build({
+      tags: [tag("t-b", "Work"), tag("t-a", "Health")],
+    });
+    expect(model.unusedTags.map((t) => t.name)).toEqual(["Health", "Work"]);
   });
 
   it("carries each tag's icon and colour through for the heading glyph", () => {
     const model = build({
       tags: [tag("t-1", "Health", { icon: "Heart", color: "#e11d48" })],
+      assignments: [assign("task-1", "t-1")],
+      items: [item("task-1", "task")],
     });
     expect(model.tags[0]).toMatchObject({ icon: "Heart", color: "#e11d48" });
   });
@@ -137,7 +151,8 @@ describe("buildTagHubModel — the untagged bucket", () => {
       assignments: [assign("task-1", "t-1", { isDeleted: true })],
       items: [item("task-1", "task")],
     });
-    expect(model.tags[0].count).toBe(0);
+    // Nothing reaches the tag any more, so its row moves to the unused run.
+    expect(model.unusedTags[0].count).toBe(0);
     expect(
       model.groupsByTag.get(UNTAGGED_TAG_ID)?.[0]?.items.map((i) => i.id),
     ).toEqual(["task-1"]);

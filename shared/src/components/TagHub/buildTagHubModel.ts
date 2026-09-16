@@ -126,19 +126,28 @@ export function buildTagHubModel({
     groupsByTag.set(UNTAGGED_TAG_ID, groupByRole(untagged));
   }
 
-  const summaries: TagHubTagSummary[] = liveTags
+  const allSummaries: TagHubTagSummary[] = liveTags
     .map((tag) => ({
       id: tag.id,
       name: tag.name,
       color: tag.color,
       icon: tag.icon,
-      // A live tag with nothing behind it still gets a row: it is a topic the
-      // user has declared, and hiding it would make a tag created a moment ago
-      // in the tag editor look like it failed to save.
       count: itemsByTag.get(tag.id)?.length ?? 0,
       isUntagged: false,
     }))
     .sort((a, b) => a.name.localeCompare(b.name));
+
+  /*
+   * The used / unused split (#1643 / D4). A live tag with nothing behind it
+   * still gets a ROW — hiding it outright would make a tag created a moment ago
+   * look like it failed to save — but it gets one behind the rail's disclosure
+   * rather than in the main run, so a rail of working topics is not padded out
+   * by the ones that were never used. `count === 0` is the whole rule: it comes
+   * from the same grouping the row's own chip reads, so the split can never
+   * disagree with the number printed next to it.
+   */
+  const summaries = allSummaries.filter((tag) => tag.count > 0);
+  const unusedTags = allSummaries.filter((tag) => tag.count === 0);
 
   // Pinned last, and only when it holds something. Last because the real tags
   // are what the rail is scanned for; omitted when empty because a bucket for
@@ -154,5 +163,5 @@ export function buildTagHubModel({
     });
   }
 
-  return { tags: summaries, groupsByTag };
+  return { tags: summaries, unusedTags, groupsByTag };
 }

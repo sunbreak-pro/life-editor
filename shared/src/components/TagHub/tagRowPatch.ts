@@ -1,13 +1,24 @@
-import { type TagEditRow } from "./types";
-
 /*
- * The draft model behind the tag panel's save button (#715).
+ * The draft model behind the tag editor's save button (#715, moved to the hub
+ * in #1643).
  *
  * Each tag's draft is an OVERLAY on the live tag (the #628 rule): only the
  * fields actually typed against are held, so a rename landing from Realtime or
  * MCP still reaches an untouched tag instead of being reverted by a stale draft
  * the user never edited.
+ *
+ * The tag it patches is described STRUCTURALLY rather than by the retired
+ * TagEditRow: the hub's own TagHubTagSummary carries the same three fields plus
+ * a count, and a shape this small has no business naming which component owns
+ * it.
  */
+
+/** The live fields a draft can overlay. Both row types satisfy it. */
+export interface TagRowPatchTarget {
+  readonly name: string;
+  readonly color: string | null;
+  readonly icon: string | null;
+}
 
 /**
  * What the user has typed / picked against one tag but not yet saved. Absent
@@ -28,7 +39,7 @@ export interface TagRowEdits {
 export type TagRowPatch = TagRowEdits;
 
 export function tagRowPatch(
-  tag: TagEditRow,
+  tag: TagRowPatchTarget,
   edits: TagRowEdits = {},
 ): TagRowPatch {
   const patch: TagRowPatch = {};

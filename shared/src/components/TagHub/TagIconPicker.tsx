@@ -4,13 +4,34 @@ import { useEscapeLayer } from "../../hooks/useDialogA11y";
 import { cn } from "../cn";
 import { resolveTagIcon, TAG_ICON_CHOICES } from "../tagIcon";
 import { TagHeadingIcon } from "../TagHeadingIcon";
-import { type TagEditModalLabels } from "./types";
 
-interface TagIconPickerProps {
+/**
+ * The two strings the picker draws, already translated (§6.4). A pair rather
+ * than the whole panel's label bag (#1643): the picker moved out of the
+ * retired tag modal, and taking that bag with it would have kept every future
+ * host owing copy it never shows.
+ */
+export interface TagIconPickerLabels {
+  /** Trigger + group label. */
+  iconLabel: string;
+  /** "Default / no icon" option. */
+  clearIconLabel: string;
+}
+
+export interface TagIconPickerProps {
   current: string | null;
   color: string | null;
   onPick: (icon: string | null) => void;
-  labels: TagEditModalLabels;
+  /** Extra classes for the TRIGGER button (the 44px floor on narrow). */
+  triggerClassName?: string;
+  /**
+   * Draw this word beside the glyph on the trigger (#1643). The hub's edit
+   * block asks for it because the block is a FORM: a bare 32px glyph reads as
+   * the current value there, not as the control that changes it, and every
+   * other row of the block pairs its value with a worded control.
+   */
+  triggerLabel?: string;
+  labels: TagIconPickerLabels;
 }
 
 /** Inline icon picker: a trigger showing the current (resolved) icon, opening a
@@ -19,6 +40,8 @@ export function TagIconPicker({
   current,
   color,
   onPick,
+  triggerClassName,
+  triggerLabel,
   labels,
 }: TagIconPickerProps) {
   const [open, setOpen] = useState(false);
@@ -61,15 +84,18 @@ export function TagIconPicker({
         title={labels.iconLabel}
         onClick={() => setOpen((v) => !v)}
         className={cn(
-          "flex h-8 w-8 items-center justify-center rounded-lumen-md border border-lumen-border bg-lumen-bg text-lumen-text-secondary",
+          "flex h-8 items-center justify-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg text-lumen-text-secondary",
+          triggerLabel ? "px-2.5 text-sm text-lumen-text" : "w-8",
           "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+          triggerClassName,
         )}
       >
         {/* Resolved through TagHeadingIcon (not a capitalized local) so the
             trigger draws the same glyph as a tag heading without declaring a
             component during render — see that file's note (#364 / #421). */}
         <TagHeadingIcon icon={current} color={color} />
+        {triggerLabel}
       </button>
 
       {open && (
@@ -80,7 +106,7 @@ export function TagIconPicker({
              the popover with the same token left it with zero surface contrast,
              so the rows behind read straight through it (#552). It was never
              literally translucent; bg-secondary is the opaque step that makes
-             the lift visible in BOTH themes (#f5ebda / #18243c), with the
+             the lift visible in BOTH themes (see tokens.css), with the
              strong border + lg shadow + z-50 popover stacking Menu.tsx uses.
              `w-max` is load-bearing, not a tidy-up (#1289): this box is
              ABSOLUTE, so its containing block is the trigger — 32px wide — and

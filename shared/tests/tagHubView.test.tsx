@@ -11,9 +11,13 @@ import {
   TagHubView,
   UNTAGGED_TAG_ID,
   type TagHubItem,
-  type TagHubLabels,
 } from "../src/components";
 import type { WikiTag, WikiTagAssignment } from "../src/types/wikiTagUnified";
+import {
+  TAG_HUB_LABELS as LABELS,
+  formatCount,
+  formatUnusedTags,
+} from "./tagHubLabels";
 
 /*
  * The tag hub's rendered contract (#1171).
@@ -25,26 +29,11 @@ import type { WikiTag, WikiTagAssignment } from "../src/types/wikiTagUnified";
  * jsdom has no layout, so `wide` is passed explicitly (the host measures it
  * with useMediaQuery) — which is also the only way to exercise the narrow
  * pane-at-a-time branch here at all (CLAUDE.md §7.1).
+ *
+ * The EDITING half (#1643) is opt-in: every case below that does not name an
+ * edit callback renders the hub the way a read-only host would get it, so the
+ * two halves cannot be confused for each other.
  */
-
-const LABELS: TagHubLabels = {
-  tagsHeading: "Tags",
-  filterPlaceholder: "Filter tags…",
-  filterLabel: "Filter tags by name",
-  listLabel: "Tags",
-  empty: "No tags or items yet.",
-  filterEmpty: "No matching tag",
-  tagEmpty: "Nothing is filed under this tag yet.",
-  selectHint: "Pick a tag to see everything filed under it.",
-  back: "Back to tags",
-  roles: {
-    task: "Todo",
-    event: "Event",
-    note: "Note",
-    daily: "Daily",
-    unknown: "Other",
-  },
-};
 
 const tag = (id: string, name: string): WikiTag => ({
   id,
@@ -98,8 +87,6 @@ const MODEL = buildTagHubModel({
   untaggedName: "Untagged",
 });
 
-const formatCount = (count: number) => `${count} items`;
-
 function renderHub(
   over: Partial<React.ComponentProps<typeof TagHubView>> = {},
 ) {
@@ -115,6 +102,7 @@ function renderHub(
       onQueryChange={onQueryChange}
       onOpenItem={onOpenItem}
       formatCount={formatCount}
+      formatUnusedTags={formatUnusedTags}
       wide
       isLoading={false}
       labels={LABELS}
@@ -124,19 +112,49 @@ function renderHub(
   return { onSelectTag, onOpenItem, onQueryChange };
 }
 
+/** The tag rows' own buttons — never the "…" beside them (#1643). */
+const railRows = (name = "Tags") =>
+  within(screen.getByRole("list", { name }))
+    .getAllByRole("listitem")
+    .map((li) => within(li).getAllByRole("button")[0]);
+
+const railLabels = (name?: string) =>
+  railRows(name).map((row) => row.getAttribute("aria-label"));
+
+/**
+ * The item rows in the detail pane. Told apart from the rail's by the list they
+ * sit in: only the rail's two lists carry an aria-label.
+ */
+const itemRows = () =>
+  screen
+    .getAllByRole("listitem")
+    .filter(
+      (li) =>
+        !li.closest('[aria-label="Tags"]') &&
+        !li.closest('[aria-label="Unused tags"]'),
+    )
+    .map((li) => within(li).getByRole("button"));
+
 beforeEach(cleanup);
 
 describe("TagHubView — the rail", () => {
-  it("lists every tag with the untagged bucket last", () => {
+  it("lists the tags holding something, with the untagged bucket last", () => {
     renderHub();
-    const rows = within(
-      screen.getByRole("list", { name: "Tags" }),
-    ).getAllByRole("button");
-    expect(rows.map((r) => r.getAttribute("aria-label"))).toEqual([
-      "Health: 0 items",
-      "Work: 4 items",
-      "Untagged: 1 items",
-    ]);
+    // Health carries nothing, so it is behind the disclosure rather than
+    // filed alphabetically above Work (#1643 / D4).
+    expect(railLabels()).toEqual(["Work: 4 items", "Untagged: 1 items"]);
+  });
+
+  it("keeps the unused tags one disclosure away, not gone", () => {
+    renderHub();
+    const toggle = screen.getByRole("button", { name: "Unused tags (1)" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.queryByRole("button", { name: "Health: 0 items" }),
+    ).toBeNull();
+
+    fireEvent.click(toggle);
+    expect(railLabels("Unused tags")).toEqual(["Health: 0 items"]);
   });
 
   it("reports the picked tag rather than selecting it itself", () => {
@@ -147,15 +165,19 @@ describe("TagHubView — the rail", () => {
 
   it("narrows to the tags matching the filter text", () => {
     renderHub({ query: "wor" });
-    const rows = within(
-      screen.getByRole("list", { name: "Tags" }),
-    ).getAllByRole("button");
-    expect(rows).toHaveLength(1);
-    expect(rows[0]).toHaveAttribute("aria-label", "Work: 4 items");
+    expect(railLabels()).toEqual(["Work: 4 items"]);
   });
 
   it("says so when the filter matches nothing", () => {
-    renderHub({ query: "zzz" });
+    renderHub({
+      query: "zzz",
+      model: buildTagHubModel({
+        tags: [tag("t-work", "Work")],
+        assignments: ASSIGNMENTS,
+        items: ITEMS,
+        untaggedName: "Untagged",
+      }),
+    });
     expect(screen.getByText("No matching tag")).toBeTruthy();
     expect(screen.queryByRole("list", { name: "Tags" })).toBeNull();
   });
@@ -169,7 +191,9 @@ describe("TagHubView — the rail", () => {
         untaggedName: "Untagged",
       }),
     });
-    expect(screen.getByText("No tags or items yet.")).toBeTruthy();
+    expect(screen.getAllByText("No tags or items yet.").length).toBeGreaterThan(
+      0,
+    );
     expect(screen.queryByLabelText("Filter tags by name")).toBeNull();
   });
 });
@@ -219,13 +243,16 @@ describe("TagHubView — the selected tag", () => {
 
   it("prompts for a pick while nothing is selected", () => {
     renderHub();
-    expect(
-      screen.getByText("Pick a tag to see everything filed under it."),
-    ).toBeTruthy();
+    expect(screen.getByText("Pick a tag.")).toBeTruthy();
   });
 
-  it("says the tag is empty rather than showing a blank column", () => {
+  it("opens an unused tag rather than reading as nothing selected", () => {
+    // The whole reason to open that disclosure is to edit or delete one, so a
+    // row behind it has to resolve to a selection like any other (#1643).
     renderHub({ selectedTagId: "t-health" });
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Health" }),
+    ).toBeTruthy();
     expect(
       screen.getByText("Nothing is filed under this tag yet."),
     ).toBeTruthy();
@@ -265,6 +292,167 @@ describe("TagHubView — loading", () => {
     renderHub({ isLoading: true });
     expect(screen.queryByRole("list", { name: "Tags" })).toBeNull();
     expect(screen.queryByText("No tags or items yet.")).toBeNull();
+    // The bars are decorative, so the wait is announced by the frame (D16).
+    expect(screen.getAllByRole("status")[0]).toHaveAttribute(
+      "aria-label",
+      "Loading tags",
+    );
+  });
+});
+
+/*
+ * The editing half (#1643 / D2–D7), folded in from the retired tag edit modal.
+ * What is pinned here is the WIRING — which control raises which callback with
+ * which argument; the writes those callbacks turn into are the host's, and
+ * web/tests/connectScreen.test.tsx pins those.
+ */
+describe("TagHubView — editing a tag", () => {
+  const editProps = () => {
+    const onEditTag = vi.fn();
+    const onToggleEdit = vi.fn();
+    const onEditChange = vi.fn();
+    const onEditSave = vi.fn();
+    const onDeleteTag = vi.fn();
+    const onCreateTag = vi.fn();
+    return {
+      spies: {
+        onEditTag,
+        onToggleEdit,
+        onEditChange,
+        onEditSave,
+        onDeleteTag,
+        onCreateTag,
+      },
+      props: {
+        onEditTag,
+        onToggleEdit,
+        onEditChange,
+        onEditSave,
+        onDeleteTag,
+        onCreateTag,
+      },
+    };
+  };
+
+  it("hides every edit affordance from a host that passes none", () => {
+    renderHub({ selectedTagId: "t-work" });
+    expect(screen.queryByRole("button", { name: "Edit this tag" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Work: Tag actions" }),
+    ).toBeNull();
+    expect(screen.queryByLabelText("Enter a tag name")).toBeNull();
+  });
+
+  it("opens the block on the field the row menu named", () => {
+    const { spies, props } = editProps();
+    renderHub({ selectedTagId: "t-work", ...props });
+
+    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Change the color" }));
+    expect(spies.onEditTag).toHaveBeenCalledWith("t-work", "color");
+  });
+
+  it("routes the row menu's delete to the host, which confirms", () => {
+    const { spies, props } = editProps();
+    renderHub({ selectedTagId: "t-work", ...props });
+
+    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete tag" }));
+    expect(spies.onDeleteTag).toHaveBeenCalledWith("t-work");
+  });
+
+  it("gives the untagged bucket no menu and no pencil", () => {
+    const { props } = editProps();
+    renderHub({ selectedTagId: UNTAGGED_TAG_ID, ...props });
+    expect(
+      screen.queryByRole("button", { name: "Untagged: Tag actions" }),
+    ).toBeNull();
+    expect(screen.queryByRole("button", { name: "Edit this tag" })).toBeNull();
+  });
+
+  it("drafts a rename instead of writing it, until save is pressed", () => {
+    const { spies, props } = editProps();
+    renderHub({
+      selectedTagId: "t-work",
+      editOpen: true,
+      editDirty: true,
+      ...props,
+    });
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Work log" },
+    });
+    expect(spies.onEditChange).toHaveBeenCalledWith({ name: "Work log" });
+    expect(spies.onEditSave).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(spies.onEditSave).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves save unpressable while nothing is pending", () => {
+    const { props } = editProps();
+    renderHub({ selectedTagId: "t-work", editOpen: true, ...props });
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
+    expect(screen.getByText("Saved")).toBeTruthy();
+  });
+
+  it("drafts a colour from the swatch that was pressed", () => {
+    const { spies, props } = editProps();
+    renderHub({ selectedTagId: "t-work", editOpen: true, ...props });
+
+    const swatch = within(
+      screen.getByRole("group", { name: "Color" }),
+    ).getAllByRole("button")[0];
+    fireEvent.click(swatch);
+    expect(spies.onEditChange).toHaveBeenCalledWith({
+      color: swatch.getAttribute("aria-label"),
+    });
+  });
+
+  it("clears the colour rather than sending a hex for 'default'", () => {
+    const { spies, props } = editProps();
+    renderHub({ selectedTagId: "t-work", editOpen: true, ...props });
+    fireEvent.click(screen.getByRole("button", { name: "Default" }));
+    expect(spies.onEditChange).toHaveBeenCalledWith({ color: null });
+  });
+
+  it("creates a tag from the rail's pinned row, trimmed", () => {
+    const { spies, props } = editProps();
+    renderHub(props);
+
+    fireEvent.change(screen.getByLabelText("Enter a tag name"), {
+      target: { value: "  Recipes  " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(spies.onCreateTag).toHaveBeenCalledWith("Recipes");
+  });
+
+  it("writes nothing for a blank name", () => {
+    const { spies, props } = editProps();
+    renderHub(props);
+
+    fireEvent.change(screen.getByLabelText("Enter a tag name"), {
+      target: { value: "   " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(spies.onCreateTag).not.toHaveBeenCalled();
+  });
+
+  it("points the empty hub's button at the field that makes a tag (D15)", () => {
+    const { props } = editProps();
+    renderHub({
+      ...props,
+      model: buildTagHubModel({
+        tags: [],
+        assignments: [],
+        items: [],
+        untaggedName: "Untagged",
+      }),
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
+    expect(document.activeElement).toBe(
+      screen.getByLabelText("Enter a tag name"),
+    );
   });
 });
 
@@ -279,19 +467,13 @@ describe("TagHubView — loading", () => {
  * they are what stops the mouse layout growing with the phone one.
  */
 describe("TagHubView — #1561 narrow rows meet the 44px touch floor", () => {
-  const tagRows = () =>
-    within(screen.getByRole("list", { name: "Tags" })).getAllByRole("button");
-  const itemRows = () =>
-    screen
-      .getAllByRole("listitem")
-      .map((li) => within(li).getByRole("button"));
   // The floor rides on the field's OUTER box (the `h-8` one), not the input.
   const filterBox = () =>
     screen.getByLabelText("Filter tags by name").parentElement!;
 
   it("floors the tag rows and the filter field on narrow", () => {
     renderHub({ wide: false });
-    for (const row of tagRows()) {
+    for (const row of railRows()) {
       expect(row).toHaveClass("min-h-11");
       // `min-*` on top of the padding, never an `h-*` (cn is a string join).
       expect(row).toHaveClass("py-1.5");
@@ -304,7 +486,7 @@ describe("TagHubView — #1561 narrow rows meet the 44px touch floor", () => {
 
   it("leaves the Desktop rail at its mouse height", () => {
     renderHub({ wide: true });
-    for (const row of tagRows()) expect(row).not.toHaveClass("min-h-11");
+    for (const row of railRows()) expect(row).not.toHaveClass("min-h-11");
     expect(filterBox()).not.toHaveClass("min-h-11");
   });
 
@@ -328,5 +510,16 @@ describe("TagHubView — #1561 narrow rows meet the 44px touch floor", () => {
     const rows = itemRows();
     expect(rows.length).toBeGreaterThan(0);
     for (const row of rows) expect(row).not.toHaveClass("min-h-11");
+  });
+
+  it("gives the narrow row menu a 44px box of its own (#1643)", () => {
+    renderHub({
+      wide: false,
+      onEditTag: vi.fn(),
+      onDeleteTag: vi.fn(),
+    });
+    expect(
+      screen.getByRole("button", { name: "Work: Tag actions" }),
+    ).toHaveClass("h-11");
   });
 });
