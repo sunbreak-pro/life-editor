@@ -8,14 +8,18 @@ import {
   SettingsReset,
   SettingsTabsNav,
   SettingsTutorial,
-  TagEditModal,
+  TagHubView,
   TrashView,
+  buildTagHubModel,
   type SettingsAccountLabels,
-  type TagEditRow,
   type TrashGroup,
   type TrashViewLabels,
 } from "../src/components";
-import { TAG_LABELS, selectTagRow } from "./tagEditLabels";
+import {
+  TAG_HUB_LABELS,
+  formatCount,
+  formatUnusedTags,
+} from "./tagHubLabels";
 
 /*
  * #1562 — the 44px touch floor on the SETTINGS lane (the #1512 remainder).
@@ -278,90 +282,115 @@ describe("#1562 — the trash controls", () => {
   });
 });
 
-describe("#1562 — the tag edit panel", () => {
-  const ROWS: TagEditRow[] = [
-    {
-      id: "tag-1",
-      name: "work",
-      color: null,
-      icon: null,
-      count: 1,
-      items: [
-        {
-          assignmentId: "a1",
-          itemId: "task-1",
-          role: "task",
-          title: "Buy milk",
-        },
-      ],
-    },
-  ];
+describe("#1562 — the tag editor, now inside the Connect hub (#1643)", () => {
+  const MODEL = buildTagHubModel({
+    tags: [
+      {
+        id: "tag-1",
+        name: "work",
+        color: null,
+        icon: null,
+        createdAt: "2026-08-01T00:00:00Z",
+        updatedAt: "2026-08-01T00:00:00Z",
+        isDeleted: false,
+        deletedAt: null,
+      },
+    ],
+    assignments: [
+      {
+        id: "a1",
+        itemId: "task-1",
+        tagId: "tag-1",
+        createdAt: "2026-08-01T00:00:00Z",
+        isDisplayColor: false,
+        updatedAt: "2026-08-01T00:00:00Z",
+        isDeleted: false,
+        deletedAt: null,
+      },
+    ],
+    items: [{ id: "task-1", role: "task", title: "Buy milk" }],
+    untaggedName: "Untagged",
+  });
 
-  function renderPanel() {
+  function renderHub(over: Partial<React.ComponentProps<typeof TagHubView>> = {}) {
     return render(
-      <TagEditModal
-        open
-        onClose={vi.fn()}
-        tags={ROWS}
-        onCreate={vi.fn()}
-        onRename={vi.fn()}
-        onDelete={vi.fn()}
-        onSetColor={vi.fn()}
-        onSetIcon={vi.fn()}
-        onUnassign={vi.fn()}
-        formatCount={(count) => `${count} items`}
-        labels={TAG_LABELS}
+      <TagHubView
+        model={MODEL}
+        selectedTagId="tag-1"
+        onSelectTag={vi.fn()}
+        query=""
+        onQueryChange={vi.fn()}
+        onOpenItem={vi.fn()}
+        formatCount={formatCount}
+        formatUnusedTags={formatUnusedTags}
+        wide
+        isLoading={false}
+        labels={TAG_HUB_LABELS}
+        editOpen
+        onToggleEdit={vi.fn()}
+        onEditTag={vi.fn()}
+        onEditChange={vi.fn()}
+        onEditSave={vi.fn()}
+        onDeleteTag={vi.fn()}
+        onCreateTag={vi.fn()}
+        {...over}
       />,
     );
   }
 
-  it("floors the add button", () => {
-    renderPanel();
+  it("floors the rail's add button", () => {
+    renderHub();
     expectNarrowFloor(
-      screen.getByRole("button", { name: TAG_LABELS.addButton }),
+      screen.getByRole("button", { name: TAG_HUB_LABELS.addButton }),
       "h-7",
     );
   });
 
-  it("floors save, delete and the color trigger in the editor pane", () => {
-    renderPanel();
-    selectTagRow("work");
+  it("floors save, delete and the two colour buttons in the edit block", () => {
+    renderHub();
 
     expectNarrowFloor(
-      screen.getByRole("button", { name: TAG_LABELS.saveLabel }),
+      screen.getByRole("button", { name: TAG_HUB_LABELS.edit.save }),
       "h-7",
     );
     expect(
-      screen.getByRole("button", { name: TAG_LABELS.deleteLabel }),
+      screen.getByRole("button", { name: TAG_HUB_LABELS.deleteTag }),
     ).toHaveClass("max-md:min-h-11");
-    // The color pill is 24px tall — the shortest control on the panel. It is
-    // reached through an opt-in prop rather than a change to ColorPicker
-    // itself, because the wikitag row draws the same picker and did not ask.
+    // The two 28px buttons beside the swatch grid are the shortest controls in
+    // the block, so they carry the floor explicitly rather than inheriting one.
     expect(
-      screen.getByRole("button", { name: TAG_LABELS.colorLabel }),
+      screen.getByRole("button", { name: TAG_HUB_LABELS.edit.colorDefault }),
+    ).toHaveClass("max-md:min-h-11");
+    expect(
+      screen.getByLabelText(TAG_HUB_LABELS.edit.colorCustom).closest("label"),
     ).toHaveClass("max-md:min-h-11");
   });
 
-  it("floors the per-item unassign on BOTH axes — it is icon-only", () => {
-    renderPanel();
-    selectTagRow("work");
+  it("floors the icon trigger, which is a 32px box", () => {
+    renderHub();
+    expect(
+      screen.getByRole("button", { name: TAG_HUB_LABELS.edit.iconLabel }),
+    ).toHaveClass("max-md:min-h-11");
+  });
 
-    const unassign = screen.getByRole("button", {
-      name: `${TAG_LABELS.unassignLabel}: Buy milk`,
+  it("floors the row menu on BOTH axes on narrow — it is icon-only", () => {
+    renderHub({ wide: false, selectedTagId: null });
+    const menu = screen.getByRole("button", {
+      name: `work: ${TAG_HUB_LABELS.rowMenu}`,
     });
-    expect(unassign).toHaveClass("max-md:min-h-11", "max-md:min-w-11");
-    // A label alone cannot buy the width back the way a text button does.
-    expect(unassign).toHaveClass("max-md:inline-flex");
+    // Painted at 44 rather than floored: on narrow there is no hover to reveal
+    // it with, so the control is full size from the start (M2).
+    expect(menu).toHaveClass("h-11", "w-full");
   });
 
   it("floors the narrow-only back link", () => {
     mockMatchMedia(false);
-    renderPanel();
-    selectTagRow("work");
+    renderHub({ wide: false });
 
-    expect(
-      screen.getByRole("button", { name: TAG_LABELS.backLabel }),
-    ).toHaveClass("max-md:min-h-11");
+    expect(screen.getByRole("button", { name: TAG_HUB_LABELS.back })).toHaveClass(
+      "min-h-11",
+      "min-w-11",
+    );
   });
 
   it("leaves a ColorPicker that asked for nothing unchanged", () => {

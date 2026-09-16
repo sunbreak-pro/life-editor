@@ -3,12 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import {
-  TagEditModal,
-  TAG_ICON_CHOICES,
-  type TagEditRow,
-} from "../src/components";
-import { TAG_LABELS, selectTagRow } from "./tagEditLabels";
+import { TAG_ICON_CHOICES, TagIconPicker } from "../src/components";
 
 /*
  * #1289 — opening the tag icon picker broke the row and the popover's surface
@@ -35,29 +30,19 @@ import { TAG_LABELS, selectTagRow } from "./tagEditLabels";
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, "../src/styles/tokens.css"), "utf8");
 
-const ROWS: TagEditRow[] = [
-  { id: "tag-1", name: "work", color: null, icon: null, count: 0, items: [] },
-];
+const LABELS = { iconLabel: "Icon", clearIconLabel: "Default icon" };
 
 function openPicker(): HTMLElement {
   render(
-    <TagEditModal
-      open
-      onClose={vi.fn()}
-      tags={ROWS}
-      onCreate={vi.fn()}
-      onRename={vi.fn()}
-      onDelete={vi.fn()}
-      onSetColor={vi.fn()}
-      onSetIcon={vi.fn()}
-      onUnassign={vi.fn()}
-      formatCount={(count) => `${count} items`}
-      labels={TAG_LABELS}
+    <TagIconPicker
+      current={null}
+      color={null}
+      onPick={vi.fn()}
+      labels={LABELS}
     />,
   );
-  selectTagRow("work");
-  fireEvent.click(screen.getByRole("button", { name: TAG_LABELS.iconLabel }));
-  return screen.getByRole("group", { name: TAG_LABELS.iconLabel });
+  fireEvent.click(screen.getByRole("button", { name: LABELS.iconLabel }));
+  return screen.getByRole("group", { name: LABELS.iconLabel });
 }
 
 /** Tailwind width utilities that give a box a width of its own. */
@@ -109,7 +94,7 @@ describe("tag icon picker — the popover is sized by itself (#1289)", () => {
       TAG_ICON_CHOICES.length + 1,
     );
     expect(
-      screen.getByRole("button", { name: TAG_LABELS.clearIconLabel }),
+      screen.getByRole("button", { name: LABELS.clearIconLabel }),
     ).toBeTruthy();
   });
 });
@@ -118,8 +103,8 @@ describe("tag icon picker — its surface tokens exist (#1289 / #552)", () => {
   it("paints on an opaque background token, not a bare utility", () => {
     const popover = openPicker();
 
-    // bg-lumen-bg is the Modal panel's own colour, so the popover would have
-    // no surface step at all; the picker deliberately sits one step up (#552).
+    // bg-lumen-bg is the surface the picker is drawn ON, so painting the
+    // popover with it would leave no step at all; it sits one up (#552).
     expect(popover).toHaveClass("bg-lumen-bg-secondary");
   });
 

@@ -1,60 +1,67 @@
 import { useState } from "react";
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { TagEditModal, type TagEditRow } from "../src/components";
-import { TAG_LABELS, nameField, selectTagRow, typeName } from "./tagEditLabels";
+import { Modal, TagIconPicker } from "../src/components";
 
 /*
- * #1342 — Escape over the open icon picker took the whole tag edit panel with
- * it, and the panel holds unsaved edits behind a Save button. Cancelling an
- * icon choice must not be the same keypress that throws the draft away.
+ * #1342 — Escape over the open icon picker took the whole surrounding dialog
+ * with it, and that dialog held unsaved edits behind a Save button. Cancelling
+ * an icon choice must not be the same keypress that throws the draft away.
  *
- * The cause was ordering, not a missing handler: the panel is a dialog whose
- * Escape sits on `document` in the CAPTURE phase, so the picker's own listener
- * (bubble, on the same node) was never reached. The picker now takes a layer in
- * the dialog stack, which makes the topmost surface the only one Escape gets
- * to — see `useEscapeLayer` in shared/src/hooks/useDialogA11y.ts.
+ * The cause was ordering, not a missing handler: a dialog's Escape sits on
+ * `document` in the CAPTURE phase, so the picker's own listener (bubble, on the
+ * same node) was never reached. The picker takes a layer in the dialog stack,
+ * which makes the topmost surface the only one Escape gets to — see
+ * `useEscapeLayer` in shared/src/hooks/useDialogA11y.ts.
+ *
+ * The host is a plain <Modal> rather than the tag edit modal these cases were
+ * written against: #1643 retired that panel into the Connect hub, where the
+ * picker now sits in an inline block with no dialog of its own. The CONTRACT
+ * being pinned belongs to the picker either way — it is "whatever dialog I am
+ * inside of, I take Escape first" — so the guard outlives its first host by
+ * being given a generic one.
  */
 
-const ROWS: TagEditRow[] = [
-  { id: "tag-1", name: "work", color: null, icon: null, count: 2, items: [] },
-];
-
-type ModalProps = React.ComponentProps<typeof TagEditModal>;
-
-function props(over: Partial<ModalProps> = {}): ModalProps {
-  return {
-    open: true,
-    onClose: vi.fn(),
-    tags: ROWS,
-    onCreate: vi.fn(),
-    onRename: vi.fn(),
-    onDelete: vi.fn(),
-    onSetColor: vi.fn(),
-    onSetIcon: vi.fn(),
-    onUnassign: vi.fn(),
-    formatCount: (count: number) => `${count} items`,
-    labels: TAG_LABELS,
-    ...over,
-  };
-}
+const LABELS = { iconLabel: "Icon", clearIconLabel: "Default icon" };
 
 /** The picker's trigger and its grid share the one label, so they are told
  *  apart by role — button for the trigger, group for the popover. */
 const iconTrigger = (): HTMLElement =>
-  screen.getByRole("button", { name: TAG_LABELS.iconLabel });
+  screen.getByRole("button", { name: LABELS.iconLabel });
 const pickerIsOpen = (): boolean =>
-  screen.queryByRole("group", { name: TAG_LABELS.iconLabel }) !== null;
+  screen.queryByRole("group", { name: LABELS.iconLabel }) !== null;
 
 const pressEscape = (over: Record<string, unknown> = {}): void => {
   fireEvent.keyDown(document, { key: "Escape", ...over });
 };
 
-describe("TagIconPicker — Escape closes the picker before the panel (#1342)", () => {
+function Picker({
+  onPick = vi.fn(),
+}: {
+  onPick?: (icon: string | null) => void;
+}) {
+  return (
+    <TagIconPicker
+      current={null}
+      color={null}
+      onPick={onPick}
+      labels={LABELS}
+    />
+  );
+}
+
+function renderInDialog(onClose: () => void) {
+  render(
+    <Modal open onClose={onClose} title="Tags">
+      <Picker />
+    </Modal>,
+  );
+}
+
+describe("TagIconPicker — Escape closes the picker before the dialog (#1342)", () => {
   it("closes only the picker on the first Escape", () => {
     const onClose = vi.fn();
-    render(<TagEditModal {...props({ onClose })} />);
-    selectTagRow("work");
+    renderInDialog(onClose);
     fireEvent.click(iconTrigger());
     expect(pickerIsOpen()).toBe(true);
 
@@ -64,28 +71,37 @@ describe("TagIconPicker — Escape closes the picker before the panel (#1342)", 
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("keeps the panel and its unsaved name on screen", () => {
-    // A mocked onClose leaves `open` true, so the panel would survive either
+  it("keeps the surface and its unsaved field on screen", () => {
+    // A mocked onClose leaves `open` true, so the dialog would survive either
     // way. This host actually closes on the callback — the shape the bug was
     // reported in, where the draft went with the panel.
     function Host() {
       const [open, setOpen] = useState(true);
-      return <TagEditModal {...props({ open, onClose: () => setOpen(false) })} />;
+      const [name, setName] = useState("workshop");
+      return (
+        <Modal open={open} onClose={() => setOpen(false)} title="Tags">
+          <input
+            aria-label="Name"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+          />
+          <Picker />
+        </Modal>
+      );
     }
     render(<Host />);
-    selectTagRow("work");
-    typeName("workshop");
     fireEvent.click(iconTrigger());
 
     pressEscape();
 
-    expect(nameField().value).toBe("workshop");
+    expect(screen.getByLabelText<HTMLInputElement>("Name").value).toBe(
+      "workshop",
+    );
   });
 
-  it("closes the panel on the second Escape", () => {
+  it("closes the dialog on the second Escape", () => {
     const onClose = vi.fn();
-    render(<TagEditModal {...props({ onClose })} />);
-    selectTagRow("work");
+    renderInDialog(onClose);
     fireEvent.click(iconTrigger());
 
     pressEscape();
@@ -94,10 +110,9 @@ describe("TagIconPicker — Escape closes the picker before the panel (#1342)", 
     expect(onClose).toHaveBeenCalledTimes(1);
   });
 
-  it("still closes the panel on Escape when no picker is open", () => {
+  it("still closes the dialog on Escape when no picker is open", () => {
     const onClose = vi.fn();
-    render(<TagEditModal {...props({ onClose })} />);
-    selectTagRow("work");
+    renderInDialog(onClose);
 
     pressEscape();
 
@@ -106,8 +121,7 @@ describe("TagIconPicker — Escape closes the picker before the panel (#1342)", 
 
   it("leaves both alone mid-IME-composition (§frontend gotcha)", () => {
     const onClose = vi.fn();
-    render(<TagEditModal {...props({ onClose })} />);
-    selectTagRow("work");
+    renderInDialog(onClose);
     fireEvent.click(iconTrigger());
 
     pressEscape({ isComposing: true });
@@ -116,12 +130,13 @@ describe("TagIconPicker — Escape closes the picker before the panel (#1342)", 
     expect(onClose).not.toHaveBeenCalled();
   });
 
-  it("hands Escape back to the panel after the picker is closed by a pick", () => {
+  it("hands Escape back to the dialog after the picker is closed by a pick", () => {
     const onClose = vi.fn();
-    render(<TagEditModal {...props({ onClose })} />);
-    selectTagRow("work");
+    renderInDialog(onClose);
     fireEvent.click(iconTrigger());
-    fireEvent.click(screen.getByRole("button", { name: TAG_LABELS.clearIconLabel }));
+    fireEvent.click(
+      screen.getByRole("button", { name: LABELS.clearIconLabel }),
+    );
     expect(pickerIsOpen()).toBe(false);
 
     pressEscape();

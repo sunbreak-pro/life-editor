@@ -1,10 +1,14 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildTagHubModel,
+  ConfirmDialog,
+  NO_EDITS,
   RightSidebarPortal,
   selectRecentTaggedItems,
+  tagRowPatch,
   TagHubDetailPanel,
   TagHubView,
+  useConfirmDialog,
   useDomainLoad,
   useMediaQuery,
   useSyncDomains,
@@ -20,8 +24,11 @@ import {
   type RoutineNode,
   type ScheduleItem,
   type TagHubDetailLabels,
+  type TagHubEditField,
   type TagHubItem,
   type TagHubLabels,
+  type TagHubTagSummary,
+  type TagRowEdits,
   type TodoNode,
 } from "@life-editor/shared";
 
@@ -40,11 +47,25 @@ import {
  * an i18n catalog is.
  *
  * NO PER-DOMAIN PROVIDER, on purpose. The hub reads across the item domains
- * and writes to none, which is the same shape as Briefing and Trash — those
- * call the injected DataService directly rather than mounting a Provider per
- * read-only list. The one Provider it does sit inside is
+ * and writes to none of them, which is the same shape as Briefing and Trash —
+ * those call the injected DataService directly rather than mounting a Provider
+ * per read-only list. The one Provider it does sit inside is
  * WikiTagsUnifiedProvider (mounted by its descriptor row), because the tag and
- * assignment caches it holds are already loaded and already Realtime-tracked.
+ * assignment caches it holds are already loaded and already Realtime-tracked —
+ * and, since #1643, because that Provider is where the tag WRITES live too.
+ *
+ * TAG EDITING (#1643, D-20260912-main-1 Q1-A). The retired modal's host is
+ * gone and this screen is the tag master. Three things live here that used to
+ * live over there: the unsaved drafts behind the save button (#715), the
+ * discard question asked when a draft would be unmounted by a change of
+ * selection (#740), and the delete confirmation. All three are HOST state because the
+ * view is pure and because the rail's filter and the selection both unmount the
+ * block that would otherwise hold them.
+ *
+ * What did NOT come across is the modal's per-item unassign: on this screen
+ * removing a tag from rows is a multi-select action in the selection bar, which
+ * is the next Issue (#1644). Until it lands, the item-side TagPicker is still
+ * the way to take one tag off one item.
  *
  * THE SHARED DETAIL PANEL (#1472). While a tag is open, the selected tag's
  * breakdown and its recently-filed rows go into the shell's right panel
@@ -62,6 +83,12 @@ interface ConnectScreenProps {
     role: string;
     date?: string;
   }) => void;
+  /**
+   * Report the hub's totals to the shell, which prints them beside the section
+   * title (D1). Called with null on unmount so the header cannot go on showing
+   * a count for a section the user has left.
+   */
+  onCountsChange?: (counts: { tags: number; items: number } | null) => void;
 }
 
 /** The reads, kept raw so the labelling below can depend on `t`. */
@@ -109,6 +136,7 @@ function pickSeriesOccurrence(
 export function ConnectScreen({
   dataService,
   onNavigateToItem,
+  onCountsChange,
 }: ConnectScreenProps) {
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
@@ -242,6 +270,30 @@ export function ConnectScreen({
     [wiki.allTags, wiki.allAssignments, items, t],
   );
 
+  const isLoading = sourcesLoading || wiki.loading;
+
+  /*
+   * The header's "tags N / items N" (D1). The shell draws it, because it is a
+   * subtitle on the section title row and that row is the shell's; the numbers
+   * can only come from here. Reported from an effect rather than during render
+   * — a parent setState during our render is the "cannot update while
+   * rendering" warning — and cleared on unmount so the count never outlives the
+   * section. Counted off the LIVE caches rather than the model's rail, which
+   * splits the unused tags out (D4) and would otherwise make the header
+   * disagree with the tag list one scroll below it.
+   */
+  const countsRef = useRef(onCountsChange);
+  useEffect(() => {
+    countsRef.current = onCountsChange;
+  });
+  const tagTotal = wiki.allTags.filter((tag) => !tag.isDeleted).length;
+  const itemTotal = items.length;
+  useEffect(() => {
+    if (isLoading) return;
+    countsRef.current?.({ tags: tagTotal, items: itemTotal });
+  }, [isLoading, tagTotal, itemTotal]);
+  useEffect(() => () => countsRef.current?.(null), []);
+
   const labels = useMemo<TagHubLabels>(
     () => ({
       tagsHeading: t("connect.tagsHeading"),
@@ -253,6 +305,30 @@ export function ConnectScreen({
       tagEmpty: t("connect.tagEmpty"),
       selectHint: t("connect.selectHint"),
       back: t("connect.back"),
+      unusedTagsHeading: t("connect.unusedTagsHeading"),
+      addPlaceholder: t("connect.addPlaceholder"),
+      addButton: t("connect.addButton"),
+      emptyAction: t("connect.emptyAction"),
+      loading: t("connect.loading"),
+      rowMenu: t("connect.rowMenu"),
+      renameTag: t("connect.renameTag"),
+      changeIcon: t("connect.changeIcon"),
+      changeColor: t("connect.changeColor"),
+      deleteTag: t("connect.deleteTag"),
+      editTag: t("connect.editTag"),
+      edit: {
+        nameLabel: t("connect.edit.nameLabel"),
+        iconLabel: t("connect.edit.iconLabel"),
+        colorLabel: t("connect.edit.colorLabel"),
+        iconChange: t("connect.edit.iconChange"),
+        iconClear: t("connect.edit.iconClear"),
+        colorDefault: t("connect.edit.colorDefault"),
+        colorCustom: t("connect.edit.colorCustom"),
+        deleteTag: t("connect.deleteTag"),
+        saved: t("connect.edit.saved"),
+        unsaved: t("connect.edit.unsaved"),
+        save: t("connect.edit.save"),
+      },
       roles: {
         task: t("itemRole.task"),
         event: t("itemRole.event"),
@@ -276,25 +352,205 @@ export function ConnectScreen({
   const [selectedTagId, setSelectedTagIdState] = useState<string | null>(() =>
     getConnectTagSelection(),
   );
-  const setSelectedTagId = useCallback((tagId: string | null) => {
+  const commitSelection = useCallback((tagId: string | null) => {
     setConnectTagSelection(tagId);
     setSelectedTagIdState(tagId);
   }, []);
   const [query, setQuery] = useState("");
 
+  /*
+   * The editing state (#1643, carried over from the retired modal).
+   *
+   * `edits` is keyed by tag id and holds ONLY the fields typed against, as an
+   * overlay on the live tag (#628 / tagRowPatch) — so a rename arriving from
+   * sync or MCP still reaches a field the user never touched.
+   * `pendingSelectId` is where the user asked to go while a draft is pending,
+   * held until the discard question is answered; the current selection stays
+   * put, because refusing has to leave the screen exactly as it was.
+   */
+  const [edits, setEdits] = useState<Readonly<Record<string, TagRowEdits>>>({});
+  const [editOpen, setEditOpen] = useState(false);
+  const [editFocusField, setEditFocusField] = useState<TagHubEditField | null>(
+    null,
+  );
+  const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
+
+  // What the save button would write, per tag. Over ALL tags, not just the
+  // selected one: a tag hidden behind the rail's filter still holds its draft.
+  const patchByTag = useMemo(() => {
+    const map = new Map<string, TagRowEdits>();
+    for (const tag of wiki.allTags) {
+      const patch = tagRowPatch(tag, edits[tag.id]);
+      if (Object.keys(patch).length > 0) map.set(tag.id, patch);
+    }
+    return map;
+  }, [wiki.allTags, edits]);
+
+  const selectTag = useCallback(
+    (tagId: string | null) => {
+      if (tagId === selectedTagId) return;
+      // Selecting elsewhere unmounts the edit block, so a pending draft has to
+      // be asked about before it goes (#740). Leaving the SECTION does not ask:
+      // there is no close affordance to hang the question on, and the drafts
+      // are discarded silently (plan assumption 3).
+      if (selectedTagId && patchByTag.has(selectedTagId)) {
+        setPendingSelectId(tagId);
+        return;
+      }
+      commitSelection(tagId);
+      setEditFocusField(null);
+    },
+    [selectedTagId, patchByTag, commitSelection],
+  );
+
+  const confirmSwitch = useCallback(() => {
+    // Discard means discard: the draft the user chose to abandon must not be
+    // waiting for them when they come back to the tag.
+    if (selectedTagId) {
+      setEdits((prev) => {
+        if (!prev[selectedTagId]) return prev;
+        const next = { ...prev };
+        delete next[selectedTagId];
+        return next;
+      });
+    }
+    commitSelection(pendingSelectId);
+    setEditFocusField(null);
+    setPendingSelectId(null);
+  }, [selectedTagId, pendingSelectId, commitSelection]);
+
+  const editSelected = useCallback(
+    (patch: TagRowEdits) => {
+      if (!selectedTagId) return;
+      setEdits((prev) => ({
+        ...prev,
+        [selectedTagId]: { ...prev[selectedTagId], ...patch },
+      }));
+      // The focus request is consumed by the first interaction with the block,
+      // so a re-render does not steal the caret back to the menu's field.
+      setEditFocusField(null);
+    },
+    [selectedTagId],
+  );
+
+  /**
+   * Forget one pending field. Dropping the KEY (rather than writing the stored
+   * value into it) is what puts the field back under the live tag, so a later
+   * remote change still reaches it.
+   */
+  const dropEdit = useCallback(
+    (field: keyof TagRowEdits) => {
+      if (!selectedTagId) return;
+      setEdits((prev) => {
+        const row = prev[selectedTagId];
+        if (!row || row[field] === undefined) return prev;
+        const next = { ...row };
+        delete next[field];
+        return { ...prev, [selectedTagId]: next };
+      });
+    },
+    [selectedTagId],
+  );
+
+  /*
+   * The only commit (#715). One press writes every field of the selected tag
+   * that moved, in the order the panel has always used — rename first, so
+   * whatever the host propagates around a wiki-tag rename runs where it used
+   * to. The edits are deliberately NOT cleared: they are an overlay, so they
+   * stop being pending the moment the write comes back through the cache.
+   * Clearing them here would snap the field back to the old name for the
+   * length of the round trip.
+   */
+  const saveSelected = useCallback(() => {
+    if (!selectedTagId) return;
+    const patch = patchByTag.get(selectedTagId);
+    if (!patch) return;
+    if (patch.name !== undefined)
+      void wiki.renameTag(selectedTagId, patch.name);
+    if (patch.icon !== undefined)
+      void wiki.setTagIcon(selectedTagId, patch.icon);
+    if (patch.color !== undefined)
+      void wiki.setTagColor(selectedTagId, patch.color);
+  }, [selectedTagId, patchByTag, wiki]);
+
+  const openEditOn = useCallback(
+    (tagId: string, field: TagHubEditField) => {
+      // The rail's "…" can name a tag that is not the open one, so this both
+      // selects and opens — and goes through `selectTag`, which is what asks
+      // about a draft on the tag being left.
+      if (tagId !== selectedTagId) selectTag(tagId);
+      setEditOpen(true);
+      setEditFocusField(field);
+    },
+    [selectedTagId, selectTag],
+  );
+
+  /*
+   * Deleting a tag asks first — the modal's delete button did not, and this
+   * one sits in a row menu where the pointer is already moving. The question
+   * is the in-app <ConfirmDialog> (#707 / #729), never the browser's own:
+   * that lands outside the theme and freezes the page hard enough to stall
+   * Playwright.
+   */
+  const {
+    request: confirmRequest,
+    ask: askConfirm,
+    resolve: resolveConfirm,
+  } = useConfirmDialog();
+  const requestDelete = useCallback(
+    (tagId: string) => {
+      const tag = wiki.allTags.find((row) => row.id === tagId);
+      void (async () => {
+        const ok = await askConfirm({
+          message: t("connect.deleteConfirm", { name: tag?.name ?? "" }),
+          confirmLabel: t("connect.deleteTag"),
+          cancelLabel: t("common.cancel"),
+          danger: true,
+        });
+        if (!ok) return;
+        void wiki.deleteTag(tagId);
+        if (tagId === selectedTagId) {
+          // The rail row is about to vanish; leaving the pane pointed at it
+          // would keep an editor open over a tag that no longer exists.
+          setEdits((prev) => {
+            if (!prev[tagId]) return prev;
+            const next = { ...prev };
+            delete next[tagId];
+            return next;
+          });
+          commitSelection(null);
+          setEditOpen(false);
+        }
+      })();
+    },
+    [wiki, askConfirm, t, selectedTagId, commitSelection],
+  );
+
+  const createTag = useCallback(
+    (name: string) => void wiki.createTag(name),
+    [wiki],
+  );
+
   const formatCount = useCallback(
     (count: number) => t("connect.itemCount", { count }),
+    [t],
+  );
+  const formatUnusedTags = useCallback(
+    (count: number) => t("connect.unusedTags", { count }),
     [t],
   );
 
   // The selected tag, resolved once here for the panel; the view resolves it
   // again for the main pane, which is cheap and keeps the view prop-driven.
-  const selectedTag = useMemo(
+  // Across both runs, because an unused tag is selectable too (#1643).
+  const selectedTag = useMemo<TagHubTagSummary | null>(
     () =>
       selectedTagId
-        ? (model.tags.find((tag) => tag.id === selectedTagId) ?? null)
+        ? ([...model.tags, ...model.unusedTags].find(
+            (tag) => tag.id === selectedTagId,
+          ) ?? null)
         : null,
-    [model.tags, selectedTagId],
+    [model.tags, model.unusedTags, selectedTagId],
   );
   const selectedGroups = useMemo(
     () => (selectedTag ? (model.groupsByTag.get(selectedTag.id) ?? []) : []),
@@ -354,18 +610,61 @@ export function ConnectScreen({
       <TagHubView
         model={model}
         selectedTagId={selectedTagId}
-        onSelectTag={setSelectedTagId}
+        onSelectTag={selectTag}
         query={query}
         onQueryChange={setQuery}
         onOpenItem={handleOpenItem}
         formatCount={formatCount}
+        formatUnusedTags={formatUnusedTags}
         wide={isWide}
         // The tags come from the Provider and the items from the load above;
         // either still in flight means the hub cannot yet tell "empty" from
         // "not read yet", which is the flash this prevents.
-        isLoading={sourcesLoading || wiki.loading}
+        isLoading={isLoading}
         labels={labels}
+        editOpen={editOpen}
+        onToggleEdit={() => {
+          setEditOpen((v) => !v);
+          setEditFocusField(null);
+        }}
+        onEditTag={openEditOn}
+        editFocusField={editFocusField}
+        edits={(selectedTagId && edits[selectedTagId]) || NO_EDITS}
+        editDirty={selectedTagId ? patchByTag.has(selectedTagId) : false}
+        onEditChange={editSelected}
+        onEditDrop={dropEdit}
+        onEditSave={saveSelected}
+        onDeleteTag={requestDelete}
+        onCreateTag={createTag}
       />
+
+      {/* The discard question, asked when another tag is picked while this one
+          holds a draft (#740). Mounted beside the view so it portals above it. */}
+      {pendingSelectId !== null && (
+        <ConfirmDialog
+          open
+          message={t("connect.unsavedSwitchConfirm")}
+          confirmLabel={t("common.discard")}
+          cancelLabel={t("common.cancel")}
+          // Throwing away typed-in work is the destructive answer here, even
+          // though nothing is deleted from the database.
+          danger
+          onConfirm={confirmSwitch}
+          onCancel={() => setPendingSelectId(null)}
+        />
+      )}
+
+      {confirmRequest && (
+        <ConfirmDialog
+          open
+          message={confirmRequest.message}
+          confirmLabel={confirmRequest.confirmLabel}
+          cancelLabel={confirmRequest.cancelLabel}
+          danger={confirmRequest.danger}
+          onConfirm={() => resolveConfirm(true)}
+          onCancel={() => resolveConfirm(false)}
+        />
+      )}
     </>
   );
 }

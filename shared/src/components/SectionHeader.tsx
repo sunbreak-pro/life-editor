@@ -8,6 +8,12 @@ export interface SectionHeaderProps {
    */
   title?: string;
   /**
+   * Already-translated supplementary text beside the title (#1643), in the
+   * tertiary tone — Connect's "tags 14 / items 150". Ignored when `tabs` is
+   * set, for the same reason `title` is: a tab band IS the title row.
+   */
+  subtitle?: string;
+  /**
    * Tab band standing in for the title (v2 §1) — pass a <HeaderTabs
    * divider={false}> so this row's own full-width border is the only
    * divider (the active tab's -mb-px underline overlaps it).
@@ -57,6 +63,7 @@ export interface SectionHeaderProps {
  */
 export function SectionHeader({
   title,
+  subtitle,
   tabs,
   controls,
   className,
@@ -80,9 +87,16 @@ export function SectionHeader({
         )}
       >
         {tabs ?? (
-          <h2 className="self-center truncate py-2 text-sm font-semibold text-lumen-text">
-            {title}
-          </h2>
+          <div className="flex min-w-0 items-baseline gap-2 self-center py-2">
+            <h2 className="truncate text-sm font-semibold text-lumen-text">
+              {title}
+            </h2>
+            {subtitle && (
+              <span className="truncate text-xs tabular-nums text-lumen-text-tertiary">
+                {subtitle}
+              </span>
+            )}
+          </div>
         )}
       </div>
       {controls != null && (

@@ -190,11 +190,14 @@ async function renderWithPanel(ds: DataService = makeDS()) {
   return { onNavigateToItem, panel };
 }
 
-/** The rail's rows, by their spelled-out "name: count" labels. */
-const railLabels = () =>
-  within(screen.getByRole("list", { name: "Tags" }))
-    .getAllByRole("button")
-    .map((row) => row.getAttribute("aria-label"));
+/**
+ * The rail's rows, by their spelled-out "name: count" labels. The first button
+ * in each <li> is the row; the second is its "…" (#1643).
+ */
+const railLabels = (name = "Tags") =>
+  within(screen.getByRole("list", { name }))
+    .getAllByRole("listitem")
+    .map((li) => within(li).getAllByRole("button")[0].getAttribute("aria-label"));
 
 beforeEach(() => {
   cleanup();
@@ -206,11 +209,10 @@ beforeEach(() => {
 describe("ConnectScreen", () => {
   it("counts each tag off the four reads, and files the rest as untagged", async () => {
     await renderScreen();
-    expect(railLabels()).toEqual([
-      "Idle: 0 items",
-      "Work: 4 items",
-      "Untagged: 1 item",
-    ]);
+    expect(railLabels()).toEqual(["Work: 4 items", "Untagged: 1 item"]);
+    // Idle carries nothing, so it is behind the rail's disclosure (#1643).
+    fireEvent.click(screen.getByRole("button", { name: "Unused tags (1)" }));
+    expect(railLabels("Unused tags")).toEqual(["Idle: 0 items"]);
   });
 
   it("keeps trashed rows out of the hub entirely", async () => {
@@ -362,11 +364,7 @@ describe("ConnectScreen — repeating items", () => {
         occurrence("event-r3", "2020-01-01"),
       ]),
     );
-    expect(railLabels()).toEqual([
-      "Idle: 0 items",
-      "Work: 5 items",
-      "Untagged: 1 item",
-    ]);
+    expect(railLabels()).toEqual(["Work: 5 items", "Untagged: 1 item"]);
     fireEvent.click(screen.getByRole("button", { name: "Work: 5 items" }));
     // One Event group holding the one-off AND the series — not four rows.
     expect(
@@ -432,5 +430,337 @@ describe("ConnectScreen — repeating items", () => {
       role: "event",
       date: "2020-02-01",
     });
+  });
+});
+/*
+ * Editing tags from the hub (#1643), migrated from web/tests/tagEditorActions
+ * when D-20260912-main-1 retired the modal that suite drove.
+ *
+ * What is pinned here is the half that lives on THIS side of the view's props:
+ * the real `useWikiTagsUnifiedAPI` turning each callback into one DataService
+ * call. Three of the identity writes land on the SAME method
+ * (`updateWikiTagUnified`) and differ only by which key is in the patch, so a
+ * copy-paste slip there — a colour arriving as `{ name }` — leaves every view
+ * test green while the tag comes back renamed to "#e11d48".
+ *
+ * So the cases below assert the method, its arguments, AND that no sibling
+ * write fired: rendering the real hook is what makes "only this one" mean
+ * anything.
+ */
+
+/** Every write a click in this screen can reach — the "no sibling" pool. */
+const WRITE_METHODS = [
+  "createWikiTagUnified",
+  "updateWikiTagUnified",
+  "softDeleteWikiTagUnified",
+  "unassignTagFromItem",
+  "assignTagToItem",
+  "createItemLink",
+  "deleteItemLink",
+] as const;
+
+function makeWritableDS() {
+  const writes: Record<string, ReturnType<typeof vi.fn>> = {};
+  for (const method of WRITE_METHODS) {
+    // Every write resolves with a tag-shaped row: the hook folds the result
+    // back into its local list, so `undefined` would take the screen down
+    // before the assertion runs.
+    writes[method] = vi.fn(async () => ({ ...TAGS[0] }));
+  }
+  return { ds: makeDS(writes), writes };
+}
+
+/** Asserts exactly one write method fired, with exactly these arguments. */
+function expectOnlyWrite(
+  writes: Record<string, ReturnType<typeof vi.fn>>,
+  method: string,
+  args: unknown[],
+) {
+  expect(writes[method].mock.calls).toEqual([args]);
+  for (const other of WRITE_METHODS) {
+    if (other === method) continue;
+    expect(writes[other]).not.toHaveBeenCalled();
+  }
+}
+
+/** Opens a tag in the hub (a selection, not a write). */
+const openTag = (label: string) =>
+  fireEvent.click(screen.getByRole("button", { name: label }));
+
+/** Opens the edit block on the selected tag through the header's pencil. */
+const openEditor = () =>
+  fireEvent.click(screen.getByRole("button", { name: "Edit this tag" }));
+
+const save = () =>
+  fireEvent.click(screen.getByRole("button", { name: "Save" }));
+
+describe("ConnectScreen — creating a tag", () => {
+  it("sends the typed name and nothing else", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+
+    fireEvent.change(screen.getByLabelText("Enter a tag name"), {
+      target: { value: "Recipes" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    await waitFor(() => expect(writes.createWikiTagUnified).toHaveBeenCalled());
+    // The id is minted host-side (generateId("tag")), so the shape is what can
+    // be pinned — a colourless new tag, created under a tag-prefixed id.
+    expectOnlyWrite(writes, "createWikiTagUnified", [
+      expect.stringMatching(/^tag-/) as unknown,
+      "Recipes",
+      null,
+    ]);
+  });
+
+  it("writes nothing for a blank name", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+
+    fireEvent.change(screen.getByLabelText("Enter a tag name"), {
+      target: { value: "   " },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    for (const method of WRITE_METHODS) {
+      expect(writes[method]).not.toHaveBeenCalled();
+    }
+  });
+});
+
+describe("ConnectScreen — the save button routes each field to its own patch", () => {
+  it("rename → updateWikiTagUnified(id, { name })", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    openEditor();
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Work log" },
+    });
+    save();
+
+    await waitFor(() => expect(writes.updateWikiTagUnified).toHaveBeenCalled());
+    expectOnlyWrite(writes, "updateWikiTagUnified", [
+      "t-work",
+      { name: "Work log" },
+    ]);
+  });
+
+  it("colour → updateWikiTagUnified(id, { color }), carrying the swatch pressed", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    openEditor();
+
+    // Each swatch is labelled with its own hex, so the value asserted below is
+    // read off the button that was pressed rather than restated here.
+    const swatch = within(
+      screen.getByRole("group", { name: "Color" }),
+    ).getAllByRole("button")[0];
+    const hex = swatch.getAttribute("aria-label");
+    fireEvent.click(swatch);
+    save();
+
+    await waitFor(() => expect(writes.updateWikiTagUnified).toHaveBeenCalled());
+    expectOnlyWrite(writes, "updateWikiTagUnified", ["t-work", { color: hex }]);
+  });
+
+  it("icon → updateWikiTagUnified(id, { icon }), carrying the glyph pressed", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    openEditor();
+
+    fireEvent.click(screen.getByRole("button", { name: "Icon" }));
+    const choice = within(
+      screen.getByRole("group", { name: "Icon" }),
+    ).getAllByRole("button")[0];
+    const icon = choice.getAttribute("aria-label");
+    fireEvent.click(choice);
+    save();
+
+    await waitFor(() => expect(writes.updateWikiTagUnified).toHaveBeenCalled());
+    expectOnlyWrite(writes, "updateWikiTagUnified", ["t-work", { icon }]);
+  });
+
+  it("keeps two moved fields in two patches, both aimed at the open tag", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    openEditor();
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Work log" },
+    });
+    const swatch = within(
+      screen.getByRole("group", { name: "Color" }),
+    ).getAllByRole("button")[0];
+    const hex = swatch.getAttribute("aria-label");
+    fireEvent.click(swatch);
+    save();
+
+    await waitFor(() =>
+      expect(writes.updateWikiTagUnified).toHaveBeenCalledTimes(2),
+    );
+    // Name first, then colour — the order the panel has always written in, and
+    // both on t-work rather than on whatever was selected before.
+    expect(writes.updateWikiTagUnified.mock.calls).toEqual([
+      ["t-work", { name: "Work log" }],
+      ["t-work", { color: hex }],
+    ]);
+    expect(writes.softDeleteWikiTagUnified).not.toHaveBeenCalled();
+  });
+
+  it("acts on the tag that is open, not the one opened before it", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    // Idle is an unused tag, so reaching it means opening the disclosure —
+    // which is exactly why that run stays reachable (#1643 / D4).
+    fireEvent.click(screen.getByRole("button", { name: "Unused tags (1)" }));
+    openTag("Idle: 0 items");
+    openEditor();
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Idle hands" },
+    });
+    save();
+
+    await waitFor(() => expect(writes.updateWikiTagUnified).toHaveBeenCalled());
+    expectOnlyWrite(writes, "updateWikiTagUnified", [
+      "t-idle",
+      { name: "Idle hands" },
+    ]);
+  });
+});
+
+describe("ConnectScreen — removing a tag", () => {
+  it("asks first, then soft-deletes — never a hard write", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+
+    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete tag" }));
+    // Nothing is written until the question is answered.
+    expect(writes.softDeleteWikiTagUnified).not.toHaveBeenCalled();
+
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Delete tag",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(writes.softDeleteWikiTagUnified).toHaveBeenCalled(),
+    );
+    expectOnlyWrite(writes, "softDeleteWikiTagUnified", ["t-work"]);
+  });
+
+  it("leaves the tag alone when the question is refused", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+
+    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete tag" }));
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Cancel",
+      }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    for (const method of WRITE_METHODS) {
+      expect(writes[method]).not.toHaveBeenCalled();
+    }
+  });
+});
+
+describe("ConnectScreen — what writes nothing", () => {
+  it("opening a tag, and opening its editor, are navigation", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+
+    openTag("Work: 4 items");
+    openEditor();
+
+    screen.getByLabelText("Name");
+    for (const method of WRITE_METHODS) {
+      expect(writes[method]).not.toHaveBeenCalled();
+    }
+  });
+
+  it("typing without saving leaves the tag alone", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    openEditor();
+
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Work log" },
+    });
+
+    // The block says so on screen; the service has heard nothing (#715 — blur
+    // stopped committing, the button is the only commit).
+    screen.getByText("Unsaved");
+    for (const method of WRITE_METHODS) {
+      expect(writes[method]).not.toHaveBeenCalled();
+    }
+  });
+
+  it("asks before a draft is thrown away by picking another tag (#740)", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    openEditor();
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Work log" },
+    });
+
+    openTag("Untagged: 1 item");
+    // The selection has NOT moved: refusing has to leave the screen as it was.
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Work" }),
+    ).toBeTruthy();
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Discard",
+      }),
+    );
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Untagged" }),
+    ).toBeTruthy();
+
+    for (const method of WRITE_METHODS) {
+      expect(writes[method]).not.toHaveBeenCalled();
+    }
+  });
+});
+
+describe("ConnectScreen — the header's totals (D1)", () => {
+  it("reports the live tag and item totals, then clears them on unmount", async () => {
+    const onCountsChange = vi.fn();
+    const { wrapper: SyncWrapper } = createBumpableSync();
+    const ds = makeDS();
+    render(
+      <SyncWrapper>
+        <WikiTagsUnifiedProvider dataService={ds}>
+          <ConnectScreen
+            dataService={ds}
+            onNavigateToItem={vi.fn()}
+            onCountsChange={onCountsChange}
+          />
+        </WikiTagsUnifiedProvider>
+      </SyncWrapper>,
+    );
+    await waitFor(() => screen.getByRole("list", { name: "Tags" }));
+
+    // Both tags, the unused one included — the header counts the master, not
+    // the rail's used run.
+    expect(onCountsChange).toHaveBeenLastCalledWith({ tags: 2, items: 5 });
+
+    cleanup();
+    expect(onCountsChange).toHaveBeenLastCalledWith(null);
   });
 });

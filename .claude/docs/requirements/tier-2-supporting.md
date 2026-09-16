@@ -181,6 +181,7 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
   - タグ接続（source → target の有向グラフ、semantics / hierarchy 表現）
   - タグのマージ（`merge` コマンドで重複統合）
   - MCP 4 ツール（Claude から横断検索・タグ付与）
+  - **管理 UI の所在は Connect セクション**（2026-09-16 #1643 = `D-20260912-main-1` Q1-A。専用モーダルは退役）
 - やらない:
   - **タグ / リンクのグラフ可視化（力学グラフ）は 2026-08-29 退役**（#1152 — 旧 Connect セクション）。「約 3,700 行の描画層を維持するほどには、検索・タグ・バックリンクと役割が重複していた」が理由で、**データ側（`wiki_tag_connections` / inline リンク sync）は無傷**。関係をたどる導線は Notes の `LinkPanel`（双方向リンク一覧）・コマンドパレット検索・MCP `search_by_tag` / `search_all` が引き継ぐ。当初は再利用可能な部品（`shared/src/components/Backlinks/BacklinkView.tsx` + `shared/src/utils/itemLinks.ts`）を残したが、呼び出し元ゼロの実測により #1239 で削除（D-20260829-connect-1 = B）。リンク一覧は `web/src/wikitag/LinkPanel.tsx` が unified link cache から自前描画する。**2026-08-29 #1171 で「やる」側に移ったのはタグ軸の閲覧だけ** — Connect セクションは Tag hub（タグ一覧 → 種類別のアイテム一覧、`shared/src/components/TagHub/`）として再新設された。力学グラフはこの行のとおり退役のまま
   - 複数 entity_type を跨ぐリレーション型タグ（Database の relation プロパティで別対応）
@@ -530,18 +531,23 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
 **Status**: ◎稼働中（2026-08-29 新設 = #1171）
 **Owner Provider/Module**: `shared/src/components/TagHub/` + `web/src/connect/ConnectScreen.tsx`
 **MCP Coverage**: —（データは WikiTags / リンクと共有。MCP 側の入口は `search_by_tag` / `search_all`）
-**Supports Value Prop**: 補助（タグ軸の閲覧導線）
+**Supports Value Prop**: 補助（タグ軸の閲覧導線 + タグマスタの編集所）
 **Platform**: Web ホスト共通（Desktop / Mobile）
 
 ### Purpose
 
 タグを入口に Note / Todo / Event / Daily を種類別に読む「トピック軸の入口」。時間軸の入口 = Calendar との役割分担は #1153 の決定。旧 Connect の力学グラフは #1152 で退役済み（WikiTags 節「やらない」参照）で、本 Feature はその跡地に別物として再新設された。
 
+**2026-09-16（#1643）でタグマスタの編集所を兼ねる**（[`D-20260912-main-1`](../../decisions/D-20260912-main-1.md) Q1-A）。同じタグ一覧が本セクションのレールとタグ編集モーダルの 2 画面にあり、行の形まで揃えてあるのに編集できるのはモーダル側だけ、という二重保守を畳んだもの。モーダル（`shared/src/components/tagEdit/`）と、それを開いていた `web/src/tags/TagEditorHost.tsx` は削除済み。サイドバー行と Mobile「その他」シートの「タグを編集」は本セクションへの遷移に差し替わった。
+
 ### Boundary
 
 - やる:
   - タグ一覧 → タグ選択 → 種類別（Note / Todo / Event / Daily）のアイテム一覧
   - タグ無しアイテムは「未分類」疑似タグで拾う
+  - **タグマスタの作成・改名・アイコン / 色・削除**（#1643。保存ボタンだけが書き込む = #715 の下書きモデルを踏襲・削除は ConfirmDialog で確認）
+  - 件数 0 のタグはレール末尾の折り畳み「使われていないタグ」にまとめる
 - やらない:
   - タグ / リンクの力学グラフ可視化（#1152 退役・復活させない）
-  - タグの作成・編集・マージ（WikiTags 管理 UI の領分）
+  - タグのマージ（#1644 で選択バーとともに実装予定）
+  - アイテム単位のタグ外し（#1644 の複数選択 + 一括操作の領分。それまでは各詳細の `TagPicker` が経路）

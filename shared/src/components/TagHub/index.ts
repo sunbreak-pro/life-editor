@@ -2,9 +2,11 @@
  * Tag hub feature sub-barrel (#1171) — the Connect section's body.
  *
  * The tag-first entrance to the records that replaced the retired
- * force-directed graph (#1152): pick a topic, read what is filed under it.
+ * force-directed graph (#1152), and — since #1643 retired the tag edit modal
+ * into it (D-20260912-main-1) — the one place tags are edited.
  * Pure and injection-only — the host (web/src/connect/ConnectScreen.tsx) does
- * the fetching, resolves copy into TagHubLabels, and owns the selection state.
+ * the fetching, resolves copy into TagHubLabels, and owns the selection state
+ * and the unsaved drafts.
  *
  * The global components/index.ts re-exports this with `export *`.
  */
@@ -24,6 +26,24 @@ export {
   type TagHubDetailLabels,
   type TagHubDetailPanelProps,
 } from "./TagHubDetailPanel";
+// #1643 — the tag editor, folded in from the retired modal.
+export {
+  TagHubEditBlock,
+  type TagHubEditBlockProps,
+  type TagHubEditField,
+} from "./TagHubEditBlock";
+export {
+  TagIconPicker,
+  type TagIconPickerLabels,
+  type TagIconPickerProps,
+} from "./TagIconPicker";
+export {
+  NO_EDITS,
+  tagRowPatch,
+  type TagRowEdits,
+  type TagRowPatch,
+  type TagRowPatchTarget,
+} from "./tagRowPatch";
 export {
   selectRecentTaggedItems,
   TAG_HUB_RECENT_LIMIT,
@@ -31,6 +51,7 @@ export {
 } from "./recentTaggedItems";
 export {
   UNTAGGED_TAG_ID,
+  type TagHubEditLabels,
   type TagHubGroup,
   type TagHubItem,
   type TagHubLabels,

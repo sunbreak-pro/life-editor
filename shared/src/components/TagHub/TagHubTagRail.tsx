@@ -1,50 +1,130 @@
+import { useRef, useState } from "react";
+import type { RefObject } from "react";
+import {
+  ChevronDown,
+  ChevronRight,
+  MoreHorizontal,
+  Palette,
+  Pencil,
+  Plus,
+  Shapes,
+  Trash2,
+} from "lucide-react";
+import { Button } from "../Button";
 import { cn } from "../cn";
+import { Menu, MenuItem } from "../Menu";
+import { SkeletonList } from "../SkeletonList";
 import { TagHeadingIcon } from "../TagHeadingIcon";
 import { SidebarFilterField } from "../materials/SidebarFilterField";
+import { CARD_BTN_TAP, FOCUS_RING_TIGHT } from "../styleTokens";
+import { isImeComposing } from "../../utils/imeGuard";
+import type { TagHubEditField } from "./TagHubEditBlock";
 import type { TagHubLabels, TagHubTagSummary } from "./types";
 
 /*
- * The hub's master column (#1171): a filter and the tag list, and nothing that
- * edits. Deliberately the same row shape as the tag editor's TagMasterList
- * (#740) — glyph, name, count — because these are two views of one set of
- * tags and a user who learns one row should recognise the other.
+ * The hub's master column (#1171, made editable in #1643): a filter, the tag
+ * list, and — since the tag edit modal was retired into this screen — the two
+ * things that used to be the modal's reason to exist: a per-row "…" of tag
+ * actions and a pinned row that creates one.
  *
- * Where it differs, and why: this list carries the UNTAGGED bucket, drawn
- * below a rule at the end. It is a pseudo-tag, so it gets the default glyph
- * and no tint, and the separator is what stops it reading as a tag someone
- * actually named "Untagged".
+ * WHAT THE LIST IS, top to bottom (D3–D5):
+ *   1. the tags holding something, by name
+ *   2. a rule, then the UNTAGGED bucket — a pseudo-tag, so it gets the default
+ *      glyph, no tint and no "…" (there is nothing about it to rename)
+ *   3. a disclosure over the tags nothing is filed under, collapsed by default
+ *   4. pinned to the bottom edge, the add row
+ *
+ * The rule under (1) is what stops the bucket reading as a tag someone actually
+ * named "Untagged"; the disclosure at (3) is what stops a tag made and never
+ * used from sitting between two working topics (see the model's note).
+ *
+ * The row is a BUTTON beside a button, not a button inside one: the "…" has to
+ * be reachable on its own, and nesting it would be invalid HTML that browsers
+ * resolve by dropping it. The selection bar and the tinted ground are painted
+ * on the wrapper so they span both.
  *
  * Pure presentation: copy is injected (§6.4), lumen-* tokens only, opaque
  * surfaces (§5).
  */
 
 export interface TagHubTagRailProps {
-  /** Every tag, untagged last — the model's order is rendered as given. */
+  /** Every tag holding something, untagged last — rendered in model order. */
   tags: readonly TagHubTagSummary[];
   /** The subset surviving the filter, in the same order. */
   visibleTags: readonly TagHubTagSummary[];
+  /** Live tags with nothing filed under them, behind the disclosure (D4). */
+  unusedTags: readonly TagHubTagSummary[];
   selectedId: string | null;
   onSelect: (tagId: string) => void;
   query: string;
   onQueryChange: (query: string) => void;
   /** Count → its accessible text ("3 items"), so the number is announced. */
   formatCount: (count: number) => string;
+  /** Unused count → the disclosure's label ("Unused tags (3)"). */
+  formatUnusedTags: (count: number) => string;
+  /** Row menu → open the edit block on that field (D2). Omit to hide the "…". */
+  onEditTag?: (tagId: string, field: TagHubEditField) => void;
+  /** Row menu → the destructive item. Required whenever `onEditTag` is given. */
+  onDeleteTag?: (tagId: string) => void;
+  /** The pinned add row (D5). Omit to leave the row out. */
+  onCreateTag?: (name: string) => void;
+  /** The view's handle on the add field, for the empty state's CTA (D15). */
+  addFieldRef?: RefObject<HTMLInputElement | null>;
   /** Wide = a fixed rail beside the items; narrow = the whole screen. */
   wide: boolean;
+  /** True until the host's first reads land — draws the skeleton rows (D16). */
+  isLoading?: boolean;
   labels: TagHubLabels;
 }
 
 export function TagHubTagRail({
   tags,
   visibleTags,
+  unusedTags,
   selectedId,
   onSelect,
   query,
   onQueryChange,
   formatCount,
+  formatUnusedTags,
+  onEditTag,
+  onDeleteTag,
+  onCreateTag,
+  addFieldRef,
   wide,
+  isLoading = false,
   labels,
 }: TagHubTagRailProps) {
+  // Collapsed by default: these are the tags you are NOT reading (D4).
+  const [showUnused, setShowUnused] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  const submitDraft = () => {
+    const name = draft.trim();
+    if (!name || !onCreateTag) return;
+    onCreateTag(name);
+    setDraft("");
+    // Clear the filter too: a tag created while a non-matching query is active
+    // would land outside the visible list, so the rail would look exactly as it
+    // did before — and pressing Add again hits the unique-name constraint,
+    // which the host's fire-and-forget create swallows silently (#368 QA).
+    onQueryChange("");
+  };
+
+  const renderRow = (tag: TagHubTagSummary) => (
+    <TagHubRailRow
+      key={tag.id}
+      tag={tag}
+      active={tag.id === selectedId}
+      onSelect={onSelect}
+      formatCount={formatCount}
+      onEditTag={onEditTag}
+      onDeleteTag={onDeleteTag}
+      wide={wide}
+      labels={labels}
+    />
+  );
+
   return (
     <div
       className={cn(
@@ -54,7 +134,7 @@ export function TagHubTagRail({
     >
       {/* Hidden while there is nothing to narrow — an empty hub should show
           its "no tags yet" copy, not a search box (same rule as #368). */}
-      {tags.length > 0 && (
+      {!isLoading && tags.length > 0 && (
         <div className="flex-shrink-0 border-b border-lumen-border px-3 py-2.5">
           <SidebarFilterField
             value={query}
@@ -76,71 +156,268 @@ export function TagHubTagRail({
       )}
 
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-2">
-        {tags.length === 0 ? (
+        {isLoading ? (
+          // The bars are decorative (SkeletonList is aria-hidden), so the wait
+          // is announced by the frame around them instead (D16 / M7).
+          <div aria-busy="true" aria-label={labels.loading} role="status">
+            <SkeletonList rows={6} rowHeight={38} gap={2} />
+          </div>
+        ) : tags.length === 0 && unusedTags.length === 0 ? (
           <p className="px-1 py-6 text-center text-sm text-lumen-text-tertiary">
             {labels.empty}
           </p>
-        ) : visibleTags.length === 0 ? (
+        ) : visibleTags.length === 0 && unusedTags.length === 0 ? (
           <p className="px-1 py-6 text-center text-sm text-lumen-text-tertiary">
             {labels.filterEmpty}
           </p>
         ) : (
-          <ul aria-label={labels.listLabel} className="flex flex-col gap-0.5">
-            {visibleTags.map((tag) => {
-              const active = tag.id === selectedId;
-              const countText = formatCount(tag.count);
-              return (
-                <li
-                  key={tag.id}
+          <>
+            <ul aria-label={labels.listLabel} className="flex flex-col gap-0.5">
+              {visibleTags.map(renderRow)}
+            </ul>
+
+            {unusedTags.length > 0 && (
+              <div className="mt-1 border-t border-lumen-border pt-1.5">
+                <button
+                  type="button"
+                  onClick={() => setShowUnused((v) => !v)}
+                  aria-expanded={showUnused}
                   className={cn(
-                    // The rule above the untagged bucket. Applied to the <li>
-                    // rather than drawn as a separate element so the list stays
-                    // one row per tag for a screen reader.
-                    tag.isUntagged &&
-                      "mt-1 border-t border-lumen-border pt-1.5",
+                    "flex w-full items-center gap-2 rounded-lumen-md px-2 py-1.5 text-left text-xs text-lumen-text-tertiary",
+                    "transition-colors hover:bg-lumen-hover hover:text-lumen-text-secondary",
+                    FOCUS_RING_TIGHT,
+                    !wide && "min-h-11",
                   )}
                 >
-                  <button
-                    type="button"
-                    onClick={() => onSelect(tag.id)}
-                    aria-current={active ? "true" : undefined}
-                    // Spelled out rather than left to the concatenated content,
-                    // so the count is announced with the name instead of as a
-                    // loose number after it.
-                    aria-label={`${tag.name}: ${countText}`}
-                    className={cn(
-                      "flex w-full items-center gap-2 rounded-lumen-md px-2 py-1.5 text-left",
-                      "transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-                      // #1561 — 44px touch floor on narrow only; the Desktop
-                      // rail keeps its 37.5px mouse row.
-                      !wide && "min-h-11",
-                      active
-                        ? "bg-lumen-accent-subtle text-lumen-text"
-                        : "text-lumen-text hover:bg-lumen-hover",
-                    )}
+                  {showUnused ? (
+                    <ChevronDown size={14} aria-hidden className="shrink-0" />
+                  ) : (
+                    <ChevronRight size={14} aria-hidden className="shrink-0" />
+                  )}
+                  <span className="min-w-0 flex-1 truncate">
+                    {formatUnusedTags(unusedTags.length)}
+                  </span>
+                </button>
+                {showUnused && (
+                  <ul
+                    aria-label={labels.unusedTagsHeading}
+                    className="flex flex-col gap-0.5"
                   >
-                    <TagHeadingIcon icon={tag.icon} color={tag.color} />
-                    <span
-                      className={cn(
-                        "min-w-0 flex-1 truncate text-sm",
-                        tag.isUntagged && "text-lumen-text-secondary",
-                      )}
-                    >
-                      {tag.name}
-                    </span>
-                    <span
-                      aria-hidden
-                      className="shrink-0 rounded-full bg-lumen-bg-secondary px-2 py-0.5 text-xs font-medium tabular-nums text-lumen-text-secondary"
-                    >
-                      {tag.count}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
+                    {unusedTags.map(renderRow)}
+                  </ul>
+                )}
+              </div>
+            )}
+          </>
         )}
       </div>
+
+      {/* The creation row, pinned to the bottom edge (D5). It used to live at
+          the top of the retired modal; down here it is out of the way of the
+          list that is read far more often than it is added to. */}
+      {onCreateTag && (
+        <div className="flex flex-shrink-0 items-center gap-2 border-t border-lumen-border px-3 py-2.5">
+          <Plus
+            size={16}
+            aria-hidden
+            className="shrink-0 text-lumen-text-tertiary"
+          />
+          <input
+            ref={addFieldRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              // Never commit mid-IME-composition (§frontend gotcha).
+              if (isImeComposing(e)) return;
+              if (e.key === "Enter") {
+                e.preventDefault();
+                submitDraft();
+              }
+            }}
+            placeholder={labels.addPlaceholder}
+            aria-label={labels.addPlaceholder}
+            className={cn(
+              "min-w-0 flex-1 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-2.5 py-1.5 text-sm text-lumen-text",
+              "placeholder:text-lumen-text-tertiary",
+              FOCUS_RING_TIGHT,
+              !wide && "min-h-11",
+            )}
+          />
+          <Button
+            variant="secondary"
+            size="sm"
+            className={CARD_BTN_TAP}
+            onClick={submitDraft}
+            disabled={!draft.trim()}
+          >
+            {labels.addButton}
+          </Button>
+        </div>
+      )}
     </div>
+  );
+}
+
+interface TagHubRailRowProps {
+  tag: TagHubTagSummary;
+  active: boolean;
+  onSelect: (tagId: string) => void;
+  formatCount: (count: number) => string;
+  onEditTag?: (tagId: string, field: TagHubEditField) => void;
+  onDeleteTag?: (tagId: string) => void;
+  wide: boolean;
+  labels: TagHubLabels;
+}
+
+function TagHubRailRow({
+  tag,
+  active,
+  onSelect,
+  formatCount,
+  onEditTag,
+  onDeleteTag,
+  wide,
+  labels,
+}: TagHubRailRowProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuAnchor = useRef<HTMLButtonElement | null>(null);
+  const countText = formatCount(tag.count);
+  // The untagged bucket is not a row of `wiki_tags`, so there is nothing to
+  // rename, recolour or delete about it.
+  const hasMenu = onEditTag != null && onDeleteTag != null && !tag.isUntagged;
+
+  const act = (run: () => void) => {
+    setMenuOpen(false);
+    run();
+  };
+
+  return (
+    <li
+      className={cn(
+        "group relative",
+        // The rule above the untagged bucket. Applied to the <li> rather than
+        // drawn as a separate element so the list stays one row per tag for a
+        // screen reader.
+        tag.isUntagged && "mt-1 border-t border-lumen-border pt-1.5",
+      )}
+    >
+      {/* The selection bar (D3). On the wrapper rather than inside the row
+          button so it spans the "…" too, and absolute so it does not shift the
+          glyph by its own 2px when a row is picked. */}
+      {active && (
+        <span
+          aria-hidden
+          className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-lumen-accent"
+        />
+      )}
+      <div
+        className={cn(
+          "flex items-center rounded-lumen-md transition-colors",
+          active ? "bg-lumen-accent-subtle" : "hover:bg-lumen-hover",
+        )}
+      >
+        <button
+          type="button"
+          onClick={() => onSelect(tag.id)}
+          aria-current={active ? "true" : undefined}
+          // Spelled out rather than left to the concatenated content, so the
+          // count is announced with the name instead of as a loose number
+          // after it.
+          aria-label={`${tag.name}: ${countText}`}
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-2 rounded-lumen-md px-2 py-1.5 text-left",
+            FOCUS_RING_TIGHT,
+            // #1561 — 44px touch floor on narrow only; the Desktop rail keeps
+            // its 37.5px mouse row.
+            !wide && "min-h-11",
+            "text-lumen-text",
+          )}
+        >
+          <TagHeadingIcon icon={tag.icon} color={tag.color} />
+          <span
+            className={cn(
+              "min-w-0 flex-1 truncate text-sm",
+              tag.isUntagged && "text-lumen-text-secondary",
+            )}
+          >
+            {tag.name}
+          </span>
+          <span
+            aria-hidden
+            className="shrink-0 rounded-full bg-lumen-bg-secondary px-2 py-0.5 text-xs font-medium tabular-nums text-lumen-text-secondary"
+          >
+            {tag.count}
+          </span>
+        </button>
+
+        {/* The slot is reserved whether or not the "…" is painted, so a row
+            does not reflow under the pointer as it is hovered. */}
+        <div className={cn("relative flex shrink-0", wide ? "w-7" : "w-11")}>
+          {hasMenu && (
+            <>
+              <button
+                ref={menuAnchor}
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label={`${tag.name}: ${labels.rowMenu}`}
+                className={cn(
+                  "flex w-full items-center justify-center rounded-lumen-sm text-lumen-text-secondary",
+                  "transition-colors hover:text-lumen-text",
+                  FOCUS_RING_TIGHT,
+                  wide
+                    ? // Desktop reveals it on hover (D2). `focus-visible` keeps
+                      // it reachable by keyboard, where there is no hover at
+                      // all, and an open menu holds it up while the pointer is
+                      // over the menu rather than the row.
+                      cn(
+                        "h-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
+                        menuOpen && "opacity-100",
+                      )
+                    : // Narrow has no hover to reveal it with (M2).
+                      "h-11",
+                )}
+              >
+                <MoreHorizontal size={16} aria-hidden />
+              </button>
+              <Menu
+                open={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                anchorRef={menuAnchor}
+                align="end"
+                label={`${tag.name}: ${labels.rowMenu}`}
+              >
+                <MenuItem
+                  icon={<Pencil size={14} />}
+                  onSelect={() => act(() => onEditTag?.(tag.id, "name"))}
+                >
+                  {labels.renameTag}
+                </MenuItem>
+                <MenuItem
+                  icon={<Shapes size={14} />}
+                  onSelect={() => act(() => onEditTag?.(tag.id, "icon"))}
+                >
+                  {labels.changeIcon}
+                </MenuItem>
+                <MenuItem
+                  icon={<Palette size={14} />}
+                  onSelect={() => act(() => onEditTag?.(tag.id, "color"))}
+                >
+                  {labels.changeColor}
+                </MenuItem>
+                <MenuItem
+                  icon={<Trash2 size={14} />}
+                  variant="danger"
+                  onSelect={() => act(() => onDeleteTag?.(tag.id))}
+                >
+                  {labels.deleteTag}
+                </MenuItem>
+              </Menu>
+            </>
+          )}
+        </div>
+      </div>
+    </li>
   );
 }
