@@ -41,17 +41,56 @@ interface WriteRecord {
   isFilter?: { col: string; val: unknown };
 }
 
+/** A live-or-dead row of wiki_tag_assignments (#1632). */
+interface AssignmentRow {
+  id: string;
+  item_id: string;
+  tag_id: string;
+  is_display_color: boolean;
+  is_deleted: boolean;
+}
+
 function makeClient(
   opts: {
     attachError?: string;
     seedAlreadyAttached?: boolean;
     /** #1140: the seed's items_meta row is no longer `role='event'`. */
     seedNoLongerAnEvent?: boolean;
+    /** #1632: the wiki_tag_assignments rows the move reads. */
+    assignments?: AssignmentRow[];
+    /** #1632: the move's UPDATE fails. */
+    tagMoveError?: string;
   } = {},
 ) {
   const writes: WriteRecord[] = [];
   const client = {
     from: (table: string) => ({
+      /*
+       * #1632 read path: the tag move selects the seed's live rows, then the
+       * routine's. Actually filtered rather than answered with a constant, so
+       * a case can put a tag on the destination and reach the duplicate
+       * branch.
+       */
+      select: () => {
+        const eqs: Array<{ col: string; val: unknown }> = [];
+        const chain = {
+          eq: (col: string, val: unknown) => {
+            eqs.push({ col, val });
+            return chain;
+          },
+          then: (resolve: (v: { data: unknown; error: unknown }) => unknown) =>
+            resolve({
+              data: (opts.assignments ?? []).filter((r) =>
+                eqs.every(
+                  (f) =>
+                    (r as unknown as Record<string, unknown>)[f.col] === f.val,
+                ),
+              ),
+              error: null,
+            }),
+        };
+        return chain;
+      },
       update: (patch: Record<string, unknown>) => {
         const rec: WriteRecord = {
           table,
@@ -95,6 +134,24 @@ function makeClient(
                 ),
             };
           },
+          // #1632: the tag move addresses its rows by id list and awaits the
+          // result directly, so this chain both records and resolves.
+          in: (col: string, val: unknown) => {
+            rec.filters.push({ col, val });
+            if (rec.filters.length === 1) {
+              rec.filter = { col, val };
+              writes.push(rec);
+            }
+            return chain;
+          },
+          then: (
+            resolve: (v: { error: { message: string } | null }) => unknown,
+          ) =>
+            resolve(
+              opts.tagMoveError && table === "wiki_tag_assignments"
+                ? { error: { message: opts.tagMoveError } }
+                : { error: null },
+            ),
         };
         return chain;
       },
@@ -299,5 +356,106 @@ describe("convertEventToRoutine (#296)", () => {
 
     // No attach, no rollback — the routine never existed.
     expect(writes).toHaveLength(0);
+  });
+});
+
+/*
+ * #1632. The seed keeps its id through the conversion (#296), but the editor's
+ * tag field switches its read to the ROUTINE id the moment the row has one
+ * (ScheduleEventEditor's `routineId ?? item.id`). So a conversion that leaves
+ * the assignments on the seed shows an empty tag field while the tag side
+ * still lists the seed as tagged — one thing tagged once, counted in two
+ * places and visible in neither correctly.
+ *
+ * The POSITION of the move is the part worth pinning. It is the last step,
+ * after the attach, because `wiki_tag_assignments.item_id` references
+ * items_meta ON DELETE CASCADE: a rollback firing after a landed move would
+ * not merely undo the conversion, it would delete the user's tags.
+ */
+describe("convertEventToRoutine — the seed's tags follow it into the series (#1632)", () => {
+  const seedTags = (): AssignmentRow[] => [
+    {
+      id: "ta-1",
+      item_id: "event-1",
+      tag_id: "tag-a",
+      is_display_color: false,
+      is_deleted: false,
+    },
+    {
+      id: "ta-2",
+      item_id: "event-1",
+      tag_id: "tag-b",
+      is_display_color: true,
+      is_deleted: false,
+    },
+  ];
+
+  const tagWrites = (writes: WriteRecord[]): WriteRecord[] =>
+    writes.filter((w) => w.table === "wiki_tag_assignments");
+
+  it("moves the live assignments onto the routine, after the attach has landed", async () => {
+    const { client, writes } = makeClient({ assignments: seedTags() });
+    const svc = new SupabaseRoutinesService(client);
+    vi.spyOn(svc, "createRoutine").mockResolvedValue(ROUTINE);
+
+    await svc.convertEventToRoutine("event-1", "routine-1", INIT);
+
+    const moves = tagWrites(writes);
+    expect(moves).toHaveLength(2);
+    for (const u of moves) {
+      expect(u.patch!.item_id).toBe("routine-1");
+      expect(typeof u.patch!.updated_at).toBe("string");
+    }
+    // The display-colour pick (#1580) travels with its row: the write does
+    // not mention the column, so the flag survives the move.
+    const coloured = moves.find((u) =>
+      (u.filter.val as string[]).includes("ta-2"),
+    );
+    expect("is_display_color" in coloured!.patch!).toBe(false);
+
+    // After the attach — see the header. A move that ran first would be
+    // inside the rollback's blast radius.
+    const attachIdx = writes.findIndex((w) => w.table === "events_payload");
+    for (const u of moves) {
+      expect(writes.indexOf(u)).toBeGreaterThan(attachIdx);
+    }
+  });
+
+  it("keeps the landed conversion when the move fails", async () => {
+    const { client, writes } = makeClient({
+      assignments: seedTags(),
+      tagMoveError: "boom",
+    });
+    const svc = new SupabaseRoutinesService(client);
+    vi.spyOn(svc, "createRoutine").mockResolvedValue(ROUTINE);
+
+    // The repeat IS on by this point: the attach landed and the seed's
+    // payload references the routine, so the 0011 composite FK (NO ACTION)
+    // would refuse the rollback anyway. Reporting a failure here would
+    // describe a conversion that did happen.
+    await expect(
+      svc.convertEventToRoutine("event-1", "routine-1", INIT),
+    ).resolves.toBe(ROUTINE);
+
+    // No rollback: the tags stay where they are — reachable from the tag
+    // side — rather than being lost from both.
+    expect(writes.filter((w) => w.mode === "delete")).toHaveLength(0);
+  });
+
+  it("never touches the tags when the attach fails", async () => {
+    const { client, writes } = makeClient({
+      assignments: seedTags(),
+      attachError: "boom",
+    });
+    const svc = new SupabaseRoutinesService(client);
+    vi.spyOn(svc, "createRoutine").mockResolvedValue(ROUTINE);
+
+    await expect(
+      svc.convertEventToRoutine("event-1", "routine-1", INIT),
+    ).rejects.toThrow(/attach/);
+
+    // The rollback hard-deletes the routine, and the cascade would take every
+    // assignment pointing at it with it. Nothing points at it.
+    expect(tagWrites(writes)).toHaveLength(0);
   });
 });

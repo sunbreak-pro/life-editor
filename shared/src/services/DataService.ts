@@ -290,6 +290,11 @@ export interface RoutinesDataService {
    * one-offs even when they fall in the future/incomplete delete partition.
    * The repeat-off editor passes the occurrence the user is looking at —
    * deleting the very item they are editing reads as data loss.
+   *
+   * #1632: with EXACTLY ONE pinned survivor, the series' live tag assignments
+   * move onto it — the tag field reads from the seed again once the routine
+   * link is gone, so leaving them on the routine would empty it. A detach
+   * with no pin has no seed to hand them to and moves nothing.
    */
   detachRoutine(
     id: string,
@@ -312,6 +317,12 @@ export interface RoutinesDataService {
    * seed already belongs to another routine — rolls its routine back and
    * REJECTS, so a double conversion can never strand a live, unreferenced
    * twin routine (which would keep generating occurrences forever).
+   *
+   * #1632: once the attach has landed, the seed's live tag assignments move
+   * onto the ROUTINE — that is where the editor's tag field reads from as
+   * soon as the row has a routine, so a conversion that leaves them behind
+   * empties the field while the tag side still lists the seed. The move is
+   * the last step and its failure never rolls the conversion back.
    */
   convertEventToRoutine(
     eventId: string,
