@@ -574,6 +574,14 @@ export {
   runSeriesEdit,
   type SeriesEditOutcome,
   type SeriesEditSteps,
+  // #1642 W7: what a chosen this/future/all scope amounts to, decided as data
+  // so the six branches can be read without a host.
+  planRepeatScopeChoice,
+  fillRangeUpToAnchor,
+  type RepeatScopePlan,
+  type RepeatScopeRequest,
+  type SeriesFillRange,
+  type SeriesTemplateValues,
 } from "./utils/seriesEditSequence";
 // #469 follow-up: the span an all-day row gets back when the switch goes OFF
 // (a row created as all-day may carry no start/end at all).
