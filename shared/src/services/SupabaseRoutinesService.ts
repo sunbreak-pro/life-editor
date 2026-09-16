@@ -263,7 +263,6 @@ export class SupabaseRoutinesService implements RoutinesDataService {
         throw new Error(
           `convertEventToRoutine attach: seed ${eventId} is missing or already belongs to a routine (#407 double-conversion guard)`,
         );
-      return routine;
     } catch (err) {
       // Roll the routine back so a half-converted state cannot survive.
       // The seed never references THIS routine on any failure path (the
@@ -307,6 +306,135 @@ export class SupabaseRoutinesService implements RoutinesDataService {
         );
       }
       throw err;
+    }
+    /*
+     * #1632: hand the seed's tags to the series.
+     *
+     * The seed keeps its id through the conversion (#296), but the editor's
+     * tag field switches its read to the ROUTINE id the moment one exists
+     * (ScheduleEventEditor's `routineId ?? item.id`). So a conversion that
+     * leaves the assignments on the seed empties the field while the tag side
+     * still lists the seed — the two halves of #1632.
+     *
+     * AFTER the try/catch, and that position is the whole safety argument:
+     * `wiki_tag_assignments.item_id` references items_meta ON DELETE CASCADE
+     * (0008 §12), so a rollback firing after a landed move would not just undo
+     * the conversion — it would destroy the user's tags. Nothing runs after
+     * this line, so nothing can roll back over it. Its own failure is logged
+     * and swallowed inside the helper: the conversion HAS landed by then
+     * (rolling it back is impossible anyway — the seed's payload now
+     * references the routine and the 0011 composite FK is NO ACTION), and
+     * leaving the assignments where they are keeps them reachable from the
+     * tag side rather than losing them from both.
+     */
+    await this.moveTagAssignments(
+      eventId,
+      routineId,
+      `convertEventToRoutine tags (${eventId} -> ${routineId})`,
+    );
+    return routine;
+  }
+
+  /**
+   * Move every LIVE tag assignment from one item to another (#1632).
+   *
+   * Moved, not copied: an assignment left behind would make the tag side count
+   * the seed AND the series for one thing the user tagged once.
+   *
+   * Three groups, because two partial UNIQUEs constrain the destination:
+   *
+   *   - a tag the target already carries LIVE would break `uq_wta_item_tag`
+   *     (item_id, tag_id) WHERE NOT is_deleted, so the source row is
+   *     soft-deleted instead of moved — the target already says what it says;
+   *   - the display-colour pick (#1580) travels with its row, unless the
+   *     target already has one: `uq_wta_display_color` (item_id) WHERE
+   *     is_display_color AND NOT is_deleted allows exactly one, and the
+   *     target's own pick is the one the user made most recently for it;
+   *   - everything else moves as it is.
+   *
+   * `updated_at` is bumped on every write so delta sync carries the move (the
+   * relation table has no version column — Issue 008 pattern).
+   *
+   * Best-effort by contract: callers are conversion paths that have already
+   * landed, and an error here must not fail them. Logged, never thrown.
+   */
+  private async moveTagAssignments(
+    fromItemId: string,
+    toItemId: string,
+    context: string,
+  ): Promise<void> {
+    try {
+      // Un-paginated on purpose: both reads are bounded by how many tags one
+      // item carries, which is a handful (postgrestFetchAll's "structurally
+      // bounded by their input" case).
+      const { data: sourceData, error: sourceErr } = await this.client
+        .from("wiki_tag_assignments")
+        .select("id, tag_id, is_display_color")
+        .eq("item_id", fromItemId)
+        .eq("is_deleted", false);
+      if (sourceErr) throw new Error(sourceErr.message);
+      const source = (sourceData ?? []) as Array<{
+        id: string;
+        tag_id: string;
+        is_display_color: boolean;
+      }>;
+      if (source.length === 0) return;
+
+      const { data: targetData, error: targetErr } = await this.client
+        .from("wiki_tag_assignments")
+        .select("tag_id, is_display_color")
+        .eq("item_id", toItemId)
+        .eq("is_deleted", false);
+      if (targetErr) throw new Error(targetErr.message);
+      const target = (targetData ?? []) as Array<{
+        tag_id: string;
+        is_display_color: boolean;
+      }>;
+      const taken = new Set(target.map((r) => r.tag_id));
+      const targetHasColour = target.some((r) => r.is_display_color);
+
+      const now = new Date().toISOString();
+      const duplicates = source
+        .filter((r) => taken.has(r.tag_id))
+        .map((r) => r.id);
+      const movable = source.filter((r) => !taken.has(r.tag_id));
+      const withColour = movable
+        .filter((r) => r.is_display_color && !targetHasColour)
+        .map((r) => r.id);
+      const withoutColour = movable
+        .filter((r) => !(r.is_display_color && !targetHasColour))
+        .map((r) => r.id);
+
+      if (duplicates.length > 0) {
+        const { error } = await this.client
+          .from("wiki_tag_assignments")
+          .update({ is_deleted: true, deleted_at: now, updated_at: now })
+          .in("id", duplicates);
+        if (error) throw new Error(error.message);
+      }
+      // Colour cleared BEFORE the row that keeps one arrives, mirroring
+      // setDisplayColorTag's "clear, then mark" order — the reverse is
+      // rejected outright by uq_wta_display_color.
+      if (withoutColour.length > 0) {
+        const { error } = await this.client
+          .from("wiki_tag_assignments")
+          .update({
+            item_id: toItemId,
+            is_display_color: false,
+            updated_at: now,
+          })
+          .in("id", withoutColour);
+        if (error) throw new Error(error.message);
+      }
+      if (withColour.length > 0) {
+        const { error } = await this.client
+          .from("wiki_tag_assignments")
+          .update({ item_id: toItemId, updated_at: now })
+          .in("id", withColour);
+        if (error) throw new Error(error.message);
+      }
+    } catch (e) {
+      logServiceError("Routines", context, e);
     }
   }
 
@@ -586,6 +714,24 @@ export class SupabaseRoutinesService implements RoutinesDataService {
             .in("id", chunk)
             .eq("role", "event"),
         "detachRoutine survivors meta",
+      );
+    }
+
+    // 3.5 #1632, the way back: the tags the series carries belong to the
+    //     survivor the caller pinned — the occurrence the repeat-off editor
+    //     has open, which stays on the calendar as a detached one-off and is
+    //     what the tag field reads from once `routineId` is gone. Only for a
+    //     SINGLE pinned survivor: a detach with no pin (the scope dialog's
+    //     "delete / future") leaves no one seed to hand them to, and picking
+    //     one would be inventing an owner. Those assignments ride the routine
+    //     into the trash, where a restore brings them back with it.
+    //     Before step 4 so the destination is still a live item.
+    const pinned = opts?.keepItemIds ?? [];
+    if (pinned.length === 1 && detachIds.includes(pinned[0])) {
+      await this.moveTagAssignments(
+        id,
+        pinned[0],
+        `detachRoutine tags (${id} -> ${pinned[0]})`,
       );
     }
 
