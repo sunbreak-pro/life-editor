@@ -7,13 +7,16 @@ import {
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import {
   app,
   shell,
   BrowserWindow,
   ipcMain,
   Menu,
+  net,
   Notification,
+  protocol,
   Tray,
   nativeImage,
   nativeTheme,
@@ -41,6 +44,14 @@ import {
   normalizeProjectPath,
   planLaunch,
 } from "./claudeLauncher";
+// The renderer's origin (#1636) — see the module header for why the packaged
+// app is served from a scheme instead of loaded off disk.
+import {
+  APP_ENTRY_URL,
+  APP_SCHEME,
+  contentTypeFor,
+  resolveBundlePath,
+} from "./appProtocol";
 
 const { autoUpdater } = electronUpdater;
 
@@ -82,6 +93,37 @@ function migrateLegacyUserData(): void {
 
 useProductNamedUserData();
 migrateLegacyUserData();
+
+// ---------------------------------------------------------------------------
+// Renderer delivery scheme (#1636).
+//
+// Must run at module scope: Electron only accepts privileged schemes before
+// `app.ready`, and the whole point of these flags is what they do to the
+// renderer's origin.
+//
+//   standard  — gives `app://bundle` a real, tuple origin. This is the flag
+//               that fixes the bug: Chromium persists localStorage for it, so
+//               theme / language / tour progress and every other preference
+//               survive a restart. On the previous `file://` origin they did
+//               not (#838 moved only the auth session out of that hole).
+//   secure    — same trust as https, so the renderer stays a secure context
+//               (crypto.subtle, and no mixed-content downgrade on the Supabase
+//               calls).
+//   supportFetchAPI / stream — the bundle is fetched and streamed like any
+//               other web resource; without these, module and fetch loads of
+//               app:// URLs are refused.
+// ---------------------------------------------------------------------------
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: APP_SCHEME,
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      stream: true,
+    },
+  },
+]);
 
 // ---------------------------------------------------------------------------
 // Persistent config (electron-store). Minimal use only: window bounds + theme +
@@ -233,12 +275,53 @@ function createWindow(): void {
   });
 
   // electron-vite flow: dev loads the dev server URL, prod loads the built
-  // renderer (web/index.html bundled into out/renderer).
+  // renderer (web/index.html bundled into out/renderer) through the app://
+  // scheme registered above.
+  //
+  // Do NOT put `loadFile` back here (#1636): it is the one line that decides
+  // the renderer's origin, and on file:// every device-local preference is
+  // dropped on restart while everything still type-checks, builds and runs in
+  // dev. `desktop/tests/appProtocol.test.ts` fails if this reverts.
   if (is.dev && process.env["ELECTRON_RENDERER_URL"]) {
     mainWindow.loadURL(process.env["ELECTRON_RENDERER_URL"]);
   } else {
-    mainWindow.loadFile(join(__dirname, "../renderer/index.html"));
+    mainWindow.loadURL(APP_ENTRY_URL);
   }
+}
+
+// ---------------------------------------------------------------------------
+// The app:// handler (#1636). A custom scheme handler is a file server running
+// with the main process's privileges, so every decision about WHICH file a
+// request may read lives in ./appProtocol (and is tested there). This function
+// only does the I/O.
+// ---------------------------------------------------------------------------
+function notFound(): Response {
+  return new Response("Not found", {
+    status: 404,
+    headers: { "content-type": "text/plain; charset=utf-8" },
+  });
+}
+
+function registerAppProtocol(): void {
+  const rendererRoot = join(__dirname, "../renderer");
+  protocol.handle(APP_SCHEME, async (request) => {
+    const filePath = resolveBundlePath(request.url, rendererRoot);
+    if (filePath === null) return notFound();
+    try {
+      const file = await net.fetch(pathToFileURL(filePath).toString());
+      if (!file.ok) return notFound();
+      // Re-wrapped rather than returned as-is: a fetch Response's headers are
+      // immutable, and the Content-Type is what keeps Chromium from refusing
+      // the module scripts (see contentTypeFor).
+      return new Response(file.body, {
+        status: 200,
+        headers: { "content-type": contentTypeFor(filePath) },
+      });
+    } catch {
+      // A missing file arrives as a rejection here, not a non-ok response.
+      return notFound();
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -423,19 +506,20 @@ function prefsIpcHandlers() {
 // ---------------------------------------------------------------------------
 // Supabase auth-session storage (#838).
 //
-// Why main-process storage: the packaged renderer is served via loadFile, so
-// its origin is file://, where Chromium does not reliably persist localStorage
-// — the session supabase-js saved was lost across restarts, forcing a login
-// on every launch (dev builds load http://localhost and were unaffected).
-// Storing the session behind IPC in the main process sidesteps the file://
-// origin entirely.
+// Why main-process storage: the packaged renderer used to be served via
+// loadFile, so its origin was file://, where Chromium does not reliably
+// persist localStorage — the session supabase-js saved was lost across
+// restarts, forcing a login on every launch (dev builds load http://localhost
+// and were unaffected). Storing the session behind IPC in the main process
+// sidesteps the renderer's storage entirely.
 //
-// Why safeStorage (and not an app:// custom scheme, which would also fix
-// persistence): the refresh token is effectively a long-lived login key.
-// safeStorage encrypts it at rest with the OS keychain / credential manager
-// instead of leaving it in plaintext renderer storage. Fallback: where OS
-// encryption is unavailable (e.g. Linux without a keyring) values are stored
-// plaintext-marked rather than breaking auth persistence.
+// The origin problem itself is now fixed for everything else: #1636 serves the
+// renderer from app://bundle, where localStorage persists. That does NOT make
+// this path redundant, and the session must stay here. safeStorage encrypts
+// the refresh token — effectively a long-lived login key — at rest with the OS
+// keychain / credential manager, which localStorage on any origin cannot do.
+// Fallback: where OS encryption is unavailable (e.g. Linux without a keyring)
+// values are stored plaintext-marked rather than breaking auth persistence.
 //
 // Token-refresh concurrency (Supabase invalidates a session on refresh-token
 // reuse outside a ~10s interval): safe here — the app has a single
@@ -681,6 +765,9 @@ app.whenReady().then(() => {
   // Apply persisted theme to the OS-level color scheme on launch.
   nativeTheme.themeSource = store.get("theme");
 
+  // Before createWindow: the first thing the window does is request
+  // app://bundle/index.html.
+  registerAppProtocol();
   setupIpc();
   setupApplicationMenu();
   setupTray();
