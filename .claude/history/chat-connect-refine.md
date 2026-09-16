@@ -1,5 +1,22 @@
 # HISTORY (chat-connect-refine)
 
+### 2026-09-16 - 繰り返しアイテムのタグを Connect とタグ編集に届かせる（#1631 / PR #1650 open）
+
+#### 概要
+
+繰り返しアイテムのタグは occurrence ではなくシリーズ（`routine` の `items_meta` 行）に書かれる（#468）のに、Connect もタグ編集パネルの索引も routine を読んでいなかった。結果、タグを選んでもシリーズが出ず件数にも入らず、occurrence が「タグなし」に溜まり、タグ編集では「その他 (無題)」になっていた。読み出し側に routine を足して解消。CI verify の全ステップ + docs-lint をローカル全通しし、PR #1650 を open（**merge はユーザー = P-001**）。
+
+#### 変更点
+
+- **`shared/src/hooks/useTaggedItemIndex.ts`**: `fetchAllRoutines()` を 5 本目の read として追加し、routine id を `role: "event"` + routine のタイトルで解決する。5 つ目のバッジは作らない（§4 / #185 = 繰り返しは「Event + 繰り返し設定」として見せる）。「routine は読まない」という旧コメントの前提は #468 で崩れていたので header ごと書き換えた
+- **`shared/src/components/TagHub/types.ts`**: `TagHubItem` に `isSeries` / `seriesId` / `navigateId` を追加。`navigateId` は「綴じ先の id と遷移先の id が違う行」用で、今のところ繰り返しシリーズだけが使う
+- **`shared/src/components/TagHub/buildTagHubModel.ts`**: 自前のタグを持たない行について 2 つの規則を追加。タグ付きシリーズの occurrence は落とす（シリーズ行が run 全体を代表する）／タグの無いシリーズ行は「タグなし」に入れない（occurrence が既に言っている）
+- **`web/src/connect/ConnectScreen.tsx`**: `fetchAllRoutines()` を読み、routine をシリーズ 1 行として items に追加。occurrence には `seriesId` を載せる。遷移先は `pickSeriesOccurrence`（今日以降の最も早い occurrence → 無ければ直近の過去）で選び、`handleOpenItem` が `navigateId ?? id` を渡す。Calendar は routine id では何も選択できないため
+- **`web/src/tags/TagEditorHost.tsx`**: コメントのみ（「routine は名前を引けない」という前提が変わった）
+- **テスト**: `tagHubModel.test.ts` にシリーズ 6 ケース、`useTaggedItemIndex.test.tsx` に routine 解決 1 ケース、`connectScreen.test.tsx` に 4 ケース、`tagEditorActions.test.tsx` に 2 ケース
+- **検証**: shared / web / desktop / mcp-server の 14 ステップと docs-lint が全 exit 0。途中 `web/node_modules` が #1587 の `@tiptap/extension-table` を欠いていて build が落ちたため `npm ci` で追いつかせた（実装とは無関係）
+- **触っていないもの**: タグの書き込み先（routine id に付ける設計）・`ScheduleEventEditor.tsx`・DB スキーマ
+
 ### 2026-09-09 - narrow の絞り込み入力の余白タップを input に届かせる（#1578 / PR #1585 open）
 
 #### 概要

@@ -1,5 +1,29 @@
 # HISTORY (chat-main)
 
+
+### 2026-09-16 - Connect ワークベンチ計画の Steps 0 — docs PR #1647 + 実装 Issue 4 本（#1643〜#1646）
+
+#### 概要
+
+ユーザー依頼「`2026-09-14-connect-tag-link-workbench.md` の Steps #0 を実行して」。計画書の分担表 順 2〜5 を `section:connect` で起票し、表の「未起票」を Issue 番号に置き換え、#1631 にスコープ注記をコメントした。あわせて、計画書・brief・裁定が chat-main の作業コピーに未追跡のまま置かれていた（worktree から読めない）ので、先に docs PR #1647 で main へ載せた。セッション冒頭では `issue-prompter` を回し、schedule / connect / settings の 3 レーンへ `/goal` を提示している。
+
+#### 変更点
+
+- **docs PR #1647**（`chore/docs-connect-workbench-plan`・一時 worktree `docs-connect-workbench` 経由）: 計画書 + `briefs/connect-relations.md` 新設 + `briefs/connect.md` を SUPERSEDED + `_COMMON-CONTEXT.md` v4.1 + `decisions/D-20260912-main-1.md` + 再定義レポート HTML。コード変更ゼロ
+- **起票 4 本**（すべて `section:connect` + `type:feature`）: #1643 タグ編集の統合（D1〜D7・D15・D16）/ #1644 複数選択・一括タグ操作・タグ統合（D8〜D11・D14）/ #1645 右パネルの近傍モードとリンク（D12・D13）/ #1646 Mobile 3 段（M1〜M10）。DoD は計画書の Steps と Acceptance から機械検証できる形（`git grep` 0 件 / 個別テストの緑 / verify 全ステップ exit 0 / PR 行数上限）へ落とした
+- **計画書の追随**: 分担表の「未起票」4 箇所を #1643〜#1646 に置換、Status を Draft → IN PROGRESS
+- **#1631 へコメント**: タグ編集パネル側の表示は #1643 でパネルごと退役するため、#1631 は Connect 側だけを直す
+
+#### 実測・知見
+
+- **`records.mjs check` が docs PR を止めた**: `D-20260912-main-1` は `status: answered` なのに `comm/decisions/ANSWERS.md` に回答行が無かった。台帳へ昇格したとき回答簿の 1 行を書き忘れると、次に触った PR が落ちる（D ファイル単体では気付けない）。1 行追記して解消
+- **`git show <branch>:<path>` は Git Bash でパス変換に食われる**: `origin/chore/...:.claude/...` がバックスラッシュ混じりの 1 引数へ変換され `ambiguous argument` になる。`MSYS_NO_PATHCONV=1` + `MSYS2_ARG_CONV_EXCL='*'` を付けると通る
+- **chat-main の作業コピーに未追跡 docs を置いたままにしない**: worktree レーンからは読めず、計画書側も「絶対パスで読むか、先に docs PR で main に載せる」と但し書きを持つ羽目になっていた。main へ載せた後、重複していた作業コピー 6 本は片付けた（tracked 2 本は `git checkout --`、untracked 4 本は削除。内容が push 済みブランチと一致することを `diff` で確認してから）
+
+#### 次
+
+- レーンの着手順は #1631 → #1643 → #1644 → #1645 → #1646。順 2 以降は stacked 可だが、base が main 以外の PR は merge 後に main 着地を実測する
+- 🛑 ユーザー手番: PR #1647 の merge（P-001）
 ### 2026-09-07 - macOS 実機受け入れ（#1301 Step 8）通過 — 移行 SSOT の Phase 3 完了 + 未署名起動の条件を訂正
 
 #### 概要

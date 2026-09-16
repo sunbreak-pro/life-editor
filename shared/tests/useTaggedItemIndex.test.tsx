@@ -14,6 +14,10 @@ import { stubDataService } from "./helpers/dataServiceStub";
  * settles false once the fetch lands, settles false immediately when there
  * is NO service to read from, and stays true while the hook is disabled
  * (the panel is closed — nothing has been fetched yet).
+ *
+ * #1631 adds the fifth read: a repeating item's tag is written to its SERIES,
+ * so routine ids reach the tag editor and have to resolve — as Events, which
+ * is how §4 presents a repeat.
  */
 
 function syncWrapper({ children }: { children: ReactNode }) {
@@ -46,6 +50,10 @@ function makeDS() {
     listDailiesUnified: async () => [
       { id: "daily-2026-08-10", date: "2026-08-10", isDeleted: false },
     ],
+    fetchAllRoutines: async () => [
+      { id: "routine-1", title: "Morning review", isDeleted: false },
+      { id: "routine-gone", title: "Old habit", isDeleted: true },
+    ],
   });
   return { ds, fetchTodoTree };
 }
@@ -70,6 +78,24 @@ describe("useTaggedItemIndex (#409 / #586 pins)", () => {
       title: "2026-08-10",
     });
     expect(index.has("task-2")).toBe(false);
+  });
+
+  it("resolves a repeat series as an Event, by the routine's own title", async () => {
+    const { ds } = makeDS();
+    const { result } = renderHook(() => useTaggedItemIndex(ds), {
+      wrapper: syncWrapper,
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const { index } = result.current;
+    // Not a fifth kind: #185 / §4 present a routine as "an Event with a
+    // repeat", so the tag editor's badge has to say Event too.
+    expect(index.get("routine-1")).toEqual({
+      role: "event",
+      title: "Morning review",
+    });
+    // A trashed series stays unresolved — its assignment still gets a row so
+    // the user can remove it, it just cannot be named (see the hook's header).
+    expect(index.has("routine-gone")).toBe(false);
   });
 
   it("settles loading=false when there is no service to read from", async () => {

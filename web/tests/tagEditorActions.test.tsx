@@ -63,6 +63,9 @@ const TAGS = [
 const ASSIGNMENTS = [
   { id: "assign-1", tagId: "tag-work", itemId: "task-1", isDeleted: false },
   { id: "assign-2", tagId: "tag-home", itemId: "task-2", isDeleted: false },
+  // #1631 — a repeating item files its tag on the SERIES, so the panel is
+  // handed a `routine` id and has to name it like any other row.
+  { id: "assign-3", tagId: "tag-work", itemId: "routine-1", isDeleted: false },
 ];
 
 interface Harness {
@@ -78,7 +81,7 @@ function makeHarness(): Harness {
       ASSIGNMENTS.map((a) => ({ ...a })),
     ),
     listAllTagConnections: vi.fn(async () => []),
-    // The four reads useTaggedItemIndex resolves the item names with.
+    // The reads useTaggedItemIndex resolves the item names with.
     listNotesUnified: vi.fn(async () => []),
     listDailiesUnified: vi.fn(async () => []),
     fetchTodoTree: vi.fn(async () => [
@@ -86,6 +89,9 @@ function makeHarness(): Harness {
       { id: "task-2", title: "Fix the roof", isDeleted: false },
     ]),
     fetchEvents: vi.fn(async () => []),
+    fetchAllRoutines: vi.fn(async () => [
+      { id: "routine-1", title: "Morning review", isDeleted: false },
+    ]),
   };
   for (const method of WRITE_METHODS) {
     // Every write resolves with a tag-shaped row: the hook folds the result
@@ -312,6 +318,46 @@ describe("TagEditorHost — removals", () => {
 
     await waitFor(() => expect(fns.unassignTagFromItem).toHaveBeenCalled());
     expectOnlyWrite(fns, "unassignTagFromItem", ["assign-1"]);
+  });
+});
+
+describe("TagEditorHost — naming the rows (#1631)", () => {
+  it("names a repeat's row by its series, badged as an Event", async () => {
+    await renderPanel();
+    openTag("Work");
+
+    // The row exists either way — an assignment must always be removable —
+    // so what is pinned here is that it is NAMED, instead of reading as the
+    // neutral "other (untitled)" it did while routines went unfetched.
+    const row = (
+      await screen.findByRole("button", {
+        name: "materials.tags.unassign: Morning review",
+      })
+    ).closest("li");
+    expect(row?.textContent).toContain("Morning review");
+    // `itemRole.event`, not `itemRole.unknown`: §4 / #185 present a repeat as
+    // an Event with a repeat setting, so there is no fifth badge to show.
+    expect(row?.textContent).toContain("itemRole.event");
+    expect(row?.textContent).not.toContain("itemRole.unknown");
+  });
+
+  it("still lists an id nothing can name, so the user can remove it", async () => {
+    const harness = makeHarness();
+    // A dismissed event keeps its assignment but is filtered out of
+    // fetchEvents — the gap useTaggedItemIndex documents.
+    (harness.fns.listAllTagAssignments as Mock).mockResolvedValue([
+      { id: "assign-9", tagId: "tag-work", itemId: "event-gone" },
+    ]);
+    render(<Panel ds={harness.ds} />);
+    await screen.findByRole("button", { name: /^Work:/ });
+    openTag("Work");
+
+    const row = (
+      await screen.findByRole("button", {
+        name: "materials.tags.unassign: materials.tags.untitledItem",
+      })
+    ).closest("li");
+    expect(row?.textContent).toContain("itemRole.unknown");
   });
 });
 

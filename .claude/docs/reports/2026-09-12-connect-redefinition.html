@@ -1,0 +1,229 @@
+<title>Connect 再定義</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --muted: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --muted: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --muted: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.skip .tag { color: var(--stop); }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); margin: 16px 0 20px; }
+  .step { padding: 18px 20px; border-right: 1px solid var(--line); }
+  .step:last-child { border-right: 0; }
+  .step .n { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent); font-weight: 500; letter-spacing: .08em; }
+  .step h3 { margin: 4px 0 6px; font-size: 17px; }
+  .step p { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+  .step code { font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
+  @media (max-width: 720px) { .flow { grid-template-columns: 1fr; } .step { border-right: 0; border-bottom: 1px solid var(--line); } .step:last-child { border-bottom: 0; } }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: "IBM Plex Mono", monospace; white-space: nowrap; }
+  td.state { white-space: nowrap; font-weight: 700; }
+  td.state.yes { color: var(--ok); }
+  td.state.no { color: var(--muted); font-weight: 400; }
+  td.state.maybe { color: var(--warn); }
+  td.state.stop { color: var(--stop); }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .note { font-size: 14px; color: var(--muted); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0 0 16px; font-size: 15px; }
+  dt { font-weight: 700; white-space: nowrap; }
+  dd { margin: 0; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-12 / 判断 / life-editor</p>
+    <h1>Connect は「読む場所」ではなく「つなぐ場所」にする</h1>
+    <p class="lede">いまの Connect はタグで一覧するだけで、タグ編集モーダルと中身がほぼ同じです。DB を数えたら、つながり自体がほとんど作られていませんでした。磨くのは見た目より先に「つなぐ手間」です。</p>
+  </header>
+
+  <ul class="verdicts">
+    <li class="verdict now"><span class="tag">今日から</span><h3>タグ編集を取り込む</h3><p>タグ編集モーダルを退役し、Connect の中で改名・アイコン・色・削除・一括付け外しまで済ませます。同じ一覧が 2 画面ある状態が消えます。</p></li>
+    <li class="verdict later"><span class="tag">必要になったら</span><h3>リンクは近傍リストで見せる</h3><p>リンクは全部で 4 本しかありません。まず Daily / Todo / Event からも張れるようにして、見せ方は選んだ 1 件の周り 1 歩だけにします。</p></li>
+    <li class="verdict skip"><span class="tag">入れない</span><h3>力学グラフとタググループ</h3><p>グラフは 2026-08-29 に退役した判断（#1152）を覆さず、4 本の線を描くだけになります。タググループは実データ 0 件です。</p></li>
+  </ul>
+
+  <div class="callout prose"><strong>いちばん効く事実</strong>: Event は 90 件あってタグが付いたものが 0 件です。Connect は「トピックから入る入口」ですが、入口の向こうに Note 以外がほとんど居ません。</div>
+
+  <h2>実測（本番 DB・2026-09-12）</h2>
+  <p class="prose">生存行だけを数えました。「タグあり」「リンクあり」はその role のアイテムのうち、タグ 1 つ以上 / リンク 1 本以上を持つ件数です。</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>role</th><th>アイテム</th><th>タグあり</th><th>リンクあり</th><th>タグを付ける UI</th><th>リンクを張る UI</th></tr></thead>
+      <tbody>
+        <tr><td>event</td><td class="num">90</td><td class="num">0</td><td class="num">0</td><td class="state yes">あり</td><td class="state no">なし</td></tr>
+        <tr><td>note</td><td class="num">22</td><td class="num">14</td><td class="num">2</td><td class="state yes">あり</td><td class="state yes">あり</td></tr>
+        <tr><td>daily</td><td class="num">17</td><td class="num">0</td><td class="num">1</td><td class="state no">なし</td><td class="state no">なし</td></tr>
+        <tr><td>task</td><td class="num">15</td><td class="num">1</td><td class="num">1</td><td class="state yes">あり</td><td class="state no">なし</td></tr>
+        <tr><td>routine</td><td class="num">6</td><td class="num">2</td><td class="num">0</td><td class="state no">なし</td><td class="state no">なし</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="prose note">タグは 14 本が生存し、うち 3 本は所属 0 件です。名前を見ると <code>verify</code> / <code>長さのテストを実施するタグ</code> / <code>folder２</code> / <code>New Tag 8月13日</code> など 5 本は検証の残骸です。アイテム間リンクは 4 本（手動 3 / 本文の <code>[[ ]]</code> 由来 1）、タググループは生存 0 件です。</p>
+
+  <h2>いまタグとリンクに触れる画面</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>画面</th><th>入口</th><th>できること</th><th>重なり</th></tr></thead>
+      <tbody>
+        <tr><td>Connect（Tag hub）</td><td>サイドバーの nav</td><td>タグ一覧から選び、Note / Todo / Event / Daily を種類別に読む。右パネルに内訳と「最近ここに入れた順」</td><td class="state maybe">タグ編集モーダルの所属一覧と同じ読み</td></tr>
+        <tr><td>タグ編集モーダル</td><td>サイドバー（⌘K の上）</td><td>作成・改名・アイコン・色・削除・所属から 1 件外す</td><td class="state maybe">Connect とタグ一覧が二重</td></tr>
+        <tr><td>TagPicker</td><td>Note / Todo / Event の詳細</td><td>そのアイテムにタグを付ける。その場で新規作成も可</td><td class="state no">なし</td></tr>
+        <tr><td>Notes のタグ見出しリスト</td><td>Materials &gt; Notes の横リスト</td><td>ノートをタグ見出しで束ねて一覧</td><td class="state maybe">Connect の note グループと同じ読み</td></tr>
+        <tr><td>LinkPanel</td><td>Note の詳細ヘッダだけ</td><td>タイトル検索でリンク追加・削除。「関連」にリンク / 同じタグ / その日の Daily</td><td class="state no">なし</td></tr>
+        <tr><td><code>[[ ]]</code> インラインリンク</td><td>ノート本文</td><td>本文から候補を選んでリンク生成（<code>origin=inline</code>）</td><td class="state no">なし</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="prose">読む画面が 3 つ（Connect・モーダルの所属一覧・Notes のタグ見出し）で、つなぐ画面は Note の中だけです。こうだいさんが感じている「タグ編集と統合したほうが良い」は、この表のとおりです。</p>
+
+  <h2>機能の取捨</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>機能</th><th>判定</th><th>理由</th></tr></thead>
+      <tbody>
+        <tr><td>タグ一覧 → 種類別のアイテム一覧</td><td class="state yes">残す</td><td>Connect の主機能。データも導線も既にある</td></tr>
+        <tr><td>未分類バケツ</td><td class="state yes">残す</td><td>タグ 0 件のアイテムの唯一の入口。150 件中 133 件がここに落ちる</td></tr>
+        <tr><td>行クリックで元の画面へ飛ぶ</td><td class="state yes">残す</td><td>Materials / Schedule への既存ルートをそのまま使える</td></tr>
+        <tr><td>タグのその場編集（改名・アイコン・色・削除）</td><td class="state yes">足す</td><td>モーダルを退役して一本化する。部品は <code>tagEdit/</code> がそのまま使える</td></tr>
+        <tr><td>複数選択 → 一括でタグを付ける / 外す / 付け替える</td><td class="state yes">足す</td><td>Event 90 件が未分類のまま。1 件ずつ開いて付ける運用では埋まらない</td></tr>
+        <tr><td>タグの統合（2 本を 1 本に寄せる）</td><td class="state yes">足す</td><td>検証残骸と重複名が既に出ている。改名だけでは片付かない</td></tr>
+        <tr><td>使われていないタグの掃除リスト</td><td class="state maybe">足す（小）</td><td>所属 0 件が 3 本。一覧の末尾に畳んでおく程度で足りる</td></tr>
+        <tr><td>選んだ 1 件の近傍（リンク / 同じタグ / 同じ日）</td><td class="state maybe">足す（条件つき）</td><td>LinkPanel の「関連」を全 role に広げたもの。下の判断 2 で置き場を決める</td></tr>
+        <tr><td>Daily / Todo / Event からリンクを張る</td><td class="state maybe">足す（別 Issue）</td><td>リンクが 4 本しかない原因。Connect の画面設計とは別枠で進められる</td></tr>
+        <tr><td>力学グラフ（d3）</td><td class="state stop">入れない</td><td>#1152 の退役判断を覆さない。描く線が 4 本では絵にならない</td></tr>
+        <tr><td>タググループ UI</td><td class="state stop">入れない</td><td>生存 0 件。実体は Schedule の保存フィルタで、タグの階層ではない</td></tr>
+        <tr><td>アイテム本体の編集（完了トグル等）</td><td class="state stop">入れない</td><td>#1153 の役割分担。同じ編集 UI が 3 画面目に増える</td></tr>
+        <tr><td>「今日への配置」導線</td><td class="state stop">入れない</td><td>Calendar サイドバーの領分（#1153）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>提案する Connect の姿</h2>
+  <p class="prose">タブを足さず、1 画面のまま中身の役割を変えます。右パネルの中身だけが「いまタグを見ているのか、アイテムを見ているのか」で入れ替わります。</p>
+  <div class="flow">
+    <div class="step">
+      <p class="n">LEFT</p>
+      <h3>タグの棚</h3>
+      <p>絞り込みとタグ一覧。行を選ぶと中央が変わり、行の上で改名・アイコン・色・削除・統合ができます。所属 0 件と未分類は末尾に分けます。</p>
+    </div>
+    <div class="step">
+      <p class="n">CENTER</p>
+      <h3>所属アイテム</h3>
+      <p>種類別のグループは今のまま。チェックで複数選べて、下に「タグを付ける / 外す / 付け替える」が出ます。行クリックは今と同じで元の画面へ飛びます。</p>
+    </div>
+    <div class="step">
+      <p class="n">RIGHT</p>
+      <h3>内訳、または関係</h3>
+      <p>タグを選んでいる間は内訳と最近の動き（今の実装）。アイテムを選ぶとその 1 件の近傍（リンク / 同じタグ / 同じ日の Daily）に切り替わり、そこからリンクを足せます。</p>
+    </div>
+  </div>
+  <p class="prose">「リンクを可視化する」はこの右パネルが担います。全体の地図は描かず、選んだ 1 件から 1 歩だけ見せる形です。地図が要るほどのリンク本数が実際に溜まったら、その時に改めて考えます。</p>
+
+  <h2>置いた仮定</h2>
+  <ul class="prose">
+    <li>Event にタグが 0 件なのは UI が無いからではなく、付ける動機と手間が釣り合っていないからだと見ています（TagPicker は Event 詳細に既にあります）。</li>
+    <li>タグ編集モーダルの入口（サイドバーのタグボタン）は、統合後は Connect へ飛ぶ行に変えます。入口自体は残す前提です。</li>
+    <li>一括操作の対象は「タグの付け外し」だけで、削除やゴミ箱送りは含めません。</li>
+  </ul>
+
+  <h2>未確認のこと</h2>
+  <ul class="prose">
+    <li>Notes のタグ見出しリストを Connect に寄せるかどうか。ノート編集中の横リストとしては別の役割がありそうで、今回は触らない前提にしています。</li>
+    <li>タグ統合の DDL 影響。<code>wiki_tag_assignments</code> の付け替えで済むか、部分 UNIQUE（同一アイテム × 同一タグ）に当たるかは未調査です。</li>
+    <li>Mobile でのふるまい。Connect は More の中の画面で、一括操作とその場編集を狭幅でどこまで出すかは決めていません。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+  <ul class="prose">
+    <li><strong>統合の範囲</strong>: タグ編集モーダルを退役して Connect に一本化するか、モーダルは残して Connect 側は読み取りのままにするか。</li>
+    <li><strong>リンクの置き場</strong>: 右パネルで選択アイテムの近傍として出すか、Connect の 2 つ目のタブとして別に立てるか、今回は触らず LinkPanel の横展開だけにするか。</li>
+    <li><strong>ClaudeDesign に出す範囲</strong>: Desktop だけ先に出すか、Desktop と Mobile を同時に出すか。</li>
+  </ul>
+</div>

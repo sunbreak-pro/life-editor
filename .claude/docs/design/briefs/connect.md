@@ -1,5 +1,5 @@
 ---
-Status: Ready # Draft → Ready（ClaudeDesign 投入可）→ Generated（デザイン生成済み）
+Status: SUPERSEDED # Draft → Ready（ClaudeDesign 投入可）→ Generated（デザイン生成済み）。2026-09-12 に connect-relations.md が後継
 Created: 2026-07-05
 Section: connect
 Owner-chat: design-connect
@@ -8,6 +8,8 @@ Branch: claude/design-brief-connect
 
 # Design Brief: Connect（ノードグラフ + バックリンク）
 
+> ⚠️ **後継ブリーフは [`connect-relations.md`](./connect-relations.md)（2026-09-12）** — 現行 Connect（Tag hub）にタグ編集を統合しリンクの近傍表示を足す設計で、新規デザインの投入先はそちら。
+>
 > ⚠️ **このブリーフが対象にしていた画面（力学グラフ）は 2026-08-29 に退役した（#1152）** — 当時の設計記録として保存する。
 > 新規デザインの投入先ではない。力学グラフは検索・タグ・バックリンクと役割が重複していたため撤去し、
 > データ（タグ / アイテム間リンク）と取り出し口は温存した。以下の `file:line` 引用の多くは既に存在しないパスを指す。

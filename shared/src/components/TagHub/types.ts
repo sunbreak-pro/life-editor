@@ -52,6 +52,33 @@ export interface TagHubItem {
    * say when it moved is the least likely answer to that question.
    */
   readonly updatedAt?: string;
+  /*
+   * The two fields below are the repeat-series pair (#1631). A repeating item's
+   * tags are written to the SERIES (the `routine` items_meta row), not to the
+   * occurrences, because the generator rebuilds occurrences — see the comment
+   * at web/src/schedule/ScheduleEventEditor.tsx (#468). The hub therefore has
+   * to list the series where it lists items, or the tag matches nothing at all.
+   */
+  /**
+   * This row IS the series — a `routine` row, shown as an Event because that
+   * is how the UI presents a repeat (§4 / #185). Such a row is listed ONLY
+   * under the tags it carries: an untagged series says nothing its own
+   * occurrences do not already say, so it stays out of the untagged bucket.
+   */
+  readonly isSeries?: boolean;
+  /**
+   * Occurrence rows only — the id of the series that generated this row. When
+   * that series carries a tag, the series row stands in for the whole run (one
+   * line, not one per day) and this row is left out of the hub entirely.
+   */
+  readonly seriesId?: string;
+  /**
+   * The items_meta id the shell should open, when it differs from `id`. A
+   * series row is FILED under the routine id (that is where the tag lives) but
+   * OPENS its next occurrence, which is the row the Calendar can actually
+   * select — a routine id would highlight nothing.
+   */
+  readonly navigateId?: string;
 }
 
 /** A tag as the rail lists it, counts derived from the rows behind it. */
@@ -67,8 +94,9 @@ export interface TagHubTagSummary {
   /**
    * How many items this tag holds IN THE HUB. Derived from the grouped rows
    * rather than taken from the context's `countsByTag`, which counts every
-   * assignment including roles the hub does not list (a routine) — a rail
-   * saying 5 above a list of 4 is the drift this avoids.
+   * assignment including ones the hub cannot list (an item since trashed, a
+   * dismissed event) — a rail saying 5 above a list of 4 is the drift this
+   * avoids.
    */
   readonly count: number;
   /** The untagged pseudo-tag, which the rail draws apart from the real ones. */

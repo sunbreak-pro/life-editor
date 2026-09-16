@@ -11,23 +11,33 @@ import { useSyncDomains } from "./useSyncDomains";
  * carrying this tag" has to resolve itemId → { role, title } itself. This hook
  * is that lookup, shared by the tag editor (#409) and available to #412.
  *
- * Same shape as `useItemLinkTargets` (web/src/notes): the four user-facing
- * roles are fetched straight off the injected DataService (§3.1 — no
- * `getDataService()` here) and re-fetched on every Sync `syncVersion` bump, so
- * a todo tagged elsewhere (or via MCP) shows up without a reload.
+ * Same shape as `useItemLinkTargets` (web/src/notes): the roles are fetched
+ * straight off the injected DataService (§3.1 — no `getDataService()` here)
+ * and re-fetched on every Sync `syncVersion` bump, so a todo tagged elsewhere
+ * (or via MCP) shows up without a reload.
  *
- * Deliberate gaps, both of which render as the neutral "unknown kind" badge
- * rather than vanishing from the list (an assignment we cannot name is still
- * one the user must be able to remove):
- *   - role='routine' is not fetched — Routine owns no tag surface and is
- *     presented as an implementation detail of Event (CLAUDE.md §4, #185).
- *   - `fetchEvents()` filters `is_dismissed = false`, so a dismissed event
- *     still holding a tag resolves to unknown.
+ * ROUTINES ARE FETCHED TOO, and resolve as `event` (#1631). They used to be
+ * skipped on the grounds that Routine owns no tag surface (CLAUDE.md §4,
+ * #185), but #468 then made the event editor write a REPEATING item's tags to
+ * the series — the `routine` row — precisely because the generator rebuilds
+ * the occurrences. So the ids the tag editor has to name now routinely include
+ * routine ids, and skipping them rendered a real, removable tag as "other
+ * (untitled)". They resolve as `event` rather than a fifth kind because that
+ * is how §4 says a repeat is presented: an Event with a repeat setting.
+ *
+ * Remaining gap, which renders as the neutral "unknown kind" badge rather than
+ * vanishing from the list (an assignment we cannot name is still one the user
+ * must be able to remove): `fetchEvents()` filters `is_dismissed = false`, so
+ * a dismissed event still holding a tag resolves to unknown.
  */
 
 /** One resolved item: what kind it is and what to call it. */
 export interface TaggedItemInfo {
-  /** Raw `items_meta.role` — "task" | "event" | "note" | "daily". */
+  /**
+   * The DISPLAY kind — "task" | "event" | "note" | "daily". Equal to
+   * `items_meta.role` except for a `routine` row, which announces itself as
+   * `event` (see the header).
+   */
   role: string;
   title: string;
 }
@@ -60,11 +70,12 @@ export function useTaggedItemIndex(
     if (!enabled) return;
     let cancelled = false;
     void (async () => {
-      const [notes, dailies, todos, events] = await Promise.all([
+      const [notes, dailies, todos, events, routines] = await Promise.all([
         dataService.listNotesUnified(),
         dataService.listDailiesUnified(),
         dataService.fetchTodoTree(),
         dataService.fetchEvents(),
+        dataService.fetchAllRoutines(),
       ]);
       if (cancelled) return;
       const next = new Map<string, TaggedItemInfo>();
@@ -75,6 +86,13 @@ export function useTaggedItemIndex(
       for (const event of events) {
         if (event.isDeleted) continue;
         next.set(event.id, { role: "event", title: event.title });
+      }
+      // The series a repeating item's tags are written to (#1631 / #468).
+      // Announced as `event` — §4 presents a repeat as an Event, and a fifth
+      // badge for an implementation detail is the drift itemRole.ts avoids.
+      for (const routine of routines) {
+        if (routine.isDeleted) continue;
+        next.set(routine.id, { role: "event", title: routine.title });
       }
       for (const note of notes) {
         if (note.isDeleted) continue;

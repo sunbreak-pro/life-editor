@@ -1,5 +1,26 @@
 # HISTORY (chat-settings-refine)
 
+### 2026-09-16 - packaged 版の renderer を app:// で配信して端末ローカル設定を残す（#1636 / PR #1649）
+
+#### 概要
+
+packaged 版の Desktop を再起動するとテーマ・言語・チュートリアル進捗が既定へ戻っていた。原因は key の置き場ではなく **origin** で、`loadFile` が renderer を `file://` に置き、Chromium がそこでストレージを確実に永続化しないため。`app://bundle/` を standard + secure スキームとして登録し、同じバンドルをそこから配信して直した。merge は P-001 でユーザー手番のため未実施。
+
+#### 変更点
+
+- **方式 A（カスタムスキーム）を採用**: Issue が併記していた B（IPC storage adapter）は同じ結果を出すのに shared の localStorage 直読み（`ThemeContext` / `i18n` / `useTourProgress` / `useStartupSection` / `useScheduleInitialView` / `useReminderPrefs` / ショートカット）を非同期 adapter へ書き換える必要があり、波及が Provider の初期描画まで届く（テーマは初回ペイントで要る値なので await を挟むと既定テーマが一瞬見える）。A は原因そのものを消すので **`shared/` の差分ゼロ**で全部が一度に直る
+- **#838 の認証ストレージは不変**: `app://` でも localStorage は平文なので、refresh token の置き場としては main + `safeStorage`（OS キーチェーン）が今も上位。IPC 3 本・store・preload の橋はそのままで、`main/index.ts` の該当コメントだけ「origin の問題は #1636 で直ったが暗号化の理由でここに残す」と現状に合わせた
+- **新規 `desktop/src/main/appProtocol.ts`**: スキーム名・entry URL・`resolveBundlePath()`・`contentTypeFor()`。`claudeLauncher.ts` と同じ理由で index.ts から分けた（index.ts は `electron` を module scope で import するため、そこに置くと Electron を起動しないとテストできない）。`index.ts` 側は module scope で `registerSchemesAsPrivileged`（`standard` / `secure` / `supportFetchAPI` / `stream`）、`whenReady` で `protocol.handle`、prod の `loadFile` → `loadURL(APP_ENTRY_URL)`
+- **前提が 1 つ実測で外れた**: 「URL パーサーは `%2e%2e` を畳まない」つもりでテストを書いたら 2 件落ちた。WHATWG の仕様では `%2e%2e` も double-dot segment に数えるのでパーサー側で消える。**実際に封じ込めチェックへ届く抜け道はスラッシュをエンコードした形**（`..%2f..%2f`）だけで、テストとコメントをその実測に合わせた。カスタムスキームのハンドラは main の権限で動くファイルサーバーなので、ここは飾りではなく本体
+- **Content-Type は拡張子から明示**: module script が JavaScript 以外の型で返ると Chromium が拒否し、packaged 版だけ真っ白になる。`net.fetch` の Response は headers が immutable なので包み直している
+- **origin の回帰ガード**: `desktop/tests/appProtocol.test.ts`（21 件）のうち 3 件は `main/index.ts` のテキスト比較。`loadFile` に戻しても型検査もビルドも dev 起動も全部通り、**packaged 版を終了した後にしか差が出ない**ため（`macTitleBar.test.ts` と同じ流儀）
+- **renderer 側は無改造で通ることを確認**: `authRedirectUrl()` は protocol のホワイトリスト（`http:` / `https:`）判定なので `app:` でも公開 Web URL に落ちる。`legalUrl` の `pushState` は `file://` より `app://` の方が確実に動く。ビルド済み index.html の参照は全部 `./` 相対
+- **検証**: CI `verify` の全ステップ + `docs-lint` をローカルで 15/15 緑（shared 308 files / 3124 tests・web 127 / 1185・desktop 4 / 57・mcp-server 31 / 455）。packaged ビルドでの再起動確認は実機操作なので PR に手順を書いて 🛑 ユーザー手番
+
+#### 残件
+
+`.claude/skills/add-ipc-channel/SKILL.md:24` が「パッケージ版の renderer は `file://` で動く」と書いており、この PR 以降は事実と食い違う。Issue の Scope 外なので触らず PR 本文に follow-up として明記した。
+
 ### 2026-09-07 - narrow 幅の TagEditModal と 44px タップ床（#1526 / PR #1563・#1562 / PR #1568）
 
 #### 概要
@@ -69,31 +90,3 @@ chat-main が merge 後の実ブラウザ検証で拾った Settings の小傷 2
 - **検証**: 2 ブランチそれぞれで CI `verify` 全ステップ + `docs-lint` をローカル全緑（15/15）。GitHub Actions も両 PR で両ジョブ pass
 - **環境の罠**: #1243 の初回ローカル実行で `web — test` が `briefingEveningLazyMount` の 2 件で落ちたが、これは lazy import した tiptap の mount を `waitFor`（既定 1 秒）で待つテストがマシン混雑で間に合わなかったもの。同 run に vitest のワーカー起動タイムアウトも出ていた。`--maxWorkers=2` で 100 files / 937 tests 全緑・単体でも 7/7 緑・GitHub CI も緑で、変更は `shared/` の ja 文字列 3 本とテスト 1 本のみ（`web/` に差分ゼロ）なので環境起因と判断した。なお `scripts/docs-lint.sh` はこの Windows 機だと初回 20 分近くかかる（468 本の .md × 1 本あたり 4 プロセス起動）— ハングではない
 
-### 2026-08-30 - #1174 merge 後のコンフリクト解消（PR #1223 / #1229）
-
-#### 概要
-
-#1218（#1174）が main に入った結果、同じ Settings 画面を触る #1182 / #1229 の 2 本が衝突した。指示どおり 3 本とも origin/main から独立に切っていたので想定内で、各 PR 本文に予告してあった箇所がそのまま当たった。両ブランチへ main を取り込み、手で解消して CI 相当をローカル全緑にしてから再 push（merge は P-001 でユーザー手番のまま）。
-
-#### 変更点
-
-- **衝突の中身**: #1174 が Appearance / Account / Tutorial / Reset の各カードを `{tab === "general" && (…)}` の内側へ 2 段インデントし直したため、同じカードの `labels={{…}}` や props を足した 2 本と行が重なった。i18n catalog は両側が `settings` 配下の末尾へ別々のキーを足していたための衝突で、和集合を取れば済む種類
-- **PR #1223（#1182）**: `en/ja.json` は和集合（`tabs` / `placeholder` / `schedule` と `fontSizePreset*` / `fontSizePx` は互いに素）。`SettingsScreen.tsx` は main の構造を採り、こちらの寄与である 4 行のラベルだけを新しいインデントで移植した
-- **PR #1229（#1200）**: 同じ Settings 画面に加えて `shared/src/index.ts` も衝突。main が #1197 で `passwordRecoveryRedirectUrl` を `authRedirectUrl` へ改名しており、こちらが直後に `deleteAccount` / `DELETE_ACCOUNT_FUNCTION` を足していたため。改名側を採って 2 つの export を並べ直した。`SettingsScreen.tsx` は **重複が生じる形の衝突**で、main 側に Account / Tutorial / Reset の 3 カードが `general` の内側として既に存在し、こちらの同じ 3 カードが下にもう一組残っていた。main 側を残して重複を落とし、#1200 の寄与（sign-out / delete のラベル 6 行と `onSignOut` / `onDeleteAccount`）を生き残った側の Account カードへ移植。`DeleteAccountDialog` はカテゴリ条件の外（モーダルなので正しい位置）
-- **検証**: 2 ブランチそれぞれで CI `verify` の全ステップ（shared / web / desktop / mcp-server）と `docs-lint` をローカル全緑。GitHub 側も #1223 が緑（#1229 は push 直後で再走中）。#1229 の merge commit は main 取り込みで他レーンの tracker が混ざり pre-commit-tracker-guard が誤検知したので、unstage せず `[tracker-ok]` で通した（既知の運用）
-
-### 2026-08-29 - Settings 3 課題を各ブランチで実装し PR まで（#1174 / #1182 / #1200）
-
-#### 概要
-
-settings レーンの open 3 件を「1 Issue = 1 ブランチ（origin/main 分岐）」で実装し、各ブランチで CI `verify` 相当をローカル全緑にしてから PR を開いた（merge は P-001 によりユーザー手番のため未実施）。3 本とも `web/src/settings/SettingsScreen.tsx` を触るので、指示どおり origin/main から独立に切った代償として Appearance カード周辺で手動 resolve が要る旨を各 PR 本文に明記した。
-
-#### 変更点
-
-- **#1174 → PR #1218（claude/settings-1174-settings-tabs）**: Settings を「カテゴリ」化。rightSidebar の面が外観プレビュー + Tips からカテゴリ一覧（General / Briefing / Schedule / Materials / Work / Analytics / Tips）に替わり、本文は 1 カテゴリずつ表示する。General は従来のカードを順序ごと保持。Schedule カテゴリが初のセクション別設定で、`useCalendarNav` の `useState("week")` ハードコードを `resolveInitialCalendarView()` 種まきに置換（startup-section pref と同じ形 = 純粋 resolver + lazy 初期化子。`normalizeDesktopView` を通すので退役済みの `list` / `time` でも描ける）。Tips はカテゴリではなく中央 Modal。5 つのセクション行はアイコンもラベル key も `sections.ts` registry 由来（サイドバー行と食い違えない）。新規 = `SettingsTabsNav` / `SettingsSchedule` / `useScheduleInitialView`
-- **#1182 → PR #1223（claude/settings-1182-mobile-size-steps）**: 狭幅の文字サイズを 3 段階プリセット（step 3 / 5 / 8 = 14 / 18 / 22px）に。既存 1–10 スケール上の step なので setter も保存値も root px も不変で、Desktop はスライダーのまま。中央 = step 5 = アプリ既定。保存済みの任意値は px 距離で最寄りに寄せ、同点（16px / 20px）は可読性側へ切り上げ。px 表示はスライダー用の「18px (5/10)」と別ラベルに分けた（3 段階の横で 5/10 は嘘になる）。`touch` prop の意味を「サムを大きく」から「狭幅レンダリング」へ拡張
-- **#1200 → PR #1229（claude/settings-1200-account-deletion）**: セルフ退会 + 狭幅のログアウト導線。ログアウトは Desktop サイドバー足元にしか無く、狭幅（ボトムタブ・サイドバー無し）では site data 消去以外に出口が無かったので Account カードへ移設。削除は 2 分割 — `public.delete_my_account()`（migration 0025・**SECURITY INVOKER** なので RLS が各 DELETE を呼び出し元に絞る）が public 配下を消し、Edge Function `delete-account` が service_role で `auth.users` の 1 行だけ消す。`auth.users` 向きの FK が 1 本も無い（実測）ため CASCADE は効かず一覧は手書きになるので、削除後に `pg_catalog` から `user_id` を持つ全テーブルを引き直して残行があれば **RAISE**（＝トランザクション巻き戻し＝全か無か。テーブル追加時に静かに残らない）。確認 UI は ConfirmDialog ではなく「自分のアドレスを打ち直す」ゲート（このアプリで唯一 Trash も undo も無い操作のため）
-- **🛑 人手ゲート**: #1200 は `cd supabase && npm run db:push` → `supabase functions deploy delete-account` の 2 手が要る（新規シークレットは不要 — service_role は Supabase が Edge Function に自動注入）。`comm/decisions/chat-settings-refine.md` に `G-20260829-settings-1` として控えた（同ファイルは #1200 ブランチ上に載っている）。ゲート未実施でも削除ボタンが 500 で失敗するだけでデータは 1 行も消えない
-- **テスト**: shared に `scheduleInitialView`（resolver の fallback）/ `mobileFontSizePresets`（対応付け + カードのコントロール入替）/ `deleteAccountDialog`（ゲートと許容ルール・busy ロック・backdrop 無効）、web に `settingsTabs`（行→本文の routing・Tips が本文を替えないこと）/ `settingsMobileFontSize`（狭幅版・既存 Settings スイートは全部 wide だった）/ `settingsAccountDeletion`（武装済み confirm 以外は `deleteAccount()` に届かないこと）
-- **検証**: 3 ブランチそれぞれで CI `verify` の全ステップ（shared lint / build / typecheck:tests / test、web 同、desktop typecheck / test / build、mcp-server build / typecheck:tests / test）と `docs-lint` をローカル実行し全緑。実ブラウザ・実機確認は §7.4 に従い merge 後 chat-main 側（#1182 の px 値の詰めと #1200 の実退会 E2E がここに残る）
-- **衝突対応**: 別セッション `connect-refine-a6` が同じ /goal を受けて本 worktree に入り、`claude/settings-1174-settings-tabs` を作って `SettingsScreen.tsx` / i18n を編集していた。SendMessage で名乗り合って解消（向こうが撤退）。先方の `SettingsTabsNav.tsx` / `SettingsSchedule.tsx` と barrel の export は revert せず引き継ぎ、`SCHEDULE_INITIAL_VIEWS` を足して整合させた
