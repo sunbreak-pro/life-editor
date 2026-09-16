@@ -1,0 +1,247 @@
+<title>2026-09-16 起票依頼の棚卸し</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --muted: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --muted: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --muted: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.skip .tag { color: var(--stop); }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.state { white-space: nowrap; font-weight: 700; }
+  td.state.yes { color: var(--ok); }
+  td.state.no { color: var(--muted); font-weight: 400; }
+  td.state.maybe { color: var(--warn); }
+  td.src { white-space: nowrap; font-family: "IBM Plex Mono", monospace; font-size: 13px; color: var(--muted); }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .callout.alert { border-left-color: var(--stop); background: var(--panel); }
+  .callout.alert strong { color: var(--stop); }
+  .note { font-size: 14px; color: var(--muted); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-16 / 棚卸し / life-editor</p>
+    <h1>起票依頼 10 件を裁き、8 件を Issue にしました</h1>
+    <p class="lede">outbox 21 本と判断キュー 12 本を全数読み、依頼が挙げた file:line をすべて実測で裏取りしました。1 件はコードが依頼の前提を否定したので起票していません。未回答の判断 4 件はそのまま残ります。</p>
+  </header>
+
+  <ul class="verdicts">
+    <li class="verdict now"><span class="tag">起票した</span><h3>8 件 — #1667〜#1674</h3><p>ラベルの配達も実測済み。shared-fix に 4 件、briefing / materials / main に各 1 件が届いた。</p></li>
+    <li class="verdict later"><span class="tag">起票しない</span><h3>D-05（棚卸し）</h3><p>Schedule リファクタの W5 が同じ場所を直す。二重管理を避けて計画側に任せる。</p></li>
+    <li class="verdict skip"><span class="tag">差し戻し</span><h3>F-05（棚卸し）</h3><p>「朝刊の操作が Undo に載らない」「未実体化の日が消える」は、どちらも実測で否定された。</p></li>
+  </ul>
+
+  <div class="callout alert prose"><strong>前回の配布案は無効です</strong>。12:08〜12:09 に 8 本が merge され、提示した W0 / W1 / W2 / W7 / W11 と #1643 はすべて着地しました。新しい手番は connect-refine が <strong>#1644</strong>、schedule-refine が <strong>W3 / W4 / W6 / W9 / W12</strong> です。</div>
+
+  <h2>起票した 8 件</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Issue</th><th>ラベル</th><th>件名</th></tr></thead>
+      <tbody>
+        <tr><td class="num">#1667</td><td class="src">type:bug / sev:important / shared-fix</td><td>タグの付け外しが Undo / Redo に載らない — 失敗も画面に出ない</td></tr>
+        <tr><td class="num">#1668</td><td class="src">type:bug / sev:important / shared-fix</td><td>Undo が失敗しても「元に戻しました」と出る — 例外が出たコマンドも redo へ進む</td></tr>
+        <tr><td class="num">#1669</td><td class="src">type:bug / shared-fix</td><td>[mcp-tools] MCP の予定・繰り返し削除が dismiss を通らず、生成器が翌日また作る</td></tr>
+        <tr><td class="num">#1670</td><td class="src">type:bug / shared-fix</td><td>Trash からの復元が #932 の競合ロールバックを通らない</td></tr>
+        <tr><td class="num">#1671</td><td class="src">type:task（[main]）</td><td>#1409 の schedule 分 4 件を 390×844 の実ブラウザで確認する</td></tr>
+        <tr><td class="num">#1672</td><td class="src">type:task / sev:minor / shared-fix</td><td>&lt;kbd&gt; 5 箇所の書体が割れている — sans に寄せるか等幅を明示するか</td></tr>
+        <tr><td class="num">#1673</td><td class="src">type:bug / section:briefing</td><td>briefingEveningLazyMount がフル実行時だけ落ちる flake</td></tr>
+        <tr><td class="num">#1674</td><td class="src">type:feature / sev:minor / section:materials</td><td>添付アップロード中の進捗表示を本文の直上に出す</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>起票しなかった 2 件</h2>
+  <p class="prose"><strong>F-05「Briefing が予定の書き込みを独自実装している」は差し戻します。</strong> 依頼は「朝刊からの操作が Undo に載らない」「繰り返しの範囲削除で未実体化の日が消える」の 2 点を挙げていましたが、どちらもコードが否定しました。</p>
+  <ul class="prose">
+    <li><code>useBriefingWrites.ts:65-66</code> が <code>useUndoRedoOptional()</code> を持ち、予定の削除（<code>:305-316</code>）も Todo の削除（<code>:416-424</code>）も undo コマンドを push しています。</li>
+    <li>routine 系にだけ undo が無いのは事実ですが、<code>:336</code> のコメントが「Schedule も同じくスタックに載せない（cascade は 1 行の再挿入で戻せない）」と理由つきで明言しています。挙動は Schedule と割れていません。</li>
+    <li>未実体化の日の件は、<code>:332-334</code> が「紙面の anchor は常に表示中の日なので fill は定義上 no-op」と書いています。依頼が名前を挙げた <code>fillUpToAnchor</code> は関数として存在せず、<code>useScheduleItemsRoutineSync.ts:147</code> のコメントに出てくるだけでした。</li>
+  </ul>
+  <p class="prose">残るのは「Briefing が書き込みを自前で持っている」という重複だけですが、これは #892 が Provider を積まない設計上の帰結として意図的に選んだもので、ヘッダコメントにその旨が書かれています。不具合として起票すると、直した #892 の判断を打ち消す形になります。</p>
+  <p class="prose"><strong>D-05「繰り返しの更新が失敗しても巻き戻らない」は起票しません。</strong> 依頼元が「Scope 内なので W5 で直す・二重管理を避けるなら起票不要」と書いており、その W5 は #1642 の作業単位として生きています。</p>
+
+  <h2>依頼の中身（原文の要約）</h2>
+  <p class="prose">ラベル案は依頼元が書いたものです。上の 8 件はこの表の 1〜9 行目のうち F-05 を除いた分に対応します。</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>依頼元</th><th>日付</th><th>内容</th><th>ラベル案</th></tr></thead>
+      <tbody>
+        <tr><td class="src">schedule-refine</td><td class="num">09-16</td><td><strong>A-01</strong> タグの付け外しが Undo に載らない。<code>useWikiTagsUnifiedAPI.ts:182</code> / <code>:199</code> が push せず、失敗もコンソール止まり。これが残ると #1638 の DoD だけ満たせない</td><td>type:bug + shared-fix</td></tr>
+        <tr><td class="src">schedule-refine</td><td class="num">09-16</td><td><strong>B-10</strong> Undo が失敗しても「元に戻しました」が出る。書き込みが投げっぱなし・例外も redo へ送られる・トーストが結果を見ない、の 3 つが重なっている。全ドメインに効く</td><td>type:bug + shared-fix</td></tr>
+        <tr><td class="src">schedule-refine</td><td class="num">09-16</td><td><strong>E-12</strong> MCP の <code>delete_schedule_item</code> が dismiss ではなく soft delete。繰り返しの回に使うと生成器が翌日また作る（既知 017 と同型）</td><td>type:bug + shared-fix</td></tr>
+        <tr><td class="src">schedule-refine</td><td class="num">09-16</td><td><strong>F-05</strong> Briefing が予定の書き込みを独自実装。朝刊からの操作が Undo に載らず、繰り返しの範囲削除で未実体化の日まで消える</td><td>type:bug + section:briefing</td></tr>
+        <tr><td class="src">schedule-refine</td><td class="num">09-16</td><td><strong>F-07</strong> Trash の復元が <code>useScheduleItemsTrash</code> を通らない。#932 の競合ロールバックが使われていない経路にしか無く、拒否されると画面から消えて DB に残る</td><td>type:bug + shared-fix</td></tr>
+        <tr><td class="src">schedule-refine</td><td class="num">09-12</td><td>#1409 の schedule 分 4 件（#1516 / #1515 / #1558 / #1517）の実ブラウザ確認。実装は merge 済みで確認だけが残る。390×844 で連続して見られるので 1 Issue でよい</td><td>section:schedule + type:bug</td></tr>
+        <tr><td class="src">shared-fix</td><td class="num">09-05</td><td><code>&lt;kbd&gt;</code> 5 箇所の書体を揃えるか。現状は 5 つとも Tailwind preflight 由来の等幅で、#1468 でサイドバーの 1 つだけ sans にしたため同じ画面で割れている</td><td>shared-fix</td></tr>
+        <tr><td class="src">connect-refine</td><td class="num">08-29</td><td><code>web/tests/briefingEveningLazyMount.test.tsx</code> がフル実行時だけ落ちる flake。単体は 7/7 緑。無関係な PR が赤くなる</td><td>section:briefing + type:bug</td></tr>
+        <tr><td class="src">materials-refine</td><td class="num">09-02</td><td>添付アップロード中の進捗表示の実装。方針は <code>D-20260902-materials-1</code> で確定済みなので実装だけの Issue にできる</td><td>section:materials + type:feature</td></tr>
+        <tr><td class="src">schedule-refine</td><td class="num">09-16</td><td><strong>D-05</strong> 繰り返しの更新が失敗しても画面が失敗値を出し続ける。<strong>起票は任意</strong> — 計画の W5 で直るため、工程 2 が遅れる場合だけ切り出す</td><td>任意</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>古い依頼は全部処理済みでした</h2>
+  <p class="prose">2026-07〜08 の起票依頼を Issue 一覧 300 件と突き合わせた結果です。取りこぼしはありません。</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>依頼</th><th>状態</th><th>着地</th></tr></thead>
+      <tbody>
+        <tr><td>公開 Web の CSP / Referrer-Policy</td><td class="state yes">起票済</td><td>#1005（CLOSED）</td></tr>
+        <tr><td>Connect 退役で未使用になった d3 依存 8 本</td><td class="state yes">起票済</td><td>#1220（CLOSED）</td></tr>
+        <tr><td>MCP <code>write_briefing</code> の focus 引数</td><td class="state yes">起票済</td><td>#1097（CLOSED）</td></tr>
+        <tr><td>manifest の theme_color がライト固定</td><td class="state yes">起票済</td><td>#1007（CLOSED）</td></tr>
+        <tr><td>mcp-server の tests が型検査されない</td><td class="state yes">起票済</td><td>#1001（CLOSED）</td></tr>
+        <tr><td>Supabase テストスタブが 2 系統</td><td class="state yes">起票済</td><td>#1002（CLOSED）</td></tr>
+        <tr><td><code>search_all</code> の LIKE メタ文字と task_type</td><td class="state yes">起票済</td><td>#1003（CLOSED）</td></tr>
+        <tr><td>requirements README のツール列挙が陳腐化</td><td class="state yes">起票済</td><td>#1004（CLOSED）</td></tr>
+        <tr><td>BottomSheet に下部 safe-area inset が無い</td><td class="state yes">起票済</td><td>#1008（CLOSED）</td></tr>
+        <tr><td>パスワード下限 12 で古くなった docs 2 本</td><td class="state yes">起票済</td><td>#1006（CLOSED）</td></tr>
+        <tr><td>remoteRegistry テストが Windows で落ちる</td><td class="state yes">起票済</td><td>#1615（CLOSED）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>回答を待っている判断 4 件</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>ID</th><th>レーン</th><th>論点</th><th>放置時</th></tr></thead>
+      <tbody>
+        <tr><td class="src">D-20260905-shared-fix-1</td><td class="src">shared-fix</td><td>塗り disabled ボタン 7 箇所を揃えるか。A = 一括 / B = primary だけで止める / C = busy 専用の見た目を先に決める。<code>danger</code> の disabled が 3 画面で「処理中」の意味に使われているため単純な横展開にならない</td><td class="state no">B のまま</td></tr>
+        <tr><td class="src">D-20260902-tags-1</td><td class="src">tags-docs</td><td>Status <code>REFERENCE</code> の計画書を <code>plans/</code> に残すか <code>archive/</code> へ移すか。規則上は残置が正だが現物が割れている。A = plans 残置（推奨）</td><td class="state no">割れたまま</td></tr>
+        <tr><td class="src">D-20260902-tags-2</td><td class="src">tags-docs</td><td><code>briefs/_COMMON-CONTEXT.md</code> を凍結プロンプトとして据え置くか版を上げるか。版上げは brief 9 本 88 箇所の転記が付いてくる。A = 据え置き（推奨）</td><td class="state no">現状のまま</td></tr>
+        <tr><td class="src">（新規・09-16）</td><td class="src">connect-refine</td><td>PR の行数目安を「新規行で数える」に読み替えるか。#1643 の PR #1657 は <code>+2,205 / −3,551</code> で目安 1,200 行を超えたが、削除 3,551 行の大半は退役したモーダルとそのテスト</td><td class="state no">目安のまま</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>こうだいさんの手でしか踏めない分</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>件</th><th>優先</th><th>内容</th></tr></thead>
+      <tbody>
+        <tr><td>migration 0029 / 0030</td><td class="state maybe">最優先</td><td>適用状況が未確認。0030 が未適用のまま main を動かすと <code>listAllTagAssignments</code> が 42703 で落ち、タグを使う画面（Schedule レンズ / Connect / Notes 絞り込み）が全部巻き添えになる。night-safe が 2 走連続で確認できていない</td></tr>
+        <tr><td>G-20260829-settings-1</td><td class="state maybe">配布前</td><td>#1200 アカウント削除の 2 手。<code>supabase db push</code> → <code>supabase functions deploy delete-account</code> の順。踏むまで削除ボタンは 500 で失敗する（データは消えない）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>night-safe が 4 走連続で挙げている 6 件</h2>
+  <p class="prose">どれも Issue ではなく docs とトラッカーの追随です。最新は 09-13 走で、報告ファイル自体が working tree に未コミットのまま 3 走分たまっています。</p>
+  <ul class="prose">
+    <li><code>routine-night-safe.md</code> / <code>routine-digest.md</code> の「Task Scheduler への登録はまだ」注記を訂正する 1 行 PR（実際は 09-02 に登録済み）</li>
+    <li>未追跡の Draft 計画書 <code>2026-09-02-fable-51-harness-retune.md</code> を commit するか削除するかの裁定</li>
+    <li><code>mobile-scope.md</code> #16 行を #1035 の実装へ追随 → 続けて Epic #716 の DoD チェック更新（これが #716 close の最後の docs ゲート）</li>
+    <li><code>2026-09-09-remote-mcp-mobile.md</code> の Status / AC / Worklog 追随（Step 3〜5 の人手ゲートの実施有無）</li>
+    <li>chat-main memory の Desktop 配布ブロック（#1565 は merged）と Loop Engineering ブロックの更新</li>
+    <li>chat-main memory の 👀 リストから Connect グラフ / #524 / #512 の 3 行を落とす（対象が退役済みで存在しない）</li>
+  </ul>
+
+  <h2>置いた仮定</h2>
+  <ul class="prose">
+    <li>起票済みかどうかは Issue 一覧 300 件（open + closed）のタイトル突き合わせで判定しました。本文にだけ書かれた依頼の消化は拾えていません。</li>
+    <li>#1669 の宛先は <code>[mcp-tools]</code> にしました。mcp-server のハンドラだけを触る変更で、同 worktree が現存し、いま誰もそのファイルを持っていないためです。</li>
+    <li>#1671 は <code>section:</code> ラベルを付けていません。実ブラウザ検証は chat-main の手番（§7.4）で、<code>section:schedule</code> を付けると schedule-refine のキューへ誤って流れるためです。#1408 / #1409 / #1335 と同じ <code>[main]</code> の扱いに揃えました。</li>
+    <li>night-safe の 6 件を「起票しない」に分類したのは CLAUDE.md §9 の境界（Issue はプロダクト課題専用）によります。docs 直しなので小 PR で足ります。</li>
+  </ul>
+
+  <h2>未確認のこと</h2>
+  <ul class="prose">
+    <li>migration 0029 / 0030 の適用状況。このセッションでも確認していません。</li>
+    <li>#1643 / #1632 が close されたのは PR #1657 / #1656 の merge によるものです。close の瞬間は実測していませんが、時刻（12:08:48 / 12:08:59）と merge 時刻が一致します。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+  <ul class="prose">
+    <li>新しい手番で <code>/goal</code> を組み直すか。connect-refine = #1644、schedule-refine = W3 / W4 / W6 / W9 / W12（W3 と W9 は 👀 目視ゲートを含む）。新しく #1667 / #1668 / #1670 / #1672 が shared-fix レーンに、#1673 が briefing に、#1674 が materials に積まれました。</li>
+    <li>F-05 の差し戻しを schedule-refine へ伝えるか。伝えるなら chat-main の outbox へ 1 エントリ足す形になります（tracker と同じく専用ブランチ）。</li>
+    <li>PR の行数目安を新規行で数えるか（connect-refine からの判断依頼）。</li>
+  </ul>
+</div>
