@@ -35,7 +35,6 @@ export {
 } from "./MonthGrid";
 export {
   AgendaList,
-  agendaRowHeightPx,
   type AgendaListProps,
   type AgendaListLabels,
   type AgendaItem,
@@ -158,6 +157,10 @@ export {
   ScheduleLoadingCard,
   ScheduleErrorCard,
   ScheduleRangeErrorBanner,
+  // #1642 W11: the fold between those three, written once instead of once per
+  // layout.
+  ScheduleBodyFold,
+  type ScheduleBodyFoldProps,
   type ScheduleLoadState,
   type ScheduleLoadErrorLabels,
   type ScheduleLoadingCardProps,
@@ -167,6 +170,9 @@ export {
 export {
   layoutDayItems,
   minutesFromMidnight,
+  // #1642 W11: the agenda's row height moved next to the grid's own px math.
+  // Re-exported from here so the name keeps its import path.
+  agendaRowHeightPx,
   addDaysKey,
   startOfWeekKey,
   weekDayKeys,

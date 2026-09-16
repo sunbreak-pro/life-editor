@@ -2,8 +2,7 @@ import { useCallback, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
   MonthGrid,
-  ScheduleErrorCard,
-  ScheduleLoadingCard,
+  ScheduleBodyFold,
   TOUR_ANCHORS,
   tourAnchor,
   useTranslation,
@@ -191,21 +190,17 @@ export function CalendarNarrowLayout({
         </div>
         {banner}
       </div>
-      {state.loading ? (
-        <div className="min-h-0 flex-1 overflow-y-auto px-lumen-gutter pb-3 pt-3">
-          <ScheduleLoadingCard label={t("scheduleScreen.loading")} />
-        </div>
-      ) : state.error ? (
-        <div className="min-h-0 flex-1 overflow-y-auto px-lumen-gutter pb-3 pt-3">
-          <ScheduleErrorCard
-            labels={{
-              message: t("scheduleScreen.loadError"),
-              retry: t("scheduleScreen.retry"),
-            }}
-            onRetry={state.onRetry}
-          />
-        </div>
-      ) : (
+      <ScheduleBodyFold
+        state={state}
+        labels={{
+          loading: t("scheduleScreen.loading"),
+          message: t("scheduleScreen.loadError"),
+          retry: t("scheduleScreen.retry"),
+        }}
+        /* The phone grid runs edge to edge (#1401), so the gutter the cards
+           need belongs to them rather than to the column around them. */
+        cardClassName="min-h-0 flex-1 overflow-y-auto px-lumen-gutter pb-3 pt-3"
+      >
         <>
           {/*
            * #878: the month grid IS narrow's main view, and since #1148 the
@@ -248,7 +243,7 @@ export function CalendarNarrowLayout({
             />
           </div>
         </>
-      )}
+      </ScheduleBodyFold>
     </div>
   );
 }
