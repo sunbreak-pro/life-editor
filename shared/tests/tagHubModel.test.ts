@@ -228,3 +228,92 @@ describe("buildTagHubModel — the groups", () => {
     expect(model.groupsByTag.has(UNTAGGED_TAG_ID)).toBe(false);
   });
 });
+
+describe("buildTagHubModel — repeat series (#1631)", () => {
+  /*
+   * A repeating item's tags are written to the SERIES (the routine row), never
+   * to the occurrences the generator rebuilds — see ScheduleEventEditor (#468).
+   * Before this the hub matched assignments against occurrence ids only, so a
+   * tagged repeat matched nothing: absent from its tag, absent from the count,
+   * and its occurrences sitting in the untagged bucket instead.
+   */
+  const series = (id: string, over: Partial<TagHubItem> = {}) =>
+    item(id, "event", { isSeries: true, ...over });
+  const occurrence = (id: string, seriesId: string) =>
+    item(id, "event", { seriesId });
+
+  it("lists a tagged series as one row, and counts it once", () => {
+    const model = build({
+      tags: [tag("t-1", "Work")],
+      assignments: [assign("routine-1", "t-1")],
+      items: [
+        series("routine-1", { title: "Morning review" }),
+        occurrence("event-1", "routine-1"),
+        occurrence("event-2", "routine-1"),
+        occurrence("event-3", "routine-1"),
+      ],
+    });
+    expect(model.groupsByTag.get("t-1")?.[0]?.items.map((i) => i.id)).toEqual([
+      "routine-1",
+    ]);
+    expect(model.tags[0].count).toBe(1);
+  });
+
+  it("keeps a tagged series' occurrences out of the untagged bucket", () => {
+    const model = build({
+      tags: [tag("t-1", "Work")],
+      assignments: [assign("routine-1", "t-1")],
+      items: [series("routine-1"), occurrence("event-1", "routine-1")],
+    });
+    expect(model.groupsByTag.has(UNTAGGED_TAG_ID)).toBe(false);
+    expect(model.tags.some((t) => t.isUntagged)).toBe(false);
+  });
+
+  it("keeps an UNtagged series out of the untagged bucket too", () => {
+    // It would say nothing there its own occurrences do not already say.
+    const model = build({
+      items: [series("routine-1"), occurrence("event-1", "routine-1")],
+    });
+    expect(
+      model.groupsByTag.get(UNTAGGED_TAG_ID)?.[0]?.items.map((i) => i.id),
+    ).toEqual(["event-1"]);
+  });
+
+  it("leaves an occurrence carrying its OWN tag under that tag", () => {
+    // Tagging one day of a repeat by hand is still a filing of that day.
+    const model = build({
+      tags: [tag("t-1", "Work"), tag("t-2", "Health")],
+      assignments: [assign("routine-1", "t-1"), assign("event-1", "t-2")],
+      items: [series("routine-1"), occurrence("event-1", "routine-1")],
+    });
+    expect(model.groupsByTag.get("t-1")?.[0]?.items.map((i) => i.id)).toEqual([
+      "routine-1",
+    ]);
+    expect(model.groupsByTag.get("t-2")?.[0]?.items.map((i) => i.id)).toEqual([
+      "event-1",
+    ]);
+  });
+
+  it("drops the occurrences even when the series' tag is one of several", () => {
+    const model = build({
+      tags: [tag("t-1", "Work"), tag("t-2", "Health")],
+      assignments: [assign("routine-1", "t-1"), assign("routine-1", "t-2")],
+      items: [series("routine-1"), occurrence("event-1", "routine-1")],
+    });
+    expect(model.tags.map((t) => t.count)).toEqual([1, 1]);
+    expect(model.groupsByTag.has(UNTAGGED_TAG_ID)).toBe(false);
+  });
+
+  it("returns an occurrence to the untagged bucket when the series' only tag is gone", () => {
+    // The tag is soft-deleted, so nothing on the rail can reach the series —
+    // the run must not vanish from the hub along with it.
+    const model = build({
+      tags: [tag("t-1", "Gone", { isDeleted: true })],
+      assignments: [assign("routine-1", "t-1")],
+      items: [series("routine-1"), occurrence("event-1", "routine-1")],
+    });
+    expect(
+      model.groupsByTag.get(UNTAGGED_TAG_ID)?.[0]?.items.map((i) => i.id),
+    ).toEqual(["event-1"]);
+  });
+});

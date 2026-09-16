@@ -94,11 +94,15 @@ function TagEditorPanel({
   /*
    * Bucket the live assignments by tag. Iterating the ASSIGNMENTS (not the
    * resolved item index) is deliberate: assignments carry neither role nor
-   * title (types/wikiTagUnified), and an id the index cannot name — a routine,
-   * a dismissed event, see useTaggedItemIndex — must still get a row so the
-   * user can remove it. Those render the neutral "unknown kind" badge. It also
-   * keeps `items.length` equal to the `count` pill, which is derived from the
-   * same live-only assignment cache.
+   * title (types/wikiTagUnified), and an id the index cannot name — a dismissed
+   * event, an item since hard-deleted, see useTaggedItemIndex — must still get
+   * a row so the user can remove it. Those render the neutral "unknown kind"
+   * badge. It also keeps `items.length` equal to the `count` pill, which is
+   * derived from the same live-only assignment cache.
+   *
+   * A repeating item's tag lands on its SERIES (#468), so the ids here include
+   * routine ids; the index resolves those as Events (#1631) rather than
+   * leaving the row reading "other (untitled)".
    */
   const itemsByTag = useMemo(() => {
     const map = new Map<string, TagEditItem[]>();

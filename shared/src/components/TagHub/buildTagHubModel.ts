@@ -1,10 +1,11 @@
 /*
  * The tag hub's whole derivation (#1171), as one pure function.
  *
- * Tags + assignments + the four item lists in, a rail and its per-tag groups
+ * Tags + assignments + the host's item lists in, a rail and its per-tag groups
  * out. Pure on purpose: this is where every rule the Issue names actually
- * lives (the untagged bucket, the per-kind grouping, the counts), so keeping
- * it out of the components is what makes those rules testable without a DOM.
+ * lives (the untagged bucket, the per-kind grouping, the counts, the
+ * repeat-series collapse of #1631), so keeping it out of the components is
+ * what makes those rules testable without a DOM.
  *
  * The host does the fetching and hands the items over already flattened —
  * see web/src/connect/ConnectScreen.tsx.
@@ -95,6 +96,18 @@ export function buildTagHubModel({
   for (const item of items) {
     const tagIds = tagIdsByItem.get(item.id);
     if (!tagIds || tagIds.length === 0) {
+      /*
+       * The repeat-series rules (#1631), both about the same row appearing
+       * twice. An occurrence of a TAGGED series is already represented by the
+       * series row, which is the one line the user filed — listing the run day
+       * by day underneath it would bury the rest of the topic. And a series
+       * that carries no tag of its own has nothing to add to the untagged
+       * bucket that its own occurrences do not already say there.
+       */
+      if (item.seriesId !== undefined && tagIdsByItem.has(item.seriesId)) {
+        continue;
+      }
+      if (item.isSeries === true) continue;
       untagged.push(item);
       continue;
     }
