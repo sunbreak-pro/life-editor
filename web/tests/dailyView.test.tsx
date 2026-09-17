@@ -1,7 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import type { ReactNode } from "react";
-import type { DailyNode } from "@life-editor/shared";
+import {
+  extractEveningSection,
+  eveningBodyLines,
+  stripEveningSection,
+  type DailyNode,
+} from "@life-editor/shared";
 import { DailyView } from "../src/daily/DailyView";
 
 /*
@@ -39,6 +44,8 @@ const state = vi.hoisted(() => {
      * a day has to close it. Null on Desktop-only renders is fine — the
      * view reads the panel through the null-safe hook. */
     closeDrawer: vi.fn(),
+    /* #1680: the global undo stack the evening card pushes mood edits to. */
+    pushUndo: vi.fn(),
     /* The bodies the stubbed editor saves. WITH carries a resolved itemLink
      * atom for LINK_TARGET; WITHOUT is the same day after the user deleted it
      * again — which is the pair the #372 fold turns on. */
@@ -95,6 +102,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       <>{children}</>
     ),
     useRightSidebarOptional: () => ({ close: state.closeDrawer }),
+    useUndoRedoOptional: () => ({ push: state.pushUndo }),
   };
 });
 
@@ -181,6 +189,7 @@ beforeEach(() => {
   state.createItemLink.mockClear();
   state.syncInlineLinks.mockClear();
   state.closeDrawer.mockClear();
+  state.pushUndo.mockClear();
   state.outgoing = [];
   // The save that persists the body is also the save that proves the day's
   // items_meta row exists — the parked edges wait on its resolved node.
@@ -458,7 +467,12 @@ describe("DailyView — evening category (#1046)", () => {
 
     // The card: heading, 4/5 stars, the reflection line.
     screen.getByText("materials.daily.eveningTitle");
-    screen.getByRole("img", { name: "briefing.evening.moodStar|4" });
+    // Pressable since #1680 — the stored mood is the pressed star.
+    expect(
+      screen
+        .getByRole("button", { name: "briefing.evening.moodStar|4" })
+        .getAttribute("aria-pressed"),
+    ).toBe("true");
     screen.getByText("夜の振り返りの一文");
 
     // The editor mounts the STRIPPED day — no 夕刊 heading, body text kept.
@@ -488,5 +502,146 @@ describe("DailyView — evening category (#1046)", () => {
     expect(savedContent).toContain("気分: 4/5");
     expect(savedContent).toContain("夜の振り返りの一文");
     expect(savedContent).toContain("see ");
+  });
+});
+
+/*
+ * #1680 — the evening card is editable. Every write goes through the section
+ * merge, so what is pinned is the stored content: the edited evening reads
+ * back through extractEveningSection, and the body half is byte-for-byte what
+ * the editor had.
+ */
+describe("DailyView — editing the evening card (#1680)", () => {
+  const doc = (content: unknown[]) => JSON.stringify({ type: "doc", content });
+  const para = (text: string) => ({
+    type: "paragraph",
+    content: [{ type: "text", text }],
+  });
+  const eveningDaily = daily(YESTERDAY, {
+    content: doc([
+      para("day note"),
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "夕刊" }],
+      },
+      para("気分: 4/5"),
+      para("夜の振り返りの一文"),
+    ]),
+  });
+
+  /** The content of the Nth upsertDaily call. */
+  const saved = (n = 0) => state.upsertDaily.mock.calls[n]?.[1] as string;
+
+  it("sets the mood from a star without touching the body", async () => {
+    state.dailies = [eveningDaily];
+    render(<DailyView />);
+    const editor = await screen.findByTestId("editor");
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "briefing.evening.moodStar|5" }),
+    );
+
+    expect(state.upsertDaily).toHaveBeenCalledExactlyOnceWith(
+      YESTERDAY,
+      expect.any(String),
+      { skipUndo: true },
+    );
+    const evening = extractEveningSection(saved());
+    expect(evening.mood).toBe(5);
+    expect(eveningBodyLines(evening.bodyDocJson)).toEqual([
+      "夜の振り返りの一文",
+    ]);
+    // The body editor's half is exactly what it was, and the editor was not
+    // remounted by the write (same element, same initial content).
+    expect(stripEveningSection(saved())).toBe(
+      stripEveningSection(eveningDaily.content),
+    );
+    expect(screen.getByTestId("editor")).toBe(editor);
+  });
+
+  it("clears the mood when the lit star is tapped again", () => {
+    state.dailies = [eveningDaily];
+    render(<DailyView />);
+
+    const lit = screen.getByRole("button", {
+      name: "briefing.evening.moodStar|4",
+    });
+    expect(lit.getAttribute("aria-pressed")).toBe("true");
+    fireEvent.click(lit);
+
+    const evening = extractEveningSection(saved());
+    expect(evening.mood).toBeNull();
+    expect(eveningBodyLines(evening.bodyDocJson)).toEqual([
+      "夜の振り返りの一文",
+    ]);
+  });
+
+  it("edits the reflection and keeps the body and the mood", async () => {
+    state.dailies = [eveningDaily];
+    render(<DailyView />);
+    await screen.findByTestId("editor");
+
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: "materials.daily.eveningEditReflection 夜の振り返りの一文",
+      }),
+    );
+    // The preview swapped for a second editor bound to the evening section.
+    const reflection = (await screen.findAllByTestId("editor")).find(
+      (el) => el.textContent === `daily-evening-${YESTERDAY}`,
+    );
+    expect(reflection?.dataset.initialContent).toContain("夜の振り返りの一文");
+    expect(reflection?.dataset.initialContent).not.toContain("気分");
+
+    fireEvent.click(within(reflection!).getByTestId("save-without-link"));
+
+    const evening = extractEveningSection(saved());
+    expect(evening.mood).toBe(4);
+    expect(eveningBodyLines(evening.bodyDocJson)).toEqual(["see"]);
+    expect(stripEveningSection(saved())).toBe(
+      stripEveningSection(eveningDaily.content),
+    );
+  });
+
+  it("opens an empty card on a day that has no evening yet", () => {
+    state.dailies = [daily(YESTERDAY)];
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.eveningStart" }),
+    );
+    screen.getByText("materials.daily.eveningTitle");
+    fireEvent.click(
+      screen.getByRole("button", { name: "briefing.evening.moodStar|3" }),
+    );
+
+    expect(extractEveningSection(saved()).mood).toBe(3);
+    // The legacy plain-text body survives the merge as its own paragraph.
+    expect(stripEveningSection(saved())).toContain(`entry for ${YESTERDAY}`);
+  });
+
+  it("puts a mood change on the undo stack", () => {
+    state.dailies = [eveningDaily];
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "briefing.evening.moodStar|2" }),
+    );
+    expect(state.pushUndo).toHaveBeenCalledTimes(1);
+    const [domain, command] = state.pushUndo.mock.calls[0] as [
+      string,
+      { undo: () => void; redo: () => void },
+    ];
+    expect(domain).toBe("daily");
+
+    // The store caught up with the tap (the context updates optimistically).
+    state.dailies = [{ ...eveningDaily, content: saved(0) }];
+    command.undo();
+    expect(extractEveningSection(saved(1)).mood).toBe(4);
+
+    state.dailies = [{ ...eveningDaily, content: saved(1) }];
+    command.redo();
+    expect(extractEveningSection(saved(2)).mood).toBe(2);
   });
 });

@@ -18,7 +18,11 @@ import {
   RightSidebarPortal,
   DailyEntriesPanel,
   DailyEveningCard,
+  EveningReflectionPreview,
   SidebarListControls,
+  useUndoRedoOptional,
+  isEmptyDocJson,
+  type EveningPatch,
   cn,
   dailyContentToEditorContent,
   dailyContentExcerpt,
@@ -44,6 +48,7 @@ import {
   dateFromKey,
 } from "@life-editor/shared";
 import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
+import { preloadRichTextEditor } from "../notes/preloadRichTextEditor";
 import {
   useItemLinkTargets,
   type LoadItemLinkTargets,
@@ -189,7 +194,9 @@ export function DailyView({
     upsertDaily,
     deleteDaily,
     togglePin,
+    getDailyForDate,
   } = useDailiesUnifiedContext();
+  const pushUndo = useUndoRedoOptional()?.push;
   // "[[" → item_links, shared with Notes and Todos (#776). Daily differs only
   // in WHEN the edge can be written (see the park / flush below); the write
   // itself and the save-time delete-sync are the shared ones.
@@ -370,6 +377,73 @@ export function DailyView({
       if (saved) syncSavedBody(saved.id, full);
     });
   };
+
+  /*
+   * 夕刊の編集 (#1680). The card writes the evening section only: read the
+   * day's WHOLE stored content, swap the [夕刊, next heading) range through
+   * mergeEveningSection, write it back. The body editor's half is never
+   * touched, and the stored shape (heading +「気分: n/5」+ reflection blocks)
+   * is the one the evening paper and the MCP briefing tools already read.
+   *
+   * The base is `getDailyForDate` (a ref read) rather than this render's
+   * `selectedContent`, because the undo / redo commands below run long after
+   * the render that made them. Recording the write in `lastEmitted` makes its
+   * echo read as our own, so the body editor is NOT remounted by a star tap —
+   * a remount would drop the cursor and fire a flush mid-typing.
+   *
+   * Upserts skip the context's own create-undo: the command pushed here is
+   * the one the user performed, and a second "createDaily" entry would make
+   * one tap take two undos.
+   */
+  const writeEvening = (date: string, patch: EveningPatch): boolean => {
+    const current = getDailyForDate(date)?.content ?? "";
+    const full = mergeEveningSection(current, patch);
+    if (full === current) return false;
+    setLastEmitted({ date, json: full });
+    void upsertDaily(date, full, { skipUndo: true }).then((saved) => {
+      // The reflection can carry "[[ ]]" links of its own — fold against
+      // the whole stored body, same as the body save does.
+      if (saved) syncSavedBody(saved.id, full);
+    });
+    return true;
+  };
+
+  // Stars: tap a star to set it, tap the lit one again to clear (the evening
+  // paper's rule). One tap = one global undo entry.
+  const handleSelectMood = (n: number) => {
+    const date = selectedDate;
+    const prev = eveningStored.mood;
+    const next = prev === n ? null : n;
+    if (!writeEvening(date, { mood: next })) return;
+    pushUndo?.("daily", {
+      label: "setDailyMood",
+      undo: () => {
+        writeEvening(date, { mood: prev });
+      },
+      redo: () => {
+        writeEvening(date, { mood: next });
+      },
+    });
+  };
+
+  // The reflection is a TipTap editor like the body, so its typing history
+  // lives in the editor's own undo (Mod-Z) — a global entry per 800ms save
+  // would bury every other command. A cleared editor clears the stored body.
+  const handleReflectionUpdate = (json: string) => {
+    writeEvening(selectedDate, {
+      bodyDocJson: isEmptyDocJson(json) ? null : json,
+    });
+  };
+
+  // Which day the user opened the evening card on (the entry button on a day
+  // without one) and whether its reflection editor is mounted. Keyed by date
+  // so switching days falls back to the resting preview.
+  const [eveningEdit, setEveningEdit] = useState<{
+    date: string;
+    reflection: boolean;
+  } | null>(null);
+  const eveningOpened = eveningEdit?.date === selectedDate;
+  const editingReflection = eveningOpened && eveningEdit.reflection;
 
   // Saves are automatic (debounced + flushed on unmount); with batched echo
   // renders this caption effectively always reads saved — kept as reassurance.
@@ -560,8 +634,13 @@ export function DailyView({
    * schedule): an empty card under every blank past day would be noise, not
    * a look back. Copy for the stars and the all-day tag comes from the
    * briefing catalogue — they are the same concepts the papers name.
+   *
+   * #1680: a day without one gets a quiet「夕刊を書く」button in its place
+   * instead of the empty card, so the entry exists without the noise. The
+   * schedule rows stay a read — they are Schedule's data, not this day's.
    */
   const showEveningCard =
+    eveningOpened ||
     eveningStored.mood !== null ||
     eveningLines.length > 0 ||
     daySchedule.length > 0;
@@ -570,16 +649,59 @@ export function DailyView({
       mood={eveningStored.mood}
       reflectionLines={eveningLines}
       schedule={daySchedule}
+      onSelectMood={handleSelectMood}
+      reflectionSlot={
+        editingReflection ? (
+          <LazyRichTextEditor
+            // Same remount rule as the body editor: date switch or an
+            // external change, never our own save echo.
+            key={`evening:${editorKey}`}
+            noteId={`daily-evening-${selectedDate}`}
+            initialContent={eveningStored.bodyDocJson ?? undefined}
+            onUpdate={handleReflectionUpdate}
+            placeholder={t("materials.daily.eveningReflectionPlaceholder")}
+            autoFocus
+          />
+        ) : (
+          <EveningReflectionPreview
+            lines={eveningLines}
+            placeholder={t("materials.daily.eveningReflectionPlaceholder")}
+            editLabel={t("materials.daily.eveningEditReflection")}
+            onStartEditing={() =>
+              setEveningEdit({ date: selectedDate, reflection: true })
+            }
+            onPrefetch={preloadRichTextEditor}
+            className="px-1 py-1"
+          />
+        )
+      }
       labels={{
         title: t("materials.daily.eveningTitle"),
         moodStars: [1, 2, 3, 4, 5].map((n) =>
           t("briefing.evening.moodStar", { value: n }),
         ),
+        moodGroup: t("materials.daily.eveningMood"),
         scheduleTitle: t("materials.daily.eveningScheduleTitle"),
         allDay: t("briefing.allDay"),
       }}
     />
-  ) : null;
+  ) : (
+    <div className="mt-3 flex justify-start">
+      <button
+        type="button"
+        onClick={() =>
+          setEveningEdit({ date: selectedDate, reflection: false })
+        }
+        className={cn(
+          "rounded-lumen-md px-2 py-1 text-xs text-lumen-text-secondary",
+          "hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
+          FOCUS_RING,
+        )}
+      >
+        {t("materials.daily.eveningStart")}
+      </button>
+    </div>
+  );
 
   /*
    * Past entries — the detail panel's content at both widths (#876). Wide draws
