@@ -109,6 +109,7 @@ export {
 export {
   Menu,
   MenuItem,
+  type MenuAnchorPoint,
   type MenuProps,
   type MenuItemProps,
   type MenuItemVariant,

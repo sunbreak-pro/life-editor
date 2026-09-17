@@ -32,6 +32,21 @@ export {
   type TagHubEditBlockProps,
   type TagHubEditField,
 } from "./TagHubEditBlock";
+// #1676 — the rail's tag menu and the edit block's drafts, callable from
+// outside the hub (the Materials note sidebar, #1677).
+export {
+  TagActionsMenu,
+  useTagActionsMenu,
+  type TagActionsMenuLabels,
+  type TagActionsMenuProps,
+  type TagActionsMenuState,
+} from "./TagActionsMenu";
+export {
+  useTagEditDrafts,
+  type TagEditDrafts,
+  type TagEditDraftTarget,
+  type TagEditWriters,
+} from "./useTagEditDrafts";
 export {
   TagIconPicker,
   type TagIconPickerLabels,
