@@ -1,4 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type Dispatch,
+  type SetStateAction,
+} from "react";
 import type {
   ScheduleItem,
   ScheduleItemsViewMirror,
@@ -14,6 +22,66 @@ import type {
  * Todo chips are merged at the host's derived (map) layer — NEVER into
  * `rangeItems` (this is the ScheduleItem mutation store).
  */
+
+/**
+ * Folds a settled range fetch into the list on screen (#1642 W9 / C-01).
+ *
+ * A fetch used to replace the list wholesale. Anything the user changed while
+ * it was in flight — a Realtime bump's refetch is ~300ms, a drag is quicker —
+ * was then painted over with the row as the server held it BEFORE that edit,
+ * and the edit looked undone until the next refetch.
+ *
+ * `touched` is the set of ids the store changed after the fetch STARTED. For
+ * those the local copy wins: kept as it is, kept removed, or kept added — added
+ * only when its day is inside `window`, so a row edited on the week being left
+ * does not ride into the week a navigation fetched. Every other row is the
+ * server's. A fetch that started after the edit carries no
+ * touched ids, so the reconciliation reload a mutation fires still lands the
+ * server truth.
+ */
+export function mergeRangeFetch(
+  fetched: readonly ScheduleItem[],
+  local: readonly ScheduleItem[],
+  touched: ReadonlySet<string>,
+  window: readonly [string, string],
+): ScheduleItem[] {
+  if (touched.size === 0) return [...fetched];
+  const localById = new Map(local.map((i) => [i.id, i]));
+  const out: ScheduleItem[] = [];
+  const seen = new Set<string>();
+  for (const row of fetched) {
+    seen.add(row.id);
+    if (!touched.has(row.id)) {
+      out.push(row);
+      continue;
+    }
+    const mine = localById.get(row.id);
+    if (mine) out.push(mine);
+  }
+  for (const row of local) {
+    if (!touched.has(row.id) || seen.has(row.id)) continue;
+    if (row.date >= window[0] && row.date <= window[1]) out.push(row);
+  }
+  return out;
+}
+
+/** Ids whose row differs by identity between two snapshots of the list. */
+function changedIds(
+  prev: readonly ScheduleItem[],
+  next: readonly ScheduleItem[],
+): string[] {
+  if (prev === next) return [];
+  const prevById = new Map(prev.map((i) => [i.id, i]));
+  const ids: string[] = [];
+  const nextIds = new Set<string>();
+  for (const row of next) {
+    nextIds.add(row.id);
+    if (prevById.get(row.id) !== row) ids.push(row.id);
+  }
+  for (const row of prev) if (!nextIds.has(row.id)) ids.push(row.id);
+  return ids;
+}
+
 export function useVisibleRangeItems(args: {
   loadDateRange: (
     startDate: string,
@@ -30,7 +98,31 @@ export function useVisibleRangeItems(args: {
   refreshKey?: number;
 }) {
   const { loadDateRange, rangeStart, rangeEnd, refreshKey } = args;
-  const [rangeItems, setRangeItems] = useState<ScheduleItem[]>([]);
+  const [rangeItems, setRawRangeItems] = useState<ScheduleItem[]>([]);
+
+  /*
+   * #1642 W9: which ids were edited, and when. Every local write goes through
+   * `setRangeItems` below, which stamps the ids it changed with the next
+   * sequence number; a fetch remembers the number it started at and keeps the
+   * local copy of anything stamped later (mergeRangeFetch). Refs, because the
+   * stamps are bookkeeping for the fetch effect and never drive a render.
+   */
+  const editSeqRef = useRef(0);
+  const touchedAtRef = useRef(new Map<string, number>());
+  const setRangeItems = useCallback<Dispatch<SetStateAction<ScheduleItem[]>>>(
+    (action) => {
+      setRawRangeItems((prev) => {
+        const next = typeof action === "function" ? action(prev) : action;
+        const ids = changedIds(prev, next);
+        if (ids.length > 0) {
+          const seq = ++editSeqRef.current;
+          for (const id of ids) touchedAtRef.current.set(id, seq);
+        }
+        return next;
+      });
+    },
+    [],
+  );
   // The [start, end] the CURRENT rangeItems actually came from (#278 guard):
   // set together with setRangeItems when a fetch settles, so absence of an
   // id in rangeItems is only trusted once the covering fetch has resolved.
@@ -48,11 +140,22 @@ export function useVisibleRangeItems(args: {
   // Read the visible range (cancelled-guard mirrors useScheduleItemsAPI).
   useEffect(() => {
     let cancelled = false;
+    const startedAt = editSeqRef.current;
     void (async () => {
       try {
         const list = await loadDateRange(rangeStart, rangeEnd);
         if (!cancelled) {
-          setRangeItems(list.filter((i) => !i.isDeleted && !i.isDismissed));
+          const touched = new Set<string>();
+          for (const [id, seq] of touchedAtRef.current) {
+            if (seq > startedAt) touched.add(id);
+            // Stamps this fetch already covers can go: any later fetch starts
+            // after them too.
+            else touchedAtRef.current.delete(id);
+          }
+          const live = list.filter((i) => !i.isDeleted && !i.isDismissed);
+          setRawRangeItems((prev) =>
+            mergeRangeFetch(live, prev, touched, [rangeStart, rangeEnd]),
+          );
           setFetchedRange([rangeStart, rangeEnd]);
           setRangeError(false);
         }
@@ -66,11 +169,14 @@ export function useVisibleRangeItems(args: {
     };
   }, [loadDateRange, rangeStart, rangeEnd, reloadKey, refreshKey]);
 
-  const patchRange = useCallback((id: string, patch: Partial<ScheduleItem>) => {
-    setRangeItems((prev) =>
-      prev.map((i) => (i.id === id ? { ...i, ...patch } : i)),
-    );
-  }, []);
+  const patchRange = useCallback(
+    (id: string, patch: Partial<ScheduleItem>) => {
+      setRangeItems((prev) =>
+        prev.map((i) => (i.id === id ? { ...i, ...patch } : i)),
+      );
+    },
+    [setRangeItems],
+  );
 
   // #568: read-side refs for the undo/redo mirror below. Those closures run
   // long after the render that pushed them, so they cannot capture state —
@@ -113,7 +219,7 @@ export function useVisibleRangeItems(args: {
       patch: patchRange,
       remove: (id) => setRangeItems((prev) => prev.filter((i) => i.id !== id)),
     }),
-    [patchRange],
+    [patchRange, setRangeItems],
   );
 
   /** Force a refetch of the current window (error retry / post-mutation
