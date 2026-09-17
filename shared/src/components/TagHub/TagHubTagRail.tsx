@@ -1,23 +1,14 @@
 import { useRef, useState } from "react";
 import type { RefObject } from "react";
-import {
-  ChevronDown,
-  ChevronRight,
-  MoreHorizontal,
-  Palette,
-  Pencil,
-  Plus,
-  Shapes,
-  Trash2,
-} from "lucide-react";
+import { ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { Button } from "../Button";
 import { cn } from "../cn";
-import { Menu, MenuItem } from "../Menu";
 import { SkeletonList } from "../SkeletonList";
 import { TagHeadingIcon } from "../TagHeadingIcon";
 import { SidebarFilterField } from "../materials/SidebarFilterField";
 import { CARD_BTN_TAP, FOCUS_RING_TIGHT } from "../styleTokens";
 import { isImeComposing } from "../../utils/imeGuard";
+import { TagActionsMenu, useTagActionsMenu } from "./TagActionsMenu";
 import type { TagHubEditField } from "./TagHubEditBlock";
 import type { TagHubLabels, TagHubTagSummary } from "./types";
 
@@ -37,6 +28,11 @@ import type { TagHubLabels, TagHubTagSummary } from "./types";
  * The rule under (1) is what stops the bucket reading as a tag someone actually
  * named "Untagged"; the disclosure at (3) is what stops a tag made and never
  * used from sitting between two working topics (see the model's note).
+ *
+ * The "…" menu also opens on a right-click anywhere on the row (#1676), at the
+ * pointer — Desktop only, since narrow already shows the "…" at full size and a
+ * long-press there belongs to the platform. A row with no menu (the untagged
+ * bucket) leaves the browser's own context menu alone.
  *
  * The row is a BUTTON beside a button, not a button inside one: the "…" has to
  * be reachable on its own, and nesting it would be invalid HTML that browsers
@@ -279,20 +275,18 @@ function TagHubRailRow({
   wide,
   labels,
 }: TagHubRailRowProps) {
-  const [menuOpen, setMenuOpen] = useState(false);
+  const menu = useTagActionsMenu();
   const menuAnchor = useRef<HTMLButtonElement | null>(null);
   const countText = formatCount(tag.count);
   // The untagged bucket is not a row of `wiki_tags`, so there is nothing to
   // rename, recolour or delete about it.
   const hasMenu = onEditTag != null && onDeleteTag != null && !tag.isUntagged;
 
-  const act = (run: () => void) => {
-    setMenuOpen(false);
-    run();
-  };
-
   return (
     <li
+      // Right-click opens the same menu as the "…" (#1676). Wide only, and only
+      // where there is a menu: anywhere else the native menu is left intact.
+      onContextMenu={hasMenu && wide ? menu.openAtPointer : undefined}
       className={cn(
         "group relative",
         // The rule above the untagged bucket. Applied to the <li> rather than
@@ -358,9 +352,9 @@ function TagHubRailRow({
               <button
                 ref={menuAnchor}
                 type="button"
-                onClick={() => setMenuOpen((v) => !v)}
+                onClick={menu.toggleFromTrigger}
                 aria-haspopup="menu"
-                aria-expanded={menuOpen}
+                aria-expanded={menu.open}
                 aria-label={`${tag.name}: ${labels.rowMenu}`}
                 className={cn(
                   "flex w-full items-center justify-center rounded-lumen-sm text-lumen-text-secondary",
@@ -373,7 +367,7 @@ function TagHubRailRow({
                       // over the menu rather than the row.
                       cn(
                         "h-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
-                        menuOpen && "opacity-100",
+                        menu.open && "opacity-100",
                       )
                     : // Narrow has no hover to reveal it with (M2).
                       "h-11",
@@ -381,39 +375,17 @@ function TagHubRailRow({
               >
                 <MoreHorizontal size={16} aria-hidden />
               </button>
-              <Menu
-                open={menuOpen}
-                onClose={() => setMenuOpen(false)}
+              <TagActionsMenu
+                open={menu.open}
+                onClose={menu.close}
+                tagName={tag.name}
                 anchorRef={menuAnchor}
+                anchorPoint={menu.anchorPoint}
                 align="end"
-                label={`${tag.name}: ${labels.rowMenu}`}
-              >
-                <MenuItem
-                  icon={<Pencil size={14} />}
-                  onSelect={() => act(() => onEditTag?.(tag.id, "name"))}
-                >
-                  {labels.renameTag}
-                </MenuItem>
-                <MenuItem
-                  icon={<Shapes size={14} />}
-                  onSelect={() => act(() => onEditTag?.(tag.id, "icon"))}
-                >
-                  {labels.changeIcon}
-                </MenuItem>
-                <MenuItem
-                  icon={<Palette size={14} />}
-                  onSelect={() => act(() => onEditTag?.(tag.id, "color"))}
-                >
-                  {labels.changeColor}
-                </MenuItem>
-                <MenuItem
-                  icon={<Trash2 size={14} />}
-                  variant="danger"
-                  onSelect={() => act(() => onDeleteTag?.(tag.id))}
-                >
-                  {labels.deleteTag}
-                </MenuItem>
-              </Menu>
+                onEdit={(field) => onEditTag?.(tag.id, field)}
+                onDelete={() => onDeleteTag?.(tag.id)}
+                labels={labels}
+              />
             </>
           )}
         </div>
