@@ -14,6 +14,7 @@ import {
   updatePayload,
   type ItemsMetaRow,
 } from "../utils/items.js";
+import { deleteRoutine, detachRoutineFrom } from "./routineHandlers.js";
 
 /*
  * Schedule handlers — Supabase edition (briefing-loop Step 2 / Issue #256).
@@ -28,7 +29,9 @@ import {
  *   - create = meta INSERT → payload INSERT with orphan recovery (meta
  *     hard-delete when the payload INSERT fails) — §10.5
  *   - delete = SOFT delete (items_meta.is_deleted; TrashView-restorable),
- *     mirroring SupabaseDataService.softDeleteScheduleItem
+ *     mirroring SupabaseDataService.softDeleteScheduleItem — except for an
+ *     occurrence of a repeating event, which needs a scope (#1669, see
+ *     deleteScheduleItem)
  *   - `version` is a legacy column, intentionally NOT bumped (CLAUDE.md §3.3)
  *
  * Column-set deltas vs the legacy SQLite shape (0008 design decisions, see
@@ -394,10 +397,82 @@ export async function setScheduleDismissed(args: {
   return formatItem(meta, payload);
 }
 
-export async function deleteScheduleItem(args: { id: string }) {
-  await getEvent(args.id);
-  await softDeleteItem(args.id, "event");
-  return { success: true, id: args.id, softDeleted: true };
+export const REPEAT_SCOPES = ["this", "future", "all"] as const;
+export type RepeatScope = (typeof REPEAT_SCOPES)[number];
+
+/**
+ * Delete an event — and, for an occurrence of a repeating event, only as far
+ * as the caller chose (#1669).
+ *
+ * A one-off event is soft-deleted, as it always was. An occurrence is NOT:
+ * the generator's "is this day already there?" check skips trashed rows, so a
+ * soft-deleted occurrence is generated again the next time the app shows that
+ * day (known-issue 017). The app therefore never deletes one plainly; its
+ * scope dialog (`planRepeatScopeChoice`, run by web/src/schedule/
+ * useRepeatMutations.ts) turns the three answers into three different writes,
+ * and this handler performs the same three:
+ *   - "this"   → dismiss the one occurrence (stays live, so nothing revives it;
+ *                undone with set_schedule_dismissed)
+ *   - "future" → trash the undone occurrences from its date on, detach the
+ *                rest, trash the routine (`detachRoutineFrom`)
+ *   - "all"    → trash the routine with every occurrence (`deleteRoutine`)
+ *
+ * The scope is REQUIRED for an occurrence and there is no default. The app
+ * asks every time, and any default here would be the app's answer given
+ * without asking — "this" quietly leaves the series running, "all" quietly
+ * wipes a history. Rejecting sends the question back to the person instead.
+ */
+export async function deleteScheduleItem(args: {
+  id: string;
+  scope?: RepeatScope;
+}) {
+  const { payload } = await getEvent(args.id);
+  const routineId = payload.routine_item_id;
+
+  if (!routineId) {
+    await softDeleteItem(args.id, "event");
+    return { success: true, id: args.id, softDeleted: true };
+  }
+
+  switch (args.scope) {
+    case "this":
+      await updatePayload("events_payload", args.id, "event", {
+        is_dismissed: true,
+      });
+      return {
+        success: true,
+        id: args.id,
+        scope: "this",
+        dismissed: true,
+        routineId,
+      };
+    case "future": {
+      const result = await detachRoutineFrom(routineId, payload.start_at ?? "");
+      return {
+        success: true,
+        id: args.id,
+        scope: "future",
+        routineId,
+        routineSoftDeleted: true,
+        ...result,
+      };
+    }
+    case "all": {
+      const result = await deleteRoutine({ id: routineId });
+      return {
+        success: true,
+        id: args.id,
+        scope: "all",
+        routineId,
+        routineSoftDeleted: true,
+        trashedOccurrenceIds: result.trashedOccurrenceIds,
+      };
+    }
+    default:
+      throw new Error(
+        `${args.id} is one occurrence of a repeating event (routine ${routineId}), so deleting it needs a scope. Ask the user which to delete, then call again with scope: "this" (only this day), "future" (this day and every later one) or "all" (the whole series).`,
+      );
+  }
 }
 
 /**

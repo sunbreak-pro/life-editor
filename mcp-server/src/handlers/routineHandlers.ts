@@ -472,6 +472,12 @@ export async function createRoutine(args: CreateRoutineArgs) {
  * all events" (`softDeleteRoutine`), in the same order: find the occurrences,
  * trash the routine, trash the occurrences. Leaving the occurrences live would
  * strand calendar events pointing at a trashed routine.
+ *
+ * TAKES NO REPEAT SCOPE, on purpose (#1669). The app asks "this / future /
+ * all" from an OCCURRENCE, and two of the three answers are anchored on that
+ * occurrence's date; a routine id carries no such date, so the only scope this
+ * tool can mean is "all". The other two live on `delete_schedule_item`, which
+ * is handed an occurrence and requires the scope for one.
  */
 export async function deleteRoutine(args: { id: string }) {
   await requireMeta(args.id, "routine", "Routine");
@@ -499,4 +505,81 @@ export async function deleteRoutine(args: { id: string }) {
     softDeleted: true,
     trashedOccurrenceIds: occurrenceIds,
   };
+}
+
+/**
+ * "Delete this and future occurrences" — the app's `detachRoutine` with the
+ * occurrence date as the anchor (#1669, the scope dialog's "future").
+ *
+ * The partition is the app's: a live occurrence dated on or after `anchor`
+ * that is not done goes to the trash; every other live one (earlier days,
+ * completed days) is cut loose from the routine and stays on the calendar as
+ * a one-off record. Then the routine itself is trashed WITHOUT a cascade, so
+ * the generator — which reads only live routines — has nothing left to
+ * generate from. Survivors are detached rather than left pointing at the
+ * trashed routine, because emptying the trash hard-deletes every event that
+ * still references it.
+ *
+ * Refuses a future anchor. The days between today and the anchor exist only
+ * once the app has generated them, and the app fills them in before it
+ * detaches (`fillRangeUpToAnchor`). This package does not generate occurrences
+ * (see the header), so detaching here would silently erase those days.
+ */
+export async function detachRoutineFrom(routineId: string, anchor: string) {
+  assertDateKey(anchor);
+  const today = localToday();
+  if (anchor > today) {
+    throw new Error(
+      `Cannot delete "this and future" from ${anchor}: it is after today (${today}), and the days in between may not have been generated yet, so they would be lost. Use scope "this" for that one day, or do it from the Life Editor app, which fills those days in first.`,
+    );
+  }
+  await requireMeta(routineId, "routine", "Routine");
+
+  const { client } = await getSupabase();
+  const rows = await fetchAllPages<{
+    item_id: string;
+    start_at: string;
+    done: boolean;
+  }>(
+    (from, to) =>
+      client
+        .from("events_payload")
+        .select("item_id, start_at, done")
+        .eq("routine_item_id", routineId)
+        .eq("is_deleted_cache", false)
+        .order("item_id", { ascending: true })
+        .range(from, to),
+    "list routine occurrences",
+  );
+  const trashed = (r: { start_at: string; done: boolean }) =>
+    r.start_at >= anchor && !r.done;
+  const trashIds = rows.filter(trashed).map((r) => r.item_id);
+  const detachIds = rows.filter((r) => !trashed(r)).map((r) => r.item_id);
+
+  const now = new Date().toISOString();
+  for (const chunk of chunkIds(trashIds)) {
+    const { error } = await client
+      .from("items_meta")
+      .update({ is_deleted: true, deleted_at: now, updated_at: now })
+      .in("id", chunk)
+      .eq("role", "event");
+    if (error) throw new Error(`trash future occurrences: ${error.message}`);
+  }
+  for (const chunk of chunkIds(detachIds)) {
+    const { error: pErr } = await client
+      .from("events_payload")
+      .update({ routine_item_id: null, source_date: null })
+      .in("item_id", chunk);
+    if (pErr) throw new Error(`detach past occurrences: ${pErr.message}`);
+    // §10.2: the payload has no updated_at, so the meta bump is the sync signal.
+    const { error: mErr } = await client
+      .from("items_meta")
+      .update({ updated_at: now })
+      .in("id", chunk)
+      .eq("role", "event");
+    if (mErr) throw new Error(`detach past occurrences: ${mErr.message}`);
+  }
+  await softDeleteItem(routineId, "routine");
+
+  return { trashedOccurrenceIds: trashIds, detachedOccurrenceIds: detachIds };
 }
