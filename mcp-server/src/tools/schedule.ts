@@ -117,11 +117,21 @@ export const SCHEDULE_TOOLS: ToolDefinition[] = [
   defineTool({
     name: "delete_schedule_item",
     description:
-      "Soft-delete a schedule item (moves it to trash; restorable with restore_item or from the Trash view).",
+      "Delete a schedule item. A one-off event is soft-deleted (moves it to trash; restorable with restore_item or from the Trash view). " +
+      "An item with a non-null routineId is one occurrence of a repeating event and needs scope: ask the user which occurrences they mean, as the app does, and pass the answer — a call without it is rejected. " +
+      'scope "this" hides only that day (dismissed rather than trashed, because a trashed occurrence is generated again; undo with set_schedule_dismissed). ' +
+      '"future" trashes that day and every later undone one, keeps earlier and completed days as one-off events, and trashes the repeat itself; it is refused for a day after today. ' +
+      '"all" trashes the repeat with every occurrence, the same as delete_routine.',
     inputSchema: {
       type: "object" as const,
       properties: {
         id: { type: "string", description: "Schedule item ID" },
+        scope: {
+          type: "string",
+          enum: ["this", "future", "all"],
+          description:
+            "Required for an occurrence of a repeating event (routineId set); ignored for a one-off event. this = only this day, future = this day and later, all = the whole series.",
+        },
       },
       required: ["id"],
     },
