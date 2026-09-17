@@ -142,6 +142,7 @@ export function CalendarTab({
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
   const {
+    date: providerToday,
     items: contextItems,
     isLoading,
     error,
@@ -266,7 +267,7 @@ export function CalendarTab({
     // second switch here. A cell tap moves the anchor — which is the day the
     // list under the grid shows.
     pickMonthDay,
-  } = useCalendarNav(isWide);
+  } = useCalendarNav(isWide, providerToday);
 
   // #467: jumping to a repeat's next occurrence has to put the calendar on
   // screen, and on Mobile the list that was tapped is a drawer sitting over it.

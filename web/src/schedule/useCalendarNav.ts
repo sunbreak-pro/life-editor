@@ -18,8 +18,17 @@ import {
  * fetch window, plus prev/next/today stepping. No data access — the range
  * consumer (useVisibleRangeItems) and the mutation layer live separately.
  */
-export function useCalendarNav(isWide: boolean) {
-  const today = useMemo(() => todayCalendarKey(), []);
+export function useCalendarNav(isWide: boolean, providerToday?: string) {
+  /*
+   * #1642 W10 (H-01): "today" had two owners — the ScheduleItems provider's
+   * anchored `date` and a key this hook froze at mount. Past midnight the
+   * provider moved on and the calendar's Today button still went to
+   * yesterday. The host now hands the provider's value in, so both read the
+   * same key; the mount-time key is only the fallback for a caller with no
+   * provider (the hook's own tests).
+   */
+  const mountToday = useMemo(() => todayCalendarKey(), []);
+  const today = providerToday ?? mountToday;
   const [anchorDate, setAnchorDate] = useState(today);
   /*
    * #1174: the opening view is a preference now, not a literal. Seeded from
