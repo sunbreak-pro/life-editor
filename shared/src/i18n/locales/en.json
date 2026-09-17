@@ -850,6 +850,8 @@
   "undoRedo": {
     "undone": "Undid: {{label}}",
     "redone": "Redid: {{label}}",
+    "undoFailed": "Couldn't undo: {{label}}",
+    "redoFailed": "Couldn't redo: {{label}}",
     "labels": {
       "todoTreeChange": "todo change",
       "todoChipPlace": "todo placement",

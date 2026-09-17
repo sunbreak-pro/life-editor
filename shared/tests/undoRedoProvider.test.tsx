@@ -81,6 +81,46 @@ describe("UndoRedoProvider", () => {
     expect(onCommandApplied).toHaveBeenLastCalledWith("redo", "todoTreeChange");
   });
 
+  // #1668 — a throwing undo must not be announced as done.
+  it("fires onCommandFailed, not onCommandApplied, when the undo throws", async () => {
+    const onCommandApplied = vi.fn();
+    const onCommandFailed = vi.fn();
+    const boom = new Error("fail");
+    function Thrower() {
+      const { push, undo } = useUndoRedoContext();
+      return (
+        <>
+          <button
+            onClick={() =>
+              push("d", {
+                label: "updateNote",
+                undo: () => Promise.reject(boom),
+                redo: () => {},
+              })
+            }
+          >
+            p
+          </button>
+          <button onClick={() => undo()}>u</button>
+        </>
+      );
+    }
+    render(
+      <UndoRedoProvider
+        onCommandApplied={onCommandApplied}
+        onCommandFailed={onCommandFailed}
+      >
+        <Thrower />
+      </UndoRedoProvider>,
+    );
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    await act(async () => fireEvent.click(screen.getByText("p")));
+    await act(async () => fireEvent.click(screen.getByText("u")));
+    spy.mockRestore();
+    expect(onCommandApplied).not.toHaveBeenCalled();
+    expect(onCommandFailed).toHaveBeenCalledWith("undo", "updateNote", boom);
+  });
+
   it("clear() empties the stack through the context (unmount safety valve)", async () => {
     // TodoTreeProvider clears the global stack on unmount to avoid running a
     // dead provider's command after navigation (#304 child-1 safety valve).
