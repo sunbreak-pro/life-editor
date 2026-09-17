@@ -8,6 +8,7 @@ import {
   SessionCompletionModal,
   AudioMixer,
   RightSidebarPortal,
+  ScheduleSidebarTabs,
   useTimerContext,
   useAudioContext,
   useMediaQuery,
@@ -31,6 +32,7 @@ import {
 } from "@life-editor/shared";
 import { X, ChevronDown } from "lucide-react";
 import { formatShortDate } from "../schedule/scheduleCopy";
+import { WorkHistoryPanel } from "./WorkHistoryPanel";
 
 /*
  * Web Work tab host (target-IA import). Mounts inside the TimerProvider (wired
@@ -75,6 +77,9 @@ import { formatShortDate } from "../schedule/scheduleCopy";
  */
 const EVENT_WINDOW_DAYS = 7;
 
+/** The two tabs of the Work sidebar (#1666). */
+type WorkSidebarTab = "settings" | "history";
+
 /** Filled session dots: completedSessions within the current set. During a
  *  LONG_BREAK the set just wrapped, so show all dots filled (mod === 0). */
 function filledDots(
@@ -105,6 +110,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   const [eventItems, setEventItems] = useState<ScheduleItem[]>([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [completionOpen, setCompletionOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<WorkSidebarTab>("settings");
 
   const mixerSounds = useMemo<AudioMixerSound[]>(
     () =>
@@ -368,6 +374,33 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     </div>
   );
 
+  /*
+   * The sidebar as two tabs (#1666) — the same frame the Schedule section uses,
+   * reused as-is: ScheduleSidebarTabs takes its tabs and body from the host and
+   * carries nothing Schedule-specific, so Work adopting it changes nothing on
+   * the Schedule side. One portal still (two would stack in the panel).
+   *
+   * The history body mounts only while its tab is active, so the session log
+   * is read when someone asks for it rather than on every visit to Work.
+   */
+  const sidebarPanel = (
+    <ScheduleSidebarTabs
+      tabs={[
+        { id: "settings", label: t("work.sidebarTabs.settings") },
+        { id: "history", label: t("work.sidebarTabs.history") },
+      ]}
+      value={sidebarTab}
+      onChange={(id) => setSidebarTab(id as WorkSidebarTab)}
+      label={t("work.sidebarTabs.label")}
+    >
+      {sidebarTab === "settings" ? (
+        settingsPanel
+      ) : (
+        <WorkHistoryPanel dataService={ds} />
+      )}
+    </ScheduleSidebarTabs>
+  );
+
   // Mobile todo slot: the chip (selected) or a "choose a todo" button that
   // opens the BottomSheet picker.
   //
@@ -453,7 +486,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     return (
       <div className="flex flex-col">
         {timerFace("fullscreen", mobileTodoSlot)}
-        <RightSidebarPortal>{settingsPanel}</RightSidebarPortal>
+        <RightSidebarPortal>{sidebarPanel}</RightSidebarPortal>
         <PomodoroTodoSheet
           open={sheetOpen}
           onClose={() => setSheetOpen(false)}
@@ -521,7 +554,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           onSave={audio.saveVolumes}
         />
       )}
-      <RightSidebarPortal>{settingsPanel}</RightSidebarPortal>
+      <RightSidebarPortal>{sidebarPanel}</RightSidebarPortal>
       {completionModal}
     </div>
   );

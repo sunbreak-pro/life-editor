@@ -795,6 +795,9 @@ export { jsonDocEquals } from "./utils/jsonDocEquals";
 export {
   sessionTargetId,
   totalWorkMinutesForItem,
+  // #1666: the day the Work sidebar's history tab reads back.
+  pickWorkHistoryDay,
+  type WorkHistoryDay,
 } from "./utils/timerSessions";
 // `[[ ]]` edges parked until their source item's first save lands (#371).
 export {
