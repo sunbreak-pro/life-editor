@@ -104,6 +104,20 @@ const parseIso = dateFromKey;
 
 // ---- Editor card (shared between Desktop / Mobile, size via props) --------
 
+/*
+ * The card clips its children (overflow-hidden keeps the scrolling editor
+ * inside the rounded corners), and the header kebab's <Menu> is NOT portalled
+ * — it hangs below the trigger INSIDE this box. With min-h-0 the flex column
+ * squeezed a short day's card under the evening card until the menu's lower
+ * row (delete) was cut off and unclickable (#1679). The floor is about twice
+ * the open menu's reach (header pt-4 + 28px trigger + 2 rows ≈ 122px), so a
+ * third row still fits. Both widths share it: narrow draws the kebab outside
+ * the card, but an editor that short is also hard to type into. It replaces
+ * min-h-0 rather than joining it — `cn` does not merge, so two min-h classes
+ * would resolve by stylesheet order, not by argument order.
+ */
+export const DAILY_EDITOR_CARD_MIN_HEIGHT = "min-h-60";
+
 function EditorCard({
   dateLabel,
   dateClassName,
@@ -132,7 +146,13 @@ function EditorCard({
   onResolvedLinkInserted?: (targetId: string) => void;
 }) {
   return (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary shadow-lumen-sm">
+    <div
+      data-testid="daily-editor-card"
+      className={cn(
+        "flex flex-1 flex-col overflow-hidden rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary shadow-lumen-sm",
+        DAILY_EDITOR_CARD_MIN_HEIGHT,
+      )}
+    >
       <div className="flex items-start gap-2.5 px-5 pb-1 pt-4">
         <h1 className={cn("flex-1", dateClassName)}>{dateLabel}</h1>
         <span className="pt-1.5 text-[11.5px] text-lumen-text-tertiary">
