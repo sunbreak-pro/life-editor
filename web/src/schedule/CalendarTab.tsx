@@ -390,6 +390,7 @@ export function CalendarTab({
     handleTodoToggleComplete,
     handleTodoAddCandidate,
     handleTodoMoveOut,
+    handleTodoRename,
     handleTodoDelete,
     handleTodoDetailDelete,
   } = useScheduleTodoChips({
@@ -1093,10 +1094,7 @@ export function CalendarTab({
           onDelete: handleDelete,
         },
         todoActions: {
-          // The catch-all tree label: a rename is not a move, so none of the
-          // position-shaped todoChip* words fit (useTodoTreeHistory).
-          onRename: (id, title) =>
-            updateNode(id, { title }, { undoLabel: "todoTreeChange" }),
+          onRename: handleTodoRename,
           onDelete: handleTodoDelete,
           onConvertToEvent: handleConvertToEvent,
         },

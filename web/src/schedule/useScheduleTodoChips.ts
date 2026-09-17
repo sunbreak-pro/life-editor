@@ -109,6 +109,11 @@ export interface ScheduleTodoChipsApi {
   handleTodoAddCandidate: (todoId: string) => void;
   /** Tray, "take off today" — the row goes back to having no day (#1406). */
   handleTodoMoveOut: (todoId: string) => void;
+  /**
+   * Chip bubble rename (#1642 W8 / F-04). The only todo write that used to be
+   * spelled inline in CalendarTab's JSX instead of here.
+   */
+  handleTodoRename: (id: string, title: string) => void;
   /** Tray / bubble delete — asks only for a row with children (#573). */
   handleTodoDelete: (id: string) => void;
   /** Detail-panel delete — always asks, and closes the panel (#775). */
@@ -323,6 +328,15 @@ export function useScheduleTodoChips({
     [updateNode],
   );
 
+  // The catch-all tree label: a rename is not a move, so none of the
+  // position-shaped todoChip* words fit (useTodoTreeHistory).
+  const handleTodoRename = useCallback(
+    (id: string, title: string) => {
+      updateNode(id, { title }, { undoLabel: "todoTreeChange" });
+    },
+    [updateNode],
+  );
+
   // #573 (#555 follow-up): softDelete cascades through the subtree and both
   // recovery routes are weak (undo clears on section unmount; Trash restores
   // one row at a time), so a row with children confirms first. Leaves keep
@@ -396,6 +410,7 @@ export function useScheduleTodoChips({
     handleTodoToggleComplete,
     handleTodoAddCandidate,
     handleTodoMoveOut,
+    handleTodoRename,
     handleTodoDelete,
     handleTodoDetailDelete,
   };
