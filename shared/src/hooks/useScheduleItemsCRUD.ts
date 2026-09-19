@@ -7,6 +7,7 @@ import {
 import type { ScheduleItem } from "../types/schedule";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
+import type { UndoConfirmSpec } from "../utils/undoRedo/UndoRedoManager";
 import { generateId } from "../utils/generateId";
 import type { UndoRedoLike } from "./useTodoTreeHistory";
 import { isSameDate } from "./scheduleItemsHelpers";
@@ -45,6 +46,20 @@ export interface UseScheduleItemsCRUDParams {
   setItems: Dispatch<SetStateAction<ScheduleItem[]>>;
   setDeletedItems: Dispatch<SetStateAction<ScheduleItem[]>>;
   mirror: ScheduleItemsMirrorAccess;
+}
+
+/**
+ * The question an undo of this write has to pass, or undefined (#1638).
+ *
+ * A row generated from a routine is one face of a series, so reversing an edit
+ * to it is worth spelling out before it happens. The scope is always "this":
+ * every write in this module touches ONE occurrence — the series-wide writes
+ * live in the repeat layer, which tags its own commands.
+ */
+function repeatConfirm(
+  item: ScheduleItem | undefined,
+): UndoConfirmSpec | undefined {
+  return item?.routineId ? { kind: "repeat", scope: "this" } : undefined;
 }
 
 export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
@@ -123,6 +138,38 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
       if (isSameDate(optimistic, date)) {
         setItems((prev) => [...prev, optimistic]);
       }
+      /*
+       * #1638 W4 (B-02 / B-03): the undo command is pushed HERE, once the row
+       * exists, rather than beside the optimistic insert. Two faults came out
+       * of the old order: a create that never landed still left an entry on
+       * the stack (its "undo" soft-deleted an id the DB never had), and the
+       * redo re-inserted the OPTIMISTIC row, dropping whatever the server
+       * filled in (the reminder patch, the real timestamps).
+       */
+      const pushCreated = (saved: ScheduleItem) => {
+        push("scheduleItem", {
+          label: "createScheduleItem",
+          undo: () => {
+            setItems((prev) => prev.filter((i) => i.id !== id));
+            // #568: the grid reads the host's range store, so without this the
+            // row stayed on the calendar after the undo removed it from the DB.
+            mirror.remove(id);
+            ds.softDeleteScheduleItem(id).catch((e) =>
+              logServiceError("ScheduleItems", "undoCreate", e),
+            );
+          },
+          redo: () => {
+            setItems((prev) =>
+              isSameDate(saved, dateRef.current) ? [...prev, saved] : prev,
+            );
+            mirror.upsert(saved);
+            ds.restoreScheduleItem(id).catch((e) =>
+              logServiceError("ScheduleItems", "redoCreate", e),
+            );
+          },
+        });
+      };
+
       ds.createScheduleItem(
         id,
         itemDate,
@@ -137,6 +184,9 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
         opts?.memo,
       )
         .then((saved) => {
+          // The row exists from here on, so the history entry is owed whatever
+          // the reminder follow-up below does (#1638 W4).
+          pushCreated(saved);
           /*
            * #1374: a follow-up patch rather than a 12th positional argument
            * on a create signature four call sites and the whole Supabase
@@ -178,30 +228,6 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
           logServiceError("ScheduleItems", "create", e);
           opts?.onSaved?.(null);
         });
-
-      push("scheduleItem", {
-        label: "createScheduleItem",
-        undo: () => {
-          setItems((prev) => prev.filter((i) => i.id !== id));
-          // #568: the grid reads the host's range store, so without this the
-          // row stayed on the calendar after the undo removed it from the DB.
-          mirror.remove(id);
-          ds.softDeleteScheduleItem(id).catch((e) =>
-            logServiceError("ScheduleItems", "undoCreate", e),
-          );
-        },
-        redo: () => {
-          setItems((prev) =>
-            isSameDate(optimistic, dateRef.current)
-              ? [...prev, optimistic]
-              : prev,
-          );
-          mirror.upsert(optimistic);
-          ds.restoreScheduleItem(id).catch((e) =>
-            logServiceError("ScheduleItems", "redoCreate", e),
-          );
-        },
-      });
 
       return id;
     },
@@ -251,6 +277,7 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
         }
         push("scheduleItem", {
           label: "updateScheduleItem",
+          confirm: repeatConfirm(prev),
           undo: () => {
             setItems((p) =>
               p.map((i) =>
@@ -312,6 +339,7 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
       if (prev) {
         push("scheduleItem", {
           label: "toggleScheduleItemComplete",
+          confirm: repeatConfirm(prev),
           undo: () => {
             setItems((p) => p.map((i) => (i.id === id ? prev : i)));
             // #568: restore the exact pre-toggle pair in the grid's copy —
@@ -321,7 +349,16 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
               completed: prev.completed,
               completedAt: prev.completedAt,
             });
-            ds.toggleScheduleItemComplete(id).catch((e) =>
+            /*
+             * #1638 W4 (B-09): SET the recorded value back rather than toggle
+             * again. A second toggle assumes the row is still where this
+             * command left it — flip it on another device (or through the MCP
+             * tool) in between and the undo turns "done" back ON.
+             */
+            ds.updateScheduleItem(id, {
+              completed: prev.completed,
+              completedAt: prev.completedAt,
+            }).catch((e) =>
               logServiceError("ScheduleItems", "undoToggleComplete", e),
             );
           },
@@ -370,6 +407,7 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
       );
       push("scheduleItem", {
         label: "dismissScheduleItem",
+        confirm: repeatConfirm(prev),
         undo: () => {
           setItems((p) =>
             p.map((i) =>
@@ -411,6 +449,7 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
 
   const undismiss = useCallback(
     (id: string) => {
+      const prev = findItem(id);
       setItems((p) =>
         p.map((i) =>
           i.id === id
@@ -421,8 +460,55 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
       ds.undismissScheduleItem(id).catch((e) =>
         logServiceError("ScheduleItems", "undismiss", e),
       );
+      /*
+       * #1638 (A-02): "bring the skipped day back" is the mirror image of the
+       * skip beside it, and the skip has been undoable since #568. Without
+       * this, the pair read as one reversible act and one final one.
+       *
+       * The row is put back on the grid the same way the dismiss undo does it
+       * (mirror.restore with the snapshot, because the host drops dismissed
+       * rows from its range store entirely).
+       */
+      push("scheduleItem", {
+        label: "undismissScheduleItem",
+        confirm: repeatConfirm(prev),
+        undo: () => {
+          setItems((p) =>
+            p.map((i) =>
+              i.id === id
+                ? {
+                    ...i,
+                    isDismissed: true,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : i,
+            ),
+          );
+          mirror.remove(id);
+          ds.dismissScheduleItem(id).catch((e) =>
+            logServiceError("ScheduleItems", "undoUndismiss", e),
+          );
+        },
+        redo: () => {
+          setItems((p) =>
+            p.map((i) =>
+              i.id === id
+                ? {
+                    ...i,
+                    isDismissed: false,
+                    updatedAt: new Date().toISOString(),
+                  }
+                : i,
+            ),
+          );
+          mirror.restore(id, prev, { isDismissed: false });
+          ds.undismissScheduleItem(id).catch((e) =>
+            logServiceError("ScheduleItems", "redoUndismiss", e),
+          );
+        },
+      });
     },
-    [ds, setItems],
+    [ds, push, findItem, setItems, mirror],
   );
 
   // ── Soft delete ─────────────────────────────────────────────────────
@@ -448,6 +534,7 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
       if (target && !opts?.skipUndo) {
         push("scheduleItem", {
           label: "deleteScheduleItem",
+          confirm: repeatConfirm(target),
           undo: () => {
             setItems((prev) =>
               isSameDate(target, dateRef.current) ? [...prev, target] : prev,
@@ -490,15 +577,51 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
   const bulkDeleteScheduleItems = useCallback(
     async (ids: string[]): Promise<number> => {
       const idSet = new Set(ids);
+      // Snapshots BEFORE the removal, so the undo can put the rows back on the
+      // grid rather than only in the DB (#568's rule, applied to a batch).
+      const targets = ids
+        .map((id) => findItem(id))
+        .filter((i): i is ScheduleItem => i != null);
       setItems((prev) => prev.filter((i) => !idSet.has(i.id)));
+      let count: number;
       try {
-        return await ds.bulkDeleteScheduleItems(ids);
+        count = await ds.bulkDeleteScheduleItems(ids);
       } catch (e) {
         logServiceError("ScheduleItems", "bulkDelete", e);
         return 0;
       }
+      /*
+       * #1638 (A-10): pushed after the batch lands, and only if it did —
+       * the same rule the single delete follows. One command for the whole
+       * batch: it was one action, so one Ctrl+Z reverses it.
+       */
+      if (count > 0) {
+        push("scheduleItem", {
+          label: "deleteScheduleItem",
+          undo: () => {
+            setItems((prev) => [
+              ...prev,
+              ...targets.filter((t) => isSameDate(t, dateRef.current)),
+            ]);
+            for (const target of targets) {
+              mirror.upsert({ ...target, isDeleted: false, deletedAt: null });
+              ds.restoreScheduleItem(target.id).catch((e) =>
+                logServiceError("ScheduleItems", "undoBulkDelete", e),
+              );
+            }
+          },
+          redo: () => {
+            setItems((prev) => prev.filter((i) => !idSet.has(i.id)));
+            for (const target of targets) mirror.remove(target.id);
+            ds.bulkDeleteScheduleItems(ids).catch((e) =>
+              logServiceError("ScheduleItems", "redoBulkDelete", e),
+            );
+          },
+        });
+      }
+      return count;
     },
-    [ds, setItems],
+    [ds, push, findItem, dateRef, setItems, mirror],
   );
 
   return {

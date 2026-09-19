@@ -335,8 +335,9 @@ export function SidebarNav({
                 /*
                  * `font-sans` is load-bearing, not cosmetic. Tailwind preflight
                  * puts every <kbd> on --font-mono, and nothing here overrode
-                 * it, so the Windows hint "Ctrl K" rendered as six fixed-pitch
-                 * advances — far wider than the same string in the UI font the
+                 * it (#1672 gave the other four keycaps the same class, so the
+                 * app now has one keycap typeface), so the Windows hint
+                 * "Ctrl K" rendered as six fixed-pitch advances — far wider than the same string in the UI font the
                  * rest of the row uses, and on its own enough to overrun the
                  * budget. macOS never showed the bug because "⌘K" is two
                  * glyphs. `min-w-0 truncate` makes the keycap the part that

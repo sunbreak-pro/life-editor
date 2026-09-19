@@ -245,6 +245,7 @@ function Host({
           onToggleRepeats: NOOP,
           onOpenFilter: NOOP,
           filterActive: false,
+          filterCount: 0,
           onAddEvent: NOOP,
         }}
         lens={LENS}

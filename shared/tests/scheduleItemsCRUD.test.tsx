@@ -247,6 +247,9 @@ describe("create", () => {
     });
 
     let id = "";
+    // #1638 W4: the command is pushed once the row EXISTS, so the create has
+    // to settle before there is anything to undo. Before the write lands the
+    // stack is still empty — asserted here so the order cannot quietly go back.
     act(() => {
       id = hook.result.current.createScheduleItem(
         TODAY,
@@ -255,6 +258,8 @@ describe("create", () => {
         "09:15",
       );
     });
+    expect(labels()).toEqual([]);
+    await act(async () => {});
     expect(labels()).toEqual(["createScheduleItem"]);
 
     act(() => commands[0].undo());
@@ -277,7 +282,7 @@ describe("create", () => {
     const { undoRedo, commands } = makeHistory();
     const hook = await renderAPI(ds, undoRedo);
 
-    act(() => {
+    await act(async () => {
       hook.result.current.createScheduleItem(
         TODAY,
         "standup",
@@ -328,19 +333,34 @@ describe("dismiss / undismiss", () => {
 
   // Undo-free on purpose: undismiss IS the undo of a dismiss, and the button
   // that offers it only exists on rows the user already dismissed.
-  it("undismisses without pushing a command", async () => {
+  // #1638 (A-02): "bring the skipped day back" is the mirror image of the skip
+  // next to it, and the skip has been undoable since #568. One of the pair
+  // being final read as a bug in the other.
+  it("undismisses, and the undo skips the day again", async () => {
     const { ds } = makeDS({
       fetchScheduleItemsByDateAll: vi.fn(() =>
         Promise.resolve([item("s-1", { isDismissed: true })]),
       ),
     });
-    const { undoRedo, labels } = makeHistory();
+    const { undoRedo, commands, labels } = makeHistory();
     const hook = await renderAPI(ds, undoRedo);
+    const { mirror, rows } = makeFakeMirror();
+    act(() => hook.result.current.registerViewMirror(mirror));
 
     act(() => hook.result.current.undismiss("s-1"));
     expect(hook.result.current.items[0].isDismissed).toBe(false);
     expect(ds.undismissScheduleItem).toHaveBeenCalledWith("s-1");
-    expect(labels()).toEqual([]);
+    expect(labels()).toEqual(["undismissScheduleItem"]);
+
+    act(() => commands[0].undo());
+    expect(hook.result.current.items[0].isDismissed).toBe(true);
+    expect(ds.dismissScheduleItem).toHaveBeenCalledWith("s-1");
+    // The grid drops a dismissed row entirely, so the undo takes it off there.
+    expect(rows()).toHaveLength(0);
+
+    act(() => commands[0].redo());
+    expect(hook.result.current.items[0].isDismissed).toBe(false);
+    expect(ds.undismissScheduleItem).toHaveBeenCalledTimes(2);
   });
 });
 
@@ -364,8 +384,35 @@ describe("bulk delete", () => {
     });
     expect(deleted).toBe(2);
     expect(hook.result.current.items.map((i) => i.id)).toEqual(["s-2"]);
-    // No undo for a bulk purge — Trash is the recovery path.
-    expect(labels()).toEqual([]);
+    // #1638 (A-10): one command for the batch — it was one action, so one
+    // Ctrl+Z reverses it. Trash stays the longer-lived recovery path.
+    expect(labels()).toEqual(["deleteScheduleItem"]);
+  });
+
+  it("restores every row of the batch on undo, and re-deletes on redo", async () => {
+    const { ds } = makeDS({
+      fetchScheduleItemsByDateAll: vi.fn(() =>
+        Promise.resolve([item("s-1"), item("s-2")]),
+      ),
+      bulkDeleteScheduleItems: vi.fn(() => Promise.resolve(2)),
+    });
+    const { undoRedo, commands } = makeHistory();
+    const hook = await renderAPI(ds, undoRedo);
+
+    await act(async () => {
+      await hook.result.current.bulkDeleteScheduleItems(["s-1", "s-2"]);
+    });
+    act(() => commands[0].undo());
+    expect(hook.result.current.items.map((i) => i.id).sort()).toEqual([
+      "s-1",
+      "s-2",
+    ]);
+    expect(ds.restoreScheduleItem).toHaveBeenCalledWith("s-1");
+    expect(ds.restoreScheduleItem).toHaveBeenCalledWith("s-2");
+
+    act(() => commands[0].redo());
+    expect(hook.result.current.items).toEqual([]);
+    expect(ds.bulkDeleteScheduleItems).toHaveBeenCalledTimes(2);
   });
 
   it("returns 0 when the service fails", async () => {

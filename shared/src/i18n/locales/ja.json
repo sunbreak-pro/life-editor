@@ -316,6 +316,18 @@
       "save": "保存",
       "saved": "保存済み",
       "unsaved": "未保存"
+    },
+    "sidebarTabs": {
+      "label": "Work のサイドバー",
+      "settings": "タイマー設定",
+      "history": "履歴"
+    },
+    "history": {
+      "today": "今日",
+      "latestDay": "直近の作業日 · {{date}}",
+      "empty": "まだ作業の記録がありません。終えたセッションがここに並びます。",
+      "noTarget": "紐づけなし",
+      "minutes": "{{minutes}} 分"
     }
   },
   "audioMixer": {
@@ -455,7 +467,11 @@
       "filterPlaceholder": "エントリを絞り込む…",
       "filterLabel": "エントリを絞り込む",
       "eveningTitle": "夕刊",
-      "eveningScheduleTitle": "この日のスケジュール"
+      "eveningScheduleTitle": "この日のスケジュール",
+      "eveningMood": "気分",
+      "eveningStart": "夕刊を書く",
+      "eveningEditReflection": "振り返りを編集",
+      "eveningReflectionPlaceholder": "この日はどんな一日でしたか…"
     },
     "tags": {
       "colorLabel": "色",
@@ -645,6 +661,13 @@
     "scopeThisAndFuture": "この予定と今後の予定",
     "scopeAll": "すべての予定（過去分も含む）",
     "scopeCancel": "キャンセル",
+    "undoRepeatTitle": "繰り返しの予定への変更を元に戻しますか？",
+    "redoRepeatTitle": "繰り返しの予定への変更をやり直しますか？",
+    "undoRepeatScopeThis": "この回だけに効きます。",
+    "undoRepeatScopeFuture": "この回と、以降の回に効きます。",
+    "undoRepeatScopeAll": "この繰り返しのすべての回に効きます。",
+    "undoRepeatConfirm": "元に戻す",
+    "redoRepeatConfirm": "やり直す",
     "openFilter": "タグで絞り込む",
     "filterActive_other": "タグ {{count}} 件で絞り込み中",
     "filterTitle": "タグで絞り込む",
@@ -859,6 +882,7 @@
       "updateScheduleItem": "予定の変更",
       "toggleScheduleItemComplete": "予定の完了切替",
       "dismissScheduleItem": "予定の非表示",
+      "undismissScheduleItem": "スキップの取り消し",
       "deleteScheduleItem": "予定の削除",
       "convertEventToTodo": "予定を Todo に変換",
       "convertTodoToEvent": "Todo を予定に変換",
@@ -987,21 +1011,6 @@
       "recentEmpty": "このタグが付いたアイテムはまだありません。"
     },
     "mergeTag": "別のタグへ統合…",
-    "selection": {
-      "region": "選択中のアイテム",
-      "selected_other": "{{count}} 件を選択中",
-      "assign": "タグを付ける",
-      "remove": "このタグを外す",
-      "move": "別のタグへ移す",
-      "clear": "選択解除",
-      "assignTitle": "選択したアイテムにタグを付ける",
-      "moveTitle": "選択したアイテムを別のタグへ移す",
-      "selectItem": "「{{title}}」を選択",
-      "search": "タグを検索・作成…",
-      "create": "「{{name}}」を作成",
-      "pickerEmpty": "一致するタグはありません",
-      "failed_other": "{{count}} 件を更新できませんでした。通信を確認してください。"
-    },
     "merge": {
       "title": "「{{name}}」を統合する",
       "targetsLabel": "統合先のタグ",
@@ -1011,20 +1020,35 @@
       "confirm": "統合する",
       "failed": "統合が最後まで終わりませんでした。取りこぼしが出ないよう、元のタグは残しています。"
     },
+    "selection": {
+      "assign": "タグを付ける",
+      "assignTitle": "選択したアイテムにタグを付ける",
+      "clear": "選択解除",
+      "create": "「{{name}}」を作成",
+      "failed_other": "{{count}} 件を更新できませんでした。通信を確認してください。",
+      "move": "別のタグへ移す",
+      "moveTitle": "選択したアイテムを別のタグへ移す",
+      "pickerEmpty": "一致するタグはありません",
+      "region": "選択中のアイテム",
+      "remove": "このタグを外す",
+      "search": "タグを検索・作成…",
+      "selectItem": "「{{title}}」を選択",
+      "selected_other": "{{count}} 件を選択中"
+    },
     "relations": {
-      "back": "このタグへ戻る",
-      "openItem": "元の画面で開く",
-      "links": "リンク",
-      "sharedTags": "同じタグのアイテム",
-      "sameDayDaily": "同じ日のデイリー",
-      "section": "{{label}}（{{count}}）",
-      "sectionEmpty": "まだありません。",
-      "removeLink": "「{{title}}」へのリンクを外す",
       "addLink": "リンクを追加",
       "addLinkDialog": "リンクするアイテムを選ぶ",
-      "searchPlaceholder": "タイトルで検索…",
+      "back": "このタグへ戻る",
+      "links": "リンク",
       "noCandidates": "一致するアイテムはありません",
+      "openItem": "元の画面で開く",
       "openRow": "「{{title}}」を開く",
+      "removeLink": "「{{title}}」へのリンクを外す",
+      "sameDayDaily": "同じ日のデイリー",
+      "searchPlaceholder": "タイトルで検索…",
+      "section": "{{label}}（{{count}}）",
+      "sectionEmpty": "まだありません。",
+      "sharedTags": "同じタグのアイテム",
       "writeFailed": "リンクを保存できませんでした。通信を確認してください。"
     }
   },
@@ -1035,7 +1059,8 @@
     "download": "ダウンロード",
     "remove": "添付を削除",
     "tooLarge": "ファイルが大きすぎます。上限は {{limit}} です。",
-    "uploadFailed": "ファイルをアップロードできませんでした。もう一度お試しください。"
+    "uploadFailed": "ファイルをアップロードできませんでした。もう一度お試しください。",
+    "uploading": "アップロード中…"
   },
   "linkCard": {
     "open": "リンクを開く",
