@@ -455,7 +455,11 @@
       "filterPlaceholder": "エントリを絞り込む…",
       "filterLabel": "エントリを絞り込む",
       "eveningTitle": "夕刊",
-      "eveningScheduleTitle": "この日のスケジュール"
+      "eveningScheduleTitle": "この日のスケジュール",
+      "eveningMood": "気分",
+      "eveningStart": "夕刊を書く",
+      "eveningEditReflection": "振り返りを編集",
+      "eveningReflectionPlaceholder": "この日はどんな一日でしたか…"
     },
     "tags": {
       "colorLabel": "色",

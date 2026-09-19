@@ -1,5 +1,5 @@
-import { describe, it, expect } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { describe, it, expect, vi } from "vitest";
+import { render, screen, fireEvent } from "@testing-library/react";
 import { DailyEveningCard } from "../src/components/materials/DailyEveningCard";
 
 /*
@@ -107,5 +107,35 @@ describe("DailyEveningCard", () => {
       />,
     );
     expect(screen.queryByText("THE DAY'S SCHEDULE")).toBeNull();
+  });
+
+  // #1680 — the editable variant the Daily host mounts.
+  it("turns the stars into toggle buttons when the host can save a mood", () => {
+    const onSelectMood = vi.fn();
+    render(
+      <DailyEveningCard
+        mood={2}
+        reflectionLines={["kept out"]}
+        schedule={[]}
+        labels={{ ...LABELS, moodGroup: "Mood" }}
+        onSelectMood={onSelectMood}
+        reflectionSlot={<p>slot</p>}
+      />,
+    );
+
+    screen.getByRole("group", { name: "Mood" });
+    const pressed = screen
+      .getAllByRole("button")
+      .filter((b) => b.getAttribute("aria-pressed") === "true");
+    expect(pressed.map((b) => b.getAttribute("aria-label"))).toEqual([
+      "Mood 2/5",
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "Mood 5/5" }));
+    expect(onSelectMood).toHaveBeenCalledExactlyOnceWith(5);
+
+    // The slot replaces the printed lines rather than stacking under them.
+    screen.getByText("slot");
+    expect(screen.queryByText("kept out")).toBeNull();
+    expect(screen.queryByRole("img")).toBeNull();
   });
 });

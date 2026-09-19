@@ -456,7 +456,11 @@
       "filterPlaceholder": "Filter entries…",
       "filterLabel": "Filter entries",
       "eveningTitle": "EVENING",
-      "eveningScheduleTitle": "THE DAY'S SCHEDULE"
+      "eveningScheduleTitle": "THE DAY'S SCHEDULE",
+      "eveningMood": "Mood",
+      "eveningStart": "Add an evening note",
+      "eveningEditReflection": "Edit the reflection",
+      "eveningReflectionPlaceholder": "How did the day go…"
     },
     "tags": {
       "colorLabel": "Color",
