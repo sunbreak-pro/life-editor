@@ -1,5 +1,29 @@
 # HISTORY (chat-connect-refine)
 
+### 2026-09-19 - Connect ワークベンチの残り 4 Issue を 5 PR で出した（#1676 / #1644 / #1645 / #1646）
+
+#### 概要
+
+`/goal` で受けた 4 Issue を順に実装し、PR #1685（merged）+ #1696 / #1698 / #1703 / #1709（open）にした。どの PR も base = main で、CI verify の 14 ステップをローカルで通してから出している。計画書は Status COMPLETED にして `.claude/archive/` へ移した。
+
+#### 変更点
+
+- **#1676（PR #1685・merged）**: タグレールの行を右クリックすると「…」と同じメニューがカーソル位置に開く。`Menu` に `anchorPoint`（viewport 座標 = `position: fixed` + 画面端で内側へ寄せる）を足し、メニューと編集下書きを `TagActionsMenu` + `useTagActionsMenu` + `useTagEditDrafts` として hub の外から呼べる形に切り出した（#1677 が使う）。narrow と「…」の無い行では既定のコンテキストメニューを潰さない
+- **#1644（PR #1696 + #1698）**: `useWikiTagsUnifiedAPI` に `bulkAssign` / `bulkUnassign` / `moveItemsToTag` / `mergeTags`（既存の 1 行書き込みの逐次呼び出し・成功 / 失敗件数を返す。統合は assign → unassign → soft delete で、1 件でも失敗したら統合元を残す）。UI はアイテム行のチェックボックス + 下端の選択バー（タグを付ける / 外す / 別のタグへ移す / 選択解除）とタグ検索ポップオーバー、行メニューの「別のタグへ統合…」から開く `TagMergeDialog`
+- **#1645（PR #1703）**: 行クリック = 選択に変え、右パネルをモード B（`RelationPanel` = リンク / 同じタグ / 同じ日のデイリー + リンクの追加と削除）へ。導出は shared の `buildItemRelations` に切り出し、`LinkPanel` も同じ関数を読む
+- **#1646（PR #1709）**: narrow を 3 段に。行の「…」は BottomSheet、編集は `TagHubEditBlock` の 1 欄版（`only` prop）をシートで、関連もシート。複数選択・統合は Desktop 専用のまま。docs = `mobile-scope.md` #13 / brief の Status / 裁定の implemented-by / 計画書の archive 移動
+
+#### 設計判断と実測
+
+- **#1644 を 2 本に割った**: 1 PR で 1,250 行になり Issue の 900 行上限を超えたため、計画書の Step 6（API + 統合）と Step 7（複数選択）の境目で分割した。#1645 は 985 行で 9% 超過のまま出した（部品とそのテストを割ると挙動がレビューできなくなるため、PR 本文に明記）
+- **`buildItemRelations` は `connections` ではなく `getLinksForItem` の 2 バケットを受け取る**: 計画書の草案は全リンクを渡す形だったが、`LinkPanel` は昔からバケット済みの配列を信じており、そのテスト（1 行も変えずに緑にするのが I-4a の DoD）が itemId と一致しないリンクを混ぜていた
+- **narrow の編集シートは `editFocusField` では駆動できない**: あれは最初の操作で消える 1 回限りのフォーカス要求なので、最初のキー入力でシートが閉じた。シート専用の `sheetField` に分けた
+- **Mobile の上部バー「＋」は未実装**（P-008 でキューへ）: narrow ヘッダーは shell の形状 enum で、末尾アクションを足すと `MainScreen.tsx`（本 Issue の Scope 外）に触る。タグ追加はレール下端の追加行が入口として残っている
+- **検証**: 各 PR で CI verify の 14 ステップ全緑（最終形で shared 3138 tests / web 1246 tests）。`LC_ALL=C bash scripts/docs-lint.sh` = OK（この PC で 18 分）、`records.mjs check` = OK
+- **事故**: 検証プロセスを止めるつもりの `kill` が `ps | grep verify.sh` で materials-refine の verify にも当たり、そちらを止めてしまった。連絡済み・先方は回し直して復旧。以後は自分の pid をファイルに控えて対象を絞った
+
+---
+
 ### 2026-09-16 - タグ編集モーダルを Connect に畳んだ（#1643 / PR #1657 open）
 
 #### 概要
