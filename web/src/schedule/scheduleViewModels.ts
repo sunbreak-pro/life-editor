@@ -1,4 +1,6 @@
 import {
+  holidayItemId,
+  holidaysInRange,
   itemVariant,
   sortDayItems,
   todoChipId,
@@ -71,6 +73,38 @@ function eventTagColor(
     tagColors.get(item.id) ??
     (item.routineId ? tagColors.get(item.routineId) : undefined)
   );
+}
+
+/**
+ * The holidays inside a window, as grid rows (#1626).
+ *
+ * One builder for both grids rather than one each: a holiday is an all-day
+ * row with a title and nothing else, so the week block and the month chip
+ * carry the SAME fields — the asymmetries that made the three builders below
+ * separate (times, completion, provenance) have no holiday counterpart.
+ *
+ * The colour rides the `tagColor` channel, which is the one the surfaces
+ * already use to override the variant's token pair with a user-chosen hex.
+ * Every row gets the same one, which is what "全祝日で 1 つを共有" means.
+ *
+ * `00:00`–`00:00` because the two grid item types require the pair; nothing
+ * reads it, since `isAllDay` sends the row to the lane above the time body.
+ */
+export function toHolidayGridItems(
+  startKey: string,
+  endKey: string,
+  color: string,
+): Array<WeekTimeGridItem & MonthGridItem> {
+  return holidaysInRange(startKey, endKey).map((h) => ({
+    id: holidayItemId(h.date),
+    date: h.date,
+    title: h.name,
+    startTime: "00:00",
+    endTime: "00:00",
+    isAllDay: true,
+    variant: "holiday" as const,
+    tagColor: color,
+  }));
 }
 
 /** Blocks for the week/day time grid (WeekTimeGrid). */

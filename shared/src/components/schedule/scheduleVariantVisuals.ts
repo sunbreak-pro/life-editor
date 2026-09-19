@@ -19,8 +19,15 @@
  * Where a Schedule row came from. Named once so the three item types
  * (WeekTimeGridItem / MonthGridItem / AgendaItem) cannot drift apart — they
  * are the same fact seen through three layouts.
+ *
+ * "holiday" (#1626) is the one that came from nowhere the user can reach: it
+ * is computed from the law (japaneseHolidays), has no row behind it, and is
+ * therefore the only variant the surfaces draw as text rather than as a
+ * control. Its face colour never comes from the token pairs below — every
+ * holiday wears the ONE colour chosen in Settings, which arrives through the
+ * same `tagColor` channel a tag's colour does.
  */
-export type ScheduleItemVariant = "routine" | "event" | "task";
+export type ScheduleItemVariant = "routine" | "event" | "task" | "holiday";
 
 /** Leading-dot color for a chip/row surface (MonthGrid, AgendaList). */
 export function dotColorClasses(variant: ScheduleItemVariant): string {

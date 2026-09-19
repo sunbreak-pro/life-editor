@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+} from "react";
 import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
 import { tagFaceStyle } from "../../utils/scheduleTagColor";
@@ -445,7 +451,12 @@ export function WeekTimeGrid({
             if (!todoId) return;
             e.preventDefault();
             if (!timed) {
-              onDropTodo({ todoId, dateISO: dateKey, startTime: null, endTime: null });
+              onDropTodo({
+                todoId,
+                dateISO: dateKey,
+                startTime: null,
+                endTime: null,
+              });
               return;
             }
             const rect = e.currentTarget.getBoundingClientRect();
@@ -566,6 +577,27 @@ export function WeekTimeGrid({
                 >
                   {allDay.map((it) => {
                     const selected = it.id === selectedId;
+                    /*
+                     * #1626: a holiday is drawn, not operated. It has no row
+                     * behind it — its name and its date come from the law
+                     * (japaneseHolidays) — so there is nothing for a click,
+                     * a double-click or a long press to open. A control that
+                     * answers no gesture reads as broken, so it is a span,
+                     * wearing the one colour Settings chose for all of them.
+                     */
+                    if (it.variant === "holiday") {
+                      return (
+                        <span
+                          key={it.id}
+                          title={it.title}
+                          data-holiday-chip={it.date}
+                          style={tagFaceStyle(it.tagColor)}
+                          className="block w-full truncate rounded px-1 py-0.5 text-left text-xs font-medium"
+                        >
+                          {it.title}
+                        </span>
+                      );
+                    }
                     // A-3 (#298): an all-day todo chip can be dragged down into
                     // the time body to gain a start time (only todo chips, only
                     // when the host opts in via todoInteractive + onMoveItem).

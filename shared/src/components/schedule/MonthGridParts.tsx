@@ -183,72 +183,94 @@ export function MonthFullChips({
 }: FullChipsProps) {
   return (
     <>
-      {items.slice(0, shown).map((it) => (
-        <button
-          key={it.id}
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            if (onItemActivate)
-              onItemActivate(it.id, {
-                x: e.clientX,
-                y: e.clientY,
-              });
-            else onSelectItem?.(it.id);
-          }}
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            onItemDoubleClick?.(it.id);
-          }}
-          onContextMenu={
-            onItemContextMenu
-              ? (e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  onItemContextMenu(it.id, {
-                    x: e.clientX,
-                    y: e.clientY,
-                  });
-                }
-              : undefined
-          }
-          title={it.title}
-          // #1580 — see the compact body above.
-          style={tagFaceStyle(it.tagColor)}
-          className={cn(
-            // #1584: `cursor-pointer` says it out loud. Tailwind
-            // preflight resets every <button> to the arrow, so a
-            // chip read as decoration until it was clicked.
-            "pointer-events-auto cursor-pointer rounded px-1 py-0.5 text-left text-xs font-medium",
-            // #593: todo chips carry the CheckSquare todo mark,
-            // matching the week grid, so the cue does not vanish
-            // when the same item is viewed by month.
-            it.variant === "task"
-              ? "flex items-center gap-1"
-              : "block truncate",
-            CELL_FOCUS,
-            !it.tagColor && chipFaceClasses(it.variant ?? "event"),
-            // Gated on the variant (#1373): the MCP tool still
-            // writes `completed` for events, and an event struck
-            // through with no control to clear it would be worse
-            // than the toggle that went.
-            it.variant === "task" && it.completed && "line-through opacity-55",
-          )}
-        >
-          {it.variant === "task" ? (
-            <>
-              <CheckSquare
-                aria-hidden
-                className="size-3 shrink-0"
-                strokeWidth={2.5}
-              />
-              <span className="truncate">{it.title || " "}</span>
-            </>
-          ) : (
-            it.title || " "
-          )}
-        </button>
-      ))}
+      {items.slice(0, shown).map((it) =>
+        /*
+         * #1626: a holiday is drawn, not operated. It has no row behind it —
+         * its name and its date are the law's — so there is nothing for a
+         * click to open and nothing a context menu could offer. A <button>
+         * that answers no gesture reads as broken (the same argument #1584
+         * made in reverse for the chips that DO), so it is a span instead,
+         * wearing the chip's own face.
+         */
+        it.variant === "holiday" ? (
+          <span
+            key={it.id}
+            title={it.title}
+            data-holiday-chip={it.date}
+            style={tagFaceStyle(it.tagColor)}
+            className="block truncate rounded px-1 py-0.5 text-left text-xs font-medium"
+          >
+            {it.title}
+          </span>
+        ) : (
+          <button
+            key={it.id}
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              if (onItemActivate)
+                onItemActivate(it.id, {
+                  x: e.clientX,
+                  y: e.clientY,
+                });
+              else onSelectItem?.(it.id);
+            }}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onItemDoubleClick?.(it.id);
+            }}
+            onContextMenu={
+              onItemContextMenu
+                ? (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onItemContextMenu(it.id, {
+                      x: e.clientX,
+                      y: e.clientY,
+                    });
+                  }
+                : undefined
+            }
+            title={it.title}
+            // #1580 — see the compact body above.
+            style={tagFaceStyle(it.tagColor)}
+            className={cn(
+              // #1584: `cursor-pointer` says it out loud. Tailwind
+              // preflight resets every <button> to the arrow, so a
+              // chip read as decoration until it was clicked.
+              "pointer-events-auto cursor-pointer rounded px-1 py-0.5 text-left text-xs font-medium",
+              // #593: todo chips carry the CheckSquare todo mark,
+              // matching the week grid, so the cue does not vanish
+              // when the same item is viewed by month.
+              it.variant === "task"
+                ? "flex items-center gap-1"
+                : "block truncate",
+              CELL_FOCUS,
+              !it.tagColor && chipFaceClasses(it.variant ?? "event"),
+              // Gated on the variant (#1373): the MCP tool still
+              // writes `completed` for events, and an event struck
+              // through with no control to clear it would be worse
+              // than the toggle that went.
+              it.variant === "task" &&
+                it.completed &&
+                "line-through opacity-55",
+            )}
+          >
+            {it.variant === "task" ? (
+              <>
+                <CheckSquare
+                  aria-hidden
+                  className="size-3 shrink-0"
+                  strokeWidth={2.5}
+                />
+                <span className="truncate">{it.title || " "}</span>
+              </>
+            ) : (
+              it.title || " "
+            )}
+          </button>
+        ),
+      )}
       {overflow > 0 && (
         <span className="px-1 text-xs text-lumen-text-tertiary">
           {formatMoreCount(overflow)}

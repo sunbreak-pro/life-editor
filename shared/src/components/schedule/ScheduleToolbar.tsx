@@ -1,6 +1,7 @@
 import {
   ChevronLeft,
   ChevronRight,
+  Flag,
   ListFilter,
   Plus,
   Repeat,
@@ -48,6 +49,13 @@ export interface ScheduleToolbarLabels {
    * slot on a filtered grid would otherwise read as free time (#466).
    */
   repeatsHidden?: string;
+  /** Holiday filter, filter OFF: the action ("Hide holidays"). */
+  hideHolidays?: string;
+  /**
+   * Same button, filter ON: what is folded away, count included — the #466
+   * reason applies unchanged (an empty slot must not read as free time).
+   */
+  holidaysHidden?: string;
 }
 
 export interface ScheduleToolbarProps {
@@ -67,6 +75,13 @@ export interface ScheduleToolbarProps {
   onToggleRepeats?: () => void;
   /** Whether repeat-generated items are currently folded out of the grid. */
   repeatsHidden?: boolean;
+  /**
+   * Holiday filter toggle (#1626), offered beside the repeat one. Hidden when
+   * omitted — Mobile leaves both out.
+   */
+  onToggleHolidays?: () => void;
+  /** Whether holidays are currently folded out of the grid. */
+  holidaysHidden?: boolean;
   /** Opens the tag-filter panel. Hidden when omitted. */
   onOpenFilter?: () => void;
   /** Whether a tag filter is currently narrowing the grid. */
@@ -102,6 +117,8 @@ export function ScheduleToolbar({
   onChangeView,
   onToggleRepeats,
   repeatsHidden = false,
+  onToggleHolidays,
+  holidaysHidden = false,
   onOpenFilter,
   filterActive = false,
   filterCount = 0,
@@ -161,6 +178,40 @@ export function ScheduleToolbar({
       </span>
 
       <div className="flex-1" />
+
+      {onToggleHolidays && (
+        /*
+         * #1626, beside the repeat toggle rather than inside the tag-filter
+         * panel: both fold away a WHOLE KIND of row, while the panel narrows
+         * by the user's own tags — and a holiday carries none, so it could
+         * not appear there. It stays a toggle for the same reason the repeat
+         * one is (below), and it comes FIRST so the two read as one pair with
+         * the always-on filters on the right of them.
+         *
+         * Icon-only on every width. The repeat button's label is load-bearing
+         * because it carries a count that a user can otherwise mistake for
+         * free time; a holiday is a fact about the day rather than something
+         * on it, so its count has no such reading — it rides the accessible
+         * name only, and the toolbar keeps the room for the one that needs it.
+         */
+        <button
+          type="button"
+          onClick={onToggleHolidays}
+          aria-pressed={holidaysHidden}
+          aria-label={
+            holidaysHidden ? labels.holidaysHidden : labels.hideHolidays
+          }
+          title={holidaysHidden ? labels.holidaysHidden : labels.hideHolidays}
+          data-holiday-filter={holidaysHidden ? "hidden" : "shown"}
+          className={cn(
+            ICON_BTN,
+            holidaysHidden &&
+              "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent hover:text-lumen-accent",
+          )}
+        >
+          <Flag aria-hidden className="size-3.5" />
+        </button>
+      )}
 
       {onToggleRepeats && (
         // A toggle, not a menu: with one filter there is nothing to choose
