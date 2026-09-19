@@ -5,6 +5,7 @@ import type { UndoRedoLike } from "../src/hooks/useTodoTreeHistory";
 import { createBumpableSync } from "./helpers/bumpableSync";
 import type { ScheduleItem } from "../src/types/schedule";
 import type { DataService } from "../src/services/DataService";
+import { ScheduleRestoreConflictError } from "../src/services/scheduleRestoreConflict";
 
 /*
  * The Trash surface pulled out of useScheduleItemsAPI in the #675 split,
@@ -134,7 +135,9 @@ describe("useScheduleItemsAPI trash surface (#675 split)", () => {
       expect(hook.result.current.deletedItems).toHaveLength(1),
     );
 
-    act(() => hook.result.current.restoreScheduleItem("s-1"));
+    await act(async () => {
+      await hook.result.current.restoreScheduleItem("s-1");
+    });
     expect(hook.result.current.deletedItems).toEqual([]);
     expect(hook.result.current.items.map((i) => i.id)).toEqual(["s-1"]);
     // The delete flags are cleared on the way back, or the restored row would
@@ -153,11 +156,60 @@ describe("useScheduleItemsAPI trash surface (#675 split)", () => {
       expect(hook.result.current.deletedItems).toHaveLength(1),
     );
 
-    act(() => hook.result.current.restoreScheduleItem("s-1"));
+    await act(async () => {
+      await hook.result.current.restoreScheduleItem("s-1");
+    });
     // Out of Trash either way — it just belongs to a day this view is not on.
     expect(hook.result.current.deletedItems).toEqual([]);
     expect(hook.result.current.items).toEqual([]);
     expect(ds.restoreScheduleItem).toHaveBeenCalledWith("s-1");
+  });
+
+  /*
+   * #1670 — the refusal the Trash screen already explains (#932), reached
+   * through the context instead. Both restore paths now run the same
+   * `restoreScheduleItemFromTrash`, so the answer cannot differ by caller.
+   */
+  it("leaves a refused row in the trash and says it was a conflict", async () => {
+    const { ds } = makeDS([[item("s-1")], [item("s-1")]], {
+      restoreScheduleItem: vi.fn(() =>
+        Promise.reject(new ScheduleRestoreConflictError(["s-1"])),
+      ),
+    });
+    const hook = await renderAPI(ds);
+    await waitFor(() =>
+      expect(hook.result.current.deletedItems).toHaveLength(1),
+    );
+
+    let outcome: string | undefined;
+    await act(async () => {
+      outcome = await hook.result.current.restoreScheduleItem("s-1");
+    });
+
+    expect(outcome).toBe("conflict");
+    // Still trashed on the server, so still in the list — and nothing was
+    // painted onto the anchored day on the way.
+    expect(hook.result.current.deletedItems.map((i) => i.id)).toEqual(["s-1"]);
+    expect(hook.result.current.items).toEqual([]);
+    expect(ds.fetchDeletedScheduleItems).toHaveBeenCalledTimes(2);
+  });
+
+  it("reports a broken restore as a failure, not a conflict", async () => {
+    const { ds } = makeDS([[item("s-1")], [item("s-1")]], {
+      restoreScheduleItem: vi.fn(() => Promise.reject(new Error("offline"))),
+    });
+    const hook = await renderAPI(ds);
+    await waitFor(() =>
+      expect(hook.result.current.deletedItems).toHaveLength(1),
+    );
+
+    let outcome: string | undefined;
+    await act(async () => {
+      outcome = await hook.result.current.restoreScheduleItem("s-1");
+    });
+
+    expect(outcome).toBe("failed");
+    expect(hook.result.current.deletedItems.map((i) => i.id)).toEqual(["s-1"]);
   });
 
   it("purges a row for good and never puts it back on screen", async () => {

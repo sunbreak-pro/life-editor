@@ -6,6 +6,7 @@ import {
   NoticePanel,
   TrashView,
   isScheduleRestoreConflict,
+  restoreScheduleItemFromTrash,
   useDomainLoad,
   useSyncDomains,
   useTranslation,
@@ -15,6 +16,7 @@ import {
   type TrashCategory,
   type TrashGroup,
   type TrashRef,
+  type TrashRestoreOutcome,
   type DailyNode,
   type NoteNode,
   type RoutineNode,
@@ -231,12 +233,10 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
       setBusy({ category, id, action: "restore" });
       setRestoreNotice(null);
       try {
-        await restoreByCategory(ds, category, id);
-        await reload();
-      } catch (e) {
+        const outcome = await restoreByCategory(ds, category, id);
         // A refused restore used to leave via an unhandled rejection: the
         // row stayed in the trash after the reload and nothing said why.
-        setRestoreNotice(isScheduleRestoreConflict(e) ? "conflict" : "failed");
+        if (outcome !== "restored") setRestoreNotice(outcome);
         await reload();
       } finally {
         setBusy(null);
@@ -279,7 +279,8 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
     async (
       action: TrashBusyAction,
       refs: TrashRef[],
-      run: (ref: TrashRef) => Promise<void>,
+      // A restore answers with its outcome; a permanent delete throws.
+      run: (ref: TrashRef) => Promise<TrashRestoreOutcome | void>,
     ) => {
       if (refs.length === 0) return;
       setBulkBusy(action);
@@ -288,12 +289,15 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
       let failures = 0;
       let conflict = false;
       for (const ref of refs) {
+        let outcome: TrashRestoreOutcome;
         try {
-          await run(ref);
+          outcome = (await run(ref)) ?? "restored";
         } catch (e) {
-          failures += 1;
-          if (isScheduleRestoreConflict(e)) conflict = true;
+          outcome = isScheduleRestoreConflict(e) ? "conflict" : "failed";
         }
+        if (outcome === "restored") continue;
+        failures += 1;
+        if (outcome === "conflict") conflict = true;
       }
       setBulkFailures(failures);
       if (conflict) setRestoreNotice("conflict");
@@ -460,22 +464,36 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   );
 }
 
-function restoreByCategory(
+/**
+ * Restore one row and say how it went. Events go through the same function
+ * the ScheduleItems context restores with (#1670), so the #932 refusal is
+ * judged in one place; the other categories have no refusal of their own and
+ * only ever come back `restored` or `failed`.
+ */
+async function restoreByCategory(
   ds: DataService,
   category: TrashCategory,
   id: string,
-): Promise<void> {
-  switch (category) {
-    case "todos":
-      return ds.restoreTodo(id);
-    case "notes":
-      return ds.restoreNoteUnified(id);
-    case "dailies":
-      return ds.restoreDailyUnified(id);
-    case "routines":
-      return ds.restoreRoutine(id);
-    case "events":
-      return ds.restoreScheduleItem(id);
+): Promise<TrashRestoreOutcome> {
+  if (category === "events") return restoreScheduleItemFromTrash(ds, id);
+  try {
+    switch (category) {
+      case "todos":
+        await ds.restoreTodo(id);
+        break;
+      case "notes":
+        await ds.restoreNoteUnified(id);
+        break;
+      case "dailies":
+        await ds.restoreDailyUnified(id);
+        break;
+      case "routines":
+        await ds.restoreRoutine(id);
+        break;
+    }
+    return "restored";
+  } catch {
+    return "failed";
   }
 }
 
