@@ -1197,9 +1197,14 @@ export function CalendarTab({
           onRename: handleRename,
           // #1664: the bubble's time edit goes through the same handler the
           // detail panel's save uses — scope dialog on a repeat, undo entry,
-          // optimistic patch, all of it.
+          // optimistic patch, all of it. #1747: *Reported*, because the tour's
+          // 3/10 step waits on a time change and the bubble is the shortest way
+          // to make one — calling the bare handleUpdate left the step stuck.
           onRetime: (id, next) =>
-            handleUpdate(id, { startTime: next.start, endTime: next.end }),
+            handleUpdateReported(id, {
+              startTime: next.start,
+              endTime: next.end,
+            }),
           onDuplicate: handleDuplicate,
           onConvertToTodo: handleConvertToTodo,
           onDelete: handleDelete,
