@@ -1,5 +1,20 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-09-19 (3) - #1750 気分スターの Undo が書き込み失敗を握りつぶす（PR #1754）
+
+#### 概要
+
+shared-fix レーンが #1681 の棚卸し中に Scope 外で見つけた 1 件。#1682 が Todo / Note / Daily / Briefing の 12 本を直したときに、ここだけ Scope の外だった。書いた時点の実測で PR #1754 は open。
+
+#### 変更点
+
+- **原因は 2 段**: `writeEvening`（`web/src/daily/DailyView.tsx`）が `upsertDaily` の Promise を `void` で捨てており、undo 閉包もその結果を見ていなかった。失敗してもトーストは出ず「元に戻しました」だけが出て、コマンドが redo スタックへ移る（= 一度も元に戻っていないものをやり直す選択肢が出る）
+- **`writeEvening` が Promise を返す形にした**。merge で内容が変わらないときは `null`（旧 `boolean` の `false` に対応）。undo は `afterSettled(landed)` で打ち消す対象の着地を待ってから自分の書き込みを await する
+- **`upsertDaily` の失敗は例外ではなく `null` の resolve で来る**（`shared/src/hooks/useDailiesUnifiedAPI.ts:175` が自分で catch してログに出す）。そのままでは undo 閉包が失敗を観測できないので、チェーンの中で `null` を reject に戻している。**#1682 の形をそのまま写すだけでは足りなかった箇所**で、同じ握りつぶしが他にあるなら「その write が reject するのか null を返すのか」を先に見る必要がある
+- **テストは実物の `UndoRedoManager` に流す**: Issue が問うているのは「コマンドがどこへ行くか」で、それは manager 側の契約（`apply` が throw した undo を undo スタックへ戻す）。pushUndo のスタブを見るだけでは redo へ進まないことを固定できない
+- **修正前に戻して落ちることを実測した**（`expected true to be false`）。既存の「puts a mood change on the undo stack」は undo が元の書き込みを待つようになった分 `await` を足している
+- **検証**: CI verify のステップ列 14 本 + `docs-lint` をローカルで上から全部、15 本すべて exit 0。実ブラウザ確認（失敗トーストが出ること）は worktree では回さない規約なので merge 後に chat-main
+
 ### 2026-09-19 (2) - #1722 夕刊カードの気分の星が狭幅で画面外（PR #1724）
 
 #### 概要
