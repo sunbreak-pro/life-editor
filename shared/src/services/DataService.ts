@@ -107,6 +107,12 @@ export interface TimerDataService {
     completed: boolean,
     label: string | null,
   ): Promise<TimerSession>;
+  /**
+   * Attribute an already-closed session to an item (#1665). The free-session
+   * path opens the row with nothing linked and mints the "Free session" Event
+   * once the worked range is known, so the link is made after the fact.
+   */
+  attributeTimerSession(id: number, target: WorkTarget): Promise<TimerSession>;
   fetchTimerSessions(): Promise<TimerSession[]>;
   fetchSessionsByTodoId(todoId: string): Promise<TimerSession[]>;
   /** Sessions measured against one Event (#1375) — the event's logged time. */

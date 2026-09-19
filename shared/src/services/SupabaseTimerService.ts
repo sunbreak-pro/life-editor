@@ -17,6 +17,7 @@ import {
   timerSettingsUpdatesToPatch,
   newTimerSessionInsert,
   closeTimerSessionPatch,
+  timerSessionTargetPatch,
   pomodoroPresetToInsert,
   pomodoroPresetUpdatesToPatch,
   type TimerSettingsRow,
@@ -123,7 +124,11 @@ export class SupabaseTimerService implements TimerDataService {
     target?: WorkTarget,
   ): Promise<TimerSession> {
     const startedAt = new Date().toISOString();
-    const insert = newTimerSessionInsert(sessionType, target ?? null, startedAt);
+    const insert = newTimerSessionInsert(
+      sessionType,
+      target ?? null,
+      startedAt,
+    );
     const data = await requireSingleRow<TimerSessionRow>(
       this.client
         .from("timer_sessions")
@@ -168,6 +173,28 @@ export class SupabaseTimerService implements TimerDataService {
         .select(TIMER_SESSION_COLUMNS)
         .single(),
       `endTimerSession (id=${id}) failed`,
+    );
+    return rowToTimerSession(data);
+  }
+
+  /**
+   * Point a closed session at an item (#1665). The free-session path mints the
+   * Event only once the time is known, so the row is opened unattributed and
+   * gains its `event_id` here.
+   */
+  async attributeTimerSession(
+    id: number,
+    target: WorkTarget,
+  ): Promise<TimerSession> {
+    const patch = timerSessionTargetPatch(target, new Date().toISOString());
+    const data = await requireSingleRow<TimerSessionRow>(
+      this.client
+        .from("timer_sessions")
+        .update(patch)
+        .eq("id", id)
+        .select(TIMER_SESSION_COLUMNS)
+        .single(),
+      `attributeTimerSession (id=${id}) failed`,
     );
     return rowToTimerSession(data);
   }
@@ -294,6 +321,7 @@ export const PHASE2_TIMER_METHOD_NAMES = [
   "startTimerSession",
   "endTimerSession",
   "endTimerSessionWithLabel",
+  "attributeTimerSession",
   "fetchTimerSessions",
   "fetchSessionsByTodoId",
   "fetchSessionsByEventId",

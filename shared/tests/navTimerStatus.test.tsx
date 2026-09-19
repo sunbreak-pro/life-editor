@@ -31,6 +31,9 @@ function makeTimerValue(
     autoStartBreaks: false,
     targetSessions: 4,
     presets: [],
+    // #1665: the free session's tag selection lives on the context too.
+    freeSessionTagIds: [],
+    setFreeSessionTagIds: vi.fn(),
     start: vi.fn(),
     pause: vi.fn(),
     reset: vi.fn(),

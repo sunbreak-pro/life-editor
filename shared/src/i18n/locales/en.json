@@ -328,6 +328,18 @@
       "empty": "No work sessions yet. Finished sessions will show up here.",
       "noTarget": "No linked item",
       "minutes": "{{minutes}} min"
+    },
+    "freeSession": {
+      "title": "Free session",
+      "tagHeading": "Tags",
+      "tagAdd": "Add a tag to the free session",
+      "tagAddShort": "Tag",
+      "tagSearch": "Search or create a tag…",
+      "tagCreate": "Create “{{name}}”",
+      "tagRemove": "Remove {{name}}",
+      "tagNoCandidates": "No tags yet",
+      "tagDialog": "Free session tags",
+      "tagDisabled": "Tags apply to a free session — clear the linked item to use them."
     }
   },
   "audioMixer": {

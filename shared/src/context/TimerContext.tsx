@@ -8,7 +8,9 @@ import {
   type ReactNode,
 } from "react";
 import type { DataService } from "../services/DataService";
-import type { PomodoroPreset } from "../types/timer";
+import type { PomodoroPreset, TimerSession } from "../types/timer";
+import { generateId } from "../utils/generateId";
+import { freeSessionSlot, isCountedSession } from "../utils/timerSessions";
 import { logServiceError } from "../utils/logError";
 import { useSyncDomains } from "../hooks/useSyncDomains";
 import {
@@ -63,12 +65,21 @@ export interface TimerProviderProps {
   dataService: DataService;
   /** Fired when a phase completes (host plays sound / notifies). */
   onSessionComplete?: (completedPhase: TimerPhase) => void;
+  /**
+   * Title for the Event a WORK session with nothing linked is filed under
+   * (#1665) — already translated (§6.4), e.g. "Free session".
+   *
+   * Omitting it turns the whole free-session path off, which is what every
+   * suite that only exercises the timer itself does.
+   */
+  freeSessionTitle?: string;
 }
 
 export function TimerProvider({
   children,
   dataService: ds,
   onSessionComplete,
+  freeSessionTitle,
 }: TimerProviderProps) {
   const syncVersion = useSyncDomains("timer");
   const [state, dispatch] = useReducer(timerReducer, undefined, () =>
@@ -82,6 +93,20 @@ export function TimerProvider({
 
   // The id of the open timer_sessions row (null when none in flight).
   const currentSessionIdRef = useRef<number | null>(null);
+  /*
+   * What the open row was opened FOR (#1665). The close path only receives an
+   * id and a duration, and by the time it runs the reducer may already hold
+   * the next phase (an ADVANCE dispatches around it) or a target the user
+   * picked mid-session — so "was this a WORK phase with nothing linked" has to
+   * be the answer from when the row was OPENED, not from live state.
+   */
+  const openSessionRef = useRef<{ attributed: boolean } | null>(null);
+  // Tags the next free session will carry. Ref as well as state: the close
+  // path reads them outside a render, and state alone would hand it whatever
+  // the last render captured.
+  const [freeSessionTagIds, setFreeSessionTagIdsState] = useState<string[]>([]);
+  const freeSessionTagIdsRef = useRef<string[]>([]);
+  const freeSessionTitleRef = useRef(freeSessionTitle);
   // Re-render pulse: bumped each second so the derived display recomputes.
   const [tickNow, setTickNow] = useState(() => Date.now());
 
@@ -91,7 +116,20 @@ export function TimerProvider({
   // sees is unchanged.
   useEffect(() => {
     onSessionCompleteRef.current = onSessionComplete;
+    // Same treatment for the free-session title (#1665) — mirrored after the
+    // commit, never written during render.
+    freeSessionTitleRef.current = freeSessionTitle;
   });
+
+  /**
+   * Tags the next free session will carry. Held here rather than on the Work
+   * screen because the screen unmounts when the user walks to another section
+   * while the timer runs, and the session it started is still the Provider's.
+   */
+  const setFreeSessionTagIds = useCallback((ids: string[]) => {
+    freeSessionTagIdsRef.current = ids;
+    setFreeSessionTagIdsState(ids);
+  }, []);
 
   // --- load settings + presets (refetch on sync bump) ---
   useEffect(() => {
@@ -154,8 +192,56 @@ export function TimerProvider({
         )
         .then((session) => {
           currentSessionIdRef.current = session.id;
+          openSessionRef.current = { attributed: item !== null };
         })
         .catch((e) => logServiceError("Timer", "startTimerSession", e));
+    },
+    [ds],
+  );
+
+  /*
+   * File a closed, unattributed WORK session as a "Free session" Event (#1665).
+   *
+   * At CLOSE rather than at start, which is the decision this path turns on.
+   * An Event minted on Start would have to guess the range, and every aborted
+   * start — the seconds-long scraps #1475 is about — would leave a row on the
+   * user's calendar. Waiting until the row is closed means the range is the
+   * time that was actually worked, and `isCountedSession` (the same test the
+   * analytics read the log with) keeps the scraps out. It is also what keeps
+   * #1116 intact in spirit: nothing is minted on a plain Start.
+   *
+   * One Event per session, deliberately. Merging a day's runs into one row
+   * would have to decide what counts as "consecutive" and would rewrite a row
+   * the user may have edited in between; separate rows read back as what the
+   * timer actually did, and the Work history tab lists them that way.
+   */
+  const fileFreeSession = useCallback(
+    async (session: TimerSession) => {
+      const title = freeSessionTitleRef.current;
+      if (!title) return;
+      if (session.sessionType !== "WORK") return;
+      if (!isCountedSession(session)) return;
+      const endedAt =
+        session.completedAt ??
+        new Date(session.startedAt.getTime() + session.duration * 1000);
+      const slot = freeSessionSlot(session.startedAt, endedAt);
+      const event = await ds.createScheduleItem(
+        generateId("event"),
+        slot.date,
+        title,
+        slot.startTime,
+        slot.endTime,
+      );
+      // Tags first, then the attribution: a tag that fails to land still
+      // leaves an Event the session points at, whereas the reverse would leave
+      // a tagged Event no session names.
+      for (const tagId of freeSessionTagIdsRef.current) {
+        await ds.assignTagToItem(generateId("tag_assign"), event.id, tagId);
+      }
+      await ds.attributeTimerSession(session.id, {
+        kind: "event",
+        id: event.id,
+      });
     },
     [ds],
   );
@@ -165,11 +251,23 @@ export function TimerProvider({
       const id = currentSessionIdRef.current;
       if (id === null) return;
       currentSessionIdRef.current = null;
+      const opened = openSessionRef.current;
+      openSessionRef.current = null;
       void ds
         .endTimerSession(id, durationSeconds, completed)
+        .then((session) => {
+          // The row as the DB now holds it decides whether it earns an Event:
+          // it carries the real range and the duration the close just wrote.
+          // A suite stubbing `endTimerSession` with a bare resolve gets
+          // nothing here, which is the same "feature off" path as no title.
+          if (!session || !opened || opened.attributed) return;
+          return fileFreeSession(session).catch((e) =>
+            logServiceError("Timer", "freeSession", e),
+          );
+        })
         .catch((e) => logServiceError("Timer", "endTimerSession", e));
     },
-    [ds],
+    [ds, fileFreeSession],
   );
 
   // --- derived display (recomputed every render via tickNow) ---
@@ -474,6 +572,8 @@ export function TimerProvider({
       autoStartBreaks,
       targetSessions,
       presets,
+      freeSessionTagIds,
+      setFreeSessionTagIds,
       start,
       pause,
       reset,
@@ -494,6 +594,8 @@ export function TimerProvider({
       autoStartBreaks,
       targetSessions,
       presets,
+      freeSessionTagIds,
+      setFreeSessionTagIds,
       start,
       pause,
       reset,

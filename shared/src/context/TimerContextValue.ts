@@ -62,6 +62,15 @@ export interface TimerContextValue {
   // --- presets ---
   presets: PomodoroPreset[];
 
+  /*
+   * Tags the next FREE session will carry (#1665). They live on the Provider
+   * rather than on the Work screen because the screen unmounts when the user
+   * walks to another section mid-session, and the Event is minted when that
+   * session closes.
+   */
+  freeSessionTagIds: string[];
+  setFreeSessionTagIds: (ids: string[]) => void;
+
   // --- controls ---
   start: () => void;
   pause: () => void;

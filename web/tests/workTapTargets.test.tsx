@@ -46,15 +46,19 @@ type WorkScreenDataService = Parameters<typeof WorkScreen>[0]["dataService"];
 
 const fetchTodoTree = vi.fn();
 const fetchScheduleItemsByDateRange = vi.fn();
+// #1665: the free session's tag field reads the tag master.
+const listAllWikiTagsUnified = vi.fn();
 
 function makeDS(): WorkScreenDataService {
   fetchTodoTree.mockResolvedValue([
     { id: "t1", type: "task", title: "Write the spec", isDeleted: false },
   ]);
   fetchScheduleItemsByDateRange.mockResolvedValue([]);
+  listAllWikiTagsUnified.mockResolvedValue([]);
   return {
     fetchTodoTree,
     fetchScheduleItemsByDateRange,
+    listAllWikiTagsUnified,
   } as unknown as WorkScreenDataService;
 }
 
@@ -80,6 +84,9 @@ function useStubTimer(): Timer {
       autoStartBreaks: false,
       targetSessions: 4,
       presets: [],
+      // #1665: the free session's tag selection lives on the context too.
+      freeSessionTagIds: [],
+      setFreeSessionTagIds: noop,
       start: noop,
       pause: noop,
       reset: noop,
@@ -150,15 +157,21 @@ describe("Work — narrow tap targets (#1557)", () => {
     fireEvent.click(
       within(main).getByRole("button", { name: "work.todoSelector.select" }),
     );
-    fireEvent.click(await screen.findByRole("button", { name: "Write the spec" }));
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Write the spec" }),
+    );
 
     const clear = within(main).getByRole("button", {
       name: "work.todoSelector.clear",
     });
-    expect(classes(clear)).toEqual(expect.arrayContaining(["min-h-11", "min-w-11"]));
+    expect(classes(clear)).toEqual(
+      expect.arrayContaining(["min-h-11", "min-w-11"]),
+    );
     // The negative margins are load-bearing: without them the 44px square
     // stacks on the chip's py-2 / pr-2.5 and the chip becomes 60px tall.
-    expect(classes(clear)).toEqual(expect.arrayContaining(["-my-2", "-mr-2.5"]));
+    expect(classes(clear)).toEqual(
+      expect.arrayContaining(["-my-2", "-mr-2.5"]),
+    );
   });
 });
 

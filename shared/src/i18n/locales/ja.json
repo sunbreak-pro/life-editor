@@ -328,6 +328,18 @@
       "empty": "まだ作業の記録がありません。終えたセッションがここに並びます。",
       "noTarget": "紐づけなし",
       "minutes": "{{minutes}} 分"
+    },
+    "freeSession": {
+      "title": "フリーセッション",
+      "tagHeading": "タグ",
+      "tagAdd": "フリーセッションにタグを付ける",
+      "tagAddShort": "タグ",
+      "tagSearch": "タグを検索 / 作成…",
+      "tagCreate": "「{{name}}」を作る",
+      "tagRemove": "{{name}} を外す",
+      "tagNoCandidates": "タグがまだありません",
+      "tagDialog": "フリーセッションのタグ",
+      "tagDisabled": "タグはフリーセッション用です。紐づけ先を外すと使えます。"
     }
   },
   "audioMixer": {
