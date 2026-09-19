@@ -30,7 +30,12 @@ import { TAG_ICON_CHOICES, TagIconPicker } from "../src/components";
 const here = dirname(fileURLToPath(import.meta.url));
 const css = readFileSync(join(here, "../src/styles/tokens.css"), "utf8");
 
-const LABELS = { iconLabel: "Icon", clearIconLabel: "Default icon" };
+const LABELS = {
+  iconLabel: "Icon",
+  clearIconLabel: "Default icon",
+  searchLabel: "Search icons",
+  noMatchLabel: "No icon matches that.",
+};
 
 function openPicker(): HTMLElement {
   render(

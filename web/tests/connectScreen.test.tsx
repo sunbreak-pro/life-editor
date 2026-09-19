@@ -587,9 +587,12 @@ describe("ConnectScreen — the save button routes each field to its own patch",
     openEditor();
 
     fireEvent.click(screen.getByRole("button", { name: "Icon" }));
+    // The glyphs are `option`s, not bare buttons, since #1701 put a search
+    // field on the panel: they are the listbox that field drives. Asking for
+    // buttons here would hand back the "Default icon" row underneath.
     const choice = within(
       screen.getByRole("group", { name: "Icon" }),
-    ).getAllByRole("button")[0];
+    ).getAllByRole("option")[0];
     const icon = choice.getAttribute("aria-label");
     fireEvent.click(choice);
     save();
@@ -745,9 +748,10 @@ describe("ConnectScreen — the row's right-click menu", () => {
     rightClickRow("Work: 4 items");
     fireEvent.click(screen.getByRole("menuitem", { name: "Change the icon" }));
     fireEvent.click(screen.getByRole("button", { name: "Icon" }));
+    // `option`, not `button` — see the note in the save-button suite (#1701).
     const choice = within(
       screen.getByRole("group", { name: "Icon" }),
-    ).getAllByRole("button")[0];
+    ).getAllByRole("option")[0];
     const icon = choice.getAttribute("aria-label");
     fireEvent.click(choice);
     save();
