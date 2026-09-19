@@ -1127,6 +1127,11 @@ export function CalendarTab({
         onOpenDetail: handleItemOpenDetail,
         itemActions: {
           onRename: handleRename,
+          // #1664: the bubble's time edit goes through the same handler the
+          // detail panel's save uses — scope dialog on a repeat, undo entry,
+          // optimistic patch, all of it.
+          onRetime: (id, next) =>
+            handleUpdate(id, { startTime: next.start, endTime: next.end }),
           onDuplicate: handleDuplicate,
           onConvertToTodo: handleConvertToTodo,
           onDelete: handleDelete,

@@ -594,6 +594,7 @@
     "noteAttachFailed": "Couldn't link the note. It is not attached to what you just added.",
     "title": "Title",
     "date": "Date",
+    "editTime": "Change the time",
     "startTime": "Start",
     "endTime": "End",
     "reminder": "Reminder",

@@ -275,6 +275,7 @@ function Host({
           onOpenDetail: NOOP,
           itemActions: {
             onRename: NOOP,
+            onRetime: NOOP,
             onDuplicate: NOOP,
             onConvertToTodo: NOOP,
             onDelete: NOOP,

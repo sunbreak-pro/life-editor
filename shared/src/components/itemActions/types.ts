@@ -26,6 +26,26 @@ export interface ItemActionInlineInput {
   onCommit: (value: string) => void;
 }
 
+/**
+ * Inline TIME-RANGE behaviour for an action (#1664). Selecting it swaps the
+ * action list for the shared <TimeRangeField>, seeded with the item's span;
+ * the field commits both halves at once (it owns the start < end invariant),
+ * and the panel closes on that commit the way the rename input does.
+ *
+ * Separate from `inlineInput` rather than a mode of it: the two seed different
+ * shapes, and a union would leave every caller narrowing a field it does not
+ * use.
+ */
+export interface ItemActionInlineTimeRange {
+  start: string;
+  end: string;
+  /** Already-translated labels for the two combo fields. */
+  labels: { start: string; end: string };
+  /** Formats the duration suffix on the end options. */
+  formatDuration?: (minutes: number) => string;
+  onCommit: (next: { start: string; end: string }) => void;
+}
+
 /** One declarative row in an item operation panel. */
 export interface ItemAction {
   /** Stable identity (also the React key). */
@@ -46,4 +66,10 @@ export interface ItemAction {
    * plain select.
    */
   inlineInput?: ItemActionInlineInput;
+  /**
+   * In-place time-range editor (#1664). Same precedence as `inlineInput` —
+   * only ItemActionPopover honours it; other panels treat the action as a
+   * plain select.
+   */
+  inlineTimeRange?: ItemActionInlineTimeRange;
 }

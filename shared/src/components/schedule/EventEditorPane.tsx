@@ -326,6 +326,16 @@ export interface EventEditorPaneProps {
    * moment the dialog outgrew the window.
    */
   stickyFooter?: boolean;
+  /**
+   * Lay the fields out in TWO columns (#1664). Desktop only: the sheet is
+   * ~360px wide, where a second column would leave two unusable half-fields.
+   *
+   * A prop rather than a media query inside the pane, for the reason
+   * `stickyFooter` next door is one — the pane is drawn in two frames whose
+   * widths are the host's fact, and the host already knows which one it is
+   * mounting (`isWide`).
+   */
+  twoColumn?: boolean;
   className?: string;
 }
 
@@ -467,6 +477,7 @@ const SECONDARY_BTN = cn(
  *  since #628 it is a draft field of its own, and remounting on it would throw
  *  the rest of the pending edits away.) */
 function EventEditorFields({
+  twoColumn,
   item,
   labels,
   handlers,
@@ -626,8 +637,23 @@ function EventEditorFields({
     });
   };
 
-  return (
-    <div className="flex flex-col gap-3.5">
+  /*
+   * #1664: the fields in two columns on Desktop.
+   *
+   * WHAT the row is (title, when, how often) on the left; what is ATTACHED to
+   * it (tags, memo, reminder, the logged time) on the right. The panel was one
+   * tall column of eleven blocks, so the repeat settings and the memo could
+   * not be seen at once and the save button sat below a scroll.
+   *
+   * The actions and the save footer stay full width under both columns: they
+   * commit or tear down the whole row, and a delete in one column would read
+   * as belonging to that column's fields.
+   *
+   * At one column the two render back to back in exactly the old order, so the
+   * sheet (and every existing assertion) is unchanged.
+   */
+  const identityFields = (
+    <>
       {/* Title */}
       <label className="flex flex-col gap-1.5">
         <span className={FIELD_LABEL}>{labels.title}</span>
@@ -747,7 +773,10 @@ function EventEditorFields({
       ) : (
         repeatSection
       )}
-
+    </>
+  );
+  const attachmentFields = (
+    <>
       {/* Tags (#468). Sits right under the origin block because that is where
           "what kind of thing is this" is already being answered — the calendar
           a row belongs to is the same kind of fact. */}
@@ -814,7 +843,35 @@ function EventEditorFields({
           </span>
         </div>
       )}
+    </>
+  );
 
+  return (
+    <div className="flex flex-col gap-3.5">
+      {twoColumn ? (
+        <div className="flex items-start gap-4">
+          {/* Named in the DOM so a suite can ask which column a field landed
+              in — jsdom has no layout, so the attribute is the only thing that
+              can answer it. */}
+          <div
+            data-editor-column="identity"
+            className="flex min-w-0 flex-1 flex-col gap-3.5"
+          >
+            {identityFields}
+          </div>
+          <div
+            data-editor-column="attachments"
+            className="flex min-w-0 flex-1 flex-col gap-3.5"
+          >
+            {attachmentFields}
+          </div>
+        </div>
+      ) : (
+        <>
+          {identityFields}
+          {attachmentFields}
+        </>
+      )}
       {/* #998: Event → Todo. Narrow's ONLY entry — the Desktop single-click
           bubble (#625) is not drawn on this layout (ScheduleOverlays gates it
           on isWide), so without this the sheet is a dead end for "this turned

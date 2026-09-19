@@ -76,6 +76,8 @@ function renderPane(
     reminder?: boolean;
     /** #1375: render the read-only logged-time row. */
     workTime?: boolean;
+    /** #1664: lay the fields out in two columns (Desktop). */
+    twoColumn?: boolean;
   },
 ) {
   const fns = {
@@ -93,12 +95,11 @@ function renderPane(
         canEditDate: props?.canEditDate,
         canEditAllDay: props?.canEditAllDay,
       }}
-      convert={
-        props?.convert ? { label: CONVERT_LABEL, onConvert } : undefined
-      }
+      convert={props?.convert ? { label: CONVERT_LABEL, onConvert } : undefined}
       reminder={props?.reminder ? REMINDER_BUNDLE : undefined}
       workTime={props?.workTime ? WORK_TIME_BUNDLE : undefined}
       tagSlot={props?.tagSlot}
+      twoColumn={props?.twoColumn}
     />,
   );
   return { ...fns, onConvert };
@@ -106,8 +107,7 @@ function renderPane(
 
 /** #998: the narrow sheet's Event -> Todo action. */
 const CONVERT_LABEL = "Convert to Todo";
-const convertButton = () =>
-  screen.getByRole("button", { name: CONVERT_LABEL });
+const convertButton = () => screen.getByRole("button", { name: CONVERT_LABEL });
 
 const saveButton = () => screen.getByRole("button", { name: "Save" });
 
@@ -241,7 +241,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave}}
+        handlers={{ onSave }}
       />,
     );
     fireEvent.change(screen.getByLabelText("Memo"), {
@@ -255,7 +255,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={{ ...manualItem, memo: "bring the card" }}
         labels={LABELS}
-        handlers={{ onSave}}
+        handlers={{ onSave }}
       />,
     );
     expect(saveButton()).toBeDisabled();
@@ -301,7 +301,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave}}
+        handlers={{ onSave }}
         options={{ canEditDate: true }}
       />,
     );
@@ -324,11 +324,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
     onSave = vi.fn(),
   ) =>
     rerender(
-      <EventEditorPane
-        item={next}
-        labels={LABELS}
-        handlers={{ onSave}}
-      />,
+      <EventEditorPane item={next} labels={LABELS} handlers={{ onSave }} />,
     );
 
   it("follows the item on fields the user has not touched", () => {
@@ -336,7 +332,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave: vi.fn()}}
+        handlers={{ onSave: vi.fn() }}
       />,
     );
     rerenderWith(rerender, { ...manualItem, title: "Dentist (moved)" });
@@ -352,7 +348,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave}}
+        handlers={{ onSave }}
       />,
     );
     fireEvent.change(screen.getByLabelText("Memo"), {
@@ -372,7 +368,7 @@ describe("EventEditorPane — external updates while editing (#628)", () => {
       <EventEditorPane
         item={manualItem}
         labels={LABELS}
-        handlers={{ onSave: vi.fn()}}
+        handlers={{ onSave: vi.fn() }}
       />,
     );
     fireEvent.change(screen.getByLabelText("Title"), {
@@ -660,5 +656,54 @@ describe("EventEditorPane — the logged work time row (#1375)", () => {
   it("leaves the save button untouched", () => {
     renderPane(manualItem, { workTime: true });
     expect(saveButton()).toBeDisabled();
+  });
+});
+
+/*
+ * #1664 — the two-column layout.
+ *
+ * What is decidable here is the SPLIT, not the pixels (jsdom has no layout):
+ * the same fields are present either way, they sit in two sibling columns when
+ * the host asks for it, and the save footer stays outside both — it commits
+ * the whole row, and inside a column it would read as that column's button.
+ */
+describe("EventEditorPane — two columns (#1664)", () => {
+  const columns = (container: HTMLElement) =>
+    container.querySelectorAll("[data-editor-column]");
+
+  it("keeps one column by default", () => {
+    const { container } = render(
+      <EventEditorPane
+        item={manualItem}
+        labels={LABELS}
+        handlers={{ onSave: vi.fn() }}
+        tagSlot={<p>TAG SLOT</p>}
+      />,
+    );
+    expect(columns(container)).toHaveLength(0);
+    screen.getByLabelText("Title");
+    screen.getByText("TAG SLOT");
+  });
+
+  it("splits into two, with the same fields in them", () => {
+    const { container } = render(
+      <EventEditorPane
+        item={manualItem}
+        labels={LABELS}
+        handlers={{ onSave: vi.fn() }}
+        tagSlot={<p>TAG SLOT</p>}
+        twoColumn
+      />,
+    );
+    const cols = columns(container);
+    expect(cols).toHaveLength(2);
+    // What the row IS on the left; what is attached to it on the right.
+    expect(cols[0].textContent).toContain("Title");
+    expect(cols[1].textContent).toContain("TAG SLOT");
+    expect(cols[1].textContent).toContain("Memo");
+    // The footer commits the whole row, so it belongs to neither column.
+    expect(cols[0].textContent).not.toContain("Save");
+    expect(cols[1].textContent).not.toContain("Save");
+    screen.getByRole("button", { name: "Save" });
   });
 });

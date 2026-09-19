@@ -591,6 +591,7 @@
     "noteAttachFailed": "ノートを紐づけられませんでした。いま追加したアイテムにはリンクされていません。",
     "title": "タイトル",
     "date": "日付",
+    "editTime": "時間帯を変更",
     "startTime": "開始",
     "endTime": "終了",
     "reminder": "リマインダー",

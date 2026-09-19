@@ -39,6 +39,12 @@ export interface ResponsiveDetailFrameProps {
   /** Already-translated accessible name for the sheet's close button. */
   closeLabel: string;
   onClose: () => void;
+  /**
+   * Widen the Desktop overlay (#1664) — for a body that lays its fields out in
+   * two columns. Ignored by the sheet, which is the phone's full width either
+   * way.
+   */
+  wideOverlay?: boolean;
   children: ReactNode;
 }
 
@@ -49,6 +55,7 @@ export function ResponsiveDetailFrame({
   titleIcon,
   closeLabel,
   onClose,
+  wideOverlay,
   children,
 }: ResponsiveDetailFrameProps) {
   if (wide) {
@@ -57,6 +64,7 @@ export function ResponsiveDetailFrame({
         open={open}
         title={title}
         titleIcon={titleIcon}
+        size={wideOverlay ? "panel" : undefined}
         onClose={onClose}
       >
         {children}
