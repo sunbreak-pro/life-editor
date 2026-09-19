@@ -406,3 +406,48 @@ describe("TodayTodoTray moves between the two lists (#1406)", () => {
     );
   });
 });
+
+/*
+ * #1640 — the heading action slots.
+ *
+ * Schedule puts a create pill in each heading so a list can be added to from
+ * where it is read. The tray only places them: which one gives the todo a day
+ * is the host's answer, and keeping the buttons out here is what lets the host
+ * keep its copy and its tour anchor on them.
+ */
+describe("TodayTodoTray heading actions", () => {
+  it("places each action beside its own heading, and neither without one", () => {
+    const { rerender } = render(
+      <TodayTodoTray
+        {...rows}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        labels={labels}
+      />,
+    );
+    expect(screen.queryByText("add here")).toBeNull();
+
+    rerender(
+      <TodayTodoTray
+        {...rows}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        headingActions={{
+          placed: <button>add here</button>,
+          addable: <button>add elsewhere</button>,
+        }}
+        labels={labels}
+      />,
+    );
+    const placedHeading = screen.getByText("placed");
+    const addHeading = screen.getByText("add");
+    expect(
+      placedHeading.parentElement?.contains(screen.getByText("add here")),
+    ).toBe(true);
+    expect(
+      addHeading.parentElement?.contains(screen.getByText("add elsewhere")),
+    ).toBe(true);
+  });
+});
