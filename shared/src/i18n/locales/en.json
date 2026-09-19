@@ -1032,6 +1032,23 @@
       "noTargets": "There is no other tag to merge into.",
       "confirm": "Merge",
       "failed": "The merge did not finish. The tag was kept so nothing is lost."
+    },
+    "selection": {
+      "assign": "Add a tag",
+      "assignTitle": "Add a tag to the selection",
+      "clear": "Clear selection",
+      "create": "Create “{{name}}”",
+      "failed_one": "{{count}} item could not be updated. Check your connection.",
+      "failed_other": "{{count}} items could not be updated. Check your connection.",
+      "move": "Move to another tag",
+      "moveTitle": "Move the selection to a tag",
+      "pickerEmpty": "No matching tag",
+      "region": "Selected items",
+      "remove": "Remove this tag",
+      "search": "Search or create a tag…",
+      "selectItem": "Select “{{title}}”",
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected"
     }
   },
   "attachment": {

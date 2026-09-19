@@ -778,10 +778,99 @@ describe("ConnectScreen — the row's right-click menu", () => {
 });
 
 /*
- * #1644 — merging a tag, through the real hook: which writes the dialog's
- * confirm becomes, in what order, and that nothing is written before it.
+ * #1644 — bulk selection and merging, through the real hook: which rows a
+ * checkbox names, which write each bar action becomes, and how many times.
  */
-describe("ConnectScreen — merging a tag", () => {
+describe("ConnectScreen — bulk tag operations", () => {
+  const check = (title: string) =>
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: `Select “${title}”` }),
+    );
+
+  const checkThree = () => {
+    check("Draft the PR");
+    check("Standup");
+    check("Migration notes");
+  };
+
+  it("adds a picked tag to each of three checked rows", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    checkThree();
+
+    screen.getByText("3 selected");
+    fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Add a tag to the selection" }),
+      ).getByRole("button", { name: "Idle" }),
+    );
+
+    await waitFor(() =>
+      expect(writes.assignTagToItem).toHaveBeenCalledTimes(3),
+    );
+    expect(
+      writes.assignTagToItem.mock.calls.map((call) => [call[1], call[2]]),
+    ).toEqual([
+      ["task-1", "t-idle"],
+      ["event-1", "t-idle"],
+      ["note-1", "t-idle"],
+    ]);
+    // The selection is spent once the write finishes.
+    await waitFor(() => expect(screen.queryByText("3 selected")).toBeNull());
+  });
+
+  it("creates the typed tag once, then adds it to each checked row", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    checkThree();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
+    fireEvent.change(screen.getByLabelText("Search or create a tag…"), {
+      target: { value: "Recipes" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create “Recipes”" }));
+
+    await waitFor(() =>
+      expect(writes.assignTagToItem).toHaveBeenCalledTimes(3),
+    );
+    expect(writes.createWikiTagUnified).toHaveBeenCalledTimes(1);
+    expect(writes.createWikiTagUnified.mock.calls[0][1]).toBe("Recipes");
+  });
+
+  it("offers no remove or move on the untagged bucket", async () => {
+    await renderScreen();
+    openTag("Untagged: 1 item");
+    check("Untitled");
+
+    screen.getByRole("button", { name: "Add a tag" });
+    expect(
+      screen.queryByRole("button", { name: "Remove this tag" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Move to another tag" }),
+    ).toBeNull();
+  });
+
+  it("clears the selection on Esc", async () => {
+    await renderScreen();
+    openTag("Work: 4 items");
+    check("Standup");
+    screen.getByText("1 selected");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByText("1 selected")).toBeNull();
+    expect(
+      (
+        screen.getByRole("checkbox", {
+          name: "Select “Standup”",
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(false);
+  });
+
   it("merges a tag: every item re-filed, the old rows removed, then the tag deleted", async () => {
     const { ds, writes } = makeWritableDS();
     await renderScreen(ds);
@@ -893,7 +982,15 @@ describe("ConnectScreen — the header's totals (D1)", () => {
 
     // Both tags, the unused one included — the header counts the master, not
     // the rail's used run.
-    expect(onCountsChange).toHaveBeenLastCalledWith({ tags: 2, items: 5 });
+    //
+    // AWAITED, not asserted straight after the rail appears: the report is an
+    // effect, and the rail showing up is a DOM mutation. `waitFor` resolves on
+    // the mutation, so on a loaded machine the assertion can run in the gap
+    // before React has flushed the passive effect that makes the call — which
+    // is exactly how this failed in CI while passing locally every time.
+    await waitFor(() =>
+      expect(onCountsChange).toHaveBeenLastCalledWith({ tags: 2, items: 5 }),
+    );
 
     cleanup();
     expect(onCountsChange).toHaveBeenLastCalledWith(null);
