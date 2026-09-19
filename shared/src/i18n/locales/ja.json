@@ -845,6 +845,8 @@
   "undoRedo": {
     "undone": "元に戻しました: {{label}}",
     "redone": "やり直しました: {{label}}",
+    "undoFailed": "元に戻せませんでした: {{label}}",
+    "redoFailed": "やり直せませんでした: {{label}}",
     "labels": {
       "todoTreeChange": "Todo の変更",
       "todoChipPlace": "Todo の配置",
