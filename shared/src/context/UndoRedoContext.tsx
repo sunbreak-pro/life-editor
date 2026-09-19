@@ -1,5 +1,15 @@
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { UndoRedoManager } from "../utils/undoRedo/UndoRedoManager";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
+import {
+  UndoRedoManager,
+  type UndoOutcome,
+} from "../utils/undoRedo/UndoRedoManager";
 import {
   UndoRedoContext,
   type UndoRedoContextValue,
@@ -14,7 +24,8 @@ import {
  * consumer (the header buttons) re-reads canUndo()/canRedo() fresh.
  *
  * Toast: after an undo/redo the applied command's label is handed to the
- * injected `onCommandApplied` callback — the host wires it to a toast, keeping
+ * injected `onCommandApplied` callback, or to `onCommandFailed` when the
+ * command threw (#1668). The host wires both to toasts, keeping
  * this provider DataService/i18n-free (§6.4). Provider order (§6.2): mounted
  * just inside SyncProvider, OUTSIDE the domain providers it feeds.
  */
@@ -26,11 +37,21 @@ export interface UndoRedoProviderProps {
    * command's (untranslated) label. The host maps it to a toast.
    */
   onCommandApplied?: (direction: "undo" | "redo", label: string) => void;
+  /**
+   * Called instead of `onCommandApplied` when the command's undo/redo threw.
+   * The command stays where it was, so the user can try again (#1668).
+   */
+  onCommandFailed?: (
+    direction: "undo" | "redo",
+    label: string,
+    error: unknown,
+  ) => void;
 }
 
 export function UndoRedoProvider({
   children,
   onCommandApplied,
+  onCommandFailed,
 }: UndoRedoProviderProps) {
   // One manager per Provider, created once. A lazy REF (create-if-null during
   // render) is the same idea, but it both writes and reads a ref while
@@ -47,25 +68,33 @@ export function UndoRedoProvider({
 
   // Latest callback without re-memoising the value on every render.
   const appliedRef = useRef(onCommandApplied);
+  const failedRef = useRef(onCommandFailed);
   // Mirrored in an effect, not during render (#505). Every reader is inside
   // an already-resolved promise callback, so it runs after the commit.
   useEffect(() => {
     appliedRef.current = onCommandApplied;
+    failedRef.current = onCommandFailed;
   });
+
+  // Only reads refs, so its identity never changes.
+  const report = useCallback(
+    (direction: "undo" | "redo", outcome: UndoOutcome | null): void => {
+      if (!outcome) return;
+      if (outcome.ok) appliedRef.current?.(direction, outcome.command.label);
+      else failedRef.current?.(direction, outcome.command.label, outcome.error);
+    },
+    [],
+  );
 
   const value = useMemo<UndoRedoContextValue>(
     () => ({
       // domain ignored — single global stack.
       push: (_domain, command) => manager.push(command),
       undo: () => {
-        void manager.undo().then((cmd) => {
-          if (cmd) appliedRef.current?.("undo", cmd.label);
-        });
+        void manager.undo().then((outcome) => report("undo", outcome));
       },
       redo: () => {
-        void manager.redo().then((cmd) => {
-          if (cmd) appliedRef.current?.("redo", cmd.label);
-        });
+        void manager.redo().then((outcome) => report("redo", outcome));
       },
       canUndo: () => manager.canUndo(),
       canRedo: () => manager.canRedo(),
@@ -73,7 +102,7 @@ export function UndoRedoProvider({
     }),
     // `version` forces a new value identity on each manager change so context
     // consumers re-render and re-read canUndo()/canRedo().
-    [manager, version],
+    [manager, report, version],
   );
 
   return (

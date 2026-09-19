@@ -202,6 +202,7 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ],
   ["update_schedule_item", { id: "si-1", is_all_day: true }],
   ["delete_schedule_item", { id: "si-1" }],
+  ["delete_schedule_item", { id: "si-1", scope: "future" }],
   ["restore_item", { id: "task-1" }],
   ["list_trash", {}],
   ["list_trash", { role: "note", limit: 10 }],

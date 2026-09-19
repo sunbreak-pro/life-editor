@@ -20,6 +20,11 @@ export interface UndoCommand {
   redo: () => void | Promise<void>;
 }
 
+/** What running one undo/redo did. `error` is set only when `ok` is false. */
+export type UndoOutcome =
+  | { command: UndoCommand; ok: true }
+  | { command: UndoCommand; ok: false; error: unknown };
+
 /** Cap on retained history (oldest commands drop past this). */
 export const MAX_HISTORY_SIZE = 50;
 
@@ -52,35 +57,41 @@ export class UndoRedoManager {
   }
 
   /**
-   * Reverse the most recent command and move it to the redo stack. Returns the
-   * command that ran (so the caller can toast its label), or null if empty. A
-   * throwing undo still moves the command to redo and is reported via onError.
+   * Reverse the most recent command and move it to the redo stack. Resolves to
+   * the outcome (so the caller can toast its label), or null if empty.
+   *
+   * A throwing undo does NOT move to redo (#1668): the write it stood for did
+   * not happen, so offering "redo" would re-apply something that was never
+   * reversed. The command goes back on top of the undo stack instead (the user
+   * can retry) and the error rides out on the outcome for the caller to show.
    */
-  async undo(): Promise<UndoCommand | null> {
-    const command = this.undoStack.pop();
-    if (!command) return null;
-    try {
-      await command.undo();
-    } catch (err) {
-      console.error("[UndoRedo] undo failed", err);
-    }
-    this.redoStack.push(command);
-    this.notify();
-    return command;
+  async undo(): Promise<UndoOutcome | null> {
+    return this.apply(this.undoStack, this.redoStack, "undo");
   }
 
   /** Re-apply the most recently undone command. Mirror of {@link undo}. */
-  async redo(): Promise<UndoCommand | null> {
-    const command = this.redoStack.pop();
+  async redo(): Promise<UndoOutcome | null> {
+    return this.apply(this.redoStack, this.undoStack, "redo");
+  }
+
+  private async apply(
+    from: UndoCommand[],
+    to: UndoCommand[],
+    direction: "undo" | "redo",
+  ): Promise<UndoOutcome | null> {
+    const command = from.pop();
     if (!command) return null;
     try {
-      await command.redo();
-    } catch (err) {
-      console.error("[UndoRedo] redo failed", err);
+      await command[direction]();
+    } catch (error) {
+      console.error(`[UndoRedo] ${direction} failed`, error);
+      from.push(command);
+      this.notify();
+      return { command, ok: false, error };
     }
-    this.undoStack.push(command);
+    to.push(command);
     this.notify();
-    return command;
+    return { command, ok: true };
   }
 
   canUndo(): boolean {
