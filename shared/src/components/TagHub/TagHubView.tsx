@@ -97,6 +97,14 @@ export interface TagHubViewProps {
   checkedItemIds?: ReadonlySet<string>;
   onToggleItemChecked?: (itemId: string) => void;
   formatSelectItem?: (title: string) => string;
+
+  /*
+   * Relations selection (#1645): which item the right panel is showing, and
+   * what a row's click does. The host passes none of it on narrow.
+   */
+  activeItemId?: string | null;
+  onSelectItem?: (item: TagHubItem) => void;
+  formatOpenItem?: (title: string) => string;
   /** The docked bar, drawn under the items while a tag is open. */
   selectionBar?: ReactNode;
 }
@@ -128,6 +136,9 @@ export function TagHubView({
   checkedItemIds,
   onToggleItemChecked,
   formatSelectItem,
+  activeItemId,
+  onSelectItem,
+  formatOpenItem,
   selectionBar,
 }: TagHubViewProps) {
   /*
@@ -297,6 +308,9 @@ export function TagHubView({
                 checkedIds={checkedItemIds}
                 onToggleChecked={onToggleItemChecked}
                 formatSelectItem={formatSelectItem}
+                activeItemId={activeItemId}
+                onSelectItem={onSelectItem}
+                formatOpenItem={formatOpenItem}
               />
             )}
           </>

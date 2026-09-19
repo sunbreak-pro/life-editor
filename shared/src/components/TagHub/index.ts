@@ -63,6 +63,20 @@ export {
   type TagMergeDialogLabels,
   type TagMergeDialogProps,
 } from "./TagMergeDialog";
+// #1645 — the relations mode and the rule behind it.
+export {
+  buildItemRelations,
+  type BuildItemRelationsInput,
+  type ItemRelations,
+  type LinkedRelation,
+  type RelationTarget,
+} from "./buildItemRelations";
+export {
+  RelationPanel,
+  type RelationLink,
+  type RelationPanelLabels,
+  type RelationPanelProps,
+} from "./RelationPanel";
 export {
   TagIconPicker,
   type TagIconPickerLabels,

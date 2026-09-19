@@ -1010,6 +1010,22 @@
       "noTargets": "統合できる別のタグがありません。",
       "confirm": "統合する",
       "failed": "統合が最後まで終わりませんでした。取りこぼしが出ないよう、元のタグは残しています。"
+    },
+    "relations": {
+      "back": "このタグへ戻る",
+      "openItem": "元の画面で開く",
+      "links": "リンク",
+      "sharedTags": "同じタグのアイテム",
+      "sameDayDaily": "同じ日のデイリー",
+      "section": "{{label}}（{{count}}）",
+      "sectionEmpty": "まだありません。",
+      "removeLink": "「{{title}}」へのリンクを外す",
+      "addLink": "リンクを追加",
+      "addLinkDialog": "リンクするアイテムを選ぶ",
+      "searchPlaceholder": "タイトルで検索…",
+      "noCandidates": "一致するアイテムはありません",
+      "openRow": "「{{title}}」を開く",
+      "writeFailed": "リンクを保存できませんでした。通信を確認してください。"
     }
   },
   "attachment": {

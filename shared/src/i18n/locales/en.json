@@ -1020,6 +1020,22 @@
       "noTargets": "There is no other tag to merge into.",
       "confirm": "Merge",
       "failed": "The merge did not finish. The tag was kept so nothing is lost."
+    },
+    "relations": {
+      "back": "Back to this tag",
+      "openItem": "Open in its section",
+      "links": "Links",
+      "sharedTags": "Items sharing a tag",
+      "sameDayDaily": "That day's daily",
+      "section": "{{label}} ({{count}})",
+      "sectionEmpty": "Nothing yet.",
+      "removeLink": "Remove the link to “{{title}}”",
+      "addLink": "Add a link",
+      "addLinkDialog": "Link to an item",
+      "searchPlaceholder": "Search by title…",
+      "noCandidates": "No matching item",
+      "openRow": "Open “{{title}}”",
+      "writeFailed": "The link could not be saved. Check your connection."
     }
   },
   "attachment": {

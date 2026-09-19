@@ -43,6 +43,16 @@ export interface TagHubItemGroupsProps {
   onToggleChecked?: (itemId: string) => void;
   /** A row's checkbox name ("Select “Standup”"). */
   formatSelectItem?: (title: string) => string;
+  /*
+   * Relations selection (#1645 / plan assumption 1). With `onSelectItem` the
+   * row's CLICK picks the item for the right panel, and leaving the hub is the
+   * chevron — now a button of its own — or a double click. Without it a click
+   * opens the item, which is what narrow keeps.
+   */
+  activeItemId?: string | null;
+  onSelectItem?: (item: TagHubItem) => void;
+  /** The chevron button's name ("Open “Standup”"). */
+  formatOpenItem?: (title: string) => string;
 }
 
 export function TagHubItemGroups({
@@ -54,6 +64,9 @@ export function TagHubItemGroups({
   checkedIds,
   onToggleChecked,
   formatSelectItem,
+  activeItemId,
+  onSelectItem,
+  formatOpenItem,
 }: TagHubItemGroupsProps) {
   // Once anything is checked every row shows its box (D8), so extending the
   // selection does not mean hunting for a control that appears on hover.
@@ -87,12 +100,13 @@ export function TagHubItemGroups({
                 key={item.id}
                 className={cn(
                   "group/row relative flex items-center rounded-lumen-sm",
-                  // The tint plus the 2px bar (D9), so a checked row is not
-                  // told apart by colour alone.
-                  checkedIds?.has(item.id) && "bg-lumen-accent-subtle",
+                  // The tint plus the 2px bar (D9), so neither a checked
+                  // row nor the selected one is told apart by colour alone.
+                  (checkedIds?.has(item.id) || activeItemId === item.id) &&
+                    "bg-lumen-accent-subtle",
                 )}
               >
-                {checkedIds?.has(item.id) && (
+                {(checkedIds?.has(item.id) || activeItemId === item.id) && (
                   <span
                     aria-hidden
                     className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-lumen-accent"
@@ -114,7 +128,13 @@ export function TagHubItemGroups({
                 )}
                 <button
                   type="button"
-                  onClick={() => onOpenItem(item)}
+                  aria-current={activeItemId === item.id ? "true" : undefined}
+                  onClick={() =>
+                    onSelectItem ? onSelectItem(item) : onOpenItem(item)
+                  }
+                  onDoubleClick={
+                    onSelectItem ? () => onOpenItem(item) : undefined
+                  }
                   className={cn(
                     "group flex w-full items-center gap-2 rounded-lumen-sm px-2 py-1.5 text-left",
                     "transition-colors hover:bg-lumen-hover",
@@ -136,14 +156,33 @@ export function TagHubItemGroups({
                       {item.detail}
                     </span>
                   )}
-                  {/* The affordance that says "this leaves the hub". Decorative
-                      — the row's own text is its accessible name. */}
-                  <ChevronRight
-                    size={14}
-                    aria-hidden
-                    className="shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity group-hover:opacity-100"
-                  />
+                  {/* Decorative while the row itself opens the item; the
+                      button below takes over when it does not. */}
+                  {!onSelectItem && (
+                    <ChevronRight
+                      size={14}
+                      aria-hidden
+                      className="shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity group-hover/row:opacity-100"
+                    />
+                  )}
                 </button>
+                {onSelectItem && (
+                  // Always reachable, never hover-only: with the row's click
+                  // taken by selection this is the only pointer route out of
+                  // the hub, and a keyboard has no hover to reveal it with.
+                  <button
+                    type="button"
+                    onClick={() => onOpenItem(item)}
+                    aria-label={formatOpenItem?.(item.title) ?? item.title}
+                    className={cn(
+                      "mr-1 shrink-0 rounded-lumen-sm p-1 text-lumen-text-tertiary",
+                      "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                      FOCUS_RING_TIGHT,
+                    )}
+                  >
+                    <ChevronRight size={14} aria-hidden />
+                  </button>
+                )}
               </li>
             ))}
           </ul>
