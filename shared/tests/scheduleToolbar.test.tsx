@@ -26,8 +26,13 @@ const base = {
     next: "Next",
     hideRepeats: "Hide repeats",
     repeatsHidden: "3 hidden",
+    openFilter: "Filter by tag",
+    filterActive: "Filtered by 2 tags",
   },
 };
+
+/** The badge, as the toolbar draws it (#1639). */
+const badge = () => document.querySelector("[data-filter-count]");
 
 describe("ScheduleToolbar repeat filter", () => {
   it("renders no toggle when onToggleRepeats is omitted", () => {
@@ -105,5 +110,66 @@ describe("ScheduleToolbar narrow-pane fold", () => {
     expect(screen.getByText("3 hidden").className).not.toContain(
       "@max-3xl:hidden",
     );
+  });
+});
+
+/*
+ * #1639 — how many tags the grid is narrowed by, on the filter icon.
+ *
+ * The button already turned accent-coloured while a filter was on, which says
+ * THAT one is on and nothing about how much it hides. The number is what tells
+ * the user whether an empty-looking week is empty or filtered.
+ */
+describe("ScheduleToolbar filter count", () => {
+  it("draws no badge while nothing is filtered", () => {
+    render(<ScheduleToolbar {...base} onOpenFilter={() => {}} />);
+    expect(badge()).toBeNull();
+    // The name is still the invitation, not a report.
+    screen.getByRole("button", { name: "Filter by tag" });
+  });
+
+  it("shows the number for one tag, and names it in the accessible label", () => {
+    render(
+      <ScheduleToolbar
+        {...base}
+        onOpenFilter={() => {}}
+        filterActive
+        filterCount={1}
+        labels={{ ...base.labels, filterActive: "Filtered by 1 tag" }}
+      />,
+    );
+    expect(badge()?.textContent).toBe("1");
+    // aria-hidden on the badge: the count is in the button's name already, and
+    // hearing "1" on its own after it says nothing.
+    expect(badge()?.getAttribute("aria-hidden")).toBe("true");
+    screen.getByRole("button", { name: "Filtered by 1 tag" });
+  });
+
+  it("shows a bigger count", () => {
+    render(
+      <ScheduleToolbar
+        {...base}
+        onOpenFilter={() => {}}
+        filterActive
+        filterCount={3}
+      />,
+    );
+    expect(badge()?.textContent).toBe("3");
+  });
+
+  it("drops the badge again when the filter is cleared", () => {
+    const { rerender } = render(
+      <ScheduleToolbar
+        {...base}
+        onOpenFilter={() => {}}
+        filterActive
+        filterCount={2}
+      />,
+    );
+    expect(badge()?.textContent).toBe("2");
+    rerender(
+      <ScheduleToolbar {...base} onOpenFilter={() => {}} filterCount={0} />,
+    );
+    expect(badge()).toBeNull();
   });
 });
