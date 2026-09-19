@@ -431,6 +431,8 @@ export {
   type UndoConfirmGate,
   type UndoConfirmSpec,
 } from "./utils/undoRedo/UndoRedoManager";
+// The gate an undo closure waits on before reversing a write (#1682).
+export { afterSettled } from "./utils/undoRedo/pendingWrite";
 export {
   useUndoRedoContext,
   useUndoRedoOptional,

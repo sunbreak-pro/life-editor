@@ -38,17 +38,32 @@ function todo(id: string): TodoNode {
 
 type SyncSpy = ReturnType<typeof makeSyncSpy>;
 
-/** Stands in for useTodoTreeAPI's syncToDb, capturing the settle callback. */
+/** The half of an UndoCommand these tests drive. */
+interface UndoLike {
+  undo: () => void | Promise<void>;
+  redo: () => void | Promise<void>;
+}
+
+/*
+ * Stands in for useTodoTreeAPI's syncToDb, capturing the settle callback.
+ *
+ * It RESOLVES rather than returning undefined (#1682): the real one hands
+ * its promise back so an undo closure can fail with it, and a stub that
+ * returns nothing would let these tests pass against a hook that had dropped
+ * the write on the floor.
+ */
 function makeSyncSpy() {
-  return vi.fn<
-    (nodes: TodoNode[], onSettled?: (ok: boolean) => void) => void
-  >();
+  return vi
+    .fn<(nodes: TodoNode[], onSettled?: (ok: boolean) => void) => Promise<void>>()
+    .mockResolvedValue(undefined);
 }
 
 function renderHistory(
   syncToDb: SyncSpy,
   undoRedo: UndoRedoLike,
-  removeFromDb: (id: string) => void = vi.fn(),
+  removeFromDb: (id: string) => Promise<void> = vi
+    .fn<(id: string) => Promise<void>>()
+    .mockResolvedValue(undefined),
 ) {
   return renderHook(() =>
     useTodoTreeHistory(vi.fn(), syncToDb, undoRedo, removeFromDb),
@@ -72,11 +87,11 @@ describe("useTodoTreeHistory — the settle callback belongs to one write", () =
     expect(syncToDb).toHaveBeenCalledWith([todo("a")], onSettled);
   });
 
-  it("does not re-fire it on undo or redo", () => {
+  it("does not re-fire it on undo or redo", async () => {
     // A redo re-runs the sync. Carrying the callback in would attach the same
     // note to the same item twice.
     const syncToDb = makeSyncSpy();
-    let pushed: { undo: () => void; redo: () => void } | null = null;
+    let pushed: UndoLike | null = null;
     const undoRedo: UndoRedoLike = {
       ...createNoopUndoRedo(),
       push: (_domain, command) => {
@@ -88,21 +103,23 @@ describe("useTodoTreeHistory — the settle callback belongs to one write", () =
     act(() => result.current.persistWithHistory([], [todo("a")], onSettled));
     syncToDb.mockClear();
 
-    const command = pushed as unknown as { undo: () => void; redo: () => void };
-    act(() => command.undo());
-    act(() => command.redo());
+    const command = pushed as unknown as UndoLike;
+    await act(async () => command.undo());
+    await act(async () => command.redo());
     expect(syncToDb).toHaveBeenCalledTimes(2);
     for (const call of syncToDb.mock.calls) {
       expect(call[1]).toBeUndefined();
     }
   });
 
-  it("persistCreateWithHistory: undo removes the created row, redo does not", () => {
+  it("persistCreateWithHistory: undo removes the created row, redo does not", async () => {
     // #1485 — a re-persist of the old list cannot express "this row is gone"
     // (syncToDb is an upsert), so the create's undo names the row.
     const syncToDb = makeSyncSpy();
-    const removeFromDb = vi.fn<(id: string) => void>();
-    let pushed: { undo: () => void; redo: () => void } | null = null;
+    const removeFromDb = vi
+      .fn<(id: string) => Promise<void>>()
+      .mockResolvedValue(undefined);
+    let pushed: UndoLike | null = null;
     const undoRedo: UndoRedoLike = {
       ...createNoopUndoRedo(),
       push: (_domain, command) => {
@@ -118,13 +135,13 @@ describe("useTodoTreeHistory — the settle callback belongs to one write", () =
     expect(removeFromDb).not.toHaveBeenCalled();
     syncToDb.mockClear();
 
-    const command = pushed as unknown as { undo: () => void; redo: () => void };
-    act(() => command.undo());
+    const command = pushed as unknown as UndoLike;
+    await act(async () => command.undo());
     // The siblings' pre-create order goes back first, then the row itself.
     expect(syncToDb).toHaveBeenCalledWith([]);
     expect(removeFromDb).toHaveBeenCalledWith("a");
 
-    act(() => command.redo());
+    await act(async () => command.redo());
     expect(syncToDb).toHaveBeenLastCalledWith([todo("a")]);
     expect(removeFromDb).toHaveBeenCalledTimes(1);
     // The settle callback belongs to the first write only, as above.

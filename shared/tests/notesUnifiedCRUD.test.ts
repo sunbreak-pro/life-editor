@@ -28,8 +28,10 @@ import {
 
 interface Command {
   label: string;
-  undo: () => void;
-  redo: () => void;
+  // Async since #1682 — the closures return the write so a failure reaches
+  // the manager, and the DB half of an undo waits for the write it reverses.
+  undo: () => void | Promise<void>;
+  redo: () => void | Promise<void>;
 }
 
 function makeHarness(initialNotes: NoteNode[] = []) {
@@ -231,11 +233,15 @@ describe("createNote", () => {
 });
 
 describe("createNote undo / redo", () => {
-  it("undo removes the note, clears the selection and purges the server row", () => {
+  it("undo removes the note, clears the selection and purges the server row", async () => {
     const h = makeHarness([makeNote("existing")]);
     const id = h.crud.createNote("t");
 
-    h.commands[0]?.undo();
+    // The screen answers the keystroke straight away; the WRITE queues behind
+    // the create it reverses (#1682), so the purge needs the await.
+    const undone = h.commands[0]?.undo();
+    expect(h.notes().map((n) => n.id)).toEqual(["existing"]);
+    await undone;
 
     expect(h.notes().map((n) => n.id)).toEqual(["existing"]);
     expect(h.selectedNoteId()).toBeNull();
@@ -255,15 +261,44 @@ describe("createNote undo / redo", () => {
     expect(h.selectedNoteId()).toBe("other");
   });
 
-  it("undo survives a failing purge", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+  it("reports a failing purge to the manager instead of swallowing it", async () => {
+    // #1682 — this used to end at console.warn, so the host toasted "Undid:
+    // note creation" over a row that was still on the server.
     const h = makeHarness();
     h.crud.createNote("t");
     h.ds.permanentDeleteNoteUnified.mockRejectedValueOnce(new Error("offline"));
 
-    expect(() => h.commands[0]?.undo()).not.toThrow();
+    await expect(h.commands[0]?.undo()).rejects.toThrow("offline");
+  });
+
+  it("waits for the create to land before purging the row", async () => {
+    // #1682 — the delete used to race the INSERT. Whichever won, the row came
+    // back a moment later with the undo already spent.
+    const order: string[] = [];
+    const h = makeHarness();
+    let landCreate: (() => void) | null = null;
+    h.ds.createNoteUnified.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          landCreate = () => {
+            order.push("create");
+            resolve(undefined as never);
+          };
+        }),
+    );
+    h.crud.createNote("t");
+    h.ds.permanentDeleteNoteUnified.mockImplementation(() => {
+      order.push("purge");
+      return Promise.resolve();
+    });
+
+    const undone = h.commands[0]?.undo();
     await flush();
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("undoCreate"));
+    expect(order).toEqual([]); // still waiting on the create
+    landCreate!();
+    await undone;
+
+    expect(order).toEqual(["create", "purge"]);
   });
 
   it("redo restores the note, the ledger marks, the selection and the server row", async () => {
@@ -275,8 +310,8 @@ describe("createNote undo / redo", () => {
     h.ds.createNoteUnified.mockClear();
     h.ds.updateNoteUnified.mockClear();
 
-    h.commands[0]?.undo();
-    h.commands[0]?.redo();
+    await h.commands[0]?.undo();
+    await h.commands[0]?.redo();
     await flush();
 
     expect(h.notes()[0]?.id).toBe(id);
@@ -453,10 +488,10 @@ describe("softDeleteNote", () => {
     expect(h.push).not.toHaveBeenCalled();
   });
 
-  it("undo puts the subtree back and restores it on the server", () => {
+  it("undo puts the subtree back and restores it on the server", async () => {
     const h = makeHarness(tree());
     h.crud.softDeleteNote("root");
-    h.commands[0]?.undo();
+    await h.commands[0]?.undo();
 
     expect(
       h
@@ -468,11 +503,11 @@ describe("softDeleteNote", () => {
     expect(h.ds.restoreNoteUnified).toHaveBeenCalledTimes(3);
   });
 
-  it("redo deletes it again without duplicating the Trash rows", () => {
+  it("redo deletes it again without duplicating the Trash rows", async () => {
     const h = makeHarness(tree());
     h.crud.softDeleteNote("root");
-    h.commands[0]?.undo();
-    h.commands[0]?.redo();
+    await h.commands[0]?.undo();
+    await h.commands[0]?.redo();
 
     expect(h.notes().map((n) => n.id)).toEqual(["other"]);
     expect(h.deletedNotes()).toHaveLength(3);
@@ -514,17 +549,17 @@ describe("togglePin", () => {
     expect(h.push).not.toHaveBeenCalled();
   });
 
-  it("undo and redo flip the pin back and forth", () => {
+  it("undo and redo flip the pin back and forth", async () => {
     const h = makeHarness([makeNote("n1")]);
     h.crud.togglePin("n1");
 
-    h.commands[0]?.undo();
+    await h.commands[0]?.undo();
     expect(h.notes()[0]?.isPinned).toBe(false);
     expect(h.ds.updateNoteUnified).toHaveBeenLastCalledWith("n1", {
       isPinned: false,
     });
 
-    h.commands[0]?.redo();
+    await h.commands[0]?.redo();
     expect(h.notes()[0]?.isPinned).toBe(true);
     expect(h.ds.updateNoteUnified).toHaveBeenLastCalledWith("n1", {
       isPinned: true,

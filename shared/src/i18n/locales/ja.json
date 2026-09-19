@@ -920,6 +920,7 @@
       "todoChipAllDay": "Todo を終日へ移動",
       "todoAddToToday": "Todo を今日に追加",
       "todoRemoveFromToday": "Todo を今日から外す",
+      "deleteTodo": "Todo の削除",
       "createScheduleItem": "予定の作成",
       "updateScheduleItem": "予定の変更",
       "toggleScheduleItemComplete": "予定の完了切替",

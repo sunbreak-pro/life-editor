@@ -927,6 +927,7 @@
       "todoChipAllDay": "todo moved to all-day",
       "todoAddToToday": "adding a todo to today",
       "todoRemoveFromToday": "taking a todo off today",
+      "deleteTodo": "todo deletion",
       "createScheduleItem": "event creation",
       "updateScheduleItem": "event update",
       "toggleScheduleItemComplete": "event completion toggle",

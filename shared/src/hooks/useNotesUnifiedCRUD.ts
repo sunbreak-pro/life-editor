@@ -8,6 +8,7 @@ import type { NoteNode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { generateId } from "../utils/generateId";
+import { afterSettled } from "../utils/undoRedo/pendingWrite";
 import type { UndoRedoLike } from "./useTodoTreeHistory";
 import { buildNoteNode, collectNoteSubtree } from "./notesUnifiedHelpers";
 import {
@@ -92,32 +93,45 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
         setNotesSelection(id); // #282: restore the just-created note after a tab switch
         recordNoteOpened(id); // #1149: a fresh note counts as opened
       }
-      void trackWrite(
-        id,
-        ds
-          .createNoteUnified(
-            buildNoteNode(id, newNote.title, resolvedParentId, now),
-          )
-          .then(() => {
-            if (resolvedContent) {
-              return ds.updateNoteUnified(id, { content: resolvedContent });
-            }
-          })
-          .catch((e) => logServiceError("Notes", "create", e)),
-      );
+      const writeCreate = (): Promise<unknown> =>
+        trackWrite(
+          id,
+          ds
+            .createNoteUnified(
+              buildNoteNode(id, newNote.title, resolvedParentId, now),
+            )
+            .then(() => {
+              if (resolvedContent) {
+                return ds.updateNoteUnified(id, { content: resolvedContent });
+              }
+            }),
+        );
+      /*
+       * #1682 — the undo below waits on THIS promise before deleting.
+       *
+       * The create is still in flight when the command is pushed. Without the
+       * wait, a fast Ctrl+Z deleted a row the INSERT had not written yet: the
+       * delete found nothing, the INSERT landed a moment later, and the note
+       * was back on screen with the undo already spent.
+       */
+      const landed = writeCreate();
+      void landed.catch((e) => logServiceError("Notes", "create", e));
 
       if (!opts?.skipUndo) {
         push("note", {
           label: "createNote",
-          undo: () => {
+          undo: async () => {
+            // Local first — the screen must answer the keystroke now, not
+            // after a round trip. Only the WRITE queues.
             setNotes((p) => p.filter((n) => n.id !== id));
             if (selectedNoteIdRef.current === id) {
               setSelectedNoteId(null);
               clearNotesSelection(); // #282: don't restore a removed note
             }
-            ds.permanentDeleteNoteUnified(id).catch((e) =>
-              logServiceError("Notes", "undoCreate", e),
-            );
+            await afterSettled(landed);
+            // No catch: a delete the server refused is a failed undo, and the
+            // manager is the one that tells the user so.
+            await ds.permanentDeleteNoteUnified(id);
           },
           redo: () => {
             setNotes((p) => [newNote, ...p]);
@@ -126,15 +140,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
             setSelectedNoteId(id);
             setNotesSelection(id); // #282
             recordNoteOpened(id); // #1149
-            ds.createNoteUnified(
-              buildNoteNode(id, newNote.title, resolvedParentId, now),
-            )
-              .then(() => {
-                if (resolvedContent) {
-                  return ds.updateNoteUnified(id, { content: resolvedContent });
-                }
-              })
-              .catch((e) => logServiceError("Notes", "redoCreate", e));
+            return writeCreate().then(() => {});
           },
         });
       }
@@ -186,11 +192,10 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
                   n.id === id ? { ...n, ...prevValues, updatedAt: now } : n,
                 ),
               );
-              void trackWrite(
-                id,
-                ds
-                  .updateNoteUnified(id, prevValues)
-                  .catch((e) => logServiceError("Notes", "undoUpdate", e)),
+              // #1682: returned, not swallowed — a rejected patch is a failed
+              // undo, and the manager keeps the command so it can be retried.
+              return trackWrite(id, ds.updateNoteUnified(id, prevValues)).then(
+                () => {},
               );
             },
             redo: () => {
@@ -201,11 +206,8 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
                   n.id === id ? { ...n, ...updates, updatedAt: now } : n,
                 ),
               );
-              void trackWrite(
-                id,
-                ds
-                  .updateNoteUnified(id, updates)
-                  .catch((e) => logServiceError("Notes", "redoUpdate", e)),
+              return trackWrite(id, ds.updateNoteUnified(id, updates)).then(
+                () => {},
               );
             },
           });
@@ -268,23 +270,24 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
           .map((n) => ({ ...n, isDeleted: true }));
         return [...added, ...prev];
       });
-      for (const n of subtree) {
-        ds.softDeleteNoteUnified(n.id).catch((e) =>
-          logServiceError("Notes", "delete", e),
+      const deleteSubtree = (): Promise<void> =>
+        Promise.all(subtree.map((n) => ds.softDeleteNoteUnified(n.id))).then(
+          () => {},
         );
-      }
+      // The undo waits on this one (#1682) — restoring a row whose soft
+      // delete has not landed yet would be undone by the delete arriving
+      // after it.
+      const landed = deleteSubtree();
+      void landed.catch((e) => logServiceError("Notes", "delete", e));
 
       if (!opts?.skipUndo) {
         push("note", {
           label: "softDeleteNote",
-          undo: () => {
+          undo: async () => {
             setNotes((p) => [...subtree, ...p]);
             setDeletedNotes((p) => p.filter((n) => !subtreeIds.has(n.id)));
-            for (const n of subtree) {
-              ds.restoreNoteUnified(n.id).catch((e) =>
-                logServiceError("Notes", "undoDelete", e),
-              );
-            }
+            await afterSettled(landed);
+            await Promise.all(subtree.map((n) => ds.restoreNoteUnified(n.id)));
           },
           redo: () => {
             setNotes((p) => p.filter((n) => !subtreeIds.has(n.id)));
@@ -295,11 +298,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
                 .map((n) => ({ ...n, isDeleted: true }));
               return [...added, ...p];
             });
-            for (const n of subtree) {
-              ds.softDeleteNoteUnified(n.id).catch((e) =>
-                logServiceError("Notes", "redoDelete", e),
-              );
-            }
+            return deleteSubtree();
           },
         });
       }
@@ -330,13 +329,12 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
         ),
       );
 
-      ds.updateNoteUnified(id, { isPinned: newPinned }).catch((e) =>
-        logServiceError("Notes", "pin", e),
-      );
+      const landed = ds.updateNoteUnified(id, { isPinned: newPinned });
+      void landed.catch((e) => logServiceError("Notes", "pin", e));
 
       push("note", {
         label: "togglePin",
-        undo: () => {
+        undo: async () => {
           setNotes((p) =>
             p.map((n) =>
               n.id === id
@@ -348,9 +346,8 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
                 : n,
             ),
           );
-          ds.updateNoteUnified(id, { isPinned: prevPinned }).catch((e) =>
-            logServiceError("Notes", "undoPin", e),
-          );
+          await afterSettled(landed);
+          await ds.updateNoteUnified(id, { isPinned: prevPinned });
         },
         redo: () => {
           setNotes((p) =>
@@ -364,9 +361,9 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
                 : n,
             ),
           );
-          ds.updateNoteUnified(id, { isPinned: newPinned }).catch((e) =>
-            logServiceError("Notes", "redoPin", e),
-          );
+          return ds
+            .updateNoteUnified(id, { isPinned: newPinned })
+            .then(() => {});
         },
       });
     },

@@ -497,11 +497,13 @@ describe("useBriefingData — row deletes and their undo (#892)", () => {
 
     // Same soft delete, same Trash, same restore as the row's own section —
     // and Ctrl+Z has to put the row back on the paper as well as in the DB.
-    act(() => command?.undo());
+    // The restore waits for the delete it reverses (#1682), so the DB half is
+    // one await behind the paper.
+    await act(async () => command?.undo());
     expect(mockOf(ds, "restoreScheduleItem")).toHaveBeenCalledWith("s1");
     expect(result.current.data.schedule.map((s) => s.id)).toEqual(["s1"]);
 
-    act(() => command?.redo());
+    await act(async () => command?.redo());
     expect(result.current.data.schedule).toEqual([]);
   });
 
@@ -592,7 +594,7 @@ describe("useBriefingData — row deletes and their undo (#892)", () => {
     expect(command?.domain).toBe("todoTree");
     expect(command?.label).toBe("deleteTodo");
 
-    act(() => command?.undo());
+    await act(async () => command?.undo());
     expect(mockOf(ds, "restoreTodo")).toHaveBeenCalledWith("t1");
     expect(result.current.data.todos.map((t) => t.id)).toEqual(["t1"]);
   });
