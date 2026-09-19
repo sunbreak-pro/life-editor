@@ -48,7 +48,8 @@ export function KbdChips({
           className={cn(
             "inline-flex h-[22px] min-w-[22px] items-center justify-center",
             "rounded-lumen-sm border border-lumen-border bg-lumen-bg-secondary",
-            "px-1.5 text-xs tabular-nums text-lumen-text-secondary",
+            // font-sans, not preflight's --font-mono (#1672).
+            "px-1.5 font-sans text-xs tabular-nums text-lumen-text-secondary",
           )}
         >
           {k}
