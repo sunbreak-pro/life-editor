@@ -492,6 +492,10 @@ export {
   // its rollback where the grid actually reads from.
   type ScheduleItemsViewMirror,
 } from "./hooks/useScheduleItemsAPI";
+export {
+  restoreScheduleItemFromTrash,
+  type TrashRestoreOutcome,
+} from "./hooks/useScheduleItemsTrash";
 
 // Routine→schedule_items generator (S4-5). Verbatim-ported pure
 // functions + DI generator hook. The pure functions are exported so the
