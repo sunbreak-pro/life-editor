@@ -126,36 +126,47 @@ describe("every curated choice arrives as its own named import", () => {
 });
 
 /**
- * A few names per life area the picker is meant to cover (#1366). Not the full
- * set — just enough per area that dropping a category would fail here.
+ * A few names per life area the picker is meant to cover (#1366, widened by
+ * #1700). Not the full set — just enough per area that dropping a category
+ * would fail here.
  */
 const AREA_ICONS: Record<string, readonly string[]> = {
-  life: ["Home", "Bed", "ShoppingCart", "Shirt", "PawPrint"],
-  work: ["Briefcase", "Building2", "Mail", "Users"],
+  life: ["Home", "Bed", "ShoppingCart", "Shirt", "PawPrint", "Bath", "Sofa"],
+  work: ["Briefcase", "Building2", "Mail", "Users", "Handshake", "Printer"],
   study: ["Book", "GraduationCap", "Pencil", "Library", "FlaskConical"],
-  health: ["Dumbbell", "HeartPulse", "Pill", "Stethoscope"],
-  money: ["Wallet", "PiggyBank", "CreditCard", "Coins"],
-  travel: ["Plane", "Car", "TrainFront", "MapPin"],
-  food: ["Coffee", "Utensils", "Pizza", "Apple", "Wine"],
-  hobby: ["Music", "Camera", "Gamepad2", "Palette"],
+  health: ["Dumbbell", "HeartPulse", "Pill", "Stethoscope", "Bike", "Brain"],
+  money: ["Wallet", "PiggyBank", "CreditCard", "Coins", "Banknote", "Receipt"],
+  travel: ["Plane", "Car", "TrainFront", "MapPin", "Bus", "Ship", "Globe"],
+  food: ["Coffee", "Utensils", "Pizza", "Apple", "Wine", "Cake", "Soup"],
+  hobby: ["Music", "Camera", "Gamepad2", "Palette", "Film", "Guitar"],
+  // The six areas #1700 added — the old set had nothing at all for these.
+  nature: ["Trees", "TreePine", "Flower", "Sprout", "Mountain", "Bird"],
+  weather: ["CloudRain", "CloudSnow", "Snowflake", "Umbrella", "Wind"],
+  tools: ["Wrench", "Hammer", "Drill", "Scissors", "Paintbrush", "Plug"],
+  communication: ["Phone", "MessageCircle", "Send", "Megaphone", "Wifi"],
+  places: ["Store", "Building", "School", "Church", "Castle", "Hotel"],
+  symbols: ["Square", "Triangle", "Diamond", "Shapes", "Crown", "Gem"],
 };
 
 describe("the curated set spans the life areas the picker is for (#1366)", () => {
-  it("offers 55–60 choices and lists no name twice", () => {
-    // The band #1366 settled on: enough that a tag can find a fitting glyph,
-    // few enough that the grid stays scannable. Both ends are load-bearing —
-    // below 55 an area has gone thin, and past 60 the flat grid is the wrong
-    // shape and the picker wants real grouping instead of another row.
-    expect(TAG_ICON_CHOICES.length).toBeGreaterThanOrEqual(55);
-    expect(TAG_ICON_CHOICES.length).toBeLessThanOrEqual(60);
+  it("offers 112–168 choices and lists no name twice", () => {
+    // The band #1700 settled on (2–3× the 56 that #1366 left): enough that a
+    // tag finds a fitting glyph in any of the 15 areas, few enough that the
+    // eager chunk stays inside the +15 KB gzip budget #1366 set. Both ends are
+    // load-bearing — below 112 an area has gone thin, and past 168 the growth
+    // is no longer paying for itself against the download.
+    //
+    // NOTE the flat grid stopped being scannable at this size, which is why
+    // the old upper bound of 60 is gone: #1701 puts a search field on the
+    // panel, so finding a glyph no longer depends on the list being short.
+    expect(TAG_ICON_CHOICES.length).toBeGreaterThanOrEqual(112);
+    expect(TAG_ICON_CHOICES.length).toBeLessThanOrEqual(168);
     expect(new Set(TAG_ICON_CHOICES).size).toBe(TAG_ICON_CHOICES.length);
   });
 
   it("keeps at least three usable icons in every area", () => {
     for (const [area, names] of Object.entries(AREA_ICONS)) {
-      const present = names.filter((name) =>
-        TAG_ICON_CHOICES.includes(name),
-      );
+      const present = names.filter((name) => TAG_ICON_CHOICES.includes(name));
       expect(
         present.length,
         `${area} is down to [${present.join(", ")}]`,
