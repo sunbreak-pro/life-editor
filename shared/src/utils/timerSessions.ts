@@ -1,4 +1,5 @@
 import type { TimerSession } from "../types/timer";
+import { formatDateKey } from "./dateKey";
 
 /*
  * Reading a timer_sessions log (#1375).
@@ -87,4 +88,54 @@ export function totalWorkMinutesForItem(
     minutes += s.duration / 60;
   }
   return minutes;
+}
+
+/** Where a free session lands on the calendar (#1665). */
+export interface FreeSessionSlot {
+  /** Local `YYYY-MM-DD` of the day the session STARTED on. */
+  date: string;
+  /** `HH:MM` local. */
+  startTime: string;
+  /** `HH:MM` local, always later than `startTime`. */
+  endTime: string;
+}
+
+/** `HH:MM` in local time. */
+function clockTime(date: Date): string {
+  return `${String(date.getHours()).padStart(2, "0")}:${String(
+    date.getMinutes(),
+  ).padStart(2, "0")}`;
+}
+
+/**
+ * The Schedule slot a free session is filed under (#1665): the day it began
+ * plus the clock times it ran between.
+ *
+ * Two shapes have to come out as a usable range, because an Event's end is a
+ * time on the SAME day and the minute field has no seconds:
+ *
+ *  - a session that crossed midnight ends at 23:59 of the day it started. The
+ *    alternative is a row whose end is before its start, which the calendar
+ *    would have to guess at.
+ *  - a session shorter than the minute grid (a 40 s phase that ran to its
+ *    target counts — `isCountedSession`) would otherwise start and end at the
+ *    same minute, so it is widened to one minute.
+ */
+export function freeSessionSlot(
+  startedAt: Date,
+  endedAt: Date,
+): FreeSessionSlot {
+  const date = formatDateKey(startedAt);
+  const sameDay = formatDateKey(endedAt) === date;
+  let startTime = clockTime(startedAt);
+  let endTime = sameDay ? clockTime(endedAt) : "23:59";
+  if (endTime <= startTime) {
+    if (startTime >= "23:59") startTime = "23:58";
+    else {
+      const [h, m] = startTime.split(":").map(Number);
+      const end = new Date(2000, 0, 1, h, m + 1);
+      endTime = clockTime(end);
+    }
+  }
+  return { date, startTime, endTime };
 }

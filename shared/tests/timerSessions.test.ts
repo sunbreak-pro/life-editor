@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import type { TimerSession } from "../src/types/timer";
 import {
   ABANDONED_SESSION_SECONDS,
+  freeSessionSlot,
   isCountedSession,
   sessionTargetId,
   totalWorkMinutesForItem,
@@ -181,5 +182,52 @@ describe("isCountedSession", () => {
       "task-1",
     );
     expect(minutes).toBeCloseTo(10);
+  });
+});
+
+/*
+ * #1665 — the Schedule slot a free session is filed under. Local-time dates
+ * for the same reason as above: the day and the clock times are the user's,
+ * not UTC's.
+ */
+describe("freeSessionSlot", () => {
+  const at = (day: number, hour: number, minute = 0, second = 0) =>
+    new Date(2026, 8, day, hour, minute, second);
+
+  it("uses the start day and the clock times that were worked", () => {
+    expect(freeSessionSlot(at(17, 9), at(17, 9, 25))).toEqual({
+      date: "2026-09-17",
+      startTime: "09:00",
+      endTime: "09:25",
+    });
+  });
+
+  // An Event's end is a time on the same day, so a session that ran past
+  // midnight has to stop at the end of the day it began on — the alternative
+  // is a row whose end is before its start.
+  it("clamps a session that crossed midnight to 23:59", () => {
+    expect(freeSessionSlot(at(17, 23, 40), at(18, 0, 10))).toEqual({
+      date: "2026-09-17",
+      startTime: "23:40",
+      endTime: "23:59",
+    });
+  });
+
+  // A phase shorter than the minute grid still counts when it ran to its
+  // target, and a zero-length range is not something the calendar can draw.
+  it("widens a sub-minute session to one minute", () => {
+    expect(freeSessionSlot(at(17, 9, 0, 10), at(17, 9, 0, 50))).toEqual({
+      date: "2026-09-17",
+      startTime: "09:00",
+      endTime: "09:01",
+    });
+  });
+
+  it("keeps the range inside the day at the very end of it", () => {
+    expect(freeSessionSlot(at(17, 23, 59, 5), at(17, 23, 59, 50))).toEqual({
+      date: "2026-09-17",
+      startTime: "23:58",
+      endTime: "23:59",
+    });
   });
 });

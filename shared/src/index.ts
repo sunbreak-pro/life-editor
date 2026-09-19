@@ -795,6 +795,9 @@ export { jsonDocEquals } from "./utils/jsonDocEquals";
 export {
   sessionTargetId,
   totalWorkMinutesForItem,
+  // #1665: the Schedule slot a free session is filed under.
+  freeSessionSlot,
+  type FreeSessionSlot,
 } from "./utils/timerSessions";
 // `[[ ]]` edges parked until their source item's first save lands (#371).
 export {

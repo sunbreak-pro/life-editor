@@ -31,6 +31,7 @@ import {
 } from "@life-editor/shared";
 import { X, ChevronDown } from "lucide-react";
 import { formatShortDate } from "../schedule/scheduleCopy";
+import { FreeSessionTags } from "./FreeSessionTags";
 
 /*
  * Web Work tab host (target-IA import). Mounts inside the TimerProvider (wired
@@ -375,6 +376,20 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   // `max-md:` one: this slot is only ever handed to the fullscreen timer face
   // below, so it does not exist at Desktop width — there the wide branch draws
   // PomodoroTodoSelector instead, and that component is untouched.
+  /*
+   * The mobile face gets the same tag field (#1665) — the timer is Mobile-Full
+   * (mobile-scope.md #10), so a session started from the phone files its free
+   * session exactly like the desktop one, and the tags have to be reachable
+   * from where the session is started. It sits UNDER the chip rather than
+   * beside it: the fullscreen face has one narrow row, and a second control in
+   * it would push the chip's text to a couple of characters.
+   */
+  const mobileTagRow = (
+    <div className="flex justify-center">
+      <FreeSessionTags dataService={ds} disabled={timer.activeItem !== null} />
+    </div>
+  );
+
   const mobileTodoSlot = timer.activeItem ? (
     <span
       className={cn(
@@ -382,7 +397,9 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
         workTargetChipClass(timer.activeItem.kind),
       )}
     >
-      <span className="shrink-0">{workTargetIcon(timer.activeItem.kind, 15)}</span>
+      <span className="shrink-0">
+        {workTargetIcon(timer.activeItem.kind, 15)}
+      </span>
       <span className="truncate">{timer.activeItem.title}</span>
       <button
         type="button"
@@ -451,8 +468,9 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
 
   if (!isWide) {
     return (
-      <div className="flex flex-col">
+      <div className="flex flex-col gap-3">
         {timerFace("fullscreen", mobileTodoSlot)}
+        {mobileTagRow}
         <RightSidebarPortal>{settingsPanel}</RightSidebarPortal>
         <PomodoroTodoSheet
           open={sheetOpen}
@@ -491,6 +509,18 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           menuLabel: t("work.todoSelector.heading"),
         }}
         onSelect={handleSelectTarget}
+        /*
+         * #1665: the tag field for the free session, in the space to the right
+         * of the picker. It stays visible (disabled) once a target IS picked —
+         * no free session will be minted then, so the tags would go nowhere,
+         * but hiding the field would make the row jump on every pick and clear.
+         */
+        trailing={
+          <FreeSessionTags
+            dataService={ds}
+            disabled={timer.activeItem !== null}
+          />
+        }
       />
       {/*
        * Ambient mixer (W3-C). Desktop/web-only per mobile-scope.md #11 (#320):

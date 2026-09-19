@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import {
   TimerProvider,
   useAudioContext,
+  useTranslation,
   type DataService,
 } from "@life-editor/shared";
 
@@ -35,10 +36,15 @@ export function TimerHost({
   children: ReactNode;
 }) {
   const audio = useAudioContext();
+  const { t } = useTranslation();
   return (
     <TimerProvider
       dataService={dataService}
       onSessionComplete={audio?.playCompletionChime}
+      // #1665: the name the Provider files an unlinked WORK session under. It
+      // is resolved here because shared primitives never call useTranslation
+      // (§6.4), and passing it is also what switches the path on.
+      freeSessionTitle={t("work.freeSession.title")}
     >
       {children}
     </TimerProvider>

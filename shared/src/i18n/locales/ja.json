@@ -316,6 +316,18 @@
       "save": "保存",
       "saved": "保存済み",
       "unsaved": "未保存"
+    },
+    "freeSession": {
+      "title": "フリーセッション",
+      "tagHeading": "タグ",
+      "tagAdd": "フリーセッションにタグを付ける",
+      "tagAddShort": "タグ",
+      "tagSearch": "タグを検索 / 作成…",
+      "tagCreate": "「{{name}}」を作る",
+      "tagRemove": "{{name}} を外す",
+      "tagNoCandidates": "タグがまだありません",
+      "tagDialog": "フリーセッションのタグ",
+      "tagDisabled": "タグはフリーセッション用です。紐づけ先を外すと使えます。"
     }
   },
   "audioMixer": {

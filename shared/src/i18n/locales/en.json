@@ -316,6 +316,18 @@
       "save": "Save",
       "saved": "Saved",
       "unsaved": "Unsaved"
+    },
+    "freeSession": {
+      "title": "Free session",
+      "tagHeading": "Tags",
+      "tagAdd": "Add a tag to the free session",
+      "tagAddShort": "Tag",
+      "tagSearch": "Search or create a tag…",
+      "tagCreate": "Create “{{name}}”",
+      "tagRemove": "Remove {{name}}",
+      "tagNoCandidates": "No tags yet",
+      "tagDialog": "Free session tags",
+      "tagDisabled": "Tags apply to a free session — clear the linked item to use them."
     }
   },
   "audioMixer": {
