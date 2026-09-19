@@ -59,6 +59,21 @@ Owner-chat: schedule-refine
 
 #280 / #673 / #675 / #889 / #893 の分割は効いている。`CalendarTab.tsx` は 2,392 → 1,239 行、`WeekTimeGrid` の props は 28 → 6 個、`EventEditorPane` は 19 → 11 個に落ちた。**今回の報告はどれも行数と相関しない。** 残っているのは「同じ操作の入口が割れている」問題で、本計画はそこだけを狙う。
 
+### 2026-09-19 の再計測（W0〜W12 merge 後）
+
+| 指標                                  | 2026-09-16 baseline | 2026-09-19 実測 | 差          |
+| ------------------------------------- | ------------------- | --------------- | ----------- |
+| 対象コード                            | 71 / 19,744 行      | 74 / 21,932 行  | +3 / +2,188 |
+| `web/src/schedule/`                   | 38 / 8,908 行       | 40 / 10,218 行  | +2 / +1,310 |
+| `shared/src/components/schedule/`     | 21 / 6,155 行       | 23 / 6,722 行   | +2 / +567   |
+| データ層（hooks + services + mapper） | 12 / 5,402 行       | 11 / 4,992 行   | -1 / -410   |
+| `CalendarTab.tsx`                     | 1,239 行            | **1,375 行**    | **+136**    |
+| `MonthGrid.tsx`                       | 623 行              | 383 行          | -240（W12） |
+
+**増えた分を持ち込んだのはリファクタリングではなく機能追加である。** `git log --numstat -- web/src/schedule/CalendarTab.tsx` を 2026-09-16 以降で引くと、W8 / W9 / W10 / W12 をまとめた PR #1684 だけが **-1 行**で、残る +137 行は #1638 / #1639 / #1640 / #1641 / #1626 / #1664 / #1678 の 7 本が足している。
+
+§5 は「後に回す 4 件は W15 まで着手しない」と書いたが、その 4 件（#1639 / #1640 / #1641 / #1626）は 2026-09-19 に merge された。**衝突は起きなかった**（どれも W8 / W11 の merge 後に着地している）。ただし AC の「`CalendarTab.tsx` が 1,239 行を超えない」は満たせていない。自己免除はせず、扱いを判断キューへ積む（P-008 / D-20260919-sched-6）。
+
 ---
 
 ## 1. 不具合・矛盾の棚卸し
@@ -83,21 +98,24 @@ A-03 と A-04 が対になっている点が重い。**繰り返しを ON にす
 
 ### 1-B. Undo はあるが元に戻りきらない
 
-| ID   | 事象                                                                                       | 根拠                                                                                               | 区分   |
-| ---- | ------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- | ------ |
-| B-01 | Schedule を離れるとグローバル Undo スタックが全消去される（Notes / Todo の履歴も巻き添え） | `ScheduleItemsContext.tsx:55-58`（同型 5 本）+ マウント位置 `sectionDescriptors.tsx:184-188`       | コード |
-| B-02 | 予定作成の undo / redo が書き込み確定前に push される。失敗しても履歴だけ残る              | `useScheduleItemsCRUD.ts:126` 発火 → `:182` push、失敗は `:177-180` でログのみ                     | コード |
-| B-03 | 作成の redo が古い楽観行を再挿入し、サーバ確定値とリマインダーの反映を失う                 | `useScheduleItemsCRUD.ts:194-199` vs `:139-175`                                                    | コード |
-| B-04 | 作成の undo がノートとリンクを消さない（予定だけ消えてノートが孤児になる）                 | `useScheduleCreateFlow.ts:190-193` + `useCreatePanelNotes.ts:113-131`                              | コード |
-| B-05 | 「以降すべて / すべて」編集がスタックに 2 件積む。1 回目の Ctrl+Z はテンプレートだけ戻す   | `useRepeatMutations.ts:597`（占有行）と `:624`（テンプレート）                                     | コード |
-| B-06 | `updateRoutine` は書き込みが落ちても push する                                             | `useRoutinesAPI.ts:183` `:196`                                                                     | コード |
-| B-07 | 頻度変更の undo はリズムだけ戻し、再生成で消えた / 増えた日は戻さない                      | `useRoutinesAPI.ts:198-208` vs `useScheduleItemsRoutineSync.ts:292-346`                            | コード |
-| B-08 | シリーズ削除の undo で、枠が埋まっていた日は Trash に取り残されログだけ出る                | `useRoutinesAPI.ts:290-306`                                                                        | コード |
-| B-09 | 完了トグルの undo が「元の値に戻す」でなく「もう一度反転」                                 | `useScheduleItemsCRUD.ts:324`                                                                      | コード |
-| B-10 | undo / redo の DB 書き込みが投げっぱなしで、失敗しても「元に戻しました」のトーストが出る   | `useScheduleItemsCRUD.ts:189` ほか 10 箇所 + `UndoRedoManager.ts:62-69` + `UndoRedoHost.tsx:24-29` | コード |
-| B-11 | 削除・スキップの undo が選択状態を戻さない                                                 | `useScheduleMutations.ts:146` `:349`                                                               | コード |
-| B-12 | 1 回の保存で「繰り返し ON + タイトル変更」をすると、繰り返しは戻せずタイトルだけ戻る       | `EventEditorPane.tsx:561-579` + `useRepeatMutations.ts:356`                                        | コード |
-| B-13 | ラベルの粒度が粗く、トーストが何を戻したか言えない（Todo は全部「todo change」）           | `shared/src/i18n/locales/en.json:878` `:886` `:893`                                                | コード |
+| ID   | 事象                                                                                                                                                                 | 根拠                                                                                                                                                                                         | 区分   |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| B-01 | Schedule を離れるとグローバル Undo スタックが全消去される（Notes / Todo の履歴も巻き添え）                                                                           | `ScheduleItemsContext.tsx:55-58`（同型 5 本）+ マウント位置 `sectionDescriptors.tsx:184-188`                                                                                                 | コード |
+| B-02 | 予定作成の undo / redo が書き込み確定前に push される。失敗しても履歴だけ残る                                                                                        | `useScheduleItemsCRUD.ts:126` 発火 → `:182` push、失敗は `:177-180` でログのみ                                                                                                               | コード |
+| B-03 | 作成の redo が古い楽観行を再挿入し、サーバ確定値とリマインダーの反映を失う                                                                                           | `useScheduleItemsCRUD.ts:194-199` vs `:139-175`                                                                                                                                              | コード |
+| B-04 | 作成の undo がノートとリンクを消さない（予定だけ消えてノートが孤児になる）                                                                                           | `useScheduleCreateFlow.ts:190-193` + `useCreatePanelNotes.ts:113-131`                                                                                                                        | コード |
+| B-05 | 「以降すべて / すべて」編集がスタックに 2 件積む。1 回目の Ctrl+Z はテンプレートだけ戻す                                                                             | `useRepeatMutations.ts:597`（占有行）と `:624`（テンプレート）                                                                                                                               | コード |
+| B-06 | `updateRoutine` は書き込みが落ちても push する                                                                                                                       | `useRoutinesAPI.ts:183` `:196`                                                                                                                                                               | コード |
+| B-07 | 頻度変更の undo はリズムだけ戻し、再生成で消えた / 増えた日は戻さない                                                                                                | `useRoutinesAPI.ts:198-208` vs `useScheduleItemsRoutineSync.ts:292-346`                                                                                                                      | コード |
+| B-08 | シリーズ削除の undo で、枠が埋まっていた日は Trash に取り残されログだけ出る                                                                                          | `useRoutinesAPI.ts:290-306`                                                                                                                                                                  | コード |
+| B-09 | 完了トグルの undo が「元の値に戻す」でなく「もう一度反転」                                                                                                           | `useScheduleItemsCRUD.ts:324`                                                                                                                                                                | コード |
+| B-10 | undo / redo の DB 書き込みが投げっぱなしで、失敗しても「元に戻しました」のトーストが出る                                                                             | `useScheduleItemsCRUD.ts:189` ほか 10 箇所 + `UndoRedoManager.ts:62-69` + `UndoRedoHost.tsx:24-29`                                                                                           | コード |
+| B-11 | 削除・スキップの undo が選択状態を戻さない                                                                                                                           | `useScheduleMutations.ts:146` `:349`                                                                                                                                                         | コード |
+| B-12 | 1 回の保存で「繰り返し ON + タイトル変更」をすると、繰り返しは戻せずタイトルだけ戻る                                                                                 | `EventEditorPane.tsx:561-579` + `useRepeatMutations.ts:356`                                                                                                                                  | コード |
+| B-13 | ラベルの粒度が粗く、トーストが何を戻したか言えない（Todo は全部「todo change」）                                                                                     | `shared/src/i18n/locales/en.json:878` `:886` `:893`                                                                                                                                          | コード |
+| B-14 | 変換とノート添付の Undo が、自分で失敗トーストを出したあと**正常終了する**。Manager は成功と見るので「元に戻しました」が重なり、失敗したのにコマンドが redo 側へ移る | `useItemConversion.ts:153-160` `:183-190`（`pushTodoToEventUndo` 側にも同じ 2 本）、`useCreatePanelNotes.ts:162-165` `:177-180` + `UndoRedoManager.ts:137-175` + `UndoRedoHost.tsx:42` `:47` | コード |
+
+**B-14 は B-10 の裏返しで、W5 を生き延びた。** W5 は Provider 側（`useScheduleItemsCRUD`）の投げっぱなしを塞いだが、web 側のこの 2 hook は catch が例外を握って握り潰す形なので、Manager からは成功に見える。直し方 = catch でトーストを出したあと re-throw する（または catch を外して Manager に任せる）。出典 = shared-fix レーンが #1681 の工程 1 で `push(` の 30 箇所を棚卸しした報告（`.claude/comm/outbox/chat-shared-fix.md`・2026-09-19）で、`web/src/schedule/**` が本計画の Scope のため向こうでは触っていない。**本チャットが当該 4 箇所を読んで確認済み。**
 
 **#1637 の第一容疑は B-01 である。** 変換の 4 入口はすべて `useItemConversion` に収束し、成功分岐で push している（`:298` / `:371`）。押せないとすれば、push した履歴が Provider の再マウントで消えている線が濃い。ただし**変換だけで Provider が再マウントされる経路は未特定**なので、工程 2 の最初に実ブラウザで切り分ける（推定）。
 
@@ -154,18 +172,21 @@ D-05 はコード内のコメント（`useRepeatMutations.ts:320-326`）が「re
 
 ### 1-F. 入口ごとの挙動差・重複実装
 
-| ID   | 事象                                                                                         | 根拠                                                                       | 区分   |
-| ---- | -------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------- | ------ |
-| F-01 | Event→Todo 変換は編集パネル経由だと未保存破棄の確認が入り、バブル経由だと入らない            | `ScheduleOverlayHost.tsx:150-154` vs `ScheduleOverlays.tsx:226-227`        | コード |
-| F-02 | Todo 削除の確認ポリシーが 2 種類（トレイ / チップバブル と 詳細パネル）                      | `useScheduleTodoChips.ts:331` vs `:370`                                    | コード |
-| F-03 | Todo をカレンダーへ落とす経路が 2 本あり、時刻あり / 終日の分岐を別々に実装                  | `useScheduleMutations.ts:308-334` vs `todoChipUndoWiring.ts:119`           | コード |
-| F-04 | Todo のリネームだけ hook を通らず `CalendarTab` の JSX 内で直接 `updateNode`                 | `CalendarTab.tsx:1098-1099`                                                | コード |
-| F-05 | Briefing が予定の作成・削除・繰り返し削除を独自実装（Undo 無し・前処理無し・失敗通知無し）   | `useBriefingWrites.ts:193-218` `:289-323` `:340-389`                       | コード |
-| F-06 | 「生き残りから繰り返しの帯を外す」同じ写像が 3 箇所にある                                    | `useRepeatMutations.ts:511-521` `:690-698`、`useBriefingWrites.ts:364-372` | コード |
-| F-07 | Trash の復元・完全削除が `useScheduleItemsTrash` を通らず、#932 の競合ロールバックが効かない | `TrashScreen.tsx:476-478` `:495-497`                                       | コード |
-| F-08 | 予定の完了トグルは UI 経路が無いのに provider に残る（MCP 専用）                             | `useScheduleMutations.ts:225-232` + `useScheduleItemsCRUD.ts:290`          | コード |
-| F-09 | 複製した行は `routineId` を落とすため、繰り返しの複製が手動の単発になる                      | `useScheduleItemsCRUD.ts:107`                                              | コード |
-| F-10 | 書き込みの入口が 3 層に散る（ホスト hook / Provider CRUD / MCP）。範囲の門番は 1 つだけ      | 1-E の末尾参照                                                             | コード |
+| ID   | 事象                                                                                                       | 根拠                                                                                                                                  | 区分   |
+| ---- | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| F-01 | Event→Todo 変換は編集パネル経由だと未保存破棄の確認が入り、バブル経由だと入らない                          | `ScheduleOverlayHost.tsx:150-154` vs `ScheduleOverlays.tsx:226-227`                                                                   | コード |
+| F-02 | Todo 削除の確認ポリシーが 2 種類（トレイ / チップバブル と 詳細パネル）                                    | `useScheduleTodoChips.ts:331` vs `:370`                                                                                               | コード |
+| F-03 | Todo をカレンダーへ落とす経路が 2 本あり、時刻あり / 終日の分岐を別々に実装                                | `useScheduleMutations.ts:308-334` vs `todoChipUndoWiring.ts:119`                                                                      | コード |
+| F-04 | Todo のリネームだけ hook を通らず `CalendarTab` の JSX 内で直接 `updateNode`                               | `CalendarTab.tsx:1098-1099`                                                                                                           | コード |
+| F-05 | Briefing が予定の作成・削除・繰り返し削除を独自実装（Undo 無し・前処理無し・失敗通知無し）                 | `useBriefingWrites.ts:193-218` `:289-323` `:340-389`                                                                                  | コード |
+| F-06 | 「生き残りから繰り返しの帯を外す」同じ写像が 3 箇所にある                                                  | `useRepeatMutations.ts:511-521` `:690-698`、`useBriefingWrites.ts:364-372`                                                            | コード |
+| F-07 | Trash の復元・完全削除が `useScheduleItemsTrash` を通らず、#932 の競合ロールバックが効かない               | `TrashScreen.tsx:476-478` `:495-497`                                                                                                  | コード |
+| F-08 | 予定の完了トグルは UI 経路が無いのに provider に残る（MCP 専用）                                           | `useScheduleMutations.ts:225-232` + `useScheduleItemsCRUD.ts:290`                                                                     | コード |
+| F-09 | 複製した行は `routineId` を落とすため、繰り返しの複製が手動の単発になる                                    | `useScheduleItemsCRUD.ts:107`                                                                                                         | コード |
+| F-10 | 書き込みの入口が 3 層に散る（ホスト hook / Provider CRUD / MCP）。範囲の門番は 1 つだけ                    | 1-E の末尾参照                                                                                                                        | コード |
+| F-11 | 予定の時刻変更が、クリックパネル経由だけツアーへ通知されない。ツアー 3/10 が Edit details からしか進まない | `CalendarTab.tsx:1201-1202`（`onRetime` が素の `handleUpdate` を呼ぶ）vs `:1155`（`onSave: handleUpdateReported`）、通知は `:669-681` | コード |
+
+**F-11 = #1747**（2026-09-19 起票・chat-main が Epic #1121 の DoD 実測で発見）。#1664 が足した `onRetime` が F 系の典型で、「同じ書き込みなのに入口ごとに副作用が落ちる」形をそのまま踏んでいる。修正は PR #1752（本計画と同じレーン・別ブランチ）。
 
 ### 1-G. 幅による分岐（Desktop / narrow）
 
@@ -242,6 +263,35 @@ Undo の domain は 4 つある（`scheduleItem` / `routine` / `itemConversion` 
 **内訳**: 29 経路のうち push があるのは 14（U01 / U03〜U07 / U09 / U14 / U18 / U19 / U21〜U24）で、15 経路には無い。そのうち **W4 / W6 が Scope 内で扱えるのは 9 経路**（U08 / U10 / U13 / U15 / U16 / U17 / U20 / U25 / U26）で、残る U02 / U11 / U12 / U27 / U28 / U29 は書き込みが Scope 外のファイルに居る（Briefing・Trash・タグ・MCP）。§Acceptance Criteria の「Scope 内の 9 経路」はこの 9 本を指す。
 
 **スタックの全消去（B-01）**: `ScheduleItemsContext.tsx:57` が unmount 時に `undoRedo.clear()` を**引数なしで**呼ぶ。`clear(domain?)` は引数が無いと全 domain を消す（`UndoRedoContextValue.ts:20`）ため、Schedule を離れると Notes / Todo の履歴も道連れになる。同型の Provider が 5 本ある。#1637 の第一容疑はここで、切り分けは W3 が実ブラウザで行う。
+
+### 1-K. 2026-09-19 の再棚卸し（W0〜W12 merge 後に残った矛盾）
+
+W14（実ブラウザ検証）の直前に、同じ 7 軸でコードを読み直した。**上の A〜J は 2026-09-16 時点のコードに対する棚卸しで、以下は W0〜W12 と 7 本の機能 PR が着地したあとの現状である。** 既存 ID と重なる行は載せず、**新規に見つかったものだけ**を並べる。区分は A〜J と同じ（「コード」= 該当行を読んだ / 「推定」= コードから導いたが挙動は未確認）。
+
+| ID   | 事象                                                                                                                                                                     | 根拠                                                                                                                                      | 区分   |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------- | ------ |
+| K-01 | 削除の 3 スコープのうち「この回以降」(`detach-series`) だけ Undo に積まれない。「この回」と「すべて」は積む                                                              | `useRepeatMutations.ts:947-985`（push 無し）vs `useRoutinesAPI.ts:301`、`useRoutinesAPI.ts:389-410` が「No undo entry」と明記             | コード |
+| K-02 | 同じ「繰り返しを解除」でも入口で Undo の有無が逆転する。エディタの「なし」は積み、スコープダイアログの「この回以降」は積まない                                           | `useRepeatMutations.ts:708-737` vs `:947-985`（どちらも `detachRoutine` を呼ぶ）                                                          | コード |
+| K-03 | `dismiss` / `undismiss` だけ `prev` の存在チェック無しで push する。`prev === undefined` のまま `mirror.restore` に渡る                                                  | `useScheduleItemsCRUD.ts:408` `:472` vs ガードのある `:273` `:339` `:534`                                                                 | コード |
+| K-04 | 繰り返しリストの行クリックが Undo 不能な INSERT を起こす。移動先の日の occurrence を生成するが、履歴にもトーストにも出ない                                               | `useScheduleRepeats.ts:212-225`（#1678 の周辺）                                                                                           | コード |
+| K-05 | Trash 系 3 操作が Undo 対象外で、しかも巻き戻しが非対称。`permanentDeleteRoutine` は失敗時に楽観削除を戻すが `restoreRoutine` は戻さない                                 | `useRoutinesAPI.ts:509-540`（戻さない）vs `:542-567`（戻す）                                                                              | コード |
+| K-06 | 複製がタグを引き継がない。新 id で作るため、複製した予定はタグのレンズから消える                                                                                         | `useScheduleMutations.ts:383-434` が `wiki_tag_assignments` に触れない（`web/tests/useScheduleMutations.test.tsx` が payload を固定済み） | コード |
+| K-07 | 複製が `reminderOffset` も落とす。コピー先は Settings の既定値で作られる                                                                                                 | `useScheduleMutations.ts:396-407` vs `useScheduleItemsCRUD.ts:89` `:108-113`                                                              | コード |
+| K-08 | 繰り返し解除のタグ戻しが「ピン留め 1 件」のときだけ効く。スコープダイアログ経由は `keepItemIds` 無しで呼ぶため、残った過去の回からタグが消える                           | `SupabaseRoutinesService.ts:729-736`、呼び分け `useRepeatMutations.ts:671-675`（pin 有り）vs `:962-965`（無し）                           | 推定   |
+| K-09 | 繰り返し解除だけ成功時に `reload()` しない。変換・頻度変更・系列編集は `finally` で必ず呼ぶ                                                                              | `useRepeatMutations.ts:739-743` `:978-981` vs `:462-467` `:602-604` `:930-932`                                                            | コード |
+| K-10 | 複製は楽観挿入のみで `reload` も `onSaved` も無い。INSERT が落ちると幽霊行が残り、トーストも出ない                                                                       | `useScheduleMutations.ts:383-434` vs `:262-283`（create は `onSaved` を渡す）                                                             | コード |
+| K-11 | Todo → Event 変換に成功トーストが無い。逆方向は出す。i18n catalog に `toEventDone` キー自体が存在しない                                                                  | `useItemConversion.ts:304` vs `:375-378`、`grep -c toEventDone shared/src/i18n/locales/{en,ja}.json` = 0                                  | コード |
+| K-12 | `onRepeatConvertFailed("materialise")` が到達しないデッドコード。`materialiseNewSeries` は throw を待つが、`ensureRoutineItemsForDateRange` は throw せず `false` を返す | `useRepeatMutations.ts:330-343` vs `useScheduleItemsRoutineSync.ts:219-222`（`catch` で `return false`）                                  | コード |
+| K-13 | 頻度変更の reconcile 失敗が無言。テンプレート書き込みの失敗はトーストになるのに、その後の日の再整形は握り潰される                                                        | `useRepeatMutations.ts:562`（toast）vs `:572-580` + `useScheduleItemsRoutineSync.ts:352-354`                                              | コード |
+| K-14 | `ensureRoutineItemsForDateRange` の失敗の扱いが呼び出し側 3 箇所で全部違う（到達しない try/catch / 戻り値を見て中断 / 握り潰して reload）                                | `useRepeatMutations.ts:330-343` / `:953-959` / `useScheduleRepeats.ts:218-224`                                                            | コード |
+| K-15 | Provider 層の戻し方が 4 通り混在する（`boolean` / rethrow / `{landed}` で握り潰す / rethrow）。呼び出し側が一律に扱えない                                                | `useRoutinesAPI.ts:192-198` / `:406` / `:288-292` / `:493-495`                                                                            | コード |
+| K-16 | `updateFutureOccurrences` の throw を、往路は `false` に変換してトーストし、復路（undo / redo）は握り潰す。同じ失敗が方向で報告されたりされなかったりする                | `useRepeatMutations.ts:837-849` vs `:901-909`                                                                                             | コード |
+
+**既に判断待ちのもの**: K-01 / K-02（detach-series の Undo）は D-20260919-sched-2 に積んである。**A（載せない）を推奨**しているのは、切り離しがタグを routine → survivor へ移し、その移送が `on delete cascade` のためロールバックするとタグごと消えるからで、K-08 はその裏づけでもある。回答が付くまで K-01 / K-02 / K-08 は動かさない。
+
+**確認の度合い**: 上のうち K-01 / K-06 / K-11 / K-12 と B-14 は本チャットが該当行を直接読んで裏を取った。残りは並列調査の報告をそのまま採ったもので、**実ブラウザ / 実 DB での再現は 1 件も無い**。とくに K-08 と K-12 は挙動としての確信度は高いが未検証なので、W14 で再現手順を 1 本ずつ通す価値がある。
+
+**意図された差として除外したもの**: ノート併用時だけ配置が Undo されない（`todoChipUndoWiring.ts:193-207` のコメントが理由を明記）、Todo 削除の確認ポリシーの差（#573 / #775）、同日ドラッグと日跨ぎドラッグでスコープを聞く / 聞かないの差（`useScheduleMutations.ts:296-305` に設計判断として明記・W6 で仕様として固定済み）。
 
 ---
 
@@ -362,24 +412,25 @@ shared/src/i18n/locales/{en,ja}.json  （文言の追加が要る場合のみ）
 
 ## 4. 作業単位（PR 単位・依存順）
 
-| #   | 作業単位                                                             | 依存    | Gate    | Acceptance                                                                       |
-| --- | -------------------------------------------------------------------- | ------- | ------- | -------------------------------------------------------------------------------- |
-| W0  | `useScheduleMutations` の 9 ハンドラを vitest で pin（挙動変更ゼロ） | —       | 🤖 自律 | `web/tests/useScheduleMutations.test.tsx` が 9 ハンドラを直接呼ぶ・CI 緑         |
-| W1  | #1632 のタグ移送（サービス層のみ・挙動変更あり）                     | —       | 🤖 自律 | #1632 の DoD 全項目・ロールバックのテストが `shared/tests/` にある               |
-| W2  | Undo 全経路の表を作り、押していない経路を確定（コード変更は表のみ）  | W0      | 🤖 自律 | 表が PR 本文にあり各行に `file:line`・#1638 の手順 1 を満たす                    |
-| W3  | #1637 の原因確定と修正                                               | W2      | 👀 目視 | 変換 4 入口すべてで Undo が有効・各入口のテストが web/tests にある               |
-| W4  | Undo の push を書き込み確定後へ揃える（B-02 / B-03 / B-06 / B-09）   | W2      | 🤖 自律 | 失敗した書き込みがスタックに残らないテスト・完了トグルの undo が set になる      |
-| W5  | Undo の失敗をユーザーに見せる（B-10 / D-01〜D-08 の巻き戻し）        | W4      | 🤖 自律 | 失敗時に成功トーストが出ないテスト・楽観更新が巻き戻るテスト                     |
-| W6  | 繰り返しの範囲確認を現状のまま仕様として固定（E-01〜E-09）           | —       | 🤖 自律 | 実装変更なし。#1638 の確認ダイアログは `requestScope` を通る経路だけを対象にする |
-| W7  | `handleScopeChoose` を純関数 + 実行器へ割る（I-01）                  | W0      | 🤖 自律 | 単一関数が 80 行以下・6 分岐の純関数テストが shared/tests にある                 |
-| W8  | 変換と Todo 削除・drop の入口統一（F-01〜F-04）                      | W3      | 🤖 自律 | 入口ごとの差が消えたことをテストで固定・CI 緑                                    |
-| W9  | `reload()` の全置換をやめて競合を畳む（C-01〜C-05）                  | W7      | 👀 目視 | 進行中の編集が reload で消えないテスト・工程 3 の S03 / S05 が緑                 |
-| W10 | 「今日」の一本化と 2 ストアの整理（H-01 / H-02 / C-06）              | W9      | 🤖 自律 | 2 つの日付が同じ値から派生する・既存テスト全緑                                   |
-| W11 | 描画算術と 3 状態折り返しの共有化（I-03 / I-05）                     | W0      | 🤖 自律 | `AgendaList` が `scheduleGridLayout` を使う・折り返しが 1 か所                   |
-| W12 | `MonthGrid` の compact / full 分離（I-04）                           | W11     | 🤖 自律 | `MonthGrid.tsx` が 400 行以下・`monthGrid.test.tsx` 全緑                         |
-| W13 | narrow の省略（G-01〜G-04）を仕様として記録                          | —       | 🤖 自律 | 本書 §1-G の記述のみで完了済み。別 Issue の起票は不要                            |
-| W14 | 工程 3 の実ブラウザ検証（chat-main）                                 | W1〜W12 | 👀 目視 | §6 の全シナリオ合格・コンソールエラー 0 件・レポートを #1642 にリンク            |
-| W15 | 本書を `archive/` へ移し Status を COMPLETED にする                  | W14     | 🤖 自律 | `docs-lint` 緑・Status enum 準拠                                                 |
+| #    | 作業単位                                                             | 依存    | Gate    | Acceptance                                                                       |
+| ---- | -------------------------------------------------------------------- | ------- | ------- | -------------------------------------------------------------------------------- |
+| W0   | `useScheduleMutations` の 9 ハンドラを vitest で pin（挙動変更ゼロ） | —       | 🤖 自律 | `web/tests/useScheduleMutations.test.tsx` が 9 ハンドラを直接呼ぶ・CI 緑         |
+| W1   | #1632 のタグ移送（サービス層のみ・挙動変更あり）                     | —       | 🤖 自律 | #1632 の DoD 全項目・ロールバックのテストが `shared/tests/` にある               |
+| W2   | Undo 全経路の表を作り、押していない経路を確定（コード変更は表のみ）  | W0      | 🤖 自律 | 表が PR 本文にあり各行に `file:line`・#1638 の手順 1 を満たす                    |
+| W3   | #1637 の原因確定と修正                                               | W2      | 👀 目視 | 変換 4 入口すべてで Undo が有効・各入口のテストが web/tests にある               |
+| W4   | Undo の push を書き込み確定後へ揃える（B-02 / B-03 / B-06 / B-09）   | W2      | 🤖 自律 | 失敗した書き込みがスタックに残らないテスト・完了トグルの undo が set になる      |
+| W5   | Undo の失敗をユーザーに見せる（B-10 / D-01〜D-08 の巻き戻し）        | W4      | 🤖 自律 | 失敗時に成功トーストが出ないテスト・楽観更新が巻き戻るテスト                     |
+| W6   | 繰り返しの範囲確認を現状のまま仕様として固定（E-01〜E-09）           | —       | 🤖 自律 | 実装変更なし。#1638 の確認ダイアログは `requestScope` を通る経路だけを対象にする |
+| W7   | `handleScopeChoose` を純関数 + 実行器へ割る（I-01）                  | W0      | 🤖 自律 | 単一関数が 80 行以下・6 分岐の純関数テストが shared/tests にある                 |
+| W8   | 変換と Todo 削除・drop の入口統一（F-01〜F-04）                      | W3      | 🤖 自律 | 入口ごとの差が消えたことをテストで固定・CI 緑                                    |
+| W9   | `reload()` の全置換をやめて競合を畳む（C-01〜C-05）                  | W7      | 👀 目視 | 進行中の編集が reload で消えないテスト・工程 3 の S03 / S05 が緑                 |
+| W10  | 「今日」の一本化と 2 ストアの整理（H-01 / H-02 / C-06）              | W9      | 🤖 自律 | 2 つの日付が同じ値から派生する・既存テスト全緑                                   |
+| W11  | 描画算術と 3 状態折り返しの共有化（I-03 / I-05）                     | W0      | 🤖 自律 | `AgendaList` が `scheduleGridLayout` を使う・折り返しが 1 か所                   |
+| W12  | `MonthGrid` の compact / full 分離（I-04）                           | W11     | 🤖 自律 | `MonthGrid.tsx` が 400 行以下・`monthGrid.test.tsx` 全緑                         |
+| W13  | narrow の省略（G-01〜G-04）を仕様として記録                          | —       | 🤖 自律 | 本書 §1-G の記述のみで完了済み。別 Issue の起票は不要                            |
+| W13b | #1747 のツアー通知漏れを直す（F-11）                                 | —       | 🤖 自律 | クリックパネルの時刻変更がツアー 3/10 を進めるテストがある・CI 緑（PR #1752）    |
+| W14  | 工程 3 の実ブラウザ検証（chat-main）                                 | W1〜W12 | 👀 目視 | §6 の全シナリオ合格・コンソールエラー 0 件・レポートを #1642 にリンク            |
+| W15  | 本書を `archive/` へ移し Status を COMPLETED にする                  | W14     | 🤖 自律 | `docs-lint` 緑・Status enum 準拠                                                 |
 
 **着手順の要**: W0 を必ず最初に置く（以降の回帰検知がすべてここに乗る）。W1 は独立でファイルが重ならないため並行してよい。W3 で原因が B-01 と確定した場合、`UndoRedoContext` は Scope 外なので**触らず、Schedule 側の回避で済ませるか別 Issue に出すかを PR 本文で明示する**。W6 と W13 は 2026-09-16 に裁定が付いた（D-20260916-sched-2 = A / D-20260916-sched-1 = A）ため、どちらも実装変更を伴わない記録だけの作業単位になった。
 
@@ -405,6 +456,25 @@ shared/src/i18n/locales/{en,ja}.json  （文言の追加が要る場合のみ）
 
 #1625 と #1627 は close 済みのため対象外。**「後に回す」4 件は W15 まで着手しない。** 先に触るとリファクタの PR と同じファイルで衝突し続ける。
 
+### 5-2. 2026-09-19 時点の実態（上の表の結果）
+
+上の表は 2026-09-16 の判断で、**実際にどうなったかは以下**。W14（実ブラウザ検証）の直前に全件を `gh issue view` で引き直した。
+
+| Issue | state              | 2026-09-16 の判断    | 実際                                                                                                                                                        |
+| ----- | ------------------ | -------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| #1632 | CLOSED（PR #1656） | 前に直す（W1）       | 判断どおり。推奨方針は採れず、移送を変換の最後の一手にした（Worklog 参照）                                                                                  |
+| #1637 | CLOSED（PR 無し）  | 中で吸収（W3）       | 判断どおり。真因は B-01 で、別 Issue #1727 に分けて PR #1730 で修正                                                                                         |
+| #1638 | CLOSED（PR #1708） | 中で吸収（W2→W4→W6） | 判断どおり。派生で #1728 を起票                                                                                                                             |
+| #1639 | CLOSED（PR #1711） | 後に回す             | **W15 を待たず先行着地。** W11 merge 後だったため衝突は起きなかった                                                                                         |
+| #1640 | CLOSED（PR #1712） | 後に回す             | 同上（W8 merge 後）                                                                                                                                         |
+| #1641 | CLOSED（PR #1715） | 後に回す             | 同上                                                                                                                                                        |
+| #1626 | CLOSED（PR #1729） | 後に回す             | 同上                                                                                                                                                        |
+| #1747 | **OPEN**           | （未起票）           | **前に直す。** W14 のツアーシナリオが赤で止まるため、W13b として W14 の前に置く（PR #1752）                                                                 |
+| #1663 | **OPEN**           | （未起票）           | **後に回す。** 繰り返しのタグ色（K-08 と同根）。上書き先が DDL を要する可能性があり、本計画は `supabase/migrations/` を Non-goal にしているため吸収できない |
+| #1678 | **OPEN**           | （未起票）           | **後に回す。** 繰り返しタブの行クリック（K-04 の周辺）。純粋な機能追加で「挙動変更ゼロ」の原則から外れる                                                    |
+
+**「後に回す 4 件は W15 まで着手しない」は守られなかったが、実害は出ていない。** 4 件とも W8 / W11 の merge 後に着地したため、衝突は 1 件も起きていない。代わりに出た副作用が `CalendarTab.tsx` の +136 行で、§Acceptance Criteria の行数条件を割った。
+
 ---
 
 ## Acceptance Criteria (機械検証可能)
@@ -427,7 +497,8 @@ shared/src/i18n/locales/{en,ja}.json  （文言の追加が要る場合のみ）
 - [ ] `grep -n "PX_PER_MINUTE" shared/src/components/schedule/AgendaList.tsx` が 0 件（W11）
 - [x] `grep -n "updateNode(" web/src/schedule/CalendarTab.tsx` が 0 件（W8 — Todo リネームのインラインが消える）
 - [x] `shared/src/components/schedule/MonthGrid.tsx` が 400 行以下（W12）
-- [x] `web/src/schedule/CalendarTab.tsx` が 1,239 行を超えない（増やさないことだけを課す）
+- [ ] `web/src/schedule/CalendarTab.tsx` が 1,239 行を超えない（増やさないことだけを課す）— **2026-09-19 実測 1,375 行で未達**。増やしたのはリファクタの PR ではなく 7 本の機能 PR（§Context の再計測を参照）。扱いは D-20260919-sched-6 の回答待ち
+- [ ] クリックパネルの時刻変更がツアー 3/10 を進める（F-11 / #1747・W13b）
 - [ ] 各 PR の diff が ±1,000 行以内
 - [ ] 完了時: 本書の Status を COMPLETED にして `archive/` へ移した（W15）
 
@@ -481,7 +552,8 @@ S18〜S22 は本計画で足した。**棚卸しで「推定」に留まった�
 
 ## References
 
-- Issue: #1642（本計画の親）/ #1632 / #1637 / #1638 / #1639 / #1640 / #1641 / #1626
+- Issue: #1642（本計画の親）/ #1632 / #1637 / #1638 / #1639 / #1640 / #1641 / #1626 / #1747（F-11・W13b）/ #1663 / #1678（どちらも open・後に回す）
+- 他レーンからの報告: [`comm/outbox/chat-shared-fix.md`](../../../comm/outbox/chat-shared-fix.md) 2026-09-19（#1681 の `push(` 全数棚卸しから B-14 が出た）
 - 前回の分割: #280 / #673 / #675 / #889 / #893（いずれも close 済み）と [`2026-08-10-core-refactor.md`](./2026-08-10-core-refactor.md) の C6 / C8
 - 規約: [`CLAUDE.md`](../../../CLAUDE.md) §3.1 DataService 境界 / §7.1 検証ゲート / §7.4 worktree、[`rules/frontend.md`](../../../rules/frontend.md)、[`rules/docs-consistency.md`](../../../rules/docs-consistency.md)
 - Mobile の取捨: [`mobile-scope.md`](../../requirements/mobile-scope.md)
@@ -504,3 +576,9 @@ S18〜S22 は本計画で足した。**棚卸しで「推定」に留まった�
   - W8: F-04（Todo のリネームが `CalendarTab` の JSX に直書き）を `useScheduleTodoChips.handleTodoRename` へ移した。F-01〜F-03 はコードを読み直した結果、差を消す変更を入れなかった。F-01 はバブルと編集パネルが同時に開かない（未保存の下書きが存在しえない）。F-02 は #775 のコメントが意図した差と明記している。F-03 は 2 経路とも `todoChipMoveWrite` / `todoChipAllDayWrite` に既に収束している。
   - W10: H-01 を解消した。`useCalendarNav` がマウント時に固定していた today を、Provider の `date` から受け取る。H-02 / C-06（`contextItems` と `rangeItems` の二重持ち）は viewMirror の順序契約（§1-D の「残したい正しい実装」）で整合しているため、片方を派生にする変更は入れなかった。
   - W3 は #1637、W4 / W5 は #1638 の PR で扱う。W14 は chat-main、W15 は W14 の後。
+- **2026-09-19**: W14 の直前の棚卸し（コード変更なし）。W0〜W12 と 7 本の機能 PR が着地したあとの現状を、2026-09-16 と同じ 7 軸で読み直した。
+  - §Context に再計測を足した。対象コードは 19,744 → 21,932 行。**増やしたのはリファクタの PR ではない** — W8 / W9 / W10 / W12 をまとめた PR #1684 は `CalendarTab.tsx` を -1 行にしており、+137 行は #1638 / #1639 / #1640 / #1641 / #1626 / #1664 / #1678 の 7 本が足した分である。結果として AC の「1,239 行を超えない」を 136 行割った。自己免除せず判断キューへ積んだ（D-20260919-sched-6）。
+  - §1-K を新設し、既存 ID と重ならない 16 件を並べた。**意図された差として 3 件を除外した**（ノート併用時の配置 Undo・Todo 削除の確認ポリシー差・日跨ぎドラッグのスコープ省略）— いずれもコード側のコメントが理由を明記している。K-01 / K-06 / K-11 / K-12 はメインが該当行を直接読んで裏を取り、残りは並列調査の報告をそのまま採った。**実ブラウザでの再現は 1 件も無い**（W14 の担当分）。
+  - B-14 を足した。出典は shared-fix レーンの報告で、`web/src/schedule/**` が本計画の Scope のため向こうでは触っていない。B-10 の裏返しにあたり、catch が例外を握るため W5 の修正をすり抜けている。
+  - F-11 = #1747 を足し、W13b として W14 の前に置いた（PR #1752）。#1664 が足した `onRetime` が F 系の典型をそのまま踏んだ形で、**棚卸し表が予測した種類の不具合が、棚卸しの後に新しく入った**。
+  - §5-2 を足して open Issue の実態を 2026-09-19 で引き直した。2026-09-16 に「後に回す」とした 4 件は全部 merge 済みで、衝突は起きていない。未着手の open は #1747 / #1663 / #1678 の 3 件。
