@@ -1,5 +1,20 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-19 - 詳細パネルが窓より高くなっても Save に届くようにした (#1728, PR #1738)
+
+#### 概要
+
+1440x900 で予定の繰り返しを「Weekdays」にすると Save がビューポート外に出て保存できない件を直し、PR #1738 を提出した（open・merge はユーザー）。真因は詳細オーバーレイに**はみ出しの逃がし場所が 1 つも無かった**こと。`Modal` のパネルは高さ上限もスクローラも持たず、背景は `fixed inset-0` で自身がスクロールできず、包み箱は `items-center` なので高すぎるパネルは上下どちらにもはみ出し、`AppShell` が `body` を `overflow: hidden` で押さえている。実測ではパネル 1179px・Save の top 957px・祖先の `overflow-y` が全部 `visible` だった。狭幅のシートは無傷で、`BottomSheet` は #874 以来ずっと本文をスクロールさせていた。壊れていたのは `ResponsiveDetailFrame` の**上限もスクローラも持たない側の枝**だけ。
+
+#### 変更点
+
+- **shared**: `Modal` に opt-in の `fitViewport`。ON でパネルが `flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden`（2rem = 背景自身の `p-4` 両端ぶん）になり、本文だけを `min-h-0 flex-1 overflow-y-auto` で包む。見出しは動かない。**上限とスクローラは両方必要** — 伸び放題の箱に `overflow-y: auto` を載せても溢れないので何も起きない。**opt-in にした理由**は `overflow-y: auto` が横方向も `visible` から外すためで、常時 ON だと箱の外へ描くポップオーバーが全 Modal で切られる
+- **shared**: `ItemDetailOverlay` が `fitViewport` を素通し。`ResponsiveDetailFrame` は wide 枝で**常に**渡す（ホストに覚えさせない = 2 つの枠がずれるのを止めるための部品なので）。これで左右どちらの枝でも本文の周りにスクロールする箱が 1 つある
+- **web**: `ScheduleEventEditor` / `ScheduleTodoDetail` の `stickyFooter={!isWide}` を `stickyFooter` に。#995 が Desktop を外していた理由（スクローラが無い）が消えたため、Save はスクロールせずとも画面に残る
+- **テスト**: `shared/tests/detailFrameSaveReachable.test.tsx` 新規（9 ケース）。jsdom には座標が無いので高さを一切見ず、**Save から `role="dialog"` までの祖先にスクロールする箱があるか**を見る。どの部品が持つかを書かないので refactor に強い。加えて Desktop 側は「窓を基準にした上限がある」「そのスクローラが `min-h-0` を持つ」、狭幅側は「スクローラが二重にならない」。全ケースを**短い本文と報告どおりの Weekdays 繰り返しの 2 通り**で回す。「Desktop の footer は flow のまま」を固定していた 3 suite（`scheduleEventEditor` / `scheduleTodoDetail` / `detailSaveFooterSticky`）と `scheduleOverlayHost` の古い注記 2 件を追随
+- **検証**: CI `verify` 全ステップ + `LC_ALL=C bash scripts/docs-lint.sh` = 15/15 緑（shared 315 files / 3215・web 142 / 1337・desktop 4 / 57・mcp-server 32 / 463）。**実ブラウザ（1440x900 / 1440x800）は §7.4 により merge 後 chat-main**
+- **残る trade-off**: パネルの外へ描いていたポップオーバー（`TagPicker` / `TimeRangeField` のリスト）がスクローラに切られる。スクロールすれば見えるうえ対象は Schedule の詳細 2 枚だけだが、実ブラウザ確認で見る価値がある（PR 本文にも記載）
+
 ### 2026-09-19 - /goal 10 件を 10 本の PR で提出（#1642 残り / #1637 / #1638 / #1639 / #1640 / #1641 / #1663 / #1664 / #1678 / #1626）
 
 #### 概要
