@@ -171,9 +171,12 @@ export function ScheduleEventEditor({
   return (
     <EventEditorPane
       item={item}
-      // #995: narrow only — Desktop's <Modal> has no scroller for `sticky` to
-      // resolve against.
-      stickyFooter={!isWide}
+      // #995 turned this on for the sheet alone, because Desktop's <Modal>
+      // had no scroller for `sticky` to resolve against. #1728 gave the
+      // overlay one, so the row pins on both widths — which is what keeps
+      // Save on screen at 1440x900 when the repeat section unfolds its
+      // weekday pills instead of only keeping it scrollable-to.
+      stickyFooter
       // #1664: two columns on Desktop, one on the sheet — the sheet is ~360px
       // wide, where a second column is two unusable half-fields.
       twoColumn={isWide}

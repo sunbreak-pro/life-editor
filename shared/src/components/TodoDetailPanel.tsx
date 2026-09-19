@@ -177,12 +177,18 @@ export interface TodoDetailPanelProps {
    *  layout unchanged. Rendered between the status row and the content editor. */
   tagsSlot?: ReactNode;
   /**
-   * Pin the save footer to the bottom of the sheet's scroller (#995). Narrow
-   * only, and a PROP rather than a class the host appends to `className`: `cn`
-   * is plain concatenation (rules/frontend.md §Gotchas), and on Desktop this
-   * panel rides <Modal>, which has no scroller of its own — `sticky` there
-   * would resolve against the VIEWPORT and lift the footer off the card the
-   * moment the dialog outgrew the window.
+   * Pin the save footer to the bottom of the frame's scroller (#995).
+   *
+   * A PROP rather than a class the host appends to `className`: `cn` is plain
+   * concatenation (rules/frontend.md §Gotchas), so a `sticky` arriving that
+   * way would be settled by emission order rather than by the caller.
+   *
+   * Narrow-only until #1728, because Desktop's <Modal> had no scroller for
+   * `sticky` to resolve against — it would have resolved against the VIEWPORT
+   * and lifted the footer off the card once the dialog outgrew the window.
+   * `fitViewport` gave the overlay that scroller, so a host on either width
+   * may now ask for the pin. Still opt-in: a frame WITHOUT a scrolling
+   * ancestor must not.
    */
   stickyFooter?: boolean;
   className?: string;

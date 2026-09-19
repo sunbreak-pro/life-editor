@@ -45,6 +45,12 @@ export interface ItemDetailOverlayProps {
   size?: ModalProps["size"];
   /** Extra classes for the Modal panel. */
   className?: string;
+  /**
+   * Bound the overlay to the viewport and scroll its body (#1728). Forwarded
+   * to <Modal>; see the prop there for why it is opt-in. A detail body that
+   * can grow — fields that appear as the user turns options on — wants it.
+   */
+  fitViewport?: boolean;
 }
 
 export function ItemDetailOverlay({
@@ -56,6 +62,7 @@ export function ItemDetailOverlay({
   actions,
   size = "lg",
   className,
+  fitViewport,
 }: ItemDetailOverlayProps) {
   return (
     <Modal
@@ -65,6 +72,7 @@ export function ItemDetailOverlay({
       titleIcon={titleIcon}
       size={size}
       className={className}
+      fitViewport={fitViewport}
     >
       <div className="flex min-h-0 flex-col gap-4">
         <div className="min-h-0">{children}</div>
