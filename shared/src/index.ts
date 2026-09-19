@@ -659,6 +659,8 @@ export {
 export { useWikiTagsUnifiedContext } from "./hooks/useWikiTagsUnifiedContext";
 export {
   useWikiTagsUnifiedAPI,
+  type BulkTagResult,
+  type MergeTagsResult,
   type UseWikiTagsUnifiedAPIOptions,
 } from "./hooks/useWikiTagsUnifiedAPI";
 export type {

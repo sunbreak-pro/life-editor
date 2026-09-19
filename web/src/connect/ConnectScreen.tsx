@@ -6,11 +6,13 @@ import {
   selectRecentTaggedItems,
   TagHubDetailPanel,
   TagHubView,
+  TagMergeDialog,
   useConfirmDialog,
   useDomainLoad,
   useMediaQuery,
   useSyncDomains,
   useTagEditDrafts,
+  useToastOptional,
   useTranslation,
   useWikiTagsUnifiedContext,
   getConnectTagSelection,
@@ -27,6 +29,7 @@ import {
   type TagHubItem,
   type TagHubLabels,
   type TagHubTagSummary,
+  type TagMergeDialogLabels,
   type TagRowEdits,
   type TodoNode,
 } from "@life-editor/shared";
@@ -314,6 +317,7 @@ export function ConnectScreen({
       changeIcon: t("connect.changeIcon"),
       changeColor: t("connect.changeColor"),
       deleteTag: t("connect.deleteTag"),
+      mergeTag: t("connect.mergeTag"),
       editTag: t("connect.editTag"),
       edit: {
         nameLabel: t("connect.edit.nameLabel"),
@@ -470,6 +474,37 @@ export function ConnectScreen({
     [wiki, askConfirm, t, selectedTagId, commitSelection, drafts],
   );
 
+  const toast = useToastOptional();
+
+  /*
+   * Merging (#1644). The dialog names the source; the Provider refiles its
+   * items and deletes it only when every move landed. When the merged tag was
+   * the open one, the hub follows its items to where they went.
+   */
+  const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
+  const mergeTags = useCallback(
+    (sourceId: string, targetId: string) => {
+      setMergeSourceId(null);
+      void (async () => {
+        try {
+          const result = await wiki.mergeTags(sourceId, targetId);
+          if (!result.sourceDeleted) {
+            toast?.showToast("danger", t("connect.merge.failed"));
+            return;
+          }
+          if (sourceId === selectedTagId) {
+            drafts.discard(sourceId);
+            commitSelection(targetId);
+            setEditOpen(false);
+          }
+        } catch {
+          toast?.showToast("danger", t("connect.merge.failed"));
+        }
+      })();
+    },
+    [wiki, toast, t, selectedTagId, drafts, commitSelection],
+  );
+
   const createTag = useCallback(
     (name: string) => void wiki.createTag(name),
     [wiki],
@@ -522,6 +557,30 @@ export function ConnectScreen({
     }),
     [t, labels.roles],
   );
+
+  // Every live tag the merge dialog may offer — unused ones included, since
+  // folding a never-used duplicate away is the point of merging.
+  const pickableTags = useMemo(
+    () => [...model.tags.filter((tag) => !tag.isUntagged), ...model.unusedTags],
+    [model.tags, model.unusedTags],
+  );
+
+  const mergeLabels = useMemo<TagMergeDialogLabels>(
+    () => ({
+      formatTitle: (name) => t("connect.merge.title", { name }),
+      targetsLabel: t("connect.merge.targetsLabel"),
+      pickHint: t("connect.merge.pickHint"),
+      formatSummary: (count, target) =>
+        t("connect.merge.summary", { count, target }),
+      noTargets: t("connect.merge.noTargets"),
+      confirm: t("connect.merge.confirm"),
+      cancel: t("common.cancel"),
+    }),
+    [t],
+  );
+
+  const mergeSource =
+    pickableTags.find((tag) => tag.id === mergeSourceId) ?? null;
 
   const handleOpenItem = useCallback(
     (item: TagHubItem) => {
@@ -580,6 +639,16 @@ export function ConnectScreen({
         onEditSave={saveSelected}
         onDeleteTag={requestDelete}
         onCreateTag={createTag}
+        onMergeTag={setMergeSourceId}
+      />
+
+      <TagMergeDialog
+        key={mergeSourceId ?? "closed"}
+        source={mergeSource}
+        tags={pickableTags}
+        onMerge={mergeTags}
+        onCancel={() => setMergeSourceId(null)}
+        labels={mergeLabels}
       />
 
       {/* The discard question, asked when another tag is picked while this one

@@ -777,6 +777,41 @@ describe("ConnectScreen — the row's right-click menu", () => {
   });
 });
 
+/*
+ * #1644 — merging a tag, through the real hook: which writes the dialog's
+ * confirm becomes, in what order, and that nothing is written before it.
+ */
+describe("ConnectScreen — merging a tag", () => {
+  it("merges a tag: every item re-filed, the old rows removed, then the tag deleted", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+
+    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Merge into another tag…" }),
+    );
+    const dialog = within(await screen.findByRole("dialog"));
+    fireEvent.click(dialog.getByRole("radio", { name: "Idle" }));
+    dialog.getByText("4 items move to “Idle”, and this tag is deleted.");
+    fireEvent.click(dialog.getByRole("button", { name: "Merge" }));
+
+    await waitFor(() =>
+      expect(writes.softDeleteWikiTagUnified).toHaveBeenCalled(),
+    );
+    expect(writes.assignTagToItem).toHaveBeenCalledTimes(4);
+    expect(
+      writes.assignTagToItem.mock.calls.every((call) => call[2] === "t-idle"),
+    ).toBe(true);
+    expect(writes.unassignTagFromItem.mock.calls).toEqual([
+      ["a-1"],
+      ["a-2"],
+      ["a-3"],
+      ["a-4"],
+    ]);
+    expect(writes.softDeleteWikiTagUnified.mock.calls).toEqual([["t-work"]]);
+  });
+});
+
 describe("ConnectScreen — what writes nothing", () => {
   it("opening a tag, and opening its editor, are navigation", async () => {
     const { ds, writes } = makeWritableDS();

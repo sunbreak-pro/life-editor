@@ -85,6 +85,8 @@ export interface TagHubViewProps {
   onDeleteTag?: (tagId: string) => void;
   /** The rail's pinned add row, and the empty state's primary action (D5/D15). */
   onCreateTag?: (name: string) => void;
+  /** Rail "…" → merge this tag into another (#1644). */
+  onMergeTag?: (tagId: string) => void;
 }
 
 export function TagHubView({
@@ -110,6 +112,7 @@ export function TagHubView({
   onEditSave,
   onDeleteTag,
   onCreateTag,
+  onMergeTag,
 }: TagHubViewProps) {
   /*
    * The empty state's "add a tag" button and the rail's add FIELD are the same
@@ -158,6 +161,7 @@ export function TagHubView({
       formatUnusedTags={formatUnusedTags}
       onEditTag={onEditTag}
       onDeleteTag={onDeleteTag}
+      onMergeTag={onMergeTag}
       onCreateTag={onCreateTag}
       addFieldRef={addFieldRef}
       wide={wide}

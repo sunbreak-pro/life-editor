@@ -47,6 +47,12 @@ export {
   type TagEditDraftTarget,
   type TagEditWriters,
 } from "./useTagEditDrafts";
+// #1644 — folding one tag into another.
+export {
+  TagMergeDialog,
+  type TagMergeDialogLabels,
+  type TagMergeDialogProps,
+} from "./TagMergeDialog";
 export {
   TagIconPicker,
   type TagIconPickerLabels,
