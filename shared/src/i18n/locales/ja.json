@@ -1001,6 +1001,16 @@
       "recentHeading": "最近タグを付けたもの",
       "recentUntaggedHeading": "最近更新したもの",
       "recentEmpty": "このタグが付いたアイテムはまだありません。"
+    },
+    "mergeTag": "別のタグへ統合…",
+    "merge": {
+      "title": "「{{name}}」を統合する",
+      "targetsLabel": "統合先のタグ",
+      "pickHint": "アイテムの移動先になるタグを選んでください。",
+      "summary_other": "{{count}} 件が「{{target}}」へ移り、このタグは削除されます。",
+      "noTargets": "統合できる別のタグがありません。",
+      "confirm": "統合する",
+      "failed": "統合が最後まで終わりませんでした。取りこぼしが出ないよう、元のタグは残しています。"
     }
   },
   "attachment": {
