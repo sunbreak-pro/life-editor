@@ -858,7 +858,15 @@ describe("ConnectScreen — the header's totals (D1)", () => {
 
     // Both tags, the unused one included — the header counts the master, not
     // the rail's used run.
-    expect(onCountsChange).toHaveBeenLastCalledWith({ tags: 2, items: 5 });
+    //
+    // AWAITED, not asserted straight after the rail appears: the report is an
+    // effect, and the rail showing up is a DOM mutation. `waitFor` resolves on
+    // the mutation, so on a loaded machine the assertion can run in the gap
+    // before React has flushed the passive effect that makes the call — which
+    // is exactly how this failed in CI while passing locally every time.
+    await waitFor(() =>
+      expect(onCountsChange).toHaveBeenLastCalledWith({ tags: 2, items: 5 }),
+    );
 
     cleanup();
     expect(onCountsChange).toHaveBeenLastCalledWith(null);
