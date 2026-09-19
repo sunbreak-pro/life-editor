@@ -142,11 +142,26 @@ export class UndoRedoManager {
     const next = from[from.length - 1];
     if (!next) return null;
     if (next.command.confirm && this.confirmGate) {
-      const ok = await this.confirmGate({
-        direction,
-        label: next.command.label,
-        confirm: next.command.confirm,
-      });
+      let ok: boolean;
+      try {
+        ok = await this.confirmGate({
+          direction,
+          label: next.command.label,
+          confirm: next.command.confirm,
+        });
+      } catch (error) {
+        /*
+         * A gate that throws never asked anything, so the command stays put —
+         * the same place a "no" leaves it. What it must NOT do is escape:
+         * this method is awaited by a `void`-ed promise chain, so a rejection
+         * here became an unhandled one, which the dev server answers with a
+         * full-screen error overlay over a reversal that simply could not be
+         * offered (#1681). It rides out as an outcome instead, and the host
+         * says "couldn't undo" like it does for any other failure.
+         */
+        console.error(`[UndoRedo] ${direction} gate failed`, error);
+        return { command: next.command, ok: false, error };
+      }
       // Nothing moves on a "no", and nothing moves either if the stack changed
       // while the question was open — the answer was about THAT command, and
       // another write can land on top while a dialog waits.

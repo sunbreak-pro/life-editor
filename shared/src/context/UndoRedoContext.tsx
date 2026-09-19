@@ -115,11 +115,25 @@ export function UndoRedoProvider({
       // One global stack; the domain rides along so a provider can expire
       // its own snapshot commands on unmount (#1727).
       push: (domain, command) => manager.push(command, domain),
+      /*
+       * The trailing catch is the floor under the toast, not a second error
+       * path (#1681). `apply` runs every closure inside its own try and hands
+       * failures back as an outcome, so nothing should land here — but these
+       * chains are `void`-ed, and anything that DID reject (a broken host
+       * `showToast`, a manager bug) would leave the press with no answer at
+       * all and an unhandled rejection in its place.
+       */
       undo: () => {
-        void manager.undo().then((outcome) => report("undo", outcome));
+        void manager
+          .undo()
+          .then((outcome) => report("undo", outcome))
+          .catch((error) => console.error("[UndoRedo] undo escaped", error));
       },
       redo: () => {
-        void manager.redo().then((outcome) => report("redo", outcome));
+        void manager
+          .redo()
+          .then((outcome) => report("redo", outcome))
+          .catch((error) => console.error("[UndoRedo] redo escaped", error));
       },
       /*
        * #1638: the "apply to which occurrences?" question a repeat command has
