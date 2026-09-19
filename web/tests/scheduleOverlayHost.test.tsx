@@ -244,6 +244,14 @@ function renderHost(
 
   const props: ScheduleOverlayHostProps = {
     isWide: over.isWide ?? true,
+    // #1678: the repeat row's panel — closed, so it draws nothing here.
+    repeatPanel: {
+      state: null,
+      row: null,
+      onClose: vi.fn(),
+      onShowNext: vi.fn(),
+      onEditDetail: vi.fn(),
+    },
     editor: {
       item: ITEM,
       overlayOpen: true,

@@ -636,6 +636,8 @@
     "openRoutinesCta": "Open the Repeats tab",
     "summaryEmpty": "No routines yet",
     "tabRepeats": "Repeats",
+    "repeatShowNext": "Show the next one",
+    "repeatPanelLabel": "Repeat actions",
     "repeatNeverFires": "Fires on no day",
     "untitled": "Untitled repeat",
     "repeatDeleteConfirm": "Delete \"{{name}}\" and all of its events?",

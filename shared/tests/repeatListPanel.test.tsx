@@ -77,24 +77,32 @@ describe("RepeatListPanel", () => {
     ).toBeInTheDocument();
   });
 
-  it("navigates to the next occurrence when a row is activated", () => {
+  it("hands the press back with the point it happened at (#1678)", () => {
     const { onOpen } = renderPanel();
     // Anchored: the row's own name STARTS with the title, while the delete
     // button's is "Delete routine: <title>" — an unanchored match hits both.
-    fireEvent.click(screen.getByRole("button", { name: /^Morning run/ }));
-    expect(onOpen).toHaveBeenCalledWith("r-1");
+    fireEvent.click(screen.getByRole("button", { name: /^Morning run/ }), {
+      clientX: 12,
+      clientY: 34,
+    });
+    // The point is what the host anchors its panel at — the same hand-off a
+    // grid item makes (#299).
+    expect(onOpen).toHaveBeenCalledWith("r-1", { x: 12, y: 34 });
   });
 
-  it("renders a no-occurrence row as text, not a dead button", () => {
-    // A button that does nothing when pressed reads as broken; the row still
-    // has to be visible, because it is the only place this routine exists.
+  it("opens a no-occurrence row too (#1678)", () => {
+    // It used to be plain text: the press meant "jump to the next occurrence"
+    // and there was none. The press opens the row's PANEL now, and a series
+    // with nothing on the calendar is the one most worth opening (#407's
+    // zombies) — the jump is disabled inside the panel, where it can say so.
     const { onOpen } = renderPanel();
-    expect(screen.queryByRole("button", { name: /^Broken repeat/ })).toBeNull();
-    expect(screen.getByText("Broken repeat")).toBeInTheDocument();
+    const row = screen.getByRole("button", { name: /^Broken repeat/ });
     expect(
       screen.getByText("Every N days · Fires on no day"),
     ).toBeInTheDocument();
-    expect(onOpen).not.toHaveBeenCalled();
+
+    fireEvent.click(row, { clientX: 5, clientY: 6 });
+    expect(onOpen).toHaveBeenCalledWith("r-2", { x: 5, y: 6 });
   });
 
   it("keeps delete reachable on a routine with no occurrence", () => {
@@ -158,9 +166,12 @@ describe("RepeatListPanel — read-only (#467 Mobile)", () => {
     ).toBeInTheDocument();
   });
 
-  it("keeps navigation, which is viewing rather than editing", () => {
+  it("keeps the press, which is viewing rather than editing", () => {
     const { onOpen } = renderReadOnly();
-    fireEvent.click(screen.getByRole("button", { name: /^Morning run/ }));
-    expect(onOpen).toHaveBeenCalledWith("r-1");
+    fireEvent.click(screen.getByRole("button", { name: /^Morning run/ }), {
+      clientX: 1,
+      clientY: 2,
+    });
+    expect(onOpen).toHaveBeenCalledWith("r-1", { x: 1, y: 2 });
   });
 });

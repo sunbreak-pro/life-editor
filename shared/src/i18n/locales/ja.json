@@ -633,6 +633,8 @@
     "openRoutinesCta": "「繰り返し」タブを開く",
     "summaryEmpty": "ルーチンはまだありません",
     "tabRepeats": "繰り返し",
+    "repeatShowNext": "次の回を表示",
+    "repeatPanelLabel": "繰り返しの操作",
     "repeatNeverFires": "実行される日がありません",
     "untitled": "無題の繰り返し",
     "repeatDeleteConfirm": "「{{name}}」と、その予定をすべて削除しますか？",

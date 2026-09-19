@@ -41,8 +41,9 @@ export interface RepeatListRow {
   frequencyLabel: string;
   /**
    * Already-formatted date of the next occurrence, or null when the routine
-   * fires on no day — such a routine has nothing to navigate to, so its row is
-   * not activatable and only the delete action remains.
+   * fires on no day. Since #1678 such a row still opens — the panel it opens
+   * is where the series is read and edited, and only its "show the next one"
+   * action is unavailable.
    */
   nextLabel: string | null;
 }
@@ -58,8 +59,16 @@ export interface RepeatListPanelLabels {
 
 export interface RepeatListPanelProps {
   rows: RepeatListRow[];
-  /** Navigate the calendar to this routine's next occurrence. */
-  onOpen: (id: string) => void;
+  /**
+   * The row was pressed (#1678). `pos` is the press's viewport point, which
+   * the host anchors its panel at — the same hand-off a grid item makes
+   * (#299), so the two surfaces answer a click the same way.
+   *
+   * It used to mean "navigate to the next occurrence". That move is one of the
+   * actions inside the panel now, which is why a row with no occurrence can be
+   * pressed at all.
+   */
+  onOpen: (id: string, pos: { x: number; y: number }) => void;
   /**
    * REQUEST deletion of the whole series. The host puts the question (#1279),
    * so this fires on the first press — it is not the write.
@@ -133,21 +142,21 @@ export function RepeatListPanel({
             key={r.id}
             className="flex items-center gap-1 rounded-lumen-md border border-lumen-border bg-lumen-bg pr-1"
           >
-            {r.nextLabel == null ? (
-              // Not a button: there is no occurrence to navigate to, and a
-              // control that does nothing when pressed reads as broken.
-              <span className="flex min-w-0 flex-1 items-center gap-2 px-3 py-2 text-left">
-                {body}
-              </span>
-            ) : (
-              <button
-                type="button"
-                onClick={() => onOpen(r.id)}
-                className="flex min-w-0 flex-1 items-center gap-2 rounded-lumen-md px-3 py-2 text-left transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-              >
-                {body}
-              </button>
-            )}
+            {/*
+             * Every row is pressable since #1678, the no-occurrence one
+             * included: the press opens the panel that reads and edits the
+             * SERIES, and a series with nothing on the calendar is exactly
+             * the one a user most needs to open (#407's zombies live here).
+             * What that row cannot do — jump to an occurrence — is disabled
+             * inside the panel, where it can say so.
+             */}
+            <button
+              type="button"
+              onClick={(e) => onOpen(r.id, { x: e.clientX, y: e.clientY })}
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-lumen-md px-3 py-2 text-left transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+            >
+              {body}
+            </button>
             {onDelete && (
               <button
                 type="button"

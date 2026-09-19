@@ -72,6 +72,26 @@ export interface ScheduleTodoPopoverActions {
   onConvertToEvent: (id: string) => void;
 }
 
+/**
+ * The repeat tab's row panel (#1678). `row` is the pressed series as the list
+ * already formatted it, so the panel says exactly what the row says.
+ */
+export interface ScheduleRepeatPanel {
+  state: { id: string; x: number; y: number } | null;
+  row: {
+    title: string;
+    frequencyLabel: string;
+    nextLabel: string | null;
+  } | null;
+  onClose: () => void;
+  /** Move the calendar to the next occurrence (the press's old behaviour). */
+  onShowNext: (id: string) => void;
+  /** Open that occurrence's editor — where the repeat settings live. */
+  onEditDetail: (id: string) => void;
+  /** Request deletion of the whole series (Desktop only, like the row's icon). */
+  onDelete?: (id: string) => void;
+}
+
 export interface ScheduleOverlaysProps {
   isWide: boolean;
   /**
@@ -91,6 +111,8 @@ export interface ScheduleOverlaysProps {
     itemActions: ScheduleItemPopoverActions;
     todoActions: ScheduleTodoPopoverActions;
   };
+  /** #1678: the repeat tab's row panel. */
+  repeatPanel: ScheduleRepeatPanel;
   create: {
     panel: ScheduleCreatePanel | null;
     /** Stands in for the day while the sheet is mounted but closed. */
@@ -122,6 +144,7 @@ export function ScheduleOverlays({
   isWide,
   frames,
   popover,
+  repeatPanel,
   create,
   tagFilter,
   scope,
@@ -268,6 +291,68 @@ export function ScheduleOverlays({
     ) : null;
 
   /*
+   * #1678 — the repeat row's panel. Desktop only, for the same reason the
+   * grid's bubble is (#299): on narrow the list lives in the drawer that
+   * covers the calendar, so a floating panel would sit over its own list.
+   * Narrow keeps the press as the jump it always was.
+   *
+   * A row with no occurrence opens this too — the actions that need one are
+   * disabled rather than missing, so the panel can be the place that says why.
+   */
+  const repeatBubble =
+    !isWide || !repeatPanel.state || !repeatPanel.row ? null : (
+      <ItemActionPopover
+        key={repeatPanel.state.id}
+        position={{ x: repeatPanel.state.x, y: repeatPanel.state.y }}
+        summary={
+          <div className="flex flex-col gap-0.5">
+            <p className="line-clamp-2 break-words font-semibold text-lumen-text">
+              {repeatPanel.row.title}
+            </p>
+            <p className="text-lumen-text-secondary">
+              {repeatPanel.row.frequencyLabel}
+            </p>
+            <p className="text-lumen-text-secondary">
+              {repeatPanel.row.nextLabel ??
+                t("scheduleScreen.repeatNeverFires")}
+            </p>
+          </div>
+        }
+        actions={[
+          {
+            id: "showNext",
+            label: t("scheduleScreen.repeatShowNext"),
+            disabled: repeatPanel.row.nextLabel == null,
+            onSelect: () => repeatPanel.onShowNext(repeatPanel.state!.id),
+          },
+          ...(repeatPanel.onDelete
+            ? [
+                {
+                  id: "deleteSeries",
+                  label: t("scheduleScreen.delete"),
+                  danger: true,
+                  onSelect: () => repeatPanel.onDelete?.(repeatPanel.state!.id),
+                },
+              ]
+            : []),
+        ]}
+        // The occurrence's editor IS the series editor — it holds the repeat
+        // settings (#185 presents a Routine as "an Event with a repeat"), so a
+        // row with no occurrence has nothing to open.
+        onEditDetail={
+          repeatPanel.row.nextLabel == null
+            ? undefined
+            : () => repeatPanel.onEditDetail(repeatPanel.state!.id)
+        }
+        editDetailLabel={t("scheduleScreen.editDetail")}
+        label={t("scheduleScreen.repeatPanelLabel")}
+        onClose={repeatPanel.onClose}
+        width={SCHEDULE_ITEM_PANEL_WIDTH}
+        layout="columns"
+      />
+    );
+
+  /*
    * #299 → #376 creation surface. One panel, two frames — the Desktop overlay
    * and the Mobile sheet — picked by width, the same fold <ResponsiveDetailFrame>
    * already does for the editor. Both frames get the identical pools, handlers
@@ -333,6 +418,7 @@ export function ScheduleOverlays({
         <TagFilterPanel {...tagFilter.panel} />
       </Modal>
       {bubble}
+      {repeatBubble}
       {createFrame}
       {frames.editor}
       {frames.todoDetail}

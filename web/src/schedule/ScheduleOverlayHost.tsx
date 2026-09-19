@@ -99,6 +99,7 @@ export interface ScheduleOverlayHostProps {
    * The bubble, minus the chip behind it: that one is resolved here, from the
    * lookup below, because the frames it sits among are resolved here too.
    */
+  repeatPanel: ScheduleOverlaysProps["repeatPanel"];
   popover: Omit<ScheduleOverlaysProps["popover"], "todoChip"> & {
     findTodoChip: (chipId: string) => TodoCalendarChip | null;
   };
@@ -113,6 +114,7 @@ export function ScheduleOverlayHost({
   editor,
   todoDetail,
   popover,
+  repeatPanel,
   create,
   tagFilter,
   scope,
@@ -216,6 +218,7 @@ export function ScheduleOverlayHost({
         editor: detailFrameEl,
         todoDetail: <ScheduleTodoDetail isWide={isWide} {...todoDetail} />,
       }}
+      repeatPanel={repeatPanel}
       popover={{ ...popoverProps, todoChip: popoverTodoChip }}
       create={create}
       tagFilter={tagFilter}

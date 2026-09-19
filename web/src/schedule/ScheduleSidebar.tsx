@@ -108,7 +108,8 @@ export interface ScheduleSidebarRepeats {
   /** The grid's repeat filter is on (#466) — show the notice that says so. */
   hidden: boolean;
   rows: RepeatListRow[];
-  onOpen: (id: string) => void;
+  /** #1678: the row was pressed — the host opens its panel at `pos`. */
+  onOpen: (id: string, pos: { x: number; y: number }) => void;
   onDelete: (id: string) => void;
   /** Turn the grid's repeat filter back off, from the notice. */
   onShowHidden: () => void;
