@@ -316,6 +316,18 @@
       "save": "保存",
       "saved": "保存済み",
       "unsaved": "未保存"
+    },
+    "sidebarTabs": {
+      "label": "Work のサイドバー",
+      "settings": "タイマー設定",
+      "history": "履歴"
+    },
+    "history": {
+      "today": "今日",
+      "latestDay": "直近の作業日 · {{date}}",
+      "empty": "まだ作業の記録がありません。終えたセッションがここに並びます。",
+      "noTarget": "紐づけなし",
+      "minutes": "{{minutes}} 分"
     }
   },
   "audioMixer": {
@@ -455,7 +467,11 @@
       "filterPlaceholder": "エントリを絞り込む…",
       "filterLabel": "エントリを絞り込む",
       "eveningTitle": "夕刊",
-      "eveningScheduleTitle": "この日のスケジュール"
+      "eveningScheduleTitle": "この日のスケジュール",
+      "eveningMood": "気分",
+      "eveningStart": "夕刊を書く",
+      "eveningEditReflection": "振り返りを編集",
+      "eveningReflectionPlaceholder": "この日はどんな一日でしたか…"
     },
     "tags": {
       "colorLabel": "色",
@@ -645,6 +661,13 @@
     "scopeThisAndFuture": "この予定と今後の予定",
     "scopeAll": "すべての予定（過去分も含む）",
     "scopeCancel": "キャンセル",
+    "undoRepeatTitle": "繰り返しの予定への変更を元に戻しますか？",
+    "redoRepeatTitle": "繰り返しの予定への変更をやり直しますか？",
+    "undoRepeatScopeThis": "この回だけに効きます。",
+    "undoRepeatScopeFuture": "この回と、以降の回に効きます。",
+    "undoRepeatScopeAll": "この繰り返しのすべての回に効きます。",
+    "undoRepeatConfirm": "元に戻す",
+    "redoRepeatConfirm": "やり直す",
     "openFilter": "タグで絞り込む",
     "filterActive_other": "タグ {{count}} 件で絞り込み中",
     "filterTitle": "タグで絞り込む",
@@ -859,6 +882,7 @@
       "updateScheduleItem": "予定の変更",
       "toggleScheduleItemComplete": "予定の完了切替",
       "dismissScheduleItem": "予定の非表示",
+      "undismissScheduleItem": "スキップの取り消し",
       "deleteScheduleItem": "予定の削除",
       "convertEventToTodo": "予定を Todo に変換",
       "convertTodoToEvent": "Todo を予定に変換",
@@ -985,6 +1009,16 @@
       "recentHeading": "最近タグを付けたもの",
       "recentUntaggedHeading": "最近更新したもの",
       "recentEmpty": "このタグが付いたアイテムはまだありません。"
+    },
+    "mergeTag": "別のタグへ統合…",
+    "merge": {
+      "title": "「{{name}}」を統合する",
+      "targetsLabel": "統合先のタグ",
+      "pickHint": "アイテムの移動先になるタグを選んでください。",
+      "summary_other": "{{count}} 件が「{{target}}」へ移り、このタグは削除されます。",
+      "noTargets": "統合できる別のタグがありません。",
+      "confirm": "統合する",
+      "failed": "統合が最後まで終わりませんでした。取りこぼしが出ないよう、元のタグは残しています。"
     }
   },
   "attachment": {
@@ -994,7 +1028,8 @@
     "download": "ダウンロード",
     "remove": "添付を削除",
     "tooLarge": "ファイルが大きすぎます。上限は {{limit}} です。",
-    "uploadFailed": "ファイルをアップロードできませんでした。もう一度お試しください。"
+    "uploadFailed": "ファイルをアップロードできませんでした。もう一度お試しください。",
+    "uploading": "アップロード中…"
   },
   "linkCard": {
     "open": "リンクを開く",

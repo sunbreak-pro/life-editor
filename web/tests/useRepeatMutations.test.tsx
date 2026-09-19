@@ -90,7 +90,15 @@ function renderRepeat(
 ) {
   const ds = {
     convertEventToRoutine: vi.fn(() => Promise.resolve("routine-new")),
-    updateRoutine: vi.fn(() => Promise.resolve(opts.templateLands ?? true)),
+    // Spelled with its parameters so a case can read the `skipUndo` bag back
+    // off the call (#1638).
+    updateRoutine: vi.fn<
+      (
+        id: string,
+        updates: Record<string, unknown>,
+        opts?: { skipUndo?: boolean },
+      ) => Promise<boolean>
+    >(() => Promise.resolve(opts.templateLands ?? true)),
     // Typed through the generic rather than named params: the body ignores
     // both, and #708's assertion needs `mock.calls[0][1]` to be the opts bag.
     deleteRoutine: vi.fn<
@@ -118,6 +126,22 @@ function renderRepeat(
   const dismissOccurrence = vi.fn();
   const onRepeatConvertFailed = vi.fn();
   const reload = vi.fn();
+  // #1638: the commands this layer records. Held as the raw pushes so a case
+  // can run one and watch which service calls come back out.
+  const pushed: Array<{
+    domain: string;
+    command: {
+      label: string;
+      confirm?: { kind: string; scope: string };
+      undo: () => void | Promise<void>;
+      redo: () => void | Promise<void>;
+    };
+  }> = [];
+  const push = vi.fn(
+    (domain: string, command: (typeof pushed)[number]["command"]) => {
+      pushed.push({ domain, command });
+    },
+  );
 
   const hook = renderHook(() =>
     useRepeatMutations({
@@ -134,6 +158,7 @@ function renderRepeat(
       onRepeatConvertFailed,
       applyOccurrencePatch,
       dismissOccurrence,
+      push,
     }),
   );
   return {
@@ -143,6 +168,8 @@ function renderRepeat(
     dismissOccurrence,
     onRepeatConvertFailed,
     reload,
+    push,
+    pushed,
   };
 }
 
@@ -488,6 +515,9 @@ describe("turning a repeat on", () => {
     expect(h.updateRoutine).toHaveBeenCalledWith(
       ROUTINE_ID,
       expect.objectContaining({ frequencyType: "weekdays" }),
+      // #1638: the template write is silent — the one command this layer
+      // pushes covers it together with the reconcile below.
+      { skipUndo: true },
     );
     expect(h.convertEventToRoutine).not.toHaveBeenCalled();
     // Reshaping to a rhythm the template never took would leave the two
@@ -502,5 +532,165 @@ describe("turning a repeat on", () => {
       expect(lost.onRepeatConvertFailed).toHaveBeenCalledWith("update"),
     );
     expect(lost.reconcileRoutineScheduleItems).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #1638 — every act in this layer leaves ONE entry on the history, and each of
+ * them carries the scope it reached (the host turns that into the question in
+ * front of the keystroke).
+ *
+ * The series edits are the reason the commands are built here rather than in
+ * the layer below: one press writes the occurrence, the template and the days
+ * already on the calendar, and three separate commands would mean three
+ * Ctrl+Z presses to get back to where the user started (B-05).
+ */
+describe("what lands on the undo history", () => {
+  it("records turning a repeat ON as one command that detaches on undo", async () => {
+    const h = renderRepeat({ selected: occurrence({ routineId: null }) });
+
+    await act(async () => {
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "daily" });
+    });
+    await waitFor(() => expect(h.pushed).toHaveLength(1));
+    expect(h.pushed[0].command.confirm).toEqual({
+      kind: "repeat",
+      scope: "all",
+    });
+
+    await act(async () => {
+      await h.pushed[0].command.undo();
+    });
+    // The inverse the editor already offers as "なし": the seed stays, the
+    // generated days go.
+    expect(h.detachRoutine).toHaveBeenCalledWith("routine-new", undefined, {
+      keepItemIds: ["occ-1"],
+    });
+
+    await act(async () => {
+      await h.pushed[0].command.redo();
+    });
+    expect(h.convertEventToRoutine).toHaveBeenCalledTimes(2);
+  });
+
+  it("records turning a repeat OFF as one command that converts back on undo", async () => {
+    const h = renderRepeat();
+
+    await act(async () => {
+      h.hook.result.current.handleDetachRepeat();
+    });
+    await waitFor(() => expect(h.pushed).toHaveLength(1));
+    expect(h.pushed[0].command.confirm).toEqual({
+      kind: "repeat",
+      scope: "all",
+    });
+
+    await act(async () => {
+      await h.pushed[0].command.undo();
+    });
+    // Rebuilt from the rhythm the routine had, seeded on the survivor the
+    // detach pinned.
+    expect(h.convertEventToRoutine).toHaveBeenCalledWith(
+      "occ-1",
+      expect.objectContaining({ frequencyType: "daily", sourceDate: TODAY }),
+    );
+  });
+
+  it("records a rhythm change as one command covering the reconcile", async () => {
+    const h = renderRepeat();
+
+    await act(async () => {
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "weekdays" });
+    });
+    await waitFor(() => expect(h.pushed).toHaveLength(1));
+    // The template write itself no longer pushes (skipUndo), so this is the
+    // only entry and it owns the reconcile as well.
+    expect(h.updateRoutine.mock.calls[0][2]).toEqual({ skipUndo: true });
+
+    h.reconcileRoutineScheduleItems.mockClear();
+    await act(async () => {
+      await h.pushed[0].command.undo();
+    });
+    expect(h.updateRoutine).toHaveBeenCalledWith(
+      ROUTINE_ID,
+      expect.objectContaining({ frequencyType: "daily" }),
+      { skipUndo: true },
+    );
+    // The days the new rhythm had created or removed are re-shaped back.
+    expect(h.reconcileRoutineScheduleItems).toHaveBeenCalledTimes(1);
+  });
+
+  it("records a 'this and future' edit as one command and puts every part back", async () => {
+    const h = renderRepeat();
+    const item = occurrence();
+
+    choose(
+      h,
+      { mode: "edit", item, patch: { title: "Evening run" } },
+      "future",
+    );
+    await waitFor(() => expect(h.pushed).toHaveLength(1));
+    expect(h.pushed[0].command.confirm).toEqual({
+      kind: "repeat",
+      scope: "future",
+    });
+    // The single-row write on the way stayed out of the history (B-05).
+    expect(h.applyOccurrencePatch).toHaveBeenCalledWith(
+      "occ-1",
+      { title: "Evening run" },
+      { skipUndo: true },
+    );
+
+    h.updateFutureOccurrences.mockClear();
+    await act(async () => {
+      await h.pushed[0].command.undo();
+    });
+    expect(h.applyOccurrencePatch).toHaveBeenLastCalledWith(
+      "occ-1",
+      { title: "Morning run" },
+      { skipUndo: true },
+    );
+    expect(h.updateRoutine).toHaveBeenLastCalledWith(
+      ROUTINE_ID,
+      { title: "Morning run" },
+      { skipUndo: true },
+    );
+    // Propagated with the POST-edit template as the yardstick, so exactly the
+    // rows this edit touched are the ones put back.
+    expect(h.updateFutureOccurrences).toHaveBeenCalledWith(
+      ROUTINE_ID,
+      { title: "Morning run" },
+      TODAY,
+      expect.objectContaining({ title: "Evening run" }),
+    );
+  });
+
+  it("marks an 'all' edit with the wider scope", async () => {
+    const h = renderRepeat();
+
+    choose(
+      h,
+      { mode: "edit", item: occurrence(), patch: { title: "Evening run" } },
+      "all",
+    );
+    await waitFor(() => expect(h.pushed).toHaveLength(1));
+    expect(h.pushed[0].command.confirm).toEqual({
+      kind: "repeat",
+      scope: "all",
+    });
+  });
+
+  it("records nothing when the template write was lost", async () => {
+    const h = renderRepeat({ templateLands: false });
+
+    choose(
+      h,
+      { mode: "edit", item: occurrence(), patch: { title: "Evening run" } },
+      "future",
+    );
+    await waitFor(() =>
+      expect(h.onRepeatConvertFailed).toHaveBeenCalledWith("series"),
+    );
+    expect(h.pushed).toHaveLength(0);
   });
 });

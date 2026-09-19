@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   UndoRedoManager,
+  type UndoConfirmGate,
   type UndoOutcome,
 } from "../utils/undoRedo/UndoRedoManager";
 import {
@@ -96,6 +97,14 @@ export function UndoRedoProvider({
       redo: () => {
         void manager.redo().then((outcome) => report("redo", outcome));
       },
+      /*
+       * #1638: the "apply to which occurrences?" question a repeat command has
+       * to pass. Registered by the screen that owns the dialog (Schedule) and
+       * cleared on its way out — a plain manager call, so a host can register
+       * from an effect without this value's identity entering into it.
+       */
+      setConfirmGate: (gate: UndoConfirmGate | null) =>
+        manager.setConfirmGate(gate),
       canUndo: () => manager.canUndo(),
       canRedo: () => manager.canRedo(),
       clear: () => manager.clear(),

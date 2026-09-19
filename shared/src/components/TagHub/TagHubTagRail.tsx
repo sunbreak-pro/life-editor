@@ -62,6 +62,8 @@ export interface TagHubTagRailProps {
   onEditTag?: (tagId: string, field: TagHubEditField) => void;
   /** Row menu → the destructive item. Required whenever `onEditTag` is given. */
   onDeleteTag?: (tagId: string) => void;
+  /** Row menu → merge this tag into another (#1644). Omit to hide the item. */
+  onMergeTag?: (tagId: string) => void;
   /** The pinned add row (D5). Omit to leave the row out. */
   onCreateTag?: (name: string) => void;
   /** The view's handle on the add field, for the empty state's CTA (D15). */
@@ -85,6 +87,7 @@ export function TagHubTagRail({
   formatUnusedTags,
   onEditTag,
   onDeleteTag,
+  onMergeTag,
   onCreateTag,
   addFieldRef,
   wide,
@@ -116,6 +119,7 @@ export function TagHubTagRail({
       formatCount={formatCount}
       onEditTag={onEditTag}
       onDeleteTag={onDeleteTag}
+      onMergeTag={onMergeTag}
       wide={wide}
       labels={labels}
     />
@@ -261,6 +265,7 @@ interface TagHubRailRowProps {
   formatCount: (count: number) => string;
   onEditTag?: (tagId: string, field: TagHubEditField) => void;
   onDeleteTag?: (tagId: string) => void;
+  onMergeTag?: (tagId: string) => void;
   wide: boolean;
   labels: TagHubLabels;
 }
@@ -272,6 +277,7 @@ function TagHubRailRow({
   formatCount,
   onEditTag,
   onDeleteTag,
+  onMergeTag,
   wide,
   labels,
 }: TagHubRailRowProps) {
@@ -384,6 +390,7 @@ function TagHubRailRow({
                 align="end"
                 onEdit={(field) => onEditTag?.(tag.id, field)}
                 onDelete={() => onDeleteTag?.(tag.id)}
+                onMerge={onMergeTag && (() => onMergeTag(tag.id))}
                 labels={labels}
               />
             </>

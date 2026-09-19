@@ -316,6 +316,18 @@
       "save": "Save",
       "saved": "Saved",
       "unsaved": "Unsaved"
+    },
+    "sidebarTabs": {
+      "label": "Work sidebar",
+      "settings": "Timer settings",
+      "history": "History"
+    },
+    "history": {
+      "today": "Today",
+      "latestDay": "Latest work day · {{date}}",
+      "empty": "No work sessions yet. Finished sessions will show up here.",
+      "noTarget": "No linked item",
+      "minutes": "{{minutes}} min"
     }
   },
   "audioMixer": {
@@ -456,7 +468,11 @@
       "filterPlaceholder": "Filter entries…",
       "filterLabel": "Filter entries",
       "eveningTitle": "EVENING",
-      "eveningScheduleTitle": "THE DAY'S SCHEDULE"
+      "eveningScheduleTitle": "THE DAY'S SCHEDULE",
+      "eveningMood": "Mood",
+      "eveningStart": "Add an evening note",
+      "eveningEditReflection": "Edit the reflection",
+      "eveningReflectionPlaceholder": "How did the day go…"
     },
     "tags": {
       "colorLabel": "Color",
@@ -649,6 +665,13 @@
     "scopeThisAndFuture": "This and following events",
     "scopeAll": "All events (including past)",
     "scopeCancel": "Cancel",
+    "undoRepeatTitle": "Undo this change to a repeating event?",
+    "redoRepeatTitle": "Redo this change to a repeating event?",
+    "undoRepeatScopeThis": "It applies to this occurrence only.",
+    "undoRepeatScopeFuture": "It applies to this and the following occurrences.",
+    "undoRepeatScopeAll": "It applies to every occurrence of this repeat.",
+    "undoRepeatConfirm": "Undo",
+    "redoRepeatConfirm": "Redo",
     "openFilter": "Filter by tag",
     "filterActive_one": "Filtered by {{count}} tag",
     "filterActive_other": "Filtered by {{count}} tags",
@@ -864,6 +887,7 @@
       "updateScheduleItem": "event update",
       "toggleScheduleItemComplete": "event completion toggle",
       "dismissScheduleItem": "event dismissal",
+      "undismissScheduleItem": "bringing a skipped event back",
       "deleteScheduleItem": "event deletion",
       "convertEventToTodo": "event-to-todo conversion",
       "convertTodoToEvent": "todo-to-event conversion",
@@ -992,6 +1016,17 @@
       "recentHeading": "Recently tagged",
       "recentUntaggedHeading": "Recently updated",
       "recentEmpty": "Nothing is filed under this tag yet."
+    },
+    "mergeTag": "Merge into another tag…",
+    "merge": {
+      "title": "Merge “{{name}}” into…",
+      "targetsLabel": "Tag to merge into",
+      "pickHint": "Pick the tag its items should move to.",
+      "summary_one": "{{count}} item moves to “{{target}}”, and this tag is deleted.",
+      "summary_other": "{{count}} items move to “{{target}}”, and this tag is deleted.",
+      "noTargets": "There is no other tag to merge into.",
+      "confirm": "Merge",
+      "failed": "The merge did not finish. The tag was kept so nothing is lost."
     }
   },
   "attachment": {
@@ -1001,7 +1036,8 @@
     "download": "Download",
     "remove": "Remove attachment",
     "tooLarge": "That file is too large. The limit is {{limit}}.",
-    "uploadFailed": "Could not upload that file. Please try again."
+    "uploadFailed": "Could not upload that file. Please try again.",
+    "uploading": "Uploading…"
   },
   "linkCard": {
     "open": "Open link",
