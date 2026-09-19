@@ -145,7 +145,14 @@ export function TagHubItemGroups({
                     onSelectItem ? () => onOpenItem(item) : undefined
                   }
                   className={cn(
-                    "group flex w-full items-center gap-2 rounded-lumen-sm px-2 py-1.5 text-left",
+                    // #1749 — `min-w-0` is what lets the row end at the screen
+                    // edge. A flex item's automatic minimum size is its
+                    // min-content width, so without it the button refuses to
+                    // shrink past the title and the trailing "…" is pushed
+                    // outside the viewport, giving the list a horizontal
+                    // scrollbar. The inner span already truncates; truncation
+                    // only reaches it once every flex level above can shrink.
+                    "group flex min-w-0 flex-1 items-center gap-2 rounded-lumen-sm px-2 py-1.5 text-left",
                     "transition-colors hover:bg-lumen-hover",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                     // #1561 — 44px touch floor on narrow only (the audit read
