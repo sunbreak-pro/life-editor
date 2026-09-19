@@ -256,3 +256,11 @@ merge いただいた直後に、独立レビューが確定させた退行 2 �
 ### Issue 起票の判断 1 件: `mcp-server/tests/remoteRegistry.test.ts` が Windows で落ちる
 
 `would have caught the verification domain` が `expected [ 'utils\verification.ts' ] to include 'utils/verification.ts'` で赤になります。#1589（2026-09-12 の main）が足したテストが、ディレクトリ走査の結果をパス区切りごと `/` の文字列と比べているためです。CI の Linux では通る種類なので実害は「Windows でローカル verify する人が毎回 mcp-server test で偽の赤を見る」だけですが、この機で verify を回すレーン（shared-fix / 他の Windows 作業）は毎回踏みます。`path.posix` に寄せるか `split(sep).join("/")` で正規化する 1 行の直しです。起票するかはお任せします
+
+## 2026-09-19 chat-main 宛: 一括タグ操作に Undo コマンドを 1 つ与える件の起票依頼
+
+#1667（PR #1697）で `useWikiTagsUnifiedAPI` の単発の付与・解除が Undo スタックに載りました。その取り込みで #1644（PR #1696）の一括操作とぶつかったので、**一括側（`bulkAssign` / `bulkUnassign` / `moveItemsToTag` / `mergeTags`）は履歴を持たない `writeAssign` / `writeUnassign` を呼ぶ形**で解消しています。
+
+そのままだと一括操作は Undo できません。20 行をまとめた 1 回の操作に 20 コマンド積む案は採っていません。履歴の上限が 50（`MAX_HISTORY_SIZE`）なので、1 回の一括操作で他の履歴が押し出され、Ctrl+Z が 1 行ずつ巻き戻るためです。
+
+提案 = 一括操作 1 回につき Undo コマンドを 1 つ push する（undo = 成功した行だけを逆向きに書き戻す）。`mergeTags` はタグの soft delete も戻す必要があるため、別の作業単位に分けたほうが安全です。
