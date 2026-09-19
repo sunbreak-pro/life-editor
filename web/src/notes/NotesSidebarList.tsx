@@ -1,4 +1,8 @@
-import { useState, type ReactNode } from "react";
+import {
+  useState,
+  type MouseEvent as ReactMouseEvent,
+  type ReactNode,
+} from "react";
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
 import { FileText, Search } from "lucide-react";
 import {
@@ -6,6 +10,7 @@ import {
   SidebarListControls,
   NoticePanel,
   tagGroupKey as groupKey,
+  UNTAGGED_GROUP_KEY,
   cn,
   type NoteTagGroup,
   FOCUS_RING,
@@ -106,6 +111,16 @@ export interface NotesSidebarListProps {
   selectedNoteId: string | null;
   onSelectNote: (id: string) => void;
   onDeleteNote: (id: string) => void;
+  /**
+   * Right-click on a tag row — a filter chip or a group heading (#1677). The
+   * id handed back is the TAG id: a chip carries a group key, which is the
+   * tag id for every group but the untagged bucket, and that bucket is
+   * filtered out here rather than at the host. Undefined on narrow, where no
+   * row attaches a contextmenu listener at all.
+   */
+  onTagContextMenu?: (tagId: string, event: ReactMouseEvent) => void;
+  /** Right-click on a note row (#1677). Undefined on narrow. */
+  onNoteContextMenu?: (noteId: string, event: ReactMouseEvent) => void;
   onCreateNote: () => void;
   dnd: NoteTagDnd;
 
@@ -142,6 +157,8 @@ export function NotesSidebarList({
   selectedNoteId,
   onSelectNote,
   onDeleteNote,
+  onTagContextMenu,
+  onNoteContextMenu,
   onCreateNote,
   dnd,
   templatesSlot,
@@ -156,6 +173,20 @@ export function NotesSidebarList({
   const [openedGroups, setOpenedGroups] = useState<Set<string>>(new Set());
   const openGroup = (key: string) =>
     setOpenedGroups((prev) => new Set(prev).add(key));
+
+  /*
+   * A chip's id is a GROUP KEY (useNoteListState), which is the tag's own id
+   * for every group except the untagged bucket's sentinel. So the tag menu
+   * gets the id as-is, and the bucket — which has no tag to rename or delete —
+   * falls through to the browser's own menu, exactly as the Connect rail lets
+   * its untagged row do.
+   */
+  const chipContextMenu = onTagContextMenu
+    ? (id: string, event: ReactMouseEvent) => {
+        if (id === UNTAGGED_GROUP_KEY) return;
+        onTagContextMenu(id, event);
+      }
+    : undefined;
 
   return (
     <div className="flex flex-col gap-2">
@@ -205,6 +236,7 @@ export function NotesSidebarList({
             value={tagFilters}
             onToggle={onToggleTagFilter}
             onClear={onClearTagFilters}
+            onChipContextMenu={chipContextMenu}
             labels={{
               group: labels.tagFilter,
               clear: labels.clearTagFilter,
@@ -268,6 +300,7 @@ export function NotesSidebarList({
                     group={group}
                     collapsed={collapsed}
                     onToggle={onToggleGroup}
+                    onContextMenu={onTagContextMenu}
                     collapseLabel={labels.collapseGroup}
                     expandLabel={labels.expandGroup}
                   />
@@ -282,6 +315,7 @@ export function NotesSidebarList({
                             selected={selectedNoteId === node.id}
                             onSelect={onSelectNote}
                             onDelete={onDeleteNote}
+                            onContextMenu={onNoteContextMenu}
                             deleteLabel={labels.deleteNote}
                             dragHintLabel={labels.assignTagHint}
                           />
