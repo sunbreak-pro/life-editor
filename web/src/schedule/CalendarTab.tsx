@@ -33,6 +33,7 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useTagFilterPanel } from "./useTagFilterPanel";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
+import { useRepeatUndoGate } from "./useRepeatUndoGate";
 import { useScheduleMutations } from "./useScheduleMutations";
 import {
   useClosePopoverOnOtherSurface,
@@ -339,6 +340,9 @@ export function CalendarTab({
     ask: askConfirm,
     resolve: resolveConfirm,
   } = useConfirmDialog();
+  // #1638: Undo / Redo of a write that landed on a repeating item asks first,
+  // through the same dialog the scope chooser uses.
+  useRepeatUndoGate(askConfirm);
   const handleAttachError = useCallback(
     () => showToast("danger", t("scheduleScreen.noteAttachFailed")),
     [showToast, t],
@@ -364,6 +368,9 @@ export function CalendarTab({
     dataService,
     active: !!createPanel,
     onAttachError: handleAttachError,
+    // #1638 (A-08): the note + link the panel attaches is its own history
+    // entry, so the item's create undo stops leaving an orphan note behind.
+    push: undoRedo?.push,
   });
 
   /*
@@ -617,6 +624,9 @@ export function CalendarTab({
     onResizeTodoChip: handleTodoChipResize,
     onDropTodoChipAllDay: handleTodoChipDropAllDay,
     onRepeatConvertFailed: handleRepeatConvertError,
+    // #1638: the repeat layer records its own history — turning a repeat on or
+    // off, the rhythm change and the series-wide edits, one command per act.
+    push: undoRedo?.push,
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 

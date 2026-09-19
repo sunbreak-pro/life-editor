@@ -418,6 +418,8 @@ export {
   UndoRedoManager,
   MAX_HISTORY_SIZE,
   type UndoCommand,
+  type UndoConfirmGate,
+  type UndoConfirmSpec,
 } from "./utils/undoRedo/UndoRedoManager";
 export {
   useUndoRedoContext,

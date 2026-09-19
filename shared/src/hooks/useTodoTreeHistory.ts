@@ -1,5 +1,6 @@
 import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { TodoNode } from "../types/todoTree";
+import type { UndoCommand } from "../utils/undoRedo/UndoRedoManager";
 
 /**
  * The slice of the UndoRedo manager this hook needs. The Tauri build
@@ -10,10 +11,11 @@ import type { TodoNode } from "../types/todoTree";
  * injection rather than importing a host Context directly).
  */
 export interface UndoRedoLike {
-  push: (
-    domain: string,
-    command: { label: string; undo: () => void; redo: () => void },
-  ) => void;
+  // The command shape is the manager's own (#1638): a domain hook may attach
+  // the `confirm` spec that makes the host ask before reversing a write to a
+  // repeating item, and spelling the shape twice is how that field would go
+  // missing on this side of the injection.
+  push: (domain: string, command: UndoCommand) => void;
   undo: (domain: string) => void;
   redo: (domain: string) => void;
   canUndo: (domain: string) => boolean;
