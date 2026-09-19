@@ -166,6 +166,8 @@ export function TagHubEditBlock({
                 labels={{
                   iconLabel: labels.iconLabel,
                   clearIconLabel: labels.iconClear,
+                  searchLabel: labels.iconSearch,
+                  noMatchLabel: labels.iconNoMatch,
                 }}
               />
             </div>

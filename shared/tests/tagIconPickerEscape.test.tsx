@@ -22,7 +22,12 @@ import { Modal, TagIconPicker } from "../src/components";
  * being given a generic one.
  */
 
-const LABELS = { iconLabel: "Icon", clearIconLabel: "Default icon" };
+const LABELS = {
+  iconLabel: "Icon",
+  clearIconLabel: "Default icon",
+  searchLabel: "Search icons",
+  noMatchLabel: "No icon matches that.",
+};
 
 /** The picker's trigger and its grid share the one label, so they are told
  *  apart by role — button for the trigger, group for the popover. */

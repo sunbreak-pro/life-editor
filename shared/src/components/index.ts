@@ -357,6 +357,14 @@ export {
 // barrel already re-exports with `export *` below. `tagIcon` resolves lucide
 // names for the icon picker (and #311's tag headings).
 export { resolveTagIcon, TAG_ICON_CHOICES } from "./tagIcon";
+// The Japanese names those icons are searched by (#1701), and the matcher the
+// picker's search field runs. Exported beside `tagIcon` because the two are one
+// contract: an icon added there without an alias here is unsearchable.
+export {
+  filterTagIcons,
+  matchesTagIconQuery,
+  TAG_ICON_ALIASES,
+} from "./tagIconAliases";
 // Item-kind display contract (#409) — the SSOT for how a cross-role item list
 // announces what each row is. Shared with #412's item-side tag picker so both
 // speak one visual language.

@@ -372,6 +372,8 @@ export function ConnectScreen({
         colorLabel: t("connect.edit.colorLabel"),
         iconChange: t("connect.edit.iconChange"),
         iconClear: t("connect.edit.iconClear"),
+        iconSearch: t("connect.edit.iconSearch"),
+        iconNoMatch: t("connect.edit.iconNoMatch"),
         colorDefault: t("connect.edit.colorDefault"),
         colorCustom: t("connect.edit.colorCustom"),
         deleteTag: t("connect.deleteTag"),

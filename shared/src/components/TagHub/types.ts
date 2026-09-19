@@ -189,6 +189,9 @@ export interface TagHubEditLabels {
   iconChange: string;
   /** "Default / no icon" inside that grid. */
   iconClear: string;
+  /** Placeholder in that grid's search field, and its empty result (#1701). */
+  iconSearch: string;
+  iconNoMatch: string;
   /** The two buttons beside the swatch grid. */
   colorDefault: string;
   colorCustom: string;

@@ -1042,6 +1042,8 @@
       "colorLabel": "色",
       "iconChange": "変更",
       "iconClear": "既定のアイコン",
+      "iconSearch": "アイコンを検索",
+      "iconNoMatch": "一致するアイコンがありません。",
       "colorDefault": "デフォルト",
       "colorCustom": "カスタム",
       "saved": "保存済み",
