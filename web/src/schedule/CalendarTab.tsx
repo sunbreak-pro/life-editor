@@ -40,6 +40,7 @@ import {
 } from "./useScheduleOverlays";
 import { useItemConversion } from "./useItemConversion";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
+import { todoAddCandidateWrite } from "./todoChipUndoWiring";
 import { useScheduleRepeats } from "./useScheduleRepeats";
 import { useScheduleGridFilters } from "./useScheduleGridFilters";
 import { useScheduleCreateFlow } from "./useScheduleCreateFlow";
@@ -802,7 +803,18 @@ export function CalendarTab({
    * something on a slot.
    */
   const todoLinking = useTodoLinking({ dataService });
-  const [todoAddOpen, setTodoAddOpen] = useState(false);
+  /*
+   * #1640: WHICH list the dialog is making a todo for — "today" from the
+   * today heading's pill, "other" from the one over "その他" (and from the
+   * shell intent, which has no list in mind). null = closed.
+   *
+   * A target rather than a second flag so the two can never be open at once,
+   * and so the dialog itself stays one mounted surface.
+   */
+  const [todoAddTarget, setTodoAddTarget] = useState<"today" | "other" | null>(
+    null,
+  );
+  const todoAddOpen = todoAddTarget != null;
 
   /*
    * The create dialog opens from the shell intent by ADJUSTING STATE WHILE
@@ -815,13 +827,20 @@ export function CalendarTab({
   const [prevPendingNewTodo, setPrevPendingNewTodo] = useState(pendingNewTodo);
   if (pendingNewTodo !== prevPendingNewTodo) {
     setPrevPendingNewTodo(pendingNewTodo);
-    if (pendingNewTodo) setTodoAddOpen(true);
+    if (pendingNewTodo) setTodoAddTarget("other");
   }
 
   const handleCreateTodo = useCallback(
     (input: { title: string }) => {
       const node = addNode("task", null, input.title);
-      setTodoAddOpen(false);
+      // #1640: the pill that opened the dialog decides the day. "Today" reuses
+      // the tray's own "add to today" write (all-day on today), so a todo made
+      // here and a todo dragged up into the list are the same row.
+      if (todoAddTarget === "today") {
+        const { patch, options } = todoAddCandidateWrite(today);
+        updateNode(node.id, patch, options);
+      }
+      setTodoAddTarget(null);
       // Straight into the detail: a title alone is rarely the whole thought,
       // and this is the surface that can take the rest of it.
       setTodoDetailId(node.id);
@@ -830,7 +849,14 @@ export function CalendarTab({
       // existing one onto a day, which is not what the step teaches.
       reportTourAction(TOUR_ACTIONS.scheduleTodoCreated);
     },
-    [addNode, reportTourAction, setTodoDetailId],
+    [
+      addNode,
+      reportTourAction,
+      setTodoDetailId,
+      todoAddTarget,
+      today,
+      updateNode,
+    ],
   );
 
   const editorItem: EventEditorItem | null = toEditorItem(selected);
@@ -1015,7 +1041,8 @@ export function CalendarTab({
           onOpenTodo: setTodoDetailId,
           onOpenAddable: setTodoDetailId,
           onDelete: handleTodoDelete,
-          onAdd: () => setTodoAddOpen(true),
+          onAdd: () => setTodoAddTarget("other"),
+          onAddToday: () => setTodoAddTarget("today"),
         }}
       />
     </RightSidebarPortal>
@@ -1223,7 +1250,7 @@ export function CalendarTab({
           width only would be the same mistake with a new name. */}
       <TodoAddDialog
         open={todoAddOpen}
-        onClose={() => setTodoAddOpen(false)}
+        onClose={() => setTodoAddTarget(null)}
         onSubmit={handleCreateTodo}
         labels={{
           title: t("scheduleScreen.todoAddDialogTitle"),
