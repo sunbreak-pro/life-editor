@@ -31,8 +31,10 @@ import { createBumpableSync, type BumpableSyncHandle } from "./index";
 export interface PushedCommand {
   domain: string;
   label: string;
-  undo: () => void;
-  redo: () => void;
+  // Async since #1682 — the closures hand their write back so a failure
+  // reaches the manager, and the DB half waits for the write it reverses.
+  undo: () => void | Promise<void>;
+  redo: () => void | Promise<void>;
 }
 
 export interface BriefingHarness {

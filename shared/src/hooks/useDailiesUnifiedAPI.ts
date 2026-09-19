@@ -3,6 +3,7 @@ import type { DailyNode } from "../types/daily";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { todayDateKey } from "../utils/dateKey";
+import { afterSettled } from "../utils/undoRedo/pendingWrite";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useSyncDomains } from "./useSyncDomains";
 import { useDomainLoad } from "./useDomainLoad";
@@ -135,6 +136,10 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
     ): Promise<DailyNode | null> => {
       const existing = dailiesRef.current.find((m) => m.date === date);
       const now = new Date().toISOString();
+      // Started before the push so the undo closure can hold it (#1682): a
+      // delete fired while this upsert is in flight would be re-created by it
+      // a moment later, leaving the day back with the undo already spent.
+      const write = ds.upsertDailyByDateUnified(date, content);
 
       if (existing) {
         setDailies((prev) =>
@@ -154,23 +159,20 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
         if (!opts?.skipUndo) {
           push("daily", {
             label: "createDaily",
-            undo: () => {
+            undo: async () => {
               setDailies((p) => p.filter((m) => m.date !== date));
-              softDeleteDailyByDate(date).catch((e) =>
-                logServiceError("Daily", "undoCreate", e),
-              );
+              await afterSettled(write);
+              await softDeleteDailyByDate(date);
             },
             redo: () => {
               setDailies((p) => [newDaily, ...p]);
-              ds.upsertDailyByDateUnified(date, content).catch((e) =>
-                logServiceError("Daily", "redoCreate", e),
-              );
+              return ds.upsertDailyByDateUnified(date, content).then(() => {});
             },
           });
         }
       }
 
-      return ds.upsertDailyByDateUnified(date, content).catch((e) => {
+      return write.catch((e) => {
         logServiceError("Daily", "sync", e);
         return null;
       });
@@ -182,9 +184,8 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
     (date: string, opts?: { skipUndo?: boolean }) => {
       const target = dailiesRef.current.find((m) => m.date === date);
       setDailies((prev) => prev.filter((m) => m.date !== date));
-      softDeleteDailyByDate(date).catch((e) =>
-        logServiceError("Daily", "delete", e),
-      );
+      const landed = softDeleteDailyByDate(date);
+      void landed.catch((e) => logServiceError("Daily", "delete", e));
 
       if (target) {
         const deleted: DailyNode = {
@@ -197,19 +198,18 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
         if (!opts?.skipUndo) {
           push("daily", {
             label: "deleteDaily",
-            undo: () => {
+            // #1682: the restore waits for the delete it reverses, and its
+            // own failure reaches the manager instead of console.warn.
+            undo: async () => {
               setDailies((p) => [target, ...p]);
               setDeletedDailies((d) => d.filter((m) => m.date !== date));
-              ds.restoreDailyUnified(`daily-${date}`).catch((e) =>
-                logServiceError("Daily", "undoDelete", e),
-              );
+              await afterSettled(landed);
+              await ds.restoreDailyUnified(`daily-${date}`);
             },
             redo: () => {
               setDailies((p) => p.filter((m) => m.date !== date));
               setDeletedDailies((d) => [deleted, ...d]);
-              softDeleteDailyByDate(date).catch((e) =>
-                logServiceError("Daily", "redoDelete", e),
-              );
+              return softDeleteDailyByDate(date).then(() => {});
             },
           });
         }
@@ -283,29 +283,33 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
       setDailies((prev) =>
         prev.map((m) => (m.date === date ? { ...m, isPinned: newPinned } : m)),
       );
-      toggleDailyPinByDate(date).catch((e) =>
-        logServiceError("Daily", "pin", e),
-      );
+      const landed = toggleDailyPinByDate(date);
+      void landed.catch((e) => logServiceError("Daily", "pin", e));
 
       push("daily", {
         label: "togglePin",
-        undo: () => {
+        /*
+         * #1682 — this one MUST wait, not just report.
+         *
+         * The write is a toggle, not an assignment: it reads the stored flag
+         * and flips it. Two of them racing land on the same value, so an undo
+         * fired before the first flip settled would leave the pin exactly
+         * where the user did not want it.
+         */
+        undo: async () => {
           setDailies((p) =>
             p.map((m) =>
               m.date === date ? { ...m, isPinned: !newPinned } : m,
             ),
           );
-          toggleDailyPinByDate(date).catch((e) =>
-            logServiceError("Daily", "undoPin", e),
-          );
+          await afterSettled(landed);
+          await toggleDailyPinByDate(date);
         },
         redo: () => {
           setDailies((p) =>
             p.map((m) => (m.date === date ? { ...m, isPinned: newPinned } : m)),
           );
-          toggleDailyPinByDate(date).catch((e) =>
-            logServiceError("Daily", "redoPin", e),
-          );
+          return toggleDailyPinByDate(date).then(() => {});
         },
       });
     },

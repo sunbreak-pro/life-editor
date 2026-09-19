@@ -149,19 +149,40 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
   // moment later puts the todo back with the undo already spent.
   const lastSyncRef = useRef<Promise<void>>(Promise.resolve());
 
+  /*
+   * #1682 — the write both queues and REPORTS.
+   *
+   * Two changes over the fire-and-forget version. It chains on `lastSyncRef`
+   * like `removeFromDb` always did, so an undo pressed while the original
+   * upsert is still in flight lands after it rather than against it; and it
+   * hands the promise back, so the undo closure that called it can fail and
+   * let the manager say so. Before this a failed tree sync set `persistError`
+   * — a state nothing renders — and the user got "Undid: todo change" over a
+   * reversal that never reached the DB.
+   *
+   * The queue itself is kept on a swallowed copy: one failed write must not
+   * leave every later write chained behind a rejected promise.
+   */
   const syncToDb = useCallback(
-    (updated: TodoNode[], onSettled?: PersistSettled) => {
+    (updated: TodoNode[], onSettled?: PersistSettled): Promise<void> => {
       setPersistError(null);
-      lastSyncRef.current = ds
-        .syncTodoTree(updated)
-        .then(() => onSettled?.(true))
-        .catch((e) => {
-          logServiceError("TodoTree", "sync", e);
-          setPersistError(
-            e instanceof Error ? e.message : "Failed to save todos",
-          );
-          onSettled?.(false);
-        });
+      const run = lastSyncRef.current.then(() =>
+        ds.syncTodoTree(updated).then(
+          () => {
+            onSettled?.(true);
+          },
+          (e: unknown) => {
+            logServiceError("TodoTree", "sync", e);
+            setPersistError(
+              e instanceof Error ? e.message : "Failed to save todos",
+            );
+            onSettled?.(false);
+            throw e;
+          },
+        ),
+      );
+      lastSyncRef.current = run.catch(() => {});
+      return run;
     },
     [ds],
   );
@@ -171,10 +192,13 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
   // delete, so it is recoverable from Trash and a redo's upsert brings the
   // same id back with `is_deleted: false`.
   const removeFromDb = useCallback(
-    (id: string) => {
-      lastSyncRef.current = lastSyncRef.current
-        .then(() => ds.softDeleteTodo(id))
-        .catch((e) => logServiceError("TodoTree", "undoCreate", e));
+    (id: string): Promise<void> => {
+      const run = lastSyncRef.current.then(() => ds.softDeleteTodo(id));
+      lastSyncRef.current = run.then(
+        () => {},
+        (e: unknown) => logServiceError("TodoTree", "undoCreate", e),
+      );
+      return run.then(() => {});
     },
     [ds],
   );

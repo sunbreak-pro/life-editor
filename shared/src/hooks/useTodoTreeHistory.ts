@@ -75,7 +75,14 @@ export type TodoHistoryLabel = (typeof TODO_HISTORY_LABELS)[number];
 
 export function useTodoTreeHistory(
   setNodes: Dispatch<SetStateAction<TodoNode[]>>,
-  syncToDb: (nodes: TodoNode[], onSettled?: PersistSettled) => void,
+  /**
+   * Persists the tree. Returns a promise that REJECTS when the write failed
+   * (#1682) — an undo closure hands that straight to the manager, which is
+   * what stops "Undid: todo change" appearing over a reversal the DB refused.
+   * The implementation also queues its writes, so an undo fired while the
+   * original upsert is in flight runs after it (useTodoTreeAPI).
+   */
+  syncToDb: (nodes: TodoNode[], onSettled?: PersistSettled) => Promise<void>,
   undoRedo: UndoRedoLike,
   /**
    * Takes ONE row out of the DB — what undoing a create has to do (#1485).
@@ -83,7 +90,7 @@ export function useTodoTreeHistory(
    * missing from the list is simply not written, never removed. Injected
    * rather than derived from `syncToDb` so this hook stays DataService-free.
    */
-  removeFromDb: (id: string) => void,
+  removeFromDb: (id: string) => Promise<void>,
 ) {
   const {
     push,
@@ -111,17 +118,20 @@ export function useTodoTreeHistory(
         // The whole list goes back, so this one dies with the provider that
         // took the snapshot (#1727 — UndoCommand.expiresWithProvider).
         expiresWithProvider: true,
+        // Returning the write is the whole point (#1682): `syncToDb` queues
+        // behind the original upsert and rejects when the DB refused, so the
+        // manager keeps the command and the host says it could not be undone.
         undo: () => {
           setNodes(before);
-          syncToDb(before);
+          return syncToDb(before);
         },
         redo: () => {
           setNodes(after);
-          syncToDb(after);
+          return syncToDb(after);
         },
       });
       setNodes(updated);
-      syncToDb(updated, onSettled);
+      void syncToDb(updated, onSettled);
     },
     [setNodes, syncToDb, push],
   );
@@ -160,18 +170,28 @@ export function useTodoTreeHistory(
         // Snapshot writeback (see persistWithHistory) — #1727.
         expiresWithProvider: true,
         label: "todoTreeChange",
+        /*
+         * Both writes are STARTED here and both can fail the undo (#1682).
+         *
+         * Started, not awaited in sequence: `removeFromDb` already queues
+         * behind the sync on the shared write queue, so the order is kept
+         * without holding the second call back a turn — and firing them both
+         * synchronously is what keeps "the row leaves the DB" observable in
+         * the same tick the user pressed Ctrl+Z.
+         */
         undo: () => {
           setNodes(before);
-          syncToDb(before);
-          removeFromDb(createdId);
+          const synced = syncToDb(before);
+          const removed = removeFromDb(createdId);
+          return Promise.all([synced, removed]).then(() => {});
         },
         redo: () => {
           setNodes(after);
-          syncToDb(after);
+          return syncToDb(after);
         },
       });
       setNodes(updated);
-      syncToDb(updated, onSettled);
+      void syncToDb(updated, onSettled);
     },
     [setNodes, syncToDb, removeFromDb, push],
   );
@@ -179,7 +199,7 @@ export function useTodoTreeHistory(
   const persistSilent = useCallback(
     (updated: TodoNode[], onSettled?: PersistSettled) => {
       setNodes(updated);
-      syncToDb(updated, onSettled);
+      void syncToDb(updated, onSettled);
     },
     [setNodes, syncToDb],
   );

@@ -354,18 +354,31 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
 
   // Persist tree to DB. Unified has no bulk sync — apply moves
   // sequentially (verbatim port of the retired Bridge `syncNoteTree`).
+  /*
+   * #1682 — the moves are queued and the promise is handed back.
+   *
+   * `lastMoveRef` serialises the sequential writes the way the todo tree's
+   * `lastSyncRef` does: an undo fired while the original run is mid-loop
+   * would otherwise interleave with it, and the two runs write the same rows.
+   * The queue keeps a swallowed copy so one failure does not leave every
+   * later move chained behind a rejected promise.
+   */
+  const lastMoveRef = useRef<Promise<void>>(Promise.resolve());
+
   const syncToDb = useCallback(
-    (updatedNotes: NoteNode[]) => {
+    (updatedNotes: NoteNode[]): Promise<void> => {
       const items = updatedNotes.map((n) => ({
         id: n.id,
         parentId: n.parentId,
         order: n.order,
       }));
-      (async () => {
+      const run = lastMoveRef.current.then(async () => {
         for (const i of items) {
           await ds.moveNoteUnified(i.id, i.parentId, i.order);
         }
-      })().catch((e) => logServiceError("Notes", "syncTree", e));
+      });
+      lastMoveRef.current = run.catch(() => {});
+      return run;
     },
     [ds],
   );
@@ -373,7 +386,8 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   const persistWithHistory = useCallback(
     (currentNotes: NoteNode[], updated: NoteNode[]) => {
       setNotes(updated);
-      syncToDb(updated);
+      const landed = syncToDb(updated);
+      void landed.catch((e) => logServiceError("Notes", "syncTree", e));
       push("note", {
         label: "moveNote",
         // Re-persists the whole tree's parent/order, so it must not outlive
@@ -381,11 +395,11 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         expiresWithProvider: true,
         undo: () => {
           setNotes(currentNotes);
-          syncToDb(currentNotes);
+          return syncToDb(currentNotes);
         },
         redo: () => {
           setNotes(updated);
-          syncToDb(updated);
+          return syncToDb(updated);
         },
       });
     },

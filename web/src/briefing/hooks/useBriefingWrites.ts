@@ -1,6 +1,7 @@
 import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
+  afterSettled,
   generateId,
   generateTodoId,
   localDateTimeToISO,
@@ -298,24 +299,24 @@ export function useBriefingWrites({
         return;
       }
       setScheduleItems((prev) => prev.filter((s) => s.id !== id));
-      ds.softDeleteScheduleItem(id).catch((err) => {
+      const landed = ds.softDeleteScheduleItem(id);
+      void landed.catch((err) => {
         console.error("[BriefingScreen] schedule delete failed", err);
       });
       push?.("scheduleItem", {
         label: "deleteScheduleItem",
-        undo: () => {
+        // #1682: wait for the delete this reverses, then report our own
+        // write. A restore that lands before the delete is undone by it.
+        undo: async () => {
           setScheduleItems((prev) =>
             prev.some((s) => s.id === id) ? prev : [...prev, target],
           );
-          void ds.restoreScheduleItem(id).catch((err) => {
-            console.error("[BriefingScreen] schedule delete undo failed", err);
-          });
+          await afterSettled(landed);
+          await ds.restoreScheduleItem(id);
         },
         redo: () => {
           setScheduleItems((prev) => prev.filter((s) => s.id !== id));
-          void ds.softDeleteScheduleItem(id).catch((err) => {
-            console.error("[BriefingScreen] schedule delete redo failed", err);
-          });
+          return ds.softDeleteScheduleItem(id).then(() => {});
         },
       });
     },
@@ -408,22 +409,20 @@ export function useBriefingWrites({
         );
       };
       markDeleted(true);
-      ds.softDeleteTodo(id).catch((err) => {
+      const landed = ds.softDeleteTodo(id);
+      void landed.catch((err) => {
         console.error("[BriefingScreen] todo delete failed", err);
       });
       push?.("todoTree", {
         label: "deleteTodo",
-        undo: () => {
+        undo: async () => {
           markDeleted(false);
-          void ds.restoreTodo(id).catch((err) => {
-            console.error("[BriefingScreen] todo delete undo failed", err);
-          });
+          await afterSettled(landed);
+          await ds.restoreTodo(id);
         },
         redo: () => {
           markDeleted(true);
-          void ds.softDeleteTodo(id).catch((err) => {
-            console.error("[BriefingScreen] todo delete redo failed", err);
-          });
+          return ds.softDeleteTodo(id).then(() => {});
         },
       });
     },
