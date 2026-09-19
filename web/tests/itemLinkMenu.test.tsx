@@ -27,7 +27,6 @@ import { ItemLinkMenu, type ItemLinkMenuItem } from "../src/notes/ItemLinkMenu";
 
 const LABELS = {
   empty: "No matches",
-  unresolved: (q: string) => `Insert "${q}"`,
   create: (q: string) => `Create "${q}"`,
   roleNote: "Note",
   roleDaily: "Daily",
@@ -202,7 +201,9 @@ describe("ItemLinkMenu — long rows inside a capped menu (#1518)", () => {
   it("still gives a candidate one line and an ellipsis", () => {
     render(
       <ItemLinkMenu
-        items={[makeItem("note-1", "A very long note title indeed", "candidate")]}
+        items={[
+          makeItem("note-1", "A very long note title indeed", "candidate"),
+        ]}
         command={vi.fn()}
         emptyLabel="No matches"
       />,

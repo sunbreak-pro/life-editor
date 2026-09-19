@@ -636,7 +636,7 @@
     "detailPanelLabel": "詳細パネル",
     "editDetail": "詳細を編集",
     "itemActionsLabel": "予定の操作",
-    "tabTodo": "本日の Todo",
+    "tabTodo": "Todo",
     "todoTodayHeading": "本日分の Todo",
     "todoEmptyToday": "本日分の Todo はまだありません",
     "todoOthersHeading": "その他の Todo",
@@ -644,6 +644,7 @@
     "todoMoveToToday": "本日分へ移す",
     "todoMoveToOthers": "その他へ移す",
     "todoAddCta": "Todo",
+    "todoAddTodayCta": "本日分に追加",
     "todoAddDialogTitle": "Todo を追加",
     "todoAddTitleLabel": "タイトル",
     "todoAddTitlePlaceholder": "タイトルを入力",
@@ -1056,14 +1057,14 @@
       "sharedTags": "同じタグのアイテム",
       "writeFailed": "リンクを保存できませんでした。通信を確認してください。"
     },
-    "sheetClose": "閉じる",
     "mobile": {
+      "editSheet": "{{name}}: {{field}}",
       "itemMenu": "「{{title}}」の操作",
-      "seeRelations": "関連を見る",
-      "removeThisTag": "このタグを外す",
       "relationsSheet": "関連: {{title}}",
-      "editSheet": "{{name}}: {{field}}"
-    }
+      "removeThisTag": "このタグを外す",
+      "seeRelations": "関連を見る"
+    },
+    "sheetClose": "閉じる"
   },
   "attachment": {
     "insertImage": "画像",
@@ -1111,11 +1112,11 @@
   },
   "itemLink": {
     "empty": "一致する項目がありません",
-    "insertUnresolved": "「{{query}}」を未解決リンクとして挿入",
     "createNote": "「{{query}}」のノートを作成してリンク",
     "roleNote": "ノート",
     "roleDaily": "デイリー",
-    "roleTodo": "Todo"
+    "roleTodo": "Todo",
+    "insertUnresolved": "「{{query}}」を未解決リンクとして挿入"
   },
   "auth": {
     "productName": "Life Editor",

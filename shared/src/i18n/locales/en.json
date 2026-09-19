@@ -640,7 +640,7 @@
     "detailPanelLabel": "Detail panel",
     "editDetail": "Edit details",
     "itemActionsLabel": "Event actions",
-    "tabTodo": "Today's Todo",
+    "tabTodo": "Todo",
     "todoTodayHeading": "Today's todos",
     "todoEmptyToday": "Nothing on today yet",
     "todoOthersHeading": "Other todos",
@@ -648,6 +648,7 @@
     "todoMoveToToday": "Move to today",
     "todoMoveToOthers": "Take off today",
     "todoAddCta": "Todo",
+    "todoAddTodayCta": "Add to today",
     "todoAddDialogTitle": "New todo",
     "todoAddTitleLabel": "Title",
     "todoAddTitlePlaceholder": "Enter a title",
@@ -1066,14 +1067,14 @@
       "sharedTags": "Items sharing a tag",
       "writeFailed": "The link could not be saved. Check your connection."
     },
-    "sheetClose": "Close",
     "mobile": {
+      "editSheet": "{{name}}: {{field}}",
       "itemMenu": "{{title}}: Item actions",
-      "seeRelations": "See what it relates to",
-      "removeThisTag": "Remove this tag",
       "relationsSheet": "Related: {{title}}",
-      "editSheet": "{{name}}: {{field}}"
-    }
+      "removeThisTag": "Remove this tag",
+      "seeRelations": "See what it relates to"
+    },
+    "sheetClose": "Close"
   },
   "attachment": {
     "insertImage": "Image",
@@ -1121,11 +1122,11 @@
   },
   "itemLink": {
     "empty": "No matching items",
-    "insertUnresolved": "Insert “{{query}}” as a link",
     "createNote": "Create note “{{query}}” and link",
     "roleNote": "Note",
     "roleDaily": "Daily",
-    "roleTodo": "Todo"
+    "roleTodo": "Todo",
+    "insertUnresolved": "Insert “{{query}}” as a link"
   },
   "auth": {
     "productName": "Life Editor",
