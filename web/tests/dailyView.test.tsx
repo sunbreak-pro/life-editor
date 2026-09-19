@@ -5,7 +5,9 @@ import {
   extractEveningSection,
   eveningBodyLines,
   stripEveningSection,
+  UndoRedoManager,
   type DailyNode,
+  type UndoCommand,
 } from "@life-editor/shared";
 import {
   DailyView,
@@ -642,7 +644,7 @@ describe("DailyView — editing the evening card (#1680)", () => {
     expect(stripEveningSection(saved())).toContain(`entry for ${YESTERDAY}`);
   });
 
-  it("puts a mood change on the undo stack", () => {
+  it("puts a mood change on the undo stack", async () => {
     state.dailies = [eveningDaily];
     render(<DailyView />);
 
@@ -652,17 +654,55 @@ describe("DailyView — editing the evening card (#1680)", () => {
     expect(state.pushUndo).toHaveBeenCalledTimes(1);
     const [domain, command] = state.pushUndo.mock.calls[0] as [
       string,
-      { undo: () => void; redo: () => void },
+      UndoCommand,
     ];
     expect(domain).toBe("daily");
 
     // The store caught up with the tap (the context updates optimistically).
     state.dailies = [{ ...eveningDaily, content: saved(0) }];
-    command.undo();
+    // #1750: the reversal waits for the write it reverses, so it only reaches
+    // upsertDaily after that promise settles — hence the await.
+    await command.undo();
     expect(extractEveningSection(saved(1)).mood).toBe(4);
 
     state.dailies = [{ ...eveningDaily, content: saved(1) }];
-    command.redo();
+    await command.redo();
     expect(extractEveningSection(saved(2)).mood).toBe(2);
+  });
+
+  /*
+   * #1750: before this, the undo closure called writeEvening and dropped the
+   * promise, so a write that never landed still read as a clean reversal —
+   * the toast said「元に戻しました」and the command moved on to the redo stack,
+   * offering to re-apply something that was never undone.
+   *
+   * Driven through the REAL manager rather than the pushUndo stub, because
+   * what the Issue asks about is where the command ends up, and that is the
+   * manager's half of the contract (UndoRedoManager#apply).
+   */
+  it("treats a write that did not land as a failed undo", async () => {
+    const errors = vi.spyOn(console, "error").mockImplementation(() => {});
+    state.dailies = [eveningDaily];
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "briefing.evening.moodStar|2" }),
+    );
+    const [, command] = state.pushUndo.mock.calls[0] as [string, UndoCommand];
+
+    state.dailies = [{ ...eveningDaily, content: saved(0) }];
+    // A write the server refused: upsertDaily logs the rejection itself and
+    // reports the failure to its caller by resolving null.
+    state.upsertDaily.mockResolvedValue(null);
+
+    const manager = new UndoRedoManager();
+    manager.push(command, "daily");
+    const outcome = await manager.undo();
+
+    expect(outcome?.ok).toBe(false);
+    // Not on the redo stack — it is back where it was, for the user to retry.
+    expect(manager.canRedo()).toBe(false);
+    expect(manager.canUndo()).toBe(true);
+    errors.mockRestore();
   });
 });
