@@ -11,8 +11,8 @@ import type { Editor, Range } from "@tiptap/core";
 /*
  * itemLink menu (web Notes/Daily editor). The floating panel shown when the
  * user types "[[" — a filtered list of link targets (notes / dailies) plus, at
- * the tail, up to two fixed action rows: "insert as unresolved link" and
- * "create note & link". Pure presentation + keyboard nav; the actual insert /
+ * the tail, one fixed action row: "create note & link" (#1688 removed the
+ * "insert as an unresolved link" row). Pure presentation + keyboard nav; the actual insert /
  * create transform lives on each item's `command` (wired in
  * itemLinkSuggestion.ts). Structure mirrors SlashMenu 1:1 (listbox, ↑/↓/Enter
  * via a ref, mousedown-commit before blur, lumen-* tokens only) so the two
@@ -20,7 +20,7 @@ import type { Editor, Range } from "@tiptap/core";
  */
 
 /** Row kind — drives the trailing hint text and the leading icon treatment. */
-export type ItemLinkMenuItemKind = "candidate" | "unresolved" | "create";
+export type ItemLinkMenuItemKind = "candidate" | "create";
 
 export interface ItemLinkMenuItem {
   /** Stable key (target id, or a synthetic key for the action rows). */
