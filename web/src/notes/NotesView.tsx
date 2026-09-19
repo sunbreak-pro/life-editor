@@ -29,6 +29,7 @@ import {
 import { useNoteTagDnd } from "./useNoteTagDnd";
 import { useAttachmentUpload } from "./useAttachmentUpload";
 import { useSidebarContextMenus } from "./useSidebarContextMenus";
+import { AttachmentUploadStatus } from "./AttachmentUploadStatus";
 import { NoteBodyEditor } from "./NoteBodyEditor";
 import { NotePasswordDialog } from "./NotePasswordDialog";
 import { LinkPanel } from "../wikitag";
@@ -168,7 +169,12 @@ export function NotesView({
   // Image / file embedding for the "/" menu (#1404). Undefined without a
   // DataService, which is what keeps the two attach entries out of the picker
   // on a surface that cannot reach Storage — see useAttachmentUpload.
-  const attachments = useAttachmentUpload(dataService);
+  // The file currently uploading, drawn as a band above the body (#1674).
+  // Host state, never a document node: the node is still inserted only once
+  // the bytes are there, so nothing mid-upload can be saved into the note
+  // (D-20260902-materials-1 = B).
+  const [uploadingFile, setUploadingFile] = useState<string | null>(null);
+  const attachments = useAttachmentUpload(dataService, setUploadingFile);
 
   // "Register this note as a template" (#1179) + the receipt panel it opens.
   // Writes go straight out through the DataService, which is why it is not on
@@ -742,6 +748,10 @@ export function NotesView({
               onCompositionStart={handleCompositionStart}
               onCompositionEnd={handleCompositionEnd}
             >
+              <AttachmentUploadStatus
+                fileName={uploadingFile}
+                uploadingLabel={t("attachment.uploading")}
+              />
               <NoteBodyEditor
                 note={selected}
                 linking={linking}

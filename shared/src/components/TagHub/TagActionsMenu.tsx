@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import type { MouseEvent, RefObject } from "react";
-import { Palette, Pencil, Shapes, Trash2 } from "lucide-react";
+import { Merge, Palette, Pencil, Shapes, Trash2 } from "lucide-react";
 import { Menu, MenuItem, type MenuAnchorPoint } from "../Menu";
 import type { TagHubEditField } from "./TagHubEditBlock";
 
@@ -32,6 +32,8 @@ export interface TagActionsMenuLabels {
   changeIcon: string;
   changeColor: string;
   deleteTag: string;
+  /** "Merge into another tag…" — shown only with `onMerge` (#1644). */
+  mergeTag?: string;
 }
 
 export interface TagActionsMenuProps {
@@ -49,6 +51,8 @@ export interface TagActionsMenuProps {
   onEdit: (field: TagHubEditField) => void;
   /** The destructive item — the host asks before it deletes anything. */
   onDelete: () => void;
+  /** Merge this tag into another (#1644). Omit to leave the item out. */
+  onMerge?: () => void;
   labels: TagActionsMenuLabels;
 }
 
@@ -61,8 +65,10 @@ export function TagActionsMenu({
   align = "end",
   onEdit,
   onDelete,
+  onMerge,
   labels,
 }: TagActionsMenuProps) {
+  const showMerge = onMerge != null && labels.mergeTag != null;
   const act = (run: () => void) => {
     onClose();
     run();
@@ -95,6 +101,15 @@ export function TagActionsMenu({
       >
         {labels.changeColor}
       </MenuItem>
+      {showMerge && (
+        <>
+          <MenuItem icon={<Merge size={14} />} onSelect={() => act(onMerge)}>
+            {labels.mergeTag}
+          </MenuItem>
+          {/* The brief's rule between the reversible items and delete. */}
+          <div role="separator" className="my-1 border-t border-lumen-border" />
+        </>
+      )}
       <MenuItem
         icon={<Trash2 size={14} />}
         variant="danger"

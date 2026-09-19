@@ -33,6 +33,7 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useTagFilterPanel } from "./useTagFilterPanel";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
+import { useRepeatUndoGate } from "./useRepeatUndoGate";
 import { useScheduleMutations } from "./useScheduleMutations";
 import {
   useClosePopoverOnOtherSurface,
@@ -40,6 +41,7 @@ import {
 } from "./useScheduleOverlays";
 import { useItemConversion } from "./useItemConversion";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
+import { todoAddCandidateWrite } from "./todoChipUndoWiring";
 import { useScheduleRepeats } from "./useScheduleRepeats";
 import { useScheduleGridFilters } from "./useScheduleGridFilters";
 import { useScheduleCreateFlow } from "./useScheduleCreateFlow";
@@ -339,6 +341,9 @@ export function CalendarTab({
     ask: askConfirm,
     resolve: resolveConfirm,
   } = useConfirmDialog();
+  // #1638: Undo / Redo of a write that landed on a repeating item asks first,
+  // through the same dialog the scope chooser uses.
+  useRepeatUndoGate(askConfirm);
   const handleAttachError = useCallback(
     () => showToast("danger", t("scheduleScreen.noteAttachFailed")),
     [showToast, t],
@@ -364,6 +369,9 @@ export function CalendarTab({
     dataService,
     active: !!createPanel,
     onAttachError: handleAttachError,
+    // #1638 (A-08): the note + link the panel attaches is its own history
+    // entry, so the item's create undo stops leaving an orphan note behind.
+    push: undoRedo?.push,
   });
 
   /*
@@ -617,6 +625,9 @@ export function CalendarTab({
     onResizeTodoChip: handleTodoChipResize,
     onDropTodoChipAllDay: handleTodoChipDropAllDay,
     onRepeatConvertFailed: handleRepeatConvertError,
+    // #1638: the repeat layer records its own history — turning a repeat on or
+    // off, the rhythm change and the series-wide edits, one command per act.
+    push: undoRedo?.push,
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 
@@ -802,7 +813,18 @@ export function CalendarTab({
    * something on a slot.
    */
   const todoLinking = useTodoLinking({ dataService });
-  const [todoAddOpen, setTodoAddOpen] = useState(false);
+  /*
+   * #1640: WHICH list the dialog is making a todo for — "today" from the
+   * today heading's pill, "other" from the one over "その他" (and from the
+   * shell intent, which has no list in mind). null = closed.
+   *
+   * A target rather than a second flag so the two can never be open at once,
+   * and so the dialog itself stays one mounted surface.
+   */
+  const [todoAddTarget, setTodoAddTarget] = useState<"today" | "other" | null>(
+    null,
+  );
+  const todoAddOpen = todoAddTarget != null;
 
   /*
    * The create dialog opens from the shell intent by ADJUSTING STATE WHILE
@@ -815,13 +837,20 @@ export function CalendarTab({
   const [prevPendingNewTodo, setPrevPendingNewTodo] = useState(pendingNewTodo);
   if (pendingNewTodo !== prevPendingNewTodo) {
     setPrevPendingNewTodo(pendingNewTodo);
-    if (pendingNewTodo) setTodoAddOpen(true);
+    if (pendingNewTodo) setTodoAddTarget("other");
   }
 
   const handleCreateTodo = useCallback(
     (input: { title: string }) => {
       const node = addNode("task", null, input.title);
-      setTodoAddOpen(false);
+      // #1640: the pill that opened the dialog decides the day. "Today" reuses
+      // the tray's own "add to today" write (all-day on today), so a todo made
+      // here and a todo dragged up into the list are the same row.
+      if (todoAddTarget === "today") {
+        const { patch, options } = todoAddCandidateWrite(today);
+        updateNode(node.id, patch, options);
+      }
+      setTodoAddTarget(null);
       // Straight into the detail: a title alone is rarely the whole thought,
       // and this is the surface that can take the rest of it.
       setTodoDetailId(node.id);
@@ -830,7 +859,14 @@ export function CalendarTab({
       // existing one onto a day, which is not what the step teaches.
       reportTourAction(TOUR_ACTIONS.scheduleTodoCreated);
     },
-    [addNode, reportTourAction, setTodoDetailId],
+    [
+      addNode,
+      reportTourAction,
+      setTodoDetailId,
+      todoAddTarget,
+      today,
+      updateNode,
+    ],
   );
 
   const editorItem: EventEditorItem | null = toEditorItem(selected);
@@ -1015,7 +1051,8 @@ export function CalendarTab({
           onOpenTodo: setTodoDetailId,
           onOpenAddable: setTodoDetailId,
           onDelete: handleTodoDelete,
-          onAdd: () => setTodoAddOpen(true),
+          onAdd: () => setTodoAddTarget("other"),
+          onAddToday: () => setTodoAddTarget("today"),
         }}
       />
     </RightSidebarPortal>
@@ -1161,6 +1198,11 @@ export function CalendarTab({
             onToggleRepeats: handleToggleRepeats,
             onOpenFilter: () => setTagFilterOpen(true),
             filterActive: selectedTagIds.length > 0,
+            // #1639: the number on the icon. `selectedTagIds` is the resolved
+            // tick list — a saved group is counted as the tags it expands to,
+            // and a tag deleted mid-session has already dropped out of it, so
+            // the badge can never name a filter the grid is not applying.
+            filterCount: selectedTagIds.length,
             onAddEvent: handleToolbarAdd,
           }}
           lens={{
@@ -1223,7 +1265,7 @@ export function CalendarTab({
           width only would be the same mistake with a new name. */}
       <TodoAddDialog
         open={todoAddOpen}
-        onClose={() => setTodoAddOpen(false)}
+        onClose={() => setTodoAddTarget(null)}
         onSubmit={handleCreateTodo}
         labels={{
           title: t("scheduleScreen.todoAddDialogTitle"),

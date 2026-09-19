@@ -68,6 +68,8 @@ export interface CalendarDesktopToolbar {
   onOpenFilter: () => void;
   /** Whether a tag filter is narrowing the grid (lights the button). */
   filterActive: boolean;
+  /** How many tags it is narrowing by — the badge on the icon (#1639). */
+  filterCount: number;
   onAddEvent: () => void;
 }
 
@@ -295,6 +297,7 @@ export function CalendarDesktopLayout({
         repeatsHidden={toolbar.repeatsHidden}
         onOpenFilter={toolbar.onOpenFilter}
         filterActive={toolbar.filterActive}
+        filterCount={toolbar.filterCount}
         onAddEvent={toolbar.onAddEvent}
         addEventLabel={t("scheduleScreen.addEvent")}
         labels={{

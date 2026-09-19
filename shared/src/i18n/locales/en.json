@@ -316,6 +316,18 @@
       "save": "Save",
       "saved": "Saved",
       "unsaved": "Unsaved"
+    },
+    "sidebarTabs": {
+      "label": "Work sidebar",
+      "settings": "Timer settings",
+      "history": "History"
+    },
+    "history": {
+      "today": "Today",
+      "latestDay": "Latest work day · {{date}}",
+      "empty": "No work sessions yet. Finished sessions will show up here.",
+      "noTarget": "No linked item",
+      "minutes": "{{minutes}} min"
     }
   },
   "audioMixer": {
@@ -458,7 +470,11 @@
       "filterPlaceholder": "Filter entries…",
       "filterLabel": "Filter entries",
       "eveningTitle": "EVENING",
-      "eveningScheduleTitle": "THE DAY'S SCHEDULE"
+      "eveningScheduleTitle": "THE DAY'S SCHEDULE",
+      "eveningMood": "Mood",
+      "eveningStart": "Add an evening note",
+      "eveningEditReflection": "Edit the reflection",
+      "eveningReflectionPlaceholder": "How did the day go…"
     },
     "tags": {
       "colorLabel": "Color",
@@ -472,7 +488,10 @@
       "pickerSearch": "Search or create tag…",
       "pickerNoCandidates": "No more tags to assign.",
       "pickerCreate": "Create “{{name}}”",
-      "pickerRemove": "Remove tag {{name}}"
+      "pickerRemove": "Remove tag {{name}}",
+      "assignFailed": "Couldn't add the tag.",
+      "unassignFailed": "Couldn't remove the tag.",
+      "createFailed": "Couldn't create the tag."
     },
     "sidebar": {
       "sort": "Sort",
@@ -623,7 +642,7 @@
     "detailPanelLabel": "Detail panel",
     "editDetail": "Edit details",
     "itemActionsLabel": "Event actions",
-    "tabTodo": "Today's Todo",
+    "tabTodo": "Todo",
     "todoTodayHeading": "Today's todos",
     "todoEmptyToday": "Nothing on today yet",
     "todoOthersHeading": "Other todos",
@@ -631,6 +650,7 @@
     "todoMoveToToday": "Move to today",
     "todoMoveToOthers": "Take off today",
     "todoAddCta": "Todo",
+    "todoAddTodayCta": "Add to today",
     "todoAddDialogTitle": "New todo",
     "todoAddTitleLabel": "Title",
     "todoAddTitlePlaceholder": "Enter a title",
@@ -651,6 +671,13 @@
     "scopeThisAndFuture": "This and following events",
     "scopeAll": "All events (including past)",
     "scopeCancel": "Cancel",
+    "undoRepeatTitle": "Undo this change to a repeating event?",
+    "redoRepeatTitle": "Redo this change to a repeating event?",
+    "undoRepeatScopeThis": "It applies to this occurrence only.",
+    "undoRepeatScopeFuture": "It applies to this and the following occurrences.",
+    "undoRepeatScopeAll": "It applies to every occurrence of this repeat.",
+    "undoRepeatConfirm": "Undo",
+    "redoRepeatConfirm": "Redo",
     "openFilter": "Filter by tag",
     "filterActive_one": "Filtered by {{count}} tag",
     "filterActive_other": "Filtered by {{count}} tags",
@@ -866,6 +893,7 @@
       "updateScheduleItem": "event update",
       "toggleScheduleItemComplete": "event completion toggle",
       "dismissScheduleItem": "event dismissal",
+      "undismissScheduleItem": "bringing a skipped event back",
       "deleteScheduleItem": "event deletion",
       "convertEventToTodo": "event-to-todo conversion",
       "convertTodoToEvent": "todo-to-event conversion",
@@ -878,7 +906,9 @@
       "moveNote": "note move",
       "createNote": "note creation",
       "updateNote": "note update",
-      "softDeleteNote": "note deletion"
+      "softDeleteNote": "note deletion",
+      "assignTag": "adding a tag",
+      "unassignTag": "removing a tag"
     }
   },
   "common": {
@@ -994,6 +1024,34 @@
       "recentHeading": "Recently tagged",
       "recentUntaggedHeading": "Recently updated",
       "recentEmpty": "Nothing is filed under this tag yet."
+    },
+    "mergeTag": "Merge into another tag…",
+    "merge": {
+      "title": "Merge “{{name}}” into…",
+      "targetsLabel": "Tag to merge into",
+      "pickHint": "Pick the tag its items should move to.",
+      "summary_one": "{{count}} item moves to “{{target}}”, and this tag is deleted.",
+      "summary_other": "{{count}} items move to “{{target}}”, and this tag is deleted.",
+      "noTargets": "There is no other tag to merge into.",
+      "confirm": "Merge",
+      "failed": "The merge did not finish. The tag was kept so nothing is lost."
+    },
+    "selection": {
+      "assign": "Add a tag",
+      "assignTitle": "Add a tag to the selection",
+      "clear": "Clear selection",
+      "create": "Create “{{name}}”",
+      "failed_one": "{{count}} item could not be updated. Check your connection.",
+      "failed_other": "{{count}} items could not be updated. Check your connection.",
+      "move": "Move to another tag",
+      "moveTitle": "Move the selection to a tag",
+      "pickerEmpty": "No matching tag",
+      "region": "Selected items",
+      "remove": "Remove this tag",
+      "search": "Search or create a tag…",
+      "selectItem": "Select “{{title}}”",
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected"
     }
   },
   "attachment": {
@@ -1003,7 +1061,8 @@
     "download": "Download",
     "remove": "Remove attachment",
     "tooLarge": "That file is too large. The limit is {{limit}}.",
-    "uploadFailed": "Could not upload that file. Please try again."
+    "uploadFailed": "Could not upload that file. Please try again.",
+    "uploading": "Uploading…"
   },
   "linkCard": {
     "open": "Open link",

@@ -11,6 +11,7 @@ import {
   type RoutineNode,
   type ScheduleItem,
   type SeriesFillRange,
+  type UndoRedoLike,
 } from "@life-editor/shared";
 
 /*
@@ -80,6 +81,10 @@ export interface UseRepeatMutationsArgs {
         | "frequencyStartDate"
       >
     >,
+    // `skipUndo` (#1638): a series edit is several writes that the user made
+    // as ONE act, so the layer below stays quiet and this file pushes the one
+    // command that reverses all of them together.
+    opts?: { skipUndo?: boolean },
     // Resolves false when the template write did NOT land, so the caller can
     // abort work it sequenced behind it (#352 reconcile).
   ) => Promise<boolean>;
@@ -157,13 +162,25 @@ export interface UseRepeatMutationsArgs {
    * Injected from the CRUD layer: a "this" scope is that same single-row
    * write, so the two must not drift apart.
    */
-  applyOccurrencePatch: (id: string, patch: Partial<ScheduleItem>) => void;
+  applyOccurrencePatch: (
+    id: string,
+    patch: Partial<ScheduleItem>,
+    opts?: { skipUndo?: boolean },
+  ) => void;
   /**
    * Dismiss ONE occurrence. Also injected — "delete / this" is a dismiss and
    * NOT a delete: a plain delete would be revived by the generator (Issue
    * 017), and that rule belongs to whichever layer performs the write.
    */
   dismissOccurrence: (id: string) => void;
+  /**
+   * The global undo stack's push (#1638). Optional, like every other consumer
+   * of `useUndoRedoOptional`: a host with no provider simply records no
+   * history. Every command pushed from this file carries a `confirm` spec —
+   * these writes reach days that are not on screen, so the host asks before
+   * reversing one.
+   */
+  push?: UndoRedoLike["push"];
 }
 
 /**
@@ -258,6 +275,7 @@ export function useRepeatMutations({
   onRepeatConvertFailed,
   applyOccurrencePatch,
   dismissOccurrence,
+  push,
 }: UseRepeatMutationsArgs) {
   // #279: pending this/future/all chooser. Edits/deletes of a routine-derived
   // occurrence are parked here until the user picks a scope in the dialog.
@@ -389,15 +407,58 @@ export function useRepeatMutations({
             return;
           }
           patchRange(seed.id, { routineId, sourceDate: seed.date });
+          const frequency = {
+            frequencyType: type,
+            frequencyDays,
+            frequencyInterval,
+            frequencyStartDate,
+          };
           await materialiseNewSeries(
-            optimisticSeedRoutine(routineId, seed, {
-              frequencyType: type,
-              frequencyDays,
-              frequencyInterval,
-              frequencyStartDate,
-            }),
+            optimisticSeedRoutine(routineId, seed, frequency),
             seed.date,
           );
+          /*
+           * #1638 (A-03): turning a repeat ON is undoable now. The inverse is
+           * the one the editor already offers as "なし" — detach with the seed
+           * pinned, which trashes the generated days and leaves the row the
+           * user started from (useRoutinesAPI.detachRoutine's own doc-comment
+           * names this as the inverse).
+           *
+           * A redo mints a NEW routine (a conversion always does), so the id
+           * is kept in a closure rather than captured once — otherwise a
+           * second undo would detach a routine that no longer exists.
+           */
+          let liveRoutineId = routineId;
+          push?.("routine", {
+            label: "createRoutine",
+            confirm: { kind: "repeat", scope: "all" },
+            undo: async () => {
+              try {
+                await detachRoutine(liveRoutineId, undefined, {
+                  keepItemIds: [seed.id],
+                });
+              } finally {
+                reload();
+              }
+            },
+            redo: async () => {
+              try {
+                liveRoutineId = await convertEventToRoutine(seed.id, {
+                  title: seed.title,
+                  startTime: seed.startTime,
+                  endTime: seed.endTime,
+                  ...frequency,
+                  sourceDate: seed.date,
+                });
+                await materialiseNewSeries(
+                  optimisticSeedRoutine(liveRoutineId, seed, frequency),
+                  seed.date,
+                );
+              } finally {
+                reload();
+              }
+            },
+          });
         } finally {
           // reload() lives here so every exit — landed, refused attach,
           // half-materialised — re-reads exactly once and the editor stops
@@ -414,9 +475,11 @@ export function useRepeatMutations({
       beginConversion,
       endConversion,
       convertEventToRoutine,
+      detachRoutine,
       patchRange,
       materialiseNewSeries,
       onRepeatConvertFailed,
+      push,
       reload,
     ],
   );
@@ -448,13 +511,49 @@ export function useRepeatMutations({
         routine ?? UNSEEDED_FREQUENCY,
         sourceDate,
       );
+      /*
+       * #1638 (A-06 / B-07): the rhythm change and the re-shaping of the days
+       * already on the calendar are ONE act, so they go on the stack as one
+       * command. Before this the template write pushed its own entry and the
+       * reconcile pushed nothing: Ctrl+Z put the old rhythm back and left the
+       * days the new rhythm had created or removed exactly as they were.
+       */
+      const applyFrequency = async (
+        updates: Partial<FrequencyEditorValue>,
+        base: RoutineNode | undefined,
+      ): Promise<boolean> => {
+        const landed = await updateRoutine(routineId, updates, {
+          skipUndo: true,
+        });
+        if (!landed || !base) return landed;
+        await reconcileRoutineScheduleItems(
+          { ...base, ...updates },
+          { startDate: rangeStart, endDate: rangeEnd },
+          {
+            title: base.title,
+            startTime: base.startTime,
+            endTime: base.endTime,
+          },
+        );
+        return true;
+      };
+      const previousFrequency = routine
+        ? {
+            frequencyType: routine.frequencyType,
+            frequencyDays: routine.frequencyDays,
+            frequencyInterval: routine.frequencyInterval,
+            frequencyStartDate: routine.frequencyStartDate,
+          }
+        : null;
       void (async () => {
         try {
           // Sequenced, not fired in parallel: reshaping occurrences to a
           // frequency the routine itself never took would leave template and
           // series contradicting each other, and the always-on generators would
           // then fight over every day.
-          const landed = await updateRoutine(routineId, seededPatch);
+          const landed = await updateRoutine(routineId, seededPatch, {
+            skipUndo: true,
+          });
           if (!landed) {
             // #469 小粒: reconcile is skipped on purpose, but the
             // finally-reload then restores the OLD frequency in the editor.
@@ -479,6 +578,27 @@ export function useRepeatMutations({
               endTime: routine.endTime,
             },
           );
+          if (previousFrequency) {
+            const edited = { ...routine, ...seededPatch };
+            push?.("routine", {
+              label: "updateRoutine",
+              confirm: { kind: "repeat", scope: "all" },
+              undo: async () => {
+                try {
+                  await applyFrequency(previousFrequency, edited);
+                } finally {
+                  reload();
+                }
+              },
+              redo: async () => {
+                try {
+                  await applyFrequency(seededPatch, routine);
+                } finally {
+                  reload();
+                }
+              },
+            });
+          }
         } finally {
           reload();
         }
@@ -490,6 +610,7 @@ export function useRepeatMutations({
       reconcileRoutineScheduleItems,
       rangeStart,
       rangeEnd,
+      push,
       reload,
       onRepeatConvertFailed,
     ],
@@ -536,6 +657,11 @@ export function useRepeatMutations({
     if (!selected || selected.routineId == null) return; // manual = no-op
     const routineId = selected.routineId;
     const occurrenceId = selected.id;
+    // Captured BEFORE the detach: the routine leaves the live list as its
+    // first step, so an undo reading it afterwards would find nothing to
+    // rebuild the rhythm from.
+    const previous = routines.find((r) => r.id === routineId);
+    const survivor = selected;
     void (async () => {
       try {
         // Reconcile off the SERVER's own delete set (the returned ids) rather
@@ -559,13 +685,73 @@ export function useRepeatMutations({
                 : i,
             ),
         );
+        /*
+         * #1638 (A-04): turning the repeat OFF is undoable now — it is the
+         * other half of the ON above, and the pair being half-reversible was
+         * the worst shape of all (the user cannot tell which way is safe).
+         *
+         * The inverse is a fresh conversion of the survivor the detach pinned,
+         * with the rhythm the routine had. What it does NOT bring back are the
+         * occurrences that were trashed (they are restorable from Trash) or
+         * the past rows the detach unlinked — the undo re-materialises the
+         * future from the rhythm instead, which is the same series by every
+         * rule the generator follows, but not the same rows.
+         */
+        if (previous) {
+          const frequency = {
+            frequencyType: previous.frequencyType,
+            frequencyDays: previous.frequencyDays,
+            frequencyInterval: previous.frequencyInterval,
+            frequencyStartDate: previous.frequencyStartDate,
+          };
+          let liveRoutineId = routineId;
+          push?.("routine", {
+            label: "deleteRoutine",
+            confirm: { kind: "repeat", scope: "all" },
+            undo: async () => {
+              try {
+                liveRoutineId = await convertEventToRoutine(occurrenceId, {
+                  title: previous.title,
+                  startTime: previous.startTime ?? undefined,
+                  endTime: previous.endTime ?? undefined,
+                  ...frequency,
+                  sourceDate: survivor.date,
+                });
+                await materialiseNewSeries(
+                  optimisticSeedRoutine(liveRoutineId, survivor, frequency),
+                  survivor.date,
+                );
+              } finally {
+                reload();
+              }
+            },
+            redo: async () => {
+              try {
+                await detachRoutine(liveRoutineId, undefined, {
+                  keepItemIds: [occurrenceId],
+                });
+              } finally {
+                reload();
+              }
+            },
+          });
+        }
       } catch {
         // Detach did not land server-side: force a full range reload so the
         // view returns to the DB truth (nothing navigated to trigger it).
         reload();
       }
     })();
-  }, [selected, detachRoutine, setRangeItems, reload]);
+  }, [
+    selected,
+    routines,
+    convertEventToRoutine,
+    detachRoutine,
+    materialiseNewSeries,
+    push,
+    setRangeItems,
+    reload,
+  ]);
 
   /*
    * #279: apply the scope the user picked in the RepeatScopeDialog.
@@ -613,9 +799,16 @@ export function useRepeatMutations({
   );
 
   const runSeriesScopeEdit = useCallback(
-    (plan: Extract<RepeatScopePlan, { kind: "edit-series" }>) => {
+    (
+      plan: Extract<RepeatScopePlan, { kind: "edit-series" }>,
+      // The occurrence as it was before the press, for the undo below.
+      before: ScheduleItem,
+    ) => {
       // Optimistic: the edited occurrence itself reflects the change now.
-      applyOccurrencePatch(plan.id, plan.patch);
+      // `skipUndo` (#1638 B-05): this write used to push its own command, so
+      // the first Ctrl+Z after a series edit reversed the one row and left the
+      // template and the other days on the new values.
+      applyOccurrencePatch(plan.id, plan.patch, { skipUndo: true });
       const routine = routines.find((r) => r.id === plan.routineId);
       void (async () => {
         try {
@@ -634,7 +827,8 @@ export function useRepeatMutations({
            */
           const outcome = await runSeriesEdit({
             prepare: fillStep(plan.fill, routine),
-            writeTemplate: () => updateRoutine(plan.routineId, plan.updates),
+            writeTemplate: () =>
+              updateRoutine(plan.routineId, plan.updates, { skipUndo: true }),
             // updateFutureOccurrences reports failure by THROWING (it
             // re-raises after logServiceError). Converting that to false here
             // is the whole point: left as a throw it landed in the outer
@@ -665,6 +859,70 @@ export function useRepeatMutations({
           // quietly disagree. Naming it is the difference.
           else if (outcome === "propagate-failed")
             onRepeatConvertFailed("series-partial");
+          /*
+           * #1638 (A-05): the propagation itself is on the stack now, as ONE
+           * command covering the occurrence, the template and the days it
+           * rewrote.
+           *
+           * The inverse is the same edit run backwards: write the old values
+           * onto the template, then propagate them with the POST-edit template
+           * as the rule-2 yardstick — the rows this edit just touched are the
+           * ones still matching it, so exactly they are put back and a row the
+           * user had edited by hand stays untouched in both directions.
+           */
+          if (outcome === "ok") {
+            const previousUpdates: typeof plan.updates = {};
+            for (const key of Object.keys(plan.updates) as Array<
+              keyof typeof plan.updates
+            >) {
+              const value = plan.template[key];
+              if (value != null) previousUpdates[key] = value;
+            }
+            const previousPatch: Partial<ScheduleItem> = {};
+            for (const key of Object.keys(plan.patch) as Array<
+              keyof ScheduleItem
+            >) {
+              (previousPatch as Record<string, unknown>)[key] = before[key];
+            }
+            const editedTemplate = { ...plan.template, ...plan.updates };
+            const run = async (
+              occurrencePatch: Partial<ScheduleItem>,
+              updates: typeof plan.updates,
+              template: typeof plan.template,
+            ) => {
+              try {
+                applyOccurrencePatch(plan.id, occurrencePatch, {
+                  skipUndo: true,
+                });
+                const landed = await updateRoutine(plan.routineId, updates, {
+                  skipUndo: true,
+                });
+                if (!landed) return;
+                await updateFutureOccurrences(
+                  plan.routineId,
+                  updates,
+                  plan.fromDate,
+                  template,
+                );
+              } catch {
+                // Same contract as the forward pass: the reload below shows
+                // whatever actually landed.
+              } finally {
+                reload();
+              }
+            };
+            push?.("routine", {
+              label: "updateRoutine",
+              confirm: {
+                kind: "repeat",
+                // "all" reaches back past today, which is the part the user
+                // cannot see; the plan's own anchor is what says which.
+                scope: plan.fromDate === "0000-01-01" ? "all" : "future",
+              },
+              undo: () => run(previousPatch, previousUpdates, editedTemplate),
+              redo: () => run(plan.patch, plan.updates, plan.template),
+            });
+          }
         } catch {
           // The fill is the only step that still reaches here by throwing, and
           // it runs before anything is written — the reload below restores the
@@ -681,6 +939,7 @@ export function useRepeatMutations({
       updateRoutine,
       updateFutureOccurrences,
       onRepeatConvertFailed,
+      push,
       reload,
     ],
   );
@@ -777,7 +1036,7 @@ export function useRepeatMutations({
           dismissOccurrence(plan.id);
           return;
         case "edit-series":
-          runSeriesScopeEdit(plan);
+          runSeriesScopeEdit(plan, req.item);
           return;
         default:
           // Both destructive scopes drop the selection first: the row the

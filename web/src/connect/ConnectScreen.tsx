@@ -5,12 +5,15 @@ import {
   RightSidebarPortal,
   selectRecentTaggedItems,
   TagHubDetailPanel,
+  TagHubSelectionBar,
   TagHubView,
+  TagMergeDialog,
   useConfirmDialog,
   useDomainLoad,
   useMediaQuery,
   useSyncDomains,
   useTagEditDrafts,
+  useToastOptional,
   useTranslation,
   useWikiTagsUnifiedContext,
   getConnectTagSelection,
@@ -26,7 +29,10 @@ import {
   type TagHubEditField,
   type TagHubItem,
   type TagHubLabels,
+  type BulkTagResult,
+  type TagHubSelectionBarLabels,
   type TagHubTagSummary,
+  type TagMergeDialogLabels,
   type TagRowEdits,
   type TodoNode,
 } from "@life-editor/shared";
@@ -62,9 +68,14 @@ import {
  * block that would otherwise hold them.
  *
  * What did NOT come across is the modal's per-item unassign: on this screen
- * removing a tag from rows is a multi-select action in the selection bar, which
- * is the next Issue (#1644). Until it lands, the item-side TagPicker is still
- * the way to take one tag off one item.
+ * removing a tag from rows is a multi-select action in the selection bar
+ * (#1644), which works on one checked row as well as on many.
+ *
+ * BULK SELECTION (#1644, Desktop only). Which rows are checked is host state
+ * and is dropped whenever the open tag changes — a checked row under one tag
+ * means nothing under the next. The writes are the Provider's bulk methods,
+ * which go row by row and report a count; a partial failure keeps what landed
+ * and says how many did not (plan assumption 5).
  *
  * THE SHARED DETAIL PANEL (#1472). While a tag is open, the selected tag's
  * breakdown and its recently-filed rows go into the shell's right panel
@@ -99,6 +110,9 @@ interface ConnectSources {
   /** Repeat series (#1631) — where a repeating item's tags actually live. */
   routines: RoutineNode[];
 }
+
+/** Stable identity for "nothing checked" (#1644). */
+const NO_CHECKS: ReadonlySet<string> = new Set();
 
 const EMPTY_SOURCES: ConnectSources = {
   todos: [],
@@ -314,6 +328,7 @@ export function ConnectScreen({
       changeIcon: t("connect.changeIcon"),
       changeColor: t("connect.changeColor"),
       deleteTag: t("connect.deleteTag"),
+      mergeTag: t("connect.mergeTag"),
       editTag: t("connect.editTag"),
       edit: {
         nameLabel: t("connect.edit.nameLabel"),
@@ -351,9 +366,11 @@ export function ConnectScreen({
   const [selectedTagId, setSelectedTagIdState] = useState<string | null>(() =>
     getConnectTagSelection(),
   );
+  const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(NO_CHECKS);
   const commitSelection = useCallback((tagId: string | null) => {
     setConnectTagSelection(tagId);
     setSelectedTagIdState(tagId);
+    setCheckedIds(NO_CHECKS);
   }, []);
   const [query, setQuery] = useState("");
 
@@ -470,6 +487,78 @@ export function ConnectScreen({
     [wiki, askConfirm, t, selectedTagId, commitSelection, drafts],
   );
 
+  /*
+   * Bulk writes (#1644). Held off while one runs (the bar's buttons disable),
+   * and the checked rows are cleared once it finishes: the rows a "remove" or
+   * "move" acted on have left this tag, and keeping the rest checked after an
+   * "add" would invite the same write twice.
+   */
+  const toast = useToastOptional();
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const reportFailure = useCallback(
+    (failed: number) => {
+      const message = t("connect.selection.failed", { count: failed });
+      if (toast) toast.showToast("danger", message);
+      else console.error(message);
+    },
+    [t, toast],
+  );
+  const runBulk = useCallback(
+    async (write: (itemIds: string[]) => Promise<BulkTagResult>) => {
+      const itemIds = [...checkedIds];
+      if (itemIds.length === 0) return;
+      setBulkBusy(true);
+      try {
+        const result = await write(itemIds);
+        if (result.failed > 0) reportFailure(result.failed);
+      } catch {
+        reportFailure(itemIds.length);
+      } finally {
+        setBulkBusy(false);
+        setCheckedIds(NO_CHECKS);
+      }
+    },
+    [checkedIds, reportFailure],
+  );
+  const toggleChecked = useCallback((itemId: string) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  }, []);
+  const clearChecked = useCallback(() => setCheckedIds(NO_CHECKS), []);
+
+  /*
+   * Merging (#1644). The dialog names the source; the Provider refiles its
+   * items and deletes it only when every move landed. When the merged tag was
+   * the open one, the hub follows its items to where they went.
+   */
+  const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
+  const mergeTags = useCallback(
+    (sourceId: string, targetId: string) => {
+      setMergeSourceId(null);
+      void (async () => {
+        try {
+          const result = await wiki.mergeTags(sourceId, targetId);
+          if (!result.sourceDeleted) {
+            toast?.showToast("danger", t("connect.merge.failed"));
+            return;
+          }
+          if (sourceId === selectedTagId) {
+            drafts.discard(sourceId);
+            commitSelection(targetId);
+            setEditOpen(false);
+          }
+        } catch {
+          toast?.showToast("danger", t("connect.merge.failed"));
+        }
+      })();
+    },
+    [wiki, toast, t, selectedTagId, drafts, commitSelection],
+  );
+
   const createTag = useCallback(
     (name: string) => void wiki.createTag(name),
     [wiki],
@@ -522,6 +611,48 @@ export function ConnectScreen({
     }),
     [t, labels.roles],
   );
+
+  // Every live tag, for the choosers and the merge dialog — unused ones
+  // included, since filing items under a fresh tag is how it stops being one.
+  const pickableTags = useMemo(
+    () => [...model.tags.filter((tag) => !tag.isUntagged), ...model.unusedTags],
+    [model.tags, model.unusedTags],
+  );
+
+  const selectionLabels = useMemo<TagHubSelectionBarLabels>(
+    () => ({
+      region: t("connect.selection.region"),
+      assign: t("connect.selection.assign"),
+      remove: t("connect.selection.remove"),
+      move: t("connect.selection.move"),
+      clear: t("connect.selection.clear"),
+      assignTitle: t("connect.selection.assignTitle"),
+      moveTitle: t("connect.selection.moveTitle"),
+      picker: {
+        search: t("connect.selection.search"),
+        formatCreate: (name) => t("connect.selection.create", { name }),
+        empty: t("connect.selection.pickerEmpty"),
+      },
+    }),
+    [t],
+  );
+
+  const mergeLabels = useMemo<TagMergeDialogLabels>(
+    () => ({
+      formatTitle: (name) => t("connect.merge.title", { name }),
+      targetsLabel: t("connect.merge.targetsLabel"),
+      pickHint: t("connect.merge.pickHint"),
+      formatSummary: (count, target) =>
+        t("connect.merge.summary", { count, target }),
+      noTargets: t("connect.merge.noTargets"),
+      confirm: t("connect.merge.confirm"),
+      cancel: t("common.cancel"),
+    }),
+    [t],
+  );
+
+  const mergeSource =
+    pickableTags.find((tag) => tag.id === mergeSourceId) ?? null;
 
   const handleOpenItem = useCallback(
     (item: TagHubItem) => {
@@ -580,6 +711,55 @@ export function ConnectScreen({
         onEditSave={saveSelected}
         onDeleteTag={requestDelete}
         onCreateTag={createTag}
+        onMergeTag={setMergeSourceId}
+        // Bulk selection is Desktop only (the Mobile brief drops it).
+        checkedItemIds={isWide ? checkedIds : undefined}
+        onToggleItemChecked={isWide ? toggleChecked : undefined}
+        formatSelectItem={(title) =>
+          t("connect.selection.selectItem", { title })
+        }
+        selectionBar={
+          isWide && selectedTag && checkedIds.size > 0 ? (
+            <TagHubSelectionBar
+              count={checkedIds.size}
+              formatSelected={(count) =>
+                t("connect.selection.selected", { count })
+              }
+              tags={pickableTags}
+              currentTagId={selectedTag.id}
+              canRemove={!selectedTag.isUntagged}
+              busy={bulkBusy}
+              onAssign={(tagId) =>
+                void runBulk((ids) => wiki.bulkAssign(ids, tagId))
+              }
+              onCreateAndAssign={(name) =>
+                void runBulk(async (ids) => {
+                  const created = await wiki.createTag(name);
+                  return wiki.bulkAssign(ids, created.id);
+                })
+              }
+              onRemove={() =>
+                void runBulk((ids) => wiki.bulkUnassign(ids, selectedTag.id))
+              }
+              onMove={(tagId) =>
+                void runBulk((ids) =>
+                  wiki.moveItemsToTag(ids, selectedTag.id, tagId),
+                )
+              }
+              onClear={clearChecked}
+              labels={selectionLabels}
+            />
+          ) : null
+        }
+      />
+
+      <TagMergeDialog
+        key={mergeSourceId ?? "closed"}
+        source={mergeSource}
+        tags={pickableTags}
+        onMerge={mergeTags}
+        onCancel={() => setMergeSourceId(null)}
+        labels={mergeLabels}
       />
 
       {/* The discard question, asked when another tag is picked while this one

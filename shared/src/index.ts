@@ -418,6 +418,8 @@ export {
   UndoRedoManager,
   MAX_HISTORY_SIZE,
   type UndoCommand,
+  type UndoConfirmGate,
+  type UndoConfirmSpec,
 } from "./utils/undoRedo/UndoRedoManager";
 export {
   useUndoRedoContext,
@@ -492,6 +494,10 @@ export {
   // its rollback where the grid actually reads from.
   type ScheduleItemsViewMirror,
 } from "./hooks/useScheduleItemsAPI";
+export {
+  restoreScheduleItemFromTrash,
+  type TrashRestoreOutcome,
+} from "./hooks/useScheduleItemsTrash";
 
 // Routine→schedule_items generator (S4-5). Verbatim-ported pure
 // functions + DI generator hook. The pure functions are exported so the
@@ -659,6 +665,8 @@ export {
 export { useWikiTagsUnifiedContext } from "./hooks/useWikiTagsUnifiedContext";
 export {
   useWikiTagsUnifiedAPI,
+  type BulkTagResult,
+  type MergeTagsResult,
   type UseWikiTagsUnifiedAPIOptions,
 } from "./hooks/useWikiTagsUnifiedAPI";
 export type {
@@ -795,6 +803,9 @@ export { jsonDocEquals } from "./utils/jsonDocEquals";
 export {
   sessionTargetId,
   totalWorkMinutesForItem,
+  // #1666: the day the Work sidebar's history tab reads back.
+  pickWorkHistoryDay,
+  type WorkHistoryDay,
 } from "./utils/timerSessions";
 // `[[ ]]` edges parked until their source item's first save lands (#371).
 export {

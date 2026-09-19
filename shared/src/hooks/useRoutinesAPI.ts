@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { RoutineNode, FrequencyType } from "../types/routine";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
+import type { UndoConfirmSpec } from "../utils/undoRedo/UndoRedoManager";
 import { generateId } from "../utils/generateId";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useDomainLoad } from "./useDomainLoad";
@@ -28,6 +29,13 @@ export interface UseRoutinesAPIOptions {
   dataService: DataService;
   undoRedo?: UndoRedoLike;
 }
+
+/**
+ * Every write in this module is the SERIES (#1638): a routine holds the rhythm
+ * every occurrence is generated from, so reversing one touches every day it
+ * fires on. The host asks before running these.
+ */
+const SERIES_CONFIRM: UndoConfirmSpec = { kind: "repeat", scope: "all" };
 
 export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
   const ds = options.dataService;
@@ -125,6 +133,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
 
       push("routine", {
         label: "createRoutine",
+        confirm: SERIES_CONFIRM,
         undo: () => {
           setRoutines((prev) => prev.filter((r) => r.id !== id));
           ds.softDeleteRoutine(id).catch((e) =>
@@ -193,32 +202,47 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
           (prevValues as Record<string, unknown>)[key] = prev[key];
         }
-        push("routine", {
-          label: "updateRoutine",
-          undo: () => {
-            setRoutines((p) =>
-              p.map((r) =>
-                r.id === id
-                  ? { ...r, ...prevValues, updatedAt: new Date().toISOString() }
-                  : r,
-              ),
-            );
-            ds.updateRoutine(id, prevValues).catch((e) =>
-              logServiceError("Routines", "undoUpdate", e),
-            );
-          },
-          redo: () => {
-            setRoutines((p) =>
-              p.map((r) =>
-                r.id === id
-                  ? { ...r, ...updates, updatedAt: new Date().toISOString() }
-                  : r,
-              ),
-            );
-            ds.updateRoutine(id, updates).catch((e) =>
-              logServiceError("Routines", "redoUpdate", e),
-            );
-          },
+        /*
+         * #1638 W4 (B-06): pushed only once the template write LANDED. It used
+         * to be pushed beside the optimistic patch, so a failed write still
+         * left an "undo the repeat edit" entry for an edit the DB never took —
+         * and running it wrote the old values over values that had never
+         * changed.
+         */
+        void landed.then((ok) => {
+          if (!ok) return;
+          push("routine", {
+            label: "updateRoutine",
+            confirm: SERIES_CONFIRM,
+            undo: () => {
+              setRoutines((p) =>
+                p.map((r) =>
+                  r.id === id
+                    ? {
+                        ...r,
+                        ...prevValues,
+                        updatedAt: new Date().toISOString(),
+                      }
+                    : r,
+                ),
+              );
+              ds.updateRoutine(id, prevValues).catch((e) =>
+                logServiceError("Routines", "undoUpdate", e),
+              );
+            },
+            redo: () => {
+              setRoutines((p) =>
+                p.map((r) =>
+                  r.id === id
+                    ? { ...r, ...updates, updatedAt: new Date().toISOString() }
+                    : r,
+                ),
+              );
+              ds.updateRoutine(id, updates).catch((e) =>
+                logServiceError("Routines", "redoUpdate", e),
+              );
+            },
+          });
         });
       }
 
@@ -276,6 +300,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         const onCascadeChanged = opts?.onCascadeChanged;
         push("routine", {
           label: "deleteRoutine",
+          confirm: SERIES_CONFIRM,
           // The one place in this hook that writes BEFORE it paints. Putting
           // the routine back in the live list is what wakes the generator, and
           // the generator skips a day only where it can SEE an occurrence —

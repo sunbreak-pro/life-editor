@@ -120,6 +120,7 @@ function makeProps(tab: "flow" | "todo" | "repeats"): ScheduleSidebarProps {
       onOpenAddable: vi.fn(),
       onDelete: vi.fn(),
       onAdd: vi.fn(),
+      onAddToday: vi.fn(),
     },
   };
 }
@@ -237,8 +238,11 @@ describe("Schedule tour — the host's todo writes (#1124 / #1153)", () => {
   it("reports a created todo from the one handler that makes one", () => {
     // "Add to today" moves an existing todo onto a day, which is not what the
     // step teaches — so the report belongs to the create handler alone.
+    // The window is a proximity check, not a budget: #1640 put the "which
+    // list did the pill come from" branch between the two, which is why it is
+    // wider than it was.
     expect(hostSource).toMatch(
-      /addNode\("task", null, input\.title\)[\s\S]{0,600}TOUR_ACTIONS\.scheduleTodoCreated/,
+      /addNode\("task", null, input\.title\)[\s\S]{0,1000}TOUR_ACTIONS\.scheduleTodoCreated/,
     );
   });
 
