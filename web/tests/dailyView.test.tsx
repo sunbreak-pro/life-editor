@@ -2,7 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { DailyNode } from "@life-editor/shared";
-import { DailyView } from "../src/daily/DailyView";
+import {
+  DailyView,
+  DAILY_EDITOR_CARD_MIN_HEIGHT,
+} from "../src/daily/DailyView";
 
 /*
  * #588 — the Daily screen. Its two surfaces navigate the same selection by
@@ -296,6 +299,24 @@ describe("DailyView — the actions kebab", () => {
     // The kebab acts on the OPEN day — a delete aimed at today while reading
     // yesterday would be unrecoverable-looking to the user.
     expect(state.togglePin).toHaveBeenCalledExactlyOnceWith(YESTERDAY);
+  });
+
+  // #1679 — the menu is not portalled and the card clips (overflow-hidden),
+  // so the card's floor is what keeps the delete row reachable on a short day.
+  // jsdom has no layout, so the class is the pin; the height is a browser check.
+  it.each([
+    ["desktop", true],
+    ["mobile", false],
+  ])("keeps the editor card tall enough for the menu (%s)", (_, wide) => {
+    state.isWide = wide;
+    render(<DailyView />);
+
+    const classes = screen
+      .getByTestId("daily-editor-card")
+      .className.split(" ");
+    expect(classes).toContain(DAILY_EDITOR_CARD_MIN_HEIGHT);
+    // `cn` does not merge: a leftover min-h-0 would fight the floor.
+    expect(classes).not.toContain("min-h-0");
   });
 
   it("deletes the open day", () => {

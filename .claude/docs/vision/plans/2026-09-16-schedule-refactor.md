@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: IN PROGRESS
 Created: 2026-09-16
 Branch: claude/schedule-refactor-plan-1642
 Owner-chat: schedule-refine
@@ -425,9 +425,9 @@ shared/src/i18n/locales/{en,ja}.json  （文言の追加が要る場合のみ）
 - [ ] `grep -n "toggleScheduleItemComplete" shared/src/hooks/useScheduleItemsCRUD.ts` の undo 分岐に一致が無い（W4 — 反転でなく set になる）
 - [ ] `useRepeatMutations.ts` の最長関数が 80 行以下（W7）
 - [ ] `grep -n "PX_PER_MINUTE" shared/src/components/schedule/AgendaList.tsx` が 0 件（W11）
-- [ ] `grep -n "updateNode(" web/src/schedule/CalendarTab.tsx` が 0 件（W8 — Todo リネームのインラインが消える）
-- [ ] `shared/src/components/schedule/MonthGrid.tsx` が 400 行以下（W12）
-- [ ] `web/src/schedule/CalendarTab.tsx` が 1,239 行を超えない（増やさないことだけを課す）
+- [x] `grep -n "updateNode(" web/src/schedule/CalendarTab.tsx` が 0 件（W8 — Todo リネームのインラインが消える）
+- [x] `shared/src/components/schedule/MonthGrid.tsx` が 400 行以下（W12）
+- [x] `web/src/schedule/CalendarTab.tsx` が 1,239 行を超えない（増やさないことだけを課す）
 - [ ] 各 PR の diff が ±1,000 行以内
 - [ ] 完了時: 本書の Status を COMPLETED にして `archive/` へ移した（W15）
 
@@ -498,3 +498,9 @@ S18〜S22 は本計画で足した。**棚卸しで「推定」に留まった�
 - **2026-09-16**: 工程 2 着手。W0（`useScheduleMutations` の 9 ハンドラを pin・20 ケース）/ W1（#1632 のタグ移送）/ W2（本書 §1-J）/ W7 / W11 を、それぞれ `origin/main` から切ったブランチで PR 化した。
   - W2 で §1-J を追加した。push の実在箇所を全数 grep し直した結果、**push がある経路は 14 / 無い経路は 15** で、うち Scope 内で足せるのは 9 経路だと確定した（AC の「9 経路」の定義をこの表に固定する）。
   - W1 は #1632 の推奨方針（変換の catch に合わせてロールバック）を**採れなかった**。`wiki_tag_assignments.item_id` が `on delete cascade` のため、移送が着地した後にロールバックが走るとタグごと消える。移送を変換の最後の一手にして、失敗はログのみとし、タグは seed に残す形にした。判断の根拠は PR 本文に書いた。
+- **2026-09-17**: 工程 2 の続き。W0 / W1 / W2 / W7 / W11 の 5 本は merge 済み。残りの作業単位のうち、#1637 / #1638 の PR に属さないものを 1 本の PR にまとめた（単位ごとに commit を分けた）。
+  - W12: `MonthGrid.tsx` の compact / full の本体・Todo の drop 受け・+ ボタンを `MonthGridParts.tsx` へ移した。623 → 383 行。描画は不変で、`monthGrid.test.tsx` は無変更で緑。
+  - W9: `useVisibleRangeItems` が書き込みごとに id へ連番を刻み、取得は開始時点より後に刻まれた行だけ手元の値を残す（`mergeRangeFetch`）。C-01 の「await 中の編集が黙って捨てられる」を塞いだ。変更を起こした操作自身の reload は編集より後に始まるので、サーバの値がそのまま入る。C-02〜C-05 は同じ仕組みで守られる経路だけが対象で、C-03（同じ tick の undismiss + reload）と C-04（Todo ツリーの全置換）と C-05（Provider 側の `loadDate`）は別ストアのため未着手のまま残す。
+  - W8: F-04（Todo のリネームが `CalendarTab` の JSX に直書き）を `useScheduleTodoChips.handleTodoRename` へ移した。F-01〜F-03 はコードを読み直した結果、差を消す変更を入れなかった。F-01 はバブルと編集パネルが同時に開かない（未保存の下書きが存在しえない）。F-02 は #775 のコメントが意図した差と明記している。F-03 は 2 経路とも `todoChipMoveWrite` / `todoChipAllDayWrite` に既に収束している。
+  - W10: H-01 を解消した。`useCalendarNav` がマウント時に固定していた today を、Provider の `date` から受け取る。H-02 / C-06（`contextItems` と `rangeItems` の二重持ち）は viewMirror の順序契約（§1-D の「残したい正しい実装」）で整合しているため、片方を派生にする変更は入れなかった。
+  - W3 は #1637、W4 / W5 は #1638 の PR で扱う。W14 は chat-main、W15 は W14 の後。
