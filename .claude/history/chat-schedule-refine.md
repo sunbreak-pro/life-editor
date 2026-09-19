@@ -1,5 +1,52 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-19 - /goal 10 件を 10 本の PR で提出（#1642 残り / #1637 / #1638 / #1639 / #1640 / #1641 / #1663 / #1664 / #1678 / #1626）
+
+#### 概要
+
+指示された 10 件を指定順に 1 Issue = 1 ブランチ = 1 PR で提出した。**10 本とも `origin/main` から独立に切り、ローカルで CI `verify` の全ステップ + `LC_ALL=C bash scripts/docs-lint.sh` = 15/15 緑**。merge はユーザー（P-001）。セッション終了時点で 7 本が merge 済み、open は #1715（#1641）/ #1725（#1678）/ #1729（#1626）の 3 本。
+
+| Issue | PR | 状態 |
+| --- | --- | --- |
+| #1642 残り（W12 / W9 / W8 / W10） | #1684 | merged |
+| #1637 | #1694 | merged（`Refs` — 真因未確定） |
+| #1638 | #1708 | merged |
+| #1639 | #1711 | merged |
+| #1640 | #1712 | merged |
+| #1641 | #1715 | open（main 追従済み） |
+| #1663 | #1718 | merged（`Refs` — 「この回以降」は DDL 待ち） |
+| #1664 | #1721 | merged |
+| #1678 | #1725 | open |
+| #1626 | #1729 | open |
+
+#### 変更点
+
+- **#1642 残り = PR #1684**: `MonthGrid.tsx` 623 → 383 行（`MonthGridParts.tsx` を新設）／`useVisibleRangeItems.ts` に `mergeRangeFetch` を入れ、書き込みごとの連番で「取得開始より後の手元の値」を残す／`handleTodoRename` を `useScheduleTodoChips` へ／`useCalendarNav(isWide, providerToday?)`
+- **#1637 = PR #1694**: 変換の両方向で Undo の push を `reload()` / `refetchTodos()` より前に出した。`web/tests/convertUndoHeader.test.tsx` で実物の Provider + ヘッダーを使って往復を pin
+- **#1638 = PR #1708**: `UndoRedoManager` に `UndoConfirmGate` を足し、apply が peek → gate → pop する形にした。Scope 内 9 経路をすべて Undo に載せ、繰り返しには範囲ダイアログ（`this` / `all`）を出す。除外 5 経路は理由付きで判断キューへ
+- **#1639 = PR #1711**: ツールバーのフィルタアイコンに `data-filter-count` バッジ
+- **#1640 = PR #1712**: 単一の作成ピルを 2 つの見出しへ移し（`headingActions`）、タブ名を「Todo」に
+- **#1641 = PR #1715**: `useTodoTabFilter`（区分 + タグ）と `TodoFilterPanel` を新設。状態は `CalendarTab` が持ち、サイドバーは props で受ける
+- **#1663 = PR #1718**: `eventTagColor()`（occurrence の id → 無ければ routineId）とエディタの tagScope セグメント
+- **#1664 = PR #1721**: `EventEditorPane` の 2 カラム（`twoColumn`）と、クリックパネルからの名前・時刻編集（`ItemActionInlineTimeRange`）
+- **#1678 = PR #1725**: 繰り返し行をグリッドと同じ `ItemActionPopover` で開く。次の回が無い行も押せるようにし、できない操作はパネル内で disabled
+- **#1626 = PR #1729**: `japaneseHolidays.ts`（法令から算出）＋ `variant: "holiday"`（操作できない = span で描く）＋ ツールバーの 2 つ目のトグル ＋ Settings の共有色（localStorage）
+
+#### 分かったこと
+
+- **#1638 の範囲ダイアログは「push する側」ではなく「apply する側」に置いた**。9 経路それぞれにダイアログを書くと 9 箇所で文言と分岐が割れる。`UndoRedoManager.apply()` が pop の前に gate を呼ぶ形にすると、コマンドが `UndoConfirmSpec` を持つかどうかだけで決まり、Cancel はスタックを動かさない
+- **祝日は DB に入れない**（#1626）。行にすると Sync・Trash・MCP・Undo の全部が「編集できない行」の特例を持つ。算出にすればどれにも触らない。外部 API は $0 方針と衝突し、静的表は忘れた年に**無いのではなく間違った日**を表示する
+- **月セルは 2 件までしかチップを出さない**（#1626 で踏んだ）。祝日を配列の後ろに足すと、予定が 2 件ある日で真っ先に「他 N 件」へ畳まれる。祝日は**その日全体の文脈**なので先頭に置いた（追加コミット `225fa932`）
+- **`shared/dist` が古いと `web` の `typecheck:tests` が無関係のファイルで落ちる**（#1626 で 2 回踏んだ）。ブランチを切り替えた直後は dist が前のブランチのままなので、`web` を型検査する前に必ず `cd shared && npm run build` を通す。切り分けは「落ちたシンボルが `shared/src` に grep で見つかるか」1 本
+- **#1641 と #1640 は git が clean に merge するのに壊れる組み合わせだった**。#1641 はフィルタ行に「+ Todo」ピルを置いており、#1640 が同じピルを見出しへ移した後だと**同じボタンが 2 つ**になる。ツアーアンカー `schedule-todo-add` も 2 つになり、`resolveTourAnchor` は最初の一致を取るので黙って別のボタンを指す。`web/tests/scheduleSidebar.test.tsx` の `getByText` が "Found multiple elements" で落ちるので気付ける形ではあった
+- **7 本が merge 済みかどうかは `gh pr view --json state` でしか分からない**。`gh pr list --limit 20` は番号順ではなく更新順なので、古い PR が一覧から落ちて「open のまま」に見える
+
+#### 判断・逸脱
+
+- **スコープ逸脱**: なし。10 本とも各 Issue の Scope 宣言内
+- **AC 免除**: #1637 は真因を静的に特定できず `Fixes` ではなく `Refs` にした（実ブラウザ確認で別経路が #1727 として分離された）。#1663 の「この回以降」は DDL が要るため未実装・`Refs`。#1626 は Agenda（今日の流れ）に祝日を出していない（Issue が名指ししたのは週の終日レーンと月ビュー）
+- **判断キュー行き**: 5 件（下記 decisions を参照）
+
 ### 2026-09-16 - #1642 工程 2: W0 / W1 / W2 / W7 / W11 を 5 本の PR で提出
 
 #### 概要
