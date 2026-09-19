@@ -21,6 +21,7 @@ import {
   EveningReflectionPreview,
   SidebarListControls,
   useUndoRedoOptional,
+  afterSettled,
   isEmptyDocJson,
   type EveningPatch,
   cn,
@@ -415,17 +416,31 @@ export function DailyView({
    * the one the user performed, and a second "createDaily" entry would make
    * one tap take two undos.
    */
-  const writeEvening = (date: string, patch: EveningPatch): boolean => {
+  const writeEvening = (
+    date: string,
+    patch: EveningPatch,
+  ): Promise<void> | null => {
     const current = getDailyForDate(date)?.content ?? "";
     const full = mergeEveningSection(current, patch);
-    if (full === current) return false;
+    if (full === current) return null;
     setLastEmitted({ date, json: full });
-    void upsertDaily(date, full, { skipUndo: true }).then((saved) => {
+    /*
+     * #1750: hand the write back so an undo can wait for it and report its
+     * own failure. `upsertDaily` swallows its rejection and resolves `null`
+     * instead (it logs the error itself), so a failed write only reads as a
+     * failure once that null is turned back into one.
+     */
+    const landed = upsertDaily(date, full, { skipUndo: true }).then((saved) => {
+      if (!saved) throw new Error(`daily evening write failed (${date})`);
       // The reflection can carry "[[ ]]" links of its own — fold against
       // the whole stored body, same as the body save does.
-      if (saved) syncSavedBody(saved.id, full);
+      syncSavedBody(saved.id, full);
     });
-    return true;
+    // The write's own failure is the caller's to report (upsertDaily already
+    // logged it); this keeps the promise handled for callers that only pass
+    // it on to an undo closure.
+    void landed.catch(() => {});
+    return landed;
   };
 
   // Stars: tap a star to set it, tap the lit one again to clear (the evening
@@ -434,14 +449,19 @@ export function DailyView({
     const date = selectedDate;
     const prev = eveningStored.mood;
     const next = prev === n ? null : n;
-    if (!writeEvening(date, { mood: next })) return;
+    const landed = writeEvening(date, { mood: next });
+    if (!landed) return;
     pushUndo?.("daily", {
       label: "setDailyMood",
-      undo: () => {
-        writeEvening(date, { mood: prev });
+      // #1682 / #1750: wait for the write being reversed (a reversal that
+      // lands first is overwritten by it), then report OUR write — a failed
+      // one must not move the command onto the redo stack.
+      undo: async () => {
+        await afterSettled(landed);
+        await writeEvening(date, { mood: prev });
       },
-      redo: () => {
-        writeEvening(date, { mood: next });
+      redo: async () => {
+        await writeEvening(date, { mood: next });
       },
     });
   };
@@ -450,7 +470,7 @@ export function DailyView({
   // lives in the editor's own undo (Mod-Z) — a global entry per 800ms save
   // would bury every other command. A cleared editor clears the stored body.
   const handleReflectionUpdate = (json: string) => {
-    writeEvening(selectedDate, {
+    void writeEvening(selectedDate, {
       bodyDocJson: isEmptyDocJson(json) ? null : json,
     });
   };
