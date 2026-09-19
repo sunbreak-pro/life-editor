@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildTagHubModel,
   ConfirmDialog,
+  buildItemRelations,
+  RelationPanel,
   RightSidebarPortal,
   selectRecentTaggedItems,
   TagHubDetailPanel,
@@ -11,12 +13,15 @@ import {
   useConfirmDialog,
   useDomainLoad,
   useMediaQuery,
+  useRightSidebarOptional,
   useSyncDomains,
   useTagEditDrafts,
   useToastOptional,
   useTranslation,
   useWikiTagsUnifiedContext,
+  getConnectItemSelection,
   getConnectTagSelection,
+  setConnectItemSelection,
   setConnectTagSelection,
   todayCalendarKey,
   WIDE_QUERY,
@@ -32,6 +37,7 @@ import {
   type BulkTagResult,
   type TagHubSelectionBarLabels,
   type TagHubTagSummary,
+  type RelationPanelLabels,
   type TagMergeDialogLabels,
   type TagRowEdits,
   type TodoNode,
@@ -76,6 +82,15 @@ import {
  * means nothing under the next. The writes are the Provider's bulk methods,
  * which go row by row and report a count; a partial failure keeps what landed
  * and says how many did not (plan assumption 5).
+ *
+ * RELATIONS (#1645, D-20260912-main-1 Q2-A). Clicking an item row no longer
+ * leaves the hub: it SELECTS the row, and the right panel switches from the
+ * tag's breakdown to that item's neighbourhood — its links, what shares a tag
+ * with it, its day's daily — where links can be added and removed for any
+ * kind of item, not just a note. Leaving is the row's chevron or a double
+ * click (plan assumption 1), and the panel is opened if it was closed
+ * (assumption 2). The derivation is the shared `buildItemRelations`, which the
+ * note header's "related" popover reads too.
  *
  * THE SHARED DETAIL PANEL (#1472). While a tag is open, the selected tag's
  * breakdown and its recently-filed rows go into the shell's right panel
@@ -367,11 +382,29 @@ export function ConnectScreen({
     getConnectTagSelection(),
   );
   const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(NO_CHECKS);
-  const commitSelection = useCallback((tagId: string | null) => {
-    setConnectTagSelection(tagId);
-    setSelectedTagIdState(tagId);
-    setCheckedIds(NO_CHECKS);
+  /*
+   * The item whose relations the panel is showing (#1645). Stored beside the
+   * tag for the same reason (#1473): the section switch unmounts this screen,
+   * and coming back to a panel that has forgotten what it was reading is the
+   * thing that store exists to prevent.
+   */
+  const [selectedItemId, setSelectedItemIdState] = useState<string | null>(() =>
+    getConnectItemSelection(),
+  );
+  const selectItem = useCallback((itemId: string | null) => {
+    setConnectItemSelection(itemId);
+    setSelectedItemIdState(itemId);
   }, []);
+  const commitSelection = useCallback(
+    (tagId: string | null) => {
+      setConnectTagSelection(tagId);
+      setSelectedTagIdState(tagId);
+      setCheckedIds(NO_CHECKS);
+      // A row picked under the old tag says nothing about the new one.
+      selectItem(null);
+    },
+    [selectItem],
+  );
   const [query, setQuery] = useState("");
 
   /*
@@ -654,6 +687,119 @@ export function ConnectScreen({
   const mergeSource =
     pickableTags.find((tag) => tag.id === mergeSourceId) ?? null;
 
+  /*
+   * The relations of the selected row (#1645). `itemsById` is the hub's own
+   * item list keyed by id, which doubles as the pool that NAMES a relation:
+   * an id it cannot name is left out, the same rule LinkPanel follows.
+   */
+  const itemsById = useMemo(() => {
+    const map = new Map<
+      string,
+      TagHubItem & { label: string; isDeleted?: boolean }
+    >();
+    for (const item of items) map.set(item.id, { ...item, label: item.title });
+    return map;
+  }, [items]);
+
+  const selectedItem = selectedItemId
+    ? (itemsById.get(selectedItemId) ?? null)
+    : null;
+
+  const relations = useMemo(
+    () =>
+      selectedItem
+        ? buildItemRelations({
+            itemId: selectedItem.id,
+            assignments: wiki.allAssignments,
+            links: wiki.getLinksForItem(selectedItem.id),
+            itemsById,
+            // Only a dated row has a day of its own; a daily IS its day, so
+            // pointing it at itself would list the row under its own panel.
+            dailyDate:
+              selectedItem.role === "daily" ? undefined : selectedItem.date,
+          })
+        : null,
+    [selectedItem, wiki, itemsById],
+  );
+
+  const linkedRelations = useMemo(
+    () =>
+      (relations?.linked ?? []).flatMap((entry) => {
+        const item = itemsById.get(entry.targetId);
+        return item ? [{ item, linkIds: entry.linkIds }] : [];
+      }),
+    [relations, itemsById],
+  );
+
+  /** What a new link may point at: everything but this row and its links. */
+  const linkCandidates = useMemo(() => {
+    if (!selectedItem) return [];
+    const taken = new Set((relations?.linked ?? []).map((l) => l.targetId));
+    return items.filter(
+      (item) => item.id !== selectedItem.id && !taken.has(item.id),
+    );
+  }, [items, relations, selectedItem]);
+
+  const relationLabels = useMemo<RelationPanelLabels>(
+    () => ({
+      back: t("connect.relations.back"),
+      openItem: t("connect.relations.openItem"),
+      links: t("connect.relations.links"),
+      sharedTags: t("connect.relations.sharedTags"),
+      sameDayDaily: t("connect.relations.sameDayDaily"),
+      formatSection: (label, count) =>
+        t("connect.relations.section", { label, count }),
+      sectionEmpty: t("connect.relations.sectionEmpty"),
+      formatRemoveLink: (title) => t("connect.relations.removeLink", { title }),
+      addLink: t("connect.relations.addLink"),
+      addLinkDialog: t("connect.relations.addLinkDialog"),
+      searchPlaceholder: t("connect.relations.searchPlaceholder"),
+      noCandidates: t("connect.relations.noCandidates"),
+      roles: labels.roles,
+    }),
+    [t, labels.roles],
+  );
+
+  // Picking a row with the panel shut would look like nothing happened
+  // (assumption 2). Optional: a host with no panel (a test, a standalone
+  // render) keeps working.
+  const rightSidebar = useRightSidebarOptional();
+  const handleSelectItem = useCallback(
+    (item: TagHubItem) => {
+      selectItem(item.id === selectedItemId ? null : item.id);
+      if (!rightSidebar?.isOpen) rightSidebar?.open();
+    },
+    [selectItem, selectedItemId, rightSidebar],
+  );
+
+  const removeLink = useCallback(
+    (linkIds: readonly string[]) => {
+      void (async () => {
+        // Sequential: the Context mutator rewrites the same bulk cache each
+        // time, and two writes landing together can drop one update.
+        for (const linkId of linkIds) {
+          try {
+            await wiki.deleteItemLink(linkId);
+          } catch {
+            toast?.showToast("danger", t("connect.relations.writeFailed"));
+            return;
+          }
+        }
+      })();
+    },
+    [wiki, toast, t],
+  );
+
+  const addLink = useCallback(
+    (target: TagHubItem) => {
+      if (!selectedItemId) return;
+      void wiki.createItemLink(selectedItemId, target.id).catch(() => {
+        toast?.showToast("danger", t("connect.relations.writeFailed"));
+      });
+    },
+    [wiki, selectedItemId, toast, t],
+  );
+
   const handleOpenItem = useCallback(
     (item: TagHubItem) => {
       // `navigateId` when the row is filed under an id the destination cannot
@@ -670,7 +816,22 @@ export function ConnectScreen({
 
   return (
     <>
-      {selectedTag && (
+      {selectedItem && relations ? (
+        <RightSidebarPortal>
+          <RelationPanel
+            item={selectedItem}
+            linked={linkedRelations}
+            sharedTagItems={relations.sharedTagItems}
+            sameDayDaily={relations.sameDayDaily}
+            candidates={linkCandidates}
+            onBack={() => selectItem(null)}
+            onOpenItem={handleOpenItem}
+            onRemoveLink={removeLink}
+            onAddLink={addLink}
+            labels={relationLabels}
+          />
+        </RightSidebarPortal>
+      ) : selectedTag ? (
         <RightSidebarPortal>
           <TagHubDetailPanel
             tag={selectedTag}
@@ -681,7 +842,7 @@ export function ConnectScreen({
             labels={detailLabels}
           />
         </RightSidebarPortal>
-      )}
+      ) : null}
       <TagHubView
         model={model}
         selectedTagId={selectedTagId}
@@ -718,6 +879,11 @@ export function ConnectScreen({
         formatSelectItem={(title) =>
           t("connect.selection.selectItem", { title })
         }
+        // Row click = select, chevron / double click = leave — Desktop only.
+        // A phone screen has one pane, so a tap still opens the item (M3).
+        activeItemId={isWide ? selectedItemId : null}
+        onSelectItem={isWide ? handleSelectItem : undefined}
+        formatOpenItem={(title) => t("connect.relations.openRow", { title })}
         selectionBar={
           isWide && selectedTag && checkedIds.size > 0 ? (
             <TagHubSelectionBar

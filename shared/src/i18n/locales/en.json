@@ -1050,6 +1050,22 @@
       "selectItem": "Select “{{title}}”",
       "selected_one": "{{count}} selected",
       "selected_other": "{{count}} selected"
+    },
+    "relations": {
+      "addLink": "Add a link",
+      "addLinkDialog": "Link to an item",
+      "back": "Back to this tag",
+      "links": "Links",
+      "noCandidates": "No matching item",
+      "openItem": "Open in its section",
+      "openRow": "Open “{{title}}”",
+      "removeLink": "Remove the link to “{{title}}”",
+      "sameDayDaily": "That day's daily",
+      "searchPlaceholder": "Search by title…",
+      "section": "{{label}} ({{count}})",
+      "sectionEmpty": "Nothing yet.",
+      "sharedTags": "Items sharing a tag",
+      "writeFailed": "The link could not be saved. Check your connection."
     }
   },
   "attachment": {

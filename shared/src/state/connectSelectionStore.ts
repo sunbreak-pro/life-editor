@@ -19,6 +19,8 @@
  */
 
 let connectTagSelection: string | null = null;
+/** The item whose relations the right panel is showing (#1645). */
+let connectItemSelection: string | null = null;
 
 export function getConnectTagSelection(): string | null {
   return connectTagSelection;
@@ -28,7 +30,16 @@ export function setConnectTagSelection(tagId: string | null): void {
   connectTagSelection = tagId;
 }
 
+export function getConnectItemSelection(): string | null {
+  return connectItemSelection;
+}
+
+export function setConnectItemSelection(itemId: string | null): void {
+  connectItemSelection = itemId;
+}
+
 /** Back to the fresh-process state. Primarily for test isolation. */
 export function resetConnectSelection(): void {
   connectTagSelection = null;
+  connectItemSelection = null;
 }

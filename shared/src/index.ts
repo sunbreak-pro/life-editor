@@ -305,6 +305,8 @@ export { useRecentNoteIds } from "./hooks/useRecentNotes";
 export {
   getConnectTagSelection,
   setConnectTagSelection,
+  getConnectItemSelection,
+  setConnectItemSelection,
   resetConnectSelection,
 } from "./state/connectSelectionStore";
 // #473 — the on-screen area, which the soft keyboard shrinks and `vh` does not.
