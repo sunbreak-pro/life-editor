@@ -87,3 +87,21 @@ describe("useCalendarNav — Mobile's month main view (#878)", () => {
     expect(result.current.effView).toBe("week"); // the default Desktop view
   });
 });
+
+describe("useCalendarNav — one owner for today (#1642 W10 / H-01)", () => {
+  it("reads today from the provider's key when the host passes one", () => {
+    const { result } = renderHook(() => useCalendarNav(WIDE, "2031-01-02"));
+    expect(result.current.today).toBe("2031-01-02");
+    expect(result.current.anchorDate).toBe("2031-01-02");
+  });
+
+  it("follows the provider past midnight: Today goes to the new day", () => {
+    const { result, rerender } = renderHook(
+      ({ today }) => useCalendarNav(WIDE, today),
+      { initialProps: { today: "2031-01-02" } },
+    );
+    rerender({ today: "2031-01-03" });
+    act(() => result.current.goToday());
+    expect(result.current.anchorDate).toBe("2031-01-03");
+  });
+});

@@ -413,6 +413,16 @@ describe("the chip gestures", () => {
       { undoLabel: "todoRemoveFromToday" },
     );
   });
+
+  it("renames through the tree's catch-all undo label (#1642 W8)", () => {
+    const { hook, updateNode } = renderChips([timed("chip", TODAY)]);
+    act(() => hook.result.current.handleTodoRename("chip", "Renamed"));
+    expect(updateNode).toHaveBeenCalledWith(
+      "chip",
+      { title: "Renamed" },
+      { undoLabel: "todoTreeChange" },
+    );
+  });
 });
 
 describe("the two delete questions", () => {

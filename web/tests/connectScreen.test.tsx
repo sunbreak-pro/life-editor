@@ -6,6 +6,7 @@ import {
   cleanup,
   waitFor,
   within,
+  createEvent,
 } from "@testing-library/react";
 import { useEffect, useRef } from "react";
 import {
@@ -197,7 +198,9 @@ async function renderWithPanel(ds: DataService = makeDS()) {
 const railLabels = (name = "Tags") =>
   within(screen.getByRole("list", { name }))
     .getAllByRole("listitem")
-    .map((li) => within(li).getAllByRole("button")[0].getAttribute("aria-label"));
+    .map((li) =>
+      within(li).getAllByRole("button")[0].getAttribute("aria-label"),
+    );
 
 beforeEach(() => {
   cleanup();
@@ -377,9 +380,9 @@ describe("ConnectScreen — repeating items", () => {
       "Note: 1 item",
       "Daily: 1 item",
     ]);
-    expect(screen.getAllByRole("button", { name: /Morning review/ })).toHaveLength(
-      1,
-    );
+    expect(
+      screen.getAllByRole("button", { name: /Morning review/ }),
+    ).toHaveLength(1);
   });
 
   it("keeps the repeat's days out of the untagged bucket", async () => {
@@ -674,6 +677,138 @@ describe("ConnectScreen — removing a tag", () => {
     for (const method of WRITE_METHODS) {
       expect(writes[method]).not.toHaveBeenCalled();
     }
+  });
+});
+
+/*
+ * #1676 — the rail row's right-click opens the "…" menu at the pointer. The
+ * view suite pins that the SAME menu opens; these pin that each item then ends
+ * in the SAME write the "…" path produces, through the real hook.
+ */
+describe("ConnectScreen — the row's right-click menu", () => {
+  /** Right-clicks a rail row and says whether the native menu was suppressed. */
+  const rightClickRow = (label: string) => {
+    const row = screen
+      .getByRole("button", { name: label })
+      .closest("li") as HTMLElement;
+    const event = createEvent.contextMenu(row, { clientX: 40, clientY: 60 });
+    fireEvent(row, event);
+    return event.defaultPrevented;
+  };
+
+  it("opens the tag menu and keeps the browser's own menu out", async () => {
+    await renderScreen();
+    expect(rightClickRow("Work: 4 items")).toBe(true);
+    screen.getByRole("menu", { name: "Work: Tag actions" });
+  });
+
+  it("renames through the menu with the same patch as the …", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+
+    rightClickRow("Work: 4 items");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+    fireEvent.change(await screen.findByLabelText("Name"), {
+      target: { value: "Work log" },
+    });
+    save();
+
+    await waitFor(() => expect(writes.updateWikiTagUnified).toHaveBeenCalled());
+    expectOnlyWrite(writes, "updateWikiTagUnified", [
+      "t-work",
+      { name: "Work log" },
+    ]);
+  });
+
+  it("recolours and re-icons through the menu with the same patches", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+
+    rightClickRow("Work: 4 items");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Change the color" }));
+    const swatch = within(
+      await screen.findByRole("group", { name: "Color" }),
+    ).getAllByRole("button")[0];
+    const hex = swatch.getAttribute("aria-label");
+    fireEvent.click(swatch);
+
+    rightClickRow("Work: 4 items");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Change the icon" }));
+    fireEvent.click(screen.getByRole("button", { name: "Icon" }));
+    const choice = within(
+      screen.getByRole("group", { name: "Icon" }),
+    ).getAllByRole("button")[0];
+    const icon = choice.getAttribute("aria-label");
+    fireEvent.click(choice);
+    save();
+
+    await waitFor(() =>
+      expect(writes.updateWikiTagUnified).toHaveBeenCalledTimes(2),
+    );
+    expect(writes.updateWikiTagUnified.mock.calls).toEqual([
+      ["t-work", { icon }],
+      ["t-work", { color: hex }],
+    ]);
+  });
+
+  it("deletes through the menu only after the same question", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+
+    rightClickRow("Work: 4 items");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Delete tag" }));
+    expect(writes.softDeleteWikiTagUnified).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Delete tag",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(writes.softDeleteWikiTagUnified).toHaveBeenCalled(),
+    );
+    expectOnlyWrite(writes, "softDeleteWikiTagUnified", ["t-work"]);
+  });
+
+  it("leaves the untagged bucket's native menu alone", async () => {
+    await renderScreen();
+    expect(rightClickRow("Untagged: 1 item")).toBe(false);
+    expect(screen.queryByRole("menu")).toBeNull();
+  });
+});
+
+/*
+ * #1644 — merging a tag, through the real hook: which writes the dialog's
+ * confirm becomes, in what order, and that nothing is written before it.
+ */
+describe("ConnectScreen — merging a tag", () => {
+  it("merges a tag: every item re-filed, the old rows removed, then the tag deleted", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+
+    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
+    fireEvent.click(
+      screen.getByRole("menuitem", { name: "Merge into another tag…" }),
+    );
+    const dialog = within(await screen.findByRole("dialog"));
+    fireEvent.click(dialog.getByRole("radio", { name: "Idle" }));
+    dialog.getByText("4 items move to “Idle”, and this tag is deleted.");
+    fireEvent.click(dialog.getByRole("button", { name: "Merge" }));
+
+    await waitFor(() =>
+      expect(writes.softDeleteWikiTagUnified).toHaveBeenCalled(),
+    );
+    expect(writes.assignTagToItem).toHaveBeenCalledTimes(4);
+    expect(
+      writes.assignTagToItem.mock.calls.every((call) => call[2] === "t-idle"),
+    ).toBe(true);
+    expect(writes.unassignTagFromItem.mock.calls).toEqual([
+      ["a-1"],
+      ["a-2"],
+      ["a-3"],
+      ["a-4"],
+    ]);
+    expect(writes.softDeleteWikiTagUnified.mock.calls).toEqual([["t-work"]]);
   });
 });
 

@@ -63,9 +63,10 @@ describe("UndoRedoManager", () => {
     const m = new UndoRedoManager();
     m.push(cmd([], "renamed todo"));
     const undone = await m.undo();
-    expect(undone?.label).toBe("renamed todo");
+    expect(undone?.command.label).toBe("renamed todo");
+    expect(undone?.ok).toBe(true);
     const redone = await m.redo();
-    expect(redone?.label).toBe("renamed todo");
+    expect(redone?.command.label).toBe("renamed todo");
   });
 
   it("returns null on undo/redo when the stack is empty", async () => {
@@ -120,18 +121,45 @@ describe("UndoRedoManager", () => {
     expect(listener).toHaveBeenCalledTimes(4);
   });
 
-  it("still moves a throwing command to the redo stack", async () => {
+  // #1668 — a failed undo reversed nothing, so it must not be offered as redo.
+  it("keeps a throwing undo on the undo stack and reports the error", async () => {
     const m = new UndoRedoManager();
+    const boom = new Error("fail");
+    m.push(cmd([], "older"));
     m.push({
       label: "boom",
       undo: () => {
-        throw new Error("fail");
+        throw boom;
       },
       redo: () => {},
     });
     const spy = vi.spyOn(console, "error").mockImplementation(() => {});
-    await m.undo();
-    expect(m.canRedo()).toBe(true);
+    const outcome = await m.undo();
     spy.mockRestore();
+    expect(outcome).toEqual({
+      command: expect.objectContaining({ label: "boom" }),
+      ok: false,
+      error: boom,
+    });
+    expect(m.canRedo()).toBe(false);
+    // Still on top: the next undo retries the same command, not "older".
+    const retry = await m.undo();
+    expect(retry?.command.label).toBe("boom");
+  });
+
+  it("keeps a rejecting redo on the redo stack", async () => {
+    const m = new UndoRedoManager();
+    m.push({
+      label: "boom",
+      undo: () => {},
+      redo: () => Promise.reject(new Error("fail")),
+    });
+    await m.undo();
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const outcome = await m.redo();
+    spy.mockRestore();
+    expect(outcome?.ok).toBe(false);
+    expect(m.canUndo()).toBe(false);
+    expect(m.canRedo()).toBe(true);
   });
 });

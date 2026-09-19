@@ -2,16 +2,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildTagHubModel,
   ConfirmDialog,
-  NO_EDITS,
   RightSidebarPortal,
   selectRecentTaggedItems,
-  tagRowPatch,
   TagHubDetailPanel,
   TagHubView,
+  TagMergeDialog,
   useConfirmDialog,
   useDomainLoad,
   useMediaQuery,
   useSyncDomains,
+  useTagEditDrafts,
+  useToastOptional,
   useTranslation,
   useWikiTagsUnifiedContext,
   getConnectTagSelection,
@@ -28,6 +29,7 @@ import {
   type TagHubItem,
   type TagHubLabels,
   type TagHubTagSummary,
+  type TagMergeDialogLabels,
   type TagRowEdits,
   type TodoNode,
 } from "@life-editor/shared";
@@ -315,6 +317,7 @@ export function ConnectScreen({
       changeIcon: t("connect.changeIcon"),
       changeColor: t("connect.changeColor"),
       deleteTag: t("connect.deleteTag"),
+      mergeTag: t("connect.mergeTag"),
       editTag: t("connect.editTag"),
       edit: {
         nameLabel: t("connect.edit.nameLabel"),
@@ -359,32 +362,21 @@ export function ConnectScreen({
   const [query, setQuery] = useState("");
 
   /*
-   * The editing state (#1643, carried over from the retired modal).
+   * The editing state (#1643, carried over from the retired modal). The drafts
+   * themselves live in `useTagEditDrafts` (#1676) — an overlay per tag, kept
+   * for every tag so the rail's filter cannot drop one — and this host adds the
+   * part that is about THIS screen: which tag is open, and the discard question.
    *
-   * `edits` is keyed by tag id and holds ONLY the fields typed against, as an
-   * overlay on the live tag (#628 / tagRowPatch) — so a rename arriving from
-   * sync or MCP still reaches a field the user never touched.
    * `pendingSelectId` is where the user asked to go while a draft is pending,
    * held until the discard question is answered; the current selection stays
    * put, because refusing has to leave the screen exactly as it was.
    */
-  const [edits, setEdits] = useState<Readonly<Record<string, TagRowEdits>>>({});
+  const drafts = useTagEditDrafts(wiki.allTags, wiki);
   const [editOpen, setEditOpen] = useState(false);
   const [editFocusField, setEditFocusField] = useState<TagHubEditField | null>(
     null,
   );
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
-
-  // What the save button would write, per tag. Over ALL tags, not just the
-  // selected one: a tag hidden behind the rail's filter still holds its draft.
-  const patchByTag = useMemo(() => {
-    const map = new Map<string, TagRowEdits>();
-    for (const tag of wiki.allTags) {
-      const patch = tagRowPatch(tag, edits[tag.id]);
-      if (Object.keys(patch).length > 0) map.set(tag.id, patch);
-    }
-    return map;
-  }, [wiki.allTags, edits]);
 
   const selectTag = useCallback(
     (tagId: string | null) => {
@@ -393,85 +385,46 @@ export function ConnectScreen({
       // be asked about before it goes (#740). Leaving the SECTION does not ask:
       // there is no close affordance to hang the question on, and the drafts
       // are discarded silently (plan assumption 3).
-      if (selectedTagId && patchByTag.has(selectedTagId)) {
+      if (selectedTagId && drafts.isDirty(selectedTagId)) {
         setPendingSelectId(tagId);
         return;
       }
       commitSelection(tagId);
       setEditFocusField(null);
     },
-    [selectedTagId, patchByTag, commitSelection],
+    [selectedTagId, drafts, commitSelection],
   );
 
   const confirmSwitch = useCallback(() => {
     // Discard means discard: the draft the user chose to abandon must not be
     // waiting for them when they come back to the tag.
-    if (selectedTagId) {
-      setEdits((prev) => {
-        if (!prev[selectedTagId]) return prev;
-        const next = { ...prev };
-        delete next[selectedTagId];
-        return next;
-      });
-    }
+    if (selectedTagId) drafts.discard(selectedTagId);
     commitSelection(pendingSelectId);
     setEditFocusField(null);
     setPendingSelectId(null);
-  }, [selectedTagId, pendingSelectId, commitSelection]);
+  }, [selectedTagId, pendingSelectId, commitSelection, drafts]);
 
   const editSelected = useCallback(
     (patch: TagRowEdits) => {
       if (!selectedTagId) return;
-      setEdits((prev) => ({
-        ...prev,
-        [selectedTagId]: { ...prev[selectedTagId], ...patch },
-      }));
+      drafts.edit(selectedTagId, patch);
       // The focus request is consumed by the first interaction with the block,
       // so a re-render does not steal the caret back to the menu's field.
       setEditFocusField(null);
     },
-    [selectedTagId],
+    [selectedTagId, drafts],
   );
 
-  /**
-   * Forget one pending field. Dropping the KEY (rather than writing the stored
-   * value into it) is what puts the field back under the live tag, so a later
-   * remote change still reaches it.
-   */
   const dropEdit = useCallback(
     (field: keyof TagRowEdits) => {
-      if (!selectedTagId) return;
-      setEdits((prev) => {
-        const row = prev[selectedTagId];
-        if (!row || row[field] === undefined) return prev;
-        const next = { ...row };
-        delete next[field];
-        return { ...prev, [selectedTagId]: next };
-      });
+      if (selectedTagId) drafts.drop(selectedTagId, field);
     },
-    [selectedTagId],
+    [selectedTagId, drafts],
   );
 
-  /*
-   * The only commit (#715). One press writes every field of the selected tag
-   * that moved, in the order the panel has always used — rename first, so
-   * whatever the host propagates around a wiki-tag rename runs where it used
-   * to. The edits are deliberately NOT cleared: they are an overlay, so they
-   * stop being pending the moment the write comes back through the cache.
-   * Clearing them here would snap the field back to the old name for the
-   * length of the round trip.
-   */
   const saveSelected = useCallback(() => {
-    if (!selectedTagId) return;
-    const patch = patchByTag.get(selectedTagId);
-    if (!patch) return;
-    if (patch.name !== undefined)
-      void wiki.renameTag(selectedTagId, patch.name);
-    if (patch.icon !== undefined)
-      void wiki.setTagIcon(selectedTagId, patch.icon);
-    if (patch.color !== undefined)
-      void wiki.setTagColor(selectedTagId, patch.color);
-  }, [selectedTagId, patchByTag, wiki]);
+    if (selectedTagId) drafts.save(selectedTagId);
+  }, [selectedTagId, drafts]);
 
   const openEditOn = useCallback(
     (tagId: string, field: TagHubEditField) => {
@@ -512,18 +465,44 @@ export function ConnectScreen({
         if (tagId === selectedTagId) {
           // The rail row is about to vanish; leaving the pane pointed at it
           // would keep an editor open over a tag that no longer exists.
-          setEdits((prev) => {
-            if (!prev[tagId]) return prev;
-            const next = { ...prev };
-            delete next[tagId];
-            return next;
-          });
+          drafts.discard(tagId);
           commitSelection(null);
           setEditOpen(false);
         }
       })();
     },
-    [wiki, askConfirm, t, selectedTagId, commitSelection],
+    [wiki, askConfirm, t, selectedTagId, commitSelection, drafts],
+  );
+
+  const toast = useToastOptional();
+
+  /*
+   * Merging (#1644). The dialog names the source; the Provider refiles its
+   * items and deletes it only when every move landed. When the merged tag was
+   * the open one, the hub follows its items to where they went.
+   */
+  const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
+  const mergeTags = useCallback(
+    (sourceId: string, targetId: string) => {
+      setMergeSourceId(null);
+      void (async () => {
+        try {
+          const result = await wiki.mergeTags(sourceId, targetId);
+          if (!result.sourceDeleted) {
+            toast?.showToast("danger", t("connect.merge.failed"));
+            return;
+          }
+          if (sourceId === selectedTagId) {
+            drafts.discard(sourceId);
+            commitSelection(targetId);
+            setEditOpen(false);
+          }
+        } catch {
+          toast?.showToast("danger", t("connect.merge.failed"));
+        }
+      })();
+    },
+    [wiki, toast, t, selectedTagId, drafts, commitSelection],
   );
 
   const createTag = useCallback(
@@ -579,6 +558,30 @@ export function ConnectScreen({
     [t, labels.roles],
   );
 
+  // Every live tag the merge dialog may offer — unused ones included, since
+  // folding a never-used duplicate away is the point of merging.
+  const pickableTags = useMemo(
+    () => [...model.tags.filter((tag) => !tag.isUntagged), ...model.unusedTags],
+    [model.tags, model.unusedTags],
+  );
+
+  const mergeLabels = useMemo<TagMergeDialogLabels>(
+    () => ({
+      formatTitle: (name) => t("connect.merge.title", { name }),
+      targetsLabel: t("connect.merge.targetsLabel"),
+      pickHint: t("connect.merge.pickHint"),
+      formatSummary: (count, target) =>
+        t("connect.merge.summary", { count, target }),
+      noTargets: t("connect.merge.noTargets"),
+      confirm: t("connect.merge.confirm"),
+      cancel: t("common.cancel"),
+    }),
+    [t],
+  );
+
+  const mergeSource =
+    pickableTags.find((tag) => tag.id === mergeSourceId) ?? null;
+
   const handleOpenItem = useCallback(
     (item: TagHubItem) => {
       // `navigateId` when the row is filed under an id the destination cannot
@@ -629,13 +632,23 @@ export function ConnectScreen({
         }}
         onEditTag={openEditOn}
         editFocusField={editFocusField}
-        edits={(selectedTagId && edits[selectedTagId]) || NO_EDITS}
-        editDirty={selectedTagId ? patchByTag.has(selectedTagId) : false}
+        edits={drafts.editsFor(selectedTagId ?? "")}
+        editDirty={selectedTagId ? drafts.isDirty(selectedTagId) : false}
         onEditChange={editSelected}
         onEditDrop={dropEdit}
         onEditSave={saveSelected}
         onDeleteTag={requestDelete}
         onCreateTag={createTag}
+        onMergeTag={setMergeSourceId}
+      />
+
+      <TagMergeDialog
+        key={mergeSourceId ?? "closed"}
+        source={mergeSource}
+        tags={pickableTags}
+        onMerge={mergeTags}
+        onCancel={() => setMergeSourceId(null)}
+        labels={mergeLabels}
       />
 
       {/* The discard question, asked when another tag is picked while this one

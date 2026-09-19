@@ -316,6 +316,18 @@
       "save": "Save",
       "saved": "Saved",
       "unsaved": "Unsaved"
+    },
+    "sidebarTabs": {
+      "label": "Work sidebar",
+      "settings": "Timer settings",
+      "history": "History"
+    },
+    "history": {
+      "today": "Today",
+      "latestDay": "Latest work day · {{date}}",
+      "empty": "No work sessions yet. Finished sessions will show up here.",
+      "noTarget": "No linked item",
+      "minutes": "{{minutes}} min"
     }
   },
   "audioMixer": {
@@ -456,7 +468,11 @@
       "filterPlaceholder": "Filter entries…",
       "filterLabel": "Filter entries",
       "eveningTitle": "EVENING",
-      "eveningScheduleTitle": "THE DAY'S SCHEDULE"
+      "eveningScheduleTitle": "THE DAY'S SCHEDULE",
+      "eveningMood": "Mood",
+      "eveningStart": "Add an evening note",
+      "eveningEditReflection": "Edit the reflection",
+      "eveningReflectionPlaceholder": "How did the day go…"
     },
     "tags": {
       "colorLabel": "Color",
@@ -853,6 +869,8 @@
   "undoRedo": {
     "undone": "Undid: {{label}}",
     "redone": "Redid: {{label}}",
+    "undoFailed": "Couldn't undo: {{label}}",
+    "redoFailed": "Couldn't redo: {{label}}",
     "labels": {
       "todoTreeChange": "todo change",
       "todoChipPlace": "todo placement",
@@ -995,6 +1013,17 @@
       "recentHeading": "Recently tagged",
       "recentUntaggedHeading": "Recently updated",
       "recentEmpty": "Nothing is filed under this tag yet."
+    },
+    "mergeTag": "Merge into another tag…",
+    "merge": {
+      "title": "Merge “{{name}}” into…",
+      "targetsLabel": "Tag to merge into",
+      "pickHint": "Pick the tag its items should move to.",
+      "summary_one": "{{count}} item moves to “{{target}}”, and this tag is deleted.",
+      "summary_other": "{{count}} items move to “{{target}}”, and this tag is deleted.",
+      "noTargets": "There is no other tag to merge into.",
+      "confirm": "Merge",
+      "failed": "The merge did not finish. The tag was kept so nothing is lost."
     }
   },
   "attachment": {

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useRef } from "react";
 import type {
   HTMLAttributes,
   KeyboardEvent,
@@ -9,6 +9,12 @@ import { cn } from "./cn";
 import { isImeComposing } from "../utils/imeGuard";
 
 export type MenuItemVariant = "default" | "danger";
+
+/** A viewport point (`clientX` / `clientY`) a menu opens at. */
+export interface MenuAnchorPoint {
+  x: number;
+  y: number;
+}
 
 export interface MenuProps {
   open: boolean;
@@ -24,6 +30,14 @@ export interface MenuProps {
    * it (see the trigger-wiring note below). Omit for non-toggle triggers.
    */
   anchorRef?: RefObject<HTMLElement | null>;
+  /**
+   * Viewport coordinates to open at instead of below the trigger — a
+   * right-click menu passes the event's `clientX` / `clientY` (#1676). The
+   * panel is then `position: fixed` at that point (nudged back inside the
+   * viewport when it would overflow), and `align` is ignored. `anchorRef` can
+   * still be passed alongside it so the toggle trigger keeps counting as inside.
+   */
+  anchorPoint?: MenuAnchorPoint | null;
   children: ReactNode;
   className?: string;
 }
@@ -69,10 +83,35 @@ export function Menu({
   label,
   align = "start",
   anchorRef,
+  anchorPoint = null,
   children,
   className,
 }: MenuProps) {
   const ref = useRef<HTMLDivElement | null>(null);
+  const pointX = anchorPoint?.x;
+  const pointY = anchorPoint?.y;
+
+  // A right-click near the right or bottom edge would push the panel off
+  // screen, so it measures itself and shifts back in before paint. Written to
+  // the element's style rather than to state: a second render just to move
+  // the box is the cascade the effect rules warn about. jsdom measures 0×0,
+  // which leaves the point as given.
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!open || !el || pointX === undefined || pointY === undefined) return;
+    const rect = el.getBoundingClientRect();
+    const margin = 8;
+    const x = Math.max(
+      margin,
+      Math.min(pointX, window.innerWidth - rect.width - margin),
+    );
+    const y = Math.max(
+      margin,
+      Math.min(pointY, window.innerHeight - rect.height - margin),
+    );
+    el.style.left = `${x}px`;
+    el.style.top = `${y}px`;
+  }, [open, pointX, pointY]);
 
   // Outside-click + Esc close while open.
   useEffect(() => {
@@ -145,10 +184,18 @@ export function Menu({
       role="menu"
       aria-label={label}
       onKeyDown={onKeyDown}
+      style={
+        anchorPoint ? { left: anchorPoint.x, top: anchorPoint.y } : undefined
+      }
       className={cn(
-        "absolute top-full z-50 mt-1 min-w-44 rounded-lumen-md border border-lumen-border",
+        "z-50 min-w-44 rounded-lumen-md border border-lumen-border",
         "bg-lumen-bg py-1 shadow-lumen-lg",
-        align === "end" ? "right-0" : "left-0",
+        anchorPoint
+          ? "fixed"
+          : cn(
+              "absolute top-full mt-1",
+              align === "end" ? "right-0" : "left-0",
+            ),
         className,
       )}
     >

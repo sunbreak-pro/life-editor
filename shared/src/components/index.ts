@@ -109,6 +109,7 @@ export {
 export {
   Menu,
   MenuItem,
+  type MenuAnchorPoint,
   type MenuProps,
   type MenuItemProps,
   type MenuItemVariant,
@@ -426,6 +427,14 @@ export {
   workTargetIcon,
   workTargetChipClass,
 } from "./PomodoroTodoSelector";
+// #1666: the Work sidebar's history tab.
+export {
+  WorkHistoryList,
+  type WorkHistoryListProps,
+  type WorkHistoryListLabels,
+  type WorkHistoryEntry,
+  type WorkHistoryTag,
+} from "./WorkHistoryList";
 export {
   PomodoroTodoSheet,
   type PomodoroTodoSheetProps,

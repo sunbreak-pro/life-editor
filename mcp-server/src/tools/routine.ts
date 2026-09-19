@@ -115,7 +115,7 @@ export const ROUTINE_TOOLS: ToolDefinition[] = [
   defineTool({
     name: "delete_routine",
     description:
-      "Soft-delete a repeating event (routine) together with every occurrence already on the calendar, completed ones included — the same as deleting all events of a series in the app. Everything goes to the Trash view and can be restored from the app. To skip a single day instead, use set_schedule_dismissed on that occurrence.",
+      'Soft-delete a repeating event (routine) together with every occurrence already on the calendar, completed ones included — the same as deleting all events of a series in the app. Everything goes to the Trash view and can be restored from the app. It takes no scope, because a routine id has no day to count from: to remove one day, or one day and every later one, call delete_schedule_item on that occurrence with scope "this" or "future".',
     inputSchema: {
       type: "object" as const,
       properties: {

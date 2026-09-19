@@ -142,6 +142,7 @@ export function CalendarTab({
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
   const {
+    date: providerToday,
     items: contextItems,
     isLoading,
     error,
@@ -266,7 +267,7 @@ export function CalendarTab({
     // second switch here. A cell tap moves the anchor — which is the day the
     // list under the grid shows.
     pickMonthDay,
-  } = useCalendarNav(isWide);
+  } = useCalendarNav(isWide, providerToday);
 
   // #467: jumping to a repeat's next occurrence has to put the calendar on
   // screen, and on Mobile the list that was tapped is a drawer sitting over it.
@@ -390,6 +391,7 @@ export function CalendarTab({
     handleTodoToggleComplete,
     handleTodoAddCandidate,
     handleTodoMoveOut,
+    handleTodoRename,
     handleTodoDelete,
     handleTodoDetailDelete,
   } = useScheduleTodoChips({
@@ -1093,10 +1095,7 @@ export function CalendarTab({
           onDelete: handleDelete,
         },
         todoActions: {
-          // The catch-all tree label: a rename is not a move, so none of the
-          // position-shaped todoChip* words fit (useTodoTreeHistory).
-          onRename: (id, title) =>
-            updateNode(id, { title }, { undoLabel: "todoTreeChange" }),
+          onRename: handleTodoRename,
           onDelete: handleTodoDelete,
           onConvertToEvent: handleConvertToEvent,
         },

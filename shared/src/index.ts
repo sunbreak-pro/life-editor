@@ -659,6 +659,8 @@ export {
 export { useWikiTagsUnifiedContext } from "./hooks/useWikiTagsUnifiedContext";
 export {
   useWikiTagsUnifiedAPI,
+  type BulkTagResult,
+  type MergeTagsResult,
   type UseWikiTagsUnifiedAPIOptions,
 } from "./hooks/useWikiTagsUnifiedAPI";
 export type {
@@ -795,6 +797,9 @@ export { jsonDocEquals } from "./utils/jsonDocEquals";
 export {
   sessionTargetId,
   totalWorkMinutesForItem,
+  // #1666: the day the Work sidebar's history tab reads back.
+  pickWorkHistoryDay,
+  type WorkHistoryDay,
 } from "./utils/timerSessions";
 // `[[ ]]` edges parked until their source item's first save lands (#371).
 export {
