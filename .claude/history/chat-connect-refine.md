@@ -1,5 +1,27 @@
 # HISTORY (chat-connect-refine)
 
+### 2026-09-19 - タグのアイコンを 146 個に増やし、選択パネルに検索欄を足した（#1700 / #1701）
+
+#### 概要
+
+`/goal` で受けた 2 Issue を順に実装した。**#1700 = PR #1740（merged）**、**#1701 = PR #1743（open）**。どちらも CI verify の全 15 ステップ + docs-lint をローカルで通してから出している。#1701 は同じファイルを触るため #1740 の上に積んだが、#1740 が先に merge されたので base を main に付け替え済み（MERGEABLE を実測）。
+
+#### 変更点
+
+- **#1700（PR #1740・merged）**: `TAG_ICONS` を 56 → 146 個に。既存 9 カテゴリを厚くし、旧セットに 1 個も無かった 6 領域（自然 / 天気 / 道具 / 通信 / 場所 / 記号）を新設した。`import { icons }` には戻さず named import を 90 行足す形を維持。`tagIconExplicitImports.test.ts` の個数 band を 55〜60 → 112〜168 にし、`AREA_ICONS` に新設 6 領域を追加
+- **#1701（PR #1743・open）**: パネル上部に検索欄。新規 `shared/src/components/tagIconAliases.ts` が 146 個ぶんの日本語別名を持ち、`matchesTagIconQuery` が英語名と別名の OR（部分一致・大文字小文字無視）で引く。文言 `connect.edit.iconSearch` / `iconNoMatch` を en / ja に足し、`TagHubEditLabels` → `TagIconPickerLabels` とホスト 2 箇所（`ConnectScreen.tsx` / `useSidebarContextMenus.tsx`）経由で渡す
+
+#### 設計判断と実測
+
+- **バンドル実測（eager index チャンク）**: 56 個 = 1,079.41 KB raw / 297.71 KB gzip → 146 個 = 1,105.24 / 307.62（**+9.91 KB gzip**・1 個あたり 0.110 KB）→ 検索欄 + 別名表まで入れて 1,119.39 / 315.11（**さらに +7.49 KB gzip**）。#1366 の予算 gzip +15 KB はアイコンぶんで収まったが、**2 本合計は +17.4 KB gzip**。別名表はパネルを開くまで誰も読まないので、削るなら `import()` で遅延するのが一番安い（実装はせず数字だけ残した）
+- **描画時間の実測**（jsdom・12 回中央値）: 56 個 = 18.2ms → 146 個 = **62.0ms**。100ms は超えないので間引きは別 Issue にしない。ただし個数 2.6 倍に対して時間 3.4 倍で線形より悪い
+- **別名表は「1 アイコン 1 行のスペース区切り文字列」**にした。配列のままだと prettier が 7 要素を 9 行に割って表が約 1,000 行になり、語を 1 つ足すたびに下の 4 行が動く。代償（別名にスペースを含められない）はテストで見張る
+- **IME は 2 つを同時に満たす**: 絞り込みは変換中の `onChange` でも走らせる（打ちかけの「きん」が確定前に「きんとれ」へ絞れる）／ Enter・Escape・↑ ↓ は `isImeComposing` で弾く（WebKit の `keyCode 229` Enter 含めてテストで固定）
+- **↑ ↓ は候補 1 つぶん動かす**（行 = 8 個ではない）。行内を動く自然なキー ← → はテキスト欄ではキャレットのものなので、8 個ずつ飛ばすと 8 個に 7 個がマウス専用になる。カーソル初期値は null で、何も打たないパネルはどのセルも光らない（「空のときの見た目が変わらない」を保つ）
+- **セルが `role="option"` になった**: 検索欄 = combobox、グリッド = その listbox。`aria-activedescendant` がカーソル位置を読み上げに伝えつつキャレットは欄に残る。`aria-selected` = キーボードのカーソル / `aria-current` = そのタグが今使っているアイコン、と 2 状態を別の語に分けた
+- **Scope 外を 1 箇所だけ直した**: `web/tests/connectScreen.test.tsx` の 2 件が Icon グループの「最初の button」を取っており、role 変更で「既定のアイコン」行を掴んで落ちた。今回の ARIA 変更が直接壊したものなので `getAllByRole("option")[0]` に直して同じ PR に入れた（Issue の Scope は `shared/tests/**` だけ）
+- **lint の落とし穴 2 つ**: `react-hooks/set-state-in-effect` が `open` 監視の effect 内での状態リセットを error にするので、リセットはクリックハンドラ側へ移した（フォーカスだけ effect に残す）。JSX の三項の分岐に `{/* … */}` を置くと「親要素が 1 つでない」で構文ごと壊れる
+
 ### 2026-09-19 - Connect ワークベンチの残り 4 Issue を 5 PR で出した（#1676 / #1644 / #1645 / #1646）
 
 #### 概要
