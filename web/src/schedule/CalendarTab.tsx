@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
@@ -877,6 +877,9 @@ export function CalendarTab({
     summaryRows,
     listDate,
     repeatRows,
+    repeatPanel,
+    openRepeatPanel,
+    closeRepeatPanel,
     handleOpenRepeat,
     handleDeleteRepeat,
   } = useScheduleRepeats({
@@ -921,6 +924,29 @@ export function CalendarTab({
     },
     push: undoRedo?.push,
   });
+
+  /*
+   * #1678: "edit detail" pressed on a repeat row. The jump only FETCHES the
+   * day, so the occurrence's id arrives with the range — this holds the
+   * routine id until a row of that series shows up on the anchored day, then
+   * opens it.
+   *
+   * A REF, not state: it decides nothing about what is rendered, and writing
+   * state from this effect would cost an extra render pass for every range
+   * update (react-hooks/set-state-in-effect). One shot — a request that never
+   * resolves (the user navigated away) simply never fires.
+   */
+  const pendingRepeatDetailRef = useRef<string | null>(null);
+  useEffect(() => {
+    const pending = pendingRepeatDetailRef.current;
+    if (!pending) return;
+    const match = rangeItems.find(
+      (i) => i.routineId === pending && i.date === anchorDate,
+    );
+    if (!match) return;
+    pendingRepeatDetailRef.current = null;
+    handleItemOpenDetail(match.id);
+  }, [rangeItems, anchorDate, handleItemOpenDetail]);
 
   const showLoading = isLoading && rangeItems.length === 0;
   // Full-screen error only when there is nothing to show; a range-fetch
@@ -1033,7 +1059,9 @@ export function CalendarTab({
         repeats={{
           hidden: repeatsHidden,
           rows: repeatRows,
-          onOpen: handleOpenRepeat,
+          // #1678: the press opens the row's panel; the jump to the next
+          // occurrence is one of the actions inside it.
+          onOpen: openRepeatPanel,
           onDelete: handleDeleteRepeat,
           onShowHidden: handleToggleRepeats,
         }}
@@ -1150,6 +1178,25 @@ export function CalendarTab({
         },
         formatDuration,
         labels: createPanelLabels,
+      }}
+      repeatPanel={{
+        state: repeatPanel,
+        row: repeatRows.find((r) => r.id === repeatPanel?.id) ?? null,
+        onClose: closeRepeatPanel,
+        onShowNext: (id) => {
+          closeRepeatPanel();
+          handleOpenRepeat(id);
+        },
+        // #1678: the occurrence's editor IS where a series is edited (it holds
+        // the repeat settings), so "edit detail" jumps to the next occurrence
+        // and opens it. The id is not known until that day's range has been
+        // read, which is what the pending request below waits for.
+        onEditDetail: (id) => {
+          closeRepeatPanel();
+          handleOpenRepeat(id);
+          pendingRepeatDetailRef.current = id;
+        },
+        onDelete: isWide ? handleDeleteRepeat : undefined,
       }}
       tagFilter={{
         open: tagFilterOpen,

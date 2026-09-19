@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import {
   frequencyLabel,
   nextRoutineOccurrence,
@@ -166,6 +166,27 @@ export function useScheduleRepeats({
     [sidebarTab, routines, listDate, t, freqCopy, weekdayLabels, formatFullDay],
   );
 
+  /*
+   * #1678: which row's panel is open, and where it was pressed.
+   *
+   * The press used to BE the jump to the next occurrence. A row is the series,
+   * though, and the series is what the user wants to read — so the press opens
+   * a panel (the one a grid item opens, #299) and the jump becomes one of the
+   * actions in it. That is also why a row with no occurrence is pressable now:
+   * it has nothing to jump to and everything to explain.
+   */
+  const [repeatPanel, setRepeatPanel] = useState<{
+    id: string;
+    x: number;
+    y: number;
+  } | null>(null);
+  const openRepeatPanel = useCallback(
+    (id: string, pos: { x: number; y: number }) =>
+      setRepeatPanel({ id, ...pos }),
+    [],
+  );
+  const closeRepeatPanel = useCallback(() => setRepeatPanel(null), []);
+
   const handleOpenRepeat = useCallback(
     (id: string) => {
       const routine = routines.find((r) => r.id === id);
@@ -281,6 +302,9 @@ export function useScheduleRepeats({
     /** Today's key off the minute ticker — also the conversion path's day. */
     listDate,
     repeatRows,
+    repeatPanel,
+    openRepeatPanel,
+    closeRepeatPanel,
     handleOpenRepeat,
     handleDeleteRepeat,
   };
