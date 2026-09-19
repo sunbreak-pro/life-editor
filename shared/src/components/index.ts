@@ -427,6 +427,14 @@ export {
   workTargetIcon,
   workTargetChipClass,
 } from "./PomodoroTodoSelector";
+// #1666: the Work sidebar's history tab.
+export {
+  WorkHistoryList,
+  type WorkHistoryListProps,
+  type WorkHistoryListLabels,
+  type WorkHistoryEntry,
+  type WorkHistoryTag,
+} from "./WorkHistoryList";
 // #1665: the free session's tag field, drawn beside the link-target selector.
 export {
   WorkTagSelector,

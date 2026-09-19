@@ -5,6 +5,7 @@ import {
   ABANDONED_SESSION_SECONDS,
   freeSessionSlot,
   isCountedSession,
+  pickWorkHistoryDay,
   sessionTargetId,
   totalWorkMinutesForItem,
 } from "../src/utils/timerSessions";
@@ -101,7 +102,12 @@ describe("totalWorkMinutesForItem", () => {
           duration: 600,
           sessionType: "BREAK",
         }),
-        session({ id: 2, eventId: "event-1", duration: null, completed: false }),
+        session({
+          id: 2,
+          eventId: "event-1",
+          duration: null,
+          completed: false,
+        }),
         session({ id: 3, eventId: "event-1", duration: 600 }),
       ],
       "event-1",
@@ -186,6 +192,58 @@ describe("isCountedSession", () => {
 });
 
 /*
+ * #1666 — which day the Work sidebar's history tab shows. Local-time dates
+ * (new Date(y, m, d, h)) on purpose: the helper keys days by the LOCAL
+ * calendar, and a UTC literal would move the day on a machine east of UTC.
+ */
+describe("pickWorkHistoryDay", () => {
+  const at = (day: number, hour: number) => new Date(2026, 8, day, hour, 0, 0);
+
+  it("returns today's counted WORK sessions, oldest first", () => {
+    const day = pickWorkHistoryDay(
+      [
+        session({ id: 2, startedAt: at(17, 14) }),
+        session({ id: 1, startedAt: at(17, 9) }),
+        session({ id: 3, startedAt: at(17, 10), sessionType: "BREAK" }),
+        session({ id: 4, startedAt: at(17, 11), duration: 12, completed: false }),
+        session({ id: 5, startedAt: at(16, 9) }),
+      ],
+      "2026-09-17",
+    );
+    expect(day?.dateKey).toBe("2026-09-17");
+    expect(day?.sessions.map((s) => s.id)).toEqual([1, 2]);
+  });
+
+  it("falls back to the most recent worked day when today is empty", () => {
+    const day = pickWorkHistoryDay(
+      [
+        session({ id: 1, startedAt: at(12, 9) }),
+        session({ id: 2, startedAt: at(15, 9) }),
+        // Only a break today — not work, so today still reads as empty.
+        session({ id: 3, startedAt: at(17, 9), sessionType: "BREAK" }),
+      ],
+      "2026-09-17",
+    );
+    expect(day?.dateKey).toBe("2026-09-15");
+    expect(day?.sessions.map((s) => s.id)).toEqual([2]);
+  });
+
+  it("prefers a past day over one after today (clock skew)", () => {
+    const day = pickWorkHistoryDay(
+      [
+        session({ id: 1, startedAt: at(20, 9) }),
+        session({ id: 2, startedAt: at(10, 9) }),
+      ],
+      "2026-09-17",
+    );
+    expect(day?.dateKey).toBe("2026-09-10");
+  });
+
+  it("returns null when nothing has been worked", () => {
+    expect(pickWorkHistoryDay([], "2026-09-17")).toBeNull();
+    expect(
+      pickWorkHistoryDay([session({ duration: null })], "2026-09-17"),
+    ).toBeNull();
  * #1665 — the Schedule slot a free session is filed under. Local-time dates
  * for the same reason as above: the day and the clock times are the user's,
  * not UTC's.

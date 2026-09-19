@@ -71,6 +71,16 @@ export interface ScheduleToolbarProps {
   onOpenFilter?: () => void;
   /** Whether a tag filter is currently narrowing the grid. */
   filterActive?: boolean;
+  /**
+   * How many tags the filter is narrowing by (#1639). Drawn as a small badge
+   * on the icon's bottom-right corner while it is 1 or more, and not drawn at
+   * all at 0 — a "0" on the icon would say the filter is on and empty.
+   *
+   * The COUNT is tags only: "hide repeats" is its own button with its own
+   * count beside this one, so folding it in here would have the same filter
+   * counted twice on one toolbar.
+   */
+  filterCount?: number;
   /** Primary add-event action. Hidden when omitted. */
   onAddEvent?: () => void;
   /** Already-translated label for the add-event button. */
@@ -94,6 +104,7 @@ export function ScheduleToolbar({
   repeatsHidden = false,
   onOpenFilter,
   filterActive = false,
+  filterCount = 0,
   onAddEvent,
   addEventLabel,
   labels,
@@ -189,16 +200,40 @@ export function ScheduleToolbar({
       {onOpenFilter && (
         <button
           type="button"
+          // The count rides the NAME rather than the badge: the badge is
+          // aria-hidden, so a screen reader hears "Filtered by 2 tags" once
+          // instead of a loose "2" after the button's name (#1242 owns the
+          // singular / plural of that sentence).
           aria-label={filterActive ? labels.filterActive : labels.openFilter}
           aria-pressed={filterActive}
           onClick={onOpenFilter}
           className={cn(
             ICON_BTN,
+            // `relative` so the badge can hang off the corner; the button is
+            // the only positioned ancestor it should read.
+            "relative",
             filterActive &&
               "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent hover:text-lumen-accent",
           )}
         >
           <ListFilter aria-hidden className="size-3.5" />
+          {filterCount > 0 && (
+            <span
+              aria-hidden
+              data-filter-count={filterCount}
+              /*
+               * Bottom-right, overhanging the icon by a few pixels so it reads
+               * as attached to it rather than as part of the glyph. Opaque
+               * accent fill (§5 — no transparency on a surface that has to stay
+               * legible over the toolbar), `tabular-nums` so 1 and 2 do not
+               * shift the badge's width, and a floor of 1rem so a single digit
+               * is still a circle.
+               */
+              className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-lumen-accent px-1 text-[0.625rem] font-semibold leading-none text-lumen-on-accent tabular-nums"
+            >
+              {filterCount}
+            </span>
+          )}
         </button>
       )}
       {onAddEvent && (

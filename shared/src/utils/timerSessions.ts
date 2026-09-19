@@ -90,6 +90,49 @@ export function totalWorkMinutesForItem(
   return minutes;
 }
 
+/** One day of the Work sidebar's history tab (#1666). */
+export interface WorkHistoryDay {
+  /** Local-calendar `YYYY-MM-DD` the rows below started on. */
+  dateKey: string;
+  /** Counted WORK sessions of that day, oldest first. */
+  sessions: (TimerSession & { duration: number })[];
+}
+
+/**
+ * The day the Work history tab shows (#1666): today when anything was worked
+ * today, otherwise the most recent day that has work on it — an empty "today"
+ * at 9am would otherwise hide yesterday's log, which is what the tab is for.
+ *
+ * WORK rows that count only (`isCountedSession`), for the reason
+ * `totalWorkMinutesForItem` gives: a break is not work and a seconds-long
+ * aborted start is not a row anyone wants to read back. Days are LOCAL calendar
+ * days of `startedAt`, so a session that crosses midnight stays on the day it
+ * began. Returns null when nothing has ever been worked.
+ */
+export function pickWorkHistoryDay(
+  sessions: readonly TimerSession[],
+  todayKey: string,
+): WorkHistoryDay | null {
+  const byDay = new Map<string, (TimerSession & { duration: number })[]>();
+  for (const s of sessions) {
+    if (s.sessionType !== "WORK") continue;
+    if (!isCountedSession(s)) continue;
+    const key = formatDateKey(s.startedAt);
+    const bucket = byDay.get(key);
+    if (bucket) bucket.push(s);
+    else byDay.set(key, [s]);
+  }
+  if (byDay.size === 0) return null;
+  // Keys are YYYY-MM-DD, so string order is calendar order. A day AFTER today
+  // only exists when the device clock moved backwards; it is the last resort
+  // rather than the pick, so a skewed clock cannot hide the real latest day.
+  const keys = [...byDay.keys()].sort();
+  const past = keys.filter((k) => k <= todayKey);
+  const dateKey =
+    past.length > 0 ? past[past.length - 1] : keys[keys.length - 1];
+  const rows = byDay.get(dateKey) ?? [];
+  rows.sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+  return { dateKey, sessions: rows };
 /** Where a free session lands on the calendar (#1665). */
 export interface FreeSessionSlot {
   /** Local `YYYY-MM-DD` of the day the session STARTED on. */

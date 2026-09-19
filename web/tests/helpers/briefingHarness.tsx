@@ -60,6 +60,9 @@ export function createBriefingHarness(): BriefingHarness {
     canUndo: () => false,
     canRedo: () => false,
     clear: () => {},
+    // #1638: the repeat-scope question. Nothing in a Briefing harness asks
+    // one, so this is the shape and not a behaviour.
+    setConfirmGate: () => {},
   };
 
   function BriefingWrapper({ children }: { children: ReactNode }) {

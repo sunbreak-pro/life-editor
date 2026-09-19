@@ -47,6 +47,22 @@ export {
   type TagEditDraftTarget,
   type TagEditWriters,
 } from "./useTagEditDrafts";
+// #1644 — bulk selection and merging.
+export {
+  TagHubSelectionBar,
+  type TagHubSelectionBarLabels,
+  type TagHubSelectionBarProps,
+} from "./TagHubSelectionBar";
+export {
+  TagHubTagPickerPopover,
+  type TagHubTagPickerLabels,
+  type TagHubTagPickerPopoverProps,
+} from "./TagHubTagPickerPopover";
+export {
+  TagMergeDialog,
+  type TagMergeDialogLabels,
+  type TagMergeDialogProps,
+} from "./TagMergeDialog";
 export {
   TagIconPicker,
   type TagIconPickerLabels,
