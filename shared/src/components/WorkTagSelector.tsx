@@ -72,10 +72,15 @@ export function WorkTagSelector({
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // A target picked while the dropdown is open hides it — derived rather than
+  // reset in an effect, which would be a cascading render for a value the
+  // render can simply read (react-hooks/set-state-in-effect).
+  const dropdownOpen = open && !disabled;
+
   // Click-outside closes the dropdown (same self-contained listener TagPicker
   // uses — no global registry).
   useEffect(() => {
-    if (!open) return;
+    if (!dropdownOpen) return;
     const onDocClick = (e: MouseEvent) => {
       if (
         containerRef.current &&
@@ -86,12 +91,7 @@ export function WorkTagSelector({
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [open]);
-
-  // A target chosen while the dropdown is open closes it.
-  useEffect(() => {
-    if (disabled) setOpen(false);
-  }, [disabled]);
+  }, [dropdownOpen]);
 
   const tagsById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -108,8 +108,7 @@ export function WorkTagSelector({
       .slice(0, 8);
   }, [tags, selectedSet, trimmed]);
   const exactMatch = trimmed
-    ? (tags.find((t) => t.name.toLowerCase() === trimmed.toLowerCase()) ??
-      null)
+    ? (tags.find((t) => t.name.toLowerCase() === trimmed.toLowerCase()) ?? null)
     : null;
 
   const add = (id: string) => {
@@ -163,7 +162,7 @@ export function WorkTagSelector({
         disabled={disabled}
         onClick={() => setOpen((v) => !v)}
         aria-label={labels.add}
-        aria-expanded={open}
+        aria-expanded={dropdownOpen}
         className={cn(
           TAP_TARGET,
           "gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
@@ -175,7 +174,7 @@ export function WorkTagSelector({
       </button>
       {disabled && <span className="sr-only">{labels.disabledHint}</span>}
 
-      {open && !disabled && (
+      {dropdownOpen && (
         <div
           role="dialog"
           aria-label={labels.dialog}
