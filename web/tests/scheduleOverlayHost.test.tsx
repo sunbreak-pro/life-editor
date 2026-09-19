@@ -1,5 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
-import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+} from "@testing-library/react";
 import { todoChipId } from "@life-editor/shared";
 import type {
   EventEditorItem,
@@ -237,6 +243,14 @@ function renderHost(
 
   const props: ScheduleOverlayHostProps = {
     isWide: over.isWide ?? true,
+    // #1678: the repeat row's panel — closed, so it draws nothing here.
+    repeatPanel: {
+      state: null,
+      row: null,
+      onClose: vi.fn(),
+      onShowNext: vi.fn(),
+      onEditDetail: vi.fn(),
+    },
     editor: {
       item: ITEM,
       overlayOpen: true,
@@ -280,7 +294,7 @@ function renderHost(
         loadLinkTargets: vi.fn(),
         handleResolvedLinkInserted: vi.fn(),
         handleBodySaved: vi.fn(),
-      } as unknown as ScheduleTodoDetailProps['linking'],
+      } as unknown as ScheduleTodoDetailProps["linking"],
       askConfirm,
       ...over.todoDetail,
     },

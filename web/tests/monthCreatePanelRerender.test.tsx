@@ -267,6 +267,13 @@ function Host({
       <ScheduleOverlays
         isWide
         frames={{ editor: null, todoDetail: null }}
+        repeatPanel={{
+          state: null,
+          row: null,
+          onClose: NOOP,
+          onShowNext: NOOP,
+          onEditDetail: NOOP,
+        }}
         popover={{
           state: null,
           selected: null,
