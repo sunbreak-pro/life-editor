@@ -440,6 +440,8 @@ export {
   type UndoRedoProviderProps,
   UndoRedoContext,
   type UndoRedoContextValue,
+  // The focused body editor's own history, offered to the header (#1690).
+  type EditorHistory,
 } from "./context";
 export type {
   AddNodeOptions,

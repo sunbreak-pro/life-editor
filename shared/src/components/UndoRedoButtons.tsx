@@ -50,6 +50,21 @@ export interface UndoRedoButtonsProps {
 const BTN =
   "flex size-8 max-md:min-h-11 max-md:min-w-11 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-lumen-text-secondary";
 
+/*
+ * Press without taking focus (#1690).
+ *
+ * These are a text editor's toolbar buttons in everything but placement: the
+ * header pair now drives the FOCUSED body editor's own history, and a plain
+ * button steals focus on mousedown — so the editor would blur, withdraw its
+ * history, and the click that arrived a moment later would land on the app
+ * stack instead. Preventing the default on mousedown is the standard answer
+ * and costs nothing when no editor is focused. Tab still reaches the buttons,
+ * so keyboard users are unaffected.
+ */
+const keepFocus = (e: { preventDefault: () => void }): void => {
+  e.preventDefault();
+};
+
 export function UndoRedoButtons({
   canUndo,
   canRedo,
@@ -64,6 +79,7 @@ export function UndoRedoButtons({
       <button
         type="button"
         onClick={onUndo}
+        onMouseDown={keepFocus}
         disabled={!canUndo}
         aria-label={undoLabel}
         title={undoLabel}
@@ -74,6 +90,7 @@ export function UndoRedoButtons({
       <button
         type="button"
         onClick={onRedo}
+        onMouseDown={keepFocus}
         disabled={!canRedo}
         aria-label={redoLabel}
         title={redoLabel}

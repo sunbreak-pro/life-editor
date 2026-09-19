@@ -50,6 +50,14 @@ export interface MobileShellActionsProps {
  * on the first tap would turn a three-step undo into three reopens. The palette
  * and tag rows are the opposite case: each takes the user somewhere, so the
  * sheet has to be cleared out of the way first.
+ *
+ * These rows stay on the APP stack, unlike the header pair (#1690). The header
+ * follows focus because it can: its buttons keep the editor focused while you
+ * press them. Opening this sheet takes focus by definition — the body editor
+ * is behind it — so "the focused editor's history" has no meaning here, and
+ * pretending otherwise would mean guessing at which editor the user last
+ * touched. The phone reaches the body's own undo through the same header pair
+ * the narrow layout already carries (#1035).
  */
 export function MobileShellActions({
   onOpenPalette,

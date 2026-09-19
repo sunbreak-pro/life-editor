@@ -163,6 +163,7 @@ export {
 export {
   UndoRedoContext,
   type UndoRedoContextValue,
+  type EditorHistory,
 } from "./UndoRedoContextValue";
 
 // Tour (#1122): Pattern A. REQUIRED global-layer Provider — a tour crosses

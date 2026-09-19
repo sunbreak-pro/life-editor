@@ -9,6 +9,7 @@ import type {
 import { generateId } from "../utils/generateId";
 import {
   extractItemLinkTargets,
+  findMissingInlineLinks,
   findStaleInlineLinks,
 } from "../utils/inlineLinkSync";
 import { useSyncDomains } from "./useSyncDomains";
@@ -464,22 +465,51 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [ds],
   );
 
-  // #372 delete-sync: after a body save, soft-delete the inline-origin edges
-  // whose "[[ ]]" link is no longer in the text. Manual edges (LinkPanel /
-  // Connect) are never candidates. No-op when the body is not a TipTap doc —
-  // legacy plain text cannot carry link atoms, and an unparseable body must
-  // not read as "all links removed".
+  /*
+   * Reconcile the link graph against the body a save just stored (#372, made
+   * two-way by #1690). Both directions, because the text is the record:
+   *
+   *   - an inline-origin edge whose "[[ ]]" has left the text is soft-deleted
+   *   - a link the text carries with no live edge gets one, origin "inline"
+   *
+   * The add is what makes Ctrl+Shift+Z work. Only the picker used to create
+   * the edge (`onResolvedInserted`), so a redo brought the link node back into
+   * the text and left the LinkPanel row gone for good — the delete half had
+   * already removed it on the save after the Ctrl+Z, and nothing ever put it
+   * back. A paste and a template body were the same shape.
+   *
+   * Manual edges (LinkPanel / Connect) are never candidates for either half:
+   * the delete only looks at origin "inline", and the add treats an edge of
+   * any origin as already present.
+   *
+   * No-op when the body is not a TipTap doc — legacy plain text cannot carry
+   * link atoms, and an unparseable body must not read as "all links removed".
+   */
   const syncInlineLinks = useCallback(
     async (fromItemId: string, content: string): Promise<void> => {
       const targets = extractItemLinkTargets(content);
       if (targets === null) return;
       const stale = findStaleInlineLinks(allConnections, fromItemId, targets);
-      await Promise.all(
-        stale.map(async (l) => {
+      const missing = findMissingInlineLinks(
+        allConnections,
+        fromItemId,
+        targets,
+      );
+      await Promise.all([
+        ...stale.map(async (l) => {
           await ds.deleteItemLink(l.id);
           setAllConnections((prev) => prev.filter((c) => c.id !== l.id));
         }),
-      );
+        ...missing.map(async (toItemId) => {
+          const created = await ds.createItemLink(
+            generateId("link"),
+            fromItemId,
+            toItemId,
+            "inline",
+          );
+          setAllConnections((prev) => [...prev, created]);
+        }),
+      ]);
     },
     [ds, allConnections],
   );

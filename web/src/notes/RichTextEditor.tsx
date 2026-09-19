@@ -10,7 +10,11 @@ import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TodoList from "@tiptap/extension-task-list";
 import TodoItem from "@tiptap/extension-task-item";
-import { useTranslation } from "@life-editor/shared";
+import {
+  useTranslation,
+  useUndoRedoOptional,
+  type EditorHistory,
+} from "@life-editor/shared";
 import { createSlashCommand } from "./slashCommand";
 import { createItemLinkNode } from "./itemLinkNode";
 import { createItemLinkSuggestion } from "./itemLinkSuggestion";
@@ -503,6 +507,57 @@ export function RichTextEditor({
     },
     [noteId],
   );
+
+  /*
+   * #1690 — offer this editor's history to the header while it has focus.
+   *
+   * Ctrl+Z inside a body already goes to TipTap (useGlobalShortcuts hands
+   * bare-field keystrokes to the field), but the header buttons only ever
+   * drove the app stack — so the two controls reversed different things, and
+   * pressing Undo while writing could move a schedule block on another
+   * screen. Registering on focus is what lets the header follow the keystroke.
+   *
+   * Cleared on blur, so walking away from the body puts the header back on
+   * the app stack. The header's own buttons do not blur it (they preventDefault
+   * on mousedown — see UndoRedoButtons), which is what makes a repeated press
+   * keep undoing the text.
+   *
+   * Optional context: a standalone mount or a test without the Provider is a
+   * no-op, like every other consumer here.
+   */
+  const undoRedo = useUndoRedoOptional();
+  const setEditorHistory = undoRedo?.setEditorHistory;
+  useEffect(() => {
+    if (!editor || !setEditorHistory) return;
+    const history: EditorHistory = {
+      undo: () => {
+        editor.chain().focus().undo().run();
+      },
+      redo: () => {
+        editor.chain().focus().redo().run();
+      },
+      canUndo: () => editor.can().undo(),
+      canRedo: () => editor.can().redo(),
+      subscribe: (onChange) => {
+        editor.on("transaction", onChange);
+        return () => {
+          editor.off("transaction", onChange);
+        };
+      },
+    };
+    const offer = () => setEditorHistory(history);
+    const withdraw = () => setEditorHistory(null);
+    editor.on("focus", offer);
+    editor.on("blur", withdraw);
+    // The editor can already be focused by the time this runs — #1115's
+    // autoFocus does it from onCreate, which is before any effect.
+    if (editor.isFocused) offer();
+    return () => {
+      editor.off("focus", offer);
+      editor.off("blur", withdraw);
+      withdraw();
+    };
+  }, [editor, setEditorHistory]);
 
   useEffect(() => {
     // `emitUpdate: false`. TipTap's setEditable fires an `update` by default,
