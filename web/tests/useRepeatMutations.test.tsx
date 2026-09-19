@@ -90,7 +90,15 @@ function renderRepeat(
 ) {
   const ds = {
     convertEventToRoutine: vi.fn(() => Promise.resolve("routine-new")),
-    updateRoutine: vi.fn(() => Promise.resolve(opts.templateLands ?? true)),
+    // Spelled with its parameters so a case can read the `skipUndo` bag back
+    // off the call (#1638).
+    updateRoutine: vi.fn<
+      (
+        id: string,
+        updates: Record<string, unknown>,
+        opts?: { skipUndo?: boolean },
+      ) => Promise<boolean>
+    >(() => Promise.resolve(opts.templateLands ?? true)),
     // Typed through the generic rather than named params: the body ignores
     // both, and #708's assertion needs `mock.calls[0][1]` to be the opts bag.
     deleteRoutine: vi.fn<
