@@ -6,6 +6,7 @@ import {
   TagHeadingIcon,
   TagPill,
   TAP_TARGET,
+  useToastOptional,
   useTranslation,
   useWikiTagsUnifiedContext,
   type WikiTagUnified,
@@ -40,6 +41,9 @@ import {
  * the row could not say was WHICH KIND of thing it is tagging, which is what
  * matters once Phase 2 puts this same row on events / dailies / notes.
  * Callers that pass no `itemRole` keep the generic caption unchanged.
+ *
+ * Failures (#1667): a write that throws raises an error toast. Logging alone
+ * left the picker looking as if nothing had been clicked.
  */
 interface TagPickerProps {
   itemId: string;
@@ -62,6 +66,7 @@ export function TagPicker({
 }: TagPickerProps) {
   const wiki = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
+  const toast = useToastOptional();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -132,6 +137,7 @@ export function TagPicker({
       setQuery("");
     } catch (err) {
       console.error("assignTagToItem failed", err);
+      toast?.showToast("danger", t("materials.tags.assignFailed"));
     }
   };
 
@@ -140,6 +146,7 @@ export function TagPicker({
       await wiki.unassignTagFromItem(assignmentId);
     } catch (err) {
       console.error("unassignTagFromItem failed", err);
+      toast?.showToast("danger", t("materials.tags.unassignFailed"));
     }
   };
 
@@ -151,6 +158,7 @@ export function TagPicker({
       await handleAssign(tag.id);
     } catch (err) {
       console.error("createTag failed", err);
+      toast?.showToast("danger", t("materials.tags.createFailed"));
     }
   };
 

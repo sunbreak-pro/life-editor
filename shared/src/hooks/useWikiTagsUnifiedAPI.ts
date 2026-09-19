@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DataService } from "../services/DataService";
 import type {
   WikiTag,
@@ -13,6 +13,8 @@ import {
 } from "../utils/inlineLinkSync";
 import { useSyncDomains } from "./useSyncDomains";
 import { useDomainLoad } from "./useDomainLoad";
+import { useUndoRedoOptional } from "./useUndoRedoContext";
+import type { UndoRedoLike } from "./useTodoTreeHistory";
 
 /*
  * useWikiTagsUnifiedAPI (DU-C+ Step 4).
@@ -30,11 +32,26 @@ import { useDomainLoad } from "./useDomainLoad";
  */
 export interface UseWikiTagsUnifiedAPIOptions {
   dataService: DataService;
+  /**
+   * History to record tag assign / unassign on (#1667). Defaults to the
+   * ambient global stack when an UndoRedoProvider is mounted, and to no
+   * history at all when none is.
+   */
+  undoRedo?: UndoRedoLike;
 }
 
 export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   const ds = options.dataService;
   const syncVersion = useSyncDomains("tags");
+  const ambientUndoRedo = useUndoRedoOptional();
+  const undoRedo = options.undoRedo ?? ambientUndoRedo;
+  // The ambient context value changes identity on every stack change; reading
+  // it through a ref keeps the mutators below (and so this hook's return
+  // value) from being rebuilt each time anything in the app is undone.
+  const undoRedoRef = useRef(undoRedo);
+  useEffect(() => {
+    undoRedoRef.current = undoRedo;
+  });
 
   const [allTags, setAllTags] = useState<WikiTag[]>([]);
   // Bulk caches that replace the per-row N+1 fetches in TagPicker /
@@ -178,7 +195,9 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [ds],
   );
 
-  const assignTagToItem = useCallback(
+  // The write + cache update, without history. Undo and redo replay these,
+  // so they must not push a command of their own.
+  const writeAssign = useCallback(
     async (itemId: string, tagId: string): Promise<WikiTagAssignment> => {
       const assignmentId = generateId("tag_assign");
       const created = await ds.assignTagToItem(assignmentId, itemId, tagId);
@@ -195,12 +214,67 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [ds],
   );
 
-  const unassignTagFromItem = useCallback(
+  const writeUnassign = useCallback(
     async (assignmentId: string): Promise<void> => {
       await ds.unassignTagFromItem(assignmentId);
       setAllAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
     },
     [ds],
+  );
+
+  // What the cache held when a mutator was called. Read from a ref so the
+  // mutators do not re-create on every assignment change.
+  const assignmentsRef = useRef(allAssignments);
+  useEffect(() => {
+    assignmentsRef.current = allAssignments;
+  });
+
+  /*
+   * #1667 — both directions go on the global Undo stack.
+   *
+   * The pair (item, tag) is what the user acted on, not the row id: the
+   * service revives a pair's soft-deleted row rather than inserting a second
+   * one (#1593), so a redo gets the same row back today, but the commands
+   * track whatever id the latest write returned instead of relying on that.
+   */
+  const assignTagToItem = useCallback(
+    async (itemId: string, tagId: string): Promise<WikiTagAssignment> => {
+      const wasAssigned = assignmentsRef.current.some(
+        (a) => a.itemId === itemId && a.tagId === tagId && !a.isDeleted,
+      );
+      let current = await writeAssign(itemId, tagId);
+      // Assigning a tag the item already carries changed nothing; undoing it
+      // would remove a tag the user never touched.
+      if (!wasAssigned) {
+        undoRedoRef.current?.push("tags", {
+          label: "assignTag",
+          undo: () => writeUnassign(current.id),
+          redo: async () => {
+            current = await writeAssign(itemId, tagId);
+          },
+        });
+      }
+      return current;
+    },
+    [writeAssign, writeUnassign],
+  );
+
+  const unassignTagFromItem = useCallback(
+    async (assignmentId: string): Promise<void> => {
+      const row = assignmentsRef.current.find((a) => a.id === assignmentId);
+      await writeUnassign(assignmentId);
+      // A row the cache never saw has no pair to put back.
+      if (!row) return;
+      let currentId = assignmentId;
+      undoRedoRef.current?.push("tags", {
+        label: "unassignTag",
+        undo: async () => {
+          currentId = (await writeAssign(row.itemId, row.tagId)).id;
+        },
+        redo: () => writeUnassign(currentId),
+      });
+    },
+    [writeAssign, writeUnassign],
   );
 
   // -- item↔item links ----------------------------------------------------

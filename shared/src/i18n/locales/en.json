@@ -470,7 +470,10 @@
       "pickerSearch": "Search or create tag…",
       "pickerNoCandidates": "No more tags to assign.",
       "pickerCreate": "Create “{{name}}”",
-      "pickerRemove": "Remove tag {{name}}"
+      "pickerRemove": "Remove tag {{name}}",
+      "assignFailed": "Couldn't add the tag.",
+      "unassignFailed": "Couldn't remove the tag.",
+      "createFailed": "Couldn't create the tag."
     },
     "sidebar": {
       "sort": "Sort",
@@ -874,7 +877,9 @@
       "moveNote": "note move",
       "createNote": "note creation",
       "updateNote": "note update",
-      "softDeleteNote": "note deletion"
+      "softDeleteNote": "note deletion",
+      "assignTag": "adding a tag",
+      "unassignTag": "removing a tag"
     }
   },
   "common": {
