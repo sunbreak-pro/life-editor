@@ -609,6 +609,22 @@ describe("useScheduleGridFilters — holidays (#1626)", () => {
     expect(hook.result.current.monthItems).toHaveLength(0);
   });
 
+  it("puts the holiday ahead of the day's own rows", () => {
+    // A Desktop month cell draws two chips and folds the rest into "他 N 件"
+    // in the order it is handed them. Appended last, the holiday would be the
+    // first thing hidden on a busy day — and it is context for the whole day
+    // rather than one more thing on it.
+    const rangeItems = [
+      item("a", { date: "2026-09-21" }),
+      item("b", { date: "2026-09-21" }),
+    ];
+    const { hook } = setup({ ...SEPTEMBER, rangeItems });
+    const sameDay = hook.result.current.monthItems.filter(
+      (i) => i.date === "2026-09-21",
+    );
+    expect(sameDay.map((i) => i.id)).toEqual(["holiday-2026-09-21", "a", "b"]);
+  });
+
   it("leaves the Mobile day list alone", () => {
     // `anchorDayItems` feeds the list under the narrow grid, and it is built
     // from schedule ROWS. A holiday has none, and the narrow layout offers no

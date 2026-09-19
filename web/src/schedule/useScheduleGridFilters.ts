@@ -254,17 +254,26 @@ export function useScheduleGridFilters({
    */
   const hiddenHolidays = holidaysHidden ? windowHolidays.length : 0;
 
+  /*
+   * Holidays go FIRST on both surfaces, and on the month grid that is not a
+   * cosmetic choice: a Desktop cell draws two chips and folds the rest into
+   * "他 N 件" (monthCellFold), in the order the host hands them over. Appended
+   * last, a holiday would be the first thing hidden on exactly the days most
+   * likely to be busy — and a holiday is context for the WHOLE day, not one
+   * more thing on it. The week grid has no fold, but keeping the two in the
+   * same order means the lane and the cell agree on what leads a day.
+   */
   const gridItems = useMemo<WeekTimeGridItem[]>(
     () => [
-      ...toWeekGridItems(gridRangeItems, gridTodoChips, tagColors),
       ...holidayItems,
+      ...toWeekGridItems(gridRangeItems, gridTodoChips, tagColors),
     ],
     [gridRangeItems, gridTodoChips, tagColors, holidayItems],
   );
   const monthItems = useMemo<MonthGridItem[]>(
     () => [
-      ...toMonthGridItems(gridRangeItems, gridTodoChips, tagColors),
       ...holidayItems,
+      ...toMonthGridItems(gridRangeItems, gridTodoChips, tagColors),
     ],
     [gridRangeItems, gridTodoChips, tagColors, holidayItems],
   );
