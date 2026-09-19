@@ -374,10 +374,16 @@ describe("handleDropAllDay", () => {
     // #469: the template has no isAllDay to propagate to, so no dialog even
     // here. The times are left alone so an all-day OFF flip restores them.
     expect(h.view.result.current.scopeRequest).toBeNull();
-    expect(h.updateScheduleItem).toHaveBeenCalledWith("s-1", {
-      date: "2026-09-18",
-      isAllDay: true,
-    });
+    // The third argument is the #1638 `skipUndo` bag, undefined here: this is
+    // a single-row write that owns its own history entry.
+    expect(h.updateScheduleItem).toHaveBeenCalledWith(
+      "s-1",
+      {
+        date: "2026-09-18",
+        isAllDay: true,
+      },
+      undefined,
+    );
     expect(h.order).toEqual([
       "provider:s-1:date+isAllDay",
       "range:s-1:date+isAllDay",

@@ -12,13 +12,45 @@
  * held in a ref (one instance per provider).
  */
 
+/**
+ * What a command says about itself so the host can ASK before running it
+ * (#1638). Only a write that landed on a REPEATING item carries one: reversing
+ * an edit that was applied to a whole series is not something to do on a
+ * keystroke, and the scope it covers is the part the calendar does not show.
+ *
+ * The manager never reads `scope` — it only knows a command with a `confirm`
+ * block has to pass the gate first. The words belong to the host (§6.4).
+ */
+export interface UndoConfirmSpec {
+  kind: "repeat";
+  scope: "this" | "future" | "all";
+}
+
+/**
+ * The host's question (#1638). `false` leaves BOTH stacks exactly as they
+ * were — a declined undo must not consume the command, or "cancel" would be a
+ * way to quietly drop history.
+ */
+export type UndoConfirmGate = (request: {
+  direction: "undo" | "redo";
+  label: string;
+  confirm: UndoConfirmSpec;
+}) => Promise<boolean>;
+
 /** A single reversible operation. `undo`/`redo` may be async. */
 export interface UndoCommand {
   /** Stable label describing the operation (used for the undo/redo toast). */
   label: string;
   undo: () => void | Promise<void>;
   redo: () => void | Promise<void>;
+  /** Ask before running this one — see UndoConfirmSpec (#1638). */
+  confirm?: UndoConfirmSpec;
 }
+
+/** What running one undo/redo did. `error` is set only when `ok` is false. */
+export type UndoOutcome =
+  | { command: UndoCommand; ok: true }
+  | { command: UndoCommand; ok: false; error: unknown };
 
 /** Cap on retained history (oldest commands drop past this). */
 export const MAX_HISTORY_SIZE = 50;
@@ -27,6 +59,7 @@ export class UndoRedoManager {
   private undoStack: UndoCommand[] = [];
   private redoStack: UndoCommand[] = [];
   private listener: (() => void) | null = null;
+  private confirmGate: UndoConfirmGate | null = null;
 
   /** Register the single change listener (the provider bumps a version). */
   setListener(fn: (() => void) | null): void {
@@ -35,6 +68,16 @@ export class UndoRedoManager {
 
   private notify(): void {
     this.listener?.();
+  }
+
+  /**
+   * Register the question asked before a command carrying a `confirm` spec
+   * runs (#1638). One gate at a time, and null while no host offers a dialog —
+   * with no gate those commands run straight through, which is what keeps them
+   * reversible from a screen that has nowhere to ask.
+   */
+  setConfirmGate(gate: UndoConfirmGate | null): void {
+    this.confirmGate = gate;
   }
 
   /**
@@ -52,35 +95,56 @@ export class UndoRedoManager {
   }
 
   /**
-   * Reverse the most recent command and move it to the redo stack. Returns the
-   * command that ran (so the caller can toast its label), or null if empty. A
-   * throwing undo still moves the command to redo and is reported via onError.
+   * Reverse the most recent command and move it to the redo stack. Resolves to
+   * the outcome (so the caller can toast its label), or null if empty — or if
+   * the command asked a question and the user declined (#1638), which leaves
+   * both stacks untouched.
+   *
+   * A throwing undo does NOT move to redo (#1668): the write it stood for did
+   * not happen, so offering "redo" would re-apply something that was never
+   * reversed. The command goes back on top of the undo stack instead (the user
+   * can retry) and the error rides out on the outcome for the caller to show.
    */
-  async undo(): Promise<UndoCommand | null> {
-    const command = this.undoStack.pop();
-    if (!command) return null;
-    try {
-      await command.undo();
-    } catch (err) {
-      console.error("[UndoRedo] undo failed", err);
-    }
-    this.redoStack.push(command);
-    this.notify();
-    return command;
+  async undo(): Promise<UndoOutcome | null> {
+    return this.apply(this.undoStack, this.redoStack, "undo");
   }
 
   /** Re-apply the most recently undone command. Mirror of {@link undo}. */
-  async redo(): Promise<UndoCommand | null> {
-    const command = this.redoStack.pop();
+  async redo(): Promise<UndoOutcome | null> {
+    return this.apply(this.redoStack, this.undoStack, "redo");
+  }
+
+  private async apply(
+    from: UndoCommand[],
+    to: UndoCommand[],
+    direction: "undo" | "redo",
+  ): Promise<UndoOutcome | null> {
+    const next = from[from.length - 1];
+    if (!next) return null;
+    if (next.confirm && this.confirmGate) {
+      const ok = await this.confirmGate({
+        direction,
+        label: next.label,
+        confirm: next.confirm,
+      });
+      // Nothing moves on a "no", and nothing moves either if the stack changed
+      // while the question was open — the answer was about THAT command, and
+      // another write can land on top while a dialog waits.
+      if (!ok || from[from.length - 1] !== next) return null;
+    }
+    const command = from.pop();
     if (!command) return null;
     try {
-      await command.redo();
-    } catch (err) {
-      console.error("[UndoRedo] redo failed", err);
+      await command[direction]();
+    } catch (error) {
+      console.error(`[UndoRedo] ${direction} failed`, error);
+      from.push(command);
+      this.notify();
+      return { command, ok: false, error };
     }
-    this.undoStack.push(command);
+    to.push(command);
     this.notify();
-    return command;
+    return { command, ok: true };
   }
 
   canUndo(): boolean {

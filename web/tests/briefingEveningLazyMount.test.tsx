@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeAll, describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
   SyncContext,
@@ -22,10 +22,16 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
  * into every evening session whether or not anyone meant to write (#994 §8.5).
  *
  * Deliberately NOT importing RichTextEditor at the top of this file, unlike the
- * sibling suite briefingEveningSavedCaption.test.tsx: that one pre-imports to
- * keep TipTap's transform out of its waitFor budget, but here the ABSENCE of
- * the editor is the assertion, so warming it up front would hide the very
- * regression this guards. The one test that does mount it pays the transform.
+ * sibling suite briefingEveningSavedCaption.test.tsx: here the ABSENCE of the
+ * editor is the assertion, so the preview tests run with the module cold.
+ *
+ * The tests that DO mount it warm the module in their own beforeAll (#1673).
+ * Without that, the first of them paid TipTap's transform + import inside a
+ * `.tiptap` waitFor — against its 1s default — and failed with "expected null
+ * to be truthy" on 3 of 5 full `npm run test` runs, where 127 files share
+ * the CPU, while the single-file run stayed green. beforeAll waits for
+ * the import to settle with no clock but the hook timeout, so lazy() resolves
+ * from the module registry and the waitFor only covers React committing it.
  */
 
 const TODAY = todayDateKey();
@@ -90,7 +96,10 @@ async function renderEvening(content: string | null) {
   );
   const view = render(tree("evening"));
   await waitFor(() => expect(screen.getByText("CLOSING THE DAY")).toBeTruthy());
-  return { ...view, showTab: (tab: "morning" | "evening") => view.rerender(tree(tab)) };
+  return {
+    ...view,
+    showTab: (tab: "morning" | "evening") => view.rerender(tree(tab)),
+  };
 }
 
 /*
@@ -135,71 +144,85 @@ describe("Briefing evening reflection — editor mounts on request (#1115)", () 
     screen.getByText("How was your day…");
   });
 
-  it("mounts the editor when the reflection is pressed", async () => {
-    const view = await renderEvening(STORED);
-
-    fireEvent.click(screen.getByRole("button", { name: EDIT_LABEL }));
-
-    await waitFor(() =>
-      expect(view.container.querySelector(".tiptap")).toBeTruthy(),
-    );
-    // The preview is gone rather than stacked behind the editor.
-    expect(screen.queryByRole("button", { name: EDIT_LABEL })).toBeNull();
-    // The stored text came across into the editor — the swap is not a reset.
-    expect(view.container.querySelector(".tiptap")?.textContent).toContain(
-      "shipped the sweep",
-    );
-  });
-
-  it("puts the caret in the editor it just mounted", async () => {
-    // Without this the press reads as dead: the editor looks like the preview
-    // it replaced, and the next keystroke goes nowhere.
-    const view = await renderEvening(STORED);
-
-    fireEvent.click(screen.getByRole("button", { name: EDIT_LABEL }));
-
-    await waitFor(() => {
-      const tiptap = view.container.querySelector(".tiptap");
-      expect(tiptap).toBeTruthy();
-      expect(tiptap?.contains(document.activeElement)).toBe(true);
-    });
-  });
-
-  it("goes back to the preview when the paper is left and re-opened", async () => {
+  describe("once pressed", () => {
     /*
-     * The latch is scoped to the tab (and the day), not the session. Leaving
-     * the evening paper unmounts the editor either way, so a sticky latch
-     * would only mean the paper comes back already in edit mode — and, with
-     * the focus rule above, popping the on-screen keyboard on every return.
-     * Arriving at the evening paper should look the same every time.
+     * Runs after the preview tests above (vitest keeps declaration order), so
+     * they still see a cold module. The explicit timeout is the budget the
+     * transform used to steal from waitFor, sized for a loaded machine rather
+     * than the 5s test default.
      */
-    const view = await renderEvening(STORED);
-    fireEvent.click(screen.getByRole("button", { name: EDIT_LABEL }));
-    await waitFor(() =>
-      expect(view.container.querySelector(".tiptap")).toBeTruthy(),
-    );
+    beforeAll(async () => {
+      await import("../src/notes/RichTextEditor");
+    }, 60_000);
 
-    view.showTab("morning");
-    view.showTab("evening");
+    it("mounts the editor when the reflection is pressed", async () => {
+      const view = await renderEvening(STORED);
 
-    await waitFor(() => expect(screen.getByText("CLOSING THE DAY")).toBeTruthy());
-    screen.getByRole("button", { name: EDIT_LABEL });
-    expect(view.container.querySelector(".tiptap")).toBeNull();
-  });
+      fireEvent.click(screen.getByRole("button", { name: EDIT_LABEL }));
 
-  it("reaches the editor by keyboard alone", async () => {
-    // It is the ONLY way into the editor, so a pointer-only affordance would
-    // lock a keyboard user out of writing their evening page entirely.
-    const view = await renderEvening(STORED);
+      await waitFor(() =>
+        expect(view.container.querySelector(".tiptap")).toBeTruthy(),
+      );
+      // The preview is gone rather than stacked behind the editor.
+      expect(screen.queryByRole("button", { name: EDIT_LABEL })).toBeNull();
+      // The stored text came across into the editor — the swap is not a reset.
+      expect(view.container.querySelector(".tiptap")?.textContent).toContain(
+        "shipped the sweep",
+      );
+    });
 
-    const trigger = screen.getByRole("button", { name: EDIT_LABEL });
-    trigger.focus();
-    expect(document.activeElement).toBe(trigger);
-    fireEvent.keyDown(trigger, { key: "Enter" });
-    fireEvent.click(trigger); // what the browser synthesises for Enter on a button
+    it("puts the caret in the editor it just mounted", async () => {
+      // Without this the press reads as dead: the editor looks like the preview
+      // it replaced, and the next keystroke goes nowhere.
+      const view = await renderEvening(STORED);
 
-    await waitFor(() =>
-      expect(view.container.querySelector(".tiptap")).toBeTruthy(),
-    );
+      fireEvent.click(screen.getByRole("button", { name: EDIT_LABEL }));
+
+      await waitFor(() => {
+        const tiptap = view.container.querySelector(".tiptap");
+        expect(tiptap).toBeTruthy();
+        expect(tiptap?.contains(document.activeElement)).toBe(true);
+      });
+    });
+
+    it("goes back to the preview when the paper is left and re-opened", async () => {
+      /*
+       * The latch is scoped to the tab (and the day), not the session. Leaving
+       * the evening paper unmounts the editor either way, so a sticky latch
+       * would only mean the paper comes back already in edit mode — and, with
+       * the focus rule above, popping the on-screen keyboard on every return.
+       * Arriving at the evening paper should look the same every time.
+       */
+      const view = await renderEvening(STORED);
+      fireEvent.click(screen.getByRole("button", { name: EDIT_LABEL }));
+      await waitFor(() =>
+        expect(view.container.querySelector(".tiptap")).toBeTruthy(),
+      );
+
+      view.showTab("morning");
+      view.showTab("evening");
+
+      await waitFor(() =>
+        expect(screen.getByText("CLOSING THE DAY")).toBeTruthy(),
+      );
+      screen.getByRole("button", { name: EDIT_LABEL });
+      expect(view.container.querySelector(".tiptap")).toBeNull();
+    });
+
+    it("reaches the editor by keyboard alone", async () => {
+      // It is the ONLY way into the editor, so a pointer-only affordance would
+      // lock a keyboard user out of writing their evening page entirely.
+      const view = await renderEvening(STORED);
+
+      const trigger = screen.getByRole("button", { name: EDIT_LABEL });
+      trigger.focus();
+      expect(document.activeElement).toBe(trigger);
+      fireEvent.keyDown(trigger, { key: "Enter" });
+      fireEvent.click(trigger); // what the browser synthesises for Enter on a button
+
+      await waitFor(() =>
+        expect(view.container.querySelector(".tiptap")).toBeTruthy(),
+      );
+    });
   });
 });
