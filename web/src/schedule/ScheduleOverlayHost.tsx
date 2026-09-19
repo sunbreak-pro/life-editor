@@ -181,6 +181,9 @@ export function ScheduleOverlayHost({
   const detailFrameEl = (
     <ResponsiveDetailFrame
       wide={isWide}
+      // #1664: the editor lays its fields out in two columns on Desktop, which
+      // needs the wider panel — 512px would be two half-fields.
+      wideOverlay={isWide}
       // #889: the ITEM decides, not the pane. <ScheduleEventEditor> is an
       // element on every render now and answers the "is anything selected?"
       // question by rendering null from the inside, so the node can no longer

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Modal } from "../Modal";
+import { Modal, type ModalProps } from "../Modal";
 import type { ItemAction } from "./types";
 import { ItemActionRow } from "./ItemActionRow";
 
@@ -37,6 +37,12 @@ export interface ItemDetailOverlayProps {
   children: ReactNode;
   /** Optional footer actions (secondary operations under the form). */
   actions?: ItemAction[];
+  /**
+   * The Modal width (#1664). Default "lg" (512px) — the width every detail
+   * overlay had. A two-column body asks for "panel" (860px); at 512 the two
+   * columns are two unusable half-fields.
+   */
+  size?: ModalProps["size"];
   /** Extra classes for the Modal panel. */
   className?: string;
 }
@@ -48,6 +54,7 @@ export function ItemDetailOverlay({
   onClose,
   children,
   actions,
+  size = "lg",
   className,
 }: ItemDetailOverlayProps) {
   return (
@@ -56,7 +63,7 @@ export function ItemDetailOverlay({
       onClose={onClose}
       title={title}
       titleIcon={titleIcon}
-      size="lg"
+      size={size}
       className={className}
     >
       <div className="flex min-h-0 flex-col gap-4">

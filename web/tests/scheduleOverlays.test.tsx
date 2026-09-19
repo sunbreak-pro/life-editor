@@ -103,6 +103,7 @@ function renderOverlays(
 ) {
   const itemActions = {
     onRename: vi.fn(),
+    onRetime: vi.fn(),
     onDuplicate: vi.fn(),
     onConvertToTodo: vi.fn(),
     onDelete: vi.fn(),
@@ -282,6 +283,41 @@ describe("ScheduleOverlays — the single-click bubble", () => {
 
     fireEvent.click(screen.getByText("scheduleScreen.delete"));
     expect(itemActions.onDelete).toHaveBeenCalledWith(ITEM.id);
+  });
+
+  /*
+   * #1664 — the span, edited in the bubble.
+   *
+   * The point of it is not the field (TimeRangeField has its own suite) but
+   * the ROUTE: it goes through the host's update handler, so a repeat still
+   * raises the scope dialog and the write still lands on the undo history.
+   * Wiring it straight to the provider would have skipped both, silently.
+   */
+  it("edits the time span in place and hands the pair back together", () => {
+    const { itemActions } = renderOverlays({
+      popover: { state: POPOVER, selected: ITEM },
+    });
+
+    fireEvent.click(screen.getByText("scheduleScreen.editTime"));
+    const start = screen.getByLabelText("scheduleScreen.startTime");
+    fireEvent.change(start, { target: { value: "13:00" } });
+    fireEvent.keyDown(start, { key: "Enter" });
+
+    // ONE payload: the field owns the start < end invariant, so a host that
+    // wrote per field would fire two updates (and two scope dialogs) for one
+    // gesture.
+    expect(itemActions.onRetime).toHaveBeenCalledTimes(1);
+    expect(itemActions.onRetime.mock.calls[0][0]).toBe(ITEM.id);
+    expect(itemActions.onRetime.mock.calls[0][1]).toMatchObject({
+      start: "13:00",
+    });
+  });
+
+  it("offers no time edit on an all-day row", () => {
+    renderOverlays({
+      popover: { state: POPOVER, selected: { ...ITEM, isAllDay: true } },
+    });
+    expect(screen.queryByText("scheduleScreen.editTime")).toBeNull();
   });
 
   /*

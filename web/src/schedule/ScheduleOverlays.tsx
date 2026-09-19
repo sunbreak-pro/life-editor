@@ -17,10 +17,7 @@ import {
   type TagFilterPanelProps,
   type TodoCalendarChip,
 } from "@life-editor/shared";
-import {
-  SCHEDULE_ITEM_PANEL_WIDTH,
-  todoChipPanelModel,
-} from "./todoChipPanel";
+import { SCHEDULE_ITEM_PANEL_WIDTH, todoChipPanelModel } from "./todoChipPanel";
 import type {
   SchedulePopover,
   ScheduleCreatePanel,
@@ -57,6 +54,12 @@ import type {
 /** The single-click bubble's item actions (#299 / #551 / #625). */
 export interface ScheduleItemPopoverActions {
   onRename: (id: string, title: string) => void;
+  /**
+   * The time span, from the bubble (#1664). Routed through the host's update
+   * path, so a routine occurrence raises the scope dialog and the write lands
+   * on the undo history exactly as an edit from the detail panel does.
+   */
+  onRetime: (id: string, next: { start: string; end: string }) => void;
   onDuplicate: (id: string) => void;
   onConvertToTodo: (id: string) => void;
   onDelete: (id: string) => void;
@@ -212,6 +215,28 @@ export function ScheduleOverlays({
                 popover.itemActions.onRename(popover.state!.id, title),
             },
           },
+          // #1664: the span, without opening the detail panel. Hidden on an
+          // all-day row, which has no clock time to edit — the same rule the
+          // editor's own time pair follows.
+          ...(popover.selected.isAllDay
+            ? []
+            : [
+                {
+                  id: "retime",
+                  label: t("scheduleScreen.editTime"),
+                  inlineTimeRange: {
+                    start: popover.selected.startTime,
+                    end: popover.selected.endTime,
+                    labels: {
+                      start: t("scheduleScreen.startTime"),
+                      end: t("scheduleScreen.endTime"),
+                    },
+                    formatDuration: create.formatDuration,
+                    onCommit: (next: { start: string; end: string }) =>
+                      popover.itemActions.onRetime(popover.state!.id, next),
+                  },
+                },
+              ]),
           {
             id: "duplicate",
             label: t("scheduleScreen.duplicate"),

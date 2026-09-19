@@ -149,6 +149,9 @@ export function ScheduleEventEditor({
       // #995: narrow only — Desktop's <Modal> has no scroller for `sticky` to
       // resolve against.
       stickyFooter={!isWide}
+      // #1664: two columns on Desktop, one on the sheet — the sheet is ~360px
+      // wide, where a second column is two unusable half-fields.
+      twoColumn={isWide}
       labels={editorLabels}
       handlers={handlers}
       options={options}
