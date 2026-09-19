@@ -205,7 +205,12 @@ describe("pickWorkHistoryDay", () => {
         session({ id: 2, startedAt: at(17, 14) }),
         session({ id: 1, startedAt: at(17, 9) }),
         session({ id: 3, startedAt: at(17, 10), sessionType: "BREAK" }),
-        session({ id: 4, startedAt: at(17, 11), duration: 12, completed: false }),
+        session({
+          id: 4,
+          startedAt: at(17, 11),
+          duration: 12,
+          completed: false,
+        }),
         session({ id: 5, startedAt: at(16, 9) }),
       ],
       "2026-09-17",
@@ -244,6 +249,10 @@ describe("pickWorkHistoryDay", () => {
     expect(
       pickWorkHistoryDay([session({ duration: null })], "2026-09-17"),
     ).toBeNull();
+  });
+});
+
+/*
  * #1665 — the Schedule slot a free session is filed under. Local-time dates
  * for the same reason as above: the day and the clock times are the user's,
  * not UTC's.

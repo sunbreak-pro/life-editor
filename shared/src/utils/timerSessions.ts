@@ -133,6 +133,8 @@ export function pickWorkHistoryDay(
   const rows = byDay.get(dateKey) ?? [];
   rows.sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
   return { dateKey, sessions: rows };
+}
+
 /** Where a free session lands on the calendar (#1665). */
 export interface FreeSessionSlot {
   /** Local `YYYY-MM-DD` of the day the session STARTED on. */
