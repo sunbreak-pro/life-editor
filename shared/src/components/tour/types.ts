@@ -55,6 +55,25 @@ export interface TourStep {
    * is still the fallback #1122 built the probe around.
    */
   readonly fallbackAnchor?: string;
+  /**
+   * A container the host must open before this step's anchor can exist
+   * (#1748 — the names live in `TOUR_REVEALS`).
+   *
+   * `fallbackAnchor` answers "this control is not durable here, point
+   * somewhere else"; this answers the other case — the control IS the right
+   * target and is simply behind something shut. The Schedule detail panel
+   * seeds closed every session (RightSidebarContext does not persist
+   * `isOpen`), so the three todo steps' anchors were not in the document at
+   * all and the probe skipped all three on a desktop where the lesson is
+   * perfectly teachable.
+   *
+   * A STRING the host interprets, not a callback: steps stay data (see the
+   * file header), and the host is the only party that knows whether opening
+   * that container actually makes the step readable at the current width.
+   * A host that does not recognise the name, or declines it, leaves the step
+   * exactly as it was before this field existed — skipped.
+   */
+  readonly reveal?: string;
   /** Catalog key for the step's copy. The host resolves it — shared
    *  primitives never call useTranslation (§6.4). */
   readonly copyKey: TranslationKey;
