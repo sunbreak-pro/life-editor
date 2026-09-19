@@ -316,6 +316,18 @@
       "save": "Save",
       "saved": "Saved",
       "unsaved": "Unsaved"
+    },
+    "sidebarTabs": {
+      "label": "Work sidebar",
+      "settings": "Timer settings",
+      "history": "History"
+    },
+    "history": {
+      "today": "Today",
+      "latestDay": "Latest work day · {{date}}",
+      "empty": "No work sessions yet. Finished sessions will show up here.",
+      "noTarget": "No linked item",
+      "minutes": "{{minutes}} min"
     }
   },
   "audioMixer": {

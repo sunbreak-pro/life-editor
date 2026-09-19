@@ -316,6 +316,18 @@
       "save": "保存",
       "saved": "保存済み",
       "unsaved": "未保存"
+    },
+    "sidebarTabs": {
+      "label": "Work のサイドバー",
+      "settings": "タイマー設定",
+      "history": "履歴"
+    },
+    "history": {
+      "today": "今日",
+      "latestDay": "直近の作業日 · {{date}}",
+      "empty": "まだ作業の記録がありません。終えたセッションがここに並びます。",
+      "noTarget": "紐づけなし",
+      "minutes": "{{minutes}} 分"
     }
   },
   "audioMixer": {
