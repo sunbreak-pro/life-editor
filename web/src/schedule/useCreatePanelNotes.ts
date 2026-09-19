@@ -7,6 +7,7 @@ import {
   type ItemCreateNoteDraft,
   type ItemCreateOption,
   type NoteNode,
+  type UndoRedoLike,
 } from "@life-editor/shared";
 
 /*
@@ -51,6 +52,14 @@ export interface UseCreatePanelNotesOptions {
    * that quietly has no note attached.
    */
   onAttachError: () => void;
+  /**
+   * The global undo stack's push (#1638), optional as everywhere else. The
+   * note and its link are a second act on top of the item's own creation, so
+   * they get their own command: one Ctrl+Z takes the note back off, a second
+   * removes the item (A-08 / B-04 — the create's undo used to leave the note
+   * behind as an orphan).
+   */
+  push?: UndoRedoLike["push"];
 }
 
 /** Notes offered by the picker: live notes, newest-touched first. */
@@ -65,9 +74,10 @@ export function useCreatePanelNotes({
   dataService,
   active,
   onAttachError,
+  push,
 }: UseCreatePanelNotesOptions) {
   const syncVersion = useSyncDomains("notes");
-  const { createItemLink } = useWikiTagsUnifiedContext();
+  const { createItemLink, deleteItemLink } = useWikiTagsUnifiedContext();
   // Kept across closes so re-opening the panel shows the last list at once;
   // the effect below refreshes it behind that.
   const [notes, setNotes] = useState<ItemCreateOption[]>([]);
@@ -128,14 +138,49 @@ export function useCreatePanelNotes({
             });
             noteId = id;
           }
-          if (noteId) await createItemLink(itemId, noteId);
+          if (!noteId) return;
+          const link = await createItemLink(itemId, noteId);
+          /*
+           * #1638 (A-08): pushed once BOTH writes landed, so a failed attach
+           * leaves nothing to undo. The undo drops the link and, for a note
+           * this panel created, trashes the note as well — a note the user
+           * picked from the list existed before and stays.
+           *
+           * The redo re-links rather than re-creating: the note row is
+           * restored, so a second create would leave a duplicate behind.
+           */
+          const createdNoteId = draft.kind === "new" ? noteId : null;
+          let liveLinkId = link.id;
+          push?.("scheduleItem", {
+            label: "createScheduleItem",
+            undo: async () => {
+              try {
+                await deleteItemLink(liveLinkId);
+                if (createdNoteId)
+                  await dataService.softDeleteNoteUnified(createdNoteId);
+              } catch (e) {
+                console.error("[Schedule] undoing the note attach failed", e);
+                onAttachError();
+              }
+            },
+            redo: async () => {
+              try {
+                if (createdNoteId)
+                  await dataService.restoreNoteUnified(createdNoteId);
+                liveLinkId = (await createItemLink(itemId, noteId)).id;
+              } catch (e) {
+                console.error("[Schedule] redoing the note attach failed", e);
+                onAttachError();
+              }
+            },
+          });
         } catch (e) {
           console.error("[Schedule] attaching the note failed", e);
           onAttachError();
         }
       })();
     },
-    [dataService, createItemLink, onAttachError],
+    [dataService, createItemLink, deleteItemLink, onAttachError, push],
   );
 
   return { notes, notesError, attachNote };

@@ -583,7 +583,7 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
         .map((id) => findItem(id))
         .filter((i): i is ScheduleItem => i != null);
       setItems((prev) => prev.filter((i) => !idSet.has(i.id)));
-      let count = 0;
+      let count: number;
       try {
         count = await ds.bulkDeleteScheduleItems(ids);
       } catch (e) {
