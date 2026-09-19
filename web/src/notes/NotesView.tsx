@@ -26,7 +26,7 @@ import {
   resolveRecentNotes,
   dateKeyOfInstant,
 } from "@life-editor/shared";
-import { useNoteTagDnd } from "./useNoteTagDnd";
+import { useNoteTagDnd, planTagMove, type NoteTagMove } from "./useNoteTagDnd";
 import { useAttachmentUpload } from "./useAttachmentUpload";
 import { NoteBodyEditor } from "./NoteBodyEditor";
 import { NotePasswordDialog } from "./NotePasswordDialog";
@@ -138,7 +138,8 @@ export function NotesView({
   // #409 moved tag MUTATION (create / rename / delete / color / icon) out of
   // this view and into the shell-level tag editor, so only the read side and
   // the per-note assign/link calls are needed here now.
-  const { getTagsForItem, assignTagToItem } = useWikiTagsUnifiedContext();
+  const { getTagsForItem, assignTagToItem, unassignTagFromItem } =
+    useWikiTagsUnifiedContext();
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
   const rightSidebar = useRightSidebarContext();
@@ -211,18 +212,30 @@ export function NotesView({
     onConsumePendingSelect,
   });
 
-  const handleAssignTag = useCallback(
-    (noteId: string, tagId: string) => {
-      const already = getTagsForItem(noteId).some(
-        (a) => !a.isDeleted && a.tagId === tagId,
-      );
-      if (already) return;
-      void assignTagToItem(noteId, tagId);
+  // #1687 folded the old `handleAssignTag` into the move below: the drop is no
+  // longer "add this tag", so the de-dupe it did now lives in `planTagMove`
+  // alongside the removal it has to be decided with.
+
+  /*
+   * A drop in the side list MOVES the note between headings (#1687): the tag
+   * of the heading it came from goes, the tag of the heading it landed on
+   * arrives. Either end can be the untagged bucket, which is why both are
+   * nullable — out of untagged is an add, into untagged is a remove.
+   *
+   * The remove goes through the ASSIGNMENT id, which is the only thing
+   * `unassignTagFromItem` takes; a row that is already gone (a stale drag
+   * after a sync) simply finds nothing and the add still happens.
+   */
+  const handleTagMove = useCallback(
+    (move: NoteTagMove) => {
+      const plan = planTagMove(move, getTagsForItem(move.noteId));
+      if (plan.unassignId) void unassignTagFromItem(plan.unassignId);
+      if (plan.assignTagId) void assignTagToItem(move.noteId, plan.assignTagId);
     },
-    [getTagsForItem, assignTagToItem],
+    [getTagsForItem, unassignTagFromItem, assignTagToItem],
   );
 
-  const dnd = useNoteTagDnd({ notes: notes.notes, onAssign: handleAssignTag });
+  const dnd = useNoteTagDnd({ notes: notes.notes, onMove: handleTagMove });
 
   // Saved templates: the sidebar disclosure + the draft the centre panel edits
   // (#1180). Reads and writes go straight out through the DataService — see the
@@ -587,7 +600,8 @@ export function NotesView({
         deleteNote: t("materials.notes.deleteNote"),
         assignTagHint: t("materials.notes.assignTagHint"),
         clearTagFilter: t("materials.notes.tagFilterClear"),
-        moreTagFilters: (count) => t("materials.notes.tagFilterMore", { count }),
+        moreTagFilters: (count) =>
+          t("materials.notes.tagFilterMore", { count }),
         fewerTagFilters: t("materials.notes.tagFilterLess"),
         moreRows: (count) => t("materials.notes.groupMoreRows", { count }),
       }}

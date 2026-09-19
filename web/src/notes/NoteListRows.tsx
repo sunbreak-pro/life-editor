@@ -9,7 +9,7 @@ import {
   type NoteTagGroup,
   FOCUS_RING,
 } from "@life-editor/shared";
-import { tagDroppableId } from "./useNoteTagDnd";
+import { tagDroppableId, UNTAGGED_DROP_ID } from "./useNoteTagDnd";
 
 /*
  * Desktop side-list rows for the Notes tab (extracted from NotesView.tsx —
@@ -168,10 +168,10 @@ export const DesktopTagHeading = memo(function DesktopTagHeading({
   expandLabel: string;
 }) {
   const isUntagged = group.tagId === null;
-  // Untagged is a no-op drop target: disabled so it never becomes `over`.
+  // Untagged is a real target since #1687: dropping there removes the tag of
+  // the heading the row was dragged out of (not every tag it has).
   const { setNodeRef, isOver } = useDroppable({
-    id: isUntagged ? "note-untagged-nodrop" : tagDroppableId(group.tagId!),
-    disabled: isUntagged,
+    id: isUntagged ? UNTAGGED_DROP_ID : tagDroppableId(group.tagId!),
   });
 
   // Divider-style heading (#311): [tag icon] [color-band name] [count] ——rule.
