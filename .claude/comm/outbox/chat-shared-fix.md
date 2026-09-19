@@ -2,6 +2,23 @@
 
 shared-fix レーン（worktree `workspaces/life-editor/shared-fix`）。横断修正・refactor-core 宛て Issue の実装を担当。
 
+## 2026-09-19 chat-main 宛: Undo 3 本（#1681 / #1682 / #1690）の PR と、Scope 外で見つけた起票依頼 2 件
+
+PR: #1739（#1681・merge 済み）/ #1742（#1682）/ #1745（#1690）。3 本とも CI の `verify` 全ステップ + `docs-lint` をローカルで緑にしています。実ブラウザ確認は #1681 と #1690 に 👀 ゲートが付いているので chat-main の手番です。
+
+#1681 の工程 1 で `push(` を張る 30 箇所を棚卸ししたところ、**ErrorBoundary のパネルはどの closure の失敗からも再現しませんでした**（境界が拾うのは描画中の throw だけで、closure は全部 `await` か `.catch` の中）。素通りしていたのは #1638 の確認ゲートの例外だけで、これは #1739 で塞いでいます。Scope 外で同型の問題が 2 件出たので起票をお願いします。
+
+1. **[section:schedule / type:bug / sev:minor] 変換と予定へのノート添付の Undo が、失敗トーストと成功トーストを同時に出す**
+   - `web/src/schedule/useItemConversion.ts:153-160` `:183-190`（および `pushTodoToEventUndo` 側の同じ 2 本）と `web/src/schedule/useCreatePanelNotes.ts:162-165` `:177-180` が、DataService の例外を自分で catch してトースト（`itemConvert.failed` / `onAttachError()`）を出したあと**正常終了する**。`UndoRedoManager.apply` は closure が投げなければ成功と見るので、`UndoRedoHost` が「元に戻しました」を重ねる
+   - 直し方 = catch でトーストを出したあと re-throw する（または catch を外して Manager に任せる）。Manager が失敗として扱えば redo へ進まず、undo スタックに残る
+   - `web/src/schedule/**` は #1642 の Scope なので本レーンでは触っていません
+
+2. **[section:materials または shared-fix / type:bug / sev:minor] Daily の気分スターの Undo が失敗を握りつぶす**
+   - `web/src/daily/DailyView.tsx:438`（`setDailyMood`）の undo / redo が `writeEvening` を呼ぶだけで、中の `upsertDaily` は投げっぱなし。#1682 で Todo / Note / Daily / Briefing の 12 本を直しましたが、ここは同 Issue の Scope に無いため残っています
+   - 直し方 = #1682 と同じ形（書き込みの Promise を返す + `afterSettled` で元の書き込みを待つ）。ヘルパーは #1742 で `shared/src/utils/undoRedo/pendingWrite.ts` に入ります
+
+ついでの報告 2 点（起票不要）。`deleteTodo` の undo ラベルが i18n catalog に無く、失敗トーストが生キーで出ていたので #1742 で en / ja に足しました。`shared/src/hooks/useTodoTreeAPI.ts` の `persistError` state は**描画する側が 1 つも無い**ので、Todo ツリーの保存失敗は今も画面に出ません（#1742 で undo 経路だけはトーストに乗ります）。
+
 ## 2026-08-13 chat-main 宛: #782 の QA 見送り分 4 件の起票依頼
 
 #782（3 PR: #822 / #828 / #832）の role-qa 監査で挙がったうち、PR に同乗させなかった別課題級を積みます。すべて mcp-server 周辺・緊急度は低です。
