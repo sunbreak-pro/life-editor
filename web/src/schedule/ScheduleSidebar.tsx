@@ -137,8 +137,10 @@ export interface ScheduleSidebarTodo {
   /** Open an UNSCHEDULED row's detail (#1153). */
   onOpenAddable: (id: string) => void;
   onDelete: (id: string) => void;
-  /** Make a todo with no day yet (#1153). */
+  /** Make a todo with no day yet (#1153) — the "その他" heading's pill. */
   onAdd: () => void;
+  /** Make a todo on today (#1640) — the "今日の Todo" heading's pill. */
+  onAddToday: () => void;
 }
 
 /**
@@ -359,13 +361,6 @@ export function ScheduleSidebar({
       {...tourAnchor(TOUR_ANCHORS.scheduleTodoBoard)}
       className="flex flex-col gap-2"
     >
-      <div className="flex shrink-0 items-center justify-end">
-        <AddPill
-          onClick={todo.onAdd}
-          label={t("scheduleScreen.todoAddCta")}
-          tourId={TOUR_ANCHORS.scheduleTodoAdd}
-        />
-      </div>
       <TodayTodoTray
         placed={todo.placed}
         unplaced={todo.unplaced}
@@ -384,6 +379,28 @@ export function ScheduleSidebar({
         addableControls
         draggableAddable={isWide}
         renderRowExtra={(row) => <TagPicker itemId={row.id} />}
+        /*
+         * #1640: a pill per heading, so each list is added to from where it is
+         * read. The one over "その他" makes a todo with no day (what the single
+         * pill above the tray did until now, tour anchor included — the tour's
+         * create step still points at the control that MAKES one); the one over
+         * "今日の Todo" makes it on today.
+         */
+        headingActions={{
+          placed: (
+            <AddPill
+              onClick={todo.onAddToday}
+              label={t("scheduleScreen.todoAddTodayCta")}
+            />
+          ),
+          addable: (
+            <AddPill
+              onClick={todo.onAdd}
+              label={t("scheduleScreen.todoAddCta")}
+              tourId={TOUR_ANCHORS.scheduleTodoAdd}
+            />
+          ),
+        }}
         labels={{
           placedHeading: t("scheduleScreen.todoTodayHeading"),
           emptyPlaced: t("scheduleScreen.todoEmptyToday"),

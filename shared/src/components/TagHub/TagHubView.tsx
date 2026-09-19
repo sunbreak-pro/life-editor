@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import type { ReactNode } from "react";
 import { ChevronLeft, Pencil, Tags } from "lucide-react";
 import { cn } from "../cn";
 import { EmptyState } from "../EmptyState";
@@ -87,6 +88,17 @@ export interface TagHubViewProps {
   onCreateTag?: (name: string) => void;
   /** Rail "…" → merge this tag into another (#1644). */
   onMergeTag?: (tagId: string) => void;
+
+  /*
+   * Bulk selection (#1644). The host owns which rows are checked and draws the
+   * bar (it holds the writes); the view places the checkboxes and docks the
+   * bar under the items. The host passes none of it on narrow.
+   */
+  checkedItemIds?: ReadonlySet<string>;
+  onToggleItemChecked?: (itemId: string) => void;
+  formatSelectItem?: (title: string) => string;
+  /** The docked bar, drawn under the items while a tag is open. */
+  selectionBar?: ReactNode;
 }
 
 export function TagHubView({
@@ -113,6 +125,10 @@ export function TagHubView({
   onDeleteTag,
   onCreateTag,
   onMergeTag,
+  checkedItemIds,
+  onToggleItemChecked,
+  formatSelectItem,
+  selectionBar,
 }: TagHubViewProps) {
   /*
    * The empty state's "add a tag" button and the rail's add FIELD are the same
@@ -278,11 +294,15 @@ export function TagHubView({
                 formatCount={formatCount}
                 wide={wide}
                 labels={labels}
+                checkedIds={checkedItemIds}
+                onToggleChecked={onToggleItemChecked}
+                formatSelectItem={formatSelectItem}
               />
             )}
           </>
         )}
       </div>
+      {selected && selectionBar}
     </div>
   );
 

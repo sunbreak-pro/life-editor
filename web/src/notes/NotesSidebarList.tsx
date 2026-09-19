@@ -35,10 +35,11 @@ import { TreeDragGhost } from "../components/TreeDragGhost";
  * is shared with the Mobile surface, so it has to stay in the host — computing
  * it here would give the two breakpoints separate copies of the same state.
  *
- * DnD: drag a note onto a tag heading = assign that tag. The untagged bucket is
- * NOT a drop target (dropping there would mean "remove all tags" — destructive,
- * so a no-op). No reorder / move-into: sort_order carries no meaning across the
- * many-to-many tag model.
+ * DnD: drag a note onto a tag heading = MOVE it there (#1687) — the tag of the
+ * heading it came from goes, the tag it landed on arrives. The untagged bucket
+ * is a target too, and dropping there removes only that one tag rather than
+ * every tag the note has. No reorder / move-into: sort_order carries no meaning
+ * across the many-to-many tag model.
  */
 
 export interface NotesSidebarListLabels {
@@ -231,7 +232,10 @@ export function NotesSidebarList({
          * the answer to "nothing matched" is another word, and the toolbar
          * pill above is still there for anyone who did mean to create.
          */
-        <EmptyState icon={<Search aria-hidden />} message={labels.searchEmpty} />
+        <EmptyState
+          icon={<Search aria-hidden />}
+          message={labels.searchEmpty}
+        />
       ) : !hasNotes ? (
         <EmptyState
           icon={<FileText aria-hidden />}
