@@ -1028,7 +1028,8 @@
     "download": "Download",
     "remove": "Remove attachment",
     "tooLarge": "That file is too large. The limit is {{limit}}.",
-    "uploadFailed": "Could not upload that file. Please try again."
+    "uploadFailed": "Could not upload that file. Please try again.",
+    "uploading": "Uploading…"
   },
   "linkCard": {
     "open": "Open link",
