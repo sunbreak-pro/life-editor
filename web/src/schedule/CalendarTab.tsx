@@ -41,6 +41,7 @@ import {
 } from "./useScheduleOverlays";
 import { useItemConversion } from "./useItemConversion";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
+import { useTodoTabFilter } from "./useTodoTabFilter";
 import { todoAddCandidateWrite } from "./todoChipUndoWiring";
 import { useScheduleRepeats } from "./useScheduleRepeats";
 import { useScheduleGridFilters } from "./useScheduleGridFilters";
@@ -926,6 +927,26 @@ export function CalendarTab({
   });
 
   /*
+   * #1641: the Todo tab's filter — which of the two lists, and which tags.
+   * Independent of the grid's own lens (useScheduleGridFilters): narrowing the
+   * tray to read it must not empty the calendar beside it.
+   */
+  const todoTabFilter = useTodoTabFilter(allAssignments);
+  const todoFilterTags = useMemo(
+    () =>
+      allTags
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((tag) => ({
+          id: tag.id,
+          name: tag.name,
+          color: tag.color,
+          icon: tag.icon,
+        })),
+    [allTags],
+  );
+
+  /*
    * #1678: "edit detail" pressed on a repeat row. The jump only FETCHES the
    * day, so the occurrence's id arrives with the range — this holds the
    * routine id until a row of that series shows up on the anchored day, then
@@ -1079,8 +1100,15 @@ export function CalendarTab({
           onOpenTodo: setTodoDetailId,
           onOpenAddable: setTodoDetailId,
           onDelete: handleTodoDelete,
+          // #1640 moved the single create pill into the two headings, so the
+          // tab has one per list and each says which list it adds to.
           onAdd: () => setTodoAddTarget("other"),
           onAddToday: () => setTodoAddTarget("today"),
+          // #1641: the tab's own filter. The state lives here so the sidebar
+          // stays Provider-free; the rows above are handed over unfiltered and
+          // the panel narrows them.
+          filter: todoTabFilter,
+          filterTags: todoFilterTags,
         }}
       />
     </RightSidebarPortal>

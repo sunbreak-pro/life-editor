@@ -45,6 +45,27 @@ vi.mock("../src/wikitag/TagPicker", () => ({
   TagPicker: ({ itemId }: { itemId: string }) => <span>tag:{itemId}</span>,
 }));
 
+/**
+ * A filter with nothing narrowing it (#1641). `apply` hands the rows straight
+ * back, which is what the rest of the suite expects to see on screen.
+ */
+type TodoFilterProp = ScheduleSidebarProps["todo"]["filter"];
+
+function makeFilter(over: Partial<TodoFilterProp> = {}): TodoFilterProp {
+  return {
+    scope: "both",
+    setScope: vi.fn(),
+    tagIds: [],
+    toggleTag: vi.fn(),
+    clear: vi.fn(),
+    activeCount: 0,
+    showToday: true,
+    showOther: true,
+    apply: (rows) => rows,
+    ...over,
+  };
+}
+
 const TABS = [
   { id: "flow", label: "Flow" },
   { id: "todo", label: "Todo" },
@@ -109,6 +130,10 @@ function makeProps(
       onDelete: vi.fn(),
       onAdd: vi.fn(),
       onAddToday: vi.fn(),
+      // #1641: the tab's filter is the host's state. Off by default here, so
+      // every case that is not about it sees the rows it passes in.
+      filter: makeFilter(),
+      filterTags: [],
       ...over.todo,
     },
   };
@@ -442,6 +467,25 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
     expect(onAddToday).toHaveBeenCalledTimes(1);
   });
 
+  /*
+   * #1641 x #1640. The filter row used to carry a create pill of its own,
+   * back when the tab had one row with the single pill in it. #1640 moved
+   * that pill into the two list headings, so a pill left in the filter row
+   * would be a second control doing the same thing — and a second DOM node
+   * carrying the tour anchor, which `resolveTourAnchor` resolves by taking
+   * the first match. The tour would silently point at the wrong button.
+   */
+  it("keeps the filter row free of a create pill", () => {
+    render(<ScheduleSidebar {...withTray()} />);
+    expect(screen.getAllByText("scheduleScreen.todoAddCta")).toHaveLength(1);
+    expect(
+      document.querySelectorAll("[data-tour-id='schedule-todo-add']"),
+    ).toHaveLength(1);
+    // The pill that IS there heads the "その他" list, not the filter row.
+    const pill = screen.getByText("scheduleScreen.todoAddCta");
+    expect(pill.closest("[data-todo-filter-row]")).toBeNull();
+  });
+
   it("keeps the create pill off the other tabs", () => {
     // It creates a TODO. On the flow or the repeat list it would read as
     // creating whatever that tab is showing.
@@ -559,5 +603,125 @@ describe("ScheduleSidebar — the flow tab as narrow's day list (#1148)", () => 
 
     render(<ScheduleSidebar {...makeProps()} />);
     expect(screen.queryByText("add-cta")).toBeNull();
+  });
+});
+
+/*
+ * #1641 — the Todo tab's filter button, its panel, and what the tab says when
+ * the filter hides everything.
+ *
+ * The STATE is the host's (CalendarTab owns it so this component keeps
+ * rendering without a Provider); what is pinned here is that the button
+ * reports the count, the panel is a disclosure rather than a second surface,
+ * and an empty list caused by a filter never reads as an empty list.
+ */
+describe("ScheduleSidebar — the Todo tab's filter (#1641)", () => {
+  const rows = {
+    placed: [{ id: "task-1", title: "Placed", completed: false }],
+    unplaced: [],
+    addable: [{ id: "task-2", title: "Other" }],
+  };
+
+  it("offers the filter button, quiet while nothing is narrowing", () => {
+    render(
+      <ScheduleSidebar {...makeProps({ tab: "todo", todo: { ...rows } })} />,
+    );
+    screen.getByRole("button", { name: "scheduleScreen.todoFilterOpen" });
+    expect(document.querySelector("[data-todo-filter-count]")).toBeNull();
+  });
+
+  it("reports the count once something is narrowing", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: { ...rows, filter: makeFilter({ activeCount: 2 }) },
+        })}
+      />,
+    );
+    screen.getByRole("button", { name: "scheduleScreen.todoFilterActive" });
+    expect(
+      document.querySelector("[data-todo-filter-count]")?.textContent,
+    ).toBe("2");
+  });
+
+  it("opens and closes the panel from the same button", () => {
+    render(
+      <ScheduleSidebar {...makeProps({ tab: "todo", todo: { ...rows } })} />,
+    );
+    const btn = screen.getByRole("button", {
+      name: "scheduleScreen.todoFilterOpen",
+    });
+    expect(
+      screen.queryByLabelText("scheduleScreen.todoFilterPanel"),
+    ).toBeNull();
+
+    fireEvent.click(btn);
+    screen.getByLabelText("scheduleScreen.todoFilterPanel");
+
+    fireEvent.click(btn);
+    expect(
+      screen.queryByLabelText("scheduleScreen.todoFilterPanel"),
+    ).toBeNull();
+  });
+
+  it("hides a whole list — heading included — when the scope picks one", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: {
+            ...rows,
+            filter: makeFilter({
+              scope: "today",
+              activeCount: 1,
+              showOther: false,
+              apply: (r: Parameters<TodoFilterProp["apply"]>[0]) => ({
+                ...r,
+                addable: [],
+              }),
+            }),
+          },
+        })}
+      />,
+    );
+    screen.getByText("scheduleScreen.todoTodayHeading");
+    // Not just the rows: a heading over nothing would say "no others today",
+    // which is a different claim than "you are not looking at them".
+    expect(screen.queryByText("scheduleScreen.todoOthersHeading")).toBeNull();
+  });
+
+  it("says when the filter hid everything, and offers the way back", () => {
+    const clear = vi.fn();
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: {
+            ...rows,
+            filter: makeFilter({
+              activeCount: 1,
+              clear,
+              apply: () => ({ placed: [], unplaced: [], addable: [] }),
+            }),
+          },
+        })}
+      />,
+    );
+    screen.getByText("scheduleScreen.todoFilterEmpty");
+    fireEvent.click(screen.getAllByText("scheduleScreen.todoFilterClear")[0]);
+    expect(clear).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays quiet about an empty list nobody filtered", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: { placed: [], unplaced: [], addable: [] },
+        })}
+      />,
+    );
+    expect(screen.queryByText("scheduleScreen.todoFilterEmpty")).toBeNull();
   });
 });
