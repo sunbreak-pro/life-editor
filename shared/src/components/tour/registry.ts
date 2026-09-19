@@ -1,5 +1,5 @@
 import type { SectionId } from "../../sections";
-import { TOUR_ACTIONS, TOUR_ANCHORS } from "./anchors";
+import { TOUR_ACTIONS, TOUR_ANCHORS, TOUR_REVEALS } from "./anchors";
 import type { TourStep } from "./types";
 
 /*
@@ -100,6 +100,10 @@ export const TOUR_STEPS = [
     // z-45 and MobileDrawer is z-50, so once that drawer opens the bubble is
     // painted underneath it. Steps 4/5/6 anchor INSIDE the drawer and are
     // therefore only ever "found" in the state where they cannot be read.
+    // #1748 gave those three a `reveal` and fixed them on DESKTOP, where the
+    // same panel is a push-in aside that covers nothing; the web host declines
+    // the reveal on narrow for exactly the z-order reason above, so a phone
+    // still skips them rather than being handed an unreadable step.
     fallbackAnchor: TOUR_ANCHORS.scheduleCalendar,
     copyKey: "tour.steps.scheduleCreateEvent",
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleEventCreated },
@@ -113,16 +117,43 @@ export const TOUR_STEPS = [
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleEventTimeChanged },
   },
   {
+    // THE THREE `reveal` ROWS (#1748). All three anchors are carried by
+    // ScheduleSidebar, which renders only through <RightSidebarPortal> — and
+    // that portal has no target while the detail panel is shut. The panel
+    // seeds closed every session, so on a fresh desktop run these three were
+    // never in the document, each spent the 2.5s deadline, and the tour went
+    // 1/10 → 3/10 → 7/10 without ever teaching todos. Opening the panel by
+    // hand first made all three appear, which is the whole diagnosis.
+    //
+    // Only the panel is named, not the todo TAB, and that is deliberate: the
+    // tab band is drawn whichever tab is showing, so this step's own anchor is
+    // there the moment the panel opens — and clicking that tab is exactly what
+    // this step asks for, which is what puts the next two anchors in the
+    // document. Revealing the tray as well would do the step's lesson for it.
+    //
+    // Rejected: making this an ordinary "press here to open the panel" step.
+    // It reads fine on desktop and fails on narrow, where the same panel is a
+    // MobileDrawer at z-50 over the z-45 bubble — the user would obey the step
+    // and lose the instructions. It also grows `totalSteps` for a lesson that
+    // is not one, and it cannot serve #1250's drawer case, which the Issue
+    // asks the mechanism to be reusable for.
     id: "schedule-open-todos",
     section: "schedule",
     anchor: TOUR_ANCHORS.scheduleTodoTab,
+    reveal: TOUR_REVEALS.detailPanel,
     copyKey: "tour.steps.scheduleOpenTodos",
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoTabOpened },
   },
   {
+    // Also revealed, and not only because the previous step leaves the panel
+    // open: a RESUMED run starts at the stored step with a fresh, shut panel,
+    // and #1193's backward give-up exists precisely because that state is what
+    // a reload destroys. Declaring it here is what lets the run land instead
+    // of walking backwards out of the section.
     id: "schedule-create-todo",
     section: "schedule",
     anchor: TOUR_ANCHORS.scheduleTodoAdd,
+    reveal: TOUR_REVEALS.detailPanel,
     copyKey: "tour.steps.scheduleCreateTodo",
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoCreated },
   },
@@ -135,6 +166,7 @@ export const TOUR_STEPS = [
     id: "schedule-complete-todo",
     section: "schedule",
     anchor: TOUR_ANCHORS.scheduleTodoBoard,
+    reveal: TOUR_REVEALS.detailPanel,
     copyKey: "tour.steps.scheduleCompleteTodo",
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoCompleted },
   },
@@ -216,4 +248,5 @@ export function tourSectionIds(
  * applied to a set. Order follows the registry, so the menu reads in the order
  * the full walkthrough walks.
  */
-export const TOUR_SECTION_IDS: readonly SectionId[] = tourSectionIds(TOUR_STEPS);
+export const TOUR_SECTION_IDS: readonly SectionId[] =
+  tourSectionIds(TOUR_STEPS);

@@ -103,6 +103,22 @@ export interface TourProviderProps {
    */
   onNavigateToSection?: (section: SectionId) => void;
   /**
+   * Open whatever a step names in `reveal`, so its anchor can exist (#1748).
+   *
+   * Injected for the same reason `onNavigateToSection` is: the containers are
+   * the host's state, and shared must not reach into it. Called once the tour
+   * is standing in the step's section and BEFORE the probe's deadline starts,
+   * so the open has the whole wait to take effect rather than racing it.
+   *
+   * DECLINING IS A REAL ANSWER. The host may recognise a name and still do
+   * nothing — the narrow MobileDrawer is z-50 over the z-45 bubble, so opening
+   * it there would hand the user a step they cannot read and cannot leave.
+   * Not opening it costs the step, which is exactly what happened before this
+   * prop existed. Hence no return value: "did it work" is answered by the
+   * probe finding the anchor or not.
+   */
+  onRevealStep?: (reveal: string) => void;
+  /**
    * Offer the tour on mount when it has neither been completed nor skipped
    * (#1123 — the web host passes true; see AppProviders).
    *
@@ -126,6 +142,7 @@ export function TourProvider({
   steps = TOUR_STEPS,
   currentSection,
   onNavigateToSection,
+  onRevealStep,
   autoStart = false,
   anchorTimeoutMs = TOUR_ANCHOR_TIMEOUT_MS,
   children,
@@ -167,6 +184,7 @@ export function TourProvider({
    *  `stepsRef` may be holding one section's slice of it. */
   const allStepsRef = useRef(steps);
   const navigateRef = useRef(onNavigateToSection);
+  const revealRef = useRef(onRevealStep);
   const progressRef = useRef(progress);
   /** Has any step actually been displayed since `start()`? */
   const shownAnyRef = useRef(false);
@@ -211,6 +229,7 @@ export function TourProvider({
     stepsRef.current = activeSteps;
     allStepsRef.current = steps;
     navigateRef.current = onNavigateToSection;
+    revealRef.current = onRevealStep;
     progressRef.current = progress;
     currentSectionRef.current = currentSection;
   });
@@ -535,6 +554,21 @@ export function TourProvider({
       }
       navigate(step.section);
       navigatedRef.current = true;
+    }
+
+    /*
+     * Ask the host to open what the step needs, before the clock starts
+     * (#1748). Only once we are STANDING in the step's section: the container
+     * belongs to that section's screen, so opening it from another one either
+     * does nothing or opens the wrong screen's panel. The effect re-runs when
+     * `currentSection` lands, and this line runs again then.
+     *
+     * Once per effect run, not once per frame — `open()` is idempotent but a
+     * per-frame call would re-open a panel the user deliberately shut while
+     * the step was up, and fight them for the whole deadline.
+     */
+    if (step.reveal && step.section === currentSection) {
+      revealRef.current?.(step.reveal);
     }
 
     const deadline = now() + anchorTimeoutMs;

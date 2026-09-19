@@ -1,6 +1,9 @@
+import { useCallback } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import {
   isNativeMobile,
+  useMediaQuery,
+  useRightSidebarOptional,
   useTranslation,
   AudioProvider,
   RightSidebarProvider,
@@ -8,6 +11,8 @@ import {
   SyncProvider,
   ToastProvider,
   TourProvider,
+  TOUR_REVEALS,
+  WIDE_QUERY,
   type DataService,
   type SectionId,
 } from "@life-editor/shared";
@@ -105,17 +110,12 @@ export function AppProviders({
             <AudioProvider dataService={dataService}>
               <TimerHost dataService={dataService}>
                 <RightSidebarProvider>
-                  <TourProvider
+                  <TourRevealHost
                     currentSection={currentSection}
                     onNavigateToSection={onNavigateToSection}
-                    // #1123: the tour offers itself on first run. "First run"
-                    // is the Provider's own persisted state — it stays quiet
-                    // once the tour has been finished or skipped, and Settings'
-                    // Tutorial card is what brings it back after that.
-                    autoStart
                   >
                     {children}
-                  </TourProvider>
+                  </TourRevealHost>
                 </RightSidebarProvider>
               </TimerHost>
             </AudioProvider>
@@ -145,4 +145,67 @@ export function AppProviders({
 function ShortcutConfigHost({ children }: { children: ReactNode }) {
   if (isNativeMobile()) return <>{children}</>;
   return <ShortcutConfigProvider>{children}</ShortcutConfigProvider>;
+}
+
+/*
+ * The tour's Provider, plus the one thing it cannot do for itself (#1748).
+ *
+ * A step may declare a container that has to be open before its anchor can
+ * exist (`TourStep.reveal`). Shared names the container; opening it is the
+ * host's, because the state belongs to the host — the same split
+ * `onNavigateToSection` has always had. A separate component rather than more
+ * lines in AppProviders because the sidebar hook has to be called INSIDE
+ * RightSidebarProvider, which AppProviders is the one rendering.
+ *
+ * The OPTIONAL hook, the same one RightSidebarPortal uses: a render that
+ * stands the Provider in for a marker (appProvidersOrder.test.tsx) must get a
+ * chain it can walk, not a throw. No panel to open is just another reveal this
+ * host cannot honour, and declining is already a supported answer.
+ *
+ * WHY THIS DECLINES ON NARROW. The detail panel is a push-in `<aside>` when
+ * wide and a MobileDrawer when not, and the drawer paints at z-50 over the
+ * tour bubble's z-45 (see TourOverlay). Opening it there would trade a skipped
+ * step for a stuck one: the anchor is found, the tour waits for the deed, and
+ * the instructions are underneath the drawer the whole time. Skipping is the
+ * behaviour those steps already had on a phone, so declining changes nothing
+ * there and fixes the width where the panel covers nothing.
+ *
+ * `useMediaQuery(WIDE_QUERY, true)` — the same call and the same default every
+ * other wide↔narrow fold in this app uses (rules/frontend.md).
+ */
+function TourRevealHost({
+  currentSection,
+  onNavigateToSection,
+  children,
+}: {
+  currentSection: SectionId;
+  onNavigateToSection: (section: SectionId) => void;
+  children: ReactNode;
+}) {
+  const open = useRightSidebarOptional()?.open;
+  const isWide = useMediaQuery(WIDE_QUERY, true);
+
+  const handleReveal = useCallback(
+    (reveal: string) => {
+      if (reveal !== TOUR_REVEALS.detailPanel) return;
+      if (!isWide) return;
+      open?.();
+    },
+    [isWide, open],
+  );
+
+  return (
+    <TourProvider
+      currentSection={currentSection}
+      onNavigateToSection={onNavigateToSection}
+      onRevealStep={handleReveal}
+      // #1123: the tour offers itself on first run. "First run" is the
+      // Provider's own persisted state — it stays quiet once the tour has been
+      // finished or skipped, and Settings' Tutorial card is what brings it
+      // back after that.
+      autoStart
+    >
+      {children}
+    </TourProvider>
+  );
 }
