@@ -138,4 +138,50 @@ describe("DailyEveningCard", () => {
     expect(screen.queryByText("kept out")).toBeNull();
     expect(screen.queryByRole("img")).toBeNull();
   });
+
+  /*
+   * #1722 — the editable stars carry the 44px tap floor (#1558), so five of
+   * them plus the title do not fit one line on a phone and the last ones ended
+   * up outside the card. jsdom has no layout, so what is pinned is the stacking
+   * itself: the header is a column below `md` and the row it always was above.
+   */
+  it("gives the editable stars their own row below md", () => {
+    render(
+      <DailyEveningCard
+        mood={2}
+        reflectionLines={[]}
+        schedule={[]}
+        labels={{ ...LABELS, moodGroup: "Mood" }}
+        onSelectMood={vi.fn()}
+      />,
+    );
+
+    const header = screen.getByRole("group", { name: "Mood" })
+      .parentElement as HTMLElement;
+    const classes = header.className.split(" ");
+    expect(classes).toContain("flex-col");
+    expect(classes).toContain("md:flex-row");
+    // The 44px floor stays — it is the a11y requirement this works around.
+    const star = screen.getByRole("button", { name: "Mood 1/5" });
+    expect(star.className).toContain("max-md:min-h-11");
+    expect(star.className).toContain("max-md:min-w-11");
+    expect(screen.getByRole("group", { name: "Mood" }).className).toContain(
+      "flex-wrap",
+    );
+  });
+
+  it("leaves the read-only header on one row", () => {
+    render(
+      <DailyEveningCard
+        mood={2}
+        reflectionLines={[]}
+        schedule={[]}
+        labels={LABELS}
+      />,
+    );
+
+    const header = screen.getByRole("img", { name: "Mood 2/5" })
+      .parentElement as HTMLElement;
+    expect(header.className.split(" ")).not.toContain("flex-col");
+  });
 });
