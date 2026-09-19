@@ -34,6 +34,13 @@ import {
 export interface UndoRedoProviderProps {
   children: ReactNode;
   /**
+   * Who the history belongs to (#1727). When it CHANGES the stack is dropped:
+   * a different account's rows are behind every id a command holds. Leaving it
+   * undefined keeps the history for the provider's whole life, which is what a
+   * test or a standalone mount wants.
+   */
+  identityKey?: string | null;
+  /**
    * Called after an undo/redo runs, with the direction and the applied
    * command's (untranslated) label. The host maps it to a toast.
    */
@@ -51,6 +58,7 @@ export interface UndoRedoProviderProps {
 
 export function UndoRedoProvider({
   children,
+  identityKey,
   onCommandApplied,
   onCommandFailed,
 }: UndoRedoProviderProps) {
@@ -77,6 +85,21 @@ export function UndoRedoProvider({
     failedRef.current = onCommandFailed;
   });
 
+  /*
+   * #1727 — the history dies with the data it describes, not with a section.
+   *
+   * Signing out normally unmounts this provider along with the rest of the
+   * app, so the common case needs nothing. This covers the case where the
+   * tree stays up and the rows underneath are swapped: every command holds
+   * ids (and the odd snapshot) from the account that just left.
+   */
+  const identityRef = useRef(identityKey);
+  useEffect(() => {
+    if (identityRef.current === identityKey) return;
+    identityRef.current = identityKey;
+    manager.clear();
+  }, [identityKey, manager]);
+
   // Only reads refs, so its identity never changes.
   const report = useCallback(
     (direction: "undo" | "redo", outcome: UndoOutcome | null): void => {
@@ -89,8 +112,9 @@ export function UndoRedoProvider({
 
   const value = useMemo<UndoRedoContextValue>(
     () => ({
-      // domain ignored — single global stack.
-      push: (_domain, command) => manager.push(command),
+      // One global stack; the domain rides along so a provider can expire
+      // its own snapshot commands on unmount (#1727).
+      push: (domain, command) => manager.push(command, domain),
       undo: () => {
         void manager.undo().then((outcome) => report("undo", outcome));
       },
@@ -108,6 +132,7 @@ export function UndoRedoProvider({
       canUndo: () => manager.canUndo(),
       canRedo: () => manager.canRedo(),
       clear: () => manager.clear(),
+      expireDomain: (domain: string) => manager.expireDomain(domain),
     }),
     // `version` forces a new value identity on each manager change so context
     // consumers re-render and re-read canUndo()/canRedo().

@@ -25,6 +25,12 @@ export interface UndoRedoContextValue extends UndoRedoLike {
    * that dialog, so it registers while mounted and clears on unmount.
    */
   setConfirmGate: (gate: UndoConfirmGate | null) => void;
+  /**
+   * Drop the snapshot commands this domain pushed (#1727). Called by a domain
+   * provider on unmount; commands that name their rows by id survive, so a
+   * section switch no longer costs the user their history.
+   */
+  expireDomain: (domain: string) => void;
 }
 
 export const UndoRedoContext = createContext<UndoRedoContextValue | null>(null);

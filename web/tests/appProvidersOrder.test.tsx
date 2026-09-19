@@ -67,6 +67,7 @@ function renderChain() {
       }}
       currentSection="briefing"
       onNavigateToSection={vi.fn()}
+      userId="user-1"
     >
       <span data-testid="leaf" />
     </AppProviders>,

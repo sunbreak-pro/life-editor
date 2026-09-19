@@ -28,8 +28,8 @@ import { todayCalendarKey } from "../src/utils/dateKey";
  * (schedule / daily / note) this verifies the two wired behaviours:
  *  1. a domain mutation pushes onto the GLOBAL stack (canUndo flips true
  *     outside the domain provider), and
- *  2. unmounting the domain provider clears the stack (child-1 safety valve —
- *     a dead provider's closures must never run after navigation).
+ *  2. unmounting the domain provider expires only its SNAPSHOT commands
+ *     (#1727) — by-id commands outlive the section they were made in.
  * The DataService stubs only cover the mount fetch + the one mutation each
  * probe fires; persistence is fire-and-forget in the hooks.
  */
@@ -49,8 +49,14 @@ function SyncStub({ children }: { children: ReactNode }) {
 }
 
 function CanUndoProbe() {
-  const { canUndo } = useUndoRedoContext();
-  return <span data-testid="can-undo">{String(canUndo())}</span>;
+  const { canUndo, undo } = useUndoRedoContext();
+  return (
+    <>
+      <span data-testid="can-undo">{String(canUndo())}</span>
+      {/* The header's button, in the one place that outlives every section. */}
+      <button onClick={() => undo()}>undo</button>
+    </>
+  );
 }
 
 function ScheduleProbe() {
@@ -296,7 +302,18 @@ function Harness({ mounted, domain }: { mounted: boolean; domain: ReactNode }) {
   );
 }
 
-async function expectPushAndClearOnUnmount(domain: ReactNode) {
+/**
+ * Push one command, then unmount the domain provider.
+ *
+ * `survivesUnmount` is the #1727 half: a command that names its rows by id is
+ * still there afterwards (the user walked to another section, not away from
+ * their data), while a snapshot command — todoTree's tree writes — is expired
+ * by the provider that took the snapshot.
+ */
+async function expectPushThenUnmount(
+  domain: ReactNode,
+  survivesUnmount: boolean,
+) {
   const { rerender } = render(<Harness mounted domain={domain} />);
   // Flush the provider's initial load promise.
   await act(async () => {});
@@ -309,7 +326,9 @@ async function expectPushAndClearOnUnmount(domain: ReactNode) {
 
   rerender(<Harness mounted={false} domain={domain} />);
   await act(async () => {});
-  expect(screen.getByTestId("can-undo").textContent).toBe("false");
+  expect(screen.getByTestId("can-undo").textContent).toBe(
+    String(survivesUnmount),
+  );
 }
 
 describe("UndoRedo domain wiring (#304 child-2)", () => {
@@ -318,38 +337,44 @@ describe("UndoRedo domain wiring (#304 child-2)", () => {
     localStorage.clear();
   });
 
-  it("scheduleItems: push lands on the global stack; unmount clears it", async () => {
-    await expectPushAndClearOnUnmount(
+  it("scheduleItems: push lands on the global stack and survives unmount", async () => {
+    await expectPushThenUnmount(
       <ScheduleItemsProvider dataService={scheduleDS}>
         <ScheduleProbe />
       </ScheduleItemsProvider>,
+      true,
     );
   });
 
-  it("dailies: push lands on the global stack; unmount clears it", async () => {
-    await expectPushAndClearOnUnmount(
+  it("dailies: push lands on the global stack and survives unmount", async () => {
+    await expectPushThenUnmount(
       <DailiesUnifiedProvider dataService={dailyDS}>
         <DailyProbe />
       </DailiesUnifiedProvider>,
+      true,
     );
   });
 
-  it("notes: push lands on the global stack; unmount clears it", async () => {
-    await expectPushAndClearOnUnmount(
+  it("notes: push lands on the global stack and survives unmount", async () => {
+    await expectPushThenUnmount(
       <NotesUnifiedProvider dataService={noteDS}>
         <NoteProbe />
       </NotesUnifiedProvider>,
+      true,
     );
   });
 
   // Regression for the child-1 unmount-clear effect: it depended on the
   // reactive context value, so its cleanup re-ran after every push and wiped
   // the history immediately ("canUndo" never survived a mutation).
-  it("todoTree: push survives (child-1 clear-on-every-push regression)", async () => {
-    await expectPushAndClearOnUnmount(
+  // The tree writes are the snapshot kind (#1727), so this is the one domain
+  // whose command does NOT outlive its provider.
+  it("todoTree: push survives its own push, and expires on unmount", async () => {
+    await expectPushThenUnmount(
       <TodoTreeProvider dataService={todoDS}>
         <TodoProbe />
       </TodoTreeProvider>,
+      false,
     );
   });
 
@@ -357,15 +382,123 @@ describe("UndoRedo domain wiring (#304 child-2)", () => {
   // commands with nowhere to push them — the Provider never read the ambient
   // stack, so every routine command was a no-op. Ctrl+Z on a routine did
   // nothing at all, which is the behaviour this fixes.
-  it("routines: push lands on the global stack; unmount clears it", async () => {
-    await expectPushAndClearOnUnmount(
+  it("routines: push lands on the global stack and survives unmount", async () => {
+    await expectPushThenUnmount(
       <RoutineProvider dataService={routineDS}>
         <RoutineProbe />
       </RoutineProvider>,
+      true,
     );
   });
 
-  it("explicit undoRedo prop wins over the ambient stack and is not cleared on unmount", async () => {
+  /*
+   * #1727 — the reported trip: do something in a section, walk to another
+   * one, come back, press Undo. Before this the history was wiped on the way
+   * out and the button came back dead, with the change still in the DB.
+   *
+   * The assertion is the WRITE, not just the button: a command that outlives
+   * its provider has to reverse the row it named, whichever provider instance
+   * is on screen when it runs.
+   */
+  it("leaving a section and returning keeps the undo, and it still writes", async () => {
+    const deleted: string[] = [];
+    const ds = {
+      fetchScheduleItemsByDateAll: async () => [],
+      fetchDeletedScheduleItems: async () => [],
+      createScheduleItem: async () => ({ date: "" }),
+      softDeleteScheduleItem: async (id: string) => {
+        deleted.push(id);
+      },
+      restoreScheduleItem: async () => {},
+    } as unknown as DataService;
+    const domain = (
+      <ScheduleItemsProvider dataService={ds}>
+        <ScheduleProbe />
+      </ScheduleItemsProvider>
+    );
+
+    const { rerender } = render(<Harness mounted domain={domain} />);
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.click(screen.getByText("mutate"));
+    });
+
+    // …to another section…
+    rerender(<Harness mounted={false} domain={domain} />);
+    await act(async () => {});
+    expect(screen.getByTestId("can-undo").textContent).toBe("true");
+
+    // …and back. The provider is a NEW instance; the command is the old one.
+    rerender(<Harness mounted domain={domain} />);
+    await act(async () => {});
+    expect(screen.getByTestId("can-undo").textContent).toBe("true");
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("undo"));
+    });
+    // The created row was soft-deleted — the undo reached the DataService.
+    expect(deleted).toHaveLength(1);
+    expect(screen.getByTestId("can-undo").textContent).toBe("false");
+  });
+
+  /*
+   * The other half of #1727: history dies with the DATA it describes. Every
+   * command holds ids belonging to the account that pushed it, so a switch of
+   * account must not leave them pointing at someone else's rows.
+   */
+  it("drops the whole stack when the account behind it changes", async () => {
+    const domain = (
+      <DailiesUnifiedProvider dataService={dailyDS}>
+        <DailyProbe />
+      </DailiesUnifiedProvider>
+    );
+    const { rerender } = render(
+      <UndoRedoProvider identityKey="user-a">
+        <CanUndoProbe />
+        <SyncStub>{domain}</SyncStub>
+      </UndoRedoProvider>,
+    );
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.click(screen.getByText("mutate"));
+    });
+    expect(screen.getByTestId("can-undo").textContent).toBe("true");
+
+    // Same tree, different account.
+    rerender(
+      <UndoRedoProvider identityKey="user-b">
+        <CanUndoProbe />
+        <SyncStub>{domain}</SyncStub>
+      </UndoRedoProvider>,
+    );
+    await act(async () => {});
+    expect(screen.getByTestId("can-undo").textContent).toBe("false");
+  });
+
+  it("keeps the stack while the account stays the same", async () => {
+    const domain = (
+      <DailiesUnifiedProvider dataService={dailyDS}>
+        <DailyProbe />
+      </DailiesUnifiedProvider>
+    );
+    const view = (
+      <UndoRedoProvider identityKey="user-a">
+        <CanUndoProbe />
+        <SyncStub>{domain}</SyncStub>
+      </UndoRedoProvider>
+    );
+    const { rerender } = render(view);
+    await act(async () => {});
+    await act(async () => {
+      fireEvent.click(screen.getByText("mutate"));
+    });
+    // A re-render with the same key must not read as "the data was replaced".
+    rerender(view);
+    await act(async () => {});
+    expect(screen.getByTestId("can-undo").textContent).toBe("true");
+  });
+
+  it("explicit undoRedo prop wins over the ambient stack and is not touched on unmount", async () => {
     const pushes: string[] = [];
     let cleared = 0;
     const explicit: UndoRedoLike = {
@@ -545,8 +678,9 @@ describe("UndoRedo domain wiring (#304 child-2)", () => {
     });
   });
 
-  // StrictMode double-mounts run the clear cleanup once mid-mount (on an
-  // empty stack — harmless); a push afterwards must still survive.
+  // StrictMode double-mounts run the expiry cleanup once mid-mount (on an
+  // empty stack — harmless); a push afterwards must still survive, and now
+  // survives the unmount too (#1727 — notes push by-id commands).
   it("survives a StrictMode double-mount", async () => {
     const domain = (
       <NotesUnifiedProvider dataService={noteDS}>
@@ -570,6 +704,6 @@ describe("UndoRedo domain wiring (#304 child-2)", () => {
       </StrictMode>,
     );
     await act(async () => {});
-    expect(screen.getByTestId("can-undo").textContent).toBe("false");
+    expect(screen.getByTestId("can-undo").textContent).toBe("true");
   });
 });

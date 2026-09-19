@@ -34,10 +34,11 @@ export function RoutineProvider({
     undoRedo: options.undoRedo ?? undoRedo ?? undefined,
   });
 
-  // Unmount-clear via ref — the context value identity changes on every stack
-  // mutation, so the cleanup must not depend on it (see TodoTreeContext.tsx
-  // for the full rationale). Explicit injected undoRedo is the host's to
-  // manage.
+  // Unmount-EXPIRE via ref (#1727): only this domain's snapshot commands go,
+  // never the whole stack — see TodoTreeContext.tsx for why the difference
+  // matters. The context value identity changes on every stack mutation, so
+  // the cleanup must not depend on it. Explicit injected undoRedo is the
+  // host's to manage.
   const undoRedoRef = useRef(undoRedo);
   // Mirrored in an effect, not during render (#505): a render React
   // discards must not leave its write behind. The ref is only read from the
@@ -49,7 +50,7 @@ export function RoutineProvider({
   const hasExplicitUndoRedo = options.undoRedo != null;
   useEffect(() => {
     if (hasExplicitUndoRedo) return;
-    return () => undoRedoRef.current?.clear();
+    return () => undoRedoRef.current?.expireDomain("routine");
   }, [hasExplicitUndoRedo]);
 
   return (

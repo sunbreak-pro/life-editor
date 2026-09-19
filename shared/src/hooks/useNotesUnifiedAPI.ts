@@ -376,6 +376,9 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       syncToDb(updated);
       push("note", {
         label: "moveNote",
+        // Re-persists the whole tree's parent/order, so it must not outlive
+        // the provider that read that tree (#1727).
+        expiresWithProvider: true,
         undo: () => {
           setNotes(currentNotes);
           syncToDb(currentNotes);

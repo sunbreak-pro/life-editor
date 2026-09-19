@@ -45,6 +45,20 @@ export interface UndoCommand {
   redo: () => void | Promise<void>;
   /** Ask before running this one — see UndoConfirmSpec (#1638). */
   confirm?: UndoConfirmSpec;
+  /**
+   * This command writes back a SNAPSHOT of a whole collection, so it must not
+   * outlive the provider that took the snapshot (#1727).
+   *
+   * Almost every command names what it touches — one row, by id — and stays
+   * true however long it waits: running it later writes that row and nothing
+   * else. A snapshot command is the exception. `syncTodoTree(before)` restores
+   * every node it was handed, so replaying it after the section was rebuilt
+   * would also undo whatever happened to those rows in between.
+   *
+   * The provider that pushed it calls `expireDomain` on unmount, which is
+   * what drops these and leaves the by-id commands standing.
+   */
+  expiresWithProvider?: boolean;
 }
 
 /** What running one undo/redo did. `error` is set only when `ok` is false. */
@@ -55,9 +69,15 @@ export type UndoOutcome =
 /** Cap on retained history (oldest commands drop past this). */
 export const MAX_HISTORY_SIZE = 50;
 
+/** A command plus the domain that pushed it (only `expireDomain` reads it). */
+interface HistoryEntry {
+  command: UndoCommand;
+  domain: string;
+}
+
 export class UndoRedoManager {
-  private undoStack: UndoCommand[] = [];
-  private redoStack: UndoCommand[] = [];
+  private undoStack: HistoryEntry[] = [];
+  private redoStack: HistoryEntry[] = [];
   private listener: (() => void) | null = null;
   private confirmGate: UndoConfirmGate | null = null;
 
@@ -85,11 +105,11 @@ export class UndoRedoManager {
    * stack (a fresh action invalidates any redo branch) and drops the oldest
    * command once the cap is exceeded.
    */
-  push(command: UndoCommand): void {
+  push(command: UndoCommand, domain = ""): void {
     if (this.undoStack.length >= MAX_HISTORY_SIZE) {
       this.undoStack.shift();
     }
-    this.undoStack.push(command);
+    this.undoStack.push({ command, domain });
     this.redoStack = [];
     this.notify();
   }
@@ -115,34 +135,35 @@ export class UndoRedoManager {
   }
 
   private async apply(
-    from: UndoCommand[],
-    to: UndoCommand[],
+    from: HistoryEntry[],
+    to: HistoryEntry[],
     direction: "undo" | "redo",
   ): Promise<UndoOutcome | null> {
     const next = from[from.length - 1];
     if (!next) return null;
-    if (next.confirm && this.confirmGate) {
+    if (next.command.confirm && this.confirmGate) {
       const ok = await this.confirmGate({
         direction,
-        label: next.label,
-        confirm: next.confirm,
+        label: next.command.label,
+        confirm: next.command.confirm,
       });
       // Nothing moves on a "no", and nothing moves either if the stack changed
       // while the question was open — the answer was about THAT command, and
       // another write can land on top while a dialog waits.
       if (!ok || from[from.length - 1] !== next) return null;
     }
-    const command = from.pop();
-    if (!command) return null;
+    const entry = from.pop();
+    if (!entry) return null;
+    const { command } = entry;
     try {
       await command[direction]();
     } catch (error) {
       console.error(`[UndoRedo] ${direction} failed`, error);
-      from.push(command);
+      from.push(entry);
       this.notify();
       return { command, ok: false, error };
     }
-    to.push(command);
+    to.push(entry);
     this.notify();
     return { command, ok: true };
   }
@@ -153,6 +174,31 @@ export class UndoRedoManager {
 
   canRedo(): boolean {
     return this.redoStack.length > 0;
+  }
+
+  /**
+   * Drop the snapshot commands a domain pushed, in both directions (#1727).
+   *
+   * Called when that domain's provider unmounts — a section switch. Commands
+   * that name their rows by id are LEFT ALONE: they write the same row
+   * whenever they run, and the provider that comes back reads the result off
+   * the server like any other change. Before this, navigation wiped the whole
+   * app's history to keep the snapshot commands from replaying.
+   */
+  expireDomain(domain: string): void {
+    const survives = (e: HistoryEntry) =>
+      !(e.domain === domain && e.command.expiresWithProvider);
+    const undo = this.undoStack.filter(survives);
+    const redo = this.redoStack.filter(survives);
+    if (
+      undo.length === this.undoStack.length &&
+      redo.length === this.redoStack.length
+    ) {
+      return;
+    }
+    this.undoStack = undo;
+    this.redoStack = redo;
+    this.notify();
   }
 
   /** Drop all history (both directions). */

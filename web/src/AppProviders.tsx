@@ -74,6 +74,8 @@ export interface AppProvidersProps {
   /** Section switch, handed to the tour so it can walk across sections.
    *  Shared must not import web's navigation, so it arrives as a prop. */
   onNavigateToSection: (section: SectionId) => void;
+  /** Signed-in account id, handed to the UndoRedo host (#1727). */
+  userId: string;
   /** The shell and its shell-level siblings (palette, tag editor). */
   children: ReactNode;
 }
@@ -84,6 +86,7 @@ export function AppProviders({
   shortcuts,
   currentSection,
   onNavigateToSection,
+  userId,
   children,
 }: AppProvidersProps) {
   const { t } = useTranslation();
@@ -96,7 +99,7 @@ export function AppProviders({
           onCounts={onMaterialsCounts}
         />
         <ScheduleReminderBridge dataService={dataService} />
-        <UndoRedoHost>
+        <UndoRedoHost userId={userId}>
           <ShortcutConfigHost>
             <GlobalShortcuts {...shortcuts} />
             <AudioProvider dataService={dataService}>
