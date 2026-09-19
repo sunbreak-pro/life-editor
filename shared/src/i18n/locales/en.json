@@ -486,7 +486,10 @@
       "pickerSearch": "Search or create tag…",
       "pickerNoCandidates": "No more tags to assign.",
       "pickerCreate": "Create “{{name}}”",
-      "pickerRemove": "Remove tag {{name}}"
+      "pickerRemove": "Remove tag {{name}}",
+      "assignFailed": "Couldn't add the tag.",
+      "unassignFailed": "Couldn't remove the tag.",
+      "createFailed": "Couldn't create the tag."
     },
     "sidebar": {
       "sort": "Sort",
@@ -637,7 +640,7 @@
     "detailPanelLabel": "Detail panel",
     "editDetail": "Edit details",
     "itemActionsLabel": "Event actions",
-    "tabTodo": "Today's Todo",
+    "tabTodo": "Todo",
     "todoTodayHeading": "Today's todos",
     "todoEmptyToday": "Nothing on today yet",
     "todoOthersHeading": "Other todos",
@@ -645,6 +648,7 @@
     "todoMoveToToday": "Move to today",
     "todoMoveToOthers": "Take off today",
     "todoAddCta": "Todo",
+    "todoAddTodayCta": "Add to today",
     "todoAddDialogTitle": "New todo",
     "todoAddTitleLabel": "Title",
     "todoAddTitlePlaceholder": "Enter a title",
@@ -900,7 +904,9 @@
       "moveNote": "note move",
       "createNote": "note creation",
       "updateNote": "note update",
-      "softDeleteNote": "note deletion"
+      "softDeleteNote": "note deletion",
+      "assignTag": "adding a tag",
+      "unassignTag": "removing a tag"
     }
   },
   "common": {
@@ -1027,6 +1033,39 @@
       "noTargets": "There is no other tag to merge into.",
       "confirm": "Merge",
       "failed": "The merge did not finish. The tag was kept so nothing is lost."
+    },
+    "selection": {
+      "assign": "Add a tag",
+      "assignTitle": "Add a tag to the selection",
+      "clear": "Clear selection",
+      "create": "Create “{{name}}”",
+      "failed_one": "{{count}} item could not be updated. Check your connection.",
+      "failed_other": "{{count}} items could not be updated. Check your connection.",
+      "move": "Move to another tag",
+      "moveTitle": "Move the selection to a tag",
+      "pickerEmpty": "No matching tag",
+      "region": "Selected items",
+      "remove": "Remove this tag",
+      "search": "Search or create a tag…",
+      "selectItem": "Select “{{title}}”",
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected"
+    },
+    "relations": {
+      "addLink": "Add a link",
+      "addLinkDialog": "Link to an item",
+      "back": "Back to this tag",
+      "links": "Links",
+      "noCandidates": "No matching item",
+      "openItem": "Open in its section",
+      "openRow": "Open “{{title}}”",
+      "removeLink": "Remove the link to “{{title}}”",
+      "sameDayDaily": "That day's daily",
+      "searchPlaceholder": "Search by title…",
+      "section": "{{label}} ({{count}})",
+      "sectionEmpty": "Nothing yet.",
+      "sharedTags": "Items sharing a tag",
+      "writeFailed": "The link could not be saved. Check your connection."
     }
   },
   "attachment": {

@@ -108,6 +108,7 @@ function makeProps(
       onOpenAddable: vi.fn(),
       onDelete: vi.fn(),
       onAdd: vi.fn(),
+      onAddToday: vi.fn(),
       ...over.todo,
     },
   };
@@ -419,15 +420,26 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
     expect(screen.queryByText("scheduleScreen.todoUnplacedHeading")).toBeNull();
   });
 
-  it("offers the create pill above the tray", () => {
-    // Above rather than inside a group: a new todo has no day, so it belongs
-    // to none of the three groups underneath.
+  /*
+   * #1640: a create pill per heading, instead of the single one that used to
+   * sit above the whole tray.
+   *
+   * The single pill made a todo with no day, which lands in "その他" — so from
+   * the today list it read as "add here" and did something else. Each list now
+   * has its own, and the day each one gives is the list it is standing in.
+   */
+  it("offers a create pill in each heading, and they differ", () => {
     const onAdd = vi.fn();
-    render(<ScheduleSidebar {...withTray({ onAdd })} />);
+    const onAddToday = vi.fn();
+    render(<ScheduleSidebar {...withTray({ onAdd, onAddToday })} />);
+
+    fireEvent.click(screen.getByText("scheduleScreen.todoAddTodayCta"));
+    expect(onAddToday).toHaveBeenCalledTimes(1);
+    expect(onAdd).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByText("scheduleScreen.todoAddCta"));
-
     expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAddToday).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the create pill off the other tabs", () => {
@@ -435,6 +447,7 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
     // creating whatever that tab is showing.
     render(<ScheduleSidebar {...makeProps({ tab: "flow" })} />);
     expect(screen.queryByText("scheduleScreen.todoAddCta")).toBeNull();
+    expect(screen.queryByText("scheduleScreen.todoAddTodayCta")).toBeNull();
   });
 });
 

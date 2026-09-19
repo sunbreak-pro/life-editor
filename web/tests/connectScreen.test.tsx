@@ -252,18 +252,22 @@ describe("ConnectScreen", () => {
     expect(screen.getByText("Untitled")).toBeTruthy();
   });
 
-  it("routes a clicked row to the shell's item-nav with its role", async () => {
+  it("routes a row's chevron to the shell's item-nav with its role", async () => {
     const { onNavigateToItem } = await renderScreen();
     fireEvent.click(screen.getByRole("button", { name: "Work: 4 items" }));
 
-    fireEvent.click(screen.getByRole("button", { name: /Draft the PR/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open “Draft the PR”" }),
+    );
     expect(onNavigateToItem).toHaveBeenCalledWith({
       id: "task-1",
       role: "task",
       date: undefined,
     });
 
-    fireEvent.click(screen.getByRole("button", { name: /Migration notes/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open “Migration notes”" }),
+    );
     expect(onNavigateToItem).toHaveBeenLastCalledWith({
       id: "note-1",
       role: "note",
@@ -274,7 +278,7 @@ describe("ConnectScreen", () => {
   it("sends an event's date along, because the Calendar needs it to select", async () => {
     const { onNavigateToItem } = await renderScreen();
     fireEvent.click(screen.getByRole("button", { name: "Work: 4 items" }));
-    fireEvent.click(screen.getByRole("button", { name: /Standup/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Open “Standup”" }));
     expect(onNavigateToItem).toHaveBeenCalledWith({
       id: "event-1",
       role: "event",
@@ -325,7 +329,9 @@ describe("ConnectScreen", () => {
     expect(
       screen.getByRole("heading", { level: 2, name: "Work" }),
     ).toBeTruthy();
-    expect(screen.getByRole("button", { name: /Draft the PR/ })).toBeTruthy();
+    expect(
+      screen.getAllByRole("button", { name: /Draft the PR/ }).length,
+    ).toBeGreaterThan(0);
   });
 
   it("comes back with nothing selected when the user had cleared it", async () => {
@@ -381,7 +387,7 @@ describe("ConnectScreen — repeating items", () => {
       "Daily: 1 item",
     ]);
     expect(
-      screen.getAllByRole("button", { name: /Morning review/ }),
+      screen.getAllByRole("button", { name: "Open “Morning review”" }),
     ).toHaveLength(1);
   });
 
@@ -409,7 +415,9 @@ describe("ConnectScreen — repeating items", () => {
       ]),
     );
     fireEvent.click(screen.getByRole("button", { name: "Work: 5 items" }));
-    fireEvent.click(screen.getByRole("button", { name: /Morning review/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open “Morning review”" }),
+    );
     // The routine id itself would highlight nothing — the row is FILED under
     // it but OPENS the occurrence.
     expect(onNavigateToItem).toHaveBeenCalledWith({
@@ -427,7 +435,9 @@ describe("ConnectScreen — repeating items", () => {
       ]),
     );
     fireEvent.click(screen.getByRole("button", { name: "Work: 5 items" }));
-    fireEvent.click(screen.getByRole("button", { name: /Morning review/ }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Open “Morning review”" }),
+    );
     expect(onNavigateToItem).toHaveBeenCalledWith({
       id: "event-last",
       role: "event",
@@ -778,10 +788,172 @@ describe("ConnectScreen — the row's right-click menu", () => {
 });
 
 /*
- * #1644 — merging a tag, through the real hook: which writes the dialog's
- * confirm becomes, in what order, and that nothing is written before it.
+ * #1644 — bulk selection and merging, through the real hook: which rows a
+ * checkbox names, which write each bar action becomes, and how many times.
  */
-describe("ConnectScreen — merging a tag", () => {
+/*
+ * #1645 — a row click now SELECTS (plan assumption 1) and the right panel
+ * switches to that item's relations. What is pinned here is the swap of
+ * meanings (click vs chevron / double click) and the one write the panel adds.
+ */
+describe("ConnectScreen — the relations panel", () => {
+  const openWork = () => openTag("Work: 4 items");
+
+  it("selects a clicked row instead of leaving the hub", async () => {
+    const { onNavigateToItem, panel } = await renderWithPanel();
+    openWork();
+
+    fireEvent.click(screen.getByRole("button", { name: /^Standup/ }));
+
+    expect(onNavigateToItem).not.toHaveBeenCalled();
+    // The panel swapped the tag's breakdown for the row's neighbourhood.
+    panel().getByRole("heading", { name: "Standup" });
+    panel().getByRole("region", { name: "Links (0)" });
+  });
+
+  it("still leaves the hub by the chevron or a double click", async () => {
+    const { onNavigateToItem } = await renderWithPanel();
+    openWork();
+
+    fireEvent.click(screen.getByRole("button", { name: "Open “Standup”" }));
+    fireEvent.doubleClick(screen.getByRole("button", { name: /^Standup/ }));
+
+    expect(onNavigateToItem.mock.calls).toEqual([
+      [{ id: "event-1", role: "event", date: "2026-08-29" }],
+      [{ id: "event-1", role: "event", date: "2026-08-29" }],
+    ]);
+  });
+
+  it("lists the rows sharing a tag with the selected one", async () => {
+    const { panel } = await renderWithPanel();
+    openWork();
+    fireEvent.click(screen.getByRole("button", { name: /^Standup/ }));
+
+    // Everything else under Work, minus the row itself.
+    panel().getByRole("region", { name: "Items sharing a tag (3)" });
+  });
+
+  it("links the selected row to the item picked in the panel", async () => {
+    const { ds, writes } = makeWritableDS();
+    const { panel } = await renderWithPanel(ds);
+    openWork();
+    fireEvent.click(screen.getByRole("button", { name: /^Standup/ }));
+
+    fireEvent.click(panel().getByRole("button", { name: "Add a link" }));
+    const picker = within(
+      panel().getByRole("dialog", { name: "Link to an item" }),
+    );
+    fireEvent.change(picker.getByLabelText("Search by title…"), {
+      target: { value: "Migration" },
+    });
+    fireEvent.click(picker.getByRole("button", { name: /Migration notes/ }));
+
+    await waitFor(() => expect(writes.createItemLink).toHaveBeenCalled());
+    // (linkId, from = the selected row, to = the picked one, origin)
+    const call = writes.createItemLink.mock.calls[0];
+    expect([call[1], call[2]]).toEqual(["event-1", "note-1"]);
+  });
+
+  it("goes back to the tag's breakdown", async () => {
+    const { panel } = await renderWithPanel();
+    openWork();
+    fireEvent.click(screen.getByRole("button", { name: /^Standup/ }));
+    fireEvent.click(panel().getByRole("button", { name: "Back to this tag" }));
+
+    panel().getByRole("region", { name: "By kind" });
+  });
+});
+
+describe("ConnectScreen — bulk tag operations", () => {
+  const check = (title: string) =>
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: `Select “${title}”` }),
+    );
+
+  const checkThree = () => {
+    check("Draft the PR");
+    check("Standup");
+    check("Migration notes");
+  };
+
+  it("adds a picked tag to each of three checked rows", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    checkThree();
+
+    screen.getByText("3 selected");
+    fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
+    fireEvent.click(
+      within(
+        screen.getByRole("dialog", { name: "Add a tag to the selection" }),
+      ).getByRole("button", { name: "Idle" }),
+    );
+
+    await waitFor(() =>
+      expect(writes.assignTagToItem).toHaveBeenCalledTimes(3),
+    );
+    expect(
+      writes.assignTagToItem.mock.calls.map((call) => [call[1], call[2]]),
+    ).toEqual([
+      ["task-1", "t-idle"],
+      ["event-1", "t-idle"],
+      ["note-1", "t-idle"],
+    ]);
+    // The selection is spent once the write finishes.
+    await waitFor(() => expect(screen.queryByText("3 selected")).toBeNull());
+  });
+
+  it("creates the typed tag once, then adds it to each checked row", async () => {
+    const { ds, writes } = makeWritableDS();
+    await renderScreen(ds);
+    openTag("Work: 4 items");
+    checkThree();
+
+    fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
+    fireEvent.change(screen.getByLabelText("Search or create a tag…"), {
+      target: { value: "Recipes" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Create “Recipes”" }));
+
+    await waitFor(() =>
+      expect(writes.assignTagToItem).toHaveBeenCalledTimes(3),
+    );
+    expect(writes.createWikiTagUnified).toHaveBeenCalledTimes(1);
+    expect(writes.createWikiTagUnified.mock.calls[0][1]).toBe("Recipes");
+  });
+
+  it("offers no remove or move on the untagged bucket", async () => {
+    await renderScreen();
+    openTag("Untagged: 1 item");
+    check("Untitled");
+
+    screen.getByRole("button", { name: "Add a tag" });
+    expect(
+      screen.queryByRole("button", { name: "Remove this tag" }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Move to another tag" }),
+    ).toBeNull();
+  });
+
+  it("clears the selection on Esc", async () => {
+    await renderScreen();
+    openTag("Work: 4 items");
+    check("Standup");
+    screen.getByText("1 selected");
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByText("1 selected")).toBeNull();
+    expect(
+      (
+        screen.getByRole("checkbox", {
+          name: "Select “Standup”",
+        }) as HTMLInputElement
+      ).checked,
+    ).toBe(false);
+  });
+
   it("merges a tag: every item re-filed, the old rows removed, then the tag deleted", async () => {
     const { ds, writes } = makeWritableDS();
     await renderScreen(ds);
@@ -893,7 +1065,15 @@ describe("ConnectScreen — the header's totals (D1)", () => {
 
     // Both tags, the unused one included — the header counts the master, not
     // the rail's used run.
-    expect(onCountsChange).toHaveBeenLastCalledWith({ tags: 2, items: 5 });
+    //
+    // AWAITED, not asserted straight after the rail appears: the report is an
+    // effect, and the rail showing up is a DOM mutation. `waitFor` resolves on
+    // the mutation, so on a loaded machine the assertion can run in the gap
+    // before React has flushed the passive effect that makes the call — which
+    // is exactly how this failed in CI while passing locally every time.
+    await waitFor(() =>
+      expect(onCountsChange).toHaveBeenLastCalledWith({ tags: 2, items: 5 }),
+    );
 
     cleanup();
     expect(onCountsChange).toHaveBeenLastCalledWith(null);

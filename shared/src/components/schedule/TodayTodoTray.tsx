@@ -166,6 +166,16 @@ export interface TodayTodoTrayProps {
   /** Extra content under the title row (#555 — the host's tag surface). */
   renderRowExtra?: (row: TodayTodoRow) => ReactNode;
   /**
+   * A control to sit at the right end of a group's heading (#1640) — Schedule
+   * puts its "+ Todo" pill in both, so each list can be added to from where it
+   * is read. A slot rather than an `onAdd` pair: the button carries the host's
+   * copy and its tour anchor, and neither belongs in a part that takes both
+   * already translated (§6.4).
+   *
+   * `placed` heads the today list ("今日の Todo"), `addable` the other one.
+   */
+  headingActions?: { placed?: ReactNode; addable?: ReactNode };
+  /**
    * Show ONE list (headed `labels.placedHeading`) instead of the placed /
    * unplaced pair (#795): time-less rows first, as all-day rows. Needs
    * labels.allDay; leaves labels.unplacedHeading / emptyUnplaced unused.
@@ -344,6 +354,7 @@ function TodoRow({
 
 function Group({
   heading,
+  headingAction,
   rows,
   empty,
   onToggleComplete,
@@ -361,6 +372,7 @@ function Group({
   allDayLabel,
 }: {
   heading: string;
+  headingAction?: ReactNode;
   rows: TodayTodoRow[];
   empty: string;
   onToggleComplete: (id: string) => void;
@@ -379,9 +391,15 @@ function Group({
 }) {
   return (
     <div className="flex flex-col gap-1">
-      <h4 className="text-xs font-semibold text-lumen-text-secondary">
-        {heading}
-      </h4>
+      {/* The heading keeps its own line; the action sits at its right end, so
+          a list can be added to from where it is read (#1640). `min-h` holds
+          the row's height steady whether or not this group has an action. */}
+      <div className="flex min-h-7 items-center justify-between gap-2">
+        <h4 className="text-xs font-semibold text-lumen-text-secondary">
+          {heading}
+        </h4>
+        {headingAction}
+      </div>
       {rows.length === 0 ? (
         <p className="py-2 text-center text-xs text-lumen-text-secondary">
           {empty}
@@ -429,6 +447,7 @@ export function TodayTodoTray({
   draggableAddable,
   renderRowExtra,
   singleList,
+  headingActions,
   labels,
   className,
 }: TodayTodoTrayProps) {
@@ -451,6 +470,7 @@ export function TodayTodoTray({
       <Group
         {...shared}
         heading={labels.placedHeading}
+        headingAction={headingActions?.placed}
         // Time-less first, the order every other surface files all-day items
         // in (BriefingView's schedule sort, AgendaList's two blocks).
         rows={singleList ? [...unplaced, ...placed] : placed}
@@ -466,9 +486,12 @@ export function TodayTodoTray({
         />
       )}
       <div className="flex flex-col gap-1.5">
-        <h4 className="text-xs font-semibold text-lumen-text-secondary">
-          {labels.addHeading}
-        </h4>
+        <div className="flex min-h-7 items-center justify-between gap-2">
+          <h4 className="text-xs font-semibold text-lumen-text-secondary">
+            {labels.addHeading}
+          </h4>
+          {headingActions?.addable}
+        </div>
         {addable.length === 0 ? (
           <p className="py-2 text-center text-xs text-lumen-text-secondary">
             {labels.emptyAddable}
