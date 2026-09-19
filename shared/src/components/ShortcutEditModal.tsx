@@ -359,7 +359,13 @@ export function ShortcutEditModal({
   );
 }
 
-/** The current binding rendered as solid keycaps (one per key). */
+/**
+ * The current binding rendered as solid keycaps (one per key).
+ *
+ * `font-sans` is deliberate (#1672): a keycap is chrome, and Tailwind
+ * preflight would otherwise leave it on --font-mono, which is the wider
+ * typeface and a different one from the rest of the app's keycaps.
+ */
 function KeycapDisplay({ displayString }: { displayString: string }) {
   const keys = displayString ? displayString.split(" + ") : ["—"];
   return (
@@ -367,7 +373,7 @@ function KeycapDisplay({ displayString }: { displayString: string }) {
       {keys.map((k, i) => (
         <kbd
           key={`${k}-${i}`}
-          className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-lumen-sm border border-lumen-border bg-lumen-bg-secondary px-1.5 text-xs tabular-nums text-lumen-text-secondary"
+          className="inline-flex h-[22px] min-w-[22px] items-center justify-center rounded-lumen-sm border border-lumen-border bg-lumen-bg-secondary px-1.5 font-sans text-xs tabular-nums text-lumen-text-secondary"
         >
           {k}
         </kbd>
