@@ -484,7 +484,10 @@
       "pickerSearch": "タグを検索・作成…",
       "pickerNoCandidates": "追加できるタグはありません",
       "pickerCreate": "「{{name}}」を作成",
-      "pickerRemove": "タグ {{name}} を外す"
+      "pickerRemove": "タグ {{name}} を外す",
+      "assignFailed": "タグを追加できませんでした。",
+      "unassignFailed": "タグを外せませんでした。",
+      "createFailed": "タグを作成できませんでした。"
     },
     "sidebar": {
       "sort": "並び替え",
@@ -895,7 +898,9 @@
       "moveNote": "ノートの移動",
       "createNote": "ノートの作成",
       "updateNote": "ノートの変更",
-      "softDeleteNote": "ノートの削除"
+      "softDeleteNote": "ノートの削除",
+      "assignTag": "タグの追加",
+      "unassignTag": "タグの削除"
     }
   },
   "common": {
