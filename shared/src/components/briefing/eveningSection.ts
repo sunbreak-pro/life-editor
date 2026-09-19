@@ -142,6 +142,13 @@ export function eveningBodyLines(bodyDocJson: string | null): string[] {
  * mounts now that the 夕刊 lives in its own category block below the body.
  * Returns the input by identity when there is no section (a legacy plain-text
  * daily passes through untouched, still converted lazily by the editor path).
+ *
+ * Never returns a doc with an empty `content` (#1723): ProseMirror requires at
+ * least one block, so `{"type":"doc","content":[]}` fails schema validation and
+ * the editor mounts empty after logging a warning. A day whose whole body IS
+ * the 夕刊 strips down to exactly that, so it gets one empty paragraph instead
+ * — the same doc the editor would emit for an empty body. An absent body stays
+ * "", which the host reads as "no content" and never hands to the schema.
  */
 export function stripEveningSection(
   contentJson: string | null | undefined,
@@ -150,8 +157,16 @@ export function stripEveningSection(
   const doc = parseDailyDoc(contentJson);
   const body = doc.content ?? [];
   const range = findSectionRange(body, EVENING_HEADING_RE);
+  if (range !== null) body.splice(range.start, range.end - range.start);
+
+  if (body.length === 0) {
+    // Also covers a stored doc that is ALREADY block-less: clearing the mood
+    // and reflection of a body-less day leaves `content: []` behind.
+    if (original.trim() === "") return original;
+    doc.content = [{ type: "paragraph" }];
+    return JSON.stringify(doc);
+  }
   if (range === null) return original;
-  body.splice(range.start, range.end - range.start);
   doc.content = body;
   return JSON.stringify(doc);
 }

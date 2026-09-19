@@ -368,6 +368,30 @@ describe("stripEveningSection", () => {
     expect(stripEveningSection(undefined)).toBe("");
   });
 
+  // #1723: ProseMirror requires at least one block, so a doc stripped down to
+  // nothing would fail schema validation in the editor (two console warnings
+  // on an evening-only day). The empty paragraph is what the editor itself
+  // emits for an empty body, so the day still reads as blank.
+  it("leaves an empty paragraph when the evening section was the whole body", () => {
+    const content = doc(heading("夕刊"), para("気分: 4/5"), para("振り返り"));
+    expect(parse(stripEveningSection(content)).content).toEqual([
+      { type: "paragraph" },
+    ]);
+  });
+
+  it("normalizes a stored doc that is already block-less", () => {
+    expect(parse(stripEveningSection(doc())).content).toEqual([
+      { type: "paragraph" },
+    ]);
+  });
+
+  it("keeps an absent body empty rather than minting a paragraph", () => {
+    // "" reaches the host as "no content" — it never hits schema validation,
+    // and turning it into a doc here would make an untouched day look edited.
+    expect(stripEveningSection("")).toBe("");
+    expect(stripEveningSection(null)).toBe("");
+  });
+
   it("round-trips with mergeEveningSection (strip → edit → merge keeps 夕刊)", () => {
     const content = doc(para("day note"), heading("夕刊"), para("気分: 3/5"));
     const stored = extractEveningSection(content);
