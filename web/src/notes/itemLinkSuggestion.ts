@@ -128,18 +128,38 @@ function insertResolved(
  * the menu offers is a decision, and the only other way to reach it is to
  * stand up a whole ProseMirror editor plus the Suggestion plugin.
  */
+/*
+ * The closing "]]" the user typed (#1689).
+ *
+ * The trigger is "[[" with `allowSpaces`, so everything after it — the
+ * closing brackets included — is the query. Typing the title and closing it
+ * the way a wiki link looks therefore searched for "Title]]", which matches
+ * nothing, and the create row then made a note CALLED "Title]]".
+ *
+ * Both brackets and the half-typed single one come off. Only at the END: a
+ * "]" inside a title is part of the title.
+ */
+export function stripLinkClosing(query: string): string {
+  return query.replace(/]{1,2}$/, "");
+}
+
 export async function buildItems(
   query: string,
   deps: ItemLinkSuggestionDeps,
   allowStale: boolean,
 ): Promise<ItemLinkMenuItem[]> {
   const { labels } = deps;
-  const q = query.trim().toLowerCase();
+  // Everything downstream — the filter, the create row's title, the note it
+  // makes — reads the query with its closing brackets off (#1689). The insert
+  // itself needs no adjustment: the brackets are inside the suggestion's
+  // range, so deleting the range takes them with it.
+  const typed = stripLinkClosing(query.trim());
+  const q = typed.toLowerCase();
   // @tiptap/suggestion awaits this before calling onStart/onUpdate, so the
   // menu appears already populated — no empty flash on the first "[[".
   // Deleted rows ride along in the pool for LinkPanel's benefit (#1292); the
-  // menu wants live items only, so they come off here — once, before both the
-  // candidate list and the `exactMatch` test below read `targets`.
+  // menu wants live items only, so they come off here — nothing that OFFERS a
+  // target may name one that is in the trash.
   const targets = (await deps.loadTargets({ allowStale })).filter(
     (t) => !t.isDeleted,
   );
@@ -164,7 +184,7 @@ export async function buildItems(
       insertResolved(editor, range, target, onResolvedInserted),
   }));
 
-  const trimmed = query.trim();
+  const trimmed = typed;
   if (trimmed) {
     /*
      * #1688 removed the "insert as an unresolved link" row. It offered a link
