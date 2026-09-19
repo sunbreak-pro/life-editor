@@ -1098,7 +1098,6 @@
   },
   "itemLink": {
     "empty": "No matching items",
-    "insertUnresolved": "Insert “{{query}}” as a link",
     "createNote": "Create note “{{query}}” and link",
     "roleNote": "Note",
     "roleDaily": "Daily",

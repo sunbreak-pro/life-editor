@@ -52,8 +52,6 @@ export interface ItemLinkTarget {
 
 export interface ItemLinkSuggestionLabels {
   empty: string;
-  /** Formats the "insert '<query>' as an unresolved link" row title. */
-  unresolved: (query: string) => string;
   /** Formats the "create note '<query>' and link" row title. */
   create: (query: string) => string;
   roleNote: string;
@@ -125,20 +123,12 @@ function insertResolved(
   onResolvedInserted?.(target.id);
 }
 
-/** Insert an unresolved link node (targetId null) + a trailing space. */
-function insertUnresolved(editor: Editor, range: Range, label: string): void {
-  editor
-    .chain()
-    .focus()
-    .deleteRange(range)
-    .insertContent([
-      { type: "itemLink", attrs: { targetId: null, label, role: null } },
-      { type: "text", text: " " },
-    ])
-    .run();
-}
-
-async function buildItems(
+/*
+ * Exported for web/tests/itemLinkSuggestionItems.test.ts (#1688): which rows
+ * the menu offers is a decision, and the only other way to reach it is to
+ * stand up a whole ProseMirror editor plus the Suggestion plugin.
+ */
+export async function buildItems(
   query: string,
   deps: ItemLinkSuggestionDeps,
   allowStale: boolean,
@@ -176,18 +166,18 @@ async function buildItems(
 
   const trimmed = query.trim();
   if (trimmed) {
-    const exactMatch = targets.some((t) => t.label.toLowerCase() === q);
-    // Only offer the raw-text fallback when nothing matches exactly.
-    if (!exactMatch) {
-      items.push({
-        id: "__unresolved__",
-        title: labels.unresolved(trimmed),
-        kind: "unresolved",
-        Icon: Link2,
-        command: ({ editor, range }) =>
-          insertUnresolved(editor, range, trimmed),
-      });
-    }
+    /*
+     * #1688 removed the "insert as an unresolved link" row. It offered a link
+     * to nothing — a node the user could not follow and had no way to finish
+     * later — and nobody could tell from the row what pressing it would do.
+     * The menu now offers existing items and "create the note", which are the
+     * two things that end in something reachable.
+     *
+     * The node type stays: bodies saved before this still carry
+     * `targetId: null` links and must keep rendering (the Issue says so), and
+     * the create path below still falls back to one when the note could not be
+     * made — see its comment for why that receipt is kept.
+     */
     if (createNote) {
       items.push({
         id: "__create__",
