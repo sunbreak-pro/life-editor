@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import {
   extractItemLinkTargets,
+  findMissingInlineLinks,
   findStaleInlineLinks,
 } from "../src/utils/inlineLinkSync";
 import type { WikiTagConnection } from "../src/types/wikiTagUnified";
@@ -93,5 +94,42 @@ describe("findStaleInlineLinks", () => {
       "keep-present",
       "stale-inline",
     ]);
+  });
+});
+
+describe("findMissingInlineLinks (#1690)", () => {
+  const connections: WikiTagConnection[] = [
+    conn({ id: "inline-live", toItemId: "note-2" }),
+    conn({ id: "manual-live", toItemId: "task-4", origin: "manual" }),
+    conn({ id: "inline-gone", toItemId: "task-5", isDeleted: true }),
+    conn({ id: "other-item", fromItemId: "note-9", toItemId: "task-6" }),
+  ];
+
+  it("returns the targets in the body with no live edge", () => {
+    // task-5's edge is soft-deleted and task-6's belongs to another item, so
+    // both need a fresh one; note-2 already has one.
+    expect(
+      findMissingInlineLinks(connections, "note-1", [
+        "note-2",
+        "task-5",
+        "task-6",
+      ]),
+    ).toEqual(["task-5", "task-6"]);
+  });
+
+  it("treats a manual edge as present, so no second edge is made", () => {
+    expect(findMissingInlineLinks(connections, "note-1", ["task-4"])).toEqual(
+      [],
+    );
+  });
+
+  it("drops a self-link (createItemLink rejects it)", () => {
+    expect(findMissingInlineLinks(connections, "note-1", ["note-1"])).toEqual(
+      [],
+    );
+  });
+
+  it("returns nothing for a body with no links", () => {
+    expect(findMissingInlineLinks(connections, "note-1", [])).toEqual([]);
   });
 });

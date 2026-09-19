@@ -31,6 +31,41 @@ export interface UndoRedoContextValue extends UndoRedoLike {
    * section switch no longer costs the user their history.
    */
   expireDomain: (domain: string) => void;
+  /**
+   * Offer (or withdraw) the focused body editor's history — #1690. The editor
+   * registers on focus and clears on blur and on unmount; only one is ever
+   * offered, because only one thing has focus.
+   */
+  setEditorHistory: (history: EditorHistory | null) => void;
+  /**
+   * The offer, or null when no body editor has focus. The header buttons read
+   * this and drive it instead of the app stack, so they agree with Ctrl+Z.
+   */
+  editorHistory: EditorHistory | null;
+}
+
+/**
+ * A body editor's OWN history, offered to the header while that editor has
+ * focus (#1690).
+ *
+ * Two histories exist and always did: TipTap keeps its own for the text in a
+ * note / daily / todo body, and `useGlobalShortcuts` deliberately lets Ctrl+Z
+ * reach it rather than the app stack while a field is focused. The header
+ * buttons had no such rule, so pressing Undo while typing reversed some other
+ * screen's write — a schedule drag, say — and the two controls disagreed
+ * about what "undo" meant.
+ *
+ * `subscribe` exists because the flags are not React state: an editor's
+ * can-undo changes on every transaction, and the header reads it through
+ * `useSyncExternalStore` so the buttons grey out in step with the typing.
+ */
+export interface EditorHistory {
+  undo: () => void;
+  redo: () => void;
+  canUndo: () => boolean;
+  canRedo: () => boolean;
+  /** Fires on every editor transaction. Returns the unsubscribe. */
+  subscribe: (onChange: () => void) => () => void;
 }
 
 export const UndoRedoContext = createContext<UndoRedoContextValue | null>(null);

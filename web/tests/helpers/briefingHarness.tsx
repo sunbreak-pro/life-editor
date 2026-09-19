@@ -68,6 +68,10 @@ export function createBriefingHarness(): BriefingHarness {
     // #1638: the repeat-scope question. Nothing in a Briefing harness asks
     // one, so this is the shape and not a behaviour.
     setConfirmGate: () => {},
+    // #1690: the focused body editor's own history. Briefing has no body
+    // editor, so none is ever offered — shape only, like the two above.
+    setEditorHistory: () => {},
+    editorHistory: null,
   };
 
   function BriefingWrapper({ children }: { children: ReactNode }) {

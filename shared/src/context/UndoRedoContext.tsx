@@ -13,6 +13,7 @@ import {
 } from "../utils/undoRedo/UndoRedoManager";
 import {
   UndoRedoContext,
+  type EditorHistory,
   type UndoRedoContextValue,
 } from "./UndoRedoContextValue";
 
@@ -100,6 +101,20 @@ export function UndoRedoProvider({
     manager.clear();
   }, [identityKey, manager]);
 
+  /*
+   * #1690 — the focused body editor's history, while there is one.
+   *
+   * State rather than a ref: the header has to re-render when the offer
+   * appears or goes away, because that is what decides WHICH history its
+   * buttons drive.
+   */
+  const [editorHistory, setEditorHistoryState] = useState<EditorHistory | null>(
+    null,
+  );
+  const setEditorHistory = useCallback((history: EditorHistory | null) => {
+    setEditorHistoryState(history);
+  }, []);
+
   // Only reads refs, so its identity never changes.
   const report = useCallback(
     (direction: "undo" | "redo", outcome: UndoOutcome | null): void => {
@@ -147,10 +162,12 @@ export function UndoRedoProvider({
       canRedo: () => manager.canRedo(),
       clear: () => manager.clear(),
       expireDomain: (domain: string) => manager.expireDomain(domain),
+      setEditorHistory,
+      editorHistory,
     }),
     // `version` forces a new value identity on each manager change so context
     // consumers re-render and re-read canUndo()/canRedo().
-    [manager, report, version],
+    [manager, report, version, setEditorHistory, editorHistory],
   );
 
   return (
