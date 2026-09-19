@@ -388,7 +388,9 @@
       "tagFilterClear": "タグの絞り込みを解除",
       "tagFilterMore": "+{{count}}",
       "tagFilterLess": "折りたたむ",
-      "groupMoreRows": "残り {{count}} 件を表示"
+      "groupMoreRows": "残り {{count}} 件を表示",
+      "rowActions": "ノートの操作",
+      "renameNote": "名前を変更"
     },
     "templates": {
       "menuEntry": "テンプレートとして登録する",

@@ -28,6 +28,7 @@ import {
 } from "@life-editor/shared";
 import { useNoteTagDnd } from "./useNoteTagDnd";
 import { useAttachmentUpload } from "./useAttachmentUpload";
+import { useSidebarContextMenus } from "./useSidebarContextMenus";
 import { NoteBodyEditor } from "./NoteBodyEditor";
 import { NotePasswordDialog } from "./NotePasswordDialog";
 import { LinkPanel } from "../wikitag";
@@ -518,6 +519,26 @@ export function NotesView({
     [askConfirm, noteRows, softDeleteNote, t],
   );
 
+  /*
+   * Right-click editing in the sidebar (#1677) — Desktop only, which is what
+   * `enabled` carries: on narrow the handlers come back undefined and no row
+   * attaches a contextmenu listener at all. The panels are rendered at this
+   * view's top level (below), NOT inside <RightSidebarPortal>: on narrow that
+   * portal is the MobileDrawer, and a panel mounted in it dies with the drawer.
+   */
+  const renameNote = useCallback(
+    (id: string, title: string) => {
+      notes.updateNote(id, { title });
+    },
+    [notes],
+  );
+  const sidebarMenus = useSidebarContextMenus({
+    enabled: isWide,
+    notes: noteRows,
+    onRenameNote: renameNote,
+    onDeleteNote: handleDeleteNote,
+  });
+
   // #1255: what the apply confirm says depends on whether there is anything to
   // discard. The copy call is the host's (§6.4), so the branch lives here.
   const selectedBodyIsBlank = isBlankNoteBody(selected?.content);
@@ -587,7 +608,8 @@ export function NotesView({
         deleteNote: t("materials.notes.deleteNote"),
         assignTagHint: t("materials.notes.assignTagHint"),
         clearTagFilter: t("materials.notes.tagFilterClear"),
-        moreTagFilters: (count) => t("materials.notes.tagFilterMore", { count }),
+        moreTagFilters: (count) =>
+          t("materials.notes.tagFilterMore", { count }),
         fewerTagFilters: t("materials.notes.tagFilterLess"),
         moreRows: (count) => t("materials.notes.groupMoreRows", { count }),
       }}
@@ -595,6 +617,8 @@ export function NotesView({
       selectedNoteId={selected?.id ?? null}
       onSelectNote={handleSelectNote}
       onDeleteNote={handleDeleteNote}
+      onTagContextMenu={sidebarMenus.onTagContextMenu}
+      onNoteContextMenu={sidebarMenus.onNoteContextMenu}
       onCreateNote={handleAddNote}
       dnd={dnd}
       // #1180 — only with a DataService, which is what templates are read and
@@ -865,6 +889,11 @@ export function NotesView({
           apply: t("materials.templates.applyConfirm"),
         }}
       />
+
+      {/* The sidebar's right-click panels (#1677). Top level, not inside
+          the portal: on narrow that portal is the drawer, and a panel mounted
+          in it would be unmounted with the drawer. */}
+      {sidebarMenus.menus}
 
       {/* #1248's question. Mounted last so it portals ABOVE the sidebar the
           bin was pressed in — and it holds no place in the tree while nothing
