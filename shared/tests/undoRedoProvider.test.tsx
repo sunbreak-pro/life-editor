@@ -161,8 +161,15 @@ describe("UndoRedoProvider", () => {
             onClick={() =>
               push("d", {
                 label: "l",
-                undo: () => log.push("undo"),
-                redo: () => log.push("redo"),
+                // Braces, not an expression body: a command returns
+                // void | Promise<void> since #1638, and `Array.push` answers
+                // with a number.
+                undo: () => {
+                  log.push("undo");
+                },
+                redo: () => {
+                  log.push("redo");
+                },
               })
             }
           >

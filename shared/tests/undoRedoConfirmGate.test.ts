@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   UndoRedoManager,
   type UndoCommand,
+  type UndoConfirmGate,
 } from "../src/utils/undoRedo/UndoRedoManager";
 
 /*
@@ -69,7 +70,8 @@ describe("UndoRedoManager — the confirm gate (#1638)", () => {
 
   it("asks again on the redo of the same command", async () => {
     const m = new UndoRedoManager();
-    const gate = vi.fn(async () => true);
+    // Typed through the gate so the second call's request can be read back.
+    const gate = vi.fn<UndoConfirmGate>(async () => true);
     m.setConfirmGate(gate);
     const c = cmd({ confirm: { kind: "repeat", scope: "this" } });
     m.push(c);
