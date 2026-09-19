@@ -136,6 +136,26 @@ describe("UndoRedoManager — the confirm gate (#1638)", () => {
     expect(m.canUndo()).toBe(true);
   });
 
+  it("reports a throwing gate as a failure instead of rejecting (#1681)", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const m = new UndoRedoManager();
+    const boom = new Error("dialog host is gone");
+    m.setConfirmGate(() => Promise.reject(boom));
+    const c = cmd({ confirm: { kind: "repeat", scope: "all" } });
+    m.push(c);
+
+    // The caller `void`s this promise, so a rejection here would surface as an
+    // unhandled one — a full-screen overlay in dev, silence in production.
+    const outcome = await m.undo();
+    spy.mockRestore();
+
+    expect(outcome).toEqual({ command: c, ok: false, error: boom });
+    // Nothing was asked, so nothing moved — same as a "no".
+    expect(c.ran).toEqual([]);
+    expect(m.canUndo()).toBe(true);
+    expect(m.canRedo()).toBe(false);
+  });
+
   it("forgets the gate when it is cleared", async () => {
     const m = new UndoRedoManager();
     const gate = vi.fn(async () => false);
