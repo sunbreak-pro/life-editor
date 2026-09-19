@@ -1,5 +1,6 @@
 import { ChevronRight } from "lucide-react";
 import { cn } from "../cn";
+import { FOCUS_RING_TIGHT } from "../styleTokens";
 import { ItemRoleBadge } from "../items/ItemRoleBadge";
 import type { TagHubGroup, TagHubItem, TagHubLabels } from "./types";
 
@@ -34,6 +35,14 @@ export interface TagHubItemGroupsProps {
    */
   wide: boolean;
   labels: TagHubLabels;
+  /*
+   * Bulk selection (#1644 / D8–D9). Without a toggle the rows carry no
+   * checkbox and read exactly as before, which is what narrow gets.
+   */
+  checkedIds?: ReadonlySet<string>;
+  onToggleChecked?: (itemId: string) => void;
+  /** A row's checkbox name ("Select “Standup”"). */
+  formatSelectItem?: (title: string) => string;
 }
 
 export function TagHubItemGroups({
@@ -42,7 +51,13 @@ export function TagHubItemGroups({
   formatCount,
   wide,
   labels,
+  checkedIds,
+  onToggleChecked,
+  formatSelectItem,
 }: TagHubItemGroupsProps) {
+  // Once anything is checked every row shows its box (D8), so extending the
+  // selection does not mean hunting for a control that appears on hover.
+  const anyChecked = (checkedIds?.size ?? 0) > 0;
   return (
     <div className="flex flex-col gap-5">
       {groups.map((group) => (
@@ -68,7 +83,35 @@ export function TagHubItemGroups({
           </h3>
           <ul className="flex flex-col">
             {group.items.map((item) => (
-              <li key={item.id}>
+              <li
+                key={item.id}
+                className={cn(
+                  "group/row relative flex items-center rounded-lumen-sm",
+                  // The tint plus the 2px bar (D9), so a checked row is not
+                  // told apart by colour alone.
+                  checkedIds?.has(item.id) && "bg-lumen-accent-subtle",
+                )}
+              >
+                {checkedIds?.has(item.id) && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-lumen-accent"
+                  />
+                )}
+                {onToggleChecked && (
+                  <input
+                    type="checkbox"
+                    checked={checkedIds?.has(item.id) ?? false}
+                    onChange={() => onToggleChecked(item.id)}
+                    aria-label={formatSelectItem?.(item.title) ?? item.title}
+                    className={cn(
+                      "ml-2 size-4 shrink-0 cursor-pointer accent-lumen-accent",
+                      FOCUS_RING_TIGHT,
+                      !anyChecked &&
+                        "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
+                    )}
+                  />
+                )}
                 <button
                   type="button"
                   onClick={() => onOpenItem(item)}

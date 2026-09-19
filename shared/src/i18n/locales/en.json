@@ -992,6 +992,23 @@
       "recentEmpty": "Nothing is filed under this tag yet."
     },
     "mergeTag": "Merge into another tag…",
+    "selection": {
+      "region": "Selected items",
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected",
+      "assign": "Add a tag",
+      "remove": "Remove this tag",
+      "move": "Move to another tag",
+      "clear": "Clear selection",
+      "assignTitle": "Add a tag to the selection",
+      "moveTitle": "Move the selection to a tag",
+      "selectItem": "Select “{{title}}”",
+      "search": "Search or create a tag…",
+      "create": "Create “{{name}}”",
+      "pickerEmpty": "No matching tag",
+      "failed_one": "{{count}} item could not be updated. Check your connection.",
+      "failed_other": "{{count}} items could not be updated. Check your connection."
+    },
     "merge": {
       "title": "Merge “{{name}}” into…",
       "targetsLabel": "Tag to merge into",

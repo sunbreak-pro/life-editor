@@ -985,6 +985,21 @@
       "recentEmpty": "このタグが付いたアイテムはまだありません。"
     },
     "mergeTag": "別のタグへ統合…",
+    "selection": {
+      "region": "選択中のアイテム",
+      "selected_other": "{{count}} 件を選択中",
+      "assign": "タグを付ける",
+      "remove": "このタグを外す",
+      "move": "別のタグへ移す",
+      "clear": "選択解除",
+      "assignTitle": "選択したアイテムにタグを付ける",
+      "moveTitle": "選択したアイテムを別のタグへ移す",
+      "selectItem": "「{{title}}」を選択",
+      "search": "タグを検索・作成…",
+      "create": "「{{name}}」を作成",
+      "pickerEmpty": "一致するタグはありません",
+      "failed_other": "{{count}} 件を更新できませんでした。通信を確認してください。"
+    },
     "merge": {
       "title": "「{{name}}」を統合する",
       "targetsLabel": "統合先のタグ",
