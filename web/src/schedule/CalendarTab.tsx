@@ -18,6 +18,7 @@ import {
   useMinuteClock,
   TodoAddDialog,
   useTourAction,
+  useHolidayColorPref,
   TOUR_ACTIONS,
   type EventEditorItem,
   type DataService,
@@ -488,9 +489,17 @@ export function CalendarTab({
   // writes and a hidden item stays editable from the flow tab. `hiddenRepeats`
   // rides along from the same call, so the toolbar's count cannot disagree
   // with what the grid actually dropped.
+  // #1626: the one colour every holiday wears. Read here rather than inside
+  // the filters hook so it arrives as data, like every other display input
+  // the grid takes.
+  const { holidayColor } = useHolidayColorPref();
+
   const {
     repeatsHidden,
     hiddenRepeats,
+    holidaysHidden,
+    hiddenHolidays,
+    handleToggleHolidays,
     selectedTagIds,
     activeGroupId,
     groupChips,
@@ -513,6 +522,9 @@ export function CalendarTab({
     allAssignments,
     isWide,
     anchorDate,
+    rangeStart,
+    rangeEnd,
+    holidayColor,
     selected,
     setSelectedId,
     setPopover,
@@ -1271,11 +1283,14 @@ export function CalendarTab({
             labels: toolbarLabels,
             repeatsHidden,
             hiddenRepeats,
+            holidaysHidden,
+            hiddenHolidays,
             onToday: goToday,
             onPrev: () => step(-1),
             onNext: () => step(1),
             onChangeView: setView,
             onToggleRepeats: handleToggleRepeats,
+            onToggleHolidays: handleToggleHolidays,
             onOpenFilter: () => setTagFilterOpen(true),
             filterActive: selectedTagIds.length > 0,
             // #1639: the number on the icon. `selectedTagIds` is the resolved

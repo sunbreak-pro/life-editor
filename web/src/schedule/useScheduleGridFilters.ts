@@ -14,7 +14,11 @@ import {
   type WikiTagUnified,
   type WikiTagAssignmentUnified,
 } from "@life-editor/shared";
-import { toMonthGridItems, toWeekGridItems } from "./scheduleViewModels";
+import {
+  toHolidayGridItems,
+  toMonthGridItems,
+  toWeekGridItems,
+} from "./scheduleViewModels";
 
 /*
  * What the calendar actually DRAWS (#889, extracted from CalendarTab).
@@ -72,12 +76,20 @@ export interface UseScheduleGridFiltersArgs {
   isWide: boolean;
   /** The day the Mobile list shows. */
   anchorDate: string;
+  /** Inclusive bounds of the drawn window, for the holiday rows (#1626). */
+  rangeStart: string;
+  rangeEnd: string;
+  /** The single colour every holiday wears (useHolidayColorPref). */
+  holidayColor: string;
   /** The selected row, for the two selection-drop guards. */
   selected: ScheduleItem | null;
   setSelectedId: (id: string | null) => void;
   /** Closing the bubble is half of dropping a selection it is anchored to. */
   setPopover: (popover: null) => void;
 }
+
+/** Stable empty list, so hiding holidays does not remount the two grids. */
+const NO_HOLIDAYS: ReturnType<typeof toHolidayGridItems> = [];
 
 /** Same members, order-independent — the test behind rule 5. */
 function sameTagSet(a: readonly string[], b: readonly string[]): boolean {
@@ -94,11 +106,15 @@ export function useScheduleGridFilters({
   allAssignments,
   isWide,
   anchorDate,
+  rangeStart,
+  rangeEnd,
+  holidayColor,
   selected,
   setSelectedId,
   setPopover,
 }: UseScheduleGridFiltersArgs) {
   const [repeatsHidden, setRepeatsHidden] = useState(false);
+  const [holidaysHidden, setHolidaysHidden] = useState(false);
   const [pickedTagIds, setPickedTagIds] = useState<string[]>([]);
 
   const { visible: repeatFilteredItems, hiddenCount: hiddenRepeats } = useMemo(
@@ -215,13 +231,51 @@ export function useScheduleGridFilters({
     [allAssignments, allTags],
   );
 
+  /*
+   * #1626 — the holidays inside the drawn window.
+   *
+   * Computed from the window's bounds rather than filtered out of
+   * `rangeItems`, because there is nothing in `rangeItems` to filter: a
+   * holiday has no row anywhere (japaneseHolidays' header). That also keeps
+   * it out of the two filters above — the repeat filter folds away what a
+   * routine generated and the lens keeps what carries a tag, and a holiday is
+   * neither generated nor taggable. Its own toggle is the only thing that
+   * hides it, and the counts of the other two never include it.
+   */
+  const windowHolidays = useMemo(
+    () => toHolidayGridItems(rangeStart, rangeEnd, holidayColor),
+    [rangeStart, rangeEnd, holidayColor],
+  );
+  const holidayItems = holidaysHidden ? NO_HOLIDAYS : windowHolidays;
+  /**
+   * How many the toggle is currently folding away — the same "N hidden"
+   * notice the repeat button carries, for the same #466 reason: an empty slot
+   * on a filtered grid otherwise reads as free time.
+   */
+  const hiddenHolidays = holidaysHidden ? windowHolidays.length : 0;
+
+  /*
+   * Holidays go FIRST on both surfaces, and on the month grid that is not a
+   * cosmetic choice: a Desktop cell draws two chips and folds the rest into
+   * "他 N 件" (monthCellFold), in the order the host hands them over. Appended
+   * last, a holiday would be the first thing hidden on exactly the days most
+   * likely to be busy — and a holiday is context for the WHOLE day, not one
+   * more thing on it. The week grid has no fold, but keeping the two in the
+   * same order means the lane and the cell agree on what leads a day.
+   */
   const gridItems = useMemo<WeekTimeGridItem[]>(
-    () => toWeekGridItems(gridRangeItems, gridTodoChips, tagColors),
-    [gridRangeItems, gridTodoChips, tagColors],
+    () => [
+      ...holidayItems,
+      ...toWeekGridItems(gridRangeItems, gridTodoChips, tagColors),
+    ],
+    [gridRangeItems, gridTodoChips, tagColors, holidayItems],
   );
   const monthItems = useMemo<MonthGridItem[]>(
-    () => toMonthGridItems(gridRangeItems, gridTodoChips, tagColors),
-    [gridRangeItems, gridTodoChips, tagColors],
+    () => [
+      ...holidayItems,
+      ...toMonthGridItems(gridRangeItems, gridTodoChips, tagColors),
+    ],
+    [gridRangeItems, gridTodoChips, tagColors, holidayItems],
   );
 
   // The Mobile day list — #467 made it the only thing narrow draws, so this is
@@ -241,6 +295,17 @@ export function useScheduleGridFilters({
       setPopover(null);
     }
   }, [repeatsHidden, selected, setSelectedId, setPopover]);
+
+  /*
+   * #1626. No selection guard beside it, unlike rule 3 above: a holiday can
+   * never BE the selection (it is drawn as text, not as a control), so hiding
+   * one cannot leave the popover or the editor pointed at a row that is no
+   * longer drawn.
+   */
+  const handleToggleHolidays = useCallback(
+    () => setHolidaysHidden((prev) => !prev),
+    [],
+  );
 
   /*
    * Rule 4 above (#468), in one place for every route that changes the tag set
@@ -322,6 +387,9 @@ export function useScheduleGridFilters({
   return {
     repeatsHidden,
     hiddenRepeats,
+    holidaysHidden,
+    hiddenHolidays,
+    handleToggleHolidays,
     selectedTagIds,
     activeGroupId,
     groupChips,

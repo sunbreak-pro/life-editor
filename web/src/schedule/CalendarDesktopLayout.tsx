@@ -64,6 +64,11 @@ export interface CalendarDesktopToolbar {
   onNext: () => void;
   onChangeView: (id: string) => void;
   onToggleRepeats: () => void;
+  /** Holidays are currently folded out of the grid (#1626). */
+  holidaysHidden: boolean;
+  /** How many the holiday filter dropped — carried by its accessible name. */
+  hiddenHolidays: number;
+  onToggleHolidays: () => void;
   /** Open the calendars modal (the settings gear). */
   onOpenFilter: () => void;
   /** Whether a tag filter is narrowing the grid (lights the button). */
@@ -295,6 +300,8 @@ export function CalendarDesktopLayout({
         onChangeView={toolbar.onChangeView}
         onToggleRepeats={toolbar.onToggleRepeats}
         repeatsHidden={toolbar.repeatsHidden}
+        onToggleHolidays={toolbar.onToggleHolidays}
+        holidaysHidden={toolbar.holidaysHidden}
         onOpenFilter={toolbar.onOpenFilter}
         filterActive={toolbar.filterActive}
         filterCount={toolbar.filterCount}
@@ -308,6 +315,13 @@ export function CalendarDesktopLayout({
           // number than the grid is missing.
           repeatsHidden: t("scheduleScreen.repeatFilterHidden", {
             count: toolbar.hiddenRepeats,
+          }),
+          hideHolidays: t("scheduleScreen.holidayFilterHide"),
+          // Same rule as the repeat pair above: the number comes from the
+          // list the toggle dropped, so the name cannot claim a count the
+          // grid does not match.
+          holidaysHidden: t("scheduleScreen.holidayFilterHidden", {
+            count: toolbar.hiddenHolidays,
           }),
         }}
       />

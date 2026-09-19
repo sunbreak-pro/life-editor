@@ -115,6 +115,11 @@ function setup(overrides: Partial<UseScheduleGridFiltersArgs> = {}) {
     allAssignments: [],
     isWide: true,
     anchorDate: "2026-08-16",
+    // #1626: a window with no holiday in it (8/11 山の日 is just outside),
+    // so every case below keeps counting exactly the rows it was written for.
+    rangeStart: "2026-08-17",
+    rangeEnd: "2026-08-23",
+    holidayColor: "#e03e3e",
     selected: null,
     setSelectedId,
     setPopover,
@@ -525,5 +530,106 @@ describe("useScheduleGridFilters — rule 5: the many-tag lens (#1173)", () => {
     // show", not "what does the current lens show".
     expect(hook.result.current.tagCounts.get("tag-work")).toBe(2);
     expect(hook.result.current.tagCounts.get("tag-home")).toBe(1);
+  });
+});
+
+/*
+ * #1626 — holidays, the third thing the grid folds away.
+ *
+ * They come from neither of the two lists above: there is no row anywhere to
+ * filter, so they are computed from the window's bounds and appended. That is
+ * exactly what makes them easy to break — the other two filters must not see
+ * them, and their own toggle must reach both grids at once.
+ */
+describe("useScheduleGridFilters — holidays (#1626)", () => {
+  const SEPTEMBER = { rangeStart: "2026-09-01", rangeEnd: "2026-09-30" };
+
+  it("draws the window's holidays on both grids, in the shared colour", () => {
+    const { hook } = setup({ ...SEPTEMBER, holidayColor: "#123456" });
+    const onMonth = hook.result.current.monthItems.filter(
+      (i) => i.variant === "holiday",
+    );
+    const onWeek = hook.result.current.gridItems.filter(
+      (i) => i.variant === "holiday",
+    );
+    expect(onMonth.map((i) => `${i.date} ${i.title}`)).toEqual([
+      "2026-09-21 敬老の日",
+      "2026-09-22 国民の休日",
+      "2026-09-23 秋分の日",
+    ]);
+    // The same three on the week grid, all-day so they land in the lane.
+    expect(onWeek.map((i) => i.date)).toEqual(onMonth.map((i) => i.date));
+    expect(onWeek.every((i) => i.isAllDay)).toBe(true);
+    // One colour for all of them — the Issue's rule, and the reason the
+    // Settings card has a single swatch rather than one per holiday.
+    expect(new Set(onMonth.map((i) => i.tagColor))).toEqual(
+      new Set(["#123456"]),
+    );
+  });
+
+  it("hides them on both grids, and says how many", () => {
+    const { hook } = setup(SEPTEMBER);
+    expect(hook.result.current.hiddenHolidays).toBe(0);
+
+    act(() => hook.result.current.handleToggleHolidays());
+
+    expect(hook.result.current.holidaysHidden).toBe(true);
+    expect(hook.result.current.hiddenHolidays).toBe(3);
+    expect(
+      hook.result.current.monthItems.some((i) => i.variant === "holiday"),
+    ).toBe(false);
+    expect(
+      hook.result.current.gridItems.some((i) => i.variant === "holiday"),
+    ).toBe(false);
+
+    act(() => hook.result.current.handleToggleHolidays());
+    expect(
+      hook.result.current.monthItems.filter((i) => i.variant === "holiday"),
+    ).toHaveLength(3);
+  });
+
+  it("keeps holidays out of the other two filters' counts", () => {
+    // A repeat-generated row with no tags, in a window that also holds three
+    // holidays. Both existing counts are about ROWS, and a holiday is not one
+    // — counting it here would make "N hidden" name days the user never had
+    // anything on.
+    const rangeItems = [
+      item("occurrence", { date: "2026-09-21", routineId: "r1" }),
+    ];
+    const { hook } = setup({ ...SEPTEMBER, rangeItems });
+
+    act(() => hook.result.current.handleToggleRepeats());
+    act(() => hook.result.current.handleToggleHolidays());
+
+    expect(hook.result.current.hiddenRepeats).toBe(1);
+    expect(hook.result.current.hiddenHolidays).toBe(3);
+    expect(hook.result.current.hiddenByTags).toBe(0);
+    // The repeat filter took the only real row; the holiday filter took the
+    // rest. Nothing is left, and nothing was counted twice.
+    expect(hook.result.current.monthItems).toHaveLength(0);
+  });
+
+  it("puts the holiday ahead of the day's own rows", () => {
+    // A Desktop month cell draws two chips and folds the rest into "他 N 件"
+    // in the order it is handed them. Appended last, the holiday would be the
+    // first thing hidden on a busy day — and it is context for the whole day
+    // rather than one more thing on it.
+    const rangeItems = [
+      item("a", { date: "2026-09-21" }),
+      item("b", { date: "2026-09-21" }),
+    ];
+    const { hook } = setup({ ...SEPTEMBER, rangeItems });
+    const sameDay = hook.result.current.monthItems.filter(
+      (i) => i.date === "2026-09-21",
+    );
+    expect(sameDay.map((i) => i.id)).toEqual(["holiday-2026-09-21", "a", "b"]);
+  });
+
+  it("leaves the Mobile day list alone", () => {
+    // `anchorDayItems` feeds the list under the narrow grid, and it is built
+    // from schedule ROWS. A holiday has none, and the narrow layout offers no
+    // toggle to bring one back, so it must not appear there at all.
+    const { hook } = setup({ ...SEPTEMBER, anchorDate: "2026-09-21" });
+    expect(hook.result.current.anchorDayItems).toEqual([]);
   });
 });

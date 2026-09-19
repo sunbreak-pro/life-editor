@@ -44,6 +44,8 @@ import {
   useShortcutConfig,
   useStartupSectionPref,
   useScheduleInitialViewPref,
+  useHolidayColorPref,
+  DEFAULT_HOLIDAY_COLOR,
   useReminderPrefs,
   REMINDER_LEAD_CHOICES,
   useDayStartHourPref,
@@ -171,6 +173,9 @@ export function SettingsScreen({
     useStartupSectionPref();
   const { dayStartHour, setDayStartHour } = useDayStartHourPref();
   const { initialView, setInitialView } = useScheduleInitialViewPref();
+  // #1626: the one colour every holiday wears. Written here, read by the
+  // calendar when the Schedule section next mounts.
+  const { holidayColor, setHolidayColor } = useHolidayColorPref();
   const {
     remindersEnabled,
     setRemindersEnabled,
@@ -850,6 +855,9 @@ export function SettingsScreen({
               value: n,
               label: t("schedule.reminderLead", { n }),
             }))}
+            holidayColor={holidayColor}
+            onHolidayColorChange={setHolidayColor}
+            defaultHolidayColor={DEFAULT_HOLIDAY_COLOR}
             labels={{
               heading: t("settings.schedule.heading"),
               description: t("settings.schedule.description"),
@@ -862,6 +870,11 @@ export function SettingsScreen({
               reminderDefaultLabel: t("settings.schedule.reminderDefaultLabel"),
               reminderDefaultHint: t("settings.schedule.reminderDefaultHint"),
               reminderDesktopHint: t("settings.schedule.reminderDesktopHint"),
+              holidayHeading: t("settings.schedule.holidayHeading"),
+              holidayDescription: t("settings.schedule.holidayDescription"),
+              holidayColorLabel: t("settings.schedule.holidayColorLabel"),
+              holidayColorClear: t("settings.schedule.holidayColorClear"),
+              holidayColorCustom: t("settings.schedule.holidayColorCustom"),
             }}
           />
         </div>

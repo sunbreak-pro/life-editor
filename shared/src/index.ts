@@ -236,6 +236,14 @@ export {
   DEFAULT_SCHEDULE_INITIAL_VIEW,
   SCHEDULE_INITIAL_VIEWS,
 } from "./hooks/useScheduleInitialView";
+// Holiday display (#1626) — the ONE colour every holiday wears. Local, like
+// the initial-view pref above, because a holiday is not the user's data.
+export {
+  useHolidayColorPref,
+  normalizeHolidayColor,
+  DEFAULT_HOLIDAY_COLOR,
+  HOLIDAY_COLOR_STORAGE_KEY,
+} from "./hooks/useHolidayDisplay";
 // Event reminder prefs (#1374) — master switch + create-time default lead,
 // the same resolver + Settings-hook shape as the initial-view pref above.
 export {
@@ -531,6 +539,19 @@ export {
   type TodoCalendarChip,
   type TodoScheduleSlot,
 } from "./utils/todoCalendarChips";
+// #1626: Japanese public holidays, computed from the law rather than fetched
+// or stored — see the module header for why none of the other three routes
+// (network, DB rows, a static table) was taken.
+export {
+  holidaysInYear,
+  holidaysInRange,
+  holidayItemId,
+  isHolidayItem,
+  HOLIDAY_ITEM_PREFIX,
+  HOLIDAY_MIN_YEAR,
+  HOLIDAY_MAX_YEAR,
+  type Holiday,
+} from "./utils/japaneseHolidays";
 // #625: Event <-> Todo conversion — the host-side decisions (what blocks a
 // conversion, where a converted Todo lands). The write itself is a
 // DataService method (convertEventToTodo / convertTodoToEvent).

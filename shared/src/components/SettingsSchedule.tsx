@@ -1,5 +1,6 @@
 import { CalendarRange } from "lucide-react";
 import { cn } from "./cn";
+import { ColorPicker } from "./ColorPicker";
 import { SettingsSegment } from "./SettingsSegment";
 import type { DesktopCalendarView } from "../utils/calendarView";
 
@@ -19,6 +20,16 @@ export interface SettingsScheduleProps {
   onDefaultLeadMinutesChange: (minutes: number) => void;
   /** Already-translated lead-time choices, in the order offered. */
   leadOptions: Array<{ value: number; label: string }>;
+  /**
+   * The ONE colour every holiday is drawn in (#1626). Shared across all of
+   * them by the Issue's rule — the holiday's NAME already tells 敬老の日 from
+   * 秋分の日, so per-holiday colours would encode nothing.
+   */
+  holidayColor: string;
+  /** Picking "clear" in the swatch grid restores the default red. */
+  onHolidayColorChange: (color: string) => void;
+  /** The default, so clearing has something to fall back to. */
+  defaultHolidayColor: string;
   /** Already-translated copy (CLAUDE.md §6.4: no useTranslation here). */
   labels: {
     heading: string;
@@ -32,6 +43,11 @@ export interface SettingsScheduleProps {
     reminderDefaultLabel: string;
     reminderDefaultHint: string;
     reminderDesktopHint: string;
+    holidayHeading: string;
+    holidayDescription: string;
+    holidayColorLabel: string;
+    holidayColorClear: string;
+    holidayColorCustom: string;
   };
 }
 
@@ -56,6 +72,9 @@ export function SettingsSchedule({
   defaultLeadMinutes,
   onDefaultLeadMinutesChange,
   leadOptions,
+  holidayColor,
+  onHolidayColorChange,
+  defaultHolidayColor,
   labels,
 }: SettingsScheduleProps) {
   return (
@@ -142,6 +161,32 @@ export function SettingsSchedule({
         <p className="text-sm text-lumen-text-tertiary">
           {labels.reminderDesktopHint}
         </p>
+      </div>
+
+      {/* Holidays (#1626). Only the COLOUR is a setting: which days are
+          holidays comes from the law, and whether they are drawn is the
+          calendar's own toggle, beside the repeat filter where the user is
+          looking at the grid they want to change. What belongs here is the
+          one choice that outlives a session. */}
+      <div className="flex flex-col gap-3 border-t border-lumen-border pt-4">
+        <span className="text-sm font-medium text-lumen-text">
+          {labels.holidayHeading}
+        </span>
+        <p className="text-sm text-lumen-text-secondary">
+          {labels.holidayDescription}
+        </p>
+        <div data-holiday-color={holidayColor}>
+          <ColorPicker
+            current={holidayColor}
+            label={labels.holidayColorLabel}
+            clearLabel={labels.holidayColorClear}
+            customLabel={labels.holidayColorCustom}
+            // Clearing means "back to the default", not "no colour": a
+            // holiday with no face would be indistinguishable from an event,
+            // which is the one thing the shared colour exists to prevent.
+            onPick={(color) => onHolidayColorChange(color ?? defaultHolidayColor)}
+          />
+        </div>
       </div>
     </div>
   );

@@ -139,6 +139,7 @@ function renderDesktop(
     onNext: vi.fn(),
     onChangeView: vi.fn(),
     onToggleRepeats: vi.fn(),
+    onToggleHolidays: vi.fn(),
     onOpenFilter: vi.fn(),
     onAddEvent: vi.fn(),
   };
@@ -160,6 +161,8 @@ function renderDesktop(
       labels: TOOLBAR_LABELS,
       repeatsHidden: false,
       hiddenRepeats: 0,
+      holidaysHidden: false,
+      hiddenHolidays: 0,
       filterActive: false,
       filterCount: 0,
       ...toolbarSpies,
