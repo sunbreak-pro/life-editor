@@ -22,11 +22,10 @@ import { createBumpableSync } from "./helpers";
  *     carried its own "to Event" all along, so the Event panel offering nothing
  *     on Desktop read as a one-way street. The wrapper is the only place the
  *     width could silently gate it again.
- *   - the save footer is pinned on the narrow sheet and nowhere else (#995).
- *     Written `stickyFooter={isWide}` it regresses in both directions at
- *     once: the sheet's footer drops below the fold again on a long memo, and
- *     Desktop's <Modal> — which has no scroller of its own — resolves
- *     `sticky` against the viewport and lifts the row off the card.
+ *   - the save footer is pinned on BOTH widths (#995 narrow, #1728 Desktop).
+ *     A width gate here is what put Save at y=957 on a 900px-tall window once
+ *     a Weekdays repeat unfolded its pills, so the absence of one is the fact
+ *     worth holding.
  *   - tagging a routine occurrence writes against the SERIES, not the row
  *     (#468). The occurrence rows are regenerated, so a tag put on one of them
  *     disappears the next time the generator materialises the range — silently,
@@ -192,24 +191,24 @@ describe("ScheduleEventEditor — the Event→Todo entry is on both widths (#998
   });
 });
 
-describe("ScheduleEventEditor — the save footer sticks on narrow only (#995)", () => {
+describe("ScheduleEventEditor — the save footer sticks on both widths (#1728)", () => {
   /*
    * Asserted on the class, the way the pane's own suite does it
    * (shared/tests/detailSaveFooterSticky.test.tsx): jsdom has no layout, so
-   * nothing here can show the row is actually pinned. What it CAN show is the
-   * prop arriving the right way round, which is the half a dropped `!` breaks.
+   * nothing here can show the row is actually pinned.
+   *
+   * #995 pinned the sheet's footer and deliberately left Desktop in flow,
+   * because the overlay's <Modal> had no scroller for `sticky` to resolve
+   * against. #1728 gave it one (ResponsiveDetailFrame passes `fitViewport`),
+   * and the width gate is what has to go with it: at 1440x900 a Weekdays
+   * repeat grew the panel to 1179px and put Save at y=957, off screen.
    */
   const footer = () =>
     screen.getByText("scheduleScreen.save").parentElement as HTMLElement;
 
-  it("pins it on the narrow sheet", () => {
-    renderEditor({ isWide: false });
+  it.each([true, false])("pins it at isWide=%s", (isWide) => {
+    renderEditor({ isWide });
     expect(footer().className).toContain("sticky");
-  });
-
-  it("leaves it in flow on Desktop, where <Modal> has no scroller", () => {
-    renderEditor({ isWide: true });
-    expect(footer().className).not.toContain("sticky");
   });
 });
 

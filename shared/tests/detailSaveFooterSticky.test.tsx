@@ -112,11 +112,12 @@ describe("detail save footer (#995)", () => {
   it.each([
     ["event editor", renderEditor],
     ["todo panel", renderTodo],
-  ])("leaves the %s alone by default (Desktop unchanged)", (_name, mount) => {
-    // Desktop's frame is <Modal>, which has NO scroller of its own — a sticky
-    // row there resolves against the viewport and would lift off the card once
-    // the dialog outgrew the window. Default-off is what makes "Desktop is
-    // untouched" true by construction rather than by review.
+  ])("leaves the %s alone by default (opt-in stays opt-in)", (_name, mount) => {
+    // A sticky row with no scrolling ancestor resolves against the VIEWPORT
+    // and lifts off the card the moment the frame outgrows the window. That
+    // was Desktop's <Modal> until #1728 gave the detail overlay a scroller;
+    // it is still true of any frame that has none, so default-off is what
+    // keeps a host from pinning a footer it cannot pin.
     const footer = mount(undefined);
     expect(footer.className).not.toContain("sticky");
     expect(footer.className).toContain("border-t");

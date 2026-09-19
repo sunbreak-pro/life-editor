@@ -158,8 +158,9 @@ export function ScheduleTodoDetail({
       >
         {(draft) => (
           <TodoDetailPanel
-            // #995: narrow only — see the prop's doc on TodoDetailPanelProps.
-            stickyFooter={!isWide}
+            // #1728: both widths now — the Desktop overlay grew the scroller
+            // the prop's doc said it lacked (see ResponsiveDetailFrame).
+            stickyFooter
             todoId={todo.id}
             title={todo.title}
             status={todo.status}

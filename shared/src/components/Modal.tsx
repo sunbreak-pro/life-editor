@@ -85,6 +85,28 @@ export interface ModalProps {
   className?: string;
   /** Close when the backdrop is clicked. Default true. */
   closeOnBackdrop?: boolean;
+  /**
+   * Bound the panel to the viewport and scroll its BODY (#1728).
+   *
+   * Off by default, the panel is as tall as its content and nothing catches
+   * the overflow: the backdrop is `fixed inset-0` (it cannot scroll), the
+   * wrapper centers with `items-center` (so a too-tall panel runs off BOTH
+   * edges), and AppShell holds `body` at `overflow: hidden`. At 1440x900 the
+   * event editor's repeat section grew the panel to 1179px and put its save
+   * button at y=957 — off screen, with no scroller anywhere above it, so the
+   * edit simply could not be committed.
+   *
+   * On: the panel becomes a bounded flex column whose heading stays put and
+   * whose body scrolls. Height-bounded rather than merely scrollable —
+   * `overflow-y: auto` on an unbounded box never overflows, so it would do
+   * nothing at all.
+   *
+   * Opt-in rather than always-on because `overflow-y: auto` clips on BOTH
+   * axes (CSS forces the other axis away from `visible`), which would newly
+   * cut off any popover a dialog paints outside its own box — a cost only the
+   * panels that actually grow tall should pay.
+   */
+  fitViewport?: boolean;
 }
 
 /*
@@ -113,6 +135,7 @@ export function Modal({
   padded = true,
   className,
   closeOnBackdrop = true,
+  fitViewport = false,
 }: ModalProps) {
   const panelRef = useDialogA11y<HTMLDivElement>({
     open,
@@ -139,6 +162,14 @@ export function Modal({
           MODAL_MAX_WIDTH[size],
           "bg-lumen-bg shadow-lumen-lg",
           padded ? "p-5" : null,
+          // `2rem` is exactly the backdrop's own `p-4` on both edges, so the
+          // ceiling is "the gutter the frame already draws" rather than a
+          // number someone picked. `dvh` (not `svh`) because the bound has to
+          // track the browser chrome as it comes and goes — a panel sized to
+          // the SMALL viewport would leave a strip of dead space open.
+          fitViewport
+            ? "flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden"
+            : null,
           className,
         )}
         style={maxWidth ? { maxWidth } : undefined}
@@ -161,7 +192,23 @@ export function Modal({
             <span className="min-w-0">{title}</span>
           </h2>
         ) : null}
-        {children}
+        {/*
+         * The scroller, when the panel is bounded (#1728). A wrapper rather
+         * than putting `overflow-y-auto` on the panel itself: the heading has
+         * to stay put — it is what names the dialog — and a `sticky bottom-0`
+         * save footer inside the body resolves against THIS box, which is the
+         * whole point (#995 wired that footer for the sheet and had to leave
+         * Desktop out because no such box existed).
+         *
+         * `min-h-0` because a flex item's floor is its content, so without it
+         * the body would refuse to shrink and push the panel past the ceiling
+         * set one level up.
+         */}
+        {fitViewport ? (
+          <div className="min-h-0 flex-1 overflow-y-auto">{children}</div>
+        ) : (
+          children
+        )}
       </div>
     </div>,
     document.body,

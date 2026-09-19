@@ -107,7 +107,7 @@ vi.mock("../src/schedule/ScheduleEventEditor", () => ({
        * used to be invisible to this suite, so rewriting any of them left all
        * 845 tests green — and `isWide` is the sharpest, because it is what
        * decides whether the pane draws itself as a sheet body or an overlay
-       * body (#995 hangs its sticky footer off exactly that).
+       * body (#1664 hangs its two-column layout off exactly that).
        */}
       <span data-testid="pane-forwards">
         {JSON.stringify({ isWide, routineId, options, repeat })}
@@ -663,10 +663,10 @@ describe("ScheduleOverlayHost — the unsaved-draft guard, wired here since #100
  * `routineId`, handing over an empty `repeat` — left every test green.
  *
  * `isWide` is the one that earns its own case. It is what tells the pane to
- * draw itself as a bottom-sheet body rather than an overlay body, and #995's
- * sticky footer hangs off exactly that, so getting it backwards puts the
- * save/delete row out of reach on the phone and a `sticky bottom-0` on a
- * Desktop <Modal> that has no scroller to resolve it against.
+ * draw itself as a bottom-sheet body rather than an overlay body, and #1664's
+ * two-column layout hangs off exactly that — backwards, the phone gets two
+ * unusable half-fields and Desktop gets one tall column. (It drove #995's
+ * sticky footer too, until #1728 pinned that on both widths.)
  */
 describe("ScheduleOverlayHost — what the pane is handed", () => {
   const forwards = () =>

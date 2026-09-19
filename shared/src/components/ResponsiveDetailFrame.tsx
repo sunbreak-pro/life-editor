@@ -66,6 +66,19 @@ export function ResponsiveDetailFrame({
         titleIcon={titleIcon}
         size={wideOverlay ? "panel" : undefined}
         onClose={onClose}
+        /*
+         * #1728: always — the sheet below has had a scroller since #874, and
+         * the overlay had none, so the SAME body was reachable on a phone and
+         * unreachable on a 1440x900 desktop once the repeat section unfolded
+         * its weekday pills. Both branches of this fold now guarantee one
+         * scrolling box around the body, which is what makes "the detail body
+         * may grow" a safe thing for a host to assume.
+         *
+         * Not a prop for the caller to pass: a host that had to remember it
+         * is a host that will forget it, and this component exists precisely
+         * to stop the two frames drifting apart.
+         */
+        fitViewport
       >
         {children}
       </ItemDetailOverlay>

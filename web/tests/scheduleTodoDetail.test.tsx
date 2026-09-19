@@ -175,26 +175,22 @@ describe("ScheduleTodoDetail — the kind cue (#1044)", () => {
   });
 });
 
-describe("ScheduleTodoDetail — the save footer (#995)", () => {
+describe("ScheduleTodoDetail — the save footer (#995 / #1728)", () => {
   /*
    * The pane is shared, and the sticky recipe lives there
    * (shared/tests/detailSaveFooterSticky.test.tsx). What only this file can
-   * check is that the WIRING points the right way: a `stickyFooter={isWide}`
-   * typo would compile, pass every shared case, and pin the footer on exactly
-   * the surface the Issue says must not change.
+   * check is that the WIRING reaches it on both widths: #995 gated the pin on
+   * `!isWide` because the Desktop overlay had no scroller, and #1728 gave it
+   * one — so a width gate reappearing here is a save button that walks off a
+   * short window, which is the report this panel shares with the event editor.
    */
   const footerOf = () =>
     screen.getByRole("button", { name: "todoDetail.save" })
       .parentElement as HTMLElement;
 
-  it("pins the footer on Mobile, where the sheet scrolls", () => {
-    renderDetail({ isWide: false });
+  it.each([true, false])("pins the footer at isWide=%s", (isWide) => {
+    renderDetail({ isWide });
     expect(footerOf().className).toContain("sticky");
-  });
-
-  it("leaves the Desktop overlay's footer in the flow", () => {
-    renderDetail({ isWide: true });
-    expect(footerOf().className).not.toContain("sticky");
   });
 });
 
