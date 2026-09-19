@@ -49,9 +49,7 @@ import { createBumpableSync } from "./helpers";
  * queryBy* being null (same convention as scheduleSidebar.test.tsx).
  */
 
-const fetchSessionsByEventId = vi.fn(
-  async (): Promise<TimerSession[]> => [],
-);
+const fetchSessionsByEventId = vi.fn(async (): Promise<TimerSession[]> => []);
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@life-editor/shared")>()),
@@ -142,7 +140,15 @@ function renderEditor(
   const utils = render(<ScheduleEventEditor {...props} />, {
     wrapper: SyncWrapper,
   });
-  return { ...utils, onConvertToTodo };
+  return {
+    ...utils,
+    onConvertToTodo,
+    props,
+    // Typed narrower than RTL's own `rerender` so a case can hand back a
+    // modified props bag (#1663 moves the panel to another occurrence).
+    rerender: (next: ScheduleEventEditorProps) =>
+      utils.rerender(<ScheduleEventEditor {...next} />),
+  };
 }
 
 describe("ScheduleEventEditor — nothing selected", () => {
@@ -220,6 +226,49 @@ describe("ScheduleEventEditor — what the tag slot writes against (#468)", () =
     renderEditor({ routineId: null });
     expect(screen.getByText("picker:event:event-1")).toBeTruthy();
     expect(screen.getByText("colors:event-1")).toBeTruthy();
+  });
+});
+
+/*
+ * #1663 — the scope a tag on a REPEAT applies to.
+ *
+ * The series is still the default (#1632's reasoning is unchanged), but the
+ * user can point the write at this one occurrence instead, and the colour
+ * resolution prefers the occurrence's own tag over the series' — which is what
+ * makes "この回のみ" mean anything.
+ *
+ * Both the id AND the role have to follow the choice: the role names
+ * `items_meta.role` of the row actually written.
+ */
+describe("ScheduleEventEditor — the tag scope on a repeat (#1663)", () => {
+  const chooseThisOne = () =>
+    fireEvent.click(screen.getByText("scheduleScreen.tagScopeThis"));
+
+  it("offers the choice only for a repeat", () => {
+    renderEditor({ routineId: null });
+    expect(screen.queryByText("scheduleScreen.tagScopeThis")).toBeNull();
+
+    renderEditor({ routineId: "routine-1" });
+    screen.getByText("scheduleScreen.tagScopeThis");
+    screen.getByText("scheduleScreen.tagScopeAll");
+  });
+
+  it("points the write at this occurrence once it is chosen", () => {
+    renderEditor({ routineId: "routine-1" });
+    chooseThisOne();
+    expect(screen.getByText("picker:event:event-1")).toBeTruthy();
+    expect(screen.getByText("colors:event-1")).toBeTruthy();
+  });
+
+  it("starts on the series again when the panel moves to another row", () => {
+    const { rerender, props } = renderEditor({ routineId: "routine-1" });
+    chooseThisOne();
+    expect(screen.getByText("picker:event:event-1")).toBeTruthy();
+
+    rerender({ ...props, item: { ...ITEM, id: "event-2" } });
+    // A scope chosen for one occurrence must not decide where the NEXT one's
+    // tag lands.
+    expect(screen.getByText("picker:routine:routine-1")).toBeTruthy();
   });
 });
 

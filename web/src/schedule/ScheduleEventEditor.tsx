@@ -1,5 +1,7 @@
+import { useState } from "react";
 import {
   EventEditorPane,
+  SegmentedControl,
   REMINDER_LEAD_CHOICES,
   useTranslation,
   type EventEditorHandlers,
@@ -70,11 +72,34 @@ export function ScheduleEventEditor({
   onConvertToTodo,
 }: ScheduleEventEditorProps) {
   const { t } = useTranslation();
+  /*
+   * #1663: the tag scope, per occurrence. Reset whenever the panel moves to
+   * another row — a scope chosen for yesterday's occurrence must not decide
+   * where tomorrow's tag lands.
+   *
+   * Adjusted WHILE RENDERING rather than from an effect (React's own pattern
+   * for state derived from a prop, and the shape CalendarTab's pendingNewTodo
+   * already uses): a synchronous setState inside an effect costs an extra
+   * render pass, which is what react-hooks/set-state-in-effect objects to.
+   */
+  const [tagScope, setTagScope] = useState<"all" | "this">("all");
+  const selectedId = item?.id ?? null;
+  const [prevSelectedId, setPrevSelectedId] = useState(selectedId);
+  if (selectedId !== prevSelectedId) {
+    setPrevSelectedId(selectedId);
+    setTagScope("all");
+  }
   // Before the early return — hooks cannot be called conditionally, and the
   // hook already treats a null id as "nothing to read".
   const workMinutes = useEventWorkTime(item?.id ?? null);
 
   if (!item) return null;
+
+  // The row the tags are written to. "この回のみ" is the occurrence itself,
+  // and the role has to follow the id (it names `items_meta.role` of that row).
+  const seriesTarget = routineId != null && tagScope === "all";
+  const tagTargetId = seriesTarget ? routineId : item.id;
+  const tagTargetRole = seriesTarget ? "routine" : "event";
 
   const editorLabels = {
     title: t("scheduleScreen.title"),
@@ -182,11 +207,36 @@ export function ScheduleEventEditor({
         // color" and "change this tag's color" are the same act, and the hue
         // updates everywhere that tag paints (pills, Kanban, lens chips).
         <div className="flex flex-col gap-1.5">
-          <TagPicker
-            itemId={routineId ?? item.id}
-            itemRole={routineId != null ? "routine" : "event"}
-          />
-          <TagColorControls itemId={routineId ?? item.id} />
+          {/*
+           * #1663: which occurrences a tag (and therefore the colour it
+           * paints) applies to. Only a repeat has the question at all, so a
+           * single event never sees the control.
+           *
+           * "すべての回" writes against the SERIES — what #1632 settled, and
+           * still the default, because a tag usually describes the thing that
+           * repeats. "この回のみ" writes against this occurrence's own row,
+           * which the colour resolution prefers over the series (see
+           * eventTagColor in scheduleViewModels).
+           *
+           * "この回以降" is NOT here: nothing in the schema can bound a tag to
+           * a date range, so it would have to mean "every occurrence already
+           * on the calendar", and the days generated later would quietly miss
+           * it. Filed as a decision rather than guessed at.
+           */}
+          {routineId != null && (
+            <SegmentedControl
+              options={[
+                { id: "all", label: t("scheduleScreen.tagScopeAll") },
+                { id: "this", label: t("scheduleScreen.tagScopeThis") },
+              ]}
+              value={tagScope}
+              onChange={(id) => setTagScope(id as "all" | "this")}
+              label={t("scheduleScreen.tagScopeLabel")}
+              singleLineLabels
+            />
+          )}
+          <TagPicker itemId={tagTargetId} itemRole={tagTargetRole} />
+          <TagColorControls itemId={tagTargetId} />
         </div>
       }
     />

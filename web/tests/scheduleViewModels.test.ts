@@ -67,7 +67,7 @@ describe("toWeekGridItems", () => {
         event({ id: "e-future", startTime: "11:00", endTime: "12:00" }),
       ],
       [chip({ id: "t-1" })],
-      );
+    );
     expect(vms[0].variant).toBe("event");
     for (const vm of vms) expect("status" in vm).toBe(false);
   });
@@ -250,5 +250,44 @@ describe("tag colours (#1580)", () => {
     // coloured tags anywhere — on the variant colours.
     const rows = toMonthGridItems([event({ id: "e1" })], [chip({ id: "t1" })]);
     expect(rows.every((r) => r.tagColor === undefined)).toBe(true);
+  });
+});
+
+/*
+ * #1663 — a repeat wears its SERIES' colour.
+ *
+ * The tags of a repeat hang off the routine row (#1632: the occurrences are
+ * regenerated, so a tag on one would not survive), and the colour map is keyed
+ * by whatever row carries the tag. Looking an occurrence up by its own id
+ * therefore found nothing and it kept the variant colours — #1580 worked
+ * everywhere except on the rows most likely to be tagged.
+ */
+describe("tag colours on a repeat (#1663)", () => {
+  const COLORS = new Map([
+    ["r1", "#166534"],
+    ["occ-own", "#b91c1c"],
+  ]);
+  const occurrence = event({ id: "occ", routineId: "r1" });
+  const overridden = event({ id: "occ-own", routineId: "r1" });
+
+  it("falls back to the series on all three surfaces", () => {
+    expect(toWeekGridItems([occurrence], [], COLORS)[0].tagColor).toBe(
+      "#166534",
+    );
+    expect(toMonthGridItems([occurrence], [], COLORS)[0].tagColor).toBe(
+      "#166534",
+    );
+    expect(toAgendaItems([occurrence], [], COLORS)[0].tagColor).toBe("#166534");
+  });
+
+  it("lets the occurrence's own tag win — that is 'this one only'", () => {
+    expect(toWeekGridItems([overridden], [], COLORS)[0].tagColor).toBe(
+      "#b91c1c",
+    );
+  });
+
+  it("leaves a repeat with no tagged series uncoloured", () => {
+    const plain = event({ id: "occ2", routineId: "r-none" });
+    expect(toWeekGridItems([plain], [], COLORS)[0].tagColor).toBeUndefined();
   });
 });

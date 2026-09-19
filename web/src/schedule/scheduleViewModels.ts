@@ -49,6 +49,30 @@ export type ScheduleTagColors = ReadonlyMap<string, string>;
 
 const NO_TAG_COLORS: ScheduleTagColors = new Map();
 
+/**
+ * The colour an EVENT is painted in (#1663).
+ *
+ * A repeat's tags hang off the series (the routine row) — the occurrences are
+ * regenerated, so that is the only place a tag survives, and the editor writes
+ * there for exactly that reason (#1632). The colour map is keyed by whatever
+ * row carries the tag, so an occurrence found nothing under its own id and
+ * kept the variant colours while the single events beside it wore their tag's:
+ * #1580 worked everywhere except on the rows most likely to be tagged.
+ *
+ * Its OWN id still wins when it has one. That is what "この回のみ" means —
+ * a tag put on the occurrence overrides the series for that day, and nothing
+ * else about the series changes.
+ */
+function eventTagColor(
+  tagColors: ScheduleTagColors,
+  item: ScheduleItem,
+): string | undefined {
+  return (
+    tagColors.get(item.id) ??
+    (item.routineId ? tagColors.get(item.routineId) : undefined)
+  );
+}
+
 /** Blocks for the week/day time grid (WeekTimeGrid). */
 export function toWeekGridItems(
   events: ScheduleItem[],
@@ -65,7 +89,7 @@ export function toWeekGridItems(
       isAllDay: i.isAllDay,
       completed: i.completed,
       variant: itemVariant(i),
-      tagColor: tagColors.get(i.id),
+      tagColor: eventTagColor(tagColors, i),
     })),
     ...chips.map((c) => ({
       id: todoChipId(c.id),
@@ -96,7 +120,7 @@ export function toMonthGridItems(
       variant: itemVariant(i),
       completed: i.completed,
       isAllDay: i.isAllDay,
-      tagColor: tagColors.get(i.id),
+      tagColor: eventTagColor(tagColors, i),
     })),
     ...chips.map((c) => ({
       id: todoChipId(c.id),
@@ -128,7 +152,7 @@ export function toAgendaItems(
     isAllDay: i.isAllDay,
     completed: i.completed,
     variant: itemVariant(i),
-    tagColor: tagColors.get(i.id),
+    tagColor: eventTagColor(tagColors, i),
   }));
   const todoAgenda: AgendaItem[] = chips.map((c) => ({
     id: todoChipId(c.id),
