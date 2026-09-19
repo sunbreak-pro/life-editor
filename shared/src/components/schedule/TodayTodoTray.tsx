@@ -166,6 +166,14 @@ export interface TodayTodoTrayProps {
   /** Extra content under the title row (#555 — the host's tag surface). */
   renderRowExtra?: (row: TodayTodoRow) => ReactNode;
   /**
+   * Leave a whole group out — heading, empty state and all (#1641). The Todo
+   * tab's filter uses them when the user narrows to one of the two lists:
+   * hiding the rows but keeping the heading would say "nothing here today",
+   * which is a different (and false) statement.
+   */
+  hideToday?: boolean;
+  hideOther?: boolean;
+  /**
    * Show ONE list (headed `labels.placedHeading`) instead of the placed /
    * unplaced pair (#795): time-less rows first, as all-day rows. Needs
    * labels.allDay; leaves labels.unplacedHeading / emptyUnplaced unused.
@@ -429,6 +437,8 @@ export function TodayTodoTray({
   draggableAddable,
   renderRowExtra,
   singleList,
+  hideToday,
+  hideOther,
   labels,
   className,
 }: TodayTodoTrayProps) {
@@ -448,16 +458,18 @@ export function TodayTodoTray({
   };
   return (
     <div className={cn("flex flex-col gap-4", className)}>
-      <Group
-        {...shared}
-        heading={labels.placedHeading}
-        // Time-less first, the order every other surface files all-day items
-        // in (BriefingView's schedule sort, AgendaList's two blocks).
-        rows={singleList ? [...unplaced, ...placed] : placed}
-        empty={labels.emptyPlaced}
-        allDayLabel={singleList ? labels.allDay : undefined}
-      />
-      {!singleList && (
+      {!hideToday && (
+        <Group
+          {...shared}
+          heading={labels.placedHeading}
+          // Time-less first, the order every other surface files all-day items
+          // in (BriefingView's schedule sort, AgendaList's two blocks).
+          rows={singleList ? [...unplaced, ...placed] : placed}
+          empty={labels.emptyPlaced}
+          allDayLabel={singleList ? labels.allDay : undefined}
+        />
+      )}
+      {!singleList && !hideToday && (
         <Group
           {...shared}
           heading={labels.unplacedHeading ?? ""}
@@ -465,109 +477,111 @@ export function TodayTodoTray({
           empty={labels.emptyUnplaced ?? ""}
         />
       )}
-      <div className="flex flex-col gap-1.5">
-        <h4 className="text-xs font-semibold text-lumen-text-secondary">
-          {labels.addHeading}
-        </h4>
-        {addable.length === 0 ? (
-          <p className="py-2 text-center text-xs text-lumen-text-secondary">
-            {labels.emptyAddable}
-          </p>
-        ) : (
-          <ul role="list" className="flex flex-col">
-            {addable.map((a) => (
-              <li
-                key={a.id}
-                draggable={draggableAddable || undefined}
-                onDragStart={
-                  draggableAddable
-                    ? (e) => setTodoDragData(e.dataTransfer, a.id)
-                    : undefined
-                }
-                className={cn(
-                  "group flex items-center gap-2 border-b border-lumen-border",
-                  draggableAddable && "cursor-grab active:cursor-grabbing",
-                )}
-              >
-                {/* #1627: the same checkbox today's rows lead with. Every row
+      {!hideOther && (
+        <div className="flex flex-col gap-1.5">
+          <h4 className="text-xs font-semibold text-lumen-text-secondary">
+            {labels.addHeading}
+          </h4>
+          {addable.length === 0 ? (
+            <p className="py-2 text-center text-xs text-lumen-text-secondary">
+              {labels.emptyAddable}
+            </p>
+          ) : (
+            <ul role="list" className="flex flex-col">
+              {addable.map((a) => (
+                <li
+                  key={a.id}
+                  draggable={draggableAddable || undefined}
+                  onDragStart={
+                    draggableAddable
+                      ? (e) => setTodoDragData(e.dataTransfer, a.id)
+                      : undefined
+                  }
+                  className={cn(
+                    "group flex items-center gap-2 border-b border-lumen-border",
+                    draggableAddable && "cursor-grab active:cursor-grabbing",
+                  )}
+                >
+                  {/* #1627: the same checkbox today's rows lead with. Every row
                     in this list is open (pickOtherTodos drops DONE), so it
                     always starts unchecked and a press completes the todo —
                     which also takes it off this list. */}
-                {addableControls && (
-                  <TodoStatusCheckbox
-                    status="NOT_STARTED"
-                    onChange={(next) =>
-                      onSetStatus
-                        ? onSetStatus(a.id, next)
-                        : onToggleComplete(a.id)
-                    }
-                    labels={labels.statusLabels}
-                    label={labels.status}
-                  />
-                )}
-                {onOpenAddable ? (
-                  // #1153: the same title, as the way in. A button only when
-                  // the host has somewhere to open — a dead one would be worse
-                  // than the plain text it replaces.
-                  <button
-                    type="button"
-                    title={labels.openAddable}
-                    onClick={() => onOpenAddable(a.id)}
-                    className={cn(
-                      "min-w-0 flex-1 truncate py-1.5 text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent",
-                      FOCUS,
-                    )}
-                  >
-                    {a.title}
-                  </button>
-                ) : (
-                  <span className="min-w-0 flex-1 truncate py-1.5 text-sm text-lumen-text">
-                    {a.title}
-                  </span>
-                )}
-                {/* #1406: where the row is now — a row on some other day says
-                    so, in the slot today's rows use for their clock. */}
-                {a.meta && (
-                  <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
-                    {a.meta}
-                  </span>
-                )}
-                <button
-                  type="button"
-                  aria-label={labels.addAction}
-                  title={labels.addAction}
-                  onClick={() => onAddCandidate(a.id)}
-                  className={cn(
-                    "flex size-6 shrink-0 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
-                    NARROW_TAP_FLOOR,
-                    hoverActions && HOVER_REVEAL,
-                    FOCUS,
+                  {addableControls && (
+                    <TodoStatusCheckbox
+                      status="NOT_STARTED"
+                      onChange={(next) =>
+                        onSetStatus
+                          ? onSetStatus(a.id, next)
+                          : onToggleComplete(a.id)
+                      }
+                      labels={labels.statusLabels}
+                      label={labels.status}
+                    />
                   )}
-                >
-                  <Plus aria-hidden className="size-4" />
-                </button>
-                {/* #1627: to the right of the +, the same soft delete today's
-                    rows carry (always visible, like theirs). */}
-                {addableControls && onDelete && labels.delete && (
+                  {onOpenAddable ? (
+                    // #1153: the same title, as the way in. A button only when
+                    // the host has somewhere to open — a dead one would be worse
+                    // than the plain text it replaces.
+                    <button
+                      type="button"
+                      title={labels.openAddable}
+                      onClick={() => onOpenAddable(a.id)}
+                      className={cn(
+                        "min-w-0 flex-1 truncate py-1.5 text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent",
+                        FOCUS,
+                      )}
+                    >
+                      {a.title}
+                    </button>
+                  ) : (
+                    <span className="min-w-0 flex-1 truncate py-1.5 text-sm text-lumen-text">
+                      {a.title}
+                    </span>
+                  )}
+                  {/* #1406: where the row is now — a row on some other day says
+                    so, in the slot today's rows use for their clock. */}
+                  {a.meta && (
+                    <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
+                      {a.meta}
+                    </span>
+                  )}
                   <button
                     type="button"
-                    aria-label={labels.delete}
-                    title={labels.delete}
-                    onClick={() => onDelete(a.id)}
+                    aria-label={labels.addAction}
+                    title={labels.addAction}
+                    onClick={() => onAddCandidate(a.id)}
                     className={cn(
-                      "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger",
+                      "flex size-6 shrink-0 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
                       NARROW_TAP_FLOOR,
+                      hoverActions && HOVER_REVEAL,
                       FOCUS,
                     )}
                   >
-                    <Trash2 aria-hidden className="size-3.5" />
+                    <Plus aria-hidden className="size-4" />
                   </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                  {/* #1627: to the right of the +, the same soft delete today's
+                    rows carry (always visible, like theirs). */}
+                  {addableControls && onDelete && labels.delete && (
+                    <button
+                      type="button"
+                      aria-label={labels.delete}
+                      title={labels.delete}
+                      onClick={() => onDelete(a.id)}
+                      className={cn(
+                        "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-danger",
+                        NARROW_TAP_FLOOR,
+                        FOCUS,
+                      )}
+                    >
+                      <Trash2 aria-hidden className="size-3.5" />
+                    </button>
+                  )}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -150,6 +150,13 @@ export {
   type TagFilterPanelTag,
   type TagFilterPanelGroup,
 } from "./TagFilterPanel";
+// #1641: the Todo tab's own filter — which of the two lists, and which tags.
+export {
+  TodoFilterPanel,
+  type TodoFilterPanelProps,
+  type TodoFilterPanelLabels,
+  type TodoFilterPanelTag,
+} from "./TodoFilterPanel";
 // #296: the calendar's status surfaces — the loading card, the "could not
 // load" card, and the quiet banner for a failed range fetch that still has
 // rows under it (#889 lifted them out of CalendarTab).

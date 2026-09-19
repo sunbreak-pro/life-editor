@@ -40,6 +40,7 @@ import {
 } from "./useScheduleOverlays";
 import { useItemConversion } from "./useItemConversion";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
+import { useTodoTabFilter } from "./useTodoTabFilter";
 import { useScheduleRepeats } from "./useScheduleRepeats";
 import { useScheduleGridFilters } from "./useScheduleGridFilters";
 import { useScheduleCreateFlow } from "./useScheduleCreateFlow";
@@ -886,6 +887,26 @@ export function CalendarTab({
     push: undoRedo?.push,
   });
 
+  /*
+   * #1641: the Todo tab's filter — which of the two lists, and which tags.
+   * Independent of the grid's own lens (useScheduleGridFilters): narrowing the
+   * tray to read it must not empty the calendar beside it.
+   */
+  const todoTabFilter = useTodoTabFilter(allAssignments);
+  const todoFilterTags = useMemo(
+    () =>
+      allTags
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((tag) => ({
+          id: tag.id,
+          name: tag.name,
+          color: tag.color,
+          icon: tag.icon,
+        })),
+    [allTags],
+  );
+
   const showLoading = isLoading && rangeItems.length === 0;
   // Full-screen error only when there is nothing to show; a range-fetch
   // failure with stale items on screen degrades to the retry banner below
@@ -1016,6 +1037,11 @@ export function CalendarTab({
           onOpenAddable: setTodoDetailId,
           onDelete: handleTodoDelete,
           onAdd: () => setTodoAddOpen(true),
+          // #1641: the tab's own filter. The state lives here so the sidebar
+          // stays Provider-free; the rows above are handed over unfiltered and
+          // the panel narrows them.
+          filter: todoTabFilter,
+          filterTags: todoFilterTags,
         }}
       />
     </RightSidebarPortal>

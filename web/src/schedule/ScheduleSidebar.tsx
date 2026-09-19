@@ -1,6 +1,8 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { ListFilter } from "lucide-react";
 import {
   useTranslation,
+  cn,
   AddPill,
   AgendaList,
   NoticePanel,
@@ -8,6 +10,8 @@ import {
   RoutineSummaryCard,
   ScheduleSidebarTabs,
   TodayTodoTray,
+  TodoFilterPanel,
+  type TodoFilterPanelTag,
   tourAnchor,
   useTourAction,
   TOUR_ACTIONS,
@@ -20,6 +24,7 @@ import {
   type TodayTodoRow,
 } from "@life-editor/shared";
 import { TagPicker } from "../wikitag/TagPicker";
+import type { TodoTabFilter } from "./useTodoTabFilter";
 
 /*
  * The Schedule section's rightSidebar content — the three tabs behind
@@ -139,6 +144,10 @@ export interface ScheduleSidebarTodo {
   onDelete: (id: string) => void;
   /** Make a todo with no day yet (#1153). */
   onAdd: () => void;
+  /** The tab's own filter (#1641) — the host owns the state, this draws it. */
+  filter: TodoTabFilter;
+  /** Every live tag, already sorted, for the filter panel's checkboxes. */
+  filterTags: TodoFilterPanelTag[];
 }
 
 /**
@@ -348,6 +357,22 @@ export function ScheduleSidebar({
    * itself. Outside the scroller and not floating, for the reason
    * D-20260827-sched-1 gives.
    */
+  /*
+   * #1641: the Todo tab's own filter. Kept here rather than in CalendarTab
+   * because the rows arrive as props — narrowing them is a question about this
+   * panel, and the calendar's own lens (useScheduleGridFilters) answers a
+   * different one about the grid.
+   */
+  const [filterOpen, setFilterOpen] = useState(false);
+  const { filter, filterTags } = todo;
+  // The host hands over the rows unfiltered: which of them are on screen is
+  // this panel's question, and the grid beside it asks a different one.
+  const filtered = filter.apply({
+    placed: todo.placed,
+    unplaced: todo.unplaced,
+    addable: todo.addable,
+  });
+
   const todoBody = (
     // #1124: the tour's "finish one of them" step points at the whole tray
     // rather than at one control, because completing has three routes (the row
@@ -359,17 +384,96 @@ export function ScheduleSidebar({
       {...tourAnchor(TOUR_ANCHORS.scheduleTodoBoard)}
       className="flex flex-col gap-2"
     >
-      <div className="flex shrink-0 items-center justify-end">
+      {/*
+       * #1641: the filter button sits opposite the create pill, in the row the
+       * tab already had. The count on it is the number of things narrowing the
+       * list (a chosen list counts as one, plus one per ticked tag) — the same
+       * reading the calendar's badge carries (#1639).
+       */}
+      <div className="flex shrink-0 items-center justify-between gap-2">
+        <button
+          type="button"
+          aria-label={
+            filter.activeCount > 0
+              ? t("scheduleScreen.todoFilterActive", {
+                  count: filter.activeCount,
+                })
+              : t("scheduleScreen.todoFilterOpen")
+          }
+          aria-expanded={filterOpen}
+          aria-pressed={filter.activeCount > 0}
+          onClick={() => setFilterOpen((open) => !open)}
+          className={cn(
+            "relative flex size-8 items-center justify-center rounded-lumen-md border transition-colors",
+            "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+            filter.activeCount > 0
+              ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
+              : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+          )}
+        >
+          <ListFilter aria-hidden className="size-3.5" />
+          {filter.activeCount > 0 && (
+            <span
+              aria-hidden
+              data-todo-filter-count={filter.activeCount}
+              className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-lumen-accent px-1 text-[0.625rem] font-semibold leading-none text-lumen-on-accent tabular-nums"
+            >
+              {filter.activeCount}
+            </span>
+          )}
+        </button>
         <AddPill
           onClick={todo.onAdd}
           label={t("scheduleScreen.todoAddCta")}
           tourId={TOUR_ANCHORS.scheduleTodoAdd}
         />
       </div>
+      {filterOpen && (
+        <TodoFilterPanel
+          scope={filter.scope}
+          onScopeChange={filter.setScope}
+          tags={filterTags}
+          selectedTagIds={filter.tagIds}
+          onToggleTag={filter.toggleTag}
+          onClear={filter.clear}
+          active={filter.activeCount > 0}
+          labels={{
+            panel: t("scheduleScreen.todoFilterPanel"),
+            scopeHeading: t("scheduleScreen.todoFilterScopeHeading"),
+            scopeBoth: t("scheduleScreen.todoFilterScopeBoth"),
+            scopeToday: t("scheduleScreen.todoFilterScopeToday"),
+            scopeOther: t("scheduleScreen.todoFilterScopeOther"),
+            tagsHeading: t("scheduleScreen.todoFilterTagsHeading"),
+            noTags: t("scheduleScreen.todoFilterNoTags"),
+            clear: t("scheduleScreen.todoFilterClear"),
+          }}
+        />
+      )}
+      {/* Nothing left after filtering is not the same as having no todos, so
+          it gets its own line and its own way back out (#1641). */}
+      {filter.activeCount > 0 &&
+        filtered.placed.length === 0 &&
+        filtered.unplaced.length === 0 &&
+        filtered.addable.length === 0 && (
+          <div className="flex flex-col items-start gap-1 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary p-3">
+            <p className="text-xs text-lumen-text-secondary">
+              {t("scheduleScreen.todoFilterEmpty")}
+            </p>
+            <button
+              type="button"
+              onClick={filter.clear}
+              className="text-xs font-medium text-lumen-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+            >
+              {t("scheduleScreen.todoFilterClear")}
+            </button>
+          </div>
+        )}
       <TodayTodoTray
-        placed={todo.placed}
-        unplaced={todo.unplaced}
-        addable={todo.addable}
+        placed={filtered.placed}
+        unplaced={filtered.unplaced}
+        addable={filtered.addable}
+        hideToday={!filter.showToday}
+        hideOther={!filter.showOther}
         onToggleComplete={todo.onToggleComplete}
         onAddCandidate={todo.onAddCandidate}
         onMoveOut={todo.onMoveOut}

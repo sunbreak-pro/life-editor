@@ -120,6 +120,20 @@ function makeProps(tab: "flow" | "todo" | "repeats"): ScheduleSidebarProps {
       onOpenAddable: vi.fn(),
       onDelete: vi.fn(),
       onAdd: vi.fn(),
+      // #1641: the tab's filter is the host's state — off, so the tour sees
+      // every row this harness passes in.
+      filter: {
+        scope: "both" as const,
+        setScope: vi.fn(),
+        tagIds: [],
+        toggleTag: vi.fn(),
+        clear: vi.fn(),
+        activeCount: 0,
+        showToday: true,
+        showOther: true,
+        apply: <T,>(rows: T) => rows,
+      },
+      filterTags: [],
     },
   };
 }
