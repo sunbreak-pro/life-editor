@@ -150,6 +150,54 @@ describe("TagHub narrow — a tag's items (M3)", () => {
   });
 });
 
+/*
+ * #1749 — on a 390px screen the "…" of a long-titled row was pushed past the
+ * right edge and the list grew a horizontal scrollbar. jsdom has no layout
+ * (CLAUDE.md §7.1), so the fit is pinned as the STRUCTURE that produces it:
+ * both controls in one row element, a title button allowed to shrink below its
+ * own content, and a trailing button that is never asked to.
+ */
+describe("TagHub narrow — a long title stays inside the row (#1749)", () => {
+  const LONG = "A tag hub row whose title runs far past the width of a phone";
+
+  function renderLongRow() {
+    renderNarrow({
+      selectedTagId: "t-work",
+      model: buildTagHubModel({
+        tags: [tag("t-work", "Work")],
+        assignments: [assign("task-1", "t-work")],
+        items: [{ id: "task-1", role: "task", title: LONG }],
+        untaggedName: "Untagged",
+      }),
+    });
+    return {
+      title: screen.getByRole("button", { name: LONG }),
+      menu: screen.getByRole("button", { name: `${LONG}: Item actions` }),
+    };
+  }
+
+  it("lets the title shrink below its own content, at every level", () => {
+    const { title } = renderLongRow();
+    // The button is the flex level that used to refuse: its automatic minimum
+    // size is its min-content width unless min-w-0 says otherwise.
+    expect(title).toHaveClass("min-w-0");
+    expect(title).toHaveClass("flex-1");
+    // …and the span it hands the shrink on to is the one that ellipsises.
+    const label = within(title).getByTitle(LONG);
+    expect(label).toHaveClass("min-w-0");
+    expect(label).toHaveClass("truncate");
+  });
+
+  it("keeps the “…” unshrunk, in the same row as the title", () => {
+    const { title, menu } = renderLongRow();
+    expect(menu).toHaveClass("shrink-0");
+    // Same row element — so the width the title gives up is the width the
+    // button takes, instead of the row widening to hold both.
+    expect(menu.parentElement?.tagName).toBe("LI");
+    expect(menu.parentElement).toBe(title.parentElement);
+  });
+});
+
 describe("TagHub narrow — empty and loading (M6 / M7)", () => {
   it("says there is nothing yet, without a filter box", () => {
     renderNarrow({}, true);
