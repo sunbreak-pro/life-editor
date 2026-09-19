@@ -436,8 +436,6 @@ export function RichTextEditor({
                 getCreateNote,
                 labels: {
                   empty: t("itemLink.empty"),
-                  unresolved: (query) =>
-                    t("itemLink.insertUnresolved", { query }),
                   create: (query) => t("itemLink.createNote", { query }),
                   roleNote: t("itemLink.roleNote"),
                   roleDaily: t("itemLink.roleDaily"),

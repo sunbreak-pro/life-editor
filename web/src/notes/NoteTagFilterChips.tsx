@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { X } from "lucide-react";
 import { cn, FOCUS_RING } from "@life-editor/shared";
 
@@ -59,6 +59,12 @@ export interface NoteTagFilterChipsProps {
   onToggle: (id: string) => void;
   /** Drop every selection at once. */
   onClear: () => void;
+  /**
+   * Right-click on one chip (#1677) — the Notes host opens the shared tag
+   * menu at the pointer. Undefined on narrow, and the host decides which
+   * chips have one (the untagged bucket does not).
+   */
+  onChipContextMenu?: (id: string, event: MouseEvent) => void;
   labels: NoteTagFilterChipsLabels;
 }
 
@@ -78,6 +84,7 @@ export function NoteTagFilterChips({
   value,
   onToggle,
   onClear,
+  onChipContextMenu,
   labels,
 }: NoteTagFilterChipsProps) {
   const [expanded, setExpanded] = useState(false);
@@ -112,7 +119,11 @@ export function NoteTagFilterChips({
   const hidden = chips.length - shown.length;
 
   return (
-    <div role="group" aria-label={labels.group} className="flex flex-wrap gap-1">
+    <div
+      role="group"
+      aria-label={labels.group}
+      className="flex flex-wrap gap-1"
+    >
       {shown.map((chip) => {
         const active = selected.has(chip.id);
         return (
@@ -121,6 +132,11 @@ export function NoteTagFilterChips({
             type="button"
             aria-pressed={active}
             onClick={() => onToggle(chip.id)}
+            onContextMenu={
+              onChipContextMenu
+                ? (e) => onChipContextMenu(chip.id, e)
+                : undefined
+            }
             className={cn(
               // A ceiling per chip, not per row (#1365): `max-w-full` let one
               // long tag name take a whole line to itself while the short ones

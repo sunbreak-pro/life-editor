@@ -50,7 +50,10 @@ export function CommandSearchField({
         <Search aria-hidden className="size-3.5 shrink-0" />
         <span className="flex-1 truncate">{placeholder}</span>
         {shortcutHint && (
-          <kbd className="shrink-0 rounded border border-lumen-border bg-lumen-bg px-1.5 py-px text-xs font-medium text-lumen-text-tertiary">
+          /* font-sans (#1672): Tailwind preflight puts every <kbd> on
+             --font-mono, which nobody chose here — and this keycap sits on
+             the same screen as the sidebar's, which moved to sans in #1468. */
+          <kbd className="shrink-0 rounded border border-lumen-border bg-lumen-bg px-1.5 py-px font-sans text-xs font-medium text-lumen-text-tertiary">
             {shortcutHint}
           </kbd>
         )}

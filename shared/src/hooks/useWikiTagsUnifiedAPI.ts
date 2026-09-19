@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { DataService } from "../services/DataService";
 import type {
   WikiTag,
@@ -13,6 +13,8 @@ import {
 } from "../utils/inlineLinkSync";
 import { useSyncDomains } from "./useSyncDomains";
 import { useDomainLoad } from "./useDomainLoad";
+import { useUndoRedoOptional } from "./useUndoRedoContext";
+import type { UndoRedoLike } from "./useTodoTreeHistory";
 
 /*
  * useWikiTagsUnifiedAPI (DU-C+ Step 4).
@@ -28,13 +30,45 @@ import { useDomainLoad } from "./useDomainLoad";
  * (CLAUDE.md §6.4 — no `getDataService()` here). Reacts to `syncVersion`
  * so a Sync round refreshes the local cache.
  */
+/**
+ * What a bulk tag operation did (#1644). The rows are written one at a time,
+ * so a failure part-way leaves the earlier rows written: the caller reports
+ * `failed` and keeps the rest, which is safe to retry because assigning an
+ * existing pair reuses its row (#1593).
+ */
+export interface BulkTagResult {
+  succeeded: number;
+  failed: number;
+}
+
+/** A merge's result: the moves, plus whether the source tag was deleted. */
+export interface MergeTagsResult extends BulkTagResult {
+  /** False when any move failed — the source is kept so nothing is stranded. */
+  sourceDeleted: boolean;
+}
+
 export interface UseWikiTagsUnifiedAPIOptions {
   dataService: DataService;
+  /**
+   * History to record tag assign / unassign on (#1667). Defaults to the
+   * ambient global stack when an UndoRedoProvider is mounted, and to no
+   * history at all when none is.
+   */
+  undoRedo?: UndoRedoLike;
 }
 
 export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   const ds = options.dataService;
   const syncVersion = useSyncDomains("tags");
+  const ambientUndoRedo = useUndoRedoOptional();
+  const undoRedo = options.undoRedo ?? ambientUndoRedo;
+  // The ambient context value changes identity on every stack change; reading
+  // it through a ref keeps the mutators below (and so this hook's return
+  // value) from being rebuilt each time anything in the app is undone.
+  const undoRedoRef = useRef(undoRedo);
+  useEffect(() => {
+    undoRedoRef.current = undoRedo;
+  });
 
   const [allTags, setAllTags] = useState<WikiTag[]>([]);
   // Bulk caches that replace the per-row N+1 fetches in TagPicker /
@@ -178,7 +212,9 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [ds],
   );
 
-  const assignTagToItem = useCallback(
+  // The write + cache update, without history. Undo and redo replay these,
+  // so they must not push a command of their own.
+  const writeAssign = useCallback(
     async (itemId: string, tagId: string): Promise<WikiTagAssignment> => {
       const assignmentId = generateId("tag_assign");
       const created = await ds.assignTagToItem(assignmentId, itemId, tagId);
@@ -195,12 +231,191 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [ds],
   );
 
-  const unassignTagFromItem = useCallback(
+  const writeUnassign = useCallback(
     async (assignmentId: string): Promise<void> => {
       await ds.unassignTagFromItem(assignmentId);
       setAllAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
     },
     [ds],
+  );
+
+  // What the cache held when a mutator was called. Read from a ref so the
+  // mutators do not re-create on every assignment change.
+  const assignmentsRef = useRef(allAssignments);
+  useEffect(() => {
+    assignmentsRef.current = allAssignments;
+  });
+
+  /*
+   * #1667 — both directions go on the global Undo stack.
+   *
+   * The pair (item, tag) is what the user acted on, not the row id: the
+   * service revives a pair's soft-deleted row rather than inserting a second
+   * one (#1593), so a redo gets the same row back today, but the commands
+   * track whatever id the latest write returned instead of relying on that.
+   */
+  const assignTagToItem = useCallback(
+    async (itemId: string, tagId: string): Promise<WikiTagAssignment> => {
+      const wasAssigned = assignmentsRef.current.some(
+        (a) => a.itemId === itemId && a.tagId === tagId && !a.isDeleted,
+      );
+      let current = await writeAssign(itemId, tagId);
+      // Assigning a tag the item already carries changed nothing; undoing it
+      // would remove a tag the user never touched.
+      if (!wasAssigned) {
+        undoRedoRef.current?.push("tags", {
+          label: "assignTag",
+          undo: () => writeUnassign(current.id),
+          redo: async () => {
+            current = await writeAssign(itemId, tagId);
+          },
+        });
+      }
+      return current;
+    },
+    [writeAssign, writeUnassign],
+  );
+
+  const unassignTagFromItem = useCallback(
+    async (assignmentId: string): Promise<void> => {
+      const row = assignmentsRef.current.find((a) => a.id === assignmentId);
+      await writeUnassign(assignmentId);
+      // A row the cache never saw has no pair to put back.
+      if (!row) return;
+      let currentId = assignmentId;
+      undoRedoRef.current?.push("tags", {
+        label: "unassignTag",
+        undo: async () => {
+          currentId = (await writeAssign(row.itemId, row.tagId)).id;
+        },
+        redo: () => writeUnassign(currentId),
+      });
+    },
+    [writeAssign, writeUnassign],
+  );
+
+  // -- bulk operations (#1644) ---------------------------------------------
+  //
+  // These call the history-FREE writes, not the mutators above. One press
+  // covering 20 rows is one thing the user did, and pushing 20 commands would
+  // evict the rest of the stack (MAX_HISTORY_SIZE) while making Ctrl+Z undo
+  // the run one row at a time. Giving a run a single command is worth doing;
+  // it is #1667's follow-up, not part of it.
+  //
+  // Sequential calls to the single-row writes above rather than an RPC: the
+  // plan's alternatives table keeps a Postgres function out until a real
+  // bulk operation is measured to stall (no DDL for 10–20 row selections).
+  // Sequential rather than Promise.all so a failing row cannot race the rest
+  // and the counts are exact.
+
+  /** The live assignment carrying `tagId` on `itemId`, if any. */
+  const findAssignment = useCallback(
+    (itemId: string, tagId: string) =>
+      allAssignments.find(
+        (a) => a.itemId === itemId && a.tagId === tagId && !a.isDeleted,
+      ),
+    [allAssignments],
+  );
+
+  const bulkAssign = useCallback(
+    async (
+      itemIds: readonly string[],
+      tagId: string,
+    ): Promise<BulkTagResult> => {
+      const result: BulkTagResult = { succeeded: 0, failed: 0 };
+      for (const itemId of itemIds) {
+        try {
+          await writeAssign(itemId, tagId);
+          result.succeeded += 1;
+        } catch {
+          result.failed += 1;
+        }
+      }
+      return result;
+    },
+    [writeAssign],
+  );
+
+  const bulkUnassign = useCallback(
+    async (
+      itemIds: readonly string[],
+      tagId: string,
+    ): Promise<BulkTagResult> => {
+      const result: BulkTagResult = { succeeded: 0, failed: 0 };
+      for (const itemId of itemIds) {
+        const row = findAssignment(itemId, tagId);
+        // Nothing to take off counts as done: the item already reads as
+        // untagged, which is what was asked for.
+        if (!row) {
+          result.succeeded += 1;
+          continue;
+        }
+        try {
+          await writeUnassign(row.id);
+          result.succeeded += 1;
+        } catch {
+          result.failed += 1;
+        }
+      }
+      return result;
+    },
+    [findAssignment, writeUnassign],
+  );
+
+  /**
+   * Refile items from one tag to another: every assign first, then the old
+   * rows of only the items that made it across — an item whose assign failed
+   * keeps its old tag instead of ending up with none.
+   */
+  const moveItemsToTag = useCallback(
+    async (
+      itemIds: readonly string[],
+      fromTagId: string,
+      toTagId: string,
+    ): Promise<BulkTagResult> => {
+      if (fromTagId === toTagId)
+        return { succeeded: itemIds.length, failed: 0 };
+      const moved: string[] = [];
+      let failed = 0;
+      for (const itemId of itemIds) {
+        try {
+          await writeAssign(itemId, toTagId);
+          moved.push(itemId);
+        } catch {
+          failed += 1;
+        }
+      }
+      const off = await bulkUnassign(moved, fromTagId);
+      return { succeeded: off.succeeded, failed: failed + off.failed };
+    },
+    [writeAssign, bulkUnassign],
+  );
+
+  /**
+   * Fold one tag into another (plan assumption 4): refile the source's items
+   * onto the target, take the source's rows off, then soft-delete the source.
+   * The rows are taken off explicitly rather than left for the tag's delete,
+   * so no assignment is left pointing at a deleted tag. The source is deleted
+   * only when every move landed.
+   */
+  const mergeTags = useCallback(
+    async (sourceId: string, targetId: string): Promise<MergeTagsResult> => {
+      if (sourceId === targetId) {
+        return { succeeded: 0, failed: 0, sourceDeleted: false };
+      }
+      const itemIds = allAssignments
+        .filter((a) => a.tagId === sourceId && !a.isDeleted)
+        .map((a) => a.itemId);
+      const moved = await moveItemsToTag(itemIds, sourceId, targetId);
+      if (moved.failed > 0) return { ...moved, sourceDeleted: false };
+      try {
+        await deleteTag(sourceId);
+        return { ...moved, sourceDeleted: true };
+      } catch {
+        return { ...moved, sourceDeleted: false };
+      }
+    },
+    [allAssignments, moveItemsToTag, deleteTag],
   );
 
   // -- item↔item links ----------------------------------------------------
@@ -406,6 +621,10 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       listTagsForItem,
       assignTagToItem,
       unassignTagFromItem,
+      bulkAssign,
+      bulkUnassign,
+      moveItemsToTag,
+      mergeTags,
       setDisplayColorTag,
       listLinksFromItem,
       listLinksToItem,
@@ -431,6 +650,10 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       listTagsForItem,
       assignTagToItem,
       unassignTagFromItem,
+      bulkAssign,
+      bulkUnassign,
+      moveItemsToTag,
+      mergeTags,
       setDisplayColorTag,
       listLinksFromItem,
       listLinksToItem,

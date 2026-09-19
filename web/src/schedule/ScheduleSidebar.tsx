@@ -113,7 +113,8 @@ export interface ScheduleSidebarRepeats {
   /** The grid's repeat filter is on (#466) — show the notice that says so. */
   hidden: boolean;
   rows: RepeatListRow[];
-  onOpen: (id: string) => void;
+  /** #1678: the row was pressed — the host opens its panel at `pos`. */
+  onOpen: (id: string, pos: { x: number; y: number }) => void;
   onDelete: (id: string) => void;
   /** Turn the grid's repeat filter back off, from the notice. */
   onShowHidden: () => void;
@@ -142,8 +143,10 @@ export interface ScheduleSidebarTodo {
   /** Open an UNSCHEDULED row's detail (#1153). */
   onOpenAddable: (id: string) => void;
   onDelete: (id: string) => void;
-  /** Make a todo with no day yet (#1153). */
+  /** Make a todo with no day yet (#1153) — the "その他" heading's pill. */
   onAdd: () => void;
+  /** Make a todo on today (#1640) — the "今日の Todo" heading's pill. */
+  onAddToday: () => void;
   /** The tab's own filter (#1641) — the host owns the state, this draws it. */
   filter: TodoTabFilter;
   /** Every live tag, already sorted, for the filter panel's checkboxes. */
@@ -385,12 +388,21 @@ export function ScheduleSidebar({
       className="flex flex-col gap-2"
     >
       {/*
-       * #1641: the filter button sits opposite the create pill, in the row the
-       * tab already had. The count on it is the number of things narrowing the
-       * list (a chosen list counts as one, plus one per ticked tag) — the same
-       * reading the calendar's badge carries (#1639).
+       * #1641: the filter button gets a row of its own at the top of the tab.
+       * It used to share that row with the create pill — but #1640 moved the
+       * single pill into the two list headings, one per list, so there is no
+       * longer a pill up here to sit opposite. Putting one back would give the
+       * tab two controls that do the same thing, and two DOM nodes carrying
+       * the same tour anchor.
+       *
+       * The count on it is the number of things narrowing the list (a chosen
+       * list counts as one, plus one per ticked tag) — the same reading the
+       * calendar's badge carries (#1639).
        */}
-      <div className="flex shrink-0 items-center justify-between gap-2">
+      <div
+        data-todo-filter-row
+        className="flex shrink-0 items-center justify-end gap-2"
+      >
         <button
           type="button"
           aria-label={
@@ -422,11 +434,6 @@ export function ScheduleSidebar({
             </span>
           )}
         </button>
-        <AddPill
-          onClick={todo.onAdd}
-          label={t("scheduleScreen.todoAddCta")}
-          tourId={TOUR_ANCHORS.scheduleTodoAdd}
-        />
       </div>
       {filterOpen && (
         <TodoFilterPanel
@@ -488,6 +495,28 @@ export function ScheduleSidebar({
         addableControls
         draggableAddable={isWide}
         renderRowExtra={(row) => <TagPicker itemId={row.id} />}
+        /*
+         * #1640: a pill per heading, so each list is added to from where it is
+         * read. The one over "その他" makes a todo with no day (what the single
+         * pill above the tray did until now, tour anchor included — the tour's
+         * create step still points at the control that MAKES one); the one over
+         * "今日の Todo" makes it on today.
+         */
+        headingActions={{
+          placed: (
+            <AddPill
+              onClick={todo.onAddToday}
+              label={t("scheduleScreen.todoAddTodayCta")}
+            />
+          ),
+          addable: (
+            <AddPill
+              onClick={todo.onAdd}
+              label={t("scheduleScreen.todoAddCta")}
+              tourId={TOUR_ANCHORS.scheduleTodoAdd}
+            />
+          ),
+        }}
         labels={{
           placedHeading: t("scheduleScreen.todoTodayHeading"),
           emptyPlaced: t("scheduleScreen.todoEmptyToday"),

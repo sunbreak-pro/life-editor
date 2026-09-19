@@ -435,6 +435,13 @@ export {
   type WorkHistoryEntry,
   type WorkHistoryTag,
 } from "./WorkHistoryList";
+// #1665: the free session's tag field, drawn beside the link-target selector.
+export {
+  WorkTagSelector,
+  type WorkTagSelectorProps,
+  type WorkTagSelectorLabels,
+  type WorkTagOption,
+} from "./WorkTagSelector";
 export {
   PomodoroTodoSheet,
   type PomodoroTodoSheetProps,

@@ -245,6 +245,7 @@ function Host({
           onToggleRepeats: NOOP,
           onOpenFilter: NOOP,
           filterActive: false,
+          filterCount: 0,
           onAddEvent: NOOP,
         }}
         lens={LENS}
@@ -266,6 +267,13 @@ function Host({
       <ScheduleOverlays
         isWide
         frames={{ editor: null, todoDetail: null }}
+        repeatPanel={{
+          state: null,
+          row: null,
+          onClose: NOOP,
+          onShowNext: NOOP,
+          onEditDetail: NOOP,
+        }}
         popover={{
           state: null,
           selected: null,
@@ -274,6 +282,7 @@ function Host({
           onOpenDetail: NOOP,
           itemActions: {
             onRename: NOOP,
+            onRetime: NOOP,
             onDuplicate: NOOP,
             onConvertToTodo: NOOP,
             onDelete: NOOP,

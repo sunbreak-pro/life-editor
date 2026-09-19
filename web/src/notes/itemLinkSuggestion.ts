@@ -52,8 +52,6 @@ export interface ItemLinkTarget {
 
 export interface ItemLinkSuggestionLabels {
   empty: string;
-  /** Formats the "insert '<query>' as an unresolved link" row title. */
-  unresolved: (query: string) => string;
   /** Formats the "create note '<query>' and link" row title. */
   create: (query: string) => string;
   roleNote: string;
@@ -125,31 +123,43 @@ function insertResolved(
   onResolvedInserted?.(target.id);
 }
 
-/** Insert an unresolved link node (targetId null) + a trailing space. */
-function insertUnresolved(editor: Editor, range: Range, label: string): void {
-  editor
-    .chain()
-    .focus()
-    .deleteRange(range)
-    .insertContent([
-      { type: "itemLink", attrs: { targetId: null, label, role: null } },
-      { type: "text", text: " " },
-    ])
-    .run();
+/*
+ * Exported for web/tests/itemLinkSuggestionItems.test.ts (#1688): which rows
+ * the menu offers is a decision, and the only other way to reach it is to
+ * stand up a whole ProseMirror editor plus the Suggestion plugin.
+ */
+/*
+ * The closing "]]" the user typed (#1689).
+ *
+ * The trigger is "[[" with `allowSpaces`, so everything after it — the
+ * closing brackets included — is the query. Typing the title and closing it
+ * the way a wiki link looks therefore searched for "Title]]", which matches
+ * nothing, and the create row then made a note CALLED "Title]]".
+ *
+ * Both brackets and the half-typed single one come off. Only at the END: a
+ * "]" inside a title is part of the title.
+ */
+export function stripLinkClosing(query: string): string {
+  return query.replace(/]{1,2}$/, "");
 }
 
-async function buildItems(
+export async function buildItems(
   query: string,
   deps: ItemLinkSuggestionDeps,
   allowStale: boolean,
 ): Promise<ItemLinkMenuItem[]> {
   const { labels } = deps;
-  const q = query.trim().toLowerCase();
+  // Everything downstream — the filter, the create row's title, the note it
+  // makes — reads the query with its closing brackets off (#1689). The insert
+  // itself needs no adjustment: the brackets are inside the suggestion's
+  // range, so deleting the range takes them with it.
+  const typed = stripLinkClosing(query.trim());
+  const q = typed.toLowerCase();
   // @tiptap/suggestion awaits this before calling onStart/onUpdate, so the
   // menu appears already populated — no empty flash on the first "[[".
   // Deleted rows ride along in the pool for LinkPanel's benefit (#1292); the
-  // menu wants live items only, so they come off here — once, before both the
-  // candidate list and the `exactMatch` test below read `targets`.
+  // menu wants live items only, so they come off here — nothing that OFFERS a
+  // target may name one that is in the trash.
   const targets = (await deps.loadTargets({ allowStale })).filter(
     (t) => !t.isDeleted,
   );
@@ -174,20 +184,20 @@ async function buildItems(
       insertResolved(editor, range, target, onResolvedInserted),
   }));
 
-  const trimmed = query.trim();
+  const trimmed = typed;
   if (trimmed) {
-    const exactMatch = targets.some((t) => t.label.toLowerCase() === q);
-    // Only offer the raw-text fallback when nothing matches exactly.
-    if (!exactMatch) {
-      items.push({
-        id: "__unresolved__",
-        title: labels.unresolved(trimmed),
-        kind: "unresolved",
-        Icon: Link2,
-        command: ({ editor, range }) =>
-          insertUnresolved(editor, range, trimmed),
-      });
-    }
+    /*
+     * #1688 removed the "insert as an unresolved link" row. It offered a link
+     * to nothing — a node the user could not follow and had no way to finish
+     * later — and nobody could tell from the row what pressing it would do.
+     * The menu now offers existing items and "create the note", which are the
+     * two things that end in something reachable.
+     *
+     * The node type stays: bodies saved before this still carry
+     * `targetId: null` links and must keep rendering (the Issue says so), and
+     * the create path below still falls back to one when the note could not be
+     * made — see its comment for why that receipt is kept.
+     */
     if (createNote) {
       items.push({
         id: "__create__",

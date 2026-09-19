@@ -8,7 +8,9 @@ import { TagHeadingIcon } from "../TagHeadingIcon";
 import { SidebarFilterField } from "../materials/SidebarFilterField";
 import { CARD_BTN_TAP, FOCUS_RING_TIGHT } from "../styleTokens";
 import { isImeComposing } from "../../utils/imeGuard";
+import { Palette, Pencil, Shapes, Trash2 } from "lucide-react";
 import { TagActionsMenu, useTagActionsMenu } from "./TagActionsMenu";
+import { TagHubActionSheet } from "./TagHubActionSheet";
 import type { TagHubEditField } from "./TagHubEditBlock";
 import type { TagHubLabels, TagHubTagSummary } from "./types";
 
@@ -28,6 +30,12 @@ import type { TagHubLabels, TagHubTagSummary } from "./types";
  * The rule under (1) is what stops the bucket reading as a tag someone actually
  * named "Untagged"; the disclosure at (3) is what stops a tag made and never
  * used from sitting between two working topics (see the model's note).
+ *
+ * On narrow the same four actions come up as a BOTTOM SHEET instead (#1646 /
+ * M1): a dropdown anchored to the right edge of a 390px screen opens over the
+ * row it belongs to, and its rows are a thumb-stretch from where the thumb is.
+ * Merging is not offered there — the brief keeps that irreversible tidy-up to
+ * Desktop.
  *
  * The "…" menu also opens on a right-click anywhere on the row (#1676), at the
  * pointer — Desktop only, since narrow already shows the "…" at full size and a
@@ -62,6 +70,8 @@ export interface TagHubTagRailProps {
   onEditTag?: (tagId: string, field: TagHubEditField) => void;
   /** Row menu → the destructive item. Required whenever `onEditTag` is given. */
   onDeleteTag?: (tagId: string) => void;
+  /** Row menu → merge this tag into another (#1644). Omit to hide the item. */
+  onMergeTag?: (tagId: string) => void;
   /** The pinned add row (D5). Omit to leave the row out. */
   onCreateTag?: (name: string) => void;
   /** The view's handle on the add field, for the empty state's CTA (D15). */
@@ -85,6 +95,7 @@ export function TagHubTagRail({
   formatUnusedTags,
   onEditTag,
   onDeleteTag,
+  onMergeTag,
   onCreateTag,
   addFieldRef,
   wide,
@@ -116,6 +127,7 @@ export function TagHubTagRail({
       formatCount={formatCount}
       onEditTag={onEditTag}
       onDeleteTag={onDeleteTag}
+      onMergeTag={onMergeTag}
       wide={wide}
       labels={labels}
     />
@@ -261,6 +273,7 @@ interface TagHubRailRowProps {
   formatCount: (count: number) => string;
   onEditTag?: (tagId: string, field: TagHubEditField) => void;
   onDeleteTag?: (tagId: string) => void;
+  onMergeTag?: (tagId: string) => void;
   wide: boolean;
   labels: TagHubLabels;
 }
@@ -272,6 +285,7 @@ function TagHubRailRow({
   formatCount,
   onEditTag,
   onDeleteTag,
+  onMergeTag,
   wide,
   labels,
 }: TagHubRailRowProps) {
@@ -375,17 +389,51 @@ function TagHubRailRow({
               >
                 <MoreHorizontal size={16} aria-hidden />
               </button>
-              <TagActionsMenu
-                open={menu.open}
-                onClose={menu.close}
-                tagName={tag.name}
-                anchorRef={menuAnchor}
-                anchorPoint={menu.anchorPoint}
-                align="end"
-                onEdit={(field) => onEditTag?.(tag.id, field)}
-                onDelete={() => onDeleteTag?.(tag.id)}
-                labels={labels}
-              />
+              {!wide && (
+                <TagHubActionSheet
+                  open={menu.open}
+                  onClose={menu.close}
+                  title={`${tag.name}: ${labels.rowMenu}`}
+                  closeLabel={labels.sheetClose}
+                  actions={[
+                    {
+                      label: labels.renameTag,
+                      icon: <Pencil size={16} />,
+                      onSelect: () => onEditTag?.(tag.id, "name"),
+                    },
+                    {
+                      label: labels.changeIcon,
+                      icon: <Shapes size={16} />,
+                      onSelect: () => onEditTag?.(tag.id, "icon"),
+                    },
+                    {
+                      label: labels.changeColor,
+                      icon: <Palette size={16} />,
+                      onSelect: () => onEditTag?.(tag.id, "color"),
+                    },
+                    {
+                      label: labels.deleteTag,
+                      icon: <Trash2 size={16} />,
+                      danger: true,
+                      onSelect: () => onDeleteTag?.(tag.id),
+                    },
+                  ]}
+                />
+              )}
+              {wide && (
+                <TagActionsMenu
+                  open={menu.open}
+                  onClose={menu.close}
+                  tagName={tag.name}
+                  anchorRef={menuAnchor}
+                  anchorPoint={menu.anchorPoint}
+                  align="end"
+                  onEdit={(field) => onEditTag?.(tag.id, field)}
+                  onDelete={() => onDeleteTag?.(tag.id)}
+                  onMerge={onMergeTag && (() => onMergeTag(tag.id))}
+                  labels={labels}
+                />
+              )}
             </>
           )}
         </div>

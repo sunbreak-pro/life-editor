@@ -99,6 +99,7 @@ export interface ScheduleOverlayHostProps {
    * The bubble, minus the chip behind it: that one is resolved here, from the
    * lookup below, because the frames it sits among are resolved here too.
    */
+  repeatPanel: ScheduleOverlaysProps["repeatPanel"];
   popover: Omit<ScheduleOverlaysProps["popover"], "todoChip"> & {
     findTodoChip: (chipId: string) => TodoCalendarChip | null;
   };
@@ -113,6 +114,7 @@ export function ScheduleOverlayHost({
   editor,
   todoDetail,
   popover,
+  repeatPanel,
   create,
   tagFilter,
   scope,
@@ -181,6 +183,9 @@ export function ScheduleOverlayHost({
   const detailFrameEl = (
     <ResponsiveDetailFrame
       wide={isWide}
+      // #1664: the editor lays its fields out in two columns on Desktop, which
+      // needs the wider panel — 512px would be two half-fields.
+      wideOverlay={isWide}
       // #889: the ITEM decides, not the pane. <ScheduleEventEditor> is an
       // element on every render now and answers the "is anything selected?"
       // question by rendering null from the inside, so the node can no longer
@@ -213,6 +218,7 @@ export function ScheduleOverlayHost({
         editor: detailFrameEl,
         todoDetail: <ScheduleTodoDetail isWide={isWide} {...todoDetail} />,
       }}
+      repeatPanel={repeatPanel}
       popover={{ ...popoverProps, todoChip: popoverTodoChip }}
       create={create}
       tagFilter={tagFilter}

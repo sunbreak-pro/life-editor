@@ -94,6 +94,7 @@ function renderOverlays(
   overrides: {
     isWide?: boolean;
     popover?: Partial<ScheduleOverlaysProps["popover"]>;
+    repeatPanel?: Partial<ScheduleOverlaysProps["repeatPanel"]>;
     create?: Partial<ScheduleOverlaysProps["create"]>;
     tagFilter?: Partial<ScheduleOverlaysProps["tagFilter"]>;
     scope?: Partial<ScheduleOverlaysProps["scope"]>;
@@ -103,8 +104,15 @@ function renderOverlays(
 ) {
   const itemActions = {
     onRename: vi.fn(),
+    onRetime: vi.fn(),
     onDuplicate: vi.fn(),
     onConvertToTodo: vi.fn(),
+    onDelete: vi.fn(),
+  };
+  const repeatPanelActions = {
+    onClose: vi.fn(),
+    onShowNext: vi.fn(),
+    onEditDetail: vi.fn(),
     onDelete: vi.fn(),
   };
   const todoActions = {
@@ -129,6 +137,12 @@ function renderOverlays(
       itemActions,
       todoActions,
       ...overrides.popover,
+    },
+    repeatPanel: {
+      state: null,
+      row: null,
+      ...repeatPanelActions,
+      ...overrides.repeatPanel,
     },
     create: {
       panel: null,
@@ -162,7 +176,14 @@ function renderOverlays(
     confirm: { request: null, onResolve, ...overrides.confirm },
   };
   const utils = render(<ScheduleOverlays {...props} />);
-  return { ...utils, props, itemActions, todoActions, onResolve };
+  return {
+    ...utils,
+    props,
+    itemActions,
+    repeatPanelActions,
+    todoActions,
+    onResolve,
+  };
 }
 
 // Every field echoed as its own name — the panel's own suite covers what the
@@ -285,6 +306,41 @@ describe("ScheduleOverlays — the single-click bubble", () => {
   });
 
   /*
+   * #1664 — the span, edited in the bubble.
+   *
+   * The point of it is not the field (TimeRangeField has its own suite) but
+   * the ROUTE: it goes through the host's update handler, so a repeat still
+   * raises the scope dialog and the write still lands on the undo history.
+   * Wiring it straight to the provider would have skipped both, silently.
+   */
+  it("edits the time span in place and hands the pair back together", () => {
+    const { itemActions } = renderOverlays({
+      popover: { state: POPOVER, selected: ITEM },
+    });
+
+    fireEvent.click(screen.getByText("scheduleScreen.editTime"));
+    const start = screen.getByLabelText("scheduleScreen.startTime");
+    fireEvent.change(start, { target: { value: "13:00" } });
+    fireEvent.keyDown(start, { key: "Enter" });
+
+    // ONE payload: the field owns the start < end invariant, so a host that
+    // wrote per field would fire two updates (and two scope dialogs) for one
+    // gesture.
+    expect(itemActions.onRetime).toHaveBeenCalledTimes(1);
+    expect(itemActions.onRetime.mock.calls[0][0]).toBe(ITEM.id);
+    expect(itemActions.onRetime.mock.calls[0][1]).toMatchObject({
+      start: "13:00",
+    });
+  });
+
+  it("offers no time edit on an all-day row", () => {
+    renderOverlays({
+      popover: { state: POPOVER, selected: { ...ITEM, isAllDay: true } },
+    });
+    expect(screen.queryByText("scheduleScreen.editTime")).toBeNull();
+  });
+
+  /*
    * The todo variant is deliberately a different set — a todo has no duplicate
    * write, and its convert goes the other way. Rendering the event actions for
    * a chip would offer a duplicate that writes nothing.
@@ -391,5 +447,82 @@ describe("ScheduleOverlays — the repeat scope dialog (#279)", () => {
   it("stays closed with no request", () => {
     renderOverlays({ scope: { request: null } });
     expect(screen.queryByText("scheduleScreen.editScopeTitle")).toBeNull();
+  });
+});
+
+/*
+ * #1678 — the panel a repeat row opens.
+ *
+ * The row used to BE the jump to the next occurrence, which made the series
+ * unreadable from the list: to see what it was you had to travel to a day it
+ * fired on and find the occurrence there. The press opens the grid item's own
+ * panel now, and the jump is one action inside it.
+ */
+describe("ScheduleOverlays — the repeat row's panel (#1678)", () => {
+  const ROW = {
+    title: "Morning run",
+    frequencyLabel: "Daily",
+    nextLabel: "July 28 (Tue)",
+  };
+  const STATE = { id: "r-1", x: 10, y: 20 };
+
+  it("is Desktop-only, like the grid's bubble", () => {
+    renderOverlays({
+      isWide: false,
+      repeatPanel: { state: STATE, row: ROW },
+    });
+    expect(screen.queryByText("Morning run")).toBeNull();
+  });
+
+  it("shows what the row shows, and hands the jump back", () => {
+    const { repeatPanelActions } = renderOverlays({
+      repeatPanel: { state: STATE, row: ROW },
+    });
+    expect(screen.getByText("Morning run")).toBeTruthy();
+    expect(screen.getByText("Daily")).toBeTruthy();
+    expect(screen.getByText("July 28 (Tue)")).toBeTruthy();
+
+    fireEvent.click(screen.getByText("scheduleScreen.repeatShowNext"));
+    expect(repeatPanelActions.onShowNext).toHaveBeenCalledWith("r-1");
+  });
+
+  it("opens the next occurrence's editor from the panel's primary action", () => {
+    const { repeatPanelActions } = renderOverlays({
+      repeatPanel: { state: STATE, row: ROW },
+    });
+    fireEvent.click(screen.getByText("scheduleScreen.editDetail"));
+    expect(repeatPanelActions.onEditDetail).toHaveBeenCalledWith("r-1");
+  });
+
+  it("opens for a row with no occurrence, with only that action off", () => {
+    renderOverlays({
+      repeatPanel: { state: STATE, row: { ...ROW, nextLabel: null } },
+    });
+    // The panel is the place that can SAY there is no occurrence.
+    expect(screen.getByText("scheduleScreen.repeatNeverFires")).toBeTruthy();
+    expect(
+      (
+        screen
+          .getByText("scheduleScreen.repeatShowNext")
+          .closest("button") as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    // Nothing to open either, so the hand-off is not offered at all.
+    expect(screen.queryByText("scheduleScreen.editDetail")).toBeNull();
+  });
+
+  it("offers the series delete only when the host supplies one", () => {
+    const { repeatPanelActions } = renderOverlays({
+      repeatPanel: { state: STATE, row: ROW },
+    });
+    fireEvent.click(screen.getByText("scheduleScreen.delete"));
+    expect(repeatPanelActions.onDelete).toHaveBeenCalledWith("r-1");
+
+    renderOverlays({
+      repeatPanel: { state: STATE, row: ROW, onDelete: undefined },
+    });
+    // Two panels are mounted by now (one per render); the second has no
+    // delete, so the count stays at the first one's single row.
+    expect(screen.getAllByText("scheduleScreen.delete")).toHaveLength(1);
   });
 });

@@ -2,18 +2,29 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   buildTagHubModel,
   ConfirmDialog,
+  buildItemRelations,
+  BottomSheet,
+  RelationPanel,
   RightSidebarPortal,
   selectRecentTaggedItems,
   TagHubDetailPanel,
+  TagHubActionSheet,
+  TagHubEditBlock,
+  TagHubSelectionBar,
   TagHubView,
+  TagMergeDialog,
   useConfirmDialog,
   useDomainLoad,
   useMediaQuery,
+  useRightSidebarOptional,
   useSyncDomains,
   useTagEditDrafts,
+  useToastOptional,
   useTranslation,
   useWikiTagsUnifiedContext,
+  getConnectItemSelection,
   getConnectTagSelection,
+  setConnectItemSelection,
   setConnectTagSelection,
   todayCalendarKey,
   WIDE_QUERY,
@@ -26,7 +37,11 @@ import {
   type TagHubEditField,
   type TagHubItem,
   type TagHubLabels,
+  type BulkTagResult,
+  type TagHubSelectionBarLabels,
   type TagHubTagSummary,
+  type RelationPanelLabels,
+  type TagMergeDialogLabels,
   type TagRowEdits,
   type TodoNode,
 } from "@life-editor/shared";
@@ -62,9 +77,30 @@ import {
  * block that would otherwise hold them.
  *
  * What did NOT come across is the modal's per-item unassign: on this screen
- * removing a tag from rows is a multi-select action in the selection bar, which
- * is the next Issue (#1644). Until it lands, the item-side TagPicker is still
- * the way to take one tag off one item.
+ * removing a tag from rows is a multi-select action in the selection bar
+ * (#1644), which works on one checked row as well as on many.
+ *
+ * BULK SELECTION (#1644, Desktop only). Which rows are checked is host state
+ * and is dropped whenever the open tag changes — a checked row under one tag
+ * means nothing under the next. The writes are the Provider's bulk methods,
+ * which go row by row and report a count; a partial failure keeps what landed
+ * and says how many did not (plan assumption 5).
+ *
+ * RELATIONS (#1645, D-20260912-main-1 Q2-A). Clicking an item row no longer
+ * leaves the hub: it SELECTS the row, and the right panel switches from the
+ * tag's breakdown to that item's neighbourhood — its links, what shares a tag
+ * with it, its day's daily — where links can be added and removed for any
+ * kind of item, not just a note. Leaving is the row's chevron or a double
+ * click (plan assumption 1), and the panel is opened if it was closed
+ * (assumption 2). The derivation is the shared `buildItemRelations`, which the
+ * note header's "related" popover reads too.
+ *
+ * MOBILE (#1646). The narrow layout is the same three things one screen at a
+ * time: the tag list, a tag's items, and the relations — which have no side
+ * panel to live in, so they come up as a bottom sheet. Every row menu is a
+ * sheet too (the rail's four actions, an item's two), and the one-action
+ * sheets show the edit block cut down to the field they named. Bulk
+ * selection and merging stay off the phone, as the brief asks.
  *
  * THE SHARED DETAIL PANEL (#1472). While a tag is open, the selected tag's
  * breakdown and its recently-filed rows go into the shell's right panel
@@ -99,6 +135,19 @@ interface ConnectSources {
   /** Repeat series (#1631) — where a repeating item's tags actually live. */
   routines: RoutineNode[];
 }
+
+/** Stable identity for "nothing checked" (#1644). */
+const NO_CHECKS: ReadonlySet<string> = new Set();
+
+/** Which caption names each editable field, for the narrow sheets (#1646). */
+const EDIT_FIELD_LABEL: Record<
+  TagHubEditField,
+  (labels: TagHubLabels) => string
+> = {
+  name: (labels) => labels.edit.nameLabel,
+  icon: (labels) => labels.edit.iconLabel,
+  color: (labels) => labels.edit.colorLabel,
+};
 
 const EMPTY_SOURCES: ConnectSources = {
   todos: [],
@@ -310,10 +359,12 @@ export function ConnectScreen({
       emptyAction: t("connect.emptyAction"),
       loading: t("connect.loading"),
       rowMenu: t("connect.rowMenu"),
+      sheetClose: t("connect.sheetClose"),
       renameTag: t("connect.renameTag"),
       changeIcon: t("connect.changeIcon"),
       changeColor: t("connect.changeColor"),
       deleteTag: t("connect.deleteTag"),
+      mergeTag: t("connect.mergeTag"),
       editTag: t("connect.editTag"),
       edit: {
         nameLabel: t("connect.edit.nameLabel"),
@@ -351,10 +402,30 @@ export function ConnectScreen({
   const [selectedTagId, setSelectedTagIdState] = useState<string | null>(() =>
     getConnectTagSelection(),
   );
-  const commitSelection = useCallback((tagId: string | null) => {
-    setConnectTagSelection(tagId);
-    setSelectedTagIdState(tagId);
+  const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(NO_CHECKS);
+  /*
+   * The item whose relations the panel is showing (#1645). Stored beside the
+   * tag for the same reason (#1473): the section switch unmounts this screen,
+   * and coming back to a panel that has forgotten what it was reading is the
+   * thing that store exists to prevent.
+   */
+  const [selectedItemId, setSelectedItemIdState] = useState<string | null>(() =>
+    getConnectItemSelection(),
+  );
+  const selectItem = useCallback((itemId: string | null) => {
+    setConnectItemSelection(itemId);
+    setSelectedItemIdState(itemId);
   }, []);
+  const commitSelection = useCallback(
+    (tagId: string | null) => {
+      setConnectTagSelection(tagId);
+      setSelectedTagIdState(tagId);
+      setCheckedIds(NO_CHECKS);
+      // A row picked under the old tag says nothing about the new one.
+      selectItem(null);
+    },
+    [selectItem],
+  );
   const [query, setQuery] = useState("");
 
   /*
@@ -373,6 +444,13 @@ export function ConnectScreen({
     null,
   );
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
+  /*
+   * Which field the narrow sheet is showing (#1646). Separate from
+   * `editFocusField`, which is a one-shot focus request the first interaction
+   * with the block consumes — driving the sheet from it would close the sheet
+   * on the first keystroke.
+   */
+  const [sheetField, setSheetField] = useState<TagHubEditField | null>(null);
 
   const selectTag = useCallback(
     (tagId: string | null) => {
@@ -430,8 +508,11 @@ export function ConnectScreen({
       if (tagId !== selectedTagId) selectTag(tagId);
       setEditOpen(true);
       setEditFocusField(field);
+      // Narrow opens the field in a sheet of its own; the wide layout opens
+      // the block inline and only moves the caret.
+      if (!isWide) setSheetField(field);
     },
-    [selectedTagId, selectTag],
+    [selectedTagId, selectTag, isWide],
   );
 
   /*
@@ -468,6 +549,78 @@ export function ConnectScreen({
       })();
     },
     [wiki, askConfirm, t, selectedTagId, commitSelection, drafts],
+  );
+
+  /*
+   * Bulk writes (#1644). Held off while one runs (the bar's buttons disable),
+   * and the checked rows are cleared once it finishes: the rows a "remove" or
+   * "move" acted on have left this tag, and keeping the rest checked after an
+   * "add" would invite the same write twice.
+   */
+  const toast = useToastOptional();
+  const [bulkBusy, setBulkBusy] = useState(false);
+  const reportFailure = useCallback(
+    (failed: number) => {
+      const message = t("connect.selection.failed", { count: failed });
+      if (toast) toast.showToast("danger", message);
+      else console.error(message);
+    },
+    [t, toast],
+  );
+  const runBulk = useCallback(
+    async (write: (itemIds: string[]) => Promise<BulkTagResult>) => {
+      const itemIds = [...checkedIds];
+      if (itemIds.length === 0) return;
+      setBulkBusy(true);
+      try {
+        const result = await write(itemIds);
+        if (result.failed > 0) reportFailure(result.failed);
+      } catch {
+        reportFailure(itemIds.length);
+      } finally {
+        setBulkBusy(false);
+        setCheckedIds(NO_CHECKS);
+      }
+    },
+    [checkedIds, reportFailure],
+  );
+  const toggleChecked = useCallback((itemId: string) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(itemId)) next.delete(itemId);
+      else next.add(itemId);
+      return next;
+    });
+  }, []);
+  const clearChecked = useCallback(() => setCheckedIds(NO_CHECKS), []);
+
+  /*
+   * Merging (#1644). The dialog names the source; the Provider refiles its
+   * items and deletes it only when every move landed. When the merged tag was
+   * the open one, the hub follows its items to where they went.
+   */
+  const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
+  const mergeTags = useCallback(
+    (sourceId: string, targetId: string) => {
+      setMergeSourceId(null);
+      void (async () => {
+        try {
+          const result = await wiki.mergeTags(sourceId, targetId);
+          if (!result.sourceDeleted) {
+            toast?.showToast("danger", t("connect.merge.failed"));
+            return;
+          }
+          if (sourceId === selectedTagId) {
+            drafts.discard(sourceId);
+            commitSelection(targetId);
+            setEditOpen(false);
+          }
+        } catch {
+          toast?.showToast("danger", t("connect.merge.failed"));
+        }
+      })();
+    },
+    [wiki, toast, t, selectedTagId, drafts, commitSelection],
   );
 
   const createTag = useCallback(
@@ -523,6 +676,177 @@ export function ConnectScreen({
     [t, labels.roles],
   );
 
+  // Every live tag, for the choosers and the merge dialog — unused ones
+  // included, since filing items under a fresh tag is how it stops being one.
+  const pickableTags = useMemo(
+    () => [...model.tags.filter((tag) => !tag.isUntagged), ...model.unusedTags],
+    [model.tags, model.unusedTags],
+  );
+
+  const selectionLabels = useMemo<TagHubSelectionBarLabels>(
+    () => ({
+      region: t("connect.selection.region"),
+      assign: t("connect.selection.assign"),
+      remove: t("connect.selection.remove"),
+      move: t("connect.selection.move"),
+      clear: t("connect.selection.clear"),
+      assignTitle: t("connect.selection.assignTitle"),
+      moveTitle: t("connect.selection.moveTitle"),
+      picker: {
+        search: t("connect.selection.search"),
+        formatCreate: (name) => t("connect.selection.create", { name }),
+        empty: t("connect.selection.pickerEmpty"),
+      },
+    }),
+    [t],
+  );
+
+  const mergeLabels = useMemo<TagMergeDialogLabels>(
+    () => ({
+      formatTitle: (name) => t("connect.merge.title", { name }),
+      targetsLabel: t("connect.merge.targetsLabel"),
+      pickHint: t("connect.merge.pickHint"),
+      formatSummary: (count, target) =>
+        t("connect.merge.summary", { count, target }),
+      noTargets: t("connect.merge.noTargets"),
+      confirm: t("connect.merge.confirm"),
+      cancel: t("common.cancel"),
+    }),
+    [t],
+  );
+
+  const mergeSource =
+    pickableTags.find((tag) => tag.id === mergeSourceId) ?? null;
+
+  /*
+   * The relations of the selected row (#1645). `itemsById` is the hub's own
+   * item list keyed by id, which doubles as the pool that NAMES a relation:
+   * an id it cannot name is left out, the same rule LinkPanel follows.
+   */
+  const itemsById = useMemo(() => {
+    const map = new Map<
+      string,
+      TagHubItem & { label: string; isDeleted?: boolean }
+    >();
+    for (const item of items) map.set(item.id, { ...item, label: item.title });
+    return map;
+  }, [items]);
+
+  const selectedItem = selectedItemId
+    ? (itemsById.get(selectedItemId) ?? null)
+    : null;
+
+  const relations = useMemo(
+    () =>
+      selectedItem
+        ? buildItemRelations({
+            itemId: selectedItem.id,
+            assignments: wiki.allAssignments,
+            links: wiki.getLinksForItem(selectedItem.id),
+            itemsById,
+            // Only a dated row has a day of its own; a daily IS its day, so
+            // pointing it at itself would list the row under its own panel.
+            dailyDate:
+              selectedItem.role === "daily" ? undefined : selectedItem.date,
+          })
+        : null,
+    [selectedItem, wiki, itemsById],
+  );
+
+  const linkedRelations = useMemo(
+    () =>
+      (relations?.linked ?? []).flatMap((entry) => {
+        const item = itemsById.get(entry.targetId);
+        return item ? [{ item, linkIds: entry.linkIds }] : [];
+      }),
+    [relations, itemsById],
+  );
+
+  /** What a new link may point at: everything but this row and its links. */
+  const linkCandidates = useMemo(() => {
+    if (!selectedItem) return [];
+    const taken = new Set((relations?.linked ?? []).map((l) => l.targetId));
+    return items.filter(
+      (item) => item.id !== selectedItem.id && !taken.has(item.id),
+    );
+  }, [items, relations, selectedItem]);
+
+  const relationLabels = useMemo<RelationPanelLabels>(
+    () => ({
+      back: t("connect.relations.back"),
+      openItem: t("connect.relations.openItem"),
+      links: t("connect.relations.links"),
+      sharedTags: t("connect.relations.sharedTags"),
+      sameDayDaily: t("connect.relations.sameDayDaily"),
+      formatSection: (label, count) =>
+        t("connect.relations.section", { label, count }),
+      sectionEmpty: t("connect.relations.sectionEmpty"),
+      formatRemoveLink: (title) => t("connect.relations.removeLink", { title }),
+      addLink: t("connect.relations.addLink"),
+      addLinkDialog: t("connect.relations.addLinkDialog"),
+      searchPlaceholder: t("connect.relations.searchPlaceholder"),
+      noCandidates: t("connect.relations.noCandidates"),
+      roles: labels.roles,
+    }),
+    [t, labels.roles],
+  );
+
+  // Picking a row with the panel shut would look like nothing happened
+  // (assumption 2). Optional: a host with no panel (a test, a standalone
+  // render) keeps working.
+  const rightSidebar = useRightSidebarOptional();
+  const handleSelectItem = useCallback(
+    (item: TagHubItem) => {
+      selectItem(item.id === selectedItemId ? null : item.id);
+      if (!rightSidebar?.isOpen) rightSidebar?.open();
+    },
+    [selectItem, selectedItemId, rightSidebar],
+  );
+
+  const removeLink = useCallback(
+    (linkIds: readonly string[]) => {
+      void (async () => {
+        // Sequential: the Context mutator rewrites the same bulk cache each
+        // time, and two writes landing together can drop one update.
+        for (const linkId of linkIds) {
+          try {
+            await wiki.deleteItemLink(linkId);
+          } catch {
+            toast?.showToast("danger", t("connect.relations.writeFailed"));
+            return;
+          }
+        }
+      })();
+    },
+    [wiki, toast, t],
+  );
+
+  const addLink = useCallback(
+    (target: TagHubItem) => {
+      if (!selectedItemId) return;
+      void wiki.createItemLink(selectedItemId, target.id).catch(() => {
+        toast?.showToast("danger", t("connect.relations.writeFailed"));
+      });
+    },
+    [wiki, selectedItemId, toast, t],
+  );
+
+  /*
+   * The narrow row menus (#1646). Which item's sheet is open is host state,
+   * because its two actions both write (unassign) or move the selection.
+   */
+  const [sheetItem, setSheetItem] = useState<TagHubItem | null>(null);
+  const removeTagFromItem = useCallback(
+    (item: TagHubItem) => {
+      if (!selectedTagId || selectedTag?.isUntagged) return;
+      void (async () => {
+        const result = await wiki.bulkUnassign([item.id], selectedTagId);
+        if (result.failed > 0) reportFailure(result.failed);
+      })();
+    },
+    [wiki, selectedTagId, selectedTag, reportFailure],
+  );
+
   const handleOpenItem = useCallback(
     (item: TagHubItem) => {
       // `navigateId` when the row is filed under an id the destination cannot
@@ -539,7 +863,22 @@ export function ConnectScreen({
 
   return (
     <>
-      {selectedTag && (
+      {selectedItem && relations ? (
+        <RightSidebarPortal>
+          <RelationPanel
+            item={selectedItem}
+            linked={linkedRelations}
+            sharedTagItems={relations.sharedTagItems}
+            sameDayDaily={relations.sameDayDaily}
+            candidates={linkCandidates}
+            onBack={() => selectItem(null)}
+            onOpenItem={handleOpenItem}
+            onRemoveLink={removeLink}
+            onAddLink={addLink}
+            labels={relationLabels}
+          />
+        </RightSidebarPortal>
+      ) : selectedTag ? (
         <RightSidebarPortal>
           <TagHubDetailPanel
             tag={selectedTag}
@@ -550,7 +889,7 @@ export function ConnectScreen({
             labels={detailLabels}
           />
         </RightSidebarPortal>
-      )}
+      ) : null}
       <TagHubView
         model={model}
         selectedTagId={selectedTagId}
@@ -580,7 +919,145 @@ export function ConnectScreen({
         onEditSave={saveSelected}
         onDeleteTag={requestDelete}
         onCreateTag={createTag}
+        onMergeTag={setMergeSourceId}
+        // Bulk selection is Desktop only (the Mobile brief drops it).
+        checkedItemIds={isWide ? checkedIds : undefined}
+        onToggleItemChecked={isWide ? toggleChecked : undefined}
+        formatSelectItem={(title) =>
+          t("connect.selection.selectItem", { title })
+        }
+        // Row click = select, chevron / double click = leave — Desktop only.
+        // A phone screen has one pane, so a tap still opens the item (M3).
+        activeItemId={isWide ? selectedItemId : null}
+        onSelectItem={isWide ? handleSelectItem : undefined}
+        formatOpenItem={(title) => t("connect.relations.openRow", { title })}
+        // M3 — the narrow row's own actions button.
+        onItemMenu={isWide ? undefined : setSheetItem}
+        formatItemMenu={(title) => t("connect.mobile.itemMenu", { title })}
+        selectionBar={
+          isWide && selectedTag && checkedIds.size > 0 ? (
+            <TagHubSelectionBar
+              count={checkedIds.size}
+              formatSelected={(count) =>
+                t("connect.selection.selected", { count })
+              }
+              tags={pickableTags}
+              currentTagId={selectedTag.id}
+              canRemove={!selectedTag.isUntagged}
+              busy={bulkBusy}
+              onAssign={(tagId) =>
+                void runBulk((ids) => wiki.bulkAssign(ids, tagId))
+              }
+              onCreateAndAssign={(name) =>
+                void runBulk(async (ids) => {
+                  const created = await wiki.createTag(name);
+                  return wiki.bulkAssign(ids, created.id);
+                })
+              }
+              onRemove={() =>
+                void runBulk((ids) => wiki.bulkUnassign(ids, selectedTag.id))
+              }
+              onMove={(tagId) =>
+                void runBulk((ids) =>
+                  wiki.moveItemsToTag(ids, selectedTag.id, tagId),
+                )
+              }
+              onClear={clearChecked}
+              labels={selectionLabels}
+            />
+          ) : null
+        }
       />
+
+      <TagMergeDialog
+        key={mergeSourceId ?? "closed"}
+        source={mergeSource}
+        tags={pickableTags}
+        onMerge={mergeTags}
+        onCancel={() => setMergeSourceId(null)}
+        labels={mergeLabels}
+      />
+
+      {/* The narrow row's "…" (M3): read what it relates to, or take this
+          tag off it. Neither is destructive enough for the danger tint — the
+          brief says so for the second one explicitly. */}
+      <TagHubActionSheet
+        open={!isWide && sheetItem !== null}
+        onClose={() => setSheetItem(null)}
+        title={t("connect.mobile.itemMenu", { title: sheetItem?.title ?? "" })}
+        closeLabel={t("connect.sheetClose")}
+        actions={
+          sheetItem
+            ? [
+                {
+                  label: t("connect.mobile.seeRelations"),
+                  onSelect: () => selectItem(sheetItem.id),
+                },
+                ...(selectedTag && !selectedTag.isUntagged
+                  ? [
+                      {
+                        label: t("connect.mobile.removeThisTag"),
+                        onSelect: () => removeTagFromItem(sheetItem),
+                      },
+                    ]
+                  : []),
+              ]
+            : []
+        }
+      />
+
+      {/* The relations, which on a phone have no panel to sit in (M4). */}
+      {!isWide && selectedItem && relations && (
+        <BottomSheet
+          open
+          onClose={() => selectItem(null)}
+          title={t("connect.mobile.relationsSheet", {
+            title: selectedItem.title,
+          })}
+          closeLabel={t("connect.sheetClose")}
+        >
+          <RelationPanel
+            item={selectedItem}
+            linked={linkedRelations}
+            sharedTagItems={relations.sharedTagItems}
+            sameDayDaily={relations.sameDayDaily}
+            candidates={linkCandidates}
+            onBack={() => selectItem(null)}
+            onOpenItem={handleOpenItem}
+            onRemoveLink={removeLink}
+            onAddLink={addLink}
+            labels={relationLabels}
+          />
+        </BottomSheet>
+      )}
+
+      {/* One field per sheet (M1): the rail's menu named which one. */}
+      {!isWide && selectedTag && sheetField && (
+        <BottomSheet
+          open
+          onClose={() => setSheetField(null)}
+          title={t("connect.mobile.editSheet", {
+            name: selectedTag.name,
+            field: EDIT_FIELD_LABEL[sheetField](labels),
+          })}
+          closeLabel={t("connect.sheetClose")}
+        >
+          <TagHubEditBlock
+            tag={selectedTag}
+            edits={drafts.editsFor(selectedTag.id)}
+            dirty={drafts.isDirty(selectedTag.id)}
+            only={sheetField}
+            onEdit={editSelected}
+            onDropEdit={dropEdit}
+            onSave={() => {
+              saveSelected();
+              setSheetField(null);
+            }}
+            onDelete={() => requestDelete(selectedTag.id)}
+            labels={labels.edit}
+          />
+        </BottomSheet>
+      )}
 
       {/* The discard question, asked when another tag is picked while this one
           holds a draft (#740). Mounted beside the view so it portals above it. */}

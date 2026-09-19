@@ -1,5 +1,49 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-09-19 (2) - #1722 夕刊カードの気分の星が狭幅で画面外（PR #1724）
+
+#### 概要
+
+#1680（PR #1693）が狭幅で作った不具合を修理した。chat-main の実ブラウザ検証で発覚し、書いた時点で PR #1724 は open。
+
+#### 変更点
+
+- **原因**: 編集可能にした星は `max-md:min-h-11 max-md:min-w-11`（#1558 の 44px 床）を持つため、既定 root 18px で 1 個 50px。`flex items-center justify-between` のヘッダーに見出しと並ぶと 5 個 256.5px がカード幅を超え、390 幅で Mood 5/5 が画面外・横スクロールも出ないので到達手段が無かった
+- **直し方**: `onSelectMood` があるときだけ、`md` 未満でヘッダーを `flex-col` にして星を独立した行へ出す（`md:` 以上は元の `flex-row` + `justify-between`）。読み取り専用のカードは 15px span で約 83px なので 1 行のまま。床は下げない。グループに `flex-wrap` を保険で追加（root font size が大きいと縦積みでも 1 行に収まらないため）
+- **テスト**: shared 2 件（編集可能なら縦積み + 床のクラスが残る + wrap する / 読み取り専用は縦積みしない）。jsdom に高さ・幅が無いので実寸はクラスで固定し、360 / 390 / 430 の再実測は chat-main の手番
+- **検証**: CI verify のステップ列 14 本 + `docs-lint` をローカル全緑
+
+### 2026-09-19 - #1677 右クリック編集 / #1687 ドロップを移動に / #1688 未解決リンク行の削除 / #1689 閉じ括弧（PR #1713 / #1716 merged / #1717 / #1719）
+
+#### 概要
+
+chat-main の配布で materials の残り 4 件に着手し、4 PR にした。#1689 のみ #1688 に stack（同じ関数）。
+
+#### 変更点
+
+- **#1677（PR #1713）Note の rightSidebar を右クリックで編集**: タグ行（フィルタチップ / グループ見出し）は Connect と同じ `TagActionsMenu` をポインタ位置に開き、名前 / アイコン / 色はその場に `TagHubEditBlock` を出す（`useTagEditDrafts` = 保存ボタンだけが書く #715 の契約をそのまま使用）。削除は `ConfirmDialog`。ノート行は汎用 `ItemActionPopover`（#307）で、タイトル + `TagPicker` + 名前変更（インライン入力・IME 安全）+ 削除。新規 `web/src/notes/useSidebarContextMenus.tsx` に「ハンドラ + パネル」を 1 ファイルでまとめた（ハンドラは一覧の奥へ、パネルはホスト最上位へ行くため）。`shared/src/components/TagHub/` は触らず使うだけ
+- **#1687（PR #1716・merged）ドロップ = 移動**: `handleDragEnd` がドラッグ元のタグ（draggable id のグループキー）を読み、`{noteId, fromTagId, toTagId}` を報告する。未分類も本物のドロップ先になり、そこへ落とすと**ドラッグ元のタグ 1 つだけ**を外す。書き込みの判断は純関数 `planTagMove` に出した（jsdom にレイアウトが無くジェスチャを再現できないため）。Scope どおり `useWikiTagsUnifiedAPI.ts` は不変
+- **#1688（PR #1717）未解決リンクの行を削除**: 行と `insertUnresolved`・`exactMatch`・`"unresolved"` 種別・i18n キー（en/ja）を撤去。**ノート作成失敗時のフォールバックは残した**（`[[query` の削除は await より前に走る同期処理なので、フォールバックまで消すと打った文字が何も残らない）。`targetId: null` の描画は保存済み本文のため維持
+- **#1689（PR #1719）閉じ括弧**: `stripLinkClosing` で検索語末尾の `]` / `]]` を落としてから、絞り込み・作成行のラベル・作成するノート名に使う。末尾だけを落とすので `Roof [draft] repair` は無傷。挿入側は無変更（range が `]]` を含む）
+- **テスト**: web 8 件（#1677 = タグメニューの 4 項目・保存でのみ renameTag・削除の確認・未分類は素通り・ノートパネルの中身・名前変更・削除・狭幅で何も付かない）+ 10 件（#1687 = どの移動か 5 件 / どの書き込みか 5 件）+ 4 件（#1688）+ 3 件（#1689）。`buildItems` と `planTagMove` はテストのために export した（どちらも実 ProseMirror / 実ポインタなしでは到達できない判断）
+- **検証**: 4 ブランチとも CI verify のステップ列 14 本 + `docs-lint` をローカル全緑
+- **申し送り**: #1687 と #1667（タグ付け外しの Undo）が重なると、移動 1 回が Undo 2 回になりうる。まとめるかは #1667 側で確かめる
+
+### 2026-09-17 - #1679 Daily エディタカードの床 / #1680 夕刊カードの編集 / #1674 添付アップロードの帯（PR #1683 merged / #1693 / #1699）
+
+#### 概要
+
+section:materials の open 3 件を 1 件 1 ブランチで実装し、3 PR にした。#1679 は merge 済み、残り 2 本は書いた時点で open。
+
+#### 変更点
+
+- **#1679（PR #1683・merged）Daily の「…」メニューが切れる**: `web/src/daily/DailyView.tsx` の `EditorCard` に `DAILY_EDITOR_CARD_MIN_HEIGHT = "min-h-60"` を置き、`min-h-0` と**差し替え**た（`cn` は文字列連結なので 2 つ並べると CSS の記述順が勝つ）。原因は「メニューが portal ではなくカードの中」+「カードが `overflow-hidden`」+「flex 列が短い日のカードを潰す」の 3 つ重ね。開いたメニューの到達点は約 122px（pt-4 + 28px のトリガー + 行 2 本）なので、240px は 3 行目が増えても収まる。`Menu.tsx` は他画面共有なので触っていない。テストは desktop / mobile の 2 面でクラスの有無を見る（jsdom に高さは無い）
+- **#1680（PR #1693）夕刊カード（気分・振り返り）を Daily 上で編集**: `DailyEveningCard` に `onSelectMood` と `reflectionSlot` を任意で足し、渡されなければ従来の読み取り専用のまま描く。ホスト側は `mergeEveningSection` で夕刊レンジだけ差し替えるので本文と MCP の往復形式は不変。振り返りは `EveningReflectionPreview`（夕刊画面と同じ部品 = TipTap チャンクを押すまで取りに行かない）→ 押したら `LazyRichTextEditor`。気分 1 タップ = グローバル undo 1 件（`skipUndo` で context 側の createDaily undo を抑止）、振り返りの打ち込みはエディタ自身の履歴。夕刊が無い日はカードではなく小さな「夕刊を書く」ボタンを出す（#1046 が避けた「空カードの氾濫」を作らない）。スケジュール行は読み取りのまま（Schedule のデータで、ここに保存先が無い）
+- **#1674（PR #1699）添付アップロード中の帯**: `web/src/notes/AttachmentUploadStatus.tsx` を新設（ファイル名 + `attachment.uploading` + 不定形スピナー・`role="status"` + `aria-live="polite"`・idle では何も描かない）。`useAttachmentUpload` に任意の `onUploadingChange` を足し、サイズ検査を通った時点でファイル名・`finally` で null を渡す（失敗も拒否も帯が残らない）。ドキュメントは一切触らない = `D-20260902-materials-1` の裁定 B。`RichTextEditor` / `attachmentNode` は Scope 外のまま
+- **テスト**: web 5 件（#1680 = 気分の設定 / 解除・振り返りの編集・夕刊が無い日の入口・undo コマンド。いずれも保存文字列を `extractEveningSection` / `stripEveningSection` で読み直して確かめる）+ shared 1 件（編集モードのカード）+ web 4 件（#1674 = 開始で出る / 成功・失敗・サイズ拒否で消える / `aria-live`）+ #1679 の 2 件。既存の #1046 テストは星が `role="img"` から button になったので `aria-pressed` を見る形へ直した
+- **検証**: 3 ブランチとも CI verify のステップ列 14 本 + `docs-lint` をローカル全緑。#1693 は #1683 の merge 後に `origin/main` を取り込んで衝突（テストの import 1 ブロック）を解消し、再度全緑
+- **事故 / 摩擦 2 件**: (1) 他レーン（connect-refine）の `ps | grep verify.sh` が当方のプロセスまで kill した — 同名スクリプトが全 worktree にあるため。(2) `briefingEveningLazyMount` の cold-cache flake に 2 回当たった（単体では緑・別レーンの PR #1692 が main に着地して解消）
+
 ### 2026-09-13 - #1606 添付チップの全幅化 + 削除ボタン / #1607 URL のリンクブロック（PR #1612 / #1617）
 
 #### 概要
@@ -93,35 +137,3 @@ Mobile 幅点検 #1409 と Desktop 点検 #1408 の所見 4 件。全部 `origin
 - **テスト**: `web/tests/notesView.test.tsx` に 5 ケース（文言 / CTA が無いこと / チップが残ること / 検索語が落ちること / 本当に空の書庫は今まで通り）、`shared/tests/templateEditPanelLayout.test.tsx` に 2 ケース（測れたとき = `min()` 式 / 測れないとき = class 幅のまま）、`web/tests/elementWidth.test.tsx` 新規 5 ケース（装着時に測る / 小数を丸める / リサイズに追従 / 幅 0 は「未測定」扱い / 外れたら observe をやめる）
 - **踏んだ罠 2 つ**: (1) web の tsconfig は `erasableSyntaxOnly` なので、テスト用フェイクの**コンストラクタ引数プロパティ**が `TS1294` で落ちる（`build` と `vitest` は両方緑のまま `typecheck:tests` だけが赤くなる例）。(2) 全件並列で `briefingEveningLazyMount.test.tsx` が 1 本落ちたが、単体でも静かな状態の全件でも緑 — memory に記録済みの cold-cache flake で、今回の変更とは無関係
 - **検証**: CI verify のステップ列をローカルで上から全部（shared 4 種 / web 4 種 = 114 files 1070 tests / desktop 3 種 / mcp-server 3 種）+ `docs-lint`、2 ブランチとも 15 本すべて exit 0。ビルド後の CSS で `--container-lumen-reading` が `:root, :host` に出ていることも実測（portal 先で解決するため）。実ブラウザでの実測（ダイアログと Note の `getBoundingClientRect().width` 比較）は worktree では回さない規約なので merge 後に chat-main
-
-### 2026-09-02 - #1439 添付アップロード進捗の方針裁定 / #1438 添付の孤児回収（PR #1455 / #1453・どちらも merged）
-
-#### 概要
-
-#1404 が意図的に残した 2 つの穴（進捗表示・孤児回収）を、それぞれ `origin/main` から独立に切って PR にした。#1439 は「実装せず方針を決める」Issue なのでコードを触らず決定台帳 1 本、#1438 は実装。両ブランチで CI verify のステップ列 14 本 + `docs-lint` をローカル全緑。**書いた時点の実測で 2 本とも merged**（#1453 = 529ffea1 / #1455 = 39d4d402）。
-
-#### 変更点
-
-- **#1439（PR #1455）進捗はドキュメントの外に出す**: 裁定 = プレースホルダノードを作らない（`D-20260902-materials-1`・`status: recorded`）。理由 2 つ。(1) プレースホルダは「保存の直前に一時ノードを落とす」処理が要るが、保存経路は自動保存 / 手動保存 / 画面離脱と複数あり、1 経路の落とし忘れが**届いていないバイト列を指すノートの永続化**になる。壊れ方が静かすぎる。(2) `@supabase/storage-js` 2.105.4 の `FileOptions` に**進捗コールバックが無い**（実測 = `web/node_modules/@supabase/storage-js/dist/index.d.mts`。`cacheControl` / `contentType` / `upsert` / `duplex` / `metadata` / `headers` のみ）ので、どの案でもインジケータは不定形にしかならず、ドキュメント内に置く必然性が消える。派生の裁定 3 つ = 自動保存の除外機構は不要 / 失敗時は既存の danger トーストのみ・再試行導線なし / 両幅 1 実装・対象は Notes のみ
-- **#1438（PR #1453）孤児回収**: 設定 → ゴミ箱の下に「添付の掃除」カード。dry-run の一覧 → 確認ダイアログ → **その一覧に対してだけ**削除。判定は純関数に切り出した（`shared/src/services/attachmentOrphans.ts` = `collectAttachmentPaths` / `selectOrphans`）
-- **走査は `notes_payload` + `dailies_payload` の全行・`is_deleted` の絞り込みなし**: ゴミ箱のノートは復元できる以上その本文が指すファイルは生きている。テンプレートや legacy folder 行も同じ。Daily を入れたのは、`attachment` ノードが全編集面で無条件登録なので**貼り付けで Daily に入りうる**ため（走査して 0 件だったテーブルはクエリ 1 本の損、走査し忘れたテーブルは使用中のファイルを消す）
-- **2 つの読み取りの順番が安全性そのもの**: 先にバケットの一覧 → 後からドキュメント。走査中のアップロードは「一覧に無い」か「後の読みで参照が見える」のどちらかになる。逆順だと 2 つの読み取りの間に添付したファイルが孤児に見える
-- **ページングに `order("item_id")` を付けた**: PostgREST は行順を保証しないので、順序なしの 2 ページ目は 1 ページ目の行を取り直したり別の行を飛ばしたりする。**飛ばされた行 = 参照を見落としたノート**なので効率ではなく正しさの話
-- **保険の猶予窓 1 時間**（`ORPHAN_GRACE_MS`）: 「アップロードは終わったのにノートが保存されないままタブを閉じた」に効かせる。タイムスタンプが読めないものも「新しい」側に倒す
-- **Scope 外を 1 か所触った（申告済み）**: `web/src/notes/attachmentNode.ts` のノード名リテラルを shared の `ATTACHMENT_NODE_TYPE` に差し替え。掃除側は type 名でしか参照を認識できないので、片方だけ改名されると**全添付が孤児に見える**
-- **テスト**: shared 14 件（深いネスト / 平文・null・壊れた JSON / `path` 属性を持つ別ノード / ゴミ箱のノートの参照 / folder 行と `.emptyFolderPlaceholder` / 読み取り失敗は例外）+ web 5 件（dry-run 前は削除ボタンが無い / 確認前に `deleteAttachment` を呼ばない / 1 件失敗しても続けて件数を報告 / 失敗した dry-run が「掃除するものはありません」に化けない）
-- **事故 1 件**: #1455 の 2 コミット目（outbox の起票依頼）は push が merge に間に合わず main に届かなかった。cherry-pick で本 tracker ブランチに載せ直している
-
-### 2026-09-01 (2) - #1407 Materials 復帰のロード / #1404 添付・埋め込み（PR #1417 / #1425）
-
-#### 概要
-
-2026-09-01 dispatch の残り 2 件。どちらも `origin/main` から独立に切って PR にした。**#1404 は 🛑 人手ゲート付き**で、`supabase/migrations/0027_attachments_bucket.sql`（非公開バケット + storage.objects の 4 ポリシー）は未適用のまま提出している（バケット作成・ポリシー投入は DDL push と同枠 = CLAUDE.md §7.3）。
-
-#### 変更点
-
-- **#1407（PR #1417）Materials へ戻ったときの空白を消した**: 一覧は #1101 の snapshot replay で既に即座に描かれていたが、**行は本文を持たない**（M1）ため、開いていたノートの本文だけ毎回 `getNoteUnified` を 1 往復し、その間エディタ領域が空だった。新規 `shared/src/state/noteBodyStore.ts` = 本文の module-level LRU（12 件）で、`domainSnapshotStore` と同じ 3 つの制限（メモリのみ / DataService identity で検証 / `updatedAt` 一致で検証）+ 上限付き。`mergeLoadedList` は**メモリ上に `prev` が無いときだけ**キャッシュを見る（ライブ状態が常に優先 = #607 の own-write カバーを壊さない）。`restoreSelection` は `canHydrate` を取り、snapshot replay からは**merge が既に本文を持っていた場合だけ**復元して、持っていなければ one-shot を消費せず戻る — fetch 側の `apply` が従来どおり全経路を通る。Trash からの完全削除で `forgetNoteBody`（二度と list read に現れないオブジェクトは何もエントリを無効化できないため）。ソフト削除では**あえて**破棄しない（Trash から戻すと行がそのまま復活し、キャッシュは正当なヒットになる）
-- **#1404（PR #1425）スラッシュコマンドから画像 / ファイル**: `/` に Image と File を追加。**バケットは非公開**（`sounds` が public なのは中身が全員共通の環境音 5 本だから／こちらはユーザー自身のノート）で、**本文が持つのはパスだけ**。非公開バケットの URL は署名付き 1 時間で失効するので、本文に URL を焼き込むと「一晩で壊れるノート」か「ずっと公開のバケット」の二択になる。新規: `shared/src/constants/attachments.ts`（上限・TTL・`isEmbeddableImage`・`formatAttachmentSize`）/ `shared/src/services/SupabaseAttachmentsService.ts`（`<uid>/<uuid>.<ext>` で書く = migration 0027 のポリシーが認可する唯一の形）/ `web/src/notes/attachmentNode.ts`（block atom + 素の NodeView。itemLink と同じく**無条件登録**）/ `pickFile.ts` / `useAttachmentUpload.ts`。DataService には `attachments` ドメインを 1 つ足した（routing の型ガードが interface とタプルを両方向で突き合わせるので、宣言漏れも死んだ文字列もビルドで落ちる）
-- **意図的な線引き（#1404）**: SVG は画像扱いにせずファイルのチップへ（スクリプトや外部参照を持てる「文書」なので inline 描画しない）／挿入はアップロード完了後（先に入れるとエディタの 800ms 自動保存に拾われ、届いていないパスを指すノードが永続化される）／進捗表示なし・孤児回収なし（どちらも outbox で起票依頼済み）／配線したのは Notes だけ（Issue の Scope が `web/src/notes/**` を名指し）
-- **テスト**: #1407 = `shared/tests/noteBodyCache.test.tsx` 7 件。要は `waitFor` を使わない 1 本で、`renderHook` が返った時点で既にノートが本文つきで開いていること・`getNoteUnified` が一度も呼ばれていないことを見る（`await` を挟むと修正前でも緑になり何も証明しない）。逆側の不変式として「離れている間に他デバイスが書き換えたら revalidate が上書きする」も。キャッシュを空振りさせて 7 件中 6 件が落ちることを実測。#1404 = shared 10 件（オブジェクト名の形が中心 — 危険な拡張子 / 拡張子なし / 先頭ドットが全部 uuid だけのキーに落ちること、上限超過が**送る前に**弾かれること）+ web 18 件（実エディタで署名 URL 解決・SVG のチップ化・リゾルバ無し / 失敗のフォールバック、スラッシュ項目のゲートと挿入順序、ピッカーの後片付け）
-- **検証**: 両ブランチで CI verify のステップ列（shared → web → desktop → mcp-server の lint / build / typecheck:tests / test）+ `docs-lint` をローカル全緑

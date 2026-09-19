@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { X, ChevronDown, CalendarDays, CheckSquare } from "lucide-react";
 import { Card } from "./Card";
 import { Menu, MenuItem } from "./Menu";
@@ -76,6 +76,13 @@ export interface PomodoroTodoSelectorProps {
   loading?: boolean;
   labels: PomodoroTodoSelectorLabels;
   onSelect: (item: WorkTargetOption | null) => void;
+  /**
+   * Host UI for the space to the RIGHT of the picker (#1665 — the free
+   * session's tag field). A slot rather than a built-in: what belongs beside
+   * the link target is the host's business, and the tag layer needs a
+   * DataService this pure part must not have (§6.4).
+   */
+  trailing?: ReactNode;
 }
 
 export function PomodoroTodoSelector({
@@ -84,6 +91,7 @@ export function PomodoroTodoSelector({
   loading = false,
   labels,
   onSelect,
+  trailing,
 }: PomodoroTodoSelectorProps) {
   const [open, setOpen] = useState(false);
   const selected = items.find((t) => t.id === selectedId) ?? null;
@@ -105,7 +113,9 @@ export function PomodoroTodoSelector({
               workTargetChipClass(selected.kind),
             )}
           >
-            <span className="shrink-0">{workTargetIcon(selected.kind, 14)}</span>
+            <span className="shrink-0">
+              {workTargetIcon(selected.kind, 14)}
+            </span>
             <span className="truncate">{selected.title}</span>
             <button
               type="button"
@@ -155,6 +165,9 @@ export function PomodoroTodoSelector({
             </Menu>
           </div>
         )}
+        {trailing ? (
+          <div className="ml-auto flex shrink-0 justify-end">{trailing}</div>
+        ) : null}
       </div>
 
       {!loading && !hasItems && !selected ? (

@@ -5,6 +5,7 @@ import { cn } from "../cn";
 import type { ItemAction } from "./types";
 import { ItemActionRow } from "./ItemActionRow";
 import { clampToViewport, useFloatingDismiss } from "./floating";
+import { TimeRangeField } from "../TimeRangeField";
 import { isImeComposing } from "../../utils/imeGuard";
 
 /*
@@ -98,7 +99,9 @@ export function ItemActionPopover({
 
   const inlineAction =
     inlineId != null
-      ? (actions?.find((a) => a.id === inlineId && a.inlineInput) ?? null)
+      ? (actions?.find(
+          (a) => a.id === inlineId && (a.inlineInput || a.inlineTimeRange),
+        ) ?? null)
       : null;
 
   // Focus + select the input when entering inline mode. Keyed on the id, not
@@ -138,8 +141,8 @@ export function ItemActionPopover({
   };
 
   const activate = (action: ItemAction) => {
-    if (action.inlineInput) {
-      setDraft(action.inlineInput.value);
+    if (action.inlineInput || action.inlineTimeRange) {
+      setDraft(action.inlineInput?.value ?? "");
       setInlineId(action.id);
       return;
     }
@@ -156,6 +159,25 @@ export function ItemActionPopover({
   // In columns the blocks sit side by side, so the rule that separates them
   // is the column's left border rather than each block's top border.
   const blockRule = columns ? "" : "border-t border-lumen-border";
+
+  // #1664: the time pair, in the same slot the rename input uses. The field
+  // commits both halves in one payload (it owns start < end), so the panel can
+  // close on that single commit — and a routine occurrence raises ONE scope
+  // dialog rather than one per half.
+  const inlineTimeBlock = inlineAction?.inlineTimeRange ? (
+    <div className={cn(blockRule, "px-2 py-2")}>
+      <TimeRangeField
+        start={inlineAction.inlineTimeRange.start}
+        end={inlineAction.inlineTimeRange.end}
+        labels={inlineAction.inlineTimeRange.labels}
+        formatDuration={inlineAction.inlineTimeRange.formatDuration}
+        onChange={(next) => {
+          inlineAction.inlineTimeRange?.onCommit(next);
+          onClose();
+        }}
+      />
+    </div>
+  ) : null;
 
   const inlineBlock = inlineAction?.inlineInput ? (
     <div className={cn(blockRule, "px-2 py-2")}>
@@ -190,14 +212,18 @@ export function ItemActionPopover({
     actions && actions.length > 0 ? (
       <div className={cn(blockRule, "py-1")}>
         {actions.map((action) => (
-          <ItemActionRow key={action.id} action={action} onActivate={activate} />
+          <ItemActionRow
+            key={action.id}
+            action={action}
+            onActivate={activate}
+          />
         ))}
       </div>
     ) : null;
 
   // Hidden while the inline input is up, so Enter has exactly one meaning.
   const editDetailBlock =
-    onEditDetail && !inlineBlock ? (
+    onEditDetail && !inlineBlock && !inlineTimeBlock ? (
       <div className={cn(columns ? "mt-auto" : blockRule, "p-2")}>
         <button
           type="button"
@@ -247,13 +273,13 @@ export function ItemActionPopover({
             data-item-panel-column="actions"
             className="w-1/2 min-w-0 border-l border-lumen-border"
           >
-            {inlineBlock ?? actionsBlock}
+            {inlineBlock ?? inlineTimeBlock ?? actionsBlock}
           </div>
         </div>
       ) : (
         <>
           {summaryBlock}
-          {inlineBlock ?? (
+          {inlineBlock ?? inlineTimeBlock ?? (
             <>
               {actionsBlock}
               {editDetailBlock}
@@ -265,4 +291,3 @@ export function ItemActionPopover({
     document.body,
   );
 }
-

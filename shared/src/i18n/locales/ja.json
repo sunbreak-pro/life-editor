@@ -328,6 +328,18 @@
       "empty": "まだ作業の記録がありません。終えたセッションがここに並びます。",
       "noTarget": "紐づけなし",
       "minutes": "{{minutes}} 分"
+    },
+    "freeSession": {
+      "title": "フリーセッション",
+      "tagHeading": "タグ",
+      "tagAdd": "フリーセッションにタグを付ける",
+      "tagAddShort": "タグ",
+      "tagSearch": "タグを検索 / 作成…",
+      "tagCreate": "「{{name}}」を作る",
+      "tagRemove": "{{name}} を外す",
+      "tagNoCandidates": "タグがまだありません",
+      "tagDialog": "フリーセッションのタグ",
+      "tagDisabled": "タグはフリーセッション用です。紐づけ先を外すと使えます。"
     }
   },
   "audioMixer": {
@@ -400,7 +412,9 @@
       "tagFilterClear": "タグの絞り込みを解除",
       "tagFilterMore": "+{{count}}",
       "tagFilterLess": "折りたたむ",
-      "groupMoreRows": "残り {{count}} 件を表示"
+      "groupMoreRows": "残り {{count}} 件を表示",
+      "rowActions": "ノートの操作",
+      "renameNote": "名前を変更"
     },
     "templates": {
       "menuEntry": "テンプレートとして登録する",
@@ -484,7 +498,10 @@
       "pickerSearch": "タグを検索・作成…",
       "pickerNoCandidates": "追加できるタグはありません",
       "pickerCreate": "「{{name}}」を作成",
-      "pickerRemove": "タグ {{name}} を外す"
+      "pickerRemove": "タグ {{name}} を外す",
+      "assignFailed": "タグを追加できませんでした。",
+      "unassignFailed": "タグを外せませんでした。",
+      "createFailed": "タグを作成できませんでした。"
     },
     "sidebar": {
       "sort": "並び替え",
@@ -574,6 +591,7 @@
     "noteAttachFailed": "ノートを紐づけられませんでした。いま追加したアイテムにはリンクされていません。",
     "title": "タイトル",
     "date": "日付",
+    "editTime": "時間帯を変更",
     "startTime": "開始",
     "endTime": "終了",
     "reminder": "リマインダー",
@@ -615,6 +633,8 @@
     "openRoutinesCta": "「繰り返し」タブを開く",
     "summaryEmpty": "ルーチンはまだありません",
     "tabRepeats": "繰り返し",
+    "repeatShowNext": "次の回を表示",
+    "repeatPanelLabel": "繰り返しの操作",
     "repeatNeverFires": "実行される日がありません",
     "untitled": "無題の繰り返し",
     "repeatDeleteConfirm": "「{{name}}」と、その予定をすべて削除しますか？",
@@ -633,7 +653,7 @@
     "detailPanelLabel": "詳細パネル",
     "editDetail": "詳細を編集",
     "itemActionsLabel": "予定の操作",
-    "tabTodo": "本日の Todo",
+    "tabTodo": "Todo",
     "todoTodayHeading": "本日分の Todo",
     "todoEmptyToday": "本日分の Todo はまだありません",
     "todoOthersHeading": "その他の Todo",
@@ -652,6 +672,7 @@
     "todoFilterClear": "絞り込みを解除",
     "todoFilterEmpty": "絞り込みですべての Todo が隠れています。",
     "todoAddCta": "Todo",
+    "todoAddTodayCta": "本日分に追加",
     "todoAddDialogTitle": "Todo を追加",
     "todoAddTitleLabel": "タイトル",
     "todoAddTitlePlaceholder": "タイトルを入力",
@@ -666,12 +687,22 @@
     "rename": "名称の変更",
     "duplicate": "複製",
     "copySuffix": "（コピー）",
+    "tagScopeLabel": "タグを付ける範囲",
+    "tagScopeAll": "すべての回",
+    "tagScopeThis": "この回のみ",
     "editScopeTitle": "繰り返しの予定を変更",
     "deleteScopeTitle": "繰り返しの予定を削除",
     "scopeThisOnly": "この予定のみ",
     "scopeThisAndFuture": "この予定と今後の予定",
     "scopeAll": "すべての予定（過去分も含む）",
     "scopeCancel": "キャンセル",
+    "undoRepeatTitle": "繰り返しの予定への変更を元に戻しますか？",
+    "redoRepeatTitle": "繰り返しの予定への変更をやり直しますか？",
+    "undoRepeatScopeThis": "この回だけに効きます。",
+    "undoRepeatScopeFuture": "この回と、以降の回に効きます。",
+    "undoRepeatScopeAll": "この繰り返しのすべての回に効きます。",
+    "undoRepeatConfirm": "元に戻す",
+    "redoRepeatConfirm": "やり直す",
     "openFilter": "タグで絞り込む",
     "filterActive_other": "タグ {{count}} 件で絞り込み中",
     "filterTitle": "タグで絞り込む",
@@ -886,6 +917,7 @@
       "updateScheduleItem": "予定の変更",
       "toggleScheduleItemComplete": "予定の完了切替",
       "dismissScheduleItem": "予定の非表示",
+      "undismissScheduleItem": "スキップの取り消し",
       "deleteScheduleItem": "予定の削除",
       "convertEventToTodo": "予定を Todo に変換",
       "convertTodoToEvent": "Todo を予定に変換",
@@ -898,7 +930,9 @@
       "moveNote": "ノートの移動",
       "createNote": "ノートの作成",
       "updateNote": "ノートの変更",
-      "softDeleteNote": "ノートの削除"
+      "softDeleteNote": "ノートの削除",
+      "assignTag": "タグの追加",
+      "unassignTag": "タグの削除"
     }
   },
   "common": {
@@ -1012,7 +1046,56 @@
       "recentHeading": "最近タグを付けたもの",
       "recentUntaggedHeading": "最近更新したもの",
       "recentEmpty": "このタグが付いたアイテムはまだありません。"
-    }
+    },
+    "mergeTag": "別のタグへ統合…",
+    "merge": {
+      "title": "「{{name}}」を統合する",
+      "targetsLabel": "統合先のタグ",
+      "pickHint": "アイテムの移動先になるタグを選んでください。",
+      "summary_other": "{{count}} 件が「{{target}}」へ移り、このタグは削除されます。",
+      "noTargets": "統合できる別のタグがありません。",
+      "confirm": "統合する",
+      "failed": "統合が最後まで終わりませんでした。取りこぼしが出ないよう、元のタグは残しています。"
+    },
+    "selection": {
+      "assign": "タグを付ける",
+      "assignTitle": "選択したアイテムにタグを付ける",
+      "clear": "選択解除",
+      "create": "「{{name}}」を作成",
+      "failed_other": "{{count}} 件を更新できませんでした。通信を確認してください。",
+      "move": "別のタグへ移す",
+      "moveTitle": "選択したアイテムを別のタグへ移す",
+      "pickerEmpty": "一致するタグはありません",
+      "region": "選択中のアイテム",
+      "remove": "このタグを外す",
+      "search": "タグを検索・作成…",
+      "selectItem": "「{{title}}」を選択",
+      "selected_other": "{{count}} 件を選択中"
+    },
+    "relations": {
+      "addLink": "リンクを追加",
+      "addLinkDialog": "リンクするアイテムを選ぶ",
+      "back": "このタグへ戻る",
+      "links": "リンク",
+      "noCandidates": "一致するアイテムはありません",
+      "openItem": "元の画面で開く",
+      "openRow": "「{{title}}」を開く",
+      "removeLink": "「{{title}}」へのリンクを外す",
+      "sameDayDaily": "同じ日のデイリー",
+      "searchPlaceholder": "タイトルで検索…",
+      "section": "{{label}}（{{count}}）",
+      "sectionEmpty": "まだありません。",
+      "sharedTags": "同じタグのアイテム",
+      "writeFailed": "リンクを保存できませんでした。通信を確認してください。"
+    },
+    "mobile": {
+      "editSheet": "{{name}}: {{field}}",
+      "itemMenu": "「{{title}}」の操作",
+      "relationsSheet": "関連: {{title}}",
+      "removeThisTag": "このタグを外す",
+      "seeRelations": "関連を見る"
+    },
+    "sheetClose": "閉じる"
   },
   "attachment": {
     "insertImage": "画像",
@@ -1021,7 +1104,8 @@
     "download": "ダウンロード",
     "remove": "添付を削除",
     "tooLarge": "ファイルが大きすぎます。上限は {{limit}} です。",
-    "uploadFailed": "ファイルをアップロードできませんでした。もう一度お試しください。"
+    "uploadFailed": "ファイルをアップロードできませんでした。もう一度お試しください。",
+    "uploading": "アップロード中…"
   },
   "linkCard": {
     "open": "リンクを開く",
@@ -1059,11 +1143,11 @@
   },
   "itemLink": {
     "empty": "一致する項目がありません",
-    "insertUnresolved": "「{{query}}」を未解決リンクとして挿入",
     "createNote": "「{{query}}」のノートを作成してリンク",
     "roleNote": "ノート",
     "roleDaily": "デイリー",
-    "roleTodo": "Todo"
+    "roleTodo": "Todo",
+    "insertUnresolved": "「{{query}}」を未解決リンクとして挿入"
   },
   "auth": {
     "productName": "Life Editor",

@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, type MouseEvent } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
 import { ChevronRight, ChevronDown, Lock, Pin, Trash2 } from "lucide-react";
 import {
@@ -9,7 +9,7 @@ import {
   type NoteTagGroup,
   FOCUS_RING,
 } from "@life-editor/shared";
-import { tagDroppableId } from "./useNoteTagDnd";
+import { tagDroppableId, UNTAGGED_DROP_ID } from "./useNoteTagDnd";
 
 /*
  * Desktop side-list rows for the Notes tab (extracted from NotesView.tsx —
@@ -30,6 +30,7 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   selected,
   onSelect,
   onDelete,
+  onContextMenu,
   deleteLabel,
   dragHintLabel,
 }: {
@@ -38,6 +39,12 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   selected: boolean;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  /**
+   * Right-click on the row (#1677). Undefined on narrow, where the row must
+   * leave the platform its own long-press. Takes the id so the host can keep
+   * ONE handler identity and not break this row memo.
+   */
+  onContextMenu?: (id: string, event: MouseEvent) => void;
   deleteLabel: string;
   dragHintLabel: string;
 }) {
@@ -63,6 +70,11 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
       ref={setNodeRef}
       {...attributes}
       {...listeners}
+      // After the listener spread: @dnd-kit does not set one, but a prop it
+      // gains later must not silently replace the menu.
+      onContextMenu={
+        onContextMenu ? (e) => onContextMenu(node.id, e) : undefined
+      }
       role="listitem"
       aria-label={dragHintLabel}
       className={cn(
@@ -158,20 +170,23 @@ export const DesktopTagHeading = memo(function DesktopTagHeading({
   group,
   collapsed,
   onToggle,
+  onContextMenu,
   collapseLabel,
   expandLabel,
 }: {
   group: NoteTagGroup;
   collapsed: boolean;
   onToggle: (key: string) => void;
+  /** Right-click on the heading (#1677). Undefined on narrow and on untagged. */
+  onContextMenu?: (tagId: string, event: MouseEvent) => void;
   collapseLabel: string;
   expandLabel: string;
 }) {
   const isUntagged = group.tagId === null;
-  // Untagged is a no-op drop target: disabled so it never becomes `over`.
+  // Untagged is a real target since #1687: dropping there removes the tag of
+  // the heading the row was dragged out of (not every tag it has).
   const { setNodeRef, isOver } = useDroppable({
-    id: isUntagged ? "note-untagged-nodrop" : tagDroppableId(group.tagId!),
-    disabled: isUntagged,
+    id: isUntagged ? UNTAGGED_DROP_ID : tagDroppableId(group.tagId!),
   });
 
   // Divider-style heading (#311): [tag icon] [color-band name] [count] ——rule.
@@ -182,9 +197,18 @@ export const DesktopTagHeading = memo(function DesktopTagHeading({
     ? { backgroundColor: `${color}22`, borderColor: `${color}66` }
     : undefined;
 
+  const tagId = group.tagId;
   return (
     <div
       ref={setNodeRef}
+      // The untagged bucket is not a tag: nothing here can rename or delete
+      // it, so it keeps the browser menu (the same rule the Connect rail
+      // applies with its own `isUntagged` guard).
+      onContextMenu={
+        onContextMenu && tagId !== null
+          ? (e) => onContextMenu(tagId, e)
+          : undefined
+      }
       className={cn(
         "rounded-lumen-md",
         isOver && "bg-lumen-accent-subtle ring-1 ring-inset ring-lumen-accent",

@@ -26,8 +26,10 @@ import {
   resolveRecentNotes,
   dateKeyOfInstant,
 } from "@life-editor/shared";
-import { useNoteTagDnd } from "./useNoteTagDnd";
+import { useNoteTagDnd, planTagMove, type NoteTagMove } from "./useNoteTagDnd";
 import { useAttachmentUpload } from "./useAttachmentUpload";
+import { useSidebarContextMenus } from "./useSidebarContextMenus";
+import { AttachmentUploadStatus } from "./AttachmentUploadStatus";
 import { NoteBodyEditor } from "./NoteBodyEditor";
 import { NotePasswordDialog } from "./NotePasswordDialog";
 import { LinkPanel } from "../wikitag";
@@ -138,7 +140,8 @@ export function NotesView({
   // #409 moved tag MUTATION (create / rename / delete / color / icon) out of
   // this view and into the shell-level tag editor, so only the read side and
   // the per-note assign/link calls are needed here now.
-  const { getTagsForItem, assignTagToItem } = useWikiTagsUnifiedContext();
+  const { getTagsForItem, assignTagToItem, unassignTagFromItem } =
+    useWikiTagsUnifiedContext();
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
   const rightSidebar = useRightSidebarContext();
@@ -167,7 +170,12 @@ export function NotesView({
   // Image / file embedding for the "/" menu (#1404). Undefined without a
   // DataService, which is what keeps the two attach entries out of the picker
   // on a surface that cannot reach Storage — see useAttachmentUpload.
-  const attachments = useAttachmentUpload(dataService);
+  // The file currently uploading, drawn as a band above the body (#1674).
+  // Host state, never a document node: the node is still inserted only once
+  // the bytes are there, so nothing mid-upload can be saved into the note
+  // (D-20260902-materials-1 = B).
+  const [uploadingFile, setUploadingFile] = useState<string | null>(null);
+  const attachments = useAttachmentUpload(dataService, setUploadingFile);
 
   // "Register this note as a template" (#1179) + the receipt panel it opens.
   // Writes go straight out through the DataService, which is why it is not on
@@ -211,18 +219,30 @@ export function NotesView({
     onConsumePendingSelect,
   });
 
-  const handleAssignTag = useCallback(
-    (noteId: string, tagId: string) => {
-      const already = getTagsForItem(noteId).some(
-        (a) => !a.isDeleted && a.tagId === tagId,
-      );
-      if (already) return;
-      void assignTagToItem(noteId, tagId);
+  // #1687 folded the old `handleAssignTag` into the move below: the drop is no
+  // longer "add this tag", so the de-dupe it did now lives in `planTagMove`
+  // alongside the removal it has to be decided with.
+
+  /*
+   * A drop in the side list MOVES the note between headings (#1687): the tag
+   * of the heading it came from goes, the tag of the heading it landed on
+   * arrives. Either end can be the untagged bucket, which is why both are
+   * nullable — out of untagged is an add, into untagged is a remove.
+   *
+   * The remove goes through the ASSIGNMENT id, which is the only thing
+   * `unassignTagFromItem` takes; a row that is already gone (a stale drag
+   * after a sync) simply finds nothing and the add still happens.
+   */
+  const handleTagMove = useCallback(
+    (move: NoteTagMove) => {
+      const plan = planTagMove(move, getTagsForItem(move.noteId));
+      if (plan.unassignId) void unassignTagFromItem(plan.unassignId);
+      if (plan.assignTagId) void assignTagToItem(move.noteId, plan.assignTagId);
     },
-    [getTagsForItem, assignTagToItem],
+    [getTagsForItem, unassignTagFromItem, assignTagToItem],
   );
 
-  const dnd = useNoteTagDnd({ notes: notes.notes, onAssign: handleAssignTag });
+  const dnd = useNoteTagDnd({ notes: notes.notes, onMove: handleTagMove });
 
   // Saved templates: the sidebar disclosure + the draft the centre panel edits
   // (#1180). Reads and writes go straight out through the DataService — see the
@@ -518,6 +538,26 @@ export function NotesView({
     [askConfirm, noteRows, softDeleteNote, t],
   );
 
+  /*
+   * Right-click editing in the sidebar (#1677) — Desktop only, which is what
+   * `enabled` carries: on narrow the handlers come back undefined and no row
+   * attaches a contextmenu listener at all. The panels are rendered at this
+   * view's top level (below), NOT inside <RightSidebarPortal>: on narrow that
+   * portal is the MobileDrawer, and a panel mounted in it dies with the drawer.
+   */
+  const renameNote = useCallback(
+    (id: string, title: string) => {
+      notes.updateNote(id, { title });
+    },
+    [notes],
+  );
+  const sidebarMenus = useSidebarContextMenus({
+    enabled: isWide,
+    notes: noteRows,
+    onRenameNote: renameNote,
+    onDeleteNote: handleDeleteNote,
+  });
+
   // #1255: what the apply confirm says depends on whether there is anything to
   // discard. The copy call is the host's (§6.4), so the branch lives here.
   const selectedBodyIsBlank = isBlankNoteBody(selected?.content);
@@ -587,7 +627,8 @@ export function NotesView({
         deleteNote: t("materials.notes.deleteNote"),
         assignTagHint: t("materials.notes.assignTagHint"),
         clearTagFilter: t("materials.notes.tagFilterClear"),
-        moreTagFilters: (count) => t("materials.notes.tagFilterMore", { count }),
+        moreTagFilters: (count) =>
+          t("materials.notes.tagFilterMore", { count }),
         fewerTagFilters: t("materials.notes.tagFilterLess"),
         moreRows: (count) => t("materials.notes.groupMoreRows", { count }),
       }}
@@ -595,6 +636,8 @@ export function NotesView({
       selectedNoteId={selected?.id ?? null}
       onSelectNote={handleSelectNote}
       onDeleteNote={handleDeleteNote}
+      onTagContextMenu={sidebarMenus.onTagContextMenu}
+      onNoteContextMenu={sidebarMenus.onNoteContextMenu}
       onCreateNote={handleAddNote}
       dnd={dnd}
       // #1180 — only with a DataService, which is what templates are read and
@@ -718,6 +761,10 @@ export function NotesView({
               onCompositionStart={handleCompositionStart}
               onCompositionEnd={handleCompositionEnd}
             >
+              <AttachmentUploadStatus
+                fileName={uploadingFile}
+                uploadingLabel={t("attachment.uploading")}
+              />
               <NoteBodyEditor
                 note={selected}
                 linking={linking}
@@ -865,6 +912,11 @@ export function NotesView({
           apply: t("materials.templates.applyConfirm"),
         }}
       />
+
+      {/* The sidebar's right-click panels (#1677). Top level, not inside
+          the portal: on narrow that portal is the drawer, and a panel mounted
+          in it would be unmounted with the drawer. */}
+      {sidebarMenus.menus}
 
       {/* #1248's question. Mounted last so it portals ABOVE the sidebar the
           bin was pressed in — and it holds no place in the tree while nothing

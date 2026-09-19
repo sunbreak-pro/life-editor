@@ -161,6 +161,7 @@ function renderDesktop(
       repeatsHidden: false,
       hiddenRepeats: 0,
       filterActive: false,
+      filterCount: 0,
       ...toolbarSpies,
       ...over.toolbar,
     },
@@ -352,7 +353,9 @@ describe("CalendarDesktopLayout — the view decides which grid", () => {
    */
   it("opens the creation panel from a month cell's + (#224 / #1584)", () => {
     const { handlers } = renderDesktop({ view: "month" });
-    fireEvent.click(screen.getByLabelText(`scheduleScreen.monthCreateOn:${ANCHOR}`));
+    fireEvent.click(
+      screen.getByLabelText(`scheduleScreen.monthCreateOn:${ANCHOR}`),
+    );
     expect(handlers.onMonthCreate).toHaveBeenCalledWith(ANCHOR);
   });
 

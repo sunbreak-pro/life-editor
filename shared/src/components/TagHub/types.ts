@@ -169,6 +169,10 @@ export interface TagHubLabels {
   changeIcon: string;
   changeColor: string;
   deleteTag: string;
+  /** #1644 — the row menu's merge item (drawn only with `onMergeTag`). */
+  mergeTag?: string;
+  /** #1646 — the narrow sheets' close button and the item row's "…". */
+  sheetClose: string;
   /** D6 — the header's pencil, which opens the edit block (#1643). */
   editTag: string;
   /** Everything the edit block itself draws (D7). */

@@ -129,6 +129,7 @@ function makeProps(
       onOpenAddable: vi.fn(),
       onDelete: vi.fn(),
       onAdd: vi.fn(),
+      onAddToday: vi.fn(),
       // #1641: the tab's filter is the host's state. Off by default here, so
       // every case that is not about it sees the rows it passes in.
       filter: makeFilter(),
@@ -444,15 +445,45 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
     expect(screen.queryByText("scheduleScreen.todoUnplacedHeading")).toBeNull();
   });
 
-  it("offers the create pill above the tray", () => {
-    // Above rather than inside a group: a new todo has no day, so it belongs
-    // to none of the three groups underneath.
+  /*
+   * #1640: a create pill per heading, instead of the single one that used to
+   * sit above the whole tray.
+   *
+   * The single pill made a todo with no day, which lands in "その他" — so from
+   * the today list it read as "add here" and did something else. Each list now
+   * has its own, and the day each one gives is the list it is standing in.
+   */
+  it("offers a create pill in each heading, and they differ", () => {
     const onAdd = vi.fn();
-    render(<ScheduleSidebar {...withTray({ onAdd })} />);
+    const onAddToday = vi.fn();
+    render(<ScheduleSidebar {...withTray({ onAdd, onAddToday })} />);
+
+    fireEvent.click(screen.getByText("scheduleScreen.todoAddTodayCta"));
+    expect(onAddToday).toHaveBeenCalledTimes(1);
+    expect(onAdd).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByText("scheduleScreen.todoAddCta"));
-
     expect(onAdd).toHaveBeenCalledTimes(1);
+    expect(onAddToday).toHaveBeenCalledTimes(1);
+  });
+
+  /*
+   * #1641 x #1640. The filter row used to carry a create pill of its own,
+   * back when the tab had one row with the single pill in it. #1640 moved
+   * that pill into the two list headings, so a pill left in the filter row
+   * would be a second control doing the same thing — and a second DOM node
+   * carrying the tour anchor, which `resolveTourAnchor` resolves by taking
+   * the first match. The tour would silently point at the wrong button.
+   */
+  it("keeps the filter row free of a create pill", () => {
+    render(<ScheduleSidebar {...withTray()} />);
+    expect(screen.getAllByText("scheduleScreen.todoAddCta")).toHaveLength(1);
+    expect(
+      document.querySelectorAll("[data-tour-id='schedule-todo-add']"),
+    ).toHaveLength(1);
+    // The pill that IS there heads the "その他" list, not the filter row.
+    const pill = screen.getByText("scheduleScreen.todoAddCta");
+    expect(pill.closest("[data-todo-filter-row]")).toBeNull();
   });
 
   it("keeps the create pill off the other tabs", () => {
@@ -460,6 +491,7 @@ describe("ScheduleSidebar — the todo tray after the board (#1153)", () => {
     // creating whatever that tab is showing.
     render(<ScheduleSidebar {...makeProps({ tab: "flow" })} />);
     expect(screen.queryByText("scheduleScreen.todoAddCta")).toBeNull();
+    expect(screen.queryByText("scheduleScreen.todoAddTodayCta")).toBeNull();
   });
 });
 

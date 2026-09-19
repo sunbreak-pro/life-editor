@@ -164,10 +164,7 @@ export function timerSettingsUpdatesToPatch(
     patch.work_duration = updates.workDuration;
   if ("breakDuration" in updates && updates.breakDuration !== undefined)
     patch.break_duration = updates.breakDuration;
-  if (
-    "longBreakDuration" in updates &&
-    updates.longBreakDuration !== undefined
-  )
+  if ("longBreakDuration" in updates && updates.longBreakDuration !== undefined)
     patch.long_break_duration = updates.longBreakDuration;
   if (
     "sessionsBeforeLongBreak" in updates &&
@@ -235,8 +232,31 @@ export type TimerSessionUpdatePatch = Partial<{
   duration: number | null;
   completed: boolean;
   label: string | null;
+  task_id: string | null;
+  event_id: string | null;
   updated_at: string;
 }>;
+
+/**
+ * Build the PATCH that ATTRIBUTES a closed session to an item (#1665) — what
+ * the free-session path writes once it has minted the Event the time belongs
+ * to.
+ *
+ * BOTH columns are written, one of them to null, for the reason
+ * `newTimerSessionInsert` spells out: the 0029 CHECK allows at most one
+ * attribution, so re-pointing a row has to clear the other column in the same
+ * statement rather than trust it to be empty already.
+ */
+export function timerSessionTargetPatch(
+  target: WorkTarget,
+  now: string,
+): TimerSessionUpdatePatch {
+  return {
+    task_id: target.kind === "todo" ? target.id : null,
+    event_id: target.kind === "event" ? target.id : null,
+    updated_at: now,
+  };
+}
 
 /**
  * Build the PATCH that CLOSES a session: stamp `ended_at`, denormalise
@@ -314,15 +334,13 @@ export function pomodoroPresetUpdatesToPatch(
   now: string,
 ): PomodoroPresetUpdatePatch {
   const patch: PomodoroPresetUpdatePatch = { updated_at: now };
-  if ("name" in updates && updates.name !== undefined) patch.name = updates.name;
+  if ("name" in updates && updates.name !== undefined)
+    patch.name = updates.name;
   if ("workDuration" in updates && updates.workDuration !== undefined)
     patch.work_duration = updates.workDuration;
   if ("breakDuration" in updates && updates.breakDuration !== undefined)
     patch.break_duration = updates.breakDuration;
-  if (
-    "longBreakDuration" in updates &&
-    updates.longBreakDuration !== undefined
-  )
+  if ("longBreakDuration" in updates && updates.longBreakDuration !== undefined)
     patch.long_break_duration = updates.longBreakDuration;
   if (
     "sessionsBeforeLongBreak" in updates &&

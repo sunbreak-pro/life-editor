@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
@@ -33,6 +33,7 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useTagFilterPanel } from "./useTagFilterPanel";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
+import { useRepeatUndoGate } from "./useRepeatUndoGate";
 import { useScheduleMutations } from "./useScheduleMutations";
 import {
   useClosePopoverOnOtherSurface,
@@ -41,6 +42,7 @@ import {
 import { useItemConversion } from "./useItemConversion";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
 import { useTodoTabFilter } from "./useTodoTabFilter";
+import { todoAddCandidateWrite } from "./todoChipUndoWiring";
 import { useScheduleRepeats } from "./useScheduleRepeats";
 import { useScheduleGridFilters } from "./useScheduleGridFilters";
 import { useScheduleCreateFlow } from "./useScheduleCreateFlow";
@@ -340,6 +342,9 @@ export function CalendarTab({
     ask: askConfirm,
     resolve: resolveConfirm,
   } = useConfirmDialog();
+  // #1638: Undo / Redo of a write that landed on a repeating item asks first,
+  // through the same dialog the scope chooser uses.
+  useRepeatUndoGate(askConfirm);
   const handleAttachError = useCallback(
     () => showToast("danger", t("scheduleScreen.noteAttachFailed")),
     [showToast, t],
@@ -365,6 +370,9 @@ export function CalendarTab({
     dataService,
     active: !!createPanel,
     onAttachError: handleAttachError,
+    // #1638 (A-08): the note + link the panel attaches is its own history
+    // entry, so the item's create undo stops leaving an orphan note behind.
+    push: undoRedo?.push,
   });
 
   /*
@@ -618,6 +626,9 @@ export function CalendarTab({
     onResizeTodoChip: handleTodoChipResize,
     onDropTodoChipAllDay: handleTodoChipDropAllDay,
     onRepeatConvertFailed: handleRepeatConvertError,
+    // #1638: the repeat layer records its own history — turning a repeat on or
+    // off, the rhythm change and the series-wide edits, one command per act.
+    push: undoRedo?.push,
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 
@@ -803,7 +814,18 @@ export function CalendarTab({
    * something on a slot.
    */
   const todoLinking = useTodoLinking({ dataService });
-  const [todoAddOpen, setTodoAddOpen] = useState(false);
+  /*
+   * #1640: WHICH list the dialog is making a todo for — "today" from the
+   * today heading's pill, "other" from the one over "その他" (and from the
+   * shell intent, which has no list in mind). null = closed.
+   *
+   * A target rather than a second flag so the two can never be open at once,
+   * and so the dialog itself stays one mounted surface.
+   */
+  const [todoAddTarget, setTodoAddTarget] = useState<"today" | "other" | null>(
+    null,
+  );
+  const todoAddOpen = todoAddTarget != null;
 
   /*
    * The create dialog opens from the shell intent by ADJUSTING STATE WHILE
@@ -816,13 +838,20 @@ export function CalendarTab({
   const [prevPendingNewTodo, setPrevPendingNewTodo] = useState(pendingNewTodo);
   if (pendingNewTodo !== prevPendingNewTodo) {
     setPrevPendingNewTodo(pendingNewTodo);
-    if (pendingNewTodo) setTodoAddOpen(true);
+    if (pendingNewTodo) setTodoAddTarget("other");
   }
 
   const handleCreateTodo = useCallback(
     (input: { title: string }) => {
       const node = addNode("task", null, input.title);
-      setTodoAddOpen(false);
+      // #1640: the pill that opened the dialog decides the day. "Today" reuses
+      // the tray's own "add to today" write (all-day on today), so a todo made
+      // here and a todo dragged up into the list are the same row.
+      if (todoAddTarget === "today") {
+        const { patch, options } = todoAddCandidateWrite(today);
+        updateNode(node.id, patch, options);
+      }
+      setTodoAddTarget(null);
       // Straight into the detail: a title alone is rarely the whole thought,
       // and this is the surface that can take the rest of it.
       setTodoDetailId(node.id);
@@ -831,7 +860,14 @@ export function CalendarTab({
       // existing one onto a day, which is not what the step teaches.
       reportTourAction(TOUR_ACTIONS.scheduleTodoCreated);
     },
-    [addNode, reportTourAction, setTodoDetailId],
+    [
+      addNode,
+      reportTourAction,
+      setTodoDetailId,
+      todoAddTarget,
+      today,
+      updateNode,
+    ],
   );
 
   const editorItem: EventEditorItem | null = toEditorItem(selected);
@@ -842,6 +878,9 @@ export function CalendarTab({
     summaryRows,
     listDate,
     repeatRows,
+    repeatPanel,
+    openRepeatPanel,
+    closeRepeatPanel,
     handleOpenRepeat,
     handleDeleteRepeat,
   } = useScheduleRepeats({
@@ -906,6 +945,29 @@ export function CalendarTab({
         })),
     [allTags],
   );
+
+  /*
+   * #1678: "edit detail" pressed on a repeat row. The jump only FETCHES the
+   * day, so the occurrence's id arrives with the range — this holds the
+   * routine id until a row of that series shows up on the anchored day, then
+   * opens it.
+   *
+   * A REF, not state: it decides nothing about what is rendered, and writing
+   * state from this effect would cost an extra render pass for every range
+   * update (react-hooks/set-state-in-effect). One shot — a request that never
+   * resolves (the user navigated away) simply never fires.
+   */
+  const pendingRepeatDetailRef = useRef<string | null>(null);
+  useEffect(() => {
+    const pending = pendingRepeatDetailRef.current;
+    if (!pending) return;
+    const match = rangeItems.find(
+      (i) => i.routineId === pending && i.date === anchorDate,
+    );
+    if (!match) return;
+    pendingRepeatDetailRef.current = null;
+    handleItemOpenDetail(match.id);
+  }, [rangeItems, anchorDate, handleItemOpenDetail]);
 
   const showLoading = isLoading && rangeItems.length === 0;
   // Full-screen error only when there is nothing to show; a range-fetch
@@ -1018,7 +1080,9 @@ export function CalendarTab({
         repeats={{
           hidden: repeatsHidden,
           rows: repeatRows,
-          onOpen: handleOpenRepeat,
+          // #1678: the press opens the row's panel; the jump to the next
+          // occurrence is one of the actions inside it.
+          onOpen: openRepeatPanel,
           onDelete: handleDeleteRepeat,
           onShowHidden: handleToggleRepeats,
         }}
@@ -1036,7 +1100,10 @@ export function CalendarTab({
           onOpenTodo: setTodoDetailId,
           onOpenAddable: setTodoDetailId,
           onDelete: handleTodoDelete,
-          onAdd: () => setTodoAddOpen(true),
+          // #1640 moved the single create pill into the two headings, so the
+          // tab has one per list and each says which list it adds to.
+          onAdd: () => setTodoAddTarget("other"),
+          onAddToday: () => setTodoAddTarget("today"),
           // #1641: the tab's own filter. The state lives here so the sidebar
           // stays Provider-free; the rows above are handed over unfiltered and
           // the panel narrows them.
@@ -1116,6 +1183,11 @@ export function CalendarTab({
         onOpenDetail: handleItemOpenDetail,
         itemActions: {
           onRename: handleRename,
+          // #1664: the bubble's time edit goes through the same handler the
+          // detail panel's save uses — scope dialog on a repeat, undo entry,
+          // optimistic patch, all of it.
+          onRetime: (id, next) =>
+            handleUpdate(id, { startTime: next.start, endTime: next.end }),
           onDuplicate: handleDuplicate,
           onConvertToTodo: handleConvertToTodo,
           onDelete: handleDelete,
@@ -1139,6 +1211,25 @@ export function CalendarTab({
         },
         formatDuration,
         labels: createPanelLabels,
+      }}
+      repeatPanel={{
+        state: repeatPanel,
+        row: repeatRows.find((r) => r.id === repeatPanel?.id) ?? null,
+        onClose: closeRepeatPanel,
+        onShowNext: (id) => {
+          closeRepeatPanel();
+          handleOpenRepeat(id);
+        },
+        // #1678: the occurrence's editor IS where a series is edited (it holds
+        // the repeat settings), so "edit detail" jumps to the next occurrence
+        // and opens it. The id is not known until that day's range has been
+        // read, which is what the pending request below waits for.
+        onEditDetail: (id) => {
+          closeRepeatPanel();
+          handleOpenRepeat(id);
+          pendingRepeatDetailRef.current = id;
+        },
+        onDelete: isWide ? handleDeleteRepeat : undefined,
       }}
       tagFilter={{
         open: tagFilterOpen,
@@ -1187,6 +1278,11 @@ export function CalendarTab({
             onToggleRepeats: handleToggleRepeats,
             onOpenFilter: () => setTagFilterOpen(true),
             filterActive: selectedTagIds.length > 0,
+            // #1639: the number on the icon. `selectedTagIds` is the resolved
+            // tick list — a saved group is counted as the tags it expands to,
+            // and a tag deleted mid-session has already dropped out of it, so
+            // the badge can never name a filter the grid is not applying.
+            filterCount: selectedTagIds.length,
             onAddEvent: handleToolbarAdd,
           }}
           lens={{
@@ -1249,7 +1345,7 @@ export function CalendarTab({
           width only would be the same mistake with a new name. */}
       <TodoAddDialog
         open={todoAddOpen}
-        onClose={() => setTodoAddOpen(false)}
+        onClose={() => setTodoAddTarget(null)}
         onSubmit={handleCreateTodo}
         labels={{
           title: t("scheduleScreen.todoAddDialogTitle"),

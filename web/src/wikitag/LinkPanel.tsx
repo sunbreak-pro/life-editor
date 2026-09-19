@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import {
   balanceByRole,
+  buildItemRelations,
   isImeComposing,
   NoticePanel,
   useTranslation,
@@ -168,19 +169,11 @@ export function LinkPanel({
   // the older answer overwrite the newer one.
   const requestRef = useRef(0);
 
-  // Both directions come from the Context's bulk cache (one query per table
-  // for the whole list). `loading` follows the initial bulk load.
+  // `loading` follows the initial bulk load of the Context's caches. Both
+  // link directions come from the bulk cache (one query per table for the
+  // whole list), and the two buckets are what the shared rule is given below.
   const links = wiki.getLinksForItem(itemId);
   const loading = wiki.loading;
-
-  const outgoing = useMemo(
-    () => links.outgoing.filter((l) => !l.isDeleted),
-    [links.outgoing],
-  );
-  const incoming = useMemo(
-    () => links.incoming.filter((l) => !l.isDeleted),
-    [links.incoming],
-  );
 
   // allowStale: false — a surface OPENING is exactly when the pool should catch
   // up (an item created since the last open has to be linkable). The state
@@ -249,22 +242,22 @@ export function LinkPanel({
   }, [targets]);
 
   /*
-   * One entry per LINKED ITEM, not per stored link row (#884). `linkIds` keeps
-   * every row that binds the pair — both the outgoing and the incoming one when
-   * the two items were linked from each side — so removing the chip removes the
-   * relation rather than half of it.
+   * The three relations (#884 links, #1172 shared tags and that day's daily),
+   * derived by the rule Connect's relations panel reads too (#1645) — see
+   * buildItemRelations for why each row is kept or left out. All of it comes
+   * from caches this panel already holds, so opening "related" costs no query.
    */
-  const linked = useMemo(() => {
-    const byItem = new Map<string, { targetId: string; linkIds: string[] }>();
-    const add = (targetId: string, linkId: string) => {
-      const entry = byItem.get(targetId);
-      if (entry) entry.linkIds.push(linkId);
-      else byItem.set(targetId, { targetId, linkIds: [linkId] });
-    };
-    for (const l of outgoing) add(l.toItemId, l.id);
-    for (const l of incoming) add(l.fromItemId, l.id);
-    return [...byItem.values()];
-  }, [outgoing, incoming]);
+  const { linked, sharedTagItems, sameDayDaily } = useMemo(
+    () =>
+      buildItemRelations({
+        itemId,
+        assignments: wiki.allAssignments,
+        links,
+        itemsById: targetsById,
+        dailyDate: relatedDailyDate,
+      }),
+    [itemId, wiki.allAssignments, links, targetsById, relatedDailyDate],
+  );
 
   const linkedIds = useMemo(
     () => new Set(linked.map((entry) => entry.targetId)),
@@ -286,52 +279,6 @@ export function LinkPanel({
     // cut would hand all 8 slots to notes and never surface a todo (#370).
     return balanceByRole(pool, MAX_CANDIDATES);
   }, [targets, itemId, linkedIds, query]);
-
-  /*
-   * #1172 — the two relations that are not links.
-   *
-   * Both derive from caches the panel already holds (`allAssignments` is the
-   * same bulk read TagPicker uses; the pool is the picker's), so opening the
-   * related popover costs no query. Items the pool cannot name are dropped
-   * rather than shown as an id fragment: the navigation route keys off the
-   * role, and a row that cannot be followed is not a relation worth listing.
-   */
-  const sharedTagItems = useMemo(() => {
-    const mine = new Set(
-      wiki
-        .getTagsForItem(itemId)
-        .filter((a) => !a.isDeleted)
-        .map((a) => a.tagId),
-    );
-    if (mine.size === 0) return [] as LinkPanelTarget[];
-    const seen = new Set<string>();
-    const out: LinkPanelTarget[] = [];
-    for (const a of wiki.allAssignments) {
-      if (a.isDeleted || a.itemId === itemId) continue;
-      if (!mine.has(a.tagId)) continue;
-      if (seen.has(a.itemId)) continue;
-      seen.add(a.itemId);
-      // Already linked → it is in the links section. One item, one relation:
-      // listing it twice makes the panel look busier than the graph is.
-      if (linkedIds.has(a.itemId)) continue;
-      const target = targetsById.get(a.itemId);
-      // A deleted item is not a relation to follow (#1292) — the links section
-      // above shows dead ends because the user built them; this one would be
-      // inventing one.
-      if (target && !target.isDeleted) out.push(target);
-    }
-    return out.sort((a, b) => a.label.localeCompare(b.label));
-  }, [wiki, itemId, linkedIds, targetsById]);
-
-  const sameDayDaily = useMemo(() => {
-    if (!relatedDailyDate) return null;
-    // Daily ids are `daily-<YYYY-MM-DD>` (CLAUDE.md §4), so the day IS the
-    // lookup — no extra read to find out whether that entry exists.
-    const id = `daily-${relatedDailyDate}`;
-    if (linkedIds.has(id)) return null;
-    const target = targetsById.get(id);
-    return target && !target.isDeleted ? target : null;
-  }, [relatedDailyDate, linkedIds, targetsById]);
 
   const relatedCount =
     linked.length + sharedTagItems.length + (sameDayDaily ? 1 : 0);

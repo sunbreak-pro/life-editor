@@ -47,6 +47,42 @@ export {
   type TagEditDraftTarget,
   type TagEditWriters,
 } from "./useTagEditDrafts";
+// #1644 — bulk selection and merging.
+export {
+  TagHubSelectionBar,
+  type TagHubSelectionBarLabels,
+  type TagHubSelectionBarProps,
+} from "./TagHubSelectionBar";
+export {
+  TagHubTagPickerPopover,
+  type TagHubTagPickerLabels,
+  type TagHubTagPickerPopoverProps,
+} from "./TagHubTagPickerPopover";
+export {
+  TagMergeDialog,
+  type TagMergeDialogLabels,
+  type TagMergeDialogProps,
+} from "./TagMergeDialog";
+// #1645 — the relations mode and the rule behind it.
+export {
+  buildItemRelations,
+  type BuildItemRelationsInput,
+  type ItemRelations,
+  type LinkedRelation,
+  type RelationTarget,
+} from "./buildItemRelations";
+export {
+  RelationPanel,
+  type RelationLink,
+  type RelationPanelLabels,
+  type RelationPanelProps,
+} from "./RelationPanel";
+// #1646 — the narrow layout's row menus.
+export {
+  TagHubActionSheet,
+  type TagHubActionSheetProps,
+  type TagHubSheetAction,
+} from "./TagHubActionSheet";
 export {
   TagIconPicker,
   type TagIconPickerLabels,

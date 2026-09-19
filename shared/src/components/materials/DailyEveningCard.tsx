@@ -87,7 +87,23 @@ export function DailyEveningCard({
     <section className="mt-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary px-5 py-4 shadow-lumen-sm">
       {/* ── Header — the evening paper's own voice: serif title, 朱 bar,
           the day's mood at the right edge ─────────────────────────── */}
-      <div className="flex items-center justify-between border-b border-lumen-border pb-2.5">
+      <div
+        className={cn(
+          "border-b border-lumen-border pb-2.5",
+          /*
+           * #1722: the EDITABLE stars carry the 44px tap floor (#1558), which
+           * makes one star 50px at the default root size — 5 of them plus the
+           * title do not fit one line below 540px, and the last one or two
+           * ended up outside the card with no horizontal scroll to reach them.
+           * So below `md` the header stacks and the stars get their own row.
+           * The read-only card keeps the single row it always had: its stars
+           * are a 15px span, about 83px for all five.
+           */
+          onSelectMood
+            ? "flex flex-col items-start gap-2 md:flex-row md:items-center md:justify-between md:gap-0"
+            : "flex items-center justify-between",
+        )}
+      >
         <h2 className="flex items-center gap-2.5 font-serif text-sm font-semibold tracking-[0.25em] text-lumen-text">
           <span
             aria-hidden="true"
@@ -99,7 +115,10 @@ export function DailyEveningCard({
           <div
             role="group"
             aria-label={labels.moodGroup}
-            className="flex items-center gap-0.5"
+            // flex-wrap is the floor under the floor: a root font size larger
+            // than the default pushes 5 × 44px past even a stacked row, and a
+            // second line of stars is still reachable (#1722).
+            className="flex flex-wrap items-center gap-0.5"
           >
             {[1, 2, 3, 4, 5].map((n) => {
               const filled = mood !== null && n <= mood;

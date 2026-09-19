@@ -54,7 +54,13 @@ export interface UseScheduleMutationsArgs
       onSaved?: (saved: ScheduleItem | null) => void;
     },
   ) => string;
-  updateScheduleItem: (id: string, updates: Partial<ScheduleItem>) => void;
+  updateScheduleItem: (
+    id: string,
+    updates: Partial<ScheduleItem>,
+    // #1638: a series edit pushes ONE command from the repeat layer, so the
+    // single-row write it performs on the way stays out of the history.
+    opts?: { skipUndo?: boolean },
+  ) => void;
   dismiss: (id: string) => void;
   deleteScheduleItem: (id: string) => void;
   // Todo-chip drag-to-write (#297 A-2). Todo chips are derived from the
@@ -106,6 +112,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     onResizeTodoChip,
     onDropTodoChipAllDay,
     onRepeatConvertFailed,
+    push,
     copySuffix,
   } = args;
 
@@ -132,8 +139,12 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   // what makes the snapshot correct for EITHER kind of mirror, so every write
   // pair below keeps this order rather than relying on the current lag.
   const applyOccurrencePatch = useCallback(
-    (id: string, patch: Partial<ScheduleItem>) => {
-      updateScheduleItem(id, patch);
+    (
+      id: string,
+      patch: Partial<ScheduleItem>,
+      opts?: { skipUndo?: boolean },
+    ) => {
+      updateScheduleItem(id, patch, opts);
       patchRange(id, patch);
     },
     [patchRange, updateScheduleItem],
@@ -184,6 +195,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     onRepeatConvertFailed,
     applyOccurrencePatch,
     dismissOccurrence: handleDismiss,
+    push,
   });
 
   /*

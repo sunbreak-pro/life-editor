@@ -328,6 +328,18 @@
       "empty": "No work sessions yet. Finished sessions will show up here.",
       "noTarget": "No linked item",
       "minutes": "{{minutes}} min"
+    },
+    "freeSession": {
+      "title": "Free session",
+      "tagHeading": "Tags",
+      "tagAdd": "Add a tag to the free session",
+      "tagAddShort": "Tag",
+      "tagSearch": "Search or create a tag…",
+      "tagCreate": "Create “{{name}}”",
+      "tagRemove": "Remove {{name}}",
+      "tagNoCandidates": "No tags yet",
+      "tagDialog": "Free session tags",
+      "tagDisabled": "Tags apply to a free session — clear the linked item to use them."
     }
   },
   "audioMixer": {
@@ -401,7 +413,9 @@
       "tagFilterClear": "Clear tag filter",
       "tagFilterMore": "+{{count}}",
       "tagFilterLess": "Show fewer",
-      "groupMoreRows": "Show {{count}} more"
+      "groupMoreRows": "Show {{count}} more",
+      "rowActions": "Note actions",
+      "renameNote": "Rename"
     },
     "templates": {
       "menuEntry": "Register as template",
@@ -486,7 +500,10 @@
       "pickerSearch": "Search or create tag…",
       "pickerNoCandidates": "No more tags to assign.",
       "pickerCreate": "Create “{{name}}”",
-      "pickerRemove": "Remove tag {{name}}"
+      "pickerRemove": "Remove tag {{name}}",
+      "assignFailed": "Couldn't add the tag.",
+      "unassignFailed": "Couldn't remove the tag.",
+      "createFailed": "Couldn't create the tag."
     },
     "sidebar": {
       "sort": "Sort",
@@ -577,6 +594,7 @@
     "noteAttachFailed": "Couldn't link the note. It is not attached to what you just added.",
     "title": "Title",
     "date": "Date",
+    "editTime": "Change the time",
     "startTime": "Start",
     "endTime": "End",
     "reminder": "Reminder",
@@ -618,6 +636,8 @@
     "openRoutinesCta": "Open the Repeats tab",
     "summaryEmpty": "No routines yet",
     "tabRepeats": "Repeats",
+    "repeatShowNext": "Show the next one",
+    "repeatPanelLabel": "Repeat actions",
     "repeatNeverFires": "Fires on no day",
     "untitled": "Untitled repeat",
     "repeatDeleteConfirm": "Delete \"{{name}}\" and all of its events?",
@@ -637,7 +657,7 @@
     "detailPanelLabel": "Detail panel",
     "editDetail": "Edit details",
     "itemActionsLabel": "Event actions",
-    "tabTodo": "Today's Todo",
+    "tabTodo": "Todo",
     "todoTodayHeading": "Today's todos",
     "todoEmptyToday": "Nothing on today yet",
     "todoOthersHeading": "Other todos",
@@ -657,6 +677,7 @@
     "todoFilterClear": "Clear filter",
     "todoFilterEmpty": "Every todo is hidden by the filter.",
     "todoAddCta": "Todo",
+    "todoAddTodayCta": "Add to today",
     "todoAddDialogTitle": "New todo",
     "todoAddTitleLabel": "Title",
     "todoAddTitlePlaceholder": "Enter a title",
@@ -671,12 +692,22 @@
     "rename": "Rename",
     "duplicate": "Duplicate",
     "copySuffix": " (copy)",
+    "tagScopeLabel": "Tags apply to",
+    "tagScopeAll": "Every occurrence",
+    "tagScopeThis": "This one only",
     "editScopeTitle": "Edit recurring event",
     "deleteScopeTitle": "Delete recurring event",
     "scopeThisOnly": "This event only",
     "scopeThisAndFuture": "This and following events",
     "scopeAll": "All events (including past)",
     "scopeCancel": "Cancel",
+    "undoRepeatTitle": "Undo this change to a repeating event?",
+    "redoRepeatTitle": "Redo this change to a repeating event?",
+    "undoRepeatScopeThis": "It applies to this occurrence only.",
+    "undoRepeatScopeFuture": "It applies to this and the following occurrences.",
+    "undoRepeatScopeAll": "It applies to every occurrence of this repeat.",
+    "undoRepeatConfirm": "Undo",
+    "redoRepeatConfirm": "Redo",
     "openFilter": "Filter by tag",
     "filterActive_one": "Filtered by {{count}} tag",
     "filterActive_other": "Filtered by {{count}} tags",
@@ -892,6 +923,7 @@
       "updateScheduleItem": "event update",
       "toggleScheduleItemComplete": "event completion toggle",
       "dismissScheduleItem": "event dismissal",
+      "undismissScheduleItem": "bringing a skipped event back",
       "deleteScheduleItem": "event deletion",
       "convertEventToTodo": "event-to-todo conversion",
       "convertTodoToEvent": "todo-to-event conversion",
@@ -904,7 +936,9 @@
       "moveNote": "note move",
       "createNote": "note creation",
       "updateNote": "note update",
-      "softDeleteNote": "note deletion"
+      "softDeleteNote": "note deletion",
+      "assignTag": "adding a tag",
+      "unassignTag": "removing a tag"
     }
   },
   "common": {
@@ -1020,7 +1054,59 @@
       "recentHeading": "Recently tagged",
       "recentUntaggedHeading": "Recently updated",
       "recentEmpty": "Nothing is filed under this tag yet."
-    }
+    },
+    "mergeTag": "Merge into another tag…",
+    "merge": {
+      "title": "Merge “{{name}}” into…",
+      "targetsLabel": "Tag to merge into",
+      "pickHint": "Pick the tag its items should move to.",
+      "summary_one": "{{count}} item moves to “{{target}}”, and this tag is deleted.",
+      "summary_other": "{{count}} items move to “{{target}}”, and this tag is deleted.",
+      "noTargets": "There is no other tag to merge into.",
+      "confirm": "Merge",
+      "failed": "The merge did not finish. The tag was kept so nothing is lost."
+    },
+    "selection": {
+      "assign": "Add a tag",
+      "assignTitle": "Add a tag to the selection",
+      "clear": "Clear selection",
+      "create": "Create “{{name}}”",
+      "failed_one": "{{count}} item could not be updated. Check your connection.",
+      "failed_other": "{{count}} items could not be updated. Check your connection.",
+      "move": "Move to another tag",
+      "moveTitle": "Move the selection to a tag",
+      "pickerEmpty": "No matching tag",
+      "region": "Selected items",
+      "remove": "Remove this tag",
+      "search": "Search or create a tag…",
+      "selectItem": "Select “{{title}}”",
+      "selected_one": "{{count}} selected",
+      "selected_other": "{{count}} selected"
+    },
+    "relations": {
+      "addLink": "Add a link",
+      "addLinkDialog": "Link to an item",
+      "back": "Back to this tag",
+      "links": "Links",
+      "noCandidates": "No matching item",
+      "openItem": "Open in its section",
+      "openRow": "Open “{{title}}”",
+      "removeLink": "Remove the link to “{{title}}”",
+      "sameDayDaily": "That day's daily",
+      "searchPlaceholder": "Search by title…",
+      "section": "{{label}} ({{count}})",
+      "sectionEmpty": "Nothing yet.",
+      "sharedTags": "Items sharing a tag",
+      "writeFailed": "The link could not be saved. Check your connection."
+    },
+    "mobile": {
+      "editSheet": "{{name}}: {{field}}",
+      "itemMenu": "{{title}}: Item actions",
+      "relationsSheet": "Related: {{title}}",
+      "removeThisTag": "Remove this tag",
+      "seeRelations": "See what it relates to"
+    },
+    "sheetClose": "Close"
   },
   "attachment": {
     "insertImage": "Image",
@@ -1029,7 +1115,8 @@
     "download": "Download",
     "remove": "Remove attachment",
     "tooLarge": "That file is too large. The limit is {{limit}}.",
-    "uploadFailed": "Could not upload that file. Please try again."
+    "uploadFailed": "Could not upload that file. Please try again.",
+    "uploading": "Uploading…"
   },
   "linkCard": {
     "open": "Open link",
@@ -1067,11 +1154,11 @@
   },
   "itemLink": {
     "empty": "No matching items",
-    "insertUnresolved": "Insert “{{query}}” as a link",
     "createNote": "Create note “{{query}}” and link",
     "roleNote": "Note",
     "roleDaily": "Daily",
-    "roleTodo": "Todo"
+    "roleTodo": "Todo",
+    "insertUnresolved": "Insert “{{query}}” as a link"
   },
   "auth": {
     "productName": "Life Editor",
