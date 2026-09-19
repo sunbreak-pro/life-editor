@@ -1,4 +1,34 @@
 # HISTORY (chat-shared-fix)
+### 2026-09-19 - [shared-fix] /goal 4 件（#1668 / #1667 / #1670 / #1672）をそれぞれ独立ブランチで PR まで
+
+#### 概要
+
+こうだいさんの /goal「4 件それぞれに origin/main からのブランチ + CI verify のローカル全緑 + Issue 参照の PR」を実行。**PR #1691（#1668・実行中にこうだいさんが merge）/ #1697（#1667）/ #1702（#1670）/ #1704（#1672）**。merge は自分ではしていない（P-001）。
+
+| Issue | PR | 中身 |
+| --- | --- | --- |
+| #1668 | #1691（merged） | `undo()` / `redo()` が結果（`{ command, ok, error }`）を返す。投げたコマンドは元のスタックへ戻し反対側へ移さない。Provider に `onCommandFailed`、Host は danger トースト |
+| #1667 | #1697 | タグの付け外しを Undo スタックへ。書き込みを `writeAssign` / `writeUnassign` に分け Undo / Redo が再生。TagPicker は失敗で danger トースト |
+| #1670 | #1702 | `restoreScheduleItemFromTrash` を 1 本の判定にし、Trash 画面と ScheduleItems の両方が通る。楽観更新を撤去 |
+| #1672 | #1704 | `<kbd>` 5 箇所を `font-sans` に統一（方針 A）。source scan テストで preflight 任せを 0 に保つ |
+
+#### 決めたこと
+
+- **#1668 の失敗コマンドは捨てずに元のスタックへ戻す**。通信断のような一時的失敗なら Undo をもう一度押せば再試行できる。恒久的に失敗し続けるコマンドがあると、その下の履歴には届かなくなる（PR 本文に明記）
+- **#1667 の履歴はフック内で `useUndoRedoOptional`**。Notes / Dailies は Provider 側で注入しているが、Issue の Scope が `useWikiTagsUnifiedAPI.ts` と `TagPicker.tsx` の 2 ファイルなので Provider を触らない形にした。注入があればそちらが勝つ
+- **#1667 は「すでに付いているタグの付け直し」を履歴に積まない**。サービスが冪等（#1593 の revive）なので何も変わっておらず、Undo でユーザーが触っていないタグを外してしまう
+- **#1672 は A（sans）**。B（等幅を明示 + #1468 差し戻し）はサイドバーのラベル省略が戻るため
+
+#### 検証
+
+4 ブランチとも CI `verify` の全ステップ + `LC_ALL=C bash scripts/docs-lint.sh` をローカルで exit 0。終了コードは `tail` を挟まずに変数へ取ってから表示している（§7.1）。
+
+#### 知見
+
+- **gate を一括で回すと vitest が負荷でタイムアウトする**: shared の `weekStartsSunday`（source scan・5s 上限）と web の `briefingEveningLazyMount` が各 1 回落ちたが、単独では shared 3111 件・web 1213 件とも緑。gate スクリプトのテストステップに「失敗したら 1 回だけ再実行」を入れた（#1673 = PR #1692 が lazy-mount 側の暖機を main に入れている）
+- **バックグラウンドの bash を TaskStop しても子プロセスが生き残る**: 止めたはずの gate が走り続け、次の実行と同じログへ交互に書き込んで「2 回分が混ざった 1 本のログ」になった。ログ名は実行ごとに変える
+- **Toast の variant に `error` は無い**（`info` / `success` / `warning` / `danger`）。`tsc` で初めて落ちた
+- **ソース走査テストはコメントも拾う**: `<kbd>` を説明するコメントが検出に混ざったので、走査前にコメントを落とす必要があった
 
 ### 2026-09-12 - [shared-fix] #1583 = ツアーの「スキップ」を 1 ステップだけ飛ばす操作に（全体をやめる導線は別ボタンへ）+ #1512 の着地確認
 
@@ -162,74 +192,3 @@ Settings のランチャーからセクションを 1 つ選んで始めたツ�
 - **守り 2 本**（`shared/tests/tourSectionRun.test.tsx`）: 栞が書かれること + 通しの 3 フィールドが凍っていることを 1 つの `toEqual` で同時に見る本体と、アンカーが消えた再生が先頭へ戻る回帰テスト。**どちらも却下案 / バグ版に差し替えると赤くなることを実測**（ミューテーションで確認。1 回目は `start` 側の同名行に当たって空振りしたので、`lastIndexOf` で狙い直した）
 - **検証**: ci.yml の verify 全ステップ + docs-lint をローカル全緑（shared 282 files / 2791 tests・web 107 / 1003・desktop 29・mcp-server 322）
 - **`useTourProgress.ts` が GitHub で `Binary files differ` と出る**: main の時点で `stepIds.join("\0")` にリテラルの NUL バイトが入っているため（初出 #1122・offset 3254）。この PR とは無関係なのでスコープ外に置き、`git diff --text` で読める旨を PR 本文に書いた
-
-### 2026-08-30 - [shared-fix] PR #1325 に main を取り込んだ（衝突は「両側が同じファイルの末尾に足した」1 件だけ）
-
-#### 概要
-
-こうだいさんの依頼で **PR #1325（#1278 = NoticePanel の text variant）のコンフリクトを解消**した。PR を出したあとに main が 7 コミット進み（b31ee913 → 7339bd2e）、そのうち **#1306（#1292 = 削除済みリンク先を id ではなく名前で出す）が同じ `web/tests/linkPanel.test.tsx` を触っていた**。解決後は CI 2 ジョブとも pass・`mergeStateStatus: CLEAN`。merge 自体は P-001 でこうだいさんの手番。
-
-#### 変更点
-
-- **衝突は 1 ファイル・1 箇所で、択一ではなかった**: 両側とも `linkPanel.test.tsx` の**末尾に独立した `describe` を append** しただけ（こちらは #1278 の refusal-line テスト 1 本、main は #1292 の deleted-target テスト 3 本）。共有しているのはファイル先頭の `TARGETS` / `openPicker` ヘルパだけなので両方残した。#1194 のときの `SettingsScreen.tsx`（双方がダイアログを差し込んだ）と同じ形で、**「どちらを選ぶか」ではなく「両方置く」が答えになる衝突が 2 回続いている**
-- **auto-merge を信じずに差分で確かめた**: `LinkPanel.tsx` は main 側が chip renderer（`deletedTarget` の表示）・こちらが error 行（NoticePanel 置換）で、行が離れていたので自動で入った。マージ後に `git diff origin/main -- web/src/wikitag/LinkPanel.tsx` を取り、**残差が import 1 行 + 置換 1 箇所だけ**であることを実測して #1306 の変更が消えていないことを確認した（PR #1190 で「コンフリクト解決が実装を丸ごと消していた」事故を踏んでいるので、ここは毎回差分で見る）
-- **`NoticePanel.tsx` 本体と `shared/tests/noticePanel.test.tsx` は main 側で無変更**。もう 1 つ両側が触った `shared/src/components/index.ts` は export 行の追加同士で auto-merge され、`NoticeSize` が残っていることを確認した
-- **verify は丸ごと取り直した**: ci.yml の verify 15 ステップ + docs-lint をローカルで全緑（web は 105 files / 974 tests）。`briefingEveningLazyMount` が**冷えた vite キャッシュで 1 度落ちた**が、単体再実行と warm での全件で緑 — ログの `environment 9.05s → 0.489s` が冷温の差そのもので、memory に記録済みの既知 flake と同じ挙動だった
-- **ついでに open PR 全部を現 main へ dry-run した（`git merge-tree --write-tree`）**: #1305 / #1315 / #1321 / #1327 は b31ee913 ベースのままでも clean、**#1246（#1194 のチュートリアル導線）だけ `en.json` / `ja.json` で衝突する**。依頼のスコープ外なので直さず、こうだいさんに報告して指示待ちにした
-- worktree 規約: 解決は実装ブランチ `claude/shared-fix-1278-notice-panel-text-variant` で行い、本 tracker は専用ブランチへ（D-20260801-main-1）。merge commit は main 取り込みで tracker ファイルが混ざるため `[tracker-ok]` を付けている
-
-### 2026-08-30 - [shared-fix] /goal 7 件を PR まで（3 件は Issue が名指したファイルに原因が無かった）
-
-#### 概要
-
-こうだいさんの /goal「7 件すべてを、CI verify のローカル全緑を経て PR open にする」を実行し、**PR #1305 / #1315 / #1321 / #1325 / #1327** の 5 本 + **判断キュー 1 件**（#1279）で全件到達した。#1283 と #1284 は Issue の指定どおり 1 ブランチにまとめてある。全 PR は open のまま（merge は P-001 でこうだいさんの手番）。
-
-**7 件のうち 3 件で「Issue が Scope に書いたファイルに原因が無かった」**。#1283 の「ヘッダー帯」は `AppShell.tsx` ではなく `SectionHeader.tsx`、#1284 の重複した × は `AppShell.tsx` ではなく Desktop と Mobile が**共有する** `RightSidebarContents.tsx`（だから breakpoint 条件が無かった）、#1276 の `repeatFilterHidden` の `t()` 呼び出し元は `ScheduleToolbar.tsx:151` ではなく `CalendarDesktopLayout.tsx:270`。着手前に読み取り専用エージェント 7 体で全件を先に洗ったので、実装前に全部つかまった。
-
-#### 変更点
-
-- **#1264（PR #1305）— 折り返しは「詰めた」結果だった**: 幅 264px の吹き出しフッターに ja の `スキップ`（64px）+ 14 文字の `実際に操作すると次に進みます`（168px）+ カウンタ（27px）で 275px。**flex の既定の答えは「全部を少しずつ縮める」**で、その数 px がカウンタを最後のスペースで割り、CJK は字の間ならどこでも折れるので `スキップ` が字の途中で割れた。固定サイズの 3 つを `shrink-0 whitespace-nowrap` にし、**行に `flex-wrap` を足した** — nowrap だけだと今度は文の側が 13 文字 + `す` 1 文字で折れる（直した見た目より悪い）。en は元から収まるので 1 行のまま。`w-72 → w-80` の幅拡張は却下（全ステップの吹き出しが動くうえ、長い文が来れば同じバグが再発する）
-- **#1276（PR #1315）— テストがバグを固定していた**: en を `_one` / `_other` に割り、ja は `_other` へ改名（#1242 / #680 と同じ機械的な形）。**`web/tests/connectScreen.test.tsx` が 7 箇所で `"Untagged: 1 items"` を期待していた** — この suite は意図的に本物のカタログを通しているので、非文法な文字列がそのまま pin されていた。`work.sidebar.sessions` は 4 パッケージ全走査で呼び出し元ゼロを実測し、P-002 で削除（`sessionsProgress` / `targetSessions` は生きている兄弟キー）。`shared/tests/tagHubView.test.tsx` の `${count} items` は**あえて触っていない** — あれは props 注入の `formatCount` スタブで、部品が複数形の意見を持たないことこそ §6.4 の趣旨
-- **#1275（PR #1321）— straight swap でも a11y は動く**: Trash の手組みバンド 2 箇所を `NoticePanel` へ。**両方に `role="status"` を明示した** — TrashScreen は元の markup が持っていたので維持（テスト 2 本も `findByRole("status")` で引いている）、TrashView の cascade 警告は元は role 無しで、`warning` の既定 `alert` にするとダイアログ自身の読み上げに割り込んで同じ行を繰り返す。「リファクタは読み上げの挙動を変えない」を通した
-- **#1278（PR #1325）— Issue の書き方どおりに実装すると壊れる**: Issue は `variant?: 'panel' | 'text'` と書いていたが、それは既存 `card` / `banner` の**改名**で `OfflineBanner` が壊れる。`variant` の 3 つ目の値として `text` を足した。**`size` prop が要るのは `cn` が tailwind-merge ではないから** — `className="text-xs"` は基底の `text-sm` に CSS 記述順で負け、しかも無言で（#830 の Modal と同じ罠）。`id` prop は `NotePasswordDialog` の 2 つの input が `aria-describedby` で指しているため。新規テスト 2 ファイル分 — `notePasswordDialog.test.tsx` はそもそもテストが 1 本も無く、`linkPanel.test.tsx` のエラー経路も未カバーだった。**`selfLink` ガードは UI から到達不能**（ピッカーの `candidates` が既に `target.id !== itemId` で除外済み）なので、実際に届く「書き込み失敗」でテストを書いた
-- **#1283 + #1284（PR #1327）— ファイル重複ゼロなので 1 ブランチ**: #1283 は行の `pt-4`（`pb` 無し）が原因で `self-center` が padding box の中心に落ちていた。行を `min-h-14 md:min-h-15` + 縦 padding ゼロにし、`pt-3 md:pt-4` は**タブ帯を持つときだけ**左カラムへ移した（タブの `-mb-px` 下線が行の `border-b` に重なる仕掛けを壊さないため）。**タイトルも同じ 7.5px ぶん下がっていた**ので、controls だけ中央化すると 2 つが割れる。`min-h-15` は Tailwind v4 の動的スペーシングなので、ビルド後の CSS で `calc(var(--spacing) * 15)` が出ていることを実測してから採用した。#1284 は `closeLabel` / `onClose` をペアで optional にして Desktop が渡さない形に。**`RightSidebarProps.closeLabel` は残さず削除**したので型検査が全呼び出し元を洗い、事前調査が見落としていた `web/tests/workScreenLayout.test.tsx` を捕まえた。`#753` の未保存ガードは無傷（× の `requestClose` と toggle の `toggle()` は別経路ではなく、`toggle()` が open 時に `requestClose` を呼ぶ）
-- **#1279 は実装せずキューへ**: `D-20260830-shared-fix-1`（PR #1328 + Issue コメント）。Issue 自身が「1 箇所なら公認 / 3 箇所以上なら部品化」の基準を持っていたので、3 通りの独立した grep で**実測 1 箇所**を確定させた。推奨は A（据え置き）だが、同じ右サイドバーの Todo 削除が既に `ConfirmDialog` 経由という反論（C）も併記。どちらを選んでも残る a11y 欠陥 2 つ（arming でフォーカスが body に落ちる / 問いが読み上げられない）も明記した — A を「見て問題なし」と読まれないように
-- **verify の回し方**: 全ブランチで ci.yml の verify 15 ステップ + docs-lint をローカル実行。`web — test` は**冷えた vite transform キャッシュで `briefingEveningLazyMount` が落ちる既知の flake**に 1 度当たったが、温めて回し直すと 102 files / 958 tests 緑（memory の記録どおり）
-
-### 2026-08-30 - [shared-fix] #1194 = チュートリアルに目次を付けた（機構は足さず、run が歩く list を差し替えるだけ）
-
-#### 概要
-
-こうだいさんの /goal「#1174 merge 後の origin/main から切ったブランチ + CI verify ローカル全緑 + PR」を #1194 で実行し、**PR #1246** まで到達。前提の 4 本（#1174 / #1192 / #1193 / #1201）はすべて main に入った状態から切っている。
-
-チュートリアルの入口は Settings の「やり直す」1 つで、押すと必ず step 1 から全セクションを歩く — **目次の無い料理本**。Settings に全画面モーダルを置き、概要 → セクション選択 → 自動遷移して開始、の 3 段にした。
-
-#### 一番効いたのは「機構を足さない」と気付いたこと
-
-`TourContext` は元から**レジストリではなく「この run が歩く list」**に対して動いていた（probe / give-up / 進捗カウンタ / 終端のいずれも `stepsRef.current` 経由）。なので開始位置の指定に必要だったのは `runSteps` state 1 本と、`stepsRef` が持つものを「全体」から「この run の list」へ読み替えることだけ。全体を選ぶ側（`start` / `restart` / `startSection`）に `allStepsRef` を新設して分けた。
-
-#### 部分実行が保存を触ると、あとからユーザーがツアーを失う
-
-`localStorage` の進捗が答えている問いは「**このユーザーはツアー全体を提示され、終えたか拒んだか**」の 1 つだけ。セクション再生にそこを書かせると、Materials の 4 ステップを歩いただけで `completed` が立って以後ツアーが二度と提示されず、途中 Skip では `skipped` が立って「この節はいい」が「金輪際いらない」に化ける。**どちらも画面上は完璧に見える**。書き込みは全部 `persist` を通るので、ガードはそこ 1 箇所に置いた（呼び出し側が覚えておく規約にしない）。
-
-#### 自分のパッチで自分が踏んだ穴を 2 つ潰した
-
-- **probe の deps が全部 primitive だった**: 同じセクションを同じ位置で started し直すと index も isRunning も step id も変わらず effect が再実行されない — 直前に消したふきだしが戻ってこない。明示的な start ごとに必ず変わる dep（`runId`）を 1 本足した。既存の `restart` にも同型の潜在バグがあった
-- **`set-state-in-effect` で lint が赤**: 「開いたら概要ページに戻す」を `useEffect([open])` で書いたら eslint に止められた。**閉じる側で巻き戻す**形に変えた（Close ボタン / Modal 自身の Escape・backdrop / 2 つの選択、で全経路を尽くす）。ついでにページ 2 にも Close を置いた — 「戻ってから閉じる」しか出口が無いのは単に悪い
-
-#### step の無いセクションを隠さなかった
-
-選択メニューの可否は `TOUR_SECTION_IDS`（`TOUR_STEPS` からの導出）が決める。手書きの一覧を置かないので、セクション Issue が step を append した瞬間に選べるようになり、それより 1 手前に増えることもない。現状は briefing / schedule / materials が選択可で、connect / work / analytics は disabled +「準備中」バッジ。**隠すとアプリの地図と形が変わったものを覚えさせる**ことになり、押せるようにすると「開いたのに何も出ない」= 壊れて見える。バッジはボタン内のテキストなので読み上げでも「押せない」が残る。
-
-#### Scope 外を 1 箇所触った（PR 本文に明記）
-
-`shared/src/components/Modal.tsx` に `size="full"`（`max-w-none`）を追加。ユーザー確定の「全画面モーダル」を満たすサイズが無く、tour 側で portal / focus trap / Escape / scroll lock を作り直すのは `useDialogA11y` の二重化になるため。既存の `modalWidth.test.tsx` は size を列挙して「max-w-* をちょうど 1 本出す」を見ているので、**その配列に `full` を足さないと新サイズが素通りする**（テスト側の追随が要るタイプの変更）。
-
-#### 検証
-
-- 新規 `shared/tests/tourSectionRun.test.tsx`（9 ケース）は**ホストが実際に遷移するハーネス**で組んだ（`onNavigateToSection` が section state を動かし、そのセクションのアンカーだけが document に居る）。「遷移して開始」は DoD の半分なので、固定 `currentSection` だと残り半分を 2 回検証することになる
-- 新規 `shared/tests/tourLauncherModal.test.tsx`（10 ケース）/ `tourRegistry.test.ts` に 3 ケース追加 / 既存 `web/tests/settingsScreenActions.test.tsx` の「カード → restart」を 4 ケースへ差し替え（sink プールに `startTourSection` を追加したので隣の設定へ誤爆すると落ちる）
-- **Settings の rightSidebar が picker と同じ `section.*` ラベルを使う**ので、web 側のクエリは `within(dialog)` でスコープしないと 2 つ拾う。最初これで多重ヒットを踏んだ
-- `.github/workflows/ci.yml` の `verify` 全 15 ステップ + `docs-lint` をローカルで全緑（shared 272 files / 2654 tests・web 95 files / 902 tests・desktop 1/7・mcp 24/319）
-- **PR 直後に main が動いてコンフリクトした**（#1229 の account deletion と #1180/#1181 のテンプレ 3 面が着地）。衝突は 1 箇所だけで、`SettingsScreen.tsx` の `{confirmRequest && …}` の直上に**双方がダイアログを差し込んでいた**もの。どちらかを選ぶ話ではないので両方残した（`TourLauncherModal` → `DeleteAccountDialog` の順）。解決後に verify 15 ステップ + docs-lint を丸ごと取り直して全緑、GitHub CI も 2 ジョブとも pass
-- worktree 規約: ブランチを切るたび `.claude/comm/.session-branch` を更新。tracker は実装ブランチに載せず本コミットの専用ブランチへ（D-20260801-main-1）
