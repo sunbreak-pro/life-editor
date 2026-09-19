@@ -112,13 +112,27 @@ export const Toast = forwardRef<HTMLDivElement, ToastProps>(function Toast(
  * click-through except over the toasts themselves. Host maps its live toast
  * queue to <Toast> children.
  */
+/*
+ * #1733 — on narrow the bottom of the screen belongs to <BottomTabBar>, so a
+ * bottom-anchored stack landed ON the tabs and hid their labels. The offset is
+ * the bar's own height (two lines of tab at py-2 = 3.75rem) plus the safe-area
+ * inset it pads itself with; the viewport's own p-4 then supplies the 16px of
+ * air the Mobile design asks for above the bar. Desktop has no tab bar and is
+ * left exactly as it was.
+ */
+const NARROW_ABOVE_TAB_BAR =
+  "max-md:bottom-[calc(3.75rem+env(safe-area-inset-bottom))]";
+
 const POSITION_CLASSES: Record<ToastViewportPosition, string> = {
   "top-left": "top-0 left-0 items-start",
   "top-center": "top-0 left-1/2 -translate-x-1/2 items-center",
   "top-right": "top-0 right-0 items-end",
-  "bottom-left": "bottom-0 left-0 items-start",
-  "bottom-center": "bottom-0 left-1/2 -translate-x-1/2 items-center",
-  "bottom-right": "bottom-0 right-0 items-end",
+  "bottom-left": "bottom-0 " + NARROW_ABOVE_TAB_BAR + "  left-0 items-start",
+  "bottom-center":
+    "bottom-0 " +
+    NARROW_ABOVE_TAB_BAR +
+    "  left-1/2 -translate-x-1/2 items-center",
+  "bottom-right": "bottom-0 " + NARROW_ABOVE_TAB_BAR + "  right-0 items-end",
 };
 
 export function ToastViewport({
