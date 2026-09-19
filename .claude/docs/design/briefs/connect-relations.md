@@ -1,5 +1,5 @@
 ---
-Status: Ready # Draft → Ready（ClaudeDesign 投入可）→ Generated（デザイン生成済み）
+Status: Generated # Draft → Ready（ClaudeDesign 投入可）→ Generated（デザイン生成済み）
 Created: 2026-09-12
 Section: connect
 Owner-chat: chat-main
@@ -415,6 +415,8 @@ light = 生成りの紙に燈色（ひいろ）のアクセント。dark = 藍�
 - [x] frontmatter の Status / Section / Owner-chat / Branch が埋まっている
 
 ## 6. 生成後の運用メモ
+
+**デザインの所在**（2026-09-19 追記 / #1646）: Desktop = ClaudeDesign project `ece0b993-9247-44b7-bdae-f03b4c82609b`（`TsunagariBoard.dc.html` + キャンバス `つながり - 通常状態.dc.html`）、Mobile = project `6aad0553-9d05-4759-bb29-d0552540079f`（`Tsunagari Mobile.dc.html`・390×844）。実装は #1643 / #1676 / #1644 / #1645 / #1646 の 5 本で入った。
 
 - 分業: 生成 = claude.ai/design 側（ユーザーがプロンプト投入）/ Claude Code 側 DesignSync は同期専用 / 出荷 UI 化は `shared/src/components/` への移植（別計画）
 - 移植先候補: `shared/src/components/TagHub/`（既存 4 部品の改修）+ 新規 `TagHubSelectionBar` / `RelationPanel` / `TagMergeDialog`。ホストは `web/src/connect/ConnectScreen.tsx`

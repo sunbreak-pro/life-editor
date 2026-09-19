@@ -56,6 +56,14 @@ export interface TagHubEditBlockProps {
   onDropEdit: (field: keyof TagRowEdits) => void;
   onSave: () => void;
   onDelete: () => void;
+  /**
+   * Draw only this field and the save row (#1646). The narrow layout reaches
+   * the editor through one-action sheets ("Rename", "Change the icon"), and a
+   * sheet that opened on a rename to show three fields and a delete button
+   * would not be the action the user picked. The footer's delete is dropped
+   * with it — deleting has its own row in the same sheet menu.
+   */
+  only?: TagHubEditField | null;
   labels: TagHubEditLabels;
 }
 
@@ -69,7 +77,9 @@ export function TagHubEditBlock({
   onSave,
   onDelete,
   labels,
+  only = null,
 }: TagHubEditBlockProps) {
+  const shows = (field: TagHubEditField) => only === null || only === field;
   // Live tag underneath, the user's own edits on top. An untouched field has no
   // local state at all, so an outside rename (#586: another surface, sync, MCP)
   // simply shows up.
@@ -112,136 +122,152 @@ export function TagHubEditBlock({
       )}
     >
       <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 text-sm text-lumen-text-secondary">
-        <label htmlFor={`taghub-name-${tag.id}`}>{labels.nameLabel}</label>
-        <input
-          id={`taghub-name-${tag.id}`}
-          ref={nameRef}
-          value={name}
-          onChange={(e) => onEdit({ name: e.target.value })}
-          onBlur={restoreClearedName}
-          onKeyDown={(e) => {
-            // Never commit mid-IME-composition (§frontend gotcha): the Enter
-            // that confirms a Japanese conversion must not save the tag.
-            if (isImeComposing(e)) return;
-            // Enter saves rather than blurs. Blur commits nothing (#715), so
-            // "Enter blurs to commit" would leave the key doing nothing.
-            if (e.key === "Enter") {
-              e.preventDefault();
-              onSave();
-            }
-          }}
-          className={cn(
-            "min-w-0 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-1.5 text-sm text-lumen-text",
-            FOCUS_RING_TIGHT,
-            // An unsaved field says so on itself, not only through the
-            // footer's state text.
-            dirty && "border-lumen-accent",
-          )}
-        />
-
-        <span>{labels.iconLabel}</span>
-        <div ref={iconRef} className="flex items-center gap-2">
-          <TagIconPicker
-            current={icon}
-            color={color}
-            onPick={(next) => onEdit({ icon: next })}
-            triggerLabel={labels.iconChange}
-            triggerClassName={CARD_BTN_TAP}
-            labels={{
-              iconLabel: labels.iconLabel,
-              clearIconLabel: labels.iconClear,
-            }}
-          />
-        </div>
-
-        <span>{labels.colorLabel}</span>
-        {/*
-         * The swatches are laid out INLINE rather than behind the shared
-         * ColorPicker's trigger (D7): the block is already the disclosure — you
-         * opened it to change this tag — so a second one would put the twelve
-         * colours two clicks away from the pencil that exists to reach them.
-         */}
-        <div ref={colorRef} className="flex flex-wrap items-center gap-4">
-          <div
-            role="group"
-            aria-label={labels.colorLabel}
-            className="grid grid-cols-6 gap-2"
-          >
-            {ITEM_COLOR_PRESETS.map((preset) => {
-              const active = color?.toLowerCase() === preset.toLowerCase();
-              return (
-                <button
-                  key={preset}
-                  type="button"
-                  aria-label={preset}
-                  aria-pressed={active}
-                  title={preset}
-                  onClick={() => onEdit({ color: preset })}
-                  className={cn(
-                    "h-6 w-6 rounded-full",
-                    FOCUS_RING_TIGHT,
-                    active &&
-                      "ring-2 ring-lumen-text ring-offset-2 ring-offset-lumen-bg-secondary",
-                  )}
-                  style={{ backgroundColor: preset }}
-                />
-              );
-            })}
-          </div>
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              onClick={() => onEdit({ color: null })}
+        {shows("name") && (
+          <>
+            <label htmlFor={`taghub-name-${tag.id}`}>{labels.nameLabel}</label>
+            <input
+              id={`taghub-name-${tag.id}`}
+              ref={nameRef}
+              value={name}
+              onChange={(e) => onEdit({ name: e.target.value })}
+              onBlur={restoreClearedName}
+              onKeyDown={(e) => {
+                // Never commit mid-IME-composition (§frontend gotcha): the Enter
+                // that confirms a Japanese conversion must not save the tag.
+                if (isImeComposing(e)) return;
+                // Enter saves rather than blurs. Blur commits nothing (#715), so
+                // "Enter blurs to commit" would leave the key doing nothing.
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  onSave();
+                }
+              }}
               className={cn(
-                "rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-2.5 py-1 text-xs text-lumen-text-secondary",
-                "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                "min-w-0 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-1.5 text-sm text-lumen-text",
                 FOCUS_RING_TIGHT,
-                CARD_BTN_TAP,
+                // An unsaved field says so on itself, not only through the
+                // footer's state text.
+                dirty && "border-lumen-accent",
               )}
-            >
-              {labels.colorDefault}
-            </button>
-            {/* The free-form hue. A <label> wrapping the native input, so the
+            />
+          </>
+        )}
+
+        {shows("icon") && (
+          <>
+            <span>{labels.iconLabel}</span>
+            <div ref={iconRef} className="flex items-center gap-2">
+              <TagIconPicker
+                current={icon}
+                color={color}
+                onPick={(next) => onEdit({ icon: next })}
+                triggerLabel={labels.iconChange}
+                triggerClassName={CARD_BTN_TAP}
+                labels={{
+                  iconLabel: labels.iconLabel,
+                  clearIconLabel: labels.iconClear,
+                }}
+              />
+            </div>
+          </>
+        )}
+
+        {shows("color") && (
+          <>
+            <span>{labels.colorLabel}</span>
+            {/*
+             * The swatches are laid out INLINE rather than behind the shared
+             * ColorPicker's trigger (D7): the block is already the disclosure — you
+             * opened it to change this tag — so a second one would put the twelve
+             * colours two clicks away from the pencil that exists to reach them.
+             */}
+            <div ref={colorRef} className="flex flex-wrap items-center gap-4">
+              <div
+                role="group"
+                aria-label={labels.colorLabel}
+                className="grid grid-cols-6 gap-2"
+              >
+                {ITEM_COLOR_PRESETS.map((preset) => {
+                  const active = color?.toLowerCase() === preset.toLowerCase();
+                  return (
+                    <button
+                      key={preset}
+                      type="button"
+                      aria-label={preset}
+                      aria-pressed={active}
+                      title={preset}
+                      onClick={() => onEdit({ color: preset })}
+                      className={cn(
+                        "h-6 w-6 rounded-full",
+                        FOCUS_RING_TIGHT,
+                        active &&
+                          "ring-2 ring-lumen-text ring-offset-2 ring-offset-lumen-bg-secondary",
+                      )}
+                      style={{ backgroundColor: preset }}
+                    />
+                  );
+                })}
+              </div>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => onEdit({ color: null })}
+                  className={cn(
+                    "rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-2.5 py-1 text-xs text-lumen-text-secondary",
+                    "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                    FOCUS_RING_TIGHT,
+                    CARD_BTN_TAP,
+                  )}
+                >
+                  {labels.colorDefault}
+                </button>
+                {/* The free-form hue. A <label> wrapping the native input, so the
                 whole pill is the hit area and the swatch the browser paints
                 stays out of the row's rhythm. */}
-            <label
-              className={cn(
-                "flex cursor-pointer items-center gap-1.5 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg",
-                "px-2.5 py-1 text-xs text-lumen-text-secondary",
-                "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
-                CARD_BTN_TAP,
-              )}
-            >
-              <input
-                type="color"
-                value={color ?? ITEM_COLOR_PRESETS[0]}
-                onChange={(e) => onEdit({ color: e.target.value })}
-                aria-label={labels.colorCustom}
-                className="h-3.5 w-3.5 shrink-0 cursor-pointer rounded border border-lumen-border bg-transparent p-0"
-              />
-              {labels.colorCustom}
-            </label>
-          </div>
-        </div>
+                <label
+                  className={cn(
+                    "flex cursor-pointer items-center gap-1.5 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg",
+                    "px-2.5 py-1 text-xs text-lumen-text-secondary",
+                    "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                    CARD_BTN_TAP,
+                  )}
+                >
+                  <input
+                    type="color"
+                    value={color ?? ITEM_COLOR_PRESETS[0]}
+                    onChange={(e) => onEdit({ color: e.target.value })}
+                    aria-label={labels.colorCustom}
+                    className="h-3.5 w-3.5 shrink-0 cursor-pointer rounded border border-lumen-border bg-transparent p-0"
+                  />
+                  {labels.colorCustom}
+                </label>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Footer (#681's arrangement, kept): delete on the left, state text and
           save on the right, both always in the same place — only the save
           button's enabled state moves, with the reason spelled out beside it. */}
       <div className="flex items-center justify-between gap-3 border-t border-lumen-border pt-3">
-        <button
-          type="button"
-          onClick={onDelete}
-          className={cn(
-            "flex items-center gap-1.5 rounded-lumen-sm px-1.5 py-1 text-sm font-medium text-lumen-danger",
-            "transition-colors hover:bg-lumen-danger-subtle",
-            FOCUS_RING_TIGHT,
-            CARD_BTN_TAP,
-          )}
-        >
-          <Trash2 size={14} aria-hidden />
-          {labels.deleteTag}
-        </button>
+        {only === null ? (
+          <button
+            type="button"
+            onClick={onDelete}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lumen-sm px-1.5 py-1 text-sm font-medium text-lumen-danger",
+              "transition-colors hover:bg-lumen-danger-subtle",
+              FOCUS_RING_TIGHT,
+              CARD_BTN_TAP,
+            )}
+          >
+            <Trash2 size={14} aria-hidden />
+            {labels.deleteTag}
+          </button>
+        ) : (
+          <span />
+        )}
 
         <div className="flex items-center gap-3">
           <span

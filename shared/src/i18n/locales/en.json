@@ -1066,7 +1066,15 @@
       "sectionEmpty": "Nothing yet.",
       "sharedTags": "Items sharing a tag",
       "writeFailed": "The link could not be saved. Check your connection."
-    }
+    },
+    "mobile": {
+      "editSheet": "{{name}}: {{field}}",
+      "itemMenu": "{{title}}: Item actions",
+      "relationsSheet": "Related: {{title}}",
+      "removeThisTag": "Remove this tag",
+      "seeRelations": "See what it relates to"
+    },
+    "sheetClose": "Close"
   },
   "attachment": {
     "insertImage": "Image",
@@ -1117,7 +1125,8 @@
     "createNote": "Create note “{{query}}” and link",
     "roleNote": "Note",
     "roleDaily": "Daily",
-    "roleTodo": "Todo"
+    "roleTodo": "Todo",
+    "insertUnresolved": "Insert “{{query}}” as a link"
   },
   "auth": {
     "productName": "Life Editor",

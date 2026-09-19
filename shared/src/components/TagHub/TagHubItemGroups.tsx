@@ -1,4 +1,4 @@
-import { ChevronRight } from "lucide-react";
+import { ChevronRight, MoreHorizontal } from "lucide-react";
 import { cn } from "../cn";
 import { FOCUS_RING_TIGHT } from "../styleTokens";
 import { ItemRoleBadge } from "../items/ItemRoleBadge";
@@ -53,6 +53,13 @@ export interface TagHubItemGroupsProps {
   onSelectItem?: (item: TagHubItem) => void;
   /** The chevron button's name ("Open “Standup”"). */
   formatOpenItem?: (title: string) => string;
+  /*
+   * The narrow row's "…" (#1646 / M3). The host owns what it offers — the
+   * sheet holds actions that write, and this component writes nothing.
+   */
+  onItemMenu?: (item: TagHubItem) => void;
+  /** That button's name ("Standup: Item actions"). */
+  formatItemMenu?: (title: string) => string;
 }
 
 export function TagHubItemGroups({
@@ -67,6 +74,8 @@ export function TagHubItemGroups({
   activeItemId,
   onSelectItem,
   formatOpenItem,
+  onItemMenu,
+  formatItemMenu,
 }: TagHubItemGroupsProps) {
   // Once anything is checked every row shows its box (D8), so extending the
   // selection does not mean hunting for a control that appears on hover.
@@ -166,6 +175,22 @@ export function TagHubItemGroups({
                     />
                   )}
                 </button>
+                {onItemMenu && (
+                  // M3 — narrow has no hover to reveal anything with, so the
+                  // row's actions sit on a 44px button of their own.
+                  <button
+                    type="button"
+                    onClick={() => onItemMenu(item)}
+                    aria-label={formatItemMenu?.(item.title) ?? item.title}
+                    className={cn(
+                      "grid size-11 shrink-0 place-items-center rounded-lumen-sm text-lumen-text-secondary",
+                      "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                      FOCUS_RING_TIGHT,
+                    )}
+                  >
+                    <MoreHorizontal size={16} aria-hidden />
+                  </button>
+                )}
                 {onSelectItem && (
                   // Always reachable, never hover-only: with the row's click
                   // taken by selection this is the only pointer route out of

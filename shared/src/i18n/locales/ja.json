@@ -1056,7 +1056,15 @@
       "sectionEmpty": "まだありません。",
       "sharedTags": "同じタグのアイテム",
       "writeFailed": "リンクを保存できませんでした。通信を確認してください。"
-    }
+    },
+    "mobile": {
+      "editSheet": "{{name}}: {{field}}",
+      "itemMenu": "「{{title}}」の操作",
+      "relationsSheet": "関連: {{title}}",
+      "removeThisTag": "このタグを外す",
+      "seeRelations": "関連を見る"
+    },
+    "sheetClose": "閉じる"
   },
   "attachment": {
     "insertImage": "画像",
@@ -1107,7 +1115,8 @@
     "createNote": "「{{query}}」のノートを作成してリンク",
     "roleNote": "ノート",
     "roleDaily": "デイリー",
-    "roleTodo": "Todo"
+    "roleTodo": "Todo",
+    "insertUnresolved": "「{{query}}」を未解決リンクとして挿入"
   },
   "auth": {
     "productName": "Life Editor",

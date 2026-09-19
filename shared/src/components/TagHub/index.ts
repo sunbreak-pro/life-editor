@@ -77,6 +77,12 @@ export {
   type RelationPanelLabels,
   type RelationPanelProps,
 } from "./RelationPanel";
+// #1646 — the narrow layout's row menus.
+export {
+  TagHubActionSheet,
+  type TagHubActionSheetProps,
+  type TagHubSheetAction,
+} from "./TagHubActionSheet";
 export {
   TagIconPicker,
   type TagIconPickerLabels,
