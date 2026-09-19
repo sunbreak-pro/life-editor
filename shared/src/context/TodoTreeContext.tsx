@@ -18,18 +18,20 @@ import { TodoTreeContext } from "./TodoTreeContextValue";
  * without extra host wiring. An explicit `undoRedo` prop still wins; with no
  * provider it stays the no-op history (useTodoTreeAPI default).
  *
- * #304 child-1 safety valve: this provider is mounted INSIDE the section switch
+ * #304 child-1 / #1727: this provider is mounted INSIDE the section switch
  * (materials-todos / schedule), so it unmounts on navigation while the global
- * UndoRedo stack (mounted outside the switch) survives. A command it pushed
- * closes over THIS provider's setNodes/syncToDb; running its undo after unmount
- * would write a stale snapshot to the DB while the newly-mounted provider keeps
- * its own state — a UI/DB divergence. So we clear the stack on unmount: undo
- * works within the current view, and navigating away resets history (no stale
- * write). Child-2 wired the remaining domains (schedule / daily / note) with
- * this SAME global clear-on-unmount pattern — sibling providers unmounting
- * together each call clear(), which is idempotent. A domain-scoped clear +
- * cross-section re-sync stays future work if per-view history ever feels too
- * limiting.
+ * UndoRedo stack (mounted outside the switch) survives. Its tree writes push
+ * SNAPSHOT commands — `syncToDb(before)` restores every node it was handed —
+ * and replaying one after the section came back would also undo whatever
+ * happened to those rows in between. So unmount expires this domain's
+ * snapshot commands (`expireDomain("todoTree")`).
+ *
+ * It no longer clears the whole stack. That cost the user every undo in the
+ * app for walking to another section (#1727), and it was only ever needed for
+ * the snapshot commands: the by-id ones write the same row whenever they run,
+ * and the provider that comes back reads the result off the server. The stack
+ * is dropped for real when the account behind those ids changes — the host
+ * hands UndoRedoProvider an `identityKey` for that.
  */
 export function TodoTreeProvider({
   children,
@@ -41,13 +43,13 @@ export function TodoTreeProvider({
     undoRedo: options.undoRedo ?? undoRedo ?? undefined,
   });
 
-  // Unmount-clear via ref (#304 child-2 fix): the context VALUE identity
+  // Unmount-expire via ref (#304 child-2 fix / #1727): the context VALUE identity
   // changes on every stack mutation (the provider re-memoises on its version
   // bump), so depending on it here would re-fire the effect after every push —
   // the cleanup would clear() the history the moment a command is recorded
   // (child-1 shipped that bug; undo never survived its own push). Track the
-  // live value in a ref and register the cleanup once, so clear() runs only on
-  // real unmount. Only guard the ambient auto-connect; an explicit injected
+  // live value in a ref and register the cleanup once, so the expiry runs only
+  // on real unmount. Only guard the ambient auto-connect; an explicit injected
   // undoRedo is the host's to manage.
   const undoRedoRef = useRef(undoRedo);
   // Mirrored in an effect, not during render (#505): a render React
@@ -60,7 +62,7 @@ export function TodoTreeProvider({
   const hasExplicitUndoRedo = options.undoRedo != null;
   useEffect(() => {
     if (hasExplicitUndoRedo) return;
-    return () => undoRedoRef.current?.clear();
+    return () => undoRedoRef.current?.expireDomain("todoTree");
   }, [hasExplicitUndoRedo]);
 
   return (

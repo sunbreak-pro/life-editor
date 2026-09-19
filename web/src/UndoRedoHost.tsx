@@ -17,13 +17,25 @@ import {
  * we translate it via undoRedo.labels.*, falling back to the raw key so an
  * unmapped domain still shows a sensible toast.
  */
-export function UndoRedoHost({ children }: { children: ReactNode }) {
+export function UndoRedoHost({
+  children,
+  userId,
+}: {
+  children: ReactNode;
+  /**
+   * The signed-in account (#1727). The history is dropped when it changes —
+   * every command holds ids belonging to the account that pushed it. Section
+   * switches no longer drop anything, which is the point of the pair.
+   */
+  userId?: string | null;
+}) {
   const { showToast } = useToast();
   const { t } = useTranslation();
   const labelOf = (label: string): string =>
     t(`undoRedo.labels.${label}`, { defaultValue: label });
   return (
     <UndoRedoProvider
+      identityKey={userId}
       onCommandApplied={(direction, label) => {
         const key =
           direction === "undo" ? "undoRedo.undone" : "undoRedo.redone";

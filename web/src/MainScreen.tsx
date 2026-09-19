@@ -352,6 +352,9 @@ export function MainScreen({ session }: { session: Session }) {
     <AppProviders
       dataService={ds}
       onMaterialsCounts={setMaterialsCounts}
+      // #1727: the Undo history belongs to this account, and is dropped when
+      // it changes rather than when a section unmounts.
+      userId={session.user.id}
       shortcuts={{
         onNavigate: nav.handleNavigate,
         onOpenSettings: () => setSection("settings"),

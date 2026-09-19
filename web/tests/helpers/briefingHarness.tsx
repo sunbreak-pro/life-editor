@@ -57,6 +57,9 @@ export function createBriefingHarness(): BriefingHarness {
     },
     undo: () => {},
     redo: () => {},
+    // #1727: a provider expires its own snapshot commands here; this stub
+    // never pushes one, so it has nothing to drop.
+    expireDomain: () => {},
     canUndo: () => false,
     canRedo: () => false,
     clear: () => {},

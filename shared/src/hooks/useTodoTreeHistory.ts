@@ -108,6 +108,9 @@ export function useTodoTreeHistory(
       // (e.g. attaching a note) would duplicate it.
       push("todoTree", {
         label,
+        // The whole list goes back, so this one dies with the provider that
+        // took the snapshot (#1727 — UndoCommand.expiresWithProvider).
+        expiresWithProvider: true,
         undo: () => {
           setNodes(before);
           syncToDb(before);
@@ -154,6 +157,8 @@ export function useTodoTreeHistory(
       const before = currentNodes;
       const after = updated;
       push("todoTree", {
+        // Snapshot writeback (see persistWithHistory) — #1727.
+        expiresWithProvider: true,
         label: "todoTreeChange",
         undo: () => {
           setNodes(before);
