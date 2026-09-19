@@ -1,4 +1,4 @@
-import { Loader2 } from "lucide-react";
+import { LoaderCircle } from "lucide-react";
 
 /*
  * The one-line band above a note's body while an attachment uploads (#1674,
@@ -35,10 +35,12 @@ export function AttachmentUploadStatus({
       aria-live="polite"
       className="mb-2 flex items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-1.5 text-xs text-lumen-text-secondary"
     >
-      <Loader2
-        size={13}
+      {/* LoaderCircle + animate-spin + motion-reduce:animate-none is the
+          house spinner (AuthCard.tsx). `Loader2` is only a deprecated alias
+          in this lucide-react and is absent from its type surface. */}
+      <LoaderCircle
         aria-hidden="true"
-        className="shrink-0 motion-safe:animate-spin"
+        className="h-3.5 w-3.5 shrink-0 animate-spin motion-reduce:animate-none"
       />
       <span className="min-w-0 truncate font-medium text-lumen-text">
         {fileName}
