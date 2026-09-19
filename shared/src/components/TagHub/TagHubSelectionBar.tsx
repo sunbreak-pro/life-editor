@@ -20,6 +20,15 @@ import type { TagHubTagSummary } from "./types";
  * `canRemove={false}` there). Add is always on offer; on the untagged bucket
  * it is the whole point of selecting.
  *
+ * IT MUST SURVIVE A NARROW COLUMN (#1732). With the right panel open the
+ * items pane is 590px at 1440, and the bar broke in two different ways at
+ * once: English wrapped each button's label onto a second line, which spilled
+ * the text out of the 32px pill it is painted in, and Japanese kept one line
+ * by truncating "2 件を選択中" down to "2 …". So nothing here shrinks — the
+ * count and every button keep their content width and refuse to wrap — and the
+ * row scrolls sideways if even that does not fit. A label the user cannot read
+ * is worse than one they have to scroll to.
+ *
  * Esc clears the selection. The listener is on the document (the focus can be
  * anywhere in the pane while rows are checked) and skips an Esc something else
  * already handled — the tag chooser stops its own, so closing the chooser does
@@ -64,6 +73,9 @@ export interface TagHubSelectionBarProps {
 
 type Chooser = "assign" | "move" | null;
 
+/** #1732 — a bar button keeps its label on one line and its content width. */
+const NO_SHRINK = "shrink-0 whitespace-nowrap";
+
 export function TagHubSelectionBar({
   count,
   formatSelected,
@@ -102,22 +114,27 @@ export function TagHubSelectionBar({
       aria-label={labels.region}
       className={cn(
         "flex h-12 flex-shrink-0 items-center gap-2 border-t border-lumen-border",
-        "bg-lumen-bg-secondary px-3 shadow-lumen-sm",
+        // `overflow-x-auto` is the last resort under the no-shrink rule above:
+        // past a certain width something has to give, and a scroll keeps every
+        // label whole where clipping would not.
+        "overflow-x-auto bg-lumen-bg-secondary px-3 shadow-lumen-sm",
       )}
     >
       <span
         aria-live="polite"
-        className="min-w-0 flex-1 truncate text-sm font-medium text-lumen-text"
+        className="shrink-0 whitespace-nowrap text-sm font-medium text-lumen-text"
       >
         {formatSelected(count)}
       </span>
+      {/* Pushes the actions to the right without being a shrink target. */}
+      <span aria-hidden className="min-w-0 flex-1" />
 
-      <div className="relative">
+      <div className="relative shrink-0">
         <Button
           ref={assignRef}
           variant="primary"
           size="sm"
-          className={CARD_BTN_TAP}
+          className={cn(CARD_BTN_TAP, NO_SHRINK)}
           disabled={busy}
           aria-haspopup="dialog"
           aria-expanded={chooser === "assign"}
@@ -143,18 +160,18 @@ export function TagHubSelectionBar({
           <Button
             variant="secondary"
             size="sm"
-            className={CARD_BTN_TAP}
+            className={cn(CARD_BTN_TAP, NO_SHRINK)}
             disabled={busy}
             onClick={onRemove}
           >
             {labels.remove}
           </Button>
-          <div className="relative">
+          <div className="relative shrink-0">
             <Button
               ref={moveRef}
               variant="secondary"
               size="sm"
-              className={CARD_BTN_TAP}
+              className={cn(CARD_BTN_TAP, NO_SHRINK)}
               disabled={busy}
               aria-haspopup="dialog"
               aria-expanded={chooser === "move"}
@@ -179,7 +196,7 @@ export function TagHubSelectionBar({
       <Button
         variant="ghost"
         size="sm"
-        className={CARD_BTN_TAP}
+        className={cn(CARD_BTN_TAP, NO_SHRINK)}
         onClick={onClear}
       >
         {labels.clear}
