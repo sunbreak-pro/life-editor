@@ -1026,6 +1026,14 @@
       "noCandidates": "一致するアイテムはありません",
       "openRow": "「{{title}}」を開く",
       "writeFailed": "リンクを保存できませんでした。通信を確認してください。"
+    },
+    "sheetClose": "閉じる",
+    "mobile": {
+      "itemMenu": "「{{title}}」の操作",
+      "seeRelations": "関連を見る",
+      "removeThisTag": "このタグを外す",
+      "relationsSheet": "関連: {{title}}",
+      "editSheet": "{{name}}: {{field}}"
     }
   },
   "attachment": {

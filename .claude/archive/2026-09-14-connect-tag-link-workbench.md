@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS # enum のみ使用: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)
+Status: COMPLETED # enum のみ使用: Draft / IN PROGRESS / BLOCKED / COMPLETED / SUPERSEDED / DEFERRED / REFERENCE / ACTIVE (adopted policy)
 Created: 2026-09-14
 Branch: claude/connect-refine-<issue> # Issue ごとに切替（worktree = connect-refine）
 Owner-chat: chat-connect-refine # 計画の作成は chat-main（2026-09-14）
@@ -20,7 +20,7 @@ Previous: (なし)
   | Desktop | 同上                                   | `つながり - 通常状態.dc.html` | キャンバス。1a〜1d（通常 A/B × light/dark）・2a〜2f（編集 / 未選択 / 空 / ローディング / 複数選択 / エラー）と注記                                     |
   | Mobile  | `6aad0553-9d05-4759-bb29-d0552540079f` | `Tsunagari Mobile.dc.html`    | 390×844。1a〜1f（画面 1〜3 × light/dark）・1g〜1i（「…」メニュー 2 種 / リンク追加シート）・1j〜1l（空 / ローディング / エラー）・1m（フォーカス仕様） |
 
-- **プロンプトと根拠の正本**: [`docs/design/briefs/connect-relations.md`](../../design/briefs/connect-relations.md)。デザインに描かれていない状態は、同 brief §4.1 / §4.2 の文言を仕様とする（下の「デザイン未描画の項目」）
+- **プロンプトと根拠の正本**: [`docs/design/briefs/connect-relations.md`](../docs/design/briefs/connect-relations.md)。デザインに描かれていない状態は、同 brief §4.1 / §4.2 の文言を仕様とする（下の「デザイン未描画の項目」）
 - **制約**: コスト $0 / DDL なし（既存の DataService メソッドの組み合わせで足りる）/ `lumen-*` トークン必須・hex 直書き禁止 / 新規 UI は `shared/src/components/` / i18n は en・ja 両 catalog / Mobile のタップ面 44px 以上
 - **Non-goals**:
   - 力学グラフ・全体関係図の復活（#1152 / D-20260829-connect-1）
@@ -245,8 +245,8 @@ web/tests/connectScreen*.test.tsx shared/tests/tagHub*.test.tsx
 
 ## References
 
-- 裁定: [`D-20260912-main-1`](../../../decisions/D-20260912-main-1.md)（前提 = #1171 / #1152 / #1153 / #1290 / D-20260829-connect-1）
-- brief: [`docs/design/briefs/connect-relations.md`](../../design/briefs/connect-relations.md)・再定義レポート: `docs/reports/2026-09-12-connect-redefinition.html`
+- 裁定: [`D-20260912-main-1`](../decisions/D-20260912-main-1.md)（前提 = #1171 / #1152 / #1153 / #1290 / D-20260829-connect-1）
+- brief: [`docs/design/briefs/connect-relations.md`](../docs/design/briefs/connect-relations.md)・再定義レポート: `docs/reports/2026-09-12-connect-redefinition.html`
 - 関連 Issue: #1631（routine のタグ）/ #1632（schedule 側・本計画の対象外）
 - related skills: `add-component` / `frontend-react-designer` / `test-writing` / `worktree-policy` / `session-verifier` / `playwright-verify`
 
@@ -254,4 +254,8 @@ web/tests/connectScreen*.test.tsx shared/tests/tagHub*.test.tsx
 
 ## Worklog
 
-（実装セッションで追記）
+- **2026-09-16 / chat-main**: Step 0 — 順 2〜5 を起票（#1643 / #1644 / #1645 / #1646）。計画書・brief・裁定を docs PR #1647 で main へ
+- **2026-09-16 / connect-refine**: Steps 2〜5（I-2 = #1643・PR #1657 merged）。タグ編集モーダルを退役し Connect に一本化
+- **2026-09-17〜19 / connect-refine**: 残り 4 本を 5 PR で。#1676 = タグ行の右クリックメニューと部品の切り出し（PR #1685 merged）／ #1644 = 一括タグ API とタグ統合（PR #1696）+ 複数選択と選択バー（PR #1698）。**Issue の 900 行上限を超えたため Step 6 / 7 の境目で 2 本に分割した**／ #1645 = 右パネルの近傍モード（PR #1703。`buildItemRelations` は LinkPanel も読む）／ #1646 = Mobile 3 段（本 PR）
+- **仮定の実測**: 近傍の導出は `connections` ではなく `getLinksForItem` の 2 バケットを受け取る形にした（LinkPanel のテストを 1 行も変えずに通すため = I-4a の DoD）。Mobile の上部バー「＋」は shell 側（`MainScreen.tsx`）に触れるため実装せず、レールの追加行を入口として残した（判断キューへ）
+- **未実施**: Step 12 の実ブラウザ検証（👀 = chat-main）と Step 13 の merge（🛑 = ユーザー）。一括操作 10 件の体感実測も dev server が要るため chat-main 側

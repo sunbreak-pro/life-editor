@@ -105,6 +105,9 @@ export interface TagHubViewProps {
   activeItemId?: string | null;
   onSelectItem?: (item: TagHubItem) => void;
   formatOpenItem?: (title: string) => string;
+  /** The narrow row's "…" (#1646 / M3) and that button's name. */
+  onItemMenu?: (item: TagHubItem) => void;
+  formatItemMenu?: (title: string) => string;
   /** The docked bar, drawn under the items while a tag is open. */
   selectionBar?: ReactNode;
 }
@@ -139,6 +142,8 @@ export function TagHubView({
   activeItemId,
   onSelectItem,
   formatOpenItem,
+  onItemMenu,
+  formatItemMenu,
   selectionBar,
 }: TagHubViewProps) {
   /*
@@ -311,6 +316,8 @@ export function TagHubView({
                 activeItemId={activeItemId}
                 onSelectItem={onSelectItem}
                 formatOpenItem={formatOpenItem}
+                onItemMenu={onItemMenu}
+                formatItemMenu={formatItemMenu}
               />
             )}
           </>

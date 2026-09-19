@@ -3,10 +3,13 @@ import {
   buildTagHubModel,
   ConfirmDialog,
   buildItemRelations,
+  BottomSheet,
   RelationPanel,
   RightSidebarPortal,
   selectRecentTaggedItems,
   TagHubDetailPanel,
+  TagHubActionSheet,
+  TagHubEditBlock,
   TagHubSelectionBar,
   TagHubView,
   TagMergeDialog,
@@ -92,6 +95,13 @@ import {
  * (assumption 2). The derivation is the shared `buildItemRelations`, which the
  * note header's "related" popover reads too.
  *
+ * MOBILE (#1646). The narrow layout is the same three things one screen at a
+ * time: the tag list, a tag's items, and the relations — which have no side
+ * panel to live in, so they come up as a bottom sheet. Every row menu is a
+ * sheet too (the rail's four actions, an item's two), and the one-action
+ * sheets show the edit block cut down to the field they named. Bulk
+ * selection and merging stay off the phone, as the brief asks.
+ *
  * THE SHARED DETAIL PANEL (#1472). While a tag is open, the selected tag's
  * breakdown and its recently-filed rows go into the shell's right panel
  * through RightSidebarPortal — the same slot the note list, the todo fields
@@ -128,6 +138,16 @@ interface ConnectSources {
 
 /** Stable identity for "nothing checked" (#1644). */
 const NO_CHECKS: ReadonlySet<string> = new Set();
+
+/** Which caption names each editable field, for the narrow sheets (#1646). */
+const EDIT_FIELD_LABEL: Record<
+  TagHubEditField,
+  (labels: TagHubLabels) => string
+> = {
+  name: (labels) => labels.edit.nameLabel,
+  icon: (labels) => labels.edit.iconLabel,
+  color: (labels) => labels.edit.colorLabel,
+};
 
 const EMPTY_SOURCES: ConnectSources = {
   todos: [],
@@ -339,6 +359,7 @@ export function ConnectScreen({
       emptyAction: t("connect.emptyAction"),
       loading: t("connect.loading"),
       rowMenu: t("connect.rowMenu"),
+      sheetClose: t("connect.sheetClose"),
       renameTag: t("connect.renameTag"),
       changeIcon: t("connect.changeIcon"),
       changeColor: t("connect.changeColor"),
@@ -423,6 +444,13 @@ export function ConnectScreen({
     null,
   );
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
+  /*
+   * Which field the narrow sheet is showing (#1646). Separate from
+   * `editFocusField`, which is a one-shot focus request the first interaction
+   * with the block consumes — driving the sheet from it would close the sheet
+   * on the first keystroke.
+   */
+  const [sheetField, setSheetField] = useState<TagHubEditField | null>(null);
 
   const selectTag = useCallback(
     (tagId: string | null) => {
@@ -480,8 +508,11 @@ export function ConnectScreen({
       if (tagId !== selectedTagId) selectTag(tagId);
       setEditOpen(true);
       setEditFocusField(field);
+      // Narrow opens the field in a sheet of its own; the wide layout opens
+      // the block inline and only moves the caret.
+      if (!isWide) setSheetField(field);
     },
-    [selectedTagId, selectTag],
+    [selectedTagId, selectTag, isWide],
   );
 
   /*
@@ -800,6 +831,22 @@ export function ConnectScreen({
     [wiki, selectedItemId, toast, t],
   );
 
+  /*
+   * The narrow row menus (#1646). Which item's sheet is open is host state,
+   * because its two actions both write (unassign) or move the selection.
+   */
+  const [sheetItem, setSheetItem] = useState<TagHubItem | null>(null);
+  const removeTagFromItem = useCallback(
+    (item: TagHubItem) => {
+      if (!selectedTagId || selectedTag?.isUntagged) return;
+      void (async () => {
+        const result = await wiki.bulkUnassign([item.id], selectedTagId);
+        if (result.failed > 0) reportFailure(result.failed);
+      })();
+    },
+    [wiki, selectedTagId, selectedTag, reportFailure],
+  );
+
   const handleOpenItem = useCallback(
     (item: TagHubItem) => {
       // `navigateId` when the row is filed under an id the destination cannot
@@ -884,6 +931,9 @@ export function ConnectScreen({
         activeItemId={isWide ? selectedItemId : null}
         onSelectItem={isWide ? handleSelectItem : undefined}
         formatOpenItem={(title) => t("connect.relations.openRow", { title })}
+        // M3 — the narrow row's own actions button.
+        onItemMenu={isWide ? undefined : setSheetItem}
+        formatItemMenu={(title) => t("connect.mobile.itemMenu", { title })}
         selectionBar={
           isWide && selectedTag && checkedIds.size > 0 ? (
             <TagHubSelectionBar
@@ -927,6 +977,87 @@ export function ConnectScreen({
         onCancel={() => setMergeSourceId(null)}
         labels={mergeLabels}
       />
+
+      {/* The narrow row's "…" (M3): read what it relates to, or take this
+          tag off it. Neither is destructive enough for the danger tint — the
+          brief says so for the second one explicitly. */}
+      <TagHubActionSheet
+        open={!isWide && sheetItem !== null}
+        onClose={() => setSheetItem(null)}
+        title={t("connect.mobile.itemMenu", { title: sheetItem?.title ?? "" })}
+        closeLabel={t("connect.sheetClose")}
+        actions={
+          sheetItem
+            ? [
+                {
+                  label: t("connect.mobile.seeRelations"),
+                  onSelect: () => selectItem(sheetItem.id),
+                },
+                ...(selectedTag && !selectedTag.isUntagged
+                  ? [
+                      {
+                        label: t("connect.mobile.removeThisTag"),
+                        onSelect: () => removeTagFromItem(sheetItem),
+                      },
+                    ]
+                  : []),
+              ]
+            : []
+        }
+      />
+
+      {/* The relations, which on a phone have no panel to sit in (M4). */}
+      {!isWide && selectedItem && relations && (
+        <BottomSheet
+          open
+          onClose={() => selectItem(null)}
+          title={t("connect.mobile.relationsSheet", {
+            title: selectedItem.title,
+          })}
+          closeLabel={t("connect.sheetClose")}
+        >
+          <RelationPanel
+            item={selectedItem}
+            linked={linkedRelations}
+            sharedTagItems={relations.sharedTagItems}
+            sameDayDaily={relations.sameDayDaily}
+            candidates={linkCandidates}
+            onBack={() => selectItem(null)}
+            onOpenItem={handleOpenItem}
+            onRemoveLink={removeLink}
+            onAddLink={addLink}
+            labels={relationLabels}
+          />
+        </BottomSheet>
+      )}
+
+      {/* One field per sheet (M1): the rail's menu named which one. */}
+      {!isWide && selectedTag && sheetField && (
+        <BottomSheet
+          open
+          onClose={() => setSheetField(null)}
+          title={t("connect.mobile.editSheet", {
+            name: selectedTag.name,
+            field: EDIT_FIELD_LABEL[sheetField](labels),
+          })}
+          closeLabel={t("connect.sheetClose")}
+        >
+          <TagHubEditBlock
+            tag={selectedTag}
+            edits={drafts.editsFor(selectedTag.id)}
+            dirty={drafts.isDirty(selectedTag.id)}
+            only={sheetField}
+            onEdit={editSelected}
+            onDropEdit={dropEdit}
+            onSave={() => {
+              saveSelected();
+              setSheetField(null);
+            }}
+            onDelete={() => requestDelete(selectedTag.id)}
+            labels={labels.edit}
+          />
+        </BottomSheet>
+      )}
 
       {/* The discard question, asked when another tag is picked while this one
           holds a draft (#740). Mounted beside the view so it portals above it. */}

@@ -1036,6 +1036,14 @@
       "noCandidates": "No matching item",
       "openRow": "Open “{{title}}”",
       "writeFailed": "The link could not be saved. Check your connection."
+    },
+    "sheetClose": "Close",
+    "mobile": {
+      "itemMenu": "{{title}}: Item actions",
+      "seeRelations": "See what it relates to",
+      "removeThisTag": "Remove this tag",
+      "relationsSheet": "Related: {{title}}",
+      "editSheet": "{{name}}: {{field}}"
     }
   },
   "attachment": {
