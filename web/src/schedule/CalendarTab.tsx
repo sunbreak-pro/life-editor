@@ -1171,6 +1171,11 @@ export function CalendarTab({
             onToggleRepeats: handleToggleRepeats,
             onOpenFilter: () => setTagFilterOpen(true),
             filterActive: selectedTagIds.length > 0,
+            // #1639: the number on the icon. `selectedTagIds` is the resolved
+            // tick list — a saved group is counted as the tags it expands to,
+            // and a tag deleted mid-session has already dropped out of it, so
+            // the badge can never name a filter the grid is not applying.
+            filterCount: selectedTagIds.length,
             onAddEvent: handleToolbarAdd,
           }}
           lens={{
