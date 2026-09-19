@@ -13,6 +13,14 @@
 
 ## 直近の完了
 
+- **#1677 / #1687 / #1688 / #1689 の 4 件を 4 PR に分けて提出** ✅（2026-09-19 — chat-main からの配布を受けて着手。書いた時点の実測で **#1677 = PR #1713 / #1688 = PR #1717 / #1689 = PR #1719 は open、#1687 = PR #1716 は merged**。#1689 だけは #1688 に stack した（同じ関数を触るため。Issue 本文も「#1688 の後」と指定）。
+  - **タグのフィルタチップの id は「グループキー」でタグ id ではない**（#1677 で踏んだ）: `tagGroupKey(group) = group.tagId ?? "__untagged__"` なので、未分類だけが別物。右クリックのタグメニューに渡す前にここで弾く（Connect のレールが `isUntagged` でやっているのと同じ形）
+  - **右クリックのパネルは RightSidebarPortal の中に置かない**（#1677）: 狭幅ではそのポータルが MobileDrawer なので、ドロワーと一緒に unmount する。ホストの最上位に置く（`TemplateEditHost` の既存コメントが同じことを言っている）
+  - **memo している行にハンドラを渡すときは `(id, event) => void` の 1 本にする**（#1677）: 行ごとに `() => f(node.id)` を作ると `DesktopNoteRow` の memo が毎回外れる
+  - **DnD の「移動」はドラッグ元をドラッグ id から取れる**（#1687）: 1 つのノートはタグごとに行を持つので、draggable id の接頭辞（グループキー）が「どの見出しから掴んだか」そのもの。jsdom にレイアウトが無くジェスチャは再現できないため、`planTagMove`（純関数）に判断を出して 5 ケースを固定した
+  - **`[[` の検索語には閉じ括弧が入る**（#1689）: @tiptap/suggestion の `allowSpaces` 版の正規表現は `[[.*?(?=s[[|$)` で行末まで飲む。挿入側は range が `]]` を含むので既存の `deleteRange` のままでよく、直すのは検索語の読み方だけ
+  - 4 ブランチとも CI verify のステップ列 14 本 + `docs-lint` をローカル全緑。実ブラウザ確認（#1677 のパネル位置・#1687 のドラッグ）は merge 後に chat-main 側）
+
 - **#1679 / #1680 / #1674 を 3 PR に分けて提出** ✅（2026-09-17 — 3 本とも `origin/main` から独立に切った。書いた時点の実測で **#1679 の PR #1683 は merged・#1680 の PR #1693 と #1674 の PR #1699 は open**。3 件はどれも Daily / Notes の「本文のまわり」で、触った層は別々（レイアウト / 夕刊セクションの書き込み / アップロードの見せ方）。
   - **#1679 の原因はメニューではなくカードの床**: kebab の `<Menu>` は portal ではなく `absolute top-full` でカードの中に描かれ、カードは `overflow-hidden`。`min-h-0` の flex 列が短い日のカードを夕刊カードの下で潰し、削除行が切れていた。`min-h-60` に置き換えたが、**`cn` は tailwind-merge ではない**ので `min-h-0` と並べず**差し替え**る（並べると CSS の記述順で決まる）
   - **夕刊の編集は「基準にする本文」の選び方が全部**（#1680）: 書き込みは `mergeEveningSection` に通し、基準はレンダーの `selectedContent` ではなく `getDailyForDate`（ref 読み）にした。undo / redo のクロージャはそのレンダーのずっと後に走るため。さらに書いた内容を `lastEmitted` に記録して**自分のエコー**に見せると、星を押しても本文エディタが remount しない（remount = カーソル消失 + 入力中の flush）
@@ -30,14 +38,6 @@
   - **`new URL()` は http(s) 以外も通す**: `javascript:alert(1)` は例外を投げず、host が空・pathname が `alert(1)` になる。見出しが空のカードになりかけた。`href` はクリックでそのままブラウザに渡る = アプリのオリジンで走るので、**http(s) 以外は href を付けない**を `safeHref` に切り出した（テスト付き）
   - **入力規則にはテストが無い**（申告済み）: ProseMirror のテキスト入力経路は jsdom のレイアウトと mutation flush を要求する。貼り付け・ラウンドトリップ・削除・URL 解釈は押さえた
   - 両ブランチで CI verify のステップ列 + `docs-lint` をローカル実行。**`mcp-server — test` だけ Windows 固有で 1 件赤**（`remoteRegistry.test.ts` が `utilserification.ts` と `utils/verification.ts` を比べている = パス区切りの問題で Linux ランナーでは緑。今回の変更は mcp-server に触れていない））
-
-- **#1579 エディタに table 系ノードを教えた** ✅（2026-09-09 — `origin/main` から `claude/materials-1579-table-nodes` を切り、書いた時点の実測で **PR #1587 は open**。#1521（callout・PR #1555）の兄弟で、**壊れ方は完全に同型**（知らないノード 1 つで文書全体が弾かれ、空のまま autosave が本文へ上書き）。
-  - **兄弟 Issue は前の PR 本文が名指ししている**: #1555 の「別件として見つけたもの」に table と toggleList が挙がっており、方針（エディタ側に足す / MCP をやめる）の答えもそこにあった。**同型 Issue に着手したら、先に兄弟 PR の本文を読む**のが最短
-  - **table は callout と違って手書きしない**。callout は属性 2 つの div だが、表はセルが colspan / rowspan / colwidth を持ち、「編集中も壊れない」挙動が prosemirror-tables の `tableEditing` プラグイン側にある。それは各ノード仕様の `tableRole` を要求し、`tableRole` は `@tiptap/core` がこのパッケージのためだけに宣言しているフィールド。手書きだと**開くけれど編集すると崩れる** = バグの再演になる
-  - **`@tiptap/extension-*` は peer を完全一致で要求する**（実測）: `@tiptap/extension-table@3.31.3` の peer は `@tiptap/core: 3.31.3` / `@tiptap/pm: 3.31.3` の**ピン**。素直に最新を入れるとバグ修正 PR でエディタ基盤ごと 3.23.4 → 3.31.3 に動く。**入っている core / pm と同じ版を明示指定する**と lockfile の増分は 1 パッケージ 15 行で済む
-  - **リサイズ off がどの node view を使うかも決めている**: `resizable: false` だと素の `TableView` が走り、表を `div.tableWrapper` で包む。CSS の `overflow-x` はそこに掛ける（ノート幅より広い表が、列を潰さずスクロールする）
-  - **mcp-server は触っていない**。Issue の Scope は MCP 側も挙げていたが、突き合わせたらずれが無かった（ビルダーの出力が公式スキーマにそのまま収まる・`markdownToTiptap` は表を作らないので経路は `generate_content` だけ）
-  - テスト 5 本は**登録を外すと 5 本とも落ちる**ことを実測。CI verify のステップ列 14 本 + `docs-lint` をローカル全緑）
 
 
 ## 予定

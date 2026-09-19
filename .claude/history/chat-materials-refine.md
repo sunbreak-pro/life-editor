@@ -1,5 +1,21 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-09-19 - #1677 右クリック編集 / #1687 ドロップを移動に / #1688 未解決リンク行の削除 / #1689 閉じ括弧（PR #1713 / #1716 merged / #1717 / #1719）
+
+#### 概要
+
+chat-main の配布で materials の残り 4 件に着手し、4 PR にした。#1689 のみ #1688 に stack（同じ関数）。
+
+#### 変更点
+
+- **#1677（PR #1713）Note の rightSidebar を右クリックで編集**: タグ行（フィルタチップ / グループ見出し）は Connect と同じ `TagActionsMenu` をポインタ位置に開き、名前 / アイコン / 色はその場に `TagHubEditBlock` を出す（`useTagEditDrafts` = 保存ボタンだけが書く #715 の契約をそのまま使用）。削除は `ConfirmDialog`。ノート行は汎用 `ItemActionPopover`（#307）で、タイトル + `TagPicker` + 名前変更（インライン入力・IME 安全）+ 削除。新規 `web/src/notes/useSidebarContextMenus.tsx` に「ハンドラ + パネル」を 1 ファイルでまとめた（ハンドラは一覧の奥へ、パネルはホスト最上位へ行くため）。`shared/src/components/TagHub/` は触らず使うだけ
+- **#1687（PR #1716・merged）ドロップ = 移動**: `handleDragEnd` がドラッグ元のタグ（draggable id のグループキー）を読み、`{noteId, fromTagId, toTagId}` を報告する。未分類も本物のドロップ先になり、そこへ落とすと**ドラッグ元のタグ 1 つだけ**を外す。書き込みの判断は純関数 `planTagMove` に出した（jsdom にレイアウトが無くジェスチャを再現できないため）。Scope どおり `useWikiTagsUnifiedAPI.ts` は不変
+- **#1688（PR #1717）未解決リンクの行を削除**: 行と `insertUnresolved`・`exactMatch`・`"unresolved"` 種別・i18n キー（en/ja）を撤去。**ノート作成失敗時のフォールバックは残した**（`[[query` の削除は await より前に走る同期処理なので、フォールバックまで消すと打った文字が何も残らない）。`targetId: null` の描画は保存済み本文のため維持
+- **#1689（PR #1719）閉じ括弧**: `stripLinkClosing` で検索語末尾の `]` / `]]` を落としてから、絞り込み・作成行のラベル・作成するノート名に使う。末尾だけを落とすので `Roof [draft] repair` は無傷。挿入側は無変更（range が `]]` を含む）
+- **テスト**: web 8 件（#1677 = タグメニューの 4 項目・保存でのみ renameTag・削除の確認・未分類は素通り・ノートパネルの中身・名前変更・削除・狭幅で何も付かない）+ 10 件（#1687 = どの移動か 5 件 / どの書き込みか 5 件）+ 4 件（#1688）+ 3 件（#1689）。`buildItems` と `planTagMove` はテストのために export した（どちらも実 ProseMirror / 実ポインタなしでは到達できない判断）
+- **検証**: 4 ブランチとも CI verify のステップ列 14 本 + `docs-lint` をローカル全緑
+- **申し送り**: #1687 と #1667（タグ付け外しの Undo）が重なると、移動 1 回が Undo 2 回になりうる。まとめるかは #1667 側で確かめる
+
 ### 2026-09-17 - #1679 Daily エディタカードの床 / #1680 夕刊カードの編集 / #1674 添付アップロードの帯（PR #1683 merged / #1693 / #1699）
 
 #### 概要
@@ -108,21 +124,3 @@ Mobile 幅点検 #1409 と Desktop 点検 #1408 の所見 4 件。全部 `origin
 - **テスト**: `web/tests/notesView.test.tsx` に 5 ケース（文言 / CTA が無いこと / チップが残ること / 検索語が落ちること / 本当に空の書庫は今まで通り）、`shared/tests/templateEditPanelLayout.test.tsx` に 2 ケース（測れたとき = `min()` 式 / 測れないとき = class 幅のまま）、`web/tests/elementWidth.test.tsx` 新規 5 ケース（装着時に測る / 小数を丸める / リサイズに追従 / 幅 0 は「未測定」扱い / 外れたら observe をやめる）
 - **踏んだ罠 2 つ**: (1) web の tsconfig は `erasableSyntaxOnly` なので、テスト用フェイクの**コンストラクタ引数プロパティ**が `TS1294` で落ちる（`build` と `vitest` は両方緑のまま `typecheck:tests` だけが赤くなる例）。(2) 全件並列で `briefingEveningLazyMount.test.tsx` が 1 本落ちたが、単体でも静かな状態の全件でも緑 — memory に記録済みの cold-cache flake で、今回の変更とは無関係
 - **検証**: CI verify のステップ列をローカルで上から全部（shared 4 種 / web 4 種 = 114 files 1070 tests / desktop 3 種 / mcp-server 3 種）+ `docs-lint`、2 ブランチとも 15 本すべて exit 0。ビルド後の CSS で `--container-lumen-reading` が `:root, :host` に出ていることも実測（portal 先で解決するため）。実ブラウザでの実測（ダイアログと Note の `getBoundingClientRect().width` 比較）は worktree では回さない規約なので merge 後に chat-main
-
-### 2026-09-02 - #1439 添付アップロード進捗の方針裁定 / #1438 添付の孤児回収（PR #1455 / #1453・どちらも merged）
-
-#### 概要
-
-#1404 が意図的に残した 2 つの穴（進捗表示・孤児回収）を、それぞれ `origin/main` から独立に切って PR にした。#1439 は「実装せず方針を決める」Issue なのでコードを触らず決定台帳 1 本、#1438 は実装。両ブランチで CI verify のステップ列 14 本 + `docs-lint` をローカル全緑。**書いた時点の実測で 2 本とも merged**（#1453 = 529ffea1 / #1455 = 39d4d402）。
-
-#### 変更点
-
-- **#1439（PR #1455）進捗はドキュメントの外に出す**: 裁定 = プレースホルダノードを作らない（`D-20260902-materials-1`・`status: recorded`）。理由 2 つ。(1) プレースホルダは「保存の直前に一時ノードを落とす」処理が要るが、保存経路は自動保存 / 手動保存 / 画面離脱と複数あり、1 経路の落とし忘れが**届いていないバイト列を指すノートの永続化**になる。壊れ方が静かすぎる。(2) `@supabase/storage-js` 2.105.4 の `FileOptions` に**進捗コールバックが無い**（実測 = `web/node_modules/@supabase/storage-js/dist/index.d.mts`。`cacheControl` / `contentType` / `upsert` / `duplex` / `metadata` / `headers` のみ）ので、どの案でもインジケータは不定形にしかならず、ドキュメント内に置く必然性が消える。派生の裁定 3 つ = 自動保存の除外機構は不要 / 失敗時は既存の danger トーストのみ・再試行導線なし / 両幅 1 実装・対象は Notes のみ
-- **#1438（PR #1453）孤児回収**: 設定 → ゴミ箱の下に「添付の掃除」カード。dry-run の一覧 → 確認ダイアログ → **その一覧に対してだけ**削除。判定は純関数に切り出した（`shared/src/services/attachmentOrphans.ts` = `collectAttachmentPaths` / `selectOrphans`）
-- **走査は `notes_payload` + `dailies_payload` の全行・`is_deleted` の絞り込みなし**: ゴミ箱のノートは復元できる以上その本文が指すファイルは生きている。テンプレートや legacy folder 行も同じ。Daily を入れたのは、`attachment` ノードが全編集面で無条件登録なので**貼り付けで Daily に入りうる**ため（走査して 0 件だったテーブルはクエリ 1 本の損、走査し忘れたテーブルは使用中のファイルを消す）
-- **2 つの読み取りの順番が安全性そのもの**: 先にバケットの一覧 → 後からドキュメント。走査中のアップロードは「一覧に無い」か「後の読みで参照が見える」のどちらかになる。逆順だと 2 つの読み取りの間に添付したファイルが孤児に見える
-- **ページングに `order("item_id")` を付けた**: PostgREST は行順を保証しないので、順序なしの 2 ページ目は 1 ページ目の行を取り直したり別の行を飛ばしたりする。**飛ばされた行 = 参照を見落としたノート**なので効率ではなく正しさの話
-- **保険の猶予窓 1 時間**（`ORPHAN_GRACE_MS`）: 「アップロードは終わったのにノートが保存されないままタブを閉じた」に効かせる。タイムスタンプが読めないものも「新しい」側に倒す
-- **Scope 外を 1 か所触った（申告済み）**: `web/src/notes/attachmentNode.ts` のノード名リテラルを shared の `ATTACHMENT_NODE_TYPE` に差し替え。掃除側は type 名でしか参照を認識できないので、片方だけ改名されると**全添付が孤児に見える**
-- **テスト**: shared 14 件（深いネスト / 平文・null・壊れた JSON / `path` 属性を持つ別ノード / ゴミ箱のノートの参照 / folder 行と `.emptyFolderPlaceholder` / 読み取り失敗は例外）+ web 5 件（dry-run 前は削除ボタンが無い / 確認前に `deleteAttachment` を呼ばない / 1 件失敗しても続けて件数を報告 / 失敗した dry-run が「掃除するものはありません」に化けない）
-- **事故 1 件**: #1455 の 2 コミット目（outbox の起票依頼）は push が merge に間に合わず main に届かなかった。cherry-pick で本 tracker ブランチに載せ直している
