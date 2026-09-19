@@ -1,5 +1,6 @@
 import { createContext } from "react";
 import type { UndoRedoLike } from "../hooks/useTodoTreeHistory";
+import type { UndoConfirmGate } from "../utils/undoRedo/UndoRedoManager";
 
 /*
  * UndoRedo context (Issue #304). The value implements UndoRedoLike so it can
@@ -18,6 +19,12 @@ export interface UndoRedoContextValue extends UndoRedoLike {
   canUndo: (domain?: string) => boolean;
   canRedo: (domain?: string) => boolean;
   clear: (domain?: string) => void;
+  /**
+   * Register (or clear) the question asked before a command carrying a
+   * `confirm` spec runs — #1638's repeat-scope dialog. The Schedule host owns
+   * that dialog, so it registers while mounted and clears on unmount.
+   */
+  setConfirmGate: (gate: UndoConfirmGate | null) => void;
 }
 
 export const UndoRedoContext = createContext<UndoRedoContextValue | null>(null);

@@ -316,7 +316,7 @@ export function CommandPalette({
                       <Icon size={16} />
                       <span className="flex-1 text-left">{cmd.title}</span>
                       {cmd.shortcut && (
-                        <kbd className="rounded border border-lumen-border bg-lumen-hover px-1.5 py-0.5 text-xs text-lumen-text-secondary">
+                        <kbd className="rounded border border-lumen-border bg-lumen-hover px-1.5 py-0.5 font-sans text-xs text-lumen-text-secondary">
                           {cmd.shortcut}
                         </kbd>
                       )}

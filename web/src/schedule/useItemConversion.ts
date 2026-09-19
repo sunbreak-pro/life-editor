@@ -291,11 +291,15 @@ export function useItemConversion({
         void dataService
           .convertEventToTodo(id, { order: CONVERT_TODO_ORDER })
           .then(() => {
+            // Pushed inside the success branch: a failed write or a declined
+            // confirm must leave nothing on the stack to "undo". And FIRST in
+            // it (#1637): the write has landed, so the command is owed no
+            // matter what the two re-reads below do — a re-read that throws
+            // used to skip the push and leave a converted row with a disabled
+            // Undo.
+            pushEventToTodoUndo(item);
             reload();
             void refetchTodos();
-            // Pushed inside the success branch: a failed write or a declined
-            // confirm must leave nothing on the stack to "undo".
-            pushEventToTodoUndo(item);
           })
           .then(() => showToast("success", t("itemConvert.toTodoDone")))
           .catch((err) => {
@@ -366,9 +370,11 @@ export function useItemConversion({
         void dataService
           .convertTodoToEvent(id, placement)
           .then(() => {
+            // Before the re-reads, for the #1637 reason spelled out on the
+            // Event → Todo branch above.
+            pushTodoToEventUndo(todo, placement);
             reload();
             void refetchTodos();
-            pushTodoToEventUndo(todo, placement);
           })
           .catch((err) => {
             logServiceError(
