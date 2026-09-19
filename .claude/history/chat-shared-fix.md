@@ -1,16 +1,47 @@
 # HISTORY (chat-shared-fix)
+
+### 2026-09-20 - [shared-fix] #1748 Desktop 初回ツアーの Todo 3 ステップを前準備フックで直す
+
+#### 概要
+
+Desktop（幅 1440）の初回ツアーで `schedule-open-todos` / `-create-todo` / `-complete-todo` が一度も表示されず飛ばされる件を、ツアー基盤に前準備を足して直した。**PR #1757**（open・merge はしていない = P-001）。
+
+原因は 3 つのアンカーがすべて `ScheduleSidebar` にあり、そのサイドバーが `RightSidebarPortal` 経由でしか描かれないこと。`RightSidebarContext` は `isOpen` を永続化せず毎セッション閉じて始まるので、`portalTarget` が null のまま 3 ステップとも 2.5 秒の probe を使い切っていた。
+
+| 触ったファイル                                | 中身                                                     |
+| --------------------------------------------- | -------------------------------------------------------- |
+| `shared/src/components/tour/anchors.ts`       | `TOUR_REVEALS`（`detail-panel` 1 つ）を新設              |
+| `shared/src/components/tour/types.ts`         | `TourStep.reveal?: string`                               |
+| `shared/src/components/tour/registry.ts`      | Todo の 3 行に `reveal`                                  |
+| `shared/src/context/TourContext.tsx`          | prop `onRevealStep`。probe の締切を測る前に 1 回だけ呼ぶ |
+| `web/src/AppProviders.tsx`                    | `TourRevealHost`（`useRightSidebarOptional()?.open`）    |
+| `shared/tests/tourRevealDetailPanel.test.tsx` | 新規 4 本                                                |
+
+#### 決めたこと
+
+- **候補 A（前準備）を採り、B（パネルを開く 1 ステップ）を落とした**。B は狭幅で成立しない（`MobileDrawer` z-50 が吹き出し z-45 を覆うので、従った瞬間に説明が消える）。さらに `totalSteps` が教えない 1 歩で増える。Issue が「狭幅にも同じ仕組みを」と書いている条件を満たせるのは A だけ
+- **`reveal` は文字列でホストが解釈する**。ステップはデータのまま（registry がホストの state を掴む関数を持たない）で、開けるかどうかを知っているのはホストだけ。`onNavigateToSection` と同じ切り分け
+- **狭幅では辞退する**。開くとアンカーは見つかるが説明が読めないまま action 待ちで止まる。飛ばされる（従来どおり）より悪い。z 順が直った時点でホストの 1 行を外すだけになる
+- **開くのはパネルだけで Todo タブは開かない**。タブを押すことが `schedule-open-todos` のレッスンそのもので、代わりにやると教える対象が消える
+- **4 / 5 番目にも `reveal` を付けた**。中断からの再開はパネルが閉じた状態でそのステップから始まるため
+- **ホスト側は必須フックではなく `useRightSidebarOptional`**。`web/tests/appProvidersOrder.test.tsx` は Provider をマーカー div に差し替えるので、必須フックだと 3 本が throw で落ちた（実際に 1 回赤にしてから直した）
+
+#### 検証
+
+CI `verify` の 14 ステップ（shared / web / desktop / mcp-server）+ `docs-lint` をローカルで上から順に実行し全部 exit 0。`web/src/schedule/**` は未変更（#1642 の Scope）。
+
 ### 2026-09-19 - [shared-fix] /goal 4 件（#1668 / #1667 / #1670 / #1672）をそれぞれ独立ブランチで PR まで
 
 #### 概要
 
 こうだいさんの /goal「4 件それぞれに origin/main からのブランチ + CI verify のローカル全緑 + Issue 参照の PR」を実行。**PR #1691（#1668・実行中にこうだいさんが merge）/ #1697（#1667）/ #1702（#1670）/ #1704（#1672）**。merge は自分ではしていない（P-001）。
 
-| Issue | PR | 中身 |
-| --- | --- | --- |
+| Issue | PR              | 中身                                                                                                                                                                     |
+| ----- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | #1668 | #1691（merged） | `undo()` / `redo()` が結果（`{ command, ok, error }`）を返す。投げたコマンドは元のスタックへ戻し反対側へ移さない。Provider に `onCommandFailed`、Host は danger トースト |
-| #1667 | #1697 | タグの付け外しを Undo スタックへ。書き込みを `writeAssign` / `writeUnassign` に分け Undo / Redo が再生。TagPicker は失敗で danger トースト |
-| #1670 | #1702 | `restoreScheduleItemFromTrash` を 1 本の判定にし、Trash 画面と ScheduleItems の両方が通る。楽観更新を撤去 |
-| #1672 | #1704 | `<kbd>` 5 箇所を `font-sans` に統一（方針 A）。source scan テストで preflight 任せを 0 に保つ |
+| #1667 | #1697           | タグの付け外しを Undo スタックへ。書き込みを `writeAssign` / `writeUnassign` に分け Undo / Redo が再生。TagPicker は失敗で danger トースト                               |
+| #1670 | #1702           | `restoreScheduleItemFromTrash` を 1 本の判定にし、Trash 画面と ScheduleItems の両方が通る。楽観更新を撤去                                                                |
+| #1672 | #1704           | `<kbd>` 5 箇所を `font-sans` に統一（方針 A）。source scan テストで preflight 任せを 0 に保つ                                                                            |
 
 #### 決めたこと
 
