@@ -12,6 +12,7 @@ import {
   type RoutinesPayloadRow,
 } from "./routineMapper";
 import {
+  POSTGREST_IN_CHUNK_SIZE,
   fetchAllPages,
   forEachIdChunk,
   forEachIdChunkReturning,
@@ -20,6 +21,7 @@ import { requireSingleRow, requireRowPair } from "./postgrestSingle";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { getAuthedUserId } from "./supabaseServiceHelpers";
 import { logServiceError } from "../utils/logError";
+import { generateId } from "../utils/generateId";
 import { todayDateKey } from "../utils/dateKey";
 
 /*
@@ -439,6 +441,122 @@ export class SupabaseRoutinesService implements RoutinesDataService {
   }
 
   /**
+   * Give every LIVE tag assignment on `fromItemId` to EACH of `toItemIds`
+   * (#1770). The detach counterpart of {@link moveTagAssignments}, which is
+   * the 1:1 case and stays as it is — a conversion has exactly one
+   * destination, and re-pointing the row there keeps its id.
+   *
+   * Copied and then soft-deleted on the source rather than re-pointed,
+   * because one row cannot be in two places: a series' tags are shown by
+   * every one of its occurrences, so handing them to a single survivor is
+   * what stripped the rest. The source rows still go, for the reason the 1:1
+   * move has always taken them — an assignment left behind would count the
+   * series AND its survivors for one thing the user tagged once.
+   *
+   * The same two partial UNIQUEs shape the copies as shape the move:
+   *
+   *   - `uq_wta_item_tag` (item_id, tag_id) WHERE NOT is_deleted — a tag a
+   *     destination already carries LIVE is skipped. It already says that,
+   *     and a second row would be rejected outright;
+   *   - `uq_wta_display_color` (item_id) WHERE is_display_color AND NOT
+   *     is_deleted — the source's colour pick travels only to destinations
+   *     with no pick of their own, and at most once for each.
+   *
+   * Best-effort by contract, like the move: the detach has already landed by
+   * the time this runs, and an error here must not fail it. Logged, never
+   * thrown.
+   */
+  private async handOverTagAssignments(
+    fromItemId: string,
+    toItemIds: readonly string[],
+    context: string,
+  ): Promise<void> {
+    try {
+      if (toItemIds.length === 0) return;
+      // Un-paginated: bounded by how many tags ONE item carries (a handful).
+      const { data: sourceData, error: sourceErr } = await this.client
+        .from("wiki_tag_assignments")
+        .select("id, tag_id, is_display_color")
+        .eq("item_id", fromItemId)
+        .eq("is_deleted", false);
+      if (sourceErr) throw new Error(sourceErr.message);
+      const source = (sourceData ?? []) as Array<{
+        id: string;
+        tag_id: string;
+        is_display_color: boolean;
+      }>;
+      if (source.length === 0) return;
+
+      // What the destinations already carry. Chunked, unlike the source read:
+      // this one is bounded by the number of survivors, and a long-lived
+      // routine has one per past day.
+      const existing = await forEachIdChunkReturning<{
+        item_id: string;
+        tag_id: string;
+        is_display_color: boolean;
+      }>(
+        toItemIds,
+        (chunk) =>
+          this.client
+            .from("wiki_tag_assignments")
+            .select("item_id, tag_id, is_display_color")
+            .in("item_id", chunk)
+            .eq("is_deleted", false),
+        `${context} destinations`,
+      );
+      const key = (itemId: string, tagId: string) => `${itemId}::${tagId}`;
+      const taken = new Set(existing.map((r) => key(r.item_id, r.tag_id)));
+      const hasColour = new Set(
+        existing.filter((r) => r.is_display_color).map((r) => r.item_id),
+      );
+
+      const copies: Array<{
+        id: string;
+        item_id: string;
+        tag_id: string;
+        is_display_color: boolean;
+        is_deleted: boolean;
+        deleted_at: null;
+      }> = [];
+      for (const target of toItemIds) {
+        for (const row of source) {
+          if (taken.has(key(target, row.tag_id))) continue;
+          const colour = row.is_display_color && !hasColour.has(target);
+          if (colour) hasColour.add(target);
+          copies.push({
+            id: generateId("tag_assign"),
+            item_id: target,
+            tag_id: row.tag_id,
+            is_display_color: colour,
+            is_deleted: false,
+            deleted_at: null,
+          });
+        }
+      }
+      for (let i = 0; i < copies.length; i += POSTGREST_IN_CHUNK_SIZE) {
+        const { error } = await this.client
+          .from("wiki_tag_assignments")
+          .insert(copies.slice(i, i + POSTGREST_IN_CHUNK_SIZE));
+        if (error) throw new Error(error.message);
+      }
+
+      // Last, and only once the copies are in: a source row dropped first
+      // would take the tag with it if an insert then failed.
+      const now = new Date().toISOString();
+      const { error: dropErr } = await this.client
+        .from("wiki_tag_assignments")
+        .update({ is_deleted: true, deleted_at: now, updated_at: now })
+        .in(
+          "id",
+          source.map((r) => r.id),
+        );
+      if (dropErr) throw new Error(dropErr.message);
+    } catch (e) {
+      logServiceError("Routines", context, e);
+    }
+  }
+
+  /**
    * Mapper-driven dual UPDATE. metaPatch ALWAYS carries updated_at
    * (DB-Q2 enforcement is in routineUpdatesToPatches). Empty payload
    * patch skips the no-op write.
@@ -717,23 +835,27 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       );
     }
 
-    // 3.5 #1632, the way back: the tags the series carries belong to the
-    //     survivor the caller pinned — the occurrence the repeat-off editor
-    //     has open, which stays on the calendar as a detached one-off and is
-    //     what the tag field reads from once `routineId` is gone. Only for a
-    //     SINGLE pinned survivor: a detach with no pin (the scope dialog's
-    //     "delete / future") leaves no one seed to hand them to, and picking
-    //     one would be inventing an owner. Those assignments ride the routine
-    //     into the trash, where a restore brings them back with it.
-    //     Before step 4 so the destination is still a live item.
-    const pinned = opts?.keepItemIds ?? [];
-    if (pinned.length === 1 && detachIds.includes(pinned[0])) {
-      await this.moveTagAssignments(
-        id,
-        pinned[0],
-        `detachRoutine tags (${id} -> ${pinned[0]})`,
-      );
-    }
+    // 3.5 #1632, widened by #1770: the tags the series carries go to the
+    //     occurrences that OUTLIVE it — all of them, not one.
+    //
+    //     Every occurrence displayed those tags while the link existed: the
+    //     editor reads them off `routineId ?? item.id` (ScheduleEventEditor),
+    //     and the conversion that made the repeat moved the seed's tags onto
+    //     the routine. So a row that keeps its place on the calendar and
+    //     loses only its link has to be given them, or the split strips a tag
+    //     the user can still see the row under.
+    //
+    //     Both entries land here, which is what stops them drifting apart
+    //     again: the editor's Repeat = None pins one survivor, the scope
+    //     dialog's "this and following" pins none and leaves the past rows.
+    //     Pre-#1770 only the pinned shape handed anything over, so the second
+    //     entry silently cleared the survivors' tag field.
+    //     Before step 4 so the destinations are still live items.
+    await this.handOverTagAssignments(
+      id,
+      detachIds,
+      `detachRoutine tags (${id})`,
+    );
 
     // 4. Soft-delete the routine itself — NO cascade to the survivors (that
     //    is what makes this different from softDeleteRoutine). Bump
