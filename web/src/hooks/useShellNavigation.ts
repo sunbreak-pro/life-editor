@@ -224,6 +224,22 @@ export function useShellNavigation({
   // The Schedule section calls this once it has acted on the flag.
   const consumeNewTodo = useCallback(() => setPendingNewTodo(false), []);
   const consumeTodoTray = useCallback(() => setPendingTodoTray(false), []);
+  /*
+   * The same intent, raised without a navigation (#1773).
+   *
+   * The tutorial tour asks for the todo tray when it is ALREADY standing in
+   * Schedule — the Provider only reveals a step's container once it is in that
+   * step's section — so there is nothing for `guarded` to ask about: no
+   * section is being left and no draft is at risk. Going through
+   * `handleNavigate` instead would push the section it is already on through
+   * the leave gate, which is a confirmation dialog the user did not earn.
+   *
+   * It is the intent and not a direct tab setter because the tab belongs to
+   * CalendarTab's own state; the shell has always asked rather than set (see
+   * `pendingTodoTray` above), and the consumer already opens the panel too,
+   * which is the other half of what the tour's step needs.
+   */
+  const requestTodoTray = useCallback(() => setPendingTodoTray(true), []);
 
   // Account-row executor (#1624). Raised inside the guard like handleNewTodo:
   // a refused navigation must not leave a flag that drags the next visit to
@@ -297,6 +313,7 @@ export function useShellNavigation({
     setMaterialsTab,
     pendingTodoTray,
     consumeTodoTray,
+    requestTodoTray,
     pendingProfile,
     openProfile,
     consumeProfile,

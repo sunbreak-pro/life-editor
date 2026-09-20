@@ -79,6 +79,17 @@ export interface AppProvidersProps {
   /** Section switch, handed to the tour so it can walk across sections.
    *  Shared must not import web's navigation, so it arrives as a prop. */
   onNavigateToSection: (section: SectionId) => void;
+  /**
+   * Put the Schedule detail panel on its todo tab (#1773) — the shell's
+   * `nav:tasks` intent, raised without a navigation.
+   *
+   * A SECOND callback rather than more work inside the reveal handler below,
+   * because the tab is not this component's state to set: it lives in
+   * CalendarTab, and the shell has only ever asked for it. Optional so a host
+   * that does not mount the Schedule section (appProvidersOrder.test.tsx)
+   * needs no stand-in — an unhonoured reveal is already a supported answer.
+   */
+  onRevealTodoTray?: () => void;
   /** Signed-in account id, handed to the UndoRedo host (#1727). */
   userId: string;
   /** The shell and its shell-level siblings (palette, tag editor). */
@@ -91,6 +102,7 @@ export function AppProviders({
   shortcuts,
   currentSection,
   onNavigateToSection,
+  onRevealTodoTray,
   userId,
   children,
 }: AppProvidersProps) {
@@ -113,6 +125,7 @@ export function AppProviders({
                   <TourRevealHost
                     currentSection={currentSection}
                     onNavigateToSection={onNavigateToSection}
+                    onRevealTodoTray={onRevealTodoTray}
                   >
                     {children}
                   </TourRevealHost>
@@ -176,22 +189,43 @@ function ShortcutConfigHost({ children }: { children: ReactNode }) {
 function TourRevealHost({
   currentSection,
   onNavigateToSection,
+  onRevealTodoTray,
   children,
 }: {
   currentSection: SectionId;
   onNavigateToSection: (section: SectionId) => void;
+  onRevealTodoTray?: () => void;
   children: ReactNode;
 }) {
   const open = useRightSidebarOptional()?.open;
   const isWide = useMediaQuery(WIDE_QUERY, true);
 
+  /*
+   * #1773: the tray needs BOTH halves. `scheduleTodoTray` names the panel
+   * standing on its todo tab, and the two are separate pieces of state here —
+   * the panel is RightSidebarContext's, the tab is CalendarTab's. The intent
+   * consumer opens the panel as well, so `open()` is belt-and-braces rather
+   * than the load-bearing half; it is called anyway so the reveal still does
+   * something useful on a host that has no Schedule section to consume the
+   * intent.
+   *
+   * The narrow stand-down covers this name too, for the reason it covers the
+   * other: opening the drawer is what buries the bubble, and which tab is
+   * underneath it does not change that.
+   */
   const handleReveal = useCallback(
     (reveal: string) => {
-      if (reveal !== TOUR_REVEALS.detailPanel) return;
       if (!isWide) return;
-      open?.();
+      if (reveal === TOUR_REVEALS.detailPanel) {
+        open?.();
+        return;
+      }
+      if (reveal === TOUR_REVEALS.scheduleTodoTray) {
+        open?.();
+        onRevealTodoTray?.();
+      }
     },
-    [isWide, open],
+    [isWide, onRevealTodoTray, open],
   );
 
   return (

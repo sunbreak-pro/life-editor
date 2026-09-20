@@ -92,6 +92,26 @@ export const TOUR_REVEALS = {
    * width without the registry knowing which one it has.
    */
   detailPanel: "detail-panel",
+  /**
+   * The detail panel STANDING ON ITS TODO TAB — the panel above plus the tab
+   * selection inside it (#1773).
+   *
+   * A second name rather than a second field on the step, because the two are
+   * one precondition from the step's side: `schedule-todo-add` and
+   * `-todo-board` are carried by the tray, and the tray renders only when the
+   * panel is open AND the todo tab is the one showing. A step that named the
+   * panel alone got half of what it needed, which is the whole bug: a run
+   * resumed after Escape comes back with the panel shut and the tab back on
+   * 「今日の流れ」, so `schedule-todo-add` was still absent, the probe spent
+   * its deadline, and #1193's backward give-up landed the user on 4 / 10 —
+   * one step behind where they left off, every time.
+   *
+   * `schedule-open-todos` deliberately keeps `detailPanel`: pressing that tab
+   * is that step's entire lesson, and revealing the tray would do it for the
+   * user. Prefixed with the section because the tab belongs to Schedule,
+   * unlike the panel, which every section shares.
+   */
+  scheduleTodoTray: "schedule-todo-tray",
 } as const;
 
 export const TOUR_ACTIONS = {
