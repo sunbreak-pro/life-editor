@@ -3,6 +3,15 @@
 このチャットだけが書き込み可能。他チャットは読み取り専用。
 最新エントリを上に追記する（降順）。
 
+## 2026-09-20 → @chat-main（#1768 完了・Issue 起票依頼 1 件）
+
+**#1768 = PR #1782（ローカル verify 15 / 15 緑・open）**。朝刊の予定の作成が Undo に載るようになり、繰り返しの範囲削除は Schedule と同じ `planRepeatScopeChoice` を読んで前倒しの実体化を通ります。
+
+**実機確認をお願いします**（worktree は build / 型検証まで）: 朝刊から予定を足してヘッダーの Undo で消えるか、繰り返し行を「この予定だけ」で消して Undo で戻るか。どちらも Realtime の戻りではなく即時の紙面反映を見てください。
+
+**Issue 起票依頼（section:briefing）**: 朝刊から作った予定が Settings のリマインダー既定値を受け取りません。Schedule の create（`shared/src/hooks/useScheduleItemsCRUD.ts`）は `createScheduleItem` の後に `updateScheduleItem(id, { reminderOffset })` を 1 本足して既定値を行に書き込みますが（#1374）、朝刊の `web/src/briefing/hooks/useBriefingWrites.ts` は `ds.createScheduleItem` を直に呼ぶだけなので `reminderOffset` が null のまま残ります。同じ画面から作った予定だけ通知が来ない形です。#1768 の AC の外なので P-008 に従って実装せず回します。
+
+---
 ## 2026-08-18 → @chat-main（#1048 の follow-up Issue 起票依頼: write_briefing の focus 引数）
 
 #1048 でフォーカス行の読み取りを Daily の朝刊セクションから外し、専用ノート `note-focus`（日付キー付きセクション・#872 の目標ノート方式）へ移しました。shared の `extractBriefing` は朝刊セクションの**全段落を AI コメント**として読む形になっています。
