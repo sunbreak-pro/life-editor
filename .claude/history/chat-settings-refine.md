@@ -1,5 +1,36 @@
 # HISTORY (chat-settings-refine)
 
+### 2026-09-20 - 閉じて起動し直すと設定が初期化される、の 2 度目（#1775 / PR #1779）
+
+#### 概要
+
+#1636 / PR #1649 で `app://bundle` に替えた後も同じ症状が再発した。**origin は直っていて、残っていたのはプロセスの問題**だった。`closeToTray` 既定 true でウィンドウの × はプロセスを常駐させるのに、`app.requestSingleInstanceLock()` がどこにも無い。2 回目の起動が 2 つ目の Electron プロセスを立て、userData が同じなのに Chromium の `Local Storage/leveldb` ロックは 1 つ目が握ったままなので、2 つ目の renderer は空の localStorage で起動する。merge は P-001 でユーザー手番のため未実施。
+
+#### 実測（コード読みではなく実機・packaged 0.2.0 / Windows）
+
+- **着手時点の実機がすでに再現状態だった**: BROWSER プロセスが 2 つ同居（16:39 起動と 16:55 起動）し、leveldb の write-ahead log は 2 つ目の起動から 54 分間 1 バイトも増えていない
+- **3 つ目を起動しても止まらない**: `requestSingleInstanceLock` 不在の runtime 裏取り。`ELECTRON_ENABLE_LOGGING=1` の stderr に `Unable to create cache` / `Could not open the quota database, resetting` が並ぶ
+- **CDP で localStorage を直接読んだのが決め手**: `--remote-debugging-port` を付けて起動し `Runtime.evaluate`。2 つ目は 2 キー・`theme: "light"`（既定値）・ツアー進捗 `null`、1 つだけなら 4 キー・`"dark"`・進捗あり。origin は両方 `app://bundle` なので #1649 は効いている
+- **ログインだけ残る理由も一致**: 認証は #838 で `config.json`（ロック無しの素の JSON）へ逃がしてあるため 2 つ目からも読める
+
+#### 変更点
+
+- `desktop/src/main/index.ts` に 2 箇所。**置き場所が半分を占める**: lock は userData のパスで決まるので `useProductNamedUserData()`（#837 の改名）より後でないと 2 つの名前を別々にロックして無意味になり、legacy prefs のコピーと electron-store の構築より前でないと退場するプロセスが profile を触る
+- **`app.quit()` ではなく `app.exit(0)`**: quit は非同期なので、負けたプロセスでもモジュールの残りが走ってしまう。ready 前の `exit()` は Electron 側が「メッセージループ未準備なら直接 exit」と実装しており、同期で止まる
+- **`second-instance` は `showMainWindow()` へ**: 塞ぐだけだと 2 回目の起動が無反応に見える。close-to-tray で隠れている状態から戻すので `show()` を含む既存ヘルパを使い、ロックがモジュールスコープで取られる関係で ready 前にも届きうるため `whenReady` 越しに呼ぶ
+- `desktop/tests/singleInstance.test.ts` 新規（5 件）。`appProtocol.test.ts` / `macTitleBar.test.ts` と同じテキスト照合 — この挙動は packaged かつウィンドウ常駐時にしか現れず、どう書いても型検査・ビルド・dev 実行は同じように通る
+
+#### 検証
+
+- CI `verify` 全ステップ + `docs-lint` をローカル全緑（desktop test は自分が書いた期待値の書き損じで 1 度赤 → 修正して 62/62）
+- **runtime 検証の作り方**: この worktree の `desktop/node_modules/electron/dist` は実体が入っていない（electron バイナリ未取得）ので `electron .` が使えない。代わりに**インストール済みの `Life Editor` をフォルダごと temp にコピーし、`resources/app.asar` を `@electron/asar` で展開して `out/main/index.js` だけ自分のビルドに差し替え**た。profile は本物を使う。結果は「× で閉じる → 常駐（window handle 0）→ 再起動 → 2 つ目は即終了し常駐ウィンドウが前面に戻る → leveldb の書き込みは継続」
+- 実測の前後で、この PC のインスタンスは 1 つだけ起動した状態に戻した
+
+#### 残件
+
+- 「チュートリアルが最初から始まる」は**もう 1 本の経路がある**。anchor 未解決の step が後方へ give up する `shared/src/context/TourContext.tsx` 側（#1773 と同根）で、この PR の Scope 外。設定が初期化される主因は塞がるが、巻き戻りの残りはそちらを直すまで残りうる
+- `shared/src/hooks/useTourProgress.ts` の `stepIds.join()` の区切りが生の NUL バイトで、grep がこのファイルを binary 扱いして全文検索から落とす（Issue のコメントで chat-main が発見・Scope 外）
+
 ### 2026-09-16 - packaged 版の renderer を app:// で配信して端末ローカル設定を残す（#1636 / PR #1649）
 
 #### 概要
