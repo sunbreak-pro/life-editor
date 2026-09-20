@@ -1,5 +1,30 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-20 - Schedule の undo / 楽観更新 / タグ引き継ぎ 5 件を 5 本の PR で提出 (#1772 #1767 #1769 #1770 #1771)
+
+#### 概要
+
+open Issue 5 件を 1 件 1 ブランチで直した。全部 `origin/main` から独立に切り、1 本ずつローカルで CI `verify` 全ステップ + `docs-lint` = 15/15 緑を実測してから PR を開いた。#1772 = PR #1776 と #1767 = PR #1778 は提出後にユーザーが merge 済み、#1769 = PR #1785 / #1770 = PR #1787 / #1771 = PR #1788 は open。
+
+#### 変更点
+
+- **#1772 / #1767 は同じ原因の 2 件だったのでファイルで割った**: どちらも「catch でトーストを出したあと正常終了する」形で、`UndoRedoManager.apply` が「投げなければ成功」と見るため、失敗トーストの上に「元に戻しました」が重なり、走らなかったコマンドが redo スタックへ移っていた。#1772 = `useItemConversion.ts` の変換 4 経路 / #1767 = `useCreatePanelNotes.ts` のノート添付 2 経路。トーストは残して `throw` を足した（`itemConvert.failed` / `onAttachError` は「どの操作が壊れたか」を言えるが、汎用コピーは言えない）
+- **`attachNote` の外側の catch は意図的に据え置いた**: あちらは「失敗した添付でアイテムを巻き戻さない」ための fire-and-forget とファイル先頭に明記されている。同じ形に見えても、直すのは push した closure の中だけ
+- **#1769 は巻き戻しを `landed` にぶら下げた**: undo の push 側に付けると、`skipUndo: true` で呼ぶ reconcile 経路だけ失敗値が残る。触ったフィールドと楽観更新が押した `updatedAt` だけを戻し、行ごとは戻さない（途中で landed した別の書き込みを消さないため）
+- **#1770 は「1 人に渡す」を「survivor 全員に渡す」へ広げた**: occurrence は自分のタグではなく routine のタグを表示している（`ScheduleEventEditor.tsx:101` の `routineId ?? item.id`）。行は 2 か所に置けないので、付け替えではなくコピー + source の soft-delete にした。partial UNIQUE 2 本（`uq_wta_item_tag` / `uq_wta_display_color`）を宛先ごとに見る
+- **#1771 は例外ではなく戻り値を読むようにした**: 両方のパスが落ちたときだけ報告する。1 回目が今日の行を常時稼働の generator に取られて 23505 になるのは 2 回目のパスが在る理由そのもので、そこで報告すると正しく出ている繰り返しに誤報を出す
+
+#### 検証
+
+- 5 本とも、修正前に新規テストが赤・修正後に緑を実測した（該当ファイルを `git checkout origin/main --` で一時的に戻して実行）。#1772 = 4 本赤 / #1767 = 3 本赤 / #1769 = 3 本赤 / #1770 = 5 本赤 / #1771 = 1 本赤
+- `shared — typecheck:tests` だけが 1 度落ちた（#1769 のテストで `FrequencyType` に無い `"weekly"` を書いた）。`build` も `vitest` も緑のまま素通りする独立ゲートで、CLAUDE.md §7.1 が名指ししているとおりの穴
+- `detachRoutine.test.ts` のモックに `insert` の記録と、宛先読み出しの `in(item_id, …)` を足した。`in` を無視したままだと全件返るので、間違った survivor へのコピーを検出できない
+
+#### 次
+
+- merge はユーザー。merge 後の実ブラウザ確認は chat-main（#1770 は過去の回が複数残るケースを見てほしい）
+- #1772 と #1767 は片方だけ merge しても、もう一方のファイルは直らない
+
 ### 2026-09-19 - ツアー 3/10 の通知漏れを直し、#1642 の計画書を W14 の前に読み直した (#1747 = PR #1752 merge 済み / #1642 = PR #1756 open)
 
 #### 概要
