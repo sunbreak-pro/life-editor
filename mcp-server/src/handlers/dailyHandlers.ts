@@ -11,6 +11,11 @@ import {
 import { assertDateKey } from "../utils/localDate.js";
 import { hasBriefingSection } from "../utils/briefingSection.js";
 import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
+import {
+  LOCKED_BODY_NOTICE,
+  fetchUnlockedBodies,
+  lockedBodyError,
+} from "../utils/lockedBody.js";
 
 /*
  * Daily handlers — Supabase edition (#360).
@@ -25,7 +30,9 @@ import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
 export interface DailiesPayloadRow {
   item_id: string;
   date: string;
-  content_json: unknown;
+  /** Absent whenever the body was never fetched — see PAYLOAD_COLUMNS. */
+  content_json?: unknown;
+  has_password: boolean;
 }
 
 /** A live daily: its items_meta row paired with its payload row. */
@@ -34,7 +41,14 @@ export interface DailyRecord {
   payload: DailiesPayloadRow;
 }
 
-const PAYLOAD_COLUMNS = "item_id, date, content_json";
+/**
+ * Everything but the body. Dailies carry the same `has_password` gate as
+ * notes (#1763), so the body is asked for separately and only for the
+ * unlocked ids — utils/lockedBody.ts owns the reasoning.
+ */
+const PAYLOAD_COLUMNS_BODYLESS = "item_id, date, has_password";
+
+const PAYLOAD_COLUMNS = `${PAYLOAD_COLUMNS_BODYLESS}, content_json`;
 
 /**
  * Every live daily, newest date first. Shared with search_all, which has to
@@ -47,13 +61,16 @@ export async function fetchLiveDailies(): Promise<DailyRecord[]> {
     (from, to) =>
       client
         .from("dailies_payload")
-        .select(PAYLOAD_COLUMNS)
+        .select(PAYLOAD_COLUMNS_BODYLESS)
         .order("date", { ascending: false })
         .order("item_id", { ascending: true })
         .range(from, to),
     "list dailies_payload",
   );
   if (payloadRows.length === 0) return [];
+
+  // Bodies for the unlocked days only (#1763).
+  const bodies = await fetchUnlockedBodies("dailies_payload", payloadRows);
 
   const metaRows = await fetchByIdChunks<ItemsMetaRow>(
     payloadRows.map((p) => p.item_id),
@@ -74,23 +91,47 @@ export async function fetchLiveDailies(): Promise<DailyRecord[]> {
   const out: DailyRecord[] = [];
   for (const payload of payloadRows) {
     const meta = metaById.get(payload.item_id);
-    if (meta) out.push({ meta, payload }); // trashed dailies drop out here
+    // trashed dailies drop out here
+    if (meta) {
+      out.push({
+        meta,
+        payload: {
+          ...payload,
+          content_json: bodies.get(payload.item_id) ?? null,
+        },
+      });
+    }
   }
   return out;
 }
 
-/** Payload row for a date, or null. Liveness is checked by the caller. */
+/**
+ * Payload row for a date, or null. Liveness is checked by the caller.
+ *
+ * Same one-round-trip shape as getNoteRows (#1763): the unlocked read
+ * carries the body, and only a locked day pays for the second query that
+ * tells "locked" apart from "no daily for this date".
+ */
 export async function findDailyPayload(
   date: string,
 ): Promise<DailiesPayloadRow | null> {
   const { client } = await getSupabase();
-  const { data, error } = await client
+  const { data: unlocked, error } = await client
     .from("dailies_payload")
     .select(PAYLOAD_COLUMNS)
     .eq("date", date)
+    .eq("has_password", false)
     .maybeSingle();
   if (error) throw new Error(`dailies_payload read: ${error.message}`);
-  return (data as unknown as DailiesPayloadRow | null) ?? null;
+  if (unlocked) return unlocked as unknown as DailiesPayloadRow;
+
+  const { data: bodyless, error: bErr } = await client
+    .from("dailies_payload")
+    .select(PAYLOAD_COLUMNS_BODYLESS)
+    .eq("date", date)
+    .maybeSingle();
+  if (bErr) throw new Error(`dailies_payload read: ${bErr.message}`);
+  return (bodyless as unknown as DailiesPayloadRow | null) ?? null;
 }
 
 /**
@@ -129,6 +170,25 @@ export async function getDaily(args: { date: string }) {
     };
   }
 
+  // A fourth answer since #1763: the day exists and is not trashed, but its
+  // body was never fetched. `hasBriefing` is unknowable without the text, so
+  // it says false rather than guessing — write_briefing refuses this day
+  // anyway.
+  if (payload.has_password) {
+    return {
+      id: meta.id,
+      date: payload.date,
+      exists: true,
+      isTrashed: false,
+      locked: true,
+      lockedReason: LOCKED_BODY_NOTICE,
+      hasBriefing: false,
+      content: null,
+      createdAt: meta.created_at,
+      updatedAt: meta.updated_at,
+    };
+  }
+
   const content = contentJsonToString(payload.content_json);
   return {
     id: meta.id,
@@ -158,6 +218,9 @@ export async function upsertDailyContent(date: string, contentJson: unknown) {
   const { client } = await getSupabase();
 
   const existing = await findDailyPayload(date);
+  // One guard for every daily writer — upsert_daily, generate_content and
+  // format_content all land here (#1763).
+  if (existing?.has_password) throw lockedBodyError("Daily", existing.item_id);
   if (existing) {
     const { error } = await client
       .from("dailies_payload")

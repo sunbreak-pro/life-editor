@@ -61,6 +61,7 @@ const NOTE_PAYLOAD: NotesPayloadRow = {
   content_json: doc("牛乳と卵を買う"),
   is_pinned: false,
   color: null,
+  has_password: false,
 };
 
 describe("list entries carry a preview, not the body", () => {
@@ -72,12 +73,15 @@ describe("list entries carry a preview, not the body", () => {
     expect(entry.contentPreview).toBe("牛乳と卵を買う");
   });
 
+  // Read through toHaveProperty rather than by dotted access: since #1763 the
+  // note formatters answer a UNION (locked / unlocked), and only the unlocked
+  // arm has these keys — which is the point, and not what this file is about.
   it("omits the note body by default and previews it instead", () => {
     const entry = formatNoteListEntry(META, NOTE_PAYLOAD, false);
 
     expect(entry).not.toHaveProperty("content");
     expect(entry).not.toHaveProperty("contentText");
-    expect(entry.contentPreview).toBe("牛乳と卵を買う");
+    expect(entry).toHaveProperty("contentPreview", "牛乳と卵を買う");
   });
 
   it("caps the preview so one long item cannot dominate a page", () => {
@@ -119,8 +123,11 @@ describe("a single-item read can be written back", () => {
   it("gives get_note the plain text update_note accepts", () => {
     const note = formatNote(META, NOTE_PAYLOAD);
 
-    expect(note.content).toBe(JSON.stringify(NOTE_PAYLOAD.content_json));
-    expect(note.contentText).toBe("牛乳と卵を買う");
+    expect(note).toHaveProperty(
+      "content",
+      JSON.stringify(NOTE_PAYLOAD.content_json),
+    );
+    expect(note).toHaveProperty("contentText", "牛乳と卵を買う");
   });
 });
 

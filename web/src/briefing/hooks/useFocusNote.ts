@@ -72,7 +72,9 @@ export function useFocusNote(ds: DataService, todayKey: string) {
     refetchReportsLoading: false,
     load: (service) => {
       const read = saveChainRef.current.then(() =>
-        service.getNoteUnified(FOCUS_NOTE_ID).then((note) => note?.content ?? null),
+        service
+          .getNoteUnified(FOCUS_NOTE_ID)
+          .then((note) => note?.content ?? null),
       );
       // The chain must stay a Promise<void> that never rejects: a failed read
       // that poisoned it would take every later save down with it.
@@ -155,6 +157,14 @@ export function useFocusNote(ds: DataService, todayKey: string) {
       saveChainRef.current = saveChainRef.current.then(async () => {
         try {
           const fresh = await ds.getNoteUnified(FOCUS_NOTE_ID);
+          // #1763: the same refusal the goals note has. A locked note arrives
+          // body-free, and merging into that empty string would overwrite the
+          // focus text with the paper's one line.
+          if (fresh?.hasPassword === true) {
+            throw new Error(
+              "The focus note is password-protected. Unlock it in Notes to write a focus from the paper.",
+            );
+          }
           const freshContent = fresh?.content ?? "";
           const merged = mergeFocusSection(freshContent, tomorrowKey, text);
           if (merged === freshContent) {

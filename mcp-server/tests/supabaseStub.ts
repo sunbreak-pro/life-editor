@@ -41,6 +41,13 @@
 export interface QueryCall {
   table: string;
   op: "select" | "insert" | "update" | "delete";
+  /**
+   * The projection string a `select()` asked for. The in-memory layer still
+   * ignores it (a fixture row IS its own projection), but the password gate
+   * (#1763) is a statement about what a query NAMES, not about what comes
+   * back — asserting it needs the column list on record.
+   */
+  columns?: string;
   /** The row values passed to insert/update. */
   values?: Record<string, unknown>;
   /** `.eq()` filters, by column. */
@@ -98,10 +105,12 @@ export function createSupabaseStub(
     const start = (
       op: QueryCall["op"],
       values?: Record<string, unknown>,
+      columns?: string,
     ): Record<string, unknown> => {
       const call: QueryCall = {
         table,
         op,
+        columns,
         values,
         filters: {},
         bounds: {},
@@ -174,7 +183,7 @@ export function createSupabaseStub(
     };
 
     return {
-      select: (_columns?: string) => start("select"),
+      select: (columns?: string) => start("select", undefined, columns),
       insert: (values: Record<string, unknown>) => start("insert", values),
       update: (values: Record<string, unknown>) => start("update", values),
       delete: () => start("delete"),

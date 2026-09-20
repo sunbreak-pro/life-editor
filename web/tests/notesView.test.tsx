@@ -8,10 +8,7 @@ import {
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { NoteNode } from "@life-editor/shared";
-import {
-  clearRecentNotes,
-  recordNoteOpened,
-} from "@life-editor/shared";
+import { clearRecentNotes, recordNoteOpened } from "@life-editor/shared";
 import { NotesView } from "../src/notes/NotesView";
 
 /*
@@ -238,6 +235,33 @@ describe("NotesView — desktop (wide)", () => {
     expect(title.value).toBe("Alpha");
     // The main editor mounts for the selected note.
     expect(screen.getByTestId("editor").textContent).toBe("note-a");
+  });
+
+  /*
+   * #1763 — a locked note gets NO editor, not a blurred one.
+   *
+   * Two things ride on this. The body is not in the DOM at all (the read never
+   * fetched it, so `content` here is the light ""), and — the reason it is a
+   * mount check rather than a text check — an editor initialised from that ""
+   * is one stray save away from writing the emptiness into a note whose text
+   * nobody on this screen can see (#471). The title stays editable: the gate
+   * has always covered the body only (#526).
+   */
+  it("does not mount the body editor over a password-locked note", () => {
+    state.notes = [
+      note({ id: "note-locked", title: "Sealed", hasPassword: true }),
+    ];
+    state.selectedId = "note-locked";
+    render(<NotesView />);
+
+    expect(screen.queryByTestId("editor")).toBeNull();
+    expect(
+      screen.getByRole("button", { name: "materials.notes.lockedHint" }),
+    ).toBeTruthy();
+    expect(
+      (screen.getByLabelText("notesView.detailTitle") as HTMLInputElement)
+        .value,
+    ).toBe("Sealed");
   });
 
   it("creates a note from the main toolbar", () => {
@@ -709,9 +733,7 @@ describe("NotesView — multi-select tag filter (#1288)", () => {
     fireEvent.click(filterChip("Work"));
     expect(screen.queryByText("Beta")).toBeNull();
 
-    fireEvent.click(
-      screen.getByLabelText("materials.notes.tagFilterClear"),
-    );
+    fireEvent.click(screen.getByLabelText("materials.notes.tagFilterClear"));
 
     screen.getByText("Alpha");
     screen.getByText("Beta");

@@ -47,6 +47,14 @@ function install(fixture: Fixture): void {
       case "events_payload":
         return fixture.events ?? [];
       case "dailies_payload": {
+        // The body pass (#1763) asks by id, with no date window — it reads
+        // content_json for the UNLOCKED ids fetchDailies just listed.
+        const ids = inFilter(call, "item_id");
+        if (ids) {
+          return (fixture.dailies ?? []).filter((d) =>
+            ids.includes(d.item_id as string),
+          );
+        }
         // fetchDailies runs twice (recent window, then today) — the bounds
         // are what tells them apart, so honour them.
         const from = call.bounds["date.gte"] as string;
@@ -141,9 +149,36 @@ describe("getTodayContext", () => {
           carriedOver: true,
         },
       ],
-      recentDailies: [{ date: "2026-08-12", text: "昨日" }],
-      todayDaily: { exists: true, hasBriefing: false, text: "今日" },
+      recentDailies: [{ date: "2026-08-12", locked: false, text: "昨日" }],
+      todayDaily: {
+        exists: true,
+        locked: false,
+        hasBriefing: false,
+        text: "今日",
+      },
     });
+  });
+
+  it("says a locked day is locked rather than empty", async () => {
+    install({
+      dailies: [
+        lockedDaily(DATE, "SECRET-TODAY"),
+        lockedDaily("2026-08-12", "SECRET-YESTERDAY"),
+      ],
+    });
+
+    const context = await getTodayContext({ date: DATE });
+
+    expect(context.todayDaily).toEqual({
+      exists: true,
+      locked: true,
+      hasBriefing: false,
+      text: null,
+    });
+    expect(context.recentDailies).toEqual([
+      { date: "2026-08-12", locked: true, text: null },
+    ]);
+    expect(JSON.stringify(context)).not.toContain("SECRET-");
   });
 
   it("reports an absent today without inventing a daily", async () => {
@@ -153,15 +188,26 @@ describe("getTodayContext", () => {
 
     expect(context.todayDaily).toEqual({
       exists: false,
+      locked: false,
       hasBriefing: false,
       text: null,
     });
     expect(context.recentDailies).toEqual([
-      { date: "2026-08-12", text: "昨日" },
+      { date: "2026-08-12", locked: false, text: "昨日" },
     ]);
   });
 });
 
 function daily(date: string, text: string): Row {
-  return { item_id: `daily-${date}`, date, content_json: doc(text) };
+  return {
+    item_id: `daily-${date}`,
+    date,
+    content_json: doc(text),
+    has_password: false,
+  };
+}
+
+/** The same day with a password on it — its body is never fetched (#1763). */
+function lockedDaily(date: string, text: string): Row {
+  return { ...daily(date, text), has_password: true };
 }

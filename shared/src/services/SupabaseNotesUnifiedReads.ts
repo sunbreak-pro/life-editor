@@ -12,6 +12,7 @@ import {
   type NotesPayloadRow,
 } from "./notesUnifiedMapper";
 import type { NoteNode } from "../types/note";
+import { contentJsonToString } from "./contentJson";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
 import { fetchMaybeSingleRow } from "./postgrestSingle";
@@ -154,6 +155,26 @@ export class SupabaseNotesUnifiedReads {
     return count ?? 0;
   }
 
+  /**
+   * The note detail — WITHOUT the body when the note is password-locked
+   * (#1763, D-20260920-main-1 = A).
+   *
+   * The body query carries `has_password = false`, so a locked note's
+   * `content_json` is never SELECTed. "Never fetched" rather than "fetched and
+   * dropped" is the whole point: a body this client never holds cannot reach
+   * the DOM, a log line or the next refactor. RLS cannot do this job — the row
+   * belongs to the signed-in owner, so every owner-only policy says yes.
+   *
+   * Cost: an ordinary (unlocked) note still costs ONE payload round trip,
+   * because the filtered query returns it. Only a locked note pays a second —
+   * the re-read on `NOTES_PAYLOAD_LIST_COLUMNS`, which is also what tells
+   * "locked" apart from "the payload row is gone" (the meta read above already
+   * proved the item exists). A locked note materialises through
+   * `rowsToNoteNodeLite`, i.e. with the same `content = ""` "not loaded"
+   * sentinel the list reads use — `hasPassword` on the node is what says which
+   * of the two it is. The body arrives later through `getNoteBodyUnified`,
+   * after the password checked out.
+   */
   async getNoteUnified(id: string): Promise<NoteNode | null> {
     const meta = await fetchMaybeSingleRow<ItemsMetaNoteRow>(
       this.client
@@ -171,11 +192,50 @@ export class SupabaseNotesUnifiedReads {
         .from("notes_payload")
         .select(NOTES_PAYLOAD_COLUMNS)
         .eq("item_id", id)
+        .eq("has_password", false)
         .maybeSingle(),
       "getNoteUnified payload failed",
     );
-    if (!payload) return null;
+    if (payload) return rowsToNoteNode(meta, payload);
 
-    return rowsToNoteNode(meta, payload);
+    const lite = await fetchMaybeSingleRow<NotesPayloadListRow>(
+      this.client
+        .from("notes_payload")
+        .select(NOTES_PAYLOAD_LIST_COLUMNS)
+        .eq("item_id", id)
+        .maybeSingle(),
+      "getNoteUnified payload failed",
+    );
+    if (!lite) return null;
+
+    return rowsToNoteNodeLite(meta, lite);
+  }
+
+  /**
+   * The body of ONE note, for the caller that has just verified its password
+   * (#1763). The unlock path, and the only read in this class that returns a
+   * locked note's `content_json`.
+   *
+   * Unfiltered on purpose: `has_password` is still true after a correct
+   * password (the hash stays), so filtering here would make unlocking
+   * impossible. The gate this read sits behind is
+   * `verifyNotePasswordUnified` — a call site that skipped it would be
+   * skipping the password, which is the one thing the DB cannot check for us
+   * (the row is the owner's either way).
+   *
+   * `null` = no payload row (the note is gone). An empty body comes back as
+   * `""`, which is what `contentJsonToString` makes of a NULL `content_json`.
+   */
+  async getNoteBodyUnified(id: string): Promise<string | null> {
+    const row = await fetchMaybeSingleRow<{ content_json: unknown }>(
+      this.client
+        .from("notes_payload")
+        .select("content_json")
+        .eq("item_id", id)
+        .maybeSingle(),
+      "getNoteBodyUnified failed",
+    );
+    if (!row) return null;
+    return contentJsonToString(row.content_json);
   }
 }

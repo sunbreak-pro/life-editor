@@ -562,6 +562,18 @@ export function NotesView({
   // discard. The copy call is the host's (§6.4), so the branch lives here.
   const selectedBodyIsBlank = isBlankNoteBody(selected?.content);
 
+  /*
+   * Is the open note's body covered right now? (#526 / #1763)
+   *
+   * Since #1763 this decides more than a blur: a locked note's body is never
+   * fetched, so `selected.content` is the light `""` and mounting the editor
+   * over it would put a stray save one keystroke away from writing that
+   * emptiness into the note (the #471 hazard). The gate gets a spacer instead,
+   * and the real editor mounts once `verifyNotePassword` has brought the body
+   * in. Computed once because four things downstream ask the same question.
+   */
+  const bodyGated = selected !== null && password.isGated(selected);
+
   if (notes.isLoading) {
     return (
       <div className="px-4 pt-4">
@@ -700,7 +712,7 @@ export function NotesView({
           variant={isWide ? "main" : undefined}
           note={selected}
           labels={detailLabels}
-          locked={password.isGated(selected)}
+          locked={bodyGated}
           onUnlock={password.requestUnlock}
           onTitleCommit={(id, title) => notes.updateNote(id, { title })}
           onTogglePin={notes.togglePin}
@@ -713,18 +725,14 @@ export function NotesView({
           // lock does not reach, so the entry is absent exactly while the
           // gate is up rather than shipping a way around it.
           onRegisterTemplate={
-            dataService && !password.isGated(selected)
-              ? handleRegisterTemplate
-              : undefined
+            dataService && !bodyGated ? handleRegisterTemplate : undefined
           }
           // #1181: same DataService condition, plus the password gate. The
           // lock covers the body (#526) and applying REPLACES the body, so
           // offering it while the gate is up would let a note be overwritten
           // by someone who cannot see what they are overwriting.
           onApplyTemplate={
-            dataService && !password.isGated(selected)
-              ? templateApply.begin
-              : undefined
+            dataService && !bodyGated ? templateApply.begin : undefined
           }
           // The note's item links, beside the tags (#884 — they were a
           // rightSidebar disclosure until that Issue). Wide only, which is
@@ -755,29 +763,36 @@ export function NotesView({
             ) : undefined
           }
           contentEditor={
-            <div
-              {...tourAnchor("materials-note-body")}
-              onInput={handleBodyInput}
-              onCompositionStart={handleCompositionStart}
-              onCompositionEnd={handleCompositionEnd}
-            >
-              <AttachmentUploadStatus
-                fileName={uploadingFile}
-                uploadingLabel={t("attachment.uploading")}
-              />
-              <NoteBodyEditor
-                note={selected}
-                linking={linking}
-                remountToken={bodyEpoch}
-                attachments={attachments}
-                onNavigateToItem={onNavigateToItem}
-                onSave={(id, content) => notes.updateNote(id, { content })}
-                // Borderless — sit flush inside the detail card so the note
-                // body reads as a single clean surface, matching the Daily
-                // editor card (2026-07-18: align Notes formatting to Daily).
-                className="pt-1"
-              />
-            </div>
+            bodyGated ? (
+              // Nothing to render: the body was never fetched (#1763). A
+              // spacer keeps the unlock CTA — which LockedBodyGate draws over
+              // its children — a readable size instead of a 0px strip.
+              <div className="min-h-48" />
+            ) : (
+              <div
+                {...tourAnchor("materials-note-body")}
+                onInput={handleBodyInput}
+                onCompositionStart={handleCompositionStart}
+                onCompositionEnd={handleCompositionEnd}
+              >
+                <AttachmentUploadStatus
+                  fileName={uploadingFile}
+                  uploadingLabel={t("attachment.uploading")}
+                />
+                <NoteBodyEditor
+                  note={selected}
+                  linking={linking}
+                  remountToken={bodyEpoch}
+                  attachments={attachments}
+                  onNavigateToItem={onNavigateToItem}
+                  onSave={(id, content) => notes.updateNote(id, { content })}
+                  // Borderless — sit flush inside the detail card so the note
+                  // body reads as a single clean surface, matching the Daily
+                  // editor card (2026-07-18: align Notes formatting to Daily).
+                  className="pt-1"
+                />
+              </div>
+            )
           }
         />
       ) : (
