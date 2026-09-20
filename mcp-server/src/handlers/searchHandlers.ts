@@ -18,6 +18,7 @@ import {
 import { fetchLiveNotes } from "./noteHandlers.js";
 import { fetchLiveDailies } from "./dailyHandlers.js";
 import { escapeLikePattern } from "../utils/like.js";
+import { LOCKED_BODY_NOTICE } from "../utils/lockedBody.js";
 
 /*
  * search_all — Supabase edition (#360).
@@ -235,6 +236,10 @@ export async function searchAll(args: {
 
   if (domains.includes("dailies")) {
     const matches = (await fetchLiveDailies())
+      // A daily matches on its body alone, and a locked day has none here
+      // (#1763) — so it can only drop out. The date is still readable
+      // through get_daily, which says it is locked.
+      .filter((d) => !d.payload.has_password)
       .map((d) => ({
         // The date is a daily's identity, but the id is what every other
         // tool (tag_entity, get_entity_tags) takes — a hit used to be a
@@ -255,24 +260,44 @@ export async function searchAll(args: {
   }
 
   if (domains.includes("notes")) {
+    /*
+     * A locked note stays searchable by TITLE but is out of the body match
+     * (#1763): `text` is empty for it, so the substring test can only ever
+     * fire on the title, and the result carries no preview. Dropping it
+     * entirely would be worse than showing the title — a caller that cannot
+     * find a note it knows exists creates a second one with the same name.
+     */
     const matches = (await fetchLiveNotes())
       .map((n) => ({
         id: n.meta.id,
         title: n.meta.title,
         updatedAt: n.meta.updated_at,
-        text: contentPlainText(n.payload.content_json),
+        locked: n.payload.has_password,
+        text: n.payload.has_password
+          ? ""
+          : contentPlainText(n.payload.content_json),
       }))
       .filter(
         (n) =>
           n.title.toLowerCase().includes(needle) ||
           n.text.toLowerCase().includes(needle),
       )
-      .map((n) => ({
-        id: n.id,
-        title: n.title,
-        contentPreview: n.text.slice(0, PREVIEW_LENGTH),
-        updatedAt: n.updatedAt,
-      }));
+      .map((n) =>
+        n.locked
+          ? {
+              id: n.id,
+              title: n.title,
+              locked: true,
+              lockedReason: LOCKED_BODY_NOTICE,
+              updatedAt: n.updatedAt,
+            }
+          : {
+              id: n.id,
+              title: n.title,
+              contentPreview: n.text.slice(0, PREVIEW_LENGTH),
+              updatedAt: n.updatedAt,
+            },
+      );
     const notes = toPage(matches, offset, limit);
     result.notes = notes;
     totalHits += notes.total;

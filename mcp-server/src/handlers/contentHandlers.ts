@@ -1,9 +1,10 @@
 import { randomUUID } from "node:crypto";
-import { getSupabase } from "../supabase.js";
 import { contentJsonToString } from "../utils/content.js";
 import { insertItem, requireMeta, updatePayload } from "../utils/items.js";
 import { assertDateKey, localToday } from "../utils/localDate.js";
 import { findDailyPayload, upsertDailyContent } from "./dailyHandlers.js";
+import { getNoteRows } from "./noteHandlers.js";
+import { assertUnlocked, lockedBodyError } from "../utils/lockedBody.js";
 import {
   doc,
   heading,
@@ -145,6 +146,8 @@ export async function generateContent(args: GenerateContentArgs) {
   if (target === "note") {
     if (args.target_id) {
       await requireMeta(args.target_id, "note", "Note");
+      // Overwriting a locked note is the loudest way to lose it (#1763).
+      await assertUnlocked("notes_payload", args.target_id, "Note");
       await updatePayload(
         "notes_payload",
         args.target_id,
@@ -211,7 +214,6 @@ interface FormatContentArgs {
 
 export async function formatContent(args: FormatContentArgs) {
   const target = assertTarget(args.target, "format_content");
-  const { client } = await getSupabase();
 
   // Read the existing document.
   let existingJson: unknown;
@@ -220,21 +222,21 @@ export async function formatContent(args: FormatContentArgs) {
 
   if (target === "note") {
     if (!args.target_id) throw new Error("target_id required for note");
-    await requireMeta(args.target_id, "note", "Note");
-    const { data, error } = await client
-      .from("notes_payload")
-      .select("item_id, content_json")
-      .eq("item_id", args.target_id)
-      .maybeSingle();
-    if (error) throw new Error(`get notes_payload: ${error.message}`);
-    if (!data) throw new Error(`Note not found: ${args.target_id}`);
-    const row = data as { item_id: string; content_json: unknown };
-    existingJson = row.content_json;
-    entityId = row.item_id;
+    /*
+     * Through getNoteRows rather than its own SELECT, so this tool inherits
+     * the #1763 gate. It has to: `insert_block` appends to the existing
+     * document and `:end` hands the WHOLE document back, which made
+     * format_content a body reader for anyone who noticed.
+     */
+    const { payload } = await getNoteRows(args.target_id);
+    if (payload.has_password) throw lockedBodyError("Note", args.target_id);
+    existingJson = payload.content_json;
+    entityId = payload.item_id;
   } else {
     date = assertDateKey(args.target_date ?? localToday());
     const row = await findDailyPayload(date);
     if (!row) throw new Error(`Daily not found for date: ${date}`);
+    if (row.has_password) throw lockedBodyError("Daily", row.item_id);
     existingJson = row.content_json;
     entityId = row.item_id;
   }

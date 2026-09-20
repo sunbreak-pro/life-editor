@@ -9,7 +9,7 @@ import {
 import type { NoteNode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
-import { readNoteBody } from "../state/noteBodyStore";
+import { forgetNoteBody, readNoteBody } from "../state/noteBodyStore";
 
 /**
  * The hydrated-body / own-write ledger behind useNotesUnifiedAPI (#587 split).
@@ -21,6 +21,12 @@ import { readNoteBody } from "../state/noteBodyStore";
  * move together or not at all, which is why this hook owns all three refs and
  * the merge, and the orchestrator only wires its load effect through
  * `mergeLoadedList`.
+ *
+ * #1763 put the password gate in the same cluster, for the same reason. A
+ * locked note's body is not fetched at all now (D-20260920-main-1 = A), so
+ * "there is no body in `notes`" and "the body in `notes` is real" are decided
+ * by one set of rules: the hydrated mark is withheld while the gate is up, and
+ * the session's unlocked ids are what let the mark come back.
  */
 
 export interface UseNoteHydrationLedgerParams {
@@ -72,6 +78,16 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
    * mark has to survive this reload too.
    */
   const unackedWritesRef = useRef<Map<string, number>>(new Map());
+  /*
+   * Notes whose password was typed correctly during THIS mount (#1763).
+   *
+   * The DB cannot answer "may this client hold the body": `has_password` stays
+   * true after a correct password, and the row is the signed-in owner's either
+   * way, so every read is filtered and the unlock is a client-side fact. In
+   * memory on purpose, same as the web gate's own `unlocked` set — a verified
+   * password must not outlive the tab.
+   */
+  const unlockedIdsRef = useRef<Set<string>>(new Set());
 
   /** Remember that OUR write is what moved this row's `updatedAt` (#607). */
   const markLocalWrite = useCallback((id: string) => {
@@ -113,25 +129,102 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
     contentLoadedIdsRef.current.add(id);
   }, []);
 
-  // Hydrate a note's real body into the `notes` array. No-op if already
-  // hydrated. Returns true when the note's body is present afterwards.
+  /** Put a body into the `notes` array and mark the id hydrated. */
+  const applyBody = useCallback(
+    (id: string, content: string) => {
+      contentLoadedIdsRef.current.add(id);
+      setNotes((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, content } : n)),
+      );
+    },
+    [setNotes],
+  );
+
+  /**
+   * Pull a locked note's body in, now that its password has checked out
+   * (#1763). Also records the unlock for the rest of this mount, so a later
+   * reload re-hydrates the note instead of dropping back to the covered state.
+   *
+   * Returns false when the body did not arrive — the caller MUST leave the
+   * gate up in that case, because a surface that uncovers an editor over a
+   * body it does not have saves the emptiness (the M1 hazard, #475).
+   */
+  const unlockNoteBody = useCallback(
+    async (id: string): Promise<boolean> => {
+      try {
+        const content = await ds.getNoteBodyUnified(id);
+        if (content === null) return false;
+        unlockedIdsRef.current.add(id);
+        applyBody(id, content);
+        return true;
+      } catch (e) {
+        logServiceError("Notes", "unlockNoteBody", e);
+        return false;
+      }
+    },
+    [ds, applyBody],
+  );
+
+  /**
+   * Put the cover back: forget the session unlock AND the body itself (#1763).
+   * For the note that has just been given a password — leaving the body in
+   * `notes` would keep it one `content` read away from a surface the new lock
+   * is supposed to cover, and leaving it in the cross-mount cache would hand
+   * it straight back on the next visit.
+   */
+  const relockNote = useCallback(
+    (id: string) => {
+      unlockedIdsRef.current.delete(id);
+      contentLoadedIdsRef.current.delete(id);
+      locallyWrittenIdsRef.current.delete(id);
+      forgetNoteBody(id);
+      setNotes((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, content: "" } : n)),
+      );
+    },
+    [setNotes],
+  );
+
+  /*
+   * Hydrate a note's real body into the `notes` array. No-op if already
+   * hydrated. Returns true when the note may be OPENED afterwards — which is
+   * not the same as "its body is here" since #1763: a locked note is openable
+   * (title / tags / the unlock CTA are outside the gate) and has no body.
+   *
+   * The hydrated mark is what a locked note must NOT get. `notes` carries the
+   * light `""` for it, the same sentinel an un-hydrated row has, and the mark
+   * is the only thing that tells a real empty body from a withheld one — mark
+   * it and the next save writes the emptiness over the user's text (#471).
+   */
   const hydrateContent = useCallback(
     async (id: string): Promise<boolean> => {
       if (contentLoadedIdsRef.current.has(id)) return true;
+      // The list row already says whether this note is locked, so the common
+      // case costs no request at all. A row we have not seen yet falls through
+      // to the read, which is filtered service-side either way.
+      const row = notesRef.current.find((n) => n.id === id);
+      if (row?.hasPassword === true) {
+        if (!unlockedIdsRef.current.has(id)) return true;
+        return unlockNoteBody(id);
+      }
       try {
         const full = await ds.getNoteUnified(id);
         if (!full) return false;
-        contentLoadedIdsRef.current.add(id);
-        setNotes((prev) =>
-          prev.map((n) => (n.id === id ? { ...n, content: full.content } : n)),
-        );
+        // The lock may have gone up since that list read (another device, or
+        // this tab's own setNotePassword): the service answered body-free, so
+        // take the same two branches rather than hydrating the `""`.
+        if (full.hasPassword === true) {
+          if (!unlockedIdsRef.current.has(id)) return true;
+          return unlockNoteBody(id);
+        }
+        applyBody(id, full.content);
         return true;
       } catch (e) {
         logServiceError("Notes", "hydrateContent", e);
         return false;
       }
     },
-    [ds, setNotes],
+    [ds, applyBody, notesRef, unlockNoteBody],
   );
 
   /*
@@ -183,6 +276,12 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
       const stillHydrated = new Set<string>();
       const merged = loaded.map((row) => {
         const prev = prevById.get(row.id);
+        // #1763: a note that is locked for us keeps NO body, whichever side
+        // the lock came from. The row's own flag is the freshest thing we
+        // have about it, so it outranks both keep-rules below.
+        const locked =
+          row.hasPassword === true && !unlockedIdsRef.current.has(row.id);
+        if (locked) return row;
         if (
           prev &&
           contentLoadedIdsRef.current.has(row.id) &&
@@ -250,6 +349,8 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
     trackWrite,
     markHydrated,
     hydrateContent,
+    unlockNoteBody,
+    relockNote,
     isContentLoaded,
     mergeLoadedList,
     /*

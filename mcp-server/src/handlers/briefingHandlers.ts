@@ -20,6 +20,12 @@ import {
 import { contentJsonToString, contentPlainText } from "../utils/content.js";
 import { insertItem, updatePayload } from "../utils/items.js";
 import { fetchByIdChunks } from "../utils/pagination.js";
+import {
+  fetchUnlockedBodies,
+  isLocked,
+  lockedBodyError,
+} from "../utils/lockedBody.js";
+import { findDailyPayload } from "./dailyHandlers.js";
 
 /*
  * Briefing handlers (briefing-loop Step 2 / Issue #256).
@@ -40,21 +46,33 @@ import { fetchByIdChunks } from "../utils/pagination.js";
 interface DailiesPayloadRow {
   item_id: string;
   date: string;
-  content_json: unknown;
+  /** Absent for a password-protected day — never fetched (#1763). */
+  content_json?: unknown;
+  has_password: boolean;
 }
 
-/** Live daily payload rows for date ∈ [from, to], newest first. */
+/**
+ * Live daily payload rows for date ∈ [from, to], newest first. The window
+ * read names every day but asks for BODIES only for the unlocked ones, so a
+ * locked day still appears in the context with `text: null` (#1763).
+ */
 async function fetchDailies(from: string, to: string) {
   const { client } = await getSupabase();
   const { data: rows, error } = await client
     .from("dailies_payload")
-    .select("item_id, date, content_json")
+    .select("item_id, date, has_password")
     .gte("date", from)
     .lte("date", to)
     .order("date", { ascending: false });
   if (error) throw new Error(`dailies_payload: ${error.message}`);
-  const payloads = (rows ?? []) as DailiesPayloadRow[];
-  if (payloads.length === 0) return [];
+  const bodyless = (rows ?? []) as DailiesPayloadRow[];
+  if (bodyless.length === 0) return [];
+
+  const bodies = await fetchUnlockedBodies("dailies_payload", bodyless);
+  const payloads: DailiesPayloadRow[] = bodyless.map((p) => ({
+    ...p,
+    content_json: bodies.get(p.item_id) ?? null,
+  }));
 
   const { data: metaRows, error: mErr } = await client
     .from("items_meta")
@@ -71,6 +89,15 @@ async function fetchDailies(from: string, to: string) {
       .map((m) => m.id),
   );
   return payloads.filter((p) => live.has(p.item_id));
+}
+
+/**
+ * A day's plain text for the context tools, or null when the day is locked
+ * — there is no body in hand for it, and "" would read as an empty day.
+ */
+function dailyText(row: DailiesPayloadRow | null): string | null {
+  if (!row || row.has_password) return null;
+  return contentPlainText(row.content_json);
 }
 
 interface EventRow {
@@ -279,9 +306,10 @@ export async function getTodayContext(args: { date?: string }) {
   ]);
 
   const todayDaily = todayDailyPayloads[0] ?? null;
-  const todayContent = todayDaily
-    ? contentJsonToString(todayDaily.content_json)
-    : null;
+  const todayContent =
+    todayDaily && !todayDaily.has_password
+      ? contentJsonToString(todayDaily.content_json)
+      : null;
 
   return {
     date,
@@ -296,12 +324,16 @@ export async function getTodayContext(args: { date?: string }) {
       .map((t) => formatOpenTodo(t, titleById, startIso)),
     recentDailies: recentDailyPayloads.map((d) => ({
       date: d.date,
-      text: contentPlainText(d.content_json),
+      locked: d.has_password,
+      text: dailyText(d),
     })),
     todayDaily: {
       exists: todayDaily !== null,
-      hasBriefing: todayDaily ? hasBriefingSection(todayContent) : false,
-      text: todayDaily ? contentPlainText(todayDaily.content_json) : null,
+      locked: todayDaily?.has_password ?? false,
+      // `todayContent` is null for a locked day, and an unknown section is
+      // reported as absent rather than guessed at.
+      hasBriefing: todayContent !== null && hasBriefingSection(todayContent),
+      text: dailyText(todayDaily),
     },
   };
 }
@@ -405,7 +437,8 @@ export async function getWeekContext(args: { start_date?: string }) {
       // the 夕刊 material the review is written from.
       daily: {
         exists: daily !== null,
-        text: daily ? contentPlainText(daily.content_json) : null,
+        locked: daily?.has_password ?? false,
+        text: dailyText(daily),
       },
     });
   }
@@ -432,12 +465,19 @@ async function writeFocusIntoNote(
   focus: string,
 ): Promise<{ id: string; created: boolean }> {
   const { client } = await getSupabase();
+  // `has_password` rides along so a locked focus note is refused BEFORE its
+  // body is merged and written back (#1763). Someone who puts a password on
+  // the reserved note has said the morning paper may not touch it.
   const { data: existing, error: exErr } = await client
     .from("notes_payload")
-    .select("item_id, content_json")
+    .select("item_id, content_json, has_password")
     .eq("item_id", FOCUS_NOTE_ID)
+    .eq("has_password", false)
     .maybeSingle();
   if (exErr) throw new Error(`focus notes_payload read: ${exErr.message}`);
+  if (!existing && (await isLocked("notes_payload", FOCUS_NOTE_ID))) {
+    throw lockedBodyError("Focus note", FOCUS_NOTE_ID);
+  }
 
   if (existing) {
     const current = contentJsonToString(
@@ -486,10 +526,17 @@ async function writeCommentIntoDaily(
   const { client } = await getSupabase();
   const { data: existing, error: exErr } = await client
     .from("dailies_payload")
-    .select("item_id, date, content_json")
+    .select("item_id, date, content_json, has_password")
     .eq("date", date)
+    .eq("has_password", false)
     .maybeSingle();
   if (exErr) throw new Error(`dailies_payload read: ${exErr.message}`);
+  // Same refusal as the focus half: a locked day is neither read nor
+  // rewritten (#1763). Found by date, so the id comes from the lock check.
+  if (!existing) {
+    const locked = await findDailyPayload(date);
+    if (locked?.has_password) throw lockedBodyError("Daily", locked.item_id);
+  }
 
   if (existing) {
     const row = existing as DailiesPayloadRow;

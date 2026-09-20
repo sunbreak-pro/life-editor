@@ -620,7 +620,20 @@ export interface NotesUnifiedDataService {
   listNoteTemplatesUnified(): Promise<NoteNode[]>;
   /** Live note count for the badge (#511) — see countUnfinishedTodos. */
   countLiveNotes(): Promise<number>;
+  /**
+   * The note detail. A PASSWORD-LOCKED note comes back WITHOUT its body
+   * (#1763, D-20260920-main-1 = A): `content` is the empty "not loaded"
+   * sentinel the list reads use, and `hasPassword` is what tells that apart
+   * from a genuinely empty note. A caller that writes `content` back must
+   * check `hasPassword` first, or it overwrites a body it never received.
+   */
   getNoteUnified(id: string): Promise<NoteNode | null>;
+  /**
+   * The body of one note, for a caller that has just verified its password
+   * (#1763). The unlock path — see SupabaseNotesUnifiedReads for why it is
+   * unfiltered and what that means for its call sites. `null` = no such note.
+   */
+  getNoteBodyUnified(id: string): Promise<string | null>;
   createNoteUnified(node: NoteNode): Promise<NoteNode>;
   updateNoteUnified(id: string, updates: Partial<NoteNode>): Promise<NoteNode>;
   softDeleteNoteUnified(id: string): Promise<void>;

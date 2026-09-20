@@ -101,6 +101,8 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     trackWrite,
     markHydrated,
     hydrateContent,
+    unlockNoteBody,
+    relockNote,
     isContentLoaded,
     mergeLoadedList,
     hydratedIdsRef,
@@ -445,7 +447,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     removeNotePassword,
     verifyNotePassword,
     toggleEditLock,
-  } = useNotesUnifiedLock({ ds, setNotes });
+  } = useNotesUnifiedLock({ ds, setNotes, unlockNoteBody, relockNote });
 
   const selectedNote = useMemo(() => {
     return notes.find((n) => n.id === selectedNoteId) ?? null;

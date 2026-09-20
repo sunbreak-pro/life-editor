@@ -78,7 +78,12 @@ const openTodo = (id: string, over: Row = {}) =>
   }) as Row;
 
 const daily = (date: string, text: string) =>
-  ({ item_id: `daily-${date}`, date, content_json: doc(text) }) as Row;
+  ({
+    item_id: `daily-${date}`,
+    date,
+    content_json: doc(text),
+    has_password: false,
+  }) as Row;
 
 /** items_meta answers for every fixture row that is not named in `dead`. */
 const titleOf = (id: string) => `title:${id}`;
@@ -171,7 +176,11 @@ describe("the week the caller asked for", () => {
     expect(week.days[1].events).toEqual([]);
     expect(week.days[1].scheduledTodos.map((t) => t.id)).toEqual(["task-tue"]);
     expect(week.days[0].scheduledTodos).toEqual([]);
-    expect(week.days[1].daily).toEqual({ exists: true, text: "火曜の記録" });
+    expect(week.days[1].daily).toEqual({
+      exists: true,
+      locked: false,
+      text: "火曜の記録",
+    });
   });
 
   it("returns the day shapes get_today_context returns, bodies excluded", async () => {
@@ -208,8 +217,16 @@ describe("the week the caller asked for", () => {
     const week = await getWeekContext({ start_date: MONDAY });
 
     expect(week.days.filter((d) => d.daily.exists)).toHaveLength(1);
-    expect(week.days[0].daily).toEqual({ exists: false, text: null });
-    expect(week.days[6].daily).toEqual({ exists: false, text: null });
+    expect(week.days[0].daily).toEqual({
+      exists: false,
+      locked: false,
+      text: null,
+    });
+    expect(week.days[6].daily).toEqual({
+      exists: false,
+      locked: false,
+      text: null,
+    });
   });
 
   it("drops a row whose items_meta is gone, on any day", async () => {

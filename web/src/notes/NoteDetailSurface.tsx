@@ -21,6 +21,10 @@ import { TagPicker } from "../wikitag";
  * at each call site for the same reason the panel does: #471 shipped the mobile
  * sheet all-or-nothing and the same locked note behaved differently depending
  * on the window width.
+ *
+ * `locked` is now a statement about the DATA, not only the pixels (#1763): the
+ * note it is true for arrived without its body, so the host must not hand an
+ * editor to `contentEditor` while it holds.
  */
 
 export interface NoteDetailLabels {
@@ -50,7 +54,10 @@ export interface NoteDetailSurfaceProps {
   onTitleCommit: (noteId: string, title: string) => void;
   onTogglePin: (noteId: string) => void;
   onDelete: (noteId: string) => void;
-  /** The body: the editor, or a skeleton while it is still arriving. */
+  /**
+   * The body: the editor, a skeleton while it is still arriving, or — while
+   * `locked` — a spacer, because #1763 stopped fetching a locked body at all.
+   */
   contentEditor: ReactNode;
   /**
    * The note's item links, rendered right of the tag row (#884). Optional

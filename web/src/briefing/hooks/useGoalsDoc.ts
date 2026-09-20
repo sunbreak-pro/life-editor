@@ -73,7 +73,10 @@ export function useGoalsDoc(ds: DataService, todayKey: string) {
   // a save writes and the range the reader sees can never disagree. The week
   // start is fixed (#1102), which is what keeps a stored key from moving under
   // a goal that was already written.
-  const keys = useMemo(() => goalPeriodKeys(todayKey, WEEK_STARTS_ON), [todayKey]);
+  const keys = useMemo(
+    () => goalPeriodKeys(todayKey, WEEK_STARTS_ON),
+    [todayKey],
+  );
   // The goals live in a note, so a Realtime note change (Notes-side edit,
   // another device) must bring the paper along — under-declaring here is a
   // silent stale (rules/frontend.md §Sync).
@@ -123,7 +126,12 @@ export function useGoalsDoc(ds: DataService, todayKey: string) {
         // paper must not litter Notes), and never resurrect a trashed one
         // (that is a repair the user asks for by writing a goal — persistGoal
         // owns it).
-        if (note === null || note.isDeleted === true) return body;
+        // #1763 adds the password leg: a locked note comes back body-free, so
+        // `body` here is `""` and the migration below would "adopt" its way
+        // over the real headings. The paper cannot ask for a password, so it
+        // leaves the note alone entirely.
+        if (note === null || note.isDeleted === true || note.hasPassword)
+          return body;
         const adopted = adoptBareGoalHeadings(body, keys);
         if (adopted === (body ?? "")) return body;
         const updated = await service.updateNoteUnified(GOALS_NOTE_ID, {
@@ -236,6 +244,15 @@ export function useGoalsDoc(ds: DataService, todayKey: string) {
       saveChainRef.current = saveChainRef.current.then(async () => {
         try {
           const fresh = await ds.getNoteUnified(GOALS_NOTE_ID);
+          // #1763: a locked note is read WITHOUT its body, so merging into
+          // what came back would save the merge over goals nobody here can
+          // see. Refusing surfaces as the usual save-failure toast — the one
+          // signal this path has — rather than as a silent overwrite.
+          if (fresh?.hasPassword === true) {
+            throw new Error(
+              "The goals note is password-protected. Unlock it in Notes to write goals from the paper.",
+            );
+          }
           const freshContent = fresh?.content ?? "";
           const merged = mergeGoalSection(
             freshContent,

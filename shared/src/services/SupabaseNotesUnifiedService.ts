@@ -66,6 +66,10 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
     return this.reads.getNoteUnified(id);
   }
 
+  getNoteBodyUnified(id: string): Promise<string | null> {
+    return this.reads.getNoteBodyUnified(id);
+  }
+
   fetchDeletedNotesUnified(): Promise<NoteNode[]> {
     return this.reads.fetchDeletedNotesUnified();
   }
@@ -293,6 +297,7 @@ export const PHASE2_NOTES_UNIFIED_METHOD_NAMES = [
   "listNoteTemplatesUnified", // #1047
   "countLiveNotes",
   "getNoteUnified",
+  "getNoteBodyUnified", // #1763
   "createNoteUnified",
   "updateNoteUnified",
   "softDeleteNoteUnified",

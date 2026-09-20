@@ -53,6 +53,8 @@ function makeDS(
     listNotesUnified: async () => [],
     fetchDeletedNotesUnified: async () => [],
     getNoteUnified: async () => null,
+    // #1763: the unlock read the password gate now goes through.
+    getNoteBodyUnified: async () => "",
     updateNoteUnified: async () => {},
     ...overrides,
   });
@@ -218,9 +220,13 @@ describe("password gate and edit lock", () => {
     expect(removeNotePasswordUnified).toHaveBeenCalledWith("note-1", "pw");
   });
 
-  it("verifyNotePassword delegates to the service verbatim", async () => {
+  // #1763: "verbatim" now means "and then the body", because a locked note is
+  // read without one. A correct password that could not be followed by a body
+  // is reported as a failure — see useNotesUnifiedLock.
+  it("verifyNotePassword delegates to the service and pulls the body in", async () => {
     const verifyNotePasswordUnified = vi.fn(async () => true);
-    const ds = makeDS({ verifyNotePasswordUnified });
+    const getNoteBodyUnified = vi.fn(async () => "unlocked body");
+    const ds = makeDS({ verifyNotePasswordUnified, getNoteBodyUnified });
     const hook = await renderLoaded(ds);
 
     let ok = false;
@@ -229,6 +235,7 @@ describe("password gate and edit lock", () => {
     });
     expect(ok).toBe(true);
     expect(verifyNotePasswordUnified).toHaveBeenCalledWith("note-1", "pw");
+    expect(getNoteBodyUnified).toHaveBeenCalledWith("note-1");
   });
 
   it("toggleEditLock adopts the lock state the service returns", async () => {
