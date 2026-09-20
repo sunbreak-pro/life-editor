@@ -125,6 +125,14 @@ function Harness({ honourReveal }: { honourReveal: boolean }) {
       onRevealStep={(reveal) => {
         if (!honourReveal) return;
         if (reveal === TOUR_REVEALS.detailPanel) setPanelOpen(true);
+        // #1773: the tray's own name asks for the tab as well. Opening it
+        // here is a no-op on the forward walk (the user has just pressed it),
+        // which is why the rewind it fixes needs a suite of its own —
+        // tourResumeTodoTray.test.tsx.
+        if (reveal === TOUR_REVEALS.scheduleTodoTray) {
+          setPanelOpen(true);
+          setTodoTab(true);
+        }
       }}
     >
       <Anchor id={TOUR_ANCHORS.scheduleCalendar} />
@@ -159,15 +167,17 @@ afterEach(() => {
 });
 
 describe("the Todo steps' registry rows", () => {
-  it("each name the detail panel as what has to be open first", () => {
-    const ids = [
-      "schedule-open-todos",
-      "schedule-create-todo",
-      "schedule-complete-todo",
-    ];
-    for (const id of ids) {
-      const step = TOUR_STEPS.find((s) => s.id === id) as TourStep | undefined;
-      expect(step?.reveal).toBe(TOUR_REVEALS.detailPanel);
+  it("each name what has to be open before their anchor exists", () => {
+    // Two names, not one (#1773). The tab step's anchor is the tab band, which
+    // a bare panel restores — and revealing the tray for it would press the
+    // tab this step exists to teach. The two after it are carried by the tray
+    // itself, so a panel alone leaves their anchors missing, which is the
+    // 5 / 10 → 4 / 10 rewind.
+    const step = (id: string) =>
+      TOUR_STEPS.find((s) => s.id === id) as TourStep | undefined;
+    expect(step("schedule-open-todos")?.reveal).toBe(TOUR_REVEALS.detailPanel);
+    for (const id of ["schedule-create-todo", "schedule-complete-todo"]) {
+      expect(step(id)?.reveal).toBe(TOUR_REVEALS.scheduleTodoTray);
     }
   });
 

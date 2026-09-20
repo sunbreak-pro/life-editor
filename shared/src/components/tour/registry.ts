@@ -129,7 +129,9 @@ export const TOUR_STEPS = [
     // tab band is drawn whichever tab is showing, so this step's own anchor is
     // there the moment the panel opens — and clicking that tab is exactly what
     // this step asks for, which is what puts the next two anchors in the
-    // document. Revealing the tray as well would do the step's lesson for it.
+    // document. Revealing the tray as well would do the step's lesson for it
+    // — which is why #1773 gave the two steps AFTER this one their own reveal
+    // name rather than widening this one.
     //
     // Rejected: making this an ordinary "press here to open the panel" step.
     // It reads fine on desktop and fails on narrow, where the same panel is a
@@ -145,15 +147,21 @@ export const TOUR_STEPS = [
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoTabOpened },
   },
   {
-    // Also revealed, and not only because the previous step leaves the panel
-    // open: a RESUMED run starts at the stored step with a fresh, shut panel,
-    // and #1193's backward give-up exists precisely because that state is what
-    // a reload destroys. Declaring it here is what lets the run land instead
-    // of walking backwards out of the section.
+    // THE TRAY, not just the panel (#1773). These last two anchors are carried
+    // by the todo tray, which renders only when the panel is open AND the todo
+    // tab is the one showing — two facts, not one, and #1748 restored only the
+    // first. A run resumed after Escape therefore came back to a shut panel on
+    // 「今日の流れ」, `schedule-todo-add` was still missing when this step
+    // became current, and #1193's backward give-up landed it on the PREVIOUS
+    // step: the 5 / 10 → 4 / 10 rewind the Issue reports. Naming the tray asks
+    // the host for both halves, so the resume lands where it was left.
+    //
+    // The previous step leaving the tab open covers the forward walk and
+    // nothing else; a resume is exactly the case where nothing came before.
     id: "schedule-create-todo",
     section: "schedule",
     anchor: TOUR_ANCHORS.scheduleTodoAdd,
-    reveal: TOUR_REVEALS.detailPanel,
+    reveal: TOUR_REVEALS.scheduleTodoTray,
     copyKey: "tour.steps.scheduleCreateTodo",
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoCreated },
   },
@@ -166,7 +174,9 @@ export const TOUR_STEPS = [
     id: "schedule-complete-todo",
     section: "schedule",
     anchor: TOUR_ANCHORS.scheduleTodoBoard,
-    reveal: TOUR_REVEALS.detailPanel,
+    // The tray again (#1773) — this anchor is inside it for the same reason
+    // the one above is, and a resume lands here just as easily.
+    reveal: TOUR_REVEALS.scheduleTodoTray,
     copyKey: "tour.steps.scheduleCompleteTodo",
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoCompleted },
   },
