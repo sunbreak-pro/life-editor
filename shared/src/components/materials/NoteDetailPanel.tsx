@@ -84,6 +84,24 @@ function NoteTitleInput({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  /*
+   * #1760 — re-seed the draft when the title changes from OUTSIDE this field.
+   * The draft used to be seeded once per mount, so an undo of a rename rolled
+   * the name back in the DB and in the sidebar while this input still showed
+   * the name that had just been undone.
+   *
+   * Guarded on `pendingRef` rather than on a remount: a `key` that included
+   * the title would steal focus mid-typing (see the note above this
+   * component). While a local edit is waiting for its 300ms debounce the ref
+   * holds it and the prop is still the pre-edit title, so re-seeding there
+   * would delete what the user is typing. The ref is back to null the moment
+   * the edit flushes — which is the state an undo arrives in, since the
+   * rename has to have committed for there to be anything to undo.
+   */
+  useEffect(() => {
+    if (pendingRef.current === null) setDraft(initialTitle);
+  }, [initialTitle]);
+
   return (
     <input
       value={draft}

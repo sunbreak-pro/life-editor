@@ -100,6 +100,94 @@ describe("NoteDetailPanel", () => {
     expect(onTitleCommit).toHaveBeenCalledWith("note-a", "new");
   });
 
+  /*
+   * #1760 — an undo of a rename rolled the name back in the DB and in the
+   * sidebar while this input kept showing the name that had just been undone.
+   * The panel is re-rendered with the restored `title`, so the field has to
+   * follow it.
+   */
+  it("shows the restored name after a rename is undone elsewhere", () => {
+    const onTitleCommit = vi.fn();
+    const { rerender } = render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="X"
+        isPinned={false}
+        onTitleCommit={onTitleCommit}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    const input = screen.getByLabelText("Note title") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "X-r2" } });
+    fireEvent.blur(input);
+    expect(onTitleCommit).toHaveBeenCalledWith("note-a", "X-r2");
+
+    // The rename landed, so the host now feeds the new name back in...
+    rerender(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="X-r2"
+        isPinned={false}
+        onTitleCommit={onTitleCommit}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    // ...and then the header Undo puts the old one back.
+    rerender(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="X"
+        isPinned={false}
+        onTitleCommit={onTitleCommit}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    expect(
+      (screen.getByLabelText("Note title") as HTMLInputElement).value,
+    ).toBe("X");
+  });
+
+  // The other half of #1760: the re-seed must not eat an edit that has not
+  // flushed yet, which is why it is guarded on the pending draft rather than
+  // done with a `key` on the title.
+  it("keeps an unflushed edit when a title prop arrives mid-typing", () => {
+    const { rerender } = render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="old"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    const input = screen.getByLabelText("Note title") as HTMLInputElement;
+    fireEvent.change(input, { target: { value: "half-typ" } });
+    // A sync echo (or any other host re-render with a different title) while
+    // the 300ms debounce is still pending.
+    rerender(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="something else"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    expect(
+      (screen.getByLabelText("Note title") as HTMLInputElement).value,
+    ).toBe("half-typ");
+  });
+
   it("hides the actions until the kebab is opened, then toggles pin", () => {
     const onTogglePin = vi.fn();
     render(
