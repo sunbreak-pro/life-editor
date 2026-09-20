@@ -1,7 +1,6 @@
 import { Suspense, type ReactNode } from "react";
 import {
   DailiesUnifiedProvider,
-  NotesUnifiedProvider,
   RoutineProvider,
   ScheduleItemsProvider,
   TagGroupProvider,
@@ -12,6 +11,7 @@ import {
   type SectionId,
 } from "@life-editor/shared";
 import { ConnectScreen } from "./connect/ConnectScreen";
+import { NotesUnifiedHost } from "./notes/NotesUnifiedHost";
 import { DailyView } from "./daily/DailyView";
 import { BriefingScreen } from "./briefing/BriefingScreen";
 import { ScheduleScreen } from "./schedule/ScheduleScreen";
@@ -234,7 +234,7 @@ export const SECTION_DESCRIPTORS: Readonly<
       <>
         {nav.materialsTab === "notes" && (
           <WikiTagsUnifiedProvider dataService={ds}>
-            <NotesUnifiedProvider dataService={ds}>
+            <NotesUnifiedHost dataService={ds}>
               <Suspense fallback={loadingFallback}>
                 <NotesView
                   dataService={ds}
@@ -243,7 +243,7 @@ export const SECTION_DESCRIPTORS: Readonly<
                   onConsumePendingSelect={nav.consumeItemNav}
                 />
               </Suspense>
-            </NotesUnifiedProvider>
+            </NotesUnifiedHost>
           </WikiTagsUnifiedProvider>
         )}
         {nav.materialsTab === "daily" && (

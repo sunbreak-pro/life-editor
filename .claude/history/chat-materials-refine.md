@@ -1,5 +1,22 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-09-20 - #1760 ノート改名の Undo が入力欄に届かない / #1761 ノート書き込みの失敗が無言（PR #1762 / #1765）
+
+#### 概要
+
+chat-main の #1690 実ブラウザ確認から出た 2 件。どちらも「画面が嘘をついたまま黙っている」形で、片方は表示の追随漏れ、もう片方は失敗の握りつぶし。2 本とも `origin/main` から独立に切った。書いた時点の実測で PR #1762 / #1765 とも open。
+
+#### 変更点
+
+- **#1760 タイトル欄が外からの改名に追随する**（`shared/src/components/materials/NoteDetailPanel.tsx`）: `NoteTitleInput` は `initialTitle` をマウント時に 1 回だけ draft に取り込み、`key` はノート id だけだった。Undo が DB とサイドバーを戻しても入力欄だけが新しい名前のまま残る。`title` prop が変わったら seed し直す形にしたが、**`key` に title を混ぜる形は採っていない** — 入力中に remount してフォーカスを奪うため（元のコメントが明示的に避けている）。代わりに pending draft で守る: 300ms の debounce 待ちが残っている間は seed せず、flush 済み（= Undo が届く状態）でだけ seed する
+- **#1761 拒否された書き込みを報告する経路を足した**（`shared/src/hooks/notesWriteError.ts` 新規 + `useNotesUnifiedCRUD` / `useNotesUnifiedTrash` / `useNotesUnifiedAPI`）: Notes の書き込みはすべて楽観的（先に画面を変えてから送る）なので、拒否されたときの受け皿が最初から無かった。Provider が `onWriteError(operation, error)` でホストに渡し、`web/src/notes/NotesUnifiedHost.tsx`（新規）が操作名つきの danger トーストにする。`console.warn` は残す — ドライバのメッセージを運ぶのはそちらで、ユーザー向け文言はわざと運ばない
+- **棚卸し（Issue の依頼分）**: 同じ握りつぶしを Notes の書き込み経路で全部塞いだ。CRUD の作成 / 改名 / ピン / 削除、Trash の復元 / 完全削除、テンプレートの 2 フック（`useNoteTemplateLibrary` / `useNoteTemplateRegister`）。テンプレートは「ノート一覧に絶対入れてはいけないノート行」で NotesUnifiedContext を通らないため、`web/src/notes/hooks/useTemplateWriteFailure.ts`（新規）を別に立てた
+- **塞がなかったものと理由**: 読み取り経路（一覧取得 / 本文 hydrate / ゴミ箱の読み込み）は log のみのまま — 失敗しても画面は元の内容を出し続け、再試行は次の sync で来る。Undo / Redo のクロージャも触っていない — reject は `UndoRedoManager` に届いて「元に戻せませんでした」になる（#1682）ので、ここでも報告すると 1 回の失敗にトーストが 2 枚重なる
+- **i18n**: `notesView.writeFailed.*`（6 本）と `notesView.templateWriteFailed.*`（3 本）を en / ja 両方に追加。**キーのマップは `as const satisfies Record<Op, string>`** — このリポジトリの `t()` は `CustomTypeOptions` で型付きなので、`Record<Op, string>` にすると literal が落ちて TS2345 になる（実測で web の build / typecheck:tests が赤くなった）。literal を保つとキーのタイポがビルドで落ちる
+- **`SECTION_DESCRIPTORS[...].body` は関数呼び出し**（`web/src/MainScreen.tsx:327` が `descriptor.body({...})`）なので hooks を書けない。トーストを噛ませるために `UndoRedoHost` と同じ形のホストコンポーネントを 1 枚立てた
+- **テスト**: `shared/tests/noteDetailPanel.test.tsx` に 2 本（#1760 の再現 + debounce 待ち中に別の title が来ても打ちかけを消さない）、`shared/tests/notesUnifiedCRUD.test.ts` に 5 本（作成 / 改名 / ピン / 削除の拒否 + Undo の失敗は二重報告しない）、`shared/tests/notesUnifiedTrash.test.ts` に 3 本（復元 / 完全削除 + 読み込み失敗は届かない）、`web/tests/notesWriteFailures.test.tsx` 新規 4 本（トーストの種別と文言 / 操作ごとに文言が変わる / キーが en・ja 両方で解決する）
+- **検証**: CI verify のステップ列 14 本 + `docs-lint` を 2 ブランチともローカルで上から実測し、全緑。実ブラウザ確認（#1761 は通信断の再現が要る。Issue が Playwright の `page.route` abort を示唆）は merge 後に chat-main 側
+
 ### 2026-09-19 (3) - #1750 気分スターの Undo が書き込み失敗を握りつぶす（PR #1754）
 
 #### 概要
@@ -134,21 +151,3 @@ Mobile 幅点検 #1409 と Desktop 点検 #1408 の所見 4 件。全部 `origin
 - **#1470（PR #1549）は narrow の実測**: PR #1502 で着地済みだが、Issue に「Mobile でも再現」というコメントが残っていた（**そのコメントは修正の着地より前**に書かれたもの）。#1502 の 5 件は全部 `state.isWide` の既定値 true で走るので、narrow を同じ答えに縛るものが 1 つも無かった。4 件足して緑で通ること自体が所見 = Mobile も直っている。プロダクトコードの変更なし
 - **踏んだ罠**: worktree が tracker ブランチ（`origin/main` より 20 コミット古い）に居たまま最初のファイル読みをしたので、`TemplateEditPanel.tsx` などを**全部旧版で読んで**設計を組み立てかけた。**ブランチを切ってからファイルを読む**、が正しい順序
 - **検証**: 4 ブランチとも CI verify のステップ列 14 本 + `docs-lint` をローカルで上から全部。#1470 のときだけ一括実行で `briefingEveningLazyMount` が 1 件落ちたが、単体でも静かな状態の全件（116 files / 1096 tests）でも緑 — memory に記録済みの cold-cache flake。実ブラウザでの再測定は worktree では回さない規約なので merge 後に chat-main
-
-### 2026-09-05 - #1470 検索 0 件の空状態 / #1471 テンプレート編集ダイアログの幅（PR #1502 / #1507）
-
-#### 概要
-
-#1408（Desktop 幅の実ブラウザ点検）の所見 2 件。どちらも `origin/main` から独立にブランチを切って 1 件 1 PR。書いた時点の実測で 2 本とも **open**（merge はこうだいさんの手番 = P-001）。共通していたのは「表示の元にしている量が 1 つずれている」形で、片方は**検索後の集合**を書庫と取り違え、もう片方は**トークンの幅**を実際の列幅と取り違えていた。
-
-#### 変更点
-
-- **#1470 の原因は `hasNotes` の定義そのもの**: `groups.length > 0` は検索後のグループ数なので、一致しない語を打った瞬間に「書庫が空」と同じ値になる。空状態の文言も中央の作成ボタンもここから出ていた。`notes.notes.some(n => !n.isDeleted)` に戻し、検索 0 件は `searchEmpty`（検索中 **かつ** 書庫が非空 **かつ** グループ 0）という別の名前にした
-- **中央パネルも同じ値を読んでいた**: #1372（PR #1380）は中央の CTA を外したが文言は `hasNotes` 分岐のままだったので、検索 0 件のとき本文側も「ノートはまだありません」と言っていた。定義を直した副産物で一緒に直っている
-- **チップ列は「絞り込む道具」なので結果集合から作ってはいけない**: 0 件のあいだは書庫の全タグへ落とす。そのままだと押しても何も起きない飾りになるので、**その状態のチップ押下は検索語を落とす**ようにした（打鍵が `tagFilters` を落とす `handleSearchChange` の裏返し）。一致がある間の挙動は無変更で、検索 + チップの併用も残っている
-- **#1471 は「同じトークン名 ≠ 同じ幅」**: `reading` は PageContainer が `width="reading"` の**ページ**に渡す幅（818px）で、Materials セクションは `width="wide"`。Note の実幅は左ナビ（`w-16` / `w-60` で畳める）と右パネル（240–560px のドラッグ可変・永続化）の残りで、1280x800 の実測は 642px。**静的な class では原理的に一致させられない**ので測る
-- **測り方は ref コールバック + ResizeObserver**（`web/src/notes/hooks/useElementWidth.ts` 新規）。幅が付くまで `null` を返すので、レイアウトの無い jsdom と「測る列が無いホスト」は CSS フォールバックのまま。値は `min(var(--container-lumen-reading), Npx)` にして**トークンを天井に残す** — 広い画面では Note の方が広くなるので、そちらに合わせると 1100px の行になる。px はどこにも書き写していない（`tokens.css` が唯一の在処という規約）
-- **`Modal` の `maxWidth` はインライン style で当てる**のが要点で、実装の都合ではない。インライン宣言は出力順に関係なく class に勝つので、`MODAL_MAX_WIDTH` のコメントが書いている #830 の罠（2 つの `max-w-*` が Tailwind のソート順で決まる）が構造的に届かない。既存の呼び出し元は無変更
-- **テスト**: `web/tests/notesView.test.tsx` に 5 ケース（文言 / CTA が無いこと / チップが残ること / 検索語が落ちること / 本当に空の書庫は今まで通り）、`shared/tests/templateEditPanelLayout.test.tsx` に 2 ケース（測れたとき = `min()` 式 / 測れないとき = class 幅のまま）、`web/tests/elementWidth.test.tsx` 新規 5 ケース（装着時に測る / 小数を丸める / リサイズに追従 / 幅 0 は「未測定」扱い / 外れたら observe をやめる）
-- **踏んだ罠 2 つ**: (1) web の tsconfig は `erasableSyntaxOnly` なので、テスト用フェイクの**コンストラクタ引数プロパティ**が `TS1294` で落ちる（`build` と `vitest` は両方緑のまま `typecheck:tests` だけが赤くなる例）。(2) 全件並列で `briefingEveningLazyMount.test.tsx` が 1 本落ちたが、単体でも静かな状態の全件でも緑 — memory に記録済みの cold-cache flake で、今回の変更とは無関係
-- **検証**: CI verify のステップ列をローカルで上から全部（shared 4 種 / web 4 種 = 114 files 1070 tests / desktop 3 種 / mcp-server 3 種）+ `docs-lint`、2 ブランチとも 15 本すべて exit 0。ビルド後の CSS で `--container-lumen-reading` が `:root, :host` に出ていることも実測（portal 先で解決するため）。実ブラウザでの実測（ダイアログと Note の `getBoundingClientRect().width` 比較）は worktree では回さない規約なので merge 後に chat-main

@@ -1015,7 +1015,20 @@
     "pin": "Pin",
     "pinned": "Pinned",
     "detailTitle": "Note",
-    "moreActions": "More actions"
+    "moreActions": "More actions",
+    "writeFailed": {
+      "create": "Couldn't create the note. Please try again in a moment.",
+      "update": "Couldn't save that change to the note. Please try again in a moment.",
+      "delete": "Couldn't delete the note. It is still here — please try again in a moment.",
+      "pin": "Couldn't change the pin. Please try again in a moment.",
+      "restore": "Couldn't restore the note. Please try again in a moment.",
+      "permanentDelete": "Couldn't permanently delete the note. Please try again in a moment."
+    },
+    "templateWriteFailed": {
+      "create": "Couldn't save that template. Please try again in a moment.",
+      "update": "Couldn't save that change to the template. Please try again in a moment.",
+      "delete": "Couldn't delete the template. It is still here — please try again in a moment."
+    }
   },
   "connect": {
     "tagsHeading": "Tags",

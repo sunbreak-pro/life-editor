@@ -35,6 +35,8 @@ interface Command {
 }
 
 function makeHarness(initialNotes: NoteNode[] = []) {
+  // #1761: the host hook for a write that was applied locally and then refused.
+  const onWriteError = vi.fn();
   let notes = initialNotes;
   let deletedNotes: NoteNode[] = [];
   let selectedNoteId: string | null = null;
@@ -95,6 +97,7 @@ function makeHarness(initialNotes: NoteNode[] = []) {
     markHydrated,
     markLocalWrite,
     trackWrite,
+    onWriteError,
   };
 
   const hook = renderHook(() => useNotesUnifiedCRUD(params));
@@ -103,6 +106,7 @@ function makeHarness(initialNotes: NoteNode[] = []) {
     crud: hook.result.current,
     ds,
     push,
+    onWriteError,
     commands,
     markHydrated,
     markLocalWrite,
@@ -575,5 +579,77 @@ describe("togglePin", () => {
     expect(h.markHydrated).not.toHaveBeenCalled();
     expect(h.markLocalWrite).not.toHaveBeenCalled();
     expect(h.trackWrite).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #1761 — every write here is optimistic: the list changes first and the
+ * request follows. A refusal used to reach `console.warn` and nothing else, so
+ * a delete killed by a dropped connection looked like a button that did
+ * nothing. The host is told now, and these pin which operation it hears.
+ *
+ * The console line is deliberately still there (it carries the driver's
+ * message), so each case silences it rather than asserting its absence.
+ */
+describe("write failures reach the host", () => {
+  const boom = new Error("ERR_CONNECTION_CLOSED");
+
+  beforeEach(() => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+  });
+
+  it("reports a refused soft delete", async () => {
+    const h = makeHarness([makeNote("doomed")]);
+    h.ds.softDeleteNoteUnified.mockRejectedValueOnce(boom);
+
+    h.crud.softDeleteNote("doomed");
+    await flush();
+
+    expect(h.onWriteError).toHaveBeenCalledWith("delete", boom);
+  });
+
+  it("reports a refused rename", async () => {
+    const h = makeHarness([makeNote("n1")]);
+    h.ds.updateNoteUnified.mockRejectedValueOnce(boom);
+
+    h.crud.updateNote("n1", { title: "renamed" });
+    await flush();
+
+    expect(h.onWriteError).toHaveBeenCalledWith("update", boom);
+  });
+
+  it("reports a refused create", async () => {
+    const h = makeHarness();
+    h.ds.createNoteUnified.mockRejectedValueOnce(boom);
+
+    h.crud.createNote("My note");
+    await flush();
+
+    expect(h.onWriteError).toHaveBeenCalledWith("create", boom);
+  });
+
+  it("reports a refused pin toggle", async () => {
+    const h = makeHarness([makeNote("n1")]);
+    h.ds.updateNoteUnified.mockRejectedValueOnce(boom);
+
+    h.crud.togglePin("n1");
+    await flush();
+
+    expect(h.onWriteError).toHaveBeenCalledWith("pin", boom);
+  });
+
+  // The undo/redo closures are NOT this path: they hand the rejection back to
+  // the UndoRedo manager, which raises its own "couldn't undo" toast (#1682).
+  // Reporting here as well would stack two toasts on one failure.
+  it("leaves a failed undo to the UndoRedo manager", async () => {
+    const h = makeHarness([makeNote("doomed")]);
+    h.crud.softDeleteNote("doomed");
+    await flush();
+    h.ds.restoreNoteUnified.mockRejectedValueOnce(boom);
+
+    await expect(h.commands[0].undo()).rejects.toThrow(
+      "ERR_CONNECTION_CLOSED",
+    );
+    expect(h.onWriteError).not.toHaveBeenCalled();
   });
 });
