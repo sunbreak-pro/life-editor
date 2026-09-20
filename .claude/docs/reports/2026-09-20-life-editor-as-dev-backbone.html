@@ -1,0 +1,213 @@
+<title>開発基盤としての life-editor</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --muted: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --muted: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --muted: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.skip .tag { color: var(--stop); }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); margin: 16px 0 20px; }
+  .step { padding: 18px 20px; border-right: 1px solid var(--line); }
+  .step:last-child { border-right: 0; }
+  .step .n { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent); font-weight: 500; letter-spacing: .08em; }
+  .step h3 { margin: 4px 0 6px; font-size: 17px; }
+  .step p { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+  .step code { font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
+  @media (max-width: 720px) { .flow { grid-template-columns: 1fr; } .step { border-right: 0; border-bottom: 1px solid var(--line); } .step:last-child { border-bottom: 0; } }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.state { white-space: nowrap; font-weight: 700; }
+  td.state.yes { color: var(--ok); }
+  td.state.no { color: var(--muted); font-weight: 400; }
+  td.state.maybe { color: var(--warn); }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .note { font-size: 14px; color: var(--muted); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0 0 16px; font-size: 15px; }
+  dt { font-weight: 700; white-space: nowrap; }
+  dd { margin: 0; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-20 / 判断 / life-editor</p>
+    <h1>外部記憶としては筋が通る。Issue の置き換えだけが噛み合わない</h1>
+    <p class="lede">life-editor を他プロジェクトの外部記憶・保管庫・分析対象にする構想は、そのまま進めて問題ありません。ただし GitHub Issue の役割を移す部分だけは、データモデルと並行作業の両方で壊れます。</p>
+  </header>
+
+  <ul class="verdicts">
+    <li class="verdict now"><span class="tag">今日から</span><h3>記録と采配の層として置く</h3><p>「今日どれをやるか」「なぜそう決めたか」「何が起きたか」を Todo / Note / Daily に集める。GitHub に無いのは時間軸と横断の一望で、そこが life-editor の取り柄です。</p></li>
+    <li class="verdict later"><span class="tag">必要になったら</span><h3>GitHub からの一方向ミラー</h3><p>Issue を Todo に機械コピーする。状態の正本は GitHub のまま。ミラーが壊れても再生成すれば直る形に限る。</p></li>
+    <li class="verdict skip"><span class="tag">入れない</span><h3>課題状態の正本を移す</h3><p>ステータスも担当も追記も無く、後勝ち同期で消える。PR とマージ判定の結線も切れます。</p></li>
+  </ul>
+
+  <div class="callout prose"><strong>前提</strong>: life-editor はまだ移行中（Tauri から Electron + Capacitor + Supabase へ）で、移行 SSOT が現役です。ほかのプロジェクトが基盤として依存すると、移行中の破壊的変更がそちらの開発を止めます。</div>
+
+  <h2>なぜ Issue の置き換えだけが噛み合わないか</h2>
+
+  <p class="prose">GitHub は<strong>在庫棚</strong>です。何がいくつあって、いつ入って、いつ出たかを機械が正確に言える台帳。life-editor は<strong>献立表</strong>です。今日は何を作るかを決めて、作った記録を残す場所。献立表は在庫棚の上に乗ると強いのですが、在庫棚を献立表で置き換えると、賞味期限が誰にも分からなくなります。</p>
+
+  <p class="prose">現物を読んで確かめた噛み合わなさが、下の 6 行です。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>課題追跡に要るもの</th><th>life-editor</th><th>実物</th></tr></thead>
+      <tbody>
+        <tr><td>状態遷移（調査中 / 着手 / レビュー / 完了）</td><td class="state no">なし</td><td><code>not_started</code> と <code>done</code> の 2 値だけ（<code>mcp-server/src/tools/todo.ts:124</code>）</td></tr>
+        <tr><td>プロジェクト軸（どのリポジトリの課題か）</td><td class="state no">なし</td><td><code>items_meta</code> のスコープは <code>user_id</code> のみ。<code>role</code> も 5 種の CHECK 制約で固定（<code>supabase/migrations/0008_data_unification_schema.sql:80</code>）</td></tr>
+        <tr><td>コメント（追記）</td><td class="state no">なし</td><td><code>update_todo</code> の <code>content</code> は全文置換。後から書いた側が前の内容を消す</td></tr>
+        <tr><td>同時書き込みの安全性</td><td class="state no">なし</td><td>同期が LWW（後勝ち）。別 worktree・別セッションの並行更新が無言で消える</td></tr>
+        <tr><td>担当・優先度・関連 PR</td><td class="state no">なし</td><td>単一ユーザー前提の設計なので、そもそも持っていない</td></tr>
+        <tr><td>PR / CI との結線</td><td class="state no">なし</td><td>マージ済み判定は <code>gh pr list</code> の state に依存する運用が既にある（worktree-policy）。移すとこれが手作業になる</td></tr>
+        <tr><td>タグ横断・全文検索</td><td class="state yes">あり</td><td><code>tag_entity</code> がタグを自動作成し、Connect（Tag hub）が横断の入口。<code>search_all</code> も通る</td></tr>
+        <tr><td>時間軸（いつやるか / いつやったか）</td><td class="state yes">あり</td><td>Schedule / Daily / Briefing。<strong>GitHub には無い</strong>ので、ここが組み込む理由になる</td></tr>
+        <tr><td>AI からの読み書き</td><td class="state yes">あり</td><td>stdio と Remote MCP の 2 経路。ツール集合の正本は <code>mcp-server/src/remoteTools.ts</code></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="prose">とくに効くのは 3 行目と 4 行目です。GitHub の Issue が並行作業に強いのは、コメントが<strong>追記しかしない</strong>から。誰が何を書いても他人の文章は消えません。life-editor の Todo は本文を丸ごと差し替えるので、Orca で 2 レーン同時に走らせた瞬間に片方の記録が消えます。しかも後勝ち同期なので、消えたことに誰も気付きません。</p>
+
+  <h2>役割をどう分けるか</h2>
+
+  <div class="flow">
+    <div class="step"><span class="n">GITHUB</span><h3>事実</h3><p>Issue / PR / CI / ラベル / マージ状態。機械が一意に判定できるものだけを置く。人のレビュー窓口も diff が見える GitHub が担う。</p></div>
+    <div class="step"><span class="n">LIFE-EDITOR</span><h3>文脈</h3><p>今日どれをやるか、なぜそう決めたか、何が起きたか。判断台帳（Note）と作業ログ（Daily）と采配（Todo / Schedule）。</p></div>
+    <div class="step"><span class="n">ORCA</span><h3>実行</h3><p>エージェントが実際に手を動かす場所。両方を参照するが、事実の書き込み先は GitHub に寄せる。</p></div>
+  </div>
+
+  <p class="prose">この切り方なら、life-editor は Issue の<strong>置き換え</strong>ではなく Issue の<strong>上に乗る采配レイヤー</strong>になります。GitHub が持っていない「複数プロジェクトを時間軸で一望する」機能が素直に効きますし、GitHub が得意な機械的な結線も失いません。</p>
+
+  <h2>改良点</h2>
+
+  <h3>1. ミラーは一方向に限る</h3>
+  <p class="prose">GitHub Issue から life-editor Todo への片方向コピーだけにします。タイトル・URL・ラベルだけを機械生成し、life-editor 側は読み取り中心。状態を戻す経路を作らなければ、後勝ち上書きの事故は原理的に起きません。ミラーが壊れたら作り直すだけです。</p>
+
+  <h3>2. プロジェクト軸はタグ規約で決め打つ</h3>
+  <p class="prose">DDL を足さずに済ませるなら、<code>proj/original-card-battle</code> のような名前空間つきタグを規約にします。<code>tag_entity</code> は存在しないタグを自動で作るので、追加実装ゼロで始められます。Connect がタグを入口にした横断ビューなので、そのままプロジェクト別の一望になります。</p>
+
+  <h3>3. 1 Todo = 1 書き手にする</h3>
+  <p class="prose">複数のエージェントが同じ Todo の本文を更新する形にしない。複数人が書くログは Daily か専用 Note に寄せ、Todo の本文は 1 レーンだけが触ります。</p>
+
+  <h3>4. 鍵を 1 本のまま渡さない</h3>
+  <p class="prose">Remote MCP の認証は URL パスの共有シークレット 1 本で、ツール単位の権限分離がありません。他プロジェクトのエージェントにそれを渡すと、日記もスケジュールも全部同じ鍵で書き換えられる状態になります。<code>remoteTools.ts</code> は既に「公開面には低権限のツール集合だけを出す」という設計思想を持っているので、同じ発想で読み取り + 追記だけの開発用ツール集合を足すのが筋です。</p>
+
+  <h3>5. 依存はアダプタ 1 枚に閉じる</h3>
+  <p class="prose">他プロジェクト側は <code>.claude/</code> にスキル 1 つ（既存の <code>life-editor-note</code> と同じ形）だけを置き、そこからしか life-editor を触らせない。life-editor が移行で壊れても、そのスキルが黙って失敗するだけで済みます。移行が終わるまでは書き込みを Note / Daily に限り、読み取りは自由にしておくのが安全です。</p>
+
+  <h2>それでも Issue 機能を持たせたい場合</h2>
+  <p class="prose">必要になる最小の変更はこれだけあります。CLAUDE.md §4 の判断基準（特化 UI が要るなら特化テーブル）で言うと、課題追跡はフィルタ・状態遷移・コメントという特化 UI が要るので、汎用の Todo に相乗りさせる形にはなりません。</p>
+  <pre><code>-- 1. 状態を 2 値から広げる（tasks_payload.status の enum 拡張）
+-- 2. プロジェクト軸の列を足す（または role に 'issue' を追加 = CHECK 制約の変更）
+-- 3. 追記専用の子テーブル（item_comments）を新設
+--    → これが無いと並行作業で記録が消える
+-- 4. 上 3 つに対応する UI（フィルタ・状態遷移・コメント欄）</code></pre>
+  <p class="prose">ここまでやると「特化専用アプリ」に寄っていき、Non-Goals の線に近づきます。GitHub をやめる強い理由がない限り、割に合いません。</p>
+
+  <h2>置いた仮定</h2>
+  <ul class="prose">
+    <li>組み込み先は <code>original-card-battle</code> のような GitHub リポジトリを持つプロジェクトで、既に <code>.github/</code> を使っている。</li>
+    <li>Orca で複数レーンを並行させる前提（単一レーンなら後勝ち上書きの危険はかなり下がります）。</li>
+    <li>「人がレビューする窓口」はコードの diff レビューではなく、AI の作業結果を人が読む窓口を指している。</li>
+  </ul>
+
+  <h2>未確認のこと</h2>
+  <ul class="prose">
+    <li>Orca 側が課題やタスクをどう保持しているか（life-editor と役割が重なる部分があるかは見ていません）。</li>
+    <li>Remote MCP を他プロジェクトから実際に叩いたときのレイテンシとレート制限。</li>
+    <li>ミラーを回す実行主体（cron / hook / 手動）をどこに置くか。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+  <ul class="prose">
+    <li>状態の正本を GitHub に残すか、life-editor に移すか。ここが決まらないと他がすべて宙に浮きます。</li>
+    <li>プロジェクト軸をタグ規約で済ませるか、DDL で列を足すか。</li>
+    <li>移行完了を待つか、今から薄いアダプタだけ先に入れるか。</li>
+  </ul>
+</div>

@@ -176,6 +176,17 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
       opts?: { skipUndo?: boolean },
     ): Promise<boolean> => {
       const prev = routinesRef.current.find((r) => r.id === id);
+      /*
+       * The pre-patch value of every field this call touches. Read twice: to
+       * roll the optimistic patch back when the write does not land (#1769),
+       * and as the undo command's payload further down.
+       */
+      const prevValues: typeof updates = {};
+      if (prev) {
+        for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
+          (prevValues as Record<string, unknown>)[key] = prev[key];
+        }
+      }
       setRoutines((p) =>
         p.map((r) =>
           r.id === id
@@ -197,11 +208,24 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         },
       );
 
+      /*
+       * #1769: the patch above is optimistic, and a failed write used to leave
+       * it standing for ever. The editor went on showing the frequency the DB
+       * had refused, and no reload took it off: `reload()` on the Schedule
+       * side refetches schedule ITEMS, and routines live in this hook's state.
+       * Only the fields this call touched are put back, so a write that landed
+       * in between is left alone.
+       */
+      void landed.then((ok) => {
+        if (ok || !prev) return;
+        setRoutines((p) =>
+          p.map((r) =>
+            r.id === id ? { ...r, ...prevValues, updatedAt: prev.updatedAt } : r,
+          ),
+        );
+      });
+
       if (prev && !opts?.skipUndo) {
-        const prevValues: typeof updates = {};
-        for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
-          (prevValues as Record<string, unknown>)[key] = prev[key];
-        }
         /*
          * #1638 W4 (B-06): pushed only once the template write LANDED. It used
          * to be pushed beside the optimistic patch, so a failed write still

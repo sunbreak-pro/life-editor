@@ -1,5 +1,28 @@
 # HISTORY (chat-briefing-refine)
 
+### 2026-09-20 - 朝刊の予定の書き込みを Schedule の判断に戻す（#1768 PR #1782 open）
+
+#### 概要
+
+朝刊は Schedule の Provider を 1 つもマウントしないため予定の書き込みを自前で持っているが、そのうち 2 つが写した元から離れていた。作成は undo コマンドを 1 つも積まず、繰り返しの this / future / all は Schedule の分岐の私的コピーで、前倒しの実体化（fill）を持っていなかった。判断だけを shared の純関数に寄せ、書き込みは朝刊側に残す形で直した。
+
+#### 変更点
+
+- **作成（`handleCreateEvent`）**: 書き込みが着地してから、保存された行を名前にして undo を積む（Schedule の create が #1638 W4 で直した 2 つの不具合と同じ形 — 着地前に積むと存在しない id を soft delete する entry が残り、redo が optimistic な行でサーバの補完を上書きする）。undo / redo は await するので、戻せなかったときに偽の「元に戻しました」が出ない（#1682）
+- **繰り返しの範囲削除（`handleDeleteScopeChoose`）**: 判断を `planRepeatScopeChoice`（#1642 W7 で schedule レーンが切り出した純関数。Schedule の範囲ダイアログと同じもの）に委譲。future は `useScheduleItemsRoutineSync` の `ensureRoutineItemsForDateRange` で今日からアンカー前日までを実体化してから detach し、実体化が完走しなかったら detach を中止する（#296）。this は Dismiss なので Schedule の dismiss と同じ undo を積む。series 全体の 2 つは両側とも stack に載せない
+- **routine の読み取り**: 朝刊は routine を一切持たないので、fill が実際に必要な瞬間（`fillRangeUpToAnchor` が非 null を返す future のみ）に `fetchAllRoutines` を 1 回だけ引く。条件式に planner と同じ純関数を使っているので、読む条件と plan が食い違わない
+
+#### 採らなかった案
+
+`useScheduleItemsCRUD` をそのままマウントして書き込みごと共有する案。mirror は `useScheduleItemsViewMirror` の no-op で足りるので技術的には可能だが、あの hook の undo クロージャは restore の失敗を `logServiceError` で握り潰すため、朝刊が #1682 で得た「戻せなかったと言う」保証を落とす。直すには `shared/` 側に手を入れる必要があり、Issue の Scope（`web/src/briefing/**` + `web/tests/`）の外だったので見送った。PR 本文に明記済み。
+
+#### 記録
+
+- **テスト**: `web/tests/briefingDataWrites.test.tsx` に 5 本追加（作成の undo / redo・着地しなかった作成は積まない・dismiss の undo・fill → detach の順序・fill 失敗で detach しない）。同 suite 23 passed
+- **ゲート**: CI verify の 14 ステップ + docs-lint をローカルで同じ順に再現し 15 / 15 緑。終了コードは `tail` に通さず変数へ取ってから判定した
+- **見つけたが直していない**: 朝刊から作った予定は Settings のリマインダー既定値を受け取らない（Schedule の create は `createScheduleItem` の後に `updateScheduleItem(id, { reminderOffset })` を足している = #1374）。AC の外なので outbox へ回した
+- 計画書なし（Issue 直行の軽ティア）。スコープ逸脱なし（触ったのは Issue の Scope の 2 ファイルのみ）。AC 免除なし。判断キュー新設なし
+
 ### 2026-09-07 - 紙面自身のタップ対象を 44px へ（#1559 PR #1569 open）
 
 #### 概要

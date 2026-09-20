@@ -4,6 +4,7 @@ import {
   type DataService,
   type NoteNode,
 } from "@life-editor/shared";
+import { useTemplateWriteFailure } from "./useTemplateWriteFailure";
 
 /*
  * "Register this note as a template" (#1179).
@@ -54,6 +55,7 @@ export function useNoteTemplateRegister(
   // The last name written out. Comparing against it — rather than against the
   // row — is what keeps blur-then-close from sending the same title twice.
   const [committed, setCommitted] = useState("");
+  const reportWriteFailure = useTemplateWriteFailure();
 
   const register = useCallback(
     ({ name: initialName, content }: NoteTemplateRegistration) => {
@@ -78,11 +80,9 @@ export function useNoteTemplateRegister(
           setCommitted(created.title);
           setSavedId(created.id);
         })
-        .catch((e) =>
-          console.error("createNoteUnified (register template) failed", e),
-        );
+        .catch((e) => reportWriteFailure("create", e));
     },
-    [dataService],
+    [dataService, reportWriteFailure],
   );
 
   const commitName = useCallback(() => {
@@ -92,10 +92,8 @@ export function useNoteTemplateRegister(
     setCommitted(next);
     void dataService
       .updateNoteUnified(savedId, { title: next })
-      .catch((e) =>
-        console.error("updateNoteUnified (register template) failed", e),
-      );
-  }, [committed, dataService, name, savedId]);
+      .catch((e) => reportWriteFailure("update", e));
+  }, [committed, dataService, name, savedId, reportWriteFailure]);
 
   const close = useCallback(() => {
     commitName();

@@ -92,6 +92,46 @@ function migrateLegacyUserData(): void {
 }
 
 useProductNamedUserData();
+
+// ---------------------------------------------------------------------------
+// Single-instance lock (#1775).
+//
+// Without this, "close the window, then start the app again" does not restart
+// the app: it launches a SECOND Electron process onto the same userData
+// directory. The first one is still alive — closeToTray defaults to true, so
+// the window's close button only hides it to the tray — and it holds the lock
+// on the profile's storage. The second process cannot open
+// `Local Storage/leveldb`, so its renderer starts with an EMPTY localStorage
+// and every write it makes stays in memory. Theme, language, font size,
+// startup section, shortcut assignments and tour progress all come back at
+// their defaults, and nothing the user changes afterwards is kept.
+//
+// Measured on Windows against the packaged 0.2.0 build: with an instance
+// already resident, a second one reported `life-editor-theme: "light"` (the
+// default) where a lone instance reported `"dark"`, its tour progress was
+// null, and the leveldb write-ahead log went 54 minutes without a single byte
+// written. Chromium logs the cause as "Unable to create cache" and "Could not
+// open the quota database".
+//
+// It explains the one symptom that looks inconsistent, too: the login
+// survives, because #838 keeps the Supabase session in config.json — a plain
+// JSON file with no lock — rather than in localStorage.
+//
+// Placement matters in both directions:
+//
+//   AFTER useProductNamedUserData(), because the lock is keyed on the
+//   userData path (#837 renamed it). Taken before the rename, two processes
+//   would lock two different names and neither would see the other.
+//
+//   BEFORE everything else in this module, because a second process must not
+//   touch the profile at all — not the legacy-prefs copy below, not the
+//   electron-store construction (which rewrites config.json whenever a default
+//   is missing). `app.exit` is what makes "before" true: `app.quit` is
+//   asynchronous and the rest of this file would run first. Called ahead of
+//   `ready`, exit() terminates the process directly, so nothing below runs.
+// ---------------------------------------------------------------------------
+if (!app.requestSingleInstanceLock()) app.exit(0);
+
 migrateLegacyUserData();
 
 // ---------------------------------------------------------------------------
@@ -778,6 +818,18 @@ app.whenReady().then(() => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
     else showMainWindow();
   });
+});
+
+// A second launch is someone reaching for the app they believe they closed
+// (#1775). The process that started it has already exited at the lock check
+// above, so this is the only thing left that can answer them: raise the
+// instance that owns the profile, out of the tray if close-to-tray put it
+// there. Without it the second launch would look like nothing happened at all.
+app.on("second-instance", () => {
+  // Deferred to `whenReady` rather than called outright: the lock is taken at
+  // module scope, so a launch landing in the first few milliseconds can arrive
+  // before there is an app — let alone a window — to raise.
+  void app.whenReady().then(showMainWindow);
 });
 
 // A real quit (Cmd+Q / app menu / tray Quit) must bypass close-to-tray.

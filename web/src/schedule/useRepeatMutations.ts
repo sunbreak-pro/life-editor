@@ -328,17 +328,42 @@ export function useRepeatMutations({
       );
       if (windowStart > rangeEnd) return;
       try {
-        await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [routine]);
+        const first = await ensureRoutineItemsForDateRange(
+          windowStart,
+          rangeEnd,
+          [routine],
+        );
         // Second idempotent pass: the always-on today generator can race the
         // first batch on today's row (23505 leads to a whole-batch rollback
         // inside ensure). The re-run's pre-check sees the winner and fills in
         // the remaining days.
-        await ensureRoutineItemsForDateRange(windowStart, rangeEnd, [routine]);
+        const second = await ensureRoutineItemsForDateRange(
+          windowStart,
+          rangeEnd,
+          [routine],
+        );
+        /*
+         * #1771 (K-12): read the RESULT, not an exception. `ensure` reports a
+         * failed pass by returning false — it catches and logs its own error
+         * (useScheduleItemsRoutineSync) — so the catch below never fired and
+         * this report was dead code. The user was left with a routine in the
+         * Repeats tab, no occurrences on the calendar, and one console
+         * warning.
+         *
+         * Only when BOTH passes fail. The second exists because the first can
+         * lose today's row to the always-on generator and roll its whole
+         * batch back; a first pass that failed and a second that filled the
+         * range is the case that retry is FOR, and reporting it would cry off
+         * a repeat that is on screen and correct.
+         */
+        if (!first && !second) onRepeatConvertFailed("materialise");
       } catch {
         // The repeat itself IS on (convert + attach landed); only filling the
         // visible range failed. Pre-#434 this threw out of the void-ed promise:
         // an unhandled rejection that also skipped the reload, leaving the
-        // optimistic band on screen over data that never arrived.
+        // optimistic band on screen over data that never arrived. `ensure`
+        // swallows its own errors today, so this is the belt to #1771's
+        // braces rather than the live path.
         onRepeatConvertFailed("materialise");
       }
     },
@@ -555,10 +580,13 @@ export function useRepeatMutations({
             skipUndo: true,
           });
           if (!landed) {
-            // #469 小粒: reconcile is skipped on purpose, but the
-            // finally-reload then restores the OLD frequency in the editor.
-            // Without a word, that reads as the frequency control being broken
-            // rather than the write having failed.
+            // #469 小粒: reconcile is skipped on purpose, and the editor
+            // snaps back to the OLD frequency — not because of the
+            // finally-reload (that refetches schedule ITEMS; routines are not
+            // in it), but because updateRoutine rolls its own optimistic patch
+            // back when the write does not land (#1769). Without a word, the
+            // snap-back reads as the frequency control being broken rather
+            // than the write having failed.
             onRepeatConvertFailed("update");
             return;
           }

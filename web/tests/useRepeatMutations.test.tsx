@@ -502,6 +502,53 @@ describe("turning a repeat on", () => {
     );
   });
 
+  /*
+   * #1771 (K-12). The repeat lands, the bulk INSERT of its occurrences does
+   * not, and the user is left with a routine in the Repeats tab and an empty
+   * calendar. `ensure` reports that by RETURNING false — it catches and logs
+   * its own error — so the report used to sit behind a catch nothing threw
+   * into, and the only trace was one console warning.
+   */
+  it("says so when the occurrences could not be generated (#1771)", async () => {
+    const h = renderRepeat({
+      selected: occurrence({ routineId: null }),
+      fillLands: false,
+    });
+    act(() =>
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "daily" }),
+    );
+    await waitFor(() =>
+      expect(h.onRepeatConvertFailed).toHaveBeenCalledWith("materialise"),
+    );
+    // The repeat itself is on: the report is about the days, not the rhythm.
+    expect(h.convertEventToRoutine).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays quiet when the retry pass fills the range", async () => {
+    // The first pass can lose today's row to the always-on generator and roll
+    // its whole batch back, which is what the second pass is for. Reporting
+    // that would cry off a repeat sitting on screen, correct.
+    const h = renderRepeat({ selected: occurrence({ routineId: null }) });
+    h.ensureRoutineItemsForDateRange.mockResolvedValueOnce(false);
+    act(() =>
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "daily" }),
+    );
+    await waitFor(() =>
+      expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalledTimes(2),
+    );
+    await waitFor(() => expect(h.reload).toHaveBeenCalled());
+    expect(h.onRepeatConvertFailed).not.toHaveBeenCalled();
+  });
+
+  it("says nothing when both passes land", async () => {
+    const h = renderRepeat({ selected: occurrence({ routineId: null }) });
+    act(() =>
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "daily" }),
+    );
+    await waitFor(() => expect(h.reload).toHaveBeenCalled());
+    expect(h.onRepeatConvertFailed).not.toHaveBeenCalled();
+  });
+
   // An existing series takes the template path instead: patch the routine,
   // then re-shape the days already materialised.
   it("edits the template and reconciles for a row that already repeats", async () => {

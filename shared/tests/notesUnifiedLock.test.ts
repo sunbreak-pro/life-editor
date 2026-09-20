@@ -40,11 +40,30 @@ function makeHarness(initialNotes: NoteNode[]) {
     ),
   };
 
+  // #1763: the ledger callbacks that move the BODY. Stubbed as spies here —
+  // their own behaviour is noteHydrationLedger.test.ts's subject; what this
+  // suite pins is WHICH password outcome calls WHICH of them.
+  const unlockNoteBody = vi.fn<(id: string) => Promise<boolean>>(
+    async () => true,
+  );
+  const relockNote = vi.fn<(id: string) => void>();
+
   const hook = renderHook(() =>
-    useNotesUnifiedLock({ ds: ds as unknown as DataService, setNotes }),
+    useNotesUnifiedLock({
+      ds: ds as unknown as DataService,
+      setNotes,
+      unlockNoteBody,
+      relockNote,
+    }),
   );
 
-  return { lock: hook.result.current, ds, notes: () => notes };
+  return {
+    lock: hook.result.current,
+    ds,
+    notes: () => notes,
+    unlockNoteBody,
+    relockNote,
+  };
 }
 
 describe("setNotePassword", () => {
@@ -56,6 +75,8 @@ describe("setNotePassword", () => {
     expect(h.notes()[0]?.hasPassword).toBe(true);
     expect(h.notes()[1]?.hasPassword).toBeUndefined();
     expect(updated.id).toBe("n1");
+    // #1763: the body we were still holding from before the lock is dropped.
+    expect(h.relockNote).toHaveBeenCalledWith("n1");
   });
 
   it("leaves the local row alone when the service rejects", async () => {
@@ -80,6 +101,8 @@ describe("removeNotePassword", () => {
       "hunter2",
     );
     expect(h.notes()[0]?.hasPassword).toBe(false);
+    // #1763: the note has no password any more, so the body may come back.
+    expect(h.unlockNoteBody).toHaveBeenCalledWith("n1");
   });
 
   it("keeps the note locked when the current password was wrong", async () => {
@@ -94,17 +117,35 @@ describe("removeNotePassword", () => {
 });
 
 describe("verifyNotePassword", () => {
-  it("passes the answer straight through without touching the list", async () => {
+  it("fetches the body once the password checked out (#1763)", async () => {
     const h = makeHarness([makeNote("n1", { hasPassword: true })]);
-    const before = h.notes();
 
     await expect(h.lock.verifyNotePassword("n1", "hunter2")).resolves.toBe(
       true,
     );
-    h.ds.verifyNotePasswordUnified.mockResolvedValueOnce(false);
-    await expect(h.lock.verifyNotePassword("n1", "nope")).resolves.toBe(false);
+    expect(h.unlockNoteBody).toHaveBeenCalledWith("n1");
+  });
 
-    expect(h.notes()).toBe(before);
+  it("does not go near the body when the password was wrong", async () => {
+    const h = makeHarness([makeNote("n1", { hasPassword: true })]);
+    h.ds.verifyNotePasswordUnified.mockResolvedValueOnce(false);
+
+    await expect(h.lock.verifyNotePassword("n1", "nope")).resolves.toBe(false);
+    expect(h.unlockNoteBody).not.toHaveBeenCalled();
+  });
+
+  /*
+   * The unlock is only as good as the body behind it. Reporting success with
+   * the body still missing would let the host uncover an editor initialised
+   * from the light "" — and the first keystroke saves that over the note.
+   */
+  it("reports failure when the body did not arrive", async () => {
+    const h = makeHarness([makeNote("n1", { hasPassword: true })]);
+    h.unlockNoteBody.mockResolvedValueOnce(false);
+
+    await expect(h.lock.verifyNotePassword("n1", "hunter2")).resolves.toBe(
+      false,
+    );
   });
 });
 

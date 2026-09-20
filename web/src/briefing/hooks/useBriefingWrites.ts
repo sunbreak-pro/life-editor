@@ -2,14 +2,19 @@ import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   afterSettled,
+  fillRangeUpToAnchor,
   generateId,
   generateTodoId,
   localDateTimeToISO,
+  planRepeatScopeChoice,
+  useScheduleItemsRoutineSync,
   useUndoRedoOptional,
   type DataService,
   type ItemCreateNoteDraft,
   type ItemCreateSlot,
   type RepeatScope,
+  type RepeatScopePlan,
+  type RoutineNode,
   type ScheduleItem,
   type TodoNode,
   type TodoStatus,
@@ -28,6 +33,14 @@ import {
  * The DataService calls themselves are the EXISTING paths — same soft delete,
  * same Trash, same restore — so a row deleted from the paper behaves like one
  * deleted from its own section.
+ *
+ * What must NOT be spelled out here is a DECISION the Schedule side already
+ * makes. #1768 was exactly that: a private copy of the this/future/all
+ * branching, which had quietly lost the pre-anchor fill, next to creates that
+ * filed no undo command at all. The branching now comes from
+ * `planRepeatScopeChoice` — the same function Schedule's scope dialog reads —
+ * and every schedule write the paper makes files the command its Schedule
+ * twin files.
  *
  * Results are folded straight into the fetched state (the setters this hook is
  * handed) so the paper updates without waiting for the Realtime bump;
@@ -65,6 +78,14 @@ export function useBriefingWrites({
   // reversible exactly like the same delete made in Schedule or Todos.
   const undoRedo = useUndoRedoOptional();
   const push = undoRedo?.push;
+
+  // The Routine→occurrence generator (#1768). Only one of its three members
+  // is used here — the pre-anchor fill a "this and future" delete has to run
+  // before it detaches — and it takes nothing but the DataService, so the
+  // paper can mount it without any of Schedule's range state.
+  const { ensureRoutineItemsForDateRange } = useScheduleItemsRoutineSync({
+    dataService: ds,
+  });
 
   /*
    * #1373 removed `handleToggleScheduleItem`. The paper's schedule rows used
@@ -210,12 +231,39 @@ export function useBriefingWrites({
             setScheduleItems((prev) => [...prev, saved]);
           }
           attachNote(saved.id, note);
+          /*
+           * #1768: the history entry is owed only once the row EXISTS, and it
+           * names the saved row rather than the optimistic one — the same two
+           * faults Schedule's create had to fix (#1638 W4). Filed beside the
+           * write instead, a create that never landed still left an entry
+           * whose undo soft-deleted an id the database never had.
+           *
+           * Both closures are awaited so a refused reversal reaches the
+           * manager rather than becoming a false「元に戻しました」(#1682). No
+           * `afterSettled` guard is needed: the write this reverses has
+           * already settled by the time the command is on the stack.
+           */
+          push?.("scheduleItem", {
+            label: "createScheduleItem",
+            undo: async () => {
+              setScheduleItems((prev) => prev.filter((s) => s.id !== saved.id));
+              await ds.softDeleteScheduleItem(saved.id);
+            },
+            redo: async () => {
+              if (saved.date === todayKey) {
+                setScheduleItems((prev) =>
+                  prev.some((s) => s.id === saved.id) ? prev : [...prev, saved],
+                );
+              }
+              await ds.restoreScheduleItem(saved.id);
+            },
+          });
         })
         .catch((err) => {
           console.error("[BriefingScreen] event create failed", err);
         });
     },
-    [ds, todayKey, attachNote, setScheduleItems],
+    [ds, todayKey, attachNote, push, setScheduleItems],
   );
 
   const handleCreateTodo = useCallback(
@@ -324,69 +372,181 @@ export function useBriefingWrites({
   );
 
   /*
-   * Apply the this/future/all answer. Semantics are Schedule's contract
-   * (useScheduleMutations #279), reproduced against the DataService:
-   *   this   — Dismiss the single day (a delete would be regenerated)
-   *   future — detach the series from this occurrence's date
+   * Apply the this/future/all answer.
+   *
+   * The DECISION is `planRepeatScopeChoice` (#1642 W7) — the same pure
+   * planner Schedule's scope dialog reads — so the paper cannot drift from
+   * Schedule's contract:
+   *   this   — Dismiss the single day (a plain delete would be regenerated)
+   *   future — materialise the days between today and the anchor, THEN detach
    *   all    — soft-delete the routine with its cascade (Trash-restorable)
    *
-   * Schedule additionally materialises the days between today and a FUTURE
-   * anchor before detaching. The paper has no such case: its anchor is always
-   * the day it is showing, so that fill is a no-op by construction.
+   * #1768 replaced a private copy of that branching. The copy had no fill at
+   * all, on the reasoning that the paper's anchor is always the day it shows.
+   * That was true of the screen, not of this hook: nothing in the write path
+   * said so, and a future-dated anchor reaching it would have let the detach
+   * erase days the user never selected (#296).
    *
-   * No undo command: the routine paths are exactly the ones Schedule leaves
-   * off the stack too (a cascade is not reversible by re-inserting one row) —
-   * Trash is the recovery path for「すべて」.
+   * Undo: "this" is a Dismiss and reverses exactly, so it files the command
+   * Schedule's own dismiss files. The two series-wide scopes file nothing —
+   * a cascade is not undone by re-inserting one row, and Trash is the
+   * recovery path for「すべて」. Schedule leaves them off the stack too.
    */
+
+  /**
+   * The routine behind an occurrence, or undefined when it cannot be read.
+   *
+   * Read here rather than held on the paper: the briefing loads no routines,
+   * and the only thing that needs one is the fill, which has to GENERATE the
+   * missing days from the template.
+   */
+  const loadRoutine = useCallback(
+    async (routineId: string): Promise<RoutineNode | undefined> => {
+      try {
+        return (await ds.fetchAllRoutines()).find((r) => r.id === routineId);
+      } catch (err) {
+        console.error("[BriefingScreen] reading the routine failed", err);
+        return undefined;
+      }
+    },
+    [ds],
+  );
+
+  const dismissOccurrence = useCallback(
+    (target: ScheduleItem) => {
+      const id = target.id;
+      setScheduleItems((prev) => prev.filter((s) => s.id !== id));
+      const landed = ds.dismissScheduleItem(id);
+      void landed.catch((err) => {
+        console.error("[BriefingScreen] routine dismiss failed", err);
+      });
+      push?.("scheduleItem", {
+        label: "dismissScheduleItem",
+        // #1682: wait for the dismiss this reverses, then report our own
+        // write — an undismiss that lands first is re-dismissed by it.
+        undo: async () => {
+          setScheduleItems((prev) =>
+            prev.some((s) => s.id === id) ? prev : [...prev, target],
+          );
+          await afterSettled(landed);
+          await ds.undismissScheduleItem(id);
+        },
+        redo: () => {
+          setScheduleItems((prev) => prev.filter((s) => s.id !== id));
+          return ds.dismissScheduleItem(id).then(() => {});
+        },
+      });
+    },
+    [ds, push, setScheduleItems],
+  );
+
+  const runSeriesDetach = useCallback(
+    async (
+      plan: Extract<RepeatScopePlan, { kind: "detach-series" }>,
+      routine: RoutineNode | undefined,
+    ) => {
+      try {
+        if (plan.fill && routine) {
+          const filled = await ensureRoutineItemsForDateRange(
+            plan.fill.startDate,
+            plan.fill.endDate,
+            [routine],
+          );
+          // #296: a fill that did not fully land must not be followed by the
+          // detach — the days it failed to write are exactly the ones the
+          // detach would then erase for good.
+          if (!filled) return;
+        }
+        const { deletedScheduleItemIds } = await ds.detachRoutine(
+          plan.routineId,
+          plan.anchor,
+        );
+        const removed = new Set(deletedScheduleItemIds);
+        setScheduleItems((prev) =>
+          prev
+            .filter((s) => !removed.has(s.id))
+            // Survivors keep their row but lose the routine origin, mirroring
+            // the server NULLing routine_item_id (so the badge goes away).
+            .map((s) =>
+              s.routineId === plan.routineId
+                ? { ...s, routineId: null, sourceDate: null }
+                : s,
+            ),
+        );
+        // Schedule reloads here when the fill wrote inside the visible range
+        // (`plan.reloadAfterFill`). The paper has no reload handle of its own
+        // and does not need one: the fill's rows land in items_meta +
+        // events_payload, so the Realtime bump brings today's share of them
+        // back through the fetch half.
+      } catch (err) {
+        console.error("[BriefingScreen] routine detach failed", err);
+      }
+    },
+    [ds, ensureRoutineItemsForDateRange, setScheduleItems],
+  );
+
+  const runSeriesDelete = useCallback(
+    async (plan: Extract<RepeatScopePlan, { kind: "delete-series" }>) => {
+      try {
+        const { deletedScheduleItemIds } = await ds.softDeleteRoutine(
+          plan.routineId,
+        );
+        const removed = new Set(deletedScheduleItemIds);
+        setScheduleItems((prev) => prev.filter((s) => !removed.has(s.id)));
+      } catch (err) {
+        console.error("[BriefingScreen] routine delete failed", err);
+      }
+    },
+    [ds, setScheduleItems],
+  );
+
   const handleDeleteScopeChoose = useCallback(
     (scope: RepeatScope) => {
       const target = deleteScopeItem;
       setDeleteScopeItem(null);
-      const routineId = target?.routineId;
-      if (target === null || routineId === undefined || routineId === null) {
-        return;
-      }
-      if (scope === "this") {
-        setScheduleItems((prev) => prev.filter((s) => s.id !== target.id));
-        void ds.dismissScheduleItem(target.id).catch((err) => {
-          console.error("[BriefingScreen] routine dismiss failed", err);
+      if (target === null) return;
+      void (async () => {
+        // The routine is read only when the plan will actually use it, and
+        // `fillRangeUpToAnchor` is the same arithmetic the planner runs — so
+        // the condition here cannot disagree with the plan it feeds.
+        const routine =
+          scope === "future" &&
+          target.routineId != null &&
+          fillRangeUpToAnchor(target.date, todayKey) !== null
+            ? await loadRoutine(target.routineId)
+            : undefined;
+        const plan = planRepeatScopeChoice({
+          request: { mode: "delete", item: target },
+          scope,
+          routine,
+          today: todayKey,
         });
-        return;
-      }
-      const applyRemoval = (deletedIds: string[]) => {
-        const removed = new Set(deletedIds);
-        setScheduleItems((prev) => prev.filter((s) => !removed.has(s.id)));
-      };
-      if (scope === "future") {
-        void ds
-          .detachRoutine(routineId, target.date)
-          .then(({ deletedScheduleItemIds }) => {
-            applyRemoval(deletedScheduleItemIds);
-            // Survivors keep their row but lose the routine origin, mirroring
-            // the server NULLing routine_item_id (so the badge goes away).
-            setScheduleItems((prev) =>
-              prev.map((s) =>
-                s.routineId === routineId
-                  ? { ...s, routineId: null, sourceDate: null }
-                  : s,
-              ),
-            );
-          })
-          .catch((err) => {
-            console.error("[BriefingScreen] routine detach failed", err);
-          });
-        return;
-      }
-      void ds
-        .softDeleteRoutine(routineId)
-        .then(({ deletedScheduleItemIds }) => {
-          applyRemoval(deletedScheduleItemIds);
-        })
-        .catch((err) => {
-          console.error("[BriefingScreen] routine delete failed", err);
-        });
+        switch (plan.kind) {
+          case "dismiss-occurrence":
+            dismissOccurrence(target);
+            return;
+          case "detach-series":
+            await runSeriesDetach(plan, routine);
+            return;
+          case "delete-series":
+            await runSeriesDelete(plan);
+            return;
+          default:
+            // "none" — the row lost its routine between the question and the
+            // answer. The two edit plans cannot arrive: this dialog only ever
+            // asks in "delete" mode.
+            return;
+        }
+      })();
     },
-    [ds, deleteScopeItem, setScheduleItems],
+    [
+      deleteScopeItem,
+      todayKey,
+      loadRoutine,
+      dismissOccurrence,
+      runSeriesDetach,
+      runSeriesDelete,
+    ],
   );
 
   const closeDeleteScope = useCallback(() => setDeleteScopeItem(null), []);

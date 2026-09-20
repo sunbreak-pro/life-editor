@@ -4,13 +4,16 @@ import { cn } from "../cn";
 import { FOCUS_RING } from "../styleTokens";
 
 export interface LockedBodyGateProps {
-  /** Blur the body and cover it with the unlock CTA. */
+  /** Cover `children` with the unlock CTA. */
   locked: boolean;
   /** Already-translated line inside the CTA (§6.4). */
   hint: string;
   /** Ask for the password — the host owns the dialog. */
   onUnlock: () => void;
-  /** The note body this wraps. Rendered either way, blurred while locked. */
+  /**
+   * What the CTA covers. The host decides what that is: since #1763 it hands
+   * over a plain spacer while `locked`, because there is no body to hand over.
+   */
   children: ReactNode;
 }
 
@@ -22,11 +25,22 @@ export interface LockedBodyGateProps {
  * surfaces now wrap their editor in this, which is what keeps them from
  * drifting apart again.
  *
- * What this is NOT: security. The blurred text is really in the DOM, and the
- * password itself is still stored in plaintext (docs/known-issues/027). It
- * hides a note from someone glancing at the screen; nothing more. The CTA sits
- * OVER the body rather than replacing it so the layout does not jump when the
- * note unlocks.
+ * WHAT CHANGED IN #1763 (D-20260920-main-1 = A). This file used to say, right
+ * here, that it was not security: the blurred text really was in the DOM,
+ * fetched with the note and one devtools inspection away. That is fixed at the
+ * source instead — a locked note's `content_json` is no longer SELECTed
+ * (SupabaseNotesUnifiedReads.getNoteUnified), so the host renders a spacer
+ * here and there is nothing behind the blur to find. The blur + `aria-hidden`
+ * stay because the host is free to pass a real body once the gate drops, and
+ * one component describing both states is what keeps the two surfaces aligned.
+ *
+ * What it is STILL not: the body is plaintext jsonb in Postgres and the
+ * password's hash is next to it, so a DB dump or the owner's JWT reads it
+ * (docs/known-issues/027). A locked note is "a memo others should not see",
+ * not a credential store.
+ *
+ * The CTA sits OVER the children rather than replacing them so the box keeps
+ * its place in the layout.
  */
 export function LockedBodyGate({
   locked,

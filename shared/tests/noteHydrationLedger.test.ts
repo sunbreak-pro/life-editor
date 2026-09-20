@@ -46,7 +46,12 @@ function makeLedger(
   const getNoteUnified = vi.fn<(id: string) => Promise<NoteNode | null>>(
     async (id) => makeNote(id, { content: `body of ${id}` }),
   );
-  const ds = { getNoteUnified } as unknown as DataService;
+  // #1763: the unlock read. Mirrors the service — a LOCKED note comes back
+  // body-free from `getNoteUnified`, and only this one carries its text.
+  const getNoteBodyUnified = vi.fn<(id: string) => Promise<string | null>>(
+    async (id) => `body of ${id}`,
+  );
+  const ds = { getNoteUnified, getNoteBodyUnified } as unknown as DataService;
 
   const hook = renderHook(
     ({ selectedNoteId }: { selectedNoteId: string | null }) =>
@@ -65,6 +70,7 @@ function makeLedger(
       return hook.result.current;
     },
     getNoteUnified,
+    getNoteBodyUnified,
     notes: () => notes,
     /**
      * One full reload, the way the orchestrator's load effect does it: merge,
@@ -370,5 +376,108 @@ describe("closing the note retires its cover", () => {
       makeNote("n1", { updatedAt: "2026-02-02T00:00:00.000Z" }),
     ]);
     expect(merged[0]?.content).toBe("");
+  });
+});
+
+/*
+ * #1763 — the password gate, as the ledger sees it.
+ *
+ * The service stopped sending a locked note's body (D-20260920-main-1 = A), so
+ * the ledger's job is to make sure the hole that leaves does not turn into a
+ * DATA LOSS: `notes` carries the light `""` for a locked note, which is the
+ * same string an un-hydrated row carries, and the hydrated MARK is the only
+ * thing that tells a real empty body from a withheld one. Mark it and the next
+ * save writes the emptiness over the user's text (the #471 hazard).
+ */
+describe("the password gate (#1763)", () => {
+  it("does not fetch, does not mark, and leaves the body empty while locked", async () => {
+    const h = makeLedger([makeNote("n1", { hasPassword: true })]);
+
+    // Openable: the title, tags and the unlock CTA all live outside the gate.
+    await expect(h.ledger.hydrateContent("n1")).resolves.toBe(true);
+
+    expect(h.getNoteUnified).not.toHaveBeenCalled();
+    expect(h.getNoteBodyUnified).not.toHaveBeenCalled();
+    expect(h.ledger.isContentLoaded("n1")).toBe(false);
+    expect(h.notes()[0]?.content).toBe("");
+  });
+
+  it("withholds the mark for a lock that went up since the list read", async () => {
+    const h = makeLedger([makeNote("n1")]);
+    // The list row says unlocked; the service answers body-free because the
+    // password was set on another device a moment ago.
+    h.getNoteUnified.mockResolvedValueOnce(
+      makeNote("n1", { hasPassword: true, content: "" }),
+    );
+
+    await expect(h.ledger.hydrateContent("n1")).resolves.toBe(true);
+    expect(h.ledger.isContentLoaded("n1")).toBe(false);
+    expect(h.notes()[0]?.content).toBe("");
+  });
+
+  it("brings the body in on unlock and hydrates it from then on", async () => {
+    const h = makeLedger([makeNote("n1", { hasPassword: true })]);
+
+    await expect(h.ledger.unlockNoteBody("n1")).resolves.toBe(true);
+
+    expect(h.getNoteBodyUnified).toHaveBeenCalledWith("n1");
+    expect(h.notes()[0]?.content).toBe("body of n1");
+    expect(h.ledger.isContentLoaded("n1")).toBe(true);
+
+    // And the note stays readable for the rest of the mount: a re-hydrate
+    // takes the unlock read rather than dropping back to the covered state.
+    h.ledger.relockNote("n1"); // clears the mark but keeps nothing cached
+    await h.ledger.unlockNoteBody("n1");
+    expect(h.notes()[0]?.content).toBe("body of n1");
+  });
+
+  it("reports an unlock whose body did not arrive, without marking", async () => {
+    const h = makeLedger([makeNote("n1", { hasPassword: true })]);
+    h.getNoteBodyUnified.mockResolvedValueOnce(null);
+
+    await expect(h.ledger.unlockNoteBody("n1")).resolves.toBe(false);
+    expect(h.ledger.isContentLoaded("n1")).toBe(false);
+  });
+
+  it("re-reads the body of an unlocked note instead of the covered detail", async () => {
+    const h = makeLedger([makeNote("n1", { hasPassword: true })]);
+    await h.ledger.unlockNoteBody("n1");
+    h.ledger.relockNote("n1");
+    // relockNote forgot the unlock, so this is the covered path again.
+    await h.ledger.hydrateContent("n1");
+    expect(h.ledger.isContentLoaded("n1")).toBe(false);
+  });
+
+  it("drops the body and the mark when a password is put on an open note", () => {
+    const h = makeLedger([makeNote("n1", { content: "plain text" })]);
+    h.ledger.markHydrated("n1");
+
+    h.ledger.relockNote("n1");
+
+    expect(h.notes()[0]?.content).toBe("");
+    expect(h.ledger.isContentLoaded("n1")).toBe(false);
+  });
+
+  it("refuses to keep a body through a reload that reports the note locked", () => {
+    const h = makeLedger([makeNote("n1", { content: "plain text" })]);
+    h.ledger.markHydrated("n1");
+
+    // Same `updatedAt`, so the #301 keep-rule would normally hold the body.
+    const { merged, stillHydrated } = h.ledger.mergeLoadedList([
+      makeNote("n1", { hasPassword: true }),
+    ]);
+
+    expect(merged[0]?.content).toBe("");
+    expect(stillHydrated.has("n1")).toBe(false);
+  });
+
+  it("keeps the body across a reload once the note is unlocked here", async () => {
+    const h = makeLedger([makeNote("n1", { hasPassword: true })]);
+    await h.ledger.unlockNoteBody("n1");
+
+    const { merged } = h.ledger.mergeLoadedList([
+      makeNote("n1", { hasPassword: true }),
+    ]);
+    expect(merged[0]?.content).toBe("body of n1");
   });
 });

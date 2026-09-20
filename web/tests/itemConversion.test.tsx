@@ -377,7 +377,7 @@ describe("useItemConversion — undo (#997)", () => {
     );
   });
 
-  it("reports a failed undo instead of going quiet", async () => {
+  it("reports a failed undo AND hands the failure back (#1772)", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const h = setup({
       convertTodoToEvent: () => Promise.reject(new Error("offline")),
@@ -386,11 +386,55 @@ describe("useItemConversion — undo (#997)", () => {
     await waitFor(() => expect(h.push).toHaveBeenCalledTimes(1));
 
     await act(async () => {
-      await pushedCommand(h.push).undo();
+      await expect(pushedCommand(h.push).undo()).rejects.toThrow("offline");
     });
 
-    // The manager console.errors a throwing command and still moves it to the
-    // redo stack, so a silent undo would look exactly like a working one.
+    // Both halves matter. The toast names the action the generic copy cannot,
+    // and the re-throw is the only thing the manager reads: a closure that
+    // resolves is a closure that worked, and the host would stack "Undid: ..."
+    // over "Conversion failed" and move the command to redo.
+    expect(h.showToast).toHaveBeenLastCalledWith("danger", expect.anything());
+  });
+
+  it("hands a failed REDO back the same way (#1772)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    let calls = 0;
+    const h = setup({
+      // First call is the forward conversion and must land, or there is no
+      // command to redo; the redo is the one that breaks.
+      convertEventToTodo: () =>
+        ++calls === 1
+          ? Promise.resolve({})
+          : Promise.reject(new Error("offline")),
+    });
+    await act(async () => h.view.result.current.handleConvertToTodo("s-1"));
+    await waitFor(() => expect(h.push).toHaveBeenCalledTimes(1));
+    const cmd = pushedCommand(h.push);
+
+    await act(async () => {
+      await cmd.undo();
+    });
+    await act(async () => {
+      await expect(cmd.redo()).rejects.toThrow("offline");
+    });
+
+    expect(h.showToast).toHaveBeenLastCalledWith("danger", expect.anything());
+  });
+
+  it("hands a failed Todo -> Event undo back too (#1772)", async () => {
+    // The other direction runs its own pair of closures, and the bug was in
+    // all four — fixing one file half is what would slip through.
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = setup({
+      convertEventToTodo: () => Promise.reject(new Error("offline")),
+    });
+    await act(async () => h.view.result.current.handleConvertToEvent("task-1"));
+    await waitFor(() => expect(h.push).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      await expect(pushedCommand(h.push).undo()).rejects.toThrow("offline");
+    });
+
     expect(h.showToast).toHaveBeenLastCalledWith("danger", expect.anything());
   });
 });

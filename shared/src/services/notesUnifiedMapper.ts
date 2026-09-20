@@ -30,6 +30,13 @@ import { contentJsonToString, contentStringToJson } from "./contentJson";
  * `has_password` Postgres GENERATED column on `notes_payload`
  * (`generated always as (password_hash is not null) stored`, see 0008).
  *
+ * #1763 widened that contract from the hash to the BODY: a read that finds
+ * `has_password` true must not carry `content_json` either. The filtering
+ * itself lives in the queries (SupabaseNotesUnifiedReads), not here — this
+ * module stays pure — but `rowsToNoteNodeLite` is what such a read
+ * materialises through, so `content = ""` means BOTH "not fetched yet" and
+ * "withheld", and `hasPassword` is what tells the two apart.
+ *
  * CONTENT CONTRACT: `notes_payload.content_json` is `jsonb`. NoteNode.content
  * is a TipTap-serialized JSON string. WRITE = JSON.parse to object, READ =
  * JSON.stringify to string. Empty/null content_json materializes as the

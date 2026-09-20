@@ -242,6 +242,10 @@ describe("SupabaseNotesUnifiedReads", () => {
         data: makeMetaRow({ id: "note-1" }),
         error: null,
       });
+      // TWO empty reads since #1763: the first is fenced by
+      // `.eq("has_password", false)`, so an empty answer means "locked OR
+      // gone" and the bodyless re-read is what decides. Both empty = gone.
+      stub.stage("notes_payload", "select", { data: null, error: null });
       stub.stage("notes_payload", "select", { data: null, error: null });
 
       await expect(reads.getNoteUnified("note-1")).resolves.toBeNull();

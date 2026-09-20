@@ -31,6 +31,12 @@ interface UpdateRecord {
   filter: { op: "in" | "eq"; col: string; val: unknown };
 }
 
+/** An INSERT the service issued (#1770 copies tag rows rather than moving). */
+interface InsertRecord {
+  table: string;
+  rows: Array<Record<string, unknown>>;
+}
+
 interface Filter {
   op: "eq" | "gte" | "in";
   col: string;
@@ -48,7 +54,8 @@ interface AssignmentRow {
 
 /** A single-use, thenable PostgREST builder mock. */
 class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
-  mode: "select" | "update" | null = null;
+  mode: "select" | "update" | "insert" | null = null;
+  rows: Array<Record<string, unknown>> = [];
   patch: Record<string, unknown> = {};
   filters: Filter[] = [];
   rangeArgs: [number, number] | null = null;
@@ -58,6 +65,7 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
     private readonly events: EventRow[],
     private readonly updates: UpdateRecord[],
     private readonly assignments: AssignmentRow[],
+    private readonly inserts: InsertRecord[],
   ) {}
 
   select(): this {
@@ -67,6 +75,11 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
   update(patch: Record<string, unknown>): this {
     this.mode = "update";
     this.patch = patch;
+    return this;
+  }
+  insert(rows: Array<Record<string, unknown>>): this {
+    this.mode = "insert";
+    this.rows = rows;
     return this;
   }
   eq(col: string, val: unknown): this {
@@ -99,12 +112,18 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
         const live = this.assignments.filter((r) =>
           this.filters.every((f) => {
             const cell = (r as unknown as Record<string, unknown>)[f.col];
-            return f.op === "eq" ? cell === f.val : true;
+            if (f.op === "eq") return cell === f.val;
+            // #1770 reads the DESTINATIONS in one `in(item_id, ...)` per
+            // chunk. Ignoring it here would answer every case with every row
+            // and hide a copy aimed at the wrong survivor.
+            if (f.op === "in") return (f.val as unknown[]).includes(cell);
+            return true;
           }),
         );
         return {
           data: live.map((r) => ({
             id: r.id,
+            item_id: r.item_id,
             tag_id: r.tag_id,
             is_display_color: r.is_display_color,
           })),
@@ -134,6 +153,10 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
         })),
         error: null,
       };
+    }
+    if (this.mode === "insert") {
+      this.inserts.push({ table: this.table, rows: this.rows });
+      return { error: null };
     }
     // update — record the mutation for assertions.
     const filter = this.filters.find((f) => f.op === "in" || f.op === "eq");
@@ -166,10 +189,12 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
 
 function makeClient(events: EventRow[], assignments: AssignmentRow[] = []) {
   const updates: UpdateRecord[] = [];
+  const inserts: InsertRecord[] = [];
   const client = {
-    from: (table: string) => new Builder(table, events, updates, assignments),
+    from: (table: string) =>
+      new Builder(table, events, updates, assignments, inserts),
   } as unknown as SupabaseClient;
-  return { client, updates };
+  return { client, updates, inserts };
 }
 
 const TODAY = "2026-07-12";
@@ -444,13 +469,18 @@ describe("detachRoutine — future/incomplete occurrence pruning", () => {
 });
 
 /*
- * #1632, the way back. Turning a repeat off leaves the pinned occurrence on
- * the calendar as a one-off, and the editor's tag field goes back to reading
- * the ITEM id the moment `routineId` is gone — so tags left on the routine
- * disappear from the field while the tag side keeps listing the series.
- * convertEventToRoutine does the same move in the other direction.
+ * #1632, the way back, as #1770 corrected it. Turning a repeat off leaves the
+ * surviving occurrences on the calendar as one-offs, and the editor's tag
+ * field goes back to reading the ITEM id the moment `routineId` is gone — so
+ * tags left on the routine disappear from the field while the tag side keeps
+ * listing the series.
+ *
+ * #1632 handed them to the ONE occurrence the repeat-off editor pins, which
+ * left the scope dialog's "this and following" (no pin) stripping the past
+ * rows outright. They go to every survivor now, which is also what puts the
+ * two entries on one implementation.
  */
-describe("detachRoutine — tags hand back to the pinned survivor (#1632)", () => {
+describe("detachRoutine — tags hand back to the survivors (#1632 / #1770)", () => {
   const seedTags = (): AssignmentRow[] => [
     {
       id: "ta-1",
@@ -477,64 +507,79 @@ describe("detachRoutine — tags hand back to the pinned survivor (#1632)", () =
     },
   ];
 
+  /** Every survivor of the seed fixture at TODAY, in id order. */
+  const SURVIVORS = ["e-futuredone", "e-past", "e-pastdone", "e-today"];
+
   const tagWrites = (updates: UpdateRecord[]): UpdateRecord[] =>
     updates.filter((u) => u.table === "wiki_tag_assignments");
 
-  it("moves the live ones onto the survivor while it is still a live item", async () => {
-    const { client, updates } = makeClient(seed(), seedTags());
+  const copies = (inserts: InsertRecord[]): Array<Record<string, unknown>> =>
+    inserts
+      .filter((i) => i.table === "wiki_tag_assignments")
+      .flatMap((i) => i.rows);
+
+  const tagsFor = (
+    inserts: InsertRecord[],
+    itemId: string,
+  ): string[] =>
+    copies(inserts)
+      .filter((r) => r.item_id === itemId)
+      .map((r) => r.tag_id as string)
+      .sort();
+
+  it("gives the live tags to EVERY survivor, pinned or not (#1770)", async () => {
+    const { client, inserts } = makeClient(seed(), seedTags());
     const svc = new SupabaseRoutinesService(client);
 
     await svc.detachRoutine(ROUTINE, TODAY, { keepItemIds: ["e-today"] });
 
-    const moves = tagWrites(updates);
-    expect(moves).toHaveLength(2);
-
-    const plain = moves.find((u) =>
-      (u.filter.val as string[]).includes("ta-1"),
-    );
-    expect(plain!.patch).toMatchObject({
-      item_id: "e-today",
-      is_display_color: false,
-    });
-
-    // The display-colour pick (#1580) keeps its flag: the write does not
-    // mention the column, so the row carries it across unchanged.
-    const coloured = moves.find((u) =>
-      (u.filter.val as string[]).includes("ta-2"),
-    );
-    expect(coloured!.patch.item_id).toBe("e-today");
-    expect("is_display_color" in coloured!.patch).toBe(false);
-
-    for (const u of moves) {
-      expect(u.filter.val as string[]).not.toContain("ta-dead");
-      expect(typeof u.patch.updated_at).toBe("string");
-    }
-
-    // Order is load-bearing: the routine's own soft-delete comes after, so
-    // the rows never land on an item that is already in the trash.
-    const routineIdx = updates.findIndex(
-      (u) => u.filter.op === "eq" && u.filter.val === ROUTINE,
-    );
-    for (const u of moves) {
-      expect(updates.indexOf(u)).toBeLessThan(routineIdx);
+    const reached = [
+      ...new Set(copies(inserts).map((r) => r.item_id as string)),
+    ].sort();
+    expect(reached).toEqual(SURVIVORS);
+    for (const id of SURVIVORS) {
+      // tag-c was soft-deleted by the user and must not come back.
+      expect(tagsFor(inserts, id)).toEqual(["tag-a", "tag-b"]);
     }
   });
 
-  it("moves nothing when the caller pinned no single survivor", async () => {
-    // The scope dialog's "delete / future" detach has no seed to hand the
-    // tags to; picking one would be inventing an owner.
-    const { client, updates } = makeClient(seed(), seedTags());
+  it("hands them over on the no-pin detach too — the bug (#1770)", async () => {
+    // The scope dialog's "this and following". Pre-fix this took the tags
+    // into the trash with the routine and the past rows came back bare.
+    const { client, inserts } = makeClient(seed(), seedTags());
     const svc = new SupabaseRoutinesService(client);
 
     await svc.detachRoutine(ROUTINE, TODAY);
 
-    expect(tagWrites(updates)).toHaveLength(0);
+    const reached = [
+      ...new Set(copies(inserts).map((r) => r.item_id as string)),
+    ].sort();
+    // e-today is not among them: with no pin it is future-incomplete and gets
+    // soft-deleted, which is exactly what the scope dialog asked for.
+    expect(reached).toEqual(["e-futuredone", "e-past", "e-pastdone"]);
   });
 
-  it("drops rather than moves a tag the survivor already carries", async () => {
+  it("lets the display colour travel to each survivor exactly once", async () => {
+    // uq_wta_display_color allows one live pick per item, so the source's
+    // coloured row becomes one coloured copy per destination and no more.
+    const { client, inserts } = makeClient(seed(), seedTags());
+    const svc = new SupabaseRoutinesService(client);
+
+    await svc.detachRoutine(ROUTINE, TODAY);
+
+    for (const id of ["e-past", "e-pastdone", "e-futuredone"]) {
+      const coloured = copies(inserts).filter(
+        (r) => r.item_id === id && r.is_display_color === true,
+      );
+      expect(coloured).toHaveLength(1);
+      expect(coloured[0].tag_id).toBe("tag-b");
+    }
+  });
+
+  it("skips a tag the survivor already carries, for that survivor only", async () => {
     // uq_wta_item_tag allows one LIVE (item, tag) row, and two rows for one
     // tag would make the tag side count the same thing twice anyway.
-    const { client, updates } = makeClient(seed(), [
+    const { client, inserts } = makeClient(seed(), [
       ...seedTags(),
       {
         id: "ta-own",
@@ -548,16 +593,51 @@ describe("detachRoutine — tags hand back to the pinned survivor (#1632)", () =
 
     await svc.detachRoutine(ROUTINE, TODAY, { keepItemIds: ["e-today"] });
 
-    const moves = tagWrites(updates);
-    const dropped = moves.find((u) => u.patch.is_deleted === true);
+    expect(tagsFor(inserts, "e-today")).toEqual(["tag-b"]);
+    // The skip is per destination — the others never had it.
+    expect(tagsFor(inserts, "e-past")).toEqual(["tag-a", "tag-b"]);
+  });
+
+  it("drops the source rows after the copies and before the routine goes", async () => {
+    const { client, updates, inserts } = makeClient(seed(), seedTags());
+    const svc = new SupabaseRoutinesService(client);
+
+    await svc.detachRoutine(ROUTINE, TODAY, { keepItemIds: ["e-today"] });
+
+    const dropped = tagWrites(updates).find((u) => u.patch.is_deleted === true);
     expect(dropped).toBeDefined();
-    expect(dropped!.filter.val).toEqual(["ta-1"]);
-    // The survivor's own row is never rewritten.
-    for (const u of moves) {
-      expect(u.filter.val as string[]).not.toContain("ta-own");
-    }
-    // The tag the survivor does NOT have still moves.
-    const moved = moves.find((u) => u.patch.item_id === "e-today");
-    expect(moved!.filter.val).toEqual(["ta-2"]);
+    // Only the LIVE ones: ta-dead was already off.
+    expect([...(dropped!.filter.val as string[])].sort()).toEqual([
+      "ta-1",
+      "ta-2",
+    ]);
+    expect(typeof dropped!.patch.updated_at).toBe("string");
+    // A source row dropped before the copies land would take the tag with it
+    // if an insert then failed.
+    expect(copies(inserts).length).toBeGreaterThan(0);
+    // ...and the routine's own soft-delete comes last, so the copies never
+    // land on an item that is already in the trash.
+    const routineIdx = updates.findIndex(
+      (u) => u.filter.op === "eq" && u.filter.val === ROUTINE,
+    );
+    expect(updates.indexOf(dropped!)).toBeLessThan(routineIdx);
+  });
+
+  it("writes nothing when the routine carries no live tag", async () => {
+    const { client, updates, inserts } = makeClient(seed(), [
+      {
+        id: "ta-dead",
+        item_id: ROUTINE,
+        tag_id: "tag-c",
+        is_display_color: false,
+        is_deleted: true,
+      },
+    ]);
+    const svc = new SupabaseRoutinesService(client);
+
+    await svc.detachRoutine(ROUTINE, TODAY, { keepItemIds: ["e-today"] });
+
+    expect(copies(inserts)).toHaveLength(0);
+    expect(tagWrites(updates)).toHaveLength(0);
   });
 });

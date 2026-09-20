@@ -1,5 +1,5 @@
 import type { SectionId } from "../../sections";
-import { TOUR_ACTIONS, TOUR_ANCHORS } from "./anchors";
+import { TOUR_ACTIONS, TOUR_ANCHORS, TOUR_REVEALS } from "./anchors";
 import type { TourStep } from "./types";
 
 /*
@@ -100,6 +100,10 @@ export const TOUR_STEPS = [
     // z-45 and MobileDrawer is z-50, so once that drawer opens the bubble is
     // painted underneath it. Steps 4/5/6 anchor INSIDE the drawer and are
     // therefore only ever "found" in the state where they cannot be read.
+    // #1748 gave those three a `reveal` and fixed them on DESKTOP, where the
+    // same panel is a push-in aside that covers nothing; the web host declines
+    // the reveal on narrow for exactly the z-order reason above, so a phone
+    // still skips them rather than being handed an unreadable step.
     fallbackAnchor: TOUR_ANCHORS.scheduleCalendar,
     copyKey: "tour.steps.scheduleCreateEvent",
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleEventCreated },
@@ -113,16 +117,51 @@ export const TOUR_STEPS = [
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleEventTimeChanged },
   },
   {
+    // THE THREE `reveal` ROWS (#1748). All three anchors are carried by
+    // ScheduleSidebar, which renders only through <RightSidebarPortal> — and
+    // that portal has no target while the detail panel is shut. The panel
+    // seeds closed every session, so on a fresh desktop run these three were
+    // never in the document, each spent the 2.5s deadline, and the tour went
+    // 1/10 → 3/10 → 7/10 without ever teaching todos. Opening the panel by
+    // hand first made all three appear, which is the whole diagnosis.
+    //
+    // Only the panel is named, not the todo TAB, and that is deliberate: the
+    // tab band is drawn whichever tab is showing, so this step's own anchor is
+    // there the moment the panel opens — and clicking that tab is exactly what
+    // this step asks for, which is what puts the next two anchors in the
+    // document. Revealing the tray as well would do the step's lesson for it
+    // — which is why #1773 gave the two steps AFTER this one their own reveal
+    // name rather than widening this one.
+    //
+    // Rejected: making this an ordinary "press here to open the panel" step.
+    // It reads fine on desktop and fails on narrow, where the same panel is a
+    // MobileDrawer at z-50 over the z-45 bubble — the user would obey the step
+    // and lose the instructions. It also grows `totalSteps` for a lesson that
+    // is not one, and it cannot serve #1250's drawer case, which the Issue
+    // asks the mechanism to be reusable for.
     id: "schedule-open-todos",
     section: "schedule",
     anchor: TOUR_ANCHORS.scheduleTodoTab,
+    reveal: TOUR_REVEALS.detailPanel,
     copyKey: "tour.steps.scheduleOpenTodos",
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoTabOpened },
   },
   {
+    // THE TRAY, not just the panel (#1773). These last two anchors are carried
+    // by the todo tray, which renders only when the panel is open AND the todo
+    // tab is the one showing — two facts, not one, and #1748 restored only the
+    // first. A run resumed after Escape therefore came back to a shut panel on
+    // 「今日の流れ」, `schedule-todo-add` was still missing when this step
+    // became current, and #1193's backward give-up landed it on the PREVIOUS
+    // step: the 5 / 10 → 4 / 10 rewind the Issue reports. Naming the tray asks
+    // the host for both halves, so the resume lands where it was left.
+    //
+    // The previous step leaving the tab open covers the forward walk and
+    // nothing else; a resume is exactly the case where nothing came before.
     id: "schedule-create-todo",
     section: "schedule",
     anchor: TOUR_ANCHORS.scheduleTodoAdd,
+    reveal: TOUR_REVEALS.scheduleTodoTray,
     copyKey: "tour.steps.scheduleCreateTodo",
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoCreated },
   },
@@ -135,6 +174,9 @@ export const TOUR_STEPS = [
     id: "schedule-complete-todo",
     section: "schedule",
     anchor: TOUR_ANCHORS.scheduleTodoBoard,
+    // The tray again (#1773) — this anchor is inside it for the same reason
+    // the one above is, and a resume lands here just as easily.
+    reveal: TOUR_REVEALS.scheduleTodoTray,
     copyKey: "tour.steps.scheduleCompleteTodo",
     advanceOn: { kind: "action", event: TOUR_ACTIONS.scheduleTodoCompleted },
   },
@@ -216,4 +258,5 @@ export function tourSectionIds(
  * applied to a set. Order follows the registry, so the menu reads in the order
  * the full walkthrough walks.
  */
-export const TOUR_SECTION_IDS: readonly SectionId[] = tourSectionIds(TOUR_STEPS);
+export const TOUR_SECTION_IDS: readonly SectionId[] =
+  tourSectionIds(TOUR_STEPS);

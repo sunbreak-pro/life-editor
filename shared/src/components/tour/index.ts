@@ -10,7 +10,7 @@ export {
   TOUR_ANCHOR_ATTRIBUTE,
   TOUR_ANCHOR_TIMEOUT_MS,
 } from "./anchor";
-export { TOUR_ACTIONS, TOUR_ANCHORS } from "./anchors";
+export { TOUR_ACTIONS, TOUR_ANCHORS, TOUR_REVEALS } from "./anchors";
 export {
   TOUR_STEPS,
   TOUR_STEP_IDS,

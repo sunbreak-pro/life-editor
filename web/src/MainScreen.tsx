@@ -363,6 +363,11 @@ export function MainScreen({ session }: { session: Session }) {
       }}
       currentSection={section}
       onNavigateToSection={setSection}
+      // #1773: the tour's tray steps need the Schedule panel standing on its
+      // todo tab, which is the same `nav:tasks` intent the palette raises —
+      // minus the navigation, since the tour only asks once it is already
+      // there.
+      onRevealTodoTray={nav.requestTodoTray}
     >
       {/*
        * W5 app shell — responsive single shell (wide sidebar ↔ narrow bottom

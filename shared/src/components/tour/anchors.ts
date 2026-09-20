@@ -65,6 +65,55 @@ export const TOUR_ANCHORS = {
  * user walk the whole tour without creating anything, which is the exact
  * failure #1121 set out to avoid ("ボタンを見せるだけで次に進めない").
  */
+/**
+ * Preconditions a step declares so its anchor can exist at all (#1748).
+ *
+ * The third string in this file that has to match across files which never
+ * import each other, and the one that points the OTHER WAY: an anchor and an
+ * action are things the app reports to the tour, a reveal is the one thing the
+ * tour asks of the app before it starts looking.
+ *
+ * It exists because the probe cannot tell "not mounted yet" from "behind
+ * something shut". Both read as an absent `data-tour-id` and both end in the
+ * same 2.5s give-up, so a step whose target lives inside a closed container is
+ * skipped on a layout where the lesson is perfectly teachable — the user just
+ * has not opened the box. Naming the box is what lets the host open it.
+ *
+ * A NAME, not a callback on the step. Steps stay DATA (see types.ts): the
+ * registry may not hold a function that reaches into the host's state, and a
+ * host that cannot honour one of these simply does not — see the reveal prop
+ * on TourProvider for why declining is a real answer rather than a bug.
+ */
+export const TOUR_REVEALS = {
+  /**
+   * The shared detail panel — RightSidebarContext's `isOpen`. One name for
+   * both carriers on purpose: the Desktop push-in `<aside>` and the narrow
+   * MobileDrawer are the same state, so a host can satisfy this at either
+   * width without the registry knowing which one it has.
+   */
+  detailPanel: "detail-panel",
+  /**
+   * The detail panel STANDING ON ITS TODO TAB — the panel above plus the tab
+   * selection inside it (#1773).
+   *
+   * A second name rather than a second field on the step, because the two are
+   * one precondition from the step's side: `schedule-todo-add` and
+   * `-todo-board` are carried by the tray, and the tray renders only when the
+   * panel is open AND the todo tab is the one showing. A step that named the
+   * panel alone got half of what it needed, which is the whole bug: a run
+   * resumed after Escape comes back with the panel shut and the tab back on
+   * 「今日の流れ」, so `schedule-todo-add` was still absent, the probe spent
+   * its deadline, and #1193's backward give-up landed the user on 4 / 10 —
+   * one step behind where they left off, every time.
+   *
+   * `schedule-open-todos` deliberately keeps `detailPanel`: pressing that tab
+   * is that step's entire lesson, and revealing the tray would do it for the
+   * user. Prefixed with the section because the tab belongs to Schedule,
+   * unlike the panel, which every section shares.
+   */
+  scheduleTodoTray: "schedule-todo-tray",
+} as const;
+
 export const TOUR_ACTIONS = {
   scheduleEventCreated: "schedule:event-created",
   scheduleEventTimeChanged: "schedule:event-time-changed",
