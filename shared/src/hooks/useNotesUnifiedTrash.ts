@@ -2,6 +2,10 @@ import { useCallback, type Dispatch, type SetStateAction } from "react";
 import type { NoteNode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
+import {
+  reportNoteWriteError,
+  type NoteWriteErrorHandler,
+} from "./notesWriteError";
 import { forgetNoteBody } from "../state/noteBodyStore";
 
 /** Trash surface of useNotesUnifiedAPI (#587 split): load / restore / purge. */
@@ -11,10 +15,12 @@ export interface UseNotesUnifiedTrashParams {
   deletedNotes: NoteNode[];
   setDeletedNotes: Dispatch<SetStateAction<NoteNode[]>>;
   setNotes: Dispatch<SetStateAction<NoteNode[]>>;
+  /** #1761 — see useNotesUnifiedCRUD: a refused write has to reach the user. */
+  onWriteError?: NoteWriteErrorHandler;
 }
 
 export function useNotesUnifiedTrash(params: UseNotesUnifiedTrashParams) {
-  const { ds, deletedNotes, setDeletedNotes, setNotes } = params;
+  const { ds, deletedNotes, setDeletedNotes, setNotes, onWriteError } = params;
 
   const loadDeletedNotes = useCallback(async () => {
     try {
@@ -42,10 +48,10 @@ export function useNotesUnifiedTrash(params: UseNotesUnifiedTrashParams) {
         ]);
       }
       ds.restoreNoteUnified(id).catch((e) =>
-        logServiceError("Notes", "restore", e),
+        reportNoteWriteError("restore", e, onWriteError),
       );
     },
-    [ds, deletedNotes, setDeletedNotes, setNotes],
+    [ds, deletedNotes, setDeletedNotes, setNotes, onWriteError],
   );
 
   const permanentDeleteNote = useCallback(
@@ -60,10 +66,10 @@ export function useNotesUnifiedTrash(params: UseNotesUnifiedTrashParams) {
       // then a legitimate hit again.
       forgetNoteBody(id);
       ds.permanentDeleteNoteUnified(id).catch((e) =>
-        logServiceError("Notes", "permanentDelete", e),
+        reportNoteWriteError("permanentDelete", e, onWriteError),
       );
     },
-    [ds, setDeletedNotes],
+    [ds, setDeletedNotes, onWriteError],
   );
 
   return { loadDeletedNotes, restoreNote, permanentDeleteNote };

@@ -57,6 +57,9 @@ function makeHarness(
     ),
   };
 
+  // #1761: the host hook for a write that was applied locally and then refused.
+  const onWriteError = vi.fn();
+
   const hook = renderHook(
     ({ deleted }: { deleted: NoteNode[] }) =>
       useNotesUnifiedTrash({
@@ -67,6 +70,7 @@ function makeHarness(
           hook.rerender({ deleted: deletedNotes });
         },
         setNotes,
+        onWriteError,
       }),
     { initialProps: { deleted: initialDeleted } },
   );
@@ -76,6 +80,7 @@ function makeHarness(
       return hook.result.current;
     },
     ds,
+    onWriteError,
     notes: () => notes,
     deletedNotes: () => deletedNotes,
   };
@@ -182,5 +187,47 @@ describe("permanentDeleteNote", () => {
       expect.stringContaining("permanentDelete"),
     );
     warn.mockRestore();
+  });
+});
+
+/*
+ * #1761 — restore and purge are optimistic too: the row leaves (or rejoins)
+ * the list before the request lands, so a refusal had nothing to surface
+ * through. The load path above deliberately stays log-only — a failed fetch
+ * leaves the screen showing what it already had.
+ */
+describe("write failures reach the host", () => {
+  const boom = new Error("ERR_CONNECTION_CLOSED");
+
+  it("reports a refused restore", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const h = makeHarness([makeDeleted("gone")]);
+    h.ds.restoreNoteUnified.mockRejectedValueOnce(boom);
+
+    h.trash.restoreNote("gone");
+    await flush();
+
+    expect(h.onWriteError).toHaveBeenCalledWith("restore", boom);
+  });
+
+  it("reports a refused permanent delete", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const h = makeHarness([makeDeleted("gone")]);
+    h.ds.permanentDeleteNoteUnified.mockRejectedValueOnce(boom);
+
+    h.trash.permanentDeleteNote("gone");
+    await flush();
+
+    expect(h.onWriteError).toHaveBeenCalledWith("permanentDelete", boom);
+  });
+
+  it("leaves a failed Trash LOAD as a log, with nothing to tell the user", async () => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    const h = makeHarness([makeDeleted("stale")]);
+    h.ds.fetchDeletedNotesUnified.mockRejectedValueOnce(boom);
+
+    await h.trash.loadDeletedNotes();
+
+    expect(h.onWriteError).not.toHaveBeenCalled();
   });
 });

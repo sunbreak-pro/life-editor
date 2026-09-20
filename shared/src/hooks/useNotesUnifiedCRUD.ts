@@ -6,7 +6,10 @@ import {
 } from "react";
 import type { NoteNode } from "../types/note";
 import type { DataService } from "../services/DataService";
-import { logServiceError } from "../utils/logError";
+import {
+  reportNoteWriteError,
+  type NoteWriteErrorHandler,
+} from "./notesWriteError";
 import { generateId } from "../utils/generateId";
 import { afterSettled } from "../utils/undoRedo/pendingWrite";
 import type { UndoRedoLike } from "./useTodoTreeHistory";
@@ -36,6 +39,11 @@ export interface UseNotesUnifiedCRUDParams {
   markHydrated: (id: string) => void;
   markLocalWrite: (id: string) => void;
   trackWrite: (id: string, write: Promise<unknown>) => Promise<unknown>;
+  /**
+   * #1761 — told when an already-applied write is refused, so the host can say
+   * so out loud. Optional: with no handler this is the old warn-only behaviour.
+   */
+  onWriteError?: NoteWriteErrorHandler;
 }
 
 export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
@@ -50,6 +58,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
     markHydrated,
     markLocalWrite,
     trackWrite,
+    onWriteError,
   } = params;
 
   const createNote = useCallback(
@@ -115,7 +124,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
        * was back on screen with the undo already spent.
        */
       const landed = writeCreate();
-      void landed.catch((e) => logServiceError("Notes", "create", e));
+      void landed.catch((e) => reportNoteWriteError("create", e, onWriteError));
 
       if (!opts?.skipUndo) {
         push("note", {
@@ -156,6 +165,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       setNotes,
       setSelectedNoteId,
       selectedNoteIdRef,
+      onWriteError,
     ],
   );
 
@@ -231,10 +241,19 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
         id,
         ds
           .updateNoteUnified(id, updates)
-          .catch((e) => logServiceError("Notes", "update", e)),
+          .catch((e) => reportNoteWriteError("update", e, onWriteError)),
       );
     },
-    [ds, push, markHydrated, markLocalWrite, trackWrite, notesRef, setNotes],
+    [
+      ds,
+      push,
+      markHydrated,
+      markLocalWrite,
+      trackWrite,
+      notesRef,
+      setNotes,
+      onWriteError,
+    ],
   );
 
   const softDeleteNote = useCallback(
@@ -278,7 +297,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       // delete has not landed yet would be undone by the delete arriving
       // after it.
       const landed = deleteSubtree();
-      void landed.catch((e) => logServiceError("Notes", "delete", e));
+      void landed.catch((e) => reportNoteWriteError("delete", e, onWriteError));
 
       if (!opts?.skipUndo) {
         push("note", {
@@ -311,6 +330,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       setNotes,
       setDeletedNotes,
       setSelectedNoteId,
+      onWriteError,
     ],
   );
 
@@ -330,7 +350,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       );
 
       const landed = ds.updateNoteUnified(id, { isPinned: newPinned });
-      void landed.catch((e) => logServiceError("Notes", "pin", e));
+      void landed.catch((e) => reportNoteWriteError("pin", e, onWriteError));
 
       push("note", {
         label: "togglePin",
@@ -367,7 +387,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
         },
       });
     },
-    [ds, push, notesRef, setNotes],
+    [ds, push, notesRef, setNotes, onWriteError],
   );
 
   return { createNote, updateNote, softDeleteNote, togglePin };

@@ -7,6 +7,7 @@ import { useSyncDomains } from "./useSyncDomains";
 import { useDomainLoad } from "./useDomainLoad";
 import { useNoteHydrationLedger } from "./useNoteHydrationLedger";
 import { useNotesUnifiedCRUD } from "./useNotesUnifiedCRUD";
+import type { NoteWriteErrorHandler } from "./notesWriteError";
 import { useNotesUnifiedTrash } from "./useNotesUnifiedTrash";
 import { useNotesUnifiedLock } from "./useNotesUnifiedLock";
 import {
@@ -60,10 +61,19 @@ export type { NoteSortDirection };
 export interface UseNotesUnifiedAPIOptions {
   dataService: DataService;
   undoRedo?: UndoRedoLike;
+  /**
+   * #1761 — called when a write that was already applied on screen comes back
+   * refused (delete, rename, pin, restore, purge). Optimistic writes have
+   * nowhere else to surface a failure: without this the row simply reappears
+   * and the only trace is a `console.warn`. The host translates the operation
+   * into copy and raises a toast; with no handler the behaviour is unchanged.
+   */
+  onWriteError?: NoteWriteErrorHandler;
 }
 
 export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   const ds = options.dataService;
+  const onWriteError = options.onWriteError;
   const { push } = options.undoRedo ?? createNoopUndoRedo();
   const syncVersion = useSyncDomains("notes");
 
@@ -418,6 +428,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       markHydrated,
       markLocalWrite,
       trackWrite,
+      onWriteError,
     });
 
   const { loadDeletedNotes, restoreNote, permanentDeleteNote } =
@@ -426,6 +437,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       deletedNotes,
       setDeletedNotes,
       setNotes,
+      onWriteError,
     });
 
   const {
