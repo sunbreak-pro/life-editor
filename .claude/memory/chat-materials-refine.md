@@ -13,41 +13,23 @@
 
 ## 直近の完了
 
+- **#1760 / #1761 を 2 PR に分けて提出** ✅（2026-09-20 — 2 本とも `origin/main` から独立に切った。書いた時点の実測で **#1760 = PR #1762 / #1761 = PR #1765 とも open**。2 件はどちらも「画面が嘘をついたまま黙っている」形で、片方は表示の追随漏れ、もう片方は失敗の握りつぶし。
+  - **debounce 付きの入力欄は、外からの変更に追随する口を持たないと必ずズレる**（#1760）: `NoteDetailPanel` のタイトル欄は `initialTitle` をマウント時に 1 回だけ draft に取り込み、`key` はノート id だけ。Undo が DB とサイドバーを戻しても入力欄だけが新しい名前のまま残っていた。**`key` に title を混ぜる形は採らない**（入力中に remount してフォーカスを奪う。元のコメントが明示的に避けている）。**pending draft で守る** — debounce 待ちが残っている間は seed し直さず、flush 済み（= Undo が届く状態）でだけ seed する
+  - **i18next の `t()` はこのリポジトリでは型付き**（2026-09-20 実測）: `CustomTypeOptions` が効いていて、キーは catalog から生成された literal union。`Record<Op, string>` で持つと `t(COPY[op])` が TS2345 で落ちる。**`as const satisfies Record<Op, string>`** にすると literal が保たれ、キーのタイポがビルドで落ちるようになる。なお `shared/tests/i18nKeys.test.ts` のコメントは「型拡張は別途追跡」と書いているが**それは古い**（型は既に入っている）。型で見えないのは「en に足して ja を忘れた」だけなので、そこだけテストで押さえる
+  - **`SECTION_DESCRIPTORS[...].body` は `descriptor.body({...})` と関数呼び出しされる**（`web/src/MainScreen.tsx:327`）。JSX 要素として描かれないので **hooks を書けない**。Provider にトーストを噛ませたいときは `UndoRedoHost` と同じ形でホストコンポーネントを 1 枚立てる
+  - **楽観的書き込みの失敗報告は undo 経路と二重にしない**（#1761）: undo / redo のクロージャの reject は `UndoRedoManager` に届いて「元に戻せませんでした」になる（#1682）。同じ失敗をドメイン側でも報告すると 1 回の失敗にトーストが 2 枚重なる。報告するのは**通常経路の fire-and-forget な `.catch` だけ**
+  - **読み取りの失敗は握りつぶしたままでよい**（#1761 で線を引いた）: 一覧取得・本文 hydrate・ゴミ箱の読み込みは、失敗しても画面が元の内容を出し続けており、再試行は次の sync で来る。塞ぐのは「先に画面を変えてしまった書き込み」だけ
+  - 2 ブランチとも CI verify のステップ列 14 本 + `docs-lint` をローカル全緑。実ブラウザ確認（#1761 は通信断を作る必要があり、Issue が `page.route` の abort を示唆している）は merge 後に chat-main 側）
+
 - **#1750（気分スターの Undo が書き込み失敗を握りつぶす）を PR #1754 で修理** ✅（2026-09-19 — shared-fix レーンの報告。書いた時点の実測で **PR #1754 は open**。#1682 が 12 本直したときの取りこぼしで、`writeEvening` が `upsertDaily` の Promise を捨てていた。書き込みが落ちても「元に戻しました」だけが出て、コマンドが redo スタックへ移る）
   - **#1682 の形を写すだけでは足りない箇所がある**（今回の教訓）: `upsertDaily` は失敗を例外ではなく **`null` の resolve** で返す（自分で catch してログに出す）。`afterSettled` を足しても、その `null` を reject に戻さないと undo 閉包は失敗を一度も観測できない。同じ握りつぶしを他で直すときは「その write が reject するのか null を返すのか」を先に見る
   - **「undo が失敗扱いになるか」は実物の `UndoRedoManager` に流して固定する**: コマンドがどこへ行くか（redo へ進まず undo スタックへ戻る）は manager 側の契約なので、pushUndo のスタブを見るだけでは固定できない
 - **#1722（自分の #1680 が狭幅で作った不具合）を PR #1724 で修理** ✅（2026-09-19 — chat-main の実ブラウザ検証で発覚。書いた時点の実測で **PR #1724 は open**。編集可能にした星は 44px の床（#1558）を持つので 1 個 50px になり、390 幅で 5 個 + 見出しがカードをはみ出して 5 段階目が画面外に出ていた。読み取り専用のときは 15px の span で 5 個約 83px だったため収まっていた。**狭幅だけヘッダーを縦積みにして星を独立した行へ出す**（`md:` 以上は従来の 1 行）。床は触らない。
   - **「読み取り専用を編集可能にする」変更は、当たり判定の床を連れてくる**（今回の教訓）: a11y の 44px は幅の要求でもあるので、横 1 行に 5 個並ぶ UI を編集可能にするときは狭幅のレイアウトを一緒に決める
-- **#1677 / #1687 / #1688 / #1689 の 4 件を 4 PR に分けて提出** ✅（2026-09-19 — chat-main からの配布を受けて着手。書いた時点の実測で **#1677 = PR #1713 / #1688 = PR #1717 / #1689 = PR #1719 は open、#1687 = PR #1716 は merged**。#1689 だけは #1688 に stack した（同じ関数を触るため。Issue 本文も「#1688 の後」と指定）。
-  - **タグのフィルタチップの id は「グループキー」でタグ id ではない**（#1677 で踏んだ）: `tagGroupKey(group) = group.tagId ?? "__untagged__"` なので、未分類だけが別物。右クリックのタグメニューに渡す前にここで弾く（Connect のレールが `isUntagged` でやっているのと同じ形）
-  - **右クリックのパネルは RightSidebarPortal の中に置かない**（#1677）: 狭幅ではそのポータルが MobileDrawer なので、ドロワーと一緒に unmount する。ホストの最上位に置く（`TemplateEditHost` の既存コメントが同じことを言っている）
-  - **memo している行にハンドラを渡すときは `(id, event) => void` の 1 本にする**（#1677）: 行ごとに `() => f(node.id)` を作ると `DesktopNoteRow` の memo が毎回外れる
-  - **DnD の「移動」はドラッグ元をドラッグ id から取れる**（#1687）: 1 つのノートはタグごとに行を持つので、draggable id の接頭辞（グループキー）が「どの見出しから掴んだか」そのもの。jsdom にレイアウトが無くジェスチャは再現できないため、`planTagMove`（純関数）に判断を出して 5 ケースを固定した
-  - **`[[` の検索語には閉じ括弧が入る**（#1689）: @tiptap/suggestion の `allowSpaces` 版の正規表現は `[[.*?(?=s[[|$)` で行末まで飲む。挿入側は range が `]]` を含むので既存の `deleteRange` のままでよく、直すのは検索語の読み方だけ
-  - 4 ブランチとも CI verify のステップ列 14 本 + `docs-lint` をローカル全緑。実ブラウザ確認（#1677 のパネル位置・#1687 のドラッグ）は merge 後に chat-main 側）
-
-- **#1679 / #1680 / #1674 を 3 PR に分けて提出** ✅（2026-09-17 — 3 本とも `origin/main` から独立に切った。書いた時点の実測で **#1679 の PR #1683 は merged・#1680 の PR #1693 と #1674 の PR #1699 は open**。3 件はどれも Daily / Notes の「本文のまわり」で、触った層は別々（レイアウト / 夕刊セクションの書き込み / アップロードの見せ方）。
-  - **#1679 の原因はメニューではなくカードの床**: kebab の `<Menu>` は portal ではなく `absolute top-full` でカードの中に描かれ、カードは `overflow-hidden`。`min-h-0` の flex 列が短い日のカードを夕刊カードの下で潰し、削除行が切れていた。`min-h-60` に置き換えたが、**`cn` は tailwind-merge ではない**ので `min-h-0` と並べず**差し替え**る（並べると CSS の記述順で決まる）
-  - **夕刊の編集は「基準にする本文」の選び方が全部**（#1680）: 書き込みは `mergeEveningSection` に通し、基準はレンダーの `selectedContent` ではなく `getDailyForDate`（ref 読み）にした。undo / redo のクロージャはそのレンダーのずっと後に走るため。さらに書いた内容を `lastEmitted` に記録して**自分のエコー**に見せると、星を押しても本文エディタが remount しない（remount = カーソル消失 + 入力中の flush）
-  - **気分 1 タップ = undo 1 回にするには `skipUndo` が要る**（#1680）: 初回書き込みは context 側が `createDaily` の undo を自分で積むので、放っておくと 1 タップで undo が 2 回必要になる
-  - **`Loader2` はこの lucide-react に型として無い**（#1674 で踏んだ・申し送りにも既にあった）。deprecated alias なのでビルドは通るが、家の作法は `LoaderCircle` + `animate-spin motion-reduce:animate-none`（`AuthCard.tsx` が基準）
-  - **同じ lazy-mount flake に 2 回当たった**（`briefingEveningLazyMount`）。4 worktree が同時に verify を回すと落ち、単体・静かな状態では緑。別レーンの PR #1692 が main に着地して以降は一括でも緑
-  - **他レーンの誤 kill で verify が途中で死んだ**（connect-refine から連絡あり）。`ps | grep verify.sh` は**全 worktree の同名スクリプトに当たる**ので、止めるときはログのパスまで見る。復旧は落ちたステップから再開できる形にしておくと安い
-  - 3 ブランチとも CI verify のステップ列 14 本 + `docs-lint` をローカル全緑。実ブラウザ確認（#1679 のメニュー全項目・#1674 の帯の位置）は merge 後に chat-main 側）
-
-- **#1606 / #1607 添付チップとリンクブロックを 2 PR に分けて提出** ✅（2026-09-13 — どちらも `origin/main` から独立に切った（stack しない）。書いた時点の実測で **PR #1612（#1606）/ #1617（#1607）とも open**。2 件は「本文の中の埋め込みを、同じ 1 つの形にそろえる」という 1 本の話で、#1606 が形を決め #1607 がそれに乗る。
-  - **DoD が「ブラウザで実測して貼れ」と言うのに、この worktree は dev server を立てられない**（CLAUDE.md §7.4 = 実ブラウザは chat-main）。解いた形は、**ビルド済み CSS + アプリと同じ chrome を書き下ろした計測用ページ**を scratchpad に置き、`file://` は playwright が塞ぐのでポート 8791 の使い捨て静的サーバーで開く、というもの。アプリの dev server ではないのでポートが競合しない。数値（390 で 332.67 / 1280 で 998.67）と前提は Issue コメントに全部書いた
-  - **`editor.isEditable` は node view の中で信用できない**（実測）: `isEditable` は `this.options.editable && this.view && this.view.editable` で、node view は **EditorView の構築中**に作られるので `this.view` がまだ undefined。読み取り専用ゲートに使うと**どの面でも false** になる。見るのは `editor.options.editable`（`setEditable` が同時に更新する）
-  - **削除ボタンは `<a>` の子にできない**（リンクの中のボタンは不正な HTML）。兄弟にして CSS で右端に重ねると、DoD が測る `.note-attachment__file` は**本文カラム幅の要素のまま**でいられる。44x44 はここでは `max-md:` にせず全幅で無条件 — #1560 の narrow 限定はリストの desktop レイアウトを太らせないためで、ラベルの無いアイコン 1 個が横に本文の流れないブロック行にいるこの形には当てはまらない
-  - **index.css の `@media (forced-colors: active)` は 1 つではなくなった**: `taskListCheckboxSize.test.ts` が「最初の 1 つ」を取っていたので、2 本とも中身で選ぶ形に直した（両ブランチに同じ修正が載っている = 片方 merge 後ももう片方は素通りする）
-  - **`new URL()` は http(s) 以外も通す**: `javascript:alert(1)` は例外を投げず、host が空・pathname が `alert(1)` になる。見出しが空のカードになりかけた。`href` はクリックでそのままブラウザに渡る = アプリのオリジンで走るので、**http(s) 以外は href を付けない**を `safeHref` に切り出した（テスト付き）
-  - **入力規則にはテストが無い**（申告済み）: ProseMirror のテキスト入力経路は jsdom のレイアウトと mutation flush を要求する。貼り付け・ラウンドトリップ・削除・URL 解釈は押さえた
-  - 両ブランチで CI verify のステップ列 + `docs-lint` をローカル実行。**`mcp-server — test` だけ Windows 固有で 1 件赤**（`remoteRegistry.test.ts` が `utilserification.ts` と `utils/verification.ts` を比べている = パス区切りの問題で Linux ランナーでは緑。今回の変更は mcp-server に触れていない））
-
 
 ## 予定
 
-（なし — 2026-09-13 時点で `section:materials` の open Issue は #1606 / #1607 で、それぞれ PR #1612 / #1617。どちらも merge はこうだいさんの手番（P-001）。次は chat-main からの新規 dispatch 待ち。**両方 merge された後の小さな片付けが 1 件** = `.note-attachment__file` と `.note-link-card__link` の CSS は独立ブランチのため意図的に重複しており、セレクタ 1 本にまとめられる（見た目は変わらない）。**すぐ来る見込みの 1 件** = アップロード進捗の実装（方針は `D-20260902-materials-1` で確定済み・起票依頼は outbox 2026-09-02）。**もう 1 件の見込み** = `toggleList` / `toggleSummary` / `toggleContent`（#1555 の PR 本文が table と並べて名指しした残り。table を #1579 で片付けたので、エディタのスキーマに無い MCP ノードはこれだけ。`<details>` 経由で素の markdown からも届くぶん経路が広い））
+（なし — 2026-09-20 時点で自分宛に配られた open Issue は #1760 / #1761 で、どちらも PR を出し終えた（#1762 / #1765）。merge はこうだいさんの手番（P-001）。次は chat-main からの新規 dispatch 待ち。**片付けの見込み 3 件**: (1) `.note-attachment__file` と `.note-link-card__link` の CSS はセレクタ 1 本にまとめられる（独立ブランチのため意図的に重複・見た目は変わらない）/ (2) アップロード進捗の実装（方針は `D-20260902-materials-1` で確定済み・起票依頼は outbox 2026-09-02）/ (3) `toggleList` / `toggleSummary` / `toggleContent`（エディタのスキーマに無い MCP ノードの残り。`<details>` 経由で素の markdown からも届くぶん経路が広い））
 
 ## 申し送り
 
