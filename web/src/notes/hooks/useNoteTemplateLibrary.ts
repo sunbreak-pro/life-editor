@@ -4,6 +4,7 @@ import {
   type DataService,
   type TemplateListItem,
 } from "@life-editor/shared";
+import { useTemplateWriteFailure } from "./useTemplateWriteFailure";
 
 /*
  * The saved templates behind the Notes sidebar disclosure, and the draft the
@@ -69,6 +70,7 @@ export function useNoteTemplateLibrary(
   // template written locally by another hook (#1179 registers one from the note
   // kebab) leaves this list correct-looking and one row short.
   const [reloadToken, setReloadToken] = useState(0);
+  const reportWriteFailure = useTemplateWriteFailure();
 
   useEffect(() => {
     if (!dataService) return;
@@ -133,8 +135,8 @@ export function useNoteTemplateLibrary(
     setDraft(null);
     void dataService
       .updateNoteUnified(draft.id, { title, content: draft.content })
-      .catch((e) => console.error("updateNoteUnified (template) failed", e));
-  }, [dataService, draft]);
+      .catch((e) => reportWriteFailure("update", e));
+  }, [dataService, draft, reportWriteFailure]);
 
   const remove = useCallback(
     (id: string) => {
@@ -147,11 +149,9 @@ export function useNoteTemplateLibrary(
       // UI.
       void dataService
         .softDeleteNoteUnified(id)
-        .catch((e) =>
-          console.error("softDeleteNoteUnified (template) failed", e),
-        );
+        .catch((e) => reportWriteFailure("delete", e));
     },
-    [dataService],
+    [dataService, reportWriteFailure],
   );
 
   const refresh = useCallback(() => setReloadToken((v) => v + 1), []);
