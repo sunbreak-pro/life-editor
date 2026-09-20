@@ -132,6 +132,15 @@ export function useItemConversion({
    *
    * The bodies are async and the manager awaits them, so the "Undid: ..." toast
    * lands after the writes settle rather than in front of them.
+   *
+   * #1772: every catch here re-throws after its toast. The catch exists to
+   * name the failure in the user's words -- `itemConvert.failed` says which
+   * action broke, which a generic "could not undo" cannot -- but swallowing
+   * the error left the closure resolving normally, and `UndoRedoManager.apply`
+   * reads "did not throw" as "worked": the host stacked "Undid: ..." on top of
+   * "Conversion failed", and the command that never ran moved to the redo
+   * stack (#1668 keeps a THROWING undo on the undo stack, so the re-throw is
+   * also what makes a second Undo press reachable).
    */
   const pushEventToTodoUndo = useCallback(
     (before: ScheduleItem) => {
@@ -156,6 +165,8 @@ export function useItemConversion({
               err,
             );
             showToast("danger", t("itemConvert.failed"));
+            // #1772: the toast is ours, the verdict is the manager's.
+            throw err;
           } finally {
             endConvert(id);
           }
@@ -175,6 +186,8 @@ export function useItemConversion({
               err,
             );
             showToast("danger", t("itemConvert.failed"));
+            // #1772: the toast is ours, the verdict is the manager's.
+            throw err;
           } finally {
             endConvert(id);
           }
@@ -216,6 +229,8 @@ export function useItemConversion({
               err,
             );
             showToast("danger", t("itemConvert.failed"));
+            // #1772: the toast is ours, the verdict is the manager's.
+            throw err;
           } finally {
             endConvert(id);
           }
@@ -233,6 +248,8 @@ export function useItemConversion({
               err,
             );
             showToast("danger", t("itemConvert.failed"));
+            // #1772: the toast is ours, the verdict is the manager's.
+            throw err;
           } finally {
             endConvert(id);
           }

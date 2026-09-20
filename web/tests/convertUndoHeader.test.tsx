@@ -50,9 +50,14 @@ function todo(): TodoNode {
   } as TodoNode;
 }
 
-function setup(over?: { reload?: () => void }) {
+function setup(over?: {
+  reload?: () => void;
+  convertEventToTodo?: () => Promise<unknown>;
+}) {
   const convertTodoToEvent = vi.fn(async () => ({}));
-  const convertEventToTodo = vi.fn(async () => ({}));
+  const convertEventToTodo = vi.fn(
+    over?.convertEventToTodo ?? (async () => ({})),
+  );
   const updateTodo = vi.fn(async () => ({}));
   const dataService = {
     convertTodoToEvent,
@@ -62,6 +67,13 @@ function setup(over?: { reload?: () => void }) {
   const api: {
     convert?: (id: string) => void;
   } = {};
+  const showToast = vi.fn();
+  // The two callbacks UndoRedoHost hands the provider in the real app: one
+  // raises "Undid: ...", the other "Could not undo ...". Asserting on them is
+  // how a case tells "the manager thinks this worked" apart from the toast the
+  // hook itself raised.
+  const onCommandApplied = vi.fn();
+  const onCommandFailed = vi.fn();
 
   function Host() {
     const { push } = useUndoRedoContext();
@@ -73,7 +85,7 @@ function setup(over?: { reload?: () => void }) {
       listDate: TODAY,
       reload: over?.reload ?? (() => {}),
       refetchTodos: async () => {},
-      showToast: () => {},
+      showToast,
       askConfirm: async () => true,
       closePopover: () => {},
       closeTodoDetail: () => {},
@@ -85,12 +97,22 @@ function setup(over?: { reload?: () => void }) {
   }
 
   render(
-    <UndoRedoProvider>
+    <UndoRedoProvider
+      onCommandApplied={onCommandApplied}
+      onCommandFailed={onCommandFailed}
+    >
       <HeaderUndoRedo />
       <Host />
     </UndoRedoProvider>,
   );
-  return { api, convertTodoToEvent, convertEventToTodo };
+  return {
+    api,
+    convertTodoToEvent,
+    convertEventToTodo,
+    showToast,
+    onCommandApplied,
+    onCommandFailed,
+  };
 }
 
 const button = (name: string) =>
@@ -115,6 +137,38 @@ describe("Todo → Event conversion drives the header Undo (#1637)", () => {
     await act(async () => fireEvent.click(button("Redo")));
     await waitFor(() => expect(h.convertTodoToEvent).toHaveBeenCalledTimes(2));
     await waitFor(() => expect(button("Undo").disabled).toBe(false));
+  });
+
+  it("keeps a failed Undo on the undo stack and off the redo one (#1772)", async () => {
+    // The whole bug in one round trip: the hook catches the write error to
+    // name it ("Conversion failed"), and used to stop there. The manager saw a
+    // closure that resolved, so the header lit Redo up for a reversal that
+    // never happened and the user was told it HAD happened.
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = setup({
+      convertEventToTodo: () => Promise.reject(new Error("offline")),
+    });
+
+    await act(async () => h.api.convert!("task-1"));
+    await waitFor(() => expect(button("Undo").disabled).toBe(false));
+
+    await act(async () => fireEvent.click(button("Undo")));
+    await waitFor(() => expect(h.convertEventToTodo).toHaveBeenCalledTimes(1));
+
+    // The hook's own "Conversion failed" toast still fires — it names the
+    // action, which the generic copy cannot.
+    expect(h.showToast).toHaveBeenCalledWith("danger", expect.anything());
+    // ...and the manager agrees: no "Undid: ...", and the command stays where
+    // a second press can reach it (#1668).
+    expect(h.onCommandApplied).not.toHaveBeenCalled();
+    expect(h.onCommandFailed).toHaveBeenCalledTimes(1);
+    expect(h.onCommandFailed.mock.calls[0][0]).toBe("undo");
+    expect(button("Redo").disabled).toBe(true);
+    expect(button("Undo").disabled).toBe(false);
+
+    // And pressing it again really does re-attempt the same reversal.
+    await act(async () => fireEvent.click(button("Undo")));
+    await waitFor(() => expect(h.convertEventToTodo).toHaveBeenCalledTimes(2));
   });
 
   it("still records the command when a re-read after the write throws", async () => {
