@@ -95,10 +95,13 @@ export function TagHubItemGroups({
             )}`}
             className="mb-1.5 flex items-center gap-2"
           >
-            <ItemRoleBadge role={group.role} labels={labels.roles} />
+            {/* `md`: the run heading sits directly above rows that are
+                themselves `text-sm`, so at the in-line chip size it read as
+                one more row rather than as the divider between two kinds. */}
+            <ItemRoleBadge role={group.role} labels={labels.roles} size="md" />
             <span
               aria-hidden
-              className="text-xs font-medium tabular-nums text-lumen-text-tertiary"
+              className="text-sm font-medium tabular-nums text-lumen-text-tertiary"
             >
               {group.items.length}
             </span>
@@ -162,7 +165,7 @@ export function TagHubItemGroups({
                   )}
                 >
                   <span
-                    className="min-w-0 flex-1 truncate text-[13px] text-lumen-text"
+                    className="min-w-0 flex-1 truncate text-sm text-lumen-text"
                     title={item.title}
                   >
                     {item.title}
