@@ -1,5 +1,24 @@
 # HISTORY (chat-connect-refine)
 
+### 2026-09-20 - ハブの行タイトルと種別見出しの文字を 1 段大きくした（ユーザー直依頼）
+
+#### 概要
+
+Connect のハブで、アイテム名（13px）がホバーで出るチェックボックス（16px）に対して小さく、Note / Todo の区切りも行と見分けにくい、というユーザー直依頼。Issue は起票していない（worktree チャットは起票せず、修正が小さいので outbox にも回さず PR 1 本で出した）。**PR #1790（open）**。触ったのは `TagHubItemGroups.tsx` と `ItemRoleBadge.tsx` の 2 ファイル。
+
+#### 変更点
+
+- 行タイトルを `text-[13px]` → `text-sm`（14px）。隣の `size-4` チェックボックスと、アプリの他の一覧に揃う
+- `ItemRoleBadge` に `size`（`"sm"` = 従来のインラインチップ・既定 / `"md"` = 14px テキスト + 14px グリフ）を追加し、ハブの種別見出しだけが `"md"` を要求する。見出し横のカウントも `text-sm` へ
+- **`className` 上書きではなく prop にした理由**: `cn` は単なる文字列結合（rules/frontend.md §Gotchas）なので、`text-sm` を渡しても内蔵の `text-xs` が消えず、勝敗を Tailwind の出力順が決めてしまう
+- 右サイドバー `TagHubDetailPanel` の内訳は「区切り」ではなく件数サマリなので小さいチップのまま。他の `ItemRoleBadge` 呼び出し 6 箇所も既定の `"sm"` で不変
+
+#### 検証と事故
+
+- CI `verify` のステップ列をローカルで上から全通し、**14 ステップすべて exit 0**（shared / web / desktop / mcp-server）
+- **このワークツリーが origin/main より古いことに、最初のブランチ切りで初めて気付いた**。古い版の `TagHubItemGroups.tsx` を編集していて、`git checkout -b ... origin/main` が「ローカル変更が上書きされる」で止まった。#1749 の `min-w-0 flex-1` が手元に無い版だった。変更を捨てて origin/main から切り直し、同じ編集を入れ直して verify も回し直している。**worktree は着手前に origin/main との差分を見る**のが安い
+- 実ブラウザ確認は未実施（worktree は build / 型検証まで — CLAUDE.md §7.4）。merge 後に chat-main 側へ
+
 ### 2026-09-19 - 390 幅で長いタイトルの行が横スクロールを生む問題を直した（#1749）
 
 #### 概要
