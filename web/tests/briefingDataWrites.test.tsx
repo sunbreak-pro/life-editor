@@ -3,6 +3,7 @@ import { renderHook, act, waitFor } from "@testing-library/react";
 import {
   localDateTimeToISO,
   type DataService,
+  type RoutineNode,
   type TodoNode,
 } from "@life-editor/shared";
 import { makeNote, makeTodo, stubDataService } from "./helpers";
@@ -32,6 +33,29 @@ import { useBriefingData } from "../src/briefing/hooks/useBriefingData";
  */
 
 const TODAY = "2026-08-15";
+
+/**
+ * A routine that fires every day, so the pre-anchor fill (#1768) has days to
+ * materialise. The planner only needs to know a routine COULD be read; the
+ * generator is what reads the template out of it.
+ */
+const DAILY_ROUTINE: RoutineNode = {
+  id: "r1",
+  title: "Morning stretch",
+  startTime: "07:00",
+  endTime: "07:15",
+  isArchived: false,
+  isVisible: true,
+  isDeleted: false,
+  deletedAt: null,
+  order: 0,
+  frequencyType: "daily",
+  frequencyDays: [],
+  frequencyInterval: null,
+  frequencyStartDate: null,
+  createdAt: "2026-08-01T00:00:00.000Z",
+  updatedAt: "2026-08-01T00:00:00.000Z",
+};
 
 /**
  * The slot the create panel now submits (#940): the day travels with the times
@@ -229,7 +253,7 @@ describe("useBriefingData — todo status writes (#892)", () => {
 });
 
 describe("useBriefingData — schedule writes (#892)", () => {
-    it("creates an event on the day the paper is showing", async () => {
+  it("creates an event on the day the paper is showing", async () => {
     const saved = scheduleItem({ id: "s-new", date: TODAY, title: "Coffee" });
     const { result, ds } = renderData(
       {},
@@ -286,6 +310,57 @@ describe("useBriefingData — schedule writes (#892)", () => {
     );
   });
 
+  it("files an undo for the created event, naming the saved row (#1768)", async () => {
+    // The paper's creates used to file nothing at all, so the header's Undo
+    // sat disabled over an event that had just appeared. The command names
+    // the SAVED row rather than the optimistic one — a redo that re-inserted
+    // the optimistic copy would drop whatever the server filled in.
+    const saved = scheduleItem({ id: "s-new", date: TODAY, title: "Coffee" });
+    const { result, ds, harness } = renderData(
+      {},
+      {
+        createScheduleItem: vi.fn().mockResolvedValue(saved),
+        softDeleteScheduleItem: vi.fn().mockResolvedValue(undefined),
+        restoreScheduleItem: vi.fn().mockResolvedValue(undefined),
+      },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () =>
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), null),
+    );
+    await waitFor(() => expect(harness.commands).toHaveLength(1));
+
+    const [command] = harness.commands;
+    expect(command?.domain).toBe("scheduleItem");
+    expect(command?.label).toBe("createScheduleItem");
+
+    await act(async () => command?.undo());
+    expect(mockOf(ds, "softDeleteScheduleItem")).toHaveBeenCalledWith("s-new");
+    expect(result.current.data.schedule).toEqual([]);
+
+    await act(async () => command?.redo());
+    expect(mockOf(ds, "restoreScheduleItem")).toHaveBeenCalledWith("s-new");
+    expect(result.current.data.schedule.map((s) => s.id)).toEqual(["s-new"]);
+  });
+
+  it("files nothing when the create never landed (#1768)", async () => {
+    // An entry whose undo soft-deletes an id the database never had is worse
+    // than no entry: Ctrl+Z would report success over nothing.
+    const { result, harness } = renderData(
+      {},
+      {
+        createScheduleItem: vi.fn().mockRejectedValue(new Error("offline")),
+      },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await act(async () =>
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), null),
+    );
+
+    expect(harness.commands).toEqual([]);
+  });
   it("creates a todo on the paper's day with a concrete window", async () => {
     const saved = makeTodo({
       id: "task-new",
@@ -571,6 +646,118 @@ describe("useBriefingData — row deletes and their undo (#892)", () => {
     }
   });
 
+  it("files an undo for the dismissed occurrence (#1768)", async () => {
+    // "this" is a Dismiss, and a dismiss reverses exactly — so the paper owes
+    // the same command Schedule's own dismiss files. The two series-wide
+    // scopes stay off the stack on both sides (a cascade is not undone by
+    // re-inserting one row).
+    const row = scheduleItem({
+      id: "s-routine",
+      date: TODAY,
+      routineId: "r1",
+    });
+    const { result, ds, harness } = renderData(
+      { scheduleByDate: { [TODAY]: [row] } },
+      {
+        dismissScheduleItem: vi.fn().mockResolvedValue(undefined),
+        undismissScheduleItem: vi.fn().mockResolvedValue(undefined),
+      },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.handleDeleteScheduleItem("s-routine"));
+    await act(async () => result.current.handleDeleteScopeChoose("this"));
+
+    expect(mockOf(ds, "dismissScheduleItem")).toHaveBeenCalledWith("s-routine");
+    await waitFor(() => expect(result.current.data.schedule).toEqual([]));
+
+    const [command] = harness.commands;
+    expect(command?.domain).toBe("scheduleItem");
+    expect(command?.label).toBe("dismissScheduleItem");
+
+    await act(async () => command?.undo());
+    expect(mockOf(ds, "undismissScheduleItem")).toHaveBeenCalledWith(
+      "s-routine",
+    );
+    expect(result.current.data.schedule.map((s) => s.id)).toEqual([
+      "s-routine",
+    ]);
+  });
+
+  it("materialises the days up to a future anchor before detaching (#1768)", async () => {
+    // `detachRoutine` erases the occurrences from the anchor on, and the
+    // days between today and the anchor only exist on demand. Without this
+    // fill they are erased as days the user never selected — the paper's
+    // private copy of this branch had no fill at all.
+    const anchor = "2026-08-20";
+    const row = scheduleItem({
+      id: "s-routine",
+      date: anchor,
+      routineId: "r1",
+    });
+    const order: string[] = [];
+    const { result, ds } = renderData(
+      { scheduleByDate: { [TODAY]: [row] } },
+      {
+        fetchAllRoutines: vi.fn().mockResolvedValue([DAILY_ROUTINE]),
+        fetchScheduleItemsByDateRange: vi
+          .fn()
+          .mockImplementation((start: string, end: string) => {
+            order.push(`range ${start}..${end}`);
+            return Promise.resolve([]);
+          }),
+        bulkCreateScheduleItems: vi.fn().mockImplementation(() => {
+          order.push("fill");
+          return Promise.resolve(undefined);
+        }),
+        detachRoutine: vi.fn().mockImplementation(() => {
+          order.push("detach");
+          return Promise.resolve({ deletedScheduleItemIds: ["s-routine"] });
+        }),
+      },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.handleDeleteScheduleItem("s-routine"));
+    await act(async () => result.current.handleDeleteScopeChoose("future"));
+
+    // Up to the day BEFORE the anchor: the anchor itself is the day the user
+    // chose to delete.
+    await waitFor(() =>
+      expect(order).toEqual([`range ${TODAY}..2026-08-19`, "fill", "detach"]),
+    );
+    expect(mockOf(ds, "detachRoutine")).toHaveBeenCalledWith("r1", anchor);
+  });
+
+  it("does not detach when the fill did not land (#1768)", async () => {
+    // #296: the days the fill failed to write are exactly the ones the detach
+    // would then erase for good, so a half-done fill aborts the whole thing.
+    const anchor = "2026-08-20";
+    const row = scheduleItem({
+      id: "s-routine",
+      date: anchor,
+      routineId: "r1",
+    });
+    const { result, ds } = renderData(
+      { scheduleByDate: { [TODAY]: [row] } },
+      {
+        fetchAllRoutines: vi.fn().mockResolvedValue([DAILY_ROUTINE]),
+        fetchScheduleItemsByDateRange: vi
+          .fn()
+          .mockRejectedValue(new Error("offline")),
+        bulkCreateScheduleItems: vi.fn().mockResolvedValue(undefined),
+        detachRoutine: vi.fn().mockResolvedValue({
+          deletedScheduleItemIds: ["s-routine"],
+        }),
+      },
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    act(() => result.current.handleDeleteScheduleItem("s-routine"));
+    await act(async () => result.current.handleDeleteScopeChoose("future"));
+
+    expect(mockOf(ds, "detachRoutine")).not.toHaveBeenCalled();
+  });
   it("soft-deletes a todo and files an undo that restores it", async () => {
     const todo = makeTodo({
       id: "t1",
