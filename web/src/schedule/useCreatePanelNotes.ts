@@ -148,6 +148,14 @@ export function useCreatePanelNotes({
            *
            * The redo re-links rather than re-creating: the note row is
            * restored, so a second create would leave a duplicate behind.
+           *
+           * #1767: both closures re-throw after their toast. `onAttachError`
+           * is what names THIS failure ("the note did not make it onto the
+           * item"), but swallowing the error left the closure resolving, and
+           * `UndoRedoManager.apply` reads that as success: the host stacked
+           * "Undid: ..." over the failure and sent a command that never ran to
+           * the redo stack. A throwing undo stays put (#1668), so re-throwing
+           * is also what keeps a second Ctrl+Z able to retry.
            */
           const createdNoteId = draft.kind === "new" ? noteId : null;
           let liveLinkId = link.id;
@@ -161,6 +169,7 @@ export function useCreatePanelNotes({
               } catch (e) {
                 console.error("[Schedule] undoing the note attach failed", e);
                 onAttachError();
+                throw e;
               }
             },
             redo: async () => {
@@ -171,6 +180,7 @@ export function useCreatePanelNotes({
               } catch (e) {
                 console.error("[Schedule] redoing the note attach failed", e);
                 onAttachError();
+                throw e;
               }
             },
           });
