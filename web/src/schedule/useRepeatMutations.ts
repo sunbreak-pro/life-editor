@@ -555,10 +555,13 @@ export function useRepeatMutations({
             skipUndo: true,
           });
           if (!landed) {
-            // #469 小粒: reconcile is skipped on purpose, but the
-            // finally-reload then restores the OLD frequency in the editor.
-            // Without a word, that reads as the frequency control being broken
-            // rather than the write having failed.
+            // #469 小粒: reconcile is skipped on purpose, and the editor
+            // snaps back to the OLD frequency — not because of the
+            // finally-reload (that refetches schedule ITEMS; routines are not
+            // in it), but because updateRoutine rolls its own optimistic patch
+            // back when the write does not land (#1769). Without a word, the
+            // snap-back reads as the frequency control being broken rather
+            // than the write having failed.
             onRepeatConvertFailed("update");
             return;
           }
