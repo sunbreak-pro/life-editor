@@ -220,7 +220,9 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         if (ok || !prev) return;
         setRoutines((p) =>
           p.map((r) =>
-            r.id === id ? { ...r, ...prevValues, updatedAt: prev.updatedAt } : r,
+            r.id === id
+              ? { ...r, ...prevValues, updatedAt: prev.updatedAt }
+              : r,
           ),
         );
       });
@@ -400,26 +402,43 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
   // "Turn the repeat off" (#185 Step 3). Optimistically drop the routine
   // from the live list (so the generator stops materialising it and the UI
   // updates at once), then let the service soft-delete future/incomplete
-  // occurrences + detach the survivors + soft-delete the routine. No undo
-  // entry: detach is a deliberate, calendar-app "delete this and following
-  // events" action, and the survivors (past + completed occurrences) are
-  // intentionally kept.
+  // occurrences + detach the survivors + soft-delete the routine.
   //
   // On failure the optimistic removal is rolled back AND the error is
   // re-thrown (not swallowed) so the caller can distinguish success from
   // failure and reconcile its own view (the Schedule host re-reads the
   // visible range instead of trusting an optimistic delete that never
   // landed server-side).
+  //
+  // Undo is OPT-IN (#1801 / D-20260919-sched-2 = B), because the two callers
+  // want different inverses. The editor's "Repeat = None" pins the open
+  // occurrence and pushes its own command — a fresh conversion of that pinned
+  // survivor, which is the action the editor itself offers. The scope
+  // dialog's "this and following" pins nothing, so the only inverse within
+  // reach is the one below: put the trashed occurrences back, then the
+  // routine. Defaulting this ON would make the editor path push twice.
   const detachRoutine = useCallback(
     async (
       id: string,
       fromDate?: string,
-      opts?: { keepItemIds?: string[] },
+      opts?: {
+        keepItemIds?: string[];
+        /**
+         * Push the reversal onto the global stack. `onRestored` fires after an
+         * undo or redo has moved the occurrences (#708's `onCascadeChanged` by
+         * another name): the rows those ids name live in the host's
+         * visible-range store, and only the host can put them back on the grid.
+         */
+        undo?: { onRestored?: () => void };
+      },
     ): Promise<{ deletedScheduleItemIds: string[] }> => {
       const target = routinesRef.current.find((r) => r.id === id);
       setRoutines((prev) => prev.filter((r) => r.id !== id));
+      let result: { deletedScheduleItemIds: string[] };
       try {
-        return await ds.detachRoutine(id, fromDate, opts);
+        result = await ds.detachRoutine(id, fromDate, {
+          keepItemIds: opts?.keepItemIds,
+        });
       } catch (e) {
         logServiceError("Routines", "detach", e);
         if (target) {
@@ -429,8 +448,62 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         }
         throw e;
       }
+
+      if (target && opts?.undo) {
+        // The occurrences the detach trashed. The survivors it merely unlinked
+        // are NOT here, and the undo below does not re-link them: nothing in
+        // the service puts a `routine_item_id` back, and the tags the detach
+        // handed them keep their new home (the source rows were soft-deleted
+        // by handOverTagAssignments). So an undo restores the repeat WITHOUT
+        // its tags — the scope dialog says so before the press (#1801).
+        const cascade = result.deletedScheduleItemIds;
+        const onRestored = opts.undo.onRestored;
+        push("routine", {
+          label: "detachRoutine",
+          confirm: SERIES_CONFIRM,
+          // Rows first, then the routine, then paint — the same order
+          // deleteRoutine's undo takes, and for the same reason: putting the
+          // routine back is what wakes the generator, and the generator skips
+          // a day only where it can SEE a live occurrence. A still-trashed row
+          // is invisible to it, so it would mint a fresh id for that day
+          // (#708) and the user would get a repeat whose rows are not the ones
+          // they split off.
+          undo: async () => {
+            const { conflictedIds } =
+              await ds.bulkRestoreScheduleItems(cascade);
+            // Not a failure (#932): the generator already re-made that day
+            // while the routine was trashed, so the calendar shows an
+            // occurrence either way — only the id differs.
+            if (conflictedIds.length > 0) {
+              logServiceError(
+                "Routines",
+                "undoDetachCascade",
+                new Error(
+                  `${conflictedIds.length} occurrence(s) stayed in the trash: a live row already holds their (routine, date) pair`,
+                ),
+              );
+            }
+            await ds.restoreRoutine(id);
+            setRoutines((prev) =>
+              prev.some((r) => r.id === id) ? prev : [...prev, target],
+            );
+            onRestored?.();
+          },
+          redo: async () => {
+            setRoutines((prev) => prev.filter((r) => r.id !== id));
+            // Re-runs the split against whatever is live now rather than
+            // replaying the id list, exactly as redoDelete does.
+            await ds.detachRoutine(id, fromDate, {
+              keepItemIds: opts.keepItemIds,
+            });
+            onRestored?.();
+          },
+        });
+      }
+
+      return result;
     },
-    [ds],
+    [ds, push],
   );
 
   // Event→Repeats conversion (#296). AWAITED, unlike createRoutine: the

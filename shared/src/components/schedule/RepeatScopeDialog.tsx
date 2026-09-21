@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Modal } from "../Modal";
 import { cn } from "../cn";
 
@@ -26,6 +27,16 @@ export interface RepeatScopeDialogLabels {
   thisAndFuture: string;
   all: string;
   cancel: string;
+  /**
+   * What this choice costs that undoing it will not give back (#1801).
+   * Sits under the "this and following" button and is read out with it, so
+   * the price is in front of the user BEFORE the press rather than after.
+   *
+   * Optional, and attached to one choice rather than to the dialog: the other
+   * two scopes reverse cleanly, and a note over all three would say the wrong
+   * thing about them. Omitted, nothing is rendered.
+   */
+  thisAndFutureNote?: string;
 }
 
 export interface RepeatScopeDialogProps {
@@ -51,13 +62,18 @@ export function RepeatScopeDialog({
   onChoose,
   onClose,
 }: RepeatScopeDialogProps) {
+  const noteId = useId();
   const optionClass = cn(
     OPTION_BASE,
     mode === "delete" ? OPTION_DANGER : OPTION_NEUTRAL,
   );
-  const options: Array<{ scope: RepeatScope; label: string }> = [
+  const options: Array<{ scope: RepeatScope; label: string; note?: string }> = [
     { scope: "this", label: labels.thisOnly },
-    { scope: "future", label: labels.thisAndFuture },
+    {
+      scope: "future",
+      label: labels.thisAndFuture,
+      note: labels.thisAndFutureNote,
+    },
     { scope: "all", label: labels.all },
   ];
   return (
@@ -76,16 +92,34 @@ export function RepeatScopeDialog({
         >
           {labels.cancel}
         </button>
-        {options.map(({ scope, label }) => (
-          <button
-            key={scope}
-            type="button"
-            onClick={() => onChoose(scope)}
-            className={optionClass}
-          >
-            {label}
-          </button>
-        ))}
+        {options.map(({ scope, label, note }) =>
+          note ? (
+            // Wrapped only when there is a note, so the plain choices keep the
+            // flat markup (and the gap-2 spacing) they always had.
+            <div key={scope} className="flex flex-col gap-1">
+              <button
+                type="button"
+                onClick={() => onChoose(scope)}
+                className={optionClass}
+                aria-describedby={noteId}
+              >
+                {label}
+              </button>
+              <p id={noteId} className="px-1 text-xs text-lumen-text-secondary">
+                {note}
+              </p>
+            </div>
+          ) : (
+            <button
+              key={scope}
+              type="button"
+              onClick={() => onChoose(scope)}
+              className={optionClass}
+            >
+              {label}
+            </button>
+          ),
+        )}
       </div>
     </Modal>
   );
