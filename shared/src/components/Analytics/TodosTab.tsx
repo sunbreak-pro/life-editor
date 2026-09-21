@@ -3,7 +3,10 @@ import type { TimerSession } from "../../types/timer";
 import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
-import { earliestTodoCompletionKey } from "../../utils/analyticsAggregation";
+import {
+  earliestTodoCompletionKey,
+  sessionsWithinRange,
+} from "../../utils/analyticsAggregation";
 import { trendRangeDays, useAnalyticsFilter } from "./AnalyticsFilterContext";
 import {
   TodoCompletionTrend,
