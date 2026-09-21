@@ -1,7 +1,9 @@
+import { useMemo } from "react";
 import type { TimerSession } from "../../types/timer";
 import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
+import { sessionsWithinRange } from "../../utils/analyticsAggregation";
 import { dateRangeDays, useAnalyticsFilter } from "./AnalyticsFilterContext";
 import {
   TodoCompletionTrend,
@@ -48,13 +50,26 @@ export function TodosTab({
   // so the range has to reach the chart as its bucket count.
   const days = dateRangeDays(dateRange);
 
+  // #1860: the ring got every session the host holds, so it read the same
+  // split under all four presets while the trend above it moved. The host
+  // keeps sessions unwindowed on purpose (the Work tab's totals are all-time),
+  // so the window is applied here, where the range is read.
+  const rangedSessions = useMemo(
+    () => sessionsWithinRange(sessions, dateRange.start, dateRange.end),
+    [sessions, dateRange],
+  );
+
   return (
     <div className="space-y-4">
-      <TodoCompletionTrend nodes={nodes} days={days} labels={labels.todoTrend} />
+      <TodoCompletionTrend
+        nodes={nodes}
+        days={days}
+        labels={labels.todoTrend}
+      />
       <div className="grid grid-cols-2 gap-3">
         <TodoStagnationChart nodes={nodes} labels={labels.stagnation} />
         <TagWorkTimeChart
-          sessions={sessions}
+          sessions={rangedSessions}
           nodes={nodes}
           events={events}
           assignments={assignments}
