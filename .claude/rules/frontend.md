@@ -72,6 +72,7 @@ Realtime の変更通知は**ドメインごとのカウンタ**（一覧は `sh
 - i18n は props 経由（部品フック内で `useTranslation()` 禁止）。文言は `react-i18next` の en / ja 両 catalog に追加
 - DataService はコールバック注入（フック内で `getDataService()` 直呼び禁止）
 - ジェネリクスで型外部化
+- **`aria-busy` を単独で立てない**（#1804）: 処理中は目で見える手がかりとセットにする。ボタンは `<Button busy busyLabel={…}>`（スピナー + ラベル差し替え + `disabled` が 1 つの口から出る）、読み込み中の領域はスケルトン、古い値を残したまま再取得する領域は `BUSY_STALE`。`disabled`（押せない）と busy（動いている）を同じ見た目にしない
 - **`lumen-*` はネストした `data-theme` に追随しない**（#887）: `@theme` の別名（`--color-lumen-bg: var(--color-bg-primary)`）は Tailwind が `:root` に出し、**宣言された要素**で中身が確定して子孫はその確定値を継承する。サブツリーに `data-theme="dark"` を付けても lumen-\* 側は塗り替わらない（Settings のテーマカード 3 枚が同じ見た目になっていた原因）。**部分テーマで使うトークンは `tokens.css` の `[data-theme]` エイリアスブロックに 1 行足す**（色値のコピーは禁止・守り = `shared/tests/tokensNestedTheme.test.ts`）
 - 詳細 → `docs/vision/coding-principles.md §5`
 

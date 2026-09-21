@@ -1,6 +1,6 @@
 import { useId } from "react";
 import type { FormEvent, KeyboardEvent } from "react";
-import { LoaderCircle, UserRound } from "lucide-react";
+import { UserRound } from "lucide-react";
 import { Input } from "./Input";
 import { Button } from "./Button";
 import { NoticePanel } from "./NoticePanel";
@@ -125,18 +125,13 @@ export function SettingsProfile({
         ) : null}
 
         <div>
-          <Button type="submit" disabled={busy} className={CARD_BTN_TAP}>
-            {busy ? (
-              <>
-                <LoaderCircle
-                  aria-hidden
-                  className="h-4 w-4 animate-spin motion-reduce:animate-none"
-                />
-                {labels.busy}
-              </>
-            ) : (
-              labels.submit
-            )}
+          <Button
+            type="submit"
+            busy={busy}
+            busyLabel={labels.busy}
+            className={CARD_BTN_TAP}
+          >
+            {labels.submit}
           </Button>
         </div>
       </form>

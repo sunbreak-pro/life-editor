@@ -180,7 +180,13 @@ export function SegmentedControl({
     <div
       role="tablist"
       aria-label={label}
-      aria-busy={disabled || undefined}
+      // No `aria-busy` here (#1804): `disabled` is passed for two different
+      // reasons — FrequencyEditor locks the track while a conversion runs,
+      // and other hosts lock it because the choice does not apply yet — and
+      // the track itself cannot tell them apart. Claiming "busy" for both
+      // announced work that was not happening, and the one host where it IS
+      // happening already says so on its own wrapper, next to a role=status
+      // line naming the reason.
       className={cn(
         "flex gap-0.5 rounded-lumen-md bg-lumen-bg-secondary p-0.5",
         // What absorbs the overrun once the labels refuse to break: the row

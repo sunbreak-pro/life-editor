@@ -1,5 +1,7 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { LoaderCircle } from "lucide-react";
 import {
+  BUSY_SPINNER,
   FOCUS_RING,
   FOCUS_RING_ON_ACCENT,
   NoticePanel,
@@ -38,6 +40,8 @@ export interface NotePasswordDialogLabels {
   currentPasswordLabel: string;
   confirmPasswordLabel: string;
   submit: string;
+  /** Replaces `submit` while the write is in flight (#1804). */
+  busy: string;
   cancel: string;
   mismatch: string;
   wrongPassword: string;
@@ -192,13 +196,21 @@ export function NotePasswordDialog({
             >
               {labels.cancel}
             </button>
+            {/* Spinner + label swap (#1804). `aria-busy` alone told a screen
+                reader the write was running and told everyone else nothing —
+                the button just went pale, which is what an unusable button
+                looks like here too. The fill stays as it was; only the cue
+                is new. */}
             <button
               type="submit"
               disabled={busy}
               aria-busy={busy}
-              className={`rounded-md bg-lumen-accent px-3 py-1.5 text-sm text-lumen-on-accent hover:opacity-90 disabled:opacity-40 ${FOCUS_RING_ON_ACCENT}`}
+              className={`inline-flex items-center gap-1.5 rounded-md bg-lumen-accent px-3 py-1.5 text-sm text-lumen-on-accent hover:opacity-90 disabled:opacity-40 ${FOCUS_RING_ON_ACCENT}`}
             >
-              {labels.submit}
+              {busy && (
+                <LoaderCircle aria-hidden className={`h-3.5 w-3.5 ${BUSY_SPINNER}`} />
+              )}
+              {busy ? labels.busy : labels.submit}
             </button>
           </div>
         </form>

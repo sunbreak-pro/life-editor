@@ -1,4 +1,4 @@
-import { LoaderCircle, MailCheck } from "lucide-react";
+import { MailCheck } from "lucide-react";
 import { cn } from "./cn";
 import { AUTH_SURFACE_CLASS } from "./authSurface";
 import { NoticePanel } from "./NoticePanel";
@@ -95,21 +95,12 @@ export function EmailConfirmationCard({
         type="button"
         variant="secondary"
         size="lg"
-        disabled={busy}
+        busy={busy}
+        busyLabel={labels.busy}
         onClick={onResend}
         className="w-full"
       >
-        {busy ? (
-          <>
-            <LoaderCircle
-              aria-hidden
-              className="h-4 w-4 animate-spin motion-reduce:animate-none"
-            />
-            {labels.busy}
-          </>
-        ) : (
-          labels.resend
-        )}
+        {labels.resend}
       </Button>
 
       <button

@@ -11,6 +11,8 @@ import type { ScheduleItem } from "../../types/schedule";
 import type { RoutineNode } from "../../types/routine";
 import { dateRangeDays, useAnalyticsFilter } from "./AnalyticsFilterContext";
 import { formatDateKey } from "../../utils/dateKey";
+import { cn } from "../cn";
+import { BUSY_STALE } from "../styleTokens";
 import { AnalyticsStatCard } from "./AnalyticsStatCard";
 import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
 import {
@@ -131,7 +133,10 @@ export function ScheduleTab({
   const days = dateRangeDays(dateRange);
 
   return (
-    <div className="space-y-4" aria-busy={loading}>
+    // Re-fetch in flight over a range that already has items: the numbers
+    // below are the PREVIOUS range's until it lands (#1804 — aria-busy used
+    // to be the only thing that said so).
+    <div className={cn("space-y-4", loading && BUSY_STALE)} aria-busy={loading}>
       {/* Five across needs a genuinely wide column (#1480). `lg:` asked the
           WINDOW, so the panel-open layout still tried five, and even at a full
           1280px the row's own 1050px only leaves ~200px per tile — which is

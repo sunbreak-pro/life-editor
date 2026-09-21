@@ -153,7 +153,13 @@ describe("ScheduleTab loading state (per-range fetch in flight)", () => {
     // Stale data stays visible (totalEvents = 1) and the root flags aria-busy.
     expect(screen.getByText("1")).toBeInTheDocument();
     expect(container.querySelector(".animate-pulse")).toBeNull();
-    expect(container.querySelector('[aria-busy="true"]')).not.toBeNull();
+
+    // …and it says so on screen, not only to a screen reader (#1804). These
+    // are the PREVIOUS range's numbers until the fetch lands, so they must
+    // not read as settled.
+    const busy = container.querySelector('[aria-busy="true"]');
+    expect(busy).not.toBeNull();
+    expect(busy).toHaveClass("opacity-60");
   });
 
   it("shows the empty copy when settled (not loading) with no items", () => {
