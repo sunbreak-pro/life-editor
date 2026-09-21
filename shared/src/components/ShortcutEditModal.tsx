@@ -4,7 +4,8 @@ import { Modal } from "./Modal";
 import { Button } from "./Button";
 import { cn } from "./cn";
 import { CategoryLabel, groupByCategory } from "./shortcutParts";
-import { eventToBinding } from "../utils/shortcutBinding";
+import { eventToBinding, modifierLabels } from "../utils/shortcutBinding";
+import { isMac } from "../utils/platform";
 import type { ShortcutRow } from "../types/shortcut";
 import type {
   KeyBinding,
@@ -46,22 +47,30 @@ export interface ShortcutEditModalProps {
   /** Restore the open-time snapshot + close. */
   onCancel: () => void;
   labels: ShortcutEditModalLabels;
+  /** Mac glyphs vs. Ctrl / Shift / Alt. Defaults to the running platform. */
+  mac?: boolean;
 }
 
 const MODIFIER_KEYS = new Set(["Meta", "Control", "Shift", "Alt"]);
 
-/** Ordered modifier symbols currently held during a capture. */
-function heldModifierSymbols(e: {
-  metaKey: boolean;
-  ctrlKey: boolean;
-  shiftKey: boolean;
-  altKey: boolean;
-}): string[] {
-  const out: string[] = [];
-  if (e.metaKey || e.ctrlKey) out.push("⌘");
-  if (e.shiftKey) out.push("⇧");
-  if (e.altKey) out.push("⌥");
-  return out;
+/**
+ * Ordered modifier labels currently held during a capture. Goes through the
+ * same formatter as the committed rows so a Windows capture reads "Ctrl", not
+ * "⌘" (#1869). Meta / Ctrl fold into one accelerator, as in eventToBinding.
+ */
+function heldModifierLabels(
+  e: {
+    metaKey: boolean;
+    ctrlKey: boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+  },
+  mac: boolean,
+): string[] {
+  return modifierLabels(
+    { meta: e.metaKey || e.ctrlKey, shift: e.shiftKey, alt: e.altKey },
+    mac,
+  );
 }
 
 function fillConflict(template: string, action: string): string {
@@ -88,6 +97,7 @@ export function ShortcutEditModal({
   onDone,
   onCancel,
   labels,
+  mac = isMac,
 }: ShortcutEditModalProps) {
   const [capturingId, setCapturingId] = useState<ShortcutId | null>(null);
   const [held, setHeld] = useState<string[]>([]);
@@ -152,7 +162,7 @@ export function ShortcutEditModal({
       e.preventDefault();
       e.stopPropagation();
 
-      setHeld(heldModifierSymbols(e));
+      setHeld(heldModifierLabels(e, mac));
       if (MODIFIER_KEYS.has(e.key)) return; // modifier-only — keep waiting
 
       const binding = eventToBinding(e.nativeEvent);
@@ -171,6 +181,7 @@ export function ShortcutEditModal({
       onRebind,
       markTouched,
       stopCapture,
+      mac,
     ],
   );
 
