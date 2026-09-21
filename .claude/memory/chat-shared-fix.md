@@ -6,12 +6,13 @@
 
 ## 直近の完了
 
+- **サイドバーの「タグを編集」行を削除（2026-09-21）**: こうだいさんの直接指示。#1643 で Connect にモーダルが吸収されて以降、この行は `setSection("connect")` を呼ぶだけで nav の「つながり」と行き先が同じだった。`SidebarNav` / `AppShell` から `onOpenTagEditor` と `labels.tagEditor` を prop ごと削除し、ホスト側（`MainScreen` / `useShellChrome`）の受け渡しと #409 のテスト 5 本、docs 3 本の記述も追随。**narrow の「その他」シートは残した**（狭幅にはサイドバーが無い）。**PR #1794**（open）。verify 全ステップ + docs-lint をローカルで exit 0 ✅（2026-09-21）
 - **#1773 を PR まで（2026-09-20）**: ツアーを Escape で中断して再開すると 5/10 ではなく 4/10 に戻る件。#1748 の `reveal` が詳細パネルしか戻さず、Todo トレイの anchor（`schedule-todo-add` / `-todo-board`）が「パネルが開いている」かつ「Todo タブが選ばれている」の **2 つ**を必要とすることを見落としていた。`TOUR_REVEALS.scheduleTodoTray` を新設して step 5 / 6 が名乗り、**step 4 は `detailPanel` のまま**（タブを押すことがその step のレッスンなので代行しない）。Web 側は `requestTodoTray`（`pendingTodoTray` を navigation 抜きで上げる）を新設し `AppProviders` → `MainScreen` で配線。狭幅は引き続き辞退。`TourContext.tsx` は変更不要だった。**PR #1777**（open）。verify 全 15 ステップ + docs-lint をローカルで exit 0 ✅（2026-09-20）
 - **#1748 を PR まで（2026-09-20）**: Desktop 初回ツアーで Todo の 3 ステップが飛ばされる件。原因はアンカーが `ScheduleSidebar` にあり、そのサイドバーが `RightSidebarPortal` 経由でしか描かれないこと（`isOpen` は非永続なので毎回閉じて始まる）。ツアー基盤に**前準備 `TourStep.reveal`**（候補 A）を足し、`TourProvider` が新 prop `onRevealStep` でホストに開かせてから probe の締切を測る。開く実体は `web/src/AppProviders.tsx` の新 `TourRevealHost`（`useRightSidebarOptional()?.open`）。**狭幅は意図的に辞退**（`MobileDrawer` の z-50 が吹き出し z-45 を覆うため、開くと「飛ばされる」より悪い「読めないまま止まる」になる）。`web/src/schedule/**` は 1 行も触っていない（#1642 の Scope）。**PR #1757**（open）。verify 全 14 ステップ + docs-lint をローカルで exit 0 ✅（2026-09-20）
-- **/goal 4 件を PR まで（2026-09-19）**: #1668 = 投げた undo が「元に戻しました」と出て redo へ進む件（`undo()` / `redo()` が `{ command, ok, error }` を返し、失敗したコマンドは元のスタックへ戻す。Host は danger トースト）→ **PR #1691 はこうだいさんが merge 済み**。#1667 = タグの付け外しを Undo スタックへ + 失敗をトーストに（Scope の 2 ファイルに収めるため履歴はフック内の `useUndoRedoOptional` で拾う）→ **PR #1697**。#1670 = Trash の復元判定を `restoreScheduleItemFromTrash` 1 本にまとめ、楽観更新を撤去 → **PR #1702**。#1672 = `<kbd>` 5 箇所を `font-sans` に統一（方針 A）+ source scan の守り → **PR #1704**。4 本とも verify 全ステップ + docs-lint をローカルで exit 0 ✅（2026-09-19）
 
 ## 予定
 
+- **🛑 こうだいさん手番 — #1794（サイドバーの「タグを編集」行の削除）の merge**（P-001）。実ブラウザでの目視（footer が「Claude を起動」と ⌘K の 2 行になること・「つながり」からタグ編集に入れること）は merge 後に chat-main
 - **merge 済みを 2026-09-20 に実測**（`gh pr view --json state`）: **#1757（#1748）/ #1697（#1667）/ #1702（#1670）/ #1704（#1672）は全部 MERGED**。残るのは実ブラウザでの目視で、どれも chat-main の手番 — #1748 は Desktop 通しで step 4〜6 が本当に出るか、#1672 はキーキャップ 5 箇所、#1667 は失敗トースト
 - **🛑 こうだいさん手番 — #1777（#1773）の merge**（P-001）。実ブラウザでの Escape → 再開の 1 往復は Issue の Gate どおり merge 後に chat-main
 - **狭幅のツアーは #1748 では直していない**: 仕組み（`reveal`）は幅を問わず使えるが、吹き出し z-45 と `MobileDrawer` z-50 の順序が解決するまでホスト側で辞退している。z 順を直す Issue は未起票（起票は chat-main の手番）
