@@ -1,5 +1,29 @@
 # HISTORY (chat-tags-docs)
 
+### 2026-09-21 - #1805 / #1806 判断キュー 2 件の消化（REFERENCE の置き場 / brief 共通前提の凍結）
+
+#### 概要
+
+2026-09-21 に回答が付いた D-20260902-tags-1 / -2 を実装した。どちらも `.claude/` 配下の docs 変更だけで、`origin/main` から切った別々のブランチに分けている（PR #1807 / #1808 ともに open）。
+
+#### #1805 — Status REFERENCE の計画書を plans/ 残置で統一
+
+- `archive/2026-05-23-cleanup-and-consolidation-deletion-targets.md` を `git mv` で `docs/vision/plans/` へ戻した。移動前に先頭行で Status が `REFERENCE`（`COMPLETED` ではない）ことを実測している
+- **リンクは両向きで壊れる**。移動したファイルの中（本文 3 本 + frontmatter の `Parent` / `Migration SSOT`）と、そこを指す 2 本（`archive/2026-05-23-cleanup-and-consolidation.md:81` / `archive/code-inventory-2026-04-25.md:5`）の計 7 箇所
+- `git grep` の残り 6 件はリンクではなく本文・表セルで、`.claude/docs/vision/plans/...` と書いてあるものは移動後に正しくなる側だった。触っていない
+
+#### #1806 — _COMMON-CONTEXT.md の凍結注記
+
+- **Issue の前提が 1 点ずれていた**。Issue は「Version 3 のまま Connect = Graph / Backlinks・Settings / Trash・N=1 が残る」と書いているが、実測は **v4.1（2026-09-14）** で、その 3 件は v4（2026-09-12）で既に現行化されていた。#1390 起票からの 9 日で状況が変わっている
+- そのため注記は「この 3 件が古い」とは書かず、**文書の性格（ClaudeDesign へ貼る生成条件のスナップショット）と正本の所在**（`shared/src/sections.ts` の registry / `docs/requirements/mobile-scope.md` / `shared/src/styles/tokens.css`）を書く形にした
+- 注記は「使い方」が指す水平線より**上**に置いた。下は「そのまま全文コピー」される領域なので、注記が ClaudeDesign へのプロンプトに混ざらない
+- DoD の「Version 行が 3 のまま」は「本 PR で版数を上げない」の意と解し、4.1 のまま据え置いた
+
+#### 判断台帳への昇格
+
+- D-20260902-tags-1 / D-20260902-tags-2 を `.claude/decisions/` へ昇格し、キューから削除した（キューは空になった）
+- D-20260902-tags-2 の「波及」に、裁定時と実装時で前提がずれていた件を 1 行残してある
+
 ### 2026-09-02 - #1391 / #1390 docs 整合 2 本（常時ロード面の drift + design docs の追随）
 
 #### 概要
