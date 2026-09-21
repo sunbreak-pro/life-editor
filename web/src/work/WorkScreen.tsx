@@ -274,8 +274,15 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     prevCompletedRef.current = timer.completedSessions;
   }, [timer.completedSessions]);
 
-  // Completion copy: the WORK that just finished logged workDuration minutes;
-  // the phase is already the upcoming break, so its length is the break copy.
+  // Completion copy: the minutes are what the Provider WROTE for the phase
+  // that just finished (#1853), not its nominal length. A phase nudged by
+  // 5 min, or paused inside its first minute, logs a different figure and the
+  // modal has to agree with History / Analytics. The phase is already the
+  // upcoming break, so its length is the break copy.
+  const loggedMinutes =
+    timer.lastLoggedWorkSeconds === null
+      ? timer.workDurationMinutes
+      : Math.round(timer.lastLoggedWorkSeconds / 60);
   const breakMinutes =
     timer.phase === "LONG_BREAK"
       ? timer.longBreakDurationMinutes
@@ -287,12 +294,12 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   });
   const completionBody = timer.activeItem
     ? t("work.completion.body", {
-        minutes: timer.workDurationMinutes,
+        minutes: loggedMinutes,
         todo: timer.activeItem.title,
         breakMinutes,
       })
     : t("work.completion.bodyNoTodo", {
-        minutes: timer.workDurationMinutes,
+        minutes: loggedMinutes,
         breakMinutes,
       });
 
