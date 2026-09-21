@@ -435,6 +435,13 @@ export function ScheduleOverlays({
           thisAndFuture: t("scheduleScreen.scopeThisAndFuture"),
           all: t("scheduleScreen.scopeAll"),
           cancel: t("scheduleScreen.scopeCancel"),
+          // #1801: only the DELETE side splits the series and hands its tags
+          // to the survivors. The edit side propagates a patch and takes
+          // nothing away, so the warning would be false there.
+          thisAndFutureNote:
+            scope.request?.mode === "delete"
+              ? t("scheduleScreen.scopeDeleteFutureTagNote")
+              : undefined,
         }}
         onChoose={scope.onChoose}
         onClose={scope.onClose}

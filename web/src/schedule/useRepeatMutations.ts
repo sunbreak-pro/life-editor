@@ -95,7 +95,9 @@ export interface UseRepeatMutationsArgs {
   detachRoutine: (
     id: string,
     fromDate?: string,
-    opts?: { keepItemIds?: string[] },
+    // `undo` (#1801): opt-in, because the two detach entries want different
+    // inverses — see the scope-dialog branch below and handleDetachRepeat.
+    opts?: { keepItemIds?: string[]; undo?: { onRestored?: () => void } },
   ) => Promise<{ deletedScheduleItemIds: string[] }>;
   updateFutureOccurrences: (
     routineId: string,
@@ -987,9 +989,24 @@ export function useRepeatMutations({
               return;
             }
           }
+          /*
+           * #1801 (K-01 / K-02, D-20260919-sched-2 = B): the third delete
+           * scope is undoable now. "This one" (dismiss) and "all" (the routine
+           * with its cascade) always were, and a middle choice that silently
+           * was not is the shape the user cannot learn — they find out by
+           * pressing Ctrl+Z and watching nothing happen.
+           *
+           * What comes back is the repeat and the occurrences this split
+           * trashed. What does NOT is the tags: the split hands them to the
+           * survivors it unlinks and soft-deletes the series' own rows, and no
+           * write puts those back. The scope dialog says so before the press
+           * rather than leaving the user to discover it after — that wording
+           * is the condition the decision was granted on.
+           */
           const { deletedScheduleItemIds } = await detachRoutine(
             plan.routineId,
             plan.anchor,
+            { undo: { onRestored: reload } },
           );
           const removed = new Set(deletedScheduleItemIds);
           setRangeItems((prev) =>

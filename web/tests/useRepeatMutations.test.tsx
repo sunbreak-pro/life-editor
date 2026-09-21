@@ -109,9 +109,15 @@ function renderRepeat(
     >(() =>
       Promise.resolve({ deletedScheduleItemIds: ["occ-1"], landed: true }),
     ),
-    detachRoutine: vi.fn(() =>
-      Promise.resolve({ deletedScheduleItemIds: ["occ-2"] }),
-    ),
+    // Spelled with its parameters for the same reason deleteRoutine is: #1801
+    // reads the third argument (the opt-in undo bag) back off the call.
+    detachRoutine: vi.fn<
+      (
+        id: string,
+        fromDate?: string,
+        opts?: { keepItemIds?: string[]; undo?: { onRestored?: () => void } },
+      ) => Promise<{ deletedScheduleItemIds: string[] }>
+    >(() => Promise.resolve({ deletedScheduleItemIds: ["occ-2"] })),
     updateFutureOccurrences: vi.fn(() =>
       opts.propagateThrows
         ? Promise.reject(new Error("propagate failed"))
@@ -338,9 +344,42 @@ describe("delete scopes", () => {
       "future",
     );
     await waitFor(() => expect(h.detachRoutine).toHaveBeenCalled());
-    expect(h.detachRoutine).toHaveBeenCalledWith(ROUTINE_ID, "2026-08-15");
+    expect(h.detachRoutine).toHaveBeenCalledWith(
+      ROUTINE_ID,
+      "2026-08-15",
+      // #1801: this entry asks the layer below to record the reversal — see
+      // the case under "what lands on the undo history".
+      expect.objectContaining({ undo: expect.anything() }),
+    );
     // Past / completed rows survive as detached records — nothing routine-wide.
     expect(h.deleteRoutine).not.toHaveBeenCalled();
+  });
+
+  /*
+   * #1801 (K-01 / K-02): the middle scope used to be the one delete the user
+   * could not take back, while "this one" and "all" both could. Asking the
+   * layer below to record it is what makes the three consistent; the inverse
+   * itself (restore the rows, then the repeat) is pinned in
+   * shared/tests/routineDetachUndo.test.tsx, where the DataService is.
+   */
+  it("asks the routine layer to record 'future' and hands it the range re-read", async () => {
+    const h = renderRepeat();
+    choose(
+      h,
+      { mode: "delete", item: occurrence({ date: "2026-08-15" }) },
+      "future",
+    );
+    await waitFor(() => expect(h.detachRoutine).toHaveBeenCalled());
+
+    const opts = h.detachRoutine.mock.calls[0][2];
+    expect(opts?.undo).toBeDefined();
+    // The restored rows live in the host's visible-range store, which the
+    // routines hook cannot reach — only a re-read puts them back on the grid.
+    // Counted from wherever the detach itself left it: a future anchor makes
+    // the pre-anchor fill re-read too (`reloadAfterFill`).
+    const before = h.reload.mock.calls.length;
+    opts?.undo?.onRestored?.();
+    expect(h.reload.mock.calls.length).toBe(before + 1);
   });
 
   it("soft-deletes the whole routine for 'all'", async () => {
