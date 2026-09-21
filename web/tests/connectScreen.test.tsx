@@ -858,6 +858,34 @@ describe("ConnectScreen — the relations panel", () => {
     expect([call[1], call[2]]).toEqual(["event-1", "note-1"]);
   });
 
+  /*
+   * #1734: the brief's M5 heads the picker's rows with "Candidates (N)". The
+   * count has to follow the search, not the whole pool — a heading frozen at
+   * the unfiltered number is the failure this pins.
+   */
+  it("heads the picker's rows with the count the search left", async () => {
+    const { panel } = await renderWithPanel();
+    openWork();
+    fireEvent.click(screen.getByRole("button", { name: /^Standup/ }));
+
+    fireEvent.click(panel().getByRole("button", { name: "Add a link" }));
+    const picker = within(
+      panel().getByRole("dialog", { name: "Link to an item" }),
+    );
+    picker.getByRole("heading", { name: /^Candidates \(\d+\)$/ });
+
+    fireEvent.change(picker.getByLabelText("Search by title…"), {
+      target: { value: "Migration" },
+    });
+    picker.getByRole("heading", { name: "Candidates (1)" });
+
+    fireEvent.change(picker.getByLabelText("Search by title…"), {
+      target: { value: "nothing matches this" },
+    });
+    picker.getByRole("heading", { name: "Candidates (0)" });
+    picker.getByText("No matching item");
+  });
+
   it("goes back to the tag's breakdown", async () => {
     const { panel } = await renderWithPanel();
     openWork();

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { ArrowLeft, ArrowUpRight, Plus, X } from "lucide-react";
 import { cn } from "../cn";
@@ -45,6 +45,8 @@ export interface RelationPanelLabels {
   /** The add popover's accessible name. */
   addLinkDialog: string;
   searchPlaceholder: string;
+  /** Heads the rows the search offers — "Candidates" in formatSection. */
+  candidates: string;
   noCandidates: string;
   roles: ItemRoleLabels;
 }
@@ -217,6 +219,7 @@ function AddLinkButton({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const boxRef = useRef<HTMLDivElement | null>(null);
+  const candidatesHeadingId = useId();
 
   useEffect(() => {
     if (!open) return;
@@ -281,12 +284,26 @@ function AddLinkButton({
               FOCUS_RING_TIGHT,
             )}
           />
+          {/*
+           * The brief's M5 heads the rows with "Candidates (N)", the same
+           * shape the panel's own sections use, so the count of what the
+           * search narrowed to is readable without counting the rows.
+           */}
+          <h3
+            className="mb-1.5 mt-2 px-1 text-xs font-medium text-lumen-text-tertiary"
+            id={candidatesHeadingId}
+          >
+            {labels.formatSection(labels.candidates, matches.length)}
+          </h3>
           {matches.length === 0 ? (
-            <p className="mt-2 px-1 py-1 text-xs text-lumen-text-tertiary">
+            <p className="px-1 py-1 text-xs text-lumen-text-tertiary">
               {labels.noCandidates}
             </p>
           ) : (
-            <ul className="mt-2 max-h-60 overflow-y-auto">
+            <ul
+              aria-labelledby={candidatesHeadingId}
+              className="max-h-60 overflow-y-auto"
+            >
               {matches.map((target) => (
                 <li key={target.id}>
                   <button
