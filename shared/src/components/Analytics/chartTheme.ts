@@ -50,3 +50,41 @@ export const CHART_TOOLTIP_STYLE = {
   borderRadius: 8,
   fontSize: 12,
 } as const;
+
+/*
+ * One axis vocabulary per tab (#1864).
+ *
+ * The Work tab read "1時間2分" on its stat tiles, "0.15h" on the chart under
+ * them and "0m / 8m" on the chart beside that, and its four date axes used
+ * four formats ("9/8", "09-08", "2026/9", "8/23~") — none of which followed
+ * the language, because each chart hardcoded its own. Charts now take this
+ * pair of formatters instead. The host builds it once (copy arrives through
+ * props in this codebase — the shared tree never calls useTranslation), so
+ * every axis and tooltip on a tab speaks the same units as the tiles above it.
+ */
+export type AxisDateUnit = "day" | "week" | "month";
+
+export interface ChartAxisFormat {
+  /** A duration in MINUTES, in the host's language ("1h 30m" / "1時間30分"). */
+  duration: (minutes: number) => string;
+  /**
+   * A bucket's local `YYYY-MM-DD` key. `unit` says what the bucket covers: a
+   * week key is the week's first day, a month key is the 1st of the month.
+   */
+  date: (dateKey: string, unit: AxisDateUnit) => string;
+}
+
+/*
+ * Language-neutral fallback for a chart mounted outside Analytics (the
+ * Briefing panel draws WorkBreakBalance with labels of its own). It prints what
+ * that chart printed before #1864, so such a host is unchanged until it passes
+ * a real format.
+ */
+export const FALLBACK_AXIS_FORMAT: ChartAxisFormat = {
+  duration: (minutes) => `${Math.round(minutes)}m`,
+  date: (dateKey, unit) =>
+    unit === "month" ? dateKey.substring(0, 7) : dateKey.substring(5),
+};
+
+/** Gutter for a duration axis — "1時間30分" at 11px needs more than the default 60. */
+export const DURATION_AXIS_WIDTH = 64;

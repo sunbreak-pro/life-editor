@@ -1,5 +1,6 @@
 import type { StagnationBucketId } from "../../utils/analyticsAggregation";
 import type { DatePreset } from "./AnalyticsFilterContext";
+import type { ChartAxisFormat } from "./chartTheme";
 
 /*
  * Typed i18n labels for the Analytics feature (W4 · lean).
@@ -16,6 +17,12 @@ export interface AnalyticsLabels {
   title: string;
   /** "{hours}h {minutes}m" — host interpolates via t("analytics.hours", ...). */
   formatHours: (minutes: number) => string;
+
+  /**
+   * Axis / tooltip vocabulary for the charts (#1864): one duration format and
+   * one date format per tab, both in the host's language.
+   */
+  axis: ChartAxisFormat;
 
   /** Accessible name for the shell HeaderTabs tablist. */
   tabsLabel: string;

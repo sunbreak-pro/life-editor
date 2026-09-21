@@ -803,6 +803,11 @@
     "sessions": "セッション数",
     "avgPerDay": "日平均",
     "hours": "{{hours}}時間{{minutes}}分",
+    "axis": {
+      "hoursOnly": "{{hours}}時間",
+      "minutesOnly": "{{minutes}}分",
+      "weekFrom": "{{date}}〜"
+    },
     "today": {
       "title": "今日",
       "workTime": "作業時間",
