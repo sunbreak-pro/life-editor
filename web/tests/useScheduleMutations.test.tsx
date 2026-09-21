@@ -79,6 +79,16 @@ function setup(over?: {
   const order: string[] = [];
   let rows: ScheduleItem[] = over?.rangeItems ?? [];
   let selectedId: string | null = over?.selectedId ?? null;
+  let lastCreateOpts:
+    | {
+        isAllDay?: boolean;
+        content?: string;
+        noteId?: string;
+        memo?: string;
+        reminderOffset?: number | null;
+        onSaved?: (saved: ScheduleItem | null) => void;
+      }
+    | undefined;
 
   const createScheduleItem = vi.fn(
     (
@@ -91,11 +101,15 @@ function setup(over?: {
         content?: string;
         noteId?: string;
         memo?: string;
+        reminderOffset?: number | null;
         onSaved?: (saved: ScheduleItem | null) => void;
       },
     ): string => {
       order.push(`create:${date}/${title}/${startTime}-${endTime}`);
-      void opts;
+      // Held, not discarded (#1642 W16): the duplicate cases drive `onSaved`
+      // to play back a refused INSERT, which is the only way to reach the
+      // rollback from here.
+      lastCreateOpts = opts;
       return NEW_ID;
     },
   );
@@ -126,6 +140,9 @@ function setup(over?: {
   });
   const onDropTodoChipAllDay = vi.fn((chipId: string, dateISO: string) => {
     order.push(`chipAllDay:${chipId}/${dateISO}`);
+  });
+  const onDuplicateFailed = vi.fn(() => {
+    order.push("duplicateFailed");
   });
 
   const setRangeItems: Dispatch<SetStateAction<ScheduleItem[]>> = vi.fn(
@@ -174,6 +191,7 @@ function setup(over?: {
     onResizeTodoChip,
     onDropTodoChipAllDay,
     onRepeatConvertFailed: vi.fn(),
+    onDuplicateFailed,
     copySuffix: COPY_SUFFIX,
   };
 
@@ -192,6 +210,8 @@ function setup(over?: {
     onMoveTodoChip,
     onResizeTodoChip,
     onDropTodoChipAllDay,
+    onDuplicateFailed,
+    createOpts: () => lastCreateOpts,
   };
 }
 
@@ -478,6 +498,10 @@ describe("handleDuplicate", () => {
         content: "body",
         noteId: "note-1",
         memo: "memo",
+        // #1642 W16: the reminder travels (K-07) and the copy reports a
+        // refused INSERT (K-10) — the two cases below are about those.
+        reminderOffset: undefined,
+        onSaved: expect.any(Function),
       },
     );
     expect(h.rows()).toHaveLength(2);
@@ -505,6 +529,75 @@ describe("handleDuplicate", () => {
       "10:00",
       expect.anything(),
     );
+  });
+
+  /*
+   * #1642 W16 (K-07). A reminder has no face on the grid, so a copy that
+   * quietly carries the Settings default instead of the source's own value is
+   * invisible until the wrong notification arrives — or none does.
+   */
+  it("carries the source's reminder instead of re-resolving the default", () => {
+    const h = setup({ rangeItems: [item({ reminderOffset: 30 })] });
+    act(() => h.view.result.current.handleDuplicate("s-1"));
+    expect(h.createOpts()?.reminderOffset).toBe(30);
+    expect(h.rows()[1]).toMatchObject({ reminderOffset: 30 });
+  });
+
+  it("carries an explicit 'no reminder' too", () => {
+    // null is a choice the user made; only `undefined` means "no opinion", and
+    // the provider fills that one in from Settings.
+    const h = setup({ rangeItems: [item({ reminderOffset: null })] });
+    act(() => h.view.result.current.handleDuplicate("s-1"));
+    expect(h.createOpts()?.reminderOffset).toBeNull();
+  });
+
+  it("leaves a source with no reminder of its own to the Settings default", () => {
+    const h = setup({ rangeItems: [item()] });
+    act(() => h.view.result.current.handleDuplicate("s-1"));
+    expect(h.createOpts()?.reminderOffset).toBeUndefined();
+    expect("reminderOffset" in (h.createOpts() ?? {})).toBe(true);
+  });
+
+  /*
+   * #1642 W16 (K-10). Every other write on this hook either reports its
+   * failure or is a patch the reload snaps back. Duplicate did neither: the
+   * optimistic copy stayed on the grid, selected, writing to an id the server
+   * never saw.
+   */
+  it("takes the copy back off the grid when the write is refused", () => {
+    const h = setup({ rangeItems: [item()] });
+    act(() => h.view.result.current.handleDuplicate("s-1"));
+    expect(h.rows()).toHaveLength(2);
+    expect(h.selectedId()).toBe(null);
+
+    act(() => h.createOpts()?.onSaved?.(null));
+
+    expect(h.rows()).toHaveLength(1);
+    expect(h.rows()[0].id).toBe("s-1");
+    expect(h.onDuplicateFailed).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops the selection with it, but only when it still names the copy", () => {
+    const h = setup({ rangeItems: [item()], selectedId: NEW_ID });
+    act(() => h.view.result.current.handleDuplicate("s-1"));
+    act(() => h.createOpts()?.onSaved?.(null));
+    // The editor and the bubble both read the selection; pointing them at a
+    // row that is gone is the second half of the same bug.
+    expect(h.selectedId()).toBe(null);
+
+    // A selection the user has since moved elsewhere is left alone.
+    const other = setup({ rangeItems: [item()], selectedId: "s-1" });
+    act(() => other.view.result.current.handleDuplicate("s-1"));
+    act(() => other.createOpts()?.onSaved?.(null));
+    expect(other.selectedId()).toBe("s-1");
+  });
+
+  it("keeps the copy when the write lands", () => {
+    const h = setup({ rangeItems: [item()] });
+    act(() => h.view.result.current.handleDuplicate("s-1"));
+    act(() => h.createOpts()?.onSaved?.(item({ id: NEW_ID })));
+    expect(h.rows()).toHaveLength(2);
+    expect(h.onDuplicateFailed).not.toHaveBeenCalled();
   });
 
   it("does nothing for an id neither store knows", () => {

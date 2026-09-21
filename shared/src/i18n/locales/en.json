@@ -649,6 +649,7 @@
     "untitled": "Untitled repeat",
     "repeatDeleteConfirm": "Delete \"{{name}}\" and all of its events?",
     "repeatDeleteFailed": "Couldn't delete this repeat. Its events are unchanged — try again.",
+    "duplicateFailed": "Couldn't duplicate this event. Nothing was added — try again.",
     "holidayFilterHide": "Hide holidays",
     "holidayFilterHidden_one": "{{count}} holiday hidden",
     "holidayFilterHidden_other": "{{count}} holidays hidden",
