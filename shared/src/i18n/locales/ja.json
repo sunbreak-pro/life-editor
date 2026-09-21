@@ -491,6 +491,8 @@
       "entriesCount": "エントリ（{{count}}）",
       "filterPlaceholder": "エントリを絞り込む…",
       "filterLabel": "エントリを絞り込む",
+      "searchEmpty": "絞り込みに一致するエントリはありません",
+      "empty": "エントリはまだありません",
       "eveningTitle": "夕刊",
       "eveningScheduleTitle": "この日のスケジュール",
       "eveningMood": "気分",

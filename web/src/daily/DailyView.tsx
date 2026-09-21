@@ -140,7 +140,8 @@ function EditorCard({
 }: {
   dateLabel: string;
   dateClassName: string;
-  savedLabel: string;
+  /** Omitted on a day with nothing to report — see #1839. */
+  savedLabel?: string;
   headerActions?: ReactNode;
   editorKey: string;
   date: string;
@@ -161,9 +162,11 @@ function EditorCard({
     >
       <div className="flex items-start gap-2.5 px-5 pb-1 pt-4">
         <h1 className={cn("flex-1", dateClassName)}>{dateLabel}</h1>
-        <span className="pt-1.5 text-[11.5px] text-lumen-text-tertiary">
-          {savedLabel}
-        </span>
+        {savedLabel != null && (
+          <span className="pt-1.5 text-[11.5px] text-lumen-text-tertiary">
+            {savedLabel}
+          </span>
+        )}
         {headerActions}
       </div>
       {/* TipTap (F-1 #258). IME composition is handled natively by
@@ -491,9 +494,27 @@ export function DailyView({
   // jsonb echo would otherwise flip this to "unsaved" after every save.
   const isSaved =
     lastEmitted === null || lastEmitted.date !== selectedDate || ownEcho;
-  const savedLabel = isSaved
-    ? t("materials.daily.saved")
-    : t("materials.daily.unsaved");
+
+  /*
+   * A day nobody has written on has nothing to report (#1839).
+   *
+   * `isSaved` is read off `lastEmitted`, which is empty until this screen has
+   * emitted something, so picking an untouched date in the picker printed
+   * "Saved" next to an empty page — a claim about a row that does not exist.
+   * The caption is dropped entirely in that case rather than replaced with a
+   * third word: silence is what "there is nothing here yet" looks like.
+   *
+   * Same shape as the morning paper's #427 fix (BriefingScreen), and the same
+   * predicate this file already uses to decide whether there is a body worth
+   * writing back.
+   */
+  const hasEntryToReport =
+    selectedContent !== "" || lastEmitted?.date === selectedDate;
+  const savedLabel = !hasEntryToReport
+    ? undefined
+    : isSaved
+      ? t("materials.daily.saved")
+      : t("materials.daily.unsaved");
 
   // ---- date label formatters (host-side; the shared parts stay pure) ----
 
@@ -792,6 +813,12 @@ export function DailyView({
           entries={panelEntries}
           onSelectEntry={selectDay}
           pinnedLabel={t("materials.daily.pinned")}
+          searchEmpty={dailyFilterQuery.trim() !== ""}
+          emptyMessage={
+            dailyFilterQuery.trim()
+              ? t("materials.daily.searchEmpty")
+              : t("materials.daily.empty")
+          }
         />
       </div>
     </RightSidebarPortal>
