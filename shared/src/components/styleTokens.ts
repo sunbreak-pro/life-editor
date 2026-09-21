@@ -131,3 +131,43 @@ export const TAP_TARGET_TALL =
  */
 export const DISABLED_FILLED_BTN =
   "disabled:cursor-not-allowed disabled:bg-lumen-surface-sunken disabled:text-lumen-text-tertiary disabled:ring-1 disabled:ring-inset disabled:ring-lumen-border-strong disabled:hover:bg-lumen-surface-sunken disabled:hover:opacity-100";
+
+/**
+ * The house "in flight" spinner (#1804).
+ *
+ * `disabled` and "working" were sharing one look. Six screens had already
+ * written the same three utilities by hand next to a LoaderCircle, and the
+ * one that had not — NotePasswordDialog — raised `aria-busy` and nothing
+ * else, so the state reached a screen reader and no one else. This is that
+ * hand-written trio, named once, so a busy control is spelled the same way
+ * everywhere and the next one cannot quietly ship without a cue.
+ *
+ * `motion-reduce:animate-none` is not optional decoration. A spinner is the
+ * one animation that carries the whole message, so when it stops the label
+ * beside it has to say "working" in words — which is why <Button busy> takes
+ * a `busyLabel` rather than spinning a silent glyph on its own.
+ *
+ * Size is the caller's: h-3.5 on a size="sm" control, h-4 on md/lg.
+ */
+export const BUSY_SPINNER = "animate-spin motion-reduce:animate-none";
+
+/**
+ * Content left on screen while a refresh replaces it (#1804).
+ *
+ * The other half of the busy problem. A control that is working can say so in
+ * a spinner; a PANEL that is re-fetching has no control to put one on, and
+ * Analytics deliberately keeps the previous range's numbers up rather than
+ * flashing a skeleton over them. Until now the only thing marking that pause
+ * was `aria-busy`, so the numbers on screen looked current when they were the
+ * ones from before the click.
+ *
+ * Dimming rather than covering, because the stale figures are still the best
+ * answer available — they just should not read as settled. `opacity-60` is
+ * the same dim the auth cards already put over their fields while a submit is
+ * in flight, so "this region is waiting" looks the same everywhere.
+ *
+ * Add `pointer-events-none` alongside it where the region also has to stop
+ * accepting input; this token only changes how it reads.
+ */
+export const BUSY_STALE =
+  "opacity-60 transition-opacity motion-reduce:transition-none";

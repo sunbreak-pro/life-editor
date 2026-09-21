@@ -1,6 +1,5 @@
 import { useId } from "react";
 import type { FormEvent } from "react";
-import { LoaderCircle } from "lucide-react";
 import { cn } from "./cn";
 import { NoticePanel } from "./NoticePanel";
 import { Button } from "./Button";
@@ -171,20 +170,11 @@ export function PasswordUpdateForm({
         <Button
           type="submit"
           size={fullWidthSubmit ? "lg" : "md"}
-          disabled={busy}
+          busy={busy}
+          busyLabel={labels.busy}
           className={fullWidthSubmit ? "w-full" : CARD_BTN_TAP}
         >
-          {busy ? (
-            <>
-              <LoaderCircle
-                aria-hidden
-                className="h-4 w-4 animate-spin motion-reduce:animate-none"
-              />
-              {labels.busy}
-            </>
-          ) : (
-            labels.submit
-          )}
+          {labels.submit}
         </Button>
       </div>
     </form>

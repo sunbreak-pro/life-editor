@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { Eraser, LoaderCircle } from "lucide-react";
+import { Eraser } from "lucide-react";
 import { Button } from "./Button";
 import { Card } from "./Card";
 import { ConfirmDialog } from "./ConfirmDialog";
@@ -118,20 +118,10 @@ export function AttachmentCleanupPanel({
           size="sm"
           onClick={onScan}
           disabled={busy}
-          leadingIcon={
-            status === "scanning" ? (
-              <LoaderCircle
-                aria-hidden
-                className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none"
-              />
-            ) : undefined
-          }
+          busy={status === "scanning"}
+          busyLabel={labels.scanning}
         >
-          {status === "scanning"
-            ? labels.scanning
-            : scan === null
-              ? labels.scan
-              : labels.rescan}
+          {scan === null ? labels.scan : labels.rescan}
         </Button>
         {orphans.length > 0 && (
           <Button
@@ -139,16 +129,10 @@ export function AttachmentCleanupPanel({
             size="sm"
             onClick={() => setConfirmOpen(true)}
             disabled={busy}
-            leadingIcon={
-              status === "deleting" ? (
-                <LoaderCircle
-                  aria-hidden
-                  className="h-3.5 w-3.5 animate-spin motion-reduce:animate-none"
-                />
-              ) : undefined
-            }
+            busy={status === "deleting"}
+            busyLabel={labels.deleting}
           >
-            {status === "deleting" ? labels.deleting : labels.deleteAll}
+            {labels.deleteAll}
           </Button>
         )}
       </div>

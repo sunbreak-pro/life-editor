@@ -122,9 +122,11 @@ export function DeleteAccountDialog({
           <Button
             variant="danger"
             onClick={onConfirm}
-            disabled={!matches || busy}
+            disabled={!matches}
+            busy={busy}
+            busyLabel={labels.busyLabel}
           >
-            {busy ? labels.busyLabel : labels.confirm}
+            {labels.confirm}
           </Button>
         </div>
       </div>

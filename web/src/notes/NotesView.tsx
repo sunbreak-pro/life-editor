@@ -108,6 +108,7 @@ const DIALOG_LABELS = {
   currentPasswordLabel: "Current password",
   confirmPasswordLabel: "Confirm password",
   submit: "Confirm",
+  busy: "Working…",
   cancel: "Cancel",
   mismatch: "Passwords do not match.",
   wrongPassword: "Incorrect password.",
