@@ -50,3 +50,67 @@ export const CHART_TOOLTIP_STYLE = {
   borderRadius: 8,
   fontSize: 12,
 } as const;
+
+/*
+ * Fit a category label into a fixed-width axis gutter (#1862).
+ *
+ * A recharts category axis takes its gutter in PX (`<YAxis width>`), and an
+ * SVG <text> neither wraps nor clips to it — a label wider than the gutter
+ * runs out of the left edge of the chart and is cut by the card. Truncating by
+ * CHARACTER count cannot prevent that: twelve full-width characters are about
+ * twice as wide as twelve Latin ones, so a cap that suits "Morning run" still
+ * overflows for 「APIについて学んでみる」.
+ *
+ * jsdom has no layout and the chart has no canvas to measure with before it
+ * mounts, so the width is estimated from the code point: East Asian wide /
+ * full-width glyphs advance a full em, everything else 0.62em — deliberately
+ * on the generous side of a proportional Latin face, so the estimate errs
+ * toward truncating early rather than overflowing.
+ */
+const WIDE_GLYPH_EM = 1;
+const NARROW_GLYPH_EM = 0.62;
+const ELLIPSIS = "…";
+
+function isWideGlyph(codePoint: number): boolean {
+  return (
+    (codePoint >= 0x1100 && codePoint <= 0x115f) || // Hangul Jamo
+    (codePoint >= 0x2e80 && codePoint <= 0xa4cf) || // CJK, kana, radicals
+    (codePoint >= 0xac00 && codePoint <= 0xd7a3) || // Hangul syllables
+    (codePoint >= 0xf900 && codePoint <= 0xfaff) || // CJK compatibility
+    (codePoint >= 0xfe30 && codePoint <= 0xfe4f) || // CJK compatibility forms
+    (codePoint >= 0xff00 && codePoint <= 0xff60) || // full-width forms
+    (codePoint >= 0xffe0 && codePoint <= 0xffe6) ||
+    codePoint >= 0x1f300 // emoji and the supplementary ideographic planes
+  );
+}
+
+/** Estimated rendered width of `text` in px at `fontSize`. */
+export function estimateLabelWidth(text: string, fontSize: number): number {
+  let em = 0;
+  for (const ch of text) {
+    em += isWideGlyph(ch.codePointAt(0) ?? 0) ? WIDE_GLYPH_EM : NARROW_GLYPH_EM;
+  }
+  return em * fontSize;
+}
+
+/** `text`, cut with an ellipsis so its estimated width stays within `maxPx`. */
+export function fitAxisLabel(
+  text: string,
+  maxPx: number,
+  fontSize: number,
+): string {
+  if (estimateLabelWidth(text, fontSize) <= maxPx) return text;
+  const budget = maxPx - estimateLabelWidth(ELLIPSIS, fontSize);
+  let out = "";
+  let width = 0;
+  // Iterating the string walks code points, so a surrogate pair is never split.
+  for (const ch of text) {
+    const w =
+      (isWideGlyph(ch.codePointAt(0) ?? 0) ? WIDE_GLYPH_EM : NARROW_GLYPH_EM) *
+      fontSize;
+    if (width + w > budget) break;
+    out += ch;
+    width += w;
+  }
+  return out.trimEnd() + ELLIPSIS;
+}
