@@ -155,6 +155,33 @@ export function minutesToTime(minutes: number): string {
 /** Pointer travel (px) below which a drag still counts as a click. */
 export const DRAG_THRESHOLD_PX = 4;
 
+/*
+ * How many lines a week block may give its title (#1835).
+ *
+ * The block was one truncated line whatever its height, so a two-hour event
+ * (96px) printed "Lorem ipsum do…" over 78px of empty fill while the title it
+ * cut was 121px long. Wrapping it unconditionally is the other half of the
+ * same fault: a 30-minute block has room for one line and the time under it,
+ * and a second line there would push the time out of a box that clips.
+ *
+ * So the count comes from the block's own height. The two figures below are
+ * ESTIMATES — the type is rem-based and follows the Settings font-size step,
+ * and jsdom has no layout to measure with — which is safe in one direction:
+ * the block already clips, so guessing a line too many costs a cut line and
+ * guessing one too few costs an ellipsis. Three is the ceiling; past that a
+ * block is holding a paragraph and the detail panel is the place to read it.
+ */
+const TITLE_LINE_PX = 16;
+/** The time line under the title, plus the block's own vertical padding. */
+const TITLE_CHROME_PX = 20;
+export const MAX_BLOCK_TITLE_LINES = 3;
+
+/** Lines the title may use inside a block `heightPx` tall (at least one). */
+export function blockTitleLines(heightPx: number): number {
+  const room = Math.floor((heightPx - TITLE_CHROME_PX) / TITLE_LINE_PX);
+  return Math.min(MAX_BLOCK_TITLE_LINES, Math.max(1, room));
+}
+
 /**
  * What the grid knew when the pointer went down. Everything here is captured
  * once at drag start — the geometry that can only be read from the DOM

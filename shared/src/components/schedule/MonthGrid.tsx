@@ -25,12 +25,18 @@ import {
  * four lines with the same "他 N 件" remainder (#1045) taking the last one
  * (#1581 — three lines and a taller badge until then).
  *
- * The compact cell is a FIXED height and clips: a phone's cell is ~1/7th of
+ * The compact cell has a FIXED FLOOR and clips: a phone's cell is ~1/7th of
  * the screen wide, and a title that does not fit is cut at the cell edge with
  * no ellipsis (the Issue is explicit about that) and never pushes a grid line.
- * The grid therefore does not stretch to fill the column either — that was
- * what made the rows tower on a tall phone — and the host lets the column
- * scroll if the six rows do not fit.
+ * The host lets the column scroll if the six rows do not fit.
+ *
+ * #1835: a floor rather than a fixed height. Six 88px rows are shorter than a
+ * 390x844 phone's main area by about 123px, so the month stopped a bar's
+ * height above the bottom bar and the empty strip read as a rendering fault.
+ * The rows now share whatever is left over — `min-h` keeps #1401's floor, so
+ * they can still only GROW, and the container they grow into is the viewport,
+ * which is what stops the towering #1401 was filed about (that was
+ * `auto-rows-fr` with no floor at all, on a grid free to exceed the screen).
  *
  * Pure presentation (CLAUDE.md §3.1 / §6.4): no DataService, no
  * useTranslation. Weekday labels + the "他 N 件" formatter arrive already
@@ -207,6 +213,11 @@ function MonthGridImpl({
       aria-label={ariaLabel}
       className={cn(
         "flex flex-col overflow-hidden bg-lumen-bg",
+        // #1835: at least as tall as the scroll box, so the six rows can take
+        // the space left over. `min-h` and not `h`: a window too short for the
+        // floor lets this grow past the box and the host scrolls to it, where
+        // a fixed height would clip the last week against `overflow-hidden`.
+        compact && "min-h-full",
         // #1401: edge to edge on a phone — a radius and side borders would
         // draw a card sitting inside the screen, which is the margin the
         // Issue asks to remove.
@@ -263,14 +274,19 @@ function MonthGridImpl({
                  * made the cell read as packed. 88 is four lines plus ~6px of
                  * slack, on a badge that is smaller by the same change.
                  *
-                 * Still a fixed value and NOT `auto-rows-fr`: stretching to
-                 * fill the column is what made the rows tower on a tall phone,
-                 * and #1401 is the issue that stopped it. Six of these are
-                 * taller than most phone viewports, so the host's wrapper
-                 * scrolls (CalendarNarrowLayout) rather than the grid shrinking
-                 * a week out of sight.
+                 * A FLOOR since #1835, not a fixed height: the row track is
+                 * `auto-rows-fr`, so once the grid is `min-h-full` the six
+                 * rows divide whatever the viewport has left instead of
+                 * stopping 123px short of the bottom bar. They can only grow —
+                 * #1401's floor is exactly this number — and they grow into a
+                 * box the size of the screen, which is the difference from the
+                 * stretch that made the rows tower (a grid free to exceed the
+                 * viewport). Six at the floor are taller than most phone
+                 * viewports, so the host's wrapper still scrolls
+                 * (CalendarNarrowLayout) rather than a week going out of
+                 * sight.
                  */
-                compact ? "h-[5.5rem] overflow-hidden" : "min-h-14",
+                compact ? "min-h-[5.5rem] overflow-hidden" : "min-h-14",
                 isSelected &&
                   "bg-lumen-bg-secondary ring-2 ring-inset ring-lumen-accent",
                 dropDay === dateKey && "bg-lumen-hover",
