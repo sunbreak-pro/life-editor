@@ -12,6 +12,7 @@ import { NoticePanel } from "../NoticePanel";
 import {
   AnalyticsFilterProvider,
   useAnalyticsFilter,
+  type DatePreset,
   type DateRange,
 } from "./AnalyticsFilterContext";
 import { DateRangePresetSelector } from "./DateRangePresetSelector";
@@ -110,6 +111,14 @@ export interface AnalyticsViewProps {
    * controlled (shell-driven) mode.
    */
   onTabChange?: (tab: AnalyticsTab) => void;
+  /**
+   * The date-range preset to open on, and the callback that reports a new pick
+   * (#1865). Same ownership as the tab: the shell outlives this section, so it
+   * holds the choice and gives it back on the next mount. Omit both and the
+   * view opens on the default preset every time, as before.
+   */
+  initialPreset?: DatePreset;
+  onPresetChange?: (preset: DatePreset) => void;
   labels: AnalyticsLabels;
 }
 
@@ -117,7 +126,11 @@ export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
   const isWide = useMediaQuery(WIDE_QUERY);
 
   return (
-    <AnalyticsFilterProvider onDateRangeChange={props.onScheduleRangeChange}>
+    <AnalyticsFilterProvider
+      onDateRangeChange={props.onScheduleRangeChange}
+      initialPreset={props.initialPreset}
+      onPresetChange={props.onPresetChange}
+    >
       {isWide ? (
         <DesktopAnalytics {...props} />
       ) : (

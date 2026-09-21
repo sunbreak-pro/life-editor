@@ -390,7 +390,13 @@ function analyticsService(): DataService {
 function renderAnalytics(ds: DataService) {
   const { wrapper } = createBumpableSync();
   return render(
-    <AnalyticsScreen dataService={ds} tab="overview" onTabChange={() => {}} />,
+    <AnalyticsScreen
+      dataService={ds}
+      tab="overview"
+      onTabChange={() => {}}
+      preset="30d"
+      onPresetChange={() => {}}
+    />,
     { wrapper },
   );
 }
