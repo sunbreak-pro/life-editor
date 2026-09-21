@@ -97,25 +97,6 @@ import { useElementWidth } from "./hooks/useElementWidth";
  *   - NoteListRows           — the draggable row + droppable heading
  */
 
-// Password dialog copy. Kept as local constants (the Notes i18n追い付き is
-// scoped to Daily/Tags in this plan); promoting these to catalog keys is a
-// follow-up.
-const DIALOG_LABELS = {
-  setTitle: "Set note password",
-  removeTitle: "Remove note password",
-  verifyTitle: "Unlock note",
-  passwordLabel: "Password",
-  currentPasswordLabel: "Current password",
-  confirmPasswordLabel: "Confirm password",
-  submit: "Confirm",
-  busy: "Working…",
-  cancel: "Cancel",
-  mismatch: "Passwords do not match.",
-  wrongPassword: "Incorrect password.",
-  required: "Password is required.",
-  saveFailed: "Could not save. Please try again.",
-} as const;
-
 interface NotesViewProps {
   /**
    * Injected for the "[[" link-target pool (notes + dailies fetched cross-
@@ -597,6 +578,38 @@ export function NotesView({
     expandGroup: t("materials.notes.expandGroup"),
   };
 
+  /*
+   * The password dialog's copy (#1843).
+   *
+   * It was a module constant of English strings, so the one entry point that
+   * does reach this dialog -- the locked note's unlock prompt -- asked for a
+   * password in English on a Japanese screen.
+   *
+   * All thirteen strings move, not the four the unlock path uses. The set and
+   * remove modes are wired in the dialog and in useNotePassword but have no
+   * caller (#1843 again, and the decision about whether to give them one is
+   * queued rather than taken here). Moving half of them now would mean moving
+   * the other half again the moment that decision lands.
+   *
+   * `cancel` is the app's existing common.cancel rather than a fourteenth key:
+   * this file already uses it two hundred lines down.
+   */
+  const passwordLabels = {
+    setTitle: t("materials.notes.password.setTitle"),
+    removeTitle: t("materials.notes.password.removeTitle"),
+    verifyTitle: t("materials.notes.password.verifyTitle"),
+    passwordLabel: t("materials.notes.password.passwordLabel"),
+    currentPasswordLabel: t("materials.notes.password.currentPasswordLabel"),
+    confirmPasswordLabel: t("materials.notes.password.confirmPasswordLabel"),
+    submit: t("materials.notes.password.submit"),
+    busy: t("materials.notes.password.busy"),
+    cancel: t("common.cancel"),
+    mismatch: t("materials.notes.password.mismatch"),
+    wrongPassword: t("materials.notes.password.wrongPassword"),
+    required: t("materials.notes.password.required"),
+    saveFailed: t("materials.notes.password.saveFailed"),
+  };
+
   const detailLabels = {
     title: t("notesView.detailTitle"),
     pin: t("notesView.unpin"),
@@ -952,7 +965,7 @@ export function NotesView({
       {password.dialog && (
         <NotePasswordDialog
           mode={password.dialog.mode}
-          labels={DIALOG_LABELS}
+          labels={passwordLabels}
           onSubmit={password.submit}
           onClose={password.closeDialog}
         />
