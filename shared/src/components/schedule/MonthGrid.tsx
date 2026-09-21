@@ -108,6 +108,15 @@ export interface MonthGridProps {
    * which is why `formatCreateLabel` has to name the day rather than the act.
    */
   onCreateDay?: (dateKey: string) => void;
+  /**
+   * A cell's "他 N 件" was pressed (#1829) — the host shows that day in full.
+   *
+   * Desktop only in practice: `compact` draws its remainder as one of four
+   * title lines and the cell face is already the tap target there, so a
+   * second control in a 51px cell would be neither hittable nor unambiguous.
+   * Omitted, the line stays static text.
+   */
+  onShowMore?: (dateKey: string) => void;
   onSelectItem?: (id: string) => void;
   /**
    * Single-click on a chip → host opens a bubble popover anchored at the
@@ -137,6 +146,12 @@ export interface MonthGridProps {
   /** Accessible name for a day cell. Default = the raw date key. */
   formatDayLabel?: (dateKey: string) => string;
   /**
+   * Already-translated accessible name for the "他 N 件" button (§6.4). Like
+   * the + button's, it has to carry the DAY — the visible text is "+1" on
+   * every cell that has one. Default = the raw date key.
+   */
+  formatShowMoreLabel?: (dateKey: string) => string;
+  /**
    * Already-translated accessible name for a cell's + button (§6.4). It has to
    * carry the DAY: 42 buttons all called "Add" are 42 indistinguishable stops
    * in the tab order. Default = the raw date key, which at least says which.
@@ -162,6 +177,7 @@ function MonthGridImpl({
   weekdayLabels,
   onSelectDay,
   onCreateDay,
+  onShowMore,
   onSelectItem,
   onItemActivate,
   onItemDoubleClick,
@@ -170,6 +186,7 @@ function MonthGridImpl({
   formatMoreCount,
   formatDayLabel = (k) => k,
   formatCreateLabel = (k) => k,
+  formatShowMoreLabel = (k) => k,
   compact = false,
   ariaLabel,
   className,
@@ -350,6 +367,18 @@ function MonthGridImpl({
                     shown={shown}
                     overflow={overflow}
                     formatMoreCount={formatMoreCount}
+                    onShowMore={
+                      onShowMore ? () => onShowMore(dateKey) : undefined
+                    }
+                    // Named only when there IS a button to name (#1829). The
+                    // formatter is the host's and usually wraps the same day
+                    // formatter the cell's own label uses, so calling it on
+                    // all 42 cells would double that work for one line.
+                    showMoreLabel={
+                      onShowMore && overflow > 0
+                        ? formatShowMoreLabel(dateKey)
+                        : undefined
+                    }
                     onSelectItem={onSelectItem}
                     onItemActivate={onItemActivate}
                     onItemDoubleClick={onItemDoubleClick}

@@ -165,6 +165,13 @@ export function MonthCompactTitles({
 }
 
 interface FullChipsProps extends CellBodyProps {
+  /**
+   * "+N more" was pressed (#1829). Given, the remainder line is a button;
+   * omitted, it stays the static text it has always been.
+   */
+  onShowMore?: () => void;
+  /** Already-translated accessible name for that button (§6.4). */
+  showMoreLabel?: string;
   onSelectItem?: (id: string) => void;
   onItemActivate?: (id: string, pos: { x: number; y: number }) => void;
   onItemDoubleClick?: (id: string) => void;
@@ -176,6 +183,8 @@ export function MonthFullChips({
   shown,
   overflow,
   formatMoreCount,
+  onShowMore,
+  showMoreLabel,
   onSelectItem,
   onItemActivate,
   onItemDoubleClick,
@@ -271,11 +280,37 @@ export function MonthFullChips({
           </button>
         ),
       )}
-      {overflow > 0 && (
-        <span className="px-1 text-xs text-lumen-text-tertiary">
-          {formatMoreCount(overflow)}
-        </span>
-      )}
+      {/*
+       * The remainder (#1829). It was a <span>, so on Desktop — where the
+       * cell has no face button either — the items past the second one had no
+       * route at all: the only way to reach them was to switch to the week by
+       * hand. It is a button whenever the host says what pressing it does.
+       *
+       * `pointer-events-auto` for the same reason the chips above carry it:
+       * the column this sits in is pointer-events-none so presses fall
+       * through to the cell face.
+       */}
+      {overflow > 0 &&
+        (onShowMore ? (
+          <button
+            type="button"
+            aria-label={showMoreLabel}
+            onClick={(e) => {
+              e.stopPropagation();
+              onShowMore();
+            }}
+            className={cn(
+              "pointer-events-auto cursor-pointer rounded px-1 text-left text-xs text-lumen-text-tertiary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+              CELL_FOCUS,
+            )}
+          >
+            {formatMoreCount(overflow)}
+          </button>
+        ) : (
+          <span className="px-1 text-xs text-lumen-text-tertiary">
+            {formatMoreCount(overflow)}
+          </span>
+        ))}
     </>
   );
 }

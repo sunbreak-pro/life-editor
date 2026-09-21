@@ -49,6 +49,35 @@ describe("MonthGrid", () => {
     expect(badge.className).toContain("bg-lumen-accent");
   });
 
+  /*
+   * #1829 — the remainder line. It was a <span>, and Desktop wires no cell
+   * face button either (#1584 took it away), so on a day with three items the
+   * third had no route at all: the only way to it was switching to the week by
+   * hand.
+   */
+  it("makes the overflow line a button when the host says what it does", () => {
+    const onShowMore = vi.fn();
+    renderGrid({ onShowMore, formatShowMoreLabel: (k) => `Show all on ${k}` });
+    const more = screen.getByRole("button", { name: "Show all on 2026-07-09" });
+    expect(more).toHaveTextContent("+1 more");
+    fireEvent.click(more);
+    expect(onShowMore).toHaveBeenCalledWith("2026-07-09");
+  });
+
+  it("does not let the press reach the cell underneath", () => {
+    const onShowMore = vi.fn();
+    const { onSelectDay } = renderGrid({ onShowMore });
+    fireEvent.click(screen.getByText("+1 more"));
+    expect(onShowMore).toHaveBeenCalledTimes(1);
+    expect(onSelectDay).not.toHaveBeenCalled();
+  });
+
+  it("leaves the line as text when no host handles it", () => {
+    renderGrid();
+    expect(screen.queryByRole("button", { name: /\+1 more/ })).toBeNull();
+    expect(screen.getByText("+1 more")).toBeInTheDocument();
+  });
+
   it("shows at most 2 chips and an overflow count for a busy day", () => {
     renderGrid();
     expect(screen.getByRole("button", { name: "Gym" })).toBeInTheDocument();
@@ -405,9 +434,9 @@ describe("MonthGrid — the Desktop + button (#1584)", () => {
 describe("MonthGrid — chips carry the pointer cursor (#1584)", () => {
   it("puts cursor-pointer on an item chip", () => {
     renderGrid();
-    expect(
-      screen.getByRole("button", { name: "Gym" }).className,
-    ).toContain("cursor-pointer");
+    expect(screen.getByRole("button", { name: "Gym" }).className).toContain(
+      "cursor-pointer",
+    );
     // The todo chip is a different branch of the same className call.
     expect(
       screen.getByRole("button", { name: "Write report" }).className,
