@@ -52,11 +52,24 @@ describe("PomodoroTimer", () => {
     expect(screen.getByText("2 / 4 sessions")).toBeInTheDocument();
   });
 
-  it("idle: the main button is Start and reset/skip are disabled", () => {
+  it("idle: the main button is Start and reset is disabled", () => {
     renderTimer({ isRunning: false, progress: 0 });
     expect(screen.getByRole("button", { name: "Start" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Reset" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Skip" })).toBeDisabled();
+  });
+
+  // #1854: a completed WORK phase lands on an idle BREAK, and Skip is the way
+  // back to WORK from there without starting the break first.
+  it("idle: skip is enabled and fires onSkip", () => {
+    const props = renderTimer({
+      phase: "BREAK",
+      isRunning: false,
+      progress: 0,
+    });
+    const skip = screen.getByRole("button", { name: "Skip" });
+    expect(skip).toBeEnabled();
+    fireEvent.click(skip);
+    expect(props.onSkip).toHaveBeenCalledOnce();
   });
 
   it("running: the main button is Pause and fires onPause", () => {
