@@ -787,6 +787,7 @@ export function ConnectScreen({
       addLink: t("connect.relations.addLink"),
       addLinkDialog: t("connect.relations.addLinkDialog"),
       searchPlaceholder: t("connect.relations.searchPlaceholder"),
+      candidates: t("connect.relations.candidates"),
       noCandidates: t("connect.relations.noCandidates"),
       roles: labels.roles,
     }),

@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
-import { X } from "lucide-react";
+import { AlertCircle, X } from "lucide-react";
 import { cn } from "./cn";
 
 export type ToastVariant = "info" | "success" | "warning" | "danger";
@@ -17,7 +17,7 @@ export interface ToastProps extends Omit<
   HTMLAttributes<HTMLDivElement>,
   "title"
 > {
-  /** Semantic tone — colors the left accent bar + status dot. Default "info". */
+  /** Semantic tone — colors the left accent bar + leading mark. Default "info". */
   variant?: ToastVariant;
   /** Already-translated message body (props-injected i18n, §6). */
   children: ReactNode;
@@ -36,7 +36,10 @@ export interface ToastViewportProps extends HTMLAttributes<HTMLDivElement> {
 /*
  * Lumen toast card (ClaudeDesign catalog: components/toast.html). An OPAQUE
  * notification card (bg-lumen-bg, §3.5) with a 3px semantic accent bar, a
- * status dot, the message, and an optional dismiss button. The tone class is
+ * leading mark, the message, and an optional dismiss button. The mark is a
+ * status dot, except on "danger", where the Connect brief's D14 asks for an
+ * AlertCircle — an error is the one tone that has to read as an error at a
+ * glance, and an 8px dot does not. The tone class is
  * looked up from a static map (never string-built) so Tailwind's scanner
  * keeps the bg-lumen-* utility — a dynamic `bg-lumen-${variant}` would silently
  * fall transparent (§7 silent-transparent-fail). lumen-* tokens only (§3.1);
@@ -80,10 +83,18 @@ export const Toast = forwardRef<HTMLDivElement, ToastProps>(function Toast(
         aria-hidden="true"
         className={cn("absolute inset-y-0 left-0 w-[3px]", TONE_BG[variant])}
       />
-      <span
-        aria-hidden="true"
-        className={cn("h-2 w-2 shrink-0 rounded-full", TONE_BG[variant])}
-      />
+      {variant === "danger" ? (
+        <AlertCircle
+          aria-hidden="true"
+          size={16}
+          className="shrink-0 text-lumen-danger"
+        />
+      ) : (
+        <span
+          aria-hidden="true"
+          className={cn("h-2 w-2 shrink-0 rounded-full", TONE_BG[variant])}
+        />
+      )}
       <span className="min-w-0 flex-1 text-sm leading-snug text-lumen-text">
         {children}
       </span>
