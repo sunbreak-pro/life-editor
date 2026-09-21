@@ -253,10 +253,18 @@ export function PomodoroTimer({
           {mainLabel}
         </button>
       )}
+      {/*
+        Skip stays live while idle (#1854). After a completed WORK phase the
+        timer lands on an idle BREAK, and with Skip disabled the only way back
+        to WORK was to start the break and skip it a moment later, which left
+        a seconds-long BREAK row in the log. Skipping an idle phase writes
+        nothing: the Provider only closes a row when one is open. Reset is a
+        different matter and stays disabled, since an idle phase has nothing to
+        reset.
+      */}
       <button
         type="button"
         onClick={onSkip}
-        disabled={isIdle}
         aria-label={labels.skip}
         className={secondaryBtn}
       >
