@@ -4,7 +4,6 @@ import {
   PanelLeftOpen,
   Command as CommandIcon,
   LogOut,
-  Tags as TagsIcon,
   Terminal as TerminalIcon,
 } from "lucide-react";
 import { cn } from "./cn";
@@ -35,13 +34,8 @@ export interface SidebarNavLabels {
   /** Keycap hint shown at the trailing edge of the ⌘K footer row (e.g. "⌘K"). */
   shortcutHint?: string;
   /**
-   * "Edit tags" footer row (#409). Required for the row to render — with
-   * `onOpenTagEditor` it forms the tag-master entry directly above ⌘K.
-   */
-  tagEditor?: string;
-  /**
-   * "Launch Claude Code" footer row (#1211). Same two-halves contract as
-   * `tagEditor`: the row needs this AND `onLaunchClaude` to render.
+   * "Launch Claude Code" footer row (#1211). Two halves: the row needs this
+   * AND `onLaunchClaude` to render.
    */
   launchClaude?: string;
   /**
@@ -64,13 +58,6 @@ export interface SidebarNavProps {
   collapsed: boolean;
   onToggleCollapsed: () => void;
   onTogglePalette: () => void;
-  /**
-   * Opens the global tag editor (#409). Rendered as a footer row directly
-   * ABOVE the command palette row — tags are a classification axis that lives
-   * in the same column as the section list, not a per-screen action in the
-   * header. Omit (or omit `labels.tagEditor`) to leave the row out.
-   */
-  onOpenTagEditor?: () => void;
   /**
    * Launches Claude Code in the saved project folder (#1211). Rendered as the
    * FIRST footer row, so the action sits at the bottom of the column with the
@@ -112,7 +99,6 @@ export function SidebarNav({
   collapsed,
   onToggleCollapsed,
   onTogglePalette,
-  onOpenTagEditor,
   onLaunchClaude,
   userEmail,
   userName,
@@ -124,7 +110,6 @@ export function SidebarNav({
   const brandInitial = labels.appName.charAt(0);
   // Both halves must be present: a row with no handler does nothing, a row
   // with no label would render untranslated (§6.4 — copy is injected).
-  const tagEditorLabel = onOpenTagEditor ? labels.tagEditor : undefined;
   const launchClaudeLabel = onLaunchClaude ? labels.launchClaude : undefined;
   const profileLabel = onOpenProfile ? labels.profile : undefined;
   const accountText = userName || userEmail;
@@ -231,7 +216,7 @@ export function SidebarNav({
         )}
       </nav>
 
-      {/* Footer: launch Claude + edit tags + ⌘K (+ keycap) + user + sign out */}
+      {/* Footer: launch Claude + ⌘K (+ keycap) + user + sign out */}
       <div className="shrink-0 space-y-1 border-t border-lumen-border p-2">
         {launchClaudeLabel && (
           <button
@@ -253,30 +238,6 @@ export function SidebarNav({
             {!collapsed && (
               <span className="flex-1 truncate text-left">
                 {launchClaudeLabel}
-              </span>
-            )}
-          </button>
-        )}
-        {tagEditorLabel && (
-          <button
-            type="button"
-            onClick={onOpenTagEditor}
-            aria-label={tagEditorLabel}
-            title={collapsed ? tagEditorLabel : undefined}
-            className={cn(
-              "flex h-9 w-full items-center gap-2.5 rounded-md px-2.5 text-sm",
-              "text-lumen-text-secondary transition-colors hover:bg-lumen-hover",
-              "hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2",
-              "focus-visible:ring-lumen-accent",
-              collapsed && "justify-center px-0",
-            )}
-          >
-            <span aria-hidden="true" className="shrink-0">
-              <TagsIcon size={18} />
-            </span>
-            {!collapsed && (
-              <span className="flex-1 truncate text-left">
-                {tagEditorLabel}
               </span>
             )}
           </button>
