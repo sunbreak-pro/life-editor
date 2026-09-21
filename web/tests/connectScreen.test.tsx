@@ -880,6 +880,22 @@ describe("ConnectScreen — bulk tag operations", () => {
     check("Migration notes");
   };
 
+  /*
+   * 2026-09-21 — every row draws its box from the start rather than revealing
+   * it on hover. jsdom has no hover, so what is pinnable here is the class
+   * that used to do the hiding: an `opacity-0` on a row with nothing checked
+   * is exactly the regression.
+   */
+  it("shows every row's checkbox before anything is checked", async () => {
+    await renderScreen();
+    openTag("Work: 4 items");
+
+    for (const title of ["Draft the PR", "Standup", "Migration notes"]) {
+      const box = screen.getByRole("checkbox", { name: `Select “${title}”` });
+      expect(box.className).not.toContain("opacity-0");
+    }
+  });
+
   it("adds a picked tag to each of three checked rows", async () => {
     const { ds, writes } = makeWritableDS();
     await renderScreen(ds);
