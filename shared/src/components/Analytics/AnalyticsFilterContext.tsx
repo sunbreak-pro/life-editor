@@ -48,6 +48,35 @@ export function dateRangeDays(range: DateRange): number {
   );
 }
 
+/** Shortest "All time" trend — fewer points than this is a dot, not a trend. */
+const MIN_ALL_TIME_DAYS = 7;
+
+/*
+ * Bucket-day count for a TREND chart under the active preset (#1861).
+ *
+ * Every preset but "all" is its own length. "all" cannot be: its `dateRange`
+ * starts on a fixed 2020-01-01 because that range is also what the host FETCHES
+ * schedule items for, and "everything" has to stay wide there. Drawn literally
+ * it is 2400+ daily buckets with the real data crushed into the last 10px. So a
+ * trend under "all" starts on the oldest day its OWN data has (`earliestKey`,
+ * a local `YYYY-MM-DD`) and runs to the end of the range. No data at all falls
+ * back to the default preset's length rather than to six empty years.
+ */
+export function trendRangeDays(
+  range: DateRange,
+  preset: DatePreset,
+  earliestKey: string | null,
+): number {
+  if (preset !== "all") return dateRangeDays(range);
+  if (earliestKey === null)
+    return dateRangeDays(getPresetRange(DEFAULT_PRESET));
+  const [y, m, d] = earliestKey.split("-").map(Number);
+  const start = new Date(y, m - 1, d);
+  // A key past the range end (clock skew, future-dated item) clamps to the floor.
+  if (start.getTime() > range.end.getTime()) return MIN_ALL_TIME_DAYS;
+  return Math.max(MIN_ALL_TIME_DAYS, dateRangeDays({ start, end: range.end }));
+}
+
 interface AnalyticsFilterContextValue {
   dateRange: DateRange;
   /** The active preset (drives the header pill group's checked state). */
