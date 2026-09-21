@@ -498,6 +498,26 @@ describe("ItemCreatePanel — the footer says when it cannot act (#376)", () => 
     expect(screen.getByText("Add and edit")).toBeEnabled();
   });
 
+  it("sinks the disabled submit into the fill, and leaves the outline faded (#1803)", () => {
+    /*
+     * jsdom loads no stylesheet, so "does this look pressable" is not
+     * observable here — the assertion is on the lever, exactly as
+     * buttonDisabledFill.test.tsx puts it (#1474). Fading an accent fill keeps
+     * the hue that reads as "press me", and in dark theme the faded accent
+     * lands next to the live one.
+     */
+    renderPanel();
+
+    const add = screen.getByText("Add").className;
+    expect(add).not.toMatch(/disabled:opacity-\d/);
+    expect(add).toContain("disabled:bg-lumen-surface-sunken");
+
+    // The outline twin beside it shared one disabled string until #1803 split
+    // them; it keeps the opacity because it has no fill to fade.
+    const outline = screen.getByText("Add and edit").className;
+    expect(outline).toContain("disabled:opacity-50");
+  });
+
   it("disables the place button until a todo is picked", () => {
     renderPanel();
     openTodoTab("existing");
