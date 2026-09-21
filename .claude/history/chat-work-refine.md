@@ -1,5 +1,39 @@
 # HISTORY (chat-work-refine)
 
+### 2026-09-21 - #1793 環境音の雑音を切り分け、原因が音源側だと実測で確定した
+
+#### 概要
+
+環境音に「サーッ」という雑音が重なる症状の仮説 A（音源）と B（再生経路）を分けた。公開バケット `sounds` から 5 本 + `complete.mp3` を直接落として測った結果、**A（音源側）**。Issue の判断ルール（音源がきれいなときだけ再生経路を書き換える）に従い `shared/src/context/AudioContext.tsx` は 1 行も触っていない。PR #1797 open（Refs #1793・merge = 人手 P-001）。
+
+#### 変更点
+
+- **`.claude/docs/reports/2026-09-21-ambient-sound-asset-measurement.md`（新規）**: 測定方法・コンテナ / レベル / ループ継ぎ目の全表・差し替え条件・再現手順
+- **`shared/src/constants/sounds.ts`**: ヘッダコメントに差し替え条件を追記（コードは不変）
+- **決め手 1**: 5 本とも 320 kbps / 48 kHz を名乗るのに **16.25 kHz でブリックウォール**（21〜49 dB / 500 Hz）、18 kHz 以上は -99 dB 以下。素の 320 kbps なら 20 kHz まで残る。同じバケットの `complete.mp3` にはこの壁が無い（最大落差 16.2 dB / 500 Hz）ので測定側の副産物ではない。低ビットレート素材の再エンコードか 32 kHz 素材の引き伸ばし
+- **決め手 2**: 5 本とも Xing / LAME のギャップレスタグを持たず、両端に無音が焼き込まれている。`el.loop = true`（`AudioContext.tsx:202`）は末尾と先頭の無音を続けて鳴らすので **1 周ごとに 39〜139 ms 音が切れる**（wind は 25.8 秒に 1 回）
+- **確定しなかったこと**: 「サーッ」が符号化ノイズかまでは言えない。帯域ごとの 5 パーセンタイルと中央値の差が全帯域で 11〜13 dB と一定で、**素材の上に乗った一定のヒスの床は検出できなかった**。広帯域ノイズは元来このくらいばらつく
+- **実機で最初に見る点**: 5 プリセットは独立した `Audio` element で同時に何本でも鳴る（`AudioContext.tsx:207-224`）。2 本以上オンなら白色雑音に近づき「重なって聞こえる」症状と一致する。1 本だけオンとの聞き比べを Issue コメントに依頼済み
+- **手法**: `mpg123-decoder` で MP3 をデコードし、フレームヘッダと Xing / LAME タグは生バイトで読む。スペクトルは Hann 窓 4096 点 FFT をビンごとに時間方向でパーセンタイル化。スクリプトは repo に入れていない（本番依存を増やさないため・組み直せる説明を報告書に残した）
+- **検証**: CI `verify` のステップ列をローカル全通し（shared / web / desktop / mcp-server）+ `docs-lint`、すべて exit 0
+- **未検証**: 音の実聴は chat-main の担当（§7.4）
+
+### 2026-09-21 - #1792 未選択の作業対象を「フリーセッション」と読める表示にした
+
+#### 概要
+
+作業対象セレクタが未選択のとき「Todo か予定を選ぶ…」と出ていて、何も選ばずに始めたらどうなるかが画面から読めなかった。#1665 以降は Schedule にフリーセッションが 1 件作られるのに、その予告がどこにも無い。未選択の表示を「フリーセッション」に変え、欄の見出しを「紐づけ先」から「作業名」にした。PR #1795 open（Closes #1792・merge = 人手 P-001）。
+
+#### 変更点
+
+- **i18n（`shared/src/i18n/locales/{ja,en}.json`）**: `heading` 紐づけ先→作業名、`placeholder` / `select` → フリーセッション、`clearSelection` 選択を外す→フリーセッション、`clear` 紐づけを外す→フリーセッションに戻す、`emptyHint` と `history.noTarget` と `freeSession.tagDisabled` も「紐づけ」語を外した
+- **`work.todoSelector.sheetTitle` を新設**: Mobile シートの見出しと未選択ボタンのラベルが `select` 1 本を共有していたため、ボタンが「フリーセッション」になるとシート見出しまで同じ語になる。参照キーを分けた（`web/src/work/WorkScreen.tsx:514`）
+- **Desktop / Mobile 両方**: Desktop は `PomodoroTodoSelector` の `placeholder`、Mobile は未選択ボタンと BottomSheet の行。`PomodoroTodoSelector` / `PomodoroTodoSheet` の実装自体は不変
+- **Scope から外した 1 点**: `scheduleScreen.attachedNote` / `noteAttachFailed` に「紐づけ」が残る。ノート添付という別セクションの機能で Issue の「触る場所」外のため、同じ ja.json を触る他レーンとの衝突を避けて手を付けていない。DoD の repo 全体 grep は `work.*` の範囲で満たした
+- **テスト追随**: `web/tests/sectionSnapshotReplay.test.tsx:165` が旧 en 文言を直書きしていた 1 箇所のみ。他は `t()` のキーを突き合わせる形なので影響なし
+- **検証**: CI `verify` のステップ列をローカル全通し（shared / web / desktop / mcp-server）+ `docs-lint`、すべて exit 0
+- **未検証**: 実ブラウザ確認は chat-main の宿題（§7.4）
+
 ### 2026-09-06 - #1519 選択シートの予定行に日付を付けて発生分を区別できるようにした
 
 #### 概要
