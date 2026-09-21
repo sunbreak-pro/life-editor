@@ -443,6 +443,22 @@ export function SettingsScreen({
       if (ok) resetLocalPreferences();
     });
   };
+  /*
+   * #1872: "Reset all shortcuts" was the one bulk press on this screen that
+   * ran the moment it was touched. Same dialog, same `danger` + safe-focus
+   * treatment as the reset above; nothing is cleared until the answer is yes.
+   */
+  const resetAllShortcuts = shortcuts?.resetAll;
+  const handleResetAllShortcuts = () => {
+    void askConfirm({
+      message: t("settings.shortcuts.resetAllConfirm"),
+      confirmLabel: t("settings.shortcuts.resetAllConfirmButton"),
+      cancelLabel: t("common.cancel"),
+      danger: true,
+    }).then((ok) => {
+      if (ok) resetAllShortcuts?.();
+    });
+  };
 
   /*
    * Account card (#919). The address is read from the session rather than
@@ -762,6 +778,7 @@ export function SettingsScreen({
                 onRebind={shortcuts.setBinding}
                 onResetOne={shortcuts.resetBinding}
                 onResetAll={shortcuts.resetAll}
+                onRequestResetAll={handleResetAllShortcuts}
                 getConflictLabel={getConflictLabel}
                 labels={{
                   heading: t("settings.shortcuts.heading"),
