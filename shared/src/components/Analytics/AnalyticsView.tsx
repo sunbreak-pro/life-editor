@@ -319,6 +319,7 @@ function DesktopAnalytics({
                     workTime: labels.workTime,
                     empty: labels.emptyWork,
                     formatHours: labels.formatHours,
+                    axis: labels.axis,
                     period: labels.period,
                     workTimeChart: { workTime: labels.workTime },
                     heatmap: labels.heatmap,

@@ -20,6 +20,7 @@ import {
   logServiceError,
   type TranslationKey,
 } from "@life-editor/shared";
+import { makeAxisFormat } from "./axisFormat";
 
 /*
  * Analytics host shell (W4 · lean). Mirrors the Work/Trash host pattern: the
@@ -138,7 +139,7 @@ export function AnalyticsScreen({
   tab,
   onTabChange,
 }: AnalyticsScreenProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // Everything this screen reads, declared (rules/frontend.md §Sync). Missing
   // declarations are a silent stale, and this screen had none at all — a
   // finished pomodoro or a ticked todo left the dashboard showing yesterday
@@ -340,6 +341,7 @@ export function AnalyticsScreen({
           minutes: total % 60,
         });
       },
+      axis: makeAxisFormat(t, i18n.language),
       tabsLabel: t("analytics.tabsLabel"),
       tabs: {
         overview: t("analytics.tabs.overview"),
@@ -500,7 +502,7 @@ export function AnalyticsScreen({
         },
       },
     }),
-    [t],
+    [t, i18n.language],
   );
 
   return (
