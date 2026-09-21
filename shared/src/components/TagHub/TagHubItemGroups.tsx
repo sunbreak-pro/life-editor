@@ -77,9 +77,6 @@ export function TagHubItemGroups({
   onItemMenu,
   formatItemMenu,
 }: TagHubItemGroupsProps) {
-  // Once anything is checked every row shows its box (D8), so extending the
-  // selection does not mean hunting for a control that appears on hover.
-  const anyChecked = (checkedIds?.size ?? 0) > 0;
   return (
     <div className="flex flex-col gap-5">
       {groups.map((group) => (
@@ -125,6 +122,14 @@ export function TagHubItemGroups({
                   />
                 )}
                 {onToggleChecked && (
+                  /*
+                   * Always drawn, never revealed on hover (2026-09-21, こうだい
+                   * さんの指示). D8 hid the box until the row was hovered or
+                   * something was already checked, which made "select several
+                   * rows" a feature you had to know was there — and on a hybrid
+                   * screen, one a pointer had to find first. The row's own
+                   * `group/row` stays for the chevron.
+                   */
                   <input
                     type="checkbox"
                     checked={checkedIds?.has(item.id) ?? false}
@@ -133,8 +138,6 @@ export function TagHubItemGroups({
                     className={cn(
                       "ml-2 size-4 shrink-0 cursor-pointer accent-lumen-accent",
                       FOCUS_RING_TIGHT,
-                      !anyChecked &&
-                        "opacity-0 group-hover/row:opacity-100 focus-visible:opacity-100",
                     )}
                   />
                 )}
