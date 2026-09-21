@@ -1,5 +1,40 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-09-21 - [shared-fix] #1804 — `aria-busy` の全箇所に目で見える手がかりを足した
+
+#### 概要
+
+`disabled`（押せない）と「処理中」が同じ見た目を共有していた件。**PR #1811**（open・merge はしていない = P-001）。`D-20260905-shared-fix-1 = A` の条件として切られた Issue で、A を選べた理由が「busy 表示の弱さは別 Issue で解く」だったもの。
+
+決めた形は **スピナー + ラベル差し替え + `disabled`（二重送信の防止）を `Button` の `busy` / `busyLabel` の 1 つの口から出す**。同じ 3 点セットを 6 画面が手書きしていたので、形を 1 箇所に集約した。
+
+#### 変更点
+
+- `shared/src/components/Button.tsx` — `busy` / `busyLabel` を追加。`busy` は `disabled` を含意する（既存の呼び出し側が全部 `disabled={busy}` を手で書いていたため、挙動は変わらない）
+- `shared/src/components/styleTokens.ts` — `BUSY_SPINNER`（コントロール用）/ `BUSY_STALE`（古い値を残したまま再取得する領域用）の 2 トークン。`BUSY_SPINNER` は `shared/src/index.ts` からも re-export（web の生 `<button>` が使うため）
+- `web/src/notes/NotePasswordDialog.tsx` — **手がかりゼロだった唯一の箇所**。スピナーと `labels.busy` を足した。shared の `Button` には寄せていない（寄せると `disabled:opacity-40` が `DISABLED_FILLED_BTN` に変わり、#1803 が保留にしている塗りを勝手に動かすことになる）
+- `AuthCard` / `EmailConfirmationCard` / `PasswordResetRequestCard` / `PasswordUpdateForm` / `SettingsProfile` / `AttachmentCleanupPanel`（2 ボタン）— 手書きのスピナーを `busy` プロップへ。見た目は同じで、`LoaderCircle` の import が 5 本消えた
+- `DeleteAccountDialog` — ラベル差し替えだけだったのでスピナーが増えた
+- `shared/src/components/Analytics/ScheduleTab.tsx` — 再取得中に古い範囲の数字が出たままで印が `aria-busy` だけだったので `BUSY_STALE` で減光
+- `shared/src/components/SegmentedControl.tsx` — `aria-busy={disabled}` を削除。`disabled` は「変換中」と「まだ効かない」の両方で渡るのでトラック側では区別できず、実際に走っている唯一のホスト（`FrequencyEditor`）は自分のラッパーで `aria-busy` + `role="status"` を名乗っている
+- `.claude/rules/frontend.md` §デザイン規約 — 「`aria-busy` を単独で立てない」を 1 行追加
+- テスト: `shared/tests/buttonBusyCue.test.tsx` 新規 6 本 / `web/tests/notePasswordDialog.test.tsx` に送信中の 2 本 / `shared/tests/analyticsRangeFetch.test.tsx` の再取得ケースに減光の assert
+
+#### 判断
+
+- **スケルトンで待たせている箇所（Analytics / TagHub / WorkHistoryList）と TrashView の行、`FrequencyEditor` は変更なし** — すでに目に見える手がかりを持っている
+- **`disabled` の塗り自体は触っていない**（#1803・保留中）
+
+#### つまずき
+
+- **この機の Bash ツールはヒアドキュメント内のバックスラッシュを 1 つ食う**。`querySelector(".motion-reduce\:animate-none")` と書いたつもりが `\:` になり、eslint の `no-useless-escape` とテスト 1 本が落ちた。CSS エスケープが要る assert は避け、`getAttribute("class")` を `toContain` で見る形に書き直した（スピナーは `<svg>` なので `.className` は `SVGAnimatedString` で使えない点も同じ理由で注意）
+- **`web/tests/` に jest-dom の matcher は入っていない**（`shared/tests/` には入っている）。`toHaveAttribute` は `Invalid Chai property` で落ちるので素の `getAttribute()` で書く。`typecheck:tests` が先に教えてくれる
+- **空きメモリが 1.5GB を切ると eslint / vitest が exit 134（OOM）で落ちる**。並行チャットが重いときの偽の赤なので、空きを確認してから回し直す（20GB 空いた状態では 15 ステップ全部が exit 0）
+
+#### 検証
+
+`.github/workflows/ci.yml` の `verify` 14 ステップ + `docs-lint` をローカルで上から実行し全部 exit 0（shared 324 suites / 3306 tests・web 148 suites / 1380 tests・desktop・mcp-server）。実ブラウザでの目視は worktree では回さない規約のため未実施。
+
 ### 2026-09-21 - [shared-fix] サイドバー footer の「タグを編集」行を削除（Connect 吸収で nav と重複していた）
 
 #### 概要
