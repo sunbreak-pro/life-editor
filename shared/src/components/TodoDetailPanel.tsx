@@ -5,7 +5,7 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { Trash2 } from "lucide-react";
+import { ChevronRight, Trash2 } from "lucide-react";
 import type { TodoStatus } from "../types/todoTree";
 import { isImeComposing } from "../utils/imeGuard";
 import { cn } from "./cn";
@@ -343,10 +343,23 @@ function TodoDetailFields({
             onClick={() => setScheduleToggled(!scheduleOpen)}
             aria-expanded={scheduleOpen}
             className={cn(
-              "rounded-lumen-md px-1 py-0.5 text-xs uppercase tracking-wide text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+              "inline-flex items-center gap-1 rounded-lumen-md px-1 py-0.5 text-xs uppercase tracking-wide text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
               FOCUS_RING,
             )}
           >
+            {/* #1834: the caption wears STATUS's and NOTES's treatment, so
+                without a glyph nothing said this one opens — it read as a
+                static label that happened to answer a press. The chevron
+                turns with the row rather than swapping for a second icon, so
+                the control keeps one identity. */}
+            <ChevronRight
+              aria-hidden
+              className={cn(
+                "size-3 shrink-0 transition-transform",
+                scheduleOpen && "rotate-90",
+              )}
+              strokeWidth={2.5}
+            />
             {scheduleLabel}
           </button>
           {scheduleOpen && (

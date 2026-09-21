@@ -672,6 +672,7 @@
     "detailPanelLabel": "Detail panel",
     "editDetail": "Edit details",
     "itemActionsLabel": "Event actions",
+    "todoActionsLabel": "Todo actions",
     "tabTodo": "Todo",
     "todoTodayHeading": "Today's todos",
     "todoEmptyToday": "Nothing on today yet",
