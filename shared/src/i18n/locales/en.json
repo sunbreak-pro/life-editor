@@ -373,6 +373,7 @@
     "sessionsPerSet": "Sessions per set",
     "presets": "Presets",
     "deletePreset": "Delete preset",
+    "deletePresetConfirm": "Delete the preset “{{name}}”?",
     "autoStartBreaks": "Auto-start breaks",
     "emptyValue": "Enter a number for {{field}}"
   },
