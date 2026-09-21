@@ -363,6 +363,17 @@ export function CalendarTab({
     ) => showToast("danger", t(REPEAT_FAILURE_COPY_KEY[reason])),
     [showToast, t],
   );
+  /*
+   * #1642 W16 / K-10: a duplicate whose INSERT was refused. The mutation layer
+   * has already taken the optimistic copy back off the grid by the time this
+   * runs, so the sentence is about what did NOT happen, not about repairing
+   * anything.
+   */
+  const handleDuplicateError = useCallback(
+    () => showToast("danger", t("scheduleScreen.duplicateFailed")),
+    [showToast, t],
+  );
+
   const {
     notes: noteOptions,
     notesError,
@@ -638,6 +649,7 @@ export function CalendarTab({
     onResizeTodoChip: handleTodoChipResize,
     onDropTodoChipAllDay: handleTodoChipDropAllDay,
     onRepeatConvertFailed: handleRepeatConvertError,
+    onDuplicateFailed: handleDuplicateError,
     // #1638: the repeat layer records its own history — turning a repeat on or
     // off, the rhythm change and the series-wide edits, one command per act.
     push: undoRedo?.push,

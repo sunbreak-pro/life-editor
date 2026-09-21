@@ -51,6 +51,12 @@ export interface UseScheduleMutationsArgs
       content?: string;
       noteId?: string;
       memo?: string;
+      /**
+       * Minutes before the start to notify, or null for none. LEFT OUT means
+       * "use the Settings default" — the provider resolves it, so a caller
+       * that has no opinion must not spell one (#1642 W16 / K-07).
+       */
+      reminderOffset?: number | null;
       onSaved?: (saved: ScheduleItem | null) => void;
     },
   ) => string;
@@ -79,6 +85,14 @@ export interface UseScheduleMutationsArgs
   // #562: a timed todo chip dropped back onto the all-day lane — the host
   // rewrites the TodoNode to an all-day candidate (isAllDay:true) on dateISO.
   onDropTodoChipAllDay: (chipId: string, dateISO: string) => void;
+  /**
+   * A duplicate did not land (#1642 W16 / K-10). Every other write on this
+   * hook either reports its failure or is a plain patch the reload snaps back;
+   * duplicate did neither, so a refused INSERT left a row on the grid that
+   * exists nowhere else and said nothing about it. The host says it out loud,
+   * same contract as `onRepeatConvertFailed`.
+   */
+  onDuplicateFailed: () => void;
   // Copy, resolved by the host (§6.4)
   copySuffix: string;
 }
@@ -112,6 +126,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     onResizeTodoChip,
     onDropTodoChipAllDay,
     onRepeatConvertFailed,
+    onDuplicateFailed,
     push,
     copySuffix,
   } = args;
@@ -403,6 +418,29 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           content: src.content ?? undefined,
           noteId: src.noteId ?? undefined,
           memo: src.memo ?? undefined,
+          /*
+           * #1642 W16 / K-07: the reminder travels with the copy. Left out,
+           * the provider filled in the Settings default, so duplicating an
+           * event whose reminder the user had changed handed back a copy set
+           * to something else — silently, since a reminder has no face on the
+           * grid. `undefined` still means "no opinion", which is what a source
+           * row that never carried one should say.
+           */
+          reminderOffset: src.reminderOffset,
+          /*
+           * K-10: the row below is optimistic, and until now nothing took it
+           * back. A refused INSERT left a copy on the grid that exists in no
+           * store but this one — clicking it opens an editor writing to an id
+           * the server never saw, and only a reload made it go away.
+           */
+          onSaved: (saved) => {
+            if (saved) return;
+            setRangeItems((prev) => prev.filter((i) => i.id !== newId));
+            // The copy was selected on creation; leaving the selection on a
+            // row that is gone points the editor and the bubble at nothing.
+            setSelectedId((current) => (current === newId ? null : current));
+            onDuplicateFailed();
+          },
         },
       );
       setRangeItems((prev) => [
@@ -419,6 +457,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           content: src.content ?? null,
           noteId: src.noteId ?? null,
           memo: src.memo ?? null,
+          reminderOffset: src.reminderOffset,
         },
       ]);
       onSelectItem(newId);
@@ -428,7 +467,9 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       contextItems,
       createScheduleItem,
       setRangeItems,
+      setSelectedId,
       onSelectItem,
+      onDuplicateFailed,
       copySuffix,
     ],
   );
