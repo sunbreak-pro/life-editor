@@ -230,8 +230,11 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       date: "2026-08-03",
       // The pair travels together even though only the start moved (#553): the
       // range is one value, and half of it would leave the host guessing.
+      // 19:00-20:30 is 90 minutes, and #1833 keeps that whatever direction the
+      // start moves — the end used to stay at 20:30 here, quietly cutting the
+      // event to half an hour.
       startTime: "20:00",
-      endTime: "20:30",
+      endTime: "21:30",
     });
   });
 
