@@ -1,5 +1,31 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-09-21 - [shared-fix] サイドバー footer の「タグを編集」行を削除（Connect 吸収で nav と重複していた）
+
+#### 概要
+
+左サイドバー footer の「タグを編集」行を削除した。**PR #1794**（open・merge はしていない = P-001）。
+
+#1643 でタグ編集モーダルが Connect セクションに吸収されてから、この行の中身は `setSection("connect")` だけになっていた。nav の「つながり」行と行き先が同じで、同じ列に同じ画面への入口が 2 つ並んでいた状態を畳んだもの。
+
+#### 変更点
+
+- **`shared/src/components/SidebarNav.tsx`**: 行の JSX・`onOpenTagEditor`・`labels.tagEditor`・`TagsIcon` import・`tagEditorLabel` の導出をまとめて削除
+- **`shared/src/components/AppShell.tsx`**: 同じ 2 つの prop の通り道（型・分割代入・SidebarNav への受け渡し）
+- **`web/src/MainScreen.tsx` / `web/src/hooks/useShellChrome.tsx`**: ホスト側の受け渡しと `shellLabels.tagEditor`
+- **`shared/tests/sidebarNav.test.tsx`**: #409 の describe（5 tests）と未使用になった `cleanup` import を削除
+- **docs 3 本**（`CLAUDE.md` §8 / `requirements/mobile-scope.md` #9 / `requirements/tier-2-supporting.md` §Connect）: 「wide の導線 = サイドバー行」という記述を現状に合わせた
+
+#### 決めたこと
+
+- **narrow の「その他」シートは残す**。狭幅にはサイドバーが無く、ここが Connect への唯一のクイック導線になる。`nav.tagEditor` の i18n キーも同じ理由で残した
+- **prop ごと落とす**（label だけ抜いて口を残さない）。`onOpenTagEditor` は #1643 以降 `setSection("connect")` しか渡されておらず、残すと「サイドバーからも任意の画面を開ける」という嘘の拡張点になる
+
+#### 検証
+
+CI `verify` のステップ（shared / web / desktop / mcp-server）+ `docs-lint` をローカルで上から順に実行し全部 exit 0。集計は `tail` を挟まず変数へ取ってから終了コードを見ている（§7.1）。残った eslint warning 2 件（CommandPalette / UndoRedoContext）は本変更以前からあるもの。実ブラウザ確認は worktree では回せないため chat-main の手番。
+
+
 ### 2026-09-20 - [shared-fix] #1773 ツアーを Escape で中断して再開すると 4/10 に巻き戻る（reveal がタブ選択まで戻していなかった）
 
 #### 概要
@@ -117,49 +143,3 @@ verify 15 ステップ + docs-lint をローカルで通した（Monitor で 1 �
 - **open Issue でも「残りは close だけ」がある**: #1512 は本文の対象が全部着地していて、最後のコメントに close 条件まで書いてあった。/goal の文面は「継続」だったが、着手前に `gh pr list --search` と子 Issue の state を引いたので二重実装を避けられた
 - `gh issue close --comment` は auto mode の分類器に「外部システムへの書き込み」として止められる（`gh pr create` / `gh pr edit` は通った）
 - python の heredoc で `\v` を含む文字列を書くと垂直タブに化ける（PR 本文の 1 行が `utilserification.ts` になり、`gh pr edit --body-file` で出し直した）
-
-### 2026-09-05 - [shared-fix] #1408 の findings 3 件（#1468 / #1474 / #1481）をそれぞれ独立ブランチで PR まで
-
-#### 概要
-
-こうだいさんの /goal「3 件それぞれに origin/main から切ったブランチ + CI verify のローカル全緑 + Issue を参照する PR」を実行し、**PR #1493 / #1498 / #1496** に到達（3 本とも open。merge は P-001 でこうだいさん手番）。
-
-| Issue                            | PR    | ブランチ                 | 触ったファイル                                                                            |
-| -------------------------------- | ----- | ------------------------ | ----------------------------------------------------------------------------------------- |
-| #1468 サイドバーのラベル省略     | #1493 | `claude/shared-fix-1468` | `SidebarNav.tsx` + テスト                                                                 |
-| #1474 disabled の primary ボタン | #1498 | `claude/shared-fix-1474` | `styleTokens.ts` / `Button.tsx` / `PomodoroSettings.tsx` / `AudioMixer.tsx` + テスト 3 本 |
-| #1481 `<html lang>`              | #1496 | `claude/shared-fix-1481` | `ThemeContext.tsx` + テスト                                                               |
-
-#### 3 件とも Issue の Scope 行が実際の修正先を外していた
-
-- **#1468** は Scope が「`web/src/` のシェル / サイドバー部品」だが、実体は `shared/src/components/SidebarNav.tsx`。DoD 行の `cd web && ...` では **shared に入れた lint / テストが 1 度も走らない**（CLAUDE.md §7.1）
-- **#1474** は Scope が「共有 Button 部品の disabled 表現。個別画面の上書きは不要」だが、**報告された 2 つの「保存」は共有 `<Button>` を通っていない**（`PomodoroSettings.tsx` の `SAVE_BTN` と `AudioMixer.tsx` のインライン）。`Button.tsx` だけ直しても報告画面は 1px も変わらない
-- **#1481** だけは Scope（`web/src/main.tsx` 周辺の I18n Provider）が近かったが、言語の持ち主は `shared/src/context/ThemeContext.tsx` で、そこは既に `data-theme` / `data-reduce-motion` / root font-size / root font-family という documentElement 副作用を 4 本持っていた。5 本目を隣に足すだけで済んだ
-
-#### #1468 は「バッジ縮小」か「ラベル優先」の片方だけでは足りなかった
-
-DoD は 3 択（バッジの縮小 / ラベル優先 / 省略の解除）を「いずれでも可」としていたが、**1 つでは全フォント段 × 2 ロケールを保証できない**。
-
-- ラベル優先だけ → 今度はバッジが 1 文字も出せない段が出る
-- バッジ縮小だけ → どの段で足りるかがフォントメトリクス次第の賭けになる（実際、調査エージェントの px 見積りは step 1 en で ±3px の境界だった）
-
-**譲る順番を固定する**形にした: ラベルは `basis-auto shrink-0` で絶対に縮まない → 足りなければ `aria-hidden` のバッジが省略される → 最後はボタンの `overflow-hidden` が刈る。加えて **バッジが等幅だったのは Tailwind preflight の `code, kbd, samp, pre { font-family: --font-mono }` がそのまま残っていただけ**（誰も選んでいない）ので `font-sans` で降ろし、実際には譲らずに済む幅を確保した。
-
-#### 実測したこと
-
-- **守りが効くことを全 PR で反転実測**: #1468 = flex 契約と `font-sans` を個別に戻すと 1 本ずつ赤 / #1474 = トークンを `disabled:opacity-50` に戻すと 5 本赤 / #1481 = `setAttribute` を潰すと 2 本赤
-- **#1474 のコントラスト比をトークンから計算**（light / dark）: 無効ラベル 3.72 / 4.90、**新しい塗り vs カード面 1.07 / 1.21** — この 3 桁目がリングを必須にしている（塗りだけだとボタンの箱がカードに溶ける）
-- **ビルド後の CSS に新ユーティリティが実際に出ていることを確認**: `disabled:bg-lumen-surface-sunken` ほか 7 本、および #1468 の `.font-sans{font-family:var(--font-sans)}`。**`font-sans` は 1474 ブランチのビルドには 0 件・1468 ブランチのビルドに 1 件**で、スキャン経由で生成されていることまで確定できた（未生成なら無言で無色になる）
-- `origin/main` に対しても **15 ゲート全緑のベースライン**を先に取った。以降の赤は自分の変更由来と断定できる状態で作業した
-- 各ブランチで CI verify 15 ステップ + docs-lint をローカル全緑。終了コードは **`| tail` に通す前に変数へ取って取得**（CLAUDE.md §7.1 の罠）
-
-#### 独立レビュー（並列 9 エージェント）が自分の作業ツリーを読んで blocking を出した
-
-調査 3 + 批評 6 の並列ワークフローを回した。**批評の 1 本が、実装済みの作業ツリーを読んで blocking を 1 件確定させた**: ラベルを `shrink-0` にした結果、ボタンにも footer の div にも `overflow-hidden` が無いため、**将来ロケールで文言が伸びると `w-60` の aside の外＝本文ペインの上に描画される**。ボタンに `overflow-hidden` を足して塞いだ（`overflow` は子孫だけを刈るので focus リングは無傷）。
-
-ほかに採用した指摘: テストの置き場を `web/tests/` から `shared/tests/` へ（変更が shared 完結なので配置表と逆だった）/ `themeContext.test.tsx` の `beforeEach` に i18next シングルトンのリセットを追加（`setLanguage` がモジュール状態を書き換え、Provider の既定値がそこから導出されるため、リセットが無いと以降のマウントが全部 ja で起動する）/ collapsed 行のテストを「#1468 の柵ではない」と正直に書き直した（className だけの差分なので修正前も緑）。
-
-#### 運用メモ
-
-- **`git push` が Git Credential Manager の対話を要求して失敗する**。`git -c credential.helper='!gh auth git-credential' push` で通した（この機は `gh auth setup-git` が未実行）
-- worktree 規約: ブランチを切るたび `.claude/comm/.session-branch` を更新（4 回）。tracker / outbox / decisions は実装ブランチに載せず本コミットの専用ブランチへ（D-20260801-main-1 / D-20260802-sched-1）
