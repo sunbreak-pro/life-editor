@@ -45,6 +45,7 @@ import {
   useStartupSectionPref,
   useScheduleInitialViewPref,
   useHolidayColorPref,
+  useHolidayVisibilityPref,
   DEFAULT_HOLIDAY_COLOR,
   useReminderPrefs,
   REMINDER_LEAD_CHOICES,
@@ -176,6 +177,10 @@ export function SettingsScreen({
   // #1626: the one colour every holiday wears. Written here, read by the
   // calendar when the Schedule section next mounts.
   const { holidayColor, setHolidayColor } = useHolidayColorPref();
+  // #1802: the same pref the calendar toolbar flips. Stated here as "shown"
+  // because a switch reads better as the thing it turns on than as the thing
+  // it turns off.
+  const { holidaysHidden, setHolidaysHidden } = useHolidayVisibilityPref();
   const {
     remindersEnabled,
     setRemindersEnabled,
@@ -858,6 +863,8 @@ export function SettingsScreen({
             holidayColor={holidayColor}
             onHolidayColorChange={setHolidayColor}
             defaultHolidayColor={DEFAULT_HOLIDAY_COLOR}
+            holidaysShown={!holidaysHidden}
+            onHolidaysShownChange={(shown) => setHolidaysHidden(!shown)}
             labels={{
               heading: t("settings.schedule.heading"),
               description: t("settings.schedule.description"),
@@ -875,6 +882,7 @@ export function SettingsScreen({
               holidayColorLabel: t("settings.schedule.holidayColorLabel"),
               holidayColorClear: t("settings.schedule.holidayColorClear"),
               holidayColorCustom: t("settings.schedule.holidayColorCustom"),
+              holidayVisibleLabel: t("settings.schedule.holidayVisibleLabel"),
             }}
           />
         </div>
