@@ -198,7 +198,10 @@ export function TagPicker({
         onClick={() => setPickerOpen((v) => !v)}
         aria-label={t("materials.tags.pickerAdd")}
         aria-expanded={pickerOpen}
-        className={`${TAP_TARGET} gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent`}
+        // TAP_TARGET is 1.75rem, which is 31.5px — the app's icon floor, not
+        // a thumb's (#1840). The narrow-width floor is added here rather than
+        // to TAP_TARGET itself, which every icon button in the app shares.
+        className={`${TAP_TARGET} max-md:min-h-11 max-md:min-w-11 gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent`}
       >
         <Plus size={14} aria-hidden />
         {assignments.length === 0 && !loading && (

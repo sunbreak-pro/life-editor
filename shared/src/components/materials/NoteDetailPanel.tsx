@@ -292,6 +292,10 @@ export function NoteDetailPanel({
             className={cn(
               "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md text-lumen-text-secondary",
               "hover:bg-lumen-hover hover:text-lumen-text",
+              // #1840: 26px draws at 32 with the icon-only floor, which is a
+              // mouse target. The drawn box stays as it is and the HIT box
+              // grows, so the header does not change shape on Desktop.
+              "max-md:min-h-11 max-md:min-w-11",
               FOCUS_RING,
             )}
           >
