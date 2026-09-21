@@ -15,6 +15,8 @@
     "shortcuts": {
       "heading": "キーボードショートカット",
       "resetAll": "すべてリセット",
+      "resetAllConfirm": "キーボードショートカットをすべて既定に戻しますか？この端末で変更したキーの割り当ては消えます。",
+      "resetAllConfirmButton": "すべてリセット",
       "reset": "リセット",
       "change": "変更",
       "conflict": "「{{action}}」に割り当て済み",
@@ -346,6 +348,7 @@
       "tagRemove": "{{name}} を外す",
       "tagNoCandidates": "タグがまだありません",
       "tagDialog": "フリーセッションのタグ",
+      "tagSheetClose": "閉じる",
       "tagDisabled": "タグはフリーセッション用です。作業名の選択を外すと使えます。"
     }
   },

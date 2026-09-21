@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Lightbulb,
   SlidersHorizontal,
@@ -224,6 +224,26 @@ export function SettingsScreen({
   useEffect(() => {
     if (pendingProfile) onConsumeProfile?.();
   }, [pendingProfile, onConsumeProfile]);
+  /*
+   * #1871: a category is a new page, so it starts at its top. The scroller is
+   * not ours — PageContainer owns it, and every category shares the one
+   * element — so the offset used to carry over: 1500px down the Trash list,
+   * General opened in the middle of a card.
+   *
+   * Every scrolled ancestor is reset rather than one looked up by class: that
+   * keeps this file ignorant of PageContainer's markup. A layout effect so the
+   * new body never paints at the old offset.
+   */
+  const bodyRef = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    for (
+      let el = bodyRef.current?.parentElement ?? null;
+      el;
+      el = el.parentElement
+    ) {
+      if (el.scrollTop !== 0) el.scrollTop = 0;
+    }
+  }, [tab]);
   const [tipsOpen, setTipsOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
 
@@ -421,6 +441,22 @@ export function SettingsScreen({
       danger: true,
     }).then((ok) => {
       if (ok) resetLocalPreferences();
+    });
+  };
+  /*
+   * #1872: "Reset all shortcuts" was the one bulk press on this screen that
+   * ran the moment it was touched. Same dialog, same `danger` + safe-focus
+   * treatment as the reset above; nothing is cleared until the answer is yes.
+   */
+  const resetAllShortcuts = shortcuts?.resetAll;
+  const handleResetAllShortcuts = () => {
+    void askConfirm({
+      message: t("settings.shortcuts.resetAllConfirm"),
+      confirmLabel: t("settings.shortcuts.resetAllConfirmButton"),
+      cancelLabel: t("common.cancel"),
+      danger: true,
+    }).then((ok) => {
+      if (ok) resetAllShortcuts?.();
     });
   };
 
@@ -628,7 +664,7 @@ export function SettingsScreen({
   );
 
   return (
-    <div className="flex flex-col gap-6 pb-12">
+    <div ref={bodyRef} className="flex flex-col gap-6 pb-12">
       {tab === PROFILE_TAB_ID && (
         <div className={cardClass}>
           <SettingsProfile
@@ -742,6 +778,7 @@ export function SettingsScreen({
                 onRebind={shortcuts.setBinding}
                 onResetOne={shortcuts.resetBinding}
                 onResetAll={shortcuts.resetAll}
+                onRequestResetAll={handleResetAllShortcuts}
                 getConflictLabel={getConflictLabel}
                 labels={{
                   heading: t("settings.shortcuts.heading"),

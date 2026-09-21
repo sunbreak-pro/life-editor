@@ -107,9 +107,18 @@ export function PomodoroTodoSelector({
         {loading ? (
           <div className="h-[38px] w-full max-w-[360px] animate-pulse rounded-lumen-md bg-lumen-surface-sunken" />
         ) : selected ? (
+          /*
+           * `min-w-0` is what lets the title truncate (#1855). The chip is a
+           * flex item of the row, and a flex item's min-width defaults to its
+           * content, so a 100-character title held the chip at its full text
+           * width: it ran through the card, pushed the tag field off screen
+           * and gave the Work page a horizontal scrollbar. The inner
+           * `truncate` was never the problem; it had no bound to clip to.
+           */
           <span
+            data-testid="work-target-chip"
             className={cn(
-              "inline-flex items-center gap-2 rounded-lumen-md py-1.5 pl-3 pr-2 text-sm font-medium",
+              "inline-flex min-w-0 max-w-full items-center gap-2 rounded-lumen-md py-1.5 pl-3 pr-2 text-sm font-medium",
               workTargetChipClass(selected.kind),
             )}
           >

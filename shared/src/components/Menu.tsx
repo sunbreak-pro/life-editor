@@ -66,8 +66,9 @@ const ENABLED_ITEMS = '[role="menuitem"]:not([aria-disabled="true"])';
  * menu positions itself just below (top-full). OPAQUE panel (bg-lumen-bg, §3.5)
  * — never a translucent popover. a11y: role=menu with roving focus (Arrow /
  * Home / End), Tab-to-close, Esc-to-close (IME-guarded, §7), and
- * outside-pointerdown close. First enabled item is focused on open. Copy is
- * injected (§6).
+ * outside-pointerdown close. First enabled item is focused on open, and focus
+ * returns to the trigger when the menu closes (#1852) — except on Tab, which
+ * closes precisely so focus can move on. Copy is injected (§6).
  *
  * Trigger wiring: drive `open` from the host. A naive `setOpen(v => !v)` toggle
  * is unsafe on its own — the outside-pointerdown close (a document capture
@@ -88,6 +89,8 @@ export function Menu({
   className,
 }: MenuProps) {
   const ref = useRef<HTMLDivElement | null>(null);
+  // Set by the Tab branch below, read by the focus-return cleanup (#1852).
+  const closedByTab = useRef(false);
   const pointX = anchorPoint?.x;
   const pointY = anchorPoint?.y;
 
@@ -144,6 +147,41 @@ export function Menu({
     return () => cancelAnimationFrame(raf);
   }, [open]);
 
+  /*
+   * Hand focus back to whatever opened the menu when it closes (#1852).
+   *
+   * The menu TAKES focus on open (the roving focus above), so closing it
+   * without giving focus back leaves it on <body>: Escape dropped a keyboard
+   * user at the top of the page with no way back to where they were. Declared
+   * after the focus effect so this cleanup runs last and wins.
+   *
+   * Captured here rather than during render because nothing inside a menu
+   * autofocuses — the first row is claimed a frame later, so by now
+   * `activeElement` is still the opener.
+   */
+  useEffect(() => {
+    if (!open) return;
+    closedByTab.current = false;
+    const active = document.activeElement as HTMLElement | null;
+    const opener = active && active !== document.body ? active : null;
+    return () => {
+      // Tab is the one close that must NOT come back: the menu closes so the
+      // focus can move ON to the next element, which is the point of the key.
+      if (closedByTab.current) return;
+      // A row that opened a dialog has already put the focus somewhere
+      // deliberate — a dialog claims it during the same commit, before this
+      // cleanup runs — so only a focus left loose on the page is ours to move.
+      const now = document.activeElement;
+      if (now && now !== document.body) return;
+      // The trigger when the host passed one; otherwise whoever held the focus
+      // at open. `isConnected` because the opener is often a row that the same
+      // state change removed, and focusing a detached node silently does
+      // nothing while reading as if it worked.
+      const target = anchorRef?.current ?? opener;
+      if (target?.isConnected) target.focus();
+    };
+  }, [open, anchorRef]);
+
   if (!open) return null;
 
   const items = () =>
@@ -154,6 +192,7 @@ export function Menu({
     // Tab exits the menu (WAI-ARIA menu pattern): close and let focus move
     // naturally to the next element (no preventDefault).
     if (e.key === "Tab") {
+      closedByTab.current = true;
       onClose();
       return;
     }
