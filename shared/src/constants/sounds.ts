@@ -20,6 +20,14 @@ import type { TranslationKey } from "../i18n/resources";
  * plays it, so an un-uploaded asset is just a 404 — no code path depends on
  * file existence.
  *
+ * What a replacement asset has to satisfy (#1793, measured 2026-09-21 —
+ * .claude/docs/reports/2026-09-21-ambient-sound-asset-measurement.md): encoded
+ * ONCE from uncompressed source (the five in place today say 320 kbps but are
+ * band-limited to 16.2 kHz, i.e. re-wrapped low-bitrate material), no silence
+ * left at either end (`el.loop` plays the tail gap and the head gap back to
+ * back — today that is a 39-139 ms dropout every wrap), and at least 60 s long
+ * so the seam comes round rarely.
+ *
  * `labelKey` is an i18n key (resolved by the host, not the primitive — §6.4
  * i18n props injection). `icon` is a lucide-react component (rendered by the
  * Mixer primitive).
