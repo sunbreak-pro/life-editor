@@ -511,7 +511,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           items={options}
           selectedId={timer.activeItem?.id ?? null}
           labels={{
-            title: t("work.todoSelector.select"),
+            title: t("work.todoSelector.sheetTitle"),
             close: t("common.close"),
             clearSelection: t("work.todoSelector.clearSelection"),
             emptyHint: t("work.todoSelector.emptyHint"),

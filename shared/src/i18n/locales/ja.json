@@ -297,13 +297,14 @@
       "LONG_BREAK": "長い休憩"
     },
     "todoSelector": {
-      "heading": "紐づけ先",
-      "placeholder": "Todo か予定を選ぶ…",
-      "clear": "紐づけを外す",
-      "select": "Todo か予定を選ぶ",
-      "clearSelection": "選択を外す",
+      "heading": "作業名",
+      "placeholder": "フリーセッション",
+      "clear": "フリーセッションに戻す",
+      "select": "フリーセッション",
+      "sheetTitle": "作業名を選ぶ",
+      "clearSelection": "フリーセッション",
       "allDay": "終日",
-      "emptyHint": "紐づけられるものがありません。Todo を作るか、7 日以内に予定を追加してください。"
+      "emptyHint": "選べる Todo や予定がありません。このまま始めるとフリーセッションになります。"
     },
     "completion": {
       "title": "セッション {{index}} が完了しました",
@@ -331,7 +332,7 @@
       "today": "今日",
       "latestDay": "直近の作業日 · {{date}}",
       "empty": "まだ作業の記録がありません。終えたセッションがここに並びます。",
-      "noTarget": "紐づけなし",
+      "noTarget": "フリーセッション",
       "minutes": "{{minutes}} 分"
     },
     "freeSession": {
@@ -344,7 +345,7 @@
       "tagRemove": "{{name}} を外す",
       "tagNoCandidates": "タグがまだありません",
       "tagDialog": "フリーセッションのタグ",
-      "tagDisabled": "タグはフリーセッション用です。紐づけ先を外すと使えます。"
+      "tagDisabled": "タグはフリーセッション用です。作業名の選択を外すと使えます。"
     }
   },
   "audioMixer": {
