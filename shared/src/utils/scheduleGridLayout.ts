@@ -166,7 +166,13 @@ export interface DragOrigin {
   mode: "move" | "resize" | "place";
   startX: number;
   startY: number;
-  /** Width of one day column in px; 0 disables the horizontal day remap. */
+  /**
+   * Width of one day column in px; 0 disables the horizontal day remap.
+   *
+   * #1831: "place" reads this too. Its chip is grabbed in the all-day lane,
+   * whose cells share the time body's column template, so one column of
+   * travel is one day on both.
+   */
   colWidth: number;
   /** Index of the dragged item's day within `dayKeys`. */
   origDayIdx: number;
@@ -265,11 +271,19 @@ export function resolveDrag(
   let startMin = drag.origStartMin;
   let endMin: number;
   if (drag.mode === "place") {
-    // Absolute drop: map the pointer's Y over the scroll body to a start time
-    // (same mapping as empty-slot create). The day stays the chip's own — no
-    // horizontal remap — and the block is kept fully in-window. The time grid
-    // scrolls WITH the content, so its rect top already is the 00:00 line —
-    // no scrollTop term (#563).
+    /*
+     * Absolute drop: map the pointer's Y over the scroll body to a start time
+     * (same mapping as empty-slot create), and the block is kept fully
+     * in-window. The time grid scrolls WITH the content, so its rect top
+     * already is the 00:00 line — no scrollTop term (#563).
+     *
+     * #1831: the day follows the pointer as well. It used to stay the chip's
+     * own, which made a chip dropped on Wednesday's 15:00 land on its own day
+     * at 15:00 — the gesture crossed a column the grid then ignored, so the
+     * result contradicted where the user let go. Nothing stopped the drop
+     * going wide, and a timed block dragged the same distance moves its day,
+     * so the two gestures now agree.
+     */
     const mins =
       geo.timeGridTop != null
         ? pxToMinutes(
@@ -283,6 +297,7 @@ export function resolveDrag(
       endHour * 60 - drag.durationMin,
     );
     endMin = startMin + drag.durationMin;
+    dayIdx = remapDay();
   } else if (drag.mode === "move") {
     // Clamp inside the visible window (#562): an unclamped overshoot past
     // either edge used to snap to a negative / >24:00 start, and minutesToTime
