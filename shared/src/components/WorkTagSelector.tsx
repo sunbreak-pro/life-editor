@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Tag as TagIcon } from "lucide-react";
 import { TagPill } from "./TagPill";
 import { TagHeadingIcon } from "./TagHeadingIcon";
+import { BottomSheet } from "./BottomSheet";
 import { TAP_TARGET } from "./styleTokens";
 import { cn } from "./cn";
 import { isImeComposing } from "../utils/imeGuard";
@@ -26,6 +27,16 @@ import { isImeComposing } from "../utils/imeGuard";
  * created, so the tags would go nowhere. The field stays on screen (dimmed,
  * with the host's hint as its title) rather than vanishing, so the row does not
  * jump every time the user picks or clears a target.
+ *
+ * `sheet` is the narrow-screen shape (#1856). The popover hangs off the right
+ * edge of a field that the mobile face CENTRES and draws near the bottom of
+ * the screen, so at 390px it opened with its left edge off screen and its list
+ * under the tab bar. Re-anchoring it would still leave a 288px panel fighting
+ * a 390px viewport and the soft keyboard; a BottomSheet is what every other
+ * picker on that face already uses (the work-target one sits right above).
+ * The host decides, because the host knows the width: the primitive never
+ * reads a media query. With `sheet` the trigger also takes the 44px floor
+ * (rules/frontend.md: the floor goes on at the call site that is narrow-only).
  */
 
 export interface WorkTagOption {
@@ -56,6 +67,12 @@ export interface WorkTagSelectorProps {
   onCreate: (name: string) => Promise<WorkTagOption>;
   labels: WorkTagSelectorLabels;
   disabled?: boolean;
+  /**
+   * Present the picker as a BottomSheet instead of an anchored popover, and
+   * give the trigger a 44px touch height (#1856). Pass it on the narrow face
+   * only; the desktop field omits it and is unchanged.
+   */
+  sheet?: { closeLabel: string };
   className?: string;
 }
 
@@ -66,6 +83,7 @@ export function WorkTagSelector({
   onCreate,
   labels,
   disabled = false,
+  sheet,
   className,
 }: WorkTagSelectorProps) {
   const [open, setOpen] = useState(false);
@@ -79,8 +97,11 @@ export function WorkTagSelector({
 
   // Click-outside closes the dropdown (same self-contained listener TagPicker
   // uses — no global registry).
+  // Not in sheet mode: the sheet is portalled to <body>, so every press
+  // inside it is "outside" this container, and its backdrop already closes it.
+  const popoverOpen = dropdownOpen && !sheet;
   useEffect(() => {
-    if (!dropdownOpen) return;
+    if (!popoverOpen) return;
     const onDocClick = (e: MouseEvent) => {
       if (
         containerRef.current &&
@@ -91,7 +112,7 @@ export function WorkTagSelector({
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
-  }, [dropdownOpen]);
+  }, [popoverOpen]);
 
   const tagsById = useMemo(() => new Map(tags.map((t) => [t.id, t])), [tags]);
   const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
@@ -126,6 +147,78 @@ export function WorkTagSelector({
       console.error("[WorkTagSelector] creating a tag failed", err);
     }
   };
+
+  const picker = (
+    <>
+      <input
+        type="text"
+        autoFocus
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !isImeComposing(e)) {
+            e.preventDefault();
+            if (exactMatch) add(exactMatch.id);
+            else void createAndAdd();
+          } else if (e.key === "Escape") {
+            setOpen(false);
+          }
+        }}
+        placeholder={labels.search}
+        className={cn(
+          "w-full rounded-md border border-lumen-border bg-lumen-bg-secondary px-2 text-lumen-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
+          // 16px on the sheet: iOS zooms the page into any smaller input.
+          sheet ? "min-h-11 text-base" : "py-1 text-sm",
+        )}
+      />
+      <ul
+        className={cn(
+          "mt-2 space-y-0.5 overflow-y-auto",
+          sheet ? "max-h-[50dvh]" : "max-h-48",
+        )}
+      >
+        {candidates.length === 0 && !trimmed && (
+          <li className="px-2 py-1 text-xs text-lumen-text-secondary">
+            {labels.noCandidates}
+          </li>
+        )}
+        {candidates.map((tag) => (
+          <li key={tag.id}>
+            <button
+              type="button"
+              onClick={() => add(tag.id)}
+              className={cn(
+                "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
+                sheet && "min-h-11",
+              )}
+            >
+              <TagHeadingIcon
+                icon={tag.icon ?? null}
+                color={tag.color}
+                size={14}
+              />
+              <span>{tag.name}</span>
+            </button>
+          </li>
+        ))}
+        {trimmed && !exactMatch && (
+          <li>
+            <button
+              type="button"
+              onClick={() => void createAndAdd()}
+              className={cn(
+                "flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-accent hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
+                sheet && "min-h-11",
+              )}
+            >
+              <Plus size={14} aria-hidden="true" />
+              <span>{labels.create(trimmed)}</span>
+            </button>
+          </li>
+        )}
+      </ul>
+    </>
+  );
 
   return (
     <div
@@ -167,6 +260,7 @@ export function WorkTagSelector({
           TAP_TARGET,
           "gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
           disabled && "cursor-not-allowed hover:bg-transparent",
+          sheet && "min-h-11",
         )}
       >
         <Plus size={14} aria-hidden="true" />
@@ -174,65 +268,25 @@ export function WorkTagSelector({
       </button>
       {disabled && <span className="sr-only">{labels.disabledHint}</span>}
 
-      {dropdownOpen && (
-        <div
-          role="dialog"
-          aria-label={labels.dialog}
-          className="absolute right-0 top-full z-20 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-lumen-border bg-lumen-bg p-2 shadow-lg"
+      {sheet ? (
+        <BottomSheet
+          open={dropdownOpen}
+          onClose={() => setOpen(false)}
+          title={labels.dialog}
+          closeLabel={sheet.closeLabel}
         >
-          <input
-            type="text"
-            autoFocus
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !isImeComposing(e)) {
-                e.preventDefault();
-                if (exactMatch) add(exactMatch.id);
-                else void createAndAdd();
-              } else if (e.key === "Escape") {
-                setOpen(false);
-              }
-            }}
-            placeholder={labels.search}
-            className="w-full rounded-md border border-lumen-border bg-lumen-bg-secondary px-2 py-1 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
-          />
-          <ul className="mt-2 max-h-48 space-y-0.5 overflow-y-auto">
-            {candidates.length === 0 && !trimmed && (
-              <li className="px-2 py-1 text-xs text-lumen-text-secondary">
-                {labels.noCandidates}
-              </li>
-            )}
-            {candidates.map((tag) => (
-              <li key={tag.id}>
-                <button
-                  type="button"
-                  onClick={() => add(tag.id)}
-                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
-                >
-                  <TagHeadingIcon
-                    icon={tag.icon ?? null}
-                    color={tag.color}
-                    size={14}
-                  />
-                  <span>{tag.name}</span>
-                </button>
-              </li>
-            ))}
-            {trimmed && !exactMatch && (
-              <li>
-                <button
-                  type="button"
-                  onClick={() => void createAndAdd()}
-                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-accent hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
-                >
-                  <Plus size={14} aria-hidden="true" />
-                  <span>{labels.create(trimmed)}</span>
-                </button>
-              </li>
-            )}
-          </ul>
-        </div>
+          {picker}
+        </BottomSheet>
+      ) : (
+        dropdownOpen && (
+          <div
+            role="dialog"
+            aria-label={labels.dialog}
+            className="absolute right-0 top-full z-20 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-lumen-border bg-lumen-bg p-2 shadow-lg"
+          >
+            {picker}
+          </div>
+        )
       )}
     </div>
   );

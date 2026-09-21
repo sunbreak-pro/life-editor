@@ -426,7 +426,12 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
    */
   const mobileTagRow = (
     <div className="flex justify-center">
-      <FreeSessionTags dataService={ds} disabled={timer.activeItem !== null} />
+      {/* `sheet`: this row exists on the narrow face only (#1856). */}
+      <FreeSessionTags
+        dataService={ds}
+        disabled={timer.activeItem !== null}
+        sheet
+      />
     </div>
   );
 
