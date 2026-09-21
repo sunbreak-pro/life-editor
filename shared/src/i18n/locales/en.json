@@ -346,6 +346,7 @@
       "tagRemove": "Remove {{name}}",
       "tagNoCandidates": "No tags yet",
       "tagDialog": "Free session tags",
+      "tagSheetClose": "Close",
       "tagDisabled": "Tags apply to a free session — clear the work name to use them."
     }
   },

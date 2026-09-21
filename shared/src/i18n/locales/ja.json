@@ -346,6 +346,7 @@
       "tagRemove": "{{name}} を外す",
       "tagNoCandidates": "タグがまだありません",
       "tagDialog": "フリーセッションのタグ",
+      "tagSheetClose": "閉じる",
       "tagDisabled": "タグはフリーセッション用です。作業名の選択を外すと使えます。"
     }
   },

@@ -29,9 +29,12 @@ import {
 export function FreeSessionTags({
   dataService: ds,
   disabled,
+  sheet = false,
 }: {
   dataService: DataService;
   disabled: boolean;
+  /** Narrow face: open the picker as a BottomSheet (#1856). */
+  sheet?: boolean;
 }) {
   const { t } = useTranslation();
   const timer = useTimerContext();
@@ -87,6 +90,9 @@ export function FreeSessionTags({
       onChange={timer.setFreeSessionTagIds}
       onCreate={handleCreate}
       disabled={disabled}
+      sheet={
+        sheet ? { closeLabel: t("work.freeSession.tagSheetClose") } : undefined
+      }
       labels={{
         heading: t("work.freeSession.tagHeading"),
         add: t("work.freeSession.tagAdd"),
