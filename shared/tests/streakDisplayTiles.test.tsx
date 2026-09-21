@@ -88,7 +88,24 @@ describe("Streak tiles keep their label on one line (#1467)", () => {
     for (const label of [LABELS.current, LABELS.longest]) {
       const { label: text, number } = tile(label);
       expect(text.className).toContain("truncate");
-      expect(number.className).toContain("truncate");
+      // The value line no longer truncates as a whole (#1863) — see below.
+      expect(number.className).toContain("whitespace-nowrap");
+    }
+  });
+
+  it("never lets the count itself be cut — only its unit gives way (#1863)", () => {
+    renderStreak();
+    // With the detail panel open the en card read "1… / Lon…": `truncate` sat
+    // on the whole value line, so the count was the first thing to go.
+    for (const label of [LABELS.current, LABELS.longest]) {
+      const { number } = tile(label);
+      const [count, unit] = Array.from(number.children) as HTMLElement[];
+      expect(number.className).not.toContain("truncate");
+      expect(count.textContent).toBe("2");
+      expect(count.className).toContain("flex-shrink-0");
+      expect(count.className).not.toContain("truncate");
+      expect(unit.textContent).toBe(LABELS.days);
+      expect(unit.className).toContain("truncate");
     }
   });
 
