@@ -31,6 +31,10 @@ function makeLabels(): AnalyticsLabels {
   return {
     title: "Analytics",
     formatHours: fmt,
+    axis: {
+      duration: fmt,
+      date: (key: string) => key.substring(5),
+    },
     tabsLabel: "Analytics views",
     tabs: {
       overview: "Overview",

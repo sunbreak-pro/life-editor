@@ -113,6 +113,10 @@ describe("the unattributed work row comes from the catalog (#1478)", () => {
           sessions: "セッション",
           noTodo: "Todo なし",
         }}
+        axis={{
+          duration: (m: number) => `${m}分`,
+          date: (key: string) => key,
+        }}
       />,
     );
 

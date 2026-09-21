@@ -316,6 +316,8 @@ export const SECTION_DESCRIPTORS: Readonly<
           dataService={ds}
           tab={nav.analyticsTab}
           onTabChange={nav.setAnalyticsTab}
+          preset={nav.analyticsPreset}
+          onPresetChange={nav.setAnalyticsPreset}
         />
       </Suspense>
     ),

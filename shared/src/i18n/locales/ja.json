@@ -807,6 +807,11 @@
     "sessions": "セッション数",
     "avgPerDay": "日平均",
     "hours": "{{hours}}時間{{minutes}}分",
+    "axis": {
+      "hoursOnly": "{{hours}}時間",
+      "minutesOnly": "{{minutes}}分",
+      "weekFrom": "{{date}}〜"
+    },
     "today": {
       "title": "今日",
       "workTime": "作業時間",
@@ -832,6 +837,7 @@
       "less": "少ない",
       "more": "多い",
       "tooltip": "{{minutes}}分",
+      "cell": "{{day}} {{hour}}時 · {{time}}",
       "mon": "月",
       "tue": "火",
       "wed": "水",
