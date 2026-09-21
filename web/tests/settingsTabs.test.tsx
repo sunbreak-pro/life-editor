@@ -177,6 +177,24 @@ describe("SettingsScreen — the category list (#1174)", () => {
     expect(generalOnScreen()).toBe(false);
   });
 
+  /*
+   * #1871 — the scroller belongs to PageContainer and every category shares
+   * it, so the offset used to survive the switch. jsdom keeps whatever
+   * scrollTop it is handed, which is all this needs: a stand-in scroller, an
+   * offset, a press.
+   */
+  it("starts a newly chosen category at the top", async () => {
+    const scroller = document.createElement("div");
+    document.body.appendChild(scroller);
+    render(<SettingsScreen />, { container: scroller });
+    await act(async () => {});
+    scroller.scrollTop = 1500;
+
+    pressRow("section.schedule");
+
+    expect(scroller.scrollTop).toBe(0);
+  });
+
   it("comes back to General", async () => {
     await renderSettings();
 

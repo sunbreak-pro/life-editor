@@ -369,12 +369,22 @@ export function TrashView({
    * count plus the two bulk actions, and the danger asymmetry the row actions
    * already use holds here too: restore is labelled and ordinary, delete is
    * `danger` and goes through the same confirm a single delete does.
+   *
+   * #1871: with a selection the bar pins to the top of the page scroller. It
+   * used to stay at the head of the list, so ticking a row fifty rows down
+   * left both the count and the two bulk actions off screen. Top rather than
+   * bottom keeps it clear of the narrow bottom bar, and the surface is the
+   * opaque `bg-lumen-bg` so rows do not show through as they pass under it.
+   * The empty-selection face stays in the flow on purpose: "empty the trash"
+   * is the one button that should not follow the reader around.
    */
   const actionBar = totalCount > 0 && (
     <div
+      data-trash-action-bar=""
       className={cn(
         "flex flex-wrap items-center gap-2 rounded-lumen-lg",
         "border border-lumen-border bg-lumen-bg px-3 py-2 shadow-lumen-sm",
+        selectedRefs.length > 0 && "sticky top-0 z-10",
       )}
     >
       {selectedRefs.length > 0 ? (
@@ -468,157 +478,159 @@ export function TrashView({
             selected.has(refKey(group.category, item.id)),
           );
           return (
-          <section
-            key={group.category}
-            aria-label={group.title}
-            className="flex flex-col gap-2"
-          >
-            <div className="flex items-center gap-2 px-0.5">
-              {/* #1562: this was pinned `wide`, so the bulk checkbox stayed a
+            <section
+              key={group.category}
+              aria-label={group.title}
+              className="flex flex-col gap-2"
+            >
+              <div className="flex items-center gap-2 px-0.5">
+                {/* #1562: this was pinned `wide`, so the bulk checkbox stayed a
                   24px box on a phone while the ROW checkboxes below it were
                   already 44. Same control, same list — the header one just
                   never got the narrow branch. */}
-              <SelectBox
-                checked={groupAllSelected}
-                onChange={() => toggleGroup(group, groupAllSelected)}
-                label={labels.selectGroup.replace("{name}", group.title)}
-                disabled={anyBusy}
-                wide={wide}
-              />
-              <h2
+                <SelectBox
+                  checked={groupAllSelected}
+                  onChange={() => toggleGroup(group, groupAllSelected)}
+                  label={labels.selectGroup.replace("{name}", group.title)}
+                  disabled={anyBusy}
+                  wide={wide}
+                />
+                <h2
+                  className={cn(
+                    "text-xs font-semibold tracking-wide",
+                    "text-lumen-text-secondary",
+                  )}
+                >
+                  {group.title}
+                </h2>
+                <span
+                  className={cn(
+                    "inline-flex min-w-5 items-center justify-center",
+                    "rounded-lumen-full bg-lumen-bg-secondary px-1.5 py-px",
+                    "text-xs font-semibold tabular-nums",
+                    "text-lumen-text-secondary",
+                  )}
+                >
+                  {group.items.length}
+                </span>
+              </div>
+              <ul
                 className={cn(
-                  "text-xs font-semibold tracking-wide",
-                  "text-lumen-text-secondary",
+                  "divide-y divide-lumen-border overflow-hidden",
+                  "rounded-lumen-lg border border-lumen-border bg-lumen-bg",
+                  "shadow-lumen-sm",
                 )}
               >
-                {group.title}
-              </h2>
-              <span
-                className={cn(
-                  "inline-flex min-w-5 items-center justify-center",
-                  "rounded-lumen-full bg-lumen-bg-secondary px-1.5 py-px",
-                  "text-xs font-semibold tabular-nums",
-                  "text-lumen-text-secondary",
-                )}
-              >
-                {group.items.length}
-              </span>
-            </div>
-            <ul
-              className={cn(
-                "divide-y divide-lumen-border overflow-hidden",
-                "rounded-lumen-lg border border-lumen-border bg-lumen-bg",
-                "shadow-lumen-sm",
-              )}
-            >
-              {group.items.map((item) => {
-                const rowBusy =
-                  busy !== null &&
-                  busy.category === group.category &&
-                  busy.id === item.id
-                    ? busy
-                    : null;
-                const selectBox = (
-                  <SelectBox
-                    checked={selected.has(refKey(group.category, item.id))}
-                    onChange={() => toggleOne(group.category, item.id)}
-                    label={labels.selectItem.replace("{name}", item.label)}
-                    disabled={anyBusy}
-                    wide={wide}
-                  />
-                );
-                const name = (
-                  <span
-                    className={cn(
-                      "min-w-0 flex-1 truncate text-sm",
-                      rowBusy ? "text-lumen-text-tertiary" : "text-lumen-text",
-                    )}
-                  >
-                    {item.label}
-                  </span>
-                );
-                const restoreControl = rowBusy ? (
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1.5 rounded-lumen-sm",
-                      "bg-lumen-bg-secondary px-2.5 text-xs font-medium",
-                      "text-lumen-text-secondary",
-                      wide ? "h-7" : "h-9",
-                    )}
-                  >
-                    <RowSpinner />
-                    {rowBusy.action === "restore"
-                      ? labels.restoring
-                      : labels.deleting}
-                  </span>
-                ) : (
-                  <Button
-                    variant="secondary"
-                    size={wide ? "sm" : "md"}
-                    className={CARD_BTN_TAP}
-                    disabled={anyBusy}
-                    leadingIcon={<RotateCcw size={14} aria-hidden="true" />}
-                    onClick={() => onRestore(group.category, item.id)}
-                  >
-                    {labels.restore}
-                  </Button>
-                );
-                const deleteControl = (
-                  <IconButton
-                    icon={<Trash2 size={wide ? 16 : 18} />}
-                    label={labels.deletePermanently}
-                    variant="danger"
-                    size={wide ? "md" : "lg"}
-                    disabled={anyBusy}
-                    onClick={() =>
-                      setPending({
-                        kind: "one",
-                        category: group.category,
-                        item,
-                      })
-                    }
-                  />
-                );
-                return (
-                  <li
-                    key={item.id}
-                    aria-busy={rowBusy ? true : undefined}
-                    className={cn(
-                      "flex",
-                      wide
-                        ? "items-center gap-3 py-2 pl-4 pr-3"
-                        : "flex-col gap-1 py-2 pl-3.5 pr-1.5",
-                      rowBusy && "bg-lumen-bg-subsidebar",
-                      anyBusy && !rowBusy && "opacity-60",
-                    )}
-                  >
-                    {wide ? (
-                      <>
-                        {selectBox}
-                        {name}
-                        {restoreControl}
-                        {deleteControl}
-                      </>
-                    ) : (
-                      <>
-                        {/* The name owns line one; the controls sit under it,
-                            pushed to the right edge the delete button used to
-                            hold on its own. */}
-                        <div className="flex min-w-0 items-center gap-2">
+                {group.items.map((item) => {
+                  const rowBusy =
+                    busy !== null &&
+                    busy.category === group.category &&
+                    busy.id === item.id
+                      ? busy
+                      : null;
+                  const selectBox = (
+                    <SelectBox
+                      checked={selected.has(refKey(group.category, item.id))}
+                      onChange={() => toggleOne(group.category, item.id)}
+                      label={labels.selectItem.replace("{name}", item.label)}
+                      disabled={anyBusy}
+                      wide={wide}
+                    />
+                  );
+                  const name = (
+                    <span
+                      className={cn(
+                        "min-w-0 flex-1 truncate text-sm",
+                        rowBusy
+                          ? "text-lumen-text-tertiary"
+                          : "text-lumen-text",
+                      )}
+                    >
+                      {item.label}
+                    </span>
+                  );
+                  const restoreControl = rowBusy ? (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-lumen-sm",
+                        "bg-lumen-bg-secondary px-2.5 text-xs font-medium",
+                        "text-lumen-text-secondary",
+                        wide ? "h-7" : "h-9",
+                      )}
+                    >
+                      <RowSpinner />
+                      {rowBusy.action === "restore"
+                        ? labels.restoring
+                        : labels.deleting}
+                    </span>
+                  ) : (
+                    <Button
+                      variant="secondary"
+                      size={wide ? "sm" : "md"}
+                      className={CARD_BTN_TAP}
+                      disabled={anyBusy}
+                      leadingIcon={<RotateCcw size={14} aria-hidden="true" />}
+                      onClick={() => onRestore(group.category, item.id)}
+                    >
+                      {labels.restore}
+                    </Button>
+                  );
+                  const deleteControl = (
+                    <IconButton
+                      icon={<Trash2 size={wide ? 16 : 18} />}
+                      label={labels.deletePermanently}
+                      variant="danger"
+                      size={wide ? "md" : "lg"}
+                      disabled={anyBusy}
+                      onClick={() =>
+                        setPending({
+                          kind: "one",
+                          category: group.category,
+                          item,
+                        })
+                      }
+                    />
+                  );
+                  return (
+                    <li
+                      key={item.id}
+                      aria-busy={rowBusy ? true : undefined}
+                      className={cn(
+                        "flex",
+                        wide
+                          ? "items-center gap-3 py-2 pl-4 pr-3"
+                          : "flex-col gap-1 py-2 pl-3.5 pr-1.5",
+                        rowBusy && "bg-lumen-bg-subsidebar",
+                        anyBusy && !rowBusy && "opacity-60",
+                      )}
+                    >
+                      {wide ? (
+                        <>
                           {selectBox}
                           {name}
-                        </div>
-                        <div className="flex items-center justify-end gap-2">
                           {restoreControl}
                           {deleteControl}
-                        </div>
-                      </>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </section>
+                        </>
+                      ) : (
+                        <>
+                          {/* The name owns line one; the controls sit under it,
+                            pushed to the right edge the delete button used to
+                            hold on its own. */}
+                          <div className="flex min-w-0 items-center gap-2">
+                            {selectBox}
+                            {name}
+                          </div>
+                          <div className="flex items-center justify-end gap-2">
+                            {restoreControl}
+                            {deleteControl}
+                          </div>
+                        </>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
           );
         })
       )}
