@@ -1,5 +1,35 @@
 # HISTORY (chat-connect-refine)
 
+### 2026-09-21 - Step 12 の設計差分 3 件（#1734）と、チェックボックスの常時表示（ユーザー直依頼）
+
+#### 概要
+
+2 本の PR を出した。**PR #1809（merged）** が Issue #1734、**PR #1814（open）** がユーザー直依頼のチェックボックス常時表示。どちらも Connect の中で閉じており、DataService も DDL も触っていない。
+
+#### PR #1809 — #1734（裁定 = D-20260919-connect-2 = A）
+
+chat-main の実ブラウザ検証で出た「設計と実装が違う 3 件」のうち、2 と 3 は実装を直し、1 は計画書を実態に合わせた。
+
+- **リンク追加シートの「候補（N）」見出し**（brief M5）: `RelationPanel.tsx` の `AddLinkButton` に、パネル自身の節と同じ `formatSection` で見出しを足した。件数は**検索で絞った後の数**。i18n キー `connect.relations.candidates`（ja「候補」/ en「Candidates」）を新設し、リストは `aria-labelledby` で見出しに紐づけた。Desktop のポップオーバーと narrow のシートは同じ部品なので両方に出る
+- **danger トーストの AlertCircle**（brief D14）: `Toast.tsx` で `variant === "danger"` のときだけ丸ドットを 16px の `AlertCircle`（`text-lumen-danger`）に替えた。**他 3 tone はドットのまま** — 設計が名指ししているのは error だけで、info / success / warning のアイコンは指定が無いため広げていない（P-008）
+- **Mobile 画面 1 の上部バーは現状維持**（D-20260919-connect-1 = A）: 計画書の M1 行を実装（左「詳細を開く」/ 中央は見出しなし / 右 Undo・Redo）で置き換え、そう決めた理由と根拠 ID を同じ行に残した。**`MainScreen.tsx` と `sectionDescriptors.tsx` の `narrowHeader` には触っていない** — narrow ヘッダーは shell の形状 enum で、末尾アクションを 1 つ足すだけで全セクションに波及するため
+- **判断キューの昇格**: 回答が付いた 2 件を `.claude/decisions/D-20260919-connect-1.md` / `-2.md` として台帳へ移し、キューから削除した（`ANSWERS.md` の行は残す）
+
+#### PR #1814 — アイテム行のチェックボックスを常時表示（Issue なし）
+
+`TagHubItemGroups.tsx` から `!anyChecked && "opacity-0 group-hover/row:opacity-100 …"` を外し、出し分けにしか使っていなかった `anyChecked` も変数ごと落とした。旧仕様（brief D8）は「ホバー行 or 1 件以上選択中」で、**ホバーするまで複数選択できること自体が画面に出ていなかった**のが直した理由。行のシェブロンはホバー表示のまま。narrow はそもそも `onToggleChecked` を渡さないので新しく box が出ることはない（一括選択は Desktop 限定 = #1644）。計画書の D8 行も新仕様で置き換えた。
+
+#### テスト
+
+- `web/tests/connectScreen.test.tsx`: 候補見出しの件数が検索に追従すること（4 → 1 → 0）と、0 件で「No matching item」が併記されること / チェックボックスが 3 行とも `opacity-0` を持たないこと
+- `shared/tests/components.test.tsx`: danger が icon を出しドットを出さないこと、info はドットのままであること
+- **jsdom にホバーは無い**ので、常時表示は「隠していたクラスが付いていない」でしか固定できない。ホバー表示に戻すと落ちる形にした
+
+#### 検証
+
+どちらの PR も CI `verify` の 14 ステップをローカルで全通しして exit 0（shared 3301 / web 1379→1380 / desktop 62 / mcp-server 480・失敗 0）、`docs-lint: OK`、`records.mjs check` も OK。#1814 は #1809 の merge 後に計画書 Worklog が衝突したので `git merge origin/main` で両方の行を残す形に解消し、**取り込み後の木で 14 ステップを回し直した**。実ブラウザ確認は chat-main の手番（CLAUDE.md §7.4）。
+
+
 ### 2026-09-20 - ハブの行タイトルと種別見出しの文字を 1 段大きくした（ユーザー直依頼）
 
 #### 概要
