@@ -297,13 +297,14 @@
       "LONG_BREAK": "Long Break"
     },
     "todoSelector": {
-      "heading": "Linked item",
-      "placeholder": "Select a todo or an event…",
-      "clear": "Clear the link",
-      "select": "Choose a todo or an event",
-      "clearSelection": "Clear selection",
+      "heading": "Work name",
+      "placeholder": "Free session",
+      "clear": "Back to a free session",
+      "select": "Free session",
+      "sheetTitle": "Choose a work name",
+      "clearSelection": "Free session",
       "allDay": "All day",
-      "emptyHint": "Nothing to link yet. Add a todo, or an event in the next 7 days."
+      "emptyHint": "No todo or event to choose from. Starting now files a free session."
     },
     "completion": {
       "title": "Session {{index}} complete",
@@ -331,7 +332,7 @@
       "today": "Today",
       "latestDay": "Latest work day · {{date}}",
       "empty": "No work sessions yet. Finished sessions will show up here.",
-      "noTarget": "No linked item",
+      "noTarget": "Free session",
       "minutes": "{{minutes}} min"
     },
     "freeSession": {
@@ -344,7 +345,7 @@
       "tagRemove": "Remove {{name}}",
       "tagNoCandidates": "No tags yet",
       "tagDialog": "Free session tags",
-      "tagDisabled": "Tags apply to a free session — clear the linked item to use them."
+      "tagDisabled": "Tags apply to a free session — clear the work name to use them."
     }
   },
   "audioMixer": {

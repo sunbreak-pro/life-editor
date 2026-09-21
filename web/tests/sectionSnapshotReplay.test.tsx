@@ -162,7 +162,7 @@ describe("Work — second visit", () => {
     // While the host is fetching, PomodoroTodoSelector swaps its trigger for a
     // skeleton bar. The trigger being present on the FIRST frame is exactly
     // "the pick list came back without a load".
-    screen.getByRole("button", { name: "Select a todo or an event…" });
+    screen.getByRole("button", { name: "Free session" });
 
     pending.resolve(TODOS);
   });
