@@ -156,7 +156,18 @@ export function ColorPicker({
           role="group"
           aria-label={label}
           className={cn(
-            "mt-2 rounded-lg border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md",
+            // `w-fit` is the whole of #1875. The panel is a plain block in
+            // normal flow, so with no width of its own it fills the parent:
+            // in Settings > Schedule that parent is 712px, which stretched
+            // `grid-cols-6` into 113px cells and scattered the 27px swatches
+            // across the row. Mobile only looked right because its parent
+            // happened to be narrow. `fit-content` also clamps to the space
+            // available, so that narrow case keeps the same tight grid.
+            //
+            // A class rather than a prop because no call site wants a
+            // different width — and `cn` is a plain join, not tailwind-merge
+            // (see cn.ts), so a caller-passed width could not win here anyway.
+            "mt-2 w-fit rounded-lg border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md",
           )}
         >
           <div className="grid grid-cols-6 gap-1.5">
