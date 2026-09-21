@@ -5,6 +5,7 @@ import {
   type DataService,
   type AnalyticsLabels,
   type AnalyticsTab,
+  type DatePreset,
   type DateRange,
   type TimerSession,
   type TodoNode,
@@ -57,6 +58,12 @@ interface AnalyticsScreenProps {
   tab: AnalyticsTab;
   /** Fires on tab select from the shell band. */
   onTabChange: (tab: AnalyticsTab) => void;
+  /**
+   * Date-range preset, owned by the shell for the same reason the tab is
+   * (#1865): this screen unmounts on a section switch and the shell does not.
+   */
+  preset: DatePreset;
+  onPresetChange: (preset: DatePreset) => void;
 }
 
 /*
@@ -137,6 +144,8 @@ export function AnalyticsScreen({
   dataService: ds,
   tab,
   onTabChange,
+  preset,
+  onPresetChange,
 }: AnalyticsScreenProps): React.JSX.Element {
   const { t } = useTranslation();
   // Everything this screen reads, declared (rules/frontend.md §Sync). Missing
@@ -522,6 +531,8 @@ export function AnalyticsScreen({
       targetPerDay={data.targetPerDay}
       activeTab={tab}
       onTabChange={onTabChange}
+      initialPreset={preset}
+      onPresetChange={onPresetChange}
       labels={labels}
     />
   );

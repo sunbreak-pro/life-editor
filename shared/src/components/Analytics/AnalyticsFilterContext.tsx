@@ -93,8 +93,23 @@ const AnalyticsFilterContext =
 export function AnalyticsFilterProvider({
   children,
   onDateRangeChange,
+  initialPreset = DEFAULT_PRESET,
+  onPresetChange,
 }: {
   children: ReactNode;
+  /**
+   * Preset to open on (#1865). This provider is section-level: it unmounts
+   * when the user leaves Analytics, and its state with it. The active TAB lives
+   * in the shell and survives the trip, so coming back showed the old tab under
+   * a range silently reset to 30 days — which reads as "same view as before"
+   * when it is not. The shell now keeps the preset beside the tab and hands it
+   * back here. Only the PRESET is kept, never the range: the range is rebuilt
+   * from it on mount, so "7 days" means the 7 days ending today even when the
+   * section is reopened after midnight.
+   */
+  initialPreset?: DatePreset;
+  /** Fired when the user picks a preset — the shell's half of the above. */
+  onPresetChange?: (preset: DatePreset) => void;
   /**
    * Fired whenever the selected date range changes, including the initial
    * mount (with the default preset). Hosts use this to fetch schedule items
@@ -105,9 +120,9 @@ export function AnalyticsFilterProvider({
   onDateRangeChange?: (range: DateRange) => void;
 }): React.JSX.Element {
   const [dateRange, setDateRange] = useState<DateRange>(() =>
-    getPresetRange(DEFAULT_PRESET),
+    getPresetRange(initialPreset),
   );
-  const [preset, setPreset] = useState<DatePreset>(DEFAULT_PRESET);
+  const [preset, setPreset] = useState<DatePreset>(initialPreset);
   const [period, setPeriod] = useState<Period>("day");
 
   // Latest-callback ref so an unmemoized host callback never causes a spurious
@@ -121,9 +136,15 @@ export function AnalyticsFilterProvider({
     onDateRangeChangeRef.current?.(dateRange);
   }, [dateRange]);
 
+  const onPresetChangeRef = useRef(onPresetChange);
+  useEffect(() => {
+    onPresetChangeRef.current = onPresetChange;
+  });
+
   const applyPreset = (next: DatePreset): void => {
     setPreset(next);
     setDateRange(getPresetRange(next));
+    onPresetChangeRef.current?.(next);
   };
 
   const value = useMemo<AnalyticsFilterContextValue>(
