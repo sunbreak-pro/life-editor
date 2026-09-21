@@ -218,4 +218,35 @@ describe("ShortcutEditModal", () => {
       screen.queryByText("「タスクへ移動」に割り当て済みです"),
     ).not.toBeInTheDocument();
   });
+
+  // #1869: the live capture pushed ⌘ / ⇧ / ⌥ on every platform while the
+  // committed rows right above and below it already read "Ctrl".
+  it("spells held modifiers as Ctrl / Shift / Alt off the Mac", () => {
+    renderModal({ initialCaptureId: "nav:schedule", mac: false });
+    const surface = screen.getByRole("button", { name: LABELS.waiting });
+    fireEvent.keyDown(surface, {
+      code: "ControlLeft",
+      key: "Control",
+      ctrlKey: true,
+      shiftKey: true,
+      altKey: true,
+    });
+    expect(surface).toHaveTextContent("Ctrl");
+    expect(surface).toHaveTextContent("Shift");
+    expect(surface).toHaveTextContent("Alt");
+    expect(surface).not.toHaveTextContent(/[⌘⇧⌥]/);
+  });
+
+  it("keeps the glyphs on the Mac", () => {
+    renderModal({ initialCaptureId: "nav:schedule", mac: true });
+    const surface = screen.getByRole("button", { name: LABELS.waiting });
+    fireEvent.keyDown(surface, {
+      code: "MetaLeft",
+      key: "Meta",
+      metaKey: true,
+      shiftKey: true,
+    });
+    expect(surface).toHaveTextContent("⌘");
+    expect(surface).toHaveTextContent("⇧");
+  });
 });
