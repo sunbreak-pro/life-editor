@@ -1,5 +1,34 @@
 # HISTORY (chat-shared-fix)
 
+### 2026-09-21 - [shared-fix] /goal 4 件（#1877 / #1875 / #1852 / #1874）をそれぞれ独立ブランチで PR まで
+
+#### 概要
+
+4 件を 1 件 1 ブランチ・1 PR で出した。どれも origin/main から切り、CI の verify ジョブ全 15 ステップ + docs-lint をローカルで上から回して全部 exit 0 にしてから push した。**PR #1880 / #1884 / #1889 / #1894**（全部 open・merge はしていない = P-001）。
+
+#### 変更点
+
+- **#1877 → PR #1880**: `shared/src/hooks/useTourProgress.ts` の `stepIds.join(...)` に**生の NUL バイト 1 個**が入っていた。`file` が `data` と判定するため grep / rg が binary としてこのファイルだけ無言でスキップしていた。2 文字のエスケープ表記へ置換（実行時は同じ 1 文字・`useMemo` の依存キーにしか使わないので保存データに影響なし）。再発防止に `shared/tests/sourceNulByte.test.ts` を新設し、shared / web / desktop の `src` をバイト単位で走査する
+- **#1875 → PR #1884**: `shared/src/components/ColorPicker.tsx` の開いたパレットに `w-fit` を 1 つ。パレットは浮かぶポップオーバーではなく通常の流れのブロックなので、幅が無いと親（Settings の Schedule では 712px）を埋め、`grid-cols-6` の 1 セルが 113px になっていた。テストは 2 件（`w-fit` を持つこと・幅クラスが 1 つだけであること）
+- **#1852 → PR #1889**: `shared/src/components/Menu.tsx` に「閉じたらフォーカスを返す」処理。返す先は `anchorRef` があればトリガー、無ければ開いた時点の `activeElement`。テスト `shared/tests/menuFocusReturn.test.tsx` 5 件（うち 3 件は修正前のコードで落ちることを実測）
+- **#1874 → PR #1894**: 原因は `Modal.tsx` ではなく `shared/src/hooks/useDialogA11y.ts` にあった。戻り先を**エフェクトの中で**読んでいたが、React は子の `autoFocus` を commit 中（= どのエフェクトよりも前）に適用するので、開いた瞬間に自分の中のボタンへフォーカスを移すダイアログでは「パネルの中の要素」を戻り先として記録してしまう。閉じるときにその要素は一緒に消えるので `focus()` が無言で空振りする。戻り先を**開く瞬間のレンダー中**（commit 前）に取るようにし、戻すときは `isConnected` を見るようにした。`CommandPalette.tsx` は `Modal` ではない自前ダイアログで、戻す処理をそもそも持っていなかったので同じものを足した。`dialogFocus.test.tsx` に 4 件追加（うち 2 件は修正前に落ちる）
+
+#### 決めたこと
+
+- **#1874 で `Modal.tsx` を触らなかった**。フォーカスの復帰は `Modal` が呼んでいる `useDialogA11y` が全部持っており、`Modal.tsx` 側に同じ処理を書くと二重になるうえ、同じフックを使う `BottomSheet` と `MobileDrawer` が壊れたまま残る。Issue の Scope は `Modal.tsx` だったので、この差分は PR 本文に書いた
+- **#1852 で Tab による close は戻さない**。Tab は「メニューを抜けて次へ進む」ための操作で、トリガーへ引き戻すと逆のことをする。閉じた時点でフォーカスが body 以外にあるときも戻さない（項目からダイアログを開いた場合、そのダイアログが同じ commit 中にフォーカスを取っている）
+- **#1875 は prop ではなくクラス**。呼び出し元 2 つはどちらも別の幅を求めておらず、`cn` は tailwind-merge ではないので呼び出し元が幅クラスを渡しても勝てない
+
+#### つまずき
+
+- **この機の Bash ツールはヒアドキュメント内のバックスラッシュを 1 つ食う**（前回と同じ）。`b'\0'` と書いた python のバイト列が NUL 1 バイトになり、NUL を消すはずの修正で NUL が 2 個に増えた。`bytes([92])` で書き直した
+- **`screen.getByText("rename")` は `<span>` を返す**。`MenuItem` はラベルを `<span>` で包むので、フォーカス先の比較には `getByRole("menuitem", { name })` を使う
+- **verify を二重起動しかけた**。1 本目の完了通知が出たのに出力ファイルが空だったので再実行したところ、実際は 1 本目がまだ走っていた。同じ作業ツリーで `tsc -b` が 2 本並ぶので、2 本目を `TaskStop` で止めてから 1 本目の結果を待った
+
+#### 検証
+
+`.github/workflows/ci.yml` の `verify` 15 ステップ + `docs-lint` を**ブランチごとに**上から実行し、4 本とも全部 exit 0。GitHub 側の CI も #1880 / #1884 / #1889 は緑を確認済み（#1894 は push 直後で実行中）。実ブラウザでの目視は worktree では回さない規約のため未実施 — Connect のタグ行の「…」、Settings の Schedule と Connect のタグ色、ショートカット編集と Ctrl+K が merge 後の chat-main の手番。
+
 ### 2026-09-21 - [shared-fix] #1804 — `aria-busy` の全箇所に目で見える手がかりを足した
 
 #### 概要
@@ -119,62 +148,3 @@ Desktop（幅 1440）の初回ツアーで `schedule-open-todos` / `-create-todo
 #### 検証
 
 CI `verify` の 14 ステップ（shared / web / desktop / mcp-server）+ `docs-lint` をローカルで上から順に実行し全部 exit 0。`web/src/schedule/**` は未変更（#1642 の Scope）。
-
-### 2026-09-19 - [shared-fix] /goal 4 件（#1668 / #1667 / #1670 / #1672）をそれぞれ独立ブランチで PR まで
-
-#### 概要
-
-こうだいさんの /goal「4 件それぞれに origin/main からのブランチ + CI verify のローカル全緑 + Issue 参照の PR」を実行。**PR #1691（#1668・実行中にこうだいさんが merge）/ #1697（#1667）/ #1702（#1670）/ #1704（#1672）**。merge は自分ではしていない（P-001）。
-
-| Issue | PR              | 中身                                                                                                                                                                     |
-| ----- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| #1668 | #1691（merged） | `undo()` / `redo()` が結果（`{ command, ok, error }`）を返す。投げたコマンドは元のスタックへ戻し反対側へ移さない。Provider に `onCommandFailed`、Host は danger トースト |
-| #1667 | #1697           | タグの付け外しを Undo スタックへ。書き込みを `writeAssign` / `writeUnassign` に分け Undo / Redo が再生。TagPicker は失敗で danger トースト                               |
-| #1670 | #1702           | `restoreScheduleItemFromTrash` を 1 本の判定にし、Trash 画面と ScheduleItems の両方が通る。楽観更新を撤去                                                                |
-| #1672 | #1704           | `<kbd>` 5 箇所を `font-sans` に統一（方針 A）。source scan テストで preflight 任せを 0 に保つ                                                                            |
-
-#### 決めたこと
-
-- **#1668 の失敗コマンドは捨てずに元のスタックへ戻す**。通信断のような一時的失敗なら Undo をもう一度押せば再試行できる。恒久的に失敗し続けるコマンドがあると、その下の履歴には届かなくなる（PR 本文に明記）
-- **#1667 の履歴はフック内で `useUndoRedoOptional`**。Notes / Dailies は Provider 側で注入しているが、Issue の Scope が `useWikiTagsUnifiedAPI.ts` と `TagPicker.tsx` の 2 ファイルなので Provider を触らない形にした。注入があればそちらが勝つ
-- **#1667 は「すでに付いているタグの付け直し」を履歴に積まない**。サービスが冪等（#1593 の revive）なので何も変わっておらず、Undo でユーザーが触っていないタグを外してしまう
-- **#1672 は A（sans）**。B（等幅を明示 + #1468 差し戻し）はサイドバーのラベル省略が戻るため
-
-#### 検証
-
-4 ブランチとも CI `verify` の全ステップ + `LC_ALL=C bash scripts/docs-lint.sh` をローカルで exit 0。終了コードは `tail` を挟まずに変数へ取ってから表示している（§7.1）。
-
-#### 知見
-
-- **gate を一括で回すと vitest が負荷でタイムアウトする**: shared の `weekStartsSunday`（source scan・5s 上限）と web の `briefingEveningLazyMount` が各 1 回落ちたが、単独では shared 3111 件・web 1213 件とも緑。gate スクリプトのテストステップに「失敗したら 1 回だけ再実行」を入れた（#1673 = PR #1692 が lazy-mount 側の暖機を main に入れている）
-- **バックグラウンドの bash を TaskStop しても子プロセスが生き残る**: 止めたはずの gate が走り続け、次の実行と同じログへ交互に書き込んで「2 回分が混ざった 1 本のログ」になった。ログ名は実行ごとに変える
-- **Toast の variant に `error` は無い**（`info` / `success` / `warning` / `danger`）。`tsc` で初めて落ちた
-- **ソース走査テストはコメントも拾う**: `<kbd>` を説明するコメントが検出に混ざったので、走査前にコメントを落とす必要があった
-
-### 2026-09-12 - [shared-fix] #1583 = ツアーの「スキップ」を 1 ステップだけ飛ばす操作に（全体をやめる導線は別ボタンへ）+ #1512 の着地確認
-
-#### 概要
-
-こうだいさんの /goal「#1512 と #1583 それぞれに origin/main からのブランチ + CI verify のローカル全緑 + Issue 参照の PR」を実行。**#1583 は PR #1594**（open）。**#1512 は実装が全部 main に着地済み**で新しい PR は出していない（出すものが無い）。
-
-| Issue | 状態                                                                   | 根拠                                                                                                                                                                                                                                                              |
-| ----- | ---------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| #1512 | close 待ち（コメント投稿が分類器に止められた）+ 規約化 = PR #1597 open | PR #1556 merged / 子 #1557〜#1562 全 CLOSED / #1578 = PR #1585 merged（`531b89e6` が origin/main 上）。#1597 = `rules/frontend.md` Gotchas に 44px の当て方 1 項目（`docs/1512-narrow-tap-target-rule`・verify 15 ステップ + docs-lint をこのブランチでも通した） |
-| #1583 | PR #1594 open                                                          | `claude/shared-fix-1583-tour-skip-step` = `10ac1a75` + 1 commit                                                                                                                                                                                                   |
-
-#### #1583 で決めたこと
-
-- **`skip` は `next` と同じ機構**（`goTo(index + 1, "walked")`）。違いは「誰が押せるか」だけ — `next` は action ステップで描かれないが、Skip はやりたくない操作を飛ばすための導線なので常に出す。最終ステップの Skip は Done と同じ `{ stepId: null, completed: true, skipped: false }`
-- **旧挙動（`stopAt(true)`）は新設の `end` へ**。ラベルは「ツアーを終了」/ "End tour"（`tour.endTour`）。`skipped: true` を書く唯一の経路で、フラグの意味（以後オファーしない）と autoStart のゲートは不変。partial run（Settings の再生）の封印（#1194 / #1359）もそのまま — 再生中の Skip は 1 歩進み、最後まで飛ばすと栞 `sectionStepId` を消すだけ
-- **「ツアーを終了」の置き場は進捗カウンタの隣（左）**。右のボタン群（ja「スキップ」+「実際に操作すると次に進みます」= 240px）を変えないことで #1264 の折り返し設計を保つ。左群は `shrink-0` + `whitespace-nowrap` なので最悪でも行が折り返すだけで文字は割れない。Skip / End の両方に `DIALOG_AUTOFOCUS_SKIP`
-- テスト: `tourProvider.test.tsx` に describe「Skip passes one step, never the tour」4 件（次へ進む / 最終ステップで完了 / action ステップを操作なしで通る / unmount → 再 mount → `start` で次のステップから再開）、`tourSectionRun.test.tsx` に再生中の Skip 1 件。旧実装では `waitFor("two|run")` がタイムアウトし、End ボタン自体が存在しないので既存の書き換え 2 件も落ちる（role-qa の読みで確認）
-
-#### 検証
-
-verify 15 ステップ + docs-lint をローカルで通した（Monitor で 1 本にまとめ、各ステップの exit code を tail の前に取る）。**mcp-server test の 1 件だけ赤** — `remoteRegistry.test.ts` が `utils\verification.ts` を `utils/verification.ts` と比べており（#1589・2026-09-12 の main）、Windows のパス区切りの問題。`git diff origin/main -- mcp-server` は空。role-qa（ファイル変更禁止で起動）は PASS・確定 defect 0・懸念 5 件のうち docstring 精度 2 件だけ直した。
-
-#### 知見
-
-- **open Issue でも「残りは close だけ」がある**: #1512 は本文の対象が全部着地していて、最後のコメントに close 条件まで書いてあった。/goal の文面は「継続」だったが、着手前に `gh pr list --search` と子 Issue の state を引いたので二重実装を避けられた
-- `gh issue close --comment` は auto mode の分類器に「外部システムへの書き込み」として止められる（`gh pr create` / `gh pr edit` は通った）
-- python の heredoc で `\v` を含む文字列を書くと垂直タブに化ける（PR 本文の 1 行が `utilserification.ts` になり、`gh pr edit --body-file` で出し直した）
