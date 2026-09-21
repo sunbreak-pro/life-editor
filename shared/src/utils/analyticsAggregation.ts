@@ -59,6 +59,29 @@ export function createdWithinRange<T extends { createdAt: string }>(
 }
 
 /**
+ * Sessions that STARTED inside the inclusive instant range `start`…`end`
+ * (#1860).
+ *
+ * The host hands Analytics every session it has (the Work tab's totals are
+ * deliberately all-time), so a chart that is meant to follow the header's
+ * date-range pills has to window them itself. A session is placed by its
+ * `startedAt`, the same instant every per-day aggregation in this file buckets
+ * on, so a session that runs past midnight stays on the day it is drawn on.
+ */
+export function sessionsWithinRange(
+  sessions: readonly TimerSession[],
+  start: Date,
+  end: Date,
+): TimerSession[] {
+  const from = start.getTime();
+  const to = end.getTime();
+  return sessions.filter((s) => {
+    const at = new Date(s.startedAt).getTime();
+    return at >= from && at <= to;
+  });
+}
+
+/**
  * Local midnight on the first day of the calendar week containing `d`.
  *
  * The ONE piece of step-back math in this file — `calendarWeekRange`, the
@@ -158,11 +181,7 @@ export interface CompletionTrendBucket {
  * its injected labels now, the same way every other Analytics string arrives.
  */
 export type StagnationBucketId =
-  | "under1Week"
-  | "1to2Weeks"
-  | "2to4Weeks"
-  | "1to3Months"
-  | "over3Months";
+  "under1Week" | "1to2Weeks" | "2to4Weeks" | "1to3Months" | "over3Months";
 
 export interface StagnationBucket {
   bucket: StagnationBucketId;
@@ -228,7 +247,9 @@ function startOfMonth(d: Date): Date {
  * already logged by earlier builds.
  */
 export function getWorkSessions(sessions: TimerSession[]): TimerSession[] {
-  return sessions.filter((s) => s.sessionType === "WORK" && isCountedSession(s));
+  return sessions.filter(
+    (s) => s.sessionType === "WORK" && isCountedSession(s),
+  );
 }
 
 export function aggregateByDay(
