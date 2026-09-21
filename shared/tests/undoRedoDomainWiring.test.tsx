@@ -10,7 +10,9 @@ import { DailiesUnifiedProvider } from "../src/context/DailiesUnifiedContext";
 import { NotesUnifiedProvider } from "../src/context/NotesUnifiedContext";
 import { TodoTreeProvider } from "../src/context/TodoTreeContext";
 import { RoutineProvider } from "../src/context/RoutineContext";
+import { WikiTagsUnifiedProvider } from "../src/context/WikiTagsUnifiedContext";
 import { useRoutineContext } from "../src/hooks/useRoutineContext";
+import { useWikiTagsUnifiedContext } from "../src/hooks/useWikiTagsUnifiedContext";
 import { useScheduleItemsContext } from "../src/hooks/useScheduleItemsContext";
 import { useDailiesUnifiedContext } from "../src/hooks/useDailiesUnifiedContext";
 import { useNotesUnifiedContext } from "../src/hooks/useNotesUnifiedContext";
@@ -94,6 +96,23 @@ function RoutineProbe() {
   return <button onClick={() => createRoutine("R")}>mutate</button>;
 }
 
+/**
+ * #1800 — tagging is the sixth domain on this stack. The pills the user
+ * clicks are in Materials, Connect, Notes and Schedule, and all four go
+ * through this one mutator, so one probe stands for every entry.
+ */
+function TagsProbe() {
+  const { assignTagToItem, getTagsForItem } = useWikiTagsUnifiedContext();
+  return (
+    <>
+      <button onClick={() => void assignTagToItem("task-1", "tag-1")}>
+        mutate
+      </button>
+      <span data-testid="tag-count">{getTagsForItem("task-1").length}</span>
+    </>
+  );
+}
+
 const scheduleDS = {
   fetchScheduleItemsByDateAll: async () => [],
   fetchDeletedScheduleItems: async () => [],
@@ -128,6 +147,37 @@ const routineDS = {
   softDeleteRoutine: async () => ({ deletedScheduleItemIds: [] }),
   restoreRoutine: async () => {},
 } as unknown as DataService;
+
+/**
+ * The three bulk reads the tags hook fires on mount, plus the assign/unassign
+ * pair the probe drives. The row is returned whole because the hook puts the
+ * SERVER's row in its cache, not the optimistic one (#1593 revive).
+ */
+function makeTagsDS() {
+  const calls: string[] = [];
+  const ds = {
+    listAllWikiTagsUnified: async () => [],
+    listAllTagAssignments: async () => [],
+    listAllTagConnections: async () => [],
+    assignTagToItem: async (id: string, itemId: string, tagId: string) => {
+      calls.push("assign");
+      return {
+        id,
+        itemId,
+        tagId,
+        isDisplayColor: false,
+        createdAt: "2026-09-21T00:00:00.000Z",
+        updatedAt: "2026-09-21T00:00:00.000Z",
+        isDeleted: false,
+        deletedAt: null,
+      };
+    },
+    unassignTagFromItem: async () => {
+      calls.push("unassign");
+    },
+  } as unknown as DataService;
+  return { ds, calls };
+}
 
 /* ── #568 fixtures: a row on a day the provider is NOT anchored on ─────── */
 
@@ -389,6 +439,51 @@ describe("UndoRedo domain wiring (#304 child-2)", () => {
       </RoutineProvider>,
       true,
     );
+  });
+
+  /*
+   * #1800: #1667 put tag assign / unassign on the stack, but the pickup of the
+   * ambient history sat inside the API hook rather than here, and every suite
+   * for it injected an `undoRedo` prop — so the wiring the APP uses had no
+   * cover at all. These two say it out loud: a tag change with no explicit
+   * prop reaches the global stack, and it is still reversible after the user
+   * walks to another section (tag commands name their row by id, so the
+   * unmount-expire leaves them standing).
+   */
+  it("tags: push lands on the global stack and survives unmount", async () => {
+    await expectPushThenUnmount(
+      <WikiTagsUnifiedProvider dataService={makeTagsDS().ds}>
+        <TagsProbe />
+      </WikiTagsUnifiedProvider>,
+      true,
+    );
+  });
+
+  it("tags: the global Undo takes the tag back off the item", async () => {
+    const { ds, calls } = makeTagsDS();
+    render(
+      <Harness
+        mounted
+        domain={
+          <WikiTagsUnifiedProvider dataService={ds}>
+            <TagsProbe />
+          </WikiTagsUnifiedProvider>
+        }
+      />,
+    );
+    await act(async () => {});
+
+    await act(async () => {
+      fireEvent.click(screen.getByText("mutate"));
+    });
+    expect(screen.getByTestId("tag-count").textContent).toBe("1");
+
+    // The header button, not the mutator: this is the path a user has.
+    await act(async () => {
+      fireEvent.click(screen.getByText("undo"));
+    });
+    expect(calls).toEqual(["assign", "unassign"]);
+    expect(screen.getByTestId("tag-count").textContent).toBe("0");
   });
 
   /*

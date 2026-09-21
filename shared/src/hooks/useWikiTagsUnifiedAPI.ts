@@ -14,7 +14,6 @@ import {
 } from "../utils/inlineLinkSync";
 import { useSyncDomains } from "./useSyncDomains";
 import { useDomainLoad } from "./useDomainLoad";
-import { useUndoRedoOptional } from "./useUndoRedoContext";
 import type { UndoRedoLike } from "./useTodoTreeHistory";
 
 /*
@@ -51,9 +50,11 @@ export interface MergeTagsResult extends BulkTagResult {
 export interface UseWikiTagsUnifiedAPIOptions {
   dataService: DataService;
   /**
-   * History to record tag assign / unassign on (#1667). Defaults to the
-   * ambient global stack when an UndoRedoProvider is mounted, and to no
-   * history at all when none is.
+   * History to record tag assign / unassign on (#1667). Injected by
+   * WikiTagsUnifiedProvider, which hands over the ambient global stack when an
+   * UndoRedoProvider is mounted (#1800 — the same place the other five domains
+   * read it). Left out, this hook records no history, which is what a
+   * standalone mount and most of the suites want.
    */
   undoRedo?: UndoRedoLike;
 }
@@ -61,8 +62,7 @@ export interface UseWikiTagsUnifiedAPIOptions {
 export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   const ds = options.dataService;
   const syncVersion = useSyncDomains("tags");
-  const ambientUndoRedo = useUndoRedoOptional();
-  const undoRedo = options.undoRedo ?? ambientUndoRedo;
+  const undoRedo = options.undoRedo;
   // The ambient context value changes identity on every stack change; reading
   // it through a ref keeps the mutators below (and so this hook's return
   // value) from being rebuilt each time anything in the app is undone.
