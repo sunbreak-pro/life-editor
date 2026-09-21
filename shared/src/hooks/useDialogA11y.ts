@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { isImeComposing } from "../utils/imeGuard";
 
@@ -49,6 +49,33 @@ export function hasOpenDialogLayer(): boolean {
 
 function hasLayout(): boolean {
   return document.body.getClientRects().length > 0;
+}
+
+/*
+ * Who the focus belongs to once this surface closes, read on the OPEN
+ * TRANSITION — during render, before React commits (#1874).
+ *
+ * It cannot be read from an effect. React applies a child's `autoFocus` while
+ * it commits, which is BEFORE any effect runs, so by then `document
+ * .activeElement` can already be a control inside the panel: the shortcut
+ * editor opens straight into its capture row, and the palette-style dialogs
+ * that focus a field on mount do the same. Restoring to that control does
+ * nothing at all — it leaves the page with the dialog — so Escape dropped the
+ * focus on <body> and the next Tab restarted from the top of the page.
+ */
+function useOpener(open: boolean): HTMLElement | null {
+  // Starts false so a surface that mounts ALREADY open still captures.
+  const [prevOpen, setPrevOpen] = useState(false);
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
+  if (open !== prevOpen) {
+    setPrevOpen(open);
+    // Only on the way IN: the way out is where the captured element is used,
+    // and clearing it there would cost a render to throw the answer away.
+    if (open && typeof document !== "undefined") {
+      setOpener(document.activeElement as HTMLElement | null);
+    }
+  }
+  return opener;
 }
 
 function focusablesIn(panel: HTMLElement): HTMLElement[] {
@@ -170,6 +197,7 @@ export function useDialogA11y<T extends HTMLElement>({
 }: DialogA11yOptions): RefObject<T | null> {
   const panelRef = useRef<T | null>(null);
   const layerRef = useKeyboardLayer(open, true);
+  const opener = useOpener(open);
 
   useEffect(() => {
     if (!open) return;
@@ -213,7 +241,6 @@ export function useDialogA11y<T extends HTMLElement>({
 
   useEffect(() => {
     if (!open) return;
-    const restore = document.activeElement as HTMLElement | null;
     const prevOverflow = document.body.style.overflow;
     if (lockScroll) document.body.style.overflow = "hidden";
     const raf = requestAnimationFrame(() => {
@@ -228,9 +255,13 @@ export function useDialogA11y<T extends HTMLElement>({
     return () => {
       cancelAnimationFrame(raf);
       if (lockScroll) document.body.style.overflow = prevOverflow;
-      restore?.focus?.();
+      // `isConnected` because the opener is often a control the same state
+      // change took off the page (a menu row that opened this dialog).
+      // Focusing a detached node fails in silence while reading as if it
+      // worked, which is how #1874 stayed invisible for so long.
+      if (opener?.isConnected) opener.focus();
     };
-  }, [open, lockScroll]);
+  }, [open, lockScroll, opener]);
 
   return panelRef;
 }
