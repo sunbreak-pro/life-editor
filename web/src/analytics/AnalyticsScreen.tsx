@@ -429,7 +429,7 @@ export function AnalyticsScreen({
         title: t("analytics.streak.title"),
         current: t("analytics.streak.current"),
         longest: t("analytics.streak.longest"),
-        days: t("analytics.streak.days"),
+        formatDays: (count: number) => t("analytics.streak.days", { count }),
         noStreak: t("analytics.streak.noStreak"),
       },
       heatmap: {
