@@ -835,6 +835,7 @@
       "less": "Less",
       "more": "More",
       "tooltip": "{{minutes}} min",
+      "cell": "{{day}} {{hour}}:00 · {{time}}",
       "mon": "Mon",
       "tue": "Tue",
       "wed": "Wed",

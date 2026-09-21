@@ -102,6 +102,8 @@ export interface AnalyticsLabels {
     days: Record<"mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun", string>;
     /** "{minutes} min" — host interpolates. */
     tooltip: (minutes: number) => string;
+    /** One cell in words, day and hour included (#1867) — host interpolates. */
+    cell?: (day: string, hour: number, minutes: number) => string;
   };
 
   pomodoroRate: {
