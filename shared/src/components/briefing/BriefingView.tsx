@@ -328,10 +328,24 @@ function BlockHeadAddButton({
  * container, which is the 349px-of-content-in-a-343px-box the 390px audit
  * measured. `BlockHeadAddButton` dropped its own in the same change, so the
  *「+」above and the actions below still line up in one straight column.
+ *
+ * `max-md:w-full` is what puts the cluster on a LINE OF ITS OWN below `md`
+ * (#1820). The 44px floor #1559 bought cost the pair 101px of a 343px row, and
+ * the only thing left free to shrink was the title: a five-character event
+ * title broke across two lines and an 22-character todo across three. A flex
+ * item asking for the full width cannot sit beside anything, so it wraps —
+ * and the row above it keeps the whole width minus the time column, which is
+ * ~200px, enough for ten CJK characters even at the 18px root step. The rows
+ * grow taller on a phone in exchange; that is the trade this Issue chose,
+ * because a title that cannot be read is not a row at all.
+ *
+ * `justify-end` rather than the `ml-auto` above, which does nothing once the
+ * item IS the line: the cluster still lands on the right edge, under the
+ * actions of the row above, so the straight column survives the wrap.
  */
 function RowActions({ children }: { children: ReactNode }) {
   return (
-    <div className="-my-1 ml-auto flex flex-shrink-0 items-center gap-0.5 self-center">
+    <div className="-my-1 ml-auto flex flex-shrink-0 items-center gap-0.5 self-center max-md:w-full max-md:justify-end">
       {children}
     </div>
   );
@@ -356,12 +370,14 @@ function RowActions({ children }: { children: ReactNode }) {
  * 削除 — and 削除 is the last button on the paper that may fire by accident.
  *
  * Height is free (every row that draws these is already 44px tall, held there
- * by its own checkbox or by `min-h-11`). Width is not: the pair goes from 58px
- * to 90px, which is 32px off the todo title beside it. That is a real cost
- * against #1514 — it bought the title 77px back — and it is spent knowingly,
- * because the alternative is a destructive action that stays under the floor.
- * The words are still hidden below `md`, so the title keeps the larger half of
- * what that change won.
+ * by its own checkbox or by `min-h-11`). Width was not: the pair goes from 58px
+ * to 90px, and while the cluster shared a line with the title that came
+ * straight off the title — 32px on top of what #1514 had just won back, which
+ * is what #1820 measured as a five-character title on two lines. The width is
+ * still spent, but `RowActions` now wraps below `md`, so it is spent on a line
+ * the title does not use. The words stay hidden below `md` regardless: the
+ * cluster sits under the row it belongs to, and two labelled buttons there
+ * would read as a second row rather than as that row's actions.
  *
  * `min-*` and never `h-11`/`w-11`: `cn` is a plain string join, so two
  * utilities for one property are settled by Tailwind's emit order rather than
@@ -680,8 +696,14 @@ export function BriefingView({
                     checkbox carries the 44px touch floor, so a row holding one
                     is 44px tall — and the schedule rows below claim the same
                     minimum rather than letting the list step down at the point
-                    where the todos end. */}
-                <div className="flex min-h-11 items-center gap-3">
+                    where the todos end.
+
+                    `flex-wrap` below `md` (#1820) so the action cluster drops
+                    to its own line and the title keeps the width; `gap-y-1`
+                    is the space between those two lines and costs nothing
+                    while the row is unwrapped. `md:flex-nowrap` pins the
+                    Desktop row to one line whatever the title measures. */}
+                <div className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 md:flex-nowrap">
                   {/* Same column, same format as the timed rows below — a
                       todo placed at 09:00 has to read as 09:00 here too
                       (#1369). Untimed todos pass "" and get the spacer that
@@ -756,7 +778,10 @@ export function BriefingView({
               />
             )}
             {scheduleRows.map((item) => (
-              <li key={item.id} className="flex min-h-11 items-center gap-3">
+              <li
+                key={item.id}
+                className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 md:flex-nowrap"
+              >
                 <TimeCell
                   label={item.isAllDay ? labels.allDay : item.startTime}
                 />
@@ -773,7 +798,9 @@ export function BriefingView({
                   </span>
                 )}
                 {/* Last in the row so `ml-auto` lands it on the right edge —
-                    the routine tag keeps its place beside the title. */}
+                    the routine tag keeps its place beside the title. Below
+                    `md` the cluster takes the next line instead (#1820) and
+                    the tag stays up here with the title. */}
                 <RowActions>
                   <EditJumpButton
                     onClick={onJumpToSchedule}
