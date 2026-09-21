@@ -6,12 +6,14 @@
 
 ## 直近の完了
 
+- **#1804 を PR まで（2026-09-21）**: `disabled`（押せない）と「処理中」が同じ見た目を共有していた件。決めた形は **スピナー + ラベル差し替え + `disabled` を `Button` の `busy` / `busyLabel` の 1 つの口から出す**（同じ 3 点セットを 6 画面が手書きしていた）。`BUSY_SPINNER` / `BUSY_STALE` を styleTokens に置き、手がかりゼロだった `NotePasswordDialog` にスピナーと「Working…」、再取得中に古い数字を出したままだった `ScheduleTab` に減光を足した。`SegmentedControl` の `aria-busy={disabled}` は「変換中」と「まだ効かない」を区別できないので削除。**`disabled` の塗り自体は #1803（保留）なので触っていない**。**PR #1811**（open）。verify 全 14 ステップ + docs-lint をローカルで exit 0 ✅（2026-09-21）
 - **サイドバーの「タグを編集」行を削除（2026-09-21）**: こうだいさんの直接指示。#1643 で Connect にモーダルが吸収されて以降、この行は `setSection("connect")` を呼ぶだけで nav の「つながり」と行き先が同じだった。`SidebarNav` / `AppShell` から `onOpenTagEditor` と `labels.tagEditor` を prop ごと削除し、ホスト側（`MainScreen` / `useShellChrome`）の受け渡しと #409 のテスト 5 本、docs 3 本の記述も追随。**narrow の「その他」シートは残した**（狭幅にはサイドバーが無い）。**PR #1794**（open）。verify 全ステップ + docs-lint をローカルで exit 0 ✅（2026-09-21）
 - **#1773 を PR まで（2026-09-20）**: ツアーを Escape で中断して再開すると 5/10 ではなく 4/10 に戻る件。#1748 の `reveal` が詳細パネルしか戻さず、Todo トレイの anchor（`schedule-todo-add` / `-todo-board`）が「パネルが開いている」かつ「Todo タブが選ばれている」の **2 つ**を必要とすることを見落としていた。`TOUR_REVEALS.scheduleTodoTray` を新設して step 5 / 6 が名乗り、**step 4 は `detailPanel` のまま**（タブを押すことがその step のレッスンなので代行しない）。Web 側は `requestTodoTray`（`pendingTodoTray` を navigation 抜きで上げる）を新設し `AppProviders` → `MainScreen` で配線。狭幅は引き続き辞退。`TourContext.tsx` は変更不要だった。**PR #1777**（open）。verify 全 15 ステップ + docs-lint をローカルで exit 0 ✅（2026-09-20）
 - **#1748 を PR まで（2026-09-20）**: Desktop 初回ツアーで Todo の 3 ステップが飛ばされる件。原因はアンカーが `ScheduleSidebar` にあり、そのサイドバーが `RightSidebarPortal` 経由でしか描かれないこと（`isOpen` は非永続なので毎回閉じて始まる）。ツアー基盤に**前準備 `TourStep.reveal`**（候補 A）を足し、`TourProvider` が新 prop `onRevealStep` でホストに開かせてから probe の締切を測る。開く実体は `web/src/AppProviders.tsx` の新 `TourRevealHost`（`useRightSidebarOptional()?.open`）。**狭幅は意図的に辞退**（`MobileDrawer` の z-50 が吹き出し z-45 を覆うため、開くと「飛ばされる」より悪い「読めないまま止まる」になる）。`web/src/schedule/**` は 1 行も触っていない（#1642 の Scope）。**PR #1757**（open）。verify 全 14 ステップ + docs-lint をローカルで exit 0 ✅（2026-09-20）
 
 ## 予定
 
+- **🛑 こうだいさん手番 — #1811（#1804 = aria-busy の手がかり）の merge**（P-001）。実ブラウザでの目視（ノートのパスワード保存中にスピナーが出ること・無効なボタンと並べて見分けが付くこと）は merge 後に chat-main
 - **🛑 こうだいさん手番 — #1794（サイドバーの「タグを編集」行の削除）の merge**（P-001）。実ブラウザでの目視（footer が「Claude を起動」と ⌘K の 2 行になること・「つながり」からタグ編集に入れること）は merge 後に chat-main
 - **merge 済みを 2026-09-20 に実測**（`gh pr view --json state`）: **#1757（#1748）/ #1697（#1667）/ #1702（#1670）/ #1704（#1672）は全部 MERGED**。残るのは実ブラウザでの目視で、どれも chat-main の手番 — #1748 は Desktop 通しで step 4〜6 が本当に出るか、#1672 はキーキャップ 5 箇所、#1667 は失敗トースト
 - **🛑 こうだいさん手番 — #1777（#1773）の merge**（P-001）。実ブラウザでの Escape → 再開の 1 往復は Issue の Gate どおり merge 後に chat-main
@@ -20,7 +22,7 @@
 - **旧 merge 待ちはすべて解消**（2026-09-19 に `gh pr view --json state` で実測）: #1594 / #1597 / #1498 / #1410 / #1376 は全部 MERGED。**#1512 の close だけが残っている** — close コメントは書き上げてあるが `gh issue close` が auto mode の分類器に止められるため、こうだいさんか chat-main の手番
 - **mcp-server のテスト 1 件が Windows で赤（この機だけ）**: `tests/remoteRegistry.test.ts` の `would have caught the verification domain` が `utils\verification.ts` を `utils/verification.ts` と比べて落ちる（#1589 由来・2026-09-12 の main）。CI の Linux では通る種類なので実害は「Windows でローカル verify する人の偽の赤」。起票は chat-main の判断（outbox に依頼済み）
 - **QA が残した判断 2 件（どちらも見送り・Issue にしていない）**: ① en の "Skip" を "Skip step" にするか（Issue は「スキップ」据え置きを前提にしている）② 最終ステップは Skip と Done が同じ結果になるので Skip を隠すか。どちらもラベル / UX 判断で、#1583 の仕様どおりに実装した
-- **判断キューに 1 件追加（`D-20260905-shared-fix-1`・未回答）**: #1474 で残した塗り disabled ボタン 7 箇所も揃えるか。単なる横展開ではない — `danger` の disabled は TrashView / DeleteAccountDialog / AttachmentCleanupPanel で**「処理中」の意味**で使われており、灰色に沈めると「作動中」ではなく「無効になった」と読める（`NotePasswordDialog.tsx:199` はスピナーもラベル差し替えも無く `aria-busy` だけ）。放置時は現状維持で追加作業なし
+- **`D-20260905-shared-fix-1` は回答済み（= A・2026-09-21）**: 塗り disabled の横展開は保留（#1803）、busy 表示の弱さは別 Issue（#1804 → PR #1811）で解く、という切り分け。A を選べた条件が #1804 だったので、#1803 に手を付ける前に #1811 が入っている必要がある
 - **outbox に Issue 起票依頼 1 件**: `<kbd>` は repo 内 5 箇所すべてが Tailwind preflight 由来の等幅（誰も選んでいない）。#1468 でサイドバーの 1 つだけ `font-sans` にしたので、**同じ画面のヘッダー検索欄のキーキャップと書体が割れる**。5 箇所を揃えるかはプロダクト全体のタイポグラフィ判断なので Scope 外にした
 - **`git push` がこの機で通らない**: Git Credential Manager が対話を要求する。`git -c credential.helper='!gh auth git-credential' push` で回避できる（`gh auth setup-git` が未実行）
 - **判断キューに 2 件積んだ（どちらも未回答）**: **D-20260901-shared-fix-1** = セクション再生を「続きから」再開させるか、栞は持ちつつ常に先頭から始めるか（#1376 は前者で実装済み。放置時は現状のまま）／ **D-20260901-shared-fix-2** = 朝刊「今日のスケジュール」の Todo 行のチェックボックスも 20px に揃えるか。持ち越し行と同じ 16px の手書きボックスが同じ紙面に残っている。揃えると (1) #939 で統合された 1 リストの中で Todo 行だけ背が高くなり、(2) #1369（briefing-refine）が同じ `<li>` を編集中。推奨は #1369 着地後に別 Issue
