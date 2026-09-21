@@ -860,6 +860,7 @@ export function SettingsScreen({
               value: n,
               label: t("schedule.reminderLead", { n }),
             }))}
+            initialViewApplies={isWide}
             holidayColor={holidayColor}
             onHolidayColorChange={setHolidayColor}
             defaultHolidayColor={DEFAULT_HOLIDAY_COLOR}
@@ -872,6 +873,9 @@ export function SettingsScreen({
               week: t("settings.schedule.week"),
               month: t("settings.schedule.month"),
               hint: t("settings.schedule.hint"),
+              initialViewNarrowNote: t(
+                "settings.schedule.initialViewNarrowNote",
+              ),
               reminderLabel: t("settings.schedule.reminderLabel"),
               reminderDescription: t("settings.schedule.reminderDescription"),
               reminderDefaultLabel: t("settings.schedule.reminderDefaultLabel"),
