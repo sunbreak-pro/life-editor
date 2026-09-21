@@ -50,3 +50,30 @@ export const CHART_TOOLTIP_STYLE = {
   borderRadius: 8,
   fontSize: 12,
 } as const;
+
+/*
+ * Evenly spaced ticks for a day-bucket axis (#1866).
+ *
+ * `interval="preserveStartEnd"` keeps the first and last label and thins the
+ * rest at a fixed stride from the START, so the last gap is whatever is left
+ * over: a 30-day axis read "…09-19, (gap), 09-21" on three charts. These axes
+ * end on today, which is the label that matters most, so the ticks are laid
+ * out at one stride counting back from the END — every gap is equal, and the
+ * leftover lands at the far left, where the axis simply starts unlabelled.
+ *
+ * Returned as the label VALUES recharts expects in `<XAxis ticks>`; pair it
+ * with `interval={0}` so recharts does not thin them a second time.
+ */
+export const MAX_DATE_TICKS = 7;
+
+export function evenDateTicks(
+  labels: readonly string[],
+  maxTicks: number = MAX_DATE_TICKS,
+): string[] {
+  const n = labels.length;
+  if (n <= maxTicks) return [...labels];
+  const stride = Math.ceil((n - 1) / (maxTicks - 1));
+  const ticks: string[] = [];
+  for (let i = n - 1; i >= 0; i -= stride) ticks.unshift(labels[i]);
+  return ticks;
+}

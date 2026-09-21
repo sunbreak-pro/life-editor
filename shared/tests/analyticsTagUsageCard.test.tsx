@@ -24,6 +24,7 @@ const LABELS: TagUsageCardLabels = {
   inRange: "Created in range",
   liveTotal: "Current total",
   rangeLabel: "Last 30 days",
+  topOf: (shown: number, total: number) => `Top ${shown} of ${total} tags`,
   empty: { title: "No tagged items", description: "Tag something." },
 };
 

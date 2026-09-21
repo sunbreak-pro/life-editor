@@ -129,6 +129,7 @@ export function makeAnalyticsLabels(
       tag: "Tag",
       inRange: "Created in range",
       liveTotal: "Current total",
+      topOf: (shown: number, total: number) => `Top ${shown} of ${total} tags`,
     },
     mobile: {
       weekTitle: "This Week",

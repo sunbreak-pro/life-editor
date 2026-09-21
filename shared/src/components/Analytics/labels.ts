@@ -153,6 +153,8 @@ export interface AnalyticsLabels {
     tag: string;
     inRange: string;
     liveTotal: string;
+    /** "Top {shown} of {total} tags" — host interpolates (#1866). */
+    topOf: (shown: number, total: number) => string;
   };
 
   /** Mobile-only single-scroll labels. */

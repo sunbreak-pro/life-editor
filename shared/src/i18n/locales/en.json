@@ -883,7 +883,8 @@
       "title": "Tag Usage",
       "tag": "Tag",
       "inRange": "Created in range",
-      "liveTotal": "Current total (all time)"
+      "liveTotal": "Current total (all time)",
+      "topOf": "Top {{shown}} of {{total}} tags"
     },
     "overview": {
       "todos": "Todos",

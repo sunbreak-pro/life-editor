@@ -117,7 +117,7 @@ export interface TodoBucket {
 }
 
 export interface HeatmapCell {
-  dayOfWeek: number; // 0=Mon, 6=Sun
+  dayOfWeek: number; // Date#getDay(): 0=Sun … 6=Sat
   hour: number; // 0-23
   totalMinutes: number;
 }
@@ -435,7 +435,11 @@ export function computeSummary(sessions: TimerSession[]) {
 /** Heatmap: aggregate work time by hour-of-day × day-of-week */
 export function aggregateByHourAndDay(sessions: TimerSession[]): HeatmapCell[] {
   const work = getWorkSessions(sessions);
-  // 7 days × 24 hours grid, dayOfWeek: 0=Mon..6=Sun
+  // 7 days × 24 hours grid, keyed on Date#getDay() (0=Sun). The cells used to
+  // be renumbered 0=Mon here, which baked a Monday week into the DATA — the
+  // heatmap then opened on Monday while every other week in Analytics opens on
+  // WEEK_STARTS_ON (#1866). Row order is a presentation choice, so the grid
+  // keeps the platform's numbering and the component orders the rows.
   const grid = new Map<string, HeatmapCell>();
   for (let d = 0; d < 7; d++) {
     for (let h = 0; h < 24; h++) {
@@ -445,8 +449,7 @@ export function aggregateByHourAndDay(sessions: TimerSession[]): HeatmapCell[] {
 
   for (const s of work) {
     const started = new Date(s.startedAt);
-    const jsDay = started.getDay(); // 0=Sun
-    const dayOfWeek = jsDay === 0 ? 6 : jsDay - 1; // 0=Mon..6=Sun
+    const dayOfWeek = started.getDay();
     const hour = started.getHours();
     const cell = grid.get(`${dayOfWeek}-${hour}`);
     if (cell) {
@@ -1029,13 +1032,20 @@ export interface TagUsageItem {
  * unlike the work-time ring there is no whole for the parts to add up to, so a
  * cut tail distorts nothing.
  */
+/**
+ * Rows the tag usage card shows. Exported so the card can ask for every row,
+ * cut the list itself and SAY it did (#1866) — the cap used to be applied in
+ * here, where the caller could not tell a full list from a truncated one.
+ */
+export const TAG_USAGE_LIMIT = 10;
+
 export function aggregateTagUsage(
   items: readonly TagUsageItem[],
   assignments: readonly WikiTagAssignmentUnified[],
   tags: readonly WikiTagUnified[],
   startKey: string,
   endKey: string,
-  limit: number = 10,
+  limit: number = TAG_USAGE_LIMIT,
 ): TagUsageBucket[] {
   const tagMap = new Map(
     tags.filter((t) => !t.isDeleted).map((t) => [t.id, t] as const),

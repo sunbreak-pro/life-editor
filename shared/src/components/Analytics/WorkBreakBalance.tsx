@@ -17,6 +17,7 @@ import {
   CHART_HEIGHT_MD,
   CHART_TICK,
   CHART_TOOLTIP_STYLE,
+  evenDateTicks,
 } from "./chartTheme";
 
 export interface WorkBreakBalanceLabels {
@@ -48,6 +49,12 @@ export function WorkBreakBalance({
     [sessions, days, labels.work, labels.break, labels.longBreak],
   );
 
+  // Even stride counted back from today (#1866) — see `evenDateTicks`.
+  const dateTicks = useMemo(
+    () => evenDateTicks(data.map((d) => d.date)),
+    [data],
+  );
+
   return (
     <ChartCard title={labels.title}>
       <ResponsiveContainer width="100%" height={CHART_HEIGHT_MD} minWidth={0}>
@@ -56,7 +63,12 @@ export function WorkBreakBalance({
           margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
         >
           <CartesianGrid {...CHART_GRID} />
-          <XAxis dataKey="date" tick={CHART_TICK} interval="preserveStartEnd" />
+          <XAxis
+            dataKey="date"
+            tick={CHART_TICK}
+            ticks={dateTicks}
+            interval={0}
+          />
           {/* Whole minutes only (#944) — the bars are Math.round()ed above, so
               a 0.25m tick subdivides a value that can never land there. */}
           <YAxis tick={CHART_TICK} unit="m" allowDecimals={false} />

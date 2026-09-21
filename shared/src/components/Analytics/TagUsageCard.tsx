@@ -7,6 +7,7 @@ import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import { formatDateKey } from "../../utils/dateKey";
 import {
   aggregateTagUsage,
+  TAG_USAGE_LIMIT,
   type TagUsageItem,
 } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
@@ -26,6 +27,11 @@ export interface TagUsageCardLabels {
    * card's meta slot so the range column's window is named, not implied.
    */
   rangeLabel: string;
+  /**
+   * Footnote for a list cut at the cap ("Top 10 of 15 tags") — host
+   * interpolates. Only rendered when rows were actually left out (#1866).
+   */
+  topOf: (shown: number, total: number) => string;
   /** Designed empty-state copy (no tags, or nothing tagged in the range). */
   empty: { title: string; description: string };
 }
@@ -89,7 +95,10 @@ export function TagUsageCard({
   dateRange,
   labels,
 }: TagUsageCardProps): React.JSX.Element {
-  const rows = useMemo(() => {
+  // Every ranked row comes back; the cap is applied below, where the card can
+  // also say so. The Tags tile read "15 Tags" while this list stopped at 10
+  // with no sign anything was missing (#1866).
+  const allRows = useMemo(() => {
     // Item ids are unique across roles, so the three lists concatenate into one
     // universe without a discriminator (see TagUsageItem).
     const items: TagUsageItem[] = [...todos, ...events, ...notes];
@@ -99,8 +108,10 @@ export function TagUsageCard({
       tags,
       formatDateKey(dateRange.start),
       formatDateKey(dateRange.end),
+      Number.POSITIVE_INFINITY,
     );
   }, [todos, events, notes, assignments, tags, dateRange]);
+  const rows = allRows.slice(0, TAG_USAGE_LIMIT);
 
   if (rows.length === 0) {
     return (
@@ -175,6 +186,11 @@ export function TagUsageCard({
           })}
         </tbody>
       </table>
+      {allRows.length > rows.length ? (
+        <p className="mt-2 text-right text-xs text-lumen-text-tertiary">
+          {labels.topOf(rows.length, allRows.length)}
+        </p>
+      ) : null}
     </ChartCard>
   );
 }

@@ -479,6 +479,8 @@ export function AnalyticsScreen({
         tag: t("analytics.tagUsage.tag"),
         inRange: t("analytics.tagUsage.inRange"),
         liveTotal: t("analytics.tagUsage.liveTotal"),
+        topOf: (shown: number, total: number) =>
+          t("analytics.tagUsage.topOf", { shown, total }),
       },
       schedule: {
         totalEvents: t("analytics.schedule.totalEvents"),

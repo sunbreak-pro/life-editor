@@ -180,6 +180,7 @@ function makeMobileLabels(): AnalyticsLabels {
       tag: "Tag",
       inRange: "Created in range",
       liveTotal: "Current total",
+      topOf: (shown: number, total: number) => `Top ${shown} of ${total} tags`,
     },
     mobile: {
       weekTitle: "This week",
