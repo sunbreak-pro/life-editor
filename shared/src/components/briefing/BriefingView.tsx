@@ -582,8 +582,15 @@ export function BriefingView({
             </p>
           ))
         ) : (
-          <p className="flex items-center justify-center gap-2 text-sm text-lumen-text-secondary">
-            <Sunrise size={16} aria-hidden="true" />
+          /* `items-start` and not `items-center` (#1826). The sentence wraps
+             to three lines at 390px, and a centred icon floated beside the
+             SECOND one — it read as a bullet on the middle of the sentence
+             rather than as the mark in front of it. Starting the cross axis
+             puts it beside the first line at every width; `mt-0.5` is the 2px
+             that lines the 16px glyph up with the cap height of 20px text
+             instead of with its ascender. */
+          <p className="flex items-start justify-center gap-2 text-sm text-lumen-text-secondary">
+            <Sunrise size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
             {labels.noFocus}
           </p>
         )}
