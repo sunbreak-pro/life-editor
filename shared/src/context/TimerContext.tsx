@@ -10,7 +10,11 @@ import {
 import type { DataService } from "../services/DataService";
 import type { PomodoroPreset, TimerSession } from "../types/timer";
 import { generateId } from "../utils/generateId";
-import { freeSessionSlot, isCountedSession } from "../utils/timerSessions";
+import {
+  ABANDONED_SESSION_SECONDS,
+  freeSessionSlot,
+  isCountedSession,
+} from "../utils/timerSessions";
 import { logServiceError } from "../utils/logError";
 import { useSyncDomains } from "../hooks/useSyncDomains";
 import {
@@ -47,6 +51,15 @@ import {
  * Sessions are logged to timer_sessions on start (startTimerSession) and
  * closed on phase end / pause / reset (endTimerSession), so the started_at /
  * ended_at / duration log is start-time accurate.
+ *
+ * One row per RUNNING SEGMENT, not per phase (#1853). A pause closes the row
+ * with the seconds that segment ran, and a resume opens a fresh one, so a phase
+ * paused once is two rows whose durations add up to the time worked. The row
+ * that reaches the target is the `completed` one. Keeping the row open across
+ * a pause was the alternative, and it loses on two counts: a tab closed while
+ * paused would leave the time in a row that never gets a duration, and the
+ * row's started_at to ended_at range (which the free-session Event is drawn
+ * from) would swallow the pause.
  *
  * `onSessionComplete` is an optional host hook fired when a phase reaches 0
  * (the host plays the chime / sends a notification — shared has no audio).
@@ -101,6 +114,21 @@ export function TimerProvider({
    * be the answer from when the row was OPENED, not from live state.
    */
   const openSessionRef = useRef<{ attributed: boolean } | null>(null);
+  // Phase-elapsed seconds at which the open row's segment began (#1853): 0 on
+  // a fresh start, the paused elapsed on a resume. A close writes
+  // `elapsed - this`, the length of the segment rather than of the phase.
+  const segmentBaseSecondsRef = useRef(0);
+  /*
+   * Seconds of the live phase that were written as rows that COUNT, by the
+   * same cut `isCountedSession` reads the log with, so the completion modal
+   * can say what Analytics will say rather than the phase's nominal length
+   * (#1853). A segment paused inside the first minute is a scrap there and is
+   * left out here too.
+   */
+  const phaseLoggedSecondsRef = useRef(0);
+  const [lastLoggedWorkSeconds, setLastLoggedWorkSeconds] = useState<
+    number | null
+  >(null);
   // Tags the next free session will carry. Ref as well as state: the close
   // path reads them outside a render, and state alone would hand it whatever
   // the last render captured.
@@ -178,7 +206,8 @@ export function TimerProvider({
 
   // --- session log helpers ---
   const startSession = useCallback(
-    (phase: TimerPhase, item: ActiveWorkItem | null) => {
+    (phase: TimerPhase, item: ActiveWorkItem | null, baseSeconds = 0) => {
+      segmentBaseSecondsRef.current = baseSeconds;
       // Nothing picked → the row logs a null task_id AND a null event_id, and
       // nothing is created on the user's behalf (#1116). Any Todo this path
       // ever mints again must come from `generateTodoId` (utils/generateId),
@@ -253,6 +282,12 @@ export function TimerProvider({
       currentSessionIdRef.current = null;
       const opened = openSessionRef.current;
       openSessionRef.current = null;
+      if (
+        durationSeconds > 0 &&
+        (completed || durationSeconds >= ABANDONED_SESSION_SECONDS)
+      ) {
+        phaseLoggedSecondsRef.current += durationSeconds;
+      }
       void ds
         .endTimerSession(id, durationSeconds, completed)
         .then((session) => {
@@ -295,8 +330,16 @@ export function TimerProvider({
     if (remaining <= 0 && !advancedRef.current) {
       advancedRef.current = true;
       const completedPhase = state.phase;
-      // The phase ran its full target.
-      closeSession(totalSeconds, true);
+      // The phase ran its full target; the row holds the segment since the
+      // last resume (#1853), which is the whole phase when nothing paused it.
+      closeSession(
+        Math.max(0, totalSeconds - segmentBaseSecondsRef.current),
+        true,
+      );
+      if (completedPhase === "WORK") {
+        setLastLoggedWorkSeconds(phaseLoggedSecondsRef.current);
+      }
+      phaseLoggedSecondsRef.current = 0;
       onSessionCompleteRef.current?.(completedPhase);
       dispatch({ type: "ADVANCE", now: Date.now() });
     }
@@ -326,9 +369,15 @@ export function TimerProvider({
   const start = useCallback(() => {
     if (state.isRunning) return;
     const now = Date.now();
-    // A fresh segment from elapsed 0 means a new session row.
-    if (state.accumulatedMs === 0 && currentSessionIdRef.current === null) {
-      startSession(state.phase, state.activeItem);
+    // Every running segment gets its own row: a fresh start AND a resume
+    // (#1853). Resume used to open nothing, so the row a pause had closed was
+    // the only one the phase ever got and the completion had nothing to close.
+    if (currentSessionIdRef.current === null) {
+      startSession(
+        state.phase,
+        state.activeItem,
+        Math.floor(state.accumulatedMs / 1000),
+      );
     }
     dispatch({ type: "START", now });
     setTickNow(now);
@@ -346,15 +395,19 @@ export function TimerProvider({
     const elapsed = computeElapsed(state, now);
     dispatch({ type: "PAUSE", now });
     setTickNow(now);
-    // Close the in-flight row as a non-completed partial (elapsed seconds).
-    closeSession(elapsed, false);
+    // Close the in-flight row as a non-completed partial: the seconds this
+    // segment ran, not the phase so far. An earlier segment already wrote its
+    // own share (#1853).
+    closeSession(Math.max(0, elapsed - segmentBaseSecondsRef.current), false);
   }, [state, closeSession]);
 
   /*
    * Reset does NOT retract what was already logged (#1475). By the time it runs
    * the row is usually closed already — a pause closes it as a partial — so
    * there is nothing left here to withdraw, and a run abandoned after 20 real
-   * minutes is still time that was worked. Whether a row counts is decided when
+   * minutes is still time that was worked. That holds per segment (#1853):
+   * every row a pause closed stays, and a reset while running closes the live
+   * segment the same way a pause would. Whether a row counts is decided when
    * the log is read: `isCountedSession` (utils/timerSessions) drops the
    * seconds-long scraps an aborted start leaves behind, which also cleans the
    * ones earlier builds already wrote.
@@ -362,7 +415,9 @@ export function TimerProvider({
   const reset = useCallback(() => {
     const now = Date.now();
     const elapsed = computeElapsed(state, now);
-    if (currentSessionIdRef.current !== null) closeSession(elapsed, false);
+    if (currentSessionIdRef.current !== null)
+      closeSession(Math.max(0, elapsed - segmentBaseSecondsRef.current), false);
+    phaseLoggedSecondsRef.current = 0;
     dispatch({ type: "RESET" });
     setTickNow(now);
   }, [state, closeSession]);
@@ -371,7 +426,14 @@ export function TimerProvider({
     (phase: TimerPhase) => {
       const now = Date.now();
       if (currentSessionIdRef.current !== null)
-        closeSession(computeElapsed(state, now), false);
+        closeSession(
+          Math.max(
+            0,
+            computeElapsed(state, now) - segmentBaseSecondsRef.current,
+          ),
+          false,
+        );
+      phaseLoggedSecondsRef.current = 0;
       dispatch({ type: "SET_PHASE", phase });
       setTickNow(now);
     },
@@ -550,6 +612,7 @@ export function TimerProvider({
       completedSessions: state.completedSessions,
       formatted,
       activeItem: state.activeItem,
+      lastLoggedWorkSeconds,
     }),
     [
       state.phase,
@@ -560,6 +623,7 @@ export function TimerProvider({
       state.completedSessions,
       formatted,
       state.activeItem,
+      lastLoggedWorkSeconds,
     ],
   );
 

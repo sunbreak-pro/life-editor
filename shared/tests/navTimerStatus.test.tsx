@@ -22,6 +22,7 @@ function makeTimerValue(
     progress: 0,
     totalSeconds: 1500,
     completedSessions: 0,
+    lastLoggedWorkSeconds: null,
     formatted: "25:00",
     activeItem: null,
     workDurationMinutes: 25,
