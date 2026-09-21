@@ -10,7 +10,9 @@ import { cn } from "../cn";
 import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import {
   dayOfWeek,
+  minutesFromMidnight,
   parseDateKey,
+  revealScrollTop,
   layoutDayItems,
   weekDayKeys,
   pxToMinutes,
@@ -362,6 +364,43 @@ export function WeekTimeGrid({
     // Mount-only (initial focus); later nowMinutes ticks must not yank scroll.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /*
+   * #1830 — a block that BECOMES the selection is brought into view.
+   *
+   * The repeat panel's "show the next one" moves the week and selects the
+   * occurrence; before this, that was all it did, so a morning occurrence
+   * stayed above a body scrolled to the afternoon and the button looked
+   * inert. Putting the scroll here rather than in the host is what keeps it
+   * true for every route that selects a row from off-screen — the palette,
+   * the briefing's jump — instead of only the one that filed the bug.
+   *
+   * `revealScrollTop` is the decision and it returns null for a block that is
+   * already visible, so clicking a block you can see never moves the grid.
+   * All-day rows are skipped: their lane is pinned above the body and has no
+   * scroll position of its own.
+   *
+   * Keyed on the SELECTION alone. A re-render that keeps the same selection
+   * must not pull the scroll back from wherever the user has since taken it.
+   */
+  useEffect(() => {
+    const el = scrollBodyRef.current;
+    if (!el || !selectedId) return;
+    const target = items.find((i) => i.id === selectedId);
+    if (!target || target.isAllDay) return;
+    const minutes = Math.min(
+      Math.max(minutesFromMidnight(target.startTime), startHour * 60),
+      endHour * 60,
+    );
+    const next = revealScrollTop({
+      targetPx: minutesToPx(minutes, hourHeight, hourRange),
+      scrollTop: el.scrollTop,
+      viewportPx: el.clientHeight,
+      hourHeight,
+    });
+    if (next != null) el.scrollTop = next;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedId]);
 
   // ── Drag-to-move / resize (native pointer events → useWeekTimeGridDrag) ───
   // The two refs come back out because they are DOM measurements the hook needs

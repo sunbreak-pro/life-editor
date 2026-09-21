@@ -46,6 +46,7 @@ import { useScheduleTodoChips } from "./useScheduleTodoChips";
 import { useTodoTabFilter } from "./useTodoTabFilter";
 import { todoAddCandidateWrite } from "./todoChipUndoWiring";
 import { useScheduleRepeats } from "./useScheduleRepeats";
+import { pickRepeatOccurrence } from "./repeatOccurrence";
 import { useScheduleGridFilters } from "./useScheduleGridFilters";
 import { useScheduleCreateFlow } from "./useScheduleCreateFlow";
 import { useScheduleSelection } from "./useScheduleSelection";
@@ -993,13 +994,34 @@ export function CalendarTab({
   useEffect(() => {
     const pending = pendingRepeatDetailRef.current;
     if (!pending) return;
-    const match = rangeItems.find(
-      (i) => i.routineId === pending && i.date === anchorDate,
-    );
+    const match = pickRepeatOccurrence(rangeItems, pending, anchorDate);
     if (!match) return;
     pendingRepeatDetailRef.current = null;
     handleItemOpenDetail(match.id);
   }, [rangeItems, anchorDate, handleItemOpenDetail]);
+
+  /*
+   * #1830: "show the next one" pressed on a repeat row. Same shape as the
+   * request above it and for the same reason — the jump only FETCHES the day,
+   * so the occurrence's id arrives with the range.
+   *
+   * What it does with the id is the whole fix: it SELECTS that one
+   * occurrence. The week used to move with nothing else happening, which left
+   * the block wherever the body's scroll already was (a morning repeat lands
+   * above the top of an afternoon scroll) and left the ring on whatever had
+   * been selected before. Selecting the row rings exactly the occurrence that
+   * was asked for, and the grid scrolls to a newly selected block on its own
+   * (WeekTimeGrid, #1830).
+   */
+  const pendingRepeatRevealRef = useRef<string | null>(null);
+  useEffect(() => {
+    const pending = pendingRepeatRevealRef.current;
+    if (!pending) return;
+    const match = pickRepeatOccurrence(rangeItems, pending, anchorDate);
+    if (!match) return;
+    pendingRepeatRevealRef.current = null;
+    setSelectedId(match.id);
+  }, [rangeItems, anchorDate, setSelectedId]);
 
   const showLoading = isLoading && rangeItems.length === 0;
   // Full-screen error only when there is nothing to show; a range-fetch
@@ -1256,6 +1278,8 @@ export function CalendarTab({
         onShowNext: (id) => {
           closeRepeatPanel();
           handleOpenRepeat(id);
+          // #1830 — see the pending request above.
+          pendingRepeatRevealRef.current = id;
         },
         // #1678: the occurrence's editor IS where a series is edited (it holds
         // the repeat settings), so "edit detail" jumps to the next occurrence

@@ -155,6 +155,40 @@ export function minutesToTime(minutes: number): string {
 /** Pointer travel (px) below which a drag still counts as a click. */
 export const DRAG_THRESHOLD_PX = 4;
 
+/*
+ * Where the week body has to scroll for a block to be on screen (#1830).
+ *
+ * "Show the next one" moved the week and left the scroll where it was, so an
+ * 08:00 occurrence sat above the top of a body scrolled to the afternoon and
+ * nothing appeared to happen. Moving the scroll unconditionally is the other
+ * half of that fault: every ordinary selection would yank the grid under a
+ * user who could already see what they clicked.
+ *
+ * So: null when the target is comfortably inside the visible band, and
+ * otherwise the same "one hour of context above it" the mount scroll uses.
+ * A viewport of zero is a body that has not been laid out (jsdom has no
+ * layout at all) — unmeasurable, so it counts as "not showing it", and the
+ * answer is the scroll rather than a silent no-op.
+ */
+export function revealScrollTop(args: {
+  /** The block's top, in px from the 00:00 line. */
+  targetPx: number;
+  /** The body's current scrollTop. */
+  scrollTop: number;
+  /** The body's visible height (clientHeight), or 0 when unmeasurable. */
+  viewportPx: number;
+  hourHeight: number;
+}): number | null {
+  const { targetPx, scrollTop, viewportPx, hourHeight } = args;
+  if (viewportPx > 0) {
+    // The bottom edge is pulled in by an hour so a block that only just fits
+    // is still brought up with its context rather than left on the rail.
+    const bottom = scrollTop + Math.max(viewportPx - hourHeight, 0);
+    if (targetPx >= scrollTop && targetPx <= bottom) return null;
+  }
+  return Math.max(0, targetPx - hourHeight);
+}
+
 /**
  * What the grid knew when the pointer went down. Everything here is captured
  * once at drag start — the geometry that can only be read from the DOM
