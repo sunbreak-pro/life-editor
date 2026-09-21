@@ -56,6 +56,24 @@ describe("PomodoroTodoSelector", () => {
     expect(onSelect).toHaveBeenCalledWith(null);
   });
 
+  // #1855: jsdom has no layout, so the overflow itself cannot be measured
+  // here. What can be pinned is the pair of constraints the fix consists of:
+  // the chip may shrink below its content, and the title clips inside it.
+  it("lets a long title shrink the chip instead of stretching the row", () => {
+    const long = "A very long work target title ".repeat(6).trim();
+    renderSelector({
+      items: [{ id: "long", title: long, kind: "todo" }],
+      selectedId: "long",
+    });
+    const chip = screen.getByTestId("work-target-chip");
+    expect(chip).toHaveClass("min-w-0", "max-w-full");
+    expect(screen.getByText(long)).toHaveClass("truncate");
+    // The clear button must survive the squeeze.
+    expect(screen.getByRole("button", { name: "Clear todo" })).toHaveClass(
+      "shrink-0",
+    );
+  });
+
   it("disables the trigger and shows the hint when there is nothing to link", () => {
     renderSelector({ items: [] });
     expect(
