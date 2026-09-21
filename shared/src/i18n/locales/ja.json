@@ -485,6 +485,8 @@
       "unpin": "ピン留めを解除",
       "pinned": "ピン留め済み",
       "delete": "エントリを削除",
+      "deleteConfirmBody": "{{day}} のエントリを削除しますか？ ゴミ箱に入るので、あとから戻せます。",
+      "deleteConfirmAction": "削除",
       "moreActions": "その他の操作",
       "placeholder": "今日のことを書く…",
       "datePicker": "日付を選択",
