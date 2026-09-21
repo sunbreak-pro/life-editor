@@ -328,6 +328,22 @@ describe("Toast", () => {
     expect(danger.querySelector(".bg-lumen-danger")).not.toBeNull();
   });
 
+  /*
+   * #1734 / brief D14: an error leads with an AlertCircle, every other tone
+   * keeps the status dot. The dot is the thing to watch — leaving both in
+   * place would look right in a screenshot and still be two marks.
+   */
+  it("leads danger with an icon and the other tones with the dot", () => {
+    const { rerender } = render(<Toast variant="danger">Failed.</Toast>);
+    const danger = screen.getByText("Failed.").parentElement as HTMLElement;
+    expect(danger.querySelector("svg.text-lumen-danger")).not.toBeNull();
+    expect(danger.querySelector(".rounded-full")).toBeNull();
+
+    rerender(<Toast variant="info">Heads up.</Toast>);
+    const info = screen.getByText("Heads up.").parentElement as HTMLElement;
+    expect(info.querySelector(".rounded-full.bg-lumen-info")).not.toBeNull();
+  });
+
   it("exposes an alert role for danger and status for info", () => {
     const { rerender } = render(<Toast>Heads up.</Toast>);
     expect(screen.getByRole("status")).toBeInTheDocument();
