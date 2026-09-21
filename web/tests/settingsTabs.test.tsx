@@ -32,7 +32,12 @@ const state = vi.hoisted(() => ({
   /* Wide by default — the narrow suite below flips it for its own renders. */
   isWide: true,
   /* #1525 — the two members SettingsScreen reads off the detail panel. */
-  rightSidebar: { open: vi.fn(), close: vi.fn() },
+  rightSidebar: {
+    open: vi.fn(),
+    close: vi.fn(),
+    /* #1868 — open unless a test closes it, the way Settings leaves it. */
+    isOpen: true,
+  },
   /* Only the five reads TrashScreen makes; every list comes back empty, so
      the Trash body settles on its own empty state. */
   dataService: {
@@ -135,6 +140,7 @@ async function renderSettings() {
 beforeEach(() => {
   vi.clearAllMocks();
   state.isWide = true;
+  state.rightSidebar.isOpen = true;
   state.getSession.mockResolvedValue({ user: { email: "me@example.com" } });
 });
 
@@ -402,5 +408,45 @@ describe("SettingsScreen — the narrow drawer (#1525)", () => {
     pressRow("settings.tabs.tips");
 
     expect(state.rightSidebar.close).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #1868 — the header toggle closes the pinned column on wide, and the category
+ * list lives only inside it. The body then showed one category with nothing
+ * saying there were others. It now says which category is up and offers the
+ * list back; narrow is left alone, since a closed drawer is how it rests.
+ */
+describe("SettingsScreen — the closed column on wide (#1868)", () => {
+  it("says nothing while the column is open", async () => {
+    await renderSettings();
+
+    expect(
+      screen.queryByRole("button", { name: "settings.tabs.showCategories" }),
+    ).toBeNull();
+  });
+
+  it("names the category on screen and brings the list back", async () => {
+    state.rightSidebar.isOpen = false;
+    await renderSettings();
+
+    screen.getByText("settings.tabs.hiddenNote|settings.tabs.general");
+    // Once on the way in (#1174); the press is the second call.
+    expect(state.rightSidebar.open).toHaveBeenCalledTimes(1);
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.tabs.showCategories" }),
+    );
+
+    expect(state.rightSidebar.open).toHaveBeenCalledTimes(2);
+  });
+
+  it("stays out of the way on narrow, where a closed drawer is the resting state", async () => {
+    state.isWide = false;
+    state.rightSidebar.isOpen = false;
+    await renderSettings();
+
+    expect(
+      screen.queryByRole("button", { name: "settings.tabs.showCategories" }),
+    ).toBeNull();
   });
 });

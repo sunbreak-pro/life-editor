@@ -187,7 +187,9 @@
       "general": "一般",
       "claude": "Claude",
       "trash": "ゴミ箱",
-      "tips": "ヒント"
+      "tips": "ヒント",
+      "hiddenNote": "{{category}}を表示しています。ほかのカテゴリは詳細パネルにあります。",
+      "showCategories": "カテゴリを表示"
     },
     "trash": {
       "heading": "ゴミ箱",
