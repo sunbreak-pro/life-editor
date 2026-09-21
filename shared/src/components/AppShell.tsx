@@ -45,12 +45,6 @@ export interface AppShellLabels {
   /** Keycap hint on the sidebar ⌘K footer row (wide layout only). */
   shortcutHint?: string;
   /**
-   * "Edit tags" sidebar footer row (#409) — wide layout only. The narrow
-   * entry is one of the host's `bottomBarActions` rows (#1290), which carries
-   * its own label.
-   */
-  tagEditor?: string;
-  /**
    * "Launch Claude Code" sidebar footer row (#1211) — wide layout only, and
    * only on the desktop shell. There is no narrow counterpart on purpose: the
    * launcher starts a CLI on the machine, which the Capacitor shells and the
@@ -88,14 +82,6 @@ export interface AppShellProps {
   activeSection: string;
   onNavigate: (id: string) => void;
   onTogglePalette: () => void;
-  /**
-   * Opens the global tag editor (#409). Forwarded to the wide sidebar's footer
-   * row above ⌘K. The narrow branch does not read it: it has no sidebar, and
-   * its entry is a row the host composes into `bottomBarActions` (the "More"
-   * sheet — #1290, the same route the palette takes since #473), so mobile
-   * reaches the very same panel without the shell growing a second prop.
-   */
-  onOpenTagEditor?: () => void;
   /**
    * Launches Claude Code (#1211). Forwarded to the wide sidebar's footer. The
    * narrow branch ignores it — see `labels.launchClaude` for why it has no
@@ -177,7 +163,6 @@ export function AppShell({
   activeSection,
   onNavigate,
   onTogglePalette,
-  onOpenTagEditor,
   onLaunchClaude,
   userEmail,
   userName,
@@ -225,7 +210,6 @@ export function AppShell({
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((v) => !v)}
           onTogglePalette={onTogglePalette}
-          onOpenTagEditor={onOpenTagEditor}
           onLaunchClaude={onLaunchClaude}
           userEmail={userEmail}
           userName={userName}

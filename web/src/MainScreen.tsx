@@ -385,7 +385,6 @@ export function MainScreen({ session }: { session: Session }) {
         activeSection={section}
         onNavigate={(id) => setSection(id as SectionId)}
         onTogglePalette={() => setPaletteOpen((v) => !v)}
-        onOpenTagEditor={() => setSection("connect")}
         /*
          * Claude Code launcher (#1211). Passed only on the desktop shell —
          * SidebarNav renders the footer row on the handler, so withholding it
@@ -422,8 +421,8 @@ export function MainScreen({ session }: { session: Session }) {
         /*
          * Narrow-only counterpart to `header` AND to the sidebar footer (#472).
          * `header` is a wide-branch slot, so undo/redo and the command palette
-         * (#473) would otherwise be unreachable on mobile; the sidebar is
-         * wide-only too, so the same goes for the tag editor (#1290). AppShell
+         * (#473) would otherwise be unreachable on mobile, and the Connect
+         * shortcut (#1290) has no sidebar row to fall back to. AppShell
          * hands these to the bottom bar's "More" sheet. A callback (not a node)
          * because the rows read UndoRedoContext, and MainScreen's own body sits
          * OUTSIDE the UndoRedo Provider that AppProviders mounts.
