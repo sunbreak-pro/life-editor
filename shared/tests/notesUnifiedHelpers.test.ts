@@ -10,6 +10,7 @@ import {
   buildChildrenByParent,
   flattenVisibleNotes,
   filterAndSortNotes,
+  filterNotesBySearch,
   collectNoteSubtree,
 } from "../src/hooks/notesUnifiedHelpers";
 import { makeNote } from "./helpers/nodeFixtures";
@@ -373,5 +374,55 @@ describe("collectNoteSubtree", () => {
     ];
     const ids = collectNoteSubtree(all, "a").map((n) => n.id);
     expect(new Set(ids)).toEqual(new Set(["a", "b"]));
+  });
+});
+
+/*
+ * #1837 — the predicate the note list filters by, now that the body half of a
+ * search comes back from the server as a set of ids.
+ */
+describe("filterNotesBySearch (#1837)", () => {
+  const alpha = makeNote("n-a", { title: "Alpha", content: "" });
+  const beta = makeNote("n-b", { title: "Beta", content: "" });
+  const hydrated = makeNote("n-c", {
+    title: "Gamma",
+    content: "the word in an opened note",
+  });
+
+  it("keeps a title match with no help from the server", () => {
+    expect(
+      filterNotesBySearch([alpha, beta], "alph").map((n) => n.id),
+    ).toEqual(["n-a"]);
+  });
+
+  it("keeps a note whose BODY the server matched, title or no title", () => {
+    const hits = new Set(["n-b"]);
+    expect(
+      filterNotesBySearch([alpha, beta], "nothing-in-a-title", hits).map(
+        (n) => n.id,
+      ),
+    ).toEqual(["n-b"]);
+  });
+
+  it("behaves as it always did when the server has not answered", () => {
+    // null is "no answer yet", which is not the same as "it found none" — the
+    // title layer has to stand on its own in both cases.
+    expect(filterNotesBySearch([alpha, beta], "alph", null).map((n) => n.id)).toEqual([
+      "n-a",
+    ]);
+    expect(
+      filterNotesBySearch([alpha, beta], "alph", new Set()).map((n) => n.id),
+    ).toEqual(["n-a"]);
+  });
+
+  it("matches a hydrated body without waiting for a round trip", () => {
+    expect(
+      filterNotesBySearch([alpha, hydrated], "opened").map((n) => n.id),
+    ).toEqual(["n-c"]);
+  });
+
+  it("lets an empty query through untouched", () => {
+    const all = [alpha, beta, hydrated];
+    expect(filterNotesBySearch(all, "   ")).toBe(all);
   });
 });

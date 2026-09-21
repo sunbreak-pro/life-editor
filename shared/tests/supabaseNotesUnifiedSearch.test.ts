@@ -62,6 +62,60 @@ describe("SupabaseNotesUnifiedSearch", () => {
       });
     });
 
+    /*
+     * #1837 wired this search to the UI, which made #1763's rule load-bearing
+     * here for the first time: a locked note's body is not the searcher's to
+     * read. Two halves -- the content probe does not look inside one, and the
+     * payload join does not fetch one. A TITLE hit still comes back, without
+     * its body: the title was never what the lock covered.
+     */
+    it("does not look inside a locked note's body", async () => {
+      stub.stage("items_meta", "select", { data: [], error: null });
+      stub.stage("notes_payload", "select", { data: [], error: null });
+
+      await search.searchNotesUnified("hello");
+
+      expect(stub.calls).toContainEqual({
+        table: "notes_payload",
+        op: "eq",
+        args: ["has_password", false],
+      });
+    });
+
+    it("fetches the full body only where there is no password", async () => {
+      stub.stage("items_meta", "select", {
+        data: [makeMetaRow({ id: "note-1" })],
+        error: null,
+      });
+      stub.stage("notes_payload", "select", { data: [], error: null });
+      // The join: full columns, gated.
+      stub.stage("notes_payload", "select", { data: [], error: null });
+      // The leftovers: body-free columns for whatever the gate held back.
+      // No content_json on the row, because the query did not ask for it.
+      const lite: Record<string, unknown> = makePayloadRow({
+        item_id: "note-1",
+        has_password: true,
+      });
+      delete lite.content_json;
+      stub.stage("notes_payload", "select", { data: [lite], error: null });
+
+      const out = await search.searchNotesUnified("hello");
+
+      const gated = stub.calls.filter(
+        (c) =>
+          c.table === "notes_payload" &&
+          c.op === "eq" &&
+          Array.isArray(c.args) &&
+          c.args[0] === "has_password",
+      );
+      // Once for the content probe, once for the payload join.
+      expect(gated).toHaveLength(2);
+      // The locked note is still a result -- with no body on it.
+      expect(out).toHaveLength(1);
+      expect(out[0].id).toBe("note-1");
+      expect(out[0].content).toBe("");
+    });
+
     it("restricts the title step to live notes", async () => {
       stub.stage("items_meta", "select", { data: [], error: null });
       stub.stage("notes_payload", "select", { data: [], error: null });
@@ -132,6 +186,10 @@ describe("SupabaseNotesUnifiedSearch", () => {
         error: null,
       });
       stub.stage("notes_payload", "select", { data: [], error: null });
+      stub.stage("notes_payload", "select", { data: [], error: null });
+      // #1837 split the payload join in two: the gated read, then the
+      // body-free read for whatever the gate held back. A missing row is
+      // missing from both.
       stub.stage("notes_payload", "select", { data: [], error: null });
 
       await expect(search.searchNotesUnified("hello")).resolves.toEqual([]);

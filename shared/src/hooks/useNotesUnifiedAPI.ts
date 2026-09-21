@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useMemo, useRef } from "react";
 import type { NoteNode, NoteSortMode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
+import { useNoteBodySearch } from "./useNoteBodySearch";
 import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useSyncDomains } from "./useSyncDomains";
 import { useDomainLoad } from "./useDomainLoad";
@@ -330,6 +331,13 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     };
   }, [ds, syncVersion]);
 
+  /*
+   * The body half of the search (#1837). The ids come back from the server;
+   * the rows stay the ones this hook already holds, so nothing here ever
+   * carries a note body it was not asked for.
+   */
+  const { bodyMatchIds, isSearching } = useNoteBodySearch(ds, searchQuery);
+
   // Tree derivations — pure functions of their inputs (notesUnifiedHelpers),
   // memoized here.
   const childrenByParent = useMemo(() => buildChildrenByParent(notes), [notes]);
@@ -360,8 +368,15 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
   );
 
   const sortedFilteredNotes = useMemo(
-    () => filterAndSortNotes(notes, searchQuery, sortMode, sortDirection),
-    [notes, searchQuery, sortMode, sortDirection],
+    () =>
+      filterAndSortNotes(
+        notes,
+        searchQuery,
+        sortMode,
+        sortDirection,
+        bodyMatchIds,
+      ),
+    [notes, searchQuery, sortMode, sortDirection, bodyMatchIds],
   );
 
   // Persist tree to DB. Unified has no bulk sync — apply moves
@@ -498,6 +513,10 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       isContentLoaded,
       searchQuery,
       setSearchQuery,
+      /** Ids whose BODY matched the query, or null if none has answered. */
+      bodyMatchIds,
+      /** The body search is in flight — the rows are one query behind. */
+      isSearching,
       sortMode,
       setSortMode,
       sortDirection,
@@ -530,6 +549,8 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       selectedNote,
       isContentLoaded,
       searchQuery,
+      bodyMatchIds,
+      isSearching,
       sortMode,
       setSortMode,
       sortDirection,

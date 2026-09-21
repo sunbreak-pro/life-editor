@@ -11,6 +11,7 @@ import {
   NoticePanel,
   tagGroupKey as groupKey,
   UNTAGGED_GROUP_KEY,
+  BUSY_STALE,
   cn,
   type NoteTagGroup,
   FOCUS_RING,
@@ -105,6 +106,8 @@ export interface NotesSidebarListProps {
   hasNotes: boolean;
   /** A query is on and nothing matched it (#1470). */
   searchEmpty: boolean;
+  /** The body half of the query is still in flight (#1837). */
+  searchBusy?: boolean;
   visibleGroups: NoteTagGroup[];
   collapsedGroups: Set<string>;
   onToggleGroup: (key: string) => void;
@@ -151,6 +154,7 @@ export function NotesSidebarList({
   error,
   hasNotes,
   searchEmpty,
+  searchBusy = false,
   visibleGroups,
   collapsedGroups,
   onToggleGroup,
@@ -253,103 +257,115 @@ export function NotesSidebarList({
         <NoticePanel message={error} tone="danger" icon={null} />
       )}
 
-      {/* Tag groups. */}
-      {searchEmpty ? (
-        /*
-         * #1470: a query nobody's notes match is not an empty vault. This used
-         * to fall through to the branch below, so the list answered a typo
-         * with "No notes yet" and an accent CREATE button — an offer to make a
-         * note out of the search term while the term was still in the box, and
-         * the wrong statement about a vault that is full. No CTA of its own:
-         * the answer to "nothing matched" is another word, and the toolbar
-         * pill above is still there for anyone who did mean to create.
-         */
-        <EmptyState
-          icon={<Search aria-hidden />}
-          message={labels.searchEmpty}
-        />
-      ) : !hasNotes ? (
-        <EmptyState
-          icon={<FileText aria-hidden />}
-          message={labels.empty}
-          cta={{ label: labels.addCta, onClick: onCreateNote }}
-        />
-      ) : (
-        <DndContext
-          sensors={dnd.sensors}
-          collisionDetection={pointerWithin}
-          onDragStart={dnd.handleDragStart}
-          onDragOver={dnd.handleDragOver}
-          onDragEnd={dnd.handleDragEnd}
-          onDragCancel={dnd.handleDragCancel}
-        >
-          <ul className="flex flex-col gap-1.5">
-            {visibleGroups.map((group) => {
-              const key = groupKey(group);
-              const collapsed = collapsedGroups.has(key);
-              // #1288: cap the rows unless this group was opened by hand (or
-              // the host lifted the cap because a tag filter is on).
-              const capped =
-                rowCap !== null && !openedGroups.has(key) ? rowCap : null;
-              const shownNotes =
-                capped === null ? group.notes : group.notes.slice(0, capped);
-              const hiddenRows = group.notes.length - shownNotes.length;
-              return (
-                <li key={key} className="flex flex-col gap-px">
-                  <DesktopTagHeading
-                    group={group}
-                    collapsed={collapsed}
-                    onToggle={onToggleGroup}
-                    onContextMenu={onTagContextMenu}
-                    collapseLabel={labels.collapseGroup}
-                    expandLabel={labels.expandGroup}
-                  />
-                  {!collapsed && (
-                    <>
-                      <ul className="flex flex-col gap-0.5">
-                        {shownNotes.map((node) => (
-                          <DesktopNoteRow
-                            key={`${key}-${node.id}`}
-                            node={node}
-                            dragId={noteDraggableId(key, node.id)}
-                            selected={selectedNoteId === node.id}
-                            onSelect={onSelectNote}
-                            onDelete={onDeleteNote}
-                            onContextMenu={onNoteContextMenu}
-                            deleteLabel={labels.deleteNote}
-                            dragHintLabel={labels.assignTagHint}
-                          />
-                        ))}
-                      </ul>
-                      {/* One-way on purpose: the button says how many are
+      {/*
+       * Tag groups. While the body half of a search is still in flight the
+       * rows below are the title matches — right as far as they go, and one
+       * query behind. They are dimmed rather than replaced, and `aria-busy`
+       * says the same thing to anything not looking at the dimming. Never
+       * `aria-busy` on its own (#1804): a state nobody can see is not one.
+       */}
+      <div
+        // A real box, not `display: contents`: opacity needs one to apply to.
+        className={cn(searchBusy && BUSY_STALE)}
+        aria-busy={searchBusy || undefined}
+      >
+        {searchEmpty ? (
+          /*
+           * #1470: a query nobody's notes match is not an empty vault. This used
+           * to fall through to the branch below, so the list answered a typo
+           * with "No notes yet" and an accent CREATE button — an offer to make a
+           * note out of the search term while the term was still in the box, and
+           * the wrong statement about a vault that is full. No CTA of its own:
+           * the answer to "nothing matched" is another word, and the toolbar
+           * pill above is still there for anyone who did mean to create.
+           */
+          <EmptyState
+            icon={<Search aria-hidden />}
+            message={labels.searchEmpty}
+          />
+        ) : !hasNotes ? (
+          <EmptyState
+            icon={<FileText aria-hidden />}
+            message={labels.empty}
+            cta={{ label: labels.addCta, onClick: onCreateNote }}
+          />
+        ) : (
+          <DndContext
+            sensors={dnd.sensors}
+            collisionDetection={pointerWithin}
+            onDragStart={dnd.handleDragStart}
+            onDragOver={dnd.handleDragOver}
+            onDragEnd={dnd.handleDragEnd}
+            onDragCancel={dnd.handleDragCancel}
+          >
+            <ul className="flex flex-col gap-1.5">
+              {visibleGroups.map((group) => {
+                const key = groupKey(group);
+                const collapsed = collapsedGroups.has(key);
+                // #1288: cap the rows unless this group was opened by hand (or
+                // the host lifted the cap because a tag filter is on).
+                const capped =
+                  rowCap !== null && !openedGroups.has(key) ? rowCap : null;
+                const shownNotes =
+                  capped === null ? group.notes : group.notes.slice(0, capped);
+                const hiddenRows = group.notes.length - shownNotes.length;
+                return (
+                  <li key={key} className="flex flex-col gap-px">
+                    <DesktopTagHeading
+                      group={group}
+                      collapsed={collapsed}
+                      onToggle={onToggleGroup}
+                      onContextMenu={onTagContextMenu}
+                      collapseLabel={labels.collapseGroup}
+                      expandLabel={labels.expandGroup}
+                    />
+                    {!collapsed && (
+                      <>
+                        <ul className="flex flex-col gap-0.5">
+                          {shownNotes.map((node) => (
+                            <DesktopNoteRow
+                              key={`${key}-${node.id}`}
+                              node={node}
+                              dragId={noteDraggableId(key, node.id)}
+                              selected={selectedNoteId === node.id}
+                              onSelect={onSelectNote}
+                              onDelete={onDeleteNote}
+                              onContextMenu={onNoteContextMenu}
+                              deleteLabel={labels.deleteNote}
+                              dragHintLabel={labels.assignTagHint}
+                            />
+                          ))}
+                        </ul>
+                        {/* One-way on purpose: the button says how many are
                           hidden, and once they are out there is nothing left
                           for it to say. Folding the group again is what the
                           heading's chevron is for. */}
-                      {hiddenRows > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => openGroup(key)}
-                          className={cn(
-                            "self-start rounded-lumen-md px-2 py-1 text-[11.5px] text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary",
-                            FOCUS_RING,
-                          )}
-                        >
-                          {labels.moreRows(hiddenRows)}
-                        </button>
-                      )}
-                    </>
-                  )}
-                </li>
-              );
-            })}
-          </ul>
-          <DragOverlay>
-            {dnd.activeNote ? (
-              <TreeDragGhost title={dnd.activeNote.title} />
-            ) : null}
-          </DragOverlay>
-        </DndContext>
-      )}
+                        {hiddenRows > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => openGroup(key)}
+                            className={cn(
+                              "self-start rounded-lumen-md px-2 py-1 text-[11.5px] text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary",
+                              FOCUS_RING,
+                            )}
+                          >
+                            {labels.moreRows(hiddenRows)}
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            <DragOverlay>
+              {dnd.activeNote ? (
+                <TreeDragGhost title={dnd.activeNote.title} />
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        )}
+      </div>
 
       {templatesSlot}
 

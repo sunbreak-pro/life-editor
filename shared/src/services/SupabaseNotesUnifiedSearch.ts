@@ -2,11 +2,14 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   ITEMS_META_NOTE_COLUMNS,
   NOTES_PAYLOAD_COLUMNS,
+  NOTES_PAYLOAD_LIST_COLUMNS,
   isLegacyNoteFolderRow,
   isNoteTemplateRow,
   rowsToNoteNode,
+  rowsToNoteNodeLite,
   type ItemsMetaNoteRow,
   type NotesPayloadRow,
+  type NotesPayloadListRow,
 } from "./notesUnifiedMapper";
 import type { NoteNode } from "../types/note";
 import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
@@ -71,11 +74,18 @@ export class SupabaseNotesUnifiedSearch {
     // need the payload ids, then look up meta for those ids that are
     // still live (composite filter is_deleted=false applied via items_meta
     // step 3).
+    //
+    // `has_password=false`, for the same reason getNoteUnified carries it
+    // (#1763): a locked note's body is not the searcher's to read. A title
+    // match still surfaces the note, because the title was never hidden --
+    // what the lock covers is the content, and a content hit would report on
+    // it by existing.
     const contentHits = await fetchAllPages<{ item_id: string }>(
       (from, to) =>
         this.client
           .from("notes_payload")
           .select("item_id")
+          .eq("has_password", false)
           .ilike("content_json::text", `%${trimmed}%`)
           .order("item_id")
           .range(from, to),
@@ -121,13 +131,18 @@ export class SupabaseNotesUnifiedSearch {
       return [];
     }
 
-    // Step 4: fetch payloads for the merged id set + join.
+    // Step 4: fetch payloads for the merged id set + join. TWO queries, the
+    // arrangement getNoteUnified uses (#1763): the full columns only where
+    // there is no password, then the body-free columns for whatever is left.
+    // Selecting content_json for a locked row and dropping it afterwards would
+    // still have put the body on the wire.
     const payloads = await fetchByIdChunks<NotesPayloadRow>(allIds, (chunk) =>
       fetchAllPages(
         (from, to) =>
           this.client
             .from("notes_payload")
             .select(NOTES_PAYLOAD_COLUMNS)
+            .eq("has_password", false)
             .in("item_id", chunk)
             .order("item_id")
             .range(from, to),
@@ -140,9 +155,31 @@ export class SupabaseNotesUnifiedSearch {
       payloadById.set(row.item_id, row);
     }
 
+    // Whatever is left is a title hit on a locked note: it keeps its row in
+    // the results, with no body attached.
+    const lockedIds = allIds.filter((id) => !payloadById.has(id));
+    const litePayloadById = new Map<string, NotesPayloadListRow>();
+    if (lockedIds.length > 0) {
+      const lite = await fetchByIdChunks<NotesPayloadListRow>(
+        lockedIds,
+        (chunk) =>
+          fetchAllPages(
+            (from, to) =>
+              this.client
+                .from("notes_payload")
+                .select(NOTES_PAYLOAD_LIST_COLUMNS)
+                .in("item_id", chunk)
+                .order("item_id")
+                .range(from, to),
+            "searchNotesUnified locked payload failed",
+          ),
+      );
+      for (const row of lite) litePayloadById.set(row.item_id, row);
+    }
+
     const out: NoteNode[] = [];
     for (const meta of allMetas) {
-      const payload = payloadById.get(meta.id);
+      const payload = payloadById.get(meta.id) ?? litePayloadById.get(meta.id);
       if (!payload) continue;
       // A title hit can land on a retired folder row (note_type lives on the
       // payload, so the items_meta query cannot exclude it) — #375. Same for a
@@ -150,7 +187,11 @@ export class SupabaseNotesUnifiedSearch {
       // opening a hit would drop the user into a surface Notes cannot show.
       if (isLegacyNoteFolderRow(payload) || isNoteTemplateRow(payload))
         continue;
-      out.push(rowsToNoteNode(meta, payload));
+      out.push(
+        "content_json" in payload
+          ? rowsToNoteNode(meta, payload)
+          : rowsToNoteNodeLite(meta, payload),
+      );
     }
     // Order by updated_at DESC (legacy parity).
     out.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
