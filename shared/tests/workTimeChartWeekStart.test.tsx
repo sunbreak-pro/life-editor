@@ -25,12 +25,12 @@ vi.mock("recharts", () => ({
     data,
     children,
   }: {
-    data: { label: string; hours: number }[];
+    data: { label: string; minutes: number }[];
     children: React.ReactNode;
   }) => (
     <ul>
       {data.map((d, i) => (
-        <li key={i}>{`${d.label} = ${d.hours}`}</li>
+        <li key={i}>{`${d.label} = ${d.minutes}`}</li>
       ))}
       {children}
     </ul>
@@ -41,6 +41,19 @@ vi.mock("recharts", () => ({
   CartesianGrid: () => null,
   Tooltip: () => null,
 }));
+
+/*
+ * A stand-in for the host's axis vocabulary (#1864). The chart no longer
+ * formats dates itself, so the suite supplies the format it reads back: M/D,
+ * with a trailing "~" on a week bucket so the unit the chart asked for shows.
+ */
+const AXIS = {
+  duration: (minutes: number): string => `${minutes}m`,
+  date: (key: string, unit: "day" | "week" | "month"): string => {
+    const [, m, d] = key.split("-").map(Number);
+    return unit === "week" ? `${m}/${d}~` : `${m}/${d}`;
+  },
+};
 
 /** Wed 2026-07-15 10:00 local — mid-week, the same clock as the #860 suite. */
 const MID_WEEK = new Date(2026, 6, 15, 10, 0, 0);
@@ -88,6 +101,7 @@ describe("WorkTimeChart weekly buckets start on Sunday (#860 / #1102)", () => {
         sessions={SESSIONS}
         period="week"
         labels={{ workTime: "Work Time" }}
+        axis={AXIS}
       />,
     );
   }
@@ -98,7 +112,7 @@ describe("WorkTimeChart weekly buckets start on Sunday (#860 / #1102)", () => {
     const lines = bucketLines();
     // A Monday boundary would have split these two: Sun 07-12 would close the
     // week that began 07-06, and Mon 07-13 would open the next one.
-    expect(lines).toContain("7/12~ = 1.5");
+    expect(lines).toContain("7/12~ = 90");
     expect(lines.some((l) => l.startsWith("7/13~"))).toBe(false);
     expect(lines.some((l) => l.startsWith("7/6~"))).toBe(false);
   });
@@ -109,6 +123,7 @@ describe("WorkTimeChart weekly buckets start on Sunday (#860 / #1102)", () => {
         sessions={SESSIONS}
         period="day"
         labels={{ workTime: "Work Time" }}
+        axis={AXIS}
       />,
     );
 

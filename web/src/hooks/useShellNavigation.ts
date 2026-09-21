@@ -5,6 +5,7 @@ import {
   defaultBriefingTab,
   type BriefingTab,
   type AnalyticsTab,
+  type DatePreset,
   type SectionId,
   type NavShortcutId,
 } from "@life-editor/shared";
@@ -107,6 +108,11 @@ export function useShellNavigation({
   // #208) so the standard SectionHeader renders the band — same tabs-as-title
   // pattern as materialsTab.
   const [analyticsTab, setAnalyticsTab] = useState<AnalyticsTab>("overview");
+  // The date-range preset rides beside the tab (#1865). Analytics' own filter
+  // state is section-level and unmounts with the section, so leaving and coming
+  // back kept the tab and silently reset the range to 30 days. In-memory only,
+  // like the tab: a reload opens on the defaults.
+  const [analyticsPreset, setAnalyticsPreset] = useState<DatePreset>("30d");
   // Briefing's 朝刊/夕刊 tab (#263 F-6), lifted here so the standard
   // SectionHeader renders the band — same tabs-as-title pattern as
   // materialsTab. Lazy init: the initial tab follows the clock
@@ -319,6 +325,8 @@ export function useShellNavigation({
     consumeProfile,
     analyticsTab,
     setAnalyticsTab,
+    analyticsPreset,
+    setAnalyticsPreset,
     briefingTab,
     setBriefingTab,
     pendingNewTodo,

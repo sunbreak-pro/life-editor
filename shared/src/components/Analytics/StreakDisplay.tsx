@@ -17,6 +17,20 @@ interface StreakDisplayProps {
   labels: StreakDisplayLabels;
 }
 
+/*
+ * The value line of a tile: the count, then its unit (#1863).
+ *
+ * #1467 put `truncate` on this whole line to stop it wrapping, which also made
+ * the COUNT ellipsis-able: with the detail panel open the tiles narrow and the
+ * en card read "1… / Lon…" — the number, the one thing the card is for, gone.
+ * The line still cannot wrap (`whitespace-nowrap`), but only the unit is
+ * allowed to give way: the count is `flex-shrink-0`, the unit truncates.
+ */
+const STREAK_VALUE_LINE =
+  "flex min-w-0 items-baseline whitespace-nowrap text-lg font-semibold tabular-nums text-lumen-text";
+const STREAK_UNIT =
+  "ml-1 min-w-0 truncate text-xs font-normal text-lumen-text-secondary";
+
 export function StreakDisplay({
   sessions,
   labels,
@@ -49,11 +63,9 @@ export function StreakDisplay({
             <Flame size={18} />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-lg font-semibold tabular-nums text-lumen-text">
-              {streak.currentStreak}
-              <span className="ml-1 text-xs font-normal text-lumen-text-secondary">
-                {labels.days}
-              </span>
+            <p className={STREAK_VALUE_LINE}>
+              <span className="flex-shrink-0">{streak.currentStreak}</span>
+              <span className={STREAK_UNIT}>{labels.days}</span>
             </p>
             <p className="truncate text-xs text-lumen-text-secondary">
               {labels.current}
@@ -65,11 +77,9 @@ export function StreakDisplay({
             <Trophy size={18} />
           </span>
           <div className="min-w-0">
-            <p className="truncate text-lg font-semibold tabular-nums text-lumen-text">
-              {streak.longestStreak}
-              <span className="ml-1 text-xs font-normal text-lumen-text-secondary">
-                {labels.days}
-              </span>
+            <p className={STREAK_VALUE_LINE}>
+              <span className="flex-shrink-0">{streak.longestStreak}</span>
+              <span className={STREAK_UNIT}>{labels.days}</span>
             </p>
             <p className="truncate text-xs text-lumen-text-secondary">
               {labels.longest}

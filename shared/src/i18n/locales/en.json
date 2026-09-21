@@ -814,6 +814,11 @@
     "sessions": "Sessions",
     "avgPerDay": "Avg / Day",
     "hours": "{{hours}}h {{minutes}}m",
+    "axis": {
+      "hoursOnly": "{{hours}}h",
+      "minutesOnly": "{{minutes}}m",
+      "weekFrom": "{{date}}–"
+    },
     "today": {
       "title": "Today",
       "workTime": "Work Time",
@@ -839,6 +844,7 @@
       "less": "Less",
       "more": "More",
       "tooltip": "{{minutes}} min",
+      "cell": "{{day}} {{hour}}:00 · {{time}}",
       "mon": "Mon",
       "tue": "Tue",
       "wed": "Wed",

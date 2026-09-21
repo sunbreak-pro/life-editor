@@ -22,6 +22,7 @@ import {
 } from "./WorkBreakBalance";
 import { DailyTimeline, type DailyTimelineLabels } from "./DailyTimeline";
 import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
+import type { ChartAxisFormat } from "./chartTheme";
 
 export interface TimeTabLabels {
   /** Summary stat cards. */
@@ -33,6 +34,8 @@ export interface TimeTabLabels {
   /** Designed empty-state copy (no sessions). */
   empty: { title: string; description: string };
   formatHours: (minutes: number) => string;
+  /** Shared by every chart below, so the tab has ONE date and ONE time format (#1864). */
+  axis: ChartAxisFormat;
   period: PeriodSelectorLabels;
   workTimeChart: WorkTimeChartLabels;
   heatmap: WorkTimeHeatmapLabels;
@@ -119,6 +122,7 @@ export function TimeTab({
           sessions={sessions}
           period={period}
           labels={labels.workTimeChart}
+          axis={labels.axis}
           control={
             <PeriodSelector
               value={period}
@@ -133,17 +137,24 @@ export function TimeTab({
           days={days}
           targetPerDay={targetPerDay}
           labels={labels.pomodoroRate}
+          axis={labels.axis}
         />
         <WorkBreakBalance
           sessions={sessions}
           days={days}
           labels={labels.workBreak}
+          axis={labels.axis}
         />
-        <DailyTimeline sessions={sessions} labels={labels.timeline} />
+        <DailyTimeline
+          sessions={sessions}
+          labels={labels.timeline}
+          axis={labels.axis}
+        />
         <TodoWorkTimeChart
           sessions={sessions}
           todoNameMap={todoNameMap}
           labels={labels.todoWorkTime}
+          axis={labels.axis}
         />
       </div>
     </div>
