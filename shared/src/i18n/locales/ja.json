@@ -837,6 +837,7 @@
       "less": "少ない",
       "more": "多い",
       "tooltip": "{{minutes}}分",
+      "cell": "{{day}} {{hour}}時 · {{time}}",
       "mon": "月",
       "tue": "火",
       "wed": "水",

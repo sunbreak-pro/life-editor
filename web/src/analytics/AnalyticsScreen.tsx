@@ -448,6 +448,12 @@ export function AnalyticsScreen({
         },
         tooltip: (minutes: number) =>
           t("analytics.heatmap.tooltip", { minutes }),
+        cell: (day: string, hour: number, minutes: number) =>
+          t("analytics.heatmap.cell", {
+            day,
+            hour,
+            time: t("analytics.heatmap.tooltip", { minutes }),
+          }),
       },
       pomodoroRate: {
         title: t("analytics.pomodoroRate.title"),
