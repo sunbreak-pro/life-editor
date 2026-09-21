@@ -2,6 +2,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
   type ReactElement,
 } from "react";
@@ -52,18 +53,50 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
     ref,
   ): ReactElement {
     const [selected, setSelected] = useState(0);
+    const listRef = useRef<HTMLDivElement>(null);
+    /** Set by ↑/↓ only — see the scroll effect below. */
+    const movedByKey = useRef(false);
 
     // Reset the highlight whenever the filtered set changes (typing narrows it).
     useEffect(() => setSelected(0), [items]);
+
+    /*
+     * Keep the highlighted row inside the list's own scroller (#1902).
+     *
+     * The list caps itself (`max-h-72`, or the inline cap the placer hands it)
+     * and scrolls, but moving `selected` only repaints the highlight — so ↓ held
+     * down walked the selection past the bottom edge and left the user pressing
+     * Enter on a row they could not see. Same fix, same shape as
+     * CommandPalette.tsx: find the row by its index and ask for the nearest
+     * scroll position.
+     *
+     * Only for a KEY press. `onMouseEnter` also moves `selected`, and scrolling
+     * under a stationary pointer slides the next row beneath it, which moves the
+     * selection again — the list walks away from the cursor on its own. The ref
+     * is set by the two arrow branches and cleared here, so a mouse move never
+     * reaches the scroll.
+     *
+     * `scrollIntoView` is optional-called: jsdom does not implement it (#475),
+     * and keyboard navigation must not throw in a test.
+     */
+    useEffect(() => {
+      if (!movedByKey.current) return;
+      movedByKey.current = false;
+      listRef.current
+        ?.querySelector<HTMLElement>(`[data-slash-index="${selected}"]`)
+        ?.scrollIntoView?.({ block: "nearest" });
+    }, [selected]);
 
     useImperativeHandle(ref, () => ({
       onKeyDown: (event) => {
         if (items.length === 0) return false;
         if (event.key === "ArrowUp") {
+          movedByKey.current = true;
           setSelected((i) => (i + items.length - 1) % items.length);
           return true;
         }
         if (event.key === "ArrowDown") {
+          movedByKey.current = true;
           setSelected((i) => (i + 1) % items.length);
           return true;
         }
@@ -86,6 +119,7 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
 
     return (
       <div
+        ref={listRef}
         role="listbox"
         // Inline cap beats the class when the placer supplies one (see
         // ItemLinkMenu — the two pickers stay one system).
@@ -100,6 +134,7 @@ export const SlashMenu = forwardRef<SlashMenuHandle, SlashMenuProps>(
               key={item.id}
               type="button"
               role="option"
+              data-slash-index={index}
               aria-selected={isActive}
               onMouseEnter={() => setSelected(index)}
               onMouseDown={(e) => {
