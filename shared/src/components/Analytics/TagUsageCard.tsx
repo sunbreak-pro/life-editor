@@ -80,6 +80,11 @@ const COLORS = [
  * reader announces which window a cell belongs to, which is the same guarantee
  * the sighted reader gets from the header row.
  */
+// Both number columns share one width so the figures line up under their
+// headings; the headings wrap inside it rather than widening the column, which
+// keeps the name column usable in the narrow mobile card too.
+const NUMBER_COLUMN_HEAD = "w-20 pb-2 pl-2 text-right align-bottom font-medium";
+
 export function TagUsageCard({
   todos,
   events,
@@ -121,16 +126,23 @@ export function TagUsageCard({
 
   return (
     <ChartCard title={labels.title} meta={labels.rangeLabel}>
-      <table className="w-full border-collapse text-xs">
+      {/* `table-fixed` is what makes the name cell's `truncate` bite (#1863).
+          Under the default `table-auto` a cell is as wide as its content asks
+          for, so a 60-character tag name grew the table to 1116px inside a
+          787px card and pushed both number columns off screen — `truncate`
+          needs a width to overflow, and an auto cell never has one. Fixed
+          layout takes the widths from the header row: the two number columns
+          are sized for their headings and the name column gets the rest. */}
+      <table className="w-full table-fixed border-collapse text-xs">
         <thead>
           <tr className="text-lumen-text-tertiary">
             <th scope="col" className="pb-2 text-left font-medium">
               {labels.tag}
             </th>
-            <th scope="col" className="pb-2 text-right font-medium">
+            <th scope="col" className={NUMBER_COLUMN_HEAD}>
               {labels.inRange}
             </th>
-            <th scope="col" className="pb-2 text-right font-medium">
+            <th scope="col" className={NUMBER_COLUMN_HEAD}>
               {labels.liveTotal}
             </th>
           </tr>
@@ -141,13 +153,16 @@ export function TagUsageCard({
             return (
               <tr key={row.tagId} className="align-middle">
                 <td className="py-1.5 pr-3">
-                  <span className="flex items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
                     <span
                       aria-hidden="true"
                       className="h-2 w-2 flex-shrink-0 rounded-lumen-full"
                       style={{ backgroundColor: color }}
                     />
-                    <span className="truncate text-lumen-text">
+                    <span
+                      className="min-w-0 truncate text-lumen-text"
+                      title={row.tagName}
+                    >
                       {row.tagName}
                     </span>
                   </span>

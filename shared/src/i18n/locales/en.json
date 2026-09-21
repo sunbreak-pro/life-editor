@@ -15,6 +15,8 @@
     "shortcuts": {
       "heading": "Keyboard Shortcuts",
       "resetAll": "Reset all shortcuts",
+      "resetAllConfirm": "Reset every keyboard shortcut to its default? Your custom key assignments on this device will be lost.",
+      "resetAllConfirmButton": "Reset all",
       "reset": "Reset",
       "change": "Change",
       "conflict": "Already assigned to \"{{action}}\"",
@@ -212,7 +214,8 @@
       "initialViewLabel": "Opens on",
       "week": "Week",
       "month": "Month",
-      "hint": "Applies the next time you open Schedule. Narrow windows always show the month grid."
+      "hint": "Applies the next time you open Schedule. Narrow windows always show the month grid.",
+      "initialViewNarrowNote": "Narrow windows always open on the month grid. Whether a wide window opens on the week or the month is set from a wide window."
     },
     "profile": {
       "heading": "Profile",
@@ -346,6 +349,7 @@
       "tagRemove": "Remove {{name}}",
       "tagNoCandidates": "No tags yet",
       "tagDialog": "Free session tags",
+      "tagSheetClose": "Close",
       "tagDisabled": "Tags apply to a free session — clear the work name to use them."
     }
   },

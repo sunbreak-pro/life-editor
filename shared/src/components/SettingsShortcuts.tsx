@@ -42,6 +42,16 @@ export interface SettingsShortcutsProps {
   /** Reset every shortcut. */
   onResetAll: () => void;
   /**
+   * The card's own "reset all" press (#1872). The host asks first and calls
+   * `onResetAll` itself on a yes — the same shape as every other bulk action
+   * on the Settings screen. Falls back to `onResetAll` when omitted.
+   *
+   * The edit modal keeps the immediate `onResetAll`: inside it a reset is a
+   * draft, shown live in the rows and taken back by Cancel, so it already has
+   * the way out this prop gives the card.
+   */
+  onRequestResetAll?: () => void;
+  /**
    * Returns the translated label of the shortcut that already uses `binding`
    * (excluding `id`), or null when there is no conflict.
    */
@@ -62,6 +72,7 @@ export function SettingsShortcuts({
   onRebind,
   onResetOne,
   onResetAll,
+  onRequestResetAll,
   getConflictLabel,
   labels,
 }: SettingsShortcutsProps) {
@@ -87,7 +98,7 @@ export function SettingsShortcuts({
           variant="ghost"
           size="sm"
           leadingIcon={<RotateCcw size={13} />}
-          onClick={onResetAll}
+          onClick={onRequestResetAll ?? onResetAll}
         >
           {labels.resetAll}
         </Button>

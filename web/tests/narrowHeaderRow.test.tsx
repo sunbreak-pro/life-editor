@@ -21,10 +21,11 @@ import {
 
 const SHAPES: NarrowHeader[] = ["none", "hamburger", "tabs", "tabs+hamburger"];
 
-function renderRow(shape: NarrowHeader, withTabs = true) {
+function renderRow(shape: NarrowHeader, withTabs = true, title?: string) {
   render(
     <NarrowHeaderRow
       shape={shape}
+      title={title}
       tabs={
         withTabs ? (
           <button type="button" className="flex-1">
@@ -64,6 +65,24 @@ describe("NarrowHeaderRow", () => {
       .map((b) => b.textContent)
       .join(",");
     expect(order).toBe("hamburger,tabs,undo");
+  });
+
+  /*
+   * #1873 — Settings / Work had no heading of any level on narrow. The title
+   * takes the spacer's place, and a tab band (which already names the screen)
+   * wins over it.
+   */
+  it("names the screen with one heading when the shape has no tabs", () => {
+    renderRow("hamburger", true, "Settings");
+    const heading = screen.getByRole("heading", { name: "Settings" });
+    expect(heading.classList.contains("flex-1")).toBe(true);
+    expect(screen.getAllByRole("heading")).toHaveLength(1);
+  });
+
+  it("lets the tab band stand in for the title", () => {
+    renderRow("tabs+hamburger", true, "Materials");
+    expect(screen.queryByRole("heading")).toBeNull();
+    screen.getByRole("button", { name: "tabs" });
   });
 
   it("keeps the actions at the right edge when a shape has no tabs", () => {

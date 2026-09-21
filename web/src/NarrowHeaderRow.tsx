@@ -36,6 +36,14 @@ export interface NarrowHeaderRowProps {
    * carrying `flex-1` — it is what pushes `actions` to the right edge.
    */
   tabs?: ReactNode;
+  /**
+   * The section's translated name (#1873). Drawn only when the row has no tab
+   * band: a band already names where you are, but Settings / Work / Analytics
+   * / Connect showed no heading of any level on narrow — and the bottom bar
+   * highlights "More" for some of them, so the screen's name appeared nowhere.
+   * Takes the spacer's place, so the actions still sit at the right edge.
+   */
+  title?: string;
   /** The detail-panel (rightSidebar) hamburger. */
   hamburger: ReactNode;
   /**
@@ -48,6 +56,7 @@ export interface NarrowHeaderRowProps {
 export function NarrowHeaderRow({
   shape,
   tabs,
+  title,
   hamburger,
   actions,
 }: NarrowHeaderRowProps) {
@@ -61,7 +70,16 @@ export function NarrowHeaderRow({
   return (
     <div className="flex items-center gap-2">
       {showHamburger && hamburger}
-      {showTabs ? tabs : <span className="flex-1" />}
+      {showTabs ? (
+        tabs
+      ) : title ? (
+        // Same level and weight as the wide SectionHeader's title.
+        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
+          {title}
+        </h2>
+      ) : (
+        <span className="flex-1" />
+      )}
       {actions}
     </div>
   );

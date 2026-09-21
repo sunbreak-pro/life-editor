@@ -1,8 +1,10 @@
+import { useMemo } from "react";
 import type { TimerSession } from "../../types/timer";
 import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
-import { dateRangeDays, useAnalyticsFilter } from "./AnalyticsFilterContext";
+import { earliestTodoCompletionKey } from "../../utils/analyticsAggregation";
+import { trendRangeDays, useAnalyticsFilter } from "./AnalyticsFilterContext";
 import {
   TodoCompletionTrend,
   type TodoCompletionTrendLabels,
@@ -40,21 +42,41 @@ export function TodosTab({
   tags,
   labels,
 }: TodosTabProps): React.JSX.Element {
-  const { dateRange } = useAnalyticsFilter();
+  const { dateRange, preset } = useAnalyticsFilter();
 
   // #1476: this was a hardcoded 30, so the header's date-range pills moved the
   // Schedule tab's trend and left this one on a month no matter what was
   // picked. The nodes are the full live tree (the host does not window them),
   // so the range has to reach the chart as its bucket count.
-  const days = dateRangeDays(dateRange);
+  //
+  // #1861: under "All time" the span is the age of the data, not the fixed
+  // 2020-01-01 the range itself starts on — see `trendRangeDays`.
+  const days = trendRangeDays(
+    dateRange,
+    preset,
+    earliestTodoCompletionKey(nodes),
+  );
+
+  // #1860: the ring got every session the host holds, so it read the same
+  // split under all four presets while the trend above it moved. The host
+  // keeps sessions unwindowed on purpose (the Work tab's totals are all-time),
+  // so the window is applied here, where the range is read.
+  const rangedSessions = useMemo(
+    () => sessionsWithinRange(sessions, dateRange.start, dateRange.end),
+    [sessions, dateRange],
+  );
 
   return (
     <div className="space-y-4">
-      <TodoCompletionTrend nodes={nodes} days={days} labels={labels.todoTrend} />
+      <TodoCompletionTrend
+        nodes={nodes}
+        days={days}
+        labels={labels.todoTrend}
+      />
       <div className="grid grid-cols-2 gap-3">
         <TodoStagnationChart nodes={nodes} labels={labels.stagnation} />
         <TagWorkTimeChart
-          sessions={sessions}
+          sessions={rangedSessions}
           nodes={nodes}
           events={events}
           assignments={assignments}

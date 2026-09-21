@@ -369,12 +369,22 @@ export function TrashView({
    * count plus the two bulk actions, and the danger asymmetry the row actions
    * already use holds here too: restore is labelled and ordinary, delete is
    * `danger` and goes through the same confirm a single delete does.
+   *
+   * #1871: with a selection the bar pins to the top of the page scroller. It
+   * used to stay at the head of the list, so ticking a row fifty rows down
+   * left both the count and the two bulk actions off screen. Top rather than
+   * bottom keeps it clear of the narrow bottom bar, and the surface is the
+   * opaque `bg-lumen-bg` so rows do not show through as they pass under it.
+   * The empty-selection face stays in the flow on purpose: "empty the trash"
+   * is the one button that should not follow the reader around.
    */
   const actionBar = totalCount > 0 && (
     <div
+      data-trash-action-bar=""
       className={cn(
         "flex flex-wrap items-center gap-2 rounded-lumen-lg",
         "border border-lumen-border bg-lumen-bg px-3 py-2 shadow-lumen-sm",
+        selectedRefs.length > 0 && "sticky top-0 z-10",
       )}
     >
       {selectedRefs.length > 0 ? (

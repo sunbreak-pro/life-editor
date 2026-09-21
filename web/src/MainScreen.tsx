@@ -293,6 +293,7 @@ export function MainScreen({ session }: { session: Session }) {
     <NarrowHeaderRow
       shape={descriptor.narrowHeader}
       tabs={narrowTabs}
+      title={t(`section.${section}`, { defaultValue: section })}
       hamburger={detailHamburger}
       /*
        * The same <HeaderUndoRedo> the wide header uses, so both widths drive

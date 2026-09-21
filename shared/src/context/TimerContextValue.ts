@@ -50,6 +50,13 @@ export interface TimerContextValue {
   /** "MM:SS" of `remainingSeconds`. */
   formatted: string;
   activeItem: ActiveWorkItem | null;
+  /**
+   * Seconds the last completed WORK phase wrote as rows that count (#1853),
+   * which is what the completion modal reports. Less than the phase length
+   * when a segment was paused inside its first minute (`isCountedSession`
+   * drops it). Null until a WORK phase completes.
+   */
+  lastLoggedWorkSeconds: number | null;
 
   // --- settings (minutes) ---
   workDurationMinutes: number;

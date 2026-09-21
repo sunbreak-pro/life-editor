@@ -8,6 +8,13 @@ export interface SettingsScheduleProps {
   /** Current initial-view preference. */
   initialView: DesktopCalendarView;
   onInitialViewChange: (view: DesktopCalendarView) => void;
+  /**
+   * False on narrow widths (#1873), where the effective view is pinned to the
+   * month grid (#878). The control used to stay pressable there with a hint
+   * underneath saying it does nothing; now the card says that once, in
+   * `labels.initialViewNarrowNote`, and offers no control. Defaults to true.
+   */
+  initialViewApplies?: boolean;
   /** Master switch for event reminders (#1374). */
   remindersEnabled: boolean;
   onRemindersEnabledChange: (on: boolean) => void;
@@ -46,6 +53,8 @@ export interface SettingsScheduleProps {
     week: string;
     month: string;
     hint: string;
+    /** Shown INSTEAD of the control + hint when `initialViewApplies` is false. */
+    initialViewNarrowNote?: string;
     reminderLabel: string;
     reminderDescription: string;
     reminderDefaultLabel: string;
@@ -76,6 +85,7 @@ export interface SettingsScheduleProps {
 export function SettingsSchedule({
   initialView,
   onInitialViewChange,
+  initialViewApplies = true,
   remindersEnabled,
   onRemindersEnabledChange,
   defaultLeadMinutes,
@@ -100,17 +110,27 @@ export function SettingsSchedule({
         </p>
       </div>
 
-      <SettingsSegment<DesktopCalendarView>
-        label={labels.initialViewLabel}
-        value={initialView}
-        onChange={onInitialViewChange}
-        options={[
-          { value: "week", label: labels.week },
-          { value: "month", label: labels.month },
-        ]}
-      />
+      {initialViewApplies ? (
+        <>
+          <SettingsSegment<DesktopCalendarView>
+            label={labels.initialViewLabel}
+            value={initialView}
+            onChange={onInitialViewChange}
+            options={[
+              { value: "week", label: labels.week },
+              { value: "month", label: labels.month },
+            ]}
+          />
 
-      <p className="text-sm text-lumen-text-tertiary">{labels.hint}</p>
+          <p className="text-sm text-lumen-text-tertiary">{labels.hint}</p>
+        </>
+      ) : (
+        labels.initialViewNarrowNote && (
+          <p className="text-sm text-lumen-text-tertiary">
+            {labels.initialViewNarrowNote}
+          </p>
+        )
+      )}
 
       {/* Event reminders (#1374). The two hints are load-bearing rather than
           decoration, for the same reason the initial-view hint above is: the
