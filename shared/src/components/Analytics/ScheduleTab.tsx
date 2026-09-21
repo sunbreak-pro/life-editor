@@ -9,8 +9,9 @@ import {
 } from "lucide-react";
 import type { ScheduleItem } from "../../types/schedule";
 import type { RoutineNode } from "../../types/routine";
-import { dateRangeDays, useAnalyticsFilter } from "./AnalyticsFilterContext";
+import { trendRangeDays, useAnalyticsFilter } from "./AnalyticsFilterContext";
 import { formatDateKey } from "../../utils/dateKey";
+import { earliestScheduleItemKey } from "../../utils/analyticsAggregation";
 import { cn } from "../cn";
 import { BUSY_STALE } from "../styleTokens";
 import { AnalyticsStatCard } from "./AnalyticsStatCard";
@@ -62,7 +63,7 @@ export function ScheduleTab({
   loading = false,
   labels,
 }: ScheduleTabProps): React.JSX.Element {
-  const { dateRange } = useAnalyticsFilter();
+  const { dateRange, preset } = useAnalyticsFilter();
 
   const items = useMemo(() => {
     const start = formatDateKey(dateRange.start);
@@ -130,7 +131,13 @@ export function ScheduleTab({
     );
   }
 
-  const days = dateRangeDays(dateRange);
+  // #1861: under "All time" the trend starts on the oldest item in the range,
+  // not on the fixed 2020-01-01 the fetch window opens at.
+  const days = trendRangeDays(
+    dateRange,
+    preset,
+    earliestScheduleItemKey(items),
+  );
 
   return (
     // Re-fetch in flight over a range that already has items: the numbers
