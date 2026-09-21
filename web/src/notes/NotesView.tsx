@@ -422,7 +422,8 @@ export function NotesView({
   );
 
   // ONE create at both widths (#1147, ユーザー指示): "+" makes an Untitled note
-  // and drops straight into the editor. Narrow used to raise a title-first
+  // and drops straight into it — into the TITLE since #1842, which is the one
+  // thing "Untitled" is waiting for. Narrow used to raise a title-first
   // QuickAddSheet (#876's "a phone's create is usually the whole capture"),
   // which put a form between the user and the thing they wanted to write in.
   // The sheet is gone; `createNote()` with no title falls back to "Untitled"
@@ -433,8 +434,19 @@ export function NotesView({
   // same reason: on narrow it is a modal overlay, so leaving it up would cover
   // the editor the create just opened.
   const createNote = notes.createNote;
+  /*
+   * #1842 — the new note's title comes up selected.
+   *
+   * "+" left the focus on the button it was pressed with and the title reading
+   * "Untitled", so naming the thing you had just made meant finding the field,
+   * clicking it and selecting the text by hand. The id is held here until the
+   * field reports back rather than kept forever, so returning to the note
+   * later does not re-select the title under whoever is reading it.
+   */
+  const [focusTitleNoteId, setFocusTitleNoteId] = useState<string | null>(null);
   const handleAddNote = useCallback(() => {
-    createNote();
+    const id = createNote();
+    if (typeof id === "string") setFocusTitleNoteId(id);
     if (!isWide) closeSidebar();
     // #1125: the capture step is satisfied by a real create — and since #1147
     // retired the narrow title-first sheet, that is now the same create at
@@ -644,6 +656,9 @@ export function NotesView({
           t("materials.notes.tagFilterMore", { count }),
         fewerTagFilters: t("materials.notes.tagFilterLess"),
         moreRows: (count) => t("materials.notes.groupMoreRows", { count }),
+        // The same string the filter row folds with — one screen should not
+        // have two ways of saying "show fewer" (#1842).
+        fewerRows: t("materials.notes.tagFilterLess"),
       }}
       error={notes.error}
       selectedNoteId={selected?.id ?? null}
@@ -716,6 +731,10 @@ export function NotesView({
           locked={bodyGated}
           onUnlock={password.requestUnlock}
           onTitleCommit={(id, title) => notes.updateNote(id, { title })}
+          // #1842 — only for the note "+" just made, and only until the field
+          // says it has the focus.
+          autoFocusTitle={focusTitleNoteId === selected.id}
+          onTitleAutoFocused={() => setFocusTitleNoteId(null)}
           onTogglePin={notes.togglePin}
           onDelete={handleDeleteNote}
           // #1179: the kebab entry, wired only when there is a DataService to

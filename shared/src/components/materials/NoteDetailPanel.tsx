@@ -50,6 +50,8 @@ function NoteTitleInput({
   label,
   onCommit,
   isMain,
+  autoFocus = false,
+  onAutoFocused,
 }: {
   noteId: string;
   initialTitle: string;
@@ -57,8 +59,13 @@ function NoteTitleInput({
   onCommit: (id: string, title: string) => void;
   /** "main" surface → big borderless heading matching the Daily date title. */
   isMain: boolean;
+  /** Take the focus and select the whole name on mount (#1842). */
+  autoFocus?: boolean;
+  /** Fired once the focus has been taken, so the host can stop asking. */
+  onAutoFocused?: () => void;
 }) {
   const [draft, setDraft] = useState(initialTitle);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const timerRef = useRef<number | null>(null);
   const pendingRef = useRef<string | null>(null);
   const onCommitRef = useRef(onCommit);
@@ -102,8 +109,29 @@ function NoteTitleInput({
     if (pendingRef.current === null) setDraft(initialTitle);
   }, [initialTitle]);
 
+  /*
+   * #1842 — a note that has just been created opens with its name selected,
+   * so the first keystroke replaces "Untitled" instead of appending to it.
+   *
+   * Mount only, and the empty dependency list is load-bearing twice over.
+   * Re-running it on a later render would select the text under someone who
+   * is typing, and the next keystroke would delete what they had written
+   * (ItemActionPopover carries the same warning). And it must be a passive
+   * effect, not a layout one: on narrow widths the create also closes the
+   * drawer, whose own cleanup hands the focus back to the button that opened
+   * it — a layout effect would run first and lose.
+   */
+  useEffect(() => {
+    if (!autoFocus) return;
+    inputRef.current?.focus();
+    inputRef.current?.select();
+    onAutoFocused?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <input
+      ref={inputRef}
       value={draft}
       onChange={(e) => {
         const value = e.target.value;
@@ -151,6 +179,10 @@ export interface NoteDetailPanelProps {
   onDelete: (id: string) => void;
   /** Already-translated aria-label for the title input (§6.4). */
   titleLabel: string;
+  /** Open with the title focused and selected (#1842 — a fresh note). */
+  autoFocusTitle?: boolean;
+  /** Fired once that focus has been taken. */
+  onTitleAutoFocused?: () => void;
   /** Already-translated aria-label for the pin toggle when pinned. */
   pinLabel: string;
   /** Already-translated aria-label for the pin toggle when unpinned. */
@@ -226,6 +258,8 @@ export function NoteDetailPanel({
   onTogglePin,
   onDelete,
   titleLabel,
+  autoFocusTitle = false,
+  onTitleAutoFocused,
   pinLabel,
   unpinLabel,
   pinnedLabel,
@@ -266,6 +300,8 @@ export function NoteDetailPanel({
           label={titleLabel}
           onCommit={onTitleCommit}
           isMain={isMain}
+          autoFocus={autoFocusTitle}
+          onAutoFocused={onTitleAutoFocused}
         />
         {/* Pinned marker (#885) — immediately left of the kebab, so the state
             reads at a glance instead of only inside the opened menu. Not a
