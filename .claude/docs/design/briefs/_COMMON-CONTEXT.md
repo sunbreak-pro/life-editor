@@ -1,5 +1,9 @@
 # _COMMON-CONTEXT — 全 ClaudeDesign プロンプト共通の前提ブロック
 
+> **凍結注記（2026-09-21 追記 — #1806。この注記では版数を上げません）**: 本ファイルは ClaudeDesign へ貼るために作った**生成条件のスナップショット**です。画面構成そのものの正本ではありません。
+> 現行の正本は、ナビ構成が `shared/src/sections.ts` の registry と [`docs/requirements/mobile-scope.md`](../../requirements/mobile-scope.md)、パレットが `shared/src/styles/tokens.css` です。食い違ったら常にそちらが正です。
+> 各 brief には生成した時点の版が埋め込まれたまま残ります。貼り直す予定が出たときに、この前提ブロックを現行化してから貼ってください。そのときが実質の期限です。
+
 > **使い方**: 下の水平線以降を、各 brief の §4 プロンプト（Desktop 用 / Mobile 用の両方）の**冒頭にそのまま全文コピー**する。
 > ClaudeDesign はリポジトリを読めないため、この前提が唯一の共有知識になる。**改変・要約・省略禁止**（統一性が崩れる）。
 > palette 表の正本は `shared/src/styles/tokens.css`、ナビ構成の正本は `../IA.md` + `shared/src/sections.ts`。値を変えるときは正本 → 本ファイル → 各 brief の順で同期する。
