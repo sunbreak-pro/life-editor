@@ -735,10 +735,19 @@ export function BriefingView({
                   </RowActions>
                 </div>
                 {/* Indented past the empty time column + checkbox so the
-                    purpose hangs under its own todo's title: the 56px time
-                    column, the 12px gap, the 44px checkbox, the 12px gap. */}
+                    purpose hangs under its own todo's title: the time column
+                    (`w-14` = 3.5rem), the `gap-3` (0.75rem), the checkbox
+                    (`min-w-11` = 2.75rem) and the second `gap-3`.
+
+                    In rem and never in px (#1821). Every one of those four
+                    widths is rem-based, so at the 18px root step the columns
+                    measure 139.5px while a fixed `ml-[124px]` stayed put — the
+                    purpose line started 16px to the LEFT of the title it hangs
+                    under, on Desktop and on a phone alike. 3.5 + 0.75 + 2.75 +
+                    0.75 = 7.75rem, which is the same 124px at the 16px root and
+                    follows the column at every other step. */}
                 {todo.purposes.length > 0 && (
-                  <p className="ml-[124px] mt-0.5 text-xs text-lumen-text-secondary">
+                  <p className="ml-[7.75rem] mt-0.5 text-xs text-lumen-text-secondary">
                     <span className="font-semibold text-lumen-briefing-kohaku">
                       ◈ {todo.purposes.join(" ・ ")}
                     </span>
