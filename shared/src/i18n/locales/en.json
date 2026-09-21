@@ -214,7 +214,8 @@
       "initialViewLabel": "Opens on",
       "week": "Week",
       "month": "Month",
-      "hint": "Applies the next time you open Schedule. Narrow windows always show the month grid."
+      "hint": "Applies the next time you open Schedule. Narrow windows always show the month grid.",
+      "initialViewNarrowNote": "Narrow windows always open on the month grid. Whether a wide window opens on the week or the month is set from a wide window."
     },
     "profile": {
       "heading": "Profile",

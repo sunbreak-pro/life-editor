@@ -353,10 +353,28 @@ describe("SettingsScreen — the narrow drawer (#1525)", () => {
 
     expect(state.rightSidebar.close).toHaveBeenCalledTimes(1);
     // And the choice still landed — the close is on top of the swap, not
-    // instead of it.
-    screen.getByRole("radiogroup", {
-      name: "settings.schedule.initialViewLabel",
-    });
+    // instead of it. (The Schedule card's heading, not the week / month
+    // control: narrow no longer offers that one — #1873.)
+    screen.getByText("settings.schedule.heading");
+  });
+
+  /*
+   * #1873 — narrow widths pin Schedule to the month grid (#878), so the
+   * week / month choice did nothing there while staying pressable, with a hint
+   * underneath admitting as much. Narrow now gets the sentence and no control.
+   */
+  it("offers no week / month choice on narrow, and says why", async () => {
+    state.isWide = false;
+    await renderSettings();
+
+    pressRow("section.schedule");
+
+    expect(
+      screen.queryByRole("radiogroup", {
+        name: "settings.schedule.initialViewLabel",
+      }),
+    ).toBeNull();
+    screen.getByText("settings.schedule.initialViewNarrowNote");
   });
 
   it("closes it for the Trash category too, not just the preference panes", async () => {
