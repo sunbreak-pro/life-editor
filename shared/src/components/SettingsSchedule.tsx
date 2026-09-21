@@ -30,6 +30,14 @@ export interface SettingsScheduleProps {
   onHolidayColorChange: (color: string) => void;
   /** The default, so clearing has something to fall back to. */
   defaultHolidayColor: string;
+  /**
+   * Whether holidays are drawn on the calendar (#1802). A setting rather than
+   * the session filter it used to be: what it hides are days the user did not
+   * create and cannot book over, so restoring it cannot make a busy slot look
+   * free. The toolbar button stays — both sides read this same pref.
+   */
+  holidaysShown: boolean;
+  onHolidaysShownChange: (shown: boolean) => void;
   /** Already-translated copy (CLAUDE.md §6.4: no useTranslation here). */
   labels: {
     heading: string;
@@ -48,6 +56,7 @@ export interface SettingsScheduleProps {
     holidayColorLabel: string;
     holidayColorClear: string;
     holidayColorCustom: string;
+    holidayVisibleLabel: string;
   };
 }
 
@@ -75,6 +84,8 @@ export function SettingsSchedule({
   holidayColor,
   onHolidayColorChange,
   defaultHolidayColor,
+  holidaysShown,
+  onHolidaysShownChange,
   labels,
 }: SettingsScheduleProps) {
   return (
@@ -163,11 +174,12 @@ export function SettingsSchedule({
         </p>
       </div>
 
-      {/* Holidays (#1626). Only the COLOUR is a setting: which days are
-          holidays comes from the law, and whether they are drawn is the
-          calendar's own toggle, beside the repeat filter where the user is
-          looking at the grid they want to change. What belongs here is the
-          one choice that outlives a session. */}
+      {/* Holidays (#1626, #1802). Which days are holidays comes from the law;
+          what is settable is how they are drawn — whether at all, and in
+          which colour. Both outlive the session, which is what puts them
+          here. The calendar keeps its own toolbar toggle for the first of
+          them, reading this same pref, so changing it where you are looking
+          at the grid still works. */}
       <div className="flex flex-col gap-3 border-t border-lumen-border pt-4">
         <span className="text-sm font-medium text-lumen-text">
           {labels.holidayHeading}
@@ -175,6 +187,29 @@ export function SettingsSchedule({
         <p className="text-sm text-lumen-text-secondary">
           {labels.holidayDescription}
         </p>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-sm text-lumen-text">
+            {labels.holidayVisibleLabel}
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={holidaysShown}
+            aria-label={labels.holidayVisibleLabel}
+            onClick={() => onHolidaysShownChange(!holidaysShown)}
+            className={cn(
+              "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+              holidaysShown ? "bg-lumen-accent" : "bg-lumen-border-strong",
+            )}
+          >
+            <span
+              className={cn(
+                "absolute top-0.5 h-4 w-4 rounded-full bg-lumen-on-accent transition-all",
+                holidaysShown ? "right-0.5" : "left-0.5",
+              )}
+            />
+          </button>
+        </div>
         <div data-holiday-color={holidayColor}>
           <ColorPicker
             current={holidayColor}
@@ -184,7 +219,9 @@ export function SettingsSchedule({
             // Clearing means "back to the default", not "no colour": a
             // holiday with no face would be indistinguishable from an event,
             // which is the one thing the shared colour exists to prevent.
-            onPick={(color) => onHolidayColorChange(color ?? defaultHolidayColor)}
+            onPick={(color) =>
+              onHolidayColorChange(color ?? defaultHolidayColor)
+            }
           />
         </div>
       </div>

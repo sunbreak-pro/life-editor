@@ -1,5 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
+import { useState } from "react";
 import type {
   ScheduleItem,
   TagGroupNode,
@@ -120,13 +121,28 @@ function setup(overrides: Partial<UseScheduleGridFiltersArgs> = {}) {
     rangeStart: "2026-08-17",
     rangeEnd: "2026-08-23",
     holidayColor: "#e03e3e",
+    // #1802: holiday visibility is a pref the host owns now, so the suite
+    // stands in for it with real state. A vi.fn() setter would make
+    // handleToggleHolidays look like a no-op and hide the wiring this file is
+    // here to pin. `overrides.holidaysHidden` still chooses the start value.
+    holidaysHidden: false,
+    setHolidaysHidden: () => {},
     selected: null,
     setSelectedId,
     setPopover,
     ...overrides,
   };
   const hook = renderHook(
-    (a: UseScheduleGridFiltersArgs) => useScheduleGridFilters(a),
+    (a: UseScheduleGridFiltersArgs) => {
+      const [holidaysHidden, setLocal] = useState(a.holidaysHidden);
+      // Both: the host's write (so a case can watch WHICH function the toggle
+      // calls) and the value the next render reads back.
+      const setHolidaysHidden = (v: boolean | ((prev: boolean) => boolean)) => {
+        a.setHolidaysHidden(v);
+        setLocal(v);
+      };
+      return useScheduleGridFilters({ ...a, holidaysHidden, setHolidaysHidden });
+    },
     { initialProps: args },
   );
   return { hook, args, setSelectedId, setPopover };
@@ -565,6 +581,38 @@ describe("useScheduleGridFilters — holidays (#1626)", () => {
     expect(new Set(onMonth.map((i) => i.tagColor))).toEqual(
       new Set(["#123456"]),
     );
+  });
+
+  /*
+   * #1802: the filter starts from a stored preference rather than from false.
+   * The two filters beside it deliberately do not — the case after this one
+   * keeps that difference visible.
+   */
+  it("starts hidden when the host arrives with the pref already set", () => {
+    const { hook } = setup({ ...SEPTEMBER, holidaysHidden: true });
+    expect(hook.result.current.holidaysHidden).toBe(true);
+    expect(hook.result.current.hiddenHolidays).toBe(3);
+    expect(
+      hook.result.current.monthItems.filter((i) => i.variant === "holiday"),
+    ).toHaveLength(0);
+    // The other two are session filters and start off however the pref for
+    // holidays was set.
+    expect(hook.result.current.repeatsHidden).toBe(false);
+    expect(hook.result.current.selectedTagIds).toEqual([]);
+  });
+
+  it("writes a toggle back through the host's setter", () => {
+    // Not the stateful wrapper this time: the point is WHICH function the
+    // toggle calls, which is what makes the value outlive the session.
+    const setHolidaysHidden = vi.fn();
+    const { hook } = setup({ ...SEPTEMBER, setHolidaysHidden });
+    act(() => hook.result.current.handleToggleHolidays());
+    expect(setHolidaysHidden).toHaveBeenCalledTimes(1);
+    // An updater, not a bare value — two toggles in one tick must not collapse.
+    const updater = setHolidaysHidden.mock.calls[0][0] as (p: boolean) => boolean;
+    expect(typeof updater).toBe("function");
+    expect(updater(false)).toBe(true);
+    expect(updater(true)).toBe(false);
   });
 
   it("hides them on both grids, and says how many", () => {

@@ -19,6 +19,7 @@ import {
   TodoAddDialog,
   useTourAction,
   useHolidayColorPref,
+  useHolidayVisibilityPref,
   TOUR_ACTIONS,
   type EventEditorItem,
   type DataService,
@@ -493,11 +494,16 @@ export function CalendarTab({
   // the filters hook so it arrives as data, like every other display input
   // the grid takes.
   const { holidayColor } = useHolidayColorPref();
+  // #1802: whether they are drawn at all is a setting too, so it is read the
+  // same way and from the same place Settings writes it. The filters hook
+  // keeps the rule; the answer lives in localStorage.
+  const { holidaysHidden, setHolidaysHidden } = useHolidayVisibilityPref();
 
   const {
     repeatsHidden,
     hiddenRepeats,
-    holidaysHidden,
+    // `holidaysHidden` is NOT re-read here: it came from the pref above and
+    // the hook only passes it through (#1802).
     hiddenHolidays,
     handleToggleHolidays,
     selectedTagIds,
@@ -525,6 +531,8 @@ export function CalendarTab({
     rangeStart,
     rangeEnd,
     holidayColor,
+    holidaysHidden,
+    setHolidaysHidden,
     selected,
     setSelectedId,
     setPopover,

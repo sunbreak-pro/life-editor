@@ -62,6 +62,15 @@ import {
  * startup shows a calendar that is missing most of the day, and the next event
  * gets booked into a slot that only looks free. The two compose as an AND and
  * neither resets the other.
+ *
+ * The holiday filter IS persisted, and the sentence above is exactly why it is
+ * the exception (#1802, decision D-20260919-sched-5 = B). What it hides are
+ * rows the user did not create and cannot book over, so hiding them leaves no
+ * slot looking free that is not. Nothing is lost by restoring it, and
+ * re-hiding the same days every session is what treating it as a session
+ * filter costs. It arrives here as a value + setter from
+ * `useHolidayVisibilityPref`, like `holidayColor` next to it — this hook owns
+ * the rule, not where the answer is kept.
  */
 
 export interface UseScheduleGridFiltersArgs {
@@ -81,6 +90,13 @@ export interface UseScheduleGridFiltersArgs {
   rangeEnd: string;
   /** The single colour every holiday wears (useHolidayColorPref). */
   holidayColor: string;
+  /**
+   * Whether holidays are hidden, and the write that changes it
+   * (useHolidayVisibilityPref). A pref rather than local state — see the
+   * header for why this filter is the one that survives a reload (#1802).
+   */
+  holidaysHidden: boolean;
+  setHolidaysHidden: (value: boolean | ((prev: boolean) => boolean)) => void;
   /** The selected row, for the two selection-drop guards. */
   selected: ScheduleItem | null;
   setSelectedId: (id: string | null) => void;
@@ -109,12 +125,13 @@ export function useScheduleGridFilters({
   rangeStart,
   rangeEnd,
   holidayColor,
+  holidaysHidden,
+  setHolidaysHidden,
   selected,
   setSelectedId,
   setPopover,
 }: UseScheduleGridFiltersArgs) {
   const [repeatsHidden, setRepeatsHidden] = useState(false);
-  const [holidaysHidden, setHolidaysHidden] = useState(false);
   const [pickedTagIds, setPickedTagIds] = useState<string[]>([]);
 
   const { visible: repeatFilteredItems, hiddenCount: hiddenRepeats } = useMemo(
@@ -304,7 +321,7 @@ export function useScheduleGridFilters({
    */
   const handleToggleHolidays = useCallback(
     () => setHolidaysHidden((prev) => !prev),
-    [],
+    [setHolidaysHidden],
   );
 
   /*

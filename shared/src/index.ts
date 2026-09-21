@@ -236,13 +236,16 @@ export {
   DEFAULT_SCHEDULE_INITIAL_VIEW,
   SCHEDULE_INITIAL_VIEWS,
 } from "./hooks/useScheduleInitialView";
-// Holiday display (#1626) — the ONE colour every holiday wears. Local, like
-// the initial-view pref above, because a holiday is not the user's data.
+// Holiday display (#1626, #1802) — the ONE colour every holiday wears, and
+// whether they are drawn at all. Local, like the initial-view pref above,
+// because a holiday is not the user's data.
 export {
   useHolidayColorPref,
+  useHolidayVisibilityPref,
   normalizeHolidayColor,
   DEFAULT_HOLIDAY_COLOR,
   HOLIDAY_COLOR_STORAGE_KEY,
+  HOLIDAY_HIDDEN_STORAGE_KEY,
 } from "./hooks/useHolidayDisplay";
 // Event reminder prefs (#1374) — master switch + create-time default lead,
 // the same resolver + Settings-hook shape as the initial-view pref above.
