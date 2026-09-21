@@ -105,3 +105,33 @@ describe("ColorPicker", () => {
     expect(onPick).toHaveBeenCalledWith("#555555");
   });
 });
+
+/*
+ * #1875 — in Settings > Schedule the palette sat in a 712px container and
+ * filled it, so `grid-cols-6` gave each 27px swatch a 113px cell and the row
+ * read as six colours scattered across the page. Mobile looked fine only
+ * because its container was narrow.
+ *
+ * jsdom has no layout (CLAUDE.md §7.1), so a rendered width cannot be
+ * measured here. The bug was a missing width on the panel, though, and THAT
+ * is visible from the class list — the same reasoning modalWidth.test.tsx
+ * uses for the Modal max-width collision.
+ */
+describe("ColorPicker — the palette is as wide as its content (#1875)", () => {
+  const panel = () => screen.getByRole("group");
+
+  it("sizes the open panel to its content instead of the parent", () => {
+    renderPicker();
+    openPanel();
+    expect(panel()).toHaveClass("w-fit");
+  });
+
+  it("carries exactly one width class, so nothing competes with it", () => {
+    renderPicker();
+    openPanel();
+    // `cn` is a plain string join (see cn.ts): two width utilities on one
+    // element would be settled by Tailwind's emission order, not by intent.
+    const widths = panel().className.match(/(?:^|\s)w-\S+/g) ?? [];
+    expect(widths.map((c) => c.trim())).toEqual(["w-fit"]);
+  });
+});
