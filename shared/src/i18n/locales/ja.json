@@ -373,6 +373,7 @@
     "sessionsPerSet": "1セットあたりのセッション数",
     "presets": "プリセット",
     "deletePreset": "プリセット削除",
+    "deletePresetConfirm": "プリセット「{{name}}」を削除しますか？",
     "autoStartBreaks": "休憩を自動開始",
     "emptyValue": "{{field}}に数値を入力してください"
   },
