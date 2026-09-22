@@ -9,7 +9,11 @@ import { Trash2 } from "lucide-react";
 import type { TodoStatus } from "../types/todoTree";
 import { isImeComposing } from "../utils/imeGuard";
 import { cn } from "./cn";
-import { FOCUS_RING, FOCUS_RING_ON_ACCENT } from "./styleTokens";
+import {
+  DISABLED_FILLED_BTN,
+  FOCUS_RING,
+  FOCUS_RING_ON_ACCENT,
+} from "./styleTokens";
 
 /*
  * Todo detail panel (W7). The selected todo's detail, which the Kanban host
@@ -194,10 +198,12 @@ export interface TodoDetailPanelProps {
   className?: string;
 }
 
+// Disabled whenever there is nothing to save, which is most of the time the
+// panel is open — so the filled recess (#1803), not a faded accent.
 const SAVE_BTN = cn(
   "rounded-md bg-lumen-accent px-3 py-1.5 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
   FOCUS_RING_ON_ACCENT,
-  "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
+  DISABLED_FILLED_BTN,
 );
 
 /** Inner fields, keyed by todoId from the panel so a todo switch drops the

@@ -7,6 +7,12 @@ import {
   type ReactNode,
 } from "react";
 import type { DataService } from "../services/DataService";
+import {
+  rampVolume,
+  TOGGLE_FADE_MS,
+  VOLUME_CHANGE_RAMP_MS,
+  type VolumeRamp,
+} from "../utils/audioVolumeRamp";
 import { logServiceError } from "../utils/logError";
 import { useSyncDomains } from "../hooks/useSyncDomains";
 import {
@@ -129,6 +135,8 @@ export function AudioProvider({
   // Looping element per preset id; one-shot chime element kept separately.
   const elementsRef = useRef<Record<string, HTMLAudioElement>>({});
   const chimeRef = useRef<HTMLAudioElement | null>(null);
+  // The volume ramp in flight per preset id (#1793), so a new one can cancel it.
+  const rampsRef = useRef<Record<string, VolumeRamp>>({});
   // The Web Audio context whose resume() unblocks autoplay after a gesture.
   const audioCtxRef = useRef<AudioContext | null>(null);
 
@@ -208,20 +216,36 @@ export function AudioProvider({
   // --- reflect settings onto the live elements (volume + play/pause) ---
   useEffect(() => {
     const elements = elementsRef.current;
+    const ramps = rampsRef.current;
     for (const preset of SOUND_PRESETS) {
       const el = elements[preset.id];
       if (!el) continue;
       const state = settings[preset.id];
       if (!state) continue;
-      el.volume = clampSoundVolume(state.volume) / 100;
+      const target = clampSoundVolume(state.volume) / 100;
+      // One ramp per element: whatever was in flight is superseded, and with
+      // it the pause() a fade-out was heading for (switched back on mid-fade).
+      ramps[preset.id]?.cancel();
       if (state.enabled) {
-        const playPromise = el.play();
-        // Autoplay policy: a blocked play() rejects — log, never throw.
-        if (playPromise && typeof playPromise.catch === "function") {
-          playPromise.catch((e) => logServiceError("Audio", "play", e));
+        if (el.paused) {
+          // Start silent and fade in. play() only here: calling it on an
+          // element that is already playing did nothing useful and made some
+          // browsers re-buffer, which is audible (#1793).
+          el.volume = 0;
+          const playPromise = el.play();
+          // Autoplay policy: a blocked play() rejects — log, never throw.
+          if (playPromise && typeof playPromise.catch === "function") {
+            playPromise.catch((e) => logServiceError("Audio", "play", e));
+          }
+          ramps[preset.id] = rampVolume(el, target, TOGGLE_FADE_MS);
+        } else {
+          ramps[preset.id] = rampVolume(el, target, VOLUME_CHANGE_RAMP_MS);
         }
       } else if (!el.paused) {
-        el.pause();
+        // Fade to silence first; pausing mid-swing is a click.
+        ramps[preset.id] = rampVolume(el, 0, TOGGLE_FADE_MS, () => el.pause());
+      } else {
+        el.volume = target;
       }
     }
   }, [settings, urls]);
@@ -229,7 +253,11 @@ export function AudioProvider({
   // --- pause + drop every element on unmount (no leaked playback) ---
   useEffect(() => {
     const elements = elementsRef.current;
+    const ramps = rampsRef.current;
     return () => {
+      // No fade on the way out: the timers would outlive the Provider.
+      for (const id of Object.keys(ramps)) ramps[id].cancel();
+      rampsRef.current = {};
       for (const id of Object.keys(elements)) {
         const el = elements[id];
         el.pause();

@@ -778,6 +778,7 @@ export {
 // host imports these through the barrel.
 export {
   BUSY_SPINNER,
+  DISABLED_FILLED_BTN,
   FOCUS_RING,
   FOCUS_RING_ON_ACCENT,
   FOCUS_RING_TIGHT,
