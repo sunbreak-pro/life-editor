@@ -1,15 +1,20 @@
 import { describe, it, expect, vi } from "vitest";
 import {
+  act,
   render,
   screen,
   fireEvent,
   within,
   waitFor,
 } from "@testing-library/react";
+import { useEffect } from "react";
 import type { Mock } from "vitest";
 import {
   ScheduleRestoreConflictError,
+  UndoRedoProvider,
+  useUndoRedoContext,
   type DataService,
+  type UndoRedoContextValue,
 } from "@life-editor/shared";
 import { TrashScreen } from "../src/trash/TrashScreen";
 import { createBumpableSync } from "./helpers";
@@ -430,5 +435,158 @@ describe("TrashScreen — bulk actions (#1294)", () => {
     expect(notices.some((n) => n.textContent?.includes("1"))).toBe(true);
     // …and the row that survived is still listed, not quietly gone.
     within(screen.getByRole("region", { name: "Todos" })).getByText("Buy milk");
+  });
+});
+
+
+/*
+ * #1876 — what a permanent delete does to the undo history.
+ *
+ * The history outlives the rows it describes. Its commands are closures over
+ * ids, and since #1727 the by-id ones survive a section switch on purpose, so
+ * a note edited on Monday is still undoable from the Settings screen that
+ * permanently deletes it. Reverse one of those after the hard delete and the
+ * write lands on nothing: it resolves, the host toasts "undone", and the
+ * screen does not move — the silent no-op the issue was filed for.
+ *
+ * So the press clears the stack, and these cases pin the three halves of that
+ * sentence: a delete clears it, a restore does NOT (the row came back, its
+ * history is still true), and a bulk run that deleted nothing at all leaves it
+ * standing.
+ */
+describe("TrashScreen — the undo history a permanent delete leaves behind (#1876)", () => {
+  /** The live context value, republished from an effect (never mid-render). */
+  interface HistoryProbe {
+    /** Throws rather than returning null, so a miswired render fails loudly. */
+    get: () => UndoRedoContextValue;
+  }
+
+  function renderWithHistory(harness: Harness): HistoryProbe {
+    const { wrapper: SyncWrapper } = createBumpableSync();
+    const holder: { value: UndoRedoContextValue | null } = { value: null };
+
+    function Probe() {
+      const undoRedo = useUndoRedoContext();
+      useEffect(() => {
+        holder.value = undoRedo;
+      });
+      return null;
+    }
+
+    render(
+      <SyncWrapper>
+        <UndoRedoProvider>
+          <Probe />
+          <TrashScreen dataService={harness.ds} />
+        </UndoRedoProvider>
+      </SyncWrapper>,
+    );
+
+    return {
+      get: () => {
+        if (!holder.value) throw new Error("UndoRedo context never published");
+        return holder.value;
+      },
+    };
+  }
+
+  /**
+   * One command on the stack, standing in for anything a section pushed
+   * before the user walked over to the trash.
+   */
+  function pushOneCommand(history: HistoryProbe): void {
+    act(() =>
+      history.get().push("note", {
+        label: "noteChange",
+        undo: vi.fn(),
+        redo: vi.fn(),
+      }),
+    );
+  }
+
+  it("clears the history when one row is permanently deleted", async () => {
+    const harness = makeHarness();
+    const history = renderWithHistory(harness);
+    await screen.findByRole("region", { name: "Todos" });
+    pushOneCommand(history);
+    expect(history.get().canUndo()).toBe(true);
+
+    fireEvent.click(
+      within(row("Notes", "Design memo")).getByRole("button", {
+        name: "Delete permanently",
+      }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete permanently",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(harness.fns.permanentDeleteNoteUnified).toHaveBeenCalled(),
+    );
+    await waitFor(() => expect(history.get().canUndo()).toBe(false));
+    // Redo too: half a history is what made the press look like it worked.
+    expect(history.get().canRedo()).toBe(false);
+  });
+
+  it("keeps the history when the row is restored instead", async () => {
+    const harness = makeHarness();
+    const history = renderWithHistory(harness);
+    await screen.findByRole("region", { name: "Todos" });
+    pushOneCommand(history);
+
+    fireEvent.click(
+      within(row("Notes", "Design memo")).getByRole("button", {
+        name: "Restore",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(harness.fns.restoreNoteUnified).toHaveBeenCalled(),
+    );
+    expect(history.get().canUndo()).toBe(true);
+  });
+
+  it("clears the history once a bulk delete has taken a row", async () => {
+    const harness = makeHarness();
+    const history = renderWithHistory(harness);
+    await screen.findByRole("region", { name: "Todos" });
+    pushOneCommand(history);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select all Todos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete selected" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete permanently",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(harness.fns.permanentDeleteTodo).toHaveBeenCalledTimes(2),
+    );
+    await waitFor(() => expect(history.get().canUndo()).toBe(false));
+  });
+
+  it("keeps the history when every row in a bulk delete refused", async () => {
+    const harness = makeHarness();
+    harness.fns.permanentDeleteTodo.mockRejectedValue(new Error("offline"));
+    const history = renderWithHistory(harness);
+    await screen.findByRole("region", { name: "Todos" });
+    pushOneCommand(history);
+
+    fireEvent.click(screen.getByRole("checkbox", { name: "Select all Todos" }));
+    fireEvent.click(screen.getByRole("button", { name: "Delete selected" }));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete permanently",
+      }),
+    );
+
+    await waitFor(() =>
+      expect(harness.fns.permanentDeleteTodo).toHaveBeenCalledTimes(2),
+    );
+    // Nothing left the DB, so nothing the history holds went stale.
+    expect(history.get().canUndo()).toBe(true);
   });
 });

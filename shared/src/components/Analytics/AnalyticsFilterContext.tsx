@@ -48,6 +48,35 @@ export function dateRangeDays(range: DateRange): number {
   );
 }
 
+/** Shortest "All time" trend — fewer points than this is a dot, not a trend. */
+const MIN_ALL_TIME_DAYS = 7;
+
+/*
+ * Bucket-day count for a TREND chart under the active preset (#1861).
+ *
+ * Every preset but "all" is its own length. "all" cannot be: its `dateRange`
+ * starts on a fixed 2020-01-01 because that range is also what the host FETCHES
+ * schedule items for, and "everything" has to stay wide there. Drawn literally
+ * it is 2400+ daily buckets with the real data crushed into the last 10px. So a
+ * trend under "all" starts on the oldest day its OWN data has (`earliestKey`,
+ * a local `YYYY-MM-DD`) and runs to the end of the range. No data at all falls
+ * back to the default preset's length rather than to six empty years.
+ */
+export function trendRangeDays(
+  range: DateRange,
+  preset: DatePreset,
+  earliestKey: string | null,
+): number {
+  if (preset !== "all") return dateRangeDays(range);
+  if (earliestKey === null)
+    return dateRangeDays(getPresetRange(DEFAULT_PRESET));
+  const [y, m, d] = earliestKey.split("-").map(Number);
+  const start = new Date(y, m - 1, d);
+  // A key past the range end (clock skew, future-dated item) clamps to the floor.
+  if (start.getTime() > range.end.getTime()) return MIN_ALL_TIME_DAYS;
+  return Math.max(MIN_ALL_TIME_DAYS, dateRangeDays({ start, end: range.end }));
+}
+
 interface AnalyticsFilterContextValue {
   dateRange: DateRange;
   /** The active preset (drives the header pill group's checked state). */
@@ -93,8 +122,23 @@ const AnalyticsFilterContext =
 export function AnalyticsFilterProvider({
   children,
   onDateRangeChange,
+  initialPreset = DEFAULT_PRESET,
+  onPresetChange,
 }: {
   children: ReactNode;
+  /**
+   * Preset to open on (#1865). This provider is section-level: it unmounts
+   * when the user leaves Analytics, and its state with it. The active TAB lives
+   * in the shell and survives the trip, so coming back showed the old tab under
+   * a range silently reset to 30 days — which reads as "same view as before"
+   * when it is not. The shell now keeps the preset beside the tab and hands it
+   * back here. Only the PRESET is kept, never the range: the range is rebuilt
+   * from it on mount, so "7 days" means the 7 days ending today even when the
+   * section is reopened after midnight.
+   */
+  initialPreset?: DatePreset;
+  /** Fired when the user picks a preset — the shell's half of the above. */
+  onPresetChange?: (preset: DatePreset) => void;
   /**
    * Fired whenever the selected date range changes, including the initial
    * mount (with the default preset). Hosts use this to fetch schedule items
@@ -105,9 +149,9 @@ export function AnalyticsFilterProvider({
   onDateRangeChange?: (range: DateRange) => void;
 }): React.JSX.Element {
   const [dateRange, setDateRange] = useState<DateRange>(() =>
-    getPresetRange(DEFAULT_PRESET),
+    getPresetRange(initialPreset),
   );
-  const [preset, setPreset] = useState<DatePreset>(DEFAULT_PRESET);
+  const [preset, setPreset] = useState<DatePreset>(initialPreset);
   const [period, setPeriod] = useState<Period>("day");
 
   // Latest-callback ref so an unmemoized host callback never causes a spurious
@@ -121,9 +165,15 @@ export function AnalyticsFilterProvider({
     onDateRangeChangeRef.current?.(dateRange);
   }, [dateRange]);
 
+  const onPresetChangeRef = useRef(onPresetChange);
+  useEffect(() => {
+    onPresetChangeRef.current = onPresetChange;
+  });
+
   const applyPreset = (next: DatePreset): void => {
     setPreset(next);
     setDateRange(getPresetRange(next));
+    onPresetChangeRef.current?.(next);
   };
 
   const value = useMemo<AnalyticsFilterContextValue>(

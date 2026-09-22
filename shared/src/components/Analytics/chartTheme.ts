@@ -77,3 +77,105 @@ export function evenDateTicks(
   for (let i = n - 1; i >= 0; i -= stride) ticks.unshift(labels[i]);
   return ticks;
 }
+
+/*
+ * One axis vocabulary per tab (#1864).
+ *
+ * The Work tab read "1時間2分" on its stat tiles, "0.15h" on the chart under
+ * them and "0m / 8m" on the chart beside that, and its four date axes used
+ * four formats ("9/8", "09-08", "2026/9", "8/23~") — none of which followed
+ * the language, because each chart hardcoded its own. Charts now take this
+ * pair of formatters instead. The host builds it once (copy arrives through
+ * props in this codebase — the shared tree never calls useTranslation), so
+ * every axis and tooltip on a tab speaks the same units as the tiles above it.
+ */
+export type AxisDateUnit = "day" | "week" | "month";
+
+export interface ChartAxisFormat {
+  /** A duration in MINUTES, in the host's language ("1h 30m" / "1時間30分"). */
+  duration: (minutes: number) => string;
+  /**
+   * A bucket's local `YYYY-MM-DD` key. `unit` says what the bucket covers: a
+   * week key is the week's first day, a month key is the 1st of the month.
+   */
+  date: (dateKey: string, unit: AxisDateUnit) => string;
+}
+
+/*
+ * Language-neutral fallback for a chart mounted outside Analytics (the
+ * Briefing panel draws WorkBreakBalance with labels of its own). It prints what
+ * that chart printed before #1864, so such a host is unchanged until it passes
+ * a real format.
+ */
+export const FALLBACK_AXIS_FORMAT: ChartAxisFormat = {
+  duration: (minutes) => `${Math.round(minutes)}m`,
+  date: (dateKey, unit) =>
+    unit === "month" ? dateKey.substring(0, 7) : dateKey.substring(5),
+};
+
+/** Gutter for a duration axis — "1時間30分" at 11px needs more than the default 60. */
+export const DURATION_AXIS_WIDTH = 64;
+
+/*
+ * Fit a category label into a fixed-width axis gutter (#1862).
+ *
+ * A recharts category axis takes its gutter in PX (`<YAxis width>`), and an
+ * SVG <text> neither wraps nor clips to it — a label wider than the gutter
+ * runs out of the left edge of the chart and is cut by the card. Truncating by
+ * CHARACTER count cannot prevent that: twelve full-width characters are about
+ * twice as wide as twelve Latin ones, so a cap that suits "Morning run" still
+ * overflows for 「APIについて学んでみる」.
+ *
+ * jsdom has no layout and the chart has no canvas to measure with before it
+ * mounts, so the width is estimated from the code point: East Asian wide /
+ * full-width glyphs advance a full em, everything else 0.62em — deliberately
+ * on the generous side of a proportional Latin face, so the estimate errs
+ * toward truncating early rather than overflowing.
+ */
+const WIDE_GLYPH_EM = 1;
+const NARROW_GLYPH_EM = 0.62;
+const ELLIPSIS = "…";
+
+function isWideGlyph(codePoint: number): boolean {
+  return (
+    (codePoint >= 0x1100 && codePoint <= 0x115f) || // Hangul Jamo
+    (codePoint >= 0x2e80 && codePoint <= 0xa4cf) || // CJK, kana, radicals
+    (codePoint >= 0xac00 && codePoint <= 0xd7a3) || // Hangul syllables
+    (codePoint >= 0xf900 && codePoint <= 0xfaff) || // CJK compatibility
+    (codePoint >= 0xfe30 && codePoint <= 0xfe4f) || // CJK compatibility forms
+    (codePoint >= 0xff00 && codePoint <= 0xff60) || // full-width forms
+    (codePoint >= 0xffe0 && codePoint <= 0xffe6) ||
+    codePoint >= 0x1f300 // emoji and the supplementary ideographic planes
+  );
+}
+
+/** Estimated rendered width of `text` in px at `fontSize`. */
+export function estimateLabelWidth(text: string, fontSize: number): number {
+  let em = 0;
+  for (const ch of text) {
+    em += isWideGlyph(ch.codePointAt(0) ?? 0) ? WIDE_GLYPH_EM : NARROW_GLYPH_EM;
+  }
+  return em * fontSize;
+}
+
+/** `text`, cut with an ellipsis so its estimated width stays within `maxPx`. */
+export function fitAxisLabel(
+  text: string,
+  maxPx: number,
+  fontSize: number,
+): string {
+  if (estimateLabelWidth(text, fontSize) <= maxPx) return text;
+  const budget = maxPx - estimateLabelWidth(ELLIPSIS, fontSize);
+  let out = "";
+  let width = 0;
+  // Iterating the string walks code points, so a surrogate pair is never split.
+  for (const ch of text) {
+    const w =
+      (isWideGlyph(ch.codePointAt(0) ?? 0) ? WIDE_GLYPH_EM : NARROW_GLYPH_EM) *
+      fontSize;
+    if (width + w > budget) break;
+    out += ch;
+    width += w;
+  }
+  return out.trimEnd() + ELLIPSIS;
+}

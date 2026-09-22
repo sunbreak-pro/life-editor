@@ -11,7 +11,12 @@ import {
 import type { TimerSession } from "../../types/timer";
 import { aggregateByTodo } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
-import { CHART_GRID, CHART_TICK_11, CHART_TOOLTIP_STYLE } from "./chartTheme";
+import {
+  CHART_GRID,
+  CHART_TICK_11,
+  CHART_TOOLTIP_STYLE,
+  type ChartAxisFormat,
+} from "./chartTheme";
 
 export interface TodoWorkTimeChartLabels {
   title: string;
@@ -25,12 +30,15 @@ interface TodoWorkTimeChartProps {
   sessions: TimerSession[];
   todoNameMap: Map<string, string>;
   labels: TodoWorkTimeChartLabels;
+  /** Date / duration vocabulary shared by every chart on the tab (#1864). */
+  axis: ChartAxisFormat;
 }
 
 export function TodoWorkTimeChart({
   sessions,
   todoNameMap,
   labels,
+  axis,
 }: TodoWorkTimeChartProps): React.JSX.Element | null {
   const data = useMemo(() => {
     return aggregateByTodo(sessions, todoNameMap).map((b) => {
@@ -43,7 +51,7 @@ export function TodoWorkTimeChart({
       return {
         name: fullName.length > 20 ? fullName.slice(0, 18) + "..." : fullName,
         fullName,
-        hours: Math.round((b.totalMinutes / 60) * 10) / 10,
+        minutes: Math.round(b.totalMinutes),
         sessions: b.sessionCount,
       };
     });
@@ -63,14 +71,15 @@ export function TodoWorkTimeChart({
           margin={{ top: 4, right: 8, left: 4, bottom: 0 }}
         >
           <CartesianGrid {...CHART_GRID} horizontal={false} />
-          {/* Decimal ticks are intentional here (#944) — `hours` keeps one
-              decimal, so integer-only ticks would drop real resolution. */}
+          {/* Whole minutes through the tab's duration formatter (#1864) — this
+              axis used to read "0.5h" beside tiles that read "30分". */}
           <XAxis
             type="number"
             tick={CHART_TICK_11}
             tickLine={false}
             axisLine={false}
-            unit="h"
+            allowDecimals={false}
+            tickFormatter={(v: number) => axis.duration(v)}
           />
           <YAxis
             type="category"
@@ -88,12 +97,12 @@ export function TodoWorkTimeChart({
               _name: string | undefined,
               props: { payload?: { fullName: string; sessions: number } },
             ) => [
-              `${value ?? 0}h (${props.payload?.sessions ?? 0} ${labels.sessions.toLowerCase()})`,
+              `${axis.duration(value ?? 0)} (${props.payload?.sessions ?? 0} ${labels.sessions.toLowerCase()})`,
               props.payload?.fullName ?? "",
             ]}
           />
           <Bar
-            dataKey="hours"
+            dataKey="minutes"
             fill="var(--color-lumen-accent)"
             radius={[0, 4, 4, 0]}
           />

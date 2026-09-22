@@ -59,6 +59,29 @@ export function createdWithinRange<T extends { createdAt: string }>(
 }
 
 /**
+ * Sessions that STARTED inside the inclusive instant range `start`…`end`
+ * (#1860).
+ *
+ * The host hands Analytics every session it has (the Work tab's totals are
+ * deliberately all-time), so a chart that is meant to follow the header's
+ * date-range pills has to window them itself. A session is placed by its
+ * `startedAt`, the same instant every per-day aggregation in this file buckets
+ * on, so a session that runs past midnight stays on the day it is drawn on.
+ */
+export function sessionsWithinRange(
+  sessions: readonly TimerSession[],
+  start: Date,
+  end: Date,
+): TimerSession[] {
+  const from = start.getTime();
+  const to = end.getTime();
+  return sessions.filter((s) => {
+    const at = new Date(s.startedAt).getTime();
+    return at >= from && at <= to;
+  });
+}
+
+/**
  * Local midnight on the first day of the calendar week containing `d`.
  *
  * The ONE piece of step-back math in this file — `calendarWeekRange`, the
@@ -158,11 +181,7 @@ export interface CompletionTrendBucket {
  * its injected labels now, the same way every other Analytics string arrives.
  */
 export type StagnationBucketId =
-  | "under1Week"
-  | "1to2Weeks"
-  | "2to4Weeks"
-  | "1to3Months"
-  | "over3Months";
+  "under1Week" | "1to2Weeks" | "2to4Weeks" | "1to3Months" | "over3Months";
 
 export interface StagnationBucket {
   bucket: StagnationBucketId;
@@ -228,7 +247,9 @@ function startOfMonth(d: Date): Date {
  * already logged by earlier builds.
  */
 export function getWorkSessions(sessions: TimerSession[]): TimerSession[] {
-  return sessions.filter((s) => s.sessionType === "WORK" && isCountedSession(s));
+  return sessions.filter(
+    (s) => s.sessionType === "WORK" && isCountedSession(s),
+  );
 }
 
 export function aggregateByDay(
@@ -1104,4 +1125,113 @@ export function aggregateTagUsage(
         a.tagName.localeCompare(b.tagName),
     )
     .slice(0, limit);
+}
+
+// ---------------------------------------------------------------------------
+// Trend bucket granularity (#1861)
+// ---------------------------------------------------------------------------
+
+/*
+ * A trend chart draws one point per bucket. One bucket per DAY is right for a
+ * week or a quarter, but "All time" is as long as the data is old: a year of
+ * daily points puts ~2.5 days under each pixel, so no single day can be hovered
+ * and the axis repeats "01-01" once per year with nothing to tell them apart.
+ * Past the thresholds below the daily buckets are folded into weeks, then
+ * months, so the point count stays in the range a chart can actually show.
+ */
+export type TrendGranularity = "day" | "week" | "month";
+
+/** Longest span still drawn one point per day (the "3m" preset tops out at 92). */
+const MAX_DAILY_TREND_DAYS = 92;
+/** Longest span drawn one point per week — a year is ~53 points. */
+const MAX_WEEKLY_TREND_DAYS = 366;
+
+export function trendGranularity(days: number): TrendGranularity {
+  if (days <= MAX_DAILY_TREND_DAYS) return "day";
+  if (days <= MAX_WEEKLY_TREND_DAYS) return "week";
+  return "month";
+}
+
+/** Local midnight of a `YYYY-MM-DD` key (`new Date(key)` would parse it as UTC). */
+function dateOfKey(key: string): Date {
+  const [y, m, d] = key.split("-").map(Number);
+  return new Date(y, m - 1, d);
+}
+
+/**
+ * Fold DAILY buckets (ascending, `date` = `YYYY-MM-DD`) into week / month
+ * buckets. Each folded bucket keeps the key of the first day it covers — the
+ * week's first day per `weekStartsOn`, or the 1st of the month — clamped to the
+ * first daily bucket, so a partial leading bucket never claims a day before
+ * the range began. `add` accumulates one day into the bucket being built; the
+ * bucket starts as a copy of its first day, so `add` runs from the second on.
+ */
+export function rollUpTrendBuckets<T extends { date: string }>(
+  daily: readonly T[],
+  granularity: TrendGranularity,
+  weekStartsOn: WeekStartsOn,
+  add: (into: T, day: T) => void,
+): T[] {
+  if (granularity === "day") return [...daily];
+  const out: T[] = [];
+  let currentGroup: string | null = null;
+  for (const day of daily) {
+    const d = dateOfKey(day.date);
+    const group =
+      granularity === "week"
+        ? toDateStr(startOfCalendarWeek(d, weekStartsOn))
+        : `${day.date.substring(0, 7)}-01`;
+    if (group !== currentGroup) {
+      currentGroup = group;
+      out.push({ ...day });
+    } else {
+      add(out[out.length - 1], day);
+    }
+  }
+  return out;
+}
+
+/**
+ * Axis / tooltip text for one trend bucket. The year appears whenever leaving
+ * it out would be ambiguous: always on month buckets, and on day / week
+ * buckets as soon as the series crosses a year boundary.
+ */
+export function trendBucketLabel(
+  dateKey: string,
+  granularity: TrendGranularity,
+  spansYears: boolean,
+): string {
+  if (granularity === "month") return dateKey.substring(0, 7); // YYYY-MM
+  return spansYears ? dateKey : dateKey.substring(5); // MM-DD
+}
+
+/** True when the ascending buckets do not all fall in one calendar year. */
+export function trendSpansYears(
+  buckets: readonly { date: string }[],
+): boolean {
+  if (buckets.length === 0) return false;
+  return (
+    buckets[0].date.substring(0, 4) !==
+    buckets[buckets.length - 1].date.substring(0, 4)
+  );
+}
+
+/** Local day key of the oldest completed todo, or null when none is done. */
+export function earliestTodoCompletionKey(nodes: TodoNode[]): string | null {
+  let earliest: string | null = null;
+  for (const n of nodes) {
+    if (n.type !== "task" || !n.completedAt) continue;
+    const key = dateKeyOfInstant(n.completedAt);
+    if (key !== null && (earliest === null || key < earliest)) earliest = key;
+  }
+  return earliest;
+}
+
+/** Day key of the oldest schedule item, or null when there are none. */
+export function earliestScheduleItemKey(items: ScheduleItem[]): string | null {
+  let earliest: string | null = null;
+  for (const item of items) {
+    if (earliest === null || item.date < earliest) earliest = item.date;
+  }
+  return earliest;
 }

@@ -77,6 +77,10 @@ function makeMobileLabels(): AnalyticsLabels {
   return {
     title: "Analytics",
     formatHours: fmt,
+    axis: {
+      duration: fmt,
+      date: (key: string) => key.substring(5),
+    },
     tabsLabel: "Analytics views",
     tabs: {
       overview: "Overview",
@@ -134,7 +138,7 @@ function makeMobileLabels(): AnalyticsLabels {
       title: "Streak",
       current: "Current",
       longest: "Longest",
-      days: "days",
+      formatDays: (n: number) => (n === 1 ? "day" : "days"),
       noStreak: "No streak yet",
     },
     heatmap: {

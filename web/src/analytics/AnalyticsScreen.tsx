@@ -5,6 +5,7 @@ import {
   type DataService,
   type AnalyticsLabels,
   type AnalyticsTab,
+  type DatePreset,
   type DateRange,
   type TimerSession,
   type TodoNode,
@@ -20,6 +21,7 @@ import {
   logServiceError,
   type TranslationKey,
 } from "@life-editor/shared";
+import { makeAxisFormat } from "./axisFormat";
 
 /*
  * Analytics host shell (W4 · lean). Mirrors the Work/Trash host pattern: the
@@ -57,6 +59,12 @@ interface AnalyticsScreenProps {
   tab: AnalyticsTab;
   /** Fires on tab select from the shell band. */
   onTabChange: (tab: AnalyticsTab) => void;
+  /**
+   * Date-range preset, owned by the shell for the same reason the tab is
+   * (#1865): this screen unmounts on a section switch and the shell does not.
+   */
+  preset: DatePreset;
+  onPresetChange: (preset: DatePreset) => void;
 }
 
 /*
@@ -137,8 +145,10 @@ export function AnalyticsScreen({
   dataService: ds,
   tab,
   onTabChange,
+  preset,
+  onPresetChange,
 }: AnalyticsScreenProps): React.JSX.Element {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // Everything this screen reads, declared (rules/frontend.md §Sync). Missing
   // declarations are a silent stale, and this screen had none at all — a
   // finished pomodoro or a ticked todo left the dashboard showing yesterday
@@ -340,6 +350,7 @@ export function AnalyticsScreen({
           minutes: total % 60,
         });
       },
+      axis: makeAxisFormat(t, i18n.language),
       tabsLabel: t("analytics.tabsLabel"),
       tabs: {
         overview: t("analytics.tabs.overview"),
@@ -418,7 +429,7 @@ export function AnalyticsScreen({
         title: t("analytics.streak.title"),
         current: t("analytics.streak.current"),
         longest: t("analytics.streak.longest"),
-        days: t("analytics.streak.days"),
+        formatDays: (count: number) => t("analytics.streak.days", { count }),
         noStreak: t("analytics.streak.noStreak"),
       },
       heatmap: {
@@ -437,6 +448,12 @@ export function AnalyticsScreen({
         },
         tooltip: (minutes: number) =>
           t("analytics.heatmap.tooltip", { minutes }),
+        cell: (day: string, hour: number, minutes: number) =>
+          t("analytics.heatmap.cell", {
+            day,
+            hour,
+            time: t("analytics.heatmap.tooltip", { minutes }),
+          }),
       },
       pomodoroRate: {
         title: t("analytics.pomodoroRate.title"),
@@ -502,7 +519,7 @@ export function AnalyticsScreen({
         },
       },
     }),
-    [t],
+    [t, i18n.language],
   );
 
   return (
@@ -524,6 +541,8 @@ export function AnalyticsScreen({
       targetPerDay={data.targetPerDay}
       activeTab={tab}
       onTabChange={onTabChange}
+      initialPreset={preset}
+      onPresetChange={onPresetChange}
       labels={labels}
     />
   );

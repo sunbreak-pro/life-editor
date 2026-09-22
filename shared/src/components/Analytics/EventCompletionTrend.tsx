@@ -9,7 +9,14 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { ScheduleItem } from "../../types/schedule";
-import { aggregateEventCompletionByDay } from "../../utils/analyticsAggregation";
+import {
+  aggregateEventCompletionByDay,
+  rollUpTrendBuckets,
+  trendBucketLabel,
+  trendGranularity,
+  trendSpansYears,
+} from "../../utils/analyticsAggregation";
+import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { ChartCard } from "./ChartCard";
 import {
   CHART_GRID,
@@ -35,14 +42,26 @@ export function EventCompletionTrend({
   days,
   labels,
 }: EventCompletionTrendProps): React.JSX.Element {
-  const data = useMemo(
-    () =>
-      aggregateEventCompletionByDay(items, days).map((d) => ({
-        date: d.date.substring(5),
-        completed: d.completedCount,
-      })),
-    [items, days],
-  );
+  // #1861: one point per day stops being readable once the span is long (the
+  // "All time" preset), so long spans fold into week / month buckets and the
+  // label grows a year as soon as the series crosses one.
+  const data = useMemo(() => {
+    const granularity = trendGranularity(days);
+    const buckets = rollUpTrendBuckets(
+      aggregateEventCompletionByDay(items, days),
+      granularity,
+      WEEK_STARTS_ON,
+      (into, day) => {
+        into.completedCount += day.completedCount;
+        into.totalCount += day.totalCount;
+      },
+    );
+    const spansYears = trendSpansYears(buckets);
+    return buckets.map((d) => ({
+      date: trendBucketLabel(d.date, granularity, spansYears),
+      completed: d.completedCount,
+    }));
+  }, [items, days]);
 
   // Even stride counted back from today (#1866) — see `evenDateTicks`.
   const dateTicks = useMemo(

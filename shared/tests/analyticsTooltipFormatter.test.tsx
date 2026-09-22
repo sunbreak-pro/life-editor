@@ -47,6 +47,7 @@ vi.mock("recharts", () => {
     YAxis: () => null,
     CartesianGrid: () => null,
     Legend: () => null,
+    LabelList: () => null,
     ReferenceLine: () => null,
     Tooltip: (props: CapturedTooltip) => {
       captured.push(props);

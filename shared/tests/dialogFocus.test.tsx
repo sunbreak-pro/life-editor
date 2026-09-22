@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { useEffect, useRef, useState } from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
-import { BottomSheet, Modal } from "../src/components";
+import { BottomSheet, CommandPalette, Modal } from "../src/components";
 
 /*
  * Dialog focus behaviour (#508). BottomSheet declared aria-modal from day one
@@ -186,5 +186,131 @@ describe("dialog focus (BottomSheet + Modal)", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onCloseSheet).toHaveBeenCalledTimes(1);
     expect(onCloseModal).toHaveBeenCalledTimes(1);
+  });
+});
+
+/*
+ * #1874 — Keyboard Shortcuts > "Change" > Esc > Esc, and Ctrl+K > Esc, both
+ * left `document.activeElement` on <body>: Tab then restarted from the top of
+ * the page.
+ *
+ * The sheet case above passed the whole time, which is what made this hard to
+ * see. The opener was read from an EFFECT, and React applies a child's
+ * `autoFocus` while it commits — before any effect runs. A dialog that opens
+ * onto its own control (the shortcut editor opens straight into a capture row)
+ * therefore recorded that control as its "opener", and giving the focus back
+ * to a node the dialog took with it does nothing. Dialogs with no autoFocus
+ * recorded the real trigger and worked, so every existing test agreed.
+ */
+describe("dialog focus — the opener is read before the panel can claim it (#1874)", () => {
+  function ModalHost({ autoFocusInside }: { autoFocusInside: boolean }) {
+    const [open, setOpen] = useState(false);
+    return (
+      <>
+        <button type="button" onClick={() => setOpen(true)}>
+          open
+        </button>
+        <Modal open={open} onClose={() => setOpen(false)} title="Modal">
+          {autoFocusInside ? (
+            <button type="button" autoFocus>
+              capture
+            </button>
+          ) : (
+            <button type="button">plain</button>
+          )}
+        </Modal>
+      </>
+    );
+  }
+
+  async function openModal(autoFocusInside: boolean) {
+    render(<ModalHost autoFocusInside={autoFocusInside} />);
+    const opener = screen.getByText("open");
+    opener.focus();
+    fireEvent.click(opener);
+    await afterFrame();
+    return opener;
+  }
+
+  it("returns focus to the trigger when the panel autofocused a control", async () => {
+    const opener = await openModal(true);
+    expect(document.activeElement).toBe(screen.getByText("capture"));
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(document.activeElement).toBe(opener);
+  });
+
+  // The case that already worked, kept so the fix cannot trade one for the
+  // other.
+  it("still returns focus when nothing inside autofocused", async () => {
+    const opener = await openModal(false);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(document.activeElement).toBe(opener);
+  });
+
+  it("leaves the focus alone when the opener is gone from the page", async () => {
+    // A row that removes itself as it opens the dialog — focusing it back
+    // would do nothing, and pretending otherwise hides the real state.
+    function VanishingHost() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          {!open && (
+            <button type="button" onClick={() => setOpen(true)}>
+              open
+            </button>
+          )}
+          <Modal open={open} onClose={() => setOpen(false)} title="Modal">
+            <button type="button">inside</button>
+          </Modal>
+        </>
+      );
+    }
+    render(<VanishingHost />);
+    const opener = screen.getByText("open");
+    opener.focus();
+    fireEvent.click(opener);
+    await afterFrame();
+
+    expect(() =>
+      fireEvent.keyDown(document, { key: "Escape" }),
+    ).not.toThrow();
+    expect(opener.isConnected).toBe(false);
+  });
+
+  // The palette is its own dialog, not a <Modal>, so it carries its own copy
+  // of this — it had no focus restore at all before (#1874).
+  it("returns focus to the opener when the command palette closes", async () => {
+    function PaletteHost() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <button type="button" onClick={() => setOpen(true)}>
+            open palette
+          </button>
+          <CommandPalette
+            isOpen={open}
+            onClose={() => setOpen(false)}
+            commands={[]}
+            placeholder="Search"
+            noResultsLabel="No results"
+          />
+        </>
+      );
+    }
+    render(<PaletteHost />);
+    const opener = screen.getByText("open palette");
+    opener.focus();
+    fireEvent.click(opener);
+    await afterFrame();
+    const field = screen.getByPlaceholderText("Search");
+    expect(document.activeElement).toBe(field);
+
+    fireEvent.keyDown(field, { key: "Escape" });
+
+    expect(document.activeElement).toBe(opener);
   });
 });

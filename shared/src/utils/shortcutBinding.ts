@@ -56,16 +56,29 @@ const KEY_LABELS: Record<string, string> = {
   Enter: "Enter",
 };
 
+/**
+ * The modifier half of an accelerator, in display order. Shared by the
+ * committed rows (bindingToDisplayString) and the rebind dialog's live
+ * capture, which used to push the Mac glyphs on every platform (#1869).
+ */
+export function modifierLabels(
+  mods: Pick<KeyBinding, "ctrl" | "meta" | "shift" | "alt">,
+  mac: boolean,
+): string[] {
+  const parts: string[] = [];
+  if (mods.ctrl) parts.push("Ctrl");
+  if (mods.meta) parts.push(mac ? "⌘" : "Ctrl");
+  if (mods.shift) parts.push(mac ? "⇧" : "Shift");
+  if (mods.alt) parts.push(mac ? "⌥" : "Alt");
+  return parts;
+}
+
 /** Render a binding as a human-readable accelerator, e.g. "⌘ + K". */
 export function bindingToDisplayString(
   binding: KeyBinding,
   mac: boolean,
 ): string {
-  const parts: string[] = [];
-  if (binding.ctrl) parts.push("Ctrl");
-  if (binding.meta) parts.push(mac ? "⌘" : "Ctrl");
-  if (binding.shift) parts.push(mac ? "⇧" : "Shift");
-  if (binding.alt) parts.push(mac ? "⌥" : "Alt");
+  const parts = modifierLabels(binding, mac);
 
   if (binding.code) {
     parts.push(codeToLabel(binding.code));

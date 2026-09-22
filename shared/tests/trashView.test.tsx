@@ -211,7 +211,9 @@ describe("TrashView — target IA", () => {
  */
 describe("TrashView — multi-select (#1294)", () => {
   const selectRow = (label: string) =>
-    fireEvent.click(screen.getByRole("checkbox", { name: `Select "${label}"` }));
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: `Select "${label}"` }),
+    );
 
   it("offers no bulk actions until something is selected", () => {
     mockMatchMedia(true);
@@ -223,7 +225,29 @@ describe("TrashView — multi-select (#1294)", () => {
     expect(
       screen.queryByRole("button", { name: "Restore selected" }),
     ).toBeNull();
-    expect(screen.queryByRole("button", { name: "Delete selected" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Delete selected" }),
+    ).toBeNull();
+  });
+
+  /*
+   * #1871. jsdom has no layout, so what can be pinned is the contract rather
+   * than the pixels: the bar is sticky exactly while it carries a selection,
+   * and its surface is an opaque token either way.
+   */
+  it("pins the bar while rows are selected, and only then", () => {
+    mockMatchMedia(true);
+    renderView();
+    const bar = () =>
+      document.querySelector("[data-trash-action-bar]") as HTMLElement;
+
+    expect(bar().className).not.toContain("sticky");
+
+    selectRow("Buy milk");
+
+    expect(bar().className).toContain("sticky");
+    expect(bar().className).toContain("top-0");
+    expect(bar().className).toContain("bg-lumen-bg");
   });
 
   it("counts the selection and restores exactly what is ticked", () => {

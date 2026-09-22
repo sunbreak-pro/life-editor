@@ -108,11 +108,20 @@ export function CommandPalette({
   // open transition), not in an effect (#586). prevOpen starts false so a
   // mount that is ALREADY open runs the same reset the old effect did.
   const [prevOpen, setPrevOpen] = useState(false);
+  // Who gets the focus back when the palette closes (#1874). The palette is
+  // its own dialog rather than a <Modal>, so it does not inherit
+  // useDialogA11y's focus handling and has to keep this itself. Captured on
+  // the open transition (during render), before the field below claims the
+  // focus — an effect would only ever see the field.
+  const [opener, setOpener] = useState<HTMLElement | null>(null);
   if (isOpen !== prevOpen) {
     setPrevOpen(isOpen);
     if (isOpen) {
       setQuery("");
       setSelectedIndex(0);
+      if (typeof document !== "undefined") {
+        setOpener(document.activeElement as HTMLElement | null);
+      }
     }
   }
 
@@ -123,6 +132,21 @@ export function CommandPalette({
       requestAnimationFrame(() => inputRef.current?.focus());
     }
   }, [isOpen]);
+
+  // Hand the focus back on close. Escape on a palette opened with Ctrl+K left
+  // `document.activeElement` on <body>, so the next Tab restarted from the top
+  // of the page (#1874).
+  useEffect(() => {
+    if (!isOpen) return;
+    return () => {
+      // Only a focus left loose is ours to move: running a command navigates
+      // somewhere and may take the focus with it deliberately.
+      const now = document.activeElement;
+      if (now && now !== document.body) return;
+      // A detached opener is skipped — focusing one does nothing, in silence.
+      if (opener?.isConnected) opener.focus();
+    };
+  }, [isOpen, opener]);
 
   // Keep selectedIndex in bounds — clamped during render, so a shrinking
   // result list never paints an out-of-range cursor (#586).

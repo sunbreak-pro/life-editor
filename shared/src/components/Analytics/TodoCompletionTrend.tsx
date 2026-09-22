@@ -9,7 +9,14 @@ import {
   ResponsiveContainer,
 } from "recharts";
 import type { TodoNode } from "../../types/todoTree";
-import { aggregateTodoCompletionTrend } from "../../utils/analyticsAggregation";
+import {
+  aggregateTodoCompletionTrend,
+  rollUpTrendBuckets,
+  trendBucketLabel,
+  trendGranularity,
+  trendSpansYears,
+} from "../../utils/analyticsAggregation";
+import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { ChartCard } from "./ChartCard";
 import {
   CHART_GRID,
@@ -35,14 +42,25 @@ export function TodoCompletionTrend({
   days,
   labels,
 }: TodoCompletionTrendProps): React.JSX.Element {
-  const data = useMemo(
-    () =>
-      aggregateTodoCompletionTrend(nodes, days).map((d) => ({
-        date: d.date.substring(5), // MM-DD
-        completed: d.completedCount,
-      })),
-    [nodes, days],
-  );
+  // #1861: one point per day stops being readable once the span is long (the
+  // "All time" preset), so long spans fold into week / month buckets and the
+  // label grows a year as soon as the series crosses one.
+  const data = useMemo(() => {
+    const granularity = trendGranularity(days);
+    const buckets = rollUpTrendBuckets(
+      aggregateTodoCompletionTrend(nodes, days),
+      granularity,
+      WEEK_STARTS_ON,
+      (into, day) => {
+        into.completedCount += day.completedCount;
+      },
+    );
+    const spansYears = trendSpansYears(buckets);
+    return buckets.map((d) => ({
+      date: trendBucketLabel(d.date, granularity, spansYears),
+      completed: d.completedCount,
+    }));
+  }, [nodes, days]);
 
   // Even stride counted back from today (#1866) — see `evenDateTicks`.
   const dateTicks = useMemo(
