@@ -209,6 +209,20 @@ interface RichTextEditorBaseProps {
   /** Create a note for `label` from the "[[" menu; returns its id or null. */
   onCreateNoteForLink?: (label: string) => Promise<{ id: string } | null>;
   /**
+   * "The document just changed" — raised on the keystroke, not on the save
+   * (#1822).
+   *
+   * `onUpdate` is debounced by 800ms, so between a keystroke and that timer a
+   * host has no way to know anything is pending: Briefing's 夕刊 caption read
+   * the last EMITTED body, which is still the stored one, and answered
+   *「Saved」to text that was not saved yet. This fires synchronously beside the
+   * debounce and lets the host say「Unsaved」for that window.
+   *
+   * It reports and nothing else — it never persists, and it is silent in draft
+   * mode, where every change already reaches the host through `onDraftChange`.
+   */
+  onDirty?: () => void;
+  /**
    * Image / file embedding (#1404) — `useAttachmentUpload(dataService)`.
    *
    * Presence adds the two attach entries to the "/" menu and lets stored
@@ -245,11 +259,13 @@ export function RichTextEditor({
   onNavigateToItem,
   onResolvedLinkInserted,
   onCreateNoteForLink,
+  onDirty,
   attachments,
 }: RichTextEditorProps) {
   const { t } = useTranslation();
   const debounceRef = useRef<number | null>(null);
   const onUpdateRef = useRef(onUpdate);
+  const onDirtyRef = useRef(onDirty);
   const onDraftChangeRef = useRef(onDraftChange);
   const latestContentRef = useRef<string | null>(null);
 
@@ -268,6 +284,7 @@ export function RichTextEditor({
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
+    onDirtyRef.current = onDirty;
     onDraftChangeRef.current = onDraftChange;
     autoFocusRef.current = autoFocus;
     loadLinkTargetsRef.current = loadLinkTargets;
@@ -473,6 +490,9 @@ export function RichTextEditor({
           onDraftChangeRef.current(json);
           return;
         }
+        // Before the debounce is armed, so the host can report the pending
+        // window rather than the last landed write (#1822).
+        onDirtyRef.current?.();
         if (debounceRef.current) {
           clearTimeout(debounceRef.current);
         }

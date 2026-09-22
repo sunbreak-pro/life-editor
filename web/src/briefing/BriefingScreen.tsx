@@ -107,6 +107,8 @@ export function BriefingScreen({
     eveningGen,
     eveningMood,
     eveningSaved,
+    hasEveningToReport,
+    markEveningDirty,
     handleEveningUpdate,
     handleSelectMood,
     intentionStored,
@@ -264,9 +266,13 @@ export function BriefingScreen({
       intentionCaption,
       intentionPlaceholder: t("briefing.evening.intentionPlaceholder"),
       reflectionTitle: t("briefing.evening.reflectionTitle"),
-      savedCaption: eveningSaved
-        ? t("materials.daily.saved")
-        : t("materials.daily.unsaved"),
+      // No caption at all on a day with nothing written (#1822) — the same
+      // shape `intentionCaption` takes above.
+      savedCaption: !hasEveningToReport
+        ? undefined
+        : eveningSaved
+          ? t("materials.daily.saved")
+          : t("materials.daily.unsaved"),
       focusTitle: t("briefing.evening.focusTitle"),
       focusPlaceholder: t("briefing.evening.focusPlaceholder"),
       todosTitle: t("briefing.evening.todosTitle"),
@@ -282,7 +288,13 @@ export function BriefingScreen({
       tomorrowTag: t("briefing.evening.tomorrowTag"),
       allDay: t("briefing.allDay"),
     }),
-    [t, eveningSaved, intentionCaption, intentionEditableOnEvening],
+    [
+      t,
+      eveningSaved,
+      hasEveningToReport,
+      intentionCaption,
+      intentionEditableOnEvening,
+    ],
   );
 
   // ── Creation panel (#623) ────────────────────────────────────────────
@@ -610,6 +622,10 @@ export function BriefingScreen({
                 noteId={`evening-${todayKey}`}
                 initialContent={eveningStored.bodyDocJson ?? undefined}
                 onUpdate={handleEveningUpdate}
+                // The caption's other half (#1822): `onUpdate` is 800ms late,
+                // so without this the page reads「Saved」while the keystroke
+                // is still only on screen.
+                onDirty={markEveningDirty}
                 placeholder={t("briefing.evening.placeholder")}
                 className="min-h-[180px] px-4 py-3"
                 autoFocus={focusOnGen === eveningGen}
