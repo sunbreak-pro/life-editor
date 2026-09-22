@@ -6,6 +6,8 @@ import {
   PomodoroTodoSheet,
   PomodoroSettings,
   SessionCompletionModal,
+  ConfirmDialog,
+  useConfirmDialog,
   AudioMixer,
   RightSidebarPortal,
   ScheduleSidebarTabs,
@@ -94,11 +96,17 @@ function filledDots(
   return mod;
 }
 
-/** "MM:SS" for a whole-minute phase length (the "/ 25:00" denominator). */
+/**
+ * "MM:SS" for a whole-minute phase length (the "/ 25:00" denominator).
+ *
+ * Minutes are zero-padded like the countdown above it (`formatted` in
+ * TimerContext), so a 1-minute phase reads "01:00 / 01:00" rather than
+ * "01:00 / 1:00" (#1858).
+ */
 function formatMinutes(totalSeconds: number): string {
   const m = Math.floor(totalSeconds / 60);
   const s = totalSeconds % 60;
-  return `${m}:${s.toString().padStart(2, "0")}`;
+  return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`;
 }
 
 export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
@@ -335,6 +343,46 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     />
   );
 
+  /*
+   * Deleting a preset asks first (#1858). The bin sits right beside "Apply" in
+   * a dense row, the delete is a hard one (pomodoro_presets has no trash), and
+   * there is no undo stack on this screen to fall back on. Same in-app dialog
+   * the tag delete uses, never the browser's own.
+   */
+  const {
+    request: confirmRequest,
+    ask: askConfirm,
+    resolve: resolveConfirm,
+  } = useConfirmDialog();
+  const requestDeletePreset = useCallback(
+    (id: number) => {
+      const preset = timer.presets.find((p) => p.id === id);
+      void (async () => {
+        const ok = await askConfirm({
+          message: t("pomodoro.deletePresetConfirm", {
+            name: preset?.name ?? "",
+          }),
+          confirmLabel: t("pomodoro.deletePreset"),
+          cancelLabel: t("common.cancel"),
+          danger: true,
+        });
+        if (ok) void timer.deletePreset(id);
+      })();
+    },
+    [askConfirm, t, timer],
+  );
+  const presetConfirmDialog = confirmRequest && (
+    <ConfirmDialog
+      open
+      message={confirmRequest.message}
+      confirmLabel={confirmRequest.confirmLabel}
+      cancelLabel={confirmRequest.cancelLabel}
+      danger={confirmRequest.danger}
+      onConfirm={() => resolveConfirm(true)}
+      onCancel={() => resolveConfirm(false)}
+    />
+  );
+
   // Settings + presets — pushed into the shell detail panel (Desktop right /
   // Mobile left drawer). Dimmed while running (§design 367) — still operable.
   const settingsPanel = (
@@ -377,7 +425,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           )
         }
         onCreatePreset={(name, values) => void timer.createPreset(name, values)}
-        onDeletePreset={(id) => void timer.deletePreset(id)}
+        onDeletePreset={requestDeletePreset}
       />
     </div>
   );
@@ -531,6 +579,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           onSelect={handleSelectTarget}
         />
         {completionModal}
+        {presetConfirmDialog}
       </div>
     );
   }
@@ -598,6 +647,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
       )}
       <RightSidebarPortal>{sidebarPanel}</RightSidebarPortal>
       {completionModal}
+      {presetConfirmDialog}
     </div>
   );
 }

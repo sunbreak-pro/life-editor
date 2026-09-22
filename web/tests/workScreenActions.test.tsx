@@ -123,8 +123,11 @@ function makeHarness(): Harness {
 const { wrapper: SyncWrapper } = createBumpableSync();
 
 /** Renders the screen under the REAL TimerProvider and waits for the load. */
-async function renderWork(): Promise<Harness> {
+async function renderWork(
+  tweak?: (fns: Record<string, Mock>) => void,
+): Promise<Harness> {
   const harness = makeHarness();
+  tweak?.(harness.fns);
   render(
     <SyncWrapper>
       <TimerProvider dataService={harness.ds}>
@@ -349,14 +352,55 @@ describe("WorkScreen — the settings panel in the detail sidebar", () => {
     expect(fns.updateTimerSettings).not.toHaveBeenCalled();
   });
 
-  it("deleting a preset sends that preset's id", async () => {
+  // #1858: the countdown pads its minutes and the total under it did not, so
+  // a 1-minute phase read "01:00" over "/ 1:00".
+  it("pads the phase total the way the countdown is padded", async () => {
+    await renderWork((fns) =>
+      fns.fetchTimerSettings.mockResolvedValue({
+        workDuration: 1,
+        breakDuration: 5,
+        longBreakDuration: 15,
+        sessionsBeforeLongBreak: 4,
+        autoStartBreaks: false,
+        targetSessions: 4,
+      }),
+    );
+
+    expect(await screen.findByText("/ 01:00")).toBeTruthy();
+    expect(screen.queryByText("/ 1:00")).toBeNull();
+  });
+
+  // #1858: the bin used to delete on the spot, from a row where "Apply" sits
+  // one button away, and pomodoro_presets has neither a trash nor an undo.
+  it("deleting a preset asks first, then sends that preset's id", async () => {
     const { fns } = await renderWork();
     await screen.findByText(PRESET.name);
 
     press("pomodoro.deletePreset");
 
+    const dialog = await screen.findByRole("dialog");
+    expect(fns.deletePomodoroPreset).not.toHaveBeenCalled();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "pomodoro.deletePreset" }),
+    );
+
     await waitFor(() => expect(fns.deletePomodoroPreset).toHaveBeenCalled());
     expectOnlyWrite(fns, "deletePomodoroPreset", [PRESET.id]);
+  });
+
+  it("cancelling the preset delete writes nothing", async () => {
+    const { fns } = await renderWork();
+    await screen.findByText(PRESET.name);
+
+    press("pomodoro.deletePreset");
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "common.cancel" }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(fns.deletePomodoroPreset).not.toHaveBeenCalled();
+    expect(screen.queryByText(PRESET.name)).not.toBeNull();
   });
 
   it("applying a preset persists its four durations without touching presets", async () => {
