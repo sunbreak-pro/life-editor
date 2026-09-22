@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import {
   extractEveningSection,
@@ -342,7 +348,7 @@ describe("DailyView — the actions kebab", () => {
     expect(classes).not.toContain("min-h-0");
   });
 
-  it("deletes the open day", () => {
+  it("asks before it deletes the open day (#1838)", async () => {
     render(<DailyView />);
 
     fireEvent.click(
@@ -351,7 +357,55 @@ describe("DailyView — the actions kebab", () => {
     fireEvent.click(
       within(screen.getByRole("menu")).getByText("materials.daily.delete"),
     );
-    expect(state.deleteDaily).toHaveBeenCalledExactlyOnceWith(YESTERDAY);
+
+    // Nothing is gone yet. The press opens the question, and the question
+    // names the day the entry list names.
+    expect(state.deleteDaily).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog");
+    within(dialog).getByText(/^materials\.daily\.deleteConfirmBody\|/);
+
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: "materials.daily.deleteConfirmAction",
+      }),
+    );
+    await waitFor(() =>
+      expect(state.deleteDaily).toHaveBeenCalledExactlyOnceWith(YESTERDAY),
+    );
+  });
+
+  it("keeps the day when the question is answered no (#1838)", async () => {
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.moreActions" }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("menu")).getByText("materials.daily.delete"),
+    );
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "common.cancel",
+      }),
+    );
+
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(state.deleteDaily).not.toHaveBeenCalled();
+  });
+
+  it("has nothing to delete on a day with no entry (#1838)", () => {
+    // The old item ran deleteDaily on an absent row: a no-op with no
+    // feedback, which reads as a broken button rather than as an empty day.
+    state.selectedDate = LONG_AGO;
+    render(<DailyView />);
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.daily.moreActions" }),
+    );
+    const item = within(screen.getByRole("menu"))
+      .getAllByRole("menuitem", { hidden: true })
+      .find((el) => el.textContent?.includes("materials.daily.delete"));
+    expect(item?.getAttribute("aria-disabled")).toBe("true");
   });
 });
 

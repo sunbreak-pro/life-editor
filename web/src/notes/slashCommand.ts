@@ -11,6 +11,7 @@ import {
   ListChecks,
   Image,
   Paperclip,
+  Table,
 } from "lucide-react";
 import {
   SlashMenu,
@@ -37,6 +38,8 @@ export interface SlashMenuLabels {
   bulletList: string;
   orderedList: string;
   taskList: string;
+  /** #1903 — a 3x3 table with a header row. */
+  table: string;
   /** #1404 — the two attach entries. Hidden when the host wires no uploader. */
   image: string;
   file: string;
@@ -100,10 +103,37 @@ type SlashCommandContext = Parameters<SlashMenuItem["command"]>[0];
  * `items()`, so the gating rule (#1404: no uploader, no attach entries) is
  * unreachable from outside without a full editor mount.
  */
+/**
+ * A menu row, plus the words that should find it (#1903).
+ *
+ * The menu matches a row's TITLE and its ID, which between them cover every
+ * item that existed before the table: an id is the English word and a title is
+ * the translated one. 「表」 is neither — it is what someone would actually
+ * type in Japanese, and it appears in no label. `keywords` is the room for
+ * that, and it stays on this side of the boundary: SlashMenu draws rows and
+ * does not filter them.
+ */
+export type SlashItem = SlashMenuItem & { keywords?: readonly string[] };
+
+/** The rows a query keeps. Title, id, then the extra words. */
+export function filterSlashItems(
+  items: SlashItem[],
+  query: string,
+): SlashItem[] {
+  const q = query.trim().toLowerCase();
+  if (!q) return items;
+  return items.filter(
+    (item) =>
+      item.title.toLowerCase().includes(q) ||
+      item.id.toLowerCase().includes(q) ||
+      item.keywords?.some((word) => word.toLowerCase().includes(q)) === true,
+  );
+}
+
 export function buildSlashItems(
   labels: SlashMenuLabels,
   getAttachment?: GetAttachmentWiring,
-): SlashMenuItem[] {
+): SlashItem[] {
   const wiring = getAttachment?.();
   return [
     {
@@ -162,6 +192,28 @@ export function buildSlashItems(
       Icon: ListChecks,
       command: ({ editor, range }) =>
         editor.chain().focus().deleteRange(range).toggleTaskList().run(),
+    },
+    {
+      /*
+       * #1903 — the first thing in this editor that makes a table.
+       *
+       * insertTable comes from @tiptap/extension-table, which tableNodes.ts
+       * has registered since #1579; the command has been there the whole time
+       * with nothing calling it. It builds a header row plus two body rows and
+       * leaves the caret in the first cell, which is the whole of what this
+       * item needs.
+       */
+      id: "table",
+      title: labels.table,
+      Icon: Table,
+      keywords: ["table", "テーブル", "表"],
+      command: ({ editor, range }) =>
+        editor
+          .chain()
+          .focus()
+          .deleteRange(range)
+          .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
+          .run(),
     },
     // #1404 — only when the host wired an uploader (see GetAttachmentWiring).
     ...(wiring
@@ -279,13 +331,7 @@ export function createSlashCommand(
             // so an editor that gains its uploader after mount starts offering
             // the two entries without being rebuilt.
             const all = buildSlashItems(labels, getAttachment);
-            const q = query.trim().toLowerCase();
-            if (!q) return all;
-            return all.filter(
-              (item) =>
-                item.title.toLowerCase().includes(q) ||
-                item.id.toLowerCase().includes(q),
-            );
+            return filterSlashItems(all, query);
           },
           render: slashRender(labels.empty),
         }),
