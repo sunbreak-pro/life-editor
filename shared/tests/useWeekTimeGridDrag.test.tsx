@@ -48,13 +48,28 @@ function item(
  * jsdom truth anyway — colWidth falls back to 0 and no test below depends on
  * a horizontal day change.
  */
-function pointerDown(button = 0) {
+function pointerDown(button = 0, laneCellWidth?: number) {
   const stopPropagation = vi.fn();
+  /*
+   * `closest` beside `offsetParent` because the two modes measure a day column
+   * differently (#1831): "move"/"resize" read the block's offsetParent, and
+   * "place" reads the lane CELL the chip sits in — its offsetParent is the
+   * whole week's lane wrapper (#563), which would make every sideways drop
+   * resolve to an offset of zero. Both are null here unless a case says
+   * otherwise; jsdom reports every rect as zero anyway, so what the stub
+   * proves is only which one is asked.
+   */
   const event = {
     button,
     clientX: 10,
     clientY: 10,
-    currentTarget: { offsetParent: null },
+    currentTarget: {
+      offsetParent: null,
+      closest: () =>
+        laneCellWidth == null
+          ? null
+          : { getBoundingClientRect: () => ({ width: laneCellWidth }) },
+    },
     stopPropagation,
   } as unknown as ReactPointerEvent;
   return { event, stopPropagation };
