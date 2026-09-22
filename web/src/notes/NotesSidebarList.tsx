@@ -69,6 +69,8 @@ export interface NotesSidebarListLabels {
   fewerTagFilters: string;
   /** "Show the remaining N notes in this group" (#1288). */
   moreRows: (count: number) => string;
+  /** Put the group's rows back under the cap (#1842). */
+  fewerRows: string;
 }
 
 export interface NotesSidebarListProps {
@@ -175,8 +177,12 @@ export function NotesSidebarList({
    * is a lasting statement about a tag, this is not.
    */
   const [openedGroups, setOpenedGroups] = useState<Set<string>>(new Set());
-  const openGroup = (key: string) =>
-    setOpenedGroups((prev) => new Set(prev).add(key));
+  const toggleGroupRows = (key: string) =>
+    setOpenedGroups((prev) => {
+      const next = new Set(prev);
+      if (!next.delete(key)) next.add(key);
+      return next;
+    });
 
   /*
    * A chip's id is a GROUP KEY (useNoteListState), which is the tag's own id
@@ -304,11 +310,16 @@ export function NotesSidebarList({
                 const collapsed = collapsedGroups.has(key);
                 // #1288: cap the rows unless this group was opened by hand (or
                 // the host lifted the cap because a tag filter is on).
-                const capped =
-                  rowCap !== null && !openedGroups.has(key) ? rowCap : null;
+                const opened = openedGroups.has(key);
+                const capped = rowCap !== null && !opened ? rowCap : null;
                 const shownNotes =
                   capped === null ? group.notes : group.notes.slice(0, capped);
                 const hiddenRows = group.notes.length - shownNotes.length;
+                // Only a group that a cap is being LIFTED from can be put back
+                // under it. With a tag filter on the host removes the cap
+                // (rowCap === null), and then there is nothing to fold to.
+                const canCollapse =
+                  rowCap !== null && opened && group.notes.length > rowCap;
                 return (
                   <li key={key} className="flex flex-col gap-px">
                     <DesktopTagHeading
@@ -336,20 +347,26 @@ export function NotesSidebarList({
                             />
                           ))}
                         </ul>
-                        {/* One-way on purpose: the button says how many are
-                          hidden, and once they are out there is nothing left
-                          for it to say. Folding the group again is what the
-                          heading's chevron is for. */}
-                        {hiddenRows > 0 && (
+                        {/* #1842 — this used to open only. The chevron was
+                            offered as the way back, but the chevron folds the
+                            WHOLE group away and is remembered between sessions;
+                            this cap is a row count and is forgotten. They are
+                            not the same thing, so pressing one did not undo the
+                            other. The tag-filter row next door has had the pair
+                            since #1288. */}
+                        {(hiddenRows > 0 || canCollapse) && (
                           <button
                             type="button"
-                            onClick={() => openGroup(key)}
+                            onClick={() => toggleGroupRows(key)}
+                            aria-expanded={opened}
                             className={cn(
                               "self-start rounded-lumen-md px-2 py-1 text-[11.5px] text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary",
                               FOCUS_RING,
                             )}
                           >
-                            {labels.moreRows(hiddenRows)}
+                            {canCollapse
+                              ? labels.fewerRows
+                              : labels.moreRows(hiddenRows)}
                           </button>
                         )}
                       </>

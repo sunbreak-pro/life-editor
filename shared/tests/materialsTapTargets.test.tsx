@@ -76,3 +76,35 @@ describe("#1560 — the note kebab's rows meet the 44px touch floor", () => {
     }
   });
 });
+
+/*
+ * #1840 — the kebab itself, not its rows. 26px draws at 32 under the icon-only
+ * floor in tokens.css, which is a mouse target. The DRAWN box stays as it is
+ * and the HIT box grows, so the detail header does not change shape on Desktop.
+ */
+describe("#1840 — the note detail kebab meets the 44px touch floor", () => {
+  function kebab(): HTMLElement {
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="Tap targets"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        {...LABELS}
+      />,
+    );
+    return screen.getByRole("button", { name: "More actions" });
+  }
+
+  it("floors the trigger on narrow", () => {
+    expect(kebab()).toHaveClass("max-md:min-h-11", "max-md:min-w-11");
+  });
+
+  it("keeps the drawn box at its mouse size", () => {
+    const trigger = kebab();
+    expect(trigger).toHaveClass("h-[26px]", "w-[26px]");
+    expect(trigger.classList.contains("min-h-11")).toBe(false);
+  });
+});

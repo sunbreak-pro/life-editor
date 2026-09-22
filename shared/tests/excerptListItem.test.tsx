@@ -28,6 +28,30 @@ describe("ExcerptListItem", () => {
     ).toHaveAttribute("aria-current", "true");
   });
 
+  it("leaves an unselected row without aria-current", () => {
+    render(<ExcerptListItem title="Groceries" onClick={() => {}} />);
+    expect(
+      screen.getByRole("button", { name: /Groceries/ }),
+    ).not.toHaveAttribute("aria-current");
+  });
+
+  it("gives the selected row a fill hover cannot produce (#1839)", () => {
+    // Selection used to be bg-lumen-hover, the same fill the row under the
+    // pointer takes, so the open day and the pointed-at day were one colour.
+    const { unmount } = render(
+      <ExcerptListItem title="Groceries" selected onClick={() => {}} />,
+    );
+    expect(
+      screen.getByRole("button", { name: /Groceries/ }).className,
+    ).toContain("bg-lumen-accent-subtle");
+    unmount();
+
+    render(<ExcerptListItem title="Groceries" onClick={() => {}} />);
+    expect(
+      screen.getByRole("button", { name: /Groceries/ }).className,
+    ).not.toContain("bg-lumen-accent-subtle");
+  });
+
   it("renders a static row (no button) when onClick is omitted", () => {
     render(<ExcerptListItem title="Groceries" />);
     expect(screen.queryByRole("button")).not.toBeInTheDocument();

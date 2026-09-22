@@ -11,6 +11,8 @@ import {
   minutesToPx,
   snapMinutes,
   minutesToTime,
+  blockTitleLines,
+  MAX_BLOCK_TITLE_LINES,
   type GridLayoutItem,
 } from "../src/utils/scheduleGridLayout";
 
@@ -186,5 +188,48 @@ describe("local date-key math (no UTC drift)", () => {
     expect(days).toHaveLength(7);
     expect(days[0]).toBe("2026-06-14");
     expect(days[6]).toBe("2026-06-20");
+  });
+});
+
+/*
+ * #1835 — how many lines a week block gives its title.
+ *
+ * The block was one truncated line whatever its height, so a two-hour event
+ * printed "Lorem ipsum do…" over 78px of empty fill. Wrapping every block is
+ * the opposite fault: a 30-minute one has room for a line and the time under
+ * it. The answer is the block's own height, and the constants behind it are
+ * estimates — the type is rem-based and jsdom has no layout — so what is
+ * pinned is the SHAPE: a floor of one, a ceiling, and monotonic in between.
+ */
+describe("blockTitleLines", () => {
+  it("gives a short block one line", () => {
+    // 30 minutes at 48px an hour.
+    expect(blockTitleLines(24)).toBe(1);
+  });
+
+  it("keeps an hour-long block on one line", () => {
+    expect(blockTitleLines(48)).toBe(1);
+  });
+
+  it("lets a two-hour block wrap", () => {
+    expect(blockTitleLines(96)).toBeGreaterThan(1);
+  });
+
+  it("never returns less than one, whatever the height", () => {
+    expect(blockTitleLines(0)).toBe(1);
+    expect(blockTitleLines(-10)).toBe(1);
+  });
+
+  it("stops at the ceiling rather than filling a tall block with text", () => {
+    expect(blockTitleLines(10_000)).toBe(MAX_BLOCK_TITLE_LINES);
+  });
+
+  it("never shrinks as the block grows", () => {
+    let prev = 0;
+    for (let px = 0; px <= 400; px += 8) {
+      const lines = blockTitleLines(px);
+      expect(lines).toBeGreaterThanOrEqual(prev);
+      prev = lines;
+    }
   });
 });

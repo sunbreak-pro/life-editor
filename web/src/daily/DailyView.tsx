@@ -142,7 +142,8 @@ function EditorCard({
 }: {
   dateLabel: string;
   dateClassName: string;
-  savedLabel: string;
+  /** Omitted on a day with nothing to report — see #1839. */
+  savedLabel?: string;
   headerActions?: ReactNode;
   editorKey: string;
   date: string;
@@ -163,9 +164,11 @@ function EditorCard({
     >
       <div className="flex items-start gap-2.5 px-5 pb-1 pt-4">
         <h1 className={cn("flex-1", dateClassName)}>{dateLabel}</h1>
-        <span className="pt-1.5 text-[11.5px] text-lumen-text-tertiary">
-          {savedLabel}
-        </span>
+        {savedLabel != null && (
+          <span className="pt-1.5 text-[11.5px] text-lumen-text-tertiary">
+            {savedLabel}
+          </span>
+        )}
         {headerActions}
       </div>
       {/* TipTap (F-1 #258). IME composition is handled natively by
@@ -493,9 +496,27 @@ export function DailyView({
   // jsonb echo would otherwise flip this to "unsaved" after every save.
   const isSaved =
     lastEmitted === null || lastEmitted.date !== selectedDate || ownEcho;
-  const savedLabel = isSaved
-    ? t("materials.daily.saved")
-    : t("materials.daily.unsaved");
+
+  /*
+   * A day nobody has written on has nothing to report (#1839).
+   *
+   * `isSaved` is read off `lastEmitted`, which is empty until this screen has
+   * emitted something, so picking an untouched date in the picker printed
+   * "Saved" next to an empty page — a claim about a row that does not exist.
+   * The caption is dropped entirely in that case rather than replaced with a
+   * third word: silence is what "there is nothing here yet" looks like.
+   *
+   * Same shape as the morning paper's #427 fix (BriefingScreen), and the same
+   * predicate this file already uses to decide whether there is a body worth
+   * writing back.
+   */
+  const hasEntryToReport =
+    selectedContent !== "" || lastEmitted?.date === selectedDate;
+  const savedLabel = !hasEntryToReport
+    ? undefined
+    : isSaved
+      ? t("materials.daily.saved")
+      : t("materials.daily.unsaved");
 
   // ---- date label formatters (host-side; the shared parts stay pure) ----
 
@@ -604,6 +625,9 @@ export function DailyView({
       className={cn(
         "inline-flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-1.5",
         "text-sm font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
+        // #1840 — 36px tall. Height only: the label already makes it wide
+        // enough for a thumb, and a min-width would stretch it.
+        "max-md:min-h-11",
         FOCUS_RING,
       )}
     >
@@ -666,6 +690,10 @@ export function DailyView({
             ? "h-8 w-8 border border-lumen-border bg-lumen-bg"
             : "h-7 w-7",
           "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+          // #1840 — on the shared string rather than inside the "boxed"
+          // branch, so both variants carry it and a test can read it without
+          // faking a viewport.
+          "max-md:min-h-11 max-md:min-w-11",
           FOCUS_RING,
         )}
       >
@@ -764,7 +792,12 @@ export function DailyView({
               setEveningEdit({ date: selectedDate, reflection: true })
             }
             onPrefetch={preloadRichTextEditor}
-            className="px-1 py-1"
+            // #1840 — the floor goes on the call site, not on the component:
+            // the Briefing screen draws this same preview inside a card of its
+            // own and is outside this issue. `min-h` rather than padding so the
+            // text keeps its position when the editor swaps in (the component's
+            // own comment: the swap must not jump).
+            className="px-1 py-1 max-md:min-h-11"
           />
         )
       }
@@ -845,6 +878,12 @@ export function DailyView({
           entries={panelEntries}
           onSelectEntry={selectDay}
           pinnedLabel={t("materials.daily.pinned")}
+          searchEmpty={dailyFilterQuery.trim() !== ""}
+          emptyMessage={
+            dailyFilterQuery.trim()
+              ? t("materials.daily.searchEmpty")
+              : t("materials.daily.empty")
+          }
         />
       </div>
     </RightSidebarPortal>

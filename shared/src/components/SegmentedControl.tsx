@@ -55,8 +55,21 @@ export interface SegmentedOption {
  */
 export type SegmentedControlSize = "md" | "sm";
 
+/**
+ * The 44px floor "md" takes on a phone (#1832).
+ *
+ * `max-md:` and not a bare `min-h-11`, so Desktop keeps every one of these
+ * tracks at the height it is drawn at today — the rule the size table's own
+ * note asks for. The BOX grows here rather than a TAP_TARGET_TALL ::after,
+ * unlike "sm": that hit area is `inset-x-0` and hangs ~6px past the control,
+ * which is safe in the section band (empty padding above and below) and not
+ * in a panel, where `singleLineLabels` can wrap the track into two rows whose
+ * neighbours sit 2px apart.
+ */
+const MD_TAP_FLOOR = "max-md:min-h-11";
+
 const SIZE_CLASSES: Record<SegmentedControlSize, string> = {
-  md: "px-3 py-1.5 text-sm",
+  md: `px-3 py-1.5 text-sm ${MD_TAP_FLOOR}`,
   sm: `px-2.5 py-1.5 text-xs ${TAP_TARGET_TALL}`,
 };
 
@@ -79,7 +92,7 @@ const SIZE_CLASSES: Record<SegmentedControlSize, string> = {
  * three long labels a single row in a 320px panel.
  */
 const SINGLE_LINE_SIZE_CLASSES: Record<SegmentedControlSize, string> = {
-  md: "px-1.5 py-1.5 text-xs",
+  md: `px-1.5 py-1.5 text-xs ${MD_TAP_FLOOR}`,
   sm: `px-1.5 py-1.5 text-xs ${TAP_TARGET_TALL}`,
 };
 

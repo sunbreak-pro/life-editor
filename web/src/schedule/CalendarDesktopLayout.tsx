@@ -126,6 +126,15 @@ export interface CalendarDesktopHandlers {
    * could be pressed, and a press aimed at a chip opened the panel instead.
    */
   onMonthCreate: (dateKey: string) => void;
+  /**
+   * A month cell's "他 N 件" was pressed (#1829). Desktop answers by taking
+   * the week of that day, which is the one view with no fold in it.
+   *
+   * Optional, like `onDropTodo` below: without it the remainder stays the
+   * static line it was, which is what a host that only draws the grid (the
+   * #1582 render-count fixture) wants.
+   */
+  onShowMore?: (dateKey: string) => void;
   onCreateAt: NonNullable<WeekTimeGridHandlers["onCreateAt"]>;
   onMoveItem: NonNullable<WeekTimeGridHandlers["onMoveItem"]>;
   onResizeItem: NonNullable<WeekTimeGridHandlers["onResizeItem"]>;
@@ -207,6 +216,14 @@ export function CalendarDesktopLayout({
     [t, fullDay],
   );
 
+  // #1829, and a useCallback for the #1582 reason above: the grid is memoised
+  // and an inline arrow here puts all 42 cells back into every render.
+  const formatShowMoreLabel = useCallback(
+    (dateKey: string) =>
+      t("scheduleScreen.monthShowAllOn", { date: fullDay(dateKey) }),
+    [t, fullDay],
+  );
+
   /*
    * #889: the Desktop main area, hoisted out of the return so the layout
    * below reads as what it is — toolbar, lens, body. Same three states the
@@ -232,6 +249,7 @@ export function CalendarDesktopLayout({
             todayKey={data.today}
             weekdayLabels={labels.weekdays}
             onCreateDay={handlers.onMonthCreate}
+            onShowMore={handlers.onShowMore}
             onItemActivate={handlers.onItemActivate}
             onItemDoubleClick={handlers.onItemDoubleClick}
             onItemContextMenu={handlers.onItemContextMenu}
@@ -239,6 +257,7 @@ export function CalendarDesktopLayout({
             formatMoreCount={formatMoreCount}
             formatDayLabel={format.fullDay}
             formatCreateLabel={formatCreateLabel}
+            formatShowMoreLabel={formatShowMoreLabel}
             ariaLabel={t("scheduleScreen.calendar")}
             className="h-full"
           />

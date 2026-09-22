@@ -208,13 +208,40 @@ describe("resolveDrag — place (all-day chip dropped into the time body)", () =
     expect(out?.endMin).toBe(24 * 60);
   });
 
-  it("never changes the day, however far sideways the pointer goes", () => {
+  /*
+   * #1831: the day used to stay the chip's own however far the pointer went,
+   * so a chip dropped on Wednesday's 15:00 landed on its own day at 15:00.
+   * One column of travel is one day, the same rule a "move" follows.
+   */
+  it("lands on the column the pointer was released over", () => {
+    const out = resolveDrag(
+      placing,
+      { x: 600, y: 580 },
+      geometry({ timeGridTop: 100 }),
+    );
+    expect(out).toMatchObject({
+      dateISO: "2026-08-13",
+      startMin: 10 * 60,
+      endMin: 11 * 60,
+    });
+  });
+
+  it("stays on its own day when the drop is straight down", () => {
+    const out = resolveDrag(
+      placing,
+      { x: 520, y: 580 },
+      geometry({ timeGridTop: 100 }),
+    );
+    expect(out?.dateISO).toBe("2026-08-12");
+  });
+
+  it("clamps a drop past the last column to the last day", () => {
     const out = resolveDrag(
       placing,
       { x: 2000, y: 580 },
       geometry({ timeGridTop: 100 }),
     );
-    expect(out?.dateISO).toBe("2026-08-12");
+    expect(out?.dateISO).toBe("2026-08-16");
   });
 
   it("flips the preview to timed so the chip leaves the all-day lane", () => {
@@ -285,6 +312,9 @@ describe("resolveDrag — the all-day lane (#562 / #563)", () => {
     expect(out?.allDay).toBe(true);
   });
 
+  // Unchanged by #1831: over the LANE a place still reports the chip's own
+  // day, because that branch writes nothing at all — the chip is already
+  // all-day, so there is no move to make.
   it("keeps a place on its own day even over the lane", () => {
     const out = resolveDrag(
       origin({ mode: "place" }),

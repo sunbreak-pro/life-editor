@@ -97,25 +97,6 @@ import { useElementWidth } from "./hooks/useElementWidth";
  *   - NoteListRows           — the draggable row + droppable heading
  */
 
-// Password dialog copy. Kept as local constants (the Notes i18n追い付き is
-// scoped to Daily/Tags in this plan); promoting these to catalog keys is a
-// follow-up.
-const DIALOG_LABELS = {
-  setTitle: "Set note password",
-  removeTitle: "Remove note password",
-  verifyTitle: "Unlock note",
-  passwordLabel: "Password",
-  currentPasswordLabel: "Current password",
-  confirmPasswordLabel: "Confirm password",
-  submit: "Confirm",
-  busy: "Working…",
-  cancel: "Cancel",
-  mismatch: "Passwords do not match.",
-  wrongPassword: "Incorrect password.",
-  required: "Password is required.",
-  saveFailed: "Could not save. Please try again.",
-} as const;
-
 interface NotesViewProps {
   /**
    * Injected for the "[[" link-target pool (notes + dailies fetched cross-
@@ -423,7 +404,8 @@ export function NotesView({
   );
 
   // ONE create at both widths (#1147, ユーザー指示): "+" makes an Untitled note
-  // and drops straight into the editor. Narrow used to raise a title-first
+  // and drops straight into it — into the TITLE since #1842, which is the one
+  // thing "Untitled" is waiting for. Narrow used to raise a title-first
   // QuickAddSheet (#876's "a phone's create is usually the whole capture"),
   // which put a form between the user and the thing they wanted to write in.
   // The sheet is gone; `createNote()` with no title falls back to "Untitled"
@@ -434,8 +416,19 @@ export function NotesView({
   // same reason: on narrow it is a modal overlay, so leaving it up would cover
   // the editor the create just opened.
   const createNote = notes.createNote;
+  /*
+   * #1842 — the new note's title comes up selected.
+   *
+   * "+" left the focus on the button it was pressed with and the title reading
+   * "Untitled", so naming the thing you had just made meant finding the field,
+   * clicking it and selecting the text by hand. The id is held here until the
+   * field reports back rather than kept forever, so returning to the note
+   * later does not re-select the title under whoever is reading it.
+   */
+  const [focusTitleNoteId, setFocusTitleNoteId] = useState<string | null>(null);
   const handleAddNote = useCallback(() => {
-    createNote();
+    const id = createNote();
+    if (typeof id === "string") setFocusTitleNoteId(id);
     if (!isWide) closeSidebar();
     // #1125: the capture step is satisfied by a real create — and since #1147
     // retired the narrow title-first sheet, that is now the same create at
@@ -598,6 +591,38 @@ export function NotesView({
     expandGroup: t("materials.notes.expandGroup"),
   };
 
+  /*
+   * The password dialog's copy (#1843).
+   *
+   * It was a module constant of English strings, so the one entry point that
+   * does reach this dialog -- the locked note's unlock prompt -- asked for a
+   * password in English on a Japanese screen.
+   *
+   * All thirteen strings move, not the four the unlock path uses. The set and
+   * remove modes are wired in the dialog and in useNotePassword but have no
+   * caller (#1843 again, and the decision about whether to give them one is
+   * queued rather than taken here). Moving half of them now would mean moving
+   * the other half again the moment that decision lands.
+   *
+   * `cancel` is the app's existing common.cancel rather than a fourteenth key:
+   * this file already uses it two hundred lines down.
+   */
+  const passwordLabels = {
+    setTitle: t("materials.notes.password.setTitle"),
+    removeTitle: t("materials.notes.password.removeTitle"),
+    verifyTitle: t("materials.notes.password.verifyTitle"),
+    passwordLabel: t("materials.notes.password.passwordLabel"),
+    currentPasswordLabel: t("materials.notes.password.currentPasswordLabel"),
+    confirmPasswordLabel: t("materials.notes.password.confirmPasswordLabel"),
+    submit: t("materials.notes.password.submit"),
+    busy: t("materials.notes.password.busy"),
+    cancel: t("common.cancel"),
+    mismatch: t("materials.notes.password.mismatch"),
+    wrongPassword: t("materials.notes.password.wrongPassword"),
+    required: t("materials.notes.password.required"),
+    saveFailed: t("materials.notes.password.saveFailed"),
+  };
+
   const detailLabels = {
     title: t("notesView.detailTitle"),
     pin: t("notesView.unpin"),
@@ -646,6 +671,9 @@ export function NotesView({
           t("materials.notes.tagFilterMore", { count }),
         fewerTagFilters: t("materials.notes.tagFilterLess"),
         moreRows: (count) => t("materials.notes.groupMoreRows", { count }),
+        // The same string the filter row folds with — one screen should not
+        // have two ways of saying "show fewer" (#1842).
+        fewerRows: t("materials.notes.tagFilterLess"),
       }}
       error={notes.error}
       selectedNoteId={selected?.id ?? null}
@@ -718,6 +746,10 @@ export function NotesView({
           locked={bodyGated}
           onUnlock={password.requestUnlock}
           onTitleCommit={(id, title) => notes.updateNote(id, { title })}
+          // #1842 — only for the note "+" just made, and only until the field
+          // says it has the focus.
+          autoFocusTitle={focusTitleNoteId === selected.id}
+          onTitleAutoFocused={() => setFocusTitleNoteId(null)}
           onTogglePin={notes.togglePin}
           onDelete={handleDeleteNote}
           // #1179: the kebab entry, wired only when there is a DataService to
@@ -954,7 +986,7 @@ export function NotesView({
       {password.dialog && (
         <NotePasswordDialog
           mode={password.dialog.mode}
-          labels={DIALOG_LABELS}
+          labels={passwordLabels}
           onSubmit={password.submit}
           onClose={password.closeDialog}
         />

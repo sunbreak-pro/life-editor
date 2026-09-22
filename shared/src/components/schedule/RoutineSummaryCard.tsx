@@ -8,6 +8,12 @@ import { cn } from "../cn";
  * presentation (§3.1 / §6.4): rows + copy injected already translated, the CTA
  * is a callback. lumen-* tokens only (§5).
  *
+ * #1827: the row wraps instead of keeping one line. The frequency + time label
+ * is long in en ("Mon, Tue, Wed, Thu, Fri 09:50") and used to be shrink-0, so
+ * in the narrow right pane the title was squeezed to 1px and the row said
+ * nothing about which routine it was. The title now carries a 6rem basis, so
+ * the frequency drops to a second line before the title gives up any width.
+ *
  * #1440: the completion bar and its "N件中M件完了" line are gone. They counted
  * `completed` on today's routine-generated events, and #1373 took completion
  * away from events entirely — so the bar could only ever stay at zero (or at
@@ -64,17 +70,17 @@ export function RoutineSummaryCard({
           {routines.map((r) => (
             <li
               key={r.id}
-              className="flex items-center gap-2 border-b border-lumen-border py-2 last:border-b-0"
+              className="flex flex-wrap items-center gap-x-2 gap-y-0.5 border-b border-lumen-border py-2 last:border-b-0"
             >
               <Repeat
                 aria-hidden
                 className="size-3 shrink-0 text-lumen-chip-routine-fg"
                 strokeWidth={2.5}
               />
-              <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
+              <span className="min-w-0 grow basis-24 truncate text-sm text-lumen-text">
                 {r.title}
               </span>
-              <span className="shrink-0 text-xs text-lumen-text-secondary">
+              <span className="ml-auto shrink-0 text-xs text-lumen-text-secondary">
                 {r.frequencyLabel} {r.timeLabel}
               </span>
             </li>

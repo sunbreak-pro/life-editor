@@ -185,9 +185,32 @@ const LinkCard = Node.create<LinkCardNodeOptions>({
           if (!parent.isTextblock || parent.type.name !== "paragraph") return;
           if (parent.textContent.trim() !== href) return;
           const start = $from.before();
+          /*
+           * The card AND an empty paragraph after it (#1836).
+           *
+           * A card is a block atom, so replacing the paragraph with the card
+           * alone leaves the selection on the node itself — the NodeSelection
+           * that draws `.ProseMirror-selectednode`. The next keystroke replaces
+           * what is selected, which is the card, and the URL the reader just
+           * finished typing is gone from the document and from the save that
+           * follows, without a word on screen.
+           *
+           * Inserting a paragraph in the same step gives the insertion an end
+           * to collapse into: `insertContentAt` puts the caret at the end of
+           * what it inserted, which is now inside an empty paragraph under the
+           * card, and typing carries on there.
+           *
+           * The paragraph is added every time, not only when the card would
+           * otherwise be the last block. The user was writing a sentence when
+           * the URL turned into a card; the empty line under it is where the
+           * rest of that sentence goes.
+           */
           commands.insertContentAt(
             { from: start, to: start + parent.nodeSize },
-            { type: LINK_CARD_NODE_TYPE, attrs: { href } },
+            [
+              { type: LINK_CARD_NODE_TYPE, attrs: { href } },
+              { type: "paragraph" },
+            ],
           );
         },
       }),

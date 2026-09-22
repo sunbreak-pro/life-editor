@@ -162,4 +162,35 @@ describe("#1512 — shared narrow chrome meets the 44px touch floor", () => {
     expect(tab).toHaveClass("relative", "after:h-11", "after:inset-x-0");
     expect(tab).not.toHaveClass("min-h-11");
   });
+
+  /*
+   * #1832: the "md" track is the other half of that story. It is the in-panel
+   * size — the Schedule detail tabs measured 98x33 — and it grows its BOX on a
+   * phone rather than hanging a ::after over it. `inset-x-0` would be unsafe
+   * here: under `singleLineLabels` the track wraps into two rows whose
+   * neighbours sit 2px apart, so the 44px hit area would reach over the row
+   * above.
+   */
+  it.each([false, true])(
+    "floors an md segment on narrow (singleLineLabels=%s)",
+    (singleLineLabels) => {
+      render(
+        <SegmentedControl
+          options={[
+            { id: "flow", label: "今日の流れ" },
+            { id: "repeats", label: "繰り返し" },
+          ]}
+          value="flow"
+          onChange={() => {}}
+          singleLineLabels={singleLineLabels}
+          label="Detail tabs"
+        />,
+      );
+      const tab = screen.getByRole("tab", { name: "今日の流れ" });
+      expect(tab).toHaveClass("max-md:min-h-11");
+      // Desktop keeps the height it is drawn at.
+      expect(tab).not.toHaveClass("min-h-11");
+      expect(tab).not.toHaveClass("after:h-11");
+    },
+  );
 });

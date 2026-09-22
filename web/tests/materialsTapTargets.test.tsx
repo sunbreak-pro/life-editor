@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
+import {
+  ToastProvider,
+  WikiTagsUnifiedProvider,
+  type DataService,
+} from "@life-editor/shared";
+import { stubDataService, createBumpableSync } from "./helpers";
+import { TagPicker } from "../src/wikitag/TagPicker";
 import type { ReactNode } from "react";
 import { DndContext } from "@dnd-kit/core";
 import type { NoteNode } from "@life-editor/shared";
@@ -135,5 +142,93 @@ describe("#1560 — the tag filter chips meet the 44px touch floor", () => {
       // a min-height, not a taller pill.
       expect(chip.classList.contains("py-0.5")).toBe(true);
     }
+  });
+});
+
+/*
+ * #1840 — the bin on a note row was hidden with `opacity: 0` and revealed on
+ * hover. A finger has no hover, and `opacity` hides a button from the eye and
+ * from nobody else: at 390px a tap on the row's right edge opened a delete
+ * confirm nobody could see coming (measured with elementFromPoint).
+ *
+ * It is shown rather than removed, because narrow width also turns the row's
+ * context menu off (NotesView passes `enabled: isWide`), so this is the only
+ * way to delete a note from the list there.
+ */
+describe("#1840 — the row's delete button is visible where it is tappable", () => {
+  function deleteButton(): HTMLElement {
+    renderRow();
+    return screen.getByRole("button", { name: "Delete: Alpha" });
+  }
+
+  it("shows itself on narrow widths and on any pointer that cannot hover", () => {
+    const bin = deleteButton();
+    expect(bin.classList.contains("max-md:opacity-100")).toBe(true);
+    // A desktop browser narrowed to 390px is not a touch device, so the width
+    // query is not enough on its own — and a phone held in landscape is wider
+    // than the breakpoint, so the pointer query is not either.
+    expect(
+      bin.classList.contains("[@media(hover:none)]:opacity-100"),
+    ).toBe(true);
+  });
+
+  it("is a thumb-sized target where it is shown", () => {
+    const bin = deleteButton();
+    expect(bin.classList.contains("max-md:min-h-11")).toBe(true);
+    expect(bin.classList.contains("max-md:min-w-11")).toBe(true);
+  });
+
+  it("leaves the DESKTOP row exactly as it was", () => {
+    const bin = deleteButton();
+    // Still hidden until the row is hovered, and still a mouse-sized glyph.
+    expect(bin.classList.contains("opacity-0")).toBe(true);
+    expect(bin.classList.contains("group-hover:opacity-100")).toBe(true);
+    expect(bin.classList.contains("opacity-100")).toBe(false);
+    expect(bin.classList.contains("min-h-11")).toBe(false);
+    expect(bin.classList.contains("min-w-11")).toBe(false);
+  });
+});
+
+/*
+ * #1840 — the tag picker's "+". TAP_TARGET is 1.75rem, which is 31.5px at the
+ * app's 18px root: the icon floor, not a thumb's.
+ *
+ * The floor goes on the component rather than behind a prop, so the same
+ * control is not two sizes depending on who drew it — which means Schedule's
+ * rows grow too. That is the trade, and it is called out in the PR.
+ */
+const { wrapper: SyncWrapper } = createBumpableSync();
+
+describe("#1840 — the tag picker's + meets the 44px touch floor", () => {
+  async function plusButton(): Promise<HTMLElement> {
+    const ds = stubDataService({
+      listAllWikiTagsUnified: async () => [],
+      listAllTagConnections: async () => [],
+      listAllTagAssignments: async () => [],
+    }) as DataService;
+    render(
+      <SyncWrapper>
+        <ToastProvider>
+          <WikiTagsUnifiedProvider dataService={ds}>
+            <TagPicker itemId="note-a" />
+          </WikiTagsUnifiedProvider>
+        </ToastProvider>
+      </SyncWrapper>,
+    );
+    return screen.findByRole("button", { name: "Add tag" });
+  }
+
+  it("floors it both ways on narrow", async () => {
+    const plus = await plusButton();
+    expect(plus.classList.contains("max-md:min-h-11")).toBe(true);
+    expect(plus.classList.contains("max-md:min-w-11")).toBe(true);
+  });
+
+  it("leaves the shared icon floor where every other icon button reads it", async () => {
+    // TAP_TARGET is not touched: it is the floor for every icon-only button in
+    // the app, and raising it would grow all of them on Desktop too.
+    const plus = await plusButton();
+    expect(plus.classList.contains("min-h-lumen-tap-min")).toBe(true);
+    expect(plus.classList.contains("min-h-11")).toBe(false);
   });
 });
