@@ -123,7 +123,11 @@ describe("MonthGrid", () => {
    * cannot move a grid line. jsdom has no layout, so both are asserted on the
    * classes that produce them: the title clips (`overflow-hidden` +
    * `whitespace-nowrap`) without Tailwind's `truncate` (which is the ellipsis),
-   * and the cell has a fixed height that clips rather than a floor that grows.
+   * and the cell clips rather than growing to fit the text.
+   *
+   * #1835 turned the fixed height into a FLOOR so the six rows can divide a
+   * phone's leftover height. What the title must not do is unchanged: the
+   * cell still clips, so no title moves a grid line.
    */
   it("cuts a long title at the cell edge without an ellipsis, on a cell that cannot grow", () => {
     renderGrid({
@@ -158,8 +162,21 @@ describe("MonthGrid", () => {
 
     const cell = title.closest("[role='gridcell']");
     expect(cell?.className).toContain("overflow-hidden");
-    expect(cell?.className).toContain("h-[5.5rem]");
+    expect(cell?.className).toContain("min-h-[5.5rem]");
     expect(cell?.className).not.toContain("min-h-14");
+  });
+
+  // #1835: the grid is at least as tall as its scroll box on a phone, so six
+  // rows of the floor above divide the leftover height instead of stopping
+  // short of the bottom bar. Desktop's card is unchanged.
+  it("fills the column it is given in compact mode", () => {
+    renderGrid({ compact: true });
+    expect(screen.getByRole("grid").className).toContain("min-h-full");
+  });
+
+  it("does not stretch the Desktop card", () => {
+    renderGrid();
+    expect(screen.getByRole("grid").className).not.toContain("min-h-full");
   });
 
   it("runs edge to edge in compact mode: no radius, no side borders", () => {
@@ -405,9 +422,9 @@ describe("MonthGrid — the Desktop + button (#1584)", () => {
 describe("MonthGrid — chips carry the pointer cursor (#1584)", () => {
   it("puts cursor-pointer on an item chip", () => {
     renderGrid();
-    expect(
-      screen.getByRole("button", { name: "Gym" }).className,
-    ).toContain("cursor-pointer");
+    expect(screen.getByRole("button", { name: "Gym" }).className).toContain(
+      "cursor-pointer",
+    );
     // The todo chip is a different branch of the same className call.
     expect(
       screen.getByRole("button", { name: "Write report" }).className,
