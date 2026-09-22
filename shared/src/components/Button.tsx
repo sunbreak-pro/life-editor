@@ -32,24 +32,25 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  * already-translated strings (no useTranslation inside shared, §6.4).
  */
 const VARIANT_CLASSES: Record<ButtonVariant, string> = {
-  // `primary` is the only variant on DISABLED_FILLED_BTN so far (#1474). The
-  // other three keep `disabled:opacity-50` on purpose: secondary and ghost are
-  // already surface-coloured, so fading them reads as disabled without help.
-  // `danger` has the identical accent-fill problem and the identical fix, but
-  // its disabled state is a BUSY state on three screens (TrashView,
-  // DeleteAccountDialog, AttachmentCleanupPanel) where a flat grey would read
-  // as "switched off" rather than "working" — converting it is a UX call, not
-  // a mechanical one, so it is queued rather than folded in here. What #1804
-  // adds is the other half of that reading: those three now say "working" in
-  // a spinner and a label, so whichever way the fill lands later, the busy
-  // state no longer depends on the fill to be read at all.
+  // The two FILLED variants are on DISABLED_FILLED_BTN (#1474 took primary,
+  // #1803 brought danger over). `secondary` and `ghost` keep
+  // `disabled:opacity-50` on purpose: they are already surface-coloured, so
+  // fading them reads as disabled without changing hue, and sinking them into
+  // the recess would draw a box around a button that never had one.
+  //
+  // `danger` waited a release because its disabled state doubles as a BUSY
+  // state on three screens (TrashView, DeleteAccountDialog,
+  // AttachmentCleanupPanel), where a flat grey can be read as "switched off"
+  // rather than "working". #1804 settled that from the other side: those three
+  // now say "working" with a spinner and a `busyLabel`, so the busy reading no
+  // longer rests on the fill, and the fill is free to mean what it means
+  // everywhere else.
   primary: `bg-lumen-accent text-lumen-on-accent hover:opacity-90 ${DISABLED_FILLED_BTN}`,
   secondary:
     "bg-lumen-bg-secondary text-lumen-text hover:bg-lumen-hover disabled:opacity-50",
   ghost:
     "bg-transparent text-lumen-text hover:bg-lumen-hover disabled:opacity-50",
-  danger:
-    "bg-lumen-danger text-lumen-on-accent hover:opacity-90 disabled:opacity-50",
+  danger: `bg-lumen-danger text-lumen-on-accent hover:opacity-90 ${DISABLED_FILLED_BTN}`,
 };
 
 const SIZE_CLASSES: Record<ButtonSize, string> = {

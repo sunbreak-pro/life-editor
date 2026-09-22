@@ -16,6 +16,7 @@ import {
   type EditorHistory,
 } from "@life-editor/shared";
 import { createSlashCommand } from "./slashCommand";
+import { TableControls } from "./TableControls";
 import { createItemLinkNode } from "./itemLinkNode";
 import { createItemLinkSuggestion } from "./itemLinkSuggestion";
 import { createAttachmentNode } from "./attachmentNode";
@@ -38,8 +39,9 @@ import type { AttachmentWiring } from "./useAttachmentUpload";
  * ALWAYS registered so stored `[[…]]` JSON round-trips on every surface).
  * Heavier extensions (color, highlight, bubble/context menus) are still NOT
  * ported — they land in a later S-step if needed (scope-creep guard). Tables
- * ARE in the schema (tableNodes.ts), but only so a table the MCP server wrote
- * opens and round-trips (#1579); nothing here creates one.
+ * are in the schema (tableNodes.ts) so a table the MCP server wrote opens and
+ * round-trips (#1579), and since #1903 the "/" menu inserts one as well, with
+ * TableControls for the rows and columns.
  *
  * Like the source, the StarterKit built-ins for the customised marks are
  * disabled and replaced by `*NoInputRules` variants so typing `**`, `*`,
@@ -207,6 +209,20 @@ interface RichTextEditorBaseProps {
   /** Create a note for `label` from the "[[" menu; returns its id or null. */
   onCreateNoteForLink?: (label: string) => Promise<{ id: string } | null>;
   /**
+   * "The document just changed" — raised on the keystroke, not on the save
+   * (#1822).
+   *
+   * `onUpdate` is debounced by 800ms, so between a keystroke and that timer a
+   * host has no way to know anything is pending: Briefing's 夕刊 caption read
+   * the last EMITTED body, which is still the stored one, and answered
+   *「Saved」to text that was not saved yet. This fires synchronously beside the
+   * debounce and lets the host say「Unsaved」for that window.
+   *
+   * It reports and nothing else — it never persists, and it is silent in draft
+   * mode, where every change already reaches the host through `onDraftChange`.
+   */
+  onDirty?: () => void;
+  /**
    * Image / file embedding (#1404) — `useAttachmentUpload(dataService)`.
    *
    * Presence adds the two attach entries to the "/" menu and lets stored
@@ -243,11 +259,13 @@ export function RichTextEditor({
   onNavigateToItem,
   onResolvedLinkInserted,
   onCreateNoteForLink,
+  onDirty,
   attachments,
 }: RichTextEditorProps) {
   const { t } = useTranslation();
   const debounceRef = useRef<number | null>(null);
   const onUpdateRef = useRef(onUpdate);
+  const onDirtyRef = useRef(onDirty);
   const onDraftChangeRef = useRef(onDraftChange);
   const latestContentRef = useRef<string | null>(null);
 
@@ -266,6 +284,7 @@ export function RichTextEditor({
 
   useEffect(() => {
     onUpdateRef.current = onUpdate;
+    onDirtyRef.current = onDirty;
     onDraftChangeRef.current = onDraftChange;
     autoFocusRef.current = autoFocus;
     loadLinkTargetsRef.current = loadLinkTargets;
@@ -371,6 +390,7 @@ export function RichTextEditor({
                   bulletList: t("blockMenu.turnIntoItems.bulletList"),
                   orderedList: t("blockMenu.turnIntoItems.orderedList"),
                   taskList: t("blockMenu.turnIntoItems.taskList"),
+                  table: t("blockMenu.turnIntoItems.table"),
                   image: t("attachment.insertImage"),
                   file: t("attachment.insertFile"),
                   empty: t("blockMenu.noMatch"),
@@ -427,8 +447,8 @@ export function RichTextEditor({
         // same failure: `generate_content` writes a `table` block (the tool
         // descriptions send writers there for tables specifically), the schema
         // did not know the four nodes, so the whole document failed the check
-        // and was autosaved away as blank (#1579). Nothing in the editor
-        // creates a table; these exist so those notes open and round-trip.
+        // and was autosaved away as blank (#1579). Since #1903 the "/" menu
+        // makes one too, and the two arrive in the same shape.
         ...createTableNodes(),
         // "[[" wiki-link autocomplete — gated on the loadLinkTargets prop. The
         // loader + callbacks are read through refs so they never go stale.
@@ -470,6 +490,9 @@ export function RichTextEditor({
           onDraftChangeRef.current(json);
           return;
         }
+        // Before the debounce is armed, so the host can report the pending
+        // window rather than the last landed write (#1822).
+        onDirtyRef.current?.();
         if (debounceRef.current) {
           clearTimeout(debounceRef.current);
         }
@@ -572,6 +595,19 @@ export function RichTextEditor({
 
   return (
     <div className={`note-editor ${className}`}>
+      {/* #1903 — draws itself only while the caret is inside a table, and
+          never on a read-only surface. */}
+      <TableControls
+        editor={editor}
+        labels={{
+          label: t("materials.notes.tableControls.label"),
+          addRow: t("materials.notes.tableControls.addRow"),
+          addColumn: t("materials.notes.tableControls.addColumn"),
+          deleteRow: t("materials.notes.tableControls.deleteRow"),
+          deleteColumn: t("materials.notes.tableControls.deleteColumn"),
+          deleteTable: t("materials.notes.tableControls.deleteTable"),
+        }}
+      />
       <EditorContent editor={editor} />
     </div>
   );

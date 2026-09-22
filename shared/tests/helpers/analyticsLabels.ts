@@ -83,7 +83,7 @@ export function makeAnalyticsLabels(
       title: "Streaks",
       current: "Current",
       longest: "Longest",
-      days: "days",
+      formatDays: (n: number) => (n === 1 ? "day" : "days"),
       noStreak: "Start a streak",
     },
     heatmap: {
@@ -133,6 +133,7 @@ export function makeAnalyticsLabels(
       tag: "Tag",
       inRange: "Created in range",
       liveTotal: "Current total",
+      topOf: (shown: number, total: number) => `Top ${shown} of ${total} tags`,
     },
     mobile: {
       weekTitle: "This Week",
