@@ -23,7 +23,7 @@ const LABELS = {
   title: "Streaks",
   current: "Current",
   longest: "Longest",
-  days: "days",
+  formatDays: (n: number) => (n === 1 ? "day" : "days"),
   noStreak: "No streak yet",
 };
 
@@ -72,15 +72,21 @@ describe("Streak tiles keep their label on one line (#1467)", () => {
     // The old markup rendered "Longest (days)", which is what ran out of room.
     expect(tile(LABELS.longest).label.textContent).toBe(LABELS.longest);
     expect(tile(LABELS.current).label.textContent).toBe(LABELS.current);
-    expect(screen.queryByText(`${LABELS.longest} (${LABELS.days})`)).toBeNull();
+    expect(
+      screen.queryByText(`${LABELS.longest} (${LABELS.formatDays(2)})`),
+    ).toBeNull();
   });
 
   it("moves the unit onto the number's own line", () => {
     renderStreak();
     // Same information, half the width: "2 days" reads as one figure, and the
     // line under it is then short enough for the narrower tile.
-    expect(tile(LABELS.longest).number.textContent).toBe(`2${LABELS.days}`);
-    expect(tile(LABELS.current).number.textContent).toBe(`2${LABELS.days}`);
+    expect(tile(LABELS.longest).number.textContent).toBe(
+      `2${LABELS.formatDays(2)}`,
+    );
+    expect(tile(LABELS.current).number.textContent).toBe(
+      `2${LABELS.formatDays(2)}`,
+    );
   });
 
   it("declares both lines of both tiles unwrappable", () => {
@@ -88,7 +94,24 @@ describe("Streak tiles keep their label on one line (#1467)", () => {
     for (const label of [LABELS.current, LABELS.longest]) {
       const { label: text, number } = tile(label);
       expect(text.className).toContain("truncate");
-      expect(number.className).toContain("truncate");
+      // The value line no longer truncates as a whole (#1863) — see below.
+      expect(number.className).toContain("whitespace-nowrap");
+    }
+  });
+
+  it("never lets the count itself be cut — only its unit gives way (#1863)", () => {
+    renderStreak();
+    // With the detail panel open the en card read "1… / Lon…": `truncate` sat
+    // on the whole value line, so the count was the first thing to go.
+    for (const label of [LABELS.current, LABELS.longest]) {
+      const { number } = tile(label);
+      const [count, unit] = Array.from(number.children) as HTMLElement[];
+      expect(number.className).not.toContain("truncate");
+      expect(count.textContent).toBe("2");
+      expect(count.className).toContain("flex-shrink-0");
+      expect(count.className).not.toContain("truncate");
+      expect(unit.textContent).toBe(LABELS.formatDays(2));
+      expect(unit.className).toContain("truncate");
     }
   });
 

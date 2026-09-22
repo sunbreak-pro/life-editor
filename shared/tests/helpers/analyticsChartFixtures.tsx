@@ -145,6 +145,12 @@ function assignment(itemId: string, tagId: string): WikiTagAssignment {
 /** One work minute — the #944 repro. Whole minutes, so 0.25m is unreachable. */
 export const ONE_MINUTE: TimerSession[] = [session(1, "WORK", 1)];
 
+/** A stand-in for the host axis vocabulary (#1864): minutes as "Nm", dates as MM-DD. */
+export const AXIS = {
+  duration: (minutes: number): string => `${Math.round(minutes)}m`,
+  date: (key: string): string => key.substring(5),
+};
+
 export const WORK_BREAK_LABELS = {
   title: "Balance",
   work: "Work",
@@ -185,6 +191,7 @@ export const CHARTS: ChartFixture[] = [
         days={7}
         targetPerDay={4}
         labels={{ title: "Pomodoro", actual: "Actual", target: "Target" }}
+        axis={AXIS}
       />
     ),
   },
@@ -258,6 +265,7 @@ export const CHARTS: ChartFixture[] = [
         sessions={[session(1, "WORK", 30, "task-1")]}
         todoNameMap={new Map([["task-1", "Write the thing"]])}
         labels={{ title: "By todo", sessions: "Sessions", noTodo: "No Todo" }}
+        axis={AXIS}
       />
     ),
   },
@@ -268,6 +276,7 @@ export const CHARTS: ChartFixture[] = [
         sessions={ONE_MINUTE}
         days={7}
         labels={WORK_BREAK_LABELS}
+        axis={AXIS}
       />
     ),
   },
@@ -278,6 +287,7 @@ export const CHARTS: ChartFixture[] = [
         sessions={ONE_MINUTE}
         period="day"
         labels={{ workTime: "Work Time" }}
+        axis={AXIS}
       />
     ),
   },

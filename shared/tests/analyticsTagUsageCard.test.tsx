@@ -24,6 +24,7 @@ const LABELS: TagUsageCardLabels = {
   inRange: "Created in range",
   liveTotal: "Current total",
   rangeLabel: "Last 30 days",
+  topOf: (shown: number, total: number) => `Top ${shown} of ${total} tags`,
   empty: { title: "No tagged items", description: "Tag something." },
 };
 
@@ -198,5 +199,31 @@ describe("TagUsageCard", () => {
     expect(screen.getByText(LABELS.empty.title)).toBeInTheDocument();
     expect(screen.getByText(LABELS.empty.description)).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();
+  });
+
+  it("keeps a very long tag name from widening the table (#1863)", () => {
+    // jsdom has no layout, so the 1116px overflow itself cannot be measured
+    // here. What can be pinned is what makes it impossible: a fixed-layout
+    // table (an auto cell has no width for `truncate` to overflow), a name
+    // that may shrink and truncates, and the full name still reachable.
+    const longName = "x".repeat(80);
+    render(
+      <TagUsageCard
+        todos={[todo("task-1", IN_RANGE)]}
+        events={[]}
+        notes={[]}
+        assignments={[assign("a-1", "task-1", "tag-long")]}
+        tags={[tag("tag-long", longName)]}
+        dateRange={RANGE}
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.getByRole("table").className).toContain("table-fixed");
+    const name = screen.getByText(longName);
+    expect(name.className).toContain("truncate");
+    expect(name.className).toContain("min-w-0");
+    expect(name.getAttribute("title")).toBe(longName);
+    expect(rowCells(longName).slice(1)).toEqual(["1", "1"]);
   });
 });

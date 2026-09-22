@@ -151,6 +151,7 @@ export const SECTION_DESCRIPTORS: Readonly<
       <BriefingScreen
         dataService={ds}
         onNavigate={nav.navigateTo}
+        onNavigateToItem={nav.navigateToItem}
         tab={nav.briefingTab}
         tabSwitcher={narrowTabRow}
       />
@@ -316,6 +317,8 @@ export const SECTION_DESCRIPTORS: Readonly<
           dataService={ds}
           tab={nav.analyticsTab}
           onTabChange={nav.setAnalyticsTab}
+          preset={nav.analyticsPreset}
+          onPresetChange={nav.setAnalyticsPreset}
         />
       </Suspense>
     ),

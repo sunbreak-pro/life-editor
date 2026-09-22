@@ -3,6 +3,7 @@ import type { TimerSession } from "../../types/timer";
 import { aggregateDailyTimeline } from "../../utils/analyticsAggregation";
 import { todayCalendarKey } from "../../utils/dateKey";
 import { ChartCard } from "./ChartCard";
+import type { ChartAxisFormat } from "./chartTheme";
 
 export interface DailyTimelineLabels {
   title: string;
@@ -15,6 +16,8 @@ export interface DailyTimelineLabels {
 interface DailyTimelineProps {
   sessions: TimerSession[];
   labels: DailyTimelineLabels;
+  /** Duration vocabulary shared by every chart on the tab (#1864). */
+  axis: ChartAxisFormat;
 }
 
 // Session-type → block tint. WORK/BREAK reuse lumen chrome tokens; LONG_BREAK
@@ -31,6 +34,7 @@ const DISPLAY_HOURS = [0, 3, 6, 9, 12, 15, 18, 21, 24];
 export function DailyTimeline({
   sessions,
   labels,
+  axis,
 }: DailyTimelineProps): React.JSX.Element {
   // Calendar day (#356): this picker drives a 0–24h wall-clock axis, so the
   // day-start-hour rollover (todayDateKey) would contradict the axis itself.
@@ -112,7 +116,7 @@ export function DailyTimeline({
                     backgroundColor:
                       SESSION_COLORS[block.sessionType] ?? SESSION_COLORS.WORK,
                   }}
-                  title={`${block.startHour}:${String(block.startMinute).padStart(2, "0")} - ${Math.round(block.durationMinutes)}min (${block.sessionType})`}
+                  title={`${block.startHour}:${String(block.startMinute).padStart(2, "0")} - ${axis.duration(block.durationMinutes)} (${sessionLabel(block.sessionType)})`}
                 />
               );
             })}

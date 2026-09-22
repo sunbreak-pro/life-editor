@@ -79,7 +79,13 @@ async function renderScreen(ds: DataService, settled: () => unknown) {
   const { wrapper: SyncWrapper } = createBumpableSync();
   render(
     <SyncWrapper>
-      <AnalyticsScreen dataService={ds} tab="overview" onTabChange={vi.fn()} />
+      <AnalyticsScreen
+        dataService={ds}
+        tab="overview"
+        onTabChange={vi.fn()}
+        preset="30d"
+        onPresetChange={vi.fn()}
+      />
     </SyncWrapper>,
   );
   // The first-load skeleton is up until the mount read settles.

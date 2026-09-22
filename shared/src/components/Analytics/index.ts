@@ -14,4 +14,6 @@ export type { AnalyticsLabels } from "./labels";
 // The date-range shape the host receives via onScheduleRangeChange (per-range
 // fetch). The AnalyticsFilterContext itself stays internal; only this type
 // crosses the host boundary.
-export type { DateRange } from "./AnalyticsFilterContext";
+// `DatePreset` crosses too (#1865): the shell keeps the chosen preset alive
+// across a section switch, the same way it keeps the active tab.
+export type { DateRange, DatePreset } from "./AnalyticsFilterContext";
