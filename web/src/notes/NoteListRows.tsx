@@ -152,6 +152,21 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
         className={cn(
           "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity",
           "hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100",
+          /*
+           * #1840 — opacity: 0 hides a button from the eye and from nobody
+           * else. At 390px a tap on the row's right edge landed on this bin
+           * and opened a delete confirm the user had no way to see coming
+           * (measured with elementFromPoint, not inferred).
+           *
+           * It is shown rather than removed: narrow width also turns the row's
+           * context menu off (NotesView passes `enabled: isWide`), so this is
+           * the only way to delete a note from the list there. A finger has no
+           * hover to reveal it with, hence the pointer query as well as the
+           * width one — a desktop browser narrowed to 390px is not a touch
+           * device and would otherwise keep the invisible button.
+           */
+          "max-md:opacity-100 [@media(hover:none)]:opacity-100",
+          "max-md:min-h-11 max-md:min-w-11",
           FOCUS_RING,
         )}
       >

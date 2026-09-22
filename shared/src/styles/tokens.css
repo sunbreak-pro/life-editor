@@ -47,9 +47,18 @@
   --color-text-primary: #2b2015;
   --color-text-secondary: #6b5a45;
   /* Third text tier — de-emphasized meta / hints, one step quieter than
-     text-secondary (row tags, counts, timestamps). Kept ≥ 3:1 on bg per
-     PRINCIPLES §3.6 (do not use for body copy). */
-  --color-text-tertiary: #857054;
+     text-secondary (row tags, counts, timestamps).
+
+     #1844: this was #857054, which the old ≥ 3:1 floor allowed and which
+     measured 4.32:1 on the page, 4.15:1 in the sidebar and 4.00:1 on a chip.
+     The tier is not decoration — it is where a tag's count, a timestamp and a
+     search field's placeholder are written, all of them 14.6px text someone
+     has to read. It is held to 4.5:1 now (PRINCIPLES §3.6), against the
+     darkest surface it is ever set on, which is surface-sunken: 4.59:1. On
+     bg-primary it reads 5.34:1.
+
+     The hue and the saturation are the palette's; only the lightness moved. */
+  --color-text-tertiary: #756249;
   --color-border: #eadec6;
   --color-border-strong: #d6c3a2;
   --color-accent: #ad4409;

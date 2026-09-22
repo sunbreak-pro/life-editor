@@ -808,6 +808,25 @@ export function CalendarTab({
     [openSidebar, pickMonthDay, setSidebarTab],
   );
 
+  /*
+   * #1829: a Desktop month cell draws two chips and folds the rest into
+   * "他 N 件". That line was static text, and this width wires no cell face
+   * button either (#1584 took it away), so everything past the second chip
+   * was unreachable without switching to the week by hand.
+   *
+   * Pressing it does exactly that switch, on that day: the week is Desktop's
+   * one view with no fold in it. The filters are deliberately left alone —
+   * the folded count was counted AFTER them, so clearing them here would show
+   * more rows than the button offered.
+   */
+  const handleMonthShowMore = useCallback(
+    (dateKey: string) => {
+      pickMonthDay(dateKey);
+      setView("week");
+    },
+    [pickMonthDay, setView],
+  );
+
   // #889: TODAY, as the rightSidebar shows it — the merged agenda, its two
   // counters, the skipped list and its restore, and the editor's "generated
   // from" caption. Every one of them derives from `contextItems` (the
@@ -1374,6 +1393,7 @@ export function CalendarTab({
             onItemDoubleClick: handleItemOpenDetail,
             onItemContextMenu: handleItemContextMenu,
             onMonthCreate: handleMonthCreate,
+            onShowMore: handleMonthShowMore,
             onCreateAt: handleGridCreateAt,
             onMoveItem: handleMoveItem,
             onResizeItem: handleResizeItem,

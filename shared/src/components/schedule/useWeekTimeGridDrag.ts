@@ -33,8 +33,9 @@ import type { WeekTimeGridItem } from "./WeekTimeGrid";
  * "place" (schedule redesign A-3 / #298): an all-day todo chip is dragged out
  * of the all-day lane into the time body to gain a start time. Unlike "move"
  * (delta from the block's own time origin) it has no time origin, so the drop
- * time is read from the ABSOLUTE pointer Y over the scroll body; the day stays
- * the chip's own (no horizontal day change) and the write reuses `onMoveItem`.
+ * time is read from the ABSOLUTE pointer Y over the scroll body; the day comes
+ * from the horizontal travel exactly as a "move" 's does (#1831), and the
+ * write reuses `onMoveItem`.
  */
 interface DragState {
   id: string;
@@ -170,18 +171,29 @@ export function useWeekTimeGridDrag({
     if ((mode === "move" || mode === "place") && !onMoveItem) return;
     if (mode === "resize" && !onResizeItem) return;
     e.stopPropagation();
-    // For a timed block ("move"/"resize") the offsetParent is its day column,
-    // and that column's width maps a horizontal drag to a whole-day offset.
-    // For "place" the drag starts on an all-day chip, whose offsetParent is the
-    // sticky header/lane wrapper (#563) rather than a single day cell — that is
-    // harmless because "place" never reads colWidth (its day stays fixed), and
-    // "resize" ignores width too.
-    const col = (e.currentTarget as HTMLElement)
-      .offsetParent as HTMLElement | null;
+    /*
+     * For a timed block ("move"/"resize") the offsetParent is its day column,
+     * and that column's width maps a horizontal drag to a whole-day offset.
+     *
+     * For "place" the drag starts on an all-day chip, whose offsetParent is
+     * the sticky header/lane wrapper (#563) — the width of the WHOLE week, not
+     * of one day. That was harmless while a place kept its day; since #1831 it
+     * would make every sideways drop resolve to an offset of zero, so the lane
+     * CELL is measured instead. It is found by `closest()` rather than by
+     * coordinates (rules/frontend.md §テスト環境の制約), and the lane shares
+     * the time body's column template, so its width is a day's on both.
+     *
+     * "resize" ignores width either way.
+     */
+    const target = e.currentTarget as HTMLElement;
+    const col =
+      mode === "place"
+        ? target.closest<HTMLElement>("[data-week-grid-allday]")
+        : (target.offsetParent as HTMLElement | null);
     // "place": an all-day chip has no time origin — seed a default block anchored
     // at the top of the visible window; the real start comes from the absolute
-    // pointer Y over the time body (onMove). Its day stays fixed (no horizontal
-    // day change), so colWidth is irrelevant.
+    // pointer Y over the time body (onMove), and the day from the travel
+    // across the lane cell measured above.
     const startMin =
       mode === "place" ? startHour * 60 : minutesFromMidnight(item.startTime);
     const durationMin =

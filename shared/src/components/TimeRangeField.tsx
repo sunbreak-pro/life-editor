@@ -238,12 +238,20 @@ export function TimeRangeField({
   const startMin = parseTimeInput(start) ?? 9 * 60;
   const endMin = Math.min(parseTimeInput(end) ?? startMin + 60, DAY_MAX);
 
-  /** Move the start; the end rides along so the duration survives (capped at
-   *  23:59 — the end must stay on the same day). */
+  /*
+   * Move the start; the end rides along so the duration survives (capped at
+   * 23:59 — the end must stay on the same day).
+   *
+   * #1833: the end used to ride along in ONE direction. A start moved to
+   * anywhere still before the end left the end where it was, so 18:00–19:00
+   * retimed to a 14:00 start became a five-hour block — the user moved an
+   * appointment and silently resized it. The header above has promised
+   * "duration preserved" since #553; only the later half of the range ever
+   * kept it.
+   */
   const commitStart = (nextStart: number) => {
     const duration = Math.max(endMin - startMin, stepMinutes);
-    const nextEnd =
-      nextStart < endMin ? endMin : Math.min(nextStart + duration, DAY_MAX);
+    const nextEnd = Math.min(nextStart + duration, DAY_MAX);
     // A start so late that no same-day end fits (23:59) is invalid input —
     // reject it like unparsable text rather than commit a degenerate range.
     if (nextEnd <= nextStart) return;

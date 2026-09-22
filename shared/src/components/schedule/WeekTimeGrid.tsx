@@ -9,6 +9,7 @@ import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
 import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import {
+  blockTitleLines,
   dayOfWeek,
   minutesFromMidnight,
   parseDateKey,
@@ -781,6 +782,12 @@ export function WeekTimeGrid({
                   const selected = it.id === selectedId;
                   const widthPct = 100 / p.columns;
                   const variant = it.variant ?? "event";
+                  // #1835: the block's height in px, which is what decides how
+                  // many lines its title may use. `heightPct` is a share of
+                  // the day body, and the body's px height is known here.
+                  const titleLines = blockTitleLines(
+                    (p.heightPct / 100) * bodyHeight,
+                  );
                   // A-1 made todo chips read-only; A-2 (#297) opts them back in
                   // via `todoInteractive` so a drag writes scheduledAt. Events/
                   // routines are always movable when the callback is present.
@@ -859,7 +866,14 @@ export function WeekTimeGrid({
                           )}
                         />
                       )}
-                      <span className="flex items-center gap-1 font-medium">
+                      <span
+                        className={cn(
+                          "flex gap-1 font-medium",
+                          // The glyph sits on the first line once the title
+                          // can take more than one.
+                          titleLines === 1 ? "items-center" : "items-start",
+                        )}
+                      >
                         {variant === "routine" && (
                           <Repeat
                             aria-hidden
@@ -878,7 +892,28 @@ export function WeekTimeGrid({
                             strokeWidth={2.5}
                           />
                         )}
-                        <span className="block truncate">
+                        {/* #1835: one line truncates as it always did; a
+                            block with room wraps instead of spending its
+                            height on empty fill. `-webkit-box` is how a
+                            multi-line clamp is spelled — every target is a
+                            WebKit or Blink engine (macOS / iOS / the Electron
+                            shell). */}
+                        <span
+                          className={cn(
+                            "block min-w-0",
+                            titleLines === 1 ? "truncate" : "break-words",
+                          )}
+                          style={
+                            titleLines === 1
+                              ? undefined
+                              : {
+                                  display: "-webkit-box",
+                                  WebkitBoxOrient: "vertical",
+                                  WebkitLineClamp: titleLines,
+                                  overflow: "hidden",
+                                }
+                          }
+                        >
                           {it.title || " "}
                         </span>
                       </span>

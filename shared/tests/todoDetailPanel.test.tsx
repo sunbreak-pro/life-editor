@@ -581,6 +581,39 @@ describe("TodoDetailPanel — save button (#713)", () => {
    * spending a line on "Scheduled / Not scheduled". The two halves of the rule
    * are: closed by default, and open from the start when there IS a date.
    */
+  /*
+   * #1834: the caption is a disclosure, and it wore STATUS's and NOTES's
+   * treatment with no glyph — so it read as a static label that happened to
+   * answer a press. The chevron is the only cue that it opens, and it turns
+   * rather than being swapped for a second icon.
+   */
+  it("gives the schedule caption a chevron that turns with the row", () => {
+    render(
+      <TodoDetailPanel
+        todoId="task-a"
+        title="Buy milk"
+        status="NOT_STARTED"
+        onSave={() => {}}
+        scheduleLabel="Scheduled"
+        scheduleText="Not scheduled"
+        {...LABELS}
+      />,
+    );
+    const toggle = screen.getByRole("button", { name: "Scheduled" });
+    const chevron = toggle.querySelector("svg");
+    expect(chevron).not.toBeNull();
+    // Closed: pointing along the row.
+    expect(chevron?.getAttribute("class")).not.toContain("rotate-90");
+
+    fireEvent.click(toggle);
+    expect(
+      screen
+        .getByRole("button", { name: "Scheduled" })
+        .querySelector("svg")
+        ?.getAttribute("class"),
+    ).toContain("rotate-90");
+  });
+
   it("folds the schedule row until asked, unless the todo has a date (#1040)", () => {
     const scheduleProps = {
       scheduleLabel: "Scheduled",

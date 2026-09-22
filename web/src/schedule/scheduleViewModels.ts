@@ -29,9 +29,11 @@ import {
  *
  * #1373 took the derived status out of all four: an event has no completion
  * concept any more, so nothing here reads the clock and none of these take a
- * `now`. What is left of the old asymmetry is the sort — the agenda merges the
- * two lists and orders them (all-day first, then by start time), while the
- * grids position by time and need no sort.
+ * `now`. What is left of the old asymmetry is the sort — the agenda and the
+ * month cells merge the two lists and order them (all-day first, then by start
+ * time), while the WEEK grid positions by time and needs no sort. #1828 moved
+ * the month across that line: its cells are lists that fold at two rows, so
+ * fetch order decided which two a busy day showed.
  * A chip's grid id is the prefixed synthetic id (`todoChipId`) on every
  * surface; the host's handlers tell chips from events by that prefix.
  *
@@ -140,33 +142,77 @@ export function toWeekGridItems(
   ];
 }
 
-/** Cell entries for the month grid (MonthGrid) — no times, no status. */
+/**
+ * The month cell's order, as one comparable string (#1828).
+ *
+ * A key rather than a three-branch comparator because the two source lists
+ * build their rows separately: the key is computed where the times still
+ * exist, and the rows themselves stay exactly the shape MonthGrid reads.
+ * All-day sorts ahead of timed, which is the agenda's rule (`sortDayItems`).
+ */
+function monthSortKey(
+  date: string,
+  isAllDay: boolean | undefined,
+  startTime: string,
+): string {
+  return `${date}|${isAllDay ? "0" : "1"}|${startTime}`;
+}
+
+/**
+ * Cell entries for the month grid (MonthGrid) — no times, no status, but
+ * ordered by them (#1828).
+ *
+ * A month cell is a LIST, not a coordinate space: it draws the first two rows
+ * and folds the rest into "他 N 件" (monthCellFold), so whatever leads the
+ * array is what a busy day shows. Handing it events-then-chips in fetch order
+ * meant an 18:00 event drawn above an 08:00 one, and every todo chip pushed
+ * behind every event — on Desktop, straight into the fold.
+ *
+ * So the rows are sorted here, by the SAME rule the agenda uses (all-day
+ * first, then ascending start time), and `date` leads the key so the array is
+ * chronological end to end rather than only within a bucket. The times
+ * themselves are dropped from the row: a month cell prints titles, and adding
+ * a field the grid does not read would be a second place for the two surfaces
+ * to disagree.
+ *
+ * The week grid needs none of this — it positions by time — which is what
+ * MonthGrid's "the host is responsible for chronological sorting" means and
+ * what the note above `toWeekGridItems` used to contradict.
+ */
 export function toMonthGridItems(
   events: ScheduleItem[],
   chips: TodoCalendarChip[],
   tagColors: ScheduleTagColors = NO_TAG_COLORS,
 ): MonthGridItem[] {
-  return [
+  const rows: Array<{ sortKey: string; row: MonthGridItem }> = [
     ...events.map((i) => ({
-      id: i.id,
-      date: i.date,
-      title: i.title,
-      variant: itemVariant(i),
-      completed: i.completed,
-      isAllDay: i.isAllDay,
-      tagColor: eventTagColor(tagColors, i),
+      sortKey: monthSortKey(i.date, i.isAllDay, i.startTime),
+      row: {
+        id: i.id,
+        date: i.date,
+        title: i.title,
+        variant: itemVariant(i),
+        completed: i.completed,
+        isAllDay: i.isAllDay,
+        tagColor: eventTagColor(tagColors, i),
+      },
     })),
     ...chips.map((c) => ({
-      id: todoChipId(c.id),
-      date: c.date,
-      title: c.title,
-      variant: "task" as const,
-      completed: c.completed,
-      isAllDay: c.isAllDay,
-      // `c.id`, not the prefixed grid id above — see toWeekGridItems.
-      tagColor: tagColors.get(c.id),
+      sortKey: monthSortKey(c.date, c.isAllDay, c.startTime),
+      row: {
+        id: todoChipId(c.id),
+        date: c.date,
+        title: c.title,
+        variant: "task" as const,
+        completed: c.completed,
+        isAllDay: c.isAllDay,
+        // `c.id`, not the prefixed grid id above — see toWeekGridItems.
+        tagColor: tagColors.get(c.id),
+      },
     })),
   ];
+  rows.sort((a, b) => a.sortKey.localeCompare(b.sortKey));
+  return rows.map((r) => r.row);
 }
 
 /**

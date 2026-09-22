@@ -79,6 +79,10 @@ export interface NoteDetailSurfaceProps {
    * content replaced from a surface the lock does not cover.
    */
   onApplyTemplate?: () => void;
+  /** Open with the title focused and selected (#1842 — a fresh note). */
+  autoFocusTitle?: boolean;
+  /** Fired once that focus has been taken, so the host can stop asking. */
+  onTitleAutoFocused?: () => void;
 }
 
 export function NoteDetailSurface({
@@ -94,6 +98,8 @@ export function NoteDetailSurface({
   linksSlot,
   onRegisterTemplate,
   onApplyTemplate,
+  autoFocusTitle,
+  onTitleAutoFocused,
 }: NoteDetailSurfaceProps) {
   return (
     <NoteDetailPanel
@@ -114,6 +120,8 @@ export function NoteDetailSurface({
       registerTemplateLabel={labels.registerTemplate}
       onApplyTemplate={onApplyTemplate}
       applyTemplateLabel={labels.applyTemplate}
+      autoFocusTitle={autoFocusTitle}
+      onTitleAutoFocused={onTitleAutoFocused}
       tagsSlot={
         // No leading caption (#1042). The row used to open with the shared
         // kind badge (itemRole="note", #412), which spelled out "Note" one line
