@@ -99,10 +99,19 @@ export function BriefingVizPanel({
   balanceLabels,
 }: BriefingVizPanelProps): React.JSX.Element {
   return (
-    <section className="flex flex-col gap-3">
+    <section className="mt-4 flex flex-col gap-3 border-t border-lumen-border pt-4">
       {/* Same heading shape as the tray above it, not the paper's 段標 —
           inside the panel these are two peers, and a 朱 bar here would claim
-          the panel is a second front page. */}
+          the panel is a second front page.
+
+          The rule and the padding are what make them read as two (#1826). The
+          detail well stacks its portals in a plain div with no gap of its own,
+          so this heading's top and the todo tray's bottom both measured 387px
+          —「きのうまでの自分」looked like the last line of the todo list. The
+          4-unit padding is wider than the panel's own `gap-3`, so the heading
+          now belongs to what is BELOW it rather than sitting midway between
+          two blocks. 朝刊 mounts this second and never alone, so the rule
+          always has a block above it to separate from. */}
       <h3 className="text-sm font-semibold text-lumen-text">{title}</h3>
       <div className="flex flex-col gap-3">
         <StreakDisplay sessions={sessions} labels={streakLabels} />
