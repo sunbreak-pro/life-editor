@@ -199,6 +199,57 @@ export class SupabaseTimerService implements TimerDataService {
     return rowToTimerSession(data);
   }
 
+  /**
+   * Rows nothing ever closed (#1857). A reload or a closed tab takes the
+   * Provider down without a pause, so the row it had open keeps a null
+   * `ended_at` for good. There are only ever a handful, so no paging.
+   */
+  async fetchOpenTimerSessions(): Promise<TimerSession[]> {
+    const { data, error } = await this.client
+      .from("timer_sessions")
+      .select(TIMER_SESSION_COLUMNS)
+      .is("ended_at", null)
+      .order("started_at", { ascending: false });
+    if (error)
+      throw new Error(`fetchOpenTimerSessions failed: ${error.message}`);
+    return ((data ?? []) as unknown as TimerSessionRow[]).map(
+      rowToTimerSession,
+    );
+  }
+
+  /**
+   * Close a row its owner never closed (#1857). `ended_at` is the start plus
+   * the seconds known to have run, NOT now: the recovery happens at the next
+   * startup, which can be days later, and the free-session Event is drawn
+   * from this range.
+   *
+   * Guarded on `ended_at IS NULL`, so a row its owner closed in the meantime
+   * keeps the owner's figures. That case resolves to null.
+   */
+  async recoverTimerSession(
+    session: Pick<TimerSession, "id" | "startedAt">,
+    duration: number,
+  ): Promise<TimerSession | null> {
+    const endedAt = new Date(
+      session.startedAt.getTime() + duration * 1000,
+    ).toISOString();
+    const patch = {
+      ...closeTimerSessionPatch(endedAt, duration, false, undefined),
+      updated_at: new Date().toISOString(),
+    };
+    const data = await fetchMaybeSingleRow<TimerSessionRow>(
+      this.client
+        .from("timer_sessions")
+        .update(patch)
+        .eq("id", session.id)
+        .is("ended_at", null)
+        .select(TIMER_SESSION_COLUMNS)
+        .maybeSingle(),
+      `recoverTimerSession (id=${session.id}) failed`,
+    );
+    return data ? rowToTimerSession(data) : null;
+  }
+
   async fetchTimerSessions(): Promise<TimerSession[]> {
     // timer_sessions grows a row per start/close, so it is the first
     // table to outgrow the PostgREST max-rows cap — paged read required.
@@ -322,6 +373,8 @@ export const PHASE2_TIMER_METHOD_NAMES = [
   "endTimerSession",
   "endTimerSessionWithLabel",
   "attributeTimerSession",
+  "fetchOpenTimerSessions",
+  "recoverTimerSession",
   "fetchTimerSessions",
   "fetchSessionsByTodoId",
   "fetchSessionsByEventId",

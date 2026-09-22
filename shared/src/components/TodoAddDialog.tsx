@@ -16,6 +16,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cn } from "./cn";
 import { Modal } from "./Modal";
+import { DISABLED_FILLED_BTN } from "./styleTokens";
 import { isImeComposing } from "../utils/imeGuard";
 
 /** The dialog only creates todos now (folders retired — life-tags S1). */
@@ -127,8 +128,12 @@ export function TodoAddDialog({
             disabled={!canSubmit}
             className={cn(
               "rounded-md bg-lumen-accent px-3 py-1.5 text-sm text-lumen-on-accent",
-              "transition-opacity hover:opacity-90 disabled:opacity-40",
+              "transition-opacity hover:opacity-90",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+              // An empty title is this dialog's opening state, so the disabled
+              // fill is the first thing the user meets (#1803). The Cancel
+              // button beside it is an outline and stays as it is.
+              DISABLED_FILLED_BTN,
             )}
           >
             {labels.submit}

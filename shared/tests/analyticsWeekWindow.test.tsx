@@ -162,7 +162,7 @@ const LABELS: OverviewTabLabels = {
     title: "Streak",
     current: "Current",
     longest: "Longest",
-    days: "days",
+    formatDays: (n: number) => (n === 1 ? "day" : "days"),
     noStreak: "No streak yet",
   },
   tagUsage: {
@@ -171,6 +171,7 @@ const LABELS: OverviewTabLabels = {
     inRange: "Created in range",
     liveTotal: "Current total",
     rangeLabel: "Last 30 days",
+    topOf: (shown: number, total: number) => `Top ${shown} of ${total} tags`,
     empty: { title: "No tagged items", description: "Tag something." },
   },
 };

@@ -13,6 +13,8 @@ import {
   useMediaQuery,
   useRightSidebarOptional,
   useTranslation,
+  ConfirmDialog,
+  useConfirmDialog,
   Menu,
   MenuItem,
   RightSidebarPortal,
@@ -613,6 +615,39 @@ export function DailyView({
     </button>
   );
 
+  /*
+   * The question before a day goes (#1838).
+   *
+   * Delete entry called deleteDaily straight from the menu item, so one slip
+   * on a kebab took a day of writing with nothing in between. Notes has asked
+   * since #1345, and a daily is the same kind of thing: soft-deleted,
+   * restorable from Trash, and still the only copy of what someone wrote that
+   * evening. The in-app <ConfirmDialog> (#707), not the browser's own, for the
+   * reason NotesView gives — a native dialog lands outside the theme and
+   * freezes the page (#781).
+   *
+   * The day is named the way the entry list names it, so the question and the
+   * row behind it read as the same date.
+   */
+  const {
+    request: confirmRequest,
+    ask: askConfirm,
+    resolve: resolveConfirm,
+  } = useConfirmDialog();
+
+  const handleDeleteDaily = () => {
+    void askConfirm({
+      message: t("materials.daily.deleteConfirmBody", {
+        day: entryDayLabel(selectedDate),
+      }),
+      confirmLabel: t("materials.daily.deleteConfirmAction"),
+      cancelLabel: t("common.cancel"),
+      danger: true,
+    }).then((confirmed) => {
+      if (confirmed) deleteDaily(selectedDate);
+    });
+  };
+
   // A single kebab that collapses the pin / delete actions behind one
   // affordance (#284). The menu opens right-anchored just beneath the trigger
   // (align="end" — a rightward panel would overflow the header's right edge).
@@ -664,14 +699,32 @@ export function DailyView({
         <MenuItem
           icon={<Trash2 size={14} aria-hidden />}
           variant="danger"
+          // A day with no entry has nothing to delete. The old item ran a
+          // no-op and said nothing, which reads as a broken button rather
+          // than as an empty day.
+          disabled={!selectedDaily}
           onSelect={() => {
-            deleteDaily(selectedDate);
             setActionsOpen(false);
+            handleDeleteDaily();
           }}
         >
           {t("materials.daily.delete")}
         </MenuItem>
       </Menu>
+      {/* Mounted here rather than at either return: Desktop and Mobile each
+          draw this kebab exactly once, so the question has one home. The
+          dialog portals, so where it sits in the tree costs nothing. */}
+      {confirmRequest && (
+        <ConfirmDialog
+          open
+          message={confirmRequest.message}
+          confirmLabel={confirmRequest.confirmLabel}
+          cancelLabel={confirmRequest.cancelLabel}
+          danger={confirmRequest.danger}
+          onConfirm={() => resolveConfirm(true)}
+          onCancel={() => resolveConfirm(false)}
+        />
+      )}
     </div>
   );
 
