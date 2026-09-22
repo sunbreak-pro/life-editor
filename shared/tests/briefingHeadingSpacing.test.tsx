@@ -101,7 +101,7 @@ describe("#1826 — the detail panel heading stands apart", () => {
           title: "Streaks",
           current: "Current",
           longest: "Longest",
-          days: "days",
+          formatDays: (n: number) => (n === 1 ? "day" : "days"),
           noStreak: "No streak yet",
         }}
         trendLabels={{ title: "Completions", completedCount: "Completed" }}
