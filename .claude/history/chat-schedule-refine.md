@@ -1,5 +1,37 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-09-22 - 画面別探索検証の 9 件を 9 本の PR で提出（#1827 / #1828 / #1834 / #1832 / #1833 / #1831 / #1835 / #1829 / #1830）
+
+#### 概要
+
+2026-09-21 の画面別探索検証で出た Schedule の 9 件を、1 Issue = 1 ブランチ = 1 PR で出した。9 本とも `origin/main` から独立に切り、**1 本ずつローカルで CI `verify` の 14 ステップを緑にしてから** PR を開いた。提出時点で 9 本とも MERGEABLE、GitHub 側の CI は 7 本緑・2 本実行中。merge はユーザー。
+
+| Issue | PR    | 内容                                                                     |
+| ----- | ----- | ------------------------------------------------------------------------ |
+| #1827 | #1904 | en でルーチン名が幅 1px に潰れる行を折り返す                             |
+| #1828 | #1908 | 月セルを時刻順に並べる（畳み込みの先頭 2 件が取得順だった）              |
+| #1834 | #1914 | Todo チップのダイアログ名と SCHEDULED のシェブロン                       |
+| #1832 | #1919 | Details ドロワーの 44px 未満のタップ目標 4 種                            |
+| #1833 | #1925 | 開始時刻を前にずらしても所要時間を保つ                                   |
+| #1831 | #1927 | 終日チップを落とした列の日付に着地させる                                 |
+| #1835 | #1929 | 高さのある週ブロックのタイトル折り返しと、Mobile の月グリッドの高さ      |
+| #1829 | #1933 | Desktop の月セル「+N more」を押せるようにする                            |
+| #1830 | #1935 | 「Show the next one」で対象の回まで縦スクロールし、リングを 1 件に絞る   |
+
+#### 変更点
+
+- **main の復旧 2 件**: `TodosTab.tsx` の `sessionsWithinRange` import（PR #1883 × #1890 の衝突・TS2552）と `chartTheme.ts` の `estimateLabelWidth` / `fitAxisLabel`（PR #1893 × #1897 の衝突・TS2305）。どちらも `cd shared && npm run build` が落ちる状態で、9 本すべてに同じ 2 commit を載せた。別レーンが同じ復旧を PR #1906 / #1907 で出していた
+- **#1828**: `toMonthGridItems` を「日付 → 終日 → 開始時刻」のキーで並べ替え。開始時刻は `MonthGridItem` には持たせない（セルが読まない項目は食い違いの種になる）。祝日はホスト側が後から先頭に足すので不変
+- **#1833**: `TimeRangeField.commitStart` の `nextStart < endMin ? endMin : …` を外し、常に `start + duration`（23:59 クランプ維持）。#553 以来ヘッダーコメントだけが「duration preserved」と書いていて、実装は片方向だった
+- **#1831**: `resolveDrag` の place 分岐に `dayIdx = remapDay()`。列幅の取得元を終日チップの `offsetParent`（週全体の幅）から `closest("[data-week-grid-allday]")`（その日のセル）へ変更
+- **#1830**: ホストが飛んだ先の 1 件を選択（`pickRepeatOccurrence` を `web/src/schedule/repeatOccurrence.ts` に切り出し）、週グリッドが新しく選択されたブロックを画面内に入れる（`revealScrollTop` は見えているブロックに `null` を返す）
+- **#1829**: 「他 N 件」を `onShowMore` が来たときだけ button に。Desktop はその日の週へ切り替える。アクセシブル名は「ボタンがある日」でだけ組み立てる（42 セル全部で組むと #1582 の render 数 pin が落ちる）
+- **#1835**: `blockTitleLines()` をブロックの px 高さから算出（1〜3 行）。Mobile の月セルは固定高 → 下限 + グリッドに `min-h-full`
+- **#1832**: Restore / + ピル 3 本は呼び出し側に `max-md:min-h-11`、narrow 専用の Today は `min-h-11`、タブ帯は `SegmentedControl` の "md" の表に `max-md:min-h-11`（`TAP_TARGET_TALL` は 2 行に折り返す track では上の行に被る）
+- **#1834**: `todoActionsLabel` を en / ja に追加し、Todo チップ側のダイアログに配線。`TodoDetailPanel` の SCHEDULED に回転するシェブロン
+- **テスト**: 新規 = `web/tests/repeatOccurrencePick.test.ts`。追記 = `scheduleViewModels` 3 / `monthGrid` 5 / `scheduleGridLayout` 12 / `scheduleDragResolve` 3 / `timeRangeField` 2 / `todoDetailPanel` 1 / `scheduleOverlays` 1 / `scheduleSidebar` 4 / `scheduleNarrowStepperTap` 1 / `sharedTapTargets` 2。書き換え = 古い挙動を固定していた 6 本（`timeRangeField` 2 / `eventEditorPane` 1 / `scheduleDragResolve` 1 / `monthGrid` 1 / `scheduleOverlays` 1）
+- **判断キュー 3 件**: #1829 の見せ方 / #1831 の着地 / #1833 の所要時間（いずれも実装は A、B に戻す手順を添えた）
+
 ### 2026-09-21 - /goal 4 件を 4 本の PR で提出（#1801 / #1802 / #1800 / #1642 W16）
 
 #### 概要

@@ -27,8 +27,9 @@ import {
  *
  * Registered UNCONDITIONALLY by RichTextEditor, like itemLink, attachment
  * (#1404) and callout (#1521): a note authored through one surface has to open
- * on every other one, so the schema must know the node even where nothing in
- * the UI creates it.
+ * on every other one. Since #1903 this surface authors tables too — the "/"
+ * menu's table item builds the same shape tiptapJsonBuilder does — so the
+ * rule now cuts both ways rather than only inwards.
  *
  * WHY THE PACKAGE, NOT A HAND-WRITTEN NODE. callout got a hand-written
  * `Node.create` because it is a div with two attributes. A table is not: cells
@@ -56,9 +57,9 @@ import {
  * createItemLinkNode / createAttachmentNode / createCalloutNode at the call
  * site, even though these nodes take no host wiring.
  *
- * `resizable` stays off — column drag handles are an authoring affordance, and
- * this editor deliberately has none for tables (no slash-menu entry either,
- * same as callout). It is spelled out rather than left to the default because
+ * `resizable` stays off. #1903 gave the editor a way to MAKE a table and a
+ * small bar for its rows and columns, and left column-width dragging out of
+ * scope on purpose. It is spelled out rather than left to the default because
  * it is a decision, and because it is what decides which node view runs: with
  * resizing off the extension falls back to its plain `TableView`, which still
  * wraps the table in `div.tableWrapper`. That wrapper is the scroll container
