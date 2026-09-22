@@ -190,6 +190,31 @@ describe("TodoDetailPanel (W7)", () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
+  it("sinks the disabled Save into the surface fill (#1803)", () => {
+    /*
+     * jsdom loads no stylesheet, so "does this look pressable" is not
+     * observable here — the assertion is on the lever, exactly as
+     * buttonDisabledFill.test.tsx puts it (#1474). Fading an accent fill keeps
+     * the hue that reads as "press me", and in dark theme the faded accent
+     * lands next to the live one.
+     */
+    render(
+      <TodoDetailPanel
+        todoId="task-a"
+        title="Write the plan"
+        status="NOT_STARTED"
+        onSave={() => {}}
+        onToggleStatus={() => {}}
+        {...LABELS}
+      />,
+    );
+    const classes = saveButton().className;
+
+    expect(classes).not.toMatch(/disabled:opacity-\d/);
+    expect(classes).toContain("disabled:bg-lumen-surface-sunken");
+    expect(classes).toContain("disabled:hover:bg-lumen-surface-sunken");
+  });
+
   it("renders the tag row when a tagsSlot is provided", () => {
     render(
       <TodoDetailPanel

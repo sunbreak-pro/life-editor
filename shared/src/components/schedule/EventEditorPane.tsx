@@ -18,6 +18,7 @@ import { timedSpanForAllDayOff } from "../../utils/scheduleAllDay";
 import { seedFrequencyPatch } from "../../utils/routineFrequency";
 import { isImeComposing } from "../../utils/imeGuard";
 import {
+  DISABLED_FILLED_BTN,
   FIELD,
   FIELD_LABEL,
   FOCUS_RING_ON_ACCENT,
@@ -462,10 +463,14 @@ function sameRepeat(
   );
 }
 
+// The pane's one filled action, so its dead state is the shared recess
+// (#1803) rather than a faded accent. DISABLED_FILLED_BTN carries the hover
+// pin as well, which is what the hand-written `disabled:hover:bg-lumen-accent`
+// it replaces was there for.
 const SAVE_BTN = cn(
   "rounded-lumen-md bg-lumen-accent px-4 py-2 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
   FOCUS_RING_ON_ACCENT,
-  "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-lumen-accent",
+  DISABLED_FILLED_BTN,
 );
 
 /**

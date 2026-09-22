@@ -94,7 +94,8 @@ export interface AnalyticsLabels {
     title: string;
     current: string;
     longest: string;
-    days: string;
+    /** The unit for a given streak length — plural-aware (#1823). */
+    formatDays: (count: number) => string;
     noStreak: string;
   };
 
@@ -162,6 +163,8 @@ export interface AnalyticsLabels {
     tag: string;
     inRange: string;
     liveTotal: string;
+    /** "Top {shown} of {total} tags" — host interpolates (#1866). */
+    topOf: (shown: number, total: number) => string;
   };
 
   /** Mobile-only single-scroll labels. */

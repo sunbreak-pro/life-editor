@@ -2,6 +2,7 @@ import { useId, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
 import { cn } from "../cn";
 import {
+  DISABLED_FILLED_BTN,
   FIELD,
   FIELD_LABEL,
   FOCUS_RING_ON_ACCENT,
@@ -260,9 +261,14 @@ export interface ItemCreatePanelProps {
 // `disabled:` states matter more here than on a normal form: the note tab hides
 // the field the submit depends on, so a dead-but-lit button would give the user
 // nothing to look at when a click does nothing.
-const DISABLED_BTN = "disabled:cursor-not-allowed disabled:opacity-50";
-const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover ${FOCUS_RING_ON_ACCENT} ${DISABLED_BTN}`;
-const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent ${DISABLED_BTN}`;
+//
+// The two buttons no longer share one spelling (#1803). The filled submit
+// sinks into the shared recess, because fading an accent fill keeps the hue
+// that says "press me". The outline button beside it keeps the opacity: it has
+// no fill to mislead anyone with, and greying it would invent a box.
+const DISABLED_OUTLINE_BTN = "disabled:cursor-not-allowed disabled:opacity-50";
+const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover ${FOCUS_RING_ON_ACCENT} ${DISABLED_FILLED_BTN}`;
+const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent ${DISABLED_OUTLINE_BTN}`;
 const HINT = "py-3 text-center text-xs text-lumen-text-secondary";
 
 /**
