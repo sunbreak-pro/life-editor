@@ -11,6 +11,7 @@ import {
   minutesToPx,
   snapMinutes,
   minutesToTime,
+  revealScrollTop,
   blockTitleLines,
   MAX_BLOCK_TITLE_LINES,
   type GridLayoutItem,
@@ -188,6 +189,63 @@ describe("local date-key math (no UTC drift)", () => {
     expect(days).toHaveLength(7);
     expect(days[0]).toBe("2026-06-14");
     expect(days[6]).toBe("2026-06-20");
+  });
+});
+
+/*
+ * #1830 — whether a selection has to move the week body's scroll.
+ *
+ * "Show the next one" moved the week and left the scroll alone, so an 08:00
+ * occurrence stayed above the top of a body scrolled to the afternoon and the
+ * button read as inert. Moving it on every selection is the opposite fault:
+ * clicking a block you can already see would yank the grid.
+ *
+ * 48px an hour throughout, so a minute is 0.8px and 09:00 is 432px.
+ */
+describe("revealScrollTop", () => {
+  const base = { viewportPx: 600, hourHeight: 48 };
+
+  it("leaves a block that is already in view alone", () => {
+    expect(
+      revealScrollTop({ ...base, targetPx: 500, scrollTop: 400 }),
+    ).toBeNull();
+  });
+
+  it("scrolls back up to a block above the visible band", () => {
+    // 08:00 (384px) under a body scrolled to 493 — the case in the Issue.
+    expect(revealScrollTop({ ...base, targetPx: 384, scrollTop: 493 })).toBe(
+      384 - 48,
+    );
+  });
+
+  it("scrolls down to a block below the visible band", () => {
+    expect(revealScrollTop({ ...base, targetPx: 1400, scrollTop: 0 })).toBe(
+      1400 - 48,
+    );
+  });
+
+  it("never returns a negative scroll for a block near midnight", () => {
+    expect(revealScrollTop({ ...base, targetPx: 24, scrollTop: 800 })).toBe(0);
+  });
+
+  it("counts the last hour of the body as not-yet-visible", () => {
+    // 990 is inside 400..1000 but within an hour of the bottom edge, so the
+    // block would sit on the rail with no context under it.
+    expect(revealScrollTop({ ...base, targetPx: 990, scrollTop: 400 })).toBe(
+      990 - 48,
+    );
+  });
+
+  it("treats an unmeasurable viewport as not showing the block", () => {
+    // jsdom reports 0 for every layout read; scrolling is the safe answer.
+    expect(
+      revealScrollTop({
+        targetPx: 432,
+        scrollTop: 432,
+        viewportPx: 0,
+        hourHeight: 48,
+      }),
+    ).toBe(432 - 48);
   });
 });
 
