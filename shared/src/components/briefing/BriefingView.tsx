@@ -207,10 +207,18 @@ export interface BriefingViewProps {
    * <ItemCreatePanel> and owns the write.
    */
   onAddScheduleItem: () => void;
-  /** Jumps to the Schedule section (host → nav). */
-  onJumpToSchedule: () => void;
-  /** Jumps to the Todos section (host → nav). */
-  onJumpToTodos: () => void;
+  /**
+   * Opens ONE event where it lives (host → nav), given its id (#1824).
+   *
+   * It took no argument until now and the host answered it with a bare section
+   * switch, so「編集」landed the reader on the Schedule section with nothing
+   * selected and no panel open — the button named an act it did not perform.
+   * The id is all the paper can offer; where a row opens is the host's to
+   * decide, and the shell already knows how (`navigateToItem`).
+   */
+  onJumpToSchedule: (id: string) => void;
+  /** The same for one todo — the paper's todo rows and its carryover rows. */
+  onJumpToTodos: (id: string) => void;
   /**
    * In-body 朝刊/夕刊 switcher for the NARROW layout (#318). AppShell only
    * renders its header slot on the wide branch, so below 768px the
@@ -723,7 +731,7 @@ export function BriefingView({
                   </button>
                   <RowActions>
                     <EditJumpButton
-                      onClick={onJumpToTodos}
+                      onClick={() => onJumpToTodos(todo.id)}
                       label={labels.edit}
                       hint={labels.jumpToTodos}
                     />
@@ -776,7 +784,7 @@ export function BriefingView({
                     the routine tag keeps its place beside the title. */}
                 <RowActions>
                   <EditJumpButton
-                    onClick={onJumpToSchedule}
+                    onClick={() => onJumpToSchedule(item.id)}
                     label={labels.edit}
                     hint={labels.jumpToSchedule}
                   />
@@ -840,7 +848,7 @@ export function BriefingView({
                     act on a day the paper is not editing. */}
                 <RowActions>
                   <EditJumpButton
-                    onClick={onJumpToTodos}
+                    onClick={() => onJumpToTodos(item.id)}
                     label={labels.edit}
                     hint={labels.jumpToTodos}
                   />

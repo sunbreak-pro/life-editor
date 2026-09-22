@@ -49,6 +49,24 @@ import { useGoalsDoc } from "./hooks/useGoalsDoc";
 interface BriefingScreenProps {
   dataService: DataService;
   onNavigate: (dest: NavDestination) => void;
+  /**
+   * Open ONE item where it lives — the shell's `navigateToItem` (#1824).
+   *
+   * The paper's row「編集」used to call `onNavigate({ section: "schedule" })`,
+   * which lands on the section and stops: no selection, no panel, nothing to
+   * edit. This is the intent the "[[" links and the command palette already
+   * travel on, and Schedule already consumes it (`pendingSelectTodoId` /
+   * `pendingSelectEvent`), so the row only has to name its own item.
+   *
+   * Optional, and the section switch is the fallback: the paper renders in
+   * tests and on hosts that mount no item navigation, and a jump that lands on
+   * the right section is still better than a dead button.
+   */
+  onNavigateToItem?: (target: {
+    id: string;
+    role: string;
+    date?: string;
+  }) => void;
   /** Active header tab (朝刊 / 夕刊, #263 F-6) — lifted to MainScreen. */
   tab: BriefingTab;
   /**
@@ -62,6 +80,7 @@ interface BriefingScreenProps {
 export function BriefingScreen({
   dataService: ds,
   onNavigate,
+  onNavigateToItem,
   tab,
   tabSwitcher,
 }: BriefingScreenProps): React.JSX.Element {
@@ -295,6 +314,29 @@ export function BriefingScreen({
       intentionCaption,
       intentionEditableOnEvening,
     ],
+  );
+
+  /*
+   * Row「編集」— open the item itself (#1824).
+   *
+   * `navigateToItem` is the shell's own item intent; the bare section switch
+   * is what happens on a host that has none, which is the old behaviour rather
+   * than a dead button. An event travels with its DATE as well as its id
+   * (#503): the Calendar shows one window at a time, so an id alone would
+   * select a row on whatever week happens to be open. Every row on this paper
+   * is today's.
+   */
+  const openItem = useCallback(
+    (id: string, role: "task" | "event") => {
+      if (onNavigateToItem === undefined) {
+        onNavigate({ section: "schedule" });
+        return;
+      }
+      onNavigateToItem(
+        role === "event" ? { id, role, date: todayKey } : { id, role },
+      );
+    },
+    [onNavigateToItem, onNavigate, todayKey],
   );
 
   // ── Creation panel (#623) ────────────────────────────────────────────
@@ -697,8 +739,8 @@ export function BriefingScreen({
         onDeleteScheduleItem={handleDeleteScheduleItem}
         onDeleteTodo={handleDeleteTodo}
         onAddScheduleItem={openCreatePanel}
-        onJumpToSchedule={() => onNavigate({ section: "schedule" })}
-        onJumpToTodos={() => onNavigate({ section: "schedule" })}
+        onJumpToSchedule={(id) => openItem(id, "event")}
+        onJumpToTodos={(id) => openItem(id, "task")}
         tabSwitcher={tabSwitcher}
       />
       {deleteScopeDialog}
