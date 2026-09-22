@@ -414,6 +414,20 @@
       "bodyPlaceholder": "Write your note…",
       "untitled": "(untitled)",
       "lockedHint": "This note is locked",
+      "password": {
+        "setTitle": "Set note password",
+        "removeTitle": "Remove note password",
+        "verifyTitle": "Unlock note",
+        "passwordLabel": "Password",
+        "currentPasswordLabel": "Current password",
+        "confirmPasswordLabel": "Confirm password",
+        "submit": "Confirm",
+        "busy": "Working…",
+        "mismatch": "Passwords do not match.",
+        "wrongPassword": "Incorrect password.",
+        "required": "Password is required.",
+        "saveFailed": "Could not save. Please try again."
+      },
       "tableControls": {
         "label": "Table controls",
         "addRow": "Add row below",

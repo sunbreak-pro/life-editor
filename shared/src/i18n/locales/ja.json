@@ -413,6 +413,20 @@
       "bodyPlaceholder": "ノートを書く…",
       "untitled": "(無題)",
       "lockedHint": "このノートはロックされています",
+      "password": {
+        "setTitle": "ノートにパスワードを設定",
+        "removeTitle": "ノートのパスワードを解除",
+        "verifyTitle": "ノートのロックを解除",
+        "passwordLabel": "パスワード",
+        "currentPasswordLabel": "現在のパスワード",
+        "confirmPasswordLabel": "パスワード（確認）",
+        "submit": "確認",
+        "busy": "処理中…",
+        "mismatch": "パスワードが一致しません。",
+        "wrongPassword": "パスワードが正しくありません。",
+        "required": "パスワードを入力してください。",
+        "saveFailed": "保存できませんでした。もう一度お試しください。"
+      },
       "tableControls": {
         "label": "表の操作",
         "addRow": "行を下に追加",
