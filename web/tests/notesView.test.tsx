@@ -683,6 +683,36 @@ describe("NotesView — mobile (narrow)", () => {
     expect(state.close).toHaveBeenCalled();
   });
 
+  it("opens the new note with its name selected (#1842)", () => {
+    // "+" used to leave the focus on the button and the title reading
+    // "Untitled", so naming what you had just made meant finding the field and
+    // selecting the text by hand.
+    //
+    // Two steps, because a real create is two: the press hands back an id, and
+    // the Provider comes back with that note selected. The title field is
+    // keyed on the note id, so it mounts fresh for the new note -- which is
+    // the moment the focus is taken, and the only one.
+    const fresh = note({ id: "note-new", title: "Untitled" });
+    // Once, so the shared mock does not keep handing an id to the tests after
+    // this one.
+    state.createNote.mockReturnValueOnce("note-new");
+    const { rerender } = render(<NotesView />);
+
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /materials\.notes\.addCta/ })[0],
+    );
+    state.notes = [fresh];
+    state.selectedId = "note-new";
+    rerender(<NotesView />);
+
+    const field = screen.getByLabelText(
+      "notesView.detailTitle",
+    ) as HTMLInputElement;
+    expect(document.activeElement).toBe(field);
+    expect(field.selectionStart).toBe(0);
+    expect(field.selectionEnd).toBe(field.value.length);
+  });
+
   it("keeps the Links panel to Desktop, where #884 put it", () => {
     state.selectedId = "note-a";
     render(<NotesView />);
@@ -760,6 +790,31 @@ describe("NotesView — multi-select tag filter (#1288)", () => {
     expect(screen.queryByText("Note F")).toBeNull();
     fireEvent.click(screen.getByText("materials.notes.groupMoreRows|1"));
     screen.getByText("Note F");
+  });
+
+  it("folds the group's rows back under the cap (#1842)", () => {
+    // The button used to open only. The heading's chevron was offered as the
+    // way back, but that folds the WHOLE group and is remembered between
+    // sessions, while this cap is a row count and is not.
+    const many = ["A", "B", "C", "D", "E", "F"].map((n) =>
+      note({ id: `note-${n}`, title: `Note ${n}` }),
+    );
+    state.notes = many;
+    state.assignments = Object.fromEntries(
+      many.map((n) => [
+        n.id,
+        [{ itemId: n.id, tagId: "tag-work", isDeleted: false }],
+      ]),
+    );
+    render(<NotesView />);
+
+    fireEvent.click(screen.getByText("materials.notes.groupMoreRows|1"));
+    const fewer = screen.getByText("materials.notes.tagFilterLess");
+    expect(fewer.getAttribute("aria-expanded")).toBe("true");
+
+    fireEvent.click(fewer);
+    expect(screen.queryByText("Note F")).toBeNull();
+    screen.getByText("materials.notes.groupMoreRows|1");
   });
 
   it("does not cap a group the user filtered to", () => {

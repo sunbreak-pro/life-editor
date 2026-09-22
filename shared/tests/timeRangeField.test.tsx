@@ -65,11 +65,24 @@ describe("TimeRangeField", () => {
     expect(onChange).toHaveBeenCalledWith({ start: "14:30", end: "15:30" });
   });
 
-  it("keeps the end still when the new start stays before it", () => {
+  // #1833: the end follows the start in BOTH directions. It used to stay
+  // where it was whenever the new start was still before it, which is how
+  // "change the time" on an 18:00-19:00 block turned it into five hours.
+  it("drags the end along when the new start stays before it", () => {
     const { onChange, startInput } = renderField();
     fireEvent.change(startInput, { target: { value: "9:30" } });
     fireEvent.keyDown(startInput, { key: "Enter" });
-    expect(onChange).toHaveBeenCalledWith({ start: "09:30", end: "10:00" });
+    expect(onChange).toHaveBeenCalledWith({ start: "09:30", end: "10:30" });
+  });
+
+  it("keeps the duration when the start moves EARLIER (#1833)", () => {
+    const { onChange, startInput } = renderField({
+      start: "18:00",
+      end: "19:00",
+    });
+    fireEvent.change(startInput, { target: { value: "14:00" } });
+    fireEvent.keyDown(startInput, { key: "Enter" });
+    expect(onChange).toHaveBeenCalledWith({ start: "14:00", end: "15:00" });
   });
 
   it("lands an end typed at-or-before the start one step after it", () => {
@@ -109,10 +122,16 @@ describe("TimeRangeField", () => {
     expect(onChange).not.toHaveBeenCalled();
   });
 
-  it("steps the start along the grid with ArrowUp", () => {
+  it("steps the start along the grid with ArrowUp, duration intact", () => {
     const { onChange, startInput } = renderField();
     fireEvent.keyDown(startInput, { key: "ArrowUp" });
-    expect(onChange).toHaveBeenCalledWith({ start: "09:15", end: "10:00" });
+    expect(onChange).toHaveBeenCalledWith({ start: "09:15", end: "10:15" });
+  });
+
+  it("steps the start DOWN with the end behind it (#1833)", () => {
+    const { onChange, startInput } = renderField();
+    fireEvent.keyDown(startInput, { key: "ArrowDown" });
+    expect(onChange).toHaveBeenCalledWith({ start: "08:45", end: "09:45" });
   });
 
   it("ignores an ArrowDown that would push the end onto the start", () => {

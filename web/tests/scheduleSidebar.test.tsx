@@ -725,3 +725,68 @@ describe("ScheduleSidebar — the Todo tab's filter (#1641)", () => {
     expect(screen.queryByText("scheduleScreen.todoFilterEmpty")).toBeNull();
   });
 });
+
+/*
+ * #1832 — the 44px touch floor on the controls this sidebar draws itself.
+ *
+ * The audit measured `getBoundingClientRect()` at 390px (Restore at 69x25,
+ * the "+" pills at 82x35). jsdom has no layout (CLAUDE.md §7.1), so what is
+ * pinned is the CLASS CONTRACT that produces the size — the same shape as
+ * web/tests/materialsTapTargets.test.tsx.
+ *
+ * `max-md:` and never a bare floor: this component draws the Desktop panel as
+ * well as the narrow drawer, so an unconditional min-height would grow the
+ * mouse layout with it.
+ */
+describe("#1832 — the sidebar's own controls meet the 44px touch floor", () => {
+  it("floors Restore on a skipped row", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          flow: {
+            skipped: [{ id: "s1", title: "Stretch", startTime: "07:00" }],
+          },
+        })}
+      />,
+    );
+    const cls = screen.getByRole("button", {
+      name: "scheduleScreen.restoreSkipped",
+    }).className;
+    expect(cls).toContain("max-md:min-h-11");
+    // The painted pill is untouched on Desktop.
+    expect(cls.split(" ")).not.toContain("min-h-11");
+  });
+
+  it("floors the day agenda's + pill", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          flow: { onAdd: vi.fn(), addLabel: "Add" },
+        })}
+      />,
+    );
+    const cls = screen.getByRole("button", { name: "Add" }).className;
+    expect(cls).toContain("max-md:min-h-11");
+    expect(cls.split(" ")).not.toContain("min-h-11");
+  });
+
+  it.each(["scheduleScreen.todoAddTodayCta", "scheduleScreen.todoAddCta"])(
+    "floors the Todo tab's %s pill",
+    (name) => {
+      render(
+        <ScheduleSidebar
+          {...makeProps({
+            tab: "todo",
+            todo: {
+              placed: [{ id: "t1", title: "Buy milk", completed: false }],
+              addable: [{ id: "a1", title: "Read the spec" }],
+            },
+          })}
+        />,
+      );
+      const cls = screen.getByRole("button", { name }).className;
+      expect(cls).toContain("max-md:min-h-11");
+      expect(cls.split(" ")).not.toContain("min-h-11");
+    },
+  );
+});

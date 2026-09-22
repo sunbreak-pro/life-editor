@@ -388,13 +388,39 @@ describe("ScheduleOverlays — the single-click bubble", () => {
     renderOverlays({
       popover: { state: { ...POPOVER, id: CHIP.id }, todoChip: CHIP },
     });
+    // #1834: the todo variant names itself after a todo.
     const todoPanel = screen.getByRole("dialog", {
-      name: "scheduleScreen.itemActionsLabel",
+      name: "scheduleScreen.todoActionsLabel",
     });
     expect(todoPanel.style.width).toBe(`${SCHEDULE_ITEM_PANEL_WIDTH}px`);
     expect(
       todoPanel.querySelector('[data-item-panel-column="summary"]'),
     ).not.toBeNull();
+  });
+
+  /*
+   * #1834: the two variants are two <ItemActionPopover> call sites and they
+   * shared one accessible name. A screen reader on a todo chip heard "Event
+   * actions" over a panel holding "Convert to event" and "Delete todo".
+   */
+  it("names each variant after what it is holding (#1834)", () => {
+    const first = renderOverlays({
+      popover: { state: POPOVER, selected: ITEM },
+    });
+    expect(
+      screen.getByRole("dialog", { name: "scheduleScreen.itemActionsLabel" }),
+    ).toBeTruthy();
+    first.unmount();
+
+    renderOverlays({
+      popover: { state: { ...POPOVER, id: CHIP.id }, todoChip: CHIP },
+    });
+    expect(
+      screen.getByRole("dialog", { name: "scheduleScreen.todoActionsLabel" }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("dialog", { name: "scheduleScreen.itemActionsLabel" }),
+    ).toBeNull();
   });
 
   it("draws nothing while the selection and the anchor disagree", () => {

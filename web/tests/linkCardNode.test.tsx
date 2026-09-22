@@ -3,8 +3,11 @@ import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, act, waitFor } from "@testing-library/react";
+import { Editor } from "@tiptap/core";
+import StarterKit from "@tiptap/starter-kit";
 import { RichTextEditor } from "../src/notes/RichTextEditor";
 import {
+  createLinkCardNode,
   describeUrl,
   isStandaloneUrl,
   safeHref,
@@ -313,6 +316,97 @@ describe("the card carries its own delete (#1607)", () => {
       expect(JSON.stringify(saved)).toContain("after");
     } finally {
       vi.useRealTimers();
+    }
+  });
+});
+
+/*
+ * #1836 — what the caret does the moment a typed URL becomes a card.
+ *
+ * Driven through a headless TipTap Editor rather than <RichTextEditor>, because
+ * the thing under test is the INPUT RULE, and an input rule fires on text the
+ * browser is about to put into a contenteditable — something jsdom has no way
+ * to produce. `handleTextInput` is the prop ProseMirror calls at that moment,
+ * so calling it directly runs the real rule against a real document, with no
+ * coordinates anywhere in the path (#475).
+ */
+const CARD_LABELS = { open: "Open link", remove: "Remove link" };
+
+function headlessEditor(text: string): Editor {
+  const element = document.createElement("div");
+  document.body.appendChild(element);
+  return new Editor({
+    element,
+    extensions: [StarterKit, createLinkCardNode({ labels: CARD_LABELS })],
+    content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text }] }] },
+  });
+}
+
+/** The space that ends the URL — the keystroke the rule listens for. */
+function typeSpace(editor: Editor): void {
+  const paragraph = editor.state.doc.firstChild;
+  if (!paragraph) throw new Error("no paragraph to type into");
+  const end = 1 + paragraph.content.size;
+  editor.commands.setTextSelection(end);
+  const { view } = editor;
+  const { from, to } = editor.state.selection;
+  act(() => {
+    view.someProp("handleTextInput", (handler) =>
+      // The 5th argument is prosemirror-view's own "what would have happened"
+      // transaction. TipTap's rule does not read it; it is built here anyway so
+      // the call is the one the browser makes, not a shortened version of it.
+      handler(view, from, to, " ", () =>
+        view.state.tr.insertText(" ", from, to),
+      ),
+    );
+  });
+}
+
+type JsonNode = { type?: string; content?: JsonNode[] };
+
+describe("#1836 — typing past a fresh card keeps the card", () => {
+  it("leaves the caret in an empty paragraph under the card, not on it", () => {
+    const editor = headlessEditor("https://example.org/a/b");
+    try {
+      typeSpace(editor);
+
+      const doc = editor.getJSON() as JsonNode;
+      expect(doc.content?.map((n) => n.type)).toEqual(["linkCard", "paragraph"]);
+      // A collapsed cursor inside the paragraph — NOT the NodeSelection that
+      // draws .ProseMirror-selectednode and that the next keystroke replaces.
+      expect(editor.state.selection.empty).toBe(true);
+      expect(editor.state.selection.$from.parent.type.name).toBe("paragraph");
+    } finally {
+      editor.destroy();
+    }
+  });
+
+  it("keeps the URL when the next thing typed is a word", () => {
+    // The bug as reported: URL, space, then "hello" — and the card was gone
+    // from the document and from the save that followed it.
+    const editor = headlessEditor("https://example.org/a/b");
+    try {
+      typeSpace(editor);
+      editor.commands.insertContent("hello");
+
+      const doc = editor.getJSON() as JsonNode;
+      const card = doc.content?.find((n) => n.type === "linkCard");
+      expect(card).toBeDefined();
+      expect(editor.getText()).toContain("hello");
+    } finally {
+      editor.destroy();
+    }
+  });
+
+  it("still leaves a URL written inside a sentence alone", () => {
+    const editor = headlessEditor("see https://example.org/a/b");
+    try {
+      typeSpace(editor);
+
+      const doc = editor.getJSON() as JsonNode;
+      expect(doc.content?.some((n) => n.type === "linkCard")).toBe(false);
+    } finally {
+      editor.destroy();
     }
   });
 });

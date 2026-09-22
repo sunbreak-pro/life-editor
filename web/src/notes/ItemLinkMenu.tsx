@@ -2,6 +2,7 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useRef,
   useState,
   type ReactElement,
 } from "react";
@@ -58,18 +59,37 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
     ref,
   ): ReactElement {
     const [selected, setSelected] = useState(0);
+    const listRef = useRef<HTMLDivElement>(null);
+    /** Set by ↑/↓ only — see the scroll effect below. */
+    const movedByKey = useRef(false);
 
     // Reset the highlight whenever the filtered set changes (typing narrows it).
     useEffect(() => setSelected(0), [items]);
+
+    /*
+     * Keep the highlighted row inside the scroller (#1902) — SlashMenu next
+     * door carries the reasoning, including why the mouse must not trigger it.
+     * Both lists have it because the two pickers are one system, and a fix to
+     * one of them alone is a divergence.
+     */
+    useEffect(() => {
+      if (!movedByKey.current) return;
+      movedByKey.current = false;
+      listRef.current
+        ?.querySelector<HTMLElement>(`[data-item-link-index="${selected}"]`)
+        ?.scrollIntoView?.({ block: "nearest" });
+    }, [selected]);
 
     useImperativeHandle(ref, () => ({
       onKeyDown: (event) => {
         if (items.length === 0) return false;
         if (event.key === "ArrowUp") {
+          movedByKey.current = true;
           setSelected((i) => (i + items.length - 1) % items.length);
           return true;
         }
         if (event.key === "ArrowDown") {
+          movedByKey.current = true;
           setSelected((i) => (i + 1) % items.length);
           return true;
         }
@@ -92,6 +112,7 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
 
     return (
       <div
+        ref={listRef}
         role="listbox"
         // The inline cap (when the placer supplies one) beats the class — style
         // attribute over stylesheet — so the two never have to agree.
@@ -107,6 +128,7 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
               key={item.id}
               type="button"
               role="option"
+              data-item-link-index={index}
               aria-selected={isActive}
               onMouseEnter={() => setSelected(index)}
               onMouseDown={(e) => {

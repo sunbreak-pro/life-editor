@@ -183,7 +183,10 @@ export function CalendarNarrowLayout({
           <button
             type="button"
             onClick={header.onToday}
-            className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+            // #1832: 37px tall. Unprefixed, like the two steppers beside it
+            // (#1558) — this layout renders only under `!isWide`, so there is
+            // no Desktop box for the floor to grow.
+            className="min-h-11 rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
           >
             {t("scheduleScreen.today")}
           </button>

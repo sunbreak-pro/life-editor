@@ -230,6 +230,18 @@ describe("DailyView — the open day", () => {
     render(<DailyView />);
     screen.getByText("materials.daily.saved");
   });
+
+  /*
+   * #1839 — the caption is a claim about a row. On a day nobody has written
+   * on there is no row, and "Saved" was a claim about nothing.
+   */
+  it("says nothing about saving on a day with no entry", () => {
+    state.selectedDate = LONG_AGO;
+    render(<DailyView />);
+
+    expect(screen.queryByText("materials.daily.saved")).toBeNull();
+    expect(screen.queryByText("materials.daily.unsaved")).toBeNull();
+  });
 });
 
 /*
@@ -394,6 +406,50 @@ describe("DailyView — the actions kebab", () => {
       .getAllByRole("menuitem", { hidden: true })
       .find((el) => el.textContent?.includes("materials.daily.delete"));
     expect(item?.getAttribute("aria-disabled")).toBe("true");
+  });
+});
+
+describe("DailyView — the entry list says which day is open (#1839)", () => {
+  it("marks exactly the open day, and marks it with aria-current", () => {
+    render(<DailyView />);
+
+    const current = screen
+      .getAllByRole("button")
+      .filter((b) => b.getAttribute("aria-current") === "true");
+    expect(current).toHaveLength(1);
+    expect(current[0].textContent).toContain(`entry for ${YESTERDAY}`);
+  });
+
+  it("marks nothing when the open day has no entry", () => {
+    state.selectedDate = LONG_AGO;
+    render(<DailyView />);
+
+    expect(
+      screen
+        .getAllByRole("button")
+        .filter((b) => b.getAttribute("aria-current") === "true"),
+    ).toHaveLength(0);
+  });
+
+  it("says why the list is empty when a filter empties it", () => {
+    render(<DailyView />);
+
+    fireEvent.change(
+      screen.getByLabelText("materials.daily.filterLabel"),
+      { target: { value: "nothing-matches-this" } },
+    );
+
+    screen.getByText("materials.daily.entriesCount|0");
+    screen.getByText("materials.daily.searchEmpty");
+    expect(screen.queryByText("materials.daily.empty")).toBeNull();
+  });
+
+  it("says so when there are no entries at all", () => {
+    state.dailies = [];
+    render(<DailyView />);
+
+    screen.getByText("materials.daily.empty");
+    expect(screen.queryByText("materials.daily.searchEmpty")).toBeNull();
   });
 });
 
@@ -758,5 +814,76 @@ describe("DailyView — editing the evening card (#1680)", () => {
     expect(manager.canRedo()).toBe(false);
     expect(manager.canUndo()).toBe(true);
     errors.mockRestore();
+  });
+});
+
+/*
+ * #1840 — the three Daily controls the audit read under 44px at 390px: the
+ * Today CTA (36), the kebab (36) and the reflection preview (34).
+ *
+ * jsdom has no layout (CLAUDE.md §7.1), so none of that can be re-measured
+ * here. What is pinned is the class contract that produces the size, the same
+ * shape web/tests/materialsTapTargets.test.tsx uses.
+ *
+ * `max-md:` and never a bare floor: one component draws both the Desktop
+ * header and the narrow one, so an unconditional min-height would grow the
+ * mouse layout too.
+ */
+describe("#1840 — Daily's controls meet the 44px touch floor", () => {
+  it("floors the Today CTA in height, and leaves its width to the label", () => {
+    render(<DailyView />);
+    const cta = screen.getByRole("button", { name: "materials.daily.toToday" });
+
+    expect(cta.classList.contains("max-md:min-h-11")).toBe(true);
+    // A labelled button is already wide enough for a thumb; a min-width would
+    // stretch it for no one.
+    expect(cta.classList.contains("max-md:min-w-11")).toBe(false);
+    // Desktop unchanged: same padding, no unconditional floor.
+    expect(cta.classList.contains("py-1.5")).toBe(true);
+    expect(cta.classList.contains("min-h-11")).toBe(false);
+  });
+
+  it("floors the kebab both ways — it is a glyph with no label", () => {
+    render(<DailyView />);
+    const kebab = screen.getByRole("button", {
+      name: "materials.daily.moreActions",
+    });
+
+    expect(kebab.classList.contains("max-md:min-h-11")).toBe(true);
+    expect(kebab.classList.contains("max-md:min-w-11")).toBe(true);
+    // The drawn box is untouched — the hit box is what grew.
+    expect(kebab.classList.contains("h-7")).toBe(true);
+    expect(kebab.classList.contains("min-h-11")).toBe(false);
+  });
+
+  it("floors the reflection preview without moving its text", () => {
+    state.dailies = [
+      daily(YESTERDAY, {
+        content: JSON.stringify({
+          type: "doc",
+          content: [
+            {
+              type: "heading",
+              attrs: { level: 2 },
+              content: [{ type: "text", text: "夕刊" }],
+            },
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "夜の振り返りの一文" }],
+            },
+          ],
+        }),
+      }),
+    ];
+    render(<DailyView />);
+
+    const preview = screen.getByRole("button", {
+      name: "materials.daily.eveningEditReflection 夜の振り返りの一文",
+    });
+    expect(preview.classList.contains("max-md:min-h-11")).toBe(true);
+    // Padding rather than a taller box on Desktop: the component's own comment
+    // requires the swap to the real editor not to jump.
+    expect(preview.classList.contains("px-1")).toBe(true);
+    expect(preview.classList.contains("min-h-11")).toBe(false);
   });
 });

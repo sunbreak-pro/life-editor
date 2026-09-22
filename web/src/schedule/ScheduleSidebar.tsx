@@ -240,6 +240,10 @@ export function ScheduleSidebar({
             onClick={flow.onAdd}
             label={flow.addLabel}
             tourId={TOUR_ANCHORS.scheduleAddEvent}
+            // #1832: the pill paints at 35px, which is a mouse size. The
+            // floor is narrow-only and per call site (rules/frontend.md
+            // §Gotchas) — AddPill's own recipe feeds Notes too.
+            className="max-md:min-h-11"
           />
         )}
       </div>
@@ -274,7 +278,10 @@ export function ScheduleSidebar({
                 <button
                   type="button"
                   onClick={() => flow.onRestoreSkipped(i.id)}
-                  className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+                  // #1832: 25px tall on a phone. `max-md:min-h-11` only —
+                  // the label is already wider than the floor, and Desktop
+                  // keeps the small pill it was drawn as.
+                  className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover max-md:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
                 >
                   {t("scheduleScreen.restoreSkipped")}
                 </button>
@@ -507,6 +514,7 @@ export function ScheduleSidebar({
             <AddPill
               onClick={todo.onAddToday}
               label={t("scheduleScreen.todoAddTodayCta")}
+              className="max-md:min-h-11"
             />
           ),
           addable: (
@@ -514,6 +522,7 @@ export function ScheduleSidebar({
               onClick={todo.onAdd}
               label={t("scheduleScreen.todoAddCta")}
               tourId={TOUR_ANCHORS.scheduleTodoAdd}
+              className="max-md:min-h-11"
             />
           ),
         }}
