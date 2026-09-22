@@ -1,5 +1,46 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-09-22 (2) - materials の 9 本を main 取り込みで緑に戻した + main の再破損を PR #1945 で修理
+
+#### 概要
+
+前段で出した materials の 11 本のうち open の 9 本が CI 赤のままだったので、現在の main を取り込み、手元で全ゲートを回してから push し直した。作業中に main がもう一度壊れていることが分かり、先に PR #1945 で直した。9 本と #1945 はすべて CI 緑・MERGEABLE。
+
+#### 9 本が赤かった理由
+
+赤い main から枝を切ったため、`chartTheme.ts` の `fitAxisLabel` と `TodosTab.tsx` の `sessionsWithinRange` が無い状態で CI が走っていた。main 側は PR #1942 で既に直っていたが、`ci.yml` の `pull_request` トリガは **base が進んでも再実行されない**ので、古い赤がそのまま貼り付いていた。push し直すまで緑にならない。
+
+#### main の 2 回目の破損（PR #1945）
+
+PR #1921（#1823）が `StreakDisplayLabels.days` を `formatDays: (count) => string` へ改名し、その時点の 7 本のテスト用データを追随させた。直後に merge された PR #1926（#1826）が 8 本目 `shared/tests/briefingHeadingSpacing.test.tsx` を**古い形**で足した。どちらの PR も相手を見られない。
+
+```
+tests/briefingHeadingSpacing.test.tsx(104,11): error TS2353:
+  'days' does not exist in type 'StreakDisplayLabels'
+```
+
+**誰も気付けなかった理由が 3 つ重なっている**: `build` はテストファイルを見ない、`vitest` は型を見ない、そして main 自身の run は `cancel-in-progress: true` により次の merge でキャンセルされる。見えるのは `typecheck:tests` だけで、その run が完走しない。
+
+#### 変更点
+
+- **PR #1945（main 修理）**: `shared/tests/briefingHeadingSpacing.test.tsx` の fixture を他の 7 本と同じ `formatDays: (n: number) => (n === 1 ? "day" : "days")` に
+- **9 本すべてに現在の main を取り込み**: 競合は 2 本だけ。`claude/materials-1837` の `shared/src/index.ts`（barrel の export を `BUSY_STALE` と `DISABLED_FILLED_BTN` の両方残す）と、`claude/materials-1843` の i18n カタログ（`materials.notes.password.*` と `materials.notes.tableControls.*` を両方残す・JSON の構文と en/ja の鍵の対応を確認）
+- **9 本すべてに #1945 の修理も載せた**: #1945 が merge されれば squash 時に差分ゼロになる（`red-main-blocks-pr-ci` の定石）
+- **検証**: 9 本それぞれで shared / web の lint・build・typecheck:tests・test を全通し。desktop と mcp-server は 9 本とも触っていないので回していない
+
+#### 並行セッションとの衝突
+
+`claude/materials-1837` と `claude/materials-1843` への push が「behind」で弾かれた。別の Claude セッション（Fable 5.1 / session 019XSFhXmKcf）が 19:15 頃に**同じ 2 本へ同じ内容の main 取り込み**を push していた。解決の中身も同一だったので、force push せず向こうの commit を merge してから押し直した。**materials レーンを 2 つのセッションが同時に持っている**状態なので、次に同じ指示が来たら着手前に `git ls-remote` で自分のブランチの先端を見る。
+
+#### 追記（同日・9 本 merge 後）
+
+#1941（`claude/materials-1837`）だけが残り、先に merge された #1934（#1842）と `web/src/notes/NotesSidebarList.tsx` の同じブロックで競合した。**main 側の新しい中身を、こちらの「薄くする箱」で包む形**で解いた（#1842 が「Show N more」を `toggleGroupRows` / `canCollapse` / `labels.fewerRows` の開閉の対にしたのに対し、このブランチはタググループ全体を実体のある box で包んで本文検索の後半が走っている間 `BUSY_STALE` と `aria-busy` を載せていた）。shared / web の 8 ゲートすべて緑で push し、CI 緑・MERGEABLE を確認。
+
+#### 残った作業
+
+- history のローリングアーカイブ（5 件超）はこの PR では実行していない。CI 修理の記録だけに絞るため見送った
+- PR #1907 は 1 回目の main 破損の修理案だが、同じ内容が #1906 として merge 済みで中身が空振りしているはず。materials の担当外なので触っていない
+
 ### 2026-09-22 - 画面別検証の materials 11 件を 11 本の PR に（#1836 #1837 #1838 #1839 #1840 #1841 #1842 #1843 #1844 #1902 #1903）+ main の compile 不能を 1 本
 
 #### 概要
