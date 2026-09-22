@@ -58,13 +58,23 @@ describe("Button disabled fill (#1474)", () => {
     expect(classes).toContain("disabled:hover:opacity-100");
   });
 
+  it("gives the danger fill the same treatment (#1803)", () => {
+    // The queue this case used to describe has been answered: #1804 gave the
+    // three screens whose disabled danger button means "working" a spinner and
+    // a "…ing" label, so the busy reading no longer rests on the fill. A
+    // filled button is a filled button.
+    const classes = classesFor("danger");
+
+    expect(classes).not.toMatch(/disabled:opacity-\d/);
+    expect(classes).toContain("disabled:bg-lumen-surface-sunken");
+    expect(classes).toContain("disabled:hover:bg-lumen-surface-sunken");
+  });
+
   it("leaves the non-filled variants on the opacity treatment", () => {
     // Deliberate, not an oversight. secondary/ghost are already surface
-    // coloured, so fading them reads as disabled without changing hue.
-    // `danger` shares the primary's defect and its fix, but its disabled state
-    // is a BUSY state on three screens, where a flat grey would say "switched
-    // off" rather than "working" — that is a UX call, and it is queued.
-    for (const variant of ["secondary", "ghost", "danger"] as const) {
+    // coloured, so fading them reads as disabled without changing hue, and
+    // sinking them into the recess would draw a box that was never there.
+    for (const variant of ["secondary", "ghost"] as const) {
       expect(classesFor(variant)).toContain("disabled:opacity-50");
     }
   });
