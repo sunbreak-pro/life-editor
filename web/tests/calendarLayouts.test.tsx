@@ -148,6 +148,8 @@ function renderDesktop(
     onItemDoubleClick: vi.fn(),
     onItemContextMenu: vi.fn(),
     onMonthCreate: vi.fn(),
+    // #1829: a month cell's "他 N 件" hands the day back here.
+    onShowMore: vi.fn(),
     onCreateAt: vi.fn(),
     onMoveItem: vi.fn(),
     onResizeItem: vi.fn(),

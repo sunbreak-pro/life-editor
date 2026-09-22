@@ -680,6 +680,7 @@
     "retry": "Retry",
     "moreCount": "+{{count}} more",
     "monthCreateOn": "Add on {{date}}",
+    "monthShowAllOn": "Show everything on {{date}}",
     "quickAddPlaceholder": "Enter an event…",
     "detailTitle": "Event details",
     "detailPanelLabel": "Detail panel",
