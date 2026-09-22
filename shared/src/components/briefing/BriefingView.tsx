@@ -207,10 +207,18 @@ export interface BriefingViewProps {
    * <ItemCreatePanel> and owns the write.
    */
   onAddScheduleItem: () => void;
-  /** Jumps to the Schedule section (host → nav). */
-  onJumpToSchedule: () => void;
-  /** Jumps to the Todos section (host → nav). */
-  onJumpToTodos: () => void;
+  /**
+   * Opens ONE event where it lives (host → nav), given its id (#1824).
+   *
+   * It took no argument until now and the host answered it with a bare section
+   * switch, so「編集」landed the reader on the Schedule section with nothing
+   * selected and no panel open — the button named an act it did not perform.
+   * The id is all the paper can offer; where a row opens is the host's to
+   * decide, and the shell already knows how (`navigateToItem`).
+   */
+  onJumpToSchedule: (id: string) => void;
+  /** The same for one todo — the paper's todo rows and its carryover rows. */
+  onJumpToTodos: (id: string) => void;
   /**
    * In-body 朝刊/夕刊 switcher for the NARROW layout (#318). AppShell only
    * renders its header slot on the wide branch, so below 768px the
@@ -328,10 +336,24 @@ function BlockHeadAddButton({
  * container, which is the 349px-of-content-in-a-343px-box the 390px audit
  * measured. `BlockHeadAddButton` dropped its own in the same change, so the
  *「+」above and the actions below still line up in one straight column.
+ *
+ * `max-md:w-full` is what puts the cluster on a LINE OF ITS OWN below `md`
+ * (#1820). The 44px floor #1559 bought cost the pair 101px of a 343px row, and
+ * the only thing left free to shrink was the title: a five-character event
+ * title broke across two lines and an 22-character todo across three. A flex
+ * item asking for the full width cannot sit beside anything, so it wraps —
+ * and the row above it keeps the whole width minus the time column, which is
+ * ~200px, enough for ten CJK characters even at the 18px root step. The rows
+ * grow taller on a phone in exchange; that is the trade this Issue chose,
+ * because a title that cannot be read is not a row at all.
+ *
+ * `justify-end` rather than the `ml-auto` above, which does nothing once the
+ * item IS the line: the cluster still lands on the right edge, under the
+ * actions of the row above, so the straight column survives the wrap.
  */
 function RowActions({ children }: { children: ReactNode }) {
   return (
-    <div className="-my-1 ml-auto flex flex-shrink-0 items-center gap-0.5 self-center">
+    <div className="-my-1 ml-auto flex flex-shrink-0 items-center gap-0.5 self-center max-md:w-full max-md:justify-end">
       {children}
     </div>
   );
@@ -356,12 +378,14 @@ function RowActions({ children }: { children: ReactNode }) {
  * 削除 — and 削除 is the last button on the paper that may fire by accident.
  *
  * Height is free (every row that draws these is already 44px tall, held there
- * by its own checkbox or by `min-h-11`). Width is not: the pair goes from 58px
- * to 90px, which is 32px off the todo title beside it. That is a real cost
- * against #1514 — it bought the title 77px back — and it is spent knowingly,
- * because the alternative is a destructive action that stays under the floor.
- * The words are still hidden below `md`, so the title keeps the larger half of
- * what that change won.
+ * by its own checkbox or by `min-h-11`). Width was not: the pair goes from 58px
+ * to 90px, and while the cluster shared a line with the title that came
+ * straight off the title — 32px on top of what #1514 had just won back, which
+ * is what #1820 measured as a five-character title on two lines. The width is
+ * still spent, but `RowActions` now wraps below `md`, so it is spent on a line
+ * the title does not use. The words stay hidden below `md` regardless: the
+ * cluster sits under the row it belongs to, and two labelled buttons there
+ * would read as a second row rather than as that row's actions.
  *
  * `min-*` and never `h-11`/`w-11`: `cn` is a plain string join, so two
  * utilities for one property are settled by Tailwind's emit order rather than
@@ -582,8 +606,15 @@ export function BriefingView({
             </p>
           ))
         ) : (
-          <p className="flex items-center justify-center gap-2 text-sm text-lumen-text-secondary">
-            <Sunrise size={16} aria-hidden="true" />
+          /* `items-start` and not `items-center` (#1826). The sentence wraps
+             to three lines at 390px, and a centred icon floated beside the
+             SECOND one — it read as a bullet on the middle of the sentence
+             rather than as the mark in front of it. Starting the cross axis
+             puts it beside the first line at every width; `mt-0.5` is the 2px
+             that lines the 16px glyph up with the cap height of 20px text
+             instead of with its ascender. */
+          <p className="flex items-start justify-center gap-2 text-sm text-lumen-text-secondary">
+            <Sunrise size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
             {labels.noFocus}
           </p>
         )}
@@ -680,8 +711,14 @@ export function BriefingView({
                     checkbox carries the 44px touch floor, so a row holding one
                     is 44px tall — and the schedule rows below claim the same
                     minimum rather than letting the list step down at the point
-                    where the todos end. */}
-                <div className="flex min-h-11 items-center gap-3">
+                    where the todos end.
+
+                    `flex-wrap` below `md` (#1820) so the action cluster drops
+                    to its own line and the title keeps the width; `gap-y-1`
+                    is the space between those two lines and costs nothing
+                    while the row is unwrapped. `md:flex-nowrap` pins the
+                    Desktop row to one line whatever the title measures. */}
+                <div className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 md:flex-nowrap">
                   {/* Same column, same format as the timed rows below — a
                       todo placed at 09:00 has to read as 09:00 here too
                       (#1369). Untimed todos pass "" and get the spacer that
@@ -723,7 +760,7 @@ export function BriefingView({
                   </button>
                   <RowActions>
                     <EditJumpButton
-                      onClick={onJumpToTodos}
+                      onClick={() => onJumpToTodos(todo.id)}
                       label={labels.edit}
                       hint={labels.jumpToTodos}
                     />
@@ -735,10 +772,19 @@ export function BriefingView({
                   </RowActions>
                 </div>
                 {/* Indented past the empty time column + checkbox so the
-                    purpose hangs under its own todo's title: the 56px time
-                    column, the 12px gap, the 44px checkbox, the 12px gap. */}
+                    purpose hangs under its own todo's title: the time column
+                    (`w-14` = 3.5rem), the `gap-3` (0.75rem), the checkbox
+                    (`min-w-11` = 2.75rem) and the second `gap-3`.
+
+                    In rem and never in px (#1821). Every one of those four
+                    widths is rem-based, so at the 18px root step the columns
+                    measure 139.5px while a fixed `ml-[124px]` stayed put — the
+                    purpose line started 16px to the LEFT of the title it hangs
+                    under, on Desktop and on a phone alike. 3.5 + 0.75 + 2.75 +
+                    0.75 = 7.75rem, which is the same 124px at the 16px root and
+                    follows the column at every other step. */}
                 {todo.purposes.length > 0 && (
-                  <p className="ml-[124px] mt-0.5 text-xs text-lumen-text-secondary">
+                  <p className="ml-[7.75rem] mt-0.5 text-xs text-lumen-text-secondary">
                     <span className="font-semibold text-lumen-briefing-kohaku">
                       ◈ {todo.purposes.join(" ・ ")}
                     </span>
@@ -756,7 +802,10 @@ export function BriefingView({
               />
             )}
             {scheduleRows.map((item) => (
-              <li key={item.id} className="flex min-h-11 items-center gap-3">
+              <li
+                key={item.id}
+                className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 md:flex-nowrap"
+              >
                 <TimeCell
                   label={item.isAllDay ? labels.allDay : item.startTime}
                 />
@@ -773,10 +822,12 @@ export function BriefingView({
                   </span>
                 )}
                 {/* Last in the row so `ml-auto` lands it on the right edge —
-                    the routine tag keeps its place beside the title. */}
+                    the routine tag keeps its place beside the title. Below
+                    `md` the cluster takes the next line instead (#1820) and
+                    the tag stays up here with the title. */}
                 <RowActions>
                   <EditJumpButton
-                    onClick={onJumpToSchedule}
+                    onClick={() => onJumpToSchedule(item.id)}
                     label={labels.edit}
                     hint={labels.jumpToSchedule}
                   />
@@ -840,7 +891,7 @@ export function BriefingView({
                     act on a day the paper is not editing. */}
                 <RowActions>
                   <EditJumpButton
-                    onClick={onJumpToTodos}
+                    onClick={() => onJumpToTodos(item.id)}
                     label={labels.edit}
                     hint={labels.jumpToTodos}
                   />
