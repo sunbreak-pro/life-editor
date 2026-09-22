@@ -413,6 +413,14 @@
       "bodyPlaceholder": "Write your note…",
       "untitled": "(untitled)",
       "lockedHint": "This note is locked",
+      "tableControls": {
+        "label": "Table controls",
+        "addRow": "Add row below",
+        "addColumn": "Add column right",
+        "deleteRow": "Delete row",
+        "deleteColumn": "Delete column",
+        "deleteTable": "Delete table"
+      },
       "mainEmpty": "Select a note or create a new one",
       "recentHeading": "Recently opened",
       "untagged": "No tag",
@@ -1189,7 +1197,8 @@
       "heading3": "Heading 3",
       "bulletList": "Bullet List",
       "orderedList": "Ordered List",
-      "taskList": "Todo List"
+      "taskList": "Todo List",
+      "table": "Table"
     }
   },
   "itemLink": {
