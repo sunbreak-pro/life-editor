@@ -48,7 +48,7 @@ const STREAK_LABELS = {
   title: "Streak",
   current: "Current",
   longest: "Longest",
-  days: "days",
+  formatDays: (n: number) => (n === 1 ? "day" : "days"),
   noStreak: "No streak",
 };
 const TREND_LABELS = { title: "Trend", completedCount: "Completed" };
