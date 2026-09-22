@@ -1,6 +1,6 @@
 # HISTORY (chat-briefing-refine)
 
-### 2026-09-22 - 2026-09-21 の画面別探索検証で出た briefing 課題 7 件（#1820〜#1826 / PR 7 本 open）
+### 2026-09-22 - 2026-09-21 の画面別探索検証で出た briefing 課題 7 件（#1820〜#1826 / PR 7 本・うち 6 本 merged）
 
 #### 概要
 
@@ -18,9 +18,14 @@
 
 着手時点で origin/main 自体が壊れていた。`Analytics/TodosTab.tsx` の `sessionsWithinRange` import と `Analytics/chartTheme.ts` の `estimateLabelWidth` / `fitAxisLabel` が、近接した merge の衝突解決で落ちていた。修理 PR が既に 3 本（#1905 / #1906 / #1907）出ていたので 4 本目は出さず、**7 本とも #1905 の 1 コミットを自分のブランチに載せて** CI を読める状態にした（どれかが先に入れば squash で差分ゼロ）。ローカルの verify も同じ差分を当てた状態で回している。
 
+その後 #1906 が merge されて main は復旧した。載せたコミットは main と同じ内容なので差分ゼロになっている。
+
+**取りこぼしが 1 件あった**: #1820 のブランチだけ base が 1 世代古い main で、そこでは `chartTheme.ts` は壊れていなかったため cherry-pick が衝突し、`TodosTab.tsx` の 1 行だけを入れていた。PR の CI は「ブランチ」ではなく「今の main に merge した結果」を検査するので、新しい main 側の `chartTheme.ts` の欠落がそのまま出て赤になった。**ブランチ単体でローカル verify が緑でも、base が古ければ PR の CI は別のことを検査している**。直し方は `git merge origin/main` を取り込むこと（復旧後は同時に赤も消える）。
+
 #### 記録
 
 - **テスト**: 新規 6 本（`shared/tests/briefingRowWrap` / `briefingPurposeIndent` / `streakDaysPlural` / `briefingHeadingSpacing`、`web/tests/briefingRowEdit` / `briefingDeleteToast` / `briefingEveningCaptionHonesty`）。既存 fixture は #1823 の label 型変更に合わせて 7 本を更新
+- **merge 状況**（2026-09-22 実測）: #1918 / #1921 / #1926 / #1930 / #1932 / #1937 が merged、#1912（#1820）だけ open
 - **実ブラウザ確認は chat-main の手番**: 390px でのタイトル 1 行 / `elementFromPoint` での 44px / 目的行の `left` 一致（root 16px・18px）/ 見出し上の間隔 > 0 / 編集押下後の選択状態
 - **手動確認が残る点**: #1822 の IME 変換中の表示（Issue 本文の「手動確認推奨」のまま）
 - 計画書なし（Issue 直行の軽ティア × 7）。スコープ逸脱は #1822 の `web/src/notes/RichTextEditor.tsx` 1 件のみ（DoD の「打鍵〜保存完了の間は Unsaved」がエディタからの即時の合図なしには満たせないため。PR 本文に明記）
