@@ -69,8 +69,14 @@ export interface EveningLabels {
   /** Placeholder of the editable 宣言 field (narrow layout only). */
   intentionPlaceholder: string;
   reflectionTitle: string;
-  /** Saved-state caption next to the reflection title (host-computed). */
-  savedCaption: string;
+  /**
+   * Saved-state caption next to the reflection title (host-computed).
+   *
+   * Omitted while the day holds no reflection and no mood (#1822) — the same
+   * rule `intentionCaption` follows. A「保存済み」beside an empty page is a
+   * receipt for a write that never happened.
+   */
+  savedCaption?: string;
   /**
    * Heading of the 明日のフォーカス block (#1048) — the input whose text
    * TOMORROW's morning paper prints as its focus line.

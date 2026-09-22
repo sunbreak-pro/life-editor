@@ -151,6 +151,7 @@ export const SECTION_DESCRIPTORS: Readonly<
       <BriefingScreen
         dataService={ds}
         onNavigate={nav.navigateTo}
+        onNavigateToItem={nav.navigateToItem}
         tab={nav.briefingTab}
         tabSwitcher={narrowTabRow}
       />

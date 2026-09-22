@@ -469,6 +469,10 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
             type="button"
             onClick={submitPreset}
             disabled={presetName.trim().length === 0}
+            // Outline, not filled, so it keeps the opacity treatment (#1803
+            // left it alone deliberately). Its neighbours in this panel are on
+            // DISABLED_FILLED_BTN: the two dead states look different because
+            // the two buttons are different, not because one was missed.
             className="shrink-0 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-sm font-semibold text-lumen-text hover:bg-lumen-hover disabled:cursor-not-allowed disabled:opacity-50"
           >
             {labels.saveAsPreset}
