@@ -32,6 +32,10 @@ tests/briefingHeadingSpacing.test.tsx(104,11): error TS2353:
 
 `claude/materials-1837` と `claude/materials-1843` への push が「behind」で弾かれた。別の Claude セッション（Fable 5.1 / session 019XSFhXmKcf）が 19:15 頃に**同じ 2 本へ同じ内容の main 取り込み**を push していた。解決の中身も同一だったので、force push せず向こうの commit を merge してから押し直した。**materials レーンを 2 つのセッションが同時に持っている**状態なので、次に同じ指示が来たら着手前に `git ls-remote` で自分のブランチの先端を見る。
 
+#### 追記（同日・9 本 merge 後）
+
+#1941（`claude/materials-1837`）だけが残り、先に merge された #1934（#1842）と `web/src/notes/NotesSidebarList.tsx` の同じブロックで競合した。**main 側の新しい中身を、こちらの「薄くする箱」で包む形**で解いた（#1842 が「Show N more」を `toggleGroupRows` / `canCollapse` / `labels.fewerRows` の開閉の対にしたのに対し、このブランチはタググループ全体を実体のある box で包んで本文検索の後半が走っている間 `BUSY_STALE` と `aria-busy` を載せていた）。shared / web の 8 ゲートすべて緑で push し、CI 緑・MERGEABLE を確認。
+
 #### 残った作業
 
 - history のローリングアーカイブ（5 件超）はこの PR では実行していない。CI 修理の記録だけに絞るため見送った
