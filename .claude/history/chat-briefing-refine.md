@@ -1,5 +1,30 @@
 # HISTORY (chat-briefing-refine)
 
+### 2026-09-22 - 2026-09-21 の画面別探索検証で出た briefing 課題 7 件（#1820〜#1826 / PR 7 本 open）
+
+#### 概要
+
+1 Issue = 1 ブランチ = 1 PR で 7 本を出した。全部 origin/main から切り、CI の verify ジョブ相当（14 ステップ + docs-lint）をブランチごとに上から回して全緑にしてある。
+
+- **#1820（PR #1912）**: 390px の「今日のスケジュール」でタイトル列が 69px に潰れていた。`RowActions` に `max-md:w-full max-md:justify-end`、行に `flex-wrap ... md:flex-nowrap` を入れて、操作ボタンを `md` 未満で次の行に送った。44px 床（#1559）は Issue の DoD が維持を求めているので返さず、置き場所だけを変えた。引き換えにスマホの行高が 44px → 約 92px になる
+- **#1821（PR #1918）**: 目的行（◈）の `ml-[124px]` を `ml-[7.75rem]` に。避ける 4 列が全部 rem なので、root 18px で 16px ずれていた
+- **#1822（PR #1937）**: 夕刊のキャプションが未記入でも打鍵直後でも「Saved」と出ていた。`RichTextEditor` に任意の `onDirty` を足して打鍵の瞬間を host に伝え、`useDailySections` の `eveningDirty` が debounce までの窓を埋める。未記入なら `savedCaption` ごと出さない（#427 の宣言ブロックと同じ形）
+- **#1823（PR #1921）**: `analytics.streak.days` を i18next の複数形に。`StreakDisplay` の label が `days: string` → `formatDays: (count) => string`。Analytics 側の label 型（`Analytics/labels.ts`）と fixture 7 本も追随
+- **#1824（PR #1930）**: 行の「編集」がセクション遷移だけで対象を開いていなかった。`onJumpToSchedule` / `onJumpToTodos` が id を取るようにし、host が `navigateToItem`（Schedule が `pendingSelectTodoId` / `pendingSelectEvent` で受ける既存経路）へ渡す。予定は #503 と同じ理由で日付も添える
+- **#1825（PR #1932）**: 紙面の行削除に受け取りが無かった。確認ダイアログを持たない 2 つの削除が info トーストを出す。確認ダイアログに揃えるかどうかは UX 分岐なので判断キューへ（P-005）
+- **#1826（PR #1926）**: 詳細パネルの「きのうまでの自分」に上罫線と余白、空フォーカスのアイコンを `items-start` で文の先頭へ
+
+#### main が赤かったこと
+
+着手時点で origin/main 自体が壊れていた。`Analytics/TodosTab.tsx` の `sessionsWithinRange` import と `Analytics/chartTheme.ts` の `estimateLabelWidth` / `fitAxisLabel` が、近接した merge の衝突解決で落ちていた。修理 PR が既に 3 本（#1905 / #1906 / #1907）出ていたので 4 本目は出さず、**7 本とも #1905 の 1 コミットを自分のブランチに載せて** CI を読める状態にした（どれかが先に入れば squash で差分ゼロ）。ローカルの verify も同じ差分を当てた状態で回している。
+
+#### 記録
+
+- **テスト**: 新規 6 本（`shared/tests/briefingRowWrap` / `briefingPurposeIndent` / `streakDaysPlural` / `briefingHeadingSpacing`、`web/tests/briefingRowEdit` / `briefingDeleteToast` / `briefingEveningCaptionHonesty`）。既存 fixture は #1823 の label 型変更に合わせて 7 本を更新
+- **実ブラウザ確認は chat-main の手番**: 390px でのタイトル 1 行 / `elementFromPoint` での 44px / 目的行の `left` 一致（root 16px・18px）/ 見出し上の間隔 > 0 / 編集押下後の選択状態
+- **手動確認が残る点**: #1822 の IME 変換中の表示（Issue 本文の「手動確認推奨」のまま）
+- 計画書なし（Issue 直行の軽ティア × 7）。スコープ逸脱は #1822 の `web/src/notes/RichTextEditor.tsx` 1 件のみ（DoD の「打鍵〜保存完了の間は Unsaved」がエディタからの即時の合図なしには満たせないため。PR 本文に明記）
+
 ### 2026-09-20 - 朝刊の予定の書き込みを Schedule の判断に戻す（#1768 PR #1782 open）
 
 #### 概要
