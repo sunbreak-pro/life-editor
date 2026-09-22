@@ -373,6 +373,7 @@
     "sessionsPerSet": "Sessions per set",
     "presets": "Presets",
     "deletePreset": "Delete preset",
+    "deletePresetConfirm": "Delete the preset “{{name}}”?",
     "autoStartBreaks": "Auto-start breaks",
     "emptyValue": "Enter a number for {{field}}"
   },
@@ -1311,6 +1312,7 @@
       "goals": "Could not save your goals. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
       "focus": "Could not save tomorrow's focus. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again."
     },
+    "rowDeleted": "Deleted “{{title}}”. Undo in the header brings it back.",
     "tabsLabel": "Morning / Evening",
     "tabs": {
       "morning": "Morning",
