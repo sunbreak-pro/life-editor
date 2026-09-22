@@ -94,7 +94,8 @@ export interface AnalyticsLabels {
     title: string;
     current: string;
     longest: string;
-    days: string;
+    /** The unit for a given streak length — plural-aware (#1823). */
+    formatDays: (count: number) => string;
     noStreak: string;
   };
 

@@ -138,7 +138,7 @@ function makeMobileLabels(): AnalyticsLabels {
       title: "Streak",
       current: "Current",
       longest: "Longest",
-      days: "days",
+      formatDays: (n: number) => (n === 1 ? "day" : "days"),
       noStreak: "No streak yet",
     },
     heatmap: {

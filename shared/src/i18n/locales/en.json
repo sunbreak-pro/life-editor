@@ -835,7 +835,8 @@
       "title": "Streaks",
       "current": "Current",
       "longest": "Longest",
-      "days": "days",
+      "days_one": "day",
+      "days_other": "days",
       "noStreak": "Start working to build a streak!"
     },
     "heatmap": {

@@ -828,7 +828,7 @@
       "title": "ストリーク",
       "current": "現在",
       "longest": "最長",
-      "days": "日",
+      "days_other": "日",
       "noStreak": "作業を開始してストリークを積み上げよう！"
     },
     "heatmap": {

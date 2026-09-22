@@ -92,7 +92,7 @@ function makeLabels(): AnalyticsLabels {
       title: "Streaks",
       current: "Current",
       longest: "Longest",
-      days: "days",
+      formatDays: (n: number) => (n === 1 ? "day" : "days"),
       noStreak: "Start a streak",
     },
     heatmap: {
