@@ -778,6 +778,7 @@ export {
 // host imports these through the barrel.
 export {
   BUSY_SPINNER,
+  BUSY_STALE,
   DISABLED_FILLED_BTN,
   FOCUS_RING,
   FOCUS_RING_ON_ACCENT,
@@ -821,6 +822,10 @@ export {
   type NoteSortDirection as NoteListSortDirection,
   type FrozenNoteSortKey,
 } from "./utils/noteSort";
+// The notes a search query keeps (#1837) — the title here and now, the body
+// from the ids the server answered with. The web list filtered by title inline
+// before this; one predicate, so the two layers cannot drift apart.
+export { filterNotesBySearch } from "./hooks/notesUnifiedHelpers";
 // Sidebar position hold for the note being edited (#366) — pairs with the
 // `frozen` argument of sortNotesForList.
 export { useFrozenNoteSortKey } from "./hooks/useFrozenNoteSortKey";

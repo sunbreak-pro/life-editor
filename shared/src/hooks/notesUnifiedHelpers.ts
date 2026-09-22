@@ -166,29 +166,47 @@ export function flattenVisibleNotes(
   return result;
 }
 
+/**
+ * The notes a search query keeps (#1837).
+ *
+ * Two layers, and the split is the point. The TITLE is on every row in the
+ * list, so it is matched here and the answer is instant. The BODY is not —
+ * the list is body-free by design (M1), and `n.content` is filled in only for
+ * notes that have been opened — so a body match arrives as a set of ids from
+ * `ds.searchNotesUnified` (useNoteBodySearch) and is OR-ed in.
+ *
+ * `bodyMatchIds` is null while no query is running and while one is still in
+ * flight, which is not the same as an empty set: null means "no answer from
+ * the server yet", empty means "it looked and found none". Both read correctly
+ * here, because the title layer stands on its own either way.
+ *
+ * `n.content` is still consulted, for the notes that happen to be hydrated: it
+ * costs one string compare and it makes the open note match itself before the
+ * debounce has even fired.
+ */
+export function filterNotesBySearch(
+  notes: NoteNode[],
+  searchQuery: string,
+  bodyMatchIds?: ReadonlySet<string> | null,
+): NoteNode[] {
+  const q = searchQuery.trim().toLowerCase();
+  if (!q) return notes;
+  return notes.filter(
+    (n) =>
+      n.title.toLowerCase().includes(q) ||
+      n.content.toLowerCase().includes(q) ||
+      bodyMatchIds?.has(n.id) === true,
+  );
+}
+
 export function filterAndSortNotes(
   notes: NoteNode[],
   searchQuery: string,
   sortMode: NoteSortMode,
   sortDirection: NoteSortDirection,
+  bodyMatchIds?: ReadonlySet<string> | null,
 ): NoteNode[] {
-  let result = notes;
-
-  // Search filter (client-side).
-  // M1 caveat: since the list is body-free, `n.content` is only populated
-  // for notes whose body has been hydrated (opened at least once). Title
-  // always matches; body matching is best-effort on hydrated notes. Full
-  // body search is the server-side ds.searchNotesUnified path — wire that
-  // in if/when the search UI is built (currently no live consumer uses
-  // this client filter).
-  if (searchQuery.trim()) {
-    const q = searchQuery.toLowerCase();
-    result = result.filter(
-      (n) =>
-        n.title.toLowerCase().includes(q) ||
-        n.content.toLowerCase().includes(q),
-    );
-  }
+  const result = filterNotesBySearch(notes, searchQuery, bodyMatchIds);
 
   // Sort: pinned first, then by sort mode within each group. Single sort
   // implementation shared with the host list (#283) — see noteSort.ts.

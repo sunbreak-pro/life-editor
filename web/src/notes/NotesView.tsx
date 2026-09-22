@@ -180,6 +180,7 @@ export function NotesView({
     handleSearchChange,
     hasNotes,
     searchEmpty,
+    searchBusy,
   } = useNoteListState();
 
   /*
@@ -657,6 +658,7 @@ export function NotesView({
       rowCap={rowCap}
       hasNotes={hasNotes}
       searchEmpty={searchEmpty}
+      searchBusy={searchBusy}
       visibleGroups={visibleGroups}
       collapsedGroups={collapsedGroups}
       onToggleGroup={toggleGroup}

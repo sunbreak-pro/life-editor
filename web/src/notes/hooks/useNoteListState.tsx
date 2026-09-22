@@ -6,6 +6,7 @@ import {
   buildTagGroups,
   tagGroupKey as groupKey,
   filterTagGroups,
+  filterNotesBySearch,
   sortNotesForList,
   useFrozenNoteSortKey,
   TagHeadingIcon,
@@ -71,13 +72,23 @@ export function useNoteListState() {
     });
   }, []);
 
-  // Search filter (title-only — the list is body-free under M1). Applied
-  // before grouping so a query narrows every tag heading at once.
-  const searchedNotes = useMemo(() => {
-    const q = notes.searchQuery.trim().toLowerCase();
-    if (!q) return notes.notes;
-    return notes.notes.filter((n) => (n.title || "").toLowerCase().includes(q));
-  }, [notes.notes, notes.searchQuery]);
+  /*
+   * The search filter, applied before grouping so a query narrows every tag
+   * heading at once.
+   *
+   * It used to be title-only, written out here, and the comment explaining
+   * that was the bug (#1837): the list is body-free, so a word from a note's
+   * body matched nothing and the panel answered "No notes match that search"
+   * about a note that was open on the same screen. `bodyMatchIds` is the
+   * server's answer to the same query, and the shared predicate ORs the two
+   * so the title layer keeps answering instantly while the body layer catches
+   * up.
+   */
+  const searchedNotes = useMemo(
+    () =>
+      filterNotesBySearch(notes.notes, notes.searchQuery, notes.bodyMatchIds),
+    [notes.notes, notes.searchQuery, notes.bodyMatchIds],
+  );
 
   // Flat assignment pool for the notes in view. getTagsForItem reads the
   // Provider's bulk cache synchronously (no N+1); buildTagGroups drops
@@ -117,7 +128,8 @@ export function useNoteListState() {
    * one screen that had to say "try another word" instead offered to make a
    * note the user never asked for.
    */
-  const searchEmpty = searchActive && hasNotes && groups.length === 0;
+  const searchEmpty =
+    searchActive && hasNotes && groups.length === 0 && !notes.isSearching;
 
   // #283 sort controls (desktop sidebar). Mode ids map 1:1 to NoteSortMode.
   // The date labels live in materials.sidebar (shared with the Daily picker
@@ -314,5 +326,12 @@ export function useNoteListState() {
     hasNotes,
     searchActive,
     searchEmpty,
+    /*
+     * The body half of the query has not answered yet (#1837). The rows below
+     * are the title matches, which are right as far as they go — so the list
+     * is dimmed rather than replaced, and "nothing matched" is withheld until
+     * the server has actually said so.
+     */
+    searchBusy: notes.isSearching,
   };
 }
