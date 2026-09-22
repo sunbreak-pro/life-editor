@@ -1,6 +1,7 @@
 import { useMemo, useRef, useState, Fragment } from "react";
 import type { TimerSession } from "../../types/timer";
 import { aggregateByHourAndDay } from "../../utils/analyticsAggregation";
+import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { isImeComposing } from "../../utils/imeGuard";
 import { ChartCard } from "./ChartCard";
 
@@ -37,15 +38,27 @@ interface WorkTimeHeatmapProps {
   labels: WorkTimeHeatmapLabels;
 }
 
-const DAY_KEYS: readonly HeatmapDayKey[] = [
+/** Indexed by Date#getDay() — the numbering the aggregation's cells carry. */
+const DAY_KEYS_BY_JS_DAY: readonly HeatmapDayKey[] = [
+  "sun",
   "mon",
   "tue",
   "wed",
   "thu",
   "fri",
   "sat",
-  "sun",
 ];
+
+/*
+ * Rows top to bottom, opening on the app-wide week start (#1866). This grid
+ * was hardcoded Monday-first while the mobile week bars and Weekly Comparison
+ * in the same section open on WEEK_STARTS_ON (Sunday, #1102) — two definitions
+ * of a week on one screen.
+ */
+const ROW_JS_DAYS: readonly number[] = Array.from(
+  { length: 7 },
+  (_, i) => (WEEK_STARTS_ON + i) % 7,
+);
 
 /*
  * 4-step intensity scale, tokenized (design 1e). The old rgba(34,197,94,…)
@@ -183,7 +196,9 @@ export function WorkTimeHeatmap({
           ))}
 
           {/* Day rows */}
-          {DAY_KEYS.map((dayKey, dayIndex) => (
+          {ROW_JS_DAYS.map((dayIndex) => {
+            const dayKey = DAY_KEYS_BY_JS_DAY[dayIndex];
+            return (
             <Fragment key={`row-${dayKey}`}>
               <div className="flex items-center pr-1 text-xs text-lumen-text-tertiary">
                 {labels.days[dayKey]}
@@ -218,7 +233,8 @@ export function WorkTimeHeatmap({
                 );
               })}
             </Fragment>
-          ))}
+            );
+          })}
         </div>
 
         {/* Intensity legend (少ない → 多い) */}

@@ -3,7 +3,7 @@ import { Check, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { TagHeadingIcon } from "../TagHeadingIcon";
 import { isImeComposing } from "../../utils/imeGuard";
-import { FOCUS_RING_ON_ACCENT } from "../styleTokens";
+import { DISABLED_FILLED_BTN, FOCUS_RING_ON_ACCENT } from "../styleTokens";
 
 /*
  * TagFilterPanel (#1173) — what the Calendar toolbar's filter button opens.
@@ -276,8 +276,11 @@ export function TagFilterPanel({
             onClick={handleSave}
             disabled={!canSave}
             className={cn(
-              "rounded-lumen-md bg-lumen-accent px-3 py-1 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover disabled:cursor-not-allowed disabled:opacity-50",
+              "rounded-lumen-md bg-lumen-accent px-3 py-1 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
               FOCUS_RING_ON_ACCENT,
+              // Filled, so its dead state is the recess (#1803). With no tag
+              // ticked this button spends most of its life disabled.
+              DISABLED_FILLED_BTN,
             )}
           >
             {labels.save}
@@ -328,6 +331,9 @@ export function TagFilterPanel({
                   disabled={group.tagNames.length === 0}
                   className={cn(
                     GHOST_BUTTON,
+                    // Left on opacity on purpose (#1803): a ghost button has
+                    // no fill to keep the "press me" hue alive, so fading it
+                    // is already the whole signal.
                     "disabled:cursor-not-allowed disabled:opacity-50",
                   )}
                 >

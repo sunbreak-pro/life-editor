@@ -109,11 +109,27 @@ export function useDailySections(
     [ds, todayKey, setDailyContent, reportSaveFailure],
   );
 
+  /*
+   * The keystroke-to-debounce window (#1822).
+   *
+   * `eveningSaved` below compares the last EMITTED body with the stored one,
+   * and the editor does not emit until its 800ms debounce fires — so for that
+   * whole window both sides were the stored body and the caption said
+   *「Saved」over text that was not saved. The editor now reports the change as
+   * it happens (`onDirty`) and this flag covers the gap until the emission
+   * takes over.
+   */
+  const [eveningDirty, setEveningDirty] = useState(false);
+  const markEveningDirty = useCallback(() => setEveningDirty(true), []);
+
   const handleEveningUpdate = useCallback(
     (json: string) => {
       // A cleared editor round-trips to a null stored body — normalize the
       // echo target so clearing doesn't remount mid-typing.
       setLastEmittedBody(isEmptyDocJson(json) ? null : json);
+      // The emission is now the honest source: it is either still unequal to
+      // the stored body (Unsaved) or the save has landed (Saved).
+      setEveningDirty(false);
       persistEvening({ bodyDocJson: json });
     },
     [persistEvening],
@@ -131,9 +147,27 @@ export function useDailySections(
   );
 
   const eveningSaved =
+    !eveningDirty &&
     (lastEmittedBody === null ||
       eveningBodyEquals(lastEmittedBody, eveningStored.bodyDocJson)) &&
     (moodDraft === undefined || moodDraft === eveningStored.mood);
+
+  /*
+   * Is there a 夕刊 to report a save state FOR? (#1822)
+   *
+   * On a day nobody has written, every term of `eveningSaved` is vacuously
+   * true, so the caption said「Saved」next to an empty page — a receipt for a
+   * write that never happened. The 宣言 block has answered this since #427 by
+   * hiding its caption while there is no declaration (`hasIntentionToReport`);
+   * this is the same rule for the evening section, and it counts the mood
+   * because the mood is stored in that same section.
+   */
+  const hasEveningToReport =
+    eveningDirty ||
+    lastEmittedBody !== null ||
+    eveningStored.bodyDocJson !== null ||
+    eveningStored.mood !== null ||
+    moodDraft !== undefined;
 
   // ── Intention (宣言 — Step 4) ────────────────────────────────────────
   // The morning declaration lives in the daily's 宣言 section; saves ride
@@ -243,6 +277,8 @@ export function useDailySections(
     eveningGen,
     eveningMood,
     eveningSaved,
+    hasEveningToReport,
+    markEveningDirty,
     handleEveningUpdate,
     handleSelectMood,
     intentionStored,

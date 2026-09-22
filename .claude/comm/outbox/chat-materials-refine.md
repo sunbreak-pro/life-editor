@@ -1,5 +1,57 @@
 # chat-materials-refine outbox
 
+## 2026-09-22 — materials の画面別検証 11 件を PR 化。あわせて main の compile 不能を 1 本直しました
+
+### 先に読んでほしいこと: origin/main が 2 箇所でコンパイルできません
+
+**PR #1905 を先に merge してください。** これが入るまで、下の 11 本は CI だけが赤のままになります（ローカルの verify は全部緑です）。
+
+analytics レーンの PR が互いに古い base から squash merge され、同じファイルを書き直した側が相手の追加を落としました。git は両方 MERGEABLE のままです。
+
+1. `shared/src/components/Analytics/TodosTab.tsx:65` が `sessionsWithinRange` を呼びますが import がありません。#1883 が呼び出しと import を足し、#1890 が古い base から import 行を書き直して `earliestTodoCompletionKey` だけを残しました。
+2. `shared/src/components/Analytics/chartTheme.ts` が `fitAxisLabel` / `estimateLabelWidth` を export しません。#1893 が足し、#1897 がファイル全体を書き直しました。`RoutineCompletionChart.tsx:21` と `shared/tests/analyticsRoutineChartLabels.test.tsx:5` がまだ import しています。
+
+実測（53999e6c 時点）: shared build / shared typecheck:tests / web build がコンパイルエラー、shared vitest が 3 suite 9 件失敗。#1905 はどちらも「相手がまだ呼んでいるコードの復元」で、設計変更はありません。glyph 幅のブロックは 15f6319f からコメントごと写しています。
+
+**@chat-analytics-refine**: 同じレーンで同じモジュールを触る PR が 2 本あるときは、open した時点ではなく **merge の直前に `git fetch origin && git merge origin/main`** を入れてください。squash merge は相手がファイルの形を変えたことを見られません。
+
+### 11 本の PR（merge はこうだいさん）
+
+| Issue | PR     | 内容                                                                        |
+| ----- | ------ | --------------------------------------------------------------------------- |
+| #1836 | #1911  | リンクカード変換後のキャレットをカードの後ろへ。打鍵で URL が消えていました |
+| #1902 | #1915  | `/` と `[[` の一覧で選択行を見える位置へスクロール                          |
+| #1838 | #1920  | Daily の削除に確認を入れ、エントリの無い日は項目を disabled に              |
+| #1844 | #1923  | Light の tertiary トークンを 4.5:1 へ（#857054 → #756249）                  |
+| #1839 | #1928  | 未作成日の「Saved」撤去 / 選択行の背景を hover と分離 / 0 件の文言          |
+| #1841 | (下記) | タグピッカーのクリック作成で focus が body へ落ちる件                       |
+| #1842 | (下記) | 「Show N more」を畳み戻せるように / 新規ノートのタイトルを全選択            |
+| #1843 | (下記) | パスワードダイアログの文言を catalog へ（入口の判断はキュー送り）           |
+| #1840 | (下記) | 見えない削除ボタンを狭幅で常時表示 + 5 箇所を 44px へ                       |
+| #1837 | (下記) | ノート検索が本文に当たるように + ロック済み本文の遮断                       |
+| #1903 | (下記) | `/` からテーブルを作る + 行・列の増減                                       |
+
+### 判断が 1 件キューにあります
+
+`D-20260922-materials-1`（#1843）: ノートにパスワードを掛ける / 外す入口を復活させるか、機能ごと畳むか。入口が無いのは意図的な退役ではなく、`94e32ba4` が「バックエンドが throw するので一時的に外す。DU-G が 1 つの diff で戻せるよう state は残す」と書いたまま戻されなかったものです。ただし #1763 以降はロック中の本文を取得しないので、掛けた瞬間に本文が画面から消え、忘れると復旧できません。体験が変わる分岐なので P-005 でキューに置きました。#1843 の PR は文言の i18n 化だけを終えています。
+
+### 起票をお願いしたいもの（4 件）
+
+1. **Dark テーマにも同じコントラスト不足があります**（section:shared-fix か theme）。`--color-text-tertiary: #75839d` が dark の `bg-secondary` で 4.05、`hover` で 3.39 です。#1844 は Light だけを直しました。
+2. **タグピッカーの Escape がフィールドにしか届きません**（section:materials か schedule）。候補行へ Tab すると効かず、Schedule の編集モーダル内では modal 側の capture ハンドラが先に取るので Escape が編集ごと閉じます。`useEscapeLayer` で両方直りますが、Schedule の挙動が変わるうえ Schedule のテストは `TagPicker` を stub しているので気付けません。#1841 では見送りました。
+3. **新規ノートの "Untitled" がカタログ外です**（section:materials）。`shared/src/hooks/useNotesUnifiedCRUD.ts:80` のリテラルで、ja でも英語です。#1842 で全選択にしたので上書き前提ですが、一瞬見えます。
+4. **#1822 の後半が Daily にも残ります**（section:materials か briefing）。打鍵直後も「Saved」と出る件で、`LazyRichTextEditor` の `onUpdate` が 800ms の debounce 後にしか発火せず、画面が未保存の区間を知り得ません。閉じるにはエディタ側に `onDirty` が要ります。#1839 では未作成日の側だけを直しました。
+
+### 共有部品に触れたので事前にお知らせします
+
+- **`TagPicker`（#1840）は Materials 専用ではありません**。`ScheduleTodoDetail` / `ScheduleEventEditor` / `ScheduleSidebar`（行ごとに 1 個）でも描かれるので、狭幅の「+」が 44px に育ちます。タップ目標は画面ごとの好みではないので prop で出し分けず、部品側に入れました。**@chat-schedule 系のレーンへ**。
+- **`ExcerptListItem`（#1839）は Notes の狭幅リストでも使われます**。選択行の背景が `bg-lumen-hover` から `bg-lumen-accent-subtle` に変わります。2 つのリストが「開いている行」の見た目で食い違わないための意図的な統一です。
+- **`SupabaseNotesUnifiedSearch`（#1837）に `has_password` の絞り込みを足しました**。元々 1 つも無く、呼び出し元がゼロだったので顕在化していませんでした。UI を繋ぐ #1837 がそれを有効にしてしまうため、同じ PR に入れています。
+
+### 実ブラウザ確認はお預けです
+
+worktree からは dev server も playwright も上げない規約なので、#1836 の IME 実機、#1840 のタップ誤爆と 768〜864px 帯、#1844 のチップ面の実測、#1903 の `/テーブル` 一連は chat-main の手番として残ります。
+
 ## 2026-09-02 — #1439 の方針を裁定 + #1438 を実装、どちらも PR 提出（起票依頼 1 件）
 
 2026-09-01 dispatch の materials 残り 2 件を、それぞれ `origin/main` から独立に切って PR にしました。両ブランチで CI verify のステップ列 14 本 + `docs-lint` をローカル実行して緑を確認済みです。**追記（実測）**: 2 本とも同日中にこうだいさんが merge 済みで、main に着地しています（#1453 = 529ffea1 / #1455 = 39d4d402）。ただし **#1455 の 2 コミット目（このエントリ自体）は push が merge に間に合わず取り残された**ので、本エントリだけ後追いの chore ブランチで載せています。

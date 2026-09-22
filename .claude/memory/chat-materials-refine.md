@@ -13,6 +13,16 @@
 
 ## 直近の完了
 
+- **画面別検証の materials 11 件を 11 本の PR に + main の compile 不能を 1 本** ✅（2026-09-22 — `/goal` 指示。1 Issue = 1 branch = 1 PR。書いた時点の実測で **#1905（main 修復）/ #1911（#1836）/ #1915（#1902）/ #1920（#1838）/ #1923（#1844）/ #1928（#1839）/ #1931（#1841）とすべて open**。残り 4 本の番号は下の HISTORY を参照）
+  - **origin/main がコンパイルできない状態で着手した**（今回いちばん時間を取られた点）: analytics レーンの PR が 2 組、互いに古い base から squash merge され、同じファイルを書き直した側が相手の追加を落としていた（`TodosTab.tsx` の `sessionsWithinRange` / `chartTheme.ts` の `fitAxisLabel`）。git はどちらも MERGEABLE のまま。**着手前に `verify` を 1 回素で回して baseline を取る**と、自分の変更のせいだと思い込まずに済む
+  - **同じレーンで同じモジュールを触る PR が並ぶときは merge 直前に main を取り込む**。open 時点の取り込みでは足りない — squash merge は相手がファイルの形を変えたことを見られない
+  - **`handleTextInput` は 5 引数**（prosemirror-view）。4 引数で呼ぶと `typecheck:tests` だけが赤くなる（vitest は型を見ない・build は tests を見ない）。TipTap の入力ルールをテストから叩くときの定番の落とし穴
+  - **`display: contents` に `opacity` は効かない**。「古い結果を薄く出す」の類は実体のある box に載せる
+  - **コンポーネントの props を interface に足しただけでは動かない**（分割代入を忘れると build は通りテストで `ReferenceError`）
+  - **「マウント時 1 回」の focus は、対象が既にマウント済みの形ではテストできない**。`key` が変わらないと効果が走らないので、テストも実際の 2 段（作る → Provider がそれを選んで返る）に合わせる
+  - **既存テストの途中に `it` を差し込むと後半を吸い取ることがある**。アンカーにした行がそのテストの最後の行とは限らない
+  - **44px の監査は `getBoundingClientRect()` 単独で判定しない**（#1840 で 6 件中 1 件が偽陽性だった）。タスクのチェックボックスは #1523 が `label::before` で既に 44px の当たり判定を持っており、20px は描画サイズだった
+
 - **#1760 / #1761 を 2 PR に分けて提出** ✅（2026-09-20 — 2 本とも `origin/main` から独立に切った。書いた時点の実測で **#1760 = PR #1762 / #1761 = PR #1765 とも open**。2 件はどちらも「画面が嘘をついたまま黙っている」形で、片方は表示の追随漏れ、もう片方は失敗の握りつぶし。
   - **debounce 付きの入力欄は、外からの変更に追随する口を持たないと必ずズレる**（#1760）: `NoteDetailPanel` のタイトル欄は `initialTitle` をマウント時に 1 回だけ draft に取り込み、`key` はノート id だけ。Undo が DB とサイドバーを戻しても入力欄だけが新しい名前のまま残っていた。**`key` に title を混ぜる形は採らない**（入力中に remount してフォーカスを奪う。元のコメントが明示的に避けている）。**pending draft で守る** — debounce 待ちが残っている間は seed し直さず、flush 済み（= Undo が届く状態）でだけ seed する
   - **i18next の `t()` はこのリポジトリでは型付き**（2026-09-20 実測）: `CustomTypeOptions` が効いていて、キーは catalog から生成された literal union。`Record<Op, string>` で持つと `t(COPY[op])` が TS2345 で落ちる。**`as const satisfies Record<Op, string>`** にすると literal が保たれ、キーのタイポがビルドで落ちるようになる。なお `shared/tests/i18nKeys.test.ts` のコメントは「型拡張は別途追跡」と書いているが**それは古い**（型は既に入っている）。型で見えないのは「en に足して ja を忘れた」だけなので、そこだけテストで押さえる
