@@ -1,5 +1,6 @@
-import { Calendar, ChevronDown, Pin } from "lucide-react";
+import { Calendar, ChevronDown, Pin, Search } from "lucide-react";
 import { cn } from "../cn";
+import { EmptyState } from "../EmptyState";
 import { ExcerptListItem } from "./ExcerptListItem";
 
 /*
@@ -46,6 +47,13 @@ export interface DailyEntriesPanelProps {
   onSelectEntry: (date: string) => void;
   /** Already-translated aria-label for the pin indicator. */
   pinnedLabel: string;
+  /**
+   * Already-translated line for an empty list (#1839). Omitted → the list area
+   * stays blank, which is what it did before there was anything to say.
+   */
+  emptyMessage?: string;
+  /** True when the list is empty because a filter is narrowing it. */
+  searchEmpty?: boolean;
   className?: string;
 }
 
@@ -58,6 +66,8 @@ export function DailyEntriesPanel({
   entries,
   onSelectEntry,
   pinnedLabel,
+  emptyMessage,
+  searchEmpty = false,
   className,
 }: DailyEntriesPanelProps) {
   return (
@@ -93,7 +103,22 @@ export function DailyEntriesPanel({
         <div className="px-0.5 text-xs uppercase tracking-wide text-lumen-text-tertiary">
           {entriesHeading}
         </div>
-        {entries.map((entry) => (
+        {entries.length === 0 && emptyMessage ? (
+          /*
+           * #1839 — "ENTRIES (0)" over a blank space said nothing about why it
+           * was blank. Notes answers the same question in the same place
+           * (NotesSidebarList), so the glyph turns on whether a filter is
+           * narrowing the list: a magnifier for "nothing matched", a calendar
+           * for "nothing here yet".
+           */
+          <EmptyState
+            icon={
+              searchEmpty ? <Search aria-hidden /> : <Calendar aria-hidden />
+            }
+            message={emptyMessage}
+          />
+        ) : (
+          entries.map((entry) => (
           <ExcerptListItem
             key={entry.date}
             title={entry.dayLabel}
@@ -108,9 +133,10 @@ export function DailyEntriesPanel({
                 />
               ) : undefined
             }
-            onClick={() => onSelectEntry(entry.date)}
-          />
-        ))}
+              onClick={() => onSelectEntry(entry.date)}
+            />
+          ))
+        )}
       </div>
     </div>
   );

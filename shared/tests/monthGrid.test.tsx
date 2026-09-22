@@ -49,6 +49,35 @@ describe("MonthGrid", () => {
     expect(badge.className).toContain("bg-lumen-accent");
   });
 
+  /*
+   * #1829 — the remainder line. It was a <span>, and Desktop wires no cell
+   * face button either (#1584 took it away), so on a day with three items the
+   * third had no route at all: the only way to it was switching to the week by
+   * hand.
+   */
+  it("makes the overflow line a button when the host says what it does", () => {
+    const onShowMore = vi.fn();
+    renderGrid({ onShowMore, formatShowMoreLabel: (k) => `Show all on ${k}` });
+    const more = screen.getByRole("button", { name: "Show all on 2026-07-09" });
+    expect(more).toHaveTextContent("+1 more");
+    fireEvent.click(more);
+    expect(onShowMore).toHaveBeenCalledWith("2026-07-09");
+  });
+
+  it("does not let the press reach the cell underneath", () => {
+    const onShowMore = vi.fn();
+    const { onSelectDay } = renderGrid({ onShowMore });
+    fireEvent.click(screen.getByText("+1 more"));
+    expect(onShowMore).toHaveBeenCalledTimes(1);
+    expect(onSelectDay).not.toHaveBeenCalled();
+  });
+
+  it("leaves the line as text when no host handles it", () => {
+    renderGrid();
+    expect(screen.queryByRole("button", { name: /\+1 more/ })).toBeNull();
+    expect(screen.getByText("+1 more")).toBeInTheDocument();
+  });
+
   it("shows at most 2 chips and an overflow count for a busy day", () => {
     renderGrid();
     expect(screen.getByRole("button", { name: "Gym" })).toBeInTheDocument();
@@ -123,7 +152,11 @@ describe("MonthGrid", () => {
    * cannot move a grid line. jsdom has no layout, so both are asserted on the
    * classes that produce them: the title clips (`overflow-hidden` +
    * `whitespace-nowrap`) without Tailwind's `truncate` (which is the ellipsis),
-   * and the cell has a fixed height that clips rather than a floor that grows.
+   * and the cell clips rather than growing to fit the text.
+   *
+   * #1835 turned the fixed height into a FLOOR so the six rows can divide a
+   * phone's leftover height. What the title must not do is unchanged: the
+   * cell still clips, so no title moves a grid line.
    */
   it("cuts a long title at the cell edge without an ellipsis, on a cell that cannot grow", () => {
     renderGrid({
@@ -158,8 +191,21 @@ describe("MonthGrid", () => {
 
     const cell = title.closest("[role='gridcell']");
     expect(cell?.className).toContain("overflow-hidden");
-    expect(cell?.className).toContain("h-[5.5rem]");
+    expect(cell?.className).toContain("min-h-[5.5rem]");
     expect(cell?.className).not.toContain("min-h-14");
+  });
+
+  // #1835: the grid is at least as tall as its scroll box on a phone, so six
+  // rows of the floor above divide the leftover height instead of stopping
+  // short of the bottom bar. Desktop's card is unchanged.
+  it("fills the column it is given in compact mode", () => {
+    renderGrid({ compact: true });
+    expect(screen.getByRole("grid").className).toContain("min-h-full");
+  });
+
+  it("does not stretch the Desktop card", () => {
+    renderGrid();
+    expect(screen.getByRole("grid").className).not.toContain("min-h-full");
   });
 
   it("runs edge to edge in compact mode: no radius, no side borders", () => {
@@ -405,9 +451,9 @@ describe("MonthGrid — the Desktop + button (#1584)", () => {
 describe("MonthGrid — chips carry the pointer cursor (#1584)", () => {
   it("puts cursor-pointer on an item chip", () => {
     renderGrid();
-    expect(
-      screen.getByRole("button", { name: "Gym" }).className,
-    ).toContain("cursor-pointer");
+    expect(screen.getByRole("button", { name: "Gym" }).className).toContain(
+      "cursor-pointer",
+    );
     // The todo chip is a different branch of the same className call.
     expect(
       screen.getByRole("button", { name: "Write report" }).className,

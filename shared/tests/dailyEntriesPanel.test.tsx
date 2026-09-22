@@ -91,4 +91,33 @@ describe("DailyEntriesPanel", () => {
     fireEvent.click(screen.getByRole("button", { name: /7\/1（火）/ }));
     expect(onSelectEntry).toHaveBeenCalledWith("2026-07-01");
   });
+
+  /*
+   * #1839 — "Entries (0)" over a blank space said nothing about why it was
+   * blank. Notes answers the same question in the same place, so this panel
+   * does too, and the glyph says which of the two blanks it is.
+   */
+  it("says so when a filter leaves nothing", () => {
+    renderPanel({
+      entries: [],
+      emptyMessage: "No entries match that filter",
+      searchEmpty: true,
+      entriesHeading: "Entries (0)",
+    });
+    expect(screen.getByText("Entries (0)")).toBeInTheDocument();
+    expect(
+      screen.getByText("No entries match that filter"),
+    ).toBeInTheDocument();
+  });
+
+  it("says so when there is nothing yet", () => {
+    renderPanel({ entries: [], emptyMessage: "No entries yet" });
+    expect(screen.getByText("No entries yet")).toBeInTheDocument();
+  });
+
+  it("stays out of the way while there are entries to show", () => {
+    renderPanel({ emptyMessage: "No entries yet" });
+    expect(screen.queryByText("No entries yet")).toBeNull();
+    expect(screen.getByText("7/4（金）")).toBeInTheDocument();
+  });
 });

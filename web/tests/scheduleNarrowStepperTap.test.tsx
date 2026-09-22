@@ -42,6 +42,18 @@ const props: CalendarNarrowLayoutProps = {
   },
 };
 
+describe("#1832 — the narrow month header's Today button", () => {
+  it("floors the button at 44px", () => {
+    render(<CalendarNarrowLayout {...props} />);
+    const cls = screen.getByRole("button", {
+      name: "scheduleScreen.today",
+    }).className;
+    // Unprefixed for the same reason the steppers' is: this layout is only
+    // ever drawn under `!isWide`.
+    expect(cls).toContain("min-h-11");
+  });
+});
+
 describe("#1558 — the narrow month steppers meet the 44px touch floor", () => {
   it.each(["scheduleScreen.prev", "scheduleScreen.next"])(
     "floors %s in both directions",

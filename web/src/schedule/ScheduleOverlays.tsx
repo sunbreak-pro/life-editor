@@ -201,7 +201,10 @@ export function ScheduleOverlays({
         // #626: the primary hand-off now opens the in-Schedule todo detail
         // (tags editable in place); "open in Todos" moved inside that panel.
         editDetailLabel={t("scheduleScreen.editDetail")}
-        label={t("scheduleScreen.itemActionsLabel")}
+        // #1834: the todo's own name. This panel holds "Convert to event" and
+        // "Delete todo", so announcing it as "Event actions" told a screen
+        // reader the opposite of what the row is.
+        label={t("scheduleScreen.todoActionsLabel")}
         onClose={popover.onClose}
         width={SCHEDULE_ITEM_PANEL_WIDTH}
         layout="columns"

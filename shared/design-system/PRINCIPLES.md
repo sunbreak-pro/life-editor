@@ -85,7 +85,7 @@
 | surface-sunken | `#efe3cd` | `#0a1220` | `lumen-surface-sunken` |
 | text-primary   | `#2b2015` | `#edf1f9` | `lumen-text`           |
 | text-secondary | `#6b5a45` | `#a4b2ca` | `lumen-text-secondary` |
-| text-tertiary  | `#857054` | `#75839d` | `lumen-text-tertiary`  |
+| text-tertiary  | `#756249` | `#75839d` | `lumen-text-tertiary`  |
 | border         | `#eadec6` | `#263650` | `lumen-border`         |
 | border-strong  | `#d6c3a2` | `#3c4e70` | `lumen-border-strong`  |
 | accent         | `#ad4409` | `#85aaff` | `lumen-accent`         |
@@ -149,7 +149,8 @@
 ### 3.6 アクセシビリティ（コントラスト）
 
 - **本文テキスト / bg**: WCAG AA ≥ 4.5:1（必達）。
-- **secondary テキスト / bg**: ≥ 4.5:1 を目標、最低 3:1。
+- **secondary テキスト / bg**: ≥ 4.5:1（必達）。
+- **tertiary テキスト / bg**: ≥ 4.5:1（必達）。件数・日時・placeholder はこの階層で書かれる通常サイズの文章であって、装飾ではない（#1844。旧「最低 3:1」は Light で 4.03〜4.32:1 を通してしまった）。
 - **on-accent / accent**: ≥ 4.5:1（ボタン文字が読めること）。
 - 色だけで状態を伝えない（status はバンド + ラベル / 形でも区別）。
 

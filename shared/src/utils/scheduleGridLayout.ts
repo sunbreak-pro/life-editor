@@ -155,6 +155,33 @@ export function minutesToTime(minutes: number): string {
 /** Pointer travel (px) below which a drag still counts as a click. */
 export const DRAG_THRESHOLD_PX = 4;
 
+/*
+ * How many lines a week block may give its title (#1835).
+ *
+ * The block was one truncated line whatever its height, so a two-hour event
+ * (96px) printed "Lorem ipsum do…" over 78px of empty fill while the title it
+ * cut was 121px long. Wrapping it unconditionally is the other half of the
+ * same fault: a 30-minute block has room for one line and the time under it,
+ * and a second line there would push the time out of a box that clips.
+ *
+ * So the count comes from the block's own height. The two figures below are
+ * ESTIMATES — the type is rem-based and follows the Settings font-size step,
+ * and jsdom has no layout to measure with — which is safe in one direction:
+ * the block already clips, so guessing a line too many costs a cut line and
+ * guessing one too few costs an ellipsis. Three is the ceiling; past that a
+ * block is holding a paragraph and the detail panel is the place to read it.
+ */
+const TITLE_LINE_PX = 16;
+/** The time line under the title, plus the block's own vertical padding. */
+const TITLE_CHROME_PX = 20;
+export const MAX_BLOCK_TITLE_LINES = 3;
+
+/** Lines the title may use inside a block `heightPx` tall (at least one). */
+export function blockTitleLines(heightPx: number): number {
+  const room = Math.floor((heightPx - TITLE_CHROME_PX) / TITLE_LINE_PX);
+  return Math.min(MAX_BLOCK_TITLE_LINES, Math.max(1, room));
+}
+
 /**
  * What the grid knew when the pointer went down. Everything here is captured
  * once at drag start — the geometry that can only be read from the DOM
@@ -166,7 +193,13 @@ export interface DragOrigin {
   mode: "move" | "resize" | "place";
   startX: number;
   startY: number;
-  /** Width of one day column in px; 0 disables the horizontal day remap. */
+  /**
+   * Width of one day column in px; 0 disables the horizontal day remap.
+   *
+   * #1831: "place" reads this too. Its chip is grabbed in the all-day lane,
+   * whose cells share the time body's column template, so one column of
+   * travel is one day on both.
+   */
   colWidth: number;
   /** Index of the dragged item's day within `dayKeys`. */
   origDayIdx: number;
@@ -265,11 +298,19 @@ export function resolveDrag(
   let startMin = drag.origStartMin;
   let endMin: number;
   if (drag.mode === "place") {
-    // Absolute drop: map the pointer's Y over the scroll body to a start time
-    // (same mapping as empty-slot create). The day stays the chip's own — no
-    // horizontal remap — and the block is kept fully in-window. The time grid
-    // scrolls WITH the content, so its rect top already is the 00:00 line —
-    // no scrollTop term (#563).
+    /*
+     * Absolute drop: map the pointer's Y over the scroll body to a start time
+     * (same mapping as empty-slot create), and the block is kept fully
+     * in-window. The time grid scrolls WITH the content, so its rect top
+     * already is the 00:00 line — no scrollTop term (#563).
+     *
+     * #1831: the day follows the pointer as well. It used to stay the chip's
+     * own, which made a chip dropped on Wednesday's 15:00 land on its own day
+     * at 15:00 — the gesture crossed a column the grid then ignored, so the
+     * result contradicted where the user let go. Nothing stopped the drop
+     * going wide, and a timed block dragged the same distance moves its day,
+     * so the two gestures now agree.
+     */
     const mins =
       geo.timeGridTop != null
         ? pxToMinutes(
@@ -283,6 +324,7 @@ export function resolveDrag(
       endHour * 60 - drag.durationMin,
     );
     endMin = startMin + drag.durationMin;
+    dayIdx = remapDay();
   } else if (drag.mode === "move") {
     // Clamp inside the visible window (#562): an unclamped overshoot past
     // either edge used to snap to a negative / >24:00 start, and minutesToTime
