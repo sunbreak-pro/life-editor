@@ -104,10 +104,14 @@ describe("toMonthGridItems", () => {
   });
 
   it("keeps provenance, completion and all-day, and prefixes chip ids", () => {
-    const [ev, todo] = toMonthGridItems(
+    // The all-day chip leads the day since #1828 — see the ordering tests
+    // below — so the rows are picked by id rather than by position.
+    const rows = toMonthGridItems(
       [event({ id: "e-1", routineId: "r-1", completed: true })],
       [chip({ id: "t-1", isAllDay: true })],
     );
+    const ev = rows.find((r) => r.id === "e-1");
+    const todo = rows.find((r) => r.id === "todochip-t-1");
     expect(ev).toEqual({
       id: "e-1",
       date: "2026-08-12",
@@ -124,6 +128,55 @@ describe("toMonthGridItems", () => {
       completed: false,
       isAllDay: true,
     });
+  });
+
+  /*
+   * #1828 — the cell is a LIST that folds at two rows (monthCellFold), so the
+   * order the host hands over decides which two a busy day shows. It used to
+   * be fetch order with every todo chip behind every event.
+   */
+  it("orders a day by start time, not by fetch order", () => {
+    const rows = toMonthGridItems(
+      [
+        event({ id: "bath", startTime: "20:00", endTime: "20:30" }),
+        event({ id: "work", startTime: "09:50", endTime: "18:00" }),
+      ],
+      [],
+    );
+    expect(rows.map((r) => r.id)).toEqual(["work", "bath"]);
+  });
+
+  it("puts all-day rows first, and interleaves chips with events", () => {
+    const rows = toMonthGridItems(
+      [
+        event({ id: "e-evening", startTime: "18:00", endTime: "19:00" }),
+        event({ id: "e-allday", isAllDay: true, startTime: "00:00" }),
+      ],
+      [chip({ id: "t-morning", startTime: "08:00", endTime: "09:00" })],
+    );
+    expect(rows.map((r) => r.id)).toEqual([
+      "e-allday",
+      "todochip-t-morning",
+      "e-evening",
+    ]);
+  });
+
+  it("keeps each day's rows together when the window spans days", () => {
+    const rows = toMonthGridItems(
+      [
+        event({ id: "tue-late", date: "2026-08-13", startTime: "22:00" }),
+        event({ id: "mon-late", date: "2026-08-12", startTime: "21:00" }),
+        event({ id: "tue-early", date: "2026-08-13", startTime: "07:00" }),
+        event({ id: "mon-early", date: "2026-08-12", startTime: "06:00" }),
+      ],
+      [],
+    );
+    expect(rows.map((r) => r.id)).toEqual([
+      "mon-early",
+      "mon-late",
+      "tue-early",
+      "tue-late",
+    ]);
   });
 });
 
