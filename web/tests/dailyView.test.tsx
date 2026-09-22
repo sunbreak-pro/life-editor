@@ -816,3 +816,74 @@ describe("DailyView — editing the evening card (#1680)", () => {
     errors.mockRestore();
   });
 });
+
+/*
+ * #1840 — the three Daily controls the audit read under 44px at 390px: the
+ * Today CTA (36), the kebab (36) and the reflection preview (34).
+ *
+ * jsdom has no layout (CLAUDE.md §7.1), so none of that can be re-measured
+ * here. What is pinned is the class contract that produces the size, the same
+ * shape web/tests/materialsTapTargets.test.tsx uses.
+ *
+ * `max-md:` and never a bare floor: one component draws both the Desktop
+ * header and the narrow one, so an unconditional min-height would grow the
+ * mouse layout too.
+ */
+describe("#1840 — Daily's controls meet the 44px touch floor", () => {
+  it("floors the Today CTA in height, and leaves its width to the label", () => {
+    render(<DailyView />);
+    const cta = screen.getByRole("button", { name: "materials.daily.toToday" });
+
+    expect(cta.classList.contains("max-md:min-h-11")).toBe(true);
+    // A labelled button is already wide enough for a thumb; a min-width would
+    // stretch it for no one.
+    expect(cta.classList.contains("max-md:min-w-11")).toBe(false);
+    // Desktop unchanged: same padding, no unconditional floor.
+    expect(cta.classList.contains("py-1.5")).toBe(true);
+    expect(cta.classList.contains("min-h-11")).toBe(false);
+  });
+
+  it("floors the kebab both ways — it is a glyph with no label", () => {
+    render(<DailyView />);
+    const kebab = screen.getByRole("button", {
+      name: "materials.daily.moreActions",
+    });
+
+    expect(kebab.classList.contains("max-md:min-h-11")).toBe(true);
+    expect(kebab.classList.contains("max-md:min-w-11")).toBe(true);
+    // The drawn box is untouched — the hit box is what grew.
+    expect(kebab.classList.contains("h-7")).toBe(true);
+    expect(kebab.classList.contains("min-h-11")).toBe(false);
+  });
+
+  it("floors the reflection preview without moving its text", () => {
+    state.dailies = [
+      daily(YESTERDAY, {
+        content: JSON.stringify({
+          type: "doc",
+          content: [
+            {
+              type: "heading",
+              attrs: { level: 2 },
+              content: [{ type: "text", text: "夕刊" }],
+            },
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "夜の振り返りの一文" }],
+            },
+          ],
+        }),
+      }),
+    ];
+    render(<DailyView />);
+
+    const preview = screen.getByRole("button", {
+      name: "materials.daily.eveningEditReflection 夜の振り返りの一文",
+    });
+    expect(preview.classList.contains("max-md:min-h-11")).toBe(true);
+    // Padding rather than a taller box on Desktop: the component's own comment
+    // requires the swap to the real editor not to jump.
+    expect(preview.classList.contains("px-1")).toBe(true);
+    expect(preview.classList.contains("min-h-11")).toBe(false);
+  });
+});

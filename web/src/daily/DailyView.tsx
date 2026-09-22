@@ -625,6 +625,9 @@ export function DailyView({
       className={cn(
         "inline-flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-1.5",
         "text-sm font-medium text-lumen-on-accent shadow-lumen-sm transition-opacity hover:opacity-90",
+        // #1840 — 36px tall. Height only: the label already makes it wide
+        // enough for a thumb, and a min-width would stretch it.
+        "max-md:min-h-11",
         FOCUS_RING,
       )}
     >
@@ -687,6 +690,10 @@ export function DailyView({
             ? "h-8 w-8 border border-lumen-border bg-lumen-bg"
             : "h-7 w-7",
           "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+          // #1840 — on the shared string rather than inside the "boxed"
+          // branch, so both variants carry it and a test can read it without
+          // faking a viewport.
+          "max-md:min-h-11 max-md:min-w-11",
           FOCUS_RING,
         )}
       >
@@ -785,7 +792,12 @@ export function DailyView({
               setEveningEdit({ date: selectedDate, reflection: true })
             }
             onPrefetch={preloadRichTextEditor}
-            className="px-1 py-1"
+            // #1840 — the floor goes on the call site, not on the component:
+            // the Briefing screen draws this same preview inside a card of its
+            // own and is outside this issue. `min-h` rather than padding so the
+            // text keeps its position when the editor swaps in (the component's
+            // own comment: the swap must not jump).
+            className="px-1 py-1 max-md:min-h-11"
           />
         )
       }
