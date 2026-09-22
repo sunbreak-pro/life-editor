@@ -8,7 +8,22 @@ export interface StreakDisplayLabels {
   title: string;
   current: string;
   longest: string;
-  days: string;
+  /**
+   * The unit beside a streak's number, for THAT number (#1823).
+   *
+   * A function and not a string, because English says「1 day」and「2 days」and
+   * this widget is the only thing that knows which. It used to take the fixed
+   * word「days」, so a one-day streak read "1 days" in en — ja was unaffected,
+   * having a single plural form, which is why it survived. The host resolves
+   * it through i18next's own plural (`t("analytics.streak.days", { count })`),
+   * the same way TagHub's `formatCount` resolves its own; §6.4 keeps
+   * `useTranslation` out of shared UI.
+   *
+   * It returns the UNIT ALONE, not「1 day」: the number and the unit are drawn
+   * as two spans at two type sizes (#1467 / #1863), and folding the count into
+   * the string would collapse them into one.
+   */
+  formatDays: (count: number) => string;
   noStreak: string;
 }
 
@@ -65,7 +80,9 @@ export function StreakDisplay({
           <div className="min-w-0">
             <p className={STREAK_VALUE_LINE}>
               <span className="flex-shrink-0">{streak.currentStreak}</span>
-              <span className={STREAK_UNIT}>{labels.days}</span>
+              <span className={STREAK_UNIT}>
+                {labels.formatDays(streak.currentStreak)}
+              </span>
             </p>
             <p className="truncate text-xs text-lumen-text-secondary">
               {labels.current}
@@ -79,7 +96,9 @@ export function StreakDisplay({
           <div className="min-w-0">
             <p className={STREAK_VALUE_LINE}>
               <span className="flex-shrink-0">{streak.longestStreak}</span>
-              <span className={STREAK_UNIT}>{labels.days}</span>
+              <span className={STREAK_UNIT}>
+                {labels.formatDays(streak.longestStreak)}
+              </span>
             </p>
             <p className="truncate text-xs text-lumen-text-secondary">
               {labels.longest}
