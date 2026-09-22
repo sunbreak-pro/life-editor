@@ -1,6 +1,6 @@
 # HISTORY (chat-briefing-refine)
 
-### 2026-09-22 - 2026-09-21 の画面別探索検証で出た briefing 課題 7 件（#1820〜#1826 / PR 7 本 open）
+### 2026-09-22 - 2026-09-21 の画面別探索検証で出た briefing 課題 7 件（#1820〜#1826 / PR 7 本とも merged）
 
 #### 概要
 
@@ -16,11 +16,20 @@
 
 #### main が赤かったこと
 
-着手時点で origin/main 自体が壊れていた。`Analytics/TodosTab.tsx` の `sessionsWithinRange` import と `Analytics/chartTheme.ts` の `estimateLabelWidth` / `fitAxisLabel` が、近接した merge の衝突解決で落ちていた。修理 PR が既に 3 本（#1905 / #1906 / #1907）出ていたので 4 本目は出さず、**7 本とも #1905 の 1 コミットを自分のブランチに載せて** CI を読める状態にした（どれかが先に入れば squash で差分ゼロ）。ローカルの verify も同じ差分を当てた状態で回している。
+着手時点で origin/main 自体が壊れていた。`Analytics/TodosTab.tsx` の `sessionsWithinRange` import と `Analytics/chartTheme.ts` の `estimateLabelWidth` / `fitAxisLabel` が、近接した merge の衝突解決で落ちていた。修理 PR が既に 3 本（#1905 / #1906 / #1907）出ていたので 4 本目は出さず、**7 本とも #1905 の 1 コミットを自分のブランチに載せて** CI を読める状態にした（どれかが先に入れば squash で差分ゼロ）。ローカルの verify も同じ差分を当てた状態で回している。その後 #1906 が merge されて main は復旧した。
+
+**ブランチ単体の緑と PR の CI は別のものを見ている。** #1820 のブランチだけ base が 1 世代古い main で、そこでは `chartTheme.ts` は壊れていなかったため cherry-pick が衝突し、`TodosTab.tsx` の 1 行だけを入れていた。PR の CI はブランチではなく「今の main に merge した結果」を検査するので、新しい main 側の欠落がそのまま出て赤になった。直し方は `git merge origin/main` を取り込むこと。
+
+#### 単体で緑な PR 2 本が、組み合わさって main を壊した
+
+#1823 が `StreakDisplayLabels` の `days: string` を `formatDays: (count) => string` に改名し、#1826 が新しいテスト `shared/tests/briefingHeadingSpacing.test.tsx` を足した。**どちらも自分の PR の CI では緑**で、改名側は当時存在した fixture 7 本を全部追随させ、追加側は当時の型（`days`）に合わせて書いた。先に #1823 が入り、あとから #1826 の新しい fixture が旧名のまま main に着地して `shared typecheck:tests` が落ちた。
+
+PR の CI は「自分 + 今の main」しか見ないので、**同時に open な他の PR との組み合わせは誰も検査していない**。型や label の名前を変える PR と、その型を使う fixture を足す PR が並走しているときは、改名側が merge された時点で、もう一方のブランチに main を取り込み直して型検査を回す必要がある。修理は別レーンの PR #1945（1 行）。
 
 #### 記録
 
 - **テスト**: 新規 6 本（`shared/tests/briefingRowWrap` / `briefingPurposeIndent` / `streakDaysPlural` / `briefingHeadingSpacing`、`web/tests/briefingRowEdit` / `briefingDeleteToast` / `briefingEveningCaptionHonesty`）。既存 fixture は #1823 の label 型変更に合わせて 7 本を更新
+- **merge 状況**（2026-09-22 実測）: 7 本とも merged（#1912 / #1918 / #1921 / #1926 / #1930 / #1932 / #1937）
 - **実ブラウザ確認は chat-main の手番**: 390px でのタイトル 1 行 / `elementFromPoint` での 44px / 目的行の `left` 一致（root 16px・18px）/ 見出し上の間隔 > 0 / 編集押下後の選択状態
 - **手動確認が残る点**: #1822 の IME 変換中の表示（Issue 本文の「手動確認推奨」のまま）
 - 計画書なし（Issue 直行の軽ティア × 7）。スコープ逸脱は #1822 の `web/src/notes/RichTextEditor.tsx` 1 件のみ（DoD の「打鍵〜保存完了の間は Unsaved」がエディタからの即時の合図なしには満たせないため。PR 本文に明記）
