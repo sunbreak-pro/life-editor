@@ -16,6 +16,7 @@ import {
   type EditorHistory,
 } from "@life-editor/shared";
 import { createSlashCommand } from "./slashCommand";
+import { TableControls } from "./TableControls";
 import { createItemLinkNode } from "./itemLinkNode";
 import { createItemLinkSuggestion } from "./itemLinkSuggestion";
 import { createAttachmentNode } from "./attachmentNode";
@@ -38,8 +39,9 @@ import type { AttachmentWiring } from "./useAttachmentUpload";
  * ALWAYS registered so stored `[[…]]` JSON round-trips on every surface).
  * Heavier extensions (color, highlight, bubble/context menus) are still NOT
  * ported — they land in a later S-step if needed (scope-creep guard). Tables
- * ARE in the schema (tableNodes.ts), but only so a table the MCP server wrote
- * opens and round-trips (#1579); nothing here creates one.
+ * are in the schema (tableNodes.ts) so a table the MCP server wrote opens and
+ * round-trips (#1579), and since #1903 the "/" menu inserts one as well, with
+ * TableControls for the rows and columns.
  *
  * Like the source, the StarterKit built-ins for the customised marks are
  * disabled and replaced by `*NoInputRules` variants so typing `**`, `*`,
@@ -371,6 +373,7 @@ export function RichTextEditor({
                   bulletList: t("blockMenu.turnIntoItems.bulletList"),
                   orderedList: t("blockMenu.turnIntoItems.orderedList"),
                   taskList: t("blockMenu.turnIntoItems.taskList"),
+                  table: t("blockMenu.turnIntoItems.table"),
                   image: t("attachment.insertImage"),
                   file: t("attachment.insertFile"),
                   empty: t("blockMenu.noMatch"),
@@ -427,8 +430,8 @@ export function RichTextEditor({
         // same failure: `generate_content` writes a `table` block (the tool
         // descriptions send writers there for tables specifically), the schema
         // did not know the four nodes, so the whole document failed the check
-        // and was autosaved away as blank (#1579). Nothing in the editor
-        // creates a table; these exist so those notes open and round-trip.
+        // and was autosaved away as blank (#1579). Since #1903 the "/" menu
+        // makes one too, and the two arrive in the same shape.
         ...createTableNodes(),
         // "[[" wiki-link autocomplete — gated on the loadLinkTargets prop. The
         // loader + callbacks are read through refs so they never go stale.
@@ -572,6 +575,19 @@ export function RichTextEditor({
 
   return (
     <div className={`note-editor ${className}`}>
+      {/* #1903 — draws itself only while the caret is inside a table, and
+          never on a read-only surface. */}
+      <TableControls
+        editor={editor}
+        labels={{
+          label: t("materials.notes.tableControls.label"),
+          addRow: t("materials.notes.tableControls.addRow"),
+          addColumn: t("materials.notes.tableControls.addColumn"),
+          deleteRow: t("materials.notes.tableControls.deleteRow"),
+          deleteColumn: t("materials.notes.tableControls.deleteColumn"),
+          deleteTable: t("materials.notes.tableControls.deleteTable"),
+        }}
+      />
       <EditorContent editor={editor} />
     </div>
   );

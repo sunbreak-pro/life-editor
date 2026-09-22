@@ -24,6 +24,7 @@ const LABELS: SlashMenuLabels = {
   bulletList: "Bullets",
   orderedList: "Numbers",
   taskList: "Todos",
+  table: "Table",
   image: "Image",
   file: "File",
   empty: "No match",
@@ -81,6 +82,8 @@ describe("slash menu attach entries (#1404)", () => {
       "bulletList",
       "orderedList",
       "taskList",
+      // #1903 — a table needs no uploader, so it sits inside the gate.
+      "table",
     ]);
   });
 
