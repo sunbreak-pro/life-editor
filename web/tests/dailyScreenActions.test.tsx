@@ -199,6 +199,15 @@ function menuItem(label: string) {
   fireEvent.click(within(screen.getByRole("menu")).getByText(label));
 }
 
+/** Say yes to the delete question (#1838). */
+function confirmDelete() {
+  fireEvent.click(
+    within(screen.getByRole("dialog")).getByRole("button", {
+      name: "materials.daily.deleteConfirmAction",
+    }),
+  );
+}
+
 /** Asserts exactly one write method fired, with exactly these arguments. */
 function expectOnlyWrite(
   fns: Record<string, Mock>,
@@ -265,6 +274,7 @@ describe("DailyView — the kebab writes to the row the date resolves to", () =>
 
     kebab();
     menuItem("materials.daily.delete");
+    confirmDelete();
 
     await waitFor(() =>
       expect(harness.fns.softDeleteDailyUnified).toHaveBeenCalled(),
@@ -288,6 +298,7 @@ describe("DailyView — the kebab writes to the row the date resolves to", () =>
 
     kebab();
     menuItem("materials.daily.delete");
+    confirmDelete();
 
     await waitFor(() =>
       expect(harness.fns.softDeleteDailyUnified).toHaveBeenCalled(),

@@ -1,5 +1,20 @@
 # HISTORY (chat-work-refine)
 
+### 2026-09-22 - Work の残り 3 件（#1857 / #1858 / #1793）を 1 件 1 ブランチで直し、赤かった main の修復 PR も出した
+
+#### 概要
+
+`/goal` の 3 件をそれぞれ `origin/main` から切ったブランチで直して PR を開いた。3 本とも open（merge = 人手 P-001）。途中で main 自体が build できないことが分かり、修復 PR #1906 を別に出した。
+
+#### 変更点
+
+- **#1857 → PR #1909**: リロードやタブを閉じる操作は TimerProvider に出番が回らず、`timer_sessions` の行が `ended_at = null` のまま残っていた。走行中のタブが localStorage に控え（行 id・タブ id・最終生存時刻）を残し、次の起動時に `planOrphanRecovery`（`shared/src/utils/timerOpenSessionMarker.ts`）が閉じる行と秒数を決める。自分の控えの行は最終生存時刻まで、控えのない行は 240 分より古いものだけ 0 秒で閉じ、新しい行は別端末の可能性があるので触らない。サービスに `fetchOpenTimerSessions` / `recoverTimerSession` を追加（`ended_at IS NULL` を条件にし、`ended_at` は開始 + 秒数）。走行状態の復元は入れていない（D-20260922-work-1）
+- **#1858 → PR #1916**: 総時間の分を 0 埋め（`formatMinutes`）。プリセット削除は既存の `ConfirmDialog` を挟む（文言キー `pomodoro.deletePresetConfirm` を en / ja に追加）。3 点目（走行中の手がかり）は、開いたサイドバーには `NavTimerStatus` がすでに出ていると分かったので、残る 2 か所の見せ方を D-20260922-work-2 に積んだ。PR は `Refs` で Issue は open のまま
+- **#1793 → PR #1922**: 音源側が原因という前回の結論は変わらない。再生経路の残り 3 点を直した。オフは 150 ms のフェード後に `pause()`、オンは無音から立ち上げ、音量変更は 40 ms のランプ、再生中の要素には `play()` を呼ばない（`shared/src/utils/audioVolumeRamp.ts`）。`GainNode` 案は、バケットが CORS ヘッダを返さないと全プリセットが無音になり、worktree からは聴いて確かめられないので不採用。PR は `Refs`（音源の差し替えが残る）
+- **main の修復 → PR #1906**: #1890 の衝突解消で `TodosTab.tsx` の `sessionsWithinRange` の import が消え、#1897 の解消で `chartTheme.ts` の `estimateLabelWidth` / `fitAxisLabel`（#1893）が消えていた。入れた PR のとおりに戻しただけ。同じ目的の PR が他レーンからも出ている（#1905 / #1907）ので、どれを採るかは chat-main の判断
+- **検証**: #1858 と #1793 は CI `verify` のステップ列をローカル全通し（vitest は `--maxWorkers=3`）。#1793 は 1 周目に shared の lint が新規テストの 1 行で落ち、直して該当ステップだけ回し直した。**#1857 は最終状態の web vitest だけ未完走**（PC のメモリ不足で Claude Code が実行中のコマンドを止めた。main 取り込み前の同じ変更では緑）
+- **未検証**: 実ブラウザ確認は chat-main の担当（§7.4）。#1857 は走行中にリロード → 次の起動で行が閉じるか、#1793 は DoD の耳で確かめる 4 項目
+
 ### 2026-09-21 - Work 画面の探索検証で出た 4 件（#1853〜#1856）を 1 件 1 ブランチで直した
 
 #### 概要

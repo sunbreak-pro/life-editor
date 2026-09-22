@@ -92,6 +92,27 @@ describe("TagFilterPanel — the tag multi-select", () => {
     expect((checkbox("Home") as HTMLInputElement).checked).toBe(true);
   });
 
+  it("sinks the disabled save into the fill, and leaves the ghost faded (#1803)", () => {
+    /*
+     * jsdom loads no stylesheet, so "does this look pressable" is not
+     * observable here — the assertion is on the lever, exactly as
+     * buttonDisabledFill.test.tsx puts it (#1474). Fading an accent fill keeps
+     * the hue that reads as "press me", and in dark theme the faded accent
+     * lands next to the live one.
+     */
+    renderPanel({ groups: [group({ tagNames: [] })] });
+
+    const save = screen.getByRole("button", { name: "Save group" }).className;
+    expect(save).not.toMatch(/disabled:opacity-\d/);
+    expect(save).toContain("disabled:bg-lumen-surface-sunken");
+
+    // The other half of the decision: the Apply button on a group with no tags
+    // left is a GHOST, so it keeps the opacity — there is no fill to mislead
+    // anyone with, and greying it would draw a box that was never there.
+    const apply = screen.getByRole("button", { name: "Apply" }).className;
+    expect(apply).toContain("disabled:opacity-50");
+  });
+
   it("shows each tag's own count", () => {
     renderPanel();
     screen.getByText("4");
