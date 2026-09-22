@@ -11,6 +11,10 @@ import { createContext } from "react";
  * state (sound_settings, 0018), and the AudioContext resume dance the browser
  * autoplay policy requires (CLAUDE.md §3.3 — AudioContext starts suspended;
  * the first user gesture resumes it before any play()).
+ *
+ * `settings` is where the mix is heading, not what is audible this instant:
+ * the elements reach a new volume over a short ramp and fade in and out on the
+ * switch (#1793 — utils/audioVolumeRamp), so nothing cuts the waveform.
  */
 export interface AudioPresetState {
   /** Volume 0–100 (percent). */

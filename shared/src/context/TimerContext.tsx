@@ -14,7 +14,15 @@ import {
   ABANDONED_SESSION_SECONDS,
   freeSessionSlot,
   isCountedSession,
+  sessionTargetId,
 } from "../utils/timerSessions";
+import {
+  clearOpenSessionMarker,
+  planOrphanRecovery,
+  readOpenSessionMarker,
+  timerTabId,
+  writeOpenSessionMarker,
+} from "../utils/timerOpenSessionMarker";
 import { logServiceError } from "../utils/logError";
 import { useSyncDomains } from "../hooks/useSyncDomains";
 import {
@@ -60,6 +68,10 @@ import {
  * paused would leave the time in a row that never gets a duration, and the
  * row's started_at to ended_at range (which the free-session Event is drawn
  * from) would swallow the pause.
+ *
+ * A reload or a closed tab closes nothing, so the row it interrupts is picked
+ * up at the next startup instead (#1857): see the orphan sweep below. The
+ * running state itself is not restored; the timer comes back idle.
  *
  * `onSessionComplete` is an optional host hook fired when a phase reaches 0
  * (the host plays the chime / sends a notification — shared has no audio).
@@ -198,9 +210,16 @@ export function TimerProvider({
   }, [ds, syncVersion]);
 
   // --- 1 s re-render pulse while running (display recompute only) ---
+  // The same pulse keeps the open row's marker fresh (#1857), so a tab that
+  // dies mid-run leaves behind the last second it was seen alive.
   useEffect(() => {
     if (!state.isRunning) return;
-    const id = setInterval(() => setTickNow(Date.now()), 1000);
+    const id = setInterval(() => {
+      const now = Date.now();
+      setTickNow(now);
+      if (currentSessionIdRef.current !== null)
+        writeOpenSessionMarker(currentSessionIdRef.current, now);
+    }, 1000);
     return () => clearInterval(id);
   }, [state.isRunning]);
 
@@ -222,6 +241,7 @@ export function TimerProvider({
         .then((session) => {
           currentSessionIdRef.current = session.id;
           openSessionRef.current = { attributed: item !== null };
+          writeOpenSessionMarker(session.id, Date.now());
         })
         .catch((e) => logServiceError("Timer", "startTimerSession", e));
     },
@@ -245,7 +265,10 @@ export function TimerProvider({
    * timer actually did, and the Work history tab lists them that way.
    */
   const fileFreeSession = useCallback(
-    async (session: TimerSession) => {
+    async (
+      session: TimerSession,
+      tagIds: readonly string[] = freeSessionTagIdsRef.current,
+    ) => {
       const title = freeSessionTitleRef.current;
       if (!title) return;
       if (session.sessionType !== "WORK") return;
@@ -264,7 +287,7 @@ export function TimerProvider({
       // Tags first, then the attribution: a tag that fails to land still
       // leaves an Event the session points at, whereas the reverse would leave
       // a tagged Event no session names.
-      for (const tagId of freeSessionTagIdsRef.current) {
+      for (const tagId of tagIds) {
         await ds.assignTagToItem(generateId("tag_assign"), event.id, tagId);
       }
       await ds.attributeTimerSession(session.id, {
@@ -280,6 +303,7 @@ export function TimerProvider({
       const id = currentSessionIdRef.current;
       if (id === null) return;
       currentSessionIdRef.current = null;
+      clearOpenSessionMarker(id);
       const opened = openSessionRef.current;
       openSessionRef.current = null;
       if (
@@ -304,6 +328,55 @@ export function TimerProvider({
     },
     [ds, fileFreeSession],
   );
+
+  /*
+   * Startup sweep for rows nobody closed (#1857). Pause, reset and completion
+   * all close the open row, but a reload or a closed tab gives the Provider no
+   * turn, and the row kept a null `ended_at` with no path that ever came back
+   * for it. What gets closed, and with how many seconds, is decided by
+   * `planOrphanRecovery`.
+   *
+   * Once per Provider, behind a ref rather than a cancellable effect: it is
+   * fire-and-forget DB work that sets no state, and StrictMode's second effect
+   * pass must not find the marker already consumed by a cancelled first one.
+   *
+   * A recovered free session still earns its Event, by the same
+   * `fileFreeSession` a normal close uses, so the calendar and Analytics keep
+   * agreeing. It carries no tags: the ones picked for that run went down with
+   * the tab, and whatever is selected now belongs to the next session.
+   */
+  const orphanSweepStartedRef = useRef(false);
+  useEffect(() => {
+    if (orphanSweepStartedRef.current) return;
+    orphanSweepStartedRef.current = true;
+    // A suite that stubs only the methods its subject calls has no sweep to
+    // run, the same "feature off" path as a missing free-session title.
+    if (typeof ds.fetchOpenTimerSessions !== "function") return;
+    const marker = readOpenSessionMarker();
+    const sweep = async () => {
+      const open = (await ds.fetchOpenTimerSessions()).filter(
+        (s) => s.id !== currentSessionIdRef.current,
+      );
+      const plan = planOrphanRecovery(open, marker, timerTabId(), Date.now());
+      for (const { session, durationSeconds } of plan) {
+        const closed = await ds.recoverTimerSession(session, durationSeconds);
+        if (closed && !sessionTargetId(closed)) {
+          await fileFreeSession(closed, []).catch((e) =>
+            logServiceError("Timer", "freeSession", e),
+          );
+        }
+      }
+      // The marker has done its job unless its row is still open, which only
+      // happens when another tab is visibly running it.
+      if (
+        marker &&
+        (!open.some((s) => s.id === marker.sessionId) ||
+          plan.some((p) => p.session.id === marker.sessionId))
+      )
+        clearOpenSessionMarker(marker.sessionId);
+    };
+    void sweep().catch((e) => logServiceError("Timer", "orphanSweep", e));
+  }, [ds, fileFreeSession]);
 
   // --- derived display (recomputed every render via tickNow) ---
   const remaining = computeRemaining(state, tickNow);

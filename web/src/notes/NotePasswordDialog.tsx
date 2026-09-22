@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { LoaderCircle } from "lucide-react";
 import {
   BUSY_SPINNER,
+  DISABLED_FILLED_BTN,
   FOCUS_RING,
   FOCUS_RING_ON_ACCENT,
   NoticePanel,
@@ -192,6 +193,8 @@ export function NotePasswordDialog({
               type="button"
               onClick={onClose}
               disabled={busy}
+              // Outline: no fill to fade, so it keeps the opacity treatment
+              // while its filled neighbour moves to the recess (#1803).
               className={`rounded-md border border-lumen-border px-3 py-1.5 text-sm text-lumen-text hover:bg-lumen-hover disabled:opacity-40 ${FOCUS_RING}`}
             >
               {labels.cancel}
@@ -205,7 +208,7 @@ export function NotePasswordDialog({
               type="submit"
               disabled={busy}
               aria-busy={busy}
-              className={`inline-flex items-center gap-1.5 rounded-md bg-lumen-accent px-3 py-1.5 text-sm text-lumen-on-accent hover:opacity-90 disabled:opacity-40 ${FOCUS_RING_ON_ACCENT}`}
+              className={`inline-flex items-center gap-1.5 rounded-md bg-lumen-accent px-3 py-1.5 text-sm text-lumen-on-accent hover:opacity-90 ${FOCUS_RING_ON_ACCENT} ${DISABLED_FILLED_BTN}`}
             >
               {busy && (
                 <LoaderCircle aria-hidden className={`h-3.5 w-3.5 ${BUSY_SPINNER}`} />

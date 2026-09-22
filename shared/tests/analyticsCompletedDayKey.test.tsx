@@ -138,7 +138,7 @@ function makeMobileLabels(): AnalyticsLabels {
       title: "Streak",
       current: "Current",
       longest: "Longest",
-      days: "days",
+      formatDays: (n: number) => (n === 1 ? "day" : "days"),
       noStreak: "No streak yet",
     },
     heatmap: {
@@ -184,6 +184,7 @@ function makeMobileLabels(): AnalyticsLabels {
       tag: "Tag",
       inRange: "Created in range",
       liveTotal: "Current total",
+      topOf: (shown: number, total: number) => `Top ${shown} of ${total} tags`,
     },
     mobile: {
       weekTitle: "This week",

@@ -8,6 +8,8 @@ import {
   localDateTimeToISO,
   planRepeatScopeChoice,
   useScheduleItemsRoutineSync,
+  useToastOptional,
+  useTranslation,
   useUndoRedoOptional,
   type DataService,
   type ItemCreateNoteDraft,
@@ -78,6 +80,30 @@ export function useBriefingWrites({
   // reversible exactly like the same delete made in Schedule or Todos.
   const undoRedo = useUndoRedoOptional();
   const push = undoRedo?.push;
+
+  /*
+   * A deleted row says it is gone, and says how to bring it back (#1825).
+   *
+   * The delete itself was already reversible — both handlers below file an
+   * undo command — but nothing on screen said so: the row vanished with no
+   * dialog and no toast, while the same data deleted from Materials asks
+   * first. The paper keeps its one-press delete (it is a row on a page, not a
+   * record in a form) and pays for it with a receipt that names the item and
+   * the way back.
+   *
+   * Optional Toast, like the undo stack above, so the hook still runs in tests
+   * and outside ToastProvider. Copy is resolved here and passed already
+   * translated (§6.4).
+   */
+  const { t } = useTranslation();
+  const toast = useToastOptional();
+  const showToast = toast?.showToast;
+  const reportDeleted = useCallback(
+    (title: string) => {
+      showToast?.("info", t("briefing.rowDeleted", { title }));
+    },
+    [showToast, t],
+  );
 
   // The Routine→occurrence generator (#1768). Only one of its three members
   // is used here — the pre-anchor fill a "this and future" delete has to run
@@ -351,6 +377,7 @@ export function useBriefingWrites({
       void landed.catch((err) => {
         console.error("[BriefingScreen] schedule delete failed", err);
       });
+      reportDeleted(target.title);
       push?.("scheduleItem", {
         label: "deleteScheduleItem",
         // #1682: wait for the delete this reverses, then report our own
@@ -368,7 +395,7 @@ export function useBriefingWrites({
         },
       });
     },
-    [ds, scheduleItems, push, setScheduleItems],
+    [ds, scheduleItems, push, setScheduleItems, reportDeleted],
   );
 
   /*
@@ -573,6 +600,7 @@ export function useBriefingWrites({
       void landed.catch((err) => {
         console.error("[BriefingScreen] todo delete failed", err);
       });
+      reportDeleted(target.title);
       push?.("todoTree", {
         label: "deleteTodo",
         undo: async () => {
@@ -586,7 +614,7 @@ export function useBriefingWrites({
         },
       });
     },
-    [ds, todoNodes, push, setTodoNodes],
+    [ds, todoNodes, push, setTodoNodes, reportDeleted],
   );
 
   // "Add to today" (案 c staging — the same write Schedule's tray makes):
