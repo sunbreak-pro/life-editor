@@ -167,10 +167,10 @@ body {
   --note-callout-tint: var(--color-chip-event-bg);
 }
 /*
- * Tables the MCP server wrote (#1579 — web/src/notes/tableNodes.ts).
+ * Tables (#1579 — web/src/notes/tableNodes.ts; #1903 for the "/" item that
+ * makes one here).
  *
- * Nothing in the editor creates a table, so this only has to make an
- * MCP-written one readable and safe to type in. `div.tableWrapper` is the
+ * `div.tableWrapper` is the
  * extension's own node view wrapper, and it is the scroll container here: a
  * `generate_content` table can have more columns than the note pane is wide,
  * and the 4rem floor on a cell means a wide one overflows on purpose rather
