@@ -1,5 +1,41 @@
 # HISTORY (chat-analytics-refine)
 
+### 2026-09-21 - Analytics の画面別探索検証 8 件を 8 本の PR に（#1860〜#1867）
+
+#### 概要
+
+2026-09-21 の画面別探索検証（実ブラウザ・Desktop 1440 / Mobile 390）で analytics に出た 8 件を、番号順に 1 件ずつ、それぞれ origin/main から切った独立ブランチで直して PR にした。同じファイルを触る組（#1861/#1865・#1863/#1866・#1866/#1867）があるので順番を守り、後の Issue では前の PR が触った行を避けた。merge はユーザーの手番（P-001）。
+
+#### 変更点
+
+- **#1860（PR #1883）タグ別作業時間が期間を無視**: `TodosTab` がホストの全セッションをそのままリングに渡していた。`sessionsWithinRange()`（`startedAt` で判定 = 日別集計と同じ時刻）を足し、タブ側で絞る。ホストのセッションは絞らない — Work タブの合計が全期間を前提にしているため
+- **#1861（PR #1890）All time が 2020-01-01 固定**: プリセットの `dateRange` はホストが予定を取得する範囲を兼ねるので 2020 開始のまま残し、**トレンドが描く期間だけ**を `trendRangeDays()` でそのグラフ自身のデータ最古日からにした（最短 1 週間・データ無しは既定の 30 日）。92 日超は週（`WEEK_STARTS_ON`）、1 年超は月にまとめ、月は常に `YYYY-MM`、日 / 週は系列が年をまたぐと年つき
+- **#1862（PR #1893）ルーチン名のはみ出しと全 0%**: 12「文字」で省略していたが軸は 100px 固定で、全角 12 文字は約 105px。`fitAxisLabel()` が推定幅（全角 1em / それ以外 0.62em・コードポイント単位）で省略する。0% の棒は長さが無いので 2px の目印 + 全棒に数値ラベル（Mobile 版と同じ）
+- **#1863（PR #1896）長い文字列**: Tag Usage は `table-auto` のセルに幅が無く `truncate` が効いていなかった → `table-fixed` + 数値列 `w-20`。Streaks は #1467 が値の行全体に掛けた `truncate` で数字まで省略されていた → 数字は `flex-shrink-0`、省略は単位だけ。#1467 のテストの固定を置き換えた
+- **#1864（PR #1897）Work タブの単位と日付書式**: `ChartAxisFormat`（時間と日付のフォーマッタの組）をホストが 1 回作り（`web/src/analytics/axisFormat.ts`・日と月は Intl、週の記号と時間はカタログ）、`labels.axis` でタブ内の全グラフへ。`WorkTimeChart` / `TodoWorkTimeChart` は小数の時間でなく整数の分を描く。`DailyTimeline` のツールチップの直書き「min」と生 ID も解消
+- **#1865（PR #1898）期間プリセットが往復で 30 days に戻る**: タブは外枠の状態で生き残り、期間はセクション層 Provider ごと unmount されていた。「両方保つ」を選択 — `useShellNavigation` がタブの隣に `analyticsPreset` を持ち、Provider の `initialPreset` へ戻す
+- **#1866（PR #1899）小さな 3 点**: ヒートマップのセルは `getDay()` の番号のまま持ち、行順を `WEEK_STARTS_ON` から決める／ Tag Usage はカードが全行を受け取って自分で切り、切ったときだけ「N 件中の上位 10 件」／ `evenDateTicks()` が末尾（今日）から等間隔に目盛を置く（`preserveStartEnd` は先頭から間引くので余りが最後の間隔に出ていた）
+- **#1867（PR #1900）ヒートマップの a11y**: 各セル `role="img"` + 曜日・時刻・値の名前。タブ停止位置は 168 個でなく 1 つ（roving tabindex）で、矢印 / Home / End で移動し行をまたいで回り込まない。移動はセルの DOM 順で解決するので #1899 で行順が変わっても動く
+
+#### 設計判断
+
+- **#1861 で `dateRange` 自体は変えなかった**: Issue の Scope は「all の開始 = データの最古日」だが、この範囲は `onDateRangeChange` 経由で予定の取得範囲にもなる。最古日を知るには先に全件を取る必要があり、範囲を狭めると取得が欠ける。描画期間だけを寄せれば DoD（開始が最古日・週 / 月バケット・年の表示）は全部満たせる
+- **#1865 で保つのはプリセットだけ**: 期間そのものを保つと、日付をまたいで開き直したとき「7 days」が昨日までの 7 日になる
+- **#1864 の `WorkBreakBalance` と #1867 の `labels.cell` は省略可能にした**: 前者は Briefing のパネル（別レーンの `web/src/briefing`）が同じグラフを自前のラベルで描いているため。後者は #1899 のテストが持つヒートマップの fixture が、両方 merge された後に型で落ちるのを避けるため。どちらも既定値は既に翻訳済みの部品から組み立てる
+- **#1864 は Todos / Schedule タブのトレンドに触らなかった**: #1890 と同じ行を触るため。Issue の DoD は「1 タブ内」の統一
+
+#### つまずき
+
+- **main を取り込んだ worktree は `npm ci` が要る**: 1 回目の verify で web build / web typecheck:tests / desktop build / web test が `@tiptap/extension-table` の TS2307 で落ちた。自分の変更とは無関係で、4 パッケージとも `npm ci` をやり直して解消
+- **ラベル型の必須項目を足すと自前 fixture が型で落ちる**: #1866 の `topOf` で `analyticsWeekWindow.test.tsx` を見落とし `typecheck:tests` が 1 回赤。vitest は型を見ないので test は緑だった（CLAUDE.md §7.1 の罠そのもの）
+- **既存テストの recharts スタブは使う部品を列挙している**: #1862 で `LabelList` を使い始めたら `analyticsTooltipFormatter.test.tsx` が「No LabelList export on the mock」で落ちた
+- **Git Bash は `origin/main:.claude/...` をパスに変換して壊す**: `git show` の引数が `origin\main;.claude\...` になる。`MSYS_NO_PATHCONV=1` を付ける
+- **長い node スクリプトを Bash ツールの heredoc で流すと、引用符の解釈でコマンド全体が構文エラーになることがある**（2 回踏んだ）: 何も実行されずに終わるので被害は無いが 1 往復無駄になる。スクリプトは Write でファイルに書き出してから `node <file>` で回す
+
+#### 検証
+
+8 ブランチとも `.github/workflows/ci.yml` の `verify` ジョブを上から全ステップ（shared → web → desktop → mcp-server・`npm ci` を除く 14 本）+ `docs-lint` をローカル実行し、最終的にすべて exit 0。ラッパーは出力を変数に取り `$?` を見てから表示する形（CLAUDE.md §7.1）。途中で赤だったのは #1860（依存未インストール）・#1866（fixture の型）・#1867（lint 2 件）の 3 回で、どれも直してから**全ステップを回し直した**。実ブラウザ確認は worktree では回さない規約のため chat-main 側。
+
 ### 2026-09-06 - Analytics の Mobile 点検 2 件を 2 本の PR に（#1520 / #1524）
 
 #### 概要
