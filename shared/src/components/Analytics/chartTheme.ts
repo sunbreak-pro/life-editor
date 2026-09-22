@@ -52,6 +52,33 @@ export const CHART_TOOLTIP_STYLE = {
 } as const;
 
 /*
+ * Evenly spaced ticks for a day-bucket axis (#1866).
+ *
+ * `interval="preserveStartEnd"` keeps the first and last label and thins the
+ * rest at a fixed stride from the START, so the last gap is whatever is left
+ * over: a 30-day axis read "…09-19, (gap), 09-21" on three charts. These axes
+ * end on today, which is the label that matters most, so the ticks are laid
+ * out at one stride counting back from the END — every gap is equal, and the
+ * leftover lands at the far left, where the axis simply starts unlabelled.
+ *
+ * Returned as the label VALUES recharts expects in `<XAxis ticks>`; pair it
+ * with `interval={0}` so recharts does not thin them a second time.
+ */
+export const MAX_DATE_TICKS = 7;
+
+export function evenDateTicks(
+  labels: readonly string[],
+  maxTicks: number = MAX_DATE_TICKS,
+): string[] {
+  const n = labels.length;
+  if (n <= maxTicks) return [...labels];
+  const stride = Math.ceil((n - 1) / (maxTicks - 1));
+  const ticks: string[] = [];
+  for (let i = n - 1; i >= 0; i -= stride) ticks.unshift(labels[i]);
+  return ticks;
+}
+
+/*
  * One axis vocabulary per tab (#1864).
  *
  * The Work tab read "1時間2分" on its stat tiles, "0.15h" on the chart under
@@ -88,3 +115,67 @@ export const FALLBACK_AXIS_FORMAT: ChartAxisFormat = {
 
 /** Gutter for a duration axis — "1時間30分" at 11px needs more than the default 60. */
 export const DURATION_AXIS_WIDTH = 64;
+
+/*
+ * Fit a category label into a fixed-width axis gutter (#1862).
+ *
+ * A recharts category axis takes its gutter in PX (`<YAxis width>`), and an
+ * SVG <text> neither wraps nor clips to it — a label wider than the gutter
+ * runs out of the left edge of the chart and is cut by the card. Truncating by
+ * CHARACTER count cannot prevent that: twelve full-width characters are about
+ * twice as wide as twelve Latin ones, so a cap that suits "Morning run" still
+ * overflows for 「APIについて学んでみる」.
+ *
+ * jsdom has no layout and the chart has no canvas to measure with before it
+ * mounts, so the width is estimated from the code point: East Asian wide /
+ * full-width glyphs advance a full em, everything else 0.62em — deliberately
+ * on the generous side of a proportional Latin face, so the estimate errs
+ * toward truncating early rather than overflowing.
+ */
+const WIDE_GLYPH_EM = 1;
+const NARROW_GLYPH_EM = 0.62;
+const ELLIPSIS = "…";
+
+function isWideGlyph(codePoint: number): boolean {
+  return (
+    (codePoint >= 0x1100 && codePoint <= 0x115f) || // Hangul Jamo
+    (codePoint >= 0x2e80 && codePoint <= 0xa4cf) || // CJK, kana, radicals
+    (codePoint >= 0xac00 && codePoint <= 0xd7a3) || // Hangul syllables
+    (codePoint >= 0xf900 && codePoint <= 0xfaff) || // CJK compatibility
+    (codePoint >= 0xfe30 && codePoint <= 0xfe4f) || // CJK compatibility forms
+    (codePoint >= 0xff00 && codePoint <= 0xff60) || // full-width forms
+    (codePoint >= 0xffe0 && codePoint <= 0xffe6) ||
+    codePoint >= 0x1f300 // emoji and the supplementary ideographic planes
+  );
+}
+
+/** Estimated rendered width of `text` in px at `fontSize`. */
+export function estimateLabelWidth(text: string, fontSize: number): number {
+  let em = 0;
+  for (const ch of text) {
+    em += isWideGlyph(ch.codePointAt(0) ?? 0) ? WIDE_GLYPH_EM : NARROW_GLYPH_EM;
+  }
+  return em * fontSize;
+}
+
+/** `text`, cut with an ellipsis so its estimated width stays within `maxPx`. */
+export function fitAxisLabel(
+  text: string,
+  maxPx: number,
+  fontSize: number,
+): string {
+  if (estimateLabelWidth(text, fontSize) <= maxPx) return text;
+  const budget = maxPx - estimateLabelWidth(ELLIPSIS, fontSize);
+  let out = "";
+  let width = 0;
+  // Iterating the string walks code points, so a surrogate pair is never split.
+  for (const ch of text) {
+    const w =
+      (isWideGlyph(ch.codePointAt(0) ?? 0) ? WIDE_GLYPH_EM : NARROW_GLYPH_EM) *
+      fontSize;
+    if (width + w > budget) break;
+    out += ch;
+    width += w;
+  }
+  return out.trimEnd() + ELLIPSIS;
+}

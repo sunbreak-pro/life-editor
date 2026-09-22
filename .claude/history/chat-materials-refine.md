@@ -1,5 +1,48 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-09-22 - 画面別検証の materials 11 件を 11 本の PR に（#1836 #1837 #1838 #1839 #1840 #1841 #1842 #1843 #1844 #1902 #1903）+ main の compile 不能を 1 本
+
+#### 概要
+
+`/goal` で渡された 11 件を 1 Issue = 1 branch = 1 PR で出した。着手直後に **origin/main がコンパイルできない**ことが分かり、先に PR #1905 で直した。11 本はどれもこれを含まず、ローカルの verify だけがそれを載せた状態で緑。
+
+#### main が壊れていた件（PR #1905）
+
+analytics レーンの 2 組の PR が互いに古い base から squash merge され、同じファイルを書き直した側が相手の追加を落としていた。git はどちらも MERGEABLE のまま。
+
+- `TodosTab.tsx:65` の `sessionsWithinRange`: #1883 が呼び出しと import を足し、#1890 が古い base から import 行を書き直して落とした
+- `chartTheme.ts` の `fitAxisLabel` / `estimateLabelWidth`: #1893 が足し、#1897 がファイル全体を書き直して落とした。`RoutineCompletionChart.tsx:21` と `analyticsRoutineChartLabels.test.tsx:5` がまだ import している
+
+実測: shared build / shared typecheck:tests / web build がコンパイルエラー、shared vitest が 3 suite 9 件失敗。
+
+**教訓**: 同じレーンで同じモジュールを触る PR が並ぶときは、open 時ではなく **merge 直前に main を取り込む**。squash merge は相手がファイルの形を変えたことを見られない。#1436 の「`tsc -b` のキャッシュのせい」とは別物で、こちらは本当にコードが欠けている。
+
+#### 変更点
+
+- **#1836（PR #1911）リンクカード変換後のキャレット** — 入力ルールがカードと**空段落を 1 手で**入れる。カードは block atom なので、段落をカードだけで置き換えると選択がノード自身（NodeSelection）に残り、次の 1 打鍵がそれを置換して URL ごと消える。`insertContentAt` は挿入の末尾にキャレットを畳むので、末尾を空段落にすればその中に入る
+- **#1902（PR #1915）`/` と `[[` の一覧のスクロール** — `selected` が変わったら `scrollIntoView({ block: "nearest" })`。**キー操作のときだけ**（`onMouseEnter` でも `selected` は動くが、静止したポインタの下でスクロールすると次の行が滑り込んで選択がまた動き、一覧がカーソルから逃げていく）。2 つのピッカーは意図的に同じ作りなので両方直した
+- **#1838（PR #1920）Daily の削除確認** — `useConfirmDialog` を通し、エントリの無い日は `disabled`。ダイアログはケバブの箱の中に 1 つだけ置いた（Desktop / Mobile はどちらも 1 回しか描かないので、質問の居場所が 1 つになる）
+- **#1844（PR #1923）Light の 3 段目テキスト** — `--color-text-tertiary` を `#857054` → `#756249`。色相・彩度そのままで明度だけ −5.2pt。**値を決めたのは最悪ケースの `surface-sunken`**（サイドバー検索欄の placeholder）で 4.59。`#77644b` だと Issue の 3 件は通るがそこが 4.46 で落ちる。`PRINCIPLES.md §3.6` の「最低 3:1」も直した — これを残すと次の人が同じ値に戻す
+- **#1839（PR #1928）Daily の状態表示** — 3 点のうち 2 点目は Issue の記述と実装がずれていた。選択判定も `aria-current` も既に正しく、**本当の欠陥は選択の塗りと hover の塗りが同じトークンだったこと**。`bg-lumen-accent-subtle` にした
+- **#1841（PR #1931）タグピッカーの focus** — Create 行に `onMouseDown` の `preventDefault` が無く、かつ作成が query を空にして**その行自身を unmount する**。focus を持った要素が消えるので `<body>` に落ち、Escape が効かなくなる。既存の候補行も同じ形だったので両方に入れた。閉じたら trigger へ戻す cleanup は CommandPalette（#1874）の 2 つのガードごと写した
+- **#1842（PR 番号は下記）「Show N more」と新規ノートのタイトル** — 片道だったボタンを対に。chevron が戻り道だと書かれていたが、chevron はグループ全体を畳む永続状態で、この cap は行数の非永続状態なので別物だった。タイトルは `createNote()` の戻り値（既に `useNoteLinking` が使っている）を host が保持し、`key={noteId}` で新しくマウントされた入力欄が 1 回だけ focus + select する
+- **#1843** — 文言 13 本を `materials.notes.password.*` へ。**入口の復活は実装しない**（下記）
+- **#1840** — `opacity: 0` の削除ボタンを狭幅で常時表示（`max-md:` と `[@media(hover:none)]` の両方。デスクトップブラウザの 390px は touch にならない）+ 5 箇所に 44px の床。**タスクのチェックボックスは変更なし** — #1523 が `index.css:713-730` で既に 44px の当たり判定を入れており、20px は描画サイズ。`getBoundingClientRect()` 単独の判定が拾う偽陽性で、`rules/frontend.md` が名指しで警告しているケース
+- **#1837** — 本文検索の配線。`useNoteBodySearch`（新規）が debounce して `ds.searchNotesUnified` を呼び、**id だけ**を返す。行は Provider が持つ一覧のまま使うので、本文が React state に載らない。**あわせて `SupabaseNotesUnifiedSearch` に `has_password` の絞り込みを足した** — 元々 1 つも無く、呼び出し元がゼロだったので顕在化していなかった。UI を繋ぐこの PR がそれを有効にしてしまうため分離できない
+- **#1903** — `/` にテーブル。`insertTable` は `@tiptap/extension-table` のもので、`tableNodes.ts` が #1579 から登録済み（つまりコマンドはずっとあって誰も呼んでいなかった）。行・列の操作は `TableControls.tsx`（新規）で、**caret 矩形に対する絶対配置を使わない**（jsdom で検証できない経路を作らないため）
+
+#### 詰まった点と回避
+
+- **`handleTextInput` は 5 引数**（prosemirror-view の型）。4 引数で呼ぶと `typecheck:tests` だけが落ちる（vitest は型を見ない）。5 つ目は「本来起きるはずだったトランザクション」を返す関数
+- **`display: contents` に `opacity` は効かない**。検索中の薄表示は実体のある box に載せる
+- **`DailyEntriesPanel` の prop を interface に足しただけでは動かない** — 分割代入にも足す。型は通るので build では気付けず、テストで `ReferenceError` になって初めて出た
+- **新規ノートのタイトル focus は「既に選択済みのノートに + を押す」形ではテストできない** — `key={noteId}` が変わらないのでマウント効果が走らない。テストも実際の 2 段（押す → Provider がそのノートを選んで返る）に合わせた
+- **既存テストの途中に `it` を差し込むと後半を吸い取る**ことがある。`expect(state.createNote).toHaveBeenCalledExactlyOnceWith();` はそのテストの最後の行ではなかった
+
+#### 判断キュー
+
+`D-20260922-materials-1`（#1843）: パスワードの掛ける / 外す入口を戻すか、機能ごと畳むか。入口が無いのは意図的な退役ではなく、`94e32ba4` が「バックエンドが throw するので一時的に外す。DU-G が 1 つの diff で戻せるよう state は残す」と書いたまま戻されなかったもの。ただし #1763 以降はロック中の本文を取得しないので、掛けた瞬間に本文が消え、忘れると復旧できない。体験が変わる分岐なので P-005 でキューへ。
+
 ### 2026-09-20 - #1760 ノート改名の Undo が入力欄に届かない / #1761 ノート書き込みの失敗が無言（PR #1762 / #1765）
 
 #### 概要
