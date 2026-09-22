@@ -373,6 +373,7 @@
     "sessionsPerSet": "1セットあたりのセッション数",
     "presets": "プリセット",
     "deletePreset": "プリセット削除",
+    "deletePresetConfirm": "プリセット「{{name}}」を削除しますか？",
     "autoStartBreaks": "休憩を自動開始",
     "emptyValue": "{{field}}に数値を入力してください"
   },
@@ -412,6 +413,14 @@
       "bodyPlaceholder": "ノートを書く…",
       "untitled": "(無題)",
       "lockedHint": "このノートはロックされています",
+      "tableControls": {
+        "label": "表の操作",
+        "addRow": "行を下に追加",
+        "addColumn": "列を右に追加",
+        "deleteRow": "行を削除",
+        "deleteColumn": "列を削除",
+        "deleteTable": "表を削除"
+      },
       "mainEmpty": "ノートを選ぶか、新しく作成してください",
       "recentHeading": "最近開いたノート",
       "untagged": "未分類",
@@ -485,6 +494,8 @@
       "unpin": "ピン留めを解除",
       "pinned": "ピン留め済み",
       "delete": "エントリを削除",
+      "deleteConfirmBody": "{{day}} のエントリを削除しますか？ ゴミ箱に入るので、あとから戻せます。",
+      "deleteConfirmAction": "削除",
       "moreActions": "その他の操作",
       "placeholder": "今日のことを書く…",
       "datePicker": "日付を選択",
@@ -828,7 +839,7 @@
       "title": "ストリーク",
       "current": "現在",
       "longest": "最長",
-      "days": "日",
+      "days_other": "日",
       "noStreak": "作業を開始してストリークを積み上げよう！"
     },
     "heatmap": {
@@ -886,7 +897,8 @@
       "title": "タグ使用状況",
       "tag": "タグ",
       "inRange": "期間内に作成",
-      "liveTotal": "現在の合計（全期間）"
+      "liveTotal": "現在の合計（全期間）",
+      "topOf": "{{total}} 件中の上位 {{shown}} 件"
     },
     "overview": {
       "todos": "Todo",
@@ -1177,7 +1189,8 @@
       "heading3": "見出し 3",
       "bulletList": "箇条書き",
       "orderedList": "番号付きリスト",
-      "taskList": "Todo リスト"
+      "taskList": "Todo リスト",
+      "table": "テーブル"
     }
   },
   "itemLink": {
@@ -1286,6 +1299,7 @@
       "goals": "目標を保存できませんでした。書いた内容は画面に残っていますが、まだ保存されていません。通信を確認して、もう一度書き直してください。",
       "focus": "明日のフォーカスを保存できませんでした。書いた内容は画面に残っていますが、まだ保存されていません。通信を確認して、もう一度書き直してください。"
     },
+    "rowDeleted": "「{{title}}」を削除しました。ヘッダーの「元に戻す」で戻せます。",
     "tabsLabel": "朝刊 / 夕刊",
     "tabs": {
       "morning": "朝刊",

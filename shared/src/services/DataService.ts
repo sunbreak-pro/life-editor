@@ -113,6 +113,16 @@ export interface TimerDataService {
    * once the worked range is known, so the link is made after the fact.
    */
   attributeTimerSession(id: number, target: WorkTarget): Promise<TimerSession>;
+  /** Rows that were opened and never closed (#1857). */
+  fetchOpenTimerSessions(): Promise<TimerSession[]>;
+  /**
+   * Close a row its owner never closed, as `duration` seconds from its start
+   * (#1857). Resolves to null when the row had been closed in the meantime.
+   */
+  recoverTimerSession(
+    session: Pick<TimerSession, "id" | "startedAt">,
+    duration: number,
+  ): Promise<TimerSession | null>;
   fetchTimerSessions(): Promise<TimerSession[]>;
   fetchSessionsByTodoId(todoId: string): Promise<TimerSession[]>;
   /** Sessions measured against one Event (#1375) — the event's logged time. */
