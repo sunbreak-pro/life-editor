@@ -37,8 +37,12 @@ export function ExcerptListItem({
   const containerClass = cn(
     "flex w-full items-start gap-2.5 rounded-lumen-md border px-3 py-2 text-left",
     "transition-colors",
+    // #1839: the selected row used to be `bg-lumen-hover`, the same fill the
+    // row under the pointer takes — so the last row clicked and the row being
+    // pointed at were one colour, and only a border said which was which.
+    // accent-subtle is a fill hover cannot produce.
     selected
-      ? "border-lumen-accent bg-lumen-hover"
+      ? "border-lumen-accent bg-lumen-accent-subtle"
       : "border-lumen-border bg-lumen-bg-secondary",
     onClick &&
       "hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
@@ -76,7 +80,11 @@ export function ExcerptListItem({
       <button
         type="button"
         onClick={onClick}
-        aria-current={selected || undefined}
+        // Written out rather than left to React's boolean coercion: the
+        // value is "true" (this is the open item), not "date" (#1839 — the
+        // same component draws note rows, which have no date to be current
+        // for).
+        aria-current={selected ? "true" : undefined}
         className={containerClass}
       >
         {inner}

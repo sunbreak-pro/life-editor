@@ -503,6 +503,8 @@
       "entriesCount": "Entries ({{count}})",
       "filterPlaceholder": "Filter entries…",
       "filterLabel": "Filter entries",
+      "searchEmpty": "No entries match that filter",
+      "empty": "No entries yet",
       "eveningTitle": "EVENING",
       "eveningScheduleTitle": "THE DAY'S SCHEDULE",
       "eveningMood": "Mood",

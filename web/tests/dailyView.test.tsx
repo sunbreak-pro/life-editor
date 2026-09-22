@@ -230,6 +230,18 @@ describe("DailyView — the open day", () => {
     render(<DailyView />);
     screen.getByText("materials.daily.saved");
   });
+
+  /*
+   * #1839 — the caption is a claim about a row. On a day nobody has written
+   * on there is no row, and "Saved" was a claim about nothing.
+   */
+  it("says nothing about saving on a day with no entry", () => {
+    state.selectedDate = LONG_AGO;
+    render(<DailyView />);
+
+    expect(screen.queryByText("materials.daily.saved")).toBeNull();
+    expect(screen.queryByText("materials.daily.unsaved")).toBeNull();
+  });
 });
 
 /*
@@ -394,6 +406,50 @@ describe("DailyView — the actions kebab", () => {
       .getAllByRole("menuitem", { hidden: true })
       .find((el) => el.textContent?.includes("materials.daily.delete"));
     expect(item?.getAttribute("aria-disabled")).toBe("true");
+  });
+});
+
+describe("DailyView — the entry list says which day is open (#1839)", () => {
+  it("marks exactly the open day, and marks it with aria-current", () => {
+    render(<DailyView />);
+
+    const current = screen
+      .getAllByRole("button")
+      .filter((b) => b.getAttribute("aria-current") === "true");
+    expect(current).toHaveLength(1);
+    expect(current[0].textContent).toContain(`entry for ${YESTERDAY}`);
+  });
+
+  it("marks nothing when the open day has no entry", () => {
+    state.selectedDate = LONG_AGO;
+    render(<DailyView />);
+
+    expect(
+      screen
+        .getAllByRole("button")
+        .filter((b) => b.getAttribute("aria-current") === "true"),
+    ).toHaveLength(0);
+  });
+
+  it("says why the list is empty when a filter empties it", () => {
+    render(<DailyView />);
+
+    fireEvent.change(
+      screen.getByLabelText("materials.daily.filterLabel"),
+      { target: { value: "nothing-matches-this" } },
+    );
+
+    screen.getByText("materials.daily.entriesCount|0");
+    screen.getByText("materials.daily.searchEmpty");
+    expect(screen.queryByText("materials.daily.empty")).toBeNull();
+  });
+
+  it("says so when there are no entries at all", () => {
+    state.dailies = [];
+    render(<DailyView />);
+
+    screen.getByText("materials.daily.empty");
+    expect(screen.queryByText("materials.daily.searchEmpty")).toBeNull();
   });
 });
 
