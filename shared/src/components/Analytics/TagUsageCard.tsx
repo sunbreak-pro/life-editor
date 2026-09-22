@@ -7,6 +7,7 @@ import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import { formatDateKey } from "../../utils/dateKey";
 import {
   aggregateTagUsage,
+  TAG_USAGE_LIMIT,
   type TagUsageItem,
 } from "../../utils/analyticsAggregation";
 import { ChartCard } from "./ChartCard";
@@ -26,6 +27,11 @@ export interface TagUsageCardLabels {
    * card's meta slot so the range column's window is named, not implied.
    */
   rangeLabel: string;
+  /**
+   * Footnote for a list cut at the cap ("Top 10 of 15 tags") — host
+   * interpolates. Only rendered when rows were actually left out (#1866).
+   */
+  topOf: (shown: number, total: number) => string;
   /** Designed empty-state copy (no tags, or nothing tagged in the range). */
   empty: { title: string; description: string };
 }
@@ -80,6 +86,11 @@ const COLORS = [
  * reader announces which window a cell belongs to, which is the same guarantee
  * the sighted reader gets from the header row.
  */
+// Both number columns share one width so the figures line up under their
+// headings; the headings wrap inside it rather than widening the column, which
+// keeps the name column usable in the narrow mobile card too.
+const NUMBER_COLUMN_HEAD = "w-20 pb-2 pl-2 text-right align-bottom font-medium";
+
 export function TagUsageCard({
   todos,
   events,
@@ -89,7 +100,10 @@ export function TagUsageCard({
   dateRange,
   labels,
 }: TagUsageCardProps): React.JSX.Element {
-  const rows = useMemo(() => {
+  // Every ranked row comes back; the cap is applied below, where the card can
+  // also say so. The Tags tile read "15 Tags" while this list stopped at 10
+  // with no sign anything was missing (#1866).
+  const allRows = useMemo(() => {
     // Item ids are unique across roles, so the three lists concatenate into one
     // universe without a discriminator (see TagUsageItem).
     const items: TagUsageItem[] = [...todos, ...events, ...notes];
@@ -99,8 +113,10 @@ export function TagUsageCard({
       tags,
       formatDateKey(dateRange.start),
       formatDateKey(dateRange.end),
+      Number.POSITIVE_INFINITY,
     );
   }, [todos, events, notes, assignments, tags, dateRange]);
+  const rows = allRows.slice(0, TAG_USAGE_LIMIT);
 
   if (rows.length === 0) {
     return (
@@ -121,16 +137,23 @@ export function TagUsageCard({
 
   return (
     <ChartCard title={labels.title} meta={labels.rangeLabel}>
-      <table className="w-full border-collapse text-xs">
+      {/* `table-fixed` is what makes the name cell's `truncate` bite (#1863).
+          Under the default `table-auto` a cell is as wide as its content asks
+          for, so a 60-character tag name grew the table to 1116px inside a
+          787px card and pushed both number columns off screen — `truncate`
+          needs a width to overflow, and an auto cell never has one. Fixed
+          layout takes the widths from the header row: the two number columns
+          are sized for their headings and the name column gets the rest. */}
+      <table className="w-full table-fixed border-collapse text-xs">
         <thead>
           <tr className="text-lumen-text-tertiary">
             <th scope="col" className="pb-2 text-left font-medium">
               {labels.tag}
             </th>
-            <th scope="col" className="pb-2 text-right font-medium">
+            <th scope="col" className={NUMBER_COLUMN_HEAD}>
               {labels.inRange}
             </th>
-            <th scope="col" className="pb-2 text-right font-medium">
+            <th scope="col" className={NUMBER_COLUMN_HEAD}>
               {labels.liveTotal}
             </th>
           </tr>
@@ -141,13 +164,16 @@ export function TagUsageCard({
             return (
               <tr key={row.tagId} className="align-middle">
                 <td className="py-1.5 pr-3">
-                  <span className="flex items-center gap-2">
+                  <span className="flex min-w-0 items-center gap-2">
                     <span
                       aria-hidden="true"
                       className="h-2 w-2 flex-shrink-0 rounded-lumen-full"
                       style={{ backgroundColor: color }}
                     />
-                    <span className="truncate text-lumen-text">
+                    <span
+                      className="min-w-0 truncate text-lumen-text"
+                      title={row.tagName}
+                    >
                       {row.tagName}
                     </span>
                   </span>
@@ -175,6 +201,11 @@ export function TagUsageCard({
           })}
         </tbody>
       </table>
+      {allRows.length > rows.length ? (
+        <p className="mt-2 text-right text-xs text-lumen-text-tertiary">
+          {labels.topOf(rows.length, allRows.length)}
+        </p>
+      ) : null}
     </ChartCard>
   );
 }

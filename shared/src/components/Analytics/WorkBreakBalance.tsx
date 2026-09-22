@@ -17,6 +17,10 @@ import {
   CHART_HEIGHT_MD,
   CHART_TICK,
   CHART_TOOLTIP_STYLE,
+  evenDateTicks,
+  DURATION_AXIS_WIDTH,
+  FALLBACK_AXIS_FORMAT,
+  type ChartAxisFormat,
 } from "./chartTheme";
 
 export interface WorkBreakBalanceLabels {
@@ -30,22 +34,35 @@ interface WorkBreakBalanceProps {
   sessions: TimerSession[];
   days: number;
   labels: WorkBreakBalanceLabels;
+  /**
+   * Date / duration vocabulary shared by every chart on the tab (#1864).
+   * Optional because the Briefing panel mounts this chart too, with labels of
+   * its own — without it the chart prints what it printed before.
+   */
+  axis?: ChartAxisFormat;
 }
 
 export function WorkBreakBalance({
   sessions,
   days,
   labels,
+  axis = FALLBACK_AXIS_FORMAT,
 }: WorkBreakBalanceProps): React.JSX.Element {
   const data = useMemo(
     () =>
       aggregateWorkBreakBalance(sessions, days).map((d) => ({
-        date: d.date.substring(5), // MM-DD
+        date: axis.date(d.date, "day"),
         [labels.work]: Math.round(d.workMinutes),
         [labels.break]: Math.round(d.breakMinutes),
         [labels.longBreak]: Math.round(d.longBreakMinutes),
       })),
-    [sessions, days, labels.work, labels.break, labels.longBreak],
+    [sessions, days, labels.work, labels.break, labels.longBreak, axis],
+  );
+
+  // Even stride counted back from today (#1866) — see `evenDateTicks`.
+  const dateTicks = useMemo(
+    () => evenDateTicks(data.map((d) => d.date)),
+    [data],
   );
 
   return (
@@ -53,20 +70,30 @@ export function WorkBreakBalance({
       <ResponsiveContainer width="100%" height={CHART_HEIGHT_MD} minWidth={0}>
         <BarChart
           data={data}
-          margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
+          margin={{ top: 5, right: 10, left: 0, bottom: 0 }}
         >
           <CartesianGrid {...CHART_GRID} />
-          <XAxis dataKey="date" tick={CHART_TICK} interval="preserveStartEnd" />
+          <XAxis
+            dataKey="date"
+            tick={CHART_TICK}
+            ticks={dateTicks}
+            interval={0}
+          />
           {/* Whole minutes only (#944) — the bars are Math.round()ed above, so
               a 0.25m tick subdivides a value that can never land there. */}
-          <YAxis tick={CHART_TICK} unit="m" allowDecimals={false} />
+          <YAxis
+            tick={CHART_TICK}
+            allowDecimals={false}
+            width={DURATION_AXIS_WIDTH}
+            tickFormatter={(v: number) => axis.duration(v)}
+          />
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}
             /* recharts destructures a returned array as [value, name] (#943).
                Returning the value alone dropped the name, which on this
                3-series stack left every tooltip row as a bare "0m". */
             formatter={(value: number | undefined, name) => [
-              `${value ?? 0}m`,
+              axis.duration(value ?? 0),
               name,
             ]}
           />

@@ -17,6 +17,8 @@ import {
   CHART_HEIGHT_MD,
   CHART_TICK,
   CHART_TOOLTIP_STYLE,
+  evenDateTicks,
+  type ChartAxisFormat,
 } from "./chartTheme";
 
 export interface PomodoroCompletionRateLabels {
@@ -35,6 +37,8 @@ interface PomodoroCompletionRateProps {
    */
   targetPerDay: number;
   labels: PomodoroCompletionRateLabels;
+  /** Date / duration vocabulary shared by every chart on the tab (#1864). */
+  axis: ChartAxisFormat;
 }
 
 export function PomodoroCompletionRate({
@@ -42,14 +46,21 @@ export function PomodoroCompletionRate({
   days,
   targetPerDay,
   labels,
+  axis,
 }: PomodoroCompletionRateProps): React.JSX.Element {
   const data = useMemo(
     () =>
       aggregatePomodoroRate(sessions, targetPerDay, days).map((d) => ({
         ...d,
-        date: d.date.substring(5), // MM-DD
+        date: axis.date(d.date, "day"),
       })),
-    [sessions, targetPerDay, days],
+    [sessions, targetPerDay, days, axis],
+  );
+
+  // Even stride counted back from today (#1866) — see `evenDateTicks`.
+  const dateTicks = useMemo(
+    () => evenDateTicks(data.map((d) => d.date)),
+    [data],
   );
 
   return (
@@ -60,7 +71,12 @@ export function PomodoroCompletionRate({
           margin={{ top: 5, right: 10, left: -10, bottom: 0 }}
         >
           <CartesianGrid {...CHART_GRID} />
-          <XAxis dataKey="date" tick={CHART_TICK} interval="preserveStartEnd" />
+          <XAxis
+            dataKey="date"
+            tick={CHART_TICK}
+            ticks={dateTicks}
+            interval={0}
+          />
           <YAxis tick={CHART_TICK} allowDecimals={false} />
           <Tooltip
             contentStyle={CHART_TOOLTIP_STYLE}

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { AlertCircle, RotateCcw } from "lucide-react";
 import {
   Button,
@@ -10,6 +10,7 @@ import {
   useDomainLoad,
   useSyncDomains,
   useTranslation,
+  useUndoRedoOptional,
   type DataService,
   type TrashBusy,
   type TrashBusyAction,
@@ -85,6 +86,40 @@ const TRASH_FETCH_FAILED = "trash-fetch-failed";
 
 export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   const { t } = useTranslation();
+  /*
+   * A permanent delete takes the undo history with it (#1876).
+   *
+   * Every command on the stack is a closure over row ids, and a hard delete
+   * is the one write that leaves those ids pointing at nothing. Press Undo
+   * after one and the command still runs: the update it carries matches no
+   * row, the write "succeeds", and the host toasts "undone" over a screen
+   * where nothing moved — the silent no-op this issue was filed for. The
+   * commands that write a whole list back are worse than silent: re-upserting
+   * the snapshot would put the row the user just destroyed back in the DB.
+   *
+   * It is the WHOLE stack, not the deleted row's share of it, because a
+   * command names the domain that pushed it and nothing finer — there is no
+   * id to match on. The Todos section already settled the same question the
+   * same way (useTodoTreeDeletion.permanentDelete clears the history on its
+   * own permanent delete), and every press here passes a confirm that says
+   * "This cannot be undone" first, so an emptied history is what the user was
+   * promised rather than a surprise.
+   *
+   * Read through a ref: the context value's identity changes on every stack
+   * mutation, so holding it in the handlers' dependency lists would rebuild
+   * them after each push for a value only ever read once the click's await
+   * has already resolved.
+   */
+  const undoRedo = useUndoRedoOptional();
+  const undoRedoRef = useRef(undoRedo);
+  // Mirrored in an effect, not during render (#505) — the handlers read it
+  // after a commit, so the two are the same value either way.
+  useEffect(() => {
+    undoRedoRef.current = undoRedo;
+  });
+  const dropUndoHistory = useCallback(() => {
+    undoRedoRef.current?.clear();
+  }, []);
   const [rows, setRows] = useState<DeletedRows>(NO_ROWS);
   // Only the error-card retry raises the skeleton by hand; the mount load has
   // useDomainLoad's derived `isLoading` for that.
@@ -250,12 +285,13 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
       setBusy({ category, id, action: "delete" });
       try {
         await permanentDeleteByCategory(ds, category, id);
+        dropUndoHistory();
         await reload();
       } finally {
         setBusy(null);
       }
     },
-    [ds, reload],
+    [ds, reload, dropUndoHistory],
   );
 
   /*
@@ -301,10 +337,15 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
       }
       setBulkFailures(failures);
       if (conflict) setRestoreNotice("conflict");
+      // Same reasoning as the single-row path (#1876), asked of the run as a
+      // whole: one row that actually left the DB is enough to make the rest of
+      // the history untrustworthy. A run where every row refused deleted
+      // nothing, so it leaves the history alone.
+      if (action === "delete" && failures < refs.length) dropUndoHistory();
       await reload();
       setBulkBusy(null);
     },
-    [reload],
+    [reload, dropUndoHistory],
   );
 
   const handleRestoreMany = useCallback(

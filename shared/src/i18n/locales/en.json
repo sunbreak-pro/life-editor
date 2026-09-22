@@ -375,6 +375,7 @@
     "sessionsPerSet": "Sessions per set",
     "presets": "Presets",
     "deletePreset": "Delete preset",
+    "deletePresetConfirm": "Delete the preset “{{name}}”?",
     "autoStartBreaks": "Auto-start breaks",
     "emptyValue": "Enter a number for {{field}}"
   },
@@ -415,6 +416,14 @@
       "bodyPlaceholder": "Write your note…",
       "untitled": "(untitled)",
       "lockedHint": "This note is locked",
+      "tableControls": {
+        "label": "Table controls",
+        "addRow": "Add row below",
+        "addColumn": "Add column right",
+        "deleteRow": "Delete row",
+        "deleteColumn": "Delete column",
+        "deleteTable": "Delete table"
+      },
       "mainEmpty": "Select a note or create a new one",
       "recentHeading": "Recently opened",
       "untagged": "No tag",
@@ -488,6 +497,8 @@
       "unpin": "Unpin entry",
       "pinned": "Pinned",
       "delete": "Delete entry",
+      "deleteConfirmBody": "Delete the entry for {{day}}? It goes to the trash, so you can restore it later.",
+      "deleteConfirmAction": "Delete",
       "moreActions": "More actions",
       "placeholder": "Write about your day…",
       "datePicker": "Pick a date",
@@ -816,6 +827,11 @@
     "sessions": "Sessions",
     "avgPerDay": "Avg / Day",
     "hours": "{{hours}}h {{minutes}}m",
+    "axis": {
+      "hoursOnly": "{{hours}}h",
+      "minutesOnly": "{{minutes}}m",
+      "weekFrom": "{{date}}–"
+    },
     "today": {
       "title": "Today",
       "workTime": "Work Time",
@@ -832,7 +848,8 @@
       "title": "Streaks",
       "current": "Current",
       "longest": "Longest",
-      "days": "days",
+      "days_one": "day",
+      "days_other": "days",
       "noStreak": "Start working to build a streak!"
     },
     "heatmap": {
@@ -841,6 +858,7 @@
       "less": "Less",
       "more": "More",
       "tooltip": "{{minutes}} min",
+      "cell": "{{day}} {{hour}}:00 · {{time}}",
       "mon": "Mon",
       "tue": "Tue",
       "wed": "Wed",
@@ -889,7 +907,8 @@
       "title": "Tag Usage",
       "tag": "Tag",
       "inRange": "Created in range",
-      "liveTotal": "Current total (all time)"
+      "liveTotal": "Current total (all time)",
+      "topOf": "Top {{shown}} of {{total}} tags"
     },
     "overview": {
       "todos": "Todos",
@@ -1185,7 +1204,8 @@
       "heading3": "Heading 3",
       "bulletList": "Bullet List",
       "orderedList": "Ordered List",
-      "taskList": "Todo List"
+      "taskList": "Todo List",
+      "table": "Table"
     }
   },
   "itemLink": {
@@ -1294,6 +1314,7 @@
       "goals": "Could not save your goals. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
       "focus": "Could not save tomorrow's focus. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again."
     },
+    "rowDeleted": "Deleted “{{title}}”. Undo in the header brings it back.",
     "tabsLabel": "Morning / Evening",
     "tabs": {
       "morning": "Morning",

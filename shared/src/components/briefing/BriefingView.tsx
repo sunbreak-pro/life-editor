@@ -207,10 +207,18 @@ export interface BriefingViewProps {
    * <ItemCreatePanel> and owns the write.
    */
   onAddScheduleItem: () => void;
-  /** Jumps to the Schedule section (host → nav). */
-  onJumpToSchedule: () => void;
-  /** Jumps to the Todos section (host → nav). */
-  onJumpToTodos: () => void;
+  /**
+   * Opens ONE event where it lives (host → nav), given its id (#1824).
+   *
+   * It took no argument until now and the host answered it with a bare section
+   * switch, so「編集」landed the reader on the Schedule section with nothing
+   * selected and no panel open — the button named an act it did not perform.
+   * The id is all the paper can offer; where a row opens is the host's to
+   * decide, and the shell already knows how (`navigateToItem`).
+   */
+  onJumpToSchedule: (id: string) => void;
+  /** The same for one todo — the paper's todo rows and its carryover rows. */
+  onJumpToTodos: (id: string) => void;
   /**
    * In-body 朝刊/夕刊 switcher for the NARROW layout (#318). AppShell only
    * renders its header slot on the wide branch, so below 768px the
@@ -582,8 +590,15 @@ export function BriefingView({
             </p>
           ))
         ) : (
-          <p className="flex items-center justify-center gap-2 text-sm text-lumen-text-secondary">
-            <Sunrise size={16} aria-hidden="true" />
+          /* `items-start` and not `items-center` (#1826). The sentence wraps
+             to three lines at 390px, and a centred icon floated beside the
+             SECOND one — it read as a bullet on the middle of the sentence
+             rather than as the mark in front of it. Starting the cross axis
+             puts it beside the first line at every width; `mt-0.5` is the 2px
+             that lines the 16px glyph up with the cap height of 20px text
+             instead of with its ascender. */
+          <p className="flex items-start justify-center gap-2 text-sm text-lumen-text-secondary">
+            <Sunrise size={16} aria-hidden="true" className="mt-0.5 shrink-0" />
             {labels.noFocus}
           </p>
         )}
@@ -723,7 +738,7 @@ export function BriefingView({
                   </button>
                   <RowActions>
                     <EditJumpButton
-                      onClick={onJumpToTodos}
+                      onClick={() => onJumpToTodos(todo.id)}
                       label={labels.edit}
                       hint={labels.jumpToTodos}
                     />
@@ -735,10 +750,19 @@ export function BriefingView({
                   </RowActions>
                 </div>
                 {/* Indented past the empty time column + checkbox so the
-                    purpose hangs under its own todo's title: the 56px time
-                    column, the 12px gap, the 44px checkbox, the 12px gap. */}
+                    purpose hangs under its own todo's title: the time column
+                    (`w-14` = 3.5rem), the `gap-3` (0.75rem), the checkbox
+                    (`min-w-11` = 2.75rem) and the second `gap-3`.
+
+                    In rem and never in px (#1821). Every one of those four
+                    widths is rem-based, so at the 18px root step the columns
+                    measure 139.5px while a fixed `ml-[124px]` stayed put — the
+                    purpose line started 16px to the LEFT of the title it hangs
+                    under, on Desktop and on a phone alike. 3.5 + 0.75 + 2.75 +
+                    0.75 = 7.75rem, which is the same 124px at the 16px root and
+                    follows the column at every other step. */}
                 {todo.purposes.length > 0 && (
-                  <p className="ml-[124px] mt-0.5 text-xs text-lumen-text-secondary">
+                  <p className="ml-[7.75rem] mt-0.5 text-xs text-lumen-text-secondary">
                     <span className="font-semibold text-lumen-briefing-kohaku">
                       ◈ {todo.purposes.join(" ・ ")}
                     </span>
@@ -776,7 +800,7 @@ export function BriefingView({
                     the routine tag keeps its place beside the title. */}
                 <RowActions>
                   <EditJumpButton
-                    onClick={onJumpToSchedule}
+                    onClick={() => onJumpToSchedule(item.id)}
                     label={labels.edit}
                     hint={labels.jumpToSchedule}
                   />
@@ -840,7 +864,7 @@ export function BriefingView({
                     act on a day the paper is not editing. */}
                 <RowActions>
                   <EditJumpButton
-                    onClick={onJumpToTodos}
+                    onClick={() => onJumpToTodos(item.id)}
                     label={labels.edit}
                     hint={labels.jumpToTodos}
                   />
