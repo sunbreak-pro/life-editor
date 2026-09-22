@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import {
   Lightbulb,
+  PanelRightOpen,
   SlidersHorizontal,
   Terminal,
   Trash2,
@@ -270,6 +271,14 @@ export function SettingsScreen({
     askedForPanelRef.current = true;
     openPanel();
   }, [isWide, openPanel]);
+  /*
+   * #1868 — the header toggle can still close that column, and the category
+   * list lives nowhere else: the body was left showing one category with no
+   * sign that others exist. Wide only (narrow reaches the list through the
+   * header's drawer button, and a closed drawer is its resting state), and
+   * `=== false` so a missing Provider reads as "nothing to bring back".
+   */
+  const categoriesHidden = isWide && rightSidebar?.isOpen === false;
 
   const px = fontSizeToPx(fontSize);
   const fontSizeValue = t("settings.fontSizeValue", {
@@ -665,6 +674,19 @@ export function SettingsScreen({
 
   return (
     <div ref={bodyRef} className="flex flex-col gap-6 pb-12">
+      {categoriesHidden && (
+        <div className="flex items-center justify-between gap-3 rounded-lumen-md border border-lumen-border bg-lumen-surface-sunken px-4 py-2">
+          <p className="text-sm text-lumen-text-secondary">
+            {t("settings.tabs.hiddenNote", {
+              category: tabs.find((row) => row.id === tab)?.label ?? "",
+            })}
+          </p>
+          <Button variant="secondary" size="sm" onClick={openPanel}>
+            <PanelRightOpen size={16} />
+            <span>{t("settings.tabs.showCategories")}</span>
+          </Button>
+        </div>
+      )}
       {tab === PROFILE_TAB_ID && (
         <div className={cardClass}>
           <SettingsProfile

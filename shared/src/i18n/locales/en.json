@@ -187,7 +187,9 @@
       "general": "General",
       "claude": "Claude",
       "trash": "Trash",
-      "tips": "Tips"
+      "tips": "Tips",
+      "hiddenNote": "Showing {{category}}. The other categories are in the details panel.",
+      "showCategories": "Show categories"
     },
     "trash": {
       "heading": "Trash",
