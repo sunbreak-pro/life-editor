@@ -70,6 +70,8 @@ export function TagPicker({
   const [pickerOpen, setPickerOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement | null>(null);
+  // The "+ Tag" button, so the picker can hand the focus back to it (#1841).
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
 
   // Assignments for this row come from the Context's bulk cache (one
   // query for the whole list, bucketed by itemId). `loading` follows the
@@ -91,6 +93,33 @@ export function TagPicker({
     };
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
+  }, [pickerOpen]);
+
+  /*
+   * Hand the focus back when the picker closes (#1841).
+   *
+   * Escape used to leave `document.activeElement` on <body>, so the next Tab
+   * restarted from the top of the page and the row the user was tagging was
+   * gone from under them. Same cleanup CommandPalette runs (#1874), and the
+   * same two guards:
+   *
+   *   - a focus that has already landed somewhere else is not ours to move.
+   *     Clicking outside the picker to close it means the user is looking at
+   *     whatever they clicked.
+   *   - a detached trigger is skipped. Focusing one does nothing, in silence,
+   *     and this picker is drawn inside menus that unmount with it.
+   *
+   * CommandPalette's other half -- reading the opener during render, because
+   * autoFocus may take it first -- is not needed here: the opener is this
+   * component's own button and nothing else can claim it.
+   */
+  useEffect(() => {
+    if (!pickerOpen) return;
+    return () => {
+      const now = document.activeElement;
+      if (now && now !== document.body) return;
+      if (triggerRef.current?.isConnected) triggerRef.current.focus();
+    };
   }, [pickerOpen]);
 
   const roleLabels = useMemo(
@@ -194,6 +223,7 @@ export function TagPicker({
           );
         })}
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setPickerOpen((v) => !v)}
         aria-label={t("materials.tags.pickerAdd")}
@@ -242,6 +272,12 @@ export function TagPicker({
               <li key={tag.id}>
                 <button
                   type="button"
+                  // Keep the focus in the field (#1841). Assigning a tag drops
+                  // it out of the candidate list, so the row the pointer just
+                  // pressed unmounts -- and a browser that had moved the focus
+                  // onto it drops that focus to <body>, where Escape no longer
+                  // closes anything. Same guard TimeRangeField's list uses.
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => void handleAssign(tag.id)}
                   className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
                 >
@@ -258,6 +294,10 @@ export function TagPicker({
               <li>
                 <button
                   type="button"
+                  // The row the issue was filed about: creating clears the
+                  // query, which is the condition that draws this row at all,
+                  // so it unmounts under the pointer. Same guard, same reason.
+                  onMouseDown={(e) => e.preventDefault()}
                   onClick={() => void handleCreateAndAssign()}
                   className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-accent hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
                 >
