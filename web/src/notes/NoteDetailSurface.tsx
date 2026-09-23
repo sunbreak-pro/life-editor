@@ -41,6 +41,10 @@ export interface NoteDetailLabels {
   registerTemplate: string;
   /** Kebab entry that pours a saved template into this note (#1181). */
   applyTemplate: string;
+  /** Kebab entry that puts a password on this note (#1843). */
+  setPassword: string;
+  /** Kebab entry that takes the password off this note (#1843). */
+  removePassword: string;
 }
 
 export interface NoteDetailSurfaceProps {
@@ -79,6 +83,13 @@ export interface NoteDetailSurfaceProps {
    * content replaced from a surface the lock does not cover.
    */
   onApplyTemplate?: () => void;
+  /**
+   * Open the password dialog from the kebab (#1843). The surface decides which
+   * of the two entries to draw from `note.hasPassword`, so the host hands over
+   * both and never has to keep the pair in step with the note itself.
+   */
+  onSetPassword?: (noteId: string) => void;
+  onRemovePassword?: (noteId: string) => void;
   /** Open with the title focused and selected (#1842 — a fresh note). */
   autoFocusTitle?: boolean;
   /** Fired once that focus has been taken, so the host can stop asking. */
@@ -98,9 +109,12 @@ export function NoteDetailSurface({
   linksSlot,
   onRegisterTemplate,
   onApplyTemplate,
+  onSetPassword,
+  onRemovePassword,
   autoFocusTitle,
   onTitleAutoFocused,
 }: NoteDetailSurfaceProps) {
+  const hasPassword = note.hasPassword === true;
   return (
     <NoteDetailPanel
       variant={variant}
@@ -120,6 +134,16 @@ export function NoteDetailSurface({
       registerTemplateLabel={labels.registerTemplate}
       onApplyTemplate={onApplyTemplate}
       applyTemplateLabel={labels.applyTemplate}
+      onSetPassword={
+        onSetPassword && !hasPassword ? () => onSetPassword(note.id) : undefined
+      }
+      setPasswordLabel={labels.setPassword}
+      onRemovePassword={
+        onRemovePassword && hasPassword
+          ? () => onRemovePassword(note.id)
+          : undefined
+      }
+      removePasswordLabel={labels.removePassword}
       autoFocusTitle={autoFocusTitle}
       onTitleAutoFocused={onTitleAutoFocused}
       tagsSlot={

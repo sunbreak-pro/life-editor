@@ -47,6 +47,8 @@ const state = vi.hoisted(() => ({
   tags: [] as unknown[],
   assignments: {} as Record<string, unknown[]>,
   searchQuery: "",
+  setNotePassword: vi.fn(),
+  removeNotePassword: vi.fn(),
   bodySearchFailed: false,
   setSelectedNoteId: vi.fn(),
   setSearchQuery: vi.fn(),
@@ -99,8 +101,8 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       permanentDeleteNote: state.permanentDeleteNote,
       updateNote: state.updateNote,
       togglePin: state.togglePin,
-      setNotePassword: vi.fn(),
-      removeNotePassword: vi.fn(),
+      setNotePassword: state.setNotePassword,
+      removeNotePassword: state.removeNotePassword,
       verifyNotePassword: vi.fn(),
     }),
     useWikiTagsUnifiedContext: () => ({
@@ -1033,6 +1035,97 @@ describe("NotesView — a search that matches nothing, on narrow (#1470)", () =>
 
     expect(state.setSearchQuery).toHaveBeenCalledWith("");
   });
+});
+
+/*
+ * #1843 / D-20260922-materials-1 = A — the way in to the note lock is back in
+ * the detail kebab. Both widths, because the kebab is the same panel on both
+ * and a phone has no other route to it. What has to hold:
+ *
+ *   - an unlocked note offers "set" and not "remove", and a locked one the
+ *     reverse — one row, the one thing that can be done
+ *   - "set" opens the dialog with the warning on screen before anything is
+ *     written, and writes only after the password is typed twice
+ *   - "remove" asks for the current password and hands it to the service
+ */
+describe("NotesView — the password entries in the kebab (#1843)", () => {
+  it.each([true, false])(
+    "sets a password after the warning (isWide=%s)",
+    async (isWide) => {
+      state.isWide = isWide;
+      state.selectedId = "note-a";
+      state.setNotePassword.mockResolvedValue(undefined);
+      render(<NotesView />);
+
+      fireEvent.click(screen.getByLabelText("notesView.moreActions"));
+      expect(
+        screen.queryByText("materials.notes.password.removeEntry"),
+      ).toBeNull();
+      fireEvent.click(screen.getByText("materials.notes.password.setEntry"));
+
+      const dialog = await screen.findByRole("dialog");
+      within(dialog).getByText("materials.notes.password.setWarning");
+      expect(state.setNotePassword).not.toHaveBeenCalled();
+
+      const fields = dialog.querySelectorAll('input[type="password"]');
+      expect(fields).toHaveLength(2);
+      fireEvent.change(fields[0], { target: { value: "hunter2" } });
+      fireEvent.change(fields[1], { target: { value: "hunter2" } });
+      fireEvent.click(
+        within(dialog).getByRole("button", {
+          name: "materials.notes.password.submit",
+        }),
+      );
+
+      await waitFor(() =>
+        expect(state.setNotePassword).toHaveBeenCalledExactlyOnceWith(
+          "note-a",
+          "hunter2",
+        ),
+      );
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    },
+  );
+
+  it.each([true, false])(
+    "removes a password with the current one (isWide=%s)",
+    async (isWide) => {
+      state.isWide = isWide;
+      state.notes = [
+        note({ id: "note-locked", title: "Sealed", hasPassword: true }),
+      ];
+      state.selectedId = "note-locked";
+      state.removeNotePassword.mockResolvedValue(undefined);
+      render(<NotesView />);
+
+      fireEvent.click(screen.getByLabelText("notesView.moreActions"));
+      expect(screen.queryByText("materials.notes.password.setEntry")).toBeNull();
+      fireEvent.click(
+        screen.getByText("materials.notes.password.removeEntry"),
+      );
+
+      const dialog = await screen.findByRole("dialog");
+      // Removing is not the decision the warning is about.
+      expect(
+        within(dialog).queryByText("materials.notes.password.setWarning"),
+      ).toBeNull();
+      const fields = dialog.querySelectorAll('input[type="password"]');
+      expect(fields).toHaveLength(1);
+      fireEvent.change(fields[0], { target: { value: "hunter2" } });
+      fireEvent.click(
+        within(dialog).getByRole("button", {
+          name: "materials.notes.password.submit",
+        }),
+      );
+
+      await waitFor(() =>
+        expect(state.removeNotePassword).toHaveBeenCalledExactlyOnceWith(
+          "note-locked",
+          "hunter2",
+        ),
+      );
+    },
+  );
 });
 
 /*

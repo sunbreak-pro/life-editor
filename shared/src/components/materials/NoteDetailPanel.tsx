@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { FileDown, FileStack, MoreHorizontal, Pin, Trash2 } from "lucide-react";
+import {
+  FileDown,
+  FileStack,
+  Lock,
+  LockOpen,
+  MoreHorizontal,
+  Pin,
+  Trash2,
+} from "lucide-react";
 import { cn } from "../cn";
 import { Menu, MenuItem } from "../Menu";
 import { FOCUS_RING } from "../styleTokens";
@@ -227,6 +235,23 @@ export interface NoteDetailPanelProps {
   onApplyTemplate?: () => void;
   /** Already-translated label for the apply-a-template menu entry. */
   applyTemplateLabel?: string;
+  /**
+   * Put a password on THIS note (#1843). Paired with `setPasswordLabel` on the
+   * same all-or-nothing rule as the rows above. The host passes it only while
+   * the note has no password, and `onRemovePassword` only while it has one, so
+   * the menu never offers both.
+   *
+   * It opens the host's password dialog rather than acting on the press: the
+   * dialog is where the "the body leaves the screen, and a forgotten password
+   * cannot be recovered" warning is read before anything is written.
+   */
+  onSetPassword?: () => void;
+  /** Already-translated label for the set-password menu entry. */
+  setPasswordLabel?: string;
+  /** Take the password off THIS note (#1843). Asks for the current one. */
+  onRemovePassword?: () => void;
+  /** Already-translated label for the remove-password menu entry. */
+  removePasswordLabel?: string;
   /** Host-injected tag UI (e.g. the WikiTags TagPicker). Omitted → no tag row. */
   tagsSlot?: ReactNode;
   /**
@@ -269,6 +294,10 @@ export function NoteDetailPanel({
   registerTemplateLabel,
   onApplyTemplate,
   applyTemplateLabel,
+  onSetPassword,
+  setPasswordLabel,
+  onRemovePassword,
+  removePasswordLabel,
   tagsSlot,
   linksSlot,
   contentLabel,
@@ -384,6 +413,34 @@ export function NoteDetailPanel({
                 }}
               >
                 {applyTemplateLabel}
+              </MenuItem>
+            )}
+            {/* #1843 — the lock sits just above the delete: it changes who can
+                read the body, which is heavier than the template rows and
+                lighter than removing the note. Only one of the pair is ever
+                passed, so the row reads as the one thing that can be done. */}
+            {onSetPassword && setPasswordLabel && (
+              <MenuItem
+                className={MENU_ITEM_TAP_FLOOR}
+                icon={<Lock size={14} aria-hidden />}
+                onSelect={() => {
+                  onSetPassword();
+                  setMenuOpen(false);
+                }}
+              >
+                {setPasswordLabel}
+              </MenuItem>
+            )}
+            {onRemovePassword && removePasswordLabel && (
+              <MenuItem
+                className={MENU_ITEM_TAP_FLOOR}
+                icon={<LockOpen size={14} aria-hidden />}
+                onSelect={() => {
+                  onRemovePassword();
+                  setMenuOpen(false);
+                }}
+              >
+                {removePasswordLabel}
               </MenuItem>
             )}
             <MenuItem

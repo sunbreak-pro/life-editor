@@ -23,6 +23,10 @@ export interface NotePasswordGate {
   closeDialog: () => void;
   /** Ask for the password that uncovers this note's body. */
   requestUnlock: (noteId: string) => void;
+  /** Open the dialog that puts a password on this note (#1843). */
+  requestSet: (noteId: string) => void;
+  /** Open the dialog that takes this note's password off (#1843). */
+  requestRemove: (noteId: string) => void;
   /**
    * Run the open dialog's action. Throws "wrong-password" on a failed verify —
    * the dialog renders that as its error and stays open.
@@ -49,6 +53,15 @@ export function useNotePassword({
       const { mode, noteId } = dialog;
       if (mode === "set") {
         await setNotePassword(noteId, password);
+        // A note unlocked earlier this session (then cleared, then locked
+        // again) must not stay open on the strength of the OLD password: the
+        // new lock covers the body from this moment, as the dialog said.
+        setUnlocked((prev) => {
+          if (!prev.has(noteId)) return prev;
+          const next = new Set(prev);
+          next.delete(noteId);
+          return next;
+        });
       } else if (mode === "remove") {
         await removeNotePassword(noteId, password);
       } else {
@@ -68,6 +81,8 @@ export function useNotePassword({
     dialog,
     closeDialog: () => setDialog(null),
     requestUnlock: (noteId: string) => setDialog({ mode: "verify", noteId }),
+    requestSet: (noteId: string) => setDialog({ mode: "set", noteId }),
+    requestRemove: (noteId: string) => setDialog({ mode: "remove", noteId }),
     submit,
     isGated: (note) => !!note?.hasPassword && !unlocked.has(note?.id ?? ""),
   };
