@@ -98,6 +98,9 @@ function makeHarness(initialNotes: NoteNode[] = []) {
     markLocalWrite,
     trackWrite,
     onWriteError,
+    // #1953: the host's translated placeholder. A non-English value, so a
+    // hard-coded English fallback coming back would fail the case below.
+    untitledTitle: "無題",
   };
 
   const hook = renderHook(() => useNotesUnifiedCRUD(params));
@@ -145,12 +148,14 @@ describe("createNote", () => {
     });
   });
 
-  it("falls back to Untitled for a blank title", () => {
+  it("falls back to the host's placeholder for a blank title (#1953)", () => {
     const h = makeHarness();
     h.crud.createNote();
-    expect(h.notes()[0]?.title).toBe("Untitled");
+    expect(h.notes()[0]?.title).toBe("無題");
     h.crud.createNote("");
-    expect(h.notes()[0]?.title).toBe("Untitled");
+    expect(h.notes()[0]?.title).toBe("無題");
+    // The row written to the server carries the same title the list shows.
+    expect(h.ds.createNoteUnified.mock.calls[0][0].title).toBe("無題");
   });
 
   it("marks the new note hydrated and locally written (M1 / #607)", () => {

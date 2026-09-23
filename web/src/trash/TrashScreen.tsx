@@ -138,7 +138,7 @@ export function TrashScreen({ dataService: ds }: TrashScreenProps) {
   /** How many rows a finished bulk run could not handle (0 = say nothing). */
   const [bulkFailures, setBulkFailures] = useState(0);
 
-  const untitled = t("common.untitled", { defaultValue: "Untitled" });
+  const untitled = t("common.untitled");
 
   const categoryTitle = useCallback(
     (category: TrashCategory): string => {

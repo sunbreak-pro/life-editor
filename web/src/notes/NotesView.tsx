@@ -405,10 +405,10 @@ export function NotesView({
 
   // ONE create at both widths (#1147, ユーザー指示): "+" makes an Untitled note
   // and drops straight into it — into the TITLE since #1842, which is the one
-  // thing "Untitled" is waiting for. Narrow used to raise a title-first
+  // thing the placeholder title is waiting for. Narrow used to raise a title-first
   // QuickAddSheet (#876's "a phone's create is usually the whole capture"),
   // which put a form between the user and the thing they wanted to write in.
-  // The sheet is gone; `createNote()` with no title falls back to "Untitled"
+  // The sheet is gone; `createNote()` with no title falls back to the placeholder title
   // (useNotesUnifiedCRUD) and selects the new note, so the body is already
   // mounted when the drawer gets out of the way.
   //
@@ -420,7 +420,7 @@ export function NotesView({
    * #1842 — the new note's title comes up selected.
    *
    * "+" left the focus on the button it was pressed with and the title reading
-   * "Untitled", so naming the thing you had just made meant finding the field,
+   * the placeholder title, so naming the thing you had just made meant finding the field,
    * clicking it and selecting the text by hand. The id is held here until the
    * field reports back rather than kept forever, so returning to the note
    * later does not re-select the title under whoever is reading it.

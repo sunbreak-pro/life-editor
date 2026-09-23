@@ -111,7 +111,7 @@ function NoteTitleInput({
 
   /*
    * #1842 — a note that has just been created opens with its name selected,
-   * so the first keystroke replaces "Untitled" instead of appending to it.
+   * so the first keystroke replaces the placeholder title instead of appending to it.
    *
    * Mount only, and the empty dependency list is load-bearing twice over.
    * Re-running it on a later render would select the text under someone who
