@@ -598,11 +598,11 @@ export function NotesView({
    * does reach this dialog -- the locked note's unlock prompt -- asked for a
    * password in English on a Japanese screen.
    *
-   * All thirteen strings move, not the four the unlock path uses. The set and
-   * remove modes are wired in the dialog and in useNotePassword but have no
-   * caller (#1843 again, and the decision about whether to give them one is
-   * queued rather than taken here). Moving half of them now would mean moving
-   * the other half again the moment that decision lands.
+   * All thirteen strings moved, not the four the unlock path uses: the set and
+   * remove modes had no caller then, and D-20260922-materials-1 = A has since
+   * given them one (the kebab's password entries). `setWarning` is the
+   * confirmation that decision asked for, read in the set dialog before the
+   * password is saved.
    *
    * `cancel` is the app's existing common.cancel rather than a fourteenth key:
    * this file already uses it two hundred lines down.
@@ -621,6 +621,7 @@ export function NotesView({
     wrongPassword: t("materials.notes.password.wrongPassword"),
     required: t("materials.notes.password.required"),
     saveFailed: t("materials.notes.password.saveFailed"),
+    setWarning: t("materials.notes.password.setWarning"),
   };
 
   const detailLabels = {
@@ -634,6 +635,8 @@ export function NotesView({
     lockedHint: t("materials.notes.lockedHint"),
     registerTemplate: t("materials.templates.menuEntry"),
     applyTemplate: t("materials.templates.applyMenuEntry"),
+    setPassword: t("materials.notes.password.setEntry"),
+    removePassword: t("materials.notes.password.removeEntry"),
   };
 
   // ---- The list (the detail panel's content, both widths) --------------
@@ -769,6 +772,12 @@ export function NotesView({
           onApplyTemplate={
             dataService && !bodyGated ? templateApply.begin : undefined
           }
+          // #1843 / D-20260922-materials-1 = A: the way in to the lock, back in
+          // the kebab. The surface shows "set" or "remove" from hasPassword;
+          // "remove" stays offered while the gate is up because the dialog
+          // asks for the current password before anything changes.
+          onSetPassword={password.requestSet}
+          onRemovePassword={password.requestRemove}
           // The note's item links, beside the tags (#884 — they were a
           // rightSidebar disclosure until that Issue). Wide only, which is
           // where #884 put them; narrow has never had a Links affordance, and

@@ -428,7 +428,10 @@
         "mismatch": "Passwords do not match.",
         "wrongPassword": "Incorrect password.",
         "required": "Password is required.",
-        "saveFailed": "Could not save. Please try again."
+        "saveFailed": "Could not save. Please try again.",
+        "setEntry": "Set password",
+        "removeEntry": "Remove password",
+        "setWarning": "Once the password is set, this note's body leaves the screen until it is unlocked. A forgotten password cannot be recovered, and the body cannot be read without it."
       },
       "tableControls": {
         "label": "Table controls",

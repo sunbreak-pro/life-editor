@@ -48,6 +48,12 @@ export interface NotePasswordDialogLabels {
   wrongPassword: string;
   required: string;
   saveFailed: string;
+  /**
+   * Shown in "set" mode only, above the fields (#1843 / D-20260922-materials-1):
+   * a locked body is not fetched at all (#1763), so it leaves the screen the
+   * moment the password is saved, and nothing can recover a forgotten one.
+   */
+  setWarning: string;
 }
 
 interface NotePasswordDialogProps {
@@ -65,6 +71,7 @@ export function NotePasswordDialog({
 }: NotePasswordDialogProps) {
   const headingId = useId();
   const errId = useId();
+  const warningId = useId();
   const firstFieldRef = useRef<HTMLInputElement>(null);
   const openerRef = useRef<HTMLElement | null>(null);
   const [password, setPassword] = useState("");
@@ -133,6 +140,7 @@ export function NotePasswordDialog({
         role="dialog"
         aria-modal="true"
         aria-labelledby={headingId}
+        aria-describedby={mode === "set" ? warningId : undefined}
         className="w-full max-w-sm rounded-lg border border-lumen-border bg-lumen-bg p-5 shadow-xl"
       >
         <h2
@@ -143,6 +151,20 @@ export function NotePasswordDialog({
         </h2>
 
         <form onSubmit={handleSubmit} className="space-y-3">
+          {mode === "set" && (
+            // Before the fields, so it is read before a password is typed —
+            // this is the confirmation the decision asked for, and the submit
+            // below is the act of accepting it. "status", not the warning
+            // tone's default "alert": it is part of the dialog, already read
+            // through aria-describedby, and the error line keeps the alert.
+            <NoticePanel
+              id={warningId}
+              variant="text"
+              tone="warning"
+              role="status"
+              message={labels.setWarning}
+            />
+          )}
           <label className="block text-sm text-lumen-text-secondary">
             {mode === "verify" || mode === "remove"
               ? labels.currentPasswordLabel

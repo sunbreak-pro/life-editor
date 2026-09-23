@@ -27,6 +27,7 @@ const LABELS = {
   wrongPassword: "That password is not right.",
   required: "A password is required.",
   saveFailed: "Could not save.",
+  setWarning: "The body leaves the screen. A lost password cannot be recovered.",
 };
 
 function renderDialog(mode: "set" | "remove" | "verify" = "set") {
@@ -141,3 +142,40 @@ function renderDialogIn(mode: "set" | "remove" | "verify") {
     />,
   );
 }
+
+/*
+ * #1843 / D-20260922-materials-1 = A — setting a password hides the body the
+ * moment it is saved (#1763 stops fetching it) and a forgotten one cannot be
+ * recovered. The set dialog has to say so BEFORE the fields, and only there:
+ * the unlock and remove dialogs are not the moment of that decision.
+ */
+describe("NotePasswordDialog — the set warning (#1843)", () => {
+  it("says what setting a password costs, and describes the dialog by it", () => {
+    renderDialog("set");
+
+    const dialog = screen.getByRole("dialog");
+    const describedBy = dialog.getAttribute("aria-describedby");
+    expect(describedBy).toBeTruthy();
+    const warning = document.getElementById(describedBy!);
+    expect(warning?.textContent).toContain(LABELS.setWarning);
+    // Before the first field, so it is read before anything is typed.
+    const field = dialog.querySelector('input[type="password"]');
+    expect(field).not.toBeNull();
+    expect(
+      warning!.compareDocumentPosition(field!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it.each(["verify", "remove"] as const)(
+    "does not show it in %s mode",
+    (mode) => {
+      renderDialog(mode);
+
+      expect(screen.queryByText(LABELS.setWarning)).toBeNull();
+      expect(
+        screen.getByRole("dialog").getAttribute("aria-describedby"),
+      ).toBeNull();
+    },
+  );
+});
