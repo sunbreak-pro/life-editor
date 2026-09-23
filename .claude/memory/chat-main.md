@@ -12,7 +12,8 @@
 - 裏取り済み → **2026-09-07 の実測で条件が判明**: 「壊れているため開けません」が出るのは `.dmg` に `com.apple.quarantine` が付いている時**だけ**。ブラウザ / Mail は付け、`gh run download` / `curl` は付けない → **Release から落とす配布先は全員が当たるので回避手順（システム設定の「このまま開く」or `xattr -dr`）は残す**が、CI artifact 経由なら警告ゼロで起動する。署名も「無い」のではなく **ad-hoc（linker-signed）が実在**し、`spctl -a` が「壊れた署名」として reject する形。**ad-hoc 署名（`identity: "-"`）はビルドしたマシンでしか動かないので配布の答えにならない**（ここは不変）
 - 現在（2026-09-07）: **Step 8 = macOS 実機受け入れ通過 → 移行 SSOT の Phase 3 完了判定 3 項目が全部埋まった**（docs 追随 = **PR #1565 open**）。run 33958069275 の `desktop-macos` artifact を Apple Silicon 実機へ入れ、起動 / **プロセス 4 本** / 描画 / `app.asar` の Supabase ホスト / **Dock アイコン（icns 由来）** / **メニューバーのトレイ常駐** / ログイン → 全 Section を確認（最後の 1 つはユーザー目視）。**ローカル `npm run build:mac` は使っていない** — 実 DMG は数 GB 食う + 「配る物そのものを受け入れる」原則。旧 Tauri 版（`com.lifeEditor.app.newlife` / 26 MB）は `/Applications` から退けた（`cp -R` は既存 bundle を置き換えないので必須手順）。**事故 1 件** = ログイン確認を自動化しようと `System Events` の座標クリックを撃ったら無関係なアプリの画面に落ちた（実害なし・README に禁止として明記）
 - 次: **残りは 🛑 ユーザー手番 2 つだけ** = ① Step 6 = `git tag desktop-v0.1.0 && git push origin desktop-v0.1.0`（draft Release に `.dmg` / `.exe` が載り、#1301 / #1300 の DoD が埋まる）② Step 7 の最後の 1 項目 = Windows 実機での実アカウントログイン + Todo CRUD。#1301 は open のまま（Release 側が DoD に残るため）。Linux AppImage の実ビルドだけは未実測で、`release-desktop.yml` に linux ジョブが無い（起票するかは未判断）
-- 保留: **D-20260830-main-1 = Intel Mac 向け x64 `.dmg` を配るか** — 2026-08-31 に**ユーザーが「とりあえず放置」と裁定**。計画書どおり両アーキをビルドし、受け入れ対象は arm64 のみに留める（安全側）
+- 現在（2026-09-23）: 棚卸しで **Electron 33 系が約 17 か月セキュリティ更新を受けていない**ことが分かり **#1987**（44 系へ更新・配布前 2/4）を起票。draft Release は存在し、残りは Windows 実機 + 公開判断（棚卸し報告書 §2-2）
+- 保留: ~~D-20260830-main-1~~ → **D-20260830-main-3 = A で決着**（Intel Mac 向け x64 `.dmg` は配らず arm64 のみ。2026-09-09 回答・ID は台帳で振り直し）
 
 ### 🔧 Loop Engineering 親計画 Phase 1 + 2（夜間レーン 2 本 + 毎朝 digest）（着手日: 2026-08-04）
 
@@ -62,11 +63,11 @@
 
 ## 直近の完了
 
+- [chat-main] **棚卸し 3 本（デッドコード / 未完了 / 製品基準）→ 報告書 + 裁定 4 件を実行** ✅（2026-09-23）— 3 並列サブエージェント + 自分で Supabase の migration 台帳を CLI 実測。**0030（タグ表示色）が本番未適用**が最大の発見（push は auto mode で止まり 🛑 ユーザー手番 = `cd supabase && npm run db:push`）。デッドコード = 完全孤立 0 / 退役残骸 0 / 消して安全 約 500 行 → **#1985 + PR**（worktree `main-deadcode`）。製品基準 = 認証・RLS・法務・テストは水準、欠けは配布 4 点 → **#1986（SMTP）→ #1987（Electron 44）→ #1988（JSON エクスポート）→ #1989（ヘルプ導線）**の順（D-20260923-main-2）。**移行 SSOT の Phase 5 完成条件を書き換え = PR #1990**（自動更新は完成後 / MCP 条件は Desktop 起動導線 + Remote MCP / Phase 4 除外 = D-20260923-main-1）。報告書 = `docs/reports/2026-09-23-product-audit.html`（Artifact https://claude.ai/artifact/6uBiKGVjaDjeHWN98iUdy3）。詳細 = history 2026-09-23
+
 - [chat-main] **outbox 棚卸し → 起票 8 本（#1667〜#1674）+ 依頼 1 件を実測で差し戻し** ✅（2026-09-16）— outbox 21 本と判断キュー 12 本を全数読み、未処理の起票依頼 10 件を裁いた。起票 = #1667 タグの付け外しが Undo に載らない / #1668 Undo 失敗でも成功トースト / #1669 MCP の削除が dismiss を通らない（`[mcp-tools]`）/ #1670 Trash 復元が #932 のロールバックを通らない / #1671 #1409 の schedule 分の実ブラウザ確認（`[main]`）/ #1672 `<kbd>` 5 箇所の書体 / #1673 briefingEveningLazyMount の flake / #1674 添付アップロードの進捗表示。**F-05 は起票せず差し戻し** — `useBriefingWrites.ts:65-66` が undo を持ち `:332-334` が fill は no-op と書いており、依頼の前提 2 つがコードに否定された。D-05 は #1642 の W5 が直すため起票不要。古い依頼（2026-07〜08）は #1001〜#1008 / #1097 / #1220 / #1615 に全部着地済みを実測。レポート = `docs/reports/2026-09-16-outbox-triage.html`（Artifact v2）。🛑 残り = 未回答の判断 4 件 + migration 0029 / 0030 の適用確認。詳細 = history 2026-09-16 (2)
 
 - [chat-main] **Connect ワークベンチ計画の Steps 0 — docs PR #1647 + 実装 Issue 4 本を起票** ✅（2026-09-16）— 計画書 `2026-09-14-connect-tag-link-workbench.md` の分担表 順 2〜5 を `section:connect` + `type:feature` で起票（#1643 タグ編集の統合 / #1644 一括操作とタグ統合 / #1645 近傍モードとリンク / #1646 Mobile 3 段）。DoD は計画書の Steps と Acceptance から機械検証できる形へ。表の「未起票」を番号に置換し Status を IN PROGRESS へ、#1631 には「タグ編集パネル側は #1643 でパネルごと退役するため Connect 側だけを直す」とコメント。未追跡だった計画書 / brief / D-20260912-main-1 / 再定義レポートは docs PR #1647 で main へ（`records.mjs check` が `ANSWERS.md` の回答行欠落で落ちたため 1 行追記）。**`section:connect` の open = 5 件**（#1631 → #1643 → #1644 → #1645 → #1646 の順）。🛑 ユーザー手番 = PR #1647 の merge。詳細 = history 2026-09-16
-
-- [chat-main] **Issue 33 件を 9 レーンへ `/goal` 組み立て + 同日 merge の Mobile 修正 6 本を実ブラウザ検証（PASS 5 / N/A 1）** ✅（2026-09-06）— `issue-prompter` で 23 件を 9 レーンに配布（#1512 は共有部品分だけ shared-fix へ・画面別分は後で割り直し）。采配残 = #1526（`section:settings` + `section:tags` の 2 ラベル）/ #1300（残りはリリース workflow 初回実行 = 人手）/ #1301（#1300 待ち）。検証 = main 8560feda・390×844 で #1513 / #1524 / #1525 / #1527、1280 で #1485 が PASS、#1520 はルーチン 0 件で N/A。**#1524 は 0029 未適用の本物の 1 系統失敗**で他カードが生きることを確認。console error 増分 0。6 Issue にコメント済み。副産物 = `[web RichTextEditor] TipTap content schema error: Invalid JSON content` の warning がノート表示で複数回出る（#1521 の callout と同根の可能性・未起票）。詳細 = history 2026-09-06
 
 ## 予定
 

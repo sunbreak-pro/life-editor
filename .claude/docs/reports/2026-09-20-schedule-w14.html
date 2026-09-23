@@ -1,0 +1,207 @@
+<title>Schedule W14 Verification</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --muted: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --muted: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --muted: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.skip .tag { color: var(--stop); }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.state { white-space: nowrap; font-weight: 700; }
+  td.state.yes { color: var(--ok); }
+  td.state.no { color: var(--muted); font-weight: 400; }
+  td.state.maybe { color: var(--warn); }
+  td.id { white-space: nowrap; font-family: "IBM Plex Mono", monospace; font-size: 13px; }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .note { font-size: 14px; color: var(--muted); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0 0 16px; font-size: 15px; }
+  dt { font-weight: 700; white-space: nowrap; }
+  dd { margin: 0; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-20 / 検証 / life-editor</p>
+    <h1>Schedule の W14 は通った。ただし握りつぶしが 3 件残る</h1>
+    <p class="lede">#1642 の実ブラウザ検証（S01〜S23 × Desktop 1440 と 390 幅）は全シナリオ合格でした。計画書が「未確認」としていた K-08 / K-12 / B-14 は 3 件とも画面で再現し、どれも失敗が利用者に見えない形です。</p>
+  </header>
+
+  <ul class="verdicts">
+    <li class="verdict now"><span class="tag">合格</span><h3>S01〜S23 の 23 シナリオ</h3><p>Desktop と 390 幅の両方。390 幅の 5 件は「経路が無いことの確認」で、計画どおり。</p></li>
+    <li class="verdict later"><span class="tag">起票して直す</span><h3>K-08 / K-12 / B-14</h3><p>3 件とも再現。繰り返しの解除でタグが消える、生成の失敗が無言、変換の Undo が二重トースト。</p></li>
+    <li class="verdict skip"><span class="tag">棚卸しの訂正</span><h3>A-01 と B-01</h3><p>計画書は「未対応」と書くが、実機では両方とも直っていた。表の記述を実態に合わせる。</p></li>
+  </ul>
+
+  <div class="callout prose"><strong>前提</strong>: main <code>2abbd0d9</code> の実ブラウザで実施。console error は 5 件だけで、全部この検証がわざと起こした通信断です。それ以外は 0 件で、計画書の合格条件を満たします。</div>
+
+  <h2>シナリオ結果</h2>
+  <p class="prose">N-A は「その幅に経路が無いことを確認した」という意味で、計画書の 390 幅の列がもともとそう指定しています。</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>#</th><th>シナリオ</th><th>Desktop</th><th>390px</th><th>所見</th></tr></thead>
+      <tbody>
+        <tr><td class="id">S01</td><td>週 / 月ビューの切替と日付移動</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>390 幅は月固定でタブ自体が無い</td></tr>
+        <tr><td class="id">S02</td><td>予定の作成 → 改名 → 削除 → Trash 復元</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>390 幅は日セルのシートから作成</td></tr>
+        <tr><td class="id">S03</td><td>時間帯の移動とリサイズ</td><td class="state yes">PASS</td><td class="state no">N-A</td><td>390 幅に時間グリッドが無い</td></tr>
+        <tr><td class="id">S04</td><td>終日レーンへの drop と解除</td><td class="state yes">PASS</td><td class="state no">N-A</td><td>解除はエディタのスイッチのみ</td></tr>
+        <tr><td class="id">S05</td><td>繰り返しの作成と範囲別の編集</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>この回のみ / これ以降が正しく分岐</td></tr>
+        <tr><td class="id">S06</td><td>繰り返しの削除（3 範囲）</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>390 幅は「この回だけ」のみ</td></tr>
+        <tr><td class="id">S07</td><td>繰り返しを「なし」に戻す</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>seed 1 件とタグが残る</td></tr>
+        <tr><td class="id">S08</td><td>タグ付き Event の繰り返し化</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>#1632 は直っている</td></tr>
+        <tr><td class="id">S09</td><td>Event → Todo 変換</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>2 経路とも同じ確認ダイアログ</td></tr>
+        <tr><td class="id">S10</td><td>Todo → Event 変換</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>成功トーストが無い（K-11 を裏づけ）</td></tr>
+        <tr><td class="id">S11</td><td>各操作直後の Undo → Redo</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>6 種で確認・トーストは 1 回ずつ</td></tr>
+        <tr><td class="id">S12</td><td>繰り返しの Undo 確認ダイアログ</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>範囲で文面が変わる</td></tr>
+        <tr><td class="id">S13</td><td>タグフィルタの適用と解除</td><td class="state yes">PASS</td><td class="state no">N-A</td><td>390 幅に開くボタンが無い</td></tr>
+        <tr><td class="id">S14</td><td>「繰り返しを隠す」の切替</td><td class="state yes">PASS</td><td class="state no">N-A</td><td>同上</td></tr>
+        <tr><td class="id">S15</td><td>rightSidebar の 3 タブ</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>Skipped の Restore も動く</td></tr>
+        <tr><td class="id">S16</td><td>Todo をカレンダーへ drag</td><td class="state yes">PASS</td><td class="state no">N-A</td><td>週と月の両方に着地</td></tr>
+        <tr><td class="id">S17</td><td>Todo の完了・削除（3 経路）</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>確認の有無の差は意図どおり</td></tr>
+        <tr><td class="id">S18</td><td>繰り返しの日付だけ変更</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>範囲を聞かない（E-02 どおり）</td></tr>
+        <tr><td class="id">S19</td><td>繰り返しの頻度を変更</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>範囲を聞かない（E-08 どおり）</td></tr>
+        <tr><td class="id">S20</td><td>タグの付け外しと Undo</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>付与は Undo に載る（A-01 の記述と不一致）</td></tr>
+        <tr><td class="id">S21</td><td>連続操作で値が戻らないこと</td><td class="state yes">PASS</td><td class="state no">—</td><td>計画書が Desktop のみ指定</td></tr>
+        <tr><td class="id">S22</td><td>セクション往復後の Undo</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>B-01 は解消済み</td></tr>
+        <tr><td class="id">S23</td><td>リロード後のデータ保持</td><td class="state yes">PASS</td><td class="state yes">PASS</td><td>件数が前後で一致</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>再現した 3 件</h2>
+  <p class="prose">どれも「失敗が利用者に見えない」という共通の形です。計画書では推定どまりでしたが、今回すべて画面で確認しました。</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>ID</th><th>症状</th><th>再現手順</th><th>出どころ</th></tr></thead>
+      <tbody>
+        <tr>
+          <td class="id">K-08</td>
+          <td>繰り返しを途中から削除すると、生き残った過去の回からタグが消える</td>
+          <td>タグ付きの予定を Daily の繰り返しにして保存 → 中間の回を削除 →「これ以降すべて」→ 過去の回を開く</td>
+          <td><code>useRepeatMutations.ts:671</code> と <code>:962</code> の呼び分けが非対称</td>
+        </tr>
+        <tr>
+          <td class="id">K-12</td>
+          <td>繰り返しの回の生成に失敗しても、何も表示されない</td>
+          <td>一括 INSERT を通信断にして Event を Daily に変換 → routine だけができ、回が 0 件</td>
+          <td><code>onRepeatConvertFailed("materialise")</code> に到達しない</td>
+        </tr>
+        <tr>
+          <td class="id">B-14</td>
+          <td>変換の Undo が失敗しても、成功のトーストが重なって出る</td>
+          <td>Event → Todo 変換 → 書き込みを失敗させる → ヘッダーの Undo</td>
+          <td><code>useItemConversion.ts</code> の catch が例外を握りつぶす</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>計画書の訂正が要る点</h2>
+  <ul class="prose">
+    <li><strong>A-01</strong>: 「タグの付け外しは Undo に載らない」と書いていますが、付与は載っていました。Undo でタグが外れ、トーストも出ます。</li>
+    <li><strong>B-01</strong>: 「セクションを移動すると Undo が消える」と書いていますが、往復後も履歴は残り、実際に戻せました。#1727 の修正が効いています。</li>
+    <li><strong>E-09</strong>: 未来の回から「これ以降すべて削除」をすると、繰り返しが Repeats タブから消え、過去の回だけが親のいない状態で残ります。計画書の記述どおりでした。</li>
+  </ul>
+
+  <h2>未確認のこと</h2>
+  <ul class="prose">
+    <li><strong>タグを外す操作の Undo</strong>。タグピッカーで同じタグを 2 度押しても外れず、外す経路そのものを見つけられませんでした。</li>
+    <li><strong>A-02（スキップ取り消しが Undo に載るか）</strong>。サイドバーの Restore は動きましたが、そのときの Undo の中身を切り分けられませんでした。</li>
+    <li><strong>低確信の観測が 1 件</strong>。繰り返しを「なし」に戻したあと、同名の回がもう 1 件残り、その行を改名すると範囲を聞くダイアログが出ました。操作順のせいの可能性を消せていないので、起票の前に 1 回手で再現してください。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+  <ul class="prose">
+    <li><strong>K-08 / K-12 / B-14 を起票するか</strong>。3 件とも schedule レーン宛てで、B-14 は計画書にすでに載っています。</li>
+    <li><strong>D-20260919-sched-6</strong>（<code>CalendarTab.tsx</code> の行数の上限）。この回答が無いと、#1642 は合格条件を満たせず close できません。</li>
+    <li><strong>ツアーの Escape 再開</strong>（#1121）。5/10 ではなく 4/10 に戻る挙動を、直すかコメントを実態に合わせるか。</li>
+  </ul>
+
+  <p class="note">スクリーンショット 47 枚 = <code>.claude/reports/2026-09-20-schedule-w14/</code>。残っていた過去の検証データ（PWTEST / PWVERIFY / 検証 系）には触れていません。今回作ったデータはゴミ箱からも完全に削除済みです。</p>
+</div>

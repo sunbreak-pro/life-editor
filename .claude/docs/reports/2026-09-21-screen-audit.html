@@ -1,0 +1,249 @@
+<title>画面別 検証結果</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --muted: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --muted: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --muted: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.skip .tag { color: var(--stop); }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); margin: 16px 0 20px; }
+  .step { padding: 18px 20px; border-right: 1px solid var(--line); }
+  .step:last-child { border-right: 0; }
+  .step .n { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent); font-weight: 500; letter-spacing: .08em; }
+  .step h3 { margin: 4px 0 6px; font-size: 17px; }
+  .step p { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+  .step code { font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
+  @media (max-width: 720px) { .flow { grid-template-columns: 1fr; } .step { border-right: 0; border-bottom: 1px solid var(--line); } .step:last-child { border-bottom: 0; } }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.state { white-space: nowrap; font-weight: 700; }
+  td.state.yes { color: var(--ok); }
+  td.state.no { color: var(--muted); font-weight: 400; }
+  td.state.maybe { color: var(--warn); }
+  td.state.stop { color: var(--stop); }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .note { font-size: 14px; color: var(--muted); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0 0 16px; font-size: 15px; }
+  dt { font-weight: 700; white-space: nowrap; }
+  dd { margin: 0; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-21 / 検証 / life-editor</p>
+    <h1>7 画面を実ブラウザで検証し、不具合を 58 本の Issue にしました</h1>
+    <p class="lede">使えない状態の不具合が 3 本あり、そのうち 1 本は Work の作業実績が失われ続けるものです。ほかに重要が 16 本、軽微が 39 本あります。</p>
+  </header>
+  <ul class="verdicts">
+    <li class="verdict skip"><span class="tag">最優先で直す</span><h3>使えない状態が 3 本あります</h3><p>一時停止を挟んだ作業が記録されません（#1853）。Connect の一括タグ付けがマウスから使えません（#1845）。スマホ幅の「関連」シートが閉じられません（#1846）。</p></li>
+    <li class="verdict now"><span class="tag">並べて直せる</span><h3>判断なしで着手できるものが大半です</h3><p>画面ごとの作業場所に分ければ同時に進められます。貼り付け用の指示文はチャットに出しています。</p></li>
+    <li class="verdict later"><span class="tag">こうだいさんの判断待ち</span><h3>直し方が 2 通りに割れるものが 9 本あります</h3><p>下の「次に判断が要る点」に並べました。決まるまで配りません。</p></li>
+  </ul>
+  <div class="callout prose"><strong>検証の条件</strong>: main を最新（cba727d3）に揃え、画面ごとに Opus の検証エージェントを 1 体ずつ順番に動かしました。PC 幅 1440px とスマホ幅 390px、ライトとダーク、英語と日本語を見ています。コードの行を引用した指摘は、起票前に私がその行を開いて確かめました。</div>
+
+  <h2>画面ごとの結果</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>画面</th><th>見つけた件数</th><th>Issue の本数</th><th>いちばん重いもの</th></tr></thead>
+    <tbody>
+      <tr><td>Briefing</td><td>8</td><td>7</td><td>スマホ幅で予定行の題名の列が 69〜88px に潰れます（#1820）。</td></tr>
+      <tr><td>Schedule</td><td>12</td><td>9</td><td>月表示のセルが時刻順に並びません（#1828）。英語ではルーチン名が消えます（#1827）。</td></tr>
+      <tr><td>Materials</td><td>11</td><td>9</td><td>URL を打って続けて入力すると、リンクカードごと URL が消えます（#1836）。</td></tr>
+      <tr><td>Connect</td><td>12</td><td>8</td><td>一括タグ付けの候補が選択バーに切り取られて見えません（#1845）。</td></tr>
+      <tr><td>Work</td><td>9</td><td>6</td><td>一時停止して再開した作業が記録されません（#1853）。</td></tr>
+      <tr><td>Analytics</td><td>14</td><td>9</td><td>期間の切替が効かない場所でも押せます（#1859）。数値の計算は実データと一致しました。</td></tr>
+      <tr><td>Settings とゴミ箱</td><td>12</td><td>10</td><td>右パネルを閉じるとカテゴリの一覧ごと消えます（#1868）。</td></tr>
+    </tbody>
+  </table></div>
+
+  <h2>起票した Issue の一覧</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>番号</th><th>宛先</th><th>重さ</th><th>内容</th></tr></thead>
+    <tbody>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1820">#1820</a></td><td>briefing</td><td class="state maybe">重要</td><td>Mobile 幅で TODAY&apos;S SCHEDULE のタイトル列が 69〜88px に潰れ、短い題名も 2〜3 行に折り返す</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1821">#1821</a></td><td>briefing</td><td class="state no">軽微</td><td>Todo 行の目的行（◈）が固定 124px の字下げで、root 18px ではタイトルから 16px ずれる</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1822">#1822</a></td><td>briefing</td><td class="state no">軽微</td><td>夕刊「CLOSING THE DAY」の保存表示が、未記入の日にも打鍵直後にも「Saved」と出る</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1823">#1823</a></td><td>briefing</td><td class="state no">軽微</td><td>詳細パネルのストリークが en で「1 days」になる（単数形なし）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1824">#1824</a></td><td>briefing</td><td class="state no">軽微</td><td>行の「Edit」が Todo / Event とも Schedule の Week タブに着地するだけで、対象アイテムを開かない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1825">#1825</a></td><td>briefing</td><td class="state no">軽微</td><td>紙面の行の Delete が確認もトーストも無く即実行され、Undo できる手がかりが画面に出ない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1826">#1826</a></td><td>briefing</td><td class="state no">軽微</td><td>見た目の細部 2 点 — 詳細パネルの見出しが Todo 一覧と 0px で密着 / Mobile の空フォーカスでアイコンが 2 行目の横に浮く</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1827">#1827</a></td><td>schedule</td><td class="state maybe">重要</td><td>en で「My routines」のルーチン名が幅 1px に潰れて消える（頻度ラベルが shrink-0 でタイトルだけ縮む）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1828">#1828</a></td><td>schedule</td><td class="state maybe">重要</td><td>Month のセルが時刻順に並ばない（作成順 + events → Todo チップの連結のまま）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1829">#1829</a></td><td>schedule</td><td class="state no">軽微</td><td>Desktop の Month で「+N more」が押せず、3 件目以降のアイテムに到達できない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1830">#1830</a></td><td>schedule</td><td class="state maybe">重要</td><td>Repeats の「Show the next one」が週だけ移動し、縦スクロールしないので次の回が画面外のまま</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1831">#1831</a></td><td>schedule</td><td class="state no">軽微</td><td>終日チップを別の曜日列の時間グリッドへ落としても、日付が元のまま時刻だけ変わる</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1832">#1832</a></td><td>schedule</td><td class="state no">軽微</td><td>Mobile 幅の Details ドロワーに 44px 未満のタップ目標が 4 種残る</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1833">#1833</a></td><td>schedule</td><td class="state no">軽微</td><td>「Change the time」で開始だけ動かすと終了が追従せず、所要時間が伸び縮みする（Add item パネルと挙動が割れている）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1834">#1834</a></td><td>schedule</td><td class="state no">軽微</td><td>a11y / 操作の手がかり 2 点 — Todo チップのポップオーバーが「Event actions」と名乗る / Todo details の「SCHEDULED」が見出しの体裁の折りたたみボタン</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1835">#1835</a></td><td>schedule</td><td class="state no">軽微</td><td>見た目の細部 2 点 — Week のブロックが高さに余裕があってもタイトルを 1 行で切る / Mobile の Month 下に 123px の空白</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1836">#1836</a></td><td>materials</td><td class="state maybe">重要</td><td>URL を打ってスペース → 続けて入力すると、生成されたリンクカードごと URL が消える</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1837">#1837</a></td><td>materials</td><td class="state maybe">重要</td><td>ノート検索が本文に当たらない — サーバ側の本文検索は実装済みだが UI から呼ばれていない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1838">#1838</a></td><td>materials</td><td class="state no">軽微</td><td>Daily の「Delete entry」だけ確認が無く、1 日分の日記が 1 クリックで消える</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1839">#1839</a></td><td>materials</td><td class="state no">軽微</td><td>Daily の状態表示 3 点 — 未作成の日にも「Saved」/ 一覧の選択色が前の日に残る / 絞り込み 0 件で空状態の文言が無い</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1840">#1840</a></td><td>materials</td><td class="state maybe">重要</td><td>Mobile 幅: ドロワーのノート行で、見えない削除ボタン（opacity 0）がタップに反応する + 44px 未満が 6 種</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1841">#1841</a></td><td>materials</td><td class="state no">軽微</td><td>タグピッカーで「Create …」をクリックすると focus が body へ飛び、Esc で閉じられない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1842">#1842</a></td><td>materials</td><td class="state no">軽微</td><td>Notes の小さな操作性 2 点 — グループの「Show N more」を畳み直せない / 新規ノートのタイトルに focus が入らない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1843">#1843</a></td><td>materials</td><td class="state no">軽微</td><td>ノートのパスワードを掛ける / 外す入口が UI に無い（verify だけ配線済み）+ ダイアログ文言がハードコード英語</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1844">#1844</a></td><td>materials</td><td class="state no">軽微</td><td>Light テーマで件数の数字とタグチップのコントラストが 4.5:1 未満</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1845">#1845</a></td><td>connect</td><td class="state stop">使えない</td><td>一括タグ付け / 移動のポップオーバーが選択バーに切り取られ、マウスから使えない（#1732 の overflow-x-auto の副作用）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1846">#1846</a></td><td>connect</td><td class="state stop">使えない</td><td>Mobile の「関連」ボトムシートが画面上端を突き抜け、タッチでは閉じられない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1847">#1847</a></td><td>connect</td><td class="state maybe">重要</td><td>既存名でのタグ作成 / 改名が 409 で落ちても画面に何も出ない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1848">#1848</a></td><td>connect</td><td class="state no">軽微</td><td>タグレールの手応え 2 点 — 作ったタグが畳まれた「Unused tags」に入って見えない / 絞り込みが未使用タグに効かず「該当なし」も出ない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1849">#1849</a></td><td>connect</td><td class="state no">軽微</td><td>Ctrl+5「Go to Tags」が何も起きない — 行き先を Connect にする</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1850">#1850</a></td><td>connect</td><td class="state no">軽微</td><td>Mobile のタグ操作シートに「統合」が無い（mobile-scope.md はタグ管理を Full としている）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1851">#1851</a></td><td>connect</td><td class="state no">軽微</td><td>Mobile の入口と編集シートの重複 2 点 — More の「Edit tags」と「Connect」が同じ着地 / Rename シートの裏で編集ブロックも開き Name 欄が 2 組見える</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1852">#1852</a></td><td>shared-fix</td><td class="state no">軽微</td><td>共有 Menu を Esc で閉じるとフォーカスが body に落ちる（起点ボタンへ戻らない）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1853">#1853</a></td><td>work</td><td class="state stop">使えない</td><td>一時停止 → 再開して完走したセッションが記録されない（完了モーダルは「Logged 1 min」と出るのに DB には停止前の欠片だけ）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1854">#1854</a></td><td>work</td><td class="state maybe">重要</td><td>完了モーダルを閉じた後の休憩（idle）で Skip が無効で、作業フェーズへ戻れない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1855">#1855</a></td><td>work</td><td class="state maybe">重要</td><td>Desktop で作業名が長いと選択チップが 1305px まで伸び、カードを突き抜けてタグ欄が画面外に出る</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1856">#1856</a></td><td>work</td><td class="state maybe">重要</td><td>Mobile 幅で「+ タグ」のポップオーバーが画面外（x=-39, y=734）に開き、ボタン自体も 69×31.5px</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1857">#1857</a></td><td>work</td><td class="state no">軽微</td><td>走行中にリロードするとタイマーが消え、timer_sessions に閉じられない行（ended_at=null）が残る</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1858">#1858</a></td><td>work</td><td class="state no">軽微</td><td>小さな 3 点 — 総時間だけ 0 埋めされない（01:00 / 1:00）/ プリセット削除に確認も Undo も無い / 別セクションにいる間タイマー走行中の手がかりが無い</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1859">#1859</a></td><td>analytics</td><td class="state maybe">重要</td><td>期間ピルが効かない場所でも押せる — Work タブは全カード無反応、Overview の 6 タイルも不変で窓がカードごとに違う</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1860">#1860</a></td><td>analytics</td><td class="state maybe">重要</td><td>Work Time by Tag が期間フィルタを無視して常に全期間（隣の Todo Completion Trend は期間で動く）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1861">#1861</a></td><td>analytics</td><td class="state maybe">重要</td><td>「All time」が 2020-01-01 固定で、トレンドのデータが右端 10px に潰れ、軸もツールチップも年が分からない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1862">#1862</a></td><td>analytics</td><td class="state no">軽微</td><td>Routine Completion Rates の 2 点 — 全角混じりのルーチン名が Y 軸の左で切れる / 全 0% のとき空の格子だけになる</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1863">#1863</a></td><td>analytics</td><td class="state maybe">重要</td><td>長い文字列で崩れる 2 点 — Tag Usage の表が長いタグ名でカードを突き抜ける / 詳細パネルを開くと Streaks の数値まで省略される（en）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1864">#1864</a></td><td>analytics</td><td class="state no">軽微</td><td>軸の単位と日付の書式がタブ内で不統一で、言語にも追随しない</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1865">#1865</a></td><td>analytics</td><td class="state no">軽微</td><td>セクションを往復するとタブは残るのに期間プリセットだけ 30 days に戻る</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1866">#1866</a></td><td>analytics</td><td class="state no">軽微</td><td>小さな 3 点 — ヒートマップだけ月曜始まり / Tag Usage が上位 10 件で無言に切れる / 日付軸の最終目盛だけ間隔が飛ぶ</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1867">#1867</a></td><td>analytics</td><td class="state no">軽微</td><td>Activity Heatmap がキーボードとスクリーンリーダーから読めず、ツールチップに曜日と時刻が無い</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1868">#1868</a></td><td>settings</td><td class="state maybe">重要</td><td>Desktop で Details パネルを閉じるとカテゴリナビごと消え、開いていた 1 カテゴリに固定される</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1869">#1869</a></td><td>settings</td><td class="state no">軽微</td><td>ショートカット記録中の修飾キーが Windows でも ⌘ / ⇧ / ⌥ で表示される</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1870">#1870</a></td><td>settings</td><td class="state no">軽微</td><td>Tips が「コマンドパレットからショートカットを変更できる」と言うが、パレットにその機能が無い</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1871">#1871</a></td><td>settings</td><td class="state no">軽微</td><td>スクロール位置の 2 点 — カテゴリを切り替えても先頭に戻らない / Trash の選択アクションバーが sticky でなく画面外（y=-208）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1872">#1872</a></td><td>settings</td><td class="state no">軽微</td><td>「Reset all shortcuts」だけ確認ダイアログが無く、押した瞬間に全ショートカットが既定へ戻る</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1873">#1873</a></td><td>settings</td><td class="state no">軽微</td><td>Mobile 幅の細部 2 点 — Settings に見出しが 1 つも無い / 狭幅では効かない「Opens on Week / Month」が操作できる</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1874">#1874</a></td><td>shared-fix</td><td class="state no">軽微</td><td>Modal を Esc で閉じるとフォーカスが body に落ちる（ショートカット編集・コマンドパレットで確認）</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1875">#1875</a></td><td>shared-fix</td><td class="state no">軽微</td><td>ColorPicker のパレットが親の幅いっぱいに伸び、Desktop で色見本が 86px 間隔に散らばる</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1876">#1876</a></td><td>shared-fix</td><td class="state no">軽微</td><td>完全削除したアイテムの Undo が無言で空振りし、Redo だけが有効になる</td></tr>
+<tr><td class="mono"><a href="https://github.com/sunbreak-pro/life-editor/issues/1877">#1877</a></td><td>shared-fix</td><td class="state no">軽微</td><td>shared/src/hooks/useTourProgress.ts に生の NUL バイトが入っていて、grep / rg がファイルごとスキップする</td></tr>
+    </tbody>
+  </table></div>
+  <p class="note prose">英語の「Every 1 days」は #1823 にコメントで追記したので、独立した Issue にはしていません。Settings の空のカテゴリ 4 つは予約枠とみて起票していません。</p>
+
+  <h2>置いた仮定</h2>
+  <ul class="prose">
+    <li>コメントに「意図的」と書いてある挙動でも、操作した結果が予想と食い違うものは起票しました。直すかどうかは Issue の中で判断できるようにしています。</li>
+    <li>細かい見た目の指摘は、同じファイルを直すもの同士を 1 本にまとめました。</li>
+  </ul>
+
+  <h2>未確認のこと</h2>
+  <ul class="prose">
+    <li>日本語入力の変換中の Enter は自動操作で再現できません。ノートの題名、タグ名、ショートカットの記録は手で確かめる必要があります。</li>
+    <li>Work の音は聞けないので、雑音の件（#1793）と完了チャイムの音量は見ていません。プレイリストは画面側の実装が無く、検証していません。</li>
+    <li>Analytics の長いタグ名の崩れ（#1863）は画面にテキストを差し込んで再現したもので、実際のタグでは確かめていません。</li>
+    <li>完全削除後の Undo の空振り（#1876）は 1 回しか再現していません。</li>
+    <li>実機のタッチ操作は見ていません。スマホ幅の検証はブラウザの幅を縮めたものです。</li>
+  </ul>
+
+  <h2>検証で残ったもの</h2>
+  <ul class="prose">
+    <li>検証用に作った <code>[verify]</code> のデータは、データを作った 6 体とも「ゴミ箱からも完全に消した」と報告しています。Analytics は読むだけなので作っていません。</li>
+    <li>作業実績の表（<code>timer_sessions</code>）に 4 行（id 22〜25）が残りました。消す画面が無いためです。どれも 60 秒未満か未完了なので、集計には入りません。</li>
+    <li>ブラウザの保存領域に <code>life-editor-reminders-enabled=true</code> が新しく書かれました。値は既定と同じで、挙動は変わりません。</li>
+    <li>リポジトリ直下に未追跡の <code>shots/</code> フォルダ（画像 23 枚）が残っています。削除コマンドが権限で止まったので、手で消してください。</li>
+    <li>ゴミ箱には今回より前の検証の残り（PWTEST、PWVERIFY、「検証」で始まる行）があります。誰のデータか確定できないので触っていません。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>番号</th><th>決めること</th></tr></thead>
+    <tbody>
+      <tr><td class="mono">#1825</td><td>Briefing の行の削除を、確認ダイアログにしますか、「元に戻す」付きのお知らせにしますか。</td></tr>
+      <tr><td class="mono">#1829</td><td>月表示の「+N more」を押したとき、隠れた予定をどこに見せますか。</td></tr>
+      <tr><td class="mono">#1831</td><td>終日の Todo を別の曜日の時間帯へ落としたとき、その日に移しますか、移らないことを予告しますか。</td></tr>
+      <tr><td class="mono">#1843</td><td>ノートにパスワードを掛ける入口を作りますか、使われていないコードを消しますか。</td></tr>
+      <tr><td class="mono">#1850</td><td>スマホ幅にもタグの統合を入れますか、入れないことを要件の文書に書きますか。</td></tr>
+      <tr><td class="mono">#1857</td><td>リロード後にタイマーの走行を復元しますか、開いたままの行を閉じるだけにしますか。</td></tr>
+      <tr><td class="mono">#1859</td><td>期間の切替が効かないタブで、切替を隠しますか、各カードに集計期間を書きますか。</td></tr>
+      <tr><td class="mono">#1868</td><td>Settings の右パネルを閉じたとき、カテゴリの切替を本文側にも置きますか。</td></tr>
+      <tr><td class="mono">#1870</td><td>Tips の文言を直しますか、コマンドパレットにショートカット変更の入口を足しますか。</td></tr>
+    </tbody>
+  </table></div>
+</div>

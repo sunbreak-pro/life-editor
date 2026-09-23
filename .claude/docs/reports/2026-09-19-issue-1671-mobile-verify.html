@@ -1,0 +1,233 @@
+<title>Schedule 390×844 検証</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --muted: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --muted: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --muted: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding-block: 48px 80px; padding-inline: 24px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.skip .tag { color: var(--stop); }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code, figcaption code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.state { white-space: nowrap; font-weight: 700; }
+  td.state.yes { color: var(--ok); }
+  td.state.no { color: var(--muted); font-weight: 400; }
+  td.state.maybe { color: var(--warn); }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .note { font-size: 14px; color: var(--muted); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0 0 16px; font-size: 15px; }
+  dt { font-weight: 700; white-space: nowrap; }
+  dd { margin: 0; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  figure { margin: 0 0 24px; display: grid; gap: 10px; }
+  figure img { max-width: 100%; display: block; border: 1px solid var(--line); border-radius: 3px; background: var(--panel); }
+  figcaption { font-size: 14px; color: var(--muted); border-left: 3px solid var(--ok); padding-left: 12px; }
+  figcaption.check { border-left-color: var(--warn); }
+  figcaption.stop { border-left-color: var(--stop); }
+  figcaption b { color: var(--ink); font-weight: 700; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-19 / 検証 / life-editor</p>
+    <h1>#1671 の 4 項目は 390×844 で全部合格した</h1>
+    <p class="lede">#1409 の schedule 分として残っていた実ブラウザ確認を chat-main で通した。4 項目とも合格、コンソールエラーの増分は 0 件、データは変更していない。</p>
+  </header>
+
+  <ul class="verdicts">
+    <li class="verdict now"><span class="tag">合格</span><h3>4 項目すべて</h3><p>#1516 フェード / #1515 + #1558 当たり判定 / #1517 繰り返しタブ / コンソールエラー 0 件。</p></li>
+    <li class="verdict later"><span class="tag">要確認</span><h3>実機でしか見えない 1 点</h3><p>「Move to today」は hover で出る。指の端末では別クラスが効くはずだが、この環境では出せない。</p></li>
+    <li class="verdict skip"><span class="tag">再起票しない</span><h3>タブ帯の 33px</h3><p>ドロワーのタブ帯は 44px 床の対象外。#1558 は行末アイコンと月ステッパーに入っている。</p></li>
+  </ul>
+
+  <div class="callout prose"><strong>前提</strong>: main = <code>0d508a86</code>（実装 PR #1564 / #1567 / #1571 は取り込み済み）。既存の dev server <code>localhost:5173</code> を 390×844 で開き、dark テーマ・ログイン済みの実データで測った。</div>
+
+  <h2>測った値</h2>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>項目</th><th>結果</th><th>実測値</th></tr></thead>
+      <tbody>
+        <tr>
+          <td>#1516 タイトルのフェード</td>
+          <td class="state yes">合格</td>
+          <td>末尾 9px の輝度が 400 → 274 → 329 → 261 → 214 → 184 → 134 → 96 → 11 と落ちて地色に溶ける。<code>mask-image</code> は <code>linear-gradient(to right, rgb(0,0,0) calc(100% - 9px), rgba(0,0,0,0))</code>（<code>TITLE_FADE</code> の 0.5rem × root 18px）。溢れ量 78〜123px</td>
+        </tr>
+        <tr>
+          <td>#1515 横溢れ</td>
+          <td class="state yes">合格</td>
+          <td>ドロワーのスクロール容器が <code>scrollWidth 331 / clientWidth 331</code>（起票時は 339 対 331）。祖先を全部辿っても <code>scrollWidth &gt; clientWidth</code> はゼロ。<code>documentElement</code> も 390/390</td>
+        </tr>
+        <tr>
+          <td>#1558 当たり判定</td>
+          <td class="state yes">合格</td>
+          <td>月の前へ・次へ、チェックボックス、Move to today、Delete todo がすべて 49.5 × 49.5。隣接の誤爆なし（下の図を参照）</td>
+        </tr>
+        <tr>
+          <td>#1517 繰り返しタブ</td>
+          <td class="state yes">合格</td>
+          <td>4 タブの y がすべて 371.4 = 1 行、高さは全部 33 で揃う。幅は 53.3 / 53.3 / 78.5 / 96.0。tablist は <code>scrollWidth 292 / clientWidth 292</code>、最終タブ右端 331.3 が容器右端 333.5 の内側</td>
+        </tr>
+        <tr>
+          <td>コンソールエラーの増分</td>
+          <td class="state yes">0 件</td>
+          <td>ロードから全操作完了まで総メッセージ 4 件・error 0・warning 0</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>#1516 フェードの見え方</h2>
+
+  <figure>
+    <img src="shots/fade-row.png" alt="月グリッドの 8/30 から 9/5 の行を 6 倍に拡大したもの。各予定チップの末尾の文字が薄れている。">
+    <figcaption><b>問題なし</b>。4 件すべてが最後の 1 文字を薄れさせている（「国民年金」「奨学金返」「風呂に入」「スカラネ」）。ハードカットにも、半端な字形の途中切れにも見えない。申し送りどおり「…」は出ていない — これは仕様で、不具合ではない。</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/fade-edge.png" alt="黄色い予定チップの右端を 24 倍の nearest 補間で拡大したもの。文字が右へ行くほど地色に近づく。">
+    <figcaption><b>問題なし</b>。同じ端を 24 倍・nearest で見たところ。左の「ラ」は濃紺のまま、右の「ネ」は地の黄色へ段階的に近づいて消える。グラデーションが 9px かけて効いている。</figcaption>
+  </figure>
+
+  <h2>#1558 の当たり判定は隣に食い込んでいない</h2>
+
+  <p class="prose">見た目の四角（<code>size-6</code>）は変えず当たり判定だけを外へ広げた実装なので、「押せる範囲が四角より広い」が正解。問題は隣のボタンを誤爆しないかで、<code>elementFromPoint</code> で境界を叩いて確かめた。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>叩いた x</th><th>返った要素</th><th>読み</th></tr></thead>
+      <tbody>
+        <tr><td>192 / 239</td><td>Previous</td><td>左端 +1 と右端 −1 が自分自身</td></tr>
+        <tr><td>243</td><td>容器の DIV</td><td>gap の中央はどちらのボタンでもない</td></tr>
+        <tr><td>246 / 293</td><td>Next</td><td>同じく自分自身</td></tr>
+        <tr><td>263.3</td><td>LI</td><td>行末 2 ボタンの gap 中央。どちらにも食い込んでいない</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <figure>
+    <img src="shots/month-steppers.png" alt="月の前へ・次へボタンを拡大したもの。">
+    <figcaption><b>問題なし</b>。実操作でも Previous で August 2026、Next で September 2026 に正しく動いた。</figcaption>
+  </figure>
+
+  <figure>
+    <img src="shots/todo-row.png" alt="ドロワーの Todo タブの行を拡大したもの。チェックボックスと行末の 2 ボタンが並ぶ。">
+    <figcaption><b>問題なし</b>。Delete の右端 317.3 は容器右端 318 の内側に収まる。行末 2 ボタンは <code>gap-2</code> しか離れていないが、境界を叩いても互いを拾わない。</figcaption>
+  </figure>
+
+  <h2>#1517 繰り返しタブ</h2>
+
+  <figure>
+    <img src="shots/repeat-tabs.png" alt="Event details の Repeat タブ 4 つを拡大したもの。None / Daily / Weekdays / Every N days が 1 行に並ぶ。">
+    <figcaption><b>問題なし</b>。4 タブとも <code>white-space: nowrap</code> の 1 行で、高さ 33 が揃う。編集ペインは保存せずに閉じた（Save は disabled = 変更なし）。</figcaption>
+  </figure>
+
+  <h2>再起票しなかった所見</h2>
+
+  <ul class="prose">
+    <li><b>ドロワーのタブ帯は 98.3 × 33</b>。<code>::after</code> が <code>content: none</code> なので当たり判定も 33 のまま。#1558 の 44px 床は行末アイコンと月ステッパーに入っており、SegmentedControl のタブは対象外だったと読める。「Today」ボタンも 70.6 × 37.3 で、上下 +3px を叩くと外れる。</li>
+    <li><b>「Move to today」は <code>opacity-0</code> + <code>group-hover</code></b>。デスクトップ Chrome（<code>hover: hover</code>）では見えないまま 49.5px の当たり判定だけが存在する。クラスに <code>[@media(hover:none)]:opacity-100</code> があるので指の端末では出るはずだが、この環境では確認できない。</li>
+  </ul>
+
+  <h2>確認していないこと</h2>
+
+  <ul class="prose">
+    <li>ja ロケールの繰り返しタブ。言語切替が設定の書き込みになるため避けた。en の「Every N days」が最長ラベルなので、幅の最悪ケースは押さえたと判断している。</li>
+    <li>light テーマ。テーマ切替も設定の書き込みになる。</li>
+    <li>タイトルが長い予定の新規作成。既存データの範囲で 4 件見つかったので、書き込みはしていない。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+
+  <ul class="prose">
+    <li><b>「Move to today」を指の端末で 1 度見るかどうか</b>。クラス上は出るが、実機でしか確かめられない。</li>
+    <li><b>ドロワーのタブ帯 33px を 44px に上げるか</b>。#1558 の Scope 外という読みで再起票しなかったが、上げる方針なら別 Issue が要る。</li>
+  </ul>
+
+  <p class="note">スクリーンショットの実体は <code>.playwright-mcp/</code> と chat-main の scratchpad に 11 枚ある。このページに載せたのは判断に要る 5 枚だけ。</p>
+</div>
