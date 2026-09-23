@@ -56,12 +56,12 @@
 
 色は役割で 4 つに分け、**テーマ可変かテーマ固定かが違う**。混同すると light/dark で破綻する。
 
-| カテゴリ              | 例                                                          | テーマ                             | 意味                                                           |
-| --------------------- | ----------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------- |
-| **Chrome（地）**      | bg-primary / bg-secondary / text / border / hover           | **可変**（light↔dark で別値）      | アプリの下地・文字・枠。テーマで色が変わる                     |
-| **Brand / Accent**    | accent / accent-hover / on-accent / accent-subtle           | **可変**                           | 選択状態・主ボタン・リンク。ブランドの主張                     |
-| **Semantic**          | success / danger                                            | **可変**（彩度・明度をテーマ調整） | 肯定 / 破壊。意味を持つ                                        |
-| **Functional / Data** | status band（todo/progress/done）/ chart series / chip 各色 | **固定**（light/dark 同値）        | 状態やデータを符号化する。テーマで変えると意味がブレるので固定 |
+| カテゴリ              | 例                                                | テーマ                             | 意味                                                           |
+| --------------------- | ------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------- |
+| **Chrome（地）**      | bg-primary / bg-secondary / text / border / hover | **可変**（light↔dark で別値）      | アプリの下地・文字・枠。テーマで色が変わる                     |
+| **Brand / Accent**    | accent / accent-hover / on-accent / accent-subtle | **可変**                           | 選択状態・主ボタン・リンク。ブランドの主張                     |
+| **Semantic**          | success / danger                                  | **可変**（彩度・明度をテーマ調整） | 肯定 / 破壊。意味を持つ                                        |
+| **Functional / Data** | status band（done）/ chart series / chip 各色     | **固定**（light/dark 同値）        | 状態やデータを符号化する。テーマで変えると意味がブレるので固定 |
 
 - **on-accent は白固定**でよい（accent 上で両テーマとも読めるため `tokens.css` でも共有）。
 - **Functional / Data 系を新規追加するときは light/dark 同値**にする（既存の status band / chart series がそうなっている）。

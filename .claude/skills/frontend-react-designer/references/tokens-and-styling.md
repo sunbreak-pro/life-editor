@@ -18,13 +18,8 @@
 | `border-lumen-border`                     | 境界線                           |
 | `text-lumen-accent` / `bg-lumen-accent`   | アクセント (cobalt blue 系)      |
 | `bg-lumen-hover`                          | hover 背景 feedback              |
-| `bg-lumen-hover-strong`                   | hover 背景 (強調 / active)       |
-| `bg-lumen-bg-hover`                       | 背景 hover (bg 系の派生)         |
-| `text-lumen-primary` / `bg-lumen-primary` | primary（操作主色）              |
-| `text-lumen-secondary`                    | secondary（補助操作色）          |
 | `text-lumen-success` / `bg-lumen-success` | 成功 (green)                     |
 | `text-lumen-danger` / `bg-lumen-danger`   | エラー (red)                     |
-| `text-lumen-calendar-header`              | カレンダー header 強調           |
 
 > 上記は代表的な色トークン。トークン定義の SSOT は `shared/src/styles/tokens.css` の `@theme` ブロック（chip / schedule / status band / info / warning / surface-sunken / text-tertiary 等も含む）。**個数は本ファイルに複製せず**、全一覧は `grep -oE '\-\-color-lumen-[a-z0-9-]+' shared/src/styles/tokens.css | sort -u` を正とする（併せて `--radius-lumen-*` / `--spacing-lumen-*` / `--shadow-lumen-*` も定義）。ここに載らない `lumen-*` 名は未定義＝透明落ち。
 
@@ -35,7 +30,7 @@
 ### Font
 
 - `--font-sans`: system stack (`ui-sans-serif`, `BlinkMacSystemFont`...) — そのまま `font-sans` で。装飾フォント (`Inter` 等) を **追加しない**
-- `--font-size-base`: 16px (theme で 10 段階 12-25px 切替可能、ユーザ設定)
+- 文字サイズ: CSS 変数は持たない。ユーザー設定の 10 段階（12-25px、`shared/src/constants/fontSize.ts`）を `ThemeContext` が `document.documentElement.style.fontSize` に直接書き込み、rem がそれに追随する
 
 ## §2 トークン使用ルール
 
@@ -81,7 +76,7 @@ life-editor は **Tailwind v4.1.18** を使用 (`tailwind.config.js` は **存�
 
 ## §4 タイポ階層
 
-life-editor は `--font-size-base` をユーザがテーマ設定で 12-25px の 10 段階で変更できる。コンポーネント側は **絶対値ピクセル指定を避け、相対単位 (rem) または Tailwind text-\* utility を使う**。
+life-editor はユーザーが設定で文字サイズを 12-25px の 10 段階から選べる。`shared/src/context/ThemeContext.tsx` がその px をルート要素の `style.fontSize` に直接書き込むので、rem で書いた部分だけが追随する。コンポーネント側は **絶対値ピクセル指定を避け、相対単位 (rem) または Tailwind text-\* utility を使う**。
 
 | 用途         | Tailwind            | 補足                     |
 | ------------ | ------------------- | ------------------------ |

@@ -131,12 +131,11 @@
   --color-chip-task-bg: #dbeafe;
   --color-chip-task-fg: #1e40af;
   --color-chip-task-dot: #1d4ed8;
-  /* Kanban status bands (K1). The 4px card / column accent line for each
-     task status — a slightly stronger, solid tone than the chip-* faces so
-     the status reads at a glance. Status hue is FIXED (todo=blue /
-     progress=amber / done=green), so it stays the same across themes (it
-     encodes state, like the chart series above). The progress chip face
-     (amber) is added alongside the existing task/completed chip faces. */
+  /* Kanban status (K1). The progress chip face (amber) sits alongside the
+     task chip face above. The done band is the 4px accent line for a
+     finished item — a slightly stronger, solid tone than the chip-* faces so
+     the status reads at a glance. Its hue is FIXED (green), so it stays the
+     same across themes (it encodes state, like the chart series below). */
   --color-chip-progress-bg: #fef6e0;
   --color-chip-progress-fg: #a06b09;
   --color-status-done-band: #10b981;
@@ -362,9 +361,9 @@
   --color-lumen-briefing-shu-subtle: var(--color-briefing-shu-subtle);
   --color-lumen-briefing-kohaku: var(--color-briefing-kohaku);
   --color-lumen-briefing-kohaku-subtle: var(--color-briefing-kohaku-subtle);
-  /* Kanban status (K1) — chip faces + the 4px status bands. Mapped so
+  /* Kanban status (K1) — chip faces + the 4px done band. Mapped so
      shared Kanban primitives can use bg-lumen-chip-* / text-lumen-chip-* /
-     bg-lumen-status-*-band (no hardcoded colors, §6). */
+     bg-lumen-status-done-band (no hardcoded colors, §6). */
   --color-lumen-chip-task-bg: var(--color-chip-task-bg);
   --color-lumen-chip-task-fg: var(--color-chip-task-fg);
   --color-lumen-chip-task-dot: var(--color-chip-task-dot);
