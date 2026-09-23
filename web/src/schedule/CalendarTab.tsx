@@ -56,6 +56,8 @@ import { toEditorItem } from "./scheduleViewModels";
 import { useScheduleCopy } from "./scheduleCopy";
 import { useTodoLinking } from "./useTodoLinking";
 import { selectNarrowDay } from "./narrowDayTap";
+import { rowsOnDay, useFlowDay } from "./useFlowDay";
+import { agendaEmptyKey } from "./agendaEmptyLabel";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
@@ -527,6 +529,7 @@ export function CalendarTab({
     monthItems,
     tagColors,
     anchorDayItems,
+    gridRangeItems,
     handleToggleRepeats,
     handleSelectGroup,
     handleToggleTag,
@@ -814,18 +817,20 @@ export function CalendarTab({
    * button either (#1584 took it away), so everything past the second chip
    * was unreachable without switching to the week by hand.
    *
-   * Pressing it does exactly that switch, on that day: the week is Desktop's
-   * one view with no fold in it. The filters are deliberately left alone —
-   * the folded count was counted AFTER them, so clearing them here would show
-   * more rows than the button offered.
+   * #1973 (D-20260922-sched-1 = B): pressing it points the flow tab at that
+   * day and leaves the month where it is. #1933 switched to the week instead,
+   * as the stopgap. The filters are deliberately left alone — the folded count
+   * was counted AFTER them, so the list below reads the same filtered rows.
    */
-  const handleMonthShowMore = useCallback(
-    (dateKey: string) => {
-      pickMonthDay(dateKey);
-      setView("week");
-    },
-    [pickMonthDay, setView],
-  );
+  const flowDay = useFlowDay({
+    isWide,
+    today,
+    rangeStart,
+    rangeEnd,
+    setSidebarTab,
+    openSidebar,
+  });
+  const handleMonthShowMore = flowDay.showDay;
 
   // #889: TODAY, as the rightSidebar shows it — the merged agenda, its two
   // counters, the skipped list and its restore, and the editor's "generated
@@ -1082,6 +1087,19 @@ export function CalendarTab({
       );
 
   /*
+   * #1973: the Desktop half of the same idea, for one day at a time. Read off
+   * the grid's filtered rows, because those are what the month cell counted
+   * when it offered "他 N 件". `null` whenever the tab is on today, so the
+   * today path above stays the only work Desktop does by default.
+   */
+  const wideFlowDay = flowDay.day;
+  const wideDayAgenda = useMemo(() => {
+    if (wideFlowDay === null) return null;
+    const rows = rowsOnDay(gridRangeItems, rangeTodoChips, wideFlowDay);
+    return toAgenda(rows.items, rows.chips);
+  }, [gridRangeItems, rangeTodoChips, toAgenda, wideFlowDay]);
+
+  /*
    * #1153: the shell's todo intents, each consumed once.
    *
    * All three open the tray rather than only switching state, because on
@@ -1124,15 +1142,35 @@ export function CalendarTab({
         tab={sidebarTab}
         onTabChange={setSidebarTab}
         flow={{
-          // #1148: narrow follows the picked day; Desktop stays on today.
-          todayLabel: isWide ? todayLabel : anchorDayLabel,
-          agenda: narrowDayAgenda ?? todayAgenda,
+          // #1148: narrow follows the picked day; Desktop stays on today
+          // unless a month cell's "他 N 件" pointed it elsewhere (#1973).
+          todayLabel: isWide
+            ? wideFlowDay === null
+              ? todayLabel
+              : formatFullDay(wideFlowDay)
+            : anchorDayLabel,
+          agenda: narrowDayAgenda ?? wideDayAgenda ?? todayAgenda,
           // The anchor variant's empty state names the day it is showing
           // (#774) — "今日は予定がありません" on some other day is a lie.
-          agendaLabels: isWide ? agendaLabels : anchorAgendaLabels,
+          agendaLabels: isWide
+            ? wideFlowDay === null
+              ? agendaLabels
+              : {
+                  ...agendaLabels,
+                  empty: t(agendaEmptyKey(wideFlowDay, today)),
+                }
+            : anchorAgendaLabels,
           // No now-line on a day that is not today: the hour it marks means
           // nothing there.
-          nowMinutes: isWide || anchorDate === today ? nowMinutes : null,
+          nowMinutes: isWide
+            ? wideFlowDay === null
+              ? nowMinutes
+              : null
+            : anchorDate === today
+              ? nowMinutes
+              : null,
+          onBackToToday: wideFlowDay === null ? undefined : flowDay.backToToday,
+          backToTodayLabel: t("scheduleScreen.flowBackToToday"),
           selectedId,
           // #691, arriving with the day list: narrow stands in for the week
           // grid, so its rows carry their duration and the gaps between them.
@@ -1143,7 +1181,9 @@ export function CalendarTab({
           // one.
           onAdd: isWide ? undefined : handleToolbarAdd,
           addLabel: isWide ? undefined : t("scheduleScreen.addCta"),
-          skipped: skippedToday,
+          // Today's skipped rows under another day's name would be read as
+          // that day's (#1973), so the restore list waits for the way back.
+          skipped: wideFlowDay === null ? skippedToday : [],
           summaryRows,
           onToggleComplete: handleAgendaToggle,
           onItemActivate: handleItemActivate,

@@ -415,6 +415,7 @@
       "bodyPlaceholder": "ノートを書く…",
       "untitled": "(無題)",
       "lockedHint": "このノートはロックされています",
+      "bodySearchFailed": "ノート本文を検索できませんでした。タイトルの一致だけを表示しています。",
       "password": {
         "setTitle": "ノートにパスワードを設定",
         "removeTitle": "ノートのパスワードを解除",
@@ -656,6 +657,7 @@
     "done": "完了",
     "emptyToday": "今日の予定はありません",
     "emptyDay": "この日の予定はありません",
+    "flowBackToToday": "今日に戻る",
     "frequency": "繰り返し",
     "viewLabel": "表示",
     "frequencyNone": "なし",

@@ -181,6 +181,7 @@ export function NotesView({
     hasNotes,
     searchEmpty,
     searchBusy,
+    searchFailed,
   } = useNoteListState();
 
   /*
@@ -586,6 +587,7 @@ export function NotesView({
     tagFilter: t("materials.notes.tagFilterLabel"),
     empty: t("materials.notes.empty"),
     searchEmpty: t("materials.notes.searchEmpty"),
+    bodySearchFailed: t("materials.notes.bodySearchFailed"),
     addCta: t("materials.notes.addCta"),
     collapseGroup: t("materials.notes.collapseGroup"),
     expandGroup: t("materials.notes.expandGroup"),
@@ -662,6 +664,7 @@ export function NotesView({
       hasNotes={hasNotes}
       searchEmpty={searchEmpty}
       searchBusy={searchBusy}
+      searchFailed={searchFailed}
       visibleGroups={visibleGroups}
       collapsedGroups={collapsedGroups}
       onToggleGroup={toggleGroup}

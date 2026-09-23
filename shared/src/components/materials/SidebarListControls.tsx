@@ -28,6 +28,14 @@ import {
  * now only a guard.
  */
 
+/*
+ * #1975: both buttons floor at 44 below `md` — the narrow Notes drawer measured
+ * them at 36, the one pair #1840 left behind. `max-md:` only, because the same
+ * row sits in the Desktop sidebar where h-8 is the mouse size; min-height wins
+ * over height, so the drawn box grows only where a finger is the pointer.
+ */
+const SORT_TAP_FLOOR = "max-md:min-h-11";
+
 export type SidebarSortDirection = "asc" | "desc";
 
 export interface SidebarSortMode {
@@ -91,6 +99,7 @@ export function SidebarListControls({
               aria-label={sortLabel}
               className={cn(
                 "flex h-8 w-full items-center gap-1.5 rounded-lumen-md border border-lumen-border",
+                SORT_TAP_FLOOR,
                 "bg-lumen-surface-sunken px-2.5 text-[12.5px] text-lumen-text",
                 "transition-colors hover:bg-lumen-hover",
                 FOCUS_RING,
@@ -141,6 +150,7 @@ export function SidebarListControls({
           title={directionToggleLabel}
           className={cn(
             "flex h-8 shrink-0 items-center gap-1.5 rounded-lumen-md border border-lumen-border",
+            SORT_TAP_FLOOR,
             "bg-lumen-surface-sunken px-2.5 text-[12.5px] text-lumen-text-secondary",
             "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
             // Fill the row when the mode picker is hidden (single-mode Daily).

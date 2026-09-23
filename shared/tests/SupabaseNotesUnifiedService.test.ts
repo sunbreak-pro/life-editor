@@ -389,7 +389,7 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
         makeMetaRow({ id: "notefolder-old", title: "plan folder" }),
       ];
       stub.stage("items_meta", "select", { data: metas, error: null });
-      stub.stage("notes_payload", "select", { data: [], error: null }); // content hits
+      stub.stage("search_notes_content", "rpc", { data: [], error: null }); // content hits
       stub.stage("notes_payload", "select", {
         data: [
           makePayloadRow({ item_id: "note-T1" }),
@@ -466,7 +466,7 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
         makeMetaRow({ id: "note-tpl", title: "weekly template" }),
       ];
       stub.stage("items_meta", "select", { data: metas, error: null });
-      stub.stage("notes_payload", "select", { data: [], error: null }); // content hits
+      stub.stage("search_notes_content", "rpc", { data: [], error: null }); // content hits
       stub.stage("notes_payload", "select", {
         data: [
           makePayloadRow({ item_id: "note-T1" }),
@@ -517,7 +517,7 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
 
     it("issues an ilike on items_meta.title (role+!is_deleted scoped)", async () => {
       stub.stage("items_meta", "select", { data: [], error: null }); // title hit
-      stub.stage("notes_payload", "select", { data: [], error: null }); // content hit
+      stub.stage("search_notes_content", "rpc", { data: [], error: null }); // content hit
       await service.searchNotesUnified("Hello");
 
       const ilikes = stub.calls.filter((c) => c.op === "ilike");
@@ -528,24 +528,31 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       });
     });
 
-    it("issues an ilike on notes_payload.content_json::text for content search", async () => {
+    // #1972: PostgREST cannot filter on `content_json::text` (404), so the
+    // body probe is the search_notes_content SQL function.
+    it("asks search_notes_content for the body hits", async () => {
       stub.stage("items_meta", "select", { data: [], error: null });
-      stub.stage("notes_payload", "select", { data: [], error: null });
+      stub.stage("search_notes_content", "rpc", { data: [], error: null });
       await service.searchNotesUnified("foo");
 
-      const ilikes = stub.calls.filter((c) => c.op === "ilike");
-      expect(ilikes).toContainEqual({
-        table: "notes_payload",
-        op: "ilike",
-        args: ["content_json::text", "%foo%"],
+      expect(stub.calls).toContainEqual({
+        table: "search_notes_content",
+        op: "rpc",
+        args: [{ q: "foo" }],
       });
+      expect(
+        stub.calls.some(
+          (c) =>
+            c.op === "ilike" && String(c.args[0]).includes("content_json"),
+        ),
+      ).toBe(false);
     });
 
     it("merges title + content hits without duplicating an id seen via title", async () => {
       const meta1 = makeMetaRow({ id: "note-T1", title: "title hit" });
       stub.stage("items_meta", "select", { data: [meta1], error: null });
       // Content hit overlaps the title hit -> no extra items_meta fetch.
-      stub.stage("notes_payload", "select", {
+      stub.stage("search_notes_content", "rpc", {
         data: [{ item_id: "note-T1" }],
         error: null,
       });
@@ -570,7 +577,7 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       // extra meta fetch).
       const titleMeta = makeMetaRow({ id: "note-T1" });
       stub.stage("items_meta", "select", { data: [titleMeta], error: null });
-      stub.stage("notes_payload", "select", {
+      stub.stage("search_notes_content", "rpc", {
         data: [{ item_id: "note-T1" }, { item_id: "note-C1" }],
         error: null,
       });
@@ -610,7 +617,7 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
         updated_at: "2026-05-23T00:00:00.000Z",
       });
       stub.stage("items_meta", "select", { data: [m1, m2], error: null });
-      stub.stage("notes_payload", "select", { data: [], error: null });
+      stub.stage("search_notes_content", "rpc", { data: [], error: null });
       stub.stage("notes_payload", "select", {
         data: [
           makePayloadRow({ item_id: "n-old" }),

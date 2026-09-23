@@ -416,6 +416,7 @@
       "bodyPlaceholder": "Write your note…",
       "untitled": "(untitled)",
       "lockedHint": "This note is locked",
+      "bodySearchFailed": "Could not search note bodies. Showing title matches only.",
       "password": {
         "setTitle": "Set note password",
         "removeTitle": "Remove note password",
@@ -659,6 +660,7 @@
     "done": "Done",
     "emptyToday": "Nothing scheduled for today",
     "emptyDay": "Nothing scheduled for this day",
+    "flowBackToToday": "Back to today",
     "frequency": "Repeat",
     "viewLabel": "View",
     "frequencyNone": "None",

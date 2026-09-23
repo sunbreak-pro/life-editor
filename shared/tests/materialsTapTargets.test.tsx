@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
-import { NoteDetailPanel } from "../src/components";
+import { NoteDetailPanel, SidebarListControls } from "../src/components";
 
 /*
  * #1560 — the 44px touch floor on the MATERIALS controls that #1512 still
@@ -106,5 +106,48 @@ describe("#1840 — the note detail kebab meets the 44px touch floor", () => {
     const trigger = kebab();
     expect(trigger).toHaveClass("h-[26px]", "w-[26px]");
     expect(trigger.classList.contains("min-h-11")).toBe(false);
+  });
+});
+
+/*
+ * #1975 — the sort row of the narrow Notes drawer (and the Daily list, which
+ * mounts the same component). #1840 floored the rows and the bin; these two
+ * were still 36 at 390px wide.
+ */
+describe("#1975 — the sidebar sort controls meet the 44px touch floor", () => {
+  function controls(): { picker: HTMLElement; toggle: HTMLElement } {
+    render(
+      <SidebarListControls
+        modes={[
+          { id: "updated", label: "Updated" },
+          { id: "created", label: "Created" },
+        ]}
+        activeModeId="updated"
+        onModeChange={() => {}}
+        sortLabel="Sort"
+        direction="desc"
+        onToggleDirection={() => {}}
+        directionLabel="Newest first"
+        directionToggleLabel="Toggle order"
+      />,
+    );
+    return {
+      picker: screen.getByRole("button", { name: "Sort" }),
+      toggle: screen.getByRole("button", { name: "Toggle order" }),
+    };
+  }
+
+  it("floors both buttons on narrow", () => {
+    const { picker, toggle } = controls();
+    expect(picker).toHaveClass("max-md:min-h-11");
+    expect(toggle).toHaveClass("max-md:min-h-11");
+  });
+
+  it("keeps the Desktop row at its mouse height", () => {
+    const { picker, toggle } = controls();
+    for (const button of [picker, toggle]) {
+      expect(button).toHaveClass("h-8");
+      expect(button.classList.contains("min-h-11")).toBe(false);
+    }
   });
 });
