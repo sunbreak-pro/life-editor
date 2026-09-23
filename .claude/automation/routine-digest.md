@@ -1,6 +1,6 @@
 # Routine: Morning Digest（朝の采配ダイジェスト自動生成）
 
-> 毎朝 06:03 JST 発火（Phase 1）。実行基盤は D-20260804-main-1 = A（Windows Task Scheduler + `claude -p`）で裁定済み。無人用 permissions は night-safe と同じ `settings-unattended-readonly.json`。**Task Scheduler への登録はまだ** — 手動起動（`run-routine.ps1 -Routine digest` またはチャットで dev-digest スキル）のみ（追跡 = #1335）。
+> 毎朝 06:03 JST 発火（Phase 1）。実行基盤は D-20260804-main-1 = A（Windows Task Scheduler + `claude -p`）で裁定済み。無人用 permissions は night-safe と同じ `settings-unattended-readonly.json`。**Task Scheduler に登録済み（2026-09-02・台帳 = `routine-ids.md`）**。手動起動は `run-routine.ps1 -Routine digest` またはチャットで dev-digest スキル（追跡 = #1335）。
 > 中身は **dev-digest スキルの薄い外枠**。手順の正本は `.claude/skills/dev-digest/SKILL.md` であり、本ファイルには headless 実行時の境界条件だけを書く（二重管理の回避）。
 
 ---

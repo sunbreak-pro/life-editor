@@ -1,6 +1,6 @@
 # Routine: Night Safe Lane（夜間の安全レーン — 読み取り中心）
 
-> 毎夜 22:33 JST 発火（Phase 1）。実行基盤は D-20260804-main-1 = A（Windows Task Scheduler + `claude -p`）で裁定済み。無人用 permissions は `settings-unattended-readonly.json` を `run-routine.ps1` が渡す。**Task Scheduler への登録はまだ** — 登録前に手動実走（`run-routine.ps1 -Routine night-safe`）で 1 回確認する（手順 = `routine-ids.md`・追跡 = #1335）。
+> 毎夜 22:33 JST 発火（Phase 1）。実行基盤は D-20260804-main-1 = A（Windows Task Scheduler + `claude -p`）で裁定済み。無人用 permissions は `settings-unattended-readonly.json` を `run-routine.ps1` が渡す。**Task Scheduler に登録済み（2026-09-02・台帳 = `routine-ids.md`）**。手動実走は `run-routine.ps1 -Routine night-safe`（追跡 = #1335）。
 > **実装レーンではない**。許可範囲は 2026-07-28 ユーザー決定どおり「docs・整理・検証準備まで」。実装の自走（routine-night.md 改訂版）は親計画 Phase 2 で、ループカタログ定着後に着手する。
 
 ---
