@@ -599,8 +599,17 @@ export function ConnectScreen({
   const clearChecked = useCallback(() => setCheckedIds(NO_CHECKS), []);
 
   // The promise goes back to the rail, which keeps the typed name and shows
-  // why when the create fails (#1847).
-  const createTag = useCallback((name: string) => wiki.createTag(name), [wiki]);
+  // why when the create fails (#1847). Once the tag exists it is selected
+  // (#1848), so the rail shows it — opening "Unused tags" if that is where it
+  // sorts — and the pane reads it.
+  const createTag = useCallback(
+    (name: string) =>
+      wiki.createTag(name).then((created) => {
+        selectTag(created.id);
+        return created;
+      }),
+    [wiki, selectTag],
+  );
 
   const formatCount = useCallback(
     (count: number) => t("connect.itemCount", { count }),

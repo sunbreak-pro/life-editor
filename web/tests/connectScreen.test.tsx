@@ -527,6 +527,33 @@ describe("ConnectScreen — creating a tag", () => {
     ]);
   });
 
+  it("selects the new tag and shows it under Unused tags (#1848)", async () => {
+    // A tag made here has nothing filed under it, so it sorts into the
+    // collapsed "Unused tags" — where, before #1848, nothing showed it existed.
+    const ds = makeDS({
+      createWikiTagUnified: vi.fn(
+        async (id: string, name: string, color: string | null) => ({
+          id,
+          name,
+          color,
+          icon: null,
+          isDeleted: false,
+        }),
+      ),
+    });
+    await renderScreen(ds);
+
+    fireEvent.change(screen.getByLabelText("Enter a tag name"), {
+      target: { value: "Recipes" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+
+    const row = await within(
+      await screen.findByRole("list", { name: "Unused tags" }),
+    ).findByRole("button", { name: "Recipes: 0 items" });
+    expect(row.getAttribute("aria-current")).toBe("true");
+  });
+
   it("writes nothing for a blank name", async () => {
     const { ds, writes } = makeWritableDS();
     await renderScreen(ds);
