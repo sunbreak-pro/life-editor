@@ -1091,6 +1091,8 @@
     "unusedTags_other": "使われていないタグ（{{count}}）",
     "addPlaceholder": "タグ名を入力",
     "addButton": "追加",
+    "duplicateName": "同じ名前のタグがあります。",
+    "createFailed": "タグを作成できませんでした。もう一度お試しください。",
     "emptyAction": "タグを追加",
     "loading": "タグを読み込み中",
     "rowMenu": "タグの操作",
@@ -1114,7 +1116,9 @@
       "colorCustom": "カスタム",
       "saved": "保存済み",
       "unsaved": "未保存",
-      "save": "保存"
+      "save": "保存",
+      "duplicateName": "同じ名前のタグがあります。",
+      "saveFailed": "タグを保存できませんでした。もう一度お試しください。"
     },
     "detail": {
       "breakdownHeading": "種類別",

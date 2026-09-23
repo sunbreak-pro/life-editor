@@ -64,6 +64,12 @@ export interface TagHubEditBlockProps {
    * with it — deleting has its own row in the same sheet menu.
    */
   only?: TagHubEditField | null;
+  /**
+   * Why the last save did not land, already translated (#1847) — shown under
+   * the fields and tied to the name input. A 409 on a duplicate name used to
+   * leave only "Unsaved" behind, with no reason.
+   */
+  error?: string | null;
   labels: TagHubEditLabels;
 }
 
@@ -78,7 +84,9 @@ export function TagHubEditBlock({
   onDelete,
   labels,
   only = null,
+  error = null,
 }: TagHubEditBlockProps) {
+  const errorId = `taghub-edit-error-${tag.id}`;
   const shows = (field: TagHubEditField) => only === null || only === field;
   // Live tag underneath, the user's own edits on top. An untouched field has no
   // local state at all, so an outside rename (#586: another surface, sync, MCP)
@@ -131,6 +139,8 @@ export function TagHubEditBlock({
               value={name}
               onChange={(e) => onEdit({ name: e.target.value })}
               onBlur={restoreClearedName}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? errorId : undefined}
               onKeyDown={(e) => {
                 // Never commit mid-IME-composition (§frontend gotcha): the Enter
                 // that confirms a Japanese conversion must not save the tag.
@@ -248,6 +258,12 @@ export function TagHubEditBlock({
           </>
         )}
       </div>
+
+      {error && (
+        <p id={errorId} role="alert" className="text-xs text-lumen-danger">
+          {error}
+        </p>
+      )}
 
       {/* Footer (#681's arrangement, kept): delete on the left, state text and
           save on the right, both always in the same place — only the save
