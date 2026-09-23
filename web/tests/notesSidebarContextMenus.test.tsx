@@ -16,7 +16,7 @@ import { NotesView } from "../src/notes/NotesView";
  * What is pinned here is the wiring, not the panels: the shared TagActionsMenu
  * and ItemActionPopover have their own suites. So each test drives a real
  * `contextmenu` on a row and follows it through to the write it ends in —
- * renameTag / deleteTag for a tag, updateNote / softDeleteNote for a note.
+ * setTagName / deleteTag for a tag, updateNote / softDeleteNote for a note.
  *
  * The narrow case is the one that has to be a test rather than a reading: the
  * handlers are simply absent there, and "absent" is invisible in the markup.
@@ -33,7 +33,7 @@ const state = vi.hoisted(() => ({
   updateNote: vi.fn(),
   softDeleteNote: vi.fn(),
   assignTagToItem: vi.fn(),
-  renameTag: vi.fn(() => Promise.resolve()),
+  setTagName: vi.fn(() => Promise.resolve()),
   setTagIcon: vi.fn(() => Promise.resolve()),
   setTagColor: vi.fn(() => Promise.resolve()),
   deleteTag: vi.fn(() => Promise.resolve()),
@@ -77,7 +77,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       allTags: state.tags,
       getTagsForItem: (id: string) => state.assignments[id] ?? [],
       assignTagToItem: state.assignTagToItem,
-      renameTag: state.renameTag,
+      setTagName: state.setTagName,
       setTagIcon: state.setTagIcon,
       setTagColor: state.setTagColor,
       deleteTag: state.deleteTag,
@@ -181,10 +181,12 @@ describe("Notes sidebar — right-clicking a tag (#1677)", () => {
 
     expect(event.defaultPrevented).toBe(true);
     const menu = screen.getByRole("menu", { name: "Work: connect.rowMenu" });
-    within(menu).getByText("connect.renameTag");
-    within(menu).getByText("connect.changeIcon");
-    within(menu).getByText("connect.changeColor");
-    within(menu).getByText("connect.deleteTag");
+    // #1886 — one "Edit tag" in place of rename / icon / colour.
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(["connect.editTagMenu", "connect.deleteTag"]);
   });
 
   it("renames through the shared edit block, on its save button only", () => {
@@ -192,16 +194,23 @@ describe("Notes sidebar — right-clicking a tag (#1677)", () => {
     rightClick(groupHeading("Work"));
 
     fireEvent.click(
-      within(screen.getByRole("menu")).getByText("connect.renameTag"),
+      within(screen.getByRole("menu")).getByText("connect.editTagMenu"),
     );
 
     const field = screen.getByLabelText("connect.edit.nameLabel");
+    // "Edit tag" lands the caret in the name field.
+    expect(document.activeElement).toBe(field);
+    // #1886 — the panel is wider than the old 320 (it may spill over the
+    // main column; the popover's clamp keeps it on screen).
+    expect(
+      screen.getByRole("dialog", { name: "Work: connect.editTag" }).style.width,
+    ).toBe("420px");
     fireEvent.change(field, { target: { value: "Work log" } });
     // #715's contract: typing writes nothing.
-    expect(state.renameTag).not.toHaveBeenCalled();
+    expect(state.setTagName).not.toHaveBeenCalled();
 
     fireEvent.click(screen.getByRole("button", { name: "connect.edit.save" }));
-    expect(state.renameTag).toHaveBeenCalledExactlyOnceWith(
+    expect(state.setTagName).toHaveBeenCalledExactlyOnceWith(
       "tag-work",
       "Work log",
     );

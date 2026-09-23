@@ -1,25 +1,27 @@
 import { useCallback, useState } from "react";
 import type { MouseEvent, RefObject } from "react";
-import { Merge, Palette, Pencil, Shapes, Trash2 } from "lucide-react";
+import { Pencil, Trash2 } from "lucide-react";
 import { Menu, MenuItem, type MenuAnchorPoint } from "../Menu";
-import type { TagHubEditField } from "./TagHubEditBlock";
 
 /*
- * One tag's action menu (#1676) — rename / change the icon / change the colour
- * / delete — lifted out of the Connect rail's row so another surface can offer
- * the same four actions on a tag it lists (the Materials note sidebar is the
- * first, #1677).
+ * One tag's action menu (#1676) — edit / delete — lifted out of the Connect
+ * rail's row so another surface can offer the same actions on a tag it lists
+ * (the Materials note sidebar is the first, #1677).
+ *
+ * ONE EDIT ITEM (#1886). It used to offer "Rename", "Change the icon" and
+ * "Change the colour", but all three opened the same editor and differed only
+ * in where the caret landed. They are one "Edit tag" now, which opens the
+ * editor on the name field. The merge item (#1644) is gone with the feature.
  *
  * It opens two ways, and both land on the SAME menu: below its "…" button, or
  * at the pointer when the row is right-clicked. `useTagActionsMenu` below holds
  * which of the two is showing, so a host wires a trigger button and a
  * `contextmenu` handler and never tracks coordinates itself.
  *
- * What the actions DO is the host's: the three identity items name the field
- * the host's editor should open on (TagHubEditBlock takes the same
- * TagHubEditField), and delete is a request — the host owns the confirmation
- * layer. Every item closes the menu before it reports, so a host that opens a
- * dialog does not find the menu still sitting over it.
+ * What the actions DO is the host's: edit opens the host's editor, and delete
+ * is a request — the host owns the confirmation layer. Every item closes the
+ * menu before it reports, so a host that opens a dialog does not find the menu
+ * still sitting over it.
  *
  * Pure presentation: copy is injected (§6.4), lumen-* tokens only (via Menu).
  */
@@ -28,12 +30,9 @@ import type { TagHubEditField } from "./TagHubEditBlock";
 export interface TagActionsMenuLabels {
   /** The menu's accessible name, composed with the tag's ("Work: Tag actions"). */
   rowMenu: string;
-  renameTag: string;
-  changeIcon: string;
-  changeColor: string;
+  /** "Edit tag" — the one item that opens the editor (#1886). */
+  editTagMenu: string;
   deleteTag: string;
-  /** "Merge into another tag…" — shown only with `onMerge` (#1644). */
-  mergeTag?: string;
 }
 
 export interface TagActionsMenuProps {
@@ -47,12 +46,10 @@ export interface TagActionsMenuProps {
   anchorPoint?: MenuAnchorPoint | null;
   /** Edge to align to when opened below the trigger. */
   align?: "start" | "end";
-  /** Rename / icon / colour → the field the host's editor should focus. */
-  onEdit: (field: TagHubEditField) => void;
+  /** Open the host's editor on this tag, caret in the name field. */
+  onEdit: () => void;
   /** The destructive item — the host asks before it deletes anything. */
   onDelete: () => void;
-  /** Merge this tag into another (#1644). Omit to leave the item out. */
-  onMerge?: () => void;
   labels: TagActionsMenuLabels;
 }
 
@@ -65,10 +62,8 @@ export function TagActionsMenu({
   align = "end",
   onEdit,
   onDelete,
-  onMerge,
   labels,
 }: TagActionsMenuProps) {
-  const showMerge = onMerge != null && labels.mergeTag != null;
   const act = (run: () => void) => {
     onClose();
     run();
@@ -83,33 +78,9 @@ export function TagActionsMenu({
       align={align}
       label={`${tagName}: ${labels.rowMenu}`}
     >
-      <MenuItem
-        icon={<Pencil size={14} />}
-        onSelect={() => act(() => onEdit("name"))}
-      >
-        {labels.renameTag}
+      <MenuItem icon={<Pencil size={14} />} onSelect={() => act(onEdit)}>
+        {labels.editTagMenu}
       </MenuItem>
-      <MenuItem
-        icon={<Shapes size={14} />}
-        onSelect={() => act(() => onEdit("icon"))}
-      >
-        {labels.changeIcon}
-      </MenuItem>
-      <MenuItem
-        icon={<Palette size={14} />}
-        onSelect={() => act(() => onEdit("color"))}
-      >
-        {labels.changeColor}
-      </MenuItem>
-      {showMerge && (
-        <>
-          <MenuItem icon={<Merge size={14} />} onSelect={() => act(onMerge)}>
-            {labels.mergeTag}
-          </MenuItem>
-          {/* The brief's rule between the reversible items and delete. */}
-          <div role="separator" className="my-1 border-t border-lumen-border" />
-        </>
-      )}
       <MenuItem
         icon={<Trash2 size={14} />}
         variant="danger"

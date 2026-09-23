@@ -12,7 +12,6 @@ import {
   TagHubEditBlock,
   TagHubSelectionBar,
   TagHubView,
-  TagMergeDialog,
   useConfirmDialog,
   useDomainLoad,
   useMediaQuery,
@@ -34,14 +33,12 @@ import {
   type RoutineNode,
   type ScheduleItem,
   type TagHubDetailLabels,
-  type TagHubEditField,
   type TagHubItem,
   type TagHubLabels,
   type BulkTagResult,
   type TagHubSelectionBarLabels,
   type TagHubTagSummary,
   type RelationPanelLabels,
-  type TagMergeDialogLabels,
   type TagRowEdits,
   type TodoNode,
 } from "@life-editor/shared";
@@ -138,16 +135,6 @@ interface ConnectSources {
 
 /** Stable identity for "nothing checked" (#1644). */
 const NO_CHECKS: ReadonlySet<string> = new Set();
-
-/** Which caption names each editable field, for the narrow sheets (#1646). */
-const EDIT_FIELD_LABEL: Record<
-  TagHubEditField,
-  (labels: TagHubLabels) => string
-> = {
-  name: (labels) => labels.edit.nameLabel,
-  icon: (labels) => labels.edit.iconLabel,
-  color: (labels) => labels.edit.colorLabel,
-};
 
 const EMPTY_SOURCES: ConnectSources = {
   todos: [],
@@ -362,11 +349,8 @@ export function ConnectScreen({
       loading: t("connect.loading"),
       rowMenu: t("connect.rowMenu"),
       sheetClose: t("connect.sheetClose"),
-      renameTag: t("connect.renameTag"),
-      changeIcon: t("connect.changeIcon"),
-      changeColor: t("connect.changeColor"),
+      editTagMenu: t("connect.editTagMenu"),
       deleteTag: t("connect.deleteTag"),
-      mergeTag: t("connect.mergeTag"),
       editTag: t("connect.editTag"),
       edit: {
         nameLabel: t("connect.edit.nameLabel"),
@@ -446,17 +430,16 @@ export function ConnectScreen({
    */
   const drafts = useTagEditDrafts(wiki.allTags, wiki);
   const [editOpen, setEditOpen] = useState(false);
-  const [editFocusField, setEditFocusField] = useState<TagHubEditField | null>(
-    null,
-  );
+  // "Edit tag" asks for the caret in the name field; one-shot (see below).
+  const [editFocusName, setEditFocusName] = useState(false);
   const [pendingSelectId, setPendingSelectId] = useState<string | null>(null);
   /*
-   * Which field the narrow sheet is showing (#1646). Separate from
-   * `editFocusField`, which is a one-shot focus request the first interaction
-   * with the block consumes — driving the sheet from it would close the sheet
-   * on the first keystroke.
+   * Whether the narrow edit sheet is up (#1646; one "Edit tag" sheet since
+   * #1886). Separate from `editFocusName`, which is a one-shot focus request
+   * the first interaction with the block consumes — driving the sheet from it
+   * would close the sheet on the first keystroke.
    */
-  const [sheetField, setSheetField] = useState<TagHubEditField | null>(null);
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const selectTag = useCallback(
     (tagId: string | null) => {
@@ -470,7 +453,7 @@ export function ConnectScreen({
         return;
       }
       commitSelection(tagId);
-      setEditFocusField(null);
+      setEditFocusName(false);
     },
     [selectedTagId, drafts, commitSelection],
   );
@@ -480,7 +463,7 @@ export function ConnectScreen({
     // waiting for them when they come back to the tag.
     if (selectedTagId) drafts.discard(selectedTagId);
     commitSelection(pendingSelectId);
-    setEditFocusField(null);
+    setEditFocusName(false);
     setPendingSelectId(null);
   }, [selectedTagId, pendingSelectId, commitSelection, drafts]);
 
@@ -490,7 +473,7 @@ export function ConnectScreen({
       drafts.edit(selectedTagId, patch);
       // The focus request is consumed by the first interaction with the block,
       // so a re-render does not steal the caret back to the menu's field.
-      setEditFocusField(null);
+      setEditFocusName(false);
     },
     [selectedTagId, drafts],
   );
@@ -520,18 +503,18 @@ export function ConnectScreen({
   );
 
   const openEditOn = useCallback(
-    (tagId: string, field: TagHubEditField) => {
+    (tagId: string) => {
       // The rail's "…" can name a tag that is not the open one, so this both
       // selects and opens — and goes through `selectTag`, which is what asks
       // about a draft on the tag being left.
       if (tagId !== selectedTagId) selectTag(tagId);
-      setEditFocusField(field);
-      // Narrow opens the field in a sheet of its own and leaves the inline
+      setEditFocusName(true);
+      // Narrow opens the editor in a sheet of its own and leaves the inline
       // block shut — opening both drew the Name field and Save twice, one
       // over the other (#1851). The wide layout opens the block inline and
       // only moves the caret.
       if (isWide) setEditOpen(true);
-      else setSheetField(field);
+      else setSheetOpen(true);
     },
     [selectedTagId, selectTag, isWide],
   );
@@ -615,35 +598,6 @@ export function ConnectScreen({
   }, []);
   const clearChecked = useCallback(() => setCheckedIds(NO_CHECKS), []);
 
-  /*
-   * Merging (#1644). The dialog names the source; the Provider refiles its
-   * items and deletes it only when every move landed. When the merged tag was
-   * the open one, the hub follows its items to where they went.
-   */
-  const [mergeSourceId, setMergeSourceId] = useState<string | null>(null);
-  const mergeTags = useCallback(
-    (sourceId: string, targetId: string) => {
-      setMergeSourceId(null);
-      void (async () => {
-        try {
-          const result = await wiki.mergeTags(sourceId, targetId);
-          if (!result.sourceDeleted) {
-            toast?.showToast("danger", t("connect.merge.failed"));
-            return;
-          }
-          if (sourceId === selectedTagId) {
-            drafts.discard(sourceId);
-            commitSelection(targetId);
-            setEditOpen(false);
-          }
-        } catch {
-          toast?.showToast("danger", t("connect.merge.failed"));
-        }
-      })();
-    },
-    [wiki, toast, t, selectedTagId, drafts, commitSelection],
-  );
-
   // The promise goes back to the rail, which keeps the typed name and shows
   // why when the create fails (#1847).
   const createTag = useCallback((name: string) => wiki.createTag(name), [wiki]);
@@ -696,7 +650,7 @@ export function ConnectScreen({
     [t, labels.roles],
   );
 
-  // Every live tag, for the choosers and the merge dialog — unused ones
+  // Every live tag, for the bulk choosers — unused ones
   // included, since filing items under a fresh tag is how it stops being one.
   const pickableTags = useMemo(
     () => [...model.tags.filter((tag) => !tag.isUntagged), ...model.unusedTags],
@@ -720,23 +674,6 @@ export function ConnectScreen({
     }),
     [t],
   );
-
-  const mergeLabels = useMemo<TagMergeDialogLabels>(
-    () => ({
-      formatTitle: (name) => t("connect.merge.title", { name }),
-      targetsLabel: t("connect.merge.targetsLabel"),
-      pickHint: t("connect.merge.pickHint"),
-      formatSummary: (count, target) =>
-        t("connect.merge.summary", { count, target }),
-      noTargets: t("connect.merge.noTargets"),
-      confirm: t("connect.merge.confirm"),
-      cancel: t("common.cancel"),
-    }),
-    [t],
-  );
-
-  const mergeSource =
-    pickableTags.find((tag) => tag.id === mergeSourceId) ?? null;
 
   /*
    * The relations of the selected row (#1645). `itemsById` is the hub's own
@@ -929,10 +866,10 @@ export function ConnectScreen({
         editOpen={editOpen}
         onToggleEdit={() => {
           setEditOpen((v) => !v);
-          setEditFocusField(null);
+          setEditFocusName(false);
         }}
         onEditTag={openEditOn}
-        editFocusField={editFocusField}
+        editFocusName={editFocusName}
         edits={drafts.editsFor(selectedTagId ?? "")}
         editDirty={selectedTagId ? drafts.isDirty(selectedTagId) : false}
         onEditChange={editSelected}
@@ -941,7 +878,6 @@ export function ConnectScreen({
         editError={editErrorFor(selectedTagId)}
         onDeleteTag={requestDelete}
         onCreateTag={createTag}
-        onMergeTag={setMergeSourceId}
         // Bulk selection is Desktop only (the Mobile brief drops it).
         checkedItemIds={isWide ? checkedIds : undefined}
         onToggleItemChecked={isWide ? toggleChecked : undefined}
@@ -989,15 +925,6 @@ export function ConnectScreen({
             />
           ) : null
         }
-      />
-
-      <TagMergeDialog
-        key={mergeSourceId ?? "closed"}
-        source={mergeSource}
-        tags={pickableTags}
-        onMerge={mergeTags}
-        onCancel={() => setMergeSourceId(null)}
-        labels={mergeLabels}
       />
 
       {/* The narrow row's "…" (M3): read what it relates to, or take this
@@ -1054,27 +981,24 @@ export function ConnectScreen({
         </BottomSheet>
       )}
 
-      {/* One field per sheet (M1): the rail's menu named which one. */}
-      {!isWide && selectedTag && sheetField && (
+      {/* The narrow editor (M1): the rail's "Edit tag" opens the whole block
+          in a sheet (#1886 — it used to be one sheet per field). */}
+      {!isWide && selectedTag && sheetOpen && (
         <BottomSheet
           open
-          onClose={() => setSheetField(null)}
-          title={t("connect.mobile.editSheet", {
-            name: selectedTag.name,
-            field: EDIT_FIELD_LABEL[sheetField](labels),
-          })}
+          onClose={() => setSheetOpen(false)}
+          title={`${selectedTag.name}: ${labels.editTag}`}
           closeLabel={t("connect.sheetClose")}
         >
           <TagHubEditBlock
             tag={selectedTag}
             edits={drafts.editsFor(selectedTag.id)}
             dirty={drafts.isDirty(selectedTag.id)}
-            only={sheetField}
             onEdit={editSelected}
             onDropEdit={dropEdit}
             onSave={() => {
               void saveSelected().then((ok) => {
-                if (ok) setSheetField(null);
+                if (ok) setSheetOpen(false);
               });
             }}
             error={editErrorFor(selectedTag.id)}

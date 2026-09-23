@@ -27,11 +27,7 @@ export {
   type TagHubDetailPanelProps,
 } from "./TagHubDetailPanel";
 // #1643 — the tag editor, folded in from the retired modal.
-export {
-  TagHubEditBlock,
-  type TagHubEditBlockProps,
-  type TagHubEditField,
-} from "./TagHubEditBlock";
+export { TagHubEditBlock, type TagHubEditBlockProps } from "./TagHubEditBlock";
 // #1676 — the rail's tag menu and the edit block's drafts, callable from
 // outside the hub (the Materials note sidebar, #1677).
 export {
@@ -58,11 +54,6 @@ export {
   type TagHubTagPickerLabels,
   type TagHubTagPickerPopoverProps,
 } from "./TagHubTagPickerPopover";
-export {
-  TagMergeDialog,
-  type TagMergeDialogLabels,
-  type TagMergeDialogProps,
-} from "./TagMergeDialog";
 // #1645 — the relations mode and the rule behind it.
 export {
   buildItemRelations,

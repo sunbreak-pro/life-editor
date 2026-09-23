@@ -10,7 +10,6 @@ import {
   useTranslation,
   useWikiTagsUnifiedContext,
   type NoteNode,
-  type TagHubEditField,
   type TagHubTagSummary,
 } from "@life-editor/shared";
 import { TagPicker } from "../wikitag";
@@ -65,6 +64,9 @@ export interface SidebarContextMenus {
   menus: React.JSX.Element | null;
 }
 
+/** The tag edit panel's width (#1886 — was 320). */
+const TAG_EDIT_PANEL_WIDTH = 420;
+
 export function useSidebarContextMenus({
   enabled,
   notes,
@@ -80,7 +82,7 @@ export function useSidebarContextMenus({
   const tagMenu = useTagActionsMenu();
   const [menuTagId, setMenuTagId] = useState<string | null>(null);
   const [editTagId, setEditTagId] = useState<string | null>(null);
-  const [editField, setEditField] = useState<TagHubEditField | null>(null);
+  const [editFocusName, setEditFocusName] = useState(false);
   const drafts = useTagEditDrafts(allTags, wiki);
 
   const onTagContextMenu = useCallback(
@@ -162,9 +164,7 @@ export function useSidebarContextMenus({
   const tagLabels = useMemo(
     () => ({
       rowMenu: t("connect.rowMenu"),
-      renameTag: t("connect.renameTag"),
-      changeIcon: t("connect.changeIcon"),
-      changeColor: t("connect.changeColor"),
+      editTagMenu: t("connect.editTagMenu"),
       deleteTag: t("connect.deleteTag"),
     }),
     [t],
@@ -204,9 +204,9 @@ export function useSidebarContextMenus({
           tagName={menuTag.name}
           anchorPoint={tagMenu.anchorPoint}
           labels={tagLabels}
-          onEdit={(field) => {
+          onEdit={() => {
             setEditTagId(menuTag.id);
-            setEditField(field);
+            setEditFocusName(true);
           }}
           onDelete={() => requestTagDelete(menuTag.id)}
         />
@@ -222,18 +222,21 @@ export function useSidebarContextMenus({
             y: tagMenu.anchorPoint?.y ?? 0,
           }}
           label={`${editTag.name}: ${t("connect.editTag")}`}
-          width={320}
+          // #1886 — 320 squeezed the name field, the icon row and the twelve
+          // swatches together. The panel may spill over the main column; the
+          // popover's viewport clamp keeps it on screen at the new width.
+          width={TAG_EDIT_PANEL_WIDTH}
           summary={
             <TagHubEditBlock
               tag={editTag}
               edits={drafts.editsFor(editTag.id)}
               dirty={drafts.isDirty(editTag.id)}
-              focusField={editField}
+              focusName={editFocusName}
               onEdit={(patch) => {
                 drafts.edit(editTag.id, patch);
                 // Consumed once: a re-render must not steal the caret back to
-                // the field the menu picked.
-                setEditField(null);
+                // the name field.
+                setEditFocusName(false);
               }}
               onDropEdit={(field) => drafts.drop(editTag.id, field)}
               onSave={() => {

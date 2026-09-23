@@ -1095,9 +1095,7 @@
     "emptyAction": "タグを追加",
     "loading": "タグを読み込み中",
     "rowMenu": "タグの操作",
-    "renameTag": "名前を変更",
-    "changeIcon": "アイコンを変える",
-    "changeColor": "色を変える",
+    "editTagMenu": "タグを編集する",
     "deleteTag": "タグを削除",
     "editTag": "このタグを編集",
     "deleteConfirm": "タグ「{{name}}」を削除しますか？付けているアイテムからも外れます。",
@@ -1124,16 +1122,6 @@
       "recentHeading": "最近タグを付けたもの",
       "recentUntaggedHeading": "最近更新したもの",
       "recentEmpty": "このタグが付いたアイテムはまだありません。"
-    },
-    "mergeTag": "別のタグへ統合…",
-    "merge": {
-      "title": "「{{name}}」を統合する",
-      "targetsLabel": "統合先のタグ",
-      "pickHint": "アイテムの移動先になるタグを選んでください。",
-      "summary_other": "{{count}} 件が「{{target}}」へ移り、このタグは削除されます。",
-      "noTargets": "統合できる別のタグがありません。",
-      "confirm": "統合する",
-      "failed": "統合が最後まで終わりませんでした。取りこぼしが出ないよう、元のタグは残しています。"
     },
     "selection": {
       "assign": "タグを付ける",
@@ -1168,7 +1156,6 @@
       "writeFailed": "リンクを保存できませんでした。通信を確認してください。"
     },
     "mobile": {
-      "editSheet": "{{name}}: {{field}}",
       "itemMenu": "「{{title}}」の操作",
       "relationsSheet": "関連: {{title}}",
       "removeThisTag": "このタグを外す",

@@ -30,9 +30,7 @@ export const TAG_HUB_LABELS: TagHubLabels = {
   loading: "Loading tags",
   rowMenu: "Tag actions",
   sheetClose: "Close",
-  renameTag: "Rename",
-  changeIcon: "Change the icon",
-  changeColor: "Change the color",
+  editTagMenu: "Edit tag",
   deleteTag: "Delete tag",
   editTag: "Edit this tag",
   edit: {

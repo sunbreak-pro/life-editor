@@ -126,7 +126,7 @@ describe("useTagEditDrafts — a save that does not land (#1847)", () => {
     { id: "t-idle", name: "Idle", color: null, icon: null },
   ];
   const writers = () => ({
-    renameTag: vi.fn(async () => undefined),
+    setTagName: vi.fn(async () => undefined),
     setTagIcon: vi.fn(async () => undefined),
     setTagColor: vi.fn(async () => undefined),
   });
@@ -146,7 +146,7 @@ describe("useTagEditDrafts — a save that does not land (#1847)", () => {
     expect(ok).toBe(false);
     expect(result.current.errorFor("t-work")).toBe("duplicate");
     // Nothing half-applied: the colour waits with the name.
-    expect(w.renameTag).not.toHaveBeenCalled();
+    expect(w.setTagName).not.toHaveBeenCalled();
     expect(w.setTagColor).not.toHaveBeenCalled();
     // The draft survives, so the user can fix the name rather than retype.
     expect(result.current.editsFor("t-work").name).toBe("IDLE");
@@ -154,7 +154,7 @@ describe("useTagEditDrafts — a save that does not land (#1847)", () => {
 
   it("reports a failed write and keeps the draft", async () => {
     const w = writers();
-    w.renameTag.mockRejectedValueOnce(new Error("409"));
+    w.setTagName.mockRejectedValueOnce(new Error("409"));
     const { result } = renderHook(() => useTagEditDrafts(TAGS, w));
 
     act(() => result.current.edit("t-work", { name: "Work log" }));
@@ -184,7 +184,7 @@ describe("useTagEditDrafts — a save that does not land (#1847)", () => {
       ok = await result.current.save("t-work");
     });
     expect(ok).toBe(true);
-    expect(w.renameTag).toHaveBeenCalledWith("t-work", "Work log");
+    expect(w.setTagName).toHaveBeenCalledWith("t-work", "Work log");
   });
 
   it("lets a tag keep its own name in another case", async () => {
@@ -196,7 +196,7 @@ describe("useTagEditDrafts — a save that does not land (#1847)", () => {
       await result.current.save("t-work");
     });
     expect(result.current.errorFor("t-work")).toBeNull();
-    expect(w.renameTag).toHaveBeenCalledWith("t-work", "work");
+    expect(w.setTagName).toHaveBeenCalledWith("t-work", "work");
   });
 });
 

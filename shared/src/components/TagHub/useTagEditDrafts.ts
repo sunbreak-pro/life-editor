@@ -32,7 +32,7 @@ export interface TagEditDraftTarget extends TagRowPatchTarget {
 
 /** Where a save goes. `useWikiTagsUnifiedContext()` satisfies it as-is. */
 export interface TagEditWriters {
-  renameTag: (id: string, name: string) => Promise<unknown>;
+  setTagName: (id: string, name: string) => Promise<unknown>;
   setTagIcon: (id: string, icon: string | null) => Promise<unknown>;
   setTagColor: (id: string, color: string | null) => Promise<unknown>;
 }
@@ -149,7 +149,7 @@ export function useTagEditDrafts(
     [setError],
   );
 
-  const { renameTag, setTagIcon, setTagColor } = writers;
+  const { setTagName, setTagIcon, setTagColor } = writers;
   const save = useCallback(
     async (tagId: string): Promise<boolean> => {
       const patch = patchByTag.get(tagId);
@@ -167,7 +167,7 @@ export function useTagEditDrafts(
       setError(tagId, null);
       // Started in the editor's order (rename first), awaited together.
       const writes: Promise<unknown>[] = [];
-      if (patch.name !== undefined) writes.push(renameTag(tagId, patch.name));
+      if (patch.name !== undefined) writes.push(setTagName(tagId, patch.name));
       if (patch.icon !== undefined) writes.push(setTagIcon(tagId, patch.icon));
       if (patch.color !== undefined)
         writes.push(setTagColor(tagId, patch.color));
@@ -179,7 +179,7 @@ export function useTagEditDrafts(
         return false;
       }
     },
-    [patchByTag, tags, renameTag, setTagIcon, setTagColor, setError],
+    [patchByTag, tags, setTagName, setTagIcon, setTagColor, setError],
   );
 
   // One stable object while nothing changed, so a host can list `drafts` as a

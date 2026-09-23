@@ -104,25 +104,16 @@ describe("TagHub narrow — the tag list (M1 / M2)", () => {
         .getAllByRole("button")
         .map((b) => b.textContent)
         .filter((text) => text),
-    ).toEqual(["Rename", "Change the icon", "Change the color", "Delete tag"]);
+    ).toEqual(["Edit tag", "Delete tag"]);
   });
 
   it("reports the picked action and closes behind it", () => {
     const { onEditTag } = renderNarrow();
     fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
-    fireEvent.click(screen.getByRole("button", { name: "Change the color" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit tag" }));
 
-    expect(onEditTag).toHaveBeenCalledWith("t-work", "color");
+    expect(onEditTag).toHaveBeenCalledWith("t-work");
     expect(screen.queryByRole("dialog")).toBeNull();
-  });
-
-  it("offers no merge on the phone", () => {
-    renderNarrow({ onMergeTag: vi.fn() });
-    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
-
-    expect(
-      screen.queryByRole("button", { name: "Merge into another tag…" }),
-    ).toBeNull();
   });
 
   it("keeps the tag rows and the “…” at the 44px floor", () => {

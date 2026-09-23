@@ -124,7 +124,7 @@ describe("TagHubTagRail — right-click opens the row menu (#1676)", () => {
       within(menu)
         .getAllByRole("menuitem")
         .map((item) => item.textContent),
-    ).toEqual(["Rename", "Change the icon", "Change the color", "Delete tag"]);
+    ).toEqual(["Edit tag", "Delete tag"]);
   });
 
   it("opens at the pointer rather than under the …", () => {
@@ -156,16 +156,10 @@ describe("TagHubTagRail — right-click opens the row menu (#1676)", () => {
       // Every item closes the menu before reporting.
       expect(screen.queryByRole("menu")).toBeNull();
     };
-    pick("Rename");
-    pick("Change the icon");
-    pick("Change the color");
+    pick("Edit tag");
     pick("Delete tag");
 
-    expect(onEditTag.mock.calls).toEqual([
-      ["t-work", "name"],
-      ["t-work", "icon"],
-      ["t-work", "color"],
-    ]);
+    expect(onEditTag.mock.calls).toEqual([["t-work"]]);
     expect(onDeleteTag.mock.calls).toEqual([["t-work"]]);
   });
 
@@ -191,7 +185,7 @@ describe("TagActionsMenu — usable outside the hub (#1676)", () => {
     onEdit,
     onDelete,
   }: {
-    onEdit: (field: string) => void;
+    onEdit: () => void;
     onDelete: () => void;
   }) {
     const menu = useTagActionsMenu();
@@ -223,8 +217,8 @@ describe("TagActionsMenu — usable outside the hub (#1676)", () => {
     render(<Host onEdit={onEdit} onDelete={onDelete} />);
 
     fireEvent.click(screen.getByRole("button", { name: "more" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Change the icon" }));
-    expect(onEdit).toHaveBeenCalledWith("icon");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit tag" }));
+    expect(onEdit).toHaveBeenCalledTimes(1);
 
     rightClick(screen.getByTestId("surface"), 10, 20);
     expect(
@@ -249,7 +243,7 @@ describe("TagActionsMenu — usable outside the hub (#1676)", () => {
 describe("useTagEditDrafts (#1676)", () => {
   const TAG = { id: "t-work", name: "Work", color: null, icon: null };
   const writers = () => ({
-    renameTag: vi.fn(async () => undefined),
+    setTagName: vi.fn(async () => undefined),
     setTagIcon: vi.fn(async () => undefined),
     setTagColor: vi.fn(async () => undefined),
   });
@@ -261,12 +255,12 @@ describe("useTagEditDrafts (#1676)", () => {
     act(() => result.current.edit("t-work", { color: "#e11d48" }));
     act(() => result.current.edit("t-work", { name: "Work log" }));
     expect(result.current.isDirty("t-work")).toBe(true);
-    expect(w.renameTag).not.toHaveBeenCalled();
+    expect(w.setTagName).not.toHaveBeenCalled();
 
     act(() => {
       void result.current.save("t-work");
     });
-    expect(w.renameTag.mock.calls).toEqual([["t-work", "Work log"]]);
+    expect(w.setTagName.mock.calls).toEqual([["t-work", "Work log"]]);
     expect(w.setTagColor.mock.calls).toEqual([["t-work", "#e11d48"]]);
     expect(w.setTagIcon).not.toHaveBeenCalled();
   });
@@ -292,6 +286,6 @@ describe("useTagEditDrafts (#1676)", () => {
     act(() => {
       void result.current.save("t-work");
     });
-    expect(w.renameTag).not.toHaveBeenCalled();
+    expect(w.setTagName).not.toHaveBeenCalled();
   });
 });

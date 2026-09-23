@@ -41,12 +41,6 @@ export interface BulkTagResult {
   failed: number;
 }
 
-/** A merge's result: the moves, plus whether the source tag was deleted. */
-export interface MergeTagsResult extends BulkTagResult {
-  /** False when any move failed — the source is kept so nothing is stranded. */
-  sourceDeleted: boolean;
-}
-
 export interface UseWikiTagsUnifiedAPIOptions {
   dataService: DataService;
   /**
@@ -165,7 +159,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [ds],
   );
 
-  const renameTag = useCallback(
+  const setTagName = useCallback(
     async (id: string, name: string): Promise<WikiTag> => {
       const updated = await ds.updateWikiTagUnified(id, { name });
       setAllTags((prev) =>
@@ -390,33 +384,6 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       return { succeeded: off.succeeded, failed: failed + off.failed };
     },
     [writeAssign, bulkUnassign],
-  );
-
-  /**
-   * Fold one tag into another (plan assumption 4): refile the source's items
-   * onto the target, take the source's rows off, then soft-delete the source.
-   * The rows are taken off explicitly rather than left for the tag's delete,
-   * so no assignment is left pointing at a deleted tag. The source is deleted
-   * only when every move landed.
-   */
-  const mergeTags = useCallback(
-    async (sourceId: string, targetId: string): Promise<MergeTagsResult> => {
-      if (sourceId === targetId) {
-        return { succeeded: 0, failed: 0, sourceDeleted: false };
-      }
-      const itemIds = allAssignments
-        .filter((a) => a.tagId === sourceId && !a.isDeleted)
-        .map((a) => a.itemId);
-      const moved = await moveItemsToTag(itemIds, sourceId, targetId);
-      if (moved.failed > 0) return { ...moved, sourceDeleted: false };
-      try {
-        await deleteTag(sourceId);
-        return { ...moved, sourceDeleted: true };
-      } catch {
-        return { ...moved, sourceDeleted: false };
-      }
-    },
-    [allAssignments, moveItemsToTag, deleteTag],
   );
 
   // -- item↔item links ----------------------------------------------------
@@ -644,7 +611,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       error,
       refresh,
       createTag,
-      renameTag,
+      setTagName,
       setTagColor,
       setTagIcon,
       deleteTag,
@@ -654,7 +621,6 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       bulkAssign,
       bulkUnassign,
       moveItemsToTag,
-      mergeTags,
       setDisplayColorTag,
       listLinksFromItem,
       listLinksToItem,
@@ -673,7 +639,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       error,
       refresh,
       createTag,
-      renameTag,
+      setTagName,
       setTagColor,
       setTagIcon,
       deleteTag,
@@ -683,7 +649,6 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       bulkAssign,
       bulkUnassign,
       moveItemsToTag,
-      mergeTags,
       setDisplayColorTag,
       listLinksFromItem,
       listLinksToItem,
