@@ -656,6 +656,7 @@
     "done": "Done",
     "emptyToday": "Nothing scheduled for today",
     "emptyDay": "Nothing scheduled for this day",
+    "flowBackToToday": "Back to today",
     "frequency": "Repeat",
     "viewLabel": "View",
     "frequencyNone": "None",
