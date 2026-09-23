@@ -25,7 +25,7 @@ export interface TagEditDraftTarget extends TagRowPatchTarget {
 
 /** Where a save goes. `useWikiTagsUnifiedContext()` satisfies it as-is. */
 export interface TagEditWriters {
-  renameTag: (id: string, name: string) => Promise<unknown>;
+  setTagName: (id: string, name: string) => Promise<unknown>;
   setTagIcon: (id: string, icon: string | null) => Promise<unknown>;
   setTagColor: (id: string, color: string | null) => Promise<unknown>;
 }
@@ -103,16 +103,16 @@ export function useTagEditDrafts(
     });
   }, []);
 
-  const { renameTag, setTagIcon, setTagColor } = writers;
+  const { setTagName, setTagIcon, setTagColor } = writers;
   const save = useCallback(
     (tagId: string) => {
       const patch = patchByTag.get(tagId);
       if (!patch) return;
-      if (patch.name !== undefined) void renameTag(tagId, patch.name);
+      if (patch.name !== undefined) void setTagName(tagId, patch.name);
       if (patch.icon !== undefined) void setTagIcon(tagId, patch.icon);
       if (patch.color !== undefined) void setTagColor(tagId, patch.color);
     },
-    [patchByTag, renameTag, setTagIcon, setTagColor],
+    [patchByTag, setTagName, setTagIcon, setTagColor],
   );
 
   // One stable object while nothing changed, so a host can list `drafts` as a

@@ -1099,9 +1099,7 @@
     "emptyAction": "Add a tag",
     "loading": "Loading tags",
     "rowMenu": "Tag actions",
-    "renameTag": "Rename",
-    "changeIcon": "Change the icon",
-    "changeColor": "Change the color",
+    "editTagMenu": "Edit tag",
     "deleteTag": "Delete tag",
     "editTag": "Edit this tag",
     "deleteConfirm": "Delete the tag “{{name}}”? It is removed from every item carrying it.",
@@ -1126,17 +1124,6 @@
       "recentHeading": "Recently tagged",
       "recentUntaggedHeading": "Recently updated",
       "recentEmpty": "Nothing is filed under this tag yet."
-    },
-    "mergeTag": "Merge into another tag…",
-    "merge": {
-      "title": "Merge “{{name}}” into…",
-      "targetsLabel": "Tag to merge into",
-      "pickHint": "Pick the tag its items should move to.",
-      "summary_one": "{{count}} item moves to “{{target}}”, and this tag is deleted.",
-      "summary_other": "{{count}} items move to “{{target}}”, and this tag is deleted.",
-      "noTargets": "There is no other tag to merge into.",
-      "confirm": "Merge",
-      "failed": "The merge did not finish. The tag was kept so nothing is lost."
     },
     "selection": {
       "assign": "Add a tag",
@@ -1173,7 +1160,6 @@
       "writeFailed": "The link could not be saved. Check your connection."
     },
     "mobile": {
-      "editSheet": "{{name}}: {{field}}",
       "itemMenu": "{{title}}: Item actions",
       "relationsSheet": "Related: {{title}}",
       "removeThisTag": "Remove this tag",

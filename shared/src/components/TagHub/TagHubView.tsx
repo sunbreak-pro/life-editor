@@ -6,7 +6,7 @@ import { EmptyState } from "../EmptyState";
 import { IconButton } from "../IconButton";
 import { SkeletonList } from "../SkeletonList";
 import { TagHeadingIcon } from "../TagHeadingIcon";
-import { TagHubEditBlock, type TagHubEditField } from "./TagHubEditBlock";
+import { TagHubEditBlock } from "./TagHubEditBlock";
 import { TagHubItemGroups } from "./TagHubItemGroups";
 import { TagHubTagRail } from "./TagHubTagRail";
 import { NO_EDITS, type TagRowEdits } from "./tagRowPatch";
@@ -71,10 +71,10 @@ export interface TagHubViewProps {
   editOpen?: boolean;
   /** The pencil (D6) and the rail's "…" both toggle it through here. */
   onToggleEdit?: () => void;
-  /** Rail "…" → open the block focused on one field (D2). */
-  onEditTag?: (tagId: string, field: TagHubEditField) => void;
-  /** Which field the block should take focus on, consumed once by the host. */
-  editFocusField?: TagHubEditField | null;
+  /** Rail "…" → "Edit tag": open the block on that tag (D2 / #1886). */
+  onEditTag?: (tagId: string) => void;
+  /** Put the caret in the block's name field; consumed once by the host. */
+  editFocusName?: boolean;
   /** The selected tag's unsaved draft (#715). */
   edits?: TagRowEdits;
   /** Whether that draft amounts to something the save button would write. */
@@ -86,8 +86,6 @@ export interface TagHubViewProps {
   onDeleteTag?: (tagId: string) => void;
   /** The rail's pinned add row, and the empty state's primary action (D5/D15). */
   onCreateTag?: (name: string) => void;
-  /** Rail "…" → merge this tag into another (#1644). */
-  onMergeTag?: (tagId: string) => void;
 
   /*
    * Bulk selection (#1644). The host owns which rows are checked and draws the
@@ -127,7 +125,7 @@ export function TagHubView({
   editOpen = false,
   onToggleEdit,
   onEditTag,
-  editFocusField = null,
+  editFocusName = false,
   edits = NO_EDITS,
   editDirty = false,
   onEditChange,
@@ -135,7 +133,6 @@ export function TagHubView({
   onEditSave,
   onDeleteTag,
   onCreateTag,
-  onMergeTag,
   checkedItemIds,
   onToggleItemChecked,
   formatSelectItem,
@@ -193,7 +190,6 @@ export function TagHubView({
       formatUnusedTags={formatUnusedTags}
       onEditTag={onEditTag}
       onDeleteTag={onDeleteTag}
-      onMergeTag={onMergeTag}
       onCreateTag={onCreateTag}
       addFieldRef={addFieldRef}
       wide={wide}
@@ -293,7 +289,7 @@ export function TagHubView({
                 tag={selected}
                 edits={edits}
                 dirty={editDirty}
-                focusField={editFocusField}
+                focusName={editFocusName}
                 onEdit={onEditChange}
                 onDropEdit={(field) => onEditDrop?.(field)}
                 onSave={() => onEditSave?.()}

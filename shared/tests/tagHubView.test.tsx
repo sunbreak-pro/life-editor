@@ -343,13 +343,13 @@ describe("TagHubView — editing a tag", () => {
     expect(screen.queryByLabelText("Enter a tag name")).toBeNull();
   });
 
-  it("opens the block on the field the row menu named", () => {
+  it("opens the block from the row menu's one edit item (#1886)", () => {
     const { spies, props } = editProps();
     renderHub({ selectedTagId: "t-work", ...props });
 
     fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Change the color" }));
-    expect(spies.onEditTag).toHaveBeenCalledWith("t-work", "color");
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit tag" }));
+    expect(spies.onEditTag).toHaveBeenCalledWith("t-work");
   });
 
   it("routes the row menu's delete to the host, which confirms", () => {

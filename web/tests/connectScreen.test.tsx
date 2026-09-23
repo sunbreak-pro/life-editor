@@ -720,7 +720,7 @@ describe("ConnectScreen — the row's right-click menu", () => {
     await renderScreen(ds);
 
     rightClickRow("Work: 4 items");
-    fireEvent.click(screen.getByRole("menuitem", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit tag" }));
     fireEvent.change(await screen.findByLabelText("Name"), {
       target: { value: "Work log" },
     });
@@ -737,16 +737,16 @@ describe("ConnectScreen — the row's right-click menu", () => {
     const { ds, writes } = makeWritableDS();
     await renderScreen(ds);
 
+    // #1886 — one "Edit tag" opens the whole block; colour and icon are both
+    // in it.
     rightClickRow("Work: 4 items");
-    fireEvent.click(screen.getByRole("menuitem", { name: "Change the color" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Edit tag" }));
     const swatch = within(
       await screen.findByRole("group", { name: "Color" }),
     ).getAllByRole("button")[0];
     const hex = swatch.getAttribute("aria-label");
     fireEvent.click(swatch);
 
-    rightClickRow("Work: 4 items");
-    fireEvent.click(screen.getByRole("menuitem", { name: "Change the icon" }));
     fireEvent.click(screen.getByRole("button", { name: "Icon" }));
     // `option`, not `button` — see the note in the save-button suite (#1701).
     const choice = within(
@@ -1002,33 +1002,15 @@ describe("ConnectScreen — bulk tag operations", () => {
     ).toBe(false);
   });
 
-  it("merges a tag: every item re-filed, the old rows removed, then the tag deleted", async () => {
-    const { ds, writes } = makeWritableDS();
-    await renderScreen(ds);
+  it("offers edit and delete only — the merge is gone (#1886)", async () => {
+    await renderScreen();
 
     fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
-    fireEvent.click(
-      screen.getByRole("menuitem", { name: "Merge into another tag…" }),
-    );
-    const dialog = within(await screen.findByRole("dialog"));
-    fireEvent.click(dialog.getByRole("radio", { name: "Idle" }));
-    dialog.getByText("4 items move to “Idle”, and this tag is deleted.");
-    fireEvent.click(dialog.getByRole("button", { name: "Merge" }));
-
-    await waitFor(() =>
-      expect(writes.softDeleteWikiTagUnified).toHaveBeenCalled(),
-    );
-    expect(writes.assignTagToItem).toHaveBeenCalledTimes(4);
     expect(
-      writes.assignTagToItem.mock.calls.every((call) => call[2] === "t-idle"),
-    ).toBe(true);
-    expect(writes.unassignTagFromItem.mock.calls).toEqual([
-      ["a-1"],
-      ["a-2"],
-      ["a-3"],
-      ["a-4"],
-    ]);
-    expect(writes.softDeleteWikiTagUnified.mock.calls).toEqual([["t-work"]]);
+      within(screen.getByRole("menu", { name: "Work: Tag actions" }))
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Edit tag", "Delete tag"]);
   });
 });
 

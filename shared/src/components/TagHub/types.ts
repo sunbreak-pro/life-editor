@@ -164,13 +164,12 @@ export interface TagHubLabels {
    * fourteen tags does not present fourteen identically-named buttons.
    */
   rowMenu: string;
-  /** D2 menu items. Rename / icon / color open the edit block on that field. */
-  renameTag: string;
-  changeIcon: string;
-  changeColor: string;
+  /**
+   * D2 menu items. One "Edit tag" opens the edit block on the name field
+   * (#1886 — it replaced rename / change the icon / change the colour).
+   */
+  editTagMenu: string;
   deleteTag: string;
-  /** #1644 — the row menu's merge item (drawn only with `onMergeTag`). */
-  mergeTag?: string;
   /** #1646 — the narrow sheets' close button and the item row's "…". */
   sheetClose: string;
   /** D6 — the header's pencil, which opens the edit block (#1643). */

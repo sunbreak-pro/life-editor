@@ -7,8 +7,10 @@ import { stubDataService } from "./helpers/dataServiceStub";
 
 /*
  * The bulk tag writes (#1644): sequential single-row DataService calls with a
- * success / failure count, and a merge that runs assign → unassign → soft
- * delete (plan assumption 4) and keeps the source when anything failed.
+ * success / failure count, and a move that runs every assign before taking
+ * the old rows off — only for the items that made it across. (The tag merge
+ * built on the move was removed in #1886; its ordering cases live on here as
+ * the move's own.)
  *
  * One ordered log across every write method, so "the order" is asserted as
  * the order the service actually saw — not as three separate call lists that
@@ -105,13 +107,17 @@ describe("useWikiTagsUnifiedAPI — bulk writes (#1644)", () => {
     expect(log).toEqual(["unassign a-1", "unassign a-3"]);
   });
 
-  it("merges in the order assign → unassign → soft delete", async () => {
+  it("moves in the order assign → unassign", async () => {
     const { hook, log } = await loaded(setup());
     let result;
     await act(async () => {
-      result = await hook.result.current.mergeTags("t-src", "t-dst");
+      result = await hook.result.current.moveItemsToTag(
+        ["note-1", "note-2", "note-3"],
+        "t-src",
+        "t-dst",
+      );
     });
-    expect(result).toEqual({ succeeded: 3, failed: 0, sourceDeleted: true });
+    expect(result).toEqual({ succeeded: 3, failed: 0 });
     expect(log).toEqual([
       "assign note-1→t-dst",
       "assign note-2→t-dst",
@@ -119,18 +125,20 @@ describe("useWikiTagsUnifiedAPI — bulk writes (#1644)", () => {
       "unassign a-1",
       "unassign a-2",
       "unassign a-3",
-      "delete t-src",
     ]);
   });
 
-  it("keeps the source, and the failed item's old row, when a move fails", async () => {
+  it("keeps the failed item's old row when its move fails", async () => {
     const { hook, log } = await loaded(setup(["note-2"]));
     let result;
     await act(async () => {
-      result = await hook.result.current.mergeTags("t-src", "t-dst");
+      result = await hook.result.current.moveItemsToTag(
+        ["note-1", "note-2", "note-3"],
+        "t-src",
+        "t-dst",
+      );
     });
-    expect(result).toEqual({ succeeded: 2, failed: 1, sourceDeleted: false });
+    expect(result).toEqual({ succeeded: 2, failed: 1 });
     expect(log).not.toContain("unassign a-2");
-    expect(log.some((line) => line.startsWith("delete"))).toBe(false);
   });
 });
