@@ -1,0 +1,245 @@
+<title>今日の merge 手番</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --muted: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --muted: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --muted: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding-block: 48px 80px; padding-inline: 24px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.skip .tag { color: var(--stop); }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); margin: 16px 0 20px; }
+  .step { padding: 18px 20px; border-right: 1px solid var(--line); }
+  .step:last-child { border-right: 0; }
+  .step .n { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent); font-weight: 500; letter-spacing: .08em; }
+  .step h3 { margin: 4px 0 6px; font-size: 17px; }
+  .step p { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+  .step code { font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
+  @media (max-width: 720px) { .flow { grid-template-columns: 1fr; } .step { border-right: 0; border-bottom: 1px solid var(--line); } .step:last-child { border-bottom: 0; } }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.state { white-space: nowrap; font-weight: 700; }
+  td.state.yes { color: var(--ok); }
+  td.state.no { color: var(--muted); font-weight: 400; }
+  td.state.maybe { color: var(--warn); }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .callout.warn { border-left-color: var(--warn); background: transparent; }
+  .callout.warn strong { color: var(--warn); }
+  .note { font-size: 14px; color: var(--muted); }
+  dl { display: grid; grid-template-columns: max-content 1fr; gap: 6px 18px; margin: 0 0 16px; font-size: 15px; }
+  dt { font-weight: 700; white-space: nowrap; }
+  dd { margin: 0; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-19 09:00 UTC 実測 / 進捗 / life-editor</p>
+    <h1>open な PR は 1 本、それは merge しない</h1>
+    <p class="lede">chat-main の実ブラウザ手番は全部片付いた。Connect の Step 12 まで通し、その過程で不具合 7 件を起票した。残る #1715 は CI が緑だが main と衝突するので merge しない。</p>
+  </header>
+
+  <ul class="verdicts">
+    <li class="verdict skip"><span class="tag">merge しない</span><h3>#1715</h3><p>CI は緑だが main と衝突する。schedule-refine が追従させ直すまで待つ。</p></li>
+    <li class="verdict now"><span class="tag">修正中</span><h3>#1732 / #1733</h3><p>connect-refine が両方直して verify 中。merge 後に chat-main が再実測する。</p></li>
+    <li class="verdict later"><span class="tag">判断 2 件</span><h3>D-20260919-connect-1 / #1734</h3><p>Mobile 上部バーをどうするか。設計との差分 3 件を直すか、設計を合わせるか。</p></li>
+  </ul>
+
+  <div class="callout prose"><strong>実測時点</strong>: main = <code>c1a75bdd</code>。Connect の 4 本（#1696 / #1698 / #1703 / #1709）、materials の #1713 / #1719 / #1724、schedule の #1725 まで着地済み。</div>
+
+  <h2>#1715 を merge しない理由</h2>
+
+  <p class="prose">CI のチェックは 2 本とも SUCCESS です。それでも merge できません。<b>チェックが走ったのは古い base の上</b>で、いまの main に対しては衝突するからです。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>見たもの</th><th>結果</th><th>意味</th></tr></thead>
+      <tbody>
+        <tr><td>CI チェック</td><td class="state yes">SUCCESS × 2</td><td>古い base の上で緑。いまの main は見ていない</td></tr>
+        <tr><td>GitHub の mergeable</td><td class="state maybe">UNKNOWN</td><td>計算中か、判定できていない</td></tr>
+        <tr><td><code>git merge-tree</code></td><td class="state no">exit 1</td><td><b>実際に衝突する</b>。chat-main で実測</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="callout warn prose"><strong>中身のずれ</strong>: #1640（PR #1712）が「トレイ上の単一作成ピル」を廃止して見出し 2 か所へ移したのに対し、#1715 はその行がまだある前提でフィルタ行を作っています。merge すると「+ Todo」ピルが 2 つになり、ツアーのアンカー <code>schedule-todo-add</code> も DOM に 2 つ出ます。<code>web/tests/scheduleSidebar.test.tsx:431</code> も落ちます。schedule-refine が追従させ直して連絡をくれる予定です。</div>
+
+  <h2>今日 chat-main が片付けたもの</h2>
+
+  <p class="prose">worktree レーンは playwright を持てないので、DoD の実ブラウザ項目は PR 本文に書いて chat-main へ預けられます。溜まっていた 6 件を実測して close しました。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Issue</th><th>結果</th><th>中身</th></tr></thead>
+      <tbody>
+        <tr><td>#1679</td><td class="state yes">close</td><td>Daily の kebab メニューが切れる。カードの <code>min-height</code> 270px でメニュー下端まで 133px の余白を実測</td></tr>
+        <tr><td>#1671</td><td class="state yes">close</td><td>#1409 の schedule 分 4 件を 390×844 で確認。<a href="https://claude.ai/artifact/GViM22WEXXGeFkximaYQLm">レポート</a></td></tr>
+        <tr><td>#1680</td><td class="state yes">close</td><td>夕刊の気分・振り返りの編集。保存の往復・本文を壊さないこと・IME・Undo / Redo を実測。<b>#1722 を生んだ</b></td></tr>
+        <tr><td>#1674</td><td class="state yes">close</td><td>添付アップロードの帯。Desktop で本文との間隔 19.8px、narrow で 27.5px、重なりなし</td></tr>
+        <tr><td>#1637</td><td class="state yes">close</td><td>変換 → Undo → Redo は両方の入口で動いた。報告の「押せない」は <b>#1727</b> の経路で説明がつく</td></tr>
+        <tr><td>#1638</td><td class="state yes">close</td><td>S11 の 13 経路と S12 が PASS。繰り返しのダイアログは文言が範囲に追随する</td></tr>
+        <tr><td>#1677</td><td class="state no">依存を解除</td><td>Connect 側 #1676 の着地を確認し、使える部品 3 つを Issue にコメント。PR #1713 で着地済み</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>その過程で起票した 7 件</h2>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Issue</th><th>宛先 / 状態</th><th>中身</th></tr></thead>
+      <tbody>
+        <tr><td>#1722</td><td class="state yes">close 済み</td><td>Mobile 幅で気分の星が画面外。PR #1724 で修正され、3 幅 + Desktop で再実測して合格</td></tr>
+        <tr><td>#1732</td><td class="state maybe">connect</td><td><b>右パネルを開いたまま複数選択すると選択バーが崩れる。</b>en は 2 行折り返しで文字がボタンの塗りからはみ出し、ja は「2 件を選択中」が「2 …」に切り詰め</td></tr>
+        <tr><td>#1733</td><td class="state maybe">connect</td><td><b>Mobile のエラートーストが下部タブバーに重なる。</b>タブバー上端 783.6 に対してトースト下端 826</td></tr>
+        <tr><td>#1727</td><td class="state maybe">shared-fix</td><td>セクションを移動して戻ると Undo の履歴が全部消える。5 つの Context が unmount で clear する</td></tr>
+        <tr><td>#1728</td><td class="state maybe">schedule</td><td>1440×900 で繰り返しを Weekdays にすると Save がビューポート外に出て保存できない</td></tr>
+        <tr><td>#1734</td><td class="state no">判断待ち</td><td>Step 12 で見つかった設計との差分 3 件。直すか、設計を実装に合わせるか</td></tr>
+        <tr><td>#1723</td><td class="state no">materials</td><td>夕刊だけの日で TipTap のスキーマ警告。<b>データは壊れない</b>（安全弁を実測とコードで確認）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>BLOCKING 2 件は修正が進んでいる</h2>
+
+  <p class="prose">起票から 30 分で connect-refine が両方に手を入れ、いま verify の結果待ちです。直し方の要点だけ載せておきます。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Issue</th><th>直し方</th><th>効く範囲</th></tr></thead>
+      <tbody>
+        <tr><td>#1732</td><td>選択バーの縮みを全部止める。件数は <code>truncate</code> をやめて <code>shrink-0 whitespace-nowrap</code>、4 ボタンも縮まず折り返さない。入らない幅ではバーが横スクロールする</td><td>Connect</td></tr>
+        <tr><td>#1733</td><td>Toast の viewport 側で bottom 系 3 位置に <code>max-md:bottom-[calc(3.75rem+env(safe-area-inset-bottom))]</code> を足す。16px の余白は viewport の <code>p-4</code> が出す</td><td><b>全セクション</b>（narrow のみ・Desktop は無変更）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="prose">#1732 で良いのは、<b>ja の切り詰めと en の 2 行折り返しを「縮めた結果」という 1 つの原因に束ねて塞いだ</b>ところです。入らない幅で横スクロールに逃がすのも、要素を消すより安全です。#1733 は viewport 側で直したので Connect 以外のセクションにも効きます。<b>ラベルは <code>section:connect</code> のまま</b>にしました — <code>shared-fix</code> に付け替えると 2 つのレーンが同じ Issue に同時着手しうるためです。</p>
+
+  <div class="callout prose"><strong>#1734 の判断案</strong>: connect-refine の推奨は A です。2（リンク追加シートの「候補（N）」見出し）と 3（トーストのアイコンを AlertCircle に）は直し、1（Mobile 上部バー）は D-20260919-connect-1 と同じ扱いで現状維持にして計画書を実態へ寄せる、という案。判断キューの D-20260919-connect-2 はまだ tracker ブランチにあって main に届いていません。</div>
+
+  <h2>一括操作 10 件の体感</h2>
+
+  <p class="prose">計画書 §Risks が「10 件で体感を実測し、詰まるなら RPC 関数の復活条件に照らす」と置いていた宿題です。測りました。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>操作</th><th>件数が反映されるまで</th><th>DOM が落ち着くまで</th></tr></thead>
+      <tbody>
+        <tr><td>タグを付ける（Untagged → 開発）</td><td>2,881 ms</td><td>3,744 ms</td></tr>
+        <tr><td>このタグを外す（開発 → Untagged）</td><td>45 ms（楽観更新）</td><td>2,447 ms</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="prose">選択はどちらも直後に解除され、件数も Untagged 34 → 24 → 34、開発 9 → 19 → 9 と正しく往復します。<b>3 秒弱なので「詰まる」とまでは言えませんが、押した直後に何も変わらない時間が 1 秒以上あります。</b>進み具合を示すものは出ません。RPC 関数を復活させるか、進捗表示を足すか、このままにするかの判断が要ります。</p>
+
+  <h2>chat-main の手番は片付いた</h2>
+
+  <p class="prose">溜まっていた実ブラウザ確認 6 件と Connect の Step 12 をすべて通しました。残っているのは判断が要る 1 件だけです。</p>
+
+  <div class="callout prose"><strong>Trash の残留物</strong>: #1638 の検証で作った <code>verify-1638 temp</code> が Events 1 件 + Routines 3 件（繰り返しの ON/OFF でテンプレートが毎回ソフトデリートされる仕様の副産物）。完全削除は不可逆なので残してあります。実害はないので、気になるときに Settings &gt; Trash から消してください。</div>
+
+  <h2>今日ぶつかった罠</h2>
+
+  <ul class="prose">
+    <li><b>CI のチェックが 0 件の PR を「緑」と数えていた</b>。<code>statusCheckRollup</code> が空配列のとき、「赤が無い」と「走っていない」の区別がつかない。件数を一緒に見るようにした。</li>
+    <li><b>ブランチのファイルを main と直接比べると、分岐後に main が足した分が「欠損」に見える</b>。i18n のキーが 1 件消えると報告しかけたが、実際のマージ結果（<code>git merge-tree --write-tree</code>）を作ると main の全キーが残っていた。</li>
+    <li><b>判断キューを tracker PR に載せると、merge されるまで誰にも届かない</b>。connect の D-20260919-connect-1 がそうなっていたので、PR 本文にも貼ってもらった。</li>
+    <li><b>CI が緑でも merge できないことがある</b>。#1715 はチェック 2 本とも SUCCESS だが、それは古い base の上での結果。<code>git merge-tree --write-tree</code> を打つと exit 1 で衝突する。<b>merge 直前に実際のマージ結果を作って確かめる</b>。</li>
+    <li><b>実機の指でしか確かめられないものがある</b>。#1680 の IME は Chromium の composition API で代替したが、macOS WebKit の「<code>isComposing: false</code> + <code>keyCode 229</code>」経路は再現できない。#1671 の「Move to today」も <code>hover</code> のある環境では見えないまま当たり判定だけが残る。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+
+  <ul class="prose">
+    <li><b>D-20260919-connect-1</b>: Mobile の上部バーに「＋」を置くか。推奨は A = 現状維持（narrow ヘッダーは shell の形状 enum で、末尾アクションを足すと #1646 の Scope 外に触る）。放置しても A に倒れる。</li>
+    <li><b>#1727 / #1728 / #1732 / #1733 をどのレーンにいつ回すか</b>。#1727 は 5 つの Context に同じ形があるので shared-fix、#1728 は schedule だが本人が今の /goal の範囲外と言っている。#1732 / #1733 は connect。</li>
+    <li><b>#1734 の設計差分 3 件をどう決めるか</b>。実装に合わせて計画書を直すか、設計どおりに実装を直すか、分けて決めるか。Mobile 上部バーは D-20260919-connect-1 と重なるので一緒に決めるのが良さそう。</li>
+    <li><b>一括操作の 3 秒をどうするか</b>。RPC 関数を復活させるか、進捗表示を足すか、このままにするか。</li>
+  </ul>
+</div>

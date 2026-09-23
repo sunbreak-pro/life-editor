@@ -1,0 +1,318 @@
+<title>Life Editor 棚卸し</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --muted: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --muted: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --muted: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul, ol { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.skip .tag { color: var(--stop); }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.state { white-space: nowrap; font-weight: 700; }
+  td.state.yes { color: var(--ok); }
+  td.state.no { color: var(--muted); font-weight: 400; }
+  td.state.maybe { color: var(--warn); }
+  td.state.stop { color: var(--stop); }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .callout.stop { border-left-color: var(--stop); background: var(--panel); }
+  .callout.stop strong { color: var(--stop); }
+  .note { font-size: 14px; color: var(--muted); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-23 / 判断 / life-editor</p>
+    <h1>本番 DB に未適用の migration が 1 本あり、配る前に埋める穴は 4 つです</h1>
+    <p class="lede">デッドコードは約 300 行で、コードの健康状態は良好です。未完了の大半はこうだいさんの手番（DB push・deploy・merge・close）と意図的な凍結で、コード側で今すぐ拾えるのは Issue 3 件と片付けです。</p>
+  </header>
+
+  <ul class="verdicts">
+    <li class="verdict now"><span class="tag">今日から</span><h3>migration 0030 を本番に push する</h3><p>タグの表示色を足す 0030 が本番の台帳に載っていません。列が無いと、タグを読む画面（Schedule・Connect・Notes の絞り込み）がまとめて落ちる作りです。二重実行しても安全な書き方なので、そのまま <code>cd supabase &amp;&amp; npm run db:push</code> で通せます。</p></li>
+    <li class="verdict later"><span class="tag">配る前に</span><h3>確認メール・Electron・エクスポート・問い合わせ導線</h3><p>この 4 つは $0 のまま埋められます。数人が同時に登録すると確認メールが届かなくなる点が、配布ユーザーが最初に踏む穴です。</p></li>
+    <li class="verdict skip"><span class="tag">入れない</span><h3>署名・自動更新・OAuth・Sentry・Tier 3</h3><p>いずれも「完成後に判断」と記録があり、今回の監査でも覆す材料は出ませんでした。</p></li>
+  </ul>
+
+  <div class="callout prose"><strong>前提</strong>: 手元の main（<code>14bc62b6</code>・origin は 1 コミット先）を読み取りだけで調べました。Supabase の migration 台帳は CLI で直接確認しましたが、列の実在を本番から読む操作は許可されなかったため「台帳上は未適用」までが事実です。Edge Function の deploy 状態は、アクセストークンが 401 で確認できませんでした。</div>
+
+  <h2>1. デッドコード — 消して安全なのは約 300 行です</h2>
+  <p class="prose">TypeScript の import グラフ（1,191 ファイル）と knip の両方で調べました。どこからも import されない完全な孤立ファイルは 0 件で、退役した機能（Terminal・File Explorer・力学グラフ・Tauri など）のコードも残っていません。MCP ツールのカタログも 43 本で一致しています。残っているのは「バレル（まとめて export する入口）にだけ載っていて、誰も取り出していない」部品です。</p>
+
+  <h3>削除して安全（確度 高）</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>対象</th><th>所在</th><th>根拠</th><th class="num">行数</th></tr></thead>
+      <tbody>
+        <tr><td>Mobile の浮動ボタン部品</td><td><code>shared/src/components/MobileFab.tsx</code> + テスト</td><td>バレルと <code>AppShell.tsx:289</code> のコメント以外に参照がありません</td><td class="num">88</td></tr>
+        <tr><td>ノートの簡易追加シート</td><td><code>shared/src/components/materials/QuickAddSheet.tsx</code> + テスト</td><td><code>NotesView.tsx:79</code> に「#1147 で退役」と書かれたまま残っています</td><td class="num">100</td></tr>
+        <tr><td>関数 3 個</td><td><code>items/itemRole.ts:96</code> / <code>utils/japaneseHolidays.ts:153</code> / <code>utils/scheduleLabels.ts:64</code></td><td><code>itemRoleSortKey</code> / <code>isHolidayItem</code> / <code>nowMinutesLocal</code> は定義以外に出現しません</td><td class="num">約 20</td></tr>
+        <tr><td>消費者のいない再 export 3 行</td><td><code>web/src/wikitag/index.ts:5</code> / <code>shared/src/index.ts:735</code> / <code>desktop/src/preload/index.ts:56</code></td><td><code>TagPill</code> は shared から直接 import されています。<code>phaseDurationSeconds</code> と <code>DesktopApi</code> 型は外部に消費者がいません</td><td class="num">3</td></tr>
+        <tr><td>i18n キー 19 個</td><td><code>shared/src/i18n/</code> の en / ja 両方</td><td><code>trash.error</code>・<code>tabs.todos</code>・<code>work.title</code>・<code>materials.tags.colorLabel</code> など。動的にキーを組む箇所（<code>undoRedo.labels.*</code> 等 37 キー）は除外済みです</td><td class="num">約 38</td></tr>
+        <tr><td>npm 依存 2 件</td><td><code>web/package.json</code> の <code>@dnd-kit/sortable</code> / <code>mobile/package.json</code> の <code>@capacitor/preferences</code></td><td>どのソース・設定・テストからも import されていません</td><td class="num">—</td></tr>
+        <tr><td>CSS トークン 27 個</td><td><code>shared/src/styles/tokens.css</code></td><td><code>--color-lumen-chip-completed-*</code>・<code>--spacing-lumen-1/4/5/6</code>・<code>--radius-lumen-xl</code> など、utility も alias も使われていません。出力 CSS には元々含まれないので見た目は変わりません</td><td class="num">約 40</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>判断が要る（消すと別の意味を持つもの）</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>対象</th><th>所在</th><th>何が引っかかるか</th></tr></thead>
+      <tbody>
+        <tr><td>Desktop の IPC 4 本（<code>getTheme</code> / <code>setTheme</code> / <code>getWindowBounds</code> / <code>getAppVersion</code>）</td><td><code>desktop/src/preload/index.ts:33-36</code> / <code>main/index.ts:526-542</code></td><td>画面側から一度も呼ばれていません。ただし <code>ThemeContext</code> が <code>setTheme</code> を呼ばないため、アプリ内のテーマ切替が OS 側の <code>nativeTheme</code> に届いていない可能性があります。死蔵ではなく配線漏れかもしれません</td></tr>
+        <tr><td>DataService の網羅チェック</td><td><code>shared/src/services/dataServiceRouting.ts</code>（260 行）</td><td>テストからしか import されない型レベルの検査です。<code>tests/</code> へ移すか、そのまま残すかです</td></tr>
+        <tr><td>web の <code>@supabase/supabase-js</code></td><td><code>web/package.json</code></td><td>web のソースは import していません。shared 側で解決させる方針（vite の dedupe）を決めてから外すべきです</td></tr>
+        <tr><td><code>electron-updater</code></td><td><code>desktop/src/main/index.ts:786-797</code></td><td>import はあるが feed も <code>checkForUpdates</code> も無い雛形です。「署名と同時に配線」と明記されているので、消すなら完成条件（§2）と一緒に決めます</td></tr>
+        <tr><td>テーブル <code>life_tags_migration_log</code></td><td><code>supabase/migrations/0020:55</code></td><td>コードから参照されません。0020 が「ロールバック対称性の要」と位置づけているので、消すなら rollback 方針ごとです</td></tr>
+        <tr><td><code>SectionId</code> の再 export</td><td><code>shared/src/types/todoTree.ts:7</code></td><td>誰もここから import していませんが、CLAUDE.md §3.2 が言及しています。消すなら docs と同じ PR です</td></tr>
+        <tr><td>削除済み <code>frontend/</code> と Tauri への言及コメント</td><td>shared / web の約 30 行</td><td>コードではなくコメントです。文書方針の話なので優先度は低いです</td></tr>
+        <tr><td>テストだけが名前で参照する値 export 16 件</td><td><code>TAG_ICON_ALIASES</code>・<code>TOUR_STEP_IDS</code>・<code>SECTION_ICONS</code> など</td><td>state ストアのリセット関数 5 つは意図的なテスト用フックです。残りはテストごと消すか残すかの判断です</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note prose">ほかに「export キーワードだけ不要」な内部定数が 129 件ありますが、削除ではなく export 外しの対象で、急ぎません。</p>
+
+  <h2>2. 未着手・未完了 — コードで拾えるのは 3 件、残りは手番と凍結です</h2>
+
+  <h3>2-1. open Issue 12 件（open PR は #1980 / #1981 の 2 本）</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Issue</th><th>残っていること</th><th>次の手</th></tr></thead>
+      <tbody>
+        <tr><td>#1974 schedule</td><td>繰り返しの「この回だけ切り離す」を Undo に載せ、タグは戻らない旨を文言に書く（判断済み D-20260919-sched-2 = B）</td><td class="state yes">Claude が進められます</td></tr>
+        <tr><td>#1973 schedule</td><td>Month の「+N more」を Details の flow へ向ける（判断済み D-20260922-sched-1 = B）</td><td class="state yes">Claude が進められます</td></tr>
+        <tr><td>#1972 materials</td><td>ノート本文検索が 404 で 0 件。PostgREST のフィルタにキャストを書けないため、生成列か RPC の DDL が要ります</td><td class="state maybe">実装は Claude、push はこうだいさん</td></tr>
+        <tr><td>#1975 materials</td><td>実装済み（PR #1980・CI 緑）。PR 本文が 44px 未満の残り 3 箇所を申し送っています</td><td class="state maybe">merge</td></tr>
+        <tr><td>#1843 materials</td><td>「…」メニューにパスワードの入口を戻す（PR #1981・本日 open）</td><td class="state maybe">merge</td></tr>
+        <tr><td>#1793 work</td><td>切り分けは完了し、原因は音源側です。残りは音源 5 本の差し替え（条件 = <code>shared/src/constants/sounds.ts</code> ヘッダ）</td><td class="state maybe">Storage へのアップロード</td></tr>
+        <tr><td>#1850 connect</td><td>実作業なし。タグ統合そのものを #1886 で削除済みです</td><td class="state maybe">close</td></tr>
+        <tr><td>#1335 main</td><td>実作業なし。夜間ルーチンは 09-02 に登録済みで、手順書の注記も PR #1971 で直しました</td><td class="state maybe">close</td></tr>
+        <tr><td>#1121 shared-fix</td><td>実作業なし。ツアーの完走と中断再開を 09-23 に実ブラウザで確認済みです。Mobile 幅で Todo / ノートの 6 ステップが飛ぶ件だけ Issue 化するか判断が要ります</td><td class="state maybe">close</td></tr>
+        <tr><td>#1642 schedule</td><td>第 1 期は W15（archive 化）を残して着地。第 2 期の計画書（Draft）は承認時の判断 5 問が未回答です</td><td class="state maybe">Q1〜Q5 の回答</td></tr>
+        <tr><td>#898 / #677 refactor-core</td><td>凍結維持（D-20260921-main-2）。#898 は画面別 Issue が全部はけてから、#677 は移行完了宣言後です</td><td class="state no">凍結</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>2-2. 本番へ届いていないもの（こうだいさんの手番）</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>対象</th><th>状態</th><th>根拠</th></tr></thead>
+      <tbody>
+        <tr><td>migration 0030（タグの表示色）</td><td class="state stop">未適用</td><td><code>supabase migration list</code> で 0001〜0029 は remote と一致、0030 だけ remote が空でした。PR #1603 は 09-12 に merge 済みで、Web は main から自動配布されているため、列が無ければ <code>listAllTagAssignments</code> が 42703 で落ちます。0030 は <code>add column if not exists</code> で書かれているので、手で当てていても push は安全です</td></tr>
+        <tr><td>Edge Function <code>delete-account</code></td><td class="state maybe">未確認</td><td>ファイルは 08-30 から存在し、migration 0025 は適用済みです。deploy の記録は history / memory / 台帳のどこにも無く、CLI の <code>functions list</code> は 401 でした。未 deploy なら Settings の「アカウント削除」は押すと失敗します（データは消えません）</td></tr>
+        <tr><td>Remote MCP（スマホの Claude アプリ用）</td><td class="state stop">未 deploy</td><td>計画書 <code>2026-09-09-remote-mcp-mobile.md</code> の Step 3〜5（シークレット 5 本の投入 / Worker deploy / コネクタ登録）が未実施です。deploy ワークフローの実行回数は 0 回でした</td></tr>
+        <tr><td>Desktop 配布</td><td class="state maybe">残 2 手</td><td>Windows 実機で実アカウントのログイン + Todo CRUD（<code>2026-08-30-desktop-app-packaging.md:100</code>）と、draft Release <code>desktop-v0.1.0</code> の公開判断です</td></tr>
+        <tr><td>Supabase ダッシュボード 2 件</td><td class="state maybe">未消化の可能性</td><td>#919 の URL 設定と #956 の最小パスワード長 12（<code>memory/chat-shared-fix.md:32</code>・08-16 から）</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>2-3. 計画書の残ステップ</h3>
+  <ul class="prose">
+    <li><strong>Desktop 配布</strong>（IN PROGRESS）: 上の 2 手のほか、AC 4 個が実測済みなのに未チェックです。Linux AppImage は宣言だけで一度も焼いていませんが、Non-goals に入っています。</li>
+    <li><strong>Remote MCP</strong>（IN PROGRESS）: Worklog が 09-09 で止まり、Status に「残 = Step 3〜5」が書かれていません。無人監査が 09-12 から同じ指摘を続けています。</li>
+    <li><strong>Schedule リファクタ第 1 期</strong>（IN PROGRESS）: 工程 2 の AC がほぼ未チェックのまま実態は着地しています。第 2 期（Draft・PR #1955 で merge）は Q1〜Q5 の回答待ちで、作業単位 P0〜P13 は全部未着手です。</li>
+    <li><strong>自律運用の端点</strong>（IN PROGRESS）: Step 4〜6 が未着手で、前提の <code>gh auth status</code>（クラウド側の書き込み認証）を実測してから設計を書き直す約束です。</li>
+    <li><strong>Loop エンジニアリング</strong>（IN PROGRESS）: Step 3〜5 と検証 5 項目が未チェックです。Step 8 は実態は登録済みで未更新です。</li>
+    <li><strong>Fable 5.1 向けハーネス調整</strong>（Draft）: git 未追跡のまま 3 週間です。無人監査が 3 回「commit か削除の裁定」を依頼しています。</li>
+    <li><strong>DEFERRED 5 本</strong>: Mac 常駐の目視 3 点 / 固定費の移送（移行完了後）/ ループカタログの試験運用（0 件のまま停止）/ core-refactor の C10 と #898（凍結）。</li>
+  </ul>
+
+  <h3>2-4. 移行 SSOT の「完成」条件は 8 つ中 2 つしか達成していません</h3>
+  <p class="prose"><code>.claude/2026-05-04-cross-platform-migration.md:422-431</code> の Phase 5 で達成済みは「Web URL 公開」と「旧 frontend 依存ゼロ」だけです。残りは次のとおりで、条件そのものを書き換えないと完成宣言ができません。</p>
+  <ul class="prose">
+    <li>electron-updater の自動更新（<code>:425</code>）は「未署名では有効化しない」雛形のままで、<strong>$0 の原則と両立しません</strong>。条件を外すか、署名を入れるかの判断が要ります。</li>
+    <li>terminal-division から MCP で Todo 操作（<code>:424</code>）は Terminal 退役後に定義し直す約束のままです。Desktop 殻の起動導線（#1211）と Remote MCP は着地済みなのに反映されていません。</li>
+    <li>CLAUDE.md / core.md / db-conventions の全面改訂（<code>:428</code>）は未着手です。</li>
+    <li>cargo 依存ゼロ（<code>:429</code>）は実態は達成、ビルド 3 分未満（<code>:430</code>）は計測記録なし、累計 $0（<code>:431</code>）は未チェックです。</li>
+    <li>Phase 4（Capacitor）は全項目が未チェックです。<code>mobile/</code> に iOS / Android の雛形はありますが、シミュレータ起動・7 日署名・アイコン・safe-area・接続確認は残っています。完成条件に含めるかの判断が要ります。</li>
+    <li><code>:215</code>「認証ありの公開配布は Non-goal」は、サインアップ開放（D-20260829-main-1）と食い違っています。</li>
+  </ul>
+
+  <h3>2-5. 要件文書に残る未実装</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>文書</th><th>未実装・凍結</th><th>記述が古い行</th></tr></thead>
+      <tbody>
+        <tr><td>tier-1-core.md</td><td>Briefing の AC1〜6 と定時自動化 / Todos の <code>scheduledAt</code> 表示とリマインダー発火 / Schedule のリマインダー通知（凍結・通知基盤待ち）と Todos との双方向同期（AC10）/ Notes の添付アップロード進捗（#1674）</td><td><code>:173</code> の calendars DROP は 0026 で実施済み。Cloud Sync 節（<code>:492-546</code>）は D1 時代のままです</td></tr>
+        <tr><td>tier-2-supporting.md</td><td>複数タイマー並列 / Memo テンプレート / テンプレートの Trash 復元（#1047）/ グローバルショートカット / Trash の自動パージ</td><td><code>:552</code>「タグのマージは #1644 で実装予定」は #1886 の削除と矛盾します</td></tr>
+        <tr><td>tier-3-experimental.md</td><td>Paper Boards / Analytics / NotebookLM / Google Calendar / Google Drive / Cognitive Architecture の 6 本すべて凍結（意図的）</td><td>—</td></tr>
+        <tr><td>mobile-scope.md</td><td>Phase 1 / 2 の列挙は全部完了で、未実装の行はありません</td><td>#4 本文・#9 の死んだ参照・#13 の表崩れ・#16 の「header = wide 専用」が古いままです</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>2-6. 記録の片付け（Claude が進められる事務）</h3>
+  <ul class="prose">
+    <li>回答済みなのに台帳に無い判断: D-20260905-shared-fix-1（実装は PR #1913 で済み）/ D-20260920-main-2 / D-20260921-main-1 / -2。キューからの削除も未了です。</li>
+    <li>回答済みの判断を「未回答」と書いたままの memory が 7 本あります。<code>memory/chat-schedule-refine.md:98-100</code> には merge conflict の残骸（<code>&gt; &gt; &gt; &gt; &gt; &gt; &gt; origin/main</code>）が残っています。</li>
+    <li>CLAUDE.md §6（<code>:59</code>）が閉じた Epic #321 を正本と指しています。ANSWERS.md:117 は archive 済みの計画書を旧パスで指しています。known-issues の INDEX 集計行は削除済みの 007 / 010 を数え、033 を数えていません。</li>
+    <li>未起票 3 件が memory に眠っています: ErrorBoundary の不在箇所（<code>memory/chat-shared-fix.md:35</code>）/ 狭幅ツアーの z 順 / Connect の一括操作の進捗表示。</li>
+    <li>git 未追跡ファイル: HTML レポート 6 本（commit が妥当）/ Draft 計画書 1 本（commit か削除の判断）/ <code>shots/</code> 71 枚 6.4 MB（バイナリ禁止なので <code>.gitignore</code> に足して手元に残す）。変更中の night-safe 報告と history は tracker ブランチへ載せる対象です。</li>
+    <li>実ブラウザ確認の滞留（chat-main 手番）: schedule 9 本・analytics 8 本・materials 4 本・briefing 4 本・connect 5 本・work 3 本。</li>
+    <li>リモートブランチ 510 本のうち merge 済みが 509 本、取り残しは <code>fix/analytics-restore-axis-label-helpers</code>（PR #1907・CLOSED・別経路で直った後の残骸）1 本です。削除の要否はこうだいさんの判断です。</li>
+  </ul>
+
+  <h2>3. 製品基準 — 土台は届いており、欠けているのは配布まわりです</h2>
+  <p class="prose">認証・全テーブルの RLS・法務文書・ErrorBoundary・オフラインバナー・テスト（549 ファイル / 約 5,250 件）・i18n の整合は製品水準です。引っ越しに例えると、家と鍵と契約書はできていて、郵便受けと非常口の案内がまだです。</p>
+
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>観点</th><th>判定</th><th>根拠と一言</th></tr></thead>
+      <tbody>
+        <tr><td>認証・アカウント</td><td class="state maybe">部分</td><td>サインアップ〜削除まで一通り揃っています（<code>SupabaseAuth.ts</code> / <code>DeleteAccountDialog.tsx</code>）。欠けるのは濫用対策（captcha・rate limit の痕跡 0）と、確認メールの送信元が Supabase 内蔵 SMTP のままな点です（<code>D-20260829-web-1.md:32,37</code> に「本格配布前に検討・未着手」）</td></tr>
+        <tr><td>データの安全</td><td class="state stop">欠落あり</td><td>ゴミ箱・Undo・ソフトデリートはあります。<strong>エクスポート / バックアップ / インポートが無く</strong>、規約は「控えは利用者自身で」と求めています（<code>legalContent.ts:99,161</code>）。無料枠は PITR 無し・7 日無操作で停止です</td></tr>
+        <tr><td>エラー・例外</td><td class="state maybe">部分</td><td>ErrorBoundary は page（<code>main.tsx:35</code>）と section（<code>MainScreen.tsx:465</code>）の 2 層、オフラインは <code>useOnlineStatus.ts</code> でバナー表示です。書き込み失敗は <code>logError.ts</code> の <code>console.warn</code> 止まりの経路があり、Daily と Schedule 本体に空・読み込み表示がありません</td></tr>
+        <tr><td>セキュリティ</td><td class="state maybe">部分</td><td>RLS は 20 テーブル全部で有効（漏れ 0）。Electron は sandbox / contextIsolation / will-navigate 遮断まで入っていますが <strong>CSP が無く、本体が 33 系で約 17 か月セキュリティ更新を受けていません</strong>（現行 44 系・サポートは直近 3 メジャー）。<code>npm audit</code> の high は web 1（tiptap）/ desktop 4（Electron 本体ほか）/ mcp-server 4、critical は 0 です。ノートのパスワードは閲覧ゲートで暗号化ではありません（D-20260920-main-1 で意図的）</td></tr>
+        <tr><td>配布・更新</td><td class="state maybe">部分</td><td>Web は main への push で自動配布、Desktop は Windows x64 + macOS arm64 の未署名インストーラです。バージョンは root 1.0.0 / desktop 0.2.0 / 他 0.0.0 とばらけ、LICENSE と CHANGELOG がありません（公開リポジトリで全権利留保の状態です）</td></tr>
+        <tr><td>法務・プライバシー</td><td class="state yes">OK</td><td>ja / en の本文が実在し、保管先・委託先・削除方法まで書かれています。<code>legalContent.ts:14</code> の「DRAFT for the owner to approve」注記だけが残っています</td></tr>
+        <tr><td>オンボーディング・ヘルプ</td><td class="state stop">欠落あり</td><td>ツアーは briefing / schedule / materials の 10 本（Connect・Work・Settings は無し）。<strong>アプリ内にヘルプ・FAQ・問い合わせが無く</strong>、唯一のリンクは規約文中の GitHub Issues です。配布ユーザーに <code>.env</code> は不要です（ビルド時埋め込み）</td></tr>
+        <tr><td>品質</td><td class="state yes">OK</td><td>テスト 549 ファイル、typecheck の除外リストは 0 件、<code>console.log</code> 残存 0、aria 680 箇所、en / ja のキー差は複数形の 12 件だけです。E2E の自動化は無く、実ブラウザ確認は手動です。初期チャンク 1.1 MB は分割余地があります</td></tr>
+        <tr><td>観測</td><td class="state no">意図的</td><td>クラッシュ収集・利用計測ともに無し（Sentry は「報告が増えたら」）。Worker だけ observability が有効です</td></tr>
+        <tr><td>運用</td><td class="state maybe">部分</td><td>migration 29 本と RLS 漏れ検査（<code>db:push</code> 経由のみ・CI には無い）。<code>.env.example</code> が無く、README は Node 18+ と書く一方 CI は Node 22 です</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>配布ユーザーが最初に踏む順</h3>
+  <ol class="prose">
+    <li><strong>確認メールが届かない。</strong> Confirm email が ON で、送信元は Supabase 内蔵 SMTP のままです。数人が同時に登録すると上限に当たり、届かない人はログインできません。Resend などの無料枠で $0 のまま直せます。</li>
+    <li><strong>Desktop の Electron が更新を受けていない。</strong> 33 系はサポートを外れて約 17 か月です。44 系への更新はメジャー跨ぎで、electron-builder 25 との組み合わせ検証が要ります。</li>
+    <li><strong>データを持ち出せない。</strong> Settings に JSON エクスポート 1 本を足すだけで、規約との整合が取れます。</li>
+    <li><strong>困ったときの導線が無い。</strong> GitHub アカウントを持たない人は連絡できません。Settings に 1 行のリンクで足ります。</li>
+    <li>書き込み失敗が画面に出ない経路があります。オンラインで RLS や制限に弾かれた場合は無言です。</li>
+    <li>Electron 側に CSP がありません（Web は <code>_headers</code> で守られています）。</li>
+    <li>サインアップの濫用対策が repo に無く、ダッシュボード側で設定済みなら記録が要ります。</li>
+    <li>LICENSE・CHANGELOG・<code>.env.example</code> が無く、バージョン番号がばらけています。</li>
+    <li>E2E の自動化が無く、PR ごとの機械ゲートは単体テストまでです。</li>
+    <li>法務文書の DRAFT 注記が残り、運営者は GitHub ハンドルのみです。</li>
+  </ol>
+
+  <h3>$0 方針で意図的に先送りしているもの（覆す材料なし）</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>項目</th><th>復活条件（記録上）</th></tr></thead>
+      <tbody>
+        <tr><td>コード署名 / notarization・自動更新</td><td>配布先が警告で困って有料化を裁定したとき（署名と同時に配線）</td></tr>
+        <tr><td>OAuth / Apple Sign-in・iOS / Android のストア配布</td><td>Apple Developer Program 加入後</td></tr>
+        <tr><td>Service Worker / オフライン</td><td>不採用（常時オンライン前提）</td></tr>
+        <tr><td>Supabase Pro（PITR・停止回避）</td><td>無料枠超過時</td></tr>
+        <tr><td>Sentry などのエラー収集</td><td>バグ報告が増えたら</td></tr>
+        <tr><td>Remote MCP の per-user OAuth</td><td>配布ユーザーに MCP を開くとき</td></tr>
+        <tr><td>Intel Mac / Linux のビルド</td><td>受け入れ検証できる機材が揃ったら</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>置いた仮定</h2>
+  <ul class="prose">
+    <li>「削除して安全」の判定は、import グラフと grep の両方で参照 0 を確認したものだけです。テストからだけ参照される export は別区分にしました。</li>
+    <li>Electron の現行版は <code>npm audit</code> が修正先として示した 44.4.5 から逆算しました。</li>
+    <li>「意図的な先送り」は、計画書か決定台帳に復活条件が書いてあるものだけをそう分類しました。</li>
+  </ul>
+
+  <h2>未確認のこと</h2>
+  <ul class="prose">
+    <li>0030 の列が本番に実在するか（台帳に無いことまでが事実です）。手で当てた可能性はありますが、push は冪等なのでどちらでも安全です。</li>
+    <li>Edge Function <code>delete-account</code> の deploy 状態（トークンが 401）。</li>
+    <li>Supabase ダッシュボード側の設定（captcha・rate limit・SMTP・<code>sounds</code> バケットのポリシー）。repo に痕跡がありません。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+  <ol class="prose">
+    <li>migration 0030 を今日 push するか（<code>cd supabase &amp;&amp; npm run db:push</code>。RLS 漏れ検査が先に走ります）。</li>
+    <li>「削除して安全」の約 300 行を 1 本の PR にまとめて出してよいか。</li>
+    <li>Desktop の IPC 4 本を、配線漏れ（テーマ切替を OS へ反映する）として直すか、死蔵として消すか。</li>
+    <li>配布前に埋める 4 点（SMTP / Electron 44 / エクスポート / 問い合わせ導線）を Issue にして着手順を決めるか。</li>
+    <li>Phase 5 の完成条件を書き換えるか（自動更新 vs $0、Terminal 退役後の MCP 条件、Phase 4 を含めるか）。</li>
+    <li>Draft 計画書 <code>2026-09-02-fable-51-harness-retune.md</code> を commit するか削除するか。<code>shots/</code> を <code>.gitignore</code> に足すか。</li>
+    <li>Schedule リファクタ第 2 期の Q1〜Q5。</li>
+  </ol>
+</div>

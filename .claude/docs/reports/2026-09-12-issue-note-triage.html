@@ -1,0 +1,175 @@
+<title>Issue報告 棚卸し</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6; --panel: #ffffff; --ink: #1c2327; --muted: #56636b;
+    --line: #d5dcdf; --accent: #0e6b74; --accent-ink: #ffffff; --accent-soft: #dcefef;
+    --ok: #2c7a4b; --warn: #a86a12; --stop: #a23c3c; --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b; --panel: #1b2226; --ink: #e4e9eb; --muted: #99a6ad;
+      --line: #2c363b; --accent: #5fc4cc; --accent-ink: #0f1c1e; --accent-soft: #163338;
+      --ok: #6fc48f; --warn: #e0a94a; --stop: #e07a7a; --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b; --panel: #1b2226; --ink: #e4e9eb; --muted: #99a6ad;
+    --line: #2c363b; --accent: #5fc4cc; --accent-ink: #0f1c1e; --accent-soft: #163338;
+    --ok: #6fc48f; --warn: #e0a94a; --stop: #e07a7a; --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--ground); color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px; line-height: 1.75; -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.skip .tag { color: var(--stop); }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+  .flow { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); margin: 16px 0 20px; }
+  .step { padding: 18px 20px; border-right: 1px solid var(--line); }
+  .step:last-child { border-right: 0; }
+  .step .n { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent); font-weight: 500; letter-spacing: .08em; }
+  .step h3 { margin: 4px 0 6px; font-size: 17px; }
+  .step p { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+  .step code { font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
+  @media (max-width: 720px) { .flow { grid-template-columns: 1fr; } .step { border-right: 0; border-bottom: 1px solid var(--line); } .step:last-child { border-bottom: 0; } }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.state { white-space: nowrap; font-weight: 700; font-variant-numeric: tabular-nums; }
+  td.state.yes { color: var(--ok); }
+  td.state.no { color: var(--muted); font-weight: 400; }
+  td.state.maybe { color: var(--warn); }
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .note { font-size: 14px; color: var(--muted); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-12 / 報告 / life-editor</p>
+    <h1>Note「Issue報告」10 件のうち、まだ Issue が無いのは 1 件だけでした</h1>
+    <p class="lede">9 件は 9 月頭に #1399〜#1407 として起票済みで、すべて close しています。残る 1 件（macOS の信号機ボタンとヘッダーの重なり）を #1590 として起票しました。Windows のアプリ化は、すでにインストーラがドラフトリリースに乗っています。</p>
+  </header>
+
+  <ul class="verdicts">
+    <li class="verdict now"><span class="tag">起票した</span><h3>#1590 macOS の traffic light 問題</h3><p>ヘッダーとの重なりと、ドラッグでウィンドウが動かない件。原因はコード上で実測済みです。</p></li>
+    <li class="verdict later"><span class="tag">要確認</span><h3>close 済み 9 件の再発</h3><p>手元でまだ直っていない項目があれば、旧番号を参照した新 Issue を立てます。</p></li>
+    <li class="verdict skip"><span class="tag">やらない</span><h3>close 済み Issue の reopen</h3><p>プロジェクト規約が「再発なら reopen でなく新 Issue + 旧番号参照」と定めています。</p></li>
+  </ul>
+
+  <div class="callout prose"><strong>前提</strong>: Note のチェックボックスは 10 件すべて未チェックのままですが、GitHub 側は 9 件とも close 済みです。Note が更新されていないだけなのか、実機でまだ再発しているのかは、こうだいさんに見てもらうまで判別できません。</div>
+
+  <h2>Note の 10 項目と Issue の対応</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>#</th><th>Note の項目</th><th>Issue</th><th>状態</th></tr></thead>
+      <tbody>
+        <tr><td>D-1</td><td>leftSidebar のブランドヘッダーがメインヘッダーより上にずれる</td><td>#1399</td><td class="state no">close 済み</td></tr>
+        <tr><td>D-2</td><td>Mac 版のヘッダーが信号機 3 ボタンと被る / ドラッグで動かせない</td><td>#1590</td><td class="state yes">新規起票</td></tr>
+        <tr><td>M-1</td><td>Mobile サイドバー幅がフォントサイズ設定で変わる</td><td>#1400</td><td class="state no">close 済み</td></tr>
+        <tr><td>M-2</td><td>Mobile カレンダーのグリッド刷新（横余白ゼロ・丸点をタイトルの縦リストへ）</td><td>#1401</td><td class="state no">close 済み</td></tr>
+        <tr><td>M-3</td><td>Mobile サイドバーのスワイプ判定を外側にも広げる</td><td>#1402</td><td class="state no">close 済み</td></tr>
+        <tr><td>M-4</td><td>Mobile Event 編集の終日トグルが日付フィールドと重なる</td><td>#1403</td><td class="state no">close 済み</td></tr>
+        <tr><td>C-1</td><td>materials のスラッシュコマンドで画像・ファイルを添付 / 埋め込み</td><td>#1404</td><td class="state no">close 済み</td></tr>
+        <tr><td>C-2</td><td>アイテム編集パネルに Event から Todo への逆変換を追加</td><td>#1405</td><td class="state no">close 済み</td></tr>
+        <tr><td>C-3</td><td>スケジュール「本日のTodo」タブの再編（文が途中で切れている項目）</td><td>#1406</td><td class="state no">close 済み</td></tr>
+        <tr><td>C-4</td><td>materials のセクション切替時に最後のノート表示までロードが挟まる</td><td>#1407</td><td class="state no">close 済み</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>#1590 に書いた原因</h2>
+  <p class="prose">推測ではなく、コードを見て確かめた 2 点です。</p>
+  <ul class="prose">
+    <li><code>desktop/src/main/index.ts:164</code> が <code>titleBarStyle: "hiddenInset"</code>。macOS ではタイトルバーが消えて信号機ボタンだけがコンテンツの左上に浮くので、画面側に左上の逃げ（余白）が要ります。その余白がありません。</li>
+    <li><code>-webkit-app-region: drag</code> がリポジトリ全体で 0 件。窓枠を隠しているのに掴める場所を宣言していないので、ヘッダーを引っぱっても動きません。</li>
+  </ul>
+  <p class="prose note">直すときの注意として、ドラッグ領域の中のボタンには <code>no-drag</code> を付けないとクリックが全部ドラッグに食われる点も Issue 本文に書いてあります。</p>
+
+  <h2>Windows のアプリ化</h2>
+  <p class="prose">「アプリ化」は 3 通りに分かれます。レトルト食品に例えると、<strong>できあがった袋をもらう</strong>・<strong>自分の台所で作る</strong>・<strong>工場のラインを回して配る</strong>、の 3 つです。目的によって使う道が変わります。</p>
+
+  <h3>1. すぐ手元で使いたい（いちばん早い）</h3>
+  <p class="prose">GitHub にドラフトのリリースが 1 本あり、Windows 用インストーラがすでに乗っています（<code>Life.Editor-0.1.0-x64-setup.exe</code> / 84 MB）。</p>
+  <pre><code>gh release download desktop-v0.1.0 -R sunbreak-pro/life-editor -p "*setup.exe"</code></pre>
+  <p class="prose">落ちてきた exe をダブルクリックするだけです。署名を買っていないので、初回だけ SmartScreen が「Windows によって PC が保護されました」と止めます。<strong>詳細情報 → 実行</strong>で進めば入ります。壊れているわけではありません。</p>
+
+  <h3>2. 自分の PC でビルドする</h3>
+  <pre><code>cd desktop
+npm install
+npm run build:win</code></pre>
+  <p class="prose">成果物は <code>desktop/release/</code> に出ます。先に <code>desktop/.env</code> へ <code>VITE_SUPABASE_URL</code> と <code>VITE_SUPABASE_ANON_KEY</code> を書いておく必要があります。<strong>この 2 つが無くてもビルドは成功してしまい、起動すると真っ白な窓が出るだけ</strong>になります。ここがいちばんハマる所です。焼き込めたかは次で確かめられます。</p>
+  <pre><code>grep -rqF "&lt;supabase のホスト名&gt;" desktop/out/renderer/assets/ &amp;&amp; echo baked</code></pre>
+
+  <h3>3. 配布用に新しい版を出す</h3>
+  <div class="flow">
+    <div class="step">
+      <p class="n">STEP 1</p>
+      <h3>版を上げる</h3>
+      <p><code>desktop/package.json</code> の <code>version</code> を上げます。ファイル名に版が入るので、タグと一致していないと名前がズレます。</p>
+    </div>
+    <div class="step">
+      <p class="n">STEP 2</p>
+      <h3>タグを push</h3>
+      <p><code>git tag desktop-v0.2.0</code> のあと <code>git push origin desktop-v0.2.0</code>。GitHub 側で Windows と macOS のビルドが走ります。</p>
+    </div>
+    <div class="step">
+      <p class="n">STEP 3</p>
+      <h3>ドラフトを公開</h3>
+      <p>実機で動作を確かめてから <code>gh release edit desktop-v0.2.0 --draft=false</code>。公開は必ず人の手です。</p>
+    </div>
+  </div>
+  <p class="prose">タグを使わず動作確認だけしたいときは <code>workflow_dispatch</code> で同じビルドを回せます。リリースは作られません。手順の正本は <code>desktop/README.md</code> で、上の内容はそこから引いています。</p>
+
+  <h2>残っている作業</h2>
+  <p class="prose">Windows 配布の Issue #1300 は、やることリスト 6 項目のうち 5 つまで終わっています。版は 0.1.0 になり、<code>release-desktop.yml</code> も動いて成功済みで、README にも未署名インストーラの手順が入っています。<strong>残るのは「Windows 11 実機に入れて一通り触る」受け入れだけ</strong>です。</p>
+
+  <h2>置いた仮定</h2>
+  <ul class="prose">
+    <li>Note の「スケジュールの『本日のTodo』タブにある配置済みのTodo、未配置の候補、Todoから追加」は文が途中で切れていますが、#1406 が同じタブの再編を扱っているため、これに対応する項目とみなしました。</li>
+    <li>#1590 の宛先は <code>[refactor-core]</code> にしました。desktop 殻を触る Issue（#1300 / #1301）がこのレーンに寄っているためです。</li>
+  </ul>
+
+  <h2>未確認のこと</h2>
+  <ul class="prose">
+    <li>close 済み 9 件が、こうだいさんの手元のアプリでも実際に直っているか。ここは Windows 機からは確認できません。</li>
+    <li>#1590 は macOS の症状なので、この PC では再現も検証もできません。実機確認はこうだいさん側になります。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+  <ul class="prose">
+    <li>Note「Issue報告」の中身を、片付いた 9 件を消して #1590 の 1 行だけにしてよいか。言ってもらえれば MCP から書き換えます。</li>
+    <li>ドラフトリリース <code>desktop-v0.1.0</code> を公開するか。公開すると誰でも落とせる状態になるので、実機受け入れ（#1300 の最後の 1 項目）を済ませてからの判断になります。</li>
+  </ul>
+</div>
