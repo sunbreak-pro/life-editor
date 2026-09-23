@@ -939,7 +939,12 @@
       "today": "today",
       "rate": "rate",
       "thisWeek": "this week",
-      "assigned": "assigned"
+      "assigned": "assigned",
+      "scope": {
+        "allTime": "All time",
+        "today": "Today",
+        "now": "Now"
+      }
     },
     "schedule": {
       "totalEvents": "Total Events",
