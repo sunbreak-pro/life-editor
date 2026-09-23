@@ -625,9 +625,12 @@ export function ConnectScreen({
     [wiki, toast, t, selectedTagId, drafts, commitSelection],
   );
 
+  // The new tag is selected once it exists (#1848), so the rail shows it —
+  // opening "Unused tags" if that is where it sorts — and the pane reads it.
   const createTag = useCallback(
-    (name: string) => void wiki.createTag(name),
-    [wiki],
+    (name: string) =>
+      void wiki.createTag(name).then((created) => selectTag(created.id)),
+    [wiki, selectTag],
   );
 
   const formatCount = useCallback(

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { Button } from "../Button";
@@ -56,7 +56,10 @@ export interface TagHubTagRailProps {
   tags: readonly TagHubTagSummary[];
   /** The subset surviving the filter, in the same order. */
   visibleTags: readonly TagHubTagSummary[];
-  /** Live tags with nothing filed under them, behind the disclosure (D4). */
+  /**
+   * Live tags with nothing filed under them, behind the disclosure (D4) —
+   * unfiltered: the rail applies `query` to them itself (#1848).
+   */
   unusedTags: readonly TagHubTagSummary[];
   selectedId: string | null;
   onSelect: (tagId: string) => void;
@@ -104,6 +107,29 @@ export function TagHubTagRail({
 }: TagHubTagRailProps) {
   // Collapsed by default: these are the tags you are NOT reading (D4).
   const [showUnused, setShowUnused] = useState(false);
+
+  /*
+   * A selected tag that lives behind the disclosure opens it (#1848). A tag
+   * made from the add row has nothing filed under it yet, so it lands in
+   * "Unused tags" — and with the disclosure shut, the only sign it existed
+   * was the count in the header. Adjusted during render (React's pattern for
+   * state that follows a prop) rather than in an effect, so the row is there
+   * on the same paint the selection is.
+   */
+  const [openedFor, setOpenedFor] = useState<string | null>(null);
+  if (selectedId !== openedFor) {
+    setOpenedFor(selectedId);
+    if (selectedId && unusedTags.some((tag) => tag.id === selectedId)) {
+      setShowUnused(true);
+    }
+  }
+
+  // The filter reaches the unused tags too (#1848) — the same match the view
+  // applies to `visibleTags`.
+  const needle = query.trim().toLowerCase();
+  const visibleUnusedTags = needle
+    ? unusedTags.filter((tag) => tag.name.toLowerCase().includes(needle))
+    : unusedTags;
   const [draft, setDraft] = useState("");
 
   const submitDraft = () => {
@@ -174,7 +200,7 @@ export function TagHubTagRail({
           <p className="px-1 py-6 text-center text-sm text-lumen-text-tertiary">
             {labels.empty}
           </p>
-        ) : visibleTags.length === 0 && unusedTags.length === 0 ? (
+        ) : visibleTags.length === 0 && visibleUnusedTags.length === 0 ? (
           <p className="px-1 py-6 text-center text-sm text-lumen-text-tertiary">
             {labels.filterEmpty}
           </p>
@@ -184,7 +210,7 @@ export function TagHubTagRail({
               {visibleTags.map(renderRow)}
             </ul>
 
-            {unusedTags.length > 0 && (
+            {visibleUnusedTags.length > 0 && (
               <div className="mt-1 border-t border-lumen-border pt-1.5">
                 <button
                   type="button"
@@ -203,7 +229,7 @@ export function TagHubTagRail({
                     <ChevronRight size={14} aria-hidden className="shrink-0" />
                   )}
                   <span className="min-w-0 flex-1 truncate">
-                    {formatUnusedTags(unusedTags.length)}
+                    {formatUnusedTags(visibleUnusedTags.length)}
                   </span>
                 </button>
                 {showUnused && (
@@ -211,7 +237,7 @@ export function TagHubTagRail({
                     aria-label={labels.unusedTagsHeading}
                     className="flex flex-col gap-0.5"
                   >
-                    {unusedTags.map(renderRow)}
+                    {visibleUnusedTags.map(renderRow)}
                   </ul>
                 )}
               </div>
@@ -291,6 +317,14 @@ function TagHubRailRow({
 }: TagHubRailRowProps) {
   const menu = useTagActionsMenu();
   const menuAnchor = useRef<HTMLButtonElement | null>(null);
+  const rowRef = useRef<HTMLLIElement | null>(null);
+
+  // The selected row is brought into the rail's view (#1848): a tag just made
+  // can sort anywhere in a long list. `nearest` leaves a row already on screen
+  // where it is. Optional call — jsdom has no scrollIntoView.
+  useEffect(() => {
+    if (active) rowRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [active]);
   const countText = formatCount(tag.count);
   // The untagged bucket is not a row of `wiki_tags`, so there is nothing to
   // rename, recolour or delete about it.
@@ -298,6 +332,7 @@ function TagHubRailRow({
 
   return (
     <li
+      ref={rowRef}
       // Right-click opens the same menu as the "…" (#1676). Wide only, and only
       // where there is a menu: anywhere else the native menu is left intact.
       onContextMenu={hasMenu && wide ? menu.openAtPointer : undefined}
