@@ -85,3 +85,16 @@ describe("shell todo intents (#1153)", () => {
     expect(result.current.pendingTodoSelect).toBe(null);
   });
 });
+
+describe("nav:tags (#1849)", () => {
+  // It sat on an explicit null after the Tags tab was retired (#310), so
+  // Ctrl/⌘+5 did nothing. Connect is where tags are read and edited now.
+  it("lands on Connect", () => {
+    const { result } = renderHook(() => useShellNavigation());
+
+    act(() => result.current.handleNavigate("nav:tags"));
+
+    expect(result.current.section).toBe("connect");
+    expect(result.current.pendingTodoTray).toBe(false);
+  });
+});
