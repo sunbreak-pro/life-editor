@@ -13,6 +13,7 @@ import {
   VOLUME_CHANGE_RAMP_MS,
   type VolumeRamp,
 } from "../utils/audioVolumeRamp";
+import { createAmbientLoop, type AmbientLoop } from "../utils/ambientLoop";
 import { logServiceError } from "../utils/logError";
 import { useSyncDomains } from "../hooks/useSyncDomains";
 import {
@@ -47,10 +48,11 @@ import {
  * every other pair. It reads useSyncContext so a cross-tab volume/enable edit
  * triggers a refetch.
  *
- * Audio model: each of the 5 ambient presets owns a looping HTMLAudioElement
- * whose `src` is resolved once from ds.getSoundAssetUrl (Supabase Storage
- * public URL). enabled → play()/pause(); volume (0–100) → element.volume v/100.
- * A separate one-shot element plays the completion chime.
+ * Audio model: each of the 5 ambient presets owns an AmbientLoop (two
+ * elements of the same file that cross over between laps — #1793, see
+ * utils/ambientLoop.ts) whose `src` is resolved once from ds.getSoundAssetUrl
+ * (Supabase Storage public URL). enabled → play()/pause(); volume (0–100) →
+ * loop.volume v/100. A separate one-shot element plays the completion chime.
  *
  * Autoplay policy (CLAUDE.md §3.3): the browser blocks audio until a user
  * gesture. We resume the (suspended) AudioContext on the first toggle/slider/
@@ -132,8 +134,8 @@ export function AudioProvider({
     [persisted, volumeDrafts],
   );
 
-  // Looping element per preset id; one-shot chime element kept separately.
-  const elementsRef = useRef<Record<string, HTMLAudioElement>>({});
+  // Crossfading loop per preset id; one-shot chime element kept separately.
+  const elementsRef = useRef<Record<string, AmbientLoop>>({});
   const chimeRef = useRef<HTMLAudioElement | null>(null);
   // The volume ramp in flight per preset id (#1793), so a new one can cancel it.
   const rampsRef = useRef<Record<string, VolumeRamp>>({});
@@ -195,7 +197,7 @@ export function AudioProvider({
     };
   }, [ds, syncVersion]);
 
-  // --- (re)build looping elements when a URL resolves ---
+  // --- (re)build the ambient loops when a URL resolves ---
   useEffect(() => {
     const elements = elementsRef.current;
     for (const preset of SOUND_PRESETS) {
@@ -206,10 +208,9 @@ export function AudioProvider({
         if (existing.src !== url) existing.src = url;
         continue;
       }
-      const el = new Audio(url);
-      el.loop = true;
-      el.preload = "none";
-      elements[preset.id] = el;
+      // Not `el.loop = true`: the files carry silence at both ends, and a
+      // native loop plays it every lap (#1793). The loop crosses over instead.
+      elements[preset.id] = createAmbientLoop(url);
     }
   }, [urls]);
 
@@ -258,11 +259,7 @@ export function AudioProvider({
       // No fade on the way out: the timers would outlive the Provider.
       for (const id of Object.keys(ramps)) ramps[id].cancel();
       rampsRef.current = {};
-      for (const id of Object.keys(elements)) {
-        const el = elements[id];
-        el.pause();
-        el.src = "";
-      }
+      for (const id of Object.keys(elements)) elements[id].dispose();
       elementsRef.current = {};
       // The completion chime is one-shot, but a mid-playback unmount would
       // otherwise leak its audio — stop it here too (single source of truth).
