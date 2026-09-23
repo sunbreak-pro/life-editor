@@ -1096,6 +1096,8 @@
     "unusedTags_other": "Unused tags ({{count}})",
     "addPlaceholder": "Enter a tag name",
     "addButton": "Add",
+    "duplicateName": "A tag with this name already exists.",
+    "createFailed": "Couldn't create the tag. Try again.",
     "emptyAction": "Add a tag",
     "loading": "Loading tags",
     "rowMenu": "Tag actions",
@@ -1119,7 +1121,9 @@
       "colorCustom": "Custom",
       "saved": "Saved",
       "unsaved": "Unsaved",
-      "save": "Save"
+      "save": "Save",
+      "duplicateName": "A tag with this name already exists.",
+      "saveFailed": "Couldn't save the tag. Try again."
     },
     "detail": {
       "breakdownHeading": "By kind",

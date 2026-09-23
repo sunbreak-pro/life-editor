@@ -356,6 +356,8 @@ export function ConnectScreen({
       unusedTagsHeading: t("connect.unusedTagsHeading"),
       addPlaceholder: t("connect.addPlaceholder"),
       addButton: t("connect.addButton"),
+      duplicateName: t("connect.duplicateName"),
+      createFailed: t("connect.createFailed"),
       emptyAction: t("connect.emptyAction"),
       loading: t("connect.loading"),
       rowMenu: t("connect.rowMenu"),
@@ -380,6 +382,8 @@ export function ConnectScreen({
         saved: t("connect.edit.saved"),
         unsaved: t("connect.edit.unsaved"),
         save: t("connect.edit.save"),
+        duplicateName: t("connect.edit.duplicateName"),
+        saveFailed: t("connect.edit.saveFailed"),
       },
       roles: {
         task: t("itemRole.task"),
@@ -498,9 +502,22 @@ export function ConnectScreen({
     [selectedTagId, drafts],
   );
 
-  const saveSelected = useCallback(() => {
-    if (selectedTagId) drafts.save(selectedTagId);
-  }, [selectedTagId, drafts]);
+  // Resolves false when the save was refused or failed (#1847), so the narrow
+  // sheet stays open on the reason instead of closing over it.
+  const saveSelected = useCallback(
+    (): Promise<boolean> =>
+      selectedTagId ? drafts.save(selectedTagId) : Promise.resolve(true),
+    [selectedTagId, drafts],
+  );
+  const editErrorFor = useCallback(
+    (tagId: string | null): string | null => {
+      const error = tagId ? drafts.errorFor(tagId) : null;
+      if (error === "duplicate") return t("connect.edit.duplicateName");
+      if (error === "failed") return t("connect.edit.saveFailed");
+      return null;
+    },
+    [drafts, t],
+  );
 
   const openEditOn = useCallback(
     (tagId: string, field: TagHubEditField) => {
@@ -625,10 +642,9 @@ export function ConnectScreen({
     [wiki, toast, t, selectedTagId, drafts, commitSelection],
   );
 
-  const createTag = useCallback(
-    (name: string) => void wiki.createTag(name),
-    [wiki],
-  );
+  // The promise goes back to the rail, which keeps the typed name and shows
+  // why when the create fails (#1847).
+  const createTag = useCallback((name: string) => wiki.createTag(name), [wiki]);
 
   const formatCount = useCallback(
     (count: number) => t("connect.itemCount", { count }),
@@ -919,7 +935,8 @@ export function ConnectScreen({
         editDirty={selectedTagId ? drafts.isDirty(selectedTagId) : false}
         onEditChange={editSelected}
         onEditDrop={dropEdit}
-        onEditSave={saveSelected}
+        onEditSave={() => void saveSelected()}
+        editError={editErrorFor(selectedTagId)}
         onDeleteTag={requestDelete}
         onCreateTag={createTag}
         onMergeTag={setMergeSourceId}
@@ -1053,9 +1070,11 @@ export function ConnectScreen({
             onEdit={editSelected}
             onDropEdit={dropEdit}
             onSave={() => {
-              saveSelected();
-              setSheetField(null);
+              void saveSelected().then((ok) => {
+                if (ok) setSheetField(null);
+              });
             }}
+            error={editErrorFor(selectedTag.id)}
             onDelete={() => requestDelete(selectedTag.id)}
             labels={labels.edit}
           />
