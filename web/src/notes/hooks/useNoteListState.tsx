@@ -333,5 +333,12 @@ export function useNoteListState() {
      * the server has actually said so.
      */
     searchBusy: notes.isSearching,
+    /*
+     * The body half FAILED for this query (#1972). The rows are the title
+     * matches, and the list says so rather than letting "nothing matched"
+     * stand for bodies that were never searched. `=== true` because a host
+     * built before the flag existed simply has no such field.
+     */
+    searchFailed: notes.bodySearchFailed === true,
   };
 }

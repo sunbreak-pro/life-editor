@@ -346,7 +346,10 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
    * the rows stay the ones this hook already holds, so nothing here ever
    * carries a note body it was not asked for.
    */
-  const { bodyMatchIds, isSearching } = useNoteBodySearch(ds, searchQuery);
+  const { bodyMatchIds, isSearching, bodySearchFailed } = useNoteBodySearch(
+    ds,
+    searchQuery,
+  );
 
   // Tree derivations — pure functions of their inputs (notesUnifiedHelpers),
   // memoized here.
@@ -528,6 +531,8 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       bodyMatchIds,
       /** The body search is in flight — the rows are one query behind. */
       isSearching,
+      /** The body search for this query failed — titles only (#1972). */
+      bodySearchFailed,
       sortMode,
       setSortMode,
       sortDirection,
@@ -562,6 +567,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       searchQuery,
       bodyMatchIds,
       isSearching,
+      bodySearchFailed,
       sortMode,
       setSortMode,
       sortDirection,

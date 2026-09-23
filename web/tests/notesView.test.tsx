@@ -47,6 +47,7 @@ const state = vi.hoisted(() => ({
   tags: [] as unknown[],
   assignments: {} as Record<string, unknown[]>,
   searchQuery: "",
+  bodySearchFailed: false,
   setSelectedNoteId: vi.fn(),
   setSearchQuery: vi.fn(),
   setSortMode: vi.fn(),
@@ -86,6 +87,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       error: state.error,
       searchQuery: state.searchQuery,
       setSearchQuery: state.setSearchQuery,
+      bodySearchFailed: state.bodySearchFailed,
       sortMode: "updatedAt",
       setSortMode: state.setSortMode,
       sortDirection: "asc",
@@ -174,6 +176,7 @@ beforeEach(() => {
     "note-a": [{ itemId: "note-a", tagId: "tag-work", isDeleted: false }],
   };
   state.searchQuery = "";
+  state.bodySearchFailed = false;
   for (const value of Object.values(state)) {
     if (typeof value === "function" && "mockClear" in value) value.mockClear();
   }
@@ -1029,5 +1032,29 @@ describe("NotesView — a search that matches nothing, on narrow (#1470)", () =>
     fireEvent.click(work);
 
     expect(state.setSearchQuery).toHaveBeenCalledWith("");
+  });
+});
+
+/*
+ * #1972 — a failed body search looked exactly like "no body matched": the
+ * hook swallowed the error and the list showed title matches under a query
+ * that had in fact searched nothing. The list now says so.
+ */
+describe("NotesView — a body search that failed (#1972)", () => {
+  it("says only titles were searched", () => {
+    state.searchQuery = "Alpha";
+    state.bodySearchFailed = true;
+    render(<NotesView />);
+
+    screen.getByText("materials.notes.bodySearchFailed");
+    // The title matches are still right, and still shown.
+    screen.getByText("Alpha");
+  });
+
+  it("stays quiet while the body search is fine", () => {
+    state.searchQuery = "Alpha";
+    render(<NotesView />);
+
+    expect(screen.queryByText("materials.notes.bodySearchFailed")).toBeNull();
   });
 });
