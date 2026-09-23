@@ -127,8 +127,9 @@ export interface CalendarDesktopHandlers {
    */
   onMonthCreate: (dateKey: string) => void;
   /**
-   * A month cell's "他 N 件" was pressed (#1829). Desktop answers by taking
-   * the week of that day, which is the one view with no fold in it.
+   * A month cell's "他 N 件" was pressed (#1829). Desktop answers by pointing
+   * the detail panel's flow tab at that day and leaving the month on screen
+   * (#1973 — #1933 took the week of that day instead, as a stopgap).
    *
    * Optional, like `onDropTodo` below: without it the remainder stays the
    * static line it was, which is what a host that only draws the grid (the

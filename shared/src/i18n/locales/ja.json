@@ -653,6 +653,7 @@
     "done": "完了",
     "emptyToday": "今日の予定はありません",
     "emptyDay": "この日の予定はありません",
+    "flowBackToToday": "今日に戻る",
     "frequency": "繰り返し",
     "viewLabel": "表示",
     "frequencyNone": "なし",
