@@ -173,6 +173,10 @@ describe("ConnectScreen narrow — editing one field at a time (M1)", () => {
     // The sheet is the action that was picked — not the whole editor.
     expect(sheet.queryByRole("group", { name: "Color" })).toBeNull();
     expect(sheet.queryByRole("button", { name: "Delete tag" })).toBeNull();
+    // …and the inline block behind it stays shut, so there is one Name field
+    // and one Save on the screen, not two stacked pairs (#1851).
+    expect(screen.getAllByLabelText("Name")).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Save" })).toHaveLength(1);
 
     fireEvent.change(sheet.getByRole("textbox"), {
       target: { value: "Work log" },

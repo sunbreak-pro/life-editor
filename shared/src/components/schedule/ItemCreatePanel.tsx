@@ -417,7 +417,7 @@ export function ItemCreatePanel({
   const placing = type === "task" && todoSource === "existing";
 
   // What rides along with the create. A blank new-note title stages nothing —
-  // opening the section and changing your mind must not create an "Untitled".
+  // opening the section and changing your mind must not create an untitled item.
   const stagedNoteTitle =
     noteSource === "new" ? noteTitle.trim() : (pickedNote?.title ?? "");
   const stagedNote: ItemCreateNoteDraft | null =

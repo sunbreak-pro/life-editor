@@ -1,5 +1,6 @@
-import { useEffect, useId, useRef, useState } from "react";
-import type { RefObject } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState } from "react";
+import type { CSSProperties, RefObject } from "react";
+import { createPortal } from "react-dom";
 import { Plus } from "lucide-react";
 import { cn } from "../cn";
 import { TagHeadingIcon } from "../TagHeadingIcon";
@@ -22,10 +23,26 @@ import type { TagHubTagSummary } from "./types";
  * there, so the selection bar's own Esc — clear the selection — does not also
  * fire and throw the checked rows away with the popover.
  *
- * NOT portalled: the caller wraps its trigger and this in a `relative` box and
- * the popover opens above it (the bar sits on the pane's bottom edge). Opaque
- * surface (§5), lumen-* tokens only, copy injected (§6.4).
+ * PORTALLED ABOVE THE ANCHOR (#1845). It used to open in place, `absolute`
+ * above its trigger — but the selection bar is `h-12 overflow-x-auto`, and an
+ * `overflow-x` other than `visible` turns `overflow-y` into `auto` as well, so
+ * the 327px popover was clipped to the bar and only a 2px sliver showed. Now it
+ * renders into `document.body` as a `fixed` box whose bottom-right corner sits
+ * 8px above the trigger's top-right, re-measured on resize and on any scroll.
+ * Without an `anchorRef` there is nothing to measure, so it stays in place.
+ * Opaque surface (§5), lumen-* tokens only, copy injected (§6.4).
  */
+
+/** Gap between the trigger's top edge and the popover, and the viewport margin. */
+const GAP = 8;
+
+function placeAbove(anchor: HTMLElement): CSSProperties {
+  const rect = anchor.getBoundingClientRect();
+  return {
+    bottom: Math.max(GAP, window.innerHeight - rect.top + GAP),
+    right: Math.max(GAP, window.innerWidth - rect.right),
+  };
+}
 
 export interface TagHubTagPickerLabels {
   /** The field's placeholder and accessible name ("Search or create a tag…"). */
@@ -64,6 +81,23 @@ export function TagHubTagPickerPopover({
   const ref = useRef<HTMLDivElement | null>(null);
   const [query, setQuery] = useState("");
   const listId = useId();
+  const [placement, setPlacement] = useState<CSSProperties | null>(null);
+  const portalled = anchorRef != null;
+
+  useLayoutEffect(() => {
+    if (!open || !anchorRef) return;
+    const measure = () => {
+      if (anchorRef.current) setPlacement(placeAbove(anchorRef.current));
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    // Capture: the bar's own sideways scroll moves the trigger too.
+    window.addEventListener("scroll", measure, true);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("scroll", measure, true);
+    };
+  }, [open, anchorRef]);
 
   // Outside-press close, the same rule as Menu: the trigger counts as inside.
   useEffect(() => {
@@ -94,7 +128,7 @@ export function TagHubTagPickerPopover({
     run();
   };
 
-  return (
+  const dialog = (
     <div
       ref={ref}
       role="dialog"
@@ -107,8 +141,12 @@ export function TagHubTagPickerPopover({
           finish(() => {});
         }
       }}
+      style={portalled ? (placement ?? { visibility: "hidden" }) : undefined}
       className={cn(
-        "absolute bottom-full right-0 z-50 mb-2 flex w-64 flex-col",
+        portalled
+          ? "fixed z-[60]"
+          : "absolute bottom-full right-0 z-50 mb-2",
+        "flex w-64 flex-col",
         "rounded-lumen-md border border-lumen-border bg-lumen-bg shadow-lumen-lg",
       )}
     >
@@ -179,4 +217,6 @@ export function TagHubTagPickerPopover({
       )}
     </div>
   );
+
+  return portalled ? createPortal(dialog, document.body) : dialog;
 }

@@ -1,7 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { NavTimerStatus } from "../src/components";
+import {
+  BottomTabBar,
+  NavItem,
+  NavTimerDot,
+  NavTimerStatus,
+} from "../src/components";
 import { TimerContext, type TimerContextValue } from "../src/context";
 
 /*
@@ -91,5 +96,63 @@ describe("NavTimerStatus (#550)", () => {
       <NavTimerStatus />,
     );
     expect(screen.getByText("04:59")).toBeInTheDocument();
+  });
+});
+
+describe("NavTimerDot (#1858)", () => {
+  it("renders nothing while the timer is idle", () => {
+    const { container } = renderWithTimer(
+      makeTimerValue({ isRunning: false }),
+      <NavTimerDot />,
+    );
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("shows the dot while the timer runs, break phase included", () => {
+    renderWithTimer(
+      makeTimerValue({ isRunning: true, phase: "BREAK" }),
+      <NavTimerDot />,
+    );
+    expect(screen.getByTestId("nav-timer-dot")).toBeInTheDocument();
+  });
+
+  // The expanded row already says it in words (the sublabel), so the dot is
+  // only for the collapsed rail, where the sublabel is hidden.
+  it("draws the badge on the collapsed rail only", () => {
+    const running = makeTimerValue({ isRunning: true });
+    const row = (collapsed: boolean) => (
+      <NavItem
+        icon={<svg />}
+        label="Work"
+        sublabel={<NavTimerStatus />}
+        badge={<NavTimerDot />}
+        collapsed={collapsed}
+        onClick={() => {}}
+      />
+    );
+    const { rerender } = renderWithTimer(running, row(false));
+    expect(screen.queryByTestId("nav-timer-dot")).not.toBeInTheDocument();
+    rerender(
+      <TimerContext.Provider value={running}>{row(true)}</TimerContext.Provider>,
+    );
+    expect(screen.getByTestId("nav-timer-dot")).toBeInTheDocument();
+  });
+
+  it("draws the badge on a fixed bottom tab", () => {
+    renderWithTimer(
+      makeTimerValue({ isRunning: true }),
+      <BottomTabBar
+        sections={[
+          { id: "work", label: "Work", icon: <svg />, badge: <NavTimerDot /> },
+        ]}
+        activeSection="materials"
+        onNavigate={() => {}}
+        labels={{ more: "More", moreTitle: "More", moreClose: "Close" }}
+      />,
+    );
+    const tab = screen.getByRole("button", { name: "Work" });
+    expect(
+      tab.querySelector('[data-testid="nav-timer-dot"]'),
+    ).toBeInTheDocument();
   });
 });

@@ -8,7 +8,7 @@
       "goToDaily": "デイリーへ移動",
       "goToNotes": "ノートへ移動",
       "goToSchedule": "スケジュールへ移動",
-      "goToTags": "タグへ移動",
+      "goToConnect": "つながりへ移動",
       "undo": "元に戻す",
       "redo": "やり直し"
     },
@@ -931,7 +931,12 @@
       "today": "今日",
       "rate": "達成率",
       "thisWeek": "今週",
-      "assigned": "割り当て"
+      "assigned": "割り当て",
+      "scope": {
+        "allTime": "全期間",
+        "today": "今日",
+        "now": "現在"
+      }
     },
     "schedule": {
       "totalEvents": "イベント総数",
@@ -1032,7 +1037,6 @@
     "more": "その他",
     "moreTitle": "その他",
     "quickActions": "クイック操作",
-    "tagEditor": "タグを編集",
     "launchClaude": "Claude Code を起動",
     "profile": "プロフィールを編集"
   },
@@ -1086,6 +1090,8 @@
     "unusedTags_other": "使われていないタグ（{{count}}）",
     "addPlaceholder": "タグ名を入力",
     "addButton": "追加",
+    "duplicateName": "同じ名前のタグがあります。",
+    "createFailed": "タグを作成できませんでした。もう一度お試しください。",
     "emptyAction": "タグを追加",
     "loading": "タグを読み込み中",
     "rowMenu": "タグの操作",
@@ -1109,7 +1115,9 @@
       "colorCustom": "カスタム",
       "saved": "保存済み",
       "unsaved": "未保存",
-      "save": "保存"
+      "save": "保存",
+      "duplicateName": "同じ名前のタグがあります。",
+      "saveFailed": "タグを保存できませんでした。もう一度お試しください。"
     },
     "detail": {
       "breakdownHeading": "種類別",

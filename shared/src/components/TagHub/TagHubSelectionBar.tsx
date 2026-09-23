@@ -116,7 +116,9 @@ export function TagHubSelectionBar({
         "flex h-12 flex-shrink-0 items-center gap-2 border-t border-lumen-border",
         // `overflow-x-auto` is the last resort under the no-shrink rule above:
         // past a certain width something has to give, and a scroll keeps every
-        // label whole where clipping would not.
+        // label whole where clipping would not. It also clips vertically (an
+        // overflow-x other than visible makes overflow-y auto), which is why the
+        // two tag choosers portal out of the bar instead of opening in it (#1845).
         "overflow-x-auto bg-lumen-bg-secondary px-3 shadow-lumen-sm",
       )}
     >

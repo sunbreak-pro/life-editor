@@ -185,6 +185,8 @@ export function useSidebarContextMenus({
       saved: t("connect.edit.saved"),
       unsaved: t("connect.edit.unsaved"),
       save: t("connect.edit.save"),
+      duplicateName: t("connect.edit.duplicateName"),
+      saveFailed: t("connect.edit.saveFailed"),
     }),
     [t],
   );
@@ -235,9 +237,18 @@ export function useSidebarContextMenus({
               }}
               onDropEdit={(field) => drafts.drop(editTag.id, field)}
               onSave={() => {
-                drafts.save(editTag.id);
-                setEditTagId(null);
+                // Stays open on a refused or failed save, showing why (#1847).
+                void drafts.save(editTag.id).then((ok) => {
+                  if (ok) setEditTagId(null);
+                });
               }}
+              error={
+                drafts.errorFor(editTag.id) === "duplicate"
+                  ? t("connect.edit.duplicateName")
+                  : drafts.errorFor(editTag.id) === "failed"
+                    ? t("connect.edit.saveFailed")
+                    : null
+              }
               onDelete={() => requestTagDelete(editTag.id)}
               labels={editLabels}
             />

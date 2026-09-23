@@ -356,6 +356,8 @@ export function ConnectScreen({
       unusedTagsHeading: t("connect.unusedTagsHeading"),
       addPlaceholder: t("connect.addPlaceholder"),
       addButton: t("connect.addButton"),
+      duplicateName: t("connect.duplicateName"),
+      createFailed: t("connect.createFailed"),
       emptyAction: t("connect.emptyAction"),
       loading: t("connect.loading"),
       rowMenu: t("connect.rowMenu"),
@@ -380,6 +382,8 @@ export function ConnectScreen({
         saved: t("connect.edit.saved"),
         unsaved: t("connect.edit.unsaved"),
         save: t("connect.edit.save"),
+        duplicateName: t("connect.edit.duplicateName"),
+        saveFailed: t("connect.edit.saveFailed"),
       },
       roles: {
         task: t("itemRole.task"),
@@ -498,9 +502,22 @@ export function ConnectScreen({
     [selectedTagId, drafts],
   );
 
-  const saveSelected = useCallback(() => {
-    if (selectedTagId) drafts.save(selectedTagId);
-  }, [selectedTagId, drafts]);
+  // Resolves false when the save was refused or failed (#1847), so the narrow
+  // sheet stays open on the reason instead of closing over it.
+  const saveSelected = useCallback(
+    (): Promise<boolean> =>
+      selectedTagId ? drafts.save(selectedTagId) : Promise.resolve(true),
+    [selectedTagId, drafts],
+  );
+  const editErrorFor = useCallback(
+    (tagId: string | null): string | null => {
+      const error = tagId ? drafts.errorFor(tagId) : null;
+      if (error === "duplicate") return t("connect.edit.duplicateName");
+      if (error === "failed") return t("connect.edit.saveFailed");
+      return null;
+    },
+    [drafts, t],
+  );
 
   const openEditOn = useCallback(
     (tagId: string, field: TagHubEditField) => {
@@ -508,11 +525,13 @@ export function ConnectScreen({
       // selects and opens — and goes through `selectTag`, which is what asks
       // about a draft on the tag being left.
       if (tagId !== selectedTagId) selectTag(tagId);
-      setEditOpen(true);
       setEditFocusField(field);
-      // Narrow opens the field in a sheet of its own; the wide layout opens
-      // the block inline and only moves the caret.
-      if (!isWide) setSheetField(field);
+      // Narrow opens the field in a sheet of its own and leaves the inline
+      // block shut — opening both drew the Name field and Save twice, one
+      // over the other (#1851). The wide layout opens the block inline and
+      // only moves the caret.
+      if (isWide) setEditOpen(true);
+      else setSheetField(field);
     },
     [selectedTagId, selectTag, isWide],
   );
@@ -625,11 +644,16 @@ export function ConnectScreen({
     [wiki, toast, t, selectedTagId, drafts, commitSelection],
   );
 
-  // The new tag is selected once it exists (#1848), so the rail shows it —
-  // opening "Unused tags" if that is where it sorts — and the pane reads it.
+  // The promise goes back to the rail, which keeps the typed name and shows
+  // why when the create fails (#1847). Once the tag exists it is selected
+  // (#1848), so the rail shows it — opening "Unused tags" if that is where it
+  // sorts — and the pane reads it.
   const createTag = useCallback(
     (name: string) =>
-      void wiki.createTag(name).then((created) => selectTag(created.id)),
+      wiki.createTag(name).then((created) => {
+        selectTag(created.id);
+        return created;
+      }),
     [wiki, selectTag],
   );
 
@@ -922,7 +946,8 @@ export function ConnectScreen({
         editDirty={selectedTagId ? drafts.isDirty(selectedTagId) : false}
         onEditChange={editSelected}
         onEditDrop={dropEdit}
-        onEditSave={saveSelected}
+        onEditSave={() => void saveSelected()}
+        editError={editErrorFor(selectedTagId)}
         onDeleteTag={requestDelete}
         onCreateTag={createTag}
         onMergeTag={setMergeSourceId}
@@ -1032,6 +1057,7 @@ export function ConnectScreen({
             onOpenItem={handleOpenItem}
             onRemoveLink={removeLink}
             onAddLink={addLink}
+            addLinkOpensDown
             labels={relationLabels}
           />
         </BottomSheet>
@@ -1056,9 +1082,11 @@ export function ConnectScreen({
             onEdit={editSelected}
             onDropEdit={dropEdit}
             onSave={() => {
-              saveSelected();
-              setSheetField(null);
+              void saveSelected().then((ok) => {
+                if (ok) setSheetField(null);
+              });
             }}
+            error={editErrorFor(selectedTag.id)}
             onDelete={() => requestDelete(selectedTag.id)}
             labels={labels.edit}
           />

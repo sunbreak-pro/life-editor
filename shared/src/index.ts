@@ -257,6 +257,11 @@ export {
   REMINDERS_ENABLED_STORAGE_KEY,
   REMINDER_DEFAULT_MINUTES_STORAGE_KEY,
 } from "./hooks/useReminderPrefs";
+// The create-time reminder every event-creating path applies (#1950).
+export {
+  resolveCreateReminderOffset,
+  applyCreateReminder,
+} from "./hooks/scheduleCreateReminder";
 // The reminder sweep's pure half (#1374) — which reminders are due, and the
 // dedupe key that survives a re-render and a re-sync.
 export {

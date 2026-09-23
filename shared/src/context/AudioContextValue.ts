@@ -6,7 +6,8 @@ import { createContext } from "react";
  * an OPTIONAL context (default null + null-returning hook); consumers read it
  * via useAudioContext and `if (!ctx) return null`.
  *
- * The Provider owns the 5 ambient-sound HTMLAudioElements (loop=true) plus a
+ * The Provider owns the 5 ambient-sound loops (two crossfading
+ * HTMLAudioElements each — #1793, utils/ambientLoop.ts) plus a
  * one-shot completion-chime element, the persisted per-preset volume/enabled
  * state (sound_settings, 0018), and the AudioContext resume dance the browser
  * autoplay policy requires (CLAUDE.md §3.3 — AudioContext starts suspended;

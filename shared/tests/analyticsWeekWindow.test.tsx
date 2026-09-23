@@ -143,6 +143,7 @@ const LABELS: OverviewTabLabels = {
   rate: "rate",
   thisWeek: "this week",
   assigned: "assigned",
+  scope: { allTime: "all time", today: "today", now: "now" },
   formatHours: HOURS,
   todayCard: {
     title: "Today",

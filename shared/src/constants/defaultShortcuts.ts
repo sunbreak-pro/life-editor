@@ -61,7 +61,9 @@ export const DEFAULT_SHORTCUTS: ShortcutDefinition[] = [
   {
     id: "nav:tags",
     category: "navigation",
-    descriptionKey: "settings.shortcutLabels.goToTags",
+    // The id keeps its old name (stored rebindings are keyed on it); the
+    // label follows the destination, Connect (#1849).
+    descriptionKey: "settings.shortcutLabels.goToConnect",
     defaultBinding: { key: "5", meta: true },
     activeInInput: true,
   },

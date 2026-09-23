@@ -193,6 +193,16 @@ export function BottomSheet({
             ? "flex h-full w-full flex-col overflow-hidden"
             : "w-full max-w-lg rounded-t-2xl border-t border-lumen-border",
           /*
+           * A partial sheet is capped too (#1846). It grows to fit its content,
+           * and `items-end` pins its BOTTOM edge — so a body taller than the
+           * viewport pushed the top edge, title and × off the screen, and the
+           * panel covered the whole backdrop, leaving no exit on a phone. The
+           * cap keeps a strip of backdrop above it (and clears the status bar);
+           * the body below the header scrolls inside it, as at full height.
+           */
+          !fullScreen &&
+            "flex max-h-[calc(100dvh-2rem-env(safe-area-inset-top))] flex-col overflow-hidden",
+          /*
            * The bottom pad clears the home indicator (#1008). The panel is
            * `items-end` inside a `fixed inset-0` parent, so its bottom edge
            * IS the bottom of the screen — under iOS standalone a flat `pb-6`
@@ -220,7 +230,7 @@ export function BottomSheet({
           {...(fullScreen ? {} : swipe.handlers)}
           // `shrink-0` because this strip carries the only exit: in a column
           // that runs out of room, the header is the last thing that may give.
-          className={fullScreen ? "shrink-0" : "touch-none"}
+          className={fullScreen ? "shrink-0" : "shrink-0 touch-none"}
         >
           {/* A handle advertises a drag. At full height there is nowhere to
               drag TO, so showing one would promise a gesture that does nothing. */}
@@ -267,16 +277,19 @@ export function BottomSheet({
          * INSIDE it or the header scrolls away with the content and the only
          * exit leaves the screen. The negative inset lets the scrollbar and the
          * content's own edges reach the panel's sides while the padding keeps
-         * the text off them. A partial sheet keeps `children` bare — it grows to
-         * fit and the page behind it still scrolls (see the header comment).
+         * the text off them. A partial sheet gets the same scroller (#1846): it
+         * still grows to fit, and only once it reaches its cap does the body
+         * scroll under a header that stays put. Block rather than flex there,
+         * so a short body lays out exactly as it did when it was bare.
          */}
-        {fullScreen ? (
-          <div className="-mx-5 flex min-h-0 flex-1 flex-col overflow-y-auto px-5">
-            {children}
-          </div>
-        ) : (
-          children
-        )}
+        <div
+          className={cn(
+            "-mx-5 min-h-0 overflow-y-auto px-5",
+            fullScreen && "flex flex-1 flex-col",
+          )}
+        >
+          {children}
+        </div>
       </div>
     </div>,
     document.body,
