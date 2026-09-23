@@ -162,18 +162,22 @@ describe("ConnectScreen narrow — a row's actions (M3)", () => {
   });
 });
 
-describe("ConnectScreen narrow — editing one field at a time (M1)", () => {
-  it("opens the named field alone, and saves it", async () => {
+describe("ConnectScreen narrow — the edit sheet (M1 / #1886)", () => {
+  it("opens the whole editor from the one edit item, and saves it", async () => {
     const { ds, writes } = makeWritableDS();
     await renderNarrow(ds);
     fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
-    fireEvent.click(screen.getByRole("button", { name: "Rename" }));
+    fireEvent.click(screen.getByRole("button", { name: "Edit tag" }));
 
-    const sheet = within(screen.getByRole("dialog", { name: "Work: Name" }));
-    // The sheet is the action that was picked — not the whole editor.
-    expect(sheet.queryByRole("group", { name: "Color" })).toBeNull();
-    expect(sheet.queryByRole("button", { name: "Delete tag" })).toBeNull();
+    const sheet = within(
+      screen.getByRole("dialog", { name: "Work: Edit this tag" }),
+    );
+    // One "Edit tag" replaced rename / icon / colour, so the sheet carries
+    // every field rather than the one a menu item used to name.
+    sheet.getByRole("group", { name: "Color" });
 
+    // By role, not label: until #1851 the inline block also opens behind the
+    // sheet, so the page holds two inputs under the same label id.
     fireEvent.change(sheet.getByRole("textbox"), {
       target: { value: "Work log" },
     });
