@@ -412,6 +412,11 @@ export function AnalyticsScreen({
         rate: t("analytics.overview.rate"),
         thisWeek: t("analytics.overview.thisWeek"),
         assigned: t("analytics.overview.assigned"),
+        scope: {
+          allTime: t("analytics.overview.scope.allTime"),
+          today: t("analytics.overview.scope.today"),
+          now: t("analytics.overview.scope.now"),
+        },
       },
       todayCard: {
         title: t("analytics.today.title"),

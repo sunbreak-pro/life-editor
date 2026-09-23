@@ -75,6 +75,7 @@ function makeLabels(): AnalyticsLabels {
       rate: "rate",
       thisWeek: "this week",
       assigned: "assigned",
+      scope: { allTime: "all time", today: "today", now: "now" },
     },
     todayCard: {
       title: "Today",
@@ -222,7 +223,7 @@ describe("AnalyticsView responsive branch", () => {
   it("Desktop controlled (shell-lifted band) drops the in-body tabs, keeps the preset, and follows activeTab", () => {
     render(
       <AnalyticsView
-        {...baseProps({ activeTab: "work", onTabChange: vi.fn() })}
+        {...baseProps({ activeTab: "schedule", onTabChange: vi.fn() })}
       />,
     );
     // The shell SectionHeader owns the tab band now — no in-body tabs.
@@ -231,8 +232,52 @@ describe("AnalyticsView responsive branch", () => {
     expect(
       screen.getByRole("radiogroup", { name: "Date range" }),
     ).toBeInTheDocument();
-    // Content follows the controlled activeTab (Work → its empty state).
+    // Content follows the controlled activeTab (Schedule → its empty state).
+    expect(screen.getByText("No events")).toBeInTheDocument();
+  });
+
+  // #1859 — the Work tab runs on its own Day/Week/Month selector, so the
+  // pills changed nothing there while still looking pressable.
+  it("Desktop controlled Work tab hides the date-range preset", () => {
+    render(
+      <AnalyticsView
+        {...baseProps({ activeTab: "work", onTabChange: vi.fn() })}
+      />,
+    );
     expect(screen.getByText("No work sessions yet")).toBeInTheDocument();
+    expect(screen.queryByRole("radiogroup", { name: "Date range" })).toBeNull();
+  });
+
+  it("Desktop uncontrolled: the preset leaves on the Work tab and comes back", () => {
+    render(<AnalyticsView {...baseProps()} />);
+    fireEvent.click(screen.getByRole("tab", { name: "Work" }));
+    expect(screen.queryByRole("radiogroup", { name: "Date range" })).toBeNull();
+    fireEvent.click(screen.getByRole("tab", { name: "Overview" }));
+    expect(
+      screen.getByRole("radiogroup", { name: "Date range" }),
+    ).toBeInTheDocument();
+  });
+
+  // #1859 — none of the six Overview tiles follows the pills, and they did not
+  // share one window either, so each tile names the window it counts over.
+  it("Overview tiles name the window each one counts over", () => {
+    render(<AnalyticsView {...baseProps()} />);
+    for (const line of [
+      "Todos · all time",
+      "Events · today",
+      "Notes · all time",
+      "Work Time · all time",
+      "Routines · now",
+      "Tags · now",
+    ]) {
+      // The scope is a <span> inside the label <p>, so match on the whole
+      // textContent — getByText's default only reads the node's own text.
+      expect(
+        screen.getByText(
+          (_, el) => el?.tagName === "P" && el.textContent === line,
+        ),
+      ).toBeInTheDocument();
+    }
   });
 
   it("Mobile (narrow) collapses to a single scroll: no tabs, no preset control", () => {
@@ -274,7 +319,9 @@ describe("AnalyticsView responsive branch", () => {
     const nameRow = name.parentElement;
     expect(nameRow?.textContent).toContain("50%");
     expect(nameRow?.querySelector(".rounded-full")).toBeNull();
-    expect(nameRow?.parentElement?.querySelector(".rounded-full")).not.toBeNull();
+    expect(
+      nameRow?.parentElement?.querySelector(".rounded-full"),
+    ).not.toBeNull();
     for (let el: HTMLElement | null = name; el; el = el.parentElement) {
       expect(el.className).not.toContain("96px");
     }
