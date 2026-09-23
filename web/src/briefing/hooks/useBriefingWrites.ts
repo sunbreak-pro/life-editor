@@ -2,11 +2,13 @@ import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
   afterSettled,
+  applyCreateReminder,
   fillRangeUpToAnchor,
   generateId,
   generateTodoId,
   localDateTimeToISO,
   planRepeatScopeChoice,
+  resolveCreateReminderOffset,
   useScheduleItemsRoutineSync,
   useToastOptional,
   useTranslation,
@@ -240,6 +242,10 @@ export function useBriefingWrites({
   // that really do belong to today.
   const handleCreateEvent = useCallback(
     (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+      // #1950: the Settings default, resolved by the same rule Schedule's own
+      // create uses. Calling the DataService directly used to skip it, so an
+      // event booked from the paper was the one event that never reminded.
+      const reminderOffset = resolveCreateReminderOffset(slot.isAllDay);
       void ds
         .createScheduleItem(
           generateId("event"),
@@ -252,6 +258,10 @@ export function useBriefingWrites({
           undefined,
           slot.isAllDay,
         )
+        // The row exists once the create resolves; the reminder patch never
+        // rejects, so a failed patch still leaves an event (without a
+        // reminder) on the paper and on the undo stack.
+        .then((created) => applyCreateReminder(ds, created, reminderOffset))
         .then((saved) => {
           if (saved.date === todayKey) {
             setScheduleItems((prev) => [...prev, saved]);
