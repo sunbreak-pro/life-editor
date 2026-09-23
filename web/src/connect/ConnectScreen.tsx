@@ -525,11 +525,13 @@ export function ConnectScreen({
       // selects and opens — and goes through `selectTag`, which is what asks
       // about a draft on the tag being left.
       if (tagId !== selectedTagId) selectTag(tagId);
-      setEditOpen(true);
       setEditFocusField(field);
-      // Narrow opens the field in a sheet of its own; the wide layout opens
-      // the block inline and only moves the caret.
-      if (!isWide) setSheetField(field);
+      // Narrow opens the field in a sheet of its own and leaves the inline
+      // block shut — opening both drew the Name field and Save twice, one
+      // over the other (#1851). The wide layout opens the block inline and
+      // only moves the caret.
+      if (isWide) setEditOpen(true);
+      else setSheetField(field);
     },
     [selectedTagId, selectTag, isWide],
   );
