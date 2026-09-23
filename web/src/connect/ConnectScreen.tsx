@@ -1029,6 +1029,7 @@ export function ConnectScreen({
             onOpenItem={handleOpenItem}
             onRemoveLink={removeLink}
             onAddLink={addLink}
+            addLinkOpensDown
             labels={relationLabels}
           />
         </BottomSheet>
