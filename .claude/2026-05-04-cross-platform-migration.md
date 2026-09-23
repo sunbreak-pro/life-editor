@@ -1,7 +1,7 @@
 ---
-Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーンは完了（DU-G G1-G4 = PR #29/#30/#31/#36 全 merge・計画書は archive 済）。**Phase 3（Electron 包装 #79）= 完了**（Windows 実機 golden path #530・2026-08-13 / macOS 実機受け入れ #1301・2026-09-07。Linux AppImage の実ビルドだけ未実測）。Phase 4（Capacitor 包装 #88）は scaffold merged（`desktop/` `mobile/` 実在）。Web URL は公開済み（#600・2026-08-09・Cloudflare Workers）。デスクトップ配布のパッケージングは #1300 / #1301 + `docs/vision/plans/2026-08-30-desktop-app-packaging.md` へ。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元
+Status: ACTIVE — Phase 2 完了（2026-06-05 / PR #43・#44 + tracker commit 5b3021c。S0-S7 / perf / RLS 達成）。Phase 2↔3 間 Data Unification レーンは完了（DU-G G1-G4 = PR #29/#30/#31/#36 全 merge・計画書は archive 済）。**Phase 3（Electron 包装 #79）= 完了**（Windows 実機 golden path #530・2026-08-13 / macOS 実機受け入れ #1301・2026-09-07。Linux AppImage の実ビルドだけ未実測）。Phase 4（Capacitor 包装 #88）は scaffold merged（`desktop/` `mobile/` 実在）。Web URL は公開済み（#600・2026-08-09・Cloudflare Workers）。デスクトップ配布のパッケージングは #1300 / #1301 + `docs/vision/plans/2026-08-30-desktop-app-packaging.md` へ。最新 Phase 状況は `memory/INDEX.md`（per-chat）+ 各 Phase 計画書 + git 履歴が正本（旧 MEMORY.md は 2026-05-23 凍結）。本ファイルは commit 60f5f63 で誤削除→2026-05-17 git 履歴から復元。**Phase 5 完了判定は 2026-09-23 に書き換え済み（D-20260923-main-1）**: 自動更新を条件から外して「完成後の判断」へ移し、MCP の条件を Desktop 殻の起動導線 + Remote MCP に置き換え、Phase 4（Capacitor ネイティブ殻）は完成条件から外した
 Created: 2026-05-04
-Updated: 2026-08-31
+Updated: 2026-09-23
 Task: クロスプラットフォーム移行 — Tauri / Cloudflare 構成 → Vite + React + TS + Supabase + Electron + Capacitor
 Project path: マシンごとに異なる（Mac / Windows でクローン位置が違うため固定パスは書かない）
 Branch: main（2026-05〜集約済み。旧 refactor/web-first-v2 は PR #3-9 merge 済で廃止 — CLAUDE.md ヘッダ参照）
@@ -214,7 +214,7 @@ life-editor/
 ### 9. Non-goals(今回やらない)
 
 - オフライン編集
-- マルチテナント / 認証ありの公開配布スケール
+- マルチテナント（組織・共有・権限管理）/ 大規模スケール — **サインアップ開放そのものは Non-goal ではない**（無料枠の安全圏 10〜20 人への配布 + サインアップ開放 = D-20260829-main-1。旧「認証ありの公開配布スケール」の表現は 2026-09-23 に改訂 = D-20260923-main-1）
 - Tauri / Rust / portable-pty / Cloud D1 / `sync_engine.rs` の維持
 - Database(汎用 DB)機能 — Postgres での動的テーブル生成は難度高、一旦凍結
 - Mac App Store / Microsoft Store 申請
@@ -362,18 +362,20 @@ life-editor/
 
 ### Phase 4 — Capacitor 包装（iOS / Android シミュレータまで）
 
+> **Phase 4 は「完成」の条件に含めない**（2026-09-23 = D-20260923-main-1）。スマホの主導線は公開 Web URL（D-20260807-main-1）で、モバイル単独起動は Non-Goal（CLAUDE.md §1）。ネイティブ殻は「完成後・任意」の作業とし、下の項目は着手したときの手順として残す。scaffold（`mobile/` + `capacitor.config.ts` + `ios/` `android/` の生成物）は #88 で merge 済み。
+
 ゴール: `shared/` を Capacitor で包んで iOS / Android シミュレータで起動できる状態に。**実機配布は完成後**。
 
-- [ ] `mobile/` 新規作成、Capacitor 8 install + `npx cap init`
-- [ ] iOS プロジェクト生成 + **シミュレータ**起動確認
+- [x] `mobile/` 新規作成、Capacitor 8 install + `npx cap init`（#88 scaffold）
+- [ ] iOS プロジェクト生成 + **シミュレータ**起動確認（`ios/` は生成済み・起動は未実測）
 - [ ] iOS 実機検証は **無料 Apple ID + 7 日署名**（自分の端末のみ）
-- [ ] Android プロジェクト生成 + Android Studio AVD 検証
-- [ ] `capacitor.config.ts` 設定(bundle ID / app name / web dir)
+- [ ] Android プロジェクト生成 + Android Studio AVD 検証（`android/` は生成済み・起動は未実測）
+- [x] `capacitor.config.ts` 設定(bundle ID / app name / web dir)（#88）
 - [ ] iOS スプラッシュ / アイコン整備
 - [ ] Android safe-area inset 対応
 - [ ] **Apple Sign-in は実装しない**（Email + Password で代用、完成後に追加）
 
-#### Phase 4 完了判定
+#### Phase 4 完了判定（完成の条件ではない — 着手したときの受け入れ基準）
 
 - [ ] iOS シミュレータで `mobile/` アプリ起動 + 操作可能
 - [ ] Android AVD で同上
@@ -382,29 +384,30 @@ life-editor/
 
 ---
 
-### Phase 5 — 周辺機能整理 + terminal-division 連携 + 旧スタック削除（= 完成）
+### Phase 5 — 周辺機能整理 + MCP 導線 + 旧スタック削除（= 完成）
 
-ゴール: 周辺機能の整理、terminal-division MCP 連携、Tauri / Cloud D1 完全削除、Cloudflare Pages デプロイ。**ここまで $0 で到達**。
+ゴール: 周辺機能の整理、MCP の 2 本の入口（Desktop 殻 + Remote MCP）、Tauri / Cloud D1 完全削除、Web URL 公開。**ここまで $0 で到達**。（旧「terminal-division 連携 / Cloudflare Pages」は 2026-09-23 改訂 = D-20260923-main-1。Terminal は 2026-07-05 退役、Pages は Workers に置換済み）
 
 #### 5-A: 周辺機能整理
 
-- [ ] Audio Mixer: Web Audio API で動作確認(AudioContext は変更ほぼ無し)
-- [ ] Timer / Pomodoro: Supabase 連携(timer_sessions テーブル)
+- [x] Audio Mixer: Web Audio API で動作確認(AudioContext は変更ほぼ無し)（`shared/src/components/AudioMixer.tsx` — 音源は Supabase Storage `sounds`）
+- [x] Timer / Pomodoro: Supabase 連携(timer_sessions テーブル)（migration 0018）
 - [ ] Settings: 不要項目(auto-launch / global shortcuts / tray)の Electron 版再実装
 - [ ] **Electron Tray** 実装（最小機能: 表示/非表示、終了）
 - [ ] **Electron 自動起動**（electron-auto-launch）
-- [ ] **Electron グローバルショートカット**（globalShortcut API、最小限）
-- [ ] FileExplorer: 削除(Web では用途なし、materials は Supabase Storage へ)
+- [ ] **Electron グローバルショートカット**（globalShortcut API、最小限。2026-09-23 時点で未導入 = tier-2-supporting.md §Shortcuts）
+- [x] FileExplorer: 削除(Web では用途なし、materials は Supabase Storage へ)（退役 = D-20260704-main-1・Provider ごと撤去済み #320）
 - [x] Database(汎用 DB): 一旦凍結、CLAUDE.md §8 に凍結注記済み（Phase 5-A 決定）
-- [ ] Trash / UndoRedo: Supabase row レベルで実装
+- [x] Trash / UndoRedo: Supabase row レベルで実装（`is_deleted` + `deleted_at` → TrashView / `UndoRedoManager`）
 
-#### 5-B: terminal-division + 自動更新
+#### 5-B: MCP 導線 + 配布
 
-> ⚠️ アプリ内 Terminal 機能は **2026-07-05 に退役決定**（MCP Server 自体は存続）。Claude Code の常設起動導線は生成デザイン確定後に再設計するため、本節のブリッジ項目と Phase 5 完了判定の該当 1 項は導線再設計後に再定義する。
+> ⚠️ アプリ内 Terminal 機能は **2026-07-05 に退役決定**（MCP Server 自体は存続）。常設の起動導線は Desktop 殻に着地（#1211 = D-20260831-settings-1）、スマホ側は Remote MCP（D-20260909-mcp-mobile-1）。旧 terminal-division ブリッジ項目は 2026-09-23 に SUPERSEDE（D-20260923-main-1）。
 
-- [ ] `mcp-server/` を Postgres 接続版に書き換え(better-sqlite3 → @supabase/supabase-js)
-- [ ] terminal-division の Main process から life-editor MCP を起動するブリッジ追加
-- [ ] **electron-updater + GitHub Releases** 設定（auto-update 動作確認、$0）
+- [x] `mcp-server/` を Postgres 接続版に書き換え(better-sqlite3 → @supabase/supabase-js)（README「life-editor MCP のツールはすべて Supabase 接続」）
+- [x] Desktop 殻から素の `claude` を起動する常設導線（サイドバー下部 + Settings の AI 連携カード = #1211。旧「terminal-division の Main process からブリッジ」を置換）
+- [ ] **Remote MCP を本番へ**: 計画書 [`2026-09-09-remote-mcp-mobile.md`](./docs/vision/plans/2026-09-09-remote-mcp-mobile.md) の Step 3〜5（🛑 シークレット投入 / Worker deploy / スマホの Claude アプリにコネクタ登録）
+- ~~electron-updater + GitHub Releases 設定~~ → **完成後の判断へ移動**（署名と同時に配線。未署名のまま有効化しない — `desktop/src/main/index.ts` の雛形はそのまま。D-20260923-main-1）
 - [x] **Web URL 公開**: Cloudflare Workers (Static Assets) デプロイ（2026-08-09 #600 — `https://life-editor.sunbreak-pro.workers.dev`・$0。Pages ではなく Workers なのは Cloudflare が Pages を Workers へ吸収する方向のため）
 
 #### 5-C: 旧スタック削除 + ドキュメント整理
@@ -419,16 +422,19 @@ life-editor/
 - [x] `.claude/2026-04-26-windows-android-port.md` は削除済み・逐語は git 履歴（本プランで完全に置換）
 - [x] README.md 更新（2026-07-11 #197 — Tauri 前提の記述を現行スタックのクイックスタートへ全面書き換え）
 
-#### Phase 5 完了判定 = **完成**
+#### Phase 5 完了判定 = **完成**（2026-09-23 改訂 = D-20260923-main-1。旧 8 条件のうち「terminal-division 経由の MCP」と「auto-update」を置換・除外）
 
-- [ ] terminal-division から Life Editor MCP 経由で Todos 操作可能（⚠️ Terminal 退役 2026-07-05 — 導線再設計後に再定義）
-- [ ] electron-updater で auto-update が GitHub Releases から流れる
+- [x] Desktop 殻から `claude` を起動し、stdio MCP 経由で Todos を操作できる（#1211 — 旧「terminal-division から」を置換）
+- [ ] Remote MCP をスマホの Claude アプリから 1 本成功させる（計画書 2026-09-09 の AC。🛑 Step 3〜5 が未実施）
 - [x] Web URL が公開されている（2026-08-09 #600 — `https://life-editor.sunbreak-pro.workers.dev`）
 - [x] `frontend/` + `src-tauri/` + `cloud/` が依存に残っていない（2026-07-11 #197 — 3 ツリーとも削除済み。旧 build.yml / .ignore / loop-engine check.sh の残存参照も同時整理）
-- [ ] CLAUDE.md / vision / requirements が新スタック前提
-- [ ] cargo / Rust / portable-pty への依存ゼロ
-- [ ] Electron ビルド時間 < 3 分（macOS aarch64 ローカル）
-- [ ] **ここまでの累計コスト = $0**
+- [x] Desktop の未署名インストーラが Windows / macOS で配れる（#1300 / #1301 — 2026-09-07 macOS 実機受け入れ。残 = Windows 実機ログイン + Todo CRUD と draft Release 公開 = `docs/vision/plans/2026-08-30-desktop-app-packaging.md`）
+- [ ] CLAUDE.md / vision / requirements が新スタック前提（5-C の 3 項目）
+- [x] cargo / Rust / portable-pty への依存ゼロ（`Cargo.toml` なし・`src-tauri/` 削除済み #197）
+- [ ] Electron ビルド時間 < 3 分（macOS aarch64 ローカル。計測記録なし — `release-desktop.yml` の CI 実測で代替可）
+- [ ] **ここまでの累計コスト = $0**（署名・Apple Developer・Supabase Pro を使っていないことの確認）
+
+除外した条件（完成後の判断表へ）: electron-updater の自動更新（署名と同時）/ Phase 4 の Capacitor ネイティブ殻（スマホの主導線は Web URL）。
 
 ---
 
@@ -436,14 +442,16 @@ life-editor/
 
 このタイミングで初めて以下を検討する。それまでは手を付けない:
 
-| 判断項目              | 条件                                            | コスト                         |
-| --------------------- | ----------------------------------------------- | ------------------------------ |
-| iOS 友達配布          | 友達から要望が出たら加入                        | Apple Developer Program $99/年 |
-| Supabase Pro          | 無料枠（500MB DB / 月 5GB egress 等）を超えたら | $25/月                         |
-| Windows コード署名    | 友達が SmartScreen 警告で困ったら               | $80-500/年                     |
-| macOS 公証            | 友達が「壊れたアプリ」警告で困ったら            | Apple Developer Program $99/年 |
-| Apple Sign-in         | iOS 友達配布開始時に同時実装                    | 上記 $99/年に含む              |
-| Sentry / ログ吸い上げ | 友達からのバグ報告が増えてきたら                | 無料枠 → 必要に応じて $26/月   |
+| 判断項目                                       | 条件                                                                             | コスト                         |
+| ---------------------------------------------- | -------------------------------------------------------------------------------- | ------------------------------ |
+| iOS 友達配布                                   | 友達から要望が出たら加入                                                         | Apple Developer Program $99/年 |
+| Supabase Pro                                   | 無料枠（500MB DB / 月 5GB egress 等）を超えたら                                  | $25/月                         |
+| Windows コード署名                             | 友達が SmartScreen 警告で困ったら                                                | $80-500/年                     |
+| macOS 公証                                     | 友達が「壊れたアプリ」警告で困ったら                                             | Apple Developer Program $99/年 |
+| 自動更新（electron-updater + GitHub Releases） | 署名 / 公証を入れたとき同時に配線（未署名のまま有効化しない。D-20260923-main-1） | 署名の費用に含む               |
+| Capacitor ネイティブ殻（iOS / Android）        | 友達から要望が出て Apple Developer に加入したとき（Phase 4 の手順を再開）        | 上記 $99/年に含む              |
+| Apple Sign-in                                  | iOS 友達配布開始時に同時実装                                                     | 上記 $99/年に含む              |
+| Sentry / ログ吸い上げ                          | 友達からのバグ報告が増えてきたら                                                 | 無料枠 → 必要に応じて $26/月   |
 
 ---
 
