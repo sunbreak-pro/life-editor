@@ -180,6 +180,30 @@ describe("Briefing row delete (#585)", () => {
     expect(ds.softDeleteRoutine).not.toHaveBeenCalled();
   });
 
+  it("says the tags stay behind, on 'this and following' only (#1974)", async () => {
+    // The split is undoable from the paper now, and its undo does not bring
+    // the series' tags back. D-20260919-sched-2 = B was granted on the dialog
+    // saying so BEFORE the press — the same note Schedule's dialog carries.
+    const ds = makeDS();
+    renderScreen(ds);
+    await screen.findByText("Morning stretch");
+
+    fireEvent.click(deleteButtonOf("Morning stretch"));
+
+    const note = screen.getByText(
+      "Undo brings the repeat back, but not the tags it carried.",
+    );
+    const future = screen.getByRole("button", {
+      name: "This and following events",
+    });
+    expect(future.getAttribute("aria-describedby")).toBe(note.id);
+    // The other two undo cleanly, so the note is not read out on them.
+    for (const name of ["This event only", "All events (including past)"])
+      expect(
+        screen.getByRole("button", { name }).getAttribute("aria-describedby"),
+      ).toBeNull();
+  });
+
   it("soft-deletes the routine for 'all'", async () => {
     const ds = makeDS();
     renderScreen(ds);

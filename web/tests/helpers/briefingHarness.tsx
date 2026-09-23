@@ -5,6 +5,7 @@ import {
   type DataService,
   type ScheduleItem,
   type TodoNode,
+  type UndoConfirmSpec,
   type UndoRedoContextValue,
 } from "@life-editor/shared";
 import { createBumpableSync, type BumpableSyncHandle } from "./index";
@@ -35,6 +36,8 @@ export interface PushedCommand {
   // reaches the manager, and the DB half waits for the write it reverses.
   undo: () => void | Promise<void>;
   redo: () => void | Promise<void>;
+  /** The question asked before undoing a repeat write (#1638), if any. */
+  confirm?: UndoConfirmSpec;
 }
 
 export interface BriefingHarness {
