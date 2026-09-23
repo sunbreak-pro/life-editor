@@ -431,7 +431,6 @@ export function MainScreen({ session }: { session: Session }) {
         bottomBarActions={(closeSheet) => (
           <MobileShellActions
             onOpenPalette={() => setPaletteOpen(true)}
-            onOpenTagEditor={() => setSection("connect")}
             closeSheet={closeSheet}
           />
         )}

@@ -188,7 +188,11 @@ function DesktopAnalytics({
 
   // Shared between the two header-band branches (controlled ↔ uncontrolled) so
   // the preset's props stay defined in one place.
-  const presetSelector = (
+  //
+  // Hidden on the Work tab (#1859): that tab runs on its own 日/週/月 selector
+  // and fixed windows (TimeTab PERIOD_DAYS, #1476), so the pills changed
+  // nothing there while still looking pressable.
+  const presetSelector = activeTab === "work" ? null : (
     <DateRangePresetSelector
       value={preset}
       onChange={applyPreset}
@@ -215,13 +219,13 @@ function DesktopAnalytics({
             trailing={presetSelector}
           />
         </div>
-      ) : (
+      ) : presetSelector ? (
         <div className="flex-shrink-0 px-lumen-gutter pt-3 md:px-lumen-gutter-wide md:pt-4">
           <div className="mx-auto flex w-full max-w-lumen-data justify-end">
             {presetSelector}
           </div>
         </div>
-      )}
+      ) : null}
 
       {/* Content: centered max-w-lumen-data column.
 
@@ -271,6 +275,7 @@ function DesktopAnalytics({
                     rate: labels.overview.rate,
                     thisWeek: labels.overview.thisWeek,
                     assigned: labels.overview.assigned,
+                    scope: labels.overview.scope,
                     formatHours: labels.formatHours,
                     todayCard: {
                       title: labels.todayCard.title,

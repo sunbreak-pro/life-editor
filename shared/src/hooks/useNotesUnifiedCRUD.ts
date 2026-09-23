@@ -44,6 +44,13 @@ export interface UseNotesUnifiedCRUDParams {
    * so out loud. Optional: with no handler this is the old warn-only behaviour.
    */
   onWriteError?: NoteWriteErrorHandler;
+  /**
+   * #1953 — the title a note gets when it is created without one. The host
+   * passes the translated `common.untitled`, the same way it injects the
+   * DataService, because shared hooks take their copy from the host. The
+   * string is stored as the title (see UseNotesUnifiedAPIOptions).
+   */
+  untitledTitle: string;
 }
 
 export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
@@ -59,6 +66,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
     markLocalWrite,
     trackWrite,
     onWriteError,
+    untitledTitle,
   } = params;
 
   const createNote = useCallback(
@@ -81,7 +89,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       const resolvedParentId = opts?.parentId ?? null;
       const resolvedContent = opts?.initialContent ?? "";
       const newNote: NoteNode = {
-        ...buildNoteNode(id, title || "Untitled", resolvedParentId, now),
+        ...buildNoteNode(id, title || untitledTitle, resolvedParentId, now),
         content: resolvedContent,
       };
       setNotes((prev) => [newNote, ...prev]);
@@ -166,6 +174,7 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       setSelectedNoteId,
       selectedNoteIdRef,
       onWriteError,
+      untitledTitle,
     ],
   );
 

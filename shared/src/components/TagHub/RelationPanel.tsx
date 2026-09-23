@@ -68,6 +68,14 @@ export interface RelationPanelProps {
   onOpenItem: (item: TagHubItem) => void;
   onRemoveLink: (linkIds: readonly string[]) => void;
   onAddLink: (target: TagHubItem) => void;
+  /**
+   * Open the add-link chooser BELOW its button instead of above (#1846). The
+   * narrow host shows this panel in a bottom sheet whose body scrolls, and a
+   * scroller clips what overflows its top edge for good — a chooser opening
+   * upward from a short sheet lost its search field. Overflow at the bottom
+   * scrolls instead, and the field's autofocus scrolls it into view.
+   */
+  addLinkOpensDown?: boolean;
   labels: RelationPanelLabels;
 }
 
@@ -84,6 +92,7 @@ export function RelationPanel({
   onOpenItem,
   onRemoveLink,
   onAddLink,
+  addLinkOpensDown = false,
   labels,
 }: RelationPanelProps) {
   const rowButton = (row: TagHubItem) => (
@@ -200,6 +209,7 @@ export function RelationPanel({
         <AddLinkButton
           candidates={candidates}
           onAddLink={onAddLink}
+          opensDown={addLinkOpensDown}
           labels={labels}
         />
       </div>
@@ -210,10 +220,12 @@ export function RelationPanel({
 function AddLinkButton({
   candidates,
   onAddLink,
+  opensDown,
   labels,
 }: {
   candidates: readonly TagHubItem[];
   onAddLink: (target: TagHubItem) => void;
+  opensDown: boolean;
   labels: RelationPanelLabels;
 }) {
   const [open, setOpen] = useState(false);
@@ -270,7 +282,10 @@ function AddLinkButton({
               close();
             }
           }}
-          className="absolute bottom-full left-0 right-0 z-50 mb-2 rounded-lumen-md border border-lumen-border bg-lumen-bg p-2 shadow-lumen-lg"
+          className={cn(
+            "absolute left-0 right-0 z-50 rounded-lumen-md border border-lumen-border bg-lumen-bg p-2 shadow-lumen-lg",
+            opensDown ? "top-full mt-2" : "bottom-full mb-2",
+          )}
         >
           <input
             autoFocus

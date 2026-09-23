@@ -74,6 +74,15 @@ export interface AnalyticsLabels {
     rate: string;
     thisWeek: string;
     assigned: string;
+    /**
+     * The window each Overview tile counts over (#1859). The tiles do NOT follow
+     * the date-range pills, so each one says which window it reads instead.
+     */
+    scope: {
+      allTime: string;
+      today: string;
+      now: string;
+    };
   };
 
   todayCard: {

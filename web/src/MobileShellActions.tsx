@@ -1,4 +1,4 @@
-import { Undo2, Redo2, Search, Tags as TagsIcon } from "lucide-react";
+import { Undo2, Redo2, Search } from "lucide-react";
 import {
   BottomTabActionRow,
   useTranslation,
@@ -8,8 +8,6 @@ import {
 export interface MobileShellActionsProps {
   /** Open the command palette (#473). */
   onOpenPalette: () => void;
-  /** Walk to the Connect section, where tags are edited (#1290 / #1643). */
-  onOpenTagEditor: () => void;
   /** Dismiss the "More" sheet, so a surface opened from a row is not behind it. */
   closeSheet: () => void;
 }
@@ -31,25 +29,24 @@ export interface MobileShellActionsProps {
  * palette: this flips MainScreen's one `paletteOpen` state, so mobile and
  * Desktop drive a single mounted <CommandPalette>.
  *
- * The tag row (#1290) is the palette row's twin. On the wide layout the tag
- * master's entry is the sidebar footer row above ⌘K (SidebarNav), and the
- * narrow layout renders no sidebar — so until #1290 a phone could not reach it
- * at all. Since #1643 both entries walk to the Connect SECTION rather than
- * opening a panel over whatever is on screen: the tag edit modal was retired
- * into that section (D-20260912-main-1 Q1-A), so there is nothing left to open.
+ * There is no tag row any more (#1851). #1290 added "Edit tags" here because a
+ * phone had no way to reach the tag master; #1643 then retired the master into
+ * the Connect section and pointed the row at it — which the same sheet already
+ * lists as a section, so the two rows landed on the identical screen. Tags are
+ * edited from Connect's own rail.
  *
  * This is a component rather than a hook called in MainScreen's body for the
  * same reason HeaderUndoRedo is: MainScreen MOUNTS <UndoRedoHost> (its own body
  * therefore sits outside the Provider), so the context can only be read from a
  * component rendered inside the shell.
  *
- * Order: the rows that OPEN a surface (palette, tags) read first, then the rows
+ * Order: the row that OPENS a surface (the palette) reads first, then the rows
  * that act on what you just did (undo, redo).
  *
  * Undo/redo deliberately do NOT call `closeSheet` — undo repeats, and closing
  * on the first tap would turn a three-step undo into three reopens. The palette
- * and tag rows are the opposite case: each takes the user somewhere, so the
- * sheet has to be cleared out of the way first.
+ * row is the opposite case: it takes the user somewhere, so the sheet has to
+ * be cleared out of the way first.
  *
  * These rows stay on the APP stack, unlike the header pair (#1690). The header
  * follows focus because it can: its buttons keep the editor focused while you
@@ -61,7 +58,6 @@ export interface MobileShellActionsProps {
  */
 export function MobileShellActions({
   onOpenPalette,
-  onOpenTagEditor,
   closeSheet,
 }: MobileShellActionsProps) {
   const { t } = useTranslation();
@@ -75,14 +71,6 @@ export function MobileShellActions({
         onSelect={() => {
           closeSheet();
           onOpenPalette();
-        }}
-      />
-      <BottomTabActionRow
-        label={t("nav.tagEditor")}
-        icon={<TagsIcon size={18} />}
-        onSelect={() => {
-          closeSheet();
-          onOpenTagEditor();
         }}
       />
       <BottomTabActionRow

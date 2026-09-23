@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, cleanup, within } from "@testing-library/react";
+import {
+  render,
+  screen,
+  cleanup,
+  within,
+  fireEvent,
+} from "@testing-library/react";
 import {
   TagHubSelectionBar,
   ToastViewport,
@@ -107,6 +113,49 @@ describe("TagHubSelectionBar — a narrow items column (#1732)", () => {
 
   it("scrolls sideways rather than squeezing anything", () => {
     expect(renderBar()).toHaveClass("overflow-x-auto");
+  });
+});
+
+describe("TagHubSelectionBar — the choosers escape the bar (#1845)", () => {
+  // The bar scrolls sideways, which makes it clip vertically too: a chooser
+  // opened inside it showed as a 2px sliver. Both must live outside the bar.
+  it.each([
+    ["Add a tag", "Add a tag to the selection"],
+    ["Move to another tag", "Move the selection to a tag"],
+  ])("opens %s outside the scrolling toolbar", (trigger, title) => {
+    const bar = renderBar();
+    fireEvent.click(within(bar).getByRole("button", { name: trigger }));
+
+    const dialog = screen.getByRole("dialog", { name: title });
+    expect(bar.contains(dialog)).toBe(false);
+    expect(dialog.parentElement).toBe(document.body);
+    expect(dialog).toHaveClass("fixed");
+    // Measured from the trigger, so it is placed (not hidden) once open.
+    expect(dialog.style.visibility).not.toBe("hidden");
+  });
+
+  it("still closes on Esc without clearing the selection", () => {
+    const onClear = vi.fn();
+    render(
+      <TagHubSelectionBar
+        count={2}
+        formatSelected={(count) => `${count} selected`}
+        tags={TAGS}
+        currentTagId="t-work"
+        canRemove
+        onAssign={vi.fn()}
+        onCreateAndAssign={vi.fn()}
+        onRemove={vi.fn()}
+        onMove={vi.fn()}
+        onClear={onClear}
+        labels={LABELS}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(onClear).not.toHaveBeenCalled();
   });
 });
 

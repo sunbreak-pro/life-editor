@@ -82,10 +82,15 @@ export interface TagHubViewProps {
   onEditChange?: (patch: TagRowEdits) => void;
   onEditDrop?: (field: keyof TagRowEdits) => void;
   onEditSave?: () => void;
+  /** Why the selected tag's last save did not land, translated (#1847). */
+  editError?: string | null;
   /** Delete the tag — the host confirms first (it owns the dialog layer). */
   onDeleteTag?: (tagId: string) => void;
-  /** The rail's pinned add row, and the empty state's primary action (D5/D15). */
-  onCreateTag?: (name: string) => void;
+  /**
+   * The rail's pinned add row, and the empty state's primary action (D5/D15).
+   * Return the write's promise so a failure can be shown under the row (#1847).
+   */
+  onCreateTag?: (name: string) => void | Promise<unknown>;
 
   /*
    * Bulk selection (#1644). The host owns which rows are checked and draws the
@@ -131,6 +136,7 @@ export function TagHubView({
   onEditChange,
   onEditDrop,
   onEditSave,
+  editError = null,
   onDeleteTag,
   onCreateTag,
   checkedItemIds,
@@ -293,6 +299,7 @@ export function TagHubView({
                 onEdit={onEditChange}
                 onDropEdit={(field) => onEditDrop?.(field)}
                 onSave={() => onEditSave?.()}
+                error={editError}
                 onDelete={() => onDeleteTag?.(selected.id)}
                 labels={labels.edit}
               />

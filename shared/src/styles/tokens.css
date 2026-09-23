@@ -188,7 +188,11 @@
   --color-surface-sunken: #0a1220;
   --color-text-primary: #edf1f9;
   --color-text-secondary: #a4b2ca;
-  --color-text-tertiary: #75839d;
+  /* #1951: was #75839d — 4.05:1 on bg-secondary and 3.39:1 on hover, the
+     dark half of what #1844 fixed in Light. Same hue and saturation, lighter
+     only, held to 4.5:1 on every dark surface the tier is set on; the worst
+     case is hover at 4.57:1 (bg-primary 6.13, bg-secondary 5.45). */
+  --color-text-tertiary: #8e9aaf;
   --color-border: #263650;
   --color-border-strong: #3c4e70;
   --color-accent: #85aaff;

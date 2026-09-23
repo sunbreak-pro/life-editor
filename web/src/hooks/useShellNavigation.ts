@@ -54,10 +54,11 @@ const NAV_SHORTCUT_DESTINATION: Readonly<
   "nav:schedule": { section: "schedule" },
   "nav:daily": { section: "materials", tab: "daily" },
   "nav:notes": { section: "materials", tab: "notes" },
-  // The Tags tab was retired (#310) and nothing took its place, so this
-  // binding has nowhere to land. Declared as an explicit null rather than
-  // left as a silent fall-through inside the handler (#676 (b)).
-  "nav:tags": null,
+  // The Tags tab was retired in #310 and this binding sat on an explicit null
+  // until #1849. Connect has been the tags' entry point since #1171, so it
+  // lands there. The id stays "nav:tags": it is the key a user's own rebinding
+  // is stored under.
+  "nav:tags": { section: "connect" },
 };
 
 /**
@@ -193,7 +194,7 @@ export function useShellNavigation({
   );
 
   // nav:* shortcut executor. The shared hook reports which binding fired; the
-  // table above says where it lands (null = a retired binding, no-op).
+  // table above says where it lands (null would be a retired binding, no-op).
   const handleNavigate = useCallback(
     (id: NavShortcutId) => {
       const dest = NAV_SHORTCUT_DESTINATION[id];

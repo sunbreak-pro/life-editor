@@ -42,6 +42,8 @@ export interface OverviewTabLabels {
   rate: string;
   thisWeek: string;
   assigned: string;
+  /** The window each tile counts over — the tiles ignore the pills (#1859). */
+  scope: { allTime: string; today: string; now: string };
   formatHours: (minutes: number) => string;
   todayCard: TodayDashboardLabels;
   weekly: WeeklySummaryLabels;
@@ -152,26 +154,21 @@ export function OverviewTab({
       totalTags: tags.length,
       totalAssignments: assignments.length,
     };
-  }, [
-    nodes,
-    todayItems,
-    notes,
-    sessions,
-    routines,
-    tags,
-    assignments,
-    labels,
-  ]);
+  }, [nodes, todayItems, notes, sessions, routines, tags, assignments, labels]);
 
   return (
     <div className="space-y-4">
-      {/* Multi-domain stat cards. Three across only once the DATA COLUMN is
-          wide enough (#1480) — with the detail panel open it is ~612px, where
-          a third of it leaves 「0時間33分」 nowhere to go. */}
+      {/* Multi-domain stat cards. None of them follows the date-range pills —
+          only the tag usage card below does — so each tile names its own
+          window (#1859): all time, today, or the current state. Three across
+          only once the DATA COLUMN is wide enough (#1480) — with the detail
+          panel open it is ~612px, where a third of it leaves 「0時間33分」
+          nowhere to go. */}
       <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3">
         <AnalyticsStatCard
           icon={<BarChart3 size={16} />}
           label={labels.todos}
+          scope={labels.scope.allTime}
           value={stats.totalTodos}
           tone="mint"
           subtitle={`${stats.completedTodos} ${labels.completed} (${stats.todoRate}%)`}
@@ -179,6 +176,7 @@ export function OverviewTab({
         <AnalyticsStatCard
           icon={<CalendarCheck2 size={16} />}
           label={labels.events}
+          scope={labels.scope.today}
           value={stats.todayEvents}
           tone="accent"
           subtitle={`${stats.todayEventsCompleted} ${labels.completed} ${labels.today}`}
@@ -186,6 +184,7 @@ export function OverviewTab({
         <AnalyticsStatCard
           icon={<FileText size={16} />}
           label={labels.notes}
+          scope={labels.scope.allTime}
           value={stats.totalNotes}
           tone="accent"
           subtitle={`+${stats.notesThisWeek} ${labels.thisWeek}`}
@@ -193,6 +192,7 @@ export function OverviewTab({
         <AnalyticsStatCard
           icon={<Clock size={16} />}
           label={labels.work}
+          scope={labels.scope.allTime}
           value={stats.totalWorkTime}
           tone="accent"
           subtitle={`${stats.todayWorkTime} ${labels.today}`}
@@ -200,6 +200,7 @@ export function OverviewTab({
         <AnalyticsStatCard
           icon={<RefreshCw size={16} />}
           label={labels.routines}
+          scope={labels.scope.now}
           value={stats.activeRoutines}
           tone="mint"
           subtitle={`${stats.routineRate}% ${labels.rate}`}
@@ -207,6 +208,7 @@ export function OverviewTab({
         <AnalyticsStatCard
           icon={<Tag size={16} />}
           label={labels.tags}
+          scope={labels.scope.now}
           value={stats.totalTags}
           tone="accent"
           subtitle={`${stats.totalAssignments} ${labels.assigned}`}

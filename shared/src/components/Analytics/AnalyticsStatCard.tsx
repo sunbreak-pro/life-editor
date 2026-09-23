@@ -33,6 +33,12 @@ interface AnalyticsStatCardProps {
   /** Semantic color of the icon tile (§ meaning system). */
   tone: StatTone;
   subtitle?: string;
+  /**
+   * The window the value counts over (#1859), drawn after the label. Set it
+   * wherever the header date-range pills do NOT drive the tile, so a number
+   * that ignores the pills says which window it reads instead.
+   */
+  scope?: string;
 }
 
 export function AnalyticsStatCard({
@@ -41,6 +47,7 @@ export function AnalyticsStatCard({
   value,
   tone,
   subtitle,
+  scope,
 }: AnalyticsStatCardProps): React.JSX.Element {
   return (
     <div className="flex items-start gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary p-4">
@@ -58,6 +65,9 @@ export function AnalyticsStatCard({
         </p>
         <p className="text-xs leading-snug text-lumen-text-secondary">
           {label}
+          {scope && (
+            <span className="text-lumen-text-tertiary"> · {scope}</span>
+          )}
         </p>
         {subtitle && (
           <p className="text-xs leading-snug text-lumen-text-tertiary">

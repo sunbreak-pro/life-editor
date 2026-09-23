@@ -135,6 +135,7 @@ function EditorCard({
   date,
   initialContent,
   onUpdate,
+  onDirty,
   placeholder,
   loadLinkTargets,
   onNavigateToItem,
@@ -149,6 +150,8 @@ function EditorCard({
   date: string;
   initialContent?: string;
   onUpdate: (content: string) => void;
+  /** Raised on the keystroke, before the debounce (#1954). */
+  onDirty?: () => void;
   placeholder: string;
   loadLinkTargets?: LoadItemLinkTargets;
   onNavigateToItem?: (target: { id: string; role: string }) => void;
@@ -182,6 +185,7 @@ function EditorCard({
         noteId={`daily-${date}`}
         initialContent={initialContent}
         onUpdate={onUpdate}
+        onDirty={onDirty}
         placeholder={placeholder}
         // "[[" wiki-link autocomplete + click navigation (Issue #285). No
         // create-note row here (Daily has no note-create path) — the daily
@@ -319,6 +323,21 @@ export function DailyView({
     json: string;
   } | null>(null);
   const [editorGen, setEditorGen] = useState(0);
+  /*
+   * The keystroke-to-debounce window (#1954), the Daily half of #1822.
+   *
+   * The editor emits only after its 800ms debounce, so for that whole window
+   * `lastEmitted` still matched the stored body and the caption said "Saved"
+   * over text that was not saved yet. The editor now reports the change as it
+   * happens (`onDirty`), and this date covers the gap until the emission takes
+   * over. Keyed by date because each date mounts its own editor.
+   */
+  const [dirtyDate, setDirtyDate] = useState<string | null>(null);
+  const markDirty = useCallback(
+    () => setDirtyDate(selectedDate),
+    [selectedDate],
+  );
+  const dirty = dirtyDate === selectedDate;
   const [syncedFrom, setSyncedFrom] = useState<{
     date: string;
     content: string;
@@ -368,6 +387,9 @@ export function DailyView({
   const editorKey = `${selectedDate}:${editorGen}`;
 
   const handleEditorUpdate = (json: string) => {
+    // The emission is now the honest source (#1954): `lastEmitted` against the
+    // stored body reads Unsaved until the save echoes back, then Saved.
+    setDirtyDate(null);
     // The old blur-commit skipped no-op saves; keep its spirit for the one
     // case TipTap still emits without visible content: typing then deleting
     // everything on a day that has no stored entry would otherwise mint an
@@ -475,6 +497,7 @@ export function DailyView({
   // lives in the editor's own undo (Mod-Z) — a global entry per 800ms save
   // would bury every other command. A cleared editor clears the stored body.
   const handleReflectionUpdate = (json: string) => {
+    setDirtyDate(null);
     void writeEvening(selectedDate, {
       bodyDocJson: isEmptyDocJson(json) ? null : json,
     });
@@ -490,12 +513,14 @@ export function DailyView({
   const eveningOpened = eveningEdit?.date === selectedDate;
   const editingReflection = eveningOpened && eveningEdit.reflection;
 
-  // Saves are automatic (debounced + flushed on unmount); with batched echo
-  // renders this caption effectively always reads saved — kept as reassurance.
+  // Saves are automatic (debounced + flushed on unmount). Between a keystroke
+  // and the debounce the caption reads unsaved through `dirty` (#1954); after
+  // the emission it follows `lastEmitted` against the stored body.
   // ownEcho (semantic compare) rather than byte equality: the canonicalized
   // jsonb echo would otherwise flip this to "unsaved" after every save.
   const isSaved =
-    lastEmitted === null || lastEmitted.date !== selectedDate || ownEcho;
+    !dirty &&
+    (lastEmitted === null || lastEmitted.date !== selectedDate || ownEcho);
 
   /*
    * A day nobody has written on has nothing to report (#1839).
@@ -510,8 +535,9 @@ export function DailyView({
    * predicate this file already uses to decide whether there is a body worth
    * writing back.
    */
+  // A first keystroke on an empty day is something to report too (#1954).
   const hasEntryToReport =
-    selectedContent !== "" || lastEmitted?.date === selectedDate;
+    selectedContent !== "" || lastEmitted?.date === selectedDate || dirty;
   const savedLabel = !hasEntryToReport
     ? undefined
     : isSaved
@@ -780,6 +806,7 @@ export function DailyView({
             noteId={`daily-evening-${selectedDate}`}
             initialContent={eveningStored.bodyDocJson ?? undefined}
             onUpdate={handleReflectionUpdate}
+            onDirty={markDirty}
             placeholder={t("materials.daily.eveningReflectionPlaceholder")}
             autoFocus
           />
@@ -911,6 +938,7 @@ export function DailyView({
             date={selectedDate}
             initialContent={editorContent}
             onUpdate={handleEditorUpdate}
+            onDirty={markDirty}
             placeholder={t("materials.daily.placeholder")}
             loadLinkTargets={loadLinkTargets}
             onNavigateToItem={onNavigateToItem}
@@ -942,6 +970,7 @@ export function DailyView({
           date={selectedDate}
           initialContent={editorContent}
           onUpdate={handleEditorUpdate}
+          onDirty={markDirty}
           placeholder={t("materials.daily.placeholder")}
           loadLinkTargets={loadLinkTargets}
           onNavigateToItem={onNavigateToItem}

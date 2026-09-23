@@ -175,6 +175,10 @@ describe("ConnectScreen narrow — the edit sheet (M1 / #1886)", () => {
     // One "Edit tag" replaced rename / icon / colour, so the sheet carries
     // every field rather than the one a menu item used to name.
     sheet.getByRole("group", { name: "Color" });
+    // …and the inline block behind it stays shut, so there is one Name field
+    // and one Save on the screen, not two stacked pairs (#1851).
+    expect(screen.getAllByLabelText("Name")).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Save" })).toHaveLength(1);
 
     // By role, not label: until #1851 the inline block also opens behind the
     // sheet, so the page holds two inputs under the same label id.

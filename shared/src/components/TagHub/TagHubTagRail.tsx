@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useId, useRef, useState } from "react";
 import type { RefObject } from "react";
 import { ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { Button } from "../Button";
@@ -68,8 +68,11 @@ export interface TagHubTagRailProps {
   onEditTag?: (tagId: string) => void;
   /** Row menu → the destructive item. Required whenever `onEditTag` is given. */
   onDeleteTag?: (tagId: string) => void;
-  /** The pinned add row (D5). Omit to leave the row out. */
-  onCreateTag?: (name: string) => void;
+  /**
+   * The pinned add row (D5). Omit to leave the row out. Return the write's
+   * promise and a failure keeps the typed name and says so (#1847).
+   */
+  onCreateTag?: (name: string) => void | Promise<unknown>;
   /** The view's handle on the add field, for the empty state's CTA (D15). */
   addFieldRef?: RefObject<HTMLInputElement | null>;
   /** Wide = a fixed rail beside the items; narrow = the whole screen. */
@@ -100,17 +103,41 @@ export function TagHubTagRail({
   // Collapsed by default: these are the tags you are NOT reading (D4).
   const [showUnused, setShowUnused] = useState(false);
   const [draft, setDraft] = useState("");
+  /*
+   * Why the add row did not create anything (#1847). A name that is already a
+   * tag's is caught here, before sending — the unique constraint would answer
+   * with a 409 — compared trimmed and case-insensitively, the same rule as the
+   * selection bar's chooser. A write that comes back failed says so too. Both
+   * keep the typed name; typing again clears the message.
+   */
+  const [addError, setAddError] = useState<string | null>(null);
+  const addErrorId = useId();
 
   const submitDraft = () => {
     const name = draft.trim();
     if (!name || !onCreateTag) return;
-    onCreateTag(name);
-    setDraft("");
-    // Clear the filter too: a tag created while a non-matching query is active
-    // would land outside the visible list, so the rail would look exactly as it
-    // did before — and pressing Add again hits the unique-name constraint,
-    // which the host's fire-and-forget create swallows silently (#368 QA).
-    onQueryChange("");
+    const needle = name.toLowerCase();
+    const taken = [...tags, ...unusedTags].some(
+      (tag) => !tag.isUntagged && tag.name.trim().toLowerCase() === needle,
+    );
+    if (taken) {
+      setAddError(labels.duplicateName);
+      return;
+    }
+    setAddError(null);
+    const created = () => {
+      setDraft("");
+      // Clear the filter too: a tag created while a non-matching query is
+      // active would land outside the visible list, so the rail would look
+      // exactly as it did before (#368 QA).
+      onQueryChange("");
+    };
+    const result = onCreateTag(name);
+    if (result instanceof Promise) {
+      result.then(created, () => setAddError(labels.createFailed));
+    } else {
+      created();
+    }
   };
 
   const renderRow = (tag: TagHubTagSummary) => (
@@ -218,42 +245,58 @@ export function TagHubTagRail({
           the top of the retired modal; down here it is out of the way of the
           list that is read far more often than it is added to. */}
       {onCreateTag && (
-        <div className="flex flex-shrink-0 items-center gap-2 border-t border-lumen-border px-3 py-2.5">
-          <Plus
-            size={16}
-            aria-hidden
-            className="shrink-0 text-lumen-text-tertiary"
-          />
-          <input
-            ref={addFieldRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              // Never commit mid-IME-composition (§frontend gotcha).
-              if (isImeComposing(e)) return;
-              if (e.key === "Enter") {
-                e.preventDefault();
-                submitDraft();
-              }
-            }}
-            placeholder={labels.addPlaceholder}
-            aria-label={labels.addPlaceholder}
-            className={cn(
-              "min-w-0 flex-1 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-2.5 py-1.5 text-sm text-lumen-text",
-              "placeholder:text-lumen-text-tertiary",
-              FOCUS_RING_TIGHT,
-              !wide && "min-h-11",
-            )}
-          />
-          <Button
-            variant="secondary"
-            size="sm"
-            className={CARD_BTN_TAP}
-            onClick={submitDraft}
-            disabled={!draft.trim()}
-          >
-            {labels.addButton}
-          </Button>
+        <div className="flex flex-shrink-0 flex-col gap-1.5 border-t border-lumen-border px-3 py-2.5">
+          <div className="flex items-center gap-2">
+            <Plus
+              size={16}
+              aria-hidden
+              className="shrink-0 text-lumen-text-tertiary"
+            />
+            <input
+              ref={addFieldRef}
+              value={draft}
+              onChange={(e) => {
+                setDraft(e.target.value);
+                setAddError(null);
+              }}
+              aria-invalid={addError ? true : undefined}
+              aria-describedby={addError ? addErrorId : undefined}
+              onKeyDown={(e) => {
+                // Never commit mid-IME-composition (§frontend gotcha).
+                if (isImeComposing(e)) return;
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  submitDraft();
+                }
+              }}
+              placeholder={labels.addPlaceholder}
+              aria-label={labels.addPlaceholder}
+              className={cn(
+                "min-w-0 flex-1 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-2.5 py-1.5 text-sm text-lumen-text",
+                "placeholder:text-lumen-text-tertiary",
+                FOCUS_RING_TIGHT,
+                !wide && "min-h-11",
+              )}
+            />
+            <Button
+              variant="secondary"
+              size="sm"
+              className={CARD_BTN_TAP}
+              onClick={submitDraft}
+              disabled={!draft.trim()}
+            >
+              {labels.addButton}
+            </Button>
+          </div>
+          {addError && (
+            <p
+              id={addErrorId}
+              role="alert"
+              className="text-xs text-lumen-danger"
+            >
+              {addError}
+            </p>
+          )}
         </div>
       )}
     </div>

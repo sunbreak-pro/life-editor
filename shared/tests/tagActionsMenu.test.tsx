@@ -257,7 +257,9 @@ describe("useTagEditDrafts (#1676)", () => {
     expect(result.current.isDirty("t-work")).toBe(true);
     expect(w.setTagName).not.toHaveBeenCalled();
 
-    act(() => result.current.save("t-work"));
+    act(() => {
+      void result.current.save("t-work");
+    });
     expect(w.setTagName.mock.calls).toEqual([["t-work", "Work log"]]);
     expect(w.setTagColor.mock.calls).toEqual([["t-work", "#e11d48"]]);
     expect(w.setTagIcon).not.toHaveBeenCalled();
@@ -281,7 +283,9 @@ describe("useTagEditDrafts (#1676)", () => {
     const { result } = renderHook(() => useTagEditDrafts([TAG], w));
 
     act(() => result.current.edit("t-work", { name: "  Work " }));
-    act(() => result.current.save("t-work"));
+    act(() => {
+      void result.current.save("t-work");
+    });
     expect(w.setTagName).not.toHaveBeenCalled();
   });
 });

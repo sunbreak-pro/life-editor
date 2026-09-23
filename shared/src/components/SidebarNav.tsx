@@ -22,6 +22,12 @@ export interface SidebarNavSection {
    * the narrow BottomTabBar ignores it.
    */
   sublabel?: ReactNode;
+  /**
+   * Optional icon-corner mark for the surfaces with no room for `sublabel`
+   * (#1858 — the Work row's <NavTimerDot />): the collapsed rail here and the
+   * narrow BottomTabBar. Hidden on the expanded row.
+   */
+  badge?: ReactNode;
 }
 
 export interface SidebarNavLabels {
@@ -179,6 +185,7 @@ export function SidebarNav({
             icon={s.icon}
             label={s.label}
             sublabel={s.sublabel}
+            badge={s.badge}
             active={activeSection === s.id}
             collapsed={collapsed}
             onClick={() => onNavigate(s.id)}
@@ -207,6 +214,7 @@ export function SidebarNav({
                 icon={s.icon}
                 label={s.label}
                 sublabel={s.sublabel}
+                badge={s.badge}
                 active={activeSection === s.id}
                 collapsed={collapsed}
                 onClick={() => onNavigate(s.id)}

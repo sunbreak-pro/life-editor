@@ -24,6 +24,8 @@ export const TAG_HUB_LABELS: TagHubLabels = {
   unusedTagsHeading: "Unused tags",
   addPlaceholder: "Enter a tag name",
   addButton: "Add",
+  duplicateName: "A tag with this name already exists.",
+  createFailed: "Couldn't create the tag.",
   emptyAction: "Add a tag",
   loading: "Loading tags",
   rowMenu: "Tag actions",
@@ -45,6 +47,8 @@ export const TAG_HUB_LABELS: TagHubLabels = {
     saved: "Saved",
     unsaved: "Unsaved",
     save: "Save",
+    duplicateName: "A tag with this name already exists.",
+    saveFailed: "Couldn't save the tag.",
   },
   roles: {
     task: "Todo",

@@ -18,6 +18,13 @@ import type { TagRowPatchTarget } from "./tagRowPatch";
  * practice are the WikiTagsUnified context's own methods.
  */
 
+/**
+ * Why the last save of a tag did not land (#1847): the new name is already
+ * another tag's (caught before sending — the unique constraint would refuse it
+ * with a 409), or a write came back failed. Cleared by the next edit.
+ */
+export type TagEditError = "duplicate" | "failed";
+
 /** The live tag the drafts overlay — an id plus the three editable fields. */
 export interface TagEditDraftTarget extends TagRowPatchTarget {
   readonly id: string;
@@ -44,14 +51,22 @@ export interface TagEditDrafts {
   drop: (tagId: string, field: keyof TagRowEdits) => void;
   /** Throw a tag's whole draft away (discard, or the tag was deleted). */
   discard: (tagId: string) => void;
+  /** Why the tag's last save did not land, or null (#1847). */
+  errorFor: (tagId: string) => TagEditError | null;
   /**
    * The only commit (#715). Writes every field of the tag that moved, rename
    * first — the order the editor has always used. The draft is deliberately
    * NOT cleared: it is an overlay, so it stops being pending the moment the
    * write comes back through the cache, and clearing it here would snap the
    * field back to the old name for the length of the round trip.
+   *
+   * Resolves true once every write landed, false when the save was refused or
+   * failed (#1847) — `errorFor` then says which, and the draft stays so the
+   * user's typing is not lost. A name another tag already has (compared
+   * trimmed and case-insensitively, as the tag chooser does) is refused before
+   * anything is sent.
    */
-  save: (tagId: string) => void;
+  save: (tagId: string) => Promise<boolean>;
 }
 
 export function useTagEditDrafts(
@@ -59,6 +74,19 @@ export function useTagEditDrafts(
   writers: TagEditWriters,
 ): TagEditDrafts {
   const [edits, setEdits] = useState<Readonly<Record<string, TagRowEdits>>>({});
+  const [errors, setErrors] = useState<Readonly<Record<string, TagEditError>>>(
+    {},
+  );
+
+  const setError = useCallback((tagId: string, error: TagEditError | null) => {
+    setErrors((prev) => {
+      if ((prev[tagId] ?? null) === error) return prev;
+      const next = { ...prev };
+      if (error) next[tagId] = error;
+      else delete next[tagId];
+      return next;
+    });
+  }, []);
 
   // What save would write, per tag. Over ALL tags (see the note above).
   const patchByTag = useMemo(() => {
@@ -80,45 +108,84 @@ export function useTagEditDrafts(
     [patchByTag],
   );
 
-  const edit = useCallback((tagId: string, patch: TagRowEdits) => {
-    setEdits((prev) => ({ ...prev, [tagId]: { ...prev[tagId], ...patch } }));
-  }, []);
+  const errorFor = useCallback(
+    (tagId: string) => errors[tagId] ?? null,
+    [errors],
+  );
 
-  const drop = useCallback((tagId: string, field: keyof TagRowEdits) => {
-    setEdits((prev) => {
-      const row = prev[tagId];
-      if (!row || row[field] === undefined) return prev;
-      const next = { ...row };
-      delete next[field];
-      return { ...prev, [tagId]: next };
-    });
-  }, []);
+  // Any change to the draft answers the error it was showing.
+  const edit = useCallback(
+    (tagId: string, patch: TagRowEdits) => {
+      setEdits((prev) => ({ ...prev, [tagId]: { ...prev[tagId], ...patch } }));
+      setError(tagId, null);
+    },
+    [setError],
+  );
 
-  const discard = useCallback((tagId: string) => {
-    setEdits((prev) => {
-      if (!prev[tagId]) return prev;
-      const next = { ...prev };
-      delete next[tagId];
-      return next;
-    });
-  }, []);
+  const drop = useCallback(
+    (tagId: string, field: keyof TagRowEdits) => {
+      setError(tagId, null);
+      setEdits((prev) => {
+        const row = prev[tagId];
+        if (!row || row[field] === undefined) return prev;
+        const next = { ...row };
+        delete next[field];
+        return { ...prev, [tagId]: next };
+      });
+    },
+    [setError],
+  );
+
+  const discard = useCallback(
+    (tagId: string) => {
+      setError(tagId, null);
+      setEdits((prev) => {
+        if (!prev[tagId]) return prev;
+        const next = { ...prev };
+        delete next[tagId];
+        return next;
+      });
+    },
+    [setError],
+  );
 
   const { setTagName, setTagIcon, setTagColor } = writers;
   const save = useCallback(
-    (tagId: string) => {
+    async (tagId: string): Promise<boolean> => {
       const patch = patchByTag.get(tagId);
-      if (!patch) return;
-      if (patch.name !== undefined) void setTagName(tagId, patch.name);
-      if (patch.icon !== undefined) void setTagIcon(tagId, patch.icon);
-      if (patch.color !== undefined) void setTagColor(tagId, patch.color);
+      if (!patch) return true;
+      if (patch.name !== undefined) {
+        const needle = patch.name.trim().toLowerCase();
+        const taken = tags.some(
+          (tag) => tag.id !== tagId && tag.name.trim().toLowerCase() === needle,
+        );
+        if (taken) {
+          setError(tagId, "duplicate");
+          return false;
+        }
+      }
+      setError(tagId, null);
+      // Started in the editor's order (rename first), awaited together.
+      const writes: Promise<unknown>[] = [];
+      if (patch.name !== undefined) writes.push(setTagName(tagId, patch.name));
+      if (patch.icon !== undefined) writes.push(setTagIcon(tagId, patch.icon));
+      if (patch.color !== undefined)
+        writes.push(setTagColor(tagId, patch.color));
+      try {
+        await Promise.all(writes);
+        return true;
+      } catch {
+        setError(tagId, "failed");
+        return false;
+      }
     },
-    [patchByTag, setTagName, setTagIcon, setTagColor],
+    [patchByTag, tags, setTagName, setTagIcon, setTagColor, setError],
   );
 
   // One stable object while nothing changed, so a host can list `drafts` as a
   // dependency without rebuilding its callbacks on every render.
   return useMemo(
-    () => ({ editsFor, isDirty, edit, drop, discard, save }),
-    [editsFor, isDirty, edit, drop, discard, save],
+    () => ({ editsFor, isDirty, edit, drop, discard, errorFor, save }),
+    [editsFor, isDirty, edit, drop, discard, errorFor, save],
   );
 }

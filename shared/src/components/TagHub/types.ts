@@ -154,6 +154,12 @@ export interface TagHubLabels {
   /** Rail's pinned creation row (D5): field placeholder and its button. */
   addPlaceholder: string;
   addButton: string;
+  /**
+   * #1847 — under the add row: the typed name is already a tag's (caught
+   * before sending), or the create came back failed. The draft is kept.
+   */
+  duplicateName: string;
+  createFailed: string;
   /** D15 — the primary action under the "nothing here yet" copy. */
   emptyAction: string;
   /** D16 — what a screen reader is told while the hub is still reading. */
@@ -199,4 +205,7 @@ export interface TagHubEditLabels {
   saved: string;
   unsaved: string;
   save: string;
+  /** #1847 — why a save did not land: the name is taken, or a write failed. */
+  duplicateName: string;
+  saveFailed: string;
 }

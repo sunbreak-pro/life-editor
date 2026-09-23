@@ -121,6 +121,7 @@ function makeMobileLabels(): AnalyticsLabels {
       rate: "rate",
       thisWeek: "this week",
       assigned: "assigned",
+      scope: { allTime: "all time", today: "today", now: "now" },
     },
     todayCard: {
       title: "Today",
