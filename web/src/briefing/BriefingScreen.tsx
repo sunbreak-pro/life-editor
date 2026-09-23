@@ -642,6 +642,11 @@ export function BriefingScreen({
         thisAndFuture: t("scheduleScreen.scopeThisAndFuture"),
         all: t("scheduleScreen.scopeAll"),
         cancel: t("scheduleScreen.scopeCancel"),
+        // #1974: "this and following" is undoable from the paper now, and the
+        // undo does not bring the series' tags back — the condition
+        // D-20260919-sched-2 = B was granted on. This dialog only ever asks in
+        // delete mode, so the note always applies here.
+        thisAndFutureNote: t("scheduleScreen.scopeDeleteFutureTagNote"),
       }}
       onChoose={handleDeleteScopeChoose}
       onClose={closeDeleteScope}

@@ -498,18 +498,75 @@ export function useBriefingWrites({
           plan.routineId,
           plan.anchor,
         );
-        const removed = new Set(deletedScheduleItemIds);
-        setScheduleItems((prev) =>
-          prev
-            .filter((s) => !removed.has(s.id))
-            // Survivors keep their row but lose the routine origin, mirroring
-            // the server NULLing routine_item_id (so the badge goes away).
-            .map((s) =>
-              s.routineId === plan.routineId
-                ? { ...s, routineId: null, sourceDate: null }
-                : s,
-            ),
-        );
+        const split = (ids: string[]) => {
+          const removed = new Set(ids);
+          setScheduleItems((prev) =>
+            prev
+              .filter((s) => !removed.has(s.id))
+              // Survivors keep their row but lose the routine origin,
+              // mirroring the server NULLing routine_item_id (so the badge
+              // goes away).
+              .map((s) =>
+                s.routineId === plan.routineId
+                  ? { ...s, routineId: null, sourceDate: null }
+                  : s,
+              ),
+          );
+        };
+        split(deletedScheduleItemIds);
+
+        /*
+         * #1974 (D-20260919-sched-2 = B): the split is undoable from the paper
+         * too. Schedule's own dialog put it on the stack in #1801, and the
+         * paper called the service directly — so the same press was
+         * reversible from one screen and silently not from the other.
+         *
+         * The inverse is the one useRoutinesAPI.detachRoutine files, in the
+         * same order: the trashed rows first, then the routine. Putting the
+         * routine back wakes the generator, which skips a day only where it
+         * can SEE a live occurrence — a still-trashed row is invisible to it,
+         * so it would mint a fresh id for that day (#708).
+         *
+         * What does NOT come back is the tags. The split handed them to the
+         * survivors it unlinked and soft-deleted the series' own rows, and no
+         * write here puts those back. The scope dialog says so before the
+         * press (BriefingScreen passes the same note Schedule does).
+         *
+         * The paper has no range reload to lean on, so the undo paints the
+         * rows it knows it took — today's share of the cascade — itself.
+         */
+        const cascade = deletedScheduleItemIds;
+        const taken = scheduleItems.filter((s) => cascade.includes(s.id));
+        push?.("routine", {
+          label: "detachRoutine",
+          // The same question Schedule asks before undoing it: it reaches the
+          // whole series, not one row.
+          confirm: { kind: "repeat", scope: "all" },
+          // Failures are thrown, not swallowed (#1668): the manager then keeps
+          // the command and says nothing was undone.
+          undo: async () => {
+            const { conflictedIds } =
+              await ds.bulkRestoreScheduleItems(cascade);
+            await ds.restoreRoutine(plan.routineId);
+            // A conflicted row stayed in the trash: the generator already
+            // re-made that day while the routine was away (#932), and the
+            // Realtime bump brings the live one in. Painting the old one too
+            // would draw the day twice.
+            const stayed = new Set(conflictedIds);
+            setScheduleItems((prev) => [
+              ...prev,
+              ...taken.filter(
+                (s) => !stayed.has(s.id) && !prev.some((p) => p.id === s.id),
+              ),
+            ]);
+          },
+          // Re-runs the split against whatever is live now rather than
+          // replaying the id list, as Schedule's redo does.
+          redo: async () => {
+            const again = await ds.detachRoutine(plan.routineId, plan.anchor);
+            split(again.deletedScheduleItemIds);
+          },
+        });
         // Schedule reloads here when the fill wrote inside the visible range
         // (`plan.reloadAfterFill`). The paper has no reload handle of its own
         // and does not need one: the fill's rows land in items_meta +
@@ -519,7 +576,7 @@ export function useBriefingWrites({
         console.error("[BriefingScreen] routine detach failed", err);
       }
     },
-    [ds, ensureRoutineItemsForDateRange, setScheduleItems],
+    [ds, ensureRoutineItemsForDateRange, push, scheduleItems, setScheduleItems],
   );
 
   const runSeriesDelete = useCallback(

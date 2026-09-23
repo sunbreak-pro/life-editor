@@ -755,9 +755,8 @@ describe("useBriefingData — row deletes and their undo (#892)", () => {
 
   it("files an undo for the dismissed occurrence (#1768)", async () => {
     // "this" is a Dismiss, and a dismiss reverses exactly — so the paper owes
-    // the same command Schedule's own dismiss files. The two series-wide
-    // scopes stay off the stack on both sides (a cascade is not undone by
-    // re-inserting one row).
+    // the same command Schedule's own dismiss files. "this and following"
+    // has its own block below (#1974).
     const row = scheduleItem({
       id: "s-routine",
       date: TODAY,
@@ -865,6 +864,172 @@ describe("useBriefingData — row deletes and their undo (#892)", () => {
 
     expect(mockOf(ds, "detachRoutine")).not.toHaveBeenCalled();
   });
+
+  /*
+   * #1974 (D-20260919-sched-2 = B): "this and following" from the paper goes
+   * on the undo stack, the way Schedule's own dialog put it there in #1801.
+   * The paper called the service directly, so the same act was undoable from
+   * one screen and silently not from the other.
+   */
+  describe("undoing this and following (#1974)", () => {
+    const row = scheduleItem({
+      id: "s-routine",
+      date: TODAY,
+      title: "Morning stretch",
+      routineId: "r1",
+    });
+    const survivor = scheduleItem({
+      id: "s-past",
+      date: TODAY,
+      title: "Earlier stretch",
+      routineId: "r1",
+    });
+
+    function renderDetach(over: Record<string, unknown> = {}) {
+      const order: string[] = [];
+      const view = renderData(
+        { scheduleByDate: { [TODAY]: [survivor, row] } },
+        {
+          detachRoutine: vi.fn().mockImplementation(() => {
+            order.push("detach");
+            return Promise.resolve({ deletedScheduleItemIds: ["s-routine"] });
+          }),
+          bulkRestoreScheduleItems: vi.fn().mockImplementation(() => {
+            order.push("restore rows");
+            return Promise.resolve({ conflictedIds: [] });
+          }),
+          restoreRoutine: vi.fn().mockImplementation(() => {
+            order.push("restore routine");
+            return Promise.resolve(undefined);
+          }),
+          ...over,
+        },
+      );
+      return { ...view, order };
+    }
+
+    async function detach(view: ReturnType<typeof renderDetach>) {
+      await waitFor(() => expect(view.result.current.loading).toBe(false));
+      act(() => view.result.current.handleDeleteScheduleItem("s-routine"));
+      await act(async () =>
+        view.result.current.handleDeleteScopeChoose("future"),
+      );
+      await waitFor(() => expect(view.harness.commands).toHaveLength(1));
+    }
+
+    it("files one command, named as the split", async () => {
+      const view = renderDetach();
+      await detach(view);
+
+      const [command] = view.harness.commands;
+      expect(command?.domain).toBe("routine");
+      expect(command?.label).toBe("detachRoutine");
+      // Same question before the undo as Schedule's: it reaches the series.
+      expect(command?.confirm).toEqual({ kind: "repeat", scope: "all" });
+    });
+
+    it("brings the trashed rows back before the repeat, and paints them", async () => {
+      const view = renderDetach();
+      await detach(view);
+      expect(view.result.current.data.schedule.map((s) => s.id)).toEqual([
+        "s-past",
+      ]);
+
+      await act(async () => view.harness.commands[0]?.undo());
+
+      // Rows first: the generator skips only a day it can SEE, so a routine
+      // restored ahead of its rows would mint new ids for them (#708).
+      expect(view.order).toEqual(["detach", "restore rows", "restore routine"]);
+      expect(mockOf(view.ds, "bulkRestoreScheduleItems")).toHaveBeenCalledWith([
+        "s-routine",
+      ]);
+      expect(mockOf(view.ds, "restoreRoutine")).toHaveBeenCalledWith("r1");
+      const back = view.result.current.data.schedule.find(
+        (s) => s.id === "s-routine",
+      );
+      expect(back?.isRoutine).toBe(true);
+    });
+
+    it("leaves the survivor unlinked, and writes no tag on the way back", async () => {
+      // The tags the split handed the survivors stay where it put them; the
+      // series' own rows are not rebuilt. That is the documented cost the
+      // scope dialog states before the press (D-20260919-sched-2 = B).
+      const tagWrites = {
+        assignTagToItem: vi.fn(),
+        unassignTagFromItem: vi.fn(),
+      };
+      const view = renderDetach(tagWrites);
+      await detach(view);
+
+      await act(async () => view.harness.commands[0]?.undo());
+
+      const past = view.result.current.data.schedule.find(
+        (s) => s.id === "s-past",
+      );
+      expect(past?.isRoutine).toBe(false);
+      for (const write of Object.values(tagWrites))
+        expect(write).not.toHaveBeenCalled();
+    });
+
+    it("leaves a row the generator already re-made in the trash", async () => {
+      // #932: the day already shows a live occurrence under a new id, so
+      // painting the old one back would draw that day twice.
+      const view = renderDetach({
+        bulkRestoreScheduleItems: vi
+          .fn()
+          .mockResolvedValue({ conflictedIds: ["s-routine"] }),
+      });
+      await detach(view);
+
+      await act(async () => view.harness.commands[0]?.undo());
+
+      expect(view.result.current.data.schedule.map((s) => s.id)).toEqual([
+        "s-past",
+      ]);
+    });
+
+    it("re-runs the split on redo rather than replaying the ids", async () => {
+      const view = renderDetach();
+      await detach(view);
+      await act(async () => view.harness.commands[0]?.undo());
+
+      await act(async () => view.harness.commands[0]?.redo());
+
+      expect(mockOf(view.ds, "detachRoutine")).toHaveBeenCalledTimes(2);
+      expect(mockOf(view.ds, "detachRoutine")).toHaveBeenLastCalledWith(
+        "r1",
+        TODAY,
+      );
+      expect(view.result.current.data.schedule.map((s) => s.id)).toEqual([
+        "s-past",
+      ]);
+    });
+
+    it("files nothing when the split did not land", async () => {
+      const view = renderDetach({
+        detachRoutine: vi.fn().mockRejectedValue(new Error("offline")),
+      });
+      await waitFor(() => expect(view.result.current.loading).toBe(false));
+      act(() => view.result.current.handleDeleteScheduleItem("s-routine"));
+      await act(async () =>
+        view.result.current.handleDeleteScopeChoose("future"),
+      );
+
+      expect(view.harness.commands).toEqual([]);
+    });
+
+    it("hands a failed undo back to the stack", async () => {
+      // #1668: a reversal that did not run must not be reported as done; the
+      // manager keeps the command so the user can press again.
+      const view = renderDetach({
+        restoreRoutine: vi.fn().mockRejectedValue(new Error("offline")),
+      });
+      await detach(view);
+
+      await expect(view.harness.commands[0]?.undo()).rejects.toThrow("offline");
+    });
+  });
+
   it("soft-deletes a todo and files an undo that restores it", async () => {
     const todo = makeTodo({
       id: "t1",
