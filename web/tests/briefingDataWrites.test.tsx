@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
 import {
   localDateTimeToISO,
+  REMINDER_DEFAULT_MINUTES_STORAGE_KEY,
   type DataService,
   type RoutineNode,
   type TodoNode,
@@ -361,6 +362,112 @@ describe("useBriefingData — schedule writes (#892)", () => {
 
     expect(harness.commands).toEqual([]);
   });
+
+  describe("the Settings reminder default (#1950)", () => {
+    // The paper used to call createScheduleItem and stop, so the one event
+    // that never reminded was the one booked from the morning paper.
+    beforeEach(() => {
+      localStorage.setItem(REMINDER_DEFAULT_MINUTES_STORAGE_KEY, "30");
+    });
+    afterEach(() => {
+      localStorage.removeItem(REMINDER_DEFAULT_MINUTES_STORAGE_KEY);
+    });
+
+    it("writes the default onto the created row", async () => {
+      const saved = scheduleItem({ id: "s-new", date: TODAY, title: "Coffee" });
+      const withReminder = {
+        ...saved,
+        reminderEnabled: true,
+        reminderOffset: 30,
+      };
+      const { result, ds, harness } = renderData(
+        {},
+        {
+          createScheduleItem: vi.fn().mockResolvedValue(saved),
+          updateScheduleItem: vi.fn().mockResolvedValue(withReminder),
+        },
+      );
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () =>
+        result.current.handleCreateEvent(
+          "Coffee",
+          slot("13:00", "14:00"),
+          null,
+        ),
+      );
+
+      expect(mockOf(ds, "updateScheduleItem")).toHaveBeenCalledWith("s-new", {
+        reminderOffset: 30,
+      });
+      // The paper's row is a display projection without the reminder, so the
+      // stored value is read off the write that set it.
+      await waitFor(() =>
+        expect(result.current.data.schedule.map((s) => s.id)).toEqual([
+          "s-new",
+        ]),
+      );
+      // One create, one history entry — the patch is part of the create.
+      expect(harness.commands).toHaveLength(1);
+    });
+
+    it("gives an all-day event no reminder, as Schedule does", async () => {
+      const saved = scheduleItem({ id: "s-new", date: TODAY, isAllDay: true });
+      const { result, ds } = renderData(
+        {},
+        {
+          createScheduleItem: vi.fn().mockResolvedValue(saved),
+          updateScheduleItem: vi.fn(),
+        },
+      );
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () =>
+        result.current.handleCreateEvent(
+          "Coffee",
+          slot("00:00", "23:59", { isAllDay: true }),
+          null,
+        ),
+      );
+
+      await waitFor(() =>
+        expect(result.current.data.schedule.map((s) => s.id)).toEqual([
+          "s-new",
+        ]),
+      );
+      expect(mockOf(ds, "updateScheduleItem")).not.toHaveBeenCalled();
+    });
+
+    it("keeps the event, and its undo, when only the reminder patch fails", async () => {
+      // The row exists by then, so this is "saved without a reminder" — not a
+      // failed create that would leave the paper and the undo stack empty.
+      const saved = scheduleItem({ id: "s-new", date: TODAY, title: "Coffee" });
+      const { result, harness } = renderData(
+        {},
+        {
+          createScheduleItem: vi.fn().mockResolvedValue(saved),
+          updateScheduleItem: vi.fn().mockRejectedValue(new Error("offline")),
+        },
+      );
+      await waitFor(() => expect(result.current.loading).toBe(false));
+
+      await act(async () =>
+        result.current.handleCreateEvent(
+          "Coffee",
+          slot("13:00", "14:00"),
+          null,
+        ),
+      );
+
+      await waitFor(() =>
+        expect(result.current.data.schedule.map((s) => s.id)).toEqual([
+          "s-new",
+        ]),
+      );
+      expect(harness.commands).toHaveLength(1);
+    });
+  });
+
   it("creates a todo on the paper's day with a concrete window", async () => {
     const saved = makeTodo({
       id: "task-new",
