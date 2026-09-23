@@ -177,6 +177,14 @@ export interface DialogA11yOptions {
   onClose: () => void;
   /** Freeze body scroll while open. Default false. */
   lockScroll?: boolean;
+  /**
+   * Where the focus goes on close when there is no opener to return to
+   * (#1977): the surface opened on its own (focus was on <body>), or the
+   * control that opened it has since left the page. Read at close time, so it
+   * may point at whatever is on screen by then. Without it, focus falls to
+   * <body> and the next Tab restarts from the top of the page.
+   */
+  fallbackFocus?: () => HTMLElement | null;
 }
 
 /**
@@ -194,10 +202,17 @@ export function useDialogA11y<T extends HTMLElement>({
   open,
   onClose,
   lockScroll = false,
+  fallbackFocus,
 }: DialogA11yOptions): RefObject<T | null> {
   const panelRef = useRef<T | null>(null);
   const layerRef = useKeyboardLayer(open, true);
   const opener = useOpener(open);
+  // A ref, so a fresh callback identity does not re-run the open effect below
+  // (that would re-focus the panel and re-register the close path).
+  const fallbackRef = useRef(fallbackFocus);
+  useEffect(() => {
+    fallbackRef.current = fallbackFocus;
+  }, [fallbackFocus]);
 
   useEffect(() => {
     if (!open) return;
@@ -259,7 +274,13 @@ export function useDialogA11y<T extends HTMLElement>({
       // change took off the page (a menu row that opened this dialog).
       // Focusing a detached node fails in silence while reading as if it
       // worked, which is how #1874 stayed invisible for so long.
-      if (opener?.isConnected) opener.focus();
+      // <body> counts as no opener: it is what `activeElement` reports when
+      // nothing had focus, and "restoring" to it is the bug #1977 describes.
+      if (opener?.isConnected && opener !== document.body) {
+        opener.focus();
+        return;
+      }
+      fallbackRef.current?.()?.focus();
     };
   }, [open, lockScroll, opener]);
 

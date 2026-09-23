@@ -11,7 +11,7 @@ import {
   clampToViewport,
   type ClampedPlacement,
 } from "../itemActions/floating";
-import { FOCUS_RING } from "../styleTokens";
+import { CARD_BTN_TAP, FOCUS_RING } from "../styleTokens";
 import type { TourLabels } from "./labels";
 
 /*
@@ -103,6 +103,34 @@ const sameSpotlight = (
 const samePlacement = (a: ClampedPlacement, b: ClampedPlacement): boolean =>
   a.top === b.top && a.left === b.left && a.maxHeight === b.maxHeight;
 
+const FOCUSABLE =
+  'button, [href], input, textarea, select, [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
+
+/*
+ * Where focus lands when a modal step closes with no opener to go back to
+ * (#1977). A modal step usually has none: the first step of a fresh run opens
+ * on its own with focus on <body>, and a run started from the Settings
+ * launcher has navigated away from the launcher's button before the bubble
+ * ever appears (step 1 lives in Briefing), so the button is gone.
+ *
+ * The anchor is the answer because it is the one thing the step was about and
+ * the tour only shows a step whose anchor is in the document. Most anchors are
+ * a control or a wrapper around one (AddPill, HeaderTabs, the note tag span).
+ * An anchor with nothing focusable falls back to the shell's <main>, which
+ * needs `tabindex="-1"` to take programmatic focus at all.
+ */
+function focusTargetNear(anchor: HTMLElement): HTMLElement | null {
+  if (anchor.isConnected) {
+    if (anchor.matches(FOCUSABLE)) return anchor;
+    const inner = anchor.querySelector<HTMLElement>(FOCUSABLE);
+    if (inner) return inner;
+  }
+  const main = document.querySelector<HTMLElement>("main");
+  if (!main) return null;
+  if (!main.hasAttribute("tabindex")) main.setAttribute("tabindex", "-1");
+  return main;
+}
+
 export interface TourOverlayProps {
   /** The element being pointed at. Its rect is read for PLACEMENT only. */
   anchorElement: HTMLElement;
@@ -142,9 +170,14 @@ export function TourOverlay({
   labels,
 }: TourOverlayProps) {
   const isModal = !waitsForAction;
+  const fallbackFocus = useCallback(
+    () => focusTargetNear(anchorElement),
+    [anchorElement],
+  );
   const dialogRef = useDialogA11y<HTMLDivElement>({
     open: isModal,
     onClose: onDismiss,
+    fallbackFocus,
   });
 
   const [panelNode, setPanelNode] = useState<HTMLDivElement | null>(null);
@@ -386,6 +419,7 @@ export function TourOverlay({
               className={cn(
                 "rounded-lumen-sm px-2 py-1 text-xs",
                 "text-lumen-text-tertiary hover:text-lumen-text",
+                CARD_BTN_TAP,
                 FOCUS_RING,
               )}
             >
@@ -403,10 +437,14 @@ export function TourOverlay({
               className={cn(
                 "shrink-0 whitespace-nowrap rounded-lumen-sm px-2 py-1 text-xs",
                 "text-lumen-text-secondary hover:text-lumen-text",
+                CARD_BTN_TAP,
                 FOCUS_RING,
               )}
             >
-              {labels.skip}
+              {/* On the last action step Skip is the only way to finish, and
+                  skipping the last step completes the run (TourContext `skip`),
+                  so it says so (#1976). A modal last step has its own Done. */}
+              {waitsForAction && isLast ? labels.done : labels.skip}
             </button>
 
             {waitsForAction ? (
@@ -421,6 +459,7 @@ export function TourOverlay({
                   "shrink-0 whitespace-nowrap rounded-lumen-sm bg-lumen-accent",
                   "px-3 py-1 text-xs font-medium",
                   "text-lumen-on-accent hover:bg-lumen-accent-hover",
+                  CARD_BTN_TAP,
                   FOCUS_RING,
                 )}
               >
