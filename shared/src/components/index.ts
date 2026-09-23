@@ -168,9 +168,7 @@ export { SectionHeader, type SectionHeaderProps } from "./SectionHeader";
 // lumen-* tokens (§3.1 / §5). Requires a RightSidebarProvider (context barrel).
 export { RightSidebar, type RightSidebarProps } from "./RightSidebar";
 export { MobileDrawer, type MobileDrawerProps } from "./MobileDrawer";
-// The single placement definition for the narrow layout's floating "+" (#632).
-export { MobileFab, type MobileFabProps } from "./MobileFab";
-// The list-header counterpart of the FAB: the accent "+" pill (#302 / #1034).
+// The accent "+" pill for list headers (#302 / #1034).
 export { AddPill, type AddPillProps } from "./AddPill";
 export {
   RightSidebarToggle,
@@ -377,7 +375,6 @@ export {
   UNKNOWN_ITEM_ROLE_ICON_CLASS,
   resolveItemRole,
   itemRoleLabel,
-  itemRoleSortKey,
   type ItemRole,
   type ItemRoleLabels,
 } from "./items/itemRole";
@@ -516,7 +513,7 @@ export {
 } from "./ErrorBoundary";
 export { SkeletonList, type SkeletonListProps } from "./SkeletonList";
 // Materials primitives (mini-plan Step 1) — StatusFilterChips / ExcerptListItem
-// / DateStrip / QuickAddSheet for the 4-tab Materials views. Sub-barrel so the
+// / DateStrip for the 4-tab Materials views. Sub-barrel so the
 // feature can grow exports without touching here (matches Analytics).
 export * from "./materials";
 // Notes (life-tags unification S1) — pure tag-heading grouping (buildTagGroups)

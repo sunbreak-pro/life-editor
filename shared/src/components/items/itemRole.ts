@@ -91,9 +91,3 @@ export function itemRoleLabel(
   const resolved = resolveItemRole(role);
   return resolved ? labels[resolved] : labels.unknown;
 }
-
-/** Sort key placing designed kinds in ITEM_ROLE_ORDER and unknowns last. */
-export function itemRoleSortKey(role: string | null | undefined): number {
-  const resolved = resolveItemRole(role);
-  return resolved ? ITEM_ROLE_ORDER.indexOf(resolved) : ITEM_ROLE_ORDER.length;
-}

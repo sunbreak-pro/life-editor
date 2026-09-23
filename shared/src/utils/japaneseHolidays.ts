@@ -149,11 +149,6 @@ export function holidayItemId(dateKey: string): string {
   return HOLIDAY_ITEM_PREFIX + dateKey;
 }
 
-/** True when a grid/agenda id denotes a holiday. */
-export function isHolidayItem(id: string): boolean {
-  return id.startsWith(HOLIDAY_ITEM_PREFIX);
-}
-
 /** Lowest / highest year the equinox polynomial is trusted for. */
 export const HOLIDAY_MIN_YEAR = 1980;
 export const HOLIDAY_MAX_YEAR = 2099;

@@ -52,5 +52,3 @@ const api: DesktopIpcApi = {
 
 // contextIsolation is on, so expose via contextBridge only.
 contextBridge.exposeInMainWorld("desktop", api);
-
-export type DesktopApi = DesktopIpcApi;

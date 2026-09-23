@@ -563,7 +563,6 @@ export {
   holidaysInYear,
   holidaysInRange,
   holidayItemId,
-  isHolidayItem,
   HOLIDAY_ITEM_PREFIX,
   HOLIDAY_MIN_YEAR,
   HOLIDAY_MAX_YEAR,
@@ -603,7 +602,6 @@ export {
 export {
   buildWeekdayLabels,
   frequencyLabel,
-  nowMinutesLocal,
   sortDayItems,
   itemVariant,
   type FrequencyLabelCopy,
@@ -732,7 +730,6 @@ export { useTimerContext } from "./hooks/useTimerContext";
 export {
   timerReducer,
   createInitialState,
-  phaseDurationSeconds,
   remainingSeconds,
   elapsedSeconds,
   nextBreakPhase,

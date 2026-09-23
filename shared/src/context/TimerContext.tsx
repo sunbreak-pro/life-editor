@@ -34,7 +34,6 @@ import {
 import {
   timerReducer,
   createInitialState,
-  phaseDurationSeconds,
   remainingSeconds as computeRemaining,
   elapsedSeconds as computeElapsed,
   type ActiveWorkItem,
@@ -761,7 +760,3 @@ export function TimerProvider({
 function clampMinutes(v: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, Math.round(v)));
 }
-
-// Re-export for the host barrel; keeps phaseDurationSeconds discoverable
-// alongside the Provider (used by previews/tests).
-export { phaseDurationSeconds };

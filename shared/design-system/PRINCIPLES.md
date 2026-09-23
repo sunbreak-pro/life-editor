@@ -56,12 +56,12 @@
 
 色は役割で 4 つに分け、**テーマ可変かテーマ固定かが違う**。混同すると light/dark で破綻する。
 
-| カテゴリ              | 例                                                          | テーマ                             | 意味                                                           |
-| --------------------- | ----------------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------- |
-| **Chrome（地）**      | bg-primary / bg-secondary / text / border / hover           | **可変**（light↔dark で別値）      | アプリの下地・文字・枠。テーマで色が変わる                     |
-| **Brand / Accent**    | accent / accent-hover / on-accent / accent-subtle           | **可変**                           | 選択状態・主ボタン・リンク。ブランドの主張                     |
-| **Semantic**          | success / danger                                            | **可変**（彩度・明度をテーマ調整） | 肯定 / 破壊。意味を持つ                                        |
-| **Functional / Data** | status band（todo/progress/done）/ chart series / chip 各色 | **固定**（light/dark 同値）        | 状態やデータを符号化する。テーマで変えると意味がブレるので固定 |
+| カテゴリ              | 例                                                | テーマ                             | 意味                                                           |
+| --------------------- | ------------------------------------------------- | ---------------------------------- | -------------------------------------------------------------- |
+| **Chrome（地）**      | bg-primary / bg-secondary / text / border / hover | **可変**（light↔dark で別値）      | アプリの下地・文字・枠。テーマで色が変わる                     |
+| **Brand / Accent**    | accent / accent-hover / on-accent / accent-subtle | **可変**                           | 選択状態・主ボタン・リンク。ブランドの主張                     |
+| **Semantic**          | success / danger                                  | **可変**（彩度・明度をテーマ調整） | 肯定 / 破壊。意味を持つ                                        |
+| **Functional / Data** | status band（done）/ chart series / chip 各色     | **固定**（light/dark 同値）        | 状態やデータを符号化する。テーマで変えると意味がブレるので固定 |
 
 - **on-accent は白固定**でよい（accent 上で両テーマとも読めるため `tokens.css` でも共有）。
 - **Functional / Data 系を新規追加するときは light/dark 同値**にする（既存の status band / chart series がそうなっている）。
@@ -109,17 +109,16 @@
 
 **Mint 第2アクセント（light-green の差し色）**
 
-| Role                   | Light     | Dark      | lumen トークン                 |
-| ---------------------- | --------- | --------- | ------------------------------ |
-| accent-secondary       | `#1fa56e` | `#5fd1a0` | `lumen-accent-secondary`       |
-| accent-secondary-hover | `#18895b` | `#74d9af` | `lumen-accent-secondary-hover` |
-| chip-mint-bg           | `#daf3e7` | `#133024` | `lumen-chip-mint-bg`           |
-| chip-mint-fg           | `#0c6f4e` | `#7fe0b3` | `lumen-chip-mint-fg`           |
+| Role             | Light     | Dark      | lumen トークン           |
+| ---------------- | --------- | --------- | ------------------------ |
+| accent-secondary | `#1fa56e` | `#5fd1a0` | `lumen-accent-secondary` |
+| chip-mint-bg     | `#daf3e7` | `#133024` | `lumen-chip-mint-bg`     |
+| chip-mint-fg     | `#0c6f4e` | `#7fe0b3` | `lumen-chip-mint-fg`     |
 
 - **on-accent はテーマで切替**: light = 白 / dark = near-black `#0a1024`（dark accent が明るい薄藍のため白だとボタン文字が読めない）。
 - **mint は差し色**: チップ / タグ / ポジティブ状態に使う。**主アクション・主選択は accent（燈色 / 薄藍）固定**。
-- **task チップは旧 cobalt 系のまま維持**: chip は Functional/Data（entity 符号化）なので #269 の Chrome/Accent 置換に追随しない（routine 藍 / event 紫 / completed 緑 / progress 琥珀と同様に不変）。
-- Functional/Data（status band・chart series・schedule bg・calendar-header）は**テーマ固定の符号化**として現状維持（§3.2）。
+- **task チップは旧 cobalt 系のまま維持**: chip は Functional/Data（entity 符号化）なので #269 の Chrome/Accent 置換に追随しない（routine 藍 / event 紫 / progress 琥珀と同様に不変）。
+- Functional/Data（status band・chart series・schedule bg）は**テーマ固定の符号化**として現状維持（§3.2）。
 
 ### 3.4 ライト / ダークの作り方
 
@@ -198,7 +197,6 @@
 ## 5. タイポグラフィ & スケーリング
 
 - フォント: `--font-sans`（system stack。`-apple-system` / `Segoe UI` 等）。
-- **10-step font-size システム**: ルート `--font-size-base`（既定 16px）を 1 つ変えると全体が拡縮する相対 em 設計。
 - ユーティリティ: `.text-scaling-xs / sm / base / lg / xl`（em ベース・line-height 同梱）。
 - 部品はサイズを px 直書きせず、em / スケーリングユーティリティに乗せる。
 
