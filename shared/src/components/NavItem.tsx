@@ -25,6 +25,14 @@ export interface NavItemProps {
    * resolves to null leaves the nav visually unchanged.
    */
   sublabel?: ReactNode;
+  /**
+   * Optional mark on the icon's corner (#1858 — the Work row's running-timer
+   * dot). Shown only while collapsed, where the sublabel is hidden; the
+   * expanded row already says the same thing in words. Must be an
+   * absolutely-positioned node (the icon slot is its containing block) and
+   * may resolve to null.
+   */
+  badge?: ReactNode;
   active?: boolean;
   /** Icon-only mode (collapsed sidebar). Label is kept as a11y name + tooltip. */
   collapsed?: boolean;
@@ -45,6 +53,7 @@ export function NavItem({
   icon,
   label,
   sublabel,
+  badge,
   active = false,
   collapsed = false,
   tone = "default",
@@ -83,8 +92,9 @@ export function NavItem({
           className="absolute bottom-[7px] left-0 top-[7px] w-[3px] rounded-r-[2px] bg-lumen-accent"
         />
       )}
-      <span aria-hidden="true" className="shrink-0">
+      <span aria-hidden="true" className="relative shrink-0">
         {icon}
+        {collapsed && badge}
       </span>
       {!collapsed &&
         (hasSublabel ? (
