@@ -1,5 +1,6 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
+  act,
   render,
   screen,
   fireEvent,
@@ -129,12 +130,14 @@ vi.mock("../src/notes/RichTextEditor", () => ({
     noteId,
     initialContent,
     onUpdate,
+    onDirty,
     onResolvedLinkInserted,
     loadLinkTargets,
   }: {
     noteId: string;
     initialContent?: string;
     onUpdate?: (content: string) => void;
+    onDirty?: () => void;
     onResolvedLinkInserted?: (targetId: string) => void;
     loadLinkTargets?: unknown;
   }) => (
@@ -155,6 +158,15 @@ vi.mock("../src/notes/RichTextEditor", () => ({
       <button
         data-testid="save-without-link"
         onClick={() => onUpdate?.(state.bodyWithoutLink)}
+      />
+      {/* A keystroke the way the real editor reports it (#1954): onDirty now,
+          onUpdate once its 800ms debounce fires. */}
+      <button
+        data-testid="type"
+        onClick={() => {
+          onDirty?.();
+          setTimeout(() => onUpdate?.(state.bodyWithoutLink), 800);
+        }}
       />
     </div>
   ),
@@ -241,6 +253,61 @@ describe("DailyView — the open day", () => {
 
     expect(screen.queryByText("materials.daily.saved")).toBeNull();
     expect(screen.queryByText("materials.daily.unsaved")).toBeNull();
+  });
+});
+
+/*
+ * #1954 — the caption during the editor's 800ms debounce.
+ *
+ * The editor emits only when its debounce fires, so for that whole window the
+ * last emitted body still matched the stored one and the caption said "Saved"
+ * over text that was not saved yet. The editor reports the keystroke itself
+ * through `onDirty`; the stub above fires it and then emits 800ms later.
+ */
+describe("DailyView — the caption while a save is pending (#1954)", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("does not say Saved before the debounce fires, and does after the save", async () => {
+    const { rerender } = render(<DailyView />);
+    const type = await screen.findByTestId("type");
+    vi.useFakeTimers();
+
+    fireEvent.click(type);
+    act(() => {
+      vi.advanceTimersByTime(799);
+    });
+    expect(screen.queryByText("materials.daily.saved")).toBeNull();
+    screen.getByText("materials.daily.unsaved");
+    expect(state.upsertDaily).not.toHaveBeenCalled();
+
+    await act(async () => {
+      vi.advanceTimersByTime(1);
+    });
+    expect(state.upsertDaily).toHaveBeenCalledTimes(1);
+
+    // The save lands: the context now holds what was written.
+    const written = state.upsertDaily.mock.calls[0]?.[1] as string;
+    state.dailies = (state.dailies as DailyNode[]).map((d) =>
+      d.date === YESTERDAY ? { ...d, content: written } : d,
+    );
+    rerender(<DailyView />);
+
+    screen.getByText("materials.daily.saved");
+    expect(screen.queryByText("materials.daily.unsaved")).toBeNull();
+  });
+
+  it("reports the first keystroke on a day with no entry as unsaved", async () => {
+    state.selectedDate = LONG_AGO;
+    render(<DailyView />);
+    const type = await screen.findByTestId("type");
+    vi.useFakeTimers();
+
+    fireEvent.click(type);
+
+    screen.getByText("materials.daily.unsaved");
+    expect(screen.queryByText("materials.daily.saved")).toBeNull();
   });
 });
 
