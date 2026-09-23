@@ -39,12 +39,14 @@ export class SupabaseNotesUnifiedSearch {
    * the quotes so they still act as ILIKE wildcards while the user query
    * is treated literally.
    *
-   * KNOWN LIMITATION: content_json is jsonb. PostgREST `ilike` on jsonb
-   * does an implicit text cast — works on TipTap docs (jsonb text repr
-   * contains the user-visible text) but is more expensive than the
-   * legacy single-table `content` text column. Acceptable for N=1 with
-   * bounded dataset; if the dataset ever grows we'd add a tsvector
-   * generated column. For now we accept the cast cost.
+   * The body probe is the SQL function `search_notes_content(q)` (#1972),
+   * not a PostgREST filter. PostgREST accepts a cast in `select` but not in
+   * a filter's column name, so the earlier `.ilike("content_json::text", …)`
+   * asked for a column literally named that and came back 404 — every body
+   * search, from the day #1837 wired it to the UI. The function runs the same
+   * `content_json::text ILIKE` as the caller (SECURITY INVOKER, so RLS still
+   * scopes it) and returns ids only. Why ILIKE rather than a tsvector: see
+   * the migration's header.
    */
   async searchNotesUnified(query: string): Promise<NoteNode[]> {
     const trimmed = query.trim();
@@ -75,18 +77,15 @@ export class SupabaseNotesUnifiedSearch {
     // still live (composite filter is_deleted=false applied via items_meta
     // step 3).
     //
-    // `has_password=false`, for the same reason getNoteUnified carries it
-    // (#1763): a locked note's body is not the searcher's to read. A title
-    // match still surfaces the note, because the title was never hidden --
-    // what the lock covers is the content, and a content hit would report on
-    // it by existing.
+    // `has_password = false` lives INSIDE the function, for the same reason
+    // getNoteUnified carries it (#1763): a locked note's body is not the
+    // searcher's to read. A title match still surfaces the note, because the
+    // title was never hidden -- what the lock covers is the content, and a
+    // content hit would report on it by existing.
     const contentHits = await fetchAllPages<{ item_id: string }>(
       (from, to) =>
         this.client
-          .from("notes_payload")
-          .select("item_id")
-          .eq("has_password", false)
-          .ilike("content_json::text", `%${trimmed}%`)
+          .rpc("search_notes_content", { q: trimmed })
           .order("item_id")
           .range(from, to),
       "searchNotesUnified content failed",

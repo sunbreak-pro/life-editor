@@ -17,6 +17,13 @@ export interface NoteBodySearchState {
   bodyMatchIds: ReadonlySet<string> | null;
   /** A query is on and its answer has not arrived. */
   isSearching: boolean;
+  /**
+   * The body search for the CURRENT query failed (#1972). The title matches
+   * are still right, but "nothing matched" would be a claim about bodies
+   * nobody read — #1837 shipped exactly that for a 404 and it went unnoticed
+   * until a browser check after merge.
+   */
+  bodySearchFailed: boolean;
 }
 
 /**
@@ -84,5 +91,6 @@ export function useNoteBodySearch(
   return {
     bodyMatchIds: answered ? (answer?.ids ?? null) : null,
     isSearching: trimmed !== "" && !answered,
+    bodySearchFailed: answered && answer?.ids === null,
   };
 }

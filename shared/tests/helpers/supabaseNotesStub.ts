@@ -17,6 +17,8 @@ import type { SupabaseClient } from "@supabase/supabase-js";
  *      consumed in FIFO order.
  *   3. Treats every filter chain method (.eq / .in / .ilike / .order /
  *      .single / .maybeSingle) as a no-op that returns the same builder,
+ *      and `client.rpc(fn, args)` as a table named `fn` with op "rpc"
+ *      (#1972 — stage it with stub.stage("<fn>", "rpc", …)),
  *      so a test does not have to model PostgREST semantics — it only
  *      asserts which calls happened in which order.
  *
@@ -113,6 +115,10 @@ export function makeStub() {
   }
 
   const client = {
+    rpc(fn: string, args: unknown) {
+      calls.push({ table: fn, op: "rpc", args: [args] });
+      return builderFor(fn, "rpc");
+    },
     from(table: string) {
       const tableBuilder = {
         select(cols: string, opts?: unknown) {

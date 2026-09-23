@@ -415,6 +415,7 @@
       "bodyPlaceholder": "ノートを書く…",
       "untitled": "(無題)",
       "lockedHint": "このノートはロックされています",
+      "bodySearchFailed": "ノート本文を検索できませんでした。タイトルの一致だけを表示しています。",
       "password": {
         "setTitle": "ノートにパスワードを設定",
         "removeTitle": "ノートのパスワードを解除",

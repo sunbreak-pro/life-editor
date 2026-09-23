@@ -56,6 +56,8 @@ export interface NotesSidebarListLabels {
   empty: string;
   /** Shown instead of `empty` when a query matched nothing (#1470). */
   searchEmpty: string;
+  /** The body search failed; only title matches are shown (#1972). */
+  bodySearchFailed: string;
   addCta: string;
   collapseGroup: string;
   expandGroup: string;
@@ -110,6 +112,8 @@ export interface NotesSidebarListProps {
   searchEmpty: boolean;
   /** The body half of the query is still in flight (#1837). */
   searchBusy?: boolean;
+  /** The body half of the query failed — only title matches below (#1972). */
+  searchFailed?: boolean;
   visibleGroups: NoteTagGroup[];
   collapsedGroups: Set<string>;
   onToggleGroup: (key: string) => void;
@@ -157,6 +161,7 @@ export function NotesSidebarList({
   hasNotes,
   searchEmpty,
   searchBusy = false,
+  searchFailed = false,
   visibleGroups,
   collapsedGroups,
   onToggleGroup,
@@ -255,6 +260,19 @@ export function NotesSidebarList({
             }}
           />
         </div>
+      )}
+
+      {searchFailed && (
+        // #1972: a failed body search used to look exactly like "no body
+        // matched". Warning, not danger: the list below is still right about
+        // titles. `status`, because it follows typing, and an alert per
+        // debounced keystroke would talk over the user.
+        <NoticePanel
+          message={labels.bodySearchFailed}
+          tone="warning"
+          role="status"
+          icon={null}
+        />
       )}
 
       {error && (

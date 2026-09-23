@@ -108,6 +108,18 @@ describe("useNoteBodySearch (#1837)", () => {
     // Null, not empty: the search never answered, so the title filter must
     // keep standing on its own rather than being narrowed to nothing.
     expect(result.current.bodyMatchIds).toBeNull();
+    // #1972: and the failure is said out loud rather than passing for "no
+    // body matched".
+    expect(result.current.bodySearchFailed).toBe(true);
     expect(spy).toHaveBeenCalled();
+  });
+
+  it("does not report a failure for a search that answered empty (#1972)", async () => {
+    const { ds } = makeDS(async () => []);
+    const { result } = renderHook(() => useNoteBodySearch(ds, "nothing"));
+
+    await waitFor(() => expect(result.current.isSearching).toBe(false));
+    expect(result.current.bodyMatchIds?.size).toBe(0);
+    expect(result.current.bodySearchFailed).toBe(false);
   });
 });

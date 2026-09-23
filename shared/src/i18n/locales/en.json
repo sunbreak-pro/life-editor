@@ -416,6 +416,7 @@
       "bodyPlaceholder": "Write your note…",
       "untitled": "(untitled)",
       "lockedHint": "This note is locked",
+      "bodySearchFailed": "Could not search note bodies. Showing title matches only.",
       "password": {
         "setTitle": "Set note password",
         "removeTitle": "Remove note password",
