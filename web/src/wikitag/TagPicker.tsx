@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Plus, Tag as TagIcon } from "lucide-react";
 import {
   isImeComposing,
@@ -7,6 +7,7 @@ import {
   TagPill,
   TAP_TARGET,
   useToastOptional,
+  useEscapeLayer,
   useTranslation,
   useWikiTagsUnifiedContext,
   type WikiTagUnified,
@@ -94,6 +95,22 @@ export function TagPicker({
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [pickerOpen]);
+
+  /*
+   * Escape closes the picker and stops there (#1952).
+   *
+   * The handler used to sit on the search field alone, so it had two holes.
+   * With the focus on a candidate row Escape did nothing at all. Inside the
+   * Schedule detail modal it never reached the field in the first place: the
+   * modal listens on `document` in the capture phase and closed itself, picker
+   * and all. Joining the dialog layer stack makes the topmost surface the only
+   * one Escape reaches, wherever the focus is inside it, so the first press
+   * closes the picker and the second closes the modal. Same fix as the tag icon
+   * picker (#1342). The hook carries the IME guard, so the Escape that cancels
+   * a conversion in the search field reaches neither surface.
+   */
+  const closePicker = useCallback(() => setPickerOpen(false), []);
+  useEscapeLayer({ open: pickerOpen, onEscape: closePicker });
 
   /*
    * Hand the focus back when the picker closes (#1841).
@@ -258,8 +275,6 @@ export function TagPicker({
                 } else if (!exactMatch && query.trim()) {
                   void handleCreateAndAssign();
                 }
-              } else if (e.key === "Escape") {
-                setPickerOpen(false);
               }
             }}
             placeholder={t("materials.tags.pickerSearch")}
