@@ -148,7 +148,7 @@ export {
 export { NavItem, type NavItemProps, type NavItemTone } from "./NavItem";
 // Live Work-row timer line (#550) — a TimerContext bridge the host injects as
 // the Work section's `sublabel` (renders nothing while the timer is idle).
-export { NavTimerStatus } from "./NavTimerStatus";
+export { NavTimerStatus, NavTimerDot } from "./NavTimerStatus";
 export {
   SidebarNav,
   type SidebarNavProps,

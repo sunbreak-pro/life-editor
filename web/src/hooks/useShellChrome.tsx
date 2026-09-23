@@ -3,6 +3,7 @@ import { CalendarDays, FileText, type LucideIcon } from "lucide-react";
 import {
   useTranslation,
   isMac,
+  NavTimerDot,
   NavTimerStatus,
   SECTIONS,
   MAIN_SECTIONS,
@@ -108,11 +109,15 @@ export function useShellChrome({
   // The Work row carries the live timer line (#550). The node is CREATED here
   // (outside the Provider tree) but RENDERED inside the sidebar, which sits
   // within TimerProvider — context resolves at the render position, and only
-  // the status component re-renders on the 1 s tick, not the shell.
+  // the status component re-renders on the 1 s tick, not the shell. The dot
+  // (#1858) is the same signal for the collapsed rail and the bottom bar,
+  // which have no room for the status line.
   const navSections = useMemo(
     () =>
       toSections(MAIN_SECTIONS).map((s) =>
-        s.id === "work" ? { ...s, sublabel: <NavTimerStatus /> } : s,
+        s.id === "work"
+          ? { ...s, sublabel: <NavTimerStatus />, badge: <NavTimerDot /> }
+          : s,
       ),
     [toSections],
   );
@@ -121,7 +126,10 @@ export function useShellChrome({
     [toSections],
   );
   const mobileSections = useMemo(
-    () => toSections(MOBILE_SECTIONS),
+    () =>
+      toSections(MOBILE_SECTIONS).map((s) =>
+        s.id === "work" ? { ...s, badge: <NavTimerDot /> } : s,
+      ),
     [toSections],
   );
 

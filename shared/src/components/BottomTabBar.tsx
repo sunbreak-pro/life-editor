@@ -10,6 +10,12 @@ export interface BottomTabSection {
   label: string;
   /** Already-sized icon node. */
   icon: ReactNode;
+  /**
+   * Optional mark on the icon's corner (#1858 — the Work tab's running-timer
+   * dot). An absolutely-positioned node that may resolve to null. Drawn on the
+   * fixed tabs only; a section in the "More" sheet shows no badge.
+   */
+  badge?: ReactNode;
 }
 
 export interface BottomTabActionRowProps {
@@ -163,7 +169,10 @@ export function BottomTabBar({
               aria-current={isActive ? "page" : undefined}
               className={tabClass(isActive)}
             >
-              <span aria-hidden="true">{s.icon}</span>
+              <span aria-hidden="true" className="relative">
+                {s.icon}
+                {s.badge}
+              </span>
               <span
                 className={cn(
                   "max-w-full truncate px-1",

@@ -21,3 +21,23 @@ export function NavTimerStatus() {
     </>
   );
 }
+
+/*
+ * The same signal as NavTimerStatus, for the places that have no room for a
+ * status line (#1858): the collapsed sidebar rail (NavItem hides `sublabel`
+ * there) and the narrow BottomTabBar (no sublabel at all). A small accent dot
+ * on the Work icon's corner, so both surfaces read the same way and neither
+ * row changes height. The countdown itself is one tap away on the Work
+ * screen. Same bridge contract as NavTimerStatus: render it inside a
+ * TimerProvider, and it renders nothing while the timer is idle.
+ */
+export function NavTimerDot() {
+  const { isRunning } = useTimerContext();
+  if (!isRunning) return null;
+  return (
+    <span
+      data-testid="nav-timer-dot"
+      className="pointer-events-none absolute -right-1 -top-0.5 size-2 rounded-full bg-lumen-accent"
+    />
+  );
+}
