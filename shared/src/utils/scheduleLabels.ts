@@ -60,12 +60,6 @@ export function frequencyLabel(
   }
 }
 
-/** Current wall-clock time as minutes-from-midnight. */
-export function nowMinutesLocal(): number {
-  const d = new Date();
-  return d.getHours() * 60 + d.getMinutes();
-}
-
 /** Sort a day's items: all-day first, then ascending by start time. */
 export function sortDayItems<
   T extends Pick<ScheduleItem, "isAllDay" | "startTime">,

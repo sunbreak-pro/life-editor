@@ -76,7 +76,7 @@ import { useElementWidth } from "./hooks/useElementWidth";
  *
  * Narrow keeps ONE thing of its own: the compact detail `variant` (the sheet's
  * title sizing, not the page-level one). Creating is now identical at both
- * widths — #1147 retired the narrow title-first <QuickAddSheet>, so "+" makes
+ * widths — the narrow title-first QuickAddSheet is deleted (#1147), so "+" makes
  * an Untitled note and opens the editor on a phone exactly as the Desktop pill
  * always has.
  *

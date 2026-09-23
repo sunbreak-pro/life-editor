@@ -8,8 +8,9 @@ import { useEffect, useMemo, useState } from "react";
  * now-line and the agenda divider are positions inside one day. Those were
  * two `useState`s ticked side by side in one interval:
  *
- *   setNowMinutes(nowMinutesLocal());   // reads the wall clock
- *   setNow(new Date());                 // reads it again
+ *   const d = new Date();
+ *   setNowMinutes(d.getHours() * 60 + d.getMinutes()); // reads the wall clock
+ *   setNow(new Date());                                 // reads it again
  *
  * Two reads, so the pair can straddle a minute boundary and disagree — the
  * line drawn a minute away from the status that decided the row is late. And

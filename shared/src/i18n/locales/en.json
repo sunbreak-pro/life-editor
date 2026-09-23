@@ -233,12 +233,6 @@
       }
     }
   },
-  "timerSettings": {
-    "targetSessions": "Daily Target Sessions"
-  },
-  "data": {
-    "title": "Data Management"
-  },
   "trash": {
     "empty": "Trash is empty",
     "emptyDescription": "Deleted items will appear here.",
@@ -246,14 +240,10 @@
     "notes": "Notes",
     "restore": "Restore",
     "deletePermanently": "Delete permanently",
-    "note": "note",
-    "event": "event",
     "events": "Events",
     "routines": "Routines",
-    "routine": "routine",
     "dailies": "Dailies",
     "loading": "Loading trash...",
-    "error": "Failed to load trash.",
     "errorTitle": "Couldn't load the trash",
     "errorDescription": "There may be a connection problem. Please try again in a moment.",
     "reload": "Reload",
@@ -276,11 +266,7 @@
     "deletingMany": "Deleting…",
     "bulkPartialFailure": "{{n}} items could not be handled. Whatever is left is still here."
   },
-  "updates": {
-    "title": "Updates"
-  },
   "work": {
-    "title": "Work",
     "sidebar": {
       "targetSessions": "Target",
       "sessionsProgress": "{{completed}} / {{target}} sessions"
@@ -378,9 +364,6 @@
     "deletePresetConfirm": "Delete the preset “{{name}}”?",
     "autoStartBreaks": "Auto-start breaks",
     "emptyValue": "Enter a number for {{field}}"
-  },
-  "timer": {
-    "work": "WORK"
   },
   "todoDetail": {
     "titleLabel": "Todo title",
@@ -533,10 +516,8 @@
       "eveningReflectionPlaceholder": "How did the day go…"
     },
     "tags": {
-      "colorLabel": "Color",
       "usageCount_one": "{{count}} item",
       "usageCount_other": "{{count}} items",
-      "untitledItem": "(untitled)",
       "pickerLabel": "Tags",
       "pickerLabelShort": "Tag",
       "pickerAdd": "Add tag",
@@ -564,8 +545,7 @@
   "schedule": {
     "reminderNone": "No reminder",
     "reminderLead": "{{n}} min before",
-    "reminderToast": "{{title}} starts at {{time}}",
-    "complete": "Complete"
+    "reminderToast": "{{title}} starts at {{time}}"
   },
   "scheduleCalendar": {
     "weekdaySun": "Sun",
@@ -657,7 +637,6 @@
     "delete": "Delete",
     "todayFlow": "Today's flow",
     "allDay": "All-day",
-    "done": "Done",
     "emptyToday": "Nothing scheduled for today",
     "emptyDay": "Nothing scheduled for this day",
     "flowBackToToday": "Back to today",
@@ -1019,11 +998,6 @@
     "loading": "Loading…",
     "unsavedCloseConfirm": "You have unsaved changes. Discard them and close?"
   },
-  "tabs": {
-    "todos": "Todos",
-    "schedule": "Schedule",
-    "overview": "Overview"
-  },
   "commandPalette": {
     "placeholder": "Search or type a command...",
     "trigger": "Search or run a command",
@@ -1213,7 +1187,6 @@
     "confirmLabel": "Delete permanently"
   },
   "blockMenu": {
-    "turnInto": "Turn Into",
     "noMatch": "No matching blocks",
     "turnIntoItems": {
       "heading1": "Heading 1",
@@ -1230,8 +1203,7 @@
     "createNote": "Create note “{{query}}” and link",
     "roleNote": "Note",
     "roleDaily": "Daily",
-    "roleTodo": "Todo",
-    "insertUnresolved": "Insert “{{query}}” as a link"
+    "roleTodo": "Todo"
   },
   "auth": {
     "productName": "Life Editor",

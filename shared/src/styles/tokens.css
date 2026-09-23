@@ -78,7 +78,6 @@
      secondary states (chips, tags, secondary highlights). Primary actions
      and primary selection stay on the primary accent (燈色 / 薄藍). */
   --color-accent-secondary: #1fa56e;
-  --color-accent-secondary-hover: #18895b;
   --color-chip-mint-bg: #daf3e7;
   --color-chip-mint-fg: #0c6f4e;
   --color-hover: #f0e5d0;
@@ -113,9 +112,7 @@
      need a flat face. */
   --color-info-subtle: #e9e3db;
   --color-warning-subtle: #f1e2cd;
-  --color-calendar-header: #f87171;
   --color-schedule-routine-bg: #ebf0fe;
-  --color-schedule-other-bg: #f1f2f4;
   --color-schedule-event-bg: #f3e8ff;
   --color-schedule-event-border: #8b5cf6;
   /* Task block face (schedule redesign A-1): a scheduled TaskNode shows as a
@@ -134,9 +131,6 @@
   --color-chip-task-bg: #dbeafe;
   --color-chip-task-fg: #1e40af;
   --color-chip-task-dot: #1d4ed8;
-  --color-chip-completed-bg: #ecfdf5;
-  --color-chip-completed-fg: #047857;
-  --color-chip-completed-dot: #10b981;
   /* Kanban status bands (K1). The 4px card / column accent line for each
      task status — a slightly stronger, solid tone than the chip-* faces so
      the status reads at a glance. Status hue is FIXED (todo=blue /
@@ -145,9 +139,6 @@
      (amber) is added alongside the existing task/completed chip faces. */
   --color-chip-progress-bg: #fef6e0;
   --color-chip-progress-fg: #a06b09;
-  --color-chip-progress-dot: #eab308;
-  --color-status-todo-band: #38bdf8;
-  --color-status-progress-band: #eab308;
   --color-status-done-band: #10b981;
   /* Analytics data-series colors. These encode DATA (a task-age bucket, a
      project category, a session phase), not themeable container chrome, so
@@ -178,7 +169,6 @@
     0 2px 8px -1px rgb(15 23 42 / 0.1), 0 1px 3px -1px rgb(15 23 42 / 0.06);
   --shadow-elevation-lg:
     0 14px 34px -10px rgb(15 23 42 / 0.2), 0 4px 10px -4px rgb(15 23 42 / 0.1);
-  --font-size-base: 16px;
 }
 
 [data-theme="dark"] {
@@ -204,7 +194,6 @@
      dark row background instead of glowing. Opaque (see :root note). */
   --color-accent-subtle: #1e2d4b;
   --color-accent-secondary: #5fd1a0;
-  --color-accent-secondary-hover: #74d9af;
   --color-chip-mint-bg: #133024;
   --color-chip-mint-fg: #7fe0b3;
   --color-hover: #22314e;
@@ -226,9 +215,7 @@
      bg-secondary, matching success-subtle / danger-subtle above. */
   --color-info-subtle: #1e2e4b;
   --color-warning-subtle: #2a303a;
-  --color-calendar-header: #991b1b;
   --color-schedule-routine-bg: #1e293b;
-  --color-schedule-other-bg: #1f2937;
   --color-schedule-event-bg: #2e1065;
   --color-schedule-event-border: #a78bfa;
   /* Task block face dark counterpart — mirrors the chip-task dark bg so it
@@ -243,16 +230,10 @@
   --color-chip-task-bg: #1d2348;
   --color-chip-task-fg: #aebcff;
   --color-chip-task-dot: #5b8cff;
-  --color-chip-completed-bg: #052e1f;
-  --color-chip-completed-fg: #6ee7b7;
-  --color-chip-completed-dot: #34d399;
   /* Kanban status (K1) dark counterparts. Bands keep the fixed status hue
      (state-encoding); the progress chip face darkens like the others. */
   --color-chip-progress-bg: #3a2e0a;
   --color-chip-progress-fg: #fcd34d;
-  --color-chip-progress-dot: #eab308;
-  --color-status-todo-band: #38bdf8;
-  --color-status-progress-band: #eab308;
   --color-status-done-band: #10b981;
   /* Dark elevation — stronger so panels lift off the #18181b surface. */
   --shadow-elevation-sm: 0 1px 2px 0 rgb(0 0 0 / 0.45);
@@ -359,14 +340,9 @@
   --color-lumen-accent-subtle: var(--color-accent-subtle);
   /* Mint secondary accent + its chip face (light-green "touch"). */
   --color-lumen-accent-secondary: var(--color-accent-secondary);
-  --color-lumen-accent-secondary-hover: var(--color-accent-secondary-hover);
   --color-lumen-chip-mint-bg: var(--color-chip-mint-bg);
   --color-lumen-chip-mint-fg: var(--color-chip-mint-fg);
-  --color-lumen-primary: var(--color-accent);
-  --color-lumen-secondary: var(--color-text-secondary);
   --color-lumen-hover: var(--color-hover);
-  --color-lumen-bg-hover: var(--color-hover);
-  --color-lumen-hover-strong: var(--color-hover);
   --color-lumen-success: var(--color-success);
   --color-lumen-success-subtle: var(--color-success-subtle);
   --color-lumen-danger: var(--color-danger);
@@ -379,7 +355,6 @@
   --color-lumen-warning-subtle: var(--color-warning-subtle);
   --color-lumen-surface-sunken: var(--color-surface-sunken);
   --color-lumen-text-tertiary: var(--color-text-tertiary);
-  --color-lumen-calendar-header: var(--color-calendar-header);
   /* Briefing 紙面アクセント duo (Issue #269) → text-/bg-/border-lumen-
      briefing-*. Mapped BEFORE BriefingView uses the classes — undefined
      lumen-* classes silently fall transparent (§5). */
@@ -400,10 +375,6 @@
      (WORK reuses accent, BREAK reuses the mint secondary). Additive only. */
   --color-lumen-phase-long-break: var(--color-chart-phase-long-break);
   --color-lumen-on-vivid: var(--color-on-vivid);
-  --color-lumen-chip-completed-bg: var(--color-chip-completed-bg);
-  --color-lumen-chip-completed-fg: var(--color-chip-completed-fg);
-  --color-lumen-status-todo-band: var(--color-status-todo-band);
-  --color-lumen-status-progress-band: var(--color-status-progress-band);
   --color-lumen-status-done-band: var(--color-status-done-band);
   /* Schedule (W8 target-IA) — routine=藍 / single event=紫 block faces +
      their chip faces/dots. Mapped so the schedule primitives can use
@@ -411,7 +382,6 @@
      (no hardcoded colors, §6). The :root / [data-theme] values already
      exist; only these @theme mappings were missing. */
   --color-lumen-schedule-routine-bg: var(--color-schedule-routine-bg);
-  --color-lumen-schedule-other-bg: var(--color-schedule-other-bg);
   --color-lumen-schedule-event-bg: var(--color-schedule-event-bg);
   --color-lumen-schedule-event-border: var(--color-schedule-event-border);
   --color-lumen-schedule-task-bg: var(--color-schedule-task-bg);
@@ -426,26 +396,21 @@
   --shadow-lumen-sm: var(--shadow-elevation-sm);
   --shadow-lumen-md: var(--shadow-elevation-md);
   --shadow-lumen-lg: var(--shadow-elevation-lg);
-  /* Radius scale (lumen-*) → rounded-lumen-sm / -md / -lg / -xl / -full.
+  /* Radius scale (lumen-*) → rounded-lumen-sm / -md / -lg / -full.
      Theme-INVARIANT (shape, not color), so it lives once here in @theme —
      Tailwind's home for constants — rather than being duplicated into the
-     [data-theme] blocks (only colors flip per theme). 6/8/12/16 px + pill. */
+     [data-theme] blocks (only colors flip per theme). 6/8/12 px + pill. */
   --radius-lumen-sm: 6px;
   --radius-lumen-md: 8px;
   --radius-lumen-lg: 12px;
-  --radius-lumen-xl: 16px;
   --radius-lumen-full: 9999px;
   /* Spacing scale (lumen-*) — named spacing keys → p-lumen-* / px-lumen-* /
      gap-lumen-* / m-lumen-* etc. Theme-invariant (same reasoning as radius).
-     4-px base rhythm (1=4 … 6=24); complements Tailwind's numeric scale for
+     4-px base rhythm (2=8, 3=12); complements Tailwind's numeric scale for
      design-system inner spacing. Shadow's scale is the theme-aware
      --shadow-lumen-* trio above (it flips via --shadow-elevation-*). */
-  --spacing-lumen-1: 4px;
   --spacing-lumen-2: 8px;
   --spacing-lumen-3: 12px;
-  --spacing-lumen-4: 16px;
-  --spacing-lumen-5: 20px;
-  --spacing-lumen-6: 24px;
   /* Content width scale (Layout Standard v1, Issue #180) → max-w-lumen-reading /
      max-w-lumen-data / max-w-lumen-wide. reading = document-style centered
      column; data = wide dashboard column (analytics); wide = the Notes / Daily

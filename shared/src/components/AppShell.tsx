@@ -285,9 +285,8 @@ export function AppShell({
   // PWA). `pt-` closes that, matching MobileDrawer / AuthScreen.
   //
   // The BOTTOM inset is deliberately NOT here — <BottomTabBar> owns the
-  // home-indicator strip (its own `pb-`), which is the single-reservation
-  // contract MobileFab's placement doc already leans on. Reserving it on both
-  // would stack two paddings for one strip.
+  // home-indicator strip (its own `pb-`), so the strip is reserved exactly
+  // once. Reserving it on both would stack two paddings for one strip.
   //
   // box-sizing is border-box (Tailwind preflight), so these paddings come out
   // of the shell's box rather than adding to it: <main> shrinks, the shell
