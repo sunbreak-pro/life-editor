@@ -50,7 +50,7 @@ export type TrashCategory =
 
 export interface TrashItem {
   id: string;
-  /** Already-resolved display label (host falls back to "Untitled"). */
+  /** Already-resolved display label (host falls back to `common.untitled`). */
   label: string;
 }
 
