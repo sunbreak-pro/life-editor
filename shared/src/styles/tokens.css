@@ -280,7 +280,7 @@
    under the tab bar that #791 saw and #1037 reported again after #805 shaved
    the smaller part of it off. Adding the top inset back lands the shell on the
    real bottom of the screen; the bar's own `pb-` then reserves the home
-   indicator, still the single reservation MobileFab's placement doc assumes.
+   indicator, which stays the only reservation of that strip.
 
    Both guards are deliberate. `display-mode: standalone` keeps every browser
    tab byte-identical (the report is only from the installed app), and

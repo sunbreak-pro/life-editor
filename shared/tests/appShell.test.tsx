@@ -226,9 +226,9 @@ describe("AppShell (narrow) — safe-area insets", () => {
       screen.getByRole("navigation", { name: "More" }),
     ].filter((el) => el.className.includes("safe-area-inset-bottom"));
 
-    // One strip, one padding. MobileFab's placement contract (and the bar's
-    // own doc) assume the bar is the single owner; a second reservation on the
-    // root would stack two paddings for the same 34px of screen.
+    // One strip, one padding. The bottom inset is reserved exactly once, and
+    // the bar (per its own doc) is that single owner; a second reservation on
+    // the root would stack two paddings for the same 34px of screen.
     expect(owners).toHaveLength(1);
     expect(owners[0].tagName).toBe("NAV");
   });

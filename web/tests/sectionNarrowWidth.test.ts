@@ -4,9 +4,9 @@ import { SECTION_DESCRIPTORS } from "../src/sectionDescriptors";
 /*
  * #875 — the narrow layout's scroll ownership for Materials.
  *
- * The Notes "+" is `absolute bottom-6 right-6` inside the section box (shared
- * MobileFab), which only lands on the screen edge when that box has a definite
- * height and no padding — i.e. PageContainer's "fluid" variant. Materials wants
+ * A floating control pinned `absolute bottom-6 right-6` inside the section box
+ * only lands on the screen edge when that box has a definite height and no
+ * padding — i.e. PageContainer's "fluid" variant. Materials wants
  * "wide" on the desktop surfaces and "fluid" on the narrow ones, so it declares
  * `narrowWidth`; MainScreen picks it whenever the layout is narrow.
  *

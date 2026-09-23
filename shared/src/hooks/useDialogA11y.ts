@@ -262,7 +262,7 @@ export function useDialogA11y<T extends HTMLElement>({
       const panel = panelRef.current;
       if (!panel) return;
       // Something inside already asked for the focus (autoFocus, or a
-      // consumer's own effect — QuickAddSheet focuses its input). Leave it:
+      // consumer's own effect — TodoAddDialog focuses its input). Leave it:
       // overriding it is the "double focus" the sheets were reported for.
       if (panel.contains(document.activeElement)) return;
       (initialFocusIn(panel) ?? panel).focus();
