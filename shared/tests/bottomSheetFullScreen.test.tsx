@@ -123,3 +123,32 @@ describe("BottomSheet — full screen (#874)", () => {
     expect(dialog.className).not.toContain("overflow-y-auto");
   });
 });
+
+describe("BottomSheet — a partial sheet taller than the screen (#1846)", () => {
+  /*
+   * The relations sheet ran 990px on an 844px phone: `items-end` pinned the
+   * bottom edge, so the title and × went off the top, and the panel covered
+   * the whole backdrop. jsdom cannot measure that; what is pinned is the cap
+   * and the body scroller that keep the header on screen.
+   */
+  it("caps its height below the viewport", () => {
+    const { dialog } = renderPanel(false);
+    expect(dialog.className).toContain(
+      "max-h-[calc(100dvh-2rem-env(safe-area-inset-top))]",
+    );
+    expect(dialog.className).toContain("overflow-hidden");
+  });
+
+  it("scrolls the body under a header that stays put", () => {
+    const { dialog } = renderPanel(false);
+
+    const body = screen.getByText("panel body").parentElement;
+    expect(body?.className).toContain("overflow-y-auto");
+    expect(body?.className).toContain("min-h-0");
+    // The strip holds the only exit; it must never be the part that shrinks.
+    expect(stripOf(dialog).className).toContain("shrink-0");
+    expect(
+      screen.getByRole("button", { name: "Close" }).closest("[role=dialog]"),
+    ).toBe(dialog);
+  });
+});
