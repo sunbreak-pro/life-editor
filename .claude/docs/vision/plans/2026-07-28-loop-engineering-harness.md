@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS — Phase 0〜2 実施済み。Phase 1 の 2 本（digest 06:03 / night-safe 22:33）は 2026-09-02 に Windows Task Scheduler へ登録して稼働開始（#1335 / D-20260804-main-1 = A・台帳 = `automation/routine-ids.md`）。残 = Phase 2 の `night` レーン登録・Step 5（MCP 疎通 → 朝刊ミラー）・Phase 3
+Status: IN PROGRESS — Phase 0〜2 実施済み。Phase 1 の 2 本は 2026-09-02 に Windows Task Scheduler へ登録して稼働開始（#1335 / D-20260804-main-1 = A・台帳 = `automation/routine-ids.md`）。2026-09-26 にスリープ解除つきで朝 07:13（night-safe）/ 07:43（digest）へ移し、報告を日次の報告 PR で届ける形に変更。残 = Phase 2 の `night` レーン登録・Step 5（MCP 疎通 → 朝刊ミラー）・Phase 3
 Created: 2026-07-28
 Branch: main # 本書は設計書。commit する場合は一時 worktree 経由（main 直 push 禁止）
 Owner-chat: main

@@ -1,6 +1,6 @@
 # Routine: Night Safe Lane（夜間の安全レーン — 読み取り中心）
 
-> 毎夜 22:33 JST 発火（Phase 1）。実行基盤は D-20260804-main-1 = A（Windows Task Scheduler + `claude -p`）で裁定済み。無人用 permissions は `settings-unattended-readonly.json` を `run-routine.ps1` が渡す。**Task Scheduler に登録済み（2026-09-02・台帳 = `routine-ids.md`）**。手動実走は `run-routine.ps1 -Routine night-safe`（追跡 = #1335）。
+> 毎朝 07:13 JST 発火（Phase 1。2026-09-26 に夜 22:33 から移設 — PC がスリープ中で発火しない夜が多かったため、朝にスリープを解除して走らせる。レーン名は旧枠の名残）。実行基盤は D-20260804-main-1 = A（Windows Task Scheduler + `claude -p`）で裁定済み。無人用 permissions は `settings-unattended-readonly.json` を `run-routine.ps1` が渡す。**Task Scheduler に登録済み（2026-09-02 登録・2026-09-26 再登録・台帳 = `routine-ids.md`）**。手動実走は `run-routine.ps1 -Routine night-safe`（追跡 = #1335）。
 > **実装レーンではない**。許可範囲は 2026-07-28 ユーザー決定どおり「docs・整理・検証準備まで」。実装の自走（routine-night.md 改訂版）は親計画 Phase 2 で、ループカタログ定着後に着手する。
 
 ---
@@ -29,7 +29,7 @@
 
 ### Scope 宣言（ファイルは 1 つも書かない）
 
-**このレーンはファイルを 1 つも書かない。** headless の claude は `.claude/` 配下へ Write できず（allow ルールでも通らない = 2026-09-02 実測）、報告の保存は `run-routine.ps1` が最終メッセージを `.claude/comm/outbox/chat-night-safe/night-safe-report.md` へ追記する形で行う。**書き込みが必要になった時点で scope drift として作業を中断し、報告にその旨を書いて終了する。**
+**このレーンはファイルを 1 つも書かない。** headless の claude は `.claude/` 配下へ Write できず（allow ルールでも通らない = 2026-09-02 実測）、報告の保存は `run-routine.ps1` が最終メッセージを当日の `.claude/automation/reports/YYYY-MM-DD.md` へ追記し、日次の報告 PR に載せる形で行う（2026-09-26〜。commit と push も launcher の仕事で、このレーンは行わない）。**書き込みが必要になった時点で scope drift として作業を中断し、報告にその旨を書いて終了する。**
 
 ### 報告形式（**最終メッセージとして出力する**。ファイルには書かない — launcher が拾って追記する）
 
@@ -41,10 +41,10 @@
 - Issue 台帳: 検出 N 件
 - PR conflict: N 件（PR# / 衝突ファイル / rebase 要否）
 - 検証準備: 変化 N 件
-- 修正が必要なもの → 起票依頼として上に列挙（chat-main が翌朝拾って裁く）
+- 修正が必要なもの → 起票依頼として上に列挙（chat-main が報告 PR を読んで裁く）
 ```
 
-検出ゼロは「異常なし」と 1 行で書く（沈黙しない）。翌朝の digest（dev-digest スキル）がこの報告を収集源に加える。
+検出ゼロは「異常なし」と 1 行で書く（沈黙しない）。30 分後の digest（dev-digest スキル）がこの報告を収集源に加える。
 
 ### 禁止事項（絶対遵守）
 

@@ -1,5 +1,5 @@
 {
-  "$comment": "run-routine.ps1 が --settings で渡す無人レーン用 permissions。Bash ルールはコマンド文字列のパターン。ファイル系ルールは相対で書くとこの JSON の置き場所（.claude/automation/）を起点に解決されて当たらないため、`//` 始まりの絶対パスで書く（= このマシンのチェックアウト位置に依存する。repo を動かしたら直す）。なお .claude/ 配下への Write は headless では allow ルールでも通らないので、報告の保存は run-routine.ps1 側が行う（2026-09-02 実測）。 これは読み取り中心のレーン（digest / night-safe）用で、commit も禁止。",
+  "$comment": "run-routine.ps1 が --settings で渡す無人レーン用 permissions。Bash ルールはコマンド文字列のパターン。ファイル系ルールは相対で書くとこの JSON の置き場所（.claude/automation/）を起点に解決されて当たらないため、`//` 始まりの絶対パスで書く（= このマシンのチェックアウト位置に依存する。repo を動かしたら直す）。なお .claude/ 配下への Write は headless では allow ルールでも通らないので、報告の保存は run-routine.ps1 側が行う（2026-09-02 実測）。 これは読み取り中心のレーン（digest / night-safe）用で、commit も禁止。2026-09-26 から claude は専用 worktree（workspaces/life-editor/routine）で走るので、その worktree への Edit / Write も丸ごと拒否する（報告の保存と commit は run-routine.ps1 が行う）。",
   "permissions": {
     "allow": [
       "Bash(echo *)",
@@ -72,7 +72,9 @@
       "Write(//c/Users/user/orca/life-editor/desktop/**)",
       "Write(//c/Users/user/orca/life-editor/mobile/**)",
       "Write(//c/Users/user/orca/life-editor/mcp-server/**)",
-      "Write(//c/Users/user/orca/life-editor/supabase/**)"
+      "Write(//c/Users/user/orca/life-editor/supabase/**)",
+      "Edit(//c/Users/user/orca/workspaces/life-editor/routine/**)",
+      "Write(//c/Users/user/orca/workspaces/life-editor/routine/**)"
     ]
   }
 }
