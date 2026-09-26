@@ -14,6 +14,7 @@ import {
   SettingsAiIntegration,
   SettingsAppearance,
   SettingsLegal,
+  SettingsHelp,
   SettingsLanguage,
   SettingsShortcuts,
   SettingsGeneral,
@@ -74,6 +75,7 @@ import { useClaudeLauncher } from "../hooks/useClaudeLauncher";
 import { TrashScreen } from "../trash/TrashScreen";
 import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
 import { openLegalDocument } from "../legal/legalUrl";
+import { HelpDialog } from "../help/HelpDialog";
 
 /*
  * Settings screen (W1, web host — redesigned; §216 lightweight prefs). This is
@@ -247,6 +249,8 @@ export function SettingsScreen({
   }, [tab]);
   const [tipsOpen, setTipsOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+  // #1989 — the help dialog (tutorial door, FAQ, contact links).
+  const [helpOpen, setHelpOpen] = useState(false);
 
   /*
    * #1174: the detail panel is this screen's NAVIGATION now, not a decoration
@@ -893,6 +897,22 @@ export function SettingsScreen({
             />
           </div>
 
+          {/*
+           * #1989 — after Legal: both are about the app rather than a
+           * preference in it, and the contact the terms quote is the same
+           * one this dialog links (operator.ts).
+           */}
+          <div className={cardClass}>
+            <SettingsHelp
+              onOpen={() => setHelpOpen(true)}
+              labels={{
+                heading: t("settings.help.heading"),
+                description: t("settings.help.description"),
+                button: t("settings.help.button"),
+              }}
+            />
+          </div>
+
           <div className={cardClass}>
             <SettingsReset
               onReset={handleReset}
@@ -1117,6 +1137,20 @@ export function SettingsScreen({
           </Button>
         </div>
       </Modal>
+
+      {/*
+       * Help (#1989). "How to use" hands over to the tutorial launcher
+       * below, closing this dialog in the same commit so the launcher is
+       * never stacked under it.
+       */}
+      <HelpDialog
+        open={helpOpen}
+        onClose={() => setHelpOpen(false)}
+        onOpenTutorial={() => {
+          setHelpOpen(false);
+          setTutorialOpen(true);
+        }}
+      />
 
       {/*
        * The tutorial launcher (#1194) — the overview + section picker the

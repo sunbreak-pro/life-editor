@@ -16,6 +16,7 @@ import {
 } from "@life-editor/shared";
 import { usePasswordUpdate } from "./hooks/usePasswordUpdate";
 import { openLegalDocument } from "./legal/legalUrl";
+import { HelpDialog } from "./help/HelpDialog";
 
 /*
  * Phase 1 auth entry (Email + Password), target-IA D8 (ClaudeDesign Auth
@@ -114,6 +115,9 @@ export function AuthScreen({
   const [resendError, setResendError] = useState<string | null>(null);
   const [resendNotice, setResendNotice] = useState<string | null>(null);
   const [resendBusy, setResendBusy] = useState(false);
+
+  // #1989 — the "Need help?" line under every card opens this.
+  const [helpOpen, setHelpOpen] = useState(false);
 
 
   const recoveryMessages = useMemo(
@@ -370,7 +374,23 @@ export function AuthScreen({
 
   return (
     <div className="flex min-h-svh items-center justify-center bg-lumen-bg px-4 pt-[max(2rem,env(safe-area-inset-top))] pb-[max(2rem,env(safe-area-inset-bottom))] text-lumen-text md:px-6">
-      {card}
+      {/*
+       * #1989 — under the card rather than inside it, so it shows on every
+       * view: the "check your inbox" card and the recovery card are exactly
+       * where someone gets stuck. Same dialog as Settings, minus the tour,
+       * which has no app to walk yet.
+       */}
+      <div className="flex w-full flex-col items-center gap-4">
+        {card}
+        <button
+          type="button"
+          onClick={() => setHelpOpen(true)}
+          className={LEGAL_LINK_CLASS + " max-md:min-h-11"}
+        >
+          {t("auth.help.link")}
+        </button>
+      </div>
+      <HelpDialog open={helpOpen} onClose={() => setHelpOpen(false)} />
     </div>
   );
 }
