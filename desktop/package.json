@@ -1,6 +1,6 @@
 {
   "name": "desktop",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Life Editor — Electron desktop shell (thin wrapper around web/ renderer)",
   "author": "sunbreak-pro",
   "private": true,
