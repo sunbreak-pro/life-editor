@@ -1,5 +1,19 @@
 # HISTORY (chat-web-public)
 
+### 2026-09-26 - #1986 確認メールの独自 SMTP 化（コード側の手順書と控え）
+
+#### 概要
+
+配布前 4 件の 1 件目。Dashboard・DNS・API キーに触れない範囲で、`supabase/README.md` に設定 / 戻し手順を、`supabase/templates/auth/{ja,en}/` に確認メールと再設定メールの控えを置いて PR #1999 を open にした。`origin/main` から切った枝で、CI の `verify` 18 ステップ + docs-lint をローカルで exit 0 まで通した。merge は未（P-001）。
+
+#### 変更点
+
+- **送信ドメインが本当の前提**: 調べた無料枠（Resend / Brevo / SMTP2GO / Mailjet / MailerSend / SES）はどれも、確実に届けるには DNS を編集できる自前ドメインが要る。公開 URL は `workers.dev` で SPF / DKIM を足せず、gmail 差出人は DMARC で落ちる。サービス選びより先に「ドメインをどうするか」が効くので、D-20260926-web-1 はドメインとセットの選択肢にした
+- **テンプレートは 2 種だけ**: アプリが送る認証メールは Confirm signup（`signUp` / `resendConfirmationEmail`）と Reset password（`sendPasswordResetEmail`）だけ。リンクは既定と同じ `{{ .ConfirmationURL }}` に留め、`authRedirectUrl()` のリダイレクト挙動を変えない。件名は各ファイル 1 行目のコメントを正本にして二重管理を避けた
+- **言語は選べない**: Supabase はテンプレートを種類ごとに 1 本しか持たず、アプリもユーザーの言語を記録していない。日英どちらを入れるかは UX 分岐なので D-20260926-web-2 へ（P-005）
+- **戻し手順の落とし穴**: 内蔵送信に戻すとチームメンバー以外に確認メールが届かないので、配布ユーザーが登録中なら Confirm email も一時 OFF にする（D-20260829-web-1 の復活条件）ことを README に書いた
+- **未確認**: 内蔵送信の毎時通数の正確な値と、Dashboard のメニュー名（実画面は見ていない）
+
 ### 2026-08-30 - #1281 法務リーダーに dialog の作法（#1251 の追随）
 
 #### 概要
