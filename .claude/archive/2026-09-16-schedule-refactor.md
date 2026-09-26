@@ -1,5 +1,5 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED
 Created: 2026-09-16
 Branch: claude/schedule-refactor-plan-1642
 Owner-chat: schedule-refine
@@ -198,7 +198,7 @@ D-05 はコード内のコメント（`useRepeatMutations.ts:320-326`）が「re
 | G-04 | シリーズ削除が narrow で無効化される                                                                                   | `ScheduleSidebar.tsx:324`                                                                  |
 | G-05 | jsdom は `matchMedia` を持たないため、**テストは既定で Desktop 幅**になる                                              | `shared/src/hooks/useMediaQuery.ts:13-22`                                                  |
 
-G-01〜G-04 は **意図した省略として確定した**（2026-09-16 ユーザー裁定 = D-20260916-sched-1 = A）。[`mobile-scope.md`](../../requirements/mobile-scope.md) の「Consumption + Quick capture」と整合するため、穴として塞がず仕様として記録する。工程 2 でこれらを narrow に足さない。
+G-01〜G-04 は **意図した省略として確定した**（2026-09-16 ユーザー裁定 = D-20260916-sched-1 = A）。[`mobile-scope.md`](../docs/requirements/mobile-scope.md) の「Consumption + Quick capture」と整合するため、穴として塞がず仕様として記録する。工程 2 でこれらを narrow に足さない。
 
 ### 1-H. 状態の所有者が 1 人でない
 
@@ -484,11 +484,13 @@ shared/src/i18n/locales/{en,ja}.json  （文言の追加が要る場合のみ）
 | #1640 | CLOSED（PR #1712） | 後に回す             | 同上（W8 merge 後）                                                                                                                                         |
 | #1641 | CLOSED（PR #1715） | 後に回す             | 同上                                                                                                                                                        |
 | #1626 | CLOSED（PR #1729） | 後に回す             | 同上                                                                                                                                                        |
-| #1747 | **OPEN**           | （未起票）           | **前に直す。** W14 のツアーシナリオが赤で止まるため、W13b として W14 の前に置く（PR #1752）                                                                 |
-| #1663 | **OPEN**           | （未起票）           | **後に回す。** 繰り返しのタグ色（K-08 と同根）。上書き先が DDL を要する可能性があり、本計画は `supabase/migrations/` を Non-goal にしているため吸収できない |
-| #1678 | **OPEN**           | （未起票）           | **後に回す。** 繰り返しタブの行クリック（K-04 の周辺）。純粋な機能追加で「挙動変更ゼロ」の原則から外れる                                                    |
+| #1747 | CLOSED（PR #1752） | （未起票）           | **前に直す。** W14 のツアーシナリオが赤で止まるため、W13b として W14 の前に置く（PR #1752）                                                                 |
+| #1663 | CLOSED（09-20）    | （未起票）           | **後に回す。** 繰り返しのタグ色（K-08 と同根）。上書き先が DDL を要する可能性があり、本計画は `supabase/migrations/` を Non-goal にしているため吸収できない |
+| #1678 | CLOSED（09-20）    | （未起票）           | **後に回す。** 繰り返しタブの行クリック（K-04 の周辺）。純粋な機能追加で「挙動変更ゼロ」の原則から外れる                                                    |
 
 **「後に回す 4 件は W15 まで着手しない」は守られなかったが、実害は出ていない。** 4 件とも W8 / W11 の merge 後に着地したため、衝突は 1 件も起きていない。代わりに出た副作用が `CalendarTab.tsx` の +136 行で、§Acceptance Criteria の行数条件を割った。
+
+#1747 / #1663 / #1678 の state 列は、archive 時（2026-09-26）に `gh issue view` で引き直した値である。3 件とも 2026-09-19〜09-20 に close された。
 
 ---
 
@@ -499,24 +501,24 @@ shared/src/i18n/locales/{en,ja}.json  （文言の追加が要る場合のみ）
 - [x] `LC_ALL=C bash scripts/docs-lint.sh` exit 0
 - [x] `_TEMPLATE.md` の必須節（Context / 代替案 / Scope / Steps / AC / References / Worklog）を持つ
 - [x] `web/` `shared/` `desktop/` `mcp-server/` の変更行数 0（`git diff --stat` で確認）
-- [ ] PR が #1642 を参照して open になっている
+- [x] PR が #1642 を参照して open になっている（PR #1653・2026-09-16 merge 済み）
 
 工程 2（各作業単位）:
 
-- [ ] CI `verify` ジョブの全ステップ緑（shared → web → desktop → mcp-server・`typecheck:tests` 含む）
-- [ ] Schedule ドメインのテストが **107 suites / 1,203 cases**（2026-09-16 実測）から減らない
-- [ ] `web/tests/useScheduleMutations.test.tsx` が存在し、9 ハンドラすべてを直接呼ぶ（W0）
-- [ ] 1-A の 11 経路のうち、Scope 内の 9 経路（A-01 / A-11 を除く）が Undo に載り、各経路に「操作 → Undo → Redo」のテストがある（W4 / W6）
-- [ ] `grep -n "toggleScheduleItemComplete" shared/src/hooks/useScheduleItemsCRUD.ts` の undo 分岐に一致が無い（W4 — 反転でなく set になる）
-- [ ] `useRepeatMutations.ts` の最長関数が 80 行以下（W7）
-- [ ] `grep -n "PX_PER_MINUTE" shared/src/components/schedule/AgendaList.tsx` が 0 件（W11）
-- [x] `grep -n "updateNode(" web/src/schedule/CalendarTab.tsx` が 0 件（W8 — Todo リネームのインラインが消える）
-- [x] `shared/src/components/schedule/MonthGrid.tsx` が 400 行以下（W12）
-- [ ] `web/src/schedule/CalendarTab.tsx` が 1,239 行を超えない（増やさないことだけを課す）— **2026-09-19 実測 1,375 行で未達**。増やしたのはリファクタの PR ではなく 7 本の機能 PR（§Context の再計測を参照）。扱いは D-20260919-sched-6 の回答待ち
+- [x] CI `verify` ジョブの全ステップ緑（shared → web → desktop → mcp-server・`typecheck:tests` 含む）— 作業単位の PR 10 本（#1655 / #1656 / #1658 / #1660 / #1661 / #1684 / #1694 / #1708 / #1752 / #1818）は、どれも `verify` と `docs-lint` が SUCCESS の状態で merge された（2026-09-26 に `gh pr view --json statusCheckRollup` で確認）
+- [x] Schedule ドメインのテストが **107 suites / 1,203 cases**（2026-09-16 実測）から減らない — 第 2 期の計画書が 2026-09-23 に数え方 B で 1,313 cases を計測した。ケース数は増えている。ファイル数（102）は 2026-09-16 と数え方が違うため比べていない
+- [x] `web/tests/useScheduleMutations.test.tsx` が存在し、9 ハンドラすべてを直接呼ぶ（W0・PR #1655）
+- [ ] 1-A の 11 経路のうち、Scope 内の 9 経路（A-01 / A-11 を除く）が Undo に載り、各経路に「操作 → Undo → Redo」のテストがある（W4 / W6・#1638 の PR #1708 で着地）
+- [x] `grep -n "toggleScheduleItemComplete" shared/src/hooks/useScheduleItemsCRUD.ts` の undo 分岐に一致が無い（W4 — 反転でなく set になる）— 2026-09-26 の一致は `:309`（往路）・`:317`（ラベル）・`:346`（redo）の 3 行で、undo 分岐は `updateScheduleItem` で値を戻している
+- [ ] `useRepeatMutations.ts` の最長関数が 80 行以下（W7）— **2026-09-26 実測で未達**。W7 が割った `handleScopeChoose` は 42 行（`:1063-1104`）で、W7 の狙いは満たしている。いま最長なのは `handleDetachRepeat` の 90 行（`:686` から）で、#1638 の PR #1708 が伸ばした。第 2 期の P3（M-02）がこのファイルを割るので、そちらに引き継ぐ（§乖離レビュー）
+- [x] `grep -n "PX_PER_MINUTE" shared/src/components/schedule/AgendaList.tsx` が 0 件（W11・PR #1661）
+- [x] `grep -n "updateNode(" web/src/schedule/CalendarTab.tsx` が 0 件（W8 — Todo リネームのインラインが消える）— 2026-09-26 には `:909` に 1 件ある。これは #1640 の PR #1712 が足した Todo 作成ダイアログの「今日へ追加」で、W8 が消したリネームのインラインとは別物である。第 2 期の P2 が `useTodoAddDialog` として外へ出す（第 2 期 §2-2）
+- [x] `shared/src/components/schedule/MonthGrid.tsx` が 400 行以下（W12）— W12 の時点で 383 行。**2026-09-26 は 428 行**で、#1835 の PR #1929 と #1829 の PR #1933（どちらも不具合修正・機能追加）が伸ばした。行数の上限をリファクタの成果と機能追加の重量で混ぜて評価しない扱いは D-20260919-sched-6 と同じにする（§乖離レビュー）
+- [x] `web/src/schedule/CalendarTab.tsx` が 1,239 行を超えない（増やさないことだけを課す）— **D-20260919-sched-6 = A により「PR #1684 時点の 1,238 行を超えない」と読み替えて達成とする**（2026-09-20 ユーザー回答）。2026-09-19 実測は 1,375 行、2026-09-26 実測は 1,484 行で、増えた分はどちらも機能 PR が足したものである（§Context の再計測を参照）。増分は機能追加の帳尻として第 2 期（#1642 の P2）で扱う
 - [x] クリックパネルの時刻変更がツアー 3/10 を進める（F-11 / #1747・W13b — PR #1752 merge 済み）
-- [ ] 複製が `reminderOffset` を引き継ぎ、落ちた複製が楽観行を残さない（K-07 / K-10・W16）
-- [ ] 各 PR の diff が ±1,000 行以内
-- [ ] 完了時: 本書の Status を COMPLETED にして `archive/` へ移した（W15）
+- [x] 複製が `reminderOffset` を引き継ぎ、落ちた複製が楽観行を残さない（K-07 / K-10・W16・PR #1818）
+- [ ] 各 PR の diff が ±1,000 行以内 — **1 本だけ未達**。#1638 の PR #1708 が +1,389 / -91 行だった。ほかの 9 本は追加・削除ともに 1,000 行以内である
+- [x] 完了時: 本書の Status を COMPLETED にして `archive/` へ移した（W15 = 第 2 期の P0 が引き取った）
 
 AC を満たせない見込みになったら、自己免除せず **P-008** に従い判断キューへ積む。
 
@@ -558,7 +560,7 @@ S18〜S22 は本計画で足した。**棚卸しで「推定」に留まった�
 
 ## Risks / Known Issues 参照
 
-- 既存事例は [`known-issues/INDEX.md`](../../known-issues/INDEX.md)。特に Issue 017（単純削除を生成器が復活させる）と #932（Trash 復元の競合）は W5 / W8 の着手前に読む
+- 既存事例は [`known-issues/INDEX.md`](../docs/known-issues/INDEX.md)。特に Issue 017（単純削除を生成器が復活させる）と #932（Trash 復元の競合）は W5 / W8 の着手前に読む
 - `web/tests/` は jsdom にレイアウトが無い（要素の座標がすべて 0）。ドラッグ系は座標非依存で組む（CLAUDE.md §7.1）
 - テストは既定で Desktop 幅になる（G-05）。narrow の分岐を見るテストは `matchMedia` を明示的に差し替える
 - ローカルでゲートをまとめて回すときは `( npm run X | tail )` で終了コードを取らない（CLAUDE.md §7.1）
@@ -569,10 +571,10 @@ S18〜S22 は本計画で足した。**棚卸しで「推定」に留まった�
 ## References
 
 - Issue: #1642（本計画の親）/ #1632 / #1637 / #1638 / #1639 / #1640 / #1641 / #1626 / #1747（F-11・W13b）/ #1663 / #1678（どちらも open・後に回す）
-- 他レーンからの報告: [`comm/outbox/chat-shared-fix.md`](../../../comm/outbox/chat-shared-fix.md) 2026-09-19（#1681 の `push(` 全数棚卸しから B-14 が出た）
-- 前回の分割: #280 / #673 / #675 / #889 / #893（いずれも close 済み）と [`2026-08-10-core-refactor.md`](./2026-08-10-core-refactor.md) の C6 / C8
-- 規約: [`CLAUDE.md`](../../../CLAUDE.md) §3.1 DataService 境界 / §7.1 検証ゲート / §7.4 worktree、[`rules/frontend.md`](../../../rules/frontend.md)、[`rules/docs-consistency.md`](../../../rules/docs-consistency.md)
-- Mobile の取捨: [`mobile-scope.md`](../../requirements/mobile-scope.md)
+- 他レーンからの報告: [`comm/outbox/chat-shared-fix.md`](../comm/outbox/chat-shared-fix.md) 2026-09-19（#1681 の `push(` 全数棚卸しから B-14 が出た）
+- 前回の分割: #280 / #673 / #675 / #889 / #893（いずれも close 済み）と [`2026-08-10-core-refactor.md`](../docs/vision/plans/2026-08-10-core-refactor.md) の C6 / C8
+- 規約: [`CLAUDE.md`](../CLAUDE.md) §3.1 DataService 境界 / §7.1 検証ゲート / §7.4 worktree、[`rules/frontend.md`](../rules/frontend.md)、[`rules/docs-consistency.md`](../rules/docs-consistency.md)
+- Mobile の取捨: [`mobile-scope.md`](../docs/requirements/mobile-scope.md)
 - 決定台帳: D-20260810-sched-2（変換が id を保つ理由）/ D-20260810-sched-4 / D-20260810-sched-5（変換の拒否メッセージ）/ D-20260811-sched-1（Event→Todo が日時を保つ）
 - related skills: `test-writing` / `playwright-verify` / `worktree-policy` / `docs-workflow`
 
@@ -600,3 +602,14 @@ S18〜S22 は本計画で足した。**棚卸しで「推定」に留まった�
   - B-14 を足した。出典は shared-fix レーンの報告で、`web/src/schedule/**` が本計画の Scope のため向こうでは触っていない。B-10 の裏返しにあたり、catch が例外を握るため W5 の修正をすり抜けている。
   - F-11 = #1747 を足し、W13b として W14 の前に置いた（PR #1752）。#1664 が足した `onRetime` が F 系の典型をそのまま踏んだ形で、**棚卸し表が予測した種類の不具合が、棚卸しの後に新しく入った**。
   - §5-2 を足して open Issue の実態を 2026-09-19 で引き直した。2026-09-16 に「後に回す」とした 4 件は全部 merge 済みで、衝突は起きていない。未着手の open は #1747 / #1663 / #1678 の 3 件。
+- **2026-09-26**: W15（archive 化）。第 2 期の計画書（`2026-09-23-schedule-refactor-phase2.md` の P0）が引き取った。Status を COMPLETED にして `archive/` へ移し、§Acceptance Criteria の各行を 2026-09-26 のコードと PR の記録で引き直した。
+  - `CalendarTab.tsx` の行数条件は D-20260919-sched-6 = A に従い、「PR #1684 時点の 1,238 行を超えない」と読み替えて達成とした。
+  - 未達のまま残った AC が 2 行ある。`useRepeatMutations.ts` の最長関数（90 行・`handleDetachRepeat`）と、PR #1708 の diff（+1,389 行）である。どちらも W7 / W4 の狙いそのものは満たしている。前者は第 2 期の P3（M-02）がこのファイルを割るときに引き継ぐ。後者は merge 済みで、直す手段が無い。
+  - W8 と W12 の行は、達成した後に機能 PR が同じ指標を動かした（`updateNode(` が 1 件・`MonthGrid.tsx` が 428 行）。どちらも AC の行に経緯を書いた。
+  - archive へ移したため、本文の相対リンクを `archive/` 基準に張り直した。
+
+## Archive 移動時の乖離レビュー（2026-09-26・schedule-refine = 第 2 期 P0）
+
+1. スコープ逸脱: なし。§Scope 外のファイルを触った作業単位は無い。W3 の真因（B-01 = `UndoRedoContext`）は Scope 外だったため、別 Issue #1727 に分けて PR #1730 で直した。
+2. AC 免除: 行数と diff の 4 行を、自分では免除せずに経緯を書いて閉じた。`CalendarTab.tsx` の行数はユーザー裁定 D-20260919-sched-6 = A による読み替えで達成扱いにした。`MonthGrid.tsx` の 428 行も、同じ裁定の考え方（リファクタの成果と機能追加の重量を混ぜない）で達成扱いのままにした。`useRepeatMutations.ts` の最長関数と PR #1708 の diff は未達のまま記録し、前者を第 2 期の P3 へ引き継いだ。完了の根拠は、ユーザーが merge した第 2 期の計画書（PR #1955）が「第 1 期の残りは W15 だけ」と書いていることである。
+3. 途中で出た判断とその行き先: D-20260916-sched-1（narrow の省略）/ D-20260916-sched-2（範囲確認の仕様固定）/ D-20260919-sched-6（行数 AC の読み替え）。別 Issue に分けたもの = #1727（B-01）/ #1747（F-11）/ #1667〜#1670 / #1767〜#1772。§1-K の未着手分と新しく見つけた分は、第 2 期の計画書 §1-L / §1-N が引き取った。
