@@ -3,7 +3,7 @@ Status: Draft
 Created: 2026-09-23
 Branch: claude/schedule-refactor-plan2-1642
 Owner-chat: schedule-refine
-Previous: .claude/docs/vision/plans/2026-09-16-schedule-refactor.md (第 1 期。W0〜W14 と W16 は着地済みで、残る W15 = archive 化は本書の P0 が引き取る)
+Previous: .claude/archive/2026-09-16-schedule-refactor.md (第 1 期。W0〜W14 と W16 は着地済みで、W15 = archive 化は本書の P0 で済ませた)
 ---
 
 # Plan: Schedule コードのリファクタリング 第 2 期（失敗の扱いを揃え、機能が流れ込む 2 ファイルを割る）
@@ -355,3 +355,4 @@ AC を満たせない見込みになったら、自己免除せず **P-008** に
 - **2026-09-23**: 計画書の工程。不具合修正 9 本（#1827〜#1835）の merge を確かめ、origin/main `457b57e9` から読み直した。3 領域を並列で調べ、重い主張 11 件をメインが直接確かめた（§Context の表・棄却ゼロ）。棚卸しは第 1 期の残り 9 件（§1-L）と新規 16 件（§1-N）と構造 10 件（§1-M）で、作業単位は P0〜P13 の 14 本になった。コードは 1 行も変えていない。
   - 第 1 期の計画書は W15（archive 化）だけが残っていた。第 2 期の計画書を別ファイルで立て、W15 は本書の P0 が引き取る形にした。第 1 期の計画書は本 PR では触っていない。
   - N-03 が第 1 期の G-04 の記録（D-20260916-sched-1）と食い違うことを見つけた。UX が変わる判断なので本書では決めず、Q2 に置いた。
+- **2026-09-26**: P0。第 1 期の計画書を COMPLETED にして `.claude/archive/2026-09-16-schedule-refactor.md` へ移した。AC の各行を 2026-09-26 のコードと PR の記録で引き直し、`CalendarTab.tsx` の行数条件を D-20260919-sched-6 = A のとおり「PR #1684 時点の 1,238 行」で達成と書いた。乖離レビュー 3 行は第 1 期の計画書の末尾にある。未達のまま残った `useRepeatMutations.ts` の最長関数（90 行）は本書の P3 が引き継ぐ。
