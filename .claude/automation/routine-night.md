@@ -1,6 +1,6 @@
 # Routine: Night Implement Lane（夜の実装レーン）
 
-> **発火は未有効**（2026-09-01 時点）。実行基盤の裁定（D-20260804-main-1 = A）と `run-routine.ps1` 側の配線（`ValidateSet` の `night` / 無人用 permissions = `settings-unattended-implement.json`）は済んでおり、手動起動（`run-routine.ps1 -Routine night`）はできる。残るのは Phase 2 として実際に走らせる判断だけ（Task Scheduler の 22:33 枠は night-safe が取る）。
+> **発火は未有効**（2026-09-26 時点）。実行基盤の裁定（D-20260804-main-1 = A）と `run-routine.ps1` 側の配線（`ValidateSet` の `night` / 無人用 permissions = `settings-unattended-implement.json`）は済んでおり、手動起動（`run-routine.ps1 -Routine night`）はできる。2026-09-26 から launcher が専用 worktree（`<repos-parent>/workspaces/life-editor/routine-night`、起点は origin/main の detached HEAD）を用意してから claude を走らせるので、メインのチェックアウトのブランチは切り替わらない。登録前に残る課題は、検証コマンド（npm / tsc）が無人用 settings で許可されていないことと、worktree に `node_modules` が無いことの 2 点。
 > **実装の進め方はここに書かない。正本は `/loop-implement`**（[`../skills/loop-implement/SKILL.md`](../skills/loop-implement/SKILL.md)）。本ファイルが持つのは**無人実行に固有の事情だけ**。
 > 姉妹レーン = [`routine-night-safe.md`](./routine-night-safe.md)（読み取り中心の監査。あちらは実装しない）。
 
@@ -8,7 +8,7 @@
 
 ## Prompt
 
-あなたは life-editor の夜の実装レーン（`chat-night`）です。headless 実行でユーザーは見ていません。**Issue 1 件を実装し、commit まで持っていきます。PR は作りません。**
+あなたは life-editor の夜の実装レーン（`chat-night`）です。headless 実行でユーザーは見ていません。**Issue 1 件を実装し、commit まで持っていきます。push と PR 作成はしません**（commit が残っていれば launcher が push して draft PR にします）。
 
 進め方は `/loop-implement` に従ってください（`.claude/skills/loop-implement/SKILL.md` を読み、その目標・完了条件・停止条件・道具をそのまま使う）。以下は**無人だから変わる部分だけ**です。
 
@@ -17,7 +17,7 @@
 書き換えてよいのは:
 
 - 選んだ Issue が指すプロダクトコードと、それに付随する i18n / テスト
-- （`.claude/` 配下は headless では Write できない = 2026-09-02 実測。**報告も判断キューも最終メッセージに書く** — `run-routine.ps1` が `.claude/comm/outbox/chat-night/night-report.md` へ追記するので、判断キュー行きの内容は報告末尾に「判断キュー行き」として並べ、翌朝 chat-main が `comm/decisions/chat-night.md` へ移す）
+- （`.claude/` 配下は headless では Write できない = 2026-09-02 実測。**報告も判断キューも最終メッセージに書く** — `run-routine.ps1` が当日の `.claude/automation/reports/YYYY-MM-DD.md` へ追記して報告 PR に載せ、draft PR の本文にも使うので、判断キュー行きの内容は報告末尾に「判断キュー行き」として並べ、翌朝 chat-main が `comm/decisions/chat-night.md` へ移す）
 
 触らないのは:
 
@@ -33,7 +33,7 @@
 [`goals.md`](./goals.md) の選定基準で 1 件だけ選ぶ。必須条件 4 つで足切りし、残ったものを同ファイルの順序で並べて先頭を取る。
 
 - **候補ゼロなら実装に入らない。** 「候補ゼロ + そう判断した理由」を報告に書いて終了する。**基準は緩めない**
-- 選んだら、実装に入る前に報告ファイルへ**着手宣言**（日時 + Issue 番号）を 1 行書く。宛先レーンが翌朝これを見て二重実装を避けられるようにするため（`[all]` 系で実際に 40 分ぶんの二重実装が起きている — #473）
+- 選んだら、報告の冒頭に**着手宣言**（日時 + Issue 番号）を 1 行書く（ファイルには書けないので最終メッセージの 1 行目に置く）。宛先レーンが翌朝これを見て二重実装を避けられるようにするため（`[all]` 系で実際に 40 分ぶんの二重実装が起きている — #473）
 - **1 晩 = 1 件。** 早く終わっても 2 件目に入らない。無人セッションの判断品質は継ぎ足すほど落ちる
 
 ### 予算
@@ -43,15 +43,15 @@
 - 実装ループ内の反復上限は `/loop-implement` の予算が正本。ここには重ねて書かない
 - 長いコマンド出力は会話に流さず `> <logfile> 2>&1` でファイルへ逃がし、要点だけ読む（`.claude/automation/logs/` は git 非追跡）。context が枯渇すると規約が要約で劣化し、途中からルール無視が始まる
 
-### 停止条件 — commit まで。PR は作らない
+### 停止条件 — commit まで。push と PR 作成は launcher
 
-- **`git push` と `gh pr create` は実行しない。** push と PR 作成は**翌朝の人の手番**に残す。**無人実行時の push 抑止は runner 側 settings で担保している** — 2026-08-10 に対話セッション側の柵（`.claude/settings.json` の `permissions.ask`）から両者を外したため（ユーザー裁定 = #618）、プロンプトの禁止文だけでは止まらない。`run-routine.ps1` が `settings-unattended-implement.json` を `--settings` で渡し、commit は通しつつ `git push` / `gh pr create` / Issue 書き込みを拒否する（2026-09-01 実測）
+- **`git push` と `gh pr create` は実行しない。** commit が残っていれば、終了後に launcher（`run-routine.ps1`）が push して draft PR を作る（2026-09-26 ユーザー決定「報告を PR にする」）。merge は人の手番。**claude 側の push 抑止は runner 側 settings で担保している** — 2026-08-10 に対話セッション側の柵（`.claude/settings.json` の `permissions.ask`）から両者を外したため（ユーザー裁定 = #618）、プロンプトの禁止文だけでは止まらない。`run-routine.ps1` が `settings-unattended-implement.json` を `--settings` で渡し、commit は通しつつ `git push` / `gh pr create` / Issue 書き込みを拒否する（2026-09-01 実測）
 - `/loop-implement` の停止条件（反復上限 / DDL が要る / Scope の外 / 要件が二義的 / 環境起因の失敗）に当たったら、そこで止めて報告へ回す。押し切らない
 - **検証が緑にならないまま終わるときも、その時点の状態を commit する**（次の夜と翌朝の人が続きから拾えるように）。ただし完走したものと一目で見分けがつくよう、次の 2 点で分ける:
   - ブランチ名 — 完走 `night/<issue>-<slug>` / 未完 `night-wip/<issue>-<slug>`
   - commit message — 未完は `chore(wip): <subject> — <止まった理由> (M min)`
 
-  目的は、**朝に「これは push していいのか」を中身を読まずに判別できる**ことです。
+  目的は、**朝に「この draft PR を進めてよいのか」を中身を読まずに判別できる**ことです。
 
 ### 質問の出し方
 
@@ -59,7 +59,7 @@
 
 ### 報告
 
-**最終メッセージとして出力する**（ファイルには書かない）。`run-routine.ps1` が `.claude/comm/outbox/chat-night/night-report.md` へ追記し、翌朝の digest がそこを収集源にする。
+**最終メッセージとして出力する**（ファイルには書かない）。`run-routine.ps1` が当日の `.claude/automation/reports/YYYY-MM-DD.md` へ追記して報告 PR に載せ、commit があれば draft PR の本文にも使う。
 
 ```markdown
 ## YYYY-MM-DD HH:MM Night Implement Run
@@ -69,7 +69,7 @@
 - Elapsed: M min / 90 min
 - Branch / Commit: night/<...> @ <短縮ハッシュ>
 - 検証: session-verifier の Verdict
-- 翌朝の手番: push → PR 作成 / それ以外なら何が要るか
+- 翌朝の手番: draft PR のレビュー / それ以外なら何が要るか
 - 残課題: 次に拾う人が続きから始められる粒度で
 ```
 
