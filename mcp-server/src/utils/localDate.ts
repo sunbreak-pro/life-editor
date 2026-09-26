@@ -5,7 +5,7 @@
  * process's local timezone.
  *
  * WHICH LOCAL TIMEZONE (Remote MCP work — plan:
- * .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md). "The process's
+ * .claude/archive/2026-09-09-remote-mcp-mobile.md). "The process's
  * local timezone" is the right answer for the stdio server: it runs on the
  * owner's own machine, which is set to the zone the owner lives in. It is the
  * WRONG answer on Cloudflare Workers, whose isolates are always UTC and cannot

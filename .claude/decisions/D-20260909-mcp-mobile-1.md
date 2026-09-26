@@ -9,13 +9,13 @@ answer: A（Workers に Remote MCP 新設）+ 認証は MVP の共有トーク�
 topics: [mcp, remote-mcp, mobile, cloudflare-workers, auth]
 refs:
   [
-    "docs/vision/plans/2026-09-09-remote-mcp-mobile.md",
+    "archive/2026-09-09-remote-mcp-mobile.md",
     "2026-05-04-cross-platform-migration.md",
     "D-20260829-main-1",
   ]
 supersedes: ["2026-05-04-cross-platform-migration.md § 3. 制約 — 「AI 連携 = stdio MCP Server を terminal-division から起動（Remote MCP は採用しない）」"]
 superseded-by: []
-implemented-by: []
+implemented-by: ["#1589", "#1994"]
 promoted-to: null
 ---
 

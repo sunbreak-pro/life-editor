@@ -1,7 +1,7 @@
 name: Deploy — Remote MCP to Cloudflare Workers
 
 # スマホから life-editor の MCP ツールを叩くための Remote MCP Server の配布。
-# 設計・手順の正本 = .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md
+# 設計・手順の正本 = .claude/archive/2026-09-09-remote-mcp-mobile.md
 #
 # deploy-web.yml（公開 Web URL）とは別 Worker・別ファイル。あちらは静的アセット
 # 配信で main への push で自動配布するが、こちらは push では走らせない:

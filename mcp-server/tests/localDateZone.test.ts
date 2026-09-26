@@ -11,7 +11,7 @@ import {
 
 /*
  * The configurable timezone (plan:
- * .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md).
+ * .claude/archive/2026-09-09-remote-mcp-mobile.md).
  *
  * The stdio server takes its zone from the process, which is right on the
  * owner's machine and wrong on Cloudflare Workers: an isolate is always UTC

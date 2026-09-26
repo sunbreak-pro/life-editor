@@ -4,7 +4,7 @@ import { validateToolArgs, unknownArgNames } from "./utils/toolSchema.js";
 
 /*
  * The registry constructor, lifted out of tools.ts by the Remote MCP work
- * (plan: .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md).
+ * (plan: .claude/archive/2026-09-09-remote-mcp-mobile.md).
  *
  * `tools.ts` used to hold both the composition ("which domains does this
  * server publish?") and the mechanism ("how is a call validated and
