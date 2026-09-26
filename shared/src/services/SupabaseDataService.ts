@@ -25,6 +25,10 @@ import {
   PHASE2_ATTACHMENT_METHODS,
 } from "./SupabaseAttachmentsService";
 import {
+  SupabaseExportService,
+  PHASE2_EXPORT_METHODS,
+} from "./SupabaseExportService";
+import {
   SupabaseTodosService,
   PHASE2_TODOS_METHODS,
 } from "./SupabaseTodosService";
@@ -126,6 +130,8 @@ export function createSupabaseDataService(): DataService {
   // #1404: editor attachments. The one domain whose I/O is Storage rather than
   // PostgREST, hence its own class — it owns no table and no mapper.
   const attachmentsService = new SupabaseAttachmentsService(client);
+  // #1988: the whole-account export. Reads every user table, owns none.
+  const exportService = new SupabaseExportService(client);
 
   // Dispatch table: method name -> the instance that implements it. The
   // Proxy's target is arbitrary (an empty object); routing is entirely
@@ -143,6 +149,7 @@ export function createSupabaseDataService(): DataService {
     if (PHASE2_TIMER_METHODS.has(prop)) return timerService;
     if (PHASE2_AUDIO_METHODS.has(prop)) return audioService;
     if (PHASE2_ATTACHMENT_METHODS.has(prop)) return attachmentsService;
+    if (PHASE2_EXPORT_METHODS.has(prop)) return exportService;
     return null;
   };
 

@@ -58,6 +58,7 @@ import {
   useTranslation,
   getDataService,
   isMac,
+  isNativeMobile,
   lastBriefingDate,
   MCP_TOOL_CATALOG,
   type SettingsTabItem,
@@ -73,6 +74,7 @@ import { useProfileUpdate } from "../hooks/useProfileUpdate";
 import { useClaudeLauncher } from "../hooks/useClaudeLauncher";
 import { TrashScreen } from "../trash/TrashScreen";
 import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
+import { DataExportCard } from "./DataExportCard";
 import { openLegalDocument } from "../legal/legalUrl";
 
 /*
@@ -641,7 +643,7 @@ export function SettingsScreen({
   ];
 
   /*
-   * The DataService for the Trash body (#1293). Settings is a HOST, so calling
+   * The DataService for the Trash body (#1293) and the export card (#1988). Settings is a HOST, so calling
    * the singleton here is allowed (§6.4) — but `getDataService()` THROWS
    * SYNCHRONOUSLY when the app has no Supabase credentials, which is exactly
    * where the shape suites run. Catching it into `null` keeps that throw from
@@ -649,7 +651,7 @@ export function SettingsScreen({
    * the row then says why it is empty instead of showing a list it cannot
    * fetch.
    */
-  const trashService = useMemo(() => {
+  const dataService = useMemo(() => {
     try {
       return getDataService();
     } catch (e: unknown) {
@@ -859,6 +861,18 @@ export function SettingsScreen({
             />
           </div>
 
+          {/*
+           * #1988 — next to Account because it is the answer to the card
+           * above it: deletion is final, so the copy has to be one press
+           * away. Hidden inside the Capacitor shells, where a Blob download
+           * has nowhere to land; a phone browser still gets it.
+           */}
+          {!isNativeMobile() && (
+            <div className={cardClass}>
+              <DataExportCard dataService={dataService} />
+            </div>
+          )}
+
           <div className={cardClass}>
             <SettingsTutorial
               onOpen={() => setTutorialOpen(true)}
@@ -1026,14 +1040,14 @@ export function SettingsScreen({
               </p>
             </div>
           </div>
-          {trashService ? (
+          {dataService ? (
             <>
-              <TrashScreen dataService={trashService} />
+              <TrashScreen dataService={dataService} />
               {/*
                * Under the list, not above it: the sweep (#1438) is the rarer
                * errand of the two, and it is the one that cannot be undone.
                */}
-              <AttachmentCleanupCard dataService={trashService} />
+              <AttachmentCleanupCard dataService={dataService} />
             </>
           ) : (
             <div className={cardClass}>
