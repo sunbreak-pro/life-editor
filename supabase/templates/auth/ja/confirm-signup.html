@@ -1,0 +1,12 @@
+<!-- Subject: Life Editor の登録を完了してください -->
+<!-- Dashboard: Authentication → Emails → Templates → "Confirm signup". The Subject line above goes into the Subject field; paste everything below this comment block into the Body. -->
+<div style="font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Sans', 'Yu Gothic', sans-serif; font-size: 15px; line-height: 1.7; color: #1f2328; max-width: 520px;">
+  <p>Life Editor にご登録いただき、ありがとうございます。</p>
+  <p>下のボタンを押すと、メールアドレスの確認が済み、登録が完了します。</p>
+  <p style="margin: 24px 0;">
+    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 10px 20px; background: #1f2328; color: #ffffff; text-decoration: none; border-radius: 6px;">登録を完了する</a>
+  </p>
+  <p style="font-size: 13px; color: #59636e;">ボタンが開けない場合は、次の URL をブラウザに貼り付けてください。<br>{{ .ConfirmationURL }}</p>
+  <p style="font-size: 13px; color: #59636e;">リンクには有効期限があります。期限が切れたときは、ログイン画面から確認メールを再送してください。</p>
+  <p style="font-size: 13px; color: #59636e;">このメールに心当たりがない場合は、何もせずに削除してください。登録は完了しません。</p>
+</div>

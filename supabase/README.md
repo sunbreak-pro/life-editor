@@ -233,3 +233,123 @@ owner-scoped.
 
 See `migrations/0002_rls_tasks.sql` for the policy bodies, but **inline
 them into the create-table migration** for every Phase 2+ table.
+
+## Auth email — custom SMTP (#1986)
+
+Confirm email is ON (D-20260829-web-1), so a new user cannot sign in until
+the confirmation mail arrives. Supabase's built-in sender is for testing
+only: it sends a handful of mails per hour and delivers only to the
+project's team-member addresses. With more than one person signing up at
+once, mails stop arriving and those people are locked out. The fix is to
+point Supabase Auth at a free-tier transactional mail provider over SMTP.
+
+Everything in this section is **done in the Supabase Dashboard, the
+provider's console and DNS — by the owner, not by Claude**. The repo only
+keeps the procedure and a copy of the templates. **Never commit the SMTP
+password / API key** — it lives only in the Dashboard.
+
+Which provider to use is an open decision (D-20260926-web-1 in
+`.claude/comm/decisions/chat-web-public.md`). The steps below are written
+so they do not depend on that choice.
+
+### Prerequisite: a sending domain you control
+
+Every candidate provider needs the "From" address to be on a domain whose
+DNS you can edit, so it can publish SPF and DKIM records for it. Two
+things do **not** work:
+
+- `life-editor.sunbreak-pro.workers.dev` — the domain belongs to
+  Cloudflare; you cannot add TXT records to it.
+- A free-mail sender such as `…@gmail.com` — providers may let you verify
+  it as a single sender, but Gmail / Yahoo reject or spam-folder it because
+  it fails DMARC alignment (Brevo's own help says free-mail domains cannot
+  be authenticated).
+
+A subdomain of a domain you already own is enough (e.g.
+`mail.example.com`, From = `no-reply@mail.example.com`).
+
+### Setup steps
+
+1. **Create the provider account** on the free tier. No credit card
+   should be needed; if the signup asks for one, stop — the project runs
+   at $0.
+2. **Verify the sending domain.** Add the SPF / DKIM (and, if offered,
+   return-path / DMARC) records the provider shows to your DNS, then wait
+   for the provider's console to mark the domain as verified. DNS can take
+   from minutes to a day to propagate.
+3. **Create an SMTP credential** in the provider console. Copy host,
+   port, username and password into a password manager only.
+4. **Enter it in Supabase**: Dashboard → Authentication → Emails →
+   SMTP Settings → enable **Custom SMTP** and fill in:
+
+   | Field        | Value                                               |
+   | ------------ | --------------------------------------------------- |
+   | Sender email | `no-reply@<your verified domain>`                   |
+   | Sender name  | `Life Editor`                                       |
+   | Host / Port  | from the provider (use 587 / STARTTLS or 465 / SSL) |
+   | Username     | from the provider                                   |
+   | Password     | the SMTP credential from step 3                     |
+
+   Reference values for the two front-runners (confirm in the provider's
+   docs at setup time): Resend = `smtp.resend.com`, username `resend`,
+   password = an API key; Brevo = `smtp-relay.brevo.com`, username = the
+   account login email, password = an **SMTP key** (not the API key).
+
+5. **Check the send rate limit**: Dashboard → Authentication → Rate
+   Limits. Turning on custom SMTP sets the email limit to a low default
+   (30 per hour). That already covers the 10–20 distribution users; raise
+   it only if the provider's daily cap allows.
+6. **Paste the templates** from `templates/auth/` (next section).
+7. **Test** (the DoD of #1986): sign up with a fresh address and confirm
+   the mail arrives within a minute from your domain; request a password
+   reset and confirm it arrives the same way; send 5 mails within 5
+   minutes (sign-ups + "resend confirmation") and confirm none is refused.
+   If a mail is missing, the provider's log shows whether Supabase handed
+   it over at all.
+
+The Dashboard menu names above are as of 2026-09. If they move, search
+the Dashboard for "SMTP" / "Rate Limits".
+
+### Email templates (`templates/auth/`)
+
+The Dashboard is the source of truth; `templates/auth/{ja,en}/` is a copy
+so the wording is reviewed in PRs and can be restored. The app sends only
+two kinds of auth mail, so only these two are kept:
+
+| Dashboard template | File                  | Sent by (`shared/src/services/SupabaseAuth.ts`) |
+| ------------------ | --------------------- | ----------------------------------------------- |
+| Confirm signup     | `confirm-signup.html` | `signUp`, `resendConfirmationEmail`             |
+| Reset password     | `reset-password.html` | `sendPasswordResetEmail`                        |
+
+Each file's first comment line is the **Subject**; the rest is the
+**Body**. The link must stay `{{ .ConfirmationURL }}` — it carries the
+redirect the app passes (`authRedirectUrl()`), so the flow behaves exactly
+as it does with Supabase's default templates.
+
+Supabase stores **one body per template type** and does not pick a
+language per user (the app does not record the user's language in
+`user_metadata` either). So only one of `ja/` / `en/` can be live at a
+time. Which one is an open decision (D-20260926-web-2). If you edit a
+template in the Dashboard, update the copy here in the same PR-sized
+change so the two do not drift.
+
+### Rollback to the built-in sender
+
+Use this when the provider fails (account suspended, domain unverified,
+free tier ended) and a fix is not quick.
+
+1. Dashboard → Authentication → Emails → SMTP Settings → turn **Custom
+   SMTP** off and save. Auth immediately falls back to Supabase's
+   built-in sender. The templates stay as they are.
+2. **The built-in sender delivers only to team-member addresses.** While
+   it is active, anyone else who signs up never gets a confirmation mail
+   and cannot sign in. If distribution users are still signing up, turn
+   **Confirm email** off (Authentication → Sign In / Providers → Email)
+   for the duration — the revival condition recorded in
+   D-20260829-web-1. The app works with it on or off (#1197). Anyone who
+   signed up before the switch and never got their mail can use
+   "resend confirmation" once custom SMTP is back.
+3. Rotate or delete the SMTP credential in the provider console if the
+   reason was a leak or an abandoned provider.
+4. When custom SMTP is back, turn Confirm email on again and re-run the
+   tests in step 7.
