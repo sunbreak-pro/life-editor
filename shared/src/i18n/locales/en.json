@@ -138,6 +138,14 @@
       "description": "A short guided walk through the app. It runs once the first time you open Life Editor — open it from here whenever you want a section shown to you again.",
       "button": "Open the tutorial"
     },
+    "dataExport": {
+      "heading": "Download your data",
+      "description": "Save everything in this account — todos, schedule, routines, notes, dailies, tags, timer history and sound settings, including items in Trash — as one JSON file. Attached files are not included; their locations are kept inside the notes.",
+      "button": "Download as JSON",
+      "busy": "Preparing…",
+      "done": "Saved {{rows}} items to {{file}}.",
+      "error": "Could not prepare the file. Nothing was changed — please wait a moment and try again."
+    },
     "legal": {
       "heading": "Policy and terms",
       "description": "What this app does with your data, and the terms you are using it under."

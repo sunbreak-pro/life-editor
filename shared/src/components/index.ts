@@ -304,6 +304,12 @@ export {
 // Policy + terms card (#1251) — the signed-in door to the documents #1198
 // shipped. Links only; the reader they open lives in the web host.
 export { SettingsLegal, type SettingsLegalProps } from "./SettingsLegal";
+// Whole-account export card (#1988) — one button, one JSON file. The read is
+// DataService.exportUserData(); the download is the web host's.
+export {
+  SettingsDataExport,
+  type SettingsDataExportProps,
+} from "./SettingsDataExport";
 // Help and contact (#1989): the Settings card that opens the help dialog, and
 // the dialog's body (tutorial door, FAQ, contact links) shared with the
 // sign-in screen. The contacts themselves come from the web host's operator.ts.
