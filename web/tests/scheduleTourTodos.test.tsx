@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
 import { afterEach, describe, it, expect, vi } from "vitest";
 import { act, render, screen } from "@testing-library/react";
 import {
@@ -29,14 +26,14 @@ import type { ScheduleSidebarProps } from "../src/schedule/ScheduleSidebar";
  *   - the SIDEBAR half renders for real. The tray is a plain component and the
  *     tour reads the DOM, so "the anchor exists" and "opening the tab advances
  *     the step" are both observable facts here;
- *   - the HOST half is asserted on source text. The two status writers and the
- *     create handler live in CalendarTab, which needs the full Provider chain
- *     plus real layout to mount, so no web test renders it (rules/frontend.md
- *     §テスト環境の制約, D-20260812-refactor-2 — the same escape hatch
- *     scheduleNarrowAdd.test.ts takes for the same file). Handing a raw writer
- *     to either consumer breaks neither the build nor any other test: the tour
- *     simply stops advancing, which is the failure #1124 is most likely to
- *     ship unnoticed.
+ *   - the HOST half — the two status writers and the create handler, which
+ *     live in CalendarTab — is in scheduleTourHost.test.tsx (#1642 P1).
+ *     It used to be asserted on source text at the bottom of this file; it
+ *     now mounts the host through helpers/calendarTabHarness, which fakes the
+ *     Context hooks this file's real TourProvider needs, so the two halves
+ *     cannot share one module graph. Handing a raw writer to either consumer
+ *     breaks neither the build nor any other test: the tour simply stops
+ *     advancing, which is the failure #1124 is most likely to ship unnoticed.
  *
  * `useTranslation` is stubbed to echo its key, matching scheduleSidebar's own
  * suite. <TagPicker> is stubbed because it talks to WikiTagsUnifiedContext,
@@ -239,42 +236,5 @@ describe("Schedule tour — opening the todos (#1124 / #1153)", () => {
     await frame();
 
     expect(step()).toBe("open");
-  });
-});
-
-const here = dirname(fileURLToPath(import.meta.url));
-const hostSource = readFileSync(
-  resolve(here, "../src/schedule/CalendarTab.tsx"),
-  "utf8",
-).replace(/\r\n/g, "\n");
-
-describe("Schedule tour — the host's todo writes (#1124 / #1153)", () => {
-  it("reports a created todo from the one handler that makes one", () => {
-    // "Add to today" moves an existing todo onto a day, which is not what the
-    // step teaches — so the report belongs to the create handler alone.
-    // The window is a proximity check, not a budget: #1640 put the "which
-    // list did the pill come from" branch between the two, which is why it is
-    // wider than it was.
-    expect(hostSource).toMatch(
-      /addNode\("task", null, input\.title\)[\s\S]{0,1000}TOUR_ACTIONS\.scheduleTodoCreated/,
-    );
-  });
-
-  it("hands both status writers to their consumers wrapped", () => {
-    // The tray's checkbox goes through useScheduleTodoChips, the detail's
-    // toggle and status row go through todoDetail.writes. A raw writer at
-    // either site leaves the complete step waiting forever.
-    expect(hostSource).toContain("setTodoStatus: setTodoStatusReported");
-    expect(hostSource).toContain("toggleStatus: toggleTodoStatusReported");
-    expect(hostSource).toContain("setStatus: setTodoStatusReported");
-  });
-
-  it("reports completion only for a write that finishes something", () => {
-    // Re-opening a todo is a status write too. Both wrappers test before they
-    // report — the toggle reads the status BEFORE the flip.
-    expect(hostSource).toContain('if (status === "DONE") {');
-    expect(hostSource).toMatch(
-      /const completes =[\s\S]{0,200}!==\s*"DONE";[\s\S]{0,200}toggleTodoStatus\(id\)/,
-    );
   });
 });

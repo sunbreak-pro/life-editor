@@ -1,6 +1,3 @@
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { NarrowHeaderRow } from "../src/NarrowHeaderRow";
@@ -18,31 +15,13 @@ import { SECTION_DESCRIPTORS } from "../src/sectionDescriptors";
  * context, so the descriptor's own shape can be fed straight into it and the
  * resulting DOM order asserted.
  *
- * The departure half — "the hamburger left the date row" — is source text,
- * which no other schedule gate here does. It is the only option:
- * rules/frontend.md §テスト環境の制約 names CalendarTab as the screen jsdom
- * cannot carry (the full Provider chain plus real layout), and `useMediaQuery`
- * falls back to WIDE without a `matchMedia` stub, so a naive render would
- * exercise the desktop branch and prove nothing about the narrow row. The
- * regression being guarded — a second hamburger creeping back into the date
- * row — breaks neither the build nor any render.
- *
- * #889 moved that date row out of CalendarTab into <CalendarNarrowLayout>, so
- * both files are read and joined. Pinning only the host would leave the gate
- * pointing at a file the row no longer lives in — passing forever, and blind
- * to the one place the toggle could actually come back.
+ * The departure half — "the hamburger left the date row" — renders the host
+ * and lives in scheduleNarrowHost.test.tsx (#1642 P1; it used to be source
+ * text read here).
  *
  * No jest-dom in web/: presence is asserted through getBy* (which throws when
  * missing) and absence through queryBy* being null.
  */
-
-const here = dirname(fileURLToPath(import.meta.url));
-const narrowSource = [
-  "../src/schedule/CalendarTab.tsx",
-  "../src/schedule/CalendarNarrowLayout.tsx",
-]
-  .map((rel) => readFileSync(resolve(here, rel), "utf8").replace(/\r\n/g, "\n"))
-  .join("\n");
 
 describe("narrow Schedule hamburger (#1033)", () => {
   it("asks the shell for the hamburger + tabs row", () => {
@@ -75,17 +54,5 @@ describe("narrow Schedule hamburger (#1033)", () => {
       .map((b) => b.textContent)
       .join(",");
     expect(order).toBe("hamburger,tabs,undo");
-  });
-
-  it("no longer draws its own toggle in the date row", () => {
-    // The symbol, not the JSX: re-adding either the import or the element
-    // fails, and neither file has another legitimate use of it.
-    expect(narrowSource).not.toContain("RightSidebarToggle");
-  });
-
-  it("took the hand-rolled copy with it", () => {
-    // These two catalog keys had exactly one call site, in the date row.
-    // Leaving the reference behind in either file would resurrect them.
-    expect(narrowSource).not.toMatch(/scheduleScreen\.(open|close)Menu/);
   });
 });
