@@ -6,6 +6,18 @@ export type {
   StoredAttachment,
 } from "./services/DataService";
 export { createSupabaseDataService } from "./services/SupabaseDataService";
+// #1988 — the whole-account export: its file shape, name and row count. The
+// read is `DataService.exportUserData()`; the download is the host's.
+export {
+  USER_DATA_EXPORT_SCHEMA_VERSION,
+  USER_DATA_EXPORT_TABLES,
+  userDataExportFileName,
+  countUserDataExportRows,
+} from "./services/userDataExport";
+export type {
+  UserDataExport,
+  UserDataExportTable,
+} from "./services/userDataExport";
 // #625: hosts branch their failure message on `reason` (a refusal the DB
 // enforces reads differently from a dropped request), and log the raw error
 // next to the sentence they show — a toast that says "failed" and nothing in

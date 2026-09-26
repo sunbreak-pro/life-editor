@@ -4,6 +4,7 @@ import type {
   TagGroupsDataService,
   DailiesUnifiedDataService,
   DataService,
+  ExportDataService,
   ItemConversionDataService,
   NotesUnifiedDataService,
   RoutinesDataService,
@@ -24,6 +25,12 @@ import {
   PHASE2_ATTACHMENT_METHODS,
   type AttachmentMethodName,
 } from "./SupabaseAttachmentsService";
+import {
+  SupabaseExportService,
+  PHASE2_EXPORT_METHOD_NAMES,
+  PHASE2_EXPORT_METHODS,
+  type ExportMethodName,
+} from "./SupabaseExportService";
 import {
   SupabaseTagGroupsService,
   PHASE2_TAG_GROUP_METHOD_NAMES,
@@ -128,6 +135,9 @@ export type AudioRoutingIsExact = AssertNever<
 export type AttachmentsRoutingIsExact = AssertNever<
   Mismatch<AttachmentsDataService, AttachmentMethodName>
 >;
+export type ExportRoutingIsExact = AssertNever<
+  Mismatch<ExportDataService, ExportMethodName>
+>;
 export type TagGroupsRoutingIsExact = AssertNever<
   Mismatch<TagGroupsDataService, TagGroupMethodName>
 >;
@@ -156,6 +166,7 @@ export type RoutedMethodName =
   | TimerMethodName
   | AudioMethodName
   | AttachmentMethodName
+  | ExportMethodName
   | TagGroupMethodName
   | RoutinesMethodName
   | ScheduleItemMethodName
@@ -205,6 +216,12 @@ export const PHASE2_ROUTING_DOMAINS = [
     names: PHASE2_ATTACHMENT_METHOD_NAMES,
     methods: PHASE2_ATTACHMENT_METHODS,
     service: SupabaseAttachmentsService,
+  },
+  {
+    domain: "export",
+    names: PHASE2_EXPORT_METHOD_NAMES,
+    methods: PHASE2_EXPORT_METHODS,
+    service: SupabaseExportService,
   },
   {
     domain: "tagGroups",
