@@ -1,5 +1,20 @@
 # HISTORY archive 2026-09 (chat-main)
 
+### 2026-09-07 - macOS 実機受け入れ（#1301 Step 8）通過 — 移行 SSOT の Phase 3 完了 + 未署名起動の条件を訂正
+
+#### 概要
+
+ユーザー依頼「mac でのアプリ化や実機検証を進めたい。古いアプリの方は削除して OK」。**ローカルビルドを選ばず**、2026-09-05 の run 33958069275 が残していた `desktop-macos` artifact（`Life Editor-0.1.0-arm64.dmg`・99 MB・9/19 まで有効）を Apple Silicon 実機に入れて受け入れを通した。判断根拠は 2 つ — 実 DMG 生成は数 GB 食い、空き 15 GB のこの機械では枯渇で Bash ごと止まる事故歴がある（memory `electron-dmg-disk-exhaustion`）／ `desktop/README.md` 自身が「配る物そのものを受け入れる」と定めている。結果、**移行 SSOT の Phase 3 完了判定 3 項目が全部埋まった**。docs 追随 = PR #1565 open。
+
+#### 変更点
+
+- **旧アプリの始末**: `/Applications/Life Editor.app` は**旧 Tauri 版**と特定して `~/.Trash/Life Editor (tauri-2026-05-16).app` へ退避（`com.lifeEditor.app.newlife` / 26 MB / `Contents/Frameworks` 無し / 2026-05-16。新 Electron 版は `com.life-editor.app` / 244 MB / Electron Framework あり）。**`cp -R` は既存 bundle を置き換えない**ので、退けないと古い方が残り続ける — README の受け入れ手順に明記した
+- **通した項目**: `hdiutil attach` → `/Applications` → 起動（**警告ゼロ**）→ **プロセス 4 本**（main / GPU / network utility / renderer = #545 の基準）→ サインインカード描画 → ネイティブ Menu → `app.asar` に本番 Supabase ホスト（packaging を跨いで生存）→ **Dock アイコンが `resources/icon.icns` 由来**（#1301 の «icns が実際にアイコンになるか» が実測で埋まった）→ **メニューバーのトレイ常駐**（`extraResources` + `process.resourcesPath` の prod 経路が効いている = `2026-06-19-step1-desktop-daily-driver.md` Risks 1 行目の懸念が解消）→ **ログイン → 全 Section 表示**（ユーザー目視）
+- **訂正した知見（ここが本題）**: README と計画書 R1 の「未署名だから Apple Silicon で拒否される」は**条件が 2 つ抜けていた**。① 拒否は `.dmg` に `com.apple.quarantine` が付いている時**だけ**起きる（Gatekeeper はこの検疫フラグを見て評価に入るので、無ければ評価自体が走らない）。付けるのは LaunchServices 経由 = **ブラウザ / Mail**、`gh run download` / `curl` は付けない → **Release から落とす配布先は全員が当たり、CI artifact を触る開発側は一生見ない**という非対称がある ② 署名は「無い」のではなく **ad-hoc（linker-signed）が実在**する（`codesign -dv` → `Signature=adhoc` / `Sealed Resources=none`。Electron 本体のバイナリがリンカ由来の署名を持つ）。`spctl -a -vv` は `code has no resources but signature indicates they must be present` で reject — **「署名が無いから落ちる」ではなく「壊れた署名として落ちる」**が正確
+- **事故 1 件（手順に反映）**: 残っていたログイン確認を自動化しようとして `System Events` の座標クリックを 1 回撃ったところ、**フォアグラウンドが Life Editor ではなく無関係なアプリの購入画面**で、そこに落ちた（購入ボタンとは別座標のため実害なし・即中止）。`activate` はその後もフォアグラウンドである保証にならない。**macOS で画面全体対象の合成クリックは使わない**。観測は `screencapture` + `pgrep` で足り（受け入れの 4 項目はこれで測れる）、資格情報が要る確認は人手に返す
+- **docs（PR #1565・4 ファイル）**: 移行 SSOT の Phase 3 チェックボックス群 + 完了判定 3 項目 + Status 行 / packaging 計画書の Status・Step 8・AC・R1・Worklog / step1 計画書の Mac ゲート（トレイ常駐だけ消化・`[~]`）/ `desktop/README.md`（macOS の受け入れコマンド・mac 限定チェック 7・8 = Dock アイコンとトレイ・合成クリック禁止・quarantine の条件・ad-hoc 署名の実態）。`LC_ALL=C bash scripts/docs-lint.sh` exit 0
+- **残り = 🛑 ユーザー手番 2 つ**: ① `git tag desktop-v0.1.0 && git push origin desktop-v0.1.0`（draft Release に `.dmg` / `.exe` が載って #1300 / #1301 の DoD が埋まる）② Windows 実機での実アカウントログイン + Todo CRUD。**Linux AppImage の実ビルドだけ未実測**（`release-desktop.yml` に linux ジョブが無い・宣言だけある。起票要否は未判断）
+
 ### 2026-09-06 - open Issue 33 件を 9 レーンへ /goal 組み立て + 同日 merge の Mobile 修正 6 本を実ブラウザ検証
 
 #### 概要
