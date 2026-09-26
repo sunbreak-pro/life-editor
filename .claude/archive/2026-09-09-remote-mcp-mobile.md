@@ -1,15 +1,15 @@
 ---
-Status: IN PROGRESS
+Status: COMPLETED
 Created: 2026-09-09
 Branch: claude/life-editor-mcp-mobile-g3hpu6
-Owner-chat: mcp-mobile
-Parent: ../../../2026-05-04-cross-platform-migration.md
+Owner-chat: mcp-mobile # Step 3〜5 の本番化は chat-main（2026-09-26・#1994）
+Parent: ../2026-05-04-cross-platform-migration.md
 ---
 
 # Plan: Remote MCP Server — スマホから life-editor のツールを叩く
 
 > 「MCP をスマホからでもアクセス可能にしたい」（2026-09-09 ユーザー要望）への実装計画。
-> 判断の正本 = [`decisions/D-20260909-mcp-mobile-1.md`](../../../decisions/D-20260909-mcp-mobile-1.md)
+> 判断の正本 = [`decisions/D-20260909-mcp-mobile-1.md`](../decisions/D-20260909-mcp-mobile-1.md)
 
 ---
 
@@ -121,9 +121,10 @@ npm run deploy
 curl https://life-editor-mcp.<subdomain>.workers.dev/health
 ```
 
-5. Claude アプリ（iOS / Android）または claude.ai → 設定 → コネクタ → カスタムコネクタを追加
-   - URL: `https://life-editor-mcp.<subdomain>.workers.dev/mcp/<LIFE_EDITOR_MCP_TOKEN>`
-   - OAuth の欄は空のまま（このサーバーは OAuth を実装しない）
+5. claude.ai（Web）→ Customize → Connectors → Add custom connector（スマホアプリ上での追加はベータで、Web で追加すれば同じアカウントのスマホにそのまま出る）
+   - URL: `https://life-editor-mcp.sunbreak-pro.workers.dev/mcp/<LIFE_EDITOR_MCP_TOKEN>`
+   - **Authentication は必ず「No sign-in」を選ぶ**。OAuth 系（Sign in now 等）で追加すると、`initialize` が 200 で通っても Claude が `/.well-known/oauth-*` → `POST /register` へ進み、「サインインサービスに登録できませんでした」で止まる（2026-09-26 実測）。認証設定は追加後に変えられないので、間違えたら削除して追加し直す
+   - トークンは小文字 16 進で 64 文字（`node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`）。Cloudflare からは読み出せないので控えておく
 
 Desktop の Claude Code から同じ Worker を使う場合:
 
@@ -143,9 +144,9 @@ claude mcp add --transport http life-editor-remote \
 - [x] `cd mcp-server && npx wrangler@4 deploy --dry-run` exit 0（bundle が node:fs で落ちない）
 - [x] `tests/remoteRegistry.test.ts` が「remote = 全ツール − verification」を pin
 - [x] `tests/worker.test.ts` が 誤トークン / 誤パス / トークン未設定 の 3 経路すべてで 404 を pin
-- [ ] （Step 4 後）`curl https://<worker>/health` が `{"ok":true}`
-- [ ] （Step 5 後）スマホの Claude からツールが 1 本以上成功
-- [ ] 完了時: 本 plan の Status を COMPLETED にして `archive/` へ移動
+- [x] （Step 4 後）`curl https://<worker>/health` が `{"ok":true}`（2026-09-26 実測）
+- [x] （Step 5 後）スマホの Claude からツールが 1 本以上成功（2026-09-26 ユーザー実機確認）
+- [x] 完了時: 本 plan の Status を COMPLETED にして `archive/` へ移動
 
 ---
 
@@ -166,8 +167,9 @@ claude mcp add --transport http life-editor-remote \
 
 ## References
 
-- 移行 SSOT: [`2026-05-04-cross-platform-migration.md`](../../../2026-05-04-cross-platform-migration.md) §3 制約表（Remote MCP の項を本プランで更新）
-- 判断: [`D-20260909-mcp-mobile-1.md`](../../../decisions/D-20260909-mcp-mobile-1.md)
+- 移行 SSOT: [`2026-05-04-cross-platform-migration.md`](../2026-05-04-cross-platform-migration.md) §3 制約表（Remote MCP の項を本プランで更新）
+- 判断: [`D-20260909-mcp-mobile-1.md`](../decisions/D-20260909-mcp-mobile-1.md)
+- 本番化の追跡: #1994
 - CLAUDE.md §5 AI Integration
 
 ---
@@ -176,3 +178,9 @@ claude mcp add --transport http life-editor-remote \
 
 - **2026-09-09**: Step 1-2 実装。`wrangler dev --local`（workerd 実機）で health / 404 / initialize / tools\:list(32 本) / notifications 202 / 資格情報不正時の isError を実測。bundle は gzip 215 KiB（無料枠上限 3 MiB に対し十分小さい）
 - **設計上の気付き**: `localDate.ts` の TZ 依存は「Workers に載せる」まで誰も踏まなかった地雷。stdio 側は挙動据え置きにしたので、既存の朝刊経路への影響はゼロ
+- **2026-09-12**: Step 6 = PR #1589 merged（`10ac1a75`）
+- **2026-09-26**（chat-main・#1994）: Step 3〜5 を実施して本番化。`npm run deploy` で初回配布（Version `e1e9356d`）→ `/health` が `{"ok":true}`・誤トークン / トークンなしの `POST /mcp` が 404 を実測 → シークレット 5 本を投入 → claude.ai にコネクタ登録 → スマホの Claude からツール成功をユーザーが確認。つまずきは 2 つ: ① シークレット名の打ち間違い（`..._ANON_KEYL`）で Supabase の鍵が欠け、`wrangler secret list` の目視で発見 ② コネクタを OAuth 系の認証設定で追加していたため、`initialize` 200 の後に Claude が `/.well-known/oauth-*` と `POST /register` を試して失敗（`wrangler tail` で実測・トークンは長さだけ残して伏せた）。No sign-in で登録し直して解決し、手順 5 に明記した
+- **乖離レビュー**:
+  1. **スコープ逸脱**: なし。Step 3〜5 は運用作業で、コードは触っていない。archive 移動に伴い、この計画書のパスを参照していたコードコメントと docs を `archive/` へ付け替えた（中身の変更なし）
+  2. **AC 免除**: なし（全項目 `[x]`）
+  3. **途中で出た判断の行き先**: 本番のトークンが 8 文字で推測に弱い → 64 文字への差し替えを #1994 のコメントでユーザー判断に回した。per-user OAuth（案 B）は配布ユーザーへ MCP を開くときの課題として D-20260909-mcp-mobile-1 に残っている

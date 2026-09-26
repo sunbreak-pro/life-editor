@@ -1,6 +1,6 @@
 {
   // Remote MCP Server（スマホからの MCP アクセス = 2026-09-09 の方針転換）。
-  // 設計と手順の正本 = .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md
+  // 設計と手順の正本 = .claude/archive/2026-09-09-remote-mcp-mobile.md
   //
   // web/wrangler.jsonc（静的アセット配信）とは別 Worker。あちらはコードを
   // 1 行も持たない配信専用で、こちらは fetch ハンドラを持つ実行 Worker。

@@ -406,7 +406,7 @@ life-editor/
 
 - [x] `mcp-server/` を Postgres 接続版に書き換え(better-sqlite3 → @supabase/supabase-js)（README「life-editor MCP のツールはすべて Supabase 接続」）
 - [x] Desktop 殻から素の `claude` を起動する常設導線（サイドバー下部 + Settings の AI 連携カード = #1211。旧「terminal-division の Main process からブリッジ」を置換）
-- [ ] **Remote MCP を本番へ**: 計画書 [`2026-09-09-remote-mcp-mobile.md`](./docs/vision/plans/2026-09-09-remote-mcp-mobile.md) の Step 3〜5（🛑 シークレット投入 / Worker deploy / スマホの Claude アプリにコネクタ登録）
+- [x] **Remote MCP を本番へ**: 計画書 [`2026-09-09-remote-mcp-mobile.md`](./archive/2026-09-09-remote-mcp-mobile.md) の Step 3〜5（2026-09-26 #1994 — `https://life-editor-mcp.sunbreak-pro.workers.dev` に配布・コネクタは No sign-in で登録）
 - ~~electron-updater + GitHub Releases 設定~~ → **完成後の判断へ移動**（署名と同時に配線。未署名のまま有効化しない — `desktop/src/main/index.ts` の雛形はそのまま。D-20260923-main-1）
 - [x] **Web URL 公開**: Cloudflare Workers (Static Assets) デプロイ（2026-08-09 #600 — `https://life-editor.sunbreak-pro.workers.dev`・$0。Pages ではなく Workers なのは Cloudflare が Pages を Workers へ吸収する方向のため）
 
@@ -425,7 +425,7 @@ life-editor/
 #### Phase 5 完了判定 = **完成**（2026-09-23 改訂 = D-20260923-main-1。旧 8 条件のうち「terminal-division 経由の MCP」と「auto-update」を置換・除外）
 
 - [x] Desktop 殻から `claude` を起動し、stdio MCP 経由で Todos を操作できる（#1211 — 旧「terminal-division から」を置換）
-- [ ] Remote MCP をスマホの Claude アプリから 1 本成功させる（計画書 2026-09-09 の AC。🛑 Step 3〜5 が未実施）
+- [x] Remote MCP をスマホの Claude アプリから 1 本成功させる（2026-09-26 ユーザー実機確認 = #1994）
 - [x] Web URL が公開されている（2026-08-09 #600 — `https://life-editor.sunbreak-pro.workers.dev`）
 - [x] `frontend/` + `src-tauri/` + `cloud/` が依存に残っていない（2026-07-11 #197 — 3 ツリーとも削除済み。旧 build.yml / .ignore / loop-engine check.sh の残存参照も同時整理）
 - [x] Desktop の未署名インストーラが Windows / macOS で配れる（#1300 / #1301 — 2026-09-07 macOS 実機受け入れ。残 = Windows 実機ログイン + Todo CRUD と draft Release 公開 = `docs/vision/plans/2026-08-30-desktop-app-packaging.md`）

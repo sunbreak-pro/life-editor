@@ -8,7 +8,7 @@ import { VERIFICATION_TOOLS } from "../src/tools/verification.js";
 
 /*
  * The remote (Cloudflare Worker) tool set — plan:
- * .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md
+ * .claude/archive/2026-09-09-remote-mcp-mobile.md
  *
  * Two things can silently break the phone, and neither shows up on the
  * desktop:

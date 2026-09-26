@@ -27,7 +27,7 @@ import { VERIFICATION_TOOLS } from "./tools/verification.js";
  * nothing reads it positionally (`TOOLS` is looked up by name).
  *
  * The composition is now in two pieces (Remote MCP work — plan:
- * .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md). Everything
+ * .claude/archive/2026-09-09-remote-mcp-mobile.md). Everything
  * portable lives in `remoteTools.ts`, which the Cloudflare Worker serves as
  * is; THIS list is that one plus the verification domain, which only a local
  * process can run (it keeps a ledger on disk). Adding a domain therefore means

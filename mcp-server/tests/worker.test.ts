@@ -7,7 +7,7 @@ import { configureTimeZone } from "../src/utils/localDate.js";
 
 /*
  * The Worker's HTTP surface — plan:
- * .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md
+ * .claude/archive/2026-09-09-remote-mcp-mobile.md
  *
  * This is the only part of the MCP server exposed to the public internet, so
  * the half of this suite that matters most is the half about what it REFUSES:

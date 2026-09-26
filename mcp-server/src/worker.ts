@@ -9,7 +9,7 @@ import { configureTimeZone, currentTimeZone } from "./utils/localDate.js";
 /*
  * The Cloudflare Worker edition of the MCP server — the phone's way in.
  *
- * Plan: .claude/docs/vision/plans/2026-09-09-remote-mcp-mobile.md
+ * Plan: .claude/archive/2026-09-09-remote-mcp-mobile.md
  *
  * WHY THIS EXISTS. `index.ts` speaks MCP over stdio, which means the client
  * has to be able to START the process: Claude Code on the owner's Mac, and
