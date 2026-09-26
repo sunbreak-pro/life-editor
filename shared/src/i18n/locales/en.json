@@ -150,6 +150,11 @@
       "heading": "Policy and terms",
       "description": "What this app does with your data, and the terms you are using it under."
     },
+    "help": {
+      "heading": "Help and contact",
+      "description": "How to use the app, answers to common questions, and where to ask when those are not enough.",
+      "button": "Open help"
+    },
     "ai": {
       "heading": "AI integration",
       "description": "Claude Code connects straight to this app's database. Start it on your computer and it reaches the same todos, schedule, notes and dailies these screens show, through the MCP server. The app itself never calls an AI.",
@@ -1270,6 +1275,9 @@
       "noSession": "Signed up, but no session was started. Try signing in with the address and password you just used.",
       "emailNotConfirmed": "This address has not been confirmed yet. Open the link in the sign-up email, or have it sent again.",
       "generic": "Authentication failed. Please wait a moment and try again."
+    },
+    "help": {
+      "link": "Need help?"
     }
   },
   "briefing": {
@@ -1392,5 +1400,41 @@
     "sectionDescription": "Try again, move to another section, or reload the page if it keeps happening.",
     "retry": "Try again",
     "reload": "Reload"
+  },
+  "help": {
+    "title": "Help",
+    "opensExternally": "(opens outside the app)",
+    "tutorial": {
+      "heading": "How to use",
+      "description": "A guided walk through the app — all of it, or one section you pick.",
+      "button": "Open the tutorial"
+    },
+    "faq": {
+      "heading": "Frequently asked questions",
+      "confirmEmail": {
+        "question": "The confirmation email has not arrived",
+        "answer": "Look in your spam or promotions folder first. The screen shown right after creating the account can send the link again. If it still does not arrive, contact us below with the address you used."
+      },
+      "password": {
+        "question": "I forgot my password",
+        "answer": "On the sign-in screen, choose “Forgot your password?” and enter your address. A link to set a new password arrives by email."
+      },
+      "export": {
+        "question": "How do I take my data with me?",
+        "answer": "Open Settings › General › Download your data. Everything in the account, Trash included, is saved as one JSON file."
+      },
+      "deleteAccount": {
+        "question": "How do I delete my account?",
+        "answer": "Open Settings › General › Account and choose Delete account. Everything is erased at once and cannot be restored, so download your data first."
+      }
+    },
+    "contact": {
+      "heading": "Contact",
+      "description": "If the answers above do not cover it, let us know here.",
+      "github": "Ask on GitHub Issues",
+      "githubNote": "Needs a GitHub account. What you post there is public.",
+      "email": "Send an email",
+      "form": "Open the contact form"
+    }
   }
 }

@@ -310,6 +310,16 @@ export {
   SettingsDataExport,
   type SettingsDataExportProps,
 } from "./SettingsDataExport";
+// Help and contact (#1989): the Settings card that opens the help dialog, and
+// the dialog's body (tutorial door, FAQ, contact links) shared with the
+// sign-in screen. The contacts themselves come from the web host's operator.ts.
+export { SettingsHelp, type SettingsHelpProps } from "./SettingsHelp";
+export {
+  HelpPanel,
+  type HelpPanelProps,
+  type HelpFaqItem,
+  type HelpContactItem,
+} from "./HelpPanel";
 // AI integration card (#1210) — what the MCP connection is, the tool catalog
 // generated from the server's own registry, and the last day a briefing was
 // written. No API call anywhere in it (the $0 rule).
