@@ -288,7 +288,7 @@ describe("Notes sidebar — right-clicking a note (#1677)", () => {
 });
 
 describe("Notes sidebar — narrow (#1677)", () => {
-  it("attaches no right-click handler at all", () => {
+  it("attaches no right-click menu at all", () => {
     state.isWide = false;
     render(<NotesView />);
 
@@ -296,9 +296,11 @@ describe("Notes sidebar — narrow (#1677)", () => {
     const headingEvent = rightClick(heading);
     const rowEvent = rightClick(noteRow("Alpha"));
 
-    // Nothing opened, and the platform's own menu is left alone — a touch
-    // surface has no right-click, and its long-press is text selection.
-    expect(headingEvent.defaultPrevented).toBe(false);
+    // Nothing opened — a touch surface has no right-click. A tag heading
+    // stops the platform's response, because Android fires contextmenu on
+    // the hold that now opens the tag sheet (#2008, notesSidebarLongPress
+    // .test.tsx). A note row, which has no hold, is left alone.
+    expect(headingEvent.defaultPrevented).toBe(true);
     expect(rowEvent.defaultPrevented).toBe(false);
     expect(screen.queryByRole("menu")).toBeNull();
     expect(

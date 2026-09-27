@@ -130,6 +130,8 @@ export interface NotesSidebarListProps {
   onTagContextMenu?: (tagId: string, event: ReactMouseEvent) => void;
   /** Right-click on a note row (#1677). Undefined on narrow. */
   onNoteContextMenu?: (noteId: string, event: ReactMouseEvent) => void;
+  /** Long-press on a tag heading (#2008) — narrow only, undefined on Desktop. */
+  onTagLongPress?: (tagId: string) => void;
   onCreateNote: () => void;
   dnd: NoteTagDnd;
 
@@ -170,6 +172,7 @@ export function NotesSidebarList({
   onDeleteNote,
   onTagContextMenu,
   onNoteContextMenu,
+  onTagLongPress,
   onCreateNote,
   dnd,
   templatesSlot,
@@ -345,6 +348,7 @@ export function NotesSidebarList({
                       collapsed={collapsed}
                       onToggle={onToggleGroup}
                       onContextMenu={onTagContextMenu}
+                      onLongPress={onTagLongPress}
                       collapseLabel={labels.collapseGroup}
                       expandLabel={labels.expandGroup}
                     />
