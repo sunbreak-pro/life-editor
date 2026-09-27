@@ -578,13 +578,21 @@ export function TodayTodoTray({
                     title={labels.addAction}
                     onClick={() => onAddCandidate(a.id)}
                     className={cn(
-                      "flex size-6 shrink-0 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                      "group/add flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:text-lumen-text",
                       NARROW_TAP_FLOOR,
                       hoverActions && HOVER_REVEAL,
                       FOCUS,
                     )}
                   >
-                    <Plus aria-hidden className="size-4" />
+                    {/* #2010: the bordered square is painted here, not on the
+                      button. The button still grows to 44px on narrow (the
+                      floor above), but a border drawn on THAT box turned a 16px
+                      "+" into a 44px frame of padding. The square keeps the
+                      Desktop size on both layouts; the tap area around it is
+                      the button's, as before. */}
+                    <span className="flex size-6 items-center justify-center rounded-lumen-md border border-lumen-border-strong transition-colors group-hover/add:bg-lumen-hover">
+                      <Plus aria-hidden className="size-4" />
+                    </span>
                   </button>
                   {/* #1627: to the right of the +, the same soft delete today's
                     rows carry (always visible, like theirs). */}
