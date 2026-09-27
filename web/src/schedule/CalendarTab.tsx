@@ -46,6 +46,7 @@ import { useScheduleSelection } from "./useScheduleSelection";
 import { useScheduleDayLabels } from "./useScheduleDayLabels";
 import { useScheduleTodayAgenda } from "./useScheduleTodayAgenda";
 import { toEditorItem } from "./scheduleViewModels";
+import { scheduleItemById } from "./scheduleSelectionSurface";
 import { useScheduleCopy } from "./scheduleCopy";
 import { useTodoLinking } from "./useTodoLinking";
 import { selectNarrowDay } from "./narrowDayTap";
@@ -420,11 +421,7 @@ export function CalendarTab({
   // acts on the selection (repeat conversion / detach / scope dialog).
   const selected = useMemo(() => {
     if (!selectedId) return null;
-    return (
-      rangeItems.find((i) => i.id === selectedId) ??
-      contextItems.find((i) => i.id === selectedId) ??
-      null
-    );
+    return scheduleItemById(selectedId, rangeItems, contextItems) ?? null;
   }, [selectedId, rangeItems, contextItems]);
 
   // ── The grid's two filters, and everything drawn from them (#889) ─────────

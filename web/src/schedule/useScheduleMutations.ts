@@ -10,6 +10,7 @@ import {
   useRepeatMutations,
   type UseRepeatMutationsArgs,
 } from "./useRepeatMutations";
+import { scheduleItemById } from "./scheduleSelectionSurface";
 
 /*
  * Schedule mutation layer (#280, extracted from CalendarTab): every write path
@@ -138,8 +139,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
 
   const findScheduleItem = useCallback(
     (id: string): ScheduleItem | undefined =>
-      rangeItems.find((i) => i.id === id) ??
-      contextItems.find((i) => i.id === id),
+      scheduleItemById(id, rangeItems, contextItems),
     [rangeItems, contextItems],
   );
 
@@ -397,9 +397,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   // becomes one itself.
   const handleDuplicate = useCallback(
     (id: string) => {
-      const src =
-        rangeItems.find((i) => i.id === id) ??
-        contextItems.find((i) => i.id === id);
+      const src = scheduleItemById(id, rangeItems, contextItems);
       if (!src) return;
       const title = `${src.title}${copySuffix}`;
       // createScheduleItem folds date/title/times + isAllDay/content/noteId/

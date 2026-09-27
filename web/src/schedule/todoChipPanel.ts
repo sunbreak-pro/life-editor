@@ -1,5 +1,6 @@
 import { isTodoChip } from "@life-editor/shared";
 import type { ItemAction, TodoCalendarChip } from "@life-editor/shared";
+import { selectionSurface } from "./scheduleSelectionSurface";
 
 /*
  * What the unified click bubble (ItemActionPopover) shows for a TODO chip
@@ -45,7 +46,9 @@ export function itemTapRoute(
   id: string,
   isWide: boolean,
 ): "select" | "todoSheet" {
-  return !isWide && isTodoChip(id) ? "todoSheet" : "select";
+  return selectionSurface(isWide).selectionIsSheet && isTodoChip(id)
+    ? "todoSheet"
+    : "select";
 }
 
 /**

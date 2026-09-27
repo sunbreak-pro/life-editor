@@ -15,6 +15,7 @@ import {
   type TodoNode,
   type UndoRedoLike,
 } from "@life-editor/shared";
+import { scheduleItemById } from "./scheduleSelectionSurface";
 
 /*
  * #625: Event <-> Todo conversion, lifted out of CalendarTab (#889).
@@ -253,9 +254,7 @@ export function useItemConversion({
 
   const handleConvertToTodo = useCallback(
     (id: string) => {
-      const item =
-        rangeItems.find((i) => i.id === id) ??
-        contextItems.find((i) => i.id === id);
+      const item = scheduleItemById(id, rangeItems, contextItems);
       if (!item) return;
       // D-20260810-sched-5, and the user asked for it in exactly this shape:
       // the action stays enabled and ANSWERS with the reason. A greyed-out row
