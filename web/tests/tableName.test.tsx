@@ -177,6 +177,15 @@ describe("table name (#2011)", () => {
       expect(
         editor.view.dom.querySelector(".note-table-name")?.textContent,
       ).toBe("Weekly plan");
+
+      // One name, one undo step — and the caption follows it back.
+      act(() => {
+        editor.commands.undo();
+      });
+      expect(tableNameOf(firstTable(editor))).toBeNull();
+      expect(
+        editor.view.dom.querySelector<HTMLElement>(".note-table-name")?.hidden,
+      ).toBe(true);
     } finally {
       editor.destroy();
     }

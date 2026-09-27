@@ -207,6 +207,13 @@ export function TableControls({
       event.preventDefault();
       apply(editor.chain().focus());
     },
+    // Enter / Space on a focused button sends a click and no mousedown (#2011:
+    // the name field made the bar reachable by Tab). `detail` 0 is that
+    // keyboard click; a pointer's click has already run above. The selection
+    // is still in the editor's state, so focus() puts the caret back first.
+    onClick: (event: { detail: number }) => {
+      if (event.detail === 0) apply(editor.chain().focus());
+    },
   });
 
   const commitName = (value: string) => {

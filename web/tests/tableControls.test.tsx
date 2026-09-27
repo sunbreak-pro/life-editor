@@ -160,6 +160,11 @@ describe("TableControls (#1903)", () => {
       const column = screen.getByRole("group", { name: "Column" });
       expect(within(column).getAllByRole("button").map((b) => b.textContent))
         .toEqual(["Left", "Right", "Delete"]);
+      expect(
+        screen
+          .getByRole("textbox", { name: "Table name" })
+          .classList.contains("max-md:min-h-11"),
+      ).toBe(true);
       for (const button of buttons) {
         expect(button.classList.contains("max-md:min-h-11")).toBe(true);
         expect(button.classList.contains("max-md:min-w-11")).toBe(true);
@@ -167,6 +172,24 @@ describe("TableControls (#1903)", () => {
         expect(button.classList.contains("h-7")).toBe(true);
         expect(button.classList.contains("min-h-11")).toBe(false);
       }
+    } finally {
+      editor.destroy();
+    }
+  });
+
+  it("answers the keyboard too, once per press", () => {
+    const editor = makeEditor(true);
+    try {
+      render(<TableControls editor={editor} labels={LABELS} />);
+      const button = screen.getByRole("button", { name: "Add row below" });
+      // Enter / Space: a click with detail 0 and no mousedown.
+      fireEvent.click(button, { detail: 0 });
+      expect(rows(editor)).toBe(4);
+      // A pointer press: the mousedown runs it, the click that follows must
+      // not run it a second time.
+      press(button);
+      fireEvent.click(button, { detail: 1 });
+      expect(rows(editor)).toBe(5);
     } finally {
       editor.destroy();
     }
