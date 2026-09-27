@@ -20,6 +20,7 @@ import {
 import { ScheduleEventEditor } from "./ScheduleEventEditor";
 import { useEditorCloseGuard } from "./useEditorCloseGuard";
 import { useScheduleRoleLabels } from "./scheduleRoleLabels";
+import { selectionSurface } from "./scheduleSelectionSurface";
 
 /*
  * The Calendar's overlay layer, assembled once for both layouts (#889).
@@ -179,7 +180,9 @@ export function ScheduleOverlayHost({
   // sheet at the end of the narrow one — with the same title, the same body and
   // the same close guard in each. What differs is only what "closed" MEANS:
   // Desktop drops the overlay flag, Mobile clears the selection, because on
-  // Mobile the selection IS the sheet.
+  // Mobile the selection IS the sheet. That rule is spelled once, in
+  // selectionSurface (#1642 P10, M-06).
+  const surface = selectionSurface(isWide);
   const detailFrameEl = (
     <ResponsiveDetailFrame
       wide={isWide}
@@ -190,7 +193,7 @@ export function ScheduleOverlayHost({
       // element on every render now and answers the "is anything selected?"
       // question by rendering null from the inside, so the node can no longer
       // stand in for the answer the way the old `editorPane ?? null` did.
-      open={isWide ? editor.overlayOpen && !!editor.item : !!editor.item}
+      open={surface.editorOpen(!!editor.item, editor.overlayOpen)}
       title={t("scheduleScreen.detailTitle")}
       // #1044: the kind is a glyph in the header now, not a word in the body.
       // Always "event" — a routine OCCURRENCE is still an `items_meta.role =
@@ -203,7 +206,10 @@ export function ScheduleOverlayHost({
       // one guard covers every exit on either layout.
       onClose={() => {
         void requestClose(() =>
-          isWide ? editor.onCloseOverlay() : editor.onClearSelection(),
+          surface.closeEditor({
+            closeOverlay: editor.onCloseOverlay,
+            clearSelection: editor.onClearSelection,
+          }),
         );
       }}
     >

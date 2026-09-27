@@ -11,6 +11,7 @@ import {
 } from "@life-editor/shared";
 import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
 import type { ScheduleCreatePanel } from "./useScheduleOverlays";
+import { selectionSurface } from "./scheduleSelectionSurface";
 
 /*
  * The creation panel's flow, lifted out of CalendarTab (#889).
@@ -200,7 +201,7 @@ export function useScheduleCreateFlow({
       // Mobile deliberately selects NOTHING: there, selection IS the detail
       // sheet (`editorPane` derives from it), so selecting would silently turn
       // the plain create into the other button.
-      if (isWide) setSelectedId(id);
+      if (selectionSurface(isWide).createSelects) setSelectedId(id);
     },
     [
       createPanel,
@@ -230,7 +231,7 @@ export function useScheduleCreateFlow({
       setSelectedId(id);
       // Desktop opens the body-level overlay; on Mobile the selection alone
       // brings up the BottomSheet editor (the same path a tap takes).
-      if (isWide) setOverlayOpen(true);
+      if (selectionSurface(isWide).openNeedsOverlay) setOverlayOpen(true);
     },
     [
       createPanel,
