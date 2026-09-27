@@ -232,7 +232,11 @@ export const DesktopTagHeading = memo(function DesktopTagHeading({
       onContextMenu={
         onContextMenu && tagId !== null
           ? (e) => onContextMenu(tagId, e)
-          : undefined
+          : longPress
+            ? // Android fires contextmenu on the same hold (#2008). The hold
+              // is ours, so the platform's own response to it is stopped.
+              (e) => e.preventDefault()
+            : undefined
       }
       className={cn(
         "rounded-lumen-md",

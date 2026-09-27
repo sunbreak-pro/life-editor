@@ -27,6 +27,10 @@ import {
  * is reset on the next press rather than on that click alone: a platform that
  * sends no click after a hold must not eat the NEXT tap instead.
  *
+ * Android also fires `contextmenu` on the hold; the row that spreads these
+ * handlers stops that one itself (NoteListRows), since this hook does not own
+ * the row's right-click.
+ *
  * No `pointerType` check: jsdom has no PointerEvent to carry one, and a mouse
  * held down on a narrow window reaching the same editor harms nothing.
  */
@@ -96,7 +100,8 @@ export function useLongPress<T>(
   );
 
   const onClickCapture = useCallback((event: MouseEvent) => {
-    if (!fired.current) return;
+    // A keyboard click (Enter / Space) has detail 0 and never follows a hold.
+    if (!fired.current || event.detail === 0) return;
     fired.current = false;
     event.preventDefault();
     event.stopPropagation();

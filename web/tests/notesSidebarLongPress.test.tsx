@@ -165,6 +165,9 @@ function pointer(el: Element, type: string, x: number, y: number) {
 
 const SHEET_NAME = "Work: connect.editTag";
 
+/** A finger's click: detail 1. A keyboard click (detail 0) is never swallowed. */
+const TAP = { detail: 1 };
+
 describe("Notes sidebar — long-press on narrow (#2008)", () => {
   it("opens the tag editor in a sheet and saves a rename", () => {
     render(<NotesView />);
@@ -174,7 +177,7 @@ describe("Notes sidebar — long-press on narrow (#2008)", () => {
     act(() => void vi.advanceTimersByTime(LONG_PRESS_MS));
     pointer(heading, "pointerup", 20, 20);
     // The click the lift may send is swallowed: the group stays open.
-    fireEvent.click(heading);
+    fireEvent.click(heading, TAP);
     expect(heading.getAttribute("aria-expanded")).toBe("true");
 
     screen.getByRole("dialog", { name: SHEET_NAME });
@@ -197,7 +200,7 @@ describe("Notes sidebar — long-press on narrow (#2008)", () => {
     pointer(heading, "pointerdown", 20, 20);
     act(() => void vi.advanceTimersByTime(150));
     pointer(heading, "pointerup", 20, 20);
-    fireEvent.click(heading);
+    fireEvent.click(heading, TAP);
     act(() => void vi.advanceTimersByTime(LONG_PRESS_MS * 2));
 
     expect(heading.getAttribute("aria-expanded")).toBe("false");
@@ -230,8 +233,32 @@ describe("Notes sidebar — long-press on narrow (#2008)", () => {
     // The next, ordinary tap still folds the group.
     pointer(heading, "pointerdown", 20, 20);
     pointer(heading, "pointerup", 20, 20);
+    fireEvent.click(heading, TAP);
+    expect(heading.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("lets a keyboard click through after a hold that sent no click", () => {
+    render(<NotesView />);
+    const heading = headingButton("Work");
+
+    pointer(heading, "pointerdown", 20, 20);
+    act(() => void vi.advanceTimersByTime(LONG_PRESS_MS));
+    pointer(heading, "pointerup", 20, 20);
+
+    // Enter / Space on the focused heading: a click with detail 0, no press.
     fireEvent.click(heading);
     expect(heading.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("stops Android's contextmenu on a tag heading, not on untagged", () => {
+    render(<NotesView />);
+    const tagged = fireEvent.contextMenu(headingButton("Work"));
+    const untagged = fireEvent.contextMenu(
+      headingButton("materials.notes.untagged"),
+    );
+    // fireEvent returns false when the default was prevented.
+    expect(tagged).toBe(false);
+    expect(untagged).toBe(true);
   });
 
   it("offers nothing on the untagged bucket", () => {

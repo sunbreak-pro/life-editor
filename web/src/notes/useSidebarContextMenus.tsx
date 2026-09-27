@@ -105,9 +105,9 @@ export function useSidebarContextMenus({
     [allTags, menuTagId],
   );
 
-  // #2008: straight to the block. The caret stays out of the name field — on a
-  // phone that would raise the keyboard over the sheet before anything is
-  // chosen.
+  // #2008: straight to the block, no menu first. `focusName` is not asked
+  // for: the sheet's own opening focus already lands on the name field, its
+  // first control, the same as Connect's narrow editor.
   const onTagLongPress = useCallback((tagId: string) => {
     setEditTagId(tagId);
     setEditFocusName(false);
