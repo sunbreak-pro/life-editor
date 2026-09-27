@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { MouseEvent, ReactNode } from "react";
 import {
   NoteDetailPanel,
   LockedBodyGate,
@@ -94,6 +94,12 @@ export interface NoteDetailSurfaceProps {
   autoFocusTitle?: boolean;
   /** Fired once that focus has been taken, so the host can stop asking. */
   onTitleAutoFocused?: () => void;
+  /**
+   * Right-click on a tag chip under the title (#2007): the Notes sidebar's
+   * own tag menu. The host passes it on Desktop only, so the narrow surface
+   * attaches no listener.
+   */
+  onTagContextMenu?: (tagId: string, event: MouseEvent) => void;
 }
 
 export function NoteDetailSurface({
@@ -113,6 +119,7 @@ export function NoteDetailSurface({
   onRemovePassword,
   autoFocusTitle,
   onTitleAutoFocused,
+  onTagContextMenu,
 }: NoteDetailSurfaceProps) {
   const hasPassword = note.hasPassword === true;
   return (
@@ -162,7 +169,11 @@ export function NoteDetailSurface({
         // element's rect, and a display:contents box measures 0×0.
         // TagPicker's own root is inline-flex, so the row is unchanged.
         <span {...tourAnchor("materials-note-tag")} className="inline-flex">
-          <TagPicker itemId={note.id} size="sm" />
+          <TagPicker
+            itemId={note.id}
+            size="sm"
+            onTagContextMenu={onTagContextMenu}
+          />
         </span>
       }
       linksSlot={linksSlot}
