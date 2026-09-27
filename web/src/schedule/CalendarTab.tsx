@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
@@ -16,16 +16,11 @@ import {
   useScheduleItemsRoutineSync,
   useToast,
   useMinuteClock,
-  TodoAddDialog,
-  useTourAction,
   useHolidayColorPref,
   useHolidayVisibilityPref,
-  TOUR_ACTIONS,
   type EventEditorItem,
   type DataService,
-  type TodoStatus,
   WIDE_QUERY,
-  type TranslationKey,
 } from "@life-editor/shared";
 import { ScheduleSidebar } from "./ScheduleSidebar";
 import { CalendarDesktopLayout } from "./CalendarDesktopLayout";
@@ -43,10 +38,8 @@ import {
 } from "./useScheduleOverlays";
 import { useItemConversion } from "./useItemConversion";
 import { useScheduleTodoChips } from "./useScheduleTodoChips";
-import { useTodoTabFilter } from "./useTodoTabFilter";
-import { todoAddCandidateWrite } from "./todoChipUndoWiring";
+import { useTodoFilterTags, useTodoTabFilter } from "./useTodoTabFilter";
 import { useScheduleRepeats } from "./useScheduleRepeats";
-import { pickRepeatOccurrence } from "./repeatOccurrence";
 import { useScheduleGridFilters } from "./useScheduleGridFilters";
 import { useScheduleCreateFlow } from "./useScheduleCreateFlow";
 import { useScheduleSelection } from "./useScheduleSelection";
@@ -58,6 +51,13 @@ import { useTodoLinking } from "./useTodoLinking";
 import { selectNarrowDay } from "./narrowDayTap";
 import { rowsOnDay, useFlowDay } from "./useFlowDay";
 import { agendaEmptyKey } from "./agendaEmptyLabel";
+import { useScheduleWriteErrors } from "./useScheduleWriteErrors";
+import {
+  useEventTourReporting,
+  useTodoTourReporting,
+} from "./useScheduleTourReporting";
+import { useScheduleShellIntents } from "./useScheduleShellIntents";
+import { useTodoAddDialog } from "./useTodoAddDialog";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
@@ -83,29 +83,11 @@ import { agendaEmptyKey } from "./agendaEmptyLabel";
  * each other in, and the decisions the parts must not be free to answer for
  * themselves — which of the two failure surfaces is right (#296), where the
  * sidebar portal and the single shared overlay set are mounted, and which
- * layout renders at all.
+ * layout renders at all. #1642 P2 took the last pieces of CONTENT out (the
+ * failure toasts, the tour reporting, the shell intents, the todo create
+ * dialog, the todo tab's tag list and the repeat panel's pending jumps): a new
+ * feature should land in the hook that owns its part, not here.
  */
-
-/*
- * What each repeat-write failure says (#434 → #469 → #504). A table rather
- * than a nested ternary: the reasons only ever grow, and each new one has to
- * be given words deliberately — a chain quietly files the newcomer under
- * whatever sits in the final `else`, which is how a "nothing was saved" case
- * ends up telling the user their change went through.
- */
-const REPEAT_FAILURE_COPY_KEY: Record<
-  "attach" | "materialise" | "update" | "series" | "series-partial",
-  TranslationKey
-> = {
-  attach: "scheduleScreen.repeatConvertFailed",
-  materialise: "scheduleScreen.repeatMaterialiseFailed",
-  update: "scheduleScreen.repeatUpdateFailed",
-  series: "scheduleScreen.repeatSeriesUpdateFailed",
-  // Deliberately NOT the same words as `series`: that one promises nothing
-  // changed, and this one cannot — the rhythm from here on is already the new
-  // one.
-  "series-partial": "scheduleScreen.repeatSeriesPartialFailed",
-};
 
 export function CalendarTab({
   dataService,
@@ -205,47 +187,21 @@ export function CalendarTab({
   } = useTodoTreeContext();
 
   /*
-   * Tutorial tour reporting (#1124), the todo half — moved here from the
-   * retired Kanban board by #1153.
-   *
-   * Wrapped at the SOURCE, before anything is handed either writer: completion
-   * has three routes now (the tray's checkbox, the detail's toggle, the
-   * detail's status row) and every one of them lands on one of these two
-   * functions. Wrapping the call sites instead would mean three copies of the
-   * "did this actually finish it?" test, and the tray's own route goes through
-   * useScheduleTodoChips a few lines down — a wrapper defined after that call
-   * would arrive too late for it.
-   *
-   * The event half sits further down with the create/update flow; both use
-   * this same reporter, which is stable for the component's lifetime.
+   * Tutorial tour reporting (#1124), the todo half. Wrapped at the SOURCE,
+   * before anything is handed either writer, and it has to sit HERE: the
+   * tray's own completion route goes through useScheduleTodoChips a few lines
+   * down, and a wrapper made after that call would arrive too late for it.
+   * The event half follows the mutation layer (see useScheduleTourReporting).
    */
-  const reportTourAction = useTourAction();
-
-  const setTodoStatusReported = useCallback(
-    (id: string, status: TodoStatus) => {
-      setTodoStatus(id, status);
-      if (status === "DONE") {
-        reportTourAction(TOUR_ACTIONS.scheduleTodoCompleted);
-      }
-    },
-    [reportTourAction, setTodoStatus],
-  );
-
-  const toggleTodoStatusReported = useCallback(
-    (id: string) => {
-      // Read the status BEFORE the flip: only finishing a todo advances the
-      // step, and re-opening one must not. Two values since #873, so "not
-      // DONE" is the whole test.
-      const completes =
-        (todoNodes.find((n) => n.id === id)?.status ?? "NOT_STARTED") !==
-        "DONE";
-      toggleTodoStatus(id);
-      if (completes) {
-        reportTourAction(TOUR_ACTIONS.scheduleTodoCompleted);
-      }
-    },
-    [reportTourAction, todoNodes, toggleTodoStatus],
-  );
+  const {
+    setTodoStatusReported,
+    toggleTodoStatusReported,
+    reportTodoCreated,
+  } = useTodoTourReporting({
+    todoNodes,
+    setTodoStatus,
+    toggleTodoStatus,
+  });
 
   // #468 / #1173: saved tag groups as a filter lens. A group is a named set
   // of life tags, so the grid needs both halves — the groups (which exist, and
@@ -322,8 +278,6 @@ export function CalendarTab({
 
   // #376 note tab: the picker's pool + the "create the note, then link it"
   // write. Loaded only while the creation panel is open (see the hook).
-  // The link lands after the panel has closed, so a failure has to be said out
-  // loud — there is nothing left on screen to show it.
   const { showToast } = useToast();
   // #997: optional, like every other Schedule consumer — a standalone render
   // with no UndoRedoProvider simply records no history.
@@ -350,33 +304,9 @@ export function CalendarTab({
   // #1638: Undo / Redo of a write that landed on a repeating item asks first,
   // through the same dialog the scope chooser uses.
   useRepeatUndoGate(askConfirm);
-  const handleAttachError = useCallback(
-    () => showToast("danger", t("scheduleScreen.noteAttachFailed")),
-    [showToast, t],
-  );
-  // #434: an Event→Repeats conversion that did not fully land. Without this
-  // the editor just snaps back on the reload, which reads as the click having
-  // been ignored. "materialise" is a partial success — the repeat is on, so
-  // saying "couldn't turn on repeat" there would be a lie.
-  // "update" (#469 小粒) is a THIRD outcome: the repeat was already on and
-  // stays on — only the new rhythm failed to save — so neither of the other
-  // two sentences fits.
-  const handleRepeatConvertError = useCallback(
-    (
-      reason: "attach" | "materialise" | "update" | "series" | "series-partial",
-    ) => showToast("danger", t(REPEAT_FAILURE_COPY_KEY[reason])),
-    [showToast, t],
-  );
-  /*
-   * #1642 W16 / K-10: a duplicate whose INSERT was refused. The mutation layer
-   * has already taken the optimistic copy back off the grid by the time this
-   * runs, so the sentence is about what did NOT happen, not about repairing
-   * anything.
-   */
-  const handleDuplicateError = useCallback(
-    () => showToast("danger", t("scheduleScreen.duplicateFailed")),
-    [showToast, t],
-  );
+  // The three failure toasts the writes below report through (#1642 P2).
+  const { handleAttachError, handleRepeatConvertError, handleDuplicateError } =
+    useScheduleWriteErrors(showToast);
 
   const {
     notes: noteOptions,
@@ -565,55 +495,29 @@ export function CalendarTab({
     onApplyGroup: handleSelectGroup,
   });
 
-  /*
-   * Palette "open this event" intent (#503). Three moves, in this order: clear
-   * whatever is filtering the grid (#520), put the event's day in the window,
-   * then select it. The row itself may not be in `rangeItems` for another
-   * moment — the anchor change triggers the fetch and nothing pre-loads
-   * outside the window — but selection is by id, so it simply starts showing
-   * once the range lands.
-   *
-   * Consumed immediately (like pendingNewTodo), so coming back to the Calendar
-   * later does not re-select an event the user has moved on from. #467 retired
-   * the Mobile month agenda and the separate `mobileSelectedDay` it read, so
-   * the anchor is now the only day either layout draws from — moving it is the
-   * whole job.
-   */
-  useEffect(() => {
-    if (!pendingSelectEvent) return;
-    // All three of these are setStates in an effect — the shape the
-    // cascading-render rule (react-hooks/set-state-in-effect) exists to catch.
-    // They are still deliberate, for the same reason they always were: they
-    // fire once per arrival (a user navigating from the palette, not a render
-    // loop), and the intent exists only as a PROP, so there is no event
-    // handler inside this component to move them into. Same shape and same
-    // reasoning as the todo handoff (useTodoDetailTarget.ts:112).
-    //
-    // The `eslint-disable-next-line` this block used to carry is GONE, and its
-    // absence is not a relaxation: the rule only sees LOCAL useState setters,
-    // and since #889 all three arrive from hooks it cannot see through
-    // (useScheduleGridFilters / useCalendarNav / useScheduleSelection), so
-    // there is nothing left here for it to report — or for a directive to
-    // suppress. Nothing forced the removal: a stale directive is a warning,
-    // and `eslint .` passes with warnings (measured on this config), so it
-    // could have sat here for years saying nothing. Putting the state back in
-    // this file would bring back both the report and the need for the line.
-    //
-    // `setSelectedId` joined the deps for the same reason and is inert: it is
-    // still React's own useState dispatch, handed straight out of the hook, so
-    // it never changes identity — exhaustive-deps simply cannot prove that
-    // through a custom hook and asks for it by name.
-    revealOnGrid();
-    setAnchorDate(pendingSelectEvent.date);
-    setSelectedId(pendingSelectEvent.id);
-    onConsumePendingEvent?.();
-  }, [
-    pendingSelectEvent,
-    setAnchorDate,
-    onConsumePendingEvent,
-    revealOnGrid,
-    setSelectedId,
-  ]);
+  // The shell's four intents, each consumed once (#503 / #1153 →
+  // useScheduleShellIntents). The todo create dialog is the one piece of
+  // local state an intent moves; useTodoAddDialog below owns that half.
+  useScheduleShellIntents(
+    {
+      pendingSelectEvent,
+      onConsumePendingEvent,
+      pendingNewTodo,
+      onConsumeNewTodo,
+      pendingSelectTodoId,
+      onConsumePendingSelect,
+      pendingTodoTray,
+      onConsumeTodoTray,
+    },
+    {
+      revealOnGrid,
+      setAnchorDate,
+      setSelectedId,
+      setSidebarTab,
+      openSidebar,
+      setTodoDetailId,
+    },
+  );
 
   // Mutation layer (#280 → useScheduleMutations): every write path plus the
   // #279 repeat/scope machinery (#299 retired the #278 pending-draft guard).
@@ -668,40 +572,10 @@ export function CalendarTab({
     copySuffix: t("scheduleScreen.copySuffix"),
   });
 
-  /*
-   * Tutorial tour reporting (#1124), the event half. Two of the Schedule steps
-   * advance on a real write, so the host tells the tour when one lands. Wrapped
-   * HERE rather than inside useScheduleMutations / useScheduleCreateFlow on
-   * purpose: those two are deliberately context-free so they render under
-   * `renderHook` with no Provider at all (see their headers), and reaching into
-   * a Context from inside them would take that away. CalendarTab already needs
-   * the whole Provider chain, so the coupling costs nothing new here.
-   *
-   * `reportTourAction` is declared with the todo wrappers above and is stable
-   * for the component's lifetime (useTourAction), so neither wrapper adds a
-   * dependency that changes as the tour walks.
-   */
-  const handleCreateReported = useCallback<typeof handleCreate>(
-    (slot, title, onSaved) => {
-      const id = handleCreate(slot, title, onSaved);
-      reportTourAction(TOUR_ACTIONS.scheduleEventCreated);
-      return id;
-    },
-    [handleCreate, reportTourAction],
-  );
-
-  const handleUpdateReported = useCallback<typeof handleUpdate>(
-    (id, patch) => {
-      handleUpdate(id, patch);
-      // Only a TIME edit advances the step, because that is what the step
-      // asks for — renaming the event teaches nothing about the calendar.
-      // Read off the patch rather than the item: the pane sends only the
-      // fields the user actually changed.
-      if (patch.startTime !== undefined || patch.endTime !== undefined) {
-        reportTourAction(TOUR_ACTIONS.scheduleEventTimeChanged);
-      }
-    },
-    [handleUpdate, reportTourAction],
+  // Tutorial tour reporting (#1124), the event half — the two writers the
+  // mutation layer just returned, wrapped before anything is handed them.
+  const { handleCreateReported, handleUpdateReported } = useEventTourReporting(
+    { handleCreate, handleUpdate },
   );
 
   // #889: the creation panel's four openers and five committers, as one hook.
@@ -865,67 +739,18 @@ export function CalendarTab({
    * (#507). It is called at this level rather than inside the overlay because
    * `dataService` lives here, exactly as Notes and Daily do it.
    *
-   * `todoAddOpen` is the create dialog. Todos have no day when they are made
-   * — that is what the tray's unscheduled group IS — so this deliberately does
-   * NOT go through the calendar's creation panel, which exists to place
-   * something on a slot.
+   * The create dialog is useTodoAddDialog's (#1642 P2) — its state, its write
+   * and the element mounted below.
    */
   const todoLinking = useTodoLinking({ dataService });
-  /*
-   * #1640: WHICH list the dialog is making a todo for — "today" from the
-   * today heading's pill, "other" from the one over "その他" (and from the
-   * shell intent, which has no list in mind). null = closed.
-   *
-   * A target rather than a second flag so the two can never be open at once,
-   * and so the dialog itself stays one mounted surface.
-   */
-  const [todoAddTarget, setTodoAddTarget] = useState<"today" | "other" | null>(
-    null,
-  );
-  const todoAddOpen = todoAddTarget != null;
-
-  /*
-   * The create dialog opens from the shell intent by ADJUSTING STATE WHILE
-   * RENDERING rather than from the effect below — React's own pattern, and the
-   * shape the retired useTodoAddDialog used for exactly this flag. A
-   * synchronous setState inside an effect cascades an extra render pass, which
-   * is what react-hooks/set-state-in-effect objects to. The effect keeps the
-   * parts that are not local state (the tab, the drawer, the consume).
-   */
-  const [prevPendingNewTodo, setPrevPendingNewTodo] = useState(pendingNewTodo);
-  if (pendingNewTodo !== prevPendingNewTodo) {
-    setPrevPendingNewTodo(pendingNewTodo);
-    if (pendingNewTodo) setTodoAddTarget("other");
-  }
-
-  const handleCreateTodo = useCallback(
-    (input: { title: string }) => {
-      const node = addNode("task", null, input.title);
-      // #1640: the pill that opened the dialog decides the day. "Today" reuses
-      // the tray's own "add to today" write (all-day on today), so a todo made
-      // here and a todo dragged up into the list are the same row.
-      if (todoAddTarget === "today") {
-        const { patch, options } = todoAddCandidateWrite(today);
-        updateNode(node.id, patch, options);
-      }
-      setTodoAddTarget(null);
-      // Straight into the detail: a title alone is rarely the whole thought,
-      // and this is the surface that can take the rest of it.
-      setTodoDetailId(node.id);
-      // #1124: the only route that MAKES a todo, so it is the only one the
-      // tour's create step can wait on. The tray's "add to today" moves an
-      // existing one onto a day, which is not what the step teaches.
-      reportTourAction(TOUR_ACTIONS.scheduleTodoCreated);
-    },
-    [
-      addNode,
-      reportTourAction,
-      setTodoDetailId,
-      todoAddTarget,
-      today,
-      updateNode,
-    ],
-  );
+  const { openTodoAdd, todoAddDialog } = useTodoAddDialog({
+    pendingNewTodo,
+    addNode,
+    updateNode,
+    today,
+    setTodoDetailId,
+    onCreated: reportTodoCreated,
+  });
 
   const editorItem: EventEditorItem | null = toEditorItem(selected);
 
@@ -938,7 +763,8 @@ export function CalendarTab({
     repeatPanel,
     openRepeatPanel,
     closeRepeatPanel,
-    handleOpenRepeat,
+    requestReveal,
+    requestEditDetail,
     handleDeleteRepeat,
   } = useScheduleRepeats({
     routines,
@@ -952,6 +778,12 @@ export function CalendarTab({
       deleteRoutine,
       reload,
       showToast,
+    },
+    landing: {
+      rangeItems,
+      anchorDate,
+      select: setSelectedId,
+      openDetail: handleItemOpenDetail,
     },
     // #1279: the series delete asks through the same dialog as everything else
     // on this screen — the row used to arm itself in place instead.
@@ -971,7 +803,7 @@ export function CalendarTab({
     refetchTodos,
     showToast,
     askConfirm,
-    closePopover: () => setPopover(null),
+    closePopover,
     closeTodoDetail: () => setTodoDetailId(null),
     // #998: the row is about to stop being an event, so the surface that edits
     // events cannot stay open on it. Both, because "closed" differs by layout —
@@ -989,63 +821,7 @@ export function CalendarTab({
    * tray to read it must not empty the calendar beside it.
    */
   const todoTabFilter = useTodoTabFilter(allAssignments);
-  const todoFilterTags = useMemo(
-    () =>
-      allTags
-        .slice()
-        .sort((a, b) => a.name.localeCompare(b.name))
-        .map((tag) => ({
-          id: tag.id,
-          name: tag.name,
-          color: tag.color,
-          icon: tag.icon,
-        })),
-    [allTags],
-  );
-
-  /*
-   * #1678: "edit detail" pressed on a repeat row. The jump only FETCHES the
-   * day, so the occurrence's id arrives with the range — this holds the
-   * routine id until a row of that series shows up on the anchored day, then
-   * opens it.
-   *
-   * A REF, not state: it decides nothing about what is rendered, and writing
-   * state from this effect would cost an extra render pass for every range
-   * update (react-hooks/set-state-in-effect). One shot — a request that never
-   * resolves (the user navigated away) simply never fires.
-   */
-  const pendingRepeatDetailRef = useRef<string | null>(null);
-  useEffect(() => {
-    const pending = pendingRepeatDetailRef.current;
-    if (!pending) return;
-    const match = pickRepeatOccurrence(rangeItems, pending, anchorDate);
-    if (!match) return;
-    pendingRepeatDetailRef.current = null;
-    handleItemOpenDetail(match.id);
-  }, [rangeItems, anchorDate, handleItemOpenDetail]);
-
-  /*
-   * #1830: "show the next one" pressed on a repeat row. Same shape as the
-   * request above it and for the same reason — the jump only FETCHES the day,
-   * so the occurrence's id arrives with the range.
-   *
-   * What it does with the id is the whole fix: it SELECTS that one
-   * occurrence. The week used to move with nothing else happening, which left
-   * the block wherever the body's scroll already was (a morning repeat lands
-   * above the top of an afternoon scroll) and left the ring on whatever had
-   * been selected before. Selecting the row rings exactly the occurrence that
-   * was asked for, and the grid scrolls to a newly selected block on its own
-   * (WeekTimeGrid, #1830).
-   */
-  const pendingRepeatRevealRef = useRef<string | null>(null);
-  useEffect(() => {
-    const pending = pendingRepeatRevealRef.current;
-    if (!pending) return;
-    const match = pickRepeatOccurrence(rangeItems, pending, anchorDate);
-    if (!match) return;
-    pendingRepeatRevealRef.current = null;
-    setSelectedId(match.id);
-  }, [rangeItems, anchorDate, setSelectedId]);
+  const todoFilterTags = useTodoFilterTags(allTags);
 
   const showLoading = isLoading && rangeItems.length === 0;
   // Full-screen error only when there is nothing to show; a range-fetch
@@ -1098,35 +874,6 @@ export function CalendarTab({
     const rows = rowsOnDay(gridRangeItems, rangeTodoChips, wideFlowDay);
     return toAgenda(rows.items, rows.chips);
   }, [gridRangeItems, rangeTodoChips, toAgenda, wideFlowDay]);
-
-  /*
-   * #1153: the shell's todo intents, each consumed once.
-   *
-   * All three open the tray rather than only switching state, because on
-   * narrow the sidebar is a drawer: setting the tab of a panel nobody can see
-   * would make every one of these read as doing nothing.
-   */
-  useEffect(() => {
-    if (!pendingTodoTray) return;
-    setSidebarTab("todo");
-    openSidebar?.();
-    onConsumeTodoTray?.();
-  }, [onConsumeTodoTray, openSidebar, pendingTodoTray, setSidebarTab]);
-
-  useEffect(() => {
-    if (!pendingNewTodo) return;
-    setSidebarTab("todo");
-    openSidebar?.();
-    onConsumeNewTodo?.();
-  }, [onConsumeNewTodo, openSidebar, pendingNewTodo, setSidebarTab]);
-
-  useEffect(() => {
-    if (!pendingSelectTodoId) return;
-    // The detail is an overlay, not a tab, so this one does not touch the
-    // sidebar: a "[[" click asks for one todo, not for the list.
-    setTodoDetailId(pendingSelectTodoId);
-    onConsumePendingSelect?.();
-  }, [onConsumePendingSelect, pendingSelectTodoId, setTodoDetailId]);
 
   // Shared rightSidebar (AppShell owns the frame -- a push-in panel on
   // Desktop, a drawer on Mobile). One portal either way so contentCount stays
@@ -1215,8 +962,8 @@ export function CalendarTab({
           onDelete: handleTodoDelete,
           // #1640 moved the single create pill into the two headings, so the
           // tab has one per list and each says which list it adds to.
-          onAdd: () => setTodoAddTarget("other"),
-          onAddToday: () => setTodoAddTarget("today"),
+          onAdd: () => openTodoAdd("other"),
+          onAddToday: () => openTodoAdd("today"),
           // #1641: the tab's own filter. The state lives here so the sidebar
           // stays Provider-free; the rows above are handed over unfiltered and
           // the panel narrows them.
@@ -1292,7 +1039,7 @@ export function CalendarTab({
         state: popover,
         selected,
         findTodoChip,
-        onClose: () => setPopover(null),
+        onClose: closePopover,
         onOpenDetail: handleItemOpenDetail,
         itemActions: {
           onRename: handleRename,
@@ -1334,21 +1081,10 @@ export function CalendarTab({
         state: repeatPanel,
         row: repeatRows.find((r) => r.id === repeatPanel?.id) ?? null,
         onClose: closeRepeatPanel,
-        onShowNext: (id) => {
-          closeRepeatPanel();
-          handleOpenRepeat(id);
-          // #1830 — see the pending request above.
-          pendingRepeatRevealRef.current = id;
-        },
-        // #1678: the occurrence's editor IS where a series is edited (it holds
-        // the repeat settings), so "edit detail" jumps to the next occurrence
-        // and opens it. The id is not known until that day's range has been
-        // read, which is what the pending request below waits for.
-        onEditDetail: (id) => {
-          closeRepeatPanel();
-          handleOpenRepeat(id);
-          pendingRepeatDetailRef.current = id;
-        },
+        // #1830 / #1678: both jump to the series' next occurrence; the hook
+        // waits for that day's range and then selects it or opens it.
+        onShowNext: requestReveal,
+        onEditDetail: requestEditDetail,
         onDelete: isWide ? handleDeleteRepeat : undefined,
       }}
       tagFilter={{
@@ -1463,22 +1199,9 @@ export function CalendarTab({
         />
       )}
       {overlaysEl}
-      {/* #1153: mounted for BOTH layouts, like the overlay set beside it. The
-          two returns above used to hand-list their own overlays and drifted
-          (see the ScheduleOverlays header); a create dialog that existed on one
-          width only would be the same mistake with a new name. */}
-      <TodoAddDialog
-        open={todoAddOpen}
-        onClose={() => setTodoAddTarget(null)}
-        onSubmit={handleCreateTodo}
-        labels={{
-          title: t("scheduleScreen.todoAddDialogTitle"),
-          titleLabel: t("scheduleScreen.todoAddTitleLabel"),
-          titlePlaceholder: t("scheduleScreen.todoAddTitlePlaceholder"),
-          submit: t("scheduleScreen.todoAddSubmit"),
-          cancel: t("scheduleScreen.todoAddCancel"),
-        }}
-      />
+      {/* #1153: mounted for BOTH layouts, like the overlay set beside it
+          (useTodoAddDialog's header has the why). */}
+      {todoAddDialog}
     </>
   );
 }

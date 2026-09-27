@@ -109,6 +109,8 @@ function setup(
   );
   const reload = vi.fn();
   const showToast = vi.fn();
+  const select = vi.fn((id: string) => void id);
+  const openDetail = vi.fn((id: string) => void id);
   // #1279: agrees by default, so every test that is not ABOUT the question
   // reads as it did before the dialog existed.
   const askConfirm = vi.fn((request: ConfirmRequest) =>
@@ -141,6 +143,12 @@ function setup(
       reload,
       showToast,
     },
+    landing: {
+      rangeItems: [],
+      anchorDate: "2026-08-16",
+      select,
+      openDetail,
+    },
     askConfirm,
     ...overrides,
   };
@@ -161,6 +169,8 @@ function setup(
     reload,
     showToast,
     askConfirm,
+    select,
+    openDetail,
   };
 }
 
@@ -422,5 +432,66 @@ describe("useScheduleRepeats — deleting a row", () => {
     reload.mockClear();
     deleteRoutine.mock.calls[0][1].onCascadeChanged();
     expect(reload).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useScheduleRepeats — landing a panel jump", () => {
+  /*
+   * #1678 / #1830 (moved in from CalendarTab by #1642 P2). The jump only
+   * FETCHES the day, so the occurrence's id is unknown when the panel is
+   * pressed: the request parks the series and fires once a row of it turns up
+   * on the anchored day — and only then, and only once.
+   */
+  async function jump(
+    via: "requestReveal" | "requestEditDetail",
+  ): Promise<{
+    s: ReturnType<typeof setup>;
+    land: (items: ScheduleItem[], anchorDate: string) => void;
+    next: string;
+  }> {
+    const s = setup();
+    act(() => s.hook.result.current[via]("routine-1"));
+    await waitFor(() => expect(s.setAnchorDate).toHaveBeenCalled());
+    const next = s.setAnchorDate.mock.calls[0][0];
+    const land = (items: ScheduleItem[], anchorDate: string) =>
+      s.hook.rerender({
+        ...s.args,
+        landing: { ...s.args.landing, rangeItems: items, anchorDate },
+      });
+    return { s, land, next };
+  }
+
+  it.each([
+    ["requestReveal", "select", "openDetail"],
+    ["requestEditDetail", "openDetail", "select"],
+  ] as const)(
+    "%s waits for the series' row on the anchored day, then %s it once",
+    async (via, fires, silent) => {
+      const { s, land, next } = await jump(via);
+      // Nothing yet: the range has not delivered the row.
+      expect(s[fires]).not.toHaveBeenCalled();
+
+      // A row of the series on ANOTHER day is not the one asked for.
+      land([item("occ-other", { routineId: "routine-1", date: "2000-01-01" })], next);
+      expect(s[fires]).not.toHaveBeenCalled();
+
+      land([item("occ-next", { routineId: "routine-1", date: next })], next);
+      expect(s[fires]).toHaveBeenCalledTimes(1);
+      expect(s[fires]).toHaveBeenCalledWith("occ-next");
+      expect(s[silent]).not.toHaveBeenCalled();
+
+      // One shot: a later range update does not fire it again.
+      land([item("occ-next", { routineId: "routine-1", date: next }), item("x")], next);
+      expect(s[fires]).toHaveBeenCalledTimes(1);
+    },
+  );
+
+  it("closes the panel before jumping", async () => {
+    const s = setup();
+    act(() => s.hook.result.current.openRepeatPanel("routine-1", { x: 1, y: 2 }));
+    expect(s.hook.result.current.repeatPanel).not.toBeNull();
+    act(() => s.hook.result.current.requestReveal("routine-1"));
+    expect(s.hook.result.current.repeatPanel).toBeNull();
+    await waitFor(() => expect(s.setAnchorDate).toHaveBeenCalled());
   });
 });
