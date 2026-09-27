@@ -530,7 +530,11 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
        */
       className="inline-flex min-h-11 items-center gap-2 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-sm font-medium text-lumen-text-secondary hover:bg-lumen-hover"
     >
-      {t("work.todoSelector.select")}
+      {/* A named free session shows its name here (#2009), so the face says
+          what the Event will be called before the session is even started. */}
+      <span className="truncate">
+        {timer.freeSessionName.trim() || t("work.todoSelector.select")}
+      </span>
       <ChevronDown size={15} aria-hidden="true" />
     </button>
   );
@@ -575,8 +579,13 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
             close: t("common.close"),
             clearSelection: t("work.todoSelector.clearSelection"),
             emptyHint: t("work.todoSelector.emptyHint"),
+            nameLabel: t("work.todoSelector.nameLabel"),
+            namePlaceholder: t("work.freeSession.title"),
+            nameSubmit: t("work.todoSelector.nameSubmit"),
           }}
           onSelect={handleSelectTarget}
+          freeSessionName={timer.freeSessionName}
+          onNameSubmit={timer.setFreeSessionName}
         />
         {completionModal}
         {presetConfirmDialog}

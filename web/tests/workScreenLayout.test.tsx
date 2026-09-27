@@ -99,6 +99,8 @@ function occurrence(date: string, startTime: string, extra = {}) {
  */
 function useStubTimer(): Timer {
   const [activeItem, setActiveItem] = useState<Timer["activeItem"]>(null);
+  // #2009: the sheet's name field writes this, and the face reads it back.
+  const [freeSessionName, setFreeSessionName] = useState("");
   const noop = useCallback(() => {}, []);
   const asyncNoop = useCallback(() => Promise.resolve(), []);
   return useMemo(
@@ -122,6 +124,8 @@ function useStubTimer(): Timer {
       // #1665: the free session's tag selection lives on the context too.
       freeSessionTagIds: [],
       setFreeSessionTagIds: noop,
+      freeSessionName,
+      setFreeSessionName,
       start: noop,
       pause: noop,
       reset: noop,
@@ -134,7 +138,7 @@ function useStubTimer(): Timer {
       applyPreset: noop,
       deletePreset: asyncNoop,
     }),
-    [activeItem, noop, asyncNoop],
+    [activeItem, freeSessionName, noop, asyncNoop],
   );
 }
 
@@ -298,5 +302,68 @@ describe("Work — the picker's event rows name their day (#1519)", () => {
       within(menu).getByRole("menuitem", { name: /Write the spec/ })
         .textContent,
     ).toBe("Write the spec");
+  });
+});
+
+/*
+ * #2009 — the mobile sheet can name the free session before it starts. The
+ * Event that name ends up on is the Provider's half (timerFreeSession); what
+ * this pins is the screen's: the field reaches the timer, and the face says
+ * the name afterwards instead of the generic "free session" label.
+ */
+describe("Work — naming a free session from the mobile sheet (#2009)", () => {
+  async function openSheet(main: HTMLElement, name: string) {
+    fireEvent.click(within(main).getByRole("button", { name }));
+    return screen.findByRole("textbox", {
+      name: "work.todoSelector.nameLabel",
+    });
+  }
+
+  it("carries the typed name to the face and clears a picked target", async () => {
+    stub.wide = false;
+    const main = renderWork(NarrowShell);
+
+    // Pick a todo first: a named session is still a FREE session, so naming
+    // one has to drop the link or the name would go nowhere.
+    fireEvent.click(
+      within(main).getByRole("button", { name: "work.todoSelector.select" }),
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Write the spec" }),
+    );
+    fireEvent.click(
+      within(main).getByRole("button", { name: "work.todoSelector.clear" }),
+    );
+
+    const field = await openSheet(main, "work.todoSelector.select");
+    expect(field.getAttribute("placeholder")).toBe("work.freeSession.title");
+    fireEvent.change(field, { target: { value: "Draft the pitch" } });
+    fireEvent.click(
+      screen.getByRole("button", { name: "work.todoSelector.nameSubmit" }),
+    );
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(
+      within(main).getByRole("button", { name: "Draft the pitch" }),
+    ).not.toBeNull();
+  });
+
+  it("goes back to the default label when the name is emptied", async () => {
+    stub.wide = false;
+    const main = renderWork(NarrowShell);
+
+    let field = await openSheet(main, "work.todoSelector.select");
+    fireEvent.change(field, { target: { value: "Draft the pitch" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    // Reopening starts from the saved name, not from a blank draft.
+    field = await openSheet(main, "Draft the pitch");
+    expect((field as HTMLInputElement).value).toBe("Draft the pitch");
+    fireEvent.change(field, { target: { value: "  " } });
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    expect(
+      within(main).getByRole("button", { name: "work.todoSelector.select" }),
+    ).not.toBeNull();
   });
 });

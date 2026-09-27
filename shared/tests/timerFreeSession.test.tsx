@@ -98,6 +98,10 @@ function Probe() {
       <button onClick={() => timer.setFreeSessionTagIds(["tag-1", "tag-2"])}>
         tag
       </button>
+      <button onClick={() => timer.setFreeSessionName("  Draft the pitch ")}>
+        name
+      </button>
+      <button onClick={() => timer.setFreeSessionName("   ")}>blank</button>
       <button
         onClick={() =>
           timer.setActiveItem({
@@ -167,6 +171,27 @@ describe("TimerProvider — free session (#1665)", () => {
       "09:00",
       "09:25",
     ]);
+  });
+
+  // #2009: the name typed in the mobile sheet replaces the default title.
+  it("files the Event under the typed name, trimmed", async () => {
+    const fns = makeFns();
+    await renderTimer(fns);
+    await click("name");
+    await click("start");
+    await click("pause");
+
+    expect(fns.createScheduleItem.mock.calls[0][2]).toBe("Draft the pitch");
+  });
+
+  it("falls back to the default title when the name is blank", async () => {
+    const fns = makeFns();
+    await renderTimer(fns);
+    await click("blank");
+    await click("start");
+    await click("pause");
+
+    expect(fns.createScheduleItem.mock.calls[0][2]).toBe("Free session");
   });
 
   it("points the session at the Event it just minted", async () => {

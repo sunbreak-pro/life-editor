@@ -88,6 +88,8 @@ function useStubTimer(): Timer {
       // #1665: the free session's tag selection lives on the context too.
       freeSessionTagIds: [],
       setFreeSessionTagIds: noop,
+      freeSessionName: "",
+      setFreeSessionName: noop,
       start: noop,
       pause: noop,
       reset: noop,

@@ -309,6 +309,8 @@
       "sheetTitle": "作業名を選ぶ",
       "clearSelection": "フリーセッション",
       "allDay": "終日",
+      "nameLabel": "作業名",
+      "nameSubmit": "この名前で作業する",
       "emptyHint": "選べる Todo や予定がありません。このまま始めるとフリーセッションになります。"
     },
     "completion": {
