@@ -433,11 +433,22 @@
       },
       "tableControls": {
         "label": "表の操作",
+        "rowGroup": "行",
+        "columnGroup": "列",
+        "addRowAbove": "行を上に追加",
         "addRow": "行を下に追加",
+        "addColumnLeft": "列を左に追加",
         "addColumn": "列を右に追加",
         "deleteRow": "行を削除",
         "deleteColumn": "列を削除",
-        "deleteTable": "表を削除"
+        "deleteTable": "表を削除",
+        "addAbove": "上に追加",
+        "addBelow": "下に追加",
+        "addLeft": "左に追加",
+        "addRight": "右に追加",
+        "remove": "削除",
+        "nameLabel": "表の名前",
+        "namePlaceholder": "表に名前を付ける"
       },
       "mainEmpty": "ノートを選ぶか、新しく作成してください",
       "recentHeading": "最近開いたノート",
