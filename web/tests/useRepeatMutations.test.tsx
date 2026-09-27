@@ -5,6 +5,7 @@ import type {
   RoutineNode,
   ScheduleItem,
 } from "@life-editor/shared";
+import { UndoRedoManager, type UndoCommand } from "@life-editor/shared";
 import { useRepeatMutations } from "../src/schedule/useRepeatMutations";
 
 /*
@@ -126,7 +127,7 @@ function renderRepeat(
     ensureRoutineItemsForDateRange: vi.fn(() =>
       Promise.resolve(opts.fillLands ?? true),
     ),
-    reconcileRoutineScheduleItems: vi.fn(() => Promise.resolve()),
+    reconcileRoutineScheduleItems: vi.fn(() => Promise.resolve(true)),
   };
   const applyOccurrencePatch = vi.fn();
   const dismissOccurrence = vi.fn();
@@ -778,5 +779,113 @@ describe("what lands on the undo history", () => {
       expect(h.onRepeatConvertFailed).toHaveBeenCalledWith("series"),
     );
     expect(h.pushed).toHaveLength(0);
+  });
+});
+
+/*
+ * #1642 P4 (K-16 / N-05 / N-14): a failing undo / redo body throws and says
+ * nothing itself. Replayed through the real manager, because the contract is
+ * what IT does with the outcome: a throw keeps the command on its side
+ * (#1668), and the host turns the failed outcome into its one `undoFailed`
+ * toast. Each body here used to resolve over the failure — so the command
+ * moved across under "Undid: ..." — or raise the hook's own toast beside it.
+ */
+describe("a failing undo / redo (#1642 P4)", () => {
+  async function managed(h: ReturnType<typeof renderRepeat>) {
+    await waitFor(() => expect(h.pushed).toHaveLength(1));
+    const manager = new UndoRedoManager();
+    manager.push(h.pushed[0].command as UndoCommand, "routine");
+    return manager;
+  }
+
+  async function expectKept(
+    h: ReturnType<typeof renderRepeat>,
+    manager: UndoRedoManager,
+    direction: "undo" | "redo",
+  ) {
+    let outcome: Awaited<ReturnType<UndoRedoManager["undo"]>> = null;
+    await act(async () => {
+      outcome = await manager[direction]();
+    });
+    expect(outcome).toMatchObject({ ok: false });
+    expect(h.onRepeatConvertFailed).not.toHaveBeenCalled();
+    expect(direction === "undo" ? manager.canUndo() : manager.canRedo()).toBe(
+      true,
+    );
+  }
+
+  const editFuture = (h: ReturnType<typeof renderRepeat>) =>
+    choose(
+      h,
+      { mode: "edit", item: occurrence(), patch: { title: "Evening run" } },
+      "future",
+    );
+
+  it("K-16: keeps a series-edit undo whose template write is lost", async () => {
+    const h = renderRepeat();
+    editFuture(h);
+    const manager = await managed(h);
+    h.updateRoutine.mockResolvedValueOnce(false);
+
+    await expectKept(h, manager, "undo");
+    // Aborted before the days were rewritten over a template that refused.
+    expect(h.updateFutureOccurrences).toHaveBeenCalledTimes(1);
+  });
+
+  it("K-16: keeps a series-edit undo whose propagation is lost", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = renderRepeat();
+    editFuture(h);
+    const manager = await managed(h);
+    h.updateFutureOccurrences.mockRejectedValueOnce(new Error("offline"));
+
+    await expectKept(h, manager, "undo");
+  });
+
+  it("N-05: keeps a rhythm undo whose reconcile did not land", async () => {
+    const h = renderRepeat();
+    act(() =>
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "weekdays" }),
+    );
+    const manager = await managed(h);
+    h.reconcileRoutineScheduleItems.mockResolvedValueOnce(false);
+
+    await expectKept(h, manager, "undo");
+  });
+
+  it("N-05: keeps a rhythm undo whose template write is lost, and skips the reconcile", async () => {
+    const h = renderRepeat();
+    act(() =>
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "weekdays" }),
+    );
+    const manager = await managed(h);
+    h.reconcileRoutineScheduleItems.mockClear();
+    h.updateRoutine.mockResolvedValueOnce(false);
+
+    await expectKept(h, manager, "undo");
+    expect(h.reconcileRoutineScheduleItems).not.toHaveBeenCalled();
+  });
+
+  it("N-14: keeps a repeat-OFF undo whose fill did not land", async () => {
+    // Both passes fail: the second exists to retry the first (#1771).
+    const h = renderRepeat({ fillLands: false });
+    act(() => h.hook.result.current.handleDetachRepeat());
+    const manager = await managed(h);
+
+    await expectKept(h, manager, "undo");
+  });
+
+  it("N-14: keeps a repeat-ON redo whose fill did not land", async () => {
+    const h = renderRepeat({ selected: occurrence({ routineId: null }) });
+    act(() =>
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "daily" }),
+    );
+    const manager = await managed(h);
+    await act(async () => {
+      await manager.undo();
+    });
+    h.ensureRoutineItemsForDateRange.mockResolvedValue(false);
+
+    await expectKept(h, manager, "redo");
   });
 });

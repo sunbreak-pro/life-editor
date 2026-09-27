@@ -393,9 +393,11 @@ describe("reconcileRoutineScheduleItems — change signal", () => {
     };
     const gen = renderGenerator(ds, onChanged);
 
+    // Still resolves rather than throws, but says it did not land (#1642 P4,
+    // N-05): the rhythm undo reads this to tell the manager.
     await expect(
       gen.reconcileRoutineScheduleItems(routine, undefined, TEMPLATE),
-    ).resolves.toBeUndefined();
+    ).resolves.toBe(false);
     expect(onChanged).not.toHaveBeenCalled();
   });
 });

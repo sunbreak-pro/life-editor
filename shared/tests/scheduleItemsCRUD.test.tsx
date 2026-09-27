@@ -50,7 +50,7 @@ function item(id: string, overrides: Partial<ScheduleItem> = {}): ScheduleItem {
 
 /** Records the commands instead of keeping a stack, so a test can run them. */
 function makeHistory() {
-  const commands: Array<{ label: string; undo: () => void; redo: () => void }> =
+  const commands: Array<{ label: string; undo: () => void | Promise<void>; redo: () => void | Promise<void> }> =
     [];
   const undoRedo: UndoRedoLike = {
     push: (_domain, command) => {
@@ -262,13 +262,13 @@ describe("create", () => {
     await act(async () => {});
     expect(labels()).toEqual(["createScheduleItem"]);
 
-    act(() => commands[0].undo());
+    await act(() => commands[0].undo());
     expect(hook.result.current.items).toEqual([]);
     expect(ds.softDeleteScheduleItem).toHaveBeenCalledWith(id);
     // #568: the grid reads its own store, so the row has to leave that too.
     expect(rows()).toHaveLength(0);
 
-    act(() => commands[0].redo());
+    await act(() => commands[0].redo());
     expect(hook.result.current.items.map((i) => i.id)).toEqual([id]);
     expect(ds.restoreScheduleItem).toHaveBeenCalledWith(id);
     expect(rows().map((r) => r.id)).toEqual([id]);
@@ -290,12 +290,12 @@ describe("create", () => {
         "09:15",
       );
     });
-    act(() => commands[0].undo());
+    await act(() => commands[0].undo());
 
     hook.rerender({ d: "2026-08-20" });
     await waitFor(() => expect(hook.result.current.date).toBe("2026-08-20"));
 
-    act(() => commands[0].redo());
+    await act(() => commands[0].redo());
     expect(hook.result.current.items).toEqual([]);
     // The DB write still happens — the row exists again, it is just off-screen.
     expect(ds.restoreScheduleItem).toHaveBeenCalledTimes(1);
@@ -321,13 +321,13 @@ describe("dismiss / undismiss", () => {
     expect(ds.dismissScheduleItem).toHaveBeenCalledWith("s-1");
     expect(labels()).toEqual(["dismissScheduleItem"]);
 
-    act(() => commands[0].undo());
+    await act(() => commands[0].undo());
     expect(hook.result.current.items[0].isDismissed).toBe(false);
     expect(ds.undismissScheduleItem).toHaveBeenCalledWith("s-1");
     expect(rows()).toHaveLength(1);
     expect(rows()[0]).toMatchObject({ id: "s-1", isDismissed: false });
 
-    act(() => commands[0].redo());
+    await act(() => commands[0].redo());
     expect(rows()).toHaveLength(0);
   });
 
@@ -352,13 +352,13 @@ describe("dismiss / undismiss", () => {
     expect(ds.undismissScheduleItem).toHaveBeenCalledWith("s-1");
     expect(labels()).toEqual(["undismissScheduleItem"]);
 
-    act(() => commands[0].undo());
+    await act(() => commands[0].undo());
     expect(hook.result.current.items[0].isDismissed).toBe(true);
     expect(ds.dismissScheduleItem).toHaveBeenCalledWith("s-1");
     // The grid drops a dismissed row entirely, so the undo takes it off there.
     expect(rows()).toHaveLength(0);
 
-    act(() => commands[0].redo());
+    await act(() => commands[0].redo());
     expect(hook.result.current.items[0].isDismissed).toBe(false);
     expect(ds.undismissScheduleItem).toHaveBeenCalledTimes(2);
   });
@@ -402,7 +402,7 @@ describe("bulk delete", () => {
     await act(async () => {
       await hook.result.current.bulkDeleteScheduleItems(["s-1", "s-2"]);
     });
-    act(() => commands[0].undo());
+    await act(() => commands[0].undo());
     expect(hook.result.current.items.map((i) => i.id).sort()).toEqual([
       "s-1",
       "s-2",
@@ -410,7 +410,7 @@ describe("bulk delete", () => {
     expect(ds.restoreScheduleItem).toHaveBeenCalledWith("s-1");
     expect(ds.restoreScheduleItem).toHaveBeenCalledWith("s-2");
 
-    act(() => commands[0].redo());
+    await act(() => commands[0].redo());
     expect(hook.result.current.items).toEqual([]);
     expect(ds.bulkDeleteScheduleItems).toHaveBeenCalledTimes(2);
   });

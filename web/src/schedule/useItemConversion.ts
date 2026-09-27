@@ -55,6 +55,16 @@ import {
 const UNDO_LABEL_TO_TODO = "convertEventToTodo";
 const UNDO_LABEL_TO_EVENT = "convertTodoToEvent";
 
+/**
+ * What an undo / redo throws when the same row is still converting (#1642 P4,
+ * N-13). A quick second Ctrl+Z after Event→Todo→Event reaches the older
+ * command while the newer one is in flight on the same id. Returning there
+ * told the manager it worked, so the command moved to redo without running.
+ */
+function stillInFlight(id: string): Error {
+  return new Error(`conversion of ${id} is still in flight`);
+}
+
 /** The slot a converted Todo lands in: the top of the root group. */
 const CONVERT_TODO_ORDER = 0;
 
@@ -128,19 +138,18 @@ export function useItemConversion({
    * Both closures re-claim the per-id in-flight guard (#434). Undo is a
    * keyboard gesture and repeats readily, and a second inverse against a row
    * whose role has already moved would report a failure for something that
-   * worked.
+   * worked. A press that finds the guard taken throws (`stillInFlight`), so
+   * the command stays where it was for a later press (#1642 P4, N-13).
    *
    * The bodies are async and the manager awaits them, so the "Undid: ..." toast
    * lands after the writes settle rather than in front of them.
    *
-   * #1772: every catch here re-throws after its toast. The catch exists to
-   * name the failure in the user's words -- `itemConvert.failed` says which
-   * action broke, which a generic "could not undo" cannot -- but swallowing
-   * the error left the closure resolving normally, and `UndoRedoManager.apply`
-   * reads "did not throw" as "worked": the host stacked "Undid: ..." on top of
-   * "Conversion failed", and the command that never ran moved to the redo
-   * stack (#1668 keeps a THROWING undo on the undo stack, so the re-throw is
-   * also what makes a second Undo press reachable).
+   * #1772 / #1642 P4 (N-06): every catch here logs and re-throws, and says
+   * nothing itself. `UndoRedoManager.apply` reads "did not throw" as
+   * "worked", and a throwing undo stays on the undo stack (#1668), so the
+   * re-throw is what keeps a second press reachable. The host's `undoFailed`
+   * toast already names the action by its label; the `itemConvert.failed`
+   * toast these catches used to add made it two danger toasts for one press.
    */
   const pushEventToTodoUndo = useCallback(
     (before: ScheduleItem) => {
@@ -150,7 +159,7 @@ export function useItemConversion({
       push("itemConversion", {
         label: UNDO_LABEL_TO_TODO,
         undo: async () => {
-          if (!beginConvert(id)) return;
+          if (!beginConvert(id)) throw stillInFlight(id);
           try {
             await dataService.convertTodoToEvent(id, placement);
             // convertTodoToEvent always writes is_dismissed = false, so a
@@ -164,15 +173,13 @@ export function useItemConversion({
               `undo convertEventToTodo (${id})`,
               err,
             );
-            showToast("danger", t("itemConvert.failed"));
-            // #1772: the toast is ours, the verdict is the manager's.
             throw err;
           } finally {
             endConvert(id);
           }
         },
         redo: async () => {
-          if (!beginConvert(id)) return;
+          if (!beginConvert(id)) throw stillInFlight(id);
           try {
             await dataService.convertEventToTodo(id, {
               order: CONVERT_TODO_ORDER,
@@ -185,8 +192,6 @@ export function useItemConversion({
               `redo convertEventToTodo (${id})`,
               err,
             );
-            showToast("danger", t("itemConvert.failed"));
-            // #1772: the toast is ours, the verdict is the manager's.
             throw err;
           } finally {
             endConvert(id);
@@ -194,16 +199,7 @@ export function useItemConversion({
         },
       });
     },
-    [
-      push,
-      dataService,
-      reload,
-      refetchTodos,
-      showToast,
-      t,
-      beginConvert,
-      endConvert,
-    ],
+    [push, dataService, reload, refetchTodos, beginConvert, endConvert],
   );
 
   const pushTodoToEventUndo = useCallback(
@@ -214,7 +210,7 @@ export function useItemConversion({
       push("itemConversion", {
         label: UNDO_LABEL_TO_EVENT,
         undo: async () => {
-          if (!beginConvert(id)) return;
+          if (!beginConvert(id)) throw stillInFlight(id);
           try {
             // Role first: tasks_payload does not exist until this lands, so
             // the field patch would have nothing to write onto.
@@ -228,15 +224,13 @@ export function useItemConversion({
               `undo convertTodoToEvent (${id})`,
               err,
             );
-            showToast("danger", t("itemConvert.failed"));
-            // #1772: the toast is ours, the verdict is the manager's.
             throw err;
           } finally {
             endConvert(id);
           }
         },
         redo: async () => {
-          if (!beginConvert(id)) return;
+          if (!beginConvert(id)) throw stillInFlight(id);
           try {
             await dataService.convertTodoToEvent(id, placement);
             reload();
@@ -247,8 +241,6 @@ export function useItemConversion({
               `redo convertTodoToEvent (${id})`,
               err,
             );
-            showToast("danger", t("itemConvert.failed"));
-            // #1772: the toast is ours, the verdict is the manager's.
             throw err;
           } finally {
             endConvert(id);
@@ -256,16 +248,7 @@ export function useItemConversion({
         },
       });
     },
-    [
-      push,
-      dataService,
-      reload,
-      refetchTodos,
-      showToast,
-      t,
-      beginConvert,
-      endConvert,
-    ],
+    [push, dataService, reload, refetchTodos, beginConvert, endConvert],
   );
 
   const handleConvertToTodo = useCallback(

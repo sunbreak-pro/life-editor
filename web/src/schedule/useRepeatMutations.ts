@@ -138,7 +138,7 @@ export interface UseRepeatMutationsArgs {
       startTime: string | null;
       endTime: string | null;
     },
-  ) => Promise<void>;
+  ) => Promise<boolean>;
   // #434: an Event→Repeats conversion did not fully land. The editor snaps
   // back on reload(), which on its own looks like the click did nothing, so
   // the host says it out loud (toast). Same contract as the create panel's
@@ -354,6 +354,15 @@ export function useRepeatMutations(args: UseRepeatMutationsArgs) {
               (previousPatch as Record<string, unknown>)[key] = before[key];
             }
             const editedTemplate = { ...plan.template, ...plan.updates };
+            /*
+             * #1642 P4 (K-16): a lost write re-throws. The forward pass
+             * names its failure with a toast; here the manager does — it
+             * reads the throw as "did not happen", keeps the command where it
+             * was, and the host raises the one `undoFailed` toast. The old
+             * body swallowed both failures, so a reversal that never landed
+             * moved to redo under "Undid: ...". The reload still shows
+             * whatever did land.
+             */
             const run = async (
               occurrencePatch: Partial<ScheduleItem>,
               updates: typeof plan.updates,
@@ -366,16 +375,17 @@ export function useRepeatMutations(args: UseRepeatMutationsArgs) {
                 const landed = await updateRoutine(plan.routineId, updates, {
                   skipUndo: true,
                 });
-                if (!landed) return;
+                if (!landed) {
+                  throw new Error(
+                    `series template write did not land (${plan.routineId})`,
+                  );
+                }
                 await updateFutureOccurrences(
                   plan.routineId,
                   updates,
                   plan.fromDate,
                   template,
                 );
-              } catch {
-                // Same contract as the forward pass: the reload below shows
-                // whatever actually landed.
               } finally {
                 reload();
               }

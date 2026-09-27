@@ -122,10 +122,9 @@ describe("the creation panel's note attach", () => {
   });
 
   it("hands a failed undo back instead of reporting success (#1767)", async () => {
-    // The catch exists to say "the note did not make it onto the item" —
-    // `onAttachError` names a failure the generic copy cannot. It just must
-    // not end there: a closure that resolves tells the manager the reversal
-    // worked, and the host then stacks "Undid: ..." on top of the error.
+    // A closure that resolves tells the manager the reversal worked, and the
+    // host then stacks "Undid: ..." on top of the error. The throw is the
+    // whole report: the host turns it into one `undoFailed` toast.
     const h = setup();
     vi.spyOn(console, "error").mockImplementation(() => {});
 
@@ -141,7 +140,8 @@ describe("the creation panel's note attach", () => {
     await act(async () => {
       await expect(h.pushed[0].command.undo()).rejects.toThrow("offline");
     });
-    expect(h.onAttachError).toHaveBeenCalledTimes(1);
+    // #1642 P4 (N-06): the host's `undoFailed` is the one report.
+    expect(h.onAttachError).not.toHaveBeenCalled();
   });
 
   it("hands a failed redo back the same way (#1767)", async () => {
@@ -163,7 +163,8 @@ describe("the creation panel's note attach", () => {
     await act(async () => {
       await expect(h.pushed[0].command.redo()).rejects.toThrow("offline");
     });
-    expect(h.onAttachError).toHaveBeenCalledTimes(1);
+    // #1642 P4 (N-06): the host's `undoFailed` is the one report.
+    expect(h.onAttachError).not.toHaveBeenCalled();
   });
 
   it("records nothing when the attach failed", async () => {

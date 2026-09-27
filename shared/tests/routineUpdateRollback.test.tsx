@@ -145,3 +145,30 @@ describe("a failed routine update takes its optimistic patch back (#1769)", () =
     expect(h.entries[0].label).toBe("updateRoutine");
   });
 });
+
+/*
+ * #1642 P4 (B-10): the undo entry's own write follows the same rule. A lost
+ * write puts the screen back where the command left it and re-throws, so the
+ * manager keeps the command and the host says "couldn't undo" once.
+ */
+describe("a lost routine update undo (#1642 P4)", () => {
+  it("re-throws and puts the edited values back on screen", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = await mount();
+    await act(async () => {
+      await h.view.result.current.updateRoutine("routine-1", {
+        title: "Evening run",
+      });
+    });
+    await waitFor(() => expect(h.entries).toHaveLength(1));
+    h.updateRoutine.mockRejectedValueOnce(new Error("offline"));
+
+    await act(async () => {
+      await expect(
+        (h.entries[0].undo as () => Promise<void>)(),
+      ).rejects.toThrow("offline");
+    });
+
+    expect(current(h.view).title).toBe("Evening run");
+  });
+});
