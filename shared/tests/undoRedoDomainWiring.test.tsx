@@ -92,8 +92,14 @@ function TodoProbe() {
 }
 
 function RoutineProbe() {
-  const { createRoutine } = useRoutineContext();
-  return <button onClick={() => createRoutine("R")}>mutate</button>;
+  // #1642 P9 removed the hook's `createRoutine` (no caller), so the probe
+  // edits the one routine `routineDS` loads instead — also a pushing write.
+  const { updateRoutine } = useRoutineContext();
+  return (
+    <button onClick={() => void updateRoutine("routine-1", { title: "R" })}>
+      mutate
+    </button>
+  );
 }
 
 /**
@@ -141,9 +147,27 @@ const todoDS = {
 } as unknown as DataService;
 
 const routineDS = {
-  fetchAllRoutines: async () => [],
+  fetchAllRoutines: async () => [
+    {
+      id: "routine-1",
+      title: "Routine",
+      startTime: null,
+      endTime: null,
+      isArchived: false,
+      isVisible: true,
+      isDeleted: false,
+      deletedAt: null,
+      order: 0,
+      frequencyType: "daily",
+      frequencyDays: [],
+      frequencyInterval: null,
+      frequencyStartDate: null,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+    },
+  ],
   fetchDeletedRoutines: async () => [],
-  createRoutine: async () => {},
+  updateRoutine: async () => {},
   softDeleteRoutine: async () => ({ deletedScheduleItemIds: [] }),
   restoreRoutine: async () => {},
 } as unknown as DataService;

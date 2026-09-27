@@ -84,75 +84,6 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
 
   // ── Routines ──────────────────────────────────────────────────────
 
-  const createRoutine = useCallback(
-    (
-      title: string,
-      startTime?: string,
-      endTime?: string,
-      frequencyType?: FrequencyType,
-      frequencyDays?: number[],
-      frequencyInterval?: number | null,
-      frequencyStartDate?: string | null,
-      reminderEnabled?: boolean,
-      reminderOffset?: number,
-    ) => {
-      const id = generateId("routine");
-      const now = new Date().toISOString();
-      const optimistic: RoutineNode = {
-        id,
-        title,
-        startTime: startTime ?? null,
-        endTime: endTime ?? null,
-        isArchived: false,
-        isVisible: true,
-        isDeleted: false,
-        deletedAt: null,
-        order: routinesRef.current.length,
-        frequencyType: frequencyType ?? "daily",
-        frequencyDays: frequencyDays ?? [],
-        frequencyInterval: frequencyInterval ?? null,
-        frequencyStartDate: frequencyStartDate ?? null,
-        reminderEnabled,
-        reminderOffset,
-        createdAt: now,
-        updatedAt: now,
-      };
-      setRoutines((prev) => [...prev, optimistic]);
-      ds.createRoutine(
-        id,
-        title,
-        startTime,
-        endTime,
-        frequencyType,
-        frequencyDays,
-        frequencyInterval,
-        frequencyStartDate,
-        reminderEnabled,
-        reminderOffset,
-      ).catch((e) => logServiceError("Routines", "create", e));
-
-      push("routine", {
-        label: "createRoutine",
-        confirm: SERIES_CONFIRM,
-        undo: () => {
-          setRoutines((prev) => prev.filter((r) => r.id !== id));
-          ds.softDeleteRoutine(id).catch((e) =>
-            logServiceError("Routines", "undoCreate", e),
-          );
-        },
-        redo: () => {
-          setRoutines((prev) => [...prev, optimistic]);
-          ds.restoreRoutine(id).catch((e) =>
-            logServiceError("Routines", "redoCreate", e),
-          );
-        },
-      });
-
-      return id;
-    },
-    [ds, push],
-  );
-
   const updateRoutine = useCallback(
     (
       id: string,
@@ -506,7 +437,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
     [ds, push],
   );
 
-  // Event→Repeats conversion (#296). AWAITED, unlike createRoutine: the
+  // Event→Repeats conversion (#296). AWAITED: the
   // seed event is attached to the routine inside the same service call, so
   // the caller must know whether the conversion actually landed before it
   // materialises further occurrences.
@@ -603,96 +534,30 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
     }
   }, [ds]);
 
-  const restoreRoutine = useCallback(
-    (id: string) => {
-      // DU-C 2026-05-24 hotfix: React 19 StrictMode は dev で setState
-      // updater を double-invoke する。元の実装は
-      //   setDeletedRoutines((prev) => { ...; setRoutines((r) => [...r, restored]); return filter() })
-      // という入れ子 setState で、StrictMode で内側の setRoutines が
-      // 2 回発火し routines に同じ id が 2 件入る → ScheduleView の
-      // `key={r.id}` で duplicate-key warning + UI 上で routine が
-      // 2 つに見える事象を起こす。
-      //
-      // 修正: setRoutines / setDeletedRoutines を独立 setState に分離
-      // し、追加側は `some(id)` ガードで冪等にする。dedup guard は
-      // StrictMode double-invoke だけでなく、UI の連打や非同期競合に
-      // よる重複追加にも保険として効く。
-      setRoutines((r) => {
-        if (r.some((x) => x.id === id)) return r;
-        const target = deletedRoutines.find((d) => d.id === id);
-        if (!target) return r;
-        const restored: RoutineNode = {
-          ...target,
-          isDeleted: false,
-          deletedAt: null,
-        };
-        return [...r, restored];
-      });
-      setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
-      ds.restoreRoutine(id).catch((e) =>
-        logServiceError("Routines", "restore", e),
-      );
-    },
-    [ds, deletedRoutines],
-  );
-
-  const permanentDeleteRoutine = useCallback(
-    (id: string) => {
-      // #1140: the optimistic removal is PUT BACK when the purge refuses.
-      // A purge is the one write on this hook that the database can reject
-      // outright — the 0011 composite FK is NO ACTION, so a still-referencing
-      // occurrence makes it fail rather than partially apply. Dropping the row
-      // and only logging meant the routine left Trash on screen while it was
-      // still in the database, with nothing to click to try again: the user
-      // could neither see the failure nor recover from it. Restoring the row
-      // makes the screen match the data and puts the retry back in reach.
-      //
-      // Guarded with `some(id)` for the same reason restoreRoutine above is:
-      // StrictMode double-invokes the updater in dev, and this one runs from
-      // an async catch where a retry can overlap.
-      const purged = deletedRoutines.find((r) => r.id === id);
-      setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
-      ds.permanentDeleteRoutine(id).catch((e) => {
-        logServiceError("Routines", "permanentDelete", e);
-        if (!purged) return;
-        setDeletedRoutines((prev) =>
-          prev.some((r) => r.id === id) ? prev : [...prev, purged],
-        );
-      });
-    },
-    [ds, deletedRoutines],
-  );
-
   return useMemo(
     () => ({
       routines,
       deletedRoutines,
       isLoading,
       error,
-      createRoutine,
       convertEventToRoutine,
       updateRoutine,
       deleteRoutine,
       detachRoutine,
       updateFutureOccurrences,
       loadDeletedRoutines,
-      restoreRoutine,
-      permanentDeleteRoutine,
     }),
     [
       routines,
       deletedRoutines,
       isLoading,
       error,
-      createRoutine,
       convertEventToRoutine,
       updateRoutine,
       deleteRoutine,
       detachRoutine,
       updateFutureOccurrences,
       loadDeletedRoutines,
-      restoreRoutine,
-      permanentDeleteRoutine,
     ],
   );
 }
