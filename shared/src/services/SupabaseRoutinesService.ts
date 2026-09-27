@@ -908,13 +908,13 @@ export class SupabaseRoutinesService implements RoutinesDataService {
    * away through the 0008 FK; nothing is destroyed by a purge that refuses,
    * and everything is by the other one.
    *
-   * Be precise about what "recoverable" buys, though, because it is less than
-   * it sounds at the UI seam: `useRoutinesAPI.permanentDeleteRoutine` drops
-   * the row from `deletedRoutines` optimistically and hands the rejection to
-   * `logServiceError`. So the user watches the routine leave Trash while it is
-   * still in the database, and no message says otherwise. The data is intact
-   * and diagnosable; the screen is lying. Surfacing it is the deferred rough
-   * edge below.
+   * Be precise about what "recoverable" buys, though: it says the data
+   * survives a refused purge, not that the user is told. The hook wrapper this
+   * paragraph used to describe (`useRoutinesAPI.permanentDeleteRoutine`, which
+   * #1140 made put the row back on a refusal) was removed by #1642 P9 with no
+   * caller left. The Trash screen calls this method straight through the
+   * DataService (`web/src/trash/TrashScreen.tsx`), so what a refusal looks
+   * like on screen is decided there.
    *
    * ONE ROUTE, IN TWO STEPS — and (a) on its own is harmless, so do not read
    * it alone and conclude the hazard is close at hand:
