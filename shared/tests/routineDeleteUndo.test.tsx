@@ -246,3 +246,50 @@ describe("routine delete undo restores the whole cascade (#708)", () => {
     expect(fixture.restoreRoutine).toHaveBeenCalledTimes(1);
   });
 });
+
+/*
+ * #1642 P4 (B-10 / N-06): a lost restore of the routine itself re-throws. The
+ * body used to log it and carry on, painting the repeat back into the list
+ * and letting the host say "Undid: ..." over a repeat still in the trash.
+ */
+describe("a lost routine delete undo / redo (#1642 P4)", () => {
+  it("re-throws a lost routine restore and keeps the repeat out of the list", async () => {
+    const onCascadeChanged = vi.fn();
+    const fixture = makeDS();
+    fixture.restoreRoutine.mockRejectedValueOnce(new Error("offline"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { view, entries } = await mountAndDelete(
+      fixture.ds,
+      onCascadeChanged,
+    );
+
+    await act(async () => {
+      await expect(
+        (entries[0].undo as () => Promise<void>)(),
+      ).rejects.toThrow("offline");
+    });
+
+    expect(view.result.current.routines).toHaveLength(0);
+    // The rows may be back while the repeat is not: the host re-reads.
+    expect(onCascadeChanged).toHaveBeenCalledTimes(1);
+  });
+
+  it("re-throws a lost redo and puts the repeat back in the list", async () => {
+    const fixture = makeDS();
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { view, entries } = await mountAndDelete(fixture.ds);
+    await act(async () => {
+      await (entries[0].undo as () => Promise<void>)();
+    });
+    await waitFor(() => expect(view.result.current.routines).toHaveLength(1));
+    fixture.softDeleteRoutine.mockRejectedValueOnce(new Error("offline"));
+
+    await act(async () => {
+      await expect(
+        (entries[0].redo as () => Promise<void>)(),
+      ).rejects.toThrow("offline");
+    });
+
+    expect(view.result.current.routines).toHaveLength(1);
+  });
+});

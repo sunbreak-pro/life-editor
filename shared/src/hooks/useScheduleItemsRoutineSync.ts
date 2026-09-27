@@ -281,7 +281,7 @@ export function useScheduleItemsRoutineSync(
         startTime: string | null;
         endTime: string | null;
       },
-    ) => {
+    ): Promise<boolean> => {
       try {
         const allItems = await ds.fetchScheduleItemsByRoutineId(routine.id);
         const today = todayDateKey();
@@ -349,8 +349,13 @@ export function useScheduleItemsRoutineSync(
         if (toDeleteIds.length > 0 || created > 0) {
           notifyChanged();
         }
+        return true;
       } catch (e) {
         logServiceError("ScheduleItems", "reconcileRoutine", e);
+        // #1642 P4 (N-05): reported by the result, like
+        // `ensureRoutineItemsForDateRange` above. An undo that re-shapes the
+        // days has to be able to tell the manager it did not.
+        return false;
       }
     },
     [ds, notifyChanged],

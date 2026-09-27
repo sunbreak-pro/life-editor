@@ -166,39 +166,41 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
          * and running it wrote the old values over values that had never
          * changed.
          */
+        const paint = (values: typeof updates) =>
+          setRoutines((p) =>
+            p.map((r) =>
+              r.id === id
+                ? { ...r, ...values, updatedAt: new Date().toISOString() }
+                : r,
+            ),
+          );
+        /*
+         * #1642 P4 (B-10): each body paints, awaits its write, and on a lost
+         * write paints the other side back and re-throws. The manager reads
+         * the throw as "did not happen" and keeps the command where it was
+         * (#1668); the host raises the one `undoFailed` toast.
+         */
+        const run = async (
+          to: typeof updates,
+          back: typeof updates,
+          op: string,
+        ) => {
+          paint(to);
+          try {
+            await ds.updateRoutine(id, to);
+          } catch (e) {
+            logServiceError("Routines", op, e);
+            paint(back);
+            throw e;
+          }
+        };
         void landed.then((ok) => {
           if (!ok) return;
           push("routine", {
             label: "updateRoutine",
             confirm: SERIES_CONFIRM,
-            undo: () => {
-              setRoutines((p) =>
-                p.map((r) =>
-                  r.id === id
-                    ? {
-                        ...r,
-                        ...prevValues,
-                        updatedAt: new Date().toISOString(),
-                      }
-                    : r,
-                ),
-              );
-              ds.updateRoutine(id, prevValues).catch((e) =>
-                logServiceError("Routines", "undoUpdate", e),
-              );
-            },
-            redo: () => {
-              setRoutines((p) =>
-                p.map((r) =>
-                  r.id === id
-                    ? { ...r, ...updates, updatedAt: new Date().toISOString() }
-                    : r,
-                ),
-              );
-              ds.updateRoutine(id, updates).catch((e) =>
-                logServiceError("Routines", "redoUpdate", e),
-              );
-            },
+            undo: () => run(prevValues, updates, "undoUpdate"),
+            redo: () => run(updates, prevValues, "redoUpdate"),
           });
         });
       }
@@ -266,42 +268,50 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
           // left with a repeat that looks restored but whose rows are not the
           // ones they deleted, and with their hand-made seed event still in
           // the trash. So: rows back, then routine, then paint.
-          undo: () => {
-            void (async () => {
-              try {
-                const { conflictedIds } =
-                  await ds.bulkRestoreScheduleItems(cascade);
-                // Not a failure: the generator already re-made those days
-                // while the repeat was in the trash, so the calendar shows
-                // an occurrence either way — only the id differs (#932).
-                // Everything else, seed event included, is back. Before the
-                // partial restore landed, ONE such day failed the whole
-                // batch and nothing came back at all.
-                if (conflictedIds.length > 0) {
-                  logServiceError(
-                    "Routines",
-                    "undoDeleteCascade",
-                    new Error(
-                      `${conflictedIds.length} occurrence(s) stayed in the trash: a live row already holds their (routine, date) pair`,
-                    ),
-                  );
-                }
-              } catch (e) {
-                logServiceError("Routines", "undoDeleteCascade", e);
+          //
+          // #1642 P4 (B-10 / N-06): a lost write re-throws, so the manager
+          // keeps the command where it was and the host says "couldn't undo"
+          // once. The cascade restore alone stays forgiven, as before: the
+          // repeat coming back matters more than the rows, which Trash still
+          // holds.
+          undo: async () => {
+            try {
+              const { conflictedIds } =
+                await ds.bulkRestoreScheduleItems(cascade);
+              // Not a failure: the generator already re-made those days
+              // while the repeat was in the trash, so the calendar shows
+              // an occurrence either way — only the id differs (#932).
+              // Everything else, seed event included, is back. Before the
+              // partial restore landed, ONE such day failed the whole
+              // batch and nothing came back at all.
+              if (conflictedIds.length > 0) {
+                logServiceError(
+                  "Routines",
+                  "undoDeleteCascade",
+                  new Error(
+                    `${conflictedIds.length} occurrence(s) stayed in the trash: a live row already holds their (routine, date) pair`,
+                  ),
+                );
               }
-              try {
-                await ds.restoreRoutine(id);
-              } catch (e) {
-                logServiceError("Routines", "undoDelete", e);
-              }
-              setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
-              setRoutines((prev) =>
-                prev.some((r) => r.id === id) ? prev : [...prev, target],
-              );
+            } catch (e) {
+              logServiceError("Routines", "undoDeleteCascade", e);
+            }
+            try {
+              await ds.restoreRoutine(id);
+            } catch (e) {
+              logServiceError("Routines", "undoDelete", e);
+              // The rows above may be back while the repeat is not; the
+              // host's re-read shows the grid what actually landed.
               onCascadeChanged?.();
-            })();
+              throw e;
+            }
+            setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
+            setRoutines((prev) =>
+              prev.some((r) => r.id === id) ? prev : [...prev, target],
+            );
+            onCascadeChanged?.();
           },
-          redo: () => {
+          redo: async () => {
             setRoutines((prev) => prev.filter((r) => r.id !== id));
             setDeletedRoutines((prev) => {
               const redoDeleted: RoutineNode = {
@@ -311,16 +321,20 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
               };
               return [redoDeleted, ...prev];
             });
-            void (async () => {
-              // softDeleteRoutine re-runs the whole cascade, so redo does not
-              // replay the id list — it re-reads whatever is live now.
-              try {
-                await ds.softDeleteRoutine(id);
-              } catch (e) {
-                logServiceError("Routines", "redoDelete", e);
-              }
+            // softDeleteRoutine re-runs the whole cascade, so redo does not
+            // replay the id list — it re-reads whatever is live now.
+            try {
+              await ds.softDeleteRoutine(id);
+            } catch (e) {
+              logServiceError("Routines", "redoDelete", e);
+              setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
+              setRoutines((prev) =>
+                prev.some((r) => r.id === id) ? prev : [...prev, target],
+              );
+              throw e;
+            } finally {
               onCascadeChanged?.();
-            })();
+            }
           },
         });
       }

@@ -170,13 +170,19 @@ export function useRepeatEditorMutations({
    * rows into past days would pollute the life record (tier-1 rule 1 spirit).
    * The seed's own day needs no pass: the seed row IS that day's occurrence now
    * (source_date claims the slot).
+   *
+   * Resolves false when the fill did not land, and says nothing itself
+   * (#1642 P4, N-14). The forward press turns that into the "materialise"
+   * toast; an undo or redo turns it into a throw, so the manager's one
+   * `undoFailed` toast is the only word — before, the two toasts landed
+   * together with "Undid: ..." on top.
    */
   const materialiseNewSeries = useCallback(
-    async (routine: RoutineNode, seedDate: string): Promise<void> => {
+    async (routine: RoutineNode, seedDate: string): Promise<boolean> => {
       const windowStart = [rangeStart, seedDate, today].reduce((a, b) =>
         a >= b ? a : b,
       );
-      if (windowStart > rangeEnd) return;
+      if (windowStart > rangeEnd) return true;
       try {
         const first = await ensureRoutineItemsForDateRange(
           windowStart,
@@ -206,7 +212,7 @@ export function useRepeatEditorMutations({
          * range is the case that retry is FOR, and reporting it would cry off
          * a repeat that is on screen and correct.
          */
-        if (!first && !second) onRepeatConvertFailed("materialise");
+        return first || second;
       } catch {
         // The repeat itself IS on (convert + attach landed); only filling the
         // visible range failed. Pre-#434 this threw out of the void-ed promise:
@@ -214,16 +220,23 @@ export function useRepeatEditorMutations({
         // optimistic band on screen over data that never arrived. `ensure`
         // swallows its own errors today, so this is the belt to #1771's
         // braces rather than the live path.
-        onRepeatConvertFailed("materialise");
+        return false;
       }
     },
-    [
-      rangeStart,
-      rangeEnd,
-      today,
-      ensureRoutineItemsForDateRange,
-      onRepeatConvertFailed,
-    ],
+    [rangeStart, rangeEnd, today, ensureRoutineItemsForDateRange],
+  );
+
+  /**
+   * The same fill, inside an undo or redo body: a fill that did not land is a
+   * reversal that did not either, so it throws for the manager to report.
+   */
+  const materialiseOrThrow = useCallback(
+    async (routine: RoutineNode, seedDate: string): Promise<void> => {
+      if (!(await materialiseNewSeries(routine, seedDate))) {
+        throw new Error(`series fill did not land (${routine.id})`);
+      }
+    },
+    [materialiseNewSeries],
   );
 
   /**
@@ -288,10 +301,11 @@ export function useRepeatEditorMutations({
             frequencyInterval,
             frequencyStartDate,
           };
-          await materialiseNewSeries(
+          const filled = await materialiseNewSeries(
             optimisticSeedRoutine(routineId, seed, frequency),
             seed.date,
           );
+          if (!filled) onRepeatConvertFailed("materialise");
           /*
            * #1638 (A-03): turning a repeat ON is undoable now. The inverse is
            * the one the editor already offers as "なし" — detach with the seed
@@ -325,7 +339,7 @@ export function useRepeatEditorMutations({
                   ...frequency,
                   sourceDate: seed.date,
                 });
-                await materialiseNewSeries(
+                await materialiseOrThrow(
                   optimisticSeedRoutine(liveRoutineId, seed, frequency),
                   seed.date,
                 );
@@ -353,6 +367,7 @@ export function useRepeatEditorMutations({
       detachRoutine,
       patchRange,
       materialiseNewSeries,
+      materialiseOrThrow,
       onRepeatConvertFailed,
       push,
       reload,
@@ -392,16 +407,23 @@ export function useRepeatEditorMutations({
        * command. Before this the template write pushed its own entry and the
        * reconcile pushed nothing: Ctrl+Z put the old rhythm back and left the
        * days the new rhythm had created or removed exactly as they were.
+       *
+       * #1642 P4 (N-05): the body throws when either half did not land. It
+       * used to return false for a lost template write and ignore the
+       * reconcile entirely, and the undo / redo around it read neither — so
+       * the manager called both a success and the host said "Undid: ...".
        */
       const applyFrequency = async (
         updates: Partial<FrequencyEditorValue>,
-        base: RoutineNode | undefined,
-      ): Promise<boolean> => {
+        base: RoutineNode,
+      ): Promise<void> => {
         const landed = await updateRoutine(routineId, updates, {
           skipUndo: true,
         });
-        if (!landed || !base) return landed;
-        await reconcileRoutineScheduleItems(
+        if (!landed) {
+          throw new Error(`repeat rhythm write did not land (${routineId})`);
+        }
+        const reshaped = await reconcileRoutineScheduleItems(
           { ...base, ...updates },
           { startDate: rangeStart, endDate: rangeEnd },
           {
@@ -410,7 +432,9 @@ export function useRepeatEditorMutations({
             endTime: base.endTime,
           },
         );
-        return true;
+        if (!reshaped) {
+          throw new Error(`repeat days were not re-shaped (${routineId})`);
+        }
       };
       const previousFrequency = routine
         ? {
@@ -595,7 +619,7 @@ export function useRepeatEditorMutations({
                   ...frequency,
                   sourceDate: survivor.date,
                 });
-                await materialiseNewSeries(
+                await materialiseOrThrow(
                   optimisticSeedRoutine(liveRoutineId, survivor, frequency),
                   survivor.date,
                 );
@@ -625,7 +649,7 @@ export function useRepeatEditorMutations({
     routines,
     convertEventToRoutine,
     detachRoutine,
-    materialiseNewSeries,
+    materialiseOrThrow,
     push,
     setRangeItems,
     reload,

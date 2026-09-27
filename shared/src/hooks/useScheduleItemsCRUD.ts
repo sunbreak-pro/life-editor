@@ -65,6 +65,87 @@ function repeatConfirm(
   return item?.routineId ? { kind: "repeat", scope: "this" } : undefined;
 }
 
+/**
+ * The write half of an undo / redo body (#1642 P4, B-10).
+ *
+ * Each body paints first and writes second, like the forward writes do. When
+ * the write fails, the paint is taken back and the error is re-thrown: the
+ * manager reads a throw as "this did not happen" (#1668), keeps the command
+ * where it was so a second press can retry, and the host raises the one
+ * `undoFailed` toast. The bodies used to fire the write and return, so a lost
+ * write still moved the command across and the host said "Undid: ...".
+ */
+async function landOrRevert<T>(
+  write: Promise<T>,
+  revert: () => void,
+  op: string,
+): Promise<T> {
+  try {
+    return await write;
+  } catch (e) {
+    logServiceError("ScheduleItems", op, e);
+    revert();
+    throw e;
+  }
+}
+
+/**
+ * The undo / redo pair of a write whose two sides are mirror images: undo
+ * paints `before` and writes it, redo paints `after` and writes it, and each
+ * paints the other side back if its write is lost. `op` names the pair in the
+ * log ("Update" → "undoUpdate" / "redoUpdate").
+ */
+function reversible(
+  before: () => void,
+  after: () => void,
+  writeBefore: () => Promise<unknown>,
+  writeAfter: () => Promise<unknown>,
+  op: string,
+): { undo: () => Promise<void>; redo: () => Promise<void> } {
+  return {
+    undo: async () => {
+      before();
+      await landOrRevert(writeBefore(), after, `undo${op}`);
+    },
+    redo: async () => {
+      after();
+      await landOrRevert(writeAfter(), before, `redo${op}`);
+    },
+  };
+}
+
+/**
+ * The two faces of a skipped day, for the dismiss / undismiss commands. Each
+ * direction paints one and, if its write fails, paints the other back.
+ * `mirror.restore` takes the snapshot because the host drops dismissed rows
+ * from its range store entirely (#568), so a field patch would find nothing.
+ */
+function dismissPaint(
+  setItems: Dispatch<SetStateAction<ScheduleItem[]>>,
+  mirror: ScheduleItemsMirrorAccess,
+  id: string,
+  prev: ScheduleItem | undefined,
+): { hide: () => void; show: () => void } {
+  const paint = (isDismissed: boolean) =>
+    setItems((p) =>
+      p.map((i) =>
+        i.id === id
+          ? { ...i, isDismissed, updatedAt: new Date().toISOString() }
+          : i,
+      ),
+    );
+  return {
+    hide: () => {
+      paint(true);
+      mirror.remove(id);
+    },
+    show: () => {
+      paint(false);
+      mirror.restore(id, prev, { isDismissed: false });
+    },
+  };
+}
+
 export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
   const { ds, push, date, dateRef, setItems, setDeletedItems, mirror } = params;
   const { findItem } = mirror;
@@ -145,26 +226,27 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
        * filled in (the reminder patch, the real timestamps).
        */
       const pushCreated = (saved: ScheduleItem) => {
+        const takeOff = () => {
+          setItems((prev) => prev.filter((i) => i.id !== id));
+          // #568: the grid reads the host's range store, so without this the
+          // row stayed on the calendar after the undo removed it from the DB.
+          mirror.remove(id);
+        };
+        const putOn = () => {
+          setItems((prev) =>
+            isSameDate(saved, dateRef.current) ? [...prev, saved] : prev,
+          );
+          mirror.upsert(saved);
+        };
         push("scheduleItem", {
           label: "createScheduleItem",
-          undo: () => {
-            setItems((prev) => prev.filter((i) => i.id !== id));
-            // #568: the grid reads the host's range store, so without this the
-            // row stayed on the calendar after the undo removed it from the DB.
-            mirror.remove(id);
-            ds.softDeleteScheduleItem(id).catch((e) =>
-              logServiceError("ScheduleItems", "undoCreate", e),
-            );
-          },
-          redo: () => {
-            setItems((prev) =>
-              isSameDate(saved, dateRef.current) ? [...prev, saved] : prev,
-            );
-            mirror.upsert(saved);
-            ds.restoreScheduleItem(id).catch((e) =>
-              logServiceError("ScheduleItems", "redoCreate", e),
-            );
-          },
+          ...reversible(
+            takeOff,
+            putOn,
+            () => ds.softDeleteScheduleItem(id),
+            () => ds.restoreScheduleItem(id),
+            "Create",
+          ),
         });
       };
 
@@ -251,37 +333,28 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
         for (const key of Object.keys(updates) as Array<keyof typeof updates>) {
           (prevValues as Record<string, unknown>)[key] = prev[key];
         }
+        const paint = (values: typeof updates) => {
+          setItems((p) =>
+            p.map((i) =>
+              i.id === id
+                ? { ...i, ...values, updatedAt: new Date().toISOString() }
+                : i,
+            ),
+          );
+          // #568: same patch into the grid's own copy, so the move/resize
+          // visibly snaps back instead of waiting for a Realtime refetch.
+          mirror.patch(id, values);
+        };
         push("scheduleItem", {
           label: "updateScheduleItem",
           confirm: repeatConfirm(prev),
-          undo: () => {
-            setItems((p) =>
-              p.map((i) =>
-                i.id === id
-                  ? { ...i, ...prevValues, updatedAt: new Date().toISOString() }
-                  : i,
-              ),
-            );
-            // #568: same patch into the grid's own copy, so the move/resize
-            // visibly snaps back instead of waiting for a Realtime refetch.
-            mirror.patch(id, prevValues);
-            ds.updateScheduleItem(id, prevValues).catch((e) =>
-              logServiceError("ScheduleItems", "undoUpdate", e),
-            );
-          },
-          redo: () => {
-            setItems((p) =>
-              p.map((i) =>
-                i.id === id
-                  ? { ...i, ...updates, updatedAt: new Date().toISOString() }
-                  : i,
-              ),
-            );
-            mirror.patch(id, updates);
-            ds.updateScheduleItem(id, updates).catch((e) =>
-              logServiceError("ScheduleItems", "redoUpdate", e),
-            );
-          },
+          ...reversible(
+            () => paint(prevValues),
+            () => paint(updates),
+            () => ds.updateScheduleItem(id, prevValues),
+            () => ds.updateScheduleItem(id, updates),
+            "Update",
+          ),
         });
       }
     },
@@ -313,49 +386,63 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
         .catch((e) => logServiceError("ScheduleItems", "toggleComplete", e));
 
       if (prev) {
+        const paintBefore = () => {
+          setItems((p) => p.map((i) => (i.id === id ? prev : i)));
+          // #568: restore the exact pre-toggle pair in the grid's copy —
+          // patching only `completed` would leave a checkmark timestamp on a
+          // row that is no longer done.
+          mirror.patch(id, {
+            completed: prev.completed,
+            completedAt: prev.completedAt,
+          });
+        };
+        const paintToggled = () => {
+          const toggled = {
+            completed: !prev.completed,
+            completedAt: !prev.completed ? new Date().toISOString() : null,
+          };
+          setItems((p) =>
+            p.map((i) => (i.id === id ? { ...i, ...toggled } : i)),
+          );
+          mirror.patch(id, toggled);
+        };
         push("scheduleItem", {
           label: "toggleScheduleItemComplete",
           confirm: repeatConfirm(prev),
-          undo: () => {
-            setItems((p) => p.map((i) => (i.id === id ? prev : i)));
-            // #568: restore the exact pre-toggle pair in the grid's copy —
-            // patching only `completed` would leave a checkmark timestamp on a
-            // row that is no longer done.
-            mirror.patch(id, {
-              completed: prev.completed,
-              completedAt: prev.completedAt,
-            });
+          undo: async () => {
+            paintBefore();
             /*
              * #1638 W4 (B-09): SET the recorded value back rather than toggle
              * again. A second toggle assumes the row is still where this
              * command left it — flip it on another device (or through the MCP
              * tool) in between and the undo turns "done" back ON.
              */
-            ds.updateScheduleItem(id, {
-              completed: prev.completed,
-              completedAt: prev.completedAt,
-            }).catch((e) =>
-              logServiceError("ScheduleItems", "undoToggleComplete", e),
+            await landOrRevert(
+              ds.updateScheduleItem(id, {
+                completed: prev.completed,
+                completedAt: prev.completedAt,
+              }),
+              paintToggled,
+              "undoToggleComplete",
             );
           },
-          redo: () => {
+          redo: async () => {
             mirror.patch(id, {
               completed: !prev.completed,
               completedAt: !prev.completed ? new Date().toISOString() : null,
             });
-            ds.toggleScheduleItemComplete(id)
-              .then((saved) => {
-                setItems((p) => p.map((i) => (i.id === id ? saved : i)));
-                // The server row is the truth for completedAt; the optimistic
-                // patch above only covers the gap until it lands.
-                mirror.patch(id, {
-                  completed: saved.completed,
-                  completedAt: saved.completedAt,
-                });
-              })
-              .catch((e) =>
-                logServiceError("ScheduleItems", "redoToggleComplete", e),
-              );
+            const saved = await landOrRevert(
+              ds.toggleScheduleItemComplete(id),
+              paintBefore,
+              "redoToggleComplete",
+            );
+            setItems((p) => p.map((i) => (i.id === id ? saved : i)));
+            // The server row is the truth for completedAt; the optimistic
+            // patch above only covers the gap until it lands.
+            mirror.patch(id, {
+              completed: saved.completed,
+              completedAt: saved.completedAt,
+            });
           },
         });
       }
@@ -381,43 +468,17 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
       ds.dismissScheduleItem(id).catch((e) =>
         logServiceError("ScheduleItems", "dismiss", e),
       );
+      const { hide, show } = dismissPaint(setItems, mirror, id, prev);
       push("scheduleItem", {
         label: "dismissScheduleItem",
         confirm: repeatConfirm(prev),
-        undo: () => {
-          setItems((p) =>
-            p.map((i) =>
-              i.id === id
-                ? {
-                    ...i,
-                    isDismissed: false,
-                    updatedAt: new Date().toISOString(),
-                  }
-                : i,
-            ),
-          );
-          mirror.restore(id, prev, { isDismissed: false });
-          ds.undismissScheduleItem(id).catch((e) =>
-            logServiceError("ScheduleItems", "undoDismiss", e),
-          );
-        },
-        redo: () => {
-          setItems((p) =>
-            p.map((i) =>
-              i.id === id
-                ? {
-                    ...i,
-                    isDismissed: true,
-                    updatedAt: new Date().toISOString(),
-                  }
-                : i,
-            ),
-          );
-          mirror.remove(id);
-          ds.dismissScheduleItem(id).catch((e) =>
-            logServiceError("ScheduleItems", "redoDismiss", e),
-          );
-        },
+        ...reversible(
+          show,
+          hide,
+          () => ds.undismissScheduleItem(id),
+          () => ds.dismissScheduleItem(id),
+          "Dismiss",
+        ),
       });
     },
     [ds, push, findItem, setItems, mirror],
@@ -445,43 +506,17 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
        * (mirror.restore with the snapshot, because the host drops dismissed
        * rows from its range store entirely).
        */
+      const { hide, show } = dismissPaint(setItems, mirror, id, prev);
       push("scheduleItem", {
         label: "undismissScheduleItem",
         confirm: repeatConfirm(prev),
-        undo: () => {
-          setItems((p) =>
-            p.map((i) =>
-              i.id === id
-                ? {
-                    ...i,
-                    isDismissed: true,
-                    updatedAt: new Date().toISOString(),
-                  }
-                : i,
-            ),
-          );
-          mirror.remove(id);
-          ds.dismissScheduleItem(id).catch((e) =>
-            logServiceError("ScheduleItems", "undoUndismiss", e),
-          );
-        },
-        redo: () => {
-          setItems((p) =>
-            p.map((i) =>
-              i.id === id
-                ? {
-                    ...i,
-                    isDismissed: false,
-                    updatedAt: new Date().toISOString(),
-                  }
-                : i,
-            ),
-          );
-          mirror.restore(id, prev, { isDismissed: false });
-          ds.undismissScheduleItem(id).catch((e) =>
-            logServiceError("ScheduleItems", "redoUndismiss", e),
-          );
-        },
+        ...reversible(
+          hide,
+          show,
+          () => ds.dismissScheduleItem(id),
+          () => ds.undismissScheduleItem(id),
+          "Undismiss",
+        ),
       });
     },
     [ds, push, findItem, setItems, mirror],
@@ -508,42 +543,43 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
       );
 
       if (target && !opts?.skipUndo) {
+        const putBack = () => {
+          setItems((prev) =>
+            isSameDate(target, dateRef.current) ? [...prev, target] : prev,
+          );
+          // #568: back onto the grid as well, with the delete flags cleared
+          // (the snapshot was taken before the soft delete, so they are
+          // already false — spelled out so a future snapshot source cannot
+          // reinstate a row that renders as trashed).
+          mirror.upsert({
+            ...target,
+            isDeleted: false,
+            deletedAt: null,
+          });
+          setDeletedItems((prev) => prev.filter((i) => i.id !== id));
+        };
+        const takeAway = () => {
+          setItems((prev) => prev.filter((i) => i.id !== id));
+          mirror.remove(id);
+          setDeletedItems((prev) => {
+            const redoDeleted: ScheduleItem = {
+              ...target,
+              isDeleted: true,
+              deletedAt: new Date().toISOString(),
+            };
+            return [redoDeleted, ...prev];
+          });
+        };
         push("scheduleItem", {
           label: "deleteScheduleItem",
           confirm: repeatConfirm(target),
-          undo: () => {
-            setItems((prev) =>
-              isSameDate(target, dateRef.current) ? [...prev, target] : prev,
-            );
-            // #568: back onto the grid as well, with the delete flags cleared
-            // (the snapshot was taken before the soft delete, so they are
-            // already false — spelled out so a future snapshot source cannot
-            // reinstate a row that renders as trashed).
-            mirror.upsert({
-              ...target,
-              isDeleted: false,
-              deletedAt: null,
-            });
-            setDeletedItems((prev) => prev.filter((i) => i.id !== id));
-            ds.restoreScheduleItem(id).catch((e) =>
-              logServiceError("ScheduleItems", "undoDelete", e),
-            );
-          },
-          redo: () => {
-            setItems((prev) => prev.filter((i) => i.id !== id));
-            mirror.remove(id);
-            setDeletedItems((prev) => {
-              const redoDeleted: ScheduleItem = {
-                ...target,
-                isDeleted: true,
-                deletedAt: new Date().toISOString(),
-              };
-              return [redoDeleted, ...prev];
-            });
-            ds.softDeleteScheduleItem(id).catch((e) =>
-              logServiceError("ScheduleItems", "redoDelete", e),
-            );
-          },
+          ...reversible(
+            putBack,
+            takeAway,
+            () => ds.restoreScheduleItem(id),
+            () => ds.softDeleteScheduleItem(id),
+            "Delete",
+          ),
         });
       }
     },
@@ -572,25 +608,48 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
        * batch: it was one action, so one Ctrl+Z reverses it.
        */
       if (count > 0) {
+        const putBack = (rows: ScheduleItem[]) => {
+          setItems((prev) => [
+            ...prev,
+            ...rows.filter((t) => isSameDate(t, dateRef.current)),
+          ]);
+          for (const row of rows) {
+            mirror.upsert({ ...row, isDeleted: false, deletedAt: null });
+          }
+        };
+        const takeAway = (rows: ScheduleItem[]) => {
+          const gone = new Set(rows.map((r) => r.id));
+          setItems((prev) => prev.filter((i) => !gone.has(i.id)));
+          for (const row of rows) mirror.remove(row.id);
+        };
         push("scheduleItem", {
           label: "deleteScheduleItem",
-          undo: () => {
-            setItems((prev) => [
-              ...prev,
-              ...targets.filter((t) => isSameDate(t, dateRef.current)),
-            ]);
-            for (const target of targets) {
-              mirror.upsert({ ...target, isDeleted: false, deletedAt: null });
-              ds.restoreScheduleItem(target.id).catch((e) =>
-                logServiceError("ScheduleItems", "undoBulkDelete", e),
+          undo: async () => {
+            putBack(targets);
+            // One restore per row, so one lost write must not decide for the
+            // rest: the rows that did come back stay, and only the ones that
+            // did not are taken off the grid again before the throw.
+            const results = await Promise.allSettled(
+              targets.map((t) => ds.restoreScheduleItem(t.id)),
+            );
+            const lost = targets.filter(
+              (_, i) => results[i].status === "rejected",
+            );
+            if (lost.length > 0) {
+              const first = results.find(
+                (r): r is PromiseRejectedResult => r.status === "rejected",
               );
+              logServiceError("ScheduleItems", "undoBulkDelete", first?.reason);
+              takeAway(lost);
+              throw first?.reason;
             }
           },
-          redo: () => {
-            setItems((prev) => prev.filter((i) => !idSet.has(i.id)));
-            for (const target of targets) mirror.remove(target.id);
-            ds.bulkDeleteScheduleItems(ids).catch((e) =>
-              logServiceError("ScheduleItems", "redoBulkDelete", e),
+          redo: async () => {
+            takeAway(targets);
+            await landOrRevert(
+              ds.bulkDeleteScheduleItems(ids),
+              () => putBack(targets),
+              "redoBulkDelete",
             );
           },
         });

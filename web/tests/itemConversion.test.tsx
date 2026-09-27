@@ -1,6 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act, waitFor } from "@testing-library/react";
-import type { DataService, ScheduleItem, TodoNode } from "@life-editor/shared";
+import {
+  UndoRedoManager,
+  type DataService,
+  type ScheduleItem,
+  type TodoNode,
+  type UndoCommand,
+} from "@life-editor/shared";
 import { useItemConversion } from "../src/schedule/useItemConversion";
 
 /*
@@ -377,7 +383,7 @@ describe("useItemConversion — undo (#997)", () => {
     );
   });
 
-  it("reports a failed undo AND hands the failure back (#1772)", async () => {
+  it("hands a failed undo back and leaves the report to the host (#1772, #1642 P4)", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const h = setup({
       convertTodoToEvent: () => Promise.reject(new Error("offline")),
@@ -389,11 +395,11 @@ describe("useItemConversion — undo (#997)", () => {
       await expect(pushedCommand(h.push).undo()).rejects.toThrow("offline");
     });
 
-    // Both halves matter. The toast names the action the generic copy cannot,
-    // and the re-throw is the only thing the manager reads: a closure that
+    // The re-throw is the only thing the manager reads: a closure that
     // resolves is a closure that worked, and the host would stack "Undid: ..."
-    // over "Conversion failed" and move the command to redo.
-    expect(h.showToast).toHaveBeenLastCalledWith("danger", expect.anything());
+    // over the failure and move the command to redo. The report is the
+    // host's one `undoFailed` toast (N-06) — this hook adds none of its own.
+    expect(h.showToast).not.toHaveBeenCalledWith("danger", expect.anything());
   });
 
   it("hands a failed REDO back the same way (#1772)", async () => {
@@ -418,7 +424,7 @@ describe("useItemConversion — undo (#997)", () => {
       await expect(cmd.redo()).rejects.toThrow("offline");
     });
 
-    expect(h.showToast).toHaveBeenLastCalledWith("danger", expect.anything());
+    expect(h.showToast).not.toHaveBeenCalledWith("danger", expect.anything());
   });
 
   it("hands a failed Todo -> Event undo back too (#1772)", async () => {
@@ -435,6 +441,52 @@ describe("useItemConversion — undo (#997)", () => {
       await expect(pushedCommand(h.push).undo()).rejects.toThrow("offline");
     });
 
-    expect(h.showToast).toHaveBeenLastCalledWith("danger", expect.anything());
+    expect(h.showToast).not.toHaveBeenCalledWith("danger", expect.anything());
+  });
+});
+
+/*
+ * #1642 P4 (N-13): a quick second Ctrl+Z after Event → Todo → Event reaches
+ * the older command while the newer one's inverse is still in flight on the
+ * same id. That body used to return quietly, which the manager reads as
+ * "worked" — the command moved to redo without running. It throws now, so it
+ * stays for the next press. Replayed through the real manager.
+ */
+describe("an undo that reaches a conversion still in flight (#1642 P4)", () => {
+  it("throws for the older command, so it stays on the undo side", async () => {
+    let release: (() => void) | undefined;
+    let calls = 0;
+    const h = setup({
+      todos: [todo({ id: "s-1" })],
+      // Call 1 = the forward Event → Todo; call 2 = the newer command's
+      // inverse, held open.
+      convertEventToTodo: () =>
+        ++calls === 1
+          ? Promise.resolve({})
+          : new Promise((resolve) => (release = () => resolve({}))),
+    });
+    const manager = new UndoRedoManager();
+    h.push.mockImplementation((domain: string, command: UndoCommand) =>
+      manager.push(command, domain),
+    );
+    await act(async () => h.view.result.current.handleConvertToTodo("s-1"));
+    await waitFor(() => expect(manager.canUndo()).toBe(true));
+    await act(async () => h.view.result.current.handleConvertToEvent("s-1"));
+    await waitFor(() => expect(h.push).toHaveBeenCalledTimes(2));
+
+    let newer: Promise<unknown> | undefined;
+    act(() => {
+      newer = manager.undo();
+    });
+    const older = await manager.undo();
+
+    expect(older).toMatchObject({ ok: false });
+    expect(h.showToast).not.toHaveBeenCalledWith("danger", expect.anything());
+    await act(async () => {
+      release?.();
+      await newer;
+    });
+    expect(manager.canUndo()).toBe(true);
+    expect(manager.canRedo()).toBe(true);
   });
 });

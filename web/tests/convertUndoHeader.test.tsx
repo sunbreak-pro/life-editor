@@ -155,11 +155,11 @@ describe("Todo → Event conversion drives the header Undo (#1637)", () => {
     await act(async () => fireEvent.click(button("Undo")));
     await waitFor(() => expect(h.convertEventToTodo).toHaveBeenCalledTimes(1));
 
-    // The hook's own "Conversion failed" toast still fires — it names the
-    // action, which the generic copy cannot.
-    expect(h.showToast).toHaveBeenCalledWith("danger", expect.anything());
-    // ...and the manager agrees: no "Undid: ...", and the command stays where
-    // a second press can reach it (#1668).
+    // #1642 P4 (N-06): the hook adds no toast of its own — the host's one
+    // "couldn't undo" (onCommandFailed below) is the whole report.
+    expect(h.showToast).not.toHaveBeenCalledWith("danger", expect.anything());
+    // The manager agrees: no "Undid: ...", and the command stays where a
+    // second press can reach it (#1668).
     expect(h.onCommandApplied).not.toHaveBeenCalled();
     expect(h.onCommandFailed).toHaveBeenCalledTimes(1);
     expect(h.onCommandFailed.mock.calls[0][0]).toBe("undo");

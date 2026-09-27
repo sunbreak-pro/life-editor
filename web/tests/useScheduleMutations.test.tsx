@@ -186,7 +186,7 @@ function setup(over?: {
     })),
     updateFutureOccurrences: vi.fn(async () => 0),
     ensureRoutineItemsForDateRange: vi.fn(async () => true),
-    reconcileRoutineScheduleItems: vi.fn(async () => {}),
+    reconcileRoutineScheduleItems: vi.fn(async () => true),
     onMoveTodoChip,
     onResizeTodoChip,
     onDropTodoChipAllDay,
