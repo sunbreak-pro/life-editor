@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   frequencyLabel,
   nextRoutineOccurrence,
@@ -12,6 +12,7 @@ import {
   type RoutineSummaryRow,
   type ScheduleItem,
 } from "@life-editor/shared";
+import { pickRepeatOccurrence } from "./repeatOccurrence";
 
 /*
  * The Calendar host's REPEAT half (#889, extracted from CalendarTab).
@@ -81,6 +82,18 @@ export interface UseScheduleRepeatsArgs {
     showToast: (kind: "danger", message: string) => void;
   };
   /**
+   * Where a jump from the repeat panel lands (#1678 / #1830). The jump only
+   * FETCHES the day, so the occurrence's id arrives with the range: the hook
+   * watches `rangeItems` on `anchorDate` for a row of the requested series,
+   * then selects it (`select`) or opens its detail (`openDetail`).
+   */
+  landing: {
+    rangeItems: readonly ScheduleItem[];
+    anchorDate: string;
+    select: (id: string) => void;
+    openDetail: (id: string) => void;
+  };
+  /**
    * #1279: the host's one in-app question (`useConfirmDialog` in CalendarTab).
    * Not part of `writes` — it decides whether the write happens at all, and it
    * is the same controller the todo delete beside this one already asks
@@ -97,6 +110,7 @@ export function useScheduleRepeats({
   copy,
   nav,
   writes,
+  landing,
   askConfirm,
 }: UseScheduleRepeatsArgs) {
   const { t } = useTranslation();
@@ -104,6 +118,7 @@ export function useScheduleRepeats({
   const { setAnchorDate, revealOnGrid, isWide, closeSidebar } = nav;
   const { ensureRoutineItemsForDateRange, deleteRoutine, reload, showToast } =
     writes;
+  const { rangeItems, anchorDate, select, openDetail } = landing;
 
   // The source routine of the selected occurrence (null for a manual event).
   const selectedRoutine = useMemo(() => {
@@ -237,6 +252,69 @@ export function useScheduleRepeats({
   );
 
   /*
+   * The panel's two jumps (#1678 / #1830, moved here from CalendarTab by
+   * #1642 P2). Both close the panel, jump to the series' next day and park
+   * the ROUTINE id until a row of that series shows up on the anchored day
+   * (see repeatOccurrence.ts for why the date is part of the match).
+   *
+   * REFS, not state: they decide nothing about what is rendered, and writing
+   * state from the effects below would cost an extra render pass for every
+   * range update (react-hooks/set-state-in-effect). One shot — a request that
+   * never resolves (the user navigated away) simply never fires.
+   */
+
+  /*
+   * #1678: "edit detail". The occurrence's editor IS where a series is edited
+   * (it holds the repeat settings), so the jump opens it.
+   */
+  const pendingDetailRef = useRef<string | null>(null);
+  useEffect(() => {
+    const pending = pendingDetailRef.current;
+    if (!pending) return;
+    const match = pickRepeatOccurrence(rangeItems, pending, anchorDate);
+    if (!match) return;
+    pendingDetailRef.current = null;
+    openDetail(match.id);
+  }, [rangeItems, anchorDate, openDetail]);
+
+  /*
+   * #1830: "show the next one". What it does with the id is the whole fix: it
+   * SELECTS that one occurrence. The week used to move with nothing else
+   * happening, which left the block wherever the body's scroll already was (a
+   * morning repeat lands above the top of an afternoon scroll) and left the
+   * ring on whatever had been selected before. Selecting the row rings exactly
+   * the occurrence that was asked for, and the grid scrolls to a newly
+   * selected block on its own (WeekTimeGrid, #1830).
+   */
+  const pendingRevealRef = useRef<string | null>(null);
+  useEffect(() => {
+    const pending = pendingRevealRef.current;
+    if (!pending) return;
+    const match = pickRepeatOccurrence(rangeItems, pending, anchorDate);
+    if (!match) return;
+    pendingRevealRef.current = null;
+    select(match.id);
+  }, [rangeItems, anchorDate, select]);
+
+  const requestReveal = useCallback(
+    (id: string) => {
+      closeRepeatPanel();
+      handleOpenRepeat(id);
+      pendingRevealRef.current = id;
+    },
+    [closeRepeatPanel, handleOpenRepeat],
+  );
+
+  const requestEditDetail = useCallback(
+    (id: string) => {
+      closeRepeatPanel();
+      handleOpenRepeat(id);
+      pendingDetailRef.current = id;
+    },
+    [closeRepeatPanel, handleOpenRepeat],
+  );
+
+  /*
    * #1279: the question this asks used to live in the row itself — pressing
    * the trash icon swapped the row for an inline confirm band. It moved here
    * because the panel is the wrong owner for it: the Todo delete in the same
@@ -306,6 +384,10 @@ export function useScheduleRepeats({
     openRepeatPanel,
     closeRepeatPanel,
     handleOpenRepeat,
+    /** The panel's "show the next one" (#1830). */
+    requestReveal,
+    /** The panel's "edit detail" (#1678). */
+    requestEditDetail,
     handleDeleteRepeat,
   };
 }

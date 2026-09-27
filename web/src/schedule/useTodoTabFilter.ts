@@ -4,6 +4,7 @@ import {
   type CalendarMemberAssignment,
   type TodayTodoAddableRow,
   type TodayTodoRow,
+  type TodoFilterPanelTag,
 } from "@life-editor/shared";
 
 /*
@@ -109,4 +110,28 @@ export function useTodoTabFilter(
     showOther,
     apply,
   };
+}
+
+/*
+ * The tags the filter offers, in the shape its panel draws (#1641). Sorted by
+ * name, every tag included — the panel lists what can be ticked, not what the
+ * rows currently carry. Moved here from CalendarTab by #1642 P2, beside the
+ * filter it feeds.
+ */
+export function useTodoFilterTags(
+  allTags: readonly TodoFilterPanelTag[],
+): TodoFilterPanelTag[] {
+  return useMemo(
+    () =>
+      allTags
+        .slice()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((tag) => ({
+          id: tag.id,
+          name: tag.name,
+          color: tag.color,
+          icon: tag.icon,
+        })),
+    [allTags],
+  );
 }
