@@ -601,11 +601,22 @@ export function RichTextEditor({
         editor={editor}
         labels={{
           label: t("materials.notes.tableControls.label"),
+          rowGroup: t("materials.notes.tableControls.rowGroup"),
+          columnGroup: t("materials.notes.tableControls.columnGroup"),
+          addRowAbove: t("materials.notes.tableControls.addRowAbove"),
           addRow: t("materials.notes.tableControls.addRow"),
+          addColumnLeft: t("materials.notes.tableControls.addColumnLeft"),
           addColumn: t("materials.notes.tableControls.addColumn"),
           deleteRow: t("materials.notes.tableControls.deleteRow"),
           deleteColumn: t("materials.notes.tableControls.deleteColumn"),
           deleteTable: t("materials.notes.tableControls.deleteTable"),
+          addAbove: t("materials.notes.tableControls.addAbove"),
+          addBelow: t("materials.notes.tableControls.addBelow"),
+          addLeft: t("materials.notes.tableControls.addLeft"),
+          addRight: t("materials.notes.tableControls.addRight"),
+          remove: t("materials.notes.tableControls.remove"),
+          nameLabel: t("materials.notes.tableControls.nameLabel"),
+          namePlaceholder: t("materials.notes.tableControls.namePlaceholder"),
         }}
       />
       <EditorContent editor={editor} />

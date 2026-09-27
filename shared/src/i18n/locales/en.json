@@ -434,11 +434,22 @@
       },
       "tableControls": {
         "label": "Table controls",
+        "rowGroup": "Row",
+        "columnGroup": "Column",
+        "addRowAbove": "Add row above",
         "addRow": "Add row below",
+        "addColumnLeft": "Add column left",
         "addColumn": "Add column right",
         "deleteRow": "Delete row",
         "deleteColumn": "Delete column",
-        "deleteTable": "Delete table"
+        "deleteTable": "Delete table",
+        "addAbove": "Above",
+        "addBelow": "Below",
+        "addLeft": "Left",
+        "addRight": "Right",
+        "remove": "Delete",
+        "nameLabel": "Table name",
+        "namePlaceholder": "Name this table"
       },
       "mainEmpty": "Select a note or create a new one",
       "recentHeading": "Recently opened",
