@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type MouseEvent } from "react";
 import {
+  BottomSheet,
   ConfirmDialog,
   ItemActionPopover,
   TagActionsMenu,
@@ -33,11 +34,15 @@ import { TagPicker } from "../wikitag";
  * once at the host. Returning both from one hook keeps the pairing in a single
  * file instead of threading four props through the list for the panels' sake.
  *
- * DESKTOP ONLY, decided by the caller passing `enabled` (NotesView already
- * knows the width). When it is false the two handlers are `undefined`, so the
- * rows attach no `contextmenu` listener at all and the browser's own menu is
- * left alone — a touch surface has no right-click and a long-press there is
- * the platform's text selection.
+ * RIGHT-CLICK IS DESKTOP ONLY, decided by the caller passing `enabled`
+ * (NotesView already knows the width). When it is false the two handlers are
+ * `undefined`, so the rows attach no `contextmenu` listener at all and the
+ * browser's own menu is left alone — a touch surface has no right-click.
+ *
+ * NARROW HOLDS INSTEAD (#2008): `onTagLongPress` opens the same edit block,
+ * with no menu in front of it (the block carries delete itself), in a bottom
+ * sheet — the shape Connect's narrow editor already has. Tag rows only; a
+ * note row keeps its tap.
  *
  * The drafts are the shared one-commit contract (useTagEditDrafts, #715):
  * typing a name writes nothing until the block's save button is pressed.
@@ -62,6 +67,8 @@ export interface SidebarContextMenus {
   onNoteContextMenu?: (noteId: string, event: MouseEvent) => void;
   /** The panels themselves — rendered once, anywhere in the host's tree. */
   menus: React.JSX.Element | null;
+  /** Long-press on a tag row (#2008). Undefined on Desktop. */
+  onTagLongPress?: (tagId: string) => void;
 }
 
 /** The tag edit panel's width (#1886 — was 320). */
@@ -97,6 +104,14 @@ export function useSidebarContextMenus({
     () => allTags.find((tag) => tag.id === menuTagId) ?? null,
     [allTags, menuTagId],
   );
+
+  // #2008: straight to the block. The caret stays out of the name field — on a
+  // phone that would raise the keyboard over the sheet before anything is
+  // chosen.
+  const onTagLongPress = useCallback((tagId: string) => {
+    setEditTagId(tagId);
+    setEditFocusName(false);
+  }, []);
 
   // The block edits ONE tag, drawn from the live row so a rename arriving from
   // sync or MCP shows up under an untouched field (#628).
@@ -195,6 +210,39 @@ export function useSidebarContextMenus({
     ? menuNote.title || t("materials.notes.untitled")
     : "";
 
+  // One block, two frames: a popover at the pointer on Desktop, a sheet on
+  // narrow (#2008).
+  const editBlock = editTag ? (
+    <TagHubEditBlock
+      tag={editTag}
+      edits={drafts.editsFor(editTag.id)}
+      dirty={drafts.isDirty(editTag.id)}
+      focusName={editFocusName}
+      onEdit={(patch) => {
+        drafts.edit(editTag.id, patch);
+        // Consumed once: a re-render must not steal the caret back to the
+        // name field.
+        setEditFocusName(false);
+      }}
+      onDropEdit={(field) => drafts.drop(editTag.id, field)}
+      onSave={() => {
+        // Stays open on a refused or failed save, showing why (#1847).
+        void drafts.save(editTag.id).then((ok) => {
+          if (ok) setEditTagId(null);
+        });
+      }}
+      error={
+        drafts.errorFor(editTag.id) === "duplicate"
+          ? t("connect.edit.duplicateName")
+          : drafts.errorFor(editTag.id) === "failed"
+            ? t("connect.edit.saveFailed")
+            : null
+      }
+      onDelete={() => requestTagDelete(editTag.id)}
+      labels={editLabels}
+    />
+  ) : null;
+
   const menus = (
     <>
       {menuTag && (
@@ -215,7 +263,7 @@ export function useSidebarContextMenus({
       {/* The block is a panel here, not a pane: the sidebar has no column to
           put it in, so it rides the generic popover's portal + dismiss (Esc,
           outside-mousedown) and sits where the pointer was. */}
-      {editTag && (
+      {editTag && enabled && (
         <ItemActionPopover
           position={{
             x: tagMenu.anchorPoint?.x ?? 0,
@@ -226,38 +274,22 @@ export function useSidebarContextMenus({
           // swatches together. The panel may spill over the main column; the
           // popover's viewport clamp keeps it on screen at the new width.
           width={TAG_EDIT_PANEL_WIDTH}
-          summary={
-            <TagHubEditBlock
-              tag={editTag}
-              edits={drafts.editsFor(editTag.id)}
-              dirty={drafts.isDirty(editTag.id)}
-              focusName={editFocusName}
-              onEdit={(patch) => {
-                drafts.edit(editTag.id, patch);
-                // Consumed once: a re-render must not steal the caret back to
-                // the name field.
-                setEditFocusName(false);
-              }}
-              onDropEdit={(field) => drafts.drop(editTag.id, field)}
-              onSave={() => {
-                // Stays open on a refused or failed save, showing why (#1847).
-                void drafts.save(editTag.id).then((ok) => {
-                  if (ok) setEditTagId(null);
-                });
-              }}
-              error={
-                drafts.errorFor(editTag.id) === "duplicate"
-                  ? t("connect.edit.duplicateName")
-                  : drafts.errorFor(editTag.id) === "failed"
-                    ? t("connect.edit.saveFailed")
-                    : null
-              }
-              onDelete={() => requestTagDelete(editTag.id)}
-              labels={editLabels}
-            />
-          }
+          summary={editBlock}
           onClose={() => setEditTagId(null)}
         />
+      )}
+
+      {/* Narrow (#2008): Connect's narrow editor shape. The sheet portals to
+          <body> after the drawer, so it sits above the list it came from. */}
+      {editTag && !enabled && (
+        <BottomSheet
+          open
+          onClose={() => setEditTagId(null)}
+          title={`${editTag.name}: ${t("connect.editTag")}`}
+          closeLabel={t("connect.sheetClose")}
+        >
+          {editBlock}
+        </BottomSheet>
       )}
 
       {menuNote && noteMenu && (
@@ -323,6 +355,9 @@ export function useSidebarContextMenus({
   return {
     onTagContextMenu: enabled ? onTagContextMenu : undefined,
     onNoteContextMenu: enabled ? onNoteContextMenu : undefined,
-    menus: enabled ? menus : null,
+    // Drawn at both widths since #2008. On narrow only the sheet and the
+    // delete question can open — the right-click states are never set there.
+    menus,
+    onTagLongPress: enabled ? undefined : onTagLongPress,
   };
 }

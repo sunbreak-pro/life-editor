@@ -10,6 +10,7 @@ import {
   FOCUS_RING,
 } from "@life-editor/shared";
 import { tagDroppableId, UNTAGGED_DROP_ID } from "./useNoteTagDnd";
+import { useLongPress } from "./useLongPress";
 
 /*
  * Desktop side-list rows for the Notes tab (extracted from NotesView.tsx —
@@ -186,6 +187,7 @@ export const DesktopTagHeading = memo(function DesktopTagHeading({
   collapsed,
   onToggle,
   onContextMenu,
+  onLongPress,
   collapseLabel,
   expandLabel,
 }: {
@@ -194,6 +196,8 @@ export const DesktopTagHeading = memo(function DesktopTagHeading({
   onToggle: (key: string) => void;
   /** Right-click on the heading (#1677). Undefined on narrow and on untagged. */
   onContextMenu?: (tagId: string, event: MouseEvent) => void;
+  /** Long-press on the heading (#2008). Narrow only; never on untagged. */
+  onLongPress?: (tagId: string) => void;
   collapseLabel: string;
   expandLabel: string;
 }) {
@@ -213,9 +217,15 @@ export const DesktopTagHeading = memo(function DesktopTagHeading({
     : undefined;
 
   const tagId = group.tagId;
+  // Untagged has nothing to rename, so it gets no hold either (#2008).
+  const longPress = useLongPress(
+    tagId !== null ? onLongPress : undefined,
+    tagId ?? "",
+  );
   return (
     <div
       ref={setNodeRef}
+      {...longPress}
       // The untagged bucket is not a tag: nothing here can rename or delete
       // it, so it keeps the browser menu (the same rule the Connect rail
       // applies with its own `isUntagged` guard).
@@ -227,6 +237,9 @@ export const DesktopTagHeading = memo(function DesktopTagHeading({
       className={cn(
         "rounded-lumen-md",
         isOver && "bg-lumen-accent-subtle ring-1 ring-inset ring-lumen-accent",
+        // A hold must not start a text selection or iOS's callout under the
+        // sheet it opens.
+        longPress && "select-none [-webkit-touch-callout:none]",
       )}
     >
       <button

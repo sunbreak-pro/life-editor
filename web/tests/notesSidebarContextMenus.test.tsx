@@ -297,7 +297,8 @@ describe("Notes sidebar — narrow (#1677)", () => {
     const rowEvent = rightClick(noteRow("Alpha"));
 
     // Nothing opened, and the platform's own menu is left alone — a touch
-    // surface has no right-click, and its long-press is text selection.
+    // surface has no right-click. Its long-press is a separate gesture with
+    // its own suite (notesSidebarLongPress.test.tsx, #2008).
     expect(headingEvent.defaultPrevented).toBe(false);
     expect(rowEvent.defaultPrevented).toBe(false);
     expect(screen.queryByRole("menu")).toBeNull();

@@ -537,7 +537,8 @@ export function NotesView({
   /*
    * Right-click editing in the sidebar (#1677) — Desktop only, which is what
    * `enabled` carries: on narrow the handlers come back undefined and no row
-   * attaches a contextmenu listener at all. The panels are rendered at this
+   * attaches a contextmenu listener at all. Narrow gets a long-press on the tag
+   * headings instead (#2008). The panels are rendered at this
    * view's top level (below), NOT inside <RightSidebarPortal>: on narrow that
    * portal is the MobileDrawer, and a panel mounted in it dies with the drawer.
    */
@@ -687,6 +688,7 @@ export function NotesView({
       onDeleteNote={handleDeleteNote}
       onTagContextMenu={sidebarMenus.onTagContextMenu}
       onNoteContextMenu={sidebarMenus.onNoteContextMenu}
+      onTagLongPress={sidebarMenus.onTagLongPress}
       onCreateNote={handleAddNote}
       dnd={dnd}
       // #1180 — only with a DataService, which is what templates are read and
