@@ -387,16 +387,20 @@ function toggleMainWindow(): void {
 
 // ---------------------------------------------------------------------------
 // Auto-launch at login. Built into Electron (no extra dependency). Effective on
-// macOS and Windows; on Linux setLoginItemSettings is a no-op (documented). We
-// start hidden (openAsHidden) so a login launch goes straight to the tray
-// instead of popping the window every time the machine boots.
+// macOS and Windows; on Linux setLoginItemSettings is a no-op (documented).
+//
+// A login launch opens the window like any other launch. This used to pass
+// `openAsHidden` to go straight to the tray, but that flag was macOS-only,
+// ignored from macOS 13 on, and removed from the API in Electron 44 (#1987) —
+// on Windows it never did anything. Starting hidden on every OS would need a
+// launch argument the window code checks, which is a feature, not an upgrade.
 // ---------------------------------------------------------------------------
 function getAutoLaunch(): boolean {
   return app.getLoginItemSettings().openAtLogin;
 }
 
 function setAutoLaunch(enabled: boolean): void {
-  app.setLoginItemSettings({ openAtLogin: enabled, openAsHidden: enabled });
+  app.setLoginItemSettings({ openAtLogin: enabled });
 }
 
 // ---------------------------------------------------------------------------

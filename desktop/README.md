@@ -12,6 +12,12 @@ migration (`.claude/2026-05-04-cross-platform-migration.md` §Phase 3).
   renderer `root` at `../web`, so `web/index.html` -> `web/src/main.tsx` runs
   unchanged and all renderer deps (react / tiptap / dnd-kit / supabase) resolve
   from `web/node_modules`. This structurally avoids a duplicated React.
+- Toolchain (#1987): **Electron 44**, **electron-builder 26**, **electron-vite
+  5**. Electron ships a new major every 8 weeks and only the latest three get
+  security fixes, so the version here goes stale on its own. The 33 line this
+  package used to pin had gone about 17 months without fixes and was the reason
+  `npm audit --omit=dev` reported high. Keep
+  `npm audit --omit=dev --audit-level=high` at exit 0 before cutting a release.
 
 ## Env (Supabase keys)
 
