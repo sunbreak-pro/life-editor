@@ -451,3 +451,36 @@ describe("TodayTodoTray heading actions", () => {
     ).toBe(true);
   });
 });
+
+/*
+ * #2010 — the "+" on an "その他" row. The BUTTON keeps the narrow 44px floor
+ * (#1558), but the bordered square is painted on a 24px span inside it: a
+ * border on the grown box read as a 44px frame of padding around a 16px "+".
+ * jsdom has no layout, so the class contract is what is pinned.
+ */
+describe("#2010 — the other-row + keeps its tap area and its painted size", () => {
+  it("floors the button on narrow and paints the square on the inner span", () => {
+    render(
+      <TodayTodoTray
+        placed={[]}
+        unplaced={[]}
+        addable={[{ id: "task-3", title: "Later" }]}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        labels={labels}
+      />,
+    );
+    const btn = screen.getByLabelText("add to today");
+    expect(btn.className).toContain("max-md:min-h-11");
+    expect(btn.className).toContain("max-md:min-w-11");
+    expect(btn.className.split(" ")).not.toContain("border");
+
+    const square = btn.querySelector("span");
+    expect(square?.className.split(" ")).toEqual(
+      expect.arrayContaining(["size-6", "border", "border-lumen-border-strong"]),
+    );
+    // Unprefixed, so the painted square is the same size on both layouts.
+    expect(square?.className).not.toContain("max-md:");
+  });
+});

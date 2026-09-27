@@ -771,7 +771,7 @@ describe("#1832 — the sidebar's own controls meet the 44px touch floor", () =>
   });
 
   it.each(["scheduleScreen.todoAddTodayCta", "scheduleScreen.todoAddCta"])(
-    "floors the Todo tab's %s pill",
+    "gives the Todo tab's %s pill a 44px hit area without growing it (#2010)",
     (name) => {
       render(
         <ScheduleSidebar
@@ -784,9 +784,21 @@ describe("#1832 — the sidebar's own controls meet the 44px touch floor", () =>
           })}
         />,
       );
-      const cls = screen.getByRole("button", { name }).className;
-      expect(cls).toContain("max-md:min-h-11");
-      expect(cls.split(" ")).not.toContain("min-h-11");
+      const cls = screen.getByRole("button", { name }).className.split(" ");
+      // #2010: flooring the BOX made each heading a 44px band around a small
+      // pill. The pill keeps its painted size and a transparent ::after takes
+      // the tap to 44px on narrow instead.
+      expect(cls).toEqual(
+        expect.arrayContaining([
+          "max-md:relative",
+          "max-md:after:absolute",
+          "max-md:after:h-11",
+        ]),
+      );
+      expect(cls).not.toContain("max-md:min-h-11");
+      expect(cls).not.toContain("min-h-11");
+      // No unprefixed extension: Desktop keeps the mouse-sized target.
+      expect(cls).not.toContain("after:h-11");
     },
   );
 });

@@ -48,6 +48,22 @@ import type { TodoTabFilter } from "./useTodoTabFilter";
  */
 
 /**
+ * The Todo tab's heading pills on narrow: a 44px hit area, a 35px pill
+ * (#2010).
+ *
+ * #1832 floored the pill's BOX to 44px (`max-md:min-h-11`), which made each
+ * heading row a 44px band around a small "+" label — the padding the user
+ * reported. This is `TAP_TARGET_TALL` (shared styleTokens) behind `max-md:`:
+ * the painted pill keeps its size and a transparent `::after` takes the tap
+ * up to 44px, above and below only. That is safe here because nothing
+ * tappable sits directly above or below a heading pill — the heading text
+ * beside it is not a control, and the list starts a row further down.
+ * Desktop keeps its mouse-sized target, as before.
+ */
+const HEADING_PILL_TAP =
+  "max-md:relative max-md:after:absolute max-md:after:inset-x-0 max-md:after:top-1/2 max-md:after:h-11 max-md:after:-translate-y-1/2 max-md:after:content-['']";
+
+/**
  * "今日の流れ" — the agenda, the skipped-item restore list, and the routine
  * summary.
  *
@@ -540,7 +556,7 @@ export function ScheduleSidebar({
             <AddPill
               onClick={todo.onAddToday}
               label={t("scheduleScreen.todoAddTodayCta")}
-              className="max-md:min-h-11"
+              className={HEADING_PILL_TAP}
             />
           ),
           addable: (
@@ -548,7 +564,7 @@ export function ScheduleSidebar({
               onClick={todo.onAdd}
               label={t("scheduleScreen.todoAddCta")}
               tourId={TOUR_ANCHORS.scheduleTodoAdd}
-              className="max-md:min-h-11"
+              className={HEADING_PILL_TAP}
             />
           ),
         }}
