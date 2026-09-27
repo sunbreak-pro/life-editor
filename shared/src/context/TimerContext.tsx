@@ -145,6 +145,10 @@ export function TimerProvider({
   // the last render captured.
   const [freeSessionTagIds, setFreeSessionTagIdsState] = useState<string[]>([]);
   const freeSessionTagIdsRef = useRef<string[]>([]);
+  // Name the next free session is filed under (#2009). Same ref + state pair
+  // as the tags, for the same reason. Empty means "use freeSessionTitle".
+  const [freeSessionName, setFreeSessionNameState] = useState("");
+  const freeSessionNameRef = useRef("");
   const freeSessionTitleRef = useRef(freeSessionTitle);
   // Re-render pulse: bumped each second so the derived display recomputes.
   const [tickNow, setTickNow] = useState(() => Date.now());
@@ -168,6 +172,12 @@ export function TimerProvider({
   const setFreeSessionTagIds = useCallback((ids: string[]) => {
     freeSessionTagIdsRef.current = ids;
     setFreeSessionTagIdsState(ids);
+  }, []);
+
+  /** Name the next free session will be filed under (#2009). */
+  const setFreeSessionName = useCallback((name: string) => {
+    freeSessionNameRef.current = name;
+    setFreeSessionNameState(name);
   }, []);
 
   // --- load settings + presets (refetch on sync bump) ---
@@ -267,9 +277,13 @@ export function TimerProvider({
     async (
       session: TimerSession,
       tagIds: readonly string[] = freeSessionTagIdsRef.current,
+      name: string = freeSessionNameRef.current,
     ) => {
-      const title = freeSessionTitleRef.current;
-      if (!title) return;
+      // The translated default is still the switch for the whole path; a
+      // typed name only replaces it as the Event's title (#2009).
+      const fallback = freeSessionTitleRef.current;
+      if (!fallback) return;
+      const title = name.trim() || fallback;
       if (session.sessionType !== "WORK") return;
       if (!isCountedSession(session)) return;
       const endedAt =
@@ -341,8 +355,9 @@ export function TimerProvider({
    *
    * A recovered free session still earns its Event, by the same
    * `fileFreeSession` a normal close uses, so the calendar and Analytics keep
-   * agreeing. It carries no tags: the ones picked for that run went down with
-   * the tab, and whatever is selected now belongs to the next session.
+   * agreeing. It carries no tags and the default title: the tags and name
+   * picked for that run went down with the tab, and whatever is set now
+   * belongs to the next session.
    */
   const orphanSweepStartedRef = useRef(false);
   useEffect(() => {
@@ -360,7 +375,7 @@ export function TimerProvider({
       for (const { session, durationSeconds } of plan) {
         const closed = await ds.recoverTimerSession(session, durationSeconds);
         if (closed && !sessionTargetId(closed)) {
-          await fileFreeSession(closed, []).catch((e) =>
+          await fileFreeSession(closed, [], "").catch((e) =>
             logServiceError("Timer", "freeSession", e),
           );
         }
@@ -710,6 +725,8 @@ export function TimerProvider({
       presets,
       freeSessionTagIds,
       setFreeSessionTagIds,
+      freeSessionName,
+      setFreeSessionName,
       start,
       pause,
       reset,
@@ -732,6 +749,8 @@ export function TimerProvider({
       presets,
       freeSessionTagIds,
       setFreeSessionTagIds,
+      freeSessionName,
+      setFreeSessionName,
       start,
       pause,
       reset,

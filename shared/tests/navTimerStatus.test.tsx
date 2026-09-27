@@ -40,6 +40,8 @@ function makeTimerValue(
     // #1665: the free session's tag selection lives on the context too.
     freeSessionTagIds: [],
     setFreeSessionTagIds: vi.fn(),
+    freeSessionName: "",
+    setFreeSessionName: vi.fn(),
     start: vi.fn(),
     pause: vi.fn(),
     reset: vi.fn(),
@@ -133,7 +135,9 @@ describe("NavTimerDot (#1858)", () => {
     const { rerender } = renderWithTimer(running, row(false));
     expect(screen.queryByTestId("nav-timer-dot")).not.toBeInTheDocument();
     rerender(
-      <TimerContext.Provider value={running}>{row(true)}</TimerContext.Provider>,
+      <TimerContext.Provider value={running}>
+        {row(true)}
+      </TimerContext.Provider>,
     );
     expect(screen.getByTestId("nav-timer-dot")).toBeInTheDocument();
   });

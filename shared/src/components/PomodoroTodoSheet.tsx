@@ -1,5 +1,9 @@
+import { useState } from "react";
+import type { KeyboardEvent } from "react";
 import { Check, X } from "lucide-react";
 import { BottomSheet } from "./BottomSheet";
+import { Input } from "./Input";
+import { isImeComposing } from "../utils/imeGuard";
 import { workTargetIcon, type WorkTargetOption } from "./PomodoroTodoSelector";
 import { cn } from "./cn";
 
@@ -19,6 +23,12 @@ import { cn } from "./cn";
  * of the same name, so the day + start time gets its own line under the title
  * rather than the desktop menu's trailing slot — there is no room beside a
  * full-width title at 390px.
+ *
+ * The sheet can also NAME a new free session (#2009) when the host passes
+ * `freeSessionName`: a text field over the list whose placeholder is the
+ * default title, so leaving it blank reads as exactly what gets filed. Using
+ * it clears any picked target (a named session is still a free session) and
+ * closes the sheet like a row does; the host decides where the name lives.
  */
 
 export interface PomodoroTodoSheetLabels {
@@ -29,6 +39,12 @@ export interface PomodoroTodoSheetLabels {
   clearSelection: string;
   /** Shown when there are no candidates at all. */
   emptyHint: string;
+  /** Accessible name of the free-session name field (#2009). */
+  nameLabel?: string;
+  /** Placeholder of that field — the title a blank name files under. */
+  namePlaceholder?: string;
+  /** Button that starts working under the typed name. */
+  nameSubmit?: string;
 }
 
 export interface PomodoroTodoSheetProps {
@@ -38,6 +54,13 @@ export interface PomodoroTodoSheetProps {
   selectedId: string | null;
   labels: PomodoroTodoSheetLabels;
   onSelect: (item: WorkTargetOption | null) => void;
+  /**
+   * The free session's current name (#2009). Passing it (with `onNameSubmit`)
+   * turns the name field on; omitting it keeps the sheet a plain picker.
+   */
+  freeSessionName?: string;
+  /** Receives the name as typed; blank means "the default title". */
+  onNameSubmit?: (name: string) => void;
 }
 
 export function PomodoroTodoSheet({
@@ -47,10 +70,17 @@ export function PomodoroTodoSheet({
   selectedId,
   labels,
   onSelect,
+  freeSessionName,
+  onNameSubmit,
 }: PomodoroTodoSheetProps) {
   const choose = (item: WorkTargetOption | null) => {
     onSelect(item);
     onClose();
+  };
+
+  const submitName = (name: string) => {
+    onNameSubmit?.(name);
+    choose(null);
   };
 
   return (
@@ -60,6 +90,13 @@ export function PomodoroTodoSheet({
       title={labels.title}
       closeLabel={labels.close}
     >
+      {freeSessionName !== undefined && onNameSubmit ? (
+        <FreeSessionNameField
+          initial={freeSessionName}
+          labels={labels}
+          onSubmit={submitName}
+        />
+      ) : null}
       {items.length === 0 ? (
         <p className="py-6 text-center text-sm text-lumen-text-tertiary">
           {labels.emptyHint}
@@ -114,5 +151,50 @@ export function PomodoroTodoSheet({
         </ul>
       )}
     </BottomSheet>
+  );
+}
+
+/*
+ * Its own component so the draft starts over from the saved name every time
+ * the sheet opens: BottomSheet renders nothing while closed, which unmounts
+ * this and drops a draft the user walked away from.
+ */
+function FreeSessionNameField({
+  initial,
+  labels,
+  onSubmit,
+}: {
+  initial: string;
+  labels: PomodoroTodoSheetLabels;
+  onSubmit: (name: string) => void;
+}) {
+  const [draft, setDraft] = useState(initial);
+
+  const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
+    // Enter also confirms a Japanese conversion; that one must not submit.
+    if (e.key !== "Enter" || isImeComposing(e)) return;
+    e.preventDefault();
+    onSubmit(draft);
+  };
+
+  return (
+    <div className="flex items-center gap-2 px-1 pb-3">
+      {/* min-h-11 rather than h-11: `cn` does not merge, and Input sets h-9. */}
+      <Input
+        value={draft}
+        aria-label={labels.nameLabel}
+        placeholder={labels.namePlaceholder}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={onKeyDown}
+        className="min-h-11"
+      />
+      <button
+        type="button"
+        onClick={() => onSubmit(draft)}
+        className="inline-flex min-h-11 shrink-0 items-center rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 text-sm font-semibold text-lumen-text hover:bg-lumen-hover"
+      >
+        {labels.nameSubmit}
+      </button>
+    </div>
   );
 }

@@ -77,6 +77,12 @@ export interface TimerContextValue {
    */
   freeSessionTagIds: string[];
   setFreeSessionTagIds: (ids: string[]) => void;
+  /**
+   * Title the next free session's Event is filed under (#2009), as typed.
+   * Blank (after trimming) falls back to the Provider's `freeSessionTitle`.
+   */
+  freeSessionName: string;
+  setFreeSessionName: (name: string) => void;
 
   // --- controls ---
   start: () => void;

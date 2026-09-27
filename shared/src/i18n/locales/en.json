@@ -309,6 +309,8 @@
       "sheetTitle": "Choose a work name",
       "clearSelection": "Free session",
       "allDay": "All day",
+      "nameLabel": "Work name",
+      "nameSubmit": "Work under this name",
       "emptyHint": "No todo or event to choose from. Starting now files a free session."
     },
     "completion": {
