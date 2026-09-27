@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MouseEvent as ReactMouseEvent,
+} from "react";
 import { Plus, Tag as TagIcon } from "lucide-react";
 import {
   isImeComposing,
@@ -45,6 +52,11 @@ import {
  *
  * Failures (#1667): a write that throws raises an error toast. Logging alone
  * left the picker looking as if nothing had been clicked.
+ *
+ * Right-click (#2007): `onTagContextMenu` is opt-in. Only the note header
+ * passes it, handing each chip to the same tag menu the Notes sidebar opens.
+ * The Todo detail and the Schedule sidebar pass nothing, so their chips keep
+ * the browser's own menu and their markup is unchanged.
  */
 interface TagPickerProps {
   itemId: string;
@@ -57,6 +69,11 @@ interface TagPickerProps {
    */
   itemRole?: string;
   size?: "sm" | "md";
+  /**
+   * `contextmenu` on an assigned tag's chip (#2007). Absent → no listener and
+   * no wrapper, so the browser's own menu is left alone.
+   */
+  onTagContextMenu?: (tagId: string, event: ReactMouseEvent) => void;
 }
 
 export function TagPicker({
@@ -64,6 +81,7 @@ export function TagPicker({
   showLabel = false,
   itemRole,
   size = "sm",
+  onTagContextMenu,
 }: TagPickerProps) {
   const wiki = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
@@ -227,7 +245,7 @@ export function TagPicker({
         assignments.map((a) => {
           const tag = tagsById.get(a.tagId);
           if (!tag) return null;
-          return (
+          const pill = (
             <TagPill
               key={a.id}
               name={tag.name}
@@ -237,6 +255,19 @@ export function TagPicker({
               removeLabel={t("materials.tags.pickerRemove", { name: tag.name })}
               onRemove={() => void handleUnassign(a.id)}
             />
+          );
+          if (!onTagContextMenu) return pill;
+          // A wrapper rather than a TagPill prop: the chip is shared across
+          // hosts, and this is the only one that wants its right-click.
+          return (
+            <span
+              key={a.id}
+              className="inline-flex"
+              data-tag-id={tag.id}
+              onContextMenu={(event) => onTagContextMenu(tag.id, event)}
+            >
+              {pill}
+            </span>
           );
         })}
       <button

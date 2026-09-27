@@ -781,6 +781,9 @@ export function NotesView({
           // asks for the current password before anything changes.
           onSetPassword={password.requestSet}
           onRemovePassword={password.requestRemove}
+          // #2007: the chips under the title open the sidebar's tag menu.
+          // Undefined on narrow, by the hook's own Desktop gate.
+          onTagContextMenu={sidebarMenus.onTagContextMenu}
           // The note's item links, beside the tags (#884 — they were a
           // rightSidebar disclosure until that Issue). Wide only, which is
           // where #884 put them; narrow has never had a Links affordance, and
