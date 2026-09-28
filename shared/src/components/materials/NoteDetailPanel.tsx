@@ -260,8 +260,6 @@ export interface NoteDetailPanelProps {
    * they read as one row rather than one header field and one sidebar panel.
    */
   linksSlot?: ReactNode;
-  /** Already-translated caption above the content editor. */
-  contentLabel: string;
   /** Host-injected rich-text editor (host wires key={noteId} for remount). */
   contentEditor?: ReactNode;
   /**
@@ -300,12 +298,12 @@ export function NoteDetailPanel({
   removePasswordLabel,
   tagsSlot,
   linksSlot,
-  contentLabel,
   contentEditor,
   variant = "sidebar",
   className,
 }: NoteDetailPanelProps) {
   const isMain = variant === "main";
+  const hasTagRow = tagsSlot != null || linksSlot != null;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
   return (
@@ -460,32 +458,34 @@ export function NoteDetailPanel({
 
       {/* Tag row — host-injected TagPicker (chips + "+ tag" pill), followed by
           the item links (#884): same row, links to the right of the tags. */}
-      {(tagsSlot != null || linksSlot != null) && (
+      {hasTagRow && (
         <div className="flex flex-wrap items-center gap-1.5">
           {tagsSlot}
           {linksSlot}
         </div>
       )}
 
-      {/* Content — injected editor + a min-height floor via the wrapper. The
-          "main" surface (Notes tab body) drops the caption and lets the editor
-          sit flush in the card, matching the Daily editor's clean single-card
-          look (2026-07-18). The compact "sidebar" variant keeps the "内容"
-          caption for orientation. */}
+      {/* One full-width rule between the tag row and the body (#2033), the
+          same at both widths — it replaced the "内容" caption the mobile sheet
+          used to show while Desktop had no break at all. Drawn only when a tag
+          row sits above it: with no row the rule would hang under the title. */}
+      {contentEditor != null && hasTagRow && (
+        <hr
+          data-testid="note-detail-divider"
+          className="m-0 border-0 border-t border-lumen-border"
+        />
+      )}
+
+      {/* Content — injected editor + a min-height floor via the wrapper. */}
       {contentEditor != null && (
         <div
           className={cn(
-            "flex flex-col gap-1",
+            "flex flex-col",
             isMain
               ? "[&_.note-editor]:min-h-[420px]"
               : "[&_.note-editor]:min-h-[220px]",
           )}
         >
-          {!isMain && (
-            <span className="text-xs uppercase tracking-wide text-lumen-text-tertiary">
-              {contentLabel}
-            </span>
-          )}
           {contentEditor}
         </div>
       )}

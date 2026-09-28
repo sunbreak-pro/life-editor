@@ -20,7 +20,6 @@ const LABELS = {
   deleteLabel: "Delete note",
   moreActionsLabel: "More actions",
   pinnedLabel: "Pinned",
-  contentLabel: "Content",
 };
 
 describe("NoteDetailPanel", () => {
@@ -43,7 +42,65 @@ describe("NoteDetailPanel", () => {
     ).toBe("Supabase migration notes");
     expect(screen.getByText("design")).toBeInTheDocument();
     expect(screen.getByText("editor slot")).toBeInTheDocument();
-    expect(screen.getByText("Content")).toBeInTheDocument();
+  });
+
+  // #2033: one rule separates the tag row from the body at BOTH widths — the
+  // mobile sheet used to caption the body "Content" instead, Desktop had none.
+  it.each([
+    ["sidebar (mobile sheet)", undefined],
+    ["main (Desktop)", "main" as const],
+  ])(
+    "draws one divider between the tag row and the body on %s",
+    (_, variant) => {
+      render(
+        <NoteDetailPanel
+          noteId="note-a"
+          title="divided"
+          isPinned={false}
+          onTitleCommit={() => {}}
+          onTogglePin={() => {}}
+          onDelete={() => {}}
+          tagsSlot={<span>design</span>}
+          contentEditor={<div>editor slot</div>}
+          variant={variant}
+          {...LABELS}
+        />,
+      );
+      const dividers = screen.getAllByTestId("note-detail-divider");
+      expect(dividers).toHaveLength(1);
+      const divider = dividers[0]!;
+      expect(divider.tagName).toBe("HR");
+      // Order in the document: tag row → rule → body.
+      const tag = screen.getByText("design");
+      const body = screen.getByText("editor slot");
+      expect(
+        tag.compareDocumentPosition(divider) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(
+        divider.compareDocumentPosition(body) &
+          Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(divider.className).toContain("border-lumen-border");
+      // The old caption is gone at both widths.
+      expect(screen.queryByText("Content")).not.toBeInTheDocument();
+    },
+  );
+
+  it("leaves the rule out when there is no tag row to separate", () => {
+    render(
+      <NoteDetailPanel
+        noteId="note-a"
+        title="no tags"
+        isPinned={false}
+        onTitleCommit={() => {}}
+        onTogglePin={() => {}}
+        onDelete={() => {}}
+        contentEditor={<div>editor slot</div>}
+        {...LABELS}
+      />,
+    );
+    expect(screen.getByText("editor slot")).toBeInTheDocument();
+    expect(screen.queryByTestId("note-detail-divider")).not.toBeInTheDocument();
   });
 
   // #885: pinned state has to read from the header itself, not only from inside
@@ -305,7 +362,8 @@ describe("NoteDetailPanel", () => {
     expect(
       screen.getByRole("button", { name: "More actions" }),
     ).toBeInTheDocument();
-    // ...but the captioned sections do not (their slots were undefined).
-    expect(screen.queryByText("Content")).not.toBeInTheDocument();
+    // ...but the tag row, the rule and the body do not (their slots were
+    // undefined).
+    expect(screen.queryByTestId("note-detail-divider")).not.toBeInTheDocument();
   });
 });

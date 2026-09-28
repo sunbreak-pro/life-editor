@@ -634,7 +634,6 @@ export function NotesView({
     pinned: t("notesView.pinned"),
     delete: t("materials.notes.deleteNote"),
     moreActions: t("notesView.moreActions"),
-    content: t("materials.notes.content"),
     lockedHint: t("materials.notes.lockedHint"),
     registerTemplate: t("materials.templates.menuEntry"),
     applyTemplate: t("materials.templates.applyMenuEntry"),

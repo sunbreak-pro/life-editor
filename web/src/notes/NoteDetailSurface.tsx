@@ -35,7 +35,6 @@ export interface NoteDetailLabels {
   pinned: string;
   delete: string;
   moreActions: string;
-  content: string;
   lockedHint: string;
   /** Kebab entry that registers this note as a template (#1179). */
   registerTemplate: string;
@@ -177,7 +176,6 @@ export function NoteDetailSurface({
         </span>
       }
       linksSlot={linksSlot}
-      contentLabel={labels.content}
       contentEditor={
         <LockedBodyGate
           locked={locked}
