@@ -347,7 +347,7 @@ describe("dismiss / undismiss", () => {
     const { mirror, rows } = makeFakeMirror();
     act(() => hook.result.current.registerViewMirror(mirror));
 
-    act(() => hook.result.current.undismiss("s-1"));
+    act(() => void hook.result.current.undismiss("s-1"));
     expect(hook.result.current.items[0].isDismissed).toBe(false);
     expect(ds.undismissScheduleItem).toHaveBeenCalledWith("s-1");
     expect(labels()).toEqual(["undismissScheduleItem"]);

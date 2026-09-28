@@ -73,11 +73,12 @@ export interface UseScheduleRepeatsArgs {
     closeSidebar: (() => void) | undefined;
   };
   writes: {
+    /** Resolves false when the pass did not land (it logs, never throws). */
     ensureRoutineItemsForDateRange: (
       from: string,
       to: string,
       routines: RoutineNode[],
-    ) => Promise<unknown>;
+    ) => Promise<boolean>;
     deleteRoutine: DeleteRepeatSeriesArgs["deleteRoutine"];
     reload: () => void;
     showToast: (kind: "danger", message: string) => void;
@@ -231,13 +232,21 @@ export function useScheduleRepeats({
         // covers whatever range was visible at the time). So a jump onto a
         // future-dated repeat would land on an empty day with nothing to open,
         // which is exactly the reachability hole this panel exists to close.
+        //
+        // #1642 P8 (N-16): read the RESULT. `ensure` reports a failed pass by
+        // returning false — it catches and logs its own error — so the catch
+        // below was all this used to have, and it never fired: the jump
+        // landed on an empty day with nothing said (the #1771 shape, K-14's
+        // missed twin). The catch stays for a throw from anywhere else.
+        let filled = false;
         try {
-          await ensureRoutineItemsForDateRange(next, next, [routine]);
+          filled = await ensureRoutineItemsForDateRange(next, next, [routine]);
         } catch {
           // Logged at the API layer; the reload below still returns the view
           // to whatever the server actually has.
         }
         reload();
+        if (!filled) showToast("danger", t("scheduleScreen.repeatJumpFailed"));
       })();
     },
     [
@@ -249,6 +258,8 @@ export function useScheduleRepeats({
       ensureRoutineItemsForDateRange,
       reload,
       revealOnGrid,
+      showToast,
+      t,
     ],
   );
 

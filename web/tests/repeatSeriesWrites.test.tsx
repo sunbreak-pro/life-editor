@@ -270,7 +270,7 @@ describe("a series delete that did not land, from both entries (#1642 P5)", () =
             closeSidebar: undefined,
           },
           writes: {
-            ensureRoutineItemsForDateRange: vi.fn(() => Promise.resolve()),
+            ensureRoutineItemsForDateRange: vi.fn(() => Promise.resolve(true)),
             deleteRoutine: api.deleteRoutine,
             reload,
             showToast,

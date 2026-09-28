@@ -514,6 +514,14 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
       ds.dismissScheduleItem(id).catch((e) =>
         logServiceError("ScheduleItems", "dismiss", e),
       );
+      /*
+       * #1642 P8 (K-03): no snapshot, no command. Without `prev` the undo
+       * could not put the row back on the grid (the host drops dismissed rows
+       * from its range store), and `repeatConfirm` could not tell a repeat's
+       * occurrence from a one-off, so the undo ran without the question every
+       * other write to a repeating row asks first.
+       */
+      if (!prev) return;
       const { hide, show } = dismissPaint(setItems, mirror, id, prev);
       push("scheduleItem", {
         label: "dismissScheduleItem",
@@ -531,7 +539,10 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
   );
 
   const undismiss = useCallback(
-    (id: string) => {
+    // Resolves once the write has settled, landed or not (#1642 P8, C-03): a
+    // caller that re-reads after it must wait, or the read can overtake the
+    // write and bring the row back still skipped.
+    (id: string): Promise<void> => {
       const prev = findItem(id);
       setItems((p) =>
         p.map((i) =>
@@ -540,9 +551,12 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
             : i,
         ),
       );
-      ds.undismissScheduleItem(id).catch((e) =>
-        logServiceError("ScheduleItems", "undismiss", e),
+      const settled = ds.undismissScheduleItem(id).then(
+        () => undefined,
+        (e: unknown) => logServiceError("ScheduleItems", "undismiss", e),
       );
+      // K-03: the same rule as dismiss above.
+      if (!prev) return settled;
       /*
        * #1638 (A-02): "bring the skipped day back" is the mirror image of the
        * skip beside it, and the skip has been undoable since #568. Without
@@ -564,6 +578,7 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
           "Undismiss",
         ),
       });
+      return settled;
     },
     [ds, push, findItem, setItems, mirror],
   );

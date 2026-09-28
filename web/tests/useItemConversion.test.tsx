@@ -156,6 +156,29 @@ describe("useItemConversion — Todo → Event", () => {
     expect(h.closeEditor).not.toHaveBeenCalled();
   });
 
+  // #1642 P8 (K-11): the same word the other direction says. This one said
+  // nothing, so the only sign it worked was the todo leaving the list.
+  it("K-11: says it worked, as the Event → Todo direction does", async () => {
+    const h = setup();
+    await act(async () => h.api().handleConvertToEvent("task-1"));
+    await waitFor(() =>
+      expect(h.showToast).toHaveBeenCalledWith(
+        "success",
+        "itemConvert.toEventDone",
+      ),
+    );
+  });
+
+  it("stays quiet about success when the conversion was refused", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = setup({ convertTodoToEvent: () => Promise.reject(new Error("no")) });
+    await act(async () => h.api().handleConvertToEvent("task-1"));
+    await waitFor(() =>
+      expect(h.showToast).toHaveBeenCalledWith("danger", "itemConvert.failed"),
+    );
+    expect(h.showToast).not.toHaveBeenCalledWith("success", expect.anything());
+  });
+
   it("gives the server's children refusal its own sentence, and pushes nothing", async () => {
     // "Conversion failed" would send the user looking for a network problem.
     vi.spyOn(console, "error").mockImplementation(() => {});
