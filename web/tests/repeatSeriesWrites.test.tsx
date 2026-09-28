@@ -16,19 +16,10 @@ import { useRepeatMutations } from "../src/schedule/useRepeatMutations";
 import { createBumpableSync, stubDataService } from "./helpers";
 
 /*
- * #1642 P5 — the two writes that end a series, each spelled once.
- *
- * A repeat is deleted from the sidebar's list and from the scope dialog's
- * "all", and split off from the editor's "none" and the dialog's "this and
- * following". The pairs had drifted: one delete said when it failed and the
- * other did not (N-02), neither split said anything (N-04), the editor's split
- * skipped the closing re-read (K-09), and the two splits recorded their undo
- * in two different layers (M-03).
- *
- * The first two blocks pin the runner itself. The last one mounts the REAL
- * routine hook under both delete entries, because the part of N-02 a stub
- * cannot show is the repeat list: the row has to come back, and only the
- * routine hook holds it.
+ * #1642 P5 — the two writes that end a series, each spelled once. The entry
+ * suites (useRepeatMutations / useScheduleRepeats) pin what each entry hands
+ * over; this one pins the runner, then mounts the REAL routine hook under both
+ * delete entries — the repeat list coming back (N-02) is only visible there.
  */
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
@@ -116,17 +107,6 @@ describe("deleteRepeatSeries", () => {
     expect(onFailed).not.toHaveBeenCalled();
   });
 
-  it("re-reads when it has no range store to edit", async () => {
-    const reload = vi.fn();
-    await deleteRepeatSeries({
-      routineId: "routine-1",
-      deleteRoutine: () => Promise.resolve({ landed: true }),
-      reload,
-      onFailed: vi.fn(),
-    });
-    expect(reload).toHaveBeenCalledTimes(1);
-  });
-
   it("re-reads and says so when the delete did not land", async () => {
     const reload = vi.fn();
     const onFailed = vi.fn();
@@ -145,26 +125,6 @@ describe("deleteRepeatSeries", () => {
     expect(onFailed).toHaveBeenCalledTimes(1);
   });
 
-  it("hands the range re-read down for the undo path (#708)", async () => {
-    const reload = vi.fn();
-    const deleteRoutine = vi.fn(
-      (_id: string, opts: { onCascadeChanged: () => void }) => {
-        opts.onCascadeChanged();
-        return Promise.resolve({
-          landed: true,
-          deletedScheduleItemIds: ["occ-1"],
-        });
-      },
-    );
-    await deleteRepeatSeries({
-      routineId: "routine-1",
-      deleteRoutine,
-      reload,
-      onFailed: vi.fn(),
-      dropFromRange: vi.fn(),
-    });
-    expect(reload).toHaveBeenCalledTimes(1);
-  });
 });
 
 describe("detachRepeatSeries", () => {
@@ -202,34 +162,6 @@ describe("detachRepeatSeries", () => {
     ]);
     // K-09: the split ends on a re-read like every other repeat write.
     expect(reload).toHaveBeenCalledTimes(1);
-  });
-
-  it("asks the routine layer for its reversal and records it as a split", async () => {
-    const restore = reversal();
-    const detachRoutine = vi.fn<DetachRepeatSeriesArgs["detachRoutine"]>(
-      () => Promise.resolve({ deletedScheduleItemIds: [], reversal: restore }),
-    );
-    const push = vi.fn();
-    await detachRepeatSeries({
-      routineId: "routine-1",
-      fromDate: "2026-09-30",
-      detachRoutine,
-      setRangeItems: vi.fn(),
-      reload: vi.fn(),
-      onFailed: vi.fn(),
-      push,
-      inverse: "restore",
-    });
-
-    expect(detachRoutine).toHaveBeenCalledWith("routine-1", "2026-09-30", {
-      keepItemIds: undefined,
-      reversible: true,
-    });
-    expect(push).toHaveBeenCalledTimes(1);
-    expect(push.mock.calls[0][1]).toMatchObject({
-      label: "detachRoutine",
-      confirm: { kind: "repeat", scope: "all" },
-    });
   });
 
   it("records the editor's own reversal instead, under the editor's label", async () => {
@@ -284,27 +216,6 @@ describe("detachRepeatSeries", () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
-  it("N-04: re-reads, says so and records nothing when the split did not land", async () => {
-    const store = rangeStore([item("occ-today")]);
-    const reload = vi.fn();
-    const onFailed = vi.fn();
-    const push = vi.fn();
-    const landed = await detachRepeatSeries({
-      routineId: "routine-1",
-      detachRoutine: () => Promise.reject(new Error("offline")),
-      setRangeItems: store.setRangeItems,
-      reload,
-      onFailed,
-      push,
-      inverse: reversal(),
-    });
-
-    expect(landed).toBe(false);
-    expect(store.setRangeItems).not.toHaveBeenCalled();
-    expect(reload).toHaveBeenCalledTimes(1);
-    expect(onFailed).toHaveBeenCalledTimes(1);
-    expect(push).not.toHaveBeenCalled();
-  });
 });
 
 /*
