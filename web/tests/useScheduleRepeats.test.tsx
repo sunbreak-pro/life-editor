@@ -99,10 +99,11 @@ function setup(
   const setAnchorDate = vi.fn((key: string) => void key);
   const revealOnGrid = vi.fn();
   const closeSidebar = vi.fn();
-  const ensureRoutineItemsForDateRange = vi.fn(
-    (from: string, to: string, rs: RoutineNode[]) =>
-      Promise.resolve<unknown>([from, to, rs]),
-  );
+  // Typed through the generic: the cases read the arguments back off
+  // `mock.calls`, and the pass resolves whether it landed (#1642 P8).
+  const ensureRoutineItemsForDateRange = vi.fn<
+    (from: string, to: string, rs: RoutineNode[]) => Promise<boolean>
+  >(() => Promise.resolve(true));
   const deleteRoutine = vi.fn(
     (id: string, options: { onCascadeChanged: () => void }) =>
       Promise.resolve({ landed: Boolean(id) && Boolean(options) }),
@@ -301,6 +302,31 @@ describe("useScheduleRepeats — opening a row (#408 / #520 / #467)", () => {
     expect(
       ensureRoutineItemsForDateRange.mock.invocationCallOrder[0],
     ).toBeLessThan(reload.mock.invocationCallOrder[0]);
+  });
+
+  /*
+   * #1642 P8 (N-16): `ensure` reports a failed pass by RETURNING false — it
+   * catches and logs its own error — so the catch this used to rely on never
+   * fired, and the jump landed on an empty day with nothing said.
+   */
+  it("N-16: says so when the destination day could not be filled", async () => {
+    const { hook, ensureRoutineItemsForDateRange, reload, showToast } = setup();
+    ensureRoutineItemsForDateRange.mockResolvedValue(false);
+    act(() => hook.result.current.handleOpenRepeat("routine-1"));
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith(
+        "danger",
+        "scheduleScreen.repeatJumpFailed",
+      ),
+    );
+    expect(reload).toHaveBeenCalledTimes(1);
+  });
+
+  it("stays quiet when the destination day was filled", async () => {
+    const { hook, reload, showToast } = setup();
+    act(() => hook.result.current.handleOpenRepeat("routine-1"));
+    await waitFor(() => expect(reload).toHaveBeenCalled());
+    expect(showToast).not.toHaveBeenCalled();
   });
 
   // The reload has to run even when the materialise throws — otherwise a

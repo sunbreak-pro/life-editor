@@ -375,6 +375,10 @@ export function useItemConversion({
             reload();
             void refetchTodos();
           })
+          // #1642 P8 (K-11): the same word the Event → Todo branch above
+          // says. This direction said nothing, so the only sign it worked
+          // was the todo leaving the list the user was looking at.
+          .then(() => showToast("success", t("itemConvert.toEventDone")))
           .catch((err) => {
             logServiceError(
               "ItemConversion",

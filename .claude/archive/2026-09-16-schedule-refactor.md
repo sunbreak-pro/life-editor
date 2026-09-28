@@ -195,10 +195,12 @@ D-05 はコード内のコメント（`useRepeatMutations.ts:320-326`）が「re
 | G-01 | narrow にグリッドの書き込み経路が 1 本も無い（移動・リサイズ・終日レーン・空きスロット作成・右クリック・月セルの `+`） | Desktop = `CalendarDesktopLayout.tsx:123-126` `:262-267` vs `CalendarNarrowLayout.tsx:107` |
 | G-02 | タグフィルタのパネルは narrow でもマウントされるが、開くボタンが Desktop のツールバーにしか無い                        | `ScheduleOverlays.tsx:308` vs `CalendarDesktopLayout.tsx:296`                              |
 | G-03 | 週 / 月 / 日の切替と「繰り返しを隠す」が narrow に無い（narrow は月固定）                                              | `useCalendarNav.ts:53`、`CalendarTab.tsx:1170`                                             |
-| G-04 | シリーズ削除が narrow で無効化される                                                                                   | `ScheduleSidebar.tsx:324`                                                                  |
+| G-04 | narrow ではサイドバーからシリーズ削除できない（訂正注あり）                                                            | `ScheduleSidebar.tsx:324`                                                                  |
 | G-05 | jsdom は `matchMedia` を持たないため、**テストは既定で Desktop 幅**になる                                              | `shared/src/hooks/useMediaQuery.ts:13-22`                                                  |
 
 G-01〜G-04 は **意図した省略として確定した**（2026-09-16 ユーザー裁定 = D-20260916-sched-1 = A）。[`mobile-scope.md`](../docs/requirements/mobile-scope.md) の「Consumption + Quick capture」と整合するため、穴として塞がず仕様として記録する。工程 2 でこれらを narrow に足さない。
+
+**G-04 の訂正（2026-09-28・#1642 第 2 期 P8 / N-03）**: この行はもともと「シリーズ削除が narrow で無効化される」と書いていた。実際に隠れているのはサイドバーのゴミ箱だけで、narrow でも繰り返しの回を削除するとスコープダイアログが出て、「すべて」を選べばシリーズごと消える。第 2 期の計画書は、この食い違いを N-03 として挙げた。消せるままにして記録のほうを直す裁定が出たので（[D-20260923-sched-2](../decisions/D-20260923-sched-2.md) = A）、行の文言を実態に合わせた。narrow のサイドバーにシリーズ削除を出さないという D-20260916-sched-1 の裁定は変わらない。§6 の S06 の narrow 列（「この回だけ」）も書いた当時の理解のままで、スコープダイアログの 3 つの選択肢は narrow でも出る。
 
 ### 1-H. 状態の所有者が 1 人でない
 

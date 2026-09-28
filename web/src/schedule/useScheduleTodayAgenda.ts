@@ -52,8 +52,8 @@ export interface UseScheduleTodayAgendaArgs {
   contextItems: ScheduleItem[];
   /** Today's scheduled TodoNodes as chips (useScheduleTodoChips). */
   todayTodoChips: TodoCalendarChip[];
-  /** Provider write that un-skips a row. */
-  undismiss: (id: string) => void;
+  /** Provider write that un-skips a row; resolves once the write settled. */
+  undismiss: (id: string) => Promise<void>;
   /** Range refetch (useVisibleRangeItems) — see handleRestoreSkipped. */
   reload: () => void;
   /** The selected item, for the editor's "generated from" caption. */
@@ -109,10 +109,14 @@ export function useScheduleTodayAgenda({
   );
   const handleRestoreSkipped = useCallback(
     (id: string) => {
-      undismiss(id);
-      // Fast path; if the refetch races ahead of the undismiss write, the
-      // syncVersion-driven refetch reconciles once the write lands.
-      reload();
+      /*
+       * #1642 P8 (C-03): the refetch waits for the write. It used to go out on
+       * the same tick as a "fast path", and when it overtook the write it read
+       * the row back still skipped — the restore then looked undone until the
+       * next sync tick. Waiting costs one round trip; a failed write is shown
+       * as it is by the same refetch (the row stays skipped).
+       */
+      void undismiss(id).then(reload);
     },
     [undismiss, reload],
   );

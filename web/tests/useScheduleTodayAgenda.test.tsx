@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { todoChipId } from "@life-editor/shared";
 import type {
   FrequencyLabelCopy,
@@ -111,7 +111,7 @@ function routine(id: string, over: Partial<RoutineNode> = {}): RoutineNode {
 function renderAgenda(over: Partial<UseScheduleTodayAgendaArgs> = {}) {
   /** Ordered log — #296's restore is two writes whose ORDER is the fast path. */
   const writes: string[] = [];
-  const undismiss = vi.fn((id: string) => {
+  const undismiss = vi.fn(async (id: string) => {
     void id;
     writes.push("undismiss");
   });
@@ -250,7 +250,7 @@ describe("useScheduleTodayAgenda — the two lists are one partition (#296)", ()
 });
 
 describe("useScheduleTodayAgenda — restoring a skipped row (#296)", () => {
-  it("un-skips it and refetches, in that order", () => {
+  it("un-skips it and refetches, in that order", async () => {
     const { result, undismiss, reload, writes } = renderAgenda({
       contextItems: [item("event-skipped", { isDismissed: true })],
     });
@@ -258,11 +258,31 @@ describe("useScheduleTodayAgenda — restoring a skipped row (#296)", () => {
     act(() => result.current.handleRestoreSkipped("event-skipped"));
 
     expect(undismiss).toHaveBeenCalledWith("event-skipped");
-    expect(reload).toHaveBeenCalledTimes(1);
-    // The refetch is the FAST PATH — it goes out on the same tick as the write
-    // rather than waiting for it, and the syncVersion refetch reconciles if it
-    // races ahead. Reversed, the row comes back only on the next sync tick.
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
     expect(writes).toEqual(["undismiss", "reload"]);
+  });
+
+  /*
+   * #1642 P8 (C-03): the refetch used to go out on the same tick as the
+   * write, and when it overtook the write it read the row back still skipped.
+   */
+  it("C-03: waits for the un-skip write before it refetches", async () => {
+    let settle: () => void = () => {};
+    const { result, reload } = renderAgenda({
+      contextItems: [item("event-skipped", { isDismissed: true })],
+      undismiss: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            settle = resolve;
+          }),
+      ),
+    });
+
+    act(() => result.current.handleRestoreSkipped("event-skipped"));
+    expect(reload).not.toHaveBeenCalled();
+
+    await act(async () => settle());
+    expect(reload).toHaveBeenCalledTimes(1);
   });
 });
 
