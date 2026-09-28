@@ -1,0 +1,282 @@
+<title>Briefing コンセプト比較</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --muted: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --idle: #7b8a92;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --muted: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --idle: #7f8e96;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --muted: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --idle: #7f8e96;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 1040px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(26px, 4vw, 36px); line-height: 1.3; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 17px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 56px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 28px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul, ol { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 6px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin: 0 0 8px; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; color: var(--idle); }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+  .verdict .fit { font-size: 14px; color: var(--ink); }
+
+  .facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 12px 20px; margin: 16px 0 8px; padding: 0; list-style: none; }
+  .facts li { border-top: 2px solid var(--accent); padding-top: 10px; margin: 0; font-size: 15px; }
+  .facts li strong { display: block; font-size: 16px; margin-bottom: 4px; }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  p code, li code, td code, dd code { background: var(--code-bg); padding: 1px 5px; border-radius: 3px; font-size: .86em; overflow-wrap: anywhere; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; line-height: 1.65; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .06em; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td:first-child { font-weight: 700; }
+  table.inv { min-width: 980px; }
+  table.inv td:nth-child(1) { width: 150px; }
+  table.cmp { min-width: 900px; }
+  table.cmp th:first-child, table.cmp td:first-child { width: 150px; position: sticky; left: 0; background: var(--panel); }
+  table.cmp th:first-child { background: var(--ground); }
+  table.cmp td.base { color: var(--muted); }
+  .chip { display: inline-block; font-size: 12px; font-weight: 700; padding: 1px 8px; border-radius: 3px; border: 1px solid currentColor; white-space: nowrap; }
+  .chip.claude { color: var(--accent); }
+  .chip.user { color: var(--ok); }
+  .chip.app { color: var(--idle); }
+  .chip.mix { color: var(--warn); }
+  .sz { font-weight: 700; }
+  .sz.m { color: var(--warn); }
+  .sz.l { color: var(--stop); }
+  .sz.s { color: var(--ok); }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.warn strong { color: var(--warn); }
+  .note { font-size: 14px; color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 8px 16px; font-size: 13px; color: var(--muted); margin: 4px 0 0; }
+  .legend span { display: inline-flex; gap: 6px; align-items: center; }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  @media (max-width: 520px) { .wrap { padding: 32px 16px 64px; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-28 / 判断材料 / life-editor #2035</p>
+    <h1>Briefing（朝刊・夕刊）の今の姿と、作り直しの方向 3 案</h1>
+    <p class="lede">朝刊と夕刊の全ブロックを、表示するもの・データの出どころ・書き込む先で棚卸ししました。そのうえで方向の違う 3 案を並べています。どの案を採るかはこうだいさんが決めるので、このレポートは推奨を置いていません。</p>
+  </header>
+
+  <h2 style="margin-top:0">3 つの案</h2>
+  <p class="prose">引っ越しにたとえると、A は「2 部屋をつなげて 1 部屋にする」、B は「リビングから作業机を出して、くつろぐ部屋にする」、C は「玄関に毎朝・毎晩のチェックリストを貼る」方向です。</p>
+  <ul class="verdicts">
+    <li class="verdict">
+      <span class="tag">案 A</span>
+      <h3>1 日を 1 枚にする</h3>
+      <p>朝刊と夕刊のタブをやめて、1 日分を 1 枚の縦長ページにします。時刻によって、朝は「今日の予定」、夜は「締めくくり」が上に来るように並びが入れ替わります。</p>
+      <p class="fit">今のブロックとデータはほぼそのまま使えます。作り直しは中くらいです。</p>
+    </li>
+    <li class="verdict">
+      <span class="tag">案 B</span>
+      <h3>読む紙面に絞る</h3>
+      <p>Briefing を読むだけの画面にします。完了の印・追加・削除・入力は Schedule と Daily に戻し、紙面は「きのうのまとめ・今日の見通し・Claude の講評」を読む場所にします。</p>
+      <p class="fit">Claude が居ない人のために、アプリが自動でまとめを書く仕組みが新しく要ります。作り直しは中〜大です。</p>
+    </li>
+    <li class="verdict">
+      <span class="tag">案 C</span>
+      <h3>朝と夜の手順にする</h3>
+      <p>朝は 3 つの問い、夜は 3 つの問いに 1 画面 1 問で答えて進む形にします。答え終わると、その日のまとめが 1 枚で出ます。</p>
+      <p class="fit">ユーザーの入力で紙面が埋まるので、Claude が居なくても空欄が出ません。作り直しは大です。</p>
+    </li>
+  </ul>
+  <div class="callout prose"><strong>比べる前提</strong>: 3 案とも保存の仕組みは変えずに作れます。朝刊・宣言・夕刊は Daily 1 日分の本文の中の見出しで分かれていて、フォーカスと目標は予約済みのノート 2 枚に入っています。専用のテーブルはありません。</div>
+
+  <h2>棚卸しでわかったこと</h2>
+  <ul class="facts">
+    <li><strong>Claude が書くのは 2 か所だけです。</strong>朝刊用の道具 <code>write_briefing</code> が書くのは「今日のフォーカス」と「昨日へのひとこと（講評）」です。Daily 本文を丸ごと書き換える道具を使えばほかの節にも触れますが、紙面のために用意された口はこの 2 つです。フォーカスは前の晩に夕刊で自分でも書けます。夕刊には Claude が書く欄がありません。</li>
+    <li><strong>Claude が居なくても、紙面はほとんど埋まります。</strong>講評は書かれていない日は枠ごと消えるので、空欄として残るのはフォーカスの「まだありません」表示だけです。</li>
+    <li><strong>配布先の人は、今の仕組みでは Claude を繋げません。</strong>MCP は環境変数のメールとパスワードで 1 人としてログインします（<code>mcp-server/src/supabase.ts:65</code>）。スマホ用の Remote MCP も共有の合言葉 1 本です。配布先 10〜20 人にとって Claude の欄は常に空になります。</li>
+    <li><strong>紙面は「読むだけ」ではありません。</strong>朝刊は完了の印・予定と Todo の追加・削除・宣言・目標の 5 種類を書き込みます。夕刊は気分・宣言・振り返り・明日のフォーカス・完了の印の 5 種類です。</li>
+    <li><strong>オンボーディングの説明が実態より悲観的です。</strong>ツアーの文言（<code>ja.json</code> の <code>briefingIntro</code>）は「Web だけで使っているあいだは空のまま」と書いていますが、実際は講評以外が埋まります。この件はレポートに記録するだけにしています。</li>
+    <li><strong>設計の元になる文書の完成条件は、まだ満たしていません。</strong>briefing-loop 計画書の Step 5（毎朝の自動執筆）と Step 6（平日 5 日連続でループが回る）は未完了です。最近の Issue（#1820〜#1826）は見た目の細部の修正でした。</li>
+  </ul>
+
+  <h2>朝刊の全ブロック</h2>
+  <p class="prose">上から画面に出る順です。書き手の色は、<span class="chip claude">Claude</span> が MCP 経由で書くもの、<span class="chip user">ユーザー</span> が入力するもの、<span class="chip app">アプリ</span> が既存データから組み立てるものを表します。</p>
+  <div class="tablewrap">
+    <table class="inv">
+      <thead><tr><th>ブロック</th><th>何を表示するか</th><th>データの出どころ</th><th>書き手</th><th>何を書き込むか</th><th>Claude が居ないとき</th><th>スマホ幅</th></tr></thead>
+      <tbody>
+        <tr><td>朝刊 / 夕刊の切替帯</td><td>左端にサイドパネルを開くボタン、右に朝刊・夕刊の切替があります。</td><td>画面の状態だけです。</td><td><span class="chip app">アプリ</span></td><td>書き込みません。</td><td>変わりません。</td><td>スマホ幅だけに出ます。PC 幅は画面上部のタブを使います。</td></tr>
+        <tr><td>題字と日付</td><td>「LIFE EDITOR 朝刊」と今日の日付を出します。</td><td>今日の日付から作ります。</td><td><span class="chip app">アプリ</span></td><td>書き込みません。</td><td>常に出ます。</td><td>題字が 2 行に折り返します。</td></tr>
+        <tr><td>今日のフォーカス</td><td>今日いちばん進めたいことを大きな文字で 1 行出します。</td><td>予約ノート <code>note-focus</code> の今日の節です。</td><td><span class="chip mix">Claude か前夜のユーザー</span></td><td>朝刊では読むだけです。</td><td>「まだありません。前日の夕刊で書くと、ここに表示されます」と出ます。</td><td>同じです。</td></tr>
+        <tr><td>昨日へのひとこと（講評）</td><td>Claude の講評の段落と「Claude・朝刊セクションより」の印を出します。</td><td>Daily 本文の「朝刊」見出しの節です。</td><td><span class="chip claude">Claude</span></td><td>書き込みません。</td><td>枠ごと表示されません。</td><td>同じです。</td></tr>
+        <tr><td>今日の宣言</td><td>今日やり遂げることを書く入力欄です。書くと「保存済み」の表示が付きます。</td><td>Daily 本文の「宣言」見出しの節です。</td><td><span class="chip user">ユーザー</span></td><td>入力から 0.8 秒後に Daily の宣言の節を書き換えます。</td><td>空の入力欄が出ます。</td><td>同じで、入力もできます。</td></tr>
+        <tr><td>これからの目標</td><td>今週・今月・今年の目標を 3 つの入力欄で出します。</td><td>予約ノート <code>note-goals</code> の期間ごとの節です。</td><td><span class="chip user">ユーザー</span></td><td>目標ノートの該当期間の節を書き換えます。初回はノートを作ります。</td><td>空の入力欄が 3 つ出ます。</td><td>同じで、入力もできます。</td></tr>
+        <tr><td>今日のスケジュール</td><td>今日の Todo（時刻と目的のノート名つき）、終日の予定、時刻つきの予定を並べます。見出しに「+」があります。</td><td>Todo の一覧、今日の予定、Todo に繋いだノートです。</td><td><span class="chip app">アプリ</span></td><td>完了の印、行の削除（元に戻せるトースト付き）、「+」からの予定・Todo・ノートの作成を書き込みます。編集は対象のアイテムを開きます。</td><td>変わりません。</td><td>操作ボタンが別の行に回り、アイコンだけになります。</td></tr>
+        <tr><td>持ち越し</td><td>過去に予定して終わっていない Todo を古い順に 5 件まで「N 日目」付きで出します。</td><td>Todo の一覧です。</td><td><span class="chip app">アプリ</span></td><td>完了の印を書き込みます。削除はできません。</td><td>変わりません。無ければ枠ごと消えます。</td><td>同じです。</td></tr>
+        <tr><td>サイドパネル：今日の Todo</td><td>今日に置いた Todo と、まだ置いていない Todo の一覧を出します。</td><td>Todo の一覧です。</td><td><span class="chip app">アプリ</span></td><td>完了の印と「今日に追加」を書き込みます。</td><td>変わりません。</td><td>切替帯のボタンから引き出しで開きます。</td></tr>
+        <tr><td>サイドパネル：きのうまでの自分</td><td>連続日数、7 日分の Todo 完了の推移、7 日分の作業と休憩の割合を出します。</td><td>タイマーの記録と Todo の一覧です。</td><td><span class="chip app">アプリ</span></td><td>書き込みません。</td><td>変わりません。</td><td>引き出しで開きます。朝刊だけに出ます。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>夕刊の全ブロック</h2>
+  <p class="prose">夕刊は 17 時から、また日付の切り替わり時刻の前（深夜）にも最初に開くタブになります（<code>eveningSection.ts:268</code>）。</p>
+  <div class="tablewrap">
+    <table class="inv">
+      <thead><tr><th>ブロック</th><th>何を表示するか</th><th>データの出どころ</th><th>書き手</th><th>何を書き込むか</th><th>Claude が居ないとき</th><th>スマホ幅</th></tr></thead>
+      <tbody>
+        <tr><td>朝刊 / 夕刊の切替帯</td><td>朝刊と同じです。</td><td>画面の状態だけです。</td><td><span class="chip app">アプリ</span></td><td>書き込みません。</td><td>変わりません。</td><td>スマホ幅だけに出ます。</td></tr>
+        <tr><td>題字と日付</td><td>「LIFE EDITOR 夕刊」と今日の日付を出します。</td><td>今日の日付から作ります。</td><td><span class="chip app">アプリ</span></td><td>書き込みません。</td><td>常に出ます。</td><td>同じです。</td></tr>
+        <tr><td>今日の気分</td><td>★ 1〜5 を押して選びます。同じ★をもう一度押すと解除です。</td><td>Daily 本文の「夕刊」節の 1 行目「気分: n/5」です。</td><td><span class="chip user">ユーザー</span></td><td>Daily の夕刊の節を書き換えます。</td><td>空の★が 5 つ出ます。</td><td>押せる範囲が 44px に広がります。</td></tr>
+        <tr><td>今朝の宣言</td><td>朝に書いた宣言を読み返します。</td><td>Daily 本文の「宣言」の節です。</td><td><span class="chip user">ユーザー</span></td><td>PC 幅は読むだけです。スマホ幅は入力欄になり、宣言の節を書き換えます。</td><td>PC 幅は宣言が無ければ枠ごと消えます。</td><td>入力欄になります。</td></tr>
+        <tr><td>一日の締めくくり</td><td>振り返りの本文です。押すとリッチテキストの編集欄が開きます。</td><td>Daily 本文の「夕刊」節の 2 行目以降です。</td><td><span class="chip user">ユーザー</span></td><td>入力から 0.8 秒後に Daily の夕刊の節を書き換えます。</td><td>「今日はどんな一日でしたか…」と出ます。</td><td>同じです。</td></tr>
+        <tr><td>明日のフォーカス</td><td>明日いちばん進めたいことを 1 行で書く欄です。翌朝の朝刊に「今日のフォーカス」として出ます。</td><td>予約ノート <code>note-focus</code> の明日の節です。</td><td><span class="chip user">ユーザー</span></td><td>フォーカスのノートの明日の節を書き換えます。初回はノートを作ります。</td><td>空の入力欄が出ます。</td><td>同じです。</td></tr>
+        <tr><td>残りの Todo</td><td>今日の終わっていない Todo と、今日終えた Todo（取り消し線）と、持ち越しを 5 件まで出します。</td><td>Todo の一覧です。</td><td><span class="chip app">アプリ</span></td><td>完了の印を書き込みます。</td><td>変わりません。</td><td>同じです。</td></tr>
+        <tr><td>今後の予定</td><td>今日のこれからの予定と、明日の予定（「明日」の印つき）を出します。</td><td>今日と明日の予定です。</td><td><span class="chip app">アプリ</span></td><td>書き込みません。</td><td>変わりません。</td><td>同じです。</td></tr>
+        <tr><td>サイドパネル：今日の Todo</td><td>朝刊と同じ一覧です。「+」は朝刊だけに出ます。</td><td>Todo の一覧です。</td><td><span class="chip app">アプリ</span></td><td>完了の印と「今日に追加」を書き込みます。</td><td>変わりません。</td><td>引き出しで開きます。</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">引用した行番号は 2026-09-28 時点の origin/main です。朝刊の本体は <code>shared/src/components/briefing/BriefingView.tsx</code>、夕刊は <code>EveningView.tsx</code>、データの取得と書き込みは <code>web/src/briefing/hooks/</code> にあります。Claude が書く道具は MCP の <code>write_briefing</code>（<code>mcp-server/src/tools/briefing.ts:47</code>）で、入力はフォーカス 1 行と講評の段落だけです。</p>
+
+  <h2>3 案の比較</h2>
+  <p class="prose">左の列は Issue が挙げた比較の観点です。いちばん左の案の列は比較の基準として今の形を置いていて、選択肢には数えていません。</p>
+  <div class="tablewrap">
+    <table class="cmp">
+      <thead><tr><th>観点</th><th>今の形（基準）</th><th>案 A　1 日を 1 枚</th><th>案 B　読む紙面</th><th>案 C　朝と夜の手順</th></tr></thead>
+      <tbody>
+        <tr><td>画面の役割</td>
+          <td class="base">朝は読んで少し操作し、夜は振り返りを書く 2 画面です。</td>
+          <td>1 日じゅう開いておく「今日のページ」です。読むことと操作することの両方を担います。</td>
+          <td>読むだけの画面です。操作は Schedule、書くことは Daily（Materials）で行います。</td>
+          <td>決まった問いに答えて 1 日を始め、終える画面です。</td></tr>
+        <tr><td>情報の並べ方</td>
+          <td class="base">朝刊 8 ブロック・夕刊 8 ブロックをタブで分けています。</td>
+          <td>フォーカスと宣言、今日の予定、締めくくりの 3 段を縦に並べます。時刻によって、開いたときに見える段が変わります。</td>
+          <td>きのうのまとめ、今日の見通し、Claude の講評の 3 段にします。入力欄と操作ボタンは置きません。</td>
+          <td>朝は「きのうを見る → 今日やることを選ぶ → 宣言する」、夜は「終わった印を付ける → 気分と一言 → 明日のフォーカス」と 1 問ずつ進みます。最後に 1 枚のまとめを出します。</td></tr>
+        <tr><td>Claude が担う部分</td>
+          <td class="base">朝刊のフォーカスと講評だけです。</td>
+          <td>今と同じです。講評は書かれた日だけカードで出ます。</td>
+          <td>紙面の主役になります。講評に加えて、きのうのまとめも Claude が書くと厚くなります。</td>
+          <td>手順を終えたあとのおまけです。まとめの下に講評が付きます。</td></tr>
+        <tr><td>Claude を繋いでいない人の見え方</td>
+          <td class="base">講評が消え、フォーカスに「まだありません」が出ます。ほかは埋まります。</td>
+          <td>今と同じです。</td>
+          <td>主役が空になるので、アプリが既存データから自動でまとめを書く仕組みが要ります（完了数・予定数・持ち越しなど）。</td>
+          <td>自分の答えで埋まるので、空欄が出ません。</td></tr>
+        <tr><td>スマホでの見え方</td>
+          <td class="base">切替帯を使ってタブを行き来します。ボタンが多く、細い幅に詰まりやすい画面です（#1820 など）。</td>
+          <td>1 列の縦スクロールで、タブの切替が無くなります。行数は今の朝刊より長くなります。</td>
+          <td>読むだけなので、スマホの「閲覧中心」という位置づけにそのまま合います。</td>
+          <td>1 画面 1 問なのでスマホに向いています。PC の広い画面では余白が大きくなります。</td></tr>
+        <tr><td>作り直しの大きさ</td>
+          <td class="base">—</td>
+          <td><span class="sz m">中</span>。朝刊と夕刊の 2 つの画面部品を 1 つにまとめ、タブの切替と最初に開くタブの判定を外します。データの読み書きはそのまま使えます。</td>
+          <td><span class="sz l">中〜大</span>。紙面の書き込み経路（完了・追加・削除・入力）を外し、夕刊の入力を Daily 側に移します。自動まとめは新しく作ります。</td>
+          <td><span class="sz l">大</span>。手順を進める画面と、「どこまで答えたか」の保存を新しく作ります。保存先をどこにするかも新しく決める必要があります。</td></tr>
+        <tr><td>過去の決定とのぶつかり</td>
+          <td class="base">—</td>
+          <td>夕刊をタブの専用ページにした決定（briefing-loop 計画書の決定録 6）を置き換えます。</td>
+          <td>決定録 6 に加えて、目標をスマホでも書けるとした D-20260815-briefing-6 と、紙面の 1 タップ更新を認めた D-20260810-mobile-2 を置き換えます。</td>
+          <td>決定録 6 を置き換えます。宣言・目標・フォーカスの保存先はそのまま使えます。</td></tr>
+        <tr><td>Issue の論点への答え</td>
+          <td class="base">—</td>
+          <td>朝夕は 1 枚にし、操作する画面のままにします。</td>
+          <td>朝夕の区別は薄くなり、読む画面にします。Daily との役割がはっきり分かれます。</td>
+          <td>朝夕は分けたまま、操作する画面にします。Claude の部分とユーザーの部分がはっきり分かれます。</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="note">作り直しの大きさは画面部品とテストの量から見た目安です。今の規模は <code>BriefingView.tsx</code> が 906 行、<code>BriefingScreen.tsx</code> が 755 行、<code>EveningView.tsx</code> が 415 行で、名前に briefing を含むテストが 28 本あります（2026-09-28 時点）。</p>
+
+  <h2>画面のスクリーンショット</h2>
+  <div class="callout warn prose"><strong>まだ添えていません</strong>: Desktop と Mobile の実画面の撮影は、メインのチャットに預けています。worktree 側では開発サーバーとブラウザを起動しない決まりがあるためです。撮影が済んだら、この節に差し込みます。</div>
+
+  <h2>置いた仮定</h2>
+  <ul class="prose">
+    <li>案は 3 つに絞りました。「今の形のまま細部を直す」も選べるよう、判断キューの選択肢には入れてあります。</li>
+    <li>3 案とも、Daily 本文の見出しとノート 2 枚に保存する今の仕組みを変えない前提で比べました。DB の変更が要るのは案 C の「どこまで答えたか」の保存だけで、それも Daily 本文やブラウザ保存で済ませる余地があります。</li>
+    <li>配布先の人が Claude を繋げないことは、MCP の認証の作りから判断しました。人ごとのログイン（OAuth）は CLAUDE.md が「配布ユーザーに開く時の課題」としています。</li>
+  </ul>
+
+  <h2>未確認のこと</h2>
+  <ul class="prose">
+    <li>実画面の見え方は、スクリーンショットが届くまで未確認です。行番号とブロックの並びはコードから読みました。</li>
+    <li>こうだいさんが実際に朝と夜のどちらで Briefing を開いているかは、データを取っていないのでわかりません。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+  <p class="prose">判断キュー（<code>.claude/comm/decisions/chat-briefing-refine.md</code>）に次の 4 問を積みました。回答が付くまで、計画書と実装の Issue には進みません。</p>
+  <ul class="prose">
+    <li>今の Briefing でいちばん困っていることはどれですか。</li>
+    <li>朝と夜、それぞれ Briefing を開いて何をしたいですか。</li>
+    <li>Claude を繋いでいない配布先の人に、Briefing をどう見せますか。</li>
+    <li>コンセプトは A・B・C と、今の形のまま細部を直す、のどれにしますか。</li>
+  </ul>
+</div>
