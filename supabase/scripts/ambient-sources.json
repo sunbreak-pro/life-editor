@@ -1,0 +1,66 @@
+{
+  "note": "Recordings behind the five ambient loops in the public bucket `sounds` (#1793). start / length / xfade are seconds; filter is an ffmpeg -af chain applied before the loop is cut. Build with ambient-loops.mjs.",
+  "sounds": [
+    {
+      "id": "rain",
+      "title": "Dharamshala Rain",
+      "author": "AugustSandberg (Freesound)",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/AugustSandberg/sounds/508527/",
+      "download": "https://archive.org/download/soundica-fs-508527-dharamshala-rain/508527__augustsandberg__dharamshala-rain.flac",
+      "file": "508527__augustsandberg__dharamshala-rain.flac",
+      "start": 202,
+      "length": 120,
+      "xfade": 3
+    },
+    {
+      "id": "wind",
+      "title": "Howling Wind, Troon, Cornwall",
+      "author": "radio aporee ::: maps uploader (aporee_30717_35328)",
+      "license": "Public Domain Mark 1.0",
+      "page": "https://archive.org/details/aporee_30717_35328",
+      "download": "https://archive.org/download/aporee_30717_35328/WindElectricalWiresDPA40602310115.wav",
+      "file": "WindElectricalWiresDPA40602310115.wav",
+      "start": 175,
+      "length": 120,
+      "xfade": 3
+    },
+    {
+      "id": "ocean",
+      "title": "Gotska Sandön – waves breaking",
+      "author": "Melissa Pons (radio aporee ::: maps)",
+      "license": "Public Domain Mark 1.0",
+      "page": "https://archive.org/details/aporee_33898_38993",
+      "download": "https://archive.org/download/aporee_33898_38993/GotskaSandon161020beachshore.wav",
+      "file": "GotskaSandon161020beachshore.wav",
+      "start": 4,
+      "length": 115,
+      "xfade": 3
+    },
+    {
+      "id": "birds",
+      "title": "Šumarice summer forest atmosphere",
+      "author": "danilocrni (radio aporee ::: maps)",
+      "license": "Public Domain Mark 1.0",
+      "page": "https://archive.org/details/aporee_54242_62015",
+      "download": "https://archive.org/download/aporee_54242_62015/sumarice.WAV",
+      "file": "sumarice.WAV",
+      "start": 64,
+      "length": 110,
+      "xfade": 3
+    },
+    {
+      "id": "fire",
+      "title": "Campfire 02",
+      "author": "HECKFRICKER (Freesound)",
+      "license": "CC0 1.0",
+      "page": "https://freesound.org/people/HECKFRICKER/sounds/729396/",
+      "download": "https://archive.org/download/soundica-fs-729396-campfire-02/729396__heckfricker__campfire-02.wav",
+      "file": "729396__heckfricker__campfire-02.wav",
+      "start": 16,
+      "length": 110,
+      "xfade": 3,
+      "filter": "volume=24dB,alimiter=limit=0.5:attack=1:release=40:level=0"
+    }
+  ]
+}

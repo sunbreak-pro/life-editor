@@ -22,11 +22,17 @@ import type { TranslationKey } from "../i18n/resources";
  *
  * What a replacement asset has to satisfy (#1793, measured 2026-09-21 —
  * .claude/docs/reports/2026-09-21-ambient-sound-asset-measurement.md): encoded
- * ONCE from uncompressed source (the five in place today say 320 kbps but are
- * band-limited to 16.2 kHz, i.e. re-wrapped low-bitrate material), no silence
+ * ONCE from uncompressed source at CBR 320 kbps (the pre-2026-09-28 files said
+ * 320 kbps but were band-limited to 16.2 kHz; LAME below 320 kbps drops quiet
+ * content above 16 kHz the same way, so it is not a proof of re-use), no silence
  * left at either end (`el.loop` plays the tail gap and the head gap back to
- * back — today that is a 39-139 ms dropout every wrap), and at least 60 s long
- * so the seam comes round rarely.
+ * back — the pre-2026-09-28 files had a 39-139 ms dropout every wrap), and at
+ * least 60 s long so the seam comes round rarely.
+ *
+ * The five loops are built by supabase/scripts/ambient-loops.mjs from the
+ * recordings listed in supabase/scripts/ambient-sources.json (source, licence,
+ * the stretch used). Rebuild them from there rather than editing a file by
+ * hand; the steps and the upload are in supabase/README.md.
  *
  * `labelKey` is an i18n key (resolved by the host, not the primitive — §6.4
  * i18n props injection). `icon` is a lucide-react component (rendered by the
