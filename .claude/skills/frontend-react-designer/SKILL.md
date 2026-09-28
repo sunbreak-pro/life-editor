@@ -26,7 +26,9 @@ UI を新規作成または改修する依頼を受けたら、必ず以下を�
 ### 1. 目的とトーンを 1 行で言語化
 
 「この UI が解決する具体的問題」と「何を一瞬で識別させたいか」を 1 行で書き出す。
-life-editor のトーンは **Lumen calm minimal**（cobalt ink + mint 系。旧 Notion teal は retired）。派手な背景・装飾フォント・ネオン色は不採用。
+life-editor のトーンは **Lumen calm minimal**（朝刊・夕刊版のパレット = #269。色の正本は `shared/src/styles/tokens.css` の `--color-accent` ほかで、ここに値を写さない。旧 cobalt ink + mint と旧 Notion teal は retired）。派手な背景・装飾フォント・ネオン色は不採用。
+
+見た目の良し悪し（アイコンの要否・余白のリズム・動きの量・視覚の階層）を判断するときは、`design-critique` スキルの計測と採点表を使う。本スキルは規約を満たすための判断軸で、採点の物差しは持たない。
 
 ### 2. データ状態の網羅 (Loading / Empty / Error / Idle)
 
@@ -52,7 +54,7 @@ WCAG 2.2 / フォーカス可視 / WAI-ARIA 3 点セット (`htmlFor` + `aria-de
 
 2. **ポップオーバー / ドロップダウン / メニュー / ダイアログ本体に `bg-*\/70` `bg-*\/80` + `backdrop-blur`**: vision/coding-principles.md §5 で禁止。ガラス UI は不採用。本体は `bg-lumen-bg` または `bg-lumen-bg-secondary` の不透明のみ。
 
-3. **`Inter` / `Roboto` / `Arial` / 紫グラデ / 中央揃え多用**: 公式 frontend-design が "AI slop" として挙げる代表例。life-editor は `--font-sans` の system stack 既定を尊重し、装飾フォントは導入しない。色も `lumen-accent` (cobalt blue 系 #1d4ed8) を主軸に保つ。
+3. **`Inter` / `Roboto` / `Arial` / 紫グラデ / 中央揃え多用**: 公式 frontend-design が "AI slop" として挙げる代表例。life-editor は `--font-sans` の system stack 既定を尊重し、装飾フォントは導入しない。色も `lumen-accent`（値は tokens.css が正）を主軸に保つ。
 
 4. **`onChange` 時の即時 commit で IME 破壊**: 日本語入力で確定前の文字列で onSubmit / API 送信が走ると IME が壊れる。`e.nativeEvent.isComposing` を必ずチェック。Enter キーハンドラも同様。詳細 → [`references/ui-states.md`](references/ui-states.md) §3。
 
