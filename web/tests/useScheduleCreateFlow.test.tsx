@@ -42,10 +42,17 @@ function setup(over?: {
   /** Lets a case settle the optimistic save by hand. */
   const captured: {
     onSaved?: (saved: { id: string } | null) => void;
+    alongside?: (saved: { id: string }) => Promise<unknown>;
   } = {};
   const handleCreate = vi.fn(
-    (_slot: unknown, _title: string, onSaved?: (saved: never) => void) => {
+    (
+      _slot: unknown,
+      _title: string,
+      onSaved?: (saved: never) => void,
+      alongside?: (saved: never) => Promise<unknown>,
+    ) => {
       captured.onSaved = onSaved as never;
+      captured.alongside = alongside as never;
       return "evt-new";
     },
   );
@@ -57,6 +64,7 @@ function setup(over?: {
     addNode: vi.fn(),
     updateNode: vi.fn(),
     attachNote: vi.fn(),
+    attachNoteAlongside: vi.fn(() => Promise.resolve(null)),
     onAttachError: vi.fn(),
     clearTagLens: vi.fn(),
   };
@@ -151,30 +159,47 @@ describe("useScheduleCreateFlow — a submit with the panel closed", () => {
 });
 
 describe("useScheduleCreateFlow — the note waits for the row", () => {
-  it("attaches against the SAVED id, not the optimistic one", () => {
-    // wiki_tag_connections carries an FK to items_meta, and the id
-    // handleCreate returns is optimistic — attaching against it would write a
-    // link to a row that does not exist yet.
-    const h = setup();
-    act(() => api(h).handleCreateSubmit("Dentist", slot(), NOTE));
-    expect(h.attachNote).not.toHaveBeenCalled();
+  /*
+   * #1642 P6 (N-08): the note rides in as the create's companion, which the
+   * provider runs once the row exists and folds into the create's one undo.
+   */
+  it.each([
+    ["create", "handleCreateSubmit"],
+    ["create-and-open", "handleCreateSubmitAndOpen"],
+  ] as const)(
+    "%s attaches against the SAVED id, not the optimistic one",
+    (_name, submit) => {
+      // wiki_tag_connections carries an FK to items_meta, and the id
+      // handleCreate returns is optimistic — attaching against it would write
+      // a link to a row that does not exist yet.
+      const h = setup();
+      act(() => api(h)[submit]("Dentist", slot(), NOTE));
+      expect(h.attachNoteAlongside).not.toHaveBeenCalled();
 
-    act(() => h.captured.onSaved?.({ id: "evt-saved" }));
-    expect(h.attachNote).toHaveBeenCalledWith("evt-saved", NOTE);
-  });
+      act(() => void h.captured.alongside?.({ id: "evt-saved" }));
+      expect(h.attachNoteAlongside).toHaveBeenCalledWith("evt-saved", NOTE);
+      // Not as a command of its own: the create records both (N-08).
+      expect(h.attachNote).not.toHaveBeenCalled();
+    },
+  );
 
-  it("reports a note that could not be attached", () => {
+  /*
+   * N-07: a failed create is reported once, by the mutation layer ("couldn't
+   * add this event"). This path used to say the NOTE could not be attached,
+   * which named a write that never got the chance to run.
+   */
+  it("leaves a failed create to the create's own report", () => {
     const h = setup();
     act(() => api(h).handleCreateSubmit("Dentist", slot(), NOTE));
     act(() => h.captured.onSaved?.(null));
-    expect(h.onAttachError).toHaveBeenCalledTimes(1);
-    expect(h.attachNote).not.toHaveBeenCalled();
+    expect(h.onAttachError).not.toHaveBeenCalled();
+    expect(h.attachNoteAlongside).not.toHaveBeenCalled();
   });
 
-  it("stays quiet when there was no note to lose", () => {
+  it("hands over no companion when there is no note", () => {
     const h = setup();
     act(() => api(h).handleCreateSubmit("Dentist", slot(), null));
-    act(() => h.captured.onSaved?.(null));
+    expect(h.captured.alongside).toBeUndefined();
     expect(h.onAttachError).not.toHaveBeenCalled();
   });
 });

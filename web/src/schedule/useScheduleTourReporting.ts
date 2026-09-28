@@ -104,8 +104,8 @@ export function useEventTourReporting({
   const reportTourAction = useTourAction();
 
   const handleCreateReported = useCallback<ScheduleMutations["handleCreate"]>(
-    (slot, title, onSaved) => {
-      const id = handleCreate(slot, title, onSaved);
+    (slot, title, onSaved, alongside) => {
+      const id = handleCreate(slot, title, onSaved, alongside);
       reportTourAction(TOUR_ACTIONS.scheduleEventCreated);
       return id;
     },

@@ -692,6 +692,7 @@
     "repeatDeleteFutureFailed": "この予定と今後の予定を削除できませんでした。予定は変更されていません。もう一度お試しください。",
     "repeatDetachFailed": "繰り返しを解除できませんでした。この予定は繰り返しのままです。もう一度お試しください。",
     "duplicateFailed": "予定を複製できませんでした。何も追加されていません。もう一度お試しください。",
+    "createFailed": "予定を追加できませんでした。何も保存されていません。もう一度お試しください。",
     "holidayFilterHide": "祝日を隠す",
     "holidayFilterHidden_other": "祝日 {{count}} 件を非表示",
     "repeatFilterHide": "繰り返しを隠す",

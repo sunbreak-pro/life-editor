@@ -53,11 +53,11 @@ export interface UseCreatePanelNotesOptions {
    */
   onAttachError: () => void;
   /**
-   * The global undo stack's push (#1638), optional as everywhere else. The
-   * note and its link are a second act on top of the item's own creation, so
-   * they get their own command: one Ctrl+Z takes the note back off, a second
-   * removes the item (A-08 / B-04 — the create's undo used to leave the note
-   * behind as an orphan).
+   * The global undo stack's push (#1638), optional as everywhere else. Used
+   * by `attachNote` only: the note and its link get a command of their own
+   * when the write they ride on cannot take them into its own (A-08 / B-04 —
+   * the create's undo used to leave the note behind as an orphan). An event
+   * create folds them into its command instead (`attachNoteAlongside`).
    */
   push?: UndoRedoLike["push"];
 }
@@ -108,92 +108,145 @@ export function useCreatePanelNotes({
   }, [dataService, active, syncVersion]);
 
   /**
-   * Create the staged note if it is new, then link it to `itemId`.
+   * Create the staged note if it is new, then link it to `itemId`, and hand
+   * back the pair that reverses both — or null when nothing is left to
+   * reverse (no draft, or the write failed and has been reported).
    *
-   * CALL ONLY ONCE `itemId`'s ROW EXISTS (the create's `onSaved`, not its
-   * return value) — see the ORDERING note at the top of this file. Fire and
-   * forget from there: a failed attachment must not roll the item back, so it
-   * reports through `onAttachError` instead of throwing.
+   * CALL ONLY ONCE `itemId`'s ROW EXISTS (the create's `onSaved` / its
+   * `alongside`, not its return value) — see the ORDERING note at the top of
+   * this file. A failed attachment must not roll the item back, so it reports
+   * through `onAttachError` instead of throwing.
+   */
+  const linkNote = useCallback(
+    async (
+      itemId: string,
+      draft: ItemCreateNoteDraft | null,
+    ): Promise<{
+      undo: () => Promise<void>;
+      redo: () => Promise<void>;
+    } | null> => {
+      if (!draft) return null;
+      let createdNoteId: string | null = null;
+      try {
+        let noteId = draft.kind === "existing" ? draft.id : null;
+        if (draft.kind === "new") {
+          const now = new Date().toISOString();
+          const id = generateId("note");
+          await dataService.createNoteUnified({
+            id,
+            type: "note",
+            title: draft.title,
+            content: "",
+            parentId: null,
+            order: 0,
+            isPinned: false,
+            isDeleted: false,
+            createdAt: now,
+            updatedAt: now,
+          });
+          noteId = id;
+          createdNoteId = id;
+        }
+        if (!noteId) return null;
+        const linkedNoteId = noteId;
+        const link = await createItemLink(itemId, linkedNoteId);
+        /*
+         * #1638 (A-08): built once BOTH writes landed, so a failed attach
+         * leaves nothing to undo. The undo drops the link and, for a note this
+         * panel created, trashes the note as well — a note the user picked
+         * from the list existed before and stays.
+         *
+         * The redo re-links rather than re-creating: the note row is restored,
+         * so a second create would leave a duplicate behind.
+         *
+         * #1767: both closures re-throw. Swallowing the error left the closure
+         * resolving, and `UndoRedoManager.apply` reads that as success: the
+         * host stacked "Undid: ..." over the failure and sent a command that
+         * never ran to the redo stack. A throwing undo stays put (#1668), so
+         * re-throwing is also what keeps a second Ctrl+Z able to retry.
+         *
+         * #1642 P4 (N-06): and they say nothing themselves. The host's
+         * `undoFailed` toast is the one report; `onAttachError` here made it
+         * two danger toasts for one press, and its copy ("could not attach the
+         * note") describes the forward press, not a reversal.
+         */
+        const trashOnUndo = createdNoteId;
+        let liveLinkId = link.id;
+        return {
+          undo: async () => {
+            try {
+              await deleteItemLink(liveLinkId);
+              if (trashOnUndo)
+                await dataService.softDeleteNoteUnified(trashOnUndo);
+            } catch (e) {
+              console.error("[Schedule] undoing the note attach failed", e);
+              throw e;
+            }
+          },
+          redo: async () => {
+            try {
+              if (trashOnUndo)
+                await dataService.restoreNoteUnified(trashOnUndo);
+              liveLinkId = (await createItemLink(itemId, linkedNoteId)).id;
+            } catch (e) {
+              console.error("[Schedule] redoing the note attach failed", e);
+              throw e;
+            }
+          },
+        };
+      } catch (e) {
+        console.error("[Schedule] attaching the note failed", e);
+        /*
+         * #1642 P6 (N-09): a note this panel created a moment ago and could
+         * not link is trashed again. It used to stay behind — a note nobody
+         * asked for on its own, linked to nothing, with the toast as the only
+         * trace of where it came from. Best-effort: the toast is owed either
+         * way, and Trash still holds it if the soft-delete lands.
+         */
+        if (createdNoteId) {
+          await dataService
+            .softDeleteNoteUnified(createdNoteId)
+            .catch((cleanupErr: unknown) =>
+              console.error(
+                "[Schedule] trashing the unlinked note failed",
+                cleanupErr,
+              ),
+            );
+        }
+        onAttachError();
+        return null;
+      }
+    },
+    [dataService, createItemLink, deleteItemLink, onAttachError],
+  );
+
+  /**
+   * Attach the staged note as its OWN history entry. For a write that is not
+   * a create — placing an existing todo — or a create whose layer cannot fold
+   * a companion in (the todo tree's).
    */
   const attachNote = useCallback(
     (itemId: string, draft: ItemCreateNoteDraft | null) => {
       if (!draft) return;
-      void (async () => {
-        try {
-          let noteId = draft.kind === "existing" ? draft.id : null;
-          if (draft.kind === "new") {
-            const now = new Date().toISOString();
-            const id = generateId("note");
-            await dataService.createNoteUnified({
-              id,
-              type: "note",
-              title: draft.title,
-              content: "",
-              parentId: null,
-              order: 0,
-              isPinned: false,
-              isDeleted: false,
-              createdAt: now,
-              updatedAt: now,
-            });
-            noteId = id;
-          }
-          if (!noteId) return;
-          const link = await createItemLink(itemId, noteId);
-          /*
-           * #1638 (A-08): pushed once BOTH writes landed, so a failed attach
-           * leaves nothing to undo. The undo drops the link and, for a note
-           * this panel created, trashes the note as well — a note the user
-           * picked from the list existed before and stays.
-           *
-           * The redo re-links rather than re-creating: the note row is
-           * restored, so a second create would leave a duplicate behind.
-           *
-           * #1767: both closures re-throw. Swallowing the error left the
-           * closure resolving, and `UndoRedoManager.apply` reads that as
-           * success: the host stacked "Undid: ..." over the failure and sent
-           * a command that never ran to the redo stack. A throwing undo stays
-           * put (#1668), so re-throwing is also what keeps a second Ctrl+Z
-           * able to retry.
-           *
-           * #1642 P4 (N-06): and they say nothing themselves. The host's
-           * `undoFailed` toast is the one report; `onAttachError` here made it
-           * two danger toasts for one press, and its copy ("could not attach
-           * the note") describes the forward press, not a reversal.
-           */
-          const createdNoteId = draft.kind === "new" ? noteId : null;
-          let liveLinkId = link.id;
-          push?.("scheduleItem", {
-            label: "createScheduleItem",
-            undo: async () => {
-              try {
-                await deleteItemLink(liveLinkId);
-                if (createdNoteId)
-                  await dataService.softDeleteNoteUnified(createdNoteId);
-              } catch (e) {
-                console.error("[Schedule] undoing the note attach failed", e);
-                throw e;
-              }
-            },
-            redo: async () => {
-              try {
-                if (createdNoteId)
-                  await dataService.restoreNoteUnified(createdNoteId);
-                liveLinkId = (await createItemLink(itemId, noteId)).id;
-              } catch (e) {
-                console.error("[Schedule] redoing the note attach failed", e);
-                throw e;
-              }
-            },
-          });
-        } catch (e) {
-          console.error("[Schedule] attaching the note failed", e);
-          onAttachError();
-        }
-      })();
+      void linkNote(itemId, draft).then((reversal) => {
+        if (reversal)
+          push?.("scheduleItem", { label: "createScheduleItem", ...reversal });
+      });
     },
-    [dataService, createItemLink, deleteItemLink, onAttachError, push],
+    [linkNote, push],
   );
 
-  return { notes, notesError, attachNote };
+  /**
+   * The same attach as the event create's companion (#1642 P6, N-08): the
+   * reversal goes back to the create, which records the event and its note as
+   * ONE command. As a second command it made the first Ctrl+Z take only the
+   * note off while the toast said the event's creation had been undone.
+   */
+  const attachNoteAlongside = useCallback(
+    (itemId: string, draft: ItemCreateNoteDraft | null) =>
+      linkNote(itemId, draft),
+    [linkNote],
+  );
+
+  return { notes, notesError, attachNote, attachNoteAlongside };
 }
