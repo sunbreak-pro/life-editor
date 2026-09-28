@@ -464,7 +464,8 @@
       "tagFilterLess": "Show fewer",
       "groupMoreRows": "Show {{count}} more",
       "rowActions": "Note actions",
-      "renameNote": "Rename"
+      "renameNote": "Rename",
+      "editNote": "Edit note"
     },
     "templates": {
       "menuEntry": "Register as template",

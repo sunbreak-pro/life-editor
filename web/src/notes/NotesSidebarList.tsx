@@ -62,6 +62,8 @@ export interface NotesSidebarListLabels {
   collapseGroup: string;
   expandGroup: string;
   deleteNote: string;
+  /** The pencil left of a row's bin on narrow (#2032). */
+  editNote: string;
   assignTagHint: string;
   /** Drop every tag-filter chip at once (#1288). */
   clearTagFilter: string;
@@ -132,6 +134,12 @@ export interface NotesSidebarListProps {
   onNoteContextMenu?: (noteId: string, event: ReactMouseEvent) => void;
   /** Long-press on a tag heading (#2008) — narrow only, undefined on Desktop. */
   onTagLongPress?: (tagId: string) => void;
+  /**
+   * The pencil on a note row (#2032) — narrow only, undefined on Desktop. When
+   * it is set the rows are touch rows: they do not drag and a hold on them
+   * answers nothing.
+   */
+  onEditNote?: (noteId: string) => void;
   onCreateNote: () => void;
   dnd: NoteTagDnd;
 
@@ -173,6 +181,7 @@ export function NotesSidebarList({
   onTagContextMenu,
   onNoteContextMenu,
   onTagLongPress,
+  onEditNote,
   onCreateNote,
   dnd,
   templatesSlot,
@@ -364,6 +373,8 @@ export function NotesSidebarList({
                               onSelect={onSelectNote}
                               onDelete={onDeleteNote}
                               onContextMenu={onNoteContextMenu}
+                              onEdit={onEditNote}
+                              editLabel={labels.editNote}
                               deleteLabel={labels.deleteNote}
                               dragHintLabel={labels.assignTagHint}
                             />

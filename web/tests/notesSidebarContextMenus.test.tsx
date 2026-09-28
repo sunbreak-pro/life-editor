@@ -299,9 +299,11 @@ describe("Notes sidebar — narrow (#1677)", () => {
     // Nothing opened — a touch surface has no right-click. A tag heading
     // stops the platform's response, because Android fires contextmenu on
     // the hold that now opens the tag sheet (#2008, notesSidebarLongPress
-    // .test.tsx). A note row, which has no hold, is left alone.
+    // .test.tsx). A note row stops it too since #2032: a hold on a row
+    // answers nothing, and its edit is the pencil (notesSidebarRowEdit
+    // .test.tsx).
     expect(headingEvent.defaultPrevented).toBe(true);
-    expect(rowEvent.defaultPrevented).toBe(false);
+    expect(rowEvent.defaultPrevented).toBe(true);
     expect(screen.queryByRole("menu")).toBeNull();
     expect(
       screen.queryByLabelText("Alpha: materials.notes.rowActions"),

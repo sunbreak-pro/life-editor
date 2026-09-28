@@ -14,6 +14,7 @@ import {
   type TagHubTagSummary,
 } from "@life-editor/shared";
 import { TagPicker } from "../wikitag";
+import { NoteRenameField } from "./NoteRenameField";
 
 /*
  * Right-click editing for the Notes right sidebar (#1677), Desktop only.
@@ -44,6 +45,11 @@ import { TagPicker } from "../wikitag";
  * sheet — the shape Connect's narrow editor already has. Tag rows only; a
  * note row keeps its tap.
  *
+ * A NOTE ROW ON NARROW gets a pencil instead of a hold (#2032): the hold on a
+ * row was selecting its text and picking it up for a drag. The pencil opens
+ * the note panel's two editable parts — the title and the tags — in the same
+ * kind of bottom sheet. Delete stays on the bin right next to it.
+ *
  * The drafts are the shared one-commit contract (useTagEditDrafts, #715):
  * typing a name writes nothing until the block's save button is pressed.
  */
@@ -72,6 +78,8 @@ export interface SidebarContextMenus {
   menus: React.JSX.Element | null;
   /** Long-press on a tag row (#2008). Undefined on Desktop. */
   onTagLongPress?: (tagId: string) => void;
+  /** The pencil on a note row (#2032). Undefined on Desktop. */
+  onNoteEdit?: (noteId: string) => void;
 }
 
 /** The tag edit panel's width (#1886 — was 320). */
@@ -178,6 +186,20 @@ export function useSidebarContextMenus({
     () => notes.find((note) => note.id === noteMenu?.id) ?? null,
     [notes, noteMenu],
   );
+
+  // #2032: the narrow sheet. Its note is looked up live, like the popover's,
+  // so a rename arriving from sync shows in the sheet's title.
+  const [sheetNoteId, setSheetNoteId] = useState<string | null>(null);
+  const onNoteEdit = useCallback((noteId: string) => {
+    setSheetNoteId(noteId);
+  }, []);
+  const sheetNote = useMemo(
+    () => notes.find((note) => note.id === sheetNoteId) ?? null,
+    [notes, sheetNoteId],
+  );
+  const sheetNoteTitle = sheetNote
+    ? sheetNote.title || t("materials.notes.untitled")
+    : "";
 
   const tagLabels = useMemo(
     () => ({
@@ -339,6 +361,29 @@ export function useSidebarContextMenus({
         />
       )}
 
+      {/* Narrow note edit (#2032): what the Desktop popover above offers,
+          minus delete (the bin sits beside the pencil that opened this). */}
+      {sheetNote && !enabled && (
+        <BottomSheet
+          open
+          onClose={() => setSheetNoteId(null)}
+          title={`${sheetNoteTitle}: ${t("materials.notes.rowActions")}`}
+          closeLabel={t("connect.sheetClose")}
+        >
+          <div className="flex flex-col gap-3">
+            <NoteRenameField
+              // Re-seeded per note, so a second note does not open with the
+              // first one's draft.
+              key={sheetNote.id}
+              value={sheetNote.title}
+              label={t("materials.notes.renameNote")}
+              onCommit={(title) => onRenameNote(sheetNote.id, title)}
+            />
+            <TagPicker itemId={sheetNote.id} />
+          </div>
+        </BottomSheet>
+      )}
+
       {/* The in-app question (#707), never the browser's own. Mounted last so
           it portals above the panel the delete was chosen in. */}
       {confirmRequest && (
@@ -362,5 +407,6 @@ export function useSidebarContextMenus({
     // delete question can open — the right-click states are never set there.
     menus,
     onTagLongPress: enabled ? undefined : onTagLongPress,
+    onNoteEdit: enabled ? undefined : onNoteEdit,
   };
 }
