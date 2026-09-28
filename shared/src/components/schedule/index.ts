@@ -59,6 +59,8 @@ export {
   type EventEditorWorkTime,
   // #998: the narrow sheet's Event → Todo entry.
   type EventEditorConvert,
+  // #2031: the sheet's Duplicate entries.
+  type EventEditorDuplicate,
   // #628: the one patch the save button hands the host.
   type EventEditorPatch,
 } from "./EventEditorPane";

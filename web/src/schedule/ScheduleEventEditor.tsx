@@ -14,6 +14,7 @@ import {
 import { TagPicker } from "../wikitag/TagPicker";
 import { TagColorControls } from "../wikitag/TagColorControls";
 import { useEventWorkTime } from "./useEventWorkTime";
+import type { DuplicateOptions } from "./useScheduleMutations";
 
 /*
  * The Calendar's event editor — <EventEditorPane> with the copy, the tag slot
@@ -60,6 +61,18 @@ export interface ScheduleEventEditorProps {
    * else.
    */
   onConvertToTodo: (id: string) => void;
+  /**
+   * #2031: Duplicate from the pane. The host passes it on the narrow sheet
+   * only — Desktop duplicates from the single-click bubble — and owns the
+   * unsaved-draft question the press raises (the copy takes the selection,
+   * so the pane moves on to it).
+   */
+  onDuplicate?: (id: string, options?: DuplicateOptions) => void;
+  /**
+   * How many tags the item shows (#2005). Above zero the pane offers "with
+   * tags" / "without tags", the same pair the Desktop bubble offers.
+   */
+  duplicateTagCount?: number;
 }
 
 export function ScheduleEventEditor({
@@ -70,6 +83,8 @@ export function ScheduleEventEditor({
   options,
   repeat,
   onConvertToTodo,
+  onDuplicate,
+  duplicateTagCount = 0,
 }: ScheduleEventEditorProps) {
   const { t } = useTranslation();
   /*
@@ -197,6 +212,37 @@ export function ScheduleEventEditor({
         label: t("itemConvert.toTodo"),
         onConvert: onConvertToTodo,
       }}
+      // #2031: the same entries as the Desktop bubble (#2005) — two when the
+      // event has tags, one when it has none.
+      duplicate={
+        onDuplicate
+          ? {
+              entries:
+                duplicateTagCount > 0
+                  ? [
+                      {
+                        key: "withTags",
+                        label: t("scheduleScreen.duplicateWithTags"),
+                        onDuplicate: (id) =>
+                          onDuplicate(id, { withTags: true }),
+                      },
+                      {
+                        key: "withoutTags",
+                        label: t("scheduleScreen.duplicateWithoutTags"),
+                        onDuplicate: (id) =>
+                          onDuplicate(id, { withTags: false }),
+                      },
+                    ]
+                  : [
+                      {
+                        key: "duplicate",
+                        label: t("scheduleScreen.duplicate"),
+                        onDuplicate: (id) => onDuplicate(id),
+                      },
+                    ],
+            }
+          : undefined
+      }
       tagSlot={
         // #468: tagging is what files a row into a calendar, so without this
         // the lens above would have nothing to find. A routine occurrence is

@@ -99,6 +99,8 @@ vi.mock("../src/schedule/ScheduleEventEditor", () => ({
     routineId,
     options,
     repeat,
+    onDuplicate,
+    duplicateTagCount,
   }: ScheduleEventEditorProps) => (
     <div>
       <span>{`pane:${item ? item.id : "none"}`}</span>
@@ -118,6 +120,16 @@ vi.mock("../src/schedule/ScheduleEventEditor", () => ({
       <button type="button" onClick={() => item && onConvertToTodo(item.id)}>
         press-convert
       </button>
+      {/* #2031: drawn only when the host hands the pane a duplicate. */}
+      {onDuplicate && (
+        <button
+          type="button"
+          data-tag-count={duplicateTagCount}
+          onClick={() => item && onDuplicate(item.id, { withTags: true })}
+        >
+          press-duplicate
+        </button>
+      )}
     </div>
   ),
 }));
@@ -275,6 +287,8 @@ function renderHost(
         onChange: vi.fn(),
       },
       onConvertToTodo,
+      onDuplicate: vi.fn(),
+      duplicateTagCount: 0,
       ...over.editor,
     },
     todoDetail: {
@@ -367,6 +381,7 @@ function renderHost(
     onCloseOverlay,
     onClearSelection,
     onConvertToTodo,
+    onDuplicate: props.editor.onDuplicate,
     askConfirm,
     findTodoChip,
     itemActions,
@@ -706,5 +721,61 @@ describe("ScheduleOverlayHost — what the pane is handed", () => {
   it("leaves routineId undefined for an occurrence that has no series", () => {
     renderHost();
     expect(forwards().routineId).toBeUndefined();
+  });
+});
+
+/*
+ * #2031 — the narrow sheet's Duplicate. Narrow had no way to duplicate at all:
+ * the only entry was the Desktop bubble, which that width never draws.
+ *
+ * The copy takes the selection, and on narrow the selection IS the sheet, so
+ * the press moves the pane on to the copy. A pending draft of the source would
+ * go with it, which is why the host puts the discard question in front — the
+ * close variant, since nothing asks a second question after it.
+ */
+describe("ScheduleOverlayHost — the sheet's Duplicate (#2031)", () => {
+  const NARROW = { isWide: false, editor: { overlayOpen: false } } as const;
+
+  it("hands the pane a duplicate on narrow, and passes the choice through", async () => {
+    const { onDuplicate, askConfirm } = renderHost({
+      ...NARROW,
+      editor: { ...NARROW.editor, duplicateTagCount: 2 },
+    });
+    const press = screen.getByText("press-duplicate");
+    expect(press.getAttribute("data-tag-count")).toBe("2");
+
+    fireEvent.click(press);
+    await waitFor(() =>
+      expect(onDuplicate).toHaveBeenCalledWith(ITEM.id, { withTags: true }),
+    );
+    // No draft, nothing to ask.
+    expect(askConfirm).not.toHaveBeenCalled();
+  });
+
+  it("gives Desktop's pane none — the bubble is Desktop's entry", () => {
+    renderHost();
+    expect(screen.queryByText("press-duplicate")).toBeNull();
+  });
+
+  it("asks before a draft is left behind, and duplicates on yes", async () => {
+    const { onDuplicate, askConfirm } = renderHost(NARROW);
+    makeDirty();
+
+    fireEvent.click(screen.getByText("press-duplicate"));
+    await waitFor(() => expect(onDuplicate).toHaveBeenCalledTimes(1));
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not duplicate when the discard is refused", async () => {
+    const { onDuplicate, askConfirm } = renderHost({
+      ...NARROW,
+      answer: false,
+    });
+    makeDirty();
+
+    fireEvent.click(screen.getByText("press-duplicate"));
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(onDuplicate).not.toHaveBeenCalled();
   });
 });
