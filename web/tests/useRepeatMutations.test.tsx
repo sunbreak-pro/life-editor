@@ -89,6 +89,10 @@ function renderRepeat(
     fillLands?: boolean;
   } = {},
 ) {
+  const restoreReversal = {
+    undo: vi.fn(() => Promise.resolve()),
+    redo: vi.fn(() => Promise.resolve()),
+  };
   const ds = {
     convertEventToRoutine: vi.fn(() => Promise.resolve("routine-new")),
     // Spelled with its parameters so a case can read the `skipUndo` bag back
@@ -111,14 +115,27 @@ function renderRepeat(
       Promise.resolve({ deletedScheduleItemIds: ["occ-1"], landed: true }),
     ),
     // Spelled with its parameters for the same reason deleteRoutine is: #1801
-    // reads the third argument (the opt-in undo bag) back off the call.
+    // reads the third argument (the opt-in reversal ask) back off the call.
+    // The reversal it hands back is a pair of spies, so a case can tell the
+    // routine layer's inverse from the editor's (#1642 P5).
     detachRoutine: vi.fn<
       (
         id: string,
         fromDate?: string,
-        opts?: { keepItemIds?: string[]; undo?: { onRestored?: () => void } },
-      ) => Promise<{ deletedScheduleItemIds: string[] }>
-    >(() => Promise.resolve({ deletedScheduleItemIds: ["occ-2"] })),
+        opts?: { keepItemIds?: string[]; reversible?: boolean },
+      ) => Promise<{
+        deletedScheduleItemIds: string[];
+        reversal: {
+          undo: () => Promise<void>;
+          redo: () => Promise<void>;
+        } | null;
+      }>
+    >((_id, _fromDate, detachOpts) =>
+      Promise.resolve({
+        deletedScheduleItemIds: ["occ-2"],
+        reversal: detachOpts?.reversible ? restoreReversal : null,
+      }),
+    ),
     updateFutureOccurrences: vi.fn(() =>
       opts.propagateThrows
         ? Promise.reject(new Error("propagate failed"))
@@ -171,6 +188,7 @@ function renderRepeat(
   return {
     hook,
     ...ds,
+    restoreReversal,
     applyOccurrencePatch,
     dismissOccurrence,
     onRepeatConvertFailed,
@@ -348,9 +366,9 @@ describe("delete scopes", () => {
     expect(h.detachRoutine).toHaveBeenCalledWith(
       ROUTINE_ID,
       "2026-08-15",
-      // #1801: this entry asks the layer below to record the reversal — see
-      // the case under "what lands on the undo history".
-      expect.objectContaining({ undo: expect.anything() }),
+      // #1801: this entry asks the layer below for its reversal — see the
+      // case after this one.
+      expect.objectContaining({ reversible: true }),
     );
     // Past / completed rows survive as detached records — nothing routine-wide.
     expect(h.deleteRoutine).not.toHaveBeenCalled();
@@ -358,29 +376,69 @@ describe("delete scopes", () => {
 
   /*
    * #1801 (K-01 / K-02): the middle scope used to be the one delete the user
-   * could not take back, while "this one" and "all" both could. Asking the
-   * layer below to record it is what makes the three consistent; the inverse
-   * itself (restore the rows, then the repeat) is pinned in
-   * shared/tests/routineDetachUndo.test.tsx, where the DataService is.
+   * could not take back, while "this one" and "all" both could. Recording it
+   * is what makes the three consistent; the inverse itself (restore the rows,
+   * then the repeat) is pinned in shared/tests/routineDetachUndo.test.tsx,
+   * where the DataService is. Since #1642 P5 the routine layer only builds it
+   * and this layer records it — the same runner the editor's "none" uses.
    */
-  it("asks the routine layer to record 'future' and hands it the range re-read", async () => {
+  it("records 'future' from the routine layer's reversal and re-reads after it", async () => {
     const h = renderRepeat();
     choose(
       h,
       { mode: "delete", item: occurrence({ date: "2026-08-15" }) },
       "future",
     );
-    await waitFor(() => expect(h.detachRoutine).toHaveBeenCalled());
+    await waitFor(() => expect(h.pushed).toHaveLength(1));
+    expect(h.pushed[0].command.label).toBe("detachRoutine");
+    expect(h.pushed[0].command.confirm).toEqual({
+      kind: "repeat",
+      scope: "all",
+    });
 
-    const opts = h.detachRoutine.mock.calls[0][2];
-    expect(opts?.undo).toBeDefined();
     // The restored rows live in the host's visible-range store, which the
     // routines hook cannot reach — only a re-read puts them back on the grid.
-    // Counted from wherever the detach itself left it: a future anchor makes
-    // the pre-anchor fill re-read too (`reloadAfterFill`).
+    // Counted from wherever the detach itself left it.
     const before = h.reload.mock.calls.length;
-    opts?.undo?.onRestored?.();
+    await act(async () => {
+      await h.pushed[0].command.undo();
+    });
+    expect(h.restoreReversal.undo).toHaveBeenCalledTimes(1);
     expect(h.reload.mock.calls.length).toBe(before + 1);
+  });
+
+  /*
+   * #1642 P5 (N-02 / N-04): the dialog's two series-wide deletes used to fail
+   * in silence. "All" read the cascade and nothing else — the sidebar's delete
+   * beside it said so out loud — and "this and following" swallowed the throw
+   * into a bare re-read, which looks exactly like a press that did nothing.
+   */
+  it("N-02: says so and re-reads when 'all' did not land", async () => {
+    const h = renderRepeat();
+    h.deleteRoutine.mockResolvedValueOnce({
+      deletedScheduleItemIds: [],
+      landed: false,
+    });
+    choose(h, { mode: "delete", item: occurrence() }, "all");
+    await waitFor(() =>
+      expect(h.onRepeatConvertFailed).toHaveBeenCalledWith("delete"),
+    );
+    expect(h.reload).toHaveBeenCalled();
+  });
+
+  it("N-04: says so, re-reads and records nothing when 'future' did not land", async () => {
+    const h = renderRepeat();
+    h.detachRoutine.mockRejectedValueOnce(new Error("offline"));
+    choose(
+      h,
+      { mode: "delete", item: occurrence({ date: "2026-08-15" }) },
+      "future",
+    );
+    await waitFor(() =>
+      expect(h.onRepeatConvertFailed).toHaveBeenCalledWith("delete-future"),
+    );
+    expect(h.reload).toHaveBeenCalled();
+    expect(h.pushed).toHaveLength(0);
   });
 
   it("soft-deletes the whole routine for 'all'", async () => {
@@ -438,6 +496,30 @@ describe("turning a repeat off", () => {
     expect(h.detachRoutine).toHaveBeenCalledWith(ROUTINE_ID, undefined, {
       keepItemIds: ["occ-1"],
     });
+  });
+
+  // #1642 P5 (N-04): the forward failure had no words at all — the reload
+  // snapped the editor back to "repeats", indistinguishable from a click that
+  // never registered.
+  it("N-04: says so and records nothing when the split did not land", async () => {
+    const h = renderRepeat();
+    h.detachRoutine.mockRejectedValueOnce(new Error("offline"));
+    act(() => h.hook.result.current.handleDetachRepeat());
+    await waitFor(() =>
+      expect(h.onRepeatConvertFailed).toHaveBeenCalledWith("detach"),
+    );
+    expect(h.reload).toHaveBeenCalled();
+    expect(h.pushed).toHaveLength(0);
+  });
+
+  // #1642 P5 (K-09): every other repeat write ends on a re-read; this one did
+  // not, so the optimistic unlink stood until something else refetched.
+  it("K-09: re-reads the range once the split has landed", async () => {
+    const h = renderRepeat();
+    act(() => h.hook.result.current.handleDetachRepeat());
+    await waitFor(() => expect(h.pushed).toHaveLength(1));
+    expect(h.reload).toHaveBeenCalledTimes(1);
+    expect(h.onRepeatConvertFailed).not.toHaveBeenCalled();
   });
 
   it("does nothing for a manual event, which has no series to detach", () => {

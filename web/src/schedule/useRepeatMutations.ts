@@ -11,6 +11,13 @@ import {
   type UndoRedoLike,
 } from "@life-editor/shared";
 import { useRepeatEditorMutations } from "./useRepeatEditorMutations";
+import {
+  deleteRepeatSeries,
+  detachRepeatSeries,
+  type DeleteRepeatSeriesArgs,
+  type DetachRepeatSeriesArgs,
+} from "./repeatSeriesWrites";
+import type { RepeatFailureReason } from "./useScheduleWriteErrors";
 
 export type { RepeatSaveFields } from "./useRepeatEditorMutations";
 
@@ -95,18 +102,10 @@ export interface UseRepeatMutationsArgs {
     // Resolves false when the template write did NOT land, so the caller can
     // abort work it sequenced behind it (#352 reconcile).
   ) => Promise<boolean>;
-  deleteRoutine: (
-    id: string,
-    opts?: { onCascadeChanged?: () => void },
-  ) => Promise<{ deletedScheduleItemIds: string[]; landed: boolean }>;
-  detachRoutine: (
-    id: string,
-    fromDate?: string,
-    // `undo` (#1801): opt-in, because the two detach entries want different
-    // inverses — see runSeriesDetach below and handleDetachRepeat
-    // (useRepeatEditorMutations).
-    opts?: { keepItemIds?: string[]; undo?: { onRestored?: () => void } },
-  ) => Promise<{ deletedScheduleItemIds: string[] }>;
+  deleteRoutine: DeleteRepeatSeriesArgs["deleteRoutine"];
+  // `reversible` (#1801): opt-in, because the two detach entries want
+  // different inverses — see detachRepeatSeries (repeatSeriesWrites).
+  detachRoutine: DetachRepeatSeriesArgs["detachRoutine"];
   updateFutureOccurrences: (
     routineId: string,
     updates: { title?: string; startTime?: string; endTime?: string },
@@ -164,9 +163,9 @@ export interface UseRepeatMutationsArgs {
   //                   already on the calendar keep the old values, and the
   //                   reload shows exactly that — so the words have to point at
   //                   the existing days rather than at the edit as a whole.
-  onRepeatConvertFailed: (
-    reason: "attach" | "materialise" | "update" | "series" | "series-partial",
-  ) => void;
+  //   "delete" / "delete-future" / "detach" — a series delete or split that
+  //                   did not land (#1642 P5). See useScheduleWriteErrors.
+  onRepeatConvertFailed: (reason: RepeatFailureReason) => void;
   /**
    * Apply a patch to ONE occurrence, provider first (#568 order invariant).
    * Injected from the CRUD layer: a "this" scope is that same single-row
@@ -438,75 +437,61 @@ export function useRepeatMutations(args: UseRepeatMutationsArgs) {
               return;
             }
           }
-          /*
-           * #1801 (K-01 / K-02, D-20260919-sched-2 = B): the third delete
-           * scope is undoable now. "This one" (dismiss) and "all" (the routine
-           * with its cascade) always were, and a middle choice that silently
-           * was not is the shape the user cannot learn — they find out by
-           * pressing Ctrl+Z and watching nothing happen.
-           *
-           * What comes back is the repeat and the occurrences this split
-           * trashed. What does NOT is the tags: the split hands them to the
-           * survivors it unlinks and soft-deletes the series' own rows, and no
-           * write puts those back. The scope dialog says so before the press
-           * rather than leaving the user to discover it after — that wording
-           * is the condition the decision was granted on.
-           */
-          const { deletedScheduleItemIds } = await detachRoutine(
-            plan.routineId,
-            plan.anchor,
-            { undo: { onRestored: reload } },
-          );
-          const removed = new Set(deletedScheduleItemIds);
-          setRangeItems((prev) =>
-            prev
-              .filter((i) => !removed.has(i.id))
-              .map((i) =>
-                i.routineId === plan.routineId
-                  ? { ...i, routineId: null, sourceDate: null }
-                  : i,
-              ),
-          );
-          // The pre-anchor fill may have written rows inside the visible
-          // range — re-read so they show as detached survivors.
-          if (plan.reloadAfterFill) reload();
         } catch {
           reload();
+          return;
         }
+        /*
+         * #1801 (K-01 / K-02, D-20260919-sched-2 = B): the third delete scope
+         * is undoable. "This one" (dismiss) and "all" (the routine with its
+         * cascade) always were, and a middle choice that silently was not is
+         * the shape the user cannot learn — they find out by pressing Ctrl+Z
+         * and watching nothing happen.
+         *
+         * What comes back is the repeat and the occurrences this split
+         * trashed. What does NOT is the tags: the split hands them to the
+         * survivors it unlinks and soft-deletes the series' own rows, and no
+         * write puts those back. The scope dialog says so before the press
+         * rather than leaving the user to discover it after — that wording is
+         * the condition the decision was granted on.
+         */
+        await detachRepeatSeries({
+          routineId: plan.routineId,
+          fromDate: plan.anchor,
+          detachRoutine,
+          setRangeItems,
+          reload,
+          onFailed: () => onRepeatConvertFailed("delete-future"),
+          push,
+          inverse: "restore",
+        });
       })();
     },
-    [routines, fillStep, detachRoutine, setRangeItems, reload],
+    [
+      routines,
+      fillStep,
+      detachRoutine,
+      setRangeItems,
+      reload,
+      onRepeatConvertFailed,
+      push,
+    ],
   );
 
   const runSeriesDelete = useCallback(
     (plan: Extract<RepeatScopePlan, { kind: "delete-series" }>) => {
-      void (async () => {
-        try {
-          // onCascadeChanged (#708): an undo restores the occurrences and the
-          // seed event straight through the DataService, which this store
-          // never sees — without the re-read the routine comes back to the
-          // list with an empty calendar under it.
-          const { deletedScheduleItemIds } = await deleteRoutine(
-            plan.routineId,
-            {
-              onCascadeChanged: reload,
-            },
-          );
-          const removed = new Set(deletedScheduleItemIds);
-          // deleteRoutine swallows service errors (hook-wide log-and-continue
-          // convention) and returns [] — an empty cascade is also legitimate,
-          // so re-read instead of guessing which one happened.
-          if (removed.size === 0) {
-            reload();
-            return;
-          }
-          setRangeItems((prev) => prev.filter((i) => !removed.has(i.id)));
-        } catch {
-          reload();
-        }
-      })();
+      // The same delete the sidebar's repeat list runs (#1642 P5). This entry
+      // can take the cascade straight off the grid; the list re-reads.
+      void deleteRepeatSeries({
+        routineId: plan.routineId,
+        deleteRoutine,
+        reload,
+        onFailed: () => onRepeatConvertFailed("delete"),
+        dropFromRange: (removed) =>
+          setRangeItems((prev) => prev.filter((i) => !removed.has(i.id))),
+      });
     },
-    [deleteRoutine, setRangeItems, reload],
+    [deleteRoutine, setRangeItems, reload, onRepeatConvertFailed],
   );
 
   const handleScopeChoose = useCallback(

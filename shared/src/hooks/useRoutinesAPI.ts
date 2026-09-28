@@ -224,12 +224,12 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
          */
         onCascadeChanged?: () => void;
       },
-      // `landed` (#408): the optimistic drop below happens either way, so a
-      // caller that also shows the routine's occurrences needs to know the
-      // write failed — otherwise the list loses the row while the calendar
-      // keeps every occurrence, and nothing says why.
+      // `landed` (#408): the list is put back on a lost write (#1642 P5), but
+      // the occurrences live in the caller's store, so the caller still needs
+      // to know — to re-read them and to say the delete did not happen.
     ): Promise<{ deletedScheduleItemIds: string[]; landed: boolean }> => {
-      const target = routinesRef.current.find((r) => r.id === id);
+      const index = routinesRef.current.findIndex((r) => r.id === id);
+      const target = index >= 0 ? routinesRef.current[index] : undefined;
       if (target) {
         const deleted: RoutineNode = {
           ...target,
@@ -248,6 +248,27 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         result = { ...(await ds.softDeleteRoutine(id)), landed: true };
       } catch (e) {
         logServiceError("Routines", "softDelete", e);
+      }
+
+      /*
+       * #1642 P5 (N-01 / N-02): a delete that did not land is taken back off
+       * the screen and off the history. The optimistic drop above used to
+       * stand for good — the row left the repeat list while every occurrence
+       * stayed on the calendar — and the undo below was pushed regardless, so
+       * the stack held the "reversal" of a delete that never happened.
+       * Put back where it was, so the list does not reorder under the user.
+       */
+      if (!result.landed) {
+        if (target) {
+          setDeletedRoutines((prev) => prev.filter((r) => r.id !== id));
+          setRoutines((prev) => {
+            if (prev.some((r) => r.id === id)) return prev;
+            const next = prev.slice();
+            next.splice(Math.min(index, next.length), 0, target);
+            return next;
+          });
+        }
+        return result;
       }
 
       if (target && !opts?.skipUndo) {
@@ -355,28 +376,42 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
   // visible range instead of trusting an optimistic delete that never
   // landed server-side).
   //
-  // Undo is OPT-IN (#1801 / D-20260919-sched-2 = B), because the two callers
-  // want different inverses. The editor's "Repeat = None" pins the open
-  // occurrence and pushes its own command — a fresh conversion of that pinned
-  // survivor, which is the action the editor itself offers. The scope
-  // dialog's "this and following" pins nothing, so the only inverse within
-  // reach is the one below: put the trashed occurrences back, then the
-  // routine. Defaulting this ON would make the editor path push twice.
+  // The reversal is OPT-IN (#1801 / D-20260919-sched-2 = B), because the two
+  // callers want different inverses. The editor's "Repeat = None" pins the
+  // open occurrence, and its inverse is a fresh conversion of that pinned
+  // survivor — the action the editor itself offers. The scope dialog's "this
+  // and following" pins nothing, so the only inverse within reach is the one
+  // below: put the trashed occurrences back, then the routine.
+  //
+  // #1642 P5 (M-03): this hook BUILDS that reversal but no longer pushes it.
+  // The two detach entries used to record their undo in two different places
+  // — the editor pushed its own command, the scope dialog asked this hook to
+  // push — so "who records a detach" had two answers. Both entries now go
+  // through one Schedule runner (repeatSeriesWrites.detachRepeatSeries), which
+  // is the one place that pushes; the bodies stay here because they write
+  // through the DataService.
   const detachRoutine = useCallback(
     async (
       id: string,
       fromDate?: string,
       opts?: {
         keepItemIds?: string[];
-        /**
-         * Push the reversal onto the global stack. `onRestored` fires after an
-         * undo or redo has moved the occurrences (#708's `onCascadeChanged` by
-         * another name): the rows those ids name live in the host's
-         * visible-range store, and only the host can put them back on the grid.
-         */
-        undo?: { onRestored?: () => void };
+        /** Return the restore-the-rows-then-the-routine reversal. */
+        reversible?: boolean;
       },
-    ): Promise<{ deletedScheduleItemIds: string[] }> => {
+    ): Promise<{
+      deletedScheduleItemIds: string[];
+      /**
+       * Null unless `reversible` was asked for. Each body throws on a lost
+       * write (#1668), and moves the occurrences only in the DataService —
+       * the rows those ids name live in the caller's visible-range store, so
+       * the caller re-reads after running either one.
+       */
+      reversal: {
+        undo: () => Promise<void>;
+        redo: () => Promise<void>;
+      } | null;
+    }> => {
       const target = routinesRef.current.find((r) => r.id === id);
       setRoutines((prev) => prev.filter((r) => r.id !== id));
       let result: { deletedScheduleItemIds: string[] };
@@ -394,18 +429,21 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         throw e;
       }
 
-      if (target && opts?.undo) {
-        // The occurrences the detach trashed. The survivors it merely unlinked
-        // are NOT here, and the undo below does not re-link them: nothing in
-        // the service puts a `routine_item_id` back, and the tags the detach
-        // handed them keep their new home (the source rows were soft-deleted
-        // by handOverTagAssignments). So an undo restores the repeat WITHOUT
-        // its tags — the scope dialog says so before the press (#1801).
-        const cascade = result.deletedScheduleItemIds;
-        const onRestored = opts.undo.onRestored;
-        push("routine", {
-          label: "detachRoutine",
-          confirm: SERIES_CONFIRM,
+      if (!target || !opts?.reversible) {
+        return { ...result, reversal: null };
+      }
+
+      // The occurrences the detach trashed. The survivors it merely unlinked
+      // are NOT here, and the undo below does not re-link them: nothing in
+      // the service puts a `routine_item_id` back, and the tags the detach
+      // handed them keep their new home (the source rows were soft-deleted
+      // by handOverTagAssignments). So an undo restores the repeat WITHOUT
+      // its tags — the scope dialog says so before the press (#1801).
+      const cascade = result.deletedScheduleItemIds;
+      const keepItemIds = opts.keepItemIds;
+      return {
+        ...result,
+        reversal: {
           // Rows first, then the routine, then paint — the same order
           // deleteRoutine's undo takes, and for the same reason: putting the
           // routine back is what wakes the generator, and the generator skips
@@ -432,23 +470,26 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
             setRoutines((prev) =>
               prev.some((r) => r.id === id) ? prev : [...prev, target],
             );
-            onRestored?.();
           },
           redo: async () => {
             setRoutines((prev) => prev.filter((r) => r.id !== id));
             // Re-runs the split against whatever is live now rather than
-            // replaying the id list, exactly as redoDelete does.
-            await ds.detachRoutine(id, fromDate, {
-              keepItemIds: opts.keepItemIds,
-            });
-            onRestored?.();
+            // replaying the id list, exactly as redoDelete does — and, like
+            // it, paints the routine back when the split does not land.
+            try {
+              await ds.detachRoutine(id, fromDate, { keepItemIds });
+            } catch (e) {
+              logServiceError("Routines", "redoDetach", e);
+              setRoutines((prev) =>
+                prev.some((r) => r.id === id) ? prev : [...prev, target],
+              );
+              throw e;
+            }
           },
-        });
-      }
-
-      return result;
+        },
+      };
     },
-    [ds, push],
+    [ds],
   );
 
   // Event→Repeats conversion (#296). AWAITED: the
