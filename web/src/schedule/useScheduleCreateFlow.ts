@@ -11,6 +11,7 @@ import {
 } from "@life-editor/shared";
 import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
 import type { ScheduleCreatePanel } from "./useScheduleOverlays";
+import type { CreateCompanion } from "./useScheduleMutations";
 import { selectionSurface } from "./scheduleSelectionSurface";
 
 /*
@@ -57,11 +58,15 @@ export interface UseScheduleCreateFlowArgs {
   isWide: boolean;
   setSelectedId: (id: string | null) => void;
   setOverlayOpen: (open: boolean) => void;
-  /** Returns the OPTIMISTIC id, which is why the note waits for `onSaved`. */
+  /**
+   * Returns the OPTIMISTIC id, which is why the note waits for the row: it
+   * rides in as `alongside`, which the create runs once the row exists.
+   */
   handleCreate: (
     slot: ItemCreateSlot,
     title: string,
     onSaved?: (saved: ScheduleItem | null) => void,
+    alongside?: CreateCompanion,
   ) => string;
   addNode: (
     type: TodoNodeType,
@@ -76,6 +81,11 @@ export interface UseScheduleCreateFlowArgs {
   ) => void;
   /** From useCreatePanelNotes — the FK-ordering contract lives in its header. */
   attachNote: (itemId: string, draft: ItemCreateNoteDraft | null) => void;
+  /** The same attach, handed back to the event create's one undo (N-08). */
+  attachNoteAlongside: (
+    itemId: string,
+    draft: ItemCreateNoteDraft | null,
+  ) => ReturnType<CreateCompanion>;
   /** Reports a note that could not be attached because the row never landed. */
   onAttachError: () => void;
   /** Why every committer runs finishCreatePanel — see the #468 comment below. */
@@ -121,6 +131,7 @@ export function useScheduleCreateFlow({
   addNode,
   updateNode,
   attachNote,
+  attachNoteAlongside,
   onAttachError,
   clearTagLens,
 }: UseScheduleCreateFlowArgs): ScheduleCreateFlowApi {
@@ -174,6 +185,19 @@ export function useScheduleCreateFlow({
     clearTagLens();
   }, [setCreatePanel, clearTagLens]);
 
+  /*
+   * The staged note as the event create's companion (#1642 P6). It runs once
+   * the row exists (the FK ordering in useCreatePanelNotes) and shares the
+   * create's one undo command (N-08). A create that fails never gets here —
+   * the mutation layer's own "couldn't add this event" is the one report
+   * (N-07), where this used to say the NOTE could not be attached.
+   */
+  const noteAlongside = useCallback(
+    (note: ItemCreateNoteDraft | null): CreateCompanion | undefined =>
+      note ? (saved) => attachNoteAlongside(saved.id, note) : undefined,
+    [attachNoteAlongside],
+  );
+
   // #299 create-panel submit: the panel carries the target day; the fields hand
   // over the trimmed title + times. Reuses the mutation layer's single create.
   //
@@ -188,10 +212,7 @@ export function useScheduleCreateFlow({
       // really there — `wiki_tag_connections` carries an FK to `items_meta`,
       // and the id handleCreate returns is the optimistic one (see the
       // ORDERING note in useCreatePanelNotes).
-      const id = handleCreate(slot, title, (saved) => {
-        if (saved) attachNote(saved.id, note);
-        else if (note) onAttachError();
-      });
+      const id = handleCreate(slot, title, undefined, noteAlongside(note));
       finishCreatePanel();
       // Desktop: select without opening anything — a quiet "here it is" that
       // does not interrupt blocking out the next slot. It shows as a ring on
@@ -206,8 +227,7 @@ export function useScheduleCreateFlow({
     [
       createPanel,
       handleCreate,
-      attachNote,
-      onAttachError,
+      noteAlongside,
       isWide,
       // Stable in the host (a useState setter), but an ARG here, so eslint can
       // no longer see that for itself (#889).
@@ -220,10 +240,7 @@ export function useScheduleCreateFlow({
   const handleCreateSubmitAndOpen = useCallback(
     (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
       if (!createPanel) return;
-      const id = handleCreate(slot, title, (saved) => {
-        if (saved) attachNote(saved.id, note);
-        else if (note) onAttachError();
-      });
+      const id = handleCreate(slot, title, undefined, noteAlongside(note));
       // Clears the lens too: the overlay hides the grid at first, but closing
       // it would otherwise drop the user back on a grid that does not draw the
       // row their selection still points at.
@@ -236,8 +253,7 @@ export function useScheduleCreateFlow({
     [
       createPanel,
       handleCreate,
-      attachNote,
-      onAttachError,
+      noteAlongside,
       isWide,
       setSelectedId,
       finishCreatePanel,

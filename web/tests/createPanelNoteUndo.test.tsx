@@ -19,10 +19,11 @@ import { useCreatePanelNotes } from "../src/schedule/useCreatePanelNotes";
  * event and left the note behind, linked to a row that no longer existed: the
  * user had no way to see what had happened, let alone undo it.
  *
- * The note write is a SECOND command rather than part of the item's own: the
- * two land at different times (the link may only be issued once the item row
- * exists — see the ORDERING note in useCreatePanelNotes), and merging them
- * would mean holding the create's command open across an await.
+ * `attachNote` records the note as its own command — the path the todo
+ * writes still take. An event create folds it into its own command instead
+ * (#1642 P6, N-08): the provider holds the create's entry until the note has
+ * landed, so one Ctrl+Z takes both off. That half is pinned below
+ * and in shared/tests/useScheduleItemsCRUD.test.tsx.
  */
 
 const NOTE_ID_PREFIX = "note-";
@@ -181,6 +182,68 @@ describe("the creation panel's note attach", () => {
 
     await waitFor(() => expect(h.onAttachError).toHaveBeenCalled());
     expect(h.pushed).toHaveLength(0);
+  });
+});
+
+/*
+ * #1642 P6. The event create takes the note in as its companion (N-08): the
+ * reversal comes back to it instead of going on the stack as a second
+ * command. And a note this panel created that then could not be linked is
+ * trashed again rather than left behind on its own (N-09).
+ */
+describe("the note as the event create's companion (#1642 P6)", () => {
+  it("N-08: hands the reversal back instead of pushing it", async () => {
+    const h = setup();
+    let reversal: Awaited<
+      ReturnType<typeof h.hook.result.current.attachNoteAlongside>
+    > = null;
+    await act(async () => {
+      reversal = await h.hook.result.current.attachNoteAlongside("s-1", {
+        kind: "new",
+        title: "Prep notes",
+      });
+    });
+    expect(reversal).not.toBeNull();
+    expect(h.pushed).toHaveLength(0);
+
+    await act(async () => {
+      await reversal!.undo();
+    });
+    expect(h.ds.deleteItemLink).toHaveBeenCalledTimes(1);
+    expect(h.ds.softDeleteNoteUnified).toHaveBeenCalledTimes(1);
+  });
+
+  it("N-09: trashes a note it created when the link does not land", async () => {
+    const h = setup();
+    vi.mocked(h.ds.createItemLink).mockRejectedValueOnce(new Error("no"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await act(async () => {
+      await h.hook.result.current.attachNoteAlongside("s-1", {
+        kind: "new",
+        title: "Prep notes",
+      });
+    });
+
+    const created = vi.mocked(h.ds.createNoteUnified).mock.calls[0][0];
+    expect(h.ds.softDeleteNoteUnified).toHaveBeenCalledWith(created.id);
+    expect(h.onAttachError).toHaveBeenCalledTimes(1);
+    expect(h.pushed).toHaveLength(0);
+  });
+
+  it("leaves a note the user picked alone when the link does not land", async () => {
+    const h = setup();
+    vi.mocked(h.ds.createItemLink).mockRejectedValueOnce(new Error("no"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await act(async () => {
+      await h.hook.result.current.attachNoteAlongside("s-1", {
+        kind: "existing",
+        id: "note-existing",
+      });
+    });
+    expect(h.ds.softDeleteNoteUnified).not.toHaveBeenCalled();
+    expect(h.onAttachError).toHaveBeenCalledTimes(1);
   });
 });
 

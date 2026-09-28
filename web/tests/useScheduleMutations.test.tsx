@@ -144,6 +144,9 @@ function setup(over?: {
   const onDuplicateFailed = vi.fn(() => {
     order.push("duplicateFailed");
   });
+  const onCreateFailed = vi.fn(() => {
+    order.push("createFailed");
+  });
 
   const setRangeItems: Dispatch<SetStateAction<ScheduleItem[]>> = vi.fn(
     (next: SetStateAction<ScheduleItem[]>) => {
@@ -192,6 +195,7 @@ function setup(over?: {
     onDropTodoChipAllDay,
     onRepeatConvertFailed: vi.fn(),
     onDuplicateFailed,
+    onCreateFailed,
     copySuffix: COPY_SUFFIX,
   };
 
@@ -211,6 +215,7 @@ function setup(over?: {
     onResizeTodoChip,
     onDropTodoChipAllDay,
     onDuplicateFailed,
+    onCreateFailed,
     createOpts: () => lastCreateOpts,
   };
 }
@@ -235,7 +240,9 @@ describe("handleCreate", () => {
       "Lunch",
       "11:00",
       "12:00",
-      { isAllDay: true, onSaved },
+      // #1642 P6: the reminder is resolved here (an all-day row gets none) and
+      // `onSaved` is wrapped so a refused INSERT can be taken back first.
+      expect.objectContaining({ isAllDay: true, reminderOffset: null }),
     );
     // #940: the slot owns the day and the all-day switch, so both travel into
     // the mirrored row. `makeOptimisticScheduleItem` always says timed.
@@ -247,6 +254,68 @@ describe("handleCreate", () => {
       startTime: "11:00",
       endTime: "12:00",
       isAllDay: true,
+    });
+    // The caller's own `onSaved` still hears the outcome.
+    act(() => h.createOpts()?.onSaved?.(null));
+    expect(onSaved).toHaveBeenCalledWith(null);
+  });
+});
+
+/*
+ * #1642 P6 — a create now fails the way a duplicate does (K-10): the
+ * optimistic row comes off the grid, the selection lets go of it, and the host
+ * says so. It used to do none of the three (N-07).
+ */
+describe("a create that did not land (#1642 P6)", () => {
+  it("N-07: takes the optimistic row back off, drops the selection and says so", () => {
+    const h = setup({ selectedId: NEW_ID });
+    let id = "";
+    act(() => {
+      id = h.view.result.current.handleCreate(
+        { date: TODAY, start: "11:00", end: "12:00", isAllDay: false },
+        "Lunch",
+      );
+    });
+    expect(h.rows().map((r) => r.id)).toEqual([id]);
+
+    act(() => h.createOpts()?.onSaved?.(null));
+
+    expect(h.rows()).toHaveLength(0);
+    expect(h.selectedId()).toBeNull();
+    expect(h.onCreateFailed).toHaveBeenCalledTimes(1);
+  });
+
+  it("says nothing when the row landed", () => {
+    const h = setup();
+    act(() => {
+      h.view.result.current.handleCreate(
+        { date: TODAY, start: "11:00", end: "12:00", isAllDay: false },
+        "Lunch",
+      );
+    });
+    act(() => h.createOpts()?.onSaved?.(item({ id: NEW_ID })));
+    expect(h.rows()).toHaveLength(1);
+    expect(h.onCreateFailed).not.toHaveBeenCalled();
+  });
+
+  /*
+   * N-12: the editor reads this row before the server's, so "create and open"
+   * showed an empty reminder for an event the provider was about to give one.
+   * The optimistic row and the create now carry the same resolved value.
+   */
+  it("N-12: gives the optimistic row the reminder the create writes", () => {
+    const h = setup();
+    act(() => {
+      h.view.result.current.handleCreate(
+        { date: TODAY, start: "11:00", end: "12:00", isAllDay: false },
+        "Lunch",
+      );
+    });
+    const written = h.createOpts()?.reminderOffset;
+    expect(typeof written).toBe("number");
+    expect(h.rows()[0]).toMatchObject({
+      reminderEnabled: true,
+      reminderOffset: written,
     });
   });
 });
