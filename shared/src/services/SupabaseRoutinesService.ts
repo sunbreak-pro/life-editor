@@ -166,33 +166,35 @@ export class SupabaseRoutinesService implements RoutinesDataService {
   }
 
   /**
-   * Event→Repeats conversion (#185 / #296). Sequenced writes:
+   * Event→Repeats conversion (#185 / #296). Sequenced stages:
    *   1. createRoutine — AWAITED, so the attach below can never lose the
    *      0011 composite-FK race (the old UI flow fired the routine INSERT
    *      and the occurrence writes as unordered promises).
-   *   2. Bump the seed's items_meta.updated_at FIRST (DB-Q2 — payload rows
-   *      carry no own LWW cursor), THEN attach the routine link on
-   *      events_payload. This ORDER matters for clean rollback: while the
-   *      seed's events_payload.routine_item_id is still null, the routine
-   *      has no inbound composite FK (0011, ON DELETE NO ACTION), so a
-   *      rollback delete of the routine is unblocked. Attaching first and
-   *      failing the bump would wedge the rollback behind that FK, leaving
-   *      a half-converted routine+seed pair. A pre-attach bump that never
-   *      reaches the attach is a harmless spurious cursor advance (the
-   *      seed's payload is unchanged).
-   *      The order carries a second job since #1140: the bump is `.eq("role",
-   *      "event")` AND reads its row count back, so it is the only place the
-   *      conversion checks that the seed is still an event. Running it first
-   *      is what keeps the role-blind attach from ever touching a row that
-   *      stopped being one.
-   *   3. Attach the seed: events_payload.routine_item_id + source_date :=
-   *      the seed's own day (the (routine, source_date) partial UNIQUE then
-   *      treats the seed as that day's occurrence, so the generator will
-   *      not mint a duplicate).
-   * The seed row is NEVER deleted. If any step after createRoutine fails,
-   * the just-created routine is rolled back (hard delete — nothing
-   * references it yet) and the error is re-thrown: the conversion simply
-   * did not happen, the seed event keeps its data (routine link still null).
+   *   2. claimSeedCursor — bump the seed's items_meta.updated_at FIRST
+   *      (DB-Q2 — payload rows carry no own LWW cursor). It is also the role
+   *      gate for the whole conversion (#1140); see the stage itself.
+   *   3. attachSeed — events_payload.routine_item_id + source_date := the
+   *      seed's own day (the (routine, source_date) partial UNIQUE then treats
+   *      the seed as that day's occurrence, so the generator will not mint a
+   *      duplicate).
+   *   4. moveTagAssignments — the seed's tags go to the series (#1632).
+   * The ORDER of 2 and 3 matters for clean rollback: while the seed's
+   * events_payload.routine_item_id is still null, the routine has no inbound
+   * composite FK (0011, ON DELETE NO ACTION), so a rollback delete of the
+   * routine is unblocked. Attaching first and failing the bump would wedge the
+   * rollback behind that FK, leaving a half-converted routine+seed pair. A
+   * pre-attach bump that never reaches the attach is a harmless spurious
+   * cursor advance (the seed's payload is unchanged).
+   * The seed row is NEVER deleted. If stage 2 or 3 fails, the just-created
+   * routine is rolled back (hard delete — nothing references it yet) and the
+   * error is re-thrown: the conversion simply did not happen,
+   * the seed event keeps its data (routine link still null).
+   *
+   * #1642 P11 (M-09): the stages used to be one 142-line method. Stages 2 and
+   * 3 are their own methods now, with their comments beside them; this one
+   * sequences them and owns the rollback. The rollback stays here, not in a
+   * helper, because it is the one items_meta DELETE on this path and the
+   * #1098 census (scheduleMetaRoleGuard.test.ts) pins it to this method.
    */
   async convertEventToRoutine(
     eventId: string,
@@ -219,52 +221,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       init.frequencyStartDate,
     );
     try {
-      const now = new Date().toISOString();
-      // #1140: the bump reads its own row count, which makes this write the
-      // ROLE GATE for the whole conversion — the attach below filters on
-      // item_id + `.is("routine_item_id", null)` and never looks at the role,
-      // so nothing downstream can tell an event from a former event. Checking
-      // `mErr` alone let a zero-row match fall through silently: a seed already
-      // re-roled to 'task' by convertEventToTodo missed the bump, and the
-      // attach then bound the routine to the stray events_payload row that a
-      // half-finished conversion leaves behind (§10.5). The conversion reported
-      // SUCCESS and produced a routine no purge could ever remove — the 0011
-      // composite FK is NO ACTION, and permanentDeleteRoutine's step 2 deletes
-      // `role='event'` rows, so it can never clear a reference held by a
-      // role='task' row. Same shape as SupabaseItemConversionService.reRole.
-      const { data: bumped, error: mErr } = await this.client
-        .from("items_meta")
-        .update({ updated_at: now })
-        .eq("id", eventId)
-        .eq("role", "event")
-        .select("id");
-      if (mErr)
-        throw new Error(`convertEventToRoutine meta bump: ${mErr.message}`);
-      if (!bumped || bumped.length === 0)
-        throw new Error(
-          `convertEventToRoutine meta bump: seed ${eventId} is not a live "event" item (already converted to a Todo, or removed)`,
-        );
-      // #407 double-conversion guard: attach ONLY while the seed is still
-      // unattached. The host decides manual-vs-series on its (async,
-      // clobberable) optimistic routineId, so a second conversion for the
-      // same seed can reach here after the first one already landed — the
-      // old unconditional UPDATE then re-pointed the seed at the new
-      // routine and stranded the first one LIVE with no referencing seed:
-      // a zombie that kept generating occurrences. With the `.is()` filter
-      // the late conversion matches zero rows, rolls its routine back
-      // below and surfaces as a plain failed conversion.
-      const { data: attached, error: pErr } = await this.client
-        .from("events_payload")
-        .update({ routine_item_id: routineId, source_date: init.sourceDate })
-        .eq("item_id", eventId)
-        .is("routine_item_id", null)
-        .select("item_id");
-      if (pErr)
-        throw new Error(`convertEventToRoutine attach: ${pErr.message}`);
-      if (!attached || attached.length === 0)
-        throw new Error(
-          `convertEventToRoutine attach: seed ${eventId} is missing or already belongs to a routine (#407 double-conversion guard)`,
-        );
+      await this.claimSeedCursor(eventId);
+      await this.attachSeed(eventId, routineId, init.sourceDate);
     } catch (err) {
       // Roll the routine back so a half-converted state cannot survive.
       // The seed never references THIS routine on any failure path (the
@@ -335,6 +293,70 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       `convertEventToRoutine tags (${eventId} -> ${routineId})`,
     );
     return routine;
+  }
+
+  /**
+   * Conversion stage 2: bump the seed's LWW cursor, and check that it is
+   * still a live event while doing so. Throws when it is not.
+   *
+   * #1140: the bump reads its own row count, which makes this write the ROLE
+   * GATE for the whole conversion — the attach (stage 3) filters on item_id +
+   * `.is("routine_item_id", null)` and never looks at the role, so nothing
+   * downstream can tell an event from a former event. Checking `mErr` alone
+   * let a zero-row match fall through silently: a seed already re-roled to
+   * 'task' by convertEventToTodo missed the bump, and the attach then bound
+   * the routine to the stray events_payload row that a half-finished
+   * conversion leaves behind (§10.5). The conversion reported SUCCESS and
+   * produced a routine no purge could ever remove — the 0011 composite FK is
+   * NO ACTION, and permanentDeleteRoutine's step 2 deletes `role='event'`
+   * rows, so it can never clear a reference held by a role='task' row. Same
+   * shape as SupabaseItemConversionService.reRole.
+   */
+  private async claimSeedCursor(eventId: string): Promise<void> {
+    const now = new Date().toISOString();
+    const { data: bumped, error: mErr } = await this.client
+      .from("items_meta")
+      .update({ updated_at: now })
+      .eq("id", eventId)
+      .eq("role", "event")
+      .select("id");
+    if (mErr)
+      throw new Error(`convertEventToRoutine meta bump: ${mErr.message}`);
+    if (!bumped || bumped.length === 0)
+      throw new Error(
+        `convertEventToRoutine meta bump: seed ${eventId} is not a live "event" item (already converted to a Todo, or removed)`,
+      );
+  }
+
+  /**
+   * Conversion stage 3: point the seed at the routine as its `sourceDate`
+   * occurrence. Throws when the seed is missing or already attached.
+   *
+   * #407 double-conversion guard: attach ONLY while the seed is still
+   * unattached. The host decides manual-vs-series on its (async, clobberable)
+   * optimistic routineId, so a second conversion for the same seed can reach
+   * here after the first one already landed — the old unconditional UPDATE
+   * then re-pointed the seed at the new routine and stranded the first one
+   * LIVE with no referencing seed: a zombie that kept generating occurrences.
+   * With the `.is()` filter the late conversion matches zero rows, rolls its
+   * routine back and surfaces as a plain failed conversion.
+   */
+  private async attachSeed(
+    eventId: string,
+    routineId: string,
+    sourceDate: string,
+  ): Promise<void> {
+    const { data: attached, error: pErr } = await this.client
+      .from("events_payload")
+      .update({ routine_item_id: routineId, source_date: sourceDate })
+      .eq("item_id", eventId)
+      .is("routine_item_id", null)
+      .select("item_id");
+    if (pErr) throw new Error(`convertEventToRoutine attach: ${pErr.message}`);
+    if (!attached || attached.length === 0)
+      throw new Error(
+        `convertEventToRoutine attach: seed ${eventId} is missing or already belongs to a routine (#407 double-conversion guard)`,
+      );
   }
 
   /**
