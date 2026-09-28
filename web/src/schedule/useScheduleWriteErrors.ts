@@ -58,6 +58,8 @@ export interface ScheduleWriteErrors {
   handleAttachError: () => void;
   handleRepeatConvertError: (reason: RepeatFailureReason) => void;
   handleDuplicateError: () => void;
+  /** #2005: the copy landed, but not every tag it was to carry. */
+  handleDuplicateTagsError: () => void;
   handleCreateError: () => void;
 }
 
@@ -96,6 +98,16 @@ export function useScheduleWriteErrors(
   );
 
   /*
+   * #2005: the tags a "duplicate with tags" was to carry. The copy is on the
+   * grid by now, so this is not the duplicate failing — it says which part
+   * of it is missing, so the user knows to look at the copy's tags.
+   */
+  const handleDuplicateTagsError = useCallback(
+    () => showToast("danger", t("scheduleScreen.duplicateTagsFailed")),
+    [showToast, t],
+  );
+
+  /*
    * #1642 P6 (N-07): a create whose INSERT was refused, on the duplicate's
    * terms — the row is already off the grid, so the sentence says nothing was
    * added. With a note staged it used to say "couldn't attach the note",
@@ -110,6 +122,7 @@ export function useScheduleWriteErrors(
     handleAttachError,
     handleRepeatConvertError,
     handleDuplicateError,
+    handleDuplicateTagsError,
     handleCreateError,
   };
 }

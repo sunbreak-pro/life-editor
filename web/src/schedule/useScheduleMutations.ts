@@ -37,6 +37,14 @@ export type CreateCompanion = (saved: ScheduleItem) => Promise<{
   redo: () => Promise<void>;
 } | null>;
 
+/**
+ * What the user chose when duplicating (#2005, D-20260923-sched-4). Left out,
+ * the copy carries no tags — what duplicating did before the choice existed.
+ */
+export interface DuplicateOptions {
+  withTags: boolean;
+}
+
 export interface UseScheduleMutationsArgs
   // The repeat layer's inputs ride along and are forwarded whole. Its own two
   // injected writes are not the host's to supply — they are this hook's, and
@@ -112,6 +120,13 @@ export interface UseScheduleMutationsArgs
    * runs, so the words are about what did not happen.
    */
   onCreateFailed: () => void;
+  /**
+   * The companion that puts a source row's tags on its duplicate (#2005 —
+   * see useDuplicateTagCopy). Only asked for when the user chose to carry
+   * them; it rides on the create so one Ctrl+Z takes the copy and its tags
+   * off together.
+   */
+  copyTagsFrom: (source: ScheduleItem) => CreateCompanion;
   // Copy, resolved by the host (§6.4)
   copySuffix: string;
 }
@@ -147,6 +162,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     onRepeatConvertFailed,
     onDuplicateFailed,
     onCreateFailed,
+    copyTagsFrom,
     push,
     copySuffix,
   } = args;
@@ -439,8 +455,11 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   // explicit context-menu action (not an accidental empty-slot click), and
   // the copy carries a real title, so it neither scatters default drafts nor
   // becomes one itself.
+  //
+  // #2005: `withTags` hands the source's tags to the create as its companion,
+  // on the same one undo entry as the copy (see `copyTagsFrom`).
   const handleDuplicate = useCallback(
-    (id: string) => {
+    (id: string, options?: DuplicateOptions) => {
       const src = scheduleItemById(id, rangeItems, contextItems);
       if (!src) return;
       const title = `${src.title}${copySuffix}`;
@@ -483,6 +502,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
             setSelectedId((current) => (current === newId ? null : current));
             onDuplicateFailed();
           },
+          ...(options?.withTags ? { alongside: copyTagsFrom(src) } : {}),
         },
       );
       setRangeItems((prev) => [
@@ -512,6 +532,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       setSelectedId,
       onSelectItem,
       onDuplicateFailed,
+      copyTagsFrom,
       copySuffix,
     ],
   );

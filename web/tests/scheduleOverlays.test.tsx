@@ -289,6 +289,36 @@ describe("ScheduleOverlays — the single-click bubble", () => {
     expect(screen.queryByText(ITEM.title)).toBeNull();
   });
 
+  /*
+   * #2005 (D-20260923-sched-4 = C): the tag choice is made at the press. An
+   * event carrying tags gets two entries; one with none keeps the single
+   * Duplicate, which duplicates without tags as before.
+   */
+  it("splits Duplicate into with / without tags when the event has tags", () => {
+    const { itemActions } = renderOverlays({
+      popover: { state: POPOVER, selected: ITEM, selectedTagCount: 2 },
+    });
+    expect(screen.queryByText("scheduleScreen.duplicate")).toBeNull();
+
+    fireEvent.click(screen.getByText("scheduleScreen.duplicateWithTags"));
+    expect(itemActions.onDuplicate).toHaveBeenLastCalledWith(ITEM.id, {
+      withTags: true,
+    });
+
+    fireEvent.click(screen.getByText("scheduleScreen.duplicateWithoutTags"));
+    expect(itemActions.onDuplicate).toHaveBeenLastCalledWith(ITEM.id, {
+      withTags: false,
+    });
+  });
+
+  it("keeps the single Duplicate for an event without tags", () => {
+    renderOverlays({
+      popover: { state: POPOVER, selected: ITEM, selectedTagCount: 0 },
+    });
+    expect(screen.getByText("scheduleScreen.duplicate")).toBeTruthy();
+    expect(screen.queryByText("scheduleScreen.duplicateWithTags")).toBeNull();
+  });
+
   it("offers the item action set and carries the popover's id", () => {
     const { itemActions } = renderOverlays({
       popover: { state: POPOVER, selected: ITEM },

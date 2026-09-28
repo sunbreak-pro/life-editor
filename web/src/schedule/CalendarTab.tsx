@@ -53,6 +53,7 @@ import { selectNarrowDay } from "./narrowDayTap";
 import { rowsOnDay, useFlowDay } from "./useFlowDay";
 import { agendaEmptyKey } from "./agendaEmptyLabel";
 import { useScheduleWriteErrors } from "./useScheduleWriteErrors";
+import { useDuplicateTagCopy } from "./useDuplicateTagCopy";
 import {
   useEventTourReporting,
   useTodoTourReporting,
@@ -310,8 +311,13 @@ export function CalendarTab({
     handleAttachError,
     handleRepeatConvertError,
     handleDuplicateError,
+    handleDuplicateTagsError,
     handleCreateError,
   } = useScheduleWriteErrors(showToast);
+  // #2005: the tags a duplicate can carry, on the create's one undo entry.
+  const { tagCountOf, copyTagsFrom } = useDuplicateTagCopy(
+    handleDuplicateTagsError,
+  );
 
   const {
     notes: noteOptions,
@@ -569,6 +575,7 @@ export function CalendarTab({
     onRepeatConvertFailed: handleRepeatConvertError,
     onDuplicateFailed: handleDuplicateError,
     onCreateFailed: handleCreateError,
+    copyTagsFrom,
     // #1638: the repeat layer records its own history — turning a repeat on or
     // off, the rhythm change and the series-wide edits, one command per act.
     push: undoRedo?.push,
@@ -1042,6 +1049,7 @@ export function CalendarTab({
       popover={{
         state: popover,
         selected,
+        selectedTagCount: selected ? tagCountOf(selected) : 0,
         findTodoChip,
         onClose: closePopover,
         onOpenDetail: handleItemOpenDetail,

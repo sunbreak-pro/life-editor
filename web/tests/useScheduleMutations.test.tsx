@@ -87,6 +87,7 @@ function setup(over?: {
         memo?: string;
         reminderOffset?: number | null;
         onSaved?: (saved: ScheduleItem | null) => void;
+        alongside?: unknown;
       }
     | undefined;
 
@@ -147,6 +148,13 @@ function setup(over?: {
   const onCreateFailed = vi.fn(() => {
     order.push("createFailed");
   });
+  // #2005: the companion the host builds from the source row. A marker, so a
+  // case can tell it was THIS one the create was handed.
+  const tagCompanion = vi.fn(async () => null);
+  const copyTagsFrom = vi.fn((source: ScheduleItem) => {
+    order.push(`copyTags:${source.id}`);
+    return tagCompanion;
+  });
 
   const setRangeItems: Dispatch<SetStateAction<ScheduleItem[]>> = vi.fn(
     (next: SetStateAction<ScheduleItem[]>) => {
@@ -197,6 +205,7 @@ function setup(over?: {
     onRepeatConvertFailed: vi.fn(),
     onDuplicateFailed,
     onCreateFailed,
+    copyTagsFrom,
     copySuffix: COPY_SUFFIX,
   };
 
@@ -217,6 +226,8 @@ function setup(over?: {
     onDropTodoChipAllDay,
     onDuplicateFailed,
     onCreateFailed,
+    copyTagsFrom,
+    tagCompanion,
     createOpts: () => lastCreateOpts,
   };
 }
@@ -668,6 +679,33 @@ describe("handleDuplicate", () => {
     act(() => h.createOpts()?.onSaved?.(item({ id: NEW_ID })));
     expect(h.rows()).toHaveLength(2);
     expect(h.onDuplicateFailed).not.toHaveBeenCalled();
+  });
+
+  /*
+   * #2005 (D-20260923-sched-4 = C). The tags ride on the create as its
+   * companion, so the provider folds them into the copy's one undo entry —
+   * duplicateWithTags.test.tsx drives that end to end.
+   */
+  it("hands the source's tag companion to the create when asked to carry tags", () => {
+    const h = setup({ rangeItems: [item()] });
+    act(() => h.view.result.current.handleDuplicate("s-1", { withTags: true }));
+    expect(h.copyTagsFrom).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "s-1" }),
+    );
+    expect(h.createOpts()?.alongside).toBe(h.tagCompanion);
+  });
+
+  it("hands no companion without tags, whether declined or left out", () => {
+    const declined = setup({ rangeItems: [item()] });
+    act(() =>
+      declined.view.result.current.handleDuplicate("s-1", { withTags: false }),
+    );
+    expect("alongside" in (declined.createOpts() ?? {})).toBe(false);
+
+    const plain = setup({ rangeItems: [item()] });
+    act(() => plain.view.result.current.handleDuplicate("s-1"));
+    expect("alongside" in (plain.createOpts() ?? {})).toBe(false);
+    expect(plain.copyTagsFrom).not.toHaveBeenCalled();
   });
 
   it("does nothing for an id neither store knows", () => {

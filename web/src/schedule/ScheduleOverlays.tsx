@@ -22,6 +22,7 @@ import type {
   SchedulePopover,
   ScheduleCreatePanel,
 } from "./useScheduleOverlays";
+import type { DuplicateOptions } from "./useScheduleMutations";
 
 /*
  * Everything the Calendar mounts ON TOP of the grid, in one place (#889).
@@ -60,7 +61,12 @@ export interface ScheduleItemPopoverActions {
    * on the undo history exactly as an edit from the detail panel does.
    */
   onRetime: (id: string, next: { start: string; end: string }) => void;
-  onDuplicate: (id: string) => void;
+  /**
+   * #2005: `options` says whether the copy takes the source's tags. The
+   * bubble only asks when the source has any, so a tagless event keeps the
+   * single "Duplicate" it always had.
+   */
+  onDuplicate: (id: string, options?: DuplicateOptions) => void;
   onConvertToTodo: (id: string) => void;
   onDelete: (id: string) => void;
 }
@@ -104,6 +110,12 @@ export interface ScheduleOverlaysProps {
     state: SchedulePopover | null;
     /** The schedule item behind the bubble, or null when it is a todo chip. */
     selected: ScheduleItem | null;
+    /**
+     * #2005: how many tags `selected` carries. Above zero, the bubble's
+     * Duplicate splits into "with tags" / "without tags". Left out reads as
+     * none.
+     */
+    selectedTagCount?: number;
     /** The todo chip behind the bubble, when the bubble belongs to one. */
     todoChip: TodoCalendarChip | null;
     onClose: () => void;
@@ -263,11 +275,40 @@ export function ScheduleOverlays({
                   },
                 },
               ]),
-          {
-            id: "duplicate",
-            label: t("scheduleScreen.duplicate"),
-            onSelect: () => popover.itemActions.onDuplicate(popover.state!.id),
-          },
+          /*
+           * #2005 (D-20260923-sched-4 = C): the choice is made at the press.
+           * Two entries rather than a checkbox in front of one: the bubble
+           * already closes on a single pick, and a second step would make the
+           * plain case slower. An event with no tags has nothing to choose,
+           * so it keeps the one entry.
+           */
+          ...((popover.selectedTagCount ?? 0) > 0
+            ? [
+                {
+                  id: "duplicateWithTags",
+                  label: t("scheduleScreen.duplicateWithTags"),
+                  onSelect: () =>
+                    popover.itemActions.onDuplicate(popover.state!.id, {
+                      withTags: true,
+                    }),
+                },
+                {
+                  id: "duplicateWithoutTags",
+                  label: t("scheduleScreen.duplicateWithoutTags"),
+                  onSelect: () =>
+                    popover.itemActions.onDuplicate(popover.state!.id, {
+                      withTags: false,
+                    }),
+                },
+              ]
+            : [
+                {
+                  id: "duplicate",
+                  label: t("scheduleScreen.duplicate"),
+                  onSelect: () =>
+                    popover.itemActions.onDuplicate(popover.state!.id),
+                },
+              ]),
           // #625: stays enabled for a routine occurrence too — selecting it
           // then explains why a Todo cannot hold a repeat (D-20260810-sched-5,
           // user-specified shape).
