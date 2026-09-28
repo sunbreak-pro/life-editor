@@ -7,6 +7,7 @@ import {
   type ScheduleItem,
 } from "@life-editor/shared";
 import type { UseRepeatMutationsArgs } from "./useRepeatMutations";
+import { detachRepeatSeries, type SeriesReversal } from "./repeatSeriesWrites";
 
 /*
  * The event editor's repeat field (#1642 P3, split out of useRepeatMutations):
@@ -564,86 +565,61 @@ export function useRepeatEditorMutations({
     // rebuild the rhythm from.
     const previous = routines.find((r) => r.id === routineId);
     const survivor = selected;
-    void (async () => {
-      try {
-        // Reconcile off the SERVER's own delete set (the returned ids) rather
-        // than a client-side date predicate — the two must not drift (the
-        // service's "today" honours the day-start-hour pref; a local
-        // todayCalendarKey memo would disagree in the late-night window).
-        const { deletedScheduleItemIds } = await detachRoutine(
-          routineId,
-          undefined,
-          { keepItemIds: [occurrenceId] },
-        );
-        const removed = new Set(deletedScheduleItemIds);
-        setRangeItems((prev) =>
-          prev
-            .filter((i) => !removed.has(i.id))
-            // Survivors keep their row but lose the routine origin (the band
-            // goes away) — mirrors the server NULLing routine_item_id.
-            .map((i) =>
-              i.routineId === routineId
-                ? { ...i, routineId: null, sourceDate: null }
-                : i,
-            ),
-        );
-        /*
-         * #1638 (A-04): turning the repeat OFF is undoable now — it is the
-         * other half of the ON above, and the pair being half-reversible was
-         * the worst shape of all (the user cannot tell which way is safe).
-         *
-         * The inverse is a fresh conversion of the survivor the detach pinned,
-         * with the rhythm the routine had. What it does NOT bring back are the
-         * occurrences that were trashed (they are restorable from Trash) or
-         * the past rows the detach unlinked — the undo re-materialises the
-         * future from the rhythm instead, which is the same series by every
-         * rule the generator follows, but not the same rows.
-         */
-        if (previous) {
-          const frequency = {
-            frequencyType: previous.frequencyType,
-            frequencyDays: previous.frequencyDays,
-            frequencyInterval: previous.frequencyInterval,
-            frequencyStartDate: previous.frequencyStartDate,
-          };
-          let liveRoutineId = routineId;
-          push?.("routine", {
-            label: "deleteRoutine",
-            confirm: { kind: "repeat", scope: "all" },
-            undo: async () => {
-              try {
-                liveRoutineId = await convertEventToRoutine(occurrenceId, {
-                  title: previous.title,
-                  startTime: previous.startTime ?? undefined,
-                  endTime: previous.endTime ?? undefined,
-                  ...frequency,
-                  sourceDate: survivor.date,
-                });
-                await materialiseOrThrow(
-                  optimisticSeedRoutine(liveRoutineId, survivor, frequency),
-                  survivor.date,
-                );
-              } finally {
-                reload();
-              }
-            },
-            redo: async () => {
-              try {
-                await detachRoutine(liveRoutineId, undefined, {
-                  keepItemIds: [occurrenceId],
-                });
-              } finally {
-                reload();
-              }
-            },
+    /*
+     * #1638 (A-04): turning the repeat OFF is undoable — it is the other half
+     * of the ON above, and the pair being half-reversible was the worst shape
+     * of all (the user cannot tell which way is safe).
+     *
+     * The inverse is a fresh conversion of the survivor the detach pinned,
+     * with the rhythm the routine had. What it does NOT bring back are the
+     * occurrences that were trashed (they are restorable from Trash) or the
+     * past rows the detach unlinked — the undo re-materialises the future from
+     * the rhythm instead, which is the same series by every rule the generator
+     * follows, but not the same rows.
+     *
+     * Built here, pushed by detachRepeatSeries (#1642 P5, M-03) — the one
+     * place either split records its undo, and only once the split landed.
+     */
+    let reconvert: SeriesReversal | null = null;
+    if (previous) {
+      const frequency = {
+        frequencyType: previous.frequencyType,
+        frequencyDays: previous.frequencyDays,
+        frequencyInterval: previous.frequencyInterval,
+        frequencyStartDate: previous.frequencyStartDate,
+      };
+      let liveRoutineId = routineId;
+      reconvert = {
+        undo: async () => {
+          liveRoutineId = await convertEventToRoutine(occurrenceId, {
+            title: previous.title,
+            startTime: previous.startTime ?? undefined,
+            endTime: previous.endTime ?? undefined,
+            ...frequency,
+            sourceDate: survivor.date,
           });
-        }
-      } catch {
-        // Detach did not land server-side: force a full range reload so the
-        // view returns to the DB truth (nothing navigated to trigger it).
-        reload();
-      }
-    })();
+          await materialiseOrThrow(
+            optimisticSeedRoutine(liveRoutineId, survivor, frequency),
+            survivor.date,
+          );
+        },
+        redo: async () => {
+          await detachRoutine(liveRoutineId, undefined, {
+            keepItemIds: [occurrenceId],
+          });
+        },
+      };
+    }
+    void detachRepeatSeries({
+      routineId,
+      keepItemIds: [occurrenceId],
+      detachRoutine,
+      setRangeItems,
+      reload,
+      onFailed: () => onRepeatConvertFailed("detach"),
+      push,
+      inverse: reconvert,
+    });
   }, [
     selected,
     routines,
@@ -653,6 +629,7 @@ export function useRepeatEditorMutations({
     push,
     setRangeItems,
     reload,
+    onRepeatConvertFailed,
   ]);
 
   return {

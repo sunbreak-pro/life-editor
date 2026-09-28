@@ -305,14 +305,19 @@ export function CalendarTab({
   // #1638: Undo / Redo of a write that landed on a repeating item asks first,
   // through the same dialog the scope chooser uses.
   useRepeatUndoGate(askConfirm);
-  // The three failure toasts the writes below report through (#1642 P2).
-  const { handleAttachError, handleRepeatConvertError, handleDuplicateError } =
-    useScheduleWriteErrors(showToast);
+  // The failure toasts the writes below report through (#1642 P2).
+  const {
+    handleAttachError,
+    handleRepeatConvertError,
+    handleDuplicateError,
+    handleCreateError,
+  } = useScheduleWriteErrors(showToast);
 
   const {
     notes: noteOptions,
     notesError,
     attachNote,
+    attachNoteAlongside,
   } = useCreatePanelNotes({
     dataService,
     active: !!createPanel,
@@ -563,6 +568,7 @@ export function CalendarTab({
     onDropTodoChipAllDay: handleTodoChipDropAllDay,
     onRepeatConvertFailed: handleRepeatConvertError,
     onDuplicateFailed: handleDuplicateError,
+    onCreateFailed: handleCreateError,
     // #1638: the repeat layer records its own history — turning a repeat on or
     // off, the rhythm change and the series-wide edits, one command per act.
     push: undoRedo?.push,
@@ -599,6 +605,7 @@ export function CalendarTab({
     addNode,
     updateNode,
     attachNote,
+    attachNoteAlongside,
     onAttachError: handleAttachError,
     clearTagLens,
   });

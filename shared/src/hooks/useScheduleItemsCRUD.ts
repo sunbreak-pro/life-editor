@@ -179,6 +179,20 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
          * this, or its insert races ahead of the row it points at.
          */
         onSaved?: (saved: ScheduleItem | null) => void;
+        /**
+         * A second write that rides along with this create — the creation
+         * panel's note (#1642 P6, N-08). Called with the saved row once it
+         * exists (so an FK to it holds), and its reversal is folded into the
+         * create's ONE undo command: the first Ctrl+Z takes the note and the
+         * event back together. It used to push a command of its own under
+         * the same "create" label, so that press took only the note off and
+         * still said the event's creation was undone. Resolve null when the
+         * write did not land; the create is then recorded on its own.
+         */
+        alongside?: (saved: ScheduleItem) => Promise<{
+          undo: () => Promise<void>;
+          redo: () => Promise<void>;
+        } | null>;
       },
     ): string => {
       const id = generateId("schedule");
@@ -225,7 +239,13 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
        * redo re-inserted the OPTIMISTIC row, dropping whatever the server
        * filled in (the reminder patch, the real timestamps).
        */
-      const pushCreated = (saved: ScheduleItem) => {
+      const pushCreated = (
+        saved: ScheduleItem,
+        companion: {
+          undo: () => Promise<void>;
+          redo: () => Promise<void>;
+        } | null,
+      ) => {
         const takeOff = () => {
           setItems((prev) => prev.filter((i) => i.id !== id));
           // #568: the grid reads the host's range store, so without this the
@@ -238,15 +258,29 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
           );
           mirror.upsert(saved);
         };
+        const own = reversible(
+          takeOff,
+          putOn,
+          () => ds.softDeleteScheduleItem(id),
+          () => ds.restoreScheduleItem(id),
+          "Create",
+        );
         push("scheduleItem", {
           label: "createScheduleItem",
-          ...reversible(
-            takeOff,
-            putOn,
-            () => ds.softDeleteScheduleItem(id),
-            () => ds.restoreScheduleItem(id),
-            "Create",
-          ),
+          ...(companion
+            ? {
+                // The companion hangs off the row, so it goes first on the
+                // way back and last on the way forward.
+                undo: async () => {
+                  await companion.undo();
+                  await own.undo();
+                },
+                redo: async () => {
+                  await own.redo();
+                  await companion.redo();
+                },
+              }
+            : own),
         });
       };
 
@@ -265,8 +299,10 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
       )
         .then((saved) => {
           // The row exists from here on, so the history entry is owed whatever
-          // the reminder follow-up below does (#1638 W4).
-          pushCreated(saved);
+          // the reminder follow-up below does (#1638 W4). With a companion it
+          // waits for that write instead, so the two share one entry (N-08).
+          const alongside = opts?.alongside;
+          if (!alongside) pushCreated(saved, null);
           // #1374: the reminder lands as a follow-up patch. It never rejects,
           // so a failed patch cannot hand the caller `onSaved(null)` for an
           // event that is on the calendar — the editor would stay open over
@@ -279,11 +315,21 @@ export function useScheduleItemsCRUD(params: UseScheduleItemsCRUDParams) {
                 );
               }
               opts?.onSaved?.(withReminder);
+              if (alongside) {
+                void alongside(withReminder).then(
+                  (companion) => pushCreated(saved, companion),
+                  () => pushCreated(saved, null),
+                );
+              }
             },
           );
         })
         .catch((e) => {
           logServiceError("ScheduleItems", "create", e);
+          // #1642 P6 (N-07): the optimistic row goes too. It used to stay in
+          // this hook's list for the anchored day — a row the server never
+          // took, still there until the next fetch.
+          setItems((prev) => prev.filter((i) => i.id !== id));
           opts?.onSaved?.(null);
         });
 

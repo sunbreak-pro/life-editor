@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import {
   isTodoChip,
   makeOptimisticScheduleItem,
+  resolveCreateReminderOffset,
   touchesSeries,
   type ItemCreateSlot,
   type ScheduleItem,
@@ -26,6 +27,15 @@ import { scheduleItemById } from "./scheduleSelectionSurface";
  * single entry point the host calls, and re-exports the repeat surface
  * unchanged.
  */
+
+/**
+ * A write that rides along with a create and shares its one undo command
+ * (#1642 P6, N-08) — see `alongside` on the provider's createScheduleItem.
+ */
+export type CreateCompanion = (saved: ScheduleItem) => Promise<{
+  undo: () => Promise<void>;
+  redo: () => Promise<void>;
+} | null>;
 
 export interface UseScheduleMutationsArgs
   // The repeat layer's inputs ride along and are forwarded whole. Its own two
@@ -59,6 +69,8 @@ export interface UseScheduleMutationsArgs
        */
       reminderOffset?: number | null;
       onSaved?: (saved: ScheduleItem | null) => void;
+      /** The creation panel's note, folded into the create's undo (N-08). */
+      alongside?: CreateCompanion;
     },
   ) => string;
   updateScheduleItem: (
@@ -94,6 +106,12 @@ export interface UseScheduleMutationsArgs
    * same contract as `onRepeatConvertFailed`.
    */
   onDuplicateFailed: () => void;
+  /**
+   * A create did not land (#1642 P6, N-07). The same contract as
+   * `onDuplicateFailed`: the row is already off the grid by the time this
+   * runs, so the words are about what did not happen.
+   */
+  onCreateFailed: () => void;
   // Copy, resolved by the host (§6.4)
   copySuffix: string;
 }
@@ -128,6 +146,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     onDropTodoChipAllDay,
     onRepeatConvertFailed,
     onDuplicateFailed,
+    onCreateFailed,
     push,
     copySuffix,
   } = args;
@@ -274,27 +293,52 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   // switch as well as the times, so the four travel together instead of the
   // caller reading the date off its own state — which is how a panel that
   // lets you change the day ends up creating on the day you left.
+  //
+  // #1642 P6: a create that did not land is handled the way the duplicate's
+  // is (K-10) — the optimistic row comes off the grid, the selection lets go
+  // of it and the host says so (N-07). It used to do none of the three. The
+  // reminder is resolved here and handed down, so the optimistic row carries
+  // the same one the provider writes (N-12), and `alongside` is the panel's
+  // note riding on the create's undo (N-08).
   const handleCreate = useCallback(
     (
       slot: ItemCreateSlot,
       title: string,
       onSaved?: (saved: ScheduleItem | null) => void,
+      alongside?: CreateCompanion,
     ): string => {
       const { date, start, end, isAllDay } = slot;
+      const reminderOffset = resolveCreateReminderOffset(isAllDay);
       const id = createScheduleItem(date, title, start, end, {
         isAllDay,
-        onSaved,
+        reminderOffset,
+        alongside,
+        onSaved: (saved) => {
+          if (!saved) {
+            setRangeItems((prev) => prev.filter((i) => i.id !== id));
+            setSelectedId((current) => (current === id ? null : current));
+            onCreateFailed();
+          }
+          onSaved?.(saved);
+        },
       });
       setRangeItems((prev) => [
         ...prev,
         {
-          ...makeOptimisticScheduleItem(id, date, title, start, end),
+          ...makeOptimisticScheduleItem(
+            id,
+            date,
+            title,
+            start,
+            end,
+            reminderOffset,
+          ),
           isAllDay,
         },
       ]);
       return id;
     },
-    [createScheduleItem, setRangeItems],
+    [createScheduleItem, setRangeItems, setSelectedId, onCreateFailed],
   );
 
   const handleMoveItem = useCallback(

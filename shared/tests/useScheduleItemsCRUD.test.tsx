@@ -14,9 +14,9 @@ import { stubDataService } from "./helpers/dataServiceStub";
  * the rules each write carries about its OWN undo entry, and that every undo
  * and redo writes the host's on-screen store as well as the DB (#568).
  *
- * Not pinned on purpose, because phase 2 changes them: what a failed create
- * leaves behind (N-07), and a dismiss of a row it cannot find (K-03). A
- * failing undo body (B-10) is pinned at the bottom since P4.
+ * Not pinned here on purpose: a dismiss of a row it cannot find (K-03). A
+ * failing undo body (B-10) is pinned at the bottom since P4, and a failed
+ * create and the create's companion (N-07 / N-08) since P6.
  */
 
 const TODAY = "2026-09-26";
@@ -145,6 +145,85 @@ describe("useScheduleItemsCRUD — create", () => {
       expect.objectContaining({ id, updatedAt: "saved" }),
     );
     expect(h.ids()).toEqual([id]);
+  });
+});
+
+/*
+ * #1642 P6 — what a failed create leaves behind (N-07), and the creation
+ * panel's note as the create's companion (N-08).
+ */
+describe("useScheduleItemsCRUD — create failures and companions (#1642 P6)", () => {
+  it("N-07: takes the optimistic row back off and records nothing when the INSERT fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const h = setup();
+    h.createScheduleItem.mockRejectedValueOnce(new Error("offline"));
+    const onSaved = vi.fn();
+    act(() => {
+      h.api().createScheduleItem(TODAY, "Lunch", "12:00", "13:00", {
+        reminderOffset: null,
+        onSaved,
+      });
+    });
+    expect(h.ids()).toHaveLength(1);
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(null));
+    expect(h.ids()).toEqual([]);
+    expect(h.push).not.toHaveBeenCalled();
+  });
+
+  it("N-08: records the create and its companion as ONE command", async () => {
+    const h = setup();
+    const order: string[] = [];
+    h.softDeleteScheduleItem.mockImplementation(async () => {
+      order.push("trash event");
+    });
+    h.restoreScheduleItem.mockImplementation(async () => {
+      order.push("restore event");
+    });
+    const companion = {
+      undo: vi.fn(async () => {
+        order.push("detach note");
+      }),
+      redo: vi.fn(async () => {
+        order.push("attach note");
+      }),
+    };
+    const alongside = vi.fn(async (saved: ScheduleItem) => {
+      order.push(`attach to ${saved.updatedAt}`);
+      return companion;
+    });
+    act(() => {
+      h.api().createScheduleItem(TODAY, "Lunch", "12:00", "13:00", {
+        reminderOffset: null,
+        alongside,
+      });
+    });
+    await waitFor(() => expect(h.commands).toHaveLength(1));
+    // Run against the SAVED row, so the note's FK has a row to point at.
+    expect(order).toEqual(["attach to saved"]);
+    expect(h.commands[0].label).toBe("createScheduleItem");
+
+    order.length = 0;
+    await act(() => h.commands[0].undo());
+    // The note hangs off the event: it goes first on the way back...
+    expect(order).toEqual(["detach note", "trash event"]);
+    order.length = 0;
+    await act(() => h.commands[0].redo());
+    // ...and last on the way forward.
+    expect(order).toEqual(["restore event", "attach note"]);
+  });
+
+  it("records the create on its own when the companion did not land", async () => {
+    const h = setup();
+    act(() => {
+      h.api().createScheduleItem(TODAY, "Lunch", "12:00", "13:00", {
+        reminderOffset: null,
+        alongside: async () => null,
+      });
+    });
+    await waitFor(() => expect(h.commands).toHaveLength(1));
+    await act(() => h.commands[0].undo());
+    expect(h.softDeleteScheduleItem).toHaveBeenCalledTimes(1);
   });
 });
 
