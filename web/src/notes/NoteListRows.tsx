@@ -1,6 +1,13 @@
 import { memo, type MouseEvent } from "react";
 import { useDraggable, useDroppable } from "@dnd-kit/core";
-import { ChevronRight, ChevronDown, Lock, Pin, Trash2 } from "lucide-react";
+import {
+  ChevronRight,
+  ChevronDown,
+  Lock,
+  Pencil,
+  Pin,
+  Trash2,
+} from "lucide-react";
 import {
   TagHeadingIcon,
   tagGroupKey as groupKey,
@@ -32,6 +39,8 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   onSelect,
   onDelete,
   onContextMenu,
+  onEdit,
+  editLabel,
   deleteLabel,
   dragHintLabel,
 }: {
@@ -46,14 +55,30 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
    * ONE handler identity and not break this row memo.
    */
   onContextMenu?: (id: string, event: MouseEvent) => void;
+  /**
+   * The pencil left of the bin (#2032). Defined on narrow only, and it is
+   * what turns the row into a touch row: no drag, no text selection, no
+   * platform menu on a hold. Takes the id for the same memo reason as above.
+   */
+  onEdit?: (id: string) => void;
+  /** Label for the pencil; required whenever `onEdit` is passed. */
+  editLabel?: string;
   deleteLabel: string;
   dragHintLabel: string;
 }) {
+  // #2032: on a phone a hold that drifted a few px picked the row up, and the
+  // hold itself selected the title. The drag (#312) is a pointer gesture for
+  // Desktop; narrow edits a note's tags through the pencil's sheet instead.
+  const touchRow = onEdit !== undefined;
   // dragId is group-scoped: the same note renders under every tag heading it
   // has, and @dnd-kit needs globally-unique draggable ids.
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragId,
+    disabled: touchRow,
   });
+  // Not spread at all on a touch row: `disabled` stops the sensors, but the
+  // attributes would still make the row a tab stop that announces a drag.
+  const dragProps = touchRow ? {} : { ...attributes, ...listeners };
 
   return (
     // Grip removed (#312): the whole row is the drag activator now — press-drag
@@ -69,17 +94,25 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
     // flickers grab/default as the pointer crosses them.
     <li
       ref={setNodeRef}
-      {...attributes}
-      {...listeners}
+      {...dragProps}
       // After the listener spread: @dnd-kit does not set one, but a prop it
       // gains later must not silently replace the menu.
       onContextMenu={
-        onContextMenu ? (e) => onContextMenu(node.id, e) : undefined
+        onContextMenu
+          ? (e) => onContextMenu(node.id, e)
+          : touchRow
+            ? // Android fires contextmenu on a hold (the #2008 heading has the
+              // same guard). A hold on this row answers nothing.
+              (e) => e.preventDefault()
+            : undefined
       }
       role="listitem"
-      aria-label={dragHintLabel}
+      // The hint describes the drag, which a touch row does not have.
+      aria-label={touchRow ? undefined : dragHintLabel}
       className={cn(
         "group relative flex items-center gap-2 rounded-lumen-md border px-2",
+        // A hold must not start a text selection or iOS's callout (#2032).
+        touchRow && "select-none [-webkit-touch-callout:none]",
         // #1560: 36px is the mouse row; below `md` it floors at 44 (min-h-11).
         // A `min-h-*` rather than a second `h-*`, because `cn` is a plain
         // string join — two height utilities would be settled by Tailwind's
@@ -142,6 +175,27 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
           />
         )}
       </button>
+
+      {/* #2032 — the edit a Desktop right-click opens (#1677), as a pencil
+          immediately left of the bin. Only drawn on a touch row, so it is
+          always visible and always thumb-sized, with no hover state to hide
+          behind. */}
+      {onEdit && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(node.id);
+          }}
+          aria-label={`${editLabel ?? ""}: ${node.title || "untitled"}`}
+          className={cn(
+            "flex min-h-11 min-w-11 shrink-0 items-center justify-center text-lumen-text-tertiary hover:text-lumen-accent",
+            FOCUS_RING,
+          )}
+        >
+          <Pencil size={14} aria-hidden />
+        </button>
+      )}
 
       <button
         type="button"

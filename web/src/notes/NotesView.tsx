@@ -672,6 +672,7 @@ export function NotesView({
       labels={{
         ...listLabels,
         deleteNote: t("materials.notes.deleteNote"),
+        editNote: t("materials.notes.editNote"),
         assignTagHint: t("materials.notes.assignTagHint"),
         clearTagFilter: t("materials.notes.tagFilterClear"),
         moreTagFilters: (count) =>
@@ -689,6 +690,7 @@ export function NotesView({
       onTagContextMenu={sidebarMenus.onTagContextMenu}
       onNoteContextMenu={sidebarMenus.onNoteContextMenu}
       onTagLongPress={sidebarMenus.onTagLongPress}
+      onEditNote={sidebarMenus.onNoteEdit}
       onCreateNote={handleAddNote}
       dnd={dnd}
       // #1180 — only with a DataService, which is what templates are read and

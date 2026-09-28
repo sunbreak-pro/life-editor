@@ -501,14 +501,33 @@ describe("DailyView — the entry list says which day is open (#1839)", () => {
   it("says why the list is empty when a filter empties it", () => {
     render(<DailyView />);
 
-    fireEvent.change(
-      screen.getByLabelText("materials.daily.filterLabel"),
-      { target: { value: "nothing-matches-this" } },
-    );
+    fireEvent.change(screen.getByLabelText("materials.daily.filterLabel"), {
+      target: { value: "nothing-matches-this" },
+    });
 
     screen.getByText("materials.daily.entriesCount|0");
     screen.getByText("materials.daily.searchEmpty");
     expect(screen.queryByText("materials.daily.empty")).toBeNull();
+  });
+
+  // #2032: a hold on an entry row selected its excerpt on a phone.
+  it("keeps a hold on the entry list from selecting text", () => {
+    render(<DailyView />);
+    // The panel root that carries the guard, found by walking up from its
+    // heading (a class with ":" in it is awkward as a selector).
+    let panel: HTMLElement | null = screen.getByText(
+      "materials.daily.entriesCount|3",
+    );
+    while (panel && !panel.classList.contains("max-md:select-none")) {
+      panel = panel.parentElement;
+    }
+    expect(panel).not.toBeNull();
+    expect(panel!.classList.contains("[@media(hover:none)]:select-none")).toBe(
+      true,
+    );
+    expect(
+      panel!.classList.contains("max-md:[-webkit-touch-callout:none]"),
+    ).toBe(true);
   });
 
   it("says so when there are no entries at all", () => {

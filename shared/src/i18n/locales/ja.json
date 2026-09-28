@@ -463,7 +463,8 @@
       "tagFilterLess": "折りたたむ",
       "groupMoreRows": "残り {{count}} 件を表示",
       "rowActions": "ノートの操作",
-      "renameNote": "名前を変更"
+      "renameNote": "名前を変更",
+      "editNote": "ノートを編集"
     },
     "templates": {
       "menuEntry": "テンプレートとして登録する",

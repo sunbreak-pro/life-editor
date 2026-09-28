@@ -110,7 +110,14 @@ export function TemplateListPanel({
                 return (
                   <li
                     key={tpl.id}
-                    className="flex items-center justify-between gap-2 px-1 text-sm"
+                    className={cn(
+                      "flex items-center justify-between gap-2 px-1 text-sm",
+                      // #2032: a hold on a phone selected the name and raised
+                      // iOS's callout. Narrow or any pointer that cannot hover
+                      // — the same pair the note row's bin is shown under.
+                      "max-md:select-none max-md:[-webkit-touch-callout:none]",
+                      "[@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]",
+                    )}
                   >
                     <span className="min-w-0 flex-1 truncate text-lumen-text-secondary">
                       {title}

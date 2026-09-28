@@ -895,6 +895,10 @@ export function DailyView({
           }}
         />
         <DailyEntriesPanel
+          // #2032: a hold on an entry row selected its excerpt and raised
+          // iOS's callout. The rows only open a day, so a hold has nothing to
+          // offer; narrow or any pointer that cannot hover.
+          className="max-md:select-none max-md:[-webkit-touch-callout:none] [@media(hover:none)]:select-none [@media(hover:none)]:[-webkit-touch-callout:none]"
           pickerDate={selectedDate}
           pickerLabel={selectedDate.replaceAll("-", "/")}
           datePickerLabel={t("materials.daily.datePicker")}
