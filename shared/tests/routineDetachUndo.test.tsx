@@ -16,9 +16,15 @@ import type { UndoCommand } from "../src/utils/undoRedo/UndoRedoManager";
  * middle choice went through detachRoutine, which pushed nothing — so Ctrl+Z
  * after it reversed whatever came BEFORE it, silently, while the split stayed.
  *
- * Undo is opt-in on the hook because the editor's "Repeat = None" runs the
- * same service call with its own, richer inverse (a fresh conversion of the
- * occurrence it pinned). Defaulting it on would make that path push twice.
+ * The reversal is opt-in on the hook because the editor's "Repeat = None" runs
+ * the same service call with its own, richer inverse (a fresh conversion of the
+ * occurrence it pinned).
+ *
+ * #1642 P5 (M-03): the hook BUILDS this reversal and hands it back; it no
+ * longer pushes it. Both splits record their undo in one Schedule runner
+ * (web/src/schedule/repeatSeriesWrites.ts, pinned in
+ * web/tests/repeatSeriesWrites.test.ts), which is also where the label, the
+ * confirm and the range re-read around each body now live.
  *
  * What an undo does NOT bring back is the tags: the split hands them to the
  * survivors it unlinks and soft-deletes the series' own assignment rows, and
@@ -99,9 +105,11 @@ function makeDS() {
   };
 }
 
+type Reversal = { undo: () => Promise<void>; redo: () => Promise<void> };
+
 async function mountAndSplit(
   ds: ReturnType<typeof makeDS>["ds"],
-  opts?: { undoable?: boolean; onRestored?: () => void },
+  opts?: { reversible?: boolean },
 ) {
   const entries: UndoCommand[] = [];
   const undoRedo = {
@@ -112,16 +120,15 @@ async function mountAndSplit(
     wrapper,
   });
   await waitFor(() => expect(view.result.current.routines).toHaveLength(1));
+  let reversal: Reversal | null = null;
   await act(async () => {
-    await view.result.current.detachRoutine(
+    ({ reversal } = await view.result.current.detachRoutine(
       "routine-1",
       ANCHOR,
-      opts?.undoable === false
-        ? undefined
-        : { undo: { onRestored: opts?.onRestored } },
-    );
+      opts?.reversible === false ? undefined : { reversible: true },
+    ));
   });
-  return { view, entries };
+  return { view, entries, reversal: reversal as Reversal | null };
 }
 
 afterEach(() => {
@@ -129,32 +136,34 @@ afterEach(() => {
 });
 
 describe("splitting a series off is undoable (#1801)", () => {
-  it("pushes one command for the scope dialog's 'this and following'", async () => {
+  it("hands back the reversal for the scope dialog's 'this and following', and pushes nothing itself", async () => {
     const fixture = makeDS();
-    const { entries } = await mountAndSplit(fixture.ds);
+    const { entries, reversal } = await mountAndSplit(fixture.ds);
 
-    expect(entries).toHaveLength(1);
-    expect(entries[0].label).toBe("detachRoutine");
-    // The reversal reaches days the calendar does not show, so the host asks
-    // before running it (#1638).
-    expect(entries[0].confirm).toEqual({ kind: "repeat", scope: "all" });
+    expect(reversal).not.toBeNull();
+    // #1642 P5 (M-03): the Schedule runner records it — the hook recording it
+    // too would put two commands on the stack for one press.
+    expect(entries).toHaveLength(0);
   });
 
-  it("pushes nothing for the editor's Repeat = None, which owns its inverse", async () => {
+  it("hands back nothing for the editor's Repeat = None, which owns its inverse", async () => {
     const fixture = makeDS();
-    const { entries } = await mountAndSplit(fixture.ds, { undoable: false });
+    const { entries, reversal } = await mountAndSplit(fixture.ds, {
+      reversible: false,
+    });
 
     expect(fixture.detachRoutine).toHaveBeenCalledTimes(1);
+    expect(reversal).toBeNull();
     expect(entries).toHaveLength(0);
   });
 
   it("restores the trashed occurrences by their original ids, then the repeat", async () => {
     const fixture = makeDS();
-    const { view, entries } = await mountAndSplit(fixture.ds);
+    const { view, reversal } = await mountAndSplit(fixture.ds);
     expect(view.result.current.routines).toHaveLength(0);
 
     await act(async () => {
-      await entries[0].undo();
+      await reversal!.undo();
     });
 
     expect(fixture.bulkRestoreScheduleItems).toHaveBeenCalledWith(CASCADE);
@@ -169,29 +178,17 @@ describe("splitting a series off is undoable (#1801)", () => {
     await waitFor(() => expect(view.result.current.routines).toHaveLength(1));
   });
 
-  it("tells the host to re-read once the rows are back", async () => {
-    const onRestored = vi.fn();
-    const fixture = makeDS();
-    const { entries } = await mountAndSplit(fixture.ds, { onRestored });
-
-    await act(async () => {
-      await entries[0].undo();
-    });
-    expect(onRestored).toHaveBeenCalledTimes(1);
-  });
-
   it("re-runs the split on redo against whatever is live now", async () => {
-    const onRestored = vi.fn();
     const fixture = makeDS();
-    const { view, entries } = await mountAndSplit(fixture.ds, { onRestored });
+    const { view, reversal } = await mountAndSplit(fixture.ds);
 
     await act(async () => {
-      await entries[0].undo();
+      await reversal!.undo();
     });
     await waitFor(() => expect(view.result.current.routines).toHaveLength(1));
 
     await act(async () => {
-      await entries[0].redo();
+      await reversal!.redo();
     });
     expect(fixture.detachRoutine).toHaveBeenCalledTimes(2);
     expect(fixture.detachRoutine).toHaveBeenLastCalledWith(
@@ -202,7 +199,25 @@ describe("splitting a series off is undoable (#1801)", () => {
       },
     );
     expect(view.result.current.routines).toHaveLength(0);
-    expect(onRestored).toHaveBeenCalledTimes(2);
+  });
+
+  it("paints the repeat back when a redo's split does not land", async () => {
+    // The redo drops the routine from the list before it writes, as the
+    // forward press does — so a lost write has to put it back, or the list is
+    // left short a repeat the DB still holds.
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const fixture = makeDS();
+    const { view, reversal } = await mountAndSplit(fixture.ds);
+    await act(async () => {
+      await reversal!.undo();
+    });
+    await waitFor(() => expect(view.result.current.routines).toHaveLength(1));
+    fixture.detachRoutine.mockRejectedValueOnce(new Error("offline"));
+
+    await act(async () => {
+      await expect(reversal!.redo()).rejects.toThrow("offline");
+    });
+    expect(view.result.current.routines).toHaveLength(1);
   });
 
   it("hands a failed restore back to the manager instead of reporting success", async () => {
@@ -213,12 +228,10 @@ describe("splitting a series off is undoable (#1801)", () => {
     fixture.bulkRestoreScheduleItems.mockRejectedValueOnce(
       new Error("network"),
     );
-    const onRestored = vi.fn();
-    const { view, entries } = await mountAndSplit(fixture.ds, { onRestored });
+    const { view, reversal } = await mountAndSplit(fixture.ds);
 
-    await expect(entries[0].undo()).rejects.toThrow("network");
+    await expect(reversal!.undo()).rejects.toThrow("network");
     expect(fixture.restoreRoutine).not.toHaveBeenCalled();
-    expect(onRestored).not.toHaveBeenCalled();
     expect(view.result.current.routines).toHaveLength(0);
   });
 
@@ -230,10 +243,10 @@ describe("splitting a series off is undoable (#1801)", () => {
     // CASCADE — so the rollback would take the tag with it. The undo restores
     // the repeat and its days and leaves the tags where the split put them.
     const fixture = makeDS();
-    const { entries } = await mountAndSplit(fixture.ds);
+    const { reversal } = await mountAndSplit(fixture.ds);
 
     await act(async () => {
-      await entries[0].undo();
+      await reversal!.undo();
     });
 
     expect(fixture.assignTagToItem).not.toHaveBeenCalled();

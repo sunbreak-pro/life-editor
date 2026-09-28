@@ -183,6 +183,7 @@ function setup(over?: {
     })),
     detachRoutine: vi.fn(async () => ({
       deletedScheduleItemIds: [] as string[],
+      reversal: null,
     })),
     updateFutureOccurrences: vi.fn(async () => 0),
     ensureRoutineItemsForDateRange: vi.fn(async () => true),

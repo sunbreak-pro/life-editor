@@ -293,3 +293,50 @@ describe("a lost routine delete undo / redo (#1642 P4)", () => {
     expect(view.result.current.routines).toHaveLength(1);
   });
 });
+
+/*
+ * #1642 P5 (N-01 / N-02): a delete that did not land. The optimistic drop used
+ * to stand for good — the repeat list lost the row while every occurrence
+ * stayed on the calendar — and the undo was pushed anyway, so the stack held
+ * the "reversal" of a delete that never happened.
+ */
+describe("a delete that did not land (#1642 P5)", () => {
+  it("puts the repeat back in the list, out of the trash, where it was", async () => {
+    const fixture = makeDS();
+    fixture.ds.fetchAllRoutines = vi.fn(async () => [
+      routine("routine-0"),
+      routine("routine-1"),
+      routine("routine-2"),
+    ]);
+    fixture.softDeleteRoutine.mockRejectedValueOnce(new Error("offline"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const view = renderHook(
+      () => useRoutinesAPI({ dataService: fixture.ds }),
+      { wrapper },
+    );
+    await waitFor(() => expect(view.result.current.routines).toHaveLength(3));
+
+    let outcome: { landed: boolean } | undefined;
+    await act(async () => {
+      outcome = await view.result.current.deleteRoutine("routine-1");
+    });
+
+    expect(outcome?.landed).toBe(false);
+    // Same slot, so the list does not reorder under the user.
+    expect(view.result.current.routines.map((r) => r.id)).toEqual([
+      "routine-0",
+      "routine-1",
+      "routine-2",
+    ]);
+    expect(view.result.current.deletedRoutines).toHaveLength(0);
+  });
+
+  it("records nothing on the undo history", async () => {
+    const fixture = makeDS();
+    fixture.softDeleteRoutine.mockRejectedValueOnce(new Error("offline"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    const { entries } = await mountAndDelete(fixture.ds);
+
+    expect(entries).toHaveLength(0);
+  });
+});

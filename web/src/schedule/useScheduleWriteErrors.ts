@@ -14,7 +14,14 @@ import { useTranslation, type TranslationKey } from "@life-editor/shared";
 
 /** Every way a repeat write can fail to land (see useRepeatMutations). */
 export type RepeatFailureReason =
-  "attach" | "materialise" | "update" | "series" | "series-partial";
+  | "attach"
+  | "materialise"
+  | "update"
+  | "series"
+  | "series-partial"
+  | "delete"
+  | "delete-future"
+  | "detach";
 
 /*
  * What each repeat-write failure says (#434 → #469 → #504). A table rather
@@ -32,6 +39,17 @@ const REPEAT_FAILURE_COPY_KEY: Record<RepeatFailureReason, TranslationKey> = {
   // changed, and this one cannot — the rhythm from here on is already the new
   // one.
   "series-partial": "scheduleScreen.repeatSeriesPartialFailed",
+  /*
+   * #1642 P5 (N-02 / N-04): the series delete and the two splits. The
+   * sidebar's delete already said "couldn't delete this repeat"; the scope
+   * dialog's "all" said nothing, and neither split said anything at all. The
+   * splits get their own words because they do not delete the same thing:
+   * "this and following" drops days, the editor's "none" only stops the
+   * repeat and keeps the event the user has open.
+   */
+  delete: "scheduleScreen.repeatDeleteFailed",
+  "delete-future": "scheduleScreen.repeatDeleteFutureFailed",
+  detach: "scheduleScreen.repeatDetachFailed",
 };
 
 export interface ScheduleWriteErrors {

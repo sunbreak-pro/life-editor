@@ -13,6 +13,10 @@ import {
   type ScheduleItem,
 } from "@life-editor/shared";
 import { pickRepeatOccurrence } from "./repeatOccurrence";
+import {
+  deleteRepeatSeries,
+  type DeleteRepeatSeriesArgs,
+} from "./repeatSeriesWrites";
 
 /*
  * The Calendar host's REPEAT half (#889, extracted from CalendarTab).
@@ -74,10 +78,7 @@ export interface UseScheduleRepeatsArgs {
       to: string,
       routines: RoutineNode[],
     ) => Promise<unknown>;
-    deleteRoutine: (
-      id: string,
-      options: { onCascadeChanged: () => void },
-    ) => Promise<{ landed: boolean }>;
+    deleteRoutine: DeleteRepeatSeriesArgs["deleteRoutine"];
     reload: () => void;
     showToast: (kind: "danger", message: string) => void;
   };
@@ -353,22 +354,20 @@ export function useScheduleRepeats({
           danger: true,
         });
         if (!confirmed) return;
-        // `onCascadeChanged` (#708): an undo restores the occurrences and the
-        // seed event straight through the DataService, so the visible range
-        // has to be re-read there too — same reason as the reload below.
-        const { landed } = await deleteRoutine(id, {
-          onCascadeChanged: reload,
+        // The same delete the scope dialog's "all" runs (#1642 P5). No range
+        // store is handed over, so it re-reads: the calendar is on screen here
+        // (it never was behind the old Routines tab), and without that the
+        // deleted routine's occurrences would linger until something else
+        // refetched the visible range. A delete that did not land is said out
+        // loud — the routine hook has put the row back in the list, and the
+        // re-read shows every occurrence still there.
+        await deleteRepeatSeries({
+          routineId: id,
+          deleteRoutine,
+          reload,
+          onFailed: () =>
+            showToast("danger", t("scheduleScreen.repeatDeleteFailed")),
         });
-        // The calendar is on screen here (it never was behind the old Routines
-        // tab), so without this the deleted routine's occurrences linger until
-        // something else refetches the visible range.
-        reload();
-        // deleteRoutine drops the row optimistically and swallows the service
-        // error. Silence would leave the list short one row while every
-        // occurrence stays on the grid, with no way to tell which is true.
-        if (!landed) {
-          showToast("danger", t("scheduleScreen.repeatDeleteFailed"));
-        }
       })();
     },
     [routines, askConfirm, deleteRoutine, reload, showToast, t],
