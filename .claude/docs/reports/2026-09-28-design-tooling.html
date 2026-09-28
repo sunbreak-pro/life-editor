@@ -1,0 +1,216 @@
+<title>見た目の見直しの道具選び</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=BIZ+UDPGothic:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  :root {
+    --ground: #f5f7f6;
+    --panel: #ffffff;
+    --ink: #1c2327;
+    --muted: #56636b;
+    --line: #d5dcdf;
+    --accent: #0e6b74;
+    --accent-ink: #ffffff;
+    --accent-soft: #dcefef;
+    --ok: #2c7a4b;
+    --warn: #a86a12;
+    --stop: #a23c3c;
+    --code-bg: #eaf0f0;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #13181b;
+      --panel: #1b2226;
+      --ink: #e4e9eb;
+      --muted: #99a6ad;
+      --line: #2c363b;
+      --accent: #5fc4cc;
+      --accent-ink: #0f1c1e;
+      --accent-soft: #163338;
+      --ok: #6fc48f;
+      --warn: #e0a94a;
+      --stop: #e07a7a;
+      --code-bg: #0f1417;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #13181b;
+    --panel: #1b2226;
+    --ink: #e4e9eb;
+    --muted: #99a6ad;
+    --line: #2c363b;
+    --accent: #5fc4cc;
+    --accent-ink: #0f1c1e;
+    --accent-soft: #163338;
+    --ok: #6fc48f;
+    --warn: #e0a94a;
+    --stop: #e07a7a;
+    --code-bg: #0f1417;
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--ground);
+    color: var(--ink);
+    font-family: "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", "Meiryo", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    -webkit-font-smoothing: antialiased;
+  }
+  code, pre, .mono { font-family: "IBM Plex Mono", "Consolas", "Courier New", monospace; }
+  .wrap { max-width: 960px; margin: 0 auto; padding: 48px 24px 80px; }
+  .prose { max-width: 720px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 28px; margin-bottom: 36px; }
+  .eyebrow { font-size: 12px; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); font-weight: 700; margin: 0 0 8px; }
+  h1 { font-size: clamp(28px, 4vw, 38px); line-height: 1.25; margin: 0 0 12px; text-wrap: balance; font-weight: 700; }
+  .lede { font-size: 18px; color: var(--muted); margin: 0; max-width: 720px; }
+  h2 { font-size: 22px; margin: 48px 0 12px; text-wrap: balance; padding-top: 8px; }
+  h3 { font-size: 17px; margin: 24px 0 8px; }
+  p { margin: 0 0 14px; }
+  ul { padding-left: 1.3em; margin: 0 0 14px; }
+  li { margin-bottom: 4px; }
+  a { color: var(--accent); }
+
+  .verdicts { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin: 0; padding: 0; list-style: none; }
+  .verdict { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 18px 20px 16px; display: flex; flex-direction: column; gap: 8px; }
+  .verdict .tag { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; font-weight: 700; display: inline-flex; align-items: center; gap: 8px; }
+  .verdict .tag::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: currentColor; }
+  .verdict.now .tag { color: var(--ok); }
+  .verdict.later .tag { color: var(--warn); }
+  .verdict.skip .tag { color: var(--stop); }
+  .verdict h3 { margin: 0; font-size: 18px; }
+  .verdict p { margin: 0; color: var(--muted); font-size: 15px; }
+
+  .flow { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; background: var(--panel); margin: 16px 0 20px; }
+  .step { padding: 18px 20px; border-right: 1px solid var(--line); }
+  .step:last-child { border-right: 0; }
+  .step .n { font-family: "IBM Plex Mono", monospace; font-size: 12px; color: var(--accent); font-weight: 500; letter-spacing: .08em; }
+  .step h3 { margin: 4px 0 6px; font-size: 17px; }
+  .step p { margin: 0 0 8px; font-size: 14px; color: var(--muted); }
+  .step code { font-size: 13px; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
+  @media (max-width: 720px) { .flow { grid-template-columns: 1fr; } .step { border-right: 0; border-bottom: 1px solid var(--line); } .step:last-child { border-bottom: 0; } }
+
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 13.5px; line-height: 1.6; margin: 0 0 16px; }
+  pre code { background: none; padding: 0; }
+  p code, li code, td code { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; font-size: .9em; }
+
+  .tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); margin: 12px 0 20px; }
+  table { border-collapse: collapse; width: 100%; font-size: 14.5px; }
+  th, td { text-align: left; padding: 10px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); background: var(--ground); font-weight: 700; white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  td.state { white-space: nowrap; font-weight: 700; }
+  td.state.yes { color: var(--ok); }
+  td.state.no { color: var(--muted); font-weight: 400; }
+  td.state.maybe { color: var(--warn); }
+  td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+  .callout { border-left: 3px solid var(--accent); background: var(--accent-soft); padding: 12px 16px; border-radius: 0 6px 6px 0; margin: 16px 0 20px; font-size: 15px; }
+  .callout strong { color: var(--accent); }
+  .note { font-size: 14px; color: var(--muted); }
+  :focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">2026-09-28 / 判断 / life-editor</p>
+    <h1>見た目の見直しは、測る道具・採点する道具・案を出す道具を分けて使います</h1>
+    <p class="lede">Briefing と Work のデザインを一新するときは、今の画面を数値で測り、決めた基準で採点し、そのうえで Claude Design に案を出させます。Claude Design だけに良し悪しの判断を任せると、7 月の作業と同じ手戻りが起きます。</p>
+  </header>
+
+  <ul class="verdicts">
+    <li class="verdict now"><span class="tag">今日から</span><h3>実ブラウザの計測と、目で読む確認</h3><p>Playwright で画面を撮り、アイコンの数や大きさ、余白とアニメーションの値を DOM から数えます。スクリーンショットは Claude が切り抜いて拡大し、自分で読みます。</p></li>
+    <li class="verdict now"><span class="tag">今日から</span><h3>採点表と、値の段階を先に決める</h3><p>余白・アイコンの大きさ・アニメーションの長さに決まった段階がまだありません。先に段階を決めておかないと、直しても値の直書きが増えるだけになります。</p></li>
+    <li class="verdict now"><span class="tag">今日から</span><h3>Claude Design で案を 2〜3 個出す</h3><p>リポジトリから配色と部品を読み込ませれば、今のアプリに沿った案を出せます。ただし、案の良し悪しは採点表で判断します。</p></li>
+    <li class="verdict later"><span class="tag">必要になったら</span><h3>このチャットの中のデザインキャンバス</h3><p>アイコン 1 個の要否や余白の詰め方のような小さな比較だけなら、Claude Design を開かずにこのチャットで並べて見せられます。</p></li>
+    <li class="verdict skip"><span class="tag">入れない</span><h3>Figma などの外部デザインツール</h3><p>正本が 2 つになり、完成までコスト 0 円の方針にも合いません。Claude Design で足ります。</p></li>
+    <li class="verdict skip"><span class="tag">入れない</span><h3>7 月の指示書をそのまま使う</h3><p>Work の指示書は旧パレット（青）のままで、今の履歴タブやフリーセッションを知りません。Briefing の指示書はそもそもありません。</p></li>
+  </ul>
+
+  <div class="callout prose"><strong>たとえると料理です。</strong>計量カップで材料を量り（計測）、味見の基準を決めて味を見て（採点）、そのうえで新しい献立を考えてもらいます（案出し）。献立を考える人に味見まで任せると、「見た目は華やかでも、食べたい味ではない」皿が出てきます。</div>
+
+  <h2>進め方</h2>
+  <p class="prose">同じ計測と採点を、直す前と直した後の 2 回かけます。点数が上がったかどうかで、見た目が良くなったかを判断します。</p>
+  <div class="flow">
+    <div class="step"><span class="n">STEP 1</span><h3>前提を揃える</h3><p>余白・アイコンの大きさ・アニメーションの長さの段階を決め、<code>tokens.css</code> に足します。古い指示書と部品集も今の色に直します。</p></div>
+    <div class="step"><span class="n">STEP 2</span><h3>今の画面を測る</h3><p>Desktop と Mobile、ライトとダークの 4 通りで撮影し、アイコン・余白・アニメーションの値を一覧にします。</p></div>
+    <div class="step"><span class="n">STEP 3</span><h3>採点する</h3><p>別のエージェントが採点表で点を付けます。案を作った本人に採点させないためです。</p></div>
+    <div class="step"><span class="n">STEP 4</span><h3>案を出して選ぶ</h3><p>Claude Design で 2〜3 案を作り、採点と並べてこうだいさんが 1 つ選びます。</p></div>
+    <div class="step"><span class="n">STEP 5</span><h3>実装して測り直す</h3><p>実装後に STEP 2 と 3 をもう一度かけ、点数の差を PR に載せます。</p></div>
+  </div>
+
+  <h2>道具ごとの得意と苦手</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>道具</th><th>判定</th><th>得意なこと</th><th>苦手なこと</th><th>ここでの役割</th></tr></thead>
+      <tbody>
+        <tr><td>Claude Design（claude.ai/design）</td><td class="state yes">採用</td><td>リポジトリや CSS から配色と部品を読み込み、それに沿った画面案を短時間で複数出せます。2026 年 6 月から Claude Code と双方向に同期できます。</td><td>7 月の作業では、空の状態とローディングの状態が作られず、使ってよい色の外の色と読み上げ用のラベルの欠落が混ざりました。外部のレビューでも「見栄えは良いが、伝わるかの判断は人が要る」と評価されています。</td><td>案を出す係です。</td></tr>
+        <tr><td>Playwright（実ブラウザ操作）</td><td class="state yes">採用</td><td>決まった画面幅で撮影できます。DOM から計算済みのスタイルを読み、アイコンの数、余白の値、アニメーションの長さを数えられます。</td><td>「美しいか」は判定できません。9 月の画面点検も、崩れ・はみ出し・タップ寸法の確認に留まりました。</td><td>測る係です。起動はメインのチャットだけにします。</td></tr>
+        <tr><td>スクリーンショットを切り抜いて読む手順（visual-inspect スキル）</td><td class="state yes">採用</td><td>細かい文字やアイコンの見分けやすさを、Claude が拡大して自分で確かめられます。</td><td>基準が無いと感想で終わります。</td><td>採点係の目です。</td></tr>
+        <tr><td>採点表（新しく作るスキル）</td><td class="state yes">新規</td><td>見る観点と点の付け方を固定し、直す前と後で同じ物差しを当てられます。</td><td>まだありません。今ある UI 設計のスキルは色・状態・アクセシビリティの規約が中心で、アイコンの要否・余白のリズム・視覚の階層を判断する基準を持っていません。</td><td>採点の物差しです。</td></tr>
+        <tr><td>このチャットのデザインキャンバス（Design 型の Artifact）</td><td class="state maybe">保留</td><td>ログインの追加なしで、小さな案の比較をすぐに並べられます。</td><td>life-editor の配色と部品を登録したデザインシステムがまだありません。案の幅は Claude Design より狭くなります。</td><td>小さな比較の係です。</td></tr>
+        <tr><td>Figma</td><td class="state no">見送り</td><td>ピクセル単位の作り込みと、複数人での共同編集が得意です。</td><td>正本が 2 つになり、コストもかかります。一人で作るこのアプリには大きすぎます。</td><td>使いません。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>採点表の観点（案）</h2>
+  <p class="prose">こうだいさんが挙げた観点を、測れる形に直しました。点は 1〜5 で付け、数値で測れるものは数値も添えます。</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>観点</th><th>数値で測るもの</th><th>目で見て判断するもの</th></tr></thead>
+      <tbody>
+        <tr><td>アイコン</td><td>画面にあるアイコンの数、大きさの種類の数、文字のラベルが付いていないアイコンの数を数えます。</td><td>意味が重なるアイコン、飾りだけのアイコン、何をするか見て分からないアイコンを挙げます。</td></tr>
+        <tr><td>余白</td><td>使われている余白の値を集め、決めた段階から外れている値の数を数えます。</td><td>まとまりごとに余白が揃っているか、詰まりすぎや空きすぎの場所がないかを見ます。</td></tr>
+        <tr><td>アニメーション</td><td>動きの長さと数を集めます。UI 設計のスキルが決めている 3 つの帯（100〜150 ms / 200〜300 ms / 400〜600 ms）から外れた値と、動きを減らす設定で止まらない動きを数えます。</td><td>動きが意味を持っているか、散らばった小さな動きが多すぎないかを見ます。</td></tr>
+        <tr><td>視覚の階層</td><td>文字の大きさの種類の数を数えます。</td><td>最初に目が行く場所が、その画面の一番大事な情報になっているかを見ます。</td></tr>
+        <tr><td>画面をまたいだ揃い方</td><td>同じ部品の寸法が画面ごとにずれていないかを比べます。</td><td>Briefing と Work がほかの画面と同じアプリに見えるかを見ます。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>今の状態（2026-09-28 にコードで確認）</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>項目</th><th>状態</th><th>説明</th></tr></thead>
+      <tbody>
+        <tr><td>値の段階</td><td class="state maybe">不足</td><td><code>shared/src/styles/tokens.css</code> で決まっているのは、角丸・影・余白 2 種（8px と 12px）です。アニメーションの長さとアイコンの大きさの段階はありません。</td></tr>
+        <tr><td>Briefing の指示書</td><td class="state no">なし</td><td><code>.claude/docs/design/briefs/</code> に Briefing の指示書がありません。画面のコンセプトは #2035 で決める途中です。</td></tr>
+        <tr><td>Work の指示書</td><td class="state maybe">古い</td><td><code>briefs/work.md</code> は旧パレット（青 <code>#1d4ed8</code>）を埋め込んだままです。その後に Work のコミットが 27 本入り、履歴タブとフリーセッションが増えました。</td></tr>
+        <tr><td>UI 設計のスキルと部品集</td><td class="state maybe">古い</td><td>UI 設計のスキルの説明文と <code>shared/design-system/claude-design/</code> の部品集は、旧パレット（コバルトとミント）のままです。</td></tr>
+        <tr><td>Claude Design との同期</td><td class="state maybe">未接続</td><td>同期の道具は、こうだいさんが <code>/design-login</code> を実行するまで使えません。life-editor のデザインシステムもまだ登録していません。</td></tr>
+        <tr><td>アイコンの使用数</td><td class="state yes">少ない</td><td class="num">Briefing は 7 種（<code>BriefingView.tsx</code> に 5 種など）、Work の画面本体は 2 種です。Work の多くは共通部品から来るので、実際の数は STEP 2 で数えます。</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>置いた仮定</h2>
+  <ul class="prose">
+    <li>Work を先に進めます。Briefing は画面の役割そのものを #2035 で見直す途中なので、見た目だけを先に直すと二度手間になるからです。</li>
+    <li>Claude Design での生成と修正の指示は、7 月と同じくこうだいさんの作業とします。Claude Code 側の準備は、指示書と部品集を今の状態に直すところまでです。</li>
+    <li>値の段階（余白・アイコン・アニメーション）はコードの変更になるので、Issue にして担当の作業に回す前提です。採点表はハーネス（開発を回す仕組み）の追加なので、Issue にせず <code>.claude/skills/</code> に置きます。</li>
+  </ul>
+
+  <h2>未確認のこと</h2>
+  <ul class="prose">
+    <li>Claude Design の利用上限は未確認です。有料プランが必要なことと、Claude Code と上限を共有することまでは確認しました。</li>
+    <li>Claude Code の中でキャンバスを開く <code>/design</code> コマンド（2026 年 8 月の試験提供）が、この環境で使えるかは未確認です。</li>
+    <li>非公開リポジトリを GitHub 経由で Claude Design に読み込ませられるかは未確認です。無理ならローカルのファイルを渡します。</li>
+  </ul>
+
+  <h2>次に判断が要る点</h2>
+  <ul class="prose">
+    <li>Claude Design と同期できるように、<code>/design-login</code> を実行してよいかを決めてください。</li>
+    <li>Work を先に進め、Briefing は #2035 のコンセプトが決まってから進める順番でよいかを決めてください。</li>
+    <li>値の段階を決める Issue と、採点表のスキルを作る作業に進んでよいかを決めてください。</li>
+  </ul>
+
+  <h2>出典</h2>
+  <ul class="prose note">
+    <li><a href="https://venturebeat.com/technology/anthropic-ships-major-claude-design-overhaul-with-design-system-imports-code-round-trips-and-a-fix-for-its-token-burning-problem">VentureBeat: Claude Design のデザインシステム取り込みとコードとの往復</a></li>
+    <li><a href="https://explainx.ai/blog/claude-design-june-2026-update-design-sync-2026">explainx.ai: Claude Design の 2026 年 6 月更新と /design-sync</a></li>
+    <li><a href="https://newsletter.victordibia.com/p/how-good-is-anthropics-claude-design">Victor Dibia: How Good is Anthropic's Claude Design?</a></li>
+    <li>リポジトリ内: <code>.claude/archive/2026-07-04-claudedesign-screen-design-fanout.md</code> / <code>.claude/archive/2026-07-05-design-implementation-fanout.md</code> / <code>.claude/docs/reports/2026-09-05-desktop-screen-audit.md</code></li>
+  </ul>
+</div>
