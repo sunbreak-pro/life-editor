@@ -406,7 +406,6 @@
       "addCta": "ノート",
       "empty": "ノートはまだありません",
       "searchEmpty": "検索に一致するノートはありません",
-      "content": "内容",
       "deleteNote": "ノートを削除",
       "deleteConfirmBody": "「{{name}}」を削除しますか？ ゴミ箱に入るので、あとから元に戻せます。",
       "deleteConfirmAction": "削除する",

@@ -26,7 +26,6 @@ const LABELS = {
   deleteLabel: "Delete note",
   moreActionsLabel: "More actions",
   pinnedLabel: "Pinned",
-  contentLabel: "Content",
   registerTemplateLabel: "Save as template",
   applyTemplateLabel: "Apply a template",
 };
