@@ -353,3 +353,64 @@ free tier ended) and a fix is not quick.
    reason was a leak or an abandoned provider.
 4. When custom SMTP is back, turn Confirm email on again and re-run the
    tests in step 7.
+
+## Ambient sounds — the `sounds` bucket (#1793)
+
+The five ambient loops (`rain` / `wind` / `ocean` / `birds` / `fire`) and
+the completion chime (`complete.mp3`) are objects in the **public** Storage
+bucket `sounds`. The app only builds their URL
+(`shared/src/constants/sounds.ts`), so replacing a file changes what every
+user hears without a deploy. Audio does not go in the repo; the repo keeps
+how each loop was made:
+
+| File                           | Purpose                                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
+| `scripts/ambient-sources.json` | For each loop: the recording's page, direct download URL, author, licence, and the stretch used (`start` / `length` / `xfade`). |
+| `scripts/ambient-loops.mjs`    | `build` turns the recordings into the five MP3s; `measure` prints length, level, bandwidth, edge silence and the seam step.      |
+
+Every recording in the manifest is CC0 or Public Domain Mark, because the
+bucket serves the files to anyone. Do not add a recording under a licence
+with NC / ND terms or one that forbids redistributing the raw file (most
+"royalty-free" SFX packs).
+
+### Rebuild
+
+ffmpeg is not a repo dependency. Put one on PATH or point `FFMPEG` at it
+(`uvx --from imageio-ffmpeg python -c "import imageio_ffmpeg as f; print(f.get_ffmpeg_exe())"`
+prints the path of a static build). Then:
+
+```bash
+mkdir -p /tmp/ambient/src /tmp/ambient/out
+# download each manifest entry's `download` URL into src/ as its `file`
+node supabase/scripts/ambient-loops.mjs build /tmp/ambient/src /tmp/ambient/out
+node supabase/scripts/ambient-loops.mjs measure /tmp/ambient/out/*.mp3
+```
+
+A good loop measures: `silenceMs` = `0/0`, `seamRatio` near 1 (the wrap
+step is like any other sample step), `band18to20` well above -60 dB (no
+wall at 16 kHz), `rmsDb` near -28 for all five. Keep the bitrate at CBR
+320 kbps: at 256 kbps and at VBR V0, LAME drops quiet content above 16 kHz
+on its own and the file measures like a low-bitrate re-encode.
+
+`silenceMsNoTag` is what a player that ignores the LAME tag plays: about
+23 ms at the head and up to 16 ms at the tail, from the MP3 format itself.
+Chromium honours the tag. Its `<audio loop>` still leaves about 10 ms at
+every wrap, the same for WAV and FLAC, so a gap below that needs a change
+to the playback code, not to the file.
+
+### Upload (owner)
+
+Replacing a public object is done by the owner in the Dashboard, not by
+Claude:
+
+1. **Back up the files in place first**:
+   `for f in rain wind ocean birds fire; do curl -sSO https://<project>.supabase.co/storage/v1/object/public/sounds/$f.mp3; done`
+   and keep them outside the repo.
+2. Dashboard → Storage → `sounds` → upload the five new files under the
+   same names (`<id>.mp3`). If the Dashboard refuses because the name
+   exists, delete that one object and upload it again.
+3. Open each public URL in a browser and check it plays. Browsers and the
+   CDN may keep the old file for up to the object's cache time (1 hour by
+   default), so the app can sound unchanged for that long.
+
+To roll back, upload the backups from step 1 the same way.
