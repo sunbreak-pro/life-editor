@@ -296,6 +296,26 @@ export interface EventEditorConvert {
   onConvert: (id: string) => void;
 }
 
+/**
+ * Duplicate entries (#2031 — the narrow sheet had no way to duplicate at all;
+ * Desktop has it on the single-click bubble). Supplying this object renders
+ * one button per entry; omitting it renders nothing.
+ *
+ * A LIST because the host decides how many ways there are to duplicate: an
+ * event with tags offers "with tags" / "without tags" (#2005,
+ * D-20260923-sched-4), one without tags a single "Duplicate". The pane only
+ * draws what it is handed and hands the id back.
+ */
+export interface EventEditorDuplicate {
+  entries: ReadonlyArray<{
+    /** Stable React key, e.g. "withTags". */
+    key: string;
+    /** Already-translated. */
+    label: string;
+    onDuplicate: (id: string) => void;
+  }>;
+}
+
 export interface EventEditorPaneProps {
   item: EventEditorItem;
   labels: EventEditorLabels;
@@ -308,6 +328,8 @@ export interface EventEditorPaneProps {
   workTime?: EventEditorWorkTime;
   /** Event → Todo entry (#998). Omit to render no conversion action. */
   convert?: EventEditorConvert;
+  /** Duplicate entries (#2031). Omit to render none. */
+  duplicate?: EventEditorDuplicate;
   /**
    * Tag affordance for this row (#468). Injected rather than built here: the
    * tag layer talks to WikiTagsUnifiedContext, and this pane is pure
@@ -497,6 +519,7 @@ function EventEditorFields({
   reminder,
   workTime,
   convert,
+  duplicate,
   tagSlot,
   stickyFooter,
 }: Omit<EventEditorPaneProps, "className">) {
@@ -894,6 +917,27 @@ function EventEditorFields({
 
           Never disabled on a routine occurrence — the host answers with the
           reason instead (D-20260810-sched-5). */}
+      {/* #2031: Duplicate, in the same column as the convert and delete
+          actions below — the narrow sheet is the only place a phone can
+          reach it (the Desktop bubble is not drawn on that width). Two
+          entries sit side by side when the event has tags (#2005). The
+          44px floor is narrow-only: the pane also renders in the Desktop
+          overlay, whose buttons keep their size. */}
+      {duplicate && duplicate.entries.length > 0 && (
+        <div className="flex gap-2">
+          {duplicate.entries.map((entry) => (
+            <button
+              key={entry.key}
+              type="button"
+              onClick={() => entry.onDuplicate(item.id)}
+              className={cn(SECONDARY_BTN, "flex-1 max-md:min-h-11")}
+            >
+              {entry.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       {convert && (
         <button
           type="button"

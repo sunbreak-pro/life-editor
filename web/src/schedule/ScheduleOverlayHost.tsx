@@ -21,6 +21,7 @@ import { ScheduleEventEditor } from "./ScheduleEventEditor";
 import { useEditorCloseGuard } from "./useEditorCloseGuard";
 import { useScheduleRoleLabels } from "./scheduleRoleLabels";
 import { selectionSurface } from "./scheduleSelectionSurface";
+import type { DuplicateOptions } from "./useScheduleMutations";
 
 /*
  * The Calendar's overlay layer, assembled once for both layouts (#889).
@@ -93,6 +94,14 @@ export interface ScheduleOverlayHostProps {
      * asked here, on the variant that keeps the pending flag (#998).
      */
     onConvertToTodo: (id: string) => void;
+    /**
+     * #2031: Duplicate, for the narrow sheet (Desktop has the bubble). The
+     * same handler the bubble calls; the unsaved-draft question in front of
+     * it is asked here.
+     */
+    onDuplicate: (id: string, options?: DuplicateOptions) => void;
+    /** How many tags the selection shows — see ScheduleEventEditor (#2005). */
+    duplicateTagCount: number;
   };
   /** Straight through to <ScheduleTodoDetail>; only the width is ours. */
   todoDetail: Omit<ScheduleTodoDetailProps, "isWide">;
@@ -155,6 +164,19 @@ export function ScheduleOverlayHost({
           if (discarded) editor.onConvertToTodo(id);
         });
       }}
+      // #2031: narrow only — Desktop duplicates from the bubble, which is
+      // not drawn on this width. The copy takes the selection, and on narrow
+      // the selection IS the sheet, so the pane moves on to the copy: a
+      // pending draft of the source would go with it. `requestClose` asks
+      // first and clears the flag on a discard, the way closing does.
+      onDuplicate={
+        isWide
+          ? undefined
+          : (id, options) => {
+              void requestClose(() => editor.onDuplicate(id, options));
+            }
+      }
+      duplicateTagCount={editor.duplicateTagCount}
     />
   );
 

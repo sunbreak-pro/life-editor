@@ -173,6 +173,66 @@ describe("EventEditorPane — Event -> Todo entry (#998)", () => {
   });
 });
 
+/*
+ * #2031: the narrow sheet's Duplicate. The host decides how many entries
+ * there are (two when the event has tags — #2005); the pane draws each and
+ * hands the id back.
+ */
+describe("EventEditorPane — Duplicate entries (#2031)", () => {
+  function renderWithDuplicate(
+    entries: Array<{ key: string; label: string }> | null,
+  ) {
+    const calls: Array<[string, string]> = [];
+    render(
+      <EventEditorPane
+        item={manualItem}
+        labels={LABELS}
+        handlers={{ onSave: vi.fn() }}
+        duplicate={
+          entries
+            ? {
+                entries: entries.map((e) => ({
+                  ...e,
+                  onDuplicate: (id: string) => calls.push([e.key, id]),
+                })),
+              }
+            : undefined
+        }
+      />,
+    );
+    return calls;
+  }
+
+  it("draws one button per entry and hands the id to the one pressed", () => {
+    const calls = renderWithDuplicate([
+      { key: "withTags", label: "Duplicate with tags" },
+      { key: "withoutTags", label: "Duplicate without tags" },
+    ]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Duplicate without tags" }),
+    );
+    expect(calls).toEqual([["withoutTags", "m1"]]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Duplicate with tags" }),
+    );
+    expect(calls).toEqual([
+      ["withoutTags", "m1"],
+      ["withTags", "m1"],
+    ]);
+  });
+
+  it("lifts the buttons to the 44px floor on narrow only", () => {
+    renderWithDuplicate([{ key: "duplicate", label: "Duplicate" }]);
+    const button = screen.getByRole("button", { name: "Duplicate" });
+    expect(button.className).toContain("max-md:min-h-11");
+  });
+
+  it("renders nothing without the bundle — Desktop keeps its bubble", () => {
+    renderWithDuplicate(null);
+    expect(screen.queryByRole("button", { name: /Duplicate/ })).toBeNull();
+  });
+});
+
 describe("EventEditorPane — save button is the only commit (#628)", () => {
   it("starts clean: the button is disabled and says so", () => {
     renderPane(manualItem);

@@ -1030,6 +1030,10 @@ export function CalendarTab({
           onDetach: handleDetachRepeat,
         },
         onConvertToTodo: handleConvertToTodo,
+        // #2031: the narrow sheet's Duplicate — the bubble's handler, and
+        // the same tag choice (#2005).
+        onDuplicate: handleDuplicate,
+        duplicateTagCount: selected ? tagCountOf(selected) : 0,
       }}
       todoDetail={{
         todoId: todoDetailId,
