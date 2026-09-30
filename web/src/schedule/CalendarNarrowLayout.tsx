@@ -1,10 +1,13 @@
 import { useCallback, type ReactNode } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import {
+  HORIZONTAL_SWIPE_TOUCH_CLASS,
   MonthGrid,
   ScheduleBodyFold,
   TOUR_ANCHORS,
+  cn,
   tourAnchor,
+  useHorizontalSwipe,
   useTranslation,
   type MonthGridItem,
   type ScheduleLoadState,
@@ -43,6 +46,14 @@ import type { ScheduleCopy } from "./scheduleCopy";
  *
  * The steppers page by MONTHS (`effView` is "month" on narrow), so a far-off
  * day is two taps rather than the day-at-a-time walk #467 accepted.
+ *
+ * #2034: the month also pages by SWIPE — left for the next month, right for
+ * the previous one — through the very same `onNext` / `onPrev` the steppers
+ * call, so a swipe lands exactly where a press does. Only the grid's scroller
+ * listens (the heading row keeps the browser's defaults), a vertical drag
+ * stays a scroll, a tap stays a day tap, and a press that starts at the left
+ * screen edge is left to the drawer's edge swipe (#1050) — the rule and its
+ * reasons are in useHorizontalSwipe.
  *
  * CREATION left with the list. #1034 had put the "+" pill in the day list's
  * header (retiring #632's floating FAB) on the argument that a create button
@@ -134,6 +145,13 @@ export function CalendarNarrowLayout({
     (n: number) => t("scheduleScreen.moreCount", { count: n }),
     [t],
   );
+
+  // #2034: finger left = the next month, finger right = the previous one —
+  // the page follows the finger, as it does in every phone calendar.
+  const swipe = useHorizontalSwipe({
+    onSwipeLeft: header.onNext,
+    onSwipeRight: header.onPrev,
+  });
 
   return (
     /*
@@ -230,7 +248,11 @@ export function CalendarNarrowLayout({
               grid is where a created event is found again on this width. */}
           <div
             {...tourAnchor(TOUR_ANCHORS.scheduleCalendar)}
-            className="min-h-0 flex-1 overflow-y-auto pb-3 pt-3"
+            {...swipe}
+            className={cn(
+              "min-h-0 flex-1 overflow-y-auto pb-3 pt-3",
+              HORIZONTAL_SWIPE_TOUCH_CLASS,
+            )}
           >
             <MonthGrid
               compact

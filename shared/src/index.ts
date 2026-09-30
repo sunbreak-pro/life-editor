@@ -383,6 +383,14 @@ export {
   type SwipeToDismissOptions,
   type SwipeDismissDirection,
 } from "./hooks/useSwipeToDismiss";
+// #2034 — swipe left / right to page a surface (the Mobile month calendar).
+// Same grammar as the two above; the left screen edge stays the drawer's.
+export {
+  useHorizontalSwipe,
+  HORIZONTAL_SWIPE_TOUCH_CLASS,
+  type HorizontalSwipeOptions,
+  type HorizontalSwipeHandlers,
+} from "./hooks/useHorizontalSwipe";
 // #1049 — "first time shown?", the gate behind the section entrance animation.
 export { useFirstAppearance } from "./hooks/useFirstAppearance";
 
