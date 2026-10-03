@@ -96,6 +96,11 @@ export const ROUTINE_TOOLS: ToolDefinition[] = [
           description:
             'First day of an "interval" routine (YYYY-MM-DD, default today). "interval" only.',
         },
+        frequency_end_date: {
+          type: "string",
+          description:
+            "Last day of the series, inclusive (YYYY-MM-DD). Any frequency type. Omit for no end. Must not be before the series starts (today, or frequency_start_date for interval).",
+        },
         start_time: {
           type: "string",
           description:

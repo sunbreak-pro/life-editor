@@ -19,6 +19,12 @@ export interface RoutineNode {
   frequencyDays: number[]; // [0=Sun, 1=Mon, ..., 6=Sat]
   frequencyInterval: number | null;
   frequencyStartDate: string | null; // "YYYY-MM-DD"
+  /**
+   * Last day of the series, inclusive ("YYYY-MM-DD", #2082). null / absent =
+   * no end. Optional so a node built before the column existed (fixtures,
+   * optimistic seeds) still reads as "no end".
+   */
+  frequencyEndDate?: string | null;
   reminderEnabled?: boolean;
   reminderOffset?: number;
   createdAt: string;

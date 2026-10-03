@@ -272,7 +272,20 @@ describe("useScheduleRepeats — the selected occurrence's frequency", () => {
       frequencyDays: [1, 3],
       frequencyInterval: null,
       frequencyStartDate: null,
+      // #2082: a routine with no end reads as null, so the editor's
+      // "unchanged?" comparison sees the same value on both sides.
+      frequencyEndDate: null,
     });
+  });
+
+  it("carries the series' end date into the editor (#2082)", () => {
+    const { hook } = setup({
+      routines: [routine("routine-1", { frequencyEndDate: "2026-12-31" })],
+      selected: item("occurrence", { routineId: "routine-1" }),
+    });
+    expect(hook.result.current.repeatValue?.frequencyEndDate).toBe(
+      "2026-12-31",
+    );
   });
 });
 

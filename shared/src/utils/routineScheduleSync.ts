@@ -92,8 +92,9 @@ export function diffRoutineScheduleItems(
 
 /**
  * Check whether a routine should produce a schedule item for a given date.
- * A deleted / archived / hidden routine never fires; otherwise the answer
- * comes from the routine's own frequency settings.
+ * A deleted / archived / hidden routine never fires, and nothing fires after
+ * the series' end date (#2082); otherwise the answer comes from the routine's
+ * own frequency settings.
  */
 export function shouldCreateRoutineItem(
   routine: RoutineNode,
@@ -101,6 +102,9 @@ export function shouldCreateRoutineItem(
 ): boolean {
   if (routine.isDeleted) return false;
   if (routine.isArchived || !routine.isVisible) return false;
+  // #2082: the series' last day, inclusive. Date keys compare as strings.
+  if (routine.frequencyEndDate && dateKey > routine.frequencyEndDate)
+    return false;
 
   return shouldRoutineRunOnDate(
     routine.frequencyType,

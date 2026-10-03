@@ -288,6 +288,8 @@ export interface RoutinesDataService {
     frequencyStartDate?: string | null,
     reminderEnabled?: boolean,
     reminderOffset?: number,
+    /** #2082: last day of the series, inclusive. Omitted = no end. */
+    frequencyEndDate?: string | null,
   ): Promise<RoutineNode>;
   updateRoutine(
     id: string,
@@ -304,6 +306,7 @@ export interface RoutinesDataService {
         | "frequencyDays"
         | "frequencyInterval"
         | "frequencyStartDate"
+        | "frequencyEndDate"
         | "reminderEnabled"
         | "reminderOffset"
       >
@@ -371,6 +374,8 @@ export interface RoutinesDataService {
       frequencyDays?: number[];
       frequencyInterval?: number | null;
       frequencyStartDate?: string | null;
+      /** #2082: last day of the series, inclusive. Absent / null = no end. */
+      frequencyEndDate?: string | null;
       /** The seed event's date key — becomes events_payload.source_date so
        *  the (routine, source_date) partial UNIQUE treats the converted seed
        *  as that day's occurrence. */

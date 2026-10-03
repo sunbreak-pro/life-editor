@@ -613,6 +613,32 @@ describe("turning a repeat on", () => {
     );
   });
 
+  // #2082: the end date is drafted in the same press as the rhythm, so it has
+  // to ride the conversion — and reach the materialiser, which is what keeps
+  // the visible range from being filled past the end.
+  it("carries an end date picked in the same press", async () => {
+    const h = renderRepeat({ selected: occurrence({ routineId: null }) });
+    act(() =>
+      h.hook.result.current.handleChangeRepeat({
+        frequencyType: "daily",
+        frequencyEndDate: "2026-12-31",
+      }),
+    );
+    await waitFor(() => expect(h.convertEventToRoutine).toHaveBeenCalled());
+    expect(h.convertEventToRoutine).toHaveBeenCalledWith(
+      "occ-1",
+      expect.objectContaining({ frequencyEndDate: "2026-12-31" }),
+    );
+    await waitFor(() =>
+      expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalled(),
+    );
+    expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalledWith(
+      TODAY,
+      RANGE_END,
+      [expect.objectContaining({ frequencyEndDate: "2026-12-31" })],
+    );
+  });
+
   it("says so when the conversion did not land", async () => {
     const h = renderRepeat({ selected: occurrence({ routineId: null }) });
     h.convertEventToRoutine.mockRejectedValueOnce(new Error("refused"));
