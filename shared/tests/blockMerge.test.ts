@@ -108,6 +108,17 @@ describe("sameDocContent", () => {
     expect(sameDocContent("", doc({ type: "paragraph" }))).toBe(true);
   });
 
+  it("counts an empty paragraph inside a body as content", () => {
+    // MCP's converter adds and removes these; ignoring them would read its
+    // write as "nothing changed" and let the next save erase it.
+    expect(
+      sameDocContent(
+        doc(p("a"), { type: "paragraph" }, p("b")),
+        doc(p("a"), p("b")),
+      ),
+    ).toBe(false);
+  });
+
   it("tells a ticked box from an unticked one", () => {
     expect(sameDocContent(doc(task("x", false)), doc(task("x", true)))).toBe(
       false,

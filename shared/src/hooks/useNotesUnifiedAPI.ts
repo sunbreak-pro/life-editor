@@ -543,22 +543,76 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
         id,
         ds.saveNoteBodyUnified(id, content, expectedUpdatedAt),
       )) as NoteBodySaveResult;
+      // Only a LANDED save names a version for the body in `notes`. A refused
+      // one leaves the user's text there (it is on screen, unsaved), and
+      // pairing it with the other side's version would let a later open save
+      // that text against it as if it had seen the other side's write.
       if (result.status === "saved") rememberStamp(id, result.updatedAt);
-      if (result.status === "conflict")
-        rememberStamp(id, result.current.updatedAt);
       return result;
     },
     [ds, writesSettled, markHydrated, markLocalWrite, trackWrite, rememberStamp],
   );
 
-  /** #2057 — the body and version stored now, for an open editor's check. */
+  /*
+   * #2057 — the body and version stored now, for an open editor's check.
+   * Waits for this note's writes in flight first: a read taken between the
+   * two halves of a write, or before a create's INSERT, would report a body
+   * that is about to change as the server's.
+   */
   const fetchNoteBodySnapshot = useCallback(
     async (id: string): Promise<NoteBodySnapshot | null> => {
+      await writesSettled(id);
       const snapshot = await ds.getNoteBodySnapshotUnified(id);
       if (snapshot) rememberStamp(id, snapshot.updatedAt);
       return snapshot;
     },
-    [ds, rememberStamp],
+    [ds, writesSettled, rememberStamp],
+  );
+
+  /*
+   * #2057 — replace a body wholesale, on purpose (a template apply, #1181).
+   * The user agreed to throw the old body away, so this is not a conflict to
+   * ask about; it still goes through the version-checked save, against the
+   * version it reads first, so it is one atomic write like every other body
+   * save and cannot interleave with an open editor's own.
+   *
+   * `notes` takes the new body synchronously — the host remounts the editor
+   * right after, and the new editor opens on what is here. The whole run is
+   * ONE tracked write, so that editor's first check against the server waits
+   * for it instead of reading the old body back.
+   */
+  const replaceNoteBody = useCallback(
+    (id: string, content: string): Promise<boolean> => {
+      markHydrated(id);
+      markLocalWrite(id);
+      const now = new Date().toISOString();
+      setNotes((prev) =>
+        prev.map((n) => (n.id === id ? { ...n, content, updatedAt: now } : n)),
+      );
+      const run = (async () => {
+        await writesSettled(id);
+        for (let attempt = 0; attempt < 3; attempt++) {
+          const snapshot = await ds.getNoteBodySnapshotUnified(id);
+          if (!snapshot) return false;
+          const result = await ds.saveNoteBodyUnified(
+            id,
+            content,
+            snapshot.updatedAt,
+          );
+          if (result.status === "saved") {
+            rememberStamp(id, result.updatedAt);
+            return true;
+          }
+          if (result.status === "missing") return false;
+        }
+        return false;
+      })();
+      void trackWrite(id, run).catch((e) =>
+        logServiceError("Notes", "replaceNoteBody", e),
+      );
+      return run;
+    },
+    [ds, markHydrated, markLocalWrite, writesSettled, trackWrite, rememberStamp],
   );
 
   /*
@@ -655,6 +709,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       toggleEditLock,
       saveNoteBody,
       fetchNoteBodySnapshot,
+      replaceNoteBody,
       adoptNoteBody,
       serverStampOf,
     }),
@@ -694,6 +749,7 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       toggleEditLock,
       saveNoteBody,
       fetchNoteBodySnapshot,
+      replaceNoteBody,
       adoptNoteBody,
       serverStampOf,
     ],

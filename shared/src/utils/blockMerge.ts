@@ -108,11 +108,17 @@ export function blockKey(value: unknown): string {
  * whatever their spelling — "" (never written) and a doc of empty paragraphs
  * are the same note to the person reading it, and calling them different
  * would raise a conflict over nothing.
+ *
+ * ONLY a wholly blank body gets that allowance. An empty paragraph inside a
+ * body with text is content like any other block: the converter behind MCP
+ * `update_note` adds and removes them, and treating them as noise would read
+ * such a write as "nothing changed" and let the next save erase it.
  */
 export function sameDocContent(a: string, b: string): boolean {
   if (a === b) return true;
-  const ka = docBlocks(a).filter((blk) => !isBlankBlock(blk));
-  const kb = docBlocks(b).filter((blk) => !isBlankBlock(blk));
+  const ka = docBlocks(a);
+  const kb = docBlocks(b);
+  if (ka.every(isBlankBlock) && kb.every(isBlankBlock)) return true;
   if (ka.length !== kb.length) return false;
   return ka.every((blk, i) => blockKey(blk) === blockKey(kb[i]));
 }

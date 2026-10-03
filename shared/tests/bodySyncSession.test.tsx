@@ -42,7 +42,11 @@ interface Harness {
   onSaved: ReturnType<typeof vi.fn<(content: string) => void>>;
 }
 
-function setup(initial = doc("a", "b")) {
+/**
+ * `onServer` answers the read made when the session opens (it checks the
+ * opened body against the server once); absent = no such read result.
+ */
+function setup(initial = doc("a", "b"), onServer: BodyRemote | null = null) {
   const h: Harness = {
     save: vi.fn<
       (content: string, expected: string | null) => Promise<BodySaveOutcome>
@@ -50,7 +54,7 @@ function setup(initial = doc("a", "b")) {
       status: "saved" as const,
       updatedAt: V2,
     })),
-    fetchCurrent: vi.fn<() => Promise<BodyRemote | null>>(async () => null),
+    fetchCurrent: vi.fn<() => Promise<BodyRemote | null>>(async () => onServer),
     editor: { body: initial },
     onAdopted: vi.fn<(content: string) => void>(),
     onSaved: vi.fn<(content: string) => void>(),
@@ -112,8 +116,31 @@ describe("NOTE-SYNC-1 / -2 — writes from elsewhere", () => {
     await waitFor(() =>
       expect(view.result.current.replacement?.content).toBe(doc("a", "B")),
     );
+    // The base moves only once the editor reports the body applied.
+    expect(h.onAdopted).not.toHaveBeenCalled();
+    act(() => view.result.current.replacement?.onSettled(true));
     expect(h.onAdopted).toHaveBeenCalledWith(doc("a", "B"));
     expect(view.result.current.conflict).toBeNull();
+  });
+
+  it("turns into a conflict when the editor reports typing in between", async () => {
+    const { h, view } = setup();
+    h.fetchCurrent.mockResolvedValue({ content: doc("a", "B"), updatedAt: V1 });
+    view.rerender({ remote: V1 });
+    await waitFor(() => expect(view.result.current.replacement).not.toBeNull());
+
+    // An IME composition committed text before the editor could apply it.
+    h.editor.body = doc("a", "b", "typed");
+    act(() => view.result.current.markDirty());
+    expect(view.result.current.replacement?.canApply()).toBe(false);
+    act(() => view.result.current.replacement?.onSettled(false));
+
+    expect(view.result.current.conflict?.mine).toBe(doc("a", "b", "typed"));
+    expect(h.onAdopted).not.toHaveBeenCalled();
+    // The typing is saved against nothing until the user chooses.
+    act(() => view.result.current.commit(doc("a", "b", "typed")));
+    await act(async () => {});
+    expect(h.save).not.toHaveBeenCalled();
   });
 
   it("does not read the server back for its own save's echo", async () => {
@@ -121,11 +148,13 @@ describe("NOTE-SYNC-1 / -2 — writes from elsewhere", () => {
     act(() => view.result.current.commit(doc("a", "b", "c")));
     await waitFor(() => expect(h.onSaved).toHaveBeenCalled());
 
+    // The one read is the check made on open.
+    const readsBefore = h.fetchCurrent.mock.calls.length;
     // The list reload after our save carries the version our save returned.
     view.rerender({ remote: V2 });
 
     await act(async () => {});
-    expect(h.fetchCurrent).not.toHaveBeenCalled();
+    expect(h.fetchCurrent.mock.calls.length).toBe(readsBefore);
     expect(view.result.current.replacement).toBeNull();
   });
 
@@ -209,6 +238,56 @@ describe("NOTE-SYNC-4 — a refused save", () => {
 
     await waitFor(() => expect(view.result.current.conflict).not.toBeNull());
     expect(view.result.current.conflict?.mine).toBe(doc("a", "typed"));
+    expect(view.result.current.replacement).toBeNull();
+  });
+});
+
+describe("a read that predates our own save", () => {
+  it("is dropped, not mistaken for a write from elsewhere", async () => {
+    const { h, view } = setup(doc("a"));
+    await waitFor(() => expect(h.fetchCurrent).toHaveBeenCalledTimes(1));
+    // A late list reload announces an OLD version; its read is slow.
+    let answer: (v: BodyRemote | null) => void = () => {};
+    h.fetchCurrent.mockImplementationOnce(
+      () => new Promise((resolve) => (answer = resolve)),
+    );
+    view.rerender({ remote: V1 });
+    await waitFor(() => expect(h.fetchCurrent).toHaveBeenCalledTimes(2));
+
+    // Our next save lands while that read is still out.
+    act(() => view.result.current.commit(doc("a", "typed")));
+    await waitFor(() => expect(h.onSaved).toHaveBeenCalled());
+
+    // The read finally answers with our own older body.
+    await act(async () => answer({ content: doc("a"), updatedAt: V1 }));
+
+    expect(view.result.current.replacement).toBeNull();
+    expect(view.result.current.conflict).toBeNull();
+  });
+});
+
+describe("opening a body whose version does not belong to it", () => {
+  it("asks instead of saving it against that version", async () => {
+    // Same version as the opened one, different body: the pair was broken by
+    // a save that never landed.
+    const { view } = setup(doc("unsaved mine"), {
+      content: doc("theirs"),
+      updatedAt: V0,
+    });
+    await waitFor(() => expect(view.result.current.conflict).not.toBeNull());
+    // No common base: "keep both" keeps every block of each side.
+    act(() => view.result.current.resolve("both"));
+    expect(texts(view.result.current.replacement?.content ?? "")).toEqual([
+      "unsaved mine",
+      "theirs",
+    ]);
+  });
+
+  it("stays quiet when the opened body is the server's", async () => {
+    const { h, view } = setup(doc("a"), { content: doc("a"), updatedAt: V0 });
+    await waitFor(() => expect(h.fetchCurrent).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(view.result.current.conflict).toBeNull();
     expect(view.result.current.replacement).toBeNull();
   });
 });

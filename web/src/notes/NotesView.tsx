@@ -453,15 +453,17 @@ export function NotesView({
 
   // #1181: the confirmed apply. Body only — the note keeps its own title, and
   // the epoch bump is what makes the editor show the new body (see above).
-  const updateNote = notes.updateNote;
+  // #2057: through the version-checked save, so the replace is one atomic
+  // write and the remounted editor's first check waits for it.
+  const replaceNoteBody = notes.replaceNoteBody;
   const applyPending = templateApply.pending;
   const closeApply = templateApply.close;
   const handleApplyTemplate = useCallback(() => {
     if (!selected || !applyPending) return;
-    updateNote(selected.id, { content: applyPending.content });
+    void replaceNoteBody(selected.id, applyPending.content);
     setBodyEpoch((n) => n + 1);
     closeApply();
-  }, [applyPending, closeApply, selected, updateNote]);
+  }, [applyPending, closeApply, selected, replaceNoteBody]);
 
   /*
    * #1248: deleting a saved template asks first.

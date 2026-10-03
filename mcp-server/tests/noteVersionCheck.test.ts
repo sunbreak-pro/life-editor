@@ -128,6 +128,40 @@ describe("update_note expected_updated_at", () => {
     expect(rpcCalls(stub)).toHaveLength(1);
   });
 
+  it("tells versions a microsecond apart apart", async () => {
+    stub = createSupabaseStub(rows());
+
+    await expect(
+      updateNote({
+        id: "note-1",
+        content: "new",
+        expected_updated_at: "2026-10-01T09:09:00.123999+00:00",
+      }),
+    ).rejects.toThrow(/changed after you read it/);
+    expect(stub.writes()).toHaveLength(0);
+  });
+
+  it("succeeds on the retry the error asks for", async () => {
+    const saved: RpcAnswer = () => ({
+      data: [{ saved: true, updated_at: "2026-10-01T09:12:00+00:00" }],
+    });
+    stub = createSupabaseStub(rows(), saved);
+    const stale = updateNote({
+      id: "note-1",
+      content: "new",
+      expected_updated_at: "2026-10-01T08:00:00Z",
+    });
+    await expect(stale).rejects.toThrow(/get_note/);
+
+    // get_note returns the stored version; passing it back goes through.
+    await updateNote({
+      id: "note-1",
+      content: "new",
+      expected_updated_at: STORED,
+    });
+    expect(rpcCalls(stub)).toHaveLength(1);
+  });
+
   it("checks a pin-only call too, so a stale call changes nothing", async () => {
     stub = createSupabaseStub(rows());
 

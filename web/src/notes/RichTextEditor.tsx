@@ -238,10 +238,18 @@ interface RichTextEditorBaseProps {
    * note was written by MCP or another device while it was open. Applied once
    * per `seq`, as a minimal block-level change that keeps the caret and the
    * Undo history and never reports itself as an edit (see replaceDocument).
-   * Any keystrokes still waiting on the save debounce are dropped: the host
-   * only sends this when there are none, or after the user chose a body.
+   * Unforced, it is re-checked when it would apply: if anything was typed
+   * since the host decided (`canApply` false, or keystrokes waiting on the
+   * save debounce), it is NOT applied and `onSettled(false)` says so. Forced
+   * (`force`), it applies and drops those keystrokes.
    */
-  replaceContent?: { content: string; seq: number } | null;
+  replaceContent?: {
+    content: string;
+    seq: number;
+    force?: boolean;
+    canApply?: () => boolean;
+    onSettled?: (applied: boolean) => void;
+  } | null;
   /**
    * Filled with a reader for the editor's current body — keystrokes inside
    * the debounce window included (#2057). A host settling a conflict needs
@@ -612,20 +620,44 @@ export function RichTextEditor({
     };
   }, [editor, contentReaderRef]);
 
-  // #2057 — a body from elsewhere. Held while an IME composition is open: a
-  // transaction under a composition cuts the candidate the user is choosing.
+  /*
+   * #2057 — a body from elsewhere. Held while an IME composition is open: a
+   * transaction under a composition cuts the candidate the user is choosing.
+   *
+   * The host decided to send it when nothing was pending, but that decision
+   * is only true for the moment it was made. Typing can land in between — the
+   * composition that was open is the common case, since committing it IS a
+   * document change — and applying anyway would replace the user's text and
+   * leave the save debounce writing a body built on the old version. So an
+   * unforced replacement re-checks at the moment it would apply and, if
+   * anything was typed, reports back instead (`onSettled(false)`); the host
+   * turns that into a conflict. A forced one (the user picked a body) applies
+   * and drops the pending keystrokes, which the host has already read.
+   */
   const appliedSeqRef = useRef(0);
   useEffect(() => {
     if (!editor || !replaceContent) return;
     if (replaceContent.seq === appliedSeqRef.current) return;
     appliedSeqRef.current = replaceContent.seq;
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
-    latestContentRef.current = null;
+    const { content, force = false, canApply, onSettled } = replaceContent;
     const apply = () => {
-      if (!editor.isDestroyed) replaceDocument(editor, replaceContent.content);
+      if (editor.isDestroyed) {
+        onSettled?.(false);
+        return;
+      }
+      const typedSince =
+        latestContentRef.current !== null || (canApply ? !canApply() : false);
+      if (!force && typedSince) {
+        onSettled?.(false);
+        return;
+      }
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+      latestContentRef.current = null;
+      replaceDocument(editor, content);
+      onSettled?.(true);
     };
     if (!editor.view.composing) {
       apply();

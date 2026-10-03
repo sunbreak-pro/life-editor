@@ -380,19 +380,28 @@ export async function updateNote(args: {
   return formatNote(meta, payload);
 }
 
-/** Two `updated_at` spellings of the same instant (Z vs +00:00, 3 vs 6 digits). */
-function sameInstant(a: string, b: string): boolean {
+const STAMP_FRACTION = /\.(\d+)/;
+
+/** Microseconds since the epoch — all six fractional digits kept. */
+function stampMicros(stamp: string): number | null {
+  const match = STAMP_FRACTION.exec(stamp);
+  const digits = (match?.[1] ?? "").padEnd(6, "0").slice(0, 6);
+  // Date.parse is only trusted with milliseconds; the rest is added by hand.
+  const millis = Date.parse(
+    match ? stamp.replace(STAMP_FRACTION, `.${digits.slice(0, 3)}`) : stamp,
+  );
+  return Number.isNaN(millis) ? null : millis * 1000 + Number(digits.slice(3));
+}
+
+/**
+ * Two `updated_at` spellings of the same instant (Z vs +00:00, 3 vs 6
+ * digits). Same rule as shared/src/utils/updatedAtStamp.ts (this package
+ * cannot import it — see utils/content.ts on the package boundary).
+ */
+export function sameInstant(a: string, b: string): boolean {
   if (a === b) return true;
-  const micros = (stamp: string): number | null => {
-    const match = /.(d+)/.exec(stamp);
-    const digits = (match?.[1] ?? "").padEnd(6, "0").slice(0, 6);
-    const millis = Date.parse(
-      match ? stamp.replace(/.(d+)/, `.${digits.slice(0, 3)}`) : stamp,
-    );
-    return Number.isNaN(millis) ? null : millis * 1000 + Number(digits.slice(3));
-  };
-  const ma = micros(a);
-  return ma !== null && ma === micros(b);
+  const ma = stampMicros(a);
+  return ma !== null && ma === stampMicros(b);
 }
 
 export async function deleteNote(args: { id: string }) {

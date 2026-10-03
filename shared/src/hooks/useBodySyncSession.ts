@@ -25,6 +25,11 @@ import {
  *    the new version without bothering anyone.
  *  - The server's version moving while nothing is pending (nothing typed since
  *    the last save landed) replaces the editor's body with the new one (D-1).
+ *    The base only moves once the editor reports the replacement APPLIED: the
+ *    editor re-checks at that moment, and typing that landed in between (an
+ *    IME composition being committed, typically) turns it into a conflict
+ *    instead of being overwritten — or, worse, being saved on top of a base
+ *    that already claims the other side's version.
  *    Our own save's echo is told apart by version: the save's answer already
  *    moved our base to the version the echo carries (NOTE-SYNC-2).
  *  - The server's version moving while something IS pending — or a refused
@@ -32,6 +37,10 @@ import {
  *    the host shows the choice: keep mine / take theirs / keep both (D-2).
  *  - A conflict still open when the editor goes away (the user switched notes)
  *    is settled as "keep both", so neither side's text is lost.
+ *  - On open, the body is checked against the server once. The host's body and
+ *    version are two separate memories, and a save that never landed can leave
+ *    them describing different writes; saving against that pair would pass
+ *    the check while replacing a body nobody here has seen.
  *
  * Generic on purpose (NOTE-SYNC-6): nothing here knows about notes. The
  * host supplies how to save, how to read the current version, and how to read
@@ -68,10 +77,17 @@ export interface BodyConflict {
   merge: BlockMergeResult;
 }
 
-/** A body the editor should switch to, keyed by `seq` so a repeat applies. */
+/**
+ * A body the editor should switch to, keyed by `seq` so a repeat applies.
+ * Unforced = "only if nothing was typed since": the editor asks `canApply`
+ * at the moment it would apply and reports the outcome through `onSettled`.
+ */
 export interface BodyReplacement {
   content: string;
   seq: number;
+  force: boolean;
+  canApply: () => boolean;
+  onSettled: (applied: boolean) => void;
 }
 
 export type BodyConflictChoice = "mine" | "theirs" | "both";
@@ -140,6 +156,12 @@ export function useBodySyncSession(
    */
   const remoteNewsRef = useRef(false);
   const checkGenRef = useRef(0);
+  /** Bumped whenever the base moves on our side; a stale read is dropped. */
+  const baseGenRef = useRef(0);
+  /** An unforced replacement is out with the editor, not yet settled. */
+  const replacingRef = useRef(false);
+  /** The one-time check of the opened body against the server. */
+  const mountCheckRef = useRef(true);
   const seqRef = useRef(0);
   const disposedRef = useRef(false);
   /** The conflict settled as "both" on the way out; see `commit`. */
@@ -153,10 +175,22 @@ export function useBodySyncSession(
     savingRef.current > 0 ||
     pendingRef.current !== null;
 
-  const replaceEditor = (content: string) => {
+  const replaceEditor = (
+    content: string,
+    unforced?: {
+      canApply: () => boolean;
+      onSettled: (applied: boolean) => void;
+    },
+  ) => {
     if (disposedRef.current) return;
     seqRef.current += 1;
-    setReplacement({ content, seq: seqRef.current });
+    setReplacement({
+      content,
+      seq: seqRef.current,
+      force: unforced === undefined,
+      canApply: unforced?.canApply ?? (() => true),
+      onSettled: unforced?.onSettled ?? (() => {}),
+    });
   };
 
   const reportError = (e: unknown) => optionsRef.current.onError?.(e);
@@ -216,6 +250,7 @@ export function useBodySyncSession(
 
     landed(content: string, updatedAt: string, rev: number) {
       baseRef.current = { content, updatedAt };
+      baseGenRef.current += 1;
       if (dirtyRevRef.current === rev) cleanRevRef.current = rev;
       if (pendingRef.current === content) pendingRef.current = null;
       optionsRef.current.onSaved?.(content);
@@ -253,11 +288,16 @@ export function useBodySyncSession(
         content: open.theirs.content,
         updatedAt: open.theirs.updatedAt,
       };
+      baseGenRef.current += 1;
+      // Anything newer that arrived while the banner was up is looked at
+      // once this choice has settled (a save's `finally`, or right away).
+      remoteNewsRef.current = true;
       if (choice === "theirs") {
         pendingRef.current = null;
         cleanRevRef.current = dirtyRevRef.current;
         replaceEditor(open.theirs.content);
         optionsRef.current.onAdopted?.(open.theirs.content);
+        ops.current.checkRemote();
         return;
       }
       if (choice === "mine") {
@@ -295,37 +335,77 @@ export function useBodySyncSession(
     },
 
     checkRemote() {
-      if (!remoteNewsRef.current || disposedRef.current) return;
-      // Held, not dropped, while a save is out: its answer moves the base,
-      // and the news is judged against that.
-      if (savingRef.current > 0 || conflictRef.current) return;
+      const mountCheck = mountCheckRef.current;
+      if (!mountCheck && !remoteNewsRef.current) return;
+      if (disposedRef.current) return;
+      // Held, not dropped, while a save or a replacement is out: its outcome
+      // moves the base, and the news is judged against that.
+      if (savingRef.current > 0 || conflictRef.current || replacingRef.current)
+        return;
       remoteNewsRef.current = false;
+      mountCheckRef.current = false;
       const remote = remoteRef.current;
-      if (remote === null) return;
-      if (stampsEqual(remote, baseRef.current.updatedAt)) return;
+      if (!mountCheck) {
+        if (remote === null) return;
+        if (stampsEqual(remote, baseRef.current.updatedAt)) return;
+      }
       const gen = ++checkGenRef.current;
+      const baseGen = baseGenRef.current;
       void optionsRef.current
         .fetchCurrent()
         .then((current) => {
           if (gen !== checkGenRef.current || disposedRef.current) return;
           if (current === null) return;
+          // A save landed while this read was out: the read may predate it,
+          // and our own older body would pass for a write from elsewhere.
+          if (baseGenRef.current !== baseGen) return;
           // A save started meanwhile; its own answer settles the version.
           if (savingRef.current > 0 || conflictRef.current) return;
-          if (stampsEqual(current.updatedAt, baseRef.current.updatedAt)) return;
-          if (sameDocContent(current.content, baseRef.current.content)) {
+          const base = baseRef.current;
+          const sameBody = sameDocContent(current.content, base.content);
+          if (stampsEqual(current.updatedAt, base.updatedAt)) {
+            if (sameBody || !mountCheck) return;
+            // Same version, different body: the opened pair does not belong
+            // together (see the header). There is no common base to merge
+            // from, so "keep both" keeps every block of each side.
+            baseRef.current = { content: "", updatedAt: base.updatedAt };
+            ops.current.enterConflict(current);
+            return;
+          }
+          if (sameBody) {
             baseRef.current = {
-              content: baseRef.current.content,
+              content: base.content,
               updatedAt: current.updatedAt,
             };
             return;
           }
-          if (!isDirty()) {
-            baseRef.current = current;
-            replaceEditor(current.content);
-            optionsRef.current.onAdopted?.(current.content);
+          if (isDirty()) {
+            ops.current.enterConflict(current);
             return;
           }
-          ops.current.enterConflict(current);
+          const rev = dirtyRevRef.current;
+          replacingRef.current = true;
+          replaceEditor(current.content, {
+            canApply: () =>
+              dirtyRevRef.current === rev &&
+              savingRef.current === 0 &&
+              pendingRef.current === null &&
+              conflictRef.current === null,
+            onSettled: (applied) => {
+              replacingRef.current = false;
+              if (disposedRef.current) return;
+              if (applied) {
+                baseRef.current = current;
+                baseGenRef.current += 1;
+                optionsRef.current.onAdopted?.(current.content);
+                ops.current.checkRemote();
+                return;
+              }
+              // Typed in between: the replacement did not go in, and the
+              // base still names the version that typing was built on.
+              if (!conflictRef.current) ops.current.enterConflict(current);
+            },
+          });
         })
         .catch(reportError);
     },

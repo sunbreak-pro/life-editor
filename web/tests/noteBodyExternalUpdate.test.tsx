@@ -205,11 +205,13 @@ describe("NOTE-SYNC-2 — our own save's echo", () => {
       timeout: 3000,
     });
     await waitFor(() => expect(h.server.updatedAt).toBe(V2));
+    // The one read is the check made when the note opened.
+    const readsBefore = h.fetchNoteBodySnapshot.mock.calls.length;
 
     act(() => h.control.announce(V2));
     await act(async () => {});
 
-    expect(h.fetchNoteBodySnapshot).not.toHaveBeenCalled();
+    expect(h.fetchNoteBodySnapshot.mock.calls.length).toBe(readsBefore);
     expect(paragraphs(h.editor())).toEqual(["intro?", "line"]);
   });
 });
@@ -289,6 +291,40 @@ describe("NOTE-SYNC-4 — a save built on an old version", () => {
     });
     expect(h.server.content).toBe(doc("intro", "line ticked by MCP"));
     expect(paragraphs(h.editor())).toEqual(["intro mine", "line"]);
+  });
+});
+
+describe("IME — a write from elsewhere arriving mid-composition", () => {
+  it("does not overwrite what the composition committed, and asks instead", async () => {
+    const h = harness(doc("intro", "line"));
+    // Let the open-time check settle so the next read is the write's.
+    await waitFor(() => expect(h.fetchNoteBodySnapshot).toHaveBeenCalled());
+    const editor = h.editor();
+    const input = (editor.view as unknown as { input: { composing: boolean } })
+      .input;
+    input.composing = true;
+
+    // Nothing pending, so the session decides to replace — but the editor is
+    // mid-composition and holds the replacement.
+    h.writeElsewhere(doc("intro", "line ticked by MCP"));
+    await act(async () => {});
+    expect(paragraphs(editor)).toEqual(["intro", "line"]);
+
+    // The composition commits text: a real document change.
+    typeInFirstLine(editor, "こうだい");
+    input.composing = false;
+    act(() => {
+      editor.view.dom.dispatchEvent(new CompositionEvent("compositionend"));
+    });
+
+    // The replacement does not go in over the committed text…
+    await screen.findByTestId("note-conflict-banner", undefined, {
+      timeout: 3000,
+    });
+    expect(paragraphs(editor)).toEqual(["introこうだい", "line"]);
+    // …and the typing is not saved on top of the other side's write.
+    await new Promise((r) => setTimeout(r, 900));
+    expect(h.server.content).toBe(doc("intro", "line ticked by MCP"));
   });
 });
 
