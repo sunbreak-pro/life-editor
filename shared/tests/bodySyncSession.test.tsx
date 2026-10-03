@@ -46,7 +46,11 @@ interface Harness {
  * `onServer` answers the read made when the session opens (it checks the
  * opened body against the server once); absent = no such read result.
  */
-function setup(initial = doc("a", "b"), onServer: BodyRemote | null = null) {
+function setup(
+  initial = doc("a", "b"),
+  onServer: BodyRemote | null = null,
+  strict = false,
+) {
   const h: Harness = {
     save: vi.fn<
       (content: string, expected: string | null) => Promise<BodySaveOutcome>
@@ -72,7 +76,7 @@ function setup(initial = doc("a", "b"), onServer: BodyRemote | null = null) {
   const view = renderHook(
     ({ remote }: { remote: string | null }) =>
       useBodySyncSession(options(remote)),
-    { initialProps: { remote: V0 } },
+    { initialProps: { remote: V0 }, reactStrictMode: strict },
   );
   return { h, view };
 }
@@ -289,6 +293,91 @@ describe("opening a body whose version does not belong to it", () => {
     await act(async () => {});
     expect(view.result.current.conflict).toBeNull();
     expect(view.result.current.replacement).toBeNull();
+  });
+});
+
+/*
+ * StrictMode runs a cleanup and a second setup on every mount in development
+ * (web/src/main.tsx turns it on). A session that took that cleanup for an
+ * unmount stopped following the server, raising the banner and checking the
+ * opened body — on the dev server, which is where this feature is checked by
+ * hand.
+ */
+describe("under React StrictMode", () => {
+  it("still follows a write from elsewhere", async () => {
+    const { h, view } = setup(doc("a"), null, true);
+    h.fetchCurrent.mockResolvedValue({ content: doc("B"), updatedAt: V1 });
+    view.rerender({ remote: V1 });
+    await waitFor(() =>
+      expect(view.result.current.replacement?.content).toBe(doc("B")),
+    );
+  });
+
+  it("still checks the opened body", async () => {
+    const { view } = setup(
+      doc("unsaved mine"),
+      { content: doc("theirs"), updatedAt: V0 },
+      true,
+    );
+    await waitFor(() => expect(view.result.current.conflict).not.toBeNull());
+  });
+
+  it("still raises the banner for a refused save instead of settling it", async () => {
+    const { h, view } = setup(doc("a"), null, true);
+    h.save.mockResolvedValueOnce({
+      status: "conflict",
+      current: { content: doc("a", "from MCP"), updatedAt: V1 },
+    });
+    h.editor.body = doc("a", "typed");
+    act(() => view.result.current.commit(doc("a", "typed")));
+    await waitFor(() => expect(view.result.current.conflict).not.toBeNull());
+    expect(h.save).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("saves made before the check on open answers", () => {
+  it("wait for it, so they are not made against an unchecked pair", async () => {
+    let answer: (v: BodyRemote | null) => void = () => {};
+    const save = vi.fn<
+      (content: string, expected: string | null) => Promise<BodySaveOutcome>
+    >(async () => ({ status: "saved", updatedAt: V2 }));
+    const view = renderHook(() =>
+      useBodySyncSession({
+        initial: { content: doc("unsaved mine"), updatedAt: V0 },
+        remoteUpdatedAt: V0,
+        save,
+        fetchCurrent: () => new Promise((resolve) => (answer = resolve)),
+        readEditor: () => doc("unsaved mine", "typed"),
+      }),
+    );
+    act(() => view.result.current.commit(doc("unsaved mine", "typed")));
+    await act(async () => {});
+    expect(save).not.toHaveBeenCalled();
+
+    // The read answers: the pair is broken, so it is a conflict, not a save.
+    await act(async () => answer({ content: doc("theirs"), updatedAt: V0 }));
+    expect(view.result.current.conflict).not.toBeNull();
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("go out as soon as the check passes", async () => {
+    let answer: (v: BodyRemote | null) => void = () => {};
+    const save = vi.fn<
+      (content: string, expected: string | null) => Promise<BodySaveOutcome>
+    >(async () => ({ status: "saved", updatedAt: V2 }));
+    const view = renderHook(() =>
+      useBodySyncSession({
+        initial: { content: doc("a"), updatedAt: V0 },
+        remoteUpdatedAt: V0,
+        save,
+        fetchCurrent: () => new Promise((resolve) => (answer = resolve)),
+        readEditor: () => doc("a", "typed"),
+      }),
+    );
+    act(() => view.result.current.commit(doc("a", "typed")));
+    await act(async () => answer({ content: doc("a"), updatedAt: V0 }));
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    expect(save.mock.calls[0]).toEqual([doc("a", "typed"), V0]);
   });
 });
 

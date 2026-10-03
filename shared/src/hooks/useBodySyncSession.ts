@@ -162,6 +162,12 @@ export function useBodySyncSession(
   const replacingRef = useRef(false);
   /** The one-time check of the opened body against the server. */
   const mountCheckRef = useRef(true);
+  /**
+   * That check has not answered yet. Saves wait for it: a save sent first
+   * would be made against the very pair the check exists to vouch for, and
+   * on a slow line the 800ms debounce easily beats the read.
+   */
+  const mountPendingRef = useRef(true);
   const seqRef = useRef(0);
   const disposedRef = useRef(false);
   /** The conflict settled as "both" on the way out; see `commit`. */
@@ -334,14 +340,26 @@ export function useBodySyncSession(
       ops.current.enqueue(merged, dirtyRevRef.current);
     },
 
+    /** The check on open answered (or failed): let held saves go. */
+    mountSettled() {
+      if (!mountPendingRef.current) return;
+      mountPendingRef.current = false;
+      const held = pendingRef.current;
+      if (held !== null && !conflictRef.current) {
+        ops.current.enqueue(held, dirtyRevRef.current);
+      }
+      ops.current.checkRemote();
+    },
+
     checkRemote() {
       const mountCheck = mountCheckRef.current;
       if (!mountCheck && !remoteNewsRef.current) return;
       if (disposedRef.current) return;
-      // Held, not dropped, while a save or a replacement is out: its outcome
-      // moves the base, and the news is judged against that.
+      // Held, not dropped, while a save, a replacement or the check on open
+      // is out: its outcome moves the base, and the news is judged against it.
       if (savingRef.current > 0 || conflictRef.current || replacingRef.current)
         return;
+      if (!mountCheck && mountPendingRef.current) return;
       remoteNewsRef.current = false;
       mountCheckRef.current = false;
       const remote = remoteRef.current;
@@ -354,7 +372,8 @@ export function useBodySyncSession(
       void optionsRef.current
         .fetchCurrent()
         .then((current) => {
-          if (gen !== checkGenRef.current || disposedRef.current) return;
+          if (disposedRef.current) return;
+          if (gen !== checkGenRef.current) return;
           if (current === null) return;
           // A save landed while this read was out: the read may predate it,
           // and our own older body would pass for a write from elsewhere.
@@ -384,6 +403,8 @@ export function useBodySyncSession(
             return;
           }
           const rev = dirtyRevRef.current;
+          // replaceEditor numbers this replacement next.
+          const mySeq = seqRef.current + 1;
           replacingRef.current = true;
           replaceEditor(current.content, {
             canApply: () =>
@@ -394,6 +415,9 @@ export function useBodySyncSession(
             onSettled: (applied) => {
               replacingRef.current = false;
               if (disposedRef.current) return;
+              // Superseded by a later replacement (a choice in the banner):
+              // that one owns the outcome.
+              if (seqRef.current !== mySeq) return;
               if (applied) {
                 baseRef.current = current;
                 baseGenRef.current += 1;
@@ -407,17 +431,24 @@ export function useBodySyncSession(
             },
           });
         })
-        .catch(reportError);
+        .catch(reportError)
+        .finally(() => {
+          if (mountCheck) ops.current.mountSettled();
+        });
     },
   });
 
+  /*
+   * Mount / unmount. The body resets `disposedRef` because StrictMode runs a
+   * cleanup and a second setup on every mount in development: without the
+   * reset the session would think it had already been unmounted and stop
+   * following the server, raising the banner, and checking the opened body —
+   * exactly what the dev-server checks of this feature would look at.
+   * Declared before the remote effect so the second setup has reset it by the
+   * time that effect checks.
+   */
   useEffect(() => {
-    remoteRef.current = options.remoteUpdatedAt;
-    remoteNewsRef.current = true;
-    ops.current.checkRemote();
-  }, [options.remoteUpdatedAt]);
-
-  useEffect(() => {
+    disposedRef.current = false;
     const current = ops.current;
     return () => {
       disposedRef.current = true;
@@ -425,6 +456,12 @@ export function useBodySyncSession(
       if (open) current.settleOnDeparture(open);
     };
   }, []);
+
+  useEffect(() => {
+    remoteRef.current = options.remoteUpdatedAt;
+    remoteNewsRef.current = true;
+    ops.current.checkRemote();
+  }, [options.remoteUpdatedAt]);
 
   const markDirty = useCallback(() => {
     dirtyRevRef.current += 1;
@@ -440,6 +477,9 @@ export function useBodySyncSession(
       : content;
     pendingRef.current = body;
     if (conflictRef.current) return; // held until the user chooses
+    // Held until the check on open answers — except on the way out, where
+    // nothing would ever release it.
+    if (mountPendingRef.current && !disposedRef.current) return;
     ops.current.enqueue(body, dirtyRevRef.current);
   }, []);
 

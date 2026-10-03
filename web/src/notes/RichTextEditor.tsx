@@ -640,15 +640,36 @@ export function RichTextEditor({
     if (replaceContent.seq === appliedSeqRef.current) return;
     appliedSeqRef.current = replaceContent.seq;
     const { content, force = false, canApply, onSettled } = replaceContent;
-    const apply = () => {
-      if (editor.isDestroyed) {
-        onSettled?.(false);
+    // Every replacement is answered exactly once — applied, refused, or
+    // dropped by the cleanup below — so the host is never left waiting.
+    let settled = false;
+    const settle = (applied: boolean) => {
+      if (settled) return;
+      settled = true;
+      onSettled?.(applied);
+    };
+    const dom = editor.view.dom;
+    let timer: number | null = null;
+    const onEnd = () => {
+      dom.removeEventListener("compositionend", onEnd);
+      // After ProseMirror has read the composed text into the document.
+      timer = window.setTimeout(apply, 0);
+    };
+    function apply() {
+      timer = null;
+      if (editor === null || editor.isDestroyed) {
+        settle(false);
+        return;
+      }
+      // An IME can open the next composition right after committing one.
+      if (editor.view.composing) {
+        dom.addEventListener("compositionend", onEnd);
         return;
       }
       const typedSince =
         latestContentRef.current !== null || (canApply ? !canApply() : false);
       if (!force && typedSince) {
-        onSettled?.(false);
+        settle(false);
         return;
       }
       if (debounceRef.current) {
@@ -657,20 +678,16 @@ export function RichTextEditor({
       }
       latestContentRef.current = null;
       replaceDocument(editor, content);
-      onSettled?.(true);
-    };
-    if (!editor.view.composing) {
-      apply();
-      return;
+      settle(true);
     }
-    const dom = editor.view.dom;
-    const onEnd = () => {
+    apply();
+    return () => {
       dom.removeEventListener("compositionend", onEnd);
-      // After ProseMirror has read the composed text into the document.
-      window.setTimeout(apply, 0);
+      if (timer !== null) window.clearTimeout(timer);
+      // Replaced by a newer one (a choice in the banner) or unmounted while
+      // still held: it never went in.
+      settle(false);
     };
-    dom.addEventListener("compositionend", onEnd);
-    return () => dom.removeEventListener("compositionend", onEnd);
   }, [editor, replaceContent]);
 
   useEffect(() => {
