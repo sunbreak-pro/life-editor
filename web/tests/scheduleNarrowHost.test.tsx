@@ -153,9 +153,10 @@ describe("narrow Schedule add affordance (#1034)", () => {
 
 describe("narrow Schedule hamburger (#1033) — the date row", () => {
   it("no longer draws its own toggle in the date row", () => {
-    // The row holds the three steppers and nothing else. A drawer toggle put
-    // back into it — from either file — is a fourth control, and it is also
-    // the only thing in the row that would carry `aria-expanded`.
+    // The row holds the three steppers and the tag filter (#2079) and
+    // nothing else. A drawer toggle put back into it — from either file — is
+    // one more control, and it is also the only thing in the row that would
+    // carry `aria-expanded` (the filter is a toggle by `aria-pressed`).
     mountNarrow();
     const row = dateRow();
     const names = Array.from(row.querySelectorAll("button"))
@@ -164,6 +165,7 @@ describe("narrow Schedule hamburger (#1033) — the date row", () => {
     expect(names).toEqual(
       [
         "scheduleScreen.next",
+        "scheduleScreen.openFilter",
         "scheduleScreen.prev",
         "scheduleScreen.today",
       ].sort(),
