@@ -279,6 +279,13 @@ export interface NoteDetailPanelProps {
    * they read as one row rather than one header field and one sidebar panel.
    */
   linksSlot?: ReactNode;
+  /**
+   * Host-injected formatting bar for the body (#2060), drawn in the header
+   * directly under the tag row — so with `stickyHeader` it stays on screen
+   * while the body scrolls. The bar drives the host's editor; this panel only
+   * places it. Omitted → no toolbar row.
+   */
+  toolbarSlot?: ReactNode;
   /** Host-injected rich-text editor (host wires key={noteId} for remount). */
   contentEditor?: ReactNode;
   /**
@@ -347,6 +354,7 @@ export function NoteDetailPanel({
   removePasswordLabel,
   tagsSlot,
   linksSlot,
+  toolbarSlot,
   contentEditor,
   variant = "sidebar",
   stickyHeader = false,
@@ -556,18 +564,18 @@ export function NoteDetailPanel({
           </div>
         )}
 
-        {/* Anything that belongs to the header but sits under the tag row (the
-          formatting toolbar #2060 is planned to go here) is placed between
-          the tag row and the rule, so it stays inside the sticky block and
-          the rule remains the header's bottom edge. */}
+        {/* The body's formatting bar (#2060), under the tag row and above the
+          rule: inside the sticky block, so it stays in reach while the body
+          scrolls, and the rule remains the header's bottom edge. */}
+        {toolbarSlot}
 
-        {/* One full-width rule between the tag row and the body (#2033), the
+        {/* One full-width rule between the header and the body (#2033), the
           same at both widths — it replaced the "内容" caption the mobile sheet
           used to show while Desktop had no break at all. Drawn only when a tag
-          row sits above it: with no row the rule would hang under the title.
-          Inside the header block, so a stuck header ends on this line and the
-          body visibly slides under it (#2058). */}
-        {contentEditor != null && hasTagRow && (
+          row or toolbar sits above it: with neither, the rule would hang under
+          the title. Inside the header block, so a stuck header ends on this
+          line and the body visibly slides under it (#2058). */}
+        {contentEditor != null && (hasTagRow || toolbarSlot != null) && (
           <hr
             data-testid="note-detail-divider"
             className="m-0 border-0 border-t border-lumen-border"

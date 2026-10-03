@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Editor } from "@tiptap/core";
 import { FileText } from "lucide-react";
 import {
   useNotesUnifiedContext,
@@ -268,6 +269,14 @@ export function NotesView({
    * written.
    */
   const [bodyEpoch, setBodyEpoch] = useState(0);
+
+  /*
+   * #2060 — the body editor, lifted out of RichTextEditor for the formatting
+   * bar in the detail's sticky header. The editor reports itself through
+   * `onEditorChange` (and null as it goes away), so a note switch or a
+   * template-apply remount always leaves the bar on the live instance.
+   */
+  const [bodyEditor, setBodyEditor] = useState<Editor | null>(null);
 
   const selected = notes.selectedNote;
 
@@ -639,6 +648,15 @@ export function NotesView({
     applyTemplate: t("materials.templates.applyMenuEntry"),
     setPassword: t("materials.notes.password.setEntry"),
     removePassword: t("materials.notes.password.removeEntry"),
+    formatToolbar: {
+      label: t("materials.notes.formatToolbar.label"),
+      heading1: t("materials.notes.formatToolbar.heading1"),
+      heading2: t("materials.notes.formatToolbar.heading2"),
+      bold: t("materials.notes.formatToolbar.bold"),
+      italic: t("materials.notes.formatToolbar.italic"),
+      strike: t("materials.notes.formatToolbar.strike"),
+      horizontalRule: t("materials.notes.formatToolbar.horizontalRule"),
+    },
   };
 
   // ---- The list (the detail panel's content, both widths) --------------
@@ -753,6 +771,9 @@ export function NotesView({
           note={selected}
           labels={detailLabels}
           locked={bodyGated}
+          // #2060: null while the gate is up — no editor is mounted then —
+          // which leaves the header's formatting bar switched off.
+          bodyEditor={bodyGated ? null : bodyEditor}
           onUnlock={password.requestUnlock}
           onTitleCommit={(id, title) => notes.updateNote(id, { title })}
           // #1842 — only for the note "+" just made, and only until the field
@@ -837,6 +858,7 @@ export function NotesView({
                   linking={linking}
                   remountToken={bodyEpoch}
                   attachments={attachments}
+                  onEditorChange={setBodyEditor}
                   onNavigateToItem={onNavigateToItem}
                   onSave={(id, content) => notes.updateNote(id, { content })}
                   // Borderless — sit flush inside the detail card so the note

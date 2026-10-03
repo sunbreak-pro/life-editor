@@ -472,6 +472,15 @@
         "nameLabel": "表の名前",
         "namePlaceholder": "表に名前を付ける"
       },
+      "formatToolbar": {
+        "label": "書式",
+        "heading1": "見出し 1",
+        "heading2": "見出し 2",
+        "bold": "太字",
+        "italic": "斜体",
+        "strike": "取り消し線",
+        "horizontalRule": "区切り線を挿入"
+      },
       "mainEmpty": "ノートを選ぶか、新しく作成してください",
       "recentHeading": "最近開いたノート",
       "untagged": "未分類",

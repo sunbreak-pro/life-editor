@@ -473,6 +473,15 @@
         "nameLabel": "Table name",
         "namePlaceholder": "Name this table"
       },
+      "formatToolbar": {
+        "label": "Formatting",
+        "heading1": "Heading 1",
+        "heading2": "Heading 2",
+        "bold": "Bold",
+        "italic": "Italic",
+        "strike": "Strikethrough",
+        "horizontalRule": "Insert divider"
+      },
       "mainEmpty": "Select a note or create a new one",
       "recentHeading": "Recently opened",
       "untagged": "No tag",
