@@ -481,7 +481,8 @@
       "sortTitle": "タイトル",
       "tagFilterLabel": "タグで絞り込む",
       "tagFilterClear": "タグの絞り込みを解除",
-      "tagFilterMore": "+{{count}}",
+      "tagFilterSelected": "タグで絞り込む（{{count}} 件選択中）",
+      "tagFilterPanel": "表示するタグ",
       "tagFilterLess": "折りたたむ",
       "groupMoreRows": "残り {{count}} 件を表示",
       "rowActions": "ノートの操作",
@@ -1422,7 +1423,7 @@
       "materialsCapture": "ノートをこのボタンから追加できます。1 つ作ってみましょう。",
       "materialsNoteBody": "本文を数文字書いてみましょう。入力するそばから保存されるので、保存ボタンを押す必要はありません。",
       "materialsNoteTag": "タグを 1 つ付けてみましょう。タグは、同じ話題のアイテム同士をつなぐ目印です。",
-      "materialsTagFollow": "ここでタグを選んでみましょう。そのタグが付いたものだけが並ぶので、あとから関連するノートに戻れます。"
+      "materialsTagFollow": "タグの絞り込みを開いて、タグを選んでみましょう。そのタグが付いたものだけが並ぶので、あとから関連するノートに戻れます。"
     }
   },
   "errorBoundary": {
