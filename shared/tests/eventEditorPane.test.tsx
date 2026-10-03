@@ -128,6 +128,38 @@ describe("EventEditorPane — Issue 017 / #279 action gating", () => {
   });
 });
 
+describe("EventEditorPane — Delete sits in the save row (#2080)", () => {
+  /*
+   * The save footer is pinned (#995 / #1728); the delete used to sit above it
+   * at the end of the fields, so it scrolled out of view while Save stayed.
+   * Same row now: Delete at the left end, Save at the right.
+   */
+  it("puts Delete first and Save last in the footer row", () => {
+    renderPane(manualItem);
+    const footer = saveButton().parentElement as HTMLElement;
+    const del = screen.getByRole("button", { name: "Delete" });
+    expect(del.parentElement).toBe(footer);
+    expect(footer.firstElementChild).toBe(del);
+    expect(footer.lastElementChild).toBe(saveButton());
+    expect(del.className).toContain("mr-auto");
+  });
+
+  it("keeps the routine path on the same button and the same handler", () => {
+    const { onDelete } = renderPane(routineItem);
+    const del = screen.getByRole("button", { name: "Delete" });
+    expect(del.parentElement).toBe(saveButton().parentElement);
+    fireEvent.click(del);
+    expect(onDelete).toHaveBeenCalledWith("r1");
+  });
+
+  it("floors Delete at 44px on narrow only", () => {
+    renderPane(manualItem);
+    const cls = screen.getByRole("button", { name: "Delete" }).className;
+    expect(cls).toContain("max-md:min-h-11");
+    expect(cls.split(" ")).not.toContain("min-h-11");
+  });
+});
+
 describe("EventEditorPane — the body does not name the kind (#1044)", () => {
   it("drops the manual item's 「予定」 chip", () => {
     // It moved to a one-glyph cue in the frame's header. The body saying it a
