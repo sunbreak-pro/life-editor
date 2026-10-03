@@ -306,12 +306,16 @@
       "placeholder": "フリーセッション",
       "clear": "フリーセッションに戻す",
       "select": "フリーセッション",
-      "sheetTitle": "作業名を選ぶ",
-      "clearSelection": "フリーセッション",
+      "sheetTitle": "作業を紐付ける",
+      "clearSelection": "選択を外す",
       "allDay": "終日",
-      "nameLabel": "作業名",
+      "nameLabel": "フリーセッションの名前",
       "nameSubmit": "この名前で作業する",
-      "emptyHint": "選べる Todo や予定がありません。このまま始めるとフリーセッションになります。"
+      "emptyHint": "選べる Todo や予定がありません。このまま始めるとフリーセッションになります。",
+      "todoHeading": "Todo",
+      "eventHeading": "予定",
+      "sheetEmptyTitle": "紐付けられる Todo や予定がありません",
+      "sheetEmptyBody": "上の欄に名前を入れれば、フリーセッションとして始められます。"
     },
     "completion": {
       "title": "セッション {{index}} が完了しました",
@@ -319,7 +323,9 @@
       "bodyNoTodo": "{{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
       "startBreak": "休憩を開始",
       "oneMore": "もう 1 セッション",
-      "close": "閉じる"
+      "close": "閉じる",
+      "logged": "{{minutes}} 分を記録しました",
+      "startBreakMinutes": "休憩を始める（{{minutes}} 分）"
     },
     "settings": {
       "presetNamePlaceholder": "プリセット名",
@@ -328,7 +334,20 @@
       "presetsEmpty": "プリセットはまだありません",
       "save": "保存",
       "saved": "保存済み",
-      "unsaved": "未保存"
+      "unsaved": "未保存",
+      "short": {
+        "work": "作業",
+        "break": "休憩",
+        "longBreak": "長い休憩",
+        "sessionsBeforeLongBreak": "長い休憩まで",
+        "target": "1 日の目標"
+      },
+      "valueMinutes": "{{value}} 分",
+      "valueCount": "{{value}} 回",
+      "decrease": "{{label}}を減らす",
+      "increase": "{{label}}を増やす",
+      "applied": "適用中",
+      "presetSummary": "{{work}}・{{brk}}・{{long}} 分 / {{sessions}} 回"
     },
     "sidebarTabs": {
       "label": "Work のサイドバー",
@@ -340,7 +359,9 @@
       "latestDay": "直近の作業日 · {{date}}",
       "empty": "まだ作業の記録がありません。終えたセッションがここに並びます。",
       "noTarget": "フリーセッション",
-      "minutes": "{{minutes}} 分"
+      "minutes": "{{minutes}} 分",
+      "emptyTitle": "まだ記録がありません",
+      "emptyBody": "作業を 1 セッション終えると、ここに残ります。"
     },
     "freeSession": {
       "title": "フリーセッション",
@@ -353,7 +374,9 @@
       "tagNoCandidates": "タグがまだありません",
       "tagDialog": "フリーセッションのタグ",
       "tagSheetClose": "閉じる",
-      "tagDisabled": "タグはフリーセッション用です。作業名の選択を外すと使えます。"
+      "tagDisabled": "タグはフリーセッション用です。作業名の選択を外すと使えます。",
+      "tagAddRow": "タグを追加",
+      "tagDisabledRow": "紐付け中はタグを使えません"
     }
   },
   "audioMixer": {
@@ -665,7 +688,6 @@
     "allDay": "終日",
     "emptyToday": "今日の予定はありません",
     "emptyDay": "この日の予定はありません",
-    "flowBackToToday": "今日に戻る",
     "frequency": "繰り返し",
     "viewLabel": "表示",
     "frequencyNone": "なし",
@@ -709,7 +731,8 @@
     "retry": "再試行",
     "moreCount": "他 {{count}} 件",
     "monthCreateOn": "{{date}} に追加",
-    "monthShowAllOn": "{{date}} の予定をすべて表示",
+    "monthShowAllOn": "{{date}} の残りの予定を表示",
+    "monthMoreTitle": "{{date}} の残りの予定",
     "quickAddPlaceholder": "予定を入力…",
     "detailTitle": "予定の詳細",
     "detailPanelLabel": "詳細パネル",

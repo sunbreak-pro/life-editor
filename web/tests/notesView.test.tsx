@@ -1199,6 +1199,77 @@ describe("NotesView — the default list (#2061)", () => {
 });
 
 /*
+ * #2059 — the chip row became a button that opens a tag panel inside the
+ * sidebar. Same filter underneath (multi-select, OR, the untagged bucket
+ * included); what changed is that it costs one row until it is asked for.
+ * Both widths, because the list is the same component in the push-in sidebar
+ * and in the narrow drawer (#876).
+ */
+describe("NotesView — the tag filter button and panel (#2059)", () => {
+  it.each([true, false])(
+    "draws a shut button and leaves the unfiltered list as it was (isWide=%s)",
+    (isWide) => {
+      state.isWide = isWide;
+      render(<NotesView />);
+
+      const button = tagFilterButton();
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+      expect(
+        screen.queryByRole("group", { name: "materials.notes.tagFilterPanel" }),
+      ).toBeNull();
+      // Nothing selected: the tag-grouped list, every group, every note.
+      groupHeading("Work");
+      groupHeading("materials.notes.untagged");
+      screen.getByText("Alpha");
+      screen.getByText("Beta");
+    },
+  );
+
+  it.each([true, false])(
+    "filters from the panel, counts on the button, and clears back (isWide=%s)",
+    (isWide) => {
+      state.isWide = isWide;
+      render(<NotesView />);
+
+      // The untagged bucket is an option like any tag.
+      within(openTagFilter()).getByRole("button", {
+        name: /materials\.notes\.untagged/,
+      });
+      fireEvent.click(filterOption("Work"));
+
+      expect(screen.queryByText("Beta")).toBeNull();
+      screen.getByText("Alpha");
+      expect(filterOption("Work").getAttribute("aria-pressed")).toBe("true");
+      expect(tagFilterButton().getAttribute("aria-label")).toBe(
+        "materials.notes.tagFilterSelected|1",
+      );
+
+      fireEvent.click(screen.getByLabelText("materials.notes.tagFilterClear"));
+
+      screen.getByText("Alpha");
+      screen.getByText("Beta");
+      expect(tagFilterButton().getAttribute("aria-label")).toBeNull();
+    },
+  );
+
+  it("closes on Esc, keeps the filter on, and hands the focus back", () => {
+    render(<NotesView />);
+    fireEvent.click(filterOption("Work"));
+    const option = filterOption("Work");
+    option.focus();
+
+    fireEvent.keyDown(option, { key: "Escape" });
+
+    expect(
+      screen.queryByRole("group", { name: "materials.notes.tagFilterPanel" }),
+    ).toBeNull();
+    expect(document.activeElement).toBe(tagFilterButton());
+    // Closing the panel is not clearing the filter.
+    expect(screen.queryByText("Beta")).toBeNull();
+  });
+});
+
+/*
  * #1365 — the chip row above the note list drew a hand-rolled colour dot, so
  * the icon a user picks in the tag editor reached the group headings, the
  * master list and the detail's picker but stopped here. #1291 made
@@ -1490,5 +1561,44 @@ describe("NotesView — a body search that failed (#1972)", () => {
     render(<NotesView />);
 
     expect(screen.queryByText("materials.notes.bodySearchFailed")).toBeNull();
+  });
+});
+
+/*
+ * #2058 — the title and tags stay on screen while the body scrolls, at both
+ * widths. The two widths scroll different elements (the page scroller on
+ * wide, the main column on narrow), and `position: sticky` binds to whichever
+ * that is, so what this host owns is only that it ASKS for the sticky header
+ * on both — narrow renders the panel's "sidebar" variant, which must not be
+ * left out. The sticky mechanics themselves are pinned in shared/.
+ */
+describe("NotesView — sticky note header (#2058)", () => {
+  it.each([
+    ["wide", true],
+    ["narrow", false],
+  ])("pins the title and tags above the body on %s", (_, isWide) => {
+    state.isWide = isWide;
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    const header = screen.getByTestId("note-detail-header");
+    expect(header.className).toContain("sticky");
+    within(header).getByLabelText("notesView.detailTitle");
+    within(header).getByTestId("tag-picker");
+    // The body scrolls under the header, so it is not part of it.
+    expect(within(header).queryByTestId("editor")).toBeNull();
+    screen.getByTestId("editor");
+    // The scroll owner on narrow is the main column itself (#875).
+    if (!isWide) {
+      expect(header.closest(".overflow-y-auto")).not.toBeNull();
+    }
+  });
+
+  it("keeps the wide link row inside the pinned header", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    const header = screen.getByTestId("note-detail-header");
+    within(header).getByTestId("link-panel");
   });
 });

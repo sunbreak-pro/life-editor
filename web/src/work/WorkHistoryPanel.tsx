@@ -28,6 +28,11 @@ import { formatFullDay } from "../schedule/scheduleCopy";
  * offered, and the tag graph. The event range mirrors the picker's own window
  * (the day itself plus seven): a session can only have been attributed to an
  * event that was on offer when it started.
+ *
+ * `variant="rows"` is the Mobile drawer (#2054): the same rows in plan A's flat
+ * layout. Still ONE day — the latest one worked — as before; plan A draws
+ * "today" and "yesterday" together, and widening the read to two days is a
+ * question for the decision queue rather than something to do on the way.
  */
 
 /** The picker's forward window (WorkScreen's EVENT_WINDOW_DAYS). */
@@ -63,8 +68,11 @@ function addDaysKey(dateKey: string, days: number): string {
 
 export function WorkHistoryPanel({
   dataService: ds,
+  variant = "card",
 }: {
   dataService: DataService;
+  /** card = the Desktop panel; rows = the Mobile drawer (#2054). */
+  variant?: "card" | "rows";
 }) {
   const { t, i18n } = useTranslation();
   const [data, setData] = useState<HistoryData>(EMPTY);
@@ -161,9 +169,14 @@ export function WorkHistoryPanel({
     <WorkHistoryList
       entries={entries}
       loading={isLoading}
+      variant={variant}
       labels={{
         heading,
-        empty: t("work.history.empty"),
+        empty:
+          variant === "rows"
+            ? t("work.history.emptyBody")
+            : t("work.history.empty"),
+        emptyTitle: t("work.history.emptyTitle"),
         noTarget: t("work.history.noTarget"),
         listLabel: t("work.sidebarTabs.history"),
       }}

@@ -148,8 +148,6 @@ function renderDesktop(
     onItemDoubleClick: vi.fn(),
     onItemContextMenu: vi.fn(),
     onMonthCreate: vi.fn(),
-    // #1829: a month cell's "他 N 件" hands the day back here.
-    onShowMore: vi.fn(),
     onCreateAt: vi.fn(),
     onMoveItem: vi.fn(),
     onResizeItem: vi.fn(),
@@ -198,7 +196,7 @@ function renderDesktop(
     format: { fullDay: (k) => k, dayDate: (k) => `col:${k}` },
   };
   const utils = render(<CalendarDesktopLayout {...props} />);
-  return { ...utils, onRetry, toolbarSpies, handlers };
+  return { ...utils, onRetry, toolbarSpies, handlers, props };
 }
 
 function renderNarrow(
@@ -395,6 +393,139 @@ describe("CalendarDesktopLayout — the view decides which grid", () => {
       screen.getByText("scheduleScreen.repeatFilterHidden:3"),
     ).toBeTruthy();
     expect(screen.getByText("scheduleScreen.groupFilterHidden:5")).toBeTruthy();
+  });
+});
+
+/*
+ * #2049 — Desktop's month cell draws five chips and folds the rest into
+ * "他 N 件", which opens a panel beside the cell listing exactly what was
+ * folded. It replaced #1973 (the flow tab pointed at the day), so the layout
+ * owns the panel and the host hears only `onItemActivate` from its rows.
+ */
+describe("CalendarDesktopLayout — the month's 他 N 件 panel (#2049)", () => {
+  const busy = (count: number, date = ANCHOR): MonthGridItem[] =>
+    Array.from({ length: count }, (_, i) => ({
+      id: `busy-${date}-${i}`,
+      date,
+      title: `予定 ${date} #${i}`,
+    }));
+  const moreButton = (date = ANCHOR) =>
+    screen.getByRole("button", {
+      name: `scheduleScreen.monthShowAllOn:${date}`,
+    });
+  const panel = () => screen.queryByRole("dialog");
+
+  it("lets the grid grow and scroll instead of clipping its last week", () => {
+    renderDesktop({ view: "month" });
+    const grid = screen.getByRole("grid", { name: "scheduleScreen.calendar" });
+    expect(grid.className).toContain("min-h-full");
+    expect(grid.className).not.toContain("h-full ");
+  });
+
+  it("opens beside the cell with only the folded items, focus inside", () => {
+    renderDesktop({ data: { monthItems: busy(7) } });
+    fireEvent.click(moreButton());
+    const dialog = panel();
+    expect(dialog?.getAttribute("aria-label")).toBe(
+      `scheduleScreen.monthMoreTitle:${ANCHOR}`,
+    );
+    expect(dialog?.getAttribute("data-month-more-panel")).toBe(ANCHOR);
+    // 7 on the day, 5 drawn as chips: the panel holds #5 and #6 and nothing
+    // the cell already shows.
+    const rows = Array.from(
+      dialog?.querySelectorAll("[data-month-more-item]") ?? [],
+    ).map((b) => b.textContent);
+    expect(rows).toEqual([`予定 ${ANCHOR} #5`, `予定 ${ANCHOR} #6`]);
+    expect(document.activeElement?.textContent).toBe(`予定 ${ANCHOR} #5`);
+  });
+
+  it("closes on Escape and puts focus back on 他 N 件", () => {
+    renderDesktop({ data: { monthItems: busy(6) } });
+    const more = moreButton();
+    fireEvent.click(more);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(panel()).toBeNull();
+    expect(document.activeElement).toBe(more);
+  });
+
+  it("closes on a second press of the same 他 N 件", () => {
+    renderDesktop({ data: { monthItems: busy(6) } });
+    fireEvent.click(moreButton());
+    fireEvent.mouseDown(moreButton());
+    fireEvent.click(moreButton());
+    expect(panel()).toBeNull();
+  });
+
+  it("moves to another day's cell when that day's 他 N 件 is pressed", () => {
+    const other = "2026-08-21";
+    renderDesktop({ data: { monthItems: [...busy(6), ...busy(6, other)] } });
+    fireEvent.click(moreButton());
+    fireEvent.mouseDown(moreButton(other));
+    fireEvent.click(moreButton(other));
+    expect(panel()?.getAttribute("data-month-more-panel")).toBe(other);
+  });
+
+  it("hands a pressed row to the bubble and closes, asking for focus only from the keyboard", () => {
+    const { handlers } = renderDesktop({ data: { monthItems: busy(6) } });
+    fireEvent.click(moreButton());
+    fireEvent.click(screen.getByRole("button", { name: `予定 ${ANCHOR} #5` }), {
+      detail: 0,
+    });
+    expect(panel()).toBeNull();
+    expect(handlers.onItemActivate).toHaveBeenCalledWith(
+      `busy-${ANCHOR}-5`,
+      { x: 0, y: 0 },
+      { focus: true },
+    );
+
+    fireEvent.click(moreButton());
+    fireEvent.click(screen.getByRole("button", { name: `予定 ${ANCHOR} #5` }), {
+      detail: 1,
+      clientX: 30,
+      clientY: 40,
+    });
+    expect(handlers.onItemActivate).toHaveBeenLastCalledWith(
+      `busy-${ANCHOR}-5`,
+      { x: 30, y: 40 },
+      { focus: false },
+    );
+  });
+
+  it("lets go once the folded rows are gone or the view leaves the month", () => {
+    const { props, rerender } = renderDesktop({
+      data: { monthItems: busy(6) },
+    });
+    fireEvent.click(moreButton());
+    // The sixth item deleted from its bubble: nothing is folded any more.
+    rerender(
+      <CalendarDesktopLayout
+        {...props}
+        data={{ ...props.data, monthItems: busy(5) }}
+      />,
+    );
+    expect(panel()).toBeNull();
+
+    rerender(<CalendarDesktopLayout {...props} />);
+    fireEvent.click(moreButton());
+    rerender(<CalendarDesktopLayout {...props} view="week" />);
+    expect(panel()).toBeNull();
+    // Back on the month, it stays closed rather than coming back to life.
+    rerender(<CalendarDesktopLayout {...props} />);
+    expect(panel()).toBeNull();
+  });
+
+  it("lets go when the month is paged", () => {
+    const { props, rerender } = renderDesktop({
+      data: { monthItems: busy(6) },
+    });
+    fireEvent.click(moreButton());
+    rerender(
+      <CalendarDesktopLayout
+        {...props}
+        data={{ ...props.data, anchorDate: "2026-09-20" }}
+      />,
+    );
+    expect(panel()).toBeNull();
   });
 });
 

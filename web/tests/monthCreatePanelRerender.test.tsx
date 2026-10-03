@@ -131,11 +131,11 @@ const GRID_HANDLERS = {
   onItemActivate: NOOP,
   onItemDoubleClick: NOOP,
   onItemContextMenu: NOOP,
-  // #1829's `onShowMore` is deliberately NOT wired here. This suite counts
-  // `fullDay` calls as a proxy for cell renders, and the button's accessible
-  // name is built from the same formatter — one extra call per overflow cell,
-  // which is real work the grid does but not work this pin is measuring.
-  // web/tests/calendarLayouts.test.tsx is where the wiring is asserted.
+  // No `onShowMore` here: since #2049 the layout wires the month's "他 N 件"
+  // itself. This suite counts `fullDay` calls as a proxy for cell renders, and
+  // that button's accessible name is built from the same formatter — so the
+  // fixture keeps every day under the five-chip cap and no cell draws one.
+  // web/tests/calendarLayouts.test.tsx is where the panel is asserted.
   onCreateAt: NOOP,
   onMoveItem: NOOP,
   onResizeItem: NOOP,

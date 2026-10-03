@@ -39,6 +39,13 @@ export interface TagPillProps {
   /** Already-translated aria-label for the remove button (#412). */
   removeLabel?: string;
   size?: "sm" | "md";
+  /**
+   * Give the remove X a 44px square (#2054). Only the narrow Work tag row
+   * passes it: the default stays the icon-only floor so Desktop pills keep
+   * their size. The negative margins let the square overhang the pill instead
+   * of making the pill itself 44px tall.
+   */
+  touch?: boolean;
 }
 
 export function TagPill({
@@ -48,6 +55,7 @@ export function TagPill({
   onRemove,
   removeLabel,
   size = "sm",
+  touch = false,
 }: TagPillProps) {
   // Horizontal padding only — the pill's HEIGHT now comes from the remove
   // button's hit-area floor (styles/tokens.css), so a py-* here would just
@@ -84,7 +92,11 @@ export function TagPill({
           type="button"
           onClick={onRemove}
           aria-label={removeLabel ?? `Remove tag ${name}`}
-          className="rounded-lumen-sm text-lumen-text-secondary hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+          className={cn(
+            "rounded-lumen-sm text-lumen-text-secondary hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
+            touch &&
+              "-my-3 -mr-2.5 inline-flex min-h-11 min-w-11 items-center justify-center",
+          )}
         >
           <X size={iconSize} aria-hidden />
         </button>

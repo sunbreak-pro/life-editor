@@ -124,6 +124,12 @@ export function NoteDetailSurface({
   return (
     <NoteDetailPanel
       variant={variant}
+      // #2058: title + tags stay on screen while the body scrolls, at both
+      // widths. The panel's `position: sticky` binds to whichever ancestor
+      // actually scrolls — the page scroller of PageContainer "wide" on
+      // Desktop, NotesView's own `overflow-y-auto` main column on narrow — so
+      // neither host needs to know about it.
+      stickyHeader
       noteId={note.id}
       title={note.title}
       isPinned={note.isPinned}

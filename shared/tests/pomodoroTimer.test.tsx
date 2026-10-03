@@ -24,6 +24,23 @@ const LABELS: PomodoroTimerProps["labels"] = {
   sessionsProgress: "2 / 4 sessions",
 };
 
+function baseProps(): PomodoroTimerProps {
+  return {
+    phase: "WORK",
+    isRunning: false,
+    formatted: "25:00",
+    totalFormatted: "25:00",
+    progress: 0,
+    sessions: { total: 4, filled: 2 },
+    labels: LABELS,
+    onStart: vi.fn(),
+    onPause: vi.fn(),
+    onReset: vi.fn(),
+    onSkip: vi.fn(),
+    onAdjust: vi.fn(),
+  };
+}
+
 function renderTimer(overrides?: Partial<PomodoroTimerProps>) {
   const props: PomodoroTimerProps = {
     phase: "WORK",
@@ -104,25 +121,34 @@ describe("PomodoroTimer", () => {
   });
 
   /*
-   * #881 — on a short phone the fullscreen transport ran into the rows above
-   * and below it. jsdom has no layout (rules/frontend.md), so the heights
-   * themselves are what this pins: the classes, not the resulting boxes. The
-   * numbers matter because they are the whole fix — a later "make the mobile
-   * face bolder" pass that puts 72px back would reopen the issue silently.
+   * #881 / #2054 — jsdom has no layout (rules/frontend.md), so the sizes are
+   * pinned as classes. Claude Design plan A gave the fullscreen transport
+   * labelled buttons (64px main, 52px reset / skip); the room for them came
+   * from shrinking the ring from 270px to 232px, so the ring is pinned too —
+   * growing it back would push the transport into the rows around it again.
    */
-  describe("fullscreen transport sizing (#881)", () => {
-    it("draws the main button at 56px and reset/skip at the 44px touch floor", () => {
+  describe("fullscreen transport sizing (#881 / #2054)", () => {
+    it("draws the main disc at 64px and reset/skip at 52px, each labelled", () => {
       renderTimer({ variant: "fullscreen" });
-      expect(screen.getByRole("button", { name: "Start" })).toHaveClass(
-        "h-14",
-        "w-14",
-      );
+      const start = screen.getByRole("button", { name: "Start" });
+      expect(start.firstElementChild).toHaveClass("h-16", "w-16");
+      expect(start).toHaveTextContent("Start");
       for (const name of ["Reset", "Skip"]) {
-        expect(screen.getByRole("button", { name })).toHaveClass(
-          "h-11",
-          "w-11",
-        );
+        const button = screen.getByRole("button", { name });
+        expect(button.firstElementChild).toHaveClass("h-13", "w-13");
+        expect(button).toHaveTextContent(name);
       }
+    });
+
+    it("draws the ring at 232px with an 8px stroke", () => {
+      const { container } = render(
+        <PomodoroTimer {...baseProps()} variant="fullscreen" />,
+      );
+      const svg = container.querySelector("svg[viewBox=\"0 0 232 232\"]");
+      expect(svg).not.toBeNull();
+      expect(svg?.querySelector("circle")?.getAttribute("stroke-width")).toBe(
+        "8",
+      );
     });
 
     it("keeps the Card variant's transport at the same 44px round buttons", () => {

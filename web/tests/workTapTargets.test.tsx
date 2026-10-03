@@ -150,10 +150,11 @@ describe("Work — narrow tap targets (#1557)", () => {
     });
     // min-h, not h: `cn` concatenates, so a second class for the same property
     // would be resolved by Tailwind's output order instead of ours (#830).
-    expect(classes(trigger)).toContain("min-h-11");
+    // 52px since #2054 (plan A's link row) — above the 44px floor.
+    expect(classes(trigger)).toContain("min-h-13");
   });
 
-  it("gives the chip's unlink X a 44x44 box that the chip absorbs", async () => {
+  it("gives the link row's unlink X a 44x44 box", async () => {
     stub.wide = false;
     const main = renderWork();
 
@@ -170,11 +171,10 @@ describe("Work — narrow tap targets (#1557)", () => {
     expect(classes(clear)).toEqual(
       expect.arrayContaining(["min-h-11", "min-w-11"]),
     );
-    // The negative margins are load-bearing: without them the 44px square
-    // stacks on the chip's py-2 / pr-2.5 and the chip becomes 60px tall.
-    expect(classes(clear)).toEqual(
-      expect.arrayContaining(["-my-2", "-mr-2.5"]),
-    );
+    // Since #2054 the X sits inside plan A's 52px link row rather than a
+    // chip, so it no longer needs negative margins to keep its parent at 44.
+    const row = clear.parentElement as HTMLElement;
+    expect(classes(row)).toContain("min-h-13");
   });
 });
 

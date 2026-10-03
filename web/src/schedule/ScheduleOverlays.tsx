@@ -198,6 +198,8 @@ export function ScheduleOverlays({
       <ItemActionPopover
         key={popover.state.id}
         position={{ x: popover.state.x, y: popover.state.y }}
+        // #2049: opened from the keyboard in the month "他 N 件" panel.
+        autoFocus={popover.state.focus}
         summary={
           <div className="flex flex-col gap-0.5">
             <p className="line-clamp-2 break-words font-semibold text-lumen-text">
@@ -228,6 +230,7 @@ export function ScheduleOverlays({
         // and a rename draft from the previous item would survive the swap.
         key={popover.state.id}
         position={{ x: popover.state.x, y: popover.state.y }}
+        autoFocus={popover.state.focus}
         summary={
           <div className="flex flex-col gap-0.5">
             <p className="line-clamp-2 break-words font-semibold text-lumen-text">

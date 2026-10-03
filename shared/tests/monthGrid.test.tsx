@@ -3,8 +3,9 @@ import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import { MonthGrid, type MonthGridItem } from "../src/components";
 
 /*
- * MonthGrid — pure month calendar. Desktop cells carry a day badge + up to 2
- * provenance chips + a "他 N 件" overflow line; compact mode swaps chips for a
+ * MonthGrid — pure month calendar. Desktop cells carry a day badge + up to 5
+ * provenance chips (#2049 — 2 until then) + a "他 N 件" overflow line; compact
+ * mode swaps chips for a
  * short list of plain titles (#1401 — a dot row before that). Cells select a
  * day; chips select an item (and stop the day-select).
  */
@@ -16,6 +17,15 @@ const ITEMS: MonthGridItem[] = [
   { id: "b", date: "2026-07-09", title: "Dentist", variant: "event" },
   { id: "c", date: "2026-07-09", title: "Groceries", variant: "event" },
   { id: "t", date: "2026-07-10", title: "Write report", variant: "task" },
+];
+
+// #2049: six on 7/09 — one past the Desktop cap of five, so the cell folds
+// exactly one item into "+1 more".
+const SIX_ON_THE_9TH: MonthGridItem[] = [
+  ...ITEMS,
+  { id: "d", date: "2026-07-09", title: "Standup", variant: "event" },
+  { id: "e", date: "2026-07-09", title: "Lunch", variant: "event" },
+  { id: "f", date: "2026-07-09", title: "Call mom", variant: "event" },
 ];
 
 function renderGrid(props?: Partial<Parameters<typeof MonthGrid>[0]>) {
@@ -57,34 +67,64 @@ describe("MonthGrid", () => {
    */
   it("makes the overflow line a button when the host says what it does", () => {
     const onShowMore = vi.fn();
-    renderGrid({ onShowMore, formatShowMoreLabel: (k) => `Show all on ${k}` });
+    renderGrid({
+      items: SIX_ON_THE_9TH,
+      onShowMore,
+      formatShowMoreLabel: (k) => `Show all on ${k}`,
+    });
     const more = screen.getByRole("button", { name: "Show all on 2026-07-09" });
     expect(more).toHaveTextContent("+1 more");
+    // #2049: it opens a panel, and says so.
+    expect(more.getAttribute("aria-haspopup")).toBe("dialog");
     fireEvent.click(more);
-    expect(onShowMore).toHaveBeenCalledWith("2026-07-09");
+    // #2049: the button itself comes back, for the host's panel to sit beside
+    // its cell and to return focus to on Escape.
+    expect(onShowMore).toHaveBeenCalledWith("2026-07-09", more);
   });
 
   it("does not let the press reach the cell underneath", () => {
     const onShowMore = vi.fn();
-    const { onSelectDay } = renderGrid({ onShowMore });
+    const { onSelectDay } = renderGrid({ items: SIX_ON_THE_9TH, onShowMore });
     fireEvent.click(screen.getByText("+1 more"));
     expect(onShowMore).toHaveBeenCalledTimes(1);
     expect(onSelectDay).not.toHaveBeenCalled();
   });
 
   it("leaves the line as text when no host handles it", () => {
-    renderGrid();
+    renderGrid({ items: SIX_ON_THE_9TH });
     expect(screen.queryByRole("button", { name: /\+1 more/ })).toBeNull();
     expect(screen.getByText("+1 more")).toBeInTheDocument();
   });
 
-  it("shows at most 2 chips and an overflow count for a busy day", () => {
-    renderGrid();
-    expect(screen.getByRole("button", { name: "Gym" })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Dentist" })).toBeInTheDocument();
-    // 3rd item is folded into the overflow line, not rendered as a chip.
-    expect(screen.queryByRole("button", { name: "Groceries" })).toBeNull();
+  // #2049: five chips, then the remainder — 5 is "no more", 6 is "+1".
+  it("shows five chips and no remainder on a day of five", () => {
+    renderGrid({ items: SIX_ON_THE_9TH.slice(0, 5) });
+    for (const name of ["Gym", "Dentist", "Groceries", "Standup"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+    expect(screen.queryByText(/more$/)).toBeNull();
+  });
+
+  it("shows at most 5 chips and an overflow count for a busy day", () => {
+    renderGrid({ items: SIX_ON_THE_9TH });
+    for (const name of ["Gym", "Dentist", "Groceries", "Standup", "Lunch"]) {
+      expect(screen.getByRole("button", { name })).toBeInTheDocument();
+    }
+    // The 6th item is folded into the overflow line, not rendered as a chip.
+    expect(screen.queryByRole("button", { name: "Call mom" })).toBeNull();
     expect(screen.getByText("+1 more")).toBeInTheDocument();
+  });
+
+  it("tells each cell's column, Sunday first (#2049)", () => {
+    renderGrid();
+    // July 2026 starts on a Wednesday, so 7/01 is column 3 and 7/05 column 0.
+    const columnOf = (k: string) =>
+      document
+        .querySelector(`[data-month-cell='${k}']`)
+        ?.getAttribute("data-month-column");
+    expect(columnOf("2026-07-01")).toBe("3");
+    expect(columnOf("2026-07-05")).toBe("0");
+    expect(columnOf("2026-07-11")).toBe("6");
   });
 
   it("fires onSelectDay when an empty cell is clicked", () => {
@@ -140,11 +180,9 @@ describe("MonthGrid", () => {
     expect(screen.getByText("Gym")).toBeInTheDocument();
     expect(screen.getByText("Dentist")).toBeInTheDocument();
     // 7/09 holds exactly 3 items and the list runs to 4 lines (#1581), so
-    // nothing is hidden and no remainder is printed — the chip figure
-    // ("+1 more", from the tighter cap of 2) must NOT leak into this
-    // density (#1045).
+    // nothing is hidden and no remainder is printed.
     expect(screen.getByText("Groceries")).toBeInTheDocument();
-    expect(screen.queryByText("+1 more")).toBeNull();
+    expect(screen.queryByText(/more$/)).toBeNull();
   });
 
   /*
@@ -192,7 +230,7 @@ describe("MonthGrid", () => {
     const cell = title.closest("[role='gridcell']");
     expect(cell?.className).toContain("overflow-hidden");
     expect(cell?.className).toContain("min-h-[5.5rem]");
-    expect(cell?.className).not.toContain("min-h-14");
+    expect(cell?.className).not.toContain("min-h-[10.25rem]");
   });
 
   // #1835: the grid is at least as tall as its scroll box on a phone, so six
@@ -229,8 +267,8 @@ describe("MonthGrid", () => {
    * a day with eight items cannot look like a day with two.
    *
    * The count is asserted as a NUMBER, not as "there is a marker": the same
-   * cell carries a second cap (2, for Desktop chips) that a plain presence
-   * check would happily accept.
+   * cell carries a second cap (5, for Desktop chips — #2049) that a plain
+   * presence check would happily accept.
    */
   describe("compact overflow count", () => {
     const busyDay = (count: number): MonthGridItem[] =>
@@ -264,13 +302,16 @@ describe("MonthGrid", () => {
     });
 
     it("leaves the Desktop count on its own cap", () => {
-      // Same 8 items without `compact`: 2 chips → 6 hidden, against compact's
-      // 3 shown → 5 hidden. The two densities share the formatter, so this
-      // pins the Desktop side on its own arithmetic — and the two numbers
-      // differing is the point (#1045).
+      // Same 8 items without `compact`: 5 chips → 3 hidden (#2049), against
+      // compact's 3 shown → 5 hidden. The two densities share the formatter,
+      // so this pins the Desktop side on its own arithmetic — and the two
+      // numbers differing is the point (#1045).
       renderGrid({ items: busyDay(8) });
-      expect(screen.getByText("+6 more")).toBeInTheDocument();
-      expect(screen.queryByText("Item 2")).toBeNull();
+      expect(screen.getByText("+3 more")).toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: "Item 4" }),
+      ).toBeInTheDocument();
+      expect(screen.queryByText("Item 5")).toBeNull();
     });
   });
 
@@ -551,12 +592,13 @@ describe("MonthGrid — compact room and date size (#1581)", () => {
     expect(compactCell?.className).toContain("h-[5.5rem]");
     // Still a fixed height that clips: #1401's rule, not a floor that grows.
     expect(compactCell?.className).toContain("overflow-hidden");
-    expect(compactCell?.className).not.toContain("min-h-14");
+    expect(compactCell?.className).not.toContain("min-h-[10.25rem]");
 
     cleanup();
     renderGrid();
     const wideCell = cellOf("2026-07-20");
-    expect(wideCell?.className).toContain("min-h-14");
+    // #2049: five chips and the remainder line (MonthGrid has the sum).
+    expect(wideCell?.className).toContain("min-h-[10.25rem]");
     expect(wideCell?.className).not.toContain("h-[5.5rem]");
   });
 

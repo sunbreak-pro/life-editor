@@ -47,8 +47,16 @@ export const CELL_FOCUS =
 const TITLE_FADE =
   "[mask-image:linear-gradient(to_right,black_calc(100%_-_0.5rem),transparent)]";
 
-/** Desktop chips cut at two, with "他 N 件" under them. */
-export const MONTH_MAX_CHIPS = 2;
+/*
+ * Desktop chips cut at FIVE since #2049 (two until then), with "他 N 件" under
+ * them. Two folded a day as ordinary as three meetings and a todo, so the cell
+ * read as busy long before it was.
+ *
+ * Like the compact pair below, the number and the cell's floor in MonthGrid
+ * move together: the floor is exactly five chips plus the remainder line, and
+ * raising one without the other lets the chips spill into the next week.
+ */
+export const MONTH_MAX_CHIPS = 5;
 
 /*
  * Compact: FOUR lines per cell since #1581 (three until then). A day with
@@ -81,7 +89,8 @@ export function monthCellFold(
   return { shown, overflow: Math.max(0, count - MONTH_MAX_CHIPS) };
 }
 
-function chipFaceClasses(variant: ScheduleItemVariant): string {
+/** The variant face a chip wears when no tag colour replaces it (#1580). */
+export function chipFaceClasses(variant: ScheduleItemVariant): string {
   switch (variant) {
     case "routine":
       return "bg-lumen-chip-routine-bg text-lumen-chip-routine-fg";
@@ -168,8 +177,11 @@ interface FullChipsProps extends CellBodyProps {
   /**
    * "+N more" was pressed (#1829). Given, the remainder line is a button;
    * omitted, it stays the static text it has always been.
+   *
+   * Hands back the button itself (#2049): the host opens its panel beside this
+   * cell and puts focus back on the button when the panel closes with Escape.
    */
-  onShowMore?: () => void;
+  onShowMore?: (anchor: HTMLElement) => void;
   /** Already-translated accessible name for that button (§6.4). */
   showMoreLabel?: string;
   onSelectItem?: (id: string) => void;
@@ -295,9 +307,11 @@ export function MonthFullChips({
           <button
             type="button"
             aria-label={showMoreLabel}
+            // #2049: it opens a panel now, not another view.
+            aria-haspopup="dialog"
             onClick={(e) => {
               e.stopPropagation();
-              onShowMore();
+              onShowMore(e.currentTarget);
             }}
             className={cn(
               "pointer-events-auto cursor-pointer rounded px-1 text-left text-xs text-lumen-text-tertiary transition-colors hover:bg-lumen-hover hover:text-lumen-text",

@@ -70,13 +70,13 @@ const HEADING_PILL_TAP =
  * NOT ALWAYS TODAY SINCE #1148. Narrow's main area is the month grid alone
  * now, so this tab is where a tapped day is read — the host feeds it the
  * ANCHOR day's agenda and label on narrow, and today's on Desktop. The tab's
- * name is still 今日の流れ because on Desktop that is what it usually is; on
+ * name is still 今日の流れ because on Desktop that is exactly what it is; on
  * narrow the heading row below names the day it is actually showing, which it
  * always did.
  *
- * #1973 made Desktop the same exception once: a month cell's "他 N 件" points
- * the tab at that day (useFlowDay), and the heading row then carries a way
- * back to today beside the day's name.
+ * #1973 once pointed the Desktop tab at the day a month cell's "他 N 件"
+ * named, with a "back to today" button on the heading row. #2049 moved that
+ * press to a panel beside the cell, and both went.
  */
 export interface ScheduleSidebarFlow {
   /** Already-formatted heading day (the host owns the locale). */
@@ -126,15 +126,6 @@ export interface ScheduleSidebarFlow {
   onAdd?: () => void;
   /** Already-translated label for that pill. */
   addLabel?: string;
-  /**
-   * The way back to today (#1973). Present on Desktop ONLY while a month
-   * cell's "他 N 件" has pointed the tab at some other day — the tab's name
-   * still reads 今日の流れ, so a list of another day needs a visible exit
-   * beside the caption that names it.
-   */
-  onBackToToday?: () => void;
-  /** Already-translated label for that button. */
-  backToTodayLabel?: string;
 }
 
 /** "繰り返し" — the routine list that replaced the retired Routines header tab (#408). */
@@ -274,19 +265,6 @@ export function ScheduleSidebar({
             // §Gotchas) — AddPill's own recipe feeds Notes too.
             className="max-md:min-h-11"
           />
-        )}
-        {/* #1973: takes the pill's place on Desktop. The two never meet —
-            the pill is narrow-only and this is Desktop-only — so the row
-            still holds at most one control. It sits AFTER the pill so the
-            pill keeps its place beside the caption (scheduleNarrowAdd). */}
-        {flow.onBackToToday && flow.backToTodayLabel && (
-          <button
-            type="button"
-            onClick={flow.onBackToToday}
-            className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-          >
-            {flow.backToTodayLabel}
-          </button>
         )}
       </div>
       <AgendaList
