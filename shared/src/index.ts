@@ -895,6 +895,8 @@ export {
   totalWorkMinutesForItem,
   // #1666: the day the Work sidebar's history tab reads back.
   pickWorkHistoryDay,
+  // #2054: the two days (today, yesterday) the Mobile drawer reads back.
+  pickWorkHistoryDays,
   type WorkHistoryDay,
   // #1665: the Schedule slot a free session is filed under.
   freeSessionSlot,

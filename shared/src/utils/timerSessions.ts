@@ -113,6 +113,48 @@ export function pickWorkHistoryDay(
   sessions: readonly TimerSession[],
   todayKey: string,
 ): WorkHistoryDay | null {
+  const byDay = workSessionsByDay(sessions);
+  if (byDay.size === 0) return null;
+  // Keys are YYYY-MM-DD, so string order is calendar order. A day AFTER today
+  // only exists when the device clock moved backwards; it is the last resort
+  // rather than the pick, so a skewed clock cannot hide the real latest day.
+  const keys = [...byDay.keys()].sort();
+  const past = keys.filter((k) => k <= todayKey);
+  const dateKey =
+    past.length > 0 ? past[past.length - 1] : keys[keys.length - 1];
+  return { dateKey, sessions: byDay.get(dateKey) ?? [] };
+}
+
+/**
+ * The days the Mobile drawer's history shows (#2054, D-20261003-work-2):
+ * today and yesterday, newest first, each only when it has work on it — so a
+ * morning check still sees last night's log under its own heading.
+ *
+ * When neither has work, the single day `pickWorkHistoryDay` would pick, so a
+ * user back after a few days off still reads their latest log instead of an
+ * empty drawer. Empty array only when nothing has ever been worked.
+ */
+export function pickWorkHistoryDays(
+  sessions: readonly TimerSession[],
+  todayKey: string,
+): WorkHistoryDay[] {
+  const byDay = workSessionsByDay(sessions);
+  const [y, m, d] = todayKey.split("-").map(Number);
+  const yesterdayKey = formatDateKey(new Date(y, m - 1, d - 1));
+  const days: WorkHistoryDay[] = [];
+  for (const dateKey of [todayKey, yesterdayKey]) {
+    const rows = byDay.get(dateKey);
+    if (rows) days.push({ dateKey, sessions: rows });
+  }
+  if (days.length > 0) return days;
+  const latest = pickWorkHistoryDay(sessions, todayKey);
+  return latest ? [latest] : [];
+}
+
+/** Counted WORK sessions keyed by the LOCAL day they started, oldest first. */
+function workSessionsByDay(
+  sessions: readonly TimerSession[],
+): Map<string, (TimerSession & { duration: number })[]> {
   const byDay = new Map<string, (TimerSession & { duration: number })[]>();
   for (const s of sessions) {
     if (s.sessionType !== "WORK") continue;
@@ -122,17 +164,10 @@ export function pickWorkHistoryDay(
     if (bucket) bucket.push(s);
     else byDay.set(key, [s]);
   }
-  if (byDay.size === 0) return null;
-  // Keys are YYYY-MM-DD, so string order is calendar order. A day AFTER today
-  // only exists when the device clock moved backwards; it is the last resort
-  // rather than the pick, so a skewed clock cannot hide the real latest day.
-  const keys = [...byDay.keys()].sort();
-  const past = keys.filter((k) => k <= todayKey);
-  const dateKey =
-    past.length > 0 ? past[past.length - 1] : keys[keys.length - 1];
-  const rows = byDay.get(dateKey) ?? [];
-  rows.sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
-  return { dateKey, sessions: rows };
+  for (const rows of byDay.values()) {
+    rows.sort((a, b) => a.startedAt.getTime() - b.startedAt.getTime());
+  }
+  return byDay;
 }
 
 /** Where a free session lands on the calendar (#1665). */

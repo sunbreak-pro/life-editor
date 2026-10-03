@@ -356,6 +356,7 @@
     },
     "history": {
       "today": "Today",
+      "yesterday": "Yesterday",
       "latestDay": "Latest work day · {{date}}",
       "empty": "No work sessions yet. Finished sessions will show up here.",
       "noTarget": "Free session",

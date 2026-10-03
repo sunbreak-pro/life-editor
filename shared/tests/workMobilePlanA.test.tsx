@@ -410,6 +410,82 @@ describe("WorkHistoryList rows variant (#2054)", () => {
     expect(rows[1]).toHaveTextContent("Free session");
   });
 
+  it("draws one headed list per day when given groups (D-20261003-work-2)", () => {
+    const row = (id: string, title: string) => ({
+      id,
+      timeRange: "09:10–09:35",
+      durationLabel: "25 min",
+      target: { kind: "todo" as const, title },
+      tags: [],
+    });
+    render(
+      <WorkHistoryList
+        variant="rows"
+        labels={labels}
+        entries={[]}
+        groups={[
+          { key: "2026-10-03", heading: "Today", entries: [row("1", "A")] },
+          {
+            key: "2026-10-02",
+            heading: "Yesterday",
+            entries: [row("2", "B"), row("3", "C")],
+          },
+        ]}
+      />,
+    );
+    // Each list is named by its own day, not two lists both called "History".
+    const today = screen.getByRole("list", { name: "Today" });
+    const yesterday = screen.getByRole("list", { name: "Yesterday" });
+    expect(within(today).getAllByTestId("work-history-row")).toHaveLength(1);
+    expect(within(yesterday).getAllByTestId("work-history-row")).toHaveLength(
+      2,
+    );
+    expect(screen.queryByRole("list", { name: "History" })).toBeNull();
+  });
+
+  it("keeps the list's own name when only one group has rows", () => {
+    render(
+      <WorkHistoryList
+        variant="rows"
+        labels={labels}
+        entries={[]}
+        groups={[
+          { key: "2026-10-03", heading: "Today", entries: [] },
+          {
+            key: "2026-10-02",
+            heading: "Yesterday",
+            entries: [
+              {
+                id: "1",
+                timeRange: "21:40–22:05",
+                durationLabel: "25 min",
+                target: null,
+                tags: [],
+              },
+            ],
+          },
+        ]}
+      />,
+    );
+    expect(screen.queryByText("Today")).toBeNull();
+    expect(screen.getByText("Yesterday")).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "History" })).toBeInTheDocument();
+  });
+
+  it("shows the empty state when every group is empty", () => {
+    render(
+      <WorkHistoryList
+        variant="rows"
+        labels={labels}
+        entries={[]}
+        groups={[{ key: "2026-10-03", heading: "Today", entries: [] }]}
+      />,
+    );
+    expect(screen.getByTestId("work-history-empty")).toHaveTextContent(
+      "No sessions yet",
+    );
+  });
+
   it("shows the icon empty state", () => {
     render(<WorkHistoryList variant="rows" labels={labels} entries={[]} />);
     const empty = screen.getByTestId("work-history-empty");

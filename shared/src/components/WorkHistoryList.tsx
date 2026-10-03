@@ -1,3 +1,4 @@
+import { useId } from "react";
 import { Clock, History, Tag as TagIcon } from "lucide-react";
 import { TagPill } from "./TagPill";
 import { cn } from "./cn";
@@ -27,6 +28,11 @@ import {
  * A): one flat row per session — the kind glyph on a neutral disc, the title,
  * and "25 min · 09:00–09:25" under it — and an empty state with an icon and a
  * heading. The Desktop panel keeps the bordered cards.
+ *
+ * The rows variant can also take `groups` — one heading and list per day —
+ * because the drawer shows "today" and "yesterday" together
+ * (D-20261003-work-2). Without it, `entries` under `labels.heading` is the one
+ * group, which is all the card variant ever draws.
  */
 
 export interface WorkHistoryTag {
@@ -46,6 +52,15 @@ export interface WorkHistoryEntry {
   /** The linked item, or null when the session named none. */
   target: { kind: WorkTargetOption["kind"]; title: string } | null;
   tags: WorkHistoryTag[];
+}
+
+/** One day of the rows variant: its heading and that day's rows. */
+export interface WorkHistoryGroup {
+  /** Stable key — the day's `YYYY-MM-DD`. */
+  key: string;
+  /** Already-formatted day heading ("Today" / "Yesterday"). */
+  heading: string;
+  entries: WorkHistoryEntry[];
 }
 
 export interface WorkHistoryListLabels {
@@ -69,6 +84,8 @@ export interface WorkHistoryListProps {
   className?: string;
   /** card = the Desktop panel's cards (default); rows = the Mobile drawer (#2054). */
   variant?: "card" | "rows";
+  /** Rows variant only: several days, each under its own heading. */
+  groups?: WorkHistoryGroup[];
 }
 
 export function WorkHistoryList({
@@ -77,8 +94,15 @@ export function WorkHistoryList({
   loading = false,
   className,
   variant = "card",
+  groups,
 }: WorkHistoryListProps) {
+  const headingId = useId();
   const rows = variant === "rows";
+  const sections: WorkHistoryGroup[] =
+    rows && groups
+      ? groups.filter((g) => g.entries.length > 0)
+      : [{ key: "day", heading: labels.heading, entries }];
+  const isEmpty = sections.every((g) => g.entries.length === 0);
   if (loading) {
     return (
       <div className={cn("flex flex-col gap-2", className)} aria-busy="true">
@@ -92,7 +116,7 @@ export function WorkHistoryList({
     );
   }
 
-  if (entries.length === 0 && rows && labels.emptyTitle) {
+  if (isEmpty && rows && labels.emptyTitle) {
     return (
       <div
         className={cn(
@@ -112,7 +136,7 @@ export function WorkHistoryList({
     );
   }
 
-  if (entries.length === 0) {
+  if (isEmpty) {
     return (
       <p
         className={cn("text-sm text-lumen-text-secondary", className)}
@@ -124,56 +148,74 @@ export function WorkHistoryList({
   }
 
   if (rows) {
+    // One list per day. A single group keeps the list's own name; several are
+    // each named by their day heading, so a screen reader hears "Today" and
+    // "Yesterday" rather than two lists both called "History".
+    const single = sections.length === 1;
     return (
-      <section className={cn("flex flex-col", className)}>
-        <h3 className="pb-1 text-xs font-semibold text-lumen-text-tertiary">
-          {labels.heading}
-        </h3>
-        <ul className="flex flex-col" aria-label={labels.listLabel}>
-          {entries.map((entry) => (
-            <li
-              key={entry.id}
-              data-testid="work-history-row"
-              className="flex min-h-14 items-center gap-3 py-1.5"
-            >
-              {entry.target ? (
-                <WorkTargetGlyph kind={entry.target.kind} />
-              ) : (
-                // No target = a free session: a tag glyph, the thing a free
-                // session is filed by.
-                <span
-                  aria-hidden="true"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-lumen-border bg-lumen-bg-secondary text-lumen-text-secondary"
-                >
-                  <TagIcon size={16} />
-                </span>
-              )}
-              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                <span className="truncate text-sm text-lumen-text">
-                  {entry.target ? entry.target.title : labels.noTarget}
-                </span>
-                <span className="text-xs tabular-nums text-lumen-text-tertiary">
-                  <span>{entry.durationLabel}</span>
-                  {" · "}
-                  <span>{entry.timeRange}</span>
-                </span>
-                {entry.tags.length > 0 && (
-                  <div className="mt-1 flex flex-wrap gap-1">
-                    {entry.tags.map((tag) => (
-                      <TagPill
-                        key={tag.id}
-                        name={tag.name}
-                        color={tag.color}
-                        icon={tag.icon ?? null}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
+      <div className={cn("flex flex-col gap-4", className)}>
+        {sections.map((group) => {
+          const groupHeadingId = `${headingId}-${group.key}`;
+          return (
+            <section key={group.key} className="flex flex-col">
+              <h3
+                id={groupHeadingId}
+                className="pb-1 text-xs font-semibold text-lumen-text-tertiary"
+              >
+                {group.heading}
+              </h3>
+              <ul
+                className="flex flex-col"
+                aria-label={single ? labels.listLabel : undefined}
+                aria-labelledby={single ? undefined : groupHeadingId}
+              >
+                {group.entries.map((entry) => (
+                  <li
+                    key={entry.id}
+                    data-testid="work-history-row"
+                    className="flex min-h-14 items-center gap-3 py-1.5"
+                  >
+                    {entry.target ? (
+                      <WorkTargetGlyph kind={entry.target.kind} />
+                    ) : (
+                      // No target = a free session: a tag glyph, the thing a
+                      // free session is filed by.
+                      <span
+                        aria-hidden="true"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-lumen-border bg-lumen-bg-secondary text-lumen-text-secondary"
+                      >
+                        <TagIcon size={16} />
+                      </span>
+                    )}
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate text-sm text-lumen-text">
+                        {entry.target ? entry.target.title : labels.noTarget}
+                      </span>
+                      <span className="text-xs tabular-nums text-lumen-text-tertiary">
+                        <span>{entry.durationLabel}</span>
+                        {" · "}
+                        <span>{entry.timeRange}</span>
+                      </span>
+                      {entry.tags.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {entry.tags.map((tag) => (
+                            <TagPill
+                              key={tag.id}
+                              name={tag.name}
+                              color={tag.color}
+                              icon={tag.icon ?? null}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
     );
   }
 

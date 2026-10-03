@@ -356,6 +356,7 @@
     },
     "history": {
       "today": "今日",
+      "yesterday": "昨日",
       "latestDay": "直近の作業日 · {{date}}",
       "empty": "まだ作業の記録がありません。終えたセッションがここに並びます。",
       "noTarget": "フリーセッション",
