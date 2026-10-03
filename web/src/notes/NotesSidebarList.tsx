@@ -18,7 +18,7 @@ import {
   tourAnchor,
 } from "@life-editor/shared";
 import { noteDraggableId, type NoteTagDnd } from "./useNoteTagDnd";
-import { NoteTagFilterChips } from "./NoteTagFilterChips";
+import { NoteTagFilterPanel } from "./NoteTagFilterPanel";
 import { DesktopNoteRow, DesktopTagHeading } from "./NoteListRows";
 import { TreeDragGhost } from "../components/TreeDragGhost";
 
@@ -65,12 +65,12 @@ export interface NotesSidebarListLabels {
   /** The pencil left of a row's bin on narrow (#2032). */
   editNote: string;
   assignTagHint: string;
-  /** Drop every tag-filter chip at once (#1288). */
+  /** Drop every tag-filter selection at once (#1288). */
   clearTagFilter: string;
-  /** "+N" for the chips the capped filter row is not drawing (#1288). */
-  moreTagFilters: (count: number) => string;
-  /** Collapse the filter row back to its cap (#1288). */
-  fewerTagFilters: string;
+  /** The filter button's accessible name while N tags are selected (#2059). */
+  tagFilterSelected: (count: number) => string;
+  /** Accessible name for the panel of tag options (#2059). */
+  tagFilterPanel: string;
   /** "Show the remaining N notes in this group" (#1288). */
   moreRows: (count: number) => string;
   /** Put the group's rows back under the cap (#1842). */
@@ -90,7 +90,7 @@ export interface NotesSidebarListProps {
   onToggleDirection: () => void;
   directionLabel: string;
   showTagFilter: boolean;
-  tagFilterChips: {
+  tagFilterOptions: {
     id: string;
     label: string;
     count: number;
@@ -123,8 +123,8 @@ export interface NotesSidebarListProps {
   onSelectNote: (id: string) => void;
   onDeleteNote: (id: string) => void;
   /**
-   * Right-click on a tag row — a filter chip or a group heading (#1677). The
-   * id handed back is the TAG id: a chip carries a group key, which is the
+   * Right-click on a tag row — a filter option or a group heading (#1677). The
+   * id handed back is the TAG id: an option carries a group key, which is the
    * tag id for every group but the untagged bucket, and that bucket is
    * filtered out here rather than at the host. Undefined on narrow, where no
    * row attaches a contextmenu listener at all.
@@ -162,7 +162,7 @@ export function NotesSidebarList({
   onToggleDirection,
   directionLabel,
   showTagFilter,
-  tagFilterChips,
+  tagFilterOptions,
   tagFilters,
   onToggleTagFilter,
   onClearTagFilters,
@@ -202,13 +202,13 @@ export function NotesSidebarList({
     });
 
   /*
-   * A chip's id is a GROUP KEY (useNoteListState), which is the tag's own id
-   * for every group except the untagged bucket's sentinel. So the tag menu
-   * gets the id as-is, and the bucket — which has no tag to rename or delete —
-   * falls through to the browser's own menu, exactly as the Connect rail lets
-   * its untagged row do.
+   * A filter option's id is a GROUP KEY (useNoteListState), which is the tag's
+   * own id for every group except the untagged bucket's sentinel. So the tag
+   * menu gets the id as-is, and the bucket — which has no tag to rename or
+   * delete — falls through to the browser's own menu, exactly as the Connect
+   * rail lets its untagged row do.
    */
-  const chipContextMenu = onTagContextMenu
+  const optionContextMenu = onTagContextMenu
     ? (id: string, event: ReactMouseEvent) => {
         if (id === UNTAGGED_GROUP_KEY) return;
         onTagContextMenu(id, event);
@@ -249,26 +249,27 @@ export function NotesSidebarList({
         directionToggleLabel={labels.toggleDirection}
       />
 
-      {/* Tag filter (#369, multi-select since #1288) — each chip is a heading
-          to show; the row caps itself and offers a clear. */}
+      {/* Tag filter (#369, multi-select since #1288). Since #2059 a button
+          that opens the tag panel in place, where it used to be a chip row
+          drawn at all times; each option is still a heading to show. */}
       {showTagFilter && (
         // #1125 anchors the tour's "follow a tag" step here. CONDITIONAL by
-        // nature: the row only renders with more than one group to choose
+        // nature: the filter only renders with more than one group to choose
         // between, so a user with a single tag has no anchor and the tour
         // skips that step rather than waiting on a control that will not
         // appear (anchor.ts).
         <div {...tourAnchor("materials-tag-filter")}>
-          <NoteTagFilterChips
-            chips={tagFilterChips}
+          <NoteTagFilterPanel
+            options={tagFilterOptions}
             value={tagFilters}
             onToggle={onToggleTagFilter}
             onClear={onClearTagFilters}
-            onChipContextMenu={chipContextMenu}
+            onOptionContextMenu={optionContextMenu}
             labels={{
-              group: labels.tagFilter,
+              button: labels.tagFilter,
+              buttonSelected: labels.tagFilterSelected,
+              panel: labels.tagFilterPanel,
               clear: labels.clearTagFilter,
-              more: labels.moreTagFilters,
-              less: labels.fewerTagFilters,
             }}
           />
         </div>

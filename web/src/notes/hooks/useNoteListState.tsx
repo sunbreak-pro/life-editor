@@ -17,7 +17,7 @@ import {
  * zero behavior change). Owns the persisted collapse state for tag-group
  * headings and the derived side-list pipeline both breakpoints render from
  * (search → tag groups → sort → tag filter), plus the sort/filter control
- * plumbing (mode picker entries, direction label, tag-filter chips).
+ * plumbing (mode picker entries, direction label, tag-filter options).
  */
 
 // Collapse state for tag-group headings. Persisted so a folded group stays
@@ -198,7 +198,7 @@ export function useNoteListState() {
     (key: string) => {
       /*
        * #1470: with nothing matching the query the chips describe the VAULT
-       * rather than the result set (see tagFilterChips), so pressing one can
+       * rather than the result set (see tagFilterOptions), so pressing one can
        * only mean "narrow by this tag instead of that word" — the mirror of
        * handleSearchChange dropping the chips when you type. Without it the
        * row restored below would be a control that does nothing.
@@ -233,11 +233,11 @@ export function useNoteListState() {
     });
   }, [searchEmpty, notes.notes, allTags, getTagsForItem, t]);
 
-  const chipGroups = searchEmpty ? vaultGroups : sortedGroups;
+  const optionGroups = searchEmpty ? vaultGroups : sortedGroups;
 
-  const tagFilterChips = useMemo(
+  const tagFilterOptions = useMemo(
     () =>
-      chipGroups.map((group) => ({
+      optionGroups.map((group) => ({
         id: groupKey(group),
         label: group.tagName,
         count: group.notes.length,
@@ -265,7 +265,7 @@ export function useNoteListState() {
           />
         ),
       })),
-    [chipGroups],
+    [optionGroups],
   );
 
   // filterTagGroups falls back to the full list when every selection goes stale
@@ -290,7 +290,7 @@ export function useNoteListState() {
   const rowCap = tagFilters.length > 0 ? null : GROUP_ROW_CAP;
 
   // Only worth showing when there is more than one bucket to choose between.
-  const showTagFilter = tagFilterChips.length > 1;
+  const showTagFilter = tagFilterOptions.length > 1;
 
   /*
    * Typing in the search box drops the tag filter. The two are alternative ways
@@ -318,7 +318,7 @@ export function useNoteListState() {
     tagFilters,
     toggleTagFilter,
     clearTagFilters,
-    tagFilterChips,
+    tagFilterOptions,
     visibleGroups,
     rowCap,
     showTagFilter,
