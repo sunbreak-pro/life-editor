@@ -81,7 +81,7 @@ export interface UseScheduleRepeatsArgs {
     ) => Promise<boolean>;
     deleteRoutine: DeleteRepeatSeriesArgs["deleteRoutine"];
     reload: () => void;
-    showToast: (kind: "danger", message: string) => void;
+    showToast: (kind: "danger" | "info", message: string) => void;
   };
   /**
    * Where a jump from the repeat panel lands (#1678 / #1830). The jump only
@@ -327,6 +327,43 @@ export function useScheduleRepeats({
   );
 
   /*
+   * #2083: what a press on a repeat row does, by width.
+   *
+   * Desktop opens the row's panel (#1678). Narrow has no panel — the list sits
+   * in the drawer that covers the calendar, so a floating panel would cover its
+   * own list (#299) — and the press used to be handed `openRepeatPanel` anyway,
+   * which set state nothing on narrow renders: the tap did nothing at all.
+   *
+   * So on narrow the press goes straight to the panel's "edit detail": the
+   * occurrence's editor IS the series editor (#185), and editing is what the
+   * tap is for. A row with no occurrence has no editor to open; it says why
+   * instead of swallowing the tap.
+   */
+  const handleRepeatRowPress = useCallback(
+    (id: string, pos: { x: number; y: number }) => {
+      if (isWide) {
+        openRepeatPanel(id, pos);
+        return;
+      }
+      const routine = routines.find((r) => r.id === id);
+      if (!routine || !nextRoutineOccurrence(routine, listDate)) {
+        showToast("info", t("scheduleScreen.repeatNeverFires"));
+        return;
+      }
+      requestEditDetail(id);
+    },
+    [
+      isWide,
+      openRepeatPanel,
+      routines,
+      listDate,
+      showToast,
+      t,
+      requestEditDetail,
+    ],
+  );
+
+  /*
    * #1279: the question this asks used to live in the row itself — pressing
    * the trash icon swapped the row for an inline confirm band. It moved here
    * because the panel is the wrong owner for it: the Todo delete in the same
@@ -393,6 +430,8 @@ export function useScheduleRepeats({
     repeatPanel,
     openRepeatPanel,
     closeRepeatPanel,
+    /** The row press: the panel on Desktop, the editor on narrow (#2083). */
+    handleRepeatRowPress,
     handleOpenRepeat,
     /** The panel's "show the next one" (#1830). */
     requestReveal,
