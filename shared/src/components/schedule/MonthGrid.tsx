@@ -19,11 +19,12 @@ import {
 
 /*
  * MonthGrid (W8 target-IA) — pure, presentational month calendar. Desktop
- * renders a 7-column grid of cells (day-number badge + up to 2 provenance
- * chips + "他 N 件"); Mobile (`compact`) renders a day badge over a short
- * vertical list of item TITLES (#1401 — it was a dot row until then), cut at
- * four lines with the same "他 N 件" remainder (#1045) taking the last one
- * (#1581 — three lines and a taller badge until then).
+ * renders a 7-column grid of cells (day-number badge + up to 5 provenance
+ * chips + "他 N 件" — #2049, two until then); Mobile (`compact`) renders a
+ * day badge over a short vertical list of item TITLES (#1401 — it was a dot
+ * row until then), cut at four lines with the same "他 N 件" remainder
+ * (#1045) taking the last one (#1581 — three lines and a taller badge until
+ * then).
  *
  * The compact cell has a FIXED FLOOR and clips: a phone's cell is ~1/7th of
  * the screen wide, and a title that does not fit is cut at the cell edge with
@@ -115,14 +116,17 @@ export interface MonthGridProps {
    */
   onCreateDay?: (dateKey: string) => void;
   /**
-   * A cell's "他 N 件" was pressed (#1829) — the host shows that day in full.
+   * A cell's "他 N 件" was pressed (#1829) — the host shows what the cell
+   * folded away. `anchor` is the pressed button (#2049): the host opens its
+   * panel beside that cell (`data-month-cell` / `data-month-column` on the
+   * button's cell say which) and returns focus to it on Escape.
    *
    * Desktop only in practice: `compact` draws its remainder as one of four
    * title lines and the cell face is already the tap target there, so a
    * second control in a 51px cell would be neither hittable nor unambiguous.
    * Omitted, the line stays static text.
    */
-  onShowMore?: (dateKey: string) => void;
+  onShowMore?: (dateKey: string, anchor: HTMLElement) => void;
   onSelectItem?: (id: string) => void;
   /**
    * Single-click on a chip → host opens a bubble popover anchored at the
@@ -146,7 +150,7 @@ export interface MonthGridProps {
   onDropTodo?: (drop: TodoCalendarDrop) => void;
   /**
    * Already-translated "他 N 件" formatter (§6.4). Both densities call it —
-   * the count differs (chips cut at 2, dots at 3) but the phrase must not.
+   * the count differs (chips cut at 5, titles at 3) but the phrase must not.
    */
   formatMoreCount: (n: number) => string;
   /** Accessible name for a day cell. Default = the raw date key. */
@@ -259,7 +263,7 @@ function MonthGridImpl({
 
       {/* Day cells */}
       <div className="grid flex-1 auto-rows-fr grid-cols-7">
-        {rows.flat().map((dateKey) => {
+        {rows.flat().map((dateKey, index) => {
           const { m, d } = parseDateKey(dateKey);
           const inMonth = m === monthNum;
           const isToday = !!todayKey && dateKey === todayKey;
@@ -276,6 +280,9 @@ function MonthGridImpl({
               // selection to make, and the overview (#692) has none.
               aria-selected={selectedKey ? isSelected : undefined}
               data-month-cell={dateKey}
+              // #2049: which column, so a panel opened from the first one
+              // can open on its right instead of over the screen's edge.
+              data-month-column={index % 7}
               // #1627: the cell owns its day, so a drop needs no coordinates.
               {...cellDrop(dateKey)}
               className={cn(
@@ -302,8 +309,17 @@ function MonthGridImpl({
                  * viewports, so the host's wrapper still scrolls
                  * (CalendarNarrowLayout) rather than a week going out of
                  * sight.
+                 *
+                 * Desktop's floor is five chips plus the "他 N 件" line since
+                 * #2049 (it was 3.5rem, for two). In rem, at `text-xs`:
+                 * badge 1.25 + 5 chips × 1.333 (line 1.083 + py-0.5) +
+                 * remainder line 1.083 + six 0.125 gaps + p-1 top and
+                 * bottom 0.5 = 10.25. Six such rows run past most windows, so
+                 * the host lets the grid grow and scrolls it
+                 * (CalendarDesktopLayout) — a grid held to the window would
+                 * clip its last week against `overflow-hidden` instead.
                  */
-                compact ? "min-h-[5.5rem] overflow-hidden" : "min-h-14",
+                compact ? "min-h-[5.5rem] overflow-hidden" : "min-h-[10.25rem]",
                 isSelected &&
                   "bg-lumen-bg-secondary ring-2 ring-inset ring-lumen-accent",
                 dropDay === dateKey && "bg-lumen-hover",
@@ -384,7 +400,9 @@ function MonthGridImpl({
                     overflow={overflow}
                     formatMoreCount={formatMoreCount}
                     onShowMore={
-                      onShowMore ? () => onShowMore(dateKey) : undefined
+                      onShowMore
+                        ? (anchor) => onShowMore(dateKey, anchor)
+                        : undefined
                     }
                     // Named only when there IS a button to name (#1829). The
                     // formatter is the host's and usually wraps the same day

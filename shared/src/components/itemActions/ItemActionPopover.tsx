@@ -77,6 +77,14 @@ export interface ItemActionPopoverProps {
    * `cn` is a plain join, not tailwind-merge (rules/frontend.md §Gotchas).
    */
   layout?: "stack" | "columns";
+  /**
+   * Move focus into the panel when it opens (#2049) — its first action, or the
+   * edit-detail button when there are none. For a panel opened from the
+   * keyboard: one that opens without it leaves focus on whatever opened it,
+   * which may already be gone (the month cell's "他 N 件" panel closes as it
+   * hands over). Off by default, so a mouse-opened bubble behaves as before.
+   */
+  autoFocus?: boolean;
 }
 
 export function ItemActionPopover({
@@ -89,6 +97,7 @@ export function ItemActionPopover({
   label,
   width = DEFAULT_WIDTH,
   layout = "stack",
+  autoFocus = false,
 }: ItemActionPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -114,6 +123,20 @@ export function ItemActionPopover({
       inputRef.current?.select();
     }
   }, [inlineId]);
+
+  // #2049: once, on open. Hosts rebuild `actions` every render, so keying this
+  // on them would pull focus back to the top mid-navigation. The action rows
+  // are looked for first: in "columns" the edit-detail button comes before
+  // them in the DOM, and landing on it would skip the whole list.
+  useLayoutEffect(() => {
+    if (!autoFocus) return;
+    const panel = panelRef.current;
+    (
+      panel?.querySelector<HTMLElement>('[role="menuitem"]:not([disabled])') ??
+      panel?.querySelector<HTMLElement>("button:not([disabled])")
+    )?.focus({ preventScroll: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- open-time only
+  }, []);
 
   // Measure the panel we just drew and re-clamp with the real number, before
   // the browser paints. Re-runs on the two things that change the height — the
