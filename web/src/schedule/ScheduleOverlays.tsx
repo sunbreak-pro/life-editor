@@ -341,7 +341,8 @@ export function ScheduleOverlays({
    * #1678 — the repeat row's panel. Desktop only, for the same reason the
    * grid's bubble is (#299): on narrow the list lives in the drawer that
    * covers the calendar, so a floating panel would sit over its own list.
-   * Narrow keeps the press as the jump it always was.
+   * Narrow's press goes straight to the series' editor instead
+   * (useScheduleRepeats.handleRepeatRowPress, #2083).
    *
    * A row with no occurrence opens this too — the actions that need one are
    * disabled rather than missing, so the panel can be the place that says why.

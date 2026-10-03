@@ -753,8 +753,8 @@ export function CalendarTab({
     listDate,
     repeatRows,
     repeatPanel,
-    openRepeatPanel,
     closeRepeatPanel,
+    handleRepeatRowPress,
     requestReveal,
     requestEditDetail,
     handleDeleteRepeat,
@@ -898,9 +898,9 @@ export function CalendarTab({
         repeats={{
           hidden: repeatsHidden,
           rows: repeatRows,
-          // #1678: the press opens the row's panel; the jump to the next
-          // occurrence is one of the actions inside it.
-          onOpen: openRepeatPanel,
+          // #1678: the press opens the row's panel on Desktop; #2083: narrow
+          // has no panel, so there the press opens the series' editor.
+          onOpen: handleRepeatRowPress,
           onDelete: handleDeleteRepeat,
           onShowHidden: handleToggleRepeats,
         }}

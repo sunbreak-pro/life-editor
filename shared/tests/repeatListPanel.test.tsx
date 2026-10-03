@@ -174,4 +174,11 @@ describe("RepeatListPanel — read-only (#467 Mobile)", () => {
     });
     expect(onOpen).toHaveBeenCalledWith("r-1", { x: 1, y: 2 });
   });
+
+  it("gives the row press a 44px floor on narrow only (#2083)", () => {
+    renderPanel();
+    const row = screen.getByText("Morning run").closest("button")!;
+    expect(row.className).toContain("max-md:min-h-11");
+    expect(row.className.split(" ")).not.toContain("min-h-11");
+  });
 });
