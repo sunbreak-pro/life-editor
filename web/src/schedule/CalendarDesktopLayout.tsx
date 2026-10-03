@@ -1,11 +1,13 @@
-import { useCallback, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import {
   CalendarLensRow,
   MonthGrid,
+  MonthMorePanel,
   ScheduleBodyFold,
   ScheduleToolbar,
   TOUR_ANCHORS,
   WeekTimeGrid,
+  monthCellFold,
   tourAnchor,
   useTranslation,
   type CalendarLensRowProps,
@@ -113,7 +115,16 @@ export interface CalendarDesktopLabels {
 
 /** Every gesture the two grids can raise. */
 export interface CalendarDesktopHandlers {
-  onItemActivate: (id: string, pos: { x: number; y: number }) => void;
+  /**
+   * A chip, a block or a row of the month "他 N 件" panel was pressed. `opts`
+   * comes only from that panel (#2049): `focus` asks the bubble to take focus
+   * after a keyboard press.
+   */
+  onItemActivate: (
+    id: string,
+    pos: { x: number; y: number },
+    opts?: { focus?: boolean },
+  ) => void;
   onItemDoubleClick: (id: string) => void;
   onItemContextMenu: (id: string, pos: { x: number; y: number }) => void;
   /**
@@ -126,16 +137,6 @@ export interface CalendarDesktopHandlers {
    * could be pressed, and a press aimed at a chip opened the panel instead.
    */
   onMonthCreate: (dateKey: string) => void;
-  /**
-   * A month cell's "他 N 件" was pressed (#1829). Desktop answers by pointing
-   * the detail panel's flow tab at that day and leaving the month on screen
-   * (#1973 — #1933 took the week of that day instead, as a stopgap).
-   *
-   * Optional, like `onDropTodo` below: without it the remainder stays the
-   * static line it was, which is what a host that only draws the grid (the
-   * #1582 render-count fixture) wants.
-   */
-  onShowMore?: (dateKey: string) => void;
   onCreateAt: NonNullable<WeekTimeGridHandlers["onCreateAt"]>;
   onMoveItem: NonNullable<WeekTimeGridHandlers["onMoveItem"]>;
   onResizeItem: NonNullable<WeekTimeGridHandlers["onResizeItem"]>;
@@ -226,6 +227,52 @@ export function CalendarDesktopLayout({
   );
 
   /*
+   * #2049: "他 N 件" opens a panel beside its cell listing what the cell
+   * folded away. It replaced #1973's answer (point the detail panel's flow tab
+   * at the day), whose list appeared somewhere else on the screen and left
+   * focus on the cell — the press read as doing nothing.
+   *
+   * The panel is this layout's own UI, so its state lives here rather than in
+   * CalendarTab: the host only learns of a press through `onItemActivate`,
+   * when a row of the panel is pressed.
+   *
+   * `monthKey` pins the open panel to the month it was opened in. Paging to
+   * another month, switching to the week, or the folded rows disappearing
+   * (the last hidden item deleted) all let go of it, adjusted while rendering
+   * so no frame shows a panel for a cell that is gone.
+   */
+  const [more, setMore] = useState<{
+    dateKey: string;
+    monthKey: string;
+    anchor: HTMLElement;
+  } | null>(null);
+  const anchorDate = data.anchorDate;
+  const handleShowMore = useCallback(
+    (dateKey: string, anchor: HTMLElement) =>
+      // A second press on the same "他 N 件" closes it again.
+      setMore((cur) =>
+        cur?.dateKey === dateKey
+          ? null
+          : { dateKey, monthKey: anchorDate, anchor },
+      ),
+    [anchorDate],
+  );
+  const closeMore = useCallback(() => setMore(null), []);
+  const moreItems = useMemo(() => {
+    if (!more) return [];
+    const day = data.monthItems.filter((it) => it.date === more.dateKey);
+    // The same fold the cell drew, so the panel starts exactly where the
+    // chips stopped.
+    return day.slice(monthCellFold(day.length, false).shown);
+  }, [more, data.monthItems]);
+  if (
+    more &&
+    (view !== "month" || more.monthKey !== anchorDate || moreItems.length === 0)
+  ) {
+    setMore(null);
+  }
+
+  /*
    * #889: the Desktop main area, hoisted out of the return so the layout
    * below reads as what it is — toolbar, lens, body. Same three states the
    * narrow branch shows, in the wrappers Desktop needs.
@@ -250,7 +297,7 @@ export function CalendarDesktopLayout({
             todayKey={data.today}
             weekdayLabels={labels.weekdays}
             onCreateDay={handlers.onMonthCreate}
-            onShowMore={handlers.onShowMore}
+            onShowMore={handleShowMore}
             onItemActivate={handlers.onItemActivate}
             onItemDoubleClick={handlers.onItemDoubleClick}
             onItemContextMenu={handlers.onItemContextMenu}
@@ -260,8 +307,24 @@ export function CalendarDesktopLayout({
             formatCreateLabel={formatCreateLabel}
             formatShowMoreLabel={formatShowMoreLabel}
             ariaLabel={t("scheduleScreen.calendar")}
-            className="h-full"
+            // #2049: a floor, not a height. Five chips per cell make six rows
+            // taller than most windows; held to `h-full`, the grid's own
+            // `overflow-hidden` cut the last week off. The wrapper above
+            // scrolls instead.
+            className="min-h-full"
           />
+          {more && moreItems.length > 0 && (
+            <MonthMorePanel
+              anchor={more.anchor}
+              items={moreItems}
+              title={t("scheduleScreen.monthMoreTitle", {
+                date: fullDay(more.dateKey),
+              })}
+              closeLabel={t("common.close")}
+              onItemActivate={handlers.onItemActivate}
+              onClose={closeMore}
+            />
+          )}
         </div>
       ) : (
         // Item detail moved into a body-level overlay (#299), so the grid

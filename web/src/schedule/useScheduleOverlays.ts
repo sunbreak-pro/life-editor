@@ -24,6 +24,12 @@ export interface SchedulePopover {
   id: string;
   x: number;
   y: number;
+  /**
+   * The bubble takes focus when it opens (#2049). Set only for a keyboard
+   * press in the month cell's "他 N 件" panel, which closes as it hands over
+   * and would otherwise leave focus nowhere.
+   */
+  focus?: boolean;
 }
 
 /**

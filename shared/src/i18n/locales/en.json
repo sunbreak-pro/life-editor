@@ -306,12 +306,16 @@
       "placeholder": "Free session",
       "clear": "Back to a free session",
       "select": "Free session",
-      "sheetTitle": "Choose a work name",
-      "clearSelection": "Free session",
+      "sheetTitle": "Link your work",
+      "clearSelection": "Clear selection",
       "allDay": "All day",
-      "nameLabel": "Work name",
+      "nameLabel": "Free session name",
       "nameSubmit": "Work under this name",
-      "emptyHint": "No todo or event to choose from. Starting now files a free session."
+      "emptyHint": "No todo or event to choose from. Starting now files a free session.",
+      "todoHeading": "Todo",
+      "eventHeading": "Events",
+      "sheetEmptyTitle": "Nothing to link yet",
+      "sheetEmptyBody": "Type a name above to start a free session."
     },
     "completion": {
       "title": "Session {{index}} complete",
@@ -319,7 +323,9 @@
       "bodyNoTodo": "Logged {{minutes}} min. Take a {{breakMinutes}}-minute break.",
       "startBreak": "Start break",
       "oneMore": "One more session",
-      "close": "Close"
+      "close": "Close",
+      "logged": "Logged {{minutes}} min",
+      "startBreakMinutes": "Start a {{minutes}}-min break"
     },
     "settings": {
       "presetNamePlaceholder": "Preset name",
@@ -328,7 +334,20 @@
       "presetsEmpty": "No presets yet",
       "save": "Save",
       "saved": "Saved",
-      "unsaved": "Unsaved"
+      "unsaved": "Unsaved",
+      "short": {
+        "work": "Work",
+        "break": "Break",
+        "longBreak": "Long break",
+        "sessionsBeforeLongBreak": "Until long break",
+        "target": "Daily goal"
+      },
+      "valueMinutes": "{{value}} min",
+      "valueCount": "{{value}}×",
+      "decrease": "Decrease {{label}}",
+      "increase": "Increase {{label}}",
+      "applied": "Applied",
+      "presetSummary": "{{work}}·{{brk}}·{{long}} min / {{sessions}}×"
     },
     "sidebarTabs": {
       "label": "Work sidebar",
@@ -340,7 +359,9 @@
       "latestDay": "Latest work day · {{date}}",
       "empty": "No work sessions yet. Finished sessions will show up here.",
       "noTarget": "Free session",
-      "minutes": "{{minutes}} min"
+      "minutes": "{{minutes}} min",
+      "emptyTitle": "No sessions yet",
+      "emptyBody": "Finish one session and it shows up here."
     },
     "freeSession": {
       "title": "Free session",
@@ -353,7 +374,9 @@
       "tagNoCandidates": "No tags yet",
       "tagDialog": "Free session tags",
       "tagSheetClose": "Close",
-      "tagDisabled": "Tags apply to a free session — clear the work name to use them."
+      "tagDisabled": "Tags apply to a free session — clear the work name to use them.",
+      "tagAddRow": "Add tags",
+      "tagDisabledRow": "Tags are off while work is linked"
     }
   },
   "audioMixer": {
@@ -468,7 +491,8 @@
       "sortTitle": "Title",
       "tagFilterLabel": "Filter by tag",
       "tagFilterClear": "Clear tag filter",
-      "tagFilterMore": "+{{count}}",
+      "tagFilterSelected": "Filter by tag, {{count}} selected",
+      "tagFilterPanel": "Tags to show",
       "tagFilterLess": "Show fewer",
       "groupMoreRows": "Show {{count}} more",
       "rowActions": "Note actions",
@@ -675,7 +699,6 @@
     "allDay": "All-day",
     "emptyToday": "Nothing scheduled for today",
     "emptyDay": "Nothing scheduled for this day",
-    "flowBackToToday": "Back to today",
     "frequency": "Repeat",
     "viewLabel": "View",
     "frequencyNone": "None",
@@ -721,7 +744,8 @@
     "retry": "Retry",
     "moreCount": "+{{count}} more",
     "monthCreateOn": "Add on {{date}}",
-    "monthShowAllOn": "Show everything on {{date}}",
+    "monthShowAllOn": "Show the rest of {{date}}",
+    "monthMoreTitle": "The rest of {{date}}",
     "quickAddPlaceholder": "Enter an event…",
     "detailTitle": "Event details",
     "detailPanelLabel": "Detail panel",
@@ -1420,7 +1444,7 @@
       "materialsCapture": "You can add a note from this button. Try making one.",
       "materialsNoteBody": "Write a few words. The body saves as you type — there is no save button to remember.",
       "materialsNoteTag": "Give it a tag. Tags are how a note joins everything else about the same thing.",
-      "materialsTagFollow": "Pick a tag here to see only what carries it — that is how you get back to related notes later."
+      "materialsTagFollow": "Open the tag filter and pick a tag to see only what carries it — that is how you get back to related notes later."
     }
   },
   "errorBoundary": {

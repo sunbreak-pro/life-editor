@@ -1,5 +1,19 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-10-03 - #2049 を PR #2070 で提出（Desktop の月セルを 5 件 + 横のパネルに）
+
+#### 概要
+
+/goal の 2 件のうち #2049 を `claude/schedule-month-more-2049`（`origin/main` から）で実装し、PR #2070 を開いた（書いた時点で open）。CI `verify` 全ステップ + `docs-lint` は最終版で全部 exit 0。#2010 は PR #2022 が 2026-09-27 に merge 済みで、残りは chat-main の 390px 実ブラウザ確認だけなので、新しい PR は作らなかった。
+
+#### 変更点
+
+- **表示件数**: `MONTH_MAX_CHIPS` を 2 → 5。セルの下限を `min-h-14` → `min-h-[10.25rem]`（5 チップ + 「他 N 件」の合計）。グリッドの根を `h-full` → `min-h-full` にして、6 週が画面より高いときは外側でスクロールさせる
+- **「他 N 件」のパネル**: `shared/src/components/schedule/MonthMorePanel.tsx` を新規作成。セルの左に開き、1 列目だけ右に開く。隠れた項目だけを並べ、開くとフォーカスが最初の項目へ移る。Esc で「他 N 件」へフォーカスを戻す。外側の押下・スクロール・リサイズで閉じる。開閉の状態は `CalendarDesktopLayout` が持つ
+- **簡易編集**: パネルの行は `handleItemActivate` に渡し、チップと同じ吹き出しを開く。キーボードで押したときだけ吹き出しにフォーカスを移すため、`ItemActionPopover` に `autoFocus`（既定 off・操作の行を優先）を足した
+- **#1973 の撤去**: `useFlowDay.ts` とそのテスト、右パネルの「今日に戻る」ボタン、文言 `flowBackToToday` を削除。Issue の「判断が要る点」の既定（パネルに置き換え）に従った
+- **テスト**: `monthGrid.test.tsx` の 2 件前提を 5 件に、`monthMorePanel.test.tsx` を新規、`itemActionPopover.test.tsx` に `autoFocus`、`calendarLayouts.test.tsx` にパネルの開閉 8 ケース
+
 ### 2026-09-22 - 画面別探索検証の 9 件を 9 本の PR で提出（#1827 / #1828 / #1834 / #1832 / #1833 / #1831 / #1835 / #1829 / #1830）
 
 #### 概要

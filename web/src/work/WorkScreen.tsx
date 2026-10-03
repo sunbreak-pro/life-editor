@@ -22,9 +22,10 @@ import {
   cn,
   formatDateKey,
   todayCalendarKey,
-  workTargetChipClass,
-  workTargetIcon,
+  WorkTargetGlyph,
   type DataService,
+  type PomodoroNumberKey,
+  type PomodoroSettingsDrawer,
   type ScheduleItem,
   type TodoNode,
   type WorkTargetOption,
@@ -32,7 +33,7 @@ import {
   type AudioMixerSound,
   WIDE_QUERY,
 } from "@life-editor/shared";
-import { X, ChevronDown } from "lucide-react";
+import { X, ChevronDown, Plus } from "lucide-react";
 import { formatShortDate } from "../schedule/scheduleCopy";
 import { WorkHistoryPanel } from "./WorkHistoryPanel";
 import { FreeSessionTags } from "./FreeSessionTags";
@@ -63,11 +64,13 @@ import { FreeSessionTags } from "./FreeSessionTags";
  *    rhythm Settings / Trash already use. The settings + presets editor is
  *    pushed into the shell rightSidebar via RightSidebarPortal (dimmed while
  *    the timer runs), which under v2 §4 opens BELOW the header's divider.
- *  - Mobile  → the header slot is wide-only, so below 768px there is no title
- *    row at all (v2 non-goal: mobile unchanged): a single fullscreen timer
- *    face; the todo chip opens a BottomSheet picker; the settings editor is
- *    reached through the shell's left drawer (the same portal), opened from
- *    MainScreen's hamburger row. The ambient mixer is Desktop-only.
+ *  - Mobile  → a single fullscreen timer face laid out after Claude Design
+ *    plan A (#2054): the link row and the tag row sit in the lower half just
+ *    above the labelled transport; the link row opens a BottomSheet picker;
+ *    the settings editor and the history are reached through the shell's
+ *    left drawer (the same portal), opened from MainScreen's hamburger row,
+ *    and draw their drawer layouts there. The completion modal takes its
+ *    mobile layout too. The ambient mixer is Desktop-only.
  *
  * A WORK-session completion (completedSessions increments) opens the
  * SessionCompletionModal.
@@ -383,6 +386,43 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
     />
   );
 
+  /*
+   * The drawer layout's extra copy (#2054). Only the narrow screen passes it:
+   * the same panel goes to the Desktop right sidebar, which keeps its fields.
+   */
+  const settingsDrawer = useMemo<PomodoroSettingsDrawer>(() => {
+    const minuteKeys: PomodoroNumberKey[] = [
+      "workDuration",
+      "breakDuration",
+      "longBreakDuration",
+    ];
+    return {
+      short: {
+        workDuration: t("work.settings.short.work"),
+        breakDuration: t("work.settings.short.break"),
+        longBreakDuration: t("work.settings.short.longBreak"),
+        sessionsBeforeLongBreak: t(
+          "work.settings.short.sessionsBeforeLongBreak",
+        ),
+        targetSessions: t("work.settings.short.target"),
+      },
+      formatValue: (key, value) =>
+        minuteKeys.includes(key)
+          ? t("work.settings.valueMinutes", { value })
+          : t("work.settings.valueCount", { value }),
+      decrease: (label) => t("work.settings.decrease", { label }),
+      increase: (label) => t("work.settings.increase", { label }),
+      applied: t("work.settings.applied"),
+      presetSummary: (p) =>
+        t("work.settings.presetSummary", {
+          work: p.workDuration,
+          brk: p.breakDuration,
+          long: p.longBreakDuration,
+          sessions: p.sessionsBeforeLongBreak,
+        }),
+    };
+  }, [t]);
+
   // Settings + presets — pushed into the shell detail panel (Desktop right /
   // Mobile left drawer). Dimmed while running (§design 367) — still operable.
   const settingsPanel = (
@@ -426,6 +466,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
         }
         onCreatePreset={(name, values) => void timer.createPreset(name, values)}
         onDeletePreset={requestDeletePreset}
+        drawer={isWide ? undefined : settingsDrawer}
       />
     </div>
   );
@@ -452,91 +493,86 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
       {sidebarTab === "settings" ? (
         settingsPanel
       ) : (
-        <WorkHistoryPanel dataService={ds} />
+        <WorkHistoryPanel dataService={ds} variant={isWide ? "card" : "rows"} />
       )}
     </ScheduleSidebarTabs>
   );
 
-  // Mobile todo slot: the chip (selected) or a "choose a todo" button that
-  // opens the BottomSheet picker.
-  //
-  // Both halves carry an unconditional 44px floor (#1557) rather than a
-  // `max-md:` one: this slot is only ever handed to the fullscreen timer face
-  // below, so it does not exist at Desktop width — there the wide branch draws
-  // PomodoroTodoSelector instead, and that component is untouched.
   /*
-   * The mobile face gets the same tag field (#1665) — the timer is Mobile-Full
-   * (mobile-scope.md #10), so a session started from the phone files its free
-   * session exactly like the desktop one, and the tags have to be reachable
-   * from where the session is started. It sits UNDER the chip rather than
-   * beside it: the fullscreen face has one narrow row, and a second control in
-   * it would push the chip's text to a couple of characters.
+   * Mobile link row (#2054, Claude Design plan A): one 52px frame in both
+   * states, so picking and clearing a target never makes the face jump.
+   *
+   *  - linked   → the kind glyph on a neutral disc, the title, and a 44px ×
+   *               that drops the link. Only the glyph is coloured: the phase
+   *               colour belongs to the badge, the ring and the main button.
+   *  - unlinked → the whole frame is the button that opens the picker: a
+   *               dashed disc with +, the label, and a chevron.
+   *
+   * Both carry an unconditional 44px+ floor (#1557) rather than a `max-md:`
+   * one: this slot is only ever handed to the fullscreen timer face, so it
+   * does not exist at Desktop width — there the wide branch draws
+   * PomodoroTodoSelector instead, and that component is untouched.
    */
-  const mobileTagRow = (
-    <div className="flex justify-center">
-      {/* `sheet`: this row exists on the narrow face only (#1856). */}
+  const mobileLinkRow = timer.activeItem ? (
+    <div className="flex min-h-13 w-full items-center gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg pl-2.5 pr-1">
+      <WorkTargetGlyph kind={timer.activeItem.kind} />
+      <span className="min-w-0 flex-1 truncate text-sm font-medium text-lumen-text">
+        {timer.activeItem.title}
+      </span>
+      <button
+        type="button"
+        aria-label={t("work.todoSelector.clear")}
+        onClick={() => handleSelectTarget(null)}
+        // `min-*` rather than `h-11 w-11`: `cn` is plain concatenation, so a
+        // second class for the same property would be settled by Tailwind's
+        // output order rather than by ours (#830).
+        className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-tertiary hover:bg-lumen-hover"
+      >
+        <X size={18} aria-hidden="true" />
+      </button>
+    </div>
+  ) : (
+    <button
+      type="button"
+      onClick={() => setSheetOpen(true)}
+      aria-haspopup="dialog"
+      className="flex min-h-13 w-full items-center gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg pl-2.5 pr-3.5 text-left hover:bg-lumen-hover"
+    >
+      <span
+        aria-hidden="true"
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-lumen-border-strong text-lumen-text-tertiary"
+      >
+        <Plus size={16} />
+      </span>
+      {/* A named free session shows its name here (#2009), so the face says
+          what the Event will be called before the session is even started. */}
+      <span className="min-w-0 flex-1 truncate text-sm text-lumen-text-secondary">
+        {timer.freeSessionName.trim() || t("work.todoSelector.select")}
+      </span>
+      <ChevronDown
+        size={18}
+        aria-hidden="true"
+        className="shrink-0 text-lumen-text-tertiary"
+      />
+    </button>
+  );
+
+  /*
+   * The tag field (#1665) under the link row — the timer is Mobile-Full
+   * (mobile-scope.md #10), so a session started from the phone files its free
+   * session exactly like the desktop one. `sheet` makes it the full-width row
+   * plan A draws (#1856 / #2054); while a target is linked it says in words
+   * that tags are off.
+   */
+  const mobileSlot = (
+    <>
+      {mobileLinkRow}
       <FreeSessionTags
         dataService={ds}
         disabled={timer.activeItem !== null}
         sheet
       />
-    </div>
-  );
-
-  const mobileTodoSlot = timer.activeItem ? (
-    <span
-      className={cn(
-        "inline-flex max-w-full items-center gap-2 rounded-lumen-md py-2 pl-3.5 pr-2.5 text-sm font-medium",
-        workTargetChipClass(timer.activeItem.kind),
-      )}
-    >
-      <span className="shrink-0">
-        {workTargetIcon(timer.activeItem.kind, 15)}
-      </span>
-      <span className="truncate">{timer.activeItem.title}</span>
-      <button
-        type="button"
-        aria-label={t("work.todoSelector.clear")}
-        onClick={() => handleSelectTarget(null)}
-        /*
-         * 44x44 (#1557). What this button had was the icon-only floor from
-         * tokens.css (`--spacing-lumen-tap-min` = 1.75rem, ~32px) — which is
-         * exactly the 32x32 the audit measured.
-         *
-         * `min-*` rather than `h-11 w-11` because `cn` is plain string
-         * concatenation, not tailwind-merge: two classes for the SAME property
-         * are settled by Tailwind's output order rather than by ours (#830).
-         *
-         * The negative margins are what keep the chip from following the
-         * button up to 60px: they let the 44px square eat the chip's own
-         * padding (py-2 / pr-2.5) instead of stacking on top of it, so the
-         * chip lands at exactly 44 and the square sits flush inside it. Same
-         * trick BottomSheet's close button uses.
-         */
-        className="-my-2 -mr-2.5 inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded p-0.5 hover:opacity-70"
-      >
-        <X size={14} aria-hidden="true" />
-      </button>
-    </span>
-  ) : (
-    <button
-      type="button"
-      onClick={() => setSheetOpen(true)}
-      /*
-       * min-h-11 (#1557): py-2 around one line of text-sm left this at ~42px.
-       * It is alone in its row on the fullscreen face, so the box is free to
-       * grow — no need for the invisible ::after extension TAP_TARGET_TALL
-       * uses for controls packed side by side.
-       */
-      className="inline-flex min-h-11 items-center gap-2 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-sm font-medium text-lumen-text-secondary hover:bg-lumen-hover"
-    >
-      {/* A named free session shows its name here (#2009), so the face says
-          what the Event will be called before the session is even started. */}
-      <span className="truncate">
-        {timer.freeSessionName.trim() || t("work.todoSelector.select")}
-      </span>
-      <ChevronDown size={15} aria-hidden="true" />
-    </button>
+    </>
   );
 
   const completionModal = (
@@ -547,10 +583,18 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
       labels={{
         title: completionTitle,
         body: completionBody,
-        startBreak: t("work.completion.startBreak"),
+        // The narrow modal names the break's length on its button and the
+        // minutes on their own line (#2054); the wide one keeps the sentence.
+        startBreak: isWide
+          ? t("work.completion.startBreak")
+          : t("work.completion.startBreakMinutes", { minutes: breakMinutes }),
         oneMore: t("work.completion.oneMore"),
         close: t("work.completion.close"),
+        logged: t("work.completion.logged", { minutes: loggedMinutes }),
       }}
+      variant={isWide ? "default" : "mobile"}
+      target={timer.activeItem}
+      breakPhase={timer.phase === "LONG_BREAK" ? "LONG_BREAK" : "BREAK"}
       onStartBreak={() => {
         timer.start();
         setCompletionOpen(false);
@@ -565,20 +609,23 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
 
   if (!isWide) {
     return (
-      <div className="flex flex-col gap-3">
-        {timerFace("fullscreen", mobileTodoSlot)}
-        {mobileTagRow}
+      <div className="flex flex-col">
+        {timerFace("fullscreen", mobileSlot)}
         <RightSidebarPortal>{sidebarPanel}</RightSidebarPortal>
         <PomodoroTodoSheet
           open={sheetOpen}
           onClose={() => setSheetOpen(false)}
           items={options}
           selectedId={timer.activeItem?.id ?? null}
+          loading={todosLoading}
           labels={{
             title: t("work.todoSelector.sheetTitle"),
             close: t("common.close"),
             clearSelection: t("work.todoSelector.clearSelection"),
-            emptyHint: t("work.todoSelector.emptyHint"),
+            emptyHint: t("work.todoSelector.sheetEmptyBody"),
+            emptyTitle: t("work.todoSelector.sheetEmptyTitle"),
+            todoHeading: t("work.todoSelector.todoHeading"),
+            eventHeading: t("work.todoSelector.eventHeading"),
             nameLabel: t("work.todoSelector.nameLabel"),
             namePlaceholder: t("work.freeSession.title"),
             nameSubmit: t("work.todoSelector.nameSubmit"),

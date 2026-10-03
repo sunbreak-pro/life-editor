@@ -220,6 +220,32 @@ function groupHeading(name: string): HTMLElement {
   return found;
 }
 
+/**
+ * The tag filter's button (#2059). Named by its visible label while nothing is
+ * selected and by the "N selected" label once something is.
+ */
+function tagFilterButton(): HTMLElement {
+  return screen.getByRole("button", {
+    name: /^materials\.notes\.tagFilter(Label|Selected)/,
+  });
+}
+
+/** Opens the tag filter panel if it is shut, and returns it (#2059). */
+function openTagFilter(): HTMLElement {
+  const button = tagFilterButton();
+  if (button.getAttribute("aria-expanded") !== "true") fireEvent.click(button);
+  return screen.getByRole("group", { name: "materials.notes.tagFilterPanel" });
+}
+
+/** The panel option whose visible text starts with this tag name. */
+function filterOption(name: string): HTMLElement {
+  const found = within(openTagFilter())
+    .getAllByRole("button")
+    .find((b) => b.textContent?.startsWith(name));
+  if (!found) throw new Error(`no tag filter option named ${name}`);
+  return found;
+}
+
 describe("NotesView — loading", () => {
   it("shows a skeleton instead of either surface while notes load", () => {
     state.isLoading = true;
@@ -615,24 +641,28 @@ describe("NotesView — tour wiring (#1125)", () => {
   it("anchors the follow step on the tag filter, and reports picking one", () => {
     render(<NotesView />);
 
-    // Conditional by nature: the filter row only renders with more than one
+    // Conditional by nature: the filter only renders with more than one
     // group to choose between, which is why the step tolerates a missing
-    // anchor rather than waiting forever (registry.ts).
-    const chips = anchor("materials-tag-filter");
-    const chip = within(chips).getAllByRole("button")[0];
-    fireEvent.click(chip);
+    // anchor rather than waiting forever (registry.ts). Since #2059 the anchor
+    // holds the button and the panel it opens.
+    const filter = anchor("materials-tag-filter");
+    within(filter).getByRole("button", {
+      name: "materials.notes.tagFilterLabel",
+    });
+    // Opening the panel is not following a tag; picking one is.
+    openTagFilter();
+    expect(state.notifyAction).not.toHaveBeenCalledWith("tag-filtered");
+    fireEvent.click(filterOption("Work"));
 
     expect(state.notifyAction).toHaveBeenCalledWith("tag-filtered");
   });
 
   it("does not treat clearing the tag filter as following one", () => {
     render(<NotesView />);
-    const chips = anchor("materials-tag-filter");
-    const chip = within(chips).getAllByRole("button")[0];
 
-    fireEvent.click(chip); // select
+    fireEvent.click(filterOption("Work")); // select
     state.notifyAction.mockClear();
-    fireEvent.click(chip); // the active chip clears it (#369)
+    fireEvent.click(filterOption("Work")); // the active option clears it (#369)
 
     expect(state.notifyAction).not.toHaveBeenCalledWith("tag-filtered");
   });
@@ -756,20 +786,7 @@ describe("NotesView — mobile (narrow)", () => {
  * "one selection" apart at all.
  */
 describe("NotesView — multi-select tag filter (#1288)", () => {
-  /** The filter chip whose visible text starts with this tag name. */
-  function filterChip(name: string): HTMLElement {
-    // The tour anchor is the row's own wrapper — the same handle the #1125
-    // cases use, resolved locally because theirs lives in another describe.
-    const row = document.querySelector<HTMLElement>(
-      '[data-tour-id="materials-tag-filter"]',
-    );
-    if (!row) throw new Error("the tag filter row is not on screen");
-    const found = within(row)
-      .getAllByRole("button")
-      .find((b) => b.textContent?.startsWith(name));
-    if (!found) throw new Error(`no filter chip named ${name}`);
-    return found;
-  }
+  const filterChip = filterOption;
 
   it("shows both groups when two tags are selected", () => {
     render(<NotesView />);
@@ -779,7 +796,7 @@ describe("NotesView — multi-select tag filter (#1288)", () => {
     expect(screen.queryByText("Beta")).toBeNull();
     screen.getByText("Alpha");
 
-    // Two selected → both. OR, not AND: a chip means "show this heading".
+    // Two selected → both. OR, not AND: an option means "show this heading".
     fireEvent.click(filterChip("materials.notes.untagged"));
     screen.getByText("Alpha");
     screen.getByText("Beta");
@@ -868,6 +885,77 @@ describe("NotesView — multi-select tag filter (#1288)", () => {
 });
 
 /*
+ * #2059 — the chip row became a button that opens a tag panel inside the
+ * sidebar. Same filter underneath (multi-select, OR, the untagged bucket
+ * included); what changed is that it costs one row until it is asked for.
+ * Both widths, because the list is the same component in the push-in sidebar
+ * and in the narrow drawer (#876).
+ */
+describe("NotesView — the tag filter button and panel (#2059)", () => {
+  it.each([true, false])(
+    "draws a shut button and leaves the unfiltered list as it was (isWide=%s)",
+    (isWide) => {
+      state.isWide = isWide;
+      render(<NotesView />);
+
+      const button = tagFilterButton();
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+      expect(
+        screen.queryByRole("group", { name: "materials.notes.tagFilterPanel" }),
+      ).toBeNull();
+      // Nothing selected: the tag-grouped list, every group, every note.
+      groupHeading("Work");
+      groupHeading("materials.notes.untagged");
+      screen.getByText("Alpha");
+      screen.getByText("Beta");
+    },
+  );
+
+  it.each([true, false])(
+    "filters from the panel, counts on the button, and clears back (isWide=%s)",
+    (isWide) => {
+      state.isWide = isWide;
+      render(<NotesView />);
+
+      // The untagged bucket is an option like any tag.
+      within(openTagFilter()).getByRole("button", {
+        name: /materials\.notes\.untagged/,
+      });
+      fireEvent.click(filterOption("Work"));
+
+      expect(screen.queryByText("Beta")).toBeNull();
+      screen.getByText("Alpha");
+      expect(filterOption("Work").getAttribute("aria-pressed")).toBe("true");
+      expect(tagFilterButton().getAttribute("aria-label")).toBe(
+        "materials.notes.tagFilterSelected|1",
+      );
+
+      fireEvent.click(screen.getByLabelText("materials.notes.tagFilterClear"));
+
+      screen.getByText("Alpha");
+      screen.getByText("Beta");
+      expect(tagFilterButton().getAttribute("aria-label")).toBeNull();
+    },
+  );
+
+  it("closes on Esc, keeps the filter on, and hands the focus back", () => {
+    render(<NotesView />);
+    fireEvent.click(filterOption("Work"));
+    const option = filterOption("Work");
+    option.focus();
+
+    fireEvent.keyDown(option, { key: "Escape" });
+
+    expect(
+      screen.queryByRole("group", { name: "materials.notes.tagFilterPanel" }),
+    ).toBeNull();
+    expect(document.activeElement).toBe(tagFilterButton());
+    // Closing the panel is not clearing the filter.
+    expect(screen.queryByText("Beta")).toBeNull();
+  });
+});
+
+/*
  * #1365 — the chip row above the note list drew a hand-rolled colour dot, so
  * the icon a user picks in the tag editor reached the group headings, the
  * master list and the detail's picker but stopped here. #1291 made
@@ -884,8 +972,8 @@ describe("NotesView — the tag chips carry the tag's own icon (#1365)", () => {
       .filter((match): match is RegExpExecArray => match !== null)
       .map((match) => match[1]);
 
-  const chipRow = () =>
-    screen.getByRole("group", { name: "materials.notes.tagFilterLabel" });
+  // The chips became the options of the #2059 panel; the glyph rides along.
+  const chipRow = openTagFilter;
 
   it("draws the stored icon", () => {
     state.tags = [{ ...WORK_TAG, icon: "Star" }];
@@ -924,14 +1012,8 @@ describe("NotesView — a search that matches nothing (#1470)", () => {
     state.searchQuery = "ZZZQQNOMATCH";
   });
 
-  /** The tag-filter row's own wrapper (the #1125 tour anchor). */
-  function chipRow(): HTMLElement {
-    const row = document.querySelector<HTMLElement>(
-      '[data-tour-id="materials-tag-filter"]',
-    );
-    if (!row) throw new Error("the tag filter row is not on screen");
-    return row;
-  }
+  /** The tag filter's options — the #2059 panel, opened. */
+  const chipRow = openTagFilter;
 
   it("says nothing matched rather than that the vault is empty", () => {
     render(<NotesView />);
@@ -1006,13 +1088,7 @@ describe("NotesView — a search that matches nothing, on narrow (#1470)", () =>
     state.searchQuery = "ZZZQQNOMATCH";
   });
 
-  function chipRow(): HTMLElement {
-    const row = document.querySelector<HTMLElement>(
-      '[data-tour-id="materials-tag-filter"]',
-    );
-    if (!row) throw new Error("the tag filter row is not on screen");
-    return row;
-  }
+  const chipRow = openTagFilter;
 
   it("says nothing matched, in the drawer and in the panel behind it", () => {
     render(<NotesView />);

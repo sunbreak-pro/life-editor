@@ -248,67 +248,93 @@ provider's console and DNS — by the owner, not by Claude**. The repo only
 keeps the procedure and a copy of the templates. **Never commit the SMTP
 password / API key** — it lives only in the Dashboard.
 
-Which provider to use is an open decision (D-20260926-web-1 in
-`.claude/comm/decisions/chat-web-public.md`). The steps below are written
-so they do not depend on that choice.
+The provider is decided (D-20260926-web-1 = C): **start with Brevo's free
+tier and a Gmail address verified as a single sender**. It needs no
+domain, so the project stays at $0. It is a trial: if the measurement in
+step 7 shows mail bouncing or landing in spam outside Gmail, switch to a
+sending domain you own (A = Resend / B = Brevo, see
+[Fallback](#fallback-a-sending-domain-you-own)).
 
-### Prerequisite: a sending domain you control
+### Why the Gmail sender is a trial, not the final setup
 
-Every candidate provider needs the "From" address to be on a domain whose
-DNS you can edit, so it can publish SPF and DKIM records for it. Two
-things do **not** work:
+Gmail / Yahoo check that the "From" domain authorises the server that
+sent the mail (DMARC). Brevo's servers are not authorised for
+`gmail.com`, and nobody but Google can change that (Brevo's own help says
+free-mail domains cannot be authenticated). So some receivers may reject
+the mail or put it in spam. Gmail-to-Gmail may still arrive, which is why
+step 7 tests at least one inbox **outside** Gmail.
 
-- `life-editor.sunbreak-pro.workers.dev` — the domain belongs to
-  Cloudflare; you cannot add TXT records to it.
-- A free-mail sender such as `…@gmail.com` — providers may let you verify
-  it as a single sender, but Gmail / Yahoo reject or spam-folder it because
-  it fails DMARC alignment (Brevo's own help says free-mail domains cannot
-  be authenticated).
+### Setup steps (Brevo + Gmail single sender)
 
-A subdomain of a domain you already own is enough (e.g.
-`mail.example.com`, From = `no-reply@mail.example.com`).
-
-### Setup steps
-
-1. **Create the provider account** on the free tier. No credit card
-   should be needed; if the signup asks for one, stop — the project runs
-   at $0.
-2. **Verify the sending domain.** Add the SPF / DKIM (and, if offered,
-   return-path / DMARC) records the provider shows to your DNS, then wait
-   for the provider's console to mark the domain as verified. DNS can take
-   from minutes to a day to propagate.
-3. **Create an SMTP credential** in the provider console. Copy host,
-   port, username and password into a password manager only.
+1. **Create a Brevo account** on the free tier (300 mails per day). No
+   credit card should be needed; if the signup asks for one, stop — the
+   project runs at $0.
+2. **Add the Gmail address as a sender.** Brevo → Senders (under
+   "Senders, Domains & Dedicated IPs") → add the Gmail address, then
+   click the link in the confirmation mail Brevo sends to it. Skip the
+   domain authentication Brevo offers — it is impossible for `gmail.com`.
+3. **Create an SMTP key.** Brevo → "SMTP & API" → SMTP tab → generate an
+   **SMTP key** (not an API key). The same page shows the host, port and
+   **Login**; the login may be a generated `…@smtp-brevo.com` address
+   rather than your account email, so copy it from the page. Keep the key
+   in a password manager only.
 4. **Enter it in Supabase**: Dashboard → Authentication → Emails →
    SMTP Settings → enable **Custom SMTP** and fill in:
 
-   | Field        | Value                                               |
-   | ------------ | --------------------------------------------------- |
-   | Sender email | `no-reply@<your verified domain>`                   |
-   | Sender name  | `Life Editor`                                       |
-   | Host / Port  | from the provider (use 587 / STARTTLS or 465 / SSL) |
-   | Username     | from the provider                                   |
-   | Password     | the SMTP credential from step 3                     |
-
-   Reference values for the two front-runners (confirm in the provider's
-   docs at setup time): Resend = `smtp.resend.com`, username `resend`,
-   password = an API key; Brevo = `smtp-relay.brevo.com`, username = the
-   account login email, password = an **SMTP key** (not the API key).
+   | Field        | Value                                |
+   | ------------ | ------------------------------------ |
+   | Sender email | the Gmail address verified in step 2 |
+   | Sender name  | `Life Editor`                        |
+   | Host         | `smtp-relay.brevo.com`               |
+   | Port         | `587`                                |
+   | Username     | the Login shown in step 3            |
+   | Password     | the SMTP key from step 3             |
 
 5. **Check the send rate limit**: Dashboard → Authentication → Rate
    Limits. Turning on custom SMTP sets the email limit to a low default
    (30 per hour). That already covers the 10–20 distribution users; raise
    it only if the provider's daily cap allows.
-6. **Paste the templates** from `templates/auth/` (next section).
-7. **Test** (the DoD of #1986): sign up with a fresh address and confirm
-   the mail arrives within a minute from your domain; request a password
-   reset and confirm it arrives the same way; send 5 mails within 5
-   minutes (sign-ups + "resend confirmation") and confirm none is refused.
-   If a mail is missing, the provider's log shows whether Supabase handed
-   it over at all.
+6. **Paste the `ja/` templates** from `templates/auth/` (next section).
+7. **Test** (the DoD of #1986):
+   - sign up with a fresh address and confirm the mail arrives within a
+     minute;
+   - request a password reset and confirm it arrives the same way;
+   - send 5 mails within 5 minutes (sign-ups + "resend confirmation") and
+     confirm none is refused;
+   - send one more to an inbox **outside Gmail** (Yahoo, Outlook, iCloud,
+     a carrier address…) and note whether it arrived, whether it went to
+     spam, and what the "From" line shows.
 
-The Dashboard menu names above are as of 2026-09. If they move, search
-the Dashboard for "SMTP" / "Rate Limits".
+   If a mail is missing, Brevo's transactional log shows whether Supabase
+   handed it over at all. Write the results on #1986; a bounce or spam
+   result outside Gmail is the trigger to re-decide A / B (as a new D file
+   superseding D-20260926-web-1).
+
+The Dashboard and Brevo menu names above are as of 2026-09. If they move,
+search for "SMTP", "Senders" or "Rate Limits".
+
+### Fallback: a sending domain you own
+
+Use this only if the Gmail trial fails (A / B in D-20260926-web-1). The
+"From" address then has to be on a domain whose DNS you can edit, so the
+provider can publish SPF and DKIM records for it.
+`life-editor.sunbreak-pro.workers.dev` does **not** qualify — the domain
+belongs to Cloudflare and you cannot add TXT records to it. A subdomain of
+a domain you already own is enough (e.g. `mail.example.com`, From =
+`no-reply@mail.example.com`). Buying a new domain costs a yearly fee,
+which is an exception to the $0 rule and needs its own decision.
+
+The steps are the trial's, with these differences:
+
+- **Step 2** becomes domain verification: add the SPF / DKIM (and, if
+  offered, return-path / DMARC) records the provider shows to your DNS,
+  then wait until its console marks the domain as verified. DNS can take
+  from minutes to a day to propagate.
+- **Step 4** uses `no-reply@<your verified domain>` as the sender email.
+  For Resend (A) the values are host `smtp.resend.com`, username `resend`,
+  password = an API key; for Brevo (B) they stay as in the table above.
+  Confirm them in the provider's docs at setup time.
+- **Step 7** checks that the mail arrives from your domain.
 
 ### Email templates (`templates/auth/`)
 
@@ -329,9 +355,12 @@ as it does with Supabase's default templates.
 Supabase stores **one body per template type** and does not pick a
 language per user (the app does not record the user's language in
 `user_metadata` either). So only one of `ja/` / `en/` can be live at a
-time. Which one is an open decision (D-20260926-web-2). If you edit a
-template in the Dashboard, update the copy here in the same PR-sized
-change so the two do not drift.
+time: **`ja/` is the live one** (D-20260926-web-2 = A), matching the
+author and the current distribution users. `en/` is kept for when
+English-speaking users join; choosing the language per user would need a
+code change and is re-decided then. If you edit a template in the
+Dashboard, update the copy here in the same PR-sized change so the two do
+not drift.
 
 ### Rollback to the built-in sender
 
@@ -366,7 +395,7 @@ how each loop was made:
 | File                           | Purpose                                                                                                                         |
 | ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------- |
 | `scripts/ambient-sources.json` | For each loop: the recording's page, direct download URL, author, licence, and the stretch used (`start` / `length` / `xfade`). |
-| `scripts/ambient-loops.mjs`    | `build` turns the recordings into the five MP3s; `measure` prints length, level, bandwidth, edge silence and the seam step.      |
+| `scripts/ambient-loops.mjs`    | `build` turns the recordings into the five MP3s; `measure` prints length, level, bandwidth, edge silence and the seam step.     |
 
 Every recording in the manifest is CC0 or Public Domain Mark, because the
 bucket serves the files to anyone. Do not add a recording under a licence

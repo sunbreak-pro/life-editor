@@ -249,6 +249,32 @@ describe("Work — Layout Standard v2 adoption (#590)", () => {
 });
 
 /*
+ * #2054 — the drawer draws plan A's steppers on narrow, while the same panel
+ * in the Desktop right sidebar keeps its number fields. One WorkScreen feeds
+ * both, so the switch is the `isWide` it already reads.
+ */
+describe("Work — the settings take the drawer layout only on narrow (#2054)", () => {
+  it("shows − / + steppers in the Mobile drawer", () => {
+    stub.wide = false;
+    renderWork(NarrowShell);
+    fireEvent.click(screen.getByRole("button", { name: "open detail" }));
+    expect(
+      screen.getAllByRole("button", { name: "work.settings.increase" }),
+    ).toHaveLength(5);
+    expect(screen.queryAllByRole("spinbutton")).toHaveLength(0);
+  });
+
+  it("keeps the number fields in the Desktop panel", () => {
+    renderWork(WideShell);
+    fireEvent.click(screen.getByRole("button", { name: "open detail" }));
+    expect(screen.getAllByRole("spinbutton")).toHaveLength(5);
+    expect(
+      screen.queryAllByRole("button", { name: "work.settings.increase" }),
+    ).toHaveLength(0);
+  });
+});
+
+/*
  * #1519 — the picker offers a WEEK of events (#1375), so a daily routine
  * arrives as seven rows sharing one title. Before this the rows carried
  * nothing else, and picking one was a guess about which day the session would
