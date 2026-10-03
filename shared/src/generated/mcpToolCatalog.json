@@ -593,6 +593,10 @@
           "type": "string",
           "description": "First day of an \"interval\" routine (YYYY-MM-DD, default today). \"interval\" only."
         },
+        "frequency_end_date": {
+          "type": "string",
+          "description": "Last day of the series, inclusive (YYYY-MM-DD). Any frequency type. Omit for no end. Must not be before the series starts (today, or frequency_start_date for interval)."
+        },
         "start_time": {
           "type": "string",
           "description": "Start time in 24-hour HH:MM format. Pass with end_time, or omit both for the app's default slot (09:00-09:30)."

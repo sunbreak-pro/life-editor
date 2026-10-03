@@ -12,7 +12,8 @@ import {
  * editor's repeat section (it was shared with the Routines-tab form until #408
  * retired that tab).
  * Edits one routine's frequency: type (daily | weekdays | interval) plus the
- * type-specific controls (weekday chips / interval + start-date). Pure
+ * type-specific controls (weekday chips / interval + start-date), and the
+ * series' end date for every type (#2082). Pure
  * presentation (§3.1 / §6.4): every edit is an onChange patch; labels arrive
  * already translated. lumen-* tokens only (§5).
  *
@@ -27,7 +28,11 @@ import {
 /** The RoutineNode frequency subset this editor owns. */
 export type FrequencyEditorValue = Pick<
   RoutineNode,
-  "frequencyType" | "frequencyDays" | "frequencyInterval" | "frequencyStartDate"
+  | "frequencyType"
+  | "frequencyDays"
+  | "frequencyInterval"
+  | "frequencyStartDate"
+  | "frequencyEndDate"
 >;
 
 export interface FrequencyEditorLabels {
@@ -42,6 +47,12 @@ export interface FrequencyEditorLabels {
   /** "日ごと" trailing word. */
   intervalDays: string;
   startDate: string;
+  /** #2082: the series' last day. Optional — no end-date field without it. */
+  endDate?: string;
+  /** #2082: what an empty end date means ("no end"). */
+  endDateHint?: string;
+  /** #2082: accessible name of the button that clears the end date. */
+  endDateClear?: string;
   /** Shown beside the frequency label while `pending` (#434). */
   converting?: string;
 }
@@ -228,6 +239,68 @@ export function FrequencyEditor({
               )}
             />
           </label>
+        </div>
+      )}
+
+      {/*
+       * #2082: the series' last day, for every type. Unlike the start date
+       * above, "unset" is a real answer here — no end — so clearing it is a
+       * patch (null) rather than a dropped emission. A cleared or half-typed
+       * input reports "", which lands as null too: at worst a moment of "no
+       * end", which only ever ADDS days the next save would trim again.
+       *
+       * Inclusive: the day picked still fires. `min` keeps an interval series
+       * from ending before it starts (it would fire on no day at all).
+       */}
+      {value && labels.endDate && (
+        <div className="flex flex-col gap-1.5">
+          <span className={FIELD_LABEL}>{labels.endDate}</span>
+          <div className="flex items-center gap-2">
+            <input
+              type="date"
+              value={value.frequencyEndDate ?? ""}
+              min={
+                value.frequencyType === "interval"
+                  ? (value.frequencyStartDate ?? undefined)
+                  : undefined
+              }
+              onChange={(e) => {
+                if (pending) return;
+                onChange({ frequencyEndDate: e.target.value || null });
+              }}
+              aria-label={labels.endDate}
+              readOnly={pending}
+              aria-disabled={pending || undefined}
+              className={cn(
+                FIELD,
+                "min-w-0 flex-1 tabular-nums",
+                pending && "cursor-not-allowed opacity-60",
+              )}
+            />
+            {value.frequencyEndDate && labels.endDateClear && (
+              <button
+                type="button"
+                onClick={
+                  pending
+                    ? undefined
+                    : () => onChange({ frequencyEndDate: null })
+                }
+                aria-disabled={pending || undefined}
+                className={cn(
+                  "shrink-0 rounded-lumen-md px-2 py-1 text-xs font-medium text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
+                  CHIP_FOCUS,
+                  pending && "cursor-not-allowed opacity-60",
+                )}
+              >
+                {labels.endDateClear}
+              </button>
+            )}
+          </div>
+          {!value.frequencyEndDate && labels.endDateHint && (
+            <span className="text-xs text-lumen-text-secondary">
+              {labels.endDateHint}
+            </span>
+          )}
         </div>
       )}
     </div>

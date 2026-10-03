@@ -157,6 +157,31 @@ describe("createRoutine", () => {
     });
   });
 
+  it("stores an end date on any frequency type (#2082)", async () => {
+    stub = createSupabaseStub(readBack);
+
+    await createRoutine({
+      title: "t",
+      frequency_type: "weekdays",
+      frequency_days: [1],
+      frequency_end_date: "2099-12-31",
+    });
+
+    expect(writesTo("routines_payload")[0].values).toMatchObject({
+      frequency_end_date: "2099-12-31",
+    });
+  });
+
+  it("stores no end date when none is given (#2082)", async () => {
+    stub = createSupabaseStub(readBack);
+
+    await createRoutine({ title: "t", frequency_type: "daily" });
+
+    expect(writesTo("routines_payload")[0].values).toMatchObject({
+      frequency_end_date: null,
+    });
+  });
+
   it("stores no times when neither is given (the app's default slot)", async () => {
     stub = createSupabaseStub(readBack);
 
@@ -226,6 +251,26 @@ describe("createRoutine", () => {
       "the retired group type",
       { frequency_type: "group" },
       /frequency_type must be one of/,
+    ],
+    [
+      "a malformed end date (#2082)",
+      { frequency_type: "daily", frequency_end_date: "10/31" },
+      /Invalid date/,
+    ],
+    [
+      "an end date before an interval series starts (#2082)",
+      {
+        frequency_type: "interval",
+        frequency_interval: 2,
+        frequency_start_date: "2026-09-14",
+        frequency_end_date: "2026-09-13",
+      },
+      /before the series starts/,
+    ],
+    [
+      "an end date already in the past for a daily series (#2082)",
+      { frequency_type: "daily", frequency_end_date: "2000-01-01" },
+      /before the series starts/,
     ],
     [
       "a start time alone",

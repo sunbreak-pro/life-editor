@@ -136,6 +136,7 @@ export function useScheduleRepeats({
       frequencyDays: selectedRoutine.frequencyDays,
       frequencyInterval: selectedRoutine.frequencyInterval,
       frequencyStartDate: selectedRoutine.frequencyStartDate,
+      frequencyEndDate: selectedRoutine.frequencyEndDate ?? null,
     };
   }, [selectedRoutine]);
 

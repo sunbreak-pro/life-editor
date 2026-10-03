@@ -346,3 +346,52 @@ describe("collectRoutineItemsForDates", () => {
     expect(out).toEqual([]);
   });
 });
+
+describe("shouldCreateRoutineItem — the series' end date (#2082)", () => {
+  it("fires on the end date itself (inclusive)", () => {
+    const r = makeRoutine({ frequencyEndDate: "2026-10-31" });
+    expect(shouldCreateRoutineItem(r, "2026-10-31")).toBe(true);
+  });
+
+  it("never fires after the end date, whatever the frequency", () => {
+    expect(
+      shouldCreateRoutineItem(
+        makeRoutine({ frequencyEndDate: "2026-10-31" }),
+        "2026-11-01",
+      ),
+    ).toBe(false);
+    expect(
+      shouldCreateRoutineItem(
+        makeRoutine({
+          frequencyType: "weekdays",
+          frequencyDays: [0, 1, 2, 3, 4, 5, 6],
+          frequencyEndDate: "2026-10-31",
+        }),
+        "2027-01-04",
+      ),
+    ).toBe(false);
+  });
+
+  it("keeps the old behaviour with no end date (null or absent)", () => {
+    expect(shouldCreateRoutineItem(makeRoutine({}), "2099-12-31")).toBe(true);
+    expect(
+      shouldCreateRoutineItem(
+        makeRoutine({ frequencyEndDate: null }),
+        "2099-12-31",
+      ),
+    ).toBe(true);
+  });
+
+  it("stops the range generator at the end date", () => {
+    const rows = collectRoutineItemsForDates(
+      new Date("2026-10-29T00:00:00"),
+      new Date("2026-11-02T00:00:00"),
+      [makeRoutine({ frequencyEndDate: "2026-10-31" })],
+    );
+    expect(rows.map((r) => r.date)).toEqual([
+      "2026-10-29",
+      "2026-10-30",
+      "2026-10-31",
+    ]);
+  });
+});

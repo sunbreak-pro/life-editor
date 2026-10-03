@@ -461,6 +461,7 @@ const BLANK_REPEAT: FrequencyEditorValue = {
   frequencyDays: [],
   frequencyInterval: null,
   frequencyStartDate: null,
+  frequencyEndDate: null,
 };
 
 /**
@@ -480,6 +481,7 @@ function sameRepeat(
     a.frequencyType === b.frequencyType &&
     (a.frequencyInterval ?? null) === (b.frequencyInterval ?? null) &&
     (a.frequencyStartDate ?? null) === (b.frequencyStartDate ?? null) &&
+    (a.frequencyEndDate ?? null) === (b.frequencyEndDate ?? null) &&
     a.frequencyDays.length === b.frequencyDays.length &&
     a.frequencyDays.every((d, i) => d === b.frequencyDays[i])
   );

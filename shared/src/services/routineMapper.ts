@@ -50,8 +50,9 @@ import {
  *     routine-generated event items_meta rows in app code; DU-C-3).
  *
  * Carries NO `@supabase/supabase-js` dependency: this module is pure.
- * The 0008 migration is the SSOT for column types and nullability —
- * keep this file in lockstep with it.
+ * The 0008 migration is the SSOT for column types and nullability, plus
+ * the columns added since (0033 = frequency_end_date, #2082) — keep this
+ * file in lockstep with them.
  */
 
 // ---------------------------------------------------------------------------
@@ -122,7 +123,7 @@ export function parseFrequencyDays(raw: string): number[] {
 }
 
 // ---------------------------------------------------------------------------
-// 1. 2-row shapes (matches 0008 schema verbatim — DU-C-2)
+// 1. 2-row shapes (matches 0008 schema verbatim — DU-C-2; + 0033)
 // ---------------------------------------------------------------------------
 
 /**
@@ -168,6 +169,8 @@ export interface RoutinesPayloadRow {
   frequency_days: string;
   frequency_interval: number | null;
   frequency_start_date: string | null;
+  /** #2082 (migration 0033). "YYYY-MM-DD", inclusive; null = no end. */
+  frequency_end_date: string | null;
   is_visible: boolean;
   start_time: string | null;
   end_time: string | null;
@@ -207,7 +210,8 @@ export const ROUTINES_PAYLOAD_COLUMNS =
   "item_id, user_id, frequency, interval, weekdays_json, start_at, end_at, " +
   "template_start_time, template_end_time, template_memo, " +
   "template_reminder_offset_min, is_archived, frequency_type, " +
-  "frequency_days, frequency_interval, frequency_start_date, is_visible, " +
+  "frequency_days, frequency_interval, frequency_start_date, " +
+  "frequency_end_date, is_visible, " +
   "start_time, end_time, reminder_enabled, reminder_offset, sort_order";
 
 // ---------------------------------------------------------------------------
@@ -239,6 +243,7 @@ export const ROUTINES_PAYLOAD_COLUMNS =
  *   payload.frequency_days     <- frequencyDays  (JSON <-> number[])
  *   payload.frequency_interval <- frequencyInterval
  *   payload.frequency_start_date <- frequencyStartDate
+ *   payload.frequency_end_date   <- frequencyEndDate   (#2082)
  *   payload.start_time         <- startTime
  *   payload.end_time           <- endTime
  *   payload.reminder_enabled   <- reminderEnabled
@@ -277,6 +282,10 @@ export function rowsToRoutineNode(
   node.reminderEnabled = payload.reminder_enabled;
   if (payload.reminder_offset !== null)
     node.reminderOffset = payload.reminder_offset;
+  // #2082: optional on the node, so only set when there IS an end — absent
+  // reads as "no end" everywhere (`?? null`), and the round-trip stays exact.
+  if (payload.frequency_end_date != null)
+    node.frequencyEndDate = payload.frequency_end_date;
 
   return node;
 }
@@ -335,6 +344,7 @@ export function routineNodeToRows(
     frequency_days: JSON.stringify(node.frequencyDays),
     frequency_interval: node.frequencyInterval,
     frequency_start_date: node.frequencyStartDate,
+    frequency_end_date: node.frequencyEndDate ?? null,
     is_visible: node.isVisible,
     start_time: node.startTime,
     end_time: node.endTime,
@@ -386,6 +396,7 @@ export function routineUpdatesToPatches(
       | "frequencyDays"
       | "frequencyInterval"
       | "frequencyStartDate"
+      | "frequencyEndDate"
       | "reminderEnabled"
       | "reminderOffset"
     >
@@ -430,6 +441,8 @@ export function routineUpdatesToPatches(
     payloadPatch.frequency_interval = updates.frequencyInterval ?? null;
   if ("frequencyStartDate" in updates)
     payloadPatch.frequency_start_date = updates.frequencyStartDate ?? null;
+  if ("frequencyEndDate" in updates)
+    payloadPatch.frequency_end_date = updates.frequencyEndDate ?? null;
   if ("reminderEnabled" in updates && updates.reminderEnabled !== undefined)
     payloadPatch.reminder_enabled = updates.reminderEnabled;
   if ("reminderOffset" in updates)

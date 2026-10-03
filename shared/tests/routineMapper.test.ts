@@ -166,6 +166,56 @@ describe("rowsToRoutineNode ∘ routineNodeToRows roundtrip — 5 shapes", () =>
 //     domain union. Must degrade, never throw.
 // ---------------------------------------------------------------------------
 
+describe("frequency_end_date (#2082)", () => {
+  const base: RoutineNode = {
+    id: "routine-1",
+    title: "Bath",
+    startTime: "20:00",
+    endTime: "20:30",
+    isArchived: false,
+    isVisible: true,
+    isDeleted: false,
+    deletedAt: null,
+    order: 0,
+    frequencyType: "daily",
+    frequencyDays: [],
+    frequencyInterval: null,
+    frequencyStartDate: null,
+    createdAt: NOW,
+    updatedAt: NOW,
+  };
+
+  it("round-trips an end date", () => {
+    const node: RoutineNode = { ...base, frequencyEndDate: "2026-10-31" };
+    const { payload } = routineNodeToRows(node, TEST_USER_ID);
+    expect(payload.frequency_end_date).toBe("2026-10-31");
+    expect(roundtrip(node)).toEqual({ ...node, reminderEnabled: false });
+  });
+
+  it("writes null for a series with no end and reads it back as absent", () => {
+    const { payload } = routineNodeToRows(base, TEST_USER_ID);
+    expect(payload.frequency_end_date).toBeNull();
+    expect("frequencyEndDate" in roundtrip(base)).toBe(false);
+  });
+
+  it("patches the column only when the key is present, null clears it", () => {
+    const set = routineUpdatesToPatches(
+      { frequencyEndDate: "2026-12-31" },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(set.payloadPatch).toEqual({ frequency_end_date: "2026-12-31" });
+    const clear = routineUpdatesToPatches(
+      { frequencyEndDate: null },
+      TEST_USER_ID,
+      NOW,
+    );
+    expect(clear.payloadPatch).toEqual({ frequency_end_date: null });
+    const untouched = routineUpdatesToPatches({ title: "x" }, TEST_USER_ID, NOW);
+    expect("frequency_end_date" in untouched.payloadPatch).toBe(false);
+  });
+});
+
 describe("normaliseFrequency — retired group rows (#352)", () => {
   it("maps a legacy group row onto a never-firing routine instead of throwing", () => {
     // #352 removed the group frequency from the code but NOT from the 0008
@@ -288,6 +338,7 @@ describe("order ↔ sort_order rename", () => {
       frequency_days: "[]",
       frequency_interval: null,
       frequency_start_date: null,
+      frequency_end_date: null,
       is_visible: true,
       start_time: null,
       end_time: null,
@@ -392,6 +443,7 @@ describe("frequency_days JSON ↔ number[] coercion", () => {
       frequency_days: "[1,2,3]",
       frequency_interval: null,
       frequency_start_date: null,
+      frequency_end_date: null,
       is_visible: true,
       start_time: null,
       end_time: null,
@@ -430,6 +482,7 @@ describe("frequency_days JSON ↔ number[] coercion", () => {
       frequency_days: "{not-json}",
       frequency_interval: null,
       frequency_start_date: null,
+      frequency_end_date: null,
       is_visible: true,
       start_time: null,
       end_time: null,
@@ -474,6 +527,7 @@ describe("defensive validation", () => {
       frequency_days: "[]",
       frequency_interval: null,
       frequency_start_date: null,
+      frequency_end_date: null,
       is_visible: true,
       start_time: null,
       end_time: null,
@@ -512,6 +566,7 @@ describe("defensive validation", () => {
       frequency_days: "[]",
       frequency_interval: null,
       frequency_start_date: null,
+      frequency_end_date: null,
       is_visible: true,
       start_time: null,
       end_time: null,

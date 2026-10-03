@@ -100,6 +100,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
           | "frequencyDays"
           | "frequencyInterval"
           | "frequencyStartDate"
+          | "frequencyEndDate"
           | "reminderEnabled"
           | "reminderOffset"
         >
@@ -523,6 +524,8 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         frequencyDays?: number[];
         frequencyInterval?: number | null;
         frequencyStartDate?: string | null;
+        /** #2082: last day of the series, inclusive. Absent / null = no end. */
+        frequencyEndDate?: string | null;
         sourceDate: string;
       },
     ): Promise<string> => {
@@ -536,6 +539,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
           frequencyDays: init.frequencyDays,
           frequencyInterval: init.frequencyInterval,
           frequencyStartDate: init.frequencyStartDate,
+          frequencyEndDate: init.frequencyEndDate,
           sourceDate: init.sourceDate,
         });
         setRoutines((prev) =>
