@@ -459,7 +459,8 @@
       "sortTitle": "Title",
       "tagFilterLabel": "Filter by tag",
       "tagFilterClear": "Clear tag filter",
-      "tagFilterMore": "+{{count}}",
+      "tagFilterSelected": "Filter by tag, {{count}} selected",
+      "tagFilterPanel": "Tags to show",
       "tagFilterLess": "Show fewer",
       "groupMoreRows": "Show {{count}} more",
       "rowActions": "Note actions",
@@ -1411,7 +1412,7 @@
       "materialsCapture": "You can add a note from this button. Try making one.",
       "materialsNoteBody": "Write a few words. The body saves as you type — there is no save button to remember.",
       "materialsNoteTag": "Give it a tag. Tags are how a note joins everything else about the same thing.",
-      "materialsTagFollow": "Pick a tag here to see only what carries it — that is how you get back to related notes later."
+      "materialsTagFollow": "Open the tag filter and pick a tag to see only what carries it — that is how you get back to related notes later."
     }
   },
   "errorBoundary": {

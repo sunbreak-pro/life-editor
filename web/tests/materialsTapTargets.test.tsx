@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import {
   ToastProvider,
   WikiTagsUnifiedProvider,
@@ -11,12 +11,13 @@ import type { ReactNode } from "react";
 import { DndContext } from "@dnd-kit/core";
 import type { NoteNode } from "@life-editor/shared";
 import { DesktopNoteRow } from "../src/notes/NoteListRows";
-import { NoteTagFilterChips } from "../src/notes/NoteTagFilterChips";
+import { NoteTagFilterPanel } from "../src/notes/NoteTagFilterPanel";
 
 /*
  * #1560 — the 44px touch floor on the MATERIALS controls that #1512 still
  * listed after PR #1556 took the shared chrome. This file holds the two the
- * Notes drawer draws itself: the note rows and the tag-filter chips. The kebab
+ * Notes drawer draws itself: the note rows and the tag filter (a chip row
+ * until #2059, a button + panel since). The kebab
  * menu is shared-side (`shared/tests/materialsTapTargets.test.tsx`) and the
  * "+ note" pill is asserted where its host can be rendered
  * (`web/tests/notesView.test.tsx`).
@@ -91,56 +92,65 @@ describe("#1560 — the note row meets the 44px touch floor", () => {
   });
 });
 
-const CHIP_LABELS = {
-  group: "Tags",
+const FILTER_LABELS = {
+  button: "Tags",
+  buttonSelected: (count: number) => `Tags ${count}`,
+  panel: "Tag options",
   clear: "Clear",
-  more: (count: number) => `more:${count}`,
-  less: "less",
 };
 
-function renderChips(value: string[] = []) {
+/*
+ * #2059 replaced the chip row with a button + panel. The chip-row floors this
+ * block used to pin moved with it: the button, each option and the clear.
+ */
+function renderFilter(value: string[] = []) {
   render(
-    <NoteTagFilterChips
-      chips={[
+    <NoteTagFilterPanel
+      options={[
         { id: "t-a", label: "tag-a", count: 1 },
         { id: "t-b", label: "tag-b", count: 2 },
       ]}
       value={value}
       onToggle={vi.fn()}
       onClear={vi.fn()}
-      labels={CHIP_LABELS}
+      labels={FILTER_LABELS}
     />,
   );
+  fireEvent.click(screen.getByRole("button", { name: /^Tags/ }));
 }
 
-/** The chips themselves — the clear button carries no aria-pressed. */
-const chipButtons = () =>
+/** The options themselves — the button and the clear carry no aria-pressed. */
+const optionButtons = () =>
   screen.getAllByRole("button").filter((b) => b.hasAttribute("aria-pressed"));
 
-describe("#1560 — the tag filter chips meet the 44px touch floor", () => {
-  it("floors every chip on narrow", () => {
-    renderChips();
-    const chips = chipButtons();
-    expect(chips).toHaveLength(2);
-    for (const chip of chips) {
-      expect(chip.classList.contains("max-md:min-h-11")).toBe(true);
+describe("#1560 — the tag filter meets the 44px touch floor", () => {
+  it("floors the button and every option on narrow", () => {
+    renderFilter();
+    const options = optionButtons();
+    expect(options).toHaveLength(2);
+    for (const el of [
+      screen.getByRole("button", { name: /^Tags/ }),
+      ...options,
+    ]) {
+      expect(el.classList.contains("max-md:min-h-11")).toBe(true);
     }
   });
 
-  it("also floors the clear button ACROSS — it is an 11px glyph with no label", () => {
-    renderChips(["t-a"]);
+  it("also floors the clear button ACROSS — it is a glyph with no label", () => {
+    renderFilter(["t-a"]);
     const clear = screen.getByRole("button", { name: "Clear" });
     expect(clear.classList.contains("max-md:min-h-11")).toBe(true);
     expect(clear.classList.contains("max-md:min-w-11")).toBe(true);
   });
 
-  it("leaves the DESKTOP chips at their mouse size", () => {
-    renderChips(["t-a"]);
-    for (const chip of [...chipButtons(), screen.getByRole("button", { name: "Clear" })]) {
-      expect(chip.classList.contains("min-h-11")).toBe(false);
-      // The padding the Desktop chip is measured by is untouched: the floor is
-      // a min-height, not a taller pill.
-      expect(chip.classList.contains("py-0.5")).toBe(true);
+  it("leaves the DESKTOP controls at their mouse size", () => {
+    renderFilter(["t-a"]);
+    for (const el of [
+      screen.getByRole("button", { name: /^Tags/ }),
+      ...optionButtons(),
+      screen.getByRole("button", { name: "Clear" }),
+    ]) {
+      expect(el.classList.contains("min-h-11")).toBe(false);
     }
   });
 });
@@ -167,9 +177,9 @@ describe("#1840 — the row's delete button is visible where it is tappable", ()
     // A desktop browser narrowed to 390px is not a touch device, so the width
     // query is not enough on its own — and a phone held in landscape is wider
     // than the breakpoint, so the pointer query is not either.
-    expect(
-      bin.classList.contains("[@media(hover:none)]:opacity-100"),
-    ).toBe(true);
+    expect(bin.classList.contains("[@media(hover:none)]:opacity-100")).toBe(
+      true,
+    );
   });
 
   it("is a thumb-sized target where it is shown", () => {
