@@ -73,7 +73,10 @@ describe("PomodoroTimer fullscreen face (#2054)", () => {
     expect(screen.getByText("Paused")).toBeInTheDocument();
     expect(screen.queryByText("/ 25:00")).not.toBeInTheDocument();
     for (const name of ["-5 min", "+5 min"]) {
-      expect(screen.getByRole("button", { name })).toHaveClass("min-h-11");
+      const pill = screen.getByRole("button", { name });
+      expect(pill).toHaveClass("min-h-11");
+      // The label carries the sign; a glyph in front would print it twice.
+      expect(pill.querySelector("svg")).toBeNull();
     }
     expect(screen.getByRole("button", { name: "Resume" })).toHaveTextContent(
       "Resume",

@@ -479,13 +479,14 @@ function FullscreenFace({
         />
       </div>
       {isPaused ? (
+        // Text only: the labels already carry their sign ("−5 min"), so a
+        // Minus / Plus glyph in front read as "− −5 min" (#2054 follow-up).
+        // The Card variant keeps its glyphs — Desktop is out of scope.
         <div className="mt-4 flex items-center gap-3">
           <button type="button" onClick={() => onAdjust(-5)} className={pill}>
-            <Minus size={16} aria-hidden="true" />
             {labels.subtractFive}
           </button>
           <button type="button" onClick={() => onAdjust(5)} className={pill}>
-            <Plus size={16} aria-hidden="true" />
             {labels.addFive}
           </button>
         </div>
