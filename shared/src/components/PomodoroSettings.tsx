@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
-import { Trash2 } from "lucide-react";
+import type { ReactNode } from "react";
+import { Check, Minus, Plus, Trash2 } from "lucide-react";
 import { Input } from "./Input";
 import { Modal } from "./Modal";
 import { DISABLED_FILLED_BTN, FOCUS_RING_ON_ACCENT } from "./styleTokens";
@@ -138,11 +139,40 @@ export interface PomodoroSettingsProps {
    * inside a pure primitive (§6.4). Mirrors EventEditorPane's formatDuration.
    */
   formatEmptyValueMessage: (fieldLabel: string) => string;
+  /**
+   * The Mobile drawer's layout (#2054, Claude Design plan A). Passing it swaps
+   * the 2-column number fields for one − value + row per setting, the switch
+   * for a full-width row, and the preset list for rows that say which preset
+   * is applied. The commit model does NOT change: the steppers write the same
+   * draft the fields do, and the save button is still the only thing that
+   * sends it (#714). The Desktop panel omits this and keeps its layout.
+   */
+  drawer?: PomodoroSettingsDrawer;
+}
+
+/** Copy the drawer layout needs on top of `labels` (§6.4 — all injected). */
+export interface PomodoroSettingsDrawer {
+  /** Short row labels — the long field captions do not fit beside a stepper. */
+  short: Record<PomodoroNumberKey, string>;
+  /** "25 分" / "4 セット" / "4 回" for one row's value. */
+  formatValue: (key: PomodoroNumberKey, value: number) => string;
+  /** Accessible names of the − / + buttons, given the row's short label. */
+  decrease: (label: string) => string;
+  increase: (label: string) => string;
+  /** Shown instead of "apply" on the preset that matches the saved values. */
+  applied: string;
+  /** "25・5・15 分 / 4 セット" for one preset. */
+  presetSummary: (preset: PomodoroPresetOption) => string;
 }
 
 const BLOCK =
   "flex flex-col gap-3 rounded-lumen-sm border border-lumen-border bg-lumen-bg-secondary p-3";
 const BLOCK_HEADING = "text-sm font-semibold text-lumen-text-secondary";
+
+// The drawer layout (#2054): grouped rows on cards, headings above the cards.
+const DRAWER_HEADING = "text-xs font-semibold text-lumen-text-tertiary";
+const DRAWER_CARD =
+  "flex flex-col rounded-lumen-lg border border-lumen-border bg-lumen-bg";
 
 const SAVE_BTN = cn(
   "shrink-0 rounded-lumen-md bg-lumen-accent px-3.5 py-2 text-sm font-semibold text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
@@ -162,7 +192,32 @@ interface PomodoroNumbers {
   targetSessions: number;
 }
 
-type PomodoroNumberKey = keyof PomodoroNumbers;
+export type PomodoroNumberKey = keyof PomodoroNumbers;
+
+/**
+ * Bounds of each setting — the same ones the number fields carry — and the
+ * stepper's step. Work moves in 5s because 25 → 50 is the common jump and
+ * twenty-five taps to make it would be a chore; the rest move in 1s.
+ */
+const NUMBER_SPECS: Record<
+  PomodoroNumberKey,
+  { min: number; max: number; step: number }
+> = {
+  workDuration: { min: 1, max: 240, step: 5 },
+  breakDuration: { min: 1, max: 60, step: 1 },
+  longBreakDuration: { min: 1, max: 60, step: 1 },
+  sessionsBeforeLongBreak: { min: 1, max: 20, step: 1 },
+  targetSessions: { min: 1, max: 20, step: 1 },
+};
+
+/** Row order of the drawer's stepper card. */
+const NUMBER_KEYS: PomodoroNumberKey[] = [
+  "workDuration",
+  "breakDuration",
+  "longBreakDuration",
+  "sessionsBeforeLongBreak",
+  "targetSessions",
+];
 
 /**
  * The fields the user has actually typed into. Everything absent here keeps
@@ -303,6 +358,218 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
     setPresetName("");
   };
 
+  const saveFooter = (
+    // Save footer (#714) — the only commit for the five numbers. Disabled
+    // while there is nothing to write (a control that is pressable and does
+    // nothing is worse than one that is visibly off), with the state spelled
+    // out beside it so "why can I not press this" has an answer on screen
+    // rather than only in the button's opacity.
+    <>
+      <span
+        aria-live="polite"
+        className={cn(
+          "text-xs",
+          dirty ? "text-lumen-accent" : "text-lumen-text-secondary",
+        )}
+      >
+        {dirty ? labels.unsaved : labels.saved}
+      </span>
+      <button
+        type="button"
+        onClick={saveSettings}
+        disabled={!dirty}
+        className={cn(SAVE_BTN, props.drawer && "min-h-11")}
+      >
+        {labels.save}
+      </button>
+    </>
+  );
+
+  const blankDialog = (
+    // Blank-field dialog (#624). The message IS the heading — an alert with
+    // one sentence and an OK gains nothing from a separate title, and Modal
+    // uses `title` for its accessible name.
+    <Modal
+      open={blankField !== null}
+      onClose={closeBlankDialog}
+      title={props.formatEmptyValueMessage(blankField ?? "")}
+    >
+      <div className="flex justify-end">
+        <button
+          type="button"
+          onClick={closeBlankDialog}
+          className="rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-sm font-semibold text-lumen-text hover:bg-lumen-hover"
+        >
+          {labels.emptyValueConfirm}
+        </button>
+      </div>
+    </Modal>
+  );
+
+  if (props.drawer) {
+    const drawer = props.drawer;
+    // "Applied" = the preset's four durations are what is SAVED. A pending
+    // draft does not count: until it is saved, the preset is still in force.
+    const isApplied = (p: PomodoroPresetOption) =>
+      p.workDuration === stored.workDuration &&
+      p.breakDuration === stored.breakDuration &&
+      p.longBreakDuration === stored.longBreakDuration &&
+      p.sessionsBeforeLongBreak === stored.sessionsBeforeLongBreak;
+
+    return (
+      <div className="flex flex-col gap-2">
+        <h3 className={DRAWER_HEADING}>{labels.settingsHeading}</h3>
+        <ul className={DRAWER_CARD}>
+          {NUMBER_KEYS.map((key, i) => {
+            const spec = NUMBER_SPECS[key];
+            const value = draft[key];
+            const label = drawer.short[key];
+            return (
+              <li
+                key={key}
+                className={cn(
+                  "flex min-h-12 items-center gap-1 pl-3 pr-0.5",
+                  i > 0 && "border-t border-lumen-border",
+                )}
+              >
+                <span className="min-w-0 flex-1 text-sm text-lumen-text">
+                  {label}
+                </span>
+                <StepButton
+                  label={drawer.decrease(label)}
+                  disabled={value <= spec.min}
+                  onClick={() =>
+                    editNumber(key, Math.max(spec.min, value - spec.step))
+                  }
+                >
+                  <Minus size={14} aria-hidden="true" />
+                </StepButton>
+                <span
+                  aria-live="polite"
+                  className="w-14 text-center text-sm font-semibold tabular-nums text-lumen-text"
+                >
+                  {drawer.formatValue(key, value)}
+                </span>
+                <StepButton
+                  label={drawer.increase(label)}
+                  disabled={value >= spec.max}
+                  onClick={() =>
+                    editNumber(key, Math.min(spec.max, value + spec.step))
+                  }
+                >
+                  <Plus size={14} aria-hidden="true" />
+                </StepButton>
+              </li>
+            );
+          })}
+        </ul>
+        <div className="flex items-center justify-end gap-3">{saveFooter}</div>
+
+        {/* The whole row is the switch, so the target is the row (52px) and
+            not the 28px track drawn at its end. */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={props.autoStartBreaks}
+          onClick={() => props.onAutoStartBreaksChange(!props.autoStartBreaks)}
+          // Not DRAWER_CARD: that one is a column, and `cn` does not merge a
+          // second flex direction over it (#830).
+          className="flex min-h-13 items-center rounded-lumen-lg border border-lumen-border bg-lumen-bg px-3 text-left"
+        >
+          <span className="min-w-0 flex-1 text-sm text-lumen-text">
+            {labels.autoStartBreaks}
+          </span>
+          <span
+            aria-hidden="true"
+            className={cn(
+              // No transition: plan A allows three motions on this screen and
+              // this is not one of them.
+              "flex h-7 w-12 shrink-0 rounded-full p-0.5",
+              props.autoStartBreaks
+                ? "justify-end bg-lumen-accent"
+                : "justify-start bg-lumen-border-strong",
+            )}
+          >
+            <span className="h-6 w-6 rounded-full bg-lumen-on-accent" />
+          </span>
+        </button>
+
+        <h3 className={cn(DRAWER_HEADING, "mt-3")}>{labels.presets}</h3>
+        <div className={DRAWER_CARD}>
+          {presets.length === 0 ? (
+            <p className="px-3 py-4 text-center text-sm text-lumen-text-tertiary">
+              {labels.presetsEmpty}
+            </p>
+          ) : (
+            <ul className="flex flex-col">
+              {presets.map((p, i) => (
+                <li
+                  key={p.id}
+                  className={cn(
+                    "flex min-h-14 items-center gap-1 pl-3 pr-0.5",
+                    i > 0 && "border-t border-lumen-border",
+                  )}
+                >
+                  <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                    <span className="truncate text-sm font-semibold text-lumen-text">
+                      {p.name}
+                    </span>
+                    <span className="truncate text-xs tabular-nums text-lumen-text-tertiary">
+                      {drawer.presetSummary(p)}
+                    </span>
+                  </div>
+                  {isApplied(p) ? (
+                    <span className="inline-flex min-h-11 shrink-0 items-center gap-1 px-2 text-xs font-semibold text-lumen-text-secondary">
+                      <Check size={14} aria-hidden="true" />
+                      {drawer.applied}
+                    </span>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => applyPreset(p)}
+                      className="inline-flex min-h-11 shrink-0 items-center rounded-lumen-md px-3 text-sm font-bold text-lumen-accent hover:bg-lumen-hover"
+                    >
+                      {labels.apply}
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    aria-label={labels.deletePreset}
+                    onClick={() => props.onDeletePreset(p.id)}
+                    className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-danger"
+                  >
+                    <Trash2 size={16} aria-hidden="true" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+          {/* The name stays a field (#2054 kept it): plan A draws a bare
+              "save the current values" row, but a preset list of
+              unnamed entries would be unreadable a week later. */}
+          <div className="flex items-center gap-2 border-t border-lumen-border p-2">
+            <Input
+              value={presetName}
+              placeholder={labels.presetNamePlaceholder}
+              onChange={(e) => setPresetName(e.target.value)}
+              className="min-h-11"
+            />
+            <button
+              type="button"
+              onClick={submitPreset}
+              disabled={presetName.trim().length === 0}
+              className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3 text-sm font-semibold text-lumen-text hover:bg-lumen-hover disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <Plus size={16} aria-hidden="true" />
+              {labels.saveAsPreset}
+            </button>
+          </div>
+        </div>
+        {blankDialog}
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col gap-3">
       <div className={BLOCK}>
@@ -392,29 +659,8 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
           </button>
         </div>
 
-        {/* Save footer (#714) — the only commit for the five fields above.
-            Disabled while there is nothing to write (a control that is
-            pressable and does nothing is worse than one that is visibly off),
-            with the state spelled out beside it so "why can I not press this"
-            has an answer on screen rather than only in the button's opacity. */}
         <div className="flex items-center justify-end gap-3 border-t border-lumen-border pt-3">
-          <span
-            aria-live="polite"
-            className={cn(
-              "text-xs",
-              dirty ? "text-lumen-accent" : "text-lumen-text-secondary",
-            )}
-          >
-            {dirty ? labels.unsaved : labels.saved}
-          </span>
-          <button
-            type="button"
-            onClick={saveSettings}
-            disabled={!dirty}
-            className={SAVE_BTN}
-          >
-            {labels.save}
-          </button>
+          {saveFooter}
         </div>
       </div>
 
@@ -480,25 +726,39 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
         </div>
       </div>
 
-      {/* Blank-field dialog (#624). The message IS the heading — an alert with
-          one sentence and an OK gains nothing from a separate title, and Modal
-          uses `title` for its accessible name. */}
-      <Modal
-        open={blankField !== null}
-        onClose={closeBlankDialog}
-        title={props.formatEmptyValueMessage(blankField ?? "")}
-      >
-        <div className="flex justify-end">
-          <button
-            type="button"
-            onClick={closeBlankDialog}
-            className="rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3.5 py-2 text-sm font-semibold text-lumen-text hover:bg-lumen-hover"
-          >
-            {labels.emptyValueConfirm}
-          </button>
-        </div>
-      </Modal>
+      {blankDialog}
     </div>
+  );
+}
+
+/*
+ * One − / + of the drawer's stepper. The disc is 30px — what the plan draws —
+ * inside a 44px square, so the target meets the touch floor without making
+ * five rows of discs look like a keypad.
+ */
+function StepButton({
+  label,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="group flex h-11 w-11 shrink-0 items-center justify-center disabled:cursor-not-allowed"
+    >
+      <span className="flex h-7.5 w-7.5 items-center justify-center rounded-full border border-lumen-border-strong text-lumen-text-secondary group-enabled:group-hover:bg-lumen-hover group-disabled:opacity-45">
+        {children}
+      </span>
+    </button>
   );
 }
 

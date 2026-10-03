@@ -447,6 +447,7 @@ export {
   type WorkTargetOption,
   workTargetIcon,
   workTargetChipClass,
+  WorkTargetGlyph,
 } from "./PomodoroTodoSelector";
 // #1666: the Work sidebar's history tab.
 export {
@@ -475,6 +476,8 @@ export {
   type PomodoroPresetOption,
   // #714: the patch the save button hands the host + what a preset captures.
   type PomodoroSettingsPatch,
+  type PomodoroSettingsDrawer,
+  type PomodoroNumberKey,
   type PomodoroPresetValues,
 } from "./PomodoroSettings";
 export {

@@ -15,8 +15,12 @@ export interface SessionDotsProps {
   filled: number;
   /** Already-translated progress label (e.g. "今日 2 / 4 セッション"). */
   label?: string;
-  /** row = dots + label side by side (Desktop card); stack = label below (Mobile). */
-  orientation?: "row" | "stack";
+  /**
+   * row = dots + label side by side (Desktop card); stack = label below;
+   * inline = the Mobile face's one compact line, smaller dots and a smaller
+   * label (#2054, plan A merges the two lines into one).
+   */
+  orientation?: "row" | "stack" | "inline";
 }
 
 export function SessionDots({
@@ -27,17 +31,26 @@ export function SessionDots({
 }: SessionDotsProps) {
   const safeTotal = Math.max(0, Math.floor(total));
   const safeFilled = Math.max(0, Math.min(safeTotal, Math.floor(filled)));
+  const inline = orientation === "inline";
 
   const dots = (
-    <div className={cn("flex items-center", orientation === "row" ? "gap-1.5" : "gap-2")}>
+    <div
+      className={cn(
+        "flex items-center",
+        orientation === "stack" ? "gap-2" : "gap-1.5",
+      )}
+    >
       {Array.from({ length: safeTotal }, (_, i) => (
         <span
           key={i}
           className={cn(
-            "h-2.5 w-2.5 rounded-full",
+            "rounded-full",
+            inline ? "h-2 w-2" : "h-2.5 w-2.5",
             i < safeFilled
               ? "bg-lumen-accent"
-              : "border-2 border-lumen-border-strong",
+              : inline
+                ? "border-[1.5px] border-lumen-border-strong"
+                : "border-2 border-lumen-border-strong",
           )}
         />
       ))}
@@ -52,11 +65,20 @@ export function SessionDots({
         "flex",
         orientation === "row"
           ? "items-center gap-3.5"
-          : "flex-col items-center gap-2",
+          : inline
+            ? "items-center gap-2"
+            : "flex-col items-center gap-2",
       )}
     >
       {dots}
-      <span className="text-sm text-lumen-text-secondary">{label}</span>
+      <span
+        className={cn(
+          "text-lumen-text-secondary",
+          inline ? "text-xs" : "text-sm",
+        )}
+      >
+        {label}
+      </span>
     </div>
   );
 }
