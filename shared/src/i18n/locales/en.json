@@ -489,6 +489,15 @@
         "emptyBlock": "(no text)",
         "noTextDiff": "The text is the same. Only formatting or non-text blocks differ."
       },
+      "formatToolbar": {
+        "label": "Formatting",
+        "heading1": "Heading 1",
+        "heading2": "Heading 2",
+        "bold": "Bold",
+        "italic": "Italic",
+        "strike": "Strikethrough",
+        "horizontalRule": "Insert divider"
+      },
       "mainEmpty": "Select a note or create a new one",
       "recentHeading": "Recently opened",
       "untagged": "No tag",
@@ -500,8 +509,9 @@
       "tagFilterClear": "Clear tag filter",
       "tagFilterSelected": "Filter by tag, {{count}} selected",
       "tagFilterPanel": "Tags to show",
-      "tagFilterLess": "Show fewer",
-      "groupMoreRows": "Show {{count}} more",
+      "otherItems": "Other items ({{count}})",
+      "closeOtherItems": "Close other items",
+      "backToList": "Back to the list",
       "rowActions": "Note actions",
       "renameNote": "Rename",
       "editNote": "Edit note"

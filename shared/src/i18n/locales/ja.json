@@ -488,6 +488,15 @@
         "emptyBlock": "（文字なし）",
         "noTextDiff": "文字の違いはありません。書式か、文字のないブロックだけが違います。"
       },
+      "formatToolbar": {
+        "label": "書式",
+        "heading1": "見出し 1",
+        "heading2": "見出し 2",
+        "bold": "太字",
+        "italic": "斜体",
+        "strike": "取り消し線",
+        "horizontalRule": "区切り線を挿入"
+      },
       "mainEmpty": "ノートを選ぶか、新しく作成してください",
       "recentHeading": "最近開いたノート",
       "untagged": "未分類",
@@ -499,8 +508,9 @@
       "tagFilterClear": "タグの絞り込みを解除",
       "tagFilterSelected": "タグで絞り込む（{{count}} 件選択中）",
       "tagFilterPanel": "表示するタグ",
-      "tagFilterLess": "折りたたむ",
-      "groupMoreRows": "残り {{count}} 件を表示",
+      "otherItems": "他のアイテム（{{count}}）",
+      "closeOtherItems": "他のアイテムを閉じる",
+      "backToList": "一覧に戻る",
       "rowActions": "ノートの操作",
       "renameNote": "名前を変更",
       "editNote": "ノートを編集"

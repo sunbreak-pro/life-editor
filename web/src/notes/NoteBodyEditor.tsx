@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import type { Editor } from "@tiptap/core";
 import {
   logServiceError,
   NoteConflictBanner,
@@ -75,6 +76,12 @@ export interface NoteBodyEditorProps {
    * exactly what produced #475.
    */
   attachments?: AttachmentWiring;
+  /**
+   * The editor instance for the formatting bar in the detail header (#2060),
+   * forwarded verbatim to RichTextEditor. Called with null when this body
+   * goes away.
+   */
+  onEditorChange?: (editor: Editor | null) => void;
   className?: string;
 }
 
@@ -89,6 +96,7 @@ function NoteBodySession({
   onNavigateToItem,
   bodySync,
   attachments,
+  onEditorChange,
   className,
 }: NoteBodyEditorProps) {
   const { t } = useTranslation();
@@ -156,6 +164,7 @@ function NoteBodySession({
         }
         onCreateNoteForLink={linking.handleCreateNoteForLink}
         attachments={attachments}
+        onEditorChange={onEditorChange}
         className={className}
       />
     </>

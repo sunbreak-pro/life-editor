@@ -3,6 +3,7 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { clearRecentNotes, type NoteNode } from "@life-editor/shared";
 import { NotesView } from "../src/notes/NotesView";
+import { showAllTagGroups } from "./helpers";
 
 /*
  * #2032 — on narrow, a note row in the Notes drawer is not a drag handle any
@@ -229,7 +230,26 @@ describe("Notes sidebar rows on Desktop (#2032 leaves them alone)", () => {
   });
 
   it("still picks the row up on press-and-travel", () => {
+    // #2061: only the tag-grouped list drags — the default list has no
+    // headings to drop on. Two groups, so the tag filter that opens the
+    // grouped list is drawn at all.
+    state.tags = [
+      {
+        id: "tag-work",
+        name: "Work",
+        color: null,
+        icon: null,
+        isDeleted: false,
+        createdAt: "2026-08-01T00:00:00Z",
+        updatedAt: "2026-08-01T00:00:00Z",
+      },
+    ];
+    state.assignments = {
+      "note-a": [{ itemId: "note-a", tagId: "tag-work", isDeleted: false }],
+    };
+    state.notes = [...state.notes, note({ id: "note-b", title: "Beta" })];
     render(<NotesView />);
+    showAllTagGroups();
     const li = row();
     expect(li.getAttribute("aria-roledescription")).toBe("draggable");
     pressAndTravel();

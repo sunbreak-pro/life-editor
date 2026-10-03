@@ -1,10 +1,13 @@
 import {
+  useEffect,
+  useId,
+  useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
 import { DndContext, DragOverlay, pointerWithin } from "@dnd-kit/core";
-import { FileText, Search } from "lucide-react";
+import { ChevronLeft, ChevronRight, FileText, Search } from "lucide-react";
 import {
   EmptyState,
   SidebarListControls,
@@ -13,6 +16,7 @@ import {
   UNTAGGED_GROUP_KEY,
   BUSY_STALE,
   cn,
+  type NoteNode,
   type NoteTagGroup,
   FOCUS_RING,
   tourAnchor,
@@ -20,11 +24,20 @@ import {
 import { noteDraggableId, type NoteTagDnd } from "./useNoteTagDnd";
 import { NoteTagFilterPanel } from "./NoteTagFilterPanel";
 import { DesktopNoteRow, DesktopTagHeading } from "./NoteListRows";
+import { OtherNotesFlyout, OtherNotesList } from "./OtherNotesPanel";
 import { TreeDragGhost } from "../components/TreeDragGhost";
 
 /*
  * The Desktop side list (extracted from NotesView.tsx — #588 split, zero
- * behavior change): search + sort + tag filter and the tag-grouped note rows.
+ * behavior change): search + sort + tag filter and the note rows.
+ *
+ * TWO LISTS since #2061. With no tag selected it draws the DEFAULT list: one
+ * flat column, pinned notes first and then the current sort, 15 rows, and an
+ * "Other items (N)" entry under the 15th that opens the rest — as a flyout on
+ * the sidebar's left edge on wide, as a view inside the drawer on narrow
+ * (OtherNotesPanel). Selecting a tag in the filter (#2059) switches it to the
+ * tag-grouped list that used to be the default; clearing it switches back.
+ * The host decides which (`listMode`) and computes both.
  *
  * #1286 removed the trash disclosure that used to sit under the divider. It
  * listed soft-deleted notes with restore / purge buttons — the same two actions
@@ -45,7 +58,8 @@ import { TreeDragGhost } from "../components/TreeDragGhost";
  * heading it came from goes, the tag it landed on arrives. The untagged bucket
  * is a target too, and dropping there removes only that one tag rather than
  * every tag the note has. No reorder / move-into: sort_order carries no meaning
- * across the many-to-many tag model.
+ * across the many-to-many tag model. Only the tag-grouped list has headings to
+ * drop on, so only its rows drag (#2061); the default list's rows do not.
  */
 
 export interface NotesSidebarListLabels {
@@ -71,10 +85,12 @@ export interface NotesSidebarListLabels {
   tagFilterSelected: (count: number) => string;
   /** Accessible name for the panel of tag options (#2059). */
   tagFilterPanel: string;
-  /** "Show the remaining N notes in this group" (#1288). */
-  moreRows: (count: number) => string;
-  /** Put the group's rows back under the cap (#1842). */
-  fewerRows: string;
+  /** "Other items (N)" — the entry under the default list's 15th row (#2061). */
+  otherItems: (count: number) => string;
+  /** Closes the wide "Other items" flyout (#2061). */
+  closeOtherItems: string;
+  /** Leaves the narrow "Other items" view for the list (#2061). */
+  backToList: string;
 }
 
 export interface NotesSidebarListProps {
@@ -100,11 +116,21 @@ export interface NotesSidebarListProps {
   tagFilters: readonly string[];
   onToggleTagFilter: (id: string) => void;
   onClearTagFilters: () => void;
+
   /**
-   * Rows drawn per group before the "show the rest" button, or null for no cap
-   * (#1288 — the host caps only while no tag is selected).
+   * Which list to draw (#2061): the flat default list, or the tag groups
+   * (while a tag is selected).
    */
-  rowCap: number | null;
+  listMode: "flat" | "grouped";
+  /** The default list's rows — the first 15, or every match while searching. */
+  defaultNotes: NoteNode[];
+  /** What the default list leaves past its 15th row ("Other items"). */
+  otherNotes: NoteNode[];
+  /**
+   * How "Other items" opens (#2061): a flyout on the sidebar's left edge
+   * (wide), or a view that replaces the list inside the drawer (narrow).
+   */
+  othersPresentation: "flyout" | "inline";
 
   // The list itself.
   error: string | null;
@@ -166,7 +192,10 @@ export function NotesSidebarList({
   tagFilters,
   onToggleTagFilter,
   onClearTagFilters,
-  rowCap,
+  listMode,
+  defaultNotes,
+  otherNotes,
+  othersPresentation,
   error,
   hasNotes,
   searchEmpty,
@@ -187,19 +216,51 @@ export function NotesSidebarList({
   templatesSlot,
 }: NotesSidebarListProps) {
   /*
-   * Which groups the user has opened past `rowCap` (#1288). Local UI state, not
-   * host state and not persisted: it answers "I am looking at this group right
-   * now", and a cap that stayed open forever would undo the tidying the next
-   * time the list is opened. Collapse (the chevron) is the persisted one — that
-   * is a lasting statement about a tag, this is not.
+   * Whether "Other items" is open (#2061). Local UI state, not persisted: it
+   * answers "I am looking past the 15th row right now". It can only SHOW while
+   * there is something past the 15th row of the default list — a search lifts
+   * the cap and a tag switches to the grouped list, and either takes the
+   * others away — and the handlers that cause those two also close it, so it
+   * does not come back by itself when the query or the tag is cleared.
    */
-  const [openedGroups, setOpenedGroups] = useState<Set<string>>(new Set());
-  const toggleGroupRows = (key: string) =>
-    setOpenedGroups((prev) => {
-      const next = new Set(prev);
-      if (!next.delete(key)) next.add(key);
-      return next;
-    });
+  const [othersOpen, setOthersOpen] = useState(false);
+  const othersId = useId();
+  // The trigger as STATE (a callback ref), not a ref object: the flyout is
+  // anchored off it during render, and refs are not read during render.
+  const [othersTrigger, setOthersTrigger] = useState<HTMLButtonElement | null>(
+    null,
+  );
+  const othersShown =
+    othersOpen && listMode === "flat" && otherNotes.length > 0;
+
+  /*
+   * Closing by its own way out (close / back / Esc) puts the focus back on the
+   * trigger. Through an effect rather than inline, because on narrow the
+   * trigger is not in the tree while the others view is — it comes back with
+   * the list on the next commit.
+   */
+  const refocusTrigger = useRef(false);
+  useEffect(() => {
+    // Waits for the trigger element too: on narrow it re-registers through
+    // its callback ref one render after the view closes.
+    if (othersShown || !refocusTrigger.current || !othersTrigger) return;
+    refocusTrigger.current = false;
+    othersTrigger.focus();
+  }, [othersShown, othersTrigger]);
+  const dismissOthers = () => {
+    refocusTrigger.current = true;
+    setOthersOpen(false);
+  };
+  const closeOthersQuietly = () => setOthersOpen(false);
+
+  const handleSearchChange = (value: string) => {
+    closeOthersQuietly();
+    onSearchChange(value);
+  };
+  const handleToggleTagFilter = (id: string) => {
+    closeOthersQuietly();
+    onToggleTagFilter(id);
+  };
 
   /*
    * A filter option's id is a GROUP KEY (useNoteListState), which is the tag's
@@ -215,6 +276,34 @@ export function NotesSidebarList({
       }
     : undefined;
 
+  /** A row of the default list or of "Other items" — never a drag source. */
+  const flatRow = (node: NoteNode, onSelect: (id: string) => void) => (
+    <DesktopNoteRow
+      key={node.id}
+      node={node}
+      dragId={`flat-${node.id}`}
+      draggable={false}
+      selected={selectedNoteId === node.id}
+      onSelect={onSelect}
+      onDelete={onDeleteNote}
+      onContextMenu={onNoteContextMenu}
+      onEdit={onEditNote}
+      editLabel={labels.editNote}
+      deleteLabel={labels.deleteNote}
+      dragHintLabel={labels.assignTagHint}
+    />
+  );
+
+  // Picking a note out of "Other items" opens it, and the list it came from
+  // gets out of the way of the note — the flyout lies over the main area.
+  const selectFromOthers = (id: string) => {
+    closeOthersQuietly();
+    onSelectNote(id);
+  };
+  const othersTitle = labels.otherItems(otherNotes.length);
+  const othersRows = otherNotes.map((node) => flatRow(node, selectFromOthers));
+  const othersInline = othersShown && othersPresentation === "inline";
+
   return (
     <div className="flex flex-col gap-2">
       {/* Search only. Create moved to the main-content top-right (#302); folder-
@@ -228,7 +317,7 @@ export function NotesSidebarList({
           />
           <input
             value={searchQuery}
-            onChange={(e) => onSearchChange(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             placeholder={labels.searchPlaceholder}
             aria-label={labels.searchPlaceholder}
             className="min-w-0 flex-1 bg-transparent text-[12.5px] text-lumen-text placeholder:text-lumen-text-tertiary focus:outline-none"
@@ -262,7 +351,7 @@ export function NotesSidebarList({
           <NoteTagFilterPanel
             options={tagFilterOptions}
             value={tagFilters}
-            onToggle={onToggleTagFilter}
+            onToggle={handleToggleTagFilter}
             onClear={onClearTagFilters}
             onOptionContextMenu={optionContextMenu}
             labels={{
@@ -295,7 +384,7 @@ export function NotesSidebarList({
       )}
 
       {/*
-       * Tag groups. While the body half of a search is still in flight the
+       * The list. While the body half of a search is still in flight the
        * rows below are the title matches — right as far as they go, and one
        * query behind. They are dimmed rather than replaced, and `aria-busy`
        * says the same thing to anything not looking at the dimming. Never
@@ -326,6 +415,48 @@ export function NotesSidebarList({
             message={labels.empty}
             cta={{ label: labels.addCta, onClick: onCreateNote }}
           />
+        ) : othersInline ? (
+          /* #2061, narrow: "Other items" replaces the list inside the drawer,
+             with a back button to return to it. */
+          <OtherNotesList
+            id={othersId}
+            variant="inline"
+            title={othersTitle}
+            dismissLabel={labels.backToList}
+            onDismiss={dismissOthers}
+          >
+            {othersRows}
+          </OtherNotesList>
+        ) : listMode === "flat" ? (
+          /* #2061 — the default list: pinned → current sort, 15 rows. */
+          <div className="flex flex-col gap-1">
+            <ul className="flex flex-col gap-0.5">
+              {defaultNotes.map((node) => flatRow(node, onSelectNote))}
+            </ul>
+            {otherNotes.length > 0 && (
+              <button
+                ref={setOthersTrigger}
+                type="button"
+                onClick={() => setOthersOpen((v) => !v)}
+                aria-expanded={othersShown}
+                aria-controls={othersId}
+                className={cn(
+                  "flex h-8 w-full items-center justify-between gap-2 rounded-lumen-md px-2 text-left text-xs text-lumen-text-secondary hover:bg-lumen-hover max-md:min-h-11",
+                  othersShown && "bg-lumen-hover text-lumen-text",
+                  FOCUS_RING,
+                )}
+              >
+                <span className="min-w-0 truncate">{othersTitle}</span>
+                {/* Points where the list will appear: left of the sidebar on
+                    wide, onward inside the drawer on narrow. */}
+                {othersPresentation === "flyout" ? (
+                  <ChevronLeft size={14} aria-hidden className="shrink-0" />
+                ) : (
+                  <ChevronRight size={14} aria-hidden className="shrink-0" />
+                )}
+              </button>
+            )}
+          </div>
         ) : (
           <DndContext
             sensors={dnd.sensors}
@@ -335,22 +466,14 @@ export function NotesSidebarList({
             onDragEnd={dnd.handleDragEnd}
             onDragCancel={dnd.handleDragCancel}
           >
+            {/* The tag-grouped list — only with a tag selected since #2061, so
+                every group here is one the user asked to see and is drawn
+                whole (#1288's per-group cap went with the unfiltered state it
+                was for). */}
             <ul className="flex flex-col gap-1.5">
               {visibleGroups.map((group) => {
                 const key = groupKey(group);
                 const collapsed = collapsedGroups.has(key);
-                // #1288: cap the rows unless this group was opened by hand (or
-                // the host lifted the cap because a tag filter is on).
-                const opened = openedGroups.has(key);
-                const capped = rowCap !== null && !opened ? rowCap : null;
-                const shownNotes =
-                  capped === null ? group.notes : group.notes.slice(0, capped);
-                const hiddenRows = group.notes.length - shownNotes.length;
-                // Only a group that a cap is being LIFTED from can be put back
-                // under it. With a tag filter on the host removes the cap
-                // (rowCap === null), and then there is nothing to fold to.
-                const canCollapse =
-                  rowCap !== null && opened && group.notes.length > rowCap;
                 return (
                   <li key={key} className="flex flex-col gap-px">
                     <DesktopTagHeading
@@ -363,47 +486,23 @@ export function NotesSidebarList({
                       expandLabel={labels.expandGroup}
                     />
                     {!collapsed && (
-                      <>
-                        <ul className="flex flex-col gap-0.5">
-                          {shownNotes.map((node) => (
-                            <DesktopNoteRow
-                              key={`${key}-${node.id}`}
-                              node={node}
-                              dragId={noteDraggableId(key, node.id)}
-                              selected={selectedNoteId === node.id}
-                              onSelect={onSelectNote}
-                              onDelete={onDeleteNote}
-                              onContextMenu={onNoteContextMenu}
-                              onEdit={onEditNote}
-                              editLabel={labels.editNote}
-                              deleteLabel={labels.deleteNote}
-                              dragHintLabel={labels.assignTagHint}
-                            />
-                          ))}
-                        </ul>
-                        {/* #1842 — this used to open only. The chevron was
-                            offered as the way back, but the chevron folds the
-                            WHOLE group away and is remembered between sessions;
-                            this cap is a row count and is forgotten. They are
-                            not the same thing, so pressing one did not undo the
-                            other. The tag-filter row next door has had the pair
-                            since #1288. */}
-                        {(hiddenRows > 0 || canCollapse) && (
-                          <button
-                            type="button"
-                            onClick={() => toggleGroupRows(key)}
-                            aria-expanded={opened}
-                            className={cn(
-                              "self-start rounded-lumen-md px-2 py-1 text-[11.5px] text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-text-secondary",
-                              FOCUS_RING,
-                            )}
-                          >
-                            {canCollapse
-                              ? labels.fewerRows
-                              : labels.moreRows(hiddenRows)}
-                          </button>
-                        )}
-                      </>
+                      <ul className="flex flex-col gap-0.5">
+                        {group.notes.map((node) => (
+                          <DesktopNoteRow
+                            key={`${key}-${node.id}`}
+                            node={node}
+                            dragId={noteDraggableId(key, node.id)}
+                            selected={selectedNoteId === node.id}
+                            onSelect={onSelectNote}
+                            onDelete={onDeleteNote}
+                            onContextMenu={onNoteContextMenu}
+                            onEdit={onEditNote}
+                            editLabel={labels.editNote}
+                            deleteLabel={labels.deleteNote}
+                            dragHintLabel={labels.assignTagHint}
+                          />
+                        ))}
+                      </ul>
                     )}
                   </li>
                 );
@@ -417,6 +516,22 @@ export function NotesSidebarList({
           </DndContext>
         )}
       </div>
+
+      {/* #2061, wide: "Other items" opens on the sidebar's left edge, over the
+          main area. Anchored to the sidebar the trigger sits in. */}
+      {othersShown && othersPresentation === "flyout" && (
+        <OtherNotesFlyout
+          id={othersId}
+          title={othersTitle}
+          dismissLabel={labels.closeOtherItems}
+          anchor={othersTrigger?.closest("aside") ?? null}
+          ignoreOutside={othersTrigger}
+          onDismiss={dismissOthers}
+          onOutsidePress={closeOthersQuietly}
+        >
+          {othersRows}
+        </OtherNotesFlyout>
+      )}
 
       {templatesSlot}
 
