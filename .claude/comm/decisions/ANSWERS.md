@@ -158,3 +158,6 @@
 - D-20261002-briefing-3: **A**（作り直しはデータの仕組みを先に作り、画面は Claude Design の案に合わせて後で作る。同上）
 - D-20261003-work-1: **A**（Work の Mobile ドロワーの設定は保存ボタンを残す。− / + は下書きを変えるだけで、保存ボタンで 1 回だけ送る。PR #2071 の形で確定。2026-10-03 の work-refine チャットの選択式の質問で回答・work-refine が転記 / 昇格）
 - D-20261003-work-2: **A**（Work の Mobile ドロワーの履歴は「今日」「昨日」の 2 日分を並べる。#2054 の残作業として work-refine で実装。同上）
+- D-20260927-materials-1: **A**（ノートの表を独立アイテムにしてタグを付ける。`items_meta` に表の role を足す DDL と MCP 対応が要るため別 Issue #2094・Plan Gate の計画書が先。`db push` はこうだいさんの作業。2026-10-03 チャットの AskUserQuestion で回答・chat-main が転記）
+- D-20261003-sched-1: **A**（繰り返しの「終了時間」は作らない。終了日だけで足りる。同上）
+- D-20261003-settings-1: **A**（GitHub なしの連絡先は無料の問い合わせフォームの URL。フォームはこうだいさんが作り、URL を受け取ったら `web/src/legal/operator.ts` の `DIRECT_CONTACT` を埋める。同上）
