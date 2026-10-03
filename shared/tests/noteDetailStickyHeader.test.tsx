@@ -78,6 +78,38 @@ describe("NoteDetailPanel sticky header (#2058)", () => {
     screen.getByText("editor slot");
   });
 
+  // #2060 — the formatting bar's place: inside the sticky block, under the
+  // tag row and above the rule that ends the header.
+  it("places the toolbar slot under the tag row, inside the header", () => {
+    renderPanel({
+      variant: "main",
+      stickyHeader: true,
+      toolbarSlot: <div role="toolbar" aria-label="Formatting" />,
+    });
+    const header = screen.getByTestId("note-detail-header");
+    const toolbar = within(header).getByRole("toolbar", {
+      name: "Formatting",
+    });
+    const tag = within(header).getByText("design");
+    const divider = within(header).getByTestId("note-detail-divider");
+    expect(
+      tag.compareDocumentPosition(toolbar) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      toolbar.compareDocumentPosition(divider) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("draws the rule under a toolbar even with no tag row", () => {
+    renderPanel({
+      tagsSlot: undefined,
+      linksSlot: undefined,
+      toolbarSlot: <div role="toolbar" aria-label="Formatting" />,
+    });
+    screen.getByTestId("note-detail-divider");
+  });
+
   it("leaves the sidebar variant's header un-stuck without the opt-in", () => {
     const { container } = renderPanel();
     const header = screen.getByTestId("note-detail-header");

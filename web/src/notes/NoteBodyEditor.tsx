@@ -1,3 +1,4 @@
+import type { Editor } from "@tiptap/core";
 import { useTranslation, type NoteNode } from "@life-editor/shared";
 import { RichTextEditor } from "./RichTextEditor";
 import type { NoteLinking } from "./hooks/useNoteLinking";
@@ -44,6 +45,12 @@ export interface NoteBodyEditorProps {
    * exactly what produced #475.
    */
   attachments?: AttachmentWiring;
+  /**
+   * The editor instance for the formatting bar in the detail header (#2060),
+   * forwarded verbatim to RichTextEditor. Called with null when this body
+   * goes away.
+   */
+  onEditorChange?: (editor: Editor | null) => void;
   className?: string;
 }
 
@@ -54,6 +61,7 @@ export function NoteBodyEditor({
   onSave,
   remountToken = 0,
   attachments,
+  onEditorChange,
   className,
 }: NoteBodyEditorProps) {
   const { t } = useTranslation();
@@ -80,6 +88,7 @@ export function NoteBodyEditor({
       }
       onCreateNoteForLink={linking.handleCreateNoteForLink}
       attachments={attachments}
+      onEditorChange={onEditorChange}
       className={className}
     />
   );

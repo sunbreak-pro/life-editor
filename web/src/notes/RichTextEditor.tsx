@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import type { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Bold from "@tiptap/extension-bold";
 import Italic from "@tiptap/extension-italic";
@@ -232,6 +233,14 @@ interface RichTextEditorBaseProps {
    * image still opens on a surface that has not wired this.
    */
   attachments?: AttachmentWiring;
+  /**
+   * Hand this editor to the host, for controls drawn OUTSIDE it (#2060 — the
+   * note body's formatting bar sits in the detail's sticky header, not in this
+   * component's box). Called with the editor once it exists and with null when
+   * it goes away (note switch / unmount), so the host never keeps a destroyed
+   * instance. Omitted everywhere but the Notes body.
+   */
+  onEditorChange?: (editor: Editor | null) => void;
 }
 
 export type RichTextEditorProps = RichTextEditorBaseProps &
@@ -261,6 +270,7 @@ export function RichTextEditor({
   onCreateNoteForLink,
   onDirty,
   attachments,
+  onEditorChange,
 }: RichTextEditorProps) {
   const { t } = useTranslation();
   const debounceRef = useRef<number | null>(null);
@@ -592,6 +602,19 @@ export function RichTextEditor({
     // Toggling editability is not a content change either way.
     if (editor) editor.setEditable(editable, false);
   }, [editor, editable]);
+
+  // #2060 — offer the instance to a host-drawn toolbar. Through a ref so a
+  // host passing an inline callback does not re-announce on every render; the
+  // cleanup takes it back before the next instance (or none) is announced.
+  const onEditorChangeRef = useRef(onEditorChange);
+  useEffect(() => {
+    onEditorChangeRef.current = onEditorChange;
+  });
+  useEffect(() => {
+    if (!editor) return;
+    onEditorChangeRef.current?.(editor);
+    return () => onEditorChangeRef.current?.(null);
+  }, [editor]);
 
   return (
     <div className={`note-editor ${className}`}>

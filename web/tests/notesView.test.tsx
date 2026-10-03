@@ -120,11 +120,33 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
   };
 });
 
-vi.mock("../src/notes/RichTextEditor", () => ({
-  RichTextEditor: ({ noteId }: { noteId: string }) => (
-    <div data-testid="editor">{noteId}</div>
-  ),
-}));
+vi.mock("../src/notes/RichTextEditor", async () => {
+  const { useEffect } = await import("react");
+  // #2060: the body hands its editor up for the header's formatting bar. A
+  // stand-in with just what FormatToolbar reads — editable, nothing active.
+  const fakeEditor = {
+    isEditable: true,
+    isDestroyed: false,
+    isActive: () => false,
+    on: () => {},
+    off: () => {},
+  };
+  return {
+    RichTextEditor: ({
+      noteId,
+      onEditorChange,
+    }: {
+      noteId: string;
+      onEditorChange?: (editor: unknown) => void;
+    }) => {
+      useEffect(() => {
+        onEditorChange?.(fakeEditor);
+        return () => onEditorChange?.(null);
+      }, [onEditorChange]);
+      return <div data-testid="editor">{noteId}</div>;
+    },
+  };
+});
 
 vi.mock("../src/wikitag", () => ({
   TagPicker: () => <div data-testid="tag-picker" />,
@@ -1188,5 +1210,63 @@ describe("NotesView — sticky note header (#2058)", () => {
 
     const header = screen.getByTestId("note-detail-header");
     within(header).getByTestId("link-panel");
+  });
+});
+
+/*
+ * #2060 — the formatting bar rides in the pinned header at both widths, on
+ * the editor the body hands up. The commands themselves are pinned in
+ * formatToolbar.test.tsx against a real editor.
+ */
+describe("NotesView — formatting toolbar (#2060)", () => {
+  function toolbarButtons(): HTMLButtonElement[] {
+    const header = screen.getByTestId("note-detail-header");
+    const bar = within(header).getByRole("toolbar", {
+      name: "materials.notes.formatToolbar.label",
+    });
+    return within(bar).getAllByRole("button") as HTMLButtonElement[];
+  }
+
+  it.each([
+    ["wide", true],
+    ["narrow", false],
+  ])(
+    "sits in the pinned header on %s, live once the body mounts",
+    (_, isWide) => {
+      state.isWide = isWide;
+      state.selectedId = "note-a";
+      render(<NotesView />);
+
+      const buttons = toolbarButtons();
+      expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual([
+        "materials.notes.formatToolbar.heading1",
+        "materials.notes.formatToolbar.heading2",
+        "materials.notes.formatToolbar.bold",
+        "materials.notes.formatToolbar.italic",
+        "materials.notes.formatToolbar.strike",
+        "materials.notes.formatToolbar.horizontalRule",
+      ]);
+      for (const b of buttons) expect(b.disabled).toBe(false);
+    },
+  );
+
+  it("is switched off over a password-locked note", () => {
+    state.notes = [
+      note({ id: "note-locked", title: "Sealed", hasPassword: true }),
+    ];
+    state.selectedId = "note-locked";
+    render(<NotesView />);
+
+    for (const b of toolbarButtons()) expect(b.disabled).toBe(true);
+  });
+
+  it("is switched off over an edit-locked note", () => {
+    state.notes = [
+      note({ id: "note-ro", title: "Frozen", isEditLocked: true }),
+    ];
+    state.selectedId = "note-ro";
+    render(<NotesView />);
+
+    for (const b of toolbarButtons()) expect(b.disabled).toBe(true);
   });
 });
