@@ -450,6 +450,22 @@
         "nameLabel": "Table name",
         "namePlaceholder": "Name this table"
       },
+      "conflict": {
+        "message": "This note was changed somewhere else while you were editing it. Your latest changes are not saved yet. Choose what to keep.",
+        "showDiff": "Show differences",
+        "hideDiff": "Hide differences",
+        "keepMine": "Keep my changes",
+        "takeTheirs": "Use the other version",
+        "keepBoth": "Keep both",
+        "mineHeading": "Yours",
+        "theirsHeading": "Other version",
+        "changedByMine": "Changed by you",
+        "changedByTheirs": "Changed somewhere else",
+        "changedByBoth": "Changed on both sides — “Keep both” keeps the two versions one after the other",
+        "changedAlike": "Changed the same way on both sides",
+        "emptyBlock": "(no text)",
+        "noTextDiff": "The text is the same. Only formatting or non-text blocks differ."
+      },
       "mainEmpty": "Select a note or create a new one",
       "recentHeading": "Recently opened",
       "untagged": "No tag",

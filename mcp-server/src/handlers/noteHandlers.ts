@@ -26,6 +26,10 @@ import {
   fetchUnlockedBodies,
   lockedBodyError,
 } from "../utils/lockedBody.js";
+import {
+  noteVersionConflictError,
+  writeNoteContent,
+} from "../utils/noteContentWrite.js";
 
 /*
  * Note handlers — Supabase edition (#360).
@@ -303,6 +307,12 @@ export async function updateNote(args: {
   content?: string;
   color?: string;
   is_pinned?: boolean;
+  /**
+   * The `updatedAt` of the `get_note` this edit was built from (#2057). A
+   * note that has moved on since is refused. Absent → the version this call
+   * reads at its start, which still stops a write racing the app's own save.
+   */
+  expected_updated_at?: string;
 }) {
   const before = await getNoteRows(args.id); // not-found guard
   // Every field of a locked note is refused, not just `content`: a rename or
@@ -310,12 +320,51 @@ export async function updateNote(args: {
   // about than a flat no (#1763).
   if (before.payload.has_password) throw lockedBodyError("Note", args.id);
 
+  /*
+   * #2057 NOTE-SYNC-5 — the version check. The app saves the body of an open
+   * note against the version it opened, so writing here no longer gets erased
+   * by its autosave; this is the same rule in the other direction, so a body
+   * composed from an old read cannot erase what the user typed since.
+   *
+   * Checked up front for every field, so a stale call changes nothing at all.
+   * The body write re-checks inside the write itself (writeNoteContent), which
+   * is what closes the gap between this read and that write.
+   */
+  const expected = args.expected_updated_at ?? before.meta.updated_at;
+  if (
+    args.expected_updated_at !== undefined &&
+    !sameInstant(args.expected_updated_at, before.meta.updated_at)
+  ) {
+    throw noteVersionConflictError(
+      args.id,
+      args.expected_updated_at,
+      before.meta.updated_at,
+    );
+  }
+
   const metaPatch: Record<string, unknown> = {};
   if (args.title !== undefined) metaPatch.title = args.title;
 
+  if (args.content !== undefined) {
+    const written = await writeNoteContent({
+      id: args.id,
+      contentJson: markdownToTiptap(args.content),
+      // The stored spelling, so the database compares like with like.
+      expectedUpdatedAt: before.meta.updated_at,
+      title: args.title,
+    });
+    if (!written.saved) {
+      throw noteVersionConflictError(
+        args.id,
+        expected,
+        written.currentUpdatedAt,
+      );
+    }
+    // The title went in with the body.
+    delete metaPatch.title;
+  }
+
   const payloadPatch: Record<string, unknown> = {};
-  if (args.content !== undefined)
-    payloadPatch.content_json = markdownToTiptap(args.content);
   if (args.color !== undefined) payloadPatch.color = args.color;
   if (args.is_pinned !== undefined) payloadPatch.is_pinned = args.is_pinned;
 
@@ -329,6 +378,21 @@ export async function updateNote(args: {
 
   const { meta, payload } = await getNoteRows(args.id);
   return formatNote(meta, payload);
+}
+
+/** Two `updated_at` spellings of the same instant (Z vs +00:00, 3 vs 6 digits). */
+function sameInstant(a: string, b: string): boolean {
+  if (a === b) return true;
+  const micros = (stamp: string): number | null => {
+    const match = /.(d+)/.exec(stamp);
+    const digits = (match?.[1] ?? "").padEnd(6, "0").slice(0, 6);
+    const millis = Date.parse(
+      match ? stamp.replace(/.(d+)/, `.${digits.slice(0, 3)}`) : stamp,
+    );
+    return Number.isNaN(millis) ? null : millis * 1000 + Number(digits.slice(3));
+  };
+  const ma = micros(a);
+  return ma !== null && ma === micros(b);
 }
 
 export async function deleteNote(args: { id: string }) {

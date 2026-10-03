@@ -838,7 +838,8 @@ export function NotesView({
                   remountToken={bodyEpoch}
                   attachments={attachments}
                   onNavigateToItem={onNavigateToItem}
-                  onSave={(id, content) => notes.updateNote(id, { content })}
+                  // #2057: saves against the version the body opened at.
+                  bodySync={notes}
                   // Borderless — sit flush inside the detail card so the note
                   // body reads as a single clean surface, matching the Daily
                   // editor card (2026-07-18: align Notes formatting to Daily).

@@ -100,7 +100,13 @@ export {
 // Types
 export type { TodoNode, TodoNodeType, TodoStatus } from "./types/todoTree";
 export type { DailyNode } from "./types/daily";
-export type { NoteNode, NoteNodeType, NoteSortMode } from "./types/note";
+export type {
+  NoteBodySaveResult,
+  NoteBodySnapshot,
+  NoteNode,
+  NoteNodeType,
+  NoteSortMode,
+} from "./types/note";
 
 // Schedule domain types (S4-2 DataService surface; contexts land S4-3+)
 export type { RoutineNode, FrequencyType } from "./types/routine";
@@ -861,6 +867,27 @@ export {
 } from "./utils/dailyListView";
 // jsonb-canonicalization-proof own-echo test (#300) — see file header.
 export { jsonDocEquals } from "./utils/jsonDocEquals";
+// #2057 — version-checked body save: the editor-side session + its helpers.
+export {
+  useBodySyncSession,
+  type BodyConflict,
+  type BodyConflictChoice,
+  type BodyRemote,
+  type BodyReplacement,
+  type BodySaveOutcome,
+  type BodySyncSession,
+  type BodyVersion,
+  type UseBodySyncSessionOptions,
+} from "./hooks/useBodySyncSession";
+export {
+  blockText,
+  mergeDocBlocks,
+  sameDocContent,
+  type BlockMergeResult,
+  type DocBlock,
+  type MergeHunk,
+} from "./utils/blockMerge";
+export { stampsEqual } from "./utils/updatedAtStamp";
 // #1375: reading a timer_sessions log — which item a session names, and how
 // much WORK was logged against one of them.
 export {

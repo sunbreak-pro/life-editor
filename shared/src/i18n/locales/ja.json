@@ -449,6 +449,22 @@
         "nameLabel": "表の名前",
         "namePlaceholder": "表に名前を付ける"
       },
+      "conflict": {
+        "message": "編集中に、このノートが別の場所で更新されました。あなたの最新の変更はまだ保存されていません。残す内容を選んでください。",
+        "showDiff": "差分を見る",
+        "hideDiff": "差分を閉じる",
+        "keepMine": "自分の変更を反映",
+        "takeTheirs": "別の場所の変更を反映",
+        "keepBoth": "両方を反映",
+        "mineHeading": "自分",
+        "theirsHeading": "別の場所",
+        "changedByMine": "自分が変えた部分です",
+        "changedByTheirs": "別の場所で変わった部分です",
+        "changedByBoth": "両方が変えた部分です。「両方を反映」では 2 つを続けて並べます",
+        "changedAlike": "両方が同じように変えた部分です",
+        "emptyBlock": "（文字なし）",
+        "noTextDiff": "文字の違いはありません。書式か、文字のないブロックだけが違います。"
+      },
       "mainEmpty": "ノートを選ぶか、新しく作成してください",
       "recentHeading": "最近開いたノート",
       "untagged": "未分類",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Bold from "@tiptap/extension-bold";
@@ -25,6 +25,7 @@ import { createCalloutNode } from "./calloutNode";
 import { createTableNodes } from "./tableNodes";
 import type { LoadItemLinkTargets } from "./useItemLinkTargets";
 import type { AttachmentWiring } from "./useAttachmentUpload";
+import { replaceDocument } from "./replaceDocument";
 
 /*
  * Lean web Notes rich-text editor (S3). A deliberately reduced
@@ -232,6 +233,21 @@ interface RichTextEditorBaseProps {
    * image still opens on a surface that has not wired this.
    */
   attachments?: AttachmentWiring;
+  /**
+   * Switch the open document to a body that came from elsewhere (#2057) — the
+   * note was written by MCP or another device while it was open. Applied once
+   * per `seq`, as a minimal block-level change that keeps the caret and the
+   * Undo history and never reports itself as an edit (see replaceDocument).
+   * Any keystrokes still waiting on the save debounce are dropped: the host
+   * only sends this when there are none, or after the user chose a body.
+   */
+  replaceContent?: { content: string; seq: number } | null;
+  /**
+   * Filled with a reader for the editor's current body — keystrokes inside
+   * the debounce window included (#2057). A host settling a conflict needs
+   * the text on screen, not the last body that reached `onUpdate`.
+   */
+  contentReaderRef?: MutableRefObject<(() => string | null) | null>;
 }
 
 export type RichTextEditorProps = RichTextEditorBaseProps &
@@ -261,6 +277,8 @@ export function RichTextEditor({
   onCreateNoteForLink,
   onDirty,
   attachments,
+  replaceContent,
+  contentReaderRef,
 }: RichTextEditorProps) {
   const { t } = useTranslation();
   const debounceRef = useRef<number | null>(null);
@@ -581,6 +599,47 @@ export function RichTextEditor({
       withdraw();
     };
   }, [editor, setEditorHistory]);
+
+  // #2057 — the host reads the live body through this when it has to decide
+  // between the user's text and a version from elsewhere.
+  useEffect(() => {
+    if (!contentReaderRef) return;
+    contentReaderRef.current = editor
+      ? () => (editor.isDestroyed ? null : JSON.stringify(editor.getJSON()))
+      : null;
+    return () => {
+      contentReaderRef.current = null;
+    };
+  }, [editor, contentReaderRef]);
+
+  // #2057 — a body from elsewhere. Held while an IME composition is open: a
+  // transaction under a composition cuts the candidate the user is choosing.
+  const appliedSeqRef = useRef(0);
+  useEffect(() => {
+    if (!editor || !replaceContent) return;
+    if (replaceContent.seq === appliedSeqRef.current) return;
+    appliedSeqRef.current = replaceContent.seq;
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+      debounceRef.current = null;
+    }
+    latestContentRef.current = null;
+    const apply = () => {
+      if (!editor.isDestroyed) replaceDocument(editor, replaceContent.content);
+    };
+    if (!editor.view.composing) {
+      apply();
+      return;
+    }
+    const dom = editor.view.dom;
+    const onEnd = () => {
+      dom.removeEventListener("compositionend", onEnd);
+      // After ProseMirror has read the composed text into the document.
+      window.setTimeout(apply, 0);
+    };
+    dom.addEventListener("compositionend", onEnd);
+    return () => dom.removeEventListener("compositionend", onEnd);
+  }, [editor, replaceContent]);
 
   useEffect(() => {
     // `emitUpdate: false`. TipTap's setEditable fires an `update` by default,

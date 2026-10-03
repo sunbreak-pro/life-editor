@@ -8,7 +8,11 @@ import type {
 } from "../types/timer";
 import type { SoundSettings } from "../types/sound";
 import type { DailyNode } from "../types/daily";
-import type { NoteNode } from "../types/note";
+import type {
+  NoteBodySaveResult,
+  NoteBodySnapshot,
+  NoteNode,
+} from "../types/note";
 
 import type { TagGroupNode } from "../types/tagGroup";
 import type { RoutineNode } from "../types/routine";
@@ -662,6 +666,29 @@ export interface NotesUnifiedDataService {
   getNoteBodyUnified(id: string): Promise<string | null>;
   createNoteUnified(node: NoteNode): Promise<NoteNode>;
   updateNoteUnified(id: string, updates: Partial<NoteNode>): Promise<NoteNode>;
+  /**
+   * Save a note body only if the note is still at the version the caller read
+   * (#2057). `expectedUpdatedAt` is the `updatedAt` that came with the body the
+   * edit started from; when the row has moved on, nothing is written and the
+   * result carries what is there now. `null` = the caller holds no version,
+   * which is answered as a conflict so it can compare and adopt one.
+   *
+   * The body write of record for an editor that keeps a note open. The plain
+   * `updateNoteUnified` still writes bodies unconditionally — for a caller that
+   * means to replace one wholesale (a template apply).
+   */
+  saveNoteBodyUnified(
+    id: string,
+    content: string,
+    expectedUpdatedAt: string | null,
+  ): Promise<NoteBodySaveResult>;
+  /**
+   * The body as stored now, with its version (#2057) — for an open editor that
+   * has to tell another device's write from its own echo. Unfiltered by the
+   * password gate: call it only for a body the screen is already showing.
+   * `null` = no such live note.
+   */
+  getNoteBodySnapshotUnified(id: string): Promise<NoteBodySnapshot | null>;
   softDeleteNoteUnified(id: string): Promise<void>;
   moveNoteUnified(
     id: string,

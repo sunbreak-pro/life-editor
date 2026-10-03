@@ -73,6 +73,12 @@ export function makeStub() {
     // (so e.g. `.update(...).eq(...).eq(...)` is awaitable directly).
     const result = () => consume(table, op);
     const builder: Record<string, unknown> = {
+      // A `.select()` chained after a write = PostgREST's "return the changed
+      // rows" (#2057). Recorded; the write's own staged result answers it.
+      select(_cols: string) {
+        calls.push({ table, op: "returning", args: [_cols] });
+        return builder;
+      },
       eq(_col: string, _val: unknown) {
         calls.push({ table, op: "eq", args: [_col, _val] });
         return builder;
