@@ -9,6 +9,8 @@ import {
 import type { ReactNode } from "react";
 import { clearRecentNotes, type NoteNode } from "@life-editor/shared";
 import { NotesView } from "../src/notes/NotesView";
+// Tag headings show only while a tag is selected since #2061.
+import { showAllTagGroups } from "./helpers";
 
 /*
  * #1677 — right-click editing in the Notes right sidebar.
@@ -176,6 +178,7 @@ function rightClick(el: HTMLElement): Event {
 describe("Notes sidebar — right-clicking a tag (#1677)", () => {
   it("opens the shared tag menu at the pointer and suppresses the browser's", () => {
     render(<NotesView />);
+    showAllTagGroups();
 
     const event = rightClick(groupHeading("Work"));
 
@@ -191,6 +194,7 @@ describe("Notes sidebar — right-clicking a tag (#1677)", () => {
 
   it("renames through the shared edit block, on its save button only", () => {
     render(<NotesView />);
+    showAllTagGroups();
     rightClick(groupHeading("Work"));
 
     fireEvent.click(
@@ -218,6 +222,7 @@ describe("Notes sidebar — right-clicking a tag (#1677)", () => {
 
   it("asks before deleting the tag", async () => {
     render(<NotesView />);
+    showAllTagGroups();
     rightClick(groupHeading("Work"));
 
     fireEvent.click(
@@ -241,6 +246,7 @@ describe("Notes sidebar — right-clicking a tag (#1677)", () => {
 
   it("leaves the untagged bucket to the browser's own menu", () => {
     render(<NotesView />);
+    showAllTagGroups();
 
     const event = rightClick(groupHeading("materials.notes.untagged"));
 
@@ -291,6 +297,7 @@ describe("Notes sidebar — narrow (#1677)", () => {
   it("attaches no right-click menu at all", () => {
     state.isWide = false;
     render(<NotesView />);
+    showAllTagGroups();
 
     const heading = groupHeading("Work");
     const headingEvent = rightClick(heading);

@@ -493,8 +493,9 @@
       "tagFilterClear": "Clear tag filter",
       "tagFilterSelected": "Filter by tag, {{count}} selected",
       "tagFilterPanel": "Tags to show",
-      "tagFilterLess": "Show fewer",
-      "groupMoreRows": "Show {{count}} more",
+      "otherItems": "Other items ({{count}})",
+      "closeOtherItems": "Close other items",
+      "backToList": "Back to the list",
       "rowActions": "Note actions",
       "renameNote": "Rename",
       "editNote": "Edit note"

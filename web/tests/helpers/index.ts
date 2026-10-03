@@ -22,3 +22,5 @@ export {
   type BumpableSync,
   type BumpableSyncHandle,
 } from "../../../shared/tests/helpers/bumpableSync";
+// #2061 — the Notes tag-grouped list is behind the tag filter now.
+export { showAllTagGroups } from "./notesTagGroups";

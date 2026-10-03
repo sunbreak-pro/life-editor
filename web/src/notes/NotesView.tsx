@@ -81,8 +81,10 @@ import { useElementWidth } from "./hooks/useElementWidth";
  * an Untitled note and opens the editor on a phone exactly as the Desktop pill
  * always has.
  *
- * Both halves render the SAME derived list (search → tag groups → sort → tag
- * filter) off the same state, so the two breakpoints never disagree (#369).
+ * Both halves render the SAME derived list off the same state, so the two
+ * breakpoints never disagree (#369): the default list (search → pinned-first
+ * sort → 15 rows + "Other items", #2061), or with a tag selected the grouped
+ * one (search → tag groups → sort → tag filter).
  *
  * Data stays context-side (useNotesUnifiedContext / useWikiTagsUnifiedContext);
  * this view is DataService-free (§3.1) and takes copy from useTranslation →
@@ -176,7 +178,9 @@ export function NotesView({
     clearTagFilters,
     tagFilterOptions,
     visibleGroups,
-    rowCap,
+    listMode,
+    defaultNotes,
+    otherNotes,
     showTagFilter,
     handleSearchChange,
     hasNotes,
@@ -678,7 +682,13 @@ export function NotesView({
       tagFilters={tagFilters}
       onToggleTagFilter={handleToggleTagFilter}
       onClearTagFilters={clearTagFilters}
-      rowCap={rowCap}
+      listMode={listMode}
+      defaultNotes={defaultNotes}
+      otherNotes={otherNotes}
+      // #2061: past the 15th row, wide opens a flyout on the sidebar's left
+      // edge; narrow has no room left of the drawer, so the drawer's own list
+      // gives way to the others instead.
+      othersPresentation={isWide ? "flyout" : "inline"}
       hasNotes={hasNotes}
       searchEmpty={searchEmpty}
       searchBusy={searchBusy}
@@ -695,10 +705,9 @@ export function NotesView({
         tagFilterSelected: (count) =>
           t("materials.notes.tagFilterSelected", { count }),
         tagFilterPanel: t("materials.notes.tagFilterPanel"),
-        moreRows: (count) => t("materials.notes.groupMoreRows", { count }),
-        // The string the old filter chip row folded with (#1842). The key
-        // keeps its name so the copy does not change under the user.
-        fewerRows: t("materials.notes.tagFilterLess"),
+        otherItems: (count) => t("materials.notes.otherItems", { count }),
+        closeOtherItems: t("materials.notes.closeOtherItems"),
+        backToList: t("materials.notes.backToList"),
       }}
       error={notes.error}
       selectedNoteId={selected?.id ?? null}

@@ -43,6 +43,7 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   editLabel,
   deleteLabel,
   dragHintLabel,
+  draggable = true,
 }: {
   node: NoteNode;
   dragId: string;
@@ -65,20 +66,28 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   editLabel?: string;
   deleteLabel: string;
   dragHintLabel: string;
+  /**
+   * False in the flat default list (#2061): it has no tag headings to drop
+   * onto, so a row there is not a drag source at all — no sensors, no tab stop
+   * announcing a drag, no drag hint as its name. Retagging by drag (#1687)
+   * stays in the tag-grouped list, where the headings are.
+   */
+  draggable?: boolean;
 }) {
   // #2032: on a phone a hold that drifted a few px picked the row up, and the
   // hold itself selected the title. The drag (#312) is a pointer gesture for
   // Desktop; narrow edits a note's tags through the pencil's sheet instead.
   const touchRow = onEdit !== undefined;
+  const dragOff = touchRow || !draggable;
   // dragId is group-scoped: the same note renders under every tag heading it
   // has, and @dnd-kit needs globally-unique draggable ids.
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: dragId,
-    disabled: touchRow,
+    disabled: dragOff,
   });
   // Not spread at all on a touch row: `disabled` stops the sensors, but the
   // attributes would still make the row a tab stop that announces a drag.
-  const dragProps = touchRow ? {} : { ...attributes, ...listeners };
+  const dragProps = dragOff ? {} : { ...attributes, ...listeners };
 
   return (
     // Grip removed (#312): the whole row is the drag activator now — press-drag
@@ -108,7 +117,7 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
       }
       role="listitem"
       // The hint describes the drag, which a touch row does not have.
-      aria-label={touchRow ? undefined : dragHintLabel}
+      aria-label={dragOff ? undefined : dragHintLabel}
       className={cn(
         "group relative flex items-center gap-2 rounded-lumen-md border px-2",
         // A hold must not start a text selection or iOS's callout (#2032).
