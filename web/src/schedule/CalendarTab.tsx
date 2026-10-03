@@ -30,6 +30,7 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useTagFilterPanel } from "./useTagFilterPanel";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
+import { useRoutineRangeFill } from "./useRoutineRangeFill";
 import { useRepeatUndoGate } from "./useRepeatUndoGate";
 import { useScheduleMutations } from "./useScheduleMutations";
 import {
@@ -162,10 +163,13 @@ export function CalendarTab({
   // reconcile (#352): a frequency edit re-shapes the already-materialised
   // future of ONE routine (drop days that stopped firing, add days that
   // started), honouring the tier-1 §Schedule conflict rules.
-  const { ensureRoutineItemsForDateRange, reconcileRoutineScheduleItems } =
-    useScheduleItemsRoutineSync({
-      dataService,
-    });
+  const {
+    ensureRoutineItemsForDateRange,
+    fillRoutineItemsForDateRange,
+    reconcileRoutineScheduleItems,
+  } = useScheduleItemsRoutineSync({
+    dataService,
+  });
   // Scheduled TodoNodes → todo=blue chips (schedule redesign A-1). `nodes`
   // already excludes soft-deleted todos (useTodoTreeAPI). A-2 (#297) writes
   // scheduledAt back via updateNode on grid drag/resize.
@@ -413,6 +417,16 @@ export function CalendarTab({
     rangeStart,
     rangeEnd,
     refreshKey: syncVersion,
+  });
+
+  // #2081: navigating materialises the visible window's repeat occurrences.
+  useRoutineRangeFill({
+    routines,
+    rangeStart,
+    rangeEnd,
+    today,
+    fill: fillRoutineItemsForDateRange,
+    reload,
   });
 
   // #568: hand the provider a handle on this store. Undo/redo commands are

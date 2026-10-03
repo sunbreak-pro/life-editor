@@ -225,6 +225,58 @@ export function useScheduleItemsRoutineSync(
   );
 
   /**
+   * Creation-only fill of [startDate, endDate] (#2081): the navigation-time
+   * counterpart of `ensureRoutineItemsForDate`, for the window the calendar
+   * shows. Before it, nothing on the navigation path generated occurrences —
+   * a series only ever had today plus the window that was on screen when it
+   * was created, so every week past that window came up empty.
+   *
+   * It deliberately has NO cleanup half, unlike
+   * `ensureRoutineItemsForDateRange`: merely LOOKING at a week must not
+   * soft-delete anything. Frequency edits propagate through
+   * `reconcileRoutineScheduleItems`, and only there (#279 conflict rules).
+   *
+   * Resolves with the number of rows written, or null when the read or the
+   * write failed (logged here, the caller decides whether to retry).
+   */
+  const fillRoutineItemsForDateRange = useCallback(
+    async (
+      startDate: string,
+      endDate: string,
+      routines: RoutineNode[],
+    ): Promise<number | null> => {
+      try {
+        const existing = await ds.fetchScheduleItemsByDateRange(
+          startDate,
+          endDate,
+        );
+        // Same calendar-date keying as `ensureRoutineItemsForDateRange`;
+        // dismissed days are not in `existing` and are dropped by the live
+        // pre-check inside `bulkCreateScheduleItems`.
+        const existingSet = new Set<string>();
+        for (const item of existing) {
+          if (item.routineId) existingSet.add(`${item.routineId}:${item.date}`);
+        }
+        const toCreate = collectRoutineItemsForDates(
+          new Date(startDate + "T00:00:00"),
+          new Date(endDate + "T00:00:00"),
+          routines,
+          existingSet,
+        );
+        if (toCreate.length > 0) {
+          await ds.bulkCreateScheduleItems(toCreate);
+          notifyChanged();
+        }
+        return toCreate.length;
+      } catch (e) {
+        logServiceError("ScheduleItems", "fillRoutineItemsForDateRange", e);
+        return null;
+      }
+    },
+    [ds, notifyChanged],
+  );
+
+  /**
    * Propagate a FREQUENCY change onto already-materialised occurrences
    * of one routine (#352 Step 4 — tier-1 §Schedule 競合解決ルール):
    * days that dropped out of the schedule are cleaned up, days that
@@ -258,7 +310,9 @@ export function useScheduleItemsRoutineSync(
    * whole-series (`fetchScheduleItemsByRoutineId` has no date filter), so
    * an unbounded delete would sweep occurrences far past the visible
    * range while only the range got regenerated. Rows beyond it are picked
-   * up by `ensureRoutineItemsForDateRange` when the user navigates there.
+   * up by `fillRoutineItemsForDateRange` when the user navigates there
+   * (wired by the calendar host since #2081 — before, this sentence
+   * described a path that did not exist).
    * Omitting the range keeps the whole-series behaviour for a caller that
    * genuinely means "everything".
    *
@@ -371,11 +425,13 @@ export function useScheduleItemsRoutineSync(
       ({
         ensureRoutineItemsForDate,
         ensureRoutineItemsForDateRange,
+        fillRoutineItemsForDateRange,
         reconcileRoutineScheduleItems,
       }) as const,
     [
       ensureRoutineItemsForDate,
       ensureRoutineItemsForDateRange,
+      fillRoutineItemsForDateRange,
       reconcileRoutineScheduleItems,
     ],
   );
