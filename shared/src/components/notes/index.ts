@@ -9,3 +9,10 @@ export {
   type NoteTagGroup,
   type BuildTagGroupsInput,
 } from "./buildTagGroups";
+// #2061 — the default (untagged-filter) side list: pinned → sort, capped.
+export {
+  buildDefaultNoteList,
+  DEFAULT_NOTE_LIST_LIMIT,
+  type BuildDefaultNoteListInput,
+  type DefaultNoteList,
+} from "./defaultNoteList";
