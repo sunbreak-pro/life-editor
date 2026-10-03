@@ -174,7 +174,13 @@ export function TagIconPicker({
   const optionId = (name: string) => `${ids}-${name}`;
 
   return (
-    <div ref={rootRef} className="relative shrink-0">
+    /* The root takes the host row's remaining width, not the trigger's (#2051).
+       It is the popover's containing block, so its width is the room the
+       popover has: the panel below is capped at 100% of it, and the trigger
+       keeps its own size with `w-fit`. Sized by the trigger alone, the root
+       told the panel nothing about the space to its right, and at 390px the
+       panel hung ~30px past the tag edit sheet and scrolled it sideways. */
+    <div ref={rootRef} className="relative min-w-0 flex-1">
       <button
         type="button"
         aria-label={labels.iconLabel}
@@ -183,7 +189,7 @@ export function TagIconPicker({
         onClick={toggle}
         className={cn(
           "flex h-8 items-center justify-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg text-lumen-text-secondary",
-          triggerLabel ? "px-2.5 text-sm text-lumen-text" : "w-8",
+          triggerLabel ? "w-fit px-2.5 text-sm text-lumen-text" : "w-8",
           "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
           triggerClassName,
@@ -217,9 +223,14 @@ export function TagIconPicker({
              background falls transparent" was: not a token that resolved to
              nothing, but an opaque surface drawn at a sixth of the width of the
              content sitting on it. ColorPicker never showed it because its
-             panel is IN FLOW, so its own width feeds the flex item's. */
+             panel is IN FLOW, so its own width feeds the flex item's.
+             `max-w-full` is the other half (#2051): `w-max` alone grows to
+             the frame's 17rem wherever the trigger sits, so a narrow sheet
+             scrolled sideways under it. Capped at the root's width (the room
+             right of the label), the panel shrinks there and the grid wraps
+             to fewer columns instead. */
           className={cn(
-            "absolute left-0 top-9 z-50 w-max rounded-lumen-md p-2",
+            "absolute left-0 top-9 z-50 w-max max-w-full rounded-lumen-md p-2",
             "border border-lumen-border-strong bg-lumen-bg-secondary shadow-lumen-lg",
           )}
         >
@@ -281,8 +292,9 @@ export function TagIconPicker({
               measures THIS box, and an overflow box does not reserve gutter in
               its max-content width, so an auto width would let the bar eat into
               the last column. 17rem leaves every one of the 8 tracks ≥ the 28px
-              button even with a bar drawn. */}
-          <div className="max-h-[10.5rem] w-[17rem] overflow-y-auto overscroll-contain">
+              button even with a bar drawn. `max-w-full` lets the frame give
+              way when the panel is capped narrower than that (#2051). */}
+          <div className="max-h-[10.5rem] w-[17rem] max-w-full overflow-y-auto overscroll-contain">
             {choices.length === 0 ? (
               /* The empty state keeps the frame's width, so the panel does not
                  collapse to the trigger's 32px the moment a query misses. */
@@ -300,12 +312,17 @@ export function TagIconPicker({
                  operates them exactly as before, and only the announced role
                  changes. Tests that used to reach for the first BUTTON in this
                  group now have to ask for the first OPTION, or they pick up
-                 the "Default icon" row below instead. */
+                 the "Default icon" row below instead.
+                 Columns are as many as fit, each at least the 28px button
+                 (#2051). A fixed `grid-cols-8` is `minmax(0, 1fr)` per track,
+                 so a frame narrower than 17rem would squeeze the tracks under
+                 the buttons and let them spill sideways (#1289 in small). At
+                 the full 17rem this still lays out 8 across, scrollbar or not. */
               <div
                 id={gridId}
                 role="listbox"
                 aria-label={labels.iconLabel}
-                className="grid grid-cols-8 justify-items-center gap-1"
+                className="grid grid-cols-[repeat(auto-fill,minmax(1.75rem,1fr))] justify-items-center gap-1"
               >
                 {choices.map((choiceName, index) => {
                   const Choice = resolveTagIcon(choiceName) ?? TagIcon;
