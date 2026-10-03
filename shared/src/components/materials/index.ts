@@ -11,7 +11,11 @@ export {
   type StatusFilterChip,
 } from "./StatusFilterChips";
 export { ExcerptListItem, type ExcerptListItemProps } from "./ExcerptListItem";
-export { NoteDetailPanel, type NoteDetailPanelProps } from "./NoteDetailPanel";
+export {
+  NoteDetailPanel,
+  NOTE_STICKY_HEADER_HEIGHT_VAR,
+  type NoteDetailPanelProps,
+} from "./NoteDetailPanel";
 // The "registered as a template" confirmation (#1179) — name field + where
 // the new template now lives.
 export {
