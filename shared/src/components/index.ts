@@ -455,6 +455,7 @@ export {
   type WorkHistoryListProps,
   type WorkHistoryListLabels,
   type WorkHistoryEntry,
+  type WorkHistoryGroup,
   type WorkHistoryTag,
 } from "./WorkHistoryList";
 // #1665: the free session's tag field, drawn beside the link-target selector.
