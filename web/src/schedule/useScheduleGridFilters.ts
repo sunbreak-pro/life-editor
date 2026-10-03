@@ -34,12 +34,14 @@ import {
  *      COUNTS, not the contents: a row the repeat filter already took away
  *      must not be counted a second time, or "N hidden" overshoots the rows
  *      actually missing.
- *   2. `isWide` gates the MEMBERSHIP SET, not each consumer. The controls that
- *      turn the lens off (the chip row and the toolbar's filter button) only
- *      render on Desktop, so a window narrowed below 768px with tags picked
- *      would otherwise leave the grid filtered with nothing on screen able to
- *      clear it. Gating one set means every layer below — grid rows, todo
- *      chips, counts — un-narrows together.
+ *   2. The MEMBERSHIP SET is the one application point, not each consumer,
+ *      so every layer below — grid rows, todo chips, counts — narrows and
+ *      un-narrows together. It used to be gated on `isWide`, because the
+ *      controls that turn the lens off rendered on Desktop only and a window
+ *      narrowed with tags picked would have been left filtered with nothing
+ *      on screen able to clear it. #2079 gave narrow its own filter button
+ *      (lit, with the count, while a filter is on), so both widths can clear
+ *      it and the gate went.
  *   3. Flipping the repeat filter ON drops a repeat-generated selection
  *      (#466). The popover and the editor both read the selection, so leaving
  *      it would point them at a row that is no longer drawn.
@@ -82,7 +84,6 @@ export interface UseScheduleGridFiltersArgs {
   tagGroups: TagGroupNode[];
   allTags: WikiTagUnified[];
   allAssignments: WikiTagAssignmentUnified[];
-  isWide: boolean;
   /** The day the Mobile list shows. */
   anchorDate: string;
   /** Inclusive bounds of the drawn window, for the holiday rows (#1626). */
@@ -120,7 +121,6 @@ export function useScheduleGridFilters({
   tagGroups,
   allTags,
   allAssignments,
-  isWide,
   anchorDate,
   rangeStart,
   rangeEnd,
@@ -174,14 +174,13 @@ export function useScheduleGridFilters({
           null),
     [liveGroups, selectedTagIds],
   );
-  // Rule 2 above: THE single application point of the lens, and the only place
-  // `isWide` gates it.
+  // Rule 2 above: THE single application point of the lens.
   const tagMemberIds = useMemo(
     () =>
-      isWide && selectedTagIds.length > 0
+      selectedTagIds.length > 0
         ? buildTagMemberIds(allAssignments, selectedTagIds)
         : null,
-    [isWide, selectedTagIds, allAssignments],
+    [selectedTagIds, allAssignments],
   );
   // Both grid layers go through the lens together. Narrowing only the schedule
   // rows would hide the other tags' events while every todo chip stayed put —

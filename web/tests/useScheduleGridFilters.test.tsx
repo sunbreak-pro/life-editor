@@ -20,10 +20,10 @@ import type { UseScheduleGridFiltersArgs } from "../src/schedule/useScheduleGrid
  *   1. The lens runs AFTER the repeat filter, and the order decides the
  *      COUNTS. Run it over the unfiltered list and a row the repeat filter
  *      already took away is counted twice, so "N hidden" overshoots.
- *   2. `isWide` gates the membership SET, not each consumer. The controls that
- *      turn the lens off are Desktop-only, so a window narrowed with tags
- *      picked would otherwise leave the grid filtered with nothing on screen
- *      able to clear it.
+ *   2. The membership SET is the one application point, not each consumer.
+ *      It was gated on `isWide` while the controls that turn the lens off were
+ *      Desktop-only; #2079 gave narrow its own filter button, so the gate went
+ *      and both widths narrow the same way.
  *   3. Turning the repeat filter ON drops a repeat-generated selection (#466).
  *   4. Narrowing the tag set past the selection drops it too (#468) — but
  *      CLEARING the lens keeps it, because clearing hides nothing.
@@ -114,7 +114,6 @@ function setup(overrides: Partial<UseScheduleGridFiltersArgs> = {}) {
     tagGroups: [],
     allTags: [],
     allAssignments: [],
-    isWide: true,
     anchorDate: "2026-08-16",
     // #1626: a window with no holiday in it (8/11 山の日 is just outside),
     // so every case below keeps counting exactly the rows it was written for.
@@ -212,29 +211,26 @@ describe("useScheduleGridFilters — rule 1: the counts do not double-count", ()
   });
 });
 
-describe("useScheduleGridFilters — rule 2: narrow un-narrows everything", () => {
+describe("useScheduleGridFilters — rule 2: one membership set for every layer", () => {
   /*
-   * The chip row that turns the lens off renders on Desktop only. A window
-   * narrowed below 768px with a group picked would otherwise leave the grid
-   * filtered with no way on screen to clear it.
+   * #2079: narrow has its own filter button now, so the lens applies on every
+   * width. It used to be ignored below 768px because nothing on a phone could
+   * clear it — that test pinned the old gate and was rewritten with it.
    */
-  it("ignores a picked group on narrow", () => {
-    const shared = {
+  it("narrows the month, todo chips included, through one set", () => {
+    const { hook } = setup({
       rangeItems: [item("tagged"), item("untagged")],
       rangeTodoChips: [chip("task-1")],
       tagGroups: [group("group-1", "tag-1")],
       allTags: [tag("tag-1")],
       allAssignments: [assign("tagged", "tag-1")],
-    };
-    const wide = setup({ ...shared, isWide: true });
-    act(() => wide.hook.result.current.handleSelectGroup("group-1"));
-    expect(wide.hook.result.current.hiddenByTags).toBe(2);
-
-    const narrow = setup({ ...shared, isWide: false });
-    act(() => narrow.hook.result.current.handleSelectGroup("group-1"));
-    // Every layer un-narrows together, chips included.
-    expect(narrow.hook.result.current.hiddenByTags).toBe(0);
-    expect(narrow.hook.result.current.monthItems).toHaveLength(3);
+    });
+    act(() => hook.result.current.handleSelectGroup("group-1"));
+    // The untagged event and the untagged todo chip both go.
+    expect(hook.result.current.hiddenByTags).toBe(2);
+    expect(
+      hook.result.current.monthItems.map((i) => i.id).sort(),
+    ).toEqual(["tagged"]);
   });
 
   /*

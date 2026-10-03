@@ -476,7 +476,6 @@ export function CalendarTab({
     tagGroups,
     allTags,
     allAssignments,
-    isWide,
     anchorDate,
     rangeStart,
     rangeEnd,
@@ -1147,6 +1146,16 @@ export function CalendarTab({
             onPrev: () => step(-1),
             onNext: () => step(1),
             onToday: goToday,
+            // #2079: the same panel and state the Desktop toolbar opens.
+            filter: {
+              onOpen: () => setTagFilterOpen(true),
+              active: selectedTagIds.length > 0,
+              count: selectedTagIds.length,
+              label:
+                selectedTagIds.length > 0
+                  ? toolbarLabels.filterActive
+                  : toolbarLabels.openFilter,
+            },
           }}
           banner={rangeErrorBanner}
           state={{ loading: showLoading, error: showError, onRetry: reload }}
