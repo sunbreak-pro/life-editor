@@ -15,7 +15,12 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { cn, FOCUS_RING, isImeComposing } from "@life-editor/shared";
+import {
+  cn,
+  FOCUS_RING,
+  isImeComposing,
+  NOTE_STICKY_HEADER_HEIGHT_VAR,
+} from "@life-editor/shared";
 import { tableNameOf } from "./tableNodes";
 
 /*
@@ -281,7 +286,11 @@ export function TableControls({
       role="toolbar"
       aria-label={labels.label}
       data-table-controls=""
-      className="sticky top-0 z-10 flex flex-wrap items-center gap-x-3 gap-y-1.5 self-start rounded-lumen-md border border-lumen-border-strong bg-lumen-bg p-1.5 shadow-lumen-sm"
+      // #2058: stick BELOW the note detail's sticky header rather than under
+      // it. The panel publishes its header height on its root; outside that
+      // panel (or before the first measurement) the fallback is the old 0.
+      style={{ top: `var(${NOTE_STICKY_HEADER_HEIGHT_VAR}, 0px)` }}
+      className="sticky z-10 flex flex-wrap items-center gap-x-3 gap-y-1.5 self-start rounded-lumen-md border border-lumen-border-strong bg-lumen-bg p-1.5 shadow-lumen-sm"
     >
       <TableNameField
         key={`${tablePos}:${tableName}`}
