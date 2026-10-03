@@ -6,7 +6,8 @@
 
 **対象**: `web/src/schedule/` / `shared/src/components/schedule/` / `shared/src/hooks/` / `shared/src/utils/`
 
-- 現在: **#2049 を PR #2070 で提出・open**（2026-10-03）。Desktop の月セルを 5 チップ + 「他 N 件」にし、「他 N 件」でセルの横にパネル（`MonthMorePanel`）を開く。パネルの行は既存の簡易編集の吹き出しへ渡す。#1973 の「今日の流れ」切替は Issue の既定どおり置き換えて削除（`useFlowDay` / 「今日に戻る」/ `flowBackToToday`）。`origin/main` から切り、CI `verify` 全ステップ + `docs-lint` を最終版で 2 回緑（shared 3,617 / web 1,624 / desktop 62 / mcp-server 480）。**実ブラウザ確認は merge 後 chat-main**
+- 現在: **/goal 6 件のうち 5 件を 5 本の PR で提出・全部 open**（2026-10-03 夜）。#2081 = PR #2085（10 月の週に繰り返しが出ない — 原因は「表示範囲へ移動しても回を作る経路が無かった」。作るだけの範囲補充を足した）/ #2083 = PR #2088（Mobile の繰り返し行タップ → 編集）/ #2079 = PR #2090（Mobile 月見出しにタグ絞り込み・`isWide` の絞り込みゲートを撤去）/ #2080 = PR #2091（編集パネルの削除を保存の行の左端へ）/ #2082 = PR #2092（繰り返しの終了日・migration 0033 は**ローカルのみ・🛑 push が merge より先**）。5 本とも `origin/main` から切り、CI `verify` 全ステップ + `docs-lint` を緑にしてから開いた。#2010 は下の行のとおり PR を作っていない。**「終了時間」は判断キュー D-20261003-sched-1**。**実ブラウザ確認は merge 後 chat-main**
+- 旧（同日昼）: **#2049 を PR #2070 で提出・open**（2026-10-03）。Desktop の月セルを 5 チップ + 「他 N 件」にし、「他 N 件」でセルの横にパネル（`MonthMorePanel`）を開く。パネルの行は既存の簡易編集の吹き出しへ渡す。#1973 の「今日の流れ」切替は Issue の既定どおり置き換えて削除（`useFlowDay` / 「今日に戻る」/ `flowBackToToday`）。`origin/main` から切り、CI `verify` 全ステップ + `docs-lint` を最終版で 2 回緑（shared 3,617 / web 1,624 / desktop 62 / mcp-server 480）。**実ブラウザ確認は merge 後 chat-main**
 - **#2010 は新しい PR を作らなかった**（2026-10-03）: 修正は PR #2022 で 2026-09-27 に merge 済みで、Issue が open なのは DoD の「390px の実ブラウザで修正前後を並べる」（chat-main の作業）が残っているため。/goal は 2 本目の PR を求めていたが、中身のない PR は出さない
 - **Desktop の月グリッドは `h-full` だと最終週が切れる**（2026-10-03 = #2049）: グリッドの根が `overflow-hidden` で、セルの `min-h` が行を押し広げると根の外にはみ出す。セルの下限を上げるなら根を `min-h-full` にして外側の枠でスクロールさせる（compact が #1835 で先に同じ形を取っている）
 - **この worktree の PostToolUse フォーマッタは、Edit したファイルの無関係な箇所まで整形し直す**（2026-10-03 = `CalendarTab.tsx` の 2 か所）: main 側が今の prettier で整形されていない箇所があるため。commit 前に diff を読み、無関係な hunk は Bash から書き戻す（Edit で戻すとまた整形される）
