@@ -1099,10 +1099,10 @@ describe("NotesView — the password entries in the kebab (#1843)", () => {
       render(<NotesView />);
 
       fireEvent.click(screen.getByLabelText("notesView.moreActions"));
-      expect(screen.queryByText("materials.notes.password.setEntry")).toBeNull();
-      fireEvent.click(
-        screen.getByText("materials.notes.password.removeEntry"),
-      );
+      expect(
+        screen.queryByText("materials.notes.password.setEntry"),
+      ).toBeNull();
+      fireEvent.click(screen.getByText("materials.notes.password.removeEntry"));
 
       const dialog = await screen.findByRole("dialog");
       // Removing is not the decision the warning is about.
@@ -1149,5 +1149,44 @@ describe("NotesView — a body search that failed (#1972)", () => {
     render(<NotesView />);
 
     expect(screen.queryByText("materials.notes.bodySearchFailed")).toBeNull();
+  });
+});
+
+/*
+ * #2058 — the title and tags stay on screen while the body scrolls, at both
+ * widths. The two widths scroll different elements (the page scroller on
+ * wide, the main column on narrow), and `position: sticky` binds to whichever
+ * that is, so what this host owns is only that it ASKS for the sticky header
+ * on both — narrow renders the panel's "sidebar" variant, which must not be
+ * left out. The sticky mechanics themselves are pinned in shared/.
+ */
+describe("NotesView — sticky note header (#2058)", () => {
+  it.each([
+    ["wide", true],
+    ["narrow", false],
+  ])("pins the title and tags above the body on %s", (_, isWide) => {
+    state.isWide = isWide;
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    const header = screen.getByTestId("note-detail-header");
+    expect(header.className).toContain("sticky");
+    within(header).getByLabelText("notesView.detailTitle");
+    within(header).getByTestId("tag-picker");
+    // The body scrolls under the header, so it is not part of it.
+    expect(within(header).queryByTestId("editor")).toBeNull();
+    screen.getByTestId("editor");
+    // The scroll owner on narrow is the main column itself (#875).
+    if (!isWide) {
+      expect(header.closest(".overflow-y-auto")).not.toBeNull();
+    }
+  });
+
+  it("keeps the wide link row inside the pinned header", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    const header = screen.getByTestId("note-detail-header");
+    within(header).getByTestId("link-panel");
   });
 });
