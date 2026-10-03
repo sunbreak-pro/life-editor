@@ -11,7 +11,11 @@ export {
   type StatusFilterChip,
 } from "./StatusFilterChips";
 export { ExcerptListItem, type ExcerptListItemProps } from "./ExcerptListItem";
-export { NoteDetailPanel, type NoteDetailPanelProps } from "./NoteDetailPanel";
+export {
+  NoteDetailPanel,
+  NOTE_STICKY_HEADER_HEIGHT_VAR,
+  type NoteDetailPanelProps,
+} from "./NoteDetailPanel";
 // #2057 — the body was changed elsewhere while the user had unsaved typing.
 export {
   NoteConflictBanner,

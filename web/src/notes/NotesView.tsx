@@ -173,7 +173,7 @@ export function NotesView({
     tagFilters,
     toggleTagFilter,
     clearTagFilters,
-    tagFilterChips,
+    tagFilterOptions,
     visibleGroups,
     rowCap,
     showTagFilter,
@@ -362,7 +362,7 @@ export function NotesView({
   /*
    * "The user followed a tag to what else carries it."
    *
-   * The filter chips are the in-Notes way to do that, so selecting one — and
+   * The tag filter panel is the in-Notes way to do that, so selecting one — and
    * only selecting one; clearing back to "all" is not following anything — is
    * what completes the step.
    */
@@ -658,7 +658,7 @@ export function NotesView({
       }
       directionLabel={directionLabel}
       showTagFilter={showTagFilter}
-      tagFilterChips={tagFilterChips}
+      tagFilterOptions={tagFilterOptions}
       tagFilters={tagFilters}
       onToggleTagFilter={handleToggleTagFilter}
       onClearTagFilters={clearTagFilters}
@@ -676,12 +676,12 @@ export function NotesView({
         editNote: t("materials.notes.editNote"),
         assignTagHint: t("materials.notes.assignTagHint"),
         clearTagFilter: t("materials.notes.tagFilterClear"),
-        moreTagFilters: (count) =>
-          t("materials.notes.tagFilterMore", { count }),
-        fewerTagFilters: t("materials.notes.tagFilterLess"),
+        tagFilterSelected: (count) =>
+          t("materials.notes.tagFilterSelected", { count }),
+        tagFilterPanel: t("materials.notes.tagFilterPanel"),
         moreRows: (count) => t("materials.notes.groupMoreRows", { count }),
-        // The same string the filter row folds with — one screen should not
-        // have two ways of saying "show fewer" (#1842).
+        // The string the old filter chip row folded with (#1842). The key
+        // keeps its name so the copy does not change under the user.
         fewerRows: t("materials.notes.tagFilterLess"),
       }}
       error={notes.error}
