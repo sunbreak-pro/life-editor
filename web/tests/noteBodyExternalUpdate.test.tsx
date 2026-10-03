@@ -140,8 +140,12 @@ function harness(initial: string) {
   };
 }
 
+interface PlainBlock {
+  content?: Array<{ text?: string }>;
+}
+
 const paragraphs = (editor: Editor) =>
-  (editor.getJSON().content ?? []).map((b) =>
+  ((editor.getJSON().content ?? []) as PlainBlock[]).map((b) =>
     (b.content ?? []).map((t) => t.text ?? "").join(""),
   );
 
