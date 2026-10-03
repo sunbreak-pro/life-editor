@@ -34,3 +34,26 @@ export interface NoteNode {
 }
 
 export type NoteSortMode = "updatedAt" | "createdAt" | "title";
+
+/**
+ * A note body together with the version it belongs to (#2057): the
+ * `items_meta.updated_at` the server held when this body was current. Saving
+ * against a version is what lets the server refuse a write built on an old
+ * body instead of silently replacing a newer one.
+ */
+export interface NoteBodySnapshot {
+  content: string;
+  updatedAt: string;
+}
+
+/**
+ * What a version-checked body save came back with (#2057).
+ *  - `saved`     written; `updatedAt` is the note's new version.
+ *  - `conflict`  NOT written — the note had moved on. `current` is what is
+ *                there now, for the caller to compare and resolve against.
+ *  - `missing`   the note is gone (deleted, or never created).
+ */
+export type NoteBodySaveResult =
+  | { status: "saved"; updatedAt: string }
+  | { status: "conflict"; current: NoteBodySnapshot }
+  | { status: "missing" };

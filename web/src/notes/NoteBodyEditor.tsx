@@ -1,5 +1,14 @@
+import { useRef } from "react";
 import type { Editor } from "@tiptap/core";
-import { useTranslation, type NoteNode } from "@life-editor/shared";
+import {
+  logServiceError,
+  NoteConflictBanner,
+  useBodySyncSession,
+  useTranslation,
+  type NoteBodySaveResult,
+  type NoteBodySnapshot,
+  type NoteNode,
+} from "@life-editor/shared";
 import { RichTextEditor } from "./RichTextEditor";
 import type { NoteLinking } from "./hooks/useNoteLinking";
 import type { AttachmentWiring } from "./useAttachmentUpload";
@@ -25,14 +34,36 @@ import type { AttachmentWiring } from "./useAttachmentUpload";
  * reason: a prop would have to be passed at both mount sites, and one of them
  * would eventually be forgotten (#680 — the placeholder was nobody's job, so
  * the editor's English default showed on a Japanese screen).
+ *
+ * #2057 — the body is saved against the version it was opened at, and a
+ * write from somewhere else while the note is open is no longer overwritten.
+ * The session (useBodySyncSession) lives under the same key as the editor, so
+ * every open — and every template apply — starts from the body on screen. A
+ * write from elsewhere replaces the body when nothing is pending, and raises
+ * the conflict banner when something is.
  */
+
+/**
+ * What the body needs from the notes hook to save against a version (#2057).
+ * The NotesUnified context value satisfies it as is.
+ */
+export interface NoteBodySync {
+  saveNoteBody: (
+    id: string,
+    content: string,
+    expectedUpdatedAt: string | null,
+  ) => Promise<NoteBodySaveResult>;
+  fetchNoteBodySnapshot: (id: string) => Promise<NoteBodySnapshot | null>;
+  adoptNoteBody: (id: string, content: string) => void;
+  serverStampOf: (id: string) => string | null;
+}
 
 export interface NoteBodyEditorProps {
   note: NoteNode;
   linking: NoteLinking;
   onNavigateToItem?: (target: { id: string; role: string }) => void;
-  /** Persist the edited body (the host also runs the link delete-sync). */
-  onSave: (noteId: string, content: string) => void;
+  /** Version-checked persistence of the body (#2057). */
+  bodySync: NoteBodySync;
   /**
    * Bump to remount the editor on the SAME note, after the host has replaced
    * its body behind the editor's back (#1181). Default 0 = never remounts for
@@ -54,42 +85,88 @@ export interface NoteBodyEditorProps {
   className?: string;
 }
 
-export function NoteBodyEditor({
+export function NoteBodyEditor(props: NoteBodyEditorProps) {
+  const { note, remountToken = 0 } = props;
+  return <NoteBodySession key={`${note.id}:${remountToken}`} {...props} />;
+}
+
+function NoteBodySession({
   note,
   linking,
   onNavigateToItem,
-  onSave,
-  remountToken = 0,
+  bodySync,
   attachments,
   onEditorChange,
   className,
 }: NoteBodyEditorProps) {
   const { t } = useTranslation();
+  const readEditorRef = useRef<(() => string | null) | null>(null);
+  const noteId = note.id;
+  const serverStamp = bodySync.serverStampOf(noteId);
+
+  const session = useBodySyncSession({
+    initial: { content: note.content, updatedAt: serverStamp },
+    remoteUpdatedAt: serverStamp,
+    save: (content, expected) =>
+      bodySync.saveNoteBody(noteId, content, expected),
+    fetchCurrent: () => bodySync.fetchNoteBodySnapshot(noteId),
+    readEditor: () => readEditorRef.current?.() ?? null,
+    // #372: drop inline-origin edges whose "[[ ]]" left the text — once the
+    // body is actually stored, not on a save that may yet be refused.
+    onSaved: (content) => linking.handleBodySaved(noteId, content),
+    onAdopted: (content) => bodySync.adoptNoteBody(noteId, content),
+    onError: (e) => logServiceError("Notes", "saveNoteBody", e),
+  });
+
   return (
-    <RichTextEditor
-      key={`${note.id}:${remountToken}`}
-      noteId={note.id}
-      initialContent={note.content || undefined}
-      editable={!note.isEditLocked}
-      placeholder={t("materials.notes.bodyPlaceholder")}
-      onUpdate={(content) => {
-        onSave(note.id, content);
-        // #372: drop inline-origin edges whose "[[ ]]" left the text.
-        linking.handleBodySaved(note.id, content);
-      }}
-      // "[[" wiki-link autocomplete + click navigation (Issue #285).
-      // loadLinkTargets is a LOADER, so handing it over costs nothing until
-      // the user actually types "[[" (#430 — typing prose must not fetch the
-      // pool).
-      loadLinkTargets={linking.loadLinkTargets}
-      onNavigateToItem={onNavigateToItem}
-      onResolvedLinkInserted={(targetId) =>
-        linking.handleResolvedLinkInserted(note.id, targetId)
-      }
-      onCreateNoteForLink={linking.handleCreateNoteForLink}
-      attachments={attachments}
-      onEditorChange={onEditorChange}
-      className={className}
-    />
+    <>
+      {session.conflict && (
+        <NoteConflictBanner
+          hunks={session.conflict.merge.hunks}
+          onKeepMine={() => session.resolve("mine")}
+          onTakeTheirs={() => session.resolve("theirs")}
+          onKeepBoth={() => session.resolve("both")}
+          labels={{
+            message: t("materials.notes.conflict.message"),
+            showDiff: t("materials.notes.conflict.showDiff"),
+            hideDiff: t("materials.notes.conflict.hideDiff"),
+            keepMine: t("materials.notes.conflict.keepMine"),
+            takeTheirs: t("materials.notes.conflict.takeTheirs"),
+            keepBoth: t("materials.notes.conflict.keepBoth"),
+            mineHeading: t("materials.notes.conflict.mineHeading"),
+            theirsHeading: t("materials.notes.conflict.theirsHeading"),
+            changedByMine: t("materials.notes.conflict.changedByMine"),
+            changedByTheirs: t("materials.notes.conflict.changedByTheirs"),
+            changedByBoth: t("materials.notes.conflict.changedByBoth"),
+            changedAlike: t("materials.notes.conflict.changedAlike"),
+            emptyBlock: t("materials.notes.conflict.emptyBlock"),
+            noTextDiff: t("materials.notes.conflict.noTextDiff"),
+          }}
+        />
+      )}
+      <RichTextEditor
+        noteId={noteId}
+        initialContent={note.content || undefined}
+        editable={!note.isEditLocked}
+        placeholder={t("materials.notes.bodyPlaceholder")}
+        onUpdate={session.commit}
+        onDirty={session.markDirty}
+        replaceContent={session.replacement}
+        contentReaderRef={readEditorRef}
+        // "[[" wiki-link autocomplete + click navigation (Issue #285).
+        // loadLinkTargets is a LOADER, so handing it over costs nothing until
+        // the user actually types "[[" (#430 — typing prose must not fetch the
+        // pool).
+        loadLinkTargets={linking.loadLinkTargets}
+        onNavigateToItem={onNavigateToItem}
+        onResolvedLinkInserted={(targetId) =>
+          linking.handleResolvedLinkInserted(noteId, targetId)
+        }
+        onCreateNoteForLink={linking.handleCreateNoteForLink}
+        attachments={attachments}
+        onEditorChange={onEditorChange}
+        className={className}
+      />
+    </>
   );
 }

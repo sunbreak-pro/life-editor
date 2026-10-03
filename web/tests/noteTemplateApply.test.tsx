@@ -30,6 +30,8 @@ const state = vi.hoisted(() => ({
   notes: [] as unknown[],
   selectedId: null as string | null,
   updateNote: vi.fn(),
+  // #2057: the apply goes through the version-checked replace.
+  replaceNoteBody: vi.fn(async () => true),
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
@@ -43,6 +45,12 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     useMediaQuery: () => state.isWide,
     useSyncDomains: () => 0,
     useNotesUnifiedContext: () => ({
+      // #2057 — the body saves against a version through these.
+      saveNoteBody: vi.fn(async () => ({ status: "saved", updatedAt: "" })),
+      fetchNoteBodySnapshot: vi.fn(async () => null),
+      replaceNoteBody: state.replaceNoteBody,
+      adoptNoteBody: vi.fn(),
+      serverStampOf: () => null,
       notes: state.notes,
       deletedNotes: [],
       selectedNote:
@@ -152,6 +160,7 @@ beforeEach(() => {
   state.notes = [ALPHA];
   state.selectedId = "note-a";
   state.updateNote.mockClear();
+  state.replaceNoteBody.mockClear();
   mounts.length = 0;
 });
 
@@ -174,6 +183,7 @@ describe("apply a saved template to the open note (#1181)", () => {
 
     // Picking is browsing. Nothing is written until the confirm step.
     expect(state.updateNote).not.toHaveBeenCalled();
+    expect(state.replaceNoteBody).not.toHaveBeenCalled();
   });
 
   it("replaces the body, and only the body, once confirmed", async () => {
@@ -181,10 +191,11 @@ describe("apply a saved template to the open note (#1181)", () => {
     await pickWeekly();
     fireEvent.click(screen.getByText("materials.templates.applyConfirm"));
 
-    await waitFor(() => expect(state.updateNote).toHaveBeenCalled());
-    expect(state.updateNote).toHaveBeenCalledExactlyOnceWith("note-a", {
-      content: "<p>from the template</p>",
-    });
+    await waitFor(() => expect(state.replaceNoteBody).toHaveBeenCalled());
+    expect(state.replaceNoteBody).toHaveBeenCalledExactlyOnceWith(
+      "note-a",
+      "<p>from the template</p>",
+    );
   });
 
   it("remounts the body editor so the new content is what is on screen", async () => {
@@ -202,6 +213,7 @@ describe("apply a saved template to the open note (#1181)", () => {
     fireEvent.click(screen.getByText("common.cancel"));
 
     expect(state.updateNote).not.toHaveBeenCalled();
+    expect(state.replaceNoteBody).not.toHaveBeenCalled();
     expect(
       screen.queryByText("materials.templates.applyConfirmBody|Weekly review"),
     ).toBeNull();
@@ -269,10 +281,11 @@ describe("what the apply confirm claims is being discarded (#1255)", () => {
     );
     fireEvent.click(screen.getByText("materials.templates.applyConfirm"));
 
-    await waitFor(() => expect(state.updateNote).toHaveBeenCalled());
-    expect(state.updateNote).toHaveBeenCalledExactlyOnceWith("note-a", {
-      content: "<p>from the template</p>",
-    });
+    await waitFor(() => expect(state.replaceNoteBody).toHaveBeenCalled());
+    expect(state.replaceNoteBody).toHaveBeenCalledExactlyOnceWith(
+      "note-a",
+      "<p>from the template</p>",
+    );
   });
 
   it("keeps warning when the body holds text", async () => {

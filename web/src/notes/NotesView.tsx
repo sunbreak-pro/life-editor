@@ -466,15 +466,17 @@ export function NotesView({
 
   // #1181: the confirmed apply. Body only — the note keeps its own title, and
   // the epoch bump is what makes the editor show the new body (see above).
-  const updateNote = notes.updateNote;
+  // #2057: through the version-checked save, so the replace is one atomic
+  // write and the remounted editor's first check waits for it.
+  const replaceNoteBody = notes.replaceNoteBody;
   const applyPending = templateApply.pending;
   const closeApply = templateApply.close;
   const handleApplyTemplate = useCallback(() => {
     if (!selected || !applyPending) return;
-    updateNote(selected.id, { content: applyPending.content });
+    void replaceNoteBody(selected.id, applyPending.content);
     setBodyEpoch((n) => n + 1);
     closeApply();
-  }, [applyPending, closeApply, selected, updateNote]);
+  }, [applyPending, closeApply, selected, replaceNoteBody]);
 
   /*
    * #1248: deleting a saved template asks first.
@@ -869,7 +871,8 @@ export function NotesView({
                   attachments={attachments}
                   onEditorChange={setBodyEditor}
                   onNavigateToItem={onNavigateToItem}
-                  onSave={(id, content) => notes.updateNote(id, { content })}
+                  // #2057: saves against the version the body opened at.
+                  bodySync={notes}
                   // Borderless — sit flush inside the detail card so the note
                   // body reads as a single clean surface, matching the Daily
                   // editor card (2026-07-18: align Notes formatting to Daily).

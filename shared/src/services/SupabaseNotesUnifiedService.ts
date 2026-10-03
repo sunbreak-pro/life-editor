@@ -1,10 +1,15 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NotesUnifiedDataService } from "./DataService";
 import { noteNodeToRows, noteUpdatesToPatches } from "./notesUnifiedMapper";
-import type { NoteNode } from "../types/note";
+import type {
+  NoteBodySaveResult,
+  NoteBodySnapshot,
+  NoteNode,
+} from "../types/note";
 import { SupabaseNotesUnifiedReads } from "./SupabaseNotesUnifiedReads";
 import { SupabaseNotesUnifiedSearch } from "./SupabaseNotesUnifiedSearch";
 import { SupabaseNotesUnifiedLock } from "./SupabaseNotesUnifiedLock";
+import { SupabaseNotesUnifiedBodySave } from "./SupabaseNotesUnifiedBodySave";
 import { orderNotePurge } from "./notesUnifiedPurgeOrder";
 
 /*
@@ -29,12 +34,14 @@ import { orderNotePurge } from "./notesUnifiedPurgeOrder";
  * - SupabaseNotesUnifiedReads   list / Trash list / detail / count
  * - SupabaseNotesUnifiedSearch  title + content search
  * - SupabaseNotesUnifiedLock    password gate + edit lock (+ version bump)
+ * - SupabaseNotesUnifiedBodySave version-checked body save (#2057)
  * - notesUnifiedPurgeOrder      pure leaf-first purge ordering
  */
 export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
   private readonly reads: SupabaseNotesUnifiedReads;
   private readonly search: SupabaseNotesUnifiedSearch;
   private readonly lock: SupabaseNotesUnifiedLock;
+  private readonly bodySave: SupabaseNotesUnifiedBodySave;
 
   constructor(private readonly client: SupabaseClient) {
     this.reads = new SupabaseNotesUnifiedReads(client);
@@ -44,6 +51,7 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
     this.lock = new SupabaseNotesUnifiedLock(client, (id) =>
       this.reads.getNoteUnified(id),
     );
+    this.bodySave = new SupabaseNotesUnifiedBodySave(client);
   }
 
   // -------------------------------------------------------------------------
@@ -158,6 +166,22 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
         `updateNoteUnified: row vanished after update (id="${id}")`,
       );
     return updated;
+  }
+
+  // -------------------------------------------------------------------------
+  // Version-checked body save (SupabaseNotesUnifiedBodySave, #2057)
+  // -------------------------------------------------------------------------
+
+  saveNoteBodyUnified(
+    id: string,
+    content: string,
+    expectedUpdatedAt: string | null,
+  ): Promise<NoteBodySaveResult> {
+    return this.bodySave.saveNoteBodyUnified(id, content, expectedUpdatedAt);
+  }
+
+  getNoteBodySnapshotUnified(id: string): Promise<NoteBodySnapshot | null> {
+    return this.bodySave.getNoteBodySnapshotUnified(id);
   }
 
   // -------------------------------------------------------------------------
@@ -300,6 +324,8 @@ export const PHASE2_NOTES_UNIFIED_METHOD_NAMES = [
   "getNoteBodyUnified", // #1763
   "createNoteUnified",
   "updateNoteUnified",
+  "saveNoteBodyUnified", // #2057
+  "getNoteBodySnapshotUnified", // #2057
   "softDeleteNoteUnified",
   "moveNoteUnified",
   // DU-G PR1

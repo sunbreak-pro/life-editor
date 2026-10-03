@@ -16,6 +16,12 @@ export {
   NOTE_STICKY_HEADER_HEIGHT_VAR,
   type NoteDetailPanelProps,
 } from "./NoteDetailPanel";
+// #2057 — the body was changed elsewhere while the user had unsaved typing.
+export {
+  NoteConflictBanner,
+  type NoteConflictBannerProps,
+  type NoteConflictBannerLabels,
+} from "./NoteConflictBanner";
 // The "registered as a template" confirmation (#1179) — name field + where
 // the new template now lives.
 export {

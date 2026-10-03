@@ -283,7 +283,7 @@
   },
   {
     "name": "update_note",
-    "description": "Update an existing note. Only provide fields you want to change.",
+    "description": "Update an existing note. Only provide fields you want to change. Pass expected_updated_at (the updatedAt from your get_note) so an edit built on an old read is refused instead of overwriting newer text; on that error, call get_note again, merge your change into the latest body, and retry.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -306,6 +306,10 @@
         "is_pinned": {
           "type": "boolean",
           "description": "Pin the note to the top of the list"
+        },
+        "expected_updated_at": {
+          "type": "string",
+          "description": "The note's updatedAt as returned by get_note. If the note has changed since, nothing is written and an error is returned. Omitted: the note is still checked against the version read at the start of this call."
         }
       },
       "required": [

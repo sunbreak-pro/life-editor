@@ -96,19 +96,41 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
     }
   }, []);
 
+  /*
+   * The tracked writes themselves, per id (#2057). A version-checked body save
+   * has to wait for them: a save sent while this note's create is still in
+   * flight finds no row to compare against, and one sent beside a rename
+   * compares against the version the rename is about to replace.
+   */
+  const inFlightRef = useRef<Map<string, Set<Promise<unknown>>>>(new Map());
+
   /** Run a write while counting it as unacknowledged (#607 — see the ref). */
   const trackWrite = useCallback(
     (id: string, write: Promise<unknown>): Promise<unknown> => {
       const map = unackedWritesRef.current;
       map.set(id, (map.get(id) ?? 0) + 1);
-      return write.finally(() => {
+      const tracked = write.finally(() => {
         const left = (map.get(id) ?? 1) - 1;
         if (left > 0) map.set(id, left);
         else map.delete(id);
+        const set = inFlightRef.current.get(id);
+        set?.delete(tracked);
+        if (set?.size === 0) inFlightRef.current.delete(id);
       });
+      const set = inFlightRef.current.get(id) ?? new Set();
+      set.add(tracked);
+      inFlightRef.current.set(id, set);
+      return tracked;
     },
     [],
   );
+
+  /** Resolves once every write tracked for `id` so far has settled. */
+  const writesSettled = useCallback(async (id: string): Promise<void> => {
+    const set = inFlightRef.current.get(id);
+    if (!set || set.size === 0) return;
+    await Promise.allSettled([...set]);
+  }, []);
 
   // #607: the mark only outranks the server for the note that is OPEN. Once
   // the user moves on, drop it so a later reload can notice a foreign write
@@ -347,6 +369,7 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
   return {
     markLocalWrite,
     trackWrite,
+    writesSettled,
     markHydrated,
     hydrateContent,
     unlockNoteBody,

@@ -82,6 +82,12 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     // pool itself is never fetched here (no DataService is injected).
     useSyncDomains: () => 0,
     useNotesUnifiedContext: () => ({
+      // #2057 — the body saves against a version through these.
+      saveNoteBody: vi.fn(async () => ({ status: "saved", updatedAt: "" })),
+      fetchNoteBodySnapshot: vi.fn(async () => null),
+      replaceNoteBody: vi.fn(async () => true),
+      adoptNoteBody: vi.fn(),
+      serverStampOf: () => null,
       notes: state.notes,
       deletedNotes: state.deletedNotes,
       selectedNote:
