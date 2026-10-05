@@ -16,6 +16,8 @@ import type {
 
 import type { TagGroupNode } from "../types/tagGroup";
 import type { RoutineNode } from "../types/routine";
+import type { Goal, GoalPeriodKind, GoalTodoLink } from "../types/goal";
+import type { GoalCreateInput, GoalUpdates } from "./goalMapper";
 import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 // #1438 — the sweep's own vocabulary. Declared next to the pure detection it
@@ -746,6 +748,31 @@ export interface DailiesUnifiedDataService {
   toggleDailyEditLockUnified(id: string): Promise<DailyNode>;
 }
 
+// ---------------------------------------------------------------------------
+// Goals — SupabaseGoalsService (#2103)
+// ---------------------------------------------------------------------------
+
+/**
+ * Goals linked to Todos (0034). Reads return live rows only; achievement is
+ * the pure `judgeGoals` (utils/goalAchievement) over goals + their links +
+ * the linked todos. Every goal write bumps items_meta.updated_at (DB-Q2).
+ */
+export interface GoalsDataService {
+  fetchGoals(): Promise<Goal[]>;
+  fetchGoalsInPeriod(kind: GoalPeriodKind, periodKey: string): Promise<Goal[]>;
+  /** The year, month and week goals of the periods `dateKey` falls in. */
+  fetchGoalsForDate(dateKey: string): Promise<Goal[]>;
+  /** Rejects a malformed period key and a parent that is not one level up. */
+  createGoal(input: GoalCreateInput): Promise<Goal>;
+  updateGoal(id: string, updates: GoalUpdates): Promise<Goal>;
+  softDeleteGoal(id: string): Promise<void>;
+  restoreGoal(id: string): Promise<void>;
+  fetchGoalTodoLinks(goalIds: readonly string[]): Promise<GoalTodoLink[]>;
+  /** Idempotent — an already-linked pair returns its live link. */
+  linkGoalTodo(goalId: string, todoId: string): Promise<GoalTodoLink>;
+  unlinkGoalTodo(goalId: string, todoId: string): Promise<void>;
+}
+
 /**
  * The whole data surface the frontend may reach (CLAUDE.md §3.1).
  *
@@ -766,4 +793,5 @@ export interface DataService
     ItemConversionDataService,
     WikiTagsUnifiedDataService,
     NotesUnifiedDataService,
-    DailiesUnifiedDataService {}
+    DailiesUnifiedDataService,
+    GoalsDataService {}
