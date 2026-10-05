@@ -11,7 +11,9 @@ import { describe, expect, it } from "vitest";
  * What this pins is the three things about the declaration that a later edit
  * could silently undo:
  *
- *  - the duration the Issue asked for (0.3s),
+ *  - the duration, which is the normal motion step since #2036 (the Issue's
+ *    0.3s snapped to 250ms — the step's VALUE is pinned by
+ *    tokensMotionSteps.test.ts, so only the reference is checked here),
  *  - `both`, so a reduced-motion user lands on the finished state instead of
  *    being left mid-fade at 0.001ms (the app-wide block below only neutralises
  *    the DURATION),
@@ -32,8 +34,8 @@ describe("section entrance motion", () => {
     expect(keyframes).not.toBeNull();
   });
 
-  it("runs for the 0.3s the brief asked for", () => {
-    expect(rule?.[1]).toMatch(/\b0\.3s\b/);
+  it("runs on the normal motion step", () => {
+    expect(rule?.[1]).toMatch(/var\(--duration-lumen-normal\)/);
   });
 
   it("fills both ways so reduced motion lands on the finished state", () => {

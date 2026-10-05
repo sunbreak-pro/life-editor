@@ -1,0 +1,75 @@
+<!-- @dsCard group="Foundations" -->
+<!doctype html>
+<html lang='en'><head><meta charset='utf-8'><style>
+:root{--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,'Apple Color Emoji',Arial,sans-serif,'Segoe UI Emoji','Segoe UI Symbol';--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;
+--bg:#fbf4e8;--page:#f5ebda;--sunken:#efe3cd;--text:#2b2015;--text-2:#6b5a45;--text-3:#756249;--border:#eadec6;--border-strong:#d6c3a2;--accent:#ad4409;--mint:#1fa56e;--mint-bg:#daf3e7;--mint-fg:#0c6f4e;
+--ease-out:cubic-bezier(0.22, 1, 0.36, 1);--ease-in:cubic-bezier(0.64, 0, 0.78, 0)}
+*{box-sizing:border-box}
+body{margin:0;padding:28px;background:var(--page);color:var(--text);font-family:var(--font)}
+h1{font-size:15px;font-weight:600;margin:0 0 4px}
+p.sub{margin:0 0 22px;color:var(--text-2);font-size:12px}
+.themes{display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start}
+.panel{border-radius:12px;border:1px solid var(--border);background:var(--bg);padding:16px;min-width:320px;max-width:380px}
+.panel h2{font-size:12px;font-weight:600;margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em}
+.panel h3{font-size:10px;font-weight:600;margin:14px 0 8px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em}
+.step{display:flex;align-items:center;gap:10px;font-size:11px;margin-bottom:8px}
+.track{flex:0 0 28px;display:flex;align-items:center}
+.bar{height:14px;background:var(--accent)}
+.bar.gutter{background:var(--mint)}
+.name{display:flex;flex-direction:column;line-height:1.3}
+.name b{font-weight:500;font-family:var(--mono);font-size:10.5px}
+.name span{color:var(--text-2)}
+.note{margin:10px 0 0;font-size:11px;line-height:1.55;color:var(--text-2)}
+code{background:var(--mint-bg);color:var(--mint-fg);font-family:var(--mono);font-size:10.5px;padding:1px 5px;border-radius:6px}
+.icon{flex:0 0 28px;display:flex;align-items:center;justify-content:center;height:28px}
+.icon svg{outline:1px dashed var(--border-strong);color:var(--text)}
+.demo{margin-top:12px;padding:10px;border-radius:8px;background:var(--sunken);cursor:default}
+.demo p{margin:0 0 8px;font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.06em}
+.lane{display:flex;align-items:center;gap:8px;margin-bottom:6px;font-size:10px;color:var(--text-2);font-family:var(--mono)}
+.lane:last-child{margin-bottom:0}
+.rail{position:relative;width:180px;height:14px;border-radius:9999px;background:var(--bg);flex:none}
+.ball{position:absolute;left:2px;top:2px;width:10px;height:10px;border-radius:50%;background:var(--accent)}
+@media (prefers-reduced-motion: no-preference){
+.ball{transition:transform var(--d) var(--ease-in)}
+.demo:hover .ball{transform:translateX(166px);transition:transform var(--d) var(--ease-out)}
+}
+</style></head><body>
+<h1>Steps — spacing · icon size · motion</h1>
+<p class='sub'>Non-color tokens added in #2036 · theme-invariant, defined once in @theme · SSOT = shared/src/styles/tokens.css</p>
+<div class='themes'>
+  <div class='panel'><h2>Spacing</h2>
+  <h3>Component inner padding &amp; gaps — px, 4px base</h3>
+    <div class='step'><span class='track'><span class='bar' style='width:4px'></span></span><span class='name'><b>--spacing-lumen-1</b><span>4px</span></span></div>
+    <div class='step'><span class='track'><span class='bar' style='width:8px'></span></span><span class='name'><b>--spacing-lumen-2</b><span>8px</span></span></div>
+    <div class='step'><span class='track'><span class='bar' style='width:12px'></span></span><span class='name'><b>--spacing-lumen-3</b><span>12px</span></span></div>
+    <div class='step'><span class='track'><span class='bar' style='width:16px'></span></span><span class='name'><b>--spacing-lumen-4</b><span>16px</span></span></div>
+    <div class='step'><span class='track'><span class='bar' style='width:24px'></span></span><span class='name'><b>--spacing-lumen-6</b><span>24px</span></span></div>
+  <h3>Page gutter — not inner padding</h3>
+    <div class='step'><span class='track'><span class='bar gutter' style='width:16px'></span></span><span class='name'><b>--spacing-lumen-gutter</b><span>16px · narrow</span></span></div>
+    <div class='step'><span class='track'><span class='bar gutter' style='width:24px'></span></span><span class='name'><b>--spacing-lumen-gutter-wide</b><span>24px · ≥ md</span></span></div>
+  <p class='note'>Utilities: <code>p-lumen-4</code> <code>gap-lumen-2</code> <code>px-lumen-3</code> · page: <code>px-lumen-gutter md:px-lumen-gutter-wide</code>. Step 5 (20px) is left out on purpose; page-level spacing stays on Tailwind's numeric scale.</p>
+  </div>
+  <div class='panel'><h2>Icon size</h2>
+  <h3>rem — follows the Settings font-size step · px at the default 18px root</h3>
+    <div class='step'><span class='icon'><svg width='16.2' height='16.2' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='3' y='3' width='18' height='18' rx='4'/><path d='M8 12.5l2.5 2.5L16 9.5'/></svg></span><span class='name'><b>--spacing-lumen-icon-sm</b><span>= --spacing-lumen-icon-min · 0.9rem · 16.2px</span></span></div>
+    <div class='step'><span class='icon'><svg width='20.25' height='20.25' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='3' y='3' width='18' height='18' rx='4'/><path d='M8 12.5l2.5 2.5L16 9.5'/></svg></span><span class='name'><b>--spacing-lumen-icon-md</b><span>1.125rem · 20.25px</span></span></div>
+    <div class='step'><span class='icon'><svg width='24.75' height='24.75' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round' aria-hidden='true'><rect x='3' y='3' width='18' height='18' rx='4'/><path d='M8 12.5l2.5 2.5L16 9.5'/></svg></span><span class='name'><b>--spacing-lumen-icon-lg</b><span>1.375rem · 24.75px</span></span></div>
+  <p class='note'>Utility: <code>size-lumen-icon-sm</code> / <code>-md</code> / <code>-lg</code> on the lucide icon. sm is the floor every lucide glyph is already lifted to, and md / lg step up by 1.25×.</p>
+  </div>
+  <div class='panel'><h2>Motion</h2>
+  <h3>Duration</h3>
+    <div class='step'><span class='name'><b>--duration-lumen-fast · 150ms</b><span>hover, focus, a small state change. Equals Tailwind's default transition.</span></span></div>
+    <div class='step'><span class='name'><b>--duration-lumen-normal · 250ms</b><span>a panel, sheet, drawer or scrim arriving; a section entrance.</span></span></div>
+    <div class='step'><span class='name'><b>--duration-lumen-slow · 400ms</b><span>full-screen transitions.</span></span></div>
+  <h3>Easing</h3>
+    <div class='step'><span class='name'><b>--ease-lumen-out</b><span>cubic-bezier(0.22, 1, 0.36, 1) · entrances</span></span></div>
+    <div class='step'><span class='name'><b>--ease-lumen-in</b><span>cubic-bezier(0.64, 0, 0.78, 0) · exits</span></span></div>
+  <p class='note'>Utilities: <code>duration-(--duration-lumen-normal)</code> <code>ease-lumen-out</code> (Tailwind has no duration namespace, so there is no duration-lumen-* class). Reduced motion, from the OS setting or the app's three-state setting, collapses every duration to 0.001ms.</p>
+  <div class='demo'><p>Hover: in with ease-out, back with ease-in</p>
+    <div class='lane'><span class='rail'><span class='ball' style='--d:150ms'></span></span>150ms</div>
+    <div class='lane'><span class='rail'><span class='ball' style='--d:250ms'></span></span>250ms</div>
+    <div class='lane'><span class='rail'><span class='ball' style='--d:400ms'></span></span>400ms</div>
+  </div>
+  </div>
+</div>
+</body></html>
