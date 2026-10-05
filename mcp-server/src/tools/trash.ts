@@ -18,9 +18,9 @@ export const TRASH_TOOLS: ToolDefinition[] = [
       properties: {
         role: {
           type: "string",
-          enum: ["task", "event", "routine", "note", "daily"],
+          enum: ["task", "event", "routine", "note", "daily", "goal"],
           description:
-            "Only this kind of item. 'task' is a todo, 'event' a schedule item. Omit for everything.",
+            "Only this kind of item. 'task' is a todo, 'event' a schedule item, 'goal' a Briefing goal. Omit for everything.",
         },
         limit: {
           type: "number",
@@ -36,7 +36,7 @@ export const TRASH_TOOLS: ToolDefinition[] = [
     name: "restore_item",
     description:
       "Restore an item from the trash — the inverse of delete_todo / delete_note / delete_schedule_item. " +
-      "Restorable roles: todo, note, event (schedule item); a daily comes back through upsert_daily instead. " +
+      "Restorable roles: todo, note, event (schedule item), goal; a daily comes back through upsert_daily instead. " +
       "Restoring an item that is not in the trash is a no-op, not an error. " +
       "Restores the one item only — a todo whose parent is still trashed stays out of get_todo_tree (it does appear in list_todos).",
     inputSchema: {
@@ -44,7 +44,7 @@ export const TRASH_TOOLS: ToolDefinition[] = [
       properties: {
         id: {
           type: "string",
-          description: "ID of the trashed todo, note or schedule item",
+          description: "ID of the trashed todo, note, schedule item or goal",
         },
       },
       required: ["id"],

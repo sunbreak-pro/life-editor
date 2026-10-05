@@ -98,6 +98,9 @@ export const REALTIME_TABLES = [
   "sound_settings",
   "playlists",
   "playlist_items",
+  // Goals (0034 / #2101)
+  "goals_payload",
+  "goal_todo_links",
 ] as const;
 
 const DEBOUNCE_MS = 300;

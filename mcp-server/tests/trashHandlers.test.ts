@@ -67,6 +67,15 @@ describe("restoreItem", () => {
     expect(stub.writes()[0].filters).toEqual({ id: "si-1", role: "event" });
   });
 
+  it("restores a trashed goal under its 'goal' role (#2101)", async () => {
+    stub = createSupabaseStub(() => metaRow({ id: "goal-1", role: "goal" }));
+
+    const result = await restoreItem({ id: "goal-1" });
+
+    expect(result).toMatchObject({ role: "goal", restored: true });
+    expect(stub.writes()[0].filters).toEqual({ id: "goal-1", role: "goal" });
+  });
+
   it("writes nothing for an item that is already live", async () => {
     stub = createSupabaseStub(() =>
       metaRow({ id: "note-1", role: "note", title: "N", is_deleted: false }),
@@ -108,7 +117,7 @@ describe("restoreItem", () => {
     );
 
     await expect(restoreItem({ id: "daily-2026-08-12" })).rejects.toThrow(
-      /restore_item supports todos, notes and schedule items; daily-2026-08-12 is a "daily"/,
+      /restore_item supports todos, notes, schedule items and goals; daily-2026-08-12 is a "daily"/,
     );
     expect(stub.writes()).toEqual([]);
   });

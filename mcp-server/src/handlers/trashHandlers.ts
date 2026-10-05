@@ -12,9 +12,12 @@ import { bumpMeta, type ItemRole } from "../utils/items.js";
  *
  * `daily` is deliberately not restorable here: upsert_daily already revives
  * a trashed daily for a date, and `routine` has no delete tool to undo.
+ * `goal` (#2101) is restorable: a goal trashed from the app has no other way
+ * back for an MCP caller, and its Todo links are separate rows that the
+ * trash never touched.
  */
 
-const RESTORABLE_ROLES: ItemRole[] = ["task", "note", "event"];
+const RESTORABLE_ROLES: ItemRole[] = ["task", "note", "event", "goal"];
 
 interface RestorableMetaRow {
   id: string;
@@ -106,7 +109,7 @@ export async function restoreItem(args: { id: string }) {
   const meta = data as unknown as RestorableMetaRow;
   if (!RESTORABLE_ROLES.includes(meta.role)) {
     throw new Error(
-      `restore_item supports todos, notes and schedule items; ` +
+      `restore_item supports todos, notes, schedule items and goals; ` +
         `${meta.id} is a "${meta.role}"`,
     );
   }
