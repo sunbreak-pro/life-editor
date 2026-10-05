@@ -65,6 +65,6 @@ general-purpose エージェントを新しく起動し、次の 3 つを渡し�
 
 ## 注意
 
-- 余白の段階（`measure.js` の `SPACING_STEP_PX`）とアニメーションの帯（`MOTION_BANDS`）は仮の値です。`shared/src/styles/tokens.css` に段階が入ったら、その値に合わせてスクリプトを直します。
+- 余白の段階（`measure.js` の `SPACING_STEP_PX`）とアニメーションの帯（`MOTION_BANDS`）は、`shared/src/styles/tokens.css` の段階（#2036）に合わせてあります。tokens.css の段を変えたら、同じ PR でこの 2 つも直します。Tailwind の数値の余白は rem なので、既定の文字サイズ（18px）では 4.5px の倍数になり、4px の倍数から外れたと数えられます。
 - `browser_run_code_unsafe` は実行したコードを結果に全文表示します。1 回あたり数千トークンを使うので、条件を 4 通りに絞って回します。
 - jsdom には座標が無いため、このスクリプトは vitest では使えません。

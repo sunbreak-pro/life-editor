@@ -323,7 +323,8 @@ export function PomodoroTimer({
  *    unlabelled circles made "which one is skip" a guess on first use.
  *
  * Motion is the plan's three and no more: the arc shrinks over 1000ms linear
- * per tick, a changed digit fades in over 120ms, and a phase switch recolours
+ * per tick, a changed digit fades in on the fast motion step (tokens.css,
+ * #2036 — the plan's 120ms snapped to it), and a phase switch recolours
  * the badge, the arc and the main button together over 240ms. All three are
  * plain CSS, so the app-wide reduced-motion block in tokens.css lands them
  * immediately.
