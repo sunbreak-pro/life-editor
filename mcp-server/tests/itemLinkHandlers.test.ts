@@ -138,6 +138,20 @@ describe("linkItems", () => {
     expect(stub.writes()).toEqual([]);
   });
 
+  it("refuses a goal endpoint by name, writing nothing (#2101)", async () => {
+    // Goals reach todos through goal_todo_links; an edge here would surface
+    // as a wiki-link chip. The error must say "goal", not "not found".
+    stub = stubFor([
+      note("note-1"),
+      { id: "goal-1", role: "goal", title: "run a 10k" },
+    ]);
+
+    await expect(
+      linkItems({ from_id: "note-1", to_id: "goal-1" }),
+    ).rejects.toThrow(/to_id is a goal \(goal-1\)/);
+    expect(stub.writes()).toEqual([]);
+  });
+
   it("links across kinds, because ids are unique across roles", async () => {
     stub = stubFor([
       todo("task-1", "ship it"),

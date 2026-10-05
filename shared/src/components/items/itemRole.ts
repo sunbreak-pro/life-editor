@@ -14,11 +14,15 @@ import {
  * picker (#412) both render from THIS module, so the two never drift into
  * two different visual languages for the same four kinds.
  *
- * Scope note: `items_meta` carries five roles (todo / event / routine / note /
- * daily), but only four are user-facing kinds. Routine is an implementation
- * detail — the UI presents it as "an Event with a repeat setting" and it owns
- * no tag surface (CLAUDE.md §4, 2026-07-11 #185) — so it is deliberately NOT
- * in the designed set. Anything outside the set resolves to `null` and renders
+ * Scope note: `items_meta` carries six roles (todo / event / routine / note /
+ * daily / goal), but only four are user-facing kinds here. Routine is an
+ * implementation detail — the UI presents it as "an Event with a repeat
+ * setting" and it owns no tag surface (CLAUDE.md §4, 2026-07-11 #185) — so it
+ * is deliberately NOT in the designed set. Goal (#2101) is left out for the
+ * same reason the other way round: it is a user-facing kind, but it carries no
+ * tags and is not a wiki-link endpoint — it reaches Todos through its own
+ * `goal_todo_links` table, and the Briefing / Connect goal views render it
+ * themselves. Anything outside the set resolves to `null` and renders
  * through the neutral fallback below rather than being dropped: an assignment
  * we cannot name is still an assignment the user must be able to remove.
  *
