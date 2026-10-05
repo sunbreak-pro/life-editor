@@ -41,7 +41,10 @@ export interface OperatorDirectContact {
  */
 // Cast rather than annotated: an annotated `const` is narrowed to `null`
 // at every use, which would type the slot as permanently empty.
-const DIRECT_CONTACT = null as OperatorDirectContact | null;
+const DIRECT_CONTACT = {
+  kind: "form",
+  value: "https://forms.gle/z7LeghdS5LYh6tsFA",
+} as OperatorDirectContact | null;
 
 export const OPERATOR = {
   /** Public handle of the individual running the service. */

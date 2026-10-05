@@ -190,11 +190,28 @@ describe("Help dialog Close button tap target (#2050)", () => {
 });
 
 describe("operatorContactLinks (#1989)", () => {
-  it("offers GitHub Issues alone while the direct contact is unset", () => {
-    expect(OPERATOR.directContact).toBeNull();
+  it("offers the owner's contact form first and GitHub Issues second", () => {
+    expect(OPERATOR.directContact).toEqual({
+      kind: "form",
+      value: "https://forms.gle/z7LeghdS5LYh6tsFA",
+    });
     expect(operatorContactLinks()).toEqual([
+      {
+        id: "direct",
+        kind: "form",
+        href: "https://forms.gle/z7LeghdS5LYh6tsFA",
+      },
       { id: "github", kind: "github", href: OPERATOR.contactUrl },
     ]);
+  });
+
+  it("offers GitHub Issues alone while the direct contact is unset", () => {
+    expect(
+      operatorContactLinks({
+        contactUrl: OPERATOR.contactUrl,
+        directContact: null,
+      }),
+    ).toEqual([{ id: "github", kind: "github", href: OPERATOR.contactUrl }]);
   });
 
   it("puts a chosen email first, as a mailto link", () => {
