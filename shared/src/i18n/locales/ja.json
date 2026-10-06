@@ -1360,7 +1360,8 @@
       "yearTitle": "今年",
       "weekPlaceholder": "今週やり遂げることを一行から…",
       "monthPlaceholder": "今月やり遂げることを一行から…",
-      "yearPlaceholder": "今年やり遂げることを一行から…"
+      "yearPlaceholder": "今年やり遂げることを一行から…",
+      "migrationOverflow_other": "目標ノートの行を目標に移しました。目標は 1 つの期間に 3 つまでなので、残りの {{count}} 行はノートにそのまま残しています。"
     },
     "scheduleTitle": "今日のスケジュール",
     "addScheduleItem": "今日のスケジュールに追加",
