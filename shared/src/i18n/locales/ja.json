@@ -420,6 +420,32 @@
     "saved": "保存済み",
     "unsaved": "未保存"
   },
+  "goalLink": {
+    "field": "目標",
+    "listLabel": "この Todo がつながる目標",
+    "periodWeek": "今週",
+    "periodMonth": "今月",
+    "periodYear": "今年",
+    "unconnected": "未接続",
+    "achieved": "達成",
+    "becomesAchieved": "達成になります",
+    "losesAchievement": "達成が外れます",
+    "achievementLost": "達成が外れました",
+    "previewHeading": "保存すると変わる数字",
+    "saveFailed": "目標とのつながりを保存できませんでした。選んだ内容は残っているので、もう一度保存してください。",
+    "createLinkFailed": "Todo は作成しましたが、目標につなげませんでした。Todo の詳細から目標を選び直してください。",
+    "attach": "目標につなぐ",
+    "attached": "つなぐ目標",
+    "heading": "Todo をつなぐ",
+    "search": "Todo を検索",
+    "todoList": "つなぐ Todo",
+    "empty": "つなげる Todo はまだありません。",
+    "noMatch": "一致する Todo はありません。",
+    "done": "完了",
+    "save": "保存",
+    "saving": "保存中…",
+    "cancel": "キャンセル"
+  },
   "materials": {
     "todos": {
       "statusGroupLabel": "ステータスを変更",

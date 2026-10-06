@@ -1,5 +1,11 @@
-import { useId, useMemo, useState } from "react";
+import { useEffect, useId, useMemo, useState } from "react";
 import { ChevronDown, ChevronRight, X } from "lucide-react";
+import type { Goal } from "../../types/goal";
+import {
+  GoalPickerField,
+  type GoalPickerLabels,
+} from "../briefing/GoalPickerField";
+import type { GoalLinkState } from "../briefing/goalLinkPreview";
 import { cn } from "../cn";
 import {
   DISABLED_FILLED_BTN,
@@ -190,7 +196,40 @@ export interface ItemCreatePanelPools {
   todos: ItemCreateOption[];
   /** The pool the "existing note" source picks from (live notes). */
   notes: ItemCreateOption[];
+  /**
+   * The goal field of a NEW todo (#2109, plan Step 10). Optional: a host that
+   * does not pass it (or has no goals to offer) gets no goal section at all.
+   */
+  goals?: ItemCreateGoalPool;
 }
+
+/**
+ * Goals a new todo can be linked to (#2109). The links can only be written
+ * once the todo's row exists, which the panel never sees — so the panel just
+ * reports the staged goals and the host links them from the create's
+ * `onSaved` (the same ordering the staged note follows).
+ */
+export interface ItemCreateGoalPool {
+  /** The goals on offer, in display order (goalsForTodoPicker). */
+  goals: readonly Goal[];
+  /** Live goals, links and todos, for the before → after preview. */
+  state: GoalLinkState;
+  /**
+   * The goals the new todo would be linked to, re-reported on every change —
+   * `[]` whenever the submit would not create a new todo (the event tab, or
+   * placing an existing todo, whose goals belong to its detail panel).
+   */
+  onStagedChange: (goalIds: string[]) => void;
+  labels: GoalPickerLabels & {
+    /** Disclosure trigger, 「目標につなぐ」. */
+    attach: string;
+    /** Caption of the echo row once the section folds up. */
+    attached: string;
+  };
+}
+
+/** Stands in for the todo the submit has not created yet. */
+const NEW_TODO = { id: "\u0000new-todo", done: false, isDeleted: false };
 
 /**
  * Every write the panel can perform. Bundled (#893) because they are ONE
@@ -383,7 +422,7 @@ export function ItemCreatePanel({
     end: initialEnd = "10:00",
     title: initialTitle = "",
   } = initial;
-  const { todos: existingTodos, notes: existingNotes } = pools;
+  const { todos: existingTodos, notes: existingNotes, goals: goalPool } = pools;
   const { onSubmitEvent, onSubmitEventAndOpen, onCreateTodo, onPlaceTodo } =
     handlers;
   const [type, setType] = useState<ItemCreateType>("event");
@@ -415,6 +454,19 @@ export function ItemCreatePanel({
     ? (existingNotes.find((o) => o.id === pickedNoteId) ?? null)
     : null;
   const placing = type === "task" && todoSource === "existing";
+
+  // #2109: goals for a NEW todo only. Kept across tab switches like the other
+  // drafts, but reported as [] whenever the submit would not create a todo.
+  const [goalOpen, setGoalOpen] = useState(false);
+  const [goalIds, setGoalIds] = useState<string[]>([]);
+  const goalSectionId = useId();
+  const offersGoals =
+    type === "task" && !placing && !!goalPool && goalPool.goals.length > 0;
+  const stagedGoalKey = offersGoals ? goalIds.join("\n") : "";
+  const onStagedGoalChange = goalPool?.onStagedChange;
+  useEffect(() => {
+    onStagedGoalChange?.(stagedGoalKey ? stagedGoalKey.split("\n") : []);
+  }, [onStagedGoalChange, stagedGoalKey]);
 
   // What rides along with the create. A blank new-note title stages nothing —
   // opening the section and changing your mind must not create an untitled item.
@@ -563,6 +615,53 @@ export function ItemCreatePanel({
           labels={{ start: labels.startTime, end: labels.endTime }}
           formatDuration={formatDuration}
         />
+      )}
+      {/* Goals (#2109) — the same disclosure as the note below it, collapsed
+          by default for the same reason: most todos serve no goal. */}
+      {offersGoals && goalPool && (
+        <div className="flex flex-col gap-2 border-t border-lumen-border pt-2">
+          <button
+            type="button"
+            onClick={() => setGoalOpen((v) => !v)}
+            aria-expanded={goalOpen}
+            aria-controls={goalSectionId}
+            className={cn(
+              "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+              FOCUS_RING_TIGHT,
+            )}
+          >
+            {goalOpen ? (
+              <ChevronDown aria-hidden className="size-3.5 shrink-0" />
+            ) : (
+              <ChevronRight aria-hidden className="size-3.5 shrink-0" />
+            )}
+            <span className="truncate">{goalPool.labels.attach}</span>
+          </button>
+          {goalOpen ? (
+            <div id={goalSectionId}>
+              <GoalPickerField
+                goals={goalPool.goals}
+                snapshot={goalPool.state}
+                todo={NEW_TODO}
+                baselineIds={[]}
+                selectedIds={goalIds}
+                onChange={setGoalIds}
+                labels={goalPool.labels}
+              />
+            </div>
+          ) : (
+            goalIds.length > 0 && (
+              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2.5 py-1.5 text-sm text-lumen-text">
+                <span className={FIELD_LABEL}>{goalPool.labels.attached}</span>
+                {goalPool.goals
+                  .filter((g) => goalIds.includes(g.id))
+                  .map((g) => (
+                    <span key={g.id}>{g.title}</span>
+                  ))}
+              </p>
+            )
+          )}
+        </div>
       )}
       {/* Note attachment (#1370) — was a third tab; see the header. Placed
           last because it is the optional extra: the fields the submit needs

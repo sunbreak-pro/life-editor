@@ -1,12 +1,21 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   generateId,
+  goalPickerLabels,
+  goalsForTodoPicker,
+  logServiceError,
+  todayDateKey,
+  useGoalLinkSnapshot,
   useSyncDomains,
+  useToastOptional,
+  useTranslation,
   useWikiTagsUnifiedContext,
   type DataService,
+  type ItemCreatePanelPools,
   type ItemCreateNoteDraft,
   type ItemCreateOption,
   type NoteNode,
+  type TodoNode,
   type UndoRedoLike,
 } from "@life-editor/shared";
 
@@ -60,7 +69,28 @@ export interface UseCreatePanelNotesOptions {
    * create folds them into its command instead (`attachNoteAlongside`).
    */
   push?: UndoRedoLike["push"];
+  /**
+   * The host's live todo tree (#2109), for the goal field's progress numbers.
+   * Also the opt-in for the goal field: omitted = no goals are read and
+   * `goalPool` stays undefined, so a host that does not draw the field does
+   * not pay for the goal and todo reads on every opening.
+   */
+  todos?: readonly TodoNode[];
 }
+
+/*
+ * #2109 — the goal half. The panel's goal field (`pools.goals`) only
+ * STAGES goals for the new todo; the links are written here, by `attachNote`,
+ * because that is the call the todo create already makes once the todo's row
+ * exists (the ORDERING note above applies to `goal_todo_links.todo_id` just
+ * as it does to the note link). The staged ids sit in a ref, not state: they
+ * are read once, at that call, and nothing on screen depends on the host's
+ * copy — the panel draws its own.
+ *
+ * Known gap: a create whose save lands AFTER the panel was opened again loses
+ * its staged goals (the reopen resets the ref). The failure is "not linked",
+ * never "linked to the wrong goal".
+ */
 
 /** Notes offered by the picker: live notes, newest-touched first. */
 function toOptions(notes: NoteNode[]): ItemCreateOption[] {
@@ -75,8 +105,40 @@ export function useCreatePanelNotes({
   active,
   onAttachError,
   push,
+  todos,
 }: UseCreatePanelNotesOptions) {
+  const { t } = useTranslation();
+  // Optional: reporting a failure must not itself throw without a Provider.
+  const toast = useToastOptional();
   const syncVersion = useSyncDomains("notes");
+  const { state: goalState, writeLinks } = useGoalLinkSnapshot(dataService, {
+    active: active && todos !== undefined,
+    todos,
+  });
+  const stagedGoalIdsRef = useRef<string[]>([]);
+  // A new opening starts with nothing staged (the panel re-reports anyway).
+  useEffect(() => {
+    if (active) stagedGoalIdsRef.current = [];
+  }, [active]);
+  const onStagedChange = useCallback((ids: string[]) => {
+    stagedGoalIdsRef.current = ids;
+  }, []);
+  const goalPool = useMemo<ItemCreatePanelPools["goals"]>(() => {
+    if (!goalState) return undefined;
+    // "This week" as the Briefing counts it: the day-start hour decides (§7).
+    const goals = goalsForTodoPicker(goalState.goals, todayDateKey(), []);
+    if (goals.length === 0) return undefined;
+    return {
+      goals,
+      state: goalState,
+      onStagedChange,
+      labels: {
+        ...goalPickerLabels((k) => t(k)),
+        attach: t("goalLink.attach"),
+        attached: t("goalLink.attached"),
+      },
+    };
+  }, [goalState, onStagedChange, t]);
   const { createItemLink, deleteItemLink } = useWikiTagsUnifiedContext();
   // Kept across closes so re-opening the panel shows the last list at once;
   // the effect below refreshes it behind that.
@@ -227,13 +289,30 @@ export function useCreatePanelNotes({
    */
   const attachNote = useCallback(
     (itemId: string, draft: ItemCreateNoteDraft | null) => {
+      // #2109: the staged goals ride the same call (todo paths only — the
+      // event create goes through `attachNoteAlongside`, which never links
+      // goals). No undo entry of their own: undoing the create trashes the
+      // todo, and a trashed todo drops out of every goal's count.
+      const goalIds = stagedGoalIdsRef.current;
+      stagedGoalIdsRef.current = [];
+      if (goalIds.length > 0) {
+        void writeLinks(
+          goalIds.map((goalId) => ({ goalId, todoId: itemId })),
+          [],
+        ).catch((e: unknown) => {
+          logServiceError("Schedule", "link the new todo to its goals", e);
+          // The panel has closed by now, so a toast is the only way the user
+          // learns the todo is not counted toward the goals they picked.
+          toast?.showToast("danger", t("goalLink.createLinkFailed"));
+        });
+      }
       if (!draft) return;
       void linkNote(itemId, draft).then((reversal) => {
         if (reversal)
           push?.("scheduleItem", { label: "createScheduleItem", ...reversal });
       });
     },
-    [linkNote, push],
+    [linkNote, push, writeLinks, toast, t],
   );
 
   /**
@@ -248,5 +327,5 @@ export function useCreatePanelNotes({
     [linkNote],
   );
 
-  return { notes, notesError, attachNote, attachNoteAlongside };
+  return { notes, notesError, goalPool, attachNote, attachNoteAlongside };
 }

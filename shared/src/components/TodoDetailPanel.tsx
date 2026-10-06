@@ -181,6 +181,20 @@ export interface TodoDetailPanelProps {
    *  layout unchanged. Rendered between the status row and the content editor. */
   tagsSlot?: ReactNode;
   /**
+   * The goal field (#2109, plan Step 10): host-injected, because the goals,
+   * their links and the write live with the host (the field itself is the
+   * shared <GoalPickerField>). Paired like the tag row — omitted unless both
+   * are given, so a todo with no goals to offer shows no empty caption.
+   */
+  goalsLabel?: string;
+  goalsSlot?: ReactNode;
+  /**
+   * The goal draft differs from the saved links. Folded into the save button
+   * like `contentDirty`: the links are written by the same press, so they
+   * must be able to light it on their own.
+   */
+  goalsDirty?: boolean;
+  /**
    * Pin the save footer to the bottom of the frame's scroller (#995).
    *
    * A PROP rather than a class the host appends to `className`: `cn` is plain
@@ -232,6 +246,9 @@ function TodoDetailFields({
   scheduleSet = false,
   tagsLabel,
   tagsSlot,
+  goalsLabel,
+  goalsSlot,
+  goalsDirty = false,
   stickyFooter,
 }: Omit<TodoDetailPanelProps, "className">) {
   // #1040: folded unless the todo already has a date. `undefined` = the user
@@ -251,7 +268,7 @@ function TodoDetailFields({
   const [titleEdit, setTitleEdit] = useState<string | undefined>(undefined);
   const draftTitle = titleEdit ?? title;
   const titleDirty = titleEdit !== undefined && titleEdit !== title;
-  const dirty = titleDirty || contentDirty;
+  const dirty = titleDirty || contentDirty || goalsDirty;
   const resolvedStatus = status ?? "NOT_STARTED";
 
   // Same ref dance as EventEditorPane: the unmount report must not pin a stale
@@ -386,6 +403,17 @@ function TodoDetailFields({
           <div className="flex min-w-0 flex-wrap items-center gap-1.5">
             {tagsSlot}
           </div>
+        </div>
+      )}
+
+      {/* #2109: stacked, caption above — the field is a list, not a chip
+          row, and needs the panel's full width on a phone. */}
+      {goalsLabel && goalsSlot != null && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
+            {goalsLabel}
+          </span>
+          {goalsSlot}
         </div>
       )}
 

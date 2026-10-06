@@ -51,6 +51,54 @@ export {
   type ExtractedGoals,
   type GoalPeriod,
 } from "./goalSections";
+// #2109: linking goals and Todos — the goal side (GoalTodoLinkScreen), the
+// todo side (GoalPickerField), the pure before/after preview, and the hook
+// that loads and writes the links. The goal types ride along so web hosts can
+// name them (the shared root barrel does not export types/goal).
+export type { Goal, GoalPeriodKind, GoalTodoLink } from "../../types/goal";
+export {
+  applyGoalLinkEdit,
+  applyLinkDraft,
+  goalProgressOf,
+  goalsForTodoPicker,
+  linkDraftOf,
+  linkedGoalIds,
+  lostAchievementIds,
+  previewGoalLinkEdit,
+  toAchievementTodo,
+  toGoalLinkState,
+  type GoalLinkEdit,
+  type GoalLinkState,
+  type LinkDraft,
+  type GoalProgress,
+  type GoalProgressChange,
+  type GoalTodoPair,
+} from "./goalLinkPreview";
+export {
+  GoalAchievementLostNotice,
+  GoalProgressDelta,
+  goalProgressText,
+  type GoalProgressLabels,
+} from "./GoalProgressDelta";
+export {
+  GoalPickerField,
+  goalPickerLabels,
+  type GoalPickerFieldProps,
+  type GoalPickerLabelKey,
+  type GoalPickerLabels,
+} from "./GoalPickerField";
+export {
+  GoalTodoLinkScreen,
+  type GoalLinkDiff,
+  type GoalLinkTodoOption,
+  type GoalTodoLinkScreenLabels,
+  type GoalTodoLinkScreenProps,
+} from "./GoalTodoLinkScreen";
+export {
+  useGoalLinkSnapshot,
+  type GoalLinkLoader,
+  type GoalLinkSnapshot,
+} from "./useGoalLinkSnapshot";
 export {
   goalPeriodKeys,
   goalPeriodRanges,
