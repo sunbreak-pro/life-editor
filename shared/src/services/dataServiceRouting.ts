@@ -5,6 +5,7 @@ import type {
   DailiesUnifiedDataService,
   DataService,
   ExportDataService,
+  GoalsDataService,
   ItemConversionDataService,
   NotesUnifiedDataService,
   RoutinesDataService,
@@ -43,6 +44,12 @@ import {
   PHASE2_DAILIES_UNIFIED_METHODS,
   type DailiesUnifiedMethodName,
 } from "./SupabaseDailiesUnifiedService";
+import {
+  SupabaseGoalsService,
+  PHASE2_GOALS_METHOD_NAMES,
+  PHASE2_GOALS_METHODS,
+  type GoalsMethodName,
+} from "./SupabaseGoalsService";
 import {
   SupabaseItemConversionService,
   PHASE2_ITEM_CONVERSION_METHOD_NAMES,
@@ -159,6 +166,9 @@ export type NotesUnifiedRoutingIsExact = AssertNever<
 export type DailiesUnifiedRoutingIsExact = AssertNever<
   Mismatch<DailiesUnifiedDataService, DailiesUnifiedMethodName>
 >;
+export type GoalsRoutingIsExact = AssertNever<
+  Mismatch<GoalsDataService, GoalsMethodName>
+>;
 
 /** Every method name the Proxy can route, across all domains. */
 export type RoutedMethodName =
@@ -173,7 +183,8 @@ export type RoutedMethodName =
   | ItemConversionMethodName
   | WikiTagsUnifiedMethodName
   | NotesUnifiedMethodName
-  | DailiesUnifiedMethodName;
+  | DailiesUnifiedMethodName
+  | GoalsMethodName;
 
 /**
  * Catches the case the per-domain assertions cannot see: a member declared
@@ -264,6 +275,12 @@ export const PHASE2_ROUTING_DOMAINS = [
     names: PHASE2_DAILIES_UNIFIED_METHOD_NAMES,
     methods: PHASE2_DAILIES_UNIFIED_METHODS,
     service: SupabaseDailiesUnifiedService,
+  },
+  {
+    domain: "goals",
+    names: PHASE2_GOALS_METHOD_NAMES,
+    methods: PHASE2_GOALS_METHODS,
+    service: SupabaseGoalsService,
   },
 ] as const satisfies ReadonlyArray<{
   domain: string;
