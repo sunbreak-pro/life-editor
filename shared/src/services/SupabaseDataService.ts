@@ -48,6 +48,10 @@ import {
   SupabaseItemConversionService,
   PHASE2_ITEM_CONVERSION_METHODS,
 } from "./SupabaseItemConversionService";
+import {
+  SupabaseGoalsService,
+  PHASE2_GOALS_METHODS,
+} from "./SupabaseGoalsService";
 /*
  * Phase 2 S1 Supabase implementation.
  *
@@ -119,6 +123,8 @@ export function createSupabaseDataService(): DataService {
   const routinesService = new SupabaseRoutinesService(client);
   const scheduleItemsService = new SupabaseScheduleItemsService(client);
   const tagGroupsService = new SupabaseTagGroupsService(client);
+  // #2103: goals (role `goal`) + goal_todo_links (0034).
+  const goalsService = new SupabaseGoalsService(client);
   // #625: Event <-> Todo. Its own class rather than a method on either domain
   // service, because it writes BOTH payload tables plus items_meta — hanging
   // it off Todos or Schedule would make one of them the silent owner of the
@@ -150,6 +156,7 @@ export function createSupabaseDataService(): DataService {
     if (PHASE2_AUDIO_METHODS.has(prop)) return audioService;
     if (PHASE2_ATTACHMENT_METHODS.has(prop)) return attachmentsService;
     if (PHASE2_EXPORT_METHODS.has(prop)) return exportService;
+    if (PHASE2_GOALS_METHODS.has(prop)) return goalsService;
     return null;
   };
 
