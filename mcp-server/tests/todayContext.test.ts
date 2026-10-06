@@ -1,8 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   createSupabaseStub,
+  fromTables,
   inFilter,
   type QueryCall,
+  type StubTables,
   type SupabaseStub,
 } from "./supabaseStub.js";
 
@@ -39,10 +41,24 @@ interface Fixture {
   scheduled?: Row[];
   carryover?: Row[];
   dailies?: Row[];
+  /** Rows for the goal reads (#2104), run through the in-memory layer. */
+  goals?: StubTables;
 }
 
 function install(fixture: Fixture): void {
+  const goalRead = fromTables(fixture.goals ?? {});
   stub = createSupabaseStub((call: QueryCall) => {
+    // The goal loader is the only reader that names role goal / task, or
+    // asks tasks_payload by id.
+    if (
+      call.table === "goals_payload" ||
+      call.table === "goal_todo_links" ||
+      (call.table === "tasks_payload" && inFilter(call, "item_id")) ||
+      (call.table === "items_meta" &&
+        (call.filters.role === "goal" || call.filters.role === "task"))
+    ) {
+      return goalRead(call);
+    }
     switch (call.table) {
       case "events_payload":
         return fixture.events ?? [];
@@ -156,6 +172,12 @@ describe("getTodayContext", () => {
         hasBriefing: false,
         text: "今日",
       },
+      // #2104: the date's three periods, each listed even when it is empty.
+      goals: [
+        { kind: "year", key: "2026", goals: [] },
+        { kind: "month", key: "2026-08", goals: [] },
+        { kind: "week", key: "2026-08-09", goals: [] },
+      ],
     });
   });
 
@@ -181,6 +203,44 @@ describe("getTodayContext", () => {
     expect(JSON.stringify(context)).not.toContain("SECRET-");
   });
 
+  it("returns the date's goals with their progress (#2104)", async () => {
+    install({
+      goals: {
+        items_meta: [
+          { id: "goal-w", role: "goal", title: "3 runs", is_deleted: false },
+          { id: "goal-old", role: "goal", title: "old", is_deleted: false },
+          { id: "task-1", role: "task", title: "run", is_deleted: false },
+          { id: "task-2", role: "task", title: "run", is_deleted: false },
+        ],
+        goals_payload: [
+          goalPayload("goal-w", "2026-08-09"),
+          // Last week's goal is not this date's.
+          goalPayload("goal-old", "2026-08-02"),
+        ],
+        goal_todo_links: [
+          { id: "l1", goal_id: "goal-w", todo_id: "task-1", is_deleted: false },
+          { id: "l2", goal_id: "goal-w", todo_id: "task-2", is_deleted: false },
+        ],
+        tasks_payload: [
+          { item_id: "task-1", status: "DONE" },
+          { item_id: "task-2", status: "NOT_STARTED" },
+        ],
+      },
+    });
+
+    const context = await getTodayContext({ date: DATE });
+
+    const week = context.goals.find((p) => p.kind === "week");
+    expect(week?.goals.map((g) => g.id)).toEqual(["goal-w"]);
+    expect(week?.goals[0].achievement).toEqual({
+      achieved: false,
+      via: null,
+      connected: true,
+      todos: { done: 1, total: 2 },
+      children: { achieved: 0, total: 0 },
+    });
+  });
+
   it("reports an absent today without inventing a daily", async () => {
     install({ dailies: [daily("2026-08-12", "昨日")] });
 
@@ -204,6 +264,20 @@ function daily(date: string, text: string): Row {
     date,
     content_json: doc(text),
     has_password: false,
+  };
+}
+
+function goalPayload(id: string, weekKey: string): Row {
+  return {
+    item_id: id,
+    period_kind: "week",
+    period_key: weekKey,
+    sort_order: 0,
+    parent_goal_id: null,
+    manual_achieved_at: null,
+    period_end_decision: null,
+    decided_at: null,
+    carried_from_goal_id: null,
   };
 }
 

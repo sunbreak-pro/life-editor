@@ -244,6 +244,36 @@ describe("the week the caller asked for", () => {
   });
 });
 
+describe("goals (#2104)", () => {
+  it("lists every period the 7 days fall in", async () => {
+    install({});
+
+    const week = await getWeekContext({ start_date: MONDAY });
+
+    expect(week.goals).toEqual([
+      { kind: "year", key: "2026", goals: [] },
+      { kind: "month", key: "2026-08", goals: [] },
+      // Mon 10th – Sat 15th are in the week of Sunday the 9th; Sunday the 16th
+      // starts the next one, so a mid-week window spans both.
+      { kind: "week", key: SUNDAY, goals: [] },
+      { kind: "week", key: "2026-08-16", goals: [] },
+    ]);
+  });
+
+  it("lists both months when the week crosses into the next", async () => {
+    install({});
+
+    const week = await getWeekContext({ start_date: "2026-11-29" });
+
+    expect(week.goals).toEqual([
+      { kind: "year", key: "2026", goals: [] },
+      { kind: "month", key: "2026-11", goals: [] },
+      { kind: "month", key: "2026-12", goals: [] },
+      { kind: "week", key: "2026-11-29", goals: [] },
+    ]);
+  });
+});
+
 describe("nothing from outside the week gets in", () => {
   it("asks the DB for the week and no more", async () => {
     install({});

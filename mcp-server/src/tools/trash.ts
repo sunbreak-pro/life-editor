@@ -35,8 +35,9 @@ export const TRASH_TOOLS: ToolDefinition[] = [
   defineTool({
     name: "restore_item",
     description:
-      "Restore an item from the trash — the inverse of delete_todo / delete_note / delete_schedule_item. " +
+      "Restore an item from the trash — the inverse of delete_todo / delete_note / delete_schedule_item / delete_goal. " +
       "Restorable roles: todo, note, event (schedule item), goal; a daily comes back through upsert_daily instead. " +
+      "A goal is refused while its period already holds 3 live goals. " +
       "Restoring an item that is not in the trash is a no-op, not an error. " +
       "Restores the one item only — a todo whose parent is still trashed stays out of get_todo_tree (it does appear in list_todos).",
     inputSchema: {

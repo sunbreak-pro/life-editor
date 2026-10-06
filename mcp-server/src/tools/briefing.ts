@@ -13,7 +13,7 @@ export const BRIEFING_TOOLS: ToolDefinition[] = [
   defineTool({
     name: "get_today_context",
     description:
-      "Get everything needed to write the morning briefing (朝刊) in one call: today's events, todos scheduled onto today, open todos (due today / overdue carry-overs / in-progress), the last 3 days of daily notes (夕刊 material), and whether today's daily already has a briefing section.",
+      "Get everything needed to write the morning briefing (朝刊) in one call: today's events, todos scheduled onto today, open todos (due today / overdue carry-overs / in-progress), the last 3 days of daily notes (夕刊 material), whether today's daily already has a briefing section, and `goals`: the year / month / week goals (目標) of the date with their progress and achievement, shaped like list_goals.",
     inputSchema: {
       type: "object" as const,
       properties: {
@@ -30,7 +30,7 @@ export const BRIEFING_TOOLS: ToolDefinition[] = [
   defineTool({
     name: "get_week_context",
     description:
-      "Get everything needed for a weekly review (週次レビュー) in one call, instead of 7 get_today_context calls: 7 days each with its events, the todos scheduled onto it and its daily note text, plus the open todos carried into the week (overdue carry-overs / in-progress). Defaults to the current local week, Sunday to Saturday. Todo and note BODIES are not included — read one with get_todo / get_note when you decide you need it.",
+      "Get everything needed for a weekly review (週次レビュー) in one call, instead of 7 get_today_context calls: 7 days each with its events, the todos scheduled onto it and its daily note text, plus the open todos carried into the week (overdue carry-overs / in-progress), and `goals`: the goals of every year / month / week period the 7 days fall in (a mid-week start spans two weeks) with their progress and achievement, shaped like list_goals. Defaults to the current local week, Sunday to Saturday. Todo and note BODIES are not included — read one with get_todo / get_note when you decide you need it.",
     inputSchema: {
       type: "object" as const,
       properties: {

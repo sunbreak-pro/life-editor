@@ -26,6 +26,11 @@ import {
   lockedBodyError,
 } from "../utils/lockedBody.js";
 import { findDailyPayload } from "./dailyHandlers.js";
+import {
+  periodsOfDate,
+  periodsOfDates,
+  readGoalPeriods,
+} from "./goalHandlers.js";
 
 /*
  * Briefing handlers (briefing-loop Step 2 / Issue #256).
@@ -35,6 +40,8 @@ import { findDailyPayload } from "./dailyHandlers.js";
  *     dailies (the 夕刊 material) and the state of today's daily.
  *   get_week_context — the same day-shaped material for 7 days at once, for
  *     the weekly review (#782 ③).
+ *   Both also carry `goals` (#2104): the year / month / week goals of the
+ *     day (or of the window's first day), judged the way list_goals does.
  *   write_briefing — two writes since #1048 / #1097: the focus goes into
  *     the reserved focus note's per-day section (the read half =
  *     shared focusSections.ts), and the comment paragraphs are upserted as
@@ -260,6 +267,7 @@ export async function getTodayContext(args: { date?: string }) {
     { data: carryoverRows, error: cErr },
     recentDailyPayloads,
     todayDailyPayloads,
+    goals,
   ] = await Promise.all([
     client
       .from("events_payload")
@@ -289,6 +297,7 @@ export async function getTodayContext(args: { date?: string }) {
       .or("status.neq.DONE,status.is.null"),
     fetchDailies(addDays(date, -3), addDays(date, -1)),
     fetchDailies(date, date),
+    readGoalPeriods(periodsOfDate(date)),
   ]);
   if (eErr) throw new Error(`events_payload: ${eErr.message}`);
   if (sErr) throw new Error(`scheduled todos: ${sErr.message}`);
@@ -335,6 +344,7 @@ export async function getTodayContext(args: { date?: string }) {
       hasBriefing: todayContent !== null && hasBriefingSection(todayContent),
       text: dailyText(todayDaily),
     },
+    goals,
   };
 }
 
@@ -369,6 +379,7 @@ export async function getWeekContext(args: { start_date?: string }) {
     { data: scheduledTodoRows, error: sErr },
     { data: carryoverRows, error: cErr },
     dailyPayloads,
+    goals,
   ] = await Promise.all([
     client
       .from("events_payload")
@@ -396,6 +407,14 @@ export async function getWeekContext(args: { start_date?: string }) {
       .lt("scheduled_at", startIso)
       .or("status.neq.DONE,status.is.null"),
     fetchDailies(startDate, endDate),
+    // Every period any of the 7 days falls in: with the default Sunday start
+    // that is one week, but a mid-week start spans two, and a week can cross
+    // into the next month or year.
+    readGoalPeriods(
+      periodsOfDates(
+        Array.from({ length: 7 }, (_, offset) => addDays(startDate, offset)),
+      ),
+    ),
   ]);
   if (eErr) throw new Error(`events_payload: ${eErr.message}`);
   if (sErr) throw new Error(`scheduled todos: ${sErr.message}`);
@@ -450,6 +469,7 @@ export async function getWeekContext(args: { start_date?: string }) {
     openTodos: [...openTodoById.values()]
       .filter((t) => titleById.has(t.item_id))
       .map((t) => formatOpenTodo(t, titleById, startIso)),
+    goals,
   };
 }
 
