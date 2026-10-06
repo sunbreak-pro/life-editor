@@ -1240,7 +1240,53 @@
       "removeThisTag": "Remove this tag",
       "seeRelations": "See what it relates to"
     },
-    "sheetClose": "Close"
+    "sheetClose": "Close",
+    "tabsLabel": "Connect views",
+    "tabs": {
+      "tags": "Tags",
+      "goals": "Goals & Todos"
+    },
+    "goals": {
+      "kinds": { "year": "Year", "month": "Month", "week": "Week" },
+      "periods": {
+        "year": "This year",
+        "month": "This month",
+        "week": "This week"
+      },
+      "addHeading": "Set a goal",
+      "addPlaceholder": "What do you want to reach?",
+      "add": "Add",
+      "cancel": "Cancel",
+      "limit": "{{period}} already has 3 goals.",
+      "treeHeading": "Goal tree",
+      "unconnectedHeading": "Unconnected goals",
+      "looseHeading": "Todos not linked to a goal",
+      "empty": "No goals yet. Set this week's goals and link todos to them to see your progress here.",
+      "emptyAction": "Set this week's goals",
+      "achieved": "Achieved",
+      "unconnected": "Unconnected",
+      "progress": "{{done}}/{{total}}",
+      "openTodo": "Open in Schedule: {{title}}",
+      "loading": "Loading goals",
+      "loadFailed": "Could not load the goals. Check your connection and try again.",
+      "retry": "Try again",
+      "titleLabel": "Goal title",
+      "parentLabel": "Goal one level up",
+      "parentNone": "None",
+      "todosHeading": "Linked todos",
+      "todosEmpty": "No todos are linked to this goal yet.",
+      "childrenHeading": "Goals under this one",
+      "earlierChildren_one": "1 more from an earlier period also counts toward the progress.",
+      "earlierChildren_other": "{{count}} more from earlier periods also count toward the progress.",
+      "markAchieved": "Mark as achieved",
+      "unmarkAchieved": "Remove the achieved mark",
+      "manualHint": "Only a goal with nothing linked to it can be marked by hand.",
+      "deleteGoal": "Delete goal",
+      "deleteConfirm": "Delete the goal \"{{title}}\"? The todos linked to it stay.",
+      "period": "{{kind}} · {{key}}",
+      "sheetTitle": "Goal: {{title}}",
+      "writeFailed": "Could not save the goal. Check your connection and try again."
+    }
   },
   "attachment": {
     "insertImage": "Image",

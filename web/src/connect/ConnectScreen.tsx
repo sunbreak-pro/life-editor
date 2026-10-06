@@ -308,8 +308,9 @@ export function ConnectScreen({
   const isLoading = sourcesLoading || wiki.loading;
 
   /*
-   * The header's "tags N / items N" (D1). The shell draws it, because it is a
-   * subtitle on the section title row and that row is the shell's; the numbers
+   * The header's "tags N / items N" (D1). The shell draws it, beside the tab
+   * band (HeaderTabs `trailing` — connectTabBand.tsx, #2108), because the
+   * header row is the shell's; the numbers
    * can only come from here. Reported from an effect rather than during render
    * — a parent setState during our render is the "cannot update while
    * rendering" warning — and cleared on unmount so the count never outlives the
