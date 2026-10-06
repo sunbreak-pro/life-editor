@@ -1,6 +1,7 @@
 ---
-Status: Draft
+Status: IN PROGRESS
 Created: 2026-10-03
+Updated: 2026-10-06
 Branch: docs/briefing-goal-todo-plan-2035
 Owner-chat: briefing-refine
 Parent: .claude/docs/vision/plans/2026-07-15-briefing-loop.md
@@ -8,13 +9,14 @@ Parent: .claude/docs/vision/plans/2026-07-15-briefing-loop.md
 
 # Plan: Briefing の作り直し — 目標と Todo をつなぐ朝刊・夕刊
 
-> #2035 のステップ 5 です。決定の正本は台帳の D-20260928-briefing-4（コンセプトと Q&A の全体）と、D-20260928-briefing-1 / -2 / -3、D-20261002-briefing-1〜3（このあと追加する回答）です。画面の正本は Claude Design のプロジェクト（§デザイン）で、依頼文は `.claude/docs/design/briefs/briefing.md` です。この計画書は、それを実装の順番と Issue の単位に落とします。
+> #2035 のステップ 5 です。決定の正本は台帳の D-20260928-briefing-4（コンセプトと Q&A の全体）と、D-20260928-briefing-1 / -2 / -3、D-20261002-briefing-1〜3、D-20261006-main-1〜4（Daily と夕刊の文章を 1 本にする回答 = 2026-10-06 追加）です。画面の正本は Claude Design のプロジェクト（§デザイン）で、依頼文は `.claude/docs/design/briefs/briefing.md` です。この計画書は、それを実装の順番と Issue の単位に落とします。
 
 ---
 
 ## Context
 
 - **動機**: 朝刊の宣言と目標は書くだけで手応えが無く、夕刊には毎日書きたくなる引きがありません（D-20260928-briefing-1）。そこで、目標を Todo とつないで達成を自動で判定し、朝に立てたものが夜に進み、夜に書いたものが翌朝に返ってくる往復を作ります（D-20260928-briefing-4）。
+- **2026-10-06 の追加**: Daily の画面では、夕刊で書いた文章（本文の下のカード）と Daily で書いた文章（本文）が別々に出ています。本文には朝刊の宣言の節も見えています。こうだいさんは、この 2 つに分かれた形をやめると決めました（#2123）。夕刊の作り直し（Step 8）と一緒に設計し直し、Daily の作り直しを Step 13 として足します（D-20261006-main-4）。
 - **制約**:
   - コストは $0 のままです。Claude API の直課金はしません。
   - Claude を繋いでいない人でも全部が埋まる画面にします。Claude の講評はおまけです（D-20260928-briefing-3）。
@@ -94,6 +96,18 @@ Parent: .claude/docs/vision/plans/2026-07-15-briefing-loop.md
 - 過去の期間の節は、ノートのまま履歴として残します。ノートは消しません。
 - 移すのはアプリの側で、Briefing を開いたときに 1 回だけです。`legacy_key` が既にあれば何もしません。
 
+### Daily と夕刊の文章を 1 本にする（2026-10-06 追加・#2123）
+
+- **今の形**: 夕刊の「一日の締めくくり」は、Daily の本文の「夕刊」の節に入ります。Daily の画面では、その節を本文から外して下のカードに出しています（#1046）。Daily で直接書いた文章は、節の外の本文に入ります。朝刊と宣言の節は、本文のエディタにそのまま見えています。
+- **1 本の文章**: Daily の本文から、朝刊の節・宣言の節・「夕刊」の見出し・「気分: n/5」の行を除き、残りを文書の順に並べたものです（D-20261006-main-1）。節の外の本文と夕刊の文章は、この定義で自然に 1 本につながります。節の境目は「次の見出しまで」なので、利用者が文章の中に見出しを書くと夕刊の節が途中で切れます。そのため、「夕刊の節の中身」ではなく「除くものを除いた残り」で定義します。
+- **読み書きの関数**: shared の純粋な関数として 1 組だけ置きます（`shared/src/components/briefing/dailySections.ts` の隣）。読む関数は Daily の本文から 1 本の文章を作ります。書く関数は、受け取った文章を「夕刊」の見出しの下にまとめて入れ直します。朝刊の節・宣言の節・気分の行には触りません。夕刊の締めくくりの欄（Step 8）と Daily の本文（Step 13）は、両方ともこの組だけを使います。
+- **保存し直すのは編集したときだけ**: 開いただけの日は書き換えません。今の「プレーンテキストを読むときだけ TipTap に直す」（#258）と同じやり方です。全件を一度に移す migration は作りません。
+- **画面に出さない節**: 朝刊と宣言の節は Daily の画面に出しません（D-20261006-main-2）。データは消しません。朝刊は Briefing で読めます。
+- **夕刊の締めくくりの欄（Step 8）**: 1 本の文章をそのまま編集します。欄を夕刊に残すという D-20261002-briefing-1 は変えません。長い文章でも夕刊の下の要素が押し出されないよう、欄の高さに上限を付けて欄の中でスクロールします。
+- **「Daily に移動」ボタン（Step 8）**: 残します。行き先はその日の Daily です。同じ文章を広いページで続けて書く入口になります。
+- **Daily の本文の下（Step 13）**: 気分の★と評価の数字 4 つだけを置きます（D-20261006-main-3）。数字は、予定の数、Todo の達成率（その日に予定した Todo の完了数 / 全体）、作業時間（その日の作業記録の合計）、今日進んだ目標の数です。今の「その日の予定」の一覧は置きません。数え方は、夕刊の「今日の出来事」と「今日進んだ目標」が使う関数をそのまま使います。画面ごとに数え方を作らないためです。
+- **Daily の★（Step 13）**: 夕刊の★と同じ書き込みにします。Daily で★を付けても、その日の夕刊は発行済みになり、`evening_published_at` が入ります。号数は「気分: n/5」の行で数えます。片方の画面でだけ発行時刻が入らないと、号数と発行時刻がずれるためです。
+
 ### MCP
 
 - 増やす道具は 5 つです。`list_goals`（期間を指定でき、進み具合と達成の状態も返す）、`create_goal`、`update_goal`（題・親・並び・手での達成・期間末の判断）、`link_goal_todo`、`unlink_goal_todo` です。
@@ -105,12 +119,13 @@ Parent: .claude/docs/vision/plans/2026-07-15-briefing-loop.md
 ## Scope (Touchable Paths)
 
 ```
-supabase/migrations/0032_goals.sql
+supabase/migrations/0034_goals.sql                  # 着地済み（#2111）
 shared/src/types/goal.ts
 shared/src/services/**            # Goals の DataService・mapper・ルーティング
 shared/src/context/SyncContext.tsx
 shared/src/context/syncDomains.ts
 shared/src/components/briefing/**
+shared/src/components/materials/**                  # Step 13（Daily の本文の下）だけ
 shared/src/components/items/itemRole.ts
 shared/src/components/schedule/ItemCreatePanel.tsx
 shared/src/components/TodoDetailPanel.tsx
@@ -120,6 +135,7 @@ shared/src/generated/mcpToolCatalog.json
 shared/tests/**
 web/src/briefing/**
 web/src/connect/**
+web/src/daily/**                                    # Step 13 だけ
 web/src/schedule/ScheduleTodoDetail.tsx
 web/src/schedule/useCreatePanelNotes.ts
 web/src/hooks/useShellNavigation.ts
@@ -143,24 +159,27 @@ Issue ごとの触ってよい範囲は、この中から各 Issue の本文で�
 
 ## Steps
 
-Issue の起票はメインのチャットの作業です（CLAUDE.md §9）。下の「Issue 案」は起票の依頼に使う単位で、番号は起票後に Worklog へ書きます。
+Issue の起票はメインのチャットの作業です（CLAUDE.md §9）。2026-10-06 時点で全 Step の Issue が起票済みなので、「Issue」の列は実際の番号です。
 
-| #   | Step                                                                                                                    | Gate                 | Acceptance                                                                                                                     | Issue 案   | 依存    |
-| --- | ----------------------------------------------------------------------------------------------------------------------- | -------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------- | ------- |
-| 1   | migration `0032_goals.sql`（role `goal`・`goals_payload`・`goal_todo_links`・`dailies_payload` の 2 列・RLS・Realtime） | 🤖 作成 / 🛑 db push | `life-editor-migration-validator` が Blocker 0。こうだいさんの `supabase db push` が通り、`list_tables` で 2 表と 2 列が見える | A          | —       |
-| 2   | role の一覧の追随（`itemRole.ts`・`syncDomains.ts`・`userDataExport.ts`・MCP の `ItemRole` / trash / item link）        | 🤖                   | 全ゲート緑。`syncDomains.test.ts` と `syncRealtimeTables.test.ts` が緑                                                         | A に含める | 1       |
-| 3   | Goals の DataService（CRUD・つなぐ / 外す・期間で引く）と mapper・Realtime ドメイン                                     | 🤖                   | `updated_at` の bump を `life-editor-sync-auditor` が確認。vitest 緑                                                           | B          | 1       |
-| 4   | 達成の判定と期間の鍵の純粋関数（shared）と、共通の見本データ                                                            | 🤖                   | 達成・未達・未接続・期間末の判断・削除済み Todo・子 Todo の各場合が vitest で緑                                                | C          | —       |
-| 5   | MCP の道具 5 つと、`get_today_context` / `get_week_context` の追随・catalog の再生成                                    | 🤖                   | `toolCatalogFreshness.test.ts` が緑。共通の見本データで shared と同じ答え                                                      | D          | 3, 4    |
-| 6   | `note-goals` の今の期間を目標に移す（1 回だけ・二重に移さない）                                                         | 🤖                   | 2 回開いても目標が増えないことを vitest で確認                                                                                 | E          | 3       |
-| 7   | 朝刊の作り直し（ゆうべの自分から・目標・目標の印・期間末のふり返り・宣言を外す）                                        | 🤖 / 👀              | デザイン M1〜M8 と P1 / P2 の要素が揃う。空の状態で講評が出ない                                                                | F          | 3, 4, 6 |
-| 8   | 夕刊の作り直し（号数と連続・発行・今日進んだ目標・今日の出来事と一言・明日の予定に置く・明日の自分へ・Daily に移動）    | 🤖 / 👀              | デザイン E1〜E8 の要素が揃う。★で発行時刻が保存される                                                                          | G          | 3, 4    |
-| 9   | Connect に「タグ / 目標と Todo」のタブを足し、目標の木と右パネルを作る                                                  | 🤖 / 👀              | デザイン C1〜C6 の要素が揃う。今の Connect の件数表示がタブ化で消えない                                                        | H          | 3, 4    |
-| 10  | つなぐ画面（目標の側から）と、Todo の詳細パネル・作成パネルの目標の欄                                                   | 🤖 / 👀              | デザイン L1〜L4 の要素が揃う。保存前に変わる数字を出す                                                                         | I          | 3, 4    |
-| 11  | docs の追随（CLAUDE.md §4 の role 一覧・tier-1 §Briefing・mobile-scope・db-conventions）と、古い決定の supersede        | 🤖                   | `docs-lint` 緑。D-20260815-briefing-1〜4・D-20260818-briefing-1 に `superseded-by` が付く                                      | J          | 7, 8    |
-| 12  | 実画面での確認（Desktop / Mobile、light / dark）                                                                        | 👀                   | メインのチャットが実ブラウザで撮影し、デザインと見比べる                                                                       | J に含める | 7〜10   |
+| #   | Step                                                                                                                                                                | Gate                 | Acceptance                                                                                                                                                                                   | Issue              | 依存      | 状態（2026-10-06） |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------ | --------- | ------------------ |
+| 1   | migration `0034_goals.sql`（role `goal`・`goals_payload`・`goal_todo_links`・`dailies_payload` の 2 列・RLS・Realtime）                                             | 🤖 作成 / 🛑 db push | `life-editor-migration-validator` が Blocker 0。こうだいさんの `supabase db push` が通り、`list_tables` で 2 表と 2 列が見える                                                               | #2101              | —         | 済（PR #2111）     |
+| 2   | role の一覧の追随（`itemRole.ts`・`syncDomains.ts`・`userDataExport.ts`・MCP の `ItemRole` / trash / item link）                                                    | 🤖                   | 全ゲート緑。`syncDomains.test.ts` と `syncRealtimeTables.test.ts` が緑                                                                                                                       | #2101              | 1         | 済（PR #2111）     |
+| 3   | Goals の DataService（CRUD・つなぐ / 外す・期間で引く）と mapper・Realtime ドメイン                                                                                 | 🤖                   | `updated_at` の bump を `life-editor-sync-auditor` が確認。vitest 緑                                                                                                                         | #2103              | 1         | PR #2116 が open   |
+| 4   | 達成の判定と期間の鍵の純粋関数（shared）と、共通の見本データ                                                                                                        | 🤖                   | 達成・未達・未接続・期間末の判断・削除済み Todo・子 Todo の各場合が vitest で緑                                                                                                              | #2102              | —         | 済（PR #2113）     |
+| 5   | MCP の道具 5 つと、`get_today_context` / `get_week_context` の追随・catalog の再生成                                                                                | 🤖                   | `toolCatalogFreshness.test.ts` が緑。共通の見本データで shared と同じ答え                                                                                                                    | #2104              | 3, 4      | 未着手             |
+| 6   | `note-goals` の今の期間を目標に移す（1 回だけ・二重に移さない）                                                                                                     | 🤖                   | 2 回開いても目標が増えないことを vitest で確認                                                                                                                                               | #2105              | 3         | 未着手             |
+| 7   | 朝刊の作り直し（ゆうべの自分から・目標・目標の印・期間末のふり返り・宣言を外す）                                                                                    | 🤖 / 👀              | デザイン M1〜M8 と P1 / P2 の要素が揃う。空の状態で講評が出ない                                                                                                                              | #2106              | 3, 4, 6   | 未着手             |
+| 8   | 夕刊の作り直し（号数と連続・発行・今日進んだ目標・今日の出来事と一言・明日の予定に置く・明日の自分へ・Daily に移動）と、Daily と共有する 1 本の文章の読み書きの関数 | 🤖 / 👀              | デザイン E1〜E8 の要素が揃う。★で発行時刻が保存される。締めくくりの欄が 1 本の文章を編集し、長文でも欄の中でスクロールする。読み書きの関数が AC の 5 通りの日で 1 文字も落とさない（vitest） | #2107              | 3, 4      | 未着手             |
+| 9   | Connect に「タグ / 目標と Todo」のタブを足し、目標の木と右パネルを作る                                                                                              | 🤖 / 👀              | デザイン C1〜C6 の要素が揃う。今の Connect の件数表示がタブ化で消えない                                                                                                                      | #2108              | 3, 4      | 未着手             |
+| 10  | つなぐ画面（目標の側から）と、Todo の詳細パネル・作成パネルの目標の欄                                                                                               | 🤖 / 👀              | デザイン L1〜L4 の要素が揃う。保存前に変わる数字を出す                                                                                                                                       | #2109              | 3, 4      | 未着手             |
+| 11  | docs の追随（CLAUDE.md §4 の role 一覧・tier-1 §Briefing・mobile-scope・db-conventions）と、古い決定の supersede                                                    | 🤖                   | `docs-lint` 緑。D-20260815-briefing-1〜4・D-20260818-briefing-1 に `superseded-by` が付く。tier-1 の Daily の記述が Step 13 の形に追随する                                                   | #2110              | 7, 8, 13  | 未着手             |
+| 12  | 実画面での確認（Desktop / Mobile、light / dark）                                                                                                                    | 👀                   | メインのチャットが実ブラウザで撮影し、デザインと見比べる。Daily は長文の日・夕刊の無い日・今までの本文がある日を撮る                                                                         | #2110              | 7〜10, 13 | 未着手             |
+| 13  | Daily の作り直し（本文 = 1 本の文章・朝刊と宣言の節を出さない・本文の下は気分の★と評価の数字 4 つ・Daily の★も発行にする）                                          | 🤖 / 👀              | §Daily と夕刊の文章 のとおりに出る。開いただけの日は保存データが変わらない（vitest）。長文でも本文の最後まで読める（Mobile / Desktop）                                                       | #2123（materials） | 8         | 未着手             |
 
-画面の Step（7〜10）は互いに独立しているので、データの Step（1〜6）が済めば並行して進められます。
+画面の Step（7〜10）は互いに独立しているので、データの Step（1〜6）が済めば並行して進められます。Step 13 だけは Step 8 の後です。読み書きの関数を Step 8 で作り、Step 13 はそれを使うだけにするためです（D-20261006-main-4）。
+
+**レーンの分け方**: Step 1〜12 は `section:briefing`（briefing-refine）です。Step 13 は Daily の画面（`web/src/daily/`）を持つ `section:materials`（materials-refine）に置きます。同じ画面の不具合 #2122（長文の夕刊で Daily の下が見えない）も materials に置いてあり、同じレーンが続けて扱えるためです。#2122 は Step 13 を待たずに直せます。
 
 ---
 
@@ -172,6 +191,8 @@ Issue の起票はメインのチャットの作業です（CLAUDE.md §9）。�
 - [ ] 達成の判定の vitest が shared と mcp-server の両方で、同じ見本データに対して緑
 - [ ] `note-goals` の移し替えを 2 回走らせても、目標の件数が増えない（vitest）
 - [ ] 朝刊・夕刊・Connect の新しいブロックが、Claude の講評が無い状態でも空欄の枠を出さない（vitest で講評なしの描画を確認）
+- [ ] 1 本の文章の読み書きの関数が、「今までの本文だけの日」「夕刊だけの日」「両方ある日」「朝刊・宣言の節もある日」「文章の中に利用者の見出しがある日」の 5 通りで 1 文字も落とさず、朝刊・宣言の節と気分の行を変えない（vitest）
+- [ ] Daily を開いただけでは `upsertDaily` が呼ばれない（vitest）
 - [ ] 各 PR の diff が目安の範囲内（機能追加 500 行・修正 200 行）。超える場合は PR 本文に理由を書く
 - [ ] 完了時: この計画書の Status と per-chat memory を更新し、`archive/` へ移す
 
@@ -181,7 +202,8 @@ AC を満たせない見込みになったら、自分で免除せず P-008 に�
 
 ## DB Migration Notes
 
-- ファイルは `supabase/migrations/0032_goals.sql` です（今の最新は 0031。0013 は欠番のまま埋めません）。
+- ファイルは `supabase/migrations/0034_goals.sql` です（PR #2111 で着地済み）。初版は 0032 と書いていましたが、計画書を書いたあとに別のレーンが 0032 と 0033 を使ったため、0034 になりました。
+- Step 13 の「1 本の文章」は、今の Daily の本文の中で表すので DDL は要りません。
 - 並行するレーンが同じ番号を使っていないかを、PR を出す前に origin/main と突き合わせます。
 - 手順は「ローカルのファイルを先に作る → こうだいさんが `supabase db push`」です。`apply_migration` の MCP は単独では使いません。
 - 失敗したら、逆向きの migration を別のファイルで作ります。既存のファイルは直しません。
@@ -194,12 +216,16 @@ AC を満たせない見込みになったら、自分で免除せず P-008 に�
 - **同期の全件取り直し**: 知らない role が来ると、全部のアイテムのドメインを取り直す作りです（`syncDomains.ts:134`）。role を足す PR と、`ITEMS_META_ROLE_DOMAIN` を足す PR は同じにします。
 - **緑の PR 2 本が組み合わさって main を壊す**: 新しい型を足す PR と、その型を使うテストの PR が別々に merge されると壊れることがあります（memory: green-prs-break-main-when-paired）。Step 2〜3 は依存の順に出します。
 - **Connect のタブ化**: タブ帯が出ると見出しが件数の代わりにタブになり、今の件数表示が消えます（`MainScreen.tsx:246`）。Step 9 で件数の置き場を決めます。
+- **Step 8 と Step 13 のあいだの見え方**: Step 8 が先に入ると、夕刊の欄で編集した日は今までの本文が「夕刊」の節へ移ります。Step 13 が入るまでの Daily は今の画面のままなので、その日の今までの本文は本文のエディタから消え、下のカードに出ます。文章は消えませんが、置き場所が変わって見えます。Step 13 は Step 8 の merge のあと間を空けずに出します。
+- **節の境目と利用者の見出し**: 節は「次の見出しまで」です。MCP の `write_briefing` は朝刊の見出しの下に段落だけを書くので、朝刊の節が途中で切れることはありません（`mcp-server/src/utils/briefingSection.ts:58`、2026-10-06 確認）。切れるのは、利用者が文章の中に見出しを書いたときです。1 本の文章を「除くものを除いた残り」で定義したのはこのためで、見出しの後ろの文章も 1 本の文章に残ります。この場合を vitest の 5 通り目に足します。
+- **今までの Daily の本文がある日の Briefing**: 1 本の文章には、昼に Daily で書いた文章も入ります。夕刊の締めくくりの欄にも、それがそのまま出ます。D-20261006-main-1 でつなげると決めたので、これは意図どおりです。
 
 ---
 
 ## References
 
-- 決定: D-20260928-briefing-1〜4、D-20261002-briefing-1〜3、D-20260816-briefing-1（週は日曜始まり）
+- 決定: D-20260928-briefing-1〜4、D-20261002-briefing-1〜3、D-20261006-main-1〜4（Daily と夕刊の文章）、D-20260816-briefing-1（週は日曜始まり）
+- 関連 Issue: #2122（長文の夕刊で Daily の下が見えない不具合・materials）
 - 親計画書: `.claude/docs/vision/plans/2026-07-15-briefing-loop.md`
 - 棚卸しと比較: `.claude/docs/reports/2026-09-28-briefing-concept.html`
 - デザインの依頼文: `.claude/docs/design/briefs/briefing.md`
@@ -210,3 +236,4 @@ AC を満たせない見込みになったら、自分で免除せず P-008 に�
 ## Worklog
 
 - 2026-10-03: 初版。D-20260928-briefing-1〜4 と 2026-10-02〜03 の回答、Claude Design の案（2026-10-02）をもとに書きました。Issue の起票はメインのチャットへ依頼します。
+- 2026-10-06: Status を IN PROGRESS に変えました（Step 1・2・4 が済み、Step 3 は PR #2116）。Issue の番号を Steps の表に入れ、migration の番号を 0034 に直しました。こうだいさんの回答 D-20261006-main-1〜4 を受けて、§Daily と夕刊の文章を 1 本にする を足し、Step 8 を直し、Step 13（#2123）を足しました。
