@@ -161,3 +161,4 @@
 - D-20260927-materials-1: **A**（ノートの表を独立アイテムにしてタグを付ける。`items_meta` に表の role を足す DDL と MCP 対応が要るため別 Issue #2094・Plan Gate の計画書が先。`db push` はこうだいさんの作業。2026-10-03 チャットの AskUserQuestion で回答・chat-main が転記）
 - D-20261003-sched-1: **A**（繰り返しの「終了時間」は作らない。終了日だけで足りる。同上）
 - D-20261003-settings-1: **A**（GitHub なしの連絡先は無料の問い合わせフォームの URL。フォームはこうだいさんが作り、URL を受け取ったら `web/src/legal/operator.ts` の `DIRECT_CONTACT` を埋める。同上）
+- D-20261006-main-1: **Q1 = A / Q2 = D（ユーザー指定の選択肢外）/ Q3 = A / Q4 = A**（書き戻しは MCP で DB に直接。ルールはアプリ専用フォルダの `.claude/CLAUDE.md`、テンプレートは同フォルダの `.claude/skills/` に置いて `--add-dir` で読ませる。メモリは 1 件ずつの項目リスト。親 Epic = #2117。2026-10-06 チャットの AskUserQuestion で回答・chat-main が転記 / 昇格）
