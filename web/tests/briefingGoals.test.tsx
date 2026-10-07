@@ -138,6 +138,10 @@ function makeDS(initial: string | null, opts: DSOptions = {}) {
     createNoteUnified,
     updateNoteUnified,
     restoreNoteUnified,
+    // The goals-note migration (#2105) runs beside this block on the same
+    // note; it gets an empty, accepting goal store so it stays quiet here.
+    fetchGoalsForDate: vi.fn().mockResolvedValue([]),
+    createGoal: vi.fn().mockResolvedValue(undefined),
   });
   return {
     ds,

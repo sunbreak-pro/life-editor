@@ -31,6 +31,7 @@ import { useBriefingData } from "./hooks/useBriefingData";
 import { useDailySections } from "./hooks/useDailySections";
 import { useFocusNote } from "./hooks/useFocusNote";
 import { useGoalsDoc } from "./hooks/useGoalsDoc";
+import { useNoteGoalsMigration } from "./hooks/useNoteGoalsMigration";
 
 /*
  * Briefing host shell (Briefing plan Step 1). Owns data fetching (it may
@@ -147,6 +148,10 @@ export function BriefingScreen({
     ds,
     todayKey,
   );
+
+  // The same note's current-period lines become goals, once (#2105). It only
+  // reads the note, so it runs beside useGoalsDoc rather than on its chain.
+  useNoteGoalsMigration(ds, todayKey);
 
   // The focus note (#1048) — its own document too: the morning paper READS
   // today's focus (written last evening), the evening paper EDITS tomorrow's.

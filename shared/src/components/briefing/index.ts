@@ -52,6 +52,15 @@ export {
   type GoalPeriod,
 } from "./goalSections";
 export {
+  GOALS_PER_PERIOD_LIMIT,
+  currentNoteGoalLines,
+  noteGoalLegacyKey,
+  planNoteGoalMigration,
+  type ExistingGoal,
+  type NoteGoalCreate,
+  type NoteGoalPeriodPlan,
+} from "./goalNoteMigration";
+export {
   goalPeriodKeys,
   goalPeriodRanges,
   type GoalPeriodKeys,

@@ -1372,7 +1372,9 @@
       "yearTitle": "THIS YEAR",
       "weekPlaceholder": "What will you get done this week? One line is enough…",
       "monthPlaceholder": "What will you get done this month? One line is enough…",
-      "yearPlaceholder": "What will you get done this year? One line is enough…"
+      "yearPlaceholder": "What will you get done this year? One line is enough…",
+      "migrationOverflow_one": "Your goals note became goals. A period holds up to 3 goals, so {{count}} more line stays in the note as it was.",
+      "migrationOverflow_other": "Your goals note became goals. A period holds up to 3 goals, so {{count}} more lines stay in the note as they were."
     },
     "scheduleTitle": "TODAY'S SCHEDULE",
     "addScheduleItem": "Add to today's schedule",
