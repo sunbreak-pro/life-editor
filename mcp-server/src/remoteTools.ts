@@ -13,6 +13,7 @@ import { WIKI_TAG_TOOLS } from "./tools/wikiTag.js";
 import { ITEM_LINK_TOOLS } from "./tools/itemLink.js";
 import { TRASH_TOOLS } from "./tools/trash.js";
 import { WORK_TOOLS } from "./tools/work.js";
+import { GOAL_TOOLS } from "./tools/goal.js";
 
 /*
  * The tool set that runs ANYWHERE — the everyday domains, with nothing that
@@ -50,6 +51,7 @@ export const REMOTE_TOOL_DEFINITIONS: ToolDefinition[] = [
   ...ITEM_LINK_TOOLS,
   ...TRASH_TOOLS,
   ...WORK_TOOLS,
+  ...GOAL_TOOLS,
 ];
 
 /** The registry the Worker serves (ListTools + dispatch). */
