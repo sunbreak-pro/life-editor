@@ -13,7 +13,9 @@ import {
   eveningBodyLines,
   stripEveningSection,
   UndoRedoManager,
+  type AttachmentRef,
   type DailyNode,
+  type DataService,
   type UndoCommand,
 } from "@life-editor/shared";
 import {
@@ -133,6 +135,7 @@ vi.mock("../src/notes/RichTextEditor", () => ({
     onDirty,
     onResolvedLinkInserted,
     loadLinkTargets,
+    attachments,
   }: {
     noteId: string;
     initialContent?: string;
@@ -140,16 +143,23 @@ vi.mock("../src/notes/RichTextEditor", () => ({
     onDirty?: () => void;
     onResolvedLinkInserted?: (targetId: string) => void;
     loadLinkTargets?: unknown;
+    attachments?: { attach: (kind: "image" | "file") => Promise<unknown> };
   }) => (
     <div
       data-testid="editor"
       data-link-pool={loadLinkTargets === undefined ? "off" : "on"}
+      data-attach={attachments === undefined ? "off" : "on"}
       data-initial-content={initialContent ?? ""}
     >
       {noteId}
       <button
         data-testid="pick-link"
         onClick={() => onResolvedLinkInserted?.(state.linkTarget)}
+      />
+      {/* The "/" menu's image entry, minus the menu (#1404 on Daily). */}
+      <button
+        data-testid="attach-image"
+        onClick={() => void attachments?.attach("image")}
       />
       <button
         data-testid="save-with-link"
@@ -378,6 +388,75 @@ describe("DailyView — inline links", () => {
         state.bodyWithoutLink,
       ),
     );
+  });
+});
+
+/*
+ * Image / file embedding on Daily — the "/" menu's attach entries, wired the
+ * way Notes wires them (#1404 / #1674). What Daily owns is the hand-off: the
+ * body editor gets the uploader only when there is a DataService to upload
+ * through, and the upload band sits above that body while the bytes travel.
+ */
+describe("DailyView — attachments", () => {
+  function livePicker(): HTMLInputElement | null {
+    return document.body.querySelector<HTMLInputElement>('input[type="file"]');
+  }
+
+  afterEach(() => {
+    livePicker()?.remove();
+  });
+
+  function attachDs(
+    uploadAttachment: DataService["uploadAttachment"],
+  ): DataService {
+    return {
+      uploadAttachment,
+      getAttachmentUrl: async () => "https://signed.example/x",
+      fetchScheduleItemsByDate: async () => [],
+    } as unknown as DataService;
+  }
+
+  it("offers no attach entries without a DataService to upload through", async () => {
+    render(<DailyView />);
+    expect((await screen.findByTestId("editor")).dataset.attach).toBe("off");
+  });
+
+  it("hands the body editor the uploader when a DataService is wired", async () => {
+    render(<DailyView dataService={attachDs(vi.fn())} />);
+    expect((await screen.findByTestId("editor")).dataset.attach).toBe("on");
+  });
+
+  it("shows the upload band above the body while the file travels", async () => {
+    let finish!: (ref: AttachmentRef) => void;
+    render(
+      <DailyView
+        dataService={attachDs(
+          () => new Promise<AttachmentRef>((resolve) => (finish = resolve)),
+        )}
+      />,
+    );
+    fireEvent.click(await screen.findByTestId("attach-image"));
+
+    const file = new File(["x"], "photo.png", { type: "image/png" });
+    const input = livePicker()!;
+    Object.defineProperty(input, "files", { value: [file] });
+    await act(async () => {
+      input.dispatchEvent(new Event("change"));
+    });
+
+    const band = screen.getByRole("status");
+    expect(band.textContent).toContain("photo.png");
+    expect(band.textContent).toContain("attachment.uploading");
+
+    await act(async () => {
+      finish({
+        path: "uid/a.png",
+        name: "photo.png",
+        mimeType: "image/png",
+        size: 1,
+      });
+    });
+    expect(screen.queryByRole("status")).toBeNull();
   });
 });
 
