@@ -55,6 +55,15 @@
  *
  * Pure module (no React, no DataService) — unit-tested in
  * shared/tests/goalSections.test.ts.
+ *
+ * SINCE #2106 nothing writes the note: goals are rows (#2101) and the paper's
+ * free-text fields are gone. The only live reader is goalNoteMigration.ts
+ * (`extractGoals` + the ids). The write half — `mergeGoalSection` and
+ * `adoptBareGoalHeadings`, tested in goalSections.test.ts, plus
+ * `normalizeGoalText`, which `mergeGoalSection` runs — has no caller outside
+ * this file. It is kept as the record of the note's format while the note is
+ * still the history of past periods (plan §移し替え: the note is never
+ * deleted).
  */
 
 import {

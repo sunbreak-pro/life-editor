@@ -1,15 +1,19 @@
 import type { ReactNode } from "react";
-import { ArrowUpRight, Plus, Sparkles, Sunrise, Trash2 } from "lucide-react";
+import {
+  ArrowUpRight,
+  Plus,
+  Sparkles,
+  Sunrise,
+  Target,
+  Trash2,
+} from "lucide-react";
 import type { TodoNode, TodoStatus } from "../../types/todoTree";
 import type { TimerSession } from "../../types/timer";
 import { SkeletonList } from "../SkeletonList";
 import { TAP_TARGET_TALL } from "../styleTokens";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { ExtractedBriefing } from "./extractBriefing";
-import { IntentionField } from "./IntentionField";
 import { BRIEFING_HINT_CLASS } from "./briefingStyles";
-import { GoalsBlock, type GoalsBlockLabels } from "./GoalsBlock";
-import type { GoalPeriod } from "./goalSections";
 
 /*
  * BriefingView — the morning-paper home surface (Briefing plan Step 1).
@@ -66,6 +70,12 @@ export interface BriefingTodoEntry {
   startTime: string;
   /** Titles of linked goal/notes (WikiTagsUnified item↔item links). */
   purposes: string[];
+  /**
+   * Titles of the goals this todo is linked to (#2106) — goal rows, not the
+   * note links `purposes` carries. Optional so a host without the goals read
+   * (and every fixture written before it) simply draws no mark.
+   */
+  goals?: string[];
 }
 
 /** One row of「持ち越し」. */
@@ -98,21 +108,17 @@ export interface BriefingData {
 
 export interface BriefingLabels {
   masthead: string;
+  /**
+   * Kicker of the top line —「ゆうべの自分から」since #2106 (it was「今日の
+   * フォーカス」). Same note, same writer; only the words changed.
+   */
   focusLabel: string;
   aiTitle: string;
   aiSource: string;
-  /** Empty state of the focus line — no focus was written last evening. */
+  /** Empty state of that line — nothing was written last evening (#2106). */
   noFocus: string;
-  intentionTitle: string;
-  /**
-   * Saved-state caption next to the intention title (host-computed).
-   * Omitted while the day has no declaration at all — there is no save to
-   * report yet, and「保存済み」above an empty field is a lie (#427).
-   */
-  intentionCaption?: string;
-  intentionPlaceholder: string;
-  /** Heading of the 週 / 月 / 年 goals block (#872). */
-  goalsTitle: string;
+  /** Screen-reader lead of a todo row's goal marks —「目標:」(#2106). */
+  goalMark: string;
   /**
    * Heading of the merged「今日のスケジュール」block (#939) — todos and
    * schedule rows share it now, so it is also the heading a day with todos
@@ -165,32 +171,23 @@ export interface BriefingViewProps {
   data: BriefingData;
   labels: BriefingLabels;
   /**
-   * Today's focus line (#1048) — written the previous evening on the 夕刊
-   * paper into the reserved focus note (focusSections.ts), NOT read from the
-   * daily any more. Null = no focus was written; the line shows its empty
-   * state.
+   *「ゆうべの自分から」(#1048, renamed in #2106) — written the previous
+   * evening on the 夕刊 paper (or by Claude through `write_briefing`) into the
+   * reserved focus note (focusSections.ts), NOT read from the daily. Null =
+   * nothing was written; the line shows its empty state.
    */
   focusText: string | null;
-  /** Today's declaration (宣言 — Step 4), newline-separated lines. */
-  intentionText: string;
-  /** Every keystroke — the host owns draft state + debounced persistence. */
-  onIntentionChange: (text: string) => void;
-  /** Blur — the host flushes a pending debounced save. */
-  onIntentionBlur: () => void;
   /**
-   * The CURRENT 週 / 月 / 年 goals (#872) — text per period, newline-separated.
-   * They live in one reserved note (goalSections.ts), not in the daily, filed
-   * under a period key: when a period turns over its field comes back empty
-   * and the previous one stays in the note as history (#957). The paper only
-   * ever shows the period `goalLabels` names.
+   * The period-end review and the goals block (#2106), built by the host —
+   * the same shape as EveningView's `editorSlot`, because both need the
+   * DataService and this view must not. Null / undefined draws nothing, so a
+   * host without the goals read leaves no empty frame behind.
+   *
+   * The 宣言 field and the free-text 週 / 月 / 年 goal fields that used to
+   * sit here are gone from the morning paper (#2106); their stored text is
+   * untouched.
    */
-  goals: Record<GoalPeriod, string>;
-  /** Copy of the three goal fields, period ranges included (host-formatted). */
-  goalLabels: GoalsBlockLabels;
-  /** Every keystroke in a goal field — same draft + debounce deal as 宣言. */
-  onGoalChange: (period: GoalPeriod, text: string) => void;
-  /** Blur on a goal field — the host flushes a pending debounced save. */
-  onGoalBlur: () => void;
+  goalsSlot?: ReactNode;
   /** Completes / un-completes a todo or carryover row (host → DataService). */
   onToggleTodo: (id: string) => void;
   /**
@@ -235,12 +232,16 @@ export interface BriefingViewProps {
 /**
  * Section heading row — 段標 (朱 bar) + small-caps kicker over a hairline.
  *
+ * Exported for the goals block (#2106), which the host builds and hands in as
+ * `goalsSlot` — it is a block of this paper and wears the same heading. Not
+ * on the barrel: it is the paper's own part, not a shared component.
+ *
  * `action` is an optional control pinned to the heading's right edge (#623 —
  * the schedule section's「+」). It shares that edge with `hint`, which is
  * annotation rather than a control, so the two never collide: no section
  * carries both.
  */
-function BlockHead({
+export function BlockHead({
   title,
   hint,
   action,
@@ -250,7 +251,7 @@ function BlockHead({
      but the AI comment's hint is an attribution badge with an icon in it. */
   hint?: ReactNode;
   action?: ReactNode;
-}) {
+}): React.JSX.Element {
   return (
     <div className="mb-3 flex items-baseline justify-between">
       <h3 className="flex items-center gap-2.5 text-xs font-bold tracking-[0.25em] text-lumen-text-secondary">
@@ -516,13 +517,7 @@ export function BriefingView({
   data,
   labels,
   focusText,
-  intentionText,
-  onIntentionChange,
-  onIntentionBlur,
-  goals,
-  goalLabels,
-  onGoalChange,
-  onGoalBlur,
+  goalsSlot,
   onToggleTodo,
   onDeleteScheduleItem,
   onDeleteTodo,
@@ -591,7 +586,8 @@ export function BriefingView({
         </p>
       </header>
 
-      {/* ── Focus line — written last evening on the 夕刊 (#1048) ── */}
+      {/* ── ゆうべの自分から — written last evening on the 夕刊 (#1048;
+          renamed from「今日のフォーカス」in #2106, same note) ── */}
       <section className="border-b border-lumen-border px-2 py-6 text-center">
         <p className="mb-2 text-xs font-bold tracking-[0.3em] text-lumen-briefing-shu">
           {labels.focusLabel}
@@ -658,30 +654,9 @@ export function BriefingView({
         </section>
       )}
 
-      {/* ── Today's intention (宣言 — Step 4) ────────────────────── */}
-      <section className="border-b border-lumen-border py-5">
-        <BlockHead
-          title={labels.intentionTitle}
-          hint={labels.intentionCaption}
-        />
-        <IntentionField
-          value={intentionText}
-          placeholder={labels.intentionPlaceholder}
-          onChange={onIntentionChange}
-          onBlur={onIntentionBlur}
-        />
-      </section>
-
-      {/* ── Standing goals: week → month → year (#872) ───────────── */}
-      <section className="border-b border-lumen-border py-5">
-        <BlockHead title={labels.goalsTitle} />
-        <GoalsBlock
-          values={goals}
-          labels={goalLabels}
-          onChange={onGoalChange}
-          onBlur={onGoalBlur}
-        />
-      </section>
+      {/* ── Goals: the period-end review, then this week's goals
+          (#2106). Host-built — see `goalsSlot`. ─────────────────── */}
+      {goalsSlot}
 
       {/* ── Today's schedule — todos ride on top of it (#939) ────────
           One list, not two sections: a todo placed on today and an all-day
@@ -783,6 +758,18 @@ export function BriefingView({
                     under, on Desktop and on a phone alike. 3.5 + 0.75 + 2.75 +
                     0.75 = 7.75rem, which is the same 124px at the 16px root and
                     follows the column at every other step. */}
+                {/* The goals it serves (#2106), above the note links: a goal
+                    is why the todo is on the paper at all. Same hang as the
+                    ◈ line below, but secondary text rather than 琥珀 — that
+                    colour already names the notes, and two meanings in one
+                    colour would read as one. */}
+                {todo.goals !== undefined && todo.goals.length > 0 && (
+                  <p className="ml-[7.75rem] mt-0.5 flex items-center gap-1 text-xs text-lumen-text-secondary">
+                    <Target size={12} aria-hidden="true" className="shrink-0" />
+                    <span className="sr-only">{labels.goalMark}</span>
+                    <span className="min-w-0">{todo.goals.join(" ・ ")}</span>
+                  </p>
+                )}
                 {todo.purposes.length > 0 && (
                   <p className="ml-[7.75rem] mt-0.5 text-xs text-lumen-text-secondary">
                     <span className="font-semibold text-lumen-briefing-kohaku">

@@ -18,7 +18,6 @@ import { WorkScreen } from "../src/work/WorkScreen";
 import { AnalyticsScreen } from "../src/analytics/AnalyticsScreen";
 import { useBriefingFetch } from "../src/briefing/hooks/useBriefingFetch";
 import { useFocusNote } from "../src/briefing/hooks/useFocusNote";
-import { useGoalsDoc } from "../src/briefing/hooks/useGoalsDoc";
 
 /*
  * #1157's acceptance test: the four self-fetching screens must draw what they
@@ -171,11 +170,12 @@ describe("Work — second visit", () => {
 // ── Briefing ───────────────────────────────────────────────────────────────
 
 /*
- * Briefing is asserted one layer down, at its three hooks, because the paper's
- * skeleton gate is `loading || goalsLoading || focusLoading` — three separate
- * flags from three separate reads, and any one of them left behind puts the
- * eight-row skeleton back on the default landing screen. Checking the flags
- * directly is what says which of the three is covered.
+ * Briefing is asserted one layer down, at its hooks, because the paper's
+ * skeleton gate is `loading || focusLoading` — two separate flags from two
+ * separate reads (the goals note's third left with the paper's goal fields,
+ * #2106), and either one left behind puts the eight-row skeleton back on the
+ * default landing screen. Checking the flags directly is what says which is
+ * covered.
  */
 
 function briefingService(): DataService {
@@ -215,32 +215,6 @@ describe("Briefing — second visit", () => {
     expect(second.result.current.dailyContent).toBe("morning");
 
     pending.resolve([]);
-  });
-
-  it("useGoalsDoc reports settled on the first render back", async () => {
-    const ds = briefingService();
-    const { wrapper } = createBumpableSync();
-    const first = renderHook(() => useGoalsDoc(ds, TODAY), { wrapper });
-    await waitFor(() => expect(first.result.current.goalsLoading).toBe(false));
-    first.unmount();
-
-    const pending = deferred<unknown>();
-    (
-      ds.getNoteUnified as unknown as ReturnType<typeof vi.fn>
-    ).mockReturnValueOnce(pending.promise);
-
-    const reads = (ds.getNoteUnified as unknown as ReturnType<typeof vi.fn>).mock
-      .calls.length;
-    const second = renderHook(() => useGoalsDoc(ds, TODAY), { wrapper });
-    expect(second.result.current.goalsLoading).toBe(false);
-    // Replayed, not skipped: the revalidate still went out.
-    await waitFor(() =>
-      expect(
-        (ds.getNoteUnified as unknown as ReturnType<typeof vi.fn>).mock.calls.length,
-      ).toBeGreaterThan(reads),
-    );
-
-    pending.resolve(null);
   });
 
   it("useFocusNote reports settled on the first render back", async () => {
