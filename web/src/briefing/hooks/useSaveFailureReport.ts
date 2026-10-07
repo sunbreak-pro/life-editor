@@ -24,7 +24,17 @@ import { useToastOptional, useTranslation } from "@life-editor/shared";
  */
 
 /** A write surface on the paper. Add a member, add its copy, done. */
-export type BriefingWriteTarget = "intention" | "evening" | "goals" | "focus";
+export type BriefingWriteTarget =
+  | "intention"
+  | "evening"
+  | "goals"
+  | "focus"
+  // The evening rows' one-line notes (#2107).
+  | "notes"
+  // 「明日の予定に置く」(#2107).
+  | "tomorrow"
+  // The ★'s publish stamp, when the mood line itself did save (#2107).
+  | "publish";
 
 export type ReportSaveFailure = (
   target: BriefingWriteTarget,

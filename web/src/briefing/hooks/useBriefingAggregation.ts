@@ -264,22 +264,33 @@ export function useBriefingAggregation({
     ];
   }, [liveTodos, todayKey, carryover, statusById]);
 
-  //「今後の予定」— the rest of today (from now) + all of tomorrow.
-  const upcoming = useMemo<EveningScheduleEntry[]>(() => {
-    const now = new Date();
-    const nowHHMM = `${String(now.getHours()).padStart(2, "0")}:${String(
-      now.getMinutes(),
-    ).padStart(2, "0")}`;
-    const todayRest = schedule
-      .filter((s) => !s.completed && (s.isAllDay || s.startTime >= nowHHMM))
-      .map((s) => ({
-        id: s.id,
-        title: s.title,
-        startTime: s.startTime,
-        isAllDay: s.isAllDay,
-        isTomorrow: false,
-      }));
-    const tomorrow = tomorrowItems
+  //「今後の予定」— the rest of today (after now) + all of tomorrow.
+  //
+  // Today's all-day events and anything starting this very minute belong to
+  //「今日の出来事」(#2107, eveningEvents keeps `at <= now`), so they stop here:
+  // one row per event on the paper, never both blocks at once. That only
+  // holds if both sides cut at the same instant: the start is compared as a
+  // real time on `todayKey` (as eveningEvents does), not as "HH:MM" text —
+  // past midnight with a late day start, "19:00" > "01:00" would print the
+  // evening's event in both blocks — and `now` is read on every render, the
+  // same `new Date()` the host hands eveningEvents.
+  const nowMs = new Date().getTime();
+  const todayRest: EveningScheduleEntry[] = schedule
+    .filter(
+      (s) =>
+        !s.completed &&
+        !s.isAllDay &&
+        new Date(`${todayKey}T${s.startTime}:00`).getTime() > nowMs,
+    )
+    .map((s) => ({
+      id: s.id,
+      title: s.title,
+      startTime: s.startTime,
+      isAllDay: s.isAllDay,
+      isTomorrow: false,
+    }));
+  const tomorrowRows = useMemo<EveningScheduleEntry[]>(() => {
+    return tomorrowItems
       .filter((s) => s.isDeleted !== true && s.isDismissed !== true)
       .sort((a, b) => {
         const aAll = a.isAllDay === true ? 0 : 1;
@@ -294,8 +305,8 @@ export function useBriefingAggregation({
         isAllDay: s.isAllDay === true,
         isTomorrow: true,
       }));
-    return [...todayRest, ...tomorrow];
-  }, [schedule, tomorrowItems]);
+  }, [tomorrowItems]);
+  const upcoming = [...todayRest, ...tomorrowRows];
 
   /** The pool the create panel's "existing note" picker offers (live, newest first). */
   const noteOptions = useMemo<ItemCreateOption[]>(

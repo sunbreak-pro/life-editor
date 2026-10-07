@@ -73,6 +73,8 @@ interface BriefingPaper {
   todoNodes: TodoNode[];
   sessions: TimerSession[];
   dailyContent: string | null;
+  /** The day's evening_notes (#2107) — they ride on the same daily read. */
+  eveningNotes: Record<string, string> | null;
   notes: NoteNode[];
   connections: WikiTagConnectionUnified[];
   tomorrowItems: ScheduleItem[];
@@ -84,6 +86,7 @@ const BLANK_PAPER: BriefingPaper = {
   todoNodes: [],
   sessions: [],
   dailyContent: null,
+  eveningNotes: null,
   notes: [],
   connections: [],
   tomorrowItems: [],
@@ -100,6 +103,8 @@ export interface BriefingFetchState {
   sessions: TimerSession[];
   dailyContent: string | null;
   setDailyContent: Dispatch<SetStateAction<string | null>>;
+  eveningNotes: Record<string, string> | null;
+  setEveningNotes: Dispatch<SetStateAction<Record<string, string> | null>>;
   notes: NoteNode[];
   connections: WikiTagConnectionUnified[];
   setConnections: Dispatch<SetStateAction<WikiTagConnectionUnified[]>>;
@@ -127,6 +132,10 @@ export function useBriefingFetch(
   const [todoNodes, setTodoNodes] = useState<TodoNode[]>([]);
   const [sessions, setSessions] = useState<TimerSession[]>([]);
   const [dailyContent, setDailyContent] = useState<string | null>(null);
+  const [eveningNotes, setEveningNotes] = useState<Record<
+    string,
+    string
+  > | null>(null);
   const [notes, setNotes] = useState<NoteNode[]>([]);
   const [connections, setConnections] = useState<WikiTagConnectionUnified[]>(
     [],
@@ -175,7 +184,12 @@ export function useBriefingFetch(
           daily.status === "fulfilled"
             ? (daily.value?.content ?? null)
             : previous.dailyContent,
-        notes: allNotes.status === "fulfilled" ? allNotes.value : previous.notes,
+        eveningNotes:
+          daily.status === "fulfilled"
+            ? (daily.value?.eveningNotes ?? null)
+            : previous.eveningNotes,
+        notes:
+          allNotes.status === "fulfilled" ? allNotes.value : previous.notes,
         connections:
           links.status === "fulfilled" ? links.value : previous.connections,
         tomorrowItems:
@@ -190,6 +204,8 @@ export function useBriefingFetch(
       setTodoNodes(paper.todoNodes);
       setSessions(paper.sessions);
       setDailyContent(paper.dailyContent);
+      // `?? null`: a paper snapshot stored before #2107 has no such slot.
+      setEveningNotes(paper.eveningNotes ?? null);
       setNotes(paper.notes);
       setConnections(paper.connections);
       setTomorrowItems(paper.tomorrowItems);
@@ -211,6 +227,8 @@ export function useBriefingFetch(
     sessions,
     dailyContent,
     setDailyContent,
+    eveningNotes,
+    setEveningNotes,
     notes,
     connections,
     setConnections,

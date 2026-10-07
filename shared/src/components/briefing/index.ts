@@ -128,6 +128,27 @@ export {
   type EveningTodoEntry,
   type EveningScheduleEntry,
 } from "./EveningView";
+export type { EveningEventEntry, EveningRowLabels } from "./EveningRows";
+// #2107: the day's one text and the day's numbers — the Daily rebuild (#2123)
+// reads and writes the same text and prints the same counts, so they live
+// here once rather than per screen.
+export { readDailyText, writeDailyText } from "./dailyText";
+export {
+  TOMORROW_OTHERS_LIMIT,
+  applyEveningNote,
+  eveningDayCounts,
+  eveningDayWindow,
+  eveningEvents,
+  eveningIssue,
+  goalsMovedToday,
+  tomorrowCandidates,
+  type EveningDayCounts,
+  type EveningDayInput,
+  type EveningEvent,
+  type EveningGoalMove,
+  type EveningIssue,
+  type EveningTomorrowCandidate,
+} from "./eveningDay";
 export {
   extractEveningSection,
   mergeEveningSection,

@@ -679,6 +679,45 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
   });
 
   // -------------------------------------------------------------------------
+  // evening_published_at / evening_notes (#2107)
+  // -------------------------------------------------------------------------
+
+  describe("updateDailyUnified — the evening columns (#2107)", () => {
+    it("writes evening_published_at to the payload and bumps items_meta", async () => {
+      stub.stage("items_meta", "update", { data: null, error: null });
+      stub.stage("dailies_payload", "update", { data: null, error: null });
+      stub.stage("items_meta", "select", { data: makeMetaRow(), error: null });
+      stub.stage("dailies_payload", "select", {
+        data: makePayloadRow({ evening_published_at: "2026-05-25T12:00:00Z" }),
+        error: null,
+      });
+
+      const out = await service.updateDailyUnified(DEFAULT_ID, {
+        eveningPublishedAt: "2026-05-25T12:00:00Z",
+      });
+      expect(out.eveningPublishedAt).toBe("2026-05-25T12:00:00Z");
+
+      const payUpdate = stub.calls.find(
+        (c) => c.table === "dailies_payload" && c.op === "update",
+      );
+      expect(payUpdate!.args[0]).toEqual({
+        evening_published_at: "2026-05-25T12:00:00Z",
+      });
+      const metaUpdate = stub.calls.find(
+        (c) => c.table === "items_meta" && c.op === "update",
+      );
+      expect(Object.keys(metaUpdate!.args[0] as object)).toEqual([
+        "updated_at",
+      ]);
+    });
+
+    it("selects both columns on every payload read", () => {
+      expect(DAILIES_PAYLOAD_COLUMNS).toContain("evening_published_at");
+      expect(DAILIES_PAYLOAD_COLUMNS).toContain("evening_notes");
+    });
+  });
+
+  // -------------------------------------------------------------------------
   // toggleDailyEditLockUnified
   // -------------------------------------------------------------------------
 

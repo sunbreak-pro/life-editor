@@ -7,9 +7,9 @@ import { useEffect, useRef } from "react";
  * not a form control. Sits on the 朱 side of the accent duo (the user's action
  * voice; Claude's 講評 block is 琥珀).
  *
- * Lives in its own module because BOTH the morning paper (always editable) and
- * the evening paper (editable on the narrow layout only — mobile Quick capture,
- * mobile-scope #3) mount it. Pure presentation (§6.4): no DataService, no
+ * Lives in its own module because BOTH papers mount it: the morning paper for
+ * its 宣言 and goals, the evening paper for its 明日の自分へ field (#2107 took
+ * the evening 宣言 off the paper). Pure presentation (§6.4): no DataService, no
  * useTranslation — the host owns the draft state and the debounced save.
  */
 export interface IntentionFieldProps {

@@ -76,6 +76,10 @@ function makeDS(initial: string | null) {
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     listNotesUnified: vi.fn().mockResolvedValue([]),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
+    // #2107: the evening paper's own reads (issue number, goals).
+    listDailiesUnified: vi.fn().mockResolvedValue([]),
+    fetchGoals: vi.fn().mockResolvedValue([]),
+    fetchGoalTodoLinks: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn(() => Promise.resolve(node())),
     upsertDailyByDateUnified: vi.fn((_date: string, content: string) => {
       stored = content;

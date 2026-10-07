@@ -155,6 +155,102 @@ describe("dailiesUnifiedMapper", () => {
   });
 });
 
+/*
+ * #2107 — the two evening columns of 0034. The DataService gained no method
+ * for them: `updateDailyUnified(id, Partial<DailyNode>)` already hands its
+ * diff to this mapper, so the mapper is the whole read / write path.
+ */
+describe("dailiesUnifiedMapper — evening_published_at / evening_notes (#2107)", () => {
+  it("reads both columns, null when absent", () => {
+    const blank = rowsToDailyNode(freshMeta(), freshPayload());
+    expect(blank.eveningPublishedAt).toBeNull();
+    expect(blank.eveningNotes).toBeNull();
+
+    const node = rowsToDailyNode(
+      freshMeta(),
+      freshPayload({
+        evening_published_at: NOW,
+        evening_notes: { "todo:t1": "良かった" },
+      }),
+    );
+    expect(node.eveningPublishedAt).toBe(NOW);
+    expect(node.eveningNotes).toEqual({ "todo:t1": "良かった" });
+  });
+
+  it("reads a notes value that is not a map of strings as no notes", () => {
+    for (const bad of [[], "x", { "todo:t1": 3 }, {}]) {
+      const node = rowsToDailyNode(
+        freshMeta(),
+        freshPayload({
+          evening_notes: bad as unknown as Record<string, string>,
+        }),
+      );
+      expect(node.eveningNotes).toBeNull();
+    }
+  });
+
+  it("drops only the non-string entries, so the next note save keeps the rest", () => {
+    const node = rowsToDailyNode(
+      freshMeta(),
+      freshPayload({
+        evening_notes: {
+          "todo:a": "x",
+          "session:b": { odd: true },
+        } as unknown as Record<string, string>,
+      }),
+    );
+    expect(node.eveningNotes).toEqual({ "todo:a": "x" });
+  });
+
+  it("patches them through the payload, null included, and still bumps updated_at", () => {
+    const { metaPatch, payloadPatch } = dailyUpdatesToPatches(
+      { eveningPublishedAt: null, eveningNotes: { "event:e1": "混んでいた" } },
+      USER,
+      NOW,
+    );
+    // LWW: the cursor moves on every patch; the payload carries none.
+    expect(metaPatch).toEqual({ updated_at: NOW });
+    expect(payloadPatch).toEqual({
+      evening_published_at: null,
+      evening_notes: { "event:e1": "混んでいた" },
+    });
+  });
+
+  it("emits neither column when the update does not name it", () => {
+    const { payloadPatch } = dailyUpdatesToPatches({ content: "" }, USER, NOW);
+    expect("evening_published_at" in payloadPatch).toBe(false);
+    expect("evening_notes" in payloadPatch).toBe(false);
+  });
+
+  it("inserts them only when the node carries them", () => {
+    const plain = dailyNodeToRows(
+      {
+        id: "daily-2026-05-24",
+        date: "2026-05-24",
+        content: "",
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      USER,
+    );
+    expect("evening_published_at" in plain.payload).toBe(false);
+    expect("evening_notes" in plain.payload).toBe(false);
+
+    const withNotes = dailyNodeToRows(
+      {
+        id: "daily-2026-05-24",
+        date: "2026-05-24",
+        content: "",
+        eveningNotes: { "todo:t1": "a" },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      USER,
+    );
+    expect(withNotes.payload.evening_notes).toEqual({ "todo:t1": "a" });
+  });
+});
+
 describe("dailiesUnifiedMapper — assertions", () => {
   it("assertDailyId accepts valid shape only", () => {
     expect(assertDailyId("daily-2026-05-24")).toBe("daily-2026-05-24");

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, waitFor, act } from "@testing-library/react";
+import { render, screen, waitFor, act, within } from "@testing-library/react";
 import {
   SyncContext,
   SYNC_DOMAINS,
@@ -135,11 +135,14 @@ describe.each([
       screen.getByLabelText("Status: Not started").click();
     });
 
-    // Still listed, struck through — the press has to stay visible.
+    // Still listed, struck through — the press has to stay visible. Looked
+    // up inside its own block: since #2107 a todo done today is also a row of
+    //「今日の出来事」, so the title is printed twice on the paper.
     await waitFor(() =>
       expect(screen.getByLabelText("Status: Done")).toBeTruthy(),
     );
-    expect(screen.getByText("Write the report").className).toContain(
+    const remaining = screen.getByRole("region", { name: "REMAINING TODOS" });
+    expect(within(remaining).getByText("Write the report").className).toContain(
       "line-through",
     );
   });

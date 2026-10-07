@@ -9,6 +9,9 @@ import {
   mergeEveningSection,
   mergeIntentionSection,
   normalizeIntentionText,
+  readDailyText,
+  writeDailyText,
+  type DailyNode,
   type DataService,
 } from "@life-editor/shared";
 
@@ -41,11 +44,18 @@ export function useDailySections(
   const reportSaveFailure = useSaveFailureReport();
 
   // ── Evening tab (#263 F-6) ───────────────────────────────────────────
-  // The 夕刊 tab is a dedicated editing view of the daily's evening section.
-  const eveningStored = useMemo(
-    () => extractEveningSection(dailyContent),
-    [dailyContent],
-  );
+  // Since #2107 the reflection field edits the day's ONE text (readDailyText:
+  // the body minus the 朝刊 / 宣言 sections, the 夕刊 heading and the mood
+  // line), so a day with an old Daily body shows that body here too. The
+  // mood still comes off the 夕刊 section's first line.
+  const eveningStored = useMemo(() => {
+    const section = extractEveningSection(dailyContent);
+    return {
+      mood: section.mood,
+      bodyDocJson: readDailyText(dailyContent),
+      hasSection: section.hasSection,
+    };
+  }, [dailyContent]);
 
   // Editor remount bookkeeping (same idea as DailyView): bump the key only
   // when the STORED evening body changes from OUTSIDE this editor (sync
@@ -88,26 +98,70 @@ export function useDailySections(
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
 
   // Each save carries ONLY what the user just changed (a body emission OR a
-  // mood tap) — mergeEveningSection keeps the freshest stored value for the
-  // undefined half, so a mood tap can never write back a stale body that an
-  // external edit (Daily side / another device / MCP) has since replaced.
+  // mood tap), applied to the freshest stored content, so a mood tap can
+  // never write back a stale body that an external edit (Daily side /
+  // another device / MCP) has since replaced.
+  //
+  // The mood tap is also the PUBLISH act (#2107): after the body write it
+  // keeps `evening_published_at` in step with the mood line — stamped when a
+  // day goes from unpublished to published (a re-rating keeps the first
+  // stamp), and set back to null when the star is cleared, so the issue
+  // number (counted off the mood line) and the timestamp never disagree.
+  // A second call because `upsertDailyByDateUnified(date, content)` carries
+  // content only; the column is reached by `updateDailyUnified`, which needs
+  // the row id the upsert hands back (the upsert also creates a missing day).
+  // The two do not land atomically, so the stamp has its own failure copy —
+  // the mood line DID save, and「夕刊を保存できませんでした」would be untrue.
+  // The gap heals on the next tap: `stamped` is read off the fresh row, so
+  // any later rating stamps a day still missing one.
   const persistEvening = useCallback(
-    (patch: { bodyDocJson?: string | null; mood?: number | null }) => {
+    (patch: { bodyDocJson: string | null } | { mood: number | null }) => {
       saveChainRef.current = saveChainRef.current.then(async () => {
+        let node: DailyNode | null;
         try {
           const fresh = await ds.getDailyByDateUnified(todayKey);
           const freshContent = fresh?.content ?? "";
-          const merged = mergeEveningSection(freshContent, patch);
-          if (merged === freshContent) return;
-          const updated = await ds.upsertDailyByDateUnified(todayKey, merged);
-          setDailyContent(updated.content ?? merged);
+          const merged =
+            "mood" in patch
+              ? mergeEveningSection(freshContent, { mood: patch.mood })
+              : writeDailyText(freshContent, patch.bodyDocJson);
+          node = fresh;
+          if (merged !== freshContent) {
+            node = await ds.upsertDailyByDateUnified(todayKey, merged);
+            setDailyContent(node.content ?? merged);
+          }
         } catch (err) {
           reportSaveFailure("evening", err);
+          return;
+        }
+        if (!("mood" in patch) || node === null) return;
+        try {
+          const stamped = (node.eveningPublishedAt ?? null) !== null;
+          if (patch.mood !== null && !stamped) {
+            await ds.updateDailyUnified(node.id, {
+              eveningPublishedAt: new Date().toISOString(),
+            });
+          } else if (patch.mood === null && stamped) {
+            await ds.updateDailyUnified(node.id, { eveningPublishedAt: null });
+          }
+        } catch (err) {
+          reportSaveFailure("publish", err);
         }
       });
     },
     [ds, todayKey, setDailyContent, reportSaveFailure],
   );
+
+  /**
+   * Run another daily write on the SAME chain (#2107 — the evening rows'
+   * notes). They read-modify-write the same row, and the row may not exist
+   * yet: two chains could both find it missing and both create it.
+   */
+  const queueDailyWrite = useCallback((job: () => Promise<void>) => {
+    saveChainRef.current = saveChainRef.current.then(job).catch(() => {
+      // A job reports its own failure; the chain must survive it.
+    });
+  }, []);
 
   /*
    * The keystroke-to-debounce window (#1822).
@@ -281,6 +335,7 @@ export function useDailySections(
     markEveningDirty,
     handleEveningUpdate,
     handleSelectMood,
+    queueDailyWrite,
     intentionStored,
     intentionDraft,
     intentionText,

@@ -47,6 +47,10 @@ function makeDS(overrides: Partial<DataService> = {}): DataService {
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
+    // #2107: the evening paper's own reads (issue number, goals).
+    listDailiesUnified: vi.fn().mockResolvedValue([]),
+    fetchGoals: vi.fn().mockResolvedValue([]),
+    fetchGoalTodoLinks: vi.fn().mockResolvedValue([]),
     getNoteUnified: vi.fn().mockResolvedValue(null),
     ...overrides,
   });

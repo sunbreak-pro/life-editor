@@ -66,6 +66,10 @@ export interface DailiesPayloadRow {
   is_pinned: boolean;
   is_edit_locked: boolean;
   has_password: boolean;
+  /** 0034 (#2107). Optional so row literals written before it still type. */
+  evening_published_at?: string | null;
+  /** 0034 (#2107): a jsonb object (CHECKed), or null. */
+  evening_notes?: Record<string, string> | null;
 }
 
 /** Writable subset for INSERT/UPSERT on dailies_payload. `has_password`
@@ -88,7 +92,7 @@ export const ITEMS_META_DAILY_COLUMNS = ITEMS_META_COLUMNS;
 
 export const DAILIES_PAYLOAD_COLUMNS =
   "item_id, user_id, date, content_json, is_pinned, is_edit_locked, " +
-  "has_password";
+  "has_password, evening_published_at, evening_notes";
 
 // ---------------------------------------------------------------------------
 // 3. Id / date validators (defence-in-depth)
@@ -139,8 +143,26 @@ export function rowsToDailyNode(
   node.isEditLocked = payload.is_edit_locked;
   node.isDeleted = meta.is_deleted;
   node.deletedAt = meta.deleted_at;
+  node.eveningPublishedAt = payload.evening_published_at ?? null;
+  node.eveningNotes = toEveningNotes(payload.evening_notes);
 
   return node;
+}
+
+/**
+ * The DB only CHECKs that `evening_notes` is an object, so a value written by
+ * hand (or a future writer) could carry a non-string. Only that entry is
+ * dropped, not the whole map: the note writer saves the map it read back with
+ * one key changed, so reading one bad value as "no notes" would erase every
+ * other note on the next save (#2107 review).
+ */
+function toEveningNotes(value: unknown): Record<string, string> | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return null;
+  const entries = Object.entries(value as Record<string, unknown>).filter(
+    (e): e is [string, string] => typeof e[1] === "string",
+  );
+  return entries.length === 0 ? null : Object.fromEntries(entries);
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +200,12 @@ export function dailyNodeToRows(
     is_pinned: node.isPinned ?? false,
     is_edit_locked: node.isEditLocked ?? false,
   };
+  // Only when the node carries them: the columns default to NULL, and leaving
+  // them off keeps the insert row of every existing caller unchanged.
+  if (node.eveningPublishedAt !== undefined)
+    payload.evening_published_at = node.eveningPublishedAt;
+  if (node.eveningNotes !== undefined)
+    payload.evening_notes = node.eveningNotes;
 
   return { meta, payload };
 }
@@ -224,6 +252,15 @@ export function dailyUpdatesToPatches(
     payloadPatch.is_pinned = updates.isPinned;
   if ("isEditLocked" in updates && updates.isEditLocked !== undefined)
     payloadPatch.is_edit_locked = updates.isEditLocked;
+  // #2107: null passes through on purpose — it is how a cleared star
+  // unpublishes and how the last note is removed.
+  if (
+    "eveningPublishedAt" in updates &&
+    updates.eveningPublishedAt !== undefined
+  )
+    payloadPatch.evening_published_at = updates.eveningPublishedAt;
+  if ("eveningNotes" in updates && updates.eveningNotes !== undefined)
+    payloadPatch.evening_notes = updates.eveningNotes;
 
   return { metaPatch, payloadPatch };
 }

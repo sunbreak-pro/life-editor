@@ -50,23 +50,41 @@ const doc = (...nodes: TipTapNodeLike[]): string =>
 
 const MORNING = doc(heading("朝刊"), para("Today is wide open."));
 
-/** A DataService whose daily actually remembers what was written to it. */
+/**
+ * A DataService whose daily actually remembers what was written to it — the
+ * body, and since #2107 the publish stamp the star keeps in step with it.
+ */
 function makeStore(initial: string | null) {
-  const store = { content: initial };
+  const store: { content: string | null; publishedAt: string | null } = {
+    content: initial,
+    publishedAt: null,
+  };
+  const node = () => ({
+    id: "daily-" + TODAY,
+    content: store.content,
+    eveningPublishedAt: store.publishedAt,
+  });
   const ds: DataService = stubDataService({
     getDailyByDateUnified: vi
       .fn()
       .mockImplementation(() =>
-        Promise.resolve(
-          store.content === null ? null : { content: store.content },
-        ),
+        Promise.resolve(store.content === null ? null : node()),
       ),
     upsertDailyByDateUnified: vi
       .fn()
       .mockImplementation((_date: string, content: string) => {
         store.content = content;
-        return Promise.resolve({ content });
+        return Promise.resolve(node());
       }),
+    updateDailyUnified: vi
+      .fn()
+      .mockImplementation(
+        (_id: string, updates: { eveningPublishedAt?: string | null }) => {
+          if (updates.eveningPublishedAt !== undefined)
+            store.publishedAt = updates.eveningPublishedAt;
+          return Promise.resolve(node());
+        },
+      ),
   });
   return { ds, store };
 }
@@ -196,6 +214,122 @@ describe("useDailySections — 夕刊 saves (#892)", () => {
       result.current.setContent(doc(heading("夕刊"), para("Someone else."))),
     );
     expect(result.current.eveningGen).toBe(before + 1);
+  });
+});
+
+/*
+ * #2107 — the star publishes the day's paper. The issue NUMBER is counted off
+ * the mood line, so the publish stamp has to follow that line both ways or
+ * the two disagree about whether today's paper exists.
+ */
+describe("useDailySections — the star publishes (#2107)", () => {
+  const ID = "daily-" + TODAY;
+
+  it("stamps evening_published_at once, after the mood line is written", async () => {
+    const { ds, store } = makeStore(MORNING);
+    const { result } = renderSections(ds, MORNING);
+
+    await act(async () => result.current.handleSelectMood(4));
+    await waitFor(() =>
+      expect(mockOf(ds, "updateDailyUnified")).toHaveBeenCalledTimes(1),
+    );
+    const [id, patch] = mockOf(ds, "updateDailyUnified").mock.calls[0]!;
+    expect(id).toBe(ID);
+    expect(typeof patch.eveningPublishedAt).toBe("string");
+    expect(extractEveningSection(store.content).mood).toBe(4);
+  });
+
+  it("keeps the first stamp when the mood is changed", async () => {
+    const { ds, store } = makeStore(MORNING);
+    const { result } = renderSections(ds, MORNING);
+
+    await act(async () => result.current.handleSelectMood(4));
+    await waitFor(() => expect(store.publishedAt).not.toBeNull());
+    const first = store.publishedAt;
+    await act(async () => result.current.handleSelectMood(2));
+    await waitFor(() =>
+      expect(extractEveningSection(store.content).mood).toBe(2),
+    );
+    expect(mockOf(ds, "updateDailyUnified")).toHaveBeenCalledTimes(1);
+    expect(store.publishedAt).toBe(first);
+  });
+
+  it("unpublishes (null) when the same star is tapped off", async () => {
+    const { ds, store } = makeStore(MORNING);
+    const { result } = renderSections(ds, MORNING);
+
+    await act(async () => result.current.handleSelectMood(4));
+    await waitFor(() => expect(store.publishedAt).not.toBeNull());
+    await act(async () => result.current.handleSelectMood(4));
+    await waitFor(() => expect(store.publishedAt).toBeNull());
+    expect(mockOf(ds, "updateDailyUnified")).toHaveBeenLastCalledWith(ID, {
+      eveningPublishedAt: null,
+    });
+  });
+
+  it("never touches the stamp from a body save", async () => {
+    const { ds } = makeStore(MORNING);
+    const { result } = renderSections(ds, MORNING);
+
+    await act(async () =>
+      result.current.handleEveningUpdate(doc(para("Long day."))),
+    );
+    await waitFor(() =>
+      expect(mockOf(ds, "upsertDailyByDateUnified")).toHaveBeenCalled(),
+    );
+    expect(mockOf(ds, "updateDailyUnified")).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #2107 — the reflection field edits the day's ONE text: an old Daily body is
+ * part of it, and the first save moves it under the 夕刊 heading. Moved, never
+ * dropped.
+ */
+describe("useDailySections — the one text (#2107)", () => {
+  const LEGACY = doc(
+    heading("朝刊"),
+    para("Today is wide open."),
+    heading("メモ"),
+    para("Lunch with Aki."),
+  );
+
+  it("shows an old body in the field without writing anything", async () => {
+    const { ds } = makeStore(LEGACY);
+    const { result } = renderSections(ds, LEGACY);
+    expect(result.current.eveningStored.bodyDocJson).toContain(
+      "Lunch with Aki.",
+    );
+    await act(async () => undefined);
+    expect(mockOf(ds, "upsertDailyByDateUnified")).not.toHaveBeenCalled();
+  });
+
+  it("moves the old body under 夕刊 on the first edit, losing no character", async () => {
+    const { ds, store } = makeStore(LEGACY);
+    const { result } = renderSections(ds, LEGACY);
+    const edited = JSON.parse(result.current.eveningStored.bodyDocJson!);
+    edited.content.push(para("Then a walk."));
+
+    await act(async () =>
+      result.current.handleEveningUpdate(JSON.stringify(edited)),
+    );
+    await waitFor(() =>
+      expect(mockOf(ds, "upsertDailyByDateUnified")).toHaveBeenCalledTimes(1),
+    );
+    for (const text of [
+      "Today is wide open.",
+      "メモ",
+      "Lunch with Aki.",
+      "Then a walk.",
+    ]) {
+      expect(store.content).toContain(text);
+    }
+    // The old body now sits inside the 夕刊 section, after its heading.
+    const evening = store.content!.indexOf("夕刊");
+    expect(evening).toBeGreaterThan(
+      store.content!.indexOf("Today is wide open."),
+    );
+    expect(store.content!.indexOf("Lunch with Aki.")).toBeGreaterThan(evening);
   });
 });
 

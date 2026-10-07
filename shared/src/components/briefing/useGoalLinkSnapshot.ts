@@ -41,6 +41,12 @@ export interface GoalLinkSnapshot {
   /** Null until the first read lands (or when there is no loader). */
   state: GoalLinkState | null;
   /**
+   * The latest read rejected (#2107): tells "still loading" apart from "will
+   * not arrive" while `state` is null, so a host can say so instead of
+   * hiding the goals for good. Cleared by the next read that lands.
+   */
+  failed: boolean;
+  /**
    * Link, then unlink, one pair at a time. Rejects on the first failure; the
    * pairs written before it stay written (and patched in).
    */
@@ -71,6 +77,7 @@ export function useGoalLinkSnapshot(
     ...(ownTree ? (["goals", "todos"] as const) : (["goals"] as const)),
   );
   const [loaded, setLoaded] = useState<Loaded | null>(null);
+  const [failed, setFailed] = useState(false);
   /*
    * Write fences. A read that was in flight when a write started returns the
    * links from BEFORE it, and landing that would wipe the write's local patch
@@ -94,12 +101,15 @@ export function useGoalLinkSnapshot(
             : Promise.resolve([]),
           ownTree ? loader.fetchTodoTree() : Promise.resolve(null),
         ]);
-        if (!cancelled && writeFenceRef.current === fence)
+        if (!cancelled && writeFenceRef.current === fence) {
           setLoaded({ goals, links, tree });
+          setFailed(false);
+        }
       } catch (e) {
         // The previous state stays: a failed refresh must not blank a field
         // the user is in the middle of.
         logServiceError("Goals", "load goal links", e);
+        if (!cancelled) setFailed(true);
       }
     })();
     return () => {
@@ -149,5 +159,5 @@ export function useGoalLinkSnapshot(
     [loader],
   );
 
-  return { state, writeLinks };
+  return { state, failed, writeLinks };
 }
