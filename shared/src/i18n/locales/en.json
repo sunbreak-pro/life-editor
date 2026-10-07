@@ -421,6 +421,32 @@
     "saved": "Saved",
     "unsaved": "Unsaved"
   },
+  "goalLink": {
+    "field": "Goals",
+    "listLabel": "Goals this todo serves",
+    "periodWeek": "This week",
+    "periodMonth": "This month",
+    "periodYear": "This year",
+    "unconnected": "Not connected",
+    "achieved": "Achieved",
+    "becomesAchieved": "Will be achieved",
+    "losesAchievement": "Will no longer be achieved",
+    "achievementLost": "No longer achieved",
+    "previewHeading": "What saving changes",
+    "saveFailed": "Could not save the goal links. Your choice is still here — press Save again.",
+    "createLinkFailed": "The new todo was created, but could not be linked to its goals. Pick them again from the todo's detail.",
+    "attach": "Link to a goal",
+    "attached": "Goals",
+    "heading": "Link todos",
+    "search": "Search todos",
+    "todoList": "Todos to link",
+    "empty": "There are no todos to link yet.",
+    "noMatch": "No todos match.",
+    "done": "Done",
+    "save": "Save",
+    "saving": "Saving…",
+    "cancel": "Cancel"
+  },
   "materials": {
     "todos": {
       "statusGroupLabel": "Change status",
