@@ -66,6 +66,11 @@ export interface DailyEveningCardProps {
    * drawn in place of `reflectionLines`, even when those are empty.
    */
   reflectionSlot?: ReactNode;
+  /**
+   * Extra classes for the card's outer box — the host's layout hook. The
+   * Daily column passes its scroll floor here (#2122).
+   */
+  className?: string;
 }
 
 const MOOD_STAR_BUTTON =
@@ -82,9 +87,15 @@ export function DailyEveningCard({
   labels,
   onSelectMood,
   reflectionSlot,
+  className,
 }: DailyEveningCardProps): React.JSX.Element {
   return (
-    <section className="mt-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary px-5 py-4 shadow-lumen-sm">
+    <section
+      className={cn(
+        "mt-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary px-5 py-4 shadow-lumen-sm",
+        className,
+      )}
+    >
       {/* ── Header — the evening paper's own voice: serif title, 朱 bar,
           the day's mood at the right edge ─────────────────────────── */}
       <div

@@ -126,6 +126,18 @@ const parseIso = dateFromKey;
  */
 export const DAILY_EDITOR_CARD_MIN_HEIGHT = "min-h-60";
 
+/*
+ * #2122 — the Daily column is pinned to the screen height and only the body
+ * editor scrolled, so a long evening reflection pushed the bottom of the
+ * evening card (the rest of the reflection + the day's schedule) out of the
+ * column with nothing to scroll it back. The card now shrinks like the editor
+ * card does and scrolls inside its own border once it no longer fits. The two
+ * cards are siblings, so this adds a second scroll area beside the editor's,
+ * never one nested around it. A short card is unchanged: shrink only kicks in
+ * once the editor card already sits on its floor (DAILY_EDITOR_CARD_MIN_HEIGHT).
+ */
+export const DAILY_EVENING_CARD_SCROLL = "min-h-0 overflow-y-auto";
+
 function EditorCard({
   dateLabel,
   dateClassName,
@@ -797,6 +809,7 @@ export function DailyView({
       reflectionLines={eveningLines}
       schedule={daySchedule}
       onSelectMood={handleSelectMood}
+      className={DAILY_EVENING_CARD_SCROLL}
       reflectionSlot={
         editingReflection ? (
           <LazyRichTextEditor
