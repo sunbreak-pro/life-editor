@@ -514,6 +514,9 @@ export * from "./briefing";
 // of one picture of every relationship at once. Pure presentational — the
 // derivation is a pure function and the host injects data + copy (§6.4).
 export * from "./TagHub";
+// Goal tree (#2108) — Connect's second tab: the year → month → week goals
+// with their linked todos, and the right panel for the picked goal.
+export * from "./goalTree";
 // Schedule (W8) — week/day time grid primitive + pure layout/date helpers.
 // Pure presentation: items + already-translated labels injected by the host
 // (§6.4). The schedule_items CRUD + RoutineScheduleSync stay host-side.

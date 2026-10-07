@@ -22,6 +22,9 @@ import {
 /** In-Materials tab — the document surfaces addressed by one section. */
 export type MaterialsTab = "notes" | "daily";
 
+/** Connect's two tabs (#2108): the tag hub and the goal tree. */
+export type ConnectTab = "tags" | "goals";
+
 /**
  * A navigation destination in the CURRENT information architecture (#676 (b)):
  * the section to switch to, plus the in-section tab for the two sections that
@@ -121,6 +124,9 @@ export function useShellNavigation({
   const [briefingTab, setBriefingTab] = useState<BriefingTab>(() =>
     defaultBriefingTab(),
   );
+  // Connect's タグ / 目標と Todo tab (#2108), lifted for the same reason.
+  // Opens on Tags — the tab the section had before it had tabs.
+  const [connectTab, setConnectTab] = useState<ConnectTab>("tags");
   // global:new-task intent, consumed once by the Schedule section (see
   // handleNewTodo). A boolean "pending" flag — not a nonce — so returning to
   // the section later never re-opens the add dialog.
@@ -206,6 +212,8 @@ export function useShellNavigation({
       guarded(() => {
         applyDestination(dest);
         if (id === "nav:tasks") setPendingTodoTray(true);
+        // nav:tags means the tags, not whichever Connect tab was last open.
+        if (id === "nav:tags") setConnectTab("tags");
       });
     },
     [applyDestination, guarded],
@@ -330,6 +338,8 @@ export function useShellNavigation({
     setAnalyticsPreset,
     briefingTab,
     setBriefingTab,
+    connectTab,
+    setConnectTab,
     pendingNewTodo,
     consumeNewTodo,
     navigateTo,

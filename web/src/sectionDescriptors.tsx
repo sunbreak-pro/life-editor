@@ -11,6 +11,7 @@ import {
   type SectionId,
 } from "@life-editor/shared";
 import { ConnectScreen } from "./connect/ConnectScreen";
+import { GoalsTodosScreen } from "./connect/GoalsTodosScreen";
 import { NotesUnifiedHost } from "./notes/NotesUnifiedHost";
 import { DailyView } from "./daily/DailyView";
 import { BriefingScreen } from "./briefing/BriefingScreen";
@@ -50,7 +51,7 @@ import type { ShellNavigation } from "./hooks/useShellNavigation";
  * `useShellNavigation` and the translated defs in `useShellChrome`; a
  * descriptor only names WHICH band its chrome shows, so the two never drift.
  */
-export type TabBandId = "materials" | "analytics" | "briefing";
+export type TabBandId = "materials" | "analytics" | "briefing" | "connect";
 
 /**
  * The narrow-layout row that sits above the body (below 768px only — the wide
@@ -279,18 +280,26 @@ export const SECTION_DESCRIPTORS: Readonly<
    * already has, so a lazy() row here would buy nothing and cost the
    * two-table upkeep in lazySections.ts (#1158).
    */
+  // Two tabs since #2108: the tag hub, and the goal tree (plan Step 9).
   connect: {
     width: "fluid",
-    narrowHeader: "hamburger",
-    body: ({ ds, nav, onConnectCounts }) => (
-      <WikiTagsUnifiedProvider dataService={ds}>
-        <ConnectScreen
+    tabBand: "connect",
+    narrowHeader: "tabs+hamburger",
+    body: ({ ds, nav, onConnectCounts }) =>
+      nav.connectTab === "goals" ? (
+        <GoalsTodosScreen
           dataService={ds}
           onNavigateToItem={nav.navigateToItem}
-          onCountsChange={onConnectCounts}
         />
-      </WikiTagsUnifiedProvider>
-    ),
+      ) : (
+        <WikiTagsUnifiedProvider dataService={ds}>
+          <ConnectScreen
+            dataService={ds}
+            onNavigateToItem={nav.navigateToItem}
+            onCountsChange={onConnectCounts}
+          />
+        </WikiTagsUnifiedProvider>
+      ),
   },
   /*
    * Work (W3-B) — Pomodoro timer + TodoSelector + settings/preset editor.

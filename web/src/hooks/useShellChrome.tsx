@@ -183,6 +183,16 @@ export function useShellChrome({
     [t],
   );
 
+  // Connect in-section tab defs (タグ / 目標と Todo — #2108). Same one-list-
+  // for-both-controls shape as Briefing's.
+  const connectTabDefs = useMemo(
+    () => [
+      { id: "tags", label: t("connect.tabs.tags") },
+      { id: "goals", label: t("connect.tabs.goals") },
+    ],
+    [t],
+  );
+
   const shellLabels = useMemo(
     () => ({
       appName: "Life Editor",
@@ -215,6 +225,7 @@ export function useShellChrome({
     materialsTabDefs,
     analyticsTabDefs,
     briefingTabDefs,
+    connectTabDefs,
     shellLabels,
   };
 }

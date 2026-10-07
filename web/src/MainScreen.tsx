@@ -1,4 +1,10 @@
-import { useEffect, useMemo, useState, type ComponentProps } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ComponentProps,
+  type ReactNode,
+} from "react";
 import {
   getDataService,
   signOut,
@@ -23,6 +29,7 @@ import {
   WIDE_QUERY,
 } from "@life-editor/shared";
 import { AppProviders } from "./AppProviders";
+import { connectTabBand } from "./connect/connectTabBand";
 import { HeaderUndoRedo } from "./HeaderUndoRedo";
 import { MobileShellActions } from "./MobileShellActions";
 import { NarrowHeaderRow } from "./NarrowHeaderRow";
@@ -70,11 +77,43 @@ import { AppErrorBoundary } from "./components/AppErrorBoundary";
  * feeds BOTH controls — the wide SectionHeader's HeaderTabs and the narrow
  * SegmentedControl — so the two can never drift apart.
  */
-interface TabBand {
+export interface TabBand {
   readonly defs: HeaderTab[];
   readonly active: string;
   readonly onSelect: (id: string) => void;
   readonly label: string;
+  /** Wide only: beside the tabs (HeaderTabs `trailing`) — Connect's totals. */
+  readonly trailing?: ReactNode;
+}
+
+/**
+ * The wide header of a section with a tab band: the band stands in for the
+ * title (divider={false}: the SectionHeader owns the line). Exported so
+ * web/tests/connectTabs.test.tsx can pin that the band's `trailing` — where
+ * Connect's totals went when its title row became tabs (#2108) — is drawn.
+ */
+export function TabBandHeader({
+  band,
+  controls,
+}: {
+  band: TabBand;
+  controls: ReactNode;
+}): React.JSX.Element {
+  return (
+    <SectionHeader
+      tabs={
+        <HeaderTabs
+          divider={false}
+          tabs={band.defs}
+          activeTab={band.active}
+          onSelect={band.onSelect}
+          label={band.label}
+          trailing={band.trailing}
+        />
+      }
+      controls={controls}
+    />
+  );
 }
 
 export function MainScreen({ session }: { session: Session }) {
@@ -107,6 +146,7 @@ export function MainScreen({ session }: { session: Session }) {
     materialsTabDefs,
     analyticsTabDefs,
     briefingTabDefs,
+    connectTabDefs,
     shellLabels,
   } = useShellChrome({
     setSection,
@@ -114,12 +154,12 @@ export function MainScreen({ session }: { session: Session }) {
   });
   const [paletteOpen, setPaletteOpen] = useState(false);
   /*
-   * The Connect hub's totals, for the section header's subtitle (D1 / #1643).
-   * The numbers can only be counted where the caches are, so the screen reports
-   * them up and clears them on unmount; the header only draws them while
-   * Connect is the section, so a stale pair can never be shown against another
-   * title. This is the same headless shape as MaterialsCountsBridge, minus the
-   * bridge: the reporter is the section body itself.
+   * The Connect hub's totals, for the section header (D1 / #1643; beside the
+   * tab band since #2108). The numbers can only be counted where the caches
+   * are, so the screen reports them up and clears them on unmount; only the
+   * Connect band draws them, so a stale pair can never be shown against
+   * another title. This is the same headless shape as MaterialsCountsBridge,
+   * minus the bridge: the reporter is the section body itself.
    */
   const [connectCounts, setConnectCounts] = useState<{
     tags: number;
@@ -221,6 +261,13 @@ export function MainScreen({ session }: { session: Session }) {
       onSelect: (id) => nav.setBriefingTab(id as typeof nav.briefingTab),
       label: t("briefing.tabsLabel"),
     },
+    connect: connectTabBand({
+      defs: connectTabDefs,
+      active: nav.connectTab,
+      onSelect: nav.setConnectTab,
+      label: t("connect.tabsLabel"),
+      counts: connectCounts,
+    }),
   };
   const band = descriptor.tabBand ? tabBands[descriptor.tabBand] : undefined;
 
@@ -230,26 +277,10 @@ export function MainScreen({ session }: { session: Session }) {
   // band shows it as its title (divider={false}: the SectionHeader owns the
   // line); every other section shows its translated title.
   const sectionHeader = band ? (
-    <SectionHeader
-      tabs={
-        <HeaderTabs
-          divider={false}
-          tabs={band.defs}
-          activeTab={band.active}
-          onSelect={band.onSelect}
-          label={band.label}
-        />
-      }
-      controls={headerControls}
-    />
+    <TabBandHeader band={band} controls={headerControls} />
   ) : (
     <SectionHeader
       title={t(`section.${section}`, { defaultValue: section })}
-      subtitle={
-        section === "connect" && connectCounts
-          ? t("connect.headerCounts", connectCounts)
-          : undefined
-      }
       controls={headerControls}
     />
   );
