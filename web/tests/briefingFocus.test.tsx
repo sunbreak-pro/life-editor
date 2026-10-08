@@ -145,7 +145,7 @@ describe("Briefing focus line (#1048)", () => {
     await waitFor(() =>
       expect(
         screen.getByText(
-          "No focus for today yet. Write it on the previous evening's paper and it will appear here.",
+          'Nothing yet. Write it under "Note to tomorrow" on the evening paper and it shows up here.',
         ),
       ).toBeTruthy(),
     );

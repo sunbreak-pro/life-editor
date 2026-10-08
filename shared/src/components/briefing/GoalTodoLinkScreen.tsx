@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useId, useMemo, useState } from "react";
 import { Check } from "lucide-react";
 import { judgeGoals } from "../../utils/goalAchievement";
 import { Button } from "../Button";
@@ -87,6 +87,13 @@ export interface GoalTodoLinkScreenProps {
   onSave: (diff: GoalLinkDiff) => Promise<void>;
   onClose?: () => void;
   labels: GoalTodoLinkScreenLabels;
+  /**
+   * False when the host's frame already titles it with `labels.heading` (the
+   * morning paper's overlay, #2106) — the kicker would say it twice. The
+   * section's accessible name then becomes the goal's title, so a screen
+   * reader hears which goal it is rather than the dialog's name again.
+   */
+  headingShown?: boolean;
 }
 
 export function GoalTodoLinkScreen({
@@ -96,6 +103,7 @@ export function GoalTodoLinkScreen({
   onSave,
   onClose,
   labels,
+  headingShown = true,
 }: GoalTodoLinkScreenProps): React.JSX.Element | null {
   // What the user changed, re-applied to the latest saved links (LinkDraft):
   // a todo another device links meanwhile is not unlinked by this save.
@@ -104,6 +112,7 @@ export function GoalTodoLinkScreen({
   const [saving, setSaving] = useState(false);
   const [failed, setFailed] = useState(false);
   const [lostTitles, setLostTitles] = useState<string[]>([]);
+  const titleId = useId();
 
   const goal = state.goals.find((g) => g.id === goalId && !g.isDeleted);
   const baseline = useMemo(
@@ -183,17 +192,22 @@ export function GoalTodoLinkScreen({
 
   return (
     <section
-      aria-label={labels.heading}
+      aria-label={headingShown ? labels.heading : undefined}
+      aria-labelledby={headingShown ? undefined : titleId}
       className="flex flex-col gap-3 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary p-3"
     >
       <header className="space-y-1.5">
-        <p className="text-xs font-bold tracking-[0.2em] text-lumen-text-secondary">
-          {labels.heading}
-        </p>
+        {headingShown && (
+          <p className="text-xs font-bold tracking-[0.2em] text-lumen-text-secondary">
+            {labels.heading}
+          </p>
+        )}
         <p className="text-xs text-lumen-briefing-kohaku">
           {labels.periodLabel}
         </p>
-        <h3 className="text-base font-medium text-lumen-text">{goal.title}</h3>
+        <h3 id={titleId} className="text-base font-medium text-lumen-text">
+          {goal.title}
+        </h3>
         {progress && (
           <div className="flex items-center gap-2">
             {progress.connected && (

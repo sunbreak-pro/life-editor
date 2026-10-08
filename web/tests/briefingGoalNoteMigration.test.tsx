@@ -10,6 +10,7 @@ import {
   todayDateKey,
   WEEK_STARTS_ON,
   type DataService,
+  type Goal,
   type NoteNode,
   type SyncDomain,
   type ToastContextValue,
@@ -115,6 +116,25 @@ function makeDS(
     // Live goals only, like SupabaseGoalsService.
     fetchGoalsForDate: vi.fn(async () => goals.filter((g) => !g.isDeleted)),
     createGoal,
+    // What the paper's goals block reads (#2106).
+    fetchGoals: vi.fn(async () =>
+      goals
+        .filter((g) => !g.isDeleted)
+        .map(
+          (g) =>
+            ({
+              parentGoalId: null,
+              manualAchievedAt: null,
+              periodEndDecision: null,
+              decidedAt: null,
+              carriedFromGoalId: null,
+              createdAt: "2026-10-01T00:00:00.000Z",
+              updatedAt: "2026-10-01T00:00:00.000Z",
+              ...g,
+            }) as Goal,
+        ),
+    ),
+    fetchGoalTodoLinks: vi.fn().mockResolvedValue([]),
   });
   return {
     ds,
@@ -284,6 +304,22 @@ describe("goals note → goals (#2105)", () => {
     await waitFor(() => expect(store.live()).toHaveLength(1));
     await Promise.resolve();
     expect(showToast).not.toHaveBeenCalled();
+  });
+
+  // #2106 review fix: the paper reads its goals after the move settles. A
+  // read taken mid-move showed an empty week over the moved goals, and its
+  // count was what the add field's 3-per-period check trusted.
+  it("the paper reads its goals after the move, so it shows them", async () => {
+    const store = makeDS(
+      goalsNote(noteDoc(head(`週目標 ${KEYS.week}`), line("Only one"))),
+    );
+    renderPaper(store.ds);
+
+    expect(await screen.findByText("Only one")).toBeTruthy();
+    expect(screen.queryByText("Set this week's goals")).toBeNull();
+    expect(
+      vi.mocked(store.ds.fetchGoals).mock.invocationCallOrder[0],
+    ).toBeGreaterThan(store.createGoal.mock.invocationCallOrder[0]!);
   });
 
   it("leaves a trashed or locked note alone and reads no goals for an empty one", async () => {

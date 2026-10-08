@@ -80,6 +80,15 @@ interface BriefingPaper {
   notes: NoteNode[];
   connections: WikiTagConnectionUnified[];
   tomorrowItems: ScheduleItem[];
+  /**
+   * The todo tree came from a read that succeeded, now or before (#2106).
+   * The goals face judges achievement over `todoNodes`; the blank paper's
+   * `[]` would read every linked goal as unconnected. "Before" means a read
+   * fired by THIS mount: a replayed snapshot's tree is the last visit's, and
+   * a todo finished since then would ask the period-end review about a goal
+   * MCP already calls achieved.
+   */
+  todosRead: boolean;
 }
 
 /** What an unread paper looks like — the same values the state starts on. */
@@ -93,6 +102,7 @@ const BLANK_PAPER: BriefingPaper = {
   notes: [],
   connections: [],
   tomorrowItems: [],
+  todosRead: false,
 };
 
 export interface BriefingFetchState {
@@ -103,6 +113,7 @@ export interface BriefingFetchState {
   tomorrowItems: ScheduleItem[];
   todoNodes: TodoNode[];
   setTodoNodes: Dispatch<SetStateAction<TodoNode[]>>;
+  todosRead: boolean;
   sessions: TimerSession[];
   dailyContent: string | null;
   setDailyContent: Dispatch<SetStateAction<string | null>>;
@@ -135,6 +146,7 @@ export function useBriefingFetch(
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([]);
   const [tomorrowItems, setTomorrowItems] = useState<ScheduleItem[]>([]);
   const [todoNodes, setTodoNodes] = useState<TodoNode[]>([]);
+  const [todosRead, setTodosRead] = useState(false);
   const [sessions, setSessions] = useState<TimerSession[]>([]);
   const [dailyContent, setDailyContent] = useState<string | null>(null);
   const [eveningNotes, setEveningNotes] = useState<Record<
@@ -153,6 +165,10 @@ export function useBriefingFetch(
   // what it last said instead of with a hole. Mirrored from `apply`, which is
   // the one place a paper becomes "what is on screen".
   const lastPaperRef = useRef<BriefingPaper>(BLANK_PAPER);
+  // The papers this mount's own `load` produced. `apply` also receives the
+  // replayed snapshot (useDomainLoad's layout effect), which is not in here,
+  // so its `todosRead` is not believed (#2106).
+  const freshPapersRef = useRef(new WeakSet<BriefingPaper>());
 
   const { isLoading: loading } = useDomainLoad<BriefingPaper>({
     domain: "Briefing",
@@ -180,7 +196,7 @@ export function useBriefingFetch(
       // asymmetry on the daily: a day with no daily row RESOLVES to null, and
       // that null is a result — only a rejection falls back.
       const previous = lastPaperRef.current;
-      return {
+      const paper: BriefingPaper = {
         scheduleItems:
           sched.status === "fulfilled" ? sched.value : previous.scheduleItems,
         todoNodes:
@@ -206,9 +222,15 @@ export function useBriefingFetch(
           tomorrow.status === "fulfilled"
             ? tomorrow.value
             : previous.tomorrowItems,
+        todosRead: todos.status === "fulfilled" || previous.todosRead,
       };
+      freshPapersRef.current.add(paper);
+      return paper;
     },
-    apply: (paper) => {
+    apply: (stored) => {
+      const paper = freshPapersRef.current.has(stored)
+        ? stored
+        : { ...stored, todosRead: false };
       lastPaperRef.current = paper;
       setScheduleItems(paper.scheduleItems);
       setTodoNodes(paper.todoNodes);
@@ -221,6 +243,7 @@ export function useBriefingFetch(
       setNotes(paper.notes);
       setConnections(paper.connections);
       setTomorrowItems(paper.tomorrowItems);
+      setTodosRead(paper.todosRead);
     },
     // Unreachable in practice (`load` swallows every rejection through
     // allSettled) and unread — the paper has no error surface, it just shows
@@ -236,6 +259,7 @@ export function useBriefingFetch(
     tomorrowItems,
     todoNodes,
     setTodoNodes,
+    todosRead,
     sessions,
     dailyContent,
     setDailyContent,

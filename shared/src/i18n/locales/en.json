@@ -1429,24 +1429,29 @@
   },
   "briefing": {
     "masthead": "LIFE EDITOR BRIEFING",
-    "focusLabel": "TODAY'S FOCUS",
+    "focusLabel": "FROM LAST NIGHT",
     "aiTitle": "A WORD ON YESTERDAY",
     "aiSource": "Claude ・ from the Briefing section",
-    "noFocus": "No focus for today yet. Write it on the previous evening's paper and it will appear here.",
+    "noFocus": "Nothing yet. Write it under \"Note to tomorrow\" on the evening paper and it shows up here.",
     "focusNoteTitle": "Focus",
-    "intentionTitle": "TODAY'S INTENTION",
-    "intentionPlaceholder": "What will you get done today? One line is enough…",
     "goalsTitle": "GOALS AHEAD",
+    "goalMark": "Goals:",
     "goals": {
-      "noteTitle": "Goals",
-      "weekTitle": "THIS WEEK",
-      "monthTitle": "THIS MONTH",
-      "yearTitle": "THIS YEAR",
-      "weekPlaceholder": "What will you get done this week? One line is enough…",
-      "monthPlaceholder": "What will you get done this month? One line is enough…",
-      "yearPlaceholder": "What will you get done this year? One line is enough…",
+      "prompt": "Set this week's goals",
+      "linkTodos": "Link todos: {{title}}",
+      "openInConnect": "Open in Goals & Todos",
       "migrationOverflow_one": "Your goals note became goals. A period holds up to 3 goals, so {{count}} more line stays in the note as it was.",
       "migrationOverflow_other": "Your goals note became goals. A period holds up to 3 goals, so {{count}} more lines stay in the note as they were."
+    },
+    "review": {
+      "title": "GOALS FROM AN ENDED PERIOD",
+      "question": "This goal's period ended before it was achieved. What would you like to do?",
+      "carry": "Carry over",
+      "drop": "Drop it",
+      "achieve": "Mark achieved",
+      "later": "Ask me later",
+      "remaining_one": "{{count}} left",
+      "remaining_other": "{{count}} left"
     },
     "scheduleTitle": "TODAY'S SCHEDULE",
     "addScheduleItem": "Add to today's schedule",
@@ -1465,7 +1470,6 @@
     "saveFailed": {
       "intention": "Could not save today's intention. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
       "evening": "Could not save the evening page. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
-      "goals": "Could not save your goals. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
       "focus": "Could not save your note to tomorrow. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
       "notes": "Could not save the note. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
       "tomorrow": "Could not put the todo on tomorrow. Check your connection and press it again.",
@@ -1554,7 +1558,7 @@
       }
     },
     "steps": {
-      "briefingIntro": "This is the Briefing — the day on one page. You do not write it: Claude Code fills it in through the desktop app's MCP connection. On the web on its own it stays empty, which is normal rather than broken.",
+      "briefingIntro": "This is the Briefing — your day on one page: last night's note to yourself, how far this week's goals have come, and today's schedule. Your own goals and plans fill it, so it is not empty on the web alone. On days Claude Code is connected through the desktop app's MCP link, a word on yesterday arrives here too.",
       "scheduleCreateEvent": "Start here to put something on the calendar. Add one event — the tour waits until it exists, not until you press the button.",
       "scheduleAdjustEvent": "Open the event you just made and change its time. Plans move; this is how you move them.",
       "scheduleOpenTodos": "Todos live in the same section as the calendar. Open the Todo tab.",
