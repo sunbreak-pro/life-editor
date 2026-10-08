@@ -1,5 +1,32 @@
 # HISTORY (chat-main)
 
+### 2026-10-08 (2) - 拡張アプリの立ち位置を決めて計画書 Draft + 決定 2 件（D-20261008-main-1 / -2・PR #2158）
+
+#### 概要
+
+ユーザー依頼「life-editor と今後の拡張アプリの立ち位置・役割を決めたい。構想（出来事の保管 → 分析 → 次の Todo。家計簿などの数値は拡張アプリで収集）に意見を」。回答後に「その方向性で OK。Analytics に拡張アプリからのデータの収集・一覧化、leftSidebar に拡張アプリの登録・一覧タブ。この要件で実装計画書を。リポジトリは別々、手順がかなり増えるなら統合」。意見を返したあと、決定 2 件を台帳へ昇格し、計画書を Draft で書いて PR にした。
+
+#### 変更点
+
+- **意見（チャット）**: 構想は採用済みの Briefing ループ（朝刊 → Schedule → Work → 夕刊 → Claude 分析）と同じ軸で、Goals（#2101〜#2110）が「分析 → Todo」の配線の 1 本目。弱いのは分析の材料で、数値を貯める構想には賛成。先に作るべきは拡張アプリではなく共通の記録テーブル + MCP の道具で、最初の一歩は「テーブル + MCP + スマホの Claude から記録」を 2〜3 週間
+- **D-20261008-main-1**（answered・Q1〜Q4 = A）: 役割分担（本社 / 支店）/ `app_records` は `items_meta` の外の独立テーブル（0018 の timer 系と同じ）/ データ先・アプリ後 / Analytics に記録タブ（既存 4 タブは凍結のまま。`archive/2026-07-16-loop-friction-fixes.md` 決定 6 を記録タブの分だけ supersede）+ サイドバーに Apps セクション
+- **D-20261008-main-2**（answered・A 切替条件つき）: 別リポジトリを維持。手順を数えた差は「窓口の仕様ファイルと偽物の取り込み」1 つで、これは pdca-harness がどのみち要る。切替条件 = (a) 拡張アプリが `shared/` を import したくなったとき (b) 窓口の版上げで両リポジトリの同時変更が月 1 回を超えたとき
+- **計画書 `2026-10-08-extension-app-records-and-apps-section.md`**（Draft・親 = 窓口の計画書）: `app_records` / `extension_apps` の列・RLS・Realtime・`delete_my_account` の更新 / 同期ドメイン 2 つ / MCP の道具 4 つ（`create_record` / `list_records` / `delete_record` / `list_extension_apps`）+ today / week context の records 要約 / Analytics の記録タブ（`AnalyticsTab` に `records`）と narrow のブロック / Apps セクション（`sections.ts` に `apps`・mobileOrder 6・`Blocks` アイコン・descriptor・登録 / 編集 / 削除・「記録だけ届いているアプリ」・Analytics への導線）/ Steps 11 本・Issue 下書き N1〜N8・AC 16 項目
+- **ANSWERS.md** に 2 行追加。**PR #2158**（`docs/extension-records-apps-plan`・一時 worktree `docs-extension-records` 経由・サブエージェントが作成）
+
+#### 実測・知見
+
+- **先に出した意見を 1 つ取り下げた**: チャットでは「拡張アプリは同じ Supabase プロジェクトに同じユーザーで直接書く」と勧めたが、同日 merge の窓口の計画書と D-20261007-main-3 = A / -4 = B は窓口（専用 Worker・アプリごとの鍵）経由と決めていた。手元の main が `5a775287` で止まっていて PR #2137（13:18 merge）を読めていなかったのが原因。**着手前に `git pull --ff-only` して、決定台帳は origin/main で読む**（memory: stale-main-reasks-answered-decisions の再発）。計画書の代替案の表に取り下げの経緯を残した
+- **Git Bash の `git show origin/main:path` と `git rev-parse HEAD origin/main` は `origin\main` に化ける**。`MSYS2_ARG_CONV_EXCL="*"` で回避（pitfalls 8 に追記）
+- **Analytics の凍結は「一部解除」**: 記録タブだけ。既存タブを触りたくなる誘惑は Non-goals と Risks に明記した
+- **窓口との identity の二重化が最大のリスク**: #2146 が鍵の保存先を独自に決めると、アプリの id が台帳（`extension_apps.slug`）と鍵側で 2 つになる。計画書 Step 8 は #2144 の着地を待たずに語彙のコメントだけ先に出す設計にした
+
+#### 次
+
+- 🛑 ユーザー手番: PR #2158 の merge（Step 1）。merge 後に N1〜N8 を起票
+- 要判断: N5（Apps セクション）の宛先レーン
+- 2〜3 週間の試用（スマホの Claude から記録）が済んでから、家計簿アプリの計画を別リポジトリで
+
 ### 2026-10-08 - アプリ内 Note「Issue報告」の 4 項目を回収して 8 本起票（#2141〜#2143・#2152〜#2156）
 
 #### 概要
@@ -113,30 +140,5 @@ connect-refine-d3 と materials-refine-d7 から受信 4 件。報告はすべ�
 - 🛑 **chat-main の手番が 2 つ増えた**（4 本の main 着地後）: 計画書 Step 12 の実ブラウザ検証（1440×900 の 1a〜2f と 390×844 の Mobile 1a〜1l・light / dark）と、一括操作 10 件の体感実測
 - **判断キューは作業コピーに現れない経路で積まれていた**: connect-refine は D-20260919-connect-1 を tracker PR #1710 に載せたので、merge されるまで `.claude/comm/decisions/chat-connect-refine.md` は「open エントリ無し」のまま。指摘して PR 本文へ全文を貼ってもらった。**tracker PR に積んだ判断は merge されるまで誰の目にも触れない** — 急ぐものは PR 本文に貼る
 - **D-20260919-connect-1**（Mobile 上部バーに「＋」を置くか）: 推奨・放置時とも A = 現状維持。narrow ヘッダーは shell の形状 enum で、末尾アクションを足すと `MainScreen.tsx`（#1646 の Scope 外）に触るため。レール下端の追加行が narrow でも入口として出ている
-
-### 2026-09-16 (2) - outbox 棚卸し → 起票 8 本（#1667〜#1674）+ 依頼 1 件を実測で差し戻し
-
-#### 概要
-
-ユーザー依頼 3 本（「リモートを取り込んで現状把握 → `issue-prompter`」「各チャットからの起票依頼を確認」「このセッションで起票」）。outbox 21 本と判断キュー 12 本を全数読み、未処理の起票依頼 10 件を裁いて 8 件を Issue にした。依頼が挙げた `file:line` は全件 main で実測し、1 件（F-05）はコードが前提を否定したので起票せず差し戻した。
-
-#### 変更点
-
-- **起票 8 本**: #1667 タグの付け外しが Undo に載らない（A-01）/ #1668 Undo 失敗でも成功トースト（B-10）/ #1669 MCP の削除が dismiss を通らない（E-12・宛先 `[mcp-tools]`）/ #1670 Trash 復元が #932 のロールバックを通らない（F-07）/ #1671 #1409 の schedule 分の実ブラウザ確認（`[main]`）/ #1672 `<kbd>` 5 箇所の書体（shared-fix）/ #1673 briefingEveningLazyMount の flake（briefing）/ #1674 添付アップロードの進捗表示（materials）
-- **レポート**: `.claude/docs/reports/2026-09-16-outbox-triage.html`（Artifact v2）。起票結果・差し戻しの根拠・未回答の判断 4 件・night-safe の 6 件を 1 枚に集約
-- **issue-prompter**: セッション冒頭で回して 2 レーンへ `/goal` を提示したが、直後にユーザーが 8 PR を merge したため失効した（W0 / W1 / W2 / W7 / W11 と #1643 が全部着地）
-
-#### 実測・知見
-
-- **F-05 は前提が 2 つとも否定された**: `web/src/briefing/hooks/useBriefingWrites.ts:65-66` が `useUndoRedoOptional()` を持ち、予定（`:305-316`）と Todo（`:416-424`）の削除は undo を push している。routine 系に undo が無いのは `:336` が「Schedule も同じくスタックに載せない（cascade は 1 行の再挿入で戻せない）」と理由つきで明言。`fillUpToAnchor` は関数として存在せず `useScheduleItemsRoutineSync.ts:147` のコメントにあるだけで、`:332-334` が「紙面の anchor は常に表示中の日なので fill は定義上 no-op」と書いている。**outbox の起票依頼でも file:line を実測してから起票する** — `rules/docs-consistency.md` §5 はサブエージェント報告だけの話ではない
-- **B-10 は依頼より 1 段悪かった**: `shared/src/utils/undoRedo/UndoRedoManager.ts:57` の docstring は「reported via onError」と書くが、`onError` は repo のどこにも配線が無い（`git grep onError` の一致がこのコメント 1 行だけ）。失敗は完全に無音
-- **古い起票依頼は全部処理済みだった**: 2026-07〜08 分を Issue 一覧 300 件と突き合わせ、#1001〜#1008 / #1097 / #1220 / #1615 に着地済みを確認。未処理は 09-02 以降の分だけ
-- **`gh issue list --state open` は数分で古くなる**: 最初の一覧で open だった #1643 / #1632 が、`--state all` を引いた時点では CLOSED になっていた。PR merge が Issue を閉じたためで、**配布判断の直前に open 一覧を取り直す**
-
-#### 次
-
-- 🛑 ユーザー手番: 未回答の判断 4 件（`D-20260905-shared-fix-1` / `D-20260902-tags-1` / `D-20260902-tags-2` / PR 行数目安の読み替え）と migration 0029 / 0030 の適用確認
-- F-05 の差し戻しを schedule-refine の outbox へ伝えるかは未判断
-- 新しい手番 = connect-refine が #1644、schedule-refine が W3 / W4 / W6 / W9 / W12
 
 > 古いエントリは [`archive/2026-09/chat-main.md`](./archive/2026-09/chat-main.md)・[`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
