@@ -56,6 +56,11 @@ import {
   useItemLinkTargets,
   type LoadItemLinkTargets,
 } from "../notes/useItemLinkTargets";
+import {
+  useAttachmentUpload,
+  type AttachmentWiring,
+} from "../notes/useAttachmentUpload";
+import { AttachmentUploadStatus } from "../notes/AttachmentUploadStatus";
 import { useInlineItemLinks } from "../hooks/useInlineItemLinks";
 import { useDayScheduleSummary } from "./useDayScheduleSummary";
 
@@ -152,6 +157,9 @@ function EditorCard({
   loadLinkTargets,
   onNavigateToItem,
   onResolvedLinkInserted,
+  attachments,
+  uploadingFile,
+  uploadingLabel,
 }: {
   dateLabel: string;
   dateClassName: string;
@@ -168,6 +176,11 @@ function EditorCard({
   loadLinkTargets?: LoadItemLinkTargets;
   onNavigateToItem?: (target: { id: string; role: string }) => void;
   onResolvedLinkInserted?: (targetId: string) => void;
+  /** The "/" menu's image / file entries (#1404). Undefined hides them. */
+  attachments?: AttachmentWiring;
+  /** The file uploading right now, or null — drawn above the body (#1674). */
+  uploadingFile: string | null;
+  uploadingLabel: string;
 }) {
   return (
     <div
@@ -185,6 +198,14 @@ function EditorCard({
           </span>
         )}
         {headerActions}
+      </div>
+      {/* Same band as the Notes body: outside the document, so nothing
+          mid-upload can reach the autosave (D-20260902-materials-1 = B). */}
+      <div className="px-5">
+        <AttachmentUploadStatus
+          fileName={uploadingFile}
+          uploadingLabel={uploadingLabel}
+        />
       </div>
       {/* TipTap (F-1 #258). IME composition is handled natively by
           ProseMirror (no manual keydown here — the isComposing gotcha cannot
@@ -205,6 +226,7 @@ function EditorCard({
         loadLinkTargets={loadLinkTargets}
         onNavigateToItem={onNavigateToItem}
         onResolvedLinkInserted={onResolvedLinkInserted}
+        attachments={attachments}
         className="daily-editor min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1"
       />
     </div>
@@ -252,6 +274,13 @@ export function DailyView({
   // "[[" link-target pool (notes + dailies + todos, cross-domain). A loader,
   // not a list: nothing is fetched until the first "[[" (#430).
   const loadLinkTargets = useItemLinkTargets(dataService);
+
+  // Image / file embedding for the "/" menu — the same pair Notes wires
+  // (#1404 / #1674). Undefined without a DataService, which keeps the two
+  // entries out of the picker. The evening reflection editor does not get
+  // it: its closed state is a text-line preview that cannot draw a node.
+  const [uploadingFile, setUploadingFile] = useState<string | null>(null);
+  const attachments = useAttachmentUpload(dataService, setUploadingFile);
 
   // A link click from the Notes tab lands here with a pending date — open it
   // once, then clear.
@@ -960,6 +989,9 @@ export function DailyView({
             loadLinkTargets={loadLinkTargets}
             onNavigateToItem={onNavigateToItem}
             onResolvedLinkInserted={handleResolvedLinkInserted}
+            attachments={attachments}
+            uploadingFile={uploadingFile}
+            uploadingLabel={t("attachment.uploading")}
           />
           {eveningCard}
         </div>
@@ -992,6 +1024,9 @@ export function DailyView({
           loadLinkTargets={loadLinkTargets}
           onNavigateToItem={onNavigateToItem}
           onResolvedLinkInserted={handleResolvedLinkInserted}
+          attachments={attachments}
+          uploadingFile={uploadingFile}
+          uploadingLabel={t("attachment.uploading")}
         />
         {eveningCard}
       </div>
