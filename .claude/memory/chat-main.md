@@ -63,11 +63,11 @@
 
 ## 直近の完了
 
+- [chat-main] **アプリ内 Note「Issue報告」の 4 項目を回収して 8 本起票** ✅（2026-10-08）— #2141（本文のフォーカスが外れるとヘッダーの Undo / Redo が disabled になる・`[shared-fix]`）/ #2142（タグフィルタのグループに解除・タグ編集・Mobile の閉じるボタン・schedule）/ #2143（Connect の目標と Todo から開いた Todo を閉じると Schedule に着く・connect）/ #2156 親 + #2152〜#2155 子（Claude Design で今の画面を再現 → 微調整 → 実装へ戻す流れ。子 4 はフィルタパネルの作り直し）。Note は消していない（今回は指示なし）。詳細 = history 2026-10-08
+
 - [chat-main] **スマホの Claude アプリから life-editor MCP を使えるようにした（Remote MCP の本番化）** ✅（2026-09-26）— コードは #1589 で着地済みで、未デプロイだったのが欠けていた。公式ドキュメントで Claude 側の条件を裏取りして **#1994** を起票し、ユーザーのデプロイ・シークレット 5 本の投入・claude.ai へのコネクタ登録を経て、スマホからツールが動くことを実機で確認した。コネクタは **Authentication = No sign-in** で登録しないと OAuth の登録に進んで止まる（`wrangler tail` で実測）。計画書の archive と参照の張り替え = **PR #1997 open**（Closes #1994）。🛑 残り = 8 文字のトークンを 64 文字に替えるかどうかのユーザー判断。詳細 = history 2026-09-26
 
 - [chat-main] **棚卸し 3 本（デッドコード / 未完了 / 製品基準）→ 報告書 + 裁定 4 件を実行** ✅（2026-09-23）— 3 並列サブエージェント + 自分で Supabase の migration 台帳を CLI 実測。**0030（タグ表示色）が本番未適用**が最大の発見（push は auto mode で止まり 🛑 ユーザー手番 = `cd supabase && npm run db:push`）。デッドコード = 完全孤立 0 / 退役残骸 0 / 消して安全 約 500 行 → **#1985 + PR**（worktree `main-deadcode`）。製品基準 = 認証・RLS・法務・テストは水準、欠けは配布 4 点 → **#1986（SMTP）→ #1987（Electron 44）→ #1988（JSON エクスポート）→ #1989（ヘルプ導線）**の順（D-20260923-main-2）。**移行 SSOT の Phase 5 完成条件を書き換え = PR #1990**（自動更新は完成後 / MCP 条件は Desktop 起動導線 + Remote MCP / Phase 4 除外 = D-20260923-main-1）。報告書 = `docs/reports/2026-09-23-product-audit.html`（Artifact https://claude.ai/artifact/6uBiKGVjaDjeHWN98iUdy3）。詳細 = history 2026-09-23
-
-- [chat-main] **outbox 棚卸し → 起票 8 本（#1667〜#1674）+ 依頼 1 件を実測で差し戻し** ✅（2026-09-16）— outbox 21 本と判断キュー 12 本を全数読み、未処理の起票依頼 10 件を裁いた。起票 = #1667 タグの付け外しが Undo に載らない / #1668 Undo 失敗でも成功トースト / #1669 MCP の削除が dismiss を通らない（`[mcp-tools]`）/ #1670 Trash 復元が #932 のロールバックを通らない / #1671 #1409 の schedule 分の実ブラウザ確認（`[main]`）/ #1672 `<kbd>` 5 箇所の書体 / #1673 briefingEveningLazyMount の flake / #1674 添付アップロードの進捗表示。**F-05 は起票せず差し戻し** — `useBriefingWrites.ts:65-66` が undo を持ち `:332-334` が fill は no-op と書いており、依頼の前提 2 つがコードに否定された。D-05 は #1642 の W5 が直すため起票不要。古い依頼（2026-07〜08）は #1001〜#1008 / #1097 / #1220 / #1615 に全部着地済みを実測。レポート = `docs/reports/2026-09-16-outbox-triage.html`（Artifact v2）。🛑 残り = 未回答の判断 4 件 + migration 0029 / 0030 の適用確認。詳細 = history 2026-09-16 (2)
 
 ## 予定
 
