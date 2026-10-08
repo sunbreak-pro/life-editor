@@ -251,6 +251,83 @@ describe("dailiesUnifiedMapper — evening_published_at / evening_notes (#2107)"
   });
 });
 
+/*
+ * 0035 (D-20261007-briefing-1) — Claude's morning comment moved out of the
+ * body into `morning_comment`. Same path as the evening columns: the mapper
+ * is the whole read / write, and a column that holds nothing readable reads
+ * as null so the readers fall back to an older day's 朝刊 section.
+ */
+describe("dailiesUnifiedMapper — morning_comment (0035)", () => {
+  const COMMENT = [
+    "今週の『企画書を通す』は残り 2 件です。初稿を午前に送れば、明日の見積もりに回せます。",
+    "午後は歯科検診で抜けるので、集中が要る作業は午前に寄せるのがよさそうです。",
+  ];
+
+  it("reads the column, null when absent", () => {
+    expect(rowsToDailyNode(freshMeta(), freshPayload()).morningComment).toBe(
+      null,
+    );
+    const node = rowsToDailyNode(
+      freshMeta(),
+      freshPayload({ morning_comment: COMMENT }),
+    );
+    expect(node.morningComment).toEqual(COMMENT);
+  });
+
+  it("reads a value that is not an array, or an array with nothing readable, as null", () => {
+    for (const bad of [null, "x", { 0: "a" }, 3, [], ["", "  "], [1, null]]) {
+      const node = rowsToDailyNode(
+        freshMeta(),
+        freshPayload({ morning_comment: bad }),
+      );
+      expect(node.morningComment).toBeNull();
+    }
+  });
+
+  it("drops only the non-string and blank elements", () => {
+    const node = rowsToDailyNode(
+      freshMeta(),
+      freshPayload({ morning_comment: ["a", 2, "  ", "b"] }),
+    );
+    expect(node.morningComment).toEqual(["a", "b"]);
+  });
+
+  it("patches it through the payload, null included, and still bumps updated_at", () => {
+    const set = dailyUpdatesToPatches({ morningComment: COMMENT }, USER, NOW);
+    expect(set.metaPatch).toEqual({ updated_at: NOW });
+    expect(set.payloadPatch).toEqual({ morning_comment: COMMENT });
+
+    const cleared = dailyUpdatesToPatches({ morningComment: null }, USER, NOW);
+    expect(cleared.payloadPatch).toEqual({ morning_comment: null });
+  });
+
+  it("emits no column when the update does not name it — a body save keeps the comment", () => {
+    const { payloadPatch } = dailyUpdatesToPatches(
+      { content: '{"type":"doc","content":[]}' },
+      USER,
+      NOW,
+    );
+    expect("morning_comment" in payloadPatch).toBe(false);
+  });
+
+  it("inserts it only when the node carries it", () => {
+    const base = {
+      id: "daily-2026-05-24",
+      date: "2026-05-24",
+      content: "",
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    expect("morning_comment" in dailyNodeToRows(base, USER).payload).toBe(
+      false,
+    );
+    expect(
+      dailyNodeToRows({ ...base, morningComment: COMMENT }, USER).payload
+        .morning_comment,
+    ).toEqual(COMMENT);
+  });
+});
+
 describe("dailiesUnifiedMapper — assertions", () => {
   it("assertDailyId accepts valid shape only", () => {
     expect(assertDailyId("daily-2026-05-24")).toBe("daily-2026-05-24");

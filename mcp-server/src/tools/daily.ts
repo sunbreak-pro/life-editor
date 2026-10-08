@@ -1,8 +1,5 @@
 import { defineTool, type ToolDefinition } from "./defineTool.js";
-import {
-  getDaily,
-  upsertDaily,
-} from "../handlers/dailyHandlers.js";
+import { getDaily, upsertDaily } from "../handlers/dailyHandlers.js";
 
 /**
  * Daily tools (#895). One file per handler domain, so adding a tool
@@ -15,7 +12,7 @@ export const DAILY_TOOLS: ToolDefinition[] = [
     // back with content: null, so the flags are the only way to tell them
     // apart (#782 ②).
     description:
-      "Get the daily entry for a specific date. Returns exists (is there a readable daily), isTrashed (there is one, but it is in the trash — its body is withheld and writing to this date would restore it) and hasBriefing (the 朝刊 section is already written; write_briefing would replace it) alongside content. When exists is false, hasBriefing is always false — a trashed body is not read.",
+      "Get the daily entry for a specific date. Returns exists (is there a readable daily), isTrashed (there is one, but it is in the trash — its body is withheld and writing to this date would restore it), morningComment (Claude's morning comment, kept beside the body rather than in it: the daily's `morning_comment` field, or the 朝刊 heading section of an older day's body; null when there is none) and hasBriefing (morningComment is not null; write_briefing would replace the field) alongside content. When exists is false or the day is locked, hasBriefing is false and morningComment is null — a trashed or locked day is not read.",
     inputSchema: {
       type: "object" as const,
       properties: {

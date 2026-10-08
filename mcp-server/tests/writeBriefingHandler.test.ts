@@ -15,8 +15,9 @@ const { FOCUS_NOTE_ID, mergeFocusSection } =
 /*
  * write_briefing routes its two arguments to two different rows (#1097):
  * `focus` → the reserved focus note's per-day section (where the morning
- * paper has read it from since #1048), `paragraphs` → the daily's 朝刊
- * section. What is pinned here is the ROUTING — the section shapes
+ * paper has read it from since #1048), `paragraphs` → the daily's
+ * `morning_comment` column (0035, D-20261007-briefing-1 — beside the body,
+ * never in it). What is pinned here is the ROUTING — the section shapes
  * themselves are the pure modules' suites (briefingSection.test.ts /
  * focusSection.test.ts).
  */
@@ -72,11 +73,10 @@ describe("writeBriefing routing", () => {
 
     const dailyWrite = writes.find((w) => w.table === "dailies_payload");
     expect(dailyWrite?.op).toBe("update");
-    const dailyJson = JSON.stringify(dailyWrite?.values);
-    expect(dailyJson).toContain("朝刊");
-    expect(dailyJson).toContain("講評");
-    // The focus is NOT a daily paragraph any more.
-    expect(dailyJson).not.toContain("一点集中");
+    expect(dailyWrite?.filters).toEqual({ item_id: `daily-${DATE}` });
+    // The comment column and nothing else: the body is not rewritten, and
+    // the focus is NOT a daily paragraph any more.
+    expect(dailyWrite?.values).toEqual({ morning_comment: ["講評"] });
 
     // Both writes ride the §10.2 LWW bump (+ trash repair) on items_meta.
     const metaBumps = writes.filter((w) => w.table === "items_meta");
@@ -85,6 +85,105 @@ describe("writeBriefing routing", () => {
       expect(bump.values).toMatchObject({ is_deleted: false });
       expect(bump.values).toHaveProperty("updated_at");
     }
+  });
+
+  it("never reads the daily's body to write the comment", async () => {
+    stub = tableReads({
+      note: { item_id: FOCUS_NOTE_ID, content_json: doc() },
+      daily: { item_id: `daily-${DATE}`, date: DATE },
+    });
+
+    await writeBriefing({
+      date: DATE,
+      focus: "一点集中",
+      paragraphs: ["講評"],
+    });
+
+    const dailyReads = stub.calls.filter(
+      (c) => c.table === "dailies_payload" && c.op === "select",
+    );
+    expect(dailyReads.length).toBeGreaterThan(0);
+    for (const read of dailyReads)
+      expect(read.columns ?? "").not.toContain("content_json");
+  });
+
+  it("leaves an older day's 朝刊 section in the body as it is", async () => {
+    const legacy = doc(
+      {
+        type: "heading",
+        attrs: { level: 2 },
+        content: [{ type: "text", text: "朝刊" }],
+      },
+      para("前の講評"),
+      para("昼にアキとランチ。"),
+    );
+    stub = tableReads({
+      note: { item_id: FOCUS_NOTE_ID, content_json: doc() },
+      daily: { item_id: `daily-${DATE}`, date: DATE, content_json: legacy },
+    });
+
+    await writeBriefing({
+      date: DATE,
+      focus: "一点集中",
+      paragraphs: ["新しい講評"],
+    });
+
+    const dailyWrites = stub
+      .writes()
+      .filter((w) => w.table === "dailies_payload");
+    expect(dailyWrites).toHaveLength(1);
+    expect(dailyWrites[0].values).toEqual({ morning_comment: ["新しい講評"] });
+  });
+
+  it("creates the day with an empty body and the comment in its column", async () => {
+    stub = tableReads({
+      note: { item_id: FOCUS_NOTE_ID, content_json: doc() },
+      daily: null,
+    });
+
+    const result = await writeBriefing({
+      date: DATE,
+      focus: "一点集中",
+      paragraphs: ["講評 1", "講評 2"],
+    });
+
+    expect(result.daily).toEqual({ id: `daily-${DATE}`, created: true });
+    const writes = stub.writes();
+    expect(
+      writes.find((w) => w.table === "items_meta" && w.op === "insert")?.values,
+    ).toMatchObject({ id: `daily-${DATE}`, role: "daily", title: DATE });
+    const payloadInsert = writes.find(
+      (w) => w.table === "dailies_payload" && w.op === "insert",
+    );
+    expect(payloadInsert?.values).toMatchObject({
+      item_id: `daily-${DATE}`,
+      date: DATE,
+      content_json: null,
+      morning_comment: ["講評 1", "講評 2"],
+      is_pinned: false,
+      is_edit_locked: false,
+    });
+  });
+
+  it("refuses a locked day and writes nothing to it", async () => {
+    // The unlocked read (`.eq("has_password", false)`) finds nothing; the
+    // lock probe that follows finds the row.
+    stub = createSupabaseStub((call) => {
+      if (call.table === "notes_payload")
+        return { item_id: FOCUS_NOTE_ID, content_json: doc() };
+      if (call.table === "dailies_payload") {
+        if (call.filters.has_password === false) return null;
+        return { item_id: `daily-${DATE}`, date: DATE, has_password: true };
+      }
+      return null;
+    });
+
+    await expect(
+      writeBriefing({ date: DATE, focus: "一点集中", paragraphs: ["講評"] }),
+    ).rejects.toThrow(/password-protected/);
+    expect(stub.writes().some((w) => w.table === "dailies_payload")).toBe(
+      false,
+    );
   });
 
   it("leaves the daily completely untouched when there are no paragraphs", async () => {
@@ -97,6 +196,21 @@ describe("writeBriefing routing", () => {
     expect(result.daily).toBeNull();
     expect(stub.calls.some((c) => c.table === "dailies_payload")).toBe(false);
     expect(stub.writes().some((w) => w.table === "items_meta")).toBe(true);
+  });
+
+  it("treats blank-only paragraphs as none", async () => {
+    stub = tableReads({
+      note: { item_id: FOCUS_NOTE_ID, content_json: doc() },
+    });
+
+    const result = await writeBriefing({
+      date: DATE,
+      focus: "一点集中",
+      paragraphs: ["", "   "],
+    });
+
+    expect(result.daily).toBeNull();
+    expect(stub.calls.some((c) => c.table === "dailies_payload")).toBe(false);
   });
 
   it("creates the reserved note on the first focus ever written", async () => {

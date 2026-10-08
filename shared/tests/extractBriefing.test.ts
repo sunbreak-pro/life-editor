@@ -141,4 +141,46 @@ describe("lastBriefingDate", () => {
       lastBriefingDate([daily("2026-08-30", doc([h("Briefing"), h("Memo")]))]),
     ).toBeNull();
   });
+
+  /*
+   * 0035 (D-20261007-briefing-1): write_briefing writes the comment to the
+   * `morning_comment` column, and the body gets no section. A day written
+   * that way must still count, or Settings stops at the last old-style day.
+   */
+  it("counts a day whose comment is only in the morning_comment column", () => {
+    expect(
+      lastBriefingDate([
+        daily("2026-08-28", withBriefing),
+        {
+          date: "2026-10-07",
+          content: withoutBriefing,
+          morningComment: ["a word on yesterday"],
+        },
+      ]),
+    ).toBe("2026-10-07");
+  });
+
+  it("does not count a column with nothing readable in it", () => {
+    expect(
+      lastBriefingDate([
+        { date: "2026-10-07", content: "", morningComment: [] },
+        { date: "2026-10-08", content: "", morningComment: ["  "] },
+        { date: "2026-10-09", content: "", morningComment: null },
+      ]),
+    ).toBeNull();
+  });
+
+  it("still skips a soft-deleted day that has the column", () => {
+    expect(
+      lastBriefingDate([
+        daily("2026-08-28", withBriefing),
+        {
+          date: "2026-10-07",
+          content: "",
+          isDeleted: true,
+          morningComment: ["a word"],
+        },
+      ]),
+    ).toBe("2026-08-28");
+  });
 });

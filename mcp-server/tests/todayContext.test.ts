@@ -165,11 +165,19 @@ describe("getTodayContext", () => {
           carriedOver: true,
         },
       ],
-      recentDailies: [{ date: "2026-08-12", locked: false, text: "昨日" }],
+      recentDailies: [
+        {
+          date: "2026-08-12",
+          locked: false,
+          text: "昨日",
+          morningComment: null,
+        },
+      ],
       todayDaily: {
         exists: true,
         locked: false,
         hasBriefing: false,
+        morningComment: null,
         text: "今日",
       },
       // #2104: the date's three periods, each listed even when it is empty.
@@ -195,11 +203,86 @@ describe("getTodayContext", () => {
       exists: true,
       locked: true,
       hasBriefing: false,
+      morningComment: null,
       text: null,
     });
     expect(context.recentDailies).toEqual([
-      { date: "2026-08-12", locked: true, text: null },
+      { date: "2026-08-12", locked: true, text: null, morningComment: null },
     ]);
+    expect(JSON.stringify(context)).not.toContain("SECRET-");
+  });
+
+  /*
+   * 0035 (D-20261007-briefing-1): the comment moved beside the body. Both
+   * today and the recent days hand it back — the column first, an older
+   * day's 朝刊 section second — and a locked day hands back neither, though
+   * its column rides on the window read.
+   */
+  it("returns the morning comment, column first, body section second", async () => {
+    install({
+      dailies: [
+        {
+          ...daily(DATE, "今日"),
+          content_json: {
+            type: "doc",
+            content: [
+              {
+                type: "heading",
+                attrs: { level: 2 },
+                content: [{ type: "text", text: "朝刊" }],
+              },
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "本文の講評" }],
+              },
+            ],
+          },
+          morning_comment: ["列の講評"],
+        },
+        {
+          ...daily("2026-08-12", "昨日"),
+          content_json: {
+            type: "doc",
+            content: [
+              {
+                type: "heading",
+                attrs: { level: 2 },
+                content: [{ type: "text", text: "朝刊" }],
+              },
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "昨日の講評" }],
+              },
+            ],
+          },
+          morning_comment: null,
+        },
+      ],
+    });
+
+    const context = await getTodayContext({ date: DATE });
+
+    expect(context.todayDaily.morningComment).toEqual(["列の講評"]);
+    expect(context.todayDaily.hasBriefing).toBe(true);
+    expect(context.recentDailies[0]?.morningComment).toEqual(["昨日の講評"]);
+  });
+
+  it("hands back no comment for a locked day, column included", async () => {
+    install({
+      dailies: [
+        { ...lockedDaily(DATE, "SECRET-TODAY"), morning_comment: ["SECRET-C"] },
+        {
+          ...lockedDaily("2026-08-12", "SECRET-YESTERDAY"),
+          morning_comment: ["SECRET-C"],
+        },
+      ],
+    });
+
+    const context = await getTodayContext({ date: DATE });
+
+    expect(context.todayDaily.morningComment).toBeNull();
+    expect(context.todayDaily.hasBriefing).toBe(false);
+    expect(context.recentDailies[0]?.morningComment).toBeNull();
     expect(JSON.stringify(context)).not.toContain("SECRET-");
   });
 
@@ -250,10 +333,11 @@ describe("getTodayContext", () => {
       exists: false,
       locked: false,
       hasBriefing: false,
+      morningComment: null,
       text: null,
     });
     expect(context.recentDailies).toEqual([
-      { date: "2026-08-12", locked: false, text: "昨日" },
+      { date: "2026-08-12", locked: false, text: "昨日", morningComment: null },
     ]);
   });
 });

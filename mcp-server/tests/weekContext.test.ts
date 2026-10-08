@@ -180,6 +180,7 @@ describe("the week the caller asked for", () => {
       exists: true,
       locked: false,
       text: "火曜の記録",
+      morningComment: null,
     });
   });
 
@@ -221,12 +222,59 @@ describe("the week the caller asked for", () => {
       exists: false,
       locked: false,
       text: null,
+      morningComment: null,
     });
     expect(week.days[6].daily).toEqual({
       exists: false,
       locked: false,
       text: null,
+      morningComment: null,
     });
+  });
+
+  // 0035 (D-20261007-briefing-1): each day's comment, beside its body — the
+  // column first, an older day's 朝刊 section second, never a locked day's.
+  it("returns each day's morning comment", async () => {
+    install({
+      dailies: [
+        { ...daily("2026-08-10", "月曜"), morning_comment: ["列の講評"] },
+        {
+          ...daily("2026-08-11", "火曜"),
+          content_json: {
+            type: "doc",
+            content: [
+              {
+                type: "heading",
+                attrs: { level: 2 },
+                content: [{ type: "text", text: "朝刊" }],
+              },
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "本文の講評" }],
+              },
+            ],
+          },
+        },
+        {
+          ...daily("2026-08-12", "SECRET-WED"),
+          has_password: true,
+          morning_comment: ["SECRET-C"],
+        },
+      ],
+    });
+
+    const week = await getWeekContext({ start_date: MONDAY });
+
+    expect(week.days[0].daily.morningComment).toEqual(["列の講評"]);
+    expect(week.days[1].daily.morningComment).toEqual(["本文の講評"]);
+    expect(week.days[2].daily).toEqual({
+      exists: true,
+      locked: true,
+      text: null,
+      morningComment: null,
+    });
+    expect(week.days[3].daily.morningComment).toBeNull();
+    expect(JSON.stringify(week)).not.toContain("SECRET-");
   });
 
   it("drops a row whose items_meta is gone, on any day", async () => {

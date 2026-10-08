@@ -70,6 +70,12 @@ export interface DailiesPayloadRow {
   evening_published_at?: string | null;
   /** 0034 (#2107): a jsonb object (CHECKed), or null. */
   evening_notes?: Record<string, string> | null;
+  /**
+   * 0035 (D-20261007-briefing-1): the morning comment. The DB only CHECKs
+   * "null or an array", so the elements arrive unchecked — `unknown` until
+   * `toMorningComment` has read it.
+   */
+  morning_comment?: unknown;
 }
 
 /** Writable subset for INSERT/UPSERT on dailies_payload. `has_password`
@@ -92,7 +98,7 @@ export const ITEMS_META_DAILY_COLUMNS = ITEMS_META_COLUMNS;
 
 export const DAILIES_PAYLOAD_COLUMNS =
   "item_id, user_id, date, content_json, is_pinned, is_edit_locked, " +
-  "has_password, evening_published_at, evening_notes";
+  "has_password, evening_published_at, evening_notes, morning_comment";
 
 // ---------------------------------------------------------------------------
 // 3. Id / date validators (defence-in-depth)
@@ -145,8 +151,23 @@ export function rowsToDailyNode(
   node.deletedAt = meta.deleted_at;
   node.eveningPublishedAt = payload.evening_published_at ?? null;
   node.eveningNotes = toEveningNotes(payload.evening_notes);
+  node.morningComment = toMorningComment(payload.morning_comment);
 
   return node;
+}
+
+/**
+ * The column is CHECKed as "null or an array" and nothing more, so a hand
+ * edit could leave a number or a blank string in it. Those elements are
+ * dropped; a value with nothing left reads as null, which sends the readers
+ * back to the body's 朝刊 section exactly as on a day the column never had.
+ */
+function toMorningComment(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const paragraphs = value.filter(
+    (p): p is string => typeof p === "string" && p.trim() !== "",
+  );
+  return paragraphs.length === 0 ? null : paragraphs;
 }
 
 /**
@@ -206,6 +227,8 @@ export function dailyNodeToRows(
     payload.evening_published_at = node.eveningPublishedAt;
   if (node.eveningNotes !== undefined)
     payload.evening_notes = node.eveningNotes;
+  if (node.morningComment !== undefined)
+    payload.morning_comment = node.morningComment;
 
   return { meta, payload };
 }
@@ -261,6 +284,10 @@ export function dailyUpdatesToPatches(
     payloadPatch.evening_published_at = updates.eveningPublishedAt;
   if ("eveningNotes" in updates && updates.eveningNotes !== undefined)
     payloadPatch.evening_notes = updates.eveningNotes;
+  // 0035: the app never writes the comment (MCP write_briefing does), but a
+  // node passed back whole must not lose it, and null clears it.
+  if ("morningComment" in updates && updates.morningComment !== undefined)
+    payloadPatch.morning_comment = updates.morningComment;
 
   return { metaPatch, payloadPatch };
 }

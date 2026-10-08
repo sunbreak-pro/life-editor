@@ -714,6 +714,8 @@ describe("SupabaseDailiesUnifiedService — DU-G G2 additions", () => {
     it("selects both columns on every payload read", () => {
       expect(DAILIES_PAYLOAD_COLUMNS).toContain("evening_published_at");
       expect(DAILIES_PAYLOAD_COLUMNS).toContain("evening_notes");
+      // 0035: Claude's morning comment, beside the body.
+      expect(DAILIES_PAYLOAD_COLUMNS).toContain("morning_comment");
     });
   });
 

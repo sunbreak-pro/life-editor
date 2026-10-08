@@ -16,17 +16,19 @@
  * the 夕刊 section: the plan's「保存し直すのは編集したときだけ」, enforced
  * here as well as in the hosts.
  *
- * Heading-less text AFTER the 朝刊 or 宣言 lines (A1): write_briefing
- * prepends 朝刊 above an old body, and typing at the end of a Daily lands
- * under 宣言. By the plan's definition a section runs to the next heading, so
- * that text belongs to the 朝刊 / 宣言 section and is excluded from the one
- * text here, while plan l.221 expects it in the reflection field. How to treat
- * it is an open decision, raised in the #2107 PR (there is no queue entry).
- * This module's write leaves that text where it is, but it is NOT safe there:
- * the section writers replace the whole [heading, next heading) range, so a
- * later 宣言 save (mergeIntentionSection — from MCP or an older client; the
- * app itself stops writing 宣言 with #2106 / #2107) replaces text typed after
- * the 宣言 lines with whatever declaration it writes.
+ * Heading-less text AFTER the 朝刊 or 宣言 lines (A1): write_briefing used to
+ * prepend 朝刊 above an old body, and typing at the end of a Daily lands under
+ * 宣言. By the plan's definition a section runs to the next heading, so that
+ * text belongs to the 朝刊 / 宣言 section. D-20261007-briefing-1 settled it by
+ * taking both sections out of the body for new days: the comment goes to
+ * `dailies_payload.morning_comment` (0035) and no 宣言 is written any more.
+ * Old days keep their sections in the body; the read here still leaves them
+ * out of the one text, and `readMorningRecord` (dailyMorning.ts) hands them —
+ * the heading-less text inside included — to the Daily's own blocks (#2123).
+ * This module's write leaves that text where it is. It stays at risk only
+ * while a section writer survives: `mergeIntentionSection` replaces the whole
+ * [宣言, next heading) range, and its last caller is the morning paper's 宣言
+ * save (useDailySections), whose field #2106 removes.
  *
  * Known limits, pinned in shared/tests/dailyText.test.ts:
  *   - A2: a user heading spelled 朝刊 / 宣言 / 夕刊 is read as that section.

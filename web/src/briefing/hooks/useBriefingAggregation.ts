@@ -1,8 +1,8 @@
 import { useCallback, useMemo } from "react";
 import {
   dateKeyOfInstant,
-  extractBriefing,
   pickAddableTodos,
+  readMorningRecord,
   todoScheduleSlot,
   todosToCalendarChips,
   useTranslation,
@@ -53,6 +53,8 @@ export interface BriefingAggregationInput {
   todoNodes: TodoNode[];
   sessions: TimerSession[];
   dailyContent: string | null;
+  /** The day's morning_comment (0035); read before the body's 朝刊 section. */
+  morningComment: string[] | null;
   notes: NoteNode[];
   connections: WikiTagConnectionUnified[];
 }
@@ -75,6 +77,7 @@ export function useBriefingAggregation({
   todoNodes,
   sessions,
   dailyContent,
+  morningComment,
   notes,
   connections,
 }: BriefingAggregationInput): BriefingAggregation {
@@ -210,25 +213,28 @@ export function useBriefingAggregation({
     });
   }, [todayKey, i18n.language]);
 
+  // 「昨日へのひとこと」: the comment column first, the body's 朝刊 section on
+  // an older day (D-20261007-briefing-1). No paragraph → null, and the paper
+  // leaves the block out rather than showing an empty one.
+  const briefing = useMemo(() => {
+    const { comment } = readMorningRecord({
+      content: dailyContent,
+      morningComment,
+    });
+    return comment.length > 0 ? { paragraphs: comment } : null;
+  }, [dailyContent, morningComment]);
+
   const data = useMemo<BriefingData>(
     () => ({
       dateLine,
-      briefing: extractBriefing(dailyContent),
+      briefing,
       schedule,
       todos: todayTodos,
       carryover,
       sessions,
       todoNodes: liveTodos,
     }),
-    [
-      dateLine,
-      dailyContent,
-      schedule,
-      todayTodos,
-      carryover,
-      sessions,
-      liveTodos,
-    ],
+    [dateLine, briefing, schedule, todayTodos, carryover, sessions, liveTodos],
   );
 
   //「残りの Todo」— today's unfinished + open carryover, each carrying its real

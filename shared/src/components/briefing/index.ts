@@ -133,6 +133,7 @@ export type { EveningEventEntry, EveningRowLabels } from "./EveningRows";
 // reads and writes the same text and prints the same counts, so they live
 // here once rather than per screen.
 export { readDailyText, writeDailyText } from "./dailyText";
+export { readMorningRecord, type MorningRecord } from "./dailyMorning";
 export {
   TOMORROW_OTHERS_LIMIT,
   applyEveningNote,

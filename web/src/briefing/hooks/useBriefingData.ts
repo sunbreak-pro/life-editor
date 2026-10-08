@@ -37,6 +37,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     setDailyContent,
     eveningNotes,
     setEveningNotes,
+    morningComment,
     notes,
     connections,
     setConnections,
@@ -58,6 +59,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     todoNodes,
     sessions,
     dailyContent,
+    morningComment,
     notes,
     connections,
   });

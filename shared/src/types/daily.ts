@@ -15,6 +15,14 @@ export interface DailyNode {
   eveningPublishedAt?: string | null;
   /** One-line notes on the evening paper's rows: `todo:<id>` / `session:<id>` / `event:<id>` → text (#2107). */
   eveningNotes?: Record<string, string> | null;
+  /**
+   * Claude's morning comment — the paragraphs MCP `write_briefing` writes
+   * (0035, D-20261007-briefing-1). It lives beside the body, never in it.
+   * Null = not written to the column: an older day keeps its comment as the
+   * 朝刊 heading section of `content`, and `readMorningRecord` falls back to
+   * that section.
+   */
+  morningComment?: string[] | null;
   createdAt: string; // ISO datetime
   updatedAt: string; // ISO datetime
 }

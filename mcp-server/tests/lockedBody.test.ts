@@ -47,6 +47,7 @@ const { FOCUS_NOTE_ID } = await import("../src/utils/focusSection.js");
 
 const SECRET_NOTE_BODY = "SECRET-NOTE-BODY";
 const SECRET_DAY_BODY = "SECRET-DAY-BODY";
+const SECRET_DAY_COMMENT = "SECRET-DAY-COMMENT";
 const OPEN_NOTE_BODY = "OPEN-NOTE-BODY";
 
 const LOCKED_NOTE = "note-locked";
@@ -117,6 +118,8 @@ function tables(): StubTables {
         item_id: `daily-${LOCKED_DATE}`,
         date: LOCKED_DATE,
         content_json: doc(SECRET_DAY_BODY),
+        // 0035: Claude's comment sits beside the body, and is gated with it.
+        morning_comment: [SECRET_DAY_COMMENT],
         has_password: true,
       },
     ],
@@ -283,9 +286,21 @@ describe("get_daily", () => {
       isTrashed: false,
       locked: true,
       hasBriefing: false,
+      morningComment: null,
       content: null,
     });
     expect(bodyReadsFor("dailies_payload", `daily-${LOCKED_DATE}`)).toEqual([]);
+    // The comment column (0035) rides only on the unlocked read, so it is
+    // never asked for either — not just dropped on the way out.
+    expect(JSON.stringify(daily)).not.toContain(SECRET_DAY_COMMENT);
+    const commentReads = stub.calls.filter(
+      (c) =>
+        c.table === "dailies_payload" &&
+        c.op === "select" &&
+        (c.columns ?? "").includes("morning_comment") &&
+        c.filters.has_password !== false,
+    );
+    expect(commentReads).toEqual([]);
   });
 });
 

@@ -186,15 +186,18 @@ describe.each(DAYS)("the one text — $name", ({ content, text }) => {
 });
 
 /*
- * A1 — a KNOWN LIMIT, not a guarantee; how to treat it is an open decision
- * raised in the #2107 PR (no queue entry). Daily text written below the 朝刊
- * or 宣言 lines without a heading of its own (write_briefing prepends 朝刊
- * above an old body; typing at the end of a Daily that has 宣言) falls inside
- * that section under the plan's "a section runs to the next heading" rule, so
- * the read leaves it out of the one text, while plan l.221 expects it in the
- * reflection field. What is pinned is only what writeDailyText itself does:
- * it leaves that text untouched. A later 宣言 save (mergeIntentionSection)
- * replaces the whole [宣言, next heading) range and does not keep it.
+ * A1 — a KNOWN LIMIT, settled by D-20261007-briefing-1. Daily text written
+ * below the 朝刊 or 宣言 lines without a heading of its own (write_briefing
+ * used to prepend 朝刊 above an old body; typing at the end of a Daily that
+ * has 宣言) falls inside that section under the plan's "a section runs to the
+ * next heading" rule, so the read leaves it out of the one text. The decision
+ * keeps it that way: new days get no such sections (the comment moved to the
+ * `morning_comment` column, 0035), and on old days `readMorningRecord` shows
+ * the section — this text included — in the Daily's own blocks (#2123;
+ * pinned in dailyMorning.test.ts). What is pinned here is only what
+ * writeDailyText itself does: it leaves that text untouched. A 宣言 save
+ * (mergeIntentionSection, while its last caller survives) replaces the whole
+ * [宣言, next heading) range and does not keep it.
  */
 describe("the one text — A1, text inside a 朝刊 / 宣言 range (known limit)", () => {
   const content = doc(

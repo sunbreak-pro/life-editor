@@ -7,10 +7,7 @@ import {
   localWeekStart,
   assertDateKey,
 } from "../utils/localDate.js";
-import {
-  upsertBriefingSection,
-  hasBriefingSection,
-} from "../utils/briefingSection.js";
+import { readMorningComment } from "../utils/briefingSection.js";
 import {
   FOCUS_NOTE_ID,
   FOCUS_NOTE_TITLE,
@@ -44,10 +41,10 @@ import {
  *     day (or of the window's first day), judged the way list_goals does.
  *   write_briefing — two writes since #1048 / #1097: the focus goes into
  *     the reserved focus note's per-day section (the read half =
- *     shared focusSections.ts), and the comment paragraphs are upserted as
- *     the 朝刊 section of the DailyNode content (read half =
- *     shared extractBriefing.ts). Both honour the §10.2
- *     items_meta.updated_at bump.
+ *     shared focusSections.ts), and the comment paragraphs go to the
+ *     daily's `morning_comment` column — beside the body, never in it
+ *     (0035, D-20261007-briefing-1; read half = shared dailyMorning.ts).
+ *     Both honour the §10.2 items_meta.updated_at bump.
  */
 
 interface DailiesPayloadRow {
@@ -56,6 +53,8 @@ interface DailiesPayloadRow {
   /** Absent for a password-protected day — never fetched (#1763). */
   content_json?: unknown;
   has_password: boolean;
+  /** 0035. Selected with the row; dropped for a locked day when formatted. */
+  morning_comment?: unknown;
 }
 
 /**
@@ -67,7 +66,7 @@ async function fetchDailies(from: string, to: string) {
   const { client } = await getSupabase();
   const { data: rows, error } = await client
     .from("dailies_payload")
-    .select("item_id, date, has_password")
+    .select("item_id, date, has_password, morning_comment")
     .gte("date", from)
     .lte("date", to)
     .order("date", { ascending: false });
@@ -105,6 +104,19 @@ async function fetchDailies(from: string, to: string) {
 function dailyText(row: DailiesPayloadRow | null): string | null {
   if (!row || row.has_password) return null;
   return contentPlainText(row.content_json);
+}
+
+/**
+ * A day's morning comment (0035): the column, else the 朝刊 section of an
+ * older body, else null. Null for a locked day, whose column is in hand but
+ * is not handed back — the same rule as get_daily and as its body (#1763).
+ */
+function dailyMorningComment(row: DailiesPayloadRow | null): string[] | null {
+  if (!row || row.has_password) return null;
+  return readMorningComment(
+    row.morning_comment,
+    contentJsonToString(row.content_json),
+  );
 }
 
 interface EventRow {
@@ -315,10 +327,7 @@ export async function getTodayContext(args: { date?: string }) {
   ]);
 
   const todayDaily = todayDailyPayloads[0] ?? null;
-  const todayContent =
-    todayDaily && !todayDaily.has_password
-      ? contentJsonToString(todayDaily.content_json)
-      : null;
+  const todayComment = dailyMorningComment(todayDaily);
 
   return {
     date,
@@ -335,13 +344,15 @@ export async function getTodayContext(args: { date?: string }) {
       date: d.date,
       locked: d.has_password,
       text: dailyText(d),
+      morningComment: dailyMorningComment(d),
     })),
     todayDaily: {
       exists: todayDaily !== null,
       locked: todayDaily?.has_password ?? false,
-      // `todayContent` is null for a locked day, and an unknown section is
+      // The comment is null for a locked day, and an unknown comment is
       // reported as absent rather than guessed at.
-      hasBriefing: todayContent !== null && hasBriefingSection(todayContent),
+      hasBriefing: todayComment !== null,
+      morningComment: todayComment,
       text: dailyText(todayDaily),
     },
     goals,
@@ -458,6 +469,7 @@ export async function getWeekContext(args: { start_date?: string }) {
         exists: daily !== null,
         locked: daily?.has_password ?? false,
         text: dailyText(daily),
+        morningComment: dailyMorningComment(daily),
       },
     });
   }
@@ -538,7 +550,12 @@ async function writeFocusIntoNote(
   return { id: FOCUS_NOTE_ID, created: true };
 }
 
-/** The comment half of write_briefing: upsert the 朝刊 section (#256). */
+/**
+ * The comment half of write_briefing (#256): the paragraphs go to the day's
+ * `morning_comment` column (0035, D-20261007-briefing-1). The body is neither
+ * read nor written — a 朝刊 section an older day already carries stays as it
+ * is, and the readers prefer the column over it.
+ */
 async function writeCommentIntoDaily(
   date: string,
   paragraphs: string[],
@@ -546,7 +563,7 @@ async function writeCommentIntoDaily(
   const { client } = await getSupabase();
   const { data: existing, error: exErr } = await client
     .from("dailies_payload")
-    .select("item_id, date, content_json, has_password")
+    .select("item_id, date, has_password")
     .eq("date", date)
     .eq("has_password", false)
     .maybeSingle();
@@ -560,10 +577,6 @@ async function writeCommentIntoDaily(
 
   if (existing) {
     const row = existing as DailiesPayloadRow;
-    const next = upsertBriefingSection(
-      contentJsonToString(row.content_json),
-      paragraphs,
-    );
     // The meta patch rides along with the §10.2 LWW bump: a soft-deleted
     // daily is restored, because a briefing written into a trashed
     // (invisible) daily would silently vanish.
@@ -571,16 +584,16 @@ async function writeCommentIntoDaily(
       "dailies_payload",
       row.item_id,
       "daily",
-      { content_json: JSON.parse(next) },
+      { morning_comment: paragraphs },
       { is_deleted: false, deleted_at: null },
     );
     return { id: row.item_id, created: false };
   }
 
   // No daily yet — create the canonical `daily-<YYYY-MM-DD>` pair
-  // (§10.5 orphan recovery on the payload INSERT).
+  // (§10.5 orphan recovery on the payload INSERT). The body starts empty:
+  // null is how the app stores a blank body (shared contentStringToJson).
   const id = `daily-${date}`;
-  const content = upsertBriefingSection(null, paragraphs);
   await insertItem({
     id,
     role: "daily",
@@ -590,7 +603,8 @@ async function writeCommentIntoDaily(
     payloadTable: "dailies_payload",
     payload: {
       date,
-      content_json: JSON.parse(content),
+      content_json: null,
+      morning_comment: paragraphs,
       is_pinned: false,
       is_edit_locked: false,
     },
@@ -613,9 +627,9 @@ export async function writeBriefing(args: {
     .filter((p) => p !== "");
 
   // The focus goes to the reserved focus note (#1048 moved the read there);
-  // the comment paragraphs stay in the daily's 朝刊 section. No paragraphs
-  // means no daily write at all — a heading-only section is invisible to
-  // extractBriefing, and creating a daily for it would be pure litter.
+  // the comment paragraphs go to the daily's morning_comment column (0035).
+  // No paragraphs means no daily write at all — an empty comment is invisible
+  // to every reader, and creating a daily for it would be pure litter.
   const focusNote = await writeFocusIntoNote(date, focus);
   const daily =
     paragraphs.length > 0

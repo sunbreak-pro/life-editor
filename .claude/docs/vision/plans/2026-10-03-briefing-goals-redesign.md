@@ -1,7 +1,7 @@
 ---
 Status: IN PROGRESS
 Created: 2026-10-03
-Updated: 2026-10-06
+Updated: 2026-10-08
 Branch: docs/briefing-goal-todo-plan-2035
 Owner-chat: briefing-refine
 Parent: .claude/docs/vision/plans/2026-07-15-briefing-loop.md
@@ -107,12 +107,14 @@ Parent: .claude/docs/vision/plans/2026-07-15-briefing-loop.md
 - **「Daily に移動」ボタン（Step 8）**: 残します。行き先はその日の Daily です。同じ文章を広いページで続けて書く入口になります。
 - **Daily の本文の下（Step 13）**: 気分の★と評価の数字 4 つだけを置きます（D-20261006-main-7）。数字は、予定の数、Todo の達成率（その日に予定した Todo の完了数 / 全体）、作業時間（その日の作業記録の合計）、今日進んだ目標の数です。今の「その日の予定」の一覧は置きません。数え方は、夕刊の「今日の出来事」と「今日進んだ目標」が使う関数をそのまま使います。画面ごとに数え方を作らないためです。
 - **Daily の★（Step 13）**: 夕刊の★と同じ書き込みにします。Daily で★を付けても、その日の夕刊は発行済みになり、`evening_published_at` が入ります。号数は「気分: n/5」の行で数えます。片方の画面でだけ発行時刻が入らないと、号数と発行時刻がずれるためです。
+- **朝刊と宣言を Daily の本文に書かない（2026-10-07 追加）**: こうだいさんの回答 D-20261007-briefing-1 です。朝刊や宣言の節の後ろに書いた見出しの無い文章が、1 本の文章から外れる問題への答えです。朝刊の講評は `dailies_payload.morning_comment`（jsonb の配列。`0035_dailies_morning_comment.sql`）に移し、MCP の `write_briefing` はこの列に書いて本文には書きません。宣言は #2106 と #2107 でアプリから書く経路が無くなり、MCP にも書き手が無いので、列を作りません。古い日の本文の朝刊・宣言の節は書き換えません。読むときは列を先に見て、列が無い日だけ本文の朝刊の節を読みます。読む関数は `shared/src/components/briefing/dailyMorning.ts` の `readMorningRecord` で、講評と宣言の文章を返します。古い節の中にある見出しの無い文章もこの関数の返す側に入るので、Daily（Step 13）が講評と宣言を本文とは別の欄に出せば、その文章も見えます。
 
 ### MCP
 
 - 増やす道具は 5 つです。`list_goals`（期間を指定でき、進み具合と達成の状態も返す）、`create_goal`、`update_goal`（題・親・並び・手での達成・期間末の判断）、`link_goal_todo`、`unlink_goal_todo` です。
 - 既存の道具では、`get_today_context` と `get_week_context` が目標と進み具合を返すようにします。`delete_*` と `restore_item` / `list_trash` も、目標を扱えるようにします。
 - 1 期間 3 つまでの上限は MCP の道具でも守ります。道具を足したら `cd mcp-server && npm run catalog` を回します。
+- `write_briefing` の講評は `dailies_payload.morning_comment` に書きます（D-20261007-briefing-1）。`get_daily` / `get_today_context` / `get_week_context` は列を先に読み、列が無い日は本文の朝刊の節を読みます。
 
 ---
 
@@ -120,6 +122,7 @@ Parent: .claude/docs/vision/plans/2026-07-15-briefing-loop.md
 
 ```
 supabase/migrations/0034_goals.sql                  # 着地済み（#2111）
+supabase/migrations/0035_dailies_morning_comment.sql # D-20261007-briefing-1（PR #2139）
 shared/src/types/goal.ts
 shared/src/services/**            # Goals の DataService・mapper・ルーティング
 shared/src/context/SyncContext.tsx
@@ -175,7 +178,7 @@ Issue の起票はメインのチャットの作業です（CLAUDE.md §9）。2
 | 10  | つなぐ画面（目標の側から）と、Todo の詳細パネル・作成パネルの目標の欄                                                                                               | 🤖 / 👀              | デザイン L1〜L4 の要素が揃う。保存前に変わる数字を出す                                                                                                                                       | #2109              | 3, 4      | 未着手             |
 | 11  | docs の追随（CLAUDE.md §4 の role 一覧・tier-1 §Briefing・mobile-scope・db-conventions）と、古い決定の supersede                                                    | 🤖                   | `docs-lint` 緑。D-20260815-briefing-1〜4・D-20260818-briefing-1 に `superseded-by` が付く。tier-1 の Daily の記述が Step 13 の形に追随する                                                   | #2110              | 7, 8, 13  | 未着手             |
 | 12  | 実画面での確認（Desktop / Mobile、light / dark）                                                                                                                    | 👀                   | メインのチャットが実ブラウザで撮影し、デザインと見比べる。Daily は長文の日・夕刊の無い日・今までの本文がある日を撮る                                                                         | #2110              | 7〜10, 13 | 未着手             |
-| 13  | Daily の作り直し（本文 = 1 本の文章・朝刊と宣言の節を出さない・本文の下は気分の★と評価の数字 4 つ・Daily の★も発行にする）                                          | 🤖 / 👀              | §Daily と夕刊の文章 のとおりに出る。開いただけの日は保存データが変わらない（vitest）。長文でも本文の最後まで読める（Mobile / Desktop）                                                       | #2123（materials） | 8         | 未着手             |
+| 13  | Daily の作り直し（本文 = 1 本の文章・朝刊と宣言の節を出さない・朝刊の講評と宣言は `readMorningRecord` で本文とは別の欄に出す・本文の下は気分の★と評価の数字 4 つ・Daily の★も発行にする）                                          | 🤖 / 👀              | §Daily と夕刊の文章 のとおりに出る。開いただけの日は保存データが変わらない（vitest）。長文でも本文の最後まで読める（Mobile / Desktop）                                                       | #2123（materials） | 8         | 未着手             |
 
 画面の Step（7〜10）は互いに独立しているので、データの Step（1〜6）が済めば並行して進められます。Step 13 だけは Step 8 の後です。読み書きの関数を Step 8 で作り、Step 13 はそれを使うだけにするためです（D-20261006-main-8）。
 
@@ -204,6 +207,7 @@ AC を満たせない見込みになったら、自分で免除せず P-008 に�
 
 - ファイルは `supabase/migrations/0034_goals.sql` です（PR #2111 で着地済み）。初版は 0032 と書いていましたが、計画書を書いたあとに別のレーンが 0032 と 0033 を使ったため、0034 になりました。
 - Step 13 の「1 本の文章」は、今の Daily の本文の中で表すので DDL は要りません。
+- `0035_dailies_morning_comment.sql`（D-20261007-briefing-1・PR #2139）は、`dailies_payload` に `morning_comment` を足すだけです。アプリの mapper と MCP は列を名前で select するので、こうだいさんの `supabase db push` が先で、PR の merge と Remote MCP の Worker の deploy が後です。
 - 並行するレーンが同じ番号を使っていないかを、PR を出す前に origin/main と突き合わせます。
 - 手順は「ローカルのファイルを先に作る → こうだいさんが `supabase db push`」です。`apply_migration` の MCP は単独では使いません。
 - 失敗したら、逆向きの migration を別のファイルで作ります。既存のファイルは直しません。
@@ -219,6 +223,8 @@ AC を満たせない見込みになったら、自分で免除せず P-008 に�
 - **Step 8 と Step 13 のあいだの見え方**: Step 8 が先に入ると、夕刊の欄で編集した日は今までの本文が「夕刊」の節へ移ります。Step 13 が入るまでの Daily は今の画面のままなので、その日の今までの本文は本文のエディタから消え、下のカードに出ます。文章は消えませんが、置き場所が変わって見えます。Step 13 は Step 8 の merge のあと間を空けずに出します。
 - **節の境目と利用者の見出し**: 節は「次の見出しまで」です。MCP の `write_briefing` は朝刊の見出しの下に段落だけを書くので、朝刊の節が途中で切れることはありません（`mcp-server/src/utils/briefingSection.ts:58`、2026-10-06 確認）。切れるのは、利用者が文章の中に見出しを書いたときです。1 本の文章を「除くものを除いた残り」で定義したのはこのためで、見出しの後ろの文章も 1 本の文章に残ります。この場合を vitest の 5 通り目に足します。
 - **今までの Daily の本文がある日の Briefing**: 1 本の文章には、昼に Daily で書いた文章も入ります。夕刊の締めくくりの欄にも、それがそのまま出ます。D-20261006-main-5 でつなげると決めたので、これは意図どおりです。
+- **講評の列と古い節が両方ある日**: 列が先なので、移行の前に本文へ書かれた朝刊の節は、その日にもう一度 `write_briefing` が走ると Briefing にも Daily にも出なくなります。本文には残り、`get_daily` の `content` では読めます。対象は移行の日の前後だけです。
+- **Step 13 までの講評**: #2139 が入ってから Step 13 が入るまで、新しい講評は Daily の画面に出ません。Briefing の朝刊では読めます。
 
 ---
 
@@ -237,3 +243,4 @@ AC を満たせない見込みになったら、自分で免除せず P-008 に�
 
 - 2026-10-03: 初版。D-20260928-briefing-1〜4 と 2026-10-02〜03 の回答、Claude Design の案（2026-10-02）をもとに書きました。Issue の起票はメインのチャットへ依頼します。
 - 2026-10-06: Status を IN PROGRESS に変えました（Step 1〜4 が済み。Step 3 は PR #2116、0034 は本番の DB に適用済み = 2026-10-06 に migration list で確認）。Issue の番号を Steps の表に入れ、migration の番号を 0034 に直しました。こうだいさんの回答 D-20261006-main-5〜8 を受けて、§Daily と夕刊の文章を 1 本にする を足し、Step 8 を直し、Step 13（#2123）を足しました。
+- 2026-10-08: こうだいさんの回答 D-20261007-briefing-1（朝刊と宣言を Daily の本文に書かず、Daily の中の別の欄に記録する）を受けて、§Daily と夕刊の文章を 1 本にする と §MCP に箇条を足し、Step 13 の行・Scope・DB Migration Notes・Risks を直しました。実装は PR #2139 に足しました（migration 0035）。
