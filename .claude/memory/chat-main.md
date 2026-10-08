@@ -2,6 +2,15 @@
 
 ## 進行中
 
+### 🔧 拡張アプリの記録と一覧（`app_records`・Analytics の記録タブ・Apps セクション）（着手日: 2026-10-08）
+
+**対象**: `.claude/docs/vision/plans/2026-10-08-extension-app-records-and-apps-section.md`・`.claude/decisions/D-20261008-main-{1,2}.md`・`.claude/comm/decisions/ANSWERS.md`
+**計画書**: `.claude/docs/vision/plans/2026-10-08-extension-app-records-and-apps-section.md`（Draft・親 = `2026-10-07-extension-app-gateway.md`）
+
+- 前回: —
+- 現在: こうだいさんの構想（出来事を貯める → 分析 → 次の Todo。家計簿などの数値は拡張アプリで集める）に意見を返し、「その方向性で OK」+ 要件 2 つ（Analytics に収集と一覧 / leftSidebar に Apps のタブ）+ 別リポジトリ（手順がかなり増えるなら統合）の回答を受けて、決定 **D-20261008-main-1**（役割分担 = 本社 / 支店・`app_records` は `items_meta` の外・データ先でアプリ後・Analytics 記録タブ + Apps セクション）と **D-20261008-main-2**（別リポジトリ・切替条件 (a)(b)）を台帳へ昇格し、計画書を Draft で作成。**窓口の計画書（PR #2137・同日 13:18 merge）と D-20261007-main-1〜8 を前提にし、チャットで先に出した「Supabase 直書き」案は取り下げて窓口経由に合わせた**。`records.mjs check` / `LC_ALL=C docs-lint` とも OK。docs PR = **PR #2158 open**（ブランチ `docs/extension-records-apps-plan`・head `34cdccce`・一時 worktree 経由。base の origin/main は `7666b69e` = PR #2139 の後）
+- 次: PR merge（🛑 = 計画書 Step 1）→ N1〜N8 を `issue-dispatch` で起票（**N5 = Apps セクションの宛先レーンは要判断**: 新レーン `apps` を立てるか chat-main が持つか）→ Step 8 の語彙の突き合わせ（作成元 = `extension_apps.slug`）を #2146 / #2147 / #2148 の着手前にコメントで出す。migration 番号は 0035 = #2118 / 0036 = #2094 が予約済みで #2147 も 1 本使うので、N1 は着手時に origin と突き合わせる
+
 ### 📦 Desktop 配布パッケージ化（mac .dmg / Windows NSIS）（着手日: 2026-08-30）
 
 **対象**: `.github/workflows/`・`desktop/`（package.json / electron-builder.yml / README）
