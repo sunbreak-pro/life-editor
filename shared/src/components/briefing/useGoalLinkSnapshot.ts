@@ -48,6 +48,16 @@ export interface GoalLinkSnapshot {
     link: readonly GoalTodoPair[],
     unlink: readonly GoalTodoPair[],
   ) => Promise<void>;
+  /**
+   * Run the host's own goal writes — a create, a period-end answer (#2106) —
+   * fenced like `writeLinks`. Each Goal handed to `patch` (what createGoal /
+   * updateGoal return) lands in the state at once: the next decision is
+   * computed from it, so a second「持ち越す」or「追加」sent before the re-read
+   * cannot count a period that is already full as having room.
+   */
+  writeGoals: (
+    run: (patch: (goal: Goal) => void) => Promise<void>,
+  ) => Promise<void>;
 }
 
 interface Loaded {
@@ -149,5 +159,28 @@ export function useGoalLinkSnapshot(
     [loader],
   );
 
-  return { state, writeLinks };
+  const writeGoals = useCallback(
+    async (
+      run: (patch: (goal: Goal) => void) => Promise<void>,
+    ): Promise<void> => {
+      writeFenceRef.current += 1;
+      try {
+        await run((goal) =>
+          setLoaded(
+            (prev) =>
+              prev && {
+                ...prev,
+                goals: [...prev.goals.filter((g) => g.id !== goal.id), goal],
+              },
+          ),
+        );
+      } finally {
+        writeFenceRef.current += 1;
+        setAfterWrite((n) => n + 1);
+      }
+    },
+    [],
+  );
+
+  return { state, writeLinks, writeGoals };
 }

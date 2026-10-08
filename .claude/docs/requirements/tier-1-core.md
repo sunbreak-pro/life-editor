@@ -249,7 +249,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 - やる:
   - `parentId` + `order` による順序管理 — **folder 退役済み (2026-07-27 #375)**: フォルダツリー UI は S1 でタグ見出しグルーピングに置換され、`createFolder` は撤去・legacy `note_type='folder'` 行は fetch 時に除外（`isLegacyNoteFolderRow`）。**`NoteNodeType` は 2026-08-18 #1047 で `"note" | "template"` に再拡張**（テンプレートは `note_type='template'` の notes 行。一覧 / 検索 / 件数 / ゴミ箱からは同じ `keep` 節で除外され、`listNoteTemplatesUnified` だけが返す）。まとまりの表現は life-tag が担う（Connect グラフの project ノードも同時退役）。**ノートのネストも 2026-07-27 #418 で Todos と対称に退役**（`moveNodeInto` と `moveNode` の親変更分岐を撤去。`createNote({ parentId })` は API として残るが呼び出し側は常に未指定）
   - TipTap エディタ（`content` は TipTap JSON）+ スラッシュコマンド + バブルツールバー
-  - **画像 / ファイルの添付・埋め込み（2026-09-01 #1404）**: スラッシュコマンドの `image` / `file` から。実体は**非公開** Storage バケット `attachments` の `<uid>/<uuid>.<ext>`（migration 0027 のポリシーが第 1 セグメント = `auth.uid()` で認可）で、ドキュメントが持つのは**パスだけ** — バケットが非公開なので URL は署名付き・1 時間で失効し、ノートに焼き込めない。描画時に `attachment` ノードが毎回署名 URL を引く。$0 厳守のため 1 ファイル 10 MB 上限（無料枠 = 1 GB / 月 5 GB egress / 1 アップロード 50 MB。クライアントとバケット両方で担保）
+  - **画像 / ファイルの添付・埋め込み（2026-09-01 #1404）**: スラッシュコマンドの `image` / `file` から。Notes の本文に加え、2026-10-07 から Daily の本文でも使える（夕刊の振り返り欄は対象外 — 閉じた状態が文字だけのプレビューで添付を描けないため）。実体は**非公開** Storage バケット `attachments` の `<uid>/<uuid>.<ext>`（migration 0027 のポリシーが第 1 セグメント = `auth.uid()` で認可）で、ドキュメントが持つのは**パスだけ** — バケットが非公開なので URL は署名付き・1 時間で失効し、ノートに焼き込めない。描画時に `attachment` ノードが毎回署名 URL を引く。$0 厳守のため 1 ファイル 10 MB 上限（無料枠 = 1 GB / 月 5 GB egress / 1 アップロード 50 MB。クライアントとバケット両方で担保）
   - 相互接続（`note_connections` テーブル、1 対 1 で delete_by_note_pair をサポート）
   - ピン留め（`isPinned`）/ 全文検索（`db_notes_search`）/ パスワード保護（`hasPassword` + set/remove/verify）/ 編集ロック（`isEditLocked`）
   - ソフトデリート + 復元 + 完全削除（UI からのみ実行可能）

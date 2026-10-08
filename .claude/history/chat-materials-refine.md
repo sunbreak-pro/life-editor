@@ -1,5 +1,20 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-10-07 - Daily 本文の「/」メニューに画像 / ファイル添付を配線（PR #2136）
+
+#### 概要
+
+こうだいさんの依頼「materials（Note, Daily 両方）のスラッシュコマンドで写真やファイルをアップロードしたい」への対応。Note 側は #1404 で実装済みで、Daily の本文エディタにだけ添付の配線が渡っていなかった。Daily に Note と同じ配線とアップロード中の帯を足し、PR #2136 を出した（書いた時点で open）。
+
+#### 変更点
+
+- **配線（`web/src/daily/DailyView.tsx`）**: `useAttachmentUpload(dataService, setUploadingFile)` を作り、広い幅と狭い幅の両方の本文エディタへ `attachments` を渡す。本文の上に `AttachmentUploadStatus` を置いた（#1674 / D-20260902-materials-1 = B と同じ扱い。同決定の「Daily に配線したら対象セクションを見直す」に当たる）
+- **対象外**: 夕刊の振り返り欄。閉じた状態が文字だけのプレビューで、添付ノードを描けないため
+- **shared の追随なし**: 孤児掃除（#1438）は `dailies_payload.content_json` を走査済み。添付だけの日も `dailyContentHasRenderedContent` が中身ありと数えるので保存される
+- **テスト（`web/tests/dailyView.test.tsx`）**: DataService が無ければ項目なし / あれば配線あり / アップロード中は帯が出て完了で消える、の 3 件
+- **要件（`tier-1-core.md`）**: 添付の行に Daily 本文を追記
+- **検証**: web の lint / build / typecheck:tests / test（182 files / 1750 tests）、desktop の typecheck / build、docs-lint がすべて緑。実ブラウザ確認は merge 後に chat-main
+
 ### 2026-09-22 (2) - materials の 9 本を main 取り込みで緑に戻した + main の再破損を PR #1945 で修理
 
 #### 概要
@@ -217,21 +232,3 @@ MCP の `generate_content` が書く表（`table` / `tableRow` / `tableHeader` /
 - **テストは 5 本**（`web/tests/tableNodes.test.tsx`・実 `RichTextEditor` を jsdom で）。登録を外すと 5 本とも落ちることを実測した。開いたときのセル本文と周囲の段落、`th` 2 / `td` 4 と `.tableWrapper`、保存後もヘッダー行がヘッダーのままであること、merged cell の colspan / rowspan が残ること、セルが複数段落を持てること
 - **エディタから表を作る導線は足していない**（slash メニュー項目・input rule なし）。#1521 と同じ判断で DoD の範囲外・i18n カタログ 2 本への追加を伴うため。読み込みと round-trip 専用
 - **検証**: CI verify のステップ列 14 本（shared → web → desktop → mcp-server）+ `docs-lint` をローカル全緑。lockfile を触ったので `npm ls @tiptap/extension-table` でツリーの整合も確認。実ブラウザ確認は worktree では回さない規約なので merge 後に chat-main
-
-### 2026-09-06 - #1409 の Materials 4 件（PR #1540 / #1543 / #1547 / #1549）
-
-#### 概要
-
-Mobile 幅点検 #1409 と Desktop 点検 #1408 の所見 4 件。全部 `origin/main` から独立に切って 1 件 1 PR。書いた時点の実測で #1540 / #1543 / #1547 が merged、#1549 が open（merge はこうだいさんの手番 = P-001）。
-
-着手して分かったのは、**4 件のうち 2 件（#1470 / #1471）は前日に main で直っていて Issue だけが open で残っていた**こと。実装が要ったのは #1523 と #1518 の 2 件で、残り 2 件は「現状が DoD を満たしているかの確認」と「抜けていた回帰テスト」に変わった。
-
-#### 変更点
-
-- **#1523（PR #1540）Note 本文のチェックボックスに親指サイズの当たり判定と名乗り**: 丸そのものは #1368 で既に `TODO_CHECKBOX_ICON_PX` のマスク描画に揃っていて、足りなかったのは当たり判定と属性の 2 つ。`index.css` には「44px にすると上下の行のキャレット移動用クリックを飲む」という**既存の反対理由**が書かれており、マウスではそれが正しいので **768px 未満だけ**に入れた（ItemLinkMenu が `max-md:min-h-11` を敷いているのと同じ境界）。当たり判定に場所を奪わせず、`min-height` で**行に場所を与える** — 隣り合う 2 つの 44px 領域が重ならないので境界付近のタップが隣の Todo を切り替えない。領域は label の擬似要素で、label は 1.6em の行ボックスを保つので #883 の光学中央合わせがそのまま生きる（label を高くすると丸が約 3px 下がる）。`role` / `aria-checked` は TipTap の node view を包んで input に付けた
-- **#1518（PR #1543）候補メニューを画面幅で頭打ちに**: 配置関数には #471 以来 **高さ**の上限しか無かった。メニューの幅は一番長い行で決まるので、`[[` のアクション行（文章）が 445px を作り、390px の画面で左マージン 8px に正しく寄せたうえで画面外まで描いていた（`/` メニューの行は単語なので露呈しない）。左オフセットは**上限後の幅**から計算する（素の幅だと、もう存在しない余白の分だけ左に引き戻す）。上限は **portal 先のコンテナ**に書く — メニュー本体は配置の後に ReactRenderer が差し込むので、配置時に存在するのはコンテナだけ。既存の ResizeObserver がもう 1 周まわして収束する
-- **アクション行だけ折り返し、候補行は省略のまま**: アクション行は意味が末尾にある（「…のノートを作成してリンク」）ので三点リーダーだと動詞が消える。候補行は先頭で識別できるし、全部折り返すとピッカーではなく壁になる
-- **#1471（PR #1547）は確認 + 配線のガードだけ**: PR #1507 で着地済み。内側まで一致していることを読んで確認した（`NoteDetailPanel` の `variant="main"` も Modal のパネルも `p-5` + `border` 1px なので差 0px）。抜けていたのは **`useElementWidth` と `TemplateEditPanel` の間の 2 ホップ** — NotesView の `ref={measureMainColumn}` と `columnWidth={mainColumnWidth}` を押さえるテストが無く、片方消しても全緑のまま 818px に戻る。3 件追加し、**配線を 1 つずつ外して 2 件が赤くなることを実測**した
-- **#1470（PR #1549）は narrow の実測**: PR #1502 で着地済みだが、Issue に「Mobile でも再現」というコメントが残っていた（**そのコメントは修正の着地より前**に書かれたもの）。#1502 の 5 件は全部 `state.isWide` の既定値 true で走るので、narrow を同じ答えに縛るものが 1 つも無かった。4 件足して緑で通ること自体が所見 = Mobile も直っている。プロダクトコードの変更なし
-- **踏んだ罠**: worktree が tracker ブランチ（`origin/main` より 20 コミット古い）に居たまま最初のファイル読みをしたので、`TemplateEditPanel.tsx` などを**全部旧版で読んで**設計を組み立てかけた。**ブランチを切ってからファイルを読む**、が正しい順序
-- **検証**: 4 ブランチとも CI verify のステップ列 14 本 + `docs-lint` をローカルで上から全部。#1470 のときだけ一括実行で `briefingEveningLazyMount` が 1 件落ちたが、単体でも静かな状態の全件（116 files / 1096 tests）でも緑 — memory に記録済みの cold-cache flake。実ブラウザでの再測定は worktree では回さない規約なので merge 後に chat-main

@@ -95,11 +95,11 @@ describe("tour registry", () => {
   });
 
   it("names the mechanism that fills Briefing, in both catalogs", () => {
-    // The point of the step (#1201): Briefing is written by `write_briefing`
-    // over MCP, so on the web alone it stays empty. A user who is not told
-    // that reads an empty page as a broken one — and there is nothing on
-    // screen to correct them. Copy is normally not asserted, but here the
-    // specific facts ARE the feature.
+    // The point of the step (#1201): Claude's word on yesterday is written by
+    // `write_briefing` over MCP, so on the web alone that one block never
+    // appears (#2106 — the goals and the schedule fill the rest). A user who
+    // is not told looks for it in vain. Copy is normally not asserted, but
+    // here the specific facts ARE the feature.
     for (const catalog of [en, ja]) {
       const copy = lookup(catalog, TOUR_STEPS[0].copyKey);
       expect(typeof copy).toBe("string");

@@ -184,4 +184,22 @@ describe("DailyEveningCard", () => {
       .parentElement as HTMLElement;
     expect(header.className.split(" ")).not.toContain("flex-col");
   });
+
+  it("puts the host's layout classes on the card's outer box (#2122)", () => {
+    render(
+      <DailyEveningCard
+        mood={null}
+        reflectionLines={["line"]}
+        schedule={[]}
+        labels={LABELS}
+        className="min-h-0 overflow-y-auto"
+      />,
+    );
+
+    const card = screen.getByText("EVENING").closest("section");
+    const classes = (card as HTMLElement).className.split(" ");
+    expect(classes).toContain("overflow-y-auto");
+    // Its own surface stays — the hook adds, it does not replace.
+    expect(classes).toContain("bg-lumen-bg-secondary");
+  });
 });

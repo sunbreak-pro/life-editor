@@ -27,10 +27,7 @@ const LABELS: BriefingLabels = {
   aiTitle: "AI",
   aiSource: "Claude",
   noFocus: "No focus",
-  intentionTitle: "INTENTION",
-  intentionCaption: "Saved",
-  intentionPlaceholder: "Declare today…",
-  goalsTitle: "GOALS",
+  goalMark: "Goals:",
   scheduleTitle: "PROMISES",
   addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
@@ -82,17 +79,6 @@ function renderMorning() {
       data={DATA}
       labels={LABELS}
       focusText={null}
-      intentionText=""
-      onIntentionChange={vi.fn()}
-      onIntentionBlur={vi.fn()}
-      goals={{ week: "", month: "", year: "" }}
-      goalLabels={{
-        week: { title: "WEEK", range: "9/1 – 9/7", placeholder: "This week…" },
-        month: { title: "MONTH", range: "September", placeholder: "…" },
-        year: { title: "YEAR", range: "2026", placeholder: "…" },
-      }}
-      onGoalChange={vi.fn()}
-      onGoalBlur={vi.fn()}
       onToggleTodo={vi.fn()}
       onDeleteScheduleItem={vi.fn()}
       onDeleteTodo={vi.fn()}

@@ -155,6 +155,12 @@ export const SECTION_DESCRIPTORS: Readonly<
         onNavigateToItem={nav.navigateToItem}
         tab={nav.briefingTab}
         tabSwitcher={narrowTabRow}
+        // The goals block's way to Connect's "Goals & Todos" tab (#2106). The
+        // tab is set first: applyDestination switches the section only.
+        onOpenGoals={() => {
+          nav.setConnectTab("goals");
+          nav.navigateTo({ section: "connect" });
+        }}
       />
     ),
   },

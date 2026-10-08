@@ -32,6 +32,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     tomorrowItems,
     todoNodes,
     setTodoNodes,
+    todosRead,
     sessions,
     dailyContent,
     setDailyContent,
@@ -85,6 +86,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
   return {
     loading,
     data,
+    todosRead,
     dateLine,
     dailyContent,
     setDailyContent,
