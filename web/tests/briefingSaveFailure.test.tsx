@@ -24,6 +24,11 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
  *
  * The failure is injected at the DataService, which is where a real one lives
  * (offline, RLS, a 500) — not by making the hook throw.
+ *
+ * Since #2106 the morning paper holds neither the 宣言 field nor the free-text
+ * goal fields. 宣言 is still written from the evening paper below 768px (the
+ * Quick capture surface — mobile-scope #3), so its cases run there; the goal
+ * fields' case went with them (goals are rows now and toast on their own).
  */
 
 const TODAY = todayDateKey();
@@ -52,7 +57,25 @@ function makeDS(overrides: Partial<DataService> = {}): DataService {
   });
 }
 
-function renderPaper(ds: DataService, tab: "morning" | "evening" = "morning") {
+/** jsdom has no matchMedia, and useMediaQuery falls back to wide without it. */
+function setWidth(wide: boolean) {
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    configurable: true,
+    value: (query: string) => ({
+      matches: wide,
+      media: query,
+      onchange: null,
+      addEventListener: () => undefined,
+      removeEventListener: () => undefined,
+      addListener: () => undefined,
+      removeListener: () => undefined,
+      dispatchEvent: () => false,
+    }),
+  });
+}
+
+function renderPaper(ds: DataService, tab: "morning" | "evening" = "evening") {
   return render(
     <ToastProvider>
       <SyncContext.Provider value={syncValue}>
@@ -67,15 +90,10 @@ function renderPaper(ds: DataService, tab: "morning" | "evening" = "morning") {
   );
 }
 
+/** The evening paper's 宣言 field — editable below 768px only (#391). */
 function intentionField(): HTMLTextAreaElement {
   return screen.getByPlaceholderText(
-    "What will you get done today? One line is enough…",
-  ) as HTMLTextAreaElement;
-}
-
-function weekGoalField(): HTMLTextAreaElement {
-  return screen.getByPlaceholderText(
-    "What will you get done this week? One line is enough…",
+    "Today's intention — one line is enough…",
   ) as HTMLTextAreaElement;
 }
 
@@ -89,6 +107,7 @@ describe("Briefing save failures reach the user (#955)", () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    setWidth(false);
     // The console line is part of the contract (it is the developer-facing
     // record) but it must not spam the run.
     consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -111,21 +130,6 @@ describe("Briefing save failures reach the user (#955)", () => {
     // failed save into the data loss the toast is warning about.
     expect(intentionField().value).toBe("Ship the report");
     expect(consoleError).toHaveBeenCalled();
-  });
-
-  it("toasts when a 目標 save fails, and keeps the draft on screen", async () => {
-    const ds = makeDS({
-      createNoteUnified: vi.fn().mockRejectedValue(SAVE_FAILED),
-    });
-    renderPaper(ds);
-    await waitFor(() => expect(weekGoalField()).toBeTruthy());
-
-    typeAndFlush(weekGoalField(), "Land the rollover");
-
-    await waitFor(() =>
-      expect(screen.getByText(/Could not save your goals/)).toBeTruthy(),
-    );
-    expect(weekGoalField().value).toBe("Land the rollover");
   });
 
   it("toasts when a 夕刊 save fails", async () => {
@@ -176,7 +180,7 @@ describe("Briefing save failures reach the user (#955)", () => {
         <BriefingScreen
           dataService={ds}
           onNavigate={vi.fn()}
-          tab="morning"
+          tab="evening"
           key={TODAY}
         />
       </SyncContext.Provider>,

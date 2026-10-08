@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   GOALS_NOTE_ID,
   currentNoteGoalLines,
@@ -29,8 +29,8 @@ import {
  * Briefing before the creates finish still tells the user what stayed behind.
  *
  * Nothing here writes to the note. A trashed or password-locked note is left
- * alone, the same guard useGoalsDoc's read has: a trashed note was deleted on
- * purpose, and a locked one comes back without its body.
+ * alone, the same guard the retired useGoalsDoc's read had (#2106): a trashed
+ * note was deleted on purpose, and a locked one comes back without its body.
  */
 
 export interface NoteGoalsMigrationResult {
@@ -106,19 +106,25 @@ type Announce = (leftInNote: number) => void;
  */
 const runs = new WeakMap<DataService, Map<string, Promise<void>>>();
 
-function runOnce(ds: DataService, todayKey: string, announce: Announce): void {
+/** The run for this DataService and day — the one in flight, or a new one. */
+function runOnce(
+  ds: DataService,
+  todayKey: string,
+  announce: Announce,
+): Promise<void> {
   let byDay = runs.get(ds);
   if (byDay === undefined) {
     byDay = new Map();
     runs.set(ds, byDay);
   }
-  if (byDay.has(todayKey)) return;
+  const existing = byDay.get(todayKey);
+  if (existing !== undefined) return existing;
   const days = byDay;
   const drop = (err: unknown): void => {
     if (days.get(todayKey) === run) days.delete(todayKey);
     // No error toast: nothing the user wrote is at risk (the note is
-    // untouched), and the next open tries again — the same call useGoalsDoc
-    // makes for a failed read.
+    // untouched), and the next open tries again — the same call the retired
+    // useGoalsDoc made for a failed read.
     console.error("[BriefingScreen] goals note migration failed", err);
   };
   const run: Promise<void> = migrateNoteGoals(ds, todayKey).then((result) => {
@@ -126,19 +132,41 @@ function runOnce(ds: DataService, todayKey: string, announce: Announce): void {
     if (result.leftInNote > 0) announce(result.leftInNote);
   }, drop);
   days.set(todayKey, run);
+  return run;
 }
 
-export function useNoteGoalsMigration(ds: DataService, todayKey: string): void {
+/**
+ * True once this day's run has settled (moved, found nothing, or failed).
+ * The paper reads its goals only after that (#2106): a read that lands while
+ * the run is still creating would show「今週の目標を立てましょう」over goals
+ * that now exist, and let a 4th week goal through the limit check.
+ */
+export function useNoteGoalsMigration(
+  ds: DataService,
+  todayKey: string,
+): boolean {
   const { t } = useTranslation();
   const showToast = useToastOptional()?.showToast;
+  const [settled, setSettled] = useState<{
+    ds: DataService;
+    day: string;
+  } | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
     // Only the first mount of a run is heard; StrictMode's second effect and
     // a second paper join it without a callback of their own.
-    runOnce(ds, todayKey, (count) => {
+    void runOnce(ds, todayKey, (count) => {
       showToast?.("warning", t("briefing.goals.migrationOverflow", { count }), {
         durationMs: 8000,
       });
+    }).then(() => {
+      if (!cancelled) setSettled({ ds, day: todayKey });
     });
+    return () => {
+      cancelled = true;
+    };
   }, [ds, todayKey, showToast, t]);
+
+  return settled?.ds === ds && settled.day === todayKey;
 }

@@ -23,12 +23,13 @@ const FOCUS_SAVE_DEBOUNCE_MS = 800;
  * per day, keyed by date (shared/src/components/briefing/focusSections.ts).
  * TWO days matter to a single render of the Briefing section:
  *
- * - TODAY's section is what the morning paper prints as its focus line
- *   (read-only here — it was written last evening).
+ * - TODAY's section is what the morning paper prints as「ゆうべの自分から」
+ *   (read-only here — it was written last evening; renamed in #2106).
  * - TOMORROW's section is what the evening paper's focus field edits
- *   (draft + debounced section-merge save, like the goals fields).
+ *   (draft + debounced section-merge save).
  *
- * The mechanics are the goals hook's (useGoalsDoc), single-field: fetch by id
+ * The mechanics were the goals hook's (useGoalsDoc, retired with the paper's
+ * goal fields in #2106), single-field: fetch by id
  * (`listNotesUnified` carries no bodies), create the note on the FIRST SAVE
  * only, serialize the read and every write on one chain, and compare stored
  * text semantically (the extracted value, not the jsonb round-tripped bytes)
@@ -48,7 +49,7 @@ export function useFocusNote(ds: DataService, todayKey: string) {
 
   const [content, setContent] = useState<string | null>(null);
 
-  // ONE chain for the read AND the writes (useGoalsDoc's reasoning): a refetch
+  // ONE chain for the read AND the writes (the retired useGoalsDoc's): a refetch
   // resolving after a later save would roll the shown text back.
   const saveChainRef = useRef<Promise<void>>(Promise.resolve());
 
@@ -107,7 +108,8 @@ export function useFocusNote(ds: DataService, todayKey: string) {
   // of our own not-yet-landed save values; a stored change matching a queued
   // echo is our own save landing and KEEPS the draft, anything else is an
   // external change and drops it. Render-phase adjustment on pure state
-  // (idempotent under StrictMode's double render) — useGoalsDoc's model.
+  // (idempotent under StrictMode's double render) — the retired useGoalsDoc's
+  // model.
   const [draft, setDraft] = useState<string | undefined>(undefined);
   const [synced, setSynced] = useState<{
     text: string | null;
