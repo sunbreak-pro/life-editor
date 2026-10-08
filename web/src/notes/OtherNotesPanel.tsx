@@ -1,7 +1,7 @@
 import { useEffect, useRef, type KeyboardEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { ChevronLeft, X } from "lucide-react";
-import { cn, FOCUS_RING } from "@life-editor/shared";
+import { cn, FOCUS_RING, useEscapeLayer } from "@life-editor/shared";
 
 /*
  * "Other items" (#2061) — the notes the default sidebar list leaves past its
@@ -51,6 +51,7 @@ export function OtherNotesList({
   children,
 }: OtherNotesListProps) {
   const dismissRef = useRef<HTMLButtonElement>(null);
+  const inline = variant === "inline";
 
   // Into the list on open, so a keyboard user lands where the rows are rather
   // than on a trigger the list has just covered (flyout) or replaced (inline).
@@ -58,23 +59,34 @@ export function OtherNotesList({
     dismissRef.current?.focus();
   }, []);
 
-  // No IME guard needed: nothing in here takes text input.
+  /*
+   * Narrow (#2096): the view sits inside the MobileDrawer, whose Esc handler
+   * (useDialogA11y) listens on document in the CAPTURE phase. That runs before
+   * a keydown here is even reached, so stopping the event in `onKeyDown` came
+   * too late and one Esc closed the whole drawer. Joining the same layer stack
+   * makes this view the top layer while it is shown: the drawer stands down and
+   * Esc goes back to the list, as the back button does. A sheet or menu a row
+   * opens on top still takes its own Esc first, being a newer layer.
+   */
+  useEscapeLayer({ open: inline, onEscape: onDismiss });
+
+  // Wide only. The flyout is not inside a dialog, so Esc stays scoped to the
+  // focus being in it — a layer would also take an Esc pressed in the note
+  // behind. No IME guard needed: nothing in here takes text input.
   const handleKeyDown = (event: KeyboardEvent) => {
     if (event.key !== "Escape") return;
     event.preventDefault();
-    // Stop here so the drawer behind (narrow) does not close as well.
     event.stopPropagation();
     onDismiss();
   };
 
   const titleId = `${id}-title`;
-  const inline = variant === "inline";
 
   return (
     <section
       id={inline ? id : undefined}
       aria-labelledby={titleId}
-      onKeyDown={handleKeyDown}
+      onKeyDown={inline ? undefined : handleKeyDown}
       className="flex min-h-0 flex-col gap-1"
     >
       <div className="flex items-center gap-1">
