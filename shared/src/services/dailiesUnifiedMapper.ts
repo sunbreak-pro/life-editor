@@ -73,20 +73,28 @@ export interface DailiesPayloadRow {
   /**
    * 0035 (D-20261007-briefing-1): the morning comment. The DB only CHECKs
    * "null or an array", so the elements arrive unchecked — `unknown` until
-   * `toMorningComment` has read it.
+   * `toMorningComment` has read it. READ-ONLY for the app: MCP
+   * write_briefing is its only writer, so it is kept off both write types.
    */
   morning_comment?: unknown;
 }
 
 /** Writable subset for INSERT/UPSERT on dailies_payload. `has_password`
- * is generated — keep it off the write type. */
-export type DailiesPayloadWriteRow = Omit<DailiesPayloadRow, "has_password">;
+ * is generated and `morning_comment` belongs to MCP — keep both off the
+ * write type. */
+export type DailiesPayloadWriteRow = Omit<
+  DailiesPayloadRow,
+  "has_password" | "morning_comment"
+>;
 
 /** UPDATE patch for dailies_payload. `item_id` / `user_id` /
- * `has_password` are never patched (date typically not either, but allowed
- * for completeness). */
+ * `has_password` / `morning_comment` are never patched (date typically not
+ * either, but allowed for completeness). */
 export type DailiesPayloadUpdatePatch = Partial<
-  Omit<DailiesPayloadRow, "item_id" | "user_id" | "has_password">
+  Omit<
+    DailiesPayloadRow,
+    "item_id" | "user_id" | "has_password" | "morning_comment"
+  >
 >;
 
 // ---------------------------------------------------------------------------
@@ -158,15 +166,21 @@ export function rowsToDailyNode(
 
 /**
  * The column is CHECKed as "null or an array" and nothing more, so a hand
- * edit could leave a number or a blank string in it. Those elements are
- * dropped; a value with nothing left reads as null, which sends the readers
- * back to the body's 朝刊 section exactly as on a day the column never had.
+ * edit could leave a number or a blank string in it. Each element is
+ * trimmed, and the non-string and blank ones are dropped; a value with
+ * nothing left reads as null, which sends the readers back to the body's 朝刊
+ * section exactly as on a day the column never had. The same rule as
+ * `normalizeMorningComment` (components/briefing/extractBriefing.ts) and MCP's
+ * `morningCommentOf`, so every reader sees the same paragraphs.
  */
 function toMorningComment(value: unknown): string[] | null {
   if (!Array.isArray(value)) return null;
-  const paragraphs = value.filter(
-    (p): p is string => typeof p === "string" && p.trim() !== "",
-  );
+  const paragraphs: string[] = [];
+  for (const p of value) {
+    if (typeof p !== "string") continue;
+    const text = p.trim();
+    if (text !== "") paragraphs.push(text);
+  }
   return paragraphs.length === 0 ? null : paragraphs;
 }
 
@@ -227,8 +241,8 @@ export function dailyNodeToRows(
     payload.evening_published_at = node.eveningPublishedAt;
   if (node.eveningNotes !== undefined)
     payload.evening_notes = node.eveningNotes;
-  if (node.morningComment !== undefined)
-    payload.morning_comment = node.morningComment;
+  // `morningComment` is never written from here (0035 — see the update
+  // mapper below).
 
   return { meta, payload };
 }
@@ -284,10 +298,10 @@ export function dailyUpdatesToPatches(
     payloadPatch.evening_published_at = updates.eveningPublishedAt;
   if ("eveningNotes" in updates && updates.eveningNotes !== undefined)
     payloadPatch.evening_notes = updates.eveningNotes;
-  // 0035: the app never writes the comment (MCP write_briefing does), but a
-  // node passed back whole must not lose it, and null clears it.
-  if ("morningComment" in updates && updates.morningComment !== undefined)
-    payloadPatch.morning_comment = updates.morningComment;
+  // 0035: `morningComment` is deliberately not mapped. The app never writes
+  // the comment — MCP write_briefing is its only writer — so a node passed
+  // back whole (with the comment it was read with) cannot overwrite a newer
+  // comment Claude wrote since.
 
   return { metaPatch, payloadPatch };
 }

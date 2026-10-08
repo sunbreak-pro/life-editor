@@ -15,10 +15,10 @@ import {
   normalizeFocusText,
 } from "../utils/focusSection.js";
 import { contentJsonToString, contentPlainText } from "../utils/content.js";
-import { insertItem, updatePayload } from "../utils/items.js";
+import { bumpMeta, insertItem, updatePayload } from "../utils/items.js";
 import { fetchByIdChunks } from "../utils/pagination.js";
 import {
-  fetchUnlockedBodies,
+  fetchUnlockedColumns,
   isLocked,
   lockedBodyError,
 } from "../utils/lockedBody.js";
@@ -53,20 +53,24 @@ interface DailiesPayloadRow {
   /** Absent for a password-protected day — never fetched (#1763). */
   content_json?: unknown;
   has_password: boolean;
-  /** 0035. Selected with the row; dropped for a locked day when formatted. */
+  /**
+   * 0035. Fetched together with the body, for the unlocked days only — a
+   * locked day's comment is never asked for, like its body (#1763).
+   */
   morning_comment?: unknown;
 }
 
 /**
  * Live daily payload rows for date ∈ [from, to], newest first. The window
- * read names every day but asks for BODIES only for the unlocked ones, so a
- * locked day still appears in the context with `text: null` (#1763).
+ * read names every day but asks for BODIES (and comments) only for the
+ * unlocked ones, so a locked day still appears in the context with
+ * `text: null` (#1763).
  */
 async function fetchDailies(from: string, to: string) {
   const { client } = await getSupabase();
   const { data: rows, error } = await client
     .from("dailies_payload")
-    .select("item_id, date, has_password, morning_comment")
+    .select("item_id, date, has_password")
     .gte("date", from)
     .lte("date", to)
     .order("date", { ascending: false });
@@ -74,11 +78,18 @@ async function fetchDailies(from: string, to: string) {
   const bodyless = (rows ?? []) as DailiesPayloadRow[];
   if (bodyless.length === 0) return [];
 
-  const bodies = await fetchUnlockedBodies("dailies_payload", bodyless);
-  const payloads: DailiesPayloadRow[] = bodyless.map((p) => ({
-    ...p,
-    content_json: bodies.get(p.item_id) ?? null,
-  }));
+  const unlocked = await fetchUnlockedColumns<{
+    content_json: unknown;
+    morning_comment: unknown;
+  }>("dailies_payload", bodyless, "content_json, morning_comment");
+  const payloads: DailiesPayloadRow[] = bodyless.map((p) => {
+    const row = unlocked.get(p.item_id);
+    return {
+      ...p,
+      content_json: row?.content_json ?? null,
+      morning_comment: row?.morning_comment ?? null,
+    };
+  });
 
   const { data: metaRows, error: mErr } = await client
     .from("items_meta")
@@ -108,8 +119,8 @@ function dailyText(row: DailiesPayloadRow | null): string | null {
 
 /**
  * A day's morning comment (0035): the column, else the 朝刊 section of an
- * older body, else null. Null for a locked day, whose column is in hand but
- * is not handed back — the same rule as get_daily and as its body (#1763).
+ * older body, else null. Null for a locked day, whose column is never
+ * fetched — the same rule as get_daily and as its body (#1763).
  */
 function dailyMorningComment(row: DailiesPayloadRow | null): string[] | null {
   if (!row || row.has_password) return null;
@@ -577,16 +588,31 @@ async function writeCommentIntoDaily(
 
   if (existing) {
     const row = existing as DailiesPayloadRow;
+    // The update carries the lock condition itself: the read above saw the
+    // day unlocked, but a password set between that read and this write must
+    // still stop it (#1763). No row back means it is locked now, or it was
+    // purged from the trash in between — asked again so the answer names the
+    // right one instead of telling Claude to unlock a day that is gone.
+    const { data: updated, error: uErr } = await client
+      .from("dailies_payload")
+      .update({ morning_comment: paragraphs })
+      .eq("item_id", row.item_id)
+      .eq("has_password", false)
+      .select("item_id");
+    if (uErr) throw new Error(`update dailies_payload: ${uErr.message}`);
+    if (!Array.isArray(updated) || updated.length === 0) {
+      if (await isLocked("dailies_payload", row.item_id)) {
+        throw lockedBodyError("Daily", row.item_id);
+      }
+      throw new Error(`Daily ${row.item_id} not found (deleted mid-write)`);
+    }
     // The meta patch rides along with the §10.2 LWW bump: a soft-deleted
     // daily is restored, because a briefing written into a trashed
     // (invisible) daily would silently vanish.
-    await updatePayload(
-      "dailies_payload",
-      row.item_id,
-      "daily",
-      { morning_comment: paragraphs },
-      { is_deleted: false, deleted_at: null },
-    );
+    await bumpMeta(row.item_id, "daily", {
+      is_deleted: false,
+      deleted_at: null,
+    });
     return { id: row.item_id, created: false };
   }
 

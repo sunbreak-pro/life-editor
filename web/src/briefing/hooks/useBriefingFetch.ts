@@ -21,9 +21,10 @@ import {
  *   - fetchTodoTree()                     → 今日の Todo / 持ち越し / trend widget
  *   - fetchTimerSessions()                → streak + work/break widgets
  *     (follows the `sessions` domain since #993)
- *   - getDailyByDateUnified(today)        → the "Briefing"/「朝刊」 section
- *     (extractBriefing convention — written later by MCP write_briefing,
- *     or by hand in the Daily editor today)
+ *   - getDailyByDateUnified(today)        → the day's body, its evening notes
+ *     and Claude's morning comment: the `morning_comment` column first (MCP
+ *     write_briefing writes it, 0035), else the 「朝刊」 section an older
+ *     day's body still carries (readMorningRecord)
  *   - listNotesUnified() + listAllTagConnections()
  *     → todo↔note item links resolved to note titles =「その目的」chips
  *       (read-only Goal links; the unified graph already supports them)
@@ -51,8 +52,9 @@ import {
  * whatever a non-rejecting `load` resolves with, and a mount that finds a
  * snapshot starts out already-settled: a stored delta would replay onto FRESH
  * mount state, and the paper would open with the gate down over empty blocks —
- * a confident "nothing today" that is only a dropped connection. The editable
- * 宣言 field is right there, and typing into it merges over the stored one.
+ * a confident "nothing today" that is only a dropped connection. The evening
+ * paper's text field would open empty too, and a save from it replaces the
+ * day's stored text with what was typed there.
  *
  * The setters are part of the returned surface on purpose: the write half
  * folds each result straight into this state so the paper updates without

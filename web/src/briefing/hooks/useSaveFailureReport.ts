@@ -25,9 +25,9 @@ import { useToastOptional, useTranslation } from "@life-editor/shared";
 
 /** A write surface on the paper. Add a member, add its copy, done. */
 /* No "goals" since #2106: the paper's goals are rows now, and their writes
-   report through the goals' own toast (useMorningGoals). */
+   report through the goals' own toast (useMorningGoals). No "intention"
+   either: the paper takes no declaration any more (D-20261007-briefing-1). */
 export type BriefingWriteTarget =
-  | "intention"
   | "evening"
   | "focus"
   // The evening rows' one-line notes (#2107).

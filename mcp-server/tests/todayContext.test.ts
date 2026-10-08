@@ -64,11 +64,14 @@ function install(fixture: Fixture): void {
         return fixture.events ?? [];
       case "dailies_payload": {
         // The body pass (#1763) asks by id, with no date window — it reads
-        // content_json for the UNLOCKED ids fetchDailies just listed.
+        // content_json + morning_comment for the UNLOCKED ids fetchDailies
+        // just listed, behind has_password = false.
         const ids = inFilter(call, "item_id");
         if (ids) {
-          return (fixture.dailies ?? []).filter((d) =>
-            ids.includes(d.item_id as string),
+          return (fixture.dailies ?? []).filter(
+            (d) =>
+              ids.includes(d.item_id as string) &&
+              (call.filters.has_password !== false || d.has_password === false),
           );
         }
         // fetchDailies runs twice (recent window, then today) — the bounds
@@ -215,8 +218,8 @@ describe("getTodayContext", () => {
   /*
    * 0035 (D-20261007-briefing-1): the comment moved beside the body. Both
    * today and the recent days hand it back — the column first, an older
-   * day's 朝刊 section second — and a locked day hands back neither, though
-   * its column rides on the window read.
+   * day's 朝刊 section second — and a locked day hands back neither: its
+   * column is read only with the body, which a locked day never sends.
    */
   it("returns the morning comment, column first, body section second", async () => {
     install({
@@ -265,6 +268,9 @@ describe("getTodayContext", () => {
     expect(context.todayDaily.morningComment).toEqual(["列の講評"]);
     expect(context.todayDaily.hasBriefing).toBe(true);
     expect(context.recentDailies[0]?.morningComment).toEqual(["昨日の講評"]);
+    // The column rides on the gated body pass, not on the window read.
+    expect(gatedCommentReads()).not.toEqual([]);
+    expect(ungatedCommentReads()).toEqual([]);
   });
 
   it("hands back no comment for a locked day, column included", async () => {
@@ -284,6 +290,9 @@ describe("getTodayContext", () => {
     expect(context.todayDaily.hasBriefing).toBe(false);
     expect(context.recentDailies[0]?.morningComment).toBeNull();
     expect(JSON.stringify(context)).not.toContain("SECRET-");
+    // Never fetched, not fetched and dropped (lockedBody.test.ts's rule):
+    // no read names the column without the has_password = false filter.
+    expect(ungatedCommentReads()).toEqual([]);
   });
 
   it("returns the date's goals with their progress (#2104)", async () => {
@@ -368,4 +377,24 @@ function goalPayload(id: string, weekKey: string): Row {
 /** The same day with a password on it — its body is never fetched (#1763). */
 function lockedDaily(date: string, text: string): Row {
   return { ...daily(date, text), has_password: true };
+}
+
+/** Reads of dailies_payload that name the 0035 comment column. */
+function commentReads(): QueryCall[] {
+  return stub.calls.filter(
+    (c) =>
+      c.table === "dailies_payload" &&
+      c.op === "select" &&
+      (c.columns ?? "").includes("morning_comment"),
+  );
+}
+
+/** Those that only an unlocked row can answer. */
+function gatedCommentReads(): QueryCall[] {
+  return commentReads().filter((c) => c.filters.has_password === false);
+}
+
+/** Those that could reach a locked row — must always be empty. */
+function ungatedCommentReads(): QueryCall[] {
+  return commentReads().filter((c) => c.filters.has_password !== false);
 }

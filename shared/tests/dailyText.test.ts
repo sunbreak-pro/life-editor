@@ -195,9 +195,9 @@ describe.each(DAYS)("the one text — $name", ({ content, text }) => {
  * `morning_comment` column, 0035), and on old days `readMorningRecord` shows
  * the section — this text included — in the Daily's own blocks (#2123;
  * pinned in dailyMorning.test.ts). What is pinned here is only what
- * writeDailyText itself does: it leaves that text untouched. A 宣言 save
- * (mergeIntentionSection, while its last caller survives) replaces the whole
- * [宣言, next heading) range and does not keep it.
+ * writeDailyText itself does: it leaves that text untouched. (The 宣言 save
+ * that replaced the whole [宣言, next heading) range, mergeIntentionSection,
+ * was removed with the paper's declaration field.)
  */
 describe("the one text — A1, text inside a 朝刊 / 宣言 range (known limit)", () => {
   const content = doc(

@@ -94,8 +94,17 @@ function install(fixture: Fixture): void {
     switch (call.table) {
       case "events_payload":
         return fixture.events ?? [];
-      case "dailies_payload":
-        return fixture.dailies ?? [];
+      case "dailies_payload": {
+        // The body pass (#1763) asks by id behind has_password = false; the
+        // window read names every day.
+        const ids = inFilter(call, "item_id");
+        if (!ids) return fixture.dailies ?? [];
+        return (fixture.dailies ?? []).filter(
+          (d) =>
+            ids.includes(d.item_id as string) &&
+            (call.filters.has_password !== false || d.has_password === false),
+        );
+      }
       case "tasks_payload":
         // The three todo reads, told apart by the filters that differ:
         // in-progress pins a status, and only the scheduled window has a
@@ -275,6 +284,18 @@ describe("the week the caller asked for", () => {
     });
     expect(week.days[3].daily.morningComment).toBeNull();
     expect(JSON.stringify(week)).not.toContain("SECRET-");
+    // Never fetched, not fetched and dropped (lockedBody.test.ts's rule): the
+    // column is read only on the gated body pass.
+    const commentReads = stub.calls.filter(
+      (c) =>
+        c.table === "dailies_payload" &&
+        c.op === "select" &&
+        (c.columns ?? "").includes("morning_comment"),
+    );
+    expect(commentReads.length).toBeGreaterThan(0);
+    expect(
+      commentReads.filter((c) => c.filters.has_password !== false),
+    ).toEqual([]);
   });
 
   it("drops a row whose items_meta is gone, on any day", async () => {

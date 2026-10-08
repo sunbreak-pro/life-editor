@@ -25,10 +25,9 @@
  * Old days keep their sections in the body; the read here still leaves them
  * out of the one text, and `readMorningRecord` (dailyMorning.ts) hands them —
  * the heading-less text inside included — to the Daily's own blocks (#2123).
- * This module's write leaves that text where it is. It stays at risk only
- * while a section writer survives: `mergeIntentionSection` replaces the whole
- * [宣言, next heading) range, and its last caller is the morning paper's 宣言
- * save (useDailySections), whose field #2106 removes.
+ * This module's write leaves that text where it is, and no section writer is
+ * left to replace it: the last one, the morning paper's 宣言 save
+ * (`mergeIntentionSection`), was removed once #2106 took away its field.
  *
  * Known limits, pinned in shared/tests/dailyText.test.ts:
  *   - A2: a user heading spelled 朝刊 / 宣言 / 夕刊 is read as that section.

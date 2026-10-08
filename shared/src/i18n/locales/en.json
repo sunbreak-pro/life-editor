@@ -1468,7 +1468,6 @@
     "jumpToSchedule": "Open in Schedule",
     "jumpToTodos": "Open in Todos",
     "saveFailed": {
-      "intention": "Could not save today's intention. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
       "evening": "Could not save the evening page. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
       "focus": "Could not save your note to tomorrow. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",
       "notes": "Could not save the note. What you wrote is still on screen, but it is not stored yet — check your connection and edit it again.",

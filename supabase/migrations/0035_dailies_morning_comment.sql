@@ -37,11 +37,23 @@
 -- ローカルに置くだけ・エージェントは DB へ適用しない）。
 --
 -- ⚠️ MERGE ORDER: shared の DAILIES_PAYLOAD_COLUMNS は列名を明示した select で、
--- 同じ PR で morning_comment を読むようになる。MCP の get_daily /
--- get_today_context / get_week_context / write_briefing も同じ列を読み書きする。
--- 本番に列が無い状態でコードだけ入ると、アプリの Daily の読み込みがすべて
--- 400 で失敗する。**push が merge より先**で、Remote MCP の Worker の deploy も
--- push の後であること。
+-- 同じ PR で morning_comment を読むようになる。この列リストを使うのは、アプリの
+-- Daily の読み込み（日付で 1 件 / 一覧）、保存後の読み直し（updateDailyUnified
+-- ほか）、ゴミ箱の一覧のすべて。MCP では get_daily / get_today_context /
+-- get_week_context / write_briefing が同じ列を読み書きし、upsert_daily /
+-- generate_content / format_content も findDailyPayload（この列を select する）
+-- を通る。本番に列が無い状態でコードだけ入ると、これらがすべて 400 で失敗する。
+-- **push が merge より先**で、Remote MCP の Worker の deploy も push の後で
+-- あること。
+--
+-- 先に push しても古いコードは壊れない。この migration は列を足すだけで、
+-- 古いコードはその列を読まず、書きもしない。
+--
+-- Worker の deploy が merge より遅れた場合: その間は古い write_briefing が
+-- 講評を本文の「朝刊」節に書き続ける。新しい読み手（アプリ / 新しい MCP）は
+-- 列を先に読み、列が空の日だけ本文の節に戻るので、その期間の講評は本文の節から
+-- 読まれる。列に一度書かれた日は、後から本文の節が書き換わっても列のほうが
+-- 表示される。
 -- ─────────────────────────────────────────────────────────────────────────
 --
 -- ATOMICITY: begin/commit でアトミック化。再実行安全: 列は add column if not
@@ -74,3 +86,9 @@ commit;
 -- C. RLS ゲート
 --    cd supabase && npm run db:check-rls
 --    -- expect: offenders = 0
+--
+-- D. CHECK が 1 本だけある（再実行で重なっていない）
+--    select conname, pg_get_constraintdef(oid) from pg_constraint
+--    where conrelid = 'public.dailies_payload'::regclass and contype = 'c'
+--      and pg_get_constraintdef(oid) like '%morning_comment%';
+--    -- expect: 1 row。定義に jsonb_typeof(morning_comment) = 'array' を含む

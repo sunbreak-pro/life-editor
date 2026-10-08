@@ -1,7 +1,9 @@
 /*
- * Briefing section writer — the write half of the briefing convention.
+ * Briefing section helpers — the 朝刊 heading section inside a daily body.
+ * Until 0035 this was the write half of the briefing convention; now its live
+ * half is the reader at the bottom (see below).
  *
- * Contract (briefing-loop plan Step 2; read half =
+ * Contract (briefing-loop plan Step 2; shared's reader =
  * shared/src/components/briefing/extractBriefing.ts):
  *
  *   heading whose text is "Briefing" / "朝刊"
@@ -20,12 +22,17 @@
  * including the 夕刊 section — is preserved verbatim.
  *
  * Since 0035 (D-20261007-briefing-1) write_briefing writes the comment to
- * `dailies_payload.morning_comment` instead, and no handler calls
- * `upsertBriefingSection` any more. It is kept on purpose: its suite pins the
- * section shape that old days still carry, against shared's reader. The live
- * half of this module is the READ side below — `readMorningComment` asks the
- * column first and falls back to the 朝刊 section of an older body, with the
- * same rules as shared's `readMorningRecord` (dailyMorning.ts).
+ * `dailies_payload.morning_comment` instead. `upsertBriefingSection`,
+ * `hasBriefingSection` and `buildBriefingSectionNodes` have no production
+ * caller any more (`parseDoc` still has one, focusSection.ts), and are kept
+ * on purpose: they are the exact writer that produced the 朝刊 sections old
+ * days still carry, and their suite round-trips that output through shared's
+ * `extractBriefing` — the app's fallback reader for those days. Deleting them
+ * would leave that reader checked against hand-written fixtures only.
+ *
+ * The live half of this module is the READ side — `readMorningComment` asks
+ * the column first and falls back to the 朝刊 section of an older body, with
+ * the same rules as shared's `readMorningRecord` (dailyMorning.ts).
  *
  * Pure module (no Supabase, no MCP) — unit-tested in
  * tests/briefingSection.test.ts, including a round-trip against the

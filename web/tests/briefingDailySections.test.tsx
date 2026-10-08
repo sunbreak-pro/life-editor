@@ -11,8 +11,10 @@ import { mockOf } from "./helpers/briefingHarness";
 import { useDailySections } from "../src/briefing/hooks/useDailySections";
 
 /*
- * The Briefing host's EDITING half — 夕刊 body / mood and the 宣言 textarea
- * (#892).
+ * The Briefing host's EDITING half — 夕刊 body / mood (#892). The 宣言
+ * textarea's saves were removed with the paper's declaration field
+ * (D-20261007-briefing-1); an older day's 宣言 section is only read now, and
+ * the second test below still pins that an evening save keeps it.
  *
  * Every save here is a read-merge-write against a document three other
  * surfaces also write to (the Daily editor, MCP's write_briefing, another
@@ -330,125 +332,5 @@ describe("useDailySections — the one text (#2107)", () => {
       store.content!.indexOf("Today is wide open."),
     );
     expect(store.content!.indexOf("Lunch with Aki.")).toBeGreaterThan(evening);
-  });
-});
-
-describe("useDailySections — 宣言 saves (#892)", () => {
-  it("waits out the debounce, then writes once", async () => {
-    vi.useFakeTimers();
-    try {
-      const { ds, store } = makeStore(MORNING);
-      const { result } = renderSections(ds, MORNING);
-
-      await act(async () => result.current.handleIntentionChange("Ship it"));
-      expect(result.current.intentionText).toBe("Ship it");
-      await act(async () => {
-        vi.advanceTimersByTime(799);
-      });
-      expect(mockOf(ds, "upsertDailyByDateUnified")).not.toHaveBeenCalled();
-
-      await act(async () => {
-        vi.advanceTimersByTime(1);
-      });
-      expect(mockOf(ds, "upsertDailyByDateUnified")).toHaveBeenCalledTimes(1);
-      expect(extractIntentionSection(store.content).text).toBe("Ship it");
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("collapses a burst of keystrokes into the last value", async () => {
-    vi.useFakeTimers();
-    try {
-      const { ds, store } = makeStore(MORNING);
-      const { result } = renderSections(ds, MORNING);
-
-      await act(async () => {
-        result.current.handleIntentionChange("S");
-        result.current.handleIntentionChange("Sh");
-        result.current.handleIntentionChange("Ship it");
-      });
-      await act(async () => {
-        vi.advanceTimersByTime(800);
-      });
-
-      expect(mockOf(ds, "upsertDailyByDateUnified")).toHaveBeenCalledTimes(1);
-      expect(extractIntentionSection(store.content).text).toBe("Ship it");
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("flushes on demand, and the cancelled timer writes nothing after", async () => {
-    vi.useFakeTimers();
-    try {
-      const { ds } = makeStore(MORNING);
-      const { result } = renderSections(ds, MORNING);
-
-      await act(async () => result.current.handleIntentionChange("Ship it"));
-      await act(async () => result.current.flushIntention());
-      expect(mockOf(ds, "upsertDailyByDateUnified")).toHaveBeenCalledTimes(1);
-
-      await act(async () => {
-        vi.advanceTimersByTime(800);
-      });
-      expect(mockOf(ds, "upsertDailyByDateUnified")).toHaveBeenCalledTimes(1);
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("does not drop the tail keystrokes on unmount", async () => {
-    vi.useFakeTimers();
-    try {
-      const { ds, store } = makeStore(MORNING);
-      const { result, unmount } = renderSections(ds, MORNING);
-
-      await act(async () => result.current.handleIntentionChange("Ship it"));
-      await act(async () => {
-        unmount();
-      });
-
-      // Leaving the tab within the debounce window is exactly when this
-      // happens, and the user has no way of knowing the save never ran.
-      expect(mockOf(ds, "upsertDailyByDateUnified")).toHaveBeenCalledTimes(1);
-      expect(extractIntentionSection(store.content).text).toBe("Ship it");
-    } finally {
-      vi.useRealTimers();
-    }
-  });
-
-  it("keeps the draft when the store catches up with our own save", async () => {
-    const { ds } = makeStore(MORNING);
-    const { result } = renderSections(ds, MORNING);
-
-    await act(async () => result.current.handleIntentionChange("Ship it"));
-    await act(async () => result.current.flushIntention());
-    await waitFor(() =>
-      expect(mockOf(ds, "upsertDailyByDateUnified")).toHaveBeenCalled(),
-    );
-
-    // The echo landing must not eat a trailing newline typed since the save.
-    expect(result.current.intentionDraft).toBe("Ship it");
-    expect(result.current.intentionText).toBe("Ship it");
-    expect(result.current.intentionSaved).toBe(true);
-  });
-
-  it("drops the draft when someone else changes the declaration", async () => {
-    const { ds } = makeStore(MORNING);
-    const { result } = renderSections(ds, MORNING);
-
-    await act(async () => result.current.handleIntentionChange("Ship it"));
-    expect(result.current.intentionSaved).toBe(false);
-
-    await act(async () =>
-      result.current.setContent(
-        doc(heading("宣言"), para("Rest properly today.")),
-      ),
-    );
-
-    // External wins — the same rule the mood draft follows.
-    expect(result.current.intentionDraft).toBeUndefined();
-    expect(result.current.intentionText).toBe("Rest properly today.");
   });
 });

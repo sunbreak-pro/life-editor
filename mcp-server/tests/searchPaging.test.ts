@@ -80,6 +80,7 @@ function noteTables(count: number): Record<string, StubRow[]> {
       content_json: doc(`body ${i}`),
       is_pinned: false,
       color: null,
+      has_password: false,
     });
   }
   return { items_meta, notes_payload };
@@ -105,6 +106,9 @@ function dailyTables(count: number): Record<string, StubRow[]> {
       item_id: id,
       date,
       content_json: doc(`alpha ${i}`),
+      // The generated column is always there, and the body pass asks for
+      // has_password = false (#1763).
+      has_password: false,
     });
   }
   return { items_meta, dailies_payload };

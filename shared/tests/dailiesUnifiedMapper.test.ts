@@ -9,6 +9,7 @@ import {
   type ItemsMetaDailyRow,
   type DailiesPayloadRow,
 } from "../src/services/dailiesUnifiedMapper";
+import { normalizeMorningComment } from "../src/components/briefing/extractBriefing";
 
 const USER = "00000000-0000-0000-0000-000000000000";
 const NOW = "2026-05-24T12:00:00.000Z";
@@ -253,9 +254,10 @@ describe("dailiesUnifiedMapper — evening_published_at / evening_notes (#2107)"
 
 /*
  * 0035 (D-20261007-briefing-1) — Claude's morning comment moved out of the
- * body into `morning_comment`. Same path as the evening columns: the mapper
- * is the whole read / write, and a column that holds nothing readable reads
- * as null so the readers fall back to an older day's 朝刊 section.
+ * body into `morning_comment`. The mapper only READS it: MCP write_briefing is
+ * the one writer, so neither the insert row nor an update patch ever carries
+ * it. A column that holds nothing readable reads as null so the readers fall
+ * back to an older day's 朝刊 section.
  */
 describe("dailiesUnifiedMapper — morning_comment (0035)", () => {
   const COMMENT = [
@@ -292,25 +294,41 @@ describe("dailiesUnifiedMapper — morning_comment (0035)", () => {
     expect(node.morningComment).toEqual(["a", "b"]);
   });
 
-  it("patches it through the payload, null included, and still bumps updated_at", () => {
-    const set = dailyUpdatesToPatches({ morningComment: COMMENT }, USER, NOW);
-    expect(set.metaPatch).toEqual({ updated_at: NOW });
-    expect(set.payloadPatch).toEqual({ morning_comment: COMMENT });
-
-    const cleared = dailyUpdatesToPatches({ morningComment: null }, USER, NOW);
-    expect(cleared.payloadPatch).toEqual({ morning_comment: null });
+  // The same paragraphs every other reader hands back: shared's
+  // normalizeMorningComment and MCP's morningCommentOf both trim.
+  it("trims each element, so padded paragraphs read the same everywhere", () => {
+    const node = rowsToDailyNode(
+      freshMeta(),
+      freshPayload({ morning_comment: ["  a  ", "\n b\t", " \n "] }),
+    );
+    expect(node.morningComment).toEqual(["a", "b"]);
+    expect(node.morningComment).toEqual(
+      normalizeMorningComment(["  a  ", "\n b\t", " \n "]),
+    );
   });
 
-  it("emits no column when the update does not name it — a body save keeps the comment", () => {
+  it("never patches it, null included — only the meta bump goes out", () => {
+    const set = dailyUpdatesToPatches({ morningComment: COMMENT }, USER, NOW);
+    expect(set.metaPatch).toEqual({ updated_at: NOW });
+    expect(set.payloadPatch).toEqual({});
+
+    const cleared = dailyUpdatesToPatches({ morningComment: null }, USER, NOW);
+    expect(cleared.payloadPatch).toEqual({});
+  });
+
+  it("does not carry it when a whole node is passed back with its body", () => {
+    // A node read before Claude rewrote the comment, saved back whole: the
+    // stale comment must not ride along and overwrite the newer one.
     const { payloadPatch } = dailyUpdatesToPatches(
-      { content: '{"type":"doc","content":[]}' },
+      { content: '{"type":"doc","content":[]}', morningComment: COMMENT },
       USER,
       NOW,
     );
     expect("morning_comment" in payloadPatch).toBe(false);
+    expect("content_json" in payloadPatch).toBe(true);
   });
 
-  it("inserts it only when the node carries it", () => {
+  it("never inserts it, even when the node carries it", () => {
     const base = {
       id: "daily-2026-05-24",
       date: "2026-05-24",
@@ -322,9 +340,9 @@ describe("dailiesUnifiedMapper — morning_comment (0035)", () => {
       false,
     );
     expect(
-      dailyNodeToRows({ ...base, morningComment: COMMENT }, USER).payload
-        .morning_comment,
-    ).toEqual(COMMENT);
+      "morning_comment" in
+        dailyNodeToRows({ ...base, morningComment: COMMENT }, USER).payload,
+    ).toBe(false);
   });
 });
 

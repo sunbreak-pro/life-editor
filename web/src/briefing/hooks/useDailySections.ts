@@ -1,37 +1,33 @@
-import { useCallback, useEffect, useRef, useState, useMemo } from "react";
+import { useCallback, useRef, useState, useMemo } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import { useSaveFailureReport } from "./useSaveFailureReport";
 import {
   eveningBodyEquals,
   extractEveningSection,
-  extractIntentionSection,
   isEmptyDocJson,
   mergeEveningSection,
-  mergeIntentionSection,
-  normalizeIntentionText,
   readDailyText,
   writeDailyText,
   type DailyNode,
   type DataService,
 } from "@life-editor/shared";
 
-/** Debounce for the 宣言 textarea → section-merge save (flushed on blur). */
-const INTENTION_SAVE_DEBOUNCE_MS = 800;
-
 /*
  * Editing half of the Briefing host (extracted from BriefingScreen.tsx —
- * hooks split, zero behavior change): the 夕刊 section editor state and
- * the 宣言 textarea state, plus their persistence.
+ * hooks split, zero behavior change): the 夕刊 editor state (the day's one
+ * text and the mood) plus its persistence. The 宣言 textarea and its save
+ * went with the paper's declaration field (#2106, D-20261007-briefing-1 —
+ * no declaration is written into the body any more).
  *
  * Persistence is a SECTION-MERGE write (Risks): each save re-reads the
- * freshest daily content, replaces only its own range via
- * mergeEveningSection / mergeIntentionSection, and writes the whole
- * document back — a save from here can never clobber the 朝刊 section or
- * Daily-side edits. Both sections' writes are serialized through ONE
- * promise chain owned by this hook: two concurrent read-merge-write
- * cycles on different sections could otherwise resurrect each other's
- * stale halves, and the editor's debounced emissions and mood taps
- * cannot interleave their cycles either.
+ * freshest daily content, replaces only its own part via writeDailyText /
+ * mergeEveningSection, and writes the whole document back — a save from here
+ * can never clobber an older day's 朝刊 / 宣言 section or Daily-side edits.
+ * Every write is serialized through ONE promise chain owned by this hook
+ * (the evening notes join it through `queueDailyWrite`): two concurrent
+ * read-merge-write cycles could otherwise resurrect each other's stale
+ * halves, and the editor's debounced emissions and mood taps cannot
+ * interleave their cycles either.
  */
 export function useDailySections(
   ds: DataService,
@@ -211,10 +207,9 @@ export function useDailySections(
    *
    * On a day nobody has written, every term of `eveningSaved` is vacuously
    * true, so the caption said「Saved」next to an empty page — a receipt for a
-   * write that never happened. The 宣言 block has answered this since #427 by
-   * hiding its caption while there is no declaration (`hasIntentionToReport`);
-   * this is the same rule for the evening section, and it counts the mood
-   * because the mood is stored in that same section.
+   * write that never happened. The caption is hidden while there is nothing
+   * written or being written (the rule the retired 宣言 block followed since
+   * #427), and the mood counts because it is stored in that same section.
    */
   const hasEveningToReport =
     eveningDirty ||
@@ -222,109 +217,6 @@ export function useDailySections(
     eveningStored.bodyDocJson !== null ||
     eveningStored.mood !== null ||
     moodDraft !== undefined;
-
-  // ── Intention (宣言 — Step 4) ────────────────────────────────────────
-  // The morning declaration lives in the daily's 宣言 section; saves ride
-  // the SAME serialized chain as the evening writes (see the hook header).
-  const intentionStored = useMemo(
-    () => extractIntentionSection(dailyContent),
-    [dailyContent],
-  );
-
-  // Draft model (controlled textarea — no remounts): draft ?? stored is what
-  // the field shows. `intentionSynced` pairs the last reconciled stored text
-  // with the queue of our own not-yet-landed save values (echoes): a stored
-  // change matching a queued echo is our own save landing and KEEPS the
-  // draft (clearing it would eat e.g. a trailing newline typed since the
-  // save); anything else is a genuinely external change (Daily side / MCP /
-  // another device) and drops the draft — external wins, same rule as mood.
-  // Reconciliation is the render-phase adjustment pattern on pure state
-  // (no refs — idempotent under StrictMode's double render).
-  const [intentionDraft, setIntentionDraft] = useState<string | undefined>(
-    undefined,
-  );
-  const [intentionSynced, setIntentionSynced] = useState<{
-    text: string | null;
-    echoes: (string | null)[];
-  }>({ text: intentionStored.text, echoes: [] });
-  if (intentionSynced.text !== intentionStored.text) {
-    const echoIdx = intentionSynced.echoes.indexOf(intentionStored.text);
-    if (echoIdx < 0 && intentionDraft !== undefined) {
-      setIntentionDraft(undefined);
-    }
-    setIntentionSynced({
-      text: intentionStored.text,
-      // A matching echo retires itself and any stale ones queued before it.
-      echoes:
-        echoIdx < 0
-          ? intentionSynced.echoes
-          : intentionSynced.echoes.slice(echoIdx + 1),
-    });
-  }
-
-  const persistIntention = useCallback(
-    (text: string) => {
-      const normalized = normalizeIntentionText(text);
-      setIntentionSynced((s) => ({ ...s, echoes: [...s.echoes, normalized] }));
-      saveChainRef.current = saveChainRef.current.then(async () => {
-        try {
-          const fresh = await ds.getDailyByDateUnified(todayKey);
-          const freshContent = fresh?.content ?? "";
-          const merged = mergeIntentionSection(freshContent, normalized);
-          if (merged === freshContent) {
-            // No-op write — retire the echo queued for it.
-            setIntentionSynced((s) => {
-              const i = s.echoes.indexOf(normalized);
-              if (i < 0) return s;
-              return { ...s, echoes: s.echoes.filter((_, idx) => idx !== i) };
-            });
-            return;
-          }
-          const updated = await ds.upsertDailyByDateUnified(todayKey, merged);
-          setDailyContent(updated.content ?? merged);
-        } catch (err) {
-          reportSaveFailure("intention", err);
-        }
-      });
-    },
-    [ds, todayKey, setDailyContent, reportSaveFailure],
-  );
-
-  const intentionTimerRef = useRef<number | null>(null);
-  const intentionPendingRef = useRef<string | null>(null);
-
-  const flushIntention = useCallback(() => {
-    if (intentionTimerRef.current !== null) {
-      window.clearTimeout(intentionTimerRef.current);
-      intentionTimerRef.current = null;
-    }
-    const pending = intentionPendingRef.current;
-    if (pending === null) return;
-    intentionPendingRef.current = null;
-    persistIntention(pending);
-  }, [persistIntention]);
-
-  // Unmount (or a persist identity change) must not drop tail keystrokes.
-  useEffect(() => flushIntention, [flushIntention]);
-
-  const handleIntentionChange = useCallback(
-    (text: string) => {
-      setIntentionDraft(text);
-      intentionPendingRef.current = text;
-      if (intentionTimerRef.current !== null)
-        window.clearTimeout(intentionTimerRef.current);
-      intentionTimerRef.current = window.setTimeout(
-        flushIntention,
-        INTENTION_SAVE_DEBOUNCE_MS,
-      );
-    },
-    [flushIntention],
-  );
-
-  const intentionText = intentionDraft ?? intentionStored.text ?? "";
-  const intentionSaved =
-    intentionDraft === undefined ||
-    normalizeIntentionText(intentionDraft) === intentionStored.text;
 
   return {
     eveningStored,
@@ -336,11 +228,5 @@ export function useDailySections(
     handleEveningUpdate,
     handleSelectMood,
     queueDailyWrite,
-    intentionStored,
-    intentionDraft,
-    intentionText,
-    intentionSaved,
-    handleIntentionChange,
-    flushIntention,
   };
 }

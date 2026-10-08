@@ -133,8 +133,6 @@ export {
 } from "./goalPeriods";
 export {
   extractIntentionSection,
-  hasIntentionToReport,
-  mergeIntentionSection,
   normalizeIntentionText,
   type ExtractedIntentionSection,
 } from "./intentionSection";
