@@ -1,5 +1,26 @@
 # HISTORY (chat-main)
 
+### 2026-10-08 - アプリ内 Note「Issue報告」の 4 項目を回収して 8 本起票（#2141〜#2143・#2152〜#2156）
+
+#### 概要
+
+ユーザー依頼「Issue報告というタイトルの Note の内容を読み込んで Issue を起票して」。Remote MCP で Note を読み、Mobile 1 項目・共通 3 項目を重複チェックと実装箇所の当たり付けをしてから起票した。最後の項目（Claude Design で今の画面を再現して微調整する仕組み）は、ユーザーの希望どおり親 1 本 + 子 4 本の構成にし、GitHub の sub-issue で親子をつないだ。
+
+#### 変更点
+
+- **#2141**（`[shared-fix]`・type:bug）: 本文エディタがフォーカスを失うと履歴の提供を引き上げ（`RichTextEditor.tsx:607-610`）、ヘッダーの Undo / Redo が空のアプリ履歴を見て disabled になる。#1690 の仕組みの副作用。直し方は A / B / C の 3 案を書き、UX の分岐なので着手時に判断キューへ出す形にした
+- **#2142**（section:schedule・type:feature）: タグフィルタのグループ。解除の処理（`handleSelectGroup(null)`）とタグの更新（`updateTagGroup(id, { tagIds })`）はデータの層に既にあり、パネルから呼ぶ口が無いだけ。Modal に閉じるボタンが無く、高さの上限も無い
+- **#2143**（section:connect・type:bug）: `navigateToItem` が Todo を `{ section: "schedule" }` へ一方通行で飛ばし、詳細の `onClose` は詳細を閉じるだけ。移動元を覚える仕組みはアプリのどこにも無い。Desktop も同じ
+- **#2156 親 + 子 4 本**（#2152〜#2154 は `[shared-fix]`・#2155 は section:schedule）: 1/4 = アプリの説明と設計の意図を部品集（DesignSystem プロジェクト）に常設し、`tokens.css` とのずれをテストで見つける / 2/4 = 今の画面を再現させる指示書の型を作り Schedule で試す / 3/4 = 微調整した値を実装へ戻す手順 / 4/4 = タグフィルタパネルの作り直し（#2142 の見た目の部分をこちらへ分けた）。残りの画面の再現は、型が固まってから各レーンへ起票すると親に書いた
+
+#### 実測・知見
+
+- **Note の扱い**: 2026-09-01 はユーザー指示で回収後にソフトデリートしたが、今回は指示が無いので Note は残した
+- **#2079 は PR #2090 で main に着地済みなのに open のまま**（`CalendarNarrowLayout.tsx:94` に narrow のフィルタボタンが実在）。#2036 も PR #2112（`refs #2036`）で着地済みだが open。どちらも close するかは未判断
+- **サブエージェントの申告を 1 件訂正した**: 「部品集の `typography.html` は 10 段の文字の段階を持つ」は誤りで、10 段は Settings の文字サイズ（root 12〜25px）のこと。部品集は Tailwind の `text-*` をそのまま段階として載せている。#2154 の本文はこの実測で書いた
+- **数え直した値**: `shared/src` と `web/src` の `.tsx` で、Tailwind の余白クラスが約 1,700 か所、`lumen-*` の余白トークンが 22 か所、`text-xs`〜`text-4xl` が 690 か所、`text-[…]` が 38 か所
+- 起票の最中に別チャットが `[mcp-tools]` の 8 本（#2144〜#2151）を起票していて、番号が飛んだ
+
 ### 2026-09-26 - スマホの Claude アプリから life-editor MCP を使えるようにした（Remote MCP の本番化 = #1994）
 
 #### 概要
@@ -117,29 +138,5 @@ connect-refine-d3 と materials-refine-d7 から受信 4 件。報告はすべ�
 - 🛑 ユーザー手番: 未回答の判断 4 件（`D-20260905-shared-fix-1` / `D-20260902-tags-1` / `D-20260902-tags-2` / PR 行数目安の読み替え）と migration 0029 / 0030 の適用確認
 - F-05 の差し戻しを schedule-refine の outbox へ伝えるかは未判断
 - 新しい手番 = connect-refine が #1644、schedule-refine が W3 / W4 / W6 / W9 / W12
-
-### 2026-09-16 - Connect ワークベンチ計画の Steps 0 — docs PR #1647 + 実装 Issue 4 本（#1643〜#1646）
-
-#### 概要
-
-ユーザー依頼「`2026-09-14-connect-tag-link-workbench.md` の Steps #0 を実行して」。計画書の分担表 順 2〜5 を `section:connect` で起票し、表の「未起票」を Issue 番号に置き換え、#1631 にスコープ注記をコメントした。あわせて、計画書・brief・裁定が chat-main の作業コピーに未追跡のまま置かれていた（worktree から読めない）ので、先に docs PR #1647 で main へ載せた。セッション冒頭では `issue-prompter` を回し、schedule / connect / settings の 3 レーンへ `/goal` を提示している。
-
-#### 変更点
-
-- **docs PR #1647**（`chore/docs-connect-workbench-plan`・一時 worktree `docs-connect-workbench` 経由）: 計画書 + `briefs/connect-relations.md` 新設 + `briefs/connect.md` を SUPERSEDED + `_COMMON-CONTEXT.md` v4.1 + `decisions/D-20260912-main-1.md` + 再定義レポート HTML。コード変更ゼロ
-- **起票 4 本**（すべて `section:connect` + `type:feature`）: #1643 タグ編集の統合（D1〜D7・D15・D16）/ #1644 複数選択・一括タグ操作・タグ統合（D8〜D11・D14）/ #1645 右パネルの近傍モードとリンク（D12・D13）/ #1646 Mobile 3 段（M1〜M10）。DoD は計画書の Steps と Acceptance から機械検証できる形（`git grep` 0 件 / 個別テストの緑 / verify 全ステップ exit 0 / PR 行数上限）へ落とした
-- **計画書の追随**: 分担表の「未起票」4 箇所を #1643〜#1646 に置換、Status を Draft → IN PROGRESS
-- **#1631 へコメント**: タグ編集パネル側の表示は #1643 でパネルごと退役するため、#1631 は Connect 側だけを直す
-
-#### 実測・知見
-
-- **`records.mjs check` が docs PR を止めた**: `D-20260912-main-1` は `status: answered` なのに `comm/decisions/ANSWERS.md` に回答行が無かった。台帳へ昇格したとき回答簿の 1 行を書き忘れると、次に触った PR が落ちる（D ファイル単体では気付けない）。1 行追記して解消
-- **`git show <branch>:<path>` は Git Bash でパス変換に食われる**: `origin/chore/...:.claude/...` がバックスラッシュ混じりの 1 引数へ変換され `ambiguous argument` になる。`MSYS_NO_PATHCONV=1` + `MSYS2_ARG_CONV_EXCL='*'` を付けると通る
-- **chat-main の作業コピーに未追跡 docs を置いたままにしない**: worktree レーンからは読めず、計画書側も「絶対パスで読むか、先に docs PR で main に載せる」と但し書きを持つ羽目になっていた。main へ載せた後、重複していた作業コピー 6 本は片付けた（tracked 2 本は `git checkout --`、untracked 4 本は削除。内容が push 済みブランチと一致することを `diff` で確認してから）
-
-#### 次
-
-- レーンの着手順は #1631 → #1643 → #1644 → #1645 → #1646。順 2 以降は stacked 可だが、base が main 以外の PR は merge 後に main 着地を実測する
-- 🛑 ユーザー手番: PR #1647 の merge（P-001）
 
 > 古いエントリは [`archive/2026-09/chat-main.md`](./archive/2026-09/chat-main.md)・[`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照
