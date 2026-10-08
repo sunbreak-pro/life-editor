@@ -90,6 +90,10 @@ function makeDS(initial: string | null) {
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
+    // #2107: the evening paper's own reads (issue number, goals).
+    listDailiesUnified: vi.fn().mockResolvedValue([]),
+    fetchGoals: vi.fn().mockResolvedValue([]),
+    fetchGoalTodoLinks: vi.fn().mockResolvedValue([]),
     // ONE stub for both reserved notes (`note-goals` reads it too): the
     // focus assertions extract by heading key, which the goals sections
     // never carry, so the shared body cannot cross-contaminate.

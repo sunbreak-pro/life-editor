@@ -1,0 +1,94 @@
+-- dailies_payload.morning_comment — Claude's morning comment leaves the Daily body
+-- (Issue #2107 / PR #2139, D-20261007-briefing-1)
+--
+-- WHY: こうだいさんの裁定（2026-10-07）「朝刊や宣言の内容を Daily には記述しない
+--   ようにする。Daily の中の別の UI/UX に記録されるようにする」。
+--   これまで MCP の write_briefing は、Claude の講評を Daily 本文の先頭に
+--   「朝刊」見出しの節として書いていた。節は「見出しから次の見出しまで」なので、
+--   本文の前に節を足すと、見出しの無い日記の文章が節の中に入り、次の講評の
+--   書き込みで置き換えられる。講評を本文から出し、行の別の列に持つ。
+--
+--   読み取りは「列が先・無ければ本文の朝刊の節」（shared の readMorningRecord /
+--   MCP の readMorningComment）。古い日の本文の節は書き直さず、そのまま読む。
+--
+--   採らなかった案:
+--     - 「節は次の見出しまで」の決まりのまま本文に書き続ける → 上の消える経路が
+--       残る。
+--     - 朝刊と宣言の節を「書き手が書いた行だけ」に狭める → 本文の中で、どこまでが
+--       Claude の行かを毎回推測することになり、手で直した行と区別できない。
+--     - 宣言にも列を作る → 朝刊の宣言の欄は #2106 で無くなり、書き手が残らない。
+--       古い日の宣言の節は、本文から読んで Daily の別の欄（#2123）に出す。
+--
+-- SCOPE:
+--   1. dailies_payload に morning_comment jsonb（講評の段落の配列）を足す。
+--      CHECK は「NULL か配列」だけ。要素の型（文字列）と空の段落は、読む側
+--      （shared の dailiesUnifiedMapper / MCP）が落とす。
+--   backfill は無い。既存の行は何も変わらない（新しい列はすべて NULL）。
+--   古い日の本文の「朝刊」節にも触らない。
+--
+-- RLS は列単位ではないので、dailies_payload の既存の owner-only ポリシー
+-- （0008 で作り、0015 で initplan 形式に張り直したもの）がそのまま新しい列も
+-- 覆う。Realtime も dailies_payload は加入済み（0017_realtime_publication.sql）
+-- なので変更なし。どちらもここでは重ねて書かない。
+--
+-- ─────────────────────────────────────────────────────────────────────────
+-- PLAN GATE (CLAUDE.md §7.3): 🛑 人手. LOCAL-FILE-FIRST. 実行はユーザーの
+-- `supabase db push`。`apply_migration` MCP 単独使用は禁止（本ファイルは
+-- ローカルに置くだけ・エージェントは DB へ適用しない）。
+--
+-- ⚠️ MERGE ORDER: shared の DAILIES_PAYLOAD_COLUMNS は列名を明示した select で、
+-- 同じ PR で morning_comment を読むようになる。この列リストを使うのは、アプリの
+-- Daily の読み込み（日付で 1 件 / 一覧）、保存後の読み直し（updateDailyUnified
+-- ほか）、ゴミ箱の一覧のすべて。MCP では get_daily / get_today_context /
+-- get_week_context / write_briefing が同じ列を読み書きし、upsert_daily /
+-- generate_content / format_content も findDailyPayload（この列を select する）
+-- を通る。本番に列が無い状態でコードだけ入ると、これらがすべて 400 で失敗する。
+-- **push が merge より先**で、Remote MCP の Worker の deploy も push の後で
+-- あること。
+--
+-- 先に push しても古いコードは壊れない。この migration は列を足すだけで、
+-- 古いコードはその列を読まず、書きもしない。
+--
+-- Worker の deploy が merge より遅れた場合: その間は古い write_briefing が
+-- 講評を本文の「朝刊」節に書き続ける。新しい読み手（アプリ / 新しい MCP）は
+-- 列を先に読み、列が空の日だけ本文の節に戻るので、その期間の講評は本文の節から
+-- 読まれる。列に一度書かれた日は、後から本文の節が書き換わっても列のほうが
+-- 表示される。
+-- ─────────────────────────────────────────────────────────────────────────
+--
+-- ATOMICITY: begin/commit でアトミック化。再実行安全: 列は add column if not
+-- exists（2 回目は CHECK ごと何もしない）。
+
+begin;
+
+-- morning_comment  Claude の朝刊の講評（write_briefing の paragraphs）。
+--                  段落の文字列の配列。NULL = 未記入（読む側は本文の朝刊の節に
+--                  戻る）。
+alter table public.dailies_payload
+  add column if not exists morning_comment jsonb
+    check (morning_comment is null or jsonb_typeof(morning_comment) = 'array');
+
+commit;
+
+-- ===========================================================================
+-- POST-APPLY VERIFICATION (push の後に流す。期待値つき):
+-- ===========================================================================
+-- A. 列がある
+--    select column_name, data_type from information_schema.columns
+--    where table_schema = 'public' and table_name = 'dailies_payload'
+--      and column_name = 'morning_comment';
+--    -- expect: 1 row (morning_comment | jsonb)
+--
+-- B. 既存の行は変わっていない
+--    select count(*) from public.dailies_payload where morning_comment is not null;
+--    -- expect: 0（write_briefing が次に走るまで）
+--
+-- C. RLS ゲート
+--    cd supabase && npm run db:check-rls
+--    -- expect: offenders = 0
+--
+-- D. CHECK が 1 本だけある（再実行で重なっていない）
+--    select conname, pg_get_constraintdef(oid) from pg_constraint
+--    where conrelid = 'public.dailies_payload'::regclass and contype = 'c'
+--      and pg_get_constraintdef(oid) like '%morning_comment%';
+--    -- expect: 1 row。定義に jsonb_typeof(morning_comment) = 'array' を含む

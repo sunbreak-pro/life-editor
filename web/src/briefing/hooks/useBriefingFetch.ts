@@ -21,9 +21,10 @@ import {
  *   - fetchTodoTree()                     → 今日の Todo / 持ち越し / trend widget
  *   - fetchTimerSessions()                → streak + work/break widgets
  *     (follows the `sessions` domain since #993)
- *   - getDailyByDateUnified(today)        → the "Briefing"/「朝刊」 section
- *     (extractBriefing convention — written later by MCP write_briefing,
- *     or by hand in the Daily editor today)
+ *   - getDailyByDateUnified(today)        → the day's body, its evening notes
+ *     and Claude's morning comment: the `morning_comment` column first (MCP
+ *     write_briefing writes it, 0035), else the 「朝刊」 section an older
+ *     day's body still carries (readMorningRecord)
  *   - listNotesUnified() + listAllTagConnections()
  *     → todo↔note item links resolved to note titles =「その目的」chips
  *       (read-only Goal links; the unified graph already supports them)
@@ -51,8 +52,9 @@ import {
  * whatever a non-rejecting `load` resolves with, and a mount that finds a
  * snapshot starts out already-settled: a stored delta would replay onto FRESH
  * mount state, and the paper would open with the gate down over empty blocks —
- * a confident "nothing today" that is only a dropped connection. The editable
- * 宣言 field is right there, and typing into it merges over the stored one.
+ * a confident "nothing today" that is only a dropped connection. The evening
+ * paper's text field would open empty too, and a save from it replaces the
+ * day's stored text with what was typed there.
  *
  * The setters are part of the returned surface on purpose: the write half
  * folds each result straight into this state so the paper updates without
@@ -73,6 +75,10 @@ interface BriefingPaper {
   todoNodes: TodoNode[];
   sessions: TimerSession[];
   dailyContent: string | null;
+  /** The day's evening_notes (#2107) — they ride on the same daily read. */
+  eveningNotes: Record<string, string> | null;
+  /** The day's morning_comment (0035) — Claude's comment, beside the body. */
+  morningComment: string[] | null;
   notes: NoteNode[];
   connections: WikiTagConnectionUnified[];
   tomorrowItems: ScheduleItem[];
@@ -93,6 +99,8 @@ const BLANK_PAPER: BriefingPaper = {
   todoNodes: [],
   sessions: [],
   dailyContent: null,
+  eveningNotes: null,
+  morningComment: null,
   notes: [],
   connections: [],
   tomorrowItems: [],
@@ -111,6 +119,10 @@ export interface BriefingFetchState {
   sessions: TimerSession[];
   dailyContent: string | null;
   setDailyContent: Dispatch<SetStateAction<string | null>>;
+  eveningNotes: Record<string, string> | null;
+  setEveningNotes: Dispatch<SetStateAction<Record<string, string> | null>>;
+  /** Read-only: the app never writes the comment (MCP write_briefing does). */
+  morningComment: string[] | null;
   notes: NoteNode[];
   connections: WikiTagConnectionUnified[];
   setConnections: Dispatch<SetStateAction<WikiTagConnectionUnified[]>>;
@@ -139,6 +151,11 @@ export function useBriefingFetch(
   const [todosRead, setTodosRead] = useState(false);
   const [sessions, setSessions] = useState<TimerSession[]>([]);
   const [dailyContent, setDailyContent] = useState<string | null>(null);
+  const [eveningNotes, setEveningNotes] = useState<Record<
+    string,
+    string
+  > | null>(null);
+  const [morningComment, setMorningComment] = useState<string[] | null>(null);
   const [notes, setNotes] = useState<NoteNode[]>([]);
   const [connections, setConnections] = useState<WikiTagConnectionUnified[]>(
     [],
@@ -191,6 +208,14 @@ export function useBriefingFetch(
           daily.status === "fulfilled"
             ? (daily.value?.content ?? null)
             : previous.dailyContent,
+        eveningNotes:
+          daily.status === "fulfilled"
+            ? (daily.value?.eveningNotes ?? null)
+            : previous.eveningNotes,
+        morningComment:
+          daily.status === "fulfilled"
+            ? (daily.value?.morningComment ?? null)
+            : previous.morningComment,
         notes:
           allNotes.status === "fulfilled" ? allNotes.value : previous.notes,
         connections:
@@ -213,6 +238,10 @@ export function useBriefingFetch(
       setTodoNodes(paper.todoNodes);
       setSessions(paper.sessions);
       setDailyContent(paper.dailyContent);
+      // `?? null`: a paper snapshot stored before #2107 has no such slot.
+      setEveningNotes(paper.eveningNotes ?? null);
+      // Same: a snapshot stored before 0035 has no comment slot.
+      setMorningComment(paper.morningComment ?? null);
       setNotes(paper.notes);
       setConnections(paper.connections);
       setTomorrowItems(paper.tomorrowItems);
@@ -236,6 +265,9 @@ export function useBriefingFetch(
     sessions,
     dailyContent,
     setDailyContent,
+    eveningNotes,
+    setEveningNotes,
+    morningComment,
     notes,
     connections,
     setConnections,

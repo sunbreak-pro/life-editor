@@ -6,8 +6,8 @@ import {
   EveningView,
   type BriefingData,
   type BriefingLabels,
-  type EveningLabels,
 } from "../src/components";
+import { EVENING_LABELS, emptyEveningBlocks } from "./helpers/eveningFixtures";
 
 /*
  * BriefingView — pure morning-paper view. Every row (schedule / todo /
@@ -352,7 +352,9 @@ describe("BriefingView row actions", () => {
     expect(
       screen.queryByRole("button", { name: "Toggle complete" }),
     ).toBeNull();
-    expect(screen.queryByRole("button", { name: "Morning standup" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Morning standup" }),
+    ).toBeNull();
     expect(screen.getByText("Done meeting").className).not.toContain(
       "line-through",
     );
@@ -629,7 +631,9 @@ describe("Timed todo rows print their clock (#1369)", () => {
   });
 
   it("leaves an untimed todo's cell empty — no blank label, no 00:00", () => {
-    renderView({ data: { ...DATA, todos: [{ ...TIMED_TODO, startTime: "" }] } });
+    renderView({
+      data: { ...DATA, todos: [{ ...TIMED_TODO, startTime: "" }] },
+    });
     const cell = timeCell("Draft the deck");
     expect(cell.textContent).toBe("");
     // A spacer, not an empty label: it holds the width and stays out of the
@@ -764,79 +768,13 @@ describe("AI comment attribution (#1210)", () => {
 });
 
 /*
- * #391 — the 宣言 block on the evening paper. Wide keeps the original reading
- * (a morning artifact read back, hidden on a blank day); below 768px 夕刊 is a
- * Quick capture surface (mobile-scope #3), so the block becomes the live input
- * — otherwise a phone user who lands on 夕刊 cannot declare at all.
- */
-describe("EveningView intention block (#391)", () => {
-  it("reads the declaration back with no save caption on the wide layout", () => {
-    renderEvening({ intentionText: "Ship the report" });
-    expect(screen.getByText("Ship the report")).toBeTruthy();
-    expect(screen.queryByPlaceholderText("Declare today…")).toBeNull();
-    // Nothing to save while read-only — the caption must not contradict it.
-    expect(screen.queryByText("Unsaved")).toBeNull();
-  });
-
-  it("hides the whole block on the wide layout when nothing is declared", () => {
-    renderEvening();
-    expect(screen.queryByText("INTENTION")).toBeNull();
-  });
-
-  it("reports edits + blur to the host on the narrow layout", () => {
-    const { onIntentionChange, onIntentionBlur } = renderEvening({
-      intentionEditable: true,
-      intentionText: "Ship the report",
-    });
-    const field = screen.getByPlaceholderText("Declare today…");
-    expect((field as HTMLTextAreaElement).value).toBe("Ship the report");
-    fireEvent.change(field, { target: { value: "Ship the report\nRun" } });
-    expect(onIntentionChange).toHaveBeenCalledWith("Ship the report\nRun");
-    fireEvent.blur(field);
-    expect(onIntentionBlur).toHaveBeenCalledTimes(1);
-  });
-
-  // Only the presence of the caption row is a view concern — WHICH caption is
-  // host-computed (BriefingScreen), and web has no test runner, so the copy
-  // itself is out of reach here.
-  it("keeps an empty field reachable on the narrow layout and shows a caption", () => {
-    renderEvening({ intentionEditable: true });
-    expect(screen.getByPlaceholderText("Declare today…")).toBeTruthy();
-    expect(screen.getByText("Unsaved")).toBeTruthy();
-  });
-});
-
-/*
  * #318 — below 768px the shell drops its header slot, so the SectionHeader
  * 朝刊/夕刊 band disappears and 夕刊 becomes unreachable. Both paper views take
  * an optional in-body `tabSwitcher` the narrow host fills; the wide host leaves
  * it undefined so the header keeps owning the tabs.
  */
-const EVENING_LABELS: EveningLabels = {
-  masthead: "EVENING",
-  moodTitle: "MOOD",
-  moodStars: [1, 2, 3, 4, 5].map((n) => `Mood ${n}/5`),
-  intentionTitle: "INTENTION",
-  intentionCaption: "Unsaved",
-  intentionPlaceholder: "Declare today…",
-  reflectionTitle: "CLOSING",
-  savedCaption: "Saved",
-  focusTitle: "TOMORROW'S FOCUS",
-  focusPlaceholder: "Tomorrow's one thing…",
-  todosTitle: "REMAINING",
-  noTodos: "No todos",
-  todoStatus: "Status",
-  statusNotStarted: "Not started",
-  statusDone: "Done",
-  upcomingTitle: "UPCOMING",
-  noUpcoming: "Nothing upcoming",
-  tomorrowTag: "Tomorrow",
-  allDay: "All day",
-};
 
 function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
-  const onIntentionChange = vi.fn();
-  const onIntentionBlur = vi.fn();
   const onSetTodoStatus = vi.fn();
   const result = render(
     <EveningView
@@ -845,10 +783,6 @@ function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
       mood={null}
       onSelectMood={vi.fn()}
       editorSlot={<div>editor</div>}
-      intentionText=""
-      intentionEditable={false}
-      onIntentionChange={onIntentionChange}
-      onIntentionBlur={onIntentionBlur}
       focusText=""
       onFocusChange={vi.fn()}
       onFocusBlur={vi.fn()}
@@ -856,10 +790,11 @@ function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
       onSetTodoStatus={onSetTodoStatus}
       schedule={[]}
       labels={EVENING_LABELS}
+      {...emptyEveningBlocks()}
       {...props}
     />,
   );
-  return { ...result, onIntentionChange, onIntentionBlur, onSetTodoStatus };
+  return { ...result, onSetTodoStatus };
 }
 
 /**
@@ -1032,23 +967,6 @@ describe("Row edit action (#410)", () => {
 });
 
 /*
- * #427 — a day with no declaration at all has nothing to report a save state
- * for. The host omits `intentionCaption` then, and the 宣言 heading renders
- * without any caption beside it. Evening only since #2106: the morning paper
- * has no 宣言 field any more.
- */
-describe("Intention caption omission (#427)", () => {
-  it("renders no caption when the host omits intentionCaption (evening)", () => {
-    const { container } = renderEvening({
-      intentionEditable: true,
-      labels: { ...EVENING_LABELS, intentionCaption: undefined },
-    });
-    expect(screen.getByText("INTENTION")).toBeTruthy();
-    expect(container.textContent).not.toContain("Unsaved");
-  });
-});
-
-/*
  * #796 — the REMAINING TODOS rows speak the Todo's real status.
  *
  * The block drew a checkbox-shaped <span> with nothing listening to it, which
@@ -1133,14 +1051,14 @@ describe("Narrow rows fit: icon-only actions, nothing overhanging (#1514)", () =
     // text and a voice-control user still says「編集」, a screen reader still
     // hears which action and where it lands.
     expect(screen.getAllByRole("button", { name: /^Edit: / }).length).toBe(6);
-    expect(screen.getAllByRole("button", { name: /^Delete: / }).length).toBe(
-      4,
-    );
+    expect(screen.getAllByRole("button", { name: /^Delete: / }).length).toBe(4);
   });
 
   it("grows the icon to 16px while it stands alone, 13px once the word is back", () => {
     const { container } = renderView();
-    const icons = container.querySelectorAll('button[title="Open in Todos"] svg');
+    const icons = container.querySelectorAll(
+      'button[title="Open in Todos"] svg',
+    );
     expect(icons.length).toBeGreaterThan(0);
     for (const icon of icons) {
       expect(icon.getAttribute("class")).toContain("size-4");

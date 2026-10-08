@@ -9,6 +9,7 @@ import {
   type ItemsMetaDailyRow,
   type DailiesPayloadRow,
 } from "../src/services/dailiesUnifiedMapper";
+import { normalizeMorningComment } from "../src/components/briefing/extractBriefing";
 
 const USER = "00000000-0000-0000-0000-000000000000";
 const NOW = "2026-05-24T12:00:00.000Z";
@@ -152,6 +153,196 @@ describe("dailiesUnifiedMapper", () => {
     expect(() => rowsToDailyNode(wrongRole, freshPayload())).toThrow(
       /role expected "daily"/,
     );
+  });
+});
+
+/*
+ * #2107 — the two evening columns of 0034. The DataService gained no method
+ * for them: `updateDailyUnified(id, Partial<DailyNode>)` already hands its
+ * diff to this mapper, so the mapper is the whole read / write path.
+ */
+describe("dailiesUnifiedMapper — evening_published_at / evening_notes (#2107)", () => {
+  it("reads both columns, null when absent", () => {
+    const blank = rowsToDailyNode(freshMeta(), freshPayload());
+    expect(blank.eveningPublishedAt).toBeNull();
+    expect(blank.eveningNotes).toBeNull();
+
+    const node = rowsToDailyNode(
+      freshMeta(),
+      freshPayload({
+        evening_published_at: NOW,
+        evening_notes: { "todo:t1": "良かった" },
+      }),
+    );
+    expect(node.eveningPublishedAt).toBe(NOW);
+    expect(node.eveningNotes).toEqual({ "todo:t1": "良かった" });
+  });
+
+  it("reads a notes value that is not a map of strings as no notes", () => {
+    for (const bad of [[], "x", { "todo:t1": 3 }, {}]) {
+      const node = rowsToDailyNode(
+        freshMeta(),
+        freshPayload({
+          evening_notes: bad as unknown as Record<string, string>,
+        }),
+      );
+      expect(node.eveningNotes).toBeNull();
+    }
+  });
+
+  it("drops only the non-string entries, so the next note save keeps the rest", () => {
+    const node = rowsToDailyNode(
+      freshMeta(),
+      freshPayload({
+        evening_notes: {
+          "todo:a": "x",
+          "session:b": { odd: true },
+        } as unknown as Record<string, string>,
+      }),
+    );
+    expect(node.eveningNotes).toEqual({ "todo:a": "x" });
+  });
+
+  it("patches them through the payload, null included, and still bumps updated_at", () => {
+    const { metaPatch, payloadPatch } = dailyUpdatesToPatches(
+      { eveningPublishedAt: null, eveningNotes: { "event:e1": "混んでいた" } },
+      USER,
+      NOW,
+    );
+    // LWW: the cursor moves on every patch; the payload carries none.
+    expect(metaPatch).toEqual({ updated_at: NOW });
+    expect(payloadPatch).toEqual({
+      evening_published_at: null,
+      evening_notes: { "event:e1": "混んでいた" },
+    });
+  });
+
+  it("emits neither column when the update does not name it", () => {
+    const { payloadPatch } = dailyUpdatesToPatches({ content: "" }, USER, NOW);
+    expect("evening_published_at" in payloadPatch).toBe(false);
+    expect("evening_notes" in payloadPatch).toBe(false);
+  });
+
+  it("inserts them only when the node carries them", () => {
+    const plain = dailyNodeToRows(
+      {
+        id: "daily-2026-05-24",
+        date: "2026-05-24",
+        content: "",
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      USER,
+    );
+    expect("evening_published_at" in plain.payload).toBe(false);
+    expect("evening_notes" in plain.payload).toBe(false);
+
+    const withNotes = dailyNodeToRows(
+      {
+        id: "daily-2026-05-24",
+        date: "2026-05-24",
+        content: "",
+        eveningNotes: { "todo:t1": "a" },
+        createdAt: NOW,
+        updatedAt: NOW,
+      },
+      USER,
+    );
+    expect(withNotes.payload.evening_notes).toEqual({ "todo:t1": "a" });
+  });
+});
+
+/*
+ * 0035 (D-20261007-briefing-1) — Claude's morning comment moved out of the
+ * body into `morning_comment`. The mapper only READS it: MCP write_briefing is
+ * the one writer, so neither the insert row nor an update patch ever carries
+ * it. A column that holds nothing readable reads as null so the readers fall
+ * back to an older day's 朝刊 section.
+ */
+describe("dailiesUnifiedMapper — morning_comment (0035)", () => {
+  const COMMENT = [
+    "今週の『企画書を通す』は残り 2 件です。初稿を午前に送れば、明日の見積もりに回せます。",
+    "午後は歯科検診で抜けるので、集中が要る作業は午前に寄せるのがよさそうです。",
+  ];
+
+  it("reads the column, null when absent", () => {
+    expect(rowsToDailyNode(freshMeta(), freshPayload()).morningComment).toBe(
+      null,
+    );
+    const node = rowsToDailyNode(
+      freshMeta(),
+      freshPayload({ morning_comment: COMMENT }),
+    );
+    expect(node.morningComment).toEqual(COMMENT);
+  });
+
+  it("reads a value that is not an array, or an array with nothing readable, as null", () => {
+    for (const bad of [null, "x", { 0: "a" }, 3, [], ["", "  "], [1, null]]) {
+      const node = rowsToDailyNode(
+        freshMeta(),
+        freshPayload({ morning_comment: bad }),
+      );
+      expect(node.morningComment).toBeNull();
+    }
+  });
+
+  it("drops only the non-string and blank elements", () => {
+    const node = rowsToDailyNode(
+      freshMeta(),
+      freshPayload({ morning_comment: ["a", 2, "  ", "b"] }),
+    );
+    expect(node.morningComment).toEqual(["a", "b"]);
+  });
+
+  // The same paragraphs every other reader hands back: shared's
+  // normalizeMorningComment and MCP's morningCommentOf both trim.
+  it("trims each element, so padded paragraphs read the same everywhere", () => {
+    const node = rowsToDailyNode(
+      freshMeta(),
+      freshPayload({ morning_comment: ["  a  ", "\n b\t", " \n "] }),
+    );
+    expect(node.morningComment).toEqual(["a", "b"]);
+    expect(node.morningComment).toEqual(
+      normalizeMorningComment(["  a  ", "\n b\t", " \n "]),
+    );
+  });
+
+  it("never patches it, null included — only the meta bump goes out", () => {
+    const set = dailyUpdatesToPatches({ morningComment: COMMENT }, USER, NOW);
+    expect(set.metaPatch).toEqual({ updated_at: NOW });
+    expect(set.payloadPatch).toEqual({});
+
+    const cleared = dailyUpdatesToPatches({ morningComment: null }, USER, NOW);
+    expect(cleared.payloadPatch).toEqual({});
+  });
+
+  it("does not carry it when a whole node is passed back with its body", () => {
+    // A node read before Claude rewrote the comment, saved back whole: the
+    // stale comment must not ride along and overwrite the newer one.
+    const { payloadPatch } = dailyUpdatesToPatches(
+      { content: '{"type":"doc","content":[]}', morningComment: COMMENT },
+      USER,
+      NOW,
+    );
+    expect("morning_comment" in payloadPatch).toBe(false);
+    expect("content_json" in payloadPatch).toBe(true);
+  });
+
+  it("never inserts it, even when the node carries it", () => {
+    const base = {
+      id: "daily-2026-05-24",
+      date: "2026-05-24",
+      content: "",
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    expect("morning_comment" in dailyNodeToRows(base, USER).payload).toBe(
+      false,
+    );
+    expect(
+      "morning_comment" in
+        dailyNodeToRows({ ...base, morningComment: COMMENT }, USER).payload,
+    ).toBe(false);
   });
 });
 

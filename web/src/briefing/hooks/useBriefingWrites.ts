@@ -1,11 +1,13 @@
 import { useCallback, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
+  addDaysKey,
   afterSettled,
   applyCreateReminder,
   fillRangeUpToAnchor,
   generateId,
   generateTodoId,
+  getDayStartHour,
   localDateTimeToISO,
   planRepeatScopeChoice,
   resolveCreateReminderOffset,
@@ -24,6 +26,7 @@ import {
   type TodoStatus,
   type WikiTagConnectionUnified,
 } from "@life-editor/shared";
+import { useSaveFailureReport } from "./useSaveFailureReport";
 
 /*
  * Briefing's WRITE half (#892 — split out of useBriefingData, zero behavior
@@ -100,6 +103,7 @@ export function useBriefingWrites({
   const { t } = useTranslation();
   const toast = useToastOptional();
   const showToast = toast?.showToast;
+  const reportSaveFailure = useSaveFailureReport();
   const reportDeleted = useCallback(
     (title: string) => {
       showToast?.("info", t("briefing.rowDeleted", { title }));
@@ -706,6 +710,61 @@ export function useBriefingWrites({
     [ds, todayKey, setTodoNodes],
   );
 
+  /*
+   * 「明日の予定に置く」(#2107). With a time the todo gets a 30-minute window;
+   * a late start (23:30 and on) lets the end run past midnight instead of
+   * clamping it to 23:59, because end <= start is the degenerate span
+   * todoScheduleSlot (#562) draws as all-day. Without a time it is staged
+   * all-day. Both patches CLEAR any old end (`undefined` = the key is sent
+   * and the mapper writes null — todoMoveOutWrite's way): candidates include
+   * todos booked today, and a kept 10:00–11:00 end would sit before a start
+   * moved to tomorrow.
+   *
+   * The row is REPLACED rather than dropped, unlike handlePlaceTodo's
+   * move-to-another-day: the evening paper still counts it towards its goals,
+   * and taking it out of the list would shrink a goal's denominator under the
+   *「今日進んだ目標」line.
+   */
+  const handlePlaceTodoTomorrow = useCallback(
+    (todoId: string, time: string | null) => {
+      // `todayKey` already honours the day-start hour, so its next day is the
+      // "tomorrow" the paper means (the fetch half's tomorrowKey, too).
+      const tomorrowKey = addDaysKey(todayKey, 1);
+      // A time before the day-start hour is still that day's night, which on
+      // the wall calendar is the date after it: with a 4 o'clock start,
+      // tomorrow's 02:00 is the 02:00 of the day after tomorrow (#2107 review).
+      // All-day stays on the date itself, like every all-day write.
+      const day =
+        time !== null && Number(time.slice(0, 2)) < getDayStartHour()
+          ? addDaysKey(tomorrowKey, 1)
+          : tomorrowKey;
+      const start = localDateTimeToISO(day, time ?? "00:00");
+      const patch: Partial<TodoNode> =
+        time === null
+          ? { scheduledAt: start, scheduledEndAt: undefined, isAllDay: true }
+          : {
+              scheduledAt: start,
+              scheduledEndAt: new Date(
+                Date.parse(start) + 30 * 60_000,
+              ).toISOString(),
+              isAllDay: false,
+            };
+      void ds
+        .updateTodo(todoId, patch)
+        .then((updated) => {
+          setTodoNodes((prev) =>
+            prev.map((n) => (n.id === updated.id ? updated : n)),
+          );
+        })
+        .catch((err) => {
+          // Through #955's reporter, not only the console: the button gives
+          // no other sign, so a silent failure would read as "nothing to do".
+          reportSaveFailure("tomorrow", err);
+        });
+    },
+    [ds, todayKey, setTodoNodes, reportSaveFailure],
+  );
+
   return {
     handleToggleTodo,
     handleSetTodoStatus,
@@ -718,5 +777,6 @@ export function useBriefingWrites({
     handleCreateTodo,
     handlePlaceTodo,
     handleAddTodoCandidate,
+    handlePlaceTodoTomorrow,
   };
 }

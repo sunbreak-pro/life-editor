@@ -40,6 +40,8 @@ const heading = (text: string) => ({
 function tables(args: {
   content: unknown;
   isDeleted: boolean;
+  /** The 0035 column; absent = a row from before it. */
+  morningComment?: unknown;
 }): Record<string, StubRow[]> {
   return {
     items_meta: [
@@ -53,7 +55,16 @@ function tables(args: {
         updated_at: `${DATE}T01:00:00Z`,
       },
     ],
-    dailies_payload: [{ item_id: ID, date: DATE, content_json: args.content }],
+    dailies_payload: [
+      {
+        item_id: ID,
+        date: DATE,
+        content_json: args.content,
+        ...(args.morningComment === undefined
+          ? {}
+          : { morning_comment: args.morningComment }),
+      },
+    ],
   };
 }
 
@@ -66,6 +77,7 @@ describe("get_daily distinguishes empty from hidden", () => {
       exists: false,
       isTrashed: false,
       hasBriefing: false,
+      morningComment: null,
       content: null,
     });
   });
@@ -82,6 +94,7 @@ describe("get_daily distinguishes empty from hidden", () => {
       exists: false,
       isTrashed: true,
       hasBriefing: false,
+      morningComment: null,
       content: null,
     });
     // What the app hides, the tool does not hand back.
@@ -129,7 +142,86 @@ describe("get_daily says whether the briefing is already written", () => {
       }),
     );
 
-    expect((await getDaily({ date: DATE })).hasBriefing).toBe(false);
+    const daily = await getDaily({ date: DATE });
+    expect(daily.hasBriefing).toBe(false);
+    expect(daily.morningComment).toBeNull();
+  });
+});
+
+/*
+ * 0035 (D-20261007-briefing-1): write_briefing writes the comment to the
+ * `morning_comment` column, beside the body. get_daily hands it back as
+ * `morningComment` — the column first, an older day's 朝刊 section second.
+ */
+describe("get_daily returns the morning comment", () => {
+  it("reads the column on a day whose body has no 朝刊 section", async () => {
+    setStubTables(
+      tables({
+        content: doc(paragraph("日記")),
+        isDeleted: false,
+        morningComment: ["講評 1", "講評 2"],
+      }),
+    );
+
+    const daily = await getDaily({ date: DATE });
+    expect(daily.morningComment).toEqual(["講評 1", "講評 2"]);
+    expect(daily.hasBriefing).toBe(true);
+  });
+
+  it("prefers the column over an older 朝刊 section in the body", async () => {
+    setStubTables(
+      tables({
+        content: doc(heading("朝刊"), paragraph("前の講評")),
+        isDeleted: false,
+        morningComment: ["新しい講評"],
+      }),
+    );
+
+    expect((await getDaily({ date: DATE })).morningComment).toEqual([
+      "新しい講評",
+    ]);
+  });
+
+  it("falls back to the body's 朝刊 section when the column is null or empty", async () => {
+    for (const column of [null, [], ["  "], undefined]) {
+      setStubTables(
+        tables({
+          content: doc(heading("朝刊"), paragraph("前の講評"), heading("夕刊")),
+          isDeleted: false,
+          morningComment: column,
+        }),
+      );
+      const daily = await getDaily({ date: DATE });
+      expect(daily.morningComment).toEqual(["前の講評"]);
+      expect(daily.hasBriefing).toBe(true);
+    }
+  });
+
+  it("does not flag a 朝刊 heading with nothing under it", async () => {
+    setStubTables(
+      tables({
+        content: doc(heading("朝刊"), heading("夕刊"), paragraph("x")),
+        isDeleted: false,
+      }),
+    );
+
+    const daily = await getDaily({ date: DATE });
+    expect(daily.morningComment).toBeNull();
+    expect(daily.hasBriefing).toBe(false);
+  });
+
+  it("withholds the comment of a trashed day", async () => {
+    setStubTables(
+      tables({
+        content: doc(paragraph("x")),
+        isDeleted: true,
+        morningComment: ["隠す講評"],
+      }),
+    );
+
+    const daily = await getDaily({ date: DATE });
+    expect(daily.morningComment).toBeNull();
+    expect(JSON.stringify(daily)).not.toContain("隠す講評");
   });
 });
 
@@ -140,5 +232,6 @@ describe("the published schema says so", () => {
     expect(description).toMatch(/exists/);
     expect(description).toMatch(/isTrashed/);
     expect(description).toMatch(/hasBriefing/);
+    expect(description).toMatch(/morningComment/);
   });
 });

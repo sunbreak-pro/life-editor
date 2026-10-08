@@ -1,12 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import {
+  act,
+  render,
+  screen,
+  waitFor,
+  fireEvent,
+} from "@testing-library/react";
 import {
   SyncContext,
   SYNC_DOMAINS,
   ToastProvider,
   todayDateKey,
   type DataService,
-  type DailyNode,
+  type NoteNode,
   type SyncDomain,
   type WebSyncContextValue,
 } from "@life-editor/shared";
@@ -25,10 +31,11 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
  * The failure is injected at the DataService, which is where a real one lives
  * (offline, RLS, a 500) — not by making the hook throw.
  *
- * Since #2106 the morning paper holds neither the 宣言 field nor the free-text
- * goal fields. 宣言 is still written from the evening paper below 768px (the
- * Quick capture surface — mobile-scope #3), so its cases run there; the goal
- * fields' case went with them (goals are rows now and toast on their own).
+ * Neither paper holds a 宣言 field any more (#2106 took the morning one and
+ * the free-text goal fields, #2107 the evening one), so the plain-line cases
+ * run on the one such field left: the evening paper's 明日の自分へ, which
+ * writes the focus note. The goal fields' case went with them (goals are rows
+ * now and toast on their own).
  */
 
 const TODAY = todayDateKey();
@@ -52,26 +59,12 @@ function makeDS(overrides: Partial<DataService> = {}): DataService {
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
+    // #2107: the evening paper's own reads (issue number, goals).
+    listDailiesUnified: vi.fn().mockResolvedValue([]),
+    fetchGoals: vi.fn().mockResolvedValue([]),
+    fetchGoalTodoLinks: vi.fn().mockResolvedValue([]),
     getNoteUnified: vi.fn().mockResolvedValue(null),
     ...overrides,
-  });
-}
-
-/** jsdom has no matchMedia, and useMediaQuery falls back to wide without it. */
-function setWidth(wide: boolean) {
-  Object.defineProperty(window, "matchMedia", {
-    writable: true,
-    configurable: true,
-    value: (query: string) => ({
-      matches: wide,
-      media: query,
-      onchange: null,
-      addEventListener: () => undefined,
-      removeEventListener: () => undefined,
-      addListener: () => undefined,
-      removeListener: () => undefined,
-      dispatchEvent: () => false,
-    }),
   });
 }
 
@@ -90,10 +83,10 @@ function renderPaper(ds: DataService, tab: "morning" | "evening" = "evening") {
   );
 }
 
-/** The evening paper's 宣言 field — editable below 768px only (#391). */
-function intentionField(): HTMLTextAreaElement {
+/** The evening paper's 明日の自分へ field (the focus note, #1048 / #2107). */
+function focusField(): HTMLTextAreaElement {
   return screen.getByPlaceholderText(
-    "Today's intention — one line is enough…",
+    "The one thing to move forward tomorrow — one line…",
   ) as HTMLTextAreaElement;
 }
 
@@ -107,28 +100,29 @@ describe("Briefing save failures reach the user (#955)", () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
-    setWidth(false);
     // The console line is part of the contract (it is the developer-facing
     // record) but it must not spam the run.
     consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
   });
   afterEach(() => consoleError.mockRestore());
 
-  it("toasts when the 宣言 save fails, and keeps the draft on screen", async () => {
+  it("toasts when a 明日の自分へ save fails, and keeps the draft on screen", async () => {
     const ds = makeDS({
-      upsertDailyByDateUnified: vi.fn().mockRejectedValue(SAVE_FAILED),
+      createNoteUnified: vi.fn().mockRejectedValue(SAVE_FAILED),
     });
     renderPaper(ds);
-    await waitFor(() => expect(intentionField()).toBeTruthy());
+    await waitFor(() => expect(focusField()).toBeTruthy());
 
-    typeAndFlush(intentionField(), "Ship the report");
+    typeAndFlush(focusField(), "Ship the report");
 
     await waitFor(() =>
-      expect(screen.getByText(/Could not save today's intention/)).toBeTruthy(),
+      expect(
+        screen.getByText(/Could not save your note to tomorrow/),
+      ).toBeTruthy(),
     );
     // The draft is the user's only remaining copy — clearing it would turn a
     // failed save into the data loss the toast is warning about.
-    expect(intentionField().value).toBe("Ship the report");
+    expect(focusField().value).toBe("Ship the report");
     expect(consoleError).toHaveBeenCalled();
   });
 
@@ -148,23 +142,19 @@ describe("Briefing save failures reach the user (#955)", () => {
   });
 
   it("says nothing when the save succeeds", async () => {
-    const saved: DailyNode = {
-      id: `daily-${TODAY}`,
-      date: TODAY,
-      content: "",
-      isDeleted: false,
-      createdAt: "2026-08-16T00:00:00.000Z",
-      updatedAt: "2026-08-16T00:00:00.000Z",
-    };
-    const ds = makeDS({
-      upsertDailyByDateUnified: vi.fn().mockResolvedValue(saved),
-    });
+    const createNoteUnified = vi.fn((node: NoteNode) => Promise.resolve(node));
+    const ds = makeDS({ createNoteUnified });
     renderPaper(ds);
-    await waitFor(() => expect(intentionField()).toBeTruthy());
+    await waitFor(() => expect(focusField()).toBeTruthy());
 
-    typeAndFlush(intentionField(), "Ship the report");
+    typeAndFlush(focusField(), "Ship the report");
 
-    await waitFor(() => expect(intentionField().value).toBe("Ship the report"));
+    await waitFor(() => expect(createNoteUnified).toHaveBeenCalledTimes(1));
+    // Let the save chain run past the write before asserting the silence.
+    await act(async () => {
+      await createNoteUnified.mock.results[0]?.value;
+    });
+    expect(focusField().value).toBe("Ship the report");
     expect(screen.queryByText(/Could not save/)).toBeNull();
   });
 
@@ -173,7 +163,7 @@ describe("Briefing save failures reach the user (#955)", () => {
     // throws because the Provider is missing would be worse than the silence
     // it replaced.
     const ds = makeDS({
-      upsertDailyByDateUnified: vi.fn().mockRejectedValue(SAVE_FAILED),
+      createNoteUnified: vi.fn().mockRejectedValue(SAVE_FAILED),
     });
     render(
       <SyncContext.Provider value={syncValue}>
@@ -185,12 +175,12 @@ describe("Briefing save failures reach the user (#955)", () => {
         />
       </SyncContext.Provider>,
     );
-    await waitFor(() => expect(intentionField()).toBeTruthy());
+    await waitFor(() => expect(focusField()).toBeTruthy());
 
-    typeAndFlush(intentionField(), "Ship the report");
+    typeAndFlush(focusField(), "Ship the report");
 
     await waitFor(() => expect(consoleError).toHaveBeenCalled());
-    expect(intentionField().value).toBe("Ship the report");
+    expect(focusField().value).toBe("Ship the report");
     expect(screen.queryByText(/Could not save/)).toBeNull();
   });
 });

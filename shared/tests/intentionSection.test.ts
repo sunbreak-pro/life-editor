@@ -2,8 +2,6 @@
 import { describe, expect, it } from "vitest";
 import {
   extractIntentionSection,
-  mergeIntentionSection,
-  hasIntentionToReport,
   normalizeIntentionText,
 } from "../src/components/briefing/intentionSection";
 import { extractBriefing } from "../src/components/briefing/extractBriefing";
@@ -122,134 +120,29 @@ describe("extractIntentionSection", () => {
   });
 });
 
-// ── mergeIntentionSection ────────────────────────────────────────────────
-
-describe("mergeIntentionSection", () => {
-  it("creates the section at the top of an empty daily", () => {
-    const merged = mergeIntentionSection("", "今日はこれをやる");
-    expect(textsOf(merged)).toEqual(["宣言", "今日はこれをやる"]);
-    expect(extractIntentionSection(merged).text).toBe("今日はこれをやる");
-  });
-
-  it("inserts right below an existing 朝刊 section", () => {
+/*
+ * The section writer (mergeIntentionSection) and the save caption helper
+ * (hasIntentionToReport) were removed with the paper's declaration field
+ * (D-20261007-briefing-1): nothing writes a 宣言 any more, and older days are
+ * only read. What stays pinned is that the three readers each find their own
+ * section in one body.
+ */
+describe("the 宣言 reader beside the 朝刊 / 夕刊 readers", () => {
+  it("each reader finds its own section and none claims another's", () => {
     const content = doc(
       heading("朝刊"),
-      para("focus"),
-      para("講評"),
-      para("day note"),
-      heading("夕刊"),
-      para("気分: 3/5"),
-    );
-    const merged = mergeIntentionSection(content, "宣言A");
-    expect(textsOf(merged)).toEqual([
-      "朝刊",
-      "focus",
-      "講評",
-      "day note",
-      "宣言",
-      "宣言A",
-      "夕刊",
-      "気分: 3/5",
-    ]);
-  });
-
-  it("goes to the very top when there is no 朝刊 (paper prepends later)", () => {
-    const content = doc(para("free note"), heading("夕刊"), para("reflection"));
-    const merged = mergeIntentionSection(content, "宣言A");
-    expect(textsOf(merged)[0]).toBe("宣言");
-    expect(textsOf(merged)[1]).toBe("宣言A");
-  });
-
-  it("replaces an existing section in place, one paragraph per line", () => {
-    const content = doc(
-      heading("宣言"),
-      para("old"),
-      heading("夕刊"),
-      para("keep"),
-    );
-    const merged = mergeIntentionSection(content, " new1 \n\nnew2 ");
-    expect(textsOf(merged)).toEqual(["宣言", "new1", "new2", "夕刊", "keep"]);
-  });
-
-  it("clearing removes an existing section and never creates one", () => {
-    const content = doc(
-      heading("宣言"),
-      para("old"),
-      heading("夕刊"),
-      para("k"),
-    );
-    expect(textsOf(mergeIntentionSection(content, ""))).toEqual(["夕刊", "k"]);
-    const without = doc(heading("朝刊"), para("focus"));
-    expect(mergeIntentionSection(without, "")).toBe(without);
-    expect(mergeIntentionSection(without, null)).toBe(without);
-  });
-
-  it("matches a 宣言 heading at any level and rewrites it at level 2", () => {
-    const content = doc(
-      heading("宣言", 1),
-      para("old"),
-      heading("夕刊", 3),
-      para("k"),
-    );
-    const merged = mergeIntentionSection(content, "new");
-    expect(textsOf(merged)).toEqual(["宣言", "new", "夕刊", "k"]);
-    expect(parse(merged).content[0]!.attrs?.level).toBe(2);
-  });
-
-  it("converts a legacy plain-text daily and keeps its lines", () => {
-    const merged = mergeIntentionSection("メモ1\nメモ2", "宣言A");
-    expect(textsOf(merged)).toEqual(["宣言", "宣言A", "メモ1", "メモ2"]);
-  });
-
-  it("round-trips through extract with normalization", () => {
-    const merged = mergeIntentionSection("", "  A \n\n B\n");
-    expect(extractIntentionSection(merged).text).toBe(
-      normalizeIntentionText("  A \n\n B\n"),
-    );
-  });
-
-  it("never clobbers the 朝刊 / 夕刊 sections (cross-convention)", () => {
-    const content = doc(
-      heading("朝刊"),
-      para("focus line"),
       para("comment"),
+      heading("宣言"),
+      para("宣言A"),
+      para("宣言B"),
       heading("夕刊"),
       para("気分: 4/5"),
       para("振り返り"),
     );
-    const merged = mergeIntentionSection(content, "宣言A\n宣言B");
-    const briefing = extractBriefing(merged);
-    expect(briefing?.paragraphs).toEqual(["focus line", "comment"]);
-    const evening = extractEveningSection(merged);
+    expect(extractBriefing(content)?.paragraphs).toEqual(["comment"]);
+    expect(extractIntentionSection(content).text).toBe("宣言A\n宣言B");
+    const evening = extractEveningSection(content);
     expect(evening.mood).toBe(4);
     expect(textsOf(evening.bodyDocJson!)).toEqual(["振り返り"]);
-    expect(extractIntentionSection(merged).text).toBe("宣言A\n宣言B");
-  });
-});
-
-/*
- * #427 — the saved/unsaved caption is only meaningful once a declaration
- * exists somewhere (stored section or in-flight draft). A day where both are
- * empty has never been saved, so the host omits the caption.
- */
-describe("hasIntentionToReport", () => {
-  it("is false when nothing is stored and nothing is drafted", () => {
-    expect(hasIntentionToReport(null, undefined)).toBe(false);
-  });
-
-  it("is false when the draft holds only whitespace / blank lines", () => {
-    expect(hasIntentionToReport(null, "")).toBe(false);
-    expect(hasIntentionToReport(null, "   \n\n  ")).toBe(false);
-  });
-
-  it("is true as soon as the draft has a real character", () => {
-    expect(hasIntentionToReport(null, "宣")).toBe(true);
-  });
-
-  it("is true whenever a declaration is stored, draft or not", () => {
-    expect(hasIntentionToReport("宣言A", undefined)).toBe(true);
-    // Clearing a stored declaration still reports — the pending delete is a
-    // save in flight, not a never-declared day.
-    expect(hasIntentionToReport("宣言A", "")).toBe(true);
   });
 });

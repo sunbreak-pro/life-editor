@@ -1,6 +1,10 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, waitFor } from "@testing-library/react";
-import { localDateTimeToISO, type DataService } from "@life-editor/shared";
+import {
+  eveningEvents,
+  localDateTimeToISO,
+  type DataService,
+} from "@life-editor/shared";
 import { makeNote, makeTodo, stubDataService } from "./helpers";
 import {
   briefingReads,
@@ -365,11 +369,12 @@ describe("useBriefingData — evening blocks (#892)", () => {
     ]);
   });
 
-  it("shows the rest of today and all of tomorrow, in that order", async () => {
+  it("shows the rest of today (after now) and all of tomorrow, in that order", async () => {
     const { result } = renderData({
       scheduleByDate: {
         [TODAY]: [
           scheduleItem({ id: "s-past", date: TODAY, startTime: "08:00" }),
+          scheduleItem({ id: "s-now", date: TODAY, startTime: "12:00" }),
           scheduleItem({ id: "s-future", date: TODAY, startTime: "15:00" }),
           scheduleItem({
             id: "s-allday",
@@ -400,14 +405,47 @@ describe("useBriefingData — evening blocks (#892)", () => {
     });
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    // 12:00 local: the 08:00 row is behind us, the completed one is settled,
-    // and an all-day row belongs to the whole day so it always stands.
+    // 12:00 local: the 08:00 row is behind us and the completed one is
+    // settled. Today's all-day row and the one starting this minute belong
+    // to「今日の出来事」(#2107 — eveningEvents keeps `at <= now`), so the
+    // paper never prints one event in both blocks.
     expect(result.current.upcoming.map((u) => [u.id, u.isTomorrow])).toEqual([
-      ["s-allday", false],
       ["s-future", false],
       ["s-tmr-early", true],
       ["s-tmr-late", true],
     ]);
+  });
+
+  it("past midnight under a late day start, keeps the evening's event out of 今後の予定", async () => {
+    // 01:00 on the calendar day after TODAY; with a 4 o'clock day start it is
+    // still TODAY's night. As "HH:MM" text "19:00" sorts after "01:00", which
+    // listed the evening's event as upcoming while「今日の出来事」(an instant
+    // compare) already printed it — the same row in both blocks.
+    vi.setSystemTime(new Date(`${TOMORROW}T01:00:00+09:00`));
+    const { result } = renderData({
+      scheduleByDate: {
+        [TODAY]: [
+          scheduleItem({ id: "s-evening", date: TODAY, startTime: "19:00" }),
+        ],
+        [TOMORROW]: [
+          scheduleItem({ id: "s-tmr", date: TOMORROW, startTime: "09:00" }),
+        ],
+      },
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    expect(result.current.upcoming.map((u) => [u.id, u.isTomorrow])).toEqual([
+      ["s-tmr", true],
+    ]);
+    const happened = eveningEvents({
+      dateKey: TODAY,
+      dayStartHour: 4,
+      scheduleItems: result.current.scheduleItems,
+      todos: [],
+      sessions: [],
+      now: new Date(),
+    }).map((e) => e.key);
+    expect(happened).toEqual(["event:s-evening"]);
   });
 });
 

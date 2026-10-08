@@ -36,6 +36,9 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     sessions,
     dailyContent,
     setDailyContent,
+    eveningNotes,
+    setEveningNotes,
+    morningComment,
     notes,
     connections,
     setConnections,
@@ -57,6 +60,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     todoNodes,
     sessions,
     dailyContent,
+    morningComment,
     notes,
     connections,
   });
@@ -73,6 +77,7 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     handleCreateTodo,
     handlePlaceTodo,
     handleAddTodoCandidate,
+    handlePlaceTodoTomorrow,
   } = useBriefingWrites({
     ds,
     todayKey,
@@ -90,6 +95,12 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     dateLine,
     dailyContent,
     setDailyContent,
+    // For the evening paper's rows (#2107): the raw schedule rows (`data`
+    // holds them only as paper entries) and the day's notes. Todo nodes and
+    // sessions are already in `data`.
+    scheduleItems,
+    eveningNotes,
+    setEveningNotes,
     remainingTodos,
     upcoming,
     handleToggleTodo,
@@ -107,5 +118,6 @@ export function useBriefingData(ds: DataService, todayKey: string) {
     todoUnplaced,
     todoAddable,
     handleAddTodoCandidate,
+    handlePlaceTodoTomorrow,
   };
 }

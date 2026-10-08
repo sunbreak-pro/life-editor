@@ -3,9 +3,15 @@
  * section conventions that live inside a DailyNode's content (DDL zero,
  * briefing-loop decisions 1/6 + Step 4):
  *
- *   朝刊 / Briefing   → extractBriefing.ts (read) + MCP briefingSection.ts (write)
- *   宣言 / Intention  → intentionSection.ts (the user's morning declaration)
+ *   朝刊 / Briefing   → extractBriefing.ts (read only)
+ *   宣言 / Intention  → intentionSection.ts (read only — the user's morning
+ *                       declaration on older days)
  *   夕刊 / Evening    → eveningSection.ts (the closing page)
+ *
+ * Nothing writes the first two into a body any more (D-20261007-briefing-1):
+ * MCP write_briefing puts Claude's comment in `dailies_payload.morning_comment`
+ * (0035), and no screen takes a declaration. Older days keep both sections as
+ * they are, so the readers stay.
  *
  * A "section" is always [heading matching the marker RE, next heading or
  * document end). Keeping the heading REs here is what guarantees the three

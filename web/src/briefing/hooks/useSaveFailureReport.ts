@@ -25,8 +25,17 @@ import { useToastOptional, useTranslation } from "@life-editor/shared";
 
 /** A write surface on the paper. Add a member, add its copy, done. */
 /* No "goals" since #2106: the paper's goals are rows now, and their writes
-   report through the goals' own toast (useMorningGoals). */
-export type BriefingWriteTarget = "intention" | "evening" | "focus";
+   report through the goals' own toast (useMorningGoals). No "intention"
+   either: the paper takes no declaration any more (D-20261007-briefing-1). */
+export type BriefingWriteTarget =
+  | "evening"
+  | "focus"
+  // The evening rows' one-line notes (#2107).
+  | "notes"
+  // 「明日の予定に置く」(#2107).
+  | "tomorrow"
+  // The ★'s publish stamp, when the mood line itself did save (#2107).
+  | "publish";
 
 export type ReportSaveFailure = (
   target: BriefingWriteTarget,
