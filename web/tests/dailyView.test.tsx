@@ -19,6 +19,7 @@ import {
 import {
   DailyView,
   DAILY_EDITOR_CARD_MIN_HEIGHT,
+  DAILY_EVENING_CARD_SCROLL,
 } from "../src/daily/DailyView";
 
 /*
@@ -698,6 +699,31 @@ describe("DailyView — evening category (#1046)", () => {
     const editor = await screen.findByTestId("editor");
     expect(editor.dataset.initialContent).toContain("day note");
     expect(editor.dataset.initialContent).not.toContain("夕刊");
+  });
+
+  // #2122 — a long evening card used to run past the bottom of the column with
+  // nothing to scroll it back. jsdom has no layout, so the class is the pin;
+  // the reach of the last row is a browser check.
+  it.each([
+    ["desktop", true],
+    ["mobile", false],
+  ])("lets a long evening card scroll inside itself (%s)", (_, wide) => {
+    state.isWide = wide;
+    state.dailies = [eveningDaily];
+    render(<DailyView />);
+
+    const card = screen
+      .getByText("materials.daily.eveningTitle")
+      .closest("section");
+    expect(card).not.toBeNull();
+    const classes = card!.className.split(" ");
+    for (const c of DAILY_EVENING_CARD_SCROLL.split(" ")) {
+      expect(classes).toContain(c);
+    }
+    // The editor card keeps its #1679 floor beside the shrinking card.
+    expect(
+      screen.getByTestId("daily-editor-card").className.split(" "),
+    ).toContain(DAILY_EDITOR_CARD_MIN_HEIGHT);
   });
 
   it("shows no card for a day without evening data", () => {
