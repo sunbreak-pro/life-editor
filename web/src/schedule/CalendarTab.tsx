@@ -101,6 +101,7 @@ export function CalendarTab({
   pendingTodoTray = false,
   onConsumeTodoTray,
   onNavigateToItem,
+  onTodoDetailClose,
 }: {
   dataService: DataService;
   /**
@@ -129,6 +130,8 @@ export function CalendarTab({
   onConsumeTodoTray?: () => void;
   /** Where a "[[" link inside a todo body goes (#507). */
   onNavigateToItem?: (target: { id: string; role: string }) => void;
+  /** The user closed the todo detail (#2143) — see ScheduleScreen. */
+  onTodoDetailClose?: (todoId: string) => void;
 }) {
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
@@ -998,7 +1001,11 @@ export function CalendarTab({
       todoDetail={{
         todoId: todoDetailId,
         todoNodes,
-        onClose: () => setTodoDetailId(null),
+        onClose: () => {
+          setTodoDetailId(null);
+          // #2143: a todo opened from Connect goes back there on close.
+          if (todoDetailId) onTodoDetailClose?.(todoDetailId);
+        },
         writes: {
           updateNode,
           toggleStatus: toggleTodoStatusReported,

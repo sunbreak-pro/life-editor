@@ -39,6 +39,7 @@ export function ScheduleScreen({
   pendingSelectEvent,
   onConsumePendingEvent,
   onNavigateToItem,
+  onTodoDetailClose,
 }: {
   dataService: DataService;
   /** Shell "new todo" intent (global:new-task). */
@@ -59,6 +60,11 @@ export function ScheduleScreen({
    * switch sections.
    */
   onNavigateToItem?: (target: { id: string; role: string }) => void;
+  /**
+   * The todo detail was closed by the user (#2143) — the shell's cue to go
+   * back to where that todo was opened from, if it was opened as a side trip.
+   */
+  onTodoDetailClose?: (todoId: string) => void;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -76,6 +82,7 @@ export function ScheduleScreen({
         pendingSelectEvent={pendingSelectEvent}
         onConsumePendingEvent={onConsumePendingEvent}
         onNavigateToItem={onNavigateToItem}
+        onTodoDetailClose={onTodoDetailClose}
       />
     </div>
   );
