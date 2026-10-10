@@ -1,4 +1,5 @@
 import { getSupabase } from "../supabase.js";
+import { currentCaller } from "../callerContext.js";
 
 /*
  * Shared items_meta helpers for the Supabase-backed handlers (#360).
@@ -92,6 +93,13 @@ export async function insertItem(args: {
 }): Promise<void> {
   const { client, userId } = await getSupabase();
 
+  // An extension app's create is stamped with its name (0038, #2146) in the
+  // SAME insert, so there is no moment an app's item exists without its mark.
+  // Outside the gateway there is no caller and the column is left out of the
+  // statement altogether — the stdio server and the phone's Worker keep working
+  // on a database that has not had 0038 pushed yet.
+  const originApp = currentCaller()?.app;
+
   const { error: mErr } = await client.from("items_meta").insert({
     id: args.id,
     user_id: userId,
@@ -99,6 +107,7 @@ export async function insertItem(args: {
     title: args.title,
     is_deleted: false,
     deleted_at: null,
+    ...(originApp ? { origin_app: originApp } : {}),
   });
   if (mErr) throw new Error(`create items_meta: ${mErr.message}`);
 

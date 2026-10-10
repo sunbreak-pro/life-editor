@@ -75,6 +75,10 @@ const EXTENSION_TOOLS = {
   search_all: "read",
 } as const satisfies Record<string, "read" | "write">;
 
+/** Each tool's access, for the gateway's scope check (gatewayGuard.ts). */
+export const EXTENSION_TOOL_ACCESS: Readonly<Record<string, "read" | "write">> =
+  EXTENSION_TOOLS;
+
 export type ExtensionToolName = keyof typeof EXTENSION_TOOLS;
 
 const byName = new Map(REMOTE_TOOL_DEFINITIONS.map((def) => [def.name, def]));
@@ -529,14 +533,19 @@ function inputChange(
   return level;
 }
 
-function resultChange(before: GatewayToolSpec, after: GatewayToolSpec): SpecChange {
+function resultChange(
+  before: GatewayToolSpec,
+  after: GatewayToolSpec,
+): SpecChange {
   const was = before.result;
   const now = after.result;
   if (JSON.stringify(was) === JSON.stringify(now)) return "none";
   // Pointing at another definition, or swapping a pointer for an inline shape,
   // can drop keys the caller reads; only a key-by-key comparison could tell.
   if ("$ref" in was || "$ref" in now) {
-    return "$ref" in was && "$ref" in now && was.$ref === now.$ref ? "none" : "major";
+    return "$ref" in was && "$ref" in now && was.$ref === now.$ref
+      ? "none"
+      : "major";
   }
   if (was.type !== now.type) return "major";
   const kept = new Set(now.required ?? []);
