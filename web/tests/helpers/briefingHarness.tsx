@@ -74,7 +74,14 @@ export function createBriefingHarness(): BriefingHarness {
     // #1690: the focused body editor's own history. Briefing has no body
     // editor, so none is ever offered — shape only, like the two above.
     setEditorHistory: () => {},
+    withdrawEditorHistory: () => {},
     editorHistory: null,
+    // #2141: the one undo every control calls. Shape only — nothing here
+    // presses a control.
+    undoLatest: () => {},
+    redoLatest: () => {},
+    canUndoLatest: () => false,
+    canRedoLatest: () => false,
   };
 
   function BriefingWrapper({ children }: { children: ReactNode }) {

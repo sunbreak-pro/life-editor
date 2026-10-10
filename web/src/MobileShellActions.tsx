@@ -1,9 +1,6 @@
 import { Undo2, Redo2, Search } from "lucide-react";
-import {
-  BottomTabActionRow,
-  useTranslation,
-  useUndoRedoContext,
-} from "@life-editor/shared";
+import { BottomTabActionRow, useTranslation } from "@life-editor/shared";
+import { useLatestHistory } from "./useLatestHistory";
 
 export interface MobileShellActionsProps {
   /** Open the command palette (#473). */
@@ -24,8 +21,8 @@ export interface MobileShellActionsProps {
  * §2). The "More" sheet is the only chrome every narrow section shares, which
  * is why these land there.
  *
- * The history stays ONE global stack (#304's design): this reads the very same
- * UndoRedoContext the header buttons read — no per-surface fork. Same for the
+ * Undo / redo call the very same function the header buttons call
+ * (`useLatestHistory` → `undoLatest`, #2141) — no per-surface fork. Same for the
  * palette: this flips MainScreen's one `paletteOpen` state, so mobile and
  * Desktop drive a single mounted <CommandPalette>.
  *
@@ -48,20 +45,18 @@ export interface MobileShellActionsProps {
  * row is the opposite case: it takes the user somewhere, so the sheet has to
  * be cleared out of the way first.
  *
- * These rows stay on the APP stack, unlike the header pair (#1690). The header
- * follows focus because it can: its buttons keep the editor focused while you
- * press them. Opening this sheet takes focus by definition — the body editor
- * is behind it — so "the focused editor's history" has no meaning here, and
- * pretending otherwise would mean guessing at which editor the user last
- * touched. The phone reaches the body's own undo through the same header pair
- * the narrow layout already carries (#1035).
+ * Opening this sheet takes focus away from the body behind it, so these rows
+ * always land on the unfocused rule: the body on screen and the app stack
+ * compete, newer step first (D-20261008-main-3). That is what the header pair
+ * does once the keyboard has closed, so the two never disagree. Before #2141
+ * these rows drove the app stack alone and could not reach the body at all.
  */
 export function MobileShellActions({
   onOpenPalette,
   closeSheet,
 }: MobileShellActionsProps) {
   const { t } = useTranslation();
-  const { undo, redo, canUndo, canRedo } = useUndoRedoContext();
+  const { undo, redo, canUndo, canRedo } = useLatestHistory();
 
   return (
     <>
@@ -76,14 +71,14 @@ export function MobileShellActions({
       <BottomTabActionRow
         label={t("common.undo")}
         icon={<Undo2 size={18} />}
-        onSelect={() => undo()}
-        disabled={!canUndo()}
+        onSelect={undo}
+        disabled={!canUndo}
       />
       <BottomTabActionRow
         label={t("common.redo")}
         icon={<Redo2 size={18} />}
-        onSelect={() => redo()}
-        disabled={!canRedo()}
+        onSelect={redo}
+        disabled={!canRedo}
       />
     </>
   );
