@@ -62,30 +62,39 @@
 -- #2118（settings・PR #2177）が予約しているため 0038 にした。`supabase/scripts/
 -- db-push.sh` は --include-all で push するので、番号が空いても前後しても通る。
 --
+-- push の順: 0036 → 0037 → 0038 の番号順に流すのが望ましい（0037 は items_meta の
+-- 列に触れないので、前後しても結果は変わらない。db-conventions §13）。
+--
 -- ロールバックは supabase/migrations_archive_rollback/0038_rollback.sql
 -- （migrations/ の外。db push では流れない。手で流す）。
 -- ─────────────────────────────────────────────────────────────────────────
 --
 -- ATOMICITY: begin/commit でアトミック化。再実行安全: 列は add column if not
--- exists（2 回目は列ごとの CHECK ごと何もしない）、組み合わせの CHECK は
--- drop constraint if exists → add、インデックスは create unique index if not exists。
+-- exists、CHECK 4 本は drop constraint if exists → add、インデックスは create
+-- unique index if not exists。
 
 begin;
 
 alter table public.items_meta
-  add column if not exists origin_app text
-    constraint items_meta_origin_app_check
-      check (origin_app is null or origin_app ~ '^[a-z][a-z0-9-]{0,39}$'),
-  add column if not exists origin_key text
-    constraint items_meta_origin_key_check
-      check (origin_key is null or char_length(origin_key) between 1 and 200),
-  add column if not exists origin_request_hash text
-    constraint items_meta_origin_request_hash_check
-      check (origin_request_hash is null or origin_request_hash ~ '^[0-9a-f]{64}$');
+  add column if not exists origin_app text,
+  add column if not exists origin_key text,
+  add column if not exists origin_request_hash text;
+
+-- CHECK は列と別に drop → add する。列の中に書くと、列だけが先にある状態
+-- （SQL エディタで手で足した後など）から流し直したとき CHECK が付かない。
+alter table public.items_meta
+  drop constraint if exists items_meta_origin_app_check,
+  drop constraint if exists items_meta_origin_key_check,
+  drop constraint if exists items_meta_origin_request_hash_check,
+  drop constraint if exists items_meta_origin_shape_check;
 
 alter table public.items_meta
-  drop constraint if exists items_meta_origin_shape_check;
-alter table public.items_meta
+  add constraint items_meta_origin_app_check
+    check (origin_app is null or origin_app ~ '^[a-z][a-z0-9-]{0,39}$'),
+  add constraint items_meta_origin_key_check
+    check (origin_key is null or char_length(origin_key) between 1 and 200),
+  add constraint items_meta_origin_request_hash_check
+    check (origin_request_hash is null or origin_request_hash ~ '^[0-9a-f]{64}$'),
   add constraint items_meta_origin_shape_check
     check (
       (origin_key is null and origin_request_hash is null)
