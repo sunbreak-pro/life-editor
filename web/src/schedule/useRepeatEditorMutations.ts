@@ -270,7 +270,11 @@ export function useRepeatEditorMutations({
       );
       const frequencyDays = seeded.frequencyDays ?? [];
       const frequencyInterval = seeded.frequencyInterval ?? null;
-      const frequencyStartDate = seeded.frequencyStartDate ?? null;
+      // #2098: the series begins on the event it was made from, whatever the
+      // rhythm. seedFrequencyPatch only seeds a start for "interval", so a
+      // daily / weekdays conversion used to land with none, and the range fill
+      // then put occurrences on the days before the seed (today included).
+      const frequencyStartDate = seeded.frequencyStartDate || seed.date;
       // #2082: picked in the same draft as the rhythm, so it rides the
       // conversion rather than a follow-up write.
       const frequencyEndDate = seeded.frequencyEndDate ?? null;

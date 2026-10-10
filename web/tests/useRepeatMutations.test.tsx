@@ -639,6 +639,35 @@ describe("turning a repeat on", () => {
     );
   });
 
+  // #2098: a daily / weekdays series begins on the event it was made from.
+  // Without a start the generator had no lower bound, and the range fill put
+  // occurrences on the days before a future-dated seed.
+  it("starts a daily series on the seed's own day", async () => {
+    const seedDate = "2026-08-15";
+    const h = renderRepeat({
+      selected: occurrence({ routineId: null, date: seedDate }),
+    });
+    act(() =>
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "daily" }),
+    );
+    await waitFor(() => expect(h.convertEventToRoutine).toHaveBeenCalled());
+    expect(h.convertEventToRoutine).toHaveBeenCalledWith(
+      "occ-1",
+      expect.objectContaining({
+        frequencyStartDate: seedDate,
+        sourceDate: seedDate,
+      }),
+    );
+    await waitFor(() =>
+      expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalled(),
+    );
+    expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalledWith(
+      seedDate,
+      RANGE_END,
+      [expect.objectContaining({ frequencyStartDate: seedDate })],
+    );
+  });
+
   it("says so when the conversion did not land", async () => {
     const h = renderRepeat({ selected: occurrence({ routineId: null }) });
     h.convertEventToRoutine.mockRejectedValueOnce(new Error("refused"));
