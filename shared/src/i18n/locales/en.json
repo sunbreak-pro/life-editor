@@ -315,7 +315,10 @@
       "todoHeading": "Todo",
       "eventHeading": "Events",
       "sheetEmptyTitle": "Nothing to link yet",
-      "sheetEmptyBody": "Type a name above to start a free session."
+      "sheetEmptyBody": "Type a name above to start a free session.",
+      "loadFailedTitle": "Couldn't load your todos and events",
+      "loadFailedBody": "Check your connection and try again. You can still type a name above and start a free session.",
+      "retry": "Try again"
     },
     "completion": {
       "title": "Session {{index}} complete",
@@ -325,7 +328,8 @@
       "oneMore": "One more session",
       "close": "Close",
       "logged": "Logged {{minutes}} min",
-      "startBreakMinutes": "Start a {{minutes}}-min break"
+      "startBreakMinutes": "Start a {{minutes}}-min break",
+      "startLongBreakMinutes": "Start a {{minutes}}-min long break"
     },
     "settings": {
       "presetNamePlaceholder": "Preset name",
@@ -347,7 +351,8 @@
       "decrease": "Decrease {{label}}",
       "increase": "Increase {{label}}",
       "applied": "Applied",
-      "presetSummary": "{{work}}·{{brk}}·{{long}} min / {{sessions}}×"
+      "presetSummary": "{{work}}·{{brk}}·{{long}} min / {{sessions}}×",
+      "timeHeading": "Time"
     },
     "sidebarTabs": {
       "label": "Work sidebar",
@@ -362,7 +367,10 @@
       "noTarget": "Free session",
       "minutes": "{{minutes}} min",
       "emptyTitle": "No sessions yet",
-      "emptyBody": "Finish one session and it shows up here."
+      "emptyBody": "Finish one session and it shows up here.",
+      "loadFailedTitle": "Couldn't load the history",
+      "loadFailedBody": "Check your connection and try again.",
+      "retry": "Try again"
     },
     "freeSession": {
       "title": "Free session",

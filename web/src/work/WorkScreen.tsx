@@ -139,6 +139,12 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   // until the screen was remounted (rules/frontend.md §Sync: declare every
   // domain the effect reads, and over-declare rather than under-declare).
   const syncVersion = useSyncDomains("todos", "schedule");
+  // The sheet's failed-read retry (#2054): moving the version on re-runs the
+  // load without touching `anchor`, which also keys the snapshot below.
+  const [reloadTick, setReloadTick] = useState(0);
+  // Raised by the retry button, dropped when the load it started settles:
+  // `refetchReportsLoading` is off below, so nothing else would show it.
+  const [retryingTargets, setRetryingTargets] = useState(false);
 
   // The event window, resolved once per render pass rather than inside the
   // load: `useDomainLoad` restarts on any `anchor` change, and a key computed
@@ -162,12 +168,12 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
   // unstable `t` (a test mock returning a fresh function each render) turned
   // that into an endless refetch — the trap that timed the #1038 harness out
   // at 20 s.
-  const { isLoading: todosLoading } = useDomainLoad<
+  const { isLoading: todosLoading, error: targetsError } = useDomainLoad<
     [TodoNode[], ScheduleItem[]]
   >({
     domain: "Work target options",
     dataService: ds,
-    version: syncVersion,
+    version: syncVersion + reloadTick,
     anchor: eventWindow.startKey,
     snapshotKey: "workTargetOptions",
     // Editing a todo while the timer runs must not blank the picker.
@@ -179,7 +185,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           eventWindow.startKey,
           eventWindow.endKey,
         ),
-      ]),
+      ]).finally(() => setRetryingTargets(false)),
     // One load, not two: two `useDomainLoad`s would each own a loading flag,
     // and the picker would flip out of its skeleton the moment the FASTER one
     // landed — showing a list that is still missing half its rows.
@@ -413,6 +419,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
       decrease: (label) => t("work.settings.decrease", { label }),
       increase: (label) => t("work.settings.increase", { label }),
       applied: t("work.settings.applied"),
+      timeHeading: t("work.settings.timeHeading"),
       presetSummary: (p) =>
         t("work.settings.presetSummary", {
           work: p.workDuration,
@@ -584,9 +591,15 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
         body: completionBody,
         // The narrow modal names the break's length on its button and the
         // minutes on their own line (#2054); the wide one keeps the sentence.
+        // A long break says so on the narrow button (#2054): the amber fill
+        // already marks it, and the words have to agree with the colour.
         startBreak: isWide
           ? t("work.completion.startBreak")
-          : t("work.completion.startBreakMinutes", { minutes: breakMinutes }),
+          : timer.phase === "LONG_BREAK"
+            ? t("work.completion.startLongBreakMinutes", {
+                minutes: breakMinutes,
+              })
+            : t("work.completion.startBreakMinutes", { minutes: breakMinutes }),
         oneMore: t("work.completion.oneMore"),
         close: t("work.completion.close"),
         logged: t("work.completion.logged", { minutes: loggedMinutes }),
@@ -617,6 +630,12 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           items={options}
           selectedId={timer.activeItem?.id ?? null}
           loading={todosLoading}
+          loadFailed={targetsError !== null}
+          onRetry={() => {
+            setRetryingTargets(true);
+            setReloadTick((n) => n + 1);
+          }}
+          retrying={retryingTargets}
           labels={{
             title: t("work.todoSelector.sheetTitle"),
             close: t("common.close"),
@@ -628,6 +647,10 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
             nameLabel: t("work.todoSelector.nameLabel"),
             namePlaceholder: t("work.freeSession.title"),
             nameSubmit: t("work.todoSelector.nameSubmit"),
+            loadFailedTitle: t("work.todoSelector.loadFailedTitle"),
+            loadFailedBody: t("work.todoSelector.loadFailedBody"),
+            retry: t("work.todoSelector.retry"),
+            retrying: t("common.loading"),
           }}
           onSelect={handleSelectTarget}
           freeSessionName={timer.freeSessionName}

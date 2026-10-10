@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, within, fireEvent } from "@testing-library/react";
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { render, screen, within, fireEvent, act } from "@testing-library/react";
+import {
+  useCallback,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react";
 import type { TimerContextValue } from "@life-editor/shared";
 
 /*
@@ -36,6 +42,20 @@ const stub = vi.hoisted(() => ({
   // Replaced below with the real hook — the factory is hoisted above it.
   useTimer: (): unknown => {
     throw new Error("timer stub not installed");
+  },
+  // The phase and the completed count live here rather than in the hook:
+  // several parts read the timer, each with its own hook instance, and all of
+  // them have to see one session end (#2054). `finish` ends a WORK session
+  // into the given phase; the completion modal opens on the count edge.
+  phase: "WORK" as "WORK" | "BREAK" | "LONG_BREAK",
+  completed: 0,
+  tick: 0,
+  listeners: new Set<() => void>(),
+  finish(next: "BREAK" | "LONG_BREAK"): void {
+    this.phase = next;
+    this.completed += 1;
+    this.tick += 1;
+    this.listeners.forEach((l) => l());
   },
 }));
 
@@ -101,16 +121,25 @@ function useStubTimer(): Timer {
   const [activeItem, setActiveItem] = useState<Timer["activeItem"]>(null);
   // #2009: the sheet's name field writes this, and the face reads it back.
   const [freeSessionName, setFreeSessionName] = useState("");
+  const tick = useSyncExternalStore(
+    (onChange) => {
+      stub.listeners.add(onChange);
+      return () => stub.listeners.delete(onChange);
+    },
+    () => stub.tick,
+  );
+  const phase = stub.phase;
+  const completedSessions = stub.completed;
   const noop = useCallback(() => {}, []);
   const asyncNoop = useCallback(() => Promise.resolve(), []);
   return useMemo(
     () => ({
-      phase: "WORK",
+      phase,
       isRunning: false,
       remainingSeconds: 1500,
       progress: 0,
       totalSeconds: 1500,
-      completedSessions: 0,
+      completedSessions,
       lastLoggedWorkSeconds: null,
       formatted: "25:00",
       activeItem,
@@ -138,7 +167,9 @@ function useStubTimer(): Timer {
       applyPreset: noop,
       deletePreset: asyncNoop,
     }),
-    [activeItem, freeSessionName, noop, asyncNoop],
+    // `tick` stands in for phase + completedSessions, which it moves with.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [activeItem, freeSessionName, tick, noop, asyncNoop],
   );
 }
 
@@ -181,16 +212,23 @@ function NarrowShell({ children }: { children: ReactNode }) {
   );
 }
 
-function renderWork(Shell: typeof WideShell, events: unknown[] = []) {
+function renderWork(
+  Shell: typeof WideShell,
+  events: unknown[] = [],
+  { failFirstRead = false } = {},
+) {
   // WorkScreen reads `useSyncDomains` since #1157, and `useSyncContext` throws
   // outside its Provider. The timer is still the local stub above — this adds
   // the Sync Provider only, which is what the header comment's "TimerProvider
   // needs a Sync Provider above it" was avoiding.
   const { wrapper: SyncWrapper } = createBumpableSync();
+  const ds = makeDS(events);
+  // #2054: the first read of the picker's candidates fails, the next succeeds.
+  if (failFirstRead) fetchTodoTree.mockRejectedValueOnce(new Error("offline"));
   render(
     <SyncWrapper>
       <Shell>
-        <WorkScreen dataService={makeDS(events)} />
+        <WorkScreen dataService={ds} />
       </Shell>
     </SyncWrapper>,
   );
@@ -199,6 +237,8 @@ function renderWork(Shell: typeof WideShell, events: unknown[] = []) {
 
 beforeEach(() => {
   stub.wide = true;
+  stub.phase = "WORK";
+  stub.completed = 0;
   vi.clearAllMocks();
 });
 
@@ -244,7 +284,8 @@ describe("Work — Layout Standard v2 adoption (#590)", () => {
 
     // And the settings still arrive through the same portal, via the drawer.
     fireEvent.click(screen.getByRole("button", { name: "open detail" }));
-    expect(screen.getByText("pomodoro.title")).not.toBeNull();
+    // The drawer heads its stepper card with plan A's 「時間」 (#2054).
+    expect(screen.getByText("work.settings.timeHeading")).not.toBeNull();
   });
 });
 
@@ -391,5 +432,63 @@ describe("Work — naming a free session from the mobile sheet (#2009)", () => {
     expect(
       within(main).getByRole("button", { name: "work.todoSelector.select" }),
     ).not.toBeNull();
+  });
+});
+
+/*
+ * #2054 — the states plan A left to the code: the narrow completion button
+ * names a long break, and a failed read of the picker's candidates says so
+ * with a retry instead of claiming there is nothing to link.
+ */
+describe("Work — narrow completion and failed read (#2054)", () => {
+  it("names a long break on the narrow completion button", () => {
+    stub.wide = false;
+    renderWork(NarrowShell);
+    act(() => stub.finish("LONG_BREAK"));
+    expect(
+      screen.getByRole("button", {
+        name: "work.completion.startLongBreakMinutes",
+      }),
+    ).not.toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        name: "work.completion.startBreakMinutes",
+      }),
+    ).toBeNull();
+  });
+
+  it("keeps the plain break copy for a short break", () => {
+    stub.wide = false;
+    renderWork(NarrowShell);
+    act(() => stub.finish("BREAK"));
+    expect(
+      screen.getByRole("button", { name: "work.completion.startBreakMinutes" }),
+    ).not.toBeNull();
+  });
+
+  it("says the candidates failed to load and reads them again on retry", async () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      stub.wide = false;
+      const main = renderWork(NarrowShell, [], { failFirstRead: true });
+      fireEvent.click(
+        within(main).getByRole("button", { name: "work.todoSelector.select" }),
+      );
+      const failed = await screen.findByTestId("work-load-failed");
+      expect(failed.textContent).toContain("work.todoSelector.loadFailedTitle");
+      expect(
+        screen.queryByText("work.todoSelector.sheetEmptyTitle"),
+      ).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: "work.todoSelector.retry" }),
+      );
+      expect(
+        await screen.findByRole("button", { name: "Write the spec" }),
+      ).not.toBeNull();
+      expect(screen.queryByTestId("work-load-failed")).toBeNull();
+      expect(fetchTodoTree).toHaveBeenCalledTimes(2);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });

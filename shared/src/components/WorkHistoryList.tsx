@@ -1,6 +1,7 @@
 import { useId } from "react";
 import { Clock, History, Tag as TagIcon } from "lucide-react";
 import { TagPill } from "./TagPill";
+import { WorkLoadFailed } from "./WorkLoadFailed";
 import { cn } from "./cn";
 import {
   workTargetChipClass,
@@ -33,6 +34,10 @@ import {
  * because the drawer shows "today" and "yesterday" together
  * (D-20261003-work-2). Without it, `entries` under `labels.heading` is the one
  * group, which is all the card variant ever draws.
+ *
+ * The rows variant also has a failed-read state (#2054) with a retry, shown
+ * instead of the empty state when the host says the read failed and there is
+ * nothing to show. Before it, a failed read said "no sessions yet".
  */
 
 export interface WorkHistoryTag {
@@ -74,6 +79,14 @@ export interface WorkHistoryListLabels {
   listLabel: string;
   /** Rows variant only: the empty state's heading; `empty` is its line. */
   emptyTitle?: string;
+  /** Rows variant only: the failed-read state's heading (#2054). */
+  loadFailedTitle?: string;
+  /** Its line — what to do now. */
+  loadFailedBody?: string;
+  /** Its retry button. */
+  retry?: string;
+  /** The retry button while a retry is in flight. */
+  retrying?: string;
 }
 
 export interface WorkHistoryListProps {
@@ -86,6 +99,15 @@ export interface WorkHistoryListProps {
   variant?: "card" | "rows";
   /** Rows variant only: several days, each under its own heading. */
   groups?: WorkHistoryGroup[];
+  /**
+   * Rows variant only: the host's last read failed (#2054). Shown while there
+   * are no rows, and only with `onRetry` and the three failure labels.
+   */
+  loadFailed?: boolean;
+  /** Reads the history again. */
+  onRetry?: () => void;
+  /** A retry is in flight (the failure stays up until a read succeeds). */
+  retrying?: boolean;
 }
 
 export function WorkHistoryList({
@@ -95,6 +117,9 @@ export function WorkHistoryList({
   className,
   variant = "card",
   groups,
+  loadFailed = false,
+  onRetry,
+  retrying = false,
 }: WorkHistoryListProps) {
   const headingId = useId();
   const rows = variant === "rows";
@@ -113,6 +138,28 @@ export function WorkHistoryList({
           />
         ))}
       </div>
+    );
+  }
+
+  if (
+    isEmpty &&
+    rows &&
+    loadFailed &&
+    onRetry &&
+    labels.loadFailedTitle &&
+    labels.loadFailedBody &&
+    labels.retry
+  ) {
+    return (
+      <WorkLoadFailed
+        title={labels.loadFailedTitle}
+        body={labels.loadFailedBody}
+        retry={labels.retry}
+        onRetry={onRetry}
+        retrying={retrying}
+        retryingLabel={labels.retrying}
+        className={cn("pt-12", className)}
+      />
     );
   }
 
