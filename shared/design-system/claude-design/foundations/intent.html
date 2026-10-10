@@ -1,0 +1,101 @@
+<!-- @dsCard group="Foundations" -->
+<!doctype html>
+<html lang='en'><head><meta charset='utf-8'><style>
+:root{--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,'Apple Color Emoji',Arial,sans-serif,'Segoe UI Emoji','Segoe UI Symbol';--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;
+--bg:#f5ebda;--surface:#fbf4e8;--text:#2b2015;--text2:#6b5a45;--border:#eadec6;--accent:#ad4409;--danger:#d92d20;--mint:#1fa56e;--mintbg:#daf3e7;--mintfg:#0c6f4e}
+*{box-sizing:border-box}
+body{margin:0;padding:28px;background:var(--bg);color:var(--text);font-family:var(--font)}
+h1{font-size:15px;font-weight:600;margin:0 0 4px}
+p.sub{margin:0 0 20px;color:var(--text2);font-size:12px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:760px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+.card h2{font-size:11px;font-weight:700;margin:0 0 10px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent)}
+ol,ul{margin:0;padding-left:18px}
+li{font-size:12px;line-height:1.65;margin-bottom:5px}
+li b{font-weight:600}
+code{background:var(--mintbg);color:var(--mintfg);font-family:var(--mono);font-size:11px;padding:1px 5px;border-radius:6px}
+.bad{color:var(--danger)}
+.full{grid-column:1 / -1}
+.foot{margin-top:14px;font-size:11px;color:var(--text2)}
+.foot b{color:var(--text)}
+.ed{display:flex;gap:10px;margin:0 0 12px}
+.ed div{flex:1;border-radius:8px;padding:10px 12px;font-size:11px;line-height:1.5;border:1px solid var(--border)}
+.ed .am{background:#fbf4e8;color:#2b2015}
+.ed .yu{background:#101a2c;color:#edf1f9;border-color:#263650}
+.ed b{display:block;font-size:12px;font-weight:600;margin-bottom:4px}
+.dot{display:inline-block;width:10px;height:10px;border-radius:50%;vertical-align:-1px;margin-right:4px}
+.src{margin-top:10px;font-size:10.5px;color:var(--text2)}
+</style></head><body>
+<h1>Design Intent — why the system looks this way</h1>
+<p class='sub'>見た目の決まりごとの「なぜ」を要約する · 値は colors / typography / steps の各カードが持つ · 正本 = PRINCIPLES.md / .claude/rules/frontend.md / tokens.css</p>
+<div class='cols'>
+  <div class='card full'>
+    <h2>朝刊・夕刊パレットが表すもの</h2>
+    <div class='ed'>
+      <div class='am'><b>Light = 朝刊（Asakan）</b><span class='dot' style='background:#fbf4e8;border:1px solid #d6c3a2'></span>生成りの紙 <span class='dot' style='background:#ad4409'></span>朝日の燈色（ひいろ）</div>
+      <div class='yu'><b>Dark = 夕刊（Yukan）</b><span class='dot' style='background:#101a2c;border:1px solid #3c4e70'></span>藍染めの夜空 <span class='dot' style='background:#85aaff'></span>月明かりの薄藍</div>
+    </div>
+    <ul>
+      <li>地は彩度を抑えた紙と夜空の色にして、主アクセントは各テーマに 1 色だけ置く。毎日長く読む画面なので、目を引く色を増やさない。</li>
+      <li>ライトは真っ白を避けて生成りにし、ダークは真っ黒を避けて藍の夜空にする。わずかな地色のほうが長く読んでも疲れないからである。</li>
+      <li>主ボタンと選択状態は accent（燈色 / 薄藍）を使う。mint は chip・tag・肯定の差し色にとどめ、朱と琥珀は Briefing の紙面だけで使う。</li>
+      <li>ダークの accent は明るいので、その上の文字（on-accent）は白ではなく near-black にする。</li>
+    </ul>
+    <div class='src'>正本: shared/design-system/PRINCIPLES.md §3.3-3.4 · shared/src/styles/tokens.css</div>
+  </div>
+  <div class='card'>
+    <h2>主要な背景は不透明にする</h2>
+    <ul>
+      <li>ポップオーバー・メニュー・ダイアログ・カード・パネルの本体は、不透明なトークンで塗る。</li>
+      <li>半透明にすると下の文字が透けて、本文のコントラストが落ちる。</li>
+      <li>未定義の <code>bg-lumen-*</code> クラスは警告なく透明になる。色は tokens.css に定義してから使う。</li>
+      <li>透明を許すのは hover・モーダルの backdrop・accent の薄塗り・枠線・disabled・影だけである。</li>
+      <li class='bad'>本体を <code>bg-*/70</code> や <code>backdrop-blur</code> で塗らない。</li>
+    </ul>
+    <div class='src'>正本: .claude/rules/frontend.md §デザイン規約 · PRINCIPLES.md §3.5</div>
+  </div>
+  <div class='card'>
+    <h2>色は lumen-* トークンだけで書く</h2>
+    <ul>
+      <li>部品は <code>bg-lumen-*</code> / <code>text-lumen-*</code> だけを使い、hex や <code>bg-sky-500</code> を書かない。</li>
+      <li>テーマを切り替えると tokens.css の値が入れ替わるので、名前で参照した部品は両テーマに自動で追随する。</li>
+      <li>状態やデータを表す色（status band・chart）はテーマで変えない。変えると意味がぶれるからである。</li>
+      <li><b>入れ子の data-theme には追随しない。</b>lumen-* は宣言した要素で値が決まる。部分的に別テーマで描くなら、tokens.css の <code>[data-theme]</code> エイリアス節に 1 行足す。</li>
+    </ul>
+    <div class='src'>正本: .claude/rules/frontend.md §デザイン規約 · PRINCIPLES.md §2 / §3.1-3.2</div>
+  </div>
+  <div class='card'>
+    <h2>UI の 4 状態</h2>
+    <ul>
+      <li><b>Loading</b> は初回だけ skeleton か控えめな spinner を出す。画面全体をふさがない。</li>
+      <li><b>Empty</b> は文脈に合った 1 行と、次にできる操作を出す。</li>
+      <li><b>Error</b> は原因を 1 行で書き、リトライ操作を置く。スタックトレースは画面に出さない。</li>
+      <li><b>Idle</b> はデータがある通常の表示で、hover や focus に応える。</li>
+      <li>処理中の <code>aria-busy</code> は単独で立てず、目に見える手がかりと組にする。押せない（disabled）と動いている（busy）を同じ見た目にしない。</li>
+    </ul>
+    <div class='src'>正本: .claude/skills/frontend-react-designer/references/ui-states.md §1 · frontend.md §デザイン規約</div>
+  </div>
+  <div class='card'>
+    <h2>Mobile のタップ目標は 44px</h2>
+    <ul>
+      <li>狭い幅では、呼び出し側で <code>max-md:min-h-11 max-md:min-w-11</code> を足して当たり判定を広げる。</li>
+      <li><code>--spacing-lumen-tap-min</code> は名前に反して 1.75rem で、幅による切り替えを持たない。これを上げると Desktop のアイコンボタンが全部太るので、このためには使わない。</li>
+      <li>密な行は箱を太らせず、透明な <code>::after</code> で縦だけ広げる。横には広がらないので、隣り合う 2 ボタンには使えない。</li>
+    </ul>
+    <div class='src'>正本: .claude/rules/frontend.md §Gotchas</div>
+  </div>
+  <div class='card full'>
+    <h2>余白・アイコン・動きの段の使い分け</h2>
+    <ul>
+      <li><b>余白</b>の段（<code>p-lumen-*</code> / <code>gap-lumen-*</code>）は、chip・ボタン・行・カード・シートの内側だけに使う。ページの外周は gutter の組（<code>px-lumen-gutter md:px-lumen-gutter-wide</code>）と Tailwind の数値の段で取る。</li>
+      <li>余白の段は 4px 刻みの px で、20px の段は意図して欠けている。部品の内側に 16px と 24px の間の余白が要らないからである。</li>
+      <li><b>アイコン</b>の段は rem で、Settings の文字サイズに合わせて伸び縮みする。sm は全 lucide アイコンが持ち上げられる下限そのもので、md と lg はそこから 1.25 倍ずつ大きくなる。</li>
+      <li>既存の <code>size={N}</code> はまだ段に移していない。Briefing と Work の作り直しで画面ごとに移す。</li>
+      <li><b>動き</b>は fast を hover・focus・小さな状態変化に、normal をパネル・シート・ドロワーの登場に、slow を全画面の遷移に使う。入るときは ease-out、出るときは ease-in にする。</li>
+      <li>動きを減らす設定（OS か Settings）が有効なら、すべての長さが 0 に近くなる。</li>
+    </ul>
+    <div class='foot'>値そのものは <b>Steps</b> カード（steps.html）と tokens.css が持つ。このカードは使い分けだけを書き、各段の値は写さない。</div>
+  </div>
+</div>
+<div class='foot'><b>正本:</b> shared/design-system/PRINCIPLES.md · shared/src/styles/tokens.css · .claude/rules/frontend.md · .claude/skills/frontend-react-designer/references/ui-states.md · foundations/steps.html</div>
+</body></html>
