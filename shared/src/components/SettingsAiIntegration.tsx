@@ -1,5 +1,5 @@
 import { useId, useState } from "react";
-import { ChevronDown, Sparkles, Terminal } from "lucide-react";
+import { ChevronDown, NotebookPen, Sparkles, Terminal } from "lucide-react";
 import { cn } from "./cn";
 import { Button } from "./Button";
 import { Input } from "./Input";
@@ -59,6 +59,19 @@ export interface SettingsAiIntegrationLauncher {
   onLaunch: () => Promise<string | null>;
 }
 
+/**
+ * The door to the Claude customization editor (#2119). Shown on every
+ * platform — the phone edits and saves exactly what the desktop does; only
+ * the launch block above is desktop-only. Copy rides along with the callback
+ * so hosts that do not offer the editor need not pass any labels for it.
+ */
+export interface SettingsAiIntegrationCustomize {
+  heading: string;
+  description: string;
+  button: string;
+  onOpen: () => void;
+}
+
 export interface SettingsAiIntegrationProps {
   /** The generated catalog (MCP_TOOL_CATALOG), injected so suites can shrink it. */
   tools: McpToolCatalogEntry[];
@@ -70,6 +83,8 @@ export interface SettingsAiIntegrationProps {
   lastActivity: string | null;
   /** Omit on web / mobile — see SettingsAiIntegrationLauncher. */
   launcher?: SettingsAiIntegrationLauncher;
+  /** Omit to hide the editor's entry block — see SettingsAiIntegrationCustomize. */
+  customize?: SettingsAiIntegrationCustomize;
   labels: SettingsAiIntegrationLabels;
 }
 
@@ -103,6 +118,7 @@ export function SettingsAiIntegration({
   tools,
   lastActivity,
   launcher,
+  customize,
   labels,
 }: SettingsAiIntegrationProps) {
   const [open, setOpen] = useState(false);
@@ -222,6 +238,32 @@ export function SettingsAiIntegration({
           </p>
         )}
       </div>
+
+      {/* Claude customization (#2119) — every platform. */}
+      {customize && (
+        <div className="flex flex-col gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-4 py-3">
+          <p className="flex items-center gap-2 text-sm font-medium text-lumen-text">
+            <NotebookPen
+              size={14}
+              aria-hidden="true"
+              className="text-lumen-text-secondary"
+            />
+            <span>{customize.heading}</span>
+          </p>
+          <p className="text-xs leading-relaxed text-lumen-text-secondary">
+            {customize.description}
+          </p>
+          <div>
+            <Button
+              variant="secondary"
+              onClick={customize.onOpen}
+              className="max-md:min-h-11"
+            >
+              {customize.button}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Tool catalog. */}
       <div className="flex flex-col gap-2">
