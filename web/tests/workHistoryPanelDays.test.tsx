@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, within, fireEvent } from "@testing-library/react";
 import type { DataService } from "@life-editor/shared";
 import { stubDataService, createBumpableSync } from "./helpers";
 import { WorkHistoryPanel } from "../src/work/WorkHistoryPanel";
@@ -94,5 +94,40 @@ describe("WorkHistoryPanel days (#2054)", () => {
     expect(screen.getAllByTestId("work-history-row")).toHaveLength(1);
     screen.getByText("work.history.today");
     expect(screen.queryByText("work.history.yesterday")).toBeNull();
+  });
+});
+
+describe("WorkHistoryPanel failed read (#2054)", () => {
+  it("says the read failed and reads again on retry", async () => {
+    const sessions = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue([work(1, at(0, 9))]);
+    const ds = stubDataService({
+      fetchTimerSessions: sessions,
+      fetchTodoTree: vi.fn(async () => []),
+      fetchScheduleItemsByDateRange: vi.fn(async () => []),
+      listAllWikiTagsUnified: vi.fn(async () => []),
+      listAllTagAssignments: vi.fn(async () => []),
+    }) as DataService;
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      render(
+        <SyncWrapper>
+          <WorkHistoryPanel dataService={ds} variant="rows" />
+        </SyncWrapper>,
+      );
+      const failed = await screen.findByTestId("work-load-failed");
+      expect(failed.textContent).toContain("work.history.loadFailedTitle");
+      expect(screen.queryByText("work.history.emptyTitle")).toBeNull();
+      fireEvent.click(
+        screen.getByRole("button", { name: "work.history.retry" }),
+      );
+      expect(await screen.findAllByTestId("work-history-row")).toHaveLength(1);
+      expect(screen.queryByTestId("work-load-failed")).toBeNull();
+      expect(sessions).toHaveBeenCalledTimes(2);
+    } finally {
+      errorSpy.mockRestore();
+    }
   });
 });

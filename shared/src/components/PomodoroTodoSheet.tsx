@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import type { KeyboardEvent } from "react";
 import { Check, CircleX, Inbox } from "lucide-react";
+import { WorkLoadFailed } from "./WorkLoadFailed";
 import { BottomSheet } from "./BottomSheet";
 import { Input } from "./Input";
 import { isImeComposing } from "../utils/imeGuard";
@@ -35,6 +36,14 @@ import { cn } from "./cn";
  * The other two states the plan draws: `loading` shows skeleton rows while the
  * host's first read is in flight, and an empty list shows an icon, a heading
  * and a line that points back at the name field above it.
+ *
+ * The plan draws no failure, but an empty list is not one (#2054): a read that
+ * failed used to fall through to the empty state and say there was nothing to
+ * link, which was false. `loadFailed` with nothing on screen swaps the empty
+ * state for a failure with a retry. A failed REFETCH keeps the rows it already
+ * has — they are still the best answer the sheet holds — so the swap only
+ * happens when the list is empty. The name field stays above either way: a
+ * free session needs no list at all.
  */
 
 export interface PomodoroTodoSheetLabels {
@@ -61,6 +70,14 @@ export interface PomodoroTodoSheetLabels {
   namePlaceholder?: string;
   /** Button that starts working under the typed name. */
   nameSubmit?: string;
+  /** Heading of the failed-read state (#2054). */
+  loadFailedTitle?: string;
+  /** Its line — what to do now. */
+  loadFailedBody?: string;
+  /** Its retry button. */
+  retry?: string;
+  /** The retry button while a retry is in flight. */
+  retrying?: string;
 }
 
 export interface PomodoroTodoSheetProps {
@@ -79,6 +96,15 @@ export interface PomodoroTodoSheetProps {
   freeSessionName?: string;
   /** Receives the name as typed; blank means "the default title". */
   onNameSubmit?: (name: string) => void;
+  /**
+   * The host's last read failed (#2054). Shown only while the list is empty,
+   * and only with `onRetry` and the three failure labels.
+   */
+  loadFailed?: boolean;
+  /** Reads the candidates again. */
+  onRetry?: () => void;
+  /** A retry is in flight (the failure stays up until a read succeeds). */
+  retrying?: boolean;
 }
 
 /** Skeleton bar widths — uneven on purpose, so the rows read as text. */
@@ -99,6 +125,9 @@ export function PomodoroTodoSheet({
   loading = false,
   freeSessionName,
   onNameSubmit,
+  loadFailed = false,
+  onRetry,
+  retrying = false,
 }: PomodoroTodoSheetProps) {
   const choose = (item: WorkTargetOption | null) => {
     onSelect(item);
@@ -163,6 +192,25 @@ export function PomodoroTodoSheet({
           </div>
         ))}
       </div>
+    );
+  } else if (
+    items.length === 0 &&
+    loadFailed &&
+    onRetry &&
+    labels.loadFailedTitle &&
+    labels.loadFailedBody &&
+    labels.retry
+  ) {
+    body = (
+      <WorkLoadFailed
+        title={labels.loadFailedTitle}
+        body={labels.loadFailedBody}
+        retry={labels.retry}
+        onRetry={onRetry}
+        retrying={retrying}
+        retryingLabel={labels.retrying}
+        className="pb-12 pt-10"
+      />
     );
   } else if (items.length === 0) {
     body = labels.emptyTitle ? (
