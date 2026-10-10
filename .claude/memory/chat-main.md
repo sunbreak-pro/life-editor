@@ -9,7 +9,8 @@
 
 - 前回: —
 - 現在: こうだいさんの構想（出来事を貯める → 分析 → 次の Todo。家計簿などの数値は拡張アプリで集める）に意見を返し、「その方向性で OK」+ 要件 2 つ（Analytics に収集と一覧 / leftSidebar に Apps のタブ）+ 別リポジトリ（手順がかなり増えるなら統合）の回答を受けて、決定 **D-20261008-main-1**（役割分担 = 本社 / 支店・`app_records` は `items_meta` の外・データ先でアプリ後・Analytics 記録タブ + Apps セクション）と **D-20261008-main-2**（別リポジトリ・切替条件 (a)(b)）を台帳へ昇格し、計画書を Draft で作成。**窓口の計画書（PR #2137・同日 13:18 merge）と D-20261007-main-1〜8 を前提にし、チャットで先に出した「Supabase 直書き」案は取り下げて窓口経由に合わせた**。`records.mjs check` / `LC_ALL=C docs-lint` とも OK。docs PR = **PR #2158 open**（ブランチ `docs/extension-records-apps-plan`・head `34cdccce`・一時 worktree 経由。base の origin/main は `7666b69e` = PR #2139 の後）
-- 次: PR merge（🛑 = 計画書 Step 1）→ N1〜N8 を `issue-dispatch` で起票（**N5 = Apps セクションの宛先レーンは要判断**: 新レーン `apps` を立てるか chat-main が持つか）→ Step 8 の語彙の突き合わせ（作成元 = `extension_apps.slug`）を #2146 / #2147 / #2148 の着手前にコメントで出す。migration 番号は 0035 = #2118 / 0036 = #2094 が予約済みで #2147 も 1 本使うので、N1 は着手時に origin と突き合わせる
+- 現在（2026-10-08 夜）: **PR #2158 / #2160 とも merge 済み**（main `ae3a8f16`）。計画書の Issue を **#2161〜#2168 の 8 本で起票**（宛先 = `[refactor-core]` #2161 DDL / #2162 shared データ層・`[mcp-tools]` #2163 MCP 道具 + deploy + スマホ 1 件 / #2166 窓口との突き合わせ・`section:analytics` #2164 記録タブ・`[connect-refine]` #2165 Apps セクション（新セクションで担当レーンが無いため、Connect をセクションごと建てたレーンに回した。main に入ったら `section:apps` を作って付け替え）・`[main]` #2167 朝刊プロンプト / #2168 docs + 実画面）。計画書を IN PROGRESS にし、Steps 表と Issue 表の仮番号を実番号に置き換えた（docs PR は history の同日エントリ参照）
+- 次: 各レーンへ `/goal` を配るか（`issue-prompter`。refactor-core / connect-refine は休眠中なので boot 行が要る）→ 巡回で **#2166 の語彙コメントが #2146 の着手より先に出ているか**を見る（出ていなければ chat-main が代わりに #2146 / #2147 / #2148 へコメント）→ #2163 の 🛑 deploy 後に #2167（chat-main 手番）→ #2164 / #2165 merge 後に #2168（docs + 実ブラウザ）。migration 番号は 0035 = #2118 / 0036 = #2094 が予約済みで #2147 も 1 本使うので、#2161 は着手時に origin と突き合わせる
 
 ### 📦 Desktop 配布パッケージ化（mac .dmg / Windows NSIS）（着手日: 2026-08-30）
 
