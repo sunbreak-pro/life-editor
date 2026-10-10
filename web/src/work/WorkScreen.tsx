@@ -528,7 +528,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
         // output order rather than by ours (#830).
         className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-tertiary hover:bg-lumen-hover"
       >
-        <X size={18} aria-hidden="true" />
+        <X aria-hidden="true" className="size-lumen-icon-md" />
       </button>
     </div>
   ) : (
@@ -542,7 +542,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
         aria-hidden="true"
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-lumen-border-strong text-lumen-text-tertiary"
       >
-        <Plus size={16} />
+        <Plus className="size-lumen-icon-sm" />
       </span>
       {/* A named free session shows its name here (#2009), so the face says
           what the Event will be called before the session is even started. */}
@@ -550,9 +550,8 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
         {timer.freeSessionName.trim() || t("work.todoSelector.select")}
       </span>
       <ChevronDown
-        size={18}
         aria-hidden="true"
-        className="shrink-0 text-lumen-text-tertiary"
+        className="size-lumen-icon-md shrink-0 text-lumen-text-tertiary"
       />
     </button>
   );

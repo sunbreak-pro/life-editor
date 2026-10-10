@@ -75,7 +75,7 @@ export function SessionCompletionModal({
       <Modal open={open} onClose={onClose} labelledBy={titleId} size="sm">
         <div className="flex flex-col items-center pt-2">
           <span className="flex h-13 w-13 items-center justify-center rounded-full bg-lumen-accent-subtle text-lumen-accent">
-            <Check size={24} aria-hidden="true" />
+            <Check aria-hidden="true" className="size-lumen-icon-lg" />
           </span>
           <h2
             id={titleId}
@@ -105,7 +105,7 @@ export function SessionCompletionModal({
                 BREAK_FILL[breakPhase],
               )}
             >
-              <Coffee size={18} aria-hidden="true" />
+              <Coffee aria-hidden="true" className="size-lumen-icon-md" />
               {labels.startBreak}
             </button>
             <button

@@ -261,7 +261,7 @@ export function WorkTagSelector({
           className,
         )}
       >
-        <TagIcon size={16} aria-hidden="true" className="shrink-0" />
+        <TagIcon aria-hidden="true" className="size-lumen-icon-sm shrink-0" />
         {!disabled &&
           selected.map((tag) => (
             <TagPill

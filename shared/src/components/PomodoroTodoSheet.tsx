@@ -136,7 +136,7 @@ export function PomodoroTodoSheet({
             ) : null}
           </span>
           {active ? (
-            <Check size={18} aria-hidden="true" className="shrink-0" />
+            <Check aria-hidden="true" className="size-lumen-icon-md shrink-0" />
           ) : null}
         </button>
       </li>
@@ -168,7 +168,7 @@ export function PomodoroTodoSheet({
     body = labels.emptyTitle ? (
       <div className="flex flex-col items-center gap-2 px-6 pb-12 pt-10 text-center">
         <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full border border-lumen-border bg-lumen-bg-secondary text-lumen-text-tertiary">
-          <Inbox size={24} aria-hidden="true" />
+          <Inbox aria-hidden="true" className="size-lumen-icon-lg" />
         </span>
         <p className="text-sm font-bold text-lumen-text">{labels.emptyTitle}</p>
         <p className="text-pretty text-xs leading-relaxed text-lumen-text-secondary">
@@ -206,7 +206,7 @@ export function PomodoroTodoSheet({
           className={cn(ROW, "text-lumen-text-secondary")}
         >
           <span className="flex w-8 shrink-0 justify-center" aria-hidden="true">
-            <CircleX size={18} />
+            <CircleX className="size-lumen-icon-md" />
           </span>
           <span className="text-sm">{labels.clearSelection}</span>
         </button>

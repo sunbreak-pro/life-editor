@@ -442,7 +442,7 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
                     editNumber(key, Math.max(spec.min, value - spec.step))
                   }
                 >
-                  <Minus size={14} aria-hidden="true" />
+                  <Minus aria-hidden="true" className="size-lumen-icon-sm" />
                 </StepButton>
                 <span
                   aria-live="polite"
@@ -457,7 +457,7 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
                     editNumber(key, Math.min(spec.max, value + spec.step))
                   }
                 >
-                  <Plus size={14} aria-hidden="true" />
+                  <Plus aria-hidden="true" className="size-lumen-icon-sm" />
                 </StepButton>
               </li>
             );
@@ -520,7 +520,10 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
                   </div>
                   {isApplied(p) ? (
                     <span className="inline-flex min-h-11 shrink-0 items-center gap-1 px-2 text-xs font-semibold text-lumen-text-secondary">
-                      <Check size={14} aria-hidden="true" />
+                      <Check
+                        aria-hidden="true"
+                        className="size-lumen-icon-sm"
+                      />
                       {drawer.applied}
                     </span>
                   ) : (
@@ -538,7 +541,7 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
                     onClick={() => props.onDeletePreset(p.id)}
                     className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-tertiary hover:bg-lumen-hover hover:text-lumen-danger"
                   >
-                    <Trash2 size={16} aria-hidden="true" />
+                    <Trash2 aria-hidden="true" className="size-lumen-icon-sm" />
                   </button>
                 </li>
               ))}
@@ -560,7 +563,7 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
               disabled={presetName.trim().length === 0}
               className="inline-flex min-h-11 shrink-0 items-center gap-1 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-3 text-sm font-semibold text-lumen-text hover:bg-lumen-hover disabled:cursor-not-allowed disabled:opacity-50"
             >
-              <Plus size={16} aria-hidden="true" />
+              <Plus aria-hidden="true" className="size-lumen-icon-sm" />
               {labels.saveAsPreset}
             </button>
           </div>

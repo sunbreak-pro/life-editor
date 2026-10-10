@@ -126,7 +126,7 @@ export function WorkHistoryList({
         data-testid="work-history-empty"
       >
         <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full border border-lumen-border bg-lumen-bg text-lumen-text-tertiary">
-          <History size={24} aria-hidden="true" />
+          <History aria-hidden="true" className="size-lumen-icon-lg" />
         </span>
         <p className="text-sm font-bold text-lumen-text">{labels.emptyTitle}</p>
         <p className="text-pretty text-xs leading-relaxed text-lumen-text-secondary">
@@ -184,7 +184,7 @@ export function WorkHistoryList({
                         aria-hidden="true"
                         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-lumen-border bg-lumen-bg-secondary text-lumen-text-secondary"
                       >
-                        <TagIcon size={16} />
+                        <TagIcon className="size-lumen-icon-sm" />
                       </span>
                     )}
                     <div className="flex min-w-0 flex-1 flex-col gap-0.5">
