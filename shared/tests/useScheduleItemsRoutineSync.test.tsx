@@ -134,3 +134,92 @@ describe("useScheduleItemsRoutineSync — M4 callback stability", () => {
     expect(onChangedA).not.toHaveBeenCalled();
   });
 });
+
+/*
+ * #2097 — the calendar's range fill, the today generator and a conversion's
+ * fill are separate hook instances. Passes over the same slots that overlapped
+ * in time both read "missing", both inserted, and the loser hit the
+ * (routine, date) partial UNIQUE. Passes on one DataService now run in turn.
+ */
+describe("useScheduleItemsRoutineSync — one pass at a time per DataService (#2097)", () => {
+  it("lets a second instance's fill see the first one's rows instead of colliding", async () => {
+    const stored: ScheduleItem[] = [];
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const store = {
+      fetchScheduleItemsByDateRange: vi.fn(async () => {
+        inFlight++;
+        maxInFlight = Math.max(maxInFlight, inFlight);
+        await new Promise((r) => setTimeout(r, 5));
+        return [...stored];
+      }),
+      bulkCreateScheduleItems: vi.fn(
+        async (
+          rows: Array<{ id: string; date: string; routineId: string }>,
+        ) => {
+          await new Promise((r) => setTimeout(r, 5));
+          for (const row of rows) {
+            if (
+              stored.some(
+                (s) => s.routineId === row.routineId && s.date === row.date,
+              )
+            )
+              throw new Error("duplicate key uq_events_payload_routine_date");
+            stored.push(makeItem({ id: row.id, date: row.date }));
+          }
+          inFlight--;
+        },
+      ),
+    } as unknown as DataService;
+
+    const a = renderHook(() =>
+      useScheduleItemsRoutineSync({ dataService: store }),
+    );
+    const b = renderHook(() =>
+      useScheduleItemsRoutineSync({ dataService: store }),
+    );
+    const start = tomorrowKey();
+    let results: Array<number | null> = [];
+    await act(async () => {
+      results = await Promise.all([
+        a.result.current.fillRoutineItemsForDateRange(start, start, [
+          makeRoutine(),
+        ]),
+        b.result.current.fillRoutineItemsForDateRange(start, start, [
+          makeRoutine(),
+        ]),
+      ]);
+    });
+
+    expect(results).toEqual([1, 0]);
+    expect(store.bulkCreateScheduleItems).toHaveBeenCalledTimes(1);
+    expect(stored).toHaveLength(1);
+    expect(maxInFlight).toBe(1);
+  });
+
+  it("keeps the queue moving after a pass that failed", async () => {
+    const store = {
+      fetchScheduleItemsByDateRange: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("network"))
+        .mockResolvedValueOnce([]),
+      bulkCreateScheduleItems: vi.fn(() => Promise.resolve()),
+    } as unknown as DataService;
+    const { result } = renderHook(() =>
+      useScheduleItemsRoutineSync({ dataService: store }),
+    );
+    const start = tomorrowKey();
+    let results: Array<number | null> = [];
+    await act(async () => {
+      results = await Promise.all([
+        result.current.fillRoutineItemsForDateRange(start, start, [
+          makeRoutine(),
+        ]),
+        result.current.fillRoutineItemsForDateRange(start, start, [
+          makeRoutine(),
+        ]),
+      ]);
+    });
+    expect(results).toEqual([null, 1]);
+  });
+});

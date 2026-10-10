@@ -64,6 +64,38 @@ import {
  * The RoutineGroup ("group" frequency) parameter is gone with the type.
  */
 
+/*
+ * #2097: one generator pass at a time per DataService.
+ *
+ * Every pass is read-then-write: it reads what already exists, then INSERTs
+ * what is missing. Two passes over the same (routine, date) slots that overlap
+ * in time both read "missing", both insert, and the loser hits the
+ * `uq_events_payload_routine_date` partial UNIQUE (409 / 23505), which rolls
+ * its whole batch back. The writers are separate hook instances — the
+ * calendar's range fill (#2081), the always-on today generator, a repeat
+ * conversion's fill, the briefing — so a per-instance guard cannot see each
+ * other. Keyed on the DataService instead: they all share the app's one
+ * service, and a test's stub gets a queue of its own.
+ *
+ * A queued pass starts after the previous one settled, so its read sees the
+ * winner's rows and it writes only what is still missing. A pass that fails
+ * does not stall the queue: the chain keeps a caught copy.
+ */
+const writeQueues = new WeakMap<DataService, Promise<unknown>>();
+
+function serialiseWrites<T>(
+  ds: DataService,
+  run: () => Promise<T>,
+): Promise<T> {
+  const previous = writeQueues.get(ds) ?? Promise.resolve();
+  const next = previous.then(run);
+  writeQueues.set(
+    ds,
+    next.catch(() => undefined),
+  );
+  return next;
+}
+
 export interface UseScheduleItemsRoutineSyncOptions {
   dataService: DataService;
   /**
@@ -107,7 +139,7 @@ export function useScheduleItemsRoutineSync(
     onChangedRef.current?.();
   }, []);
 
-  const ensureRoutineItemsForDate = useCallback(
+  const ensureForDatePass = useCallback(
     async (date: string, routines: RoutineNode[]) => {
       const existing = await ds.fetchScheduleItemsByDate(date);
       const { toCreate } = diffRoutineScheduleItems(existing, routines, date);
@@ -147,7 +179,7 @@ export function useScheduleItemsRoutineSync(
    * (the scope dialog's fillUpToAnchor → detach) must abort on false — the
    * old void-swallow let a failed fill silently feed rows to the deleter.
    */
-  const ensureRoutineItemsForDateRange = useCallback(
+  const ensureForRangePass = useCallback(
     async (
       startDate: string,
       endDate: string,
@@ -239,7 +271,7 @@ export function useScheduleItemsRoutineSync(
    * Resolves with the number of rows written, or null when the read or the
    * write failed (logged here, the caller decides whether to retry).
    */
-  const fillRoutineItemsForDateRange = useCallback(
+  const fillRangePass = useCallback(
     async (
       startDate: string,
       endDate: string,
@@ -326,7 +358,7 @@ export function useScheduleItemsRoutineSync(
    * back: the payload INSERT is plain, so a (routine, date) collision
    * reaching it raises 23505 and rolls the whole batch back.
    */
-  const reconcileRoutineScheduleItems = useCallback(
+  const reconcilePass = useCallback(
     async (
       routine: RoutineNode,
       dateRange?: { startDate: string; endDate: string },
@@ -413,6 +445,32 @@ export function useScheduleItemsRoutineSync(
       }
     },
     [ds, notifyChanged],
+  );
+
+  // #2097: every member goes through the per-DataService write queue (see
+  // `serialiseWrites`). Wrapped in callbacks rather than in the memo below so
+  // the queue is entered when a pass is CALLED, never while rendering.
+  const ensureRoutineItemsForDate = useCallback(
+    (date: string, routines: RoutineNode[]) =>
+      serialiseWrites(ds, () => ensureForDatePass(date, routines)),
+    [ds, ensureForDatePass],
+  );
+  const ensureRoutineItemsForDateRange = useCallback(
+    (startDate: string, endDate: string, routines: RoutineNode[]) =>
+      serialiseWrites(ds, () =>
+        ensureForRangePass(startDate, endDate, routines),
+      ),
+    [ds, ensureForRangePass],
+  );
+  const fillRoutineItemsForDateRange = useCallback(
+    (startDate: string, endDate: string, routines: RoutineNode[]) =>
+      serialiseWrites(ds, () => fillRangePass(startDate, endDate, routines)),
+    [ds, fillRangePass],
+  );
+  const reconcileRoutineScheduleItems = useCallback(
+    (...args: Parameters<typeof reconcilePass>) =>
+      serialiseWrites(ds, () => reconcilePass(...args)),
+    [ds, reconcilePass],
   );
 
   // M4 (perf): memoise the returned container so the object identity is also
