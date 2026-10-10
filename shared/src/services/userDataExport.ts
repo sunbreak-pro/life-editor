@@ -45,6 +45,7 @@ export const USER_DATA_EXPORT_TABLES = [
   { table: "dailies_payload", orderBy: "item_id" },
   { table: "goals_payload", orderBy: "item_id" },
   { table: "goal_todo_links", orderBy: "id" },
+  { table: "tables_payload", orderBy: "item_id" },
   { table: "wiki_tags", orderBy: "id" },
   { table: "wiki_tag_assignments", orderBy: "id" },
   { table: "wiki_tag_connections", orderBy: "id" },
@@ -62,6 +63,10 @@ export const USER_DATA_EXPORT_TABLES = [
   { table: "ai_rules", orderBy: "id" },
   { table: "ai_memories", orderBy: "id" },
   { table: "ai_skills", orderBy: "id" },
+  // The primary key is (user_id, slug); the read is already fenced to one
+  // user, so slug alone is the unique tiebreaker.
+  { table: "extension_apps", orderBy: "slug" },
+  { table: "app_records", orderBy: "id" },
 ] as const;
 
 export type UserDataExportTable =

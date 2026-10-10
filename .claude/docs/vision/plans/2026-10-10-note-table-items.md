@@ -1,5 +1,5 @@
 ---
-Status: Draft
+Status: IN PROGRESS — Step 1（計画書の merge = PR #2175）済み。Step 2 は migration `0040_note_table_items.sql` の PR #2191 を open（#2190 の merge と、こうだいさんの `db push` 待ち）
 Created: 2026-10-10
 Branch: claude/materials-table-items-plan-2094
 Owner-chat: materials-refine
@@ -8,7 +8,7 @@ Owner-chat: materials-refine
 # Plan: ノートの表を独立したアイテムにして、タグを付けられるようにする（#2094）
 
 > こうだいさんの回答 D-20260927-materials-1（2026-10-03 = A「表を独立したアイテムにする」）を、DDL・データの流れ・実装の順番に落とします。
-> この計画書は **Draft** です。Step 1（この PR の merge）で確定し、Step 2 以降に着手できます。§計画の承認で確かめたいこと に、こうだいさんの判断が要る点を推奨つきで並べました。merge をもって推奨どおりで確定とします。違う答えなら PR にコメントをください。
+> この計画書は 2026-10-10 に PR #2175 の merge で確定しました。§計画の承認で確かめたいこと の Q1・Q2 は推奨どおり（ノートの表だけ / タグを初めて付けたときだけアイテムにする）です。
 
 ---
 
@@ -46,7 +46,7 @@ Owner-chat: materials-refine
 
 - **role**: `items_meta.role` に `'table'` を足します。`items_meta_role_check` を張り直す形は `0034_goals.sql` の DO ブロックと同じです。
 - **id**: `table-<timestamp+counter>`（CLAUDE.md §4 の ID 不変式。`generateId("table")`）。
-- **名前**: `items_meta.title` に表の名前（#2011 の `name` 属性）を写します。名前のない表は `null` で、画面と MCP は「名前のない表」と出します。
+- **名前**: `items_meta.title` に表の名前（#2011 の `name` 属性）を写します。`items_meta.title` は `not null default ''`（0008）なので、名前のない表は `''` を保存し、画面と MCP は `''` のときに「名前のない表」と出します。
 - **payload**: `tables_payload` を作ります。持つのは親のノートだけです。
 
   | 列                 | 型                                                     | 説明                 |
@@ -97,7 +97,7 @@ merge をもって推奨どおりで確定とします。
 ## Scope (Touchable Paths)
 
 ```
-supabase/migrations/00NN_note_table_items.sql        # Step 2（番号は着手時に決める）
+supabase/migrations/0040_note_table_items.sql        # Step 2
 shared/src/types/table.ts                            # Step 3
 shared/src/services/**                               # Step 3（mapper・DataService・書き出し）
 shared/src/context/syncDomains.ts                    # Step 2
@@ -160,8 +160,9 @@ AC を満たせない見込みになったら、自分で免除せず **P-008** 
 
 ## DB Migration Notes
 
-- ファイルは `supabase/migrations/00NN_note_table_items.sql` の 1 本です。role の CHECK の張り直し・`tables_payload`・RLS・Realtime・`delete_my_account` の `create or replace` を 1 本にまとめます。
+- ファイルは `supabase/migrations/0040_note_table_items.sql` の 1 本です。role の CHECK の張り直し・`tables_payload`・RLS・Realtime・`delete_my_account` の `create or replace` を 1 本にまとめます。
 - 番号は着手時に origin/main の `supabase/migrations/` と突き合わせて決めます。2026-10-10 時点の最新は `0035_dailies_morning_comment.sql` です。`2026-10-08-extension-app-records-and-apps-section.md` は「0035 = #2118、0036 = #2094」と予約していますが、0035 は #2107 が使いました。#2118 と 0036 を取り合うおそれがあります。2026-10-10 時点では、open の PR に migration を足すものはありません。Step 2 の PR を開く直前にもう一度確かめます（memory: migration-number-collision-across-lanes）。
+- **2026-10-10 の着手時に 0040 に決めました**。origin/main には 0037（#2118）と 0038（#2147）が先に入っていました。0036 を使うと「番号は 0038 より前、実際に流れるのは後」という食い違いになります。素の CLI は止まり、`npm run db:push` は `--include-all` を付けるので順番を無視して流します（`supabase/scripts/db-push.sh`）。db-conventions §13 の「新しい DDL は常に末尾の次の番号を取る」に従いました。0036 は欠番のまま埋めません（§13 に追記済み）。0039 は #2161（PR #2190 の `0039_app_records.sql`）が先に取りました。同じ `delete_my_account()` を作り直すので、0040 の本体は 0039 の本体（`app_records` / `extension_apps` の 2 行を含む）に `tables_payload` を足したものです。push も merge も #2190 が先です。
 - 手順は「ローカルのファイルを先に作る → こうだいさんが `supabase db push` → Claude が `list_tables` で確かめる」です。
 - 失敗したら、逆向きの migration を別のファイルで作ります。既存のファイルは直しません。逆向きでは `tables_payload` を落とし、role の CHECK から `'table'` を外します。`'table'` の行が残っていると CHECK を張り直せないので、先に表のアイテムを消します。
 
@@ -189,3 +190,7 @@ AC を満たせない見込みになったら、自分で免除せず **P-008** 
 ## Worklog
 
 - 2026-10-10: Draft を書きました。下調べは `0034_goals.sql`・`tableNodes.ts`・`wikiTagAssignmentMapper.ts`・`ConnectScreen.tsx`・`mcp-server/src/tools/wikiTag.ts`・`tiptapJsonBuilder.ts` を読んで行いました。
+- 2026-10-10: PR #2175 の merge で確定しました。Step 2 に着手しました。migration は 0040 にしました（§DB Migration Notes）。`delete_my_account()` を作り直すと `userDataExport.test.ts` が書き出しの表の一覧と突き合わせるため、Step 3 に置いていた `userDataExport.ts` への `tables_payload` の追加を Step 2 の PR に前倒ししました（0034 の PR と同じ形です）。
+- 2026-10-10: 後の Step への申し送りです。`list_trash`（`mcp-server/src/handlers/trashHandlers.ts`）は role を指定しないと全部の role を返すので、Step 4 で表のアイテムをソフトデリートし始めると、ゴミ箱の一覧に表が単独で出ます。§データの流れ の「ゴミ箱に単独では出さない」を守るため、Step 4 か Step 6 で `list_trash` から `table` を外します。
+- 2026-10-10: migration の監査（`life-editor-migration-validator`）は must-fix なしでした。指摘を受けて、名前のない表の `title` を `null` から `''` に直しました（`items_meta.title` は not null）。Step 3 への申し送りが 2 つあります。1 つ目は、表のアイテムが 1 つでもあるノートを物理削除すると複合 FK（NO ACTION）が 23503 で断るので、`permanentDeleteNoteUnified` とノートの子階層の削除で、表のアイテムを先に消す処理を入れることです。2 つ目は、書き込み用の型から生成列 `parent_note_role` を外すことです（db-conventions §10.3）。
+- 2026-10-10: PR を開く直前の確認で、open の PR #2190（#2161）が `0039_app_records.sql` を足していると分かりました。#2190 は「#2094 は 0039 より後の番号で、この本体を元にすること」と書いていたので、こちらを 0040 にし、#2190 のブランチを取り込みました。#2190 の merge の後に main を取り込み直すと、この PR の差分は自分の変更だけに戻ります。

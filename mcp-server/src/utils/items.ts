@@ -18,8 +18,18 @@ import { getSupabase } from "../supabase.js";
  * first INSERT (the DDL default of 1 owns that) — CLAUDE.md §3.3 / #1385.
  */
 
-/** Mirrors the items_meta.role CHECK (0008, widened by 0034 for `goal` — #2101). */
-export type ItemRole = "task" | "event" | "routine" | "note" | "daily" | "goal";
+/**
+ * Mirrors the items_meta.role CHECK (0008, widened by 0034 for `goal` — #2101,
+ * and by 0040 for a note's `table` — #2094).
+ */
+export type ItemRole =
+  | "task"
+  | "event"
+  | "routine"
+  | "note"
+  | "daily"
+  | "goal"
+  | "table";
 
 /**
  * True for a row of the retired `folder` type. Todos (#225) and Notes (#375)
