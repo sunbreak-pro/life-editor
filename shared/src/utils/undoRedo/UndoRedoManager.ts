@@ -73,13 +73,15 @@ export const MAX_HISTORY_SIZE = 50;
 
 /**
  * A command plus the domain that pushed it (only `expireDomain` reads it)
- * and its stamp on the clock it shares with the body editors (#2141). The
- * stamp travels with the entry between the two stacks.
+ * and its stamps on the clock it shares with the body editors (#2141): when
+ * it was done, which travels with the entry between the two stacks, and when
+ * it was last undone, which is what Redo compares (see historyOrder.ts).
  */
 interface HistoryEntry {
   command: UndoCommand;
   domain: string;
   seq: number;
+  undoneAt: number;
 }
 
 export class UndoRedoManager {
@@ -116,7 +118,12 @@ export class UndoRedoManager {
     if (this.undoStack.length >= MAX_HISTORY_SIZE) {
       this.undoStack.shift();
     }
-    this.undoStack.push({ command, domain, seq: nextHistorySeq() });
+    this.undoStack.push({
+      command,
+      domain,
+      seq: nextHistorySeq(),
+      undoneAt: 0,
+    });
     this.redoStack = [];
     this.notify();
   }
@@ -185,6 +192,7 @@ export class UndoRedoManager {
       this.notify();
       return { command, ok: false, error };
     }
+    if (direction === "undo") entry.undoneAt = nextHistorySeq();
     to.push(entry);
     this.notify();
     return { command, ok: true };
@@ -198,14 +206,14 @@ export class UndoRedoManager {
     return this.redoStack.length > 0;
   }
 
-  /** The stamp of the command Undo would run next, or null (#2141). */
+  /** When the command Undo would run next was done, or null (#2141). */
   peekUndoSeq(): number | null {
     return this.undoStack[this.undoStack.length - 1]?.seq ?? null;
   }
 
-  /** The stamp of the command Redo would run next, or null (#2141). */
+  /** When the command Redo would run next was undone, or null (#2141). */
   peekRedoSeq(): number | null {
-    return this.redoStack[this.redoStack.length - 1]?.seq ?? null;
+    return this.redoStack[this.redoStack.length - 1]?.undoneAt ?? null;
   }
 
   /**

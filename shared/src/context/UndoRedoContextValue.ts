@@ -90,9 +90,9 @@ export interface EditorHistory {
   canRedo: () => boolean;
   /** Whether the body has focus right now. */
   isFocused: () => boolean;
-  /** The stamp of the body's newest undo step, or null (#2141). */
+  /** When the body's newest undo step was done, or null (#2141). */
   undoSeq: () => number | null;
-  /** The stamp of the body's next redo step, or null (#2141). */
+  /** When the body's next redo step was undone, or null (#2141). */
   redoSeq: () => number | null;
   /**
    * Fires on every editor transaction and on focus / blur — the routing above

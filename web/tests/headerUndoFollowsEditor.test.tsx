@@ -37,14 +37,16 @@ type FakeBody = EditorHistory & {
 
 function makeBody(log: string[]): FakeBody {
   const undoSeqs: number[] = [];
-  const redoSeqs: number[] = [];
+  // Each undone step keeps its done stamp and gains an undone stamp, as the
+  // real editor's EditorHistoryOrder does.
+  const redoSteps: { seq: number; undoneAt: number }[] = [];
   const listeners = new Set<() => void>();
   let focused = false;
   const fire = () => listeners.forEach((l) => l());
   return {
     type: () => {
       undoSeqs.push(nextHistorySeq());
-      redoSeqs.length = 0;
+      redoSteps.length = 0;
       fire();
     },
     setFocused: (v) => {
@@ -54,22 +56,22 @@ function makeBody(log: string[]): FakeBody {
     undo: () => {
       const seq = undoSeqs.pop();
       if (seq === undefined) return;
-      redoSeqs.push(seq);
+      redoSteps.push({ seq, undoneAt: nextHistorySeq() });
       log.push("body:undo");
       fire();
     },
     redo: () => {
-      const seq = redoSeqs.pop();
-      if (seq === undefined) return;
-      undoSeqs.push(seq);
+      const step = redoSteps.pop();
+      if (step === undefined) return;
+      undoSeqs.push(step.seq);
       log.push("body:redo");
       fire();
     },
     canUndo: () => undoSeqs.length > 0,
-    canRedo: () => redoSeqs.length > 0,
+    canRedo: () => redoSteps.length > 0,
     isFocused: () => focused,
     undoSeq: () => undoSeqs[undoSeqs.length - 1] ?? null,
-    redoSeq: () => redoSeqs[redoSeqs.length - 1] ?? null,
+    redoSeq: () => redoSteps[redoSteps.length - 1]?.undoneAt ?? null,
     subscribe: (onChange) => {
       listeners.add(onChange);
       return () => {
@@ -211,6 +213,23 @@ describe("undo controls while a body is on screen without focus (#2141)", () => 
     await press("sheet", "undo");
     await press("sheet", "undo");
     expect(log).toEqual(["body:undo", "tag:undo"]);
+  });
+
+  it("redoes what was undone last, even when it was done later", async () => {
+    // Tag, undo the tag, type "abc", undo that, then Redo: "abc" was taken
+    // back last, so it comes back first.
+    const log: string[] = [];
+    const body = makeBody(log);
+    renderSurface("header", body, log);
+    await tag();
+    await press("header", "undo");
+    act(() => body.type());
+    await press("header", "undo");
+
+    await press("header", "redo");
+    await press("header", "redo");
+
+    expect(log).toEqual(["tag:undo", "body:undo", "body:redo", "tag:redo"]);
   });
 
   it("does not let an unmounting editor withdraw a newer editor's offer", async () => {

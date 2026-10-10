@@ -8,20 +8,19 @@ import { UndoRedoManager } from "../src/utils/undoRedo/UndoRedoManager";
 
 /*
  * #2141 — "newer first" between a body editor's history and the app stack
- * (D-20261008-main-3). Both sides stamp their steps from one clock; these pin
- * the clock's bookkeeping on each side and the rule that compares them.
+ * (D-20261008-main-3). Both sides stamp their steps from one clock — when a
+ * step is done and when it is undone; these pin the bookkeeping on each side
+ * and the rule that compares them.
  */
 
 const noop = { label: "x", undo: () => {}, redo: () => {} };
 
 describe("pickUndoSide / pickRedoSide", () => {
-  it("undoes the newer stamp and redoes the older one", () => {
+  it("takes the side with the later stamp", () => {
     expect(pickUndoSide(5, 3)).toBe("app");
     expect(pickUndoSide(3, 5)).toBe("editor");
-    // After undoing 5 then 3, redo tops are 5 (app) and 3 (editor): the one
-    // undone last is the older stamp.
-    expect(pickRedoSide(5, 3)).toBe("editor");
-    expect(pickRedoSide(3, 5)).toBe("app");
+    expect(pickRedoSide(5, 3)).toBe("app");
+    expect(pickRedoSide(3, 5)).toBe("editor");
   });
 
   it("falls back to whichever side has a step, or null", () => {
@@ -43,14 +42,14 @@ describe("EditorHistoryOrder", () => {
     expect(order.undoSeq()!).toBeGreaterThan(app.peekUndoSeq()!);
   });
 
-  it("carries a step's stamp across undo and redo", () => {
+  it("keeps a step's done stamp across undo and redo", () => {
     const order = new EditorHistoryOrder();
     order.observe(1, 0, "recorded");
     const stamp = order.undoSeq();
 
     order.observe(0, 1, "history");
     expect(order.undoSeq()).toBeNull();
-    expect(order.redoSeq()).toBe(stamp);
+    expect(order.redoSeq()!).toBeGreaterThan(stamp!);
 
     order.observe(1, 0, "history");
     expect(order.undoSeq()).toBe(stamp);
@@ -82,6 +81,32 @@ describe("EditorHistoryOrder", () => {
     expect(order.undoSeq()!).toBeGreaterThan(app.peekUndoSeq()!);
   });
 
+  it("stamps a new step even when the depth cap shrinks the history", () => {
+    const app = new UndoRedoManager();
+    // prosemirror-history lets the undo side reach 121, then trims it to 100
+    // in the same transaction that adds the new step.
+    const order = new EditorHistoryOrder(120, 0);
+    app.push(noop);
+
+    order.observe(100, 0, "recorded");
+
+    expect(order.undoSeq()!).toBeGreaterThan(app.peekUndoSeq()!);
+  });
+
+  it("drops the top step when an undo had nothing left to reverse", () => {
+    const order = new EditorHistoryOrder();
+    order.observe(1, 0, "recorded");
+    const older = order.undoSeq();
+    order.observe(2, 0, "recorded");
+
+    // The newest step's changes were replaced from elsewhere: the history
+    // pops it and records nothing to redo.
+    order.observe(1, 0, "history");
+
+    expect(order.undoSeq()).toBe(older);
+    expect(order.redoSeq()).toBeNull();
+  });
+
   it("leaves stamps alone for changes the history did not record", () => {
     const order = new EditorHistoryOrder();
     order.observe(1, 0, "recorded");
@@ -95,16 +120,11 @@ describe("EditorHistoryOrder", () => {
   it("pads steps it never saw as older than everything", () => {
     const order = new EditorHistoryOrder(2, 0);
     expect(order.undoSeq()).toBe(0);
-    // A depth cap trimming the bottom keeps the newest stamps.
-    order.observe(3, 0, "recorded");
-    const newest = order.undoSeq();
-    order.observe(2, 0, "other");
-    expect(order.undoSeq()).toBe(newest);
   });
 });
 
 describe("UndoRedoManager stamps", () => {
-  it("moves a command's stamp between the stacks with it", async () => {
+  it("keeps the done stamp across undo and redo, and stamps the undo", async () => {
     const app = new UndoRedoManager();
     expect(app.peekUndoSeq()).toBeNull();
     app.push(noop);
@@ -112,9 +132,24 @@ describe("UndoRedoManager stamps", () => {
 
     await app.undo();
     expect(app.peekUndoSeq()).toBeNull();
-    expect(app.peekRedoSeq()).toBe(stamp);
+    expect(app.peekRedoSeq()!).toBeGreaterThan(stamp!);
 
     await app.redo();
     expect(app.peekUndoSeq()).toBe(stamp);
+  });
+});
+
+describe("redo order across both sides", () => {
+  it("redoes the body first when a tag was undone before the body was", async () => {
+    // Tag, undo it, type "abc", undo that, then Redo: "abc" was taken back
+    // last, so it comes back first — although the tag was done earlier.
+    const app = new UndoRedoManager();
+    const order = new EditorHistoryOrder();
+    app.push(noop);
+    await app.undo();
+    order.observe(1, 0, "recorded");
+    order.observe(0, 1, "history");
+
+    expect(pickRedoSide(app.peekRedoSeq(), order.redoSeq())).toBe("editor");
   });
 });
