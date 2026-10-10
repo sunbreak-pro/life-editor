@@ -13,6 +13,7 @@ import {
 } from "../src/components/PomodoroSettings";
 import { WorkHistoryList } from "../src/components/WorkHistoryList";
 import { WorkTagSelector } from "../src/components/WorkTagSelector";
+import { PHASE_COLOR_TRANSITION } from "../src/components/PhaseBadge";
 
 /*
  * #2054 — the Mobile Work screen rebuilt after Claude Design plan A. Each
@@ -25,6 +26,18 @@ import { WorkTagSelector } from "../src/components/WorkTagSelector";
  *
  * jsdom has no layout (rules/frontend.md), so sizes are read as classes.
  */
+
+/*
+ * The icon steps of tokens.css (#2036): every glyph on the Mobile shapes
+ * reads size-lumen-icon-sm / -md / -lg (rem, so it follows the font-size
+ * setting) instead of a px `size` attribute. Returns the icons that do not.
+ */
+const ICON_STEP = /(^|\s)size-lumen-icon-(sm|md|lg)(\s|$)/;
+function iconsOffTheSteps(root: ParentNode): Element[] {
+  return Array.from(root.querySelectorAll("svg.lucide")).filter(
+    (icon) => !ICON_STEP.test(icon.getAttribute("class") ?? ""),
+  );
+}
 
 const TIMER_LABELS: PomodoroTimerProps["labels"] = {
   phase: { WORK: "Work", BREAK: "Break", LONG_BREAK: "Long Break" },
@@ -105,6 +118,28 @@ describe("PomodoroTimer fullscreen face (#2054)", () => {
     expect(container.querySelectorAll(".rounded-full.px-3").length).toBe(1);
   });
 
+  it("puts every glyph on the icon steps but the main button's (#2036)", () => {
+    const { container } = renderFace({ isRunning: false });
+    // Paused: the readout's pause mark, reset and skip, the badge's glyph.
+    const off = iconsOffTheSteps(container);
+    // The one exception is the 28px play / pause in the 64px disc — larger
+    // than the lg step, kept as the face's fixed centrepiece.
+    expect(off).toHaveLength(1);
+    expect(off[0].getAttribute("width")).toBe("28");
+    expect(
+      screen.getByRole("button", { name: "Resume" }).contains(off[0]),
+    ).toBe(true);
+  });
+
+  it("recolours a phase switch on the motion steps (#2036)", () => {
+    // No number of its own: the length and the curve come from tokens.css.
+    expect(PHASE_COLOR_TRANSITION).toContain(
+      "duration-(--duration-lumen-normal)",
+    );
+    expect(PHASE_COLOR_TRANSITION).toContain("ease-lumen-out");
+    expect(PHASE_COLOR_TRANSITION).not.toMatch(/\d+ms|cubic-bezier/);
+  });
+
   it("fires the transport handlers from the labelled columns", () => {
     const { props } = renderFace();
     fireEvent.click(screen.getByRole("button", { name: "Pause" }));
@@ -160,6 +195,11 @@ describe("SessionCompletionModal mobile variant (#2054)", () => {
     expect(onStartBreak).toHaveBeenCalledOnce();
   });
 
+  it("puts every glyph on the icon steps (#2036)", () => {
+    renderModal();
+    expect(iconsOffTheSteps(screen.getByRole("dialog"))).toEqual([]);
+  });
+
   it("uses the long-break amber after a set", () => {
     renderModal("LONG_BREAK");
     expect(
@@ -210,6 +250,29 @@ describe("PomodoroTodoSheet plan A states (#2054)", () => {
     ).toHaveAttribute("aria-current", "true");
   });
 
+  it("puts every glyph on the icon steps (#2036)", () => {
+    render(
+      <PomodoroTodoSheet
+        open
+        onClose={vi.fn()}
+        items={[
+          { id: "t1", title: "Weekly review", kind: "todo" },
+          { id: "e1", title: "Read aloud", kind: "event" },
+        ]}
+        selectedId="t1"
+        labels={labels}
+        onSelect={vi.fn()}
+      />,
+    );
+    // The kind glyphs, the selected row's check and the clear row's icon. The
+    // sheet's own close button belongs to BottomSheet, which is not Work's.
+    const dialog = screen.getByRole("dialog");
+    const close = within(dialog).getByRole("button", { name: "Close" });
+    expect(
+      iconsOffTheSteps(dialog).filter((icon) => !close.contains(icon)),
+    ).toEqual([]);
+  });
+
   it("shows skeleton rows while loading", () => {
     render(
       <PomodoroTodoSheet
@@ -241,6 +304,11 @@ describe("PomodoroTodoSheet plan A states (#2054)", () => {
     expect(
       screen.getByText("Type a name above to start a free session."),
     ).toBeInTheDocument();
+    const dialog = screen.getByRole("dialog");
+    const close = within(dialog).getByRole("button", { name: "Close" });
+    expect(
+      iconsOffTheSteps(dialog).filter((icon) => !close.contains(icon)),
+    ).toEqual([]);
   });
 });
 
@@ -359,6 +427,12 @@ describe("PomodoroSettings drawer layout (#2054)", () => {
     expect(props.onApplyPreset).toHaveBeenCalledWith(
       expect.objectContaining({ id: 2 }),
     );
+  });
+
+  it("puts every glyph on the icon steps (#2036)", () => {
+    renderDrawer();
+    // The steppers, the "applied" check, the preset delete and "+ save".
+    expect(iconsOffTheSteps(document.body)).toEqual([]);
   });
 
   it("makes the whole auto-start row the switch", () => {
@@ -491,6 +565,34 @@ describe("WorkHistoryList rows variant (#2054)", () => {
     const empty = screen.getByTestId("work-history-empty");
     expect(empty).toHaveTextContent("No sessions yet");
     expect(empty).toHaveTextContent("Finish one session and it shows up here.");
+    expect(iconsOffTheSteps(empty)).toEqual([]);
+  });
+
+  it("puts the rows' glyphs on the icon steps (#2036)", () => {
+    const { container } = render(
+      <WorkHistoryList
+        variant="rows"
+        labels={labels}
+        entries={[
+          {
+            id: "1",
+            timeRange: "09:10–09:35",
+            durationLabel: "25 min",
+            target: { kind: "event", title: "Read aloud" },
+            tags: [],
+          },
+          {
+            id: "2",
+            timeRange: "21:40–22:05",
+            durationLabel: "25 min",
+            target: null,
+            tags: [],
+          },
+        ]}
+      />,
+    );
+    expect(container.querySelectorAll("svg.lucide")).toHaveLength(2);
+    expect(iconsOffTheSteps(container)).toEqual([]);
   });
 });
 
@@ -543,6 +645,10 @@ describe("WorkTagSelector sheet row (#2054)", () => {
     expect(screen.getByTestId("work-tag-selector")).toHaveClass(
       "w-full",
       "min-h-11",
+    );
+    // The row's leading tag glyph sits on the icon steps (#2036).
+    expect(iconsOffTheSteps(screen.getByTestId("work-tag-selector"))).toEqual(
+      [],
     );
     // The visible text is the name (WCAG 2.5.3), so a voice command that
     // reads the row out reaches it.

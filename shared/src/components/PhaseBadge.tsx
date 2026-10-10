@@ -10,8 +10,9 @@ import { cn } from "./cn";
  *
  * `icon` swaps the dot for a phase glyph (#2054, Claude Design plan A for the
  * Mobile face): a timer for WORK, a cup for both breaks. The Desktop card does
- * not pass it and keeps the dot. The tint changes over 240ms with the ring and
- * the main button, so a phase switch reads as one change rather than three.
+ * not pass it and keeps the dot. The tint changes on the normal motion step
+ * with the ring and the main button, so a phase switch reads as one change
+ * rather than three.
  */
 
 export type PomodoroPhase = "WORK" | "BREAK" | "LONG_BREAK";
@@ -29,12 +30,15 @@ export interface PhaseBadgeProps {
 }
 
 /**
- * The phase-switch transition plan A asks for (#2054): colour only, 240ms on
- * the standard curve. Shared with the ring and the main button so the three
- * move together. Reduced motion is handled app-wide in tokens.css.
+ * The phase-switch transition plan A asks for (#2054): colour only. The plan
+ * drew 240ms on a standard ease-in-out; it sits on the motion steps of
+ * tokens.css instead (#2036) — normal (250ms) on ease-lumen-out, the same way
+ * the digit fade's 120ms was snapped to fast. Shared with the ring and the
+ * main button so the three move together. Reduced motion is handled app-wide
+ * in tokens.css.
  */
 export const PHASE_COLOR_TRANSITION =
-  "transition-colors duration-[240ms] ease-[cubic-bezier(.4,0,.2,1)]";
+  "transition-colors duration-(--duration-lumen-normal) ease-lumen-out";
 
 // Per-phase chip face. The dot uses `bg-current` so it inherits the chip's
 // text tone (WORK=accent, BREAK=mint-fg, LONG_BREAK=progress-fg) — no
@@ -63,9 +67,9 @@ export function PhaseBadge({
       >
         {icon ? (
           phase === "WORK" ? (
-            <Timer size={16} aria-hidden="true" />
+            <Timer aria-hidden="true" className="size-lumen-icon-sm" />
           ) : (
-            <Coffee size={16} aria-hidden="true" />
+            <Coffee aria-hidden="true" className="size-lumen-icon-sm" />
           )
         ) : (
           <span

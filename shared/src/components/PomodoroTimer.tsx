@@ -325,13 +325,19 @@ export function PomodoroTimer({
  * Motion is the plan's three and no more: the arc shrinks over 1000ms linear
  * per tick, a changed digit fades in on the fast motion step (tokens.css,
  * #2036 — the plan's 120ms snapped to it), and a phase switch recolours
- * the badge, the arc and the main button together over 240ms. All three are
- * plain CSS, so the app-wide reduced-motion block in tokens.css lands them
- * immediately.
+ * the badge, the arc and the main button together on the normal step (the
+ * plan's 240ms, snapped the same way). All three are plain CSS, so the
+ * app-wide reduced-motion block in tokens.css lands them immediately. The
+ * arc's 1000ms is not a motion step: it is one tick of the countdown.
+ *
+ * Icons sit on the icon steps (sm / md / lg, rem) so they follow the
+ * font-size setting with the buttons around them. The one exception is the
+ * main button's 28px play / pause: it is larger than lg, and — like the px
+ * ring — it is the face's fixed centrepiece rather than a glyph in a row.
  *
  * The phase colours are the existing tokens (accent / mint / long-break
- * amber). The plan proposes three new tokens; adding them waits for #2036,
- * which owns the token scale.
+ * amber). The plan proposes three new tokens; #2036 landed without them, and
+ * the existing ones cover each need (the #2054 follow-up PR records why).
  */
 const FULL_RING_SIZE = 232;
 const FULL_RING_STROKE = 8;
@@ -340,7 +346,7 @@ const FULL_RING_CIRCUMFERENCE = 2 * Math.PI * FULL_RING_RADIUS;
 
 /** The arc's own two transitions: the tick (1000ms linear) and the phase recolour. */
 const FULL_ARC_TRANSITION =
-  "stroke-dashoffset 1000ms linear, color 240ms cubic-bezier(.4,0,.2,1)";
+  "stroke-dashoffset 1000ms linear, color var(--duration-lumen-normal) var(--ease-lumen-out)";
 
 function FullscreenFace({
   phase,
@@ -436,7 +442,7 @@ function FullscreenFace({
         </span>
         {isPaused ? (
           <span className="inline-flex items-center gap-1 text-xs font-semibold text-lumen-text-secondary">
-            <Pause size={14} aria-hidden="true" />
+            <Pause aria-hidden="true" className="size-lumen-icon-sm" />
             {labels.paused}
           </span>
         ) : (
@@ -505,7 +511,7 @@ function FullscreenFace({
           className={cn(column, "pt-1.5")}
         >
           <span className={secondaryCircle}>
-            <RotateCcw size={20} aria-hidden="true" />
+            <RotateCcw aria-hidden="true" className="size-lumen-icon-md" />
           </span>
           <span className={secondaryLabel}>{labels.reset}</span>
         </button>
@@ -538,7 +544,7 @@ function FullscreenFace({
           className={cn(column, "pt-1.5")}
         >
           <span className={secondaryCircle}>
-            <SkipForward size={20} aria-hidden="true" />
+            <SkipForward aria-hidden="true" className="size-lumen-icon-md" />
           </span>
           <span className={secondaryLabel}>{labels.skip}</span>
         </button>

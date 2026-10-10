@@ -43,12 +43,20 @@ export interface WorkTargetOption {
   subtitle?: string;
 }
 
-/** Leading glyph per kind — the only thing that says which list a row is in. */
-export function workTargetIcon(kind: WorkTargetOption["kind"], size = 15) {
+/**
+ * Leading glyph per kind — the only thing that says which list a row is in.
+ * `className` wins over `size` (CSS width / height outrank the attribute), so
+ * a caller on the icon steps passes `size-lumen-icon-*` there (#2036).
+ */
+export function workTargetIcon(
+  kind: WorkTargetOption["kind"],
+  size = 15,
+  className?: string,
+) {
   return kind === "event" ? (
-    <CalendarDays size={size} aria-hidden="true" />
+    <CalendarDays size={size} aria-hidden="true" className={className} />
   ) : (
-    <CheckSquare size={size} aria-hidden="true" />
+    <CheckSquare size={size} aria-hidden="true" className={className} />
   );
 }
 
@@ -92,7 +100,10 @@ export function WorkTargetGlyph({
         GLYPH_TONE[kind],
       )}
     >
-      {workTargetIcon(kind, size === "md" ? 16 : 14)}
+      {/* Both discs carry the smallest icon step: the plan's 16 / 14px glyphs
+          already render at the icon floor today, so one step keeps them the
+          size they were while letting them follow the font-size setting. */}
+      {workTargetIcon(kind, undefined, "size-lumen-icon-sm")}
     </span>
   );
 }
