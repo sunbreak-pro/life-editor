@@ -1,6 +1,7 @@
 ---
-Status: Draft
+Status: IN PROGRESS
 Created: 2026-10-08
+Updated: 2026-10-08
 Branch: docs/extension-records-apps-plan
 Owner-chat: main
 Parent: .claude/docs/vision/plans/2026-10-07-extension-app-gateway.md
@@ -9,7 +10,7 @@ Parent: .claude/docs/vision/plans/2026-10-07-extension-app-gateway.md
 # Plan: 拡張アプリの記録と一覧 — 数値の記録テーブル・Analytics の「記録」タブ・Apps セクション
 
 > こうだいさんの 2026-10-08 の方針（D-20261008-main-1 / D-20261008-main-2）を、実装の順番と Issue の単位に落とします。窓口（鍵・CORS・仕様ファイル・偽物）は親計画書 [`2026-10-07-extension-app-gateway.md`](./2026-10-07-extension-app-gateway.md) と #2144〜#2151 が持ちます。この計画書は「窓口を通って届いた数値をどこに貯め、どこで読むか」と「拡張アプリをどこに登録し、どう一覧するか」だけを持ちます。
-> この計画書は **Draft** です。Step 1（この PR の merge）で確定し、Step 2 以降に着手できます。
+> Step 1 は 2026-10-08 に完了しました（PR #2158 merge）。実装の Issue は #2161〜#2168 として同日に起票済みです（§Issue）。
 
 ---
 
@@ -212,21 +213,21 @@ mcp-server/tests/**
 
 ## Steps
 
-Issue の起票はメインのチャットの作業です（CLAUDE.md §9）。「Issue」の列は §Issue の下書き の仮番号です。
+Issue の起票はメインのチャットの作業です（CLAUDE.md §9）。「Issue」の列は 2026-10-08 に起票した番号です（§Issue）。
 
 | #   | Step                                                                                                                                                  | Gate                 | Acceptance                                                                                                                                         | Issue | 依存               |
 | --- | ----------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ----- | ------------------ |
-| 1   | 決定の記録（D-20261008-main-1 / -2）と、この計画書の Draft                                                                                            | 🛑 PR merge          | `node .claude/scripts/records.mjs check` と `docs-lint` が緑。この PR の merge でこうだいさんが確定する                                            | —     | —                  |
-| 2   | migration `00NN_app_records.sql`（`app_records` / `extension_apps` / RLS / Realtime / `delete_my_account` の更新）                                    | 🤖 作成 / 🛑 db push | `life-editor-migration-validator` が Blocker 0。こうだいさんの `supabase db push` が通り、`list_tables` で 2 表が見える                            | N1    | —                  |
-| 3   | shared のデータ層（型・Service・mapper・routing・DataService・同期ドメイン 2 つ・`REALTIME_TABLES`・エクスポート）                                    | 🤖                   | vitest 緑。`syncDomains.test.ts` と `syncRealtimeTables.test.ts` の lockstep が緑。`life-editor-sync-auditor` が `updated_at` の扱いを確認         | N2    | 2                  |
-| 4   | MCP の道具 4 つ + `get_today_context` / `get_week_context` の `records` 要約 + catalog の再生成                                                       | 🤖                   | `toolCatalogFreshness.test.ts` 緑。`supabaseStub` で create → list → delete が緑。同じ `external_id` で 2 回呼んで行が 1 件                        | N3    | 3（stub は並行可） |
-| 5   | Remote MCP を配り直し、スマホの Claude から記録を 1 件入れる                                                                                          | 🛑 deploy / 👀       | 「コーヒー 450 円」で `app_records` に `source_app = claude` の行が 1 件入る                                                                       | N3    | 4                  |
-| 6   | Analytics の「記録」タブ（wide）と、narrow の「記録」ブロック                                                                                         | 🤖 / 👀              | 0 件で空の状態が出る。絞り込み 3 種・数字 3 つ・期間別の棒・一覧が揃う。vitest で 0 件 / 1 件 / 複数アプリの描画                                   | N4    | 3                  |
-| 7   | Apps セクション（registry + descriptor + 画面 + 登録 / 編集 / 削除 + 「記録だけ届いているアプリ」+ Analytics への導線）                               | 🤖 / 👀              | 登録 → 一覧 → 「記録を見る」で Analytics の記録タブにアプリの絞り込みつきで着地する。vitest で描画とハンドラ。ツアー一覧とショートカットが壊れない | N5    | 3、6（導線のみ）   |
-| 8   | 窓口との突き合わせ（拡張アプリ用の道具集合に record 系 4 つを含める・作成元の語彙 = `extension_apps.slug`・ハンドラが呼び出し元の slug を受け取る口） | 🤖                   | #2144 の仕様ファイルに 4 道具がある。#2146 / #2147 / #2148 に語彙の突き合わせをコメント済み                                                        | N6    | 4、#2144           |
-| 9   | 朝刊を書くプロンプトに「今週の記録の要約」を足す（画面は変えない）                                                                                    | 🤖 / 👀              | 記録がある週に、朝刊へ記録を踏まえた 1 段落が出た日が 1 日ある                                                                                     | N7    | 4、5               |
-| 10  | docs の追随（CLAUDE.md §4 / §8・tier-2 の Apps 節・tier-3 の Analytics Status・mobile-scope 行 12 / 21・db-conventions §15）                          | 🤖                   | `docs-lint` 緑                                                                                                                                     | N8    | 6、7               |
-| 11  | 実画面の確認（Desktop / Mobile、light / dark）                                                                                                        | 👀                   | メインのチャットが実ブラウザで撮影し、Issue にコメントする。記録 0 件の日・複数アプリの日・narrow の More から Apps に入る経路を撮る               | N8    | 6、7               |
+| 1   | 決定の記録（D-20261008-main-1 / -2）と、この計画書の Draft                                                                                            | 🛑 PR merge          | 完了（2026-10-08・PR #2158 merge。`records.mjs check` / `docs-lint` とも緑）                                                                       | —     | —                  |
+| 2   | migration `00NN_app_records.sql`（`app_records` / `extension_apps` / RLS / Realtime / `delete_my_account` の更新）                                    | 🤖 作成 / 🛑 db push | `life-editor-migration-validator` が Blocker 0。こうだいさんの `supabase db push` が通り、`list_tables` で 2 表が見える                            | #2161 | —                  |
+| 3   | shared のデータ層（型・Service・mapper・routing・DataService・同期ドメイン 2 つ・`REALTIME_TABLES`・エクスポート）                                    | 🤖                   | vitest 緑。`syncDomains.test.ts` と `syncRealtimeTables.test.ts` の lockstep が緑。`life-editor-sync-auditor` が `updated_at` の扱いを確認         | #2162 | 2                  |
+| 4   | MCP の道具 4 つ + `get_today_context` / `get_week_context` の `records` 要約 + catalog の再生成                                                       | 🤖                   | `toolCatalogFreshness.test.ts` 緑。`supabaseStub` で create → list → delete が緑。同じ `external_id` で 2 回呼んで行が 1 件                        | #2163 | 3（stub は並行可） |
+| 5   | Remote MCP を配り直し、スマホの Claude から記録を 1 件入れる                                                                                          | 🛑 deploy / 👀       | 「コーヒー 450 円」で `app_records` に `source_app = claude` の行が 1 件入る                                                                       | #2163 | 4                  |
+| 6   | Analytics の「記録」タブ（wide）と、narrow の「記録」ブロック                                                                                         | 🤖 / 👀              | 0 件で空の状態が出る。絞り込み 3 種・数字 3 つ・期間別の棒・一覧が揃う。vitest で 0 件 / 1 件 / 複数アプリの描画                                   | #2164 | 3                  |
+| 7   | Apps セクション（registry + descriptor + 画面 + 登録 / 編集 / 削除 + 「記録だけ届いているアプリ」+ Analytics への導線）                               | 🤖 / 👀              | 登録 → 一覧 → 「記録を見る」で Analytics の記録タブにアプリの絞り込みつきで着地する。vitest で描画とハンドラ。ツアー一覧とショートカットが壊れない | #2165 | 3、6（導線のみ）   |
+| 8   | 窓口との突き合わせ（拡張アプリ用の道具集合に record 系 4 つを含める・作成元の語彙 = `extension_apps.slug`・ハンドラが呼び出し元の slug を受け取る口） | 🤖                   | #2144 の仕様ファイルに 4 道具がある。#2146 / #2147 / #2148 に語彙の突き合わせをコメント済み                                                        | #2166 | 4、#2144           |
+| 9   | 朝刊を書くプロンプトに「今週の記録の要約」を足す（画面は変えない）                                                                                    | 🤖 / 👀              | 記録がある週に、朝刊へ記録を踏まえた 1 段落が出た日が 1 日ある                                                                                     | #2167 | 4、5               |
+| 10  | docs の追随（CLAUDE.md §4 / §8・tier-2 の Apps 節・tier-3 の Analytics Status・mobile-scope 行 12 / 21・db-conventions §15）                          | 🤖                   | `docs-lint` 緑                                                                                                                                     | #2168 | 6、7               |
+| 11  | 実画面の確認（Desktop / Mobile、light / dark）                                                                                                        | 👀                   | メインのチャットが実ブラウザで撮影し、Issue にコメントする。記録 0 件の日・複数アプリの日・narrow の More から Apps に入る経路を撮る               | #2168 | 6、7               |
 
 Step 6 と Step 7 は互いに独立なので、Step 3 が済めば並行できます。Step 8 は #2144 の着地を待たずに、語彙の突き合わせのコメントだけ先に出します（#2146 が鍵の保存先を決める前に、slug の語彙を合わせるためです）。
 
@@ -285,22 +286,20 @@ AC を満たせない見込みになったら、自己免除せず **P-008** に
 
 ---
 
-## Issue の下書き（未起票）
+## Issue（2026-10-08 起票済み）
 
-chat-main が起票します。宛先の prefix は起票時に 1 レーンに決めます（1 Issue = 1 レーン・`[all]` は使わない）。
+chat-main が起票しました（1 Issue = 1 レーン）。各 Issue の body に、§Acceptance Criteria から該当する行を機械で確かめられる形で写してあります。#2165 は新しいセクションで担当レーンが無いため、Connect（Tag hub）をセクションごと建てた connect-refine に回しました。セクションが main に入ったら `section:apps` ラベルを作って付け替えます。
 
-| 仮番号 | Issue                                                                                                     | Step   | 依存              | Gate           | 宛先の候補                                     |
-| ------ | --------------------------------------------------------------------------------------------------------- | ------ | ----------------- | -------------- | ---------------------------------------------- |
-| N1     | 記録テーブルと台帳の DDL（`app_records` / `extension_apps` / `delete_my_account`）                        | 2      | なし              | 🛑 db push     | `[shared-fix]` area:schema                     |
-| N2     | shared のデータ層（Service・mapper・routing・同期ドメイン・エクスポート）                                 | 3      | N1                | 🤖             | `[refactor-core]`                              |
-| N3     | MCP の道具 4 つと today / week context の records 要約・catalog・Remote MCP の配り直しとスマホからの 1 件 | 4, 5   | N1（stub は並行） | 🤖 / 🛑 deploy | `[mcp-tools]`                                  |
-| N4     | Analytics の「記録」タブと narrow の「記録」ブロック                                                      | 6      | N2                | 🤖 / 👀        | `section:analytics`                            |
-| N5     | Apps セクション（registry・descriptor・画面・登録 / 編集 / 削除・未登録ソース・Analytics への導線）       | 7      | N2                | 🤖 / 👀        | `[shared-fix]`（新レーン `apps` か chat-main） |
-| N6     | 窓口との突き合わせ（道具集合・作成元の語彙・呼び出し元の slug の口）                                      | 8      | N3、#2144         | 🤖             | `[mcp-tools]`                                  |
-| N7     | 朝刊のプロンプトに今週の記録の要約を足す                                                                  | 9      | N3                | 🤖 / 👀        | `[main]`                                       |
-| N8     | docs の追随と実画面の確認                                                                                 | 10, 11 | N4、N5            | 🤖 / 👀        | `[main]`                                       |
-
-各 Issue の body には、§Acceptance Criteria から該当する行を機械で確かめられる形で写します。
+| Issue | 内容                                                                                                      | Step   | 依存                       | Gate                | 宛先                          |
+| ----- | --------------------------------------------------------------------------------------------------------- | ------ | -------------------------- | ------------------- | ----------------------------- |
+| #2161 | 記録テーブルと台帳の DDL（`app_records` / `extension_apps` / `delete_my_account`）                        | 2      | なし                       | 🤖 / 🛑 db push     | `[refactor-core]` area:schema |
+| #2162 | shared のデータ層（型・Service・routing・同期ドメイン 2 つ・エクスポート・集計の純粋関数）                | 3      | #2161                      | 🤖                  | `[refactor-core]`             |
+| #2163 | MCP の道具 4 つと today / week context の records 要約・catalog・Remote MCP の配り直しとスマホからの 1 件 | 4, 5   | #2161、#2162（見本データ） | 🤖 / 🛑 deploy / 👀 | `[mcp-tools]`                 |
+| #2164 | Analytics の「記録」タブと narrow の「記録」ブロック                                                      | 6      | #2162                      | 🤖 / 👀             | `section:analytics`           |
+| #2165 | Apps セクション（registry・descriptor・画面・登録 / 編集 / 削除・未登録ソース・Analytics への導線）       | 7      | #2162、#2164               | 🤖 / 👀             | `[connect-refine]`            |
+| #2166 | 窓口との突き合わせ（道具集合・作成元の語彙・呼び出し元の slug の口）                                      | 8      | #2163、#2144、#2146        | 🤖                  | `[mcp-tools]`                 |
+| #2167 | 朝刊のプロンプトに今週の記録の要約を足す                                                                  | 9      | #2163                      | 🤖 / 👀             | `[main]`                      |
+| #2168 | docs の追随と実画面の確認                                                                                 | 10, 11 | #2164、#2165               | 🤖 / 👀             | `[main]`                      |
 
 ---
 
@@ -326,3 +325,4 @@ chat-main が起票します。宛先の prefix は起票時に 1 レーンに�
 ## Worklog
 
 - 2026-10-08: 初版。2026-10-08 のチャットでの方針（D-20261008-main-1 / -2）と、親計画書 `2026-10-07-extension-app-gateway.md`（PR #2137・同日 merge）の決定 D-20261007-main-1〜8 を前提に書きました。チャットで Claude が先に出した「拡張アプリは Supabase に直接書く」案は、D-20261007-main-3 と矛盾するため取り下げ、窓口経由に合わせました。Issue の起票はまだです。
+- 2026-10-08（夜）: PR #2158 が merge されたので Status を IN PROGRESS にしました。Issue を #2161〜#2168 として起票し、Steps 表と §Issue の仮番号を実番号に置き換えました。宛先は N1 / N2 = `[refactor-core]`（計画時の候補 `[shared-fix]` から変更。DDL とデータ層を同じレーンで続けるため）、N5 = `[connect-refine]`（新セクションの建て方を知っているレーン）です。
