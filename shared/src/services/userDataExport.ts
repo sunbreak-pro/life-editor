@@ -59,6 +59,9 @@ export const USER_DATA_EXPORT_TABLES = [
   { table: "playlists", orderBy: "id" },
   { table: "playlist_items", orderBy: "id" },
   { table: "life_tags_migration_log", orderBy: "id" },
+  { table: "ai_rules", orderBy: "id" },
+  { table: "ai_memories", orderBy: "id" },
+  { table: "ai_skills", orderBy: "id" },
 ] as const;
 
 export type UserDataExportTable =

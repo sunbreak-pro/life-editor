@@ -94,6 +94,12 @@ describe("syncDomains — payload tables", () => {
     expect(domainsForChange("goal_todo_links")).toEqual(["goals"]);
   });
 
+  it("routes the Claude customization tables to their own domain (#2118)", () => {
+    for (const table of ["ai_rules", "ai_memories", "ai_skills"]) {
+      expect(domainsForChange(table)).toEqual(["aiCustomization"]);
+    }
+  });
+
   it("returns nothing for a table it does not know", () => {
     expect(domainsForChange("some_future_table")).toEqual([]);
   });

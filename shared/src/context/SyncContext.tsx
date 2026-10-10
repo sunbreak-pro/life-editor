@@ -101,6 +101,10 @@ export const REALTIME_TABLES = [
   // Goals (0034 / #2101)
   "goals_payload",
   "goal_todo_links",
+  // Claude customization (0037 / #2118)
+  "ai_rules",
+  "ai_memories",
+  "ai_skills",
 ] as const;
 
 const DEBOUNCE_MS = 300;
