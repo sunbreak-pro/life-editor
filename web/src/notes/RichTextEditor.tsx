@@ -1,6 +1,14 @@
 import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import type { Editor } from "@tiptap/core";
+import type { Transaction } from "@tiptap/pm/state";
+import {
+  isHistoryTransaction,
+  redoDepth,
+  redoNoScroll,
+  undoDepth,
+  undoNoScroll,
+} from "@tiptap/pm/history";
 import StarterKit from "@tiptap/starter-kit";
 import Bold from "@tiptap/extension-bold";
 import Italic from "@tiptap/extension-italic";
@@ -12,6 +20,7 @@ import Placeholder from "@tiptap/extension-placeholder";
 import TodoList from "@tiptap/extension-task-list";
 import TodoItem from "@tiptap/extension-task-item";
 import {
+  EditorHistoryOrder,
   useTranslation,
   useUndoRedoOptional,
   type EditorHistory,
@@ -568,55 +577,94 @@ export function RichTextEditor({
   );
 
   /*
-   * #1690 — offer this editor's history to the header while it has focus.
+   * #1690 / #2141 — offer this editor's history to the header while the body
+   * is on screen.
    *
    * Ctrl+Z inside a body already goes to TipTap (useGlobalShortcuts hands
    * bare-field keystrokes to the field), but the header buttons only ever
    * drove the app stack — so the two controls reversed different things, and
    * pressing Undo while writing could move a schedule block on another
-   * screen. Registering on focus is what lets the header follow the keystroke.
+   * screen. #1690 offered the history on focus and took it back on blur; that
+   * left the buttons dead the moment a phone's keyboard closed (#2141). The
+   * offer now lasts from mount to unmount, and the provider decides per press:
+   * a focused body is driven alone, an unfocused one competes with the app
+   * stack by which step is newer (D-20261008-main-3).
    *
-   * Cleared on blur, so walking away from the body puts the header back on
-   * the app stack. The header's own buttons do not blur it (they preventDefault
-   * on mousedown — see UndoRedoButtons), which is what makes a repeated press
-   * keep undoing the text.
+   * Offered again on focus so that with two bodies on screen the one touched
+   * last wins. Withdrawn only if still current, for the same reason.
+   *
+   * The stamps that make "newer" comparable are kept here, on every
+   * transaction, BEFORE the subscribers hear about it — they read the stamps.
    *
    * Optional context: a standalone mount or a test without the Provider is a
    * no-op, like every other consumer here.
    */
   const undoRedo = useUndoRedoOptional();
   const setEditorHistory = undoRedo?.setEditorHistory;
+  const withdrawEditorHistory = undoRedo?.withdrawEditorHistory;
   useEffect(() => {
-    if (!editor || !setEditorHistory) return;
+    if (!editor || !setEditorHistory || !withdrawEditorHistory) return;
+    const order = new EditorHistoryOrder(
+      undoDepth(editor.state),
+      redoDepth(editor.state),
+    );
+    const listeners = new Set<() => void>();
+    const notify = () => listeners.forEach((l) => l());
+    const onTransaction = ({ transaction }: { transaction: Transaction }) => {
+      order.observe(
+        undoDepth(editor.state),
+        redoDepth(editor.state),
+        isHistoryTransaction(transaction)
+          ? "history"
+          : transaction.docChanged &&
+              transaction.getMeta("addToHistory") !== false
+            ? "recorded"
+            : "other",
+      );
+      notify();
+    };
+    /*
+     * From a focused body, the old path: focus stays where it is. From a
+     * blurred one, the NoScroll commands straight onto the view — no focus()
+     * (a phone would reopen its keyboard) and no scroll to a selection the
+     * user is not looking at.
+     */
     const history: EditorHistory = {
       undo: () => {
-        editor.chain().focus().undo().run();
+        if (editor.isFocused) editor.chain().focus().undo().run();
+        else undoNoScroll(editor.state, editor.view.dispatch);
       },
       redo: () => {
-        editor.chain().focus().redo().run();
+        if (editor.isFocused) editor.chain().focus().redo().run();
+        else redoNoScroll(editor.state, editor.view.dispatch);
       },
       canUndo: () => editor.can().undo(),
       canRedo: () => editor.can().redo(),
+      isFocused: () => editor.isFocused,
+      undoSeq: () => order.undoSeq(),
+      redoSeq: () => order.redoSeq(),
       subscribe: (onChange) => {
-        editor.on("transaction", onChange);
+        listeners.add(onChange);
         return () => {
-          editor.off("transaction", onChange);
+          listeners.delete(onChange);
         };
       },
     };
-    const offer = () => setEditorHistory(history);
-    const withdraw = () => setEditorHistory(null);
-    editor.on("focus", offer);
-    editor.on("blur", withdraw);
-    // The editor can already be focused by the time this runs — #1115's
-    // autoFocus does it from onCreate, which is before any effect.
-    if (editor.isFocused) offer();
-    return () => {
-      editor.off("focus", offer);
-      editor.off("blur", withdraw);
-      withdraw();
+    const onFocus = () => {
+      setEditorHistory(history);
+      notify();
     };
-  }, [editor, setEditorHistory]);
+    editor.on("transaction", onTransaction);
+    editor.on("focus", onFocus);
+    editor.on("blur", notify);
+    setEditorHistory(history);
+    return () => {
+      editor.off("transaction", onTransaction);
+      editor.off("focus", onFocus);
+      editor.off("blur", notify);
+      withdrawEditorHistory(history);
+    };
+  }, [editor, setEditorHistory, withdrawEditorHistory]);
 
   // #2057 — the host reads the live body through this when it has to decide
   // between the user's text and a version from elsewhere.

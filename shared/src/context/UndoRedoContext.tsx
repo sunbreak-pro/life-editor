@@ -12,6 +12,11 @@ import {
   type UndoOutcome,
 } from "../utils/undoRedo/UndoRedoManager";
 import {
+  pickRedoSide,
+  pickUndoSide,
+  type HistorySide,
+} from "../utils/undoRedo/historyOrder";
+import {
   UndoRedoContext,
   type EditorHistory,
   type UndoRedoContextValue,
@@ -102,17 +107,21 @@ export function UndoRedoProvider({
   }, [identityKey, manager]);
 
   /*
-   * #1690 — the focused body editor's history, while there is one.
+   * #1690 / #2141 — the on-screen body editor's history, while there is one.
    *
    * State rather than a ref: the header has to re-render when the offer
-   * appears or goes away, because that is what decides WHICH history its
-   * buttons drive.
+   * appears or goes away, because that is what decides WHICH histories its
+   * buttons choose between. Focus moving in and out of the body does NOT
+   * change this — the handle's own `subscribe` reports that.
    */
   const [editorHistory, setEditorHistoryState] = useState<EditorHistory | null>(
     null,
   );
   const setEditorHistory = useCallback((history: EditorHistory | null) => {
     setEditorHistoryState(history);
+  }, []);
+  const withdrawEditorHistory = useCallback((history: EditorHistory) => {
+    setEditorHistoryState((current) => (current === history ? null : current));
   }, []);
 
   // Only reads refs, so its identity never changes.
@@ -125,31 +134,50 @@ export function UndoRedoProvider({
     [],
   );
 
-  const value = useMemo<UndoRedoContextValue>(
-    () => ({
+  const value = useMemo<UndoRedoContextValue>(() => {
+    /*
+     * #2141 — which history the next press reaches (D-20261008-main-3).
+     * A focused body keeps #1690's rule: the body alone, like Ctrl+Z inside
+     * it. A body on screen without focus competes with the app stack, and
+     * the newer step wins.
+     */
+    const route = (direction: "undo" | "redo"): HistorySide | null => {
+      const body = editorHistory;
+      if (body?.isFocused()) {
+        const can = direction === "undo" ? body.canUndo() : body.canRedo();
+        return can ? "editor" : null;
+      }
+      if (direction === "undo") {
+        return pickUndoSide(manager.peekUndoSeq(), body?.undoSeq() ?? null);
+      }
+      return pickRedoSide(manager.peekRedoSeq(), body?.redoSeq() ?? null);
+    };
+    /*
+     * The trailing catch is the floor under the toast, not a second error
+     * path (#1681). `apply` runs every closure inside its own try and hands
+     * failures back as an outcome, so nothing should land here — but these
+     * chains are `void`-ed, and anything that DID reject (a broken host
+     * `showToast`, a manager bug) would leave the press with no answer at
+     * all and an unhandled rejection in its place.
+     */
+    const undo = () => {
+      void manager
+        .undo()
+        .then((outcome) => report("undo", outcome))
+        .catch((error) => console.error("[UndoRedo] undo escaped", error));
+    };
+    const redo = () => {
+      void manager
+        .redo()
+        .then((outcome) => report("redo", outcome))
+        .catch((error) => console.error("[UndoRedo] redo escaped", error));
+    };
+    return {
       // One global stack; the domain rides along so a provider can expire
       // its own snapshot commands on unmount (#1727).
       push: (domain, command) => manager.push(command, domain),
-      /*
-       * The trailing catch is the floor under the toast, not a second error
-       * path (#1681). `apply` runs every closure inside its own try and hands
-       * failures back as an outcome, so nothing should land here — but these
-       * chains are `void`-ed, and anything that DID reject (a broken host
-       * `showToast`, a manager bug) would leave the press with no answer at
-       * all and an unhandled rejection in its place.
-       */
-      undo: () => {
-        void manager
-          .undo()
-          .then((outcome) => report("undo", outcome))
-          .catch((error) => console.error("[UndoRedo] undo escaped", error));
-      },
-      redo: () => {
-        void manager
-          .redo()
-          .then((outcome) => report("redo", outcome))
-          .catch((error) => console.error("[UndoRedo] redo escaped", error));
-      },
+      undo,
+      redo,
       /*
        * #1638: the "apply to which occurrences?" question a repeat command has
        * to pass. Registered by the screen that owns the dialog (Schedule) and
@@ -163,12 +191,31 @@ export function UndoRedoProvider({
       clear: () => manager.clear(),
       expireDomain: (domain: string) => manager.expireDomain(domain),
       setEditorHistory,
+      withdrawEditorHistory,
       editorHistory,
-    }),
+      undoLatest: () => {
+        const side = route("undo");
+        if (side === "editor") editorHistory?.undo();
+        else if (side === "app") undo();
+      },
+      redoLatest: () => {
+        const side = route("redo");
+        if (side === "editor") editorHistory?.redo();
+        else if (side === "app") redo();
+      },
+      canUndoLatest: () => route("undo") !== null,
+      canRedoLatest: () => route("redo") !== null,
+    };
     // `version` forces a new value identity on each manager change so context
     // consumers re-render and re-read canUndo()/canRedo().
-    [manager, report, version, setEditorHistory, editorHistory],
-  );
+  }, [
+    manager,
+    report,
+    version,
+    setEditorHistory,
+    withdrawEditorHistory,
+    editorHistory,
+  ]);
 
   return (
     <UndoRedoContext.Provider value={value}>

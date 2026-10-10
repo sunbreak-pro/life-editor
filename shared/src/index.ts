@@ -465,6 +465,15 @@ export {
   type UndoConfirmGate,
   type UndoConfirmSpec,
 } from "./utils/undoRedo/UndoRedoManager";
+// Which history holds the newer step once the body has lost focus (#2141).
+export {
+  EditorHistoryOrder,
+  nextHistorySeq,
+  pickRedoSide,
+  pickUndoSide,
+  type EditorTransactionKind,
+  type HistorySide,
+} from "./utils/undoRedo/historyOrder";
 // The gate an undo closure waits on before reversing a write (#1682).
 export { afterSettled } from "./utils/undoRedo/pendingWrite";
 export {

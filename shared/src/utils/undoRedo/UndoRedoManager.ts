@@ -12,6 +12,8 @@
  * held in a ref (one instance per provider).
  */
 
+import { nextHistorySeq } from "./historyOrder";
+
 /**
  * What a command says about itself so the host can ASK before running it
  * (#1638). Only a write that landed on a REPEATING item carries one: reversing
@@ -69,10 +71,15 @@ export type UndoOutcome =
 /** Cap on retained history (oldest commands drop past this). */
 export const MAX_HISTORY_SIZE = 50;
 
-/** A command plus the domain that pushed it (only `expireDomain` reads it). */
+/**
+ * A command plus the domain that pushed it (only `expireDomain` reads it)
+ * and its stamp on the clock it shares with the body editors (#2141). The
+ * stamp travels with the entry between the two stacks.
+ */
 interface HistoryEntry {
   command: UndoCommand;
   domain: string;
+  seq: number;
 }
 
 export class UndoRedoManager {
@@ -109,7 +116,7 @@ export class UndoRedoManager {
     if (this.undoStack.length >= MAX_HISTORY_SIZE) {
       this.undoStack.shift();
     }
-    this.undoStack.push({ command, domain });
+    this.undoStack.push({ command, domain, seq: nextHistorySeq() });
     this.redoStack = [];
     this.notify();
   }
@@ -189,6 +196,16 @@ export class UndoRedoManager {
 
   canRedo(): boolean {
     return this.redoStack.length > 0;
+  }
+
+  /** The stamp of the command Undo would run next, or null (#2141). */
+  peekUndoSeq(): number | null {
+    return this.undoStack[this.undoStack.length - 1]?.seq ?? null;
+  }
+
+  /** The stamp of the command Redo would run next, or null (#2141). */
+  peekRedoSeq(): number | null {
+    return this.redoStack[this.redoStack.length - 1]?.seq ?? null;
   }
 
   /**

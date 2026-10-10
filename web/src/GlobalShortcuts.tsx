@@ -41,9 +41,11 @@ export function GlobalShortcuts({
     onOpenSettings,
     onTogglePalette,
     onNewTodo,
-    // #304: app-level undo/redo via the ambient global stack (null → no-op).
-    onUndo: undoRedo ? () => undoRedo.undo() : undefined,
-    onRedo: undoRedo ? () => undoRedo.redo() : undefined,
+    // #304 / #2141: the same `undoLatest` the header pair calls. Only reached
+    // outside a field, so a body on screen competes with the app stack, newer
+    // step first (null → no-op).
+    onUndo: undoRedo ? () => undoRedo.undoLatest() : undefined,
+    onRedo: undoRedo ? () => undoRedo.redoLatest() : undefined,
   });
   return null;
 }
