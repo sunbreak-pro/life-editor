@@ -25,6 +25,8 @@ import {
 const WIN = "win32" as NodeJS.Platform;
 const MAC = "darwin" as NodeJS.Platform;
 const LINUX = "linux" as NodeJS.Platform;
+/** The app's own Claude folder (#2120) — see claudeWorkspace.test.ts. */
+const WS = "/data/life-editor/claude-workspace";
 
 describe("normalizeProjectPath", () => {
   it("keeps an absolute path", () => {
@@ -67,20 +69,20 @@ describe("posixLauncherScript", () => {
   it("quotes the folder so its contents cannot become a command", () => {
     // Single quotes are the only total escape in sh: the shell reads nothing
     // inside them, so spaces, $, ; and backticks are all just characters.
-    const script = posixLauncherScript("/home/u/my repo; rm -rf ~");
+    const script = posixLauncherScript("/home/u/my repo; rm -rf ~", WS);
     expect(script).toContain("cd -- '/home/u/my repo; rm -rf ~'");
   });
 
   it("escapes an embedded single quote instead of closing on it", () => {
     // Close, escape one literal quote, reopen — the one sequence that keeps
     // the `'...'` wrapper intact for every possible string.
-    expect(posixLauncherScript("/home/u/it's")).toContain(
+    expect(posixLauncherScript("/home/u/it's", WS)).toContain(
       "cd -- '/home/u/it'\\''s'",
     );
   });
 
   it("hands the window to claude rather than leaving a shell behind", () => {
-    const script = posixLauncherScript("/home/u/x");
+    const script = posixLauncherScript("/home/u/x", WS);
     expect(script.startsWith("#!/bin/sh\n")).toBe(true);
     expect(script).toContain("exec claude");
   });
@@ -90,7 +92,13 @@ describe("planLaunch", () => {
   const scriptPath = "/tmp/life-editor-claude.command";
 
   it("carries the folder as cwd on win32, never in the arguments", () => {
-    const plan = planLaunch(WIN, "C:\\Users\\u\\life-editor", scriptPath, {});
+    const plan = planLaunch(
+      WIN,
+      "C:\\Users\\u\\life-editor",
+      scriptPath,
+      {},
+      WS,
+    );
     expect(plan.cwd).toBe("C:\\Users\\u\\life-editor");
     expect(plan.args.join(" ")).not.toContain("life-editor");
     expect(plan.script).toBeUndefined();
@@ -99,33 +107,65 @@ describe("planLaunch", () => {
   it("spawns cmd.exe with start's empty title argument on win32", () => {
     // Without the "" the next token is read as the window title and the
     // command never runs — a launch that silently opens an empty console.
-    const plan = planLaunch(WIN, "C:\\x", scriptPath, {});
-    expect(plan.command).toBe("cmd.exe");
-    expect(plan.args).toEqual(["/c", "start", "", "cmd.exe", "/k", "claude"]);
+    const plan = planLaunch(
+      WIN,
+      "C:\\x",
+      scriptPath,
+      { ComSpec: "C:\\Windows\\system32\\cmd.exe" },
+      WS,
+    );
+    expect(plan.command).toBe("C:\\Windows\\system32\\cmd.exe");
+    expect(plan.args.slice(0, 5)).toEqual([
+      "/c",
+      "start",
+      '""',
+      '"%ComSpec%"',
+      "/k",
+    ]);
+  });
+
+  it("never lets a program in the project folder stand in for cmd or claude on win32", () => {
+    // Windows searches the working folder before PATH, and the working folder
+    // is the user's repo. Absolute cmd.exe (no ComSpec set: built from
+    // SystemRoot) + NoDefaultCurrentDirectoryInExePath for `claude`.
+    const plan = planLaunch(
+      WIN,
+      "C:\\repo",
+      scriptPath,
+      { SystemRoot: "D:\\Win" },
+      WS,
+    );
+    expect(plan.command).toBe("D:\\Win\\System32\\cmd.exe");
+    expect(plan.env["ComSpec"]).toBe("D:\\Win\\System32\\cmd.exe");
+    expect(plan.env["NoDefaultCurrentDirectoryInExePath"]).toBe("1");
   });
 
   it("routes the folder through a script on darwin", () => {
     // `open` hands off to LaunchServices, so Terminal.app ignores our cwd —
     // the folder has to be inside the thing Terminal runs.
-    const plan = planLaunch(MAC, "/Users/u/life-editor", scriptPath, {});
+    const plan = planLaunch(MAC, "/Users/u/life-editor", scriptPath, {}, WS);
     expect(plan.command).toBe("open");
     expect(plan.args).toEqual(["-a", "Terminal", scriptPath]);
     expect(plan.script).toContain("cd -- '/Users/u/life-editor'");
   });
 
   it("prefers $TERMINAL and falls back to x-terminal-emulator on linux", () => {
-    expect(planLaunch(LINUX, "/home/u/x", scriptPath, {}).command).toBe(
+    expect(planLaunch(LINUX, "/home/u/x", scriptPath, {}, WS).command).toBe(
       "x-terminal-emulator",
     );
     expect(
-      planLaunch(LINUX, "/home/u/x", scriptPath, { TERMINAL: "kitty" }).command,
+      planLaunch(LINUX, "/home/u/x", scriptPath, { TERMINAL: "kitty" }, WS)
+        .command,
     ).toBe("kitty");
   });
 
   it("keeps the folder out of the argument list on linux too", () => {
-    const plan = planLaunch(LINUX, "/home/u/life-editor", scriptPath, {});
-    expect(plan.args).toEqual(["-e", "claude"]);
+    // #2120: the same script as darwin — terminals disagree on whether `-e`
+    // takes one string or an argv, and a lone script path suits both.
+    const plan = planLaunch(LINUX, "/home/u/life-editor", scriptPath, {}, WS);
+    expect(plan.args).toEqual(["-e", scriptPath]);
     expect(plan.cwd).toBe("/home/u/life-editor");
+    expect(plan.script).toContain("cd -- '/home/u/life-editor'");
   });
 });
 
@@ -161,7 +201,11 @@ describe("findClaudeExecutable", () => {
     // Joined, not concatenated: the separator is the RUNNER's, and CI on
     // Windows would otherwise compare a backslash path against a slash one.
     const hit = join("/b", "claude");
-    const found = findClaudeExecutable(["/a", "/b"], MAC, (path) => path === hit);
+    const found = findClaudeExecutable(
+      ["/a", "/b"],
+      MAC,
+      (path) => path === hit,
+    );
     expect(found).toBe(hit);
   });
 
