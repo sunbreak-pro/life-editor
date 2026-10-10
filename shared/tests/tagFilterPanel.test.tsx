@@ -32,12 +32,23 @@ const LABELS: TagFilterPanelLabels = {
   save: "Save group",
   saveHint: "Tick at least one tag.",
   apply: "Apply",
+  release: "Turn off",
+  editTags: "Edit tags",
+  editTagsSave: "Save",
+  editTagsCancel: "Cancel",
+  editTagsHint: "Tick at least one tag to save.",
   renameGroup: "Group name",
   groupEmpty: "Every tag in this group is gone.",
 };
 
 const TAGS = [
-  { id: "tag-work", name: "Work", color: "#336699", icon: "Briefcase", count: 4 },
+  {
+    id: "tag-work",
+    name: "Work",
+    color: "#336699",
+    icon: "Briefcase",
+    count: 4,
+  },
   { id: "tag-home", name: "Home", color: null, icon: null, count: 2 },
 ];
 
@@ -46,6 +57,7 @@ function group(over: Partial<TagFilterPanelGroup> = {}): TagFilterPanelGroup {
     id: "group-1",
     name: "Weekdays",
     tagNames: ["Work"],
+    tagIds: ["tag-work"],
     active: false,
     deleteLabel: "Delete Weekdays",
     ...over,
@@ -58,6 +70,8 @@ function renderPanel(over: Partial<TagFilterPanelProps> = {}) {
     onClear: vi.fn(),
     onSaveGroup: vi.fn(),
     onApplyGroup: vi.fn(),
+    onReleaseGroup: vi.fn(),
+    onUpdateGroupTags: vi.fn(),
     onRenameGroup: vi.fn(),
     onDeleteGroup: vi.fn(),
   };
@@ -92,7 +106,7 @@ describe("TagFilterPanel — the tag multi-select", () => {
     expect((checkbox("Home") as HTMLInputElement).checked).toBe(true);
   });
 
-  it("sinks the disabled save into the fill, and leaves the ghost faded (#1803)", () => {
+  it("sinks the disabled save and Apply into the fill (#1803)", () => {
     /*
      * jsdom loads no stylesheet, so "does this look pressable" is not
      * observable here — the assertion is on the lever, exactly as
@@ -106,11 +120,11 @@ describe("TagFilterPanel — the tag multi-select", () => {
     expect(save).not.toMatch(/disabled:opacity-\d/);
     expect(save).toContain("disabled:bg-lumen-surface-sunken");
 
-    // The other half of the decision: the Apply button on a group with no tags
-    // left is a GHOST, so it keeps the opacity — there is no fill to mislead
-    // anyone with, and greying it would draw a box that was never there.
+    // #2142 made Apply the row's filled main action, so its dead state (a
+    // group with no tags left) is the same recess rather than a fade.
     const apply = screen.getByRole("button", { name: "Apply" }).className;
-    expect(apply).toContain("disabled:opacity-50");
+    expect(apply).not.toMatch(/disabled:opacity-d/);
+    expect(apply).toContain("disabled:bg-lumen-surface-sunken");
   });
 
   it("shows each tag's own count", () => {
@@ -283,5 +297,87 @@ describe("TagFilterPanel — the tag rows carry the tag's icon (#1291)", () => {
     renderPanel();
     const rows = screen.getByRole("group", { name: LABELS.tagsLabel });
     expect(rows.querySelector("svg")).toHaveStyle({ color: "#336699" });
+  });
+});
+
+describe("TagFilterPanel — Apply and Release (#2142)", () => {
+  it("offers Release instead of Apply on the applied group, and it takes the group off", () => {
+    const { onReleaseGroup, onApplyGroup } = renderPanel({
+      groups: [group({ active: true })],
+    });
+    expect(screen.queryByRole("button", { name: "Apply" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Turn off" }));
+    expect(onReleaseGroup).toHaveBeenCalledTimes(1);
+    expect(onApplyGroup).not.toHaveBeenCalled();
+  });
+
+  it("offers Apply, not Release, on a group that is not applied", () => {
+    renderPanel({ groups: [group({ active: false })] });
+    screen.getByRole("button", { name: "Apply" });
+    expect(screen.queryByRole("button", { name: "Turn off" })).toBeNull();
+  });
+
+  it("gives Apply and Release a 44px floor on narrow (#1512)", () => {
+    renderPanel({
+      groups: [
+        group({ id: "g-a", active: true, deleteLabel: "Delete A" }),
+        group({ id: "g-b", deleteLabel: "Delete B" }),
+      ],
+    });
+    for (const name of ["Apply", "Turn off"]) {
+      const cls = screen.getByRole("button", { name }).className;
+      expect(cls).toContain("max-md:min-h-11");
+      expect(cls).toContain("max-md:min-w-11");
+    }
+  });
+});
+
+describe("TagFilterPanel — editing a group's tags (#2142)", () => {
+  const editor = () => screen.getByRole("group", { name: "Weekdays" });
+
+  it("opens with the group's own tags ticked", () => {
+    renderPanel({ groups: [group()] });
+    fireEvent.click(screen.getByRole("button", { name: "Edit tags" }));
+    const boxes = editor().querySelectorAll<HTMLInputElement>(
+      'input[type="checkbox"]',
+    );
+    expect([...boxes].map((b) => b.checked)).toEqual([true, false]);
+  });
+
+  it("writes nothing until Save, then hands up the new ticks", () => {
+    const { onUpdateGroupTags } = renderPanel({ groups: [group()] });
+    fireEvent.click(screen.getByRole("button", { name: "Edit tags" }));
+    const [work, home] = editor().querySelectorAll<HTMLInputElement>(
+      'input[type="checkbox"]',
+    );
+    fireEvent.click(home);
+    fireEvent.click(work);
+    expect(onUpdateGroupTags).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onUpdateGroupTags).toHaveBeenCalledWith("group-1", ["tag-home"]);
+    // The editor closes once the edit is handed up.
+    expect(screen.queryByRole("group", { name: "Weekdays" })).toBeNull();
+  });
+
+  it("refuses to save a group with no tag", () => {
+    const { onUpdateGroupTags } = renderPanel({ groups: [group()] });
+    fireEvent.click(screen.getByRole("button", { name: "Edit tags" }));
+    const [work] = editor().querySelectorAll<HTMLInputElement>(
+      'input[type="checkbox"]',
+    );
+    fireEvent.click(work);
+    screen.getByText("Tick at least one tag to save.");
+    const save = screen.getByRole("button", { name: "Save" });
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+    fireEvent.click(save);
+    expect(onUpdateGroupTags).not.toHaveBeenCalled();
+  });
+
+  it("drops the draft on Cancel", () => {
+    const { onUpdateGroupTags } = renderPanel({ groups: [group()] });
+    fireEvent.click(screen.getByRole("button", { name: "Edit tags" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("group", { name: "Weekdays" })).toBeNull();
+    expect(onUpdateGroupTags).not.toHaveBeenCalled();
   });
 });

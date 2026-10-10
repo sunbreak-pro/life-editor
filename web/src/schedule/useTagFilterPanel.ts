@@ -29,8 +29,12 @@ export interface UseTagFilterPanelArgs {
   tagCounts: Map<string, number>;
   onToggleTag: (tagId: string) => void;
   onClear: () => void;
-  /** Copies a saved group's tags into the tick list. */
-  onApplyGroup: (groupId: string) => void;
+  /**
+   * Copies a saved group's tags into the tick list; null empties it (the
+   * panel's Release, #2142). `tagIds` overrides the group's stored tags for
+   * the render in which an edit to them has not landed yet.
+   */
+  onApplyGroup: (groupId: string | null, tagIds?: string[]) => void;
 }
 
 export function useTagFilterPanel({
@@ -86,6 +90,7 @@ export function useTagFilterPanel({
           id: group.id,
           name: group.name,
           tagNames: live.map((id) => tagNameById.get(id) ?? id),
+          tagIds: live,
           active: live.length > 0 && [...live].sort().join(" ") === selectedKey,
           deleteLabel: t("scheduleScreen.filterGroupDelete", {
             name: group.name,
@@ -111,6 +116,11 @@ export function useTagFilterPanel({
       save: t("scheduleScreen.filterGroupSave"),
       saveHint: t("scheduleScreen.filterGroupSaveHint"),
       apply: t("scheduleScreen.filterGroupApply"),
+      release: t("scheduleScreen.filterGroupRelease"),
+      editTags: t("scheduleScreen.filterGroupEditTags"),
+      editTagsSave: t("scheduleScreen.filterGroupEditTagsSave"),
+      editTagsCancel: t("scheduleScreen.filterGroupEditTagsCancel"),
+      editTagsHint: t("scheduleScreen.filterGroupEditTagsHint"),
       renameGroup: t("scheduleScreen.filterGroupRename"),
       groupEmpty: t("scheduleScreen.filterGroupEmpty"),
     }),
@@ -128,6 +138,16 @@ export function useTagFilterPanel({
     // that no longer exists.
     onSaveGroup: (name) => createTagGroup(name, selectedTagIds),
     onApplyGroup,
+    onReleaseGroup: () => onApplyGroup(null),
+    // #2142: an edit to the APPLIED group moves the grid with it — the row
+    // stays lit and the calendar shows what the group now means. Applied with
+    // the new ids directly: `updateTagGroup` is optimistic, but the grid reads
+    // the group list a render later.
+    onUpdateGroupTags: (groupId, tagIds) => {
+      const wasActive = groups.some((g) => g.id === groupId && g.active);
+      updateTagGroup(groupId, { tagIds });
+      if (wasActive) onApplyGroup(groupId, tagIds);
+    },
     onRenameGroup: (groupId, name) => updateTagGroup(groupId, { name }),
     onDeleteGroup: deleteTagGroup,
     tagsLoading,

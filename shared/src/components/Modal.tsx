@@ -1,5 +1,6 @@
 import { createPortal } from "react-dom";
 import type { ReactNode } from "react";
+import { X } from "lucide-react";
 import { useDialogA11y } from "../hooks/useDialogA11y";
 import { cn } from "./cn";
 
@@ -9,13 +10,7 @@ import { cn } from "./cn";
  * the backdrop's own gutter.
  */
 export type ModalSize =
-  | "sm"
-  | "md"
-  | "lg"
-  | "xl"
-  | "reading"
-  | "panel"
-  | "full";
+  "sm" | "md" | "lg" | "xl" | "reading" | "panel" | "full";
 
 /*
  * One max-width per size, emitted INSTEAD of the default — never alongside it.
@@ -107,6 +102,14 @@ export interface ModalProps {
    * panels that actually grow tall should pay.
    */
   fitViewport?: boolean;
+  /**
+   * Already-translated accessible name for a close (×) button in the panel's
+   * top-right corner (#2142). Omitted, there is no button — the default look
+   * is unchanged, and Esc / the backdrop still close every Modal. Pass it for
+   * a panel that fills most of a phone screen, where the backdrop strip left
+   * to tap is too thin to find and there is no Esc key.
+   */
+  closeLabel?: string;
 }
 
 /*
@@ -136,6 +139,7 @@ export function Modal({
   className,
   closeOnBackdrop = true,
   fitViewport = false,
+  closeLabel,
 }: ModalProps) {
   const panelRef = useDialogA11y<HTMLDivElement>({
     open,
@@ -170,11 +174,23 @@ export function Modal({
           fitViewport
             ? "flex max-h-[calc(100dvh-2rem)] flex-col overflow-hidden"
             : null,
+          // The close button's containing block.
+          closeLabel ? "relative" : null,
           className,
         )}
         style={maxWidth ? { maxWidth } : undefined}
         onMouseDown={(e) => e.stopPropagation()}
       >
+        {closeLabel ? (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label={closeLabel}
+            className="absolute right-2 top-2 flex size-8 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:size-11"
+          >
+            <X aria-hidden className="size-4" />
+          </button>
+        ) : null}
         {title ? (
           <h2
             className={cn(
@@ -186,6 +202,8 @@ export function Modal({
               // An unpadded panel still owes its heading an inset — only the
               // BODY rows asked to run edge to edge.
               padded ? null : "px-5 pt-5",
+              // Keeps a long title from running under the close button.
+              closeLabel ? "pr-10 max-md:pr-12" : null,
             )}
           >
             {titleIcon}

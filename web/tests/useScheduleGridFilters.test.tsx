@@ -140,7 +140,11 @@ function setup(overrides: Partial<UseScheduleGridFiltersArgs> = {}) {
         a.setHolidaysHidden(v);
         setLocal(v);
       };
-      return useScheduleGridFilters({ ...a, holidaysHidden, setHolidaysHidden });
+      return useScheduleGridFilters({
+        ...a,
+        holidaysHidden,
+        setHolidaysHidden,
+      });
     },
     { initialProps: args },
   );
@@ -228,9 +232,9 @@ describe("useScheduleGridFilters — rule 2: one membership set for every layer"
     act(() => hook.result.current.handleSelectGroup("group-1"));
     // The untagged event and the untagged todo chip both go.
     expect(hook.result.current.hiddenByTags).toBe(2);
-    expect(
-      hook.result.current.monthItems.map((i) => i.id).sort(),
-    ).toEqual(["tagged"]);
+    expect(hook.result.current.monthItems.map((i) => i.id).sort()).toEqual([
+      "tagged",
+    ]);
   });
 
   /*
@@ -605,7 +609,9 @@ describe("useScheduleGridFilters — holidays (#1626)", () => {
     act(() => hook.result.current.handleToggleHolidays());
     expect(setHolidaysHidden).toHaveBeenCalledTimes(1);
     // An updater, not a bare value — two toggles in one tick must not collapse.
-    const updater = setHolidaysHidden.mock.calls[0][0] as (p: boolean) => boolean;
+    const updater = setHolidaysHidden.mock.calls[0][0] as (
+      p: boolean,
+    ) => boolean;
     expect(typeof updater).toBe("function");
     expect(updater(false)).toBe(true);
     expect(updater(true)).toBe(false);
@@ -675,5 +681,35 @@ describe("useScheduleGridFilters — holidays (#1626)", () => {
     // toggle to bring one back, so it must not appear there at all.
     const { hook } = setup({ ...SEPTEMBER, anchorDate: "2026-09-21" });
     expect(hook.result.current.anchorDayItems).toEqual([]);
+  });
+});
+
+/*
+ * #2142 — the filter panel's Release and its tag editor both come through
+ * handleSelectGroup: null takes the group off, and fresh tag ids override the
+ * group's stored ones for the render in which the edit has not landed yet.
+ */
+describe("useScheduleGridFilters — Release and an edited group (#2142)", () => {
+  it("empties the tick list on null", () => {
+    const { hook } = setup({
+      tagGroups: [group("group-1", "tag-1")],
+      allTags: [tag("tag-1")],
+    });
+    act(() => hook.result.current.handleSelectGroup("group-1"));
+    expect(hook.result.current.selectedTagIds).toEqual(["tag-1"]);
+    act(() => hook.result.current.handleSelectGroup(null));
+    expect(hook.result.current.selectedTagIds).toEqual([]);
+  });
+
+  it("applies the ids it is handed over the group's stored ones", () => {
+    const { hook } = setup({
+      tagGroups: [group("group-1", "tag-1")],
+      allTags: [tag("tag-1"), tag("tag-2")],
+    });
+    act(() => hook.result.current.handleSelectGroup("group-1"));
+    act(() =>
+      hook.result.current.handleSelectGroup("group-1", ["tag-1", "tag-2"]),
+    );
+    expect(hook.result.current.selectedTagIds).toEqual(["tag-1", "tag-2"]);
   });
 });

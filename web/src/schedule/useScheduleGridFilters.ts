@@ -347,11 +347,23 @@ export function useScheduleGridFilters({
     [selected, allAssignments, setSelectedId, setPopover],
   );
 
-  /** Chip row: apply a saved group, or clear (re-clicking the lit chip). */
+  /**
+   * Chip row: apply a saved group, or clear (re-clicking the lit chip). The
+   * filter panel's Release is the same null (#2142).
+   *
+   * `tagIds` is for a group whose tags were JUST edited (#2142): the edit is
+   * optimistic, but `liveGroups` only catches up on the next render, so a
+   * lookup here would re-apply the group's OLD tags. The caller hands over
+   * the new ones instead.
+   */
   const handleSelectGroup = useCallback(
-    (id: string | null) => {
+    (id: string | null, tagIds?: string[]) => {
       if (id == null) {
         applyTagIds([]);
+        return;
+      }
+      if (tagIds) {
+        applyTagIds(tagIds);
         return;
       }
       const group = liveGroups.find((g) => g.id === id);

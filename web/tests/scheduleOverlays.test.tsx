@@ -70,6 +70,8 @@ const TAG_FILTER_PANEL: ScheduleOverlaysProps["tagFilter"]["panel"] = {
   groups: [],
   onSaveGroup: vi.fn(),
   onApplyGroup: vi.fn(),
+  onReleaseGroup: vi.fn(),
+  onUpdateGroupTags: vi.fn(),
   onRenameGroup: vi.fn(),
   onDeleteGroup: vi.fn(),
   labels: {
@@ -85,6 +87,11 @@ const TAG_FILTER_PANEL: ScheduleOverlaysProps["tagFilter"]["panel"] = {
     save: "save",
     saveHint: "hint",
     apply: "apply",
+    release: "apply",
+    editTags: "apply",
+    editTagsSave: "apply",
+    editTagsCancel: "apply",
+    editTagsHint: "apply",
     renameGroup: "rename",
     groupEmpty: "empty",
   },
@@ -580,5 +587,34 @@ describe("ScheduleOverlays — the repeat row's panel (#1678)", () => {
     // Two panels are mounted by now (one per render); the second has no
     // delete, so the count stays at the first one's single row.
     expect(screen.getAllByText("scheduleScreen.delete")).toHaveLength(1);
+  });
+});
+
+/*
+ * #2142 — on a phone the filter panel covers most of the screen, so the thin
+ * backdrop strip was the only way out (there is no Esc key). The panel now has
+ * a corner close button, and is held to the viewport with its body scrolling.
+ */
+describe("ScheduleOverlays — the tag filter panel's frame (#2142)", () => {
+  it("closes from the corner close button", () => {
+    const onClose = vi.fn();
+    renderOverlays({ isWide: false, tagFilter: { open: true, onClose } });
+    const dialog = screen.getByRole("dialog", {
+      name: "scheduleScreen.filterTitle",
+    });
+    const close = screen.getByRole("button", { name: "common.close" });
+    expect(dialog.contains(close)).toBe(true);
+    // A 44px floor on narrow (#1512).
+    expect(close.className).toContain("max-md:size-11");
+    fireEvent.click(close);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("holds the panel to the viewport", () => {
+    renderOverlays({ tagFilter: { open: true } });
+    const dialog = screen.getByRole("dialog", {
+      name: "scheduleScreen.filterTitle",
+    });
+    expect(dialog.className).toContain("max-h-[calc(100dvh-2rem)]");
   });
 });

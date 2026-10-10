@@ -47,6 +47,11 @@ export interface TagFilterPanelGroup {
    * can only ever empty the grid.
    */
   tagNames: string[];
+  /**
+   * The group's LIVE tag ids — what the tag editor (#2142) starts ticked. Same
+   * filter as `tagNames`, so a soft-deleted tag never comes back as a tick.
+   */
+  tagIds: string[];
   /** Whether the current tick list is exactly this group. */
   active: boolean;
   /**
@@ -84,6 +89,16 @@ export interface TagFilterPanelLabels {
   saveHint: string;
   /** Button that applies a saved group. */
   apply: string;
+  /** Button that takes the applied group off, in the active row (#2142). */
+  release: string;
+  /** Button that opens the group's tag editor (#2142). */
+  editTags: string;
+  /** Saves the tag editor's ticks into the group. */
+  editTagsSave: string;
+  /** Closes the tag editor without writing. */
+  editTagsCancel: string;
+  /** Hint in the tag editor while no tag is ticked (a group needs one). */
+  editTagsHint: string;
   /** aria-label for the per-group rename field. */
   renameGroup: string;
   /** Said in place of the tag list of a group whose tags are all gone. */
@@ -98,6 +113,10 @@ export interface TagFilterPanelProps {
   groups: TagFilterPanelGroup[];
   onSaveGroup: (name: string) => void;
   onApplyGroup: (groupId: string) => void;
+  /** Takes the applied group off — the tick list goes empty (#2142). */
+  onReleaseGroup: () => void;
+  /** Replaces the tags a group narrows to (#2142). Never called with []. */
+  onUpdateGroupTags: (groupId: string, tagIds: string[]) => void;
   onRenameGroup: (groupId: string, name: string) => void;
   onDeleteGroup: (groupId: string) => void;
   /** True until the tag list has landed once (never during a background refetch). */
@@ -111,6 +130,14 @@ const SECTION_HEADING =
 
 const GHOST_BUTTON =
   "rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+
+/*
+ * The row's main action (#2142): Apply, or Release on the applied row. Bigger
+ * than GHOST_BUTTON on purpose — it is the reason the row exists — and 44px
+ * tall on narrow (#1512), where the panel is used with a thumb.
+ */
+const ROW_ACTION =
+  "rounded-lumen-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none max-md:min-h-11 max-md:min-w-11";
 
 const TEXT_FIELD =
   "min-w-0 flex-1 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
@@ -179,6 +206,104 @@ function GroupNameField({
   );
 }
 
+/*
+ * A group's tag editor (#2142), opened under its row.
+ *
+ * The ticks are a DRAFT: nothing is written until Save, so unticking the last
+ * tag on the way to ticking another never leaves a group that narrows to
+ * nothing. Save stays off while no tag is ticked, for the same reason the
+ * new-group save does — an empty group could only ever empty the grid.
+ */
+function GroupTagEditor({
+  tags,
+  initial,
+  label,
+  labels,
+  onSave,
+  onCancel,
+}: {
+  tags: TagFilterPanelTag[];
+  initial: string[];
+  label: string;
+  labels: Pick<
+    TagFilterPanelLabels,
+    "editTagsSave" | "editTagsCancel" | "editTagsHint"
+  >;
+  onSave: (tagIds: string[]) => void;
+  onCancel: () => void;
+}) {
+  const [draft, setDraft] = useState<Set<string>>(() => new Set(initial));
+  const toggle = (id: string) =>
+    setDraft((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  return (
+    <div className="flex basis-full flex-col gap-2 border-t border-lumen-border pt-2">
+      <div
+        role="group"
+        aria-label={label}
+        className="flex max-h-48 flex-col gap-0.5 overflow-y-auto"
+      >
+        {tags.map((tag) => (
+          <label
+            key={tag.id}
+            className="flex cursor-pointer items-center gap-2 rounded-lumen-sm px-1.5 py-1 transition-colors hover:bg-lumen-hover max-md:min-h-11"
+          >
+            <input
+              type="checkbox"
+              checked={draft.has(tag.id)}
+              onChange={() => toggle(tag.id)}
+              className="size-4 shrink-0 accent-lumen-accent"
+            />
+            <TagHeadingIcon icon={tag.icon} color={tag.color} size={14} />
+            <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
+              {tag.name}
+            </span>
+          </label>
+        ))}
+      </div>
+      {draft.size === 0 && (
+        <p className="text-xs text-lumen-text-tertiary">
+          {labels.editTagsHint}
+        </p>
+      )}
+      <div className="flex items-center justify-end gap-2">
+        <button
+          type="button"
+          onClick={onCancel}
+          className={cn(
+            ROW_ACTION,
+            "border border-lumen-border-strong text-lumen-text hover:bg-lumen-hover focus-visible:ring-2 focus-visible:ring-lumen-accent",
+          )}
+        >
+          {labels.editTagsCancel}
+        </button>
+        <button
+          type="button"
+          // Kept in the order the tags are listed, so the saved group reads
+          // the same way the editor did.
+          onClick={() =>
+            onSave(tags.map((t) => t.id).filter((id) => draft.has(id)))
+          }
+          disabled={draft.size === 0}
+          className={cn(
+            ROW_ACTION,
+            "bg-lumen-accent text-lumen-on-accent hover:bg-lumen-accent-hover",
+            FOCUS_RING_ON_ACCENT,
+            DISABLED_FILLED_BTN,
+          )}
+        >
+          {labels.editTagsSave}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function TagFilterPanel({
   tags,
   selectedTagIds,
@@ -187,6 +312,8 @@ export function TagFilterPanel({
   groups,
   onSaveGroup,
   onApplyGroup,
+  onReleaseGroup,
+  onUpdateGroupTags,
   onRenameGroup,
   onDeleteGroup,
   tagsLoading = false,
@@ -194,6 +321,9 @@ export function TagFilterPanel({
   className,
 }: TagFilterPanelProps) {
   const [draftName, setDraftName] = useState("");
+  // One tag editor open at a time: two open drafts would make it unclear which
+  // Save the user meant.
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
   const selected = new Set(selectedTagIds);
   const canSave = selected.size > 0 && draftName.trim().length > 0;
 
@@ -325,19 +455,46 @@ export function TagFilterPanel({
                     ? labels.groupEmpty
                     : group.tagNames.join(" / ")}
                 </span>
+                {group.active ? (
+                  // #2142: the applied row offers the way back out where Apply
+                  // stood. Before, Apply stayed on the lit row and pressing it
+                  // did nothing, so the only exit was unticking every tag.
+                  <button
+                    type="button"
+                    onClick={onReleaseGroup}
+                    className={cn(
+                      ROW_ACTION,
+                      "border border-lumen-accent bg-lumen-bg text-lumen-accent hover:bg-lumen-hover focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                    )}
+                  >
+                    {labels.release}
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => onApplyGroup(group.id)}
+                    disabled={group.tagNames.length === 0}
+                    className={cn(
+                      ROW_ACTION,
+                      "bg-lumen-accent text-lumen-on-accent hover:bg-lumen-accent-hover",
+                      FOCUS_RING_ON_ACCENT,
+                      DISABLED_FILLED_BTN,
+                    )}
+                  >
+                    {labels.apply}
+                  </button>
+                )}
                 <button
                   type="button"
-                  onClick={() => onApplyGroup(group.id)}
-                  disabled={group.tagNames.length === 0}
-                  className={cn(
-                    GHOST_BUTTON,
-                    // Left on opacity on purpose (#1803): a ghost button has
-                    // no fill to keep the "press me" hue alive, so fading it
-                    // is already the whole signal.
-                    "disabled:cursor-not-allowed disabled:opacity-50",
-                  )}
+                  onClick={() =>
+                    setEditingGroupId((open) =>
+                      open === group.id ? null : group.id,
+                    )
+                  }
+                  aria-expanded={editingGroupId === group.id}
+                  className={cn(GHOST_BUTTON, "max-md:min-h-11")}
                 >
-                  {labels.apply}
+                  {labels.editTags}
                 </button>
                 <button
                   type="button"
@@ -347,6 +504,19 @@ export function TagFilterPanel({
                 >
                   <Trash2 aria-hidden className="size-3.5" />
                 </button>
+                {editingGroupId === group.id && (
+                  <GroupTagEditor
+                    tags={tags}
+                    initial={group.tagIds}
+                    label={group.name}
+                    labels={labels}
+                    onSave={(tagIds) => {
+                      onUpdateGroupTags(group.id, tagIds);
+                      setEditingGroupId(null);
+                    }}
+                    onCancel={() => setEditingGroupId(null)}
+                  />
+                )}
               </li>
             ))}
           </ul>
