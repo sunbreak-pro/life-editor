@@ -462,6 +462,10 @@ export function ScheduleOverlays({
         onClose={tagFilter.onClose}
         title={t("scheduleScreen.filterTitle")}
         size="lg"
+        // #2142: on a phone the panel covers most of the screen, so it gets a
+        // corner ×, and is held to the viewport with its body scrolling.
+        fitViewport
+        closeLabel={t("common.close")}
       >
         <TagFilterPanel {...tagFilter.panel} />
       </Modal>

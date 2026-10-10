@@ -868,6 +868,11 @@
     "filterGroupSave": "グループを保存",
     "filterGroupSaveHint": "タグを 1 つ以上選ぶと保存できます。",
     "filterGroupApply": "適用",
+    "filterGroupRelease": "解除",
+    "filterGroupEditTags": "タグを編集",
+    "filterGroupEditTagsSave": "保存",
+    "filterGroupEditTagsCancel": "キャンセル",
+    "filterGroupEditTagsHint": "タグを 1 つ以上選ぶと保存できます。",
     "filterGroupRename": "グループ名",
     "filterGroupDelete": "{{name}} を削除",
     "filterGroupEmpty": "このグループのタグはすべて削除済みです。"

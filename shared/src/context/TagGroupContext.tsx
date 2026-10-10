@@ -13,9 +13,9 @@ import { TagGroupContext } from "./TagGroupContextValue";
  *
  * Took `CalendarProvider`'s slot in the Schedule section chain (#1173), which
  * is why there is no Optional variant: the Calendar it replaced was mounted at
- * both widths, and so is this. The narrow layout draws no filter control, but
- * the Provider is cheap and keeping it unconditional means the Schedule chain
- * has no width-dependent shape to reason about.
+ * both widths, and so is this — and both widths draw a filter control (narrow
+ * since #2079, in the month header). Keeping it unconditional means the
+ * Schedule chain has no width-dependent shape to reason about.
  *
  * Scope: tag-group CRUD.
  */

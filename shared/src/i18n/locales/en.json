@@ -875,6 +875,11 @@
     "filterGroupSave": "Save group",
     "filterGroupSaveHint": "Tick at least one tag to save a group.",
     "filterGroupApply": "Apply",
+    "filterGroupRelease": "Turn off",
+    "filterGroupEditTags": "Edit tags",
+    "filterGroupEditTagsSave": "Save",
+    "filterGroupEditTagsCancel": "Cancel",
+    "filterGroupEditTagsHint": "Tick at least one tag to save.",
     "filterGroupRename": "Group name",
     "filterGroupDelete": "Delete {{name}}",
     "filterGroupEmpty": "Every tag in this group is gone."
