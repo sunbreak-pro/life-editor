@@ -1,0 +1,38 @@
+{
+  // 拡張アプリ用の窓口（Remote MCP とは別の Worker）。
+  // 設計と手順の正本 = .claude/docs/vision/plans/2026-10-07-extension-app-gateway.md
+  // 決定 = D-20261007-main-3（専用の Worker を別に立て、ハンドラと検査を共有する）
+  //
+  // wrangler.jsonc（スマホのコネクタ用）とは鍵・CORS・取り消しを分けるための別ファイル。
+  // 同じ dist/ から別のエントリ（dist/gatewayWorker.js）を配る。デプロイは
+  //   npm run build && npx wrangler@4 deploy -c wrangler.gateway.jsonc
+  // 本番への初回デプロイとシークレット投入は計画書 Step 7（人手）で行う。
+  //
+  // Durable Objects / KV は使わない。鍵は LIFE_EDITOR_GATEWAY_APPS（シークレット）が
+  // ハッシュで持つ。ストアを足さないので Workers 無料枠のままで、$0 を保つ。
+  "name": "life-editor-gateway",
+  "main": "dist/gatewayWorker.js",
+  "compatibility_date": "2026-09-09",
+
+  // supabase-js が Node 互換 API を踏むほか、callerContext.ts が
+  // node:async_hooks の AsyncLocalStorage を使う。
+  "compatibility_flags": ["nodejs_compat"],
+
+  "vars": {
+    "LIFE_EDITOR_TZ": "Asia/Tokyo"
+  },
+
+  // シークレット（wrangler secret put -c wrangler.gateway.jsonc・このファイルには絶対に書かない）:
+  //   LIFE_EDITOR_GATEWAY_APPS            … アプリ・鍵のハッシュ・オリジン・範囲の JSON
+  //                                         発行と取り消しの手順 = scripts/gateway-key.mjs の冒頭
+  //   LIFE_EDITOR_GATEWAY_SESSION_SECRET  … /exchange が発行するセッショントークンの署名鍵
+  //   LIFE_EDITOR_SUPABASE_URL
+  //   LIFE_EDITOR_SUPABASE_ANON_KEY       … anon key のみ。service_role は置かない
+  //   LIFE_EDITOR_SUPABASE_EMAIL          … 持ち主のアカウント
+  //   LIFE_EDITOR_SUPABASE_PASSWORD
+  //   LIFE_EDITOR_REVIEW_SUPABASE_EMAIL   … 確認専用アカウント（それに結びつけたアプリがあるときだけ）
+  //   LIFE_EDITOR_REVIEW_SUPABASE_PASSWORD
+  "observability": {
+    "enabled": true
+  }
+}
