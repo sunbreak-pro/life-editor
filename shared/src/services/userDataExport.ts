@@ -45,6 +45,7 @@ export const USER_DATA_EXPORT_TABLES = [
   { table: "dailies_payload", orderBy: "item_id" },
   { table: "goals_payload", orderBy: "item_id" },
   { table: "goal_todo_links", orderBy: "id" },
+  { table: "tables_payload", orderBy: "item_id" },
   { table: "wiki_tags", orderBy: "id" },
   { table: "wiki_tag_assignments", orderBy: "id" },
   { table: "wiki_tag_connections", orderBy: "id" },

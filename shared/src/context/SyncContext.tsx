@@ -105,6 +105,8 @@ export const REALTIME_TABLES = [
   "ai_rules",
   "ai_memories",
   "ai_skills",
+  // Note tables as items (0039 / #2094)
+  "tables_payload",
 ] as const;
 
 const DEBOUNCE_MS = 300;
