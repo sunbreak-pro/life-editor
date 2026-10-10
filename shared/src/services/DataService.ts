@@ -20,6 +20,12 @@ import type { Goal, GoalPeriodKind, GoalTodoLink } from "../types/goal";
 import type { GoalCreateInput, GoalUpdates } from "./goalMapper";
 import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
+import type {
+  AiMemory,
+  AiRule,
+  AiSkill,
+  AiSkillInput,
+} from "../types/aiCustomization";
 // #1438 — the sweep's own vocabulary. Declared next to the pure detection it
 // belongs to and re-exported below, so a consumer of the DataService never
 // has to know which service file implements the scan.
@@ -773,6 +779,36 @@ export interface GoalsDataService {
   unlinkGoalTodo(goalId: string, todoId: string): Promise<void>;
 }
 
+// ---------------------------------------------------------------------------
+// Claude customization — SupabaseAiCustomizationService (#2118)
+// ---------------------------------------------------------------------------
+
+/**
+ * The rules / memories / Claude skills handed to the Claude Code that
+ * Desktop launches (0037, Epic #2117). Writes check the 0037 size limits first
+ * and throw AiCustomizationValidationError (field + issue) on a refusal;
+ * deletes are physical (nothing goes to the Trash).
+ */
+export interface AiCustomizationDataService {
+  /** null = nothing saved yet. Reading never creates the row. */
+  fetchAiRule(): Promise<AiRule | null>;
+  saveAiRule(body: string): Promise<AiRule>;
+  /** In list order (sortOrder). */
+  fetchAiMemories(): Promise<AiMemory[]>;
+  /** Appends at the end of the list. */
+  createAiMemory(body: string): Promise<AiMemory>;
+  updateAiMemory(id: string, body: string): Promise<AiMemory>;
+  /** `ids` in the new order (index = sortOrder). */
+  reorderAiMemories(ids: readonly string[]): Promise<void>;
+  deleteAiMemory(id: string): Promise<void>;
+  /** Sorted by slug. */
+  fetchAiSkills(): Promise<AiSkill[]>;
+  /** A slug the user already has is refused as `taken`. */
+  createAiSkill(input: AiSkillInput): Promise<AiSkill>;
+  updateAiSkill(id: string, updates: Partial<AiSkillInput>): Promise<AiSkill>;
+  deleteAiSkill(id: string): Promise<void>;
+}
+
 /**
  * The whole data surface the frontend may reach (CLAUDE.md §3.1).
  *
@@ -794,4 +830,5 @@ export interface DataService
     WikiTagsUnifiedDataService,
     NotesUnifiedDataService,
     DailiesUnifiedDataService,
-    GoalsDataService {}
+    GoalsDataService,
+    AiCustomizationDataService {}

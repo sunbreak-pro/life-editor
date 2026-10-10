@@ -54,6 +54,10 @@ export const SYNC_DOMAINS = [
   // also reads the todos it links to, so a goal reader depends on `goals`
   // AND `todos` — a todo completion moves only `todos`.
   "goals",
+  // #2118: the rules / memories / Claude skills handed to Claude Code (0037).
+  // Read only by the Settings editor (#2119) and the Desktop launcher (#2120);
+  // nothing else in the app reads them, so they share no counter.
+  "aiCustomization",
 ] as const;
 
 export type SyncDomain = (typeof SYNC_DOMAINS)[number];
@@ -118,6 +122,10 @@ export const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   // #2101 (0034)
   goals_payload: "goals",
   goal_todo_links: "goals",
+  // #2118 (0037)
+  ai_rules: "aiCustomization",
+  ai_memories: "aiCustomization",
+  ai_skills: "aiCustomization",
 };
 
 /** The `role` column as Realtime delivers it, if the payload carries one. */

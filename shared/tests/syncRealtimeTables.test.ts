@@ -32,6 +32,7 @@ const PUBLICATION_MIGRATIONS = [
   { file: "0018_timer_audio_tables.sql", kind: "add" },
   { file: "0026_drop_calendars.sql", kind: "drop" },
   { file: "0034_goals.sql", kind: "add" },
+  { file: "0037_ai_customization.sql", kind: "add" },
 ] as const;
 
 /**
@@ -93,7 +94,7 @@ function publishedTables(): string[] {
 }
 
 describe("Realtime: publication ↔ SyncContext table set", () => {
-  it("REALTIME_TABLES matches the replayed publication (0017 + 0018 − 0026 + 0034) exactly", () => {
+  it("REALTIME_TABLES matches the replayed publication (0017 + 0018 − 0026 + 0034 + 0037) exactly", () => {
     const fromMigration = publishedTables().sort();
     const fromCode = [...REALTIME_TABLES].sort();
     expect(fromCode).toEqual(fromMigration);
@@ -112,14 +113,15 @@ describe("Realtime: publication ↔ SyncContext table set", () => {
     expect(publishedTables()).not.toContain("calendars");
   });
 
-  it("covers all 21 owned tables", () => {
+  it("covers all 24 owned tables", () => {
     // 0008 unified (items_meta + 5 payloads + routine_groups +
     // routine_group_assignments + 4 wiki_tag*) = 13, plus the 6 W3
     // timer/audio tables (0018) = 19. `calendars` (0006) made it 20 until
     // 0026 dropped it (#1277 — the ledger's code went in #1173). 0034 added
-    // goals_payload + goal_todo_links (#2101) = 21. A hard count
+    // goals_payload + goal_todo_links (#2101) = 21, and 0037 the three
+    // Claude customization tables (#2118) = 24. A hard count
     // so an accidental truncation is caught even if BOTH lists were truncated
     // identically (which the equality test above would otherwise pass).
-    expect(REALTIME_TABLES.length).toBe(21);
+    expect(REALTIME_TABLES.length).toBe(24);
   });
 });
