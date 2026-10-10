@@ -83,6 +83,7 @@ const UNSEEDED_FREQUENCY = {
   frequencyDays: [] as number[],
   frequencyInterval: null as number | null,
   frequencyStartDate: null as string | null,
+  frequencyEndDate: null as string | null,
 };
 
 /**
@@ -100,6 +101,7 @@ function optimisticSeedRoutine(
     frequencyDays: number[];
     frequencyInterval: number | null;
     frequencyStartDate: string | null;
+    frequencyEndDate?: string | null;
   },
 ): RoutineNode {
   const now = new Date().toISOString();
@@ -268,7 +270,14 @@ export function useRepeatEditorMutations({
       );
       const frequencyDays = seeded.frequencyDays ?? [];
       const frequencyInterval = seeded.frequencyInterval ?? null;
-      const frequencyStartDate = seeded.frequencyStartDate ?? null;
+      // #2098: the series begins on the event it was made from, whatever the
+      // rhythm. seedFrequencyPatch only seeds a start for "interval", so a
+      // daily / weekdays conversion used to land with none, and the range fill
+      // then put occurrences on the days before the seed (today included).
+      const frequencyStartDate = seeded.frequencyStartDate || seed.date;
+      // #2082: picked in the same draft as the rhythm, so it rides the
+      // conversion rather than a follow-up write.
+      const frequencyEndDate = seeded.frequencyEndDate ?? null;
       void (async () => {
         // Single release point for the #407 guard: the whole chain runs inside
         // this try so no exit path — success, failed conversion, or a future
@@ -285,6 +294,7 @@ export function useRepeatEditorMutations({
               frequencyDays,
               frequencyInterval,
               frequencyStartDate,
+              frequencyEndDate,
               sourceDate: seed.date,
             });
           } catch {
@@ -301,6 +311,7 @@ export function useRepeatEditorMutations({
             frequencyDays,
             frequencyInterval,
             frequencyStartDate,
+            frequencyEndDate,
           };
           const filled = await materialiseNewSeries(
             optimisticSeedRoutine(routineId, seed, frequency),
@@ -443,6 +454,7 @@ export function useRepeatEditorMutations({
             frequencyDays: routine.frequencyDays,
             frequencyInterval: routine.frequencyInterval,
             frequencyStartDate: routine.frequencyStartDate,
+            frequencyEndDate: routine.frequencyEndDate ?? null,
           }
         : null;
       void (async () => {
@@ -587,6 +599,7 @@ export function useRepeatEditorMutations({
         frequencyDays: previous.frequencyDays,
         frequencyInterval: previous.frequencyInterval,
         frequencyStartDate: previous.frequencyStartDate,
+        frequencyEndDate: previous.frequencyEndDate ?? null,
       };
       let liveRoutineId = routineId;
       reconvert = {

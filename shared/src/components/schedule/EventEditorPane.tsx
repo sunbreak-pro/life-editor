@@ -461,6 +461,7 @@ const BLANK_REPEAT: FrequencyEditorValue = {
   frequencyDays: [],
   frequencyInterval: null,
   frequencyStartDate: null,
+  frequencyEndDate: null,
 };
 
 /**
@@ -480,6 +481,7 @@ function sameRepeat(
     a.frequencyType === b.frequencyType &&
     (a.frequencyInterval ?? null) === (b.frequencyInterval ?? null) &&
     (a.frequencyStartDate ?? null) === (b.frequencyStartDate ?? null) &&
+    (a.frequencyEndDate ?? null) === (b.frequencyEndDate ?? null) &&
     a.frequencyDays.length === b.frequencyDays.length &&
     a.frequencyDays.every((d, i) => d === b.frequencyDays[i])
   );
@@ -911,14 +913,16 @@ function EventEditorFields({
           on isWide), so without this the sheet is a dead end for "this turned
           out to be a task".
 
-          Above the delete rather than inside the save footer: that footer is
-          the pane's one commit (#628) and is a pinned strip on narrow (#995),
-          and an action that tears the pane down has no business riding it.
+          Not inside the save footer: that footer is the pane's one commit
+          (#628) and is a pinned strip (#995 / #1728), and an action that tears
+          the pane down for a conversion has no business riding it. (Delete
+          does ride it since #2080 — the user asked for it beside Save, and it
+          sits at the opposite end.)
 
           Never disabled on a routine occurrence — the host answers with the
           reason instead (D-20260810-sched-5). */}
-      {/* #2031: Duplicate, in the same column as the convert and delete
-          actions below — the narrow sheet is the only place a phone can
+      {/* #2031: Duplicate, in the same column as the convert action below —
+          the narrow sheet is the only place a phone can
           reach it (the Desktop bubble is not drawn on that width). Two
           entries sit side by side when the event has tags (#2005). The
           44px floor is narrow-only: the pane also renders in the Desktop
@@ -948,26 +952,17 @@ function EventEditorFields({
         </button>
       )}
 
-      {/* Delete. Manual: plain single-item delete. Routine (#279): the host
-          opens the this/future/all scope dialog instead of deleting directly
-          — "this only" maps to Dismiss there, so the Issue 017 ghost-revival
-          guard (a deleted occurrence would be regenerated) still holds. */}
-      {onDelete && (
-        <button
-          type="button"
-          onClick={() => onDelete(item.id)}
-          className="flex items-center gap-1.5 self-start rounded-sm text-sm font-medium text-lumen-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-        >
-          <Trash2 aria-hidden className="size-3.5" />
-          {labels.delete}
-        </button>
-      )}
-
       {/* Save footer (#628) — the only commit. Disabled while there is nothing
           to write (#434 S-1: a control that is pressable and does nothing is
           worse than one that is visibly off), with the state spelled out beside
           it so "why can I not press this" has an answer on screen rather than
-          only in the button's opacity. */}
+          only in the button's opacity.
+
+          #2080: Delete rides the same row, at the left end. It used to sit
+          above the footer at the end of the fields, so on both widths it was
+          below the fold whenever the pane scrolled — the footer is pinned
+          (#995 / #1728) and the delete was not. Save stays at the right end;
+          the two ends keep the destructive act and the commit apart. */}
       <div
         className={cn(
           "flex items-center justify-end gap-3 border-t border-lumen-border pt-3",
@@ -986,6 +981,22 @@ function EventEditorFields({
           stickyFooter && "sticky bottom-0 -mb-4 bg-lumen-bg-secondary pb-4",
         )}
       >
+        {/* Manual: plain single-item delete. Routine (#279): the host opens
+            the this/future/all scope dialog instead of deleting directly —
+            "this only" maps to Dismiss there, so the Issue 017 ghost-revival
+            guard (a deleted occurrence would be regenerated) still holds.
+            `mr-auto` pushes the status and Save to the right end. The 44px
+            floor is narrow-only, like the duplicate buttons above. */}
+        {onDelete && (
+          <button
+            type="button"
+            onClick={() => onDelete(item.id)}
+            className="mr-auto flex items-center gap-1.5 rounded-sm text-sm font-medium text-lumen-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:min-w-11"
+          >
+            <Trash2 aria-hidden className="size-3.5" />
+            {labels.delete}
+          </button>
+        )}
         <span
           aria-live="polite"
           className={cn(

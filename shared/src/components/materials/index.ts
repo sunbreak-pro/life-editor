@@ -11,7 +11,17 @@ export {
   type StatusFilterChip,
 } from "./StatusFilterChips";
 export { ExcerptListItem, type ExcerptListItemProps } from "./ExcerptListItem";
-export { NoteDetailPanel, type NoteDetailPanelProps } from "./NoteDetailPanel";
+export {
+  NoteDetailPanel,
+  NOTE_STICKY_HEADER_HEIGHT_VAR,
+  type NoteDetailPanelProps,
+} from "./NoteDetailPanel";
+// #2057 — the body was changed elsewhere while the user had unsaved typing.
+export {
+  NoteConflictBanner,
+  type NoteConflictBannerProps,
+  type NoteConflictBannerLabels,
+} from "./NoteConflictBanner";
 // The "registered as a template" confirmation (#1179) — name field + where
 // the new template now lives.
 export {
@@ -46,13 +56,19 @@ export {
   type DailyEntriesPanelProps,
   type DailyEntriesPanelEntry,
 } from "./DailyEntriesPanel";
-// 夕刊カテゴリ (#1046) — the evening block under the Daily body editor.
+// #2123 — the mood stars + four figures under the Daily body, and the
+// morning record above it (the evening card of #1046 went with it).
 export {
-  DailyEveningCard,
-  type DailyEveningCardProps,
-  type DailyEveningCardLabels,
-  type DailyEveningScheduleEntry,
-} from "./DailyEveningCard";
+  DailyDayFooter,
+  type DailyDayFooterProps,
+  type DailyDayFooterLabels,
+  type DailyDayFigure,
+} from "./DailyDayFooter";
+export {
+  DailyMorningNote,
+  type DailyMorningNoteProps,
+  type DailyMorningNoteLabels,
+} from "./DailyMorningNote";
 export {
   plainTextToTipTapDoc,
   dailyContentToEditorContent,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { Plus, Tag as TagIcon } from "lucide-react";
 import { TagPill } from "./TagPill";
 import { TagHeadingIcon } from "./TagHeadingIcon";
@@ -57,6 +57,13 @@ export interface WorkTagSelectorLabels {
   dialog: string;
   /** Shown as the field's description while `disabled`. */
   disabledHint: string;
+  /**
+   * Sheet shape only (#2054): the visible text of the full-width row — "add a
+   * tag" while live, and the short reason while disabled. Fall back to
+   * `addShort` / `disabledHint` when omitted.
+   */
+  addRow?: string;
+  disabledRow?: string;
 }
 
 export interface WorkTagSelectorProps {
@@ -89,6 +96,7 @@ export function WorkTagSelector({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const rowTextId = useId();
 
   // A target picked while the dropdown is open hides it — derived rather than
   // reset in an effect, which would be a cascading render for a value the
@@ -220,6 +228,84 @@ export function WorkTagSelector({
     </>
   );
 
+  const sheetPanel = sheet ? (
+    <BottomSheet
+      open={dropdownOpen}
+      onClose={() => setOpen(false)}
+      title={labels.dialog}
+      closeLabel={sheet.closeLabel}
+    >
+      {picker}
+    </BottomSheet>
+  ) : null;
+
+  /*
+   * The sheet shape is a full-width 44px row since #2054 (Claude Design plan A
+   * for the Mobile Work face): a sunken strip with the tag glyph, the chosen
+   * pills, and an "add" button that takes the rest of the row so a tap almost
+   * anywhere on it opens the sheet. Disabled, the strip turns into a dashed
+   * outline and the button says WHY in words — the old dimmed field left the
+   * reason in a `title` tooltip, which a phone never shows.
+   */
+  if (sheet) {
+    return (
+      <div
+        ref={containerRef}
+        data-testid="work-tag-selector"
+        aria-disabled={disabled || undefined}
+        className={cn(
+          "flex min-h-11 w-full flex-wrap items-center gap-2 rounded-lumen-lg px-3 text-lumen-text-tertiary",
+          disabled
+            ? "border border-dashed border-lumen-border"
+            : "bg-lumen-surface-sunken",
+          className,
+        )}
+      >
+        <TagIcon aria-hidden="true" className="size-lumen-icon-sm shrink-0" />
+        {!disabled &&
+          selected.map((tag) => (
+            <TagPill
+              key={tag.id}
+              name={tag.name}
+              color={tag.color}
+              icon={tag.icon ?? null}
+              removeLabel={labels.remove(tag.name)}
+              onRemove={() =>
+                onChange(selectedIds.filter((id) => id !== tag.id))
+              }
+              touch
+            />
+          ))}
+        <button
+          type="button"
+          disabled={disabled}
+          onClick={() => setOpen((v) => !v)}
+          // Live, the visible text IS the name when the host gives one, so a
+          // voice command that reads the row out ("タグを追加") hits it
+          // (WCAG 2.5.3). Disabled, the visible text is the reason: the name
+          // stays the action and the reason is read as the description.
+          aria-label={labels.addRow && !disabled ? undefined : labels.add}
+          aria-describedby={disabled ? rowTextId : undefined}
+          aria-expanded={dropdownOpen}
+          className={cn(
+            // min-w-24, not min-w-0: with a zero floor the button never wraps
+            // and is squeezed to nothing once three or four pills fill the
+            // line. With a floor it drops to the next line instead.
+            "flex min-h-11 min-w-24 flex-1 items-center text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
+            disabled ? "cursor-not-allowed text-xs" : "text-sm",
+          )}
+        >
+          <span id={rowTextId}>
+            {disabled
+              ? (labels.disabledRow ?? labels.disabledHint)
+              : (labels.addRow ?? labels.addShort)}
+          </span>
+        </button>
+        {sheetPanel}
+      </div>
+    );
+  }
+
   return (
     <div
       ref={containerRef}
@@ -260,7 +346,6 @@ export function WorkTagSelector({
           TAP_TARGET,
           "gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
           disabled && "cursor-not-allowed hover:bg-transparent",
-          sheet && "min-h-11",
         )}
       >
         <Plus size={14} aria-hidden="true" />
@@ -268,25 +353,14 @@ export function WorkTagSelector({
       </button>
       {disabled && <span className="sr-only">{labels.disabledHint}</span>}
 
-      {sheet ? (
-        <BottomSheet
-          open={dropdownOpen}
-          onClose={() => setOpen(false)}
-          title={labels.dialog}
-          closeLabel={sheet.closeLabel}
+      {dropdownOpen && (
+        <div
+          role="dialog"
+          aria-label={labels.dialog}
+          className="absolute right-0 top-full z-20 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-lumen-border bg-lumen-bg p-2 shadow-lg"
         >
           {picker}
-        </BottomSheet>
-      ) : (
-        dropdownOpen && (
-          <div
-            role="dialog"
-            aria-label={labels.dialog}
-            className="absolute right-0 top-full z-20 mt-1 w-64 max-w-[calc(100vw-2rem)] rounded-md border border-lumen-border bg-lumen-bg p-2 shadow-lg"
-          >
-            {picker}
-          </div>
-        )
+        </div>
       )}
     </div>
   );

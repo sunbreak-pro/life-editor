@@ -3,6 +3,8 @@ import { render, screen, fireEvent, act } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { clearRecentNotes, type NoteNode } from "@life-editor/shared";
 import { NotesView } from "../src/notes/NotesView";
+// Tag headings show only while a tag is selected since #2061.
+import { showAllTagGroups } from "./helpers";
 import { LONG_PRESS_MS } from "../src/notes/useLongPress";
 
 /*
@@ -171,6 +173,7 @@ const TAP = { detail: 1 };
 describe("Notes sidebar — long-press on narrow (#2008)", () => {
   it("opens the tag editor in a sheet and saves a rename", () => {
     render(<NotesView />);
+    showAllTagGroups();
     const heading = headingButton("Work");
 
     pointer(heading, "pointerdown", 20, 20);
@@ -195,6 +198,7 @@ describe("Notes sidebar — long-press on narrow (#2008)", () => {
 
   it("leaves a short tap to fold the group, as before", () => {
     render(<NotesView />);
+    showAllTagGroups();
     const heading = headingButton("Work");
 
     pointer(heading, "pointerdown", 20, 20);
@@ -209,6 +213,7 @@ describe("Notes sidebar — long-press on narrow (#2008)", () => {
 
   it("opens nothing when the finger travels (a scroll or a drag)", () => {
     render(<NotesView />);
+    showAllTagGroups();
     const heading = headingButton("Work");
 
     pointer(heading, "pointerdown", 20, 20);
@@ -220,6 +225,7 @@ describe("Notes sidebar — long-press on narrow (#2008)", () => {
 
   it("does not answer the next tap after a hold that sent no click", () => {
     render(<NotesView />);
+    showAllTagGroups();
     const heading = headingButton("Work");
 
     // A platform that sends no click after a hold.
@@ -239,6 +245,7 @@ describe("Notes sidebar — long-press on narrow (#2008)", () => {
 
   it("lets a keyboard click through after a hold that sent no click", () => {
     render(<NotesView />);
+    showAllTagGroups();
     const heading = headingButton("Work");
 
     pointer(heading, "pointerdown", 20, 20);
@@ -252,6 +259,7 @@ describe("Notes sidebar — long-press on narrow (#2008)", () => {
 
   it("stops Android's contextmenu on a tag heading, not on untagged", () => {
     render(<NotesView />);
+    showAllTagGroups();
     const tagged = fireEvent.contextMenu(headingButton("Work"));
     const untagged = fireEvent.contextMenu(
       headingButton("materials.notes.untagged"),
@@ -263,6 +271,7 @@ describe("Notes sidebar — long-press on narrow (#2008)", () => {
 
   it("offers nothing on the untagged bucket", () => {
     render(<NotesView />);
+    showAllTagGroups();
     const heading = headingButton("materials.notes.untagged");
 
     pointer(heading, "pointerdown", 20, 20);
@@ -274,6 +283,7 @@ describe("Notes sidebar — long-press on narrow (#2008)", () => {
   it("is not wired on Desktop, where right-click does the job", () => {
     state.isWide = true;
     render(<NotesView />);
+    showAllTagGroups();
     const heading = headingButton("Work");
 
     pointer(heading, "pointerdown", 20, 20);

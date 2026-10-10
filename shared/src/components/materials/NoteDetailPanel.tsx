@@ -1,4 +1,10 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 import {
   FileDown,
   FileStack,
@@ -42,6 +48,19 @@ import { FOCUS_RING } from "../styleTokens";
  * min-height collides with nothing.
  */
 const MENU_ITEM_TAP_FLOOR = "max-md:min-h-11";
+
+/*
+ * #2058 — the CSS custom property the panel publishes on its root while the
+ * header is sticky: the header's current height in px.
+ *
+ * Anything else in the body that sticks to the same scroller has to stop
+ * BELOW the header instead of sliding under it. The table toolbar
+ * (web/src/notes/TableControls.tsx) is that case: it was `top-0`, and with a
+ * sticky header above it a stuck table toolbar would sit behind the title.
+ * It reads `var(--note-sticky-header-h, 0px)`, so a host without the sticky
+ * header (or any other RichTextEditor host) keeps the old 0.
+ */
+export const NOTE_STICKY_HEADER_HEIGHT_VAR = "--note-sticky-header-h";
 
 /*
  * Title field. Mirrors NoteTitleInput / TodoTitleInput debounce-and-flush
@@ -260,6 +279,13 @@ export interface NoteDetailPanelProps {
    * they read as one row rather than one header field and one sidebar panel.
    */
   linksSlot?: ReactNode;
+  /**
+   * Host-injected formatting bar for the body (#2060), drawn in the header
+   * directly under the tag row — so with `stickyHeader` it stays on screen
+   * while the body scrolls. The bar drives the host's editor; this panel only
+   * places it. Omitted → no toolbar row.
+   */
+  toolbarSlot?: ReactNode;
   /** Host-injected rich-text editor (host wires key={noteId} for remount). */
   contentEditor?: ReactNode;
   /**
@@ -270,8 +296,38 @@ export interface NoteDetailPanelProps {
    * sidebar look, so existing callers are unaffected.
    */
   variant?: "sidebar" | "main";
+  /**
+   * Keep the header — title row, tag / link row and the rule under them —
+   * pinned to the top of whatever scrolls this panel while the body scrolls
+   * under it (#2058). Opt-in and independent of `variant`: the Notes host
+   * asks for it at both widths (narrow renders the "sidebar" variant), while
+   * any host that leaves it off gets the header exactly as before.
+   */
+  stickyHeader?: boolean;
   className?: string;
 }
+
+/*
+ * #2058 — the sticky header's own box, per variant.
+ *
+ * The negative side margins + matching padding stretch the header's opaque
+ * background across the card's padding, so a stuck header covers the body
+ * edge to edge instead of leaving a strip of scrolled text visible beside it.
+ * The small negative top margin + matching padding does the same upward: once
+ * stuck, the title gets a few px of breathing room from the scroller's edge.
+ * It is kept below the card's corner radius (main: 20px padding, -8px → 12px
+ * from the inner edge vs a 12px radius; sidebar: 12px, -4px → 8px vs 8px), so
+ * the square header never paints over the card's rounded top corners. Each
+ * pair nets to zero, so at rest the layout is the pre-#2058 one.
+ *
+ * The background is the card's own opaque token (§5 — no transparency), so at
+ * rest the header is indistinguishable from the card, and z-20 sits above the
+ * body's own sticky table toolbar (z-10).
+ */
+const STICKY_HEADER_BOX = {
+  main: "sticky top-0 z-20 -mx-5 -mt-2 bg-lumen-bg-secondary px-5 pt-2",
+  sidebar: "sticky top-0 z-20 -mx-3 -mt-1 bg-lumen-bg-secondary px-3 pt-1",
+} as const;
 
 export function NoteDetailPanel({
   noteId,
@@ -298,14 +354,43 @@ export function NoteDetailPanel({
   removePasswordLabel,
   tagsSlot,
   linksSlot,
+  toolbarSlot,
   contentEditor,
   variant = "sidebar",
+  stickyHeader = false,
   className,
 }: NoteDetailPanelProps) {
   const isMain = variant === "main";
   const hasTagRow = tagsSlot != null || linksSlot != null;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+
+  /*
+   * #2058 — publish the sticky header's height for the body's own sticky
+   * parts (see NOTE_STICKY_HEADER_HEIGHT_VAR). Measured, not computed: the
+   * header's height depends on how many lines the tag / link row wraps to.
+   * Absent ResizeObserver (jsdom) the variable simply stays unset and the
+   * readers fall back to 0.
+   */
+  const headerRef = useRef<HTMLDivElement>(null);
+  const [headerHeight, setHeaderHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (!stickyHeader) return;
+    const el = headerRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return;
+    const measure = () => setHeaderHeight(el.offsetHeight);
+    measure();
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [stickyHeader]);
+  const rootStyle =
+    stickyHeader && headerHeight != null
+      ? ({
+          [NOTE_STICKY_HEADER_HEIGHT_VAR]: `${headerHeight}px`,
+        } as CSSProperties)
+      : undefined;
+
   return (
     <div
       className={cn(
@@ -315,166 +400,188 @@ export function NoteDetailPanel({
           : "gap-3 rounded-lumen-md bg-lumen-bg-secondary p-3",
         className,
       )}
+      style={rootStyle}
     >
-      {/* Title row — title input + a single kebab (26px) that opens the actions
+      {/* Header — title row, tag row and the rule under them, as one block so
+          it can stick (#2058). Its gap repeats the card's, so with
+          `stickyHeader` off the rows sit exactly where they did before the
+          block existed. */}
+      <div
+        ref={headerRef}
+        data-testid="note-detail-header"
+        className={cn(
+          "flex flex-col",
+          isMain ? "gap-4" : "gap-3",
+          stickyHeader && STICKY_HEADER_BOX[variant],
+        )}
+      >
+        {/* Title row — title input + a single kebab (26px) that opens the actions
           menu (pin / delete) right-anchored just beneath it. Collapsing the
           per-action icons behind one affordance declutters the header (#284). */}
-      <div className="flex items-center gap-1.5">
-        <NoteTitleInput
-          key={noteId}
-          noteId={noteId}
-          initialTitle={title}
-          label={titleLabel}
-          onCommit={onTitleCommit}
-          isMain={isMain}
-          autoFocus={autoFocusTitle}
-          onAutoFocused={onTitleAutoFocused}
-        />
-        {/* Pinned marker (#885) — immediately left of the kebab, so the state
+        <div className="flex items-center gap-1.5">
+          <NoteTitleInput
+            key={noteId}
+            noteId={noteId}
+            initialTitle={title}
+            label={titleLabel}
+            onCommit={onTitleCommit}
+            isMain={isMain}
+            autoFocus={autoFocusTitle}
+            onAutoFocused={onTitleAutoFocused}
+          />
+          {/* Pinned marker (#885) — immediately left of the kebab, so the state
             reads at a glance instead of only inside the opened menu. Not a
             button: unpinning stays the menu's job, and a second control on the
             same act would be two ways to do one thing. Same place at both
             widths, because both host this panel. */}
-        {isPinned && (
-          <Pin
-            size={14}
-            {...(pinnedLabel
-              ? { role: "img", "aria-label": pinnedLabel }
-              : { "aria-hidden": true })}
-            className="shrink-0 fill-current text-lumen-accent"
-          />
-        )}
-        <div className="relative shrink-0">
-          <button
-            ref={menuTriggerRef}
-            type="button"
-            onClick={() => setMenuOpen((v) => !v)}
-            aria-haspopup="menu"
-            aria-expanded={menuOpen}
-            aria-label={moreActionsLabel}
-            className={cn(
-              "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md text-lumen-text-secondary",
-              "hover:bg-lumen-hover hover:text-lumen-text",
-              // #1840: 26px draws at 32 with the icon-only floor, which is a
-              // mouse target. The drawn box stays as it is and the HIT box
-              // grows, so the header does not change shape on Desktop.
-              "max-md:min-h-11 max-md:min-w-11",
-              FOCUS_RING,
-            )}
-          >
-            <MoreHorizontal size={16} aria-hidden />
-          </button>
-          <Menu
-            open={menuOpen}
-            onClose={() => setMenuOpen(false)}
-            anchorRef={menuTriggerRef}
-            align="end"
-            label={moreActionsLabel}
-          >
-            <MenuItem
-              className={MENU_ITEM_TAP_FLOOR}
-              icon={<Pin size={14} aria-hidden />}
-              onSelect={() => {
-                onTogglePin(noteId);
-                setMenuOpen(false);
-              }}
+          {isPinned && (
+            <Pin
+              size={14}
+              {...(pinnedLabel
+                ? { role: "img", "aria-label": pinnedLabel }
+                : { "aria-hidden": true })}
+              className="shrink-0 fill-current text-lumen-accent"
+            />
+          )}
+          <div className="relative shrink-0">
+            <button
+              ref={menuTriggerRef}
+              type="button"
+              onClick={() => setMenuOpen((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-label={moreActionsLabel}
+              className={cn(
+                "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md text-lumen-text-secondary",
+                "hover:bg-lumen-hover hover:text-lumen-text",
+                // #1840: 26px draws at 32 with the icon-only floor, which is a
+                // mouse target. The drawn box stays as it is and the HIT box
+                // grows, so the header does not change shape on Desktop.
+                "max-md:min-h-11 max-md:min-w-11",
+                FOCUS_RING,
+              )}
             >
-              {isPinned ? pinLabel : unpinLabel}
-            </MenuItem>
-            {/* #1179 — above the delete, below the pin: it files a COPY of
-                this note somewhere else rather than changing or destroying it,
-                so it does not belong next to the destructive row. */}
-            {onRegisterTemplate && registerTemplateLabel && (
+              <MoreHorizontal size={16} aria-hidden />
+            </button>
+            <Menu
+              open={menuOpen}
+              onClose={() => setMenuOpen(false)}
+              anchorRef={menuTriggerRef}
+              align="end"
+              label={moreActionsLabel}
+            >
               <MenuItem
                 className={MENU_ITEM_TAP_FLOOR}
-                icon={<FileStack size={14} aria-hidden />}
+                icon={<Pin size={14} aria-hidden />}
                 onSelect={() => {
-                  onRegisterTemplate();
+                  onTogglePin(noteId);
                   setMenuOpen(false);
                 }}
               >
-                {registerTemplateLabel}
+                {isPinned ? pinLabel : unpinLabel}
               </MenuItem>
-            )}
-            {/* #1181 — directly under the entry that files a template, because
+              {/* #1179 — above the delete, below the pin: it files a COPY of
+                this note somewhere else rather than changing or destroying it,
+                so it does not belong next to the destructive row. */}
+              {onRegisterTemplate && registerTemplateLabel && (
+                <MenuItem
+                  className={MENU_ITEM_TAP_FLOOR}
+                  icon={<FileStack size={14} aria-hidden />}
+                  onSelect={() => {
+                    onRegisterTemplate();
+                    setMenuOpen(false);
+                  }}
+                >
+                  {registerTemplateLabel}
+                </MenuItem>
+              )}
+              {/* #1181 — directly under the entry that files a template, because
                 the two are the same subject read in opposite directions. It
                 stays above the delete: applying is destructive to the BODY,
                 not to the note, and grouping it with the row that removes the
                 note would overstate it. */}
-            {onApplyTemplate && applyTemplateLabel && (
-              <MenuItem
-                className={MENU_ITEM_TAP_FLOOR}
-                icon={<FileDown size={14} aria-hidden />}
-                onSelect={() => {
-                  onApplyTemplate();
-                  setMenuOpen(false);
-                }}
-              >
-                {applyTemplateLabel}
-              </MenuItem>
-            )}
-            {/* #1843 — the lock sits just above the delete: it changes who can
+              {onApplyTemplate && applyTemplateLabel && (
+                <MenuItem
+                  className={MENU_ITEM_TAP_FLOOR}
+                  icon={<FileDown size={14} aria-hidden />}
+                  onSelect={() => {
+                    onApplyTemplate();
+                    setMenuOpen(false);
+                  }}
+                >
+                  {applyTemplateLabel}
+                </MenuItem>
+              )}
+              {/* #1843 — the lock sits just above the delete: it changes who can
                 read the body, which is heavier than the template rows and
                 lighter than removing the note. Only one of the pair is ever
                 passed, so the row reads as the one thing that can be done. */}
-            {onSetPassword && setPasswordLabel && (
+              {onSetPassword && setPasswordLabel && (
+                <MenuItem
+                  className={MENU_ITEM_TAP_FLOOR}
+                  icon={<Lock size={14} aria-hidden />}
+                  onSelect={() => {
+                    onSetPassword();
+                    setMenuOpen(false);
+                  }}
+                >
+                  {setPasswordLabel}
+                </MenuItem>
+              )}
+              {onRemovePassword && removePasswordLabel && (
+                <MenuItem
+                  className={MENU_ITEM_TAP_FLOOR}
+                  icon={<LockOpen size={14} aria-hidden />}
+                  onSelect={() => {
+                    onRemovePassword();
+                    setMenuOpen(false);
+                  }}
+                >
+                  {removePasswordLabel}
+                </MenuItem>
+              )}
               <MenuItem
                 className={MENU_ITEM_TAP_FLOOR}
-                icon={<Lock size={14} aria-hidden />}
+                icon={<Trash2 size={14} aria-hidden />}
+                variant="danger"
                 onSelect={() => {
-                  onSetPassword();
+                  onDelete(noteId);
                   setMenuOpen(false);
                 }}
               >
-                {setPasswordLabel}
+                {deleteLabel}
               </MenuItem>
-            )}
-            {onRemovePassword && removePasswordLabel && (
-              <MenuItem
-                className={MENU_ITEM_TAP_FLOOR}
-                icon={<LockOpen size={14} aria-hidden />}
-                onSelect={() => {
-                  onRemovePassword();
-                  setMenuOpen(false);
-                }}
-              >
-                {removePasswordLabel}
-              </MenuItem>
-            )}
-            <MenuItem
-              className={MENU_ITEM_TAP_FLOOR}
-              icon={<Trash2 size={14} aria-hidden />}
-              variant="danger"
-              onSelect={() => {
-                onDelete(noteId);
-                setMenuOpen(false);
-              }}
-            >
-              {deleteLabel}
-            </MenuItem>
-          </Menu>
+            </Menu>
+          </div>
         </div>
-      </div>
 
-      {/* Tag row — host-injected TagPicker (chips + "+ tag" pill), followed by
+        {/* Tag row — host-injected TagPicker (chips + "+ tag" pill), followed by
           the item links (#884): same row, links to the right of the tags. */}
-      {hasTagRow && (
-        <div className="flex flex-wrap items-center gap-1.5">
-          {tagsSlot}
-          {linksSlot}
-        </div>
-      )}
+        {hasTagRow && (
+          <div className="flex flex-wrap items-center gap-1.5">
+            {tagsSlot}
+            {linksSlot}
+          </div>
+        )}
 
-      {/* One full-width rule between the tag row and the body (#2033), the
+        {/* The body's formatting bar (#2060), under the tag row and above the
+          rule: inside the sticky block, so it stays in reach while the body
+          scrolls, and the rule remains the header's bottom edge. */}
+        {toolbarSlot}
+
+        {/* One full-width rule between the header and the body (#2033), the
           same at both widths — it replaced the "内容" caption the mobile sheet
           used to show while Desktop had no break at all. Drawn only when a tag
-          row sits above it: with no row the rule would hang under the title. */}
-      {contentEditor != null && hasTagRow && (
-        <hr
-          data-testid="note-detail-divider"
-          className="m-0 border-0 border-t border-lumen-border"
-        />
-      )}
+          row or toolbar sits above it: with neither, the rule would hang under
+          the title. Inside the header block, so a stuck header ends on this
+          line and the body visibly slides under it (#2058). */}
+        {contentEditor != null && (hasTagRow || toolbarSlot != null) && (
+          <hr
+            data-testid="note-detail-divider"
+            className="m-0 border-0 border-t border-lumen-border"
+          />
+        )}
+      </div>
 
       {/* Content — injected editor + a min-height floor via the wrapper. */}
       {contentEditor != null && (

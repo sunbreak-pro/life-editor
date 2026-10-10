@@ -10,6 +10,7 @@ import type { ReactNode } from "react";
 import type { NoteNode } from "@life-editor/shared";
 import { clearRecentNotes, recordNoteOpened } from "@life-editor/shared";
 import { NotesView } from "../src/notes/NotesView";
+import { showAllTagGroups } from "./helpers";
 
 /*
  * #588 — the Notes screen's host behaviour, pinned BEFORE the file was split
@@ -47,6 +48,8 @@ const state = vi.hoisted(() => ({
   tags: [] as unknown[],
   assignments: {} as Record<string, unknown[]>,
   searchQuery: "",
+  sortMode: "updatedAt" as "updatedAt" | "createdAt" | "title",
+  sortDirection: "asc" as "asc" | "desc",
   setNotePassword: vi.fn(),
   removeNotePassword: vi.fn(),
   bodySearchFailed: false,
@@ -79,6 +82,12 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     // pool itself is never fetched here (no DataService is injected).
     useSyncDomains: () => 0,
     useNotesUnifiedContext: () => ({
+      // #2057 — the body saves against a version through these.
+      saveNoteBody: vi.fn(async () => ({ status: "saved", updatedAt: "" })),
+      fetchNoteBodySnapshot: vi.fn(async () => null),
+      replaceNoteBody: vi.fn(async () => true),
+      adoptNoteBody: vi.fn(),
+      serverStampOf: () => null,
       notes: state.notes,
       deletedNotes: state.deletedNotes,
       selectedNote:
@@ -90,9 +99,9 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       searchQuery: state.searchQuery,
       setSearchQuery: state.setSearchQuery,
       bodySearchFailed: state.bodySearchFailed,
-      sortMode: "updatedAt",
+      sortMode: state.sortMode,
       setSortMode: state.setSortMode,
-      sortDirection: "asc",
+      sortDirection: state.sortDirection,
       setSortDirection: state.setSortDirection,
       isContentLoaded: () => state.contentLoaded,
       createNote: state.createNote,
@@ -120,11 +129,33 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
   };
 });
 
-vi.mock("../src/notes/RichTextEditor", () => ({
-  RichTextEditor: ({ noteId }: { noteId: string }) => (
-    <div data-testid="editor">{noteId}</div>
-  ),
-}));
+vi.mock("../src/notes/RichTextEditor", async () => {
+  const { useEffect } = await import("react");
+  // #2060: the body hands its editor up for the header's formatting bar. A
+  // stand-in with just what FormatToolbar reads — editable, nothing active.
+  const fakeEditor = {
+    isEditable: true,
+    isDestroyed: false,
+    isActive: () => false,
+    on: () => {},
+    off: () => {},
+  };
+  return {
+    RichTextEditor: ({
+      noteId,
+      onEditorChange,
+    }: {
+      noteId: string;
+      onEditorChange?: (editor: unknown) => void;
+    }) => {
+      useEffect(() => {
+        onEditorChange?.(fakeEditor);
+        return () => onEditorChange?.(null);
+      }, [onEditorChange]);
+      return <div data-testid="editor">{noteId}</div>;
+    },
+  };
+});
 
 vi.mock("../src/wikitag", () => ({
   TagPicker: () => <div data-testid="tag-picker" />,
@@ -178,6 +209,8 @@ beforeEach(() => {
     "note-a": [{ itemId: "note-a", tagId: "tag-work", isDeleted: false }],
   };
   state.searchQuery = "";
+  state.sortMode = "updatedAt";
+  state.sortDirection = "asc";
   state.bodySearchFailed = false;
   for (const value of Object.values(state)) {
     if (typeof value === "function" && "mockClear" in value) value.mockClear();
@@ -198,6 +231,32 @@ function groupHeading(name: string): HTMLElement {
   return found;
 }
 
+/**
+ * The tag filter's button (#2059). Named by its visible label while nothing is
+ * selected and by the "N selected" label once something is.
+ */
+function tagFilterButton(): HTMLElement {
+  return screen.getByRole("button", {
+    name: /^materials\.notes\.tagFilter(Label|Selected)/,
+  });
+}
+
+/** Opens the tag filter panel if it is shut, and returns it (#2059). */
+function openTagFilter(): HTMLElement {
+  const button = tagFilterButton();
+  if (button.getAttribute("aria-expanded") !== "true") fireEvent.click(button);
+  return screen.getByRole("group", { name: "materials.notes.tagFilterPanel" });
+}
+
+/** The panel option whose visible text starts with this tag name. */
+function filterOption(name: string): HTMLElement {
+  const found = within(openTagFilter())
+    .getAllByRole("button")
+    .find((b) => b.textContent?.startsWith(name));
+  if (!found) throw new Error(`no tag filter option named ${name}`);
+  return found;
+}
+
 describe("NotesView — loading", () => {
   it("shows a skeleton instead of either surface while notes load", () => {
     state.isLoading = true;
@@ -211,8 +270,21 @@ describe("NotesView — loading", () => {
 });
 
 describe("NotesView — desktop (wide)", () => {
-  it("groups the side list under tag headings, untagged last", () => {
+  it("opens on a flat list with no tag headings (#2061)", () => {
     render(<NotesView />);
+
+    screen.getByRole("button", { name: "Alpha" });
+    screen.getByRole("button", { name: "Beta" });
+    expect(
+      screen.queryAllByRole("button", {
+        name: /materials\.notes\.(collapse|expand)Group/,
+      }),
+    ).toHaveLength(0);
+  });
+
+  it("groups the side list under tag headings, untagged last, with tags selected", () => {
+    render(<NotesView />);
+    showAllTagGroups();
 
     // Group headings come from the REAL buildTagGroups: a tag heading per
     // active tag plus the trailing untagged bucket.
@@ -378,6 +450,7 @@ describe("NotesView — desktop (wide)", () => {
 
   it("collapses a tag group and hides only that group's rows", () => {
     render(<NotesView />);
+    showAllTagGroups();
 
     fireEvent.click(groupHeading("Work"));
 
@@ -593,24 +666,28 @@ describe("NotesView — tour wiring (#1125)", () => {
   it("anchors the follow step on the tag filter, and reports picking one", () => {
     render(<NotesView />);
 
-    // Conditional by nature: the filter row only renders with more than one
+    // Conditional by nature: the filter only renders with more than one
     // group to choose between, which is why the step tolerates a missing
-    // anchor rather than waiting forever (registry.ts).
-    const chips = anchor("materials-tag-filter");
-    const chip = within(chips).getAllByRole("button")[0];
-    fireEvent.click(chip);
+    // anchor rather than waiting forever (registry.ts). Since #2059 the anchor
+    // holds the button and the panel it opens.
+    const filter = anchor("materials-tag-filter");
+    within(filter).getByRole("button", {
+      name: "materials.notes.tagFilterLabel",
+    });
+    // Opening the panel is not following a tag; picking one is.
+    openTagFilter();
+    expect(state.notifyAction).not.toHaveBeenCalledWith("tag-filtered");
+    fireEvent.click(filterOption("Work"));
 
     expect(state.notifyAction).toHaveBeenCalledWith("tag-filtered");
   });
 
   it("does not treat clearing the tag filter as following one", () => {
     render(<NotesView />);
-    const chips = anchor("materials-tag-filter");
-    const chip = within(chips).getAllByRole("button")[0];
 
-    fireEvent.click(chip); // select
+    fireEvent.click(filterOption("Work")); // select
     state.notifyAction.mockClear();
-    fireEvent.click(chip); // the active chip clears it (#369)
+    fireEvent.click(filterOption("Work")); // the active option clears it (#369)
 
     expect(state.notifyAction).not.toHaveBeenCalledWith("tag-filtered");
   });
@@ -644,10 +721,12 @@ describe("NotesView — mobile (narrow)", () => {
   it("puts the same list in the panel the desktop one uses", () => {
     render(<NotesView />);
 
-    // The same grouped rows the desktop sidebar draws. (#1286 removed the
-    // Trash disclosure that used to be checked here alongside them.)
-    groupHeading("Work");
+    // The same rows the desktop sidebar draws — the flat default list since
+    // #2061, and the same tag groups once a tag is selected. (#1286 removed
+    // the Trash disclosure that used to be checked here alongside them.)
     screen.getByRole("button", { name: "Alpha" });
+    showAllTagGroups();
+    groupHeading("Work");
   });
 
   it("selects into the main area and gets the drawer out of the way", () => {
@@ -734,20 +813,7 @@ describe("NotesView — mobile (narrow)", () => {
  * "one selection" apart at all.
  */
 describe("NotesView — multi-select tag filter (#1288)", () => {
-  /** The filter chip whose visible text starts with this tag name. */
-  function filterChip(name: string): HTMLElement {
-    // The tour anchor is the row's own wrapper — the same handle the #1125
-    // cases use, resolved locally because theirs lives in another describe.
-    const row = document.querySelector<HTMLElement>(
-      '[data-tour-id="materials-tag-filter"]',
-    );
-    if (!row) throw new Error("the tag filter row is not on screen");
-    const found = within(row)
-      .getAllByRole("button")
-      .find((b) => b.textContent?.startsWith(name));
-    if (!found) throw new Error(`no filter chip named ${name}`);
-    return found;
-  }
+  const filterChip = filterOption;
 
   it("shows both groups when two tags are selected", () => {
     render(<NotesView />);
@@ -757,7 +823,7 @@ describe("NotesView — multi-select tag filter (#1288)", () => {
     expect(screen.queryByText("Beta")).toBeNull();
     screen.getByText("Alpha");
 
-    // Two selected → both. OR, not AND: a chip means "show this heading".
+    // Two selected → both. OR, not AND: an option means "show this heading".
     fireEvent.click(filterChip("materials.notes.untagged"));
     screen.getByText("Alpha");
     screen.getByText("Beta");
@@ -778,50 +844,9 @@ describe("NotesView — multi-select tag filter (#1288)", () => {
     ).toBeNull();
   });
 
-  it("caps an unfiltered group's rows and opens it on request", () => {
-    // Six notes under one tag — one past the cap, so exactly one row hides.
-    const many = ["A", "B", "C", "D", "E", "F"].map((n) =>
-      note({ id: `note-${n}`, title: `Note ${n}` }),
-    );
-    state.notes = many;
-    state.assignments = Object.fromEntries(
-      many.map((n) => [
-        n.id,
-        [{ itemId: n.id, tagId: "tag-work", isDeleted: false }],
-      ]),
-    );
-    render(<NotesView />);
-
-    expect(screen.queryByText("Note F")).toBeNull();
-    fireEvent.click(screen.getByText("materials.notes.groupMoreRows|1"));
-    screen.getByText("Note F");
-  });
-
-  it("folds the group's rows back under the cap (#1842)", () => {
-    // The button used to open only. The heading's chevron was offered as the
-    // way back, but that folds the WHOLE group and is remembered between
-    // sessions, while this cap is a row count and is not.
-    const many = ["A", "B", "C", "D", "E", "F"].map((n) =>
-      note({ id: `note-${n}`, title: `Note ${n}` }),
-    );
-    state.notes = many;
-    state.assignments = Object.fromEntries(
-      many.map((n) => [
-        n.id,
-        [{ itemId: n.id, tagId: "tag-work", isDeleted: false }],
-      ]),
-    );
-    render(<NotesView />);
-
-    fireEvent.click(screen.getByText("materials.notes.groupMoreRows|1"));
-    const fewer = screen.getByText("materials.notes.tagFilterLess");
-    expect(fewer.getAttribute("aria-expanded")).toBe("true");
-
-    fireEvent.click(fewer);
-    expect(screen.queryByText("Note F")).toBeNull();
-    screen.getByText("materials.notes.groupMoreRows|1");
-  });
-
+  // #1288's per-group row cap and #1842's "show fewer" were pinned here. Both
+  // went with #2061: the cap only applied with NO tag selected, and that state
+  // draws the flat default list now, so no group is ever capped.
   it("does not cap a group the user filtered to", () => {
     const many = ["A", "B", "C", "D", "E", "F"].map((n) =>
       note({ id: `note-${n}`, title: `Note ${n}` }),
@@ -841,7 +866,363 @@ describe("NotesView — multi-select tag filter (#1288)", () => {
 
     // Asking for the tag IS asking for its contents — nothing is held back.
     screen.getByText("Note F");
-    expect(screen.queryByText(/materials\.notes\.groupMoreRows/)).toBeNull();
+    expect(screen.queryByText(/materials\.notes\.otherItems/)).toBeNull();
+  });
+});
+
+/*
+ * #2059 — the chip row became a button that opens a tag panel inside the
+ * sidebar. Same filter underneath (multi-select, OR, the untagged bucket
+ * included); what changed is that it costs one row until it is asked for.
+ * Both widths, because the list is the same component in the push-in sidebar
+ * and in the narrow drawer (#876).
+ */
+describe("NotesView — the tag filter button and panel (#2059)", () => {
+  it.each([true, false])(
+    "draws a shut button over the unfiltered list (isWide=%s)",
+    (isWide) => {
+      state.isWide = isWide;
+      render(<NotesView />);
+
+      const button = tagFilterButton();
+      expect(button.getAttribute("aria-expanded")).toBe("false");
+      expect(
+        screen.queryByRole("group", { name: "materials.notes.tagFilterPanel" }),
+      ).toBeNull();
+      // Nothing selected: every note is listed (flat since #2061).
+      screen.getByText("Alpha");
+      screen.getByText("Beta");
+    },
+  );
+
+  it.each([true, false])(
+    "filters from the panel, counts on the button, and clears back (isWide=%s)",
+    (isWide) => {
+      state.isWide = isWide;
+      render(<NotesView />);
+
+      // The untagged bucket is an option like any tag.
+      within(openTagFilter()).getByRole("button", {
+        name: /materials\.notes\.untagged/,
+      });
+      fireEvent.click(filterOption("Work"));
+
+      expect(screen.queryByText("Beta")).toBeNull();
+      screen.getByText("Alpha");
+      expect(filterOption("Work").getAttribute("aria-pressed")).toBe("true");
+      expect(tagFilterButton().getAttribute("aria-label")).toBe(
+        "materials.notes.tagFilterSelected|1",
+      );
+
+      fireEvent.click(screen.getByLabelText("materials.notes.tagFilterClear"));
+
+      screen.getByText("Alpha");
+      screen.getByText("Beta");
+      expect(tagFilterButton().getAttribute("aria-label")).toBeNull();
+    },
+  );
+
+  it("closes on Esc, keeps the filter on, and hands the focus back", () => {
+    render(<NotesView />);
+    fireEvent.click(filterOption("Work"));
+    const option = filterOption("Work");
+    option.focus();
+
+    fireEvent.keyDown(option, { key: "Escape" });
+
+    expect(
+      screen.queryByRole("group", { name: "materials.notes.tagFilterPanel" }),
+    ).toBeNull();
+    expect(document.activeElement).toBe(tagFilterButton());
+    // Closing the panel is not clearing the filter.
+    expect(screen.queryByText("Beta")).toBeNull();
+  });
+});
+
+/*
+ * #2061 — the sidebar's default list: pinned notes first, then the current
+ * sort, 15 rows in all, and "Other items (N)" under the 15th for the rest —
+ * a flyout on the sidebar's left edge on wide, a view inside the drawer on
+ * narrow. The tag-grouped list is what the tag filter shows.
+ *
+ * The ordering rules themselves (every sort mode, pinned overflow) are pinned
+ * on the pure function in shared/tests/defaultNoteList.test.ts; these pin the
+ * host wiring around it.
+ */
+describe("NotesView — the default list (#2061)", () => {
+  /** `count` untagged notes "Note 01"…, updated a day apart (01 the oldest). */
+  function manyNotes(count: number): NoteNode[] {
+    return Array.from({ length: count }, (_, i) => {
+      const n = String(i + 1).padStart(2, "0");
+      return note({
+        id: `note-${n}`,
+        title: `Note ${n}`,
+        updatedAt: `2026-08-${n}T00:00:00Z`,
+        createdAt: `2026-07-${n}T00:00:00Z`,
+      });
+    });
+  }
+
+  /** The note titles the sidebar lists, top to bottom. */
+  function listedTitles(root: HTMLElement = document.body): string[] {
+    return within(root)
+      .queryAllByRole("listitem")
+      .map((li) => li.querySelector("button")?.textContent ?? "")
+      .filter((t) => t !== "");
+  }
+
+  const othersButton = () =>
+    screen.getByRole("button", { name: /^materials\.notes\.otherItems\|/ });
+
+  it("puts pinned notes first, then follows the current sort", () => {
+    const old = note({
+      id: "n-old",
+      title: "Old",
+      updatedAt: "2026-08-01T00:00:00Z",
+      createdAt: "2026-08-03T00:00:00Z",
+    });
+    const fresh = note({
+      id: "n-new",
+      title: "New",
+      updatedAt: "2026-08-03T00:00:00Z",
+      createdAt: "2026-08-01T00:00:00Z",
+    });
+    const pinned = note({
+      id: "n-pin",
+      title: "Pinned",
+      isPinned: true,
+      updatedAt: "2026-08-02T00:00:00Z",
+      createdAt: "2026-08-02T00:00:00Z",
+    });
+    state.notes = [old, pinned, fresh];
+    state.assignments = {};
+    // Updated, newest first (the date modes read "asc" as newest-first).
+    const { rerender } = render(<NotesView />);
+    expect(listedTitles()).toEqual(["Pinned", "New", "Old"]);
+
+    // Changing the sort setting reorders the default list behind the pin.
+    state.sortMode = "createdAt";
+    rerender(<NotesView />);
+    expect(listedTitles()).toEqual(["Pinned", "Old", "New"]);
+
+    state.sortMode = "title";
+    state.sortDirection = "desc";
+    rerender(<NotesView />);
+    expect(listedTitles()).toEqual(["Pinned", "Old", "New"]);
+
+    state.sortDirection = "asc";
+    rerender(<NotesView />);
+    expect(listedTitles()).toEqual(["Pinned", "New", "Old"]);
+  });
+
+  it("shows 15 rows and offers the rest as 'Other items'", () => {
+    state.notes = manyNotes(20);
+    state.assignments = {};
+    render(<NotesView />);
+
+    const titles = listedTitles();
+    expect(titles).toHaveLength(15);
+    // Newest first: Note 20 … Note 06; the five oldest are the others.
+    expect(titles[0]).toBe("Note 20");
+    expect(titles[14]).toBe("Note 06");
+    expect(othersButton().textContent).toContain(
+      "materials.notes.otherItems|5",
+    );
+  });
+
+  it("offers no 'Other items' at 15 notes or fewer", () => {
+    state.notes = manyNotes(15);
+    state.assignments = {};
+    render(<NotesView />);
+
+    expect(listedTitles()).toHaveLength(15);
+    expect(
+      screen.queryByRole("button", { name: /materials\.notes\.otherItems/ }),
+    ).toBeNull();
+  });
+
+  it("does not make the default list's rows drag sources (#1687 stays grouped)", () => {
+    render(<NotesView />);
+
+    const flatRow = screen.getByRole("button", { name: "Alpha" }).closest("li");
+    expect(flatRow?.getAttribute("aria-label")).toBeNull();
+
+    showAllTagGroups();
+    const groupedRow = screen
+      .getByRole("button", { name: "Alpha" })
+      .closest("li");
+    expect(groupedRow?.getAttribute("aria-label")).toBe(
+      "materials.notes.assignTagHint",
+    );
+  });
+
+  it("drops the cap while a search is on, with no 'Other items'", () => {
+    state.notes = manyNotes(20);
+    state.assignments = {};
+    state.searchQuery = "Note";
+    render(<NotesView />);
+
+    expect(listedTitles()).toHaveLength(20);
+    expect(
+      screen.queryByRole("button", { name: /materials\.notes\.otherItems/ }),
+    ).toBeNull();
+  });
+
+  it("switches to the tag groups while a tag is selected, and back when cleared", () => {
+    render(<NotesView />);
+
+    fireEvent.click(filterOption("Work"));
+    groupHeading("Work");
+    expect(screen.queryByText("Beta")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText("materials.notes.tagFilterClear"));
+    expect(
+      screen.queryAllByRole("button", {
+        name: /materials\.notes\.(collapse|expand)Group/,
+      }),
+    ).toHaveLength(0);
+    screen.getByText("Alpha");
+    screen.getByText("Beta");
+  });
+
+  describe("wide — the flyout", () => {
+    beforeEach(() => {
+      state.notes = manyNotes(20);
+      state.assignments = {};
+    });
+
+    const flyout = () =>
+      screen.getByRole("dialog", { name: "materials.notes.otherItems|5" });
+
+    it("opens the rest beside the sidebar and moves the focus into it", () => {
+      render(<NotesView />);
+
+      fireEvent.click(othersButton());
+
+      expect(othersButton().getAttribute("aria-expanded")).toBe("true");
+      expect(othersButton().getAttribute("aria-controls")).toBe(flyout().id);
+      expect(listedTitles(flyout())).toEqual([
+        "Note 05",
+        "Note 04",
+        "Note 03",
+        "Note 02",
+        "Note 01",
+      ]);
+      expect(document.activeElement).toBe(
+        within(flyout()).getByRole("button", {
+          name: "materials.notes.closeOtherItems",
+        }),
+      );
+    });
+
+    it("closes on Esc and returns the focus to 'Other items'", () => {
+      render(<NotesView />);
+      fireEvent.click(othersButton());
+
+      fireEvent.keyDown(document.activeElement as HTMLElement, {
+        key: "Escape",
+      });
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(document.activeElement).toBe(othersButton());
+    });
+
+    it("closes from its close button", () => {
+      render(<NotesView />);
+      fireEvent.click(othersButton());
+
+      fireEvent.click(
+        within(flyout()).getByRole("button", {
+          name: "materials.notes.closeOtherItems",
+        }),
+      );
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(document.activeElement).toBe(othersButton());
+    });
+
+    it("closes on a press outside it", () => {
+      render(<NotesView />);
+      fireEvent.click(othersButton());
+
+      fireEvent.pointerDown(document.body);
+
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+
+    it("opens the note picked from it and gets out of its way", () => {
+      render(<NotesView />);
+      fireEvent.click(othersButton());
+
+      fireEvent.click(
+        within(flyout()).getByRole("button", { name: "Note 03" }),
+      );
+
+      expect(state.setSelectedNoteId).toHaveBeenCalledExactlyOnceWith(
+        "note-03",
+      );
+      expect(screen.queryByRole("dialog")).toBeNull();
+    });
+  });
+
+  describe("narrow — the view inside the drawer", () => {
+    beforeEach(() => {
+      state.isWide = false;
+      state.notes = manyNotes(20);
+      state.assignments = {};
+    });
+
+    it("replaces the list with the rest, behind a back button", () => {
+      render(<NotesView />);
+      // A thumb-sized entry.
+      expect(othersButton().classList.contains("max-md:min-h-11")).toBe(true);
+
+      fireEvent.click(othersButton());
+
+      // No overlay on an overlay: the drawer's own list gives way.
+      expect(screen.queryByRole("dialog")).toBeNull();
+      expect(screen.queryByRole("button", { name: "Note 20" })).toBeNull();
+      const view = screen.getByRole("region", {
+        name: "materials.notes.otherItems|5",
+      });
+      expect(listedTitles(view)).toEqual([
+        "Note 05",
+        "Note 04",
+        "Note 03",
+        "Note 02",
+        "Note 01",
+      ]);
+      const back = within(view).getByRole("button", {
+        name: "materials.notes.backToList",
+      });
+      expect(document.activeElement).toBe(back);
+      expect(back.classList.contains("max-md:min-h-11")).toBe(true);
+      expect(back.classList.contains("max-md:min-w-11")).toBe(true);
+    });
+
+    it("goes back to the list and to 'Other items'", () => {
+      render(<NotesView />);
+      fireEvent.click(othersButton());
+
+      fireEvent.click(
+        screen.getByRole("button", { name: "materials.notes.backToList" }),
+      );
+
+      screen.getByRole("button", { name: "Note 20" });
+      expect(document.activeElement).toBe(othersButton());
+    });
+
+    it("opens a note from it and closes the drawer", () => {
+      render(<NotesView />);
+      fireEvent.click(othersButton());
+
+      fireEvent.click(screen.getByRole("button", { name: "Note 02" }));
+
+      expect(state.setSelectedNoteId).toHaveBeenCalledExactlyOnceWith(
+        "note-02",
+      );
+      expect(state.close).toHaveBeenCalled();
+    });
   });
 });
 
@@ -862,8 +1243,8 @@ describe("NotesView — the tag chips carry the tag's own icon (#1365)", () => {
       .filter((match): match is RegExpExecArray => match !== null)
       .map((match) => match[1]);
 
-  const chipRow = () =>
-    screen.getByRole("group", { name: "materials.notes.tagFilterLabel" });
+  // The chips became the options of the #2059 panel; the glyph rides along.
+  const chipRow = openTagFilter;
 
   it("draws the stored icon", () => {
     state.tags = [{ ...WORK_TAG, icon: "Star" }];
@@ -902,14 +1283,8 @@ describe("NotesView — a search that matches nothing (#1470)", () => {
     state.searchQuery = "ZZZQQNOMATCH";
   });
 
-  /** The tag-filter row's own wrapper (the #1125 tour anchor). */
-  function chipRow(): HTMLElement {
-    const row = document.querySelector<HTMLElement>(
-      '[data-tour-id="materials-tag-filter"]',
-    );
-    if (!row) throw new Error("the tag filter row is not on screen");
-    return row;
-  }
+  /** The tag filter's options — the #2059 panel, opened. */
+  const chipRow = openTagFilter;
 
   it("says nothing matched rather than that the vault is empty", () => {
     render(<NotesView />);
@@ -984,13 +1359,7 @@ describe("NotesView — a search that matches nothing, on narrow (#1470)", () =>
     state.searchQuery = "ZZZQQNOMATCH";
   });
 
-  function chipRow(): HTMLElement {
-    const row = document.querySelector<HTMLElement>(
-      '[data-tour-id="materials-tag-filter"]',
-    );
-    if (!row) throw new Error("the tag filter row is not on screen");
-    return row;
-  }
+  const chipRow = openTagFilter;
 
   it("says nothing matched, in the drawer and in the panel behind it", () => {
     render(<NotesView />);
@@ -1099,10 +1468,10 @@ describe("NotesView — the password entries in the kebab (#1843)", () => {
       render(<NotesView />);
 
       fireEvent.click(screen.getByLabelText("notesView.moreActions"));
-      expect(screen.queryByText("materials.notes.password.setEntry")).toBeNull();
-      fireEvent.click(
-        screen.getByText("materials.notes.password.removeEntry"),
-      );
+      expect(
+        screen.queryByText("materials.notes.password.setEntry"),
+      ).toBeNull();
+      fireEvent.click(screen.getByText("materials.notes.password.removeEntry"));
 
       const dialog = await screen.findByRole("dialog");
       // Removing is not the decision the warning is about.
@@ -1149,5 +1518,102 @@ describe("NotesView — a body search that failed (#1972)", () => {
     render(<NotesView />);
 
     expect(screen.queryByText("materials.notes.bodySearchFailed")).toBeNull();
+  });
+});
+
+/*
+ * #2058 — the title and tags stay on screen while the body scrolls, at both
+ * widths. The two widths scroll different elements (the page scroller on
+ * wide, the main column on narrow), and `position: sticky` binds to whichever
+ * that is, so what this host owns is only that it ASKS for the sticky header
+ * on both — narrow renders the panel's "sidebar" variant, which must not be
+ * left out. The sticky mechanics themselves are pinned in shared/.
+ */
+describe("NotesView — sticky note header (#2058)", () => {
+  it.each([
+    ["wide", true],
+    ["narrow", false],
+  ])("pins the title and tags above the body on %s", (_, isWide) => {
+    state.isWide = isWide;
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    const header = screen.getByTestId("note-detail-header");
+    expect(header.className).toContain("sticky");
+    within(header).getByLabelText("notesView.detailTitle");
+    within(header).getByTestId("tag-picker");
+    // The body scrolls under the header, so it is not part of it.
+    expect(within(header).queryByTestId("editor")).toBeNull();
+    screen.getByTestId("editor");
+    // The scroll owner on narrow is the main column itself (#875).
+    if (!isWide) {
+      expect(header.closest(".overflow-y-auto")).not.toBeNull();
+    }
+  });
+
+  it("keeps the wide link row inside the pinned header", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    const header = screen.getByTestId("note-detail-header");
+    within(header).getByTestId("link-panel");
+  });
+});
+
+/*
+ * #2060 — the formatting bar rides in the pinned header at both widths, on
+ * the editor the body hands up. The commands themselves are pinned in
+ * formatToolbar.test.tsx against a real editor.
+ */
+describe("NotesView — formatting toolbar (#2060)", () => {
+  function toolbarButtons(): HTMLButtonElement[] {
+    const header = screen.getByTestId("note-detail-header");
+    const bar = within(header).getByRole("toolbar", {
+      name: "materials.notes.formatToolbar.label",
+    });
+    return within(bar).getAllByRole("button") as HTMLButtonElement[];
+  }
+
+  it.each([
+    ["wide", true],
+    ["narrow", false],
+  ])(
+    "sits in the pinned header on %s, live once the body mounts",
+    (_, isWide) => {
+      state.isWide = isWide;
+      state.selectedId = "note-a";
+      render(<NotesView />);
+
+      const buttons = toolbarButtons();
+      expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual([
+        "materials.notes.formatToolbar.heading1",
+        "materials.notes.formatToolbar.heading2",
+        "materials.notes.formatToolbar.bold",
+        "materials.notes.formatToolbar.italic",
+        "materials.notes.formatToolbar.strike",
+        "materials.notes.formatToolbar.horizontalRule",
+      ]);
+      for (const b of buttons) expect(b.disabled).toBe(false);
+    },
+  );
+
+  it("is switched off over a password-locked note", () => {
+    state.notes = [
+      note({ id: "note-locked", title: "Sealed", hasPassword: true }),
+    ];
+    state.selectedId = "note-locked";
+    render(<NotesView />);
+
+    for (const b of toolbarButtons()) expect(b.disabled).toBe(true);
+  });
+
+  it("is switched off over an edit-locked note", () => {
+    state.notes = [
+      note({ id: "note-ro", title: "Frozen", isEditLocked: true }),
+    ];
+    state.selectedId = "note-ro";
+    render(<NotesView />);
+
+    for (const b of toolbarButtons()) expect(b.disabled).toBe(true);
   });
 });

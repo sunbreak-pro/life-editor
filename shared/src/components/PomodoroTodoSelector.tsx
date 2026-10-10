@@ -43,12 +43,20 @@ export interface WorkTargetOption {
   subtitle?: string;
 }
 
-/** Leading glyph per kind — the only thing that says which list a row is in. */
-export function workTargetIcon(kind: WorkTargetOption["kind"], size = 15) {
+/**
+ * Leading glyph per kind — the only thing that says which list a row is in.
+ * `className` wins over `size` (CSS width / height outrank the attribute), so
+ * a caller on the icon steps passes `size-lumen-icon-*` there (#2036).
+ */
+export function workTargetIcon(
+  kind: WorkTargetOption["kind"],
+  size = 15,
+  className?: string,
+) {
   return kind === "event" ? (
-    <CalendarDays size={size} aria-hidden="true" />
+    <CalendarDays size={size} aria-hidden="true" className={className} />
   ) : (
-    <CheckSquare size={size} aria-hidden="true" />
+    <CheckSquare size={size} aria-hidden="true" className={className} />
   );
 }
 
@@ -57,6 +65,47 @@ export function workTargetChipClass(kind: WorkTargetOption["kind"]): string {
   return kind === "event"
     ? "bg-lumen-chip-event-bg text-lumen-chip-event-fg"
     : "bg-lumen-chip-task-bg text-lumen-chip-task-fg";
+}
+
+/*
+ * The kind glyph on a neutral disc (#2054, plan A). The Mobile Work face
+ * draws every work target this way — the link row, the sheet's rows, the
+ * completion chip and the history rows — so the only colour on a row is the
+ * glyph's, and the phase colour keeps the badge / ring / main button to
+ * itself. The glyph keeps the kind colours the rest of the app already uses
+ * for tasks and events (the chip-task / chip-event fg tokens) rather than the
+ * plan's accent / info, so a task reads the same here as in the calendar.
+ */
+const GLYPH_TONE: Record<WorkTargetOption["kind"], string> = {
+  todo: "text-lumen-chip-task-fg",
+  event: "text-lumen-chip-event-fg",
+};
+
+export function WorkTargetGlyph({
+  kind,
+  size = "md",
+}: {
+  kind: WorkTargetOption["kind"];
+  /** md = 32px disc (rows), sm = 24px disc (the completion chip). */
+  size?: "md" | "sm";
+}) {
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        "flex shrink-0 items-center justify-center rounded-full",
+        size === "md"
+          ? "h-8 w-8 border border-lumen-border bg-lumen-bg-secondary"
+          : "h-6 w-6 bg-lumen-bg",
+        GLYPH_TONE[kind],
+      )}
+    >
+      {/* Both discs carry the smallest icon step: the plan's 16 / 14px glyphs
+          already render at the icon floor today, so one step keeps them the
+          size they were while letting them follow the font-size setting. */}
+      {workTargetIcon(kind, undefined, "size-lumen-icon-sm")}
+    </span>
+  );
 }
 
 export interface PomodoroTodoSelectorLabels {

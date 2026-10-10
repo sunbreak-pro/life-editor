@@ -447,6 +447,7 @@ export {
   type WorkTargetOption,
   workTargetIcon,
   workTargetChipClass,
+  WorkTargetGlyph,
 } from "./PomodoroTodoSelector";
 // #1666: the Work sidebar's history tab.
 export {
@@ -454,6 +455,7 @@ export {
   type WorkHistoryListProps,
   type WorkHistoryListLabels,
   type WorkHistoryEntry,
+  type WorkHistoryGroup,
   type WorkHistoryTag,
 } from "./WorkHistoryList";
 // #1665: the free session's tag field, drawn beside the link-target selector.
@@ -475,6 +477,8 @@ export {
   type PomodoroPresetOption,
   // #714: the patch the save button hands the host + what a preset captures.
   type PomodoroSettingsPatch,
+  type PomodoroSettingsDrawer,
+  type PomodoroNumberKey,
   type PomodoroPresetValues,
 } from "./PomodoroSettings";
 export {
@@ -510,6 +514,9 @@ export * from "./briefing";
 // of one picture of every relationship at once. Pure presentational — the
 // derivation is a pure function and the host injects data + copy (§6.4).
 export * from "./TagHub";
+// Goal tree (#2108) — Connect's second tab: the year → month → week goals
+// with their linked todos, and the right panel for the picked goal.
+export * from "./goalTree";
 // Schedule (W8) — week/day time grid primitive + pure layout/date helpers.
 // Pure presentation: items + already-translated labels injected by the host
 // (§6.4). The schedule_items CRUD + RoutineScheduleSync stay host-side.

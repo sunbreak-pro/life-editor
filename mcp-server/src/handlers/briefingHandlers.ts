@@ -7,10 +7,7 @@ import {
   localWeekStart,
   assertDateKey,
 } from "../utils/localDate.js";
-import {
-  upsertBriefingSection,
-  hasBriefingSection,
-} from "../utils/briefingSection.js";
+import { readMorningComment } from "../utils/briefingSection.js";
 import {
   FOCUS_NOTE_ID,
   FOCUS_NOTE_TITLE,
@@ -18,14 +15,19 @@ import {
   normalizeFocusText,
 } from "../utils/focusSection.js";
 import { contentJsonToString, contentPlainText } from "../utils/content.js";
-import { insertItem, updatePayload } from "../utils/items.js";
+import { bumpMeta, insertItem, updatePayload } from "../utils/items.js";
 import { fetchByIdChunks } from "../utils/pagination.js";
 import {
-  fetchUnlockedBodies,
+  fetchUnlockedColumns,
   isLocked,
   lockedBodyError,
 } from "../utils/lockedBody.js";
 import { findDailyPayload } from "./dailyHandlers.js";
+import {
+  periodsOfDate,
+  periodsOfDates,
+  readGoalPeriods,
+} from "./goalHandlers.js";
 
 /*
  * Briefing handlers (briefing-loop Step 2 / Issue #256).
@@ -35,12 +37,14 @@ import { findDailyPayload } from "./dailyHandlers.js";
  *     dailies (the 夕刊 material) and the state of today's daily.
  *   get_week_context — the same day-shaped material for 7 days at once, for
  *     the weekly review (#782 ③).
+ *   Both also carry `goals` (#2104): the year / month / week goals of the
+ *     day (or of the window's first day), judged the way list_goals does.
  *   write_briefing — two writes since #1048 / #1097: the focus goes into
  *     the reserved focus note's per-day section (the read half =
- *     shared focusSections.ts), and the comment paragraphs are upserted as
- *     the 朝刊 section of the DailyNode content (read half =
- *     shared extractBriefing.ts). Both honour the §10.2
- *     items_meta.updated_at bump.
+ *     shared focusSections.ts), and the comment paragraphs go to the
+ *     daily's `morning_comment` column — beside the body, never in it
+ *     (0035, D-20261007-briefing-1; read half = shared dailyMorning.ts).
+ *     Both honour the §10.2 items_meta.updated_at bump.
  */
 
 interface DailiesPayloadRow {
@@ -49,12 +53,18 @@ interface DailiesPayloadRow {
   /** Absent for a password-protected day — never fetched (#1763). */
   content_json?: unknown;
   has_password: boolean;
+  /**
+   * 0035. Fetched together with the body, for the unlocked days only — a
+   * locked day's comment is never asked for, like its body (#1763).
+   */
+  morning_comment?: unknown;
 }
 
 /**
  * Live daily payload rows for date ∈ [from, to], newest first. The window
- * read names every day but asks for BODIES only for the unlocked ones, so a
- * locked day still appears in the context with `text: null` (#1763).
+ * read names every day but asks for BODIES (and comments) only for the
+ * unlocked ones, so a locked day still appears in the context with
+ * `text: null` (#1763).
  */
 async function fetchDailies(from: string, to: string) {
   const { client } = await getSupabase();
@@ -68,11 +78,18 @@ async function fetchDailies(from: string, to: string) {
   const bodyless = (rows ?? []) as DailiesPayloadRow[];
   if (bodyless.length === 0) return [];
 
-  const bodies = await fetchUnlockedBodies("dailies_payload", bodyless);
-  const payloads: DailiesPayloadRow[] = bodyless.map((p) => ({
-    ...p,
-    content_json: bodies.get(p.item_id) ?? null,
-  }));
+  const unlocked = await fetchUnlockedColumns<{
+    content_json: unknown;
+    morning_comment: unknown;
+  }>("dailies_payload", bodyless, "content_json, morning_comment");
+  const payloads: DailiesPayloadRow[] = bodyless.map((p) => {
+    const row = unlocked.get(p.item_id);
+    return {
+      ...p,
+      content_json: row?.content_json ?? null,
+      morning_comment: row?.morning_comment ?? null,
+    };
+  });
 
   const { data: metaRows, error: mErr } = await client
     .from("items_meta")
@@ -98,6 +115,19 @@ async function fetchDailies(from: string, to: string) {
 function dailyText(row: DailiesPayloadRow | null): string | null {
   if (!row || row.has_password) return null;
   return contentPlainText(row.content_json);
+}
+
+/**
+ * A day's morning comment (0035): the column, else the 朝刊 section of an
+ * older body, else null. Null for a locked day, whose column is never
+ * fetched — the same rule as get_daily and as its body (#1763).
+ */
+function dailyMorningComment(row: DailiesPayloadRow | null): string[] | null {
+  if (!row || row.has_password) return null;
+  return readMorningComment(
+    row.morning_comment,
+    contentJsonToString(row.content_json),
+  );
 }
 
 interface EventRow {
@@ -260,6 +290,7 @@ export async function getTodayContext(args: { date?: string }) {
     { data: carryoverRows, error: cErr },
     recentDailyPayloads,
     todayDailyPayloads,
+    goals,
   ] = await Promise.all([
     client
       .from("events_payload")
@@ -289,6 +320,7 @@ export async function getTodayContext(args: { date?: string }) {
       .or("status.neq.DONE,status.is.null"),
     fetchDailies(addDays(date, -3), addDays(date, -1)),
     fetchDailies(date, date),
+    readGoalPeriods(periodsOfDate(date)),
   ]);
   if (eErr) throw new Error(`events_payload: ${eErr.message}`);
   if (sErr) throw new Error(`scheduled todos: ${sErr.message}`);
@@ -306,10 +338,7 @@ export async function getTodayContext(args: { date?: string }) {
   ]);
 
   const todayDaily = todayDailyPayloads[0] ?? null;
-  const todayContent =
-    todayDaily && !todayDaily.has_password
-      ? contentJsonToString(todayDaily.content_json)
-      : null;
+  const todayComment = dailyMorningComment(todayDaily);
 
   return {
     date,
@@ -326,15 +355,18 @@ export async function getTodayContext(args: { date?: string }) {
       date: d.date,
       locked: d.has_password,
       text: dailyText(d),
+      morningComment: dailyMorningComment(d),
     })),
     todayDaily: {
       exists: todayDaily !== null,
       locked: todayDaily?.has_password ?? false,
-      // `todayContent` is null for a locked day, and an unknown section is
+      // The comment is null for a locked day, and an unknown comment is
       // reported as absent rather than guessed at.
-      hasBriefing: todayContent !== null && hasBriefingSection(todayContent),
+      hasBriefing: todayComment !== null,
+      morningComment: todayComment,
       text: dailyText(todayDaily),
     },
+    goals,
   };
 }
 
@@ -369,6 +401,7 @@ export async function getWeekContext(args: { start_date?: string }) {
     { data: scheduledTodoRows, error: sErr },
     { data: carryoverRows, error: cErr },
     dailyPayloads,
+    goals,
   ] = await Promise.all([
     client
       .from("events_payload")
@@ -396,6 +429,14 @@ export async function getWeekContext(args: { start_date?: string }) {
       .lt("scheduled_at", startIso)
       .or("status.neq.DONE,status.is.null"),
     fetchDailies(startDate, endDate),
+    // Every period any of the 7 days falls in: with the default Sunday start
+    // that is one week, but a mid-week start spans two, and a week can cross
+    // into the next month or year.
+    readGoalPeriods(
+      periodsOfDates(
+        Array.from({ length: 7 }, (_, offset) => addDays(startDate, offset)),
+      ),
+    ),
   ]);
   if (eErr) throw new Error(`events_payload: ${eErr.message}`);
   if (sErr) throw new Error(`scheduled todos: ${sErr.message}`);
@@ -439,6 +480,7 @@ export async function getWeekContext(args: { start_date?: string }) {
         exists: daily !== null,
         locked: daily?.has_password ?? false,
         text: dailyText(daily),
+        morningComment: dailyMorningComment(daily),
       },
     });
   }
@@ -450,6 +492,7 @@ export async function getWeekContext(args: { start_date?: string }) {
     openTodos: [...openTodoById.values()]
       .filter((t) => titleById.has(t.item_id))
       .map((t) => formatOpenTodo(t, titleById, startIso)),
+    goals,
   };
 }
 
@@ -518,7 +561,12 @@ async function writeFocusIntoNote(
   return { id: FOCUS_NOTE_ID, created: true };
 }
 
-/** The comment half of write_briefing: upsert the 朝刊 section (#256). */
+/**
+ * The comment half of write_briefing (#256): the paragraphs go to the day's
+ * `morning_comment` column (0035, D-20261007-briefing-1). The body is neither
+ * read nor written — a 朝刊 section an older day already carries stays as it
+ * is, and the readers prefer the column over it.
+ */
 async function writeCommentIntoDaily(
   date: string,
   paragraphs: string[],
@@ -526,7 +574,7 @@ async function writeCommentIntoDaily(
   const { client } = await getSupabase();
   const { data: existing, error: exErr } = await client
     .from("dailies_payload")
-    .select("item_id, date, content_json, has_password")
+    .select("item_id, date, has_password")
     .eq("date", date)
     .eq("has_password", false)
     .maybeSingle();
@@ -540,27 +588,38 @@ async function writeCommentIntoDaily(
 
   if (existing) {
     const row = existing as DailiesPayloadRow;
-    const next = upsertBriefingSection(
-      contentJsonToString(row.content_json),
-      paragraphs,
-    );
+    // The update carries the lock condition itself: the read above saw the
+    // day unlocked, but a password set between that read and this write must
+    // still stop it (#1763). No row back means it is locked now, or it was
+    // purged from the trash in between — asked again so the answer names the
+    // right one instead of telling Claude to unlock a day that is gone.
+    const { data: updated, error: uErr } = await client
+      .from("dailies_payload")
+      .update({ morning_comment: paragraphs })
+      .eq("item_id", row.item_id)
+      .eq("has_password", false)
+      .select("item_id");
+    if (uErr) throw new Error(`update dailies_payload: ${uErr.message}`);
+    if (!Array.isArray(updated) || updated.length === 0) {
+      if (await isLocked("dailies_payload", row.item_id)) {
+        throw lockedBodyError("Daily", row.item_id);
+      }
+      throw new Error(`Daily ${row.item_id} not found (deleted mid-write)`);
+    }
     // The meta patch rides along with the §10.2 LWW bump: a soft-deleted
     // daily is restored, because a briefing written into a trashed
     // (invisible) daily would silently vanish.
-    await updatePayload(
-      "dailies_payload",
-      row.item_id,
-      "daily",
-      { content_json: JSON.parse(next) },
-      { is_deleted: false, deleted_at: null },
-    );
+    await bumpMeta(row.item_id, "daily", {
+      is_deleted: false,
+      deleted_at: null,
+    });
     return { id: row.item_id, created: false };
   }
 
   // No daily yet — create the canonical `daily-<YYYY-MM-DD>` pair
-  // (§10.5 orphan recovery on the payload INSERT).
+  // (§10.5 orphan recovery on the payload INSERT). The body starts empty:
+  // null is how the app stores a blank body (shared contentStringToJson).
   const id = `daily-${date}`;
-  const content = upsertBriefingSection(null, paragraphs);
   await insertItem({
     id,
     role: "daily",
@@ -570,7 +629,8 @@ async function writeCommentIntoDaily(
     payloadTable: "dailies_payload",
     payload: {
       date,
-      content_json: JSON.parse(content),
+      content_json: null,
+      morning_comment: paragraphs,
       is_pinned: false,
       is_edit_locked: false,
     },
@@ -593,9 +653,9 @@ export async function writeBriefing(args: {
     .filter((p) => p !== "");
 
   // The focus goes to the reserved focus note (#1048 moved the read there);
-  // the comment paragraphs stay in the daily's 朝刊 section. No paragraphs
-  // means no daily write at all — a heading-only section is invisible to
-  // extractBriefing, and creating a daily for it would be pure litter.
+  // the comment paragraphs go to the daily's morning_comment column (0035).
+  // No paragraphs means no daily write at all — an empty comment is invisible
+  // to every reader, and creating a daily for it would be pure litter.
   const focusNote = await writeFocusIntoNote(date, focus);
   const daily =
     paragraphs.length > 0

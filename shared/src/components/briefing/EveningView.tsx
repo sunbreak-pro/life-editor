@@ -1,8 +1,16 @@
-import type { ReactNode } from "react";
-import { Star } from "lucide-react";
+import { useId, type ReactNode } from "react";
+import { ArrowRight, CheckCircle2, Star } from "lucide-react";
 import type { TodoStatus } from "../../types/todoTree";
 import { SkeletonList } from "../SkeletonList";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
+import {
+  EveningEventRow,
+  EveningTomorrowRow,
+  type EveningEventEntry,
+  type EveningRowLabels,
+} from "./EveningRows";
+import type { EveningGoalMove, EveningTomorrowCandidate } from "./eveningDay";
+import { GOAL_CHIP_ACHIEVED, GOAL_CHIP_UNACHIEVED } from "./GoalProgressDelta";
 import { IntentionField } from "./IntentionField";
 
 /*
@@ -15,6 +23,12 @@ import { IntentionField } from "./IntentionField";
  * Layout language matches BriefingView's 紙面: centered reading column,
  * double-rule masthead, 朱 (lumen-briefing-shu) for marks, 琥珀
  * (lumen-briefing-kohaku) for annotations — lumen-* tokens only.
+ *
+ * #2107 rebuilt the paper around the plan's Step 8: an issue number, the
+ * goals the day moved, what happened (with a one-line note per row), todos to
+ * put on tomorrow, and a note to tomorrow's self as the last block. The
+ * morning declaration is no longer read back here (its data stays — the
+ * morning paper still edits it).
  *
  * Neither the remaining-todo nor the upcoming-schedule block is ever copied
  * into the daily body (F-6: analysis reads raw data via get_today_context; the
@@ -48,38 +62,23 @@ export interface EveningScheduleEntry {
   isTomorrow: boolean;
 }
 
-export interface EveningLabels {
+export interface EveningLabels extends EveningRowLabels {
   masthead: string;
   moodTitle: string;
   /** Aria labels for the five stars, index 0 =「気分 1/5」etc. */
   moodStars: string[];
-  /**
-   * Heading of the 宣言 block. The host swaps the copy with the mode:
-   * 「今朝の宣言」when it is the read-back of a morning artifact,
-   * 「今日の宣言」when the narrow layout makes it a live input (#391).
-   */
-  intentionTitle: string;
-  /**
-   * Saved-state caption for the 宣言 block (host-computed). Rendered ONLY
-   * while the block is editable — a read-only block has no save to report,
-   * and a「保存済み」next to text you cannot type into is a lie. Also
-   * omitted while the day has no declaration at all (#427).
-   */
-  intentionCaption?: string;
-  /** Placeholder of the editable 宣言 field (narrow layout only). */
-  intentionPlaceholder: string;
   reflectionTitle: string;
   /**
    * Saved-state caption next to the reflection title (host-computed).
    *
-   * Omitted while the day holds no reflection and no mood (#1822) — the same
-   * rule `intentionCaption` follows. A「保存済み」beside an empty page is a
-   * receipt for a write that never happened.
+   * Omitted while the day holds no reflection and no mood (#1822). A
+   *「保存済み」beside an empty page is a receipt for a write that never
+   * happened.
    */
   savedCaption?: string;
   /**
-   * Heading of the 明日のフォーカス block (#1048) — the input whose text
-   * TOMORROW's morning paper prints as its focus line.
+   * Heading of the 明日の自分へ block (#1048, renamed by #2107) — the input
+   * whose text TOMORROW's morning paper prints as its focus line.
    */
   focusTitle: string;
   /** Placeholder of the focus field. */
@@ -97,7 +96,19 @@ export interface EveningLabels {
   upcomingTitle: string;
   noUpcoming: string;
   tomorrowTag: string;
-  allDay: string;
+  goalsTitle: string;
+  noGoals: string;
+  /** The achieved chip's word (「達成」) — never colour alone. */
+  goalAchieved: string;
+  /** The not-yet chip:「あと n 件」. Calmer than「未達」mid-period (#2107). */
+  goalRemaining: (count: number) => string;
+  eventsTitle: string;
+  noEvents: string;
+  tomorrowTitle: string;
+  noTomorrow: string;
+  openDaily: string;
+  /** Accessible name of the button, naming the day it opens. */
+  openDailyLabel: string;
 }
 
 export interface EveningViewProps {
@@ -108,28 +119,8 @@ export interface EveningViewProps {
   mood: number | null;
   /** Star tap — host persists「気分: n/5」(tapping the current value clears). */
   onSelectMood: (mood: number) => void;
-  /** The host-mounted TipTap editor bound to the evening section body. */
+  /** The host-mounted TipTap editor bound to the day's one text (readDailyText / writeDailyText, #2107). */
   editorSlot: ReactNode;
-  /**
-   * Today's declaration (宣言 section, newline-separated). Empty string = no
-   * declaration yet, which hides the whole block on the read-only (wide) path.
-   */
-  intentionText: string;
-  /**
-   * Turns the 宣言 block from a read-back into a live input (#391).
-   *
-   * Wide keeps the original reading: the declaration is a MORNING artifact the
-   * evening paper shows back, and the SectionHeader tab band puts the editable
-   * 朝刊 one click away. Below 768px the evening paper is a Quick capture
-   * surface (mobile-scope #3) and the tab band is an in-body switcher, so the
-   * block becomes the input itself — otherwise a phone user who lands on 夕刊
-   * cannot declare at all (and gets no block whatsoever on a blank day).
-   */
-  intentionEditable: boolean;
-  /** Every keystroke while editable — the host owns draft + debounced save. */
-  onIntentionChange: (text: string) => void;
-  /** Blur while editable — the host flushes a pending debounced save. */
-  onIntentionBlur: () => void;
   /**
    * Tomorrow's focus (#1048) — the draft-or-stored text of the focus note's
    * section keyed to TOMORROW. Writing it here is part of closing the day;
@@ -149,6 +140,30 @@ export interface EveningViewProps {
    */
   onSetTodoStatus: (id: string, status: TodoStatus) => void;
   schedule: EveningScheduleEntry[];
+  /**
+   * 「夕刊 第 42 号 · 5 日連続」, host-formatted (#2107). Undefined hides the
+   * line — the host passes nothing on a day before the first issue rather
+   * than print「第 0 号」.
+   */
+  issueLine?: string;
+  /**
+   * 今日進んだ目標 — current goals the day's completions moved. null while
+   * the goals are still loading: the block is left out instead of printing
+   * a "none" that is not known yet.
+   */
+  goalMoves: EveningGoalMove[] | null;
+  /** 今日の出来事 — events, completed todos and work, in time order. */
+  events: EveningEventEntry[];
+  /** The block's count line (「予定 3 · Todo 2/4 · 作業 1時間50分」). */
+  eventsSummary?: string;
+  /** Save one row's note; called only when the text changed. */
+  onSaveEventNote: (key: string, text: string) => void;
+  /** 明日の予定に置く — the candidates, goal-linked first. */
+  tomorrowTodos: EveningTomorrowCandidate[];
+  /** Put a todo on tomorrow; `time` "HH:MM", or null for all-day. */
+  onPlaceTomorrow: (id: string, time: string | null) => void;
+  /** 「Daily に移動」. Undefined hides the button. */
+  onOpenDaily?: () => void;
   labels: EveningLabels;
   /**
    * In-body 朝刊/夕刊 switcher for the NARROW layout (#318) — same slot as
@@ -163,10 +178,21 @@ export interface EveningViewProps {
 }
 
 /** Section heading row — same 段標 idiom as BriefingView's BlockHead. */
-function BlockHead({ title, hint }: { title: string; hint?: string }) {
+function BlockHead({
+  id,
+  title,
+  hint,
+}: {
+  id: string;
+  title: string;
+  hint?: string;
+}) {
   return (
     <div className="mb-3 flex items-baseline justify-between">
-      <h3 className="flex items-center gap-2.5 text-xs font-bold tracking-[0.25em] text-lumen-text-secondary">
+      <h3
+        id={id}
+        className="flex items-center gap-2.5 text-xs font-bold tracking-[0.25em] text-lumen-text-secondary"
+      >
         <span
           aria-hidden="true"
           className="inline-block h-3.5 w-[7px] bg-lumen-briefing-shu"
@@ -209,19 +235,28 @@ export function EveningView({
   mood,
   onSelectMood,
   editorSlot,
-  intentionText,
-  intentionEditable,
-  onIntentionChange,
-  onIntentionBlur,
   focusText,
   onFocusChange,
   onFocusBlur,
   todos,
   onSetTodoStatus,
   schedule,
+  issueLine,
+  goalMoves,
+  events,
+  eventsSummary,
+  onSaveEventNote,
+  tomorrowTodos,
+  onPlaceTomorrow,
+  onOpenDaily,
   labels,
   tabSwitcher,
 }: EveningViewProps): React.JSX.Element {
+  // Every block is a region named by its heading, so assistive tech can jump
+  // between them — and the blocks can be told apart without leaning on copy.
+  const idBase = useId();
+  const headId = (block: string) => `${idBase}-${block}`;
+
   if (loading) {
     // Mirrors BriefingView: the switcher stays reachable while data loads.
     return (
@@ -257,11 +292,25 @@ export function EveningView({
         <p className="mt-2 text-xs tracking-[0.2em] text-lumen-text-secondary">
           {dateLine}
         </p>
+        {/* Issue number + streak (#2107). Under the h2, not inside it: the
+            nameplate's accessible name stays the paper's name. */}
+        {issueLine !== undefined && (
+          <p className="mt-1 text-xs tracking-[0.2em] text-lumen-briefing-kohaku">
+            {issueLine}
+          </p>
+        )}
       </header>
 
-      {/* ── Mood (気分: n/5 convention behind the stars) ─────────── */}
-      <section className="border-b border-lumen-border px-2 py-6 text-center">
-        <p className="mb-3 text-xs font-bold tracking-[0.3em] text-lumen-briefing-shu">
+      {/* ── Mood (気分: n/5 convention behind the stars). A star is also
+          what publishes the day's paper (#2107) — the host stamps it. ── */}
+      <section
+        aria-labelledby={headId("mood")}
+        className="border-b border-lumen-border px-2 py-6 text-center"
+      >
+        <p
+          id={headId("mood")}
+          className="mb-3 text-xs font-bold tracking-[0.3em] text-lumen-briefing-shu"
+        >
           {labels.moodTitle}
         </p>
         <div className="flex items-center justify-center gap-1.5">
@@ -291,62 +340,139 @@ export function EveningView({
         </div>
       </section>
 
-      {/* ── Today's intention (宣言) — input on narrow, read-back on wide ─ */}
-      {(intentionEditable || intentionText !== "") && (
-        <section className="border-b border-lumen-border py-5">
-          <BlockHead
-            title={labels.intentionTitle}
-            hint={intentionEditable ? labels.intentionCaption : undefined}
-          />
-          {intentionEditable ? (
-            // 朱 (the user's action voice) — same field as the morning paper.
-            <IntentionField
-              value={intentionText}
-              placeholder={labels.intentionPlaceholder}
-              onChange={onIntentionChange}
-              onBlur={onIntentionBlur}
-            />
+      {/* ── Goals the day moved (#2107): before → after, judged by the same
+          rule as everywhere (judgeGoals twice). Achieved and not-yet are both
+          shown, calmly — mint for done, 朱 on its subtle ground for the rest,
+          and always a word beside the colour. ───────────────────────── */}
+      {goalMoves !== null && (
+        <section
+          aria-labelledby={headId("goals")}
+          className="border-b border-lumen-border py-5"
+        >
+          <BlockHead id={headId("goals")} title={labels.goalsTitle} />
+          {goalMoves.length === 0 ? (
+            <p className="text-sm text-lumen-text-secondary">
+              {labels.noGoals}
+            </p>
           ) : (
-            // 琥珀 (context / annotation) — a morning artifact read back.
-            <div className="rounded-lumen-md border-l-2 border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-4 py-3">
-              {intentionText.split("\n").map((line, i) => (
-                <p
-                  key={i}
-                  className="text-sm leading-relaxed text-lumen-text [&+&]:mt-1"
+            <ul className="space-y-1.5">
+              {goalMoves.map((move) => (
+                <li
+                  key={move.goalId}
+                  className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm"
                 >
-                  {line}
-                </p>
+                  <span className="min-w-0 text-lumen-text">{move.title}</span>
+                  <span className="inline-flex items-center gap-1 tabular-nums">
+                    <span className="text-lumen-text-tertiary">
+                      {move.before.done}/{move.before.total}
+                    </span>
+                    <ArrowRight
+                      aria-hidden="true"
+                      className="size-3.5 text-lumen-text-tertiary"
+                    />
+                    <span className="font-medium text-lumen-text">
+                      {move.after.done}/{move.after.total}
+                    </span>
+                  </span>
+                  {move.after.achieved ? (
+                    <span className={`${GOAL_CHIP_ACHIEVED} gap-1`}>
+                      <CheckCircle2
+                        aria-hidden="true"
+                        className="size-3.5 text-lumen-accent-secondary"
+                      />
+                      {labels.goalAchieved}
+                    </span>
+                  ) : (
+                    <span className={GOAL_CHIP_UNACHIEVED}>
+                      {labels.goalRemaining(
+                        Math.max(0, move.after.total - move.after.done),
+                      )}
+                    </span>
+                  )}
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </section>
       )}
 
-      {/* ── Reflection (the evening editor — host-mounted TipTap) ── */}
-      <section className="border-b border-lumen-border py-5">
-        <BlockHead title={labels.reflectionTitle} hint={labels.savedCaption} />
-        <div className="rounded-lumen-md border border-lumen-border bg-lumen-surface">
+      {/* ── What happened today (#2107) — events, completed todos and work
+          on one time line, each with room for a one-line note. ───────── */}
+      <section
+        aria-labelledby={headId("events")}
+        className="border-b border-lumen-border py-5"
+      >
+        <BlockHead
+          id={headId("events")}
+          title={labels.eventsTitle}
+          hint={eventsSummary}
+        />
+        {events.length === 0 ? (
+          <p className="text-sm text-lumen-text-secondary">{labels.noEvents}</p>
+        ) : (
+          <ul>
+            {events.map((entry) => (
+              <EveningEventRow
+                key={entry.key}
+                entry={entry}
+                labels={labels}
+                onSaveNote={onSaveEventNote}
+              />
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {/* ── Reflection (the evening editor — host-mounted TipTap). Since
+          #2107 it edits the day's ONE text, which can be long — so the frame
+          caps its height and scrolls inside, and the blocks below stay on
+          screen. The ground is the paper's own opaque bg-lumen-bg: the old
+          bg-lumen-surface is no token and fell through to transparent. ── */}
+      <section
+        aria-labelledby={headId("reflection")}
+        className="border-b border-lumen-border py-5"
+      >
+        <BlockHead
+          id={headId("reflection")}
+          title={labels.reflectionTitle}
+          hint={labels.savedCaption}
+        />
+        <div className="max-h-[60vh] overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg">
           {editorSlot}
         </div>
       </section>
 
-      {/* ── Tomorrow's focus (#1048) — 朱, the user's own action voice:
-          closing today includes deciding tomorrow. The text lands in the
-          reserved focus note keyed to tomorrow, and tomorrow's morning
-          paper prints it as its focus line. ─────────────────────── */}
-      <section className="border-b border-lumen-border py-5">
-        <BlockHead title={labels.focusTitle} />
-        <IntentionField
-          value={focusText}
-          placeholder={labels.focusPlaceholder}
-          onChange={onFocusChange}
-          onBlur={onFocusBlur}
-        />
+      {/* ── Put on tomorrow (#2107) — closing today includes deciding
+          tomorrow; goal-linked todos first. ─────────────────────────── */}
+      <section
+        aria-labelledby={headId("tomorrow")}
+        className="border-b border-lumen-border py-5"
+      >
+        <BlockHead id={headId("tomorrow")} title={labels.tomorrowTitle} />
+        {tomorrowTodos.length === 0 ? (
+          <p className="text-sm text-lumen-text-secondary">
+            {labels.noTomorrow}
+          </p>
+        ) : (
+          <ul>
+            {tomorrowTodos.map((entry) => (
+              <EveningTomorrowRow
+                key={entry.id}
+                entry={entry}
+                labels={labels}
+                onPlace={onPlaceTomorrow}
+              />
+            ))}
+          </ul>
+        )}
       </section>
 
-      {/* ── Remaining todos (display only) ───────────────────────── */}
-      <section className="border-b border-lumen-border py-5">
-        <BlockHead title={labels.todosTitle} />
+      {/* ── Remaining todos ─────────────────────────────────────────── */}
+      <section
+        aria-labelledby={headId("todos")}
+        className="border-b border-lumen-border py-5"
+      >
+        <BlockHead id={headId("todos")} title={labels.todosTitle} />
         {todos.length === 0 ? (
           <p className="text-sm text-lumen-text-secondary">{labels.noTodos}</p>
         ) : (
@@ -385,9 +511,12 @@ export function EveningView({
         )}
       </section>
 
-      {/* ── Upcoming schedule (display only) ─────────────────────── */}
-      <section className="py-5">
-        <BlockHead title={labels.upcomingTitle} />
+      {/* ── Upcoming schedule (display only) ─────────────────────────── */}
+      <section
+        aria-labelledby={headId("upcoming")}
+        className="border-b border-lumen-border py-5"
+      >
+        <BlockHead id={headId("upcoming")} title={labels.upcomingTitle} />
         {schedule.length === 0 ? (
           <p className="text-sm text-lumen-text-secondary">
             {labels.noUpcoming}
@@ -410,6 +539,37 @@ export function EveningView({
           </ul>
         )}
       </section>
+
+      {/* ── A note to tomorrow (#1048; renamed and moved last by #2107) —
+          朱, the user's own action voice. The text lands in the reserved
+          focus note keyed to tomorrow, and tomorrow's morning paper prints
+          it as its focus line. ───────────────────────────────────── */}
+      <section aria-labelledby={headId("focus")} className="py-5">
+        <BlockHead id={headId("focus")} title={labels.focusTitle} />
+        <IntentionField
+          value={focusText}
+          placeholder={labels.focusPlaceholder}
+          onChange={onFocusChange}
+          onBlur={onFocusBlur}
+          labelledBy={headId("focus")}
+        />
+      </section>
+
+      {/* ── Continue in the Daily (#2107): the same text, on a wider page.
+          Until the Daily body itself reads the one text (#2123), a day edited
+          here shows that text in the Daily's 夕刊 card, not in its body. */}
+      {onOpenDaily !== undefined && (
+        <div className="pt-5 text-center">
+          <button
+            type="button"
+            onClick={onOpenDaily}
+            aria-label={labels.openDailyLabel}
+            className="rounded-lumen-md border border-lumen-border px-4 py-2 text-sm text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11"
+          >
+            {labels.openDaily}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

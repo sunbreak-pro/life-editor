@@ -113,6 +113,10 @@ function makeDS(): { ds: DataService; read: () => string } {
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     listNotesUnified: vi.fn().mockResolvedValue([]),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
+    // #2107: the evening paper's own reads (issue number, goals).
+    listDailiesUnified: vi.fn().mockResolvedValue([]),
+    fetchGoals: vi.fn().mockResolvedValue([]),
+    fetchGoalTodoLinks: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn(() => Promise.resolve(node())),
     // The write goes through jsonb, so the caller gets the NORMALIZED row
     // back — exactly what SupabaseDailiesUnifiedService re-reads after its

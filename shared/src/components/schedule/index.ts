@@ -33,6 +33,13 @@ export {
   type MonthGridProps,
   type MonthGridItem,
 } from "./MonthGrid";
+export { monthCellFold } from "./MonthGridParts";
+export {
+  MonthMorePanel,
+  placeMonthMorePanel,
+  type MonthMorePanelProps,
+  type MonthMorePanelPlacement,
+} from "./MonthMorePanel";
 export {
   AgendaList,
   type AgendaListProps,

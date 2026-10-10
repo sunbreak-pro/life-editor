@@ -18,6 +18,13 @@ import { findMeta, type ItemRole } from "../utils/items.js";
  * ROLE-FREE ON PURPOSE. The table references `items_meta(id)` with no role
  * column, and ids are unique across roles (CLAUDE.md §4) — so a todo can
  * point at a daily, and neither tool has to ask what either end is.
+ *
+ * ONE EXCEPTION: goals (#2101). A goal reaches its Todos through its own
+ * table, `goal_todo_links`, not through this graph — putting goal edges here
+ * would show them as wiki-link chips in Connect and the link panel next to
+ * note links (the plan rejected exactly that). So `goal` is left out of
+ * LINKABLE_ROLES, and an id that turns out to be a goal gets an error that
+ * says so instead of a misleading "not found".
  */
 
 /** The roles an id can turn out to be, in the order they are guessed. */
@@ -55,6 +62,12 @@ async function resolveEndpoint(
   for (const role of LINKABLE_ROLES) {
     const meta = await findMeta(id, role);
     if (meta) return { id: meta.id, role, title: meta.title };
+  }
+  if (await findMeta(id, "goal")) {
+    throw new Error(
+      `${label} is a goal (${id}); goals link to todos through their own ` +
+        `goal links, not through item links`,
+    );
   }
   throw new Error(`${label} not found (or is in the trash): ${id}`);
 }

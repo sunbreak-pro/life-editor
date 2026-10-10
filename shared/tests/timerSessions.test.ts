@@ -6,6 +6,7 @@ import {
   freeSessionSlot,
   isCountedSession,
   pickWorkHistoryDay,
+  pickWorkHistoryDays,
   sessionTargetId,
   totalWorkMinutesForItem,
 } from "../src/utils/timerSessions";
@@ -249,6 +250,72 @@ describe("pickWorkHistoryDay", () => {
     expect(
       pickWorkHistoryDay([session({ duration: null })], "2026-09-17"),
     ).toBeNull();
+  });
+});
+
+/*
+ * #2054 / D-20261003-work-2 — the Mobile drawer reads today AND yesterday.
+ * Same local-time dates as above.
+ */
+describe("pickWorkHistoryDays", () => {
+  const at = (day: number, hour: number) => new Date(2026, 8, day, hour, 0, 0);
+
+  it("returns today then yesterday, each oldest first", () => {
+    const days = pickWorkHistoryDays(
+      [
+        session({ id: 4, startedAt: at(16, 21) }),
+        session({ id: 2, startedAt: at(17, 14) }),
+        session({ id: 3, startedAt: at(16, 9) }),
+        session({ id: 1, startedAt: at(17, 9) }),
+        // Two days back: not part of the pair.
+        session({ id: 5, startedAt: at(15, 9) }),
+        session({ id: 6, startedAt: at(16, 10), sessionType: "BREAK" }),
+      ],
+      "2026-09-17",
+    );
+    expect(days.map((d) => d.dateKey)).toEqual(["2026-09-17", "2026-09-16"]);
+    expect(days[0].sessions.map((s) => s.id)).toEqual([1, 2]);
+    expect(days[1].sessions.map((s) => s.id)).toEqual([3, 4]);
+  });
+
+  it("keeps whichever of the two has work", () => {
+    const yesterdayOnly = pickWorkHistoryDays(
+      [session({ id: 1, startedAt: at(16, 9) })],
+      "2026-09-17",
+    );
+    expect(yesterdayOnly.map((d) => d.dateKey)).toEqual(["2026-09-16"]);
+
+    const todayOnly = pickWorkHistoryDays(
+      [
+        session({ id: 1, startedAt: at(17, 9) }),
+        session({ id: 2, startedAt: at(14, 9) }),
+      ],
+      "2026-09-17",
+    );
+    expect(todayOnly.map((d) => d.dateKey)).toEqual(["2026-09-17"]);
+  });
+
+  it("crosses a month boundary for yesterday", () => {
+    const days = pickWorkHistoryDays(
+      [session({ id: 1, startedAt: new Date(2026, 8, 30, 9, 0, 0) })],
+      "2026-10-01",
+    );
+    expect(days.map((d) => d.dateKey)).toEqual(["2026-09-30"]);
+  });
+
+  it("falls back to the latest worked day when both are empty", () => {
+    const days = pickWorkHistoryDays(
+      [
+        session({ id: 1, startedAt: at(12, 9) }),
+        session({ id: 2, startedAt: at(14, 9) }),
+      ],
+      "2026-09-17",
+    );
+    expect(days.map((d) => d.dateKey)).toEqual(["2026-09-14"]);
+  });
+
+  it("returns nothing when nothing has been worked", () => {
+    expect(pickWorkHistoryDays([], "2026-09-17")).toEqual([]);
   });
 });
 

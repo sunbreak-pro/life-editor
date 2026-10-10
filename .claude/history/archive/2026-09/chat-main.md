@@ -1,5 +1,54 @@
 # HISTORY archive 2026-09 (chat-main)
 
+### 2026-09-16 (2) - outbox 棚卸し → 起票 8 本（#1667〜#1674）+ 依頼 1 件を実測で差し戻し
+
+#### 概要
+
+ユーザー依頼 3 本（「リモートを取り込んで現状把握 → `issue-prompter`」「各チャットからの起票依頼を確認」「このセッションで起票」）。outbox 21 本と判断キュー 12 本を全数読み、未処理の起票依頼 10 件を裁いて 8 件を Issue にした。依頼が挙げた `file:line` は全件 main で実測し、1 件（F-05）はコードが前提を否定したので起票せず差し戻した。
+
+#### 変更点
+
+- **起票 8 本**: #1667 タグの付け外しが Undo に載らない（A-01）/ #1668 Undo 失敗でも成功トースト（B-10）/ #1669 MCP の削除が dismiss を通らない（E-12・宛先 `[mcp-tools]`）/ #1670 Trash 復元が #932 のロールバックを通らない（F-07）/ #1671 #1409 の schedule 分の実ブラウザ確認（`[main]`）/ #1672 `<kbd>` 5 箇所の書体（shared-fix）/ #1673 briefingEveningLazyMount の flake（briefing）/ #1674 添付アップロードの進捗表示（materials）
+- **レポート**: `.claude/docs/reports/2026-09-16-outbox-triage.html`（Artifact v2）。起票結果・差し戻しの根拠・未回答の判断 4 件・night-safe の 6 件を 1 枚に集約
+- **issue-prompter**: セッション冒頭で回して 2 レーンへ `/goal` を提示したが、直後にユーザーが 8 PR を merge したため失効した（W0 / W1 / W2 / W7 / W11 と #1643 が全部着地）
+
+#### 実測・知見
+
+- **F-05 は前提が 2 つとも否定された**: `web/src/briefing/hooks/useBriefingWrites.ts:65-66` が `useUndoRedoOptional()` を持ち、予定（`:305-316`）と Todo（`:416-424`）の削除は undo を push している。routine 系に undo が無いのは `:336` が「Schedule も同じくスタックに載せない（cascade は 1 行の再挿入で戻せない）」と理由つきで明言。`fillUpToAnchor` は関数として存在せず `useScheduleItemsRoutineSync.ts:147` のコメントにあるだけで、`:332-334` が「紙面の anchor は常に表示中の日なので fill は定義上 no-op」と書いている。**outbox の起票依頼でも file:line を実測してから起票する** — `rules/docs-consistency.md` §5 はサブエージェント報告だけの話ではない
+- **B-10 は依頼より 1 段悪かった**: `shared/src/utils/undoRedo/UndoRedoManager.ts:57` の docstring は「reported via onError」と書くが、`onError` は repo のどこにも配線が無い（`git grep onError` の一致がこのコメント 1 行だけ）。失敗は完全に無音
+- **古い起票依頼は全部処理済みだった**: 2026-07〜08 分を Issue 一覧 300 件と突き合わせ、#1001〜#1008 / #1097 / #1220 / #1615 に着地済みを確認。未処理は 09-02 以降の分だけ
+- **`gh issue list --state open` は数分で古くなる**: 最初の一覧で open だった #1643 / #1632 が、`--state all` を引いた時点では CLOSED になっていた。PR merge が Issue を閉じたためで、**配布判断の直前に open 一覧を取り直す**
+
+#### 次
+
+- 🛑 ユーザー手番: 未回答の判断 4 件（`D-20260905-shared-fix-1` / `D-20260902-tags-1` / `D-20260902-tags-2` / PR 行数目安の読み替え）と migration 0029 / 0030 の適用確認
+- F-05 の差し戻しを schedule-refine の outbox へ伝えるかは未判断
+- 新しい手番 = connect-refine が #1644、schedule-refine が W3 / W4 / W6 / W9 / W12
+
+### 2026-09-16 - Connect ワークベンチ計画の Steps 0 — docs PR #1647 + 実装 Issue 4 本（#1643〜#1646）
+
+#### 概要
+
+ユーザー依頼「`2026-09-14-connect-tag-link-workbench.md` の Steps #0 を実行して」。計画書の分担表 順 2〜5 を `section:connect` で起票し、表の「未起票」を Issue 番号に置き換え、#1631 にスコープ注記をコメントした。あわせて、計画書・brief・裁定が chat-main の作業コピーに未追跡のまま置かれていた（worktree から読めない）ので、先に docs PR #1647 で main へ載せた。セッション冒頭では `issue-prompter` を回し、schedule / connect / settings の 3 レーンへ `/goal` を提示している。
+
+#### 変更点
+
+- **docs PR #1647**（`chore/docs-connect-workbench-plan`・一時 worktree `docs-connect-workbench` 経由）: 計画書 + `briefs/connect-relations.md` 新設 + `briefs/connect.md` を SUPERSEDED + `_COMMON-CONTEXT.md` v4.1 + `decisions/D-20260912-main-1.md` + 再定義レポート HTML。コード変更ゼロ
+- **起票 4 本**（すべて `section:connect` + `type:feature`）: #1643 タグ編集の統合（D1〜D7・D15・D16）/ #1644 複数選択・一括タグ操作・タグ統合（D8〜D11・D14）/ #1645 右パネルの近傍モードとリンク（D12・D13）/ #1646 Mobile 3 段（M1〜M10）。DoD は計画書の Steps と Acceptance から機械検証できる形（`git grep` 0 件 / 個別テストの緑 / verify 全ステップ exit 0 / PR 行数上限）へ落とした
+- **計画書の追随**: 分担表の「未起票」4 箇所を #1643〜#1646 に置換、Status を Draft → IN PROGRESS
+- **#1631 へコメント**: タグ編集パネル側の表示は #1643 でパネルごと退役するため、#1631 は Connect 側だけを直す
+
+#### 実測・知見
+
+- **`records.mjs check` が docs PR を止めた**: `D-20260912-main-1` は `status: answered` なのに `comm/decisions/ANSWERS.md` に回答行が無かった。台帳へ昇格したとき回答簿の 1 行を書き忘れると、次に触った PR が落ちる（D ファイル単体では気付けない）。1 行追記して解消
+- **`git show <branch>:<path>` は Git Bash でパス変換に食われる**: `origin/chore/...:.claude/...` がバックスラッシュ混じりの 1 引数へ変換され `ambiguous argument` になる。`MSYS_NO_PATHCONV=1` + `MSYS2_ARG_CONV_EXCL='*'` を付けると通る
+- **chat-main の作業コピーに未追跡 docs を置いたままにしない**: worktree レーンからは読めず、計画書側も「絶対パスで読むか、先に docs PR で main に載せる」と但し書きを持つ羽目になっていた。main へ載せた後、重複していた作業コピー 6 本は片付けた（tracked 2 本は `git checkout --`、untracked 4 本は削除。内容が push 済みブランチと一致することを `diff` で確認してから）
+
+#### 次
+
+- レーンの着手順は #1631 → #1643 → #1644 → #1645 → #1646。順 2 以降は stacked 可だが、base が main 以外の PR は merge 後に main 着地を実測する
+- 🛑 ユーザー手番: PR #1647 の merge（P-001）
+
 ### 2026-09-07 - macOS 実機受け入れ（#1301 Step 8）通過 — 移行 SSOT の Phase 3 完了 + 未署名起動の条件を訂正
 
 #### 概要

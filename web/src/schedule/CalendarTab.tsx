@@ -30,6 +30,7 @@ import { useCreatePanelNotes } from "./useCreatePanelNotes";
 import { useCalendarNav } from "./useCalendarNav";
 import { useTagFilterPanel } from "./useTagFilterPanel";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
+import { useRoutineRangeFill } from "./useRoutineRangeFill";
 import { useRepeatUndoGate } from "./useRepeatUndoGate";
 import { useScheduleMutations } from "./useScheduleMutations";
 import {
@@ -50,8 +51,6 @@ import { scheduleItemById } from "./scheduleSelectionSurface";
 import { useScheduleCopy } from "./scheduleCopy";
 import { useTodoLinking } from "./useTodoLinking";
 import { selectNarrowDay } from "./narrowDayTap";
-import { rowsOnDay, useFlowDay } from "./useFlowDay";
-import { agendaEmptyKey } from "./agendaEmptyLabel";
 import { useScheduleWriteErrors } from "./useScheduleWriteErrors";
 import { useDuplicateTagCopy } from "./useDuplicateTagCopy";
 import {
@@ -102,6 +101,7 @@ export function CalendarTab({
   pendingTodoTray = false,
   onConsumeTodoTray,
   onNavigateToItem,
+  onTodoDetailClose,
 }: {
   dataService: DataService;
   /**
@@ -130,6 +130,8 @@ export function CalendarTab({
   onConsumeTodoTray?: () => void;
   /** Where a "[[" link inside a todo body goes (#507). */
   onNavigateToItem?: (target: { id: string; role: string }) => void;
+  /** The user closed the todo detail (#2143) — see ScheduleScreen. */
+  onTodoDetailClose?: (todoId: string) => void;
 }) {
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
@@ -164,10 +166,13 @@ export function CalendarTab({
   // reconcile (#352): a frequency edit re-shapes the already-materialised
   // future of ONE routine (drop days that stopped firing, add days that
   // started), honouring the tier-1 §Schedule conflict rules.
-  const { ensureRoutineItemsForDateRange, reconcileRoutineScheduleItems } =
-    useScheduleItemsRoutineSync({
-      dataService,
-    });
+  const {
+    ensureRoutineItemsForDateRange,
+    fillRoutineItemsForDateRange,
+    reconcileRoutineScheduleItems,
+  } = useScheduleItemsRoutineSync({
+    dataService,
+  });
   // Scheduled TodoNodes → todo=blue chips (schedule redesign A-1). `nodes`
   // already excludes soft-deleted todos (useTodoTreeAPI). A-2 (#297) writes
   // scheduledAt back via updateNode on grid drag/resize.
@@ -417,6 +422,16 @@ export function CalendarTab({
     refreshKey: syncVersion,
   });
 
+  // #2081: navigating materialises the visible window's repeat occurrences.
+  useRoutineRangeFill({
+    routines,
+    rangeStart,
+    rangeEnd,
+    today,
+    fill: fillRoutineItemsForDateRange,
+    reload,
+  });
+
   // #568: hand the provider a handle on this store. Undo/redo commands are
   // pushed inside the provider, which is anchored on today alone — so before
   // this, an edit on any other day pushed nothing at all, and the commands
@@ -467,7 +482,6 @@ export function CalendarTab({
     monthItems,
     tagColors,
     anchorDayItems,
-    gridRangeItems,
     handleToggleRepeats,
     handleSelectGroup,
     handleToggleTag,
@@ -479,7 +493,6 @@ export function CalendarTab({
     tagGroups,
     allTags,
     allAssignments,
-    isWide,
     anchorDate,
     rangeStart,
     rangeEnd,
@@ -696,26 +709,10 @@ export function CalendarTab({
     [openSidebar, pickMonthDay, setSidebarTab],
   );
 
-  /*
-   * #1829: a Desktop month cell draws two chips and folds the rest into
-   * "他 N 件". That line was static text, and this width wires no cell face
-   * button either (#1584 took it away), so everything past the second chip
-   * was unreachable without switching to the week by hand.
-   *
-   * #1973 (D-20260922-sched-1 = B): pressing it points the flow tab at that
-   * day and leaves the month where it is. #1933 switched to the week instead,
-   * as the stopgap. The filters are deliberately left alone — the folded count
-   * was counted AFTER them, so the list below reads the same filtered rows.
-   */
-  const flowDay = useFlowDay({
-    isWide,
-    today,
-    rangeStart,
-    rangeEnd,
-    setSidebarTab,
-    openSidebar,
-  });
-  const handleMonthShowMore = flowDay.showDay;
+  // A Desktop month cell's "他 N 件" (#1829) is answered inside
+  // CalendarDesktopLayout since #2049: a panel beside the cell, whose rows
+  // reach this host only as `handleItemActivate`. #1973's answer — pointing
+  // the flow tab at that day — went with it, so the flow tab is today again.
 
   // #889: TODAY, as the rightSidebar shows it — the merged agenda, its two
   // counters, the skipped list and its restore, and the editor's "generated
@@ -772,8 +769,8 @@ export function CalendarTab({
     listDate,
     repeatRows,
     repeatPanel,
-    openRepeatPanel,
     closeRepeatPanel,
+    handleRepeatRowPress,
     requestReveal,
     requestEditDetail,
     handleDeleteRepeat,
@@ -873,19 +870,6 @@ export function CalendarTab({
         rangeTodoChips.filter((c) => c.date === anchorDate),
       );
 
-  /*
-   * #1973: the Desktop half of the same idea, for one day at a time. Read off
-   * the grid's filtered rows, because those are what the month cell counted
-   * when it offered "他 N 件". `null` whenever the tab is on today, so the
-   * today path above stays the only work Desktop does by default.
-   */
-  const wideFlowDay = flowDay.day;
-  const wideDayAgenda = useMemo(() => {
-    if (wideFlowDay === null) return null;
-    const rows = rowsOnDay(gridRangeItems, rangeTodoChips, wideFlowDay);
-    return toAgenda(rows.items, rows.chips);
-  }, [gridRangeItems, rangeTodoChips, toAgenda, wideFlowDay]);
-
   // Shared rightSidebar (AppShell owns the frame -- a push-in panel on
   // Desktop, a drawer on Mobile). One portal either way so contentCount stays
   // 1 (#299 removed the old detail tab -- item detail now lives in a
@@ -901,34 +885,15 @@ export function CalendarTab({
         onTabChange={setSidebarTab}
         flow={{
           // #1148: narrow follows the picked day; Desktop stays on today
-          // unless a month cell's "他 N 件" pointed it elsewhere (#1973).
-          todayLabel: isWide
-            ? wideFlowDay === null
-              ? todayLabel
-              : formatFullDay(wideFlowDay)
-            : anchorDayLabel,
-          agenda: narrowDayAgenda ?? wideDayAgenda ?? todayAgenda,
+          // (#2049 took back #1973's "他 N 件" route into this tab).
+          todayLabel: isWide ? todayLabel : anchorDayLabel,
+          agenda: narrowDayAgenda ?? todayAgenda,
           // The anchor variant's empty state names the day it is showing
           // (#774) — "今日は予定がありません" on some other day is a lie.
-          agendaLabels: isWide
-            ? wideFlowDay === null
-              ? agendaLabels
-              : {
-                  ...agendaLabels,
-                  empty: t(agendaEmptyKey(wideFlowDay, today)),
-                }
-            : anchorAgendaLabels,
+          agendaLabels: isWide ? agendaLabels : anchorAgendaLabels,
           // No now-line on a day that is not today: the hour it marks means
           // nothing there.
-          nowMinutes: isWide
-            ? wideFlowDay === null
-              ? nowMinutes
-              : null
-            : anchorDate === today
-              ? nowMinutes
-              : null,
-          onBackToToday: wideFlowDay === null ? undefined : flowDay.backToToday,
-          backToTodayLabel: t("scheduleScreen.flowBackToToday"),
+          nowMinutes: isWide || anchorDate === today ? nowMinutes : null,
           selectedId,
           // #691, arriving with the day list: narrow stands in for the week
           // grid, so its rows carry their duration and the gaps between them.
@@ -939,9 +904,7 @@ export function CalendarTab({
           // one.
           onAdd: isWide ? undefined : handleToolbarAdd,
           addLabel: isWide ? undefined : t("scheduleScreen.addCta"),
-          // Today's skipped rows under another day's name would be read as
-          // that day's (#1973), so the restore list waits for the way back.
-          skipped: wideFlowDay === null ? skippedToday : [],
+          skipped: skippedToday,
           summaryRows,
           onToggleComplete: handleAgendaToggle,
           onItemActivate: handleItemActivate,
@@ -951,9 +914,9 @@ export function CalendarTab({
         repeats={{
           hidden: repeatsHidden,
           rows: repeatRows,
-          // #1678: the press opens the row's panel; the jump to the next
-          // occurrence is one of the actions inside it.
-          onOpen: openRepeatPanel,
+          // #1678: the press opens the row's panel on Desktop; #2083: narrow
+          // has no panel, so there the press opens the series' editor.
+          onOpen: handleRepeatRowPress,
           onDelete: handleDeleteRepeat,
           onShowHidden: handleToggleRepeats,
         }}
@@ -1038,7 +1001,11 @@ export function CalendarTab({
       todoDetail={{
         todoId: todoDetailId,
         todoNodes,
-        onClose: () => setTodoDetailId(null),
+        onClose: () => {
+          setTodoDetailId(null);
+          // #2143: a todo opened from Connect goes back there on close.
+          if (todoDetailId) onTodoDetailClose?.(todoDetailId);
+        },
         writes: {
           updateNode,
           toggleStatus: toggleTodoStatusReported,
@@ -1185,7 +1152,6 @@ export function CalendarTab({
             onItemDoubleClick: handleItemOpenDetail,
             onItemContextMenu: handleItemContextMenu,
             onMonthCreate: handleMonthCreate,
-            onShowMore: handleMonthShowMore,
             onCreateAt: handleGridCreateAt,
             onMoveItem: handleMoveItem,
             onResizeItem: handleResizeItem,
@@ -1201,6 +1167,16 @@ export function CalendarTab({
             onPrev: () => step(-1),
             onNext: () => step(1),
             onToday: goToday,
+            // #2079: the same panel and state the Desktop toolbar opens.
+            filter: {
+              onOpen: () => setTagFilterOpen(true),
+              active: selectedTagIds.length > 0,
+              count: selectedTagIds.length,
+              label:
+                selectedTagIds.length > 0
+                  ? toolbarLabels.filterActive
+                  : toolbarLabels.openFilter,
+            },
           }}
           banner={rangeErrorBanner}
           state={{ loading: showLoading, error: showError, onRetry: reload }}

@@ -8,6 +8,8 @@ import {
   filterTagGroups,
   filterNotesBySearch,
   sortNotesForList,
+  buildDefaultNoteList,
+  DEFAULT_NOTE_LIST_LIMIT,
   useFrozenNoteSortKey,
   TagHeadingIcon,
 } from "@life-editor/shared";
@@ -15,9 +17,15 @@ import {
 /*
  * List half of the Notes host (extracted from NotesView.tsx — hooks split,
  * zero behavior change). Owns the persisted collapse state for tag-group
- * headings and the derived side-list pipeline both breakpoints render from
- * (search → tag groups → sort → tag filter), plus the sort/filter control
- * plumbing (mode picker entries, direction label, tag-filter chips).
+ * headings and the derived side-list pipeline both breakpoints render from,
+ * plus the sort/filter control plumbing (mode picker entries, direction label,
+ * tag-filter options).
+ *
+ * TWO LISTS since #2061. With no tag selected the sidebar draws the DEFAULT
+ * list — search → pinned-first sort → the first 15, the rest behind "Other
+ * items" (buildDefaultNoteList). Selecting a tag in the filter switches it to
+ * the tag-grouped list (search → tag groups → sort → tag filter), which used
+ * to be the default; clearing the filter switches back.
  */
 
 // Collapse state for tag-group headings. Persisted so a folded group stays
@@ -29,12 +37,13 @@ import {
 // `migrateLegacyPreferenceKeys` — see shared/src/utils/.
 const LS_TAG_GROUPS_COLLAPSED = "life-editor:note-tag-groups-collapsed";
 
-/**
- * Rows drawn per tag group while no tag filter is on (#1288). Small enough that
- * a dozen headings still fit on one screen, large enough that most groups are
- * shown whole and the expander never appears.
+/*
+ * #1288's per-group row cap (`GROUP_ROW_CAP` / `rowCap`, and #1842's "show
+ * fewer") is gone with #2061. It only ever applied while NO tag was selected,
+ * and that state now draws the flat default list instead of tag groups — so the
+ * cap had no list left to cap. The default list's own limit is the 15-row one
+ * (DEFAULT_NOTE_LIST_LIMIT).
  */
-const GROUP_ROW_CAP = 5;
 
 function loadCollapsedGroups(): Set<string> {
   try {
@@ -198,7 +207,7 @@ export function useNoteListState() {
     (key: string) => {
       /*
        * #1470: with nothing matching the query the chips describe the VAULT
-       * rather than the result set (see tagFilterChips), so pressing one can
+       * rather than the result set (see tagFilterOptions), so pressing one can
        * only mean "narrow by this tag instead of that word" — the mirror of
        * handleSearchChange dropping the chips when you type. Without it the
        * row restored below would be a control that does nothing.
@@ -233,11 +242,11 @@ export function useNoteListState() {
     });
   }, [searchEmpty, notes.notes, allTags, getTagsForItem, t]);
 
-  const chipGroups = searchEmpty ? vaultGroups : sortedGroups;
+  const optionGroups = searchEmpty ? vaultGroups : sortedGroups;
 
-  const tagFilterChips = useMemo(
+  const tagFilterOptions = useMemo(
     () =>
-      chipGroups.map((group) => ({
+      optionGroups.map((group) => ({
         id: groupKey(group),
         label: group.tagName,
         count: group.notes.length,
@@ -265,7 +274,7 @@ export function useNoteListState() {
           />
         ),
       })),
-    [chipGroups],
+    [optionGroups],
   );
 
   // filterTagGroups falls back to the full list when every selection goes stale
@@ -276,21 +285,42 @@ export function useNoteListState() {
   );
 
   /*
-   * #1288 — the second half of the Issue: the list with NO filter on.
-   *
-   * Every tag is a heading and a note appears under every tag it carries, so an
-   * unfiltered vault of any size is a wall of rows in a ~240px column. Capping
-   * each group and letting the user open the ones they want turns it back into
-   * something scannable — headings first, contents on request.
-   *
-   * Only while nothing is selected: once a tag IS picked, that group is the
-   * thing the user asked to see, and hiding part of it would answer a narrower
-   * question than the one they asked.
+   * #2061 — which list the sidebar draws. Tag groups only while a tag is
+   * selected; otherwise the flat default list. The tag-grouped list used to be
+   * the default, and #1288 had to cap every group to keep it scannable — the
+   * default is now the list people open most, and the groups are what the tag
+   * filter is for.
    */
-  const rowCap = tagFilters.length > 0 ? null : GROUP_ROW_CAP;
+  const listMode: "flat" | "grouped" =
+    tagFilters.length > 0 ? "grouped" : "flat";
+
+  /*
+   * The default list (#2061): pinned first, then the current sort, 15 rows,
+   * the rest offered as "Other items". Off the SAME searched notes as the
+   * groups, so a query narrows both lists alike — and while a query is on the
+   * cap is lifted: what a search matched is the answer, and hiding part of it
+   * behind a second click would answer a narrower question than the one asked.
+   */
+  const defaultList = useMemo(
+    () =>
+      buildDefaultNoteList({
+        notes: searchedNotes,
+        sortMode: notes.sortMode,
+        sortDirection: notes.sortDirection,
+        frozen: frozenSortKey,
+        limit: searchActive ? null : DEFAULT_NOTE_LIST_LIMIT,
+      }),
+    [
+      searchedNotes,
+      notes.sortMode,
+      notes.sortDirection,
+      frozenSortKey,
+      searchActive,
+    ],
+  );
 
   // Only worth showing when there is more than one bucket to choose between.
-  const showTagFilter = tagFilterChips.length > 1;
+  const showTagFilter = tagFilterOptions.length > 1;
 
   /*
    * Typing in the search box drops the tag filter. The two are alternative ways
@@ -318,9 +348,11 @@ export function useNoteListState() {
     tagFilters,
     toggleTagFilter,
     clearTagFilters,
-    tagFilterChips,
+    tagFilterOptions,
     visibleGroups,
-    rowCap,
+    listMode,
+    defaultNotes: defaultList.shown,
+    otherNotes: defaultList.others,
     showTagFilter,
     handleSearchChange,
     hasNotes,

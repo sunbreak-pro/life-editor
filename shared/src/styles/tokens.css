@@ -405,11 +405,26 @@
   --radius-lumen-full: 9999px;
   /* Spacing scale (lumen-*) — named spacing keys → p-lumen-* / px-lumen-* /
      gap-lumen-* / m-lumen-* etc. Theme-invariant (same reasoning as radius).
-     4-px base rhythm (2=8, 3=12); complements Tailwind's numeric scale for
-     design-system inner spacing. Shadow's scale is the theme-aware
-     --shadow-lumen-* trio above (it flips via --shadow-elevation-*). */
+     Shadow's scale is the theme-aware --shadow-lumen-* trio above (it flips
+     via --shadow-elevation-*).
+       The steps are for a component's INNER padding and gaps only — a chip,
+     a button, a row, a card, a sheet body (#2036). The key is the 4-px
+     multiple (1=4, 2=8, 3=12, 4=16, 6=24). Page-level spacing stays on
+     Tailwind's numeric scale and on the gutter pair below, so this list is
+     deliberately not a second copy of p-1…p-12: a step is added here only
+     when a component's inside needs it. 5 (20px) is missing on purpose — the
+     Claude Design kit's card paddings are 12 / 16 / 24, and nothing inside a
+     component sits between 16 and 24.
+       PX, unlike Tailwind's rem scale and the icon steps further down. The
+     two existing steps were px and are used as px; the redesign of Briefing
+     and Work decides call by call whether a padding should follow the
+     Settings font-size step, and reaches for a rem utility when it should.
+     design-critique's measure.js reads this rhythm as SPACING_STEP_PX = 4. */
+  --spacing-lumen-1: 4px;
   --spacing-lumen-2: 8px;
   --spacing-lumen-3: 12px;
+  --spacing-lumen-4: 16px;
+  --spacing-lumen-6: 24px;
   /* Content width scale (Layout Standard v1, Issue #180) → max-w-lumen-reading /
      max-w-lumen-data / max-w-lumen-wide. reading = document-style centered
      column; data = wide dashboard column (analytics); wide = the Notes / Daily
@@ -489,6 +504,24 @@
                   icon-only (a glyph plus a label, a custom element). */
   --spacing-lumen-icon-min: 0.9rem;
   --spacing-lumen-tap-min: 1.75rem;
+  /* Icon size steps (#2036) → `size-lumen-icon-sm / -md / -lg` on the lucide
+     element (Tailwind's size-* reads the --spacing-* keys). CSS width/height
+     outrank the `size` attribute lucide writes, so the prop can be left off.
+       Counted before choosing (2026-10-05, `size={N}` across shared/src and
+     web/src): 14 ×72, 16 ×68, 18 ×27, 13 ×24, 12 ×12, then a long tail of
+     20 / 22 / 24 / 26 / 28. The count is misleading on its own: icon-min
+     above already lifts every glyph to 0.9rem, which is 16.2px at the default
+     18px root, so 12 through 16 are ONE visible size today. A 14 / 16 / 20
+     scale would have shipped two steps that render identically.
+       So sm IS the floor (it reads icon-min rather than repeating 0.9rem, so
+     the two cannot drift), and the other two keep a 1.25× ratio above it:
+     18px root → 16.2 / 20.25 / 24.75px. REM for the same reason as the floor
+     — a px step is exactly the frozen-icon bug icon-min was added to fix.
+     The `size={N}` call sites are NOT moved onto these here; the Briefing /
+     Work redesign does that screen by screen. */
+  --spacing-lumen-icon-sm: var(--spacing-lumen-icon-min);
+  --spacing-lumen-icon-md: 1.125rem;
+  --spacing-lumen-icon-lg: 1.375rem;
   /* Smallest step of the type scale. Tailwind's stock text-xs is 0.75rem;
      lifting it here raises every existing `text-xs` call site at once, which
      is why the ~200 of them stayed untouched in that change. Line height is
@@ -509,6 +542,37 @@
   --font-mono:
     ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
     "Courier New", monospace;
+  /* Motion steps (#2036). One value from each band of the
+     frontend-react-designer skill's references/motion.md §3, and that file
+     now points back here for the numbers.
+       fast   150ms — hover, focus, a small state change, a digit that swaps.
+                      It is also Tailwind's --default-transition-duration, so
+                      the ~180 bare `transition-colors` / `transition` call
+                      sites already sit on this step without being touched.
+       normal 250ms — a panel, sheet, drawer or scrim arriving; a section
+                      surfacing.
+       slow   400ms — a full-screen transition. Nothing uses it yet.
+     150 → 250 → 400 keeps a near-constant ×1.6 between neighbours, and slow
+     is the bottom of its band because the palette's calm-minimal brief would
+     rather a large move finish early than linger.
+       Tailwind has no duration namespace, so there is no `duration-lumen-*`
+     utility: write `duration-(--duration-lumen-normal)`. Easing IS a
+     namespace, so `ease-lumen-out` / `ease-lumen-in` exist.
+       ease-out — entrances. A strong deceleration: most of the travel happens
+                  at once and the rest settles, which is what lets 250ms read
+                  as quick. It is the curve the drawer and the section rise
+                  already used.
+       ease-in  — exits, the exact mirror of ease-out (motion.md §6: things
+                  leave by accelerating away). No exit animation exists yet.
+     Every `animation:` below reads these; none may carry its own number.
+     The reduced-motion blocks at the bottom override the duration LONGHAND
+     with !important, so a var() inside the shorthand changes nothing there
+     — shared/tests/tokensSteps.test.ts pins both halves. */
+  --duration-lumen-fast: 150ms;
+  --duration-lumen-normal: 250ms;
+  --duration-lumen-slow: 400ms;
+  --ease-lumen-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-lumen-in: cubic-bezier(0.64, 0, 0.78, 0);
 }
 
 /*
@@ -666,16 +730,22 @@
   }
 }
 
+/* All three run on the normal step with the entrance curve (#2036). They
+   used to be 0.22s / 0.2s / 0.2s with two different curves, although the
+   drawer and the push-in panel are the same detail panel at its two widths
+   and the scrim belongs to the drawer — one duration and one curve now. */
 .lumen-drawer-in-left {
-  animation: lumen-drawer-in-left 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+  animation: lumen-drawer-in-left var(--duration-lumen-normal)
+    var(--ease-lumen-out);
 }
 
 .lumen-scrim-in {
-  animation: lumen-scrim-in 0.2s ease-out;
+  animation: lumen-scrim-in var(--duration-lumen-normal) var(--ease-lumen-out);
 }
 
 .lumen-panel-in-right {
-  animation: lumen-panel-in-right 0.2s ease-out;
+  animation: lumen-panel-in-right var(--duration-lumen-normal)
+    var(--ease-lumen-out);
 }
 
 /*
@@ -684,7 +754,8 @@
  *
  * The rise is 8px and the fade starts at 0, both deliberately small: this runs
  * on a surface the user is about to read, so it has to be over before it
- * registers as a wait. 0.3s is the number the Issue asks for.
+ * registers as a wait. The Issue asked for 0.3s; #2036 moved it onto the
+ * normal step (250ms), which is the same reason taken one step further.
  *
  * WHO GETS IT is decided in JS (useFirstAppearance), not here — a class keyed
  * on the section id would replay the animation on every switch back and forth,
@@ -713,7 +784,29 @@
 }
 
 .lumen-section-in {
-  animation: lumen-section-in 0.3s cubic-bezier(0.22, 1, 0.36, 1) both;
+  animation: lumen-section-in var(--duration-lumen-normal) var(--ease-lumen-out)
+    both;
+}
+
+/*
+ * Countdown digit (#2054, Claude Design plan A for the Mobile Work face) —
+ * only the digit that changed fades in. The face keys each character by its
+ * value, so React remounts just that span and the animation runs once on it;
+ * the digits that stayed put are never touched. The plan said 120ms ease-out;
+ * #2036 put it on the fast step (150ms) and the entrance curve, still over
+ * long before the next second ticks.
+ */
+@keyframes lumen-digit-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.lumen-digit-in {
+  animation: lumen-digit-in var(--duration-lumen-fast) var(--ease-lumen-out);
 }
 
 /*

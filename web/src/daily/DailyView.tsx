@@ -19,21 +19,19 @@ import {
   MenuItem,
   RightSidebarPortal,
   DailyEntriesPanel,
-  DailyEveningCard,
-  EveningReflectionPreview,
+  DailyDayFooter,
+  DailyMorningNote,
   SidebarListControls,
   useUndoRedoOptional,
   afterSettled,
-  isEmptyDocJson,
-  type EveningPatch,
   cn,
-  dailyContentToEditorContent,
   dailyContentExcerpt,
   dailyContentHasRenderedContent,
   extractEveningSection,
-  eveningBodyLines,
   mergeEveningSection,
-  stripEveningSection,
+  readDailyText,
+  readMorningRecord,
+  writeDailyText,
   filterAndSortDailyEntries,
   jsonDocEquals,
   createPendingItemLinks,
@@ -51,13 +49,17 @@ import {
   dateFromKey,
 } from "@life-editor/shared";
 import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
-import { preloadRichTextEditor } from "../notes/preloadRichTextEditor";
 import {
   useItemLinkTargets,
   type LoadItemLinkTargets,
 } from "../notes/useItemLinkTargets";
+import {
+  useAttachmentUpload,
+  type AttachmentWiring,
+} from "../notes/useAttachmentUpload";
+import { AttachmentUploadStatus } from "../notes/AttachmentUploadStatus";
 import { useInlineItemLinks } from "../hooks/useInlineItemLinks";
-import { useDayScheduleSummary } from "./useDayScheduleSummary";
+import { useDayFigures } from "./useDayFigures";
 
 /*
  * Web Daily tab (Materials mini-plan Step 4). Re-shaped to the target-IA
@@ -97,6 +99,14 @@ import { useDayScheduleSummary } from "./useDayScheduleSummary";
  * of scope. Data stays context-side (useDailiesUnifiedContext); this view is
  * DataService-free (§3.1) and takes all copy from useTranslation → props
  * (§6.4). No hex — lumen-* only.
+ *
+ * #2123 (plan Step 13): the editor holds the day's ONE text — the body minus
+ * the 朝刊 / 宣言 sections, the「夕刊」heading and the mood line, read and
+ * written only through readDailyText / writeDailyText, the pair the evening
+ * paper's「一日の締めくくり」uses too. So the old body and the evening
+ * reflection read as one document on both screens. The 朝刊 comment and the
+ * 宣言 are shown above it, read-only (readMorningRecord); under it sit only the
+ * mood stars and the day's four figures.
  */
 
 function isoDay(offsetDays: number): string {
@@ -140,6 +150,9 @@ function EditorCard({
   loadLinkTargets,
   onNavigateToItem,
   onResolvedLinkInserted,
+  attachments,
+  uploadingFile,
+  uploadingLabel,
 }: {
   dateLabel: string;
   dateClassName: string;
@@ -156,6 +169,11 @@ function EditorCard({
   loadLinkTargets?: LoadItemLinkTargets;
   onNavigateToItem?: (target: { id: string; role: string }) => void;
   onResolvedLinkInserted?: (targetId: string) => void;
+  /** The "/" menu's image / file entries (#1404). Undefined hides them. */
+  attachments?: AttachmentWiring;
+  /** The file uploading right now, or null — drawn above the body (#1674). */
+  uploadingFile: string | null;
+  uploadingLabel: string;
 }) {
   return (
     <div
@@ -173,6 +191,14 @@ function EditorCard({
           </span>
         )}
         {headerActions}
+      </div>
+      {/* Same band as the Notes body: outside the document, so nothing
+          mid-upload can reach the autosave (D-20260902-materials-1 = B). */}
+      <div className="px-5">
+        <AttachmentUploadStatus
+          fileName={uploadingFile}
+          uploadingLabel={uploadingLabel}
+        />
       </div>
       {/* TipTap (F-1 #258). IME composition is handled natively by
           ProseMirror (no manual keydown here — the isComposing gotcha cannot
@@ -193,6 +219,7 @@ function EditorCard({
         loadLinkTargets={loadLinkTargets}
         onNavigateToItem={onNavigateToItem}
         onResolvedLinkInserted={onResolvedLinkInserted}
+        attachments={attachments}
         className="daily-editor min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1"
       />
     </div>
@@ -240,6 +267,13 @@ export function DailyView({
   // "[[" link-target pool (notes + dailies + todos, cross-domain). A loader,
   // not a list: nothing is fetched until the first "[[" (#430).
   const loadLinkTargets = useItemLinkTargets(dataService);
+
+  // Image / file embedding for the "/" menu — the same pair Notes wires
+  // (#1404 / #1674). Undefined without a DataService, which keeps the two
+  // entries out of the picker. The evening reflection editor does not get
+  // it: its closed state is a text-line preview that cannot draw a node.
+  const [uploadingFile, setUploadingFile] = useState<string | null>(null);
+  const attachments = useAttachmentUpload(dataService, setUploadingFile);
 
   // A link click from the Notes tab lands here with a pending date — open it
   // once, then clear.
@@ -365,25 +399,22 @@ export function DailyView({
     setSyncedFrom({ date: selectedDate, content: selectedContent });
   }
 
-  // 夕刊カテゴリ (#1046): the evening section stays IN the stored content
-  // (same rows, same sync, same MCP reach — zero migration), but it no longer
-  // renders inside the body editor. The editor mounts the day WITHOUT it and
-  // the card below prints it, so the split is entirely presentational.
-  const eveningStored = useMemo(
-    () => extractEveningSection(selectedContent),
+  // The mood still comes off the 夕刊 section's first line — the line the
+  // evening paper's issue number counts.
+  const storedMood = useMemo(
+    () => extractEveningSection(selectedContent).mood,
     [selectedContent],
   );
-  const eveningLines = useMemo(
-    () => eveningBodyLines(eveningStored.bodyDocJson),
-    [eveningStored],
+  const morning = useMemo(
+    () => readMorningRecord(selectedDaily),
+    [selectedDaily],
   );
-  const daySchedule = useDayScheduleSummary(dataService, selectedDate);
+  const figures = useDayFigures(dataService, selectedDate);
 
-  // Lazy plain→TipTap conversion happens here, at read time; JSON is only
-  // persisted when the editor emits an update (i.e. the user edited).
-  const editorContent = dailyContentToEditorContent(
-    stripEveningSection(selectedContent),
-  );
+  // The day's one text (#2123). A legacy plain-text body is turned into a
+  // TipTap doc here, at read time (parseDailyDoc); nothing is persisted until
+  // the editor emits an update (i.e. the user edited).
+  const editorContent = readDailyText(selectedContent) ?? undefined;
   const editorKey = `${selectedDate}:${editorGen}`;
 
   const handleEditorUpdate = (json: string) => {
@@ -403,35 +434,44 @@ export function DailyView({
     if (selectedContent === "" && !dailyContentHasRenderedContent(json)) {
       return;
     }
-    // The editor emitted the day WITHOUT its evening section (#1046) — put
-    // the stored 夕刊 back before persisting, so a body edit can never drop
-    // what the evening paper wrote. Nothing stored → the merge returns the
-    // emitted doc untouched.
-    const full = mergeEveningSection(json, {
-      mood: eveningStored.mood,
-      bodyDocJson: eveningStored.bodyDocJson,
-    });
-    setLastEmitted({ date: selectedDate, json: full });
     // The date this callback closed over. The editor is remounted per date
     // (`key={editorKey}`), so an unmount flush fires the PREVIOUS instance's
     // callback — the one still holding the date it was rendered for.
     const date = selectedDate;
+    // The editor emitted the one text only (#2123): writeDailyText puts it
+    // back under the「夕刊」heading and keeps the 朝刊 / 宣言 sections and the
+    // mood line exactly as stored. The base is a ref read rather than this
+    // render's content, so a star tap that landed in between is kept. A text
+    // that reads the same as what is stored comes back as the very input —
+    // then nothing is written (「保存し直すのは編集したときだけ」).
+    const base = getDailyForDate(date)?.content ?? "";
+    const full = writeDailyText(base, json);
+    if (full === base) return;
+    setLastEmitted({ date, json: full });
     void upsertDaily(date, full).then((saved) => {
       flushPendingLinks(date, saved, full);
       // #372: drop inline-origin edges whose "[[ ]]" left the text. Edges the
       // flush just created are not candidates — their targets are in `full`
-      // (the evening section can carry links of its own, so the fold must
-      // see the whole stored body, not just the editor's half).
+      // (the 朝刊 / 宣言 sections can carry links of their own, so the fold
+      // must see the whole stored body, not just the editor's text).
       if (saved) syncSavedBody(saved.id, full);
     });
   };
 
   /*
-   * 夕刊の編集 (#1680). The card writes the evening section only: read the
-   * day's WHOLE stored content, swap the [夕刊, next heading) range through
-   * mergeEveningSection, write it back. The body editor's half is never
-   * touched, and the stored shape (heading +「気分: n/5」+ reflection blocks)
-   * is the one the evening paper and the MCP briefing tools already read.
+   * The mood stars (#1680, #2123). A tap writes the 夕刊 section's mood line
+   * only: read the day's WHOLE stored content, swap the line through
+   * mergeEveningSection, write it back — the same write the evening paper's
+   * stars make, so the one text is never touched.
+   *
+   * The star is also the PUBLISH act (#2123, plan「Daily の★」): once the
+   * content write lands, `evening_published_at` follows the mood line the way
+   * the evening paper keeps it (web/src/briefing/hooks/useDailySections.ts) —
+   * stamped when an unpublished day gets a star (a re-rating keeps the first
+   * stamp), cleared when the star is cleared. Otherwise the issue number,
+   * counted off the mood line, and the timestamp would disagree depending on
+   * which screen the star was set on. The stamp is a second call because the
+   * upsert carries content only; it needs the row id the upsert hands back.
    *
    * The base is `getDailyForDate` (a ref read) rather than this render's
    * `selectedContent`, because the undo / redo commands below run long after
@@ -443,12 +483,12 @@ export function DailyView({
    * the one the user performed, and a second "createDaily" entry would make
    * one tap take two undos.
    */
-  const writeEvening = (
+  const writeMood = (
     date: string,
-    patch: EveningPatch,
+    mood: number | null,
   ): Promise<void> | null => {
     const current = getDailyForDate(date)?.content ?? "";
-    const full = mergeEveningSection(current, patch);
+    const full = mergeEveningSection(current, { mood });
     if (full === current) return null;
     setLastEmitted({ date, json: full });
     /*
@@ -458,25 +498,45 @@ export function DailyView({
      * failure once that null is turned back into one.
      */
     const landed = upsertDaily(date, full, { skipUndo: true }).then((saved) => {
-      if (!saved) throw new Error(`daily evening write failed (${date})`);
-      // The reflection can carry "[[ ]]" links of its own — fold against
-      // the whole stored body, same as the body save does.
+      if (!saved) throw new Error(`daily mood write failed (${date})`);
       syncSavedBody(saved.id, full);
+      return saved;
     });
+    // The stamp's failure is its own: the mood line DID save, so it does not
+    // fail the undo either. The next tap heals a missing stamp, since
+    // `stamped` is read off the row that write returns.
+    void landed
+      .then(async (saved) => {
+        if (dataService === undefined) return;
+        const stamped = (saved.eveningPublishedAt ?? null) !== null;
+        if (mood !== null && !stamped) {
+          await dataService.updateDailyUnified(saved.id, {
+            eveningPublishedAt: new Date().toISOString(),
+          });
+        } else if (mood === null && stamped) {
+          await dataService.updateDailyUnified(saved.id, {
+            eveningPublishedAt: null,
+          });
+        }
+      })
+      .catch((err: unknown) => {
+        console.error("[DailyView] mood write failed", err);
+      });
+    const result = landed.then(() => {});
     // The write's own failure is the caller's to report (upsertDaily already
     // logged it); this keeps the promise handled for callers that only pass
     // it on to an undo closure.
-    void landed.catch(() => {});
-    return landed;
+    void result.catch(() => {});
+    return result;
   };
 
   // Stars: tap a star to set it, tap the lit one again to clear (the evening
   // paper's rule). One tap = one global undo entry.
   const handleSelectMood = (n: number) => {
     const date = selectedDate;
-    const prev = eveningStored.mood;
+    const prev = storedMood;
     const next = prev === n ? null : n;
-    const landed = writeEvening(date, { mood: next });
+    const landed = writeMood(date, next);
     if (!landed) return;
     pushUndo?.("daily", {
       label: "setDailyMood",
@@ -485,33 +545,13 @@ export function DailyView({
       // one must not move the command onto the redo stack.
       undo: async () => {
         await afterSettled(landed);
-        await writeEvening(date, { mood: prev });
+        await writeMood(date, prev);
       },
       redo: async () => {
-        await writeEvening(date, { mood: next });
+        await writeMood(date, next);
       },
     });
   };
-
-  // The reflection is a TipTap editor like the body, so its typing history
-  // lives in the editor's own undo (Mod-Z) — a global entry per 800ms save
-  // would bury every other command. A cleared editor clears the stored body.
-  const handleReflectionUpdate = (json: string) => {
-    setDirtyDate(null);
-    void writeEvening(selectedDate, {
-      bodyDocJson: isEmptyDocJson(json) ? null : json,
-    });
-  };
-
-  // Which day the user opened the evening card on (the entry button on a day
-  // without one) and whether its reflection editor is mounted. Keyed by date
-  // so switching days falls back to the resting preview.
-  const [eveningEdit, setEveningEdit] = useState<{
-    date: string;
-    reflection: boolean;
-  } | null>(null);
-  const eveningOpened = eveningEdit?.date === selectedDate;
-  const editingReflection = eveningOpened && eveningEdit.reflection;
 
   // Saves are automatic (debounced + flushed on unmount). Between a keystroke
   // and the debounce the caption reads unsaved through `dirty` (#1954); after
@@ -613,7 +653,12 @@ export function DailyView({
   const panelEntries = useMemo<DailyEntriesPanelEntry[]>(() => {
     const enriched = dailies.map((d) => {
       const dayLabel = entryDayLabel(d.date);
-      const excerpt = dailyContentExcerpt(d.content);
+      // Off the one text (#2123): the stored body now opens with the「夕刊」
+      // heading (or an old 朝刊 section), which would otherwise be the
+      // excerpt of every written day.
+      const excerpt = dailyContentExcerpt(
+        readDailyText(d.content) ?? undefined,
+      );
       return {
         date: d.date,
         dayLabel,
@@ -776,85 +821,80 @@ export function DailyView({
   );
 
   /*
-   * 夕刊カテゴリ (#1046) — under the body editor at both widths. Shown only
-   * when the day has something to close on (a mood, a reflection, or any
-   * schedule): an empty card under every blank past day would be noise, not
-   * a look back. Copy for the stars and the all-day tag comes from the
-   * briefing catalogue — they are the same concepts the papers name.
-   *
-   * #1680: a day without one gets a quiet「夕刊を書く」button in its place
-   * instead of the empty card, so the entry exists without the noise. The
-   * schedule rows stay a read — they are Schedule's data, not this day's.
+   * Under the body (#2123, D-20261006-main-7): the mood stars and the day's
+   * four figures, nothing else — the day's schedule list of #1046 is gone, and
+   * the reflection is part of the body now. Drawn on every day, so a blank
+   * day can be rated too. The figures wait for their rows; until then (or
+   * without a DataService) only the stars show.
    */
-  const showEveningCard =
-    eveningOpened ||
-    eveningStored.mood !== null ||
-    eveningLines.length > 0 ||
-    daySchedule.length > 0;
-  const eveningCard = showEveningCard ? (
-    <DailyEveningCard
-      mood={eveningStored.mood}
-      reflectionLines={eveningLines}
-      schedule={daySchedule}
+  const formatDuration = (minutes: number): string => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    if (h === 0) return t("scheduleScreen.durationMin", { m });
+    if (m === 0) return t("scheduleScreen.durationHour", { h });
+    return t("scheduleScreen.durationHourMin", { h, m });
+  };
+  const dayFooter = (
+    <DailyDayFooter
+      mood={storedMood}
       onSelectMood={handleSelectMood}
-      reflectionSlot={
-        editingReflection ? (
-          <LazyRichTextEditor
-            // Same remount rule as the body editor: date switch or an
-            // external change, never our own save echo.
-            key={`evening:${editorKey}`}
-            noteId={`daily-evening-${selectedDate}`}
-            initialContent={eveningStored.bodyDocJson ?? undefined}
-            onUpdate={handleReflectionUpdate}
-            onDirty={markDirty}
-            placeholder={t("materials.daily.eveningReflectionPlaceholder")}
-            autoFocus
-          />
-        ) : (
-          <EveningReflectionPreview
-            lines={eveningLines}
-            placeholder={t("materials.daily.eveningReflectionPlaceholder")}
-            editLabel={t("materials.daily.eveningEditReflection")}
-            onStartEditing={() =>
-              setEveningEdit({ date: selectedDate, reflection: true })
-            }
-            onPrefetch={preloadRichTextEditor}
-            // #1840 — the floor goes on the call site, not on the component:
-            // the Briefing screen draws this same preview inside a card of its
-            // own and is outside this issue. `min-h` rather than padding so the
-            // text keeps its position when the editor swaps in (the component's
-            // own comment: the swap must not jump).
-            className="px-1 py-1 max-md:min-h-11"
-          />
-        )
+      figures={
+        figures === null
+          ? []
+          : [
+              {
+                id: "events",
+                label: t("materials.daily.figureEvents"),
+                value: String(figures.events),
+              },
+              {
+                id: "todos",
+                label: t("materials.daily.figureTodos"),
+                value:
+                  figures.todosTotal === 0
+                    ? "—"
+                    : `${figures.todosDone}/${figures.todosTotal}`,
+              },
+              {
+                id: "work",
+                label: t("materials.daily.figureWork"),
+                value: formatDuration(Math.round(figures.workMinutes)),
+              },
+              {
+                id: "goals",
+                label: t("materials.daily.figureGoals"),
+                value:
+                  figures.goalsMoved === null
+                    ? "—"
+                    : String(figures.goalsMoved),
+              },
+            ]
       }
       labels={{
-        title: t("materials.daily.eveningTitle"),
+        moodGroup: t("materials.daily.eveningMood"),
         moodStars: [1, 2, 3, 4, 5].map((n) =>
           t("briefing.evening.moodStar", { value: n }),
         ),
-        moodGroup: t("materials.daily.eveningMood"),
-        scheduleTitle: t("materials.daily.eveningScheduleTitle"),
-        allDay: t("briefing.allDay"),
+        figuresGroup: t("materials.daily.figuresLabel"),
       }}
     />
-  ) : (
-    <div className="mt-3 flex justify-start">
-      <button
-        type="button"
-        onClick={() =>
-          setEveningEdit({ date: selectedDate, reflection: false })
-        }
-        className={cn(
-          "rounded-lumen-md px-2 py-1 text-xs text-lumen-text-secondary",
-          "hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
-          FOCUS_RING,
-        )}
-      >
-        {t("materials.daily.eveningStart")}
-      </button>
-    </div>
   );
+
+  // Above the body: the 朝刊 comment and the 宣言 (plan Step 13), left out on
+  // a day with neither. They are not part of the one text, so the editor
+  // never shows them.
+  const morningNote =
+    morning.comment.length > 0 || morning.intention.trim() !== "" ? (
+      <DailyMorningNote
+        comment={morning.comment}
+        intention={morning.intention}
+        labels={{
+          region: t("materials.daily.morningLabel"),
+          comment: t("materials.daily.morningComment"),
+          intention: t("materials.daily.morningIntention"),
+        }}
+      />
+    ) : null;
 
   /*
    * Past entries — the detail panel's content at both widths (#876). Wide draws
@@ -933,6 +973,7 @@ export function DailyView({
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex justify-end pb-3">{toTodayButton}</div>
         <div className="flex min-h-0 flex-1 flex-col">
+          {morningNote}
           <EditorCard
             dateLabel={fullDateLabel(selectedDate)}
             dateClassName="text-[28px] font-bold leading-tight tracking-tight text-lumen-text"
@@ -947,8 +988,11 @@ export function DailyView({
             loadLinkTargets={loadLinkTargets}
             onNavigateToItem={onNavigateToItem}
             onResolvedLinkInserted={handleResolvedLinkInserted}
+            attachments={attachments}
+            uploadingFile={uploadingFile}
+            uploadingLabel={t("attachment.uploading")}
           />
-          {eveningCard}
+          {dayFooter}
         </div>
 
         {pastEntries}
@@ -966,6 +1010,7 @@ export function DailyView({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
+        {morningNote}
         <EditorCard
           dateLabel={shortDateLabel(selectedDate)}
           dateClassName="text-lg font-bold leading-tight tracking-tight text-lumen-text"
@@ -979,8 +1024,11 @@ export function DailyView({
           loadLinkTargets={loadLinkTargets}
           onNavigateToItem={onNavigateToItem}
           onResolvedLinkInserted={handleResolvedLinkInserted}
+          attachments={attachments}
+          uploadingFile={uploadingFile}
+          uploadingLabel={t("attachment.uploading")}
         />
-        {eveningCard}
+        {dayFooter}
       </div>
 
       {pastEntries}

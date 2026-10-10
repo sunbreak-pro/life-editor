@@ -1,16 +1,17 @@
 import { useEffect, useRef } from "react";
 
 /*
- * 宣言 (intention) input — shared by both papers (#391).
+ * 宣言 (intention) input (#391).
  *
  * An auto-growing bare textarea so the declaration reads as ink on the paper,
  * not a form control. Sits on the 朱 side of the accent duo (the user's action
  * voice; Claude's 講評 block is 琥珀).
  *
- * Lives in its own module because BOTH the morning paper (always editable) and
- * the evening paper (editable on the narrow layout only — mobile Quick capture,
- * mobile-scope #3) mount it. Pure presentation (§6.4): no DataService, no
- * useTranslation — the host owns the draft state and the debounced save.
+ * Neither paper carries a 宣言 any more: #2106 dropped the morning one (and
+ * the goals block that stacked three of these), #2107 the evening one. Its
+ * only mount is the evening paper's 明日の自分へ field (the focus note keyed
+ * to tomorrow). Pure presentation (§6.4): no DataService, no useTranslation —
+ * the host owns the draft state and the debounced save.
  */
 export interface IntentionFieldProps {
   value: string;
@@ -20,11 +21,9 @@ export interface IntentionFieldProps {
   /** Blur — the host flushes a pending debounced save. */
   onBlur: () => void;
   /**
-   * Id of the heading that names this field (#872). The declaration is alone
-   * on the paper and reads fine off its placeholder; the goals block stacks
-   * three identical-looking fields, where "which one am I in" has to come from
-   * the accessible name — a placeholder is not one (it disappears on the first
-   * character, and screen readers may not announce it at all).
+   * Id of the heading that names this field (#872). A placeholder is not an
+   * accessible name — it disappears on the first character, and screen
+   * readers may not announce it at all — so the block heading names it.
    */
   labelledBy?: string;
 }

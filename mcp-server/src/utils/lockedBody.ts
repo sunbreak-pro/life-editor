@@ -14,8 +14,10 @@ import { fetchByIdChunks } from "./pagination.js";
  * The gate therefore lives in the SELECT shape, not in the formatter:
  *
  *   - collection reads pull the payload WITHOUT `content_json`, then ask for
- *     bodies in a second query naming only the unlocked ids
- *     (`fetchUnlockedBodies`);
+ *     bodies in a second query naming only the unlocked ids, behind
+ *     `.eq("has_password", false)` (`fetchUnlockedBodies`, or
+ *     `fetchUnlockedColumns` when a column besides the body is gated too —
+ *     a daily's `morning_comment`, 0035);
  *   - single-item reads try the full column list behind
  *     `.eq("has_password", false)` and fall back to the bodyless shape, so
  *     an ordinary note still costs one round trip and only a locked one
@@ -57,34 +59,51 @@ export interface LockableRow {
 }
 
 /**
- * `content_json` for the UNLOCKED rows only — a locked id is never named in
- * the query, so the body never crosses the wire. Rows missing from the
- * result (locked, or vanished between the two reads) simply have no entry.
+ * The gated `columns` (e.g. `"content_json, morning_comment"`) for the
+ * UNLOCKED rows only, keyed by item_id. A locked id is never named in the
+ * query, and the query itself carries `has_password = false`: the id list was
+ * judged from a read a moment earlier, and a password set in between must
+ * still keep the row's columns off the wire. Rows missing from the result
+ * (locked, or vanished between the two reads) simply have no entry.
  */
+export async function fetchUnlockedColumns<Row extends object>(
+  table: LockablePayloadTable,
+  rows: readonly LockableRow[],
+  columns: string,
+): Promise<Map<string, Row>> {
+  const byId = new Map<string, Row>();
+  const unlockedIds = rows.filter((r) => !r.has_password).map((r) => r.item_id);
+  if (unlockedIds.length === 0) return byId;
+
+  const { client } = await getSupabase();
+  const fetched = await fetchByIdChunks<Row & { item_id: string }>(
+    unlockedIds,
+    async (chunk) => {
+      const { data, error } = await client
+        .from(table)
+        .select(`item_id, ${columns}`)
+        .in("item_id", chunk)
+        .eq("has_password", false);
+      if (error) throw new Error(`${table} bodies: ${error.message}`);
+      return (data ?? []) as unknown as (Row & { item_id: string })[];
+    },
+  );
+  for (const row of fetched) byId.set(row.item_id, row);
+  return byId;
+}
+
+/** `content_json` for the UNLOCKED rows only — see `fetchUnlockedColumns`. */
 export async function fetchUnlockedBodies(
   table: LockablePayloadTable,
   rows: readonly LockableRow[],
 ): Promise<Map<string, unknown>> {
+  const fetched = await fetchUnlockedColumns<{ content_json: unknown }>(
+    table,
+    rows,
+    "content_json",
+  );
   const bodies = new Map<string, unknown>();
-  const unlockedIds = rows.filter((r) => !r.has_password).map((r) => r.item_id);
-  if (unlockedIds.length === 0) return bodies;
-
-  const { client } = await getSupabase();
-  const fetched = await fetchByIdChunks<{
-    item_id: string;
-    content_json: unknown;
-  }>(unlockedIds, async (chunk) => {
-    const { data, error } = await client
-      .from(table)
-      .select("item_id, content_json")
-      .in("item_id", chunk);
-    if (error) throw new Error(`${table} bodies: ${error.message}`);
-    return (data ?? []) as unknown as {
-      item_id: string;
-      content_json: unknown;
-    }[];
-  });
-  for (const row of fetched) bodies.set(row.item_id, row.content_json);
+  for (const [id, row] of fetched) bodies.set(id, row.content_json);
   return bodies;
 }
 

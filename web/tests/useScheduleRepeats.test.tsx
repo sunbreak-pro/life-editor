@@ -272,7 +272,20 @@ describe("useScheduleRepeats — the selected occurrence's frequency", () => {
       frequencyDays: [1, 3],
       frequencyInterval: null,
       frequencyStartDate: null,
+      // #2082: a routine with no end reads as null, so the editor's
+      // "unchanged?" comparison sees the same value on both sides.
+      frequencyEndDate: null,
     });
+  });
+
+  it("carries the series' end date into the editor (#2082)", () => {
+    const { hook } = setup({
+      routines: [routine("routine-1", { frequencyEndDate: "2026-12-31" })],
+      selected: item("occurrence", { routineId: "routine-1" }),
+    });
+    expect(hook.result.current.repeatValue?.frequencyEndDate).toBe(
+      "2026-12-31",
+    );
   });
 });
 
@@ -519,5 +532,67 @@ describe("useScheduleRepeats — landing a panel jump", () => {
     act(() => s.hook.result.current.requestReveal("routine-1"));
     expect(s.hook.result.current.repeatPanel).toBeNull();
     await waitFor(() => expect(s.setAnchorDate).toHaveBeenCalled());
+  });
+});
+
+describe("useScheduleRepeats — pressing a row, by width (#2083)", () => {
+  /*
+   * Narrow has no row panel (ScheduleOverlays draws it only on wide), and the
+   * press used to be handed `openRepeatPanel` regardless — state nothing on a
+   * phone ever read, so the tap did nothing. Narrow now goes straight to the
+   * series' editor, the panel's own "edit detail".
+   */
+  it("opens the panel on Desktop and does not navigate", () => {
+    const s = setup({ isWide: true });
+    act(() =>
+      s.hook.result.current.handleRepeatRowPress("routine-1", { x: 3, y: 4 }),
+    );
+    expect(s.hook.result.current.repeatPanel).toEqual({
+      id: "routine-1",
+      x: 3,
+      y: 4,
+    });
+    expect(s.setAnchorDate).not.toHaveBeenCalled();
+  });
+
+  it("opens the editor of the next occurrence on narrow", async () => {
+    const s = setup({ isWide: false });
+    act(() =>
+      s.hook.result.current.handleRepeatRowPress("routine-1", { x: 0, y: 0 }),
+    );
+    // No panel on this width — the press is the jump plus "edit detail".
+    expect(s.hook.result.current.repeatPanel).toBeNull();
+    await waitFor(() => expect(s.setAnchorDate).toHaveBeenCalled());
+    // The list is a drawer over the calendar on narrow (#467).
+    expect(s.closeSidebar).toHaveBeenCalled();
+    const next = s.setAnchorDate.mock.calls[0][0];
+    s.hook.rerender({
+      ...s.args,
+      landing: {
+        ...s.args.landing,
+        rangeItems: [item("occ-next", { routineId: "routine-1", date: next })],
+        anchorDate: next,
+      },
+    });
+    expect(s.openDetail).toHaveBeenCalledWith("occ-next");
+    expect(s.select).not.toHaveBeenCalled();
+  });
+
+  it("says why on narrow when the series fires on no day", () => {
+    const s = setup({
+      isWide: false,
+      routines: [
+        routine("routine-1", { frequencyType: "weekdays", frequencyDays: [] }),
+      ],
+    });
+    act(() =>
+      s.hook.result.current.handleRepeatRowPress("routine-1", { x: 0, y: 0 }),
+    );
+    expect(s.showToast).toHaveBeenCalledWith(
+      "info",
+      "scheduleScreen.repeatNeverFires",
+    );
+    expect(s.setAnchorDate).not.toHaveBeenCalled();
+    expect(s.openDetail).not.toHaveBeenCalled();
   });
 });

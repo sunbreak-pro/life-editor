@@ -107,6 +107,7 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     frequencyStartDate?: string | null,
     reminderEnabled?: boolean,
     reminderOffset?: number,
+    frequencyEndDate?: string | null,
   ): Promise<RoutineNode> {
     const userId = await getAuthedUserId(this.client);
     const now = new Date().toISOString();
@@ -125,6 +126,7 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       frequencyDays: frequencyDays ?? [],
       frequencyInterval: frequencyInterval ?? null,
       frequencyStartDate: frequencyStartDate ?? null,
+      frequencyEndDate: frequencyEndDate ?? null,
       reminderEnabled: reminderEnabled ?? false,
       reminderOffset: reminderOffset,
       createdAt: now,
@@ -207,6 +209,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       frequencyDays?: number[];
       frequencyInterval?: number | null;
       frequencyStartDate?: string | null;
+      /** #2082: last day of the series, inclusive. Absent / null = no end. */
+      frequencyEndDate?: string | null;
       sourceDate: string;
     },
   ): Promise<RoutineNode> {
@@ -219,6 +223,9 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       init.frequencyDays,
       init.frequencyInterval,
       init.frequencyStartDate,
+      undefined,
+      undefined,
+      init.frequencyEndDate,
     );
     try {
       await this.claimSeedCursor(eventId);
@@ -598,6 +605,7 @@ export class SupabaseRoutinesService implements RoutinesDataService {
         | "frequencyDays"
         | "frequencyInterval"
         | "frequencyStartDate"
+        | "frequencyEndDate"
         | "reminderEnabled"
         | "reminderOffset"
       >

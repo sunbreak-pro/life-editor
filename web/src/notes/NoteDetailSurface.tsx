@@ -1,4 +1,5 @@
 import type { MouseEvent, ReactNode } from "react";
+import type { Editor } from "@tiptap/core";
 import {
   NoteDetailPanel,
   LockedBodyGate,
@@ -6,6 +7,7 @@ import {
 } from "@life-editor/shared";
 import type { NoteNode } from "@life-editor/shared";
 import { TagPicker } from "../wikitag";
+import { FormatToolbar, type FormatToolbarLabels } from "./FormatToolbar";
 
 /*
  * The note detail, as both surfaces render it (extracted from NotesView.tsx —
@@ -44,6 +46,8 @@ export interface NoteDetailLabels {
   setPassword: string;
   /** Kebab entry that takes the password off this note (#1843). */
   removePassword: string;
+  /** The body's formatting bar in the header (#2060). */
+  formatToolbar: FormatToolbarLabels;
 }
 
 export interface NoteDetailSurfaceProps {
@@ -62,6 +66,13 @@ export interface NoteDetailSurfaceProps {
    * `locked` — a spacer, because #1763 stopped fetching a locked body at all.
    */
   contentEditor: ReactNode;
+  /**
+   * The editor inside `contentEditor`, for the formatting bar in the header
+   * (#2060). The host collects it through NoteBodyEditor's `onEditorChange`;
+   * null while no editor is mounted (locked, still loading), which leaves the
+   * bar drawn but switched off.
+   */
+  bodyEditor: Editor | null;
   /**
    * The note's item links, rendered right of the tag row (#884). Optional
    * because the host only builds the panel where it can also supply the
@@ -111,6 +122,7 @@ export function NoteDetailSurface({
   onTogglePin,
   onDelete,
   contentEditor,
+  bodyEditor,
   linksSlot,
   onRegisterTemplate,
   onApplyTemplate,
@@ -124,6 +136,12 @@ export function NoteDetailSurface({
   return (
     <NoteDetailPanel
       variant={variant}
+      // #2058: title + tags stay on screen while the body scrolls, at both
+      // widths. The panel's `position: sticky` binds to whichever ancestor
+      // actually scrolls — the page scroller of PageContainer "wide" on
+      // Desktop, NotesView's own `overflow-y-auto` main column on narrow — so
+      // neither host needs to know about it.
+      stickyHeader
       noteId={note.id}
       title={note.title}
       isPinned={note.isPinned}
@@ -176,6 +194,16 @@ export function NoteDetailSurface({
         </span>
       }
       linksSlot={linksSlot}
+      toolbarSlot={
+        // #2060: off while the body is behind its password or edit-locked —
+        // the same two conditions that keep the body itself from taking
+        // input. The bar also checks the editor's own editable flag.
+        <FormatToolbar
+          editor={bodyEditor}
+          disabled={locked || note.isEditLocked === true}
+          labels={labels.formatToolbar}
+        />
+      }
       contentEditor={
         <LockedBodyGate
           locked={locked}

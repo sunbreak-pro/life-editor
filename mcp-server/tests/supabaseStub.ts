@@ -40,7 +40,8 @@
 
 export interface QueryCall {
   table: string;
-  op: "select" | "insert" | "update" | "delete";
+  /** `rpc` (#2057): `table` holds the function name, `values` its params. */
+  op: "select" | "insert" | "update" | "delete" | "rpc";
   /**
    * The projection string a `select()` asked for. The in-memory layer still
    * ignores it (a fixture row IS its own projection), but the password gate
@@ -79,6 +80,12 @@ export interface QueryCall {
    * `await` dropped in a handler would otherwise still turn the test green.
    */
   executed?: boolean;
+  /**
+   * The column list of a `.select()` chained AFTER a write (PostgREST's
+   * "return the changed rows", #2057). Such a write is answered through the
+   * same `select` callback as a read, so a test can say which rows it hit.
+   */
+  returning?: string;
 }
 
 /** The id list a `.in(column, ids)` filter carried, or null if there was none. */
@@ -96,8 +103,15 @@ export interface SupabaseStub {
 }
 
 /** `select` answers a read; the call it receives names the table and filters. */
+/** What an `rpc()` answers (#2057). Absent = `{ data: null, error: null }`. */
+export type RpcAnswer = (
+  name: string,
+  params: Record<string, unknown>,
+) => { data?: unknown; error?: { code?: string; message: string } | null };
+
 export function createSupabaseStub(
   select: (call: QueryCall) => unknown = () => null,
+  rpc?: RpcAnswer,
 ): SupabaseStub {
   const calls: QueryCall[] = [];
 
@@ -122,7 +136,10 @@ export function createSupabaseStub(
       const result = () => {
         call.executed = true;
         return {
-          data: op === "select" ? select(call) : null,
+          data:
+            op === "select" || call.returning !== undefined
+              ? select(call)
+              : null,
           error: null,
         };
       };
@@ -133,6 +150,10 @@ export function createSupabaseStub(
       };
 
       const builder: Record<string, unknown> = {
+        select(columns?: string) {
+          call.returning = columns ?? "*";
+          return builder;
+        },
         eq(column: string, value: unknown) {
           call.filters[column] = value;
           return builder;
@@ -190,8 +211,34 @@ export function createSupabaseStub(
     };
   };
 
+  const callRpc = (name: string, params: Record<string, unknown>) => {
+    const call: QueryCall = {
+      table: name,
+      op: "rpc",
+      values: params,
+      filters: {},
+      bounds: {},
+      or: [],
+      orders: [],
+    };
+    calls.push(call);
+    return {
+      then: (
+        resolve: (value: unknown) => unknown,
+        reject: (reason: unknown) => unknown,
+      ) => {
+        call.executed = true;
+        const answer = rpc?.(name, params) ?? {};
+        return Promise.resolve({
+          data: answer.data ?? null,
+          error: answer.error ?? null,
+        }).then(resolve, reject);
+      },
+    };
+  };
+
   return {
-    client: { from } as unknown as never,
+    client: { from, rpc: callRpc } as unknown as never,
     userId: "user-under-test",
     calls,
     writes: () => calls.filter((c) => c.op !== "select" && c.executed),

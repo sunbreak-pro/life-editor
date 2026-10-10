@@ -5,8 +5,8 @@ import {
   EveningView,
   type BriefingData,
   type BriefingLabels,
-  type EveningLabels,
 } from "../src/components";
+import { EVENING_LABELS, emptyEveningBlocks } from "./helpers/eveningFixtures";
 
 /*
  * #1559 — the 44px touch floor on the BRIEFING lane's own controls.
@@ -33,10 +33,7 @@ const LABELS: BriefingLabels = {
   aiTitle: "AI",
   aiSource: "Claude",
   noFocus: "No focus",
-  intentionTitle: "INTENTION",
-  intentionCaption: "Saved",
-  intentionPlaceholder: "Declare today…",
-  goalsTitle: "GOALS",
+  goalMark: "Goals:",
   scheduleTitle: "PROMISES",
   addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
@@ -72,12 +69,6 @@ const DATA: BriefingData = {
   todoNodes: [],
 };
 
-const GOAL_LABELS = {
-  week: { title: "WEEK", range: "9/1 – 9/7", placeholder: "This week…" },
-  month: { title: "MONTH", range: "September", placeholder: "This month…" },
-  year: { title: "YEAR", range: "2026", placeholder: "This year…" },
-};
-
 function renderMorning() {
   render(
     <BriefingView
@@ -85,13 +76,6 @@ function renderMorning() {
       data={DATA}
       labels={LABELS}
       focusText={null}
-      intentionText=""
-      onIntentionChange={vi.fn()}
-      onIntentionBlur={vi.fn()}
-      goals={{ week: "", month: "", year: "" }}
-      goalLabels={GOAL_LABELS}
-      onGoalChange={vi.fn()}
-      onGoalBlur={vi.fn()}
       onToggleTodo={vi.fn()}
       onDeleteScheduleItem={vi.fn()}
       onDeleteTodo={vi.fn()}
@@ -102,27 +86,6 @@ function renderMorning() {
   );
 }
 
-const EVENING_LABELS: EveningLabels = {
-  masthead: "EVENING",
-  moodTitle: "MOOD",
-  moodStars: [1, 2, 3, 4, 5].map((n) => `Mood ${n}/5`),
-  intentionTitle: "INTENTION",
-  intentionCaption: "Unsaved",
-  intentionPlaceholder: "Declare today…",
-  reflectionTitle: "CLOSING",
-  savedCaption: "Saved",
-  focusTitle: "TOMORROW'S FOCUS",
-  focusPlaceholder: "Tomorrow's one thing…",
-  todosTitle: "REMAINING",
-  noTodos: "No todos",
-  todoStatus: "Status",
-  statusNotStarted: "Not started",
-  statusDone: "Done",
-  upcomingTitle: "UPCOMING",
-  noUpcoming: "Nothing upcoming",
-  tomorrowTag: "Tomorrow",
-  allDay: "All day",
-};
 
 function renderEvening(mood: number | null) {
   render(
@@ -132,10 +95,6 @@ function renderEvening(mood: number | null) {
       mood={mood}
       onSelectMood={vi.fn()}
       editorSlot={<div>editor</div>}
-      intentionText=""
-      intentionEditable={false}
-      onIntentionChange={vi.fn()}
-      onIntentionBlur={vi.fn()}
       focusText=""
       onFocusChange={vi.fn()}
       onFocusBlur={vi.fn()}
@@ -143,6 +102,7 @@ function renderEvening(mood: number | null) {
       onSetTodoStatus={vi.fn()}
       schedule={[]}
       labels={EVENING_LABELS}
+      {...emptyEveningBlocks()}
     />,
   );
 }

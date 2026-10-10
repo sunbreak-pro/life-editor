@@ -16,13 +16,14 @@
 async (page) => page.evaluate(
   () => {
     const ROOT_SELECTOR = window.__designCritiqueRoot || null;
-    // 余白の段階。tokens.css に段階が入ったらその値に合わせて直す。
+    // 余白の段階。tokens.css の --spacing-lumen-1 / 2 / 3 / 4 / 6 は 4px の倍数（#2036）。
     const SPACING_STEP_PX = 4;
-    // frontend-react-designer の motion.md §3 の 3 帯（ms）。
+    // 長さの 3 段（ms）。tokens.css の --duration-lumen-fast / normal / slow と同じ値で、
+    // 段と一致する長さだけを帯の中とみなす。説明は frontend-react-designer の motion.md §3。
     const MOTION_BANDS = [
-      [100, 150],
-      [200, 300],
-      [400, 600],
+      [150, 150],
+      [250, 250],
+      [400, 400],
     ];
     const TAP_MIN_PX = 44;
     const narrow = window.innerWidth < 768;

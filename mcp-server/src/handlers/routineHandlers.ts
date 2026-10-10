@@ -64,6 +64,13 @@ interface RoutinesPayloadRow {
   frequency_days: string;
   frequency_interval: number | null;
   frequency_start_date: string | null;
+  /**
+   * #2082 (migration 0033). Every row has the column once 0033 is applied
+   * (NULL = no end); optional only so test fixtures written before it still
+   * type-check. Before 0033 the SELECT itself fails (42703), so the push has
+   * to come first.
+   */
+  frequency_end_date?: string | null;
   start_time: string | null;
   end_time: string | null;
   is_archived: boolean;
@@ -73,8 +80,8 @@ interface RoutinesPayloadRow {
 
 const PAYLOAD_COLUMNS =
   "item_id, frequency_type, frequency_days, frequency_interval, " +
-  "frequency_start_date, start_time, end_time, is_archived, is_visible, " +
-  "sort_order";
+  "frequency_start_date, frequency_end_date, start_time, end_time, " +
+  "is_archived, is_visible, sort_order";
 
 interface OccurrencePayloadRow {
   item_id: string;
@@ -121,6 +128,7 @@ function formatRoutine(meta: ItemsMetaRow, payload: RoutinesPayloadRow) {
     ...readFrequency(payload),
     frequencyInterval: payload.frequency_interval,
     frequencyStartDate: payload.frequency_start_date,
+    frequencyEndDate: payload.frequency_end_date ?? null,
     startTime: payload.start_time,
     endTime: payload.end_time,
     isArchived: payload.is_archived,
@@ -318,6 +326,7 @@ interface CreateRoutineArgs {
   frequency_days?: number[];
   frequency_interval?: number;
   frequency_start_date?: string;
+  frequency_end_date?: string;
   start_time?: string;
   end_time?: string;
 }
@@ -414,8 +423,31 @@ function resolveFrequency(args: CreateRoutineArgs) {
   }
 }
 
+/**
+ * The series' last day (#2082), or null for no end. Inclusive, like the app's
+ * generator reads it. A day before the series starts — today for daily /
+ * weekdays, the start date for interval — would make a routine that fires on
+ * no day at all, so it is refused rather than stored.
+ */
+function resolveEndDate(
+  args: CreateRoutineArgs,
+  startDate: string | null,
+): string | null {
+  const end = args.frequency_end_date;
+  if (end === undefined || end === null) return null;
+  assertDateKey(end);
+  const first = startDate ?? localToday();
+  if (end < first) {
+    throw new Error(
+      `frequency_end_date ${end} is before the series starts (${first}), so the routine would fire on no day`,
+    );
+  }
+  return end;
+}
+
 export async function createRoutine(args: CreateRoutineArgs) {
   const frequency = resolveFrequency(args);
+  const endDate = resolveEndDate(args, frequency.frequency_start_date);
 
   // Both or neither: a routine with one time is a shape the app's editor
   // never produces. Neither = the app's generation default (09:00-09:30).
@@ -454,6 +486,7 @@ export async function createRoutine(args: CreateRoutineArgs) {
       frequency_days: JSON.stringify(frequency.frequency_days),
       frequency_interval: frequency.frequency_interval,
       frequency_start_date: frequency.frequency_start_date,
+      frequency_end_date: endDate,
       is_visible: true,
       start_time: args.start_time ?? null,
       end_time: args.end_time ?? null,

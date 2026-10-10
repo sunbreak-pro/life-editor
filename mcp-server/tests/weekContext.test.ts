@@ -94,8 +94,17 @@ function install(fixture: Fixture): void {
     switch (call.table) {
       case "events_payload":
         return fixture.events ?? [];
-      case "dailies_payload":
-        return fixture.dailies ?? [];
+      case "dailies_payload": {
+        // The body pass (#1763) asks by id behind has_password = false; the
+        // window read names every day.
+        const ids = inFilter(call, "item_id");
+        if (!ids) return fixture.dailies ?? [];
+        return (fixture.dailies ?? []).filter(
+          (d) =>
+            ids.includes(d.item_id as string) &&
+            (call.filters.has_password !== false || d.has_password === false),
+        );
+      }
       case "tasks_payload":
         // The three todo reads, told apart by the filters that differ:
         // in-progress pins a status, and only the scheduled window has a
@@ -180,6 +189,7 @@ describe("the week the caller asked for", () => {
       exists: true,
       locked: false,
       text: "火曜の記録",
+      morningComment: null,
     });
   });
 
@@ -221,12 +231,71 @@ describe("the week the caller asked for", () => {
       exists: false,
       locked: false,
       text: null,
+      morningComment: null,
     });
     expect(week.days[6].daily).toEqual({
       exists: false,
       locked: false,
       text: null,
+      morningComment: null,
     });
+  });
+
+  // 0035 (D-20261007-briefing-1): each day's comment, beside its body — the
+  // column first, an older day's 朝刊 section second, never a locked day's.
+  it("returns each day's morning comment", async () => {
+    install({
+      dailies: [
+        { ...daily("2026-08-10", "月曜"), morning_comment: ["列の講評"] },
+        {
+          ...daily("2026-08-11", "火曜"),
+          content_json: {
+            type: "doc",
+            content: [
+              {
+                type: "heading",
+                attrs: { level: 2 },
+                content: [{ type: "text", text: "朝刊" }],
+              },
+              {
+                type: "paragraph",
+                content: [{ type: "text", text: "本文の講評" }],
+              },
+            ],
+          },
+        },
+        {
+          ...daily("2026-08-12", "SECRET-WED"),
+          has_password: true,
+          morning_comment: ["SECRET-C"],
+        },
+      ],
+    });
+
+    const week = await getWeekContext({ start_date: MONDAY });
+
+    expect(week.days[0].daily.morningComment).toEqual(["列の講評"]);
+    expect(week.days[1].daily.morningComment).toEqual(["本文の講評"]);
+    expect(week.days[2].daily).toEqual({
+      exists: true,
+      locked: true,
+      text: null,
+      morningComment: null,
+    });
+    expect(week.days[3].daily.morningComment).toBeNull();
+    expect(JSON.stringify(week)).not.toContain("SECRET-");
+    // Never fetched, not fetched and dropped (lockedBody.test.ts's rule): the
+    // column is read only on the gated body pass.
+    const commentReads = stub.calls.filter(
+      (c) =>
+        c.table === "dailies_payload" &&
+        c.op === "select" &&
+        (c.columns ?? "").includes("morning_comment"),
+    );
+    expect(commentReads.length).toBeGreaterThan(0);
+    expect(
+      commentReads.filter((c) => c.filters.has_password !== false),
+    ).toEqual([]);
   });
 
   it("drops a row whose items_meta is gone, on any day", async () => {
@@ -241,6 +310,36 @@ describe("the week the caller asked for", () => {
     const week = await getWeekContext({ start_date: MONDAY });
 
     expect(week.days[0].events.map((e) => e.id)).toEqual(["event-mon"]);
+  });
+});
+
+describe("goals (#2104)", () => {
+  it("lists every period the 7 days fall in", async () => {
+    install({});
+
+    const week = await getWeekContext({ start_date: MONDAY });
+
+    expect(week.goals).toEqual([
+      { kind: "year", key: "2026", goals: [] },
+      { kind: "month", key: "2026-08", goals: [] },
+      // Mon 10th – Sat 15th are in the week of Sunday the 9th; Sunday the 16th
+      // starts the next one, so a mid-week window spans both.
+      { kind: "week", key: SUNDAY, goals: [] },
+      { kind: "week", key: "2026-08-16", goals: [] },
+    ]);
+  });
+
+  it("lists both months when the week crosses into the next", async () => {
+    install({});
+
+    const week = await getWeekContext({ start_date: "2026-11-29" });
+
+    expect(week.goals).toEqual([
+      { kind: "year", key: "2026", goals: [] },
+      { kind: "month", key: "2026-11", goals: [] },
+      { kind: "month", key: "2026-12", goals: [] },
+      { kind: "week", key: "2026-11-29", goals: [] },
+    ]);
   });
 });
 

@@ -1,42 +1,35 @@
 /*
- * 宣言 (Intention) section helpers — briefing-loop Step 4.
+ * 宣言 (Intention) section helpers — briefing-loop Step 4, read side only.
  *
- * Contract (same DDL-zero convention family as 朝刊 / 夕刊):
+ * Contract (same heading-section convention family as 朝刊 / 夕刊):
  *
  *   heading whose text is "宣言" / "Intention" (or "Intentions")
  *     paragraph per line → the user's declaration for the day
  *   ...the next heading (any text) ends the section.
  *
- * The loop: the user declares in the morning paper, the evening paper shows
- * the declaration back while the day is closed, and the next morning's
- * write_briefing critiques it (get_today_context reads the daily body raw,
- * so the declaration reaches the analysis with no MCP change).
+ * The morning paper used to take the declaration and merge it into this
+ * section of the daily body. Since D-20261007-briefing-1 nothing writes it:
+ * the paper's field went with #2106, and its section-merge writer
+ * (`mergeIntentionSection`) and save caption helper (`hasIntentionToReport`)
+ * went with it. Older days keep their section untouched, so the READ stays —
+ * `readMorningRecord` (dailyMorning.ts) hands it to the blocks that show it
+ * outside the body, and `readDailyText` (dailyText.ts) leaves it out of the
+ * day's one text.
  *
- * The morning input is a plain-line surface, so the section body is modelled
- * as LINES: extraction flattens the section to newline-joined text (list
- * items count one per line), and the merge writes one paragraph per line.
- * Richer markup written into the section from the Daily side survives until
- * the next morning-paper edit, which rewrites the section as paragraphs
- * (the same "last writing surface wins, per section" rule as the mood line).
- *
- * `mergeIntentionSection` is the concurrency-safe write shared with the
- * evening tab: read the WHOLE content → replace only the 宣言 range → write
- * back, so a save never clobbers the 朝刊 / 夕刊 sections or Daily-side
- * edits. A new section lands right below the 朝刊 section (or at the top
- * when there is none — the morning writer's later prepend still puts the
- * paper above it).
+ * The section body is modelled as LINES: extraction flattens it to
+ * newline-joined text (list items count one per line).
+ * `normalizeIntentionText` is that line model's canonical form, and stays the
+ * one the focus and goal fields reuse (focusSections.ts / goalSections.ts).
  *
  * Pure module (no React, no DataService) — unit-tested in
  * shared/tests/intentionSection.test.ts.
  */
 
 import {
-  BRIEFING_HEADING_RE,
   INTENTION_HEADING_RE,
   findSectionRange,
   parseDailyDoc,
   sectionLines,
-  type TipTapNode,
 } from "./dailySections";
 
 export interface ExtractedIntentionSection {
@@ -65,19 +58,6 @@ export function normalizeIntentionText(
 }
 
 /**
- * Is there a declaration whose save state is worth reporting? False while the
- * stored section AND the in-flight draft are both empty: on such a day nothing
- * has ever been saved, so a「保存済み」caption over an untouched empty field
- * would claim a save that never happened (#427). Hosts omit the caption then.
- */
-export function hasIntentionToReport(
-  storedText: string | null,
-  draftText: string | null | undefined,
-): boolean {
-  return storedText !== null || normalizeIntentionText(draftText) !== null;
-}
-
-/**
  * Extract the 宣言 section from a stored daily body (TipTap JSON or legacy
  * plain text — the latter never contains headings, so it yields "no section").
  */
@@ -92,53 +72,4 @@ export function extractIntentionSection(
     text: lines.length === 0 ? null : lines.join("\n"),
     hasSection: true,
   };
-}
-
-/**
- * Section-merge write: put a declaration text into a stored daily body and
- * return the new content string. Reads the whole document, replaces only the
- * 宣言 [heading, next heading) range, and leaves every other block untouched.
- * A normalized-empty text removes an existing section and never creates one.
- * Returns the input unchanged (===) when there is nothing to do, so callers
- * can skip the write.
- */
-export function mergeIntentionSection(
-  contentJson: string | null | undefined,
-  text: string | null,
-): string {
-  const original = contentJson ?? "";
-  const doc = parseDailyDoc(contentJson);
-  const body = doc.content ?? [];
-  const range = findSectionRange(body, INTENTION_HEADING_RE);
-  const normalized = normalizeIntentionText(text);
-
-  if (normalized === null) {
-    // Nothing to keep — drop an existing section, never create one.
-    if (range === null) return original;
-    body.splice(range.start, range.end - range.start);
-    doc.content = body;
-    return JSON.stringify(doc);
-  }
-
-  const section: TipTapNode[] = [
-    {
-      type: "heading",
-      attrs: { level: 2 },
-      content: [{ type: "text", text: "宣言" }],
-    },
-    ...normalized.split("\n").map((line): TipTapNode => ({
-      type: "paragraph",
-      content: [{ type: "text", text: line }],
-    })),
-  ];
-
-  if (range !== null) {
-    body.splice(range.start, range.end - range.start, ...section);
-  } else {
-    const briefing = findSectionRange(body, BRIEFING_HEADING_RE);
-    body.splice(briefing === null ? 0 : briefing.end, 0, ...section);
-  }
-  doc.content = body;
-  const merged = JSON.stringify(doc);
-  return merged === original ? original : merged;
 }

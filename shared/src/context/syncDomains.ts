@@ -50,22 +50,31 @@ export const SYNC_DOMAINS = [
   // pomodoro transition re-ran two settings fetches that could not have
   // changed.
   "sessions",
+  // #2101: goals (role `goal`, 0034) and their Todo links. A goal's progress
+  // also reads the todos it links to, so a goal reader depends on `goals`
+  // AND `todos` — a todo completion moves only `todos`.
+  "goals",
 ] as const;
 
 export type SyncDomain = (typeof SYNC_DOMAINS)[number];
 
-/** The four domains that live in `items_meta` — see ITEMS_META_ROLE_DOMAIN. */
+/** The five domains that live in `items_meta` — see ITEMS_META_ROLE_DOMAIN. */
 const ITEM_DOMAINS: readonly SyncDomain[] = [
   "todos",
   "notes",
   "dailies",
   "schedule",
+  "goals",
 ];
 
 /**
- * `items_meta` is shared by all five roles, so the row's own `role` decides
+ * `items_meta` is shared by all six roles, so the row's own `role` decides
  * which domain moved. Events and routines both belong to Schedule (a routine
  * is an Event template — CLAUDE.md §4).
+ *
+ * A role missing here does not fail quietly — it fans out to EVERY item
+ * domain on each change (see domainsForChange). So a role added to the
+ * items_meta CHECK lands here in the same PR (#2101 added `goal`).
  */
 const ITEMS_META_ROLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   task: "todos",
@@ -73,6 +82,7 @@ const ITEMS_META_ROLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   daily: "dailies",
   event: "schedule",
   routine: "schedule",
+  goal: "goals",
 };
 
 /**
@@ -105,6 +115,9 @@ export const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   sound_settings: "audio",
   playlists: "audio",
   playlist_items: "audio",
+  // #2101 (0034)
+  goals_payload: "goals",
+  goal_todo_links: "goals",
 };
 
 /** The `role` column as Realtime delivers it, if the payload carries one. */
@@ -119,7 +132,7 @@ function readRole(row: unknown): string | undefined {
  *
  * For `items_meta` the role is read from the changed row. A DELETE carries
  * only the replica-identity columns (the primary key, by default), so the role
- * is often missing there — an unknown role bumps ALL four item domains rather
+ * is often missing there — an unknown role bumps ALL five item domains rather
  * than guessing, since a missed bump shows up as stale data the user cannot
  * refresh, while an extra bump only costs a fetch. Soft deletes are UPDATEs
  * (`is_deleted`), so the app's own deletions do carry the role.

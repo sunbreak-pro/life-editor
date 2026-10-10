@@ -29,10 +29,7 @@ const LABELS: BriefingLabels = {
   aiTitle: "AI",
   aiSource: "Claude",
   noFocus: "No focus",
-  intentionTitle: "INTENTION",
-  intentionCaption: "Saved",
-  intentionPlaceholder: "Declare today…",
-  goalsTitle: "GOALS",
+  goalMark: "Goals:",
   scheduleTitle: "PROMISES",
   addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
@@ -61,6 +58,7 @@ const DATA: BriefingData = {
       status: "NOT_STARTED",
       startTime: "",
       purposes: ["Ship the migration"],
+      goals: ["Pass the proposal"],
     },
   ],
   carryover: [],
@@ -75,17 +73,6 @@ function renderMorning() {
       data={DATA}
       labels={LABELS}
       focusText={null}
-      intentionText=""
-      onIntentionChange={vi.fn()}
-      onIntentionBlur={vi.fn()}
-      goals={{ week: "", month: "", year: "" }}
-      goalLabels={{
-        week: { title: "WEEK", range: "9/1 – 9/7", placeholder: "…" },
-        month: { title: "MONTH", range: "September", placeholder: "…" },
-        year: { title: "YEAR", range: "2026", placeholder: "…" },
-      }}
-      onGoalChange={vi.fn()}
-      onGoalBlur={vi.fn()}
       onToggleTodo={vi.fn()}
       onDeleteScheduleItem={vi.fn()}
       onDeleteTodo={vi.fn()}
@@ -116,5 +103,11 @@ describe("#1821 — the purpose line's indent follows the columns", () => {
     // The whole point: a px indent is right at one root size and wrong at the
     // rest, so the class must not name one at all.
     expect(purposeLine().className).not.toMatch(/ml-\[\d+px\]/);
+  });
+
+  it("gives the goal line (#2106) the same indent", () => {
+    renderMorning();
+    const goalLine = screen.getByText("Pass the proposal").closest("p");
+    expect(goalLine?.className).toContain("ml-[7.75rem]");
   });
 });

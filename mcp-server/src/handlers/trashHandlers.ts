@@ -1,5 +1,6 @@
 import { getSupabase } from "../supabase.js";
 import { bumpMeta, type ItemRole } from "../utils/items.js";
+import { assertGoalRestorable } from "./goalHandlers.js";
 
 /*
  * Trash handlers — the other half of the soft delete (#782 ①).
@@ -12,9 +13,12 @@ import { bumpMeta, type ItemRole } from "../utils/items.js";
  *
  * `daily` is deliberately not restorable here: upsert_daily already revives
  * a trashed daily for a date, and `routine` has no delete tool to undo.
+ * `goal` (#2101) is restorable: a goal trashed from the app has no other way
+ * back for an MCP caller, and its Todo links are separate rows that the
+ * trash never touched.
  */
 
-const RESTORABLE_ROLES: ItemRole[] = ["task", "note", "event"];
+const RESTORABLE_ROLES: ItemRole[] = ["task", "note", "event", "goal"];
 
 interface RestorableMetaRow {
   id: string;
@@ -106,7 +110,7 @@ export async function restoreItem(args: { id: string }) {
   const meta = data as unknown as RestorableMetaRow;
   if (!RESTORABLE_ROLES.includes(meta.role)) {
     throw new Error(
-      `restore_item supports todos, notes and schedule items; ` +
+      `restore_item supports todos, notes, schedule items and goals; ` +
         `${meta.id} is a "${meta.role}"`,
     );
   }
@@ -122,6 +126,11 @@ export async function restoreItem(args: { id: string }) {
       alreadyLive: true,
     };
   }
+
+  // A goal comes back only into a period with room: three live goals per
+  // period is the rule create_goal keeps (#2104), and the trash is the other
+  // way a fourth could appear.
+  if (meta.role === "goal") await assertGoalRestorable(meta.id);
 
   await bumpMeta(meta.id, meta.role, { is_deleted: false, deleted_at: null });
   return { id: meta.id, role: meta.role, title: meta.title, restored: true };

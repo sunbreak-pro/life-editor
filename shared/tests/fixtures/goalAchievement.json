@@ -1,0 +1,650 @@
+{
+  "_comment": "Shared cases for the goal-achievement pure functions (#2102). Read by shared/tests/goalAchievement.test.ts AND mcp-server/tests/goalAchievement.test.ts, so the screen and the MCP tools are held to the same answers. Rule: .claude/docs/vision/plans/2026-10-03-briefing-goals-redesign.md §達成の判定.",
+  "periodKeys": [
+    { "kind": "year", "date": "2026-10-05", "key": "2026" },
+    { "kind": "month", "date": "2026-10-05", "key": "2026-10" },
+    {
+      "kind": "week",
+      "date": "2026-10-05",
+      "key": "2026-10-04",
+      "_note": "Monday → the Sunday before"
+    },
+    {
+      "kind": "week",
+      "date": "2026-10-04",
+      "key": "2026-10-04",
+      "_note": "a Sunday is its own week start"
+    },
+    {
+      "kind": "week",
+      "date": "2026-10-10",
+      "key": "2026-10-04",
+      "_note": "Saturday is the last day of the same week"
+    },
+    {
+      "kind": "week",
+      "date": "2027-01-01",
+      "key": "2026-12-27",
+      "_note": "the week crosses the year boundary"
+    },
+    { "kind": "week", "date": "2026-03-01", "key": "2026-03-01" },
+    {
+      "kind": "week",
+      "date": "2028-03-01",
+      "key": "2028-02-27",
+      "_note": "leap year: Feb 29 exists"
+    }
+  ],
+  "periodKeyValidity": [
+    { "kind": "year", "key": "2026", "valid": true },
+    { "kind": "year", "key": "26", "valid": false },
+    { "kind": "month", "key": "2026-10", "valid": true },
+    { "kind": "month", "key": "2026-13", "valid": false },
+    { "kind": "month", "key": "2026-10-04", "valid": false },
+    { "kind": "week", "key": "2026-10-04", "valid": true },
+    {
+      "kind": "week",
+      "key": "2026-10-05",
+      "valid": false,
+      "_note": "a Monday"
+    },
+    {
+      "kind": "week",
+      "key": "2026-02-31",
+      "valid": false,
+      "_note": "not a real date"
+    },
+    { "kind": "week", "key": "2026-10", "valid": false }
+  ],
+  "achievement": [
+    {
+      "name": "week: every linked todo done → achieved by links",
+      "goals": [
+        {
+          "id": "w",
+          "periodKind": "week",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [
+        { "id": "t1", "done": true, "isDeleted": false },
+        { "id": "t2", "done": true, "isDeleted": false }
+      ],
+      "links": [
+        { "goalId": "w", "todoId": "t1", "isDeleted": false },
+        { "goalId": "w", "todoId": "t2", "isDeleted": false }
+      ],
+      "expected": {
+        "w": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 2, "total": 2 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "week: one linked todo undone → not achieved",
+      "goals": [
+        {
+          "id": "w",
+          "periodKind": "week",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [
+        { "id": "t1", "done": true, "isDeleted": false },
+        { "id": "t2", "done": false, "isDeleted": false }
+      ],
+      "links": [
+        { "goalId": "w", "todoId": "t1", "isDeleted": false },
+        { "goalId": "w", "todoId": "t2", "isDeleted": false }
+      ],
+      "expected": {
+        "w": {
+          "achieved": false,
+          "via": null,
+          "connected": true,
+          "todos": { "done": 1, "total": 2 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "deleted todo and deleted link drop out of the count",
+      "goals": [
+        {
+          "id": "w",
+          "periodKind": "week",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [
+        { "id": "t1", "done": true, "isDeleted": false },
+        { "id": "t-trashed", "done": false, "isDeleted": true },
+        { "id": "t-unlinked", "done": false, "isDeleted": false }
+      ],
+      "links": [
+        { "goalId": "w", "todoId": "t1", "isDeleted": false },
+        { "goalId": "w", "todoId": "t-trashed", "isDeleted": false },
+        { "goalId": "w", "todoId": "t-unlinked", "isDeleted": true },
+        { "goalId": "w", "todoId": "t-not-passed-in", "isDeleted": false }
+      ],
+      "expected": {
+        "w": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 1, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "only deleted todos linked → unconnected, and not achieved without the hand mark",
+      "goals": [
+        {
+          "id": "w",
+          "periodKind": "week",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [{ "id": "t-trashed", "done": true, "isDeleted": true }],
+      "links": [{ "goalId": "w", "todoId": "t-trashed", "isDeleted": false }],
+      "expected": {
+        "w": {
+          "achieved": false,
+          "via": null,
+          "connected": false,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "unconnected with the hand mark → achieved by hand",
+      "goals": [
+        {
+          "id": "m",
+          "periodKind": "month",
+          "parentGoalId": null,
+          "manualAchievedAt": "2026-10-05T12:00:00.000Z",
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [],
+      "links": [],
+      "expected": {
+        "m": {
+          "achieved": true,
+          "via": "manual",
+          "connected": false,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "connected goal ignores a leftover hand mark",
+      "goals": [
+        {
+          "id": "w",
+          "periodKind": "week",
+          "parentGoalId": null,
+          "manualAchievedAt": "2026-10-05T12:00:00.000Z",
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [{ "id": "t1", "done": false, "isDeleted": false }],
+      "links": [{ "goalId": "w", "todoId": "t1", "isDeleted": false }],
+      "expected": {
+        "w": {
+          "achieved": false,
+          "via": null,
+          "connected": true,
+          "todos": { "done": 0, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "period-end 'achieved' wins over undone todos; 'carried' and 'dropped' do not",
+      "goals": [
+        {
+          "id": "w-achieved",
+          "periodKind": "week",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": "achieved",
+          "isDeleted": false
+        },
+        {
+          "id": "w-carried",
+          "periodKind": "week",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": "carried",
+          "isDeleted": false
+        },
+        {
+          "id": "w-dropped",
+          "periodKind": "week",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": "dropped",
+          "isDeleted": false
+        }
+      ],
+      "todos": [{ "id": "t1", "done": false, "isDeleted": false }],
+      "links": [
+        { "goalId": "w-achieved", "todoId": "t1", "isDeleted": false },
+        { "goalId": "w-carried", "todoId": "t1", "isDeleted": false },
+        { "goalId": "w-dropped", "todoId": "t1", "isDeleted": false }
+      ],
+      "expected": {
+        "w-achieved": {
+          "achieved": true,
+          "via": "period_end",
+          "connected": true,
+          "todos": { "done": 0, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        },
+        "w-carried": {
+          "achieved": false,
+          "via": null,
+          "connected": true,
+          "todos": { "done": 0, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        },
+        "w-dropped": {
+          "achieved": false,
+          "via": null,
+          "connected": true,
+          "todos": { "done": 0, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "period-end 'achieved' on an unconnected goal → achieved at period end",
+      "goals": [
+        {
+          "id": "y",
+          "periodKind": "year",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": "achieved",
+          "isDeleted": false
+        }
+      ],
+      "todos": [],
+      "links": [],
+      "expected": {
+        "y": {
+          "achieved": true,
+          "via": "period_end",
+          "connected": false,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "a linked todo's undone subtask is not counted",
+      "_note": "t-child is the subtask of t-parent; only t-parent is linked. Subtasks never reach the input as links, which is the whole rule.",
+      "goals": [
+        {
+          "id": "w",
+          "periodKind": "week",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [
+        { "id": "t-parent", "done": true, "isDeleted": false },
+        { "id": "t-child", "done": false, "isDeleted": false }
+      ],
+      "links": [{ "goalId": "w", "todoId": "t-parent", "isDeleted": false }],
+      "expected": {
+        "w": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 1, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "month: achieved child weeks plus done direct todos → achieved",
+      "goals": [
+        {
+          "id": "m",
+          "periodKind": "month",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "w1",
+          "periodKind": "week",
+          "parentGoalId": "m",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "w2",
+          "periodKind": "week",
+          "parentGoalId": "m",
+          "manualAchievedAt": "2026-10-05T12:00:00.000Z",
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [
+        { "id": "t1", "done": true, "isDeleted": false },
+        { "id": "t2", "done": true, "isDeleted": false }
+      ],
+      "links": [
+        { "goalId": "w1", "todoId": "t1", "isDeleted": false },
+        { "goalId": "m", "todoId": "t2", "isDeleted": false }
+      ],
+      "expected": {
+        "m": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 1, "total": 1 },
+          "children": { "achieved": 2, "total": 2 }
+        },
+        "w1": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 1, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        },
+        "w2": {
+          "achieved": true,
+          "via": "manual",
+          "connected": false,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "month: one child week not achieved → not achieved, even with every todo done",
+      "goals": [
+        {
+          "id": "m",
+          "periodKind": "month",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "w1",
+          "periodKind": "week",
+          "parentGoalId": "m",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "w-empty",
+          "periodKind": "week",
+          "parentGoalId": "m",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [{ "id": "t1", "done": true, "isDeleted": false }],
+      "links": [{ "goalId": "w1", "todoId": "t1", "isDeleted": false }],
+      "expected": {
+        "m": {
+          "achieved": false,
+          "via": null,
+          "connected": true,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 1, "total": 2 }
+        },
+        "w1": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 1, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        },
+        "w-empty": {
+          "achieved": false,
+          "via": null,
+          "connected": false,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "a deleted child goal drops out; a deleted goal gets no entry",
+      "goals": [
+        {
+          "id": "m",
+          "periodKind": "month",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "w1",
+          "periodKind": "week",
+          "parentGoalId": "m",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "w-trashed",
+          "periodKind": "week",
+          "parentGoalId": "m",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": true
+        }
+      ],
+      "todos": [{ "id": "t1", "done": true, "isDeleted": false }],
+      "links": [{ "goalId": "w1", "todoId": "t1", "isDeleted": false }],
+      "expected": {
+        "m": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 1, "total": 1 }
+        },
+        "w1": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 1, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "year → month → week: achievement climbs, and a month closed at period end counts for the year",
+      "goals": [
+        {
+          "id": "y",
+          "periodKind": "year",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "m-done",
+          "periodKind": "month",
+          "parentGoalId": "y",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "m-closed",
+          "periodKind": "month",
+          "parentGoalId": "y",
+          "manualAchievedAt": null,
+          "periodEndDecision": "achieved",
+          "isDeleted": false
+        },
+        {
+          "id": "w",
+          "periodKind": "week",
+          "parentGoalId": "m-done",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [
+        { "id": "t1", "done": true, "isDeleted": false },
+        { "id": "t2", "done": false, "isDeleted": false }
+      ],
+      "links": [
+        { "goalId": "w", "todoId": "t1", "isDeleted": false },
+        { "goalId": "m-closed", "todoId": "t2", "isDeleted": false }
+      ],
+      "expected": {
+        "y": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 2, "total": 2 }
+        },
+        "m-done": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 1, "total": 1 }
+        },
+        "m-closed": {
+          "achieved": true,
+          "via": "period_end",
+          "connected": true,
+          "todos": { "done": 0, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        },
+        "w": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 1, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "a week's child goals (bad data) are not counted",
+      "goals": [
+        {
+          "id": "w",
+          "periodKind": "week",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "w-under-w",
+          "periodKind": "week",
+          "parentGoalId": "w",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [],
+      "links": [],
+      "expected": {
+        "w": {
+          "achieved": false,
+          "via": null,
+          "connected": false,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 0, "total": 0 }
+        },
+        "w-under-w": {
+          "achieved": false,
+          "via": null,
+          "connected": false,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
+      "name": "a parent cycle (bad data) ends as not achieved instead of looping",
+      "goals": [
+        {
+          "id": "a",
+          "periodKind": "month",
+          "parentGoalId": "b",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "b",
+          "periodKind": "month",
+          "parentGoalId": "a",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [],
+      "links": [],
+      "expected": {
+        "a": {
+          "achieved": false,
+          "via": null,
+          "connected": true,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 0, "total": 1 }
+        },
+        "b": {
+          "achieved": false,
+          "via": null,
+          "connected": true,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 0, "total": 1 }
+        }
+      }
+    }
+  ]
+}

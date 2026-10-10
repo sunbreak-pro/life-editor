@@ -1,4 +1,7 @@
 // @vitest-environment node (#1079 — this suite touches no DOM)
+import { readFileSync, readdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { describe, it, expect } from "vitest";
 import { REALTIME_TABLES } from "../src/context/SyncContext";
 import {
@@ -23,7 +26,13 @@ import {
  * no other alarm.
  */
 
-const ITEM_DOMAINS: SyncDomain[] = ["todos", "notes", "dailies", "schedule"];
+const ITEM_DOMAINS: SyncDomain[] = [
+  "todos",
+  "notes",
+  "dailies",
+  "schedule",
+  "goals",
+];
 
 describe("syncDomains — lockstep with REALTIME_TABLES", () => {
   it("routes every subscribed table to a domain", () => {
@@ -35,9 +44,7 @@ describe("syncDomains — lockstep with REALTIME_TABLES", () => {
 
   it("maps no table that is not subscribed", () => {
     const subscribed = new Set<string>(REALTIME_TABLES);
-    const orphans = Object.keys(TABLE_DOMAIN).filter(
-      (t) => !subscribed.has(t),
-    );
+    const orphans = Object.keys(TABLE_DOMAIN).filter((t) => !subscribed.has(t));
     expect(orphans).toEqual([]);
   });
 
@@ -80,6 +87,13 @@ describe("syncDomains — payload tables", () => {
     expect(domainsForChange("notes_payload")).not.toContain("todos");
   });
 
+  it("routes the goal tables to goals, and only goals (#2101)", () => {
+    // A link change moves the goal's progress, not the todo list: the todo
+    // rows themselves did not change, so `todos` must stay still.
+    expect(domainsForChange("goals_payload")).toEqual(["goals"]);
+    expect(domainsForChange("goal_todo_links")).toEqual(["goals"]);
+  });
+
   it("returns nothing for a table it does not know", () => {
     expect(domainsForChange("some_future_table")).toEqual([]);
   });
@@ -98,6 +112,34 @@ describe("syncDomains — items_meta is routed by role", () => {
     expect(domainsForChange("items_meta", { role: "routine" })).toEqual([
       "schedule",
     ]);
+    expect(domainsForChange("items_meta", { role: "goal" })).toEqual(["goals"]);
+  });
+
+  it("knows every role the items_meta CHECK allows (#2101)", () => {
+    // A role this module does not know fans out to EVERY item domain on each
+    // change. Read the CHECK from the latest migration that rewrote it, so a
+    // new role cannot land in the DDL without a route here.
+    // The quote after `in (` skips prose like "check (role in (...))" in a
+    // migration's header comment.
+    const roleCheck = /check \(role in \(('[^)]*)\)\)/;
+    const migrationDir = resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../supabase/migrations",
+    );
+    const sql = readdirSync(migrationDir)
+      .filter((f) => f.endsWith(".sql"))
+      .sort()
+      .map((f) => readFileSync(resolve(migrationDir, f), "utf8"))
+      .filter((text) => roleCheck.test(text))
+      .pop();
+    expect(sql).toBeDefined();
+    const roles = [...roleCheck.exec(sql!)![1].matchAll(/'([a-z]+)'/g)].map(
+      (m) => m[1],
+    );
+    expect(roles).toContain("goal");
+    for (const role of roles) {
+      expect(domainsForChange("items_meta", { role })).toHaveLength(1);
+    }
   });
 
   it("falls back to the old row's role when the new one is absent", () => {
@@ -145,7 +187,7 @@ describe("syncDomains — items_meta is routed by role", () => {
   });
 
   it("never routes an item change to the timer or audio domains", () => {
-    for (const role of ["task", "note", "daily", "event", "routine"]) {
+    for (const role of ["task", "note", "daily", "event", "routine", "goal"]) {
       const domains = domainsForChange("items_meta", { role });
       expect(domains).not.toContain("timer");
       expect(domains).not.toContain("audio");

@@ -78,6 +78,8 @@ export interface UseRepeatMutationsArgs {
       frequencyDays?: number[];
       frequencyInterval?: number | null;
       frequencyStartDate?: string | null;
+      /** #2082: last day of the series, inclusive. Absent / null = no end. */
+      frequencyEndDate?: string | null;
       sourceDate: string;
     },
   ) => Promise<string>;
@@ -93,6 +95,7 @@ export interface UseRepeatMutationsArgs {
         | "frequencyDays"
         | "frequencyInterval"
         | "frequencyStartDate"
+        | "frequencyEndDate"
       >
     >,
     // `skipUndo` (#1638): a series edit is several writes that the user made

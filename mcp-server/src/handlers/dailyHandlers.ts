@@ -9,7 +9,7 @@ import {
   type ItemsMetaRow,
 } from "../utils/items.js";
 import { assertDateKey } from "../utils/localDate.js";
-import { hasBriefingSection } from "../utils/briefingSection.js";
+import { readMorningComment } from "../utils/briefingSection.js";
 import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
 import {
   LOCKED_BODY_NOTICE,
@@ -33,6 +33,11 @@ export interface DailiesPayloadRow {
   /** Absent whenever the body was never fetched — see PAYLOAD_COLUMNS. */
   content_json?: unknown;
   has_password: boolean;
+  /**
+   * Claude's morning comment (0035). Read with the body only — a locked day
+   * answers null for it, like its body (#1763).
+   */
+  morning_comment?: unknown;
 }
 
 /** A live daily: its items_meta row paired with its payload row. */
@@ -48,7 +53,11 @@ export interface DailyRecord {
  */
 const PAYLOAD_COLUMNS_BODYLESS = "item_id, date, has_password";
 
-const PAYLOAD_COLUMNS = `${PAYLOAD_COLUMNS_BODYLESS}, content_json`;
+/**
+ * The unlocked read. `morning_comment` (0035) rides here and not on the
+ * bodyless list, so a locked day's comment is never asked for either.
+ */
+const PAYLOAD_COLUMNS = `${PAYLOAD_COLUMNS_BODYLESS}, content_json, morning_comment`;
 
 /**
  * Every live daily, newest date first. Shared with search_all, which has to
@@ -140,9 +149,10 @@ export async function findDailyPayload(
  * Three answers, not two: a date with no daily and a date whose daily is in
  * the trash both carry `content: null`, and only `exists` / `isTrashed` tell
  * them apart — the caller used to see one blank day for both and could not
- * know that writing would resurrect a trashed entry. `hasBriefing` reports
- * whether the 朝刊 section is already there, which write_briefing would
- * otherwise have to fetch the whole body to find out.
+ * know that writing would resurrect a trashed entry. `morningComment` is
+ * Claude's comment for the day (0035): the `morning_comment` column, else
+ * the 朝刊 section of an older body, else null. `hasBriefing` says whether
+ * there is one, so write_briefing's caller need not parse the body.
  */
 export async function getDaily(args: { date: string }) {
   const date = assertDateKey(args.date);
@@ -153,6 +163,7 @@ export async function getDaily(args: { date: string }) {
       exists: false,
       isTrashed: false,
       hasBriefing: false,
+      morningComment: null,
       content: null,
     };
   }
@@ -166,14 +177,15 @@ export async function getDaily(args: { date: string }) {
       exists: false,
       isTrashed: true,
       hasBriefing: false,
+      morningComment: null,
       content: null,
     };
   }
 
   // A fourth answer since #1763: the day exists and is not trashed, but its
-  // body was never fetched. `hasBriefing` is unknowable without the text, so
-  // it says false rather than guessing — write_briefing refuses this day
-  // anyway.
+  // body was never fetched. Neither the comment column nor the body was read,
+  // so `hasBriefing` says false rather than guessing — write_briefing refuses
+  // this day anyway.
   if (payload.has_password) {
     return {
       id: meta.id,
@@ -183,6 +195,7 @@ export async function getDaily(args: { date: string }) {
       locked: true,
       lockedReason: LOCKED_BODY_NOTICE,
       hasBriefing: false,
+      morningComment: null,
       content: null,
       createdAt: meta.created_at,
       updatedAt: meta.updated_at,
@@ -190,12 +203,14 @@ export async function getDaily(args: { date: string }) {
   }
 
   const content = contentJsonToString(payload.content_json);
+  const morningComment = readMorningComment(payload.morning_comment, content);
   return {
     id: meta.id,
     date: payload.date,
     exists: true,
     isTrashed: false,
-    hasBriefing: hasBriefingSection(content),
+    hasBriefing: morningComment !== null,
+    morningComment,
     content,
     createdAt: meta.created_at,
     updatedAt: meta.updated_at,

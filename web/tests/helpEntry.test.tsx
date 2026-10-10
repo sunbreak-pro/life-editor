@@ -157,12 +157,61 @@ describe("Help from the sign-in screen (#1989)", () => {
   });
 });
 
+describe("Help dialog Close button tap target (#2050)", () => {
+  // jsdom has no layout (CLAUDE.md §7.1), so this pins the class that lifts
+  // the button from 40.5px to 44px on a phone and leaves the desktop alone.
+  function closeButton(): HTMLElement {
+    const dialog = screen.getByRole("dialog", { name: "help.title" });
+    const buttons = within(dialog).getAllByRole("button", {
+      name: "common.close",
+    });
+    const footer = buttons.find((b) => b.textContent === "common.close");
+    if (!footer) throw new Error("no footer Close button");
+    return footer;
+  }
+
+  it("is 44px tall on a phone when opened from Settings", async () => {
+    await renderSettings();
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.help.button" }),
+    );
+    const close = closeButton();
+    expect(close.classList.contains("max-md:min-h-11")).toBe(true);
+    expect(close.classList.contains("min-h-11")).toBe(false);
+  });
+
+  it("is 44px tall on a phone when opened from the sign-in screen", () => {
+    render(<AuthScreen />);
+    fireEvent.click(screen.getByRole("button", { name: "auth.help.link" }));
+    const close = closeButton();
+    expect(close.classList.contains("max-md:min-h-11")).toBe(true);
+    expect(close.classList.contains("min-h-11")).toBe(false);
+  });
+});
+
 describe("operatorContactLinks (#1989)", () => {
-  it("offers GitHub Issues alone while the direct contact is unset", () => {
-    expect(OPERATOR.directContact).toBeNull();
+  it("offers the owner's contact form first and GitHub Issues second", () => {
+    expect(OPERATOR.directContact).toEqual({
+      kind: "form",
+      value: "https://forms.gle/z7LeghdS5LYh6tsFA",
+    });
     expect(operatorContactLinks()).toEqual([
+      {
+        id: "direct",
+        kind: "form",
+        href: "https://forms.gle/z7LeghdS5LYh6tsFA",
+      },
       { id: "github", kind: "github", href: OPERATOR.contactUrl },
     ]);
+  });
+
+  it("offers GitHub Issues alone while the direct contact is unset", () => {
+    expect(
+      operatorContactLinks({
+        contactUrl: OPERATOR.contactUrl,
+        directContact: null,
+      }),
+    ).toEqual([{ id: "github", kind: "github", href: OPERATOR.contactUrl }]);
   });
 
   it("puts a chosen email first, as a mailto link", () => {

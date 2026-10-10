@@ -306,12 +306,16 @@
       "placeholder": "フリーセッション",
       "clear": "フリーセッションに戻す",
       "select": "フリーセッション",
-      "sheetTitle": "作業名を選ぶ",
-      "clearSelection": "フリーセッション",
+      "sheetTitle": "作業を紐付ける",
+      "clearSelection": "選択を外す",
       "allDay": "終日",
-      "nameLabel": "作業名",
+      "nameLabel": "フリーセッションの名前",
       "nameSubmit": "この名前で作業する",
-      "emptyHint": "選べる Todo や予定がありません。このまま始めるとフリーセッションになります。"
+      "emptyHint": "選べる Todo や予定がありません。このまま始めるとフリーセッションになります。",
+      "todoHeading": "Todo",
+      "eventHeading": "予定",
+      "sheetEmptyTitle": "紐付けられる Todo や予定がありません",
+      "sheetEmptyBody": "上の欄に名前を入れれば、フリーセッションとして始められます。"
     },
     "completion": {
       "title": "セッション {{index}} が完了しました",
@@ -319,7 +323,9 @@
       "bodyNoTodo": "{{minutes}} 分を記録しました。{{breakMinutes}} 分の休憩を挟みましょう。",
       "startBreak": "休憩を開始",
       "oneMore": "もう 1 セッション",
-      "close": "閉じる"
+      "close": "閉じる",
+      "logged": "{{minutes}} 分を記録しました",
+      "startBreakMinutes": "休憩を始める（{{minutes}} 分）"
     },
     "settings": {
       "presetNamePlaceholder": "プリセット名",
@@ -328,7 +334,20 @@
       "presetsEmpty": "プリセットはまだありません",
       "save": "保存",
       "saved": "保存済み",
-      "unsaved": "未保存"
+      "unsaved": "未保存",
+      "short": {
+        "work": "作業",
+        "break": "休憩",
+        "longBreak": "長い休憩",
+        "sessionsBeforeLongBreak": "長い休憩まで",
+        "target": "1 日の目標"
+      },
+      "valueMinutes": "{{value}} 分",
+      "valueCount": "{{value}} 回",
+      "decrease": "{{label}}を減らす",
+      "increase": "{{label}}を増やす",
+      "applied": "適用中",
+      "presetSummary": "{{work}}・{{brk}}・{{long}} 分 / {{sessions}} 回"
     },
     "sidebarTabs": {
       "label": "Work のサイドバー",
@@ -337,10 +356,13 @@
     },
     "history": {
       "today": "今日",
+      "yesterday": "昨日",
       "latestDay": "直近の作業日 · {{date}}",
       "empty": "まだ作業の記録がありません。終えたセッションがここに並びます。",
       "noTarget": "フリーセッション",
-      "minutes": "{{minutes}} 分"
+      "minutes": "{{minutes}} 分",
+      "emptyTitle": "まだ記録がありません",
+      "emptyBody": "作業を 1 セッション終えると、ここに残ります。"
     },
     "freeSession": {
       "title": "フリーセッション",
@@ -353,7 +375,9 @@
       "tagNoCandidates": "タグがまだありません",
       "tagDialog": "フリーセッションのタグ",
       "tagSheetClose": "閉じる",
-      "tagDisabled": "タグはフリーセッション用です。作業名の選択を外すと使えます。"
+      "tagDisabled": "タグはフリーセッション用です。作業名の選択を外すと使えます。",
+      "tagAddRow": "タグを追加",
+      "tagDisabledRow": "紐付け中はタグを使えません"
     }
   },
   "audioMixer": {
@@ -395,6 +419,32 @@
     "save": "保存",
     "saved": "保存済み",
     "unsaved": "未保存"
+  },
+  "goalLink": {
+    "field": "目標",
+    "listLabel": "この Todo がつながる目標",
+    "periodWeek": "今週",
+    "periodMonth": "今月",
+    "periodYear": "今年",
+    "unconnected": "未接続",
+    "achieved": "達成",
+    "becomesAchieved": "達成になります",
+    "losesAchievement": "達成が外れます",
+    "achievementLost": "達成が外れました",
+    "previewHeading": "保存すると変わる数字",
+    "saveFailed": "目標とのつながりを保存できませんでした。選んだ内容は残っているので、もう一度保存してください。",
+    "createLinkFailed": "Todo は作成しましたが、目標につなげませんでした。Todo の詳細から目標を選び直してください。",
+    "attach": "目標につなぐ",
+    "attached": "つなぐ目標",
+    "heading": "Todo をつなぐ",
+    "search": "Todo を検索",
+    "todoList": "つなぐ Todo",
+    "empty": "つなげる Todo はまだありません。",
+    "noMatch": "一致する Todo はありません。",
+    "done": "完了",
+    "save": "保存",
+    "saving": "保存中…",
+    "cancel": "キャンセル"
   },
   "materials": {
     "todos": {
@@ -449,6 +499,31 @@
         "nameLabel": "表の名前",
         "namePlaceholder": "表に名前を付ける"
       },
+      "conflict": {
+        "message": "編集中に、このノートが別の場所で更新されました。あなたの最新の変更はまだ保存されていません。残す内容を選んでください。",
+        "showDiff": "差分を見る",
+        "hideDiff": "差分を閉じる",
+        "keepMine": "自分の変更を反映",
+        "takeTheirs": "別の場所の変更を反映",
+        "keepBoth": "両方を反映",
+        "mineHeading": "自分",
+        "theirsHeading": "別の場所",
+        "changedByMine": "自分が変えた部分です",
+        "changedByTheirs": "別の場所で変わった部分です",
+        "changedByBoth": "両方が変えた部分です。「両方を反映」では 2 つを続けて並べます",
+        "changedAlike": "両方が同じように変えた部分です",
+        "emptyBlock": "（文字なし）",
+        "noTextDiff": "文字の違いはありません。書式か、文字のないブロックだけが違います。"
+      },
+      "formatToolbar": {
+        "label": "書式",
+        "heading1": "見出し 1",
+        "heading2": "見出し 2",
+        "bold": "太字",
+        "italic": "斜体",
+        "strike": "取り消し線",
+        "horizontalRule": "区切り線を挿入"
+      },
       "mainEmpty": "ノートを選ぶか、新しく作成してください",
       "recentHeading": "最近開いたノート",
       "untagged": "未分類",
@@ -458,9 +533,11 @@
       "sortTitle": "タイトル",
       "tagFilterLabel": "タグで絞り込む",
       "tagFilterClear": "タグの絞り込みを解除",
-      "tagFilterMore": "+{{count}}",
-      "tagFilterLess": "折りたたむ",
-      "groupMoreRows": "残り {{count}} 件を表示",
+      "tagFilterSelected": "タグで絞り込む（{{count}} 件選択中）",
+      "tagFilterPanel": "表示するタグ",
+      "otherItems": "他のアイテム（{{count}}）",
+      "closeOtherItems": "他のアイテムを閉じる",
+      "backToList": "一覧に戻る",
       "rowActions": "ノートの操作",
       "renameNote": "名前を変更",
       "editNote": "ノートを編集"
@@ -533,12 +610,15 @@
       "filterLabel": "エントリを絞り込む",
       "searchEmpty": "絞り込みに一致するエントリはありません",
       "empty": "エントリはまだありません",
-      "eveningTitle": "夕刊",
-      "eveningScheduleTitle": "この日のスケジュール",
       "eveningMood": "気分",
-      "eveningStart": "夕刊を書く",
-      "eveningEditReflection": "振り返りを編集",
-      "eveningReflectionPlaceholder": "この日はどんな一日でしたか…"
+      "figuresLabel": "この日の数字",
+      "figureEvents": "予定",
+      "figureTodos": "Todo",
+      "figureWork": "作業",
+      "figureGoals": "進んだ目標",
+      "morningLabel": "朝の記録",
+      "morningComment": "朝刊のひとこと",
+      "morningIntention": "宣言"
     },
     "tags": {
       "usageCount_other": "{{count}} 件",
@@ -663,7 +743,6 @@
     "allDay": "終日",
     "emptyToday": "今日の予定はありません",
     "emptyDay": "この日の予定はありません",
-    "flowBackToToday": "今日に戻る",
     "frequency": "繰り返し",
     "viewLabel": "表示",
     "frequencyNone": "なし",
@@ -673,6 +752,9 @@
     "intervalEvery": "",
     "intervalDays": "日ごと",
     "startDate": "開始日",
+    "endDate": "終了日",
+    "endDateHint": "空欄なら終わりなく繰り返します",
+    "endDateClear": "終了日を消す",
     "repeatConverting": "繰り返しを設定中…",
     "repeatConvertFailed": "繰り返しを設定できませんでした。この予定は変更されていません。もう一度お試しください。",
     "repeatMaterialiseFailed": "繰り返しは設定できましたが、先の予定をまだ追加できていません。カレンダーを開き直すと再試行します。",
@@ -707,7 +789,8 @@
     "retry": "再試行",
     "moreCount": "他 {{count}} 件",
     "monthCreateOn": "{{date}} に追加",
-    "monthShowAllOn": "{{date}} の予定をすべて表示",
+    "monthShowAllOn": "{{date}} の残りの予定を表示",
+    "monthMoreTitle": "{{date}} の残りの予定",
     "quickAddPlaceholder": "予定を入力…",
     "detailTitle": "予定の詳細",
     "detailPanelLabel": "詳細パネル",
@@ -1174,7 +1257,48 @@
       "removeThisTag": "このタグを外す",
       "seeRelations": "関連を見る"
     },
-    "sheetClose": "閉じる"
+    "sheetClose": "閉じる",
+    "tabsLabel": "つながりの表示",
+    "tabs": {
+      "tags": "タグ",
+      "goals": "目標と Todo"
+    },
+    "goals": {
+      "kinds": { "year": "年", "month": "月", "week": "週" },
+      "periods": { "year": "今年", "month": "今月", "week": "今週" },
+      "addHeading": "目標を立てる",
+      "addPlaceholder": "届きたいところを書きます",
+      "add": "追加",
+      "cancel": "やめる",
+      "limit": "{{period}}の目標は 3 つまでです。",
+      "treeHeading": "目標の木",
+      "unconnectedHeading": "未接続の目標",
+      "looseHeading": "どの目標にもつながらない Todo",
+      "empty": "目標はまだありません。今週の目標を立てて Todo をつなぐと、ここで進み具合を見られます。",
+      "emptyAction": "今週の目標を立てる",
+      "achieved": "達成",
+      "unconnected": "未接続",
+      "progress": "{{done}}/{{total}}",
+      "openTodo": "スケジュールで開く: {{title}}",
+      "loading": "目標を読み込んでいます",
+      "loadFailed": "目標を読み込めませんでした。通信を確認して、もう一度読み込んでください。",
+      "retry": "もう一度読み込む",
+      "titleLabel": "目標の名前",
+      "parentLabel": "上の目標",
+      "parentNone": "なし",
+      "todosHeading": "つないだ Todo",
+      "todosEmpty": "この目標につないだ Todo はまだありません。",
+      "childrenHeading": "下の目標",
+      "earlierChildren_other": "前の期間の下の目標がほかに {{count}} つあり、進み具合に数えています。",
+      "markAchieved": "達成にする",
+      "unmarkAchieved": "達成を外す",
+      "manualHint": "手で達成にできるのは、何もつながっていない目標だけです。",
+      "deleteGoal": "目標を削除",
+      "deleteConfirm": "目標「{{title}}」を削除しますか？つないだ Todo は残ります。",
+      "period": "{{kind}} · {{key}}",
+      "sheetTitle": "目標: {{title}}",
+      "writeFailed": "目標を保存できませんでした。通信を確認して、もう一度操作してください。"
+    }
   },
   "attachment": {
     "insertImage": "画像",
@@ -1291,22 +1415,27 @@
   },
   "briefing": {
     "masthead": "LIFE EDITOR 朝刊",
-    "focusLabel": "今日のフォーカス",
+    "focusLabel": "ゆうべの自分から",
     "aiTitle": "昨日へのひとこと",
     "aiSource": "Claude ・ 朝刊セクションより",
-    "noFocus": "今日のフォーカスはまだありません。前日の夕刊で書くと、ここに表示されます。",
+    "noFocus": "まだありません。夕刊の『明日の自分へ』で書くと、ここに出ます。",
     "focusNoteTitle": "フォーカス",
-    "intentionTitle": "今日の宣言",
-    "intentionPlaceholder": "今日は何をやり遂げますか。一行から宣言できます…",
     "goalsTitle": "これからの目標",
+    "goalMark": "目標:",
     "goals": {
-      "noteTitle": "目標",
-      "weekTitle": "今週",
-      "monthTitle": "今月",
-      "yearTitle": "今年",
-      "weekPlaceholder": "今週やり遂げることを一行から…",
-      "monthPlaceholder": "今月やり遂げることを一行から…",
-      "yearPlaceholder": "今年やり遂げることを一行から…"
+      "prompt": "今週の目標を立てましょう",
+      "linkTodos": "Todo をつなぐ: {{title}}",
+      "openInConnect": "目標と Todo で開く",
+      "migrationOverflow_other": "目標ノートの行を目標に移しました。目標は 1 つの期間に 3 つまでなので、残りの {{count}} 行はノートにそのまま残しています。"
+    },
+    "review": {
+      "title": "終わった期間の目標",
+      "question": "この目標は、達成しないまま期間が終わりました。どうしますか。",
+      "carry": "持ち越す",
+      "drop": "やめる",
+      "achieve": "達成にする",
+      "later": "あとで聞く",
+      "remaining_other": "残り {{count}} 件"
     },
     "scheduleTitle": "今日のスケジュール",
     "addScheduleItem": "今日のスケジュールに追加",
@@ -1323,10 +1452,11 @@
     "jumpToSchedule": "スケジュールで開く",
     "jumpToTodos": "Todo で開く",
     "saveFailed": {
-      "intention": "今日の宣言を保存できませんでした。書いた内容は画面に残っていますが、まだ保存されていません。通信を確認して、もう一度書き直してください。",
       "evening": "夕刊を保存できませんでした。書いた内容は画面に残っていますが、まだ保存されていません。通信を確認して、もう一度書き直してください。",
-      "goals": "目標を保存できませんでした。書いた内容は画面に残っていますが、まだ保存されていません。通信を確認して、もう一度書き直してください。",
-      "focus": "明日のフォーカスを保存できませんでした。書いた内容は画面に残っていますが、まだ保存されていません。通信を確認して、もう一度書き直してください。"
+      "focus": "「明日の自分へ」を保存できませんでした。書いた内容は画面に残っていますが、まだ保存されていません。通信を確認して、もう一度書き直してください。",
+      "notes": "出来事の一言を保存できませんでした。書いた内容は画面に残っていますが、まだ保存されていません。通信を確認して、もう一度書き直してください。",
+      "tomorrow": "Todo を明日の予定に置けませんでした。通信を確認して、もう一度押してください。",
+      "publish": "気分は保存しましたが、夕刊の発行時刻を記録できませんでした。通信を確認して、★をいったん外してから付け直してください（同じ★をもう一度押すと外れます）。"
     },
     "rowDeleted": "「{{title}}」を削除しました。ヘッダーの「元に戻す」で戻せます。",
     "tabsLabel": "朝刊 / 夕刊",
@@ -1346,18 +1476,39 @@
       "masthead": "LIFE EDITOR 夕刊",
       "moodTitle": "今日の気分",
       "moodStar": "気分 {{value}}/5",
-      "intentionTitle": "今朝の宣言",
-      "intentionPlaceholder": "今日の宣言。一行から書けます…",
       "reflectionTitle": "一日の締めくくり",
       "placeholder": "今日はどんな一日でしたか…",
       "startEditing": "今日のふり返りを書く",
-      "focusTitle": "明日のフォーカス",
+      "focusTitle": "明日の自分へ",
       "focusPlaceholder": "明日いちばん進めたいことを一行で…",
       "todosTitle": "残りの Todo",
       "noTodos": "残っている Todo はありません",
       "upcomingTitle": "今後の予定",
       "noUpcoming": "この先の予定はありません",
-      "tomorrowTag": "明日"
+      "tomorrowTag": "明日",
+      "issueNumber": "夕刊 第 {{count}} 号",
+      "issueLine": "夕刊 第 {{number}} 号 · {{streak}} 日連続",
+      "goalsTitle": "今日進んだ目標",
+      "noGoals": "今日進んだ目標はありません",
+      "goalsLoadFailed": "目標を読み込めませんでした。通信を確認して、夕刊を開き直してください。",
+      "goalRemaining": "あと {{count}} 件",
+      "eventsTitle": "今日の出来事",
+      "noEvents": "今日の出来事はまだありません",
+      "eventsSummary": "予定 {{events}} · Todo {{todos}} · 作業 {{work}}",
+      "eventsSummaryNoTodos": "予定 {{events}} · 作業 {{work}}",
+      "eventWork": "作業",
+      "noteAdd": "一言を足す: {{title}}",
+      "noteEdit": "一言を直す: {{title}}",
+      "noteButton": "一言",
+      "notePlaceholder": "一言…",
+      "tomorrowTitle": "明日の予定に置く",
+      "noTomorrow": "明日に置ける Todo はありません",
+      "tomorrowTime": "時刻（任意）: {{title}}",
+      "placeTomorrow": "明日に置く",
+      "placeTomorrowLabel": "明日に置く: {{title}}",
+      "placedTomorrow": "明日 {{time}}",
+      "openDaily": "Daily に移動",
+      "openDailyLabel": "{{date}} の Daily に移動"
     }
   },
   "tour": {
@@ -1390,7 +1541,7 @@
       }
     },
     "steps": {
-      "briefingIntro": "ここが朝刊です。その日のことが 1 ページにまとまります。書くのはあなたではなく Claude Code で、デスクトップ版の MCP 連携を通して中身が入ります。Web だけで使っているあいだは空のままですが、それが正常で、壊れているわけではありません。",
+      "briefingIntro": "ここが朝刊です。ゆうべの自分からの一言、今週の目標の進み具合、今日の予定が 1 ページにまとまります。目標と予定はあなたの操作で埋まるので、Web だけで使っていても空にはなりません。Claude Code をデスクトップ版の MCP 連携でつないでいる日は、昨日へのひとこともここに届きます。",
       "scheduleCreateEvent": "ここから予定を 1 件入れてみましょう。ボタンを押しただけでは進まず、予定ができたら次へ進みます。",
       "scheduleAdjustEvent": "いま作った予定を開いて、時間を変えてみましょう。予定はずれるものなので、直し方を先に覚えておきましょう。",
       "scheduleOpenTodos": "Todo はカレンダーと同じセクションにあります。Todo タブを開いてみましょう。",
@@ -1399,7 +1550,7 @@
       "materialsCapture": "ノートをこのボタンから追加できます。1 つ作ってみましょう。",
       "materialsNoteBody": "本文を数文字書いてみましょう。入力するそばから保存されるので、保存ボタンを押す必要はありません。",
       "materialsNoteTag": "タグを 1 つ付けてみましょう。タグは、同じ話題のアイテム同士をつなぐ目印です。",
-      "materialsTagFollow": "ここでタグを選んでみましょう。そのタグが付いたものだけが並ぶので、あとから関連するノートに戻れます。"
+      "materialsTagFollow": "タグの絞り込みを開いて、タグを選んでみましょう。そのタグが付いたものだけが並ぶので、あとから関連するノートに戻れます。"
     }
   },
   "errorBoundary": {

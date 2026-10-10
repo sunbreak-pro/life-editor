@@ -119,8 +119,11 @@ export function useScheduleSelection({
   // #761: on NARROW they used to be dropped instead, selection included, for
   // want of a surface to send them to. They now open the todo detail sheet —
   // see itemTapRoute.
+  // `opts.focus` (#2049): the bubble takes focus — the "他 N 件" panel's
+  // keyboard press. Every other caller passes two arguments and gets the
+  // bubble exactly as before.
   const handleItemActivate = useCallback(
-    (id: string, pos: { x: number; y: number }) => {
+    (id: string, pos: { x: number; y: number }, opts?: { focus?: boolean }) => {
       if (itemTapRoute(id, isWide) === "todoSheet") {
         // Deliberately not selected on the way in: `selectedId` drives the
         // EVENT surfaces (the ring, the narrow editor sheet), and a chip id
@@ -129,7 +132,12 @@ export function useScheduleSelection({
         return;
       }
       setSelectedId(id);
-      if (isWide) setPopover({ id, x: pos.x, y: pos.y });
+      if (isWide)
+        setPopover(
+          opts?.focus
+            ? { id, x: pos.x, y: pos.y, focus: true }
+            : { id, x: pos.x, y: pos.y },
+        );
     },
     [isWide, setPopover, setTodoDetailId],
   );

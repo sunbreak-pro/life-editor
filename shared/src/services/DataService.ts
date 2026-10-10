@@ -8,10 +8,16 @@ import type {
 } from "../types/timer";
 import type { SoundSettings } from "../types/sound";
 import type { DailyNode } from "../types/daily";
-import type { NoteNode } from "../types/note";
+import type {
+  NoteBodySaveResult,
+  NoteBodySnapshot,
+  NoteNode,
+} from "../types/note";
 
 import type { TagGroupNode } from "../types/tagGroup";
 import type { RoutineNode } from "../types/routine";
+import type { Goal, GoalPeriodKind, GoalTodoLink } from "../types/goal";
+import type { GoalCreateInput, GoalUpdates } from "./goalMapper";
 import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 // #1438 — the sweep's own vocabulary. Declared next to the pure detection it
@@ -284,6 +290,8 @@ export interface RoutinesDataService {
     frequencyStartDate?: string | null,
     reminderEnabled?: boolean,
     reminderOffset?: number,
+    /** #2082: last day of the series, inclusive. Omitted = no end. */
+    frequencyEndDate?: string | null,
   ): Promise<RoutineNode>;
   updateRoutine(
     id: string,
@@ -300,6 +308,7 @@ export interface RoutinesDataService {
         | "frequencyDays"
         | "frequencyInterval"
         | "frequencyStartDate"
+        | "frequencyEndDate"
         | "reminderEnabled"
         | "reminderOffset"
       >
@@ -367,6 +376,8 @@ export interface RoutinesDataService {
       frequencyDays?: number[];
       frequencyInterval?: number | null;
       frequencyStartDate?: string | null;
+      /** #2082: last day of the series, inclusive. Absent / null = no end. */
+      frequencyEndDate?: string | null;
       /** The seed event's date key — becomes events_payload.source_date so
        *  the (routine, source_date) partial UNIQUE treats the converted seed
        *  as that day's occurrence. */
@@ -662,6 +673,29 @@ export interface NotesUnifiedDataService {
   getNoteBodyUnified(id: string): Promise<string | null>;
   createNoteUnified(node: NoteNode): Promise<NoteNode>;
   updateNoteUnified(id: string, updates: Partial<NoteNode>): Promise<NoteNode>;
+  /**
+   * Save a note body only if the note is still at the version the caller read
+   * (#2057). `expectedUpdatedAt` is the `updatedAt` that came with the body the
+   * edit started from; when the row has moved on, nothing is written and the
+   * result carries what is there now. `null` = the caller holds no version,
+   * which is answered as a conflict so it can compare and adopt one.
+   *
+   * The body write of record for an editor that keeps a note open. The plain
+   * `updateNoteUnified` still writes bodies unconditionally — for a caller that
+   * means to replace one wholesale (a template apply).
+   */
+  saveNoteBodyUnified(
+    id: string,
+    content: string,
+    expectedUpdatedAt: string | null,
+  ): Promise<NoteBodySaveResult>;
+  /**
+   * The body as stored now, with its version (#2057) — for an open editor that
+   * has to tell another device's write from its own echo. Unfiltered by the
+   * password gate: call it only for a body the screen is already showing.
+   * `null` = no such live note.
+   */
+  getNoteBodySnapshotUnified(id: string): Promise<NoteBodySnapshot | null>;
   softDeleteNoteUnified(id: string): Promise<void>;
   moveNoteUnified(
     id: string,
@@ -714,6 +748,31 @@ export interface DailiesUnifiedDataService {
   toggleDailyEditLockUnified(id: string): Promise<DailyNode>;
 }
 
+// ---------------------------------------------------------------------------
+// Goals — SupabaseGoalsService (#2103)
+// ---------------------------------------------------------------------------
+
+/**
+ * Goals linked to Todos (0034). Reads return live rows only; achievement is
+ * the pure `judgeGoals` (utils/goalAchievement) over goals + their links +
+ * the linked todos. Every goal write bumps items_meta.updated_at (DB-Q2).
+ */
+export interface GoalsDataService {
+  fetchGoals(): Promise<Goal[]>;
+  fetchGoalsInPeriod(kind: GoalPeriodKind, periodKey: string): Promise<Goal[]>;
+  /** The year, month and week goals of the periods `dateKey` falls in. */
+  fetchGoalsForDate(dateKey: string): Promise<Goal[]>;
+  /** Rejects a malformed period key and a parent that is not one level up. */
+  createGoal(input: GoalCreateInput): Promise<Goal>;
+  updateGoal(id: string, updates: GoalUpdates): Promise<Goal>;
+  softDeleteGoal(id: string): Promise<void>;
+  restoreGoal(id: string): Promise<void>;
+  fetchGoalTodoLinks(goalIds: readonly string[]): Promise<GoalTodoLink[]>;
+  /** Idempotent — an already-linked pair returns its live link. */
+  linkGoalTodo(goalId: string, todoId: string): Promise<GoalTodoLink>;
+  unlinkGoalTodo(goalId: string, todoId: string): Promise<void>;
+}
+
 /**
  * The whole data surface the frontend may reach (CLAUDE.md §3.1).
  *
@@ -734,4 +793,5 @@ export interface DataService
     ItemConversionDataService,
     WikiTagsUnifiedDataService,
     NotesUnifiedDataService,
-    DailiesUnifiedDataService {}
+    DailiesUnifiedDataService,
+    GoalsDataService {}

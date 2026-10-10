@@ -37,6 +37,9 @@ import type { ScheduleTodoDetailProps } from "../src/schedule/ScheduleTodoDetail
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@life-editor/shared")>()),
   useTranslation: () => ({ t: (key: string) => key, i18n: { language: "ja" } }),
+  // #2109: the goal row's data. No goals here — its own suite
+  // (scheduleTodoDetailGoals.test.tsx) drives it with a Sync provider.
+  useGoalLinkSnapshot: () => ({ state: null, writeLinks: async () => {} }),
 }));
 
 /*

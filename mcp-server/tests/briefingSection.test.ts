@@ -3,6 +3,9 @@ import {
   buildBriefingSectionNodes,
   upsertBriefingSection,
   hasBriefingSection,
+  extractBriefingParagraphs,
+  morningCommentOf,
+  readMorningComment,
   parseDoc,
   textOf,
   type TipTapNode,
@@ -15,6 +18,9 @@ import { extractBriefing } from "../../shared/src/components/briefing/extractBri
 // parseDailyDoc must accept the same bodies, and this is the only place the
 // two packages can be compared.
 import { parseDailyDoc } from "../../shared/src/components/briefing/dailySections.js";
+// And for 0035 (D-20261007-briefing-1): MCP reads the morning comment with
+// its own copy of the rule, which must answer what the app's reader answers.
+import { readMorningRecord } from "../../shared/src/components/briefing/dailyMorning.js";
 import {
   localToday,
   addDays,
@@ -197,6 +203,91 @@ describe("parseDoc agrees with shared parseDailyDoc (#1592)", () => {
 
   it("never throws on a body the screen can render", () => {
     for (const [, body] of bodies) expect(() => parseDoc(body)).not.toThrow();
+  });
+});
+
+describe("extractBriefingParagraphs agrees with shared extractBriefing (0035)", () => {
+  // Every body an older day can carry. extractBriefing is the app's reader of
+  // the 朝刊 section; MCP's copy must find the same paragraphs, or get_daily
+  // and the paper would disagree about what Claude said on that day.
+  const bodies: Array<[string, string | null | undefined]> = [
+    ["null", null],
+    ["undefined", undefined],
+    ["empty string", ""],
+    ["a section", doc(heading("朝刊"), para("講評 1"), para("講評 2"))],
+    ["an English heading", doc(heading("Briefing"), para("comment"))],
+    [
+      "a section closed by the next heading",
+      doc(heading("朝刊"), para("講評"), heading("夕刊"), para("日記")),
+    ],
+    [
+      "text after the lines without a heading",
+      doc(heading("朝刊"), para("講評"), para("昼にアキとランチ。")),
+    ],
+    ["a heading with nothing under it", doc(heading("朝刊"), heading("夕刊"))],
+    ["blank paragraphs only", doc(heading("朝刊"), para("  "))],
+    ["no section", doc(heading("夕刊"), para("x"))],
+    ["two 朝刊 headings", doc(heading("朝刊"), heading("朝刊"), para("x"))],
+    [
+      "a list in the section",
+      doc(heading("朝刊"), {
+        type: "bulletList",
+        content: [
+          { type: "listItem", content: [para("a")] },
+          { type: "listItem", content: [para("b")] },
+        ],
+      }),
+    ],
+    ["a legacy plain body", "朝刊\n講評"],
+    ["unparseable JSON", "not json {"],
+    ["a JSON object that is not a doc", '{"content":[]}'],
+    ["a JSON null", "null"],
+  ];
+
+  for (const [label, body] of bodies) {
+    it(`reads ${label} the same way`, () => {
+      expect(extractBriefingParagraphs(body)).toEqual(
+        extractBriefing(body)?.paragraphs ?? null,
+      );
+    });
+  }
+});
+
+describe("morningCommentOf / readMorningComment (0035)", () => {
+  it("keeps the column's text paragraphs and nothing else", () => {
+    expect(morningCommentOf(["a", " b ", 3, "", "  ", null])).toEqual([
+      "a",
+      "b",
+    ]);
+    for (const empty of [null, undefined, "a", { 0: "a" }, [], ["  "], [1]])
+      expect(morningCommentOf(empty)).toBeNull();
+  });
+
+  it("reads the column first and an older 朝刊 section second", () => {
+    const legacy = doc(heading("朝刊"), para("前の講評"));
+    expect(readMorningComment(["新しい講評"], legacy)).toEqual(["新しい講評"]);
+    expect(readMorningComment(null, legacy)).toEqual(["前の講評"]);
+    expect(readMorningComment([], legacy)).toEqual(["前の講評"]);
+    expect(readMorningComment(null, doc(para("日記")))).toBeNull();
+    expect(readMorningComment(null, null)).toBeNull();
+  });
+
+  it("answers what shared's readMorningRecord answers", () => {
+    const cases: Array<[unknown, string | null]> = [
+      [["列の講評"], doc(heading("朝刊"), para("本文の講評"))],
+      [null, doc(heading("朝刊"), para("本文の講評"), para("日記"))],
+      [[], doc(heading("宣言"), para("走る"))],
+      [["  ", 3], doc(heading("Briefing"), para("x"))],
+      [null, "朝刊\nplain"],
+      [null, null],
+    ];
+    for (const [column, content] of cases) {
+      const shared = readMorningRecord({
+        content,
+        morningComment: column as string[] | null,
+      }).comment;
+      expect(readMorningComment(column, content) ?? []).toEqual(shared);
+    }
   });
 });
 

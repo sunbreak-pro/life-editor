@@ -95,7 +95,12 @@ export function HelpDialog({ open, onClose, onOpenTutorial }: HelpDialogProps) {
         }}
       />
       <div className="mt-6 flex justify-end">
-        <Button variant="secondary" onClick={onClose}>
+        {/* `h-9` alone is 40.5px at the 18px root on a phone (#2050). */}
+        <Button
+          variant="secondary"
+          onClick={onClose}
+          className="max-md:min-h-11"
+        >
           {t("common.close")}
         </Button>
       </div>

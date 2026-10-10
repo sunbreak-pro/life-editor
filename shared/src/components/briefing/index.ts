@@ -36,12 +36,6 @@ export {
   normalizeFocusText,
 } from "./focusSections";
 export {
-  GoalsBlock,
-  type GoalsBlockProps,
-  type GoalsBlockLabels,
-  type GoalFieldLabels,
-} from "./GoalsBlock";
-export {
   GOALS_NOTE_ID,
   GOAL_PERIODS,
   adoptBareGoalHeadings,
@@ -51,6 +45,86 @@ export {
   type ExtractedGoals,
   type GoalPeriod,
 } from "./goalSections";
+// #2109: linking goals and Todos — the goal side (GoalTodoLinkScreen), the
+// todo side (GoalPickerField), the pure before/after preview, and the hook
+// that loads and writes the links. The goal types ride along so web hosts can
+// name them (the shared root barrel does not export types/goal).
+export type { Goal, GoalPeriodKind, GoalTodoLink } from "../../types/goal";
+export {
+  applyGoalLinkEdit,
+  applyLinkDraft,
+  goalProgressOf,
+  goalsForTodoPicker,
+  linkDraftOf,
+  linkedGoalIds,
+  lostAchievementIds,
+  previewGoalLinkEdit,
+  toAchievementTodo,
+  toGoalLinkState,
+  type GoalLinkEdit,
+  type GoalLinkState,
+  type LinkDraft,
+  type GoalProgress,
+  type GoalProgressChange,
+  type GoalTodoPair,
+} from "./goalLinkPreview";
+export {
+  GoalAchievementLostNotice,
+  GoalProgressDelta,
+  goalProgressText,
+  type GoalProgressLabels,
+} from "./GoalProgressDelta";
+export {
+  GoalPickerField,
+  goalPickerLabels,
+  type GoalPickerFieldProps,
+  type GoalPickerLabelKey,
+  type GoalPickerLabels,
+} from "./GoalPickerField";
+export {
+  GoalTodoLinkScreen,
+  type GoalLinkDiff,
+  type GoalLinkTodoOption,
+  type GoalTodoLinkScreenLabels,
+  type GoalTodoLinkScreenProps,
+} from "./GoalTodoLinkScreen";
+// #2106: the morning paper's goals — the pure reads (this week's goals, the
+// todo rows' marks, the period-end queue and how a carry lands) and the two
+// blocks the host hands BriefingView as its `goalsSlot`.
+export {
+  buildMorningGoals,
+  carryPlan,
+  goalMarkTitles,
+  periodEndQueue,
+  periodStartDateKey,
+  type CarryPlan,
+  type MorningGoalLine,
+  type MorningGoals,
+  type PeriodEndItem,
+} from "./morningGoals";
+export {
+  MorningGoalsBlock,
+  PeriodEndReviewCard,
+  type MorningGoalsBlockProps,
+  type MorningGoalsLabels,
+  type PeriodEndChoice,
+  type PeriodEndReviewCardProps,
+  type PeriodEndReviewLabels,
+} from "./MorningGoalsBlock";
+export {
+  useGoalLinkSnapshot,
+  type GoalLinkLoader,
+  type GoalLinkSnapshot,
+} from "./useGoalLinkSnapshot";
+export {
+  GOALS_PER_PERIOD_LIMIT,
+  currentNoteGoalLines,
+  noteGoalLegacyKey,
+  planNoteGoalMigration,
+  type ExistingGoal,
+  type NoteGoalCreate,
+  type NoteGoalPeriodPlan,
+} from "./goalNoteMigration";
 export {
   goalPeriodKeys,
   goalPeriodRanges,
@@ -59,8 +133,6 @@ export {
 } from "./goalPeriods";
 export {
   extractIntentionSection,
-  hasIntentionToReport,
-  mergeIntentionSection,
   normalizeIntentionText,
   type ExtractedIntentionSection,
 } from "./intentionSection";
@@ -71,6 +143,28 @@ export {
   type EveningTodoEntry,
   type EveningScheduleEntry,
 } from "./EveningView";
+export type { EveningEventEntry, EveningRowLabels } from "./EveningRows";
+// #2107: the day's one text and the day's numbers — the Daily rebuild (#2123)
+// reads and writes the same text and prints the same counts, so they live
+// here once rather than per screen.
+export { readDailyText, writeDailyText } from "./dailyText";
+export { readMorningRecord, type MorningRecord } from "./dailyMorning";
+export {
+  TOMORROW_OTHERS_LIMIT,
+  applyEveningNote,
+  eveningDayCounts,
+  eveningDayWindow,
+  eveningEvents,
+  eveningIssue,
+  goalsMovedToday,
+  tomorrowCandidates,
+  type EveningDayCounts,
+  type EveningDayInput,
+  type EveningEvent,
+  type EveningGoalMove,
+  type EveningIssue,
+  type EveningTomorrowCandidate,
+} from "./eveningDay";
 export {
   extractEveningSection,
   mergeEveningSection,

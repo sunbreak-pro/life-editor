@@ -1,9 +1,11 @@
-import { Clock } from "lucide-react";
+import { useId } from "react";
+import { Clock, History, Tag as TagIcon } from "lucide-react";
 import { TagPill } from "./TagPill";
 import { cn } from "./cn";
 import {
   workTargetChipClass,
   workTargetIcon,
+  WorkTargetGlyph,
   type WorkTargetOption,
 } from "./PomodoroTodoSelector";
 
@@ -21,6 +23,16 @@ import {
  * purple) so a row reads as "the same thing you picked up there". A session
  * with no target keeps a neutral label instead of an empty gap — "worked on
  * nothing in particular" is an answer, not a missing value.
+ *
+ * `variant="rows"` is the Mobile drawer's version (#2054, Claude Design plan
+ * A): one flat row per session — the kind glyph on a neutral disc, the title,
+ * and "25 min · 09:00–09:25" under it — and an empty state with an icon and a
+ * heading. The Desktop panel keeps the bordered cards.
+ *
+ * The rows variant can also take `groups` — one heading and list per day —
+ * because the drawer shows "today" and "yesterday" together
+ * (D-20261003-work-2). Without it, `entries` under `labels.heading` is the one
+ * group, which is all the card variant ever draws.
  */
 
 export interface WorkHistoryTag {
@@ -42,6 +54,15 @@ export interface WorkHistoryEntry {
   tags: WorkHistoryTag[];
 }
 
+/** One day of the rows variant: its heading and that day's rows. */
+export interface WorkHistoryGroup {
+  /** Stable key — the day's `YYYY-MM-DD`. */
+  key: string;
+  /** Already-formatted day heading ("Today" / "Yesterday"). */
+  heading: string;
+  entries: WorkHistoryEntry[];
+}
+
 export interface WorkHistoryListLabels {
   /** Heading above the rows — the host's formatted day ("Today" / "Sep 16"). */
   heading: string;
@@ -51,6 +72,8 @@ export interface WorkHistoryListLabels {
   noTarget: string;
   /** Accessible name of the list. */
   listLabel: string;
+  /** Rows variant only: the empty state's heading; `empty` is its line. */
+  emptyTitle?: string;
 }
 
 export interface WorkHistoryListProps {
@@ -59,6 +82,10 @@ export interface WorkHistoryListProps {
   /** Skeleton rows while the host's first read is in flight. */
   loading?: boolean;
   className?: string;
+  /** card = the Desktop panel's cards (default); rows = the Mobile drawer (#2054). */
+  variant?: "card" | "rows";
+  /** Rows variant only: several days, each under its own heading. */
+  groups?: WorkHistoryGroup[];
 }
 
 export function WorkHistoryList({
@@ -66,7 +93,16 @@ export function WorkHistoryList({
   labels,
   loading = false,
   className,
+  variant = "card",
+  groups,
 }: WorkHistoryListProps) {
+  const headingId = useId();
+  const rows = variant === "rows";
+  const sections: WorkHistoryGroup[] =
+    rows && groups
+      ? groups.filter((g) => g.entries.length > 0)
+      : [{ key: "day", heading: labels.heading, entries }];
+  const isEmpty = sections.every((g) => g.entries.length === 0);
   if (loading) {
     return (
       <div className={cn("flex flex-col gap-2", className)} aria-busy="true">
@@ -80,7 +116,27 @@ export function WorkHistoryList({
     );
   }
 
-  if (entries.length === 0) {
+  if (isEmpty && rows && labels.emptyTitle) {
+    return (
+      <div
+        className={cn(
+          "flex flex-col items-center gap-2 px-6 pt-12 text-center",
+          className,
+        )}
+        data-testid="work-history-empty"
+      >
+        <span className="mb-1 flex h-12 w-12 items-center justify-center rounded-full border border-lumen-border bg-lumen-bg text-lumen-text-tertiary">
+          <History aria-hidden="true" className="size-lumen-icon-lg" />
+        </span>
+        <p className="text-sm font-bold text-lumen-text">{labels.emptyTitle}</p>
+        <p className="text-pretty text-xs leading-relaxed text-lumen-text-secondary">
+          {labels.empty}
+        </p>
+      </div>
+    );
+  }
+
+  if (isEmpty) {
     return (
       <p
         className={cn("text-sm text-lumen-text-secondary", className)}
@@ -88,6 +144,78 @@ export function WorkHistoryList({
       >
         {labels.empty}
       </p>
+    );
+  }
+
+  if (rows) {
+    // One list per day. A single group keeps the list's own name; several are
+    // each named by their day heading, so a screen reader hears "Today" and
+    // "Yesterday" rather than two lists both called "History".
+    const single = sections.length === 1;
+    return (
+      <div className={cn("flex flex-col gap-4", className)}>
+        {sections.map((group) => {
+          const groupHeadingId = `${headingId}-${group.key}`;
+          return (
+            <section key={group.key} className="flex flex-col">
+              <h3
+                id={groupHeadingId}
+                className="pb-1 text-xs font-semibold text-lumen-text-tertiary"
+              >
+                {group.heading}
+              </h3>
+              <ul
+                className="flex flex-col"
+                aria-label={single ? labels.listLabel : undefined}
+                aria-labelledby={single ? undefined : groupHeadingId}
+              >
+                {group.entries.map((entry) => (
+                  <li
+                    key={entry.id}
+                    data-testid="work-history-row"
+                    className="flex min-h-14 items-center gap-3 py-1.5"
+                  >
+                    {entry.target ? (
+                      <WorkTargetGlyph kind={entry.target.kind} />
+                    ) : (
+                      // No target = a free session: a tag glyph, the thing a
+                      // free session is filed by.
+                      <span
+                        aria-hidden="true"
+                        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-lumen-border bg-lumen-bg-secondary text-lumen-text-secondary"
+                      >
+                        <TagIcon className="size-lumen-icon-sm" />
+                      </span>
+                    )}
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="truncate text-sm text-lumen-text">
+                        {entry.target ? entry.target.title : labels.noTarget}
+                      </span>
+                      <span className="text-xs tabular-nums text-lumen-text-tertiary">
+                        <span>{entry.durationLabel}</span>
+                        {" · "}
+                        <span>{entry.timeRange}</span>
+                      </span>
+                      {entry.tags.length > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1">
+                          {entry.tags.map((tag) => (
+                            <TagPill
+                              key={tag.id}
+                              name={tag.name}
+                              color={tag.color}
+                              icon={tag.icon ?? null}
+                            />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          );
+        })}
+      </div>
     );
   }
 

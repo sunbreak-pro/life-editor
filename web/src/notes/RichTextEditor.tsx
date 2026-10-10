@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, type MutableRefObject } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
+import type { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import Bold from "@tiptap/extension-bold";
 import Italic from "@tiptap/extension-italic";
@@ -25,6 +26,7 @@ import { createCalloutNode } from "./calloutNode";
 import { createTableNodes } from "./tableNodes";
 import type { LoadItemLinkTargets } from "./useItemLinkTargets";
 import type { AttachmentWiring } from "./useAttachmentUpload";
+import { replaceDocument } from "./replaceDocument";
 
 /*
  * Lean web Notes rich-text editor (S3). A deliberately reduced
@@ -232,6 +234,37 @@ interface RichTextEditorBaseProps {
    * image still opens on a surface that has not wired this.
    */
   attachments?: AttachmentWiring;
+  /**
+   * Switch the open document to a body that came from elsewhere (#2057) — the
+   * note was written by MCP or another device while it was open. Applied once
+   * per `seq`, as a minimal block-level change that keeps the caret and the
+   * Undo history and never reports itself as an edit (see replaceDocument).
+   * Unforced, it is re-checked when it would apply: if anything was typed
+   * since the host decided (`canApply` false, or keystrokes waiting on the
+   * save debounce), it is NOT applied and `onSettled(false)` says so. Forced
+   * (`force`), it applies and drops those keystrokes.
+   */
+  replaceContent?: {
+    content: string;
+    seq: number;
+    force?: boolean;
+    canApply?: () => boolean;
+    onSettled?: (applied: boolean) => void;
+  } | null;
+  /**
+   * Filled with a reader for the editor's current body — keystrokes inside
+   * the debounce window included (#2057). A host settling a conflict needs
+   * the text on screen, not the last body that reached `onUpdate`.
+   */
+  contentReaderRef?: MutableRefObject<(() => string | null) | null>;
+  /**
+   * Hand this editor to the host, for controls drawn OUTSIDE it (#2060 — the
+   * note body's formatting bar sits in the detail's sticky header, not in this
+   * component's box). Called with the editor once it exists and with null when
+   * it goes away (note switch / unmount), so the host never keeps a destroyed
+   * instance. Omitted everywhere but the Notes body.
+   */
+  onEditorChange?: (editor: Editor | null) => void;
 }
 
 export type RichTextEditorProps = RichTextEditorBaseProps &
@@ -261,6 +294,9 @@ export function RichTextEditor({
   onCreateNoteForLink,
   onDirty,
   attachments,
+  replaceContent,
+  contentReaderRef,
+  onEditorChange,
 }: RichTextEditorProps) {
   const { t } = useTranslation();
   const debounceRef = useRef<number | null>(null);
@@ -582,6 +618,88 @@ export function RichTextEditor({
     };
   }, [editor, setEditorHistory]);
 
+  // #2057 — the host reads the live body through this when it has to decide
+  // between the user's text and a version from elsewhere.
+  useEffect(() => {
+    if (!contentReaderRef) return;
+    contentReaderRef.current = editor
+      ? () => (editor.isDestroyed ? null : JSON.stringify(editor.getJSON()))
+      : null;
+    return () => {
+      contentReaderRef.current = null;
+    };
+  }, [editor, contentReaderRef]);
+
+  /*
+   * #2057 — a body from elsewhere. Held while an IME composition is open: a
+   * transaction under a composition cuts the candidate the user is choosing.
+   *
+   * The host decided to send it when nothing was pending, but that decision
+   * is only true for the moment it was made. Typing can land in between — the
+   * composition that was open is the common case, since committing it IS a
+   * document change — and applying anyway would replace the user's text and
+   * leave the save debounce writing a body built on the old version. So an
+   * unforced replacement re-checks at the moment it would apply and, if
+   * anything was typed, reports back instead (`onSettled(false)`); the host
+   * turns that into a conflict. A forced one (the user picked a body) applies
+   * and drops the pending keystrokes, which the host has already read.
+   */
+  const appliedSeqRef = useRef(0);
+  useEffect(() => {
+    if (!editor || !replaceContent) return;
+    if (replaceContent.seq === appliedSeqRef.current) return;
+    appliedSeqRef.current = replaceContent.seq;
+    const { content, force = false, canApply, onSettled } = replaceContent;
+    // Every replacement is answered exactly once — applied, refused, or
+    // dropped by the cleanup below — so the host is never left waiting.
+    let settled = false;
+    const settle = (applied: boolean) => {
+      if (settled) return;
+      settled = true;
+      onSettled?.(applied);
+    };
+    const dom = editor.view.dom;
+    let timer: number | null = null;
+    const onEnd = () => {
+      dom.removeEventListener("compositionend", onEnd);
+      // After ProseMirror has read the composed text into the document.
+      timer = window.setTimeout(apply, 0);
+    };
+    function apply() {
+      timer = null;
+      if (editor === null || editor.isDestroyed) {
+        settle(false);
+        return;
+      }
+      // An IME can open the next composition right after committing one.
+      if (editor.view.composing) {
+        dom.addEventListener("compositionend", onEnd);
+        return;
+      }
+      const typedSince =
+        latestContentRef.current !== null || (canApply ? !canApply() : false);
+      if (!force && typedSince) {
+        settle(false);
+        return;
+      }
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+      latestContentRef.current = null;
+      replaceDocument(editor, content);
+      settle(true);
+    }
+    apply();
+    return () => {
+      dom.removeEventListener("compositionend", onEnd);
+      if (timer !== null) window.clearTimeout(timer);
+      // Replaced by a newer one (a choice in the banner) or unmounted while
+      // still held: it never went in.
+      settle(false);
+    };
+  }, [editor, replaceContent]);
+
   useEffect(() => {
     // `emitUpdate: false`. TipTap's setEditable fires an `update` by default,
     // and this effect runs once on mount with the SAME value useEditor was
@@ -592,6 +710,19 @@ export function RichTextEditor({
     // Toggling editability is not a content change either way.
     if (editor) editor.setEditable(editable, false);
   }, [editor, editable]);
+
+  // #2060 — offer the instance to a host-drawn toolbar. Through a ref so a
+  // host passing an inline callback does not re-announce on every render; the
+  // cleanup takes it back before the next instance (or none) is announced.
+  const onEditorChangeRef = useRef(onEditorChange);
+  useEffect(() => {
+    onEditorChangeRef.current = onEditorChange;
+  });
+  useEffect(() => {
+    if (!editor) return;
+    onEditorChangeRef.current?.(editor);
+    return () => onEditorChangeRef.current?.(null);
+  }, [editor]);
 
   return (
     <div className={`note-editor ${className}`}>

@@ -424,8 +424,11 @@ on its own and the file measures like a low-bitrate re-encode.
 `silenceMsNoTag` is what a player that ignores the LAME tag plays: about
 23 ms at the head and up to 16 ms at the tail, from the MP3 format itself.
 Chromium honours the tag. Its `<audio loop>` still leaves about 10 ms at
-every wrap, the same for WAV and FLAC, so a gap below that needs a change
-to the playback code, not to the file.
+every wrap, the same for WAV and FLAC. The app does not use `<audio loop>`
+for these files: `shared/src/utils/ambientLoop.ts` turns `loop` off and
+crosses two elements over 1.2 s before each lap ends (#1965). No wrap
+happens, so the 10 ms never plays, and any edge silence falls where the
+outgoing side is already near zero.
 
 ### Upload (owner)
 
@@ -441,5 +444,18 @@ Claude:
 3. Open each public URL in a browser and check it plays. Browsers and the
    CDN may keep the old file for up to the object's cache time (1 hour by
    default), so the app can sound unchanged for that long.
+4. **Measure what the bucket now serves.** `measure` takes the public URLs
+   as they are (ffmpeg reads https), so no download is needed:
+
+   ```bash
+   B=https://<project>.supabase.co/storage/v1/object/public/sounds
+   node supabase/scripts/ambient-loops.mjs measure $B/rain.mp3 $B/wind.mp3 $B/ocean.mp3 $B/birds.mp3 $B/fire.mp3
+   ```
+
+   The new files read `silenceMs` `0/0`, `seconds` 110–120 and
+   `band18to20` between -9 and -44. The files uploaded on 2026-06-14 read
+   `band18to20` between -60 and -101 with `wallHz` 16250, `silenceMs`
+   between `20/35` and `36/132`, and wind is 25.8 s long. If a row still
+   matches the old values, the CDN is serving the old object.
 
 To roll back, upload the backups from step 1 the same way.

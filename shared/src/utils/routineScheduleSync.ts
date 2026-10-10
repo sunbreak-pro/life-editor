@@ -92,8 +92,9 @@ export function diffRoutineScheduleItems(
 
 /**
  * Check whether a routine should produce a schedule item for a given date.
- * A deleted / archived / hidden routine never fires; otherwise the answer
- * comes from the routine's own frequency settings.
+ * A deleted / archived / hidden routine never fires, nothing fires before the
+ * series' first day (#2098) or after its end date (#2082); otherwise the
+ * answer comes from the routine's own frequency settings.
  */
 export function shouldCreateRoutineItem(
   routine: RoutineNode,
@@ -101,6 +102,16 @@ export function shouldCreateRoutineItem(
 ): boolean {
   if (routine.isDeleted) return false;
   if (routine.isArchived || !routine.isVisible) return false;
+  // #2098: the series' first day, inclusive, for EVERY frequency. Interval
+  // already counts from it; daily / weekdays used to ignore it, so the range
+  // fill (#2081) put occurrences before the event a repeat was converted from.
+  // A null start (every MCP-made daily / weekdays routine) keeps "no lower
+  // bound".
+  if (routine.frequencyStartDate && dateKey < routine.frequencyStartDate)
+    return false;
+  // #2082: the series' last day, inclusive. Date keys compare as strings.
+  if (routine.frequencyEndDate && dateKey > routine.frequencyEndDate)
+    return false;
 
   return shouldRoutineRunOnDate(
     routine.frequencyType,

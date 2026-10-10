@@ -1,5 +1,53 @@
 # HISTORY (chat-main)
 
+### 2026-10-08 (2) - 拡張アプリの立ち位置を決めて計画書 Draft + 決定 2 件（D-20261008-main-1 / -2・PR #2158）
+
+#### 概要
+
+ユーザー依頼「life-editor と今後の拡張アプリの立ち位置・役割を決めたい。構想（出来事の保管 → 分析 → 次の Todo。家計簿などの数値は拡張アプリで収集）に意見を」。回答後に「その方向性で OK。Analytics に拡張アプリからのデータの収集・一覧化、leftSidebar に拡張アプリの登録・一覧タブ。この要件で実装計画書を。リポジトリは別々、手順がかなり増えるなら統合」。意見を返したあと、決定 2 件を台帳へ昇格し、計画書を Draft で書いて PR にした。
+
+#### 変更点
+
+- **意見（チャット）**: 構想は採用済みの Briefing ループ（朝刊 → Schedule → Work → 夕刊 → Claude 分析）と同じ軸で、Goals（#2101〜#2110）が「分析 → Todo」の配線の 1 本目。弱いのは分析の材料で、数値を貯める構想には賛成。先に作るべきは拡張アプリではなく共通の記録テーブル + MCP の道具で、最初の一歩は「テーブル + MCP + スマホの Claude から記録」を 2〜3 週間
+- **D-20261008-main-1**（answered・Q1〜Q4 = A）: 役割分担（本社 / 支店）/ `app_records` は `items_meta` の外の独立テーブル（0018 の timer 系と同じ）/ データ先・アプリ後 / Analytics に記録タブ（既存 4 タブは凍結のまま。`archive/2026-07-16-loop-friction-fixes.md` 決定 6 を記録タブの分だけ supersede）+ サイドバーに Apps セクション
+- **D-20261008-main-2**（answered・A 切替条件つき）: 別リポジトリを維持。手順を数えた差は「窓口の仕様ファイルと偽物の取り込み」1 つで、これは pdca-harness がどのみち要る。切替条件 = (a) 拡張アプリが `shared/` を import したくなったとき (b) 窓口の版上げで両リポジトリの同時変更が月 1 回を超えたとき
+- **計画書 `2026-10-08-extension-app-records-and-apps-section.md`**（Draft・親 = 窓口の計画書）: `app_records` / `extension_apps` の列・RLS・Realtime・`delete_my_account` の更新 / 同期ドメイン 2 つ / MCP の道具 4 つ（`create_record` / `list_records` / `delete_record` / `list_extension_apps`）+ today / week context の records 要約 / Analytics の記録タブ（`AnalyticsTab` に `records`）と narrow のブロック / Apps セクション（`sections.ts` に `apps`・mobileOrder 6・`Blocks` アイコン・descriptor・登録 / 編集 / 削除・「記録だけ届いているアプリ」・Analytics への導線）/ Steps 11 本・Issue 下書き N1〜N8・AC 16 項目
+- **ANSWERS.md** に 2 行追加。**PR #2158**（`docs/extension-records-apps-plan`・一時 worktree `docs-extension-records` 経由・サブエージェントが作成）
+
+#### 実測・知見
+
+- **先に出した意見を 1 つ取り下げた**: チャットでは「拡張アプリは同じ Supabase プロジェクトに同じユーザーで直接書く」と勧めたが、同日 merge の窓口の計画書と D-20261007-main-3 = A / -4 = B は窓口（専用 Worker・アプリごとの鍵）経由と決めていた。手元の main が `5a775287` で止まっていて PR #2137（13:18 merge）を読めていなかったのが原因。**着手前に `git pull --ff-only` して、決定台帳は origin/main で読む**（memory: stale-main-reasks-answered-decisions の再発）。計画書の代替案の表に取り下げの経緯を残した
+- **Git Bash の `git show origin/main:path` と `git rev-parse HEAD origin/main` は `origin\main` に化ける**。`MSYS2_ARG_CONV_EXCL="*"` で回避（pitfalls 8 に追記）
+- **Analytics の凍結は「一部解除」**: 記録タブだけ。既存タブを触りたくなる誘惑は Non-goals と Risks に明記した
+- **窓口との identity の二重化が最大のリスク**: #2146 が鍵の保存先を独自に決めると、アプリの id が台帳（`extension_apps.slug`）と鍵側で 2 つになる。計画書 Step 8 は #2144 の着地を待たずに語彙のコメントだけ先に出す設計にした
+
+#### 次
+
+- 🛑 ユーザー手番: PR #2158 の merge（Step 1）。merge 後に N1〜N8 を起票
+- 要判断: N5（Apps セクション）の宛先レーン
+- 2〜3 週間の試用（スマホの Claude から記録）が済んでから、家計簿アプリの計画を別リポジトリで
+
+### 2026-10-08 - アプリ内 Note「Issue報告」の 4 項目を回収して 8 本起票（#2141〜#2143・#2152〜#2156）
+
+#### 概要
+
+ユーザー依頼「Issue報告というタイトルの Note の内容を読み込んで Issue を起票して」。Remote MCP で Note を読み、Mobile 1 項目・共通 3 項目を重複チェックと実装箇所の当たり付けをしてから起票した。最後の項目（Claude Design で今の画面を再現して微調整する仕組み）は、ユーザーの希望どおり親 1 本 + 子 4 本の構成にし、GitHub の sub-issue で親子をつないだ。
+
+#### 変更点
+
+- **#2141**（`[shared-fix]`・type:bug）: 本文エディタがフォーカスを失うと履歴の提供を引き上げ（`RichTextEditor.tsx:607-610`）、ヘッダーの Undo / Redo が空のアプリ履歴を見て disabled になる。#1690 の仕組みの副作用。直し方は A / B / C の 3 案を書き、UX の分岐なので着手時に判断キューへ出す形にした
+- **#2142**（section:schedule・type:feature）: タグフィルタのグループ。解除の処理（`handleSelectGroup(null)`）とタグの更新（`updateTagGroup(id, { tagIds })`）はデータの層に既にあり、パネルから呼ぶ口が無いだけ。Modal に閉じるボタンが無く、高さの上限も無い
+- **#2143**（section:connect・type:bug）: `navigateToItem` が Todo を `{ section: "schedule" }` へ一方通行で飛ばし、詳細の `onClose` は詳細を閉じるだけ。移動元を覚える仕組みはアプリのどこにも無い。Desktop も同じ
+- **#2156 親 + 子 4 本**（#2152〜#2154 は `[shared-fix]`・#2155 は section:schedule）: 1/4 = アプリの説明と設計の意図を部品集（DesignSystem プロジェクト）に常設し、`tokens.css` とのずれをテストで見つける / 2/4 = 今の画面を再現させる指示書の型を作り Schedule で試す / 3/4 = 微調整した値を実装へ戻す手順 / 4/4 = タグフィルタパネルの作り直し（#2142 の見た目の部分をこちらへ分けた）。残りの画面の再現は、型が固まってから各レーンへ起票すると親に書いた
+
+#### 実測・知見
+
+- **Note の扱い**: 2026-09-01 はユーザー指示で回収後にソフトデリートしたが、今回は指示が無いので Note は残した
+- **#2079 は PR #2090 で main に着地済みなのに open のまま**（`CalendarNarrowLayout.tsx:94` に narrow のフィルタボタンが実在）。#2036 も PR #2112（`refs #2036`）で着地済みだが open。どちらも close するかは未判断
+- **サブエージェントの申告を 1 件訂正した**: 「部品集の `typography.html` は 10 段の文字の段階を持つ」は誤りで、10 段は Settings の文字サイズ（root 12〜25px）のこと。部品集は Tailwind の `text-*` をそのまま段階として載せている。#2154 の本文はこの実測で書いた
+- **数え直した値**: `shared/src` と `web/src` の `.tsx` で、Tailwind の余白クラスが約 1,700 か所、`lumen-*` の余白トークンが 22 か所、`text-xs`〜`text-4xl` が 690 か所、`text-[…]` が 38 か所
+- 起票の最中に別チャットが `[mcp-tools]` の 8 本（#2144〜#2151）を起票していて、番号が飛んだ
+
 ### 2026-09-26 - スマホの Claude アプリから life-editor MCP を使えるようにした（Remote MCP の本番化 = #1994）
 
 #### 概要
@@ -92,54 +140,5 @@ connect-refine-d3 と materials-refine-d7 から受信 4 件。報告はすべ�
 - 🛑 **chat-main の手番が 2 つ増えた**（4 本の main 着地後）: 計画書 Step 12 の実ブラウザ検証（1440×900 の 1a〜2f と 390×844 の Mobile 1a〜1l・light / dark）と、一括操作 10 件の体感実測
 - **判断キューは作業コピーに現れない経路で積まれていた**: connect-refine は D-20260919-connect-1 を tracker PR #1710 に載せたので、merge されるまで `.claude/comm/decisions/chat-connect-refine.md` は「open エントリ無し」のまま。指摘して PR 本文へ全文を貼ってもらった。**tracker PR に積んだ判断は merge されるまで誰の目にも触れない** — 急ぐものは PR 本文に貼る
 - **D-20260919-connect-1**（Mobile 上部バーに「＋」を置くか）: 推奨・放置時とも A = 現状維持。narrow ヘッダーは shell の形状 enum で、末尾アクションを足すと `MainScreen.tsx`（#1646 の Scope 外）に触るため。レール下端の追加行が narrow でも入口として出ている
-
-### 2026-09-16 (2) - outbox 棚卸し → 起票 8 本（#1667〜#1674）+ 依頼 1 件を実測で差し戻し
-
-#### 概要
-
-ユーザー依頼 3 本（「リモートを取り込んで現状把握 → `issue-prompter`」「各チャットからの起票依頼を確認」「このセッションで起票」）。outbox 21 本と判断キュー 12 本を全数読み、未処理の起票依頼 10 件を裁いて 8 件を Issue にした。依頼が挙げた `file:line` は全件 main で実測し、1 件（F-05）はコードが前提を否定したので起票せず差し戻した。
-
-#### 変更点
-
-- **起票 8 本**: #1667 タグの付け外しが Undo に載らない（A-01）/ #1668 Undo 失敗でも成功トースト（B-10）/ #1669 MCP の削除が dismiss を通らない（E-12・宛先 `[mcp-tools]`）/ #1670 Trash 復元が #932 のロールバックを通らない（F-07）/ #1671 #1409 の schedule 分の実ブラウザ確認（`[main]`）/ #1672 `<kbd>` 5 箇所の書体（shared-fix）/ #1673 briefingEveningLazyMount の flake（briefing）/ #1674 添付アップロードの進捗表示（materials）
-- **レポート**: `.claude/docs/reports/2026-09-16-outbox-triage.html`（Artifact v2）。起票結果・差し戻しの根拠・未回答の判断 4 件・night-safe の 6 件を 1 枚に集約
-- **issue-prompter**: セッション冒頭で回して 2 レーンへ `/goal` を提示したが、直後にユーザーが 8 PR を merge したため失効した（W0 / W1 / W2 / W7 / W11 と #1643 が全部着地）
-
-#### 実測・知見
-
-- **F-05 は前提が 2 つとも否定された**: `web/src/briefing/hooks/useBriefingWrites.ts:65-66` が `useUndoRedoOptional()` を持ち、予定（`:305-316`）と Todo（`:416-424`）の削除は undo を push している。routine 系に undo が無いのは `:336` が「Schedule も同じくスタックに載せない（cascade は 1 行の再挿入で戻せない）」と理由つきで明言。`fillUpToAnchor` は関数として存在せず `useScheduleItemsRoutineSync.ts:147` のコメントにあるだけで、`:332-334` が「紙面の anchor は常に表示中の日なので fill は定義上 no-op」と書いている。**outbox の起票依頼でも file:line を実測してから起票する** — `rules/docs-consistency.md` §5 はサブエージェント報告だけの話ではない
-- **B-10 は依頼より 1 段悪かった**: `shared/src/utils/undoRedo/UndoRedoManager.ts:57` の docstring は「reported via onError」と書くが、`onError` は repo のどこにも配線が無い（`git grep onError` の一致がこのコメント 1 行だけ）。失敗は完全に無音
-- **古い起票依頼は全部処理済みだった**: 2026-07〜08 分を Issue 一覧 300 件と突き合わせ、#1001〜#1008 / #1097 / #1220 / #1615 に着地済みを確認。未処理は 09-02 以降の分だけ
-- **`gh issue list --state open` は数分で古くなる**: 最初の一覧で open だった #1643 / #1632 が、`--state all` を引いた時点では CLOSED になっていた。PR merge が Issue を閉じたためで、**配布判断の直前に open 一覧を取り直す**
-
-#### 次
-
-- 🛑 ユーザー手番: 未回答の判断 4 件（`D-20260905-shared-fix-1` / `D-20260902-tags-1` / `D-20260902-tags-2` / PR 行数目安の読み替え）と migration 0029 / 0030 の適用確認
-- F-05 の差し戻しを schedule-refine の outbox へ伝えるかは未判断
-- 新しい手番 = connect-refine が #1644、schedule-refine が W3 / W4 / W6 / W9 / W12
-
-### 2026-09-16 - Connect ワークベンチ計画の Steps 0 — docs PR #1647 + 実装 Issue 4 本（#1643〜#1646）
-
-#### 概要
-
-ユーザー依頼「`2026-09-14-connect-tag-link-workbench.md` の Steps #0 を実行して」。計画書の分担表 順 2〜5 を `section:connect` で起票し、表の「未起票」を Issue 番号に置き換え、#1631 にスコープ注記をコメントした。あわせて、計画書・brief・裁定が chat-main の作業コピーに未追跡のまま置かれていた（worktree から読めない）ので、先に docs PR #1647 で main へ載せた。セッション冒頭では `issue-prompter` を回し、schedule / connect / settings の 3 レーンへ `/goal` を提示している。
-
-#### 変更点
-
-- **docs PR #1647**（`chore/docs-connect-workbench-plan`・一時 worktree `docs-connect-workbench` 経由）: 計画書 + `briefs/connect-relations.md` 新設 + `briefs/connect.md` を SUPERSEDED + `_COMMON-CONTEXT.md` v4.1 + `decisions/D-20260912-main-1.md` + 再定義レポート HTML。コード変更ゼロ
-- **起票 4 本**（すべて `section:connect` + `type:feature`）: #1643 タグ編集の統合（D1〜D7・D15・D16）/ #1644 複数選択・一括タグ操作・タグ統合（D8〜D11・D14）/ #1645 右パネルの近傍モードとリンク（D12・D13）/ #1646 Mobile 3 段（M1〜M10）。DoD は計画書の Steps と Acceptance から機械検証できる形（`git grep` 0 件 / 個別テストの緑 / verify 全ステップ exit 0 / PR 行数上限）へ落とした
-- **計画書の追随**: 分担表の「未起票」4 箇所を #1643〜#1646 に置換、Status を Draft → IN PROGRESS
-- **#1631 へコメント**: タグ編集パネル側の表示は #1643 でパネルごと退役するため、#1631 は Connect 側だけを直す
-
-#### 実測・知見
-
-- **`records.mjs check` が docs PR を止めた**: `D-20260912-main-1` は `status: answered` なのに `comm/decisions/ANSWERS.md` に回答行が無かった。台帳へ昇格したとき回答簿の 1 行を書き忘れると、次に触った PR が落ちる（D ファイル単体では気付けない）。1 行追記して解消
-- **`git show <branch>:<path>` は Git Bash でパス変換に食われる**: `origin/chore/...:.claude/...` がバックスラッシュ混じりの 1 引数へ変換され `ambiguous argument` になる。`MSYS_NO_PATHCONV=1` + `MSYS2_ARG_CONV_EXCL='*'` を付けると通る
-- **chat-main の作業コピーに未追跡 docs を置いたままにしない**: worktree レーンからは読めず、計画書側も「絶対パスで読むか、先に docs PR で main に載せる」と但し書きを持つ羽目になっていた。main へ載せた後、重複していた作業コピー 6 本は片付けた（tracked 2 本は `git checkout --`、untracked 4 本は削除。内容が push 済みブランチと一致することを `diff` で確認してから）
-
-#### 次
-
-- レーンの着手順は #1631 → #1643 → #1644 → #1645 → #1646。順 2 以降は stacked 可だが、base が main 以外の PR は merge 後に main 着地を実測する
-- 🛑 ユーザー手番: PR #1647 の merge（P-001）
 
 > 古いエントリは [`archive/2026-09/chat-main.md`](./archive/2026-09/chat-main.md)・[`archive/2026-08/chat-main.md`](./archive/2026-08/chat-main.md)・[`archive/2026-07/chat-main.md`](./archive/2026-07/chat-main.md)・[`archive/2026-06/chat-main.md`](./archive/2026-06/chat-main.md)・[`archive/2026-05/chat-main.md`](./archive/2026-05/chat-main.md) を参照

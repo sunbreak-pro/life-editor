@@ -153,7 +153,9 @@ export function RepeatListPanel({
             <button
               type="button"
               onClick={(e) => onOpen(r.id, { x: e.clientX, y: e.clientY })}
-              className="flex min-w-0 flex-1 items-center gap-2 rounded-lumen-md px-3 py-2 text-left transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+              // #2083: the 44px floor on narrow, where this row is a tap
+              // target in the drawer. Desktop keeps its mouse-sized box.
+              className="flex min-w-0 flex-1 items-center gap-2 rounded-lumen-md px-3 py-2 text-left max-md:min-h-11 transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
             >
               {body}
             </button>

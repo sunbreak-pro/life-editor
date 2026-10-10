@@ -66,17 +66,35 @@ export interface DailiesPayloadRow {
   is_pinned: boolean;
   is_edit_locked: boolean;
   has_password: boolean;
+  /** 0034 (#2107). Optional so row literals written before it still type. */
+  evening_published_at?: string | null;
+  /** 0034 (#2107): a jsonb object (CHECKed), or null. */
+  evening_notes?: Record<string, string> | null;
+  /**
+   * 0035 (D-20261007-briefing-1): the morning comment. The DB only CHECKs
+   * "null or an array", so the elements arrive unchecked — `unknown` until
+   * `toMorningComment` has read it. READ-ONLY for the app: MCP
+   * write_briefing is its only writer, so it is kept off both write types.
+   */
+  morning_comment?: unknown;
 }
 
 /** Writable subset for INSERT/UPSERT on dailies_payload. `has_password`
- * is generated — keep it off the write type. */
-export type DailiesPayloadWriteRow = Omit<DailiesPayloadRow, "has_password">;
+ * is generated and `morning_comment` belongs to MCP — keep both off the
+ * write type. */
+export type DailiesPayloadWriteRow = Omit<
+  DailiesPayloadRow,
+  "has_password" | "morning_comment"
+>;
 
 /** UPDATE patch for dailies_payload. `item_id` / `user_id` /
- * `has_password` are never patched (date typically not either, but allowed
- * for completeness). */
+ * `has_password` / `morning_comment` are never patched (date typically not
+ * either, but allowed for completeness). */
 export type DailiesPayloadUpdatePatch = Partial<
-  Omit<DailiesPayloadRow, "item_id" | "user_id" | "has_password">
+  Omit<
+    DailiesPayloadRow,
+    "item_id" | "user_id" | "has_password" | "morning_comment"
+  >
 >;
 
 // ---------------------------------------------------------------------------
@@ -88,7 +106,7 @@ export const ITEMS_META_DAILY_COLUMNS = ITEMS_META_COLUMNS;
 
 export const DAILIES_PAYLOAD_COLUMNS =
   "item_id, user_id, date, content_json, is_pinned, is_edit_locked, " +
-  "has_password";
+  "has_password, evening_published_at, evening_notes, morning_comment";
 
 // ---------------------------------------------------------------------------
 // 3. Id / date validators (defence-in-depth)
@@ -139,8 +157,47 @@ export function rowsToDailyNode(
   node.isEditLocked = payload.is_edit_locked;
   node.isDeleted = meta.is_deleted;
   node.deletedAt = meta.deleted_at;
+  node.eveningPublishedAt = payload.evening_published_at ?? null;
+  node.eveningNotes = toEveningNotes(payload.evening_notes);
+  node.morningComment = toMorningComment(payload.morning_comment);
 
   return node;
+}
+
+/**
+ * The column is CHECKed as "null or an array" and nothing more, so a hand
+ * edit could leave a number or a blank string in it. Each element is
+ * trimmed, and the non-string and blank ones are dropped; a value with
+ * nothing left reads as null, which sends the readers back to the body's 朝刊
+ * section exactly as on a day the column never had. The same rule as
+ * `normalizeMorningComment` (components/briefing/extractBriefing.ts) and MCP's
+ * `morningCommentOf`, so every reader sees the same paragraphs.
+ */
+function toMorningComment(value: unknown): string[] | null {
+  if (!Array.isArray(value)) return null;
+  const paragraphs: string[] = [];
+  for (const p of value) {
+    if (typeof p !== "string") continue;
+    const text = p.trim();
+    if (text !== "") paragraphs.push(text);
+  }
+  return paragraphs.length === 0 ? null : paragraphs;
+}
+
+/**
+ * The DB only CHECKs that `evening_notes` is an object, so a value written by
+ * hand (or a future writer) could carry a non-string. Only that entry is
+ * dropped, not the whole map: the note writer saves the map it read back with
+ * one key changed, so reading one bad value as "no notes" would erase every
+ * other note on the next save (#2107 review).
+ */
+function toEveningNotes(value: unknown): Record<string, string> | null {
+  if (typeof value !== "object" || value === null || Array.isArray(value))
+    return null;
+  const entries = Object.entries(value as Record<string, unknown>).filter(
+    (e): e is [string, string] => typeof e[1] === "string",
+  );
+  return entries.length === 0 ? null : Object.fromEntries(entries);
 }
 
 // ---------------------------------------------------------------------------
@@ -178,6 +235,14 @@ export function dailyNodeToRows(
     is_pinned: node.isPinned ?? false,
     is_edit_locked: node.isEditLocked ?? false,
   };
+  // Only when the node carries them: the columns default to NULL, and leaving
+  // them off keeps the insert row of every existing caller unchanged.
+  if (node.eveningPublishedAt !== undefined)
+    payload.evening_published_at = node.eveningPublishedAt;
+  if (node.eveningNotes !== undefined)
+    payload.evening_notes = node.eveningNotes;
+  // `morningComment` is never written from here (0035 — see the update
+  // mapper below).
 
   return { meta, payload };
 }
@@ -224,6 +289,19 @@ export function dailyUpdatesToPatches(
     payloadPatch.is_pinned = updates.isPinned;
   if ("isEditLocked" in updates && updates.isEditLocked !== undefined)
     payloadPatch.is_edit_locked = updates.isEditLocked;
+  // #2107: null passes through on purpose — it is how a cleared star
+  // unpublishes and how the last note is removed.
+  if (
+    "eveningPublishedAt" in updates &&
+    updates.eveningPublishedAt !== undefined
+  )
+    payloadPatch.evening_published_at = updates.eveningPublishedAt;
+  if ("eveningNotes" in updates && updates.eveningNotes !== undefined)
+    payloadPatch.evening_notes = updates.eveningNotes;
+  // 0035: `morningComment` is deliberately not mapped. The app never writes
+  // the comment — MCP write_briefing is its only writer — so a node passed
+  // back whole (with the comment it was read with) cannot overwrite a newer
+  // comment Claude wrote since.
 
   return { metaPatch, payloadPatch };
 }

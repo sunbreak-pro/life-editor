@@ -67,6 +67,45 @@ describe("restoreItem", () => {
     expect(stub.writes()[0].filters).toEqual({ id: "si-1", role: "event" });
   });
 
+  /** A trashed week goal plus `live` live goals in the same week (#2104). */
+  const goalTables = (live: number) => {
+    const goal = (id: string, isDeleted: boolean) => ({
+      meta: { id, role: "goal", title: id, is_deleted: isDeleted },
+      payload: {
+        item_id: id,
+        period_kind: "week",
+        period_key: "2026-10-04",
+        sort_order: 0,
+      },
+    });
+    const goals = [
+      goal("goal-1", true),
+      ...Array.from({ length: live }, (_, i) => goal(`goal-live-${i}`, false)),
+    ];
+    return fromTables({
+      items_meta: goals.map((g) => g.meta),
+      goals_payload: goals.map((g) => g.payload),
+    });
+  };
+
+  it("restores a trashed goal under its 'goal' role (#2101)", async () => {
+    stub = createSupabaseStub(goalTables(2));
+
+    const result = await restoreItem({ id: "goal-1" });
+
+    expect(result).toMatchObject({ role: "goal", restored: true });
+    expect(stub.writes()[0].filters).toEqual({ id: "goal-1", role: "goal" });
+  });
+
+  it("refuses a goal whose period already has 3 live goals (#2104)", async () => {
+    stub = createSupabaseStub(goalTables(3));
+
+    await expect(restoreItem({ id: "goal-1" })).rejects.toThrow(
+      /week 2026-10-04 already has 3 goals/,
+    );
+    expect(stub.writes()).toEqual([]);
+  });
+
   it("writes nothing for an item that is already live", async () => {
     stub = createSupabaseStub(() =>
       metaRow({ id: "note-1", role: "note", title: "N", is_deleted: false }),
@@ -108,7 +147,7 @@ describe("restoreItem", () => {
     );
 
     await expect(restoreItem({ id: "daily-2026-08-12" })).rejects.toThrow(
-      /restore_item supports todos, notes and schedule items; daily-2026-08-12 is a "daily"/,
+      /restore_item supports todos, notes, schedule items and goals; daily-2026-08-12 is a "daily"/,
     );
     expect(stub.writes()).toEqual([]);
   });

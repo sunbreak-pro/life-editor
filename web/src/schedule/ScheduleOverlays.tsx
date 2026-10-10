@@ -198,6 +198,8 @@ export function ScheduleOverlays({
       <ItemActionPopover
         key={popover.state.id}
         position={{ x: popover.state.x, y: popover.state.y }}
+        // #2049: opened from the keyboard in the month "他 N 件" panel.
+        autoFocus={popover.state.focus}
         summary={
           <div className="flex flex-col gap-0.5">
             <p className="line-clamp-2 break-words font-semibold text-lumen-text">
@@ -228,6 +230,7 @@ export function ScheduleOverlays({
         // and a rename draft from the previous item would survive the swap.
         key={popover.state.id}
         position={{ x: popover.state.x, y: popover.state.y }}
+        autoFocus={popover.state.focus}
         summary={
           <div className="flex flex-col gap-0.5">
             <p className="line-clamp-2 break-words font-semibold text-lumen-text">
@@ -338,7 +341,8 @@ export function ScheduleOverlays({
    * #1678 — the repeat row's panel. Desktop only, for the same reason the
    * grid's bubble is (#299): on narrow the list lives in the drawer that
    * covers the calendar, so a floating panel would sit over its own list.
-   * Narrow keeps the press as the jump it always was.
+   * Narrow's press goes straight to the series' editor instead
+   * (useScheduleRepeats.handleRepeatRowPress, #2083).
    *
    * A row with no occurrence opens this too — the actions that need one are
    * disabled rather than missing, so the panel can be the place that says why.

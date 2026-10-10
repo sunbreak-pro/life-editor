@@ -189,7 +189,7 @@
   },
   {
     "name": "get_daily",
-    "description": "Get the daily entry for a specific date. Returns exists (is there a readable daily), isTrashed (there is one, but it is in the trash — its body is withheld and writing to this date would restore it) and hasBriefing (the 朝刊 section is already written; write_briefing would replace it) alongside content. When exists is false, hasBriefing is always false — a trashed body is not read.",
+    "description": "Get the daily entry for a specific date. Returns exists (is there a readable daily), isTrashed (there is one, but it is in the trash — its body is withheld and writing to this date would restore it), morningComment (Claude's morning comment, kept beside the body rather than in it: the daily's `morning_comment` field, or the 朝刊 heading section of an older day's body; null when there is none) and hasBriefing (morningComment is not null; write_briefing would replace the field) alongside content. When exists is false or the day is locked, hasBriefing is false and morningComment is null — a trashed or locked day is not read.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -283,7 +283,7 @@
   },
   {
     "name": "update_note",
-    "description": "Update an existing note. Only provide fields you want to change.",
+    "description": "Update an existing note. Only provide fields you want to change. Pass expected_updated_at (the updatedAt from your get_note) so an edit built on an old read is refused instead of overwriting newer text; on that error, call get_note again, merge your change into the latest body, and retry.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -306,6 +306,10 @@
         "is_pinned": {
           "type": "boolean",
           "description": "Pin the note to the top of the list"
+        },
+        "expected_updated_at": {
+          "type": "string",
+          "description": "The note's updatedAt as returned by get_note. If the note has changed since, nothing is written and an error is returned. Omitted: the note is still checked against the version read at the start of this call."
         }
       },
       "required": [
@@ -589,6 +593,10 @@
           "type": "string",
           "description": "First day of an \"interval\" routine (YYYY-MM-DD, default today). \"interval\" only."
         },
+        "frequency_end_date": {
+          "type": "string",
+          "description": "Last day of the series, inclusive (YYYY-MM-DD). Any frequency type. Omit for no end. Must not be before the series starts (today, or frequency_start_date for interval)."
+        },
         "start_time": {
           "type": "string",
           "description": "Start time in 24-hour HH:MM format. Pass with end_time, or omit both for the app's default slot (09:00-09:30)."
@@ -622,7 +630,7 @@
   },
   {
     "name": "get_today_context",
-    "description": "Get everything needed to write the morning briefing (朝刊) in one call: today's events, todos scheduled onto today, open todos (due today / overdue carry-overs / in-progress), the last 3 days of daily notes (夕刊 material), and whether today's daily already has a briefing section.",
+    "description": "Get everything needed to write the morning briefing (朝刊) in one call: today's events, todos scheduled onto today, open todos (due today / overdue carry-overs / in-progress), the last 3 days of daily notes (夕刊 material), today's and those days' `morningComment` (Claude's morning comment, kept beside the daily body: the daily's `morning_comment` column, or the 朝刊 heading section of an older day's body; null when there is none or the day is locked), whether today already has one (`hasBriefing`), and `goals`: the year / month / week goals (目標) of the date with their progress and achievement, shaped like list_goals.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -635,7 +643,7 @@
   },
   {
     "name": "get_week_context",
-    "description": "Get everything needed for a weekly review (週次レビュー) in one call, instead of 7 get_today_context calls: 7 days each with its events, the todos scheduled onto it and its daily note text, plus the open todos carried into the week (overdue carry-overs / in-progress). Defaults to the current local week, Sunday to Saturday. Todo and note BODIES are not included — read one with get_todo / get_note when you decide you need it.",
+    "description": "Get everything needed for a weekly review (週次レビュー) in one call, instead of 7 get_today_context calls: 7 days each with its events, the todos scheduled onto it, its daily note text and its morningComment (as in get_today_context), plus the open todos carried into the week (overdue carry-overs / in-progress), and `goals`: the goals of every year / month / week period the 7 days fall in (a mid-week start spans two weeks) with their progress and achievement, shaped like list_goals. Defaults to the current local week, Sunday to Saturday. Todo and note BODIES are not included — read one with get_todo / get_note when you decide you need it.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -648,7 +656,7 @@
   },
   {
     "name": "write_briefing",
-    "description": "Write the morning briefing (朝刊) for a date, in two places the app reads from (#1048): the focus line (今日のフォーカス) is upserted as that date's section of the reserved focus note (`note-focus`), and the comment paragraphs are upserted as a '朝刊' heading section at the top of the DailyNode content. Existing sections are replaced in place; everything else — other days' focus history, the 夕刊 section — is preserved. Creates the focus note / the daily on first write. With no paragraphs, only the focus note is written and the daily is left untouched.",
+    "description": "Write the morning briefing (朝刊) for a date, in two places the app reads from (#1048): the focus line (今日のフォーカス) is upserted as that date's section of the reserved focus note (`note-focus`), and the comment paragraphs replace the daily's morning comment — a field of the daily kept beside its body (`morning_comment`), never written into the body text. The body is neither read nor changed, so an older day's 朝刊 heading section stays as it is (readers prefer the new comment over it), and rewriting the body with upsert_daily does not erase the comment. The focus note's existing section for the date is replaced in place; other days' focus history is preserved. Creates the focus note / the daily on first write. With no paragraphs, only the focus note is written and the daily is left untouched.",
     "inputSchema": {
       "type": "object",
       "properties": {
@@ -665,7 +673,7 @@
           "items": {
             "type": "string"
           },
-          "description": "AI comment body paragraphs (yesterday's review, priorities, encouragement, etc.), written into the daily's 朝刊 section"
+          "description": "AI comment body paragraphs (yesterday's review, priorities, encouragement, etc.), saved as the daily's morning comment (`morning_comment`, beside the body — not in it)"
         }
       },
       "required": [
@@ -1110,9 +1118,10 @@
             "event",
             "routine",
             "note",
-            "daily"
+            "daily",
+            "goal"
           ],
-          "description": "Only this kind of item. 'task' is a todo, 'event' a schedule item. Omit for everything."
+          "description": "Only this kind of item. 'task' is a todo, 'event' a schedule item, 'goal' a Briefing goal. Omit for everything."
         },
         "limit": {
           "type": "number",
@@ -1123,13 +1132,13 @@
   },
   {
     "name": "restore_item",
-    "description": "Restore an item from the trash — the inverse of delete_todo / delete_note / delete_schedule_item. Restorable roles: todo, note, event (schedule item); a daily comes back through upsert_daily instead. Restoring an item that is not in the trash is a no-op, not an error. Restores the one item only — a todo whose parent is still trashed stays out of get_todo_tree (it does appear in list_todos).",
+    "description": "Restore an item from the trash — the inverse of delete_todo / delete_note / delete_schedule_item / delete_goal. Restorable roles: todo, note, event (schedule item), goal; a daily comes back through upsert_daily instead. A goal is refused while its period already holds 3 live goals. Restoring an item that is not in the trash is a no-op, not an error. Restores the one item only — a todo whose parent is still trashed stays out of get_todo_tree (it does appear in list_todos).",
     "inputSchema": {
       "type": "object",
       "properties": {
         "id": {
           "type": "string",
-          "description": "ID of the trashed todo, note or schedule item"
+          "description": "ID of the trashed todo, note, schedule item or goal"
         }
       },
       "required": [
@@ -1170,6 +1179,173 @@
           "description": "Max session rows to return (default: 50, capped at 200). Does not affect totals."
         }
       }
+    }
+  },
+  {
+    "name": "list_goals",
+    "description": "List the Briefing goals (目標) of a period, each with its progress and whether it is achieved. Without period_kind: the year, month and week goals of `date` (default today). Each goal carries `achievement` { achieved, via: links|manual|period_end|null, connected, todos {done,total}, children {achieved,total} } and `todos`, the live todos linked directly to it. A week goal is achieved when every linked todo is done; a month / year goal when every child goal is achieved and every directly linked todo is done.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "date": {
+          "type": "string",
+          "description": "A day in YYYY-MM-DD (default: today in local time). Picks the periods it falls in."
+        },
+        "period_kind": {
+          "type": "string",
+          "enum": [
+            "year",
+            "month",
+            "week"
+          ],
+          "description": "Only this one period kind (of `date`, or of period_key)"
+        },
+        "period_key": {
+          "type": "string",
+          "description": "An explicit period key — needs period_kind. year = YYYY, month = YYYY-MM, week = the week's Sunday as YYYY-MM-DD (weeks run Sunday to Saturday)"
+        }
+      }
+    }
+  },
+  {
+    "name": "create_goal",
+    "description": "Create a Briefing goal for a period. At most 3 live goals per period — the call fails on a fourth (a goal answered 'dropped' still counts; delete_goal frees the slot). A goal's parent is one level up only (a week goal's parent is a month goal, a month goal's a year goal). Link todos to it afterwards with link_goal_todo.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Goal title"
+        },
+        "period_kind": {
+          "type": "string",
+          "enum": [
+            "year",
+            "month",
+            "week"
+          ],
+          "description": "Which kind of period"
+        },
+        "period_key": {
+          "type": "string",
+          "description": "The period (default: the one `date` falls in). year = YYYY, month = YYYY-MM, week = the week's Sunday as YYYY-MM-DD (weeks run Sunday to Saturday)"
+        },
+        "date": {
+          "type": "string",
+          "description": "A day in YYYY-MM-DD whose period to use when period_key is omitted (default: today)"
+        },
+        "parent_id": {
+          "type": "string",
+          "description": "Parent goal ID, one level up (optional)"
+        },
+        "carried_from_id": {
+          "type": "string",
+          "description": "The goal this one carries over from, after update_goal set that one's period_end_decision to 'carried' (optional)"
+        }
+      },
+      "required": [
+        "title",
+        "period_kind"
+      ]
+    }
+  },
+  {
+    "name": "update_goal",
+    "description": "Update a goal. Only provide fields you want to change; the period itself cannot change (carry over instead). manual_achieved marks achievement by hand and is refused while the goal is connected to todos or child goals — those decide it. Once the goal's period has ended, period_end_decision records the review answer: 'achieved' counts the goal as achieved whatever its todos say, 'carried' and 'dropped' do not. A decision is refused while the period is still running; null, which clears it, is always allowed.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Goal ID"
+        },
+        "title": {
+          "type": "string",
+          "description": "New title"
+        },
+        "parent_id": {
+          "type": "string",
+          "description": "New parent goal ID, one level up. Pass null to clear."
+        },
+        "sort_order": {
+          "type": "number",
+          "description": "Position among the period's goals (lower comes first)"
+        },
+        "manual_achieved": {
+          "type": "boolean",
+          "description": "true = achieved by hand (unconnected goals only), false = clear the hand mark"
+        },
+        "period_end_decision": {
+          "type": "string",
+          "enum": [
+            "carried",
+            "dropped",
+            "achieved"
+          ],
+          "description": "The end-of-period answer; its time is recorded. Pass null to clear."
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "delete_goal",
+    "description": "Soft-delete a goal (moves to trash). Its child goals and todo links are left as they are. Undo with restore_item.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Goal ID"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    }
+  },
+  {
+    "name": "link_goal_todo",
+    "description": "Link a todo to a goal, so the todo counts towards the goal's achievement. Linking a pair that is already linked is a no-op. Returns the goal with its updated progress.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "goal_id": {
+          "type": "string",
+          "description": "Goal ID"
+        },
+        "todo_id": {
+          "type": "string",
+          "description": "Todo ID"
+        }
+      },
+      "required": [
+        "goal_id",
+        "todo_id"
+      ]
+    }
+  },
+  {
+    "name": "unlink_goal_todo",
+    "description": "Remove the link between a todo and a goal. The todo itself is untouched; an absent link is a no-op. Returns the goal with its updated progress.",
+    "inputSchema": {
+      "type": "object",
+      "properties": {
+        "goal_id": {
+          "type": "string",
+          "description": "Goal ID"
+        },
+        "todo_id": {
+          "type": "string",
+          "description": "Todo ID"
+        }
+      },
+      "required": [
+        "goal_id",
+        "todo_id"
+      ]
     }
   },
   {

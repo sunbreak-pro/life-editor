@@ -71,6 +71,7 @@ function seed() {
         content_json: doc("body"),
         is_pinned: false,
         color: null,
+        has_password: false,
       },
     ],
     dailies_payload: [
@@ -78,6 +79,9 @@ function seed() {
         item_id: "daily-2026-08-16",
         date: "2026-08-16",
         content_json: doc("alpha day"),
+        // The generated column is always there, and the body pass asks for
+        // has_password = false (#1763).
+        has_password: false,
       },
     ],
   });

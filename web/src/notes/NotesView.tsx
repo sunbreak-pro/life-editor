@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import type { Editor } from "@tiptap/core";
 import { FileText } from "lucide-react";
 import {
   useNotesUnifiedContext,
@@ -80,8 +81,10 @@ import { useElementWidth } from "./hooks/useElementWidth";
  * an Untitled note and opens the editor on a phone exactly as the Desktop pill
  * always has.
  *
- * Both halves render the SAME derived list (search → tag groups → sort → tag
- * filter) off the same state, so the two breakpoints never disagree (#369).
+ * Both halves render the SAME derived list off the same state, so the two
+ * breakpoints never disagree (#369): the default list (search → pinned-first
+ * sort → 15 rows + "Other items", #2061), or with a tag selected the grouped
+ * one (search → tag groups → sort → tag filter).
  *
  * Data stays context-side (useNotesUnifiedContext / useWikiTagsUnifiedContext);
  * this view is DataService-free (§3.1) and takes copy from useTranslation →
@@ -173,9 +176,11 @@ export function NotesView({
     tagFilters,
     toggleTagFilter,
     clearTagFilters,
-    tagFilterChips,
+    tagFilterOptions,
     visibleGroups,
-    rowCap,
+    listMode,
+    defaultNotes,
+    otherNotes,
     showTagFilter,
     handleSearchChange,
     hasNotes,
@@ -268,6 +273,14 @@ export function NotesView({
    * written.
    */
   const [bodyEpoch, setBodyEpoch] = useState(0);
+
+  /*
+   * #2060 — the body editor, lifted out of RichTextEditor for the formatting
+   * bar in the detail's sticky header. The editor reports itself through
+   * `onEditorChange` (and null as it goes away), so a note switch or a
+   * template-apply remount always leaves the bar on the live instance.
+   */
+  const [bodyEditor, setBodyEditor] = useState<Editor | null>(null);
 
   const selected = notes.selectedNote;
 
@@ -362,7 +375,7 @@ export function NotesView({
   /*
    * "The user followed a tag to what else carries it."
    *
-   * The filter chips are the in-Notes way to do that, so selecting one — and
+   * The tag filter panel is the in-Notes way to do that, so selecting one — and
    * only selecting one; clearing back to "all" is not following anything — is
    * what completes the step.
    */
@@ -453,15 +466,17 @@ export function NotesView({
 
   // #1181: the confirmed apply. Body only — the note keeps its own title, and
   // the epoch bump is what makes the editor show the new body (see above).
-  const updateNote = notes.updateNote;
+  // #2057: through the version-checked save, so the replace is one atomic
+  // write and the remounted editor's first check waits for it.
+  const replaceNoteBody = notes.replaceNoteBody;
   const applyPending = templateApply.pending;
   const closeApply = templateApply.close;
   const handleApplyTemplate = useCallback(() => {
     if (!selected || !applyPending) return;
-    updateNote(selected.id, { content: applyPending.content });
+    void replaceNoteBody(selected.id, applyPending.content);
     setBodyEpoch((n) => n + 1);
     closeApply();
-  }, [applyPending, closeApply, selected, updateNote]);
+  }, [applyPending, closeApply, selected, replaceNoteBody]);
 
   /*
    * #1248: deleting a saved template asks first.
@@ -639,6 +654,15 @@ export function NotesView({
     applyTemplate: t("materials.templates.applyMenuEntry"),
     setPassword: t("materials.notes.password.setEntry"),
     removePassword: t("materials.notes.password.removeEntry"),
+    formatToolbar: {
+      label: t("materials.notes.formatToolbar.label"),
+      heading1: t("materials.notes.formatToolbar.heading1"),
+      heading2: t("materials.notes.formatToolbar.heading2"),
+      bold: t("materials.notes.formatToolbar.bold"),
+      italic: t("materials.notes.formatToolbar.italic"),
+      strike: t("materials.notes.formatToolbar.strike"),
+      horizontalRule: t("materials.notes.formatToolbar.horizontalRule"),
+    },
   };
 
   // ---- The list (the detail panel's content, both widths) --------------
@@ -656,11 +680,17 @@ export function NotesView({
       }
       directionLabel={directionLabel}
       showTagFilter={showTagFilter}
-      tagFilterChips={tagFilterChips}
+      tagFilterOptions={tagFilterOptions}
       tagFilters={tagFilters}
       onToggleTagFilter={handleToggleTagFilter}
       onClearTagFilters={clearTagFilters}
-      rowCap={rowCap}
+      listMode={listMode}
+      defaultNotes={defaultNotes}
+      otherNotes={otherNotes}
+      // #2061: past the 15th row, wide opens a flyout on the sidebar's left
+      // edge; narrow has no room left of the drawer, so the drawer's own list
+      // gives way to the others instead.
+      othersPresentation={isWide ? "flyout" : "inline"}
       hasNotes={hasNotes}
       searchEmpty={searchEmpty}
       searchBusy={searchBusy}
@@ -674,13 +704,12 @@ export function NotesView({
         editNote: t("materials.notes.editNote"),
         assignTagHint: t("materials.notes.assignTagHint"),
         clearTagFilter: t("materials.notes.tagFilterClear"),
-        moreTagFilters: (count) =>
-          t("materials.notes.tagFilterMore", { count }),
-        fewerTagFilters: t("materials.notes.tagFilterLess"),
-        moreRows: (count) => t("materials.notes.groupMoreRows", { count }),
-        // The same string the filter row folds with — one screen should not
-        // have two ways of saying "show fewer" (#1842).
-        fewerRows: t("materials.notes.tagFilterLess"),
+        tagFilterSelected: (count) =>
+          t("materials.notes.tagFilterSelected", { count }),
+        tagFilterPanel: t("materials.notes.tagFilterPanel"),
+        otherItems: (count) => t("materials.notes.otherItems", { count }),
+        closeOtherItems: t("materials.notes.closeOtherItems"),
+        backToList: t("materials.notes.backToList"),
       }}
       error={notes.error}
       selectedNoteId={selected?.id ?? null}
@@ -753,6 +782,9 @@ export function NotesView({
           note={selected}
           labels={detailLabels}
           locked={bodyGated}
+          // #2060: null while the gate is up — no editor is mounted then —
+          // which leaves the header's formatting bar switched off.
+          bodyEditor={bodyGated ? null : bodyEditor}
           onUnlock={password.requestUnlock}
           onTitleCommit={(id, title) => notes.updateNote(id, { title })}
           // #1842 — only for the note "+" just made, and only until the field
@@ -837,8 +869,10 @@ export function NotesView({
                   linking={linking}
                   remountToken={bodyEpoch}
                   attachments={attachments}
+                  onEditorChange={setBodyEditor}
                   onNavigateToItem={onNavigateToItem}
-                  onSave={(id, content) => notes.updateNote(id, { content })}
+                  // #2057: saves against the version the body opened at.
+                  bodySync={notes}
                   // Borderless — sit flush inside the detail card so the note
                   // body reads as a single clean surface, matching the Daily
                   // editor card (2026-07-18: align Notes formatting to Daily).

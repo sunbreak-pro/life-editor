@@ -234,3 +234,80 @@ describe("FrequencyEditor — the repeat tabs keep their labels whole (#1517)", 
     );
   });
 });
+
+describe("FrequencyEditor — the series' end date (#2082)", () => {
+  const END_LABELS: FrequencyEditorLabels = {
+    ...LABELS,
+    endDate: "End date",
+    endDateHint: "Leave empty to repeat with no end",
+    endDateClear: "Clear end date",
+  };
+
+  it("draws no end-date field when the host passes no label", () => {
+    renderEditor(base);
+    expect(screen.queryByLabelText("End date")).toBeNull();
+  });
+
+  it("offers the end date on every type, with the no-end hint while empty", () => {
+    for (const frequencyType of ["daily", "weekdays", "interval"] as const) {
+      const { unmount } = render(
+        <FrequencyEditor
+          value={{ ...base, frequencyType, frequencyStartDate: "2026-10-01" }}
+          onChange={vi.fn()}
+          weekdayLabels={WEEKDAYS}
+          labels={END_LABELS}
+        />,
+      );
+      expect(screen.getByLabelText("End date")).toHaveValue("");
+      expect(
+        screen.getByText("Leave empty to repeat with no end"),
+      ).toBeInTheDocument();
+      expect(screen.queryByRole("button", { name: "Clear end date" })).toBeNull();
+      unmount();
+    }
+  });
+
+  it("emits the picked day as a patch", () => {
+    const { onChange } = renderEditor(base, { labels: END_LABELS });
+    fireEvent.change(screen.getByLabelText("End date"), {
+      target: { value: "2026-10-31" },
+    });
+    expect(onChange).toHaveBeenCalledWith({ frequencyEndDate: "2026-10-31" });
+  });
+
+  it("clears to null — no end — from the button", () => {
+    const { onChange } = renderEditor(
+      { ...base, frequencyEndDate: "2026-10-31" },
+      { labels: END_LABELS },
+    );
+    expect(screen.getByLabelText("End date")).toHaveValue("2026-10-31");
+    expect(
+      screen.queryByText("Leave empty to repeat with no end"),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Clear end date" }));
+    expect(onChange).toHaveBeenCalledWith({ frequencyEndDate: null });
+  });
+
+  it("keeps an interval series from ending before it starts", () => {
+    renderEditor(
+      { ...base, frequencyType: "interval", frequencyInterval: 2, frequencyStartDate: "2026-10-05" },
+      { labels: END_LABELS },
+    );
+    expect(screen.getByLabelText("End date")).toHaveAttribute(
+      "min",
+      "2026-10-05",
+    );
+  });
+
+  it("writes nothing while the host is still applying (pending)", () => {
+    const { onChange } = renderEditor(
+      { ...base, frequencyEndDate: "2026-10-31" },
+      { labels: END_LABELS, pending: true },
+    );
+    fireEvent.change(screen.getByLabelText("End date"), {
+      target: { value: "2026-11-30" },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Clear end date" }));
+    expect(onChange).not.toHaveBeenCalled();
+  });
+});

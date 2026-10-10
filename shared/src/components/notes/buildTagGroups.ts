@@ -6,6 +6,10 @@ import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
  * (life-tags unification S1). Replaces the folder tree: notes are grouped
  * under a heading per life-tag, plus a trailing "untagged" bucket.
  *
+ * Since #2061 this is the list the sidebar shows while a tag is selected in
+ * its filter; with none selected it shows the flat default list instead
+ * (defaultNoteList.ts). The groups also still feed the filter's options.
+ *
  * Invariants (#375 retired the folder note type; legacy folder ROWS are
  * dropped upstream by the fetch filter, so nothing folder-shaped reaches
  * this function any more):

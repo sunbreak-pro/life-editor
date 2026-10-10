@@ -6,6 +6,7 @@ import {
   useTranslation,
   formatDateKey,
   pickWorkHistoryDay,
+  pickWorkHistoryDays,
   todayCalendarKey,
   type DataService,
   type ScheduleItem,
@@ -14,6 +15,7 @@ import {
   type WikiTagUnified,
   type WorkHistoryDay,
   type WorkHistoryEntry,
+  type WorkHistoryGroup,
 } from "@life-editor/shared";
 import { formatFullDay } from "../schedule/scheduleCopy";
 
@@ -28,13 +30,20 @@ import { formatFullDay } from "../schedule/scheduleCopy";
  * offered, and the tag graph. The event range mirrors the picker's own window
  * (the day itself plus seven): a session can only have been attributed to an
  * event that was on offer when it started.
+ *
+ * `variant="rows"` is the Mobile drawer (#2054): the same rows in plan A's flat
+ * layout, and TWO days — today and yesterday, each under its own heading
+ * (D-20261003-work-2, `pickWorkHistoryDays`). The Desktop card keeps the one
+ * latest day. Either way the whole log is already read, so the second day
+ * costs no extra fetch — only a wider event range for its names.
  */
 
 /** The picker's forward window (WorkScreen's EVENT_WINDOW_DAYS). */
 const EVENT_LOOKUP_DAYS = 7;
 
 interface HistoryData {
-  day: WorkHistoryDay | null;
+  /** Newest first. Empty when nothing has ever been worked. */
+  days: WorkHistoryDay[];
   todos: TodoNode[];
   events: ScheduleItem[];
   tags: WikiTagUnified[];
@@ -42,7 +51,7 @@ interface HistoryData {
 }
 
 const EMPTY: HistoryData = {
-  day: null,
+  days: [],
   todos: [],
   events: [],
   tags: [],
@@ -63,8 +72,11 @@ function addDaysKey(dateKey: string, days: number): string {
 
 export function WorkHistoryPanel({
   dataService: ds,
+  variant = "card",
 }: {
   dataService: DataService;
+  /** card = the Desktop panel; rows = the Mobile drawer (#2054). */
+  variant?: "card" | "rows";
 }) {
   const { t, i18n } = useTranslation();
   const [data, setData] = useState<HistoryData>(EMPTY);
@@ -81,29 +93,32 @@ export function WorkHistoryPanel({
     // A session closing while the tab is open must not blank the list.
     refetchReportsLoading: false,
     load: async (service) => {
-      const day = pickWorkHistoryDay(
-        await service.fetchTimerSessions(),
-        todayKey,
-      );
-      if (!day) return EMPTY;
+      const sessions = await service.fetchTimerSessions();
+      const days =
+        variant === "rows"
+          ? pickWorkHistoryDays(sessions, todayKey)
+          : [pickWorkHistoryDay(sessions, todayKey)].filter(
+              (day): day is WorkHistoryDay => day !== null,
+            );
+      if (days.length === 0) return EMPTY;
+      // Newest first, so the oldest day opens the range and the newest day's
+      // picker window closes it.
       const [todos, events, tags, assignments] = await Promise.all([
         service.fetchTodoTree(),
         service.fetchScheduleItemsByDateRange(
-          day.dateKey,
-          addDaysKey(day.dateKey, EVENT_LOOKUP_DAYS),
+          days[days.length - 1].dateKey,
+          addDaysKey(days[0].dateKey, EVENT_LOOKUP_DAYS),
         ),
         service.listAllWikiTagsUnified(),
         service.listAllTagAssignments(),
       ]);
-      return { day, todos, events, tags, assignments };
+      return { days, todos, events, tags, assignments };
     },
     apply: setData,
     fallbackMessage: "Failed to load work history",
   });
 
-  const entries = useMemo<WorkHistoryEntry[]>(() => {
-    const { day } = data;
-    if (!day) return [];
+  const groups = useMemo<WorkHistoryGroup[]>(() => {
     const todoTitles = new Map(data.todos.map((n) => [n.id, n.title]));
     const eventTitles = new Map(data.events.map((e) => [e.id, e.title]));
     const tagsById = new Map(
@@ -117,7 +132,9 @@ export function WorkHistoryPanel({
       else tagIdsByItem.set(a.itemId, [a.tagId]);
     }
 
-    return day.sessions.map((s) => {
+    const toEntry = (
+      s: WorkHistoryDay["sessions"][number],
+    ): WorkHistoryEntry => {
       const end =
         s.completedAt ?? new Date(s.startedAt.getTime() + s.duration * 1000);
       const targetId = s.todoId || s.eventId || null;
@@ -146,24 +163,38 @@ export function WorkHistoryPanel({
               }))
           : [],
       };
-    });
-  }, [data, t]);
+    };
 
-  const heading = data.day
-    ? data.day.dateKey === todayKey
-      ? t("work.history.today")
-      : t("work.history.latestDay", {
-          date: formatFullDay(i18n.language, data.day.dateKey),
-        })
-    : "";
+    const yesterdayKey = addDaysKey(todayKey, -1);
+    return data.days.map((day) => ({
+      key: day.dateKey,
+      heading:
+        day.dateKey === todayKey
+          ? t("work.history.today")
+          : // "Yesterday" on the Mobile drawer, which reads the days as a
+            // pair; the Desktop card keeps the dated heading it always had.
+            day.dateKey === yesterdayKey && variant === "rows"
+            ? t("work.history.yesterday")
+            : t("work.history.latestDay", {
+                date: formatFullDay(i18n.language, day.dateKey),
+              }),
+      entries: day.sessions.map(toEntry),
+    }));
+  }, [data, t, i18n.language, todayKey, variant]);
 
   return (
     <WorkHistoryList
-      entries={entries}
+      entries={groups[0]?.entries ?? []}
+      groups={variant === "rows" ? groups : undefined}
       loading={isLoading}
+      variant={variant}
       labels={{
-        heading,
-        empty: t("work.history.empty"),
+        heading: groups[0]?.heading ?? "",
+        empty:
+          variant === "rows"
+            ? t("work.history.emptyBody")
+            : t("work.history.empty"),
+        emptyTitle: t("work.history.emptyTitle"),
         noTarget: t("work.history.noTarget"),
         listLabel: t("work.sidebarTabs.history"),
       }}

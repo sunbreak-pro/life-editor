@@ -90,6 +90,10 @@ function makeDS(initial: string | null) {
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
+    // #2107: the evening paper's own reads (issue number, goals).
+    listDailiesUnified: vi.fn().mockResolvedValue([]),
+    fetchGoals: vi.fn().mockResolvedValue([]),
+    fetchGoalTodoLinks: vi.fn().mockResolvedValue([]),
     // ONE stub for both reserved notes (`note-goals` reads it too): the
     // focus assertions extract by heading key, which the goals sections
     // never carry, so the shared body cannot cross-contaminate.
@@ -141,7 +145,7 @@ describe("Briefing focus line (#1048)", () => {
     await waitFor(() =>
       expect(
         screen.getByText(
-          "No focus for today yet. Write it on the previous evening's paper and it will appear here.",
+          'Nothing yet. Write it under "Note to tomorrow" on the evening paper and it shows up here.',
         ),
       ).toBeTruthy(),
     );

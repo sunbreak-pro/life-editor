@@ -1,5 +1,5 @@
 import { useCallback, type ReactNode } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListFilter } from "lucide-react";
 import {
   HORIZONTAL_SWIPE_TOUCH_CLASS,
   MonthGrid,
@@ -90,7 +90,22 @@ import type { ScheduleCopy } from "./scheduleCopy";
 const ICON_BTN =
   "flex size-8 min-h-11 min-w-11 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
-/** The month heading and the three controls beside it. */
+/**
+ * The tag filter's entry on narrow (#2079). Desktop has had one in its toolbar
+ * since #1173 / #1639; narrow had none, so the lens could not be applied — or
+ * cleared — from a phone at all. Same panel, same state, same badge.
+ */
+export interface CalendarNarrowFilter {
+  onOpen: () => void;
+  /** Whether a tag filter is narrowing the month (lights the button). */
+  active: boolean;
+  /** Tags in the filter — the badge. 0 draws none. */
+  count: number;
+  /** Accessible name: "filter by tag", or "filtered by N tags" while active. */
+  label: string;
+}
+
+/** The month heading and the controls beside it. */
 export interface CalendarNarrowHeader {
   /** Already-formatted month label (the host owns the locale). */
   periodLabel: string;
@@ -98,6 +113,8 @@ export interface CalendarNarrowHeader {
   onPrev: () => void;
   onNext: () => void;
   onToday: () => void;
+  /** Omitted = no filter button (standalone renders / tests). */
+  filter?: CalendarNarrowFilter;
 }
 
 /** The compact month grid — narrow's main view since #878. */
@@ -180,6 +197,36 @@ export function CalendarNarrowLayout({
           <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-lumen-text">
             {header.periodLabel}
           </h2>
+          {header.filter && (
+            <button
+              type="button"
+              // The count rides the NAME, as on Desktop's toolbar: the badge
+              // is aria-hidden, so a screen reader hears the sentence once.
+              aria-label={header.filter.label}
+              aria-pressed={header.filter.active}
+              onClick={header.filter.onOpen}
+              className={cn(
+                ICON_BTN,
+                // `relative` so the badge hangs off this button's corner.
+                "relative",
+                header.filter.active &&
+                  "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent hover:text-lumen-accent",
+              )}
+            >
+              <ListFilter aria-hidden className="size-4" />
+              {header.filter.count > 0 && (
+                <span
+                  aria-hidden
+                  data-filter-count={header.filter.count}
+                  // ScheduleToolbar's badge: opaque accent (§5), tabular
+                  // digits, a 1rem floor so a single digit stays a circle.
+                  className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-lumen-accent px-1 text-[0.625rem] font-semibold leading-none text-lumen-on-accent tabular-nums"
+                >
+                  {header.filter.count}
+                </span>
+              )}
+            </button>
+          )}
           <div className="flex gap-1">
             <button
               type="button"

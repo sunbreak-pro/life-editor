@@ -1,11 +1,5 @@
 import { describe, it, expect } from "vitest";
-import {
-  render,
-  screen,
-  fireEvent,
-  act,
-  within,
-} from "@testing-library/react";
+import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { TableControls } from "../src/notes/TableControls";
@@ -155,11 +149,17 @@ describe("TableControls (#1903)", () => {
       // #2011: each button says what it does on its face, under its group's
       // caption — not a glyph that needs a hover to read.
       const row = screen.getByRole("group", { name: "Row" });
-      expect(within(row).getAllByRole("button").map((b) => b.textContent))
-        .toEqual(["Above", "Below", "Delete"]);
+      expect(
+        within(row)
+          .getAllByRole("button")
+          .map((b) => b.textContent),
+      ).toEqual(["Above", "Below", "Delete"]);
       const column = screen.getByRole("group", { name: "Column" });
-      expect(within(column).getAllByRole("button").map((b) => b.textContent))
-        .toEqual(["Left", "Right", "Delete"]);
+      expect(
+        within(column)
+          .getAllByRole("button")
+          .map((b) => b.textContent),
+      ).toEqual(["Left", "Right", "Delete"]);
       expect(
         screen
           .getByRole("textbox", { name: "Table name" })
@@ -229,6 +229,23 @@ describe("TableControls (#1903)", () => {
       render(<TableControls editor={editor} labels={LABELS} />);
       press(screen.getByRole("button", { name: "Delete table" }));
       expect(rows(editor)).toBe(0);
+    } finally {
+      editor.destroy();
+    }
+  });
+
+  // #2058: the note header above the body is sticky now, so a stuck table bar
+  // has to stop under it rather than at the scroller's very top, where the
+  // header would cover it. The header's height arrives as a CSS variable;
+  // anywhere that does not set it, the bar keeps its old top of 0.
+  it("sticks below the note's sticky header, falling back to the top", () => {
+    const editor = makeEditor(true);
+    try {
+      render(<TableControls editor={editor} labels={LABELS} />);
+      const bar = screen.getByRole("toolbar", { name: "Table controls" });
+      expect(bar.className).toContain("sticky");
+      expect(bar.className).not.toContain("top-0");
+      expect(bar.style.top).toBe("var(--note-sticky-header-h, 0px)");
     } finally {
       editor.destroy();
     }

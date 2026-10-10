@@ -3,6 +3,34 @@
 このチャットだけが書き込み可能。他チャットは読み取り専用。
 最新エントリを上に追記する（降順）。
 
+## 2026-10-03 → @chat-main（#2035 ステップ 5・実装 Issue 10 本の起票依頼）
+
+**#2035 は計画書まで進みました**。コンセプトは D-20260928-briefing-4（目標を年・月・週に 3 つずつ持ち、Todo とつないで達成を自動で判定する）で、細部の回答は D-20260928-briefing-1〜3 と D-20261002-briefing-1〜3 です。Claude Design の案も 2026-10-02 に届いています。計画書は PR #2064（`.claude/docs/vision/plans/2026-10-03-briefing-goals-redesign.md`）です。Issue の起票と #2035 の close をお願いします。
+
+**起票をお願いしたい 10 本**（計画書の Steps 表の「Issue 案」A〜J。DoD と触ってよいパスは計画書の各 Step から引いてください）
+
+| 案 | 内容 | 依存 | 宛先の提案 |
+| --- | --- | --- | --- |
+| A | migration `0032_goals.sql`（role `goal`・`goals_payload`・`goal_todo_links`・`dailies_payload` の 2 列・RLS・Realtime）と、role の一覧の追随。🛑 `supabase db push` はこうだいさん | — | section:briefing |
+| B | Goals の DataService・mapper・Realtime ドメイン | A | section:briefing |
+| C | 達成の判定と期間の鍵の純粋関数（shared）と、MCP と共通の見本データ | — | section:briefing |
+| D | MCP の道具 5 つ（`list_goals` / `create_goal` / `update_goal` / `link_goal_todo` / `unlink_goal_todo`）と `get_today_context` / `get_week_context` の追随・catalog | B, C | section:briefing |
+| E | `note-goals` の今の期間の文章を新しい目標に 1 回だけ移す | B | section:briefing |
+| F | 朝刊の作り直し（ゆうべの自分から・目標・Todo 行の目標の印・期間末のふり返り・宣言を外す） | B, C, E | section:briefing |
+| G | 夕刊の作り直し（号数と連続・★で発行・今日進んだ目標・今日の出来事と一言・明日の予定に置く・明日の自分へ・Daily に移動） | B, C | section:briefing |
+| H | Connect に「タグ / 目標と Todo」のタブを足し、目標の木と右パネルを作る | B, C | section:briefing（Connect の画面ですが、目標のデータと同じレーンで進めるほうが衝突しにくいと考えています。connect-refine に回すかは判断をお願いします） |
+| I | つなぐ画面（目標の側から）と、Schedule の Todo 詳細パネル・作成パネルの目標の欄 | B, C | section:briefing |
+| J | docs の追随（CLAUDE.md §4 の role 一覧・tier-1 §Briefing・mobile-scope・db-conventions）、古い決定の supersede、実画面での確認 | F, G | section:briefing |
+
+**あわせて拾ってほしい 2 点**（どちらも作り直しの Issue の中で直せます）
+
+- `shared/src/components/briefing/EveningView.tsx:328` の「一日の締めくくり」の枠が `bg-lumen-surface` を使っていますが、`tokens.css` に定義がありません。地が透明になっていて、主要 UI の背景を透明にしない決まり（CLAUDE.md §6）に反しています。G の DoD に入れてもらえると助かります。
+- オンボーディングのツアーの文言（`ja.json` の `briefingIntro`）が「Web だけで使っているあいだは空のまま」と書いていますが、実際に空になるのは講評だけです。作り直しの後はさらに実態と離れるので、F か J で書き直すのがよいと思います。
+
+**worktree での確認の範囲**: 計画書と判断の記録は docs-lint まで通しています。デザインは Claude Design のプロジェクト https://claude.ai/design/p/d6a4900c-9586-421c-84bc-8a63d7df1f94 にあり、こちらでは中身を読んだだけで実ブラウザでは開いていません。
+
+---
+
 ## 2026-09-20 → @chat-main（#1768 完了・Issue 起票依頼 1 件）
 
 **#1768 = PR #1782（ローカル verify 15 / 15 緑・open）**。朝刊の予定の作成が Undo に載るようになり、繰り返しの範囲削除は Schedule と同じ `planRepeatScopeChoice` を読んで前倒しの実体化を通ります。

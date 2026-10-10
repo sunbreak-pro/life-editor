@@ -6,31 +6,46 @@ import {
   BriefingVizPanel,
   EveningReflectionPreview,
   EveningView,
+  GoalTodoLinkScreen,
   ItemCreatePanel,
   ItemDetailOverlay,
+  MorningGoalsBlock,
+  PeriodEndReviewCard,
   RepeatScopeDialog,
   RightSidebarPortal,
   TodayTodoTray,
   eveningBodyLines,
+  eveningDayCounts,
+  eveningEvents,
+  getDayStartHour,
+  goalMarkTitles,
   goalPeriodRanges,
-  hasIntentionToReport,
+  goalProgressText,
+  goalsMovedToday,
+  periodStartDateKey,
   todayDateKey,
-  useMediaQuery,
+  tomorrowCandidates,
+  useGoalLinkSnapshot,
   useTranslation,
   type BriefingTab,
   type DataService,
+  type GoalPeriodKind,
+  type GoalTodoLinkScreenLabels,
   type ItemCreateNoteDraft,
   type ItemCreateSlot,
+  type MorningGoalsLabels,
   WEEK_STARTS_ON,
-  WIDE_QUERY,
 } from "@life-editor/shared";
 import type { NavDestination } from "../hooks/useShellNavigation";
 import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
 import { preloadRichTextEditor } from "../notes/preloadRichTextEditor";
 import { useBriefingData } from "./hooks/useBriefingData";
 import { useDailySections } from "./hooks/useDailySections";
+import { useEveningIssue } from "./hooks/useEveningIssue";
+import { useEveningNotes } from "./hooks/useEveningNotes";
 import { useFocusNote } from "./hooks/useFocusNote";
-import { useGoalsDoc } from "./hooks/useGoalsDoc";
+import { useMorningGoals } from "./hooks/useMorningGoals";
+import { useNoteGoalsMigration } from "./hooks/useNoteGoalsMigration";
 
 /*
  * Briefing host shell (Briefing plan Step 1). Owns data fetching (it may
@@ -75,7 +90,15 @@ interface BriefingScreenProps {
    * undefined on the wide layout, where the SectionHeader renders the tabs.
    */
   tabSwitcher?: ReactNode;
+  /**
+   * Open Connect's "Goals & Todos" tab (#2106) — where a goal is renamed,
+   * deleted or re-parented, and where month / year goals are made. Optional
+   * like `onNavigateToItem`; without it the goals block draws no link.
+   */
+  onOpenGoals?: () => void;
 }
+
+const GOAL_KINDS: readonly GoalPeriodKind[] = ["year", "month", "week"];
 
 export function BriefingScreen({
   dataService: ds,
@@ -83,25 +106,25 @@ export function BriefingScreen({
   onNavigateToItem,
   tab,
   tabSwitcher,
+  onOpenGoals,
 }: BriefingScreenProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
-  // 宣言 editability on the EVENING paper (#391). Wide is unchanged — there the
-  // declaration is a morning artifact read back, and the SectionHeader tab band
-  // puts the editable 朝刊 one click away. Below 768px 夕刊 is a Quick capture
-  // surface (mobile-scope #3), so the same block becomes the live input; the
-  // morning paper stays editable at every width. Own matchMedia read, like
-  // MainScreen's and AppShell's (same 768px query — §W5 app shell).
-  const isWide = useMediaQuery(WIDE_QUERY, true);
-  const intentionEditableOnEvening = !isWide;
+  // Neither paper carries the 宣言 block any more: #2106 took the morning
+  // field off, #2107 the evening one at every width (both the wide read-back
+  // and the narrow input of #391). The declaration's stored text is untouched.
 
   const todayKey = todayDateKey();
 
   const {
     loading,
     data,
+    todosRead,
     dateLine,
     dailyContent,
     setDailyContent,
+    scheduleItems,
+    eveningNotes,
+    setEveningNotes,
     remainingTodos,
     upcoming,
     handleToggleTodo,
@@ -119,6 +142,7 @@ export function BriefingScreen({
     todoUnplaced,
     todoAddable,
     handleAddTodoCandidate,
+    handlePlaceTodoTomorrow,
   } = useBriefingData(ds, todayKey);
 
   const {
@@ -130,23 +154,28 @@ export function BriefingScreen({
     markEveningDirty,
     handleEveningUpdate,
     handleSelectMood,
-    intentionStored,
-    intentionDraft,
-    intentionText,
-    intentionSaved,
-    handleIntentionChange,
-    flushIntention,
+    queueDailyWrite,
   } = useDailySections(ds, todayKey, dailyContent, setDailyContent);
 
-  // 週 / 月 / 年 goals (#872) — their own document (the reserved goals note),
-  // so their read + save chain is separate from the daily's sections. The day
-  // goes IN because the sections are filed under a period key since #957; the
-  // week start it is paired with is the app-wide constant (#1102), so the key a
-  // save writes cannot move under a goal that is already on screen.
-  const { goals, goalsLoading, handleGoalChange, flushGoals } = useGoalsDoc(
-    ds,
-    todayKey,
-  );
+  // The goals note's current-period lines become goal rows, once (#2105). It
+  // only READS the note — nothing on the paper writes to it any more (#2106).
+  // The goals below are read after it settles, so they include what it moved.
+  const goalsMigrated = useNoteGoalsMigration(ds, todayKey);
+
+  // Goals are rows since #2101, and the paper reads them (#2106): this week's
+  // goals, the marks on the todo rows and the period-end review. The free-text
+  // 週 / 月 / 年 fields over the goals note are gone from the paper.
+  const {
+    state: goalState,
+    goals: morningGoals,
+    review,
+    reviewBusy,
+    writing: goalWriting,
+    decide,
+    askLater,
+    createWeekGoal,
+    writeLinks,
+  } = useMorningGoals(ds, todayKey, data.todoNodes, todosRead, goalsMigrated);
 
   // The focus note (#1048) — its own document too: the morning paper READS
   // today's focus (written last evening), the evening paper EDITS tomorrow's.
@@ -158,18 +187,26 @@ export function BriefingScreen({
     flushFocus,
   } = useFocusNote(ds, todayKey);
 
-  // Nothing stored AND nothing typed = the day has no declaration yet, so
-  // there is no save state to report. Reporting「保存済み」over an untouched
-  // empty field reads as "already done" (#427) — omit the caption entirely
-  // until the first character exists somewhere.
-  const intentionCaption = !hasIntentionToReport(
-    intentionStored.text,
-    intentionDraft,
-  )
-    ? undefined
-    : intentionSaved
-      ? t("materials.daily.saved")
-      : t("materials.daily.unsaved");
+  // ── Evening paper data (#2107) ─────────────────────────────────────────
+  // The goals and their links, read only while 夕刊 is open. The live todo
+  // tree goes in so the tree is not read twice (ScheduleTodoDetail's shape).
+  const goalSnapshot = useGoalLinkSnapshot(ds, {
+    active: tab === "evening",
+    todos: data.todoNodes,
+  });
+  const goalsFailed = goalSnapshot.state === null && goalSnapshot.failed;
+  const eveningIssueNow = useEveningIssue(
+    ds,
+    todayKey,
+    dailyContent,
+    tab === "evening",
+  );
+  const { saveNote } = useEveningNotes(
+    ds,
+    todayKey,
+    setEveningNotes,
+    queueDailyWrite,
+  );
 
   // ── Labels (§6.4 — resolved here, injected as props) ─────────────────
   const labels = useMemo(
@@ -179,10 +216,7 @@ export function BriefingScreen({
       aiTitle: t("briefing.aiTitle"),
       aiSource: t("briefing.aiSource"),
       noFocus: t("briefing.noFocus"),
-      intentionTitle: t("briefing.intentionTitle"),
-      intentionCaption,
-      intentionPlaceholder: t("briefing.intentionPlaceholder"),
-      goalsTitle: t("briefing.goalsTitle"),
+      goalMark: t("briefing.goalMark"),
       scheduleTitle: t("briefing.scheduleTitle"),
       addScheduleItem: t("briefing.addScheduleItem"),
       noSchedule: t("briefing.noSchedule"),
@@ -201,42 +235,65 @@ export function BriefingScreen({
       jumpToSchedule: t("briefing.jumpToSchedule"),
       jumpToTodos: t("briefing.jumpToTodos"),
     }),
-    [t, intentionCaption],
+    [t],
   );
-  // Goal field copy (#872). The period RANGES are computed, not translated —
-  // they are the human-readable face of the same period the section is filed
-  // under (#957), so they take the identical inputs `goalPeriodKeys` does. The
-  // week is the app-wide start (#1102) — the same boundary the calendar
-  // grids and the Analytics week buckets use (#860), never a hard-coded
-  // Monday.
+  // Goal period copy (#872 → #2106). The period RANGES are computed, not
+  // translated — the human-readable face of the same period a goal is filed
+  // under. The week is the app-wide start (#1102) — the same boundary the
+  // calendar grids and the Analytics week buckets use (#860), never a
+  // hard-coded Monday.
+  const locale = i18n.language.startsWith("ja") ? "ja-JP" : "en-US";
   const goalRanges = useMemo(
-    () =>
-      goalPeriodRanges(
-        todayKey,
-        WEEK_STARTS_ON,
-        i18n.language.startsWith("ja") ? "ja-JP" : "en-US",
-      ),
-    [todayKey, i18n.language],
+    () => goalPeriodRanges(todayKey, WEEK_STARTS_ON, locale),
+    [todayKey, locale],
   );
-  const goalLabels = useMemo(
+  const morningGoalsLabels = useMemo<MorningGoalsLabels>(() => {
+    const periods = Object.fromEntries(
+      GOAL_KINDS.map((kind) => [
+        kind,
+        `${t(`connect.goals.periods.${kind}`)} ${goalRanges[kind]}`,
+      ]),
+    ) as Record<GoalPeriodKind, string>;
+    return {
+      title: t("briefing.goalsTitle"),
+      periods,
+      prompt: t("briefing.goals.prompt"),
+      achieved: t("goalLink.achieved"),
+      unconnected: t("goalLink.unconnected"),
+      linkTodos: t("goalLink.heading"),
+      linkTodosFor: (title) => t("briefing.goals.linkTodos", { title }),
+      addLabel: t("connect.goals.addHeading"),
+      addPlaceholder: t("connect.goals.addPlaceholder"),
+      add: t("connect.goals.add"),
+      adding: t("goalLink.saving"),
+      limit: t("connect.goals.limit", {
+        period: t("connect.goals.periods.week"),
+      }),
+      openInConnect: t("briefing.goals.openInConnect"),
+    };
+  }, [t, goalRanges]);
+  // The linking screen's copy: the same goalLink.* words Connect opens it with.
+  const goalLinkLabels = useMemo<GoalTodoLinkScreenLabels>(
     () => ({
-      week: {
-        title: t("briefing.goals.weekTitle"),
-        range: goalRanges.week,
-        placeholder: t("briefing.goals.weekPlaceholder"),
-      },
-      month: {
-        title: t("briefing.goals.monthTitle"),
-        range: goalRanges.month,
-        placeholder: t("briefing.goals.monthPlaceholder"),
-      },
-      year: {
-        title: t("briefing.goals.yearTitle"),
-        range: goalRanges.year,
-        placeholder: t("briefing.goals.yearPlaceholder"),
-      },
+      heading: t("goalLink.heading"),
+      periodLabel: morningGoalsLabels.periods.week,
+      search: t("goalLink.search"),
+      listLabel: t("goalLink.todoList"),
+      empty: t("goalLink.empty"),
+      noMatch: t("goalLink.noMatch"),
+      done: t("goalLink.done"),
+      previewHeading: t("goalLink.previewHeading"),
+      achievementLost: t("goalLink.achievementLost"),
+      save: t("goalLink.save"),
+      saving: t("goalLink.saving"),
+      cancel: t("goalLink.cancel"),
+      saveFailed: t("goalLink.saveFailed"),
+      unconnected: t("goalLink.unconnected"),
+      achieved: t("goalLink.achieved"),
+      becomesAchieved: t("goalLink.becomesAchieved"),
+      losesAchievement: t("goalLink.losesAchievement"),
     }),
-    [t, goalRanges],
+    [t, morningGoalsLabels],
   );
 
   // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink:
@@ -277,16 +334,10 @@ export function BriefingScreen({
       moodStars: [1, 2, 3, 4, 5].map((n) =>
         t("briefing.evening.moodStar", { value: n }),
       ),
-      // Editable → it is today's declaration you are writing, not this
-      // morning's read back, so the heading follows the mode (#391).
-      intentionTitle: intentionEditableOnEvening
-        ? t("briefing.intentionTitle")
-        : t("briefing.evening.intentionTitle"),
-      intentionCaption,
-      intentionPlaceholder: t("briefing.evening.intentionPlaceholder"),
       reflectionTitle: t("briefing.evening.reflectionTitle"),
       // No caption at all on a day with nothing written (#1822) — the same
-      // shape `intentionCaption` takes above.
+      // shape the 宣言 caption took (#427): 「保存済み」over an untouched
+      // empty field reads as "already done".
       savedCaption: !hasEveningToReport
         ? undefined
         : eveningSaved
@@ -306,14 +357,39 @@ export function BriefingScreen({
       noUpcoming: t("briefing.evening.noUpcoming"),
       tomorrowTag: t("briefing.evening.tomorrowTag"),
       allDay: t("briefing.allDay"),
+      goalsTitle: t("briefing.evening.goalsTitle"),
+      // A failed goal read takes the empty line's place with its own words:
+      //「ありません」there would be a false "none" (#2107 review).
+      noGoals: goalsFailed
+        ? t("briefing.evening.goalsLoadFailed")
+        : t("briefing.evening.noGoals"),
+      // The linking screens' own word for it (#2109), not a second one.
+      goalAchieved: t("goalLink.achieved"),
+      goalRemaining: (count: number) =>
+        t("briefing.evening.goalRemaining", { count }),
+      eventsTitle: t("briefing.evening.eventsTitle"),
+      noEvents: t("briefing.evening.noEvents"),
+      // The Todos section's own word, like the statuses above (#796).
+      eventDone: t("todoDetail.statusDone"),
+      eventWork: t("briefing.evening.eventWork"),
+      eventNoteButton: t("briefing.evening.noteButton"),
+      eventNoteAdd: (title: string) => t("briefing.evening.noteAdd", { title }),
+      eventNoteEdit: (title: string) =>
+        t("briefing.evening.noteEdit", { title }),
+      eventNotePlaceholder: t("briefing.evening.notePlaceholder"),
+      tomorrowTitle: t("briefing.evening.tomorrowTitle"),
+      noTomorrow: t("briefing.evening.noTomorrow"),
+      tomorrowTimeLabel: (title: string) =>
+        t("briefing.evening.tomorrowTime", { title }),
+      placeTomorrow: t("briefing.evening.placeTomorrow"),
+      placeTomorrowLabel: (title: string) =>
+        t("briefing.evening.placeTomorrowLabel", { title }),
+      placedTomorrow: (time: string) =>
+        t("briefing.evening.placedTomorrow", { time }),
+      openDaily: t("briefing.evening.openDaily"),
+      openDailyLabel: t("briefing.evening.openDailyLabel", { date: dateLine }),
     }),
-    [
-      t,
-      eveningSaved,
-      hasEveningToReport,
-      intentionCaption,
-      intentionEditableOnEvening,
-    ],
+    [t, eveningSaved, hasEveningToReport, dateLine, goalsFailed],
   );
 
   /*
@@ -372,7 +448,7 @@ export function BriefingScreen({
    * the editor's key, and useDailySections bumps it whenever the stored body
    * changes underneath us (another device, an MCP upsert_daily), so the editor
    * remounts — and TipTap re-applies `autofocus` on every construction. Left
-   * unguarded, an external write while the caret sat in TOMORROW'S FOCUS would
+   * unguarded, an external write while the caret sat in 明日の自分へ would
    * yank it back into the reflection mid-sentence. Recording the generation
    * the press happened on means only that mount focuses.
    */
@@ -410,6 +486,107 @@ export function BriefingScreen({
     },
     [t],
   );
+
+  // ── The evening paper's blocks (#2107) ───────────────────────────────
+  // All counting lives in shared/eveningDay.ts — the Daily rebuild (#2123)
+  // prints the same numbers — so this only feeds it the day's rows. "Today"
+  // runs from the day-start hour (#218), like `todayKey` itself.
+  const dayStartHour = getDayStartHour();
+  // Named apart from the morning's `goalState` (useMorningGoals, #2106): that
+  // one waits on the todo read and the note migration, this one on 夕刊.
+  const eveningGoalState = goalSnapshot.state;
+  // null until the goals and links land: the block then shows nothing rather
+  // than「今日進んだ目標はありません」, which would be a false "none" that
+  // flips to a real row a moment later. A read that FAILED is not pending,
+  // though — the block then stays, printing the failure line (noGoals above)
+  // instead of vanishing with no sign (#2107 review).
+  const goalMoves = useMemo(
+    () =>
+      eveningGoalState === null
+        ? goalsFailed
+          ? []
+          : null
+        : goalsMovedToday({
+            goals: eveningGoalState.goals,
+            links: eveningGoalState.links,
+            todos: data.todoNodes,
+            dateKey: todayKey,
+            dayStartHour,
+          }),
+    [eveningGoalState, goalsFailed, data.todoNodes, todayKey, dayStartHour],
+  );
+  const tomorrowTodos = useMemo(
+    () =>
+      tomorrowCandidates({
+        todos: data.todoNodes,
+        goals: eveningGoalState?.goals ?? [],
+        links: eveningGoalState?.links ?? [],
+        todayKey,
+        dayStartHour,
+      }),
+    [data.todoNodes, eveningGoalState, todayKey, dayStartHour],
+  );
+  const dayInput = {
+    dateKey: todayKey,
+    dayStartHour,
+    scheduleItems,
+    todos: data.todoNodes,
+    sessions: data.sessions,
+  };
+  // `now` on every render, like `upcoming`: an event joins「今日の出来事」
+  // once it has started.
+  const eveningRows = eveningEvents({ ...dayInput, now: new Date() }).map(
+    (row) => ({ ...row, note: eveningNotes?.[row.key] ?? null }),
+  );
+  // The header's「予定 N」counts the event rows printed under it, not the
+  // day's whole schedule: eveningDayCounts counts every event of the day
+  // (what #2123's Daily prints for a finished day), but tonight's list holds
+  // only those already started, and「予定 3」over one row reads as a bug
+  // (#2107 review). The rest are under「今後の予定」.
+  const dayCounts = {
+    ...eveningDayCounts(dayInput),
+    events: eveningRows.filter((row) => row.kind === "event").length,
+  };
+  // An empty day prints only the「まだありません」line (brief §11): a row of
+  // zeros next to it would say the same thing twice. Each separator lives in
+  // the catalogue, so a language can reorder or respell the whole line.
+  const work = formatDuration(Math.round(dayCounts.workMinutes));
+  const eventsSummary =
+    dayCounts.events === 0 &&
+    dayCounts.todosTotal === 0 &&
+    dayCounts.workMinutes === 0
+      ? undefined
+      : dayCounts.todosTotal === 0
+        ? t("briefing.evening.eventsSummaryNoTodos", {
+            events: dayCounts.events,
+            work,
+          })
+        : t("briefing.evening.eventsSummary", {
+            events: dayCounts.events,
+            todos: `${dayCounts.todosDone}/${dayCounts.todosTotal}`,
+            work,
+          });
+  // No line before the first issue: 「第 0 号」would announce a paper that
+  // was never published. The streak half drops out on its own at 0.
+  const issueLine =
+    eveningIssueNow === null || eveningIssueNow.number === 0
+      ? undefined
+      : eveningIssueNow.streak === 0
+        ? t("briefing.evening.issueNumber", { count: eveningIssueNow.number })
+        : t("briefing.evening.issueLine", {
+            number: eveningIssueNow.number,
+            streak: eveningIssueNow.streak,
+          });
+  // 「Daily に移動」: the day's Daily through the shell's item intent, or the
+  // Daily tab on a host without one. Nothing is written — a day with no
+  // daily yet is the Daily side's to create.
+  const openDaily = useCallback(() => {
+    if (onNavigateToItem === undefined) {
+      onNavigate({ section: "materials", tab: "daily" });
+      return;
+    }
+    onNavigateToItem({ id: `daily-${todayKey}`, role: "daily" });
+  }, [onNavigateToItem, onNavigate, todayKey]);
 
   // The panel's copy comes from the EXISTING scheduleScreen.* keys, not a
   // briefing.* copy of them: it is literally Schedule's panel, and a second
@@ -604,6 +781,141 @@ export function BriefingScreen({
     </RightSidebarPortal>
   );
 
+  // ── Goals (#2106) ────────────────────────────────────────────────────
+  // The todo rows carry the titles of the goals they serve. Before the goals
+  // read lands the rows simply have no marks, as on a host without goals.
+  const paperData = useMemo(
+    () =>
+      goalState === null
+        ? data
+        : {
+            ...data,
+            todos: data.todos.map((todo) => ({
+              ...todo,
+              goals: goalMarkTitles(goalState, todo.id),
+            })),
+          },
+    [data, goalState],
+  );
+
+  // Goal-side linking (goal → its todos) opens the shared screen Connect uses
+  // (#2109) in the paper's own overlay — the right panel already holds the
+  // tray and the charts. The overlay's title already says「Todo をつなぐ」, so
+  // the screen drops its own kicker. Saving keeps it open, so the
+  // 「達成が外れました」a save can raise stays on screen; closing is the
+  // reader's.
+  const [linkGoalId, setLinkGoalId] = useState<string | null>(null);
+  const closeLinkScreen = useCallback(() => setLinkGoalId(null), []);
+  const linkTodoOptions = useMemo(
+    () =>
+      data.todoNodes
+        .filter((n) => n.type === "task" && !n.isDeleted)
+        .map((n) => ({ id: n.id, title: n.title, done: n.status === "DONE" })),
+    [data.todoNodes],
+  );
+  // `fitViewport` (#1728): the screen runs to ~700px once the preview shows,
+  // taller than a phone's viewport — unbounded, Save fell below the fold.
+  // Open only while the goal is live: deleted elsewhere (Connect on another
+  // device, MCP) mid-edit, the screen renders nothing and the dialog would
+  // stand empty around it.
+  const linkGoalLive =
+    linkGoalId !== null &&
+    goalState?.goals.some((g) => g.id === linkGoalId && !g.isDeleted) === true;
+  const goalLinkOverlay = (
+    <ItemDetailOverlay
+      open={linkGoalLive}
+      title={t("goalLink.heading")}
+      onClose={closeLinkScreen}
+      fitViewport
+    >
+      {linkGoalLive && goalState !== null && linkGoalId !== null && (
+        <GoalTodoLinkScreen
+          key={linkGoalId}
+          goalId={linkGoalId}
+          state={goalState}
+          todos={linkTodoOptions}
+          onSave={(diff) =>
+            writeLinks(
+              diff.link.map((todoId) => ({ goalId: linkGoalId, todoId })),
+              diff.unlink.map((todoId) => ({ goalId: linkGoalId, todoId })),
+            )
+          }
+          onClose={closeLinkScreen}
+          labels={goalLinkLabels}
+          headingShown={false}
+        />
+      )}
+    </ItemDetailOverlay>
+  );
+
+  // The period-end review (P1 / P2), one goal at a time, above this week's
+  // goals. Its period is printed with the same range formatter as the current
+  // ones, fed a day inside that past period.
+  const reviewCard =
+    review === null ? null : (
+      <PeriodEndReviewCard
+        key={review.item.goal.id}
+        goalTitle={review.item.goal.title}
+        connected={review.item.progress.connected}
+        canCarry={review.carry.existingId !== null || review.carry.hasRoom}
+        busy={reviewBusy}
+        locked={goalWriting}
+        labels={{
+          title: t("briefing.review.title"),
+          remaining: t("briefing.review.remaining", {
+            count: review.remaining,
+          }),
+          periodLabel: t("connect.goals.period", {
+            kind: t(`connect.goals.kinds.${review.item.goal.periodKind}`),
+            key: goalPeriodRanges(
+              periodStartDateKey(
+                review.item.goal.periodKind,
+                review.item.goal.periodKey,
+              ),
+              WEEK_STARTS_ON,
+              locale,
+            )[review.item.goal.periodKind],
+          }),
+          question: t("briefing.review.question"),
+          progress: goalProgressText(review.item.progress, {
+            unconnected: t("goalLink.unconnected"),
+          }),
+          carry: t("briefing.review.carry"),
+          drop: t("briefing.review.drop"),
+          achieve: t("briefing.review.achieve"),
+          later: t("briefing.review.later"),
+          carryBlocked:
+            review.carry.existingId === null && !review.carry.hasRoom
+              ? t("connect.goals.limit", {
+                  period: t(
+                    `connect.goals.periods.${review.item.goal.periodKind}`,
+                  ),
+                })
+              : undefined,
+          saving: t("goalLink.saving"),
+        }}
+        onDecide={decide}
+        onLater={askLater}
+      />
+    );
+
+  // Nothing at all until the goals read lands (or when it fails): an empty
+  // block first would flash「今週の目標を立てましょう」over goals that exist.
+  const goalsSlot =
+    morningGoals === null ? null : (
+      <>
+        {reviewCard}
+        <MorningGoalsBlock
+          goals={morningGoals}
+          labels={morningGoalsLabels}
+          onLinkTodos={setLinkGoalId}
+          onCreateWeekGoal={createWeekGoal}
+          writing={goalWriting}
+          onOpenGoals={onOpenGoals}
+        />
+      </>
+    );
+
   // Keyed on the day so a paper that crosses midnight (or the day-start hour)
   // re-seeds the fields rather than keeping a draft aimed at yesterday.
   const createPanelOverlay = (
@@ -693,26 +1005,20 @@ export function BriefingScreen({
               />
             )
           }
-          // Editable → the live draft (the field must echo every keystroke).
-          // Read-only → the STORED text, never the draft: the read-back is
-          // "what is saved as this morning's declaration", and a draft is both
-          // un-normalized (raw blank lines / indent the merge would strip) and
-          // possibly unsaved (persistIntention swallows failures) — with no
-          // caption on that branch, showing it would silently overstate.
-          intentionText={
-            intentionEditableOnEvening
-              ? intentionText
-              : (intentionStored.text ?? "")
-          }
-          intentionEditable={intentionEditableOnEvening}
-          onIntentionChange={handleIntentionChange}
-          onIntentionBlur={flushIntention}
           focusText={focusDraft}
           onFocusChange={handleFocusChange}
           onFocusBlur={flushFocus}
           todos={remainingTodos}
           onSetTodoStatus={handleSetTodoStatus}
           schedule={upcoming}
+          issueLine={issueLine}
+          goalMoves={goalMoves}
+          events={eveningRows}
+          eventsSummary={eventsSummary}
+          onSaveEventNote={saveNote}
+          tomorrowTodos={tomorrowTodos}
+          onPlaceTomorrow={handlePlaceTodoTomorrow}
+          onOpenDaily={openDaily}
           labels={eveningLabels}
           tabSwitcher={tabSwitcher}
         />
@@ -725,21 +1031,15 @@ export function BriefingScreen({
       {todoTrayPortal}
       {vizPortal}
       <BriefingView
-        // The goals note is a SECOND async document, and its fields are
-        // editable — offering them before it answers hands the user an empty
-        // box over goals that exist, and the keystroke typed there overwrites
-        // them once the debounce fires. Same skeleton, one gate.
-        loading={loading || goalsLoading || focusLoading}
-        data={data}
+        // The focus note is a second async document; the line at the top of
+        // the paper is read from it, so the skeleton waits for both. The goals
+        // read does not hold the paper: nothing on it is an editable field any
+        // more (#2106) — the block simply appears when it lands.
+        loading={loading || focusLoading}
+        data={paperData}
         labels={labels}
         focusText={todayFocus}
-        intentionText={intentionText}
-        onIntentionChange={handleIntentionChange}
-        onIntentionBlur={flushIntention}
-        goals={goals}
-        goalLabels={goalLabels}
-        onGoalChange={handleGoalChange}
-        onGoalBlur={flushGoals}
+        goalsSlot={goalsSlot}
         onToggleTodo={handleToggleTodo}
         onDeleteScheduleItem={handleDeleteScheduleItem}
         onDeleteTodo={handleDeleteTodo}
@@ -750,6 +1050,7 @@ export function BriefingScreen({
       />
       {deleteScopeDialog}
       {createPanelOverlay}
+      {goalLinkOverlay}
     </>
   );
 }

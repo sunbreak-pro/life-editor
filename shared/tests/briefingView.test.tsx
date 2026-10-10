@@ -6,8 +6,8 @@ import {
   EveningView,
   type BriefingData,
   type BriefingLabels,
-  type EveningLabels,
 } from "../src/components";
+import { EVENING_LABELS, emptyEveningBlocks } from "./helpers/eveningFixtures";
 
 /*
  * BriefingView — pure morning-paper view. Every row (schedule / todo /
@@ -23,10 +23,7 @@ const LABELS: BriefingLabels = {
   aiTitle: "AI",
   aiSource: "Claude",
   noFocus: "No focus",
-  intentionTitle: "INTENTION",
-  intentionCaption: "Saved",
-  intentionPlaceholder: "Declare today…",
-  goalsTitle: "GOALS",
+  goalMark: "Goals:",
   scheduleTitle: "PROMISES",
   addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
@@ -109,14 +106,6 @@ const DATA: BriefingData = {
   todoNodes: [],
 };
 
-const GOAL_LABELS = {
-  week: { title: "WEEK", range: "8/10 – 8/16", placeholder: "This week…" },
-  month: { title: "MONTH", range: "August", placeholder: "This month…" },
-  year: { title: "YEAR", range: "2026", placeholder: "This year…" },
-};
-
-const NO_GOALS = { week: "", month: "", year: "" };
-
 function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onToggleTodo = vi.fn();
   const onDeleteScheduleItem = vi.fn();
@@ -124,23 +113,12 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onAddScheduleItem = vi.fn();
   const onJumpToSchedule = vi.fn();
   const onJumpToTodos = vi.fn();
-  const onIntentionChange = vi.fn();
-  const onIntentionBlur = vi.fn();
-  const onGoalChange = vi.fn();
-  const onGoalBlur = vi.fn();
   const result = render(
     <BriefingView
       loading={false}
       data={DATA}
       labels={LABELS}
       focusText={null}
-      intentionText=""
-      onIntentionChange={onIntentionChange}
-      onIntentionBlur={onIntentionBlur}
-      goals={NO_GOALS}
-      goalLabels={GOAL_LABELS}
-      onGoalChange={onGoalChange}
-      onGoalBlur={onGoalBlur}
       onToggleTodo={onToggleTodo}
       onDeleteScheduleItem={onDeleteScheduleItem}
       onDeleteTodo={onDeleteTodo}
@@ -158,10 +136,6 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
     onAddScheduleItem,
     onJumpToSchedule,
     onJumpToTodos,
-    onIntentionChange,
-    onIntentionBlur,
-    onGoalChange,
-    onGoalBlur,
   };
 }
 
@@ -378,7 +352,9 @@ describe("BriefingView row actions", () => {
     expect(
       screen.queryByRole("button", { name: "Toggle complete" }),
     ).toBeNull();
-    expect(screen.queryByRole("button", { name: "Morning standup" })).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Morning standup" }),
+    ).toBeNull();
     expect(screen.getByText("Done meeting").className).not.toContain(
       "line-through",
     );
@@ -655,7 +631,9 @@ describe("Timed todo rows print their clock (#1369)", () => {
   });
 
   it("leaves an untimed todo's cell empty — no blank label, no 00:00", () => {
-    renderView({ data: { ...DATA, todos: [{ ...TIMED_TODO, startTime: "" }] } });
+    renderView({
+      data: { ...DATA, todos: [{ ...TIMED_TODO, startTime: "" }] },
+    });
     const cell = timeCell("Draft the deck");
     expect(cell.textContent).toBe("");
     // A spacer, not an empty label: it holds the width and stays out of the
@@ -789,94 +767,14 @@ describe("AI comment attribution (#1210)", () => {
   });
 });
 
-describe("BriefingView intention field (宣言 — Step 4)", () => {
-  it("shows the stored declaration and reports edits + blur to the host", () => {
-    const { onIntentionChange, onIntentionBlur } = renderView({
-      intentionText: "Ship the report",
-    });
-    const field = screen.getByPlaceholderText("Declare today…");
-    expect((field as HTMLTextAreaElement).value).toBe("Ship the report");
-    fireEvent.change(field, { target: { value: "Ship the report\nRun" } });
-    expect(onIntentionChange).toHaveBeenCalledWith("Ship the report\nRun");
-    fireEvent.blur(field);
-    expect(onIntentionBlur).toHaveBeenCalledTimes(1);
-  });
-});
-
-/*
- * #391 — the 宣言 block on the evening paper. Wide keeps the original reading
- * (a morning artifact read back, hidden on a blank day); below 768px 夕刊 is a
- * Quick capture surface (mobile-scope #3), so the block becomes the live input
- * — otherwise a phone user who lands on 夕刊 cannot declare at all.
- */
-describe("EveningView intention block (#391)", () => {
-  it("reads the declaration back with no save caption on the wide layout", () => {
-    renderEvening({ intentionText: "Ship the report" });
-    expect(screen.getByText("Ship the report")).toBeTruthy();
-    expect(screen.queryByPlaceholderText("Declare today…")).toBeNull();
-    // Nothing to save while read-only — the caption must not contradict it.
-    expect(screen.queryByText("Unsaved")).toBeNull();
-  });
-
-  it("hides the whole block on the wide layout when nothing is declared", () => {
-    renderEvening();
-    expect(screen.queryByText("INTENTION")).toBeNull();
-  });
-
-  it("reports edits + blur to the host on the narrow layout", () => {
-    const { onIntentionChange, onIntentionBlur } = renderEvening({
-      intentionEditable: true,
-      intentionText: "Ship the report",
-    });
-    const field = screen.getByPlaceholderText("Declare today…");
-    expect((field as HTMLTextAreaElement).value).toBe("Ship the report");
-    fireEvent.change(field, { target: { value: "Ship the report\nRun" } });
-    expect(onIntentionChange).toHaveBeenCalledWith("Ship the report\nRun");
-    fireEvent.blur(field);
-    expect(onIntentionBlur).toHaveBeenCalledTimes(1);
-  });
-
-  // Only the presence of the caption row is a view concern — WHICH caption is
-  // host-computed (BriefingScreen), and web has no test runner, so the copy
-  // itself is out of reach here.
-  it("keeps an empty field reachable on the narrow layout and shows a caption", () => {
-    renderEvening({ intentionEditable: true });
-    expect(screen.getByPlaceholderText("Declare today…")).toBeTruthy();
-    expect(screen.getByText("Unsaved")).toBeTruthy();
-  });
-});
-
 /*
  * #318 — below 768px the shell drops its header slot, so the SectionHeader
  * 朝刊/夕刊 band disappears and 夕刊 becomes unreachable. Both paper views take
  * an optional in-body `tabSwitcher` the narrow host fills; the wide host leaves
  * it undefined so the header keeps owning the tabs.
  */
-const EVENING_LABELS: EveningLabels = {
-  masthead: "EVENING",
-  moodTitle: "MOOD",
-  moodStars: [1, 2, 3, 4, 5].map((n) => `Mood ${n}/5`),
-  intentionTitle: "INTENTION",
-  intentionCaption: "Unsaved",
-  intentionPlaceholder: "Declare today…",
-  reflectionTitle: "CLOSING",
-  savedCaption: "Saved",
-  focusTitle: "TOMORROW'S FOCUS",
-  focusPlaceholder: "Tomorrow's one thing…",
-  todosTitle: "REMAINING",
-  noTodos: "No todos",
-  todoStatus: "Status",
-  statusNotStarted: "Not started",
-  statusDone: "Done",
-  upcomingTitle: "UPCOMING",
-  noUpcoming: "Nothing upcoming",
-  tomorrowTag: "Tomorrow",
-  allDay: "All day",
-};
 
 function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
-  const onIntentionChange = vi.fn();
-  const onIntentionBlur = vi.fn();
   const onSetTodoStatus = vi.fn();
   const result = render(
     <EveningView
@@ -885,10 +783,6 @@ function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
       mood={null}
       onSelectMood={vi.fn()}
       editorSlot={<div>editor</div>}
-      intentionText=""
-      intentionEditable={false}
-      onIntentionChange={onIntentionChange}
-      onIntentionBlur={onIntentionBlur}
       focusText=""
       onFocusChange={vi.fn()}
       onFocusBlur={vi.fn()}
@@ -896,10 +790,11 @@ function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
       onSetTodoStatus={onSetTodoStatus}
       schedule={[]}
       labels={EVENING_LABELS}
+      {...emptyEveningBlocks()}
       {...props}
     />,
   );
-  return { ...result, onIntentionChange, onIntentionBlur, onSetTodoStatus };
+  return { ...result, onSetTodoStatus };
 }
 
 /**
@@ -1072,36 +967,6 @@ describe("Row edit action (#410)", () => {
 });
 
 /*
- * #427 — a day with no declaration at all has nothing to report a save state
- * for. The host omits `intentionCaption` then; both papers must render the
- * 宣言 heading without any caption beside it.
- */
-describe("Intention caption omission (#427)", () => {
-  it("renders no caption when the host omits intentionCaption (morning)", () => {
-    const { container } = renderView({
-      labels: { ...LABELS, intentionCaption: undefined },
-    });
-    expect(screen.getByText("INTENTION")).toBeTruthy();
-    expect(screen.queryByText("Saved")).toBeNull();
-    expect(container.textContent).not.toContain("Unsaved");
-  });
-
-  it("renders no caption when the host omits intentionCaption (evening)", () => {
-    const { container } = renderEvening({
-      intentionEditable: true,
-      labels: { ...EVENING_LABELS, intentionCaption: undefined },
-    });
-    expect(screen.getByText("INTENTION")).toBeTruthy();
-    expect(container.textContent).not.toContain("Unsaved");
-  });
-
-  it("still renders the caption once the host supplies one", () => {
-    renderView({ labels: { ...LABELS, intentionCaption: "Saved" } });
-    expect(screen.getByText("Saved")).toBeTruthy();
-  });
-});
-
-/*
  * #796 — the REMAINING TODOS rows speak the Todo's real status.
  *
  * The block drew a checkbox-shaped <span> with nothing listening to it, which
@@ -1186,14 +1051,14 @@ describe("Narrow rows fit: icon-only actions, nothing overhanging (#1514)", () =
     // text and a voice-control user still says「編集」, a screen reader still
     // hears which action and where it lands.
     expect(screen.getAllByRole("button", { name: /^Edit: / }).length).toBe(6);
-    expect(screen.getAllByRole("button", { name: /^Delete: / }).length).toBe(
-      4,
-    );
+    expect(screen.getAllByRole("button", { name: /^Delete: / }).length).toBe(4);
   });
 
   it("grows the icon to 16px while it stands alone, 13px once the word is back", () => {
     const { container } = renderView();
-    const icons = container.querySelectorAll('button[title="Open in Todos"] svg');
+    const icons = container.querySelectorAll(
+      'button[title="Open in Todos"] svg',
+    );
     expect(icons.length).toBeGreaterThan(0);
     for (const icon of icons) {
       expect(icon.getAttribute("class")).toContain("size-4");
@@ -1233,5 +1098,96 @@ describe("Masthead never breaks the paper's name mid-word (#1513)", () => {
     expect(
       screen.getByRole("heading", { name: EVENING_LABELS.masthead }).className,
     ).toContain("break-keep");
+  });
+});
+
+/*
+ * #2106 — the rebuilt morning paper. No 宣言 field, no free-text goal fields,
+ * and — the Issue's DoD — no empty frame on a day Claude wrote nothing: the
+ * comment block exists only on days it has paragraphs. Goals arrive as a
+ * host-built slot, and a todo row names the goals it serves.
+ */
+describe("Morning paper rebuild (#2106)", () => {
+  it.each([
+    ["no briefing at all", null],
+    ["a briefing with no paragraphs", { paragraphs: [] }],
+  ])("draws no comment frame with %s", (_, briefing) => {
+    const { container } = renderView({ data: { ...DATA, briefing } });
+    expect(screen.queryByText(LABELS.aiTitle)).toBeNull();
+    expect(screen.queryByText(LABELS.aiSource)).toBeNull();
+    // No section of the paper is drawn empty.
+    for (const section of container.querySelectorAll("section")) {
+      expect(section.textContent?.trim()).not.toBe("");
+    }
+  });
+
+  it("has no declaration field", () => {
+    renderView();
+    expect(screen.queryAllByRole("textbox")).toHaveLength(0);
+  });
+
+  it("prints a todo's goals in order, before its note links", () => {
+    const { container } = renderView({
+      data: {
+        ...DATA,
+        todos: [
+          {
+            id: "t1",
+            title: "Write report",
+            status: "NOT_STARTED",
+            startTime: "",
+            purposes: ["Spec note"],
+            goals: ["企画書を通す", "3 回走る"],
+          },
+        ],
+      },
+    });
+    const line = screen.getByText("企画書を通す ・ 3 回走る").closest("p");
+    expect(line).not.toBeNull();
+    const mark = line!.querySelector(".sr-only");
+    expect(mark?.textContent).toBe(LABELS.goalMark);
+    const purpose = screen.getByText(/Spec note/).closest("p")!;
+    expect(
+      line!.compareDocumentPosition(purpose) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(container.textContent).toContain("Goals:");
+  });
+
+  it.each([
+    ["omitted", undefined],
+    ["empty", []],
+  ])("draws no goal line when the goals are %s", (_, goals) => {
+    renderView({
+      data: {
+        ...DATA,
+        todos: [
+          {
+            id: "t1",
+            title: "Write report",
+            status: "NOT_STARTED",
+            startTime: "",
+            purposes: [],
+            goals,
+          },
+        ],
+      },
+    });
+    expect(screen.queryByText(LABELS.goalMark)).toBeNull();
+  });
+
+  it("draws the goals slot between the comment and the schedule", () => {
+    renderView({
+      data: { ...DATA, briefing: { paragraphs: ["Good work."] } },
+      goalsSlot: <section>GOALS SLOT</section>,
+    });
+    const ai = screen.getByText(LABELS.aiTitle);
+    const slot = screen.getByText("GOALS SLOT");
+    const schedule = screen.getByText(LABELS.scheduleTitle);
+    expect(
+      ai.compareDocumentPosition(slot) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      slot.compareDocumentPosition(schedule) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 });

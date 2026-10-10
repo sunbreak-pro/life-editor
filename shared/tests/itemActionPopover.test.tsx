@@ -15,6 +15,7 @@ function renderPopover(overrides?: {
   onRename?: (v: string) => void;
   onEditDetail?: () => void;
   layout?: "stack" | "columns";
+  autoFocus?: boolean;
 }) {
   const onRename = overrides?.onRename ?? vi.fn();
   const onDuplicate = vi.fn();
@@ -40,6 +41,7 @@ function renderPopover(overrides?: {
       label="Item actions"
       onClose={onClose}
       layout={overrides?.layout}
+      autoFocus={overrides?.autoFocus}
     />,
   );
   return { onRename, onDuplicate, onDelete, onEditDetail, onClose };
@@ -185,5 +187,28 @@ describe("ItemActionPopover columns layout (#1625)", () => {
         .getByRole("dialog", { name: "Item actions" })
         .querySelector("[data-item-panel-column]"),
     ).toBeNull();
+  });
+});
+
+/*
+ * #2049 — a bubble opened from the keyboard (the month cell's "他 N 件" panel,
+ * which closes as it hands over) takes focus, so the next key lands in it.
+ * A mouse-opened bubble keeps focus where it was, as before.
+ */
+describe("ItemActionPopover autoFocus (#2049)", () => {
+  it("moves focus to the first action when asked", () => {
+    renderPopover({ autoFocus: true });
+    expect(screen.getByRole("menuitem", { name: "Rename" })).toHaveFocus();
+  });
+
+  it("lands on the first action in columns too, not on edit-detail", () => {
+    // "columns" puts the edit-detail button BEFORE the actions in the DOM.
+    renderPopover({ autoFocus: true, layout: "columns" });
+    expect(screen.getByRole("menuitem", { name: "Rename" })).toHaveFocus();
+  });
+
+  it("leaves focus alone by default", () => {
+    renderPopover();
+    expect(document.body).toHaveFocus();
   });
 });

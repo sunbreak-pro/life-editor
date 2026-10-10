@@ -1,5 +1,34 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-10-03 - /goal 6 件のうち 5 件を 5 本の PR で提出（#2081 / #2083 / #2079 / #2080 / #2082）
+
+#### 概要
+
+/goal の 6 件を指定順に進め、5 件を 5 本の PR にした（書いた時点で 5 本とも open）。各ブランチは `origin/main` から切り、CI `verify` 全ステップ + `docs-lint` を緑にしてから PR を開いた。#2010 は PR #2022（2026-09-27 merge 済み）で直っており、残りは chat-main の実ブラウザ確認だけなので PR を作らなかった。
+
+#### 変更点
+
+- **#2081 = PR #2085**: 繰り返しの回を作る経路が「今日の 1 日分」と「作成・頻度変更の瞬間の表示範囲」だけで、週を送っても回が作られなかった。実データでは 9/9 に作った 2 本が 9 月の月グリッドの端（10/3）で止まっていた。`fillRoutineItemsForDateRange`（作るだけで消さない）と `useRoutineRangeFill`（表示範囲を明日以降だけ補充・失敗時 1 回再試行）を足した
+- **#2083 = PR #2088**: 行タップが全幅で `openRepeatPanel` に配線され、Mobile ではパネルが描かれないため何も起きていなかった。`handleRepeatRowPress` で Desktop = パネル、Mobile = 次の回の編集へ直行。発火しない繰り返しはトースト。行に 44px の下限
+- **#2079 = PR #2090**: Mobile の月見出しに Desktop と同じ絞り込みボタン（同じパネル・件数バッジ・44px）。解除手段が無いため入っていた `useScheduleGridFilters` の `isWide` ゲートを外した。旧挙動を固定していたテスト 2 本を書き換え
+- **#2080 = PR #2091**: `EventEditorPane` の削除ボタンを固定された保存の行の左端へ。処理は変えていない
+- **#2082 = PR #2092**: `routines_payload.frequency_end_date`（migration 0033・ローカルのみ）と `RoutineNode.frequencyEndDate`。生成器が終了日の翌日から作らない。`FrequencyEditor` に終了日欄、変換・Undo・MCP `create_routine` まで通した。migration-validator の監査はブロックなし（指摘 3 点のうちコメント 2 か所と Worker のデプロイ順の注意を反映）。「終了時間」は判断キュー D-20261003-sched-1
+- **作業中の事故**: #2081 の検証中に #2083 の変更を同じ作業コピーへ書き始め、パッチに退避して戻した。止めた検証のプロセスが同じログへ書き続けたため、自分のセッションの PID だけを止めてやり直した
+
+### 2026-10-03 - #2049 を PR #2070 で提出（Desktop の月セルを 5 件 + 横のパネルに）
+
+#### 概要
+
+/goal の 2 件のうち #2049 を `claude/schedule-month-more-2049`（`origin/main` から）で実装し、PR #2070 を開いた（書いた時点で open）。CI `verify` 全ステップ + `docs-lint` は最終版で全部 exit 0。#2010 は PR #2022 が 2026-09-27 に merge 済みで、残りは chat-main の 390px 実ブラウザ確認だけなので、新しい PR は作らなかった。
+
+#### 変更点
+
+- **表示件数**: `MONTH_MAX_CHIPS` を 2 → 5。セルの下限を `min-h-14` → `min-h-[10.25rem]`（5 チップ + 「他 N 件」の合計）。グリッドの根を `h-full` → `min-h-full` にして、6 週が画面より高いときは外側でスクロールさせる
+- **「他 N 件」のパネル**: `shared/src/components/schedule/MonthMorePanel.tsx` を新規作成。セルの左に開き、1 列目だけ右に開く。隠れた項目だけを並べ、開くとフォーカスが最初の項目へ移る。Esc で「他 N 件」へフォーカスを戻す。外側の押下・スクロール・リサイズで閉じる。開閉の状態は `CalendarDesktopLayout` が持つ
+- **簡易編集**: パネルの行は `handleItemActivate` に渡し、チップと同じ吹き出しを開く。キーボードで押したときだけ吹き出しにフォーカスを移すため、`ItemActionPopover` に `autoFocus`（既定 off・操作の行を優先）を足した
+- **#1973 の撤去**: `useFlowDay.ts` とそのテスト、右パネルの「今日に戻る」ボタン、文言 `flowBackToToday` を削除。Issue の「判断が要る点」の既定（パネルに置き換え）に従った
+- **テスト**: `monthGrid.test.tsx` の 2 件前提を 5 件に、`monthMorePanel.test.tsx` を新規、`itemActionPopover.test.tsx` に `autoFocus`、`calendarLayouts.test.tsx` にパネルの開閉 8 ケース
+
 ### 2026-09-22 - 画面別探索検証の 9 件を 9 本の PR で提出（#1827 / #1828 / #1834 / #1832 / #1833 / #1831 / #1835 / #1829 / #1830）
 
 #### 概要
