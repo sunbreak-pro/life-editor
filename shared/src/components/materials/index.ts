@@ -56,13 +56,19 @@ export {
   type DailyEntriesPanelProps,
   type DailyEntriesPanelEntry,
 } from "./DailyEntriesPanel";
-// 夕刊カテゴリ (#1046) — the evening block under the Daily body editor.
+// #2123 — the mood stars + four figures under the Daily body, and the
+// morning record above it (the evening card of #1046 went with it).
 export {
-  DailyEveningCard,
-  type DailyEveningCardProps,
-  type DailyEveningCardLabels,
-  type DailyEveningScheduleEntry,
-} from "./DailyEveningCard";
+  DailyDayFooter,
+  type DailyDayFooterProps,
+  type DailyDayFooterLabels,
+  type DailyDayFigure,
+} from "./DailyDayFooter";
+export {
+  DailyMorningNote,
+  type DailyMorningNoteProps,
+  type DailyMorningNoteLabels,
+} from "./DailyMorningNote";
 export {
   plainTextToTipTapDoc,
   dailyContentToEditorContent,

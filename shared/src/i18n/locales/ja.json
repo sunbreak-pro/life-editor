@@ -610,12 +610,15 @@
       "filterLabel": "エントリを絞り込む",
       "searchEmpty": "絞り込みに一致するエントリはありません",
       "empty": "エントリはまだありません",
-      "eveningTitle": "夕刊",
-      "eveningScheduleTitle": "この日のスケジュール",
       "eveningMood": "気分",
-      "eveningStart": "夕刊を書く",
-      "eveningEditReflection": "振り返りを編集",
-      "eveningReflectionPlaceholder": "この日はどんな一日でしたか…"
+      "figuresLabel": "この日の数字",
+      "figureEvents": "予定",
+      "figureTodos": "Todo",
+      "figureWork": "作業",
+      "figureGoals": "進んだ目標",
+      "morningLabel": "朝の記録",
+      "morningComment": "朝刊のひとこと",
+      "morningIntention": "宣言"
     },
     "tags": {
       "usageCount_other": "{{count}} 件",
