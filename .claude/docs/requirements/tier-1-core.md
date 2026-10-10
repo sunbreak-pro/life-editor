@@ -429,7 +429,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 ### Purpose
 
-Claude Code に対し life-editor データを CRUD させるための stdio JSON-RPC インターフェース。Claude Code Max サブスクのラッピングにより追加コスト $0 で「自然言語で全生活データを操作できる」を成立させる（§1 V1）。⚠️ 起動導線だったアプリ内ターミナルは 2026-07-05 に退役決定（→ §Terminal / CLAUDE.md §5）で、退役後の常設起動導線は生成デザイン確定後に再設計中。MCP Server 自体は存続。
+Claude Code に対し life-editor データを CRUD させるための MCP インターフェース（入口は stdio と Remote MCP、拡張アプリ用の窓口が加わる予定 — 下記 Boundary / CLAUDE.md §5）。Claude Code Max サブスクのラッピングにより追加コスト $0 で「自然言語で全生活データを操作できる」を成立させる（§1 V1）。⚠️ 起動導線だったアプリ内ターミナルは 2026-07-05 に退役決定（→ §Terminal / CLAUDE.md §5）で、退役後の常設起動導線は生成デザイン確定後に再設計中。MCP Server 自体は存続。
 
 ### Boundary
 
@@ -437,14 +437,15 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
   - Todos / Daily / Notes / Note context / Schedule / Wiki Tags / Item links / Content / Search / Trash / Work sessions の各ドメインツール（内訳・総数はコード `mcp-server/src/tools.ts` が正）
   - 稼働時間（`timer_sessions`）は**読むだけ**: 開始・終了はその瞬間の行為なので、ツールから閉じられると「実際には使っていない時間」を書けてしまう
   - Supabase Postgres へ owner 資格（env のメール + パスワード）でサインインし、統合スキーマ（`items_meta` + `<role>_payload`）に RLS 越しでアクセス（web クライアントと同じ権限モデル）
-  - stdio JSON-RPC 通信（Claude Code の `claude` コマンドが自動接続）
+  - stdio JSON-RPC 通信（Claude Code の `claude` コマンドが自動接続）。同じハンドラを Remote MCP（Cloudflare Workers 上の Streamable HTTP・スマホの Claude アプリのカスタムコネクタ用・D-20260909-mcp-mobile-1）でも出す。ツール集合の正本は `mcp-server/src/remoteTools.ts`、`tools.ts` はそれに verification harness（`node:fs` の台帳）を足したもの
   - 引数スキーマの型安全性（各 handler で zod / JSON Schema 検証）
 - やらない:
   - 認知系 / 分析系ツール（`reflect_on_day` / `analyze_patterns` 等）— 別 Server `mcp-server-cognitive/` として ADR-0005 Phase 1 で分離実装
   - Database (Notion 風 DB) 系ツール — 現状未対応、Phase 1 で追加予定
   - 破壊的操作のうち Notes / Daily(Memo) の削除（UI 限定、§Notes / §Daily (Memo) Boundary 参照）
   - **ファイル操作**（`list_files` / `read_file` / `write_file` / `create_directory` / `rename_file` / `delete_file` / `search_files` は 2026-07-26 #362 で退役）: File Explorer の UI 退役と運命共同体という整理。Claude Code 自身がファイル操作手段を持つため MCP 側に二重に持たない
-  - 外部 HTTP（Supabase 以外。ツール呼び出しの受け口は local stdio 専用）
+  - 外部 HTTP（Supabase 以外への外向きの通信は持たない）。ツール呼び出しの受け口は、stdio（Desktop 専用）と Remote MCP（Cloudflare Workers・共有シークレットの URL 認証）の 2 本で、verification harness は `node:fs` が要るので stdio だけに出す
+  - 拡張アプリ（別リポジトリ）の受け口を、スマホ用の Remote MCP に相乗りさせること: 専用の Worker を 3 本目の入口として別に立てる（D-20261007-main-3 = A・実装中 — 計画書 `docs/vision/plans/2026-10-07-extension-app-gateway.md`）。道具集合は remoteTools の部分集合で、鍵と範囲はアプリごとに絞る。拡張アプリは窓口を迂回して Supabase に直接書かない（D-20261010-mcp-tools-1）
   - Event 本文への構造化コンテンツ書き込み（`generate_content` / `format_content` の `schedule` ターゲットは #360 で退役 — 統合スキーマの `events_payload` に content 列が無いため。Event のテキストは `update_schedule_item` の `memo`）
   - タグ付与元の区別（legacy の `source` 列は統合スキーマに無く、#360 で出力から削除）
 
@@ -464,7 +465,7 @@ Claude Code に対し life-editor データを CRUD させるための stdio JSO
 
 - DB: Supabase Postgres（統合スキーマ `items_meta` + `<role>_payload`。web クライアントと同一プロジェクト / 同一 RLS）
 - 資格情報: `LIFE_EDITOR_SUPABASE_URL` / `_ANON_KEY`（`VITE_*` でも可）/ `_EMAIL` / `_PASSWORD` を env 供給（平文コミット禁止 — CLAUDE.md §9 鉄則）
-- 通信: stdio JSON-RPC（Claude Code から呼び出し）
+- 通信: stdio JSON-RPC（Claude Code から呼び出し）/ Remote MCP（Streamable HTTP・スマホの Claude アプリから呼び出し）
 - 他機能: Terminal（起動経路 — 2026-07-05 退役 → §Terminal。MCP Server 自体は存続・起動導線は再設計）/ 全 Tier 1 / Tier 2 機能（対象データ）
 - ライブラリ: `@modelcontextprotocol/sdk` / `@supabase/supabase-js`
 
