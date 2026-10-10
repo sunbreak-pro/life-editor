@@ -14,7 +14,7 @@
 ## Feature: Briefing（朝刊 — ホーム面）
 
 **Tier**: 1
-**Status**: △Step 1（読む面）出荷済み（#249）— ループ全体は進行中。**テーマ正本 = [`2026-07-15-briefing-loop.md`](../vision/plans/2026-07-15-briefing-loop.md)**（Steps 索引・決定録・完成判定 = 同書 §Acceptance「ループが平日 5 日連続で回る」）
+**Status**: △Step 1（読む面）出荷済み（#249）— ループ全体は進行中。**テーマ正本 = [`2026-07-15-briefing-loop.md`](../vision/plans/2026-07-15-briefing-loop.md)**（Steps 索引・決定録・完成判定 = 同書 §Acceptance「ループが平日 5 日連続で回る」）。**2026-10 に目標と Todo をつなぐ朝刊・夕刊へ作り直した**（D-20260928-briefing-4・計画書 = [`2026-10-03-briefing-goals-redesign.md`](../vision/plans/2026-10-03-briefing-goals-redesign.md)。朝刊 = #2106、夕刊 = #2107、Daily = #2123）
 **Owner Provider/Module**: `shared/src/components/briefing/`（`BriefingView` / `extractBriefing`）+ `web/src/briefing/BriefingScreen.tsx`（ホスト = fetch / i18n 解決）。セクション定義・デフォルト起動 = `shared/src/sections.ts`
 **MCP Coverage**: あり（`get_today_context` / `get_week_context` / `write_briefing` 実装済み — 一覧はコード `mcp-server/src/tools.ts` が正）
 **Supports Value Prop**: V1
@@ -22,20 +22,23 @@
 
 ### Purpose
 
-1 日 1 周ループ（朝刊 = 読む → Schedule = 組む → Work = 没入 → 夕刊 = 閉じる → Claude 分析 → 翌朝刊）の「読む」面。今日の文脈を新聞の紙面のように読み下せるホーム面で、Schedule から閲覧責務を移譲した（`2026-07-14-schedule-redesign.md` §1）。朝刊本文は当日 DailyNode content 内の「朝刊」見出しセクションとして保存され（DDL ゼロ）、書き手は Claude（`write_briefing` — Step 2）と手書き（F-1 後）の両方を許す。
+1 日 1 周ループ（朝刊 = 読む → Schedule = 組む → Work = 没入 → 夕刊 = 閉じる → Claude 分析 → 翌朝刊）の「読む」面。今日の文脈を新聞の紙面のように読み下せるホーム面で、Schedule から閲覧責務を移譲した（`2026-07-14-schedule-redesign.md` §1）。朝刊の講評は 2026-10 から `dailies_payload.morning_comment` 列に保存し、書き手は Claude（`write_briefing`）です（D-20261007-briefing-1）。それより前の日は、当日 DailyNode content 内の「朝刊」見出しセクションに残っていて、列が無い日だけそちらを読みます。
 
 ### Boundary
 
 - やる:
   - **紙面表示（Step 1 出荷済み）**: 今日の約束（= ScheduleItem）・今日のタスク（= TodoNode）・持ち越し・フォーカス・AI 講評の各ブロック（列挙の出典 = briefing-loop §1。実装上の全ブロック構成は `BriefingView.tsx` が正 — Analytics 3 ウィジェットを移入した視覚ゾーンを含む）
-  - **朝刊の保存規約（`extractBriefing`）**: TipTap JSON の `heading` ノード（レベル不問）でテキストが「朝刊」/「Briefing」（大文字小文字不問・trim 後完全一致）のセクションを抽出。段落 1 = フォーカス行・段落 2 以降 = AI 講評。次の heading（テキスト不問）でセクション終了。content が欠落・パース不能・セクション無しは `null` → 紙面は空状態表示
+  - **朝刊の講評の読み方（2026-10〜）**: 列 `dailies_payload.morning_comment` を先に読み、列が無い日だけ下の本文の規約で読む。読む関数は `shared/src/components/briefing/dailyMorning.ts` の `readMorningRecord`（講評と、古い日の宣言の文章を返す）。MCP の `write_briefing` も列に書き、本文には書かない（D-20261007-briefing-1）
+  - **朝刊の目標（#2106）**: 今週の目標を進み具合つきで主役にし、今月・今年は 1 行ずつ添える。今週の目標はその場で足せる（`shared/src/components/briefing/MorningGoalsBlock.tsx`）。今日の Todo の行には、つながった目標の印が出る。いちばん上には前の晩の「明日の自分へ」が出る。期間が終わって未達の目標は、次の期間の最初の朝刊で「持ち越す / やめる / 達成にする」を 1 つずつ聞く。1 期間の上限・保存先・達成の判定は計画書 §設計 が正
+  - **朝刊の保存規約（`extractBriefing`。2026-10 からは列の無い古い日の読み口）**: TipTap JSON の `heading` ノード（レベル不問）でテキストが「朝刊」/「Briefing」（大文字小文字不問・trim 後完全一致）のセクションを抽出。段落 1 = フォーカス行・段落 2 以降 = AI 講評。次の heading（テキスト不問）でセクション終了。content が欠落・パース不能・セクション無しは `null` → 紙面は空状態表示
   - **夕刊規約（Step 3・決定録 1 + 6）**: Daily 内「夕刊」見出しセクション（英 alias: Evening）・朝刊と同じ規約・DDL ゼロ。**1 行でも成立**（書くハードルを上げない）。気分（五段階）はテキスト規約「気分: n/5」で夕刊セクション内に保存。入力 UI = Briefing 内ヘッダータブ（朝刊 / 夕刊）の専用ページ（loop-friction-fixes F-6 — 保存先は Daily のまま・Daily 側から直接書いても同じ場所に落ちる）
-  - **宣言規約（Step 4・DDL ゼロ）**: Daily 内「宣言」見出しセクション（英 alias: Intention / Intentions）。朝刊紙面の「今日の宣言」欄で編集（保存 = 行ごと段落のセクション差し替えマージ — 朝刊・夕刊セクションを壊さない）・夕刊タブは同セクションを再掲するが、wide は「今朝の宣言」として表示専用・narrow（<768px）は「今日の宣言」の編集欄（#391 — モバイルの取捨の正本は `docs/requirements/mobile-scope.md` #3）。講評は翌朝刊の朝刊セクションが担う（`get_today_context` は Daily 本文を素で読むため MCP 変更なし）
+  - **夕刊の作り直し（#2107）**: ★を付けると発行済みになり、`dailies_payload.evening_published_at` に時刻が入る。号数は「気分: n/5」の行がある Daily の数で、連続した日数を添える。ほかに、今日進んだ目標・時間順の今日の出来事（行ごとの一言 = `evening_notes`）・目標から明日の予定に置く Todo・「明日の自分へ」（旧「明日のフォーカス」。保存先は予約ノート `note-focus` の翌日の節のまま）・「Daily に移動」を持つ。一日の締めくくりの欄は、Daily と同じ「1 本の文章」を編集する（`shared/src/components/briefing/dailyText.ts` の `readDailyText` / `writeDailyText`。定義は計画書 §Daily と夕刊の文章を 1 本にする）
+  - ~~**宣言規約（Step 4・DDL ゼロ）**~~ → **退役（2026-10・#2106 / #2107）**: 朝刊・夕刊から入力欄を外し、目標につながった Todo が宣言の代わりになった（D-20260928-briefing-4）。古い日の本文に残る「宣言」の節は消さず、`readMorningRecord` が読み返す。以下は当時の規約の記録: Daily 内「宣言」見出しセクション（英 alias: Intention / Intentions）。朝刊紙面の「今日の宣言」欄で編集（保存 = 行ごと段落のセクション差し替えマージ — 朝刊・夕刊セクションを壊さない）・夕刊タブは同セクションを再掲するが、wide は「今朝の宣言」として表示専用・narrow（<768px）は「今日の宣言」の編集欄（#391 — モバイルの取捨の正本は `docs/requirements/mobile-scope.md` #3）。講評は翌朝刊の朝刊セクションが担う（`get_today_context` は Daily 本文を素で読むため MCP 変更なし）
   - 約束行の名称タップ = 完了トグル（現行）。タスク行への同型追加 + 各行からの移動ボタンは loop-friction-fixes F-2
   - **rightSidebar「今日の Todo」トレイ（#413）**: 詳細パネルに配置済み / 未配置の 2 群 + 「タスクから追加」ピッカーを出し、残っているタスクをその場で今日の候補へ配置する。部品は Schedule の `TodayTodoTray`（#298）を**流用**（複製しない）・追加の書き込みは Schedule と同じ「`scheduledAt` = 今日 0:00 + 終日」。「今日」は Briefing 側の `todayDateKey()`（日付変更時刻 #373 準拠）で、紙面の「今日の Todo」と同じ基準（#413 で紙面側の日付判定を UTC 文字列スライスから `dateKeyOfInstant()` = ローカル日付に修正。JST では終日タスクが常に前日扱いになり持ち越しへ落ちていた）。ただし Schedule 側トレイは `todayCalendarKey()`（暦日）のままなので、日付変更時刻を 0 以外にすると深夜〜設定時刻の窓だけ両者の「今日」がずれる。wide 限定（narrow は Briefing に詳細パネルの開閉導線が無い — mobile-scope.md #1 の Consumption 維持）
 - やらない:
   - Claude API 直課金の生成経路（$0 制約 — briefing-loop Context。定時自動化 Step 5 もサブスク範囲内の経路で選定）
-  - 朝刊・夕刊のための新テーブル / DDL（`dailies_payload` 内のセクション規約で表現）
+  - ~~朝刊・夕刊のための新テーブル / DDL~~ → 2026-10 の作り直しで撤回。目標の表（`goals_payload` / `goal_todo_links`）と `dailies_payload` の 3 列を足した（0034 / 0035・規約 = `docs/vision/db-conventions.md` §15）
   - 多人数向け配信（N=1・§1 Non-Goals）
   - 講評品質の UI 的解決（プロンプト / Routine 指示の運用領域 — briefing-loop Risks）
   - Google Calendar 連携（凍結 — 再開条件は `tier-3-experimental.md` 参照）
@@ -49,11 +52,11 @@
 - [ ] AC3: 約束行の名称タップで完了トグル（取り消し線）が働き、Schedule 側と同じ完了状態を共有する
 - [ ] AC4: （Step 3 実装後）夕刊タブで書いた内容が Daily の「夕刊」見出しセクションとして保存され、Daily 側でも読める。1 行だけでも成立し、「気分: n/5」行が規約どおり記録される
 - [ ] AC5: （Step 2 実装後）MCP `write_briefing` で当日 Daily に朝刊セクションを書き込むと、次回表示時に紙面へ反映される
-- [ ] AC6: （Step 4 実装後）朝刊の宣言欄で書いた内容が Daily の「宣言」見出しセクションとして保存され、夕刊タブに「今朝の宣言」として表示される。宣言の保存で朝刊・夕刊セクションが壊れない
+- [ ] ~~AC6: （Step 4 実装後）朝刊の宣言欄で書いた内容が Daily の「宣言」見出しセクションとして保存され、夕刊タブに「今朝の宣言」として表示される。宣言の保存で朝刊・夕刊セクションが壊れない~~ → 宣言の退役（2026-10）で対象外。作り直し後の AC は計画書 §Acceptance Criteria が正
 
 ### Dependencies
 
-- DB Tables: 専用テーブルなし（保存先 = `dailies_payload.content_json` 内の見出しセクション — DDL ゼロ）
+- DB Tables: `goals_payload` / `goal_todo_links`（目標）と `dailies_payload` の `morning_comment` / `evening_published_at` / `evening_notes`（2026-10〜）。夕刊の文章と気分は今も `dailies_payload.content_json` 内の見出しセクション
 - 読み取り: ScheduleItem（今日の約束）/ TodoNode（今日のタスク・持ち越し）/ TimerSession + タスクツリー（視覚ゾーン）/ WikiTagsUnified リンク（タスク行の purposes）
 - 他機能: Daily（朝刊・夕刊の保存先）/ Schedule（閲覧責務の移譲元）/ Todos / Work（Timer sessions）/ Analytics（視覚ゾーンのウィジェット移入元 — tier-3 凍結中）/ MCP Server（Step 2 の書き込み経路）
 - 子計画: `2026-07-14-schedule-redesign.md`（「組む」）/ `2026-07-16-loop-friction-fixes.md`（F-1 / F-2 / F-6 — COMPLETED・`archive/` 移動済）
@@ -66,12 +69,13 @@
 
 ### Future Enhancements
 
-- Step 4: 宣言（intentions）— 朝刊で今日の宣言 → 夕刊・翌朝刊で講評の 1 往復
+- ~~Step 4: 宣言（intentions）— 朝刊で今日の宣言 → 夕刊・翌朝刊で講評の 1 往復~~ → 2026-10 に退役。往復は「明日の自分へ」と目標が担う（D-20260928-briefing-4）
 - Step 5: 定時自動化（経路候補 = briefing-loop Risks。アプリ内ボタンは後続候補 — 技術検証 = `2026-07-16-briefing-headless-claude-prototype.md`）
 
 ### Related Plans
 
 - ACTIVE: `docs/vision/plans/2026-07-15-briefing-loop.md`(テーマ正本)
+- IN PROGRESS: `docs/vision/plans/2026-10-03-briefing-goals-redesign.md`（目標と Todo をつなぐ作り直し。残りは実画面の確認 = Step 12）
 - COMPLETED: `archive/2026-07-14-schedule-redesign.md`（2026-08-10 #591 で archive 移動）
 - COMPLETED: `archive/2026-07-16-loop-friction-fixes.md`（2026-07-19 archive 移動）
 - REFERENCE: `docs/vision/plans/2026-07-16-briefing-headless-claude-prototype.md`（ボタン起動の技術検証記録）
@@ -315,6 +319,7 @@ TodoTree を SSOT として、日次実行対象（Schedule）と長期構造（
 
 - やる:
   - **Memo**: 日次 1 エントリ（`id='memo-<date>'`）、TipTap コンテンツ、ピン留め、パスワード保護、編集ロック
+  - **本文 = その日の 1 本の文章（2026-10・#2123）**: Daily の本文から朝刊の節・宣言の節・「夕刊」の見出し・「気分: n/5」の行を除いた残りを 1 本の文章として編集する。夕刊の締めくくりの欄と同じ `readDailyText` / `writeDailyText` を使い、開いただけの日は保存し直さない。朝刊の講評と古い宣言は `readMorningRecord` で本文とは別の欄に読み取り専用で出す。本文の下は気分の★と評価の数字 4 つ（予定の数・Todo の達成率・作業時間・今日進んだ目標の数）だけで、★は夕刊の★と同じく発行時刻も入れる（D-20261006-main-5〜8・実装 = `web/src/daily/DailyView.tsx`）
   - **TimeMemo**: 時刻付き短文メモ（`date` + `hour` + `content`）、Schedule タイムグリッドに埋め込まれる補助記録
   - MCP `get_memo` / `upsert_memo` による Claude からの読み書き（日記自動記入 / 過去分検索）
   - ソフトデリート + 復元 + 完全削除（UI 限定）
