@@ -11,6 +11,7 @@ import type { Mock } from "vitest";
 import {
   DailiesUnifiedProvider,
   WikiTagsUnifiedProvider,
+  writeDailyText,
   type DataService,
 } from "@life-editor/shared";
 import { stubDataService, createBumpableSync } from "./helpers";
@@ -152,9 +153,13 @@ function makeHarness(rows = [row(TODAY), row(YESTERDAY)]): Harness {
     listAllWikiTagsUnified: vi.fn(async () => []),
     listAllTagAssignments: vi.fn(async () => []),
     listAllTagConnections: vi.fn(async () => []),
-    // The evening card's schedule read (#1046) — a passive summary, so an
-    // empty day is the honest default here.
+    // The rows behind the four figures under the body (#2123) — a passive
+    // summary, so an empty day is the honest default here.
     fetchScheduleItemsByDate: vi.fn(async () => []),
+    fetchTodoTree: vi.fn(async () => []),
+    fetchTimerSessions: vi.fn(async () => []),
+    fetchGoals: vi.fn(async () => []),
+    fetchGoalTodoLinks: vi.fn(async () => []),
   };
   for (const method of WRITE_METHODS) {
     fns[method] = vi.fn(async () => ({ ...rows[0] }));
@@ -320,7 +325,12 @@ describe("DailyView — the editor's save", () => {
     );
     // upsert-by-date is the one write that must NOT resolve an id first: a day
     // with no row yet is exactly the case it exists for.
-    expectOnlyWrite(harness.fns, "upsertDailyByDateUnified", [YESTERDAY, BODY]);
+    // The emission is the day's whole one text (#2123), stored under the
+    //「夕刊」heading in place of the old plain-text entry.
+    expectOnlyWrite(harness.fns, "upsertDailyByDateUnified", [
+      YESTERDAY,
+      writeDailyText(`entry for ${YESTERDAY}`, BODY),
+    ]);
   });
 
   it("mints nothing for an empty body on a day that has no entry", async () => {
