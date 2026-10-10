@@ -10,11 +10,14 @@
  * desktop's typecheck instead of half-landing and rejecting at runtime.
  */
 
+import type { AiCustomizationDataService } from "../services/DataService";
+
 /** Mirrors `ClaudeLaunchError` in the desktop contract. */
 export type ClaudeLaunchErrorCode =
   | "no-project-path"
   | "invalid-project-path"
   | "claude-not-found"
+  | "prepare-failed"
   | "spawn-failed";
 
 export interface ClaudeLaunchOutcome {
@@ -24,7 +27,10 @@ export interface ClaudeLaunchOutcome {
 
 export interface DesktopClaudeLauncherBridge {
   getClaudeProjectPath(): Promise<string>;
-  launchClaude(args: { projectPath?: string }): Promise<ClaudeLaunchOutcome>;
+  launchClaude(args: {
+    projectPath?: string;
+    customization?: ClaudeCustomizationPayload;
+  }): Promise<ClaudeLaunchOutcome>;
 }
 
 /**
@@ -49,4 +55,40 @@ export function getClaudeLauncherBridge(): DesktopClaudeLauncherBridge | null {
     return null;
   }
   return desktop as DesktopClaudeLauncherBridge;
+}
+/**
+ * What the launch hands main to write into the app's own Claude folder
+ * (#2120). Mirrors `ClaudeCustomizationPayload` in the desktop contract.
+ * Text only — main writes it into files and never onto a command line.
+ */
+export interface ClaudeCustomizationPayload {
+  rules: string;
+  memories: string[];
+  skills: { slug: string; description: string; body: string }[];
+}
+
+/**
+ * Read the rules / memories / skills (#2118) into the launch payload. Throws
+ * when a read fails; the caller decides whether to launch without it.
+ */
+export async function collectClaudeCustomization(
+  ds: Pick<
+    AiCustomizationDataService,
+    "fetchAiRule" | "fetchAiMemories" | "fetchAiSkills"
+  >,
+): Promise<ClaudeCustomizationPayload> {
+  const [rule, memories, skills] = await Promise.all([
+    ds.fetchAiRule(),
+    ds.fetchAiMemories(),
+    ds.fetchAiSkills(),
+  ]);
+  return {
+    rules: rule?.body ?? "",
+    memories: memories.map((m) => m.body),
+    skills: skills.map(({ slug, description, body }) => ({
+      slug,
+      description,
+      body,
+    })),
+  };
 }
