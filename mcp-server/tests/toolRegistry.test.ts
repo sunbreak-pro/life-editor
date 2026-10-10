@@ -58,8 +58,28 @@ describe("registry structure", () => {
   });
 });
 
+/**
+ * Tools that take no arguments at all (#2121) — reads with nothing to filter
+ * on. They have nothing to mistype, so the wrong-type check below skips them;
+ * listing them here keeps a new tool from joining the set by accident.
+ */
+const NO_ARGUMENT_TOOLS = [
+  "get_ai_rules",
+  "list_ai_memories",
+  "list_ai_skills",
+];
+
 describe("every published tool is registered and validated", () => {
-  it.each(TOOLS.map((t) => t.name))(
+  it("names every argument-less tool", () => {
+    const empty = TOOLS.filter(
+      (t) => Object.keys(t.inputSchema.properties ?? {}).length === 0,
+    ).map((t) => t.name);
+    expect(empty.sort()).toEqual([...NO_ARGUMENT_TOOLS].sort());
+  });
+
+  it.each(
+    TOOLS.map((t) => t.name).filter((n) => !NO_ARGUMENT_TOOLS.includes(n)),
+  )(
     "%s rejects a wrong-typed argument instead of dispatching",
     async (name) => {
       const schema = schemaOf(name);
@@ -227,6 +247,18 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ["delete_goal", { id: "goal-1" }],
   ["link_goal_todo", { goal_id: "goal-1", todo_id: "task-1" }],
   ["unlink_goal_todo", { goal_id: "goal-1", todo_id: "task-1" }],
+  ["get_ai_rules", {}],
+  ["list_ai_memories", {}],
+  ["add_ai_memory", { body: "prefers short answers" }],
+  ["update_ai_memory", { id: "aimemory-1", body: "prefers short answers" }],
+  ["list_ai_skills", {}],
+  ["get_ai_skill", { slug: "weekly-review" }],
+  ["create_ai_skill", { slug: "weekly-review", description: "On Fridays" }],
+  [
+    "create_ai_skill",
+    { slug: "weekly-review", description: "On Fridays", body: "# Steps" },
+  ],
+  ["update_ai_skill", { slug: "weekly-review", new_slug: "review" }],
   ["link_items", { from_id: "note-1", to_id: "task-2" }],
   ["unlink_items", { from_id: "note-1", to_id: "task-2" }],
   ["list_work_sessions", {}],
