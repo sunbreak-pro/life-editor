@@ -108,3 +108,44 @@ describe("useRoutineRangeFill", () => {
     expect(b.fill).not.toHaveBeenCalled();
   });
 });
+
+/*
+ * #2097 — a resize from Desktop to Mobile changes the range several times in a
+ * row. Each change used to start a fill at once; the fills raced on the same
+ * (routine, date) slots and all but one ended in a 409 and a rollback.
+ */
+describe("useRoutineRangeFill — one pass at a time (#2097)", () => {
+  it("waits for the pass in flight and skips the one a newer pass superseded", async () => {
+    let inFlight = 0;
+    let maxInFlight = 0;
+    const releases: Array<() => void> = [];
+    const fill = vi.fn<UseRoutineRangeFillArgs["fill"]>(() => {
+      inFlight++;
+      maxInFlight = Math.max(maxInFlight, inFlight);
+      return new Promise<number | null>((resolve) => {
+        releases.push(() => {
+          inFlight--;
+          resolve(1);
+        });
+      });
+    });
+    const { rerender, props, reload } = setup({ fill });
+    await waitFor(() => expect(fill).toHaveBeenCalledTimes(1));
+
+    // Two more range changes land while the first pass is still writing.
+    rerender({ ...props, rangeStart: "2026-10-04", rangeEnd: "2026-10-31" });
+    rerender({ ...props, rangeStart: "2026-09-28", rangeEnd: "2026-11-08" });
+    await Promise.resolve();
+    expect(fill).toHaveBeenCalledTimes(1);
+
+    releases[0]();
+    await waitFor(() => expect(fill).toHaveBeenCalledTimes(2));
+    // The middle range was superseded before its turn came.
+    expect(fill).toHaveBeenLastCalledWith("2026-10-04", "2026-11-08", [
+      ROUTINE,
+    ]);
+    releases[1]();
+    await waitFor(() => expect(reload).toHaveBeenCalledTimes(1));
+    expect(maxInFlight).toBe(1);
+  });
+});
