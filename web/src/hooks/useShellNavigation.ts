@@ -44,6 +44,18 @@ export type NavDestination =
   | { section: Exclude<SectionId, "materials"> };
 
 /**
+ * Where an item opened as a side trip goes back to when it closes (#2143):
+ * the section, and the tabs that section was showing. Both tabs are kept,
+ * not just the one for `section` — restoring a tab nobody is looking at is a
+ * no-op, and it saves a per-section branch here.
+ */
+interface ItemReturnOrigin {
+  section: SectionId;
+  materialsTab: MaterialsTab;
+  connectTab: ConnectTab;
+}
+
+/**
  * Where each nav:* binding lands. The shared executor only reports WHICH
  * binding fired (§ useGlobalShortcuts) — the IA lives here, in one table.
  */
@@ -175,6 +187,21 @@ export function useShellNavigation({
     [confirmLeave],
   );
 
+  /*
+   * Where closing an opened item goes back to (#2143). Set only by
+   * `navigateToItemWithReturn`, and keyed on the item it opened: the detail
+   * that closes says WHICH item it was showing, so a todo the user opened
+   * later from the calendar itself never sends them back to Connect.
+   *
+   * Any other move drops it (applyDestination / setSection below). Without
+   * that, a return point left behind by an item the user wandered away from
+   * would fire the next time any detail with that id closed.
+   */
+  const [itemReturn, setItemReturn] = useState<{
+    itemId: string;
+    from: ItemReturnOrigin;
+  } | null>(null);
+
   // The one place a destination is applied. Everything that navigates — the
   // nav:* shortcuts, Briefing's jump links, "[[" link clicks — routes through
   // here, so section and tab can never be set out of step. Unguarded: the
@@ -182,6 +209,7 @@ export function useShellNavigation({
   const applyDestination = useCallback((dest: NavDestination) => {
     setSectionNow(dest.section);
     if (dest.section === "materials") setMaterialsTab(dest.tab);
+    setItemReturn(null);
   }, []);
 
   const navigateTo = useCallback(
@@ -195,7 +223,11 @@ export function useShellNavigation({
    * updater — every caller already passed one.
    */
   const setSection = useCallback(
-    (next: SectionId) => guarded(() => setSectionNow(next)),
+    (next: SectionId) =>
+      guarded(() => {
+        setSectionNow(next);
+        setItemReturn(null);
+      }),
     [guarded],
   );
 
@@ -293,6 +325,51 @@ export function useShellNavigation({
     },
     [guarded, applyDestination],
   );
+  /*
+   * The same jump, remembering where it came from (#2143). Connect opens its
+   * todos in Schedule's detail, and closing that detail used to leave the user
+   * on the calendar underneath — a one-way trip out of the tab they were
+   * working in.
+   *
+   * Opt-in per caller rather than built into `navigateToItem`: Connect is the
+   * one surface whose items open in ANOTHER section's overlay as a side trip.
+   * Whether a Briefing or "[[" jump should come back too is a separate
+   * product call, so those routes keep their old one-way behavior.
+   */
+  const navigateToItemWithReturn = useCallback(
+    (target: { id: string; role: string; date?: string }) => {
+      const dest = ITEM_NAV_TARGET[target.role];
+      if (!dest) return;
+      // Read now, at the click: by the time the guard answers, this IS still
+      // where the user is — no section can change while the dialog is up.
+      const from: ItemReturnOrigin = { section, materialsTab, connectTab };
+      guarded(() => {
+        applyDestination(dest);
+        setPendingItemNav(target);
+        // After applyDestination, which clears it.
+        setItemReturn({ itemId: target.id, from });
+      });
+    },
+    [guarded, applyDestination, section, materialsTab, connectTab],
+  );
+  /*
+   * The destination's "I closed this item" (#2143). Goes back only when the
+   * item is the one a return point was left for; otherwise it is an ordinary
+   * close and the user stays where they are.
+   */
+  const returnFromItem = useCallback(
+    (itemId: string) => {
+      if (!itemReturn || itemReturn.itemId !== itemId) return;
+      const { from } = itemReturn;
+      guarded(() => {
+        setSectionNow(from.section);
+        setMaterialsTab(from.materialsTab);
+        setConnectTab(from.connectTab);
+        setItemReturn(null);
+      });
+    },
+    [guarded, itemReturn],
+  );
   const consumeItemNav = useCallback(() => setPendingItemNav(null), []);
   const pendingNoteSelect =
     pendingItemNav?.role === "note" ? pendingItemNav.id : null;
@@ -346,6 +423,8 @@ export function useShellNavigation({
     handleNavigate,
     handleNewTodo,
     navigateToItem,
+    navigateToItemWithReturn,
+    returnFromItem,
     consumeItemNav,
     pendingNoteSelect,
     pendingDailySelect,

@@ -215,6 +215,7 @@ export const SECTION_DESCRIPTORS: Readonly<
                   pendingSelectEvent={nav.pendingEventSelect}
                   onConsumePendingEvent={nav.consumeItemNav}
                   onNavigateToItem={nav.navigateToItem}
+                  onTodoDetailClose={nav.returnFromItem}
                 />
               </ScheduleItemsProvider>
             </RoutineProvider>
@@ -287,6 +288,9 @@ export const SECTION_DESCRIPTORS: Readonly<
    * two-table upkeep in lazySections.ts (#1158).
    */
   // Two tabs since #2108: the tag hub, and the goal tree (plan Step 9).
+  // Both open their items through the returning jump (#2143): a todo opened
+  // here comes back here when its detail closes, rather than stranding the
+  // user on the Schedule calendar underneath.
   connect: {
     width: "fluid",
     tabBand: "connect",
@@ -295,13 +299,13 @@ export const SECTION_DESCRIPTORS: Readonly<
       nav.connectTab === "goals" ? (
         <GoalsTodosScreen
           dataService={ds}
-          onNavigateToItem={nav.navigateToItem}
+          onNavigateToItem={nav.navigateToItemWithReturn}
         />
       ) : (
         <WikiTagsUnifiedProvider dataService={ds}>
           <ConnectScreen
             dataService={ds}
-            onNavigateToItem={nav.navigateToItem}
+            onNavigateToItem={nav.navigateToItemWithReturn}
             onCountsChange={onConnectCounts}
           />
         </WikiTagsUnifiedProvider>
