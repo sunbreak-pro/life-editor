@@ -1,5 +1,7 @@
 # _COMMON-CONTEXT — 全 ClaudeDesign プロンプト共通の前提ブロック
 
+> **引退注記（2026-10-10 — #2152）**: 後継は部品集の 2 枚です。アプリの説明は `shared/design-system/claude-design/foundations/app.html`、設計の意図は同じ場所の `intent.html` にあります。2 枚は DesignSystem プロジェクトに置かれ、Claude Design のセッションごとに読み込まれるので、プロンプトへ貼る必要はありません。新しく作る brief からは本ファイルを参照しないでください。既存の brief に埋め込まれた版は、生成した時点の記録として残します。
+
 > **凍結注記（2026-09-21 追記 — #1806。この注記では版数を上げません）**: 本ファイルは ClaudeDesign へ貼るために作った**生成条件のスナップショット**です。画面構成そのものの正本ではありません。
 > 現行の正本は、ナビ構成が `shared/src/sections.ts` の registry と [`docs/requirements/mobile-scope.md`](../../requirements/mobile-scope.md)、パレットが `shared/src/styles/tokens.css` です。食い違ったら常にそちらが正です。
 > 各 brief には生成した時点の版が埋め込まれたまま残ります。貼り直す予定が出たときに、この前提ブロックを現行化してから貼ってください。そのときが実質の期限です。

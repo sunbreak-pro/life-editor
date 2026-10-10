@@ -171,6 +171,7 @@
 ### 4.2 集約先（W0 案 A）
 
 - 部品: `shared/src/components/`（barrel `index.ts` → `shared/src/index.ts`）
+- Claude Design 向けの要約: `claude-design/foundations/intent.html`（本書と `.claude/rules/frontend.md` の要約。食い違ったら本書と rules が正）
 - トークン: `shared/src/styles/tokens.css`（host が `@import` + `@source` でスキャン）
 - i18n: `shared/src/i18n/`（catalog + init）
 - 旧 `frontend/`（Tauri 時代）は 2026-07-11 に**削除済み**（#197・復元は git tag `pre-tauri-removal`）。UI の実体は `shared/` だけ。
@@ -228,6 +229,7 @@
 4. 部品からは `bg-lumen-<name>` / `text-lumen-<name>` で参照。
 5. コントラスト検証（§3.6）。本文・on-accent は AA を満たすか確認。
 6. PR で `tokens.css` と本書 §3.3 を同時更新（色の SSOT を 2 箇所で食い違わせない）。
+7. 部品集 `claude-design/foundations/colors.html`（色以外の段は `steps.html`）にも同じ値の行を足す。抜けると `shared/tests/designKitFreshness.test.ts` が落ちる（#2152）。
 
 ---
 

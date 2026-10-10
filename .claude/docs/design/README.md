@@ -8,14 +8,15 @@ ClaudeDesign (claude.ai/design) に貼るプロンプトの**正本**と、そ�
 | --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `IA.md`                     | **ナビ構成の正本**（サイドバー = 本流 + ユーティリティ枠 / header タブ / Mobile 固定 4 + More。2026-07-05 ユーザー承認。**個数と並びは `shared/src/sections.ts` の registry を数える** — 数値の非複製原則） |
 | `briefs/_TEMPLATE.md`       | brief の統一形式（全セッション必ず準拠）                                                                                                                                                                    |
-| `briefs/_COMMON-CONTEXT.md` | 全プロンプト共通の前提ブロック（各プロンプト冒頭に**全文埋め込み**・版数管理あり）                                                                                                                          |
+| `briefs/_COMMON-CONTEXT.md` | **引退済み**（#2152）。旧・全プロンプト共通の前提ブロック。後継は部品集の 2 枚で、新しく作る brief からは参照しない（下の運用原則）                                                                         |
 | `briefs/<section>.md`       | 各画面の brief（**1 セッション = 1 ファイル = 単一書込者**）                                                                                                                                                |
 
 ## 運用原則
 
 - **ClaudeDesign はリポジトリを読めない**。プロンプト本文は自己完結させる（パス参照・「上記参照」禁止）
 - 生成 → 同期 → 移植の分業: 生成 = claude.ai/design 側 / Claude Code 側 DesignSync は同期専用 / 出荷 UI 化は `shared/src/components/` への移植（別計画）
-- トークンの SSOT は `shared/src/styles/tokens.css`、ナビ構成の SSOT は `IA.md`。`_COMMON-CONTEXT.md` は両者に追随し、変更時は版数を上げる（正本 → \_COMMON-CONTEXT → 各 brief の順で同期・片方だけ変えない）
+- トークンの SSOT は `shared/src/styles/tokens.css`、ナビ構成の SSOT は `IA.md`。
+- **アプリの説明と設計の意図はプロンプトに埋め込まない**（#2152）。部品集の `shared/design-system/claude-design/foundations/app.html`（アプリの説明）と `intent.html`（設計の意図）が DesignSystem プロジェクト経由で毎回読み込まれるため、旧 `_COMMON-CONTEXT.md` の役目はこの 2 枚が引き継いだ。部品集と tokens.css・`sections.ts` のずれは `shared/tests/designKitFreshness.test.ts` が見つける
 - **全 brief は現行実装ではなく `IA.md` の目標構成に向けてデザインする**
 
 計画書（COMPLETED・2026-08-01 に archive へ移動）: [`../../archive/2026-07-04-claudedesign-screen-design-fanout.md`](../../archive/2026-07-04-claudedesign-screen-design-fanout.md)

@@ -1,0 +1,72 @@
+<!-- @dsCard group="Foundations" -->
+<!doctype html>
+<html lang='en'><head><meta charset='utf-8'><style>
+:root{--font:ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,'Apple Color Emoji',Arial,sans-serif,'Segoe UI Emoji','Segoe UI Symbol';--mono:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,'Liberation Mono','Courier New',monospace;
+--bg:#f5ebda;--surface:#fbf4e8;--text:#2b2015;--text2:#6b5a45;--border:#eadec6;--accent:#ad4409;--danger:#d92d20;--mint:#1fa56e;--mintbg:#daf3e7;--mintfg:#0c6f4e}
+*{box-sizing:border-box}
+body{margin:0;padding:28px;background:var(--bg);color:var(--text);font-family:var(--font)}
+h1{font-size:15px;font-weight:600;margin:0 0 4px}
+p.sub{margin:0 0 20px;color:var(--text2);font-size:12px}
+.cols{display:grid;grid-template-columns:1fr 1fr;gap:14px;max-width:760px}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px}
+.card h2{font-size:11px;font-weight:700;margin:0 0 10px;text-transform:uppercase;letter-spacing:.05em;color:var(--accent)}
+ol,ul{margin:0;padding-left:18px}
+li{font-size:12px;line-height:1.65;margin-bottom:5px}
+li b{font-weight:600}
+code{background:var(--mintbg);color:var(--mintfg);font-family:var(--mono);font-size:11px;padding:1px 5px;border-radius:6px}
+.full{grid-column:1 / -1}
+.foot{margin-top:14px;font-size:11px;color:var(--text2)}
+.foot b{color:var(--text)}
+table{width:100%;border-collapse:collapse;font-size:12px;line-height:1.55}
+th{text-align:left;font-size:10px;font-weight:600;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;padding:0 8px 8px 0;border-bottom:1px solid var(--border)}
+td{vertical-align:top;padding:8px 8px 8px 0;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+td.id{white-space:nowrap}
+td.id span{display:block;margin-top:3px;font-weight:600}
+td.meta{white-space:nowrap;color:var(--text2);font-family:var(--mono);font-size:10.5px}
+td.mob{white-space:nowrap;color:var(--text2);font-size:11px}
+td.mob b{color:var(--mintfg);font-weight:600}
+</style></head><body>
+<h1>The App — what Life Editor is</h1>
+<p class='sub'>アプリの目的 · Desktop と Mobile の役割 · 全セクションの一覧 · 正本 = .claude/CLAUDE.md §1-2 / shared/src/sections.ts</p>
+<div class='cols'>
+  <div class='card'>
+    <h2>このアプリは何か</h2>
+    <ul>
+      <li><b>AI と会話しながら生活を設計・記録・運用するパーソナル OS</b> である。</li>
+      <li>予定・Todo・ノート・日記・集中作業を 1 つのアプリにまとめる。</li>
+      <li>Claude Code が MCP Server 経由で同じデータを読み書きする。スマホの Claude アプリも Remote MCP でつながる。</li>
+      <li>主ユーザーは作者本人で、macOS と iOS で使う。</li>
+      <li>10〜20 人の限られた人数に配り、サインアップを開いている。各ユーザーは自分だけの空間を持ち、共有や権限管理は持たない。</li>
+    </ul>
+  </div>
+  <div class='card'>
+    <h2>Desktop と Mobile</h2>
+    <ul>
+      <li><b>境目は 768px の 1 本</b>だけである。各画面はこの幅で wide と narrow を切り替える。</li>
+      <li><b>Desktop（768px 以上）</b>は左のサイドバーを持つ殻で、全機能を使える。</li>
+      <li><b>Mobile（768px 未満）</b>は下部タブバーの殻で、役割は閲覧（Consumption）と素早い入力（Quick capture）に絞る。</li>
+      <li>Mobile は Desktop を縮めた画面として作らない。セクションは全部たどれるが、各セクションの中の機能を取捨する。</li>
+      <li>下部バーは固定 4 枠で、残りのセクションと Undo / Redo・コマンドパレットは「その他」シートに入る。</li>
+    </ul>
+    <div class='foot'>Consumption は閲覧が主で、完了トグルや★のような <b>1 タップの更新は含む</b>。Quick capture は新規作成と簡易入力だけを指す。</div>
+  </div>
+  <div class='card full'>
+    <h2>セクション一覧（サイドバーの並び順）</h2>
+    <table>
+      <thead><tr><th>SectionId / 表示名</th><th>アイコン</th><th>グループ</th><th>Mobile</th><th>役割</th></tr></thead>
+      <tbody>
+        <tr><td class='id'><code>briefing</code><span>朝刊</span></td><td class='meta'>Sunrise</td><td class='meta'>main</td><td class='mob'><b>下部バー 1</b></td><td>起動時に開くホーム面で、今日の予定・Todo・持ち越し・AI の講評を新聞の紙面のように読む。朝刊と夕刊をタブで切り替え、夕刊で 1 日を閉じる。</td></tr>
+        <tr><td class='id'><code>schedule</code><span>予定</span></td><td class='meta'>Clock</td><td class='meta'>main</td><td class='mob'><b>下部バー 2</b></td><td>1 日を組む場所で、カレンダーに予定を置いて時間を割り当てる。繰り返しの設定と今日の Todo は右の詳細パネルで扱う。</td></tr>
+        <tr><td class='id'><code>materials</code><span>素材</span></td><td class='meta'>Library</td><td class='meta'>main</td><td class='mob'><b>下部バー 3</b></td><td>書いて残す場所で、ノートとデイリーの 2 タブを持つ。ノートは長文の知識を、デイリーは日付ごとの思考ログを受け持つ。</td></tr>
+        <tr><td class='id'><code>connect</code><span>つながり</span></td><td class='meta'>Tags</td><td class='meta'>main</td><td class='mob'>その他シート</td><td>タグを入口にノート・Todo・予定・デイリーを種類別に読む、トピック軸の入口である。タグの作成・改名・色の変更もここで行い、「目標と Todo」タブで目標の木を見る。</td></tr>
+        <tr><td class='id'><code>work</code><span>集中</span></td><td class='meta'>Timer</td><td class='meta'>main</td><td class='mob'><b>下部バー 4</b></td><td>ポモドーロタイマーで集中作業を回し、取り組む Todo を選ぶ。環境音のミキサーは Desktop だけに出る。</td></tr>
+        <tr><td class='id'><code>analytics</code><span>分析</span></td><td class='meta'>BarChart3</td><td class='meta'>main</td><td class='mob'>その他シート</td><td>Todo・予定・作業時間の記録を集計して見る。Desktop は 4 タブのダッシュボードで、Mobile は 1 本の縦スクロールにまとまる。</td></tr>
+        <tr><td class='id'><code>settings</code><span>設定</span></td><td class='meta'>Settings</td><td class='meta'>utility</td><td class='mob'>その他シート</td><td>プロフィール・一般・Claude 連携・セクション別の設定をカテゴリ行で切り替える。ゴミ箱もここに入っていて、削除したものを戻せる。</td></tr>
+      </tbody>
+    </table>
+    <div class='foot'>グループ main はサイドバー本体に、utility はその下に並ぶ。下部バーの番号は <code>mobileOrder</code> の小さい順で、5 番目以降が「その他」シートに回る。</div>
+  </div>
+</div>
+<div class='foot'><b>正本:</b> shared/src/sections.ts（セクション一覧）/ .claude/docs/requirements/mobile-scope.md（Mobile の範囲）</div>
+</body></html>
