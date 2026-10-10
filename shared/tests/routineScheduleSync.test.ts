@@ -395,3 +395,55 @@ describe("shouldCreateRoutineItem — the series' end date (#2082)", () => {
     ]);
   });
 });
+
+describe("shouldCreateRoutineItem — the series' first day (#2098)", () => {
+  it("never fires before the start date, whatever the frequency", () => {
+    expect(
+      shouldCreateRoutineItem(
+        makeRoutine({ frequencyStartDate: "2026-10-05" }),
+        "2026-10-04",
+      ),
+    ).toBe(false);
+    expect(
+      shouldCreateRoutineItem(
+        makeRoutine({
+          frequencyType: "weekdays",
+          frequencyDays: [0, 1, 2, 3, 4, 5, 6],
+          frequencyStartDate: "2026-10-05",
+        }),
+        "2026-10-03",
+      ),
+    ).toBe(false);
+  });
+
+  it("fires on the start date itself (inclusive)", () => {
+    expect(
+      shouldCreateRoutineItem(
+        makeRoutine({ frequencyStartDate: "2026-10-05" }),
+        "2026-10-05",
+      ),
+    ).toBe(true);
+  });
+
+  it("keeps no lower bound when the start date is unset", () => {
+    expect(
+      shouldCreateRoutineItem(
+        makeRoutine({ frequencyStartDate: null }),
+        "2000-01-01",
+      ),
+    ).toBe(true);
+  });
+
+  it("starts the range generator on the start date", () => {
+    const rows = collectRoutineItemsForDates(
+      new Date("2026-10-03T00:00:00"),
+      new Date("2026-10-07T00:00:00"),
+      [makeRoutine({ frequencyStartDate: "2026-10-05" })],
+    );
+    expect(rows.map((r) => r.date)).toEqual([
+      "2026-10-05",
+      "2026-10-06",
+      "2026-10-07",
+    ]);
+  });
+});
