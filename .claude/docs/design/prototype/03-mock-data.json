@@ -1,0 +1,1137 @@
+{
+  "_about": "Life Editor の試作に入れる見本データ（すべて架空）。今日 = 2026-10-10（土）、今の時刻 = 09:20 として組んでいます。日時は ISO 8601、時刻は 24 時間表記です。",
+  "now": "2026-10-10T09:20:00+09:00",
+  "user": {
+    "displayName": "こうだい",
+    "email": "you@example.com"
+  },
+  "tags": [
+    {
+      "id": "tag-work",
+      "name": "仕事",
+      "icon": "Briefcase",
+      "color": "#2563eb",
+      "count": 14
+    },
+    {
+      "id": "tag-health",
+      "name": "健康",
+      "icon": "HeartPulse",
+      "color": "#16a34a",
+      "count": 9
+    },
+    {
+      "id": "tag-home",
+      "name": "家のこと",
+      "icon": "Home",
+      "color": "#f59e0b",
+      "count": 7
+    },
+    {
+      "id": "tag-study",
+      "name": "勉強",
+      "icon": "BookOpen",
+      "color": "#8b5cf6",
+      "count": 11
+    },
+    {
+      "id": "tag-money",
+      "name": "お金",
+      "icon": "Wallet",
+      "color": "#0f766e",
+      "count": 4
+    },
+    {
+      "id": "tag-trip",
+      "name": "旅行",
+      "icon": "Plane",
+      "color": "#ec4899",
+      "count": 3
+    },
+    {
+      "id": "tag-idea",
+      "name": "アイデア",
+      "icon": "Lightbulb",
+      "color": "#eab308",
+      "count": 6
+    },
+    {
+      "id": "tag-unused",
+      "name": "読書会",
+      "icon": null,
+      "color": null,
+      "count": 0
+    }
+  ],
+  "savedTagGroups": [
+    {
+      "id": "grp-1",
+      "name": "平日の仕事",
+      "tagIds": [
+        "tag-work",
+        "tag-study"
+      ]
+    },
+    {
+      "id": "grp-2",
+      "name": "暮らし",
+      "tagIds": [
+        "tag-health",
+        "tag-home",
+        "tag-money"
+      ]
+    }
+  ],
+  "goals": [
+    {
+      "id": "goal-y1",
+      "period": "year",
+      "periodKey": "2026",
+      "title": "英語で仕事の打ち合わせができるようになる",
+      "parentId": null,
+      "todoIds": [],
+      "achieved": false
+    },
+    {
+      "id": "goal-y2",
+      "period": "year",
+      "periodKey": "2026",
+      "title": "体重を 5kg 落として保つ",
+      "parentId": null,
+      "todoIds": [],
+      "achieved": false
+    },
+    {
+      "id": "goal-m1",
+      "period": "month",
+      "periodKey": "2026-10",
+      "title": "企画書を通す",
+      "parentId": "goal-y1",
+      "todoIds": [
+        "todo-3"
+      ],
+      "achieved": false
+    },
+    {
+      "id": "goal-m2",
+      "period": "month",
+      "periodKey": "2026-10",
+      "title": "週 3 回走る習慣をつける",
+      "parentId": "goal-y2",
+      "todoIds": [],
+      "achieved": false
+    },
+    {
+      "id": "goal-w1",
+      "period": "week",
+      "periodKey": "2026-W41",
+      "title": "企画書の初稿を書き上げる",
+      "parentId": "goal-m1",
+      "todoIds": [
+        "todo-1",
+        "todo-2",
+        "todo-4",
+        "todo-9"
+      ],
+      "achieved": false
+    },
+    {
+      "id": "goal-w2",
+      "period": "week",
+      "periodKey": "2026-W41",
+      "title": "朝のランニングを 3 回",
+      "parentId": "goal-m2",
+      "todoIds": [
+        "todo-5",
+        "todo-10"
+      ],
+      "achieved": false
+    },
+    {
+      "id": "goal-w3",
+      "period": "week",
+      "periodKey": "2026-W41",
+      "title": "部屋の冬支度",
+      "parentId": null,
+      "todoIds": [],
+      "achieved": false
+    }
+  ],
+  "goalReviews": [
+    {
+      "id": "goal-prev-1",
+      "period": "week",
+      "periodKey": "2026-W40",
+      "title": "確定申告の書類を集める",
+      "done": 2,
+      "total": 3
+    }
+  ],
+  "todos": [
+    {
+      "id": "todo-1",
+      "title": "企画書の構成を決める",
+      "status": "done",
+      "bucket": "today",
+      "date": "2026-10-10",
+      "timeLabel": "09:00",
+      "tagIds": [
+        "tag-work"
+      ],
+      "goalIds": [
+        "goal-w1"
+      ],
+      "memo": ""
+    },
+    {
+      "id": "todo-2",
+      "title": "競合 3 社の価格を調べる",
+      "status": "todo",
+      "bucket": "today",
+      "date": "2026-10-10",
+      "timeLabel": "10:30",
+      "tagIds": [
+        "tag-work"
+      ],
+      "goalIds": [
+        "goal-w1"
+      ],
+      "memo": "A 社は年額プランもあるか確認する"
+    },
+    {
+      "id": "todo-3",
+      "title": "部長に企画の方向性を相談する",
+      "status": "todo",
+      "bucket": "today",
+      "date": "2026-10-10",
+      "timeLabel": "14:00",
+      "tagIds": [
+        "tag-work"
+      ],
+      "goalIds": [
+        "goal-m1"
+      ],
+      "memo": ""
+    },
+    {
+      "id": "todo-4",
+      "title": "企画書の図を 2 枚作る",
+      "status": "done",
+      "bucket": "today",
+      "date": "2026-10-10",
+      "timeLabel": null,
+      "tagIds": [
+        "tag-work"
+      ],
+      "goalIds": [
+        "goal-w1"
+      ],
+      "memo": ""
+    },
+    {
+      "id": "todo-5",
+      "title": "朝 5km 走る",
+      "status": "done",
+      "bucket": "today",
+      "date": "2026-10-10",
+      "timeLabel": "07:00",
+      "tagIds": [
+        "tag-health"
+      ],
+      "goalIds": [
+        "goal-w2"
+      ],
+      "memo": ""
+    },
+    {
+      "id": "todo-6",
+      "title": "クリーニングを受け取る",
+      "status": "todo",
+      "bucket": "today",
+      "date": "2026-10-10",
+      "timeLabel": null,
+      "tagIds": [
+        "tag-home"
+      ],
+      "goalIds": [],
+      "memo": ""
+    },
+    {
+      "id": "todo-7",
+      "title": "電気代の明細を家計簿に写す",
+      "status": "todo",
+      "bucket": "other",
+      "date": null,
+      "timeLabel": null,
+      "tagIds": [
+        "tag-money"
+      ],
+      "goalIds": [],
+      "memo": "",
+      "carryOverDays": 3
+    },
+    {
+      "id": "todo-8",
+      "title": "英単語アプリを 15 分",
+      "status": "todo",
+      "bucket": "other",
+      "date": null,
+      "timeLabel": null,
+      "tagIds": [
+        "tag-study"
+      ],
+      "goalIds": [],
+      "memo": "",
+      "carryOverDays": 1
+    },
+    {
+      "id": "todo-9",
+      "title": "企画書の初稿を読み直す",
+      "status": "todo",
+      "bucket": "other",
+      "date": "2026-10-11",
+      "timeLabel": null,
+      "tagIds": [
+        "tag-work"
+      ],
+      "goalIds": [
+        "goal-w1"
+      ],
+      "memo": ""
+    },
+    {
+      "id": "todo-10",
+      "title": "ランニングシューズを買い替える",
+      "status": "todo",
+      "bucket": "other",
+      "date": null,
+      "timeLabel": null,
+      "tagIds": [
+        "tag-health",
+        "tag-money"
+      ],
+      "goalIds": [
+        "goal-w2"
+      ],
+      "memo": ""
+    },
+    {
+      "id": "todo-11",
+      "title": "冬物のコートを出す",
+      "status": "todo",
+      "bucket": "other",
+      "date": null,
+      "timeLabel": null,
+      "tagIds": [
+        "tag-home"
+      ],
+      "goalIds": [],
+      "memo": ""
+    },
+    {
+      "id": "todo-12",
+      "title": "旅行の宿を比べる",
+      "status": "todo",
+      "bucket": "other",
+      "date": null,
+      "timeLabel": null,
+      "tagIds": [
+        "tag-trip"
+      ],
+      "goalIds": [],
+      "memo": "金沢か松本で迷っている"
+    }
+  ],
+  "events": [
+    {
+      "id": "ev-1",
+      "title": "チーム定例",
+      "date": "2026-10-10",
+      "start": "10:00",
+      "end": "10:30",
+      "allDay": false,
+      "variant": "event",
+      "tagIds": [
+        "tag-work"
+      ],
+      "reminder": 10,
+      "memo": ""
+    },
+    {
+      "id": "ev-2",
+      "title": "歯医者",
+      "date": "2026-10-10",
+      "start": "16:00",
+      "end": "17:00",
+      "allDay": false,
+      "variant": "event",
+      "tagIds": [
+        "tag-health"
+      ],
+      "reminder": 30,
+      "memo": "保険証を持っていく"
+    },
+    {
+      "id": "ev-3",
+      "title": "母の誕生日",
+      "date": "2026-10-10",
+      "start": null,
+      "end": null,
+      "allDay": true,
+      "variant": "event",
+      "tagIds": [
+        "tag-home"
+      ],
+      "reminder": null,
+      "memo": ""
+    },
+    {
+      "id": "ev-4",
+      "title": "朝のストレッチ",
+      "date": "2026-10-10",
+      "start": "06:30",
+      "end": "06:45",
+      "allDay": false,
+      "variant": "routine",
+      "routineId": "rt-1",
+      "tagIds": [
+        "tag-health"
+      ]
+    },
+    {
+      "id": "ev-5",
+      "title": "英語のオンライン会話",
+      "date": "2026-10-10",
+      "start": "20:00",
+      "end": "20:30",
+      "allDay": false,
+      "variant": "routine",
+      "routineId": "rt-2",
+      "tagIds": [
+        "tag-study"
+      ]
+    },
+    {
+      "id": "ev-6",
+      "title": "スポーツの日",
+      "date": "2026-10-12",
+      "start": null,
+      "end": null,
+      "allDay": true,
+      "variant": "holiday",
+      "tagIds": []
+    },
+    {
+      "id": "ev-7",
+      "title": "企画会議",
+      "date": "2026-10-13",
+      "start": "13:00",
+      "end": "14:30",
+      "allDay": false,
+      "variant": "event",
+      "tagIds": [
+        "tag-work"
+      ],
+      "reminder": 15,
+      "memo": ""
+    },
+    {
+      "id": "ev-8",
+      "title": "ジムで筋トレ",
+      "date": "2026-10-14",
+      "start": "19:00",
+      "end": "20:00",
+      "allDay": false,
+      "variant": "event",
+      "tagIds": [
+        "tag-health"
+      ]
+    },
+    {
+      "id": "ev-9",
+      "title": "友人と夕食",
+      "date": "2026-10-16",
+      "start": "19:30",
+      "end": "21:30",
+      "allDay": false,
+      "variant": "event",
+      "tagIds": []
+    },
+    {
+      "id": "ev-10",
+      "title": "金沢旅行",
+      "date": "2026-10-24",
+      "start": null,
+      "end": null,
+      "allDay": true,
+      "variant": "event",
+      "tagIds": [
+        "tag-trip"
+      ]
+    },
+    {
+      "id": "ev-11",
+      "title": "健康診断",
+      "date": "2026-10-28",
+      "start": "09:00",
+      "end": "11:00",
+      "allDay": false,
+      "variant": "event",
+      "tagIds": [
+        "tag-health"
+      ]
+    },
+    {
+      "id": "ev-12",
+      "title": "部署の飲み会",
+      "date": "2026-10-09",
+      "start": "19:00",
+      "end": "21:00",
+      "allDay": false,
+      "variant": "event",
+      "tagIds": [
+        "tag-work"
+      ],
+      "completed": true
+    }
+  ],
+  "routines": [
+    {
+      "id": "rt-1",
+      "title": "朝のストレッチ",
+      "frequencyLabel": "毎日",
+      "start": "06:30",
+      "end": "06:45",
+      "nextLabel": "10月11日（日）",
+      "tagIds": [
+        "tag-health"
+      ]
+    },
+    {
+      "id": "rt-2",
+      "title": "英語のオンライン会話",
+      "frequencyLabel": "月・水・金・土",
+      "start": "20:00",
+      "end": "20:30",
+      "nextLabel": "10月12日（月）",
+      "tagIds": [
+        "tag-study"
+      ]
+    },
+    {
+      "id": "rt-3",
+      "title": "ゴミ出し（燃える）",
+      "frequencyLabel": "火・金",
+      "start": "07:30",
+      "end": "07:40",
+      "nextLabel": "10月13日（火）",
+      "tagIds": [
+        "tag-home"
+      ]
+    },
+    {
+      "id": "rt-4",
+      "title": "週のふり返り",
+      "frequencyLabel": "毎週日曜",
+      "start": "21:00",
+      "end": "21:30",
+      "nextLabel": "10月11日（日）",
+      "tagIds": []
+    }
+  ],
+  "skippedOccurrences": [
+    {
+      "routineId": "rt-3",
+      "date": "2026-10-09",
+      "title": "ゴミ出し（燃える）"
+    }
+  ],
+  "notes": [
+    {
+      "id": "note-1",
+      "title": "企画書: 家計簿アプリの新プラン",
+      "pinned": true,
+      "locked": false,
+      "tagIds": [
+        "tag-work",
+        "tag-money"
+      ],
+      "createdAt": "2026-10-03",
+      "updatedAt": "2026-10-10T08:50:00+09:00",
+      "body": "## 背景\n今の無料プランは機能が多すぎて、初めての人が迷う。\n\n## 提案\n- 最初の 1 か月は入力だけに絞る\n- 2 か月目からグラフを開放する\n\n## 決めること\n- [ ] 価格（月 300 円か 480 円か）\n- [x] 対象の年代"
+    },
+    {
+      "id": "note-2",
+      "title": "ランニングの記録のつけ方",
+      "pinned": false,
+      "locked": false,
+      "tagIds": [
+        "tag-health"
+      ],
+      "createdAt": "2026-09-20",
+      "updatedAt": "2026-10-08T21:10:00+09:00",
+      "body": "距離よりも「走った日」を数える。週 3 回を超えたら距離を 1km ずつ伸ばす。"
+    },
+    {
+      "id": "note-3",
+      "title": "冬支度のチェックリスト",
+      "pinned": false,
+      "locked": false,
+      "tagIds": [
+        "tag-home"
+      ],
+      "createdAt": "2026-10-05",
+      "updatedAt": "2026-10-07T19:00:00+09:00",
+      "body": "| 場所 | やること | 済 |\n| --- | --- | --- |\n| 寝室 | 毛布を出す | ✓ |\n| 玄関 | 冬靴を出す |  |\n| 居間 | こたつの点検 |  |"
+    },
+    {
+      "id": "note-4",
+      "title": "英語の言い回しメモ",
+      "pinned": false,
+      "locked": false,
+      "tagIds": [
+        "tag-study"
+      ],
+      "createdAt": "2026-08-30",
+      "updatedAt": "2026-10-06T22:30:00+09:00",
+      "body": "- Let me get back to you on that.（あとで返事します）\n- Could you walk me through it?（順に説明してもらえますか）"
+    },
+    {
+      "id": "note-5",
+      "title": "パスワードの控え",
+      "pinned": false,
+      "locked": true,
+      "tagIds": [],
+      "createdAt": "2026-07-01",
+      "updatedAt": "2026-09-15T12:00:00+09:00",
+      "body": ""
+    },
+    {
+      "id": "note-6",
+      "title": "金沢で行きたい店",
+      "pinned": false,
+      "locked": false,
+      "tagIds": [
+        "tag-trip"
+      ],
+      "createdAt": "2026-09-28",
+      "updatedAt": "2026-10-02T23:00:00+09:00",
+      "body": "近江町市場の海鮮丼、ひがし茶屋街の甘味。"
+    },
+    {
+      "id": "note-7",
+      "title": "読みたい本",
+      "pinned": false,
+      "locked": false,
+      "tagIds": [
+        "tag-study",
+        "tag-idea"
+      ],
+      "createdAt": "2026-06-11",
+      "updatedAt": "2026-09-30T20:00:00+09:00",
+      "body": "『イシューからはじめよ』『エッセンシャル思考』"
+    },
+    {
+      "id": "note-8",
+      "title": "アプリの改善アイデア",
+      "pinned": false,
+      "locked": false,
+      "tagIds": [
+        "tag-idea"
+      ],
+      "createdAt": "2026-09-01",
+      "updatedAt": "2026-09-29T10:00:00+09:00",
+      "body": "朝刊にその日の天気を出したい。"
+    }
+  ],
+  "templates": [
+    {
+      "id": "tpl-1",
+      "title": "会議メモ"
+    },
+    {
+      "id": "tpl-2",
+      "title": "週のふり返り"
+    }
+  ],
+  "dailies": [
+    {
+      "id": "daily-2026-10-10",
+      "date": "2026-10-10",
+      "dayLabel": "10月10日（土）",
+      "pinned": false,
+      "text": "朝 5km 走れた。企画書の構成が決まって少し気が楽になった。",
+      "mood": null,
+      "figures": {
+        "events": "3",
+        "todos": "3/5",
+        "work": "2時間10分",
+        "goalsMoved": "2"
+      },
+      "morning": {
+        "comment": [
+          "昨日は 3 件の Todo を終え、作業は 2 時間 10 分でした。",
+          "午前のうちに価格の調べものを終えると、午後の相談に間に合います。"
+        ],
+        "intention": "企画書の構成を決める\n夜は早めに寝る"
+      }
+    },
+    {
+      "id": "daily-2026-10-09",
+      "date": "2026-10-09",
+      "dayLabel": "10月9日（金）",
+      "pinned": true,
+      "text": "飲み会で隣の部署の人と話せた。来週、企画の相談に乗ってもらえることになった。\n\n人に話すと考えがまとまる。明日は構成だけ決める。\n\n午前は集中できたが、午後は会議が続いて手が止まった。会議のあとに 10 分だけでも整理の時間を取ると、次の作業に入りやすい。\n\n夜は早めに寝る。",
+      "mood": 4,
+      "figures": {
+        "events": "2",
+        "todos": "4/4",
+        "work": "1時間30分",
+        "goalsMoved": "1"
+      },
+      "morning": {
+        "comment": [],
+        "intention": "相談の段取りを決める"
+      }
+    },
+    {
+      "id": "daily-2026-10-08",
+      "date": "2026-10-08",
+      "dayLabel": "10月8日（木）",
+      "pinned": false,
+      "text": "雨で走れなかった。代わりにストレッチを長めに。\n\n天気の日の代わりのメニューを決めておく。",
+      "mood": 3,
+      "figures": {
+        "events": "1",
+        "todos": "1/3",
+        "work": "45分",
+        "goalsMoved": "0"
+      }
+    },
+    {
+      "id": "daily-2026-10-07",
+      "date": "2026-10-07",
+      "dayLabel": "10月7日（水）",
+      "pinned": false,
+      "text": "英語の会話で言いたいことが出てこなかった。\n\n言い回しメモを見返す。",
+      "mood": 2,
+      "figures": {
+        "events": "2",
+        "todos": "—",
+        "work": "0分",
+        "goalsMoved": "—"
+      }
+    },
+    {
+      "id": "daily-2026-10-05",
+      "date": "2026-10-05",
+      "dayLabel": "10月5日（月）",
+      "pinned": false,
+      "text": "冬支度のリストを作った。",
+      "mood": 4,
+      "figures": {
+        "events": "0",
+        "todos": "2/2",
+        "work": "1時間",
+        "goalsMoved": "0"
+      }
+    }
+  ],
+  "briefing": {
+    "morning": {
+      "date": "2026-10-10",
+      "dateLabel": "2026年10月10日 土曜日",
+      "fromLastNight": "構成だけ決めれば、あとは手が動く。",
+      "claudeNote": "昨日は 3 件の Todo を終え、作業は 2 時間 10 分でした。今週の「企画書の初稿を書き上げる」は残り 2 件です。午前のうちに価格の調べものを終えると、午後の相談に間に合います。"
+    },
+    "evening": {
+      "issueNumber": 128,
+      "streakDays": 6,
+      "progressedGoals": [
+        {
+          "goalId": "goal-w1",
+          "title": "企画書の初稿を書き上げる",
+          "before": "1/4",
+          "after": "2/4"
+        },
+        {
+          "goalId": "goal-w2",
+          "title": "朝のランニングを 3 回",
+          "before": "1/2",
+          "after": "2/2",
+          "achieved": true
+        }
+      ],
+      "happenings": [
+        {
+          "time": "07:00",
+          "kind": "todo",
+          "title": "朝 5km 走る",
+          "note": ""
+        },
+        {
+          "time": "09:00",
+          "kind": "todo",
+          "title": "企画書の構成を決める",
+          "note": "思ったより早く決まった"
+        },
+        {
+          "time": "10:00",
+          "kind": "event",
+          "title": "チーム定例",
+          "note": ""
+        },
+        {
+          "time": "10:40",
+          "kind": "work",
+          "title": "作業 50 分（企画書の図を 2 枚作る）",
+          "note": ""
+        }
+      ],
+      "summary": {
+        "events": 3,
+        "todos": 3,
+        "work": 2
+      },
+      "toTomorrow": ""
+    },
+    "streak": {
+      "days": 6
+    },
+    "completionTrend": [
+      3,
+      5,
+      2,
+      4,
+      6,
+      3,
+      4
+    ],
+    "workBreakBalance": {
+      "workMinutes": 130,
+      "breakMinutes": 35
+    }
+  },
+  "workSessions": [
+    {
+      "id": "ws-1",
+      "date": "2026-10-10",
+      "title": "企画書の図を 2 枚作る",
+      "minutes": 50
+    },
+    {
+      "id": "ws-2",
+      "date": "2026-10-10",
+      "title": null,
+      "minutes": 25,
+      "tags": [
+        "勉強"
+      ]
+    },
+    {
+      "id": "ws-3",
+      "date": "2026-10-09",
+      "title": "競合 3 社の価格を調べる",
+      "minutes": 25
+    },
+    {
+      "id": "ws-4",
+      "date": "2026-10-09",
+      "title": "企画書の構成を決める",
+      "minutes": 50
+    },
+    {
+      "id": "ws-5",
+      "date": "2026-10-09",
+      "title": null,
+      "minutes": 25
+    }
+  ],
+  "timer": {
+    "workMinutes": 25,
+    "breakMinutes": 5,
+    "longBreakMinutes": 15,
+    "sessionsUntilLongBreak": 4,
+    "dailyGoalSessions": 8,
+    "completedToday": 3,
+    "autoStartBreak": false,
+    "presets": [
+      {
+        "name": "標準",
+        "work": 25,
+        "break": 5
+      },
+      {
+        "name": "じっくり",
+        "work": 50,
+        "break": 10
+      }
+    ]
+  },
+  "ambientSounds": [
+    {
+      "id": "rain",
+      "label": "雨",
+      "on": true,
+      "volume": 60
+    },
+    {
+      "id": "wind",
+      "label": "風",
+      "on": false,
+      "volume": 40
+    },
+    {
+      "id": "ocean",
+      "label": "海",
+      "on": false,
+      "volume": 50
+    },
+    {
+      "id": "birds",
+      "label": "鳥",
+      "on": true,
+      "volume": 30
+    },
+    {
+      "id": "fire",
+      "label": "焚き火",
+      "on": false,
+      "volume": 50
+    }
+  ],
+  "analytics": {
+    "rangeDefault": "30日",
+    "overview": {
+      "todos": 86,
+      "events": 41,
+      "notes": 23,
+      "workMinutes": 1940,
+      "routines": 4,
+      "tags": 8
+    },
+    "today": {
+      "todosDone": 3,
+      "workMinutes": 75
+    },
+    "weekCompare": {
+      "thisWeekTodos": 18,
+      "lastWeekTodos": 14
+    },
+    "streakDays": 6,
+    "tagUsage": [
+      {
+        "tag": "仕事",
+        "count": 14
+      },
+      {
+        "tag": "勉強",
+        "count": 11
+      },
+      {
+        "tag": "健康",
+        "count": 9
+      },
+      {
+        "tag": "家のこと",
+        "count": 7
+      },
+      {
+        "tag": "アイデア",
+        "count": 6
+      },
+      {
+        "tag": "お金",
+        "count": 4
+      },
+      {
+        "tag": "旅行",
+        "count": 3
+      }
+    ],
+    "todoCompletionTrend": [
+      {
+        "date": "10/04",
+        "done": 4
+      },
+      {
+        "date": "10/05",
+        "done": 6
+      },
+      {
+        "date": "10/06",
+        "done": 3
+      },
+      {
+        "date": "10/07",
+        "done": 2
+      },
+      {
+        "date": "10/08",
+        "done": 5
+      },
+      {
+        "date": "10/09",
+        "done": 3
+      },
+      {
+        "date": "10/10",
+        "done": 3
+      }
+    ],
+    "todoAgeBuckets": [
+      {
+        "label": "1 週間未満",
+        "count": 9
+      },
+      {
+        "label": "1〜2 週間",
+        "count": 4
+      },
+      {
+        "label": "2〜4 週間",
+        "count": 2
+      },
+      {
+        "label": "1〜3 か月",
+        "count": 1
+      },
+      {
+        "label": "3 か月以上",
+        "count": 0
+      }
+    ],
+    "workByDay": [
+      {
+        "date": "10/04",
+        "minutes": 50
+      },
+      {
+        "date": "10/05",
+        "minutes": 100
+      },
+      {
+        "date": "10/06",
+        "minutes": 75
+      },
+      {
+        "date": "10/07",
+        "minutes": 25
+      },
+      {
+        "date": "10/08",
+        "minutes": 125
+      },
+      {
+        "date": "10/09",
+        "minutes": 100
+      },
+      {
+        "date": "10/10",
+        "minutes": 75
+      }
+    ],
+    "pomodoroRate": 0.78,
+    "routineRates": [
+      {
+        "title": "朝のストレッチ",
+        "rate": 0.93
+      },
+      {
+        "title": "英語のオンライン会話",
+        "rate": 0.71
+      },
+      {
+        "title": "ゴミ出し（燃える）",
+        "rate": 0.88
+      },
+      {
+        "title": "週のふり返り",
+        "rate": 0.5
+      }
+    ],
+    "eventsByHour": [
+      {
+        "hour": 9,
+        "count": 6
+      },
+      {
+        "hour": 10,
+        "count": 9
+      },
+      {
+        "hour": 13,
+        "count": 7
+      },
+      {
+        "hour": 16,
+        "count": 4
+      },
+      {
+        "hour": 19,
+        "count": 8
+      },
+      {
+        "hour": 20,
+        "count": 5
+      }
+    ]
+  },
+  "trash": [
+    {
+      "id": "tr-1",
+      "category": "Todo",
+      "name": "古いプリンターを処分する",
+      "deletedAt": "2026-10-08"
+    },
+    {
+      "id": "tr-2",
+      "category": "ノート",
+      "name": "没になった企画案",
+      "deletedAt": "2026-10-06"
+    },
+    {
+      "id": "tr-3",
+      "category": "イベント",
+      "name": "歯医者（予約を取り直し）",
+      "deletedAt": "2026-10-05"
+    },
+    {
+      "id": "tr-4",
+      "category": "ルーティン",
+      "name": "夜のヨガ",
+      "deletedAt": "2026-09-30"
+    },
+    {
+      "id": "tr-5",
+      "category": "デイリー",
+      "name": "9月12日（金）",
+      "deletedAt": "2026-09-29"
+    }
+  ],
+  "mcpTools": [
+    "get_today_context",
+    "get_week_context",
+    "list_todos",
+    "create_todo",
+    "update_todo",
+    "list_schedule",
+    "create_schedule_item",
+    "list_notes",
+    "get_note",
+    "write_briefing"
+  ],
+  "settings": {
+    "theme": "system",
+    "fontSizeStep": 5,
+    "font": "system",
+    "reduceMotion": "system",
+    "language": "ja",
+    "startupSection": "briefing",
+    "dayStartsAt": "04:00",
+    "scheduleDefaultView": "week",
+    "reminderDefault": 10,
+    "lastBriefingWrittenAt": "2026-10-10T06:05:00+09:00",
+    "claudeLaunchFolder": "C:\\Users\\you\\life-editor-claude"
+  }
+}
