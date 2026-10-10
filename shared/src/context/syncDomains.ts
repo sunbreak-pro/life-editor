@@ -129,7 +129,7 @@ export const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   ai_rules: "aiCustomization",
   ai_memories: "aiCustomization",
   ai_skills: "aiCustomization",
-  // #2094 (0039)
+  // #2094 (0040)
   tables_payload: "notes",
 };
 

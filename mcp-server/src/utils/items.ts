@@ -20,7 +20,7 @@ import { getSupabase } from "../supabase.js";
 
 /**
  * Mirrors the items_meta.role CHECK (0008, widened by 0034 for `goal` — #2101,
- * and by 0039 for a note's `table` — #2094).
+ * and by 0040 for a note's `table` — #2094).
  */
 export type ItemRole =
   | "task"

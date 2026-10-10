@@ -21,8 +21,14 @@
 --   (#2147) が先に入った。0036 を足すと「番号は 0038 より前、実際に流れる
 --   のは後」という食い違いになる（素の CLI は止まり、`npm run db:push` は
 --   --include-all で順番を無視して流す。どちらでも食い違う）。
---   db-conventions §13 の「新しい DDL は常に末尾の次の番号を取る」に従って
---   0039 にした。0036 は欠番のまま埋めない。
+--   db-conventions §13 の「新しい DDL は常に末尾の次の番号を取る」に従う。
+--   0036 は欠番のまま埋めない。さらに 0039 は #2161（app_records /
+--   extension_apps、PR #2190）が先に取ったので、0040 にした。
+--
+-- ⚠️ 0039 (#2161) が先: 下の delete_my_account() は 0039 の本体
+--   （app_records / extension_apps の 2 行を含む）に tables_payload を足した
+--   もの。0039 を適用する前に 0040 を流すと、存在しない表を消しにいく関数が
+--   残る。push は 0039 → 0040 の順、merge も #2190 → この PR の順。
 --
 -- SCOPE:
 --   1. items_meta.role の CHECK に 'table' を足す（0034 と同じ張り直し）。
@@ -65,7 +71,7 @@ begin
       and conname = 'items_meta_id_role_uk'
   ) then
     raise exception
-      '0039 prereq missing: items_meta_id_role_uk (created by 0009).';
+      '0040 prereq missing: items_meta_id_role_uk (created by 0009).';
   end if;
 end$$;
 
@@ -216,14 +222,14 @@ $$;
 -- ===========================================================================
 -- 4. delete_my_account() を作り直す
 -- ===========================================================================
--- 0037 の関数は「user_id を持つ表に自分の行が残っていたら例外」を最後に
+-- 0039 の関数は「user_id を持つ表に自分の行が残っていたら例外」を最後に
 -- 検査するので、tables_payload を消す対象に足さないと退会が必ず失敗する。
 -- shared/tests/userDataExport.test.ts も最新の定義の消す対象と書き出しの
 -- 表の一覧を突き合わせる。
 -- （userDataExport.test.ts は最新の定義の本文から消す対象を正規表現で拾う
 -- ので、このコメントには DELETE 文の形を書かない。）
 --
--- 本体は 0037 と同じ（SECURITY INVOKER・子 → 親の順・取りこぼし検査）。
+-- 本体は 0039 と同じ（SECURITY INVOKER・子 → 親の順・取りこぼし検査）。
 -- 変わるのは「2) payload 行」に tables_payload を足したことだけ。表の
 -- アイテムの payload は親のノートの items_meta を複合 FK（NO ACTION）で
 -- 指すので、items_meta より先に消す。
@@ -282,6 +288,8 @@ begin
   delete from public.ai_rules                where user_id = caller;
   delete from public.ai_memories             where user_id = caller;
   delete from public.ai_skills               where user_id = caller;
+  delete from public.app_records             where user_id = caller;
+  delete from public.extension_apps          where user_id = caller;
 
   /*
    * 取りこぼし検査（0025 と同じ）。public 配下の user_id を持つ全テーブルを
@@ -320,7 +328,7 @@ end;
 $$;
 
 comment on function public.delete_my_account() is
-  'Deletes every public.* row owned by the calling user (Issue #1200; goals tables added and the dropped calendars line removed in #2101; ai_rules / ai_memories / ai_skills added in #2118; tables_payload added in #2094). Runs as the CALLER so RLS scopes it, and raises if any user_id table still holds a row afterwards. The auth.users row is removed separately by the delete-account Edge Function.';
+  'Deletes every public.* row owned by the calling user (Issue #1200; goals tables added and the dropped calendars line removed in #2101; ai_rules / ai_memories / ai_skills added in #2118; app_records / extension_apps added in #2161; tables_payload added in #2094). Runs as the CALLER so RLS scopes it, and raises if any user_id table still holds a row afterwards. The auth.users row is removed separately by the delete-account Edge Function.';
 
 -- create or replace は権限を引き継ぐが、0025 と同じ状態を明示しておく。
 revoke all on function public.delete_my_account() from public;
