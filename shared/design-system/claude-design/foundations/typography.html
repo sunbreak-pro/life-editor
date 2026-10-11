@@ -6,11 +6,11 @@ h1{font-size:15px;font-weight:600;margin:0 0 4px} p.sub{margin:0 0 22px;color:va
 .card{background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:18px 20px}
 .row{display:flex;align-items:baseline;gap:14px;padding:9px 0;border-bottom:1px solid var(--border)}
 .row:last-of-type{border-bottom:none}
-.meta{flex:0 0 96px;display:flex;align-items:baseline;gap:8px}
+.meta{flex:0 0 150px;display:flex;align-items:baseline;gap:8px}
 .tag{font-size:11px;font-weight:600;color:var(--accent);letter-spacing:.02em}
 .em{font-size:11px;color:var(--text-2);font-variant-numeric:tabular-nums}
 .sample{color:var(--text);line-height:1.35;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.s-xs{font-size:.8125em} .s-sm{font-size:.875em} .s-base{font-size:1em} .s-lg{font-size:1.125em} .s-xl{font-size:1.25em}
+.s-xs{font-size:.8125em} .s-sm{font-size:.875em} .s-base{font-size:1em} .s-lg{font-size:1.125em} .s-xl{font-size:1.25em} .s-2xl{font-size:1.5em}
 .weights{display:flex;gap:10px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border-strong);flex-wrap:wrap}
 .w{background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:14px}
 .w b{display:block;font-size:10px;font-weight:600;color:var(--text-2);margin-bottom:3px;letter-spacing:.04em}
@@ -19,27 +19,31 @@ h1{font-size:15px;font-weight:600;margin:0 0 4px} p.sub{margin:0 0 22px;color:va
 .stack code{background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:1px 5px;color:var(--mint);font-family:var(--mono)}
 </style></head><body>
 <h1>Typography</h1>
-<p class='sub'>Tailwind text-* in rem (text-xs lifted to .8125rem) · follows the 10-step Settings font size (root 12–25px, default 18px) · weights 400/500/600 · font stacks from tokens.css</p>
+<p class='sub'>The type scale is Tailwind text-* as-is, in rem (text-xs lifted to .8125rem; no screen-level text tokens) · follows the 10-step Settings font size (root 12–25px, default 18px; px below are at 18px) · text-[…] values are off the scale · weights 400/500/600 (700 for a few emphasised figures) · font stacks from tokens.css</p>
 <div class='card'>
   <div class='row'>
-    <div class='meta'><span class='tag'>xs</span><span class='em'>.8125rem</span></div>
+    <div class='meta'><span class='tag'>xs</span><span class='em'>.8125rem · 14.625px</span></div>
     <div class='sample s-xs'>The quick brown fox / 朝の運動を記録する</div>
   </div>
   <div class='row'>
-    <div class='meta'><span class='tag'>sm</span><span class='em'>.875rem</span></div>
+    <div class='meta'><span class='tag'>sm</span><span class='em'>.875rem · 15.75px</span></div>
     <div class='sample s-sm'>The quick brown fox / 朝の運動を記録する</div>
   </div>
   <div class='row'>
-    <div class='meta'><span class='tag'>base</span><span class='em'>1rem</span></div>
+    <div class='meta'><span class='tag'>base</span><span class='em'>1rem · 18px</span></div>
     <div class='sample s-base'>The quick brown fox / 朝の運動を記録する</div>
   </div>
   <div class='row'>
-    <div class='meta'><span class='tag'>lg</span><span class='em'>1.125rem</span></div>
+    <div class='meta'><span class='tag'>lg</span><span class='em'>1.125rem · 20.25px</span></div>
     <div class='sample s-lg'>The quick brown fox / 朝の運動を記録する</div>
   </div>
   <div class='row'>
-    <div class='meta'><span class='tag'>xl</span><span class='em'>1.25rem</span></div>
+    <div class='meta'><span class='tag'>xl</span><span class='em'>1.25rem · 22.5px</span></div>
     <div class='sample s-xl'>The quick brown fox / 朝の運動を記録する</div>
+  </div>
+  <div class='row'>
+    <div class='meta'><span class='tag'>2xl</span><span class='em'>1.5rem · 27px</span></div>
+    <div class='sample s-2xl'>The quick brown fox / 朝の運動を記録する</div>
   </div>
   <div class='weights'>
     <div class='w'><b>400 REGULAR</b><span class='w400'>朝の運動 Aa</span></div>
