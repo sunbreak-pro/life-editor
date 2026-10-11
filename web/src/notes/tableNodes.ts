@@ -1,5 +1,10 @@
 import type { Extensions } from "@tiptap/core";
-import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
+import {
+  Fragment,
+  Slice,
+  type Node as ProseMirrorNode,
+} from "@tiptap/pm/model";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
 import {
   Table,
   TableRow,
@@ -67,6 +72,55 @@ export function tableNameOf(
 }
 
 /**
+ * The items_meta id of a table that was tagged (#2094), or null.
+ *
+ * A table becomes an item only when it is first tagged (plan Q2), so most
+ * tables — every table before #2094 and every one the MCP builder writes —
+ * carry none, and the attribute's default makes those null.
+ */
+export function tableIdOf(
+  node: ProseMirrorNode | null | undefined,
+): string | null {
+  const id: unknown = node?.attrs.tableId;
+  return typeof id === "string" && id !== "" ? id : null;
+}
+
+/**
+ * A pasted or dropped slice with every table's `tableId` taken off (#2094).
+ *
+ * The id names ONE item. A copy that kept it would leave two tables pointing
+ * at the same item, and deleting either would soft-delete the item — and hide
+ * its tags — under the one that is still there. A pasted table starts as a
+ * plain table and is tagged again if the user wants it to be.
+ */
+export function stripTableIds(slice: Slice): Slice {
+  let changed = false;
+  const strip = (fragment: Fragment): Fragment => {
+    const nodes: ProseMirrorNode[] = [];
+    fragment.forEach((node) => {
+      let next = node;
+      if (node.type.name === "table" && tableIdOf(node) !== null) {
+        next = node.type.create(
+          { ...node.attrs, tableId: null },
+          node.content,
+          node.marks,
+        );
+        changed = true;
+      }
+      if (next.content.size > 0) {
+        next = next.copy(strip(next.content));
+      }
+      nodes.push(next);
+    });
+    return Fragment.fromArray(nodes);
+  };
+  const content = strip(slice.content);
+  return changed ? new Slice(content, slice.openStart, slice.openEnd) : slice;
+}
+
+const STRIP_TABLE_IDS_KEY = new PluginKey("noteTableStripIds");
+
+/**
  * The table's node view: the package's own TableView, plus the name above
  * the grid (#2011).
  *
@@ -108,11 +162,30 @@ class NamedTableView extends TableView {
 /**
  * The table node with its name (#2011). `data-name` is its HTML form, so a
  * copied table keeps its name when pasted into another note.
+ *
+ * `tableId` (#2094) is the other way round: it has no HTML form at all, so a
+ * table copied through the clipboard arrives without it, and the paste plugin
+ * below strips it from slices that never went through HTML (a drop). It lives
+ * in the stored JSON only.
  */
 const NamedTable = Table.extend({
+  addProseMirrorPlugins() {
+    return [
+      ...(this.parent?.() ?? []),
+      new Plugin({
+        key: STRIP_TABLE_IDS_KEY,
+        props: { transformPasted: (slice) => stripTableIds(slice) },
+      }),
+    ];
+  },
   addAttributes() {
     return {
       ...this.parent?.(),
+      tableId: {
+        default: null,
+        parseHTML: () => null,
+        renderHTML: () => ({}),
+      },
       name: {
         default: null,
         parseHTML: (element: HTMLElement) =>

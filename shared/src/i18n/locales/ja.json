@@ -550,7 +550,11 @@
         "addRight": "右に追加",
         "remove": "削除",
         "nameLabel": "表の名前",
-        "namePlaceholder": "表に名前を付ける"
+        "namePlaceholder": "表に名前を付ける",
+        "tagsGroup": "タグ",
+        "addTags": "タグを付ける",
+        "addingTags": "準備しています…",
+        "tagFailed": "この表にタグを付けられませんでした。もう一度お試しください。"
       },
       "conflict": {
         "message": "編集中に、このノートが別の場所で更新されました。あなたの最新の変更はまだ保存されていません。残す内容を選んでください。",

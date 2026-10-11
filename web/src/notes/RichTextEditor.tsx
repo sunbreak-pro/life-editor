@@ -26,7 +26,7 @@ import {
   type EditorHistory,
 } from "@life-editor/shared";
 import { createSlashCommand } from "./slashCommand";
-import { TableControls } from "./TableControls";
+import { TableControls, type TableTagsWiring } from "./TableControls";
 import { createItemLinkNode } from "./itemLinkNode";
 import { createItemLinkSuggestion } from "./itemLinkSuggestion";
 import { createAttachmentNode } from "./attachmentNode";
@@ -274,6 +274,11 @@ interface RichTextEditorBaseProps {
    * instance. Omitted everywhere but the Notes body.
    */
   onEditorChange?: (editor: Editor | null) => void;
+  /**
+   * Tags on the body's tables (#2094) — the Notes body only. Omitted → the
+   * table bar has no tag row, which is what Daily and the todo body get.
+   */
+  tableTags?: TableTagsWiring;
 }
 
 export type RichTextEditorProps = RichTextEditorBaseProps &
@@ -306,6 +311,7 @@ export function RichTextEditor({
   replaceContent,
   contentReaderRef,
   onEditorChange,
+  tableTags,
 }: RichTextEditorProps) {
   const { t } = useTranslation();
   const debounceRef = useRef<number | null>(null);
@@ -778,6 +784,7 @@ export function RichTextEditor({
           never on a read-only surface. */}
       <TableControls
         editor={editor}
+        tags={tableTags}
         labels={{
           label: t("materials.notes.tableControls.label"),
           rowGroup: t("materials.notes.tableControls.rowGroup"),
