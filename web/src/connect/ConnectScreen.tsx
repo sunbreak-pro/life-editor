@@ -30,6 +30,7 @@ import {
   type DailyNode,
   type DataService,
   type NoteNode,
+  type NoteTable,
   type RoutineNode,
   type ScheduleItem,
   type TagHubDetailLabels,
@@ -131,6 +132,8 @@ interface ConnectSources {
   dailies: DailyNode[];
   /** Repeat series (#1631) — where a repeating item's tags actually live. */
   routines: RoutineNode[];
+  /** Note tables that were tagged (#2094) — their notes are live. */
+  tables: NoteTable[];
 }
 
 /** Stable identity for "nothing checked" (#1644). */
@@ -142,6 +145,7 @@ const EMPTY_SOURCES: ConnectSources = {
   notes: [],
   dailies: [],
   routines: [],
+  tables: [],
 };
 
 /**
@@ -195,14 +199,16 @@ export function ConnectScreen({
     // the rows are already on screen and a refetch only corrects them.
     refetchReportsLoading: false,
     load: async (service) => {
-      const [todos, events, notes, dailies, routines] = await Promise.all([
-        service.fetchTodoTree(),
-        service.fetchEvents(),
-        service.listNotesUnified(),
-        service.listDailiesUnified(),
-        service.fetchAllRoutines(),
-      ]);
-      return { todos, events, notes, dailies, routines };
+      const [todos, events, notes, dailies, routines, tables] =
+        await Promise.all([
+          service.fetchTodoTree(),
+          service.fetchEvents(),
+          service.listNotesUnified(),
+          service.listDailiesUnified(),
+          service.fetchAllRoutines(),
+          service.fetchNoteTables(),
+        ]);
+      return { todos, events, notes, dailies, routines, tables };
     },
     apply: setSources,
     fallbackMessage: "Failed to load the tag hub",
@@ -280,6 +286,32 @@ export function ConnectScreen({
         role: "note",
         title: note.title || untitled,
         updatedAt: note.updatedAt,
+      });
+    }
+    /*
+     * Note tables (#2094). A table opens the note it sits in — it has no
+     * screen of its own — so the row is navigated as that note. The note's
+     * title is the row's second line, which also tells two tables of the same
+     * name apart. fetchNoteTables already drops tables of trashed notes; the
+     * note list is checked again so the two reads cannot disagree on screen.
+     */
+    const noteTitleById = new Map<string, string>();
+    for (const note of sources.notes) {
+      if (!note.isDeleted) noteTitleById.set(note.id, note.title || untitled);
+    }
+    for (const table of sources.tables) {
+      if (table.isDeleted) continue;
+      const noteTitle = noteTitleById.get(table.parentNoteId);
+      if (noteTitle === undefined) continue;
+      out.push({
+        id: table.id,
+        role: "table",
+        title: table.title || t("connect.untitledTable"),
+        detail: noteTitle,
+        navigateId: table.parentNoteId,
+        navigateRole: "note",
+        taggedOnly: true,
+        updatedAt: table.updatedAt,
       });
     }
     for (const daily of sources.dailies) {
@@ -374,6 +406,7 @@ export function ConnectScreen({
         task: t("itemRole.task"),
         event: t("itemRole.event"),
         note: t("itemRole.note"),
+        table: t("itemRole.table"),
         daily: t("itemRole.daily"),
         unknown: t("itemRole.unknown"),
       },
@@ -818,11 +851,12 @@ export function ConnectScreen({
   const handleOpenItem = useCallback(
     (item: TagHubItem) => {
       // `navigateId` when the row is filed under an id the destination cannot
-      // select — today only a repeat series (#1631), which opens at the
-      // occurrence its `date` already points the Calendar at.
+      // select — a repeat series (#1631), which opens at the occurrence its
+      // `date` already points the Calendar at, and a note table (#2094), which
+      // opens its note (`navigateRole`).
       onNavigateToItem({
         id: item.navigateId ?? item.id,
-        role: item.role,
+        role: item.navigateRole ?? item.role,
         date: item.date,
       });
     },

@@ -332,3 +332,41 @@ describe("buildTagHubModel — repeat series (#1631)", () => {
     ).toEqual(["event-1"]);
   });
 });
+
+/*
+ * Note tables (#2094). A table is an item only because it was tagged once;
+ * with its tags removed it stays out of the untagged bucket, where its note
+ * already stands for it.
+ */
+describe("buildTagHubModel — taggedOnly rows (#2094)", () => {
+  it("lists a tagged table under its tag, grouped after notes", () => {
+    const model = build({
+      tags: [tag("t-1", "Work")],
+      assignments: [assign("note-1", "t-1"), assign("table-1", "t-1")],
+      items: [
+        item("table-1", "table", { taggedOnly: true }),
+        item("note-1", "note"),
+      ],
+    });
+    expect(model.groupsByTag.get("t-1")?.map((g) => g.role)).toEqual([
+      "note",
+      "table",
+    ]);
+  });
+
+  it("keeps an untagged table out of the untagged bucket", () => {
+    const model = build({
+      tags: [tag("t-1", "Work")],
+      assignments: [],
+      items: [
+        item("table-1", "table", { taggedOnly: true }),
+        item("note-1", "note"),
+      ],
+    });
+    expect(
+      model.groupsByTag
+        .get(UNTAGGED_TAG_ID)
+        ?.flatMap((g) => g.items.map((i) => i.id)),
+    ).toEqual(["note-1"]);
+  });
+});

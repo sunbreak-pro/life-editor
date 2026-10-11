@@ -52,6 +52,7 @@ function makeDS(over: Partial<Record<string, unknown>> = {}) {
       .mockResolvedValue([{ id: "note-1", title: "Migration notes" }]),
     listDailiesUnified: vi.fn().mockResolvedValue([]),
     fetchAllRoutines: vi.fn().mockResolvedValue([]),
+    fetchNoteTables: vi.fn().mockResolvedValue([]),
     listAllWikiTagsUnified: vi.fn().mockResolvedValue(TAGS),
     listAllTagAssignments: vi.fn().mockResolvedValue(ASSIGNMENTS),
     listAllTagConnections: vi.fn().mockResolvedValue([]),

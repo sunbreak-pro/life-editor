@@ -88,6 +88,8 @@ function makeDS(over: Partial<Record<keyof DataService, unknown>> = {}) {
     // #1631: no repeat in the base fixture — the series cases below supply
     // their own, so the counts the other cases assert stay readable.
     fetchAllRoutines: vi.fn().mockResolvedValue([]),
+    // #2094: no table in the base fixture — the table cases supply their own.
+    fetchNoteTables: vi.fn().mockResolvedValue([]),
     listAllWikiTagsUnified: vi.fn().mockResolvedValue(TAGS),
     listAllTagAssignments: vi.fn().mockResolvedValue(ASSIGNMENTS),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
@@ -1134,5 +1136,106 @@ describe("ConnectScreen — the header's totals (D1)", () => {
 
     cleanup();
     expect(onCountsChange).toHaveBeenLastCalledWith(null);
+  });
+});
+/*
+ * Note tables (#2094, plan Step 5). A table is an item once it was tagged; it
+ * is listed under its tags, opens the note it sits in, and stays out of the
+ * hub while that note is trashed. With its tags gone it is not "untagged" —
+ * the note already speaks for it there.
+ */
+describe("ConnectScreen — note tables (#2094)", () => {
+  const TABLE = (id: string, title: string, parentNoteId: string) => ({
+    id,
+    title,
+    parentNoteId,
+    isDeleted: false,
+    deletedAt: null,
+    createdAt: "2026-10-01T00:00:00Z",
+    updatedAt: "2026-10-02T00:00:00Z",
+  });
+
+  function makeTablesDS() {
+    return makeDS({
+      listNotesUnified: vi.fn().mockResolvedValue([
+        {
+          id: "note-1",
+          title: "Migration notes",
+          updatedAt: "2026-08-28T00:00:00Z",
+        },
+        { id: "note-loose", title: "", updatedAt: "2026-08-27T00:00:00Z" },
+        {
+          id: "note-trashed",
+          title: "Old plans",
+          isDeleted: true,
+          updatedAt: "2026-08-20T00:00:00Z",
+        },
+      ]),
+      fetchNoteTables: vi
+        .fn()
+        .mockResolvedValue([
+          TABLE("table-1", "Budget", "note-1"),
+          TABLE("table-unnamed", "", "note-1"),
+          TABLE("table-in-trash", "Hidden", "note-trashed"),
+          TABLE("table-untagged", "Loose", "note-1"),
+        ]),
+      listAllTagAssignments: vi.fn().mockResolvedValue([
+        ...ASSIGNMENTS,
+        { id: "a-t1", itemId: "table-1", tagId: "t-work", isDeleted: false },
+        {
+          id: "a-t2",
+          itemId: "table-unnamed",
+          tagId: "t-work",
+          isDeleted: false,
+        },
+        {
+          id: "a-t3",
+          itemId: "table-in-trash",
+          tagId: "t-work",
+          isDeleted: false,
+        },
+      ]),
+    });
+  }
+
+  it("lists a tagged table under its tag as a Table row", async () => {
+    await renderScreen(makeTablesDS());
+    // 4 base items + 2 tables; the trashed note's table and the untagged
+    // table are not counted anywhere.
+    expect(railLabels()).toEqual(["Work: 6 items", "Untagged: 1 item"]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Work: 6 items" }));
+    expect(
+      screen
+        .getAllByRole("heading", { level: 3 })
+        .map((h) => h.getAttribute("aria-label")),
+    ).toEqual([
+      "Todo: 1 item",
+      "Event: 1 item",
+      "Note: 1 item",
+      "Table: 2 items",
+      "Daily: 1 item",
+    ]);
+    expect(screen.queryByText("Hidden")).toBeNull();
+    // An unnamed table gets the fallback name.
+    expect(screen.getByText("Untitled table")).toBeTruthy();
+  });
+
+  it("opens the note a table sits in", async () => {
+    const { onNavigateToItem } = await renderScreen(makeTablesDS());
+    fireEvent.click(screen.getByRole("button", { name: "Work: 6 items" }));
+
+    fireEvent.click(screen.getByRole("button", { name: "Open “Budget”" }));
+    expect(onNavigateToItem).toHaveBeenCalledWith({
+      id: "note-1",
+      role: "note",
+      date: undefined,
+    });
+  });
+
+  it("keeps an untagged table out of the untagged bucket", async () => {
+    await renderScreen(makeTablesDS());
+    fireEvent.click(screen.getByRole("button", { name: "Untagged: 1 item" }));
+    expect(screen.queryByText("Loose")).toBeNull();
   });
 });

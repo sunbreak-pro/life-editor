@@ -1203,6 +1203,7 @@
     "event": "イベント",
     "note": "ノート",
     "daily": "デイリー",
+    "table": "表",
     "unknown": "その他"
   },
   "detailPanel": {
@@ -1243,6 +1244,7 @@
     "selectHint": "タグを選ぶと、そこに集まったものが一覧に出ます。",
     "back": "タグ一覧へ戻る",
     "untagged": "未分類",
+    "untitledTable": "名前のない表",
     "itemCount_other": "{{count}} 件",
     "unusedTagsHeading": "使われていないタグ",
     "unusedTags_other": "使われていないタグ（{{count}}）",
