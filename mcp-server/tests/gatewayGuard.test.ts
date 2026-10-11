@@ -12,6 +12,7 @@ const { runAs } = await import("../src/callerContext.js");
 const { EXTENSION_TOOL_ACCESS, extensionRegistry } =
   await import("../src/extensionGateway.js");
 const { rejection } = await import("./rejection.js");
+const { EXTERNAL_ID_TOOL_NAMES } = await import("../src/externalIdTools.js");
 
 /*
  * The write guard's invariants (#2146). The Worker-level behaviour is in
@@ -47,8 +48,12 @@ describe("every write tool is accounted for", () => {
 
   it("is either a create or checked against the item it names", () => {
     for (const name of writeTools) {
+      // The by-external-id tools find the item under the CALLER'S app name, so
+      // they can only ever reach the app's own (externalIdTools.ts).
       const accounted =
-        guard.CREATE_TOOLS.includes(name) || name in guard.OWNED_ITEM_ARG;
+        guard.CREATE_TOOLS.includes(name) ||
+        name in guard.OWNED_ITEM_ARG ||
+        (EXTERNAL_ID_TOOL_NAMES as readonly string[]).includes(name);
       expect(
         accounted,
         `${name} is a write tool in the extension set but neither a create ` +

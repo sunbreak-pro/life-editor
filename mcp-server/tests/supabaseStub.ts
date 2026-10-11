@@ -29,7 +29,10 @@
  * leave a filtered read green while proving nothing.
  *
  * WRITES ARE THE ONE EXCEPTION to that throw-rather-than-lie rule, and the
- * asymmetry bites in the opposite direction. `fromTables` is a `select`
+ * asymmetry bites in the opposite direction. (A test that does need to read
+ * its own write — a create called twice — uses the third half below,
+ * `createWritableStub`, which applies writes to the rows it was given.)
+ `fromTables` is a `select`
  * callback, so insert/update/delete never reach it: the recorder accepts them,
  * answers `{data: null, error: null}`, and the fixture tables are untouched.
  * Do NOT write a write-then-read test on this path — it would not see its own
@@ -109,9 +112,19 @@ export type RpcAnswer = (
   params: Record<string, unknown>,
 ) => { data?: unknown; error?: { code?: string; message: string } | null };
 
+/**
+ * Runs when an insert/update/delete is awaited, after its filters are known.
+ * Returning an error makes the write fail the way PostgREST would (a unique
+ * violation is `{ code: "23505", message }`); returning nothing lets it pass.
+ */
+export type OnWrite = (
+  call: QueryCall,
+) => { code?: string; message: string } | void;
+
 export function createSupabaseStub(
   select: (call: QueryCall) => unknown = () => null,
   rpc?: RpcAnswer,
+  onWrite?: OnWrite,
 ): SupabaseStub {
   const calls: QueryCall[] = [];
 
@@ -135,12 +148,13 @@ export function createSupabaseStub(
 
       const result = () => {
         call.executed = true;
+        const refused = op === "select" ? undefined : onWrite?.(call);
         return {
           data:
             op === "select" || call.returning !== undefined
               ? select(call)
               : null,
-          error: null,
+          error: refused ?? null,
         };
       };
       /** A filter that is not an equality: recorded, never applied. */
@@ -308,6 +322,11 @@ function applyBound(rows: StubRow[], key: string, value: unknown): StubRow[] {
       return rows.filter((r) => compare(r[column], value) > 0);
     case "lt":
       return rows.filter((r) => compare(r[column], value) < 0);
+    case "is":
+      // `.is(column, null)` — PostgREST's IS NULL.
+      return rows.filter((r) =>
+        value === null ? r[column] == null : r[column] === value,
+      );
     case "ilike": {
       const re = likeToRegExp(value as string);
       return rows.filter(
@@ -315,8 +334,8 @@ function applyBound(rows: StubRow[], key: string, value: unknown): StubRow[] {
       );
     }
     default:
-      // is / not.is are RECORDED by the builder but not executed here.
-      // Ignoring them would hand a filtered read every row and quietly change
+      // not.is is RECORDED by the builder but not executed here.
+      // Ignoring it would hand a filtered read every row and quietly change
       // what the test proves, so refuse instead.
       throw new Error(`fromTables: unimplemented filter "${key}"`);
   }
@@ -352,6 +371,67 @@ export function fromTables(tables: StubTables): (call: QueryCall) => unknown {
     const window = rows.slice(from, to + 1);
     return call.single ? (window[0] ?? null) : window;
   };
+}
+
+/**
+ * The third half (#2148): a stub whose writes land in `tables`.
+ *
+ * `fromTables` answers reads from fixture rows and drops writes; a create that
+ * is called twice cannot be checked against that, because the second call
+ * would never see the first. This applies each awaited insert, update and
+ * delete to the rows (by the `.eq()` filters the handler built), so the second
+ * call reads what the first wrote.
+ *
+ * `unique` names column sets that must stay unique per table; an insert that
+ * would repeat one fails with PostgREST's 23505, which is how a lost race on
+ * an idempotency key looks to the handler. A partial index is a `where`.
+ */
+export function createWritableStub(
+  tables: StubTables,
+  options: {
+    unique?: Array<{
+      table: string;
+      columns: string[];
+      where?: (row: StubRow) => boolean;
+    }>;
+    /** Column values the database fills in when an insert leaves them out. */
+    defaults?: Record<string, StubRow>;
+    rpc?: RpcAnswer;
+  } = {},
+): SupabaseStub {
+  const read = fromTables(tables);
+  const onWrite: OnWrite = (call) => {
+    const rows = (tables[call.table] ??= []);
+    if (call.op === "insert") {
+      const row = { ...options.defaults?.[call.table], ...call.values };
+      for (const rule of options.unique ?? []) {
+        if (rule.table !== call.table) continue;
+        if (rule.where && !rule.where(row)) continue;
+        const clash = rows.some(
+          (r) =>
+            (!rule.where || rule.where(r)) &&
+            rule.columns.every((c) => r[c] === row[c]),
+        );
+        if (clash) {
+          return {
+            code: "23505",
+            message: `duplicate key value violates unique constraint on ${rule.columns.join(", ")}`,
+          };
+        }
+      }
+      rows.push(row);
+      return;
+    }
+    const hit = rows.filter((r) =>
+      Object.entries(call.filters).every(([c, v]) => r[c] === v),
+    );
+    if (call.op === "update") {
+      for (const r of hit) Object.assign(r, call.values);
+    } else if (call.op === "delete") {
+      tables[call.table] = rows.filter((r) => !hit.includes(r));
+    }
+  };
+  return createSupabaseStub(read, options.rpc, onWrite);
 }
 
 /*

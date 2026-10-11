@@ -6,6 +6,10 @@ import {
 import { currentCaller, type Caller } from "./callerContext.js";
 import { getSupabase } from "./supabase.js";
 import type { ToolDefinition } from "./tools/defineTool.js";
+import { CodedError } from "./errorCodes.js";
+
+const forbidden = (message: string): CodedError =>
+  new CodedError("forbidden", message);
 
 /*
  * What an extension app's key may do, checked before a handler runs
@@ -89,11 +93,11 @@ export async function assertMayRun(
   const caller = currentCaller();
   // The gateway always runs a call as a caller. Finding none means a path that
   // skipped the Worker's authentication, and that must not run as the owner.
-  if (!caller) throw new Error("Forbidden: no caller for this gateway call");
+  if (!caller) throw forbidden("Forbidden: no caller for this gateway call");
 
   const access = accessOf(def.name);
   if (access === undefined || !caller.scopes.includes(access)) {
-    throw new Error(
+    throw forbidden(
       `Forbidden: this key has no ${access ?? "access"} scope for ${def.name}`,
     );
   }
@@ -120,7 +124,7 @@ async function assertCreatedBy(id: string, caller: Caller): Promise<void> {
   if (!data) return;
 
   if ((data as { origin_app: string | null }).origin_app !== caller.app) {
-    throw new Error(`Forbidden: ${id} was not created by ${caller.app}`);
+    throw forbidden(`Forbidden: ${id} was not created by ${caller.app}`);
   }
 }
 

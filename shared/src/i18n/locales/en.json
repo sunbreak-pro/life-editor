@@ -551,7 +551,11 @@
         "addRight": "Right",
         "remove": "Delete",
         "nameLabel": "Table name",
-        "namePlaceholder": "Name this table"
+        "namePlaceholder": "Name this table",
+        "tagsGroup": "Tags",
+        "addTags": "Add tags",
+        "addingTags": "Preparing…",
+        "tagFailed": "Couldn't make this table taggable. Try again."
       },
       "conflict": {
         "message": "This note was changed somewhere else while you were editing it. Your latest changes are not saved yet. Choose what to keep.",

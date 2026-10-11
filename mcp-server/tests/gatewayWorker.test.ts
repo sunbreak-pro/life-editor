@@ -190,12 +190,15 @@ async function toolCall(
     result?: {
       content: Array<{ text: string }>;
       isError?: boolean;
+      structuredContent?: { code: string; message: string };
     };
   };
   return {
     res,
     isError: json.result?.isError === true,
     text: json.result?.content[0]?.text ?? "",
+    code: json.result?.structuredContent?.code,
+    structured: json.result?.structuredContent,
   };
 }
 
@@ -321,6 +324,57 @@ describe("the tools a key may call (R3)", () => {
       );
     }
     for (const t of VERIFICATION_TOOLS) expect(names).not.toContain(t.name);
+  });
+});
+
+describe("a failed call names its code (R7)", () => {
+  it("says invalid_arguments for a wrong argument, with the same words as before", async () => {
+    stub = createSupabaseStub((call) => (call.single ? ANY_ROW : []));
+    const out = await toolCall(keys.rw, "create_todo", { title: 7 });
+    expect(out.isError).toBe(true);
+    expect(out.text).toBe(
+      "Error: Invalid arguments for create_todo: title must be a string (got number)",
+    );
+    expect(out.structured).toEqual({
+      code: "invalid_arguments",
+      message:
+        "Invalid arguments for create_todo: title must be a string (got number)",
+    });
+    expect(out.res.status).toBe(200);
+  });
+
+  it("says forbidden for a key that may not do this", async () => {
+    stub = createSupabaseStub();
+    const scope = await toolCall(keys.readOnly, "create_todo", { title: "x" });
+    expect(scope.code).toBe("forbidden");
+
+    stub = createSupabaseStub((call) =>
+      call.single ? { origin_app: "another-app" } : [],
+    );
+    const owned = await toolCall(keys.rw, "delete_todo", { id: "t-1" });
+    expect(owned.code).toBe("forbidden");
+  });
+
+  it("says not_found for a tool or an item that is not there", async () => {
+    stub = createSupabaseStub((call) => (call.single ? null : []));
+    const tool = await toolCall(keys.rw, "list_routines");
+    expect(tool.code).toBe("not_found");
+    const item = await toolCall(keys.rw, "get_todo", { id: "ghost" });
+    expect(item.code).toBe("not_found");
+    expect(item.text).toBe("Error: Todo not found: ghost");
+  });
+
+  it("carries no structured code on a success", async () => {
+    stub = createSupabaseStub((call) => (call.single ? ANY_ROW : []));
+    const ok = await toolCall(keys.rw, "get_todo", { id: "t-1" });
+    expect(ok.isError).toBe(false);
+    expect(ok.structured).toBeUndefined();
+  });
+
+  it("leaves a request that fails to authenticate as the bare 404 — no body, so no code", async () => {
+    const res = await send("nonsense", { body: rpc("tools/list") });
+    expect(res.status).toBe(404);
+    expect(await res.text()).toBe("Not found");
   });
 });
 

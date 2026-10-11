@@ -27,6 +27,8 @@
  *     REQUIRED property is still an error — that one is never intentional.
  */
 
+import { invalidArguments } from "../errorCodes.js";
+
 export type StringSchema = {
   type: "string";
   enum?: string[];
@@ -192,7 +194,7 @@ export function validateToolArgs(
   const problems: string[] = [];
   checkObject(schema, args, "", problems);
   if (problems.length > 0) {
-    throw new Error(
+    throw invalidArguments(
       `Invalid arguments for ${toolName}: ${problems.join("; ")}`,
     );
   }

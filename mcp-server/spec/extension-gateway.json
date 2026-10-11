@@ -1,18 +1,28 @@
 {
   "specFormat": 1,
-  "gatewayVersion": "1.1.0",
-  "lifeEditorCommit": "658162b27eb657fe5c96eeeb8e45d57288e2cfa7",
+  "gatewayVersion": "1.2.0",
+  "lifeEditorCommit": "ee588a56a308147dae6ffb7110feea32dade91dd",
   "conventions": {
     "required": "inputSchema.required is the unconditional set. A property sent as null counts as not sent; a required one sent as null is an error.",
     "conditionalRequired": "A tool's conditionalRequired rule says: require[] is also required unless args[unless.field] strictly equals unless.equals. message is the failure text.",
     "stateDependentRules": "Rules that need stored data to apply. A stand-in must keep state to honour them.",
     "undeclaredArguments": "An argument the schema does not declare is accepted and ignored; the success result carries a second text item beginning 'Note: <tool> does not accept <names>'. Keys starting with '_' are never reported.",
-    "result": "Result shapes pin top-level keys and their JSON kinds. $ref points into definitions."
+    "result": "Result shapes pin top-level keys and their JSON kinds. $ref points into definitions.",
+    "idempotencyKey": "create_todo, create_note and create_schedule_item take an optional idempotency_key (1-200 characters). Same key and same arguments: the first call's item comes back and nothing is created. Same key, different arguments: failure code idempotency_key_reused. Same key whose item was deleted: failure code already_deleted. Keys are per app. Arguments are compared with null counting as absent.",
+    "externalId": "An item made with an idempotency_key can be changed by that key: update_by_external_id({ external_id, changes }) applies changes with the update tool for the item's kind; delete_by_external_id({ external_id }) deletes it (and succeeds again if it is already deleted). Only items the calling app created can be named; any other key is not_found."
   },
   "transport": {
     "protocol": "MCP over HTTP: stateless JSON-RPC 2.0, one POST per message, tools/list and tools/call.",
     "success": "tools/call returns { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] }; the parsed text is the tool's result. A second text item may follow (see conventions.undeclaredArguments).",
-    "failure": "A failing call is a normal tools/call result: { content: [{ type: 'text', text: 'Error: <message>' }], isError: true }. The HTTP status stays 200.",
+    "failure": "A failing call is a normal tools/call result: { content: [{ type: 'text', text: 'Error: <message>' }], isError: true, structuredContent: { code, message } }. The HTTP status stays 200. Branch on structuredContent.code, never on the message.",
+    "failureCodes": {
+      "invalid_arguments": "The call itself is wrong: a missing or mistyped argument, a malformed date or time, a conditional rule broken.",
+      "forbidden": "The key may not do this: a tool outside its scopes, or an item the app did not create. A request that fails to authenticate at all is not a tool result: it is the HTTP 404 described under authentication.",
+      "not_found": "No such tool, or no such live item.",
+      "idempotency_key_reused": "The same idempotency_key arrived with different arguments.",
+      "already_deleted": "The idempotency_key belongs to an item that was deleted, so it was not created again.",
+      "failed": "Anything else: a handler's own refusal or a database error. The message says which."
+    },
     "failureMessages": {
       "invalidArguments": "Invalid arguments for <tool>: <problem>; <problem> — every problem in one message. Problems read '<path> is required', '<path> must be a <type> (got <type>)', '<path> must be one of a | b (got \"x\")'.",
       "unknownTool": "Unknown tool: <name>",
@@ -20,8 +30,7 @@
     },
     "notYetSpecified": [
       "authentication and per-app keys (plan R3)",
-      "CORS and the browser path (plan R4)",
-      "machine-readable failure codes (plan R7)"
+      "CORS and the browser path (plan R4)"
     ]
   },
   "definitions": {
@@ -426,6 +435,10 @@
           "content": {
             "type": "string",
             "description": "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "A key of your own, 1-200 characters, that makes a retry safe: the same key with the same arguments returns the item the first call made (and creates nothing); the same key with different arguments fails with code idempotency_key_reused; a key whose item was since deleted fails with code already_deleted instead of creating it again. The key is also the item's external_id for update_by_external_id and delete_by_external_id."
           }
         },
         "required": [
@@ -624,6 +637,10 @@
           "content": {
             "type": "string",
             "description": "Markdown content (# headings, **bold**, *italic*, - lists, - [ ] tasks, > quotes, ```code```, > [!NOTE] callouts). For toggle lists, tables, or complex layouts, use generate_content instead."
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "A key of your own, 1-200 characters, that makes a retry safe: the same key with the same arguments returns the item the first call made (and creates nothing); the same key with different arguments fails with code idempotency_key_reused; a key whose item was since deleted fails with code already_deleted instead of creating it again. The key is also the item's external_id for update_by_external_id and delete_by_external_id."
           }
         },
         "required": [
@@ -797,6 +814,10 @@
           "memo": {
             "type": "string",
             "description": "Plain-text memo attached to the event"
+          },
+          "idempotency_key": {
+            "type": "string",
+            "description": "A key of your own, 1-200 characters, that makes a retry safe: the same key with the same arguments returns the item the first call made (and creates nothing); the same key with different arguments fails with code idempotency_key_reused; a key whose item was since deleted fails with code already_deleted instead of creating it again. The key is also the item's external_id for update_by_external_id and delete_by_external_id."
           }
         },
         "required": [
@@ -1310,6 +1331,63 @@
           }
         },
         "description": "One key per searched domain (todos, dailies, notes), each { results, total, hasMore }."
+      }
+    },
+    {
+      "name": "update_by_external_id",
+      "description": "Update an item this app created, naming it by the idempotency_key it was created with (its external_id) instead of its id. `changes` holds the fields of the matching update tool — update_todo, update_note or update_schedule_item, by what the item is — without `id`. Returns that tool's result. An item the app did not create is reported as not found; a deleted one as already_deleted.",
+      "access": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "external_id": {
+            "type": "string",
+            "description": "The idempotency_key the item was created with (this app's own)"
+          },
+          "changes": {
+            "type": "object",
+            "description": "The update tool's fields to change, e.g. { title: 'New' } or { start_time: '10:00' }"
+          }
+        },
+        "required": [
+          "external_id",
+          "changes"
+        ]
+      },
+      "required": [
+        "external_id",
+        "changes"
+      ],
+      "conditionalRequired": [],
+      "stateDependentRules": [],
+      "result": {
+        "type": "object",
+        "description": "The result of the update tool for the item's kind: update_todo (definitions.todo), update_note (definitions.note) or update_schedule_item (definitions.scheduleItem)."
+      }
+    },
+    {
+      "name": "delete_by_external_id",
+      "description": "Delete (to the trash) an item this app created, naming it by the idempotency_key it was created with (its external_id). Deleting an item that is already deleted succeeds with the same answer, so a retry is safe. An item the app did not create is reported as not found.",
+      "access": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "external_id": {
+            "type": "string",
+            "description": "The idempotency_key the item was created with (this app's own)"
+          }
+        },
+        "required": [
+          "external_id"
+        ]
+      },
+      "required": [
+        "external_id"
+      ],
+      "conditionalRequired": [],
+      "stateDependentRules": [],
+      "result": {
+        "$ref": "#/definitions/deleted"
       }
     }
   ]

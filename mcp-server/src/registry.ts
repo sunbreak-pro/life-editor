@@ -1,6 +1,7 @@
 import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolArgs, ToolDefinition } from "./tools/defineTool.js";
 import { validateToolArgs, unknownArgNames } from "./utils/toolSchema.js";
+import { notFoundError } from "./errorCodes.js";
 
 /*
  * The registry constructor, lifted out of tools.ts by the Remote MCP work
@@ -57,7 +58,7 @@ export function buildRegistry(
     tools,
     async call(name, args) {
       const def = byName.get(name);
-      if (!def) throw new Error(`Unknown tool: ${name}`);
+      if (!def) throw notFoundError(`Unknown tool: ${name}`);
 
       // Validate before dispatch: an argument the schema does not allow must
       // not reach a handler, where it would become a Supabase error or a bad

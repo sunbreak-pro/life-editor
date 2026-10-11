@@ -1,6 +1,7 @@
 import { getSupabase } from "../supabase.js";
 import { bumpMeta, type ItemRole } from "../utils/items.js";
 import { assertGoalRestorable } from "./goalHandlers.js";
+import { notFoundError } from "../errorCodes.js";
 
 /*
  * Trash handlers — the other half of the soft delete (#782 ①).
@@ -108,7 +109,7 @@ export async function restoreItem(args: { id: string }) {
     .eq("id", args.id)
     .maybeSingle();
   if (error) throw new Error(`get items_meta: ${error.message}`);
-  if (!data) throw new Error(`Item not found: ${args.id}`);
+  if (!data) throw notFoundError(`Item not found: ${args.id}`);
 
   const meta = data as unknown as RestorableMetaRow;
   if (!RESTORABLE_ROLES.includes(meta.role)) {

@@ -7,6 +7,7 @@ import {
   CallToolRequestSchema,
 } from "@modelcontextprotocol/sdk/types.js";
 import { TOOLS, callTool } from "./tools.js";
+import { errorResult } from "./errorCodes.js";
 
 // Every tool is Supabase-backed since #360 — the server authenticates from
 // env (see supabase.ts) and keeps no local database. The legacy SQLite path
@@ -29,11 +30,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
     // escapes this try/catch and crashes the server.
     return await callTool(name, args ?? {});
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    return {
-      content: [{ type: "text" as const, text: `Error: ${message}` }],
-      isError: true,
-    };
+    return errorResult(error);
   }
 });
 

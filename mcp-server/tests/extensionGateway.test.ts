@@ -139,11 +139,36 @@ describe("spec/extension-gateway.json is the committed contract (#2144)", () => 
 });
 
 describe("the gateway tool set", () => {
+  // The gateway's own: two tools that exist nowhere else (externalIdTools.ts).
+  const GATEWAY_ONLY = ["update_by_external_id", "delete_by_external_id"];
+  // The one argument the gateway adds to a shared tool (#2148).
+  const KEYED = ["create_todo", "create_note", "create_schedule_item"];
+
   it("is published from the remote registry's own definitions", async () => {
     for (const def of gateway.EXTENSION_TOOL_DEFINITIONS) {
+      if (GATEWAY_ONLY.includes(def.name)) continue;
       const same = remoteRegistry.tools.find((t) => t.name === def.name);
       expect(same, `${def.name} must be a remote tool`).toBeDefined();
-      expect(same?.inputSchema).toEqual(def.inputSchema);
+      const { idempotency_key: key, ...properties } = (def.inputSchema
+        .properties ?? {}) as Record<string, unknown>;
+      // Apart from the retry key on the three creates, the schema IS the remote one.
+      expect(key !== undefined, `${def.name} idempotency_key`).toBe(
+        KEYED.includes(def.name),
+      );
+      expect(same?.inputSchema).toEqual({
+        ...def.inputSchema,
+        properties,
+      });
+    }
+  });
+
+  it("does not hand the phone's connector or the desktop server the retry key", () => {
+    for (const name of KEYED) {
+      const remote = remoteRegistry.tools.find((t) => t.name === name);
+      expect(
+        Object.keys(remote?.inputSchema.properties ?? {}),
+        name,
+      ).not.toContain("idempotency_key");
     }
   });
 

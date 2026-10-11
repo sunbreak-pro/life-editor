@@ -2,8 +2,8 @@
  * The official fake of the life-editor extension-app gateway (#2145, plan
  * .claude/docs/vision/plans/2026-10-07-extension-app-gateway.md, R2).
  *
- *   Gateway version:    1.1.0
- *   life-editor commit: 658162b27eb657fe5c96eeeb8e45d57288e2cfa7
+ *   Gateway version:    1.2.0
+ *   life-editor commit: ee588a56a308147dae6ffb7110feea32dade91dd
  *
  * Those two lines are the spec this file was written against. They are a
  * promise, not decoration: tests/extensionGatewayFake.test.ts fails when they
@@ -81,11 +81,16 @@
  *   9. search_all matches todo content against the stored TipTap JSON text,
  *      as the real ILIKE does — so with difference 1, which todos match a
  *      word that only appears in markup can differ.
+ *  10. The fake serves ONE app. idempotency_key and external_id are looked up
+ *      in a single namespace, where the real gateway keeps them per app (a
+ *      key another app used is simply not found there). The refusals — a
+ *      reused key with different arguments, a key whose item was deleted —
+ *      are the real ones.
  */
 
 import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { randomUUID } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -135,6 +140,23 @@ const SUPPORTED_PROTOCOL_VERSIONS = [
   "2024-11-05",
   "2024-10-07",
 ];
+
+/* ---- failure codes (mirror of src/errorCodes.ts) -------------------------- */
+
+/**
+ * An Error that names its code. A call's failure comes back as
+ * structuredContent.code (spec: transport.failureCodes); anything thrown
+ * without one is "failed".
+ */
+class CodedError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.code = code;
+  }
+}
+const invalidArguments = (message) => new CodedError("invalid_arguments", message);
+const notFoundError = (message) => new CodedError("not_found", message);
+const codeOf = (error) => (error instanceof CodedError ? error.code : "failed");
 
 /* ---- argument validation (mirror of src/utils/toolSchema.ts) ------------- */
 
@@ -216,7 +238,7 @@ function validateToolArgs(toolName, schema, args) {
   const problems = [];
   checkObject(schema, args, "", problems);
   if (problems.length > 0) {
-    throw new Error(
+    throw invalidArguments(
       `Invalid arguments for ${toolName}: ${problems.join("; ")}`,
     );
   }
@@ -255,7 +277,7 @@ const DEFAULT_TAG_COLOR = "#808080";
 function resolveListLimit(limit, fallback = DEFAULT_LIST_LIMIT) {
   if (limit === undefined || limit === null) return fallback;
   if (!Number.isInteger(limit) || limit < 1) {
-    throw new Error(`limit must be a positive integer (got ${limit})`);
+    throw invalidArguments(`limit must be a positive integer (got ${limit})`);
   }
   return limit;
 }
@@ -263,21 +285,23 @@ function resolveListLimit(limit, fallback = DEFAULT_LIST_LIMIT) {
 function resolveListOffset(offset) {
   if (offset === undefined || offset === null) return 0;
   if (!Number.isInteger(offset) || offset < 0) {
-    throw new Error(`offset must be a non-negative integer (got ${offset})`);
+    throw invalidArguments(
+      `offset must be a non-negative integer (got ${offset})`,
+    );
   }
   return offset;
 }
 
 function assertDateKey(date) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new Error(`Invalid date "${date}" (expected YYYY-MM-DD)`);
+    throw invalidArguments(`Invalid date "${date}" (expected YYYY-MM-DD)`);
   }
   return date;
 }
 
 function assertTimeOfDay(value, field) {
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
-    throw new Error(
+    throw invalidArguments(
       `Invalid ${field} "${value}" (expected HH:MM, 00:00-23:59)`,
     );
   }
@@ -298,7 +322,9 @@ const STATUS_TO_DB = { not_started: "NOT_STARTED", done: "DONE" };
 function toDbStatus(status) {
   const mapped = STATUS_TO_DB[status.toLowerCase()];
   if (!mapped) {
-    throw new Error(`Invalid status "${status}" (expected not_started|done)`);
+    throw invalidArguments(
+      `Invalid status "${status}" (expected not_started|done)`,
+    );
   }
   return mapped;
 }
@@ -474,6 +500,30 @@ function createStore() {
 }
 
 const now = () => new Date().toISOString();
+
+/** JSON with object keys sorted and null/undefined members dropped. */
+function canonical(value) {
+  if (Array.isArray(value)) return value.map(canonical);
+  if (typeof value === "object" && value !== null) {
+    const out = {};
+    for (const name of Object.keys(value).sort()) {
+      const member = value[name];
+      if (member === undefined || member === null) continue;
+      out[name] = canonical(member);
+    }
+    return out;
+  }
+  return value;
+}
+
+/** SHA-256 of a create request, idempotency_key excluded (src/utils/originKey.ts). */
+function requestHash(tool, args) {
+  const { idempotency_key: _key, ...rest } = args;
+  return createHash("sha256")
+    .update(JSON.stringify({ tool, args: canonical(rest) }))
+    .digest("hex");
+}
+
 const byKey =
   (...keys) =>
   (a, b) => {
@@ -489,7 +539,7 @@ const byKey =
     return 0;
   };
 
-function createTools(state, clock) {
+function createTools(state, clock, toolSpecs) {
   const db = () => state.store;
 
   /* items_meta rituals (src/utils/items.ts) */
@@ -499,10 +549,10 @@ function createTools(state, clock) {
   };
   const requireMeta = (id, role, label) => {
     const meta = findMeta(id, role);
-    if (!meta) throw new Error(`${label} not found: ${id}`);
+    if (!meta) throw notFoundError(`${label} not found: ${id}`);
     return meta;
   };
-  const insertItem = (id, role, title, table, payload) => {
+  const insertItem = (id, role, title, table, payload, origin) => {
     const at = now();
     db().metas.set(id, {
       id,
@@ -512,8 +562,64 @@ function createTools(state, clock) {
       deleted_at: null,
       created_at: at,
       updated_at: at,
+      origin_key: origin?.key ?? null,
+      origin_request_hash: origin?.hash ?? null,
     });
     db()[table].set(id, { item_id: id, ...payload });
+  };
+
+  /* by external id (src/externalIdTools.ts) */
+  const EXTERNAL_KINDS = {
+    task: { update: "update_todo", delete: "delete_todo" },
+    note: { update: "update_note", delete: "delete_note" },
+    event: { update: "update_schedule_item", delete: "delete_schedule_item" },
+  };
+  const resolveExternal = (externalId) => {
+    const row = keyedMeta(externalId);
+    const kind = row ? EXTERNAL_KINDS[row.role] : undefined;
+    if (!row || !kind) {
+      throw notFoundError(
+        `No item created by this app has external_id "${externalId}"`,
+      );
+    }
+    return { row, kind };
+  };
+
+  /* retry keys (src/utils/originKey.ts) */
+  const keyedMeta = (key) =>
+    [...db().metas.values()].find((m) => m.origin_key === key) ?? null;
+  const originKeyFor = (tool, args) => {
+    const key = args.idempotency_key;
+    if (key === undefined || key === null) return undefined;
+    if (typeof key !== "string" || key.length < 1 || key.length > 200) {
+      throw invalidArguments(
+        `Invalid arguments for ${tool}: idempotency_key must be 1-200 characters`,
+      );
+    }
+    return { key, hash: requestHash(tool, args) };
+  };
+  const createOnce = (tool, role, args, create, load) => {
+    const origin = originKeyFor(tool, args);
+    if (!origin) return load(create(undefined));
+    const row = keyedMeta(origin.key);
+    if (row) {
+      if (row.role !== role || row.origin_request_hash !== origin.hash) {
+        throw new CodedError(
+          "idempotency_key_reused",
+          `idempotency_key "${origin.key}" was already used for a different request. ` +
+            `Send the same arguments to retry it, or use a new key for new content.`,
+        );
+      }
+      if (row.is_deleted) {
+        throw new CodedError(
+          "already_deleted",
+          `The item created with idempotency_key "${origin.key}" was deleted, so it was not created again. ` +
+            `Use a new key to create a new one.`,
+        );
+      }
+      return load(row.id);
+    }
+    return load(create(origin));
   };
   const bumpMeta = (id, patch = {}) => {
     const meta = db().metas.get(id);
@@ -593,7 +699,7 @@ function createTools(state, clock) {
   const getTodoRows = (id) => {
     const meta = requireMeta(id, "task", "Todo");
     const payload = db().tasks.get(id);
-    if (!payload) throw new Error(`Todo not found: ${id}`);
+    if (!payload) throw notFoundError(`Todo not found: ${id}`);
     return { meta, payload };
   };
   const rangeBound = (value, edge) => {
@@ -629,7 +735,7 @@ function createTools(state, clock) {
   const getNoteRows = (id) => {
     const meta = requireMeta(id, "note", "Note");
     const payload = db().notes.get(id);
-    if (!payload) throw new Error(`Note not found: ${id}`);
+    if (!payload) throw notFoundError(`Note not found: ${id}`);
     return { meta, payload };
   };
 
@@ -656,7 +762,7 @@ function createTools(state, clock) {
     const meta = db().metas.get(id);
     const payload = db().events.get(id);
     if (!meta || meta.role !== "event" || !payload) {
-      throw new Error(`Schedule item not found: ${id}`);
+      throw notFoundError(`Schedule item not found: ${id}`);
     }
     return { meta, payload };
   };
@@ -702,7 +808,7 @@ function createTools(state, clock) {
     hasMore: offset + limit < matches.length,
   });
 
-  return {
+  const tools = {
     /* ---- todos ---- */
     list_todos(args) {
       const limit = resolveListLimit(args.limit);
@@ -755,36 +861,53 @@ function createTools(state, clock) {
     create_todo(args) {
       const status =
         args.status === undefined ? "NOT_STARTED" : toDbStatus(args.status);
-      if (args.scheduled_at !== undefined)
-        assertTimestamp(args.scheduled_at, "create tasks_payload");
-      if (args.scheduled_end_at !== undefined) {
-        assertTimestamp(args.scheduled_end_at, "create tasks_payload");
-      }
-      const id = `task-${randomUUID()}`;
-      const parent = args.parent_id ?? null;
-      const siblings = [...db().tasks.values()].filter(
-        (p) => p.parent_item_id === parent,
+      return createOnce(
+        "create_todo",
+        "task",
+        args,
+        (origin) => {
+          if (args.scheduled_at !== undefined)
+            assertTimestamp(args.scheduled_at, "create tasks_payload");
+          if (args.scheduled_end_at !== undefined) {
+            assertTimestamp(args.scheduled_end_at, "create tasks_payload");
+          }
+          const id = `task-${randomUUID()}`;
+          const parent = args.parent_id ?? null;
+          const siblings = [...db().tasks.values()].filter(
+            (p) => p.parent_item_id === parent,
+          );
+          const maxOrder = siblings.reduce(
+            (max, p) => Math.max(max, p.sort_order),
+            -1,
+          );
+          insertItem(
+            id,
+            "task",
+            args.title,
+            "tasks",
+            {
+              parent_item_id: parent,
+              task_type: "task",
+              status,
+              completed_at: status === "DONE" ? now() : null,
+              content: args.content
+                ? JSON.stringify(markdownToDoc(args.content))
+                : null,
+              time_memo: null,
+              scheduled_at: args.scheduled_at ?? null,
+              scheduled_end_at: args.scheduled_end_at ?? null,
+              is_all_day: args.is_all_day ?? false,
+              sort_order: maxOrder + 1,
+            },
+            origin,
+          );
+          return id;
+        },
+        (id) => {
+          const { meta, payload } = getTodoRows(id);
+          return formatTodo(meta, payload);
+        },
       );
-      const maxOrder = siblings.reduce(
-        (max, p) => Math.max(max, p.sort_order),
-        -1,
-      );
-      insertItem(id, "task", args.title, "tasks", {
-        parent_item_id: parent,
-        task_type: "task",
-        status,
-        completed_at: status === "DONE" ? now() : null,
-        content: args.content
-          ? JSON.stringify(markdownToDoc(args.content))
-          : null,
-        time_memo: null,
-        scheduled_at: args.scheduled_at ?? null,
-        scheduled_end_at: args.scheduled_end_at ?? null,
-        is_all_day: args.is_all_day ?? false,
-        sort_order: maxOrder + 1,
-      });
-      const { meta, payload } = getTodoRows(id);
-      return formatTodo(meta, payload);
     },
 
     update_todo(args) {
@@ -857,16 +980,33 @@ function createTools(state, clock) {
     },
 
     create_note(args) {
-      const id = `note-${randomUUID()}`;
-      insertItem(id, "note", args.title, "notes", {
-        note_type: "note",
-        content_json: args.content ? markdownToDoc(args.content) : null,
-        is_pinned: false,
-        color: null,
-        has_password: false,
-      });
-      const { meta, payload } = getNoteRows(id);
-      return formatNote(meta, payload);
+      return createOnce(
+        "create_note",
+        "note",
+        args,
+        (origin) => {
+          const id = `note-${randomUUID()}`;
+          insertItem(
+            id,
+            "note",
+            args.title,
+            "notes",
+            {
+              note_type: "note",
+              content_json: args.content ? markdownToDoc(args.content) : null,
+              is_pinned: false,
+              color: null,
+              has_password: false,
+            },
+            origin,
+          );
+          return id;
+        },
+        (id) => {
+          const { meta, payload } = getNoteRows(id);
+          return formatNote(meta, payload);
+        },
+      );
     },
 
     update_note(args) {
@@ -910,12 +1050,12 @@ function createTools(state, clock) {
       if (Boolean(args.start_date) !== Boolean(args.end_date)) {
         const given = args.start_date ? "start_date" : "end_date";
         const missing = args.start_date ? "end_date" : "start_date";
-        throw new Error(
+        throw invalidArguments(
           `${missing} is required when ${given} is given (use date on its own for a single day)`,
         );
       }
       if (args.date && args.start_date) {
-        throw new Error(
+        throw invalidArguments(
           "date and start_date/end_date are mutually exclusive (pass a single day or a range, not both)",
         );
       }
@@ -948,27 +1088,44 @@ function createTools(state, clock) {
       if (!args.is_all_day) {
         // The handler treats "" as missing too, which the spec's rule does not say.
         if (!args.start_time || !args.end_time) {
-          throw new Error(
+          throw invalidArguments(
             "start_time and end_time are required unless is_all_day is true",
           );
         }
         assertTimeOfDay(args.start_time, "start_time");
         assertTimeOfDay(args.end_time, "end_time");
       }
-      const id = `si-${randomUUID()}`;
-      insertItem(id, "event", args.title, "events", {
-        start_at: args.date,
-        start_time: args.is_all_day ? null : args.start_time,
-        end_time: args.is_all_day ? null : args.end_time,
-        is_all_day: args.is_all_day ?? false,
-        done: false,
-        completed_at: null,
-        is_dismissed: false,
-        memo: args.memo ?? null,
-        routine_item_id: null,
-      });
-      const { meta, payload } = getEvent(id);
-      return formatItem(meta, payload);
+      return createOnce(
+        "create_schedule_item",
+        "event",
+        args,
+        (origin) => {
+          const id = `si-${randomUUID()}`;
+          insertItem(
+            id,
+            "event",
+            args.title,
+            "events",
+            {
+              start_at: args.date,
+              start_time: args.is_all_day ? null : args.start_time,
+              end_time: args.is_all_day ? null : args.end_time,
+              is_all_day: args.is_all_day ?? false,
+              done: false,
+              completed_at: null,
+              is_dismissed: false,
+              memo: args.memo ?? null,
+              routine_item_id: null,
+            },
+            origin,
+          );
+          return id;
+        },
+        (id) => {
+          const { meta, payload } = getEvent(id);
+          return formatItem(meta, payload);
+        },
+      );
     },
 
     update_schedule_item(args) {
@@ -995,7 +1152,7 @@ function createTools(state, clock) {
           const start = args.start_time ?? current.start_time;
           const end = args.end_time ?? current.end_time;
           if (!start || !end) {
-            throw new Error(
+            throw invalidArguments(
               "start_time and end_time are required when turning is_all_day off (this item has none stored)",
             );
           }
@@ -1097,9 +1254,9 @@ function createTools(state, clock) {
     tag_entity(args) {
       const meta = db().metas.get(args.entity_id);
       if (!meta || meta.is_deleted)
-        throw new Error(`Item not found: ${args.entity_id}`);
+        throw notFoundError(`Item not found: ${args.entity_id}`);
       if (args.entity_type && args.entity_type !== meta.role) {
-        throw new Error(
+        throw invalidArguments(
           `Item ${args.entity_id} is a "${meta.role}", not a "${args.entity_type}"`,
         );
       }
@@ -1229,7 +1386,42 @@ function createTools(state, clock) {
       }
       return { ...result, totalHits };
     },
+
+    /* ---- by external id (src/externalIdTools.ts) ---- */
+    update_by_external_id(args) {
+      const { row, kind } = resolveExternal(args.external_id);
+      if (row.is_deleted) {
+        throw new CodedError(
+          "already_deleted",
+          `The item with external_id "${args.external_id}" was deleted, so it was not updated.`,
+        );
+      }
+      if ("id" in args.changes) {
+        throw invalidArguments(
+          "changes must not contain id: the item is named by external_id",
+        );
+      }
+      const innerArgs = { ...args.changes, id: row.id };
+      const inner = toolSpecs.get(kind.update);
+      validateToolArgs(kind.update, inner.inputSchema, innerArgs);
+      const ignored = unknownArgNames(inner.inputSchema, innerArgs);
+      if (ignored.length > 0) {
+        throw invalidArguments(
+          `${kind.update} does not accept ${ignored.join(", ")} in changes`,
+        );
+      }
+      return tools[kind.update](innerArgs, { applyConditionalRules() {} });
+    },
+
+    delete_by_external_id(args) {
+      const { row, kind } = resolveExternal(args.external_id);
+      if (row.is_deleted) {
+        return { success: true, id: row.id, softDeleted: true };
+      }
+      return tools[kind.delete]({ id: row.id }, { applyConditionalRules() {} });
+    },
   };
+  return tools;
 }
 
 /* ---- the gateway --------------------------------------------------------- */
@@ -1309,7 +1501,7 @@ export function createFakeGateway(options = {}) {
   const clock = makeClock(timeZone);
 
   const state = { store: createStore() };
-  const tools = createTools(state, clock);
+  const tools = createTools(state, clock, toolSpecs);
   for (const name of toolSpecs.keys()) {
     if (!tools[name]) {
       throw new Error(
@@ -1321,7 +1513,7 @@ export function createFakeGateway(options = {}) {
 
   async function callTool(name, args) {
     const toolSpec = toolSpecs.get(name);
-    if (!toolSpec) throw new Error(`Unknown tool: ${name}`);
+    if (!toolSpec) throw notFoundError(`Unknown tool: ${name}`);
     validateToolArgs(name, toolSpec.inputSchema, args);
     const ignored = unknownArgNames(toolSpec.inputSchema, args);
 
@@ -1332,7 +1524,7 @@ export function createFakeGateway(options = {}) {
     const ctx = {
       applyConditionalRules() {
         const message = brokenConditionalRule(toolSpec, args);
-        if (message) throw new Error(message);
+        if (message) throw invalidArguments(message);
       },
     };
     const run = tools[name];
@@ -1402,6 +1594,7 @@ export function createFakeGateway(options = {}) {
           return rpcResult(id, {
             content: [{ type: "text", text: `Error: ${text}` }],
             isError: true,
+            structuredContent: { code: codeOf(error), message: text },
           });
         }
       }

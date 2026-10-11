@@ -30,6 +30,8 @@ import {
   noteVersionConflictError,
   writeNoteContent,
 } from "../utils/noteContentWrite.js";
+import { notFoundError } from "../errorCodes.js";
+import { createOnce, type OriginKey } from "../utils/originKey.js";
 
 /*
  * Note handlers — Supabase edition (#360).
@@ -234,7 +236,7 @@ export async function getNoteRows(id: string): Promise<NoteRecord> {
     .eq("item_id", id)
     .maybeSingle();
   if (bErr) throw new Error(`get notes_payload: ${bErr.message}`);
-  if (!bodyless) throw new Error(`Note not found: ${id}`);
+  if (!bodyless) throw notFoundError(`Note not found: ${id}`);
   return { meta, payload: bodyless as unknown as NotesPayloadRow };
 }
 
@@ -279,7 +281,28 @@ export async function getNote(args: { id: string }) {
   return formatNote(meta, payload);
 }
 
-export async function createNote(args: { title: string; content?: string }) {
+export async function createNote(args: {
+  title: string;
+  content?: string;
+  /** Gateway only (originKey.ts): a retry returns the first call's note. */
+  idempotency_key?: string;
+}) {
+  return createOnce({
+    tool: "create_note",
+    role: "note",
+    input: args,
+    create: (origin) => insertNote(args, origin),
+    load: async (id) => {
+      const { meta, payload } = await getNoteRows(id);
+      return formatNote(meta, payload);
+    },
+  });
+}
+
+async function insertNote(
+  args: { title: string; content?: string },
+  origin: OriginKey | undefined,
+): Promise<string> {
   const id = `note-${randomUUID()}`;
 
   await insertItem({
@@ -295,10 +318,9 @@ export async function createNote(args: { title: string; content?: string }) {
       is_pinned: false,
       is_edit_locked: false,
     },
+    origin,
   });
-
-  const { meta, payload } = await getNoteRows(id);
-  return formatNote(meta, payload);
+  return id;
 }
 
 export async function updateNote(args: {
