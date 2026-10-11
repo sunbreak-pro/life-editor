@@ -196,6 +196,8 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       stub.stage("items_meta", "select", { data: [], error: null });
       // delete
       stub.stage("items_meta", "delete", { data: null, error: null });
+      // #2094: the notes' table items (none here)
+      stub.stage("tables_payload", "select", { data: [], error: null });
 
       await service.permanentDeleteNoteUnified("note-L1");
 
@@ -239,6 +241,8 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       stub.stage("items_meta", "delete", { data: null, error: null });
       stub.stage("items_meta", "delete", { data: null, error: null });
       stub.stage("items_meta", "delete", { data: null, error: null });
+      // #2094: the notes' table items (none here)
+      stub.stage("tables_payload", "select", { data: [], error: null });
 
       await service.permanentDeleteNoteUnified("note-A");
 
@@ -298,6 +302,8 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
 
       stub.stage("items_meta", "delete", { data: null, error: null });
       stub.stage("items_meta", "delete", { data: null, error: null });
+      // #2094: the notes' table items (none here)
+      stub.stage("tables_payload", "select", { data: [], error: null });
 
       await service.permanentDeleteNoteUnified("note-A");
 

@@ -11,6 +11,7 @@ import { SupabaseNotesUnifiedSearch } from "./SupabaseNotesUnifiedSearch";
 import { SupabaseNotesUnifiedLock } from "./SupabaseNotesUnifiedLock";
 import { SupabaseNotesUnifiedBodySave } from "./SupabaseNotesUnifiedBodySave";
 import { orderNotePurge } from "./notesUnifiedPurgeOrder";
+import { purgeNoteTablesOf } from "./SupabaseNoteTablesService";
 
 /*
  * SupabaseNotesUnifiedService (DU-D Step 2).
@@ -265,6 +266,8 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
    * parent's delete with 23503). Accepted: migration 0020 converted the two
    * production folders and left zero notes directly under them, and the
    * rollback SSOT is `life_tags_migration_log`.
+   *
+   * The notes' table items (#2094) go first, for the same FK reason.
    */
   async permanentDeleteNoteUnified(id: string): Promise<void> {
     const [live, trashed] = await Promise.all([
@@ -272,6 +275,10 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
       this.fetchDeletedNotesUnified(),
     ]);
     const ordered = orderNotePurge([...live, ...trashed], id);
+
+    // #2094: the notes' table items first — 0040's parent FK is NO ACTION
+    // too, so a note with a tagged table would otherwise refuse with 23503.
+    await purgeNoteTablesOf(this.client, ordered);
 
     for (const did of ordered) {
       const { error } = await this.client
