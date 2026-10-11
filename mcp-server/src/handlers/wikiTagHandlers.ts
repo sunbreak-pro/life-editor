@@ -47,6 +47,8 @@ export interface TagInfo {
 }
 
 const TAG_COLUMNS = "id, name, color, icon, created_at, updated_at";
+/** What search_by_tag calls a note table that has no name (#2094). */
+export const UNTITLED_TABLE_TITLE = "Untitled table";
 const ASSIGNMENT_COLUMNS = "id, item_id, tag_id, updated_at";
 const DEFAULT_TAG_COLOR = "#808080";
 
@@ -400,6 +402,17 @@ export async function searchByTag(args: {
   const ids = [...metaById.keys()];
   const todoIds = ids.filter((id) => metaById.get(id)?.role === "task");
   const dailyIds = ids.filter((id) => metaById.get(id)?.role === "daily");
+  const tableIds = ids.filter((id) => metaById.get(id)?.role === "table");
+
+  // A note table (#2094) is answered with the note it sits in, and is dropped
+  // while that note is trashed: the table is still live on its own row (the
+  // app keeps it so restoring the note brings it back), but the caller could
+  // not open the note to read it.
+  const tableDetail = await fetchTableParents(client, tableIds);
+  for (const id of tableIds) {
+    if (!tableDetail.has(id)) metaById.delete(id);
+  }
+  if (metaById.size === 0) return { tag: formatTag(tag), results: [] };
 
   const [todoDetail, dailyDetail] = await Promise.all([
     (async () => {
@@ -457,13 +470,70 @@ export async function searchByTag(args: {
       assignedAt: a.updated_at,
       entity: {
         id: meta.id,
-        title: meta.title,
+        title:
+          meta.role === "table" && meta.title === ""
+            ? UNTITLED_TABLE_TITLE
+            : meta.title,
         createdAt: meta.created_at,
         ...(todoDetail.get(meta.id) ?? {}),
         ...(dailyDetail.get(meta.id) ?? {}),
+        ...(tableDetail.get(meta.id) ?? {}),
       },
     });
   }
 
   return { tag: formatTag(tag), results };
+}
+
+/**
+ * table id → { parentNoteId, parentNoteTitle } for the tables whose note is
+ * live (#2094). A table whose note is trashed, or whose payload row is
+ * missing, is absent from the map.
+ */
+async function fetchTableParents(
+  client: Awaited<ReturnType<typeof getSupabase>>["client"],
+  tableIds: string[],
+): Promise<Map<string, { parentNoteId: string; parentNoteTitle: string }>> {
+  const out = new Map<
+    string,
+    { parentNoteId: string; parentNoteTitle: string }
+  >();
+  if (tableIds.length === 0) return out;
+
+  const payloads = await fetchByIdChunks<{
+    item_id: string;
+    parent_note_id: string;
+  }>(tableIds, async (chunk) => {
+    const { data, error } = await client
+      .from("tables_payload")
+      .select("item_id, parent_note_id")
+      .in("item_id", chunk);
+    if (error) throw new Error(`tagged tables_payload: ${error.message}`);
+    return (data ?? []) as Array<{ item_id: string; parent_note_id: string }>;
+  });
+
+  const notes = await fetchByIdChunks<{ id: string; title: string }>(
+    [...new Set(payloads.map((p) => p.parent_note_id))],
+    async (chunk) => {
+      const { data, error } = await client
+        .from("items_meta")
+        .select("id, title")
+        .eq("role", "note")
+        .eq("is_deleted", false)
+        .in("id", chunk);
+      if (error) throw new Error(`tables' notes: ${error.message}`);
+      return (data ?? []) as Array<{ id: string; title: string }>;
+    },
+  );
+  const noteTitle = new Map(notes.map((n) => [n.id, n.title]));
+
+  for (const p of payloads) {
+    const title = noteTitle.get(p.parent_note_id);
+    if (title === undefined) continue;
+    out.set(p.item_id, {
+      parentNoteId: p.parent_note_id,
+      parentNoteTitle: title,
+    });
+  }
+  return out;
 }

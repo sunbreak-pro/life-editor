@@ -229,6 +229,24 @@ describe("listTrash", () => {
     expect(result.items.map((i) => i.id)).toEqual(["note-1"]);
   });
 
+  it("leaves out a note table, which has no trash of its own (#2094)", async () => {
+    // A table item is soft-deleted when its table leaves the note body, and
+    // comes back by Undo in the note — restore_item has nothing to offer it.
+    stub = createSupabaseStub(
+      fromTables({
+        items_meta: [
+          trashed({ id: "note-1", role: "note" }),
+          trashed({ id: "table-1", role: "table", title: "Budget" }),
+        ],
+      }),
+    );
+
+    const result = await listTrash({});
+
+    expect(result.items.map((i) => i.id)).toEqual(["note-1"]);
+    expect(stub.calls[0].bounds).toMatchObject({ "role.neq": "table" });
+  });
+
   it("caps the page and says so rather than dropping the tail in silence", async () => {
     stub = createSupabaseStub(
       fromTables({
