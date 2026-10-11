@@ -43,6 +43,8 @@ interface Fixture {
   dailies?: Row[];
   /** Rows for the goal reads (#2104), run through the in-memory layer. */
   goals?: StubTables;
+  /** app_records rows (#2163), run through the in-memory layer. */
+  records?: Row[];
 }
 
 function install(fixture: Fixture): void {
@@ -58,6 +60,9 @@ function install(fixture: Fixture): void {
         (call.filters.role === "goal" || call.filters.role === "task"))
     ) {
       return goalRead(call);
+    }
+    if (call.table === "app_records") {
+      return fromTables({ app_records: fixture.records ?? [] })(call);
     }
     switch (call.table) {
       case "events_payload":
@@ -189,6 +194,8 @@ describe("getTodayContext", () => {
         { kind: "month", key: "2026-08", goals: [] },
         { kind: "week", key: "2026-08-09", goals: [] },
       ],
+      // #2163: nothing recorded today, so the key is there and empty.
+      records: [],
     });
   });
 
@@ -331,6 +338,61 @@ describe("getTodayContext", () => {
       todos: { done: 1, total: 2 },
       children: { achieved: 0, total: 0 },
     });
+  });
+
+  it("summarizes the numbers recorded on the date, per kind (#2163)", async () => {
+    // 2026-08-13 JST is [2026-08-12T15:00Z, 2026-08-13T15:00Z).
+    const record = (
+      id: string,
+      kind: string,
+      value: number,
+      occurred_at: string,
+      unit: string | null = "JPY",
+    ): Row => ({ id, kind, value, unit, occurred_at });
+    install({
+      records: [
+        record("r1", "expense", 450, "2026-08-13T03:10:00.000Z"),
+        record("r2", "expense", 1200, "2026-08-13T10:00:00.000Z"),
+        record("r3", "weight", 61.5, "2026-08-12T22:30:00.000Z", "kg"),
+        // The day before and the day after are not today's.
+        record("r4", "expense", 999, "2026-08-12T14:59:59.000Z"),
+        record("r5", "expense", 999, "2026-08-13T15:00:00.000Z"),
+      ],
+    });
+
+    const context = await getTodayContext({ date: DATE });
+
+    expect(context.records).toEqual([
+      { kind: "expense", unit: "JPY", count: 2, sum: 1650 },
+      { kind: "weight", unit: "kg", count: 1, sum: 61.5 },
+    ]);
+  });
+
+  it("gives a kind with mixed units no unit (#2163)", async () => {
+    install({
+      records: [
+        {
+          id: "a",
+          kind: "expense",
+          value: 100,
+          unit: "JPY",
+          occurred_at: "2026-08-13T03:00:00.000Z",
+        },
+        {
+          id: "b",
+          kind: "expense",
+          value: 5,
+          unit: "USD",
+          occurred_at: "2026-08-13T04:00:00.000Z",
+        },
+      ],
+    });
+
+    const context = await getTodayContext({ date: DATE });
+
+    expect(context.records).toEqual([
+      { kind: "expense", unit: null, count: 2, sum: 105 },
+    ]);
   });
 
   it("reports an absent today without inventing a daily", async () => {

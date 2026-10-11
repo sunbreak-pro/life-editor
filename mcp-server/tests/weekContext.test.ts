@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import {
   createSupabaseStub,
+  fromTables,
   inFilter,
   type QueryCall,
   type SupabaseStub,
@@ -38,6 +39,8 @@ interface Fixture {
   scheduled?: Row[];
   carryover?: Row[];
   dailies?: Row[];
+  /** app_records rows (#2163), run through the in-memory layer. */
+  records?: Row[];
   /** Item ids whose items_meta row is gone or trashed. */
   dead?: string[];
 }
@@ -91,6 +94,9 @@ const titleOf = (id: string) => `title:${id}`;
 function install(fixture: Fixture): void {
   const dead = new Set(fixture.dead ?? []);
   stub = createSupabaseStub((call: QueryCall) => {
+    if (call.table === "app_records") {
+      return fromTables({ app_records: fixture.records ?? [] })(call);
+    }
     switch (call.table) {
       case "events_payload":
         return fixture.events ?? [];
@@ -503,6 +509,78 @@ describe("the default week", () => {
 
     expect(week.startDate).toBe("2026-08-12");
     expect(week.endDate).toBe("2026-08-18");
+  });
+});
+
+describe("records (#2163)", () => {
+  // The week of MONDAY is [2026-08-09T15:00Z, 2026-08-16T15:00Z) in JST.
+  it("sums what was recorded across the 7 days, per kind", async () => {
+    install({
+      records: [
+        {
+          id: "a",
+          kind: "expense",
+          value: 450,
+          unit: "JPY",
+          occurred_at: "2026-08-10T03:00:00.000Z",
+        },
+        {
+          id: "b",
+          kind: "expense",
+          value: 1200,
+          unit: "JPY",
+          occurred_at: "2026-08-15T14:59:00.000Z",
+        },
+        {
+          id: "c",
+          kind: "sleep",
+          value: 400,
+          unit: "min",
+          occurred_at: "2026-08-12T21:00:00.000Z",
+        },
+        // Just before the window and exactly at its end: neither is in.
+        {
+          id: "d",
+          kind: "expense",
+          value: 999,
+          unit: "JPY",
+          occurred_at: "2026-08-09T14:59:59.000Z",
+        },
+        {
+          id: "e",
+          kind: "expense",
+          value: 999,
+          unit: "JPY",
+          occurred_at: "2026-08-16T15:00:00.000Z",
+        },
+      ],
+    });
+
+    const week = await getWeekContext({ start_date: MONDAY });
+
+    expect(week.records).toEqual([
+      { kind: "expense", unit: "JPY", count: 2, sum: 1650 },
+      { kind: "sleep", unit: "min", count: 1, sum: 400 },
+    ]);
+  });
+
+  it("is an empty array when nothing was recorded", async () => {
+    install({});
+
+    const week = await getWeekContext({ start_date: MONDAY });
+
+    expect(week.records).toEqual([]);
+  });
+
+  it("reads the same window the todos use", async () => {
+    install({});
+    await getWeekContext({ start_date: MONDAY });
+
+    const records = stub.calls.find((c) => c.table === "app_records");
+    expect(records?.bounds).toEqual({
+      "occurred_at.gte": "2026-08-09T15:00:00.000Z",
+      "occurred_at.lt": "2026-08-16T15:00:00.000Z",
+    });
   });
 });
 
