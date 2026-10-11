@@ -18,6 +18,7 @@ import type { TagGroupNode } from "../types/tagGroup";
 import type { RoutineNode } from "../types/routine";
 import type { Goal, GoalPeriodKind, GoalTodoLink } from "../types/goal";
 import type { GoalCreateInput, GoalUpdates } from "./goalMapper";
+import type { NoteTable, NoteTableSyncResult } from "../types/table";
 import type { ScheduleItem } from "../types/schedule";
 import type { Playlist, PlaylistItem } from "../types/playlist";
 import type {
@@ -791,6 +792,32 @@ export interface GoalsDataService {
 }
 
 // ---------------------------------------------------------------------------
+// Note tables — SupabaseNoteTablesService (#2094)
+// ---------------------------------------------------------------------------
+
+/**
+ * Note tables as tag-able items (0040). The note body stays the source of
+ * the cells and of which tables exist; these rows follow it. A table is an
+ * item only once it has been tagged.
+ */
+export interface NoteTablesDataService {
+  /** Live tables whose note is live too (a trashed note hides its tables). */
+  fetchNoteTables(): Promise<NoteTable[]>;
+  /** Every table item of one note, soft-deleted ones included. */
+  fetchNoteTablesForNote(noteId: string): Promise<NoteTable[]>;
+  /** Make a table an item; the caller then writes the id into `tableId`. */
+  createNoteTable(input: {
+    parentNoteId: string;
+    title: string;
+  }): Promise<NoteTable>;
+  /**
+   * After a note save: soft-delete the items its body no longer points at,
+   * restore the ones it points at again, and copy the body's table names.
+   */
+  syncNoteTables(noteId: string, content: string): Promise<NoteTableSyncResult>;
+}
+
+// ---------------------------------------------------------------------------
 // Claude customization — SupabaseAiCustomizationService (#2118)
 // ---------------------------------------------------------------------------
 
@@ -873,5 +900,6 @@ export interface DataService
     NotesUnifiedDataService,
     DailiesUnifiedDataService,
     GoalsDataService,
+    NoteTablesDataService,
     AiCustomizationDataService,
     AppRecordsDataService {}

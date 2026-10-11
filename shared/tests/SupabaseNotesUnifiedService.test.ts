@@ -196,6 +196,8 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       stub.stage("items_meta", "select", { data: [], error: null });
       // delete
       stub.stage("items_meta", "delete", { data: null, error: null });
+      // #2094: each note's table items, read just before it goes (none here)
+      stub.stage("tables_payload", "select", { data: [], error: null });
 
       await service.permanentDeleteNoteUnified("note-L1");
 
@@ -239,6 +241,10 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       stub.stage("items_meta", "delete", { data: null, error: null });
       stub.stage("items_meta", "delete", { data: null, error: null });
       stub.stage("items_meta", "delete", { data: null, error: null });
+      // #2094: each note's table items, read just before it goes (none here)
+      stub.stage("tables_payload", "select", { data: [], error: null });
+      stub.stage("tables_payload", "select", { data: [], error: null });
+      stub.stage("tables_payload", "select", { data: [], error: null });
 
       await service.permanentDeleteNoteUnified("note-A");
 
@@ -298,6 +304,9 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
 
       stub.stage("items_meta", "delete", { data: null, error: null });
       stub.stage("items_meta", "delete", { data: null, error: null });
+      // #2094: each note's table items, read just before it goes (none here)
+      stub.stage("tables_payload", "select", { data: [], error: null });
+      stub.stage("tables_payload", "select", { data: [], error: null });
 
       await service.permanentDeleteNoteUnified("note-A");
 
@@ -306,6 +315,42 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
         (c) => c.table === "items_meta" && c.op === "delete",
       );
       expect(dels).toHaveLength(2);
+    });
+    it("purges a note's table items right before the note itself (#2094)", async () => {
+      const note = makeMetaRow({ id: "note-T" });
+      stub.stage("items_meta", "select", { data: [note], error: null });
+      stub.stage("notes_payload", "select", {
+        data: [makePayloadRow({ item_id: "note-T" })],
+        error: null,
+      });
+      stub.stage("items_meta", "select", { data: [], error: null });
+      // The note holds one table item: it is deleted first, then the note.
+      stub.stage("tables_payload", "select", {
+        data: [{ item_id: "table-1" }],
+        error: null,
+      });
+      stub.stage("items_meta", "delete", { data: null, error: null });
+      stub.stage("items_meta", "delete", { data: null, error: null });
+
+      await service.permanentDeleteNoteUnified("note-T");
+
+      // The role filter that followed each items_meta delete, in order.
+      const deletedRoles: unknown[] = [];
+      stub.calls.forEach((c, i) => {
+        if (c.table !== "items_meta" || c.op !== "delete") return;
+        const role = stub.calls
+          .slice(i + 1)
+          .find(
+            (x) =>
+              x.table === "items_meta" && x.op === "eq" && x.args[0] === "role",
+          );
+        deletedRoles.push(role?.args[1]);
+      });
+      expect(deletedRoles).toEqual(["table", "note"]);
+      const tableDelete = stub.calls.find(
+        (c) => c.table === "items_meta" && c.op === "in",
+      );
+      expect(tableDelete?.args).toEqual(["id", ["table-1"]]);
     });
   });
 
@@ -542,8 +587,7 @@ describe("SupabaseNotesUnifiedService — DU-G PR1 additions", () => {
       });
       expect(
         stub.calls.some(
-          (c) =>
-            c.op === "ilike" && String(c.args[0]).includes("content_json"),
+          (c) => c.op === "ilike" && String(c.args[0]).includes("content_json"),
         ),
       ).toBe(false);
     });

@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import { getSupabase } from "../supabase.js";
 import type { ItemRole } from "../utils/items.js";
 import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
+import { invalidArguments, notFoundError } from "../errorCodes.js";
 
 /*
  * WikiTag handlers — Supabase edition (#360).
@@ -240,10 +241,10 @@ export async function tagEntity(args: {
     .eq("is_deleted", false)
     .maybeSingle();
   if (mErr) throw new Error(`items_meta lookup: ${mErr.message}`);
-  if (!meta) throw new Error(`Item not found: ${args.entity_id}`);
+  if (!meta) throw notFoundError(`Item not found: ${args.entity_id}`);
   const role = (meta as { role: string }).role;
   if (args.entity_type && args.entity_type !== role) {
-    throw new Error(
+    throw invalidArguments(
       `Item ${args.entity_id} is a "${role}", not a "${args.entity_type}"`,
     );
   }

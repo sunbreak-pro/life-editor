@@ -53,6 +53,10 @@ import {
   PHASE2_GOALS_METHODS,
 } from "./SupabaseGoalsService";
 import {
+  SupabaseNoteTablesService,
+  PHASE2_NOTE_TABLES_METHODS,
+} from "./SupabaseNoteTablesService";
+import {
   SupabaseAiCustomizationService,
   PHASE2_AI_CUSTOMIZATION_METHODS,
 } from "./SupabaseAiCustomizationService";
@@ -133,6 +137,8 @@ export function createSupabaseDataService(): DataService {
   const tagGroupsService = new SupabaseTagGroupsService(client);
   // #2103: goals (role `goal`) + goal_todo_links (0034).
   const goalsService = new SupabaseGoalsService(client);
+  // #2094: note tables as tag-able items (role `table`, 0040).
+  const noteTablesService = new SupabaseNoteTablesService(client);
   // #2118: rules / memories / Claude skills (0037).
   const aiCustomizationService = new SupabaseAiCustomizationService(client);
   // #2162: extension-app records (read-only) + the extension-app ledger (0039).
@@ -169,6 +175,7 @@ export function createSupabaseDataService(): DataService {
     if (PHASE2_ATTACHMENT_METHODS.has(prop)) return attachmentsService;
     if (PHASE2_EXPORT_METHODS.has(prop)) return exportService;
     if (PHASE2_GOALS_METHODS.has(prop)) return goalsService;
+    if (PHASE2_NOTE_TABLES_METHODS.has(prop)) return noteTablesService;
     if (PHASE2_AI_CUSTOMIZATION_METHODS.has(prop))
       return aiCustomizationService;
     if (PHASE2_APP_RECORDS_METHODS.has(prop)) return appRecordsService;

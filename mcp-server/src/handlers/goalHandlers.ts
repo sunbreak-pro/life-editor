@@ -16,6 +16,7 @@ import {
 } from "../utils/items.js";
 import { assertDateKey, localToday } from "../utils/localDate.js";
 import { fetchAllPages, fetchByIdChunks } from "../utils/pagination.js";
+import { notFoundError } from "../errorCodes.js";
 
 /*
  * Goal handlers (#2104, plan Step 5) — goals linked to Todos, for Claude.
@@ -345,7 +346,7 @@ export function periodsOfDates(dates: readonly string[]): GoalPeriod[] {
 async function readGoal(id: string): Promise<GoalView> {
   const [payload] = await fetchPayloads("item_id", [id]);
   const view = payload ? (await loadGoals([payload])).get(id) : null;
-  if (!view) throw new Error(`Goal not found: ${id}`);
+  if (!view) throw notFoundError(`Goal not found: ${id}`);
   return view;
 }
 

@@ -152,6 +152,14 @@ export type {
   NoteNodeType,
   NoteSortMode,
 } from "./types/note";
+// Note tables as tag-able items (#2094). The body helper is what the editor's
+// post-save sync and the tests read a saved body with.
+export type {
+  NoteBodyTable,
+  NoteTable,
+  NoteTableSyncResult,
+} from "./types/table";
+export { collectBodyTables } from "./services/noteTableMapper";
 
 // Schedule domain types (S4-2 DataService surface; contexts land S4-3+)
 export type { RoutineNode, FrequencyType } from "./types/routine";
