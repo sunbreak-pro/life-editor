@@ -181,6 +181,7 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
   - タグ接続（source → target の有向グラフ、semantics / hierarchy 表現）
   - ~~タグのマージ（`merge` コマンドで重複統合）~~ → **2026-09-23 #1886 で機能ごと削除**: Connect の「別のタグへ統合」（#1644）を撤去した。統合は「付け替え → 元タグをソフトデリート」で動いており専用の DDL は無かったため、スキーマは変えていない。一括の「移動」（`moveItemsToTag`）は残る
   - MCP 4 ツール（Claude から横断検索・タグ付与）
+  - **ノートの表へのタグ付与**（2026-10 #2094 = D-20260927-materials-1 = A）: 表の操作パネルの「タグを付ける」で表が role `table` のアイテムになり、ほかのアイテムと同じようにタグが付く。Connect のタグ別一覧に出て、押すと親のノートが開く。MCP の `tag_entity` / `search_by_tag` も `table` を扱う（`search_by_tag` は親のノートの id を添える）。Daily の本文の表は対象外（計画書 Q1）。規約 → db-conventions §16
   - **管理 UI の所在は Connect セクション**（2026-09-16 #1643 = `D-20260912-main-1` Q1-A。専用モーダルは退役）
 - やらない:
   - **タグ / リンクのグラフ可視化（力学グラフ）は 2026-08-29 退役**（#1152 — 旧 Connect セクション）。「約 3,700 行の描画層を維持するほどには、検索・タグ・バックリンクと役割が重複していた」が理由で、**データ側（`wiki_tag_connections` / inline リンク sync）は無傷**。関係をたどる導線は Notes の `LinkPanel`（双方向リンク一覧）・コマンドパレット検索・MCP `search_by_tag` / `search_all` が引き継ぐ。当初は再利用可能な部品（`shared/src/components/Backlinks/BacklinkView.tsx` + `shared/src/utils/itemLinks.ts`）を残したが、呼び出し元ゼロの実測により #1239 で削除（D-20260829-connect-1 = B）。リンク一覧は `web/src/wikitag/LinkPanel.tsx` が unified link cache から自前描画する。**2026-08-29 #1171 で「やる」側に移ったのはタグ軸の閲覧だけ** — Connect セクションは Tag hub（タグ一覧 → 種類別のアイテム一覧、`shared/src/components/TagHub/`）として再新設された。力学グラフはこの行のとおり退役のまま
@@ -195,6 +196,7 @@ Notes / Dailies / Schedule Items など RichTextEditor を持つエンティテ�
 - [ ] AC3: WikiTagManager UI でタグを作成 / 色変更 / 削除でき、削除時は関連 assignments / group members / connections がカスケードで整理される
 - [ ] AC4: タグ A → タグ B の接続を作成し、`list_wiki_tags` に hierarchy 情報が含まれる（1 対多の有向グラフ）
 - [ ] AC5: MCP `tag_entity(entity_type, entity_id, tag_name)` でタグ付与 → UI 側に即時反映される（再読込後）
+- [ ] AC6: ノートの表にタグを付けると Connect のそのタグの一覧に「表」として出て、押すと親のノートが開く。親のノートがゴミ箱にある表は Connect にも `search_by_tag` にも出ない（#2094）
 
 ### Dependencies
 

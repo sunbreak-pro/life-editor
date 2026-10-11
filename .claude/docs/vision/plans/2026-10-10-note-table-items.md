@@ -1,7 +1,7 @@
 ---
-Status: IN PROGRESS — Step 1（計画書の merge = PR #2175）済み。Step 2 は migration `0040_note_table_items.sql` の PR #2191 を open（#2190 の merge と、こうだいさんの `db push` 待ち）
+Status: IN PROGRESS — Step 1（PR #2175）と Step 2（PR #2191）は merge 済み。Step 3〜7 の PR を open（#2201 / #2207 / #2208 / #2206 / docs の PR）。残りはこうだいさんの `db push`（0040）と各 PR の merge、メインのチャットの Step 8
 Created: 2026-10-10
-Branch: claude/materials-table-items-plan-2094
+Branch: claude/note-table-items-docs-2094
 Owner-chat: materials-refine
 ---
 
@@ -194,3 +194,9 @@ AC を満たせない見込みになったら、自分で免除せず **P-008** 
 - 2026-10-10: 後の Step への申し送りです。`list_trash`（`mcp-server/src/handlers/trashHandlers.ts`）は role を指定しないと全部の role を返すので、Step 4 で表のアイテムをソフトデリートし始めると、ゴミ箱の一覧に表が単独で出ます。§データの流れ の「ゴミ箱に単独では出さない」を守るため、Step 4 か Step 6 で `list_trash` から `table` を外します。
 - 2026-10-10: migration の監査（`life-editor-migration-validator`）は must-fix なしでした。指摘を受けて、名前のない表の `title` を `null` から `''` に直しました（`items_meta.title` は not null）。Step 3 への申し送りが 2 つあります。1 つ目は、表のアイテムが 1 つでもあるノートを物理削除すると複合 FK（NO ACTION）が 23503 で断るので、`permanentDeleteNoteUnified` とノートの子階層の削除で、表のアイテムを先に消す処理を入れることです。2 つ目は、書き込み用の型から生成列 `parent_note_role` を外すことです（db-conventions §10.3）。
 - 2026-10-10: PR を開く直前の確認で、open の PR #2190（#2161）が `0039_app_records.sql` を足していると分かりました。#2190 は「#2094 は 0039 より後の番号で、この本体を元にすること」と書いていたので、こちらを 0040 にし、#2190 のブランチを取り込みました。#2190 の merge の後に main を取り込み直すと、この PR の差分は自分の変更だけに戻ります。
+- 2026-10-11: Step 3〜7 を、それぞれ origin/main から切ったブランチで PR にしました。計画書の Status と Worklog の更新は、この docs の PR（Step 7）にまとめました。5 本の PR が同じ行を書き換えると、1 本 merge するたびに残りが衝突するためです。
+- 2026-10-11: Step 3 = PR #2201（shared の型・mapper・DataService）。計画の「タグ別の一覧」は専用のメソッドにしていません。Connect はほかの role と同じく、タグの割り当てと `fetchNoteTables` を突き合わせて出すためです。`life-editor-sync-auditor` の監査は must-fix なしで、should-fix の 5 件（DB-Q2 の bump を `toItemsMetaPatch` に通す・`.in()` の書き込みを 200 件ずつに分ける・ノートの完全削除で表をノート 1 件ごとに先に消す・JSON として読めない本文では何もしない・表があるノートの完全削除のテスト）は同じ PR で直しました。
+- 2026-10-11: Step 6 = PR #2206（MCP）。Step 3 には依存しません。`list_trash` から表を外し、Step 2 の申し送りを片付けました。`tag_entity` は、まだアイテムでない表をアイテムにはできません（MCP は本文の表ノードに `tableId` を書けないためです）。
+- 2026-10-11: Step 4 = PR #2207（エディタ）。Step 3 のブランチを取り込んでいます（#2190 → #2191 と同じ形）。Step 3 の merge の後に main を取り込み直すと、差分は自分の変更だけに戻ります。計画の「初めてタグを付けると 1→2→3 の順」は、「タグを付ける」ボタンでアイテムを作って `tableId` を書き、その後は普通のタグ選択でタグを付ける 2 段にしました。既存の TagPicker をそのまま使えるためです。タグを付けずに離れた表のアイテムはタグが無いので、Connect にも MCP にも出ません。`tableId` を書く操作は Undo の履歴に入れていません（Ctrl+Z で表とタグのつながりが切れないようにするためです）。保存後の同期は、監査の申し送りどおりノートごとに 1 本ずつ順に流します。
+- 2026-10-11: Step 5 = PR #2208（Connect）。Step 3 のブランチを取り込んでいます。表の行は親のノートとして開き（`navigateRole`）、タグを外した表は「未分類」に入れません（`taggedOnly`）。`useShellNavigation.ts` は変えずに済みました。`ItemRoleLabels.table` は任意にしました。表を一覧に出すのは Connect だけで、TagPicker・LinkPanel・Schedule の 3 か所は表を出さないためです。
+- 2026-10-11: Step 7 = この PR（CLAUDE.md §4・db-conventions §16・tier-2 §WikiTags）。Step 8（実画面での確認）はメインのチャットに渡します。#2094 は Step 8 まで open のままです。
