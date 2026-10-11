@@ -100,6 +100,10 @@ describe("syncDomains — payload tables", () => {
     }
   });
 
+  it("routes a note table's payload to notes, and only notes (#2094)", () => {
+    expect(domainsForChange("tables_payload")).toEqual(["notes"]);
+  });
+
   it("returns nothing for a table it does not know", () => {
     expect(domainsForChange("some_future_table")).toEqual([]);
   });
@@ -119,6 +123,9 @@ describe("syncDomains — items_meta is routed by role", () => {
       "schedule",
     ]);
     expect(domainsForChange("items_meta", { role: "goal" })).toEqual(["goals"]);
+    expect(domainsForChange("items_meta", { role: "table" })).toEqual([
+      "notes",
+    ]);
   });
 
   it("knows every role the items_meta CHECK allows (#2101)", () => {
@@ -143,6 +150,7 @@ describe("syncDomains — items_meta is routed by role", () => {
       (m) => m[1],
     );
     expect(roles).toContain("goal");
+    expect(roles).toContain("table");
     for (const role of roles) {
       expect(domainsForChange("items_meta", { role })).toHaveLength(1);
     }
@@ -193,7 +201,15 @@ describe("syncDomains — items_meta is routed by role", () => {
   });
 
   it("never routes an item change to the timer or audio domains", () => {
-    for (const role of ["task", "note", "daily", "event", "routine", "goal"]) {
+    for (const role of [
+      "task",
+      "note",
+      "daily",
+      "event",
+      "routine",
+      "goal",
+      "table",
+    ]) {
       const domains = domainsForChange("items_meta", { role });
       expect(domains).not.toContain("timer");
       expect(domains).not.toContain("audio");

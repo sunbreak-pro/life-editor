@@ -15,9 +15,9 @@
 >
 > 適用対象: `shared/src/services/*Mapper.ts` + `supabase/migrations/0008+` で導入された `items_meta + <role>_payload` 2 行分割モデル。DU-B (Todos) で確立した規約を、DU-C/D/E/F に向けて先に固定する。
 
-### 10.1 2 行分割マッピング（5 role 共通）
+### 10.1 2 行分割マッピング（全 role 共通）
 
-`tasks` / `notes` / `dailies` / `routines` / `events` の 5 role すべてで、TS の 1 ドメイン型は **`items_meta` 1 行 + `<role>_payload` 1 行**にマップされる。mapper は次の 3 関数だけで構成し、I/O は一切持たない（`@supabase/supabase-js` 依存ゼロ）:
+`tasks` / `notes` / `dailies` / `routines` / `events` / `goals`（0034 で追加 = §15）のすべての role で、TS の 1 ドメイン型は **`items_meta` 1 行 + `<role>_payload` 1 行**にマップされる。mapper は次の 3 関数だけで構成し、I/O は一切持たない（`@supabase/supabase-js` 依存ゼロ）:
 
 - `rowsToType(meta, payload): Type` — SELECT した 2 行 → TS 型
 - `typeToRows(node, userId): { meta, payload }` — TS 型 → 2 行（INSERT 用）
@@ -139,6 +139,8 @@ PostgREST は全 SELECT をサーバ側 `max-rows`（Supabase 既定 1000）で*
 
 番号の連番性を見る監査（`life-editor-migration-validator` 等）が 0013 を欠番として挙げた場合、それは想定どおりで対処不要。
 
+**0036 も欠番です**（2026-10-10 / #2094）。0036 は #2094（ノートの表のアイテム化）に予約されていましたが、その migration を書く前に 0037（#2118）と 0038（#2147）が入りました。上の規則どおり、#2094 は末尾の次の番号を取りました（0039 は #2161 が先に取ったので 0040）。0036 は埋めません。`0038_items_meta_origin.sql` のヘッダーにある「0036 は #2094 の予約」という記述は、適用済みのファイルなので書き換えずに残しています。
+
 ---
 
 ## 14. 検証データの規約（#700 / [`D-20260812-shared-fix-3`](../../decisions/D-20260812-shared-fix-3.md)）
@@ -166,3 +168,17 @@ MCP の検証ツール（`seed_verification_state` / `read_verification_state` /
 - **daily は撒けない** — DailyNode の id は日付由来（`daily-<YYYY-MM-DD>`）で実データと区別できず、id で消す cleanup が本物の日記を巻き込む。task / event / note はランダム id なので衝突しない
 - **cleanup は hard delete で、payload → `items_meta` の順**。soft delete では TrashView に残って「片付いていない」ため。順序は composite FK が NO ACTION（§10.4）だから
 - **後片付けはアカウントより先に行**。`user_id` から `auth.users` への FK が無いため、アカウントを先に消すと行が誰にも見えないまま残る。cleanup の応答は台帳が空になったときだけ「アカウントを消してよい」と言う
+
+---
+
+## 15. 目標の表と、日ごとの朝刊・夕刊の列（0034 / 0035・#2101 / #2107）
+
+Briefing の作り直し（計画書 = `docs/vision/plans/2026-10-03-briefing-goals-redesign.md`）で足した DDL の規約です。目標は新しい role `goal` のアイテムで、Todo とのつながりは専用の関係の表に持ちます。
+
+- **role の CHECK は名前付きになった**: 0008 の `check (role in (...))` は名前の無いインライン制約でした。0034 は `pg_constraint` から role を見る CHECK を引いて落とし、`items_meta_role_check` として張り直しています。次に role を足す migration は、この名前を落として張り直すだけで済みます
+- **`goals_payload` は §10.1 の 2 行分割に従う**: `updated_at` とソフトデリートの列は持たず、どちらも `items_meta` 側が持ちます（DB-Q2 の bump は `goalMapper.ts` の責務）。親の目標は `(parent_goal_id, parent_goal_role)` → `items_meta(id, role)` の複合 FK（`ON DELETE NO ACTION` = §10.4 と同じ）で、親は `goal` に限られます
+- **`carried_from_goal_id` だけは単一列の FK（`ON DELETE SET NULL`）**: 生成列を足して複合 FK にすると SET NULL が使えず（known-issue 021）、持ち越し元の目標を消せなくなるためです
+- **`legacy_key` は部分 UNIQUE**（`(user_id, legacy_key) WHERE legacy_key IS NOT NULL`）: `note-goals` の文章を目標へ移すときに、同じ節を二重に移さないための印です
+- **`goal_todo_links` は関係の表なので `updated_at` とソフトデリートを自分で持つ**（`wiki_tag_connections` / `routine_group_assignments` と同じ形）。両端は `(goal_id, 'goal')` と `(todo_id, 'task')` の生成列つき複合 FK で、目標と Todo を取り違えた行を DB が拒否します。生きている行だけに部分 UNIQUE（`(goal_id, todo_id) WHERE is_deleted = false`）を張るので、外したつながりを後からつなぎ直せます。アイテム間リンクの `wiki_tag_connections` には入れません（入れると Connect のリンク一覧にノートのリンクと同じチップとして混ざるためです）
+- **`dailies_payload` に足した 3 列**: `evening_published_at`（夕刊を★で発行した時刻）と `evening_notes`（出来事の行に足した一言。jsonb のオブジェクト = 行の鍵 → 文）が 0034、`morning_comment`（Claude の朝刊の講評。jsonb の配列）が 0035 です。どれも型を CHECK で縛っています。講評は Daily の本文に書かず列に書き、列が無い古い日だけ本文の「朝刊」の節を読みます（D-20261007-briefing-1）
+- 新しい 2 表とも owner-only の RLS と `supabase_realtime` への加入を 0034 の中で済ませています。同期のドメインは `goals`（`shared/src/context/syncDomains.ts`）です

@@ -72,9 +72,11 @@ const ITEM_DOMAINS: readonly SyncDomain[] = [
 ];
 
 /**
- * `items_meta` is shared by all six roles, so the row's own `role` decides
+ * `items_meta` is shared by all seven roles, so the row's own `role` decides
  * which domain moved. Events and routines both belong to Schedule (a routine
- * is an Event template — CLAUDE.md §4).
+ * is an Event template — CLAUDE.md §4). A note's table (#2094) belongs to
+ * Notes: its cells live in the note body, and only the note screens and the
+ * tag views that open the note read it.
  *
  * A role missing here does not fail quietly — it fans out to EVERY item
  * domain on each change (see domainsForChange). So a role added to the
@@ -87,6 +89,7 @@ const ITEMS_META_ROLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   event: "schedule",
   routine: "schedule",
   goal: "goals",
+  table: "notes",
 };
 
 /**
@@ -126,6 +129,8 @@ export const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   ai_rules: "aiCustomization",
   ai_memories: "aiCustomization",
   ai_skills: "aiCustomization",
+  // #2094 (0040)
+  tables_payload: "notes",
 };
 
 /** The `role` column as Realtime delivers it, if the payload carries one. */
