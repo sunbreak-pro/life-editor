@@ -1,0 +1,191 @@
+{
+  "_comment": "Shared cases for the extension-app record aggregation (#2162). Read by shared/tests/appRecordAggregation.test.ts, and by the MCP copy's suite once #2163 adds it, so the Analytics records tab and the list_records tool are held to the same answers. Week keys are the Goals week keys (Sunday start, D-20260816-briefing-1). Values are exactly representable in binary so every sum is exact.",
+  "periodKeys": [
+    { "groupBy": "day", "date": "2026-10-05", "key": "2026-10-05" },
+    {
+      "groupBy": "week",
+      "date": "2026-10-05",
+      "key": "2026-10-04",
+      "_note": "Monday → the Sunday before"
+    },
+    {
+      "groupBy": "week",
+      "date": "2026-10-04",
+      "key": "2026-10-04",
+      "_note": "a Sunday is its own week start"
+    },
+    {
+      "groupBy": "week",
+      "date": "2026-10-10",
+      "key": "2026-10-04",
+      "_note": "Saturday is the last day of the same week"
+    },
+    {
+      "groupBy": "week",
+      "date": "2027-01-01",
+      "key": "2026-12-27",
+      "_note": "the week crosses the year boundary"
+    },
+    {
+      "groupBy": "week",
+      "date": "2028-03-01",
+      "key": "2028-02-27",
+      "_note": "leap year: Feb 29 exists"
+    },
+    { "groupBy": "month", "date": "2026-10-31", "key": "2026-10" },
+    { "groupBy": "month", "date": "2026-11-01", "key": "2026-11" }
+  ],
+  "summaries": [
+    { "name": "no values → null", "values": [], "expected": null },
+    {
+      "name": "one value is its own min, max and avg",
+      "values": [450],
+      "expected": { "count": 1, "sum": 450, "avg": 450, "min": 450, "max": 450 }
+    },
+    {
+      "name": "negative and fractional values",
+      "values": [2.5, -1, 0.5],
+      "expected": {
+        "count": 3,
+        "sum": 2,
+        "avg": 0.6666666666666666,
+        "min": -1,
+        "max": 2.5
+      }
+    }
+  ],
+  "aggregates": [
+    {
+      "name": "no points → no buckets",
+      "groupBy": "day",
+      "points": [],
+      "expected": []
+    },
+    {
+      "name": "day: one bucket per day that has records, oldest first",
+      "groupBy": "day",
+      "points": [
+        { "dateKey": "2026-10-05", "value": 450 },
+        { "dateKey": "2026-10-03", "value": 1200 },
+        { "dateKey": "2026-10-05", "value": 300 }
+      ],
+      "expected": [
+        {
+          "period": "2026-10-03",
+          "count": 1,
+          "sum": 1200,
+          "avg": 1200,
+          "min": 1200,
+          "max": 1200
+        },
+        {
+          "period": "2026-10-05",
+          "count": 2,
+          "sum": 750,
+          "avg": 375,
+          "min": 300,
+          "max": 450
+        }
+      ]
+    },
+    {
+      "name": "week: Sunday through Saturday share a bucket, the next Sunday starts a new one",
+      "groupBy": "week",
+      "points": [
+        { "dateKey": "2026-10-04", "value": 62.5 },
+        { "dateKey": "2026-10-10", "value": 61.5 },
+        { "dateKey": "2026-10-11", "value": 61 }
+      ],
+      "expected": [
+        {
+          "period": "2026-10-04",
+          "count": 2,
+          "sum": 124,
+          "avg": 62,
+          "min": 61.5,
+          "max": 62.5
+        },
+        {
+          "period": "2026-10-11",
+          "count": 1,
+          "sum": 61,
+          "avg": 61,
+          "min": 61,
+          "max": 61
+        }
+      ]
+    },
+    {
+      "name": "week: a week that crosses the new year is one bucket keyed by its Sunday",
+      "groupBy": "week",
+      "points": [
+        { "dateKey": "2026-12-31", "value": 7 },
+        { "dateKey": "2027-01-02", "value": 8 }
+      ],
+      "expected": [
+        {
+          "period": "2026-12-27",
+          "count": 2,
+          "sum": 15,
+          "avg": 7.5,
+          "min": 7,
+          "max": 8
+        }
+      ]
+    },
+    {
+      "name": "month: the last and first days of a month land in different buckets",
+      "groupBy": "month",
+      "points": [
+        { "dateKey": "2026-10-31", "value": 100 },
+        { "dateKey": "2026-11-01", "value": 200 },
+        { "dateKey": "2026-11-30", "value": 50 },
+        { "dateKey": "2026-10-01", "value": -20 }
+      ],
+      "expected": [
+        {
+          "period": "2026-10",
+          "count": 2,
+          "sum": 80,
+          "avg": 40,
+          "min": -20,
+          "max": 100
+        },
+        {
+          "period": "2026-11",
+          "count": 2,
+          "sum": 250,
+          "avg": 125,
+          "min": 50,
+          "max": 200
+        }
+      ]
+    },
+    {
+      "name": "month: months of different years sort by year first",
+      "groupBy": "month",
+      "points": [
+        { "dateKey": "2027-01-15", "value": 3 },
+        { "dateKey": "2026-12-15", "value": 4 }
+      ],
+      "expected": [
+        {
+          "period": "2026-12",
+          "count": 1,
+          "sum": 4,
+          "avg": 4,
+          "min": 4,
+          "max": 4
+        },
+        {
+          "period": "2027-01",
+          "count": 1,
+          "sum": 3,
+          "avg": 3,
+          "min": 3,
+          "max": 3
+        }
+      ]
+    }
+  ]
+}

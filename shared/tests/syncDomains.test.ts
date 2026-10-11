@@ -104,6 +104,13 @@ describe("syncDomains — payload tables", () => {
     expect(domainsForChange("tables_payload")).toEqual(["notes"]);
   });
 
+  it("routes the extension-app tables to one domain each (#2162)", () => {
+    // Records arrive often (every number an app sends); the ledger moves only
+    // when the owner edits the Apps list. Neither may wake the other's readers.
+    expect(domainsForChange("app_records")).toEqual(["appRecords"]);
+    expect(domainsForChange("extension_apps")).toEqual(["extensionApps"]);
+  });
+
   it("returns nothing for a table it does not know", () => {
     expect(domainsForChange("some_future_table")).toEqual([]);
   });
