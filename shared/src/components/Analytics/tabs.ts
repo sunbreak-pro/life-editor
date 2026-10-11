@@ -10,15 +10,21 @@
  * while letting the charts stay behind the lazy boundary.
  */
 
-export type AnalyticsTab = "overview" | "todos" | "work" | "schedule";
+export type AnalyticsTab =
+  "overview" | "todos" | "work" | "schedule" | "records";
 
 /*
  * Canonical tab order (SSOT). Shared by the shell's tab band and the view's
  * content so the two never drift (数値の非複製原則).
+ *
+ * `records` (#2164) goes last: the extension-app numbers are the one tab the
+ * Analytics freeze was lifted for (D-20261008-main-1 Q4), and appending it
+ * leaves the four frozen tabs where the user already finds them.
  */
 export const ANALYTICS_TAB_ORDER: readonly AnalyticsTab[] = [
   "overview",
   "todos",
   "work",
   "schedule",
+  "records",
 ];

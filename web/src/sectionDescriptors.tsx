@@ -338,6 +338,8 @@ export const SECTION_DESCRIPTORS: Readonly<
           onTabChange={nav.setAnalyticsTab}
           preset={nav.analyticsPreset}
           onPresetChange={nav.setAnalyticsPreset}
+          pendingRecordsSource={nav.pendingRecordsSource}
+          onRecordsSourceConsumed={nav.consumeRecordsSource}
         />
       </Suspense>
     ),

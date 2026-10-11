@@ -86,6 +86,43 @@ describe("shell todo intents (#1153)", () => {
   });
 });
 
+describe("showRecordsForApp (#2164)", () => {
+  // The Apps section's "show records" (#2165). Three moves that must land
+  // together: the section, the Records tab, and the app to filter to.
+  it("opens Analytics on the Records tab with the app stashed", () => {
+    const { result } = renderHook(() => useShellNavigation());
+
+    act(() => result.current.showRecordsForApp("ledger"));
+
+    expect(result.current.section).toBe("analytics");
+    expect(result.current.analyticsTab).toBe("records");
+    expect(result.current.pendingRecordsSource).toBe("ledger");
+  });
+
+  it("is consumed once, so the next visit is not filtered", () => {
+    const { result } = renderHook(() => useShellNavigation());
+
+    act(() => result.current.showRecordsForApp("ledger"));
+    act(() => result.current.consumeRecordsSource());
+
+    expect(result.current.pendingRecordsSource).toBe(null);
+    // The tab itself stays where it was left.
+    expect(result.current.analyticsTab).toBe("records");
+  });
+
+  it("raises nothing when the navigation guard refuses", async () => {
+    const { result } = renderHook(() =>
+      useShellNavigation({ confirmLeave: () => Promise.resolve(false) }),
+    );
+
+    await act(async () => result.current.showRecordsForApp("ledger"));
+
+    expect(result.current.section).not.toBe("analytics");
+    expect(result.current.analyticsTab).toBe("overview");
+    expect(result.current.pendingRecordsSource).toBe(null);
+  });
+});
+
 describe("nav:tags (#1849)", () => {
   // It sat on an explicit null after the Tags tab was retired (#310), so
   // Ctrl/⌘+5 did nothing. Connect is where tags are read and edited now.

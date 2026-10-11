@@ -994,7 +994,47 @@
       "overview": "Overview",
       "todos": "Todos",
       "schedule": "Schedule",
-      "work": "Work"
+      "work": "Work",
+      "records": "Records"
+    },
+    "records": {
+      "filtersLabel": "Filter records",
+      "app": { "label": "App", "all": "All apps" },
+      "kind": { "label": "Kind", "all": "All kinds" },
+      "claudeSource": "Claude",
+      "stats": {
+        "count": "Records",
+        "sum": "Total",
+        "avg": "Average",
+        "needOneKind": "Pick one app or kind to see the total and average."
+      },
+      "chart": {
+        "sumTitle": "Total over time",
+        "countTitle": "Records over time",
+        "sumSeries": "Total",
+        "countSeries": "Records"
+      },
+      "list": {
+        "title": "Records",
+        "showMore": "Show more",
+        "shown": "Showing {{shown}} of {{total}}"
+      },
+      "empty": {
+        "title": "No records in this range",
+        "description": "Tell Claude on your phone “coffee, 450 yen” and the first record lands here."
+      },
+      "emptyFiltered": {
+        "title": "No records match these filters",
+        "description": "Change the app or kind, or widen the date range."
+      },
+      "loadFailed": "Records could not be loaded. Try again in a moment.",
+      "mobile": {
+        "title": "Records",
+        "range": "Last 7 days",
+        "empty": "No records in the last 7 days.",
+        "count_one": "{{count}} record",
+        "count_other": "{{count}} records"
+      }
     },
     "workTime": "Work Time",
     "todoWorkTime": "Work Time by Todo",
