@@ -84,39 +84,49 @@ export function WorkHistoryPanel({
   // three places a row's name and tags come from.
   const version = useSyncDomains("sessions", "todos", "schedule", "tags");
   const todayKey = todayCalendarKey();
+  // The failed-read state's retry (#2054) re-runs the load by moving the
+  // version on: `useDomainLoad` restarts on any version change, and the sum
+  // only ever grows, so a retry never lands on a version it already settled.
+  const [reloadTick, setReloadTick] = useState(0);
+  // `refetchReportsLoading` is off, so a retry would otherwise look like
+  // nothing happened: this flag is raised by the button and dropped when the
+  // load it started settles, either way.
+  const [retrying, setRetrying] = useState(false);
 
-  const { isLoading } = useDomainLoad<HistoryData>({
+  const { isLoading, error } = useDomainLoad<HistoryData>({
     domain: "Work history",
     dataService: ds,
-    version,
+    version: version + reloadTick,
     anchor: todayKey,
     // A session closing while the tab is open must not blank the list.
     refetchReportsLoading: false,
-    load: async (service) => {
-      const sessions = await service.fetchTimerSessions();
-      const days =
-        variant === "rows"
-          ? pickWorkHistoryDays(sessions, todayKey)
-          : [pickWorkHistoryDay(sessions, todayKey)].filter(
-              (day): day is WorkHistoryDay => day !== null,
-            );
-      if (days.length === 0) return EMPTY;
-      // Newest first, so the oldest day opens the range and the newest day's
-      // picker window closes it.
-      const [todos, events, tags, assignments] = await Promise.all([
-        service.fetchTodoTree(),
-        service.fetchScheduleItemsByDateRange(
-          days[days.length - 1].dateKey,
-          addDaysKey(days[0].dateKey, EVENT_LOOKUP_DAYS),
-        ),
-        service.listAllWikiTagsUnified(),
-        service.listAllTagAssignments(),
-      ]);
-      return { days, todos, events, tags, assignments };
-    },
+    load: (service) => readHistory(service).finally(() => setRetrying(false)),
     apply: setData,
     fallbackMessage: "Failed to load work history",
   });
+
+  async function readHistory(service: DataService): Promise<HistoryData> {
+    const sessions = await service.fetchTimerSessions();
+    const days =
+      variant === "rows"
+        ? pickWorkHistoryDays(sessions, todayKey)
+        : [pickWorkHistoryDay(sessions, todayKey)].filter(
+            (day): day is WorkHistoryDay => day !== null,
+          );
+    if (days.length === 0) return EMPTY;
+    // Newest first, so the oldest day opens the range and the newest day's
+    // picker window closes it.
+    const [todos, events, tags, assignments] = await Promise.all([
+      service.fetchTodoTree(),
+      service.fetchScheduleItemsByDateRange(
+        days[days.length - 1].dateKey,
+        addDaysKey(days[0].dateKey, EVENT_LOOKUP_DAYS),
+      ),
+      service.listAllWikiTagsUnified(),
+      service.listAllTagAssignments(),
+    ]);
+    return { days, todos, events, tags, assignments };
+  }
 
   const groups = useMemo<WorkHistoryGroup[]>(() => {
     const todoTitles = new Map(data.todos.map((n) => [n.id, n.title]));
@@ -188,6 +198,12 @@ export function WorkHistoryPanel({
       groups={variant === "rows" ? groups : undefined}
       loading={isLoading}
       variant={variant}
+      loadFailed={error !== null}
+      onRetry={() => {
+        setRetrying(true);
+        setReloadTick((n) => n + 1);
+      }}
+      retrying={retrying}
       labels={{
         heading: groups[0]?.heading ?? "",
         empty:
@@ -197,6 +213,10 @@ export function WorkHistoryPanel({
         emptyTitle: t("work.history.emptyTitle"),
         noTarget: t("work.history.noTarget"),
         listLabel: t("work.sidebarTabs.history"),
+        loadFailedTitle: t("work.history.loadFailedTitle"),
+        loadFailedBody: t("work.history.loadFailedBody"),
+        retry: t("work.history.retry"),
+        retrying: t("common.loading"),
       }}
     />
   );

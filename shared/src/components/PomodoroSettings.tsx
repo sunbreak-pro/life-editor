@@ -163,6 +163,11 @@ export interface PomodoroSettingsDrawer {
   applied: string;
   /** "25・5・15 分 / 4 セット" for one preset. */
   presetSummary: (preset: PomodoroPresetOption) => string;
+  /**
+   * Heading over the stepper card — plan A's 「時間」 (#2054). Without it the
+   * drawer falls back to `labels.settingsHeading`, the Desktop panel's title.
+   */
+  timeHeading?: string;
 }
 
 const BLOCK =
@@ -174,14 +179,19 @@ const DRAWER_HEADING = "text-xs font-semibold text-lumen-text-tertiary";
 const DRAWER_CARD =
   "flex flex-col rounded-lumen-lg border border-lumen-border bg-lumen-bg";
 
-const SAVE_BTN = cn(
-  "shrink-0 rounded-lumen-md bg-lumen-accent px-3.5 py-2 text-sm font-semibold text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
+// The drawer's save button is SAVE_BTN without its transition (#2054): plan A
+// allows three motions on the Mobile Work screen, and the auto-start switch
+// below dropped its transition for the same reason. Two constants rather than
+// a class appended at the call site, because `cn` does not merge classes.
+const SAVE_BTN_STILL = cn(
+  "shrink-0 rounded-lumen-md bg-lumen-accent px-3.5 py-2 text-sm font-semibold text-lumen-on-accent hover:bg-lumen-accent-hover",
   FOCUS_RING_ON_ACCENT,
   // This is the button #1474 was reported against. It does not go through the
   // shared <Button>, so fixing the variant map alone would have left the
   // reported screen exactly as it was.
   DISABLED_FILLED_BTN,
 );
+const SAVE_BTN = cn(SAVE_BTN_STILL, "transition-colors");
 
 /** The five numeric settings, keyed the way `cleared` keys them. */
 interface PomodoroNumbers {
@@ -378,7 +388,7 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
         type="button"
         onClick={saveSettings}
         disabled={!dirty}
-        className={cn(SAVE_BTN, props.drawer && "min-h-11")}
+        className={props.drawer ? cn(SAVE_BTN_STILL, "min-h-11") : SAVE_BTN}
       >
         {labels.save}
       </button>
@@ -418,7 +428,9 @@ export function PomodoroSettings(props: PomodoroSettingsProps) {
 
     return (
       <div className="flex flex-col gap-2">
-        <h3 className={DRAWER_HEADING}>{labels.settingsHeading}</h3>
+        <h3 className={DRAWER_HEADING}>
+          {drawer.timeHeading ?? labels.settingsHeading}
+        </h3>
         <ul className={DRAWER_CARD}>
           {NUMBER_KEYS.map((key, i) => {
             const spec = NUMBER_SPECS[key];

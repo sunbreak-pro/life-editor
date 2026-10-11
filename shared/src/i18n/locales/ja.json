@@ -315,7 +315,10 @@
       "todoHeading": "Todo",
       "eventHeading": "予定",
       "sheetEmptyTitle": "紐付けられる Todo や予定がありません",
-      "sheetEmptyBody": "上の欄に名前を入れれば、フリーセッションとして始められます。"
+      "sheetEmptyBody": "上の欄に名前を入れれば、フリーセッションとして始められます。",
+      "loadFailedTitle": "候補を読み込めませんでした",
+      "loadFailedBody": "通信を確認して、もう一度読み込んでください。上の欄に名前を入れれば、このままフリーセッションとして始められます。",
+      "retry": "もう一度読み込む"
     },
     "completion": {
       "title": "セッション {{index}} が完了しました",
@@ -325,7 +328,8 @@
       "oneMore": "もう 1 セッション",
       "close": "閉じる",
       "logged": "{{minutes}} 分を記録しました",
-      "startBreakMinutes": "休憩を始める（{{minutes}} 分）"
+      "startBreakMinutes": "休憩を始める（{{minutes}} 分）",
+      "startLongBreakMinutes": "長い休憩を始める（{{minutes}} 分）"
     },
     "settings": {
       "presetNamePlaceholder": "プリセット名",
@@ -347,7 +351,8 @@
       "decrease": "{{label}}を減らす",
       "increase": "{{label}}を増やす",
       "applied": "適用中",
-      "presetSummary": "{{work}}・{{brk}}・{{long}} 分 / {{sessions}} 回"
+      "presetSummary": "{{work}}・{{brk}}・{{long}} 分 / {{sessions}} 回",
+      "timeHeading": "時間"
     },
     "sidebarTabs": {
       "label": "Work のサイドバー",
@@ -362,7 +367,10 @@
       "noTarget": "フリーセッション",
       "minutes": "{{minutes}} 分",
       "emptyTitle": "まだ記録がありません",
-      "emptyBody": "作業を 1 セッション終えると、ここに残ります。"
+      "emptyBody": "作業を 1 セッション終えると、ここに残ります。",
+      "loadFailedTitle": "履歴を読み込めませんでした",
+      "loadFailedBody": "通信を確認して、もう一度読み込んでください。",
+      "retry": "もう一度読み込む"
     },
     "freeSession": {
       "title": "フリーセッション",
