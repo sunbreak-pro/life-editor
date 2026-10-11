@@ -108,6 +108,8 @@ export function buildTagHubModel({
         continue;
       }
       if (item.isSeries === true) continue;
+      // #2094: a note table untagged again is left to its note.
+      if (item.taggedOnly === true) continue;
       untagged.push(item);
       continue;
     }

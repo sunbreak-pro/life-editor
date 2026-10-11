@@ -1207,6 +1207,7 @@
     "event": "Event",
     "note": "Note",
     "daily": "Daily",
+    "table": "Table",
     "unknown": "Other"
   },
   "detailPanel": {
@@ -1247,6 +1248,7 @@
     "selectHint": "Pick a tag to see everything filed under it.",
     "back": "Back to tags",
     "untagged": "Untagged",
+    "untitledTable": "Untitled table",
     "itemCount_one": "{{count}} item",
     "itemCount_other": "{{count}} items",
     "unusedTagsHeading": "Unused tags",

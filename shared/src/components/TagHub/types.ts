@@ -79,6 +79,18 @@ export interface TagHubItem {
    * select — a routine id would highlight nothing.
    */
   readonly navigateId?: string;
+  /**
+   * The role the shell should open `navigateId` as, when it differs from
+   * `role`. A note table (#2094) is filed under its own id but opens its note,
+   * so it is navigated as a `note`.
+   */
+  readonly navigateRole?: string;
+  /**
+   * Listed only under the tags it carries, never in the untagged bucket. A
+   * note table (#2094) is an item only because it was tagged once; with its
+   * tags removed it has nothing to say there that its note does not.
+   */
+  readonly taggedOnly?: boolean;
 }
 
 /** A tag as the rail lists it, counts derived from the rows behind it. */
