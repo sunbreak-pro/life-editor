@@ -328,7 +328,14 @@ export {
   type SettingsAiIntegrationProps,
   type SettingsAiIntegrationLabels,
   type SettingsAiIntegrationLauncher,
+  type SettingsAiIntegrationCustomize,
 } from "./SettingsAiIntegration";
+export {
+  SettingsAiCustomization,
+  type AiCustomizationTab,
+  type SettingsAiCustomizationProps,
+  type SettingsAiCustomizationLabels,
+} from "./SettingsAiCustomization";
 // Day-start hour card (#373) — the write side of the #218 rollover pref.
 export {
   SettingsDayStart,

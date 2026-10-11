@@ -6,6 +6,17 @@ export type {
   StoredAttachment,
 } from "./services/DataService";
 export { createSupabaseDataService } from "./services/SupabaseDataService";
+// Claude customization (#2118 data layer / #2119 editing screen).
+export type { AiCustomizationDataService } from "./services/DataService";
+export type {
+  AiCustomizationField,
+  AiCustomizationIssue,
+  AiMemory,
+  AiRule,
+  AiSkill,
+  AiSkillInput,
+} from "./types/aiCustomization";
+export { AiCustomizationValidationError } from "./services/aiCustomizationLimits";
 // #1988 — the whole-account export: its file shape, name and row count. The
 // read is `DataService.exportUserData()`; the download is the host's.
 export {

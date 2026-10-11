@@ -73,6 +73,7 @@ import {
 import { usePasswordUpdate } from "../hooks/usePasswordUpdate";
 import { useProfileUpdate } from "../hooks/useProfileUpdate";
 import { useClaudeLauncher } from "../hooks/useClaudeLauncher";
+import { AiCustomizationHost } from "./AiCustomizationHost";
 import { TrashScreen } from "../trash/TrashScreen";
 import { AttachmentCleanupCard } from "../trash/AttachmentCleanupCard";
 import { DataExportCard } from "./DataExportCard";
@@ -555,6 +556,12 @@ export function SettingsScreen({
 
   // Claude Code launcher (#1211) — no-op shape off the desktop shell.
   const claudeLauncher = useClaudeLauncher();
+  /*
+   * #2119: the Claude customization editor replaces the AI card inside the
+   * same category, entered from the card and left with its back button (or by
+   * picking another category). Desktop and Mobile alike.
+   */
+  const [aiEditorOpen, setAiEditorOpen] = useState(false);
 
   const aiLastActivity =
     lastBriefing === undefined
@@ -991,9 +998,24 @@ export function SettingsScreen({
        * under one of them, and General is not a drawer for everything that is
        * app-wide. The card itself is unchanged — only where it is mounted.
        */}
-      {tab === CLAUDE_TAB_ID && (
+      {tab === CLAUDE_TAB_ID && aiEditorOpen && (
+        <div className={cardClass}>
+          <AiCustomizationHost
+            dataService={dataService}
+            onBack={() => setAiEditorOpen(false)}
+          />
+        </div>
+      )}
+
+      {tab === CLAUDE_TAB_ID && !aiEditorOpen && (
         <div className={cardClass}>
           <SettingsAiIntegration
+            customize={{
+              heading: t("settings.ai.customizeHeading"),
+              description: t("settings.ai.customizeDescription"),
+              button: t("settings.ai.customizeButton"),
+              onOpen: () => setAiEditorOpen(true),
+            }}
             tools={MCP_TOOL_CATALOG}
             lastActivity={aiLastActivity}
             /*
@@ -1104,6 +1126,7 @@ export function SettingsScreen({
               return;
             }
             setTab(id as SettingsTabId);
+            setAiEditorOpen(false);
             /*
              * #1525 — on narrow this nav lives in the MobileDrawer, a modal
              * overlay 85% as wide as the viewport, so leaving it up covers the

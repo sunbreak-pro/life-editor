@@ -71,6 +71,9 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       setInitialView: vi.fn(),
     }),
     useTourContext: () => ({ restart: vi.fn(), startSection: vi.fn() }),
+    // The Claude customization editor (#2119) follows a sync domain; no
+    // SyncProvider is mounted here.
+    useSyncDomains: () => 0,
     getSession: state.getSession,
     getDataService: state.getDataService,
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
@@ -79,9 +82,13 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
   };
 });
 
-/** A DataService stub with only the one method this screen calls. */
+/** A DataService stub with only the methods this screen calls. */
 const serviceReturning = (dailies: unknown[]) => ({
   listDailiesUnified: () => Promise.resolve(dailies),
+  // The Claude customization editor (#2119), read once it is opened.
+  fetchAiRule: () => Promise.resolve({ body: "be brief", createdAt: "", updatedAt: "" }),
+  fetchAiMemories: () => Promise.resolve([]),
+  fetchAiSkills: () => Promise.resolve([]),
 });
 
 /*
@@ -147,5 +154,29 @@ describe("Settings AI integration card (#1210)", () => {
     await waitFor(() => {
       screen.getByText("settings.ai.activityNone");
     });
+  });
+
+  it("opens the Claude customization editor from the card and comes back (#2119)", async () => {
+    render(<SettingsScreen />);
+    openClaudeTab();
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.ai.customizeButton" }),
+    );
+    // The editor replaces the card, and reads what is saved.
+    await waitFor(() => {
+      screen.getByText("settings.aiCustomization.heading");
+    });
+    expect(screen.queryByText("settings.ai.heading")).toBeNull();
+    await waitFor(() => {
+      expect(
+        (screen.getByRole("textbox", {
+          name: "settings.aiCustomization.tabRules",
+        }) as HTMLTextAreaElement).value,
+      ).toBe("be brief");
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "settings.aiCustomization.back" }),
+    );
+    screen.getByText("settings.ai.heading");
   });
 });
