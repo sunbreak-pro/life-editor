@@ -13,6 +13,8 @@
     "catalog": "npm run build && node scripts/dump-tool-catalog.mjs",
     "_comment_gateway_spec": "Regenerates spec/extension-gateway.json, the extension-app gateway contract (#2144). Refuses a change that needs a version bump EXTENSION_GATEWAY_VERSION does not carry. extensionGateway.test.ts fails until you run it after touching a gateway tool.",
     "gateway-spec": "npm run build && node scripts/dump-gateway-spec.mjs",
+    "_comment_gateway_fake": "Starts the official fake of the extension-app gateway (#2145): node:http only, in-memory store, no credentials. Pass flags after --, e.g. npm run gateway-fake -- --port 8787 --token x [--origin http://localhost:5173]. GET /__calls lists the calls it received, POST /__reset clears them and the store. extensionGatewayFake.test.ts holds it to the real handlers and the Worker.",
+    "gateway-fake": "node mocks/extension-gateway-fake.mjs",
     "_comment_deploy": "Remote MCP on Cloudflare Workers. Build first — wrangler.jsonc's main is dist/worker.js, not src/. wrangler is NOT a dependency (same call as deploy-web.yml: npx, major pinned), so nothing here is installed for a package that only deploys. Secrets: npx wrangler@4 secret put <NAME>. Plan: .claude/archive/2026-09-09-remote-mcp-mobile.md",
     "deploy": "npm run build && npx --yes wrangler@4 deploy",
     "test": "vitest run"
