@@ -2,8 +2,8 @@
  * The official fake of the life-editor extension-app gateway (#2145, plan
  * .claude/docs/vision/plans/2026-10-07-extension-app-gateway.md, R2).
  *
- *   Gateway version:    1.1.0
- *   life-editor commit: 07ead4ab5c9561bd4933476786b981664984feec
+ *   Gateway version:    1.2.0
+ *   life-editor commit: ee588a56a308147dae6ffb7110feea32dade91dd
  *
  * Those two lines are the spec this file was written against. They are a
  * promise, not decoration: tests/extensionGatewayFake.test.ts fails when they

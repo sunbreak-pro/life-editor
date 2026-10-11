@@ -1,7 +1,7 @@
 {
   "specFormat": 1,
-  "gatewayVersion": "1.1.0",
-  "lifeEditorCommit": "07ead4ab5c9561bd4933476786b981664984feec",
+  "gatewayVersion": "1.2.0",
+  "lifeEditorCommit": "ee588a56a308147dae6ffb7110feea32dade91dd",
   "conventions": {
     "required": "inputSchema.required is the unconditional set. A property sent as null counts as not sent; a required one sent as null is an error.",
     "conditionalRequired": "A tool's conditionalRequired rule says: require[] is also required unless args[unless.field] strictly equals unless.equals. message is the failure text.",
@@ -1137,7 +1137,7 @@
     },
     {
       "name": "search_by_tag",
-      "description": "Search for todos, dailies, and notes by wiki tag name.",
+      "description": "Search for todos, dailies, notes, and note tables by wiki tag name. A note table (entityType 'table') lives inside a note's body: its entity carries parentNoteId and parentNoteTitle, and get_note on parentNoteId reads the table's cells. An unnamed table has the title 'Untitled table'. Tables whose note is in the trash are left out.",
       "access": "read",
       "inputSchema": {
         "type": "object",
@@ -1151,7 +1151,8 @@
             "enum": [
               "task",
               "daily",
-              "note"
+              "note",
+              "table"
             ],
             "description": "Filter by entity type (optional)"
           }
@@ -1183,7 +1184,7 @@
     },
     {
       "name": "tag_entity",
-      "description": "Assign a wiki tag to a todo, daily, or note. Creates the tag if it doesn't exist.",
+      "description": "Assign a wiki tag to a todo, daily, note, or note table. Creates the tag if it doesn't exist. A note table is an item only once it has been tagged in the app (its id comes from search_by_tag); this tool cannot turn a table that has never been tagged into an item.",
       "access": "write",
       "inputSchema": {
         "type": "object",
@@ -1201,7 +1202,8 @@
             "enum": [
               "task",
               "daily",
-              "note"
+              "note",
+              "table"
             ],
             "description": "Entity type (optional). The real type is read from the item; supplying it asserts the item is of that type."
           }

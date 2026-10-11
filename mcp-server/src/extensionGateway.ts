@@ -40,7 +40,7 @@ import { ERROR_CODES } from "./errorCodes.js";
  * is, and `scripts/dump-gateway-spec.mjs` refuses to write a spec whose
  * version moved less than that.
  */
-export const EXTENSION_GATEWAY_VERSION = "1.1.0";
+export const EXTENSION_GATEWAY_VERSION = "1.2.0";
 
 /** Bumped only if the SHAPE of the spec file itself changes. */
 export const SPEC_FORMAT = 1;
