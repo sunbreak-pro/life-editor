@@ -2,8 +2,12 @@ import { spawn } from "node:child_process";
 import {
   copyFileSync,
   existsSync,
+  lstatSync,
   mkdirSync,
+  readdirSync,
+  rmdirSync,
   statSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -39,10 +43,13 @@ import {
   type DesktopIpcHandlers,
 } from "../shared/ipcContract";
 import {
+  CLAUDE_WORKSPACE_DIRNAME,
   claudeSearchDirs,
   findClaudeExecutable,
   normalizeProjectPath,
   planLaunch,
+  sanitizeCustomization,
+  writeClaudeWorkspace,
 } from "./claudeLauncher";
 // The renderer's origin (#1636) — see the module header for why the packaged
 // app is served from a scheme instead of loaded off disk.
@@ -681,12 +688,43 @@ function claudeIpcHandlers() {
         return Promise.resolve({ ok: false, error: "claude-not-found" });
       }
 
+      // #2120: rebuild the app's own Claude folder from what the renderer
+      // read out of the DB, then hand it to Claude Code with --add-dir. A
+      // launch without the content (an older renderer, or a read that
+      // failed) keeps the folder as the last launch left it.
+      const workspaceDir = join(
+        app.getPath("userData"),
+        CLAUDE_WORKSPACE_DIRNAME,
+      );
+      try {
+        mkdirSync(workspaceDir, { recursive: true });
+        const customization = sanitizeCustomization(
+          typeof args === "object" && args !== null
+            ? (args as ClaudeLaunchArgs).customization
+            : undefined,
+        );
+        if (customization !== null) {
+          writeClaudeWorkspace(workspaceDir, customization, {
+            lstatSync,
+            readdirSync: (path) => readdirSync(path),
+            unlinkSync,
+            rmdirSync,
+            mkdirSync,
+            writeFileSync,
+          });
+        }
+      } catch (error) {
+        console.error("[main] could not write the Claude folder", error);
+        return Promise.resolve({ ok: false, error: "prepare-failed" });
+      }
+
       const scriptPath = join(app.getPath("temp"), CLAUDE_LAUNCHER_SCRIPT);
       const plan = planLaunch(
         process.platform,
         projectPath,
         scriptPath,
         process.env,
+        workspaceDir,
       );
 
       return new Promise<ClaudeLaunchResult>((resolve) => {
@@ -696,6 +734,8 @@ function claudeIpcHandlers() {
           }
           const child = spawn(plan.command, plan.args, {
             cwd: plan.cwd,
+            env: plan.env,
+            windowsVerbatimArguments: plan.verbatimArguments ?? false,
             detached: true,
             stdio: "ignore",
             // Never true: with a shell the folder would be re-parsed as a

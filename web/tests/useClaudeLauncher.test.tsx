@@ -14,9 +14,23 @@ import { useClaudeLauncher } from "../src/hooks/useClaudeLauncher";
 
 const t = (key: string) => key;
 
+/**
+ * What `getDataService()` answers (#2120). Null = it throws, the way it does
+ * without Supabase credentials — the default here, so the #1211 cases below
+ * launch without customization exactly as before.
+ */
+let dataService: Record<string, unknown> | null = null;
+
 vi.mock("@life-editor/shared", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@life-editor/shared")>();
-  return { ...actual, useTranslation: () => ({ t }) };
+  return {
+    ...actual,
+    useTranslation: () => ({ t }),
+    getDataService: () => {
+      if (!dataService) throw new Error("no credentials");
+      return dataService;
+    },
+  };
 });
 
 const bridge = {
@@ -32,6 +46,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete (window as unknown as { desktop?: unknown }).desktop;
+  dataService = null;
 });
 
 describe("useClaudeLauncher", () => {
@@ -141,5 +156,72 @@ describe("useClaudeLauncher", () => {
     await expect(result.current.launch("/x")).resolves.toBe(
       "settings.ai.errorUnavailable",
     );
+  });
+
+  describe("customization (#2120)", () => {
+    it("hands main the saved rules, memories and skills", async () => {
+      dataService = {
+        fetchAiRule: vi.fn().mockResolvedValue({ body: "be brief" }),
+        fetchAiMemories: vi
+          .fn()
+          .mockResolvedValue([{ id: "m1", body: "likes tea", sortOrder: 0 }]),
+        fetchAiSkills: vi.fn().mockResolvedValue([
+          {
+            id: "s1",
+            slug: "weekly-review",
+            description: "Fridays",
+            body: "# Steps",
+            createdAt: "",
+            updatedAt: "",
+          },
+        ]),
+      };
+      const { result } = renderHook(() => useClaudeLauncher());
+      await act(async () => {
+        await result.current.launch("/home/u/repo");
+      });
+      expect(bridge.launchClaude).toHaveBeenCalledWith({
+        projectPath: "/home/u/repo",
+        customization: {
+          rules: "be brief",
+          memories: ["likes tea"],
+          skills: [
+            { slug: "weekly-review", description: "Fridays", body: "# Steps" },
+          ],
+        },
+      });
+    });
+
+    it("sends empty rules when nothing is saved yet", async () => {
+      dataService = {
+        fetchAiRule: vi.fn().mockResolvedValue(null),
+        fetchAiMemories: vi.fn().mockResolvedValue([]),
+        fetchAiSkills: vi.fn().mockResolvedValue([]),
+      };
+      const { result } = renderHook(() => useClaudeLauncher());
+      await act(async () => {
+        await result.current.launch();
+      });
+      expect(bridge.launchClaude).toHaveBeenCalledWith({
+        customization: { rules: "", memories: [], skills: [] },
+      });
+    });
+
+    it("still launches when the read fails", async () => {
+      dataService = {
+        fetchAiRule: vi.fn().mockRejectedValue(new Error("offline")),
+        fetchAiMemories: vi.fn().mockResolvedValue([]),
+        fetchAiSkills: vi.fn().mockResolvedValue([]),
+      };
+      const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+      const { result } = renderHook(() => useClaudeLauncher());
+      let answer: string | null = "unset";
+      await act(async () => {
+        answer = await result.current.launch();
+      });
+      expect(answer).toBeNull();
+      expect(bridge.launchClaude).toHaveBeenCalledWith({});
+      spy.mockRestore();
+    });
   });
 });

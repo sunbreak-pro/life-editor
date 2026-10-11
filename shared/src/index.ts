@@ -837,7 +837,9 @@ export type {
 } from "./utils/platform";
 // Claude Code launcher bridge (#1211) — desktop-only, null everywhere else.
 export {
+  collectClaudeCustomization,
   getClaudeLauncherBridge,
+  type ClaudeCustomizationPayload,
   type ClaudeLaunchErrorCode,
   type ClaudeLaunchOutcome,
   type DesktopClaudeLauncherBridge,

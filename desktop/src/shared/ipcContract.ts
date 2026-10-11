@@ -80,6 +80,20 @@ export const DESKTOP_IPC_CHANNELS: readonly DesktopIpcChannel[] =
  */
 export interface ClaudeLaunchArgs {
   projectPath?: string;
+  /**
+   * #2120: the rules / memories / Claude skills to write into the app's own
+   * Claude folder before launching. Text that becomes FILE CONTENT only —
+   * main never puts any of it on a command line. Omit it and main launches
+   * with the folder as the last launch left it.
+   */
+  customization?: ClaudeCustomizationPayload;
+}
+
+/** What the renderer read from the DB (#2118) for one launch. */
+export interface ClaudeCustomizationPayload {
+  rules: string;
+  memories: string[];
+  skills: { slug: string; description: string; body: string }[];
 }
 
 /**
@@ -93,6 +107,8 @@ export type ClaudeLaunchError =
   | "no-project-path"
   | "invalid-project-path"
   | "claude-not-found"
+  /** #2120: the app's Claude folder could not be written. Nothing was started. */
+  | "prepare-failed"
   | "spawn-failed";
 
 export interface ClaudeLaunchResult {

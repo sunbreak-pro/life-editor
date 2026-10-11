@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { getClaudeLauncherBridge, useTranslation } from "@life-editor/shared";
+import {
+  collectClaudeCustomization,
+  getClaudeLauncherBridge,
+  getDataService,
+  useTranslation,
+  type ClaudeCustomizationPayload,
+} from "@life-editor/shared";
 
 /*
  * Host side of the Claude Code launcher (#1211).
@@ -52,10 +58,22 @@ export function useClaudeLauncher(): ClaudeLauncherApi {
   const launch = useCallback(
     async (path?: string): Promise<string | null> => {
       if (!bridge) return t("settings.ai.errorUnavailable");
+      // #2120: the rules / memories / Claude skills main writes into the
+      // app's own Claude folder before it starts `claude --add-dir`. A read
+      // that fails (offline, no credentials) launches without them — main
+      // then keeps the folder the last launch wrote, which beats refusing to
+      // start Claude at all.
+      let customization: ClaudeCustomizationPayload | undefined;
       try {
-        const outcome = await bridge.launchClaude(
-          path === undefined ? {} : { projectPath: path },
-        );
+        customization = await collectClaudeCustomization(getDataService());
+      } catch (e: unknown) {
+        console.error("[claude launcher] could not read customization", e);
+      }
+      try {
+        const outcome = await bridge.launchClaude({
+          ...(path === undefined ? {} : { projectPath: path }),
+          ...(customization === undefined ? {} : { customization }),
+        });
         if (outcome.ok) return null;
         /*
          * Spelled out here rather than through a code -> key table so every
@@ -96,4 +114,3 @@ export function useClaudeLauncher(): ClaudeLauncherApi {
     launch,
   };
 }
-
