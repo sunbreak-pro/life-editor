@@ -108,6 +108,9 @@ const SAVED_RPC = () => ({
 
 // Dynamic on purpose: a static import would be hoisted above vi.mock.
 const { extensionRegistry } = await import("../src/extensionGateway.js");
+const { runAs } = await import("../src/callerContext.js");
+const { codeOf } = await import("../src/errorCodes.js");
+const { requestHash } = await import("../src/utils/originKey.js");
 const { default: worker } = await import("../src/worker.js");
 const { configureTimeZone } = await import("../src/utils/localDate.js");
 
@@ -139,14 +142,27 @@ afterEach(() => {
 
 /* ---- outcomes ------------------------------------------------------------ */
 
-type Outcome = { ok: true; texts: string[] } | { ok: false; message: string };
+type Outcome =
+  { ok: true; texts: string[] } | { ok: false; message: string; code: string };
 type Args = Record<string, unknown>;
 /** A row override is any column ANY_ROW has, with any value (a written state). */
 type RealStub =
   "anyRow" | "empty" | Partial<Record<keyof typeof ANY_ROW, unknown>>;
 
+/**
+ * What the real side finds under an idempotency_key (utils/originKey.ts reads
+ * `items_meta` by origin_app + origin_key). Null = a key nobody used.
+ */
+interface KeyedLookup {
+  role: string;
+  /** The request whose hash the stored row carries. */
+  madeBy?: [tool: string, args: Args];
+  deleted?: boolean;
+}
+let keyLookup: KeyedLookup | null = null;
+
 function useRealStub(kind: RealStub): void {
-  const select =
+  const rows =
     kind === "empty"
       ? () => null
       : (call: QueryCall): unknown =>
@@ -155,15 +171,42 @@ function useRealStub(kind: RealStub): void {
               ? ANY_ROW
               : { ...ANY_ROW, ...kind }
             : [];
+  const select = (call: QueryCall): unknown => {
+    if (call.columns?.includes("origin_request_hash")) {
+      if (!keyLookup) return null;
+      return {
+        id: REAL_ID,
+        role: keyLookup.role,
+        is_deleted: keyLookup.deleted === true,
+        origin_request_hash: keyLookup.madeBy
+          ? requestHash(...keyLookup.madeBy)
+          : null,
+      };
+    }
+    return rows(call);
+  };
   stub = createSupabaseStub(select, SAVED_RPC);
 }
 
+/** The app the real side calls as; the fake serves one app and has no name for it. */
+const APP = {
+  app: "parity-app",
+  account: "owner",
+  scopes: ["read", "write"],
+} as const;
+
 async function realOutcome(name: string, args: Args): Promise<Outcome> {
   try {
-    const { content } = await extensionRegistry.call(name, args);
+    const { content } = await runAs(APP, () =>
+      extensionRegistry.call(name, args),
+    );
     return { ok: true, texts: content.map((c) => c.text) };
   } catch (error) {
-    return { ok: false, message: (error as Error).message };
+    return {
+      ok: false,
+      message: (error as Error).message,
+      code: codeOf(error),
+    };
   }
 }
 
@@ -180,7 +223,11 @@ function rpcRequest(
 }
 
 interface ToolCallBody {
-  result: { content: Array<{ type: string; text: string }>; isError?: boolean };
+  result: {
+    content: Array<{ type: string; text: string }>;
+    isError?: boolean;
+    structuredContent?: { code: string; message: string };
+  };
 }
 
 async function fakeOutcome(
@@ -196,6 +243,7 @@ async function fakeOutcome(
     return {
       ok: false,
       message: body.result.content[0].text.replace(/^Error: /, ""),
+      code: body.result.structuredContent?.code ?? "(none)",
     };
   }
   return { ok: true, texts: body.result.content.map((c) => c.text) };
@@ -364,11 +412,215 @@ interface Case {
   real?: RealStub;
   /** Calls the fake makes first (placeholders allowed). */
   before?: Array<[string, Args]>;
+  /** What the real side finds under an idempotency_key (default: nothing). */
+  lookup?: KeyedLookup;
   /** The spec result check is skipped, with the reason. */
   specGap?: string;
 }
 
 const NOT_FOUND = "nope-0000";
+
+/*
+ * Retry keys (plan R5) and update/delete by external id (R6). The fake holds
+ * the first call's item itself; the real side cannot (its stub applies no
+ * writes), so each case says what the real lookup finds under the key.
+ */
+const KEYED_SCHEDULE = {
+  date: "2026-10-10",
+  title: "Renewal",
+  is_all_day: true,
+  idempotency_key: "k-schedule",
+};
+const KEYED_TODO = { title: "Cancel the trial", idempotency_key: "k-todo" };
+const KEYED_NOTE = { title: "Plans", idempotency_key: "k-note" };
+
+function KEYED_CASES(): Case[] {
+  const made = (tool: string, args: Args): KeyedLookup["madeBy"] => [
+    tool,
+    args,
+  ];
+  return [
+    // a new key creates
+    { tool: "create_todo", args: KEYED_TODO },
+    { tool: "create_note", args: KEYED_NOTE },
+    { tool: "create_schedule_item", args: KEYED_SCHEDULE },
+    { tool: "create_todo", args: { title: "x", idempotency_key: null } },
+    // the same key and the same arguments is a replay
+    {
+      tool: "create_todo",
+      args: KEYED_TODO,
+      before: [["create_todo", KEYED_TODO]],
+      lookup: { role: "task", madeBy: made("create_todo", KEYED_TODO) },
+    },
+    {
+      tool: "create_note",
+      args: KEYED_NOTE,
+      before: [["create_note", KEYED_NOTE]],
+      lookup: { role: "note", madeBy: made("create_note", KEYED_NOTE) },
+    },
+    {
+      tool: "create_schedule_item",
+      args: KEYED_SCHEDULE,
+      before: [["create_schedule_item", KEYED_SCHEDULE]],
+      lookup: {
+        role: "event",
+        madeBy: made("create_schedule_item", KEYED_SCHEDULE),
+      },
+    },
+    // null counts as absent, so this is the same request
+    {
+      tool: "create_todo",
+      args: { ...KEYED_TODO, status: null },
+      before: [["create_todo", KEYED_TODO]],
+      lookup: { role: "task", madeBy: made("create_todo", KEYED_TODO) },
+    },
+    // the same key with other arguments is refused
+    {
+      tool: "create_todo",
+      args: { ...KEYED_TODO, title: "Something else" },
+      before: [["create_todo", KEYED_TODO]],
+      lookup: { role: "task", madeBy: made("create_todo", KEYED_TODO) },
+    },
+    {
+      tool: "create_schedule_item",
+      args: { ...KEYED_SCHEDULE, date: "2026-10-11" },
+      before: [["create_schedule_item", KEYED_SCHEDULE]],
+      lookup: {
+        role: "event",
+        madeBy: made("create_schedule_item", KEYED_SCHEDULE),
+      },
+    },
+    // ... and so is the same key for another kind of item
+    {
+      tool: "create_note",
+      args: { title: "Plans", idempotency_key: "k-todo" },
+      before: [["create_todo", KEYED_TODO]],
+      lookup: { role: "task", madeBy: made("create_todo", KEYED_TODO) },
+    },
+    // a key whose item was deleted is not created again
+    {
+      tool: "create_todo",
+      args: KEYED_TODO,
+      before: [
+        ["create_todo", KEYED_TODO],
+        ["delete_by_external_id", { external_id: "k-todo" }],
+      ],
+      lookup: {
+        role: "task",
+        madeBy: made("create_todo", KEYED_TODO),
+        deleted: true,
+      },
+    },
+    // the reuse is reported even when the item is gone
+    {
+      tool: "create_todo",
+      args: { ...KEYED_TODO, title: "Something else" },
+      before: [
+        ["create_todo", KEYED_TODO],
+        ["delete_by_external_id", { external_id: "k-todo" }],
+      ],
+      lookup: {
+        role: "task",
+        madeBy: made("create_todo", KEYED_TODO),
+        deleted: true,
+      },
+    },
+    // a key outside 1-200 characters
+    { tool: "create_todo", args: { title: "x", idempotency_key: "" } },
+    {
+      tool: "create_note",
+      args: { title: "x", idempotency_key: "k".repeat(201) },
+    },
+    { tool: "create_note", args: { title: "x", idempotency_key: 7 } },
+    // update_by_external_id
+    {
+      tool: "update_by_external_id",
+      args: { external_id: "k-schedule", changes: { title: "Renamed" } },
+      before: [["create_schedule_item", KEYED_SCHEDULE]],
+      lookup: { role: "event" },
+    },
+    {
+      tool: "update_by_external_id",
+      args: { external_id: "k-todo", changes: { status: "done" } },
+      before: [["create_todo", KEYED_TODO]],
+      lookup: { role: "task" },
+    },
+    {
+      tool: "update_by_external_id",
+      args: { external_id: "k-note", changes: { is_pinned: true } },
+      before: [["create_note", KEYED_NOTE]],
+      lookup: { role: "note" },
+      real: { is_pinned: true },
+    },
+    {
+      tool: "update_by_external_id",
+      args: { external_id: "k-todo", changes: { status: "started" } },
+      before: [["create_todo", KEYED_TODO]],
+      lookup: { role: "task" },
+    },
+    {
+      tool: "update_by_external_id",
+      args: { external_id: "k-todo", changes: { memo: "not a todo field" } },
+      before: [["create_todo", KEYED_TODO]],
+      lookup: { role: "task" },
+    },
+    {
+      tool: "update_by_external_id",
+      args: { external_id: "k-todo", changes: { id: "other-item" } },
+      before: [["create_todo", KEYED_TODO]],
+      lookup: { role: "task" },
+    },
+    {
+      tool: "update_by_external_id",
+      args: { external_id: "k-todo", changes: "title" },
+    },
+    { tool: "update_by_external_id", args: { external_id: "k-todo" } },
+    {
+      tool: "update_by_external_id",
+      args: { external_id: "never-used", changes: { title: "x" } },
+    },
+    {
+      tool: "update_by_external_id",
+      args: { external_id: "k-todo", changes: { title: "x" } },
+      before: [
+        ["create_todo", KEYED_TODO],
+        ["delete_by_external_id", { external_id: "k-todo" }],
+      ],
+      lookup: { role: "task", deleted: true },
+    },
+    // delete_by_external_id
+    {
+      tool: "delete_by_external_id",
+      args: { external_id: "k-schedule" },
+      before: [["create_schedule_item", KEYED_SCHEDULE]],
+      lookup: { role: "event" },
+    },
+    {
+      tool: "delete_by_external_id",
+      args: { external_id: "k-todo" },
+      before: [["create_todo", KEYED_TODO]],
+      lookup: { role: "task" },
+    },
+    {
+      tool: "delete_by_external_id",
+      args: { external_id: "k-note" },
+      before: [["create_note", KEYED_NOTE]],
+      lookup: { role: "note" },
+    },
+    // a second delete of the same key still succeeds (a retry is safe)
+    {
+      tool: "delete_by_external_id",
+      args: { external_id: "k-todo" },
+      before: [
+        ["create_todo", KEYED_TODO],
+        ["delete_by_external_id", { external_id: "k-todo" }],
+      ],
+      lookup: { role: "task", deleted: true },
+    },
+    { tool: "delete_by_external_id", args: { external_id: "never-used" } },
+    { tool: "delete_by_external_id", args: {} },
+  ];
+}
 
 const EXTRA_CASES: Case[] = [
   // list_todos
@@ -649,6 +901,7 @@ const EXTRA_CASES: Case[] = [
   { tool: "search_all", args: { query: "x", offset: -1 } },
   { tool: "search_all", args: { query: "x", offset: 1.5, limit: "3" } },
   { tool: "search_all", args: {} },
+  ...KEYED_CASES(),
 ];
 
 /** The spec's own examples, valid and invalid, ahead of the extra cases. */
@@ -702,8 +955,10 @@ describe("the fake and the real handlers answer the same calls the same way", ()
       }
       const fake = await fakeOutcome(gateway, c.tool, fill(c.args, values));
 
+      keyLookup = c.lookup ?? null;
       useRealStub(c.real ?? "anyRow");
       const real = await realOutcome(c.tool, fill(c.args, REAL_VALUES));
+      keyLookup = null;
 
       // Ids only: an instant placeholder is left to normalize()'s own rule.
       const ids = [
@@ -717,6 +972,10 @@ describe("the fake and the real handlers answer the same calls the same way", ()
       if (!fake.ok || !real.ok) {
         expect(normalize((fake as { message: string }).message, ids)).toBe(
           normalize((real as { message: string }).message, ids),
+        );
+        // The code is the part a program branches on (plan R7).
+        expect((fake as { code: string }).code).toBe(
+          (real as { code: string }).code,
         );
         return;
       }
@@ -1123,7 +1382,7 @@ describe("the HTTP surface matches the Worker's", () => {
     expect(body.result.tools.map((t) => t.name)).toEqual(
       committed.tools.map((t) => t.name),
     );
-    expect(body.result.tools).toHaveLength(22);
+    expect(body.result.tools).toHaveLength(24);
     // The real Worker lists the whole remote set; the gateway's registry is
     // the one the fake stands in for.
     expect(body.result.tools).toEqual(
@@ -1140,6 +1399,7 @@ describe("the HTTP surface matches the Worker's", () => {
       result: {
         content: [{ type: "text", text: "Error: Unknown tool: x" }],
         isError: true,
+        structuredContent: { code: "not_found", message: "Unknown tool: x" },
       },
     });
   });

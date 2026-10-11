@@ -18,6 +18,7 @@ import {
   fetchByIdChunks,
   resolveListLimit,
 } from "../utils/pagination.js";
+import { notFoundError } from "../errorCodes.js";
 
 /*
  * Routine handlers — repeating events (#1620).
@@ -155,7 +156,7 @@ async function getRoutineRows(id: string) {
   const payload = await fetchPayload(id);
   // A meta row without its payload is a §10.5 orphan — not a routine anyone
   // can use, so it reads as missing rather than as a half-filled result.
-  if (!payload) throw new Error(`Routine not found: ${id}`);
+  if (!payload) throw notFoundError(`Routine not found: ${id}`);
   return { meta, payload };
 }
 

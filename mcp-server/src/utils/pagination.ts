@@ -11,6 +11,8 @@
  * a long list can blow past proxy URL caps. Those reads chunk instead.
  */
 
+import { invalidArguments } from "../errorCodes.js";
+
 /**
  * Rows per page. MUST be ≤ the server's max-rows cap: the "short page =
  * last page" stop condition assumes a full page whenever more rows exist.
@@ -40,7 +42,7 @@ export function resolveListLimit(
 ): number {
   if (limit === undefined || limit === null) return fallback;
   if (!Number.isInteger(limit) || limit < 1) {
-    throw new Error(`limit must be a positive integer (got ${limit})`);
+    throw invalidArguments(`limit must be a positive integer (got ${limit})`);
   }
   return limit;
 }
@@ -53,7 +55,9 @@ export function resolveListLimit(
 export function resolveListOffset(offset: number | null | undefined): number {
   if (offset === undefined || offset === null) return 0;
   if (!Number.isInteger(offset) || offset < 0) {
-    throw new Error(`offset must be a non-negative integer (got ${offset})`);
+    throw invalidArguments(
+      `offset must be a non-negative integer (got ${offset})`,
+    );
   }
   return offset;
 }

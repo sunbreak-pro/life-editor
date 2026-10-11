@@ -21,6 +21,7 @@ import {
   type TipTapNode,
   type TipTapDoc,
 } from "../utils/tiptapJsonBuilder.js";
+import { notFoundError } from "../errorCodes.js";
 
 /*
  * Content handlers — Supabase edition (#360).
@@ -235,7 +236,7 @@ export async function formatContent(args: FormatContentArgs) {
   } else {
     date = assertDateKey(args.target_date ?? localToday());
     const row = await findDailyPayload(date);
-    if (!row) throw new Error(`Daily not found for date: ${date}`);
+    if (!row) throw notFoundError(`Daily not found for date: ${date}`);
     if (row.has_password) throw lockedBodyError("Daily", row.item_id);
     existingJson = row.content_json;
     entityId = row.item_id;

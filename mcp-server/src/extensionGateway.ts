@@ -2,6 +2,8 @@ import type { ToolDefinition } from "./tools/defineTool.js";
 import { REMOTE_TOOL_DEFINITIONS } from "./remoteTools.js";
 import { buildRegistry, type ToolRegistry } from "./registry.js";
 import type { ObjectSchema } from "./utils/toolSchema.js";
+import { buildExternalIdTools } from "./externalIdTools.js";
+import { ERROR_CODES } from "./errorCodes.js";
 
 /*
  * The extension-app gateway's tool set, and the contract that describes it
@@ -38,7 +40,7 @@ import type { ObjectSchema } from "./utils/toolSchema.js";
  * is, and `scripts/dump-gateway-spec.mjs` refuses to write a spec whose
  * version moved less than that.
  */
-export const EXTENSION_GATEWAY_VERSION = "1.0.0";
+export const EXTENSION_GATEWAY_VERSION = "1.1.0";
 
 /** Bumped only if the SHAPE of the spec file itself changes. */
 export const SPEC_FORMAT = 1;
@@ -73,6 +75,8 @@ const EXTENSION_TOOLS = {
   tag_entity: "write",
   untag_entity: "write",
   search_all: "read",
+  update_by_external_id: "write",
+  delete_by_external_id: "write",
 } as const satisfies Record<string, "read" | "write">;
 
 /** Each tool's access, for the gateway's scope check (gatewayGuard.ts). */
@@ -83,9 +87,43 @@ export type ExtensionToolName = keyof typeof EXTENSION_TOOLS;
 
 const byName = new Map(REMOTE_TOOL_DEFINITIONS.map((def) => [def.name, def]));
 
-export const EXTENSION_TOOL_DEFINITIONS: ToolDefinition[] = (
-  Object.keys(EXTENSION_TOOLS) as ExtensionToolName[]
-).map((name) => {
+/**
+ * The three creates take a retry key here and nowhere else. The argument is
+ * declared on the gateway's copy of each schema, not the shared one, so the
+ * phone's connector and the desktop server neither advertise a key that has no
+ * app to belong to nor change what they publish. The handlers read it from the
+ * arguments and honour it only when a gateway caller is present
+ * (utils/originKey.ts).
+ */
+const KEYED_CREATES: ReadonlySet<string> = new Set([
+  "create_todo",
+  "create_note",
+  "create_schedule_item",
+]);
+
+const IDEMPOTENCY_KEY_SCHEMA = {
+  type: "string",
+  description:
+    "A key of your own, 1-200 characters, that makes a retry safe: the same key with the same arguments returns the item the first call made " +
+    "(and creates nothing); the same key with different arguments fails with code idempotency_key_reused; " +
+    "a key whose item was since deleted fails with code already_deleted instead of creating it again. " +
+    "The key is also the item's external_id for update_by_external_id and delete_by_external_id.",
+} as const;
+
+function withIdempotencyKey(def: ToolDefinition): ToolDefinition {
+  return {
+    ...def,
+    inputSchema: {
+      ...def.inputSchema,
+      properties: {
+        ...def.inputSchema.properties,
+        idempotency_key: IDEMPOTENCY_KEY_SCHEMA,
+      },
+    },
+  };
+}
+
+const remoteDefinition = (name: string): ToolDefinition => {
   const def = byName.get(name);
   if (!def) {
     throw new Error(
@@ -95,6 +133,20 @@ export const EXTENSION_TOOL_DEFINITIONS: ToolDefinition[] = (
     );
   }
   return def;
+};
+
+/** Tools that exist only on the gateway (update/delete by external id). */
+const gatewayOnly = new Map(
+  buildExternalIdTools(remoteDefinition).map((def) => [def.name, def]),
+);
+
+export const EXTENSION_TOOL_DEFINITIONS: ToolDefinition[] = (
+  Object.keys(EXTENSION_TOOLS) as ExtensionToolName[]
+).map((name) => {
+  const own = gatewayOnly.get(name);
+  if (own) return own;
+  const def = remoteDefinition(name);
+  return KEYED_CREATES.has(name) ? withIdempotencyKey(def) : def;
 });
 
 /** The registry a gateway Worker serves: same validator, same handlers. */
@@ -291,6 +343,12 @@ const RESULTS: Record<ExtensionToolName, ResultShape | { $ref: string }> = {
     { totalHits: "number" },
     "One key per searched domain (todos, dailies, notes), each { results, total, hasMore }.",
   ),
+  update_by_external_id: {
+    type: "object",
+    description:
+      "The result of the update tool for the item's kind: update_todo (definitions.todo), update_note (definitions.note) or update_schedule_item (definitions.scheduleItem).",
+  },
+  delete_by_external_id: REF("deleted"),
 };
 
 /* ---- examples ------------------------------------------------------------ */
@@ -407,6 +465,10 @@ const CONVENTIONS = {
     "An argument the schema does not declare is accepted and ignored; the success result carries a second text item beginning 'Note: <tool> does not accept <names>'. Keys starting with '_' are never reported.",
   result:
     "Result shapes pin top-level keys and their JSON kinds. $ref points into definitions.",
+  idempotencyKey:
+    "create_todo, create_note and create_schedule_item take an optional idempotency_key (1-200 characters). Same key and same arguments: the first call's item comes back and nothing is created. Same key, different arguments: failure code idempotency_key_reused. Same key whose item was deleted: failure code already_deleted. Keys are per app. Arguments are compared with null counting as absent.",
+  externalId:
+    "An item made with an idempotency_key can be changed by that key: update_by_external_id({ external_id, changes }) applies changes with the update tool for the item's kind; delete_by_external_id({ external_id }) deletes it (and succeeds again if it is already deleted). Only items the calling app created can be named; any other key is not_found.",
 } as const;
 
 const TRANSPORT = {
@@ -415,7 +477,20 @@ const TRANSPORT = {
   success:
     "tools/call returns { content: [{ type: 'text', text: JSON.stringify(result, null, 2) }] }; the parsed text is the tool's result. A second text item may follow (see conventions.undeclaredArguments).",
   failure:
-    "A failing call is a normal tools/call result: { content: [{ type: 'text', text: 'Error: <message>' }], isError: true }. The HTTP status stays 200.",
+    "A failing call is a normal tools/call result: { content: [{ type: 'text', text: 'Error: <message>' }], isError: true, structuredContent: { code, message } }. The HTTP status stays 200. Branch on structuredContent.code, never on the message.",
+  failureCodes: {
+    invalid_arguments:
+      "The call itself is wrong: a missing or mistyped argument, a malformed date or time, a conditional rule broken.",
+    forbidden:
+      "The key may not do this: a tool outside its scopes, or an item the app did not create. A request that fails to authenticate at all is not a tool result: it is the HTTP 404 described under authentication.",
+    not_found: "No such tool, or no such live item.",
+    idempotency_key_reused:
+      "The same idempotency_key arrived with different arguments.",
+    already_deleted:
+      "The idempotency_key belongs to an item that was deleted, so it was not created again.",
+    failed:
+      "Anything else: a handler's own refusal or a database error. The message says which.",
+  } satisfies Record<(typeof ERROR_CODES)[number], string>,
   failureMessages: {
     invalidArguments:
       "Invalid arguments for <tool>: <problem>; <problem> — every problem in one message. Problems read '<path> is required', '<path> must be a <type> (got <type>)', '<path> must be one of a | b (got \"x\")'.",
@@ -426,7 +501,6 @@ const TRANSPORT = {
   notYetSpecified: [
     "authentication and per-app keys (plan R3)",
     "CORS and the browser path (plan R4)",
-    "machine-readable failure codes (plan R7)",
   ],
 } as const;
 

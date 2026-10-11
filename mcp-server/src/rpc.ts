@@ -3,6 +3,7 @@ import {
   SUPPORTED_PROTOCOL_VERSIONS,
 } from "@modelcontextprotocol/sdk/types.js";
 import type { ToolRegistry } from "./registry.js";
+import { errorResult } from "./errorCodes.js";
 
 /*
  * The HTTP and JSON-RPC pieces both Workers share (#2146).
@@ -197,11 +198,7 @@ export async function handleRpc(
       } catch (error) {
         // Same shape as index.ts: a failing tool is a RESULT with isError, not
         // a protocol error, so Claude sees the message and can try again.
-        const text = error instanceof Error ? error.message : String(error);
-        return rpcResult(id, {
-          content: [{ type: "text", text: `Error: ${text}` }],
-          isError: true,
-        });
+        return rpcResult(id, errorResult(error));
       }
     }
 

@@ -15,6 +15,8 @@ import {
   type ItemsMetaRow,
 } from "../utils/items.js";
 import { deleteRoutine, detachRoutineFrom } from "./routineHandlers.js";
+import { invalidArguments, notFoundError } from "../errorCodes.js";
+import { createOnce, type OriginKey } from "../utils/originKey.js";
 
 /*
  * Schedule handlers — Supabase edition (briefing-loop Step 2 / Issue #256).
@@ -184,7 +186,7 @@ async function getEvent(id: string) {
     ]);
   if (mErr) throw new Error(`get items_meta: ${mErr.message}`);
   if (pErr) throw new Error(`get events_payload: ${pErr.message}`);
-  if (!meta || !payload) throw new Error(`Schedule item not found: ${id}`);
+  if (!meta || !payload) throw notFoundError(`Schedule item not found: ${id}`);
   return {
     meta: meta as unknown as ItemsMetaRow,
     payload: payload as unknown as EventsPayloadRow,
@@ -209,12 +211,12 @@ function assertScheduleWindow(args: {
   if (Boolean(args.start_date) !== Boolean(args.end_date)) {
     const given = args.start_date ? "start_date" : "end_date";
     const missing = args.start_date ? "end_date" : "start_date";
-    throw new Error(
+    throw invalidArguments(
       `${missing} is required when ${given} is given (use date on its own for a single day)`,
     );
   }
   if (args.date && args.start_date) {
-    throw new Error(
+    throw invalidArguments(
       "date and start_date/end_date are mutually exclusive (pass a single day or a range, not both)",
     );
   }
@@ -257,6 +259,8 @@ export async function createScheduleItem(args: {
   end_time?: string;
   is_all_day?: boolean;
   memo?: string;
+  /** Gateway only (originKey.ts): a retry returns the first call's item. */
+  idempotency_key?: string;
 }) {
   // #702 ②: the write path checked none of its own formats, so a typo in
   // `date` or a "9:00" instead of "09:00" surfaced as a raw Postgres parse
@@ -268,7 +272,7 @@ export async function createScheduleItem(args: {
   // They are required, and checked, exactly when they mean something.
   if (!args.is_all_day) {
     if (!args.start_time || !args.end_time) {
-      throw new Error(
+      throw invalidArguments(
         "start_time and end_time are required unless is_all_day is true",
       );
     }
@@ -276,6 +280,22 @@ export async function createScheduleItem(args: {
     assertTimeOfDay(args.end_time, "end_time");
   }
 
+  return createOnce({
+    tool: "create_schedule_item",
+    role: "event",
+    input: args,
+    create: (origin) => insertScheduleItem(args, origin),
+    load: async (id) => {
+      const { meta, payload } = await getEvent(id);
+      return formatItem(meta, payload);
+    },
+  });
+}
+
+async function insertScheduleItem(
+  args: Parameters<typeof createScheduleItem>[0],
+  origin: OriginKey | undefined,
+): Promise<string> {
   const id = `si-${randomUUID()}`;
 
   await insertItem({
@@ -296,10 +316,9 @@ export async function createScheduleItem(args: {
       routine_item_id: null,
       source_date: null,
     },
+    origin,
   });
-
-  const { meta, payload } = await getEvent(id);
-  return formatItem(meta, payload);
+  return id;
 }
 
 export async function updateScheduleItem(args: {
@@ -346,7 +365,7 @@ export async function updateScheduleItem(args: {
       const start = args.start_time ?? current.start_time;
       const end = args.end_time ?? current.end_time;
       if (!start || !end) {
-        throw new Error(
+        throw invalidArguments(
           "start_time and end_time are required when turning is_all_day off (this item has none stored)",
         );
       }
@@ -469,7 +488,7 @@ export async function deleteScheduleItem(args: {
       };
     }
     default:
-      throw new Error(
+      throw invalidArguments(
         `${args.id} is one occurrence of a repeating event (routine ${routineId}), so deleting it needs a scope. Ask the user which to delete, then call again with scope: "this" (only this day), "future" (this day and every later one) or "all" (the whole series).`,
       );
   }

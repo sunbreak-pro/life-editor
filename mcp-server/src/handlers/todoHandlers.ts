@@ -10,6 +10,7 @@ import {
   updatePayload,
   type ItemsMetaRow,
 } from "../utils/items.js";
+import { createOnce, type OriginKey } from "../utils/originKey.js";
 import { localDayUtcRange } from "../utils/localDate.js";
 import { contentPlainText, contentPreview } from "../utils/content.js";
 import {
@@ -22,6 +23,7 @@ import {
   getTagMapByRole,
   type TagInfo,
 } from "./wikiTagHandlers.js";
+import { invalidArguments, notFoundError } from "../errorCodes.js";
 
 /*
  * Todo handlers — Supabase edition (#360).
@@ -77,7 +79,7 @@ const STATUS_TO_DB: Record<string, string> = {
 export function toDbStatus(status: string): string {
   const mapped = STATUS_TO_DB[status.toLowerCase()];
   if (!mapped) {
-    throw new Error(
+    throw invalidArguments(
       `Invalid status "${status}" (expected not_started|done)`,
     );
   }
@@ -200,7 +202,7 @@ async function getTodoRows(id: string) {
     .eq("item_id", id)
     .maybeSingle();
   if (error) throw new Error(`get tasks_payload: ${error.message}`);
-  if (!data) throw new Error(`Todo not found: ${id}`);
+  if (!data) throw notFoundError(`Todo not found: ${id}`);
   return { meta, payload: data as unknown as TasksPayloadRow };
 }
 
@@ -370,7 +372,7 @@ export async function getTodoTree(args: {
 
   if (args.root_id) {
     const rootRow = rows.find((r) => r.meta.id === args.root_id);
-    if (!rootRow) throw new Error(`Todo not found: ${args.root_id}`);
+    if (!rootRow) throw notFoundError(`Todo not found: ${args.root_id}`);
     return toNode(rootRow, buildTree(args.root_id, 1));
   }
 
@@ -385,12 +387,31 @@ export async function createTodo(args: {
   is_all_day?: boolean;
   content?: string;
   status?: string;
+  /** Gateway only (originKey.ts): a retry returns the first call's todo. */
+  idempotency_key?: string;
 }) {
   // #702 ③: create_todo took neither body nor status, so creating a todo
   // with anything in it always cost two calls (create → update). The write
   // vocabulary is update_todo's, unchanged: Markdown in, TipTap JSON stored.
   const status =
     args.status === undefined ? "NOT_STARTED" : toDbStatus(args.status);
+  return createOnce({
+    tool: "create_todo",
+    role: "task",
+    input: args,
+    create: (origin) => insertTodo(args, status, origin),
+    load: async (id) => {
+      const { meta, payload } = await getTodoRows(id);
+      return formatTodo(meta, payload);
+    },
+  });
+}
+
+async function insertTodo(
+  args: Parameters<typeof createTodo>[0],
+  status: string,
+  origin: OriginKey | undefined,
+): Promise<string> {
   const { client } = await getSupabase();
   const id = `task-${randomUUID()}`;
 
@@ -429,10 +450,9 @@ export async function createTodo(args: {
       reminder_enabled: false,
       sort_order: maxOrder + 1,
     },
+    origin,
   });
-
-  const { meta, payload } = await getTodoRows(id);
-  return formatTodo(meta, payload);
+  return id;
 }
 
 export async function updateTodo(args: {

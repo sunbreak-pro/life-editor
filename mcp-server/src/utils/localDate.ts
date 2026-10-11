@@ -19,6 +19,8 @@
  * default — the behaviour is byte-for-byte what it always was.
  */
 
+import { invalidArguments } from "../errorCodes.js";
+
 /**
  * The zone every helper here works in, or null for "whatever the process is
  * set to" (the stdio default — see the note at the top of the file).
@@ -136,7 +138,7 @@ export function localToday(): string {
 /** Guard a tool-supplied date before it reaches Date()/toISOString(). */
 export function assertDateKey(date: string): string {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-    throw new Error(`Invalid date "${date}" (expected YYYY-MM-DD)`);
+    throw invalidArguments(`Invalid date "${date}" (expected YYYY-MM-DD)`);
   }
   return date;
 }
@@ -150,7 +152,7 @@ export function assertDateKey(date: string): string {
  */
 export function assertTimeOfDay(value: string, field: string): string {
   if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) {
-    throw new Error(
+    throw invalidArguments(
       `Invalid ${field} "${value}" (expected HH:MM, 00:00-23:59)`,
     );
   }
