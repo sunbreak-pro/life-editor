@@ -129,6 +129,16 @@ export function useShellNavigation({
   // back kept the tab and silently reset the range to 30 days. In-memory only,
   // like the tab: a reload opens on the defaults.
   const [analyticsPreset, setAnalyticsPreset] = useState<DatePreset>("30d");
+  /*
+   * The app the Records tab should open filtered to (#2164), by slug. Raised by
+   * `showRecordsForApp` (the Apps section's "show records", #2165) and consumed
+   * once by the tab — the same pending-intent shape as `pendingTodoSelect`,
+   * and for the same reason: the tab is not mounted when the intent is raised
+   * (Analytics is lazy and unmounts with its section), so the shell holds it.
+   */
+  const [pendingRecordsSource, setPendingRecordsSource] = useState<
+    string | null
+  >(null);
   // Briefing's 朝刊/夕刊 tab (#263 F-6), lifted here so the standard
   // SectionHeader renders the band — same tabs-as-title pattern as
   // materialsTab. Lazy init: the initial tab follows the clock
@@ -249,6 +259,28 @@ export function useShellNavigation({
       });
     },
     [applyDestination, guarded],
+  );
+
+  /*
+   * "Show this app's records" (#2164, called by the Apps section, #2165):
+   * Analytics, its Records tab, filtered to one app. The three moves are
+   * raised together INSIDE the guard like handleNewTodo — a refused
+   * navigation must not leave a stash that filters the tab on the user's next
+   * visit.
+   */
+  const showRecordsForApp = useCallback(
+    (slug: string) => {
+      guarded(() => {
+        applyDestination({ section: "analytics" });
+        setAnalyticsTab("records");
+        setPendingRecordsSource(slug);
+      });
+    },
+    [guarded, applyDestination],
+  );
+  const consumeRecordsSource = useCallback(
+    () => setPendingRecordsSource(null),
+    [],
   );
 
   // global:new-task executor. Todo creation lives behind the TodoTree
@@ -413,6 +445,9 @@ export function useShellNavigation({
     setAnalyticsTab,
     analyticsPreset,
     setAnalyticsPreset,
+    pendingRecordsSource,
+    consumeRecordsSource,
+    showRecordsForApp,
     briefingTab,
     setBriefingTab,
     connectTab,

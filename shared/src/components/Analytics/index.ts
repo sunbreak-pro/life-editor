@@ -10,7 +10,7 @@ export { AnalyticsView, type AnalyticsViewProps } from "./AnalyticsView";
 // The tab vocabulary comes from a chart-free module on purpose — the shell
 // reads it eagerly, the charts stay behind the lazy Analytics chunk (#676).
 export { ANALYTICS_TAB_ORDER, type AnalyticsTab } from "./tabs";
-export type { AnalyticsLabels } from "./labels";
+export type { AnalyticsLabels, RecordsLabels } from "./labels";
 // The date-range shape the host receives via onScheduleRangeChange (per-range
 // fetch). The AnalyticsFilterContext itself stays internal; only this type
 // crosses the host boundary.

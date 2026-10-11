@@ -43,6 +43,7 @@ describe("Analytics tab vocabulary stays chart-free", () => {
       "todos",
       "work",
       "schedule",
+      "records",
     ]);
   });
 });

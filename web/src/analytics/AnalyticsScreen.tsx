@@ -14,6 +14,8 @@ import {
   type RoutineNode,
   type WikiTagUnified,
   type WikiTagAssignmentUnified,
+  type AppRecord,
+  type ExtensionApp,
   formatDateKey,
   todayCalendarKey,
   useDomainLoad,
@@ -22,6 +24,7 @@ import {
   type TranslationKey,
 } from "@life-editor/shared";
 import { makeAxisFormat } from "./axisFormat";
+import { recordsWindow } from "./recordsRange";
 
 /*
  * Analytics host shell (W4 · lean). Mirrors the Work/Trash host pattern: the
@@ -65,7 +68,23 @@ interface AnalyticsScreenProps {
    */
   preset: DatePreset;
   onPresetChange: (preset: DatePreset) => void;
+  /**
+   * An app slug the shell wants the Records tab filtered to (the Apps section's
+   * "show records", #2165), and the call that clears it once the tab took it.
+   * Optional: a host that never raises the intent leaves them out.
+   */
+  pendingRecordsSource?: string | null;
+  onRecordsSourceConsumed?: () => void;
 }
+
+/** The records read and the ledger read beside it (#2164). */
+interface RecordsData {
+  records: AppRecord[];
+  apps: ExtensionApp[];
+}
+
+const NO_RECORDS: RecordsData = { records: [], apps: [] };
+const NO_PENDING_CONSUMER = (): void => {};
 
 /*
  * The nine independent reads behind the dashboard (#1524), named so a failure
@@ -147,6 +166,8 @@ export function AnalyticsScreen({
   onTabChange,
   preset,
   onPresetChange,
+  pendingRecordsSource = null,
+  onRecordsSourceConsumed = NO_PENDING_CONSUMER,
 }: AnalyticsScreenProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
   // Everything this screen reads, declared (rules/frontend.md §Sync). Missing
@@ -310,6 +331,46 @@ export function AnalyticsScreen({
   // load that has not started — not one that finished empty.
   const scheduleLoading = rangeLoading || scheduleRange === null;
 
+  /*
+   * Extension-app records (#2164) — the same per-range shape as the schedule
+   * read above, on its own counter for the same reason: a record landing from
+   * Claude bumps `appRecords`, which must not put the other tabs' skeletons
+   * back. `extensionApps` rides along because the tab names an app by its
+   * ledger row. The window is the range widened to the last seven days (see
+   * recordsRange.ts); the tab narrows it by the preset again.
+   *
+   * The records read is the one that matters: if it throws, the load fails
+   * and the tab says so. The ledger only supplies names, so losing it falls
+   * back to showing slugs rather than failing the tab.
+   */
+  const recordsSyncVersion = useSyncDomains("appRecords", "extensionApps");
+  const [recordsData, setRecordsData] = useState<RecordsData>(NO_RECORDS);
+  const { isLoading: recordsRangeLoading, error: recordsError } =
+    useDomainLoad<RecordsData>({
+      domain: "Analytics records",
+      dataService: ds,
+      version: recordsSyncVersion,
+      anchor: rangeFrom === null ? undefined : `${rangeFrom}:${rangeTo}`,
+      load: async (service) => {
+        if (rangeFrom === null || rangeTo === null) return NO_RECORDS;
+        const [records, apps] = await Promise.allSettled([
+          service.listAppRecords(recordsWindow(rangeFrom, rangeTo)),
+          service.listExtensionApps(),
+        ]);
+        if (records.status === "rejected") throw records.reason;
+        if (apps.status === "rejected") {
+          logServiceError("Analytics", "load extension apps", apps.reason);
+        }
+        return {
+          records: records.value,
+          apps: apps.status === "fulfilled" ? apps.value : [],
+        };
+      },
+      apply: setRecordsData,
+      fallbackMessage: "Failed to load the records",
+    });
+  const recordsLoading = recordsRangeLoading || scheduleRange === null;
+
   // The range anchor drives `rangeLoading` on its own now, so this only has to
   // record what the user picked.
   const handleScheduleRangeChange = useCallback((range: DateRange) => {
@@ -337,6 +398,22 @@ export function AnalyticsScreen({
     return t("analytics.loadFailed.message", { sources });
   }, [data.failedSources, t]);
 
+  /*
+   * A record's value is whatever the app sent (450 yen, 62.4 kg), so it gets a
+   * plain grouped number rather than the duration format the work tabs use.
+   * Same two-way locale split as axisFormat.ts.
+   */
+  const recordFormats = useMemo(() => {
+    const locale = i18n.language.startsWith("ja") ? "ja-JP" : "en-US";
+    return {
+      number: new Intl.NumberFormat(locale, { maximumFractionDigits: 2 }),
+      dateTime: new Intl.DateTimeFormat(locale, {
+        dateStyle: "medium",
+        timeStyle: "short",
+      }),
+    };
+  }, [i18n.language]);
+
   const labels = useMemo<AnalyticsLabels>(
     () => ({
       title: t("analytics.title"),
@@ -357,6 +434,7 @@ export function AnalyticsScreen({
         todos: t("analytics.tabs.todos"),
         schedule: t("analytics.tabs.schedule"),
         work: t("analytics.tabs.work"),
+        records: t("analytics.tabs.records"),
       },
       datePreset: {
         label: t("analytics.datePreset.label"),
@@ -383,6 +461,63 @@ export function AnalyticsScreen({
       emptyTagUsage: {
         title: t("analytics.empty.tagUsage.title"),
         description: t("analytics.empty.tagUsage.description"),
+      },
+      records: {
+        filtersLabel: t("analytics.records.filtersLabel"),
+        app: {
+          label: t("analytics.records.app.label"),
+          all: t("analytics.records.app.all"),
+        },
+        kind: {
+          label: t("analytics.records.kind.label"),
+          all: t("analytics.records.kind.all"),
+        },
+        claudeSource: t("analytics.records.claudeSource"),
+        stats: {
+          count: t("analytics.records.stats.count"),
+          sum: t("analytics.records.stats.sum"),
+          avg: t("analytics.records.stats.avg"),
+          needOneKind: t("analytics.records.stats.needOneKind"),
+        },
+        chart: {
+          sumTitle: t("analytics.records.chart.sumTitle"),
+          countTitle: t("analytics.records.chart.countTitle"),
+          sumSeries: t("analytics.records.chart.sumSeries"),
+          countSeries: t("analytics.records.chart.countSeries"),
+        },
+        list: {
+          title: t("analytics.records.list.title"),
+          showMore: t("analytics.records.list.showMore"),
+          shown: (shown: number, total: number) =>
+            t("analytics.records.list.shown", { shown, total }),
+        },
+        empty: {
+          title: t("analytics.records.empty.title"),
+          description: t("analytics.records.empty.description"),
+        },
+        emptyFiltered: {
+          title: t("analytics.records.emptyFiltered.title"),
+          description: t("analytics.records.emptyFiltered.description"),
+        },
+        loadFailed: t("analytics.records.loadFailed"),
+        formatValue: (value: number, unit: string | null) => {
+          const number = recordFormats.number.format(value);
+          return unit ? `${number} ${unit}` : number;
+        },
+        formatNumber: (value: number) => recordFormats.number.format(value),
+        formatDateTime: (iso: string) => {
+          const at = new Date(iso);
+          return Number.isNaN(at.getTime())
+            ? iso
+            : recordFormats.dateTime.format(at);
+        },
+        mobile: {
+          title: t("analytics.records.mobile.title"),
+          range: t("analytics.records.mobile.range"),
+          empty: t("analytics.records.mobile.empty"),
+          formatCount: (count: number) =>
+            t("analytics.records.mobile.count", { count }),
+        },
       },
       mobile: {
         weekTitle: t("analytics.mobile.weekTitle"),
@@ -524,7 +659,7 @@ export function AnalyticsScreen({
         },
       },
     }),
-    [t, i18n.language],
+    [t, i18n.language, recordFormats],
   );
 
   return (
@@ -548,6 +683,12 @@ export function AnalyticsScreen({
       onTabChange={onTabChange}
       initialPreset={preset}
       onPresetChange={onPresetChange}
+      records={recordsData.records}
+      recordApps={recordsData.apps}
+      recordsLoading={recordsLoading}
+      recordsError={recordsError}
+      pendingRecordsSource={pendingRecordsSource}
+      onRecordsSourceConsumed={onRecordsSourceConsumed}
       labels={labels}
     />
   );

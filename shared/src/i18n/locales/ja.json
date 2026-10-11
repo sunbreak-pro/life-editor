@@ -987,7 +987,46 @@
       "overview": "概要",
       "todos": "Todo",
       "schedule": "スケジュール",
-      "work": "作業"
+      "work": "作業",
+      "records": "記録"
+    },
+    "records": {
+      "filtersLabel": "記録の絞り込み",
+      "app": { "label": "アプリ", "all": "すべてのアプリ" },
+      "kind": { "label": "種類", "all": "すべての種類" },
+      "claudeSource": "Claude",
+      "stats": {
+        "count": "件数",
+        "sum": "合計",
+        "avg": "平均",
+        "needOneKind": "アプリか種類を 1 つに絞ると、合計と平均が出ます。"
+      },
+      "chart": {
+        "sumTitle": "期間ごとの合計",
+        "countTitle": "期間ごとの件数",
+        "sumSeries": "合計",
+        "countSeries": "件数"
+      },
+      "list": {
+        "title": "記録の一覧",
+        "showMore": "さらに表示",
+        "shown": "{{total}} 件中 {{shown}} 件を表示"
+      },
+      "empty": {
+        "title": "この期間の記録はありません",
+        "description": "スマホの Claude に「コーヒー 450 円」と言うと、最初の記録が入ります。"
+      },
+      "emptyFiltered": {
+        "title": "この条件に合う記録はありません",
+        "description": "アプリや種類を変えるか、期間を広げてください。"
+      },
+      "loadFailed": "記録を読み込めませんでした。しばらくしてからもう一度お試しください。",
+      "mobile": {
+        "title": "記録",
+        "range": "直近 7 日",
+        "empty": "直近 7 日の記録はありません。",
+        "count_other": "{{count}} 件"
+      }
     },
     "workTime": "作業時間",
     "todoWorkTime": "Todo 別作業時間",

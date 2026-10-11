@@ -6,6 +6,8 @@ import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
+import type { AppRecord } from "../../types/appRecord";
+import type { ExtensionApp } from "../../types/extensionApp";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { HeaderTabs, type HeaderTab } from "../HeaderTabs";
 import { NoticePanel } from "../NoticePanel";
@@ -20,6 +22,7 @@ import { OverviewTab } from "./OverviewTab";
 import { TodosTab } from "./TodosTab";
 import { TimeTab } from "./TimeTab";
 import { ScheduleTab } from "./ScheduleTab";
+import { RecordsTab } from "./RecordsTab";
 import { MobileAnalyticsView } from "./MobileAnalyticsView";
 import { ANALYTICS_TAB_ORDER, type AnalyticsTab } from "./tabs";
 import type { AnalyticsLabels } from "./labels";
@@ -119,8 +122,34 @@ export interface AnalyticsViewProps {
    */
   initialPreset?: DatePreset;
   onPresetChange?: (preset: DatePreset) => void;
+  /**
+   * Extension-app records (#2164, host: `listAppRecords`). The host reads a
+   * window at least as wide as the selected date range — and at least the last
+   * seven days, which the narrow block needs whatever the preset is — and the
+   * tab narrows it by the preset itself. Optional so hosts that have no
+   * records keep compiling: the tab then shows its empty state.
+   */
+  records?: AppRecord[];
+  /** The ledger, for display names (host: `listExtensionApps`). */
+  recordApps?: ExtensionApp[];
+  /** True while the records read for the range is in flight. */
+  recordsLoading?: boolean;
+  /** Message of a failed records read, or null. */
+  recordsError?: string | null;
+  /**
+   * An app slug the shell wants the Records tab filtered to (the Apps
+   * section's "show records", #2165), consumed once by the tab through
+   * `onRecordsSourceConsumed` — the shell's pending-intent shape.
+   */
+  pendingRecordsSource?: string | null;
+  onRecordsSourceConsumed?: () => void;
   labels: AnalyticsLabels;
 }
+
+// Stable identities for the optional record props: the tab keys memos on them.
+const NO_RECORDS: AppRecord[] = [];
+const NO_APPS: ExtensionApp[] = [];
+const IGNORE: () => void = () => {};
 
 export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
   const isWide = useMediaQuery(WIDE_QUERY);
@@ -143,6 +172,8 @@ export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
           routines={props.routines}
           loading={props.initialLoading ?? false}
           warning={props.loadWarning ?? null}
+          records={props.records ?? NO_RECORDS}
+          recordsError={props.recordsError ?? null}
           labels={props.labels}
         />
       )}
@@ -167,6 +198,12 @@ function DesktopAnalytics({
   targetPerDay,
   activeTab: controlledTab,
   onTabChange,
+  records,
+  recordApps,
+  recordsLoading,
+  recordsError,
+  pendingRecordsSource,
+  onRecordsSourceConsumed,
   labels,
 }: AnalyticsViewProps): React.JSX.Element {
   const { dateRange, preset, applyPreset } = useAnalyticsFilter();
@@ -375,6 +412,19 @@ function DesktopAnalytics({
                     timeDistribution: labels.schedule.timeDistribution,
                     routineCompletion: labels.schedule.routineCompletion,
                   }}
+                />
+              )}
+
+              {activeTab === "records" && (
+                <RecordsTab
+                  records={records ?? NO_RECORDS}
+                  apps={recordApps ?? NO_APPS}
+                  loading={recordsLoading ?? false}
+                  error={recordsError ?? null}
+                  pendingSource={pendingRecordsSource ?? null}
+                  onPendingSourceConsumed={onRecordsSourceConsumed ?? IGNORE}
+                  labels={labels.records}
+                  axis={labels.axis}
                 />
               )}
             </>

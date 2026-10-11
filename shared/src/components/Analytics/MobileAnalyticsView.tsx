@@ -5,6 +5,7 @@ import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
+import type { AppRecord } from "../../types/appRecord";
 import {
   dateKeyOfInstant,
   formatDateKey,
@@ -22,12 +23,13 @@ import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { NoticePanel } from "../NoticePanel";
 import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
 import type { AnalyticsLabels } from "./labels";
+import { recentKindTotals, withDateKeys } from "./recordsModel";
 
 /*
  * Mobile (<768px) Analytics — a single Consumption scroll (design 1l–1o). No
  * tabs, no heatmap/timeline, no period switch: the range is a fixed last-30-day
  * window (the host's default preset). Order: 今日 → ストリーク → 今週 → stat 2×2
- * → ルーチン上位3. Pure presentation: copy arrives already-translated (§6.4),
+ * → ルーチン上位3 → 記録 (#2164, last 7 days per kind). Pure presentation: copy arrives already-translated (§6.4),
  * lumen-* tokens only (§5).
  */
 interface MobileAnalyticsViewProps {
@@ -46,8 +48,18 @@ interface MobileAnalyticsViewProps {
    * yet" is exactly the wrong thing to say then.
    */
   warning?: string | null;
+  /**
+   * Extension-app records (#2164). The block reads the last seven days out of
+   * whatever the host loaded, so the host's window must reach that far.
+   */
+  records?: AppRecord[];
+  /** The records read failed: the block says so instead of "none". */
+  recordsError?: string | null;
   labels: AnalyticsLabels;
 }
+
+/** The records block covers this many calendar days, today included. */
+const RECORDS_WINDOW_DAYS = 7;
 
 const DOW_KEYS = ["sun", "mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
@@ -58,7 +70,8 @@ function isEmpty(p: MobileAnalyticsViewProps): boolean {
     p.routines.length === 0 &&
     p.notes.length === 0 &&
     p.scheduleItems.length === 0 &&
-    p.todayItems.length === 0
+    p.todayItems.length === 0 &&
+    (p.records?.length ?? 0) === 0
   );
 }
 
@@ -73,6 +86,8 @@ export function MobileAnalyticsView(
     notes,
     routines,
     warning,
+    records,
+    recordsError,
     labels,
   } = props;
 
@@ -160,7 +175,15 @@ export function MobileAnalyticsView(
       .sort((a, b) => b.rate - a.rate)
       .slice(0, 3);
 
+    // Last 7 calendar days per kind, through the shared aggregation (#2162).
+    const recordTotals = recentKindTotals(
+      withDateKeys(records ?? []),
+      todayStr,
+      RECORDS_WINDOW_DAYS,
+    );
+
     return {
+      recordTotals,
       todayWorkMinutes,
       pomodoroCount,
       completedToday,
@@ -185,6 +208,7 @@ export function MobileAnalyticsView(
     scheduleItems,
     notes,
     routines,
+    records,
   ]);
 
   if (props.loading) {
@@ -389,6 +413,47 @@ export function MobileAnalyticsView(
             </div>
           </div>
         )}
+
+        {/* Records (#2164): the last 7 days, one line per kind. */}
+        <div className="flex flex-col gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary p-4">
+          <div className="flex items-baseline justify-between gap-2">
+            <span className="text-sm font-semibold text-lumen-text">
+              {labels.records.mobile.title}
+            </span>
+            <span className="text-xs text-lumen-text-tertiary">
+              {labels.records.mobile.range}
+            </span>
+          </div>
+          {recordsError ? (
+            <p className="text-xs text-lumen-text-secondary">
+              {labels.records.loadFailed}
+            </p>
+          ) : model.recordTotals.length === 0 ? (
+            <p className="text-xs text-lumen-text-secondary">
+              {labels.records.mobile.empty}
+            </p>
+          ) : (
+            <ul className="flex flex-col gap-2.5">
+              {model.recordTotals.map((total) => (
+                <li
+                  key={`${total.kind}|${total.unit ?? ""}`}
+                  className="flex items-baseline justify-between gap-2"
+                >
+                  <span className="min-w-0 truncate text-xs text-lumen-text">
+                    {total.kind}
+                    <span className="text-lumen-text-tertiary">
+                      {" · "}
+                      {labels.records.mobile.formatCount(total.count)}
+                    </span>
+                  </span>
+                  <span className="flex-shrink-0 text-sm font-semibold tabular-nums text-lumen-text">
+                    {labels.records.formatValue(total.sum, total.unit)}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
     </div>
   );
