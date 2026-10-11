@@ -1,340 +1,347 @@
 ---
-Status: Ready # Draft → Ready（ClaudeDesign 投入可）→ Generated（デザイン生成済み）
+Status: Ready # Draft → Ready（Claude Design に渡せる）→ Round-<N>（N 回目の比べ直し中）→ Matched（揃った）
+Kind: reproduce
 Created: 2026-07-05
+Updated: 2026-10-11
 Section: schedule
-Owner-chat: design-schedule-v2
-Branch: claude/design-schedule-v2
+Source: main = 07ead4ab # 値を換算したコード
+Captured: 2026-10-10 # スクリーンショットと計測（main = 85aa99b9）
+Owner-chat: shared-fix
+Branch: docs/design-repro-brief-2153
 ---
 
-# Design Brief: Schedule（スケジュール）
+# Reproduction Brief: Schedule（予定）
 
-> 目的: **この 1 ファイルだけで「ClaudeDesign に貼るプロンプト」とその根拠が完結する**こと。
-> ClaudeDesign はリポジトリを読めないため、§4 のプロンプト本文は自己完結させる
-> （リポジトリのパス・「上記参照」「§1 の通り」等の内部参照を本文に書かない）。
+> 目的: **今の予定の画面を、Claude Design にそのまま写させる**こと。写した結果を出発点にして、余白や文字の大きさを Claude Design の上で微調整します（#2153・親 #2156）。
+> 型は `_TEMPLATE-reproduce.md` です。新しい案を考えさせる 7 月の版（v2）は、git の履歴の `8cfee97d` にあります。v2 は旧パレット（Lumen blue）と、退役した Routines タブを前提にしていました。
+> Claude Design はリポジトリを読めません。§5 のプロンプトには値をすべて書き写してあります。色の値・アプリの説明・設計の意図は、DesignSystem プロジェクトの部品集から毎回読み込まれます。
+> 撮影の日（`85aa99b9`）から値を換算した日（`07ead4ab`）までに予定の画面へ入った変更は 4 本です。どれもタグの絞り込みパネル（#2178）と内部の処理（#2097 / #2098 / #2143）で、この指示書が写す範囲の見た目は変わっていません。
 
-## 1. 画面要件ダイジェスト
+## 1. 写す範囲
 
-（`.claude/docs/requirements/tier-1-core.md` の「Feature: Schedule (Routine + ScheduleItems + CalendarTags)」`tier-1-core.md:78` と現行実装から）
+- **画面とビュー**: 週ビュー・月ビュー・詳細パネルの 3 タブ（今日の流れ / Todo / 繰り返し）。Mobile は月ビューと、左の引き出しの 3 タブ。
+- **幅とテーマ**: Desktop 1440×900 / Mobile 390×844 × ライト / ダーク の 4 通り。Desktop は詳細パネルを開いた状態です。
+- **写さないもの**: アイテムを押したときの吹き出し・アイテム追加のパネル・予定のエディタ・タグの絞り込みパネル。1 回目は画面そのものに絞り、重ねて開くものは揃ってから足します。吹き出しの値は §3.7 に控えてあります。
+- **外枠**: サイドバー・見出し行・下部タブバーは、試作一式（`../prototype/`）で作ってあれば作り直させません。無ければ §3.1 の値で一緒に作らせます。
+- **今のまま写す癖**: Desktop 1440×900 で詳細パネルを開くと、ツールバーが狭い形に縮みます（「＋予定を追加」がアイコンだけになり、繰り返しのトグルも文字が消える）。これは今の正しい表示なので、文字付きに戻させません。
 
-- **目的 / 主ユースケース**: 1 日の運用（Day）と反復パターン（Routine）を束ねる「1 日の運用中枢」（`tier-1-core.md:89`）。ルーチンを 1 回定義すると日々の予定（ScheduleItem）が自動展開され（1 週間先まで backfill、`shared/src/hooks/useScheduleItemsRoutineSync.ts:157`）、単発の予定と同じカレンダーに並ぶ。朝に今日の流れを確認し、日中に完了チェックを付け、週末に翌週を計画する、という使い方が主軸。（2026-07-14 訂正: 週先行 backfill は未配線のデッドコード — 実挙動は表示中日付の materialise のみ。→ `plans/2026-07-14-schedule-redesign.md` §2-1）
-- **表示するデータ**:
-  - `ScheduleItem`（`shared/src/types/schedule.ts:1`）: `date` / `startTime` / `endTime` / `isAllDay` / `completed` / `memo` / `routineId`（`tier-1-core.md:95`）。週あたり 15〜40 件で Routine 由来が過半。例:「朝のストレッチ 7:00–7:15」「歯科検診 14:00–15:00」
-  - `RoutineNode`: `frequencyType = "daily" | "weekdays" | "interval" | "group"`（`shared/src/types/routine.ts:4`）+ `frequencyDays`（曜日）/ `frequencyInterval`（N 日ごと）/ `frequencyStartDate`（起点日）（`tier-1-core.md:94`）。5〜15 件。例:「ジム 月水金 19:00–20:30」
-  - ~~`RoutineGroup`: 名前 + 色 + 独自の頻度定義。`frequencyType="group"` のルーチンは所属グループの頻度の OR で発火~~ → **撤去済み（2026-07-26 #352・2026-07-14 決定の実施）**: グループ管理 UI が存在せず実質機能していなかったため。DB テーブルのみ残置（DDL ゼロ）。デザイン対象外
-- **主要操作**: 空きスロットクリックで 60 分イベント即作成（`web/src/schedule/ScheduleCalendarView.tsx:194`）/ ドラッグ移動・下端リサイズ（30 分スナップ、`shared/src/components/schedule/WeekTimeGrid.tsx:71` `:76`）/ 完了トグル / タイトル・時刻編集 / Routine の CRUD と頻度編集（`web/src/schedule/ScheduleView.tsx:27`）/ Routine 由来イベントは削除でなく Dismiss（この日だけスキップ。`web/src/schedule/ScheduleItemsView.tsx:24-31`）。ドラッグでの時刻変更は Todos の `scheduledAt` と双方向同期（`tier-1-core.md:120`）
-- **Desktop / Mobile の責務分割**（Mobile = Consumption + Quick capture）:
-  - Desktop = 全機能。週タイムグリッドが主役
-  - Mobile = **今日のアジェンダ閲覧 + 最短手数の予定追加のみ**。落とすもの: 週グリッド / Routine の作成・編集 / ドラッグ移動・リサイズ / Calendars（フォルダ別カレンダー）管理
-  - 補足: Calendar Tag は要件上「Mobile 省略 Provider」だった（`tier-1-core.md:106` / AC9 `tier-1-core.md:119`）が、現行実装では DU-F で全プラットフォームから撤去済み（`web/src/MainScreen.tsx:325`）。本デザインではタグ UI を扱わない
+## 2. 画面の構成（どの部品がどこにあるか）
 
-## 2. 現状 UI インベントリ
+### 2.1 Desktop
 
-- **host 画面**: `web/src/schedule/` の 5 ファイル。`web/src/MainScreen.tsx:333-337` で「RoutineScheduleSync（headless 生成器）→ ScheduleCalendarView（週グリッド + アジェンダ）→ ScheduleView（Routine 管理）→ ScheduleItemsView（本日のリスト）→ CalendarView（calendars CRUD）」を 1 スクロール列に縦積み
-- **shared 部品**: `shared/src/components/schedule/WeekTimeGrid.tsx`（純表示の週/日タイムグリッド。時間ガター 3.25rem・48px/時・0–24 時・30 分スナップ・終日レーン・重なりは等幅カラム分割）、`shared/src/components/BottomSheet.tsx:47`（不透明パネル + `bg-black/40` バックドロップ）、`shared/src/components/AppShell.tsx:66`（narrow はボトムタブ 4 + More）
-- **特徴的 UI**: 週タイムグリッド。空きスロットの透明ボタンでクリック作成（`WeekTimeGrid.tsx:65`）、イベント本体ドラッグで移動（縦 = 時刻 / 横 = 日移動）、下端ハンドルでリサイズ。≥768px で「グリッド + 右 18rem エディタペーン」（`ScheduleCalendarView.tsx:372`）、<768px は 1 日アジェンダ + BottomSheet エディタ（`ScheduleCalendarView.tsx:123` `:438`）
-- **状態の現状**: ScheduleCalendarView は loading / error 表示なし（データ到着まで空グリッド）。empty は narrow アジェンダのみカードあり。他 3 ビューはプレーンテキストの Loading / エラー文言のみ
-- **現状の課題**（= プロンプトの「良くしたい方向」）:
-  1. 4 ビュー縦積みで情報設計が未整理 — カレンダー・Routine 管理・本日リスト・calendars CRUD が区切りなく 1 列に並ぶ（`MainScreen.tsx:333-337`）。目標 IA では header タブ（Calendar / Routines）に整理する
-  2. **週グリッド上で Routine 由来と単発イベントの見分けが全くつかない** — `WeekTimeGridItem` が `routineId` を持たず、routine 藍 / event 紫の専用トークン（`shared/src/styles/tokens.css:74-83`）が未使用。全ブロックが同一の accent 縁 + 灰色地
-  3. 現在時刻インジケータ（now line）が無く、現在時刻への自動スクロールも無い
-  4. カレンダーに loading / error 状態が無い
-  5. narrow（Mobile 相当）のアジェンダに予定作成の導線がゼロ — Quick capture 責務を満たしていない
-  6. エディタが完了 / タイトル / 開始・終了の最小 3 項目のみ。Routine 由来イベントの由来表示・「この日だけスキップ（Dismiss)」・単発の削除・メモが無く、Routine 由来のタイトル / 時刻編集は次回生成時に巻き戻される
-  7. 週グリッドが中央寄せ `max-w-3xl` 列に閉じ込められ（`AppShell.tsx:93`、schedule は fluid 対象外）、1440px の横幅を活かせない
+本文の入れ物は `web/src/schedule/CalendarDesktopLayout.tsx:373` です。上から順に次が並びます。
 
-## 3. デザイン方針（このセッションの提案）
+1. **ツールバー**（`shared/src/components/schedule/ScheduleToolbar.tsx:146`）: 左から [今日] [‹ ›] 期間の表示（週は「10/4 – 10/10」、月は「2026年10月」）、空き、祝日のトグル（Flag）、繰り返しのトグル（Repeat）、週 / 月のセグメント、絞り込みボタン（ListFilter・件数のバッジ）、主ボタン「＋予定を追加」。
+2. **レンズの行**（`shared/src/components/schedule/CalendarLensRow.tsx:63`）: 保存したタグのグループのチップ（名前と件数）。絞り込みが効いているときは「N 件を非表示」と「すべて表示」。チップが無く絞り込みも無いときは行ごと出ません。
+3. **週ビュー**（`shared/src/components/schedule/WeekTimeGrid.tsx:528`）: 枠の中に、曜日と日付の見出しの行、終日の行、時刻の列と 7 日の列。0〜24 時をスクロールで見せます。
+4. **月ビュー**（`shared/src/components/schedule/MonthGrid.tsx:247`）: 曜日の見出しの行と、6 週 × 7 日の 42 マス。週ビューと入れ替わりで出ます。
+5. **詳細パネル**（`shared/src/components/RightSidebarContents.tsx:65`）: 見出し「詳細」、その下にタブ（`web/src/schedule/ScheduleSidebar.tsx` / `shared/src/components/schedule/ScheduleSidebarTabs.tsx:51`）とタブの中身。
 
-> **2026-07-28 #408 で retired**: 以下の「header タブ Calendar / Routines の 2 タブ」構成は当時の IA 決定であり、**Routines タブは廃止済み**。繰り返しの編集は Calendar のアイテム編集パネルに一本化し、一覧は rightSidebar の「繰り返し」タブ（`RepeatListPanel`）へ移った。本節以下の Routines タブ記述は履歴として残す。
->
-> **2026-07-28 #411 で再構成**: header タブは再び 2 つになったが中身が違う — **Calendar / Todo**。Todo は Materials から移してきた Kanban（意匠は materials brief §Todos が正）で、narrow では SegmentedControl として出る。
+### 2.2 Mobile
 
-- **セクション構成（当時の目標 IA・Routines タブは #408 で退役）**: Schedule はサイドバー本流セクション。画面上部に **header タブ「Calendar」/「Routines」** の 2 タブを持つ（2026-07-05 IA 決定）。現状の「週グリッド + Routine 管理 + 本日リスト + calendars CRUD の 1 スクロール縦積み」を、この 2 タブに整理する。
-  - **Calendar タブ**（既定）: 週タイムグリッド + 選択イベント編集の右パネル。従来の「週グリッド + 右エディタペーン」をこのタブに収める
-  - **Routines タブ**: ルーチンの一覧 + 編集フォーム。従来 Sheet ドロワーへ畳んでいたルーチン管理を、header タブの独立画面（MasterDetail の 2 枚組意匠）に昇格させる
-  - **カレンダー台帳（現 CalendarView = フォルダ別カレンダーの CRUD）の置き場（提案）**: **第 3 タブには昇格させない**。フォルダ別カレンダーは利用頻度が低く常設タブにするほどでないため、Calendar タブのツールバー右端の歯車 / overflow メニューから開く**軽量モーダル**に畳む。header タブは Calendar / Routines の 2 つに保ち、ナビをすっきりさせる → **2026-08-29 #1173 で決着**: 台帳そのものを退役し、同じ軽量モーダルの中身を**タグのマルチセレクト + 保存グループ**（`TagFilterPanel`）に置き換えた。導線は歯車ではなくフィルタアイコン
-- **残す意匠 / 変える意匠**:
-  - 残す: クリック作成 → 即編集の操作モデル（30 分スナップ / 60 分デフォルト）、ドラッグ移動 + 下端リサイズ、Today ボタン + 週送りシェブロン、右ペーンエディタ、日曜始まり、終日レーン、完了 = 取り消し線 + 減光、フラット寄りの密度感
-  - 変える: (a) スケジュールを**全幅レイアウト**に昇格 (b) **routine = 藍 / 単発 event = 紫の色符号 + 繰り返しアイコン**で由来を可視化（色だけに頼らない） (c) now line + 今日列の薄い地色 (d) エディタに由来表示 /「この日はスキップ」/ 削除 / メモを追加 (e) **Routine 管理を縦積みから header タブ「Routines」へ昇格**（現状の 1 スクロール縦積みを解体） (f) 空・ローディング・エラー状態の設計 (g) Mobile に FAB + 最小入力シートの Quick capture
-- **使う既存部品**: Button / Card / BottomSheet（Mobile エディタ・Quick capture）/ Sheet / Menu（イベント操作・絞り込みモーダル — #1173 以前は calendars モーダル）/ Toast(操作フィードバック) / Sidebar / CommandPalette / MasterDetail（Routines タブの一覧 + 編集）/ header タブの標準意匠（形状・アクティブ表現は shell brief が定義するものを参照）
-- **新規に必要な部品候補**（部品層への追加候補として列挙のみ。実装しない）: ScheduleEventBlock（routine / event / 完了の色符号 + バッジ内蔵ブロック）、NowIndicator(現在時刻ライン)、RoutineFrequencyChip（「毎日」「月・水・金」「3 日ごと」「グループ: 平日夜」表示チップ）、ScheduleQuickAddSheet（タイトル + 時刻だけの最小作成シート）、FloatingActionButton、SegmentedControl（他セクションの Mobile header タブ継承に使う横断候補。schedule 自体は Mobile で Routines を落とすため未使用）
+本文は `web/src/schedule/CalendarNarrowLayout.tsx:185` です。
 
-## 4. ClaudeDesign プロンプト
+1. **上端の帯**（外枠）: [ハンバーガー] 「予定」 [元に戻す] [やり直す]。
+2. **見出しの行**: 月の題「2026年10月」、空き、絞り込みボタン、‹ ›、[今日]。
+3. **月のグリッド**（`MonthGrid.tsx:246` の compact 型）: 画面の端から端まで。1 マスに予定の題を 1 行ずつ、最大 4 行。
+4. **下部タブバー**（外枠）: 朝刊・予定・素材・集中・その他。
+5. **左の引き出し**（`shared/src/components/MobileDrawer.tsx:84`）: ハンバーガーか日付のタップで開きます。見出し「詳細」と ×、3 タブ、選んだ日の日付と「＋追加」、今日の流れ。
 
-> 各プロンプトの冒頭に `_COMMON-CONTEXT.md` の水平線以降を全文コピーしてから、画面固有の指示を続ける。
-> プロンプトは日本語（コンポーネント名・色値は英語 / hex のまま）。表示データは現実的な日本語サンプル値。
+- **Desktop から落とすもの**: 週ビュー、祝日と繰り返しのトグル、週 / 月のセグメント、レンズの行、主ボタン「＋予定を追加」（引き出しの「＋追加」が代わり）、マスの右上の ＋、吹き出し、詳細パネルのマイルーチンのカード。
 
-### 4.1 Desktop 用
+## 3. 実測した値の表
 
-```text
-## Life Editor — デザイン共通前提（全画面共通・v3 / 2026-07-05）
+寸法は px で、ルートの文字サイズ 18px での値です。rem に直すには 18 で割ります。Tailwind の余白は 0.25rem 刻みなので 4.5 の倍数が多く出ますが、ずれではなく今のコードの値です。出典の列は、コードの換算なら `file:line`、実画面の計測なら `measure` と書きます（`measure` = メインのクローンの `shots/2026-10-10-design-capture/measure/schedule-*-light.json`）。
 
-### プロダクト
+いくつかの値には、表だけでは分からない決まりがあります。
 
-- 「AI と会話しながら生活を設計・記録・運用するパーソナル OS」。利用者は作者本人のみ（N=1）の個人ツール
-- Web アプリ（React + Tailwind）。**Desktop（幅 768px 以上・サイドバーシェル）と Mobile（768px 未満・ボトムタブシェル）で構造ごと分岐**する
-- Desktop = 全機能。**Mobile = 閲覧（Consumption）+ 素早い記録（Quick capture）に限定**（フル機能の縮小版ではなく、責務を絞る）
+- **アイコンの下限**: lucide のアイコンはすべて 0.9rem = 16.2px より小さくなりません（`shared/src/styles/tokens.css:505`・`:598-601`）。`size-3`（13.5px）も `size-3.5`（15.75px）も 16.2px で描かれます。計測でもアイコンの大きさは 16 と 18 の 2 種類だけでした（`measure`）。
+- **Mobile のタップ領域**: `min-h-11` は 2.75rem なので、ルート 18px では 44px ではなく 49.5px です。
+- **文字の段**: text-xs = 14.625px（行の高さ 19.5）、text-sm = 15.75px（行の高さ 22.5）、`text-[0.625rem]` = 11.25px。xs だけは Tailwind の既定より大きくしてあります（`tokens.css:530`）。太さは 400 / 500 / 600 / 700 です。
+- **角丸**: `rounded` / `rounded-sm` = 4.5、`rounded-md` = 6.75、`rounded-lumen-sm` / `-md` / `-lg` = 6 / 8 / 12、`rounded-full` = 完全な円。
 
-### アプリシェル（画面の外枠。各画面はこの内側にデザインする — 2026-07-05 決定の目標構成）
+### 3.1 外枠（参考）
 
-- Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
-- サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
-- サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
-- 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
-- Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
+| 部品                  | 項目                     | 値（px）        | コードの書き方 | 出典                                           |
+| --------------------- | ------------------------ | --------------- | -------------- | ---------------------------------------------- |
+| サイドバー            | 幅                       | 270             | `w-60`         | `../prototype/01-screens.md` §14               |
+| 見出し行              | 高さ                     | 67.5            | —              | 同上                                           |
+| 詳細パネル            | 幅（既定 / 範囲）        | 320（240〜560） | —              | `shared/src/components/RightSidebar.tsx:32-33` |
+| 本文                  | 幅（パネルを開いたとき） | 850             | —              | `../prototype/01-screens.md` §14               |
+| Mobile の上端の帯     | 高さ                     | 49.5            | —              | 同上                                           |
+| Mobile の下部タブバー | 高さ                     | 60.4            | —              | 同上                                           |
 
-### ブランドパレット — Lumen（Cobalt Ink + Mint 系譜）
+### 3.2 本文の入れ物とツールバー（Desktop）
 
-ほぼモノクロのコバルトグレー neutrals + Lumen blue の主アクセント + ライトミントの差し色。
+| 部品                | 項目                                       | 値（px）                                    | コードの書き方                                                                | 出典                                                 |
+| ------------------- | ------------------------------------------ | ------------------------------------------- | ----------------------------------------------------------------------------- | ---------------------------------------------------- |
+| 本文の入れ物        | 余白（上 右 下 左）                        | 13.5 24 18 24                               | `pt-3 pb-4 px-lumen-gutter md:px-lumen-gutter-wide`                           | `CalendarDesktopLayout.tsx:373`・`measure`           |
+| 本文の入れ物        | 縦の間（ツールバー・レンズ・グリッドの間） | 13.5                                        | `gap-3`                                                                       | `CalendarDesktopLayout.tsx:373`                      |
+| ツールバー          | 部品の間（広い / 狭い）                    | 11.25 / 6.75                                | `gap-2.5 @max-3xl:gap-1.5`                                                    | `ScheduleToolbar.tsx:146`                            |
+| ツールバー          | 狭い形に縮む境                             | 入れ物の幅が 48rem 未満                     | `@max-3xl`                                                                    | `ScheduleToolbar.tsx:139`（px は未確認。864 か 768） |
+| 今日                | 余白 / 高さ / 角丸                         | 13.5×6.75 / 約 38 / 8                       | `px-3 py-1.5 rounded-lumen-md border-lumen-border-strong`                     | `ScheduleToolbar.tsx:153`                            |
+| 今日                | 文字                                       | 15.75 / 500                                 | `text-sm font-medium`                                                         | 同上                                                 |
+| ‹ ›                 | 大きさ / 間 / 角丸 / アイコン              | 31.5 角 / 4.5 / 6 / 16.2                    | `size-7 gap-1 rounded-lumen-sm`、`size-3.5`                                   | `ScheduleToolbar.tsx:108,157-173`                    |
+| 期間の表示          | 文字                                       | 15.75 / 600                                 | `text-sm font-semibold truncate`                                              | `ScheduleToolbar.tsx:176`                            |
+| 祝日のトグル        | 大きさ                                     | 31.5 角（いつもアイコンだけ）               | `ICON_BTN`                                                                    | `ScheduleToolbar.tsx:197-213`                        |
+| 繰り返しのトグル    | 余白 / 高さ / 角丸                         | 11.25×7 / 約 38.5 / 8                       | `px-2.5 py-[7px] gap-1.5 rounded-lumen-md`                                    | `ScheduleToolbar.tsx:227`                            |
+| トグルの押下中      | 色                                         | 枠 accent・地 accent-subtle・字 accent      | `border-lumen-accent bg-lumen-accent-subtle text-lumen-accent`                | `ScheduleToolbar.tsx:197-227`                        |
+| 週 / 月のセグメント | 外枠                                       | 余白 2.25・間 2.25・角丸 8・地 bg-secondary | `p-0.5 gap-0.5 rounded-lumen-md bg-lumen-bg-secondary`                        | `shared/src/components/SegmentedControl.tsx:204`     |
+| 週 / 月のセグメント | 1 つ分                                     | 13.5×6.75・高さ 36・角丸 6・15.75           | `px-3 py-1.5 rounded-lumen-sm text-sm`                                        | `SegmentedControl.tsx:72,237`                        |
+| 週 / 月のセグメント | 選択中                                     | 地 bg・500・影 sm                           | `bg-lumen-bg font-medium shadow-lumen-sm`                                     | `SegmentedControl.tsx:244`                           |
+| 絞り込みボタン      | 大きさ                                     | 31.5 角                                     | `ICON_BTN`                                                                    | `ScheduleToolbar.tsx:261`                            |
+| 件数のバッジ        | 大きさ / 文字                              | 高さ 18・最小幅 18 / 11.25・600             | `h-4 min-w-4 px-1 text-[0.625rem] font-semibold bg-lumen-accent`、右下に −4.5 | `ScheduleToolbar.tsx:261-288`                        |
+| ＋予定を追加        | 余白（広い / 狭い）/ 角丸 / アイコン       | 15.75×7 / 9×7 / 8 / 18                      | `px-3.5 py-[7px] @max-3xl:px-2 rounded-lumen-md bg-lumen-accent`、`size-4`    | `ScheduleToolbar.tsx:303,307-308`                    |
 
-**Chrome / Accent / Semantic（light / dark でテーマ可変）**
+### 3.3 レンズの行（Desktop）
 
-| 役割                                         | Light                 | Dark                  |
-| -------------------------------------------- | --------------------- | --------------------- |
-| bg-primary（アプリ地色）                     | `#fafafa`             | `#16161a`             |
-| bg-secondary                                 | `#f1f1f3`             | `#1e1e23`             |
-| bg-subsidebar（サイドバー地）                | `#f5f5f6`             | `#1e1e23`             |
-| surface-sunken（沈んだ面）                   | `#ececef`             | `#101013`             |
-| text-primary                                 | `#1a1a1f`             | `#f2f2f5`             |
-| text-secondary                               | `#5c5c66`             | `#a0a0ad`             |
-| text-tertiary                                | `#767680`             | `#74747e`             |
-| border                                       | `#e3e3e7`             | `#2e2e35`             |
-| border-strong                                | `#cfcfd6`             | `#44444d`             |
-| accent（Lumen blue。主ボタン・選択・リンク） | `#1d4ed8`             | `#5b8cff`             |
-| accent-hover                                 | `#1e40af`             | `#7aa2ff`             |
-| on-accent（accent 上の文字）                 | `#ffffff`             | `#0a1024`             |
-| accent-subtle（accent の薄塗り）             | `#dbeafe`             | `#21273f`             |
-| hover（行ホバー等）                          | `#e8e8ec`             | `#2a2a31`             |
-| accent-secondary（ミント差し色）             | `#1fa56e`             | `#5fd1a0`             |
-| chip-mint bg / fg                            | `#daf3e7` / `#0c6f4e` | `#133024` / `#7fe0b3` |
-| success                                      | `#0f7b6c`             | `#4dab9a`             |
-| danger                                       | `#d92d20`             | `#ef4444`             |
-| info                                         | `#2563eb`             | `#60a5fa`             |
-| warning                                      | `#b45309`             | `#fbbf24`             |
+| 部品                  | 項目                      | 値（px）                                                                          | コードの書き方                                     | 出典                                                             |
+| --------------------- | ------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------- | ---------------------------------------------------------------- |
+| 行                    | 部品の間                  | 9                                                                                 | `flex-wrap gap-2`                                  | `CalendarLensRow.tsx:65`                                         |
+| チップ                | 余白 / 高さ / 角丸 / 文字 | 9×2.25 / 約 26 / 円 / 14.625                                                      | `px-2 py-0.5 rounded-lumen-full text-xs gap-1`     | `shared/src/components/materials/StatusFilterChips.tsx:54,65-71` |
+| チップ（選択中 / 他） | 色                        | 枠 accent・地 accent-subtle・字 accent・600 / 枠 border・地 bg・字 text-secondary | —                                                  | 同上                                                             |
+| チップの件数          | 色                        | text-tertiary・等幅数字                                                           | `tabular-nums text-lumen-text-tertiary`            | 同上                                                             |
+| N 件を非表示          | 文字                      | 14.625・text-secondary                                                            | `text-xs`                                          | `CalendarLensRow.tsx:75`                                         |
+| すべて表示            | 余白 / 角丸 / 文字        | 9×2.25 / 8 / 14.625・500                                                          | `px-2 py-0.5 rounded-lumen-md text-xs font-medium` | `CalendarLensRow.tsx:81`                                         |
 
-**データ / 状態の符号色（light / dark 共通・テーマ固定）**
+### 3.4 週ビュー（Desktop）
 
-- ステータスバンド: todo `#38bdf8` / progress `#eab308` / done `#10b981`（カード左端 4px バンド等）
-- エンティティ別チップ: task = Lumen blue 系（bg `#dbeafe` fg `#1e40af`）/ routine = 藍（bg `#ebf0fe` fg `#3b5bdb`）/ event = 紫（bg `#f3e8ff` fg `#6d28d9`）/ completed = 緑（bg `#ecfdf5` fg `#047857`）/ progress = 琥珀（bg `#fef6e0` fg `#a06b09`）
-- グラフ カテゴリ 10 色: `#2563eb` `#22c55e` `#f59e0b` `#ef4444` `#8b5cf6` `#ec4899` `#06b6d4` `#84cc16` `#f97316` `#6366f1`
-- スケジュールブロック地: routine `#ebf0fe` / event `#f3e8ff`（border `#8b5cf6`）/ その他 `#f1f2f4`
+| 部品                 | 項目                            | 値（px）                                                                                  | コードの書き方                                                                     | 出典                           |
+| -------------------- | ------------------------------- | ----------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------------------ |
+| 枠                   | 角丸 / 線 / 地                  | 6.75 / border / bg                                                                        | `rounded-md border border-lumen-border bg-lumen-bg`                                | `WeekTimeGrid.tsx:528`         |
+| 時刻の列             | 幅                              | 58.5                                                                                      | `GUTTER = "3.25rem"`                                                               | `WeekTimeGrid.tsx:256`         |
+| 1 時間               | 高さ                            | 48（px 固定）                                                                             | `hourHeight = 48`                                                                  | `WeekTimeGrid.tsx:313`         |
+| 曜日と日付の見出し   | 余白 / 高さ                     | 4.5×6.75 / 約 53                                                                          | `px-1 py-1.5`、右と下に border                                                     | `WeekTimeGrid.tsx:567-588`     |
+| 曜日                 | 文字                            | 14.625・500・大文字・字間広め・text-secondary                                             | `text-xs font-medium uppercase tracking-wide`                                      | 同上                           |
+| 日付                 | 文字                            | 14.625・text                                                                              | `text-xs`                                                                          | 同上                           |
+| 今日の見出し         | 色                              | 地 hover・字 accent・日付は 600                                                           | `bg-lumen-hover text-lumen-accent font-semibold`                                   | `WeekTimeGrid.tsx:568,575,585` |
+| 今日の列             | 地                              | accent-subtle                                                                             | `bg-lumen-accent-subtle`                                                           | `WeekTimeGrid.tsx:752`         |
+| 終日のラベル         | 余白 / 文字                     | 4.5 / 14.625・text-secondary・右寄せ                                                      | `px-1 py-1 text-xs`                                                                | `WeekTimeGrid.tsx:603`         |
+| 終日のマス           | 最小の高さ / 余白 / チップの間  | 31.5 / 4.5 / 4.5                                                                          | `min-h-[1.75rem] p-1 space-y-1`                                                    | `WeekTimeGrid.tsx:614`         |
+| 終日のチップ         | 余白 / 角丸 / 文字 / 帯         | 4.5×2.25 / 4.5 / 14.625 / 左に 2 の accent                                                | `rounded border-l-2 border-lumen-accent bg-lumen-bg-secondary px-1 py-0.5 text-xs` | `WeekTimeGrid.tsx:683`         |
+| 祝日のチップ         | 余白 / 文字                     | 4.5×2.25 / 14.625・500                                                                    | `rounded px-1 py-0.5 text-xs font-medium`、色はタグの色                            | `WeekTimeGrid.tsx:635`         |
+| 時刻のラベル         | 位置 / 文字                     | 線の 6.75 上・右 4.5 / 14.625・等幅数字・text-secondary                                   | `absolute -top-1.5 right-1 text-xs tabular-nums`                                   | `WeekTimeGrid.tsx:729`         |
+| 時刻の線             | 線                              | 1・border                                                                                 | `border-t border-lumen-border`                                                     | `WeekTimeGrid.tsx:762`         |
+| 予定のブロック       | 余白 / 角丸 / 文字 / 左右の隙間 | 4.5×2.25 / 4.5 / 14.625・行の高さ詰め / 1                                                 | `rounded px-1 py-0.5 text-xs leading-tight`                                        | `WeekTimeGrid.tsx:824,847-848` |
+| 予定のブロック       | 色（タグなし）                  | 枠 schedule-event-border・地 schedule-event-bg・字 chip-event-fg                          | —                                                                                  | `WeekTimeGrid.tsx:281`         |
+| ブロックの題 / 時刻  | 文字                            | 500 / 14.625・不透明度 80%                                                                | `font-medium` / `text-xs opacity-80`                                               | `WeekTimeGrid.tsx:871,921`     |
+| 繰り返しのブロック   | 色 / 左の帯 / アイコン          | 地 schedule-routine-bg・字 chip-routine-fg / 幅 3・chip-routine-dot / Repeat 16.2・線 2.5 | `pl-1.5`、`w-[3px]`、`size-3`                                                      | `WeekTimeGrid.tsx:277,857-882` |
+| Todo のブロック      | 色 / アイコン                   | 地 schedule-task-bg・字 chip-task-fg・枠なし / CheckSquare 16.2・線 2.5                   | —                                                                                  | `WeekTimeGrid.tsx:279,888-893` |
+| 完了したもの         | 見た目                          | 取り消し線・不透明度 55%                                                                  | `line-through opacity-55`                                                          | `WeekTimeGrid.tsx:841`         |
+| タグの付いたブロック | 色                              | 地をタグの色に置き換え、字はその上で読める色。繰り返しの帯は字の色の 60%                  | `bg-current opacity-60`                                                            | `WeekTimeGrid.tsx:831,844,864` |
+| 選択中のブロック     | 輪郭                            | 2・accent                                                                                 | `ring-2 ring-lumen-accent`                                                         | `WeekTimeGrid.tsx:824`         |
+| 伸縮のつまみ         | 高さ                            | 6.75                                                                                      | `h-1.5`                                                                            | `WeekTimeGrid.tsx:931`         |
+| 今の時刻の線         | 線 / 点                         | 2・accent / 直径 9・accent・左端                                                          | `border-t-2 border-lumen-accent`、`size-2 rounded-full`                            | `WeekTimeGrid.tsx:947,953`     |
 
-### 形・余白・文字
+### 3.5 月ビュー（Desktop）
 
-- フォント: システムフォントスタック（-apple-system / Segoe UI 等）。ベース 16px。サイズ段階は xs / sm / base / lg / xl の 5 段
-- 角丸: 6 / 8 / 12 / 16 px + 完全円。余白: 4px 基調のスケール（4 / 8 / 12 / 16 / 20 / 24）
-- 影: elevation 3 段（sm / md / lg）。控えめに。フラット寄りの Notion ライクな密度感
+| 部品         | 項目                           | 値（px）                                                                              | コードの書き方                                        | 出典                                                       |
+| ------------ | ------------------------------ | ------------------------------------------------------------------------------------- | ----------------------------------------------------- | ---------------------------------------------------------- |
+| 枠           | 角丸 / 線                      | 6.75 / border                                                                         | `rounded-md border`                                   | `MonthGrid.tsx:247`                                        |
+| 曜日の見出し | 余白 / 文字                    | 上下 4.5 / 14.625・500・text-secondary                                                | `py-1 text-xs font-medium`                            | `MonthGrid.tsx:257`                                        |
+| マス         | 最小の高さ / 余白 / 中の間     | 184.5 / 4.5 / 2.25                                                                    | `min-h-[10.25rem] p-1 gap-0.5`、右と下に border       | `MonthGrid.tsx:322,349-352`                                |
+| ほかの月の日 | 見た目                         | 不透明度 40%                                                                          | `opacity-40`                                          | `MonthGrid.tsx:353`                                        |
+| 日付のバッジ | 大きさ / 文字                  | 高さ 22.5・最小幅 22.5・円 / 14.625・600                                              | `h-5 min-w-5 rounded-full px-1 text-xs font-semibold` | `MonthGrid.tsx:364,378`                                    |
+| 今日の日付   | 色                             | 地 accent・字 on-accent（マスの地は変えない）                                         | `bg-lumen-accent text-lumen-on-accent`                | `MonthGrid.tsx:380`                                        |
+| チップ       | 余白 / 高さ / 角丸 / 文字 / 数 | 4.5×2.25 / 約 24 / 4.5 / 14.625・500 / 1 マス最大 5                                   | `rounded px-1 py-0.5 text-xs font-medium`             | `shared/src/components/schedule/MonthGridParts.tsx:59,262` |
+| チップ       | 色                             | 地 chip-{event / routine / task}-bg・字 chip-*-fg。タグがあればタグの色。点は付けない | —                                                     | `MonthGridParts.tsx:93-101`                                |
+| 他 N 件      | 余白 / 文字                    | 左右 4.5 / 14.625・text-tertiary                                                      | `rounded px-1 text-xs`                                | `MonthGridParts.tsx:317`                                   |
+| マスの ＋    | 大きさ / 位置                  | 31.5 角・右上 2.25 / ホバーかフォーカスで出る                                         | `size-7 top-0.5 right-0.5 opacity-0`                  | `MonthGridParts.tsx:415-421`                               |
 
-### 守るべきルール（不変式）
+### 3.6 詳細パネル（Desktop）と左の引き出し（Mobile）
 
-1. **上記パレットの色のみ使用**。新しい hex を発明しない（必要なら「トークン追加の提案」として明記する）
-2. **主要コンテナ（カード / メニュー / ダイアログ / パネル / ポップオーバー）の背景は完全不透明**。backdrop-blur 不使用。モーダル背後の黒 30% バックドロップだけ許容
-3. **light / dark 両テーマを必ず作る**。dark は pure black ではなく `#16161a`。light は pure white ではなく `#fafafa`
-4. 本文テキストのコントラストは **WCAG AA（4.5:1）以上**
-5. **状態を色だけで伝えない**（ラベル・形・バンドを併用）
-6. **テキストは日本語の現実的なサンプルで組む**（英語より 1.2〜1.5 倍の幅を想定。UI は日英切替があるため極端な幅依存レイアウトを避ける）
-7. 既存部品の意匠を踏襲する: Button / Card / Sheet（ドロワー）/ BottomSheet / Menu / Toast / Sidebar / CommandPalette / Kanban カード（左端ステータスバンド 4px）/ MasterDetail（一覧+詳細の 2 枚組）は既に存在する。ゼロから発明せず、この部品語彙で組む
+| 部品                       | 項目                           | 値（px）                                                | コードの書き方                                                                          | 出典                                                           |
+| -------------------------- | ------------------------------ | ------------------------------------------------------- | --------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| パネル                     | 地 / 線                        | bg-subsidebar / 左に border                             | `border-l bg-lumen-bg-subsidebar`                                                       | `RightSidebarContents.tsx:65`                                  |
+| パネルの見出し             | 高さ / 余白 / 文字             | 54 / 左 18・右 13.5 / 15.75・600                        | `h-12 pl-4 pr-3 text-sm font-semibold`、下に border                                     | `RightSidebarContents.tsx:65`                                  |
+| パネルの中身               | 余白                           | 13.5                                                    | `p-3`                                                                                   | `RightSidebarContents.tsx:100`                                 |
+| タブ                       | 間 / 1 つ分                    | 13.5 / 6.75×6.75・高さ約 33・14.625・折り返さない       | `gap-3`、`px-1.5 py-1.5 text-xs whitespace-nowrap`                                      | `ScheduleSidebarTabs.tsx:51-63`・`SegmentedControl.tsx:95`     |
+| 今日の流れ: 日付           | 文字                           | 14.625・text-secondary                                  | `text-xs`                                                                               | `ScheduleSidebar.tsx:255`                                      |
+| 今日の流れ: 行             | 最小の高さ / 余白 / 間 / 下線  | 42 / 上下 4.5・左 4.5 / 9 / border                      | `min-h-[42px] py-1 pl-1 gap-2`、`border-b`                                              | `shared/src/components/schedule/AgendaList.tsx:200`            |
+| 今日の流れ: 時刻 / 点 / 題 | 幅・文字 / 直径 / 文字         | 49.5・14.625 / 6.75 / 15.75                             | `w-11 text-xs` / `size-1.5` / `text-sm`                                                 | `AgendaList.tsx:209,232,238`                                   |
+| 今日の流れ: 終日           | 丸いラベル                     | 6.75×2.25・14.625・600・text-tertiary・枠 border-strong | `rounded px-1.5 py-0.5 text-xs font-semibold`                                           | `AgendaList.tsx:205`                                           |
+| 今の時刻の区切り           | 余白 / 時刻 / 線               | 上下 6.75 / 14.625・700・accent / 2・accent             | `py-1.5`、`text-xs font-bold`、`border-t-2`                                             | `AgendaList.tsx:297-303`                                       |
+| マイルーチンのカード       | 余白 / 間 / 角丸 / 地          | 18 / 13.5 / 6.75 / bg-secondary・border                 | `rounded-md border bg-lumen-bg-secondary p-4 gap-3`                                     | `shared/src/components/schedule/RoutineSummaryCard.tsx:57-73`  |
+| マイルーチンの題 / 行      | 文字 / 余白                    | 15.75・600 / 上下 9・下線                               | `text-sm font-semibold` / `py-2 border-b`                                               | 同上                                                           |
+| Todo: 絞り込みボタン       | 大きさ / 角丸                  | 36 角 / 8                                               | `size-8 rounded-lumen-md`                                                               | `ScheduleSidebar.tsx:446,458`                                  |
+| Todo: 2 つの一覧           | 間 / 見出しの行                | 18 / 最小 31.5・14.625・600・text-secondary             | `gap-4`、`min-h-7`、`text-xs font-semibold`                                             | `shared/src/components/schedule/TodayTodoTray.tsx:483,506-507` |
+| Todo: チェックボックス     | 当たり判定 / アイコン          | 49.5 角 / 20                                            | `min-h-11 min-w-11`                                                                     | `shared/src/components/TodoStatusCheckbox.tsx:46,111`          |
+| Todo: 行                   | 最小の高さ / 題 / 時刻         | 38 / 15.75 / 14.625                                     | `min-h-[38px] py-1 text-sm` / `text-xs`                                                 | `TodayTodoTray.tsx:291,301,311`                                |
+| Todo: ホバーの操作         | 大きさ                         | 27 角                                                   | `size-6`                                                                                | `TodayTodoTray.tsx:333,349`                                    |
+| ＋本日分に追加 / ＋Todo    | 余白 / 高さ / 角丸 / 文字 / 影 | 15.75×6.75 / 約 35 / 9 / 14.625・500 / sm               | `px-3.5 py-1.5 rounded-lg text-[0.8125rem] font-medium shadow-lumen-sm bg-lumen-accent` | `shared/src/components/AddPill.tsx:34-36`                      |
+| 繰り返し: 一覧 / 行        | 間 / 角丸・地・線              | 6.75 / 8・bg・border                                    | `gap-1.5` / `rounded-lumen-md border bg-lumen-bg pr-1`                                  | `shared/src/components/schedule/RepeatListPanel.tsx:109,143`   |
+| 繰り返し: 行の中           | 余白 / 間 / 題 / 頻度          | 13.5×9 / 9 / 15.75・500 / 14.625                        | `px-3 py-2 gap-2 text-sm font-medium` / `text-xs`                                       | `RepeatListPanel.tsx:126,129,158`                              |
+| 繰り返し: 削除             | 余白 / アイコン                | 6.75 / 18                                               | `p-1.5`、Trash2 `size-4`                                                                | `RepeatListPanel.tsx:167-169`                                  |
+| 引き出し（Mobile）         | 幅 / 出る向き                  | 360（画面幅の 85% まで。390 幅では 331.5）/ 左から      | `max-w-[85vw] bg-lumen-bg-subsidebar shadow-lumen-lg border-r`                          | `MobileDrawer.tsx:84,155`                                      |
+| 引き出しの ×               | 当たり判定 / アイコン          | 49.5 / 16.2                                             | —                                                                                       | `RightSidebarContents.tsx:83`                                  |
+| 引き出しの ＋追加          | 当たり判定                     | 高さ 49.5                                               | `AddPill` + `max-md:min-h-11`                                                           | `ScheduleSidebar.tsx:249-267`                                  |
 
-### 成果物フレーム（全画面共通）
+### 3.7 アイテムの吹き出し（Desktop・2 回目以降に足す）
 
-- **Desktop: 1440×900**（light / dark の 2 枚。左サイドバー展開状態込み）
-- **Mobile: 390×844**（light / dark の 2 枚。下部タブバー込み・safe-area 考慮）
-- 各画面につき: **通常状態（データあり）+ 空状態 + ローディング**、該当があればエラー状態も
+| 部品       | 項目                        | 値（px）                              | コードの書き方                                                     | 出典                                                                                                          |
+| ---------- | --------------------------- | ------------------------------------- | ------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------- |
+| 吹き出し   | 幅 / 角丸 / 影 / 上下の余白 | 520（2 列で各 260）/ 8 / lg / 4.5     | `rounded-lumen-md border bg-lumen-bg py-1 shadow-lumen-lg`         | `web/src/schedule/todoChipPanel.ts:61`・`shared/src/components/itemActions/ItemActionPopover.tsx:270,290,297` |
+| 題と時刻   | 余白 / 文字                 | 13.5×9 / 14.625（題は 600・2 行まで） | `px-3 py-2 text-xs`                                                | `ItemActionPopover.tsx:179`・`web/src/schedule/ScheduleOverlays.tsx:209-216`                                  |
+| 操作の行   | 余白 / 高さ / 間 / アイコン | 13.5×6.75 / 約 33 / 9 / 16.2          | `px-3 py-1.5 gap-2 text-xs`                                        | `shared/src/components/itemActions/ItemActionRow.tsx:14-15,41`                                                |
+| 詳細を編集 | 余白 / 角丸 / 文字          | 13.5×6.75 / 8 / 14.625・500           | `px-3 py-1.5 rounded-lumen-md bg-lumen-accent text-xs font-medium` | `ItemActionPopover.tsx:250-259`                                                                               |
 
----
+### 3.8 Mobile の月ビュー
 
-## この画面: スケジュール（Desktop 1440×900）
+| 部品                 | 項目                     | 値（px）                                                                      | コードの書き方                                                                   | 出典                               |
+| -------------------- | ------------------------ | ----------------------------------------------------------------------------- | -------------------------------------------------------------------------------- | ---------------------------------- |
+| 見出しの入れ物       | 余白 / 間                | 左右 16・上 13.5 / 13.5                                                       | `px-lumen-gutter pt-3 gap-3`                                                     | `CalendarNarrowLayout.tsx:185`     |
+| 見出しの行           | 部品の間                 | 9                                                                             | `gap-2`                                                                          | 同上                               |
+| 月の題               | 文字                     | 15.75・600                                                                    | `text-sm font-semibold`                                                          | 同上                               |
+| 絞り込み / ‹ ›       | 大きさ / 角丸 / アイコン | 49.5 角 / 8 / 18                                                              | `size-8 min-h-11 min-w-11 rounded-lumen-md border-lumen-border-strong`、`size-4` | `CalendarNarrowLayout.tsx:90-91`   |
+| 今日                 | 高さ / 余白 / 文字       | 49.5 / 13.5×6.75 / 15.75・500                                                 | `min-h-11 px-3 py-1.5 text-sm font-medium rounded-lumen-md`                      | `CalendarNarrowLayout.tsx:185-257` |
+| グリッド             | 枠 / 上下の余白          | 上下の線だけ・角丸なし / 13.5                                                 | `border-y`、`pt-3 pb-3`                                                          | `MonthGrid.tsx:246,300`            |
+| マス                 | 最小の高さ / 余白        | 99 / 上 4.5・左右と下 2.25                                                    | `min-h-[5.5rem] px-0.5 pb-0.5 pt-1`                                              | `MonthGrid.tsx:322,352`            |
+| 日付のバッジ         | 大きさ / 文字            | 18 / 11.25                                                                    | `h-4 min-w-4 text-[0.625rem]`                                                    | `MonthGrid.tsx:377`                |
+| 選んだ日             | 見た目                   | 地 bg-secondary・内側に 2 の accent の輪郭                                    | `bg-lumen-bg-secondary ring-2 ring-inset ring-lumen-accent`                      | `MonthGrid.tsx:324`                |
+| 予定の題             | 余白 / 角丸 / 文字 / 数  | 左右 2.25 / 4.5 / 11.25・行の高さ 14.625・500 / 最大 4 行、右端はぼかして切る | `rounded-sm px-0.5 text-[0.625rem] leading-[0.8125rem] font-medium`              | `MonthGridParts.tsx:143,168`       |
+| あふれ               | 文字                     | text-tertiary                                                                 | —                                                                                | `MonthGridParts.tsx:71`            |
+| 文字の大きさ（全体） | 種類                     | 11.25 / 14.6 / 15.8 の 3 種類                                                 | —                                                                                | `measure`                          |
 
-1 日と 1 週間の運用中枢。反復予定「ルーチン」を一度定義すると、毎日の予定として週カレンダーに自動展開され、単発の予定と同じグリッドに並ぶ。ユーザーは朝にこの画面で今日の流れを確認し、日中に完了チェックを付け、週末に翌週を整える。この画面は例外的に**全幅レイアウト**（中央寄せ max-width にしない）。
+### 3.9 状態
 
-### レイアウト構造
+| 状態               | 出るもの                                                                                             | 出典                                             |
+| ------------------ | ---------------------------------------------------------------------------------------------------- | ------------------------------------------------ |
+| 読み込み中         | 「読み込み中…」だけの箱（余白 18×45・15.75・角丸 6.75・地 bg-secondary・border）。骨組みの表示は無い | `shared/src/components/schedule/ScheduleStateCards.tsx:55`     |
+| エラー             | 「予定を読み込めませんでした」と「再試行」                                                           | `ScheduleStateCards.tsx:69-74`                   |
+| 一部の期間だけ失敗 | グリッドの上に帯（13.5×9・14.625）と「再試行」（11.25×4.5）                                          | `ScheduleStateCards.tsx:147-152`                 |
+| 空（グリッド）     | 文言は無く、空のグリッドのまま                                                                       | `WeekTimeGrid.tsx`・`MonthGrid.tsx` を読んで確認 |
+| 空（今日の流れ）   | 「今日の予定はありません」（選んだ日なら「この日の予定はありません」）。上下 27・中央寄せ・15.75     | `AgendaList.tsx:317`                             |
+| 空（Todo）         | 「本日分の Todo はまだありません」「その他の Todo はありません」。上下 9・14.625                     | `TodayTodoTray.tsx:416,513`                      |
+| 空（繰り返し）     | 「ルーチンはまだありません」                                                                         | `RoutineSummaryCard.tsx:65`                      |
 
-- 左サイドバー（展開 240px）: 本流セクション「Schedule」（Clock アイコン）がアクティブ
-- **header タブ（画面上部の水平タブ）**（#408 で retired — Routines タブは廃止し Schedule のヘッダーは単一タイトルへ）: 「Calendar」/「Routines」の 2 タブ。既定は「Calendar」。タブは下線式（アクティブ = accent 色の 2px 下線 + ラベル text-primary + font-medium、非アクティブ = ラベル text-secondary・下線なし。タブ列の下端に border の薄い区切り線を全幅で引く）でアクティブを示し、セクション見出しの直下に置く（この画面のフレームは Calendar タブ表示が基本。1 枚だけ Routines タブに切り替えた状態も描く）
-- ツールバー（header タブの下・1 行）: 左から「今日」ボタン / ◀ ▶ の週送りアイコンボタン / 週範囲ラベル「7/5 – 7/11」。右端に「+ 予定を追加」のプライマリボタン（accent 地 + on-accent 文字）、その左にフィルタアイコンボタン（タグの絞り込みパネルを開く導線。モーダル自体は今回描かない。2026-08-29 #1173 で歯車から差し替え — 絞り込み中は accent の枠 + 地色で点灯する）
-- 主役（Calendar タブの中身） = **週タイムグリッド**（ツールバー直下、画面幅いっぱい）:
-  - 左端に時間軸の列(幅 52px 程度)。「07:00」〜「23:00」あたりが見えていて、上下にスクロールできる気配を出す
-  - 上端に曜日ヘッダー行「日 7/5 … 土 7/11」。**今日（木 7/9）の列はヘッダーを accent 文字 + 太字にし、列全体に極薄の地色**を敷いて一目で分かるように
-  - 曜日ヘッダーの下に「終日」レーン（1 行）。終日予定はここに横長チップで置く
-  - 1 時間ごとに水平罫線。イベントは 30 分単位のグリッドに載る
-  - **現在時刻ライン**: 今日の列を横切る accent 色の細い水平線 + 左端に小さな「14:30」ラベル
-  - **イベントブロックの 2 系統を必ず視覚的に区別する**（この画面の最重要要件）:
-    - ルーチン由来 = 藍系（地 `#ebf0fe`・文字 `#3b5bdb`・左端 3px の藍バンド）+ タイトル左に小さな繰り返しアイコン（lucide Repeat）
-    - 単発の予定 = 紫系（地 `#f3e8ff`・文字 `#6d28d9`・border `#8b5cf6`）。アイコンなし
-    - 完了済み = タイトルに取り消し線 + 全体を減光（色だけに頼らず線と彩度の両方で示す）
-  - ブロック内はタイトル（太め）+ 開始時刻の 2 行。角丸 6px。重なった予定は等幅 2 カラムに並べる
-  - 空きスロットのホバーに「+」のゴースト表示（クリックで 60 分の予定が作られ右パネルが開く、という操作が伝わるように 1 箇所ホバー状態を描く）
-- 右サイドパネル（固定幅 288px、罫線で区切った不透明パネル）: **選択中イベントの編集**
-  - 上から: 完了チェックボックス「完了にする」/ タイトル入力 / 開始・終了の時刻入力（横並び）/ メモ欄
-  - **由来表示**: ルーチン由来なら藍のチップで「↻ ルーチン『ジム』から生成 — 月・水・金」と頻度を表示し、その下に「この日はスキップ」ボタン（削除ではなくこの日だけ消す）。単発なら danger 色の「削除」テキストボタン
-  - 何も選択していない時はこのパネルに**ルーチン一覧のサマリー**を出す: 「マイルーチン」見出し + 各行「↻ 朝のストレッチ / 毎日 7:00」「↻ ジム / 月・水・金 19:00」「↻ 観葉植物の水やり / 3 日ごと 8:30」「↻ 週次レビュー / 日曜 20:00」「↻ 英単語の暗記 / グループ: すきま学習 12:30」のように、頻度チップ 4 パターン（毎日 / 曜日 / N 日ごと / グループ）が全部見える 5〜6 行 + 「Routines タブを開く」リンク（header タブの Routines へ切り替わる導線）
+## 4. スクリーンショットの一覧
 
-### 表示データ（現実的な日本語サンプル。週 = 2026 年 7/5(日)〜7/11(土)、今日 = 7/9(木) 14:30）
+撮影は 2026-10-10 で、メインのクローンの `shots/2026-10-10-design-capture/` にあります。git には入っていません。実画面には本人のデータ（勤務の予定など）が写っているので、気になるものは添付から外してください。§5 の見本データだけでも組めるように書いてあります。末尾が `-full` のものは縦に長い画面の全体版です。
 
-- ルーチン由来（藍 + Repeat アイコン）: 「朝のストレッチ」毎日 7:00–7:15 全曜日 / 「日本語学習の復習」毎日 8:00–8:30 / 「ジム」月・水・金 19:00–20:30 / 「観葉植物の水やり」3 日ごと（7/5・7/8・7/11）8:30–8:45 / 「週次レビュー」日曜 20:00–21:00 / 「英単語の暗記」グループ『すきま学習』所属で火・木に発火（7/7・7/9）12:30–12:45 / 「英会話オンラインレッスン」火・木 20:00–20:50（7/7・7/9）
-- 単発（紫）: 「歯科検診」7/7(火) 14:00–15:00 / 「友人と夕食 @渋谷」7/10(金) 19:30–21:30（ジムと重なるので金曜 19:00 台は 2 カラム並び）/ 「確定申告の書類を集める」7/11(土) 10:00–12:00 / 「区役所で住民票を取る」7/9(木) 10:30–11:00 / 「プロジェクトの進捗整理」7/9(木) 15:00–16:00 / 「夕食の買い出し」7/9(木) 17:30–18:00
-- 終日レーン: 「粗大ごみ回収日」7/9(木)
-- 完了済み: 7/5(日)〜7/8(水) の予定と、今日 7/9(木) の 14:30 より前の予定（朝のストレッチ・日本語学習の復習・英単語の暗記・区役所で住民票を取る）はすべて完了済み（取り消し線 + 減光）。終日の「粗大ごみ回収日」は完了状態を持たせず通常表示
-- 右パネル: 金曜の「ジム」を選択中の状態で描く（由来チップ「↻ ルーチン『ジム』から生成 — 月・水・金」+「この日はスキップ」ボタンが見える）
+| ファイル名                                                   | 幅      | テーマ          | 写っている状態                   | 添付する回                 |
+| ------------------------------------------------------------ | ------- | --------------- | -------------------------------- | -------------------------- |
+| `03-schedule-week-desktop-light.png` / `-dark.png`           | Desktop | ライト / ダーク | 週ビュー・詳細パネルの今日の流れ | 1 回目                     |
+| `03-schedule-week-desktop-light-full.png` / `-dark-full.png` | Desktop | ライト / ダーク | 週ビューの 0〜24 時の全体        | 枚数に余裕があれば 1 回目  |
+| `04-schedule-month-desktop-light.png` / `-dark.png`          | Desktop | ライト / ダーク | 月ビュー                         | 1 回目                     |
+| `03-schedule-month-mobile-light.png` / `-dark.png`           | Mobile  | ライト / ダーク | 月ビュー                         | 1 回目                     |
+| `05-schedule-side-todayflow-mobile-light.png` / `-dark.png`  | Mobile  | ライト / ダーク | 引き出しの今日の流れ             | 1 回目                     |
+| `05-schedule-side-todayflow-desktop-light.png` / `-dark.png` | Desktop | ライト / ダーク | 詳細パネルの今日の流れ           | 2 回目以降（ずれが出たら） |
+| `06-schedule-side-todo-desktop-light.png` / `-dark.png`      | Desktop | ライト / ダーク | 詳細パネルの Todo                | 1 回目                     |
+| `06-schedule-side-todo-mobile-light.png` / `-dark.png`       | Mobile  | ライト / ダーク | 引き出しの Todo                  | 2 回目以降                 |
+| `07-schedule-side-repeats-desktop-light.png` / `-dark.png`   | Desktop | ライト / ダーク | 詳細パネルの繰り返し             | 1 回目                     |
+| `07-schedule-side-repeats-mobile-light.png` / `-dark.png`    | Mobile  | ライト / ダーク | 引き出しの繰り返し               | 2 回目以降                 |
 
-### 状態バリエーション（フレーム一覧）
+計測の JSON（`measure/schedule-desktop-light.json` / `schedule-mobile-light.json`）はライトだけです。寸法はテーマで変わらないため、ダークは撮影だけにしました。
 
-1. 通常 light（Calendar タブ・上記データ。右パネルは金曜の「ジム」を選択中）
-2. 通常 dark（1 と同内容）
-3. 未選択 light: Calendar タブで何も選択していない状態。右パネルにルーチン一覧のサマリー（頻度チップ 4 パターン）が出ている
-4. Routines タブ light: header タブを「Routines」に切り替えた状態。MasterDetail の 2 枚組で、左にルーチン一覧、右に選択中 1 件の編集フォーム — タイトル / 開始・終了時刻 / 頻度セレクタ（毎日・曜日・N 日ごと・グループの 4 択）/ 曜日チップ（日〜土のトグル。「ジム」編集中なら月・水・金が選択状態）/ 所属グループのバッジ
-5. 空状態 light: Calendar タブでその週に予定が 1 件もない。グリッドの骨格は保ち、中央に控えめな案内「この週の予定はありません。空いた時間をクリックして作成できます」+「+ 予定を追加」ボタン
-6. ローディング light: Calendar タブのグリッド骨格 + イベントブロック位置に角丸スケルトン数個
-7. エラー light: グリッド位置に「予定を読み込めませんでした」の案内カード + 「再試行」ボタン
+## 5. 最初のプロンプト
 
-計 7 フレーム（通常のみ light / dark の両方、3〜7 は light のみ）
+枠の中身をそのまま貼ります。試作一式のプロジェクトで続けて送るときは、「外枠」の節を「外枠は今のまま変えないでください」の 1 行に差し替えます。
+
+```markdown
+# 今の「予定（Schedule）」の画面を、そのまま写してください
+
+これは新しいデザインの依頼ではありません。Life Editor の今の予定の画面を、下の構成と値のとおりに再現してください。良く見せるための変更はしないでください。色は部品集の lumen のトークンだけを使ってください。添付のスクリーンショットは実際の画面です。値とスクリーンショットが食い違って見えたら、値のほうを優先してください。
+
+## フレーム
+
+- Desktop 1440×900（右の詳細パネルを開いた状態）と Mobile 390×844。それぞれライトとダーク。
+- ルートの文字サイズは 18px です。値は px で書きますが、組むときは rem（px ÷ 18）にしてください。4.5px の倍数が多いのは、0.25rem 刻みで組んでいるためです。
+- 文字の段: 11.25px（0.625rem）/ 14.625px（0.8125rem・行の高さ 19.5）/ 15.75px（0.875rem・行の高さ 22.5）。太さは 400 / 500 / 600 / 700。
+- アイコンは lucide です。どのアイコンも 16.2px より小さくしません（13.5px や 15.75px の指定も 16.2px で描く）。
+- Mobile で押せるものの高さは 49.5px（2.75rem）です。
+
+## 外枠
+
+- Desktop: 左のサイドバー 270px、上の見出し行 67.5px（左に「予定」、右に検索欄・元に戻す・やり直す・詳細パネルの開閉）、右の詳細パネル 320px（地 bg-subsidebar・左に線）。残る本文は 850px です。
+- Mobile: 上端の帯 49.5px（ハンバーガー・「予定」・元に戻す・やり直す）、下部タブバー 60.4px（朝刊・予定・素材・集中・その他。予定が選択中）。
+
+## Desktop の本文（上から順に）
+
+本文の入れ物の余白は上 13.5・左右 24・下 18px。ツールバー・レンズの行・グリッドの間は 13.5px。
+
+1. ツールバー（部品の間 6.75px。850px の本文では狭い形になる）
+   - 左: [今日]（余白 13.5×6.75・高さ約 38・角丸 8・線 border-strong・15.75px 500）、[‹][›]（31.5px 角・角丸 6・間 4.5・アイコン 16.2）、期間の表示「10/4 – 10/10」（15.75px 600）。
+   - 右: 祝日のトグル（Flag のアイコンだけ・31.5px 角）、繰り返しのトグル（Repeat のアイコンだけ・余白 11.25×7・高さ約 38.5・角丸 8）、週 / 月のセグメント（外枠は余白 2.25・角丸 8・地 bg-secondary。1 つ分は余白 13.5×6.75・高さ 36・角丸 6・15.75px。選択中は地 bg・500・小さな影）、絞り込みボタン（ListFilter・31.5px 角。効いているときは右下に高さ 18 の accent の丸いバッジ・11.25px 600）、主ボタン「＋」（accent の地・余白 9×7・角丸 8・Plus 18px。狭い形なので文字は出さない）。
+   - トグルの押下中は、枠と字が accent、地が accent-subtle。
+2. レンズの行（間 9px）: 「平日の仕事 6」「暮らし 10」の 2 つのチップ（件数は表示中の週に入るアイテムの数）。チップは余白 9×2.25・高さ約 26・完全な円の角・14.625px。選択していないものは枠 border・地 bg・字 text-secondary、件数は text-tertiary の等幅数字。
+3. 週ビュー（枠は角丸 6.75・線 border・地 bg。0〜24 時を縦にスクロールし、今の時刻 9:20 が見える位置で開く）
+   - 時刻の列 58.5px。時刻のラベルは 14.625px の等幅数字・text-secondary で、線の 6.75px 上・右 4.5px。1 時間の高さは 48px（rem ではなく px のまま）。時刻の線は 1px の border。
+   - 見出しの行: 曜日（14.625px 500・大文字・字間広め・text-secondary）と日付（14.625px）の 2 段。余白 4.5×6.75・高さ約 53。今日（10/10 土）は地 hover・字 accent・日付は 600。
+   - 終日の行: 左に「終日」（14.625px・text-secondary・右寄せ）。マスは最小 31.5px・余白 4.5。チップは余白 4.5×2.25・角丸 4.5・14.625px・地 bg-secondary・左に 2px の accent の帯。
+   - 今日の列は全体の地が accent-subtle。
+   - 予定のブロック: 余白 4.5×2.25・角丸 4.5・14.625px・行の高さ詰め・列の左右に 1px の隙間。題は 500、時刻は 14.625px の不透明度 80%。タグが付いたものは、地がタグの色に変わり、字はその上で読める色。タグの無い予定は枠 schedule-event-border・地 schedule-event-bg・字 chip-event-fg。
+   - 繰り返しのブロック: 地 schedule-routine-bg・字 chip-routine-fg・左の余白 6.75。左端に幅 3px の帯（タグなしは chip-routine-dot、タグありは字の色の 60%）。題の前に Repeat のアイコン（16.2px・線の太さ 2.5）。
+   - Todo のブロック: 地 schedule-task-bg・字 chip-task-fg・枠なし。題の前に CheckSquare（16.2px・線 2.5）。完了は取り消し線と不透明度 55%。
+   - 下端に高さ 6.75px の伸縮のつまみ。
+   - 今の時刻の線: 2px の accent の線と、左端に直径 9px の accent の点。今日の列にだけ引く。
+4. 詳細パネル（見出し「詳細」の行は高さ 54・左 18・右 13.5・15.75px 600・下に線。中身の余白 13.5）
+   - タブ「今日の流れ / Todo / 繰り返し」: 週 / 月と同じ形のセグメントで、1 つ分は余白 6.75・高さ約 33・14.625px・折り返さない。タブと中身の間 13.5。1 回目は「今日の流れ」を選んだ状態。
+   - 今日の流れ: 日付「10月10日(土)」（14.625px・text-secondary）。行は最小 42px・上下 4.5・左 4.5・間 9・下に線。時刻の列は幅 49.5・14.625px、点は直径 6.75、題は 15.75px。終日の行は時刻の代わりに「終日」の丸いラベル（余白 6.75×2.25・14.625px 600・text-tertiary・枠 border-strong）。今の時刻の位置に区切り（上下 6.75・時刻「9:20」は 14.625px 700 accent・2px の accent の線）。
+   - その下に「マイルーチン」のカード（余白 18・間 13.5・角丸 6.75・地 bg-secondary・線 border）。題は 15.75px 600、行は上下 9 で下に線。行は題と、右寄せの頻度と時刻。最後に「「繰り返し」タブを開く →」（accent の字）。
+   - Todo タブ: 右上に絞り込みボタン（36px 角・角丸 8）。「本日分の Todo」と「その他の Todo」の 2 つの一覧（間 18）。見出しの行は最小 31.5・14.625px 600・text-secondary で、右に accent の「＋本日分に追加」「＋Todo」（余白 15.75×6.75・高さ約 35・角丸 9・14.625px 500・小さな影）。行は最小 38px で、左に丸いチェックボックス（当たり判定 49.5・アイコン 20）、題 15.75px、時刻 14.625px、右に削除（27px 角・ホバーで出る）。
+   - 繰り返しタブ: 行の間 6.75。行は角丸 8・地 bg・線 border。中は余白 13.5×9・間 9、左に Repeat のアイコン、題 15.75px 500、その下に頻度と時刻と次の日付 14.625px（例「月・水・金・土 · 20:00 · 10月12日(月)」）、右に削除（余白 6.75・Trash2 18px）。
+
+## Desktop の月ビュー（週 / 月で「月」を選んだとき）
+
+- 枠は角丸 6.75・線 border。曜日の見出しは上下 4.5・14.625px 500・text-secondary。
+- マスは最小 184.5px・余白 4.5・中の間 2.25・右と下に線。ほかの月の日は不透明度 40%。
+- 日付は高さ 22.5 の丸いバッジ・14.625px 600。今日だけ地 accent・字 on-accent（マスの地は変えない）。
+- チップは余白 4.5×2.25・高さ約 24・角丸 4.5・14.625px 500。1 マスに 5 つまでで、残りは「他 N 件」（14.625px・text-tertiary）。地は種類ごとの chip-event-bg / chip-routine-bg / chip-task-bg で、タグがあればタグの色。点は付けない。
+- 期間の表示は「2026年10月」。マスにホバーすると右上に 31.5px 角の「＋」が出る。
+
+## Mobile（月だけ）
+
+- 見出しの入れ物は左右 16・上 13.5・間 13.5。行の中は間 9: 「2026年10月」（15.75px 600）、空き、絞り込み・‹・›（どれも 49.5px 角・角丸 8・線 border-strong・アイコン 18）、[今日]（高さ 49.5・余白 13.5×6.75・15.75px 500・角丸 8）。
+- グリッドは画面の端から端まで。上下の線だけで角丸なし。上下の余白 13.5。曜日の見出しは Desktop と同じ。
+- マスは最小 99px・余白は上 4.5・左右と下 2.25。日付は 18px の丸いバッジ・11.25px。選んだ日（今日 10/10）は地 bg-secondary と、内側に 2px の accent の輪郭。今日の日付のバッジは地 accent。
+- 予定は 1 行に 1 つの題（11.25px 500・行の高さ 14.625・余白 左右 2.25・角丸 4.5・地は Desktop のチップと同じ色の決まり）。1 マスに 4 行まで、右端ははみ出しをぼかして切る。点は付けない。
+- Mobile に出さないもの: 週ビュー、祝日と繰り返しのトグル、週 / 月のセグメント、レンズの行、「＋予定を追加」、マスの「＋」。
+- 左の引き出し（ハンバーガーか日付のタップで開く）: 幅は画面の 85%（331.5px）、左から出る。地 bg-subsidebar・右に線・大きな影・背後は黒 30% の幕。見出し「詳細」の行（高さ 54）の右に ×（当たり判定 49.5・アイコン 16.2）。タブは Desktop と同じ。日付の右に accent の「＋追加」（高さ 49.5）。中身は Desktop の今日の流れと同じ値で、マイルーチンのカードは出さない。
+
+## 見本のデータ（架空・今日は 2026年10月10日(土) 9:20）
+
+- タグ: 仕事 #2563eb / 健康 #16a34a / 家のこと #f59e0b / 勉強 #8b5cf6 / 旅行 #ec4899。
+- 保存したグループ: 平日の仕事（仕事・勉強）/ 暮らし（健康・家のこと・お金）。
+- 繰り返し: 朝のストレッチ 毎日 6:30–6:45（健康）/ 英語のオンライン会話 月・水・金・土 20:00–20:30（勉強）/ ゴミ出し（燃える）火・金 7:30–7:40（家のこと。10/9 はスキップ済み）/ 週のふり返り 毎週日曜 21:00–21:30（タグなし）。
+- 単発の予定: 10/9 部署の飲み会 19:00–21:00（仕事。20:00 の英語と重なるので列を半分ずつに分ける）/ 10/10 チーム定例 10:00–10:30（仕事）・歯医者 16:00–17:00（健康）・母の誕生日 終日（家のこと）/ 10/12 スポーツの日（祝日）/ 10/13 企画会議 13:00–14:30（仕事）/ 10/14 ジムで筋トレ 19:00–20:00（健康）/ 10/16 友人と夕食 19:30–21:30 / 10/24 金沢旅行 終日（旅行）/ 10/28 健康診断 9:00–11:00（健康）。
+- 今日の流れ（10/10）: 終日 母の誕生日 / 6:30 朝のストレッチ（完了）/ ここに今の時刻 9:20 の区切り / 10:00 チーム定例 / 16:00 歯医者 / 20:00 英語のオンライン会話。
+- 本日分の Todo: 企画書の構成を決める（完了）/ 競合 3 社の価格を調べる / 部長に企画の方向性を相談する / 企画書の図を 2 枚作る（完了）/ 朝 5km 走る（完了）/ クリーニングを受け取る。
+- その他の Todo: 電気代の明細を家計簿に写す / 英単語アプリを 15 分 / 企画書の初稿を読み直す（10/11）/ ランニングシューズを買い替える / 冬物のコートを出す / 旅行の宿を比べる。
+
+## 状態（試作パネルか、フレームを分けて見せてください）
+
+- データあり: 上の見本のとおり。
+- 空: グリッドは線と時刻だけで、文言は出さない。今日の流れは「今日の予定はありません」（上下 27・中央寄せ・15.75px）、Todo は「本日分の Todo はまだありません」「その他の Todo はありません」（14.625px）、繰り返しとマイルーチンは「ルーチンはまだありません」。
+- 読み込み中: グリッドの代わりに「読み込み中…」だけの箱（余白 18×45・15.75px・角丸 6.75・地 bg-secondary・線 border）。骨組みの表示は使わない。
+- エラー: 同じ箱に「予定を読み込めませんでした」と「再試行」のボタン。予定が一部だけ出ている場合は、グリッドの上に帯（余白 13.5×9・14.625px）と「再試行」。
+
+最後に、再現できなかったところと、推測で埋めたところの一覧を返してください。
 ```
 
-### 4.2 Mobile 用
+## 6. 2 回目以降の直しのプロンプト
 
-```text
-## Life Editor — デザイン共通前提（全画面共通・v3 / 2026-07-05）
+型（`_TEMPLATE-reproduce.md` §6）の枠を使います。この画面で先に見るとよい場所は次のとおりです。
 
-### プロダクト
+- **ツールバーの狭い形**: Claude Design は 1440 幅を見て文字付きのボタンで組みがちです。狭い形（アイコンだけ・間 6.75）になっているかを最初に見ます。
+- **1 時間の 48px**: ほかの値が rem なのに、ここだけ px です。rem にされると、ルートの文字サイズを変えたときに合わなくなります。
+- **アイコンの 16.2px の下限**: 小さい指定のアイコンが 13.5px のまま描かれていないかを見ます。
+- **Mobile の 49.5px**: 44px で組まれていないかを見ます。
 
-- 「AI と会話しながら生活を設計・記録・運用するパーソナル OS」。利用者は作者本人のみ（N=1）の個人ツール
-- Web アプリ（React + Tailwind）。**Desktop（幅 768px 以上・サイドバーシェル）と Mobile（768px 未満・ボトムタブシェル）で構造ごと分岐**する
-- Desktop = 全機能。**Mobile = 閲覧（Consumption）+ 素早い記録（Quick capture）に限定**（フル機能の縮小版ではなく、責務を絞る）
+## 7. 比べる手順とずれの表
 
-### アプリシェル（画面の外枠。各画面はこの内側にデザインする — 2026-07-05 決定の目標構成）
+型の §7 の手順で比べます。表は Issue #2153 にコメントします。
 
-- Desktop: 左サイドバー（展開 240px / 折畳 64px。背景はやや沈んだ subsidebar 色）+ メインコンテンツ。メインは通常、中央寄せ max-width 768px（Connect グラフや Kanban など全幅の画面もある）
-- サイドバー本流 5 セクション: Schedule / Materials / Connect / Work / Analytics（アイコンは lucide 系統: Clock, Library, Network, Timer, BarChart3）
-- サイドバー最下部のユーティリティ枠（本流から視覚分離）: Settings / Trash + フッター（コマンドパレット起動 ⌘K / ユーザー表示 / サインアウト）
-- 画面上部の header タブ: Materials = Todos / Notes / Daily / Tags、Schedule = Calendar / Routines、Analytics = Overview / Todos / Work / Schedule、Connect = Graph / Backlinks。Work / Settings / Trash はタブなし単画面
-- 各画面の header タブ行の右端に **rightSidebar（詳細パネル）の開閉トグルアイコン**（lucide: PanelRight。open 中は accent 文字 + accent-subtle 地の活性表示、closed 時はニュートラル）を置く。rightSidebar = 右端の幅 320px（min 240px・左端リサイズハンドル）・押し込み式パネル（overlay ではなくメイン領域が縮む。背景はサイドバーと同じ subsidebar 色 + 左 border、上部 48px に「詳細」ヘッダー + 閉じる X）。中身はセクション文脈の詳細・補助 UI（例: 選択中タスクの詳細 = タイトル / ステータス / 内容）。**Desktop 全画面に付ける**（タブなし単画面では画面最上部の右端に同アイコン）
-- Mobile: 下部タブバー = **Schedule / Materials / Work / Analytics + "More"**（More はボトムシートで Connect / Settings / Trash。safe-area inset 対応）。header タブは Mobile ではセグメントコントロール等の小型表現で継承。**画面上部・セグメントコントロール行の左端にハンバーガー（lucide: Menu・36×36 の border 付きボタン）**を置き、タップで左から幅 320px の drawer（黒 30% スクリム）が開いて Desktop の rightSidebar と同一内容を表示する。ナビ用の More ボトムシートとは役割分離（More = ナビ / ハンバーガー = 詳細パネル）
+## 8. 回の記録
 
-### ブランドパレット — Lumen（Cobalt Ink + Mint 系譜）
+| 回  | 日付 | 送ったもの | 揃った行 / 全行 | 残ったずれ | 効いた書き方・効かなかった書き方 |
+| --- | ---- | ---------- | --------------- | ---------- | -------------------------------- |
+| 1   |      | §5         |                 |            |                                  |
 
-ほぼモノクロのコバルトグレー neutrals + Lumen blue の主アクセント + ライトミントの差し色。
+## 9. 完成条件（指示書そのもの）
 
-**Chrome / Accent / Semantic（light / dark でテーマ可変）**
-
-| 役割                                         | Light                 | Dark                  |
-| -------------------------------------------- | --------------------- | --------------------- |
-| bg-primary（アプリ地色）                     | `#fafafa`             | `#16161a`             |
-| bg-secondary                                 | `#f1f1f3`             | `#1e1e23`             |
-| bg-subsidebar（サイドバー地）                | `#f5f5f6`             | `#1e1e23`             |
-| surface-sunken（沈んだ面）                   | `#ececef`             | `#101013`             |
-| text-primary                                 | `#1a1a1f`             | `#f2f2f5`             |
-| text-secondary                               | `#5c5c66`             | `#a0a0ad`             |
-| text-tertiary                                | `#767680`             | `#74747e`             |
-| border                                       | `#e3e3e7`             | `#2e2e35`             |
-| border-strong                                | `#cfcfd6`             | `#44444d`             |
-| accent（Lumen blue。主ボタン・選択・リンク） | `#1d4ed8`             | `#5b8cff`             |
-| accent-hover                                 | `#1e40af`             | `#7aa2ff`             |
-| on-accent（accent 上の文字）                 | `#ffffff`             | `#0a1024`             |
-| accent-subtle（accent の薄塗り）             | `#dbeafe`             | `#21273f`             |
-| hover（行ホバー等）                          | `#e8e8ec`             | `#2a2a31`             |
-| accent-secondary（ミント差し色）             | `#1fa56e`             | `#5fd1a0`             |
-| chip-mint bg / fg                            | `#daf3e7` / `#0c6f4e` | `#133024` / `#7fe0b3` |
-| success                                      | `#0f7b6c`             | `#4dab9a`             |
-| danger                                       | `#d92d20`             | `#ef4444`             |
-| info                                         | `#2563eb`             | `#60a5fa`             |
-| warning                                      | `#b45309`             | `#fbbf24`             |
-
-**データ / 状態の符号色（light / dark 共通・テーマ固定）**
-
-- ステータスバンド: todo `#38bdf8` / progress `#eab308` / done `#10b981`（カード左端 4px バンド等）
-- エンティティ別チップ: task = Lumen blue 系（bg `#dbeafe` fg `#1e40af`）/ routine = 藍（bg `#ebf0fe` fg `#3b5bdb`）/ event = 紫（bg `#f3e8ff` fg `#6d28d9`）/ completed = 緑（bg `#ecfdf5` fg `#047857`）/ progress = 琥珀（bg `#fef6e0` fg `#a06b09`）
-- グラフ カテゴリ 10 色: `#2563eb` `#22c55e` `#f59e0b` `#ef4444` `#8b5cf6` `#ec4899` `#06b6d4` `#84cc16` `#f97316` `#6366f1`
-- スケジュールブロック地: routine `#ebf0fe` / event `#f3e8ff`（border `#8b5cf6`）/ その他 `#f1f2f4`
-
-### 形・余白・文字
-
-- フォント: システムフォントスタック（-apple-system / Segoe UI 等）。ベース 16px。サイズ段階は xs / sm / base / lg / xl の 5 段
-- 角丸: 6 / 8 / 12 / 16 px + 完全円。余白: 4px 基調のスケール（4 / 8 / 12 / 16 / 20 / 24）
-- 影: elevation 3 段（sm / md / lg）。控えめに。フラット寄りの Notion ライクな密度感
-
-### 守るべきルール（不変式）
-
-1. **上記パレットの色のみ使用**。新しい hex を発明しない（必要なら「トークン追加の提案」として明記する）
-2. **主要コンテナ（カード / メニュー / ダイアログ / パネル / ポップオーバー）の背景は完全不透明**。backdrop-blur 不使用。モーダル背後の黒 30% バックドロップだけ許容
-3. **light / dark 両テーマを必ず作る**。dark は pure black ではなく `#16161a`。light は pure white ではなく `#fafafa`
-4. 本文テキストのコントラストは **WCAG AA（4.5:1）以上**
-5. **状態を色だけで伝えない**（ラベル・形・バンドを併用）
-6. **テキストは日本語の現実的なサンプルで組む**（英語より 1.2〜1.5 倍の幅を想定。UI は日英切替があるため極端な幅依存レイアウトを避ける）
-7. 既存部品の意匠を踏襲する: Button / Card / Sheet（ドロワー）/ BottomSheet / Menu / Toast / Sidebar / CommandPalette / Kanban カード（左端ステータスバンド 4px）/ MasterDetail（一覧+詳細の 2 枚組）は既に存在する。ゼロから発明せず、この部品語彙で組む
-
-### 成果物フレーム（全画面共通）
-
-- **Desktop: 1440×900**（light / dark の 2 枚。左サイドバー展開状態込み）
-- **Mobile: 390×844**（light / dark の 2 枚。下部タブバー込み・safe-area 考慮）
-- 各画面につき: **通常状態（データあり）+ 空状態 + ローディング**、該当があればエラー状態も
-
----
-
-## この画面: スケジュール（Mobile 390×844）
-
-Mobile のスケジュールは「閲覧 + 素早い記録」に責務を絞る。**出すのは (1) 今日のアジェンダ (2) 最短手数の予定追加、の 2 つだけ**。
-
-### Desktop から落とすもの（出さない。明確に不在にする）
-
-- 週タイムグリッド・月カレンダー（グリッドは移植しない。1 日のアジェンダのみ）
-- header タブ（Calendar / Routines のセグメント切替）— Routines を落とすため Mobile では Calendar 相当の「今日のアジェンダ」単画面にする（セグメントを出さない）
-- ルーチンの作成・編集・一覧管理（閲覧の手掛かりとして由来バッジだけ残す）
-- ドラッグでの移動・リサイズ（タップ操作のみ）
-- カレンダー（フォルダ別ビュー）の管理
-
-### レイアウト
-
-- 下部タブバー: **Schedule / Materials / Work / Analytics の 4 タブ + More**。Schedule（Clock アイコン）がアクティブ。safe-area 分の余白を下に確保
-- ヘッダー（1 行）: 「今日」の見出し + 日付「7/9 (木)」/ 右に ◀ ▶ の日送りボタン。今日以外の日を見ている時だけ「今日へ戻る」テキストボタンが出る
-- 本体 = **今日のアジェンダ**（時系列リスト、縦スクロール）:
-  - 終日予定を最上部に横長チップで（例「粗大ごみ回収日」）
-  - 以降は時刻順の行。各行: 左に時刻列（「19:00–20:30」を等幅数字で 2 行）/ 中央にタイトル + 由来バッジ / 右端に完了チェック（タップ領域 44px 以上）
-  - **由来の区別**: ルーチン由来は藍のドット + 小さな繰り返しアイコン（lucide Repeat）、単発は紫のドット。完了済みは取り消し線 + 減光
-  - **現在時刻の位置に区切りライン**（accent 色の細線 + 「14:30」）。過ぎた予定はその上、これからの予定は下に自然に分かれる
-- **Quick capture**: 右下（タブバーの上）に accent 色の丸い FAB「+」。タップで**最小入力のボトムシート**が上がる:
-  - 不透明パネル + 上端グラブハンドル。背後は黒 30% バックドロップ
-  - 中身は「タイトル入力（プレースホルダ『予定を入力…』）」「開始 / 終了の時刻入力（横並び、初期値は現在時刻に近い 15:00 / 16:00）」「追加ボタン（accent、幅いっぱい）」の 3 要素だけ。ここにルーチン設定やタグ等の高度な項目は置かない
-- 行タップ → **詳細のボトムシート**: 完了チェック / タイトル / 開始・終了時刻 / ルーチン由来なら藍チップ「↻ ルーチン『英会話オンラインレッスン』から生成 — 火・木」+「この日はスキップ」ボタン、単発なら「削除」テキストボタン（danger 色）
-
-### 表示データ（今日 = 2026/7/9(木) 14:30 時点の現実的な日本語サンプル）
-
-- 終日: 「粗大ごみ回収日」
-- 完了済み（現在時刻ラインより上）: 「朝のストレッチ」7:00–7:15（↻ 藍）/ 「日本語学習の復習」8:00–8:30（↻ 藍）/ 「区役所で住民票を取る」10:30–11:00（紫）/ 「英単語の暗記」12:30–12:45（↻ 藍）
-- これから（ラインより下）: 「プロジェクトの進捗整理」15:00–16:00（紫）/ 「夕食の買い出し」17:30–18:00（紫）/ 「英会話オンラインレッスン」20:00–20:50（↻ 藍。火・木に発火するルーチン）
-- 詳細シートの画面は「英会話オンラインレッスン」をタップした状態で 1 枚描く（由来チップ「↻ ルーチン『英会話オンラインレッスン』から生成 — 火・木」とスキップボタンが見える）
-- Quick capture シートの画面も 1 枚描く（タイトルに「美容院の予約」と入力途中の状態）
-
-### 状態バリエーション（フレーム一覧）
-
-1. 通常 light（上記データのアジェンダ）
-2. 通常 dark（1 と同内容）
-3. 詳細シート light（「英会話オンラインレッスン」をタップした状態）
-4. Quick capture シート light（「美容院の予約」を入力途中の状態）
-5. 空状態 light: 「今日の予定はありません」の控えめな案内 + 「+ で予定を追加できます」と FAB への誘導。FAB は出したまま
-6. ローディング light: 時刻列 + タイトルの行スケルトン 5〜6 行
-7. エラー light: 「予定を読み込めませんでした」の案内 + 「再試行」ボタン
-
-計 7 フレーム（通常のみ light / dark の両方、3〜7 は light のみ）
-```
-
-## 5. Acceptance Criteria（brief 自体の完成条件）
-
-- [x] §4 の全プロンプトが自己完結している（リポジトリのパス・内部参照・「上記参照」が本文に無い）
-- [x] `_COMMON-CONTEXT.md` の共通前提ブロックが**全プロンプトの冒頭に全文**埋まっている（要約・改変なし・v3 / 2026-07-05）
-- [x] Desktop / Mobile 両方のプロンプトがあり、フレーム仕様（1440×900 / 390×844・light / dark）が明記されている
-- [x] 通常（データあり）/ 空 / ローディング状態の指示がある（エラー状態も両プロンプトのフレーム一覧に含む）
-- [x] 表示データが日本語の現実的なサンプルで指定されている
-- [x] Mobile の責務削減（**何を出さないか**）が明記されている
-- [x] §1-2 の引用が `file:line` 付きで実在する
-- [x] frontmatter の Status / Section / Owner-chat / Branch が埋まっている
-- [x] **（v2）** v1 の旧 accent 系 hex（Lumen 化前のコバルト accent 各色）が本文から一掃されている（旧 hex の機械チェックが 0 件で pass）
-- [x] **（v2）** ナビ前提が `IA.md`（サイドバー本流 5 + ユーティリティ枠 / Schedule = Calendar・Routines の header タブ / Mobile 固定 4 タブ = Schedule・Materials・Work・Analytics）と一致
-
-## 6. 生成後の運用メモ
-
-- 分業: 生成 = claude.ai/design 側（ユーザーがプロンプト投入）/ Claude Code 側 DesignSync は同期専用 / 出荷 UI 化は `shared/src/components/` への移植（別計画）
-- 移植先候補: `shared/src/components/schedule/`（WeekTimeGrid の拡張 + 新規部品は §3 の候補リストを参照。生成結果を見てから確定）
-- 生成デザインへのフィードバックで本 brief の §4 を更新した場合、Status と履歴を追記する
-- **スコープ注記**: Routine 管理 UI は header タブ「Routines」（Desktop フレーム 4・MasterDetail の 2 枚組）でカバーする。calendars（フォルダ別カレンダー）の CRUD は Calendar タブのツールバー歯車から開く軽量モーダルに畳む提案（§3）→ #1173 で台帳ごと退役し、同じモーダルはタグ絞り込みパネルになった。モーダル内部の詳細意匠は本 brief では意図的に対象外（必要になれば §4 の iterate で追加する）
-- **palette 同期状況（v2・2026-07-05）**: 本 brief は `_COMMON-CONTEXT.md` **v2**（accent = Lumen blue `#1d4ed8` 系・`shared/src/styles/tokens.css` の PR #135 に同期済み）を §4 の共通前提ブロックに全文埋め込み済み。v1 の旧 accent 系 hex は一掃済み。今後 `_COMMON-CONTEXT.md` が更新された場合は、§4 の共通前提ブロックを再コピーすること（全文コピー・改変禁止の規則に従う）→ 2026-07-05: **v3**（rightSidebar + ハンバーガー追加）へ再コピー済み
-- **整合監査 fix（2026-07-05・chat-frontend）**: header タブの表現を「下線 or 塗り」の両論併記から shell brief 定義の標準（2px accent 下線式）へ確定
+- [x] §2 の部品すべてに `file:line` が付いていて、実在する（2026-10-11 に `07ead4ab` で抜き取り確認）。
+- [x] §3 の値すべてに出典があり、測れなかった値は「未確認」と書いてある（ツールバーが縮む境の px）。
+- [x] §4 に Desktop / Mobile × ライト / ダークの 4 通りがそろっている。
+- [x] §5 のプロンプトが自己完結している（リポジトリのパス・「上記参照」が本文に無い）。
+- [x] §5 のプロンプトに 4 状態がそろっている。
+- [x] frontmatter の Status / Source / Captured が埋まっている。
