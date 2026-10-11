@@ -1,5 +1,7 @@
 import { getSupabase } from "../supabase.js";
 import { currentCaller } from "../callerContext.js";
+import { DuplicateOriginKeyError, type OriginKey } from "./originKey.js";
+import { notFoundError } from "../errorCodes.js";
 
 /*
  * Shared items_meta helpers for the Supabase-backed handlers (#360).
@@ -85,7 +87,7 @@ export async function requireMeta(
   label: string,
 ): Promise<ItemsMetaRow> {
   const meta = await findMeta(id, role);
-  if (!meta) throw new Error(`${label} not found: ${id}`);
+  if (!meta) throw notFoundError(`${label} not found: ${id}`);
   return meta;
 }
 
@@ -100,6 +102,8 @@ export async function insertItem(args: {
   title: string;
   payloadTable: string;
   payload: Record<string, unknown>;
+  /** The retry key of a gateway create (originKey.ts). Needs a caller. */
+  origin?: OriginKey;
 }): Promise<void> {
   const { client, userId } = await getSupabase();
 
@@ -118,8 +122,25 @@ export async function insertItem(args: {
     is_deleted: false,
     deleted_at: null,
     ...(originApp ? { origin_app: originApp } : {}),
+    // The key and its request hash ride in the same insert as the app name,
+    // so an item never exists with a key but no way to tell a replay from a
+    // reuse (0038's CHECK refuses the half-written row as well).
+    ...(originApp && args.origin
+      ? {
+          origin_key: args.origin.key,
+          origin_request_hash: args.origin.hash,
+        }
+      : {}),
   });
-  if (mErr) throw new Error(`create items_meta: ${mErr.message}`);
+  if (mErr) {
+    // 23505 is a unique violation. With a key on the row the only unique index
+    // it can be is (user, app, key) — ids are fresh UUIDs — so a twin of this
+    // request got there first.
+    if ((mErr as { code?: string }).code === "23505" && args.origin) {
+      throw new DuplicateOriginKeyError();
+    }
+    throw new Error(`create items_meta: ${mErr.message}`);
+  }
 
   try {
     const { error: pErr } = await client

@@ -12,6 +12,7 @@ import {
   refuse,
 } from "../utils/aiCustomization.js";
 import { fetchAllPages } from "../utils/pagination.js";
+import { notFoundError } from "../errorCodes.js";
 
 /*
  * Claude customization handlers (#2121, Epic #2117 R4) — how the Claude Code
@@ -178,7 +179,7 @@ export async function updateAiMemory(args: { id: string; body: string }) {
     .select(MEMORY_COLUMNS)
     .maybeSingle();
   if (error) throw new Error(`update_ai_memory: ${error.message}`);
-  if (!data) throw new Error(`Memory not found: ${args.id}`);
+  if (!data) throw notFoundError(`Memory not found: ${args.id}`);
   return formatMemory(data as AiMemoryRow);
 }
 
@@ -224,7 +225,7 @@ async function findSkillBySlug(slug: string): Promise<AiSkillRow | null> {
 
 export async function getAiSkill(args: { slug: string }) {
   const row = await findSkillBySlug(args.slug);
-  if (!row) throw new Error(`Skill not found: ${args.slug}`);
+  if (!row) throw notFoundError(`Skill not found: ${args.slug}`);
   return formatSkill(row);
 }
 
@@ -285,7 +286,7 @@ export async function updateAiSkill(args: {
   if (args.body !== undefined) checkSkillBody(args.body);
 
   const current = await findSkillBySlug(args.slug);
-  if (!current) throw new Error(`Skill not found: ${args.slug}`);
+  if (!current) throw notFoundError(`Skill not found: ${args.slug}`);
   if (args.new_slug !== undefined && args.new_slug !== args.slug) {
     if (await findSkillBySlug(args.new_slug)) throw takenError(args.new_slug);
   }
@@ -310,6 +311,6 @@ export async function updateAiSkill(args: {
       throw takenError(args.new_slug);
     throw new Error(`update_ai_skill: ${error.message}`);
   }
-  if (!data) throw new Error(`Skill not found: ${args.slug}`);
+  if (!data) throw notFoundError(`Skill not found: ${args.slug}`);
   return formatSkill(data as AiSkillRow);
 }

@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { getSupabase } from "../supabase.js";
 import { findMeta, type ItemRole } from "../utils/items.js";
+import { notFoundError } from "../errorCodes.js";
 
 /*
  * Item links — the WRITE half of the wiki graph.
@@ -69,7 +70,7 @@ async function resolveEndpoint(
         `goal links, not through item links`,
     );
   }
-  throw new Error(`${label} not found (or is in the trash): ${id}`);
+  throw notFoundError(`${label} not found (or is in the trash): ${id}`);
 }
 
 interface ConnectionRow {
