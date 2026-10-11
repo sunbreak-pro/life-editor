@@ -72,11 +72,11 @@ const DATA: BriefingData = {
   todoNodes: [],
 };
 
-function renderMorning() {
+function renderMorning(data: BriefingData = DATA) {
   render(
     <BriefingView
       loading={false}
-      data={DATA}
+      data={data}
       labels={LABELS}
       focusText={null}
       onToggleTodo={vi.fn()}
@@ -145,5 +145,59 @@ describe("#1820 — the narrow schedule row wraps its actions", () => {
         "max-md:min-w-11",
       );
     }
+  });
+});
+
+/*
+ * #2182 — the carryover row shares `RowActions`, so it inherited the
+ * full-width cluster #1820 gave the narrow paper, but not the `flex-wrap` that
+ * lets the cluster leave the line. The 390px screen squeezed the title button
+ * to 0px: one character per line, with 編集 pushed past the right edge.
+ */
+describe("#2182 — the narrow carryover row wraps its action too", () => {
+  function renderWithCarryover() {
+    renderMorning({
+      ...DATA,
+      schedule: [],
+      todos: [],
+      carryover: [
+        {
+          id: "c1",
+          title: "長めの繰り越しタスクの題を最後まで読める形で出す",
+          daysLabel: "3日目",
+          completed: false,
+        },
+      ],
+    });
+  }
+
+  function carryoverRow(): HTMLElement {
+    const row = screen
+      .getByText("長めの繰り越しタスクの題を最後まで読める形で出す")
+      .closest("li");
+    if (row === null) throw new Error("no carryover row");
+    return row;
+  }
+
+  it("lets the row wrap on a phone and holds it to one line on Desktop", () => {
+    renderWithCarryover();
+    const row = carryoverRow();
+    expect(row).toHaveClass("flex-wrap", "md:flex-nowrap");
+    expect(row).toHaveClass("gap-x-3", "gap-y-1");
+    // The cluster is the same full-width one the rows above use.
+    const cluster = clusterOf(`${LABELS.edit}: ${LABELS.jumpToTodos}`);
+    expect(cluster.parentElement).toBe(row);
+    expect(cluster).toHaveClass("max-md:w-full");
+  });
+
+  it("keeps the title on the first line beside its checkbox", () => {
+    renderWithCarryover();
+    const title = screen
+      .getByText("長めの繰り越しタスクの題を最後まで読める形で出す")
+      .closest("button");
+    if (title === null) throw new Error("no title button");
+    // A 0 basis below md: the title cannot wrap down as an item of its own.
+    expect(title).toHaveClass("min-w-0", "max-md:flex-1");
+    expect(title).not.toHaveClass("flex-1");
   });
 });

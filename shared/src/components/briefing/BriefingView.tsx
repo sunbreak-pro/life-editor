@@ -840,9 +840,15 @@ export function BriefingView({
           <BlockHead title={labels.carryoverTitle} />
           <ul className="space-y-1">
             {data.carryover.map((item) => (
+              /* `flex-wrap` below `md` for the same reason as the rows above
+                 (#2182): `RowActions` asks for the full width there, and in a
+                 row that cannot wrap the only thing left to give it room was
+                 the title — squeezed to 0px, one character per line, with
+                 編集 pushed past the right edge. `md:flex-nowrap` and the
+                 unchanged `gap-x-3` leave the Desktop row as it was. */
               <li
                 key={item.id}
-                className="flex items-center gap-3 text-sm text-lumen-text-secondary"
+                className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-lumen-text-secondary md:flex-nowrap"
               >
                 {/* The paper's left rail, held at the width the schedule rows
                     hold it (#1368). The label is「3日目」on one row and
@@ -863,10 +869,14 @@ export function BriefingView({
                   label={labels.todoStatus}
                   accentClassName="text-lumen-briefing-shu"
                 />
+                {/* `max-md:flex-1` (a 0 basis) keeps the title on the first
+                    line beside its checkbox: a title whose natural width is
+                    longer than what the rail and checkbox leave would
+                    otherwise wrap down under「3日目」as an item of its own. */}
                 <button
                   type="button"
                   onClick={() => onToggleTodo(item.id)}
-                  className="min-w-0 text-left"
+                  className="min-w-0 text-left max-md:flex-1"
                 >
                   <span className={item.completed ? "line-through" : undefined}>
                     {item.title}
