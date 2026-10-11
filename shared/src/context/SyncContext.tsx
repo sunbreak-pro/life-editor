@@ -107,6 +107,9 @@ export const REALTIME_TABLES = [
   "ai_skills",
   // Note tables as items (0040 / #2094)
   "tables_payload",
+  // Extension-app records and ledger (0039 / #2162)
+  "app_records",
+  "extension_apps",
 ] as const;
 
 const DEBOUNCE_MS = 300;

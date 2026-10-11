@@ -26,6 +26,17 @@ import type {
   AiSkill,
   AiSkillInput,
 } from "../types/aiCustomization";
+import type {
+  AppRecord,
+  AppRecordFilters,
+  AppRecordRange,
+  AppRecordSource,
+} from "../types/appRecord";
+import type {
+  ExtensionApp,
+  ExtensionAppInput,
+  ExtensionAppUpdates,
+} from "../types/extensionApp";
 // #1438 — the sweep's own vocabulary. Declared next to the pure detection it
 // belongs to and re-exported below, so a consumer of the DataService never
 // has to know which service file implements the scan.
@@ -809,6 +820,37 @@ export interface AiCustomizationDataService {
   deleteAiSkill(id: string): Promise<void>;
 }
 
+// ---------------------------------------------------------------------------
+// Extension-app records and ledger — SupabaseAppRecordsService (#2162)
+// ---------------------------------------------------------------------------
+
+/**
+ * The numbers extension apps and Claude send (`app_records`, 0039) and the
+ * ledger of registered extension apps (`extension_apps`). Records are
+ * read-only from the screens — writing them is the MCP tools' job (#2163).
+ * Ledger writes check the fields first and throw ExtensionAppValidationError
+ * (field + issue) on a refusal; deletes are physical.
+ */
+export interface AppRecordsDataService {
+  /** Newest first. `range` is [from, to) in ISO instants. */
+  listAppRecords(
+    range: AppRecordRange,
+    filters?: AppRecordFilters,
+  ): Promise<AppRecord[]>;
+  /** Each source_app with its newest record and 30-day count, by source_app. */
+  listAppRecordSources(): Promise<AppRecordSource[]>;
+  /** In list order (sortOrder, then slug). */
+  listExtensionApps(): Promise<ExtensionApp[]>;
+  /** A slug the user already registered is refused as `taken`. */
+  createExtensionApp(input: ExtensionAppInput): Promise<ExtensionApp>;
+  updateExtensionApp(
+    slug: string,
+    updates: ExtensionAppUpdates,
+  ): Promise<ExtensionApp>;
+  /** Removes the ledger row only; the app's records stay. */
+  deleteExtensionApp(slug: string): Promise<void>;
+}
+
 /**
  * The whole data surface the frontend may reach (CLAUDE.md §3.1).
  *
@@ -831,4 +873,5 @@ export interface DataService
     NotesUnifiedDataService,
     DailiesUnifiedDataService,
     GoalsDataService,
-    AiCustomizationDataService {}
+    AiCustomizationDataService,
+    AppRecordsDataService {}

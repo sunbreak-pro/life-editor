@@ -182,4 +182,17 @@ describe("export table roster (#1988)", () => {
       [...deleted].sort(),
     );
   });
+
+  it("carries the extension-app records and ledger out (#2162)", () => {
+    // Named on their own so a reader of this suite sees the two 0039 tables
+    // are covered, not only that two lists happen to agree.
+    const tables = USER_DATA_EXPORT_TABLES.map((t) => t.table);
+    expect(tables).toContain("app_records");
+    expect(tables).toContain("extension_apps");
+    // extension_apps has no id column — its key is (user_id, slug).
+    expect(
+      USER_DATA_EXPORT_TABLES.find((t) => t.table === "extension_apps")
+        ?.orderBy,
+    ).toBe("slug");
+  });
 });
