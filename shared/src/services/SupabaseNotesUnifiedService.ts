@@ -276,11 +276,12 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
     ]);
     const ordered = orderNotePurge([...live, ...trashed], id);
 
-    // #2094: the notes' table items first — 0040's parent FK is NO ACTION
-    // too, so a note with a tagged table would otherwise refuse with 23503.
-    await purgeNoteTablesOf(this.client, ordered);
-
     for (const did of ordered) {
+      // #2094: this note's table items first — 0040's parent FK is NO ACTION
+      // too. Per note rather than all up front, so a purge that stops half
+      // way (a #375 legacy folder's 23503) has not already destroyed the
+      // tables and tags of the notes it never reached.
+      await purgeNoteTablesOf(this.client, [did]);
       const { error } = await this.client
         .from("items_meta")
         .delete()

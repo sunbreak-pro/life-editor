@@ -3,6 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   collectBodyTables,
   noteTableCreateToRows,
+  noteTableUpdateToPatch,
   planNoteTableSync,
   rowsToNoteTable,
   type ItemsMetaTableRow,
@@ -155,12 +156,16 @@ describe("collectBodyTables", () => {
     ).toEqual([{ id: "table-1", name: "First" }]);
   });
 
-  it("reads a blank name, an empty body and a non-JSON body as nothing", () => {
+  it("reads a blank name as no name, and an empty body as no tables", () => {
     expect(collectBodyTables(body({ tableId: "table-1", name: "  " }))).toEqual(
       [{ id: "table-1", name: "" }],
     );
     expect(collectBodyTables("")).toEqual([]);
-    expect(collectBodyTables("plain legacy text")).toEqual([]);
+  });
+
+  it("answers null for a body it cannot read, so the sync deletes nothing", () => {
+    expect(collectBodyTables("plain legacy text")).toBeNull();
+    expect(collectBodyTables('{"type":"doc", truncated')).toBeNull();
   });
 });
 
@@ -213,5 +218,25 @@ describe("planNoteTableSync", () => {
         [item()],
       ),
     ).toEqual({ softDelete: [], restore: [], rename: [] });
+  });
+});
+
+describe("noteTableUpdateToPatch", () => {
+  const now = "2026-10-11T05:00:00.000Z";
+
+  it("moves updated_at on every kind of write (DB-Q2)", () => {
+    expect(noteTableUpdateToPatch({ kind: "softDelete" }, now)).toEqual({
+      updated_at: now,
+      is_deleted: true,
+      deleted_at: now,
+    });
+    expect(noteTableUpdateToPatch({ kind: "restore" }, now)).toEqual({
+      updated_at: now,
+      is_deleted: false,
+      deleted_at: null,
+    });
+    expect(
+      noteTableUpdateToPatch({ kind: "rename", title: "Q4" }, now),
+    ).toEqual({ updated_at: now, title: "Q4" });
   });
 });

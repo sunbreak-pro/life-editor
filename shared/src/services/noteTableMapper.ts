@@ -3,8 +3,11 @@ import {
   ITEMS_META_COLUMNS,
   assertItemsMetaPair,
   toItemsMetaInsertRow,
+  toItemsMetaPatch,
   type ItemsMetaInsertRow,
+  type ItemsMetaPatchInput,
   type ItemsMetaRow,
+  type ItemsMetaUpdatePatch,
 } from "./itemsMeta";
 
 /*
@@ -102,15 +105,17 @@ export function noteTableCreateToRows(
  * editor strips `tableId` from pasted tables — but if a body still carries a
  * pair, keeping one stops the second from renaming the item back and forth.
  *
- * A body that is not JSON (legacy plain text, or empty) has no tables.
+ * An empty body has no tables. A body that is not JSON answers `null`, not
+ * `[]`: "no tables" would make the sync soft-delete every table item of the
+ * note, and a body the sync cannot read is no evidence that they are gone.
  */
-export function collectBodyTables(content: string): NoteBodyTable[] {
+export function collectBodyTables(content: string): NoteBodyTable[] | null {
   if (content.trim() === "") return [];
   let doc: unknown;
   try {
     doc = JSON.parse(content);
   } catch {
-    return [];
+    return null;
   }
   const out: NoteBodyTable[] = [];
   const seen = new Set<string>();
@@ -140,6 +145,33 @@ export function collectBodyTables(content: string): NoteBodyTable[] {
   };
   walk(doc);
   return out;
+}
+
+// ---------------------------------------------------------------------------
+// UPDATE: the items_meta patches the sync writes
+// ---------------------------------------------------------------------------
+
+export type NoteTableUpdate =
+  | { kind: "softDelete" }
+  | { kind: "restore" }
+  | { kind: "rename"; title: string };
+
+/**
+ * The items_meta patch for one sync write. Through `toItemsMetaPatch`, the
+ * single implementation of DB-Q2, so every write moves `updated_at` —
+ * tables_payload has no cursor of its own.
+ */
+export function noteTableUpdateToPatch(
+  update: NoteTableUpdate,
+  now: string,
+): ItemsMetaUpdatePatch {
+  const fields: ItemsMetaPatchInput =
+    update.kind === "softDelete"
+      ? { isDeleted: true, deletedAt: now }
+      : update.kind === "restore"
+        ? { isDeleted: false, deletedAt: null }
+        : { title: update.title };
+  return toItemsMetaPatch(fields, now);
 }
 
 /** What a save asks of one note's table items. */

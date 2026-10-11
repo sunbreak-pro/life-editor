@@ -357,6 +357,21 @@ describe("SupabaseNoteTablesService — syncNoteTables", () => {
     expect(tableMetaWrites(writes)[0].patch).toHaveProperty("updated_at");
   });
 
+  it("reads and writes nothing for a body it cannot parse", async () => {
+    const { client, db, writes } = makeFake(
+      seed([note], tableRows("table-a", "note-1")),
+    );
+    const result = await new SupabaseNoteTablesService(client).syncNoteTables(
+      "note-1",
+      "not json",
+    );
+    expect(result).toEqual({ softDeleted: [], restored: [], renamed: [] });
+    expect(writes).toEqual([]);
+    expect(db.items_meta.find((r) => r.id === "table-a")?.is_deleted).toBe(
+      false,
+    );
+  });
+
   it("writes nothing when the note has no table items", async () => {
     const { client, writes } = makeFake(seed([note]));
     const result = await new SupabaseNoteTablesService(client).syncNoteTables(

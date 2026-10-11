@@ -7,12 +7,18 @@ import {
   TABLES_PAYLOAD_COLUMNS,
   collectBodyTables,
   noteTableCreateToRows,
+  noteTableUpdateToPatch,
   planNoteTableSync,
   rowsToNoteTable,
   type ItemsMetaTableRow,
+  type NoteTableUpdate,
   type TablesPayloadRow,
 } from "./noteTableMapper";
-import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
+import {
+  fetchAllPages,
+  fetchByIdChunks,
+  forEachIdChunk,
+} from "./postgrestFetchAll";
 import { requireSingleRow } from "./postgrestSingle";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { getAuthedUserId } from "./supabaseServiceHelpers";
@@ -178,21 +184,25 @@ export class SupabaseNoteTablesService implements NoteTablesDataService {
     noteId: string,
     content: string,
   ): Promise<NoteTableSyncResult> {
-    const items = await this.fetchNoteTablesForNote(noteId);
     const result: NoteTableSyncResult = {
       softDeleted: [],
       restored: [],
       renamed: [],
     };
+    // An unreadable body says nothing about which tables are still there.
+    const bodyTables = collectBodyTables(content);
+    if (bodyTables === null) return result;
+    const items = await this.fetchNoteTablesForNote(noteId);
     if (items.length === 0) return result;
 
-    const plan = planNoteTableSync(collectBodyTables(content), items);
+    const plan = planNoteTableSync(bodyTables, items);
     const now = new Date().toISOString();
 
     if (plan.softDelete.length > 0) {
       await this.patchTables(
         plan.softDelete,
-        { is_deleted: true, deleted_at: now, updated_at: now },
+        { kind: "softDelete" },
+        now,
         "syncNoteTables soft delete",
       );
       result.softDeleted = plan.softDelete;
@@ -200,7 +210,8 @@ export class SupabaseNoteTablesService implements NoteTablesDataService {
     if (plan.restore.length > 0) {
       await this.patchTables(
         plan.restore,
-        { is_deleted: false, deleted_at: null, updated_at: now },
+        { kind: "restore" },
+        now,
         "syncNoteTables restore",
       );
       result.restored = plan.restore;
@@ -208,7 +219,8 @@ export class SupabaseNoteTablesService implements NoteTablesDataService {
     for (const { id, title } of plan.rename) {
       await this.patchTables(
         [id],
-        { title, updated_at: now },
+        { kind: "rename", title },
+        now,
         "syncNoteTables rename",
       );
       result.renamed.push(id);
@@ -216,17 +228,24 @@ export class SupabaseNoteTablesService implements NoteTablesDataService {
     return result;
   }
 
+  /** One sync write over many ids, in §11's id chunks, role-filtered. */
   private async patchTables(
     ids: readonly string[],
-    patch: Record<string, unknown>,
+    update: NoteTableUpdate,
+    now: string,
     label: string,
   ): Promise<void> {
-    const { error } = await this.client
-      .from("items_meta")
-      .update(patch)
-      .in("id", [...ids])
-      .eq("role", "table");
-    if (error) throw new Error(`${label}: ${error.message}`);
+    const patch = noteTableUpdateToPatch(update, now);
+    await forEachIdChunk(
+      ids,
+      (chunk) =>
+        this.client
+          .from("items_meta")
+          .update(patch)
+          .in("id", chunk)
+          .eq("role", "table"),
+      label,
+    );
   }
 }
 
@@ -257,15 +276,12 @@ export async function purgeNoteTablesOf(
       ),
   );
   if (payloads.length === 0) return;
-  const { error } = await client
-    .from("items_meta")
-    .delete()
-    .in(
-      "id",
-      payloads.map((p) => p.item_id),
-    )
-    .eq("role", "table");
-  if (error) throw new Error(`purgeNoteTablesOf: ${error.message}`);
+  await forEachIdChunk(
+    payloads.map((p) => p.item_id),
+    (chunk) =>
+      client.from("items_meta").delete().in("id", chunk).eq("role", "table"),
+    "purgeNoteTablesOf",
+  );
 }
 
 export const PHASE2_NOTE_TABLES_METHOD_NAMES = [
