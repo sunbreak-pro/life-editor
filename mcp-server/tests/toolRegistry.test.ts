@@ -67,6 +67,7 @@ const NO_ARGUMENT_TOOLS = [
   "get_ai_rules",
   "list_ai_memories",
   "list_ai_skills",
+  "list_extension_apps",
 ];
 
 describe("every published tool is registered and validated", () => {
@@ -261,6 +262,34 @@ const VALID_CALLS: Array<[string, Record<string, unknown>]> = [
   ["update_ai_skill", { slug: "weekly-review", new_slug: "review" }],
   ["link_items", { from_id: "note-1", to_id: "task-2" }],
   ["unlink_items", { from_id: "note-1", to_id: "task-2" }],
+  ["create_record", { kind: "expense", value: 450 }],
+  [
+    "create_record",
+    {
+      kind: "expense",
+      value: 450,
+      occurred_at: "2026-10-11T12:10:00+09:00",
+      unit: "JPY",
+      dims: { category: "food" },
+      note: "latte",
+      external_id: "ext-1",
+      source_app: "claude",
+    },
+  ],
+  ["list_records", {}],
+  [
+    "list_records",
+    {
+      kind: "expense",
+      source_app: "claude",
+      from: "2026-10-01",
+      to: "2026-10-31",
+      group_by: "week",
+      limit: 10,
+    },
+  ],
+  ["delete_record", { id: "record-1" }],
+  ["list_extension_apps", {}],
   ["list_work_sessions", {}],
   [
     "list_work_sessions",
