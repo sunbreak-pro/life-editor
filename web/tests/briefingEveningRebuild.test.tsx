@@ -129,6 +129,7 @@ function makeDS(seed: {
   today?: DailyNode | null;
   past?: DailyNode[];
   todos?: TodoNode[];
+  goal?: Goal;
 }) {
   let today = seed.today ?? null;
   const writes = Object.fromEntries(
@@ -168,7 +169,7 @@ function makeDS(seed: {
       ...(seed.past ?? []),
       ...(today ? [today] : []),
     ]),
-    fetchGoals: vi.fn().mockResolvedValue([WEEK_GOAL]),
+    fetchGoals: vi.fn().mockResolvedValue([seed.goal ?? WEEK_GOAL]),
     fetchGoalTodoLinks: vi.fn().mockResolvedValue([
       { id: "l1", goalId: "g-plan", todoId: "t-done", isDeleted: false },
       { id: "l2", goalId: "g-plan", todoId: "t-open", isDeleted: false },
@@ -586,8 +587,19 @@ describe("put on tomorrow (#2107)", () => {
     try {
       // Tomorrow by the paper's own clock (4 o'clock start), whatever the
       // hour this runs at.
-      const tomorrow = addDaysKey(todayDateKey(new Date(), 4), 1);
-      const { ds, writes } = makeDS({ today: null, todos: [STILL_OPEN] });
+      const paperDay = todayDateKey(new Date(), 4);
+      const tomorrow = addDaysKey(paperDay, 1);
+      // The goal sits in the paper's week, not the wall calendar's: between
+      // 00:00 and 04:00 on a Sunday the two differ (weeks start on Sunday),
+      // and a goal outside the paper's week drops out of the row's label.
+      const { ds, writes } = makeDS({
+        today: null,
+        todos: [STILL_OPEN],
+        goal: {
+          ...WEEK_GOAL,
+          periodKey: goalPeriodKeys(paperDay, WEEK_STARTS_ON).week,
+        },
+      });
       renderEvening(ds);
       fireEvent.change(
         await screen.findByLabelText("Time (optional): 図を直す 企画書を通す"),
