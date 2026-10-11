@@ -9,6 +9,7 @@ import {
 import type { Editor } from "@tiptap/core";
 import {
   BetweenHorizontalEnd,
+  Tag as TagIcon,
   BetweenHorizontalStart,
   BetweenVerticalEnd,
   BetweenVerticalStart,
@@ -21,7 +22,7 @@ import {
   isImeComposing,
   NOTE_STICKY_HEADER_HEIGHT_VAR,
 } from "@life-editor/shared";
-import { tableNameOf } from "./tableNodes";
+import { tableIdOf, tableNameOf } from "./tableNodes";
 
 /*
  * The panel for a table in the note body (#1903, rebuilt by #2011).
@@ -74,9 +75,35 @@ export interface TableControlLabels {
   namePlaceholder: string;
 }
 
+/**
+ * Tags on a table (#2094), wired by the Notes host only — a Daily or a todo
+ * body has no note to be the table's parent (plan Q1), so its bar has no tag
+ * row at all.
+ *
+ * A table without a `tableId` is not an item yet. Its row is a single button:
+ * `makeItem` creates the item, and the bar writes the returned id into the
+ * table node. From then on the row is `renderTags(tableId)`, the ordinary
+ * tag picker for that item.
+ */
+export interface TableTagsWiring {
+  /** Make the table an item under this note; its id, or null on failure. */
+  makeItem: (name: string) => Promise<string | null>;
+  renderTags: (tableId: string) => ReactNode;
+  labels: {
+    /** Caption and group name of the tag row. */
+    group: string;
+    /** The button on a table that is not an item yet. */
+    addTags: string;
+    /** The same button while the item is being made. */
+    adding: string;
+  };
+}
+
 interface TableControlsProps {
   editor: Editor | null;
   labels: TableControlLabels;
+  /** Omitted → no tag row (#2094). */
+  tags?: TableTagsWiring;
 }
 
 /**
@@ -127,6 +154,98 @@ function readTableName(editor: Editor): string {
   const pos = readTablePos(editor);
   if (pos < 0) return "";
   return tableNameOf(editor.state.doc.nodeAt(pos)) ?? "";
+}
+
+/** The table item id around the caret, or "" (#2094). */
+function readTableId(editor: Editor): string {
+  const pos = readTablePos(editor);
+  if (pos < 0) return "";
+  return tableIdOf(editor.state.doc.nodeAt(pos)) ?? "";
+}
+
+/**
+ * The tag row of the bar (#2094). Its own component so the "making the item"
+ * state lives with the button and resets when the caret moves to another
+ * table (the parent keys it on the table).
+ */
+function TableTagRow({
+  editor,
+  tablePos,
+  tableId,
+  tableName,
+  tags,
+}: {
+  editor: Editor;
+  tablePos: number;
+  tableId: string;
+  tableName: string;
+  tags: TableTagsWiring;
+}): ReactElement {
+  const [busy, setBusy] = useState(false);
+
+  const makeItem = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const id = await tags.makeItem(tableName);
+      if (!id) return;
+      // Anything may have moved while the item was being made: write only to
+      // a table still standing where it was read, and still without an id.
+      const node = editor.state.doc.nodeAt(tablePos);
+      if (!node || node.type.name !== "table" || tableIdOf(node) !== null) {
+        return;
+      }
+      // Not an edit to undo: Ctrl+Z right after tagging must not quietly
+      // detach the table from the item its tags now live on.
+      editor.view.dispatch(
+        editor.state.tr
+          .setNodeAttribute(tablePos, "tableId", id)
+          .setMeta("addToHistory", false),
+      );
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div
+      role="group"
+      aria-label={tags.labels.group}
+      data-table-tags=""
+      className="flex flex-wrap items-center gap-1"
+    >
+      <span
+        aria-hidden
+        className="text-xs font-semibold text-lumen-text-secondary"
+      >
+        {tags.labels.group}
+      </span>
+      {tableId ? (
+        tags.renderTags(tableId)
+      ) : (
+        <button
+          type="button"
+          data-table-action="add-tags"
+          disabled={busy}
+          aria-label={busy ? tags.labels.adding : tags.labels.addTags}
+          onClick={() => void makeItem()}
+          className={cn(
+            "inline-flex h-7 items-center gap-1 rounded-lumen-sm border border-lumen-border bg-lumen-bg px-2 text-xs text-lumen-text hover:bg-lumen-hover",
+            "disabled:cursor-wait disabled:text-lumen-text-tertiary",
+            "max-md:min-h-11 max-md:min-w-11",
+            FOCUS_RING,
+          )}
+        >
+          <span aria-hidden className="inline-flex">
+            <TagIcon size={14} />
+          </span>
+          <span aria-hidden>
+            {busy ? tags.labels.adding : tags.labels.addTags}
+          </span>
+        </button>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -194,9 +313,11 @@ function TableNameField({
 export function TableControls({
   editor,
   labels,
+  tags,
 }: TableControlsProps): ReactElement | null {
   const tablePos = useEditorSnapshot(editor, readTablePos, -1);
   const tableName = useEditorSnapshot(editor, readTableName, "");
+  const tableId = useEditorSnapshot(editor, readTableId, "");
 
   // A read-only surface (the briefing preview, a todo body in draft mode) has
   // no business drawing editing controls.
@@ -300,6 +421,16 @@ export function TableControls({
         onCommit={commitName}
         onDone={() => editor.commands.focus()}
       />
+      {tags && (
+        <TableTagRow
+          key={tablePos}
+          editor={editor}
+          tablePos={tablePos}
+          tableId={tableId}
+          tableName={tableName.trim()}
+          tags={tags}
+        />
+      )}
       {group(labels.rowGroup, [
         button(
           "add-row-before",

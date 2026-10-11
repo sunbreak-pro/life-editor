@@ -38,6 +38,7 @@ import { NotesSidebarList } from "./NotesSidebarList";
 import { NoteDetailSurface } from "./NoteDetailSurface";
 import { useNoteListState } from "./hooks/useNoteListState";
 import { useNoteLinking } from "./hooks/useNoteLinking";
+import { useNoteTableItems } from "./hooks/useNoteTableItems";
 import { useNotePassword } from "./hooks/useNotePassword";
 import { useNoteTemplateRegister } from "./hooks/useNoteTemplateRegister";
 import { useNoteTemplateLibrary } from "./hooks/useNoteTemplateLibrary";
@@ -207,6 +208,8 @@ export function NotesView({
     pendingSelectNoteId,
     onConsumePendingSelect,
   });
+  // #2094: tags on the body's tables, and the items' post-save sync.
+  const tableItems = useNoteTableItems(dataService);
 
   // #1687 folded the old `handleAssignTag` into the move below: the drop is no
   // longer "add this tag", so the de-dupe it did now lives in `planTagMove`
@@ -867,6 +870,7 @@ export function NotesView({
                 <NoteBodyEditor
                   note={selected}
                   linking={linking}
+                  tableItems={tableItems}
                   remountToken={bodyEpoch}
                   attachments={attachments}
                   onEditorChange={setBodyEditor}
