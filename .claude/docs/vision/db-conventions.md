@@ -17,7 +17,7 @@
 
 ### 10.1 2 行分割マッピング（全 role 共通）
 
-`tasks` / `notes` / `dailies` / `routines` / `events` / `goals`（0034 で追加 = §15）のすべての role で、TS の 1 ドメイン型は **`items_meta` 1 行 + `<role>_payload` 1 行**にマップされる。mapper は次の 3 関数だけで構成し、I/O は一切持たない（`@supabase/supabase-js` 依存ゼロ）:
+`tasks` / `notes` / `dailies` / `routines` / `events` / `goals`（0034 で追加 = §15）/ `tables`（0040 で追加 = §16）のすべての role で、TS の 1 ドメイン型は **`items_meta` 1 行 + `<role>_payload` 1 行**にマップされる。mapper は次の 3 関数だけで構成し、I/O は一切持たない（`@supabase/supabase-js` 依存ゼロ）:
 
 - `rowsToType(meta, payload): Type` — SELECT した 2 行 → TS 型
 - `typeToRows(node, userId): { meta, payload }` — TS 型 → 2 行（INSERT 用）
@@ -182,3 +182,14 @@ Briefing の作り直し（計画書 = `docs/vision/plans/2026-10-03-briefing-go
 - **`goal_todo_links` は関係の表なので `updated_at` とソフトデリートを自分で持つ**（`wiki_tag_connections` / `routine_group_assignments` と同じ形）。両端は `(goal_id, 'goal')` と `(todo_id, 'task')` の生成列つき複合 FK で、目標と Todo を取り違えた行を DB が拒否します。生きている行だけに部分 UNIQUE（`(goal_id, todo_id) WHERE is_deleted = false`）を張るので、外したつながりを後からつなぎ直せます。アイテム間リンクの `wiki_tag_connections` には入れません（入れると Connect のリンク一覧にノートのリンクと同じチップとして混ざるためです）
 - **`dailies_payload` に足した 3 列**: `evening_published_at`（夕刊を★で発行した時刻）と `evening_notes`（出来事の行に足した一言。jsonb のオブジェクト = 行の鍵 → 文）が 0034、`morning_comment`（Claude の朝刊の講評。jsonb の配列）が 0035 です。どれも型を CHECK で縛っています。講評は Daily の本文に書かず列に書き、列が無い古い日だけ本文の「朝刊」の節を読みます（D-20261007-briefing-1）
 - 新しい 2 表とも owner-only の RLS と `supabase_realtime` への加入を 0034 の中で済ませています。同期のドメインは `goals`（`shared/src/context/syncDomains.ts`）です
+
+## 16. ノートの表のアイテム（0040・#2094）
+
+ノート本文の中の表にタグを付けるための DDL の規約です（計画書 = `docs/vision/plans/2026-10-10-note-table-items.md`）。表は新しい role `table` のアイテムで、タグの割り当て（`wiki_tag_assignments`）は role を区別しないので、表の id にそのまま付きます。
+
+- **セルの正本はノート本文のまま**: `tables_payload` が持つのは親のノート（`parent_note_id`）だけです。本文の表ノードが `tableId` 属性でアイテムを指し、表の名前は `items_meta.title` に写します（名前のない表は `''`）。セルを payload に写すと正本が 2 つになるためです
+- **アイテムになるのはタグを初めて付けたときだけ**: backfill はありません。`tableId` の無い表は今までどおりの表です
+- **親はノートだけ**: `(parent_note_id, parent_note_role)` → `items_meta(id, role)` の複合 FK（`parent_note_role` は `'note'` 固定の生成列・`ON DELETE NO ACTION`）。ノートを物理削除するときは、そのノートの表のアイテムを先に消します（§10.4。`permanentDeleteNoteUnified` がノート 1 件ごとに `purgeNoteTablesOf` を呼びます）
+- **本文と行のずれはアプリが直す**: ノートを保存するたびに `syncNoteTables` が本文の `tableId` とそのノートの表のアイテムを比べ、本文から消えた表をソフトデリートし、戻った表（Undo）を復元し、名前をそろえます。本文を JSON として読めないときは何もしません。貼り付けた表からは `tableId` を外します（2 つの表が 1 つのアイテムを指さないようにするためです）
+- **表は単独でゴミ箱に出さない**: 親のノートがゴミ箱にある表は、Connect と MCP の `search_by_tag` が読むときに外します。表のアイテム自体はソフトデリートしないので、ノートを戻せば表も戻ります。MCP の `list_trash` も表を出しません
+- owner-only の RLS と `supabase_realtime` への加入は 0040 の中で済ませています。同期のドメインは `notes` です（`shared/src/context/syncDomains.ts`）
