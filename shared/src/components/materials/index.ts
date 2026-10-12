@@ -56,19 +56,14 @@ export {
   type DailyEntriesPanelProps,
   type DailyEntriesPanelEntry,
 } from "./DailyEntriesPanel";
-// #2123 — the mood stars + four figures under the Daily body, and the
-// morning record above it (the evening card of #1046 went with it).
+// #2123 — the mood stars + four figures under the Daily body (the evening
+// card of #1046 went with it; the morning record above it left in #2228).
 export {
   DailyDayFooter,
   type DailyDayFooterProps,
   type DailyDayFooterLabels,
   type DailyDayFigure,
 } from "./DailyDayFooter";
-export {
-  DailyMorningNote,
-  type DailyMorningNoteProps,
-  type DailyMorningNoteLabels,
-} from "./DailyMorningNote";
 export {
   plainTextToTipTapDoc,
   dailyContentToEditorContent,

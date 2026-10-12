@@ -1,9 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
-import { DailyDayFooter, DailyMorningNote } from "../src/components";
+import { DailyDayFooter } from "../src/components";
 
 /*
- * #2123 — the two blocks around the Daily body. Pure presentation: the host
+ * #2123 — the block under the Daily body. Pure presentation: the host
  * decides what a star press means and hands the figures in as strings, so
  * what is pinned here is the drawing and the press forwarding.
  */
@@ -79,36 +79,5 @@ describe("DailyDayFooter", () => {
     expect(screen.queryAllByRole("term")).toHaveLength(0);
     // The stars are drawn regardless — a blank day can still be rated.
     expect(screen.getAllByRole("button")).toHaveLength(5);
-  });
-});
-
-describe("DailyMorningNote", () => {
-  const labels = {
-    region: "朝の記録",
-    comment: "朝刊のひとこと",
-    intention: "宣言",
-  };
-
-  it("prints the comment paragraphs and the 宣言 lines", () => {
-    render(
-      <DailyMorningNote
-        comment={["一文目", "二文目"]}
-        intention={"早く寝る\n\n歩く"}
-        labels={labels}
-      />,
-    );
-
-    const region = screen.getByRole("region", { name: "朝の記録" });
-    within(region).getByText("朝刊のひとこと");
-    within(region).getByText("一文目");
-    within(region).getByText("二文目");
-    within(region).getByText("早く寝る");
-    within(region).getByText("歩く");
-  });
-
-  it("drops the half that is empty", () => {
-    render(<DailyMorningNote comment={[]} intention="歩く" labels={labels} />);
-    expect(screen.queryByText("朝刊のひとこと")).toBeNull();
-    screen.getByText("宣言");
   });
 });

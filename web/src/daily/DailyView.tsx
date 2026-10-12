@@ -20,7 +20,6 @@ import {
   RightSidebarPortal,
   DailyEntriesPanel,
   DailyDayFooter,
-  DailyMorningNote,
   SidebarListControls,
   useUndoRedoOptional,
   afterSettled,
@@ -30,7 +29,6 @@ import {
   extractEveningSection,
   mergeEveningSection,
   readDailyText,
-  readMorningRecord,
   writeDailyText,
   filterAndSortDailyEntries,
   jsonDocEquals,
@@ -104,9 +102,9 @@ import { useDayFigures } from "./useDayFigures";
  * the 朝刊 / 宣言 sections, the「夕刊」heading and the mood line, read and
  * written only through readDailyText / writeDailyText, the pair the evening
  * paper's「一日の締めくくり」uses too. So the old body and the evening
- * reflection read as one document on both screens. The 朝刊 comment and the
- * 宣言 are shown above it, read-only (readMorningRecord); under it sit only the
- * mood stars and the day's four figures.
+ * reflection read as one document on both screens. Under it sit only the
+ * mood stars and the day's four figures. #2228 took the read-only 朝の記録
+ * (the 朝刊 comment and the 宣言) off this screen; the data stays stored.
  */
 
 function isoDay(offsetDays: number): string {
@@ -404,10 +402,6 @@ export function DailyView({
   const storedMood = useMemo(
     () => extractEveningSection(selectedContent).mood,
     [selectedContent],
-  );
-  const morning = useMemo(
-    () => readMorningRecord(selectedDaily),
-    [selectedDaily],
   );
   const figures = useDayFigures(dataService, selectedDate);
 
@@ -880,22 +874,6 @@ export function DailyView({
     />
   );
 
-  // Above the body: the 朝刊 comment and the 宣言 (plan Step 13), left out on
-  // a day with neither. They are not part of the one text, so the editor
-  // never shows them.
-  const morningNote =
-    morning.comment.length > 0 || morning.intention.trim() !== "" ? (
-      <DailyMorningNote
-        comment={morning.comment}
-        intention={morning.intention}
-        labels={{
-          region: t("materials.daily.morningLabel"),
-          comment: t("materials.daily.morningComment"),
-          intention: t("materials.daily.morningIntention"),
-        }}
-      />
-    ) : null;
-
   /*
    * Past entries — the detail panel's content at both widths (#876). Wide draws
    * it in the push-in rightSidebar; narrow draws the same nodes in the
@@ -973,7 +951,6 @@ export function DailyView({
       <div className="flex h-full min-h-0 flex-col">
         <div className="flex justify-end pb-3">{toTodayButton}</div>
         <div className="flex min-h-0 flex-1 flex-col">
-          {morningNote}
           <EditorCard
             dateLabel={fullDateLabel(selectedDate)}
             dateClassName="text-[28px] font-bold leading-tight tracking-tight text-lumen-text"
@@ -1010,7 +987,6 @@ export function DailyView({
       </div>
 
       <div className="flex min-h-0 flex-1 flex-col">
-        {morningNote}
         <EditorCard
           dateLabel={shortDateLabel(selectedDate)}
           dateClassName="text-lg font-bold leading-tight tracking-tight text-lumen-text"
