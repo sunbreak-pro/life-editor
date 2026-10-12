@@ -1,3 +1,4 @@
+import { isAppSlug } from "./utils/appSlug.js";
 import type { Caller, GatewayAccount, GatewayScope } from "./callerContext.js";
 
 /*
@@ -30,11 +31,11 @@ import type { Caller, GatewayAccount, GatewayScope } from "./callerContext.js";
  * being right if keys are issued to other people, which the plan rules out.
  */
 
+export { isAppSlug } from "./utils/appSlug.js";
+
 export const KEY_PREFIX = "lek_";
 export const SESSION_PREFIX = "les_";
 
-/** items_meta.origin_app's CHECK (0038): lowercase, digits, hyphen, 40 chars. */
-const APP_NAME = /^[a-z0-9-]{1,40}$/;
 const KEY_SHAPE = /^lek_([0-9a-f]{8})_([0-9a-f]{64})$/;
 const KEY_ID = /^[0-9a-f]{8}$/;
 const SHA256_HEX = /^[0-9a-f]{64}$/;
@@ -109,7 +110,9 @@ export function parseGatewayConfig(
     if (typeof entry !== "object" || entry === null) return null;
     const e = entry as Record<string, unknown>;
 
-    if (typeof e.app !== "string" || !APP_NAME.test(e.app)) return null;
+    // The app's name is its extension_apps.slug, and never the reserved
+    // "claude" (utils/appSlug.ts).
+    if (typeof e.app !== "string" || !isAppSlug(e.app)) return null;
     if (seenApps.has(e.app)) return null;
     seenApps.add(e.app);
 

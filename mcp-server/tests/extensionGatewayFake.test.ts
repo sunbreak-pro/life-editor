@@ -161,6 +161,13 @@ interface KeyedLookup {
 }
 let keyLookup: KeyedLookup | null = null;
 
+/**
+ * What the real side finds in app_records for a one-row read (create_record's
+ * external_id lookup, delete_record's owner check). Null = no such record.
+ * Collection reads of app_records and extension_apps answer nothing.
+ */
+let recordRow: Record<string, unknown> | null = null;
+
 function useRealStub(kind: RealStub): void {
   const rows =
     kind === "empty"
@@ -172,6 +179,9 @@ function useRealStub(kind: RealStub): void {
               : { ...ANY_ROW, ...kind }
             : [];
   const select = (call: QueryCall): unknown => {
+    if (call.table === "app_records" || call.table === "extension_apps") {
+      return call.single ? recordRow : [];
+    }
     if (call.columns?.includes("origin_request_hash")) {
       if (!keyLookup) return null;
       return {
@@ -261,15 +271,38 @@ async function fakeResult(
 
 /* ---- a seeded fake ------------------------------------------------------- */
 
+const SEED_RECORD = {
+  kind: "expense",
+  value: 450,
+  unit: "JPY",
+  occurred_at: "2026-10-11T12:10:00+09:00",
+  dims: { category: "food" },
+  external_id: "seed-record",
+};
+const REAL_RECORD_ID = "record-1";
+
+/** The real side's app_records row for SEED_RECORD, written by APP. */
+const SEED_RECORD_ROW = {
+  id: REAL_RECORD_ID,
+  source_app: "parity-app",
+  external_id: SEED_RECORD.external_id,
+  kind: SEED_RECORD.kind,
+  occurred_at: "2026-10-11T03:10:00.000Z",
+  value: SEED_RECORD.value,
+  unit: SEED_RECORD.unit,
+  dims: SEED_RECORD.dims,
+  note: null,
+};
+
 interface Seeded {
   gateway: FakeGateway;
   /** Placeholder → the fake's id (or value). */
   values: Record<string, string>;
 }
 
-/** A fresh fake holding one todo (tagged "seed"), one note, one timed and one all-day event. */
+/** A fresh fake holding one todo (tagged "seed"), one note, one timed and one all-day event, and one record. */
 async function seededFake(): Promise<Seeded> {
-  const gateway = createFakeGateway({ token: TOKEN });
+  const gateway = createFakeGateway({ token: TOKEN, app: APP.app });
   const todo = await fakeResult(gateway, "create_todo", { title: "Renewal" });
   const note = await fakeResult(gateway, "create_note", {
     title: "Renewal plans",
@@ -290,6 +323,7 @@ async function seededFake(): Promise<Seeded> {
     tag_name: "seed",
     entity_id: todo.id,
   });
+  const record = await fakeResult(gateway, "create_record", SEED_RECORD);
   return {
     gateway,
     values: {
@@ -298,6 +332,7 @@ async function seededFake(): Promise<Seeded> {
       $event: event.id as string,
       $allDay: allDay.id as string,
       $noteUpdatedAt: note.updatedAt as string,
+      $record: record.id as string,
     },
   };
 }
@@ -309,6 +344,7 @@ const REAL_VALUES: Record<string, string> = {
   $event: REAL_ID,
   $allDay: REAL_ID,
   $noteUpdatedAt: ANY_ROW.updated_at,
+  $record: REAL_RECORD_ID,
 };
 
 function fill(args: Args, values: Record<string, string>): Args {
@@ -414,6 +450,8 @@ interface Case {
   before?: Array<[string, Args]>;
   /** What the real side finds under an idempotency_key (default: nothing). */
   lookup?: KeyedLookup;
+  /** The app_records row the real side's one-row reads find (default: none). */
+  record?: Record<string, unknown>;
   /** The spec result check is skipped, with the reason. */
   specGap?: string;
 }
@@ -621,6 +659,99 @@ function KEYED_CASES(): Case[] {
     { tool: "delete_by_external_id", args: {} },
   ];
 }
+
+/*
+ * The record tools (#2166). The fake's records all belong to the app it serves
+ * (KNOWN_DIFFERENCES 10), so the forbidden refusal of another source's record
+ * is pinned in gatewayWorker.test.ts and recordHandlers.test.ts instead.
+ */
+function RECORD_CASES(): Case[] {
+  return [
+    // create_record
+    {
+      tool: "create_record",
+      args: { kind: "weight", value: 62.5, unit: "kg" },
+    },
+    {
+      tool: "create_record",
+      args: { kind: "expense", value: 980, external_id: "new-key" },
+    },
+    // the gateway does not take source_app: accepted, ignored, and noted
+    {
+      tool: "create_record",
+      args: { kind: "expense", value: 1, source_app: "claude" },
+    },
+    // the same external_id and content is a replay
+    { tool: "create_record", args: SEED_RECORD, record: SEED_RECORD_ROW },
+    // ... and with other content is refused
+    {
+      tool: "create_record",
+      args: { ...SEED_RECORD, value: 500 },
+      record: SEED_RECORD_ROW,
+    },
+    { tool: "create_record", args: { kind: "Expense", value: 1 } },
+    { tool: "create_record", args: { kind: "expense" } },
+    {
+      tool: "create_record",
+      args: { kind: "expense", value: 1, occurred_at: "2026-10-11T12:10:00" },
+    },
+    {
+      tool: "create_record",
+      args: { kind: "expense", value: 1, dims: { Bad: 1 } },
+    },
+    { tool: "create_record", args: { kind: "expense", value: 1, dims: [] } },
+    {
+      tool: "create_record",
+      args: { kind: "expense", value: 1, external_id: "" },
+    },
+    // list_records
+    { tool: "list_records", args: {} },
+    { tool: "list_records", args: { kind: "expense", group_by: "day" } },
+    {
+      tool: "list_records",
+      args: { from: "2026-10-01", to: "2026-10-31", source_app: "parity-app" },
+    },
+    {
+      tool: "list_records",
+      args: {
+        from: "2026-10-11T00:00:00+09:00",
+        to: "2026-10-12T00:00:00+09:00",
+      },
+    },
+    { tool: "list_records", args: { from: "2026-10-31", to: "2026-10-01" } },
+    { tool: "list_records", args: { kind: "Expense" } },
+    { tool: "list_records", args: { source_app: "Bad App" } },
+    { tool: "list_records", args: { limit: 0 } },
+    { tool: "list_records", args: { group_by: "year" } },
+    { tool: "list_records", args: { from: "yesterday" } },
+    // delete_record
+    {
+      tool: "delete_record",
+      args: { id: "$record" },
+      record: { id: REAL_RECORD_ID, source_app: "parity-app" },
+    },
+    { tool: "delete_record", args: { id: NOT_FOUND } },
+    {
+      tool: "delete_record",
+      args: { id: "$record" },
+      before: [["delete_record", { id: "$record" }]],
+    },
+    { tool: "delete_record", args: {} },
+    // list_extension_apps (nothing in it can fail; see CANNOT_FAIL)
+    { tool: "list_extension_apps", args: {} },
+    { tool: "list_extension_apps", args: { slug: "x" } },
+  ];
+}
+
+/**
+ * Tools no call can make fail: no arguments to get wrong, nothing to miss.
+ * Kept short and with the reason, so the per-tool failure check below stays
+ * the rule for everything else.
+ */
+const CANNOT_FAIL: Readonly<Record<string, string>> = {
+  list_extension_apps:
+    "takes no arguments (an undeclared one is noted, not refused) and reads a list that may be empty",
+};
 
 const EXTRA_CASES: Case[] = [
   // list_todos
@@ -902,6 +1033,7 @@ const EXTRA_CASES: Case[] = [
   { tool: "search_all", args: { query: "x", offset: 1.5, limit: "3" } },
   { tool: "search_all", args: {} },
   ...KEYED_CASES(),
+  ...RECORD_CASES(),
 ];
 
 /** The spec's own examples, valid and invalid, ahead of the extra cases. */
@@ -940,6 +1072,7 @@ describe("every spec tool is exercised", () => {
     for (const spec of committed.tools) {
       const entry = seen.get(spec.name);
       expect(entry?.ok, `${spec.name}: a succeeding case`).toBeGreaterThan(0);
+      if (spec.name in CANNOT_FAIL) continue;
       expect(entry?.failed, `${spec.name}: a failing case`).toBeGreaterThan(0);
     }
   });
@@ -956,14 +1089,19 @@ describe("the fake and the real handlers answer the same calls the same way", ()
       const fake = await fakeOutcome(gateway, c.tool, fill(c.args, values));
 
       keyLookup = c.lookup ?? null;
+      recordRow = c.record ?? null;
       useRealStub(c.real ?? "anyRow");
       const real = await realOutcome(c.tool, fill(c.args, REAL_VALUES));
       keyLookup = null;
+      recordRow = null;
 
       // Ids only: an instant placeholder is left to normalize()'s own rule.
       const ids = [
-        ...["$todo", "$note", "$event", "$allDay"].map((key) => values[key]),
+        ...["$todo", "$note", "$event", "$allDay", "$record"].map(
+          (key) => values[key],
+        ),
         REAL_ID,
+        REAL_RECORD_ID,
       ];
       expect(
         fake.ok,
@@ -1258,6 +1396,139 @@ describe("same state, same answer: the read tools against rows mirrored from the
   }
 });
 
+/* ---- same records, same answer ------------------------------------------- */
+
+/*
+ * The record reads with content (#2166). The parity cases above run the real
+ * side on an empty app_records, so they compare only outcomes and top-level
+ * keys. Here the real side reads rows mirrored from what the fake holds, and
+ * the whole answers — the records, the buckets, the ledger's activity — must
+ * match.
+ */
+describe("same records, same answer: list_records and list_extension_apps", () => {
+  const LEDGER = [
+    {
+      slug: "parity-app",
+      name: "Parity",
+      url: "https://parity.example",
+      icon: null,
+      description: "the app the fake serves",
+      sort_order: 1,
+    },
+    {
+      slug: "quiet-app",
+      name: "Quiet",
+      url: null,
+      icon: null,
+      description: null,
+      sort_order: 0,
+    },
+  ];
+
+  async function build() {
+    const gateway = createFakeGateway({
+      token: TOKEN,
+      app: APP.app,
+      extensionApps: LEDGER,
+    });
+    // Two days, two kinds; the 01:00 JST record counts on its own local day.
+    const made: Array<Record<string, unknown>> = [
+      {
+        kind: "expense",
+        value: 450,
+        unit: "JPY",
+        occurred_at: "2026-10-11T12:10:00+09:00",
+      },
+      {
+        kind: "expense",
+        value: 980,
+        unit: "JPY",
+        occurred_at: "2026-10-12T01:00:00+09:00",
+        dims: { category: "music" },
+      },
+      {
+        kind: "weight",
+        value: 62.5,
+        unit: "kg",
+        occurred_at: "2026-10-12T07:00:00+09:00",
+      },
+      // No occurred_at: "now", so records_30d always has one to count.
+      { kind: "expense", value: 120, unit: "JPY", note: "just now" },
+    ];
+    for (const args of made) await fakeResult(gateway, "create_record", args);
+    const listed = (await fakeResult(gateway, "list_records", {
+      limit: 500,
+    })) as { records: Array<Record<string, unknown>> };
+    const rows = listed.records;
+
+    stub = createSupabaseStub((call: QueryCall): unknown => {
+      // The handler orders the ledger by sort_order, then slug; so does Postgres.
+      if (call.table === "extension_apps") {
+        return call.single
+          ? null
+          : [...LEDGER].sort(
+              (a, b) =>
+                a.sort_order - b.sort_order || a.slug.localeCompare(b.slug),
+            );
+      }
+      if (call.table !== "app_records") return call.single ? null : [];
+      let out = rows.filter((row) =>
+        Object.entries(call.filters).every(
+          ([key, value]) => row[key] === value,
+        ),
+      );
+      const at = (row: Record<string, unknown>) =>
+        Date.parse(row.occurred_at as string);
+      const gte = call.bounds["occurred_at.gte"];
+      const lt = call.bounds["occurred_at.lt"];
+      if (typeof gte === "string")
+        out = out.filter((r) => at(r) >= Date.parse(gte));
+      if (typeof lt === "string")
+        out = out.filter((r) => at(r) < Date.parse(lt));
+      // The fake listed them newest first already, the order the handlers ask for.
+      if (call.single) return out[0] ?? null;
+      const from = call.range?.from ?? 0;
+      const to = call.range?.to ?? out.length - 1;
+      return out.slice(from, to + 1);
+    }, SAVED_RPC);
+    return gateway;
+  }
+
+  const READS: Array<[string, Args]> = [
+    ["list_records", {}],
+    ["list_records", { kind: "expense" }],
+    ["list_records", { limit: 2 }],
+    ["list_records", { from: "2026-10-12", to: "2026-10-12" }],
+    ["list_records", { source_app: "parity-app", kind: "weight" }],
+    ["list_records", { kind: "expense", group_by: "day" }],
+    ["list_records", { kind: "expense", group_by: "week" }],
+    ["list_records", { kind: "expense", group_by: "month" }],
+    ["list_extension_apps", {}],
+  ];
+
+  for (const [name, args] of READS) {
+    it(`${name} ${JSON.stringify(args)}`, async () => {
+      const gateway = await build();
+      const fake = await fakeOutcome(gateway, name, args);
+      const real = await realOutcome(name, args);
+      expect(real).toEqual(expect.objectContaining({ ok: true }));
+      expect(fake.ok).toBe(true);
+      if (!fake.ok || !real.ok) return;
+      expect(JSON.parse(fake.texts[0])).toEqual(JSON.parse(real.texts[0]));
+    });
+  }
+
+  it("says something worth comparing: the ledger answer carries the app's activity", async () => {
+    const gateway = await build();
+    const apps = (await fakeResult(gateway, "list_extension_apps", {}))
+      .apps as Array<Record<string, unknown>>;
+    expect(apps.map((a) => a.slug)).toEqual(["quiet-app", "parity-app"]);
+    expect(apps[1].records_30d).toBeGreaterThan(0);
+    expect(apps[1].last_record_at).not.toBeNull();
+    expect(apps[0]).toMatchObject({ records_30d: 0, last_record_at: null });
+  });
+});
+
 /* ---- HTTP surface -------------------------------------------------------- */
 
 describe("the HTTP surface matches the Worker's", () => {
@@ -1382,7 +1653,7 @@ describe("the HTTP surface matches the Worker's", () => {
     expect(body.result.tools.map((t) => t.name)).toEqual(
       committed.tools.map((t) => t.name),
     );
-    expect(body.result.tools).toHaveLength(24);
+    expect(body.result.tools).toHaveLength(28);
     // The real Worker lists the whole remote set; the gateway's registry is
     // the one the fake stands in for.
     expect(body.result.tools).toEqual(

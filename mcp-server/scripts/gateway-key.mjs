@@ -12,8 +12,9 @@
  * Supabase: the output is yours to paste.
  *
  * ISSUING (a new app):
- *   1. Run `issue` with the app name (lowercase letters, digits, hyphens; it is
- *      what items_meta.origin_app will hold).
+ *   1. Run `issue` with the app's slug (extension_apps.slug: a lowercase letter,
+ *      then 1-31 lowercase letters, digits or hyphens; not "claude"). It is what
+ *      items_meta.origin_app and app_records.source_app will hold.
  *   2. Copy the `apps` entry from the output into the secret's JSON and put it:
  *        npx wrangler@4 secret put LIFE_EDITOR_GATEWAY_APPS -c wrangler.gateway.jsonc
  *      (paste the whole JSON: {"apps":[ ...every app... ]}).
@@ -75,10 +76,11 @@ try {
 }
 
 const app = flag("app");
-if (!app || !/^[a-z0-9-]{1,40}$/.test(app)) {
+if (!app || !auth.isAppSlug(app)) {
   console.error(
-    "[gateway-key] --app is required: lowercase letters, digits and hyphens, " +
-      "at most 40 characters.",
+    "[gateway-key] --app is required: the app's slug in the Apps section " +
+      "(extension_apps.slug — a lowercase letter, then 1-31 lowercase letters, " +
+      "digits or hyphens). \"claude\" is reserved for the owner's own MCP.",
   );
   process.exit(1);
 }

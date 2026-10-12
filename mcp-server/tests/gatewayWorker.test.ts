@@ -477,6 +477,121 @@ describe("only what the app made may be changed (R6)", () => {
   });
 });
 
+describe("records are written and deleted as the key's app (#2166)", () => {
+  /** app_records answers one row whose source_app is `source`; nothing else exists. */
+  const recordOf = (source: string | null) => (call: QueryCall) => {
+    if (call.table !== "app_records") return call.single ? null : [];
+    if (!call.single) return [];
+    return source === null ? null : { id: "record-1", source_app: source };
+  };
+  const recordInserts = () =>
+    stub.writes().filter((w) => w.table === "app_records" && w.op === "insert");
+  const recordDeletes = () =>
+    stub.writes().filter((w) => w.table === "app_records" && w.op === "delete");
+
+  it("publishes the four record tools to a read-write key, and only the reads to a read-only one", async () => {
+    const rw = await toolNames(keys.rw);
+    for (const name of [
+      "create_record",
+      "list_records",
+      "delete_record",
+      "list_extension_apps",
+    ]) {
+      expect(rw, name).toContain(name);
+    }
+    const readOnly = await toolNames(keys.readOnly);
+    expect(readOnly).toContain("list_records");
+    expect(readOnly).toContain("list_extension_apps");
+    expect(readOnly).not.toContain("create_record");
+    expect(readOnly).not.toContain("delete_record");
+  });
+
+  it("stamps create_record with the key's slug", async () => {
+    stub = createSupabaseStub(recordOf(null));
+    const out = await toolCall(keys.rw, "create_record", {
+      kind: "expense",
+      value: 980,
+      unit: "JPY",
+    });
+    expect(out.isError).toBe(false);
+    expect(JSON.parse(out.text)).toMatchObject({ created: true });
+    expect(recordInserts()).toHaveLength(1);
+    expect(recordInserts()[0].values?.source_app).toBe("subscrecorder");
+  });
+
+  it("overwrites a source_app in the arguments with the key's slug, and says it was not applied", async () => {
+    for (const source_app of ["claude", "another-app"]) {
+      stub = createSupabaseStub(recordOf(null));
+      const res = await send(keys.rw, {
+        body: rpc("tools/call", {
+          name: "create_record",
+          arguments: { kind: "expense", value: 980, source_app },
+        }),
+      });
+      const json = (await res.json()) as {
+        result: { content: Array<{ text: string }>; isError?: boolean };
+      };
+      expect(json.result.isError, source_app).toBeUndefined();
+      expect(recordInserts()[0].values?.source_app, source_app).toBe(
+        "subscrecorder",
+      );
+      expect(json.result.content[1]?.text, source_app).toMatch(
+        /^Note: create_record does not accept source_app\./,
+      );
+    }
+  });
+
+  it("writes a review key's records as its own slug, in the review account", async () => {
+    stub = createSupabaseStub(recordOf(null));
+    const out = await toolCall(keys.review, "create_record", {
+      kind: "expense",
+      value: 1,
+    });
+    expect(out.isError).toBe(false);
+    expect(recordInserts()[0].values?.source_app).toBe("subscrecorder-review");
+  });
+
+  it("refuses delete_record of another source's record with forbidden, and deletes nothing", async () => {
+    for (const source of ["another-app", "claude"]) {
+      stub = createSupabaseStub(recordOf(source));
+      const out = await toolCall(keys.rw, "delete_record", { id: "record-1" });
+      expect(out.isError, source).toBe(true);
+      expect(out.code, source).toBe("forbidden");
+      expect(out.text, source).toBe(
+        "Error: Forbidden: record-1 was not recorded by subscrecorder",
+      );
+      expect(recordDeletes(), source).toEqual([]);
+    }
+  });
+
+  it("deletes the key's own record", async () => {
+    stub = createSupabaseStub(recordOf("subscrecorder"));
+    const out = await toolCall(keys.rw, "delete_record", { id: "record-1" });
+    expect(out.isError).toBe(false);
+    expect(JSON.parse(out.text)).toEqual({ success: true, id: "record-1" });
+    expect(recordDeletes()).toHaveLength(1);
+  });
+
+  it("answers not_found for a record that is not there", async () => {
+    stub = createSupabaseStub(recordOf(null));
+    const out = await toolCall(keys.rw, "delete_record", { id: "record-1" });
+    expect(out.code).toBe("not_found");
+    expect(recordDeletes()).toEqual([]);
+  });
+
+  it("refuses create_record and delete_record to a read-only key before any handler runs", async () => {
+    stub = createSupabaseStub(recordOf("viewer"));
+    for (const [name, args] of [
+      ["create_record", { kind: "expense", value: 1 }],
+      ["delete_record", { id: "record-1" }],
+    ] as const) {
+      const out = await toolCall(keys.readOnly, name, args);
+      expect(out.code, name).toBe("forbidden");
+    }
+    expect(stub.calls).toEqual([]);
+  });
+});
+
 describe("a key that is not a browser's (R4)", () => {
   it("answers a page nothing it can read, even from an allowed origin", async () => {
     const res = await send(keys.rw, {

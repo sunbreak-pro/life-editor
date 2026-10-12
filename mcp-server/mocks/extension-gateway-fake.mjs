@@ -2,8 +2,8 @@
  * The official fake of the life-editor extension-app gateway (#2145, plan
  * .claude/docs/vision/plans/2026-10-07-extension-app-gateway.md, R2).
  *
- *   Gateway version:    1.2.0
- *   life-editor commit: ee588a56a308147dae6ffb7110feea32dade91dd
+ *   Gateway version:    1.3.0
+ *   life-editor commit: 872218eb1740579fe229d3104bf2e859ec47c9e5
  *
  * Those two lines are the spec this file was written against. They are a
  * promise, not decoration: tests/extensionGatewayFake.test.ts fails when they
@@ -32,6 +32,10 @@
  *   const gateway = createFakeGateway({ token: "t" });
  *   const res = await gateway.fetch(new Request("http://x/mcp/t", {...}));
  *   const { port, close } = await listen(gateway, 0);
+ * Options besides `token`: `app` (the calling app's slug, default "fake-app"
+ * — what create_record stamps as source_app), `extensionApps` (the Apps
+ * ledger list_extension_apps reads: { slug, name, url?, icon?, description?,
+ * sort_order }[], default none), `allowedOrigins`, `timeZone`, `specPath`.
  * or from a shell:
  *   node mocks/extension-gateway-fake.mjs --port 8787 --token x [--origin http://localhost:5173]
  *
@@ -85,7 +89,11 @@
  *      in a single namespace, where the real gateway keeps them per app (a
  *      key another app used is simply not found there). The refusals — a
  *      reused key with different arguments, a key whose item was deleted —
- *      are the real ones.
+ *      are the real ones. Records are the same: every record the fake holds
+ *      is the serving app's (`app`), so delete_record's forbidden refusal for
+ *      another source's record cannot be reached here.
+ *  11. The Apps ledger (extension_apps) is the `extensionApps` option, fixed
+ *      when the fake is created; nothing in the gateway writes it.
  */
 
 import { existsSync, readFileSync } from "node:fs";
@@ -455,6 +463,18 @@ function makeClock(timeZone) {
     return d.toISOString().slice(0, 10);
   };
   return {
+    /** The local YYYY-MM-DD an instant falls on (utils/localDate.ts localDateKey). */
+    dateKeyOf(instant) {
+      const at = new Date(instant);
+      return timeZone
+        ? new Intl.DateTimeFormat("sv-SE", {
+            timeZone,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+          }).format(at)
+        : at.toLocaleDateString("sv-SE");
+    },
     today() {
       const now = new Date();
       return timeZone
@@ -496,6 +516,7 @@ function createStore() {
     events: new Map(),
     tags: new Map(),
     assignments: new Map(),
+    records: new Map(),
   };
 }
 
@@ -539,7 +560,7 @@ const byKey =
     return 0;
   };
 
-function createTools(state, clock, toolSpecs) {
+function createTools(state, clock, toolSpecs, { app, extensionApps }) {
   const db = () => state.store;
 
   /* items_meta rituals (src/utils/items.ts) */
@@ -807,6 +828,125 @@ function createTools(state, clock, toolSpecs) {
     total: matches.length,
     hasMore: offset + limit < matches.length,
   });
+
+  /* records (src/handlers/recordHandlers.ts) — one app, see KNOWN_DIFFERENCES 10 */
+  const RECORD_KIND = /^[a-z][a-z0-9_]{0,31}$/;
+  const RECORD_SOURCE_APP = /^[a-z][a-z0-9-]{1,31}$/;
+  const RECORD_DIM_KEY = /^[a-z][a-z0-9_]{0,31}$/;
+  const RECORD_INSTANT =
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})$/;
+  const RECORD_DAY = /^\d{4}-\d{2}-\d{2}$/;
+  const MAX_RECORD_LIST_LIMIT = 500;
+  const RECENT_RECORD_DAYS = 30;
+
+  const checkKind = (kind) => {
+    if (!RECORD_KIND.test(kind)) {
+      throw invalidArguments(
+        `Invalid kind "${kind}" (expected ${RECORD_KIND.source}: lower-case letters, digits and _, starting with a letter, up to 32 characters)`,
+      );
+    }
+    return kind;
+  };
+  const checkSourceApp = (sourceApp) => {
+    if (sourceApp !== "claude" && !RECORD_SOURCE_APP.test(sourceApp)) {
+      throw invalidArguments(
+        `Invalid source_app "${sourceApp}" (expected "claude" or an app slug: ${RECORD_SOURCE_APP.source})`,
+      );
+    }
+    return sourceApp;
+  };
+  const checkDims = (dims) => {
+    if (typeof dims !== "object" || dims === null || Array.isArray(dims)) {
+      throw invalidArguments("dims must be an object");
+    }
+    const entries = Object.entries(dims);
+    if (entries.length > 20) {
+      throw invalidArguments(
+        `dims has ${entries.length} keys; at most 20 are allowed`,
+      );
+    }
+    const out = {};
+    for (const [key, value] of entries) {
+      if (!RECORD_DIM_KEY.test(key)) {
+        throw invalidArguments(
+          `Invalid dims key "${key}" (expected ${RECORD_DIM_KEY.source})`,
+        );
+      }
+      const scalar =
+        typeof value === "string" ||
+        typeof value === "boolean" ||
+        (typeof value === "number" && Number.isFinite(value));
+      if (!scalar) {
+        throw invalidArguments(
+          `dims.${key} must be a string, a number or a boolean`,
+        );
+      }
+      out[key] = value;
+    }
+    return out;
+  };
+  const optionalText = (value) => {
+    if (value === undefined || value === null) return null;
+    const trimmed = value.trim();
+    return trimmed === "" ? null : trimmed;
+  };
+  const toInstant = (value, field) => {
+    const ms = RECORD_INSTANT.test(value) ? Date.parse(value) : Number.NaN;
+    if (Number.isNaN(ms)) {
+      throw invalidArguments(
+        `Invalid ${field} "${value}" (expected an ISO 8601 date and time with its offset, e.g. 2026-10-11T12:10:00+09:00)`,
+      );
+    }
+    return new Date(ms).toISOString();
+  };
+  const formatRecord = (row) => ({
+    id: row.id,
+    source_app: row.source_app,
+    external_id: row.external_id,
+    kind: row.kind,
+    occurred_at: row.occurred_at,
+    value: row.value,
+    unit: row.unit,
+    dims: row.dims,
+    note: row.note,
+  });
+  const canonicalDims = (dims) =>
+    JSON.stringify(
+      Object.keys(dims)
+        .sort()
+        .map((key) => [key, dims[key]]),
+    );
+  const sameRecordContent = (row, request) =>
+    row.kind === request.kind &&
+    row.value === request.value &&
+    row.unit === request.unit &&
+    row.note === request.note &&
+    canonicalDims(row.dims) === canonicalDims(request.dims) &&
+    (request.occurredAt === null ||
+      Date.parse(row.occurred_at) === Date.parse(request.occurredAt));
+  const newestFirst = (a, b) =>
+    Date.parse(b.occurred_at) - Date.parse(a.occurred_at) ||
+    (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
+  const appRecords = () => [...db().records.values()].sort(newestFirst);
+  const recordPeriodKey = (groupBy, dateKey) => {
+    if (groupBy === "day") return dateKey;
+    if (groupBy === "month") return dateKey.slice(0, 7);
+    const d = new Date(`${dateKey}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - d.getUTCDay());
+    return d.toISOString().slice(0, 10);
+  };
+  const summarizeValues = (values) => {
+    const sorted = [...values].sort((a, b) => a - b);
+    let sum = 0;
+    for (const value of sorted) sum += value;
+    return {
+      count: sorted.length,
+      sum,
+      avg: sum / sorted.length,
+      min: sorted[0],
+      max: sorted[sorted.length - 1],
+    };
+  };
 
   const tools = {
     /* ---- todos ---- */
@@ -1387,6 +1527,177 @@ function createTools(state, clock, toolSpecs) {
       return { ...result, totalHits };
     },
 
+    /* ---- records (src/handlers/recordHandlers.ts) ---- */
+    // source_app is always the calling app: the gateway's create_record does
+    // not declare it, and the handler takes the caller's slug.
+    create_record(args) {
+      const kind = checkKind(args.kind);
+      const request = {
+        kind,
+        value: args.value,
+        occurredAt:
+          args.occurred_at === undefined || args.occurred_at === null
+            ? null
+            : toInstant(args.occurred_at, "occurred_at"),
+        unit: optionalText(args.unit),
+        dims:
+          args.dims === undefined || args.dims === null
+            ? {}
+            : checkDims(args.dims),
+        note: optionalText(args.note),
+      };
+      const externalId = args.external_id ?? null;
+      if (
+        externalId !== null &&
+        (externalId.length < 1 || externalId.length > 200)
+      ) {
+        throw invalidArguments(
+          "Invalid arguments for create_record: external_id must be 1-200 characters",
+        );
+      }
+      if (externalId !== null) {
+        const existing = appRecords().find(
+          (r) => r.source_app === app && r.external_id === externalId,
+        );
+        if (existing) {
+          if (!sameRecordContent(existing, request)) {
+            throw new CodedError(
+              "idempotency_key_reused",
+              `external_id "${externalId}" was already used for a different record. ` +
+                `Send the same arguments to retry it, or use a new external_id for a new record.`,
+            );
+          }
+          return { id: existing.id, created: false };
+        }
+      }
+      const id = `record-${randomUUID()}`;
+      db().records.set(id, {
+        id,
+        source_app: app,
+        external_id: externalId,
+        kind: request.kind,
+        occurred_at: request.occurredAt ?? now(),
+        value: request.value,
+        unit: request.unit,
+        dims: request.dims,
+        note: request.note,
+      });
+      return { id, created: true };
+    },
+
+    list_records(args) {
+      let fromIso = null;
+      let toIso = null;
+      if (args.from !== undefined && args.from !== null) {
+        fromIso = RECORD_DAY.test(args.from)
+          ? clock.dayRange(assertDateKey(args.from)).startIso
+          : toInstant(args.from, "from");
+      }
+      if (args.to !== undefined && args.to !== null) {
+        toIso = RECORD_DAY.test(args.to)
+          ? clock.dayRange(assertDateKey(args.to)).endIso
+          : toInstant(args.to, "to");
+      }
+      if (
+        fromIso !== null &&
+        toIso !== null &&
+        Date.parse(toIso) <= Date.parse(fromIso)
+      ) {
+        throw invalidArguments(
+          `to (${args.to}) must be after from (${args.from})`,
+        );
+      }
+      const groupBy = args.group_by ?? "none";
+      const kind =
+        args.kind === undefined || args.kind === null
+          ? null
+          : checkKind(args.kind);
+      const sourceApp =
+        args.source_app === undefined || args.source_app === null
+          ? null
+          : checkSourceApp(args.source_app);
+      const rows = appRecords().filter(
+        (r) =>
+          (kind === null || r.kind === kind) &&
+          (sourceApp === null || r.source_app === sourceApp) &&
+          (fromIso === null ||
+            Date.parse(r.occurred_at) >= Date.parse(fromIso)) &&
+          (toIso === null || Date.parse(r.occurred_at) < Date.parse(toIso)),
+      );
+      const range = { from: args.from ?? null, to: args.to ?? null };
+
+      if (groupBy === "none") {
+        const limit = Math.min(
+          resolveListLimit(args.limit),
+          MAX_RECORD_LIST_LIMIT,
+        );
+        return {
+          range,
+          records: rows.slice(0, limit).map(formatRecord),
+          hasMore: rows.length > limit,
+        };
+      }
+
+      const kinds = [...new Set(rows.map((r) => r.kind))].sort();
+      if (kinds.length > 1) {
+        throw invalidArguments(
+          `group_by ${groupBy} needs a kind: the records in this range have kinds ${kinds.join(", ")}`,
+        );
+      }
+      const valuesByPeriod = new Map();
+      for (const r of rows) {
+        const period = recordPeriodKey(groupBy, clock.dateKeyOf(r.occurred_at));
+        const values = valuesByPeriod.get(period);
+        if (values) values.push(r.value);
+        else valuesByPeriod.set(period, [r.value]);
+      }
+      const buckets = [...valuesByPeriod.entries()]
+        .map(([period, values]) => ({ period, ...summarizeValues(values) }))
+        .sort((a, b) => (a.period < b.period ? -1 : a.period > b.period ? 1 : 0));
+      return { range, group_by: groupBy, kind: kinds[0] ?? kind, buckets };
+    },
+
+    delete_record(args) {
+      const row = db().records.get(args.id);
+      if (!row) throw notFoundError(`Record not found: ${args.id}`);
+      if (row.source_app !== app) {
+        throw new CodedError(
+          "forbidden",
+          `Forbidden: ${args.id} was not recorded by ${app}`,
+        );
+      }
+      db().records.delete(args.id);
+      return { success: true, id: args.id };
+    },
+
+    list_extension_apps() {
+      const apps = [...extensionApps].sort(
+        (a, b) =>
+          a.sort_order - b.sort_order ||
+          (a.slug < b.slug ? -1 : a.slug > b.slug ? 1 : 0),
+      );
+      if (apps.length === 0) return { apps: [] };
+      const since = Date.now() - RECENT_RECORD_DAYS * 24 * 60 * 60 * 1000;
+      const records = appRecords();
+      return {
+        apps: apps.map((a) => {
+          const own = records.filter((r) => r.source_app === a.slug);
+          return {
+            slug: a.slug,
+            name: a.name,
+            url: a.url ?? null,
+            icon: a.icon ?? null,
+            description: a.description ?? null,
+            sort_order: a.sort_order,
+            last_record_at: own[0]?.occurred_at ?? null,
+            records_30d: own.filter(
+              (r) => Date.parse(r.occurred_at) >= since,
+            ).length,
+          };
+        }),
+      };
+    },
+
     /* ---- by external id (src/externalIdTools.ts) ---- */
     update_by_external_id(args) {
       const { row, kind } = resolveExternal(args.external_id);
@@ -1486,9 +1797,21 @@ function presentedTokens(url, request) {
  * empties the store.
  */
 export function createFakeGateway(options = {}) {
-  const { token, specPath, allowedOrigins = [], timeZone = null } = options;
+  const {
+    token,
+    specPath,
+    allowedOrigins = [],
+    timeZone = null,
+    app = "fake-app",
+    extensionApps = [],
+  } = options;
   if (typeof token !== "string") {
     throw new Error("createFakeGateway: `token` (string) is required");
+  }
+  if (typeof app !== "string" || app === "claude" || !/^[a-z][a-z0-9-]{1,31}$/.test(app)) {
+    throw new Error(
+      'createFakeGateway: `app` must be an extension_apps.slug (^[a-z][a-z0-9-]{1,31}$), not "claude"',
+    );
   }
   const spec = specPath ? loadSpec(specPath) : DEFAULT_SPEC;
   const toolSpecs = new Map(spec.tools.map((t) => [t.name, t]));
@@ -1501,7 +1824,7 @@ export function createFakeGateway(options = {}) {
   const clock = makeClock(timeZone);
 
   const state = { store: createStore() };
-  const tools = createTools(state, clock, toolSpecs);
+  const tools = createTools(state, clock, toolSpecs, { app, extensionApps });
   for (const name of toolSpecs.keys()) {
     if (!tools[name]) {
       throw new Error(

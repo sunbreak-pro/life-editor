@@ -1,7 +1,7 @@
 {
   "specFormat": 1,
-  "gatewayVersion": "1.2.0",
-  "lifeEditorCommit": "ee588a56a308147dae6ffb7110feea32dade91dd",
+  "gatewayVersion": "1.3.0",
+  "lifeEditorCommit": "872218eb1740579fe229d3104bf2e859ec47c9e5",
   "conventions": {
     "required": "inputSchema.required is the unconditional set. A property sent as null counts as not sent; a required one sent as null is an error.",
     "conditionalRequired": "A tool's conditionalRequired rule says: require[] is also required unless args[unless.field] strictly equals unless.equals. message is the failure text.",
@@ -9,6 +9,7 @@
     "undeclaredArguments": "An argument the schema does not declare is accepted and ignored; the success result carries a second text item beginning 'Note: <tool> does not accept <names>'. Keys starting with '_' are never reported.",
     "result": "Result shapes pin top-level keys and their JSON kinds. $ref points into definitions.",
     "idempotencyKey": "create_todo, create_note and create_schedule_item take an optional idempotency_key (1-200 characters). Same key and same arguments: the first call's item comes back and nothing is created. Same key, different arguments: failure code idempotency_key_reused. Same key whose item was deleted: failure code already_deleted. Keys are per app. Arguments are compared with null counting as absent.",
+    "records": "create_record / list_records / delete_record / list_extension_apps. A record's source_app is the calling app's slug, set from its key; create_record does not take source_app. external_id is create_record's retry key, per app: the same external_id with the same content returns the first record with created: false; with different content it fails with code idempotency_key_reused. A deleted record's external_id is free again. delete_record deletes only the calling app's records; another source's record fails with code forbidden, a missing one with not_found. list_records and list_extension_apps read every source.",
     "externalId": "An item made with an idempotency_key can be changed by that key: update_by_external_id({ external_id, changes }) applies changes with the update tool for the item's kind; delete_by_external_id({ external_id }) deletes it (and succeeds again if it is already deleted). Only items the calling app created can be named; any other key is not_found."
   },
   "transport": {
@@ -288,6 +289,58 @@
         },
         "softDeleted": {
           "type": "boolean"
+        }
+      }
+    },
+    "record": {
+      "type": "object",
+      "required": [
+        "id",
+        "source_app",
+        "external_id",
+        "kind",
+        "occurred_at",
+        "value",
+        "unit",
+        "dims",
+        "note"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "source_app": {
+          "type": "string"
+        },
+        "external_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "kind": {
+          "type": "string"
+        },
+        "occurred_at": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "unit": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "dims": {
+          "type": "object"
+        },
+        "note": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       }
     }
@@ -1388,6 +1441,249 @@
       "stateDependentRules": [],
       "result": {
         "$ref": "#/definitions/deleted"
+      }
+    },
+    {
+      "name": "create_record",
+      "description": "Record one number with a time: an expense, a weight, hours slept. Returns { id, created }. With external_id, sending the same call again returns the same id and created: false and adds no row; the same external_id with different content fails with code idempotency_key_reused. The record's source_app is the calling app's slug, set from its key.",
+      "access": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "What the number is, e.g. expense / weight / sleep. Lower-case letters, digits and _, starting with a letter, up to 32 characters. The caller picks the word."
+          },
+          "value": {
+            "type": "number",
+            "description": "The number itself, e.g. 450 for 450 JPY. May be negative or fractional."
+          },
+          "occurred_at": {
+            "type": "string",
+            "description": "When it happened, ISO 8601 with an offset, e.g. 2026-10-11T12:10:00+09:00. Defaults to now."
+          },
+          "unit": {
+            "type": "string",
+            "description": "Unit of the value, e.g. JPY / kg / min."
+          },
+          "dims": {
+            "type": "object",
+            "description": "Attributes of the record, e.g. { category: 'food', shop: 'cafe' }. Values are strings, numbers or booleans; at most 20 keys; keys are lower-case snake_case."
+          },
+          "note": {
+            "type": "string",
+            "description": "A free-text remark."
+          },
+          "external_id": {
+            "type": "string",
+            "description": "The caller's own id for this record, 1-200 characters. Makes a retry safe (see above). Unique per source_app."
+          }
+        },
+        "required": [
+          "kind",
+          "value"
+        ]
+      },
+      "required": [
+        "kind",
+        "value"
+      ],
+      "conditionalRequired": [],
+      "stateDependentRules": [],
+      "result": {
+        "type": "object",
+        "required": [
+          "id",
+          "created"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "created": {
+            "type": "boolean"
+          }
+        },
+        "description": "created is false when external_id replayed an earlier call; id is then that call's record."
+      },
+      "examples": {
+        "valid": [
+          {
+            "args": {
+              "kind": "expense",
+              "value": 450,
+              "unit": "JPY"
+            }
+          },
+          {
+            "args": {
+              "kind": "expense",
+              "value": 980,
+              "unit": "JPY",
+              "occurred_at": "2026-10-11T12:10:00+09:00",
+              "dims": {
+                "category": "subscription",
+                "service": "music"
+              }
+            }
+          }
+        ],
+        "invalid": [
+          {
+            "args": {
+              "kind": "expense"
+            },
+            "reason": "value is required"
+          },
+          {
+            "args": {
+              "kind": "expense",
+              "value": "450"
+            },
+            "reason": "value must be a number"
+          },
+          {
+            "args": {
+              "kind": "Expense",
+              "value": 450
+            },
+            "reason": "kind is lower-case letters, digits and _, starting with a letter"
+          },
+          {
+            "args": {
+              "kind": "expense",
+              "value": 450,
+              "occurred_at": "2026-10-11T12:10:00"
+            },
+            "reason": "occurred_at has no offset"
+          },
+          {
+            "args": {
+              "kind": "expense",
+              "value": 450,
+              "dims": {
+                "Category": "food"
+              }
+            },
+            "reason": "a dims key is not lower-case snake_case"
+          }
+        ]
+      }
+    },
+    {
+      "name": "list_records",
+      "description": "Read recorded numbers, newest first. Filter by kind, source_app and a period. Without group_by (or 'none') returns { range, records, hasMore }. With group_by day / week / month returns { range, group_by, kind, buckets }, buckets being { period, count, sum, avg, min, max } oldest first, one per period that has records. A week is Sunday-start and its period is its first day (2026-10-04); a month is 2026-10. A grouped answer is about one kind, so pass kind when the range holds several (the error names them).",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "Only this kind, e.g. expense."
+          },
+          "source_app": {
+            "type": "string",
+            "description": "Only records from this app ('claude' or a slug)."
+          },
+          "from": {
+            "type": "string",
+            "description": "Start of the period. YYYY-MM-DD is a local day, inclusive; an ISO 8601 date and time with an offset is an instant, inclusive."
+          },
+          "to": {
+            "type": "string",
+            "description": "End of the period. YYYY-MM-DD is a local day and INCLUDES that day; an ISO 8601 date and time with an offset is an instant and is excluded."
+          },
+          "group_by": {
+            "type": "string",
+            "enum": [
+              "none",
+              "day",
+              "week",
+              "month"
+            ],
+            "description": "none (default) lists the records; day / week / month totals them per period."
+          },
+          "limit": {
+            "type": "number",
+            "description": "Max records to return when not grouped (default 50, at most 500). Grouped answers always cover the whole period."
+          }
+        }
+      },
+      "required": [],
+      "conditionalRequired": [],
+      "stateDependentRules": [],
+      "result": {
+        "type": "object",
+        "required": [
+          "range"
+        ],
+        "properties": {
+          "range": {
+            "type": "object"
+          }
+        },
+        "description": "range is { from, to } as sent (null when absent). Without group_by (or 'none'): records (each a definitions.record, newest first) and hasMore. With group_by day / week / month: group_by, kind and buckets, each { period, count, sum, avg, min, max }, oldest first."
+      }
+    },
+    {
+      "name": "delete_record",
+      "description": "Delete one record for good (records have no trash). Returns { success, id }. Fails with code not_found when there is no such record. Through the extension-app gateway an app deletes only the records it made; any other fails with code forbidden.",
+      "access": "write",
+      "inputSchema": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The record's id (from create_record or list_records)."
+          }
+        },
+        "required": [
+          "id"
+        ]
+      },
+      "required": [
+        "id"
+      ],
+      "conditionalRequired": [],
+      "stateDependentRules": [],
+      "result": {
+        "type": "object",
+        "required": [
+          "success",
+          "id"
+        ],
+        "properties": {
+          "success": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    {
+      "name": "list_extension_apps",
+      "description": "The extension apps registered in the Apps section, in their display order. Each has slug, name, url, icon, description, sort_order, plus last_record_at (when its newest record happened, or null) and records_30d (how many records it sent in the last 30 days). The slug is the source_app of the records it sent; 'claude' is not an app and does not appear here.",
+      "access": "read",
+      "inputSchema": {
+        "type": "object",
+        "properties": {}
+      },
+      "required": [],
+      "conditionalRequired": [],
+      "stateDependentRules": [],
+      "result": {
+        "type": "object",
+        "required": [
+          "apps"
+        ],
+        "properties": {
+          "apps": {
+            "type": "array"
+          }
+        },
+        "description": "Each app has slug, name, url, icon, description, sort_order, last_record_at (string or null) and records_30d (number)."
       }
     }
   ]

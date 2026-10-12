@@ -3,6 +3,7 @@ import { getSupabase } from "../supabase.js";
 import { currentCaller } from "../callerContext.js";
 import { CodedError, invalidArguments, notFoundError } from "../errorCodes.js";
 import { assertDateKey, localDayUtcRange } from "../utils/localDate.js";
+import { APP_SLUG_PATTERN, RESERVED_SOURCE_APP } from "../utils/appSlug.js";
 import { fetchAllPages, resolveListLimit } from "../utils/pagination.js";
 import {
   aggregateAppRecords,
@@ -17,8 +18,8 @@ import {
  *
  * A record is one number with a time and a kind — "450 JPY of expense at
  * 12:10". The owner's Claude writes them here (`source_app` = "claude"), and
- * the extension apps write them through the gateway once #2166 puts these tools
- * on it. The screens only READ them.
+ * the extension apps write them through the gateway (#2166). The screens only
+ * READ them.
  *
  * THE RETRY KEY IS `external_id`, scoped to (user, source_app) by 0039's
  * partial unique index. It follows the gateway's rule for items
@@ -28,22 +29,24 @@ import {
  * "already_deleted" arm — a record is deleted for real (0039 has no soft
  * delete), so a deleted record's key is simply free again.
  *
- * WHO IS CALLING. Outside the gateway there is no caller (callerContext.ts) and
- * `source_app` is whatever the call says, defaulting to "claude". Inside it,
- * the caller's app name is the source: the handlers already take it from
- * there, so the gateway work (#2166) only has to put the tools on the list.
- * A gateway caller may delete only the rows its own app wrote.
+ * WHO IS CALLING (#2166). Outside the gateway there is no caller
+ * (callerContext.ts) and `source_app` is whatever the call says, defaulting to
+ * "claude"; the owner's own tools delete any row. Inside it, the caller's app
+ * slug is the source, whatever the arguments say — the gateway's create_record
+ * does not even declare `source_app` (extensionGateway.ts) — and a gateway
+ * caller may delete only the rows its own app wrote (D-20261007-main-4 = B,
+ * "its own items"). The slug is the one vocabulary for an app's name
+ * (utils/appSlug.ts).
  *
  * Result fields are snake_case, one-to-one with the arguments that made them
  * (occurred_at in, occurred_at out) — the names the table has.
  */
 
 /** `source_app` of a record the owner's Claude wrote. */
-export const CLAUDE_SOURCE_APP = "claude";
+export const CLAUDE_SOURCE_APP = RESERVED_SOURCE_APP;
 
 const KIND_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
-/** Same shape as extension_apps.slug (0039). */
-const SOURCE_APP_PATTERN = /^[a-z][a-z0-9-]{1,31}$/;
+const SOURCE_APP_PATTERN = APP_SLUG_PATTERN;
 const DIM_KEY_PATTERN = /^[a-z][a-z0-9_]{0,31}$/;
 const MAX_DIM_KEYS = 20;
 const MAX_EXTERNAL_ID_LENGTH = 200;
@@ -151,22 +154,14 @@ function toInstant(value: string, field: string): string {
   return new Date(ms).toISOString();
 }
 
-/** Which app a call writes as; see "WHO IS CALLING" above. */
+/**
+ * Which app a call writes as; see "WHO IS CALLING" above. A gateway caller's
+ * slug wins over anything the arguments say: the key, not the request, decides
+ * whose record it is.
+ */
 function resolveSourceApp(requested: string | undefined | null): string {
   const caller = currentCaller();
-  if (caller) {
-    if (
-      requested !== undefined &&
-      requested !== null &&
-      requested !== caller.app
-    ) {
-      throw new CodedError(
-        "forbidden",
-        `source_app is "${caller.app}" for this key; it cannot be "${requested}"`,
-      );
-    }
-    return caller.app;
-  }
+  if (caller) return caller.app;
   return checkSourceApp(requested ?? CLAUDE_SOURCE_APP);
 }
 
@@ -438,15 +433,22 @@ export async function deleteRecord(args: { id: string }) {
   const { client } = await getSupabase();
   const caller = currentCaller();
 
-  let find = client
+  const { data, error } = await client
     .from("app_records")
     .select("id, source_app")
-    .eq("id", args.id);
-  // An app deletes what it wrote; the owner's own tools delete anything.
-  if (caller) find = find.eq("source_app", caller.app);
-  const { data, error } = await find.maybeSingle();
+    .eq("id", args.id)
+    .maybeSingle();
   if (error) throw new Error(`get app_records: ${error.message}`);
   if (!data) throw notFoundError(`Record not found: ${args.id}`);
+  // An app deletes what it wrote; the owner's own tools delete anything. The
+  // wording follows gatewayGuard.ts's refusal for an item another app made.
+  const owner = (data as { source_app: string }).source_app;
+  if (caller && owner !== caller.app) {
+    throw new CodedError(
+      "forbidden",
+      `Forbidden: ${args.id} was not recorded by ${caller.app}`,
+    );
+  }
 
   const { error: dErr } = await client
     .from("app_records")

@@ -143,6 +143,9 @@ describe("the gateway tool set", () => {
   const GATEWAY_ONLY = ["update_by_external_id", "delete_by_external_id"];
   // The one argument the gateway adds to a shared tool (#2148).
   const KEYED = ["create_todo", "create_note", "create_schedule_item"];
+  // The one argument the gateway takes away: a record's source_app is the
+  // key's slug there (#2166).
+  const CALLER_STAMPED = ["create_record"];
 
   it("is published from the remote registry's own definitions", async () => {
     for (const def of gateway.EXTENSION_TOOL_DEFINITIONS) {
@@ -151,11 +154,22 @@ describe("the gateway tool set", () => {
       expect(same, `${def.name} must be a remote tool`).toBeDefined();
       const { idempotency_key: key, ...properties } = (def.inputSchema
         .properties ?? {}) as Record<string, unknown>;
-      // Apart from the retry key on the three creates, the schema IS the remote one.
+      // Apart from the retry key on the three creates and source_app on
+      // create_record, the schema IS the remote one.
       expect(key !== undefined, `${def.name} idempotency_key`).toBe(
         KEYED.includes(def.name),
       );
-      expect(same?.inputSchema).toEqual({
+      const { source_app: sourceApp, ...remoteProperties } = (same
+        ?.inputSchema.properties ?? {}) as Record<string, unknown>;
+      expect("source_app" in properties, `${def.name} source_app`).toBe(
+        !CALLER_STAMPED.includes(def.name) && sourceApp !== undefined,
+      );
+      expect({
+        ...same?.inputSchema,
+        properties: CALLER_STAMPED.includes(def.name)
+          ? remoteProperties
+          : same?.inputSchema.properties,
+      }).toEqual({
         ...def.inputSchema,
         properties,
       });

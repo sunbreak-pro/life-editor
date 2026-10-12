@@ -71,6 +71,20 @@ export const CREATE_TOOLS: readonly string[] = [
   "create_schedule_item",
 ];
 
+/**
+ * Write tools whose rows are not items, so `items_meta.origin_app` cannot say
+ * whose they are. Their handlers apply the same rule from the caller context
+ * instead (#2166): create_record writes as the caller's slug whatever the
+ * arguments say, and delete_record refuses a record another source wrote. The
+ * reason is kept next to each name so the exemption reads as a decision.
+ */
+export const HANDLER_CHECKED_WRITES: Readonly<Record<string, string>> = {
+  create_record:
+    "app_records.source_app is forced to the caller's slug (recordHandlers.ts resolveSourceApp)",
+  delete_record:
+    "a record whose source_app is not the caller's slug is refused as forbidden (recordHandlers.ts deleteRecord)",
+};
+
 export function accessOf(toolName: string): "read" | "write" | undefined {
   return (EXTENSION_TOOL_ACCESS as Record<string, "read" | "write">)[toolName];
 }

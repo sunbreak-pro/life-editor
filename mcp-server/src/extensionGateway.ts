@@ -40,7 +40,7 @@ import { ERROR_CODES } from "./errorCodes.js";
  * is, and `scripts/dump-gateway-spec.mjs` refuses to write a spec whose
  * version moved less than that.
  */
-export const EXTENSION_GATEWAY_VERSION = "1.2.0";
+export const EXTENSION_GATEWAY_VERSION = "1.3.0";
 
 /** Bumped only if the SHAPE of the spec file itself changes. */
 export const SPEC_FORMAT = 1;
@@ -51,6 +51,10 @@ export const SPEC_FORMAT = 1;
  * Left out on purpose: routines, daily notes, the briefing, content
  * generation, trash and restore, links, work sessions and goals — each is a
  * widening to decide separately, and a minor version bump adds it.
+ *
+ * The record tools (#2166) are the extension apps' own: an app records numbers
+ * as itself and reads everyone's. Who "itself" is comes from the key, not the
+ * arguments (handlers/recordHandlers.ts, "WHO IS CALLING").
  */
 const EXTENSION_TOOLS = {
   list_todos: "read",
@@ -77,6 +81,10 @@ const EXTENSION_TOOLS = {
   search_all: "read",
   update_by_external_id: "write",
   delete_by_external_id: "write",
+  create_record: "write",
+  list_records: "read",
+  delete_record: "write",
+  list_extension_apps: "read",
 } as const satisfies Record<string, "read" | "write">;
 
 /** Each tool's access, for the gateway's scope check (gatewayGuard.ts). */
@@ -123,6 +131,30 @@ function withIdempotencyKey(def: ToolDefinition): ToolDefinition {
   };
 }
 
+/**
+ * On the gateway a record's source_app is the calling app's slug, always: the
+ * handler takes it from the key (#2166). So the gateway's copy of
+ * create_record does not declare the argument — an app that sends one gets
+ * the undeclared-argument Note, instead of a value that is quietly replaced —
+ * and its description says whose record it becomes. The shared definition,
+ * which the phone's connector and the desktop server publish, keeps both.
+ */
+const CREATE_RECORD_ON_GATEWAY =
+  "Record one number with a time: an expense, a weight, hours slept. " +
+  "Returns { id, created }. With external_id, sending the same call again returns the same id and created: false and adds no row; " +
+  "the same external_id with different content fails with code idempotency_key_reused. " +
+  "The record's source_app is the calling app's slug, set from its key.";
+
+function withCallerSourceApp(def: ToolDefinition): ToolDefinition {
+  const { source_app: _sourceApp, ...properties } =
+    def.inputSchema.properties ?? {};
+  return {
+    ...def,
+    description: CREATE_RECORD_ON_GATEWAY,
+    inputSchema: { ...def.inputSchema, properties },
+  };
+}
+
 const remoteDefinition = (name: string): ToolDefinition => {
   const def = byName.get(name);
   if (!def) {
@@ -146,6 +178,7 @@ export const EXTENSION_TOOL_DEFINITIONS: ToolDefinition[] = (
   const own = gatewayOnly.get(name);
   if (own) return own;
   const def = remoteDefinition(name);
+  if (name === "create_record") return withCallerSourceApp(def);
   return KEYED_CREATES.has(name) ? withIdempotencyKey(def) : def;
 });
 
@@ -297,6 +330,17 @@ const DEFINITIONS: Record<string, ResultShape> = {
     updatedAt: "string",
   }),
   deleted: shape({ success: "boolean", id: "string", softDeleted: "boolean" }),
+  record: shape({
+    id: "string",
+    source_app: "string",
+    external_id: ["string", "null"],
+    kind: "string",
+    occurred_at: "string",
+    value: "number",
+    unit: ["string", "null"],
+    dims: "object",
+    note: ["string", "null"],
+  }),
 };
 
 const REF = (name: string) => ({ $ref: `#/definitions/${name}` });
@@ -349,6 +393,20 @@ const RESULTS: Record<ExtensionToolName, ResultShape | { $ref: string }> = {
       "The result of the update tool for the item's kind: update_todo (definitions.todo), update_note (definitions.note) or update_schedule_item (definitions.scheduleItem).",
   },
   delete_by_external_id: REF("deleted"),
+  create_record: shape(
+    { id: "string", created: "boolean" },
+    "created is false when external_id replayed an earlier call; id is then that call's record.",
+  ),
+  list_records: shape(
+    { range: "object" },
+    "range is { from, to } as sent (null when absent). Without group_by (or 'none'): records (each a definitions.record, newest first) and hasMore. " +
+      "With group_by day / week / month: group_by, kind and buckets, each { period, count, sum, avg, min, max }, oldest first.",
+  ),
+  delete_record: shape({ success: "boolean", id: "string" }),
+  list_extension_apps: shape(
+    { apps: "array" },
+    "Each app has slug, name, url, icon, description, sort_order, last_record_at (string or null) and records_30d (number).",
+  ),
 };
 
 /* ---- examples ------------------------------------------------------------ */
@@ -426,6 +484,43 @@ export const EXAMPLES: Partial<
     valid: [{ args: { title: "Subscriptions", content: "# Plans" } }],
     invalid: [{ args: { content: "# Plans" }, reason: "title is required" }],
   },
+  create_record: {
+    valid: [
+      { args: { kind: "expense", value: 450, unit: "JPY" } },
+      {
+        args: {
+          kind: "expense",
+          value: 980,
+          unit: "JPY",
+          occurred_at: "2026-10-11T12:10:00+09:00",
+          dims: { category: "subscription", service: "music" },
+        },
+      },
+    ],
+    invalid: [
+      { args: { kind: "expense" }, reason: "value is required" },
+      {
+        args: { kind: "expense", value: "450" },
+        reason: "value must be a number",
+      },
+      {
+        args: { kind: "Expense", value: 450 },
+        reason: "kind is lower-case letters, digits and _, starting with a letter",
+      },
+      {
+        args: {
+          kind: "expense",
+          value: 450,
+          occurred_at: "2026-10-11T12:10:00",
+        },
+        reason: "occurred_at has no offset",
+      },
+      {
+        args: { kind: "expense", value: 450, dims: { Category: "food" } },
+        reason: "a dims key is not lower-case snake_case",
+      },
+    ],
+  },
 };
 
 /* ---- the spec ------------------------------------------------------------ */
@@ -467,6 +562,10 @@ const CONVENTIONS = {
     "Result shapes pin top-level keys and their JSON kinds. $ref points into definitions.",
   idempotencyKey:
     "create_todo, create_note and create_schedule_item take an optional idempotency_key (1-200 characters). Same key and same arguments: the first call's item comes back and nothing is created. Same key, different arguments: failure code idempotency_key_reused. Same key whose item was deleted: failure code already_deleted. Keys are per app. Arguments are compared with null counting as absent.",
+  records:
+    "create_record / list_records / delete_record / list_extension_apps. A record's source_app is the calling app's slug, set from its key; create_record does not take source_app. " +
+    "external_id is create_record's retry key, per app: the same external_id with the same content returns the first record with created: false; with different content it fails with code idempotency_key_reused. A deleted record's external_id is free again. " +
+    "delete_record deletes only the calling app's records; another source's record fails with code forbidden, a missing one with not_found. list_records and list_extension_apps read every source.",
   externalId:
     "An item made with an idempotency_key can be changed by that key: update_by_external_id({ external_id, changes }) applies changes with the update tool for the item's kind; delete_by_external_id({ external_id }) deletes it (and succeeds again if it is already deleted). Only items the calling app created can be named; any other key is not_found.",
 } as const;

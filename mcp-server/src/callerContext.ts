@@ -22,7 +22,10 @@ export type GatewayAccount = "owner" | "review";
 export type GatewayScope = "read" | "write";
 
 export interface Caller {
-  /** The registered app name; it is also what `items_meta.origin_app` holds. */
+  /**
+   * The app's extension_apps.slug (utils/appSlug.ts). It is what
+   * `items_meta.origin_app` and `app_records.source_app` hold for this app.
+   */
   app: string;
   /** Which Supabase account this app's items live in. */
   account: GatewayAccount;
