@@ -9,8 +9,9 @@
  *     (0038, #2147 / #2148);
  *   - `app_records.source_app`, forced to that key on what the app records.
  * That value is `extension_apps.slug` (0039), whose CHECK is the pattern below.
- * 0038's CHECK on origin_app is wider (40 characters, any first character);
- * every slug fits inside it, so no DDL changes.
+ * 0038's CHECK on origin_app is wider (^[a-z][a-z0-9-]{0,39}$: 1-40
+ * characters, so it also admits names shorter and longer than a slug); every
+ * slug fits inside it, so no DDL changes.
  *
  * `claude` is reserved: it is the owner's own MCP (stdio and the phone's
  * Remote MCP) as a record's source. No key may carry it, or an app could write

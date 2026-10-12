@@ -668,7 +668,10 @@ function KEYED_CASES(): Case[] {
 function RECORD_CASES(): Case[] {
   return [
     // create_record
-    { tool: "create_record", args: { kind: "weight", value: 62.5, unit: "kg" } },
+    {
+      tool: "create_record",
+      args: { kind: "weight", value: 62.5, unit: "kg" },
+    },
     {
       tool: "create_record",
       args: { kind: "expense", value: 980, external_id: "new-key" },
@@ -1391,6 +1394,139 @@ describe("same state, same answer: the read tools against rows mirrored from the
       expect(f).toEqual(r);
     });
   }
+});
+
+/* ---- same records, same answer ------------------------------------------- */
+
+/*
+ * The record reads with content (#2166). The parity cases above run the real
+ * side on an empty app_records, so they compare only outcomes and top-level
+ * keys. Here the real side reads rows mirrored from what the fake holds, and
+ * the whole answers — the records, the buckets, the ledger's activity — must
+ * match.
+ */
+describe("same records, same answer: list_records and list_extension_apps", () => {
+  const LEDGER = [
+    {
+      slug: "parity-app",
+      name: "Parity",
+      url: "https://parity.example",
+      icon: null,
+      description: "the app the fake serves",
+      sort_order: 1,
+    },
+    {
+      slug: "quiet-app",
+      name: "Quiet",
+      url: null,
+      icon: null,
+      description: null,
+      sort_order: 0,
+    },
+  ];
+
+  async function build() {
+    const gateway = createFakeGateway({
+      token: TOKEN,
+      app: APP.app,
+      extensionApps: LEDGER,
+    });
+    // Two days, two kinds; the 01:00 JST record counts on its own local day.
+    const made: Array<Record<string, unknown>> = [
+      {
+        kind: "expense",
+        value: 450,
+        unit: "JPY",
+        occurred_at: "2026-10-11T12:10:00+09:00",
+      },
+      {
+        kind: "expense",
+        value: 980,
+        unit: "JPY",
+        occurred_at: "2026-10-12T01:00:00+09:00",
+        dims: { category: "music" },
+      },
+      {
+        kind: "weight",
+        value: 62.5,
+        unit: "kg",
+        occurred_at: "2026-10-12T07:00:00+09:00",
+      },
+      // No occurred_at: "now", so records_30d always has one to count.
+      { kind: "expense", value: 120, unit: "JPY", note: "just now" },
+    ];
+    for (const args of made) await fakeResult(gateway, "create_record", args);
+    const listed = (await fakeResult(gateway, "list_records", {
+      limit: 500,
+    })) as { records: Array<Record<string, unknown>> };
+    const rows = listed.records;
+
+    stub = createSupabaseStub((call: QueryCall): unknown => {
+      // The handler orders the ledger by sort_order, then slug; so does Postgres.
+      if (call.table === "extension_apps") {
+        return call.single
+          ? null
+          : [...LEDGER].sort(
+              (a, b) =>
+                a.sort_order - b.sort_order || a.slug.localeCompare(b.slug),
+            );
+      }
+      if (call.table !== "app_records") return call.single ? null : [];
+      let out = rows.filter((row) =>
+        Object.entries(call.filters).every(
+          ([key, value]) => row[key] === value,
+        ),
+      );
+      const at = (row: Record<string, unknown>) =>
+        Date.parse(row.occurred_at as string);
+      const gte = call.bounds["occurred_at.gte"];
+      const lt = call.bounds["occurred_at.lt"];
+      if (typeof gte === "string")
+        out = out.filter((r) => at(r) >= Date.parse(gte));
+      if (typeof lt === "string")
+        out = out.filter((r) => at(r) < Date.parse(lt));
+      // The fake listed them newest first already, the order the handlers ask for.
+      if (call.single) return out[0] ?? null;
+      const from = call.range?.from ?? 0;
+      const to = call.range?.to ?? out.length - 1;
+      return out.slice(from, to + 1);
+    }, SAVED_RPC);
+    return gateway;
+  }
+
+  const READS: Array<[string, Args]> = [
+    ["list_records", {}],
+    ["list_records", { kind: "expense" }],
+    ["list_records", { limit: 2 }],
+    ["list_records", { from: "2026-10-12", to: "2026-10-12" }],
+    ["list_records", { source_app: "parity-app", kind: "weight" }],
+    ["list_records", { kind: "expense", group_by: "day" }],
+    ["list_records", { kind: "expense", group_by: "week" }],
+    ["list_records", { kind: "expense", group_by: "month" }],
+    ["list_extension_apps", {}],
+  ];
+
+  for (const [name, args] of READS) {
+    it(`${name} ${JSON.stringify(args)}`, async () => {
+      const gateway = await build();
+      const fake = await fakeOutcome(gateway, name, args);
+      const real = await realOutcome(name, args);
+      expect(real).toEqual(expect.objectContaining({ ok: true }));
+      expect(fake.ok).toBe(true);
+      if (!fake.ok || !real.ok) return;
+      expect(JSON.parse(fake.texts[0])).toEqual(JSON.parse(real.texts[0]));
+    });
+  }
+
+  it("says something worth comparing: the ledger answer carries the app's activity", async () => {
+    const gateway = await build();
+    const apps = (await fakeResult(gateway, "list_extension_apps", {}))
+      .apps as Array<Record<string, unknown>>;
+    expect(apps.map((a) => a.slug)).toEqual(["quiet-app", "parity-app"]);
+    expect(apps[1].records_30d).toBeGreaterThan(0);
+    expect(apps[1].last_record_at).not.toBeNull();
+    expect(apps[0]).toMatchObject({ records_30d: 0, last_record_at: null });
+  });
 });
 
 /* ---- HTTP surface -------------------------------------------------------- */
