@@ -22,6 +22,12 @@ import {
   cn,
   formatDateKey,
   todayCalendarKey,
+  todayDateKey,
+  localDateTimeToISO,
+  generateId,
+  generateTodoId,
+  useToastOptional,
+  useUndoRedoOptional,
   WorkTargetGlyph,
   type DataService,
   type PomodoroNumberKey,
@@ -272,6 +278,163 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
       timer.setActiveItem(item);
     },
     [timer],
+  );
+
+  /*
+   * The desktop chip's clear also drops a pending Event name (#2229): there
+   * the name is drawn AS the chip, so clearing the chip has to clear it. The
+   * Mobile sheet keeps `handleSelectTarget` — its own name field is where a
+   * name is set and emptied, and its submit clears the target right after
+   * setting one.
+   */
+  const handleSelectTargetWide = useCallback(
+    (item: WorkTargetOption | null) => {
+      timer.setActiveItem(item);
+      if (timer.freeSessionName) timer.setFreeSessionName("");
+    },
+    [timer],
+  );
+
+  // The undo commands below run long after this render; they read the timer
+  // as it is THEN (is the made Todo still the linked one?), not as it was.
+  const timerRef = useRef(timer);
+  useEffect(() => {
+    timerRef.current = timer;
+  });
+  const toast = useToastOptional();
+  const showToast = toast?.showToast;
+  const pushUndo = useUndoRedoOptional()?.push;
+
+  /*
+   * Make the typed name a new work target (#2229) — a Todo, or an Event,
+   * picked by the user when making it.
+   *
+   * A Todo is made now and linked: root level, not started, booked for today
+   * as an all-day item (the "add to today" write Briefing and Schedule's tray
+   * make, so it shows in Today's lists at once). "Today" honours the
+   * day-start hour, as every "today" a Todo is booked for does.
+   *
+   * An Event is NOT made now. It needs a time range, and the range is the
+   * time actually worked, which nobody knows until the session ends — so the
+   * name goes to the free-session path (#2009 / #1665), which files one Event
+   * per counted session, at close. A plain Start still makes nothing (#1116).
+   *
+   * Either way the free session's tags go along: copied onto the Todo here,
+   * or onto the Event when it is filed. They are COPIED, not moved off the
+   * free session. A segment that was already running when the Todo was
+   * linked stays a free one — what a row is filed under is fixed when it
+   * opens (TimerContext's `openSessionRef`) — and its Event is filed at
+   * close with these tags; clearing them here would file it bare.
+   */
+  // Names whose Todo is still being written: a second Enter on a slow
+  // connection would find no exact match yet and make the Todo twice.
+  const creatingRef = useRef(new Set<string>());
+  const handleCreateTarget = useCallback(
+    (name: string, kind: WorkTargetOption["kind"]) => {
+      const title = name.trim();
+      if (!title) return;
+      const live = timerRef.current;
+      if (kind === "event") {
+        const before = live.freeSessionName;
+        live.setActiveItem(null);
+        live.setFreeSessionName(title);
+        showToast?.(
+          "success",
+          t("work.taskPicker.pendingEvent", { name: title }),
+        );
+        pushUndo?.("workTarget", {
+          label: "workPendingEvent",
+          undo: () => {
+            if (timerRef.current.freeSessionName === title)
+              timerRef.current.setFreeSessionName(before);
+          },
+          redo: () => {
+            timerRef.current.setActiveItem(null);
+            timerRef.current.setFreeSessionName(title);
+          },
+        });
+        return;
+      }
+      // NFKC as the picker compares names (normalizeWorkName).
+      const key = title.normalize("NFKC");
+      if (creatingRef.current.has(key)) return;
+      creatingRef.current.add(key);
+      const tagIds = live.freeSessionTagIds;
+      const now = new Date().toISOString();
+      void (async () => {
+        let saved: TodoNode;
+        try {
+          saved = await ds.createTodo({
+            // `generateId("task")` would break the §4 id form (#1116).
+            id: generateTodoId("task"),
+            type: "task",
+            title,
+            status: "NOT_STARTED",
+            parentId: null,
+            order: 0,
+            scheduledAt: localDateTimeToISO(todayDateKey(), "00:00"),
+            isAllDay: true,
+            createdAt: now,
+            updatedAt: now,
+          });
+        } catch (err) {
+          console.error("[WorkScreen] create todo failed", err);
+          showToast?.(
+            "danger",
+            t("work.taskPicker.createFailed", { name: title }),
+          );
+          creatingRef.current.delete(key);
+          return;
+        }
+        const made = saved;
+        const listIt = () =>
+          setTodoNodes((prev) =>
+            prev.some((n) => n.id === made.id) ? prev : [...prev, made],
+          );
+        const link = () =>
+          timerRef.current.setActiveItem({
+            id: made.id,
+            title: made.title,
+            kind: "todo",
+          });
+        // In the list at once: the Realtime echo arrives after the chip has
+        // to name it, and the chip is drawn from this list. Listed before the
+        // guard above lets go, so a repeat Enter now meets an exact match.
+        listIt();
+        creatingRef.current.delete(key);
+        link();
+        showToast?.(
+          "success",
+          t("work.taskPicker.createdTodo", { name: title }),
+        );
+        // Undoable as soon as it is linked, not after the tags: Mod+Z right
+        // away must already find this step.
+        pushUndo?.("workTarget", {
+          label: "workCreateTodo",
+          undo: async () => {
+            const cur = timerRef.current;
+            if (cur.activeItem?.id === made.id) cur.setActiveItem(null);
+            setTodoNodes((prev) => prev.filter((n) => n.id !== made.id));
+            await ds.softDeleteTodo(made.id);
+          },
+          redo: async () => {
+            await ds.restoreTodo(made.id);
+            listIt();
+            link();
+          },
+        });
+        // Tags last, and apart: one that fails to land leaves the Todo made,
+        // linked and undoable, which is not a failure to make it.
+        try {
+          for (const tagId of tagIds) {
+            await ds.assignTagToItem(generateId("tag_assign"), made.id, tagId);
+          }
+        } catch (err) {
+          console.error("[WorkScreen] tag the new todo failed", err);
+        }
+      })();
+    },
+    [ds, pushUndo, showToast, t],
   );
 
   // Skip = jump straight to the opposite phase (ends the current one early).
@@ -545,12 +708,18 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
       aria-haspopup="dialog"
       className="flex min-h-13 w-full items-center gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg pl-2.5 pr-3.5 text-left hover:bg-lumen-hover"
     >
-      <span
-        aria-hidden="true"
-        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-lumen-border-strong text-lumen-text-tertiary"
-      >
-        <Plus className="size-lumen-icon-sm" />
-      </span>
+      {/* A named free session ends as an Event (#2009), so since #2229 it
+          wears the event glyph the desktop chip does; unnamed, the dashed +. */}
+      {timer.freeSessionName.trim() ? (
+        <WorkTargetGlyph kind="event" />
+      ) : (
+        <span
+          aria-hidden="true"
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-dashed border-lumen-border-strong text-lumen-text-tertiary"
+        >
+          <Plus className="size-lumen-icon-sm" />
+        </span>
+      )}
       {/* A named free session shows its name here (#2009), so the face says
           what the Event will be called before the session is even started. */}
       <span className="min-w-0 flex-1 truncate text-sm text-lumen-text-secondary">
@@ -647,6 +816,8 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
             nameLabel: t("work.todoSelector.nameLabel"),
             namePlaceholder: t("work.freeSession.title"),
             nameSubmit: t("work.todoSelector.nameSubmit"),
+            addAsTodo: t("work.taskPicker.addAsTodo"),
+            addAsEvent: t("work.taskPicker.addAsEvent"),
             loadFailedTitle: t("work.todoSelector.loadFailedTitle"),
             loadFailedBody: t("work.todoSelector.loadFailedBody"),
             retry: t("work.todoSelector.retry"),
@@ -655,6 +826,7 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           onSelect={handleSelectTarget}
           freeSessionName={timer.freeSessionName}
           onNameSubmit={timer.setFreeSessionName}
+          onCreate={handleCreateTarget}
         />
         {completionModal}
         {presetConfirmDialog}
@@ -677,10 +849,17 @@ export function WorkScreen({ dataService: ds }: { dataService: DataService }) {
           heading: t("work.todoSelector.heading"),
           placeholder: t("work.todoSelector.placeholder"),
           clear: t("work.todoSelector.clear"),
-          emptyHint: t("work.todoSelector.emptyHint"),
+          emptyHint: t("work.taskPicker.empty"),
           menuLabel: t("work.todoSelector.heading"),
+          searchPlaceholder: t("work.taskPicker.placeholder"),
+          todoHeading: t("work.todoSelector.todoHeading"),
+          eventHeading: t("work.todoSelector.eventHeading"),
+          createTodo: (name) => t("work.taskPicker.createTodo", { name }),
+          createEvent: (name) => t("work.taskPicker.createEvent", { name }),
         }}
-        onSelect={handleSelectTarget}
+        onSelect={handleSelectTargetWide}
+        onCreate={handleCreateTarget}
+        pendingEventName={timer.freeSessionName}
         /*
          * #1665: the tag field for the free session, in the space to the right
          * of the picker. It stays visible (disabled) once a target IS picked —

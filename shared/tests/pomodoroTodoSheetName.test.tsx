@@ -76,3 +76,86 @@ describe("PomodoroTodoSheet — naming a free session (#2009)", () => {
     expect(screen.queryByRole("textbox")).toBeNull();
   });
 });
+
+/*
+ * #2229 — the name field also offers to make the typed name a new Todo or a
+ * new Event. Pressing either hands the trimmed name and the kind to the host
+ * and closes the sheet; the target itself is the host's to set, so the sheet
+ * does not call onSelect.
+ */
+function renderCreatable() {
+  const onSelect = vi.fn();
+  const onClose = vi.fn();
+  const onCreate = vi.fn();
+  const onNameSubmit = vi.fn();
+  render(
+    <PomodoroTodoSheet
+      open
+      onClose={onClose}
+      items={[
+        { id: "task-1", title: "Write the spec", kind: "todo" },
+        { id: "event-1", title: "Piano lesson", kind: "event" },
+      ]}
+      selectedId={null}
+      labels={{ ...labels, addAsTodo: "As a Todo", addAsEvent: "As an event" }}
+      onSelect={onSelect}
+      freeSessionName=""
+      onNameSubmit={onNameSubmit}
+      onCreate={onCreate}
+    />,
+  );
+  return { onSelect, onClose, onCreate, onNameSubmit };
+}
+
+describe("PomodoroTodoSheet — adding a new Todo or Event (#2229)", () => {
+  it("shows the two buttons only once a name is typed", () => {
+    renderCreatable();
+    expect(screen.queryByRole("button", { name: "As a Todo" })).toBeNull();
+    fireEvent.change(field(), { target: { value: "   " } });
+    expect(screen.queryByRole("button", { name: "As a Todo" })).toBeNull();
+    fireEvent.change(field(), { target: { value: "Draft the pitch" } });
+    screen.getByRole("button", { name: "As a Todo" });
+    screen.getByRole("button", { name: "As an event" });
+  });
+
+  it("makes a Todo from the trimmed name and closes", () => {
+    const { onCreate, onClose, onSelect, onNameSubmit } = renderCreatable();
+    fireEvent.change(field(), { target: { value: "  Draft the pitch " } });
+    fireEvent.click(screen.getByRole("button", { name: "As a Todo" }));
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith("Draft the pitch", "todo");
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(onSelect).not.toHaveBeenCalled();
+    expect(onNameSubmit).not.toHaveBeenCalled();
+  });
+
+  it("makes an Event the same way", () => {
+    const { onCreate, onClose } = renderCreatable();
+    fireEvent.change(field(), { target: { value: "Draft the pitch" } });
+    fireEvent.click(screen.getByRole("button", { name: "As an event" }));
+    expect(onCreate).toHaveBeenCalledExactlyOnceWith(
+      "Draft the pitch",
+      "event",
+    );
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("hides them while a candidate already carries the name", () => {
+    renderCreatable();
+    fireEvent.change(field(), { target: { value: " Piano lesson" } });
+    expect(screen.queryByRole("button", { name: "As a Todo" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "As an event" })).toBeNull();
+  });
+
+  it("keeps the submit that names a free session", () => {
+    const { onNameSubmit } = renderCreatable();
+    fireEvent.change(field(), { target: { value: "Draft the pitch" } });
+    fireEvent.click(screen.getByRole("button", { name: labels.nameSubmit }));
+    expect(onNameSubmit).toHaveBeenCalledExactlyOnceWith("Draft the pitch");
+  });
+
+  it("has no add buttons when the host does not ask for them", () => {
+    renderSheet("");
+    fireEvent.change(field(), { target: { value: "Draft the pitch" } });
+    expect(screen.queryByRole("button", { name: /As a/ })).toBeNull();
+  });
+});

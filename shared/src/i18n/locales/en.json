@@ -356,7 +356,6 @@
       "allDay": "All day",
       "nameLabel": "Free session name",
       "nameSubmit": "Work under this name",
-      "emptyHint": "No todo or event to choose from. Starting now files a free session.",
       "todoHeading": "Todo",
       "eventHeading": "Events",
       "sheetEmptyTitle": "Nothing to link yet",
@@ -364,6 +363,17 @@
       "loadFailedTitle": "Couldn't load your todos and events",
       "loadFailedBody": "Check your connection and try again. You can still type a name above and start a free session.",
       "retry": "Try again"
+    },
+    "taskPicker": {
+      "placeholder": "Search work names / type a new one…",
+      "createTodo": "Add “{{name}}” as a Todo",
+      "createEvent": "Add “{{name}}” as an event",
+      "createdTodo": "Added “{{name}}” as a Todo",
+      "pendingEvent": "“{{name}}” will be filed as an event when you finish working",
+      "createFailed": "Couldn't add “{{name}}” as a Todo. Please try again.",
+      "empty": "Nothing to link in the next 7 days. Type a name to add new work.",
+      "addAsTodo": "Add as a Todo",
+      "addAsEvent": "Add as an event"
     },
     "completion": {
       "title": "Session {{index}} complete",
@@ -1203,7 +1213,9 @@
       "updateNote": "note update",
       "softDeleteNote": "note deletion",
       "assignTag": "adding a tag",
-      "unassignTag": "removing a tag"
+      "unassignTag": "removing a tag",
+      "workCreateTodo": "adding a Todo from the work name",
+      "workPendingEvent": "filing the work name as an event"
     }
   },
   "common": {
