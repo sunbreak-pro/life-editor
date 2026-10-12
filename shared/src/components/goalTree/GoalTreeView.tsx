@@ -1,8 +1,9 @@
-import { useId, useState, type ReactNode } from "react";
+import { useId, useRef, useState, type DragEvent, type ReactNode } from "react";
 import {
   CheckCircle2,
   ChevronDown,
   ChevronRight,
+  GripVertical,
   Plus,
   Target,
 } from "lucide-react";
@@ -13,7 +14,7 @@ import { Input } from "../Input";
 import { SkeletonList } from "../SkeletonList";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
-import type { GoalPeriodKind } from "../../types/goal";
+import type { Goal, GoalPeriodKind } from "../../types/goal";
 import type { TodoStatus } from "../../types/todoTree";
 import { isImeComposing } from "../../utils/imeGuard";
 import {
@@ -24,6 +25,7 @@ import {
   type GoalTreeNode,
   type GoalTreeTodo,
 } from "./buildGoalTreeModel";
+import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
 
 /*
  * The Connect "Goals & Todos" tab body (#2108, plan Step 9 — design C1–C6
@@ -42,9 +44,20 @@ import {
  * loose-todo group's heading has "+ Todo", which creates a todo linked to no
  * goal.
  *
+ * Desktop drag (#2226), only when the host passes `drag`: a goal's open /
+ * close arrow turns into a grip while the row is hovered — press to fold,
+ * grab to drag — and a goal with nothing under it shows the grip on hover
+ * alone. Year goals have no parent to change, so they keep the arrow. Todo
+ * rows get a grip left of the box. While dragging, the goals a drop may land
+ * on (goalTreeDrag.ts) get a dashed outline and a "+" square, filled under
+ * the pointer. Native HTML5 drag and drop: shared does not carry @dnd-kit,
+ * and the target rule is a pure function, so a library would add only the
+ * ghost image the browser already draws.
+ *
  * Pure presentation (§6.4): the model and every label come from the host
  * (web/src/connect/GoalsTodosScreen.tsx). The state held here — the add
- * fields' drafts and which goals are closed — is nothing outside needs.
+ * fields' drafts, which goals are closed and what is being dragged — is
+ * nothing outside needs.
  */
 
 export interface GoalTreeLabels {
@@ -84,6 +97,8 @@ export interface GoalTreeLabels {
   /** The add button's and the field's spoken name. */
   addTodoLabel: string;
   addTodoPlaceholder: string;
+  /** The grip's tooltip. */
+  dragToMove: string;
   loading: string;
   /** The first read failed: nothing below would be true, so this replaces it. */
   loadFailed: string;
@@ -111,7 +126,20 @@ export interface GoalTreeViewProps {
   onResetFilters?: () => void;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
   onOpenTodo: (todoId: string) => void;
+  /** Desktop only. Absent, no grip is drawn and nothing can be dragged. */
+  drag?: GoalTreeDragHandlers;
   labels: GoalTreeLabels;
+}
+
+export interface GoalTreeDragHandlers {
+  /** A goal dropped on a goal one period up. */
+  onMoveGoal: (goalId: string, parentGoalId: string) => void;
+  /** A todo dropped on a goal; `fromGoalId` is null for a loose todo. */
+  onMoveTodo: (
+    todoId: string,
+    fromGoalId: string | null,
+    toGoalId: string,
+  ) => void;
 }
 
 const ROW_BUTTON = cn(
@@ -181,20 +209,70 @@ export function GoalStatus({
   );
 }
 
+/** The drag in flight and the row handlers; null when `drag` is not passed. */
+interface DragState {
+  source: GoalTreeDragSource | null;
+  overGoalId: string | null;
+  canDrop: (target: Goal) => boolean;
+  start: (e: DragEvent, source: GoalTreeDragSource) => void;
+  end: () => void;
+  over: (e: DragEvent, target: Goal) => void;
+  leave: (e: DragEvent, goalId: string) => void;
+  drop: (e: DragEvent, target: Goal) => void;
+}
+
+const GRIP = "cursor-grab text-lumen-text-tertiary active:cursor-grabbing";
+
+const GOAL_TREE_DRAG_TYPE = "application/x-life-editor-goal-tree";
+
 function TodoRow({
   todo,
+  fromGoalId,
+  drag,
   onSetTodoStatus,
   onOpenTodo,
   labels,
 }: {
   todo: GoalTreeTodo;
+  /** The goal row this todo hangs under; null in the loose group. */
+  fromGoalId: string | null;
+  drag: DragState | null;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
   onOpenTodo: (todoId: string) => void;
   labels: GoalTreeLabels;
 }): React.JSX.Element {
   const done = todo.status === "DONE";
+  const dragged =
+    drag?.source?.kind === "todo" &&
+    drag.source.todoId === todo.id &&
+    drag.source.fromGoalId === fromGoalId;
   return (
-    <li className="flex items-center gap-1">
+    <li
+      className={cn(
+        "group/todo flex items-center gap-1",
+        dragged && "opacity-50",
+      )}
+    >
+      {drag && (
+        // Mouse only, so hidden from the accessibility tree; the todo's
+        // goals can also be changed from the todo's own detail.
+        <span
+          aria-hidden
+          draggable
+          data-todo-drag={todo.id}
+          title={labels.dragToMove}
+          onDragStart={(e) =>
+            drag.start(e, { kind: "todo", todoId: todo.id, fromGoalId })
+          }
+          onDragEnd={drag.end}
+          className={cn(
+            GRIP,
+            "grid w-4 shrink-0 place-items-center self-stretch opacity-0 transition-opacity group-hover/todo:opacity-100",
+          )}
+        >
+          <GripVertical size={12} />
+        </span>
+      )}
       <TodoStatusCheckbox
         status={todo.status}
         onChange={(next) => onSetTodoStatus(todo.id, next)}
@@ -229,6 +307,7 @@ function TodoRow({
 interface BranchState {
   collapsed: ReadonlySet<string>;
   onToggle: (goalId: string) => void;
+  drag: DragState | null;
 }
 
 function GoalBranch({
@@ -241,32 +320,84 @@ function GoalBranch({
   branch: BranchState;
 }): React.JSX.Element {
   const { labels } = props;
-  const selected = node.goal.id === props.selectedGoalId;
+  const { drag } = branch;
+  const { goal } = node;
+  const selected = goal.id === props.selectedGoalId;
   const hasBelow = node.todos.length > 0 || node.children.length > 0;
-  const open = hasBelow && !branch.collapsed.has(node.goal.id);
+  const open = hasBelow && !branch.collapsed.has(goal.id);
+  // A year goal is the top: there is no parent to drag it under.
+  const draggable = drag !== null && goal.periodKind !== "year";
+  const dragged =
+    drag?.source?.kind === "goal" && drag.source.goal.id === goal.id;
+  const placeable = drag?.source != null && drag.canDrop(goal);
+  const isOver = placeable && drag.overGoalId === goal.id;
+  const dragProps = draggable
+    ? {
+        draggable: true,
+        "data-goal-drag": goal.id,
+        onDragStart: (e: DragEvent) => drag.start(e, { kind: "goal", goal }),
+        onDragEnd: drag.end,
+      }
+    : {};
+  // Hovering the row swaps the arrow for the grip in the same spot.
+  const Chevron = open ? ChevronDown : ChevronRight;
   return (
     <li>
-      <div className="flex items-center">
+      <div
+        className={cn(
+          "group/row flex items-center rounded-lumen-sm",
+          dragged && "opacity-50",
+          placeable &&
+            "outline-1 -outline-offset-1 outline-dashed outline-lumen-accent",
+          isOver && "bg-lumen-accent-subtle",
+        )}
+        onDragOver={drag ? (e) => drag.over(e, goal) : undefined}
+        onDragLeave={drag ? (e) => drag.leave(e, goal.id) : undefined}
+        onDrop={drag ? (e) => drag.drop(e, goal) : undefined}
+      >
         {hasBelow ? (
+          // One spot for both: press to fold, grab to drag (#2226).
           <button
             type="button"
-            onClick={() => branch.onToggle(node.goal.id)}
+            {...dragProps}
+            onClick={() => branch.onToggle(goal.id)}
             aria-expanded={open}
             aria-label={(open ? labels.formatCollapse : labels.formatExpand)(
-              node.goal.title,
+              goal.title,
             )}
             className={cn(
               BRANCH_TOGGLE,
               "rounded-lumen-sm text-lumen-text-tertiary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+              draggable && "cursor-grab active:cursor-grabbing",
             )}
           >
-            {open ? (
-              <ChevronDown size={14} aria-hidden />
-            ) : (
-              <ChevronRight size={14} aria-hidden />
+            <Chevron
+              size={14}
+              aria-hidden
+              className={cn(draggable && "group-hover/row:hidden")}
+            />
+            {draggable && (
+              <GripVertical
+                size={14}
+                aria-hidden
+                className="hidden group-hover/row:block"
+              />
             )}
           </button>
+        ) : draggable ? (
+          <span
+            aria-hidden
+            {...dragProps}
+            title={labels.dragToMove}
+            className={cn(
+              BRANCH_TOGGLE,
+              GRIP,
+              "opacity-0 transition-opacity group-hover/row:opacity-100",
+            )}
+          >
+            <GripVertical size={14} />
+          </span>
         ) : (
           <span aria-hidden className={BRANCH_TOGGLE} />
         )}
@@ -291,6 +422,20 @@ function GoalBranch({
           </span>
           <GoalStatus node={node} labels={labels} />
         </button>
+        {placeable && (
+          <span
+            aria-hidden
+            data-drop-target={goal.id}
+            className={cn(
+              "mx-1 grid size-5 shrink-0 place-items-center rounded-lumen-sm border border-lumen-accent transition-colors",
+              isOver
+                ? "bg-lumen-accent text-lumen-on-accent"
+                : "border-dashed text-lumen-accent",
+            )}
+          >
+            <Plus size={12} />
+          </span>
+        )}
       </div>
       {open && (
         <div className="ml-3 border-l border-lumen-border pl-3">
@@ -300,6 +445,8 @@ function GoalBranch({
                 <TodoRow
                   key={todo.id}
                   todo={todo}
+                  fromGoalId={goal.id}
+                  drag={drag}
                   onSetTodoStatus={props.onSetTodoStatus}
                   onOpenTodo={props.onOpenTodo}
                   labels={labels}
@@ -364,6 +511,16 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   const [addingTodo, setAddingTodo] = useState(false);
   const [todoDraft, setTodoDraft] = useState("");
   const [todoBusy, setTodoBusy] = useState(false);
+  /*
+   * The source lives in a ref for the event handlers and in state for the
+   * paint. The state is set a tick late: Chromium may cancel a drag whose
+   * dragstart re-renders the page under the pointer.
+   */
+  const dragSource = useRef<GoalTreeDragSource | null>(null);
+  const [shownSource, setShownSource] = useState<GoalTreeDragSource | null>(
+    null,
+  );
+  const [overGoalId, setOverGoalId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -420,6 +577,59 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
     });
   };
 
+  const endDrag = (): void => {
+    dragSource.current = null;
+    setShownSource(null);
+    setOverGoalId(null);
+  };
+  const handlers = props.drag;
+  const drag: DragState | null = handlers
+    ? {
+        source: shownSource,
+        overGoalId,
+        canDrop: (target) =>
+          shownSource !== null && canDropOn(shownSource, target, model),
+        start: (e, source) => {
+          // Firefox starts no drag without data. Not text/plain: dropped on
+          // a text field, that would type the id into a goal's title.
+          e.dataTransfer?.setData(
+            GOAL_TREE_DRAG_TYPE,
+            source.kind === "goal" ? source.goal.id : source.todoId,
+          );
+          if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+          dragSource.current = source;
+          window.setTimeout(() => {
+            if (dragSource.current === source) setShownSource(source);
+          }, 0);
+        },
+        end: endDrag,
+        over: (e, target) => {
+          const source = dragSource.current;
+          if (!source || !canDropOn(source, target, model)) return;
+          e.preventDefault();
+          if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+          if (overGoalId !== target.id) setOverGoalId(target.id);
+        },
+        leave: (e, goalId) => {
+          // Moving onto a child of the row is not leaving it.
+          if (e.currentTarget.contains(e.relatedTarget as Node | null)) return;
+          setOverGoalId((prev) => (prev === goalId ? null : prev));
+        },
+        drop: (e, target) => {
+          const source = dragSource.current;
+          e.preventDefault();
+          // Also here: a re-read may unmount the source before dragend.
+          endDrag();
+          if (!source || !canDropOn(source, target, model)) return;
+          if (source.kind === "goal") {
+            handlers.onMoveGoal(source.goal.id, target.id);
+          } else {
+            handlers.onMoveTodo(source.todoId, source.fromGoalId, target.id);
+          }
+        },
+      }
+    : null;
+
   const branch: BranchState = {
     collapsed,
     onToggle: (goalId) =>
@@ -428,6 +638,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
         if (!next.delete(goalId)) next.add(goalId);
         return next;
       }),
+    drag,
   };
 
   // `byId` holds every shown goal whatever the filter; roots and unconnected
@@ -637,6 +848,8 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               <TodoRow
                 key={todo.id}
                 todo={todo}
+                fromGoalId={null}
+                drag={drag}
                 onSetTodoStatus={props.onSetTodoStatus}
                 onOpenTodo={props.onOpenTodo}
                 labels={labels}

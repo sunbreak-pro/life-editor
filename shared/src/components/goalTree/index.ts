@@ -34,9 +34,15 @@ export {
 } from "./GoalTreeArrangePanel";
 export {
   GoalTreeView,
+  type GoalTreeDragHandlers,
   type GoalTreeLabels,
   type GoalTreeViewProps,
 } from "./GoalTreeView";
+export {
+  canDropGoalOn,
+  canDropOn,
+  type GoalTreeDragSource,
+} from "./goalTreeDrag";
 export {
   GoalDetailPanel,
   type GoalDetailLabels,

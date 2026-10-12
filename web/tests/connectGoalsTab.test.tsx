@@ -573,3 +573,152 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     sheet.getByRole("textbox", { name: "Goal title" });
   });
 });
+
+describe("Connect Goals & Todos tab — drag (#2226)", () => {
+  /** jsdom has no DataTransfer; the tree only writes to it. */
+  const transfer = () => ({
+    setData: vi.fn(),
+    effectAllowed: "",
+    dropEffect: "",
+  });
+  /** The row a goal's select button sits in — the drop target. */
+  const rowOf = (title: string) => goalRow(title).parentElement as HTMLElement;
+  const handle = (attr: "goal" | "todo", id: string) =>
+    document.querySelector(`[data-${attr}-drag="${id}"]`) as HTMLElement;
+  const isTarget = (title: string) =>
+    rowOf(title).querySelector("[data-drop-target]") !== null;
+
+  async function startDrag(el: HTMLElement) {
+    fireEvent.dragStart(el, { dataTransfer: transfer() });
+    // The paint follows a tick after dragstart.
+    await waitFor(() =>
+      expect(document.querySelector("[data-drop-target]")).not.toBeNull(),
+    );
+  }
+  function dropOn(title: string) {
+    const row = rowOf(title);
+    fireEvent.dragOver(row, { dataTransfer: transfer() });
+    fireEvent.drop(row, { dataTransfer: transfer() });
+  }
+
+  it("lights only the months that may hold a week, and re-parents it with one write", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    // The open / close arrow is the grip; a year goal's arrow is not.
+    const grip = screen.getByRole("button", { name: "Collapse: Run 3 times" });
+    expect(grip.getAttribute("draggable")).toBe("true");
+    expect(
+      screen
+        .getByRole("button", { name: "Collapse: Run 10 km in 60 min" })
+        .hasAttribute("draggable"),
+    ).toBe(false);
+
+    await startDrag(grip);
+    expect(isTarget("Win an autumn project")).toBe(true);
+    // Its own month, the years (two up) and the weeks (same period) stay dark.
+    expect(isTarget("Run three times a week")).toBe(false);
+    expect(isTarget("Run 10 km in 60 min")).toBe(false);
+    expect(isTarget("Get the proposal approved")).toBe(false);
+    expect(isTarget("Finish one book")).toBe(false);
+
+    // A browser drops only where dragover was cancelled: the year row lets
+    // it pass, the month row takes it.
+    expect(
+      fireEvent.dragOver(rowOf("Run 10 km in 60 min"), {
+        dataTransfer: transfer(),
+      }),
+    ).toBe(true);
+    expect(
+      fireEvent.dragOver(rowOf("Win an autumn project"), {
+        dataTransfer: transfer(),
+      }),
+    ).toBe(false);
+    // jsdom fires drop regardless; the handler still writes nothing there.
+    dropOn("Run 10 km in 60 min");
+    expect(ds.updateGoal).not.toHaveBeenCalled();
+
+    await startDrag(grip);
+    dropOn("Win an autumn project");
+    await waitFor(() => expect(ds.updateGoal).toHaveBeenCalledTimes(1));
+    expect(ds.updateGoal).toHaveBeenCalledWith("w2", { parentGoalId: "m1" });
+    expect(document.querySelector("[data-drop-target]")).toBeNull();
+  });
+
+  it("gives a goal with nothing under it a grip of its own", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    await startDrag(handle("goal", "w3"));
+    dropOn("Run three times a week");
+    await waitFor(() =>
+      expect(ds.updateGoal).toHaveBeenCalledWith("w3", { parentGoalId: "m2" }),
+    );
+  });
+
+  it("moves a todo off the goal it was dragged from and onto the one it lands on", async () => {
+    const calls: string[] = [];
+    const ds = makeDS({
+      unlinkGoalTodo: vi.fn(async (g: string, t: string) => {
+        calls.push(`unlink ${g} ${t}`);
+      }),
+      linkGoalTodo: vi.fn(async (g: string, t: string) => {
+        calls.push(`link ${g} ${t}`);
+        return { id: "x", goalId: g, todoId: t, isDeleted: false };
+      }),
+    });
+    await renderTab(ds);
+    await startDrag(handle("todo", "t6"));
+    // Already under "Run 3 times", so that goal is not offered.
+    expect(isTarget("Run 3 times")).toBe(false);
+    expect(isTarget("Get the proposal approved")).toBe(true);
+    dropOn("Get the proposal approved");
+    await waitFor(() => expect(calls).toEqual(["unlink w2 t6", "link w1 t6"]));
+  });
+
+  it("links the todo back to its goal when the new link fails", async () => {
+    const linkGoalTodo = vi
+      .fn()
+      .mockRejectedValueOnce(new Error("offline"))
+      .mockResolvedValue({
+        id: "x",
+        goalId: "w2",
+        todoId: "t6",
+        isDeleted: false,
+      });
+    const ds = makeDS({
+      unlinkGoalTodo: vi.fn().mockResolvedValue(undefined),
+      linkGoalTodo,
+    });
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await renderTab(ds);
+    await startDrag(handle("todo", "t6"));
+    dropOn("Get the proposal approved");
+    await waitFor(() => expect(linkGoalTodo).toHaveBeenCalledTimes(2));
+    expect(ds.unlinkGoalTodo).toHaveBeenCalledWith("w2", "t6");
+    expect(linkGoalTodo.mock.calls).toEqual([
+      ["w1", "t6"],
+      ["w2", "t6"],
+    ]);
+  });
+
+  it("links a todo no goal holds to the goal it lands on, unlinking nothing", async () => {
+    const ds = makeDS({
+      unlinkGoalTodo: vi.fn().mockResolvedValue(undefined),
+      linkGoalTodo: vi.fn().mockResolvedValue(LINKS[0]),
+    });
+    await renderTab(ds);
+    await startDrag(handle("todo", "l1"));
+    dropOn("Finish one book");
+    await waitFor(() =>
+      expect(ds.linkGoalTodo).toHaveBeenCalledWith("w3", "l1"),
+    );
+    expect(ds.unlinkGoalTodo).not.toHaveBeenCalled();
+  });
+
+  it("draws no grip on a phone", async () => {
+    setNarrow();
+    await renderTab();
+    expect(
+      document.querySelector("[data-goal-drag], [data-todo-drag], [draggable]"),
+    ).toBeNull();
+  });
+});
