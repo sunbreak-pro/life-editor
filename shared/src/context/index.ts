@@ -174,3 +174,17 @@ export {
 // must not reach into web's navigation.
 export { TourProvider, type TourProviderProps } from "./TourContext";
 export { TourContext, type TourContextValue } from "./TourContextValue";
+
+// ItemPanel (#2218): Pattern A. GLOBAL-layer Provider holding which editor /
+// creation panel another screen asked for. Pure UI state; the panels need the
+// Schedule section's Providers, so web's ItemPanelHost draws them.
+export { ItemPanelProvider, type ItemPanelProviderProps } from "./ItemPanelContext";
+export {
+  ItemPanelContext,
+  type ItemPanelContextValue,
+  type ItemPanelCreateInitial,
+  type ItemPanelEditTarget,
+  type ItemPanelOptions,
+  type ItemPanelRequest,
+  type ItemPanelScheduleTarget,
+} from "./ItemPanelContextValue";

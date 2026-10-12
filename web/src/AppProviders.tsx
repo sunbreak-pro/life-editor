@@ -6,6 +6,7 @@ import {
   useRightSidebarOptional,
   useTranslation,
   AudioProvider,
+  ItemPanelProvider,
   RightSidebarProvider,
   ShortcutConfigProvider,
   SyncProvider,
@@ -17,6 +18,7 @@ import {
   type SectionId,
 } from "@life-editor/shared";
 import { GlobalShortcuts } from "./GlobalShortcuts";
+import { ItemPanelHost } from "./schedule/ItemPanelHost";
 import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
 import { ScheduleReminderBridge } from "./ScheduleReminderBridge";
 import { TimerHost } from "./TimerHost";
@@ -37,6 +39,7 @@ import { UndoRedoHost } from "./UndoRedoHost";
  * 順序 — outer may not read inner):
  *
  *   Toast → Sync → UndoRedo → ShortcutConfig → Audio → Timer → RightSidebar
+ *     → Tour → ItemPanel
  *
  * - Sync is above everything that reads `useSyncDomains`, and is mounted once
  *   rather than per-section: a per-section mount would tear down and rebuild
@@ -53,6 +56,11 @@ import { UndoRedoHost } from "./UndoRedoHost";
  *   is unmounted by the very navigation the tour asks for. It is also above
  *   the sections themselves, which is what lets Settings' Tutorial card
  *   (#1123) reach `restart` from inside the section switch.
+ * - ItemPanel (#2218) is innermost: the screens that open the Schedule's
+ *   editor from outside it (Briefing, Connect) are inside the section switch,
+ *   and its host draws that editor with the Toast / Sync / UndoRedo it reads.
+ *   The host is a sibling of the shell rather than inside a section, so the
+ *   panel survives nothing but its own close.
  *
  * Three headless bridges are interleaved rather than hoisted, because each has
  * to sit inside a specific Provider: MaterialsCountsBridge refetches on
@@ -127,7 +135,10 @@ export function AppProviders({
                     onNavigateToSection={onNavigateToSection}
                     onRevealTodoTray={onRevealTodoTray}
                   >
-                    {children}
+                    <ItemPanelProvider>
+                      {children}
+                      <ItemPanelHost dataService={dataService} />
+                    </ItemPanelProvider>
                   </TourRevealHost>
                 </RightSidebarProvider>
               </TimerHost>

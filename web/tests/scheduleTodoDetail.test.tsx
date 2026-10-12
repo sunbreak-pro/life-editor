@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { act, render, screen, fireEvent, waitFor } from "@testing-library/react";
 import type { TodoNode } from "@life-editor/shared";
 import { ScheduleTodoDetail } from "../src/schedule/ScheduleTodoDetail";
 import type { ScheduleTodoDetailProps } from "../src/schedule/ScheduleTodoDetail";
@@ -452,5 +452,39 @@ describe("ScheduleTodoDetail — the body it inherited (#1153)", () => {
     const wide = renderDetail({ isWide: true });
     expect(screen.queryByText("todoDetail.statusDone")).toBeNull();
     expect(wide.setStatus).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #2218 — 「予定の画面で開く」, offered only by the host that opens this detail
+ * from outside the Schedule (ItemPanelHost).
+ */
+describe("ScheduleTodoDetail — the open-in-Schedule button (#2218)", () => {
+  const BUTTON = "scheduleScreen.openInSchedule";
+
+  it("draws nothing when no handler is passed", () => {
+    renderDetail();
+    expect(screen.queryByText(BUTTON)).toBeNull();
+  });
+
+  it("hands the todo's id over when there is no draft to lose", async () => {
+    const onOpenInSchedule = vi.fn();
+    const { askConfirm } = renderDetail({ onOpenInSchedule });
+    fireEvent.click(screen.getByText(BUTTON));
+    await waitFor(() =>
+      expect(onOpenInSchedule).toHaveBeenCalledWith(TODO.id),
+    );
+    expect(askConfirm).not.toHaveBeenCalled();
+  });
+
+  it("asks about a pending draft first, and stays put on no", async () => {
+    const onOpenInSchedule = vi.fn();
+    const askConfirm = vi.fn(() => Promise.resolve(false));
+    renderDetail({ onOpenInSchedule, askConfirm });
+    makeDirty();
+    fireEvent.click(screen.getByText(BUTTON));
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(onOpenInSchedule).not.toHaveBeenCalled();
   });
 });

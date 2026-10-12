@@ -35,6 +35,7 @@ import { decideUnsavedClose } from "./unsavedCloseGuard";
 import { formatTodoSchedule } from "./scheduleCopy";
 import { useScheduleRoleLabels } from "./scheduleRoleLabels";
 import { TodoBodyDraft } from "./TodoBodyDraft";
+import { OpenInScheduleButton } from "./OpenInScheduleButton";
 import { type useTodoLinking } from "./useTodoLinking";
 
 /*
@@ -223,6 +224,11 @@ export interface ScheduleTodoDetailProps {
   onNavigateToItem?: (target: { id: string; role: string }) => void;
   /** #707: asks in-app rather than through window.confirm. */
   askConfirm: (request: ConfirmRequest) => Promise<boolean>;
+  /**
+   * #2218: given, the detail offers 「予定の画面で開く」 beside the convert. Only
+   * a host OUTSIDE the Schedule passes it (ItemPanelHost).
+   */
+  onOpenInSchedule?: (id: string) => void;
 }
 
 export function ScheduleTodoDetail({
@@ -235,6 +241,7 @@ export function ScheduleTodoDetail({
   linking,
   onNavigateToItem,
   askConfirm,
+  onOpenInSchedule,
 }: ScheduleTodoDetailProps) {
   const { t, i18n } = useTranslation();
   const roleLabels = useScheduleRoleLabels();
@@ -415,6 +422,16 @@ export function ScheduleTodoDetail({
       >
         {t("itemConvert.toEvent")}
       </button>
+      {/* #2218: asks about a pending draft first, like the convert above —
+          the panel closes before the Schedule opens. */}
+      {onOpenInSchedule && (
+        <OpenInScheduleButton
+          label={t("scheduleScreen.openInSchedule")}
+          onPress={() => {
+            void requestClose(() => onOpenInSchedule(todo.id));
+          }}
+        />
+      )}
     </div>
   );
 

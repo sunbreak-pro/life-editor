@@ -18,6 +18,7 @@ import {
   type ScheduleTodoDetailProps,
 } from "./ScheduleTodoDetail";
 import { ScheduleEventEditor } from "./ScheduleEventEditor";
+import { OpenInScheduleButton } from "./OpenInScheduleButton";
 import { useEditorCloseGuard } from "./useEditorCloseGuard";
 import { useScheduleRoleLabels } from "./scheduleRoleLabels";
 import { selectionSurface } from "./scheduleSelectionSurface";
@@ -102,6 +103,12 @@ export interface ScheduleOverlayHostProps {
     onDuplicate: (id: string, options?: DuplicateOptions) => void;
     /** How many tags the selection shows — see ScheduleEventEditor (#2005). */
     duplicateTagCount: number;
+    /**
+     * #2218: given, the editor offers 「予定の画面で開く」. Only a host OUTSIDE
+     * the Schedule passes it (ItemPanelHost). The unsaved-draft question is
+     * asked here first, as for every other way out of the editor.
+     */
+    onOpenInSchedule?: () => void;
   };
   /** Straight through to <ScheduleTodoDetail>; only the width is ours. */
   todoDetail: Omit<ScheduleTodoDetailProps, "isWide">;
@@ -236,6 +243,20 @@ export function ScheduleOverlayHost({
       }}
     >
       {editorPane}
+      {/* #2218: below the pane rather than beside its Delete — that footer
+          belongs to EventEditorPane (shared), which this issue's Scope does
+          not reach. Left-aligned, so it still sits under the Delete. */}
+      {editor.onOpenInSchedule && editor.item && (
+        <div className="mt-3 flex">
+          <OpenInScheduleButton
+            label={t("scheduleScreen.openInSchedule")}
+            onPress={() => {
+              const open = editor.onOpenInSchedule;
+              if (open) void requestClose(open);
+            }}
+          />
+        </div>
+      )}
     </ResponsiveDetailFrame>
   );
 
