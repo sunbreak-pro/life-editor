@@ -173,6 +173,7 @@ export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
           loading={props.initialLoading ?? false}
           warning={props.loadWarning ?? null}
           records={props.records ?? NO_RECORDS}
+          recordsLoading={props.recordsLoading ?? false}
           recordsError={props.recordsError ?? null}
           labels={props.labels}
         />

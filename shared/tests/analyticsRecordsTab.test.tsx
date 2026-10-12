@@ -393,4 +393,50 @@ describe("narrow Records block", () => {
     );
     expect(screen.getByText("Records could not be loaded")).toBeInTheDocument();
   });
+
+  it("draws a skeleton, not 'none', while the records read is in flight (#2214)", () => {
+    mockMatchMedia(false);
+    // Nothing else is loaded either: the whole-screen empty state must not
+    // claim "nothing yet" while the records are still being read.
+    const view = render(
+      <AnalyticsView
+        {...props({ records: [], recordsLoading: true, activeTab: undefined })}
+      />,
+    );
+    const block = screen.getByText("Last 7 days").closest("div")
+      ?.parentElement as HTMLElement;
+    expect(block.querySelector("[aria-busy='true']")).not.toBeNull();
+    expect(screen.queryByText("No records in the last 7 days.")).toBeNull();
+
+    // Once the read settles, the "none" line comes back as before.
+    view.rerender(
+      <AnalyticsView
+        {...props({
+          records: [rec({ occurredAt: noon(20) })],
+          recordsLoading: false,
+          activeTab: undefined,
+        })}
+      />,
+    );
+    expect(block.querySelector("[aria-busy='true']")).toBeNull();
+    expect(
+      screen.getByText("No records in the last 7 days."),
+    ).toBeInTheDocument();
+  });
+
+  it("puts the failed-read line over the skeleton once the read settles with an error", () => {
+    mockMatchMedia(false);
+    render(
+      <AnalyticsView
+        {...props({
+          records: [rec({ occurredAt: noon(0) })],
+          recordsLoading: false,
+          recordsError: "boom",
+          activeTab: undefined,
+        })}
+      />,
+    );
+    expect(screen.getByText("Records could not be loaded")).toBeInTheDocument();
+    expect(document.querySelector("[aria-busy='true']")).toBeNull();
+  });
 });
