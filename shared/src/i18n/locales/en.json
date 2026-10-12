@@ -1006,7 +1006,7 @@
         "count": "Records",
         "sum": "Total",
         "avg": "Average",
-        "needOneKind": "Pick one app or kind to see the total and average."
+        "needOneKind": "Pick one kind to see the total and average."
       },
       "chart": {
         "sumTitle": "Total over time",
