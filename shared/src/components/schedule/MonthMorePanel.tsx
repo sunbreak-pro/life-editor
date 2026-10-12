@@ -42,6 +42,10 @@ import type { MonthGridItem } from "./MonthGrid";
  *     `focus` tells that bubble to take focus — only for a keyboard press, so
  *     a mouse press behaves exactly like a press on a chip.
  *
+ * The week grid's all-day lane folds the same way (#2221) and opens this
+ * panel too. Its cell carries `data-more-cell` / `data-more-column` instead of
+ * the month cell's attributes; the placement is the same.
+ *
  * Pure presentation (§3.1 / §6.4): no DataService, no useTranslation; every
  * label arrives translated. lumen-* tokens only; opaque (§5).
  */
@@ -118,8 +122,12 @@ export function MonthMorePanel({
   const panelRef = useRef<HTMLDivElement>(null);
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
 
-  const cell = anchor.closest<HTMLElement>("[data-month-cell]") ?? anchor;
-  const column = Number(cell.dataset.monthColumn ?? "1");
+  const cell =
+    anchor.closest<HTMLElement>("[data-month-cell], [data-more-cell]") ??
+    anchor;
+  const column = Number(
+    cell.dataset.monthColumn ?? cell.dataset.moreColumn ?? "1",
+  );
   const rect = cell.getBoundingClientRect();
   const { top, left, side, maxHeight } = placeMonthMorePanel(
     rect,
@@ -202,7 +210,7 @@ export function MonthMorePanel({
       ref={panelRef}
       role="dialog"
       aria-label={title}
-      data-month-more-panel={cell.dataset.monthCell}
+      data-month-more-panel={cell.dataset.monthCell ?? cell.dataset.moreCell}
       data-month-more-side={side}
       className="fixed z-[60] flex flex-col overflow-hidden rounded-lumen-md border border-lumen-border bg-lumen-bg shadow-lumen-lg"
       style={{ top, left, width, maxHeight }}
