@@ -193,3 +193,17 @@ Briefing の作り直し（計画書 = `docs/vision/plans/2026-10-03-briefing-go
 - **本文と行のずれはアプリが直す**: ノートを保存するたびに `syncNoteTables` が本文の `tableId` とそのノートの表のアイテムを比べ、本文から消えた表をソフトデリートし、戻った表（Undo）を復元し、名前をそろえます。本文を JSON として読めないときは何もしません。貼り付けた表からは `tableId` を外します（2 つの表が 1 つのアイテムを指さないようにするためです）
 - **表は単独でゴミ箱に出さない**: 親のノートがゴミ箱にある表は、Connect と MCP の `search_by_tag` が読むときに外します。表のアイテム自体はソフトデリートしないので、ノートを戻せば表も戻ります。MCP の `list_trash` も表を出しません
 - owner-only の RLS と `supabase_realtime` への加入は 0040 の中で済ませています。同期のドメインは `notes` です（`shared/src/context/syncDomains.ts`）
+
+## 17. 拡張アプリの記録と台帳の独立テーブル（0039・#2161）
+
+拡張アプリが送る数値の記録 `app_records` と、拡張アプリの台帳 `extension_apps` の規約です（計画書 = `docs/vision/plans/2026-10-08-extension-app-records-and-apps-section.md`・[`D-20261008-main-1`](../../decisions/D-20261008-main-1.md)）。
+
+- **`items_meta` の外に置く**: 2 表とも 0018 の timer 系や 0037 の `ai_*` と同じ独立テーブルで、各表が自分の `updated_at` を持ちます。§10 の 2 行分割と複合 FK は当てません。記録は Todo やノートのような項目ではなく、階層もタグもゴミ箱も持たないためです。件数が多い記録を `items_meta` に混ぜると、項目の一覧と同期の cursor（CLAUDE.md §3.3）に記録の行が入り込みます
+- **記録の id は `record-<timestamp+counter>`**: `record-` は `items_meta.role` の値ではありません。「`id` は role を跨いで一意」は `items_meta` の中の不変式なので、独立テーブルの id は抵触しません
+- **記録は追記が中心で、ソフトデリートを持たない**: 消すときは物理削除します。画面は記録を読むだけで、作るのは MCP の道具（拡張アプリは窓口経由）です
+- **重複防止は部分 UNIQUE**: `(user_id, source_app, external_id) WHERE external_id IS NOT NULL` です。拡張アプリの再送は同じ行に落ち、`external_id` の無い記録（MCP から手で入れたもの）は何件でも入ります。同じキーで中身が違う再送は、MCP のハンドラが `idempotency_key_reused` の code で断ります（D-20261007-main-6 と同じ決まり）
+- **`source_app` は台帳への FK にしない**: 値は `extension_apps.slug` か予約語 `claude`（オーナーの MCP からの記録）で、`claude` は台帳に行がありません。台帳に登録する前に記録だけ届くことがあり、台帳の行を消しても記録は残します（Apps の「記録だけ届いているアプリ」がそれを拾います）
+- **DB が検査するのは形だけ**: `kind` は `^[a-z][a-z0-9_]{0,31}$`、`extension_apps.slug` は `^[a-z][a-z0-9-]{1,31}$`、`dims` は jsonb の object であることだけを CHECK します。`dims` の値の型とキーの数（20 個まで）は MCP のハンドラが検査します
+- **`value` の `numeric` は 15 桁までを扱う**: mapper は `numeric` を JS の `number` に写します（`appRecordMapper.ts`）。金額（円の整数）や体重（小数 1 桁）の範囲では落ちませんが、15 桁を超える値は精度が落ちるので扱いません
+- **台帳の主キーは `(user_id, slug)`**: slug は登録後に変えません。`app_records.source_app` と窓口の鍵が指すアプリの id が、この slug だからです。「最後の記録」と「30 日の件数」は保存せず、`app_records` から数えます
+- owner-only の RLS（`(select auth.uid())` の INITPLAN 形の 4 ポリシー）と `supabase_realtime` への加入、`delete_my_account` への 2 表の追加は 0039 の中で済ませています。同期のドメインは表ごとに `appRecords` と `extensionApps` です（`shared/src/context/syncDomains.ts`）。データの書き出しの表の一覧にも 2 表が入っています（`shared/src/services/userDataExport.ts`）
