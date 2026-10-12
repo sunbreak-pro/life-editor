@@ -36,14 +36,11 @@ export interface AppShellLabels {
   appName: string;
   collapse: string;
   expand: string;
-  commandPalette: string;
   signOut: string;
   more: string;
   moreTitle: string;
   /** Name for the narrow "More" sheet's close button (#525). */
   moreClose: string;
-  /** Keycap hint on the sidebar ⌘K footer row (wide layout only). */
-  shortcutHint?: string;
   /**
    * "Launch Claude Code" sidebar footer row (#1211) — wide layout only, and
    * only on the desktop shell. There is no narrow counterpart on purpose: the
@@ -81,7 +78,6 @@ export interface AppShellProps {
   mobileSections?: AppShellSection[];
   activeSection: string;
   onNavigate: (id: string) => void;
-  onTogglePalette: () => void;
   /**
    * Launches Claude Code (#1211). Forwarded to the wide sidebar's footer. The
    * narrow branch ignores it — see `labels.launchClaude` for why it has no
@@ -162,7 +158,6 @@ export function AppShell({
   mobileSections,
   activeSection,
   onNavigate,
-  onTogglePalette,
   onLaunchClaude,
   userEmail,
   userName,
@@ -209,7 +204,6 @@ export function AppShell({
           onNavigate={onNavigate}
           collapsed={collapsed}
           onToggleCollapsed={() => setCollapsed((v) => !v)}
-          onTogglePalette={onTogglePalette}
           onLaunchClaude={onLaunchClaude}
           userEmail={userEmail}
           userName={userName}

@@ -39,7 +39,6 @@ const LABELS = {
   appName: "Life Editor",
   collapse: "Collapse sidebar",
   expand: "Expand sidebar",
-  commandPalette: "Command palette",
   signOut: "Sign out",
   more: "More",
   moreTitle: "More",
@@ -90,7 +89,6 @@ function renderShell() {
       sections={SECTIONS}
       activeSection="notes"
       onNavigate={vi.fn()}
-      onTogglePalette={vi.fn()}
       userEmail="user@example.com"
       onSignOut={vi.fn()}
       labels={LABELS}

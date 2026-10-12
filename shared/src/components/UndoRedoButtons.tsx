@@ -46,9 +46,15 @@ export interface UndoRedoButtonsProps {
  * with the mobile-sized pair. Nothing breaks — the wide header is 3.75rem, so
  * they still fit — and pinning it instead would mean inventing a second
  * breakpoint convention for one button pair.
+ *
+ * The border is always drawn (#2216), disabled included. A disabled button
+ * used to fade as a whole (`opacity-40`), border and all, so a pair with no
+ * history read as missing rather than as "nothing to undo". Now only the
+ * glyph steps down to the tertiary text token; the box keeps its full
+ * `border-strong` outline, which is what tells the user the control is there.
  */
 const BTN =
-  "flex size-8 max-md:min-h-11 max-md:min-w-11 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-transparent disabled:hover:text-lumen-text-secondary";
+  "flex size-8 max-md:min-h-11 max-md:min-w-11 items-center justify-center rounded-lumen-md border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent disabled:cursor-not-allowed disabled:text-lumen-text-tertiary disabled:hover:bg-transparent disabled:hover:text-lumen-text-tertiary";
 
 /*
  * Press without taking focus (#1690).

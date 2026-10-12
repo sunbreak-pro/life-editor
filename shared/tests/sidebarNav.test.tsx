@@ -26,9 +26,7 @@ const LABELS = {
   appName: "Life Editor",
   collapse: "Collapse sidebar",
   expand: "Expand sidebar",
-  commandPalette: "Command palette",
   signOut: "Sign out",
-  shortcutHint: "⌘K",
 };
 
 function renderSidebar(props?: Partial<Parameters<typeof SidebarNav>[0]>) {
@@ -41,7 +39,6 @@ function renderSidebar(props?: Partial<Parameters<typeof SidebarNav>[0]>) {
       onNavigate={onNavigate}
       collapsed={false}
       onToggleCollapsed={vi.fn()}
-      onTogglePalette={vi.fn()}
       userEmail="user@example.com"
       onSignOut={vi.fn()}
       labels={LABELS}
@@ -130,13 +127,17 @@ describe("SidebarNav utility group", () => {
   });
 
   it("draws the utility rows with the footer rows' text token, not a dimmer one (#1623)", () => {
-    // Settings was the only row a step darker (text-tertiary) than the ⌘K /
-    // tag / Claude footer rows directly under it, which read as disabled in
-    // dark mode. Same token as the palette row is the contract.
-    renderSidebar({ activeSection: "schedule" });
+    // Settings was the only row a step darker (text-tertiary) than the
+    // footer rows directly under it, which read as disabled in dark mode.
+    // Same token as the Claude footer row is the contract.
+    renderSidebar({
+      activeSection: "schedule",
+      onLaunchClaude: vi.fn(),
+      labels: { ...LABELS, launchClaude: "Start Claude Code" },
+    });
     const settings = screen.getByRole("button", { name: "Settings" });
-    const palette = screen.getByRole("button", { name: "Command palette" });
-    expect(palette.className).toContain("text-lumen-text-secondary");
+    const claude = screen.getByRole("button", { name: "Start Claude Code" });
+    expect(claude.className).toContain("text-lumen-text-secondary");
     expect(settings.className).toContain("text-lumen-text-secondary");
     expect(settings.className).not.toContain("text-lumen-text-tertiary");
   });
@@ -149,74 +150,22 @@ describe("SidebarNav utility group", () => {
     ).toBeInTheDocument();
   });
 
-  it("shows the ⌘K keycap hint on the command-palette footer row", () => {
-    renderSidebar();
-    expect(screen.getByText("⌘K")).toBeInTheDocument();
-  });
 });
 
 /*
- * #1468 — the command-palette label used to be clipped to 「コマンドパレッ…」
- * whenever the shortcut hint was the Windows "Ctrl K" rather than the two-glyph
- * "⌘K".
- *
- * jsdom has no layout (CLAUDE.md §7.1) and Tailwind's stylesheet is not loaded,
- * so neither the overflow nor the resolved font-family is observable here — the
- * width of the label is unassertable by construction. What these fences hold is
- * the CAUSE, in the same shape the file already uses for the utility rows'
- * `text-lumen-text-secondary` above: the flex contract that decided WHICH of the two items gives
- * way, and the font opt-out that stopped the keycap being ~19% wider per glyph
- * than the row around it. Both were reverted locally and confirmed to turn this
- * block red before the fix was committed.
+ * #2216 — the command palette has no sidebar row any more, expanded or
+ * collapsed. It still opens from the header's search field and Cmd/Ctrl+K;
+ * those routes are fenced where they live (commandSearchField.test.tsx /
+ * useGlobalShortcuts.test.ts), not here.
  */
-describe("SidebarNav command palette row (#1468)", () => {
-  const WINDOWS = { ...LABELS, shortcutHint: "Ctrl K" };
-
-  it("lays the label out at its content width instead of the leftover space", () => {
-    renderSidebar({ labels: WINDOWS });
-    const label = screen.getByText("Command palette");
-    // `flex-1` is flex-basis 0: the span took only what the keycap left over,
-    // which is exactly how a fixed 15rem rail ended up eliding a label that had
-    // no business being elided. basis-auto + shrink-0 makes the keycap yield.
-    expect(label.className).toContain("shrink-0");
-    expect(label.className).toContain("basis-auto");
-    expect(label.className).not.toContain("flex-1");
-    expect(label.className).not.toContain("truncate");
-  });
-
-  it("pins the yield order: keycap elides, then the row clips", () => {
-    renderSidebar({ labels: WINDOWS });
-    // A label that never shrinks needs a hard stop behind it, or a long enough
-    // translation paints over the content pane instead of the 15rem aside.
-    // These two are the rest of that contract.
-    expect(screen.getByText("Ctrl K").className).toContain("truncate");
+describe("SidebarNav without a command palette row (#2216)", () => {
+  it.each([false, true])("draws no palette row (collapsed=%s)", (collapsed) => {
+    renderSidebar({ collapsed });
     expect(
-      screen.getByRole("button", { name: "Command palette" }).className,
-    ).toContain("overflow-hidden");
-  });
-
-  it("keeps the keycap off the monospace stack", () => {
-    renderSidebar({ labels: WINDOWS });
-    const keycap = screen.getByText("Ctrl K");
-    // Tailwind preflight puts every bare <kbd> on --font-mono. Nothing else in
-    // this row is monospace, and six fixed-pitch advances is what tipped the
-    // budget over on Windows while macOS ("⌘K") never showed it.
-    expect(keycap.tagName).toBe("KBD");
-    expect(keycap.className).toContain("font-sans");
-  });
-
-  it("drops both the label and the keycap on the collapsed rail", () => {
-    // Honest label: this one does NOT fence the fix. The diff is className-only
-    // and both nodes live inside the same `!collapsed &&` fragment, so it was
-    // green before it too. It is new coverage for the half the DoD asks not to
-    // regress — the icon-only rail, whose accessible name has to come from
-    // aria-label + title once the text is gone.
-    renderSidebar({ collapsed: true, labels: WINDOWS });
-    expect(screen.queryByText("Command palette")).not.toBeInTheDocument();
+      screen.queryByRole("button", { name: /command palette/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("⌘K")).not.toBeInTheDocument();
     expect(screen.queryByText("Ctrl K")).not.toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: "Command palette" }),
-    ).toHaveAttribute("title", "Command palette");
   });
 });
 

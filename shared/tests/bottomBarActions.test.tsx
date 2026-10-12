@@ -29,7 +29,6 @@ const LABELS = {
   appName: "Life Editor",
   collapse: "Collapse sidebar",
   expand: "Expand sidebar",
-  commandPalette: "Command palette",
   signOut: "Sign out",
   more: "More",
   moreTitle: "More",
@@ -56,7 +55,6 @@ function renderShell(props?: Partial<Parameters<typeof AppShell>[0]>) {
       sections={SECTIONS}
       activeSection="todos"
       onNavigate={vi.fn()}
-      onTogglePalette={vi.fn()}
       userEmail="user@example.com"
       onSignOut={vi.fn()}
       labels={LABELS}
@@ -150,7 +148,6 @@ describe("bottom bar actions (#472, narrow)", () => {
         sections={SECTIONS}
         activeSection="todos"
         onNavigate={vi.fn()}
-        onTogglePalette={vi.fn()}
         userEmail="user@example.com"
         onSignOut={vi.fn()}
         labels={LABELS}

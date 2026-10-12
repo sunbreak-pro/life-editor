@@ -60,17 +60,14 @@ describe("PageContainer", () => {
     expect(container.querySelector(".overflow-y-auto")).toBeNull();
   });
 
-  it("renders the standard gutter header row only when a header is given", () => {
-    // fluid body carries no gutter, so px-lumen-gutter isolates the header slot.
+  it("renders the header frame only when a header is given", () => {
     const withHeader = render(
       <PageContainer width="fluid" header={<nav>tabs</nav>}>
         <p>body</p>
       </PageContainer>,
     );
     expect(screen.getByText("tabs")).toBeInTheDocument();
-    expect(
-      withHeader.container.querySelector(".px-lumen-gutter"),
-    ).not.toBeNull();
+    expect(withHeader.container.querySelector(".border-b")).not.toBeNull();
     withHeader.unmount();
 
     const noHeader = render(
@@ -78,6 +75,33 @@ describe("PageContainer", () => {
         <p>body</p>
       </PageContainer>,
     );
-    expect(noHeader.container.querySelector(".px-lumen-gutter")).toBeNull();
+    expect(noHeader.container.querySelector(".border-b")).toBeNull();
+  });
+
+  /*
+   * #2216 — the narrow band is a tight strip closed by a hairline: ~12px
+   * sides and ~4px top / bottom (px-2.5 py-1 at the 18px root), with the
+   * divider dropped again at md:, where the band never renders. The frame is
+   * the band's direct parent.
+   */
+  it("frames the narrow band tightly and closes it with a divider (#2216)", () => {
+    render(
+      <PageContainer width="wide" header={<nav>tabs</nav>}>
+        <p>body</p>
+      </PageContainer>,
+    );
+    const frame = screen.getByText("tabs").parentElement!;
+    for (const cls of [
+      "px-2.5",
+      "py-1",
+      "border-b",
+      "border-lumen-border",
+      "md:border-b-0",
+    ]) {
+      expect(frame.classList.contains(cls)).toBe(true);
+    }
+    // The old 16px gutter + top-only padding are gone from the band.
+    expect(frame.classList.contains("px-lumen-gutter")).toBe(false);
+    expect(frame.classList.contains("pt-2")).toBe(false);
   });
 });
