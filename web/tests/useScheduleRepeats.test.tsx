@@ -233,24 +233,6 @@ describe("useScheduleRepeats — the #408 list", () => {
   });
 });
 
-describe("useScheduleRepeats — the routine summary", () => {
-  // The opposite rule to the list above: this one is the digest the flow tab
-  // shows, so an archived routine in it would list something retired as if it
-  // were still on the calendar. (It backed a completion count until #1440.)
-  it("drops archived and hidden routines", () => {
-    const { hook } = setup({
-      routines: [
-        routine("visible"),
-        routine("archived", { isArchived: true }),
-        routine("hidden", { isVisible: false }),
-      ],
-    });
-    expect(hook.result.current.summaryRows.map((r) => r.id)).toEqual([
-      "visible",
-    ]);
-  });
-});
-
 describe("useScheduleRepeats — the selected occurrence's frequency", () => {
   it("is null for a manual event", () => {
     const { hook } = setup({ selected: item("manual") });

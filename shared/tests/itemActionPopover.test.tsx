@@ -212,3 +212,67 @@ describe("ItemActionPopover autoFocus (#2049)", () => {
     expect(document.body).toHaveFocus();
   });
 });
+
+/*
+ * #2222: the summary itself as the edit target. The schedule host covers the
+ * fields it asks for (web/tests/scheduleOverlays.test.tsx); here, the rules
+ * the popover owns whoever asks.
+ */
+describe("ItemActionPopover — in-place edit of the summary (#2222)", () => {
+  const LABELS = {
+    hint: "Double-click to edit",
+    title: "Title",
+    date: "Date",
+    start: "Start",
+    end: "End",
+    save: "Save",
+    cancel: "Cancel",
+  };
+
+  function renderEditable(onCommit = vi.fn(), onEditDetail = vi.fn()) {
+    const onClose = vi.fn();
+    render(
+      <ItemActionPopover
+        position={{ x: 100, y: 100 }}
+        summary={<p>Gym</p>}
+        onEditDetail={onEditDetail}
+        editDetailLabel="Edit detail"
+        onClose={onClose}
+        quickEdit={{ value: { title: "Gym" }, labels: LABELS, onCommit }}
+      />,
+    );
+    return { onCommit, onClose };
+  }
+
+  it("carries the hint on the target and hides the edit-detail button while editing", () => {
+    renderEditable();
+    const target = screen.getByText("Gym").closest(
+      "[data-item-quick-edit-target]",
+    ) as HTMLElement;
+    expect(target.getAttribute("title")).toBe(LABELS.hint);
+    expect(screen.getByText("Edit detail")).toBeTruthy();
+
+    fireEvent.doubleClick(target);
+    expect(screen.getByLabelText("Title")).toHaveFocus();
+    expect(screen.queryByText("Edit detail")).toBeNull();
+  });
+
+  it("writes nothing when the save changes nothing, and keeps a cleared title", () => {
+    const { onCommit, onClose } = renderEditable();
+    fireEvent.doubleClick(screen.getByText("Gym"));
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "   " },
+    });
+    fireEvent.click(screen.getByText("Save"));
+    expect(onCommit).not.toHaveBeenCalled();
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  it("does not close the panel on the Escape that leaves the form", () => {
+    const { onClose } = renderEditable();
+    fireEvent.doubleClick(screen.getByText("Gym"));
+    fireEvent.keyDown(screen.getByLabelText("Title"), { key: "Escape" });
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getByText("Gym")).toBeTruthy();
+  });
+});

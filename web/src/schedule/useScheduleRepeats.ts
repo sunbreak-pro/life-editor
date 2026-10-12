@@ -9,7 +9,6 @@ import {
   type FrequencyLabelCopy,
   type RepeatListRow,
   type RoutineNode,
-  type RoutineSummaryRow,
   type ScheduleItem,
 } from "@life-editor/shared";
 import { pickRepeatOccurrence } from "./repeatOccurrence";
@@ -23,9 +22,9 @@ import {
  *
  * Everything here answers one question — what the routines behind the calendar
  * are, and how to reach one. Three surfaces read it: the editor's frequency
- * field (`repeatValue`), the sidebar's routine-completion summary
- * (`summaryRows` + the two counts) and the #408 repeat list (`repeatRows` and
- * its two handlers). None of it touches the visible-range store, the todo
+ * field (`repeatValue`) and the #408 repeat list (`repeatRows` and its two
+ * handlers). The sidebar's routine summary that used to read `summaryRows`
+ * went with #2222. None of it touches the visible-range store, the todo
  * chips or the creation panel, which is why it comes out as one piece.
  *
  * Everything is injected (§3.1 / §6.4): provider callbacks, the already-
@@ -140,22 +139,9 @@ export function useScheduleRepeats({
     };
   }, [selectedRoutine]);
 
-  const summaryRows = useMemo<RoutineSummaryRow[]>(
-    () =>
-      routines
-        .filter((r) => !r.isArchived && r.isVisible)
-        .map((r) => ({
-          id: r.id,
-          title: r.title,
-          timeLabel: r.startTime ?? "",
-          frequencyLabel: frequencyLabel(r, freqCopy, weekdayLabels),
-        })),
-    [routines, freqCopy, weekdayLabels],
-  );
-
   const listDate = useMemo(() => todayCalendarKey(now), [now]);
 
-  // #408 repeat list. Unlike summaryRows this is NOT filtered: the whole point
+  // #408 repeat list. This is NOT filtered: the whole point
   // of the panel is listing routines the calendar cannot show — an interval
   // starting next month, archived / hidden ones, and the malformed ones that
   // fire on no day at all (#407's zombies). Sorted by `order`, the same
@@ -424,7 +410,6 @@ export function useScheduleRepeats({
 
   return {
     repeatValue,
-    summaryRows,
     /** Today's key off the minute ticker — also the conversion path's day. */
     listDate,
     repeatRows,

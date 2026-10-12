@@ -242,14 +242,14 @@ function renderHost(
     chipId === CHIP_ID ? CHIP : null,
   );
   const itemActions = {
-    onRename: vi.fn(),
-    onRetime: vi.fn(),
+    onQuickEdit: vi.fn(),
     onDuplicate: vi.fn(),
     onConvertToTodo: vi.fn(),
     onDelete: vi.fn(),
   };
   const todoActions = {
     onRename: vi.fn(),
+    onRetime: vi.fn(),
     onDelete: vi.fn(),
     onConvertToEvent: vi.fn(),
   };

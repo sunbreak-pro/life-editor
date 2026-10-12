@@ -258,7 +258,6 @@ function ItemPanelSurface({
     handleCreate,
     handleDismiss,
     handleDelete,
-    handleRename,
     handleDuplicate,
     handleChangeRepeat,
     handleDetachRepeat,
@@ -480,15 +479,15 @@ function ItemPanelSurface({
         onClose: NOOP,
         onOpenDetail: NOOP,
         itemActions: {
-          onRename: handleRename,
-          onRetime: (id, next) =>
-            handleUpdate(id, { startTime: next.start, endTime: next.end }),
+          onQuickEdit: handleUpdate,
           onDuplicate: handleDuplicate,
           onConvertToTodo: handleConvertToTodo,
           onDelete: handleDelete,
         },
         todoActions: {
           onRename: handleTodoRename,
+          onRetime: (id, slot) =>
+            handleTodoChipMove(id, slot.date, slot.start, slot.end),
           onDelete: handleTodoDelete,
           onConvertToEvent: handleConvertToEvent,
         },

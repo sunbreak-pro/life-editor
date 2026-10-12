@@ -296,14 +296,14 @@ function Host({
           onClose: NOOP,
           onOpenDetail: NOOP,
           itemActions: {
-            onRename: NOOP,
-            onRetime: NOOP,
+            onQuickEdit: NOOP,
             onDuplicate: NOOP,
             onConvertToTodo: NOOP,
             onDelete: NOOP,
           },
           todoActions: {
             onRename: NOOP,
+            onRetime: NOOP,
             onDelete: NOOP,
             onConvertToEvent: NOOP,
           },

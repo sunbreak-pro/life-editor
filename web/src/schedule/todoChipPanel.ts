@@ -1,5 +1,9 @@
-import { isTodoChip } from "@life-editor/shared";
-import type { ItemAction, TodoCalendarChip } from "@life-editor/shared";
+import { HOLIDAY_ITEM_PREFIX, isTodoChip } from "@life-editor/shared";
+import type {
+  ItemAction,
+  ScheduleItem,
+  TodoCalendarChip,
+} from "@life-editor/shared";
 import { selectionSurface } from "./scheduleSelectionSurface";
 
 /*
@@ -19,6 +23,11 @@ import { selectionSurface } from "./scheduleSelectionSurface";
  * What it gets is the same panel with the actions that DO exist, and each of
  * them is one the Today's Todo tray already offers on the same todo (#555):
  * rename, delete, and "open in Todos" as the detail hand-off.
+ *
+ * #2222: the rename row is gone. The bubble's summary is edited in place
+ * instead (ItemActionPopover `quickEdit`) — the title, and for a timed todo its
+ * start time. The event side of the same edit lives at the bottom of this file
+ * so both variants of the bubble decide their fields in one place.
  *
  * Pure data, following todoChipUndoWiring.ts for the same reason: CalendarTab
  * needs the whole Provider stack plus real layout to render, so anything
@@ -64,7 +73,6 @@ export const SCHEDULE_ITEM_PANEL_WIDTH = 520;
 export interface TodoChipPanelCopy {
   untitled: string;
   allDay: string;
-  rename: string;
   delete: string;
   /** #625 "予定に変換" — the chip's own row is the shortest route to it. */
   convertToEvent: string;
@@ -73,6 +81,11 @@ export interface TodoChipPanelCopy {
 /** The host writes, kept out of this module (see todoChipUndoWiring). */
 export interface TodoChipPanelHandlers {
   onRename: (title: string) => void;
+  /**
+   * #2222: a new start for a timed todo, already carried to a whole slot —
+   * the length is kept, so the host can reuse the grid's move write.
+   */
+  onRetime: (slot: { date: string; start: string; end: string }) => void;
   onDelete: () => void;
   /**
    * #625: re-role this todo into a schedule item. Placed above delete and NOT
@@ -88,6 +101,50 @@ export interface TodoChipPanelModel {
   /** Summary meta line: the all-day word, or the chip's `HH:MM–HH:MM` span. */
   timeLabel: string;
   actions: ItemAction[];
+  /** #2222: what the in-place form starts from. */
+  quickEditValue: QuickEditValue;
+  /** #2222: the form's save, split into the host's writes. */
+  commitQuickEdit: (next: QuickEditValue) => void;
+}
+
+/**
+ * The in-place form's values (ItemActionPopover's `ItemQuickEditValue`, by
+ * shape). Which keys are present decides which fields the form shows.
+ */
+export interface QuickEditValue {
+  title: string;
+  date?: string;
+  start?: string;
+  end?: string;
+}
+
+const DAY_MAX = 23 * 60 + 59;
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(":").map(Number);
+  return h * 60 + m;
+}
+
+function toHHMM(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/**
+ * A todo's new start, moved with its length (#2222). The end is held to the
+ * same day — a todo slot cannot cross midnight — and a start so late that
+ * nothing is left of the slot is no move at all.
+ */
+export function todoSlotFromStart(
+  chip: Pick<TodoCalendarChip, "date" | "startTime" | "endTime">,
+  start: string,
+): { date: string; start: string; end: string } | null {
+  const from = toMinutes(start);
+  const length = toMinutes(chip.endTime) - toMinutes(chip.startTime);
+  const to = Math.min(from + Math.max(length, 0), DAY_MAX);
+  if (to <= from) return null;
+  return { date: chip.date, start: toHHMM(from), end: toHHMM(to) };
 }
 
 export function todoChipPanelModel(
@@ -104,16 +161,19 @@ export function todoChipPanelModel(
   return {
     title: chip.title || copy.untitled,
     timeLabel,
+    // Spec: a todo changes its start only. An all-day todo has no time to
+    // change, so it edits its title alone.
+    quickEditValue: chip.isAllDay
+      ? { title: chip.title }
+      : { title: chip.title, start: chip.startTime },
+    commitQuickEdit: (next) => {
+      if (next.title !== chip.title) handlers.onRename(next.title);
+      if (!chip.isAllDay && next.start && next.start !== chip.startTime) {
+        const slot = todoSlotFromStart(chip, next.start);
+        if (slot) handlers.onRetime(slot);
+      }
+    },
     actions: [
-      {
-        id: "rename",
-        label: copy.rename,
-        inlineInput: {
-          value: chip.title,
-          ariaLabel: copy.rename,
-          onCommit: handlers.onRename,
-        },
-      },
       {
         id: "convertToEvent",
         label: copy.convertToEvent,
@@ -127,4 +187,46 @@ export function todoChipPanelModel(
       },
     ],
   };
+}
+
+/**
+ * The event side of the in-place edit (#2222). A routine occurrence keeps its
+ * day — moving one off its day is the repeat's business, so it gets the time
+ * alone. An all-day event has no clock time. A holiday is not the user's to
+ * edit and gets no form (null).
+ */
+export function eventQuickEditValue(
+  item: Pick<
+    ScheduleItem,
+    "id" | "title" | "date" | "startTime" | "endTime" | "isAllDay" | "routineId"
+  >,
+): QuickEditValue | null {
+  if (item.id.startsWith(HOLIDAY_ITEM_PREFIX)) return null;
+  return {
+    title: item.title,
+    ...(item.routineId ? {} : { date: item.date }),
+    ...(item.isAllDay ? {} : { start: item.startTime, end: item.endTime }),
+  };
+}
+
+/**
+ * The form's save as one patch for the host's update path, or null when
+ * nothing changed. One patch rather than a rename plus a retime, so a routine
+ * occurrence asks its this / future / all question once.
+ */
+export function eventQuickEditPatch(
+  item: Pick<ScheduleItem, "title" | "date" | "startTime" | "endTime">,
+  next: QuickEditValue,
+): Partial<
+  Pick<ScheduleItem, "title" | "date" | "startTime" | "endTime">
+> | null {
+  const patch: Partial<
+    Pick<ScheduleItem, "title" | "date" | "startTime" | "endTime">
+  > = {};
+  if (next.title !== item.title) patch.title = next.title;
+  if (next.date != null && next.date !== item.date) patch.date = next.date;
+  if (next.start != null && next.start !== item.startTime)
+    patch.startTime = next.start;
+  if (next.end != null && next.end !== item.endTime) patch.endTime = next.end;
+  return Object.keys(patch).length > 0 ? patch : null;
 }

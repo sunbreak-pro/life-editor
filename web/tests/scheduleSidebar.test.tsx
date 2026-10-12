@@ -103,7 +103,6 @@ function makeProps(
       nowMinutes: 540,
       selectedId: null,
       skipped: [],
-      summaryRows: [],
       onToggleComplete: vi.fn(),
       onItemActivate: vi.fn(),
       onItemDoubleClick: vi.fn(),
@@ -290,53 +289,12 @@ describe("ScheduleSidebar — flow tab", () => {
     expect(screen.queryByText("scheduleScreen.restoreSkipped")).toBeNull();
   });
 
-  it("keeps the routine summary on Desktop only", () => {
-    const summaryRows = [
-      {
-        id: "r1",
-        title: "Morning run",
-        timeLabel: "7:00",
-        frequencyLabel: "Daily",
-      },
-    ];
-    const { unmount } = render(
-      <ScheduleSidebar
-        {...makeProps({ isWide: true, flow: { summaryRows } })}
-      />,
-    );
-    expect(screen.getByText("scheduleScreen.summaryTitle")).toBeTruthy();
-    unmount();
-
-    render(
-      <ScheduleSidebar
-        {...makeProps({ isWide: false, flow: { summaryRows } })}
-      />,
-    );
+  // #2222: the "My routines" card is gone from the flow tab. The repeats tab
+  // beside it lists the same routines in full.
+  it("shows no routine summary on the flow tab", () => {
+    render(<ScheduleSidebar {...makeProps({ isWide: true })} />);
     expect(screen.queryByText("scheduleScreen.summaryTitle")).toBeNull();
-  });
-
-  it("routes the summary CTA to the repeats tab — the flow tab's only way there", () => {
-    const onTabChange = vi.fn();
-    render(
-      <ScheduleSidebar
-        {...makeProps({
-          isWide: true,
-          onTabChange,
-          flow: {
-            summaryRows: [
-              {
-                id: "r1",
-                title: "Morning run",
-                timeLabel: "7:00",
-                frequencyLabel: "Daily",
-              },
-            ],
-          },
-        })}
-      />,
-    );
-    fireEvent.click(screen.getByText("scheduleScreen.openRoutinesCta"));
-    expect(onTabChange).toHaveBeenCalledWith("repeats");
+    expect(screen.queryByText("scheduleScreen.openRoutinesCta")).toBeNull();
   });
 });
 
