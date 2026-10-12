@@ -5,7 +5,13 @@ import { WorkLoadFailed } from "./WorkLoadFailed";
 import { BottomSheet } from "./BottomSheet";
 import { Input } from "./Input";
 import { isImeComposing } from "../utils/imeGuard";
-import { WorkTargetGlyph, type WorkTargetOption } from "./PomodoroTodoSelector";
+import {
+  WorkTargetGlyph,
+  findExactWorkTarget,
+  normalizeWorkName,
+  workTargetIcon,
+  type WorkTargetOption,
+} from "./PomodoroTodoSelector";
 import { cn } from "./cn";
 
 /*
@@ -70,6 +76,10 @@ export interface PomodoroTodoSheetLabels {
   namePlaceholder?: string;
   /** Button that starts working under the typed name. */
   nameSubmit?: string;
+  /** Button that makes the typed name a new Todo (#2229). */
+  addAsTodo?: string;
+  /** Button that makes the typed name a new Event (#2229). */
+  addAsEvent?: string;
   /** Heading of the failed-read state (#2054). */
   loadFailedTitle?: string;
   /** Its line — what to do now. */
@@ -96,6 +106,11 @@ export interface PomodoroTodoSheetProps {
   freeSessionName?: string;
   /** Receives the name as typed; blank means "the default title". */
   onNameSubmit?: (name: string) => void;
+  /**
+   * Turns on the "add as Todo / Event" pair under the name field (#2229).
+   * Gets the trimmed name and the kind; the sheet closes after.
+   */
+  onCreate?: (name: string, kind: WorkTargetOption["kind"]) => void;
   /**
    * The host's last read failed (#2054). Shown only while the list is empty,
    * and only with `onRetry` and the three failure labels.
@@ -125,6 +140,7 @@ export function PomodoroTodoSheet({
   loading = false,
   freeSessionName,
   onNameSubmit,
+  onCreate,
   loadFailed = false,
   onRetry,
   retrying = false,
@@ -138,6 +154,15 @@ export function PomodoroTodoSheet({
     onNameSubmit?.(name);
     choose(null);
   };
+
+  // What the target becomes is the host's to set (a Todo links it, an Event
+  // name leaves the session free), so this only hands over and closes.
+  const create =
+    onCreate &&
+    ((name: string, kind: WorkTargetOption["kind"]) => {
+      onCreate(name, kind);
+      onClose();
+    });
 
   const todos = items.filter((t) => t.kind === "todo");
   const events = items.filter((t) => t.kind === "event");
@@ -274,6 +299,8 @@ export function PomodoroTodoSheet({
           initial={freeSessionName}
           labels={labels}
           onSubmit={submitName}
+          items={items}
+          onCreate={create}
         />
       ) : null}
       {body}
@@ -290,18 +317,33 @@ export function PomodoroTodoSheet({
  * field alone). Enter submits too, but a phone keyboard's return key is not
  * where everyone looks for "go", and the button is what says that typing a
  * name is a way to start at all.
+ *
+ * With `onCreate` (#2229) a typed name also offers two buttons under the field
+ * — add it as a new Todo, or as an Event filed when the session ends. They
+ * hide while the name is blank, and while a candidate already carries it
+ * (NFKC, trimmed, case kept — the desktop list's rule), so the same name is
+ * not made twice; that candidate is in the list below to tap instead.
  */
 function FreeSessionNameField({
   initial,
   labels,
   onSubmit,
+  items,
+  onCreate,
 }: {
   initial: string;
   labels: PomodoroTodoSheetLabels;
   onSubmit: (name: string) => void;
+  items: readonly WorkTargetOption[];
+  onCreate?: (name: string, kind: WorkTargetOption["kind"]) => void;
 }) {
   const [draft, setDraft] = useState(initial);
   const fieldId = useId();
+  const name = draft.trim();
+  const canCreate =
+    onCreate !== undefined &&
+    normalizeWorkName(draft) !== "" &&
+    findExactWorkTarget(items, draft) === null;
 
   const onKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     // Enter also confirms a Japanese conversion; that one must not submit.
@@ -336,6 +378,23 @@ function FreeSessionNameField({
           {labels.nameSubmit}
         </button>
       </div>
+      {canCreate ? (
+        <div className="flex gap-2 pt-1">
+          {(["todo", "event"] as const).map((kind) => (
+            <button
+              key={kind}
+              type="button"
+              onClick={() => onCreate?.(name, kind)}
+              className="inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 text-sm font-medium text-lumen-accent hover:bg-lumen-hover"
+            >
+              {workTargetIcon(kind, undefined, "size-lumen-icon-sm shrink-0")}
+              <span className="truncate">
+                {kind === "todo" ? labels.addAsTodo : labels.addAsEvent}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

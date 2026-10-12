@@ -356,7 +356,6 @@
       "allDay": "終日",
       "nameLabel": "フリーセッションの名前",
       "nameSubmit": "この名前で作業する",
-      "emptyHint": "選べる Todo や予定がありません。このまま始めるとフリーセッションになります。",
       "todoHeading": "Todo",
       "eventHeading": "予定",
       "sheetEmptyTitle": "紐付けられる Todo や予定がありません",
@@ -364,6 +363,17 @@
       "loadFailedTitle": "候補を読み込めませんでした",
       "loadFailedBody": "通信を確認して、もう一度読み込んでください。上の欄に名前を入れれば、このままフリーセッションとして始められます。",
       "retry": "もう一度読み込む"
+    },
+    "taskPicker": {
+      "placeholder": "作業名を検索 / 新しい名前を入力…",
+      "createTodo": "「{{name}}」を Todo として追加",
+      "createEvent": "「{{name}}」を予定として追加",
+      "createdTodo": "「{{name}}」を Todo として追加しました",
+      "pendingEvent": "「{{name}}」は、作業を終えたときに予定として記録します",
+      "createFailed": "「{{name}}」を Todo として追加できませんでした。もう一度試してください。",
+      "empty": "今後 7 日に紐付けられるものはありません。名前を入力すると新しい作業を追加できます。",
+      "addAsTodo": "Todo として追加",
+      "addAsEvent": "予定として追加"
     },
     "completion": {
       "title": "セッション {{index}} が完了しました",
@@ -1191,7 +1201,9 @@
       "updateNote": "ノートの変更",
       "softDeleteNote": "ノートの削除",
       "assignTag": "タグの追加",
-      "unassignTag": "タグの削除"
+      "unassignTag": "タグの削除",
+      "workCreateTodo": "作業名から Todo を追加",
+      "workPendingEvent": "作業名を予定として記録"
     }
   },
   "common": {

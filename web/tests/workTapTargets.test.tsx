@@ -188,9 +188,9 @@ describe("Work — the Desktop picker keeps its size (#1557)", () => {
     expect(classes(trigger)).not.toContain("min-h-11");
 
     fireEvent.click(trigger);
-    const menu = await screen.findByRole("menu");
+    const menu = await screen.findByRole("listbox");
     fireEvent.click(
-      within(menu).getByRole("menuitem", { name: "Write the spec" }),
+      within(menu).getByRole("option", { name: "Write the spec" }),
     );
 
     const clear = within(main).getByRole("button", {

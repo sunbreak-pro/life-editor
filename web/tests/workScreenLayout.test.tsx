@@ -360,13 +360,13 @@ describe("Work — the picker's event rows name their day (#1519)", () => {
         name: "work.todoSelector.placeholder",
       }),
     );
-    const menu = await screen.findByRole("menu");
+    const menu = await screen.findByRole("listbox");
     expect(
-      within(menu).getByRole("menuitem", { name: /Morning pages/ }).textContent,
+      within(menu).getByRole("option", { name: /Morning pages/ }).textContent,
     ).toBe("Morning pages9/6 07:00");
     // A todo is one row for one thing — nothing to disambiguate, no subtitle.
     expect(
-      within(menu).getByRole("menuitem", { name: /Write the spec/ })
+      within(menu).getByRole("option", { name: /Write the spec/ })
         .textContent,
     ).toBe("Write the spec");
   });
