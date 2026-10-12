@@ -27,6 +27,7 @@ import { CalendarDesktopLayout } from "./CalendarDesktopLayout";
 import { CalendarNarrowLayout } from "./CalendarNarrowLayout";
 import { ScheduleOverlayHost } from "./ScheduleOverlayHost";
 import { useCreatePanelNotes } from "./useCreatePanelNotes";
+import { useCreatePanelTags } from "./useCreatePanelTags";
 import { useCalendarNav } from "./useCalendarNav";
 import { useTagFilterPanel } from "./useTagFilterPanel";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
@@ -337,6 +338,13 @@ export function CalendarTab({
     // entry, so the item's create undo stops leaving an orphan note behind.
     push: undoRedo?.push,
   });
+  // #2220: the create panel's tag field — staged there, written here once
+  // the new row exists.
+  const { tagPool, takeStagedTags, applyTags } = useCreatePanelTags();
+  const createTags = useMemo(
+    () => ({ take: takeStagedTags, apply: applyTags }),
+    [takeStagedTags, applyTags],
+  );
 
   /*
    * The TODO half of this host (#675 → useScheduleTodoChips): the chips derived
@@ -628,6 +636,7 @@ export function CalendarTab({
     attachNoteAlongside,
     onAttachError: handleAttachError,
     clearTagLens,
+    tags: createTags,
   });
 
   // #355 → #1608: drop the bubble the moment anything else opens (the hook
@@ -1050,7 +1059,7 @@ export function CalendarTab({
         panel: createPanel,
         anchorDate,
         onClose: () => setCreatePanel(null),
-        pools: { todos: todoAddable, notes: noteOptions },
+        pools: { todos: todoAddable, notes: noteOptions, tags: tagPool },
         handlers: {
           onSubmitEvent: handleCreateSubmit,
           onSubmitEventAndOpen: handleCreateSubmitAndOpen,

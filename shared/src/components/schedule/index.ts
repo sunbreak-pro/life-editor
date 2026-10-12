@@ -138,6 +138,8 @@ export {
   type ItemCreateSlot,
   type ItemCreateType,
   type ItemCreateSource,
+  type ItemCreateTagOption,
+  type ItemCreateTagPool,
 } from "./ItemCreatePanel";
 // #940: the all-day switch, shared by the creating and the editing side so
 // the control is the same object in both.

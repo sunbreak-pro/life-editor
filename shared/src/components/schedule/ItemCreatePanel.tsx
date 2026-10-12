@@ -1,5 +1,5 @@
-import { useEffect, useId, useMemo, useState } from "react";
-import { ChevronDown, ChevronRight, X } from "lucide-react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { Check, ChevronDown, ChevronRight, Plus, X } from "lucide-react";
 import type { Goal } from "../../types/goal";
 import {
   GoalPickerField,
@@ -53,6 +53,15 @@ import { isImeComposing } from "../../utils/imeGuard";
  * is a callback; lumen-* tokens only (§5). Enter in a text field submits the
  * active target's plain create (IME composition respected — §frontend gotcha); a
  * blank title, or no selection in a picker, is a no-op.
+ *
+ * #2220: a tag field sits LEFT of the note trigger, on the same line. It
+ * stages tags the way the note and goal fields stage theirs — the panel only
+ * holds the choice, and the host writes it once the row exists. Picking an
+ * existing todo seeds the field with the tags that todo already wears, so the
+ * field reads as "these will be its tags" and a removal is as possible as an
+ * addition. Switching the type, the source or the picked todo starts the
+ * field over. Optional: a host that passes no `pools.tags` (Briefing) gets no
+ * field and the layout it had.
  *
  * Both host frames (Modal / BottomSheet) unmount their children when closed, so
  * the local draft state re-seeds from the initial props on every open. When a
@@ -201,6 +210,8 @@ export interface ItemCreatePanelPools {
    * does not pass it (or has no goals to offer) gets no goal section at all.
    */
   goals?: ItemCreateGoalPool;
+  /** The tag field (#2220). Omitted, the panel draws none. */
+  tags?: ItemCreateTagPool;
 }
 
 /**
@@ -225,6 +236,41 @@ export interface ItemCreateGoalPool {
     attach: string;
     /** Caption of the echo row once the section folds up. */
     attached: string;
+  };
+}
+
+/** One tag the tag field can offer (#2220). */
+export interface ItemCreateTagOption {
+  id: string;
+  name: string;
+  /** The tag's own colour, drawn as a dot on its label. */
+  color?: string | null;
+}
+
+/**
+ * The tag field (#2220). Optional like the goal pool: a host that does not
+ * pass it gets no field. The panel stages; the host writes the staged tags
+ * once the row exists (useCreatePanelTags).
+ */
+export interface ItemCreateTagPool {
+  /** Every tag on offer, in display order. */
+  tags: readonly ItemCreateTagOption[];
+  /** The tags an EXISTING item already wears — the seed when one is picked. */
+  tagsOf: (itemId: string) => string[];
+  /**
+   * The staged tag ids, re-reported on every change. For a picked todo it is
+   * the whole set it should end up with, so the host can take tags off too.
+   */
+  onStagedChange: (tagIds: string[]) => void;
+  labels: {
+    /** Caption of the field, 「タグ」. */
+    field: string;
+    /** The button that opens the list, 「タグを追加」. */
+    add: string;
+    /** Accessible name of a label's ×, e.g. 「『仕事』を外す」. */
+    remove: (name: string) => string;
+    /** Shown in the list when there are no tags at all. */
+    empty: string;
   };
 }
 
@@ -386,6 +432,164 @@ function PickerList({
 }
 
 /**
+ * The tag field (#2220): the staged tags as labels, each with an ×, and a
+ * 「タグを追加」 button that opens the tag list. A press in the list toggles
+ * the tag, and the list stays open so several can be picked in one go.
+ */
+function TagField({
+  pool,
+  selected,
+  onChange,
+}: {
+  pool: ItemCreateTagPool;
+  selected: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const listId = useId();
+  const byId = useMemo(
+    () => new Map(pool.tags.map((t) => [t.id, t])),
+    [pool.tags],
+  );
+
+  // Outside-press closes the list, like the TagPicker on the edit panels.
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: MouseEvent) => {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      )
+        setOpen(false);
+    };
+    document.addEventListener("mousedown", onDown);
+    return () => document.removeEventListener("mousedown", onDown);
+  }, [open]);
+
+  const toggle = (id: string) =>
+    onChange(
+      selected.includes(id)
+        ? selected.filter((x) => x !== id)
+        : [...selected, id],
+    );
+
+  return (
+    <div
+      ref={containerRef}
+      data-create-tag-field=""
+      className="relative flex min-w-0 flex-1 flex-wrap items-center gap-1.5"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && open && !isImeComposing(e)) {
+          // The list closes, not the panel's frame around it.
+          e.stopPropagation();
+          setOpen(false);
+        }
+      }}
+    >
+      <span className={FIELD_LABEL}>{pool.labels.field}</span>
+      {selected.map((id) => {
+        const tag = byId.get(id);
+        if (!tag) return null;
+        return (
+          <span
+            key={id}
+            className="inline-flex items-center gap-1 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary py-0.5 pl-2 pr-0.5 text-xs text-lumen-text"
+          >
+            {tag.color && (
+              <span
+                aria-hidden
+                className="size-2 shrink-0 rounded-full"
+                style={{ backgroundColor: tag.color }}
+              />
+            )}
+            {tag.name}
+            <button
+              type="button"
+              aria-label={pool.labels.remove(tag.name)}
+              onClick={() => toggle(id)}
+              className={cn(
+                "flex size-5 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                FOCUS_RING_TIGHT,
+              )}
+            >
+              <X aria-hidden className="size-3" />
+            </button>
+          </span>
+        );
+      })}
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+        aria-controls={open ? listId : undefined}
+        className={cn(
+          "inline-flex items-center gap-1 rounded-lumen-md px-1.5 py-0.5 text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
+          FOCUS_RING_TIGHT,
+        )}
+      >
+        <Plus aria-hidden className="size-3.5 shrink-0" />
+        {pool.labels.add}
+      </button>
+      {open && (
+        <div
+          id={listId}
+          className="absolute left-0 top-full z-20 mt-1 w-56 rounded-lumen-md border border-lumen-border bg-lumen-bg py-1 shadow-lumen-lg"
+        >
+          {pool.tags.length === 0 ? (
+            <p className={HINT}>{pool.labels.empty}</p>
+          ) : (
+            <ul
+              role="listbox"
+              aria-multiselectable="true"
+              aria-label={pool.labels.add}
+              className="max-h-48 overflow-y-auto"
+            >
+              {pool.tags.map((tag) => {
+                const on = selected.includes(tag.id);
+                return (
+                  <li key={tag.id} role="presentation">
+                    <button
+                      type="button"
+                      role="option"
+                      aria-selected={on}
+                      onClick={() => toggle(tag.id)}
+                      className={cn(
+                        "flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-sm text-lumen-text transition-colors hover:bg-lumen-hover",
+                        FOCUS_RING_TIGHT,
+                      )}
+                    >
+                      <span
+                        aria-hidden
+                        className="size-2 shrink-0 rounded-full bg-lumen-border"
+                        style={
+                          tag.color
+                            ? { backgroundColor: tag.color }
+                            : undefined
+                        }
+                      />
+                      <span className="min-w-0 flex-1 truncate">
+                        {tag.name}
+                      </span>
+                      {on && (
+                        <Check
+                          aria-hidden
+                          className="size-3.5 shrink-0 text-lumen-accent"
+                        />
+                      )}
+                    </button>
+                  </li>
+                );
+              })}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/**
  * Resolve the TODO selection THROUGH the current query, so narrowing past the
  * picked row drops it from both the highlight and the submit — the picked todo
  * IS what the submit acts on, and acting on something the user can no longer
@@ -422,7 +626,12 @@ export function ItemCreatePanel({
     end: initialEnd = "10:00",
     title: initialTitle = "",
   } = initial;
-  const { todos: existingTodos, notes: existingNotes, goals: goalPool } = pools;
+  const {
+    todos: existingTodos,
+    notes: existingNotes,
+    goals: goalPool,
+    tags: tagPool,
+  } = pools;
   const { onSubmitEvent, onSubmitEventAndOpen, onCreateTodo, onPlaceTodo } =
     handlers;
   const [type, setType] = useState<ItemCreateType>("event");
@@ -467,6 +676,28 @@ export function ItemCreatePanel({
   useEffect(() => {
     onStagedGoalChange?.(stagedGoalKey ? stagedGoalKey.split("\n") : []);
   }, [onStagedGoalChange, stagedGoalKey]);
+
+  /*
+   * #2220: the staged tags. They start over whenever what the submit acts on
+   * changes — the type, the source, or the picked todo — and a picked todo
+   * seeds them with the tags it already wears. Adjusted while rendering
+   * rather than from an effect (React's pattern for state derived from a
+   * prop, as ScheduleEventEditor's tag scope does).
+   */
+  const tagSeedKey = `${type}|${todoSource}|${placing ? (pickedTodo?.id ?? "") : ""}`;
+  const seedTags = () =>
+    placing && pickedTodo && tagPool ? tagPool.tagsOf(pickedTodo.id) : [];
+  const [tagIds, setTagIds] = useState<string[]>(seedTags);
+  const [tagKey, setTagKey] = useState(tagSeedKey);
+  if (tagKey !== tagSeedKey) {
+    setTagKey(tagSeedKey);
+    setTagIds(seedTags());
+  }
+  const stagedTagKey = tagIds.join("\n");
+  const onStagedTagChange = tagPool?.onStagedChange;
+  useEffect(() => {
+    onStagedTagChange?.(stagedTagKey ? stagedTagKey.split("\n") : []);
+  }, [onStagedTagChange, stagedTagKey]);
 
   // What rides along with the create. A blank new-note title stages nothing —
   // opening the section and changing your mind must not create an untitled item.
@@ -667,23 +898,32 @@ export function ItemCreatePanel({
           last because it is the optional extra: the fields the submit needs
           stay at the top whether or not this is open. */}
       <div className="flex flex-col gap-2 border-t border-lumen-border pt-2">
-        <button
-          type="button"
-          onClick={() => setNoteOpen((v) => !v)}
-          aria-expanded={noteOpen}
-          aria-controls={noteSectionId}
-          className={cn(
-            "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
-            FOCUS_RING_TIGHT,
+        {/* #2220: tags on the left, the note trigger on the right, one line. */}
+        <div className="flex items-start gap-2">
+          {tagPool && (
+            <TagField pool={tagPool} selected={tagIds} onChange={setTagIds} />
           )}
-        >
-          {noteOpen ? (
-            <ChevronDown aria-hidden className="size-3.5 shrink-0" />
-          ) : (
-            <ChevronRight aria-hidden className="size-3.5 shrink-0" />
-          )}
-          <span className="truncate">{labels.attachNote}</span>
-        </button>
+          <button
+            type="button"
+            onClick={() => setNoteOpen((v) => !v)}
+            aria-expanded={noteOpen}
+            aria-controls={noteSectionId}
+            className={cn(
+              "flex items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+              // Alone on its line it spans it, as before; beside the tags it
+              // keeps to its own width at the right end.
+              tagPool ? "shrink-0" : "w-full",
+              FOCUS_RING_TIGHT,
+            )}
+          >
+            {noteOpen ? (
+              <ChevronDown aria-hidden className="size-3.5 shrink-0" />
+            ) : (
+              <ChevronRight aria-hidden className="size-3.5 shrink-0" />
+            )}
+            <span className="truncate">{labels.attachNote}</span>
+          </button>
+        </div>
         {noteOpen && (
           <div id={noteSectionId} className="flex flex-col gap-2">
             <SegmentedToggle

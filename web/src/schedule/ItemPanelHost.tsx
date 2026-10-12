@@ -26,6 +26,7 @@ import {
 } from "@life-editor/shared";
 import { ScheduleOverlayHost } from "./ScheduleOverlayHost";
 import { useCreatePanelNotes } from "./useCreatePanelNotes";
+import { useCreatePanelTags } from "./useCreatePanelTags";
 import { useVisibleRangeItems } from "./useVisibleRangeItems";
 import { useRepeatUndoGate } from "./useRepeatUndoGate";
 import { useScheduleMutations } from "./useScheduleMutations";
@@ -249,6 +250,13 @@ function ItemPanelSurface({
     onAttachError: handleAttachError,
     push: undoRedo?.push,
   });
+  // #2220: the create panel's tag field — staged there, written here once
+  // the new row exists.
+  const { tagPool, takeStagedTags, applyTags } = useCreatePanelTags();
+  const createTags = useMemo(
+    () => ({ take: takeStagedTags, apply: applyTags }),
+    [takeStagedTags, applyTags],
+  );
 
   const {
     scopeRequest,
@@ -319,6 +327,7 @@ function ItemPanelSurface({
     onAttachError: handleAttachError,
     // There is no calendar lens here to clear.
     clearTagLens: NOOP,
+    tags: createTags,
   });
 
   const {
@@ -497,7 +506,7 @@ function ItemPanelSurface({
         panel: createPanel,
         anchorDate: day,
         onClose: () => setCreatePanel(null),
-        pools: { todos: todoAddable, notes: noteOptions },
+        pools: { todos: todoAddable, notes: noteOptions, tags: tagPool },
         handlers: {
           onSubmitEvent: handleCreateSubmit,
           onSubmitEventAndOpen: handleCreateSubmitAndOpen,
