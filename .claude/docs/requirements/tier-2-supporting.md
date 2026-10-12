@@ -553,3 +553,40 @@ Life Editor の全 UI を en / ja で切替可能にする。Settings からい�
   - タグ / リンクの力学グラフ可視化（#1152 退役・復活させない）
   - タグのマージ（#1644 で選択バーとともに実装予定）
   - アイテム単位のタグ外し（#1644 の複数選択 + 一括操作の領分。それまでは各詳細の `TagPicker` が経路）
+
+---
+
+## Feature: Apps（拡張アプリの台帳）
+
+**Tier**: 2
+**Status**: ◎稼働中（2026-10 新設 = #2165）
+**Owner Provider/Module**: `shared/src/components/Apps/` + `web/src/apps/AppsScreen.tsx`（データは `shared/src/services/SupabaseAppRecordsService.ts`）
+**MCP Coverage**: `list_extension_apps`（台帳の行に最後の記録と 30 日の件数を添える）と、記録の `create_record` / `list_records` / `delete_record`
+**Supports Value Prop**: 補助（Briefing ループの「分析」の材料を太くする拡張アプリの入口 = [`D-20261008-main-1`](../../decisions/D-20261008-main-1.md)）
+**Platform**: Web ホスト共通（Desktop / Mobile）。登録 / 編集 / 削除は wide だけ（mobile-scope.md の Apps の行）
+
+### Purpose
+
+家計簿や体重のような数値を集める小さな拡張アプリ（別リポジトリ）を登録し、一覧から開き、その記録を読む場所です。拡張アプリは窓口（専用 Worker）を通して記録を `app_records` に送り、life-editor は読むだけです。台帳 `extension_apps` と記録の規約は db-conventions §17 にあります。
+
+### Boundary
+
+- やる:
+  - 拡張アプリの登録（slug / 名前 / URL / アイコン / 説明）・編集・削除。slug は登録後に変えられません。記録の `source_app` と窓口の鍵が slug を指すためです
+  - 一覧のカードに、URL を開くリンク、「最後の記録: n 日前・30 日で m 件」、「記録を見る」を出す。「記録を見る」は Analytics の記録タブへアプリの絞り込みつきで移ります
+  - 「記録だけ届いているアプリ」: 記録の `source_app` にあって台帳に無い値（予約語 `claude` は除く）を並べ、slug を埋めた登録ダイアログを開けます
+  - 削除は台帳の行だけを消します。記録は残り、「記録だけ届いているアプリ」に戻ります。確認ダイアログを挟みます
+- やらない:
+  - 画面からの記録の作成（記録は MCP の道具と窓口からだけ入ります）
+  - 窓口の鍵の発行と取り消しの画面（鍵の保存先が決まってから別 Issue で扱います）
+
+### Acceptance Criteria
+
+- 登録したアプリが一覧に出て、「記録を見る」で Analytics の記録タブにアプリの絞り込みつきで着地する（`web/tests/` の Testing Library）
+- 「記録だけ届いているアプリ」が台帳に無い `source_app` だけを出し、`claude` を出さない（vitest）
+- narrow では一覧・URL を開く・記録を見る、までで、登録 / 編集 / 削除のボタンは出ない
+
+### Dependencies
+
+- 他機能: Analytics の記録タブ（tier-3 の Analytics 節）/ MCP Server の record 系の道具 / 拡張アプリ用の窓口（`docs/vision/plans/2026-10-07-extension-app-gateway.md`）
+- 計画書: `docs/vision/plans/2026-10-08-extension-app-records-and-apps-section.md`

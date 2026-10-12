@@ -43,8 +43,8 @@
 ## Feature: Analytics
 
 **Tier**: 3
-**Status**: △基盤のみ（基本統計 + 作業時間グラフ + Recharts 複数タブ、ダッシュボード未成熟）
-**Verdict**: **凍結継続 — 破棄しない（2026-07-16 ユーザー決定で追認: 現行デザイン維持・配線/開発は凍結・完成間近に更新再開。ADR-0005 Phase 4 との統合検討は当時の記述）**
+**Status**: △基盤のみ（基本統計 + 作業時間グラフ + Recharts 複数タブ、ダッシュボード未成熟）。**「記録」タブの分だけ解凍**（2026-10・#2164 = [`D-20261008-main-1`](../../decisions/D-20261008-main-1.md) Q4）
+**Verdict**: **凍結継続 — 破棄しない（2026-07-16 ユーザー決定で追認: 現行デザイン維持・配線/開発は凍結・完成間近に更新再開。ADR-0005 Phase 4 との統合検討は当時の記述）**。凍結を解いたのは「記録」タブだけで、既存 4 タブ（概要 / Todo / 作業 / 予定）は凍結のままです
 **Owner Provider/Module**: `AnalyticsFilterProvider` / `frontend/src/components/Analytics/` / `src-tauri/src/commands/diagnostics_commands.rs`
 **Supports Value Prop**: なし（Tier 3 候補）
 
@@ -61,6 +61,7 @@
 - 関連: **ADR-0005 Phase 4（自己最適化）**で `reflect_on_day` / `analyze_patterns` が生成する分析データの可視化パネルとして再利用想定
 - Verdict 根拠: 基盤は完成しており、Claude 駆動分析（ADR-0005 Phase 2）の出力を表示する UI として活用する方針。単独ではなく Cognitive Architecture と統合する形で残す
 - 2026-07-16 ユーザー決定（briefing-loop 摩擦除去の話し合い）: **破棄しない**。現行の shared/web 版ダッシュボード（`shared/src/components/Analytics/` + `web/src/analytics/` — 上記 Owner 欄の frontend/ 表記は旧 Tauri 時代の記述）のデザインを維持し、配線・開発を凍結。完成間近に更新を再開する（記録 = `archive/2026-07-16-loop-friction-fixes.md` 決定 6）
+- 2026-10-08 ユーザー決定（D-20261008-main-1 Q4）: 拡張アプリの数値の記録（`app_records`）を読む場所として、**「記録」タブの分だけ凍結を解いた**。タブ帯の末尾に置き、アプリ / 種類 / 期間の絞り込み、件数・合計・平均、期間別の棒、一覧を持ちます（`shared/src/components/Analytics/RecordsTab.tsx`・#2164）。タブ帯は wide だけなので、narrow の `MobileAnalyticsView` には直近 7 日の種類ごとの合計を出す「記録」ブロックを足しました。Apps セクションの「記録を見る」から、アプリの絞り込みつきでこのタブへ移れます（#2165）。既存 4 タブには手を入れていません
 
 ### Dependencies
 
