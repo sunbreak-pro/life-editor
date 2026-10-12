@@ -18,6 +18,7 @@ import { BriefingScreen } from "./briefing/BriefingScreen";
 import { ScheduleScreen } from "./schedule/ScheduleScreen";
 import { SettingsScreen } from "./settings/SettingsScreen";
 import { WorkScreen } from "./work/WorkScreen";
+import { AppsScreen } from "./apps/AppsScreen";
 // The three heavy screens, code-split behind lazy() — see lazySections.ts.
 import { AnalyticsScreen, NotesView } from "./lazySections";
 import type { ShellNavigation } from "./hooks/useShellNavigation";
@@ -342,6 +343,26 @@ export const SECTION_DESCRIPTORS: Readonly<
           onRecordsSourceConsumed={nav.consumeRecordsSource}
         />
       </Suspense>
+    ),
+  },
+  /*
+   * Apps (#2165) — the extension-app ledger. No Provider: the host reads the
+   * ledger and the record activity straight off the injected DataService, the
+   * Briefing / Trash pattern. "Show records" goes through the shell's
+   * showRecordsForApp, which switches to Analytics' Records tab and stashes
+   * the slug for the tab to pick up.
+   *
+   * "wide": a list of cards, so PageContainer owns the vertical scroll.
+   * `narrowHeader: "none"`: there is no tab band and no detail panel content.
+   *
+   * Not code-split, the Connect reasoning (#1158): it carries no vendor stack,
+   * so a lazy() row would only add the two-table upkeep in lazySections.ts.
+   */
+  apps: {
+    width: "wide",
+    narrowHeader: "none",
+    body: ({ ds, nav }) => (
+      <AppsScreen dataService={ds} onShowRecords={nav.showRecordsForApp} />
     ),
   },
   /*
