@@ -39,6 +39,8 @@ import { showAllTagGroups } from "./helpers";
 
 const state = vi.hoisted(() => ({
   isWide: true,
+  /** Plugins the floating format bar registered on the body's editor. */
+  editorPlugins: [] as unknown[],
   isLoading: false,
   error: null as string | null,
   notes: [] as unknown[],
@@ -131,14 +133,19 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
 
 vi.mock("../src/notes/RichTextEditor", async () => {
   const { useEffect } = await import("react");
-  // #2060: the body hands its editor up for the header's formatting bar. A
-  // stand-in with just what FormatToolbar reads — editable, nothing active.
+  // #2060: the body hands its editor up for the formatting bar. A stand-in
+  // with just what FormatToolbar reads — editable, nothing active — and the
+  // plugin hooks the floating bar (#2227) registers through.
   const fakeEditor = {
     isEditable: true,
     isDestroyed: false,
     isActive: () => false,
     on: () => {},
     off: () => {},
+    registerPlugin: (plugin: unknown) => {
+      state.editorPlugins.push(plugin);
+    },
+    unregisterPlugin: () => {},
   };
   return {
     RichTextEditor: ({
@@ -197,6 +204,7 @@ beforeEach(() => {
   // alone would leave the previous test's list in memory.
   clearRecentNotes();
   state.isWide = true;
+  state.editorPlugins = [];
   state.isLoading = false;
   state.error = null;
   state.notes = [ALPHA, BETA];
@@ -1561,59 +1569,37 @@ describe("NotesView — sticky note header (#2058)", () => {
 });
 
 /*
- * #2060 — the formatting bar rides in the pinned header at both widths, on
- * the editor the body hands up. The commands themselves are pinned in
- * formatToolbar.test.tsx against a real editor.
+ * #2227 — the formatting bar left the pinned header: it floats over the
+ * selected text instead, at both widths, on the editor the body hands up.
+ * Showing / hiding and the commands are pinned in formatToolbar.test.tsx
+ * against a real editor; here, only where it lives.
  */
-describe("NotesView — formatting toolbar (#2060)", () => {
-  function toolbarButtons(): HTMLButtonElement[] {
-    const header = screen.getByTestId("note-detail-header");
-    const bar = within(header).getByRole("toolbar", {
-      name: "materials.notes.formatToolbar.label",
-    });
-    return within(bar).getAllByRole("button") as HTMLButtonElement[];
-  }
-
+describe("NotesView — floating format bar (#2227)", () => {
   it.each([
     ["wide", true],
     ["narrow", false],
-  ])(
-    "sits in the pinned header on %s, live once the body mounts",
-    (_, isWide) => {
-      state.isWide = isWide;
-      state.selectedId = "note-a";
-      render(<NotesView />);
-
-      const buttons = toolbarButtons();
-      expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual([
-        "materials.notes.formatToolbar.heading1",
-        "materials.notes.formatToolbar.heading2",
-        "materials.notes.formatToolbar.bold",
-        "materials.notes.formatToolbar.italic",
-        "materials.notes.formatToolbar.strike",
-        "materials.notes.formatToolbar.horizontalRule",
-      ]);
-      for (const b of buttons) expect(b.disabled).toBe(false);
-    },
-  );
-
-  it("is switched off over a password-locked note", () => {
-    state.notes = [
-      note({ id: "note-locked", title: "Sealed", hasPassword: true }),
-    ];
-    state.selectedId = "note-locked";
+  ])("keeps no formatting bar in the pinned header on %s", (_, isWide) => {
+    state.isWide = isWide;
+    state.selectedId = "note-a";
     render(<NotesView />);
 
-    for (const b of toolbarButtons()) expect(b.disabled).toBe(true);
+    const header = screen.getByTestId("note-detail-header");
+    expect(within(header).queryByRole("toolbar")).toBeNull();
+    expect(
+      screen.queryByRole("toolbar", {
+        name: "materials.notes.formatToolbar.label",
+      }),
+    ).toBeNull();
+    // The floating bar hooked itself onto the body's editor instead.
+    expect(state.editorPlugins).toHaveLength(1);
   });
 
-  it("is switched off over an edit-locked note", () => {
-    state.notes = [
-      note({ id: "note-ro", title: "Frozen", isEditLocked: true }),
-    ];
-    state.selectedId = "note-ro";
+  it("puts the title and the tag picker on one row", () => {
+    state.selectedId = "note-a";
     render(<NotesView />);
 
-    for (const b of toolbarButtons()) expect(b.disabled).toBe(true);
+    const row = screen.getByTestId("note-detail-title-row");
+    within(row).getByTestId("tag-picker");
+    expect(within(row).getAllByRole("textbox").length).toBeGreaterThan(0);
   });
 });

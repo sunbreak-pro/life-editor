@@ -1,10 +1,13 @@
 import {
   useCallback,
+  useMemo,
   useSyncExternalStore,
   type ReactElement,
   type ReactNode,
 } from "react";
 import type { Editor } from "@tiptap/core";
+import { BubbleMenu, type BubbleMenuProps } from "@tiptap/react/menus";
+import { NodeSelection } from "@tiptap/pm/state";
 import {
   Bold,
   Heading1,
@@ -13,17 +16,22 @@ import {
   Minus,
   Strikethrough,
 } from "lucide-react";
-import { cn, FOCUS_RING } from "@life-editor/shared";
+import {
+  cn,
+  FOCUS_RING,
+  NOTE_STICKY_HEADER_HEIGHT_VAR,
+} from "@life-editor/shared";
 
 /*
- * The formatting bar above the note body (#2060): H1, H2, bold, italic,
+ * The note body's formatting buttons (#2060): H1, H2, bold, italic,
  * strikethrough and a divider — exactly those six (the "など" in the Issue was
  * settled as "these six first"; lists, quotes and tables stay with the "/"
  * menu).
  *
- * It lives in the note detail's sticky header (#2058), under the tag row, so it
- * stays in reach while the body scrolls. That puts it OUTSIDE RichTextEditor,
- * which is why it takes the editor as a prop: the editor is built inside
+ * #2227: they no longer sit in the note header. `FormatBubbleMenu` below
+ * floats them over the text the user has selected, and hides them again when
+ * the selection collapses. The buttons stay their own component so the press
+ * rules are pinned once. Both take the editor as a prop: it is built inside
  * RichTextEditor once per note and handed up through `onEditorChange`.
  *
  * Pressing a button must not take the focus or the selection away from the
@@ -181,7 +189,7 @@ export function FormatToolbar({
       role="toolbar"
       aria-label={labels.label}
       data-format-toolbar=""
-      className="flex flex-wrap items-center gap-1"
+      className="flex items-center gap-1"
     >
       {ACTIONS.map((action, i) => {
         const name = action.label(labels);
@@ -223,5 +231,98 @@ export function FormatToolbar({
         );
       })}
     </div>
+  );
+}
+
+/*
+ * #2227 — the six buttons floating over the selected text, in place of the
+ * bar that used to sit in the note header.
+ *
+ * TipTap's BubbleMenu (Floating UI underneath) places it. It shows while the
+ * selection holds characters, the body has the focus (or the bar does) and
+ * the body can be edited, and it hides as soon as the selection collapses.
+ * Not for a table's cell selection — the table has its own bar
+ * (TableControls) — nor for a selected node such as an image or a divider:
+ * neither has text to format.
+ *
+ * Placement: above the selection on Desktop, below it on narrow, because iOS
+ * draws its own copy / paste menu above a selection and the two would
+ * overlap. `flip` moves the bar to the other side when there is no room; the
+ * room above counts the note's sticky header (#2058) as taken, read off
+ * NOTE_STICKY_HEADER_HEIGHT_VAR, so a selection right under the header gets
+ * the bar below it instead of behind the header. `shift` keeps the bar inside
+ * the screen near its left and right edges. Both sides are measured with
+ * getBoundingClientRect — the selection's range and the bar's offset parent —
+ * so a pinch-zoomed page still puts the bar at the selection.
+ *
+ * The presses go through FormatToolbar, so the focus and IME rules above
+ * hold here unchanged.
+ */
+
+export interface FormatBubbleMenuProps extends FormatToolbarProps {
+  /** The side of the selection the bar prefers. */
+  placement?: "top" | "bottom";
+}
+
+type ShouldShow = NonNullable<BubbleMenuProps["shouldShow"]>;
+type MenuOptions = NonNullable<BubbleMenuProps["options"]>;
+
+/** Space kept between the bar and the screen's (or the header's) edge. */
+const EDGE_GAP = 8;
+
+function stickyHeaderHeight(el: Element): number {
+  const px = Number.parseFloat(
+    getComputedStyle(el).getPropertyValue(NOTE_STICKY_HEADER_HEIGHT_VAR),
+  );
+  return Number.isFinite(px) ? px : 0;
+}
+
+export function FormatBubbleMenu({
+  editor,
+  disabled = false,
+  labels,
+  placement = "top",
+}: FormatBubbleMenuProps): ReactElement | null {
+  const shouldShow = useCallback<ShouldShow>(
+    ({ editor: current, element, view, state, from, to }) => {
+      if (disabled || !current.isEditable) return false;
+      const { selection, doc } = state;
+      if (selection.empty || selection instanceof NodeSelection) return false;
+      // prosemirror-tables' CellSelection, without importing the extension.
+      if ("$anchorCell" in selection) return false;
+      if (doc.textBetween(from, to).length === 0) return false;
+      return view.hasFocus() || element.contains(document.activeElement);
+    },
+    [disabled],
+  );
+  const options = useMemo<MenuOptions>(
+    () => ({
+      placement,
+      offset: EDGE_GAP,
+      flip: (state) => ({
+        padding: {
+          top: stickyHeaderHeight(state.elements.floating) + EDGE_GAP,
+          bottom: EDGE_GAP,
+          left: EDGE_GAP,
+          right: EDGE_GAP,
+        },
+      }),
+      shift: { padding: EDGE_GAP },
+    }),
+    [placement],
+  );
+
+  // BubbleMenu warns when it has no editor; there is nothing to float over.
+  if (!editor) return null;
+  return (
+    <BubbleMenu
+      editor={editor}
+      shouldShow={shouldShow}
+      options={options}
+      data-format-bubble=""
+      className="z-30 rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-lg"
+    >
+      <FormatToolbar editor={editor} disabled={disabled} labels={labels} />
+    </BubbleMenu>
   );
 }

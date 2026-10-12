@@ -170,7 +170,9 @@ function NoteTitleInput({
       onBlur={flush}
       aria-label={label}
       className={cn(
-        "min-w-0 flex-1 text-lumen-text",
+        // #2227: the tags share this row, so the title keeps a floor of its
+        // own and the tags wrap under it once both no longer fit.
+        "min-w-40 flex-1 text-lumen-text",
         // "main" → borderless 28px bold heading (same size/font as the Daily
         // date title, 2026-07-19: the only visual difference between Notes and
         // Daily should be the tag/link affordances). Compact "sidebar" keeps the
@@ -279,13 +281,6 @@ export interface NoteDetailPanelProps {
    * they read as one row rather than one header field and one sidebar panel.
    */
   linksSlot?: ReactNode;
-  /**
-   * Host-injected formatting bar for the body (#2060), drawn in the header
-   * directly under the tag row — so with `stickyHeader` it stays on screen
-   * while the body scrolls. The bar drives the host's editor; this panel only
-   * places it. Omitted → no toolbar row.
-   */
-  toolbarSlot?: ReactNode;
   /** Host-injected rich-text editor (host wires key={noteId} for remount). */
   contentEditor?: ReactNode;
   /**
@@ -354,7 +349,6 @@ export function NoteDetailPanel({
   removePasswordLabel,
   tagsSlot,
   linksSlot,
-  toolbarSlot,
   contentEditor,
   variant = "sidebar",
   stickyHeader = false,
@@ -402,7 +396,7 @@ export function NoteDetailPanel({
       )}
       style={rootStyle}
     >
-      {/* Header — title row, tag row and the rule under them, as one block so
+      {/* Header — the title and tag row and the rule under it, as one block so
           it can stick (#2058). Its gap repeats the card's, so with
           `stickyHeader` off the rows sit exactly where they did before the
           block existed. */}
@@ -415,20 +409,35 @@ export function NoteDetailPanel({
           stickyHeader && STICKY_HEADER_BOX[variant],
         )}
       >
-        {/* Title row — title input + a single kebab (26px) that opens the actions
-          menu (pin / delete) right-anchored just beneath it. Collapsing the
-          per-action icons behind one affordance declutters the header (#284). */}
+        {/* Title row — title input, then the tags and item links (#884) on the
+          same line (#2227: one row, so the stuck header takes less of the
+          screen), then a single kebab (26px) that opens the actions menu (pin /
+          delete) right-anchored just beneath it. Collapsing the per-action
+          icons behind one affordance declutters the header (#284). The title
+          and the tags wrap inside their own box, so many tags drop under the
+          title while the kebab stays at the row's end. */}
         <div className="flex items-center gap-1.5">
-          <NoteTitleInput
-            key={noteId}
-            noteId={noteId}
-            initialTitle={title}
-            label={titleLabel}
-            onCommit={onTitleCommit}
-            isMain={isMain}
-            autoFocus={autoFocusTitle}
-            onAutoFocused={onTitleAutoFocused}
-          />
+          <div
+            data-testid="note-detail-title-row"
+            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5"
+          >
+            <NoteTitleInput
+              key={noteId}
+              noteId={noteId}
+              initialTitle={title}
+              label={titleLabel}
+              onCommit={onTitleCommit}
+              isMain={isMain}
+              autoFocus={autoFocusTitle}
+              onAutoFocused={onTitleAutoFocused}
+            />
+            {hasTagRow && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                {tagsSlot}
+                {linksSlot}
+              </div>
+            )}
+          </div>
           {/* Pinned marker (#885) — immediately left of the kebab, so the state
             reads at a glance instead of only inside the opened menu. Not a
             button: unpinning stays the menu's job, and a second control on the
@@ -555,27 +564,13 @@ export function NoteDetailPanel({
           </div>
         </div>
 
-        {/* Tag row — host-injected TagPicker (chips + "+ tag" pill), followed by
-          the item links (#884): same row, links to the right of the tags. */}
-        {hasTagRow && (
-          <div className="flex flex-wrap items-center gap-1.5">
-            {tagsSlot}
-            {linksSlot}
-          </div>
-        )}
-
-        {/* The body's formatting bar (#2060), under the tag row and above the
-          rule: inside the sticky block, so it stays in reach while the body
-          scrolls, and the rule remains the header's bottom edge. */}
-        {toolbarSlot}
-
         {/* One full-width rule between the header and the body (#2033), the
           same at both widths — it replaced the "内容" caption the mobile sheet
-          used to show while Desktop had no break at all. Drawn only when a tag
-          row or toolbar sits above it: with neither, the rule would hang under
-          the title. Inside the header block, so a stuck header ends on this
+          used to show while Desktop had no break at all. Drawn only when the
+          row carries tags or links: without them, the rule would hang under
+          the bare title. Inside the header block, so a stuck header ends on this
           line and the body visibly slides under it (#2058). */}
-        {contentEditor != null && (hasTagRow || toolbarSlot != null) && (
+        {contentEditor != null && hasTagRow && (
           <hr
             data-testid="note-detail-divider"
             className="m-0 border-0 border-t border-lumen-border"

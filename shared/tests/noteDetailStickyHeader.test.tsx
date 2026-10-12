@@ -78,36 +78,27 @@ describe("NoteDetailPanel sticky header (#2058)", () => {
     screen.getByText("editor slot");
   });
 
-  // #2060 — the formatting bar's place: inside the sticky block, under the
-  // tag row and above the rule that ends the header.
-  it("places the toolbar slot under the tag row, inside the header", () => {
-    renderPanel({
-      variant: "main",
-      stickyHeader: true,
-      toolbarSlot: <div role="toolbar" aria-label="Formatting" />,
-    });
+  // #2227 — the title and the tags / links share ONE row inside the sticky
+  // block; the formatting bar left the header (it floats over a selection).
+  it.each([
+    ["main (wide)", "main" as const],
+    ["sidebar (narrow)", "sidebar" as const],
+  ])("keeps the title and the tags on one row on %s", (_, variant) => {
+    renderPanel({ variant, stickyHeader: true });
     const header = screen.getByTestId("note-detail-header");
-    const toolbar = within(header).getByRole("toolbar", {
-      name: "Formatting",
-    });
-    const tag = within(header).getByText("design");
-    const divider = within(header).getByTestId("note-detail-divider");
-    expect(
-      tag.compareDocumentPosition(toolbar) & Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(
-      toolbar.compareDocumentPosition(divider) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-  });
+    const row = within(header).getByTestId("note-detail-title-row");
 
-  it("draws the rule under a toolbar even with no tag row", () => {
-    renderPanel({
-      tagsSlot: undefined,
-      linksSlot: undefined,
-      toolbarSlot: <div role="toolbar" aria-label="Formatting" />,
-    });
-    screen.getByTestId("note-detail-divider");
+    within(row).getByLabelText("Note title");
+    within(row).getByText("design");
+    within(row).getByText("links");
+    // Tags wrap inside the row's own box when they no longer fit.
+    expect(row.className).toContain("flex-wrap");
+    // Header = that row's line + the rule, nothing between them.
+    expect(header.children).toHaveLength(2);
+    expect(header.lastElementChild).toBe(
+      within(header).getByTestId("note-detail-divider"),
+    );
+    expect(within(header).queryByRole("toolbar")).toBeNull();
   });
 
   it("leaves the sidebar variant's header un-stuck without the opt-in", () => {
