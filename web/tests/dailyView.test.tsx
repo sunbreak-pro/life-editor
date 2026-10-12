@@ -813,23 +813,22 @@ describe("DailyView — the body is the day's one text (#2123)", () => {
     expect(initial).not.toContain("宣言");
   });
 
-  it("shows the morning comment and the 宣言 above the body, read-only", () => {
-    state.dailies = [fullDay];
-    render(<DailyView />);
-
-    const note = screen.getByTestId("daily-morning-note");
-    within(note).getByText("講評の一文");
-    within(note).getByText("早く寝る");
-    expect(within(note).queryByRole("button")).toBeNull();
-  });
-
-  it("prefers the morning_comment column over the body's 朝刊 section", () => {
+  // #2228: the read-only「朝の記録」above the body is gone. A day that still
+  // carries a 朝刊 comment (column or section) and a 宣言 shows neither, and
+  // opening it leaves the stored data alone.
+  it("shows no morning record on a day with a 朝刊 comment and a 宣言", async () => {
     state.dailies = [{ ...fullDay, morningComment: ["列の講評"] }];
     render(<DailyView />);
+    await screen.findByTestId("editor");
 
-    const note = screen.getByTestId("daily-morning-note");
-    within(note).getByText("列の講評");
-    expect(within(note).queryByText("講評の一文")).toBeNull();
+    expect(screen.queryByRole("region", { name: "朝の記録" })).toBeNull();
+    expect(screen.queryByText("列の講評")).toBeNull();
+    expect(screen.queryByText("講評の一文")).toBeNull();
+    expect(screen.queryByText("早く寝る")).toBeNull();
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 0));
+    });
+    expect(state.upsertDaily).not.toHaveBeenCalled();
   });
 
   it("lists a written day by its text, not by the 朝刊 /「夕刊」heading", () => {
@@ -843,12 +842,6 @@ describe("DailyView — the body is the day's one text (#2123)", () => {
       .find((b) => b.textContent?.includes("夜の振り返りの一文"));
     expect(row).toBeDefined();
     expect(row!.textContent).not.toContain("朝刊");
-  });
-
-  it("has no morning block on a day without either", () => {
-    state.dailies = [daily(YESTERDAY)];
-    render(<DailyView />);
-    expect(screen.queryByTestId("daily-morning-note")).toBeNull();
   });
 
   it("writes nothing when a day is only opened", async () => {

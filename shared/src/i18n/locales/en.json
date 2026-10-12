@@ -673,10 +673,7 @@
       "figureEvents": "Events",
       "figureTodos": "Todos",
       "figureWork": "Work",
-      "figureGoals": "Goals moved",
-      "morningLabel": "The morning record",
-      "morningComment": "Morning note",
-      "morningIntention": "Intentions"
+      "figureGoals": "Goals moved"
     },
     "tags": {
       "usageCount_one": "{{count}} item",

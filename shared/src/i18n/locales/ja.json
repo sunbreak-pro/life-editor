@@ -672,10 +672,7 @@
       "figureEvents": "予定",
       "figureTodos": "Todo",
       "figureWork": "作業",
-      "figureGoals": "進んだ目標",
-      "morningLabel": "朝の記録",
-      "morningComment": "朝刊のひとこと",
-      "morningIntention": "宣言"
+      "figureGoals": "進んだ目標"
     },
     "tags": {
       "usageCount_other": "{{count}} 件",
