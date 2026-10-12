@@ -1,5 +1,19 @@
 # HISTORY (chat-schedule-refine)
 
+### 2026-10-12 - 試作（親 #2215）の 3 件を 3 本の PR で提出（#2222 / #2219 / #2220）
+
+#### 概要
+
+/goal の 3 件を指定順に 1 本ずつ進め、3 本の PR にした（書いた時点で 3 本とも open）。各ブランチは `origin/main` から切り、CI `verify` 全ステップ + `docs-lint` を緑にしてから PR を開いた。#2217 が持つファイル（チェックボックス部品・TagFilterPanel・TodoFilterPanel・TrashView）は触っていない。
+
+#### 変更点
+
+- **#2222 = PR #2250**: `ItemActionPopover` に `quickEdit` を足し、吹き出しの見出しをダブルクリック（またはフォーカス + Enter）でタイトル・日付・時間帯の入力欄にした。予定は 1 回の patch で `onQuickEdit`、Todo は開始時刻だけで長さを保つ。繰り返しは日付なし、祝日は欄なし。`RoutineSummaryCard` と `summaryRows` を削除
+- **#2219 = PR #2252**: `ResponsiveDetailFrame` が見出しを描かず、Desktop / Mobile とも右上に ×（`ItemDetailOverlay` の `closeLabel` / `labelledBy`、`BottomSheet` の `hideTitle`）。`TagColorControls` から色選びを外し、表示に使うタグを選ぶ札と説明の 1 行だけに。Todo パネルにも色の行、削除を保存の行の左端、完了を `TodoStatusCheckbox` に。「ノートを添付」は新部品 `ItemNoteAttach` で、一覧は添付パネルが開いているあいだだけ読む。確認ダイアログ 2 種にも ×
+- **#2220 = PR #2253**: `ItemCreatePanel` に省略できる `pools.tags`。既存 Todo を選ぶと今のタグで始まり、種類・方法・選ぶ Todo を変えると戻る。書き込みは `useCreatePanelTags` が行の保存後に差分で行う（予定 = companion、新しい Todo = onSaved、既存 Todo = 即時）
+- **Scope の外**: 3 本とも配線に要る最小限だけ Scope の外を触り、PR 本文に列挙した（CalendarTab / ItemPanelHost / 共有の枠部品など）
+- **検証の罠**: docs-lint の単独実行が `git add -A` と連結したときに 2 分以上返らず止めた。単独で回し直すと数秒で OK だった
+
 ### 2026-10-10 - /goal 8 件のうち新規 3 件を 3 本の PR で提出（#2098 / #2097 / #2142）
 
 #### 概要
