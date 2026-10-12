@@ -53,6 +53,11 @@ interface MobileAnalyticsViewProps {
    * whatever the host loaded, so the host's window must reach that far.
    */
   records?: AppRecord[];
+  /**
+   * The records read is still in flight (#2214): the block draws a skeleton
+   * instead of "none", which would be a claim about records not yet read.
+   */
+  recordsLoading?: boolean;
   /** The records read failed: the block says so instead of "none". */
   recordsError?: string | null;
   labels: AnalyticsLabels;
@@ -71,6 +76,8 @@ function isEmpty(p: MobileAnalyticsViewProps): boolean {
     p.notes.length === 0 &&
     p.scheduleItems.length === 0 &&
     p.todayItems.length === 0 &&
+    // Records still being read are not "no records" (#2214).
+    !p.recordsLoading &&
     (p.records?.length ?? 0) === 0
   );
 }
@@ -87,6 +94,7 @@ export function MobileAnalyticsView(
     routines,
     warning,
     records,
+    recordsLoading,
     recordsError,
     labels,
   } = props;
@@ -424,7 +432,9 @@ export function MobileAnalyticsView(
               {labels.records.mobile.range}
             </span>
           </div>
-          {recordsError ? (
+          {recordsLoading ? (
+            <RecordsBlockSkeleton />
+          ) : recordsError ? (
             <p className="text-xs text-lumen-text-secondary">
               {labels.records.loadFailed}
             </p>
@@ -500,6 +510,24 @@ function StatBox({
       {subtitle && (
         <span className="text-xs text-lumen-text-tertiary">{subtitle}</span>
       )}
+    </div>
+  );
+}
+
+/**
+ * The records block's body while the read is in flight (#2214) — the Records
+ * tab's skeleton in miniature: blank lines where the per-kind rows will land.
+ * The pulse stops under reduced motion through the app-wide rule in tokens.css.
+ */
+function RecordsBlockSkeleton(): React.JSX.Element {
+  return (
+    <div className="flex flex-col gap-2.5" aria-busy="true">
+      {Array.from({ length: 2 }).map((_, i) => (
+        <div
+          key={i}
+          className="h-4 animate-pulse rounded-lumen-sm bg-lumen-surface-sunken"
+        />
+      ))}
     </div>
   );
 }
