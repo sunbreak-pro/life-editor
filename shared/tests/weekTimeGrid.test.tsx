@@ -597,3 +597,165 @@ describe("WeekTimeGrid — interactions", () => {
     );
   });
 });
+
+/*
+ * #2221 — overlapping blocks are stacked with a right offset instead of being
+ * split into equal columns, and a busy all-day lane folds into "他 N 件".
+ * jsdom has no layout, so the geometry is read off the inline style the grid
+ * writes; the percentages themselves are pinned in scheduleGridLayout.test.ts.
+ */
+describe("WeekTimeGrid — stacked overlaps and the all-day fold (#2221)", () => {
+  const timed = (id: string, start: string, end: string): WeekTimeGridItem => ({
+    id,
+    date: "2026-06-14",
+    title: id,
+    startTime: start,
+    endTime: end,
+  });
+  const allDay = (id: string): WeekTimeGridItem => ({
+    id,
+    date: "2026-06-15",
+    title: id,
+    startTime: "00:00",
+    endTime: "23:59",
+    isAllDay: true,
+  });
+  const block = (title: string) =>
+    screen.getByText(title).closest("button") as HTMLButtonElement;
+
+  it("draws the later of two overlapping blocks 14% right, above the earlier one", () => {
+    render(
+      <WeekTimeGrid
+        data={{
+          weekStart: "2026-06-14",
+          items: [timed("Early", "09:00", "11:00"), timed("Late", "09:30", "10:00")],
+        }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+      />,
+    );
+    expect(block("Early").style.left).toBe("calc(0% + 1px)");
+    expect(block("Early").style.width).toBe("calc(100% - 2px)");
+    expect(block("Late").style.left).toBe("calc(14% + 1px)");
+    expect(block("Late").style.width).toBe("calc(86% - 2px)");
+    const z = (el: HTMLElement) =>
+      Number(el.style.getPropertyValue("--block-z"));
+    expect(z(block("Late"))).toBeGreaterThan(z(block("Early")));
+    expect(block("Late").dataset.weekGridDepth).toBe("1");
+  });
+
+  it("still drags the block underneath", () => {
+    const onMoveItem = vi.fn();
+    render(
+      <WeekTimeGrid
+        data={{
+          weekStart: "2026-06-14",
+          items: [timed("Early", "09:00", "11:00"), timed("Late", "09:30", "10:00")],
+        }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+        handlers={{ onMoveItem }}
+      />,
+    );
+    act(() => {
+      block("Early").dispatchEvent(
+        new MouseEvent("pointerdown", {
+          bubbles: true,
+          button: 0,
+          clientX: 10,
+          clientY: 10,
+        }),
+      );
+    });
+    act(() => {
+      window.dispatchEvent(
+        new MouseEvent("pointermove", { clientX: 10, clientY: 58 }),
+      );
+      window.dispatchEvent(new MouseEvent("pointerup", {}));
+    });
+    expect(onMoveItem).toHaveBeenCalledWith(
+      "Early",
+      "2026-06-14",
+      "10:00",
+      "12:00",
+    );
+  });
+
+  function renderLane(count: number) {
+    const onSelectItem = vi.fn();
+    render(
+      <WeekTimeGrid
+        data={{
+          weekStart: "2026-06-14",
+          items: Array.from({ length: count }, (_, i) => allDay(`AD${i + 1}`)),
+        }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day", close: "Close" }}
+        handlers={{ onSelectItem }}
+        format={{
+          allDayMore: (n) => `他 ${n} 件`,
+          allDayMoreTitle: (key) => `${key} の残りの終日の予定`,
+        }}
+      />,
+    );
+    return { onSelectItem };
+  }
+
+  it("shows all three items on a day with three", () => {
+    renderLane(3);
+    for (const t of ["AD1", "AD2", "AD3"])
+      expect(screen.getByText(t)).toBeInTheDocument();
+    expect(screen.queryByText(/^他 \d+ 件$/)).not.toBeInTheDocument();
+  });
+
+  it("folds a day with four into two items and 他 2 件", () => {
+    renderLane(4);
+    expect(screen.getByText("AD1")).toBeInTheDocument();
+    expect(screen.getByText("AD2")).toBeInTheDocument();
+    expect(screen.queryByText("AD3")).not.toBeInTheDocument();
+    expect(screen.queryByText("AD4")).not.toBeInTheDocument();
+    expect(screen.getByText("他 2 件")).toBeInTheDocument();
+  });
+
+  it("does not fold when the host gives no fold line", () => {
+    render(
+      <WeekTimeGrid
+        data={{
+          weekStart: "2026-06-14",
+          items: [1, 2, 3, 4].map((i) => allDay(`AD${i}`)),
+        }}
+        labels={{ weekdays: WEEKDAYS, allDay: "All-day" }}
+      />,
+    );
+    for (const t of ["AD1", "AD2", "AD3", "AD4"])
+      expect(screen.getByText(t)).toBeInTheDocument();
+  });
+
+  it("opens the day's folded all-day items from 他 N 件 and closes on Escape", () => {
+    renderLane(5);
+    const more = screen.getByText("他 3 件");
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(more);
+    const dialog = screen.getByRole("dialog", {
+      name: "2026-06-15 の残りの終日の予定",
+    });
+    expect(dialog).toHaveTextContent("AD3");
+    expect(dialog).toHaveTextContent("AD4");
+    expect(dialog).toHaveTextContent("AD5");
+    expect(more).toHaveAttribute("aria-expanded", "true");
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("closes the list from its close button", () => {
+    renderLane(4);
+    fireEvent.click(screen.getByText("他 2 件"));
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("hands an item pressed in the list to the host and closes the list", () => {
+    const { onSelectItem } = renderLane(4);
+    fireEvent.click(screen.getByText("他 2 件"));
+    fireEvent.click(screen.getByText("AD4"));
+    expect(onSelectItem).toHaveBeenCalledWith("AD4");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+});

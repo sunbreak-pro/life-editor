@@ -34,11 +34,32 @@ export interface PositionedItem {
   topPct: number;
   /** Height as a percentage (>0) of the visible window. */
   heightPct: number;
-  /** 0-based column index within this item's overlap cluster. */
-  column: number;
-  /** Total columns in this item's overlap cluster (>= 1). */
-  columns: number;
+  /**
+   * How many steps this item is pushed right (#2221): 0 for an item nothing
+   * was already running under, one more than the deepest item still running
+   * when it starts, capped at {@link MAX_STACK_DEPTH}.
+   */
+  depth: number;
+  /** Left offset as a percentage of the day column (`depth * 14`). */
+  offsetPct: number;
+  /** Width as a percentage of the day column (`100 - offsetPct`). */
+  widthPct: number;
+  /**
+   * Paint order within this item's overlap cluster, 0 = bottom. A later start
+   * sits on top of an earlier one, so the earlier item's left strip — the part
+   * the offset leaves uncovered — stays visible and pressable.
+   */
+  stackOrder: number;
 }
+
+/** How far each overlap step pushes a block right, in % of the column (#2221). */
+export const STACK_OFFSET_PCT = 14;
+
+/**
+ * The deepest step a block is pushed to (#2221). 4 × 14 = 56%, so however many
+ * items overlap, none is narrower than 44% of the column.
+ */
+export const MAX_STACK_DEPTH = 4;
 
 /** [startHour, endHour] visible window, each 0–24, start < end. */
 export type HourRange = readonly [number, number];
@@ -393,11 +414,18 @@ export function resolveDrag(
 /**
  * Lay out the TIMED items of a single day (all-day items are filtered out —
  * callers render those in a separate lane). Returns positions in the SAME
- * order as the input array. Overlapping items are packed into the minimum
- * number of side-by-side columns via a left-to-right sweep; every item in an
- * overlap cluster reports the cluster's total column count so the caller can
- * compute equal widths (`100 / columns`%). This is the deliberately "素朴な"
- * (naive) column packing the W8 plan calls for — no lane optimisation.
+ * order as the input array.
+ *
+ * Overlapping items are stacked, not split into columns (#2221). Equal columns
+ * made every block in an overlap cluster narrow, even a block that touched only
+ * one other, and three overlaps left a title a few characters wide. Now the
+ * earliest item takes the full width, and an item that starts while others are
+ * still running is pushed {@link STACK_OFFSET_PCT}% right of the deepest of
+ * them and painted above it. The push stops at {@link MAX_STACK_DEPTH} steps.
+ *
+ * "Deepest still running", not "how many are running": an item that ran under
+ * one which has since ended would otherwise land on the same offset as the
+ * block it covers and hide that block's strip completely.
  */
 export function layoutDayItems(
   items: GridLayoutItem[],
@@ -427,62 +455,50 @@ export function layoutDayItems(
       return { id: it.id, idx, start, end };
     });
 
-  // Sweep order: earliest start first, then earliest end.
+  // Sweep order: earliest start first. On a tie the LONGER item goes first, so
+  // it lies underneath and the shorter one on top stays readable in full.
   const order = timed
     .slice()
-    .sort((a, b) => a.start - b.start || a.end - b.end);
+    .sort((a, b) => a.start - b.start || b.end - a.end);
 
-  const columnByItem = new Map<string, number>();
-  const columnsByItem = new Map<string, number>();
+  const depthByItem = new Map<string, number>();
+  const stackByItem = new Map<string, number>();
 
-  let cluster: typeof order = [];
-  let clusterEnd = -Infinity;
-
-  const flush = (): void => {
-    if (cluster.length === 0) return;
-    const colEnds: number[] = []; // running end-minute per column
-    for (const g of cluster) {
-      let placed = -1;
-      for (let c = 0; c < colEnds.length; c++) {
-        if (g.start >= colEnds[c]) {
-          placed = c;
-          break;
-        }
-      }
-      if (placed === -1) {
-        placed = colEnds.length;
-        colEnds.push(g.end);
-      } else {
-        colEnds[placed] = g.end;
-      }
-      columnByItem.set(g.id, placed);
-    }
-    const totalCols = colEnds.length;
-    for (const g of cluster) columnsByItem.set(g.id, totalCols);
-    cluster = [];
-    clusterEnd = -Infinity;
-  };
-
+  let running: { end: number; depth: number }[] = [];
+  let stack = 0;
   for (const g of order) {
-    // A new cluster begins when this item starts at/after every prior item's
-    // end (no transitive overlap with the open cluster).
-    if (cluster.length > 0 && g.start >= clusterEnd) flush();
-    cluster.push(g);
-    clusterEnd = Math.max(clusterEnd, g.end);
+    running = running.filter((r) => r.end > g.start);
+    // Nothing running = a new overlap cluster, whose paint order restarts.
+    if (running.length === 0) stack = 0;
+    const depth =
+      running.length === 0
+        ? 0
+        : Math.min(
+            Math.max(...running.map((r) => r.depth)) + 1,
+            MAX_STACK_DEPTH,
+          );
+    depthByItem.set(g.id, depth);
+    stackByItem.set(g.id, stack++);
+    running.push({ end: g.end, depth });
   }
-  flush();
 
   // Emit back in original input order (timed only).
   return order
     .slice()
     .sort((a, b) => a.idx - b.idx)
-    .map((g) => ({
-      id: g.id,
-      topPct: ((g.start - rangeStart) / span) * 100,
-      heightPct: ((g.end - g.start) / span) * 100,
-      column: columnByItem.get(g.id) ?? 0,
-      columns: columnsByItem.get(g.id) ?? 1,
-    }));
+    .map((g) => {
+      const depth = depthByItem.get(g.id) ?? 0;
+      const offsetPct = depth * STACK_OFFSET_PCT;
+      return {
+        id: g.id,
+        topPct: ((g.start - rangeStart) / span) * 100,
+        heightPct: ((g.end - g.start) / span) * 100,
+        depth,
+        offsetPct,
+        widthPct: 100 - offsetPct,
+        stackOrder: stackByItem.get(g.id) ?? 0,
+      };
+    });
 }
 
 // ── Local date-key arithmetic (YYYY-MM-DD, no UTC) ────────────────────────

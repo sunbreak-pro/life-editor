@@ -14,6 +14,8 @@ import {
   revealScrollTop,
   blockTitleLines,
   MAX_BLOCK_TITLE_LINES,
+  MAX_STACK_DEPTH,
+  STACK_OFFSET_PCT,
   type GridLayoutItem,
 } from "../src/utils/scheduleGridLayout";
 
@@ -42,8 +44,9 @@ describe("layoutDayItems — geometry", () => {
     expect(p.id).toBe("a");
     expect(p.topPct).toBeCloseTo((540 / 1440) * 100, 5); // 37.5
     expect(p.heightPct).toBeCloseTo((60 / 1440) * 100, 5); // 4.1667
-    expect(p.column).toBe(0);
-    expect(p.columns).toBe(1);
+    expect(p.depth).toBe(0);
+    expect(p.offsetPct).toBe(0);
+    expect(p.widthPct).toBe(100);
   });
 
   it("respects a narrowed hour window", () => {
@@ -68,33 +71,81 @@ describe("layoutDayItems — geometry", () => {
   });
 });
 
-describe("layoutDayItems — overlap columns", () => {
-  it("packs two overlapping items into two columns", () => {
+describe("layoutDayItems — stacked overlaps (#2221)", () => {
+  const byId = (out: ReturnType<typeof layoutDayItems>, id: string) =>
+    out.find((p) => p.id === id)!;
+
+  it("keeps the earlier item at full width and pushes the later one 14% right", () => {
     const out = layoutDayItems([
       item("a", "09:00", "10:00"),
       item("b", "09:30", "10:30"),
     ]);
-    expect(out.map((p) => p.columns)).toEqual([2, 2]);
-    expect(out.find((p) => p.id === "a")!.column).toBe(0);
-    expect(out.find((p) => p.id === "b")!.column).toBe(1);
+    expect(byId(out, "a")).toMatchObject({ offsetPct: 0, widthPct: 100 });
+    expect(byId(out, "b")).toMatchObject({ offsetPct: 14, widthPct: 86 });
+    // The later start is painted above the earlier one.
+    expect(byId(out, "b").stackOrder).toBeGreaterThan(byId(out, "a").stackOrder);
   });
 
-  it("keeps disjoint items in a single column each", () => {
+  it("leaves disjoint items at full width", () => {
     const out = layoutDayItems([
       item("a", "09:00", "10:00"),
       item("c", "11:00", "12:00"),
     ]);
-    expect(out.map((p) => p.columns)).toEqual([1, 1]);
-    expect(out.map((p) => p.column)).toEqual([0, 0]);
+    expect(out.map((p) => p.offsetPct)).toEqual([0, 0]);
+    expect(out.map((p) => p.widthPct)).toEqual([100, 100]);
   });
 
-  it("packs three mutually overlapping items into three columns", () => {
+  it("does not narrow a block that overlaps nothing still running", () => {
+    // b overlaps a only; c starts after b ended and sits under a alone, so it
+    // takes the same one step as b rather than a second one.
     const out = layoutDayItems([
-      item("a", "09:00", "11:00"),
+      item("a", "09:00", "12:00"),
       item("b", "09:30", "10:00"),
-      item("c", "09:45", "10:30"),
+      item("c", "10:30", "11:00"),
     ]);
-    expect(out.every((p) => p.columns === 3)).toBe(true);
+    expect(byId(out, "b").depth).toBe(1);
+    expect(byId(out, "c").depth).toBe(1);
+  });
+
+  it("steps past the deepest item still running, not the count of them", () => {
+    // a ends before c starts, but b is still running at depth 1, so c goes to
+    // depth 2 — at depth 0 it would cover b's strip completely.
+    const out = layoutDayItems([
+      item("a", "09:00", "10:00"),
+      item("b", "09:30", "12:00"),
+      item("c", "10:30", "11:00"),
+    ]);
+    expect(out.map((p) => p.depth)).toEqual([0, 1, 2]);
+  });
+
+  it("never pushes further than 56%, however many overlap", () => {
+    const out = layoutDayItems(
+      ["09:00", "09:10", "09:20", "09:30", "09:40", "09:50", "10:00"].map(
+        (start, i) => item(`i${i}`, start, "11:00"),
+      ),
+    );
+    expect(MAX_STACK_DEPTH * STACK_OFFSET_PCT).toBe(56);
+    expect(Math.max(...out.map((p) => p.offsetPct))).toBe(56);
+    expect(Math.min(...out.map((p) => p.widthPct))).toBe(44);
+    expect(out.map((p) => p.depth)).toEqual([0, 1, 2, 3, 4, 4, 4]);
+  });
+
+  it("puts the longer of two same-start items underneath", () => {
+    const out = layoutDayItems([
+      item("short", "09:00", "09:30"),
+      item("long", "09:00", "11:00"),
+    ]);
+    expect(byId(out, "long").depth).toBe(0);
+    expect(byId(out, "short").depth).toBe(1);
+  });
+
+  it("restarts the paint order for each overlap cluster", () => {
+    const out = layoutDayItems([
+      item("a", "09:00", "10:00"),
+      item("b", "09:30", "10:30"),
+      item("c", "13:00", "14:00"),
+    ]);
+    expect(out.map((p) => p.stackOrder)).toEqual([0, 1, 0]);
   });
 
   it("filters out all-day items and preserves input order", () => {

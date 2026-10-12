@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -24,6 +25,7 @@ import {
   type HourRange,
 } from "../../utils/scheduleGridLayout";
 import { useWeekTimeGridDrag } from "./useWeekTimeGridDrag";
+import { MonthMorePanel } from "./MonthMorePanel";
 import {
   hasTodoDragData,
   readTodoDragData,
@@ -230,6 +232,8 @@ export interface WeekTimeGridLabels {
   allDay: string;
   /** Accessible label for an empty-slot create target. */
   createSlot?: string;
+  /** Accessible name of the close button on the folded all-day list. */
+  close?: string;
 }
 
 /**
@@ -242,6 +246,15 @@ export interface WeekTimeGridFormat {
   hour?: (hour: number) => string;
   /** Day-heading date formatter. Default `M/D`. */
   dayDate?: (dateKey: string) => string;
+  /**
+   * The all-day lane's fold line for `count` hidden items (#2221) — the month
+   * grid's "他 N 件". A capability switch like the handlers: without it the
+   * lane never folds and lists every item, as it did before #2221, because the
+   * grid has no words of its own to put on the line (§6.4).
+   */
+  allDayMore?: (count: number) => string;
+  /** Heading of the list the fold line opens, naming the day. Default the key. */
+  allDayMoreTitle?: (dateKey: string) => string;
 }
 
 export interface WeekTimeGridProps {
@@ -254,6 +267,15 @@ export interface WeekTimeGridProps {
 }
 
 const GUTTER = "3.25rem"; // hour-axis column width
+
+/**
+ * The all-day lane folds a day at this many items (#2221). Three still fit as
+ * three rows; from four on, the lane keeps {@link ALL_DAY_FOLDED_SHOWN} and
+ * spends the third row on "他 N 件", so a busy day never pushes the time body
+ * further down than three rows do.
+ */
+export const ALL_DAY_FOLD_AT = 4;
+export const ALL_DAY_FOLDED_SHOWN = 2;
 
 function defaultFormatHour(hour: number): string {
   return `${String(hour).padStart(2, "0")}:00`;
@@ -317,10 +339,13 @@ export function WeekTimeGrid({
     weekdays: weekdayLabels,
     allDay: allDayLabel,
     createSlot: createSlotLabel,
+    close: closeLabel = "Close",
   } = labels;
   const {
     hour: formatHour = defaultFormatHour,
     dayDate: formatDayDate = defaultFormatDayDate,
+    allDayMore: formatAllDayMore,
+    allDayMoreTitle: formatAllDayMoreTitle = (dateKey: string) => dateKey,
   } = format ?? {};
   const [startHour, endHour] = hourRange;
   const dayKeys = useMemo(
@@ -439,6 +464,27 @@ export function WeekTimeGrid({
     }
     return map;
   }, [effectiveItems, dayKeys]);
+
+  /*
+   * #2221: the day whose folded all-day items are listed, and the "他 N 件"
+   * button that opened the list (the panel places itself from that button's
+   * cell). The items are read from `byDay` on every render rather than copied
+   * here, so a chip that moves away while the list is open leaves it.
+   */
+  const [more, setMore] = useState<{
+    dateKey: string;
+    anchor: HTMLElement;
+  } | null>(null);
+  const allDayOf = (dateKey: string): WeekTimeGridItem[] =>
+    (byDay.get(dateKey) ?? []).filter((i) => i.isAllDay);
+  const moreAllDay = more ? allDayOf(more.dateKey) : [];
+  const foldsAllDay = (count: number): boolean =>
+    !!formatAllDayMore && count >= ALL_DAY_FOLD_AT;
+  const moreItems = foldsAllDay(moreAllDay.length)
+    ? moreAllDay.slice(ALL_DAY_FOLDED_SHOWN)
+    : [];
+  // Stable, because the panel's document listeners re-bind on a new onClose.
+  const closeMore = useCallback(() => setMore(null), []);
 
   // 1-click activation (#299): prefer the coord-carrying onItemActivate so the
   // host can anchor a bubble popover at the cursor; fall back to onSelectItem.
@@ -603,19 +649,27 @@ export function WeekTimeGrid({
             <div className="flex items-center justify-end border-r border-lumen-border px-1 py-1 text-xs text-lumen-text-secondary">
               {allDayLabel}
             </div>
-            {dayKeys.map((key) => {
-              const allDay = (byDay.get(key) ?? []).filter((i) => i.isAllDay);
+            {dayKeys.map((key, column) => {
+              const allDay = allDayOf(key);
+              const folded = foldsAllDay(allDay.length);
+              const shown = folded
+                ? allDay.slice(0, ALL_DAY_FOLDED_SHOWN)
+                : allDay;
+              const moreOpen = more?.dateKey === key;
               return (
                 <div
                   key={key}
                   data-week-grid-allday={key}
+                  // Read by MonthMorePanel to place itself beside this cell.
+                  data-more-cell={key}
+                  data-more-column={column}
                   {...dropTargetProps(`allday:${key}`, key, false)}
                   className={cn(
                     "min-h-[1.75rem] space-y-1 border-r border-lumen-border p-1 last:border-r-0",
                     dropKey === `allday:${key}` && "bg-lumen-hover",
                   )}
                 >
-                  {allDay.map((it) => {
+                  {shown.map((it) => {
                     const selected = it.id === selectedId;
                     /*
                      * #1626: a holiday is drawn, not operated. It has no row
@@ -709,6 +763,28 @@ export function WeekTimeGrid({
                       </button>
                     );
                   })}
+                  {folded && formatAllDayMore && (
+                    <button
+                      type="button"
+                      data-week-grid-allday-more={key}
+                      aria-haspopup="dialog"
+                      aria-expanded={moreOpen}
+                      onClick={(e) => {
+                        const anchor = e.currentTarget;
+                        // Same button again = close. A button from another
+                        // week is a different element, so it opens afresh.
+                        setMore((m) =>
+                          m?.anchor === anchor ? null : { dateKey: key, anchor },
+                        );
+                      }}
+                      className={cn(
+                        "block w-full truncate rounded px-1 py-0.5 text-left text-xs font-medium text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                        moreOpen && "bg-lumen-hover text-lumen-text",
+                      )}
+                    >
+                      {formatAllDayMore(allDay.length - shown.length)}
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -780,8 +856,10 @@ export function WeekTimeGrid({
                   const p = posById.get(it.id);
                   if (!p) return null; // all-day handled above
                   const selected = it.id === selectedId;
-                  const widthPct = 100 / p.columns;
                   const variant = it.variant ?? "event";
+                  // #2221: a later block is painted over the one it overlaps.
+                  // Capped below the now-line (z-30) and the focus lift (z-20).
+                  const blockZ = 1 + Math.min(p.stackOrder, 18);
                   // #1835: the block's height in px, which is what decides how
                   // many lines its title may use. `heightPct` is a share of
                   // the day body, and the body's px height is known here.
@@ -821,7 +899,10 @@ export function WeekTimeGrid({
                       }
                       title={`${it.startTime}–${it.endTime} ${it.title}`}
                       className={cn(
-                        "absolute overflow-hidden rounded px-1 py-0.5 text-left text-xs leading-tight hover:z-10 focus-visible:z-10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                        // #2221: no hover lift. Blocks overlap now, and
+                        // raising the one under the pointer would cover the
+                        // block above it until the pointer left the stack.
+                        "absolute z-(--block-z) overflow-hidden rounded px-1 py-0.5 text-left text-xs leading-tight focus-visible:z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                         // #1580: the tag's colour REPLACES the variant face
                         // — "which tag" beats "where it came from" once the
                         // user has coloured a tag. The provenance GLYPHS (the
@@ -830,8 +911,15 @@ export function WeekTimeGrid({
                         // lost, only which channel says it.
                         !it.tagColor && variantBlockClasses(variant),
                         variant === "routine" && "pl-1.5",
-                        movable && "z-10 cursor-move",
-                        selected && "z-10 ring-2 ring-lumen-accent",
+                        // #2221: a block laid over another gets an edge in the
+                        // grid's own colour and a light shadow, so the line
+                        // between the two reads even when they share a tag.
+                        p.depth > 0 &&
+                          "shadow-lumen-sm outline outline-1 outline-lumen-bg",
+                        movable && "cursor-move",
+                        // The selection keeps its place in the stack: lifting
+                        // it would bury a shorter block that starts inside it.
+                        selected && "ring-2 ring-lumen-accent",
                         // Gated on the variant (#1373): the MCP tool still
                         // writes `completed` for events, and an event struck
                         // through with no control to clear it would be worse
@@ -840,14 +928,18 @@ export function WeekTimeGrid({
                           it.completed &&
                           "line-through opacity-55",
                       )}
-                      style={{
-                        ...tagFaceStyle(it.tagColor),
-                        top: `${p.topPct}%`,
-                        height: `${p.heightPct}%`,
-                        left: `calc(${p.column * widthPct}% + 1px)`,
-                        width: `calc(${widthPct}% - 2px)`,
-                        touchAction: dragInteractive ? "none" : undefined,
-                      }}
+                      style={
+                        {
+                          ...tagFaceStyle(it.tagColor),
+                          top: `${p.topPct}%`,
+                          height: `${p.heightPct}%`,
+                          left: `calc(${p.offsetPct}% + 1px)`,
+                          width: `calc(${p.widthPct}% - 2px)`,
+                          touchAction: dragInteractive ? "none" : undefined,
+                          "--block-z": blockZ,
+                        } as CSSProperties
+                      }
+                      data-week-grid-depth={p.depth}
                     >
                       {/* Routine provenance: inner left band (藍) */}
                       {variant === "routine" && (
@@ -960,6 +1052,16 @@ export function WeekTimeGrid({
           })}
         </div>
       </div>
+      {more && moreItems.length > 0 && more.anchor.isConnected && (
+        <MonthMorePanel
+          anchor={more.anchor}
+          items={moreItems}
+          title={formatAllDayMoreTitle(more.dateKey)}
+          closeLabel={closeLabel}
+          onItemActivate={(id, pos) => activateItem(id, pos.x, pos.y)}
+          onClose={closeMore}
+        />
+      )}
     </div>
   );
 }
