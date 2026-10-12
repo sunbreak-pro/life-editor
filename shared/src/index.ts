@@ -1030,6 +1030,23 @@ export { useTourContext, useTourContextOptional } from "./hooks/useTourContext";
 // The producer side of the tour (#1124): optional and stable, so a write
 // handler can report an action without depending on the tour being mounted.
 export { useTourAction } from "./hooks/useTourAction";
+// #2218 — open the Schedule's editor / creation panel from another screen.
+// Global Provider; the panels themselves are drawn by web's ItemPanelHost.
+export {
+  ItemPanelProvider,
+  type ItemPanelProviderProps,
+  ItemPanelContext,
+  type ItemPanelContextValue,
+  type ItemPanelCreateInitial,
+  type ItemPanelEditTarget,
+  type ItemPanelOptions,
+  type ItemPanelRequest,
+  type ItemPanelScheduleTarget,
+} from "./context";
+export {
+  useItemPanelContext,
+  useItemPanelOptional,
+} from "./hooks/useItemPanelContext";
 // Tour progress persistence (#1122). The single place that knows WHERE the
 // position is stored — see the file header for why that is localStorage and
 // not DataService today.

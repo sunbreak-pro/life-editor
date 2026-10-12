@@ -37,6 +37,10 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   AudioProvider: h.marker("Audio"),
   RightSidebarProvider: h.marker("RightSidebar"),
   TourProvider: h.marker("Tour"),
+  ItemPanelProvider: h.marker("ItemPanel"),
+}));
+vi.mock("../src/schedule/ItemPanelHost", () => ({
+  ItemPanelHost: () => <div data-testid="item-panel-host" />,
 }));
 vi.mock("../src/UndoRedoHost", () => ({ UndoRedoHost: h.marker("UndoRedo") }));
 vi.mock("../src/TimerHost", () => ({ TimerHost: h.marker("Timer") }));
@@ -108,7 +112,15 @@ describe("AppProviders", () => {
       "Timer",
       "RightSidebar",
       "Tour",
+      "ItemPanel",
     ]);
+  });
+
+  it("draws the item panels inside their Provider (#2218)", () => {
+    renderChain();
+    expect(providersAround(screen.getByTestId("item-panel-host"))).toContain(
+      "ItemPanel",
+    );
   });
 
   it("keeps each headless bridge inside the Provider it reads", () => {
@@ -145,6 +157,7 @@ describe("AppProviders", () => {
       "Timer",
       "RightSidebar",
       "Tour",
+      "ItemPanel",
     ]);
     // The executor still mounts; it goes inert via the optional hook rather
     // than disappearing.

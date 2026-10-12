@@ -860,6 +860,7 @@
     "monthCreateOn": "Add on {{date}}",
     "monthShowAllOn": "Show the rest of {{date}}",
     "monthMoreTitle": "The rest of {{date}}",
+    "openInSchedule": "Open in Schedule",
     "quickAddPlaceholder": "Enter an event…",
     "detailTitle": "Event details",
     "detailPanelLabel": "Detail panel",

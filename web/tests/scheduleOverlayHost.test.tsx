@@ -786,3 +786,37 @@ describe("ScheduleOverlayHost — the sheet's Duplicate (#2031)", () => {
     expect(onDuplicate).not.toHaveBeenCalled();
   });
 });
+
+/*
+ * #2218 — 「予定の画面で開く」. Only ItemPanelHost (the editor opened from
+ * outside the Schedule) passes `onOpenInSchedule`; the Schedule never does.
+ */
+describe("ScheduleOverlayHost — the open-in-Schedule button (#2218)", () => {
+  const BUTTON = "scheduleScreen.openInSchedule";
+
+  it("draws nothing when the host passes no handler", () => {
+    renderHost();
+    expect(screen.queryByText(BUTTON)).toBeNull();
+  });
+
+  it("hands the press over when there is no draft to lose", async () => {
+    const onOpenInSchedule = vi.fn();
+    const { askConfirm } = renderHost({ editor: { onOpenInSchedule } });
+    fireEvent.click(screen.getByText(BUTTON));
+    await waitFor(() => expect(onOpenInSchedule).toHaveBeenCalledTimes(1));
+    expect(askConfirm).not.toHaveBeenCalled();
+  });
+
+  it("asks about a pending draft first, and stays put on no", async () => {
+    const onOpenInSchedule = vi.fn();
+    const { askConfirm } = renderHost({
+      editor: { onOpenInSchedule },
+      answer: false,
+    });
+    makeDirty();
+    fireEvent.click(screen.getByText(BUTTON));
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(onOpenInSchedule).not.toHaveBeenCalled();
+  });
+});
