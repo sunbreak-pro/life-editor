@@ -231,6 +231,14 @@ describe("the app registry secret", () => {
       { apps: "x" },
       { apps: [{ ...base, app: "Has Caps" }] },
       { apps: [{ ...base, app: "x".repeat(41) }] },
+      // The app's name is its extension_apps.slug (#2166): a letter first,
+      // 2-32 characters, and never the owner's reserved "claude".
+      { apps: [{ ...base, app: "claude" }] },
+      { apps: [{ ...base, app: "x" }] },
+      { apps: [{ ...base, app: "1app" }] },
+      { apps: [{ ...base, app: "-app" }] },
+      { apps: [{ ...base, app: "a".repeat(33) }] },
+      { apps: [{ ...base, app: "sub_recorder" }] },
       { apps: [base, base] }, // the same app twice
       { apps: [{ ...base, account: "admin" }] },
       { apps: [{ ...base, scopes: [] }] },

@@ -49,10 +49,13 @@ describe("every write tool is accounted for", () => {
   it("is either a create or checked against the item it names", () => {
     for (const name of writeTools) {
       // The by-external-id tools find the item under the CALLER'S app name, so
-      // they can only ever reach the app's own (externalIdTools.ts).
+      // they can only ever reach the app's own (externalIdTools.ts). The
+      // record tools' rows are not items; their handlers check the caller
+      // themselves (HANDLER_CHECKED_WRITES, recordHandlers.test.ts).
       const accounted =
         guard.CREATE_TOOLS.includes(name) ||
         name in guard.OWNED_ITEM_ARG ||
+        name in guard.HANDLER_CHECKED_WRITES ||
         (EXTERNAL_ID_TOOL_NAMES as readonly string[]).includes(name);
       expect(
         accounted,
@@ -83,6 +86,7 @@ describe("every write tool is accounted for", () => {
     for (const name of [
       ...guard.CREATE_TOOLS,
       ...Object.keys(guard.OWNED_ITEM_ARG),
+      ...Object.keys(guard.HANDLER_CHECKED_WRITES),
     ]) {
       expect(writeTools, name).toContain(name);
     }

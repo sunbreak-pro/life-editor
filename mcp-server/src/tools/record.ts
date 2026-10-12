@@ -107,7 +107,8 @@ export const RECORD_TOOLS: ToolDefinition[] = [
   defineTool({
     name: "delete_record",
     description:
-      "Delete one record for good (records have no trash). Returns { success, id }. Fails with code not_found when there is no such record.",
+      "Delete one record for good (records have no trash). Returns { success, id }. Fails with code not_found when there is no such record. " +
+      "Through the extension-app gateway an app deletes only the records it made; any other fails with code forbidden.",
     inputSchema: {
       type: "object" as const,
       properties: {

@@ -13,6 +13,17 @@ export interface FakeGatewayOptions {
   allowedOrigins?: string[];
   /** IANA zone for "today" and day ranges; null = the process's zone. */
   timeZone?: string | null;
+  /** The serving app's extension_apps.slug — create_record's source_app. Default "fake-app". */
+  app?: string;
+  /** The Apps ledger list_extension_apps reads. Default: none. */
+  extensionApps?: Array<{
+    slug: string;
+    name: string;
+    url?: string | null;
+    icon?: string | null;
+    description?: string | null;
+    sort_order: number;
+  }>;
 }
 
 export interface RecordedCall {

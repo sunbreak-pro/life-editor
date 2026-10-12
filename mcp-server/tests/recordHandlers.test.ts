@@ -360,12 +360,39 @@ describe("create_record", () => {
       expect(rows()[0].source_app).toBe("kakeibo");
     });
 
-    it("refuses a source_app that is not the caller's", async () => {
-      const error = await runAs(APP, () =>
-        failure("create_record", { ...COFFEE, source_app: "claude" }),
+    // #2166: the key decides whose record it is. A source_app in the
+    // arguments — the reserved "claude", another app's slug, even a malformed
+    // one — is overwritten with the caller's slug, never honoured.
+    it.each(["claude", "other-app", "Bad App"])(
+      "overwrites a source_app of %j with the caller's slug",
+      async (source_app) => {
+        const result = await runAs(APP, () =>
+          call<{ id: string; created: boolean }>("create_record", {
+            ...COFFEE,
+            source_app,
+          }),
+        );
+        expect(result.created).toBe(true);
+        expect(rows()).toHaveLength(1);
+        expect(rows()[0].source_app).toBe("kakeibo");
+      },
+    );
+
+    it("keys an external_id under the caller's slug, not the argument's", async () => {
+      const args = { ...COFFEE, external_id: "ext-1" };
+      const owners = await call<{ id: string }>("create_record", args);
+      const app = await runAs(APP, () =>
+        call<{ id: string; created: boolean }>("create_record", {
+          ...args,
+          source_app: "claude",
+        }),
       );
-      expect(codeOf(error)).toBe("forbidden");
-      expect(rows()).toHaveLength(0);
+      expect(app.created).toBe(true);
+      expect(app.id).not.toBe(owners.id);
+      expect(rows().map((r) => r.source_app).sort()).toEqual([
+        "claude",
+        "kakeibo",
+      ]);
     });
   });
 });
@@ -396,26 +423,60 @@ describe("delete_record", () => {
     expect(again.id).not.toBe(first.id);
   });
 
-  it("lets an app delete only its own rows", async () => {
-    const mine = await call<{ id: string }>("create_record", {
-      ...COFFEE,
-      source_app: "kakeibo",
-    });
-    const owners = await call<{ id: string }>("create_record", COFFEE);
+  describe("who may delete what (#2166)", () => {
     const APP = {
       app: "kakeibo",
       account: "owner",
       scopes: ["read", "write"],
     } as const;
 
-    const error = await runAs(APP, () =>
-      failure("delete_record", { id: owners.id }),
-    );
-    expect(codeOf(error)).toBe("not_found");
-    expect(rows()).toHaveLength(2);
+    async function seed() {
+      const mine = await call<{ id: string }>("create_record", {
+        ...COFFEE,
+        source_app: "kakeibo",
+      });
+      const owners = await call<{ id: string }>("create_record", COFFEE);
+      const others = await call<{ id: string }>("create_record", {
+        ...COFFEE,
+        source_app: "other-app",
+      });
+      return { mine, owners, others };
+    }
 
-    await runAs(APP, () => call("delete_record", { id: mine.id }));
-    expect(rows().map((r) => r.id)).toEqual([owners.id]);
+    it("refuses an app another source's record with forbidden and keeps it", async () => {
+      const { owners, others } = await seed();
+      for (const id of [owners.id, others.id]) {
+        const error = await runAs(APP, () => failure("delete_record", { id }));
+        expect(codeOf(error), id).toBe("forbidden");
+        expect(error.message).toBe(
+          `Forbidden: ${id} was not recorded by kakeibo`,
+        );
+      }
+      expect(rows()).toHaveLength(3);
+    });
+
+    it("lets an app delete its own record", async () => {
+      const { mine, owners, others } = await seed();
+      await runAs(APP, () => call("delete_record", { id: mine.id }));
+      expect(rows().map((r) => r.id).sort()).toEqual(
+        [owners.id, others.id].sort(),
+      );
+    });
+
+    it("still answers not_found to an app for an id that is not there", async () => {
+      const error = await runAs(APP, () =>
+        failure("delete_record", { id: "record-nope" }),
+      );
+      expect(codeOf(error)).toBe("not_found");
+    });
+
+    it("lets the owner's own entrance delete every source's record, as before", async () => {
+      const { mine, owners, others } = await seed();
+      for (const id of [mine.id, owners.id, others.id]) {
+        await call("delete_record", { id });
+      }
+      expect(rows()).toHaveLength(0);
+    });
   });
 });
 
