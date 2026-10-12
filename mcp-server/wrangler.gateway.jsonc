@@ -4,8 +4,9 @@
   // 決定 = D-20261007-main-3（専用の Worker を別に立て、ハンドラと検査を共有する）
   //
   // wrangler.jsonc（スマホのコネクタ用）とは鍵・CORS・取り消しを分けるための別ファイル。
-  // 同じ dist/ から別のエントリ（dist/gatewayWorker.js）を配る。デプロイは
-  //   npm run build && npx wrangler@4 deploy -c wrangler.gateway.jsonc
+  // 同じ dist/ から別のエントリ（dist/gatewayWorker.js）を配る。デプロイは手元なら
+  //   npm run build && npx wrangler@4 deploy -c wrangler.gateway.jsonc（= npm run deploy:gateway）
+  // GitHub Actions なら .github/workflows/deploy-mcp.yml を target = gateway で手動実行する。
   // 本番への初回デプロイとシークレット投入は計画書 Step 7（人手）で行う。
   //
   // Durable Objects / KV は使わない。鍵は LIFE_EDITOR_GATEWAY_APPS（シークレット）が
