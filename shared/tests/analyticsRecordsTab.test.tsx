@@ -8,6 +8,8 @@ import {
 import type { AppRecord } from "../src/types/appRecord";
 import type { ExtensionApp } from "../src/types/extensionApp";
 import { makeAnalyticsLabels } from "./helpers/analyticsLabels";
+import en from "../src/i18n/locales/en.json";
+import ja from "../src/i18n/locales/ja.json";
 
 /*
  * The Analytics Records tab and the narrow Records block (#2164).
@@ -237,6 +239,31 @@ describe("Records tab filters", () => {
     expect(listRows()).toHaveLength(1);
     expect(statValue("Records")).toBe("1");
     expect(statValue("Total")).toBe("62.4 kg");
+  });
+
+  it("keeps the 'pick one kind' hint for an app that sent two kinds (#2232)", () => {
+    render(<AnalyticsView {...props({ records })} />);
+    // The ledger sent expense and income: one app is still two kinds, so the
+    // total stays "-" and the hint must not promise that the app alone fixes it.
+    fireEvent.change(select("App"), { target: { value: "ledger" } });
+    expect(statValue("Total")).toBe("-");
+    expect(screen.getByText("Pick one kind")).toBeInTheDocument();
+
+    // Following the hint — one kind — is what brings the numbers.
+    fireEvent.change(select("Kind"), { target: { value: "expense" } });
+    expect(statValue("Total")).toBe("1010 JPY");
+    expect(screen.queryByText("Pick one kind")).toBeNull();
+  });
+
+  it("words the hint as 'narrow to one kind', without the app (#2232)", () => {
+    const hints = [
+      en.analytics.records.stats.needOneKind,
+      ja.analytics.records.stats.needOneKind,
+    ];
+    expect(hints[0]).toMatch(/one kind/);
+    expect(hints[0]).not.toMatch(/app/i);
+    expect(hints[1]).toMatch(/^種類を 1 つに絞ると/);
+    expect(hints[1]).not.toMatch(/アプリ/);
   });
 
   it("narrows by kind and sums that kind", () => {
