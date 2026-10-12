@@ -291,7 +291,7 @@ export function MorningGoalsBlock({
             disabled={!draft.trim() || waiting}
             busy={busy}
             busyLabel={labels.adding}
-            className="max-md:min-h-11"
+            className="shrink-0 whitespace-nowrap max-md:min-h-11"
           >
             {labels.add}
           </Button>
