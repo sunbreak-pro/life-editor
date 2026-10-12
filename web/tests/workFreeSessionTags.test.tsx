@@ -169,7 +169,7 @@ describe("Work free-session tags (#1665)", () => {
       screen.getByRole("button", { name: "work.todoSelector.placeholder" }),
     );
     fireEvent.click(
-      within(await screen.findByRole("menu")).getByText("Write the spec"),
+      within(await screen.findByRole("listbox")).getByText("Write the spec"),
     );
 
     const add = within(field()).getByRole("button", {
