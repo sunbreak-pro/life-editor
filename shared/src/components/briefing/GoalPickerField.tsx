@@ -1,11 +1,11 @@
 import { useMemo } from "react";
-import { Check } from "lucide-react";
 import type { Goal, GoalPeriodKind } from "../../types/goal";
 import {
   judgeGoals,
   type GoalAchievementTodo,
 } from "../../utils/goalAchievement";
 import { cn } from "../cn";
+import { SelectCheckboxMark } from "../SelectCheckbox";
 import { FIELD_LABEL, FOCUS_RING_TIGHT } from "../styleTokens";
 import {
   applyGoalLinkEdit,
@@ -190,17 +190,7 @@ export function GoalPickerField({
                         FOCUS_RING_TIGHT,
                       )}
                     >
-                      <span
-                        aria-hidden
-                        className={cn(
-                          "flex size-4 shrink-0 items-center justify-center rounded-sm border",
-                          checked
-                            ? "border-lumen-accent bg-lumen-accent text-lumen-on-accent"
-                            : "border-lumen-border-strong",
-                        )}
-                      >
-                        {checked && <Check className="size-3" />}
-                      </span>
+                      <SelectCheckboxMark checked={checked} />
                       <span className="min-w-0 flex-1 truncate">
                         {goal.title}
                       </span>

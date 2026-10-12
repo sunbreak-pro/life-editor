@@ -134,6 +134,12 @@ export {
   TODO_CHECKBOX_ICON_PX,
   type TodoStatusCheckboxProps,
 } from "./TodoStatusCheckbox";
+export {
+  SelectCheckbox,
+  SelectCheckboxMark,
+  type SelectCheckboxProps,
+  type SelectCheckboxMarkProps,
+} from "./SelectCheckbox";
 // Todo add dialog (W-UX) — small centered overlay to create a todo. Pure
 // presentation: host injects copy, receives create intent via onSubmit
 // (§3.1 / §6.4).
