@@ -52,6 +52,13 @@ export interface BottomSheetProps {
    * drag down to.
    */
   fullScreen?: boolean;
+  /**
+   * #2219: keep `title` as the dialog's name but draw no heading, and put the
+   * exit back on the right as an × even at full height. For a body whose
+   * first field is the item's own title — a heading over it only repeated
+   * what kind of panel this is. The detail editors are the one user.
+   */
+  hideTitle?: boolean;
 }
 
 /*
@@ -103,8 +110,13 @@ export function BottomSheet({
   className,
   closeOnBackdrop = true,
   fullScreen = false,
+  hideTitle = false,
 }: BottomSheetProps) {
   const panelRef = useDialogA11y<HTMLDivElement>({ open, onClose });
+  // #2219: a hidden title keeps the dismiss shape (× on the right) at full
+  // height too — the back arrow belongs to a screen with a heading to go
+  // back from.
+  const backArrow = fullScreen && !hideTitle;
   const swipe = useSwipeToDismiss({ direction: "down", onDismiss: onClose });
 
   if (!open || typeof document === "undefined") return null;
@@ -117,13 +129,13 @@ export function BottomSheet({
       {...DIALOG_AUTOFOCUS_SKIP}
       className={cn(
         "-my-2.5 grid size-11 shrink-0 place-items-center rounded-full",
-        fullScreen ? "-ml-2" : "-mr-2",
+        backArrow ? "-ml-2" : "-mr-2",
         "text-lumen-text-secondary transition-colors",
         "hover:bg-lumen-hover hover:text-lumen-text",
         FOCUS_RING_TIGHT,
       )}
     >
-      {fullScreen ? (
+      {backArrow ? (
         <ArrowLeft size={20} aria-hidden />
       ) : (
         <X size={18} aria-hidden />
@@ -260,16 +272,16 @@ export function BottomSheet({
            * that queries it by name has to know which shape it got.
            */}
           <div className="mb-3 flex min-h-6 items-center justify-between gap-2">
-            {fullScreen && exitButton}
-            {titleIcon}
-            {title ? (
+            {backArrow && exitButton}
+            {!hideTitle && titleIcon}
+            {title && !hideTitle ? (
               <h2 className="min-w-0 flex-1 truncate text-base font-semibold text-lumen-text">
                 {title}
               </h2>
             ) : (
               <span className="flex-1" />
             )}
-            {!fullScreen && exitButton}
+            {!backArrow && exitButton}
           </div>
         </div>
         {/*

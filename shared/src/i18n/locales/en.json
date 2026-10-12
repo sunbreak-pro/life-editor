@@ -480,9 +480,7 @@
     "statusNotStarted": "Not started",
     "statusDone": "Done",
     "content": "Notes",
-    "save": "Save",
-    "saved": "Saved",
-    "unsaved": "Unsaved"
+    "save": "Save"
   },
   "goalLink": {
     "field": "Goals",
@@ -729,13 +727,11 @@
     "createSlot": "Create event at this time"
   },
   "itemActions": {
-    "tagColor": "\"{{name}}\" color",
-    "tagColorEmpty": "Colors belong to tags — add a tag first.",
-    "tagColorClearLabel": "Default color",
     "displayColorLegend": "Colour the calendar by",
     "displayColorPick": "Use \"{{name}}\" for this item's calendar colour",
     "displayColorDefaultHint": "Default: the tag added first",
-    "tagColorCustomLabel": "Custom"
+    "displayColorFrom": "Shown in the colour of the \"{{name}}\" tag",
+    "displayColorNone": "No tags, so it is shown in the standard colour"
   },
   "itemConvert": {
     "toTodo": "Convert to Todo",
@@ -797,8 +793,6 @@
     "workTimeNone": "Nothing logged yet",
     "memo": "Memo",
     "save": "Save",
-    "saved": "Saved",
-    "unsaved": "Unsaved",
     "originRoutine": "Generated from routine",
     "originEvent": "Event",
     "skipThisDay": "Skip this day",
@@ -947,7 +941,8 @@
     "filterGroupEditTagsHint": "Tick at least one tag to save.",
     "filterGroupRename": "Group name",
     "filterGroupDelete": "Delete {{name}}",
-    "filterGroupEmpty": "Every tag in this group is gone."
+    "filterGroupEmpty": "Every tag in this group is gone.",
+    "noteAttachConfirm": "Attach"
   },
   "analytics": {
     "title": "Analytics",

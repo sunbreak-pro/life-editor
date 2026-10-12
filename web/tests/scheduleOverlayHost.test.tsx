@@ -491,12 +491,15 @@ describe("ScheduleOverlayHost — whether the frame is open at all", () => {
     expect(screen.queryByText(`pane:${ITEM.id}`) !== null).toBe(open);
   });
 
-  it("names the frame and marks its kind once, as a glyph (#1044)", () => {
+  // #2219: the frame is named, but draws no heading — and the #1044 kind
+  // glyph that sat in that heading went with it.
+  it("names the frame without a heading or a kind glyph (#2219)", () => {
     renderHost();
     screen.getByRole("dialog", { name: "scheduleScreen.detailTitle" });
-    // Always "event": a routine OCCURRENCE is still an `items_meta.role =
-    // 'event'` row, and Schedule calls that kind 「予定」.
-    screen.getByRole("img", { name: "scheduleScreen.originEvent" });
+    expect(
+      screen.queryByRole("img", { name: "scheduleScreen.originEvent" }),
+    ).toBeNull();
+    screen.getByRole("button", { name: "common.close" });
   });
 
   it.each([

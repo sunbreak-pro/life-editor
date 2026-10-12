@@ -1,6 +1,7 @@
 import { useState } from "react";
 import {
   EventEditorPane,
+  ItemNoteAttach,
   SegmentedControl,
   REMINDER_LEAD_CHOICES,
   useTranslation,
@@ -12,6 +13,7 @@ import {
   type EventEditorWorkTime,
 } from "@life-editor/shared";
 import { TagPicker } from "../wikitag/TagPicker";
+import { useNoteAttachLabels, type ScheduleNoteAttach } from "./noteAttach";
 import { TagColorControls } from "../wikitag/TagColorControls";
 import { useEventWorkTime } from "./useEventWorkTime";
 import type { DuplicateOptions } from "./useScheduleMutations";
@@ -73,6 +75,8 @@ export interface ScheduleEventEditorProps {
    * tags" / "without tags", the same pair the Desktop bubble offers.
    */
   duplicateTagCount?: number;
+  /** #2219: 「ノートを添付」 at the right end of the tag row. */
+  noteAttach?: ScheduleNoteAttach;
 }
 
 export function ScheduleEventEditor({
@@ -85,8 +89,10 @@ export function ScheduleEventEditor({
   onConvertToTodo,
   onDuplicate,
   duplicateTagCount = 0,
+  noteAttach,
 }: ScheduleEventEditorProps) {
   const { t } = useTranslation();
+  const noteAttachLabels = useNoteAttachLabels(noteAttach?.notesError);
   /*
    * #1663: the tag scope, per occurrence. Reset whenever the panel moves to
    * another row — a scope chosen for yesterday's occurrence must not decide
@@ -124,8 +130,6 @@ export function ScheduleEventEditor({
     endTime: t("scheduleScreen.endTime"),
     memo: t("scheduleScreen.memo"),
     save: t("scheduleScreen.save"),
-    saved: t("scheduleScreen.saved"),
-    unsaved: t("scheduleScreen.unsaved"),
     seriesHint: t("scheduleScreen.seriesEditHint"),
     originRoutine: t("scheduleScreen.originRoutine"),
     skipThisDay: t("scheduleScreen.skipThisDay"),
@@ -254,10 +258,9 @@ export function ScheduleEventEditor({
         // matches `items_meta.role` of that row rather than what the UI calls
         // it.
         //
-        // #551: the color controls write the TAG's color (setTagColor) — an
-        // item shows color only through its tags, so "change this item's
-        // color" and "change this tag's color" are the same act, and the hue
-        // updates everywhere that tag paints (pills, Kanban, lens chips).
+        // #2219: the colour row only says, and picks, WHICH tag colours the
+        // event. Changing the tag's own colour moved to the Connect screen's
+        // tag editor — from here it repainted every item wearing the tag.
         <div className="flex flex-col gap-1.5">
           {/*
            * #1663: which occurrences a tag (and therefore the colour it
@@ -287,7 +290,22 @@ export function ScheduleEventEditor({
               singleLineLabels
             />
           )}
-          <TagPicker itemId={tagTargetId} itemRole={tagTargetRole} />
+          {/* #2219: 「ノートを添付」 at the right end of the tag row. The note
+              links to this occurrence's own row, as the create panel's does —
+              a note is about the day, not the series. */}
+          <div className="flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <TagPicker itemId={tagTargetId} itemRole={tagTargetRole} />
+            </div>
+            {noteAttach && (
+              <ItemNoteAttach
+                notes={noteAttach.notes}
+                onAttach={(draft) => noteAttach.onAttach(item.id, draft)}
+                onOpenChange={noteAttach.onOpenChange}
+                labels={noteAttachLabels}
+              />
+            )}
+          </div>
           <TagColorControls itemId={tagTargetId} />
         </div>
       }

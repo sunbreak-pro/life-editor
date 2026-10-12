@@ -32,8 +32,6 @@ const LABELS: EventEditorLabels = {
   endTime: "End",
   memo: "Memo",
   save: "Save",
-  saved: "Saved",
-  unsaved: "Unsaved",
   originRoutine: "Generated from routine",
   skipThisDay: "Skip this day",
   delete: "Delete",
@@ -131,7 +129,7 @@ describe("EventEditorPane — repeat draft (#712)", () => {
     pickType("Daily");
     // Without this the one control that could still change the series would
     // also be the one the "unsaved" badge never mentions.
-    expect(screen.getByText("Unsaved")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
     expect(saveButton()).toBeEnabled();
   });
 

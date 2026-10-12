@@ -7,6 +7,8 @@ import {
 } from "react";
 import { ChevronRight, Trash2 } from "lucide-react";
 import type { TodoStatus } from "../types/todoTree";
+import { TodoStatusCheckbox } from "./TodoStatusCheckbox";
+import type { StatusLabelSet } from "./todoStatusVisuals";
 import { isImeComposing } from "../utils/imeGuard";
 import { cn } from "./cn";
 import {
@@ -46,18 +48,16 @@ import {
  * and both hosts ask before any exit that tears the panel down.
  *
  * DELETE (#775). Optional, and off unless the host passes BOTH `onDelete` and
- * `deleteLabel`: the panel serves three hosts and only Schedule's todo detail
- * wires one today — which is the surface that needed it, since on Mobile the
- * detail sheet is the only way into a todo at all. The affordance copies
- * <EventEditorPane>'s delete (danger text + Trash2, its own row above the save
- * footer): the two panels open from the same day list, and a user who has
+ * `deleteLabel`: on Mobile the detail sheet is the only way into a todo at
+ * all. The affordance copies <EventEditorPane>'s delete (danger text +
+ * Trash2): the two panels open from the same day list, and a user who has
  * deleted an event should recognise the control on a todo.
  *
- * It is deliberately NOT a second button in the save footer. That row is right
- * aligned and holds the one accent-filled control; a destructive action of the
- * same shape parked beside it is the classic mis-tap, and on a phone the thumb
- * arrives at the bottom-right corner first. So: opposite edge, opposite
- * treatment (borderless danger text, no fill), and a divider between.
+ * #2219 moved it into the save footer, at its LEFT end — where the event
+ * pane put its own in #2080. It used to be a row of its own above the footer,
+ * so the two panels placed the same control in two different spots. The
+ * mis-tap worry that kept it out is answered by the opposite ends: borderless
+ * danger text on the left, the one accent-filled control on the right.
  *
  * The panel does not ask before firing — the confirm belongs to the host, which
  * is the only side that knows what the delete drags along (the subtree cascade)
@@ -67,14 +67,11 @@ import {
  * fields (priority / schedule / reminders / tags) are out of scope. The status
  * toggle is NOT drafted (#713 対象外): it is a discrete act, not a field that
  * can be half-typed.
+ *
+ * #2219: the toggle is the app's round <TodoStatusCheckbox> (#2217 gives every
+ * todo completion that one shape). It used to be a ○ / ● glyph in a bordered
+ * button — the one todo checkbox that looked like none of the others.
  */
-
-// Status cue glyph — symbols, not copy, so they stay in the component
-// (mirrors web TodoTreeView's STATUS_GLYPH). The textual label is injected.
-const STATUS_GLYPH: Record<TodoStatus, string> = {
-  NOT_STARTED: "○",
-  DONE: "●",
-};
 
 /** What one press of the save button changes (#713). */
 export interface TodoDetailPatch {
@@ -132,14 +129,16 @@ export interface TodoDetailPanelProps {
   statusLabel: string;
   /** Already-translated label for the current status value. */
   statusText?: string;
+  /**
+   * Already-translated per-status words for the checkbox's accessible name
+   * (#2219 — "Status: Done"). Omitted, the name falls back to `statusText`,
+   * which is the word for the status the todo is in.
+   */
+  statusLabels?: StatusLabelSet;
   /** Already-translated caption above the content editor. */
   contentLabel?: string;
   /** Primary action — "保存" (#713). */
   saveLabel: string;
-  /** Shown beside the button while nothing is pending — "保存済み". */
-  savedLabel: string;
-  /** Shown beside the button while a draft is pending — "未保存". */
-  unsavedLabel: string;
   /** Already-translated name for the delete button (#775). Pair with
    *  `onDelete`; when either is absent the delete row is omitted. */
   deleteLabel?: string;
@@ -180,6 +179,17 @@ export interface TodoDetailPanelProps {
    *  existing callers that omit it keep the original title/status/content
    *  layout unchanged. Rendered between the status row and the content editor. */
   tagsSlot?: ReactNode;
+  /**
+   * #2219: a control at the RIGHT end of the tag row — 「ノートを添付」. Drawn
+   * only with the tag row itself, so it never floats on a row of its own.
+   */
+  tagsTrailing?: ReactNode;
+  /**
+   * #2219: the row under the tags that says, and picks, which tag colours the
+   * todo (TagColorControls). Separate from `tagsSlot` because the chips wrap
+   * on one line and this is a block of its own.
+   */
+  colorSlot?: ReactNode;
   /**
    * The goal field (#2109, plan Step 10): host-injected, because the goals,
    * their links and the write live with the host (the field itself is the
@@ -236,16 +246,17 @@ function TodoDetailFields({
   titleLabel,
   statusLabel,
   statusText,
+  statusLabels,
   contentLabel,
   saveLabel,
-  savedLabel,
-  unsavedLabel,
   deleteLabel,
   scheduleLabel,
   scheduleText,
   scheduleSet = false,
   tagsLabel,
   tagsSlot,
+  tagsTrailing,
+  colorSlot,
   goalsLabel,
   goalsSlot,
   goalsDirty = false,
@@ -329,24 +340,27 @@ function TodoDetailFields({
           {statusLabel}
         </span>
         {statusControl ?? (
-          <button
-            type="button"
-            // #873: two values, so the control is a checkbox — a press sets
-            // done / not done rather than advancing through a cycle.
-            role="checkbox"
-            aria-checked={resolvedStatus === "DONE"}
-            onClick={() => onToggleStatus?.(todoId)}
-            aria-label={statusLabel}
-            className={cn(
-              "inline-flex items-center gap-1.5 rounded-md border border-lumen-border px-2 py-1 text-sm text-lumen-text hover:bg-lumen-hover",
-              FOCUS_RING,
-            )}
-          >
-            <span aria-hidden className="text-lumen-text-secondary">
-              {STATUS_GLYPH[resolvedStatus]}
+          // #873: two values, so the control is a checkbox — a press sets
+          // done / not done rather than advancing through a cycle. The host's
+          // toggle decides the next value, as it always has.
+          <span className="inline-flex items-center gap-0.5">
+            <TodoStatusCheckbox
+              status={resolvedStatus}
+              onChange={() => onToggleStatus?.(todoId)}
+              labels={
+                statusLabels ?? {
+                  statusNotStarted: statusText ?? "",
+                  statusDone: statusText ?? "",
+                }
+              }
+              label={statusLabel}
+              // The 44px target stays; the margin keeps the row its height.
+              className="-my-2.5 -ml-2.5"
+            />
+            <span aria-hidden className="text-sm text-lumen-text">
+              {statusText}
             </span>
-            <span>{statusText}</span>
-          </button>
+          </span>
         )}
       </div>
 
@@ -394,17 +408,19 @@ function TodoDetailFields({
       )}
 
       {tagsSlot != null && (
-        <div className="flex items-center gap-2">
+        <div className="flex items-start gap-2">
           {tagsLabel && (
-            <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
+            <span className="pt-1 text-xs uppercase tracking-wide text-lumen-text-secondary">
               {tagsLabel}
             </span>
           )}
-          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+          <div className="flex min-w-0 flex-1 flex-wrap items-center gap-1.5">
             {tagsSlot}
           </div>
+          {tagsTrailing}
         </div>
       )}
+      {tagsSlot != null && colorSlot}
 
       {/* #2109: stacked, caption above — the field is a list, not a chip
           row, and needs the panel's full width on a phone. */}
@@ -428,33 +444,10 @@ function TodoDetailFields({
         </div>
       )}
 
-      {/* Delete (#775) — its own row, left aligned, above the divider the save
-          footer draws. Same idiom as EventEditorPane's delete on the screen
-          next door, and deliberately the opposite of the save button in both
-          position and weight so the two are never mistaken for each other.
-          `w-fit`, not `self-start`: the panel container is a space-y block, not
-          a flex row, so a bare `flex` button would stretch the full width and
-          land right under the save button after all.
-          min-h-lumen-tap-min is the project's hit-area floor (tokens.css) —
-          the CSS `:has()` rule that applies it for free only reaches icon-ONLY
-          buttons, and this one carries a label too. */}
-      {onDelete && deleteLabel && (
-        <button
-          type="button"
-          onClick={() => onDelete(todoId)}
-          className={cn(
-            "flex w-fit min-h-lumen-tap-min items-center gap-1.5 rounded-sm text-sm font-medium text-lumen-danger",
-            FOCUS_RING,
-          )}
-        >
-          <Trash2 aria-hidden className="size-3.5" />
-          {deleteLabel}
-        </button>
-      )}
-
       {/* Save footer (#713) — the only commit. Disabled while there is nothing
-          to write (#434 S-1), with the state spelled out beside it so "why can
-          I not press this" has an answer on screen. */}
+          to write (#434 S-1). #2219: the 「保存済み / 未保存」 line beside it is
+          gone (the button's state says it), and Delete (#775) rides the left
+          end, as on the event pane. */}
       <div
         className={cn(
           "flex items-center justify-end gap-3 border-t border-lumen-border pt-3",
@@ -473,15 +466,22 @@ function TodoDetailFields({
           stickyFooter && "sticky bottom-0 -mb-3 bg-lumen-bg-secondary pb-3",
         )}
       >
-        <span
-          aria-live="polite"
-          className={cn(
-            "text-xs",
-            dirty ? "text-lumen-accent" : "text-lumen-text-secondary",
-          )}
-        >
-          {dirty ? unsavedLabel : savedLabel}
-        </span>
+        {/* min-h-lumen-tap-min is the project's hit-area floor (tokens.css) —
+            the CSS `:has()` rule that applies it for free only reaches
+            icon-ONLY buttons, and this one carries a label too. */}
+        {onDelete && deleteLabel && (
+          <button
+            type="button"
+            onClick={() => onDelete(todoId)}
+            className={cn(
+              "mr-auto flex min-h-lumen-tap-min items-center gap-1.5 rounded-sm text-sm font-medium text-lumen-danger",
+              FOCUS_RING,
+            )}
+          >
+            <Trash2 aria-hidden className="size-3.5" />
+            {deleteLabel}
+          </button>
+        )}
         <button
           type="button"
           onClick={save}

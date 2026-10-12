@@ -139,6 +139,12 @@ export {
   type ItemCreateType,
   type ItemCreateSource,
 } from "./ItemCreatePanel";
+// #2219: 「ノートを添付」 for an item that already exists (the edit panels).
+export {
+  ItemNoteAttach,
+  type ItemNoteAttachProps,
+  type ItemNoteAttachLabels,
+} from "./ItemNoteAttach";
 // #940: the all-day switch, shared by the creating and the editing side so
 // the control is the same object in both.
 export { AllDaySwitch, type AllDaySwitchProps } from "./AllDaySwitch";

@@ -111,6 +111,7 @@ function renderEditor(
     isWide?: boolean;
     routineId?: string | null;
     onConvertToTodo?: ScheduleEventEditorProps["onConvertToTodo"];
+    noteAttach?: ScheduleEventEditorProps["noteAttach"];
   } = {},
 ) {
   const onConvertToTodo = over.onConvertToTodo ?? vi.fn();
@@ -135,6 +136,7 @@ function renderEditor(
       onChange: vi.fn(),
     },
     onConvertToTodo,
+    noteAttach: over.noteAttach,
   };
   const utils = render(<ScheduleEventEditor {...props} />, {
     wrapper: SyncWrapper,
@@ -325,5 +327,28 @@ describe("ScheduleEventEditor — logged work time (#1375)", () => {
         screen.getByText("scheduleScreen.durationHourMin|1,30"),
       ).toBeTruthy(),
     );
+  });
+});
+
+describe("ScheduleEventEditor — 「ノートを添付」 on the tag row (#2219)", () => {
+  it("links a picked note to this occurrence", () => {
+    const onAttach = vi.fn();
+    renderEditor({
+      noteAttach: { notes: [{ id: "note-1", title: "Minutes" }], onAttach },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.attachNote" }),
+    );
+    fireEvent.click(
+      screen.getByRole("radio", { name: "scheduleScreen.noteSourceExisting" }),
+    );
+    fireEvent.click(screen.getByRole("option", { name: "Minutes" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.noteAttachConfirm" }),
+    );
+    expect(onAttach).toHaveBeenCalledWith(ITEM.id, {
+      kind: "existing",
+      id: "note-1",
+    });
   });
 });

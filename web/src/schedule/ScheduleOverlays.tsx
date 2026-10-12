@@ -497,6 +497,9 @@ export function ScheduleOverlays({
         }}
         onChoose={scope.onChoose}
         onClose={scope.onClose}
+        // #2219: a corner close as well as Cancel — every panel on the
+        // Schedule now closes from its top-right corner.
+        closeLabel={t("common.close")}
       />
       {/* #707: mounted last so it portals ABOVE the editor overlay / sheet it
           is usually asked from — the discard question has to sit on top of the
@@ -511,6 +514,7 @@ export function ScheduleOverlays({
           danger={confirm.request.danger}
           onConfirm={() => confirm.onResolve(true)}
           onCancel={() => confirm.onResolve(false)}
+          closeLabel={t("common.close")}
         />
       )}
     </>

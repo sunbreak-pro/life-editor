@@ -51,6 +51,13 @@ export interface ItemDetailOverlayProps {
    * can grow — fields that appear as the user turns options on — wants it.
    */
   fitViewport?: boolean;
+  /**
+   * #2219: forwarded to <Modal>. `closeLabel` draws the corner close (×);
+   * `labelledBy` names the dialog from a heading inside `children`, for a
+   * host that shows none of its own.
+   */
+  closeLabel?: string;
+  labelledBy?: string;
 }
 
 export function ItemDetailOverlay({
@@ -63,6 +70,8 @@ export function ItemDetailOverlay({
   size = "lg",
   className,
   fitViewport,
+  closeLabel,
+  labelledBy,
 }: ItemDetailOverlayProps) {
   return (
     <Modal
@@ -73,6 +82,8 @@ export function ItemDetailOverlay({
       size={size}
       className={className}
       fitViewport={fitViewport}
+      closeLabel={closeLabel}
+      labelledBy={labelledBy}
     >
       <div className="flex min-h-0 flex-col gap-4">
         <div className="min-h-0">{children}</div>
