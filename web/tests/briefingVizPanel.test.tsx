@@ -103,8 +103,9 @@ describe("Briefing visual zone in the detail panel (#938)", () => {
     await waitFor(() =>
       expect(panelBody.textContent).toContain("YOU, UP TO YESTERDAY"),
     );
-    // The tray keeps its place above it — two panels in one well, not a swap.
-    expect(panelBody.textContent).toContain("Today's Todo");
+    // The Todo tray left the morning panel in #2223 — the paper's table holds
+    // today's todos now — so the charts are the panel's only block here.
+    expect(panelBody.textContent).not.toContain("Today's Todo");
   });
 
   it("keeps it out of the paper's own column", async () => {

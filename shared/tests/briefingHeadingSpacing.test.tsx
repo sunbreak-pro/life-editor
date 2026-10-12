@@ -31,19 +31,25 @@ const LABELS: BriefingLabels = {
   noFocus: "No focus written last night",
   goalMark: "Goals:",
   scheduleTitle: "PROMISES",
-  addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
   routineTag: "Routine",
   allDay: "All day",
+  timeColumn: "Time",
+  eventsColumn: "Events",
+  todosColumn: "Todos",
+  untimed: "No time",
+  ongoing: "Now on",
+  nowLine: "Current time",
+  columnSwitch: "Columns",
+  addEvent: "Add an event",
+  addTodo: "Add a todo",
+  moreCount: (count: number) => `+${count} more`,
+  close: "Close",
   carryoverTitle: "CARRYOVER",
   todoStatus: "Status",
   statusNotStarted: "Not started",
   statusDone: "Done",
   edit: "Edit",
-  delete: "Delete",
-  deleteScheduleHint: "Delete this event",
-  deleteTodoHint: "Delete this todo",
-  jumpToSchedule: "Open in Schedule",
   jumpToTodos: "Open in Todos",
 };
 
@@ -65,10 +71,8 @@ function renderMorning() {
       labels={LABELS}
       focusText={null}
       onToggleTodo={vi.fn()}
-      onDeleteScheduleItem={vi.fn()}
-      onDeleteTodo={vi.fn()}
-      onAddScheduleItem={vi.fn()}
-      onJumpToSchedule={vi.fn()}
+      onOpenItem={vi.fn()}
+      onAddItem={vi.fn()}
       onJumpToTodos={vi.fn()}
     />,
   );

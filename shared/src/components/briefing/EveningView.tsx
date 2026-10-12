@@ -165,16 +165,6 @@ export interface EveningViewProps {
   /** 「Daily に移動」. Undefined hides the button. */
   onOpenDaily?: () => void;
   labels: EveningLabels;
-  /**
-   * In-body 朝刊/夕刊 switcher for the NARROW layout (#318) — same slot as
-   * BriefingView's. AppShell renders its header slot on the wide branch only,
-   * so below 768px the host re-issues the tab band here. Undefined on the wide
-   * layout, where the SectionHeader keeps owning the tabs (unchanged).
-   *
-   * Pass `undefined` / `null` to omit it — NOT `cond && <node>`, whose `false`
-   * would clear the guard and leave an empty ruled band on the paper.
-   */
-  tabSwitcher?: ReactNode;
 }
 
 /** Section heading row — same 段標 idiom as BriefingView's BlockHead. */
@@ -250,7 +240,6 @@ export function EveningView({
   onPlaceTomorrow,
   onOpenDaily,
   labels,
-  tabSwitcher,
 }: EveningViewProps): React.JSX.Element {
   // Every block is a region named by its heading, so assistive tech can jump
   // between them — and the blocks can be told apart without leaning on copy.
@@ -258,10 +247,8 @@ export function EveningView({
   const headId = (block: string) => `${idBase}-${block}`;
 
   if (loading) {
-    // Mirrors BriefingView: the switcher stays reachable while data loads.
     return (
       <div className="mx-auto w-full max-w-2xl py-8">
-        {tabSwitcher != null && <div className="mb-4 px-2">{tabSwitcher}</div>}
         <SkeletonList rows={8} rowHeight={44} gap={12} />
       </div>
     );
@@ -269,15 +256,8 @@ export function EveningView({
 
   return (
     <div className="mx-auto w-full max-w-2xl pb-16">
-      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ──────────
-          ABOVE the masthead (#879), same order as the morning paper: the
-          hamburger row belongs at the top of the screen the way every other
-          section draws it. Undefined on the wide layout — nothing moves. */}
-      {tabSwitcher != null && (
-        <div className="border-b border-lumen-border px-2 py-3">
-          {tabSwitcher}
-        </div>
-      )}
+      {/* The narrow 朝刊/夕刊 band sits in the shell header since #2223, as
+          on the morning paper, so it stays put while the paper scrolls. */}
 
       {/* ── Masthead — the title deliberately keeps the newspaper serif
           (#269) regardless of the Settings font; body copy follows the

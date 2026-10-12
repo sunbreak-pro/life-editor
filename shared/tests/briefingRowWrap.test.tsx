@@ -29,19 +29,25 @@ const LABELS: BriefingLabels = {
   noFocus: "No focus",
   goalMark: "Goals:",
   scheduleTitle: "PROMISES",
-  addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
   routineTag: "Routine",
   allDay: "All day",
+  timeColumn: "Time",
+  eventsColumn: "Events",
+  todosColumn: "Todos",
+  untimed: "No time",
+  ongoing: "Now on",
+  nowLine: "Current time",
+  columnSwitch: "Columns",
+  addEvent: "Add an event",
+  addTodo: "Add a todo",
+  moreCount: (count: number) => `+${count} more`,
+  close: "Close",
   carryoverTitle: "CARRYOVER",
   todoStatus: "Status",
   statusNotStarted: "Not started",
   statusDone: "Done",
   edit: "Edit",
-  delete: "Delete",
-  deleteScheduleHint: "Delete this event",
-  deleteTodoHint: "Delete this todo",
-  jumpToSchedule: "Open in Schedule",
   jumpToTodos: "Open in Todos",
 };
 
@@ -80,10 +86,8 @@ function renderMorning(data: BriefingData = DATA) {
       labels={LABELS}
       focusText={null}
       onToggleTodo={vi.fn()}
-      onDeleteScheduleItem={vi.fn()}
-      onDeleteTodo={vi.fn()}
-      onAddScheduleItem={vi.fn()}
-      onJumpToSchedule={vi.fn()}
+      onOpenItem={vi.fn()}
+      onAddItem={vi.fn()}
       onJumpToTodos={vi.fn()}
     />,
   );
@@ -97,52 +101,29 @@ function clusterOf(name: string): HTMLElement {
   return cluster;
 }
 
-describe("#1820 — the narrow schedule row wraps its actions", () => {
-  it("drops both rows' action cluster to a line of its own below md", () => {
+/*
+ * #1820's wrap was for the row action cluster, and since #2223 the schedule
+ * table has no row actions at all — a title opens its editor, deleting is
+ * the editor's. What the issue protected still holds there: nothing but the
+ * title competes for a cell's width, and the title is the part that shrinks.
+ */
+describe("#1820 — the schedule table's titles keep their width", () => {
+  it("draws no action cluster on a table row", () => {
     renderMorning();
-    for (const name of [
-      `${LABELS.edit}: ${LABELS.jumpToTodos}`,
-      `${LABELS.edit}: ${LABELS.jumpToSchedule}`,
-    ]) {
-      const cluster = clusterOf(name);
-      // A flex item asking for the full width cannot share a line.
-      expect(cluster).toHaveClass("max-md:w-full", "max-md:justify-end");
-      // Desktop is untouched: no width claim, still pinned right by ml-auto.
-      expect(cluster).toHaveClass("ml-auto", "flex-shrink-0");
-      expect(cluster).not.toHaveClass("w-full");
-    }
+    const table = document.querySelector("table");
+    if (table === null) throw new Error("no schedule table");
+    // No 編集 ↗ and no 削除 🗑 on any row: only the title and the checkbox.
+    expect(
+      table.querySelectorAll("tbody svg.lucide-arrow-up-right, tbody svg.lucide-trash-2"),
+    ).toHaveLength(0);
   });
 
-  it("lets each row wrap on a phone and holds it to one line on Desktop", () => {
+  it("lets the title take the cell and shrink before anything else", () => {
     renderMorning();
-    for (const name of [
-      `${LABELS.edit}: ${LABELS.jumpToTodos}`,
-      `${LABELS.edit}: ${LABELS.jumpToSchedule}`,
-    ]) {
-      const row = clusterOf(name).parentElement;
-      if (row === null) throw new Error(`no row around ${name}`);
-      expect(row).toHaveClass("flex-wrap", "md:flex-nowrap");
-      // The gap is split: the horizontal one is the row's own rhythm, the
-      // vertical one only exists once the cluster has wrapped.
-      expect(row).toHaveClass("gap-x-3", "gap-y-1");
-      // #1442's floor is still the row's height.
-      expect(row).toHaveClass("min-h-11");
-    }
-  });
-
-  it("keeps the 44px floor that cost the title its width", () => {
-    renderMorning();
-    // The wrap is what pays for the floor now — the floor itself must not
-    // have been given back (the #1559 lever named in the Issue).
-    for (const name of [
-      `${LABELS.edit}: ${LABELS.jumpToTodos}`,
-      `${LABELS.delete}: ${LABELS.deleteTodoHint}`,
-      `${LABELS.edit}: ${LABELS.jumpToSchedule}`,
-      `${LABELS.delete}: ${LABELS.deleteScheduleHint}`,
-    ]) {
+    for (const name of ["風呂に入る", "Write report"]) {
       expect(screen.getByRole("button", { name })).toHaveClass(
-        "max-md:min-h-11",
-        "max-md:min-w-11",
+        "min-w-0",
+        "flex-1",
       );
     }
   });

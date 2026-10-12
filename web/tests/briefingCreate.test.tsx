@@ -1,208 +1,185 @@
-import { describe, it, expect, vi } from "vitest";
-import { render, screen, waitFor, fireEvent } from "@testing-library/react";
+import { afterEach, beforeEach, describe, it, expect, vi } from "vitest";
+import { useEffect } from "react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
+  ItemPanelProvider,
   SyncContext,
   SYNC_DOMAINS,
   todayDateKey,
+  useItemPanelContext,
   type DataService,
+  type ItemPanelRequest,
   type ScheduleItem,
   type SyncDomain,
-  type TodoNode,
   type WebSyncContextValue,
 } from "@life-editor/shared";
 import { stubDataService } from "./helpers";
 import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 /*
- * Adding to today from the paper (#623).
+ * Adding to today from the paper (#623 → #2223).
  *
- * The point of the「+」is that settling the day no longer means a round trip
- * to Schedule, so what is worth asserting is the wiring rather than the form:
- * the panel opens on the paper's OWN day, the write goes to that day, and the
- * new row is on the paper without waiting for a reload.
+ * Each column of the time table carries its own「+」, and both open
+ * Schedule's creation panel IN PLACE through #2218's entry point — the paper
+ * no longer mounts a creation panel of its own. What only this host decides
+ * is what the panel is seeded with: the paper's own day, and the next
+ * half-hour mark as the start. The panel itself (its fields, its writes) is
+ * ItemPanelHost's and Schedule's, covered by their suites.
  *
- * The form itself is Schedule's <ItemCreatePanel>, already covered by its own
- * suite — this drives it only through its visible controls.
+ * Only `Date` is faked, so the clock reads a fixed minute while promises and
+ * timers behave as they do in every other suite.
  */
 
-const TODAY = todayDateKey();
+function scheduleItem(date: string): ScheduleItem {
+  return {
+    id: "s1",
+    date,
+    title: "Dentist",
+    startTime: "09:00",
+    endTime: "10:00",
+    completed: false,
+    completedAt: null,
+    routineId: null,
+    templateId: null,
+    memo: null,
+    noteId: null,
+    content: null,
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z",
+  } as ScheduleItem;
+}
 
-const EXISTING = {
-  id: "s1",
-  date: TODAY,
-  title: "Dentist",
-  startTime: "09:00",
-  endTime: "10:00",
-  completed: false,
-  completedAt: null,
-  routineId: null,
-  templateId: null,
-  memo: null,
-  noteId: null,
-  content: null,
-  createdAt: "2026-08-10T00:00:00.000Z",
-  updatedAt: "2026-08-10T00:00:00.000Z",
-} as ScheduleItem;
-
-/** An unscheduled leaf todo — the pool the "existing todo" source offers. */
-const UNPLACED = {
-  id: "t-free",
-  type: "task",
-  title: "Draft the proposal",
-  status: "NOT_STARTED",
-  parentId: null,
-  order: 0,
-  createdAt: "2026-08-10T00:00:00.000Z",
-  updatedAt: "2026-08-10T00:00:00.000Z",
-} as TodoNode;
-
-function makeDS(over: Partial<DataService> = {}): DataService {
+function makeDS(today: string): DataService {
   return stubDataService({
     fetchScheduleItemsByDate: vi
       .fn()
       .mockImplementation((date: string) =>
-        Promise.resolve(date === TODAY ? [EXISTING] : []),
+        Promise.resolve(date === today ? [scheduleItem(today)] : []),
       ),
-    fetchTodoTree: vi.fn().mockResolvedValue([UNPLACED]),
+    fetchTodoTree: vi.fn().mockResolvedValue([]),
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
-    createScheduleItem: vi
-      .fn()
-      .mockImplementation((id: string, date: string, title: string) =>
-        Promise.resolve({ ...EXISTING, id, date, title }),
-      ),
-    createTodo: vi
-      .fn()
-      .mockImplementation((node: TodoNode) => Promise.resolve(node)),
-    updateTodo: vi
-      .fn()
-      .mockImplementation((id: string, patch: Partial<TodoNode>) =>
-        Promise.resolve({ ...UNPLACED, id, ...patch }),
-      ),
-    createNoteUnified: vi.fn(),
-    createItemLink: vi.fn(),
-    ...over,
   });
 }
 
-function renderScreen(ds: DataService, onNavigate = vi.fn()) {
-  const value: WebSyncContextValue = {
-    syncVersion: 0,
-    domainVersions: Object.fromEntries(
-      SYNC_DOMAINS.map((d) => [d, 0]),
-    ) as Record<SyncDomain, number>,
-    triggerSync: async () => undefined,
-  };
+const SYNC: WebSyncContextValue = {
+  syncVersion: 0,
+  domainVersions: Object.fromEntries(SYNC_DOMAINS.map((d) => [d, 0])) as Record<
+    SyncDomain,
+    number
+  >,
+  triggerSync: async () => undefined,
+};
+
+let lastRequest: ItemPanelRequest | null = null;
+function RequestProbe() {
+  const { request } = useItemPanelContext();
+  useEffect(() => {
+    lastRequest = request;
+  });
+  return null;
+}
+
+/** Freeze the wall clock at HH:MM on a fixed day; returns the paper's day. */
+function at(hours: number, minutes: number): string {
+  vi.setSystemTime(new Date(2026, 9, 12, hours, minutes));
+  return todayDateKey();
+}
+
+function renderScreen(today: string, withPanel = true) {
+  lastRequest = null;
+  const onNavigate = vi.fn();
+  const paper = (
+    <BriefingScreen
+      dataService={makeDS(today)}
+      onNavigate={onNavigate}
+      tab="morning"
+    />
+  );
   render(
-    <SyncContext.Provider value={value}>
-      <BriefingScreen dataService={ds} onNavigate={onNavigate} tab="morning" />
+    <SyncContext.Provider value={SYNC}>
+      {withPanel ? (
+        <ItemPanelProvider>
+          {paper}
+          <RequestProbe />
+        </ItemPanelProvider>
+      ) : (
+        paper
+      )}
     </SyncContext.Provider>,
   );
   return { onNavigate };
 }
 
-/** Open the creation panel from the paper's schedule-heading「+」. */
-async function openPanel() {
-  await screen.findByText("Dentist");
-  fireEvent.click(
-    screen.getByRole("button", { name: "Add to today's schedule" }),
-  );
-  return screen.findByRole("dialog");
-}
+beforeEach(() => {
+  vi.useFakeTimers({ toFake: ["Date"] });
+});
+afterEach(() => {
+  vi.useRealTimers();
+});
 
-function typeTitle(text: string) {
-  const field = screen.getByLabelText("Title");
-  fireEvent.change(field, { target: { value: text } });
-}
-
-describe("Briefing create panel (#623)", () => {
-  it("creates an event on the paper's own day and shows it at once", async () => {
-    const ds = makeDS();
-    renderScreen(ds);
-    await openPanel();
-
-    typeTitle("Team sync");
-    fireEvent.click(screen.getByRole("button", { name: "Add event" }));
-
-    await waitFor(() => expect(ds.createScheduleItem).toHaveBeenCalled());
-    const call = vi.mocked(ds.createScheduleItem).mock.calls[0];
-    // (id, date, title, start, end, …) — the date is the paper's day, never a
-    // value picked in the panel: there is no date field.
-    expect(call[1]).toBe(TODAY);
-    expect(call[2]).toBe("Team sync");
-
-    // On the paper without a reload, and the panel is gone.
-    expect(await screen.findByText("Team sync")).toBeTruthy();
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-  });
-
-  it("creates a todo scheduled into today's window", async () => {
-    const ds = makeDS();
-    renderScreen(ds);
-    await openPanel();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Todo" }));
-    typeTitle("Write the deck");
-    fireEvent.click(screen.getByRole("button", { name: "Add todo" }));
-
-    await waitFor(() => expect(ds.createTodo).toHaveBeenCalled());
-    const node = vi.mocked(ds.createTodo).mock.calls[0][0];
-    expect(node.title).toBe("Write the deck");
-    expect(node.scheduledAt?.slice(0, 10)).toBe(TODAY);
-    // A todo given a concrete window is not an all-day candidate.
-    expect(node.isAllDay).toBe(false);
-    expect(await screen.findByText("Write the deck")).toBeTruthy();
-  });
-
-  it("places an existing todo into today", async () => {
-    const ds = makeDS();
-    renderScreen(ds);
-    await openPanel();
-
-    fireEvent.click(screen.getByRole("tab", { name: "Todo" }));
-    fireEvent.click(screen.getByRole("radio", { name: "From existing" }));
-    fireEvent.click(screen.getByRole("option", { name: "Draft the proposal" }));
-    fireEvent.click(screen.getByRole("button", { name: "Place at this time" }));
-
-    await waitFor(() => expect(ds.updateTodo).toHaveBeenCalled());
-    const [id, patch] = vi.mocked(ds.updateTodo).mock.calls[0];
-    expect(id).toBe("t-free");
-    expect(patch.scheduledAt?.slice(0, 10)).toBe(TODAY);
-    expect(patch.isAllDay).toBe(false);
-    expect(ds.createTodo).not.toHaveBeenCalled();
-  });
-
-  it("'add and open' creates, then hands over to Schedule", async () => {
-    const ds = makeDS();
-    const { onNavigate } = renderScreen(ds);
-    await openPanel();
-
-    typeTitle("Review call");
-    fireEvent.click(screen.getByRole("button", { name: "Add and edit" }));
-
-    await waitFor(() => expect(ds.createScheduleItem).toHaveBeenCalled());
-    // The paper has no event editor of its own, so "open" means the section
-    // that does — named in the target-IA destination vocabulary (#676 (b)):
-    // the Schedule section, on its Calendar tab.
-    // #1153: Schedule is one surface, so the hand-off names a section and
-            // nothing else — there is no tab left to pick.
-    expect(onNavigate).toHaveBeenCalledWith({ section: "schedule" });
-  });
-
-  it("writes nothing when the panel is dismissed", async () => {
-    const ds = makeDS();
-    renderScreen(ds);
-    await openPanel();
-
-    typeTitle("Never mind");
-    fireEvent.keyDown(document.activeElement ?? document.body, {
-      key: "Escape",
+describe("Briefing create panel (#623 → #2223)", () => {
+  it("opens the panel on today from the events column, at the next half hour", async () => {
+    const today = at(10, 10);
+    const { onNavigate } = renderScreen(today);
+    await screen.findByText("Dentist");
+    fireEvent.click(screen.getByRole("button", { name: "Add an event" }));
+    await waitFor(() => expect(lastRequest).not.toBeNull());
+    expect(lastRequest).toMatchObject({
+      mode: "create",
+      initial: { date: today, start: "10:30", end: "11:30" },
     });
+    // Opened from the paper, so the panel can hand the item on to Schedule.
+    expect(lastRequest!.options.onOpenInSchedule).toBeTypeOf("function");
+    expect(onNavigate).not.toHaveBeenCalled();
+    // The paper's own creation dialog is gone.
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
 
-    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
-    expect(ds.createScheduleItem).not.toHaveBeenCalled();
-    expect(ds.createTodo).not.toHaveBeenCalled();
+  it("opens the same panel from the todos column", async () => {
+    const today = at(10, 10);
+    renderScreen(today);
+    await screen.findByText("Dentist");
+    fireEvent.click(screen.getByRole("button", { name: "Add a todo" }));
+    await waitFor(() =>
+      expect(lastRequest).toMatchObject({
+        mode: "create",
+        initial: { date: today, start: "10:30", end: "11:30" },
+      }),
+    );
+  });
+
+  it("starts at the NEXT mark when the clock sits on one", async () => {
+    const today = at(10, 0);
+    renderScreen(today);
+    await screen.findByText("Dentist");
+    fireEvent.click(screen.getByRole("button", { name: "Add an event" }));
+    await waitFor(() =>
+      expect(lastRequest).toMatchObject({
+        initial: { start: "10:30", end: "11:30" },
+      }),
+    );
+  });
+
+  it("keeps the start and the end inside the day late in the evening", async () => {
+    const today = at(23, 20);
+    renderScreen(today);
+    await screen.findByText("Dentist");
+    fireEvent.click(screen.getByRole("button", { name: "Add an event" }));
+    await waitFor(() =>
+      expect(lastRequest).toMatchObject({
+        initial: { date: today, start: "23:30", end: "23:59" },
+      }),
+    );
+  });
+
+  it("goes to Schedule where no panel can be opened", async () => {
+    const today = at(10, 10);
+    const { onNavigate } = renderScreen(today, false);
+    await screen.findByText("Dentist");
+    fireEvent.click(screen.getByRole("button", { name: "Add an event" }));
+    expect(onNavigate).toHaveBeenCalledExactlyOnceWith({ section: "schedule" });
   });
 });

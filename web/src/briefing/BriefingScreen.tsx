@@ -1,17 +1,13 @@
-import { useCallback, useMemo, useState } from "react";
-import type { ReactNode } from "react";
-import { Plus } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   BriefingView,
   BriefingVizPanel,
   EveningReflectionPreview,
   EveningView,
   GoalTodoLinkScreen,
-  ItemCreatePanel,
   ItemDetailOverlay,
   MorningGoalsBlock,
   PeriodEndReviewCard,
-  RepeatScopeDialog,
   RightSidebarPortal,
   TodayTodoTray,
   eveningBodyLines,
@@ -26,19 +22,27 @@ import {
   todayDateKey,
   tomorrowCandidates,
   useGoalLinkSnapshot,
+  useItemPanelOptional,
+  useMediaQuery,
+  useMinuteClock,
+  useSyncDomains,
   useTranslation,
+  type BriefingColumn,
   type BriefingTab,
   type DataService,
   type GoalPeriodKind,
   type GoalTodoLinkScreenLabels,
-  type ItemCreateNoteDraft,
-  type ItemCreateSlot,
+  type ItemPanelOptions,
   type MorningGoalsLabels,
+  type WikiTagAssignmentUnified,
+  type WikiTagUnified,
   WEEK_STARTS_ON,
+  WIDE_QUERY,
 } from "@life-editor/shared";
 import type { NavDestination } from "../hooks/useShellNavigation";
 import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
 import { preloadRichTextEditor } from "../notes/preloadRichTextEditor";
+import { attachBriefingTags } from "./hooks/useBriefingAggregation";
 import { useBriefingData } from "./hooks/useBriefingData";
 import { useDailySections } from "./hooks/useDailySections";
 import { useEveningIssue } from "./hooks/useEveningIssue";
@@ -85,12 +89,6 @@ interface BriefingScreenProps {
   /** Active header tab (朝刊 / 夕刊, #263 F-6) — lifted to MainScreen. */
   tab: BriefingTab;
   /**
-   * Narrow-layout tab band, passed straight through to the paper views (#318).
-   * MainScreen builds it (it owns `tab` + the i18n copy) and leaves it
-   * undefined on the wide layout, where the SectionHeader renders the tabs.
-   */
-  tabSwitcher?: ReactNode;
-  /**
    * Open Connect's "Goals & Todos" tab (#2106) — where a goal is renamed,
    * deleted or re-parented, and where month / year goals are made. Optional
    * like `onNavigateToItem`; without it the goals block draws no link.
@@ -105,7 +103,6 @@ export function BriefingScreen({
   onNavigate,
   onNavigateToItem,
   tab,
-  tabSwitcher,
   onOpenGoals,
 }: BriefingScreenProps): React.JSX.Element {
   const { t, i18n } = useTranslation();
@@ -129,15 +126,6 @@ export function BriefingScreen({
     upcoming,
     handleToggleTodo,
     handleSetTodoStatus,
-    handleDeleteScheduleItem,
-    handleDeleteTodo,
-    deleteScopeItem,
-    handleDeleteScopeChoose,
-    closeDeleteScope,
-    noteOptions,
-    handleCreateEvent,
-    handleCreateTodo,
-    handlePlaceTodo,
     todoPlaced,
     todoUnplaced,
     todoAddable,
@@ -218,10 +206,21 @@ export function BriefingScreen({
       noFocus: t("briefing.noFocus"),
       goalMark: t("briefing.goalMark"),
       scheduleTitle: t("briefing.scheduleTitle"),
-      addScheduleItem: t("briefing.addScheduleItem"),
       noSchedule: t("briefing.noSchedule"),
       routineTag: t("briefing.routineTag"),
       allDay: t("briefing.allDay"),
+      timeColumn: t("briefing.table.time"),
+      eventsColumn: t("briefing.table.events"),
+      todosColumn: t("briefing.table.todos"),
+      untimed: t("briefing.table.untimed"),
+      ongoing: t("briefing.table.ongoing"),
+      nowLine: t("briefing.table.now"),
+      columnSwitch: t("briefing.table.columns"),
+      addEvent: t("briefing.table.addEvent"),
+      addTodo: t("briefing.table.addTodo"),
+      // The month view's own words (#2223 — the same「他 N 件」as #2221).
+      moreCount: (count: number) => t("scheduleScreen.moreCount", { count }),
+      close: t("common.close"),
       carryoverTitle: t("briefing.carryoverTitle"),
       // The carryover rows draw the shared todo checkbox since #1368, so they
       // name their status with the same words 夕刊 and the Todos section use.
@@ -229,10 +228,6 @@ export function BriefingScreen({
       statusNotStarted: t("todoDetail.statusNotStarted"),
       statusDone: t("todoDetail.statusDone"),
       edit: t("briefing.edit"),
-      delete: t("briefing.delete"),
-      deleteScheduleHint: t("briefing.deleteScheduleHint"),
-      deleteTodoHint: t("briefing.deleteTodoHint"),
-      jumpToSchedule: t("briefing.jumpToSchedule"),
       jumpToTodos: t("briefing.jumpToTodos"),
     }),
     [t],
@@ -393,7 +388,7 @@ export function BriefingScreen({
   );
 
   /*
-   * Row「編集」— open the item itself (#1824).
+   * A carryover row's「編集」— open the todo where it lives (#1824).
    *
    * `navigateToItem` is the shell's own item intent; the bare section switch
    * is what happens on a host that has none, which is the old behaviour rather
@@ -415,16 +410,118 @@ export function BriefingScreen({
     [onNavigateToItem, onNavigate, todayKey],
   );
 
-  // ── Creation panel (#623) ────────────────────────────────────────────
-  // Schedule's shared <ItemCreatePanel>, reached from the paper's「+」and the
-  // rightSidebar's. No briefing-specific creation form: the same act would
-  // otherwise exist in two implementations that drift apart.
+  /*
+   * The table's rows and its「+」open Schedule's own editor and creation panel
+   * IN PLACE (#2223), through the entry point #2218 built — the reader stays
+   * on the paper. Opened from here, the panel offers「予定の画面で開く」, which
+   * hands the item to the shell's item intent above.
+   *
+   * Where no ItemPanel Provider is mounted (a standalone render) a row falls
+   * back to opening the item where it lives, and a「+」to the Schedule
+   * section, rather than doing nothing.
+   */
+  const itemPanel = useItemPanelOptional();
+  const panelOptions = useMemo<ItemPanelOptions>(
+    () => ({
+      onOpenInSchedule: (target) =>
+        onNavigateToItem === undefined
+          ? onNavigate({ section: "schedule" })
+          : onNavigateToItem(
+              target.date === null
+                ? { id: target.id, role: target.role }
+                : { id: target.id, role: target.role, date: target.date },
+            ),
+      onNavigateToItem,
+    }),
+    [onNavigateToItem, onNavigate],
+  );
+  const openRow = useCallback(
+    (id: string, role: BriefingColumn) => {
+      if (itemPanel === null) {
+        openItem(id, role);
+        return;
+      }
+      itemPanel.openEdit(
+        role === "event" ? { role, id, date: todayKey } : { role, id },
+        panelOptions,
+      );
+    },
+    [itemPanel, openItem, panelOptions, todayKey],
+  );
+
+  // The clock the table's current-time line and its over / under way marks
+  // read, as minutes since 00:00 of the PAPER's day: past midnight on a day
+  // that starts late it runs on past 1440 rather than wrapping to 00:xx.
   //
-  // The panel opens on the day the paper is showing — that is the「+」gesture
-  // — but since #940 the day is an input rather than a caption, so "add this
-  // to today" is the default here, not the only thing on offer. Anything
-  // booked for another day is written and simply does not join today's paper
-  // (useBriefingWrites keeps the lists honest).
+  // Whole days apart × 1440 plus the wall clock, never elapsed milliseconds:
+  // on a daylight-saving day those run an hour off the clock the reader sees.
+  const { now } = useMinuteClock();
+  const daysPast = Math.round(
+    (new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime() -
+      new Date(`${todayKey}T00:00:00`).getTime()) /
+      86_400_000,
+  );
+  const nowMinutes = daysPast * 1440 + now.getHours() * 60 + now.getMinutes();
+
+  /*
+   * A column's「+」(#2223) — the creation panel on today, starting at the
+   * next half hour and running the panel's usual hour. Late in the day the
+   * start holds at 23:30 and the end at 23:59, so neither leaves the day.
+   *
+   * Both columns open the same panel for now: #2218's `openCreate` takes no
+   * initial type (ItemCreatePanel keeps it as internal state), so the Todo
+   * column's「+」opens on the panel's own default.
+   */
+  const openCreate = useCallback(() => {
+    if (itemPanel === null) {
+      onNavigate({ section: "schedule" });
+      return;
+    }
+    const start = Math.min(
+      (Math.floor(Math.max(nowMinutes, 0) / 30) + 1) * 30,
+      23 * 60 + 30,
+    );
+    const end = Math.min(start + 60, 23 * 60 + 59);
+    const hhmm = (total: number) =>
+      `${String(Math.floor(total / 60)).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+    itemPanel.openCreate(
+      { date: todayKey, start: hhmm(start), end: hhmm(end) },
+      panelOptions,
+    );
+  }, [itemPanel, nowMinutes, onNavigate, panelOptions, todayKey]);
+
+  // Phone layout: the table shows one column at a time (#2223).
+  const narrow = !useMediaQuery(WIDE_QUERY, true);
+
+  /*
+   * The rows' WikiTags (#2223) — read beside the paper's own fetch, on the
+   * same `tags` counter, and joined in by `attachBriefingTags`. Until it
+   * lands (or if it fails) the rows simply carry no tag line.
+   */
+  const tagsVersion = useSyncDomains("tags");
+  const [tagRead, setTagRead] = useState<{
+    tags: WikiTagUnified[];
+    assignments: WikiTagAssignmentUnified[];
+  } | null>(null);
+  useEffect(() => {
+    let alive = true;
+    // Through a resolved promise so a host without these reads (a stub)
+    // fails into the catch instead of throwing out of the effect.
+    Promise.resolve()
+      .then(() =>
+        Promise.all([ds.listAllWikiTagsUnified(), ds.listAllTagAssignments()]),
+      )
+      .then(([tags, assignments]) => {
+        if (alive) setTagRead({ tags, assignments });
+      })
+      .catch(() => {
+        // No tag line is the honest fallback; the paper itself is unaffected.
+      });
+    return () => {
+      alive = false;
+    };
+  }, [ds, tagsVersion]);
+
   /*
    * Whether the evening reflection is showing its editor or its text (#1115).
    *
@@ -471,10 +568,6 @@ export function BriefingScreen({
     () => eveningBodyLines(eveningStored.bodyDocJson),
     [eveningStored],
   );
-
-  const [createOpen, setCreateOpen] = useState(false);
-  const openCreatePanel = useCallback(() => setCreateOpen(true), []);
-  const closeCreatePanel = useCallback(() => setCreateOpen(false), []);
 
   const formatDuration = useCallback(
     (minutes: number) => {
@@ -588,87 +681,6 @@ export function BriefingScreen({
     onNavigateToItem({ id: `daily-${todayKey}`, role: "daily" });
   }, [onNavigateToItem, onNavigate, todayKey]);
 
-  // The panel's copy comes from the EXISTING scheduleScreen.* keys, not a
-  // briefing.* copy of them: it is literally Schedule's panel, and a second
-  // catalogue of the same sentences is a divergence waiting to happen.
-  const createPanelLabels = useMemo(
-    () => ({
-      typeLabel: t("scheduleScreen.itemTypeLabel"),
-      typeEvent: t("scheduleScreen.typeEvent"),
-      typeTodo: t("scheduleScreen.typeTodo"),
-      title: t("scheduleScreen.title"),
-      eventPlaceholder: t("scheduleScreen.quickAddPlaceholder"),
-      todoPlaceholder: t("scheduleScreen.todoPlaceholder"),
-      date: t("scheduleScreen.date"),
-      allDay: t("scheduleScreen.allDay"),
-      startTime: t("scheduleScreen.startTime"),
-      endTime: t("scheduleScreen.endTime"),
-      addEvent: t("scheduleScreen.addEvent"),
-      addEventAndOpen: t("scheduleScreen.addEventAndOpen"),
-      sourceLabel: t("scheduleScreen.sourceLabel"),
-      sourceNew: t("scheduleScreen.sourceNew"),
-      sourceExisting: t("scheduleScreen.sourceExisting"),
-      addTodo: t("scheduleScreen.addTodo"),
-      placeTodo: t("scheduleScreen.placeTodo"),
-      searchTodos: t("scheduleScreen.searchTodos"),
-      todoPickerEmpty: t("scheduleScreen.todoEmptyAddable"),
-      todoPickerNoMatch: t("scheduleScreen.todoPickerNoMatch"),
-      attachNote: t("scheduleScreen.attachNote"),
-      noteSourceLabel: t("scheduleScreen.noteSourceLabel"),
-      noteSourceNew: t("scheduleScreen.noteSourceNew"),
-      noteSourceExisting: t("scheduleScreen.noteSourceExisting"),
-      noteTitleLabel: t("scheduleScreen.noteTitleLabel"),
-      notePlaceholder: t("scheduleScreen.notePlaceholder"),
-      searchNotes: t("scheduleScreen.searchNotes"),
-      notePickerEmpty: t("scheduleScreen.notePickerEmpty"),
-      notePickerNoMatch: t("scheduleScreen.notePickerNoMatch"),
-      noteLinkHint: t("scheduleScreen.noteLinkHint"),
-      attachedNote: t("scheduleScreen.attachedNote"),
-      clearNote: t("scheduleScreen.clearNote"),
-    }),
-    [t],
-  );
-
-  const submitEvent = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
-      handleCreateEvent(title, slot, note);
-      closeCreatePanel();
-    },
-    [handleCreateEvent, closeCreatePanel],
-  );
-
-  // The panel's second event button means "create, then open its editor".
-  // The paper has no event editor of its own, so the honest reading here is
-  // to create and then go to Schedule, where that editor lives.
-  const submitEventAndOpen = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
-      handleCreateEvent(title, slot, note);
-      closeCreatePanel();
-      onNavigate({ section: "schedule" });
-    },
-    [handleCreateEvent, closeCreatePanel, onNavigate],
-  );
-
-  const submitTodo = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
-      handleCreateTodo(title, slot, note);
-      closeCreatePanel();
-    },
-    [handleCreateTodo, closeCreatePanel],
-  );
-
-  const submitPlaceTodo = useCallback(
-    (
-      todoId: string,
-      slot: ItemCreateSlot,
-      note: ItemCreateNoteDraft | null,
-    ) => {
-      handlePlaceTodo(todoId, slot, note);
-      closeCreatePanel();
-    },
-    [handlePlaceTodo, closeCreatePanel],
-  );
-
   const todoTrayLabels = useMemo(
     () => ({
       placedHeading: t("briefing.todo.placedHeading"),
@@ -691,52 +703,20 @@ export function BriefingScreen({
     [t],
   );
 
-  // Every width (#609). This used to be wide-only, and for a real reason:
-  // below 768px the detail panel is a MobileDrawer, and Briefing had no opener
-  // for it at all — the wide SectionHeader toggle is gone at that width and
-  // the standalone hamburger row (MOBILE_HAMBURGER_SECTIONS) belongs to
-  // sections whose body is a list — so a tray mounted here was unreachable UI.
-  // MainScreen now puts the hamburger at the left edge of Briefing's narrow
-  // 朝刊/夕刊 band, which is the opener that was missing; `docs/requirements/
-  // mobile-scope.md` #1 moved with it.
+  // Every width (#609): below 768px the detail panel is a MobileDrawer opened
+  // from the hamburger in the 朝刊/夕刊 band, so the tray is reachable there
+  // too. <RightSidebarPortal> renders nothing while the panel is closed.
   //
-  // No `isWide` guard of its own: <RightSidebarPortal> renders nothing while
-  // the panel is closed and only registers that content exists, so mounting it
-  // at every width costs a subscription, not a surface.
-  //
-  // Mounted on BOTH papers (朝刊 / 夕刊): the panel is section-level, and the
-  // tray is as useful when closing the day as when starting it.
+  // 夕刊 only since #2223: the morning paper's table now holds today's todos
+  // itself, so「今日の Todo」and its「Todo 一覧」left the morning panel. The
+  // component is Schedule's (#298) and stays as it is. Its「+」went with it —
+  // that was the morning paper's second way into the creation panel.
   const todoTrayPortal = (
     <RightSidebarPortal>
       <div className="flex flex-col gap-3">
-        {/* #623: the panel's own「+」. Same target as the paper's — the two
-            are one action reached from two places, so they open the same
-            creation panel on the same day. 朝刊 only: the tray is mounted on
-            both papers, but 夕刊 is explicitly outside this Issue's scope, and
-            a「+」there would read as "add to tomorrow". */}
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-lumen-text">
-            {t("briefing.todo.title")}
-          </h3>
-          {tab === "morning" && (
-            <button
-              type="button"
-              onClick={openCreatePanel}
-              aria-label={t("briefing.addScheduleItem")}
-              title={t("briefing.addScheduleItem")}
-              /* The 44px floor (#1559). This is the SECOND button carrying
-                 「今日のスケジュールに追加」— the paper draws the first — and
-                 since #609 the drawer that holds this one opens below 768px,
-                 so both are narrow targets and both have to clear the floor.
-                 Plain box growth rather than the paper's invisible ::after:
-                 the tray is a stack with a 12px `gap-3` and no ruled rhythm to
-                 protect, so letting the header row grow costs nothing here. */
-              className="-my-1 -mr-1.5 flex flex-shrink-0 items-center justify-center rounded-lumen-sm p-1.5 text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-briefing-shu focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:min-w-11"
-            >
-              <Plus size={14} aria-hidden="true" />
-            </button>
-          )}
-        </div>
+        <h3 className="text-sm font-semibold text-lumen-text">
+          {t("briefing.todo.title")}
+        </h3>
         <TodayTodoTray
           placed={todoPlaced}
           unplaced={todoUnplaced}
@@ -784,8 +764,8 @@ export function BriefingScreen({
   // ── Goals (#2106) ────────────────────────────────────────────────────
   // The todo rows carry the titles of the goals they serve. Before the goals
   // read lands the rows simply have no marks, as on a host without goals.
-  const paperData = useMemo(
-    () =>
+  const paperData = useMemo(() => {
+    const withGoals =
       goalState === null
         ? data
         : {
@@ -794,9 +774,11 @@ export function BriefingScreen({
               ...todo,
               goals: goalMarkTitles(goalState, todo.id),
             })),
-          },
-    [data, goalState],
-  );
+          };
+    return tagRead === null
+      ? withGoals
+      : attachBriefingTags(withGoals, tagRead.tags, tagRead.assignments);
+  }, [data, goalState, tagRead]);
 
   // Goal-side linking (goal → its todos) opens the shared screen Connect uses
   // (#2109) in the paper's own overlay — the right panel already holds the
@@ -916,55 +898,6 @@ export function BriefingScreen({
       </>
     );
 
-  // Keyed on the day so a paper that crosses midnight (or the day-start hour)
-  // re-seeds the fields rather than keeping a draft aimed at yesterday.
-  const createPanelOverlay = (
-    <ItemDetailOverlay
-      open={createOpen}
-      title={t("scheduleScreen.addItem")}
-      onClose={closeCreatePanel}
-    >
-      <ItemCreatePanel
-        key={todayKey}
-        initial={{ date: todayKey }}
-        pools={{ todos: todoAddable, notes: noteOptions }}
-        handlers={{
-          onSubmitEvent: submitEvent,
-          onSubmitEventAndOpen: submitEventAndOpen,
-          onCreateTodo: submitTodo,
-          onPlaceTodo: submitPlaceTodo,
-        }}
-        formatDuration={formatDuration}
-        labels={createPanelLabels}
-      />
-    </ItemDetailOverlay>
-  );
-
-  // #585: deleting a routine-derived row asks which occurrences first — the
-  // SAME <RepeatScopeDialog> Schedule uses (#279), with the same copy. The
-  // component is imported read-only; the delete semantics behind each choice
-  // live in useBriefingData.
-  const deleteScopeDialog = (
-    <RepeatScopeDialog
-      open={deleteScopeItem !== null}
-      mode="delete"
-      labels={{
-        title: t("scheduleScreen.deleteScopeTitle"),
-        thisOnly: t("scheduleScreen.scopeThisOnly"),
-        thisAndFuture: t("scheduleScreen.scopeThisAndFuture"),
-        all: t("scheduleScreen.scopeAll"),
-        cancel: t("scheduleScreen.scopeCancel"),
-        // #1974: "this and following" is undoable from the paper now, and the
-        // undo does not bring the series' tags back — the condition
-        // D-20260919-sched-2 = B was granted on. This dialog only ever asks in
-        // delete mode, so the note always applies here.
-        thisAndFutureNote: t("scheduleScreen.scopeDeleteFutureTagNote"),
-      }}
-      onChoose={handleDeleteScopeChoose}
-      onClose={closeDeleteScope}
-    />
-  );
-
   if (tab === "evening") {
     return (
       <>
@@ -1020,7 +953,6 @@ export function BriefingScreen({
           onPlaceTomorrow={handlePlaceTodoTomorrow}
           onOpenDaily={openDaily}
           labels={eveningLabels}
-          tabSwitcher={tabSwitcher}
         />
       </>
     );
@@ -1028,7 +960,6 @@ export function BriefingScreen({
 
   return (
     <>
-      {todoTrayPortal}
       {vizPortal}
       <BriefingView
         // The focus note is a second async document; the line at the top of
@@ -1041,15 +972,12 @@ export function BriefingScreen({
         focusText={todayFocus}
         goalsSlot={goalsSlot}
         onToggleTodo={handleToggleTodo}
-        onDeleteScheduleItem={handleDeleteScheduleItem}
-        onDeleteTodo={handleDeleteTodo}
-        onAddScheduleItem={openCreatePanel}
-        onJumpToSchedule={(id) => openItem(id, "event")}
+        onOpenItem={openRow}
+        onAddItem={openCreate}
         onJumpToTodos={(id) => openItem(id, "task")}
-        tabSwitcher={tabSwitcher}
+        nowMinutes={nowMinutes}
+        narrow={narrow}
       />
-      {deleteScopeDialog}
-      {createPanelOverlay}
       {goalLinkOverlay}
     </>
   );
