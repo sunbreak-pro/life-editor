@@ -297,6 +297,14 @@ describe("MorningGoalsBlock", () => {
       screen.getByRole("textbox", { name: LABELS.addLabel }).className,
     ).toContain("max-md:min-h-11");
   });
+
+  // #2213 — the field took the row and squeezed the button until「追加」
+  // wrapped onto two lines. jsdom has no layout, so the class is the pin.
+  it("keeps the add button from shrinking or wrapping its label", () => {
+    renderBlock(goalsOf());
+    const add = screen.getByRole("button", { name: LABELS.add });
+    expect(add).toHaveClass("shrink-0", "whitespace-nowrap", "max-md:min-h-11");
+  });
 });
 
 const REVIEW_LABELS: PeriodEndReviewLabels = {
