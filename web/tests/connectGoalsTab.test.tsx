@@ -464,6 +464,105 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(onNavigateToItem).toHaveBeenCalledWith({ id: "t7", role: "task" });
   });
 
+  it("filters the tree from the right panel, says so over the tree, and resets", async () => {
+    const { panel } = await renderTab();
+    // The controls are there before any goal is picked.
+    const period = within(panel().getByRole("tablist", { name: "Period" }));
+    fireEvent.click(period.getByRole("tab", { name: "Week" }));
+
+    const line = screen.getByRole("status");
+    expect(line.textContent).toContain("Filtering by: Week");
+    expect(screen.queryByText("Run 10 km in 60 min")).toBeNull();
+    // The week goals stand on their own, out of their month frames.
+    goalRow("Run 3 times");
+    goalRow("Get the proposal approved");
+
+    fireEvent.click(within(line).getByRole("button", { name: "Reset" }));
+    goalRow("Run 10 km in 60 min");
+    expect(screen.queryByText(/Filtering by/)).toBeNull();
+  });
+
+  it("hides done todos and keeps the goal details under the controls", async () => {
+    const { panel } = await renderTab();
+    fireEvent.click(goalRow("Get the proposal approved"));
+    fireEvent.click(panel().getByRole("checkbox", { name: "Hide done todos" }));
+
+    const tree = within(screen.getByRole("region", { name: "Goal tree" }));
+    expect(tree.queryByText("Draft the proposal")).toBeNull();
+    tree.getByText("Write the estimate");
+    // The count still includes them.
+    goalRow("Get the proposal approved", "2/4");
+    panel().getByRole("textbox", { name: "Goal title" });
+  });
+
+  it("closes and reopens a goal's branch", async () => {
+    await renderTab();
+    const close = screen.getByRole("button", {
+      name: "Collapse: Run 10 km in 60 min",
+    });
+    expect(close.getAttribute("aria-expanded")).toBe("true");
+    fireEvent.click(close);
+    expect(screen.queryByText("Run three times a week")).toBeNull();
+    expect(screen.queryByText("Interval run")).toBeNull();
+
+    const open = screen.getByRole("button", {
+      name: "Expand: Run 10 km in 60 min",
+    });
+    expect(open.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(open);
+    goalRow("Run three times a week");
+  });
+
+  it("creates a todo linked to no goal from + Todo, but not on an IME Enter", async () => {
+    const createTodo = vi.fn().mockResolvedValue(TODOS[0]);
+    const ds = makeDS({ createTodo });
+    await renderTab(ds);
+    const loose = within(
+      screen.getByRole("region", { name: "Todos not linked to a goal" }),
+    );
+    fireEvent.click(
+      loose.getByRole("button", { name: "Add a todo not linked to a goal" }),
+    );
+    const field = loose.getByRole("textbox", {
+      name: "Add a todo not linked to a goal",
+    });
+    fireEvent.change(field, { target: { value: "Buy stamps" } });
+    fireEvent.keyDown(field, { key: "Enter", isComposing: true });
+    fireEvent.keyDown(field, { key: "Enter", keyCode: 229 });
+    expect(createTodo).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => expect(createTodo).toHaveBeenCalledTimes(1));
+    const created = createTodo.mock.calls[0][0];
+    expect(created).toMatchObject({
+      title: "Buy stamps",
+      type: "task",
+      status: "NOT_STARTED",
+      parentId: null,
+    });
+    expect(created.id).toMatch(/^task-/);
+    expect(created.scheduledAt).toBeUndefined();
+    expect(ds.createGoal).not.toHaveBeenCalled();
+    // Ready for the next one.
+    await waitFor(() => expect((field as HTMLInputElement).value).toBe(""));
+  });
+
+  it("opens sort and filter in a bottom sheet on a phone", async () => {
+    setNarrow();
+    await renderTab();
+    fireEvent.click(screen.getByRole("button", { name: "Sort & filter" }));
+    const sheet = within(screen.getByRole("dialog", { name: "Sort & filter" }));
+    fireEvent.click(
+      within(sheet.getByRole("tablist", { name: "Status" })).getByRole("tab", {
+        name: "Achieved",
+      }),
+    );
+    expect(screen.getByRole("status").textContent).toContain(
+      "Filtering by: Achieved",
+    );
+    expect(screen.queryByText("Run 10 km in 60 min")).toBeNull();
+  });
+
   it("puts the panel in a bottom sheet on a phone", async () => {
     setNarrow();
     await renderTab();

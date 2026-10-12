@@ -201,6 +201,105 @@ export function buildGoalTreeModel({
   return { roots, unconnected, looseTodos, byId, periodKeys, periodCounts };
 }
 
+/*
+ * Sort and filter for the drawn tree (#2225). They rearrange a built model and
+ * never re-judge it: progress and status are the ones `judgeGoals` already put
+ * on each node, so a sorted tree and the Briefing papers still agree.
+ */
+
+/** "standard" is the build order: year → month → week, then `sortOrder`. */
+export type GoalTreeSort = "standard" | "progress" | "name";
+
+/** A goal's state as the row's chip shows it. */
+export type GoalTreeStatus = "inProgress" | "achieved" | "unconnected";
+
+export interface GoalTreeFilter {
+  period: GoalPeriodKind | "all";
+  status: GoalTreeStatus | "all";
+  hideDoneTodos: boolean;
+}
+
+export interface GoalTreeArrangement {
+  sort: GoalTreeSort;
+  filter: GoalTreeFilter;
+}
+
+export const DEFAULT_GOAL_TREE_FILTER: GoalTreeFilter = {
+  period: "all",
+  status: "all",
+  hideDoneTodos: false,
+};
+
+export const DEFAULT_GOAL_TREE_ARRANGEMENT: GoalTreeArrangement = {
+  sort: "standard",
+  filter: DEFAULT_GOAL_TREE_FILTER,
+};
+
+function goalTreeStatus(node: GoalTreeNode): GoalTreeStatus {
+  if (node.achievement.achieved) return "achieved";
+  return node.achievement.connected ? "inProgress" : "unconnected";
+}
+
+/** Achieved reads as 1 whatever its count says; nothing connected, as -1. */
+function progressRatio(node: GoalTreeNode): number {
+  if (node.achievement.achieved) return 1;
+  const { done, total } = goalProgress(node.achievement);
+  return total === 0 ? -1 : done / total;
+}
+
+/**
+ * The model as drawn under `arrangement`. Sorting applies at every sibling
+ * level, ties keeping the standard order. A goal the filter drops gives its
+ * place to those of its children that pass, so "Week" lists this week's goals
+ * on their own rather than a year → month frame around them. Hiding done
+ * todos takes them off every goal and off the loose list; the progress counts
+ * still include them. `byId` and the period counts are left whole — the panel
+ * and the add limit are about the goals, not about what is drawn.
+ */
+export function arrangeGoalTree(
+  model: GoalTreeModel,
+  { sort, filter }: GoalTreeArrangement,
+): GoalTreeModel {
+  const passes = (node: GoalTreeNode): boolean =>
+    (filter.period === "all" || node.goal.periodKind === filter.period) &&
+    (filter.status === "all" || goalTreeStatus(node) === filter.status);
+  const keepTodo = (todo: GoalTreeTodo): boolean =>
+    !filter.hideDoneTodos || todo.status !== "DONE";
+
+  const compare = (a: GoalTreeNode, b: GoalTreeNode): number => {
+    if (sort === "progress") {
+      const diff = progressRatio(b) - progressRatio(a);
+      if (diff !== 0) return diff;
+    } else if (sort === "name") {
+      const diff = a.goal.title.localeCompare(b.goal.title, undefined, {
+        numeric: true,
+      });
+      if (diff !== 0) return diff;
+    }
+    return compareGoals(a.goal, b.goal);
+  };
+
+  const arrange = (nodes: readonly GoalTreeNode[]): GoalTreeNode[] => {
+    const out: GoalTreeNode[] = [];
+    for (const node of nodes) {
+      const children = arrange(node.children);
+      if (passes(node)) {
+        out.push({ ...node, todos: node.todos.filter(keepTodo), children });
+      } else {
+        out.push(...children);
+      }
+    }
+    return out.sort(compare);
+  };
+
+  return {
+    ...model,
+    roots: arrange(model.roots),
+    unconnected: arrange(model.unconnected),
+    looseTodos: model.looseTodos.filter(keepTodo),
+  };
+}
+
 /** Progress as one fraction: child goals and direct todos count alike. */
 export function goalProgress(achievement: GoalAchievement): {
   done: number;

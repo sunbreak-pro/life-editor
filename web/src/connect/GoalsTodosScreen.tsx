@@ -1,12 +1,20 @@
 import { useCallback, useMemo, useRef, useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
 import {
   BottomSheet,
+  Button,
   ConfirmDialog,
+  DEFAULT_GOAL_TREE_ARRANGEMENT,
+  DEFAULT_GOAL_TREE_FILTER,
   GoalDetailPanel,
+  GoalTreeArrangePanel,
   GoalTreeView,
   RightSidebarPortal,
+  arrangeGoalTree,
   buildGoalTreeModel,
+  describeGoalTreeFilter,
   generateId,
+  generateTodoId,
   goalParentOptions,
   goalPeriodRanges,
   todayDateKey,
@@ -24,6 +32,8 @@ import {
   type GoalDetailLabels,
   type GoalPeriodKind,
   type GoalTodoLink,
+  type GoalTreeArrangeLabels,
+  type GoalTreeArrangement,
   type GoalTreeLabels,
   type TodoNode,
   type TodoStatus,
@@ -44,6 +54,11 @@ import {
  * Wide: the picked goal goes to the shell's right panel. Narrow: the same
  * panel comes up as a bottom sheet, so creating, renaming and re-parenting
  * all work on a phone (brief §1.5).
+ *
+ * Sort and filter (#2225) are held here, since the tree and the panel render
+ * apart: wide, the controls sit at the top of the right panel at all times,
+ * above the picked goal; narrow, a "Sort & filter" button over the tree opens
+ * them in their own bottom sheet.
  */
 
 interface GoalsTodosScreenProps {
@@ -130,6 +145,14 @@ export function GoalsTodosScreen({
       }),
     [sources, todayKey, t],
   );
+  const [arrangement, setArrangement] = useState<GoalTreeArrangement>(
+    DEFAULT_GOAL_TREE_ARRANGEMENT,
+  );
+  const shownModel = useMemo(
+    () => arrangeGoalTree(model, arrangement),
+    [model, arrangement],
+  );
+  const [arrangeSheetOpen, setArrangeSheetOpen] = useState(false);
 
   const treeLabels = useMemo<GoalTreeLabels>(() => {
     const kinds = ["year", "month", "week"] as const;
@@ -167,6 +190,14 @@ export function GoalsTodosScreen({
         statusDone: t("todoDetail.statusDone"),
       },
       formatOpenTodo: (title) => t("connect.goals.openTodo", { title }),
+      formatExpand: (title) => t("connect.goals.expand", { title }),
+      formatCollapse: (title) => t("connect.goals.collapse", { title }),
+      filteringBy: t("connect.goals.arrange.filteringBy"),
+      resetFilters: t("connect.goals.arrange.reset"),
+      noMatch: t("connect.goals.arrange.noMatch"),
+      addTodo: t("connect.goals.addTodo"),
+      addTodoLabel: t("connect.goals.addTodoLabel"),
+      addTodoPlaceholder: t("connect.goals.addTodoPlaceholder"),
       loading: t("connect.goals.loading"),
       loadFailed: t("connect.goals.loadFailed"),
       retry: t("connect.goals.retry"),
@@ -191,6 +222,48 @@ export function GoalsTodosScreen({
       tree: treeLabels,
     }),
     [t, treeLabels],
+  );
+
+  const arrangeLabels = useMemo<GoalTreeArrangeLabels>(
+    () => ({
+      heading: t("connect.goals.arrange.heading"),
+      sortLabel: t("connect.goals.arrange.sort"),
+      sorts: {
+        standard: t("connect.goals.arrange.sortStandard"),
+        progress: t("connect.goals.arrange.sortProgress"),
+        name: t("connect.goals.arrange.sortName"),
+      },
+      periodLabel: t("connect.goals.arrange.period"),
+      all: t("connect.goals.arrange.all"),
+      kinds: treeLabels.kinds,
+      statusLabel: t("connect.goals.arrange.status"),
+      statuses: {
+        inProgress: t("connect.goals.arrange.inProgress"),
+        achieved: t("connect.goals.achieved"),
+        unconnected: t("connect.goals.unconnected"),
+      },
+      hideDoneTodos: t("connect.goals.arrange.hideDoneTodos"),
+    }),
+    [t, treeLabels],
+  );
+  const activeFilters = describeGoalTreeFilter(
+    arrangement.filter,
+    arrangeLabels,
+  );
+  const resetFilters = useCallback(
+    () =>
+      setArrangement((prev) => ({
+        ...prev,
+        filter: DEFAULT_GOAL_TREE_FILTER,
+      })),
+    [],
+  );
+  const arrangePanel = (
+    <GoalTreeArrangePanel
+      arrangement={arrangement}
+      onChange={setArrangement}
+      labels={arrangeLabels}
+    />
   );
 
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
@@ -242,6 +315,28 @@ export function GoalsTodosScreen({
       return ok;
     },
     [write, dataService, model, selectGoal],
+  );
+
+  // "+ Todo" in the loose group: no goal, no date, at the top of the Todos
+  // root like the Briefing's quick-create (useBriefingWrites).
+  const createLooseTodo = useCallback(
+    (title: string): Promise<boolean> => {
+      const now = new Date().toISOString();
+      return write(() =>
+        dataService.createTodo({
+          // `task-<ts+counter>`, the TodoNode id form (CLAUDE.md §4 / #1116).
+          id: generateTodoId("task"),
+          type: "task",
+          title,
+          status: "NOT_STARTED",
+          parentId: null,
+          order: 0,
+          createdAt: now,
+          updatedAt: now,
+        }),
+      );
+    },
+    [write, dataService],
   );
 
   const setTodoStatus = useCallback(
@@ -325,10 +420,35 @@ export function GoalsTodosScreen({
 
   return (
     <>
-      {isWide && panel && <RightSidebarPortal>{panel}</RightSidebarPortal>}
+      {isWide && (
+        <RightSidebarPortal>
+          <div className="flex flex-col gap-5">
+            {arrangePanel}
+            {panel && (
+              <div className="border-t border-lumen-border pt-4">{panel}</div>
+            )}
+          </div>
+        </RightSidebarPortal>
+      )}
       <div className="h-full min-h-0 overflow-y-auto px-1 py-4 md:py-6">
+        {!isWide && model.byId.size > 0 && !loadFailed && (
+          <div className="mb-4 flex justify-end">
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => setArrangeSheetOpen(true)}
+              leadingIcon={<SlidersHorizontal size={14} aria-hidden />}
+              className="max-md:min-h-11"
+            >
+              {arrangeLabels.heading}
+            </Button>
+          </div>
+        )}
         <GoalTreeView
-          model={model}
+          model={shownModel}
+          activeFilters={activeFilters}
+          onResetFilters={resetFilters}
+          onCreateLooseTodo={createLooseTodo}
           isLoading={isLoading}
           loadFailed={loadFailed}
           onRetry={() => setReloadTick((n) => n + 1)}
@@ -350,6 +470,16 @@ export function GoalsTodosScreen({
           closeLabel={t("connect.sheetClose")}
         >
           {panel}
+        </BottomSheet>
+      )}
+      {!isWide && arrangeSheetOpen && (
+        <BottomSheet
+          open
+          onClose={() => setArrangeSheetOpen(false)}
+          title={arrangeLabels.heading}
+          closeLabel={t("connect.sheetClose")}
+        >
+          {arrangePanel}
         </BottomSheet>
       )}
       {request && (

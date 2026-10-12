@@ -1470,7 +1470,27 @@
       "deleteConfirm": "Delete the goal \"{{title}}\"? The todos linked to it stay.",
       "period": "{{kind}} · {{key}}",
       "sheetTitle": "Goal: {{title}}",
-      "writeFailed": "Could not save the goal. Check your connection and try again."
+      "writeFailed": "Could not save the goal. Check your connection and try again.",
+      "expand": "Expand: {{title}}",
+      "collapse": "Collapse: {{title}}",
+      "addTodo": "Todo",
+      "addTodoLabel": "Add a todo not linked to a goal",
+      "addTodoPlaceholder": "What to do",
+      "arrange": {
+        "heading": "Sort & filter",
+        "sort": "Sort",
+        "sortStandard": "Standard",
+        "sortProgress": "Progress",
+        "sortName": "Name",
+        "period": "Period",
+        "status": "Status",
+        "all": "All",
+        "inProgress": "In progress",
+        "hideDoneTodos": "Hide done todos",
+        "filteringBy": "Filtering by",
+        "reset": "Reset",
+        "noMatch": "No goals match these filters."
+      }
     }
   },
   "attachment": {

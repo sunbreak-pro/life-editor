@@ -1,8 +1,11 @@
 import { describe, expect, it } from "vitest";
 import {
+  arrangeGoalTree,
   buildGoalTreeModel,
+  DEFAULT_GOAL_TREE_FILTER,
   goalParentOptions,
   type Goal,
+  type GoalTreeArrangement,
 } from "@life-editor/shared";
 
 /*
@@ -85,6 +88,117 @@ describe("buildGoalTreeModel (#2108)", () => {
       }),
     ]);
     expect(model.byId.size).toBe(2);
+  });
+});
+
+/*
+ * Sort and filter (#2225). The year holds the month, which holds two weeks:
+ * "Beta week" half done (1/2) and "Alpha week" achieved (1/1). "Gamma week"
+ * has nothing linked. One loose todo is open, one was done this week.
+ */
+function arrangedFixture() {
+  const goals = [
+    goal({
+      id: "y",
+      title: "Zeta year",
+      periodKind: "year",
+      periodKey: "2026",
+    }),
+    goal({
+      id: "m",
+      title: "Alpha month",
+      periodKind: "month",
+      periodKey: "2026-09",
+      parentGoalId: "y",
+    }),
+    goal({ id: "w1", title: "Beta week", parentGoalId: "m" }),
+    goal({ id: "w2", title: "Alpha week", parentGoalId: "m", sortOrder: 1 }),
+    goal({ id: "w3", title: "Gamma week", sortOrder: 2 }),
+  ];
+  const link = (goalId: string, todoId: string) => ({
+    id: `${goalId}-${todoId}`,
+    goalId,
+    todoId,
+    isDeleted: false,
+  });
+  return buildGoalTreeModel({
+    goals,
+    links: [link("w1", "t1"), link("w1", "t2"), link("w2", "t3")],
+    todos: [
+      { id: "t1", title: "t1", status: "DONE" },
+      { id: "t2", title: "t2", status: "NOT_STARTED" },
+      { id: "t3", title: "t3", status: "DONE" },
+      { id: "l1", title: "l1", status: "NOT_STARTED" },
+      {
+        id: "l2",
+        title: "l2",
+        status: "DONE",
+        completedAt: "2026-09-29T03:00:00Z",
+      },
+    ],
+    todayKey: TODAY,
+    untitled: "Untitled",
+  });
+}
+
+const ids = (nodes: readonly { goal: Goal }[]) => nodes.map((n) => n.goal.id);
+const arrange = (
+  sort: GoalTreeArrangement["sort"],
+  filter: Partial<GoalTreeArrangement["filter"]> = {},
+) =>
+  arrangeGoalTree(arrangedFixture(), {
+    sort,
+    filter: { ...DEFAULT_GOAL_TREE_FILTER, ...filter },
+  });
+
+describe("arrangeGoalTree (#2225)", () => {
+  it("keeps the build order under the standard sort", () => {
+    const model = arrange("standard");
+    expect(ids(model.roots)).toEqual(["y"]);
+    expect(ids(model.roots[0].children[0].children)).toEqual(["w1", "w2"]);
+    expect(ids(model.unconnected)).toEqual(["w3"]);
+  });
+
+  it("puts the further-along sibling first under the progress sort", () => {
+    const month = arrange("progress").roots[0].children[0];
+    // Achieved (1/1) before half done (1/2).
+    expect(ids(month.children)).toEqual(["w2", "w1"]);
+  });
+
+  it("orders siblings by title under the name sort", () => {
+    const month = arrange("name").roots[0].children[0];
+    expect(ids(month.children)).toEqual(["w2", "w1"]);
+  });
+
+  it("lifts a period's goals out of the frame the filter drops", () => {
+    const model = arrange("standard", { period: "week" });
+    expect(ids(model.roots)).toEqual(["w1", "w2"]);
+    expect(ids(model.unconnected)).toEqual(["w3"]);
+    expect(ids(arrange("standard", { period: "year" }).roots)).toEqual(["y"]);
+  });
+
+  it("keeps only the goals in the picked state", () => {
+    const achieved = arrange("standard", { status: "achieved" });
+    expect(ids(achieved.roots)).toEqual(["w2"]);
+    expect(achieved.unconnected).toEqual([]);
+
+    const unconnected = arrange("standard", { status: "unconnected" });
+    expect(unconnected.roots).toEqual([]);
+    expect(ids(unconnected.unconnected)).toEqual(["w3"]);
+
+    // In progress: the year and the month are not achieved either.
+    const inProgress = arrange("standard", { status: "inProgress" });
+    expect(ids(inProgress.roots)).toEqual(["y"]);
+    expect(ids(inProgress.roots[0].children[0].children)).toEqual(["w1"]);
+  });
+
+  it("hides done todos without touching the progress or the panel's lookup", () => {
+    const model = arrange("standard", { hideDoneTodos: true });
+    const week = model.roots[0].children[0].children[0];
+    expect(week.todos.map((t) => t.id)).toEqual(["t2"]);
+    expect(week.achievement.todos).toEqual({ done: 1, total: 2 });
+    expect(model.looseTodos.map((t) => t.id)).toEqual(["l1"]);
+    expect(model.byId.get("w1")?.todos.map((t) => t.id)).toEqual(["t1", "t2"]);
   });
 });
 

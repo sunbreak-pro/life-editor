@@ -1450,7 +1450,27 @@
       "deleteConfirm": "目標「{{title}}」を削除しますか？つないだ Todo は残ります。",
       "period": "{{kind}} · {{key}}",
       "sheetTitle": "目標: {{title}}",
-      "writeFailed": "目標を保存できませんでした。通信を確認して、もう一度操作してください。"
+      "writeFailed": "目標を保存できませんでした。通信を確認して、もう一度操作してください。",
+      "expand": "開く: {{title}}",
+      "collapse": "閉じる: {{title}}",
+      "addTodo": "Todo",
+      "addTodoLabel": "どの目標にもつながらない Todo を追加",
+      "addTodoPlaceholder": "やることを書きます",
+      "arrange": {
+        "heading": "並び替え・絞り込み",
+        "sort": "並び替え",
+        "sortStandard": "標準",
+        "sortProgress": "進捗順",
+        "sortName": "名前順",
+        "period": "期間",
+        "status": "状態",
+        "all": "すべて",
+        "inProgress": "進行中",
+        "hideDoneTodos": "完了した Todo を隠す",
+        "filteringBy": "絞り込み中",
+        "reset": "リセット",
+        "noMatch": "条件に合う目標はありません。"
+      }
     }
   },
   "attachment": {
