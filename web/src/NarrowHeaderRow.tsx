@@ -67,8 +67,10 @@ export function NarrowHeaderRow({
   const showTabs =
     (shape === "tabs" || shape === "tabs+hamburger") && tabs != null;
 
+  // `gap-1` (#2216): the band's slots sit closer than they did at gap-2 —
+  // each control already carries its own 44px box, so the gap is only air.
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-1">
       {showHamburger && hamburger}
       {showTabs ? (
         tabs

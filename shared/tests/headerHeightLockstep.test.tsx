@@ -47,14 +47,12 @@ function renderSidebarHeader(): Element {
       onNavigate={vi.fn()}
       collapsed={false}
       onToggleCollapsed={vi.fn()}
-      onTogglePalette={vi.fn()}
       userEmail="user@example.com"
       onSignOut={vi.fn()}
       labels={{
         appName: "Life Editor",
         collapse: "Collapse sidebar",
         expand: "Expand sidebar",
-        commandPalette: "Command palette",
         signOut: "Sign out",
       }}
     />,

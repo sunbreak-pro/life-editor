@@ -61,8 +61,9 @@ describe("<kbd> font family (#1672)", () => {
   );
 
   it("finds the keycaps it is meant to guard", () => {
-    // A scan that matches nothing would pass vacuously.
-    expect(found.length).toBeGreaterThanOrEqual(5);
+    // A scan that matches nothing would pass vacuously. Four since #2216
+    // took the sidebar's palette row (and its keycap) out.
+    expect(found.length).toBeGreaterThanOrEqual(4);
   });
 
   it("sets font-sans on every <kbd>", () => {

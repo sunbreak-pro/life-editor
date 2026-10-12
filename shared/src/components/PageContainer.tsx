@@ -58,13 +58,21 @@ export function PageContainer({
   return (
     <div className={cn("flex h-full min-h-0 flex-col", className)}>
       {/*
-       * Narrow keeps a tighter top gutter than wide (#1039). The only thing
-       * that lands here below 768px is the mobile section tab band, which
-       * every narrow screen pays for out of its content height; wide puts its
+       * Narrow keeps a tighter frame than wide (#1039). The only thing that
+       * lands here below 768px is the mobile section tab band, which every
+       * narrow screen pays for out of its content height; wide puts its
        * chrome in AppShell's header slot instead, so md: is untouched.
+       *
+       * #2216 tightened the narrow band to `px-2.5 py-1` (11.25 / 4.5px at
+       * the 18px root — the design asked for ~12 / ~4px) and closed it with a
+       * hairline, so the band reads as one strip above every section. It
+       * lives here rather than in NarrowHeaderRow so it also applies, as is,
+       * once Briefing moves its band out of its body into this slot (#2223).
+       * The 44px hamburger and undo / redo set the band's height; the padding
+       * only frames them.
        */}
       {header && (
-        <div className="shrink-0 px-lumen-gutter pt-2 md:px-lumen-gutter-wide md:pt-4">
+        <div className="shrink-0 border-b border-lumen-border px-2.5 py-1 md:border-b-0 md:px-lumen-gutter-wide md:pt-4 md:pb-0">
           {header}
         </div>
       )}

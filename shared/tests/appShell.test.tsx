@@ -23,7 +23,6 @@ const LABELS = {
   appName: "Life Editor",
   collapse: "Collapse sidebar",
   expand: "Expand sidebar",
-  commandPalette: "Command palette",
   signOut: "Sign out",
   more: "More",
   moreTitle: "More",
@@ -43,14 +42,12 @@ function mockMatchMedia(matches: boolean) {
 
 function renderShell(props?: Partial<Parameters<typeof AppShell>[0]>) {
   const onNavigate = vi.fn();
-  const onTogglePalette = vi.fn();
   const onSignOut = vi.fn();
   render(
     <AppShell
       sections={SECTIONS}
       activeSection="todos"
       onNavigate={onNavigate}
-      onTogglePalette={onTogglePalette}
       userEmail="user@example.com"
       onSignOut={onSignOut}
       labels={LABELS}
@@ -59,7 +56,7 @@ function renderShell(props?: Partial<Parameters<typeof AppShell>[0]>) {
       <p>section body</p>
     </AppShell>,
   );
-  return { onNavigate, onTogglePalette, onSignOut };
+  return { onNavigate, onSignOut };
 }
 
 afterEach(() => {
@@ -71,15 +68,17 @@ afterEach(() => {
 describe("AppShell (wide)", () => {
   it("renders the sidebar with sections, children and footer chrome", () => {
     mockMatchMedia(true);
-    const { onNavigate, onTogglePalette, onSignOut } = renderShell();
+    const { onNavigate, onSignOut } = renderShell();
 
     expect(screen.getByText("section body")).toBeInTheDocument();
     // section nav items are buttons with aria-label = section label
     fireEvent.click(screen.getByRole("button", { name: "Schedule" }));
     expect(onNavigate).toHaveBeenCalledWith("schedule");
 
-    fireEvent.click(screen.getByRole("button", { name: "Command palette" }));
-    expect(onTogglePalette).toHaveBeenCalledTimes(1);
+    // #2216: no command palette row in the sidebar footer any more.
+    expect(
+      screen.queryByRole("button", { name: /command palette/i }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
     expect(onSignOut).toHaveBeenCalledTimes(1);
@@ -165,7 +164,6 @@ describe("AppShell (narrow)", () => {
         mobileSections={MOBILE}
         activeSection="schedule"
         onNavigate={onNavigate}
-        onTogglePalette={vi.fn()}
         userEmail="user@example.com"
         onSignOut={vi.fn()}
         labels={LABELS}

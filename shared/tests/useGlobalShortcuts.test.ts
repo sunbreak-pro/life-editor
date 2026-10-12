@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
 import {
+  useGlobalShortcuts,
   resolveShortcut,
   isEditableTarget,
   hasAccelerator,
@@ -8,6 +10,7 @@ import {
 import { matchBinding } from "../src/utils/shortcutBinding";
 import { DEFAULT_SHORTCUTS } from "../src/constants/defaultShortcuts";
 import type { ShortcutId } from "../src/types/shortcut";
+import type { ShortcutConfigContextValue } from "../src/context/ShortcutConfigContextValue";
 
 /*
  * W3-0 global shortcut executor. Tests the pure dispatch + guard helpers
@@ -230,5 +233,33 @@ describe("resolveShortcut", () => {
       rebind,
     );
     expect(id).toBe("nav:notes");
+  });
+});
+
+/*
+ * #2216 — with the sidebar's palette row gone, the keyboard route is one of
+ * the two ways left to open the palette (the other is the header search
+ * field, fenced in commandSearchField.test.tsx). This drives the hook end to
+ * end on `window`, Ctrl+K and Cmd+K both, since the web treats them as one
+ * accelerator.
+ */
+describe("useGlobalShortcuts — command palette (#2216)", () => {
+  const config = {
+    matchEvent: defaultMatchEvent,
+  } as unknown as ShortcutConfigContextValue;
+
+  it.each([
+    ["Ctrl+K", { ctrlKey: true }],
+    ["Cmd+K", { metaKey: true }],
+  ])("toggles the palette on %s", (_name, mods) => {
+    const onTogglePalette = vi.fn();
+    const { unmount } = renderHook(() =>
+      useGlobalShortcuts(config, { onTogglePalette }),
+    );
+    window.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "k", code: "KeyK", ...mods }),
+    );
+    expect(onTogglePalette).toHaveBeenCalledTimes(1);
+    unmount();
   });
 });

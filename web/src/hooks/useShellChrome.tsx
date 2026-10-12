@@ -2,7 +2,6 @@ import { useCallback, useMemo, useState } from "react";
 import { CalendarDays, FileText, type LucideIcon } from "lucide-react";
 import {
   useTranslation,
-  isMac,
   NavTimerDot,
   NavTimerStatus,
   SECTIONS,
@@ -198,12 +197,10 @@ export function useShellChrome({
       appName: "Life Editor",
       collapse: t("nav.collapse"),
       expand: t("nav.expand"),
-      commandPalette: t("nav.commandPalette"),
       signOut: t("nav.signOut"),
       more: t("nav.more"),
       moreTitle: t("nav.moreTitle"),
       moreClose: t("common.close"),
-      shortcutHint: isMac ? "⌘K" : "Ctrl K",
       // Wide + desktop only (#1211). SidebarNav needs the label AND the
       // handler, and MainScreen withholds the handler off the Electron shell.
       launchClaude: t("nav.launchClaude"),

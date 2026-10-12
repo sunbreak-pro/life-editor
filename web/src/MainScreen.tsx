@@ -416,7 +416,6 @@ export function MainScreen({ session }: { session: Session }) {
         mobileSections={mobileSections}
         activeSection={section}
         onNavigate={(id) => setSection(id as SectionId)}
-        onTogglePalette={() => setPaletteOpen((v) => !v)}
         /*
          * Claude Code launcher (#1211). Passed only on the desktop shell —
          * SidebarNav renders the footer row on the handler, so withholding it
