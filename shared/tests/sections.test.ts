@@ -29,6 +29,7 @@ describe("section registry", () => {
       "connect",
       "work",
       "analytics",
+      "apps",
       "settings",
     ]);
   });
@@ -52,6 +53,7 @@ describe("section registry", () => {
       "connect",
       "work",
       "analytics",
+      "apps",
     ]);
     expect(UTILITY_SECTIONS.map((s) => s.id)).toEqual(["settings"]);
   });
@@ -62,6 +64,7 @@ describe("section registry", () => {
     // on the bar itself — it took the More slot the retired Connect had, which
     // is what keeps the phone's four first-open sections stable. #1293 dropped
     // Trash off the end of More for the same reason it left the sidebar.
+    // Apps (#2165) joined More after Connect, and Settings stayed last.
     expect(MOBILE_SECTIONS.map((s) => s.id)).toEqual([
       "briefing",
       "schedule",
@@ -69,8 +72,15 @@ describe("section registry", () => {
       "work",
       "analytics",
       "connect",
+      "apps",
       "settings",
     ]);
+  });
+
+  it("puts Apps in the More sheet, not the fixed four (#2165)", () => {
+    const apps = SECTIONS.find((s) => s.id === "apps");
+    expect(apps?.mobileOrder).toBeGreaterThan(3);
+    expect(MOBILE_SECTIONS.slice(0, 4).map((s) => s.id)).not.toContain("apps");
   });
 
   it("gives every section an icon and a section.* label key", () => {

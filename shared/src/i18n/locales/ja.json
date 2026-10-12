@@ -1214,6 +1214,55 @@
     "noResults": "結果が見つかりません",
     "goTo": "移動"
   },
+  "apps": {
+    "heading": "登録したアプリ",
+    "register": "アプリを登録",
+    "emptyIntro": "拡張アプリは、家計簿・体重の記録・睡眠の記録のように、数値を life-editor へ送る自分用の小さなアプリです。ここで登録すると、名前とリンクを付けられます。最後に記録が届いた日を確かめたり、そのアプリの記録を分析で開いたりもできます。",
+    "keyGuide": "アプリは窓口の鍵を使って記録を送ります。mcp-server で `npm run gateway-key -- issue --app <slug>` を実行して鍵を発行してください。slug はここで登録するものと同じにします（手順の全体は PR #2194 にあります）。",
+    "unregisteredHeading": "記録だけ届いているアプリ",
+    "unregisteredIntro": "記録には届いているのに、まだ登録していない名前です。登録すると名前とリンクを付けられます。",
+    "registerSource": "登録",
+    "loadFailed": "アプリを読み込めませんでした。接続を確かめてから、このセクションを開き直してください。",
+    "deleteConfirm": "{{name}} を一覧から外しますか？記録は残り、「記録だけ届いているアプリ」に戻ります。",
+    "deleteConfirmLabel": "外す",
+    "deleteCancelLabel": "キャンセル",
+    "deleteFailed": "アプリを外せませんでした。もう一度試してください。",
+    "card": {
+      "lastRecordToday": "最後の記録: 今日",
+      "lastRecord_other": "最後の記録: {{count}} 日前",
+      "recordsLast30Days_other": "30 日で {{count}} 件",
+      "noRecords": "まだ記録がありません",
+      "showRecords": "記録を見る",
+      "edit": "編集",
+      "delete": "外す",
+      "openUrl": "{{name}} を開く"
+    },
+    "dialog": {
+      "registerTitle": "アプリを登録",
+      "editTitle": "アプリを編集",
+      "slug": "slug（識別名）",
+      "slugHint": "英小文字・数字・ハイフンで、先頭は英字にします。アプリの記録と鍵がこの名前を指すため、登録後は変えられません。",
+      "name": "名前",
+      "url": "URL",
+      "urlPlaceholder": "https://",
+      "description": "説明",
+      "iconLabel": "アイコン",
+      "iconClear": "既定のアイコン",
+      "iconSearch": "アイコンを検索",
+      "iconNoMatch": "一致するアイコンがありません。",
+      "iconChange": "変更",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "saving": "保存中…",
+      "saveFailed": "アプリを保存できませんでした。もう一度試してください。",
+      "problems": {
+        "empty": "名前を入力してください。",
+        "badSlug": "英小文字・数字・ハイフンを 2〜32 文字で、先頭は英字にしてください。",
+        "badUrl": "http:// か https:// で始まる完全なアドレスを入力してください。",
+        "taken": "この slug のアプリはすでに登録されています。"
+      }
+    }
+  },
   "section": {
     "todos": "Todo",
     "daily": "デイリー",
@@ -1224,7 +1273,8 @@
     "work": "集中",
     "analytics": "分析",
     "settings": "設定",
-    "briefing": "朝刊"
+    "briefing": "朝刊",
+    "apps": "アプリ"
   },
   "nav": {
     "collapse": "サイドバーを折りたたむ",
@@ -1640,6 +1690,7 @@
         "connect": "話題の軸です。タグを 1 つ選ぶと、それが付いたものをまとめて読めます。",
         "work": "作業に集中するためのタイマーです。後ろに流す音も選べます。",
         "analytics": "1 週間・1 か月の記録を集計して、積み上がりを振り返ります。",
+        "apps": "記録を送ってくる小さなアプリを登録して、最後に届いた日を確かめる場所です。",
         "settings": "見た目・言語・ショートカットなど、アプリ自体の設定です。"
       }
     },
