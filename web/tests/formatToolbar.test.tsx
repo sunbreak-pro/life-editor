@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from "vitest";
+import { describe, it, expect, vi, afterEach, beforeAll } from "vitest";
 import {
   render,
   screen,
@@ -9,12 +9,14 @@ import {
 } from "@testing-library/react";
 import { Editor } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
-import { FormatToolbar } from "../src/notes/FormatToolbar";
+import { FormatBubbleMenu, FormatToolbar } from "../src/notes/FormatToolbar";
 import { RichTextEditor } from "../src/notes/RichTextEditor";
 
 /*
- * #2060 — the formatting bar in the note header: H1, H2, bold, italic,
- * strikethrough, divider.
+ * #2060 — the note body's formatting buttons: H1, H2, bold, italic,
+ * strikethrough, divider. Since #2227 they float over the selected text
+ * (FormatBubbleMenu, at the end of this file) instead of sitting in the
+ * note header.
  *
  * A real headless Editor, like tableControls.test.tsx: what can go wrong is
  * what the commands do to the document and what the editor's selection says
@@ -281,6 +283,165 @@ describe("FormatToolbar (#2060)", () => {
     expect(fireEvent.mouseDown(button("Bold"))).toBe(false);
     expect(editor.getJSON()).toEqual(before);
     composing.mockRestore();
+  });
+});
+
+/*
+ * #2227 — the same six buttons, floating over the selection instead of
+ * sitting in the header. jsdom has no layout, so where the bar lands is not
+ * pinned here; what is pinned is when it is in the document, that its
+ * buttons format the selection, and the IME guard.
+ */
+describe("FormatBubbleMenu (#2227)", () => {
+  // jsdom implements neither on Range; Floating UI measures the selection
+  // through them. Zero rects are enough — positions are not under test.
+  const zeroRect = () => new DOMRect(0, 0, 0, 0);
+  const emptyRects = () => [] as unknown as DOMRectList;
+  beforeAll(() => {
+    Range.prototype.getBoundingClientRect ??= zeroRect;
+    Range.prototype.getClientRects ??= emptyRects;
+  });
+
+  /** jsdom cannot focus ProseMirror's contenteditable (see above). */
+  function focusBody(editor: Editor) {
+    vi.spyOn(editor.view, "hasFocus").mockReturnValue(true);
+  }
+
+  function bubble(): HTMLElement | null {
+    return document.querySelector<HTMLElement>("[data-format-bubble]");
+  }
+
+  /** The bar is in the document and the plugin has made it visible. */
+  function shown(): boolean {
+    const el = bubble();
+    return el !== null && el.isConnected && el.style.visibility === "visible";
+  }
+
+  it("appears over a text selection and goes when it collapses", async () => {
+    const editor = makeEditor();
+    focusBody(editor);
+    render(<FormatBubbleMenu editor={editor} labels={LABELS} />);
+    expect(shown()).toBe(false);
+
+    select(editor, 1, 6);
+    await waitFor(() => expect(shown()).toBe(true));
+    const bar = within(bubble()!).getByRole("toolbar", { name: "Formatting" });
+    expect(
+      within(bar)
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("aria-label")),
+    ).toEqual([
+      "Heading 1",
+      "Heading 2",
+      "Bold",
+      "Italic",
+      "Strikethrough",
+      "Insert divider",
+    ]);
+
+    select(editor, 3);
+    await waitFor(() => expect(shown()).toBe(false));
+  });
+
+  it.each([
+    ["Bold", "bold"],
+    ["Italic", "italic"],
+    ["Strikethrough", "strike"],
+  ])(
+    "puts %s on the selected text from the floating bar",
+    async (name, mark) => {
+      const editor = makeEditor();
+      focusBody(editor);
+      render(<FormatBubbleMenu editor={editor} labels={LABELS} />);
+      select(editor, 1, 6);
+      await waitFor(() => expect(shown()).toBe(true));
+
+      expect(press(button(name))).toBe(false);
+      expect(
+        firstBlock(editor).firstChild!.marks.map((m) => m.type.name),
+      ).toEqual([mark]);
+    },
+  );
+
+  it.each([
+    ["Heading 1", 1],
+    ["Heading 2", 2],
+  ])("turns the selected line into %s", async (name, level) => {
+    const editor = makeEditor();
+    focusBody(editor);
+    render(<FormatBubbleMenu editor={editor} labels={LABELS} />);
+    select(editor, 1, 6);
+    await waitFor(() => expect(shown()).toBe(true));
+
+    press(button(name));
+    expect(firstBlock(editor).type.name).toBe("heading");
+    expect(firstBlock(editor).attrs.level).toBe(level);
+  });
+
+  it("inserts a divider from the floating bar", async () => {
+    const editor = makeEditor();
+    focusBody(editor);
+    render(<FormatBubbleMenu editor={editor} labels={LABELS} />);
+    select(editor, 1, 6);
+    await waitFor(() => expect(shown()).toBe(true));
+
+    press(button("Insert divider"));
+    const names: string[] = [];
+    editor.state.doc.forEach((node) => names.push(node.type.name));
+    expect(names).toContain("horizontalRule");
+  });
+
+  it("does nothing while an IME conversion is open", async () => {
+    const editor = makeEditor();
+    focusBody(editor);
+    render(<FormatBubbleMenu editor={editor} labels={LABELS} />);
+    select(editor, 1, 6);
+    await waitFor(() => expect(shown()).toBe(true));
+    const before = editor.getJSON();
+    const composing = vi
+      .spyOn(editor.view, "composing", "get")
+      .mockReturnValue(true);
+
+    expect(fireEvent.mouseDown(button("Bold"))).toBe(false);
+    fireEvent.click(button("Bold"), { detail: 0 });
+    expect(editor.getJSON()).toEqual(before);
+    composing.mockRestore();
+  });
+
+  it("stays away without the focus, over a locked body and on a read-only one", async () => {
+    const unfocused = makeEditor();
+    const { unmount } = render(
+      <FormatBubbleMenu editor={unfocused} labels={LABELS} />,
+    );
+    select(unfocused, 1, 6);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(shown()).toBe(false);
+    unmount();
+
+    const locked = makeEditor();
+    focusBody(locked);
+    const second = render(
+      <FormatBubbleMenu editor={locked} disabled labels={LABELS} />,
+    );
+    select(locked, 1, 6);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(shown()).toBe(false);
+    second.unmount();
+
+    const readOnly = makeEditor(false);
+    focusBody(readOnly);
+    render(<FormatBubbleMenu editor={readOnly} labels={LABELS} />);
+    select(readOnly, 1, 6);
+    await new Promise((r) => setTimeout(r, 300));
+    expect(shown()).toBe(false);
+  });
+
+  it("renders nothing until there is an editor", () => {
+    const { container } = render(
+      <FormatBubbleMenu editor={null} labels={LABELS} />,
+    );
+    expect(container.innerHTML).toBe("");
+    expect(bubble()).toBeNull();
   });
 });
 
