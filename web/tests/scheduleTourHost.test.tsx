@@ -14,6 +14,8 @@ import {
  * the host's side: CalendarTab wraps its writers so the tour hears about a
  * time change, a created todo and a completed one. #1747 is why: the bubble's
  * `onRetime` was wired to the bare `handleUpdate`, so step 3/10 never advanced.
+ * #2222 folded that row into the bubble's in-place edit (`onQuickEdit`), which
+ * keeps the same wiring.
  *
  * #1642 P1: these were regexes over CalendarTab's source; they now mount the
  * host through `helpers/calendarTabHarness`. The old "one raw handleUpdate
@@ -81,12 +83,15 @@ describe("Schedule tour — the host's event time writes (#1124 / #1747)", () =>
     expect(timeChanged()).toBe(2);
   });
 
-  it("hands the click panel's retime the wrapped updater", () => {
+  it("hands the click panel's in-place edit the wrapped updater", () => {
     // The #1747 regression itself.
     const { popover } = mountHost().overlays;
 
     act(() =>
-      popover.itemActions.onRetime("ev-1", { start: "13:00", end: "14:00" }),
+      popover.itemActions.onQuickEdit("ev-1", {
+        startTime: "13:00",
+        endTime: "14:00",
+      }),
     );
 
     expect(harness.mutations.handleUpdate).toHaveBeenCalledWith("ev-1", {

@@ -110,8 +110,7 @@ function renderOverlays(
   } = {},
 ) {
   const itemActions = {
-    onRename: vi.fn(),
-    onRetime: vi.fn(),
+    onQuickEdit: vi.fn(),
     onDuplicate: vi.fn(),
     onConvertToTodo: vi.fn(),
     onDelete: vi.fn(),
@@ -124,6 +123,7 @@ function renderOverlays(
   };
   const todoActions = {
     onRename: vi.fn(),
+    onRetime: vi.fn(),
     onDelete: vi.fn(),
     onConvertToEvent: vi.fn(),
   };
@@ -343,38 +343,156 @@ describe("ScheduleOverlays — the single-click bubble", () => {
   });
 
   /*
-   * #1664 — the span, edited in the bubble.
+   * #2222 — the bubble's summary is edited where it is printed. The "Rename"
+   * and "Change the time" rows are gone; a double-click (or Enter on the
+   * focused summary) turns the title and time into fields.
    *
-   * The point of it is not the field (TimeRangeField has its own suite) but
-   * the ROUTE: it goes through the host's update handler, so a repeat still
-   * raises the scope dialog and the write still lands on the undo history.
-   * Wiring it straight to the provider would have skipped both, silently.
+   * The ROUTE matters as much as the fields (#1664): the save goes through the
+   * host's update handler as ONE patch, so a repeat raises the scope dialog
+   * once and the write lands on the undo history.
    */
-  it("edits the time span in place and hands the pair back together", () => {
+  it("has no Rename or Change-the-time rows any more", () => {
+    renderOverlays({ popover: { state: POPOVER, selected: ITEM } });
+    expect(screen.queryByText("scheduleScreen.rename")).toBeNull();
+    expect(screen.queryByText("scheduleScreen.editTime")).toBeNull();
+  });
+
+  it("opens the fields on a double-click and saves title and day as one patch on Enter", () => {
+    const { itemActions, props } = renderOverlays({
+      popover: { state: POPOVER, selected: ITEM },
+    });
+    fireEvent.doubleClick(screen.getByText(ITEM.title));
+
+    const title = screen.getByLabelText("scheduleScreen.title");
+    fireEvent.change(title, { target: { value: "定例" } });
+    fireEvent.change(screen.getByLabelText("scheduleScreen.date"), {
+      target: { value: "2026-08-17" },
+    });
+    fireEvent.keyDown(title, { key: "Enter" });
+
+    expect(itemActions.onQuickEdit).toHaveBeenCalledTimes(1);
+    expect(itemActions.onQuickEdit).toHaveBeenCalledWith(ITEM.id, {
+      title: "定例",
+      date: "2026-08-17",
+    });
+    expect(props.popover.onClose).toHaveBeenCalled();
+  });
+
+  // The time field keeps the span's length when its start moves, so the end
+  // comes along — one patch with both halves.
+  it("saves a new start from the save button", () => {
     const { itemActions } = renderOverlays({
       popover: { state: POPOVER, selected: ITEM },
     });
-
-    fireEvent.click(screen.getByText("scheduleScreen.editTime"));
+    fireEvent.doubleClick(screen.getByText(ITEM.title));
     const start = screen.getByLabelText("scheduleScreen.startTime");
-    fireEvent.change(start, { target: { value: "13:00" } });
-    fireEvent.keyDown(start, { key: "Enter" });
+    fireEvent.change(start, { target: { value: "10:30" } });
+    fireEvent.blur(start);
+    fireEvent.click(screen.getByText("scheduleScreen.save"));
 
-    // ONE payload: the field owns the start < end invariant, so a host that
-    // wrote per field would fire two updates (and two scope dialogs) for one
-    // gesture.
-    expect(itemActions.onRetime).toHaveBeenCalledTimes(1);
-    expect(itemActions.onRetime.mock.calls[0][0]).toBe(ITEM.id);
-    expect(itemActions.onRetime.mock.calls[0][1]).toMatchObject({
-      start: "13:00",
+    expect(itemActions.onQuickEdit).toHaveBeenCalledWith(ITEM.id, {
+      startTime: "10:30",
+      endTime: "11:30",
     });
   });
 
-  it("offers no time edit on an all-day row", () => {
+  it("backs out on Escape without writing", () => {
+    const { itemActions, props } = renderOverlays({
+      popover: { state: POPOVER, selected: ITEM },
+    });
+    fireEvent.doubleClick(screen.getByText(ITEM.title));
+    const title = screen.getByLabelText("scheduleScreen.title");
+    fireEvent.change(title, { target: { value: "捨てる" } });
+    fireEvent.keyDown(title, { key: "Escape" });
+
+    expect(screen.queryByLabelText("scheduleScreen.title")).toBeNull();
+    expect(screen.getByText(ITEM.title)).toBeTruthy();
+    expect(itemActions.onQuickEdit).not.toHaveBeenCalled();
+    // Only the form closed — the bubble itself is still up.
+    expect(props.popover.onClose).not.toHaveBeenCalled();
+  });
+
+  it("does not save on the Enter that confirms a Japanese conversion", () => {
+    const { itemActions } = renderOverlays({
+      popover: { state: POPOVER, selected: ITEM },
+    });
+    fireEvent.doubleClick(screen.getByText(ITEM.title));
+    const title = screen.getByLabelText("scheduleScreen.title");
+    fireEvent.change(title, { target: { value: "定例" } });
+    fireEvent.keyDown(title, { key: "Enter", isComposing: true });
+    fireEvent.keyDown(title, { key: "Enter", keyCode: 229 });
+
+    expect(itemActions.onQuickEdit).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("scheduleScreen.title")).toBeTruthy();
+  });
+
+  it("opens the same fields from the keyboard: Enter on the focused summary", () => {
+    renderOverlays({ popover: { state: POPOVER, selected: ITEM } });
+    const target = screen
+      .getByText(ITEM.title)
+      .closest("[data-item-quick-edit-target]") as HTMLElement;
+    expect(target.tabIndex).toBe(0);
+    fireEvent.keyDown(target, { key: "Enter" });
+    expect(screen.getByLabelText("scheduleScreen.title")).toBeTruthy();
+  });
+
+  it("gives a repeat occurrence no date field", () => {
+    renderOverlays({
+      popover: {
+        state: POPOVER,
+        selected: { ...ITEM, routineId: "routine-1" },
+      },
+    });
+    fireEvent.doubleClick(screen.getByText(ITEM.title));
+    expect(screen.queryByLabelText("scheduleScreen.date")).toBeNull();
+    expect(screen.getByLabelText("scheduleScreen.startTime")).toBeTruthy();
+  });
+
+  it("gives an all-day event no time fields", () => {
     renderOverlays({
       popover: { state: POPOVER, selected: { ...ITEM, isAllDay: true } },
     });
-    expect(screen.queryByText("scheduleScreen.editTime")).toBeNull();
+    fireEvent.doubleClick(screen.getByText(ITEM.title));
+    expect(screen.queryByLabelText("scheduleScreen.startTime")).toBeNull();
+    expect(screen.getByLabelText("scheduleScreen.date")).toBeTruthy();
+  });
+
+  it("opens no fields on a holiday", () => {
+    const HOLIDAY = { ...ITEM, id: "holiday-2026-08-16", title: "山の日" };
+    renderOverlays({
+      popover: { state: { ...POPOVER, id: HOLIDAY.id }, selected: HOLIDAY },
+    });
+    fireEvent.doubleClick(screen.getByText(HOLIDAY.title));
+    expect(screen.queryByLabelText("scheduleScreen.title")).toBeNull();
+    expect(document.querySelector("[data-item-quick-edit-target]")).toBeNull();
+  });
+
+  it("lets a timed todo change its start only, keeping its length", () => {
+    const { todoActions } = renderOverlays({
+      popover: { state: { ...POPOVER, id: CHIP.id }, todoChip: CHIP },
+    });
+    expect(screen.queryByText("scheduleScreen.rename")).toBeNull();
+    fireEvent.doubleClick(screen.getByText(CHIP.title));
+    expect(screen.queryByLabelText("scheduleScreen.date")).toBeNull();
+    expect(screen.queryByLabelText("scheduleScreen.endTime")).toBeNull();
+
+    fireEvent.change(screen.getByLabelText("scheduleScreen.title"), {
+      target: { value: "資料を仕上げる" },
+    });
+    fireEvent.change(screen.getByLabelText("scheduleScreen.startTime"), {
+      target: { value: "15:00" },
+    });
+    fireEvent.click(screen.getByText("scheduleScreen.save"));
+
+    expect(todoActions.onRename).toHaveBeenCalledWith(
+      CHIP.id,
+      "資料を仕上げる",
+    );
+    expect(todoActions.onRetime).toHaveBeenCalledWith(CHIP.id, {
+      date: CHIP.date,
+      start: "15:00",
+      end: "16:00",
+    });
   });
 
   /*

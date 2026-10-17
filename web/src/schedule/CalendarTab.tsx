@@ -62,8 +62,8 @@ import { useTodoAddDialog } from "./useTodoAddDialog";
 
 /*
  * Calendar tab (target-IA host). Assembles the shared presentational parts
- * (ScheduleToolbar / WeekTimeGrid / MonthGrid / AgendaList / EventEditorPane /
- * RoutineSummaryCard) into the day/week/month calendar, the "今日の流れ"
+ * (ScheduleToolbar / WeekTimeGrid / MonthGrid / AgendaList / EventEditorPane)
+ * into the day/week/month calendar, the "今日の流れ"
  * rightSidebar (RightSidebarPortal), and the Mobile month screen whose day
  * taps open that same sidebar (#1148 — narrow's own day list was retired
  * there, and the Quick-capture sheet is now reached from the sidebar's pill).
@@ -553,7 +553,6 @@ export function CalendarTab({
     handleDropAllDay,
     handleDismiss,
     handleDelete,
-    handleRename,
     handleDuplicate,
     handleChangeRepeat,
     handleDetachRepeat,
@@ -765,7 +764,6 @@ export function CalendarTab({
   // ── Repeat section (#185 Step 3 / #408 / #889) ─────────────────────────────
   const {
     repeatValue,
-    summaryRows,
     listDate,
     repeatRows,
     repeatPanel,
@@ -905,7 +903,6 @@ export function CalendarTab({
           onAdd: isWide ? undefined : handleToolbarAdd,
           addLabel: isWide ? undefined : t("scheduleScreen.addCta"),
           skipped: skippedToday,
-          summaryRows,
           onToggleComplete: handleAgendaToggle,
           onItemActivate: handleItemActivate,
           onItemDoubleClick: handleItemOpenDetail,
@@ -1025,23 +1022,22 @@ export function CalendarTab({
         onClose: closePopover,
         onOpenDetail: handleItemOpenDetail,
         itemActions: {
-          onRename: handleRename,
-          // #1664: the bubble's time edit goes through the same handler the
-          // detail panel's save uses — scope dialog on a repeat, undo entry,
-          // optimistic patch, all of it. #1747: *Reported*, because the tour's
-          // 3/10 step waits on a time change and the bubble is the shortest way
-          // to make one — calling the bare handleUpdate left the step stuck.
-          onRetime: (id, next) =>
-            handleUpdateReported(id, {
-              startTime: next.start,
-              endTime: next.end,
-            }),
+          // #1664 / #2222: the bubble's in-place edit goes through the same
+          // handler the detail panel's save uses — scope dialog on a repeat,
+          // undo entry, optimistic patch, all of it. #1747: *Reported*,
+          // because the tour's 3/10 step waits on a time change and the bubble
+          // is the shortest way to make one — calling the bare handleUpdate
+          // left the step stuck.
+          onQuickEdit: handleUpdateReported,
           onDuplicate: handleDuplicate,
           onConvertToTodo: handleConvertToTodo,
           onDelete: handleDelete,
         },
         todoActions: {
           onRename: handleTodoRename,
+          // #2222: the grid's own move write, so the undo label matches a drag.
+          onRetime: (id, slot) =>
+            handleTodoChipMove(id, slot.date, slot.start, slot.end),
           onDelete: handleTodoDelete,
           onConvertToEvent: handleConvertToEvent,
         },

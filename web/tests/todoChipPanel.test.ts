@@ -1,8 +1,11 @@
 import { describe, it, expect, vi } from "vitest";
 import type { TodoCalendarChip } from "@life-editor/shared";
 import {
+  eventQuickEditPatch,
+  eventQuickEditValue,
   itemTapRoute,
   todoChipPanelModel,
+  todoSlotFromStart,
 } from "../src/schedule/todoChipPanel";
 
 /*
@@ -20,7 +23,6 @@ import {
 const COPY = {
   untitled: "(untitled)",
   allDay: "All-day",
-  rename: "Rename",
   delete: "Delete",
   convertToEvent: "Convert to event",
 };
@@ -45,54 +47,71 @@ const PLACED: TodoCalendarChip = {
 
 function build(chip: TodoCalendarChip) {
   const onRename = vi.fn();
+  const onRetime = vi.fn();
   const onDelete = vi.fn();
   const onConvertToEvent = vi.fn();
   return {
     model: todoChipPanelModel(chip, COPY, {
       onRename,
+      onRetime,
       onDelete,
       onConvertToEvent,
     }),
     onRename,
+    onRetime,
     onDelete,
     onConvertToEvent,
   };
 }
 
 describe("todoChipPanelModel (#564)", () => {
-  it("offers rename, convert and delete, with only delete marked dangerous", () => {
+  // #2222: rename left the row list for the in-place edit of the summary.
+  it("offers convert and delete, with only delete marked dangerous", () => {
     const { model } = build(CANDIDATE);
     expect(model.actions.map((a) => a.id)).toEqual([
-      "rename",
       "convertToEvent",
       "delete",
     ]);
-    expect(model.actions[0].label).toBe("Rename");
-    expect(model.actions[1].label).toBe("Convert to event");
+    expect(model.actions[0].label).toBe("Convert to event");
     // #625: converting MOVES the item, it does not remove it — danger styling
     // would read as "this destroys something".
-    expect(model.actions[1].danger).toBeUndefined();
-    expect(model.actions[2].label).toBe("Delete");
-    expect(model.actions[2].danger).toBe(true);
+    expect(model.actions[0].danger).toBeUndefined();
+    expect(model.actions[1].label).toBe("Delete");
+    expect(model.actions[1].danger).toBe(true);
   });
 
   it("converts through the host's re-role write (#625)", () => {
     const { model, onConvertToEvent } = build(CANDIDATE);
-    model.actions[1].onSelect?.();
+    model.actions[0].onSelect?.();
     expect(onConvertToEvent).toHaveBeenCalledTimes(1);
   });
 
-  it("renames through an inline input seeded with the current title", () => {
-    const { model, onRename } = build(CANDIDATE);
-    const inline = model.actions[0].inlineInput;
-    expect(inline?.value).toBe("write the report");
-    inline?.onCommit("write the other report");
+  it("edits an all-day todo's title only, seeded with the current title", () => {
+    const { model, onRename, onRetime } = build(CANDIDATE);
+    expect(model.quickEditValue).toEqual({ title: "write the report" });
+    model.commitQuickEdit({ title: "write the other report" });
     expect(onRename).toHaveBeenCalledWith("write the other report");
+    expect(onRetime).not.toHaveBeenCalled();
+  });
+
+  it("moves a timed todo by its start, keeping its length", () => {
+    const { model, onRename, onRetime } = build(PLACED);
+    expect(model.quickEditValue).toEqual({
+      title: "write the report",
+      start: "09:00",
+    });
+    model.commitQuickEdit({ title: "write the report", start: "13:30" });
+    expect(onRename).not.toHaveBeenCalled();
+    expect(onRetime).toHaveBeenCalledWith({
+      date: "2026-06-15",
+      start: "13:30",
+      end: "14:30",
+    });
   });
 
   it("deletes through the host's soft-delete", () => {
     const { model, onDelete } = build(CANDIDATE);
-    model.actions[2].onSelect?.();
+    model.actions[1].onSelect?.();
     expect(onDelete).toHaveBeenCalledTimes(1);
   });
 
@@ -114,7 +133,7 @@ describe("todoChipPanelModel (#564)", () => {
     expect(model.title).toBe("(untitled)");
     // Seeding the input with the placeholder would commit "(untitled)" as a
     // real title on the first Enter.
-    expect(model.actions[0].inlineInput?.value).toBe("");
+    expect(model.quickEditValue.title).toBe("");
   });
 });
 
@@ -133,5 +152,79 @@ describe("itemTapRoute (#564 → #761)", () => {
   it("leaves a narrow tap on a schedule item alone", () => {
     // Selection alone brings up the narrow editor sheet — unchanged.
     expect(itemTapRoute("evt-1", false)).toBe("select");
+  });
+});
+
+describe("todoSlotFromStart (#2222)", () => {
+  it("holds the end to the same day", () => {
+    expect(
+      todoSlotFromStart(
+        { date: "2026-06-15", startTime: "09:00", endTime: "11:00" },
+        "23:00",
+      ),
+    ).toEqual({ date: "2026-06-15", start: "23:00", end: "23:59" });
+  });
+
+  it("is no move when nothing of the slot is left", () => {
+    expect(
+      todoSlotFromStart(
+        { date: "2026-06-15", startTime: "09:00", endTime: "10:00" },
+        "23:59",
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("eventQuickEditValue / eventQuickEditPatch (#2222)", () => {
+  const EVENT = {
+    id: "event-1",
+    title: "Standup",
+    date: "2026-06-15",
+    startTime: "09:00",
+    endTime: "09:30",
+    isAllDay: false,
+    routineId: null,
+  };
+
+  it("edits title, day and span on a plain event", () => {
+    expect(eventQuickEditValue(EVENT)).toEqual({
+      title: "Standup",
+      date: "2026-06-15",
+      start: "09:00",
+      end: "09:30",
+    });
+  });
+
+  it("keeps a repeat occurrence on its day", () => {
+    expect(eventQuickEditValue({ ...EVENT, routineId: "r-1" })).toEqual({
+      title: "Standup",
+      start: "09:00",
+      end: "09:30",
+    });
+  });
+
+  it("has no clock time on an all-day event", () => {
+    expect(eventQuickEditValue({ ...EVENT, isAllDay: true })).toEqual({
+      title: "Standup",
+      date: "2026-06-15",
+    });
+  });
+
+  it("gives a holiday no form at all", () => {
+    expect(
+      eventQuickEditValue({ ...EVENT, id: "holiday-2026-06-15" }),
+    ).toBeNull();
+  });
+
+  it("patches only what changed, and nothing when nothing did", () => {
+    expect(
+      eventQuickEditPatch(EVENT, {
+        title: "Standup",
+        date: "2026-06-16",
+        start: "09:00",
+        end: "10:00",
+      }),
+    ).toEqual({ date: "2026-06-16", endTime: "10:00" });
+    expect(eventQuickEditPatch(EVENT, eventQuickEditValue(EVENT)!)).toBeNull();
   });
 });

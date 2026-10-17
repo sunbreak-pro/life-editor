@@ -71,12 +71,6 @@ export {
   // #628: the one patch the save button hands the host.
   type EventEditorPatch,
 } from "./EventEditorPane";
-export {
-  RoutineSummaryCard,
-  type RoutineSummaryCardProps,
-  type RoutineSummaryCardLabels,
-  type RoutineSummaryRow,
-} from "./RoutineSummaryCard";
 // #408: the rightSidebar "繰り返し" tab — reach every routine (incl. ones with
 // no occurrence on screen) now that the Routines header tab is retired.
 export {

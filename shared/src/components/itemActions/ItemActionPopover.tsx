@@ -1,4 +1,11 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useId,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { Pencil } from "lucide-react";
 import { cn } from "../cn";
@@ -24,6 +31,15 @@ import { isImeComposing } from "../../utils/imeGuard";
  *
  * Pure presentation (§3.1/§6.4): no DataService, no useTranslation; `summary`
  * and every label arrive already translated. lumen-* tokens only; opaque (§5).
+ *
+ * #2222: a host can make the summary itself editable (`quickEdit`). The
+ * summary then answers a double-click — or Enter while it has focus, so the
+ * keyboard keeps a way in — by turning into a small form for the title and,
+ * when the host passes them, the date and the time. Enter or the save button
+ * commits, Escape backs out to the summary. Blur keeps the draft, the same
+ * rule the detail editor follows (D-20260810-sched-1). This replaces the
+ * schedule bubble's "Rename" / "Edit time" rows: the fields sit where the
+ * values are printed instead of behind a row named after them.
  *
  * @example
  * <ItemActionPopover
@@ -52,6 +68,38 @@ const EST_HEIGHT = 220;
 // the panel is much shorter — clamping with the full estimate would push it
 // needlessly far up from the bottom edge.
 const EST_HEIGHT_INLINE = 120;
+
+/**
+ * The values the in-place form edits (#2222). Which keys are present decides
+ * which fields show: `date` adds a date field, `start` + `end` a time range,
+ * `start` alone a single start time. `title` is always there.
+ */
+export interface ItemQuickEditValue {
+  title: string;
+  date?: string;
+  start?: string;
+  end?: string;
+}
+
+export interface ItemQuickEdit {
+  value: ItemQuickEditValue;
+  /** Already-translated copy. `hint` is shown on hover and read with focus. */
+  labels: {
+    hint: string;
+    title: string;
+    date: string;
+    start: string;
+    end: string;
+    save: string;
+    cancel: string;
+  };
+  formatDuration?: (minutes: number) => string;
+  /**
+   * Called once, on save, and only when something changed. A cleared title
+   * comes back as the old one — an empty name is not a rename.
+   */
+  onCommit: (next: ItemQuickEditValue) => void;
+}
 
 export interface ItemActionPopoverProps {
   /** Anchor point in viewport coordinates (from the click event). */
@@ -85,6 +133,20 @@ export interface ItemActionPopoverProps {
    * hands over). Off by default, so a mouse-opened bubble behaves as before.
    */
   autoFocus?: boolean;
+  /** #2222: makes the summary editable in place. See the file comment. */
+  quickEdit?: ItemQuickEdit;
+}
+
+const FIELD =
+  "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2 py-1 text-xs text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+
+function sameValue(a: ItemQuickEditValue, b: ItemQuickEditValue): boolean {
+  return (
+    a.title === b.title &&
+    a.date === b.date &&
+    a.start === b.start &&
+    a.end === b.end
+  );
 }
 
 export function ItemActionPopover({
@@ -98,13 +160,19 @@ export function ItemActionPopover({
   width = DEFAULT_WIDTH,
   layout = "stack",
   autoFocus = false,
+  quickEdit,
 }: ItemActionPopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const hintId = useId();
   const [inlineId, setInlineId] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
+  // #2222: the in-place form's draft; null while the summary is showing.
+  const [editDraft, setEditDraft] = useState<ItemQuickEditValue | null>(null);
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
   useFloatingDismiss(panelRef, onClose);
+  const editing = editDraft != null;
 
   const inlineAction =
     inlineId != null
@@ -123,6 +191,14 @@ export function ItemActionPopover({
       inputRef.current?.select();
     }
   }, [inlineId]);
+
+  // Same reason as above: keyed on entering the form, not on the draft.
+  useLayoutEffect(() => {
+    if (editing) {
+      titleRef.current?.focus();
+      titleRef.current?.select();
+    }
+  }, [editing]);
 
   // #2049: once, on open. Hosts rebuild `actions` every render, so keying this
   // on them would pull focus back to the top mid-navigation. The action rows
@@ -147,7 +223,7 @@ export function ItemActionPopover({
   useLayoutEffect(() => {
     const height = panelRef.current?.offsetHeight;
     if (height != null && height !== measuredHeight) setMeasuredHeight(height);
-  }, [measuredHeight, actions, inlineAction]);
+  }, [measuredHeight, actions, inlineAction, editing]);
 
   const { top, left, maxHeight } = clampToViewport(
     position,
@@ -173,11 +249,145 @@ export function ItemActionPopover({
     onClose();
   };
 
+  const startQuickEdit = () => {
+    if (quickEdit) setEditDraft({ ...quickEdit.value });
+  };
+
+  const commitQuickEdit = () => {
+    if (!quickEdit || !editDraft) return;
+    const next = {
+      ...editDraft,
+      title: editDraft.title.trim() || quickEdit.value.title,
+    };
+    if (!sameValue(next, quickEdit.value)) quickEdit.onCommit(next);
+    onClose();
+  };
+
+  // Enter / Escape for the whole form. A field that already handled the key
+  // marks it (the time combo does, to close its own list), and that press is
+  // left alone so one Enter does not both pick a time and save.
+  const handleQuickEditKey = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (isImeComposing(e) || e.defaultPrevented) return;
+    if (e.key === "Enter") {
+      e.preventDefault();
+      e.stopPropagation();
+      commitQuickEdit();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      // Keeps the document-level Escape from closing the whole panel: this
+      // press only backs out of the form.
+      e.stopPropagation();
+      setEditDraft(null);
+    }
+  };
+
   const columns = layout === "columns";
 
-  const summaryBlock = (
-    <div className="px-3 py-2 text-xs text-lumen-text">{summary}</div>
-  );
+  const quickEditForm =
+    quickEdit && editDraft ? (
+      <div
+        data-item-quick-edit=""
+        className="flex flex-col gap-1.5 px-3 py-2"
+        onKeyDown={handleQuickEditKey}
+      >
+        <input
+          ref={titleRef}
+          value={editDraft.title}
+          onChange={(e) =>
+            setEditDraft({ ...editDraft, title: e.target.value })
+          }
+          aria-label={quickEdit.labels.title}
+          className={FIELD}
+        />
+        {editDraft.date != null && (
+          <input
+            type="date"
+            value={editDraft.date}
+            onChange={(e) => {
+              // A cleared native date field reports "" — keep the old day.
+              if (e.target.value)
+                setEditDraft({ ...editDraft, date: e.target.value });
+            }}
+            aria-label={quickEdit.labels.date}
+            className={FIELD}
+          />
+        )}
+        {editDraft.start != null && editDraft.end != null ? (
+          <TimeRangeField
+            start={editDraft.start}
+            end={editDraft.end}
+            labels={{
+              start: quickEdit.labels.start,
+              end: quickEdit.labels.end,
+            }}
+            formatDuration={quickEdit.formatDuration}
+            onChange={(next) =>
+              setEditDraft({ ...editDraft, start: next.start, end: next.end })
+            }
+          />
+        ) : editDraft.start != null ? (
+          <input
+            type="time"
+            value={editDraft.start}
+            onChange={(e) => {
+              if (e.target.value)
+                setEditDraft({ ...editDraft, start: e.target.value });
+            }}
+            aria-label={quickEdit.labels.start}
+            className={cn(FIELD, "tabular-nums")}
+          />
+        ) : null}
+        <div className="flex justify-end gap-1.5">
+          <button
+            type="button"
+            onClick={() => setEditDraft(null)}
+            className="rounded-lumen-md px-2 py-1 text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          >
+            {quickEdit.labels.cancel}
+          </button>
+          <button
+            type="button"
+            onClick={commitQuickEdit}
+            className="rounded-lumen-md bg-lumen-accent px-2.5 py-1 text-xs font-medium text-lumen-on-accent transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          >
+            {quickEdit.labels.save}
+          </button>
+        </div>
+      </div>
+    ) : null;
+
+  // #2222: an editable summary is a focusable target with a hover tint and a
+  // hint that says how to edit it. Not a <button>: the host's summary holds
+  // block content, and a double-click is not a press.
+  const summaryBlock =
+    quickEditForm ??
+    (quickEdit ? (
+      <div
+        data-item-quick-edit-target=""
+        tabIndex={0}
+        title={quickEdit.labels.hint}
+        aria-describedby={hintId}
+        onDoubleClick={startQuickEdit}
+        onKeyDown={(e) => {
+          if (isImeComposing(e)) return;
+          if (e.key === "Enter") {
+            e.preventDefault();
+            startQuickEdit();
+          }
+        }}
+        className="group mx-1 cursor-text rounded-lumen-md px-2 py-2 text-xs text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+      >
+        {summary}
+        <p
+          id={hintId}
+          className="mt-1 hidden text-[11px] text-lumen-text-secondary group-hover:block group-focus-visible:block"
+        >
+          {quickEdit.labels.hint}
+        </p>
+      </div>
+    ) : (
+      <div className="px-3 py-2 text-xs text-lumen-text">{summary}</div>
+    ));
 
   // In columns the blocks sit side by side, so the rule that separates them
   // is the column's left border rather than each block's top border.
@@ -246,7 +456,7 @@ export function ItemActionPopover({
 
   // Hidden while the inline input is up, so Enter has exactly one meaning.
   const editDetailBlock =
-    onEditDetail && !inlineBlock && !inlineTimeBlock ? (
+    onEditDetail && !inlineBlock && !inlineTimeBlock && !editing ? (
       <div className={cn(columns ? "mt-auto" : blockRule, "p-2")}>
         <button
           type="button"

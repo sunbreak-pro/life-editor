@@ -7,7 +7,6 @@ import {
   AgendaList,
   NoticePanel,
   RepeatListPanel,
-  RoutineSummaryCard,
   ScheduleSidebarTabs,
   TodayTodoTray,
   TodoFilterPanel,
@@ -18,7 +17,6 @@ import {
   TOUR_ANCHORS,
   type AgendaItem,
   type RepeatListRow,
-  type RoutineSummaryRow,
   type ScheduleSidebarTab,
   type TodayTodoAddableRow,
   type TodayTodoRow,
@@ -64,8 +62,9 @@ const HEADING_PILL_TAP =
   "max-md:relative max-md:after:absolute max-md:after:inset-x-0 max-md:after:top-1/2 max-md:after:h-11 max-md:after:-translate-y-1/2 max-md:after:content-['']";
 
 /**
- * "今日の流れ" — the agenda, the skipped-item restore list, and the routine
- * summary.
+ * "今日の流れ" — the agenda and the skipped-item restore list. #2222 took the
+ * routine summary ("マイルーチン") out: the 繰り返し tab beside it lists the
+ * same routines in full.
  *
  * NOT ALWAYS TODAY SINCE #1148. Narrow's main area is the month grid alone
  * now, so this tab is where a tapped day is read — the host feeds it the
@@ -104,7 +103,6 @@ export interface ScheduleSidebarFlow {
     startTime: string;
     isAllDay?: boolean;
   }>;
-  summaryRows: RoutineSummaryRow[];
   onToggleComplete: (id: string) => void;
   onItemActivate: (id: string, pos: { x: number; y: number }) => void;
   onItemDoubleClick: (id: string) => void;
@@ -309,20 +307,6 @@ export function ScheduleSidebar({
             ))}
           </ul>
         </div>
-      )}
-      {/* Routine-completion summary rides the flow tab (Desktop only — Mobile
-          keeps its lean drawer). It used to live in the main-area <aside>,
-          which #408 removed. */}
-      {isWide && (
-        <RoutineSummaryCard
-          routines={flow.summaryRows}
-          labels={{
-            title: t("scheduleScreen.summaryTitle"),
-            empty: t("scheduleScreen.summaryEmpty"),
-            cta: t("scheduleScreen.openRoutinesCta"),
-          }}
-          onOpenRoutines={() => onTabChange("repeats")}
-        />
       )}
     </div>
   );

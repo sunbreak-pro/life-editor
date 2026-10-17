@@ -93,7 +93,6 @@ function makeProps(tab: "flow" | "todo" | "repeats"): ScheduleSidebarProps {
       nowMinutes: 540,
       selectedId: null,
       skipped: [],
-      summaryRows: [],
       onToggleComplete: vi.fn(),
       onItemActivate: vi.fn(),
       onItemDoubleClick: vi.fn(),

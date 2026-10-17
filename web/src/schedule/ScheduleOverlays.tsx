@@ -17,7 +17,12 @@ import {
   type TagFilterPanelProps,
   type TodoCalendarChip,
 } from "@life-editor/shared";
-import { SCHEDULE_ITEM_PANEL_WIDTH, todoChipPanelModel } from "./todoChipPanel";
+import {
+  SCHEDULE_ITEM_PANEL_WIDTH,
+  eventQuickEditPatch,
+  eventQuickEditValue,
+  todoChipPanelModel,
+} from "./todoChipPanel";
 import type {
   SchedulePopover,
   ScheduleCreatePanel,
@@ -54,13 +59,19 @@ import type { DuplicateOptions } from "./useScheduleMutations";
 
 /** The single-click bubble's item actions (#299 / #551 / #625). */
 export interface ScheduleItemPopoverActions {
-  onRename: (id: string, title: string) => void;
   /**
-   * The time span, from the bubble (#1664). Routed through the host's update
-   * path, so a routine occurrence raises the scope dialog and the write lands
-   * on the undo history exactly as an edit from the detail panel does.
+   * #2222: the in-place edit of the bubble's summary — title, day and time in
+   * one patch. Routed through the host's update path, so a routine occurrence
+   * raises the scope dialog once and the write lands on the undo history
+   * exactly as an edit from the detail panel does (#1664 did the same for the
+   * time row this replaces).
    */
-  onRetime: (id: string, next: { start: string; end: string }) => void;
+  onQuickEdit: (
+    id: string,
+    patch: Partial<
+      Pick<ScheduleItem, "title" | "date" | "startTime" | "endTime">
+    >,
+  ) => void;
   /**
    * #2005: `options` says whether the copy takes the source's tags. The
    * bubble only asks when the source has any, so a tagless event keeps the
@@ -74,6 +85,11 @@ export interface ScheduleItemPopoverActions {
 /** The todo-chip variant of the same bubble (#564 / #626 / #625). */
 export interface ScheduleTodoPopoverActions {
   onRename: (id: string, title: string) => void;
+  /** #2222: a new start from the in-place edit, carried to a whole slot. */
+  onRetime: (
+    id: string,
+    slot: { date: string; start: string; end: string },
+  ) => void;
   onDelete: (id: string) => void;
   onConvertToEvent: (id: string) => void;
 }
@@ -164,6 +180,17 @@ export function ScheduleOverlays({
 }: ScheduleOverlaysProps) {
   const { t } = useTranslation();
 
+  // #2222: the in-place edit's copy, the same for both variants.
+  const quickEditLabels = {
+    hint: t("scheduleScreen.quickEditHint"),
+    title: t("scheduleScreen.title"),
+    date: t("scheduleScreen.date"),
+    start: t("scheduleScreen.startTime"),
+    end: t("scheduleScreen.endTime"),
+    save: t("scheduleScreen.save"),
+    cancel: t("common.cancel"),
+  };
+
   // The todo action set. Deliberately not the event one: a todo has no
   // duplicate write and its detail lives in another section (todoChipPanel.ts).
   const todoChipPanel = popover.todoChip
@@ -174,13 +201,14 @@ export function ScheduleOverlays({
           // written for the repeat list. A todo is neither.
           untitled: t("common.untitled"),
           allDay: t("scheduleScreen.allDay"),
-          rename: t("scheduleScreen.rename"),
           delete: t("todoDetail.todoDelete"),
           convertToEvent: t("itemConvert.toEvent"),
         },
         {
           onRename: (title) =>
             popover.todoActions.onRename(popover.todoChip!.id, title),
+          onRetime: (slot) =>
+            popover.todoActions.onRetime(popover.todoChip!.id, slot),
           onDelete: () => popover.todoActions.onDelete(popover.todoChip!.id),
           onConvertToEvent: () =>
             popover.todoActions.onConvertToEvent(popover.todoChip!.id),
@@ -193,6 +221,10 @@ export function ScheduleOverlays({
   // `selected` is the popover's item (activate sets selectedId + popover to the
   // same id); guard against a transient mismatch. Portalled to body → does not
   // touch the rightSidebar contentCount invariant.
+  const selectedQuickEdit = popover.selected
+    ? eventQuickEditValue(popover.selected)
+    : null;
+
   const bubble =
     !isWide || !popover.state ? null : todoChipPanel ? (
       <ItemActionPopover
@@ -211,6 +243,11 @@ export function ScheduleOverlays({
           </div>
         }
         actions={todoChipPanel.actions}
+        quickEdit={{
+          value: todoChipPanel.quickEditValue,
+          labels: quickEditLabels,
+          onCommit: todoChipPanel.commitQuickEdit,
+        }}
         onEditDetail={() => popover.onOpenDetail(popover.state!.id)}
         // #626: the primary hand-off now opens the in-Schedule todo detail
         // (tags editable in place); "open in Todos" moved inside that panel.
@@ -243,41 +280,24 @@ export function ScheduleOverlays({
             </p>
           </div>
         }
-        actions={[
-          // #551: rename rides the unified bubble as an inline input — the
-          // retired right-click menu was the only place it lived before.
-          {
-            id: "rename",
-            label: t("scheduleScreen.rename"),
-            inlineInput: {
-              value: popover.selected.title,
-              ariaLabel: t("scheduleScreen.rename"),
-              onCommit: (title) =>
-                popover.itemActions.onRename(popover.state!.id, title),
-            },
-          },
-          // #1664: the span, without opening the detail panel. Hidden on an
-          // all-day row, which has no clock time to edit — the same rule the
-          // editor's own time pair follows.
-          ...(popover.selected.isAllDay
-            ? []
-            : [
-                {
-                  id: "retime",
-                  label: t("scheduleScreen.editTime"),
-                  inlineTimeRange: {
-                    start: popover.selected.startTime,
-                    end: popover.selected.endTime,
-                    labels: {
-                      start: t("scheduleScreen.startTime"),
-                      end: t("scheduleScreen.endTime"),
-                    },
-                    formatDuration: create.formatDuration,
-                    onCommit: (next: { start: string; end: string }) =>
-                      popover.itemActions.onRetime(popover.state!.id, next),
-                  },
+        // #2222: the title, day and time are edited where they are printed
+        // (double-click, or Enter on the focused summary) — the "Rename" and
+        // "Change the time" rows (#551 / #1664) are gone.
+        quickEdit={
+          selectedQuickEdit
+            ? {
+                value: selectedQuickEdit,
+                labels: quickEditLabels,
+                formatDuration: create.formatDuration,
+                onCommit: (next) => {
+                  const patch = eventQuickEditPatch(popover.selected!, next);
+                  if (patch)
+                    popover.itemActions.onQuickEdit(popover.state!.id, patch);
                 },
-              ]),
+              }
+            : undefined
+        }
+        actions={[
           /*
            * #2005 (D-20260923-sched-4 = C): the choice is made at the press.
            * Two entries rather than a checkbox in front of one: the bubble
