@@ -34,9 +34,11 @@ import {
   type GoalTodoLink,
   type GoalTreeArrangeLabels,
   type GoalTreeArrangement,
+  type GoalTreeDragHandlers,
   type GoalTreeLabels,
   type TodoNode,
   type TodoStatus,
+  type TranslationKey,
 } from "@life-editor/shared";
 
 /*
@@ -59,6 +61,9 @@ import {
  * apart: wide, the controls sit at the top of the right panel at all times,
  * above the picked goal; narrow, a "Sort & filter" button over the tree opens
  * them in their own bottom sheet.
+ *
+ * Drag to re-parent a goal or move a todo between goals (#2226) is wide only:
+ * on a phone the tree draws no grip, and the panel's parent field remains.
  */
 
 interface GoalsTodosScreenProps {
@@ -198,6 +203,7 @@ export function GoalsTodosScreen({
       addTodo: t("connect.goals.addTodo"),
       addTodoLabel: t("connect.goals.addTodoLabel"),
       addTodoPlaceholder: t("connect.goals.addTodoPlaceholder"),
+      dragToMove: t("connect.goals.dragToMove"),
       loading: t("connect.goals.loading"),
       loadFailed: t("connect.goals.loadFailed"),
       retry: t("connect.goals.retry"),
@@ -283,13 +289,16 @@ export function GoalsTodosScreen({
   const toast = useToastOptional();
   /** Run one write, say so if it fails, and re-read either way. */
   const write = useCallback(
-    async (run: () => Promise<unknown>): Promise<boolean> => {
+    async (
+      run: () => Promise<unknown>,
+      failedKey: TranslationKey = "connect.goals.writeFailed",
+    ): Promise<boolean> => {
       try {
         await run();
         return true;
       } catch (err) {
         console.error("[GoalsTodosScreen] write failed", err);
-        toast?.showToast("danger", t("connect.goals.writeFailed"));
+        toast?.showToast("danger", t(failedKey));
         return false;
       } finally {
         setReloadTick((n) => n + 1);
@@ -362,6 +371,37 @@ export function GoalsTodosScreen({
       });
     },
     [write, dataService, overlayTicks],
+  );
+
+  /*
+   * Drag in the tree (#2226, Desktop only). The tree offers only the goals a
+   * drop may land on; `updateGoal` checks the parent again (assertParent).
+   */
+  const drag = useMemo<GoalTreeDragHandlers>(
+    () => ({
+      onMoveGoal: (goalId, parentGoalId) =>
+        void write(() => dataService.updateGoal(goalId, { parentGoalId })),
+      // A move, not an add: off the goal the drag started under, onto the
+      // one it landed on. A todo under several goals leaves only that one.
+      onMoveTodo: (todoId, fromGoalId, toGoalId) =>
+        void write(async () => {
+          if (fromGoalId) await dataService.unlinkGoalTodo(fromGoalId, todoId);
+          try {
+            await dataService.linkGoalTodo(toGoalId, todoId);
+          } catch (err) {
+            // Put it back, so a failed move does not lose the link.
+            if (fromGoalId) {
+              await dataService
+                .linkGoalTodo(fromGoalId, todoId)
+                .catch((undoErr: unknown) =>
+                  console.error("[GoalsTodosScreen] relink failed", undoErr),
+                );
+            }
+            throw err;
+          }
+        }, "connect.goals.moveTodoFailed"),
+    }),
+    [write, dataService],
   );
 
   const openTodo = useCallback(
@@ -457,6 +497,7 @@ export function GoalsTodosScreen({
           onCreateGoal={createGoal}
           onSetTodoStatus={setTodoStatus}
           onOpenTodo={openTodo}
+          drag={isWide ? drag : undefined}
           labels={treeLabels}
         />
       </div>
