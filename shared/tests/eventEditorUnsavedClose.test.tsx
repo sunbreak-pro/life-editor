@@ -32,8 +32,6 @@ const LABELS: EventEditorLabels = {
   endTime: "End",
   memo: "Memo",
   save: "Save",
-  saved: "Saved",
-  unsaved: "Unsaved",
   originRoutine: "Generated from routine",
   skipThisDay: "Skip this day",
   delete: "Delete",

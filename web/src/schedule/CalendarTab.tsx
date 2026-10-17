@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   useScheduleItemsContext,
   useRoutineContext,
@@ -324,6 +324,9 @@ export function CalendarTab({
     handleDuplicateTagsError,
   );
 
+  // #2219: the edit panels' 「ノートを添付」 reads the same note list, but
+  // only while its picker is open — the create panel's rule, extended.
+  const [notePickerOpen, setNotePickerOpen] = useState(false);
   const {
     notes: noteOptions,
     notesError,
@@ -331,7 +334,7 @@ export function CalendarTab({
     attachNoteAlongside,
   } = useCreatePanelNotes({
     dataService,
-    active: !!createPanel,
+    active: !!createPanel || notePickerOpen,
     onAttachError: handleAttachError,
     // #1638 (A-08): the note + link the panel attaches is its own history
     // entry, so the item's create undo stops leaving an orphan note behind.
@@ -1077,6 +1080,12 @@ export function CalendarTab({
         onClose: closeScopeRequest,
       }}
       confirm={{ request: confirmRequest, onResolve: resolveConfirm }}
+      noteAttach={{
+        notes: noteOptions,
+        notesError,
+        onAttach: attachNote,
+        onOpenChange: setNotePickerOpen,
+      }}
     />
   );
 

@@ -46,6 +46,11 @@ export interface RepeatScopeDialogProps {
   labels: RepeatScopeDialogLabels;
   onChoose: (scope: RepeatScope) => void;
   onClose: () => void;
+  /**
+   * #2219: already-translated name for a corner close (×), which lands on
+   * `onClose` like Cancel. Omitted, there is none.
+   */
+  closeLabel?: string;
 }
 
 const OPTION_BASE =
@@ -61,6 +66,7 @@ export function RepeatScopeDialog({
   labels,
   onChoose,
   onClose,
+  closeLabel,
 }: RepeatScopeDialogProps) {
   const noteId = useId();
   const optionClass = cn(
@@ -77,7 +83,13 @@ export function RepeatScopeDialog({
     { scope: "all", label: labels.all },
   ];
   return (
-    <Modal open={open} onClose={onClose} title={labels.title} size="sm">
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={labels.title}
+      size="sm"
+      closeLabel={closeLabel}
+    >
       <div className="flex flex-col gap-2">
         {/* Cancel is DOM-first so the Modal's initial focus lands on the safe
             choice (never a destructive option in delete mode); order-last

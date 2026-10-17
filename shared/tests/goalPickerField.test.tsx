@@ -117,8 +117,6 @@ const PANEL_LABELS = {
   titleLabel: "Title",
   statusLabel: "Status",
   saveLabel: "Save",
-  savedLabel: "Saved",
-  unsavedLabel: "Unsaved",
 };
 
 describe("TodoDetailPanel — the goal row (#2109)", () => {

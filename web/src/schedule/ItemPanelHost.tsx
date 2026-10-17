@@ -238,6 +238,9 @@ function ItemPanelSurface({
     [selectedId, rangeItems, contextItems],
   );
 
+  // #2219: the edit panels' 「ノートを添付」 reads the same note list, but
+  // only while its picker is open — the create panel's rule, extended.
+  const [notePickerOpen, setNotePickerOpen] = useState(false);
   const {
     notes: noteOptions,
     notesError,
@@ -245,7 +248,7 @@ function ItemPanelSurface({
     attachNoteAlongside,
   } = useCreatePanelNotes({
     dataService,
-    active: !!createPanel,
+    active: !!createPanel || notePickerOpen,
     onAttachError: handleAttachError,
     push: undoRedo?.push,
   });
@@ -520,6 +523,12 @@ function ItemPanelSurface({
         onClose: closeScopeRequest,
       }}
       confirm={{ request: confirmRequest, onResolve: resolveConfirm }}
+      noteAttach={{
+        notes: noteOptions,
+        notesError,
+        onAttach: attachNote,
+        onOpenChange: setNotePickerOpen,
+      }}
     />
   );
 }

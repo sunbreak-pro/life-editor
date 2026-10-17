@@ -135,10 +135,6 @@ export interface EventEditorLabels {
   memoPlaceholder?: string;
   /** Primary action — "保存" (#628). */
   save: string;
-  /** Shown beside the button while nothing is pending — "保存済み" (#628). */
-  saved: string;
-  /** Shown beside the button while a draft is pending — "未保存" (#628). */
-  unsaved: string;
   /**
    * Shown on a routine occurrence: says that title / time edits ask which part
    * of the series to apply to, while the day and the all-day switch only ever
@@ -954,9 +950,9 @@ function EventEditorFields({
 
       {/* Save footer (#628) — the only commit. Disabled while there is nothing
           to write (#434 S-1: a control that is pressable and does nothing is
-          worse than one that is visibly off), with the state spelled out beside
-          it so "why can I not press this" has an answer on screen rather than
-          only in the button's opacity.
+          worse than one that is visibly off). #2219 took the 「保存済み /
+          未保存」 line beside it out: the button's own state already says it,
+          and the prototype keeps the row to Delete and Save.
 
           #2080: Delete rides the same row, at the left end. It used to sit
           above the footer at the end of the fields, so on both widths it was
@@ -997,15 +993,6 @@ function EventEditorFields({
             {labels.delete}
           </button>
         )}
-        <span
-          aria-live="polite"
-          className={cn(
-            "text-xs",
-            dirty ? "text-lumen-accent" : "text-lumen-text-secondary",
-          )}
-        >
-          {dirty ? labels.unsaved : labels.saved}
-        </span>
         <button
           type="button"
           onClick={save}

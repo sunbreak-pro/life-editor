@@ -91,6 +91,12 @@ vi.mock("../src/wikitag/TagPicker", () => ({
     </div>
   ),
 }));
+// #2219: the todo detail draws the colour row too; it needs the tag Provider.
+vi.mock("../src/wikitag/TagColorControls", () => ({
+  TagColorControls: ({ itemId }: { itemId: string }) => (
+    <span data-testid="tag-colors">{itemId}</span>
+  ),
+}));
 
 const TODO: TodoNode = {
   id: "task-1",
@@ -158,15 +164,15 @@ function renderDetail(
   };
 }
 
-describe("ScheduleTodoDetail — the kind cue (#1044)", () => {
+describe("ScheduleTodoDetail — no heading (#2219, was the #1044 kind cue)", () => {
   it.each([
     ["Desktop", true],
     ["Mobile", false],
-  ])("names the kind once, in the header, on %s", (_name, isWide) => {
+  ])("names the dialog but draws no heading or glyph on %s", (_name, isWide) => {
     renderDetail({ isWide });
-    // The glyph carries the name (ItemRoleBadge compact = role="img"), and the
-    // tag row no longer repeats it.
-    screen.getByRole("img", { name: "itemRole.task" });
+    screen.getByRole("dialog", { name: "materials.todos.detailTitle" });
+    expect(screen.queryByRole("img", { name: "itemRole.task" })).toBeNull();
+    // The tag row still does not caption itself with the kind.
     expect(
       screen.getByTestId("tag-picker").getAttribute("data-item-role"),
     ).toBe("none");
@@ -204,17 +210,17 @@ describe("ScheduleTodoDetail — the narrow frame (#1000)", () => {
    * hardcoded `wide` would keep every existing case green while leaving narrow
    * with a dialog it cannot close by touch.
    *
-   * The BottomSheet is the only one of the two frames that draws a close
-   * button of its own; Modal has none. So the button's presence IS the frame.
+   * #2219 gave the Desktop overlay a corner close too, so both frames now
+   * carry one — what is left to pin is that each width HAS its exit.
    */
   it("puts narrow in the sheet, which carries its own exit", () => {
     renderDetail({ isWide: false });
     screen.getByRole("button", { name: "common.close" });
   });
 
-  it("leaves Desktop on the overlay, which has no close button (#626 unchanged)", () => {
+  it("gives Desktop the corner close too (#2219)", () => {
     renderDetail({ isWide: true });
-    expect(screen.queryByRole("button", { name: "common.close" })).toBeNull();
+    screen.getByRole("button", { name: "common.close" });
   });
 
   it("routes the sheet's own exit through the unsaved guard too", async () => {
@@ -486,5 +492,40 @@ describe("ScheduleTodoDetail — the open-in-Schedule button (#2218)", () => {
     await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
     await act(async () => {});
     expect(onOpenInSchedule).not.toHaveBeenCalled();
+  });
+});
+
+describe("ScheduleTodoDetail — the prototype's tag rows (#2219)", () => {
+  it("draws the colour row against this todo", () => {
+    renderDetail();
+    expect(screen.getByTestId("tag-colors").textContent).toBe(TODO.id);
+  });
+
+  it("attaches a note to this todo from the tag row", () => {
+    const onAttach = vi.fn();
+    renderDetail({
+      noteAttach: { notes: [{ id: "note-1", title: "Minutes" }], onAttach },
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.attachNote" }),
+    );
+    fireEvent.change(
+      screen.getByLabelText("scheduleScreen.noteTitleLabel"),
+      { target: { value: "Agenda" } },
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.noteAttachConfirm" }),
+    );
+    expect(onAttach).toHaveBeenCalledWith(TODO.id, {
+      kind: "new",
+      title: "Agenda",
+    });
+  });
+
+  it("draws no attach control when the host gives none", () => {
+    renderDetail();
+    expect(
+      screen.queryByRole("button", { name: "scheduleScreen.attachNote" }),
+    ).toBeNull();
   });
 });

@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   GoalPickerField,
-  ItemRoleBadge,
+  ItemNoteAttach,
   ResponsiveDetailFrame,
   STATUS_TEXT_KEY,
   TodoDetailPanel,
@@ -30,13 +30,14 @@ import {
   type UpdateNodeOptions,
 } from "@life-editor/shared";
 import { TagPicker } from "../wikitag/TagPicker";
+import { TagColorControls } from "../wikitag/TagColorControls";
 import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
 import { formatTodoSchedule } from "./scheduleCopy";
-import { useScheduleRoleLabels } from "./scheduleRoleLabels";
 import { TodoBodyDraft } from "./TodoBodyDraft";
 import { OpenInScheduleButton } from "./OpenInScheduleButton";
 import { type useTodoLinking } from "./useTodoLinking";
+import { useNoteAttachLabels, type ScheduleNoteAttach } from "./noteAttach";
 
 /*
  * #626 / #761 / #889 — the Schedule section's own todo detail surface.
@@ -229,6 +230,8 @@ export interface ScheduleTodoDetailProps {
    * a host OUTSIDE the Schedule passes it (ItemPanelHost).
    */
   onOpenInSchedule?: (id: string) => void;
+  /** #2219: 「ノートを添付」 at the right end of the tag row. */
+  noteAttach?: ScheduleNoteAttach;
 }
 
 export function ScheduleTodoDetail({
@@ -242,9 +245,10 @@ export function ScheduleTodoDetail({
   onNavigateToItem,
   askConfirm,
   onOpenInSchedule,
+  noteAttach,
 }: ScheduleTodoDetailProps) {
   const { t, i18n } = useTranslation();
-  const roleLabels = useScheduleRoleLabels();
+  const noteAttachLabels = useNoteAttachLabels(noteAttach?.notesError);
   const todo =
     todoId != null ? (todoNodes.find((n) => n.id === todoId) ?? null) : null;
   // #2109: read while a todo is open; the live tree supplies the done flags.
@@ -352,10 +356,13 @@ export function ScheduleTodoDetail({
                 titleLabel={t("todoDetail.titleLabel")}
                 statusLabel={t("todoDetail.status")}
                 statusText={t(STATUS_TEXT_KEY[todo.status ?? "NOT_STARTED"])}
+                // #2219: the round checkbox names itself "Status: Done".
+                statusLabels={{
+                  statusNotStarted: t("todoDetail.statusNotStarted"),
+                  statusDone: t("todoDetail.statusDone"),
+                }}
                 contentLabel={t("todoDetail.content")}
                 saveLabel={t("todoDetail.save")}
-                savedLabel={t("todoDetail.saved")}
-                unsavedLabel={t("todoDetail.unsaved")}
                 deleteLabel={t("todoDetail.todoDelete")}
                 // #877: which day the todo is set for. This sheet names the title,
                 // the status and the tags; without this it stayed silent about the
@@ -384,6 +391,19 @@ export function ScheduleTodoDetail({
                 // #1044: the kind is named ONCE, by the glyph in the frame's
                 // header, so the tag row goes back to captioning itself 「タグ」.
                 tagsSlot={<TagPicker itemId={todo.id} showLabel size="sm" />}
+                // #2219: the same two rows the event editor has — a note
+                // attached from here, and which tag colours the todo.
+                tagsTrailing={
+                  noteAttach && (
+                    <ItemNoteAttach
+                      notes={noteAttach.notes}
+                      onAttach={(draft) => noteAttach.onAttach(todo.id, draft)}
+                      onOpenChange={noteAttach.onOpenChange}
+                      labels={noteAttachLabels}
+                    />
+                  )
+                }
+                colorSlot={<TagColorControls itemId={todo.id} />}
                 contentEditor={
                   <LazyRichTextEditor
                     noteId={todo.id}
@@ -439,10 +459,9 @@ export function ScheduleTodoDetail({
     <ResponsiveDetailFrame
       wide={isWide}
       open={!!todo}
+      // #2219: the dialog's name only — the frame draws no heading, and the
+      // panel opens on the todo's own title field.
       title={t("materials.todos.detailTitle")}
-      // #1044: the kind, as a glyph, where the frame names the surface —
-      // replacing the word the tag row used to caption itself with.
-      titleIcon={<ItemRoleBadge role="task" labels={roleLabels} compact />}
       closeLabel={t("common.close")}
       // #736: every exit from the panel funnels through the one guard.
       onClose={() => {

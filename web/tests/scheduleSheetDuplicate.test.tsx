@@ -34,6 +34,10 @@ vi.mock("../src/schedule/useTodoLinking", () => load("todoLinking"));
 vi.mock("../src/schedule/useCreatePanelNotes", () => load("panelNotes"));
 vi.mock("../src/schedule/ScheduleOverlayHost", () => load("overlays"));
 vi.mock("../src/wikitag/TagPicker", () => ({ TagPicker: () => null }));
+// #2219: the todo detail draws the colour row too; it needs the tag Provider.
+vi.mock("../src/wikitag/TagColorControls", () => ({
+  TagColorControls: () => null,
+}));
 
 beforeEach(() => {
   resetHarness();

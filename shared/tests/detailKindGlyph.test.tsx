@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { render, screen, fireEvent } from "@testing-library/react";
 import {
   ItemRoleBadge,
   ResponsiveDetailFrame,
@@ -64,15 +64,20 @@ describe("ItemRoleBadge — compact (#1044)", () => {
   });
 });
 
-describe("the frame's kind slot (#1044)", () => {
-  function renderFrame(wide: boolean, withIcon: boolean) {
+/*
+ * #2219 retired the frame's kind slot together with its heading: the body's
+ * first field is the item's own title, so the frame draws no header at all.
+ * What the frame still owes on both widths is a NAME for the dialog and a
+ * corner close (×) — Desktop had no close button before.
+ */
+describe("the frame without a heading (#2219)", () => {
+  function renderFrame(wide: boolean) {
     const onClose = vi.fn();
     render(
       <ResponsiveDetailFrame
         wide={wide}
         open
         title="Details"
-        titleIcon={withIcon ? <span data-testid="glyph" /> : undefined}
         closeLabel="Close"
         onClose={onClose}
       >
@@ -85,26 +90,21 @@ describe("the frame's kind slot (#1044)", () => {
   it.each([
     ["Desktop", true],
     ["Mobile", false],
-  ])("draws the glyph on %s", (_name, wide) => {
-    renderFrame(wide, true);
-    // The invariant this part exists to hold: one body, one header, either
-    // width. A cue wired into only one frame is the drift it prevents.
-    expect(screen.getByTestId("glyph")).toBeInTheDocument();
-    expect(screen.getByText("Details")).toBeInTheDocument();
+  ])("is named by its title without drawing it on %s", (_name, wide) => {
+    renderFrame(wide);
+    expect(screen.getByRole("dialog", { name: "Details" })).toBeInTheDocument();
+    // A heading only a screen reader sees, or none at all — never a caption.
+    const heading = screen.queryByRole("heading", { name: "Details" });
+    if (heading) expect(heading).toHaveClass("sr-only");
   });
 
   it.each([
     ["Desktop", true],
     ["Mobile", false],
-  ])("draws nothing extra on %s without one", (_name, wide) => {
-    renderFrame(wide, false);
-    expect(screen.queryByTestId("glyph")).toBeNull();
-    expect(screen.getByText("Details")).toBeInTheDocument();
-  });
-
-  it("does not displace the sheet's only exit", () => {
-    renderFrame(false, true);
-    expect(screen.getByRole("button", { name: "Close" })).toBeInTheDocument();
+  ])("closes from the corner button on %s", (_name, wide) => {
+    const { onClose } = renderFrame(wide);
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 

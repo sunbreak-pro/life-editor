@@ -30,8 +30,6 @@ const LABELS: EventEditorLabels = {
   endTime: "End",
   memo: "Memo",
   save: "Save",
-  saved: "Saved",
-  unsaved: "Unsaved",
   originRoutine: "Generated from routine",
   skipThisDay: "Skip this day",
   delete: "Delete",
@@ -269,7 +267,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
   it("starts clean: the button is disabled and says so", () => {
     renderPane(manualItem);
     expect(saveButton()).toBeDisabled();
-    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("sinks that disabled Save into the surface fill (#1803)", () => {
@@ -306,7 +304,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
     expect(onSave).not.toHaveBeenCalled();
     // …and the pane says so out loud, rather than leaving "did that stick?"
     // to the user's imagination.
-    expect(screen.getByText("Unsaved")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeEnabled();
   });
 
   it("commits every changed field in ONE patch when pressed", () => {
@@ -370,7 +368,7 @@ describe("EventEditorPane — save button is the only commit (#628)", () => {
       />,
     );
     expect(saveButton()).toBeDisabled();
-    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("stays disabled — and silent — while nothing has changed", () => {
@@ -548,7 +546,7 @@ describe("EventEditorPane — date + all-day (#469 → #628 drafts)", () => {
     // and meaning another; the empty box is what has to give.
     fireEvent.blur(date);
     expect(date).toHaveValue("2026-07-30");
-    expect(screen.getByText("Saved")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save" })).toBeDisabled();
   });
 
   it("commits a date once no matter how many segment steps it took", () => {

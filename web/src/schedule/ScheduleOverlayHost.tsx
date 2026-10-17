@@ -1,5 +1,4 @@
 import {
-  ItemRoleBadge,
   ResponsiveDetailFrame,
   useTranslation,
   type ConfirmRequest,
@@ -18,9 +17,9 @@ import {
   type ScheduleTodoDetailProps,
 } from "./ScheduleTodoDetail";
 import { ScheduleEventEditor } from "./ScheduleEventEditor";
+import type { ScheduleNoteAttach } from "./noteAttach";
 import { OpenInScheduleButton } from "./OpenInScheduleButton";
 import { useEditorCloseGuard } from "./useEditorCloseGuard";
-import { useScheduleRoleLabels } from "./scheduleRoleLabels";
 import { selectionSurface } from "./scheduleSelectionSurface";
 import type { DuplicateOptions } from "./useScheduleMutations";
 
@@ -111,7 +110,13 @@ export interface ScheduleOverlayHostProps {
     onOpenInSchedule?: () => void;
   };
   /** Straight through to <ScheduleTodoDetail>; only the width is ours. */
-  todoDetail: Omit<ScheduleTodoDetailProps, "isWide">;
+  todoDetail: Omit<ScheduleTodoDetailProps, "isWide" | "noteAttach">;
+  /**
+   * #2219: 「ノートを添付」 for both edit panels. One prop rather than one per
+   * panel: the pool and the write are the same, and so is the host's rule of
+   * reading the list only while a picker is open.
+   */
+  noteAttach?: ScheduleNoteAttach;
   /**
    * The bubble, minus the chip behind it: that one is resolved here, from the
    * lookup below, because the frames it sits among are resolved here too.
@@ -136,9 +141,9 @@ export function ScheduleOverlayHost({
   tagFilter,
   scope,
   confirm,
+  noteAttach,
 }: ScheduleOverlayHostProps) {
   const { t } = useTranslation();
-  const roleLabels = useScheduleRoleLabels();
   const { findTodoChip, ...popoverProps } = popover;
 
   /*
@@ -184,6 +189,7 @@ export function ScheduleOverlayHost({
             }
       }
       duplicateTagCount={editor.duplicateTagCount}
+      noteAttach={noteAttach}
     />
   );
 
@@ -223,13 +229,10 @@ export function ScheduleOverlayHost({
       // question by rendering null from the inside, so the node can no longer
       // stand in for the answer the way the old `editorPane ?? null` did.
       open={surface.editorOpen(!!editor.item, editor.overlayOpen)}
+      // #2219: the dialog's name only — the frame draws no heading (the #1044
+      // kind glyph went with it), and the panel opens on the event's own title
+      // field. The close (×) sits in the corner on both widths.
       title={t("scheduleScreen.detailTitle")}
-      // #1044: the kind is a glyph in the header now, not a word in the body.
-      // Always "event" — a routine OCCURRENCE is still an `items_meta.role =
-      // 'event'` row (the UI presents Routine as "an Event with a repeat"), and
-      // "routine" is outside the designed kind set, so it would resolve to the
-      // neutral fallback.
-      titleIcon={<ItemRoleBadge role="event" labels={roleLabels} compact />}
       closeLabel={t("common.close")}
       // #628: Escape, the backdrop and the close button all land here, so the
       // one guard covers every exit on either layout.
@@ -265,7 +268,13 @@ export function ScheduleOverlayHost({
       isWide={isWide}
       frames={{
         editor: detailFrameEl,
-        todoDetail: <ScheduleTodoDetail isWide={isWide} {...todoDetail} />,
+        todoDetail: (
+          <ScheduleTodoDetail
+            isWide={isWide}
+            {...todoDetail}
+            noteAttach={noteAttach}
+          />
+        ),
       }}
       repeatPanel={repeatPanel}
       popover={{ ...popoverProps, todoChip: popoverTodoChip }}

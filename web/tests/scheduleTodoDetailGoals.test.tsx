@@ -36,6 +36,10 @@ vi.mock("../src/notes/LazyRichTextEditor", () => ({
 vi.mock("../src/wikitag/TagPicker", () => ({
   TagPicker: () => <div data-testid="tag-picker" />,
 }));
+// #2219: the todo detail draws the colour row too; it needs the tag Provider.
+vi.mock("../src/wikitag/TagColorControls", () => ({
+  TagColorControls: () => null,
+}));
 
 const FREE: TodoNode = makeTodo({ id: "t-free", title: "住民票を取りに行く" });
 const RUN1: TodoNode = makeTodo({
@@ -158,7 +162,7 @@ describe("ScheduleTodoDetail — the goal row (#2109)", () => {
   it("says, in this panel, when un-completing a todo takes an achievement off", async () => {
     const h = setup("t-run1");
     await screen.findByRole("checkbox", { name: /^3 回走る/ });
-    fireEvent.click(screen.getByRole("checkbox", { name: "Status" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /^Status/ }));
     expect(h.toggleStatus).toHaveBeenCalledWith("t-run1");
     h.setNodes([FREE, { ...RUN1, status: "NOT_STARTED" }, RUN2]);
     expect((await screen.findByRole("status")).textContent).toContain(

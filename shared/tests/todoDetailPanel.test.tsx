@@ -145,8 +145,6 @@ const LABELS = {
   statusText: "Not started",
   contentLabel: "Notes",
   saveLabel: "Save",
-  savedLabel: "Saved",
-  unsavedLabel: "Unsaved",
 };
 
 const saveButton = () => screen.getByRole("button", { name: "Save" });
@@ -185,7 +183,7 @@ describe("TodoDetailPanel (W7)", () => {
       />,
     );
 
-    fireEvent.click(screen.getByRole("checkbox", { name: "Status" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /^Status/ }));
     expect(onToggleStatus).toHaveBeenCalledWith("task-a");
     expect(onSave).not.toHaveBeenCalled();
   });
@@ -405,13 +403,11 @@ describe("TodoDetailPanel — save button (#713)", () => {
     );
 
     expect(saveButton()).toBeDisabled();
-    expect(screen.getByText("Saved")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Todo title"), {
       target: { value: "new" },
     });
     expect(saveButton()).toBeEnabled();
-    expect(screen.getByText("Unsaved")).toBeInTheDocument();
 
     // Typed back to the live value: there is nothing to write again.
     fireEvent.change(screen.getByLabelText("Todo title"), {

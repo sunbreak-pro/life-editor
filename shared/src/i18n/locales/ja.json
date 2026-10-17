@@ -479,9 +479,7 @@
     "statusNotStarted": "未着手",
     "statusDone": "完了",
     "content": "メモ",
-    "save": "保存",
-    "saved": "保存済み",
-    "unsaved": "未保存"
+    "save": "保存"
   },
   "goalLink": {
     "field": "目標",
@@ -727,13 +725,11 @@
     "createSlot": "この時刻に予定を作成"
   },
   "itemActions": {
-    "tagColor": "「{{name}}」の色",
-    "tagColorEmpty": "色はタグに付きます。先にタグを追加してください",
-    "tagColorClearLabel": "デフォルト色",
     "displayColorLegend": "カレンダーで使う色",
     "displayColorPick": "「{{name}}」の色をこのアイテムに使う",
     "displayColorDefaultHint": "既定は最初に付けたタグです",
-    "tagColorCustomLabel": "カスタム"
+    "displayColorFrom": "「{{name}}」タグの色で表示",
+    "displayColorNone": "タグが無いので、標準の色で表示します"
   },
   "itemConvert": {
     "toTodo": "Todo に変換",
@@ -793,8 +789,6 @@
     "workTimeNone": "まだ計測していません",
     "memo": "メモ",
     "save": "保存",
-    "saved": "保存済み",
-    "unsaved": "未保存",
     "originRoutine": "ルーチンから生成",
     "originEvent": "予定",
     "skipThisDay": "この日はスキップ",
@@ -937,7 +931,8 @@
     "filterGroupEditTagsHint": "タグを 1 つ以上選ぶと保存できます。",
     "filterGroupRename": "グループ名",
     "filterGroupDelete": "{{name}} を削除",
-    "filterGroupEmpty": "このグループのタグはすべて削除済みです。"
+    "filterGroupEmpty": "このグループのタグはすべて削除済みです。",
+    "noteAttachConfirm": "添付"
   },
   "analytics": {
     "title": "分析",

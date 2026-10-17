@@ -48,6 +48,10 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
 vi.mock("../src/wikitag/TagPicker", () => ({
   TagPicker: ({ itemId }: { itemId: string }) => <span>tag:{itemId}</span>,
 }));
+// #2219: the todo detail draws the colour row too; it needs the tag Provider.
+vi.mock("../src/wikitag/TagColorControls", () => ({
+  TagColorControls: () => null,
+}));
 
 const OPEN_STEP: TourStep = {
   id: "open",

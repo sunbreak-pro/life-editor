@@ -1,6 +1,7 @@
 import { useCallback, useId, useMemo, useRef, useState } from "react";
 import { Button } from "./Button";
 import { Modal } from "./Modal";
+import { cn } from "./cn";
 
 /*
  * ConfirmDialog (#707) — the in-app replacement for the browser's own
@@ -48,6 +49,11 @@ export interface ConfirmDialogProps extends ConfirmRequest {
   onConfirm: () => void;
   /** Cancel, Escape and the backdrop all land here. */
   onCancel: () => void;
+  /**
+   * #2219: already-translated name for a corner close (×), which also lands
+   * on `onCancel`. Omitted, there is none — the default look is unchanged.
+   */
+  closeLabel?: string;
 }
 
 export function ConfirmDialog({
@@ -58,13 +64,24 @@ export function ConfirmDialog({
   danger = false,
   onConfirm,
   onCancel,
+  closeLabel,
 }: ConfirmDialogProps) {
   const messageId = useId();
   return (
-    <Modal open={open} onClose={onCancel} labelledBy={messageId} size="sm">
+    <Modal
+      open={open}
+      onClose={onCancel}
+      labelledBy={messageId}
+      size="sm"
+      closeLabel={closeLabel}
+    >
       <p
         id={messageId}
-        className="whitespace-pre-line text-sm leading-relaxed text-lumen-text"
+        className={cn(
+          "whitespace-pre-line text-sm leading-relaxed text-lumen-text",
+          // Keeps the message's first line out from under the corner ×.
+          closeLabel && "pr-8",
+        )}
       >
         {message}
       </p>

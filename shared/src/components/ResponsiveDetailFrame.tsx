@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { ItemDetailOverlay } from "./itemActions";
 import { BottomSheet } from "./BottomSheet";
 
@@ -23,20 +23,23 @@ import { BottomSheet } from "./BottomSheet";
  * event editor closes by dropping the overlay flag on Desktop and by clearing
  * the selection on Mobile — on Mobile the selection IS the sheet — so the
  * frame must not guess which one it is looking at.
+ *
+ * #2219: no visible heading on either width. The body's first field is the
+ * item's own title, so a heading above it ("予定の詳細") only repeated what
+ * kind of panel this is. `title` still names the dialog for a screen reader;
+ * the close (×) sits in the top-right corner on both widths — Desktop had
+ * none, so Escape and the backdrop were its only exits.
  */
 export interface ResponsiveDetailFrameProps {
   /** True on Desktop widths: the overlay. False: the sheet. */
   wide: boolean;
   open: boolean;
-  /** Already-translated heading (§6.4). */
-  title: string;
   /**
-   * One-glyph kind cue beside the title (#1044). Forwarded to both frames —
-   * which is the whole point of this part: a cue wired into only one of them
-   * is exactly the drift it exists to prevent.
+   * Already-translated name of the dialog (§6.4). Read by assistive tech
+   * only since #2219 — the frame draws no heading.
    */
-  titleIcon?: ReactNode;
-  /** Already-translated accessible name for the sheet's close button. */
+  title: string;
+  /** Already-translated accessible name for the corner close (×) button. */
   closeLabel: string;
   onClose: () => void;
   /**
@@ -52,18 +55,20 @@ export function ResponsiveDetailFrame({
   wide,
   open,
   title,
-  titleIcon,
   closeLabel,
   onClose,
   wideOverlay,
   children,
 }: ResponsiveDetailFrameProps) {
+  const headingId = useId();
   if (wide) {
     return (
       <ItemDetailOverlay
         open={open}
-        title={title}
-        titleIcon={titleIcon}
+        // #2219: named by a heading only a screen reader sees, so the panel
+        // opens on the body's title field rather than on a caption.
+        labelledBy={headingId}
+        closeLabel={closeLabel}
         size={wideOverlay ? "panel" : undefined}
         onClose={onClose}
         /*
@@ -80,7 +85,12 @@ export function ResponsiveDetailFrame({
          */
         fitViewport
       >
-        {children}
+        <h2 id={headingId} className="sr-only">
+          {title}
+        </h2>
+        {/* Clears the corner close button, which sits over the panel's
+            padding rather than in a header row of its own. */}
+        <div className="pt-6">{children}</div>
       </ItemDetailOverlay>
     );
   }
@@ -93,7 +103,7 @@ export function ResponsiveDetailFrame({
       open={open}
       onClose={onClose}
       title={title}
-      titleIcon={titleIcon}
+      hideTitle
       closeLabel={closeLabel}
       fullScreen
     >

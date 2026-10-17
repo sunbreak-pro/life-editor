@@ -172,3 +172,45 @@ describe("#1580 — picking which tag colours an item", () => {
     ).toBeTruthy();
   });
 });
+
+/*
+ * #2219 — the panel only chooses which tag colours the item. The tag's own
+ * colour is edited on the Connect screen alone, so no picker is drawn here.
+ */
+describe("#2219 — choosing, not repainting", () => {
+  it("draws no colour picker for the tags", async () => {
+    const { fns } = await renderControls();
+    expect(screen.queryByRole("button", { name: /tagColor/ })).toBeNull();
+    expect(fns.updateWikiTagUnified).not.toHaveBeenCalled();
+  });
+
+  it("says which tag the colour comes from", async () => {
+    await renderControls();
+    expect(screen.getByText("itemActions.displayColorFrom|Work")).toBeTruthy();
+  });
+
+  it("marks the chosen tag's label with its colour", async () => {
+    await renderControls();
+    const chosen = document.querySelector(
+      '[data-display-color-chip="chosen"]',
+    ) as HTMLElement;
+    expect(chosen.textContent).toContain("Work");
+    // jsdom normalises the inline colour to rgb().
+    expect(chosen.style.borderColor).toBe("rgb(30, 58, 138)");
+  });
+
+  it("says the standard colour is used when the item has no tags", async () => {
+    const h = makeHarness([]);
+    render(
+      <SyncWrapper>
+        <WikiTagsUnifiedProvider dataService={h.ds}>
+          <TagColorControls itemId={ITEM} />
+        </WikiTagsUnifiedProvider>
+      </SyncWrapper>,
+    );
+    expect(
+      await screen.findByText("itemActions.displayColorNone"),
+    ).toBeTruthy();
+    expect(screen.queryByRole("radio")).toBeNull();
+  });
+});

@@ -88,8 +88,6 @@ describe("TodoDetailPanel statusControl slot (#470)", () => {
     statusLabel: "Status",
     statusText: "Not started",
     saveLabel: "Save",
-    savedLabel: "Saved",
-    unsavedLabel: "Unsaved",
   };
 
   it("replaces the built-in checkbox with the injected control", () => {
@@ -125,9 +123,12 @@ describe("TodoDetailPanel statusControl slot (#470)", () => {
         {...PANEL_LABELS}
       />,
     );
-    const checkbox = screen.getByRole("checkbox", { name: "Status" });
+    const checkbox = screen.getByRole("checkbox", { name: /^Status/ });
     expect(checkbox).toBeInTheDocument();
     expect(checkbox).toHaveAttribute("aria-checked", "false");
+    // #2219: the shared round checkbox, not the old ○ / ● glyph button.
+    expect(checkbox.textContent).toBe("");
+    expect(checkbox.querySelector("svg")).not.toBeNull();
   });
 
   it("reports a done todo as a checked checkbox (#873)", () => {
@@ -141,7 +142,7 @@ describe("TodoDetailPanel statusControl slot (#470)", () => {
         {...PANEL_LABELS}
       />,
     );
-    expect(screen.getByRole("checkbox", { name: "Status" })).toHaveAttribute(
+    expect(screen.getByRole("checkbox", { name: /^Status/ })).toHaveAttribute(
       "aria-checked",
       "true",
     );

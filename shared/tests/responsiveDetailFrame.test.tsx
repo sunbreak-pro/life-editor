@@ -35,19 +35,22 @@ describe("ResponsiveDetailFrame", () => {
   it("shows the same body on either width", () => {
     renderFrame({ wide: true });
     screen.getByText("the body");
-    screen.getByText("Details");
+    // #2219: the title names the dialog; no frame draws it as a heading.
+    screen.getByRole("dialog", { name: "Details" });
   });
 
   it("shows the same body in the narrow frame", () => {
     renderFrame({ wide: false });
     screen.getByText("the body");
-    screen.getByText("Details");
+    // #2219: the title names the dialog; no frame draws it as a heading.
+    screen.getByRole("dialog", { name: "Details" });
   });
 
   it("routes the wide frame's Escape to the caller's handler", () => {
     // The one guard the host wires (discard-changes) has to be reachable from
     // both layouts — losing it on one of them was the hazard the two literals
-    // carried. The overlay has no close button of its own; Escape is its exit.
+    // carried. Escape is one of the overlay's exits; #2219 added the corner
+    // close as the other (pinned in detailKindGlyph.test.tsx).
     const wide = renderFrame({ wide: true });
     fireEvent.keyDown(document, { key: "Escape" });
     expect(wide.onClose).toHaveBeenCalledTimes(1);

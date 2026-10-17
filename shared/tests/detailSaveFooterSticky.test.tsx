@@ -39,8 +39,6 @@ const EDITOR_LABELS: EventEditorLabels = {
   endTime: "End",
   memo: "Memo",
   save: "Save",
-  saved: "Saved",
-  unsaved: "Unsaved",
   originRoutine: "Generated from routine",
   skipThisDay: "Skip this day",
   delete: "Delete",
@@ -63,8 +61,6 @@ const TODO_LABELS = {
   statusText: "Not started",
   contentLabel: "Notes",
   saveLabel: "Save",
-  savedLabel: "Saved",
-  unsavedLabel: "Unsaved",
 };
 
 /** The row the save button sits in — the thing that does or does not stick. */
