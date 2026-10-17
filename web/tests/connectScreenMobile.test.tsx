@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import {
+  act,
   render,
   screen,
   fireEvent,
@@ -8,8 +9,11 @@ import {
   within,
 } from "@testing-library/react";
 import {
+  ItemPanelProvider,
+  LONG_PRESS_MS,
   WikiTagsUnifiedProvider,
   resetConnectSelection,
+  useItemPanelContext,
   type DataService,
 } from "@life-editor/shared";
 import { ConnectScreen } from "../src/connect/ConnectScreen";
@@ -53,6 +57,8 @@ function makeDS(over: Partial<Record<string, unknown>> = {}) {
     listDailiesUnified: vi.fn().mockResolvedValue([]),
     fetchAllRoutines: vi.fn().mockResolvedValue([]),
     fetchNoteTables: vi.fn().mockResolvedValue([]),
+    // #2224 — the note excerpt read (none here).
+    listNoteExcerptsUnified: vi.fn().mockResolvedValue([]),
     listAllWikiTagsUnified: vi.fn().mockResolvedValue(TAGS),
     listAllTagAssignments: vi.fn().mockResolvedValue(ASSIGNMENTS),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
@@ -86,19 +92,42 @@ function setNarrow() {
   });
 }
 
+/** #2224 — prints the item panel's open request, as the shell's host reads it. */
+function PanelRequestProbe() {
+  const { request } = useItemPanelContext();
+  return (
+    <output aria-label="Panel request">
+      {request?.mode === "edit" ? JSON.stringify(request.target) : ""}
+    </output>
+  );
+}
+
 async function renderNarrow(ds: DataService = makeDS()) {
   const onNavigateToItem = vi.fn();
   const { wrapper: SyncWrapper } = createBumpableSync();
   render(
     <SyncWrapper>
-      <WikiTagsUnifiedProvider dataService={ds}>
-        <ConnectScreen dataService={ds} onNavigateToItem={onNavigateToItem} />
-      </WikiTagsUnifiedProvider>
+      <ItemPanelProvider>
+        <WikiTagsUnifiedProvider dataService={ds}>
+          <ConnectScreen
+            dataService={ds}
+            onNavigateToItem={onNavigateToItem}
+          />
+        </WikiTagsUnifiedProvider>
+        <PanelRequestProbe />
+      </ItemPanelProvider>
     </SyncWrapper>,
   );
   await waitFor(() => screen.getByRole("list", { name: "Tags" }));
   return { onNavigateToItem };
 }
+
+/** A row's own button — the one holding its day (#2224). */
+const rowButton = (row: HTMLElement): HTMLElement => {
+  const button = row.querySelector("[data-taghub-when]")?.closest("button");
+  if (!button) throw new Error("no row button");
+  return button;
+};
 
 /** The narrow layout lands on the tag list; this is step two. */
 const openWork = () =>
@@ -196,12 +225,109 @@ describe("ConnectScreen narrow — the edit sheet (M1 / #1886)", () => {
   });
 });
 
-describe("ConnectScreen narrow — what the phone does not get", () => {
-  it("has no checkboxes and no selection bar", async () => {
+/*
+ * #2224 — selection reaches the phone, behind the same "Select" button, and
+ * its bar is pinned over the list's bottom edge rather than laid out under it.
+ */
+describe("ConnectScreen narrow — selecting (#2224)", () => {
+  const squares = () =>
+    screen
+      .queryAllByRole("checkbox")
+      .filter((box) => box.getAttribute("aria-label")?.startsWith("Select “"));
+
+  it("shows no square and no bar until Select is pressed", async () => {
     await renderNarrow();
     openWork();
 
-    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(squares()).toHaveLength(0);
     expect(screen.queryByRole("toolbar")).toBeNull();
+  });
+
+  it("pins the bar over the bottom once a row is checked", async () => {
+    await renderNarrow();
+    openWork();
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+    expect(squares()).toHaveLength(2);
+    // Selection mode alone draws no bar — only a checked row does.
+    expect(screen.queryByRole("toolbar")).toBeNull();
+
+    const items = document.querySelector("[data-taghub-items]");
+    if (!(items instanceof HTMLElement)) throw new Error("no items pane");
+    const before = [...items.children];
+
+    fireEvent.click(
+      screen.getByRole("checkbox", { name: "Select “Draft the PR”" }),
+    );
+    const bar = screen.getByRole("toolbar", { name: "Selected items" });
+    expect(bar.getAttribute("data-taghub-selection-bar")).toBe("row");
+    // Over the list, not in it: an absolutely placed wrapper on the bottom
+    // edge, and the list's own rows untouched.
+    expect(bar.parentElement?.className).toContain("absolute");
+    expect(bar.parentElement?.className).toContain("bottom-0");
+    expect(items.contains(bar)).toBe(false);
+    expect([...items.children]).toEqual(before);
+  });
+});
+
+/*
+ * #2224 — a long press is the phone's right-click: a todo opens the
+ * Schedule's editor over this screen, and the lifted finger's click does not
+ * also open the item.
+ */
+describe("ConnectScreen narrow — long press (#2224)", () => {
+  it("opens a todo's editor in place, and swallows the click after it", async () => {
+    const { onNavigateToItem } = await renderNarrow();
+    openWork();
+    const row = document.querySelector('[data-taghub-row="task-1"]');
+    if (!(row instanceof HTMLElement)) throw new Error("no todo row");
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.touchStart(row);
+      act(() => {
+        vi.advanceTimersByTime(LONG_PRESS_MS);
+      });
+      fireEvent.touchEnd(row);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(screen.getByRole("status", { name: "Panel request" })).toBeTruthy();
+    expect(
+      JSON.parse(
+        screen.getByLabelText("Panel request").textContent ?? "null",
+      ),
+    ).toEqual({ role: "task", id: "task-1" });
+    fireEvent.click(rowButton(row));
+    expect(onNavigateToItem).not.toHaveBeenCalled();
+  });
+
+  it("leaves a short tap as a tap", async () => {
+    const { onNavigateToItem } = await renderNarrow();
+    openWork();
+    const row = document.querySelector('[data-taghub-row="task-1"]');
+    if (!(row instanceof HTMLElement)) throw new Error("no todo row");
+
+    vi.useFakeTimers();
+    try {
+      fireEvent.touchStart(row);
+      act(() => {
+        vi.advanceTimersByTime(LONG_PRESS_MS - 100);
+      });
+      fireEvent.touchEnd(row);
+      act(() => {
+        vi.advanceTimersByTime(LONG_PRESS_MS);
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+
+    expect(screen.getByLabelText("Panel request").textContent).toBe("");
+    fireEvent.click(rowButton(row));
+    expect(onNavigateToItem).toHaveBeenCalledWith({
+      id: "task-1",
+      role: "task",
+      date: undefined,
+    });
   });
 });

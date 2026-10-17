@@ -3,9 +3,9 @@ import { describe, it, expect } from "vitest";
 import {
   plainTextToTipTapDoc,
   dailyContentToEditorContent,
-  dailyContentExcerpt,
   dailyContentHasRenderedContent,
 } from "../src/components/materials/dailyContent";
+import { contentExcerpt } from "../src/utils/contentExcerpt";
 import { extractBriefing } from "../src/components/briefing/extractBriefing";
 
 const DOC = JSON.stringify({
@@ -75,20 +75,20 @@ describe("dailyContentToEditorContent", () => {
   });
 });
 
-describe("dailyContentExcerpt", () => {
+describe("contentExcerpt", () => {
   it("returns the first non-empty line of plain text", () => {
-    expect(dailyContentExcerpt("\n  \nfirst\nsecond")).toBe("first");
+    expect(contentExcerpt("\n  \nfirst\nsecond")).toBe("first");
   });
 
   it("returns the first non-empty block text of a TipTap doc", () => {
-    expect(dailyContentExcerpt(DOC)).toBe("朝刊");
+    expect(contentExcerpt(DOC)).toBe("朝刊");
   });
 
   it("returns undefined for empty forms", () => {
-    expect(dailyContentExcerpt(undefined)).toBeUndefined();
-    expect(dailyContentExcerpt("")).toBeUndefined();
+    expect(contentExcerpt(undefined)).toBeUndefined();
+    expect(contentExcerpt("")).toBeUndefined();
     expect(
-      dailyContentExcerpt(
+      contentExcerpt(
         JSON.stringify({ type: "doc", content: [{ type: "paragraph" }] }),
       ),
     ).toBeUndefined();
@@ -117,7 +117,7 @@ describe("dailyContentHasRenderedContent (#371 follow-up)", () => {
   });
 
   it("sees a body that is only a link, where the excerpt does not", () => {
-    expect(dailyContentExcerpt(LINK_ONLY)).toBeUndefined();
+    expect(contentExcerpt(LINK_ONLY)).toBeUndefined();
     expect(dailyContentHasRenderedContent(LINK_ONLY)).toBe(true);
   });
 

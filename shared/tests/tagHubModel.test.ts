@@ -2,6 +2,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildTagHubModel,
+  compareTagHubItems,
   UNTAGGED_TAG_ID,
   type TagHubItem,
 } from "../src/components/TagHub";
@@ -209,25 +210,69 @@ describe("buildTagHubModel — the groups", () => {
     expect(model.groupsByTag.get("t-1")?.map((g) => g.role)).toEqual(["note"]);
   });
 
-  it("orders a kind's rows newest first, with undated ones last", () => {
+  /*
+   * #2224 — the order the row's left edge reads in: oldest day first, then by
+   * time on one day, and a todo set for no day after every dated one. Pinned
+   * on the pure function, as the Issue's DoD asks.
+   */
+  it("orders a kind's rows by day, oldest first, with undated todos last", () => {
     const model = build({
       tags: [tag("t-1", "Work")],
-      assignments: [
-        assign("n-old", "t-1"),
-        assign("n-new", "t-1"),
-        assign("n-none", "t-1"),
-      ],
+      assignments: ["t-none", "t-late", "t-early", "t-mid"].map((id) =>
+        assign(id, "t-1"),
+      ),
       items: [
-        item("n-old", "note", { updatedAt: "2026-08-01T00:00:00Z" }),
-        item("n-none", "note"),
-        item("n-new", "note", { updatedAt: "2026-08-28T00:00:00Z" }),
+        item("t-none", "task"),
+        item("t-late", "task", { dayKey: "2026-10-20" }),
+        item("t-early", "task", { dayKey: "2026-09-01" }),
+        // Updated last, but its DAY is the middle one — the day wins now.
+        item("t-mid", "task", {
+          dayKey: "2026-10-01",
+          updatedAt: "2026-10-17T00:00:00Z",
+        }),
       ],
     });
     expect(model.groupsByTag.get("t-1")?.[0]?.items.map((i) => i.id)).toEqual([
-      "n-new",
-      "n-old",
-      "n-none",
+      "t-early",
+      "t-mid",
+      "t-late",
+      "t-none",
     ]);
+  });
+
+  it("orders one day's rows by time, untimed and all-day first", () => {
+    const model = build({
+      tags: [tag("t-1", "Work")],
+      assignments: ["e-15", "e-09", "e-allday", "e-prev"].map((id) =>
+        assign(id, "t-1"),
+      ),
+      items: [
+        item("e-15", "event", { dayKey: "2026-10-17", time: "15:00" }),
+        item("e-09", "event", { dayKey: "2026-10-17", time: "09:00" }),
+        item("e-allday", "event", { dayKey: "2026-10-17", allDay: true }),
+        item("e-prev", "event", { dayKey: "2026-10-16", time: "23:00" }),
+      ],
+    });
+    expect(model.groupsByTag.get("t-1")?.[0]?.items.map((i) => i.id)).toEqual([
+      "e-prev",
+      "e-allday",
+      "e-09",
+      "e-15",
+    ]);
+  });
+
+  it("compares two rows the same way the model sorts them", () => {
+    const dated = item("a", "task", { dayKey: "2026-10-17" });
+    const undated = item("b", "task");
+    expect(compareTagHubItems(dated, undated)).toBeLessThan(0);
+    expect(compareTagHubItems(undated, dated)).toBeGreaterThan(0);
+    // Same slot: the title decides, so the order never depends on input order.
+    expect(
+      compareTagHubItems(
+        item("x", "note", { title: "Alpha", dayKey: "2026-10-17" }),
+        item("y", "note", { title: "Beta", dayKey: "2026-10-17" }),
+      ),
+    ).toBeLessThan(0);
   });
 
   it("files one item under every tag it carries", () => {

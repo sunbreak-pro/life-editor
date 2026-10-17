@@ -163,6 +163,7 @@ export type { DailyNode } from "./types/daily";
 export type {
   NoteBodySaveResult,
   NoteBodySnapshot,
+  NoteExcerpt,
   NoteNode,
   NoteNodeType,
   NoteSortMode,

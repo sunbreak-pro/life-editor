@@ -11,11 +11,18 @@ import {
   type NotesPayloadListRow,
   type NotesPayloadRow,
 } from "./notesUnifiedMapper";
-import type { NoteNode } from "../types/note";
+import type { NoteExcerpt, NoteNode } from "../types/note";
+import { blocksExcerpt, type TipTapNode } from "../utils/contentExcerpt";
 import { contentJsonToString } from "./contentJson";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
+import { fetchAllPages } from "./postgrestFetchAll";
 import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
 import { fetchMaybeSingleRow } from "./postgrestSingle";
+
+/** Top-level blocks read per note for its excerpt (#2224). */
+const EXCERPT_BLOCKS = 5;
+/** A one-line excerpt is cut here; the row truncates it visually anyway. */
+const EXCERPT_MAX_CHARS = 200;
 
 /**
  * Read side of SupabaseNotesUnifiedService (#587 split): the list / detail /
@@ -71,6 +78,60 @@ export class SupabaseNotesUnifiedReads {
       keep: isNoteTemplateRow,
       toDomain: rowsToNoteNodeLite,
     });
+  }
+
+  /**
+   * Each unlocked note's one-line excerpt (#2224) — see the DataService note.
+   *
+   * The body is never fetched whole: PostgREST's JSON path in the select list
+   * (`content_json->content->0`) returns one top-level block per alias, so a
+   * note sends at most EXCERPT_BLOCKS blocks, never the rest of its body — the
+   * same reason the note list leaves `content_json` out (M1). A block is
+   * returned WHOLE, though: a note that opens with a long list, a table or a
+   * code block still sends that block in full. Trimming inside the database
+   * would need a function there (a migration), which this read does not add.
+   * Several blocks rather than one because a body often opens with an empty
+   * paragraph or an atom (a link, an image), and the excerpt is the first
+   * block that has text. A legacy plain-string body has no `content` key and
+   * reads back null: no excerpt, rather than a guess.
+   *
+   * `has_password = false` for the same reason getNoteUnified filters on it
+   * (#1763): a locked note's body must never reach this client, and the head
+   * of a body is still the body.
+   */
+  async listNoteExcerptsUnified(): Promise<NoteExcerpt[]> {
+    const blockColumns = Array.from(
+      { length: EXCERPT_BLOCKS },
+      (_, i) => `b${i}:content_json->content->${i}`,
+    ).join(", ");
+    const rows = await fetchAllPages<Record<string, unknown>>(
+      (from, to) =>
+        this.client
+          .from("notes_payload")
+          .select(`item_id, ${blockColumns}`)
+          .eq("has_password", false)
+          .order("item_id")
+          .range(from, to),
+      "listNoteExcerptsUnified failed",
+    );
+    const out: NoteExcerpt[] = [];
+    for (const row of rows) {
+      const blocks = Array.from(
+        { length: EXCERPT_BLOCKS },
+        (_, i) => row[`b${i}`] as TipTapNode | null | undefined,
+      );
+      const excerpt = blocksExcerpt(blocks);
+      if (excerpt === undefined) continue;
+      out.push({
+        id: String(row.item_id),
+        excerpt:
+          // By code point, so a surrogate pair (an emoji) is never split.
+          [...excerpt].length > EXCERPT_MAX_CHARS
+            ? [...excerpt].slice(0, EXCERPT_MAX_CHARS).join("")
+            : excerpt,
+      });
+    }
+    return out;
   }
 
   /**

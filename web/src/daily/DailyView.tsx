@@ -24,7 +24,7 @@ import {
   useUndoRedoOptional,
   afterSettled,
   cn,
-  dailyContentExcerpt,
+  contentExcerpt,
   dailyContentHasRenderedContent,
   extractEveningSection,
   mergeEveningSection,
@@ -650,7 +650,7 @@ export function DailyView({
       // Off the one text (#2123): the stored body now opens with the「夕刊」
       // heading (or an old 朝刊 section), which would otherwise be the
       // excerpt of every written day.
-      const excerpt = dailyContentExcerpt(
+      const excerpt = contentExcerpt(
         readDailyText(d.content) ?? undefined,
       );
       return {

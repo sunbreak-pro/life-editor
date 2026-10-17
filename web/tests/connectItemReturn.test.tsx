@@ -151,7 +151,6 @@ describe("the shell wiring for #2143", () => {
         nav: result.current,
         narrowTabRow: undefined,
         loadingFallback: null,
-        onConnectCounts: () => undefined,
       }) as ReactElement;
 
     const tags = body() as ReactElement<{
@@ -178,7 +177,6 @@ describe("the shell wiring for #2143", () => {
       nav: result.current,
       narrowTabRow: undefined,
       loadingFallback: null,
-      onConnectCounts: () => undefined,
     }) as ReactElement<{ children?: unknown; onTodoDetailClose?: unknown }>;
     while (el.props.onTodoDetailClose === undefined && el.props.children) {
       el = el.props.children as typeof el;

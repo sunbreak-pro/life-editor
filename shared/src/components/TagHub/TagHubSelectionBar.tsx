@@ -11,9 +11,10 @@ import {
 import type { TagHubTagSummary } from "./types";
 
 /*
- * The bulk bar (#1644 / D10), docked to the bottom edge of the items pane
- * while at least one row is checked: "N selected" on the left, then add a tag
- * (primary), remove this tag, move to another tag, and clear.
+ * The bulk bar (#1644 / D10), up while at least one row is checked: "N
+ * selected", then add a tag (primary), remove this tag, move to another tag,
+ * and clear. Where it sits is the view's (#2224): stacked in the Desktop tag
+ * rail (`layout="rail"`), or one row pinned over the bottom of the Mobile list.
  *
  * "Remove" and "move" act on the tag being READ, so they exist only while that
  * is a real tag — the untagged bucket has nothing to take off (the host passes
@@ -34,8 +35,8 @@ import type { TagHubTagSummary } from "./types";
  * already handled — the tag chooser stops its own, so closing the chooser does
  * not also drop the checked rows.
  *
- * Desktop only (the Mobile brief drops bulk selection). Opaque surface (§5),
- * lumen-* tokens only, copy injected (§6.4).
+ * Both widths since #2224, behind the header's "Select" button. Opaque
+ * surface (§5), lumen-* tokens only, copy injected (§6.4).
  */
 
 export interface TagHubSelectionBarLabels {
@@ -69,6 +70,11 @@ export interface TagHubSelectionBarProps {
   onMove: (tagId: string) => void;
   onClear: () => void;
   labels: TagHubSelectionBarLabels;
+  /**
+   * "row" = one line of buttons (the Mobile bar pinned over the list's
+   * bottom edge); "rail" = stacked, for the Desktop tag rail (#2224).
+   */
+  layout?: "row" | "rail";
 }
 
 type Chooser = "assign" | "move" | null;
@@ -89,6 +95,7 @@ export function TagHubSelectionBar({
   onMove,
   onClear,
   labels,
+  layout = "row",
 }: TagHubSelectionBarProps) {
   const [chooser, setChooser] = useState<Chooser>(null);
   const assignRef = useRef<HTMLButtonElement | null>(null);
@@ -108,10 +115,126 @@ export function TagHubSelectionBar({
   const closeChooser = () => setChooser(null);
   const others = tags.filter((tag) => tag.id !== currentTagId);
 
+  const assignButton = (
+    <div className={cn("relative", layout === "rail" ? "w-full" : "shrink-0")}>
+      <Button
+        ref={assignRef}
+        variant="primary"
+        size="sm"
+        className={cn(CARD_BTN_TAP, NO_SHRINK, layout === "rail" && "w-full")}
+        disabled={busy}
+        aria-haspopup="dialog"
+        aria-expanded={chooser === "assign"}
+        onClick={() => toggle("assign")}
+      >
+        {labels.assign}
+        <ChevronDown size={13} aria-hidden className="ml-1" />
+      </Button>
+      <TagHubTagPickerPopover
+        open={chooser === "assign"}
+        onClose={closeChooser}
+        title={labels.assignTitle}
+        tags={tags}
+        onPick={onAssign}
+        onCreate={onCreateAndAssign}
+        anchorRef={assignRef}
+        labels={labels.picker}
+      />
+    </div>
+  );
+
+  const removeButton = canRemove && (
+    <Button
+      variant="secondary"
+      size="sm"
+      className={cn(CARD_BTN_TAP, NO_SHRINK, layout === "rail" && "w-full")}
+      disabled={busy}
+      onClick={onRemove}
+    >
+      {labels.remove}
+    </Button>
+  );
+
+  const moveButton = canRemove && (
+    <div className={cn("relative", layout === "rail" ? "w-full" : "shrink-0")}>
+      <Button
+        ref={moveRef}
+        variant="secondary"
+        size="sm"
+        className={cn(CARD_BTN_TAP, NO_SHRINK, layout === "rail" && "w-full")}
+        disabled={busy}
+        aria-haspopup="dialog"
+        aria-expanded={chooser === "move"}
+        onClick={() => toggle("move")}
+      >
+        {labels.move}
+        <ChevronDown size={13} aria-hidden className="ml-1" />
+      </Button>
+      <TagHubTagPickerPopover
+        open={chooser === "move"}
+        onClose={closeChooser}
+        title={labels.moveTitle}
+        tags={others}
+        onPick={onMove}
+        anchorRef={moveRef}
+        labels={labels.picker}
+      />
+    </div>
+  );
+
+  const countText = (
+    <span
+      aria-live="polite"
+      className="shrink-0 whitespace-nowrap text-sm font-medium text-lumen-text"
+    >
+      {formatSelected(count)}
+    </span>
+  );
+
+  const clearButton = (
+    <Button
+      variant="ghost"
+      size="sm"
+      className={cn(CARD_BTN_TAP, NO_SHRINK)}
+      onClick={onClear}
+    >
+      {labels.clear}
+    </Button>
+  );
+
+  if (layout === "rail") {
+    /*
+     * #2224 — the Desktop bar lives in the tag rail, above the add row, so a
+     * row checked in the items pane never moves: the pane does not gain a bar
+     * under it. A 260px column has no room for a row of buttons, so the
+     * count and clear share the top line and the three writes stack under it,
+     * in the order the prototype gives (add, move, remove).
+     */
+    return (
+      <div
+        role="toolbar"
+        aria-label={labels.region}
+        aria-orientation="vertical"
+        data-taghub-selection-bar="rail"
+        className="flex flex-shrink-0 flex-col gap-1.5 border-t border-lumen-border bg-lumen-bg-secondary px-3 py-2.5"
+      >
+        <div className="flex items-center gap-2">
+          {countText}
+          <span aria-hidden className="min-w-0 flex-1" />
+          {clearButton}
+        </div>
+        {assignButton}
+        {moveButton}
+        {removeButton}
+      </div>
+    );
+  }
+
   return (
     <div
       role="toolbar"
       aria-label={labels.region}
+      data-taghub-selection-bar="row"
       className={cn(
         "flex h-12 flex-shrink-0 items-center gap-2 border-t border-lumen-border",
         // `overflow-x-auto` is the last resort under the no-shrink rule above:
@@ -122,87 +245,13 @@ export function TagHubSelectionBar({
         "overflow-x-auto bg-lumen-bg-secondary px-3 shadow-lumen-sm",
       )}
     >
-      <span
-        aria-live="polite"
-        className="shrink-0 whitespace-nowrap text-sm font-medium text-lumen-text"
-      >
-        {formatSelected(count)}
-      </span>
+      {countText}
       {/* Pushes the actions to the right without being a shrink target. */}
       <span aria-hidden className="min-w-0 flex-1" />
-
-      <div className="relative shrink-0">
-        <Button
-          ref={assignRef}
-          variant="primary"
-          size="sm"
-          className={cn(CARD_BTN_TAP, NO_SHRINK)}
-          disabled={busy}
-          aria-haspopup="dialog"
-          aria-expanded={chooser === "assign"}
-          onClick={() => toggle("assign")}
-        >
-          {labels.assign}
-          <ChevronDown size={13} aria-hidden className="ml-1" />
-        </Button>
-        <TagHubTagPickerPopover
-          open={chooser === "assign"}
-          onClose={closeChooser}
-          title={labels.assignTitle}
-          tags={tags}
-          onPick={onAssign}
-          onCreate={onCreateAndAssign}
-          anchorRef={assignRef}
-          labels={labels.picker}
-        />
-      </div>
-
-      {canRemove && (
-        <>
-          <Button
-            variant="secondary"
-            size="sm"
-            className={cn(CARD_BTN_TAP, NO_SHRINK)}
-            disabled={busy}
-            onClick={onRemove}
-          >
-            {labels.remove}
-          </Button>
-          <div className="relative shrink-0">
-            <Button
-              ref={moveRef}
-              variant="secondary"
-              size="sm"
-              className={cn(CARD_BTN_TAP, NO_SHRINK)}
-              disabled={busy}
-              aria-haspopup="dialog"
-              aria-expanded={chooser === "move"}
-              onClick={() => toggle("move")}
-            >
-              {labels.move}
-              <ChevronDown size={13} aria-hidden className="ml-1" />
-            </Button>
-            <TagHubTagPickerPopover
-              open={chooser === "move"}
-              onClose={closeChooser}
-              title={labels.moveTitle}
-              tags={others}
-              onPick={onMove}
-              anchorRef={moveRef}
-              labels={labels.picker}
-            />
-          </div>
-        </>
-      )}
-
-      <Button
-        variant="ghost"
-        size="sm"
-        className={cn(CARD_BTN_TAP, NO_SHRINK)}
-        onClick={onClear}
-      >
-        {labels.clear}
-      </Button>
+      {assignButton}
+      {removeButton}
+      {moveButton}
+      {clearButton}
     </div>
   );
 }

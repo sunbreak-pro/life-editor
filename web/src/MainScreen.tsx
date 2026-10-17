@@ -82,15 +82,17 @@ export interface TabBand {
   readonly active: string;
   readonly onSelect: (id: string) => void;
   readonly label: string;
-  /** Wide only: beside the tabs (HeaderTabs `trailing`) — Connect's totals. */
+  /**
+   * Wide only: beside the tabs (HeaderTabs `trailing`). Connect's totals rode
+   * here until #2224 took them off; no band uses it now.
+   */
   readonly trailing?: ReactNode;
 }
 
 /**
  * The wide header of a section with a tab band: the band stands in for the
  * title (divider={false}: the SectionHeader owns the line). Exported so
- * web/tests/connectTabs.test.tsx can pin that the band's `trailing` — where
- * Connect's totals went when its title row became tabs (#2108) — is drawn.
+ * web/tests/connectTabs.test.tsx can render the band the shell draws.
  */
 export function TabBandHeader({
   band,
@@ -153,18 +155,6 @@ export function MainScreen({ session }: { session: Session }) {
     setMaterialsTab: nav.setMaterialsTab,
   });
   const [paletteOpen, setPaletteOpen] = useState(false);
-  /*
-   * The Connect hub's totals, for the section header (D1 / #1643; beside the
-   * tab band since #2108). The numbers can only be counted where the caches
-   * are, so the screen reports them up and clears them on unmount; only the
-   * Connect band draws them, so a stale pair can never be shown against
-   * another title. This is the same headless shape as MaterialsCountsBridge,
-   * minus the bridge: the reporter is the section body itself.
-   */
-  const [connectCounts, setConnectCounts] = useState<{
-    tags: number;
-    items: number;
-  } | null>(null);
   // Claude Code launcher (#1211) — `available` is false off the desktop shell.
   const claudeLauncher = useClaudeLauncher();
   // Narrow-width switch for the in-section tab controls (HeaderTabs ↔
@@ -266,7 +256,6 @@ export function MainScreen({ session }: { session: Session }) {
       active: nav.connectTab,
       onSelect: nav.setConnectTab,
       label: t("connect.tabsLabel"),
-      counts: connectCounts,
     }),
   };
   const band = descriptor.tabBand ? tabBands[descriptor.tabBand] : undefined;
@@ -359,7 +348,6 @@ export function MainScreen({ session }: { session: Session }) {
   const sectionBody = descriptor.body({
     ds,
     nav,
-    onConnectCounts: setConnectCounts,
     // Briefing hosts its narrow band inside its own body (at the top of the
     // paper, above the masthead — #879); every other section puts it in the
     // PageContainer header below.

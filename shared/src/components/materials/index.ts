@@ -67,10 +67,12 @@ export {
 export {
   plainTextToTipTapDoc,
   dailyContentToEditorContent,
-  dailyContentExcerpt,
   dailyContentHasRenderedContent,
   type TipTapDoc,
 } from "./dailyContent";
+// #2224 — the one-line excerpt, shared by the Daily list and the Connect note
+// rows (it was `dailyContentExcerpt` here).
+export { contentExcerpt } from "../../utils/contentExcerpt";
 // Sidebar list controls (#283) — compact sort + optional-filter header row for
 // the Materials rightSidebar lists (Notes / Daily). Pure presentation.
 export {

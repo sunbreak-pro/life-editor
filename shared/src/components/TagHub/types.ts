@@ -12,6 +12,8 @@
  * point of the hub is to look like the surfaces it links to.
  */
 import type { ItemRole, ItemRoleLabels } from "../items/itemRole";
+import type { TodoStatus } from "../../types/todoTree";
+import type { StatusLabelSet } from "../todoStatusVisuals";
 
 /**
  * The id of the pseudo-tag holding every item that carries no reachable tag.
@@ -34,22 +36,41 @@ export interface TagHubItem {
    *  for an untitled row, so this is never empty). */
   readonly title: string;
   /**
-   * The secondary line, shown at the right of the row. An event's date lives
-   * here, which is also why it travels: the Calendar shows one window at a
-   * time and cannot select a row outside it, so `date` below carries the same
-   * value into the navigation intent (#503).
+   * The second line, drawn small UNDER the title (#2224): a note's excerpt, a
+   * table's note title. Dates no longer go here — they have the row's left
+   * edge (`dayKey` / `time`), and the right edge carries none.
    */
   readonly detail?: string;
   /**
    * Event rows only — the date the shell needs to move the Calendar to before
-   * the selection means anything. Absent for the other three kinds, whose
+   * the selection means anything (#503). Absent for the other kinds, whose
    * destinations show one list of everything.
    */
   readonly date?: string;
+  /*
+   * The left edge (#2224). Every kind puts its day there, bold, with a time
+   * under it, and the same pair orders the kind's rows: oldest day first, then
+   * by time. What each kind means by "its day" is the host's call — a todo's
+   * scheduled day, an event's day, a note's or a table's last update, a
+   * daily's own date.
+   */
+  /** Local YYYY-MM-DD. Absent = undated (a todo set for no day), sorted last. */
+  readonly dayKey?: string;
+  /** Local HH:MM under the day. Absent on a day with no time of its own. */
+  readonly time?: string;
+  /** An all-day event — the time slot reads "All day" instead. */
+  readonly allDay?: boolean;
+  /** A repeating event (a series or one of its days) — the repeat glyph. */
+  readonly repeats?: boolean;
   /**
-   * ISO datetime used to order a kind's rows, newest first. Absent sorts last:
-   * the hub answers "what moved recently in this topic", and a row that cannot
-   * say when it moved is the least likely answer to that question.
+   * Todo rows only — the status the row's round checkbox shows and toggles
+   * (#2224). A done todo is struck through and carries a "Done" chip.
+   */
+  readonly status?: TodoStatus;
+  /**
+   * ISO datetime of the last change. No longer what orders the list (#2224 —
+   * that is `dayKey` / `time`); the detail panel's "recent" run still reads
+   * it, and it breaks ties nothing else does.
    */
   readonly updatedAt?: string;
   /*
@@ -194,6 +215,23 @@ export interface TagHubLabels {
   editTag: string;
   /** Everything the edit block itself draws (D7). */
   edit: TagHubEditLabels;
+  /*
+   * The row's left edge and status (#2224).
+   */
+  /** A todo set for no day, in the date slot. */
+  noDate: string;
+  /** An all-day event, in the time slot. */
+  allDay: string;
+  /** The repeat glyph's accessible name. */
+  repeats: string;
+  /** The chip on a done todo. */
+  done: string;
+  /** What the round checkbox sets ("Status"), and its two states. */
+  todoStatus: string;
+  todoStatusLabels: StatusLabelSet;
+  /** The header's selection-mode button, off and on (#2224). */
+  select: string;
+  selectEnd: string;
 }
 
 /** The edit block's own copy (D7), already translated (§6.4). */
