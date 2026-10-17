@@ -111,6 +111,12 @@ describe("syncDomains — payload tables", () => {
     expect(domainsForChange("extension_apps")).toEqual(["extensionApps"]);
   });
 
+  it("routes the record views to their own domain (#2260)", () => {
+    // Picking a view must not re-pull the records, and a new record must not
+    // re-pull the views.
+    expect(domainsForChange("record_views")).toEqual(["recordViews"]);
+  });
+
   it("returns nothing for a table it does not know", () => {
     expect(domainsForChange("some_future_table")).toEqual([]);
   });

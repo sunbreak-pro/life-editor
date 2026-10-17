@@ -38,6 +38,7 @@ import type {
   ExtensionAppInput,
   ExtensionAppUpdates,
 } from "../types/extensionApp";
+import type { RecordView, RecordViewChoice } from "../types/recordView";
 // #1438 — the sweep's own vocabulary. Declared next to the pure detection it
 // belongs to and re-exported below, so a consumer of the DataService never
 // has to know which service file implements the scan.
@@ -882,6 +883,27 @@ export interface AppRecordsDataService {
   deleteExtensionApp(slug: string): Promise<void>;
 }
 
+// ---------------------------------------------------------------------------
+// How each kind of record is shown — SupabaseRecordViewsService (#2260)
+// ---------------------------------------------------------------------------
+
+/**
+ * The owner's choice of headline number and chart per kind + unit
+ * (`record_views`, 0041). A kind with no saved row is shown with
+ * RECORD_VIEW_DEFAULT; reading never creates a row. There is no delete —
+ * going back to the default is saving the default.
+ */
+export interface RecordViewsDataService {
+  /** Every saved choice, by kind then unit. */
+  listRecordViews(): Promise<RecordView[]>;
+  /** Insert or overwrite the choice for kind + unit (null = no unit). */
+  saveRecordView(
+    kind: string,
+    unit: string | null,
+    choice: RecordViewChoice,
+  ): Promise<RecordView>;
+}
+
 /**
  * The whole data surface the frontend may reach (CLAUDE.md §3.1).
  *
@@ -906,4 +928,5 @@ export interface DataService
     GoalsDataService,
     NoteTablesDataService,
     AiCustomizationDataService,
-    AppRecordsDataService {}
+    AppRecordsDataService,
+    RecordViewsDataService {}

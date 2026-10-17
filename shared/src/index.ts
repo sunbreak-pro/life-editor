@@ -39,6 +39,19 @@ export {
   ExtensionAppValidationError,
   extensionAppProblems,
 } from "./services/appRecordMapper";
+// How each kind of record is shown (#2260 data layer / #2263 screen).
+export type { RecordViewsDataService } from "./services/DataService";
+export {
+  RECORD_VIEW_CHARTS,
+  RECORD_VIEW_DEFAULT,
+  RECORD_VIEW_METRICS,
+} from "./types/recordView";
+export type {
+  RecordView,
+  RecordViewChart,
+  RecordViewChoice,
+  RecordViewMetric,
+} from "./types/recordView";
 export {
   aggregateAppRecords,
   appRecordPeriodKey,

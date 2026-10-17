@@ -67,6 +67,9 @@ export const USER_DATA_EXPORT_TABLES = [
   // user, so slug alone is the unique tiebreaker.
   { table: "extension_apps", orderBy: "slug" },
   { table: "app_records", orderBy: "id" },
+  // The key is (user_id, kind, unit); `id` is a random uuid kept as the
+  // primary key so a Realtime DELETE carries nothing readable (0041 header).
+  { table: "record_views", orderBy: "id" },
 ] as const;
 
 export type UserDataExportTable =

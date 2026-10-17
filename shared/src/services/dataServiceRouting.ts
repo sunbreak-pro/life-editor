@@ -1,6 +1,7 @@
 import type {
   AiCustomizationDataService,
   AppRecordsDataService,
+  RecordViewsDataService,
   AttachmentsDataService,
   AudioDataService,
   TagGroupsDataService,
@@ -71,6 +72,12 @@ import {
   PHASE2_APP_RECORDS_METHODS,
   type AppRecordsMethodName,
 } from "./SupabaseAppRecordsService";
+import {
+  SupabaseRecordViewsService,
+  PHASE2_RECORD_VIEWS_METHOD_NAMES,
+  PHASE2_RECORD_VIEWS_METHODS,
+  type RecordViewsMethodName,
+} from "./SupabaseRecordViewsService";
 import {
   SupabaseItemConversionService,
   PHASE2_ITEM_CONVERSION_METHOD_NAMES,
@@ -199,6 +206,9 @@ export type AiCustomizationRoutingIsExact = AssertNever<
 export type AppRecordsRoutingIsExact = AssertNever<
   Mismatch<AppRecordsDataService, AppRecordsMethodName>
 >;
+export type RecordViewsRoutingIsExact = AssertNever<
+  Mismatch<RecordViewsDataService, RecordViewsMethodName>
+>;
 
 /** Every method name the Proxy can route, across all domains. */
 export type RoutedMethodName =
@@ -217,7 +227,8 @@ export type RoutedMethodName =
   | GoalsMethodName
   | NoteTablesMethodName
   | AiCustomizationMethodName
-  | AppRecordsMethodName;
+  | AppRecordsMethodName
+  | RecordViewsMethodName;
 
 /**
  * Catches the case the per-domain assertions cannot see: a member declared
@@ -332,6 +343,12 @@ export const PHASE2_ROUTING_DOMAINS = [
     names: PHASE2_APP_RECORDS_METHOD_NAMES,
     methods: PHASE2_APP_RECORDS_METHODS,
     service: SupabaseAppRecordsService,
+  },
+  {
+    domain: "recordViews",
+    names: PHASE2_RECORD_VIEWS_METHOD_NAMES,
+    methods: PHASE2_RECORD_VIEWS_METHODS,
+    service: SupabaseRecordViewsService,
   },
 ] as const satisfies ReadonlyArray<{
   domain: string;
