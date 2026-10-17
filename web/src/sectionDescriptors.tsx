@@ -123,10 +123,8 @@ export interface SectionDescriptor {
   readonly narrowHeader: NarrowHeader;
   /**
    * Draw the narrow row inside the body (via `ctx.narrowTabRow`) instead of in
-   * the PageContainer header. Briefing only: its body is a centered "paper"
-   * that re-issues the band as its own first row, above the masthead (#318 /
-   * #609 / #879), so a second row above it would push the paper down for one
-   * button.
+   * the PageContainer header. Briefing used it until #2223 (its paper drew
+   * the band above the masthead — #318 / #609 / #879); no section sets it now.
    */
   readonly narrowHeaderInBody?: boolean;
   readonly body: (ctx: SectionBodyContext) => ReactNode;
@@ -148,14 +146,15 @@ export const SECTION_DESCRIPTORS: Readonly<
     width: "wide",
     tabBand: "briefing",
     narrowHeader: "tabs+hamburger",
-    narrowHeaderInBody: true,
-    body: ({ ds, nav, narrowTabRow }) => (
+    // No `narrowHeaderInBody` since #2223: the band sits in the PageContainer
+    // header like every other section's, so it stays on screen while the
+    // paper scrolls. The masthead now opens below it.
+    body: ({ ds, nav }) => (
       <BriefingScreen
         dataService={ds}
         onNavigate={nav.navigateTo}
         onNavigateToItem={nav.navigateToItem}
         tab={nav.briefingTab}
-        tabSwitcher={narrowTabRow}
         // The goals block's way to Connect's "Goals & Todos" tab (#2106). The
         // tab is set first: applyDestination switches the section only.
         onOpenGoals={() => {

@@ -1,16 +1,20 @@
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import {
   ArrowUpRight,
+  CalendarDays,
+  CheckSquare,
   Plus,
   Sparkles,
+  Sun,
   Sunrise,
   Target,
-  Trash2,
 } from "lucide-react";
 import type { TodoNode, TodoStatus } from "../../types/todoTree";
 import type { TimerSession } from "../../types/timer";
+import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import { SkeletonList } from "../SkeletonList";
 import { TAP_TARGET_TALL } from "../styleTokens";
+import { TagHeadingIcon } from "../TagHeadingIcon";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { ExtractedBriefing } from "./extractBriefing";
 import { BRIEFING_HINT_CLASS } from "./briefingStyles";
@@ -34,12 +38,43 @@ import { BRIEFING_HINT_CLASS } from "./briefingStyles";
  * data from the same BriefingData it passes here.
  */
 
+/**
+ * One WikiTag on a row of「今日のスケジュール」(#2223) — what the row prints
+ * under its title. `color` and `icon` are the tag's own (user data), both
+ * nullable the way the tag row stores them.
+ */
+export interface BriefingTag {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+}
+
 /** One row of「今日のスケジュール」— today's schedule, host-shaped. */
 export interface BriefingScheduleEntry {
   id: string;
   title: string;
   /** "HH:MM" (empty for all-day). */
   startTime: string;
+  /**
+   * "HH:MM" (#2223) — with `startTime`, what tells the table whether the
+   * event is over, under way, or still ahead. Optional so a fixture without
+   * it reads as a moment rather than a span: over once its start has passed.
+   */
+  endTime?: string;
+  /**
+   * The routine it was generated from (#2223). The tags of an occurrence that
+   * carries none of its own are the routine's — the same fallback Schedule's
+   * colour takes (scheduleViewModels.ts `eventTagColor`).
+   */
+  routineId?: string | null;
+  /** The row's tags (#2223). Undefined / empty = no tag line. */
+  tags?: BriefingTag[];
+  /**
+   * The display colour of an all-day chip (#2223) — the colour Schedule's
+   * month view paints the same chip with. Null = the plain event face.
+   */
+  tagColor?: string | null;
   /**
    * Data only since #1373 — nothing on the paper draws it. An event has no
    * completion in the UI any more, but the `completed` column and the MCP
@@ -76,6 +111,8 @@ export interface BriefingTodoEntry {
    * (and every fixture written before it) simply draws no mark.
    */
   goals?: string[];
+  /** The todo's tags (#2223). Undefined / empty = no tag line. */
+  tags?: BriefingTag[];
 }
 
 /** One row of「持ち越し」. */
@@ -125,12 +162,34 @@ export interface BriefingLabels {
    * but no events reads under.
    */
   scheduleTitle: string;
-  /** Accessible name + tooltip of the schedule section's「+」 (#623). */
-  addScheduleItem: string;
-  /** Empty state of the merged block — shown only when BOTH sides are empty. */
+  /** Empty state of the block — shown only when neither column has a row. */
   noSchedule: string;
   routineTag: string;
+  /** The all-day band's label —「終日」. */
   allDay: string;
+  /**
+   * The time table (#2223). The three column headings, the last row's time
+   * label for todos with no clock, the mark on an event under way, and the
+   * screen-reader name of the current-time line.
+   */
+  timeColumn: string;
+  eventsColumn: string;
+  todosColumn: string;
+  untimed: string;
+  ongoing: string;
+  nowLine: string;
+  /** Group name of the column switch in the block heading. */
+  columnSwitch: string;
+  /** Accessible name + tooltip of each column heading's「+」. */
+  addEvent: string;
+  addTodo: string;
+  /**
+   * 「他 N 件」— the month view's own wording (scheduleScreen.moreCount), for
+   * the all-day band and a row's tag line alike.
+   */
+  moreCount: (count: number) => string;
+  /** Folds the opened all-day band back to two chips. */
+  close: string;
   carryoverTitle: string;
   /**
    * Copy for the carryover rows' checkbox (#1368) — `todoStatus` names what
@@ -142,29 +201,23 @@ export interface BriefingLabels {
   statusNotStarted: string;
   statusDone: string;
   /**
-   * Label of every row's jump action —「編集」/ "Edit" (#410). It LEADS the
-   * button's accessible name, and `jumpToSchedule` / `jumpToTodos` follow it
-   * there and in the hover tooltip, so the name says WHERE the jump lands
-   * without contradicting the printed text (WCAG 2.5.3 Label in Name).
+   * Label of a carryover row's jump action —「編集」/ "Edit" (#410). It LEADS
+   * the button's accessible name, and `jumpToTodos` follows it there and in
+   * the hover tooltip, so the name says WHERE the jump lands without
+   * contradicting the printed text (WCAG 2.5.3 Label in Name).
    *
    * Printed beside the icon from `md` up; below it the button is icon-only
    * and this word survives in the name alone (#1514).
+   *
+   * The schedule table carries no row actions since #2223: a row's title
+   * opens its editor in place, and deleting is the editor's.
    */
   edit: string;
-  /**
-   * Visible label of the row's delete action —「削除」/ "Delete" (#585). Same
-   * shape as `edit` for the same reasons: it sits next to a button that reads
-   * as text, so an icon-only sibling would be both unreadable at 13px and
-   * below the 24×24 target the neighbour already clears.
-   */
-  delete: string;
-  /** Tooltip + accessible-name tail for a schedule row's delete. */
-  deleteScheduleHint: string;
-  /** Tooltip + accessible-name tail for a todo row's delete. */
-  deleteTodoHint: string;
-  jumpToSchedule: string;
   jumpToTodos: string;
 }
+
+/** Which column of the schedule table a row, a「+」or a switch is about. */
+export type BriefingColumn = "event" | "task";
 
 export interface BriefingViewProps {
   loading: boolean;
@@ -191,42 +244,32 @@ export interface BriefingViewProps {
   /** Completes / un-completes a todo or carryover row (host → DataService). */
   onToggleTodo: (id: string) => void;
   /**
-   * Deletes a schedule row (#585). The host decides what "delete" means for
-   * the item — a manual event soft-deletes straight away, a routine-derived
-   * one first asks which occurrences via Schedule's own RepeatScopeDialog.
+   * Opens ONE item's editor (#2223) — a table row's title or an all-day chip.
+   * Where it opens is the host's: Briefing hands it to the in-place panel
+   * (#2218), so the reader stays on the paper.
    */
-  onDeleteScheduleItem: (id: string) => void;
-  /** Deletes a todo row (#585) — host → DataService soft delete. */
-  onDeleteTodo: (id: string) => void;
+  onOpenItem: (id: string, role: BriefingColumn) => void;
   /**
-   * Opens the host's creation panel for THIS paper's day (#623). The view
-   * holds no creation UI of its own — the host mounts Schedule's shared
-   * <ItemCreatePanel> and owns the write.
+   * A column heading's「+」(#2223): opens the host's creation panel for that
+   * column on THIS paper's day. The view holds no creation UI of its own.
    */
-  onAddScheduleItem: () => void;
+  onAddItem: (column: BriefingColumn) => void;
   /**
-   * Opens ONE event where it lives (host → nav), given its id (#1824).
-   *
-   * It took no argument until now and the host answered it with a bare section
-   * switch, so「編集」landed the reader on the Schedule section with nothing
-   * selected and no panel open — the button named an act it did not perform.
-   * The id is all the paper can offer; where a row opens is the host's to
-   * decide, and the shell already knows how (`navigateToItem`).
+   * A carryover row's「編集」— opens that todo where it lives (#1824). The
+   * carryover block is unchanged by #2223.
    */
-  onJumpToSchedule: (id: string) => void;
-  /** The same for one todo — the paper's todo rows and its carryover rows. */
   onJumpToTodos: (id: string) => void;
   /**
-   * In-body 朝刊/夕刊 switcher for the NARROW layout (#318). AppShell only
-   * renders its header slot on the wide branch, so below 768px the
-   * SectionHeader tab band — the only way to reach 夕刊 — disappears; the host
-   * re-issues it here instead. Left undefined on the wide layout, where the
-   * SectionHeader keeps owning the tabs (unchanged).
-   *
-   * Pass `undefined` / `null` to omit it — NOT `cond && <node>`, whose `false`
-   * would clear the guard and leave an empty ruled band on the paper.
+   * Minutes since 00:00 of the paper's day (#2223) — past 1440 after midnight
+   * on a day that starts late. Drives the current-time line and the events'
+   * over / under way look. Undefined = neither is drawn.
    */
-  tabSwitcher?: ReactNode;
+  nowMinutes?: number;
+  /**
+   * Phone layout (#2223): the table shows ONE column at a time, switched from
+   * the heading. Off = both columns, each of which the heading can hide.
+   */
+  narrow?: boolean;
 }
 
 /**
@@ -270,7 +313,10 @@ export function BlockHead({
 }
 
 /**
- * 「+」on a section heading (#623) — opens the host's creation panel.
+ * 「+」on a heading (#623) — opens the host's creation panel. Since #2223 it
+ * sits on each COLUMN heading of the schedule table; the block heading has
+ * none. The measurements below were taken on the block heading and hold for
+ * the column headings, which sit on the same hairline.
  *
  * Icon-only, unlike the row actions, because a heading has no column of
  * sibling buttons to be mistaken for a label of: the accessible name carries
@@ -322,6 +368,10 @@ function BlockHeadAddButton({
  * Right-edge action cluster of a row (#585 — was `EditJumpButton`'s own
  * `ml-auto` before a second action joined it).
  *
+ * Only the carryover rows draw it since #2223: the schedule table's rows
+ * carry no actions (the title opens the editor, deleting is the editor's), so
+ * the「編集 / 削除」pair this history below talks about is gone.
+ *
  * `ml-auto` pins the cluster to the row's right edge, so the buttons line up
  * in one straight column whatever the titles measure; the old icon-only jump
  * button sat immediately after the title and drifted with it, row by row.
@@ -361,7 +411,8 @@ function RowActions({ children }: { children: ReactNode }) {
 }
 
 /*
- * Shape shared by the two row actions.
+ * Shape of the row action (the carryover「編集」— the delete beside it left
+ * with the schedule rows' actions in #2223).
  *
  * `md:` — not a prop — because this view is pure presentation and the host
  * hands it no width. Tailwind's `md` is rem-based, so it moves with the
@@ -462,53 +513,674 @@ function EditJumpButton({
   );
 }
 
-/**
- * Row delete action —「削除」+ 🗑 (#585). Deliberately the same shape, size and
- * naming rule as its `EditJumpButton` neighbour: two adjacent actions where
- * only one carries text would read as a label with an ornament, and the
- * destructive one is the last place to shrink the hit target. Only the hover
- * colour differs (danger, not accent) — the resting state stays quiet so the
- * paper does not turn into a row of red buttons.
+/** "HH:MM" → minutes since 00:00; null for anything else. */
+function toMinutes(time: string | undefined): number | null {
+  if (time === undefined) return null;
+  const m = /^(\d{1,2}):(\d{2})$/.exec(time);
+  if (m === null) return null;
+  return Number(m[1]) * 60 + Number(m[2]);
+}
+
+/** Where an event stands against the clock (#2223). */
+type EventPhase = "past" | "ongoing" | "upcoming";
+
+/*
+ * Over once its end has passed, under way from its start up to its end. An
+ * event with no usable end (none at all, or one at or before its start) runs
+ * to the end of the day — the span Schedule's grid draws it with
+ * (scheduleGridLayout), so the two screens agree on when it is over.
  */
-function DeleteRowButton({
-  onClick,
-  label,
-  hint,
+function eventPhase(
+  startTime: string,
+  endTime: string | undefined,
+  now: number,
+): EventPhase {
+  const start = toMinutes(startTime);
+  if (start === null) return "upcoming";
+  const rawEnd = toMinutes(endTime);
+  const end = rawEnd !== null && rawEnd > start ? rawEnd : 24 * 60;
+  if (now >= end) return "past";
+  if (now >= start) return "ongoing";
+  return "upcoming";
+}
+
+/** "HH:MM" of a minute count, wrapped to the 24-hour face. */
+function formatMinutes(total: number): string {
+  const day = ((Math.floor(total) % 1440) + 1440) % 1440;
+  const h = Math.floor(day / 60);
+  const m = day % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
+/** Tags printed before a row's line folds the rest into「他 N 件」. */
+const TAGS_SHOWN_WHEN_FOLDED = 2;
+/** A line of this many tags or more folds (#2223 — 4+ show 2 and the fold). */
+const TAGS_FOLD_AT = 4;
+
+/**
+ * A row's tag line (#2223) — right-aligned under the title, each tag's icon in
+ * the tag's own colour. Four or more fold to the first two and「他 N 件」in the
+ * third place; the fold's tooltip names the ones it hides.
+ *
+ * The tooltip is `title`, a pointer affordance, so the hidden names also ride
+ * in the fold's own text as screen-reader-only words: a `title` or an
+ * `aria-label` on a list item is not read out everywhere.
+ */
+function TagLine({
+  tags,
+  moreCount,
 }: {
-  onClick: () => void;
-  label: string;
-  hint: string;
+  tags: BriefingTag[] | undefined;
+  moreCount: (count: number) => string;
 }) {
+  if (tags === undefined || tags.length === 0) return null;
+  const folded = tags.length >= TAGS_FOLD_AT;
+  const shown = folded ? tags.slice(0, TAGS_SHOWN_WHEN_FOLDED) : tags;
+  const hidden = folded ? tags.slice(TAGS_SHOWN_WHEN_FOLDED) : [];
+  const hiddenNames = hidden.map((tag) => tag.name).join(" ・ ");
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={`${label}: ${hint}`}
-      title={hint}
-      className={`${ROW_ACTION_BASE} text-lumen-text-secondary hover:text-lumen-danger`}
+    <ul
+      data-briefing-tags=""
+      className="mt-0.5 flex flex-wrap justify-end gap-x-2 gap-y-0.5"
     >
-      <Trash2 aria-hidden="true" className={ROW_ACTION_ICON} />
-      <RowActionLabel label={label} />
-    </button>
+      {shown.map((tag) => (
+        <li
+          key={tag.id}
+          className="inline-flex min-w-0 items-center gap-0.5 text-xs text-lumen-text-secondary"
+        >
+          <TagHeadingIcon icon={tag.icon} color={tag.color} size={12} />
+          <span className="truncate">{tag.name}</span>
+        </li>
+      ))}
+      {folded && (
+        <li
+          data-briefing-tags-more=""
+          title={hiddenNames}
+          className="text-xs text-lumen-text-secondary"
+        >
+          {moreCount(hidden.length)}
+          <span className="sr-only">: {hiddenNames}</span>
+        </li>
+      )}
+    </ul>
   );
 }
 
-/*
- * The time column of 「今日のスケジュール」— one width and one type style for every row
- * in the block, event or todo (#1369). A timed todo prints its HH:MM exactly
- * where an event prints its own; anything else hands this an empty label and
- * gets a spacer, which holds the column open so every title stays on one
- * straight edge without printing a blank the reader could mistake for a
- * missing time.
+/** All-day chips shown before the band folds the rest away. */
+const ALL_DAY_SHOWN_WHEN_FOLDED = 2;
+/** A band of this many chips or more folds (#2223 — 4+ show 2 and the fold). */
+const ALL_DAY_FOLD_AT = 4;
+
+/**
+ * The all-day band above the table (#2223). All-day events are not a time of
+ * day, so they leave the table for a strip of their own: the sun, the word
+ * 「終日」, then one chip per event in the colour Schedule's month view gives
+ * the same chip (its display tag colour, else the plain event face).
+ *
+ * Four or more fold to two chips and「他 N 件」; pressing it shows every chip
+ * and「閉じる」folds them back. No tags and no repeat glyph on a chip: the band
+ * is a list of names, and its row in Schedule carries the rest.
  */
-function TimeCell({ label }: { label: string }) {
-  if (label === "") {
-    return <span aria-hidden="true" className="w-14 flex-shrink-0" />;
-  }
+function AllDayBand({
+  items,
+  labels,
+  onOpenItem,
+}: {
+  items: BriefingScheduleEntry[];
+  labels: BriefingLabels;
+  onOpenItem: (id: string, role: BriefingColumn) => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  if (items.length === 0) return null;
+  const folds = items.length >= ALL_DAY_FOLD_AT;
+  const shown =
+    folds && !expanded ? items.slice(0, ALL_DAY_SHOWN_WHEN_FOLDED) : items;
+  const rest = items.length - shown.length;
+  // The 44px floor grows the BOX below `md` rather than hanging the
+  // invisible ::after of TAP_TARGET_TALL: the chips wrap onto several lines,
+  // where an extension would reach over the chip below.
+  const foldButtonClass =
+    "rounded-lumen-sm px-1.5 py-0.5 text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11";
   return (
-    <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-briefing-shu">
-      {label}
-    </span>
+    <div
+      data-briefing-allday=""
+      className="mb-3 flex flex-wrap items-center gap-2 rounded-lumen-md bg-lumen-bg-secondary px-3 py-2"
+    >
+      <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs font-bold text-lumen-text-secondary">
+        <Sun size={14} aria-hidden="true" />
+        {labels.allDay}
+      </span>
+      {shown.map((item) => {
+        const face = tagFaceStyle(item.tagColor);
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => onOpenItem(item.id, "event")}
+            style={face}
+            className={`flex min-w-0 max-w-full items-center rounded-lumen-sm px-2 py-0.5 text-left text-xs transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 ${
+              face === undefined
+                ? "bg-lumen-chip-event-bg text-lumen-chip-event-fg"
+                : ""
+            }`}
+          >
+            {/* The clip lives on the title, not the button, so the box keeps
+                its full height. */}
+            <span className="block truncate">{item.title}</span>
+          </button>
+        );
+      })}
+      {folds && !expanded && (
+        <button
+          type="button"
+          onClick={() => setExpanded(true)}
+          aria-expanded={false}
+          className={foldButtonClass}
+        >
+          {labels.moreCount(rest)}
+        </button>
+      )}
+      {folds && expanded && (
+        <button
+          type="button"
+          onClick={() => setExpanded(false)}
+          aria-expanded={true}
+          className={foldButtonClass}
+        >
+          {labels.close}
+        </button>
+      )}
+    </div>
+  );
+}
+
+/**
+ * The column switch in the block heading (#2223).
+ *
+ * Desktop: each button shows or hides its column, and the last column showing
+ * cannot be hidden — its button is disabled while the other is off. Phone:
+ * the table shows one column at a time and the two buttons pick which.
+ * `aria-pressed` answers "is this column on screen" in both cases.
+ */
+function ColumnSwitch({
+  narrow,
+  showEvents,
+  showTodos,
+  onPress,
+  labels,
+}: {
+  narrow: boolean;
+  showEvents: boolean;
+  showTodos: boolean;
+  onPress: (column: BriefingColumn) => void;
+  labels: BriefingLabels;
+}) {
+  const options: {
+    column: BriefingColumn;
+    label: string;
+    shown: boolean;
+    icon: ReactNode;
+  }[] = [
+    {
+      column: "event",
+      label: labels.eventsColumn,
+      shown: showEvents,
+      icon: <CalendarDays size={13} aria-hidden="true" />,
+    },
+    {
+      column: "task",
+      label: labels.todosColumn,
+      shown: showTodos,
+      icon: <CheckSquare size={13} aria-hidden="true" />,
+    },
+  ];
+  return (
+    <div
+      role="group"
+      aria-label={labels.columnSwitch}
+      data-briefing-column-switch=""
+      className="-my-1 flex flex-shrink-0 items-center gap-0.5 self-center"
+    >
+      {options.map((option) => {
+        // Desktop only: the one column still showing has nothing to give way
+        // to, so hiding it is refused rather than leaving an empty table.
+        const locked = !narrow && option.shown && !(showEvents && showTodos);
+        return (
+          <button
+            key={option.column}
+            type="button"
+            aria-pressed={option.shown}
+            disabled={locked}
+            onClick={() => onPress(option.column)}
+            className={`flex items-center gap-1 rounded-lumen-sm px-2 py-1 text-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent disabled:cursor-default max-md:min-h-11 ${
+              option.shown
+                ? "bg-lumen-bg-secondary font-semibold text-lumen-text"
+                : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text"
+            }`}
+          >
+            {option.icon}
+            {option.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** One time row of the table: the events and the todos that start then. */
+interface TableRow {
+  /** "HH:MM", or "" for the last row — the items with no clock. */
+  time: string;
+  minutes: number | null;
+  events: BriefingScheduleEntry[];
+  todos: BriefingTodoEntry[];
+}
+
+/*
+ * Rows in time order, then one「時間なし」row for whatever has no clock.
+ * A row exists only for what the visible columns hold, so hiding a column
+ * also drops the times only it had.
+ */
+function buildRows(
+  timed: BriefingScheduleEntry[],
+  todos: BriefingTodoEntry[],
+  showEvents: boolean,
+  showTodos: boolean,
+): TableRow[] {
+  const byTime = new Map<string, TableRow>();
+  const rowAt = (time: string): TableRow => {
+    const minutes = toMinutes(time) as number;
+    const key = String(minutes);
+    let row = byTime.get(key);
+    if (row === undefined) {
+      row = { time: formatMinutes(minutes), minutes, events: [], todos: [] };
+      byTime.set(key, row);
+    }
+    return row;
+  };
+  const untimed: TableRow = { time: "", minutes: null, events: [], todos: [] };
+  if (showEvents) {
+    for (const item of timed) {
+      if (toMinutes(item.startTime) === null) untimed.events.push(item);
+      else rowAt(item.startTime).events.push(item);
+    }
+  }
+  if (showTodos) {
+    for (const todo of todos) {
+      if (toMinutes(todo.startTime) === null) untimed.todos.push(todo);
+      else rowAt(todo.startTime).todos.push(todo);
+    }
+  }
+  // By minutes, not by the label: "9:05" and "09:05" are one time.
+  const rows = [...byTime.values()].sort(
+    (a, b) => (a.minutes ?? 0) - (b.minutes ?? 0),
+  );
+  if (untimed.events.length > 0 || untimed.todos.length > 0) rows.push(untimed);
+  return rows;
+}
+
+/** An event in its cell: calendar glyph, title, the routine and 進行中 marks. */
+function EventCell({
+  item,
+  phase,
+  labels,
+  onOpenItem,
+}: {
+  item: BriefingScheduleEntry;
+  phase: EventPhase;
+  labels: BriefingLabels;
+  onOpenItem: (id: string, role: BriefingColumn) => void;
+}) {
+  // An event that is over steps back to the secondary ink — a colour, not an
+  // opacity, so nothing behind the row shows through it.
+  const ink =
+    phase === "past"
+      ? "text-lumen-text-secondary"
+      : phase === "ongoing"
+        ? "font-semibold text-lumen-briefing-shu"
+        : "text-lumen-text";
+  return (
+    <li data-briefing-event={item.id} data-phase={phase} className="py-1">
+      <div className="flex min-h-11 items-center gap-2 md:min-h-0 md:py-1">
+        <CalendarDays
+          size={14}
+          aria-hidden="true"
+          className={`flex-shrink-0 ${
+            phase === "ongoing"
+              ? "text-lumen-briefing-shu"
+              : "text-lumen-text-secondary"
+          }`}
+        />
+        <button
+          type="button"
+          onClick={() => onOpenItem(item.id, "event")}
+          className={`min-w-0 flex-1 text-left text-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent ${ink}`}
+        >
+          {item.title}
+        </button>
+        {item.isRoutine && (
+          <span className="flex-shrink-0 rounded-full border border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-2 text-xs text-lumen-briefing-kohaku">
+            {labels.routineTag}
+          </span>
+        )}
+        {phase === "ongoing" && (
+          <span className="flex-shrink-0 rounded-full border border-lumen-briefing-shu bg-lumen-briefing-shu-subtle px-2 text-xs font-semibold text-lumen-briefing-shu">
+            {labels.ongoing}
+          </span>
+        )}
+      </div>
+      <TagLine tags={item.tags} moreCount={labels.moreCount} />
+    </li>
+  );
+}
+
+/**
+ * A todo in its cell. The round mark at the head toggles it done — the same
+ * control the carryover rows draw — and the title opens its editor (#2223:
+ * the title used to toggle as well).
+ */
+function TodoCell({
+  todo,
+  labels,
+  onToggleTodo,
+  onOpenItem,
+}: {
+  todo: BriefingTodoEntry;
+  labels: BriefingLabels;
+  onToggleTodo: (id: string) => void;
+  onOpenItem: (id: string, role: BriefingColumn) => void;
+}) {
+  return (
+    <li data-briefing-todo={todo.id} className="py-0.5">
+      <div className="flex items-center gap-1">
+        {/* `itemName` is the row's own title (#1486): a column of checkboxes
+            that only say「ステータス: 未着手」cannot be told apart. 朱 rather
+            than the app accent, as on the carryover rows and 夕刊. */}
+        <TodoStatusCheckbox
+          status={todo.status}
+          onChange={() => onToggleTodo(todo.id)}
+          labels={labels}
+          label={labels.todoStatus}
+          itemName={todo.title}
+          accentClassName="text-lumen-briefing-shu"
+        />
+        <button
+          type="button"
+          onClick={() => onOpenItem(todo.id, "task")}
+          className={`min-w-0 flex-1 text-left text-sm hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent ${
+            todo.status === "DONE"
+              ? "text-lumen-text-secondary line-through"
+              : "text-lumen-text"
+          }`}
+        >
+          {todo.title}
+        </button>
+      </div>
+      {/* The goals it serves (#2106), then the notes it links (◈). Hung
+          under the title, past the checkbox (`min-w-11` + `gap-1`). */}
+      {todo.goals !== undefined && todo.goals.length > 0 && (
+        <p
+          data-briefing-goals=""
+          className="ml-12 flex items-center gap-1 text-xs text-lumen-text-secondary"
+        >
+          <Target size={12} aria-hidden="true" className="shrink-0" />
+          <span className="sr-only">{labels.goalMark}</span>
+          <span className="min-w-0">{todo.goals.join(" ・ ")}</span>
+        </p>
+      )}
+      {todo.purposes.length > 0 && (
+        <p
+          data-briefing-purposes=""
+          className="ml-12 text-xs font-semibold text-lumen-briefing-kohaku"
+        >
+          ◈ {todo.purposes.join(" ・ ")}
+        </p>
+      )}
+      <TagLine tags={todo.tags} moreCount={labels.moreCount} />
+    </li>
+  );
+}
+
+/**
+ * A column heading: its glyph, its name, and its「+」at the right edge.
+ * Schedule's meaning for each glyph — a calendar for events, a check for
+ * todos — so the two screens read the same way.
+ */
+function ColumnHead({
+  icon,
+  label,
+  addLabel,
+  onAdd,
+}: {
+  icon: ReactNode;
+  label: string;
+  addLabel: string;
+  onAdd: () => void;
+}) {
+  return (
+    <th
+      scope="col"
+      className="border-b border-lumen-border pb-1 pl-2 text-left align-bottom font-normal"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="inline-flex items-center gap-1 text-xs font-bold text-lumen-text-secondary">
+          {icon}
+          {label}
+        </span>
+        <BlockHeadAddButton onClick={onAdd} label={addLabel} />
+      </div>
+    </th>
+  );
+}
+
+/**
+ * 「今日のスケジュール」as a time table (#2223) — rebuilt from the one-column
+ * list of #939. Rows run by time; a row holds every event and todo that
+ * starts then, side by side, so the day reads as one flow. Todos with no
+ * clock close the table under「時間なし」, and the all-day events sit apart in
+ * the band above it.
+ *
+ * A real <table>: the column headings name what each cell is to assistive
+ * tech, and the time column sizes itself to its widest label (`w-px` +
+ * `whitespace-nowrap`), so「時間なし」never wraps.
+ */
+function ScheduleTable({
+  data,
+  labels,
+  narrow,
+  nowMinutes,
+  onToggleTodo,
+  onOpenItem,
+  onAddItem,
+}: {
+  data: BriefingData;
+  labels: BriefingLabels;
+  narrow: boolean;
+  nowMinutes: number | undefined;
+  onToggleTodo: (id: string) => void;
+  onOpenItem: (id: string, role: BriefingColumn) => void;
+  onAddItem: (column: BriefingColumn) => void;
+}) {
+  // Desktop: which column the reader has hidden (never both). Phone: which
+  // one column is on screen — events first.
+  const [hiddenWide, setHiddenWide] = useState<BriefingColumn | null>(null);
+  const [shownNarrow, setShownNarrow] = useState<BriefingColumn>("event");
+  const showEvents = narrow ? shownNarrow === "event" : hiddenWide !== "event";
+  const showTodos = narrow ? shownNarrow === "task" : hiddenWide !== "task";
+
+  const pressColumn = (column: BriefingColumn) => {
+    if (narrow) {
+      setShownNarrow(column);
+      return;
+    }
+    // Hide a showing column only while the other one is still up; bring a
+    // hidden one back unconditionally.
+    if (hiddenWide === column) setHiddenWide(null);
+    else if (hiddenWide === null) setHiddenWide(column);
+  };
+
+  const allDay = data.schedule.filter((item) => item.isAllDay);
+  const timed = data.schedule.filter((item) => !item.isAllDay);
+  const rows = buildRows(timed, data.todos, showEvents, showTodos);
+  const columnCount = (showEvents ? 1 : 0) + (showTodos ? 1 : 0);
+
+  // The current-time line goes before the first row that starts after now —
+  // or after the last timed row once the day's clock has passed them all.
+  // No timed row, no line: there is nothing for it to stand between.
+  const timedRows = rows.filter((row) => row.minutes !== null);
+  let nowIndex = -1;
+  if (nowMinutes !== undefined && timedRows.length > 0) {
+    const after = rows.findIndex(
+      (row) => row.minutes !== null && row.minutes > nowMinutes,
+    );
+    nowIndex = after === -1 ? timedRows.length : after;
+  }
+
+  const visibleAllDay = showEvents ? allDay : [];
+  const empty = rows.length === 0 && visibleAllDay.length === 0;
+
+  const nowRow =
+    nowMinutes === undefined ? null : (
+      <tr key="now" data-briefing-now-line="">
+        <th
+          scope="row"
+          className="w-px whitespace-nowrap py-0 pr-2 text-left align-middle text-[10px] font-bold tabular-nums text-lumen-briefing-shu"
+        >
+          <span className="sr-only">{labels.nowLine} </span>
+          {formatMinutes(nowMinutes)}
+        </th>
+        <td colSpan={columnCount} className="py-0 align-middle">
+          <div
+            aria-hidden="true"
+            className="relative h-0.5 bg-lumen-briefing-shu"
+          >
+            <span className="absolute -left-1 -top-[3px] size-2 rounded-full bg-lumen-briefing-shu" />
+          </div>
+        </td>
+      </tr>
+    );
+
+  return (
+    <section className="border-b border-lumen-border py-5">
+      <BlockHead
+        title={labels.scheduleTitle}
+        action={
+          <ColumnSwitch
+            narrow={narrow}
+            showEvents={showEvents}
+            showTodos={showTodos}
+            onPress={pressColumn}
+            labels={labels}
+          />
+        }
+      />
+      {showEvents && (
+        <AllDayBand
+          items={visibleAllDay}
+          labels={labels}
+          onOpenItem={onOpenItem}
+        />
+      )}
+      <table data-briefing-table="" className="w-full border-collapse">
+        <thead>
+          <tr>
+            <th
+              scope="col"
+              className="w-px whitespace-nowrap border-b border-lumen-border pb-1 pr-2 text-left align-bottom text-xs font-bold text-lumen-text-secondary"
+            >
+              {labels.timeColumn}
+            </th>
+            {showEvents && (
+              <ColumnHead
+                icon={<CalendarDays size={13} aria-hidden="true" />}
+                label={labels.eventsColumn}
+                addLabel={labels.addEvent}
+                onAdd={() => onAddItem("event")}
+              />
+            )}
+            {showTodos && (
+              <ColumnHead
+                icon={<CheckSquare size={13} aria-hidden="true" />}
+                label={labels.todosColumn}
+                addLabel={labels.addTodo}
+                onAdd={() => onAddItem("task")}
+              />
+            )}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.flatMap((row, index) => {
+            const tr = (
+              <tr
+                key={row.time === "" ? "untimed" : row.time}
+                data-briefing-row={row.time === "" ? "untimed" : row.time}
+                className="border-b border-lumen-border last:border-b-0"
+              >
+                <th
+                  scope="row"
+                  className={`w-px whitespace-nowrap py-2 pr-2 text-left align-top text-xs font-bold tabular-nums ${
+                    row.time === ""
+                      ? "text-lumen-text-secondary"
+                      : "text-lumen-briefing-shu"
+                  }`}
+                >
+                  {row.time === "" ? labels.untimed : row.time}
+                </th>
+                {showEvents && (
+                  <td className="pl-2 align-top">
+                    {row.events.length > 0 && (
+                      <ul>
+                        {row.events.map((item) => (
+                          <EventCell
+                            key={item.id}
+                            item={item}
+                            phase={
+                              nowMinutes === undefined
+                                ? "upcoming"
+                                : eventPhase(
+                                    item.startTime,
+                                    item.endTime,
+                                    nowMinutes,
+                                  )
+                            }
+                            labels={labels}
+                            onOpenItem={onOpenItem}
+                          />
+                        ))}
+                      </ul>
+                    )}
+                  </td>
+                )}
+                {showTodos && (
+                  <td className="pl-2 align-top">
+                    {row.todos.length > 0 && (
+                      <ul>
+                        {row.todos.map((todo) => (
+                          <TodoCell
+                            key={todo.id}
+                            todo={todo}
+                            labels={labels}
+                            onToggleTodo={onToggleTodo}
+                            onOpenItem={onOpenItem}
+                          />
+                        ))}
+                      </ul>
+                    )}
+                  </td>
+                )}
+              </tr>
+            );
+            return index === nowIndex && nowRow !== null ? [nowRow, tr] : [tr];
+          })}
+          {nowIndex === rows.length && nowRow}
+        </tbody>
+      </table>
+      {empty && (
+        <p className="pt-3 text-sm text-lumen-text-secondary">
+          {labels.noSchedule}
+        </p>
+      )}
+    </section>
   );
 }
 
@@ -519,19 +1191,15 @@ export function BriefingView({
   focusText,
   goalsSlot,
   onToggleTodo,
-  onDeleteScheduleItem,
-  onDeleteTodo,
-  onAddScheduleItem,
-  onJumpToSchedule,
+  onOpenItem,
+  onAddItem,
   onJumpToTodos,
-  tabSwitcher,
+  nowMinutes,
+  narrow = false,
 }: BriefingViewProps): React.JSX.Element {
   if (loading) {
-    // The switcher rides along the skeleton too — a slow fetch must never
-    // strand a narrow-width reader on the tab they can no longer leave.
     return (
       <div className="mx-auto w-full max-w-2xl py-8">
-        {tabSwitcher != null && <div className="mb-4 px-2">{tabSwitcher}</div>}
         <SkeletonList rows={8} rowHeight={44} gap={12} />
       </div>
     );
@@ -539,30 +1207,11 @@ export function BriefingView({
 
   const { briefing } = data;
 
-  // All-day rows first, then the timed ones (#939). The host already sorts
-  // this way, but the divider's position is a promise the view makes — it has
-  // to sit between the todos and the FIRST all-day row — so the grouping is
-  // re-stated here instead of being inherited silently. Stable partition: the
-  // host's order inside each group is untouched.
-  const scheduleRows = [
-    ...data.schedule.filter((item) => item.isAllDay),
-    ...data.schedule.filter((item) => !item.isAllDay),
-  ];
-
   return (
     <div className="mx-auto w-full max-w-2xl pb-16">
-      {/* ── 朝刊/夕刊 switcher — narrow layout only (#318) ──────────
-          ABOVE the masthead (#879): the band carries the hamburger that
-          opens the drawer (#609), and every other section draws that row at
-          the very top of the page (PageContainer's header slot). Below the
-          title it was Briefing's own header order, one screen out of step
-          with the rest. On the wide layout the slot is undefined, so the
-          paper still opens on its masthead — nothing moves there. */}
-      {tabSwitcher != null && (
-        <div className="border-b border-lumen-border px-2 py-3">
-          {tabSwitcher}
-        </div>
-      )}
+      {/* The narrow 朝刊/夕刊 band used to open the paper from inside it
+          (#318 / #879). It sits in the shell header now, like every other
+          section's, so it stays on screen while the paper scrolls (#2223). */}
 
       {/* ── Masthead — the title and the focus line below deliberately keep
           the newspaper serif (#269) regardless of the Settings font; body
@@ -658,177 +1307,17 @@ export function BriefingView({
           (#2106). Host-built — see `goalsSlot`. ─────────────────── */}
       {goalsSlot}
 
-      {/* ── Today's schedule — todos ride on top of it (#939) ────────
-          One list, not two sections: a todo placed on today and an all-day
-          event are the same promise to the reader, and the old separate
-          「今日の Todo と、その目的」heading made the page ask twice what the
-          day holds. Order is todos → hairline → all-day → timed, so the rows
-          run from "no clock at all" down to "at 09:00". */}
-      <section className="border-b border-lumen-border py-5">
-        <BlockHead
-          title={labels.scheduleTitle}
-          action={
-            <BlockHeadAddButton
-              onClick={onAddScheduleItem}
-              label={labels.addScheduleItem}
-            />
-          }
-        />
-        {data.todos.length === 0 && data.schedule.length === 0 ? (
-          <p className="text-sm text-lumen-text-secondary">
-            {labels.noSchedule}
-          </p>
-        ) : (
-          <ul className="space-y-1">
-            {data.todos.map((todo) => (
-              <li key={todo.id}>
-                {/* One height for every row in this list (#1442). The shared
-                    checkbox carries the 44px touch floor, so a row holding one
-                    is 44px tall — and the schedule rows below claim the same
-                    minimum rather than letting the list step down at the point
-                    where the todos end.
-
-                    `flex-wrap` below `md` (#1820) so the action cluster drops
-                    to its own line and the title keeps the width; `gap-y-1`
-                    is the space between those two lines and costs nothing
-                    while the row is unwrapped. `md:flex-nowrap` pins the
-                    Desktop row to one line whatever the title measures. */}
-                <div className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 md:flex-nowrap">
-                  {/* Same column, same format as the timed rows below — a
-                      todo placed at 09:00 has to read as 09:00 here too
-                      (#1369). Untimed todos pass "" and get the spacer that
-                      used to be unconditional. */}
-                  <TimeCell label={todo.startTime} />
-                  {/* The same control the carryover rows draw (#1442) — the
-                      paper had a 16px hand-drawn box here and the shared 20px
-                      glyph a few rows down, so one page showed two kinds of
-                      checkbox. It sits beside the title button, not inside it:
-                      it is a button itself, and this file's a11y invariant is
-                      that no button nests in another. 朱 rather than the app
-                      accent, as on the carryover rows and 夕刊.
-                      `itemName` is the row's own title (#1486): the paper can
-                      print five todos, and a checkbox that only says
-                     「ステータス: 未着手」leaves the reader who cannot see the
-                      title beside it with five identical controls. */}
-                  <TodoStatusCheckbox
-                    status={todo.status}
-                    onChange={() => onToggleTodo(todo.id)}
-                    labels={labels}
-                    label={labels.todoStatus}
-                    itemName={todo.title}
-                    accentClassName="text-lumen-briefing-shu"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => onToggleTodo(todo.id)}
-                    className="min-w-0 text-left"
-                  >
-                    <span
-                      className={
-                        todo.status === "DONE"
-                          ? "text-sm text-lumen-text-secondary line-through"
-                          : "text-sm text-lumen-text"
-                      }
-                    >
-                      {todo.title}
-                    </span>
-                  </button>
-                  <RowActions>
-                    <EditJumpButton
-                      onClick={() => onJumpToTodos(todo.id)}
-                      label={labels.edit}
-                      hint={labels.jumpToTodos}
-                    />
-                    <DeleteRowButton
-                      onClick={() => onDeleteTodo(todo.id)}
-                      label={labels.delete}
-                      hint={labels.deleteTodoHint}
-                    />
-                  </RowActions>
-                </div>
-                {/* Indented past the empty time column + checkbox so the
-                    purpose hangs under its own todo's title: the time column
-                    (`w-14` = 3.5rem), the `gap-3` (0.75rem), the checkbox
-                    (`min-w-11` = 2.75rem) and the second `gap-3`.
-
-                    In rem and never in px (#1821). Every one of those four
-                    widths is rem-based, so at the 18px root step the columns
-                    measure 139.5px while a fixed `ml-[124px]` stayed put — the
-                    purpose line started 16px to the LEFT of the title it hangs
-                    under, on Desktop and on a phone alike. 3.5 + 0.75 + 2.75 +
-                    0.75 = 7.75rem, which is the same 124px at the 16px root and
-                    follows the column at every other step. */}
-                {/* The goals it serves (#2106), above the note links: a goal
-                    is why the todo is on the paper at all. Same hang as the
-                    ◈ line below, but secondary text rather than 琥珀 — that
-                    colour already names the notes, and two meanings in one
-                    colour would read as one. */}
-                {todo.goals !== undefined && todo.goals.length > 0 && (
-                  <p className="ml-[7.75rem] mt-0.5 flex items-center gap-1 text-xs text-lumen-text-secondary">
-                    <Target size={12} aria-hidden="true" className="shrink-0" />
-                    <span className="sr-only">{labels.goalMark}</span>
-                    <span className="min-w-0">{todo.goals.join(" ・ ")}</span>
-                  </p>
-                )}
-                {todo.purposes.length > 0 && (
-                  <p className="ml-[7.75rem] mt-0.5 text-xs text-lumen-text-secondary">
-                    <span className="font-semibold text-lumen-briefing-kohaku">
-                      ◈ {todo.purposes.join(" ・ ")}
-                    </span>
-                  </p>
-                )}
-              </li>
-            ))}
-            {/* The hairline between the two kinds of row. Decorative only —
-                it separates, it is not an item — and omitted entirely when
-                one side of it is empty. */}
-            {data.todos.length > 0 && data.schedule.length > 0 && (
-              <li
-                aria-hidden="true"
-                className="my-1.5 border-t border-lumen-border"
-              />
-            )}
-            {scheduleRows.map((item) => (
-              <li
-                key={item.id}
-                className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 md:flex-nowrap"
-              >
-                <TimeCell
-                  label={item.isAllDay ? labels.allDay : item.startTime}
-                />
-                {/* No completion mark and no strikethrough (#1373): an event
-                    has no "done" any more, so the paper reads the schedule
-                    rather than asking the user to tick it off. The todo rows
-                    below keep their checkbox. */}
-                <span className="min-w-0 text-sm text-lumen-text">
-                  {item.title}
-                </span>
-                {item.isRoutine && (
-                  <span className="rounded-full border border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-2 text-xs text-lumen-briefing-kohaku">
-                    {labels.routineTag}
-                  </span>
-                )}
-                {/* Last in the row so `ml-auto` lands it on the right edge —
-                    the routine tag keeps its place beside the title. Below
-                    `md` the cluster takes the next line instead (#1820) and
-                    the tag stays up here with the title. */}
-                <RowActions>
-                  <EditJumpButton
-                    onClick={() => onJumpToSchedule(item.id)}
-                    label={labels.edit}
-                    hint={labels.jumpToSchedule}
-                  />
-                  <DeleteRowButton
-                    onClick={() => onDeleteScheduleItem(item.id)}
-                    label={labels.delete}
-                    hint={labels.deleteScheduleHint}
-                  />
-                </RowActions>
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
+      {/* ── Today's schedule — a time table of events and todos (#2223),
+          rebuilt from the one merged list of #939. ──────────────────── */}
+      <ScheduleTable
+        data={data}
+        labels={labels}
+        narrow={narrow}
+        nowMinutes={nowMinutes}
+        onToggleTodo={onToggleTodo}
+        onOpenItem={onOpenItem}
+        onAddItem={onAddItem}
+      />
 
       {/* ── Carryover ─────────────────────────────────────────────
           The paper's last section now that「きのうまでの自分」has moved to the

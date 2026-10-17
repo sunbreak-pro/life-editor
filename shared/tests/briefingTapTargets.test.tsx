@@ -35,19 +35,25 @@ const LABELS: BriefingLabels = {
   noFocus: "No focus",
   goalMark: "Goals:",
   scheduleTitle: "PROMISES",
-  addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
   routineTag: "Routine",
   allDay: "All day",
+  timeColumn: "Time",
+  eventsColumn: "Events",
+  todosColumn: "Todos",
+  untimed: "No time",
+  ongoing: "Now on",
+  nowLine: "Current time",
+  columnSwitch: "Columns",
+  addEvent: "Add an event",
+  addTodo: "Add a todo",
+  moreCount: (count: number) => `+${count} more`,
+  close: "Close",
   carryoverTitle: "CARRYOVER",
   todoStatus: "Status",
   statusNotStarted: "Not started",
   statusDone: "Done",
   edit: "Edit",
-  delete: "Delete",
-  deleteScheduleHint: "Delete this event",
-  deleteTodoHint: "Delete this todo",
-  jumpToSchedule: "Open in Schedule",
   jumpToTodos: "Open in Todos",
 };
 
@@ -64,7 +70,9 @@ const DATA: BriefingData = {
       purposes: [],
     },
   ],
-  carryover: [],
+  carryover: [
+    { id: "c1", title: "Old todo", daysLabel: "3日目", completed: false },
+  ],
   sessions: [],
   todoNodes: [],
 };
@@ -77,10 +85,8 @@ function renderMorning() {
       labels={LABELS}
       focusText={null}
       onToggleTodo={vi.fn()}
-      onDeleteScheduleItem={vi.fn()}
-      onDeleteTodo={vi.fn()}
-      onAddScheduleItem={vi.fn()}
-      onJumpToSchedule={vi.fn()}
+      onOpenItem={vi.fn()}
+      onAddItem={vi.fn()}
       onJumpToTodos={vi.fn()}
     />,
   );
@@ -126,45 +132,44 @@ describe("#1559 — the briefing papers' own controls meet the 44px floor", () =
     }
   });
 
-  it("floors 「今日のスケジュールに追加」without moving the heading's rule", () => {
+  it("floors each column's「+」without moving the heading's rule (#2223)", () => {
     renderMorning();
-    const add = screen.getByRole("button", {
-      name: LABELS.addScheduleItem,
-    });
-    // Width grows the box — a heading has slack the h3 was not using.
-    expect(add).toHaveClass("max-md:min-w-11", "justify-center");
-    // Height does NOT: TAP_TARGET_TALL hangs an invisible 44px ::after over a
-    // box that stays 26px tall, so the hairline under the heading holds still.
-    expect(add).toHaveClass("relative", "after:h-11", "after:inset-x-0");
-    // Desktop: the 26×26 box #623 chose, unchanged in both directions.
-    expect(add).toHaveClass("p-1.5");
-    expect(add).not.toHaveClass("min-h-11");
-    expect(add).not.toHaveClass("min-w-11");
+    for (const name of [LABELS.addEvent, LABELS.addTodo]) {
+      const add = screen.getByRole("button", { name });
+      // Width grows the box — a heading has slack the label was not using.
+      expect(add).toHaveClass("max-md:min-w-11", "justify-center");
+      // Height does NOT: TAP_TARGET_TALL hangs an invisible 44px ::after over
+      // a box that stays 26px tall, so the hairline under the headings holds.
+      expect(add).toHaveClass("relative", "after:h-11", "after:inset-x-0");
+      // Desktop: the 26×26 box #623 chose, unchanged in both directions.
+      expect(add).toHaveClass("p-1.5");
+      expect(add).not.toHaveClass("min-h-11");
+      expect(add).not.toHaveClass("min-w-11");
+    }
   });
 
-  it("floors a todo row's 編集 / 削除 by growing the boxes, not by ::after", () => {
+  it("floors the column switch on a phone only", () => {
     renderMorning();
-    const row: [string, string][] = [
-      ["Edit", LABELS.jumpToTodos],
-      ["Delete", LABELS.deleteTodoHint],
-    ];
-    for (const [label, hint] of row) {
-      const btn = screen.getByRole("button", { name: `${label}: ${hint}` });
-      expect(btn).toHaveClass("max-md:min-h-11", "max-md:min-w-11");
-      expect(btn).toHaveClass("justify-center");
-      /*
-       * The pair sits `gap-0.5` apart, so the shared TAP_TARGET_TALL trick is
-       * the wrong one here: a 44px extension on each would overlap in the 2px
-       * between them and a tap meant for 編集 could answer 削除.
-       */
-      expect(btn).not.toHaveClass("after:h-11");
-      // Desktop: same padding and type step as before the floor.
-      expect(btn).toHaveClass("px-1.5", "py-1", "text-xs");
+    for (const name of [LABELS.eventsColumn, LABELS.todosColumn]) {
+      const btn = screen.getByRole("button", { name });
+      expect(btn).toHaveClass("max-md:min-h-11");
       expect(btn).not.toHaveClass("min-h-11");
-      expect(btn).not.toHaveClass("min-w-11");
-      // #1514 is not undone in passing: the words stay hidden below `md`, so
-      // the title keeps the larger half of the width that change won back.
-      expect(btn.querySelector("span")).toHaveClass("hidden", "md:inline");
     }
+  });
+
+  it("floors a carryover row's 編集 by growing the box, not by ::after", () => {
+    renderMorning();
+    const btn = screen.getByRole("button", {
+      name: `${LABELS.edit}: ${LABELS.jumpToTodos}`,
+    });
+    expect(btn).toHaveClass("max-md:min-h-11", "max-md:min-w-11");
+    expect(btn).toHaveClass("justify-center");
+    expect(btn).not.toHaveClass("after:h-11");
+    // Desktop: same padding and type step as before the floor.
+    expect(btn).toHaveClass("px-1.5", "py-1", "text-xs");
+    expect(btn).not.toHaveClass("min-h-11");
+    expect(btn).not.toHaveClass("min-w-11");
+    // #1514: the word stays hidden below `md`.
+    expect(btn.querySelector("span")).toHaveClass("hidden", "md:inline");
   });
 });

@@ -1,5 +1,6 @@
 import { useCallback, useMemo } from "react";
 import {
+  buildItemTagColors,
   dateKeyOfInstant,
   pickAddableTodos,
   readMorningRecord,
@@ -9,6 +10,7 @@ import {
   type BriefingCarryoverEntry,
   type BriefingData,
   type BriefingScheduleEntry,
+  type BriefingTag,
   type BriefingTodoEntry,
   type EveningScheduleEntry,
   type EveningTodoEntry,
@@ -19,7 +21,9 @@ import {
   type TodoNode,
   type TodoStatus,
   type TodayTodoRow,
+  type WikiTagAssignmentUnified,
   type WikiTagConnectionUnified,
+  type WikiTagUnified,
 } from "@life-editor/shared";
 
 /*
@@ -44,6 +48,66 @@ const dateKeyOf = dateKeyOfInstant;
 function daysBetween(a: string, b: string): number {
   const ms = Date.parse(`${b}T00:00:00`) - Date.parse(`${a}T00:00:00`);
   return Math.max(0, Math.round(ms / 86_400_000));
+}
+
+/**
+ * The paper's rows with their WikiTags on (#2223) — a pure join, run by the
+ * host over the tags it reads beside the paper's own fetch.
+ *
+ * An event's tags are its own; an occurrence with none of its own takes its
+ * routine's, the same fallback Schedule's chip colour makes
+ * (web/src/schedule/scheduleViewModels.ts `eventTagColor`). An all-day chip
+ * also gets the colour Schedule paints it with (`buildItemTagColors`, same
+ * fallback). Deleted tags and assignments drop out; a row's tags keep the
+ * order they were attached in.
+ */
+export function attachBriefingTags(
+  data: BriefingData,
+  tags: readonly WikiTagUnified[],
+  assignments: readonly WikiTagAssignmentUnified[],
+): BriefingData {
+  const tagById = new Map<string, WikiTagUnified>();
+  for (const tag of tags) if (!tag.isDeleted) tagById.set(tag.id, tag);
+  const byItem = new Map<string, WikiTagAssignmentUnified[]>();
+  for (const a of assignments) {
+    if (a.isDeleted || !tagById.has(a.tagId)) continue;
+    const list = byItem.get(a.itemId);
+    if (list === undefined) byItem.set(a.itemId, [a]);
+    else list.push(a);
+  }
+  const tagsOf = (itemId: string): BriefingTag[] =>
+    (byItem.get(itemId) ?? [])
+      .slice()
+      .sort(
+        (x, y) =>
+          x.createdAt.localeCompare(y.createdAt) || x.id.localeCompare(y.id),
+      )
+      .map((a) => {
+        const tag = tagById.get(a.tagId) as WikiTagUnified;
+        return {
+          id: tag.id,
+          name: tag.name,
+          color: tag.color,
+          icon: tag.icon,
+        };
+      });
+  const colors = buildItemTagColors(assignments, tags);
+  return {
+    ...data,
+    schedule: data.schedule.map((item) => {
+      const own = tagsOf(item.id);
+      const routineId = item.routineId ?? null;
+      return {
+        ...item,
+        tags: own.length > 0 || routineId === null ? own : tagsOf(routineId),
+        tagColor:
+          colors.get(item.id) ??
+          (routineId === null ? undefined : colors.get(routineId)) ??
+          null,
+      };
+    }),
+    todos: data.todos.map((todo) => ({ ...todo, tags: tagsOf(todo.id) })),
+  };
 }
 
 export interface BriefingAggregationInput {
@@ -125,8 +189,12 @@ export function useBriefingAggregation({
           id: s.id,
           title: s.title,
           startTime: s.startTime,
+          // The span's end (#2223): the table reads an event as over or under
+          // way from it.
+          endTime: s.endTime,
           completed: s.completed,
           isRoutine: s.routineId !== null,
+          routineId: s.routineId,
           isAllDay: s.isAllDay === true,
         })),
     [scheduleItems],

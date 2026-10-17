@@ -10,12 +10,12 @@ import {
  * #1821 — the purpose line hangs under its own todo's TITLE, at every root
  * font size.
  *
- * The indent has to clear the same four columns the row above it draws: the
- * time cell (`w-14`), the `gap-3`, the checkbox (`min-w-11`) and the second
- * `gap-3`. All four are rem, so the only honest indent is rem too. Written as
- * `ml-[124px]` it matched exactly one step of the Settings font scale: at the
- * 18px root the columns measured 139.5px and the「◈」started 16px to the left
- * of the title it belongs to.
+ * Since #2223 the todo sits in a cell of the time table, so the indent clears
+ * the two columns that now stand before its title: the checkbox (`min-w-11`)
+ * and the `gap-1` after it — 2.75 + 0.25 = 3rem, `ml-12`. Both are rem, so the
+ * only honest indent is rem too. Written as `ml-[124px]` it matched exactly
+ * one step of the Settings font scale and started left of the title at the
+ * others.
  *
  * jsdom has no layout (CLAUDE.md §7.1), so this pins the CLASS rather than
  * measuring the offset — which is also the only form that can state the rule
@@ -31,19 +31,25 @@ const LABELS: BriefingLabels = {
   noFocus: "No focus",
   goalMark: "Goals:",
   scheduleTitle: "PROMISES",
-  addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
   routineTag: "Routine",
   allDay: "All day",
+  timeColumn: "Time",
+  eventsColumn: "Events",
+  todosColumn: "Todos",
+  untimed: "No time",
+  ongoing: "Now on",
+  nowLine: "Current time",
+  columnSwitch: "Columns",
+  addEvent: "Add an event",
+  addTodo: "Add a todo",
+  moreCount: (count: number) => `+${count} more`,
+  close: "Close",
   carryoverTitle: "CARRYOVER",
   todoStatus: "Status",
   statusNotStarted: "Not started",
   statusDone: "Done",
   edit: "Edit",
-  delete: "Delete",
-  deleteScheduleHint: "Delete this event",
-  deleteTodoHint: "Delete this todo",
-  jumpToSchedule: "Open in Schedule",
   jumpToTodos: "Open in Todos",
 };
 
@@ -74,10 +80,8 @@ function renderMorning() {
       labels={LABELS}
       focusText={null}
       onToggleTodo={vi.fn()}
-      onDeleteScheduleItem={vi.fn()}
-      onDeleteTodo={vi.fn()}
-      onAddScheduleItem={vi.fn()}
-      onJumpToSchedule={vi.fn()}
+      onOpenItem={vi.fn()}
+      onAddItem={vi.fn()}
       onJumpToTodos={vi.fn()}
     />,
   );
@@ -92,10 +96,10 @@ function purposeLine(): HTMLElement {
 }
 
 describe("#1821 — the purpose line's indent follows the columns", () => {
-  it("indents in rem, by exactly the four columns above it", () => {
+  it("indents in rem, by exactly the columns before the title", () => {
     renderMorning();
-    // 3.5rem (w-14) + 0.75 (gap-3) + 2.75 (min-w-11) + 0.75 (gap-3).
-    expect(purposeLine().className).toContain("ml-[7.75rem]");
+    // 2.75rem (min-w-11) + 0.25 (gap-1).
+    expect(purposeLine().className).toContain("ml-12");
   });
 
   it("carries no px indent of any kind", () => {
@@ -108,6 +112,6 @@ describe("#1821 — the purpose line's indent follows the columns", () => {
   it("gives the goal line (#2106) the same indent", () => {
     renderMorning();
     const goalLine = screen.getByText("Pass the proposal").closest("p");
-    expect(goalLine?.className).toContain("ml-[7.75rem]");
+    expect(goalLine?.className).toContain("ml-12");
   });
 });

@@ -17,6 +17,8 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
 /*
  * Briefing's Todo tray after #795 — the host half of the merge.
  *
+ * Read on 夕刊: since #2223 the tray is mounted on the evening paper only.
+ *
  * The pure tray's own suite covers the layout (one heading, time-less rows
  * first, the chip-todo pill). What only the host can answer is whether
  * Briefing actually opts in and which words it opts in WITH: the point of the
@@ -84,7 +86,7 @@ function renderWithPanel() {
         <BriefingScreen
           dataService={makeDS()}
           onNavigate={vi.fn()}
-          tab="morning"
+          tab="evening"
         />
       </RightSidebarContext.Provider>
     </SyncContext.Provider>,

@@ -64,7 +64,7 @@ function setWidth(wide: boolean) {
   });
 }
 
-function renderWithPanel(wide: boolean) {
+function renderWithPanel(wide: boolean, tab: "morning" | "evening" = "evening") {
   setWidth(wide);
   const panelBody = document.createElement("div");
   panelBody.setAttribute("data-testid", "panel-body");
@@ -90,7 +90,7 @@ function renderWithPanel(wide: boolean) {
         <BriefingScreen
           dataService={makeDS()}
           onNavigate={vi.fn()}
-          tab="morning"
+          tab={tab}
         />
       </RightSidebarContext.Provider>
     </SyncContext.Provider>,
@@ -106,13 +106,13 @@ describe("Briefing detail panel across widths (#609)", () => {
       .forEach((el) => el.remove());
   });
 
-  it("mounts the Todo tray into the panel below 768px", async () => {
+  it("mounts the Todo tray into the evening panel below 768px", async () => {
     const panelBody = renderWithPanel(false);
     await waitFor(() =>
       expect(panelBody.textContent).toContain("Today's Todo"),
     );
     // The paper itself is still there — the tray is an addition, not a swap.
-    expect(screen.getByText("LIFE EDITOR BRIEFING")).toBeTruthy();
+    expect(screen.getByText("LIFE EDITOR EVENING")).toBeTruthy();
   });
 
   it("still mounts it on the wide layout (no regression)", async () => {
@@ -123,36 +123,29 @@ describe("Briefing detail panel across widths (#609)", () => {
   });
 
   /*
-   * #1559 — the 44px touch floor reaches the tray's own「+」too.
-   *
-   * The audit that filed the issue named ONE「今日のスケジュールに追加」, but
-   * this screen draws two: the paper's heading control (floored in
-   * shared/tests/briefingTapTargets.test.tsx) and this one. It used to be
-   * wide-only, which is why the audit never saw it — the test above is the
-   * change that made it reachable below 768px, so it is a narrow target now
-   * and a fix that floors only the paper leaves half the issue standing.
-   *
-   * jsdom has no layout (CLAUDE.md §7.1) and web/ carries no jest-dom, so this
-   * reads the class contract off `className` the way the sizing guards
-   * elsewhere in the repo do.
+   * #2223 — the morning paper's table holds today's todos now, so
+   *「今日の Todo」and its「Todo 一覧」left the morning panel at every width.
+   * The charts below them stay, which is what proves the panel did fill.
    */
-  it("floors the tray's own「+」on narrow but not on Desktop (#1559)", async () => {
+  it.each([
+    ["below 768px", false],
+    ["on the wide layout", true],
+  ])("leaves the Todo tray off the morning panel %s", async (_, wide) => {
+    const panelBody = renderWithPanel(wide, "morning");
+    await waitFor(() =>
+      expect(panelBody.textContent).toContain("YOU, UP TO YESTERDAY"),
+    );
+    expect(panelBody.textContent).not.toContain("Today's Todo");
+    expect(panelBody.textContent).not.toContain("Todos list");
+  });
+
+  // The tray's「+」went with it: it was the morning paper's second way into
+  // the creation panel, and the evening tray never drew one.
+  it("draws no「+」on the evening tray", async () => {
     const panelBody = renderWithPanel(false);
     await waitFor(() =>
       expect(panelBody.textContent).toContain("Today's Todo"),
     );
-    const add = panelBody.querySelector<HTMLButtonElement>(
-      'button[aria-label="Add to today\'s schedule"]',
-    );
-    if (add === null) throw new Error("the tray drew no add button");
-    const cls = add.className.split(/\s+/);
-    expect(cls).toContain("max-md:min-h-11");
-    expect(cls).toContain("max-md:min-w-11");
-    expect(cls).toContain("justify-center");
-    // Desktop keeps the 26×26 box #623 chose: the floor is prefixed, and the
-    // painted padding beside it is untouched.
-    expect(cls).toContain("p-1.5");
-    expect(cls).not.toContain("min-h-11");
-    expect(cls).not.toContain("min-w-11");
+    expect(panelBody.querySelector("svg.lucide-plus")).toBeNull();
   });
 });

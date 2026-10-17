@@ -3,7 +3,10 @@ import { renderHook, waitFor } from "@testing-library/react";
 import {
   eveningEvents,
   localDateTimeToISO,
+  type BriefingData,
   type DataService,
+  type WikiTagAssignmentUnified,
+  type WikiTagUnified,
 } from "@life-editor/shared";
 import { makeNote, makeTodo, stubDataService } from "./helpers";
 import {
@@ -12,6 +15,7 @@ import {
   scheduleItem,
   type BriefingReadSeed,
 } from "./helpers/briefingHarness";
+import { attachBriefingTags } from "../src/briefing/hooks/useBriefingAggregation";
 import { useBriefingData } from "../src/briefing/hooks/useBriefingData";
 
 /*
@@ -496,5 +500,147 @@ describe("useBriefingData — today's todo tray (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     expect(result.current.todoUnplaced[0]?.status).toBe("NOT_STARTED");
+  });
+});
+
+/*
+ * #2223 — the rows' WikiTags, joined on by the host from its own tag read.
+ * Pure (`attachBriefingTags`), so it is pinned by handing it lists.
+ */
+describe("attachBriefingTags (#2223)", () => {
+  const tag = (id: string, color: string | null = null) =>
+    ({
+      id,
+      name: id.toUpperCase(),
+      color,
+      icon: null,
+      createdAt: "2026-08-01T00:00:00.000Z",
+      updatedAt: "2026-08-01T00:00:00.000Z",
+      isDeleted: false,
+      deletedAt: null,
+    }) as WikiTagUnified;
+  const assign = (
+    itemId: string,
+    tagId: string,
+    createdAt: string,
+    over: Partial<WikiTagAssignmentUnified> = {},
+  ) =>
+    ({
+      id: `${itemId}:${tagId}`,
+      itemId,
+      tagId,
+      createdAt,
+      updatedAt: createdAt,
+      isDisplayColor: false,
+      isDeleted: false,
+      deletedAt: null,
+      ...over,
+    }) as WikiTagAssignmentUnified;
+
+  const DATA: BriefingData = {
+    dateLine: "",
+    briefing: null,
+    schedule: [
+      {
+        id: "e-own",
+        title: "Own tags",
+        startTime: "09:00",
+        completed: false,
+        isRoutine: false,
+        routineId: null,
+        isAllDay: false,
+      },
+      {
+        id: "e-occ",
+        title: "Routine occurrence",
+        startTime: "10:00",
+        completed: false,
+        isRoutine: true,
+        routineId: "r1",
+        isAllDay: true,
+      },
+    ],
+    todos: [
+      { id: "t1", title: "Todo", status: "NOT_STARTED", startTime: "", purposes: [] },
+    ],
+    carryover: [],
+    sessions: [],
+    todoNodes: [],
+  };
+
+  it("gives each row its own tags, in the order they were attached", () => {
+    const out = attachBriefingTags(
+      DATA,
+      [tag("a"), tag("b")],
+      [
+        assign("e-own", "b", "2026-08-02T00:00:00.000Z"),
+        assign("e-own", "a", "2026-08-01T00:00:00.000Z"),
+        assign("t1", "a", "2026-08-01T00:00:00.000Z"),
+      ],
+    );
+    expect(out.schedule[0].tags?.map((t) => t.name)).toEqual(["A", "B"]);
+    expect(out.todos[0].tags?.map((t) => t.name)).toEqual(["A"]);
+  });
+
+  it("lends an occurrence with no tags of its own the routine's", () => {
+    const out = attachBriefingTags(
+      DATA,
+      [tag("gym", "#ff0000")],
+      [assign("r1", "gym", "2026-08-01T00:00:00.000Z")],
+    );
+    expect(out.schedule[1].tags?.map((t) => t.id)).toEqual(["gym"]);
+    // The all-day chip's colour follows the same fallback Schedule's does.
+    expect(out.schedule[1].tagColor).toBe("#ff0000");
+  });
+
+  it("drops deleted tags and deleted assignments", () => {
+    const out = attachBriefingTags(
+      DATA,
+      [tag("a"), { ...tag("gone"), isDeleted: true }],
+      [
+        assign("e-own", "a", "2026-08-01T00:00:00.000Z", { isDeleted: true }),
+        assign("e-own", "gone", "2026-08-01T00:00:00.000Z"),
+      ],
+    );
+    expect(out.schedule[0].tags).toEqual([]);
+    expect(out.schedule[0].tagColor).toBeNull();
+  });
+});
+
+/*
+ * #2223 — the schedule rows carry what the table needs to tell an event that
+ * is over from one under way, and to find a routine occurrence's tags.
+ */
+describe("useBriefingData — schedule rows for the time table (#2223)", () => {
+  it("carries each event's end time and routine", async () => {
+    const { result } = renderData({
+      scheduleByDate: {
+        [TODAY]: [
+          scheduleItem({
+            id: "e1",
+            date: TODAY,
+            startTime: "09:00",
+            endTime: "09:45",
+          }),
+          scheduleItem({
+            id: "e2",
+            date: TODAY,
+            startTime: "10:00",
+            routineId: "r1",
+          }),
+        ],
+      },
+    });
+    await waitFor(() => expect(result.current.data.schedule).toHaveLength(2));
+    expect(result.current.data.schedule[0]).toMatchObject({
+      id: "e1",
+      endTime: "09:45",
+      routineId: null,
+    });
+    expect(result.current.data.schedule[1]).toMatchObject({
+      id: "e2",
+      routineId: "r1",
+      isRoutine: true,
+    });
   });
 });

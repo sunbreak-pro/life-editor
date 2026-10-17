@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import {
   BriefingView,
   BriefingVizPanel,
@@ -10,11 +10,11 @@ import {
 import { EVENING_LABELS, emptyEveningBlocks } from "./helpers/eveningFixtures";
 
 /*
- * BriefingView — pure morning-paper view. Every row (schedule / todo /
- * carryover) exposes a title button (toggles completion) plus an icon-only
- * jump button (navigates to the owning section). The circle on schedule rows
- * still toggles too. This suite guards the click routing and the no-nested-
- * button a11y invariant.
+ * BriefingView — pure morning-paper view. 「今日のスケジュール」is a time
+ * table since #2223: a row's title opens its editor, a todo's checkbox
+ * toggles it. Carryover rows keep a toggling title plus a jump button. This
+ * suite guards the click routing, the table's layout rules and the
+ * no-nested-button a11y invariant.
  */
 
 const LABELS: BriefingLabels = {
@@ -25,19 +25,25 @@ const LABELS: BriefingLabels = {
   noFocus: "No focus",
   goalMark: "Goals:",
   scheduleTitle: "PROMISES",
-  addScheduleItem: "Add to today's schedule",
   noSchedule: "Nothing scheduled",
   routineTag: "Routine",
   allDay: "All day",
+  timeColumn: "Time",
+  eventsColumn: "Events",
+  todosColumn: "Todos",
+  untimed: "No time",
+  ongoing: "Now on",
+  nowLine: "Current time",
+  columnSwitch: "Columns",
+  addEvent: "Add an event",
+  addTodo: "Add a todo",
+  moreCount: (count: number) => `+${count} more`,
+  close: "Close",
   carryoverTitle: "CARRYOVER",
   todoStatus: "Status",
   statusNotStarted: "Not started",
   statusDone: "Done",
   edit: "Edit",
-  delete: "Delete",
-  deleteScheduleHint: "Delete this event",
-  deleteTodoHint: "Delete this todo",
-  jumpToSchedule: "Open in Schedule",
   jumpToTodos: "Open in Todos",
 };
 
@@ -108,10 +114,8 @@ const DATA: BriefingData = {
 
 function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onToggleTodo = vi.fn();
-  const onDeleteScheduleItem = vi.fn();
-  const onDeleteTodo = vi.fn();
-  const onAddScheduleItem = vi.fn();
-  const onJumpToSchedule = vi.fn();
+  const onOpenItem = vi.fn();
+  const onAddItem = vi.fn();
   const onJumpToTodos = vi.fn();
   const result = render(
     <BriefingView
@@ -120,10 +124,8 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
       labels={LABELS}
       focusText={null}
       onToggleTodo={onToggleTodo}
-      onDeleteScheduleItem={onDeleteScheduleItem}
-      onDeleteTodo={onDeleteTodo}
-      onAddScheduleItem={onAddScheduleItem}
-      onJumpToSchedule={onJumpToSchedule}
+      onOpenItem={onOpenItem}
+      onAddItem={onAddItem}
       onJumpToTodos={onJumpToTodos}
       {...props}
     />,
@@ -131,10 +133,8 @@ function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   return {
     ...result,
     onToggleTodo,
-    onDeleteScheduleItem,
-    onDeleteTodo,
-    onAddScheduleItem,
-    onJumpToSchedule,
+    onOpenItem,
+    onAddItem,
     onJumpToTodos,
   };
 }
@@ -217,13 +217,10 @@ describe("BriefingView carryover date column (#1368)", () => {
 });
 
 /*
- * #1442 — one page, two kinds of checkbox. #1368 moved the carryover rows onto
- * the shared <TodoStatusCheckbox>, but the todo rows inside 「今日のスケジュール」
- * kept a 16px box drawn by hand, so the reader met both within one screen. Both
- * kinds of row now draw the shared control, and because that control carries
- * the 44px touch floor the event rows beside it claim the same minimum — a
- * merged list (#939) that stepped down at the hairline would just move the
- * inconsistency rather than remove it.
+ * #1442 — one page, one kind of checkbox. The todo cells of「今日のスケジュール」
+ * and the carryover rows both draw the shared <TodoStatusCheckbox>, at its 44px
+ * touch floor. Since #2223 the checkbox is the ONLY way a todo cell toggles:
+ * the title opens the editor instead (see the time-table suite below).
  */
 describe("One checkbox on the whole paper (#1442)", () => {
   it("draws the shared control on a today's-schedule todo row", () => {
@@ -258,26 +255,7 @@ describe("One checkbox on the whole paper (#1442)", () => {
   it("toggles the todo from its own checkbox", () => {
     const { onToggleTodo } = renderView();
     fireEvent.click(checkboxIn("Write report"));
-    // Same write path as before (#1368's onSetStatus split does not reach the
-    // paper): one call, the row's own id, nothing else.
     expect(onToggleTodo).toHaveBeenCalledExactlyOnceWith("t1");
-  });
-
-  it("keeps the title button toggling too", () => {
-    const { onToggleTodo } = renderView();
-    fireEvent.click(screen.getByRole("button", { name: /Write report/ }));
-    expect(onToggleTodo).toHaveBeenCalledExactlyOnceWith("t1");
-  });
-
-  it("holds one row height across the merged list", () => {
-    renderView();
-    // jsdom has no layout (CLAUDE.md §7.1), so the floor is pinned as the
-    // declaration both kinds of row carry rather than measured.
-    const todoRow = rowOf("Write report").querySelector("div");
-    expect(todoRow?.className).toContain("min-h-11");
-    // An event row has no control at all (#1373) — without the same floor the
-    // list would shrink by ~18px the moment the todos ran out.
-    expect(rowOf("Morning standup").className).toContain("min-h-11");
   });
 
   it("leaves no hand-rolled 16px box behind", () => {
@@ -343,329 +321,481 @@ describe("Today's-schedule todo checkbox names its row (#1486)", () => {
   });
 });
 
-describe("BriefingView row actions", () => {
-  it("gives a schedule row no completion control and no strikethrough (#1373)", () => {
-    // An event has no "done" any more. "Done meeting" is completed: true in
-    // the fixture — the flag the MCP tool still writes — and the paper must
-    // neither strike it nor offer a way to flip it.
-    renderView();
-    expect(
-      screen.queryByRole("button", { name: "Toggle complete" }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole("button", { name: "Morning standup" }),
-    ).toBeNull();
-    expect(screen.getByText("Done meeting").className).not.toContain(
-      "line-through",
-    );
-  });
-
-  it("jumps to Schedule from the schedule move button", () => {
-    const { onJumpToSchedule } = renderView();
-    const jumps = screen.getAllByTitle("Open in Schedule");
-    fireEvent.click(jumps[0]);
-    expect(onJumpToSchedule).toHaveBeenCalledTimes(1);
-  });
-
-  it("toggles a todo from its title button (no nav)", () => {
-    const { onToggleTodo, onJumpToTodos } = renderView();
-    fireEvent.click(screen.getByRole("button", { name: /Write report/ }));
-    expect(onToggleTodo).toHaveBeenCalledWith("t1");
-    expect(onJumpToTodos).not.toHaveBeenCalled();
-  });
-
-  it("jumps to Todos from a todo move button (no toggle)", () => {
-    const { onJumpToTodos, onToggleTodo } = renderView();
-    // Move buttons for todos and carryover share the label; the first two are
-    // the two todo rows.
-    const jumps = screen.getAllByTitle("Open in Todos");
-    fireEvent.click(jumps[0]);
-    expect(onJumpToTodos).toHaveBeenCalledTimes(1);
-    expect(onToggleTodo).not.toHaveBeenCalled();
-  });
-
-  it("strikes through a DONE todo title", () => {
-    renderView();
-    expect(screen.getByText("Ship feature").className).toContain(
-      "line-through",
-    );
-  });
-
-  it("toggles + jumps from a carryover row and strikes completed ones", () => {
-    const { onToggleTodo, onJumpToTodos } = renderView();
-    fireEvent.click(screen.getByRole("button", { name: /Old todo/ }));
-    expect(onToggleTodo).toHaveBeenCalledWith("c1");
-
-    const jumps = screen.getAllByTitle("Open in Todos");
-    // todo rows (2) then carryover rows (2): the third jump button is c1.
-    fireEvent.click(jumps[2]);
-    expect(onJumpToTodos).toHaveBeenCalledTimes(1);
-
-    expect(screen.getByText("Finished carryover").className).toContain(
-      "line-through",
-    );
-  });
-
-  it("opens the host's creation panel from the schedule heading + (#623)", () => {
-    const { onAddScheduleItem, onJumpToSchedule } = renderView();
-    const add = screen.getByRole("button", {
-      name: "Add to today's schedule",
-    });
-    fireEvent.click(add);
-    expect(onAddScheduleItem).toHaveBeenCalledTimes(1);
-    expect(onJumpToSchedule).not.toHaveBeenCalled();
-  });
-
-  it("keeps the + reachable when the day has nothing scheduled (#623)", () => {
-    const { onAddScheduleItem } = renderView({
-      // Both halves of the merged block are empty (#939) — that is what the
-      // empty state now means.
-      data: { ...DATA, schedule: [], todos: [] },
-    });
-    // The empty state is exactly when the button matters most — it must not
-    // ride along with the row list.
-    expect(screen.getByText("Nothing scheduled")).toBeTruthy();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Add to today's schedule" }),
-    );
-    expect(onAddScheduleItem).toHaveBeenCalledTimes(1);
-  });
-
-  it("deletes a schedule row without navigating (#585)", () => {
-    const { onDeleteScheduleItem, onJumpToSchedule } = renderView();
-    const deletes = screen.getAllByTitle("Delete this event");
-    expect(deletes).toHaveLength(2);
-    fireEvent.click(deletes[0]);
-    expect(onDeleteScheduleItem).toHaveBeenCalledWith("s1");
-    expect(onJumpToSchedule).not.toHaveBeenCalled();
-  });
-
-  it("deletes a todo row without toggling or navigating (#585)", () => {
-    const { onDeleteTodo, onToggleTodo, onJumpToTodos } = renderView();
-    const deletes = screen.getAllByTitle("Delete this todo");
-    // Todo rows only — carryover keeps the jump alone.
-    expect(deletes).toHaveLength(2);
-    fireEvent.click(deletes[1]);
-    expect(onDeleteTodo).toHaveBeenCalledWith("t2");
-    expect(onToggleTodo).not.toHaveBeenCalled();
-    expect(onJumpToTodos).not.toHaveBeenCalled();
-  });
-
-  it("names every delete button by its visible label first (WCAG 2.5.3)", () => {
-    renderView();
-    // The visible text is「削除」/ "Delete"; the accessible name leads with it
-    // and only then says which row it acts on.
-    const byName = screen.getAllByRole("button", {
-      name: "Delete: Delete this event",
-    });
-    expect(byName).toHaveLength(2);
-    expect(byName[0].textContent).toContain("Delete");
-  });
-
-  it("never nests a button inside another button", () => {
-    const { container } = renderView();
-    expect(container.querySelectorAll("button button").length).toBe(0);
-  });
-});
-
 /*
- * #939 — 「今日の Todo と、その目的」is gone as a block of its own: the todo rows
- * moved into 「今日のスケジュール」, above the all-day items, with a hairline
- * between the two kinds of row. The order (todos → rule → all-day → timed) and
- * the two empty states are the whole contract, so they are pinned by DOM order
- * rather than by geometry (jsdom has no layout — CLAUDE.md §7.1).
+ * #2223 —「今日のスケジュール」as a time table. Rows run by time, and a row
+ * holds every event and todo starting then, side by side; todos with no clock
+ * close the table under「時間なし」; all-day events leave the table for a band
+ * above it. jsdom has no layout (CLAUDE.md §7.1), so placement is pinned as
+ * DOM structure — which row and which column a title sits in.
  */
-describe("Merged today's-schedule block (#939)", () => {
-  /** The one <ul> of the block headed by `scheduleTitle`. */
-  function scheduleList(): HTMLUListElement {
-    const section = screen.getByText("PROMISES").closest("section");
-    const list = section?.querySelector("ul");
-    if (list === null || list === undefined) {
-      throw new Error("the schedule block has no row list");
-    }
-    return list;
-  }
-
-  /** Row texts in DOM order; the hairline reads as "" (it has no content). */
-  function rowTexts(): string[] {
-    return Array.from(scheduleList().children).map(
-      (el) => el.textContent ?? "",
-    );
-  }
-
-  const ALL_DAY = {
-    id: "s3",
-    title: "Conference day",
-    startTime: "",
+describe("Today's schedule as a time table (#2223)", () => {
+  const event = (
+    over: Partial<BriefingData["schedule"][number]> & { id: string },
+  ): BriefingData["schedule"][number] => ({
+    title: over.id,
+    startTime: "09:00",
+    endTime: "10:00",
     completed: false,
     isRoutine: false,
-    isAllDay: true,
+    isAllDay: false,
+    ...over,
+  });
+  const todo = (
+    over: Partial<BriefingData["todos"][number]> & { id: string },
+  ): BriefingData["todos"][number] => ({
+    title: over.id,
+    status: "NOT_STARTED",
+    startTime: "",
+    purposes: [],
+    ...over,
+  });
+  const tag = (name: string) => ({
+    id: `tag-${name}`,
+    name,
+    color: "#3b82f6",
+    icon: null,
+  });
+
+  const TABLE_DATA: BriefingData = {
+    ...DATA,
+    schedule: [
+      event({ id: "Standup", startTime: "09:00", endTime: "09:30" }),
+      event({ id: "Lunch", startTime: "12:00", endTime: "13:00" }),
+    ],
+    todos: [
+      todo({ id: "Prep slides", startTime: "09:00" }),
+      todo({ id: "Read paper" }),
+    ],
+    carryover: [],
   };
 
-  it("keeps the todo rows inside the schedule block, not a block of their own", () => {
-    renderView();
-    const section = screen.getByText("PROMISES").closest("section");
-    expect(section?.contains(screen.getByText("Write report"))).toBe(true);
-    // The retired heading had its own <section>; nothing else on the paper
-    // announces todos now.
-    expect(screen.queryByText("TODOS")).toBeNull();
+  /** The table's body rows, keyed by their time label. */
+  function rowAt(time: string): HTMLTableRowElement {
+    const row = document.querySelector(`tr[data-briefing-row="${time}"]`);
+    if (row === null) throw new Error(`no row at ${time}`);
+    return row as HTMLTableRowElement;
+  }
+  function bodyRowKeys(): string[] {
+    return Array.from(
+      document.querySelectorAll("tbody tr"),
+      (tr) =>
+        tr.getAttribute("data-briefing-row") ??
+        (tr.hasAttribute("data-briefing-now-line") ? "now" : "?"),
+    );
+  }
+  function headings(): string[] {
+    return Array.from(document.querySelectorAll("thead th"), (th) =>
+      (th.textContent ?? "").trim(),
+    );
+  }
+
+  it("puts an event and a todo that start at one time on one row", () => {
+    renderView({ data: TABLE_DATA });
+    const nine = rowAt("09:00");
+    const cells = nine.querySelectorAll("td");
+    expect(cells).toHaveLength(2);
+    expect(cells[0].textContent).toContain("Standup");
+    expect(cells[1].textContent).toContain("Prep slides");
   });
 
-  it("runs todos → hairline → all-day → timed", () => {
-    renderView({ data: { ...DATA, schedule: [DATA.schedule[0], ALL_DAY] } });
-    const texts = rowTexts();
-    expect(texts[0]).toContain("Write report");
-    expect(texts[1]).toContain("Ship feature");
-    expect(texts[2]).toBe(""); // the hairline
-    expect(texts[3]).toContain("Conference day");
-    expect(texts[4]).toContain("Morning standup");
+  it("runs the rows by time and closes with the untimed todos", () => {
+    renderView({ data: TABLE_DATA });
+    expect(bodyRowKeys()).toEqual(["09:00", "12:00", "untimed"]);
+    const last = rowAt("untimed");
+    expect(last.querySelector("th")?.textContent).toBe("No time");
+    expect(last.textContent).toContain("Read paper");
+    expect(last.textContent).not.toContain("Standup");
   });
 
-  it("draws exactly one hairline, and only between the two kinds", () => {
-    renderView();
-    expect(
-      scheduleList().querySelectorAll('li[aria-hidden="true"]'),
-    ).toHaveLength(1);
-  });
-
-  it("drops the hairline when the day has no todos", () => {
-    renderView({ data: { ...DATA, todos: [] } });
-    expect(
-      scheduleList().querySelectorAll('li[aria-hidden="true"]'),
-    ).toHaveLength(0);
-    expect(rowTexts()[0]).toContain("Morning standup");
-  });
-
-  it("drops the hairline when the day has nothing scheduled", () => {
-    renderView({ data: { ...DATA, schedule: [] } });
-    expect(
-      scheduleList().querySelectorAll('li[aria-hidden="true"]'),
-    ).toHaveLength(0);
-    // A todo-only day still lists its todos — the empty state is not for it.
-    expect(screen.getByText("Write report")).toBeTruthy();
-    expect(screen.queryByText("Nothing scheduled")).toBeNull();
-  });
-
-  it("shows the empty state only when both halves are empty", () => {
-    renderView({ data: { ...DATA, schedule: [], todos: [] } });
-    expect(screen.getByText("Nothing scheduled")).toBeTruthy();
-  });
-
-  it("keeps the todo row's toggle, jump and delete working after the move", () => {
-    const { onToggleTodo, onJumpToTodos, onDeleteTodo } = renderView();
-    fireEvent.click(screen.getByRole("button", { name: /Write report/ }));
-    expect(onToggleTodo).toHaveBeenCalledWith("t1");
-    fireEvent.click(screen.getAllByTitle("Open in Todos")[0]);
-    expect(onJumpToTodos).toHaveBeenCalledTimes(1);
-    fireEvent.click(screen.getAllByTitle("Delete this todo")[0]);
-    expect(onDeleteTodo).toHaveBeenCalledWith("t1");
-  });
-
-  it("still hangs a todo's purposes under its title", () => {
+  it("files a clockless event that is not all-day under the one untimed row", () => {
     renderView({
       data: {
-        ...DATA,
-        todos: [
-          {
-            id: "t1",
-            title: "Write report",
-            status: "NOT_STARTED",
-            startTime: "",
-            purposes: ["Ship the quarter"],
-          },
+        ...TABLE_DATA,
+        schedule: [event({ id: "No clock", startTime: "", endTime: "" })],
+      },
+    });
+    expect(bodyRowKeys()).toEqual(["09:00", "untimed"]);
+    expect(rowAt("untimed").textContent).toContain("No clock");
+    expect(rowAt("untimed").textContent).toContain("Read paper");
+  });
+
+  it("puts two spellings of one time on the same row", () => {
+    renderView({
+      data: {
+        ...TABLE_DATA,
+        schedule: [event({ id: "Short", startTime: "9:00", endTime: "9:30" })],
+      },
+    });
+    expect(bodyRowKeys()).toEqual(["09:00", "untimed"]);
+    expect(rowAt("09:00").textContent).toContain("Short");
+  });
+
+  it("sizes the time column to its widest label without wrapping", () => {
+    renderView({ data: TABLE_DATA });
+    for (const th of document.querySelectorAll(
+      "tbody th, thead th:first-child",
+    )) {
+      expect(th.className).toContain("whitespace-nowrap");
+      expect(th.className).toContain("w-px");
+    }
+  });
+
+  it("heads the columns time, events, todos — with a calendar and a check", () => {
+    renderView({ data: TABLE_DATA });
+    expect(headings()).toEqual(["Time", "Events", "Todos"]);
+    const [, eventsHead, todosHead] = document.querySelectorAll("thead th");
+    expect(eventsHead.querySelector("svg.lucide-calendar-days")).not.toBeNull();
+    expect(
+      todosHead.querySelector(
+        "svg.lucide-square-check-big, svg.lucide-check-square",
+      ),
+    ).not.toBeNull();
+  });
+
+  describe("the all-day band", () => {
+    const allDay = (id: string) =>
+      event({ id, startTime: "", endTime: "", isAllDay: true });
+
+    it("takes the all-day events out of the table and into the band", () => {
+      renderView({
+        data: {
+          ...TABLE_DATA,
+          schedule: [...TABLE_DATA.schedule, allDay("Holiday")],
+        },
+      });
+      const band = document.querySelector("[data-briefing-allday]")!;
+      expect(band.textContent).toContain("All day");
+      expect(band.textContent).toContain("Holiday");
+      expect(document.querySelector("table")!.textContent).not.toContain(
+        "Holiday",
+      );
+    });
+
+    it("folds four chips to two and「+N more」, and opens and closes", () => {
+      renderView({
+        data: {
+          ...TABLE_DATA,
+          schedule: ["A1", "A2", "A3", "A4"].map(allDay),
+        },
+      });
+      const band = () => document.querySelector("[data-briefing-allday]")!;
+      expect(band().textContent).toContain("A1");
+      expect(band().textContent).toContain("A2");
+      expect(band().textContent).not.toContain("A3");
+      fireEvent.click(screen.getByRole("button", { name: "+2 more" }));
+      for (const id of ["A1", "A2", "A3", "A4"]) {
+        expect(band().textContent).toContain(id);
+      }
+      fireEvent.click(screen.getByRole("button", { name: "Close" }));
+      expect(band().textContent).not.toContain("A3");
+      expect(screen.getByRole("button", { name: "+2 more" })).toBeTruthy();
+    });
+
+    it("shows three chips whole — the fold starts at four", () => {
+      renderView({
+        data: { ...TABLE_DATA, schedule: ["A1", "A2", "A3"].map(allDay) },
+      });
+      expect(screen.queryByRole("button", { name: /more/ })).toBeNull();
+      expect(
+        document.querySelector("[data-briefing-allday]")!.textContent,
+      ).toContain("A3");
+    });
+
+    it("paints a chip in its tag colour, else the plain event face", () => {
+      renderView({
+        data: {
+          ...TABLE_DATA,
+          schedule: [
+            { ...allDay("Tagged"), tagColor: "#ff0000" },
+            allDay("Plain"),
+          ],
+        },
+      });
+      const tagged = screen.getByRole("button", { name: "Tagged" });
+      expect(tagged.getAttribute("style")).toContain("background-color");
+      const plain = screen.getByRole("button", { name: "Plain" });
+      expect(plain.className).toContain("bg-lumen-chip-event-bg");
+    });
+
+    it("opens a chip's editor and carries no tags or repeat glyph", () => {
+      const { onOpenItem } = renderView({
+        data: {
+          ...TABLE_DATA,
+          schedule: [
+            { ...allDay("Retreat"), isRoutine: true, tags: [tag("Work")] },
+          ],
+        },
+      });
+      fireEvent.click(screen.getByRole("button", { name: "Retreat" }));
+      expect(onOpenItem).toHaveBeenCalledExactlyOnceWith("Retreat", "event");
+      const band = document.querySelector("[data-briefing-allday]")!;
+      expect(band.textContent).not.toContain("Work");
+      expect(band.querySelector("svg.lucide-repeat")).toBeNull();
+    });
+  });
+
+  describe("the current-time line and the events' state", () => {
+    const DAY: BriefingData = {
+      ...TABLE_DATA,
+      schedule: [
+        event({ id: "Early", startTime: "08:00", endTime: "09:00" }),
+        event({ id: "Running", startTime: "10:00", endTime: "11:00" }),
+        event({ id: "Later", startTime: "15:00", endTime: "16:00" }),
+      ],
+      todos: [todo({ id: "Untimed todo" })],
+    };
+    const phaseOf = (id: string) =>
+      document
+        .querySelector(`[data-briefing-event="${id}"]`)
+        ?.getAttribute("data-phase");
+
+    it("draws the line across both columns, before the next row to start", () => {
+      renderView({ data: DAY, nowMinutes: 10 * 60 + 30 });
+      expect(bodyRowKeys()).toEqual([
+        "08:00",
+        "10:00",
+        "now",
+        "15:00",
+        "untimed",
+      ]);
+      const line = document.querySelector("tr[data-briefing-now-line]")!;
+      expect(line.querySelector("td")?.getAttribute("colspan")).toBe("2");
+      expect(line.textContent).toContain("10:30");
+    });
+
+    it("draws it after the last timed row once the clock has passed them all", () => {
+      renderView({ data: DAY, nowMinutes: 22 * 60 });
+      expect(bodyRowKeys()).toEqual([
+        "08:00",
+        "10:00",
+        "15:00",
+        "now",
+        "untimed",
+      ]);
+    });
+
+    it("keeps an event whose end is not after its start running to the day's end", () => {
+      // Schedule's grid lays such a row out to midnight; the paper agrees.
+      renderView({
+        data: {
+          ...DAY,
+          schedule: [
+            event({ id: "Open", startTime: "09:00", endTime: "09:00" }),
+          ],
+        },
+        nowMinutes: 20 * 60,
+      });
+      expect(phaseOf("Open")).toBe("ongoing");
+    });
+
+    it("draws no line without a clock", () => {
+      renderView({ data: DAY });
+      expect(document.querySelector("tr[data-briefing-now-line]")).toBeNull();
+    });
+
+    it("dims a finished event and marks the one under way", () => {
+      renderView({ data: DAY, nowMinutes: 10 * 60 + 30 });
+      expect(phaseOf("Early")).toBe("past");
+      expect(phaseOf("Running")).toBe("ongoing");
+      expect(phaseOf("Later")).toBe("upcoming");
+      const running = document.querySelector(
+        '[data-briefing-event="Running"]',
+      )!;
+      expect(running.textContent).toContain("Now on");
+      expect(screen.getByRole("button", { name: "Early" }).className).toContain(
+        "text-lumen-text-secondary",
+      );
+      // Only the event under way wears the mark.
+      expect(screen.getAllByText("Now on")).toHaveLength(1);
+    });
+  });
+
+  it("gives a routine event the same calendar glyph, plus its badge", () => {
+    renderView({
+      data: {
+        ...TABLE_DATA,
+        schedule: [
+          event({ id: "Gym", isRoutine: true }),
+          event({ id: "Call", startTime: "11:00" }),
         ],
       },
     });
-    expect(screen.getByText(/Ship the quarter/)).toBeTruthy();
-  });
-});
-
-/*
- * #1369 — the paper printed no clock at all on a todo row, so a todo placed
- * at 09:30 and one merely dropped on today read exactly alike; the only way to
- * tell them apart was to open Schedule. Timed todos now print HH:MM in the
- * SAME column and the SAME type style as the event rows, and untimed ones keep
- * the empty column they had (nothing to say ≠ "終日", which is the all-day
- * band's own label below the hairline). The #939 order is untouched.
- */
-describe("Timed todo rows print their clock (#1369)", () => {
-  /** The row <li> that prints `title` (todo rows and event rows alike). */
-  function row(title: string): HTMLElement {
-    const li = screen.getByText(title).closest("li");
-    if (li === null) throw new Error(`no row prints "${title}"`);
-    return li;
-  }
-
-  /** A row's leading time cell — the fixed-width column both kinds share. */
-  function timeCell(title: string): HTMLElement {
-    const cell = row(title).querySelector("span.w-14");
-    if (cell === null) throw new Error(`the "${title}" row has no time cell`);
-    return cell as HTMLElement;
-  }
-
-  const TIMED_TODO = {
-    id: "t9",
-    title: "Draft the deck",
-    status: "NOT_STARTED" as const,
-    startTime: "09:30",
-    purposes: [],
-  };
-
-  const ALL_DAY = {
-    id: "s3",
-    title: "Conference day",
-    startTime: "",
-    completed: false,
-    isRoutine: false,
-    isAllDay: true,
-  };
-
-  it("prints a timed todo's HH:MM where an event prints its own", () => {
-    renderView({ data: { ...DATA, todos: [TIMED_TODO] } });
-    expect(timeCell("Draft the deck").textContent).toBe("09:30");
-    // Same cell, not a lookalike: identical class list = one column width and
-    // one type style, so the two kinds of row line up down the page.
-    expect(timeCell("Draft the deck").className).toBe(
-      timeCell("Morning standup").className,
-    );
+    for (const id of ["Gym", "Call"]) {
+      const cell = document.querySelector(`[data-briefing-event="${id}"]`)!;
+      expect(cell.querySelector("svg.lucide-calendar-days")).not.toBeNull();
+      expect(cell.querySelector("svg.lucide-repeat")).toBeNull();
+    }
+    expect(
+      document.querySelector('[data-briefing-event="Gym"]')!.textContent,
+    ).toContain("Routine");
   });
 
-  it("leaves an untimed todo's cell empty — no blank label, no 00:00", () => {
-    renderView({
-      data: { ...DATA, todos: [{ ...TIMED_TODO, startTime: "" }] },
+  describe("pressing an item", () => {
+    it("opens an event's editor, not Schedule", () => {
+      const { onOpenItem } = renderView({ data: TABLE_DATA });
+      fireEvent.click(screen.getByRole("button", { name: "Standup" }));
+      expect(onOpenItem).toHaveBeenCalledExactlyOnceWith("Standup", "event");
     });
-    const cell = timeCell("Draft the deck");
-    expect(cell.textContent).toBe("");
-    // A spacer, not an empty label: it holds the width and stays out of the
-    // accessibility tree, so a screen reader hears the title, not a pause.
-    expect(cell.getAttribute("aria-hidden")).toBe("true");
-    expect(row("Draft the deck").textContent).not.toContain("All day");
-  });
 
-  it("keeps the all-day event's own label untouched", () => {
-    renderView({ data: { ...DATA, schedule: [ALL_DAY] } });
-    expect(timeCell("Conference day").textContent).toBe("All day");
-  });
-
-  it("does not move a timed todo out of the todo band (#939 order)", () => {
-    renderView({
-      data: {
-        ...DATA,
-        todos: [TIMED_TODO],
-        schedule: [DATA.schedule[0], ALL_DAY],
-      },
+    it("opens a todo's editor from its title, without toggling it", () => {
+      const { onOpenItem, onToggleTodo } = renderView({ data: TABLE_DATA });
+      fireEvent.click(screen.getByRole("button", { name: "Prep slides" }));
+      expect(onOpenItem).toHaveBeenCalledExactlyOnceWith("Prep slides", "task");
+      expect(onToggleTodo).not.toHaveBeenCalled();
     });
-    const section = screen.getByText("PROMISES").closest("section");
-    const list = section?.querySelector("ul");
-    const texts = Array.from(list?.children ?? []).map(
-      (el) => el.textContent ?? "",
-    );
-    // todos → hairline → all-day → timed, exactly as before: a clock on a
-    // todo is a label, not a promotion into the timed band.
-    expect(texts[0]).toContain("Draft the deck");
-    expect(texts[1]).toBe("");
-    expect(texts[2]).toContain("Conference day");
-    expect(texts[3]).toContain("Morning standup");
+
+    it("puts no delete or jump button on a table row", () => {
+      renderView({ data: TABLE_DATA });
+      const table = document.querySelector("table")!;
+      expect(table.querySelector("svg.lucide-trash-2")).toBeNull();
+      expect(table.querySelector("svg.lucide-arrow-up-right")).toBeNull();
+    });
+  });
+
+  describe("adding", () => {
+    it("puts a「+」on each column heading and none on the block heading", () => {
+      const { onAddItem } = renderView({ data: TABLE_DATA });
+      fireEvent.click(screen.getByRole("button", { name: "Add an event" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add a todo" }));
+      expect(onAddItem.mock.calls).toEqual([["event"], ["task"]]);
+      const heading = screen.getByText("PROMISES").closest("div")!;
+      expect(heading.querySelector("svg.lucide-plus")).toBeNull();
+    });
+
+    it("keeps both「+」on a day with nothing on it", () => {
+      renderView({ data: { ...TABLE_DATA, schedule: [], todos: [] } });
+      expect(screen.getByText("Nothing scheduled")).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Add an event" })).toBeTruthy();
+      expect(screen.getByRole("button", { name: "Add a todo" })).toBeTruthy();
+    });
+  });
+
+  describe("tags", () => {
+    it("prints every tag of an item that has three, right-aligned", () => {
+      renderView({
+        data: {
+          ...TABLE_DATA,
+          schedule: [
+            event({
+              id: "Standup",
+              tags: [tag("Work"), tag("Team"), tag("Daily")],
+            }),
+          ],
+        },
+      });
+      const line = document
+        .querySelector('[data-briefing-event="Standup"]')!
+        .querySelector("[data-briefing-tags]")!;
+      expect(line.className).toContain("justify-end");
+      expect(line.textContent).toContain("Work");
+      expect(line.textContent).toContain("Daily");
+      expect(line.querySelector("[data-briefing-tags-more]")).toBeNull();
+    });
+
+    it("folds four or more to two and「+N more」naming the rest", () => {
+      renderView({
+        data: {
+          ...TABLE_DATA,
+          todos: [
+            todo({
+              id: "Prep slides",
+              tags: [tag("A"), tag("B"), tag("C"), tag("D")],
+            }),
+          ],
+        },
+      });
+      const line = document
+        .querySelector('[data-briefing-todo="Prep slides"]')!
+        .querySelector("[data-briefing-tags]")!;
+      const items = Array.from(line.children, (el) => el.textContent);
+      expect(items).toHaveLength(3);
+      expect(items.slice(0, 2)).toEqual(["A", "B"]);
+      expect(items[2]?.startsWith("+2 more")).toBe(true);
+      const more = line.querySelector("[data-briefing-tags-more]")!;
+      expect(more.getAttribute("title")).toBe("C ・ D");
+      // The hidden names are in the text too, for a screen reader.
+      expect(more.querySelector(".sr-only")?.textContent).toContain("C ・ D");
+    });
+
+    it("tints each tag's icon with the tag's colour", () => {
+      renderView({
+        data: {
+          ...TABLE_DATA,
+          todos: [todo({ id: "Prep slides", tags: [tag("A")] })],
+        },
+      });
+      const icon = document
+        .querySelector("[data-briefing-tags] svg")!
+        .getAttribute("style");
+      expect(icon).toContain("color");
+    });
+  });
+
+  describe("showing and hiding the columns", () => {
+    function switchButton(name: string): HTMLElement {
+      const group = screen.getByRole("group", { name: "Columns" });
+      return within(group).getByRole("button", { name });
+    }
+
+    it("on Desktop shows both columns, and a press hides one", () => {
+      renderView({ data: TABLE_DATA });
+      expect(switchButton("Events").getAttribute("aria-pressed")).toBe("true");
+      fireEvent.click(switchButton("Todos"));
+      expect(headings()).toEqual(["Time", "Events"]);
+      expect(rowAt("09:00").querySelectorAll("td")).toHaveLength(1);
+      expect(
+        document.querySelector('tr[data-briefing-row="untimed"]'),
+      ).toBeNull();
+      fireEvent.click(switchButton("Todos"));
+      expect(headings()).toEqual(["Time", "Events", "Todos"]);
+    });
+
+    it("never hides both: the last column's button is locked", () => {
+      renderView({ data: TABLE_DATA });
+      fireEvent.click(switchButton("Events"));
+      expect(headings()).toEqual(["Time", "Todos"]);
+      const todos = switchButton("Todos");
+      expect(todos).toBeDisabled();
+      fireEvent.click(todos);
+      expect(headings()).toEqual(["Time", "Todos"]);
+    });
+
+    it("hides the all-day band with the events column", () => {
+      renderView({
+        data: {
+          ...TABLE_DATA,
+          schedule: [
+            event({
+              id: "Holiday",
+              startTime: "",
+              endTime: "",
+              isAllDay: true,
+            }),
+          ],
+        },
+      });
+      expect(document.querySelector("[data-briefing-allday]")).not.toBeNull();
+      fireEvent.click(switchButton("Events"));
+      expect(document.querySelector("[data-briefing-allday]")).toBeNull();
+    });
+
+    it("on a phone shows one column at a time, events first", () => {
+      renderView({ data: TABLE_DATA, narrow: true });
+      expect(headings()).toEqual(["Time", "Events"]);
+      expect(screen.queryByText("Prep slides")).toBeNull();
+      fireEvent.click(switchButton("Todos"));
+      expect(headings()).toEqual(["Time", "Todos"]);
+      expect(screen.getByText("Prep slides")).toBeTruthy();
+      expect(screen.queryByText("Standup")).toBeNull();
+      expect(switchButton("Events").getAttribute("aria-pressed")).toBe("false");
+      // Both buttons stay pressable — switching is the whole control here.
+      expect(switchButton("Events")).not.toBeDisabled();
+    });
+  });
+
+  it("never nests a button inside another button", () => {
+    const { container } = renderView({ data: TABLE_DATA, nowMinutes: 600 });
+    expect(container.querySelectorAll("button button").length).toBe(0);
   });
 });
 
@@ -767,13 +897,6 @@ describe("AI comment attribution (#1210)", () => {
   });
 });
 
-/*
- * #318 — below 768px the shell drops its header slot, so the SectionHeader
- * 朝刊/夕刊 band disappears and 夕刊 becomes unreachable. Both paper views take
- * an optional in-body `tabSwitcher` the narrow host fills; the wide host leaves
- * it undefined so the header keeps owning the tabs.
- */
-
 function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
   const onSetTodoStatus = vi.fn();
   const result = render(
@@ -797,171 +920,82 @@ function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
   return { ...result, onSetTodoStatus };
 }
 
-/**
- * Counts the in-body switcher band. Mirrors the wrapper markup in both views —
- * the only `py-3` ruled divider on a paper otherwise built from `py-5`/`py-6`
- * sections — so an empty band (slot guard letting `null` through) is caught.
- */
-function bandCount(container: HTMLElement): number {
-  return container.querySelectorAll(
-    "div.border-b.border-lumen-border.px-2.py-3",
-  ).length;
-}
-
-describe("Briefing narrow-width tab switcher (#318)", () => {
-  const switcher = <button type="button">夕刊</button>;
-
-  it("renders the host switcher in the morning paper", () => {
-    const { container } = renderView({ tabSwitcher: switcher });
-    expect(screen.getByRole("button", { name: "夕刊" })).toBeTruthy();
-    expect(bandCount(container)).toBe(1);
-  });
-
-  it("keeps the switcher reachable while the morning paper loads", () => {
-    renderView({ loading: true, tabSwitcher: switcher });
-    expect(screen.getByRole("button", { name: "夕刊" })).toBeTruthy();
-  });
-
-  it("renders the host switcher in the evening paper", () => {
-    const { container } = renderEvening({ tabSwitcher: switcher });
-    expect(screen.getByRole("button", { name: "夕刊" })).toBeTruthy();
-    expect(bandCount(container)).toBe(1);
-  });
-
-  it("keeps the switcher reachable while the evening paper loads", () => {
-    renderEvening({ loading: true, tabSwitcher: switcher });
-    expect(screen.getByRole("button", { name: "夕刊" })).toBeTruthy();
-  });
-
-  it("renders no band in the morning paper on the wide layout", () => {
-    const { container } = renderView();
-    expect(screen.queryByRole("button", { name: "夕刊" })).toBeNull();
-    expect(bandCount(container)).toBe(0);
-  });
-
-  it("renders no band in the evening paper on the wide layout", () => {
-    const { container } = renderEvening();
-    expect(screen.queryByRole("button", { name: "夕刊" })).toBeNull();
-    expect(bandCount(container)).toBe(0);
-  });
-
-  // A host writing `cond ? <X/> : null` must not leave an empty ruled band
-  // behind — the slot guard rejects null, not just undefined.
-  it("renders no band when the host passes null", () => {
-    expect(bandCount(renderView({ tabSwitcher: null }).container)).toBe(0);
-    expect(bandCount(renderEvening({ tabSwitcher: null }).container)).toBe(0);
-  });
-});
-
 /*
- * #879 — the band carries the narrow layout's hamburger (#609), and every
- * other section draws that row at the top of the page. Briefing used to print
- * its masthead above it, so the one screen with a title band had its chrome in
- * a different order than the rest. Asserted as DOM order (jsdom has no
- * layout — CLAUDE.md §7.1), which is what decides the stacking here.
+ * #2223 — the narrow 朝刊/夕刊 band left both papers. #318 / #879 had it drawn
+ * inside the paper, above the masthead, so it scrolled away with the paper;
+ * it is the shell header's now (the descriptor no longer asks for it in the
+ * body), and neither paper draws a ruled `py-3` band of its own any more.
  */
-describe("Briefing narrow-width header order (#879)", () => {
-  const switcher = <button type="button">夕刊</button>;
-
-  /** True when the switcher band precedes the masthead in document order. */
-  function bandPrecedesMasthead(container: HTMLElement): boolean {
-    const band = container.querySelector(
+describe("No in-body tab band on either paper (#2223)", () => {
+  function bandCount(container: HTMLElement): number {
+    return container.querySelectorAll(
       "div.border-b.border-lumen-border.px-2.py-3",
-    );
-    const masthead = container.querySelector("header");
-    if (band === null || masthead === null) return false;
-    return (
-      (band.compareDocumentPosition(masthead) &
-        Node.DOCUMENT_POSITION_FOLLOWING) !==
-      0
-    );
+    ).length;
   }
 
-  it("puts the band above the masthead in the morning paper", () => {
-    const { container } = renderView({ tabSwitcher: switcher });
-    expect(screen.getByText("BRIEFING")).toBeTruthy();
-    expect(bandPrecedesMasthead(container)).toBe(true);
+  it("opens the morning paper on its masthead", () => {
+    const { container } = renderView();
+    expect(bandCount(container)).toBe(0);
+    expect(container.firstElementChild?.querySelector("header")).not.toBeNull();
   });
 
-  it("puts the band above the masthead in the evening paper", () => {
-    const { container } = renderEvening({ tabSwitcher: switcher });
-    expect(screen.getByText("EVENING")).toBeTruthy();
-    expect(bandPrecedesMasthead(container)).toBe(true);
+  it("opens the evening paper on its masthead", () => {
+    const { container } = renderEvening();
+    expect(bandCount(container)).toBe(0);
   });
 });
 
 /*
  * #410 — the jump action used to be a bare 13px ↗ sitting right after the
  * title, so it was both hard to hit and never in the same place twice (the
- * title length moved it). It now carries a visible「編集」label and is pinned
- * to the row's right edge.
+ * title length moved it). It carries a visible「編集」label and is pinned to
+ * the row's right edge. Only the carryover rows draw it since #2223: a table
+ * row's title opens the editor in place.
  */
 describe("Row edit action (#410)", () => {
-  it("labels every jump button with the visible edit text", () => {
+  it("labels every carryover jump with the visible edit text", () => {
     renderView();
-    // 2 schedule rows + 2 todo rows + 2 carryover rows.
-    expect(screen.getAllByRole("button", { name: /Edit/ }).length).toBe(6);
+    expect(screen.getAllByRole("button", { name: /^Edit/ }).length).toBe(2);
   });
 
   // WCAG 2.5.3: the accessible name must START with the visible label, or
   // voice control ("click 編集") misses the button. It must also keep saying
-  // where the jump lands — six buttons all named「編集」would be
-  // indistinguishable in a screen reader's button list, and `title` alone
-  // does not carry on touch.
+  // where the jump lands — `title` alone does not carry on touch.
   it("names each jump button with the visible label first, destination after", () => {
     renderView();
-    const jump = screen.getAllByTitle("Open in Schedule")[0];
+    const jump = screen.getAllByTitle("Open in Todos")[0];
     expect(jump.textContent).toContain("Edit");
-    expect(jump.getAttribute("aria-label")).toBe("Edit: Open in Schedule");
-    expect(screen.getAllByLabelText("Edit: Open in Todos").length).toBe(4);
+    expect(jump.getAttribute("aria-label")).toBe("Edit: Open in Todos");
   });
 
   it("pins every row's action cluster to the right edge with padded hit targets", () => {
     renderView();
     const actions = screen.getAllByRole("button", { name: /^Edit: / });
-    expect(actions.length).toBe(6);
+    expect(actions.length).toBe(2);
     for (const action of actions) {
-      // #585: the cluster owns the right-edge pin now that two actions share
-      // it, and the button keeps the padding that buys its 24x24 target
-      // (WCAG 2.5.8). `-my-1` spends the vertical half of that padding on the
-      // row's own whitespace so the row height does not move.
       expect(action.className).toContain("py-1");
       const cluster = action.parentElement!;
       expect(cluster.className).toContain("ml-auto");
       expect(cluster.className).toContain("-my-1");
-      // #1514: NOT the horizontal twin. The block has no side padding, so
-      // `-mr-1.5` had nothing to grow into and simply hung the cluster 6px
-      // outside its own container — the overflow the 390px audit measured.
+      // #1514: NOT the horizontal twin — it hung the cluster 6px outside its
+      // own container.
       expect(cluster.className).not.toContain("-mr-");
     }
   });
 
-  it("gives the delete button the same hit target as its jump neighbour", () => {
-    renderView();
-    const deletes = screen.getAllByRole("button", { name: /^Delete: / });
-    expect(deletes.length).toBe(4);
-    for (const del of deletes) {
-      expect(del.className).toContain("py-1");
-      expect(del.className).toContain("px-1.5");
-      expect(del.className).toContain("text-xs");
-    }
+  it("jumps to Todos from a carryover row without toggling it", () => {
+    const { onJumpToTodos, onToggleTodo } = renderView();
+    fireEvent.click(screen.getAllByTitle("Open in Todos")[0]);
+    expect(onJumpToTodos).toHaveBeenCalledExactlyOnceWith("c1");
+    expect(onToggleTodo).not.toHaveBeenCalled();
   });
 
-  it("keeps the routine tag beside the title, ahead of the edit button", () => {
-    const { container } = renderView({
-      data: {
-        ...DATA,
-        // Todos now share the block and render first (#939), so the schedule
-        // row has to be picked by content rather than by being the first <li>.
-        todos: [],
-        schedule: [{ ...DATA.schedule[0], isRoutine: true }],
-      },
-    });
-    const row = container.querySelector("li")!;
-    const kids = Array.from(row.children).map((el) => el.textContent ?? "");
-    expect(kids.indexOf("Routine")).toBeGreaterThan(-1);
-    expect(kids.indexOf("Routine")).toBeLessThan(
-      kids.findIndex((s) => s.includes("Edit")),
+  it("still toggles a carryover row from its title and strikes completed ones", () => {
+    const { onToggleTodo } = renderView();
+    fireEvent.click(screen.getByRole("button", { name: /Old todo/ }));
+    expect(onToggleTodo).toHaveBeenCalledWith("c1");
+    expect(screen.getByText("Finished carryover").className).toContain(
+      "line-through",
     );
   });
 });
@@ -1020,38 +1054,24 @@ describe("EveningView remaining todos, status control (#796 / #873)", () => {
 });
 
 /*
- * #1514 — at 390px the「今日のスケジュール」row ran 349px wide inside a 343px
- * block, and the two always-printed action words took 128px of it. What was
- * left squeezed a todo's title to 67px, which broke an 18-character title
- * across three lines.
- *
- * jsdom has no layout (CLAUDE.md §7.1), so neither the overflow nor the
- * three lines can be measured here. What is pinned is the two rules that
- * remove them: nothing in the block hangs outside its container any more
- * (asserted with the cluster above and the「+」below), and the action words
- * are printed only from `md` up while every accessible name keeps them.
+ * #1514 — at 390px the row actions' printed words squeezed the titles. The
+ * carryover rows still draw「編集」, so the rule that prints the word only
+ * from `md` up — while every accessible name keeps it — still applies there.
  */
 describe("Narrow rows fit: icon-only actions, nothing overhanging (#1514)", () => {
-  it("prints each action word only from the wide breakpoint up", () => {
+  it("prints the action word only from the wide breakpoint up", () => {
     renderView();
-    const labels = [LABELS.edit, LABELS.delete];
-    for (const text of labels) {
-      const printed = screen.getAllByText(text);
-      expect(printed.length).toBeGreaterThan(0);
-      for (const node of printed) {
-        expect(node.className).toContain("hidden");
-        expect(node.className).toContain("md:inline");
-      }
+    const printed = screen.getAllByText(LABELS.edit);
+    expect(printed.length).toBeGreaterThan(0);
+    for (const node of printed) {
+      expect(node.className).toContain("hidden");
+      expect(node.className).toContain("md:inline");
     }
   });
 
   it("keeps every action named after the word it stops printing", () => {
     renderView();
-    // The name is the whole reason the label stays in the tree: hide the
-    // text and a voice-control user still says「編集」, a screen reader still
-    // hears which action and where it lands.
-    expect(screen.getAllByRole("button", { name: /^Edit: / }).length).toBe(6);
-    expect(screen.getAllByRole("button", { name: /^Delete: / }).length).toBe(4);
+    expect(screen.getAllByRole("button", { name: /^Edit: / }).length).toBe(2);
   });
 
   it("grows the icon to 16px while it stands alone, 13px once the word is back", () => {
@@ -1066,13 +1086,13 @@ describe("Narrow rows fit: icon-only actions, nothing overhanging (#1514)", () =
     }
   });
 
-  it("keeps the section「+」inside the block, in line with the row actions", () => {
+  it("keeps the column「+」inside the block, with no horizontal overhang", () => {
     renderView();
-    // It shared the old `-mr-1.5`, so dropping only the cluster's would have
-    // left the heading's button 6px to the right of every action below it.
-    const add = screen.getByRole("button", { name: LABELS.addScheduleItem });
-    expect(add.className).toContain("-my-1");
-    expect(add.className).not.toContain("-mr-");
+    for (const name of [LABELS.addEvent, LABELS.addTodo]) {
+      const add = screen.getByRole("button", { name });
+      expect(add.className).toContain("-my-1");
+      expect(add.className).not.toContain("-mr-");
+    }
   });
 });
 

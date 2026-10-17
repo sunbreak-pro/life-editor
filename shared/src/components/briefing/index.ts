@@ -13,6 +13,8 @@ export {
   type BriefingScheduleEntry,
   type BriefingTodoEntry,
   type BriefingCarryoverEntry,
+  type BriefingTag,
+  type BriefingColumn,
 } from "./BriefingView";
 export {
   BriefingVizPanel,

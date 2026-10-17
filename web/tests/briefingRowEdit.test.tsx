@@ -1,33 +1,46 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { useEffect } from "react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
+  ItemPanelProvider,
   SyncContext,
   SYNC_DOMAINS,
   todayDateKey,
+  useItemPanelContext,
   type DataService,
+  type ItemPanelRequest,
   type ScheduleItem,
   type SyncDomain,
   type TodoNode,
   type WebSyncContextValue,
+  type WikiTagAssignmentUnified,
+  type WikiTagUnified,
 } from "@life-editor/shared";
 import { stubDataService } from "./helpers";
 import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 /*
- * Briefing row「編集」opens the item, not the section (#1824).
+ * Pressing an item on the morning paper (#2223).
  *
- * Both rows used to call `onNavigate({ section: "schedule" })`, which lands on
- * Schedule and stops: no selection, no panel, nothing to edit — a button that
- * named an act it did not perform. The shell has carried an ITEM intent since
- * #285 (`navigateToItem`, consumed by Schedule as `pendingSelectTodoId` /
- * `pendingSelectEvent`); the fix is that the paper names its own row.
+ * A row's title — event or todo — and an all-day chip open Schedule's own
+ * editor IN PLACE, through the entry point #2218 built, instead of carrying
+ * the reader off to Schedule. The panel itself is ItemPanelHost's (its suite
+ * covers the drawing and the「予定の画面で開く」button); what only this host
+ * can answer is the REQUEST: the row's own id, the right role, today's date
+ * for an event, and the open-in-Schedule hand-off that makes the panel offer
+ * that button at all.
  *
- * What is worth pinning is the PAYLOAD: the row's own id, the right role, and
- * — for an event — the date, without which the Calendar would select a row on
- * whatever week happens to be open (#503).
+ * The carryover rows keep their「編集」jump (#1824): they are past days'
+ * todos showing through, and #2223 leaves that block as it was.
  */
 
 const TODAY = todayDateKey();
+const YESTERDAY = (() => {
+  const d = new Date(`${TODAY}T12:00:00`);
+  d.setDate(d.getDate() - 1);
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+})();
 
 function scheduleItem(over: Partial<ScheduleItem> & { id: string }) {
   return {
@@ -64,91 +77,231 @@ function todoNode(over: Partial<TodoNode> & { id: string }) {
 }
 
 const EVENT = scheduleItem({ id: "s-manual", title: "Dentist" });
+const ALL_DAY = scheduleItem({
+  id: "s-allday",
+  title: "Holiday",
+  startTime: "00:00",
+  endTime: "23:59",
+  isAllDay: true,
+});
 const TODO = todoNode({ id: "t1", title: "Write report" });
+const OLD = todoNode({
+  id: "t-old",
+  title: "Old todo",
+  scheduledAt: `${YESTERDAY}T00:00:00`,
+});
+
+function tag(id: string, name: string): WikiTagUnified {
+  return {
+    id,
+    name,
+    color: "#3b82f6",
+    icon: null,
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z",
+    isDeleted: false,
+    deletedAt: null,
+  } as WikiTagUnified;
+}
+function assign(itemId: string, tagId: string): WikiTagAssignmentUnified {
+  return {
+    id: `${itemId}:${tagId}`,
+    itemId,
+    tagId,
+    createdAt: "2026-08-10T00:00:00.000Z",
+    updatedAt: "2026-08-10T00:00:00.000Z",
+    isDisplayColor: false,
+    isDeleted: false,
+    deletedAt: null,
+  } as WikiTagAssignmentUnified;
+}
 
 function makeDS(): DataService {
   return stubDataService({
     fetchScheduleItemsByDate: vi
       .fn()
       .mockImplementation((date: string) =>
-        Promise.resolve(date === TODAY ? [EVENT] : []),
+        Promise.resolve(date === TODAY ? [EVENT, ALL_DAY] : []),
       ),
-    fetchTodoTree: vi.fn().mockResolvedValue([TODO]),
+    fetchTodoTree: vi.fn().mockResolvedValue([TODO, OLD]),
     fetchTimerSessions: vi.fn().mockResolvedValue([]),
     getDailyByDateUnified: vi.fn().mockResolvedValue(null),
     listNotesUnified: vi.fn().mockResolvedValue([]),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
+    listAllWikiTagsUnified: vi
+      .fn()
+      .mockResolvedValue([tag("tag-work", "Work"), tag("tag-home", "Home")]),
+    listAllTagAssignments: vi
+      .fn()
+      .mockResolvedValue([
+        assign("s-manual", "tag-work"),
+        assign("t1", "tag-home"),
+      ]),
   });
 }
 
-function renderScreen(over: {
-  onNavigate?: () => void;
-  onNavigateToItem?: (t: { id: string; role: string; date?: string }) => void;
-}) {
-  const value: WebSyncContextValue = {
-    syncVersion: 0,
-    domainVersions: Object.fromEntries(
-      SYNC_DOMAINS.map((d) => [d, 0]),
-    ) as Record<SyncDomain, number>,
-    triggerSync: async () => undefined,
-  };
-  return render(
-    <SyncContext.Provider value={value}>
-      <BriefingScreen
-        dataService={makeDS()}
-        onNavigate={over.onNavigate ?? vi.fn()}
-        onNavigateToItem={over.onNavigateToItem}
-        tab="morning"
-      />
+const SYNC: WebSyncContextValue = {
+  syncVersion: 0,
+  domainVersions: Object.fromEntries(SYNC_DOMAINS.map((d) => [d, 0])) as Record<
+    SyncDomain,
+    number
+  >,
+  triggerSync: async () => undefined,
+};
+
+/** Reads the open panel request off the context, as ItemPanelHost would. */
+let lastRequest: ItemPanelRequest | null = null;
+function RequestProbe() {
+  const { request } = useItemPanelContext();
+  useEffect(() => {
+    lastRequest = request;
+  });
+  return null;
+}
+
+function renderScreen(
+  over: {
+    onNavigate?: () => void;
+    onNavigateToItem?: (t: { id: string; role: string; date?: string }) => void;
+  } = {},
+  withPanel = true,
+) {
+  lastRequest = null;
+  const onNavigate = over.onNavigate ?? vi.fn();
+  const screenEl = (
+    <BriefingScreen
+      dataService={makeDS()}
+      onNavigate={onNavigate}
+      onNavigateToItem={over.onNavigateToItem}
+      tab="morning"
+    />
+  );
+  render(
+    <SyncContext.Provider value={SYNC}>
+      {withPanel ? (
+        <ItemPanelProvider>
+          {screenEl}
+          <RequestProbe />
+        </ItemPanelProvider>
+      ) : (
+        screenEl
+      )}
     </SyncContext.Provider>,
   );
+  return { onNavigate };
 }
 
-/** The 編集 button of the row whose title is `title`. */
-function editButtonOf(title: string, hint: string): HTMLElement {
-  const row = screen.getByText(title).closest("li");
-  if (row === null) throw new Error(`no row for ${title}`);
-  const button = row.querySelector(`button[title="${hint}"]`);
-  if (button === null) throw new Error(`no edit button for ${title}`);
-  return button as HTMLElement;
-}
-
-describe("Briefing row edit (#1824)", () => {
-  it("opens the todo itself", async () => {
+describe("Pressing an item opens its editor in place (#2223)", () => {
+  it("opens an event's editor on today, without leaving the paper", async () => {
     const onNavigateToItem = vi.fn();
-    renderScreen({ onNavigateToItem });
-    await screen.findByText("Write report");
-
-    fireEvent.click(editButtonOf("Write report", "Open in Todos"));
-
-    expect(onNavigateToItem).toHaveBeenCalledWith({ id: "t1", role: "task" });
+    const { onNavigate } = renderScreen({ onNavigateToItem });
+    fireEvent.click(await screen.findByRole("button", { name: "Dentist" }));
+    await waitFor(() => expect(lastRequest).not.toBeNull());
+    expect(lastRequest).toMatchObject({
+      mode: "edit",
+      target: { role: "event", id: "s-manual", date: TODAY },
+    });
+    expect(onNavigate).not.toHaveBeenCalled();
+    expect(onNavigateToItem).not.toHaveBeenCalled();
   });
 
-  it("opens the event itself, with the day it is on", async () => {
+  it("opens a todo's editor from its title, and does not complete it", async () => {
+    const { onNavigate } = renderScreen({ onNavigateToItem: vi.fn() });
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Write report" }),
+    );
+    await waitFor(() => expect(lastRequest).not.toBeNull());
+    expect(lastRequest).toMatchObject({
+      mode: "edit",
+      target: { role: "task", id: "t1" },
+    });
+    expect(onNavigate).not.toHaveBeenCalled();
+    // The checkbox is still the one control that completes it.
+    expect(
+      screen
+        .getByRole("checkbox", { name: /Write report/ })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
+  });
+
+  it("opens an all-day chip's editor the same way", async () => {
+    renderScreen({ onNavigateToItem: vi.fn() });
+    fireEvent.click(await screen.findByRole("button", { name: "Holiday" }));
+    await waitFor(() =>
+      expect(lastRequest).toMatchObject({
+        mode: "edit",
+        target: { role: "event", id: "s-allday", date: TODAY },
+      }),
+    );
+  });
+
+  it("offers「予定の画面で開く」, which goes to the item and its day", async () => {
     const onNavigateToItem = vi.fn();
     renderScreen({ onNavigateToItem });
-    await screen.findByText("Dentist");
+    fireEvent.click(await screen.findByRole("button", { name: "Dentist" }));
+    await waitFor(() => expect(lastRequest).not.toBeNull());
+    const open = lastRequest!.options.onOpenInSchedule;
+    // Given at all is what makes ItemPanelHost draw the button (#2218).
+    expect(open).toBeTypeOf("function");
+    open!({ id: "s-manual", role: "event", date: TODAY });
+    expect(onNavigateToItem).toHaveBeenCalledExactlyOnceWith({
+      id: "s-manual",
+      role: "event",
+      date: TODAY,
+    });
+    // A todo set for no day travels without one.
+    open!({ id: "t1", role: "task", date: null });
+    expect(onNavigateToItem).toHaveBeenLastCalledWith({
+      id: "t1",
+      role: "task",
+    });
+  });
 
-    fireEvent.click(editButtonOf("Dentist", "Open in Schedule"));
-
-    // The date travels with the id (#503) — the Calendar shows one window at a
-    // time, so an id alone would highlight nothing.
-    expect(onNavigateToItem).toHaveBeenCalledWith({
+  it("falls back to opening the item where it lives without the panel", async () => {
+    const onNavigateToItem = vi.fn();
+    renderScreen({ onNavigateToItem }, false);
+    fireEvent.click(await screen.findByRole("button", { name: "Dentist" }));
+    expect(onNavigateToItem).toHaveBeenCalledExactlyOnceWith({
       id: "s-manual",
       role: "event",
       date: TODAY,
     });
   });
 
+  it("prints each row's tags, read beside the paper", async () => {
+    renderScreen();
+    await screen.findByText("Work");
+    const eventCell = document.querySelector(
+      '[data-briefing-event="s-manual"]',
+    )!;
+    expect(eventCell.textContent).toContain("Work");
+    const todoCell = document.querySelector('[data-briefing-todo="t1"]')!;
+    expect(todoCell.textContent).toContain("Home");
+  });
+});
+
+describe("The carryover row's「編集」still opens the todo itself (#1824)", () => {
+  it("opens the todo where it lives", async () => {
+    const onNavigateToItem = vi.fn();
+    renderScreen({ onNavigateToItem });
+    await screen.findByText("Old todo");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit: Open in Todos" }),
+    );
+    expect(onNavigateToItem).toHaveBeenCalledExactlyOnceWith({
+      id: "t-old",
+      role: "task",
+    });
+    expect(lastRequest).toBeNull();
+  });
+
   it("still lands on the section where the host wires no item intent", async () => {
-    // Tests and any host without item navigation keep the old behaviour: a
-    // jump that reaches the right section beats a dead button.
     const onNavigate = vi.fn();
     renderScreen({ onNavigate });
-    await screen.findByText("Write report");
-
-    fireEvent.click(editButtonOf("Write report", "Open in Todos"));
-
-    expect(onNavigate).toHaveBeenCalledWith({ section: "schedule" });
+    await screen.findByText("Old todo");
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit: Open in Todos" }),
+    );
+    expect(onNavigate).toHaveBeenCalledExactlyOnceWith({ section: "schedule" });
   });
 });
