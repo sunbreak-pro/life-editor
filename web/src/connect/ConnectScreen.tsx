@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import {
   buildTagHubModel,
   ConfirmDialog,
@@ -14,6 +14,7 @@ import {
   TagHubView,
   useConfirmDialog,
   useDomainLoad,
+  useItemPanelOptional,
   useMediaQuery,
   useRightSidebarOptional,
   useSyncDomains,
@@ -22,13 +23,18 @@ import {
   useTranslation,
   useWikiTagsUnifiedContext,
   getConnectItemSelection,
+  logServiceError,
   getConnectTagSelection,
   setConnectItemSelection,
   setConnectTagSelection,
   todayCalendarKey,
+  todoScheduleSlot,
+  dateKeyOfInstant,
   WIDE_QUERY,
   type DailyNode,
   type DataService,
+  type ItemPanelOptions,
+  type NoteExcerpt,
   type NoteNode,
   type NoteTable,
   type RoutineNode,
@@ -42,6 +48,7 @@ import {
   type RelationPanelLabels,
   type TagRowEdits,
   type TodoNode,
+  type TodoStatus,
 } from "@life-editor/shared";
 
 /*
@@ -78,9 +85,12 @@ import {
  * removing a tag from rows is a multi-select action in the selection bar
  * (#1644), which works on one checked row as well as on many.
  *
- * BULK SELECTION (#1644, Desktop only). Which rows are checked is host state
- * and is dropped whenever the open tag changes — a checked row under one tag
- * means nothing under the next. The writes are the Provider's bulk methods,
+ * BULK SELECTION (#1644; both widths since #2224). The squares hide behind
+ * the header's "Select" button: selection mode, and which rows are checked,
+ * are host state, and both are dropped whenever the open tag changes — a
+ * checked row under one tag means nothing under the next. The bar sits in the
+ * tag rail on Desktop and over the list's bottom edge on a phone (the view
+ * places it). The writes are the Provider's bulk methods,
  * which go row by row and report a count; a partial failure keeps what landed
  * and says how many did not (plan assumption 5).
  *
@@ -97,8 +107,13 @@ import {
  * time: the tag list, a tag's items, and the relations — which have no side
  * panel to live in, so they come up as a bottom sheet. Every row menu is a
  * sheet too (the rail's four actions, an item's two), and the one-action
- * sheets show the edit block cut down to the field they named. Bulk
- * selection and merging stay off the phone, as the brief asks.
+ * sheets show the edit block cut down to the field they named.
+ *
+ * EDITING IN PLACE (#2224). A right-click (a long press on a phone) on a todo
+ * or an event opens the Schedule's own editor over this screen, through the
+ * item panel #2218 built; a note, a table or a daily opens on its own screen,
+ * which is where those are edited. A todo's round checkbox writes its status
+ * right here — the one-tap update the Mobile brief keeps on every surface.
  *
  * THE SHARED DETAIL PANEL (#1472). While a tag is open, the selected tag's
  * breakdown and its recently-filed rows go into the shell's right panel
@@ -116,12 +131,6 @@ interface ConnectScreenProps {
     role: string;
     date?: string;
   }) => void;
-  /**
-   * Report the hub's totals to the shell, which prints them beside the section
-   * title (D1). Called with null on unmount so the header cannot go on showing
-   * a count for a section the user has left.
-   */
-  onCountsChange?: (counts: { tags: number; items: number } | null) => void;
 }
 
 /** The reads, kept raw so the labelling below can depend on `t`. */
@@ -134,6 +143,8 @@ interface ConnectSources {
   routines: RoutineNode[];
   /** Note tables that were tagged (#2094) — their notes are live. */
   tables: NoteTable[];
+  /** Each note's first line (#2224) — read without loading any body. */
+  noteExcerpts: NoteExcerpt[];
 }
 
 /** Stable identity for "nothing checked" (#1644). */
@@ -146,7 +157,22 @@ const EMPTY_SOURCES: ConnectSources = {
   dailies: [],
   routines: [],
   tables: [],
+  noteExcerpts: [],
 };
+
+/** Local day and HH:MM of a stored instant, for a row's left edge (#2224). */
+function localDayAndTime(iso: string | undefined): {
+  dayKey?: string;
+  time?: string;
+} {
+  const dayKey = dateKeyOfInstant(iso);
+  if (dayKey === null || iso === undefined) return {};
+  const d = new Date(iso);
+  const time = `${String(d.getHours()).padStart(2, "0")}:${String(
+    d.getMinutes(),
+  ).padStart(2, "0")}`;
+  return { dayKey, time };
+}
 
 /**
  * The occurrence a repeat's row opens (#1631): the next one from today, or —
@@ -175,9 +201,8 @@ function pickSeriesOccurrence(
 export function ConnectScreen({
   dataService,
   onNavigateToItem,
-  onCountsChange,
 }: ConnectScreenProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
   const wiki = useWikiTagsUnifiedContext();
 
@@ -199,7 +224,7 @@ export function ConnectScreen({
     // the rows are already on screen and a refetch only corrects them.
     refetchReportsLoading: false,
     load: async (service) => {
-      const [todos, events, notes, dailies, routines, tables] =
+      const [todos, events, notes, dailies, routines, tables, noteExcerpts] =
         await Promise.all([
           service.fetchTodoTree(),
           service.fetchEvents(),
@@ -207,12 +232,40 @@ export function ConnectScreen({
           service.listDailiesUnified(),
           service.fetchAllRoutines(),
           service.fetchNoteTables(),
+          // An excerpt is a second line under a title (#2224): a failed read
+          // leaves the notes without one instead of the hub without rows.
+          service.listNoteExcerptsUnified().catch((error: unknown) => {
+            logServiceError(
+              "Connect tag hub",
+              "listNoteExcerptsUnified",
+              error,
+            );
+            return [];
+          }),
         ]);
-      return { todos, events, notes, dailies, routines, tables };
+      return {
+        todos,
+        events,
+        notes,
+        dailies,
+        routines,
+        tables,
+        noteExcerpts,
+      };
     },
     apply: setSources,
     fallbackMessage: "Failed to load the tag hub",
   });
+
+  /*
+   * Todo ticks still being written (#2224), painted over every read until
+   * their write settles. `updateTodo` is several requests in a row, so the
+   * refetch its own Realtime echo starts can land before the status does and
+   * would un-tick the box for a moment (the goal tree's pendingTicks, #2108).
+   */
+  const [pendingStatus, setPendingStatus] = useState<
+    ReadonlyMap<string, TodoStatus>
+  >(() => new Map());
 
   /*
    * The lists flattened into one row shape. The conventions here are the
@@ -239,12 +292,22 @@ export function ConnectScreen({
       else occurrencesBySeries.set(event.routineId, [event]);
     }
     const out: TagHubItem[] = [];
+    /*
+     * The left edge (#2224): a todo's scheduled day (local, the grid's own
+     * rule — todoScheduleSlot) and its start unless it is all-day; an event's
+     * day and start, or "All day"; a note's or a table's last update; a
+     * daily's own date. The same pair orders each kind (buildTagHubModel).
+     */
     for (const todo of sources.todos) {
       if (todo.isDeleted) continue;
+      const slot = todoScheduleSlot(todo);
       out.push({
         id: todo.id,
         role: "task",
         title: todo.title || untitled,
+        dayKey: slot?.date,
+        time: slot && !slot.isAllDay ? slot.startTime : undefined,
+        status: pendingStatus.get(todo.id) ?? todo.status ?? "NOT_STARTED",
         updatedAt: todo.updatedAt,
       });
     }
@@ -254,8 +317,11 @@ export function ConnectScreen({
         id: event.id,
         role: "event",
         title: event.title || untitled,
-        detail: event.date,
         date: event.date,
+        dayKey: event.date,
+        time: event.isAllDay ? undefined : event.startTime,
+        allDay: event.isAllDay === true,
+        repeats: event.routineId !== null && event.routineId !== undefined,
         updatedAt: event.updatedAt,
         seriesId: event.routineId ?? undefined,
       });
@@ -270,8 +336,12 @@ export function ConnectScreen({
         id: routine.id,
         role: "event",
         title: routine.title || untitled,
-        detail: occurrence?.date,
         date: occurrence?.date,
+        dayKey: occurrence?.date,
+        time:
+          occurrence && !occurrence.isAllDay ? occurrence.startTime : undefined,
+        allDay: occurrence?.isAllDay === true,
+        repeats: true,
         // Filed under the routine id, opened at the occurrence — see the
         // field's note in TagHub/types.ts.
         navigateId: occurrence?.id,
@@ -279,12 +349,19 @@ export function ConnectScreen({
         updatedAt: routine.updatedAt,
       });
     }
+    const excerptById = new Map(
+      sources.noteExcerpts.map((row) => [row.id, row.excerpt]),
+    );
     for (const note of sources.notes) {
       if (note.isDeleted) continue;
       out.push({
         id: note.id,
         role: "note",
         title: note.title || untitled,
+        // #2224 — the first line, read on its own (listNoteExcerptsUnified):
+        // the note list never carries a body.
+        detail: excerptById.get(note.id),
+        ...localDayAndTime(note.updatedAt),
         updatedAt: note.updatedAt,
       });
     }
@@ -311,6 +388,9 @@ export function ConnectScreen({
         navigateId: table.parentNoteId,
         navigateRole: "note",
         taggedOnly: true,
+        // Not in the prototype (it predates #2094): dated like a note, by
+        // its last update.
+        ...localDayAndTime(table.updatedAt),
         updatedAt: table.updatedAt,
       });
     }
@@ -320,11 +400,12 @@ export function ConnectScreen({
         id: daily.id,
         role: "daily",
         title: daily.date,
+        dayKey: daily.date,
         updatedAt: daily.updatedAt,
       });
     }
     return out;
-  }, [sources, t]);
+  }, [sources, t, pendingStatus]);
 
   const model = useMemo(
     () =>
@@ -338,29 +419,6 @@ export function ConnectScreen({
   );
 
   const isLoading = sourcesLoading || wiki.loading;
-
-  /*
-   * The header's "tags N / items N" (D1). The shell draws it, beside the tab
-   * band (HeaderTabs `trailing` — connectTabBand.tsx, #2108), because the
-   * header row is the shell's; the numbers
-   * can only come from here. Reported from an effect rather than during render
-   * — a parent setState during our render is the "cannot update while
-   * rendering" warning — and cleared on unmount so the count never outlives the
-   * section. Counted off the LIVE caches rather than the model's rail, which
-   * splits the unused tags out (D4) and would otherwise make the header
-   * disagree with the tag list one scroll below it.
-   */
-  const countsRef = useRef(onCountsChange);
-  useEffect(() => {
-    countsRef.current = onCountsChange;
-  });
-  const tagTotal = wiki.allTags.filter((tag) => !tag.isDeleted).length;
-  const itemTotal = items.length;
-  useEffect(() => {
-    if (isLoading) return;
-    countsRef.current?.({ tags: tagTotal, items: itemTotal });
-  }, [isLoading, tagTotal, itemTotal]);
-  useEffect(() => () => countsRef.current?.(null), []);
 
   const labels = useMemo<TagHubLabels>(
     () => ({
@@ -402,6 +460,17 @@ export function ConnectScreen({
         duplicateName: t("connect.edit.duplicateName"),
         saveFailed: t("connect.edit.saveFailed"),
       },
+      noDate: t("connect.row.noDate"),
+      allDay: t("connect.row.allDay"),
+      repeats: t("connect.row.repeats"),
+      done: t("connect.row.done"),
+      todoStatus: t("todoDetail.status"),
+      todoStatusLabels: {
+        statusNotStarted: t("todoDetail.statusNotStarted"),
+        statusDone: t("todoDetail.statusDone"),
+      },
+      select: t("connect.selection.start"),
+      selectEnd: t("connect.selection.end"),
       roles: {
         task: t("itemRole.task"),
         event: t("itemRole.event"),
@@ -427,6 +496,8 @@ export function ConnectScreen({
     getConnectTagSelection(),
   );
   const [checkedIds, setCheckedIds] = useState<ReadonlySet<string>>(NO_CHECKS);
+  // Selection mode (#2224) — the squares are drawn only while it is on.
+  const [selecting, setSelecting] = useState(false);
   /*
    * The item whose relations the panel is showing (#1645). Stored beside the
    * tag for the same reason (#1473): the section switch unmounts this screen,
@@ -445,6 +516,7 @@ export function ConnectScreen({
       setConnectTagSelection(tagId);
       setSelectedTagIdState(tagId);
       setCheckedIds(NO_CHECKS);
+      setSelecting(false);
       // A row picked under the old tag says nothing about the new one.
       selectItem(null);
     },
@@ -631,6 +703,11 @@ export function ConnectScreen({
     });
   }, []);
   const clearChecked = useCallback(() => setCheckedIds(NO_CHECKS), []);
+  // Ending the mode drops the selection too — "Done selecting" means done.
+  const toggleSelecting = useCallback(() => {
+    setSelecting((on) => !on);
+    setCheckedIds(NO_CHECKS);
+  }, []);
 
   // The promise goes back to the rail, which keeps the typed name and shows
   // why when the create fails (#1847). Once the tag exists it is selected
@@ -863,6 +940,129 @@ export function ConnectScreen({
     [onNavigateToItem],
   );
 
+  /*
+   * The round checkbox (#2224): painted at once through `pendingStatus`, held
+   * over every read until the write settles, and taken back with a toast if
+   * the write fails.
+   */
+  // Per todo (#2224 review): the latest press on each row, and the chain its
+  // writes run on. One counter for the whole screen let a second row's press
+  // strand the first row's overlay; parallel writes to one row could land out
+  // of order (`updateTodo` is several requests).
+  const statusTokens = useRef(new Map<string, number>());
+  const statusChains = useRef(new Map<string, Promise<void>>());
+  const setTodoStatus = useCallback(
+    (item: TagHubItem, next: TodoStatus) => {
+      const token = (statusTokens.current.get(item.id) ?? 0) + 1;
+      statusTokens.current.set(item.id, token);
+      const isLatest = () => statusTokens.current.get(item.id) === token;
+      // Drops the overlay only for the latest press: an earlier write settling
+      // must not repaint over what the user pressed since.
+      const settle = () => {
+        if (!isLatest()) return;
+        setPendingStatus((prev) => {
+          if (!prev.has(item.id)) return prev;
+          const rest = new Map(prev);
+          rest.delete(item.id);
+          return rest;
+        });
+      };
+      setPendingStatus((prev) => new Map(prev).set(item.id, next));
+      const previous = statusChains.current.get(item.id) ?? Promise.resolve();
+      const run = previous.then(() =>
+        dataService
+          .updateTodo(item.id, {
+            status: next,
+            completedAt: next === "DONE" ? new Date().toISOString() : undefined,
+          })
+          .then(
+            () => {
+              // What was written stays on screen until the next read lands.
+              setSources((prev) => ({
+                ...prev,
+                todos: prev.todos.map((todo) =>
+                  todo.id === item.id ? { ...todo, status: next } : todo,
+                ),
+              }));
+              settle();
+            },
+            () => {
+              // The overlay goes, so the box shows the last status that WAS
+              // written — the tick is taken back, not left lying.
+              settle();
+              toast?.showToast("danger", t("connect.row.statusFailed"));
+            },
+          ),
+      );
+      statusChains.current.set(item.id, run);
+      void run.finally(() => {
+        if (statusChains.current.get(item.id) === run) {
+          statusChains.current.delete(item.id);
+        }
+      });
+    },
+    [dataService, toast, t],
+  );
+
+  /*
+   * Right-click / long press (#2224). A todo or an event opens the Schedule's
+   * editor over this screen (#2218); the panel's "Open in Schedule" hands the
+   * item to the same item-nav a chevron uses. An event row with no day to
+   * load (a repeat that has never fired) and every other kind open where they
+   * live instead — and so does everything when no ItemPanel Provider is
+   * mounted (a standalone render).
+   */
+  const itemPanel = useItemPanelOptional();
+  const panelOptions = useMemo<ItemPanelOptions>(
+    () => ({
+      onOpenInSchedule: (target) =>
+        onNavigateToItem(
+          target.date === null
+            ? { id: target.id, role: target.role }
+            : { id: target.id, role: target.role, date: target.date },
+        ),
+      onNavigateToItem,
+    }),
+    [onNavigateToItem],
+  );
+  const editItem = useCallback(
+    (item: TagHubItem) => {
+      if (itemPanel && item.role === "task") {
+        itemPanel.openEdit({ role: "task", id: item.id }, panelOptions);
+        return;
+      }
+      if (itemPanel && item.role === "event" && item.date) {
+        itemPanel.openEdit(
+          { role: "event", id: item.navigateId ?? item.id, date: item.date },
+          panelOptions,
+        );
+        return;
+      }
+      handleOpenItem(item);
+    },
+    [itemPanel, panelOptions, handleOpenItem],
+  );
+
+  const formatDay = useMemo(() => {
+    const thisYear = new Date().getFullYear();
+    const short = new Intl.DateTimeFormat(i18n.language, {
+      month: "numeric",
+      day: "numeric",
+      weekday: "short",
+    });
+    const long = new Intl.DateTimeFormat(i18n.language, {
+      year: "numeric",
+      month: "numeric",
+      day: "numeric",
+    });
+    return (dayKey: string): string => {
+      const [y, m, d] = dayKey.split("-").map(Number);
+      if (!y || !m || !d) return dayKey;
+      // Another year's day says which year, or "3/4" is ambiguous.
+      return (y === thisYear ? short : long).format(new Date(y, m - 1, d));
+    };
+  }, [i18n.language]);
+
   return (
     <>
       {selectedItem && relations ? (
@@ -922,9 +1122,14 @@ export function ConnectScreen({
         editError={editErrorFor(selectedTagId)}
         onDeleteTag={requestDelete}
         onCreateTag={createTag}
-        // Bulk selection is Desktop only (the Mobile brief drops it).
-        checkedItemIds={isWide ? checkedIds : undefined}
-        onToggleItemChecked={isWide ? toggleChecked : undefined}
+        // Bulk selection, behind the header's "Select" (#2224).
+        selecting={selecting}
+        onToggleSelecting={toggleSelecting}
+        checkedItemIds={checkedIds}
+        onToggleItemChecked={toggleChecked}
+        formatDay={formatDay}
+        onToggleTodoStatus={setTodoStatus}
+        onItemContextMenu={editItem}
         formatSelectItem={(title) =>
           t("connect.selection.selectItem", { title })
         }
@@ -937,8 +1142,9 @@ export function ConnectScreen({
         onItemMenu={isWide ? undefined : setSheetItem}
         formatItemMenu={(title) => t("connect.mobile.itemMenu", { title })}
         selectionBar={
-          isWide && selectedTag && checkedIds.size > 0 ? (
+          selecting && selectedTag && checkedIds.size > 0 ? (
             <TagHubSelectionBar
+              layout={isWide ? "rail" : "row"}
               count={checkedIds.size}
               formatSelected={(count) =>
                 t("connect.selection.selected", { count })

@@ -4,6 +4,7 @@ import { noteNodeToRows, noteUpdatesToPatches } from "./notesUnifiedMapper";
 import type {
   NoteBodySaveResult,
   NoteBodySnapshot,
+  NoteExcerpt,
   NoteNode,
 } from "../types/note";
 import { SupabaseNotesUnifiedReads } from "./SupabaseNotesUnifiedReads";
@@ -65,6 +66,10 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
 
   listNoteTemplatesUnified(): Promise<NoteNode[]> {
     return this.reads.listNoteTemplatesUnified();
+  }
+
+  listNoteExcerptsUnified(): Promise<NoteExcerpt[]> {
+    return this.reads.listNoteExcerptsUnified();
   }
 
   countLiveNotes(): Promise<number> {
@@ -327,6 +332,7 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
 export const PHASE2_NOTES_UNIFIED_METHOD_NAMES = [
   "listNotesUnified",
   "listNoteTemplatesUnified", // #1047
+  "listNoteExcerptsUnified", // #2224
   "countLiveNotes",
   "getNoteUnified",
   "getNoteBodyUnified", // #1763

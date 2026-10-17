@@ -1,27 +1,64 @@
-import { ChevronRight, MoreHorizontal } from "lucide-react";
+import { useEffect, useRef } from "react";
+import type {
+  MouseEvent as ReactMouseEvent,
+  TouchEvent as ReactTouchEvent,
+} from "react";
+import {
+  CalendarDays,
+  ChevronRight,
+  MoreHorizontal,
+  Repeat,
+} from "lucide-react";
 import { cn } from "../cn";
 import { FOCUS_RING_TIGHT } from "../styleTokens";
 import { ItemRoleBadge } from "../items/ItemRoleBadge";
+import { SelectCheckbox } from "../SelectCheckbox";
+import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
+import type { TodoStatus } from "../../types/todoTree";
 import type { TagHubGroup, TagHubItem, TagHubLabels } from "./types";
 
 /*
  * The hub's detail column (#1171): one selected tag's items, split by kind.
  *
- * The kind is announced by the group HEADING rather than by a badge on every
- * row — the same ItemRoleBadge the tag editor puts on each row (#409), lifted
- * once to the top of its run. A per-row badge would repeat the same chip down
- * a column of ten todos, which is exactly the noise "種類別に一覧" asks to
- * avoid; the vocabulary (icon shape, tint, name) is identical either way
- * because it comes from the same module.
+ * #2224 reworked the rows after the Claude Design prototype:
+ *   - each kind is a FRAME of its own, headed by the kind's icon (the same
+ *     tint the Schedule gives it — ../items/itemRole), its name and a count;
+ *   - every row starts with its DAY, bold, and a time under it. That pair is
+ *     the row's whole date: the right edge carries none any more;
+ *   - a todo row leads with the round completion checkbox, and a done todo is
+ *     struck through with a "Done" chip;
+ *   - the square selection checkbox (#2217) appears only in selection mode,
+ *     left of the day, so an ordinary read of a topic is not a column of boxes;
+ *   - a right-click (a long press on a phone) asks the host to EDIT the row —
+ *     what that means per kind is the host's (the item panel for a todo or an
+ *     event, the item's own screen otherwise).
  *
- * Rows NAVIGATE, they do not edit. Clicking one hands the item to the shell's
- * existing item-nav route, which opens it on its home surface — Materials for a
- * note or daily, Schedule for a todo or event. The hub deliberately carries no
- * "put this on today" control: that entrance belongs to the Calendar sidebar
- * (#1153), and two of them would be two places to look for one decision.
+ * The kind is announced by the frame's HEADING rather than by a badge on every
+ * row — the same ItemRoleBadge the tag editor puts on each row (#409), lifted
+ * once to the top of its run.
+ *
+ * Rows NAVIGATE (or select, on wide), they do not edit in place — except the
+ * todo's round checkbox, the one-tap write the Mobile brief keeps.
  *
  * Pure presentation: copy injected (§6.4), lumen-* tokens only.
  */
+
+/** How long a touch has to rest on a row before it counts as a long press. */
+export const LONG_PRESS_MS = 500;
+/** How far a held finger may drift before the hold is read as a scroll. */
+const MOVE_TOLERANCE_PX = 10;
+/** How long after a long press a stray click is still its tail. */
+const PRESS_TAIL_MS = 800;
+
+/** Whether a press that fired at `firedAt` still owns what follows it. */
+function inPressTail(firedAt: number): boolean {
+  return Date.now() - firedAt < PRESS_TAIL_MS;
+}
+
+/** When a press fires — read in the handlers, never during render. */
+function pressTime(): number {
+  return Date.now();
+}
 
 export interface TagHubItemGroupsProps {
   groups: readonly TagHubGroup[];
@@ -29,16 +66,23 @@ export interface TagHubItemGroupsProps {
   /** Count → its accessible text, for the per-kind heading. */
   formatCount: (count: number) => string;
   /**
-   * Wide = the Desktop detail column; narrow = the whole phone screen. Only
-   * the row height depends on it (#1561): narrow rows get the 44px touch
-   * floor, wide rows keep their mouse height.
+   * A row's `dayKey` (YYYY-MM-DD) → the bold day at its left edge. The host
+   * owns the locale; without it the key itself is shown.
+   */
+  formatDay?: (dayKey: string) => string;
+  /**
+   * Wide = the Desktop detail column; narrow = the whole phone screen. The
+   * touch targets depend on it (#1561): narrow rows and selection squares get
+   * the 44px floor, wide ones keep their mouse size.
    */
   wide: boolean;
   labels: TagHubLabels;
   /*
-   * Bulk selection (#1644 / D8–D9). Without a toggle the rows carry no
-   * checkbox and read exactly as before, which is what narrow gets.
+   * Bulk selection (#1644 / #2224). The squares are drawn only while
+   * `selecting` is on AND a toggle is given; otherwise the rows read exactly
+   * as an ordinary list.
    */
+  selecting?: boolean;
   checkedIds?: ReadonlySet<string>;
   onToggleChecked?: (itemId: string) => void;
   /** A row's checkbox name ("Select “Standup”"). */
@@ -60,14 +104,23 @@ export interface TagHubItemGroupsProps {
   onItemMenu?: (item: TagHubItem) => void;
   /** That button's name ("Standup: Item actions"). */
   formatItemMenu?: (title: string) => string;
+  /** A todo row's round checkbox (#2224). Omit to draw no checkbox. */
+  onToggleTodoStatus?: (item: TagHubItem, next: TodoStatus) => void;
+  /**
+   * Right-click, or a long press on touch (#2224). The browser's own menu is
+   * kept out only when this is given.
+   */
+  onItemContextMenu?: (item: TagHubItem) => void;
 }
 
 export function TagHubItemGroups({
   groups,
   onOpenItem,
   formatCount,
+  formatDay = (dayKey) => dayKey,
   wide,
   labels,
+  selecting = false,
   checkedIds,
   onToggleChecked,
   formatSelectItem,
@@ -76,11 +129,105 @@ export function TagHubItemGroups({
   formatOpenItem,
   onItemMenu,
   formatItemMenu,
+  onToggleTodoStatus,
+  onItemContextMenu,
 }: TagHubItemGroupsProps) {
+  const showSelect = selecting && onToggleChecked !== undefined;
+
+  /*
+   * The long press (#2224). iOS Safari raises no `contextmenu` for a held
+   * finger on an ordinary element, so the timer is the phone's right-click.
+   * One touch at a time, so one timer for the whole list.
+   *
+   * What follows a press that fired is swallowed, so one press is one open:
+   *   - the lifted finger: `touchend` is default-prevented, which stops the
+   *     compatibility mousedown / click the browser would send next — the
+   *     mousedown would otherwise land on the backdrop of the sheet that just
+   *     opened and close it;
+   *   - Android's own `contextmenu` for the same hold, which can arrive before
+   *     or after the timer (its threshold is ~400ms): whichever comes first
+   *     opens, the other is dropped;
+   *   - a click that still gets through, within PRESS_TAIL_MS.
+   * A finger may drift MOVE_TOLERANCE_PX before the hold counts as a scroll.
+   */
+  const pressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const firedAt = useRef(Number.NEGATIVE_INFINITY);
+  const pressStart = useRef<{ x: number; y: number } | null>(null);
+  const cancelPress = () => {
+    if (pressTimer.current !== null) {
+      clearTimeout(pressTimer.current);
+      pressTimer.current = null;
+    }
+  };
+  useEffect(() => cancelPress, []);
+  const inTail = () => inPressTail(firedAt.current);
+
+  const pressHandlers = (item: TagHubItem) =>
+    onItemContextMenu
+      ? {
+          onTouchStart: (e: ReactTouchEvent) => {
+            cancelPress();
+            const touch = e.touches[0];
+            pressStart.current = touch
+              ? { x: touch.clientX, y: touch.clientY }
+              : null;
+            pressTimer.current = setTimeout(() => {
+              pressTimer.current = null;
+              firedAt.current = pressTime();
+              onItemContextMenu(item);
+            }, LONG_PRESS_MS);
+          },
+          onTouchMove: (e: ReactTouchEvent) => {
+            const start = pressStart.current;
+            const touch = e.touches[0];
+            if (
+              !start ||
+              !touch ||
+              Math.hypot(touch.clientX - start.x, touch.clientY - start.y) >
+                MOVE_TOLERANCE_PX
+            ) {
+              cancelPress();
+            }
+          },
+          onTouchEnd: (e: ReactTouchEvent) => {
+            cancelPress();
+            pressStart.current = null;
+            if (inTail()) e.preventDefault();
+          },
+          onTouchCancel: () => {
+            cancelPress();
+            pressStart.current = null;
+          },
+          onContextMenu: (e: ReactMouseEvent) => {
+            e.preventDefault();
+            // The same hold the timer already served.
+            if (inTail()) return;
+            // Android got there first: the timer must not open it again, and
+            // what the lifted finger sends is the tail. A mouse right-click
+            // has no tail — the next left click is a click.
+            if (pressStart.current !== null) {
+              cancelPress();
+              firedAt.current = pressTime();
+            }
+            onItemContextMenu(item);
+          },
+        }
+      : {};
+
+  /** Run a row's click unless it is the tail of a long press. */
+  const guarded = (run: () => void) => () => {
+    if (inTail()) return;
+    run();
+  };
+
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-3">
       {groups.map((group) => (
-        <section key={group.role}>
+        <section
+          key={group.role}
+          data-taghub-group={group.role}
+          className="overflow-hidden rounded-lumen-md border border-lumen-border bg-lumen-bg"
+        >
           {/*
            * aria-label rather than the concatenated content: the badge already
            * names the kind and the chip is a bare number, so without it the
@@ -90,11 +237,8 @@ export function TagHubItemGroups({
             aria-label={`${labels.roles[group.role]}: ${formatCount(
               group.items.length,
             )}`}
-            className="mb-1.5 flex items-center gap-2"
+            className="flex items-center gap-2 border-b border-lumen-border bg-lumen-bg-secondary px-2 py-1.5"
           >
-            {/* `md`: the run heading sits directly above rows that are
-                themselves `text-sm`, so at the in-line chip size it read as
-                one more row rather than as the divider between two kinds. */}
             <ItemRoleBadge role={group.role} labels={labels.roles} size="md" />
             <span
               aria-hidden
@@ -103,126 +247,196 @@ export function TagHubItemGroups({
               {group.items.length}
             </span>
           </h3>
-          <ul className="flex flex-col">
-            {group.items.map((item) => (
-              <li
-                key={item.id}
-                className={cn(
-                  "group/row relative flex items-center rounded-lumen-sm",
-                  // The tint plus the 2px bar (D9), so neither a checked
-                  // row nor the selected one is told apart by colour alone.
-                  (checkedIds?.has(item.id) || activeItemId === item.id) &&
-                    "bg-lumen-accent-subtle",
-                )}
-              >
-                {(checkedIds?.has(item.id) || activeItemId === item.id) && (
-                  <span
-                    aria-hidden
-                    className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-lumen-accent"
-                  />
-                )}
-                {onToggleChecked && (
-                  /*
-                   * Always drawn, never revealed on hover (2026-09-21, こうだい
-                   * さんの指示). D8 hid the box until the row was hovered or
-                   * something was already checked, which made "select several
-                   * rows" a feature you had to know was there — and on a hybrid
-                   * screen, one a pointer had to find first. The row's own
-                   * `group/row` stays for the chevron.
-                   */
-                  <input
-                    type="checkbox"
-                    checked={checkedIds?.has(item.id) ?? false}
-                    onChange={() => onToggleChecked(item.id)}
-                    aria-label={formatSelectItem?.(item.title) ?? item.title}
-                    className={cn(
-                      "ml-2 size-4 shrink-0 cursor-pointer accent-lumen-accent",
-                      FOCUS_RING_TIGHT,
-                    )}
-                  />
-                )}
-                <button
-                  type="button"
-                  aria-current={activeItemId === item.id ? "true" : undefined}
-                  onClick={() =>
-                    onSelectItem ? onSelectItem(item) : onOpenItem(item)
-                  }
-                  onDoubleClick={
-                    onSelectItem ? () => onOpenItem(item) : undefined
-                  }
+          <ul className="flex flex-col p-1">
+            {group.items.map((item) => {
+              const checked = checkedIds?.has(item.id) ?? false;
+              const marked = checked || activeItemId === item.id;
+              const done = item.role === "task" && item.status === "DONE";
+              const dayText = item.dayKey
+                ? formatDay(item.dayKey)
+                : item.role === "task"
+                  ? labels.noDate
+                  : null;
+              const timeText = item.allDay ? labels.allDay : item.time;
+              /*
+               * The row's name, spelled out: title first (a list walked by
+               * ear is scanned by name), then the left edge, then the second
+               * line and the Done chip. A daily's day IS its title.
+               */
+              const rowName = [
+                item.title,
+                ...(item.role === "daily"
+                  ? []
+                  : [dayText, timeText, item.repeats ? labels.repeats : null]),
+                item.detail,
+                done ? labels.done : null,
+              ]
+                .filter(Boolean)
+                .join(", ");
+              return (
+                <li
+                  key={item.id}
+                  data-taghub-row={item.id}
+                  {...pressHandlers(item)}
                   className={cn(
-                    // #1749 — `min-w-0` is what lets the row end at the screen
-                    // edge. A flex item's automatic minimum size is its
-                    // min-content width, so without it the button refuses to
-                    // shrink past the title and the trailing "…" is pushed
-                    // outside the viewport, giving the list a horizontal
-                    // scrollbar. The inner span already truncates; truncation
-                    // only reaches it once every flex level above can shrink.
-                    "group flex min-w-0 flex-1 items-center gap-2 rounded-lumen-sm px-2 py-1.5 text-left",
-                    "transition-colors hover:bg-lumen-hover",
-                    "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-                    // #1561 — 44px touch floor on narrow only (the audit read
-                    // 33px here). `min-h-*`, never `h-*`: `cn` is a plain
-                    // string join (rules/frontend.md §Gotchas).
-                    !wide && "min-h-11",
+                    "group/row relative flex items-center gap-1 rounded-lumen-sm",
+                    // The tint plus the 2px bar (D9), so neither a checked
+                    // row nor the selected one is told apart by colour alone.
+                    marked && "bg-lumen-accent-subtle",
                   )}
                 >
-                  <span
-                    className="min-w-0 flex-1 truncate text-sm text-lumen-text"
-                    title={item.title}
-                  >
-                    {item.title}
-                  </span>
-                  {item.detail && (
-                    <span className="shrink-0 text-xs tabular-nums text-lumen-text-tertiary">
-                      {item.detail}
-                    </span>
-                  )}
-                  {/* Decorative while the row itself opens the item; the
-                      button below takes over when it does not. */}
-                  {!onSelectItem && (
-                    <ChevronRight
-                      size={14}
+                  {marked && (
+                    <span
                       aria-hidden
-                      className="shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity group-hover/row:opacity-100"
+                      className="absolute inset-y-1 left-0 w-0.5 rounded-full bg-lumen-accent"
                     />
                   )}
-                </button>
-                {onItemMenu && (
-                  // M3 — narrow has no hover to reveal anything with, so the
-                  // row's actions sit on a 44px button of their own.
+                  {showSelect && (
+                    <SelectCheckbox
+                      checked={checked}
+                      onChange={() => onToggleChecked?.(item.id)}
+                      label={formatSelectItem?.(item.title) ?? item.title}
+                      // The box is 16px; the press target is not (#1561).
+                      // One size class or the other — `cn` does not merge.
+                      className={wide ? "ml-1 size-7" : "size-11"}
+                    />
+                  )}
+                  {item.role === "task" && onToggleTodoStatus && (
+                    <TodoStatusCheckbox
+                      status={item.status ?? "NOT_STARTED"}
+                      onChange={(next) => onToggleTodoStatus(item, next)}
+                      labels={labels.todoStatusLabels}
+                      label={labels.todoStatus}
+                      itemName={item.title}
+                    />
+                  )}
                   <button
                     type="button"
-                    onClick={() => onItemMenu(item)}
-                    aria-label={formatItemMenu?.(item.title) ?? item.title}
+                    aria-label={rowName}
+                    aria-current={activeItemId === item.id ? "true" : undefined}
+                    onClick={guarded(() =>
+                      onSelectItem ? onSelectItem(item) : onOpenItem(item),
+                    )}
+                    onDoubleClick={
+                      onSelectItem ? () => onOpenItem(item) : undefined
+                    }
                     className={cn(
-                      "grid size-11 shrink-0 place-items-center rounded-lumen-sm text-lumen-text-secondary",
-                      "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
-                      FOCUS_RING_TIGHT,
+                      // #1749 — `min-w-0` is what lets the row end at the
+                      // screen edge; truncation only reaches the title once
+                      // every flex level above can shrink.
+                      "group flex min-w-0 flex-1 items-center gap-3 rounded-lumen-sm px-2 py-1.5 text-left",
+                      "transition-colors hover:bg-lumen-hover",
+                      "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                      // #1561 — 44px touch floor on narrow only. `min-h-*`,
+                      // never `h-*`: `cn` is a plain string join.
+                      !wide && "min-h-11",
                     )}
                   >
-                    <MoreHorizontal size={16} aria-hidden />
-                  </button>
-                )}
-                {onSelectItem && (
-                  // Always reachable, never hover-only: with the row's click
-                  // taken by selection this is the only pointer route out of
-                  // the hub, and a keyboard has no hover to reveal it with.
-                  <button
-                    type="button"
-                    onClick={() => onOpenItem(item)}
-                    aria-label={formatOpenItem?.(item.title) ?? item.title}
-                    className={cn(
-                      "mr-1 shrink-0 rounded-lumen-sm p-1 text-lumen-text-tertiary",
-                      "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
-                      FOCUS_RING_TIGHT,
+                    {/* The left edge — read through the button's name above. */}
+                    <span
+                      aria-hidden
+                      data-taghub-when=""
+                      className="flex w-[4.5rem] shrink-0 flex-col leading-tight"
+                    >
+                      <span
+                        className={cn(
+                          "flex items-center gap-1 text-xs tabular-nums",
+                          item.dayKey
+                            ? "font-semibold text-lumen-text"
+                            : "text-lumen-text-tertiary",
+                        )}
+                      >
+                        {item.role === "daily" && (
+                          <CalendarDays
+                            size={12}
+                            className="shrink-0 text-lumen-warning"
+                          />
+                        )}
+                        <span className="truncate">{dayText}</span>
+                      </span>
+                      {(timeText || item.repeats) && (
+                        <span className="flex items-center gap-1 text-[11px] tabular-nums text-lumen-text-tertiary">
+                          {timeText && (
+                            <span className="truncate">{timeText}</span>
+                          )}
+                          {item.repeats && (
+                            <Repeat size={11} className="shrink-0" />
+                          )}
+                        </span>
+                      )}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col">
+                      <span
+                        className={cn(
+                          "min-w-0 truncate text-sm",
+                          done
+                            ? "text-lumen-text-tertiary line-through"
+                            : "text-lumen-text",
+                        )}
+                        title={item.title}
+                      >
+                        {item.title}
+                      </span>
+                      {item.detail && (
+                        <span
+                          className="truncate text-xs text-lumen-text-tertiary"
+                          title={item.detail}
+                        >
+                          {item.detail}
+                        </span>
+                      )}
+                    </span>
+                    {done && (
+                      <span className="shrink-0 rounded-lumen-sm border border-lumen-border px-1.5 py-0.5 text-[11px] text-lumen-text-secondary">
+                        {labels.done}
+                      </span>
                     )}
-                  >
-                    <ChevronRight size={14} aria-hidden />
+                    {/* Decorative while the row itself opens the item; the
+                        button below takes over when it does not. */}
+                    {!onSelectItem && (
+                      <ChevronRight
+                        size={14}
+                        aria-hidden
+                        className="shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity group-hover/row:opacity-100"
+                      />
+                    )}
                   </button>
-                )}
-              </li>
-            ))}
+                  {onItemMenu && (
+                    // M3 — narrow has no hover to reveal anything with, so the
+                    // row's actions sit on a 44px button of their own.
+                    <button
+                      type="button"
+                      onClick={() => onItemMenu(item)}
+                      aria-label={formatItemMenu?.(item.title) ?? item.title}
+                      className={cn(
+                        "grid size-11 shrink-0 place-items-center rounded-lumen-sm text-lumen-text-secondary",
+                        "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                        FOCUS_RING_TIGHT,
+                      )}
+                    >
+                      <MoreHorizontal size={16} aria-hidden />
+                    </button>
+                  )}
+                  {onSelectItem && (
+                    // Always reachable, never hover-only: with the row's click
+                    // taken by selection this is the only pointer route out of
+                    // the hub, and a keyboard has no hover to reveal it with.
+                    <button
+                      type="button"
+                      onClick={() => onOpenItem(item)}
+                      aria-label={formatOpenItem?.(item.title) ?? item.title}
+                      className={cn(
+                        "mr-1 shrink-0 rounded-lumen-sm p-1 text-lumen-text-tertiary",
+                        "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                        FOCUS_RING_TIGHT,
+                      )}
+                    >
+                      <ChevronRight size={14} aria-hidden />
+                    </button>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         </section>
       ))}

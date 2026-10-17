@@ -11,6 +11,7 @@ import type { DailyNode } from "../types/daily";
 import type {
   NoteBodySaveResult,
   NoteBodySnapshot,
+  NoteExcerpt,
   NoteNode,
 } from "../types/note";
 
@@ -677,6 +678,15 @@ export interface NotesUnifiedDataService {
    * delete / get), because on the DB side that is exactly what it is.
    */
   listNoteTemplatesUnified(): Promise<NoteNode[]>;
+  /**
+   * Each unlocked note's first line of text (#2224), for a list that shows an
+   * excerpt under the title without loading any body. Only the first few
+   * top-level blocks of `content_json` are read (`contentExcerpt`'s rule over
+   * them), never the whole document; a password-locked note is skipped. Keyed
+   * by note id only — the caller joins it with the note list it already
+   * holds, which is what decides live vs. trashed and template vs. note.
+   */
+  listNoteExcerptsUnified(): Promise<NoteExcerpt[]>;
   /** Live note count for the badge (#511) — see countUnfinishedTodos. */
   countLiveNotes(): Promise<number>;
   /**

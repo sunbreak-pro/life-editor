@@ -1,7 +1,9 @@
 import { useRef } from "react";
 import type { ReactNode } from "react";
 import { ChevronLeft, Pencil, Tags } from "lucide-react";
+import { Button } from "../Button";
 import { cn } from "../cn";
+import { CARD_BTN_TAP } from "../styleTokens";
 import { EmptyState } from "../EmptyState";
 import { IconButton } from "../IconButton";
 import { SkeletonList } from "../SkeletonList";
@@ -12,6 +14,7 @@ import { TagHubTagRail } from "./TagHubTagRail";
 import { NO_EDITS, type TagRowEdits } from "./tagRowPatch";
 import { UNTAGGED_TAG_ID } from "./types";
 import type { TagHubItem, TagHubLabels, TagHubModel } from "./types";
+import type { TodoStatus } from "../../types/todoTree";
 
 /*
  * The Connect section's body (#1171) — a tag hub, the Wikipedia category page
@@ -93,10 +96,16 @@ export interface TagHubViewProps {
   onCreateTag?: (name: string) => void | Promise<unknown>;
 
   /*
-   * Bulk selection (#1644). The host owns which rows are checked and draws the
-   * bar (it holds the writes); the view places the checkboxes and docks the
-   * bar under the items. The host passes none of it on narrow.
+   * Bulk selection (#1644 / #2224). The host owns which rows are checked,
+   * whether selection mode is on, and draws the bar (it holds the writes).
+   * The view draws the header's "Select" button, shows the squares only in
+   * selection mode, and places the bar: in the tag rail above the add row on
+   * wide (so the items pane never shifts), pinned over the list's bottom
+   * edge on narrow.
    */
+  selecting?: boolean;
+  /** The header's "Select" / "Done selecting" button. Omit to hide it. */
+  onToggleSelecting?: () => void;
   checkedItemIds?: ReadonlySet<string>;
   onToggleItemChecked?: (itemId: string) => void;
   formatSelectItem?: (title: string) => string;
@@ -111,8 +120,14 @@ export interface TagHubViewProps {
   /** The narrow row's "…" (#1646 / M3) and that button's name. */
   onItemMenu?: (item: TagHubItem) => void;
   formatItemMenu?: (title: string) => string;
-  /** The docked bar, drawn under the items while a tag is open. */
+  /** The bulk bar, placed by the view while a tag is open (see above). */
   selectionBar?: ReactNode;
+  /** A row's day key → its bold left-edge day (#2224). */
+  formatDay?: (dayKey: string) => string;
+  /** A todo row's round checkbox (#2224). */
+  onToggleTodoStatus?: (item: TagHubItem, next: TodoStatus) => void;
+  /** Right-click / long press on a row (#2224). */
+  onItemContextMenu?: (item: TagHubItem) => void;
 }
 
 export function TagHubView({
@@ -139,6 +154,8 @@ export function TagHubView({
   editError = null,
   onDeleteTag,
   onCreateTag,
+  selecting = false,
+  onToggleSelecting,
   checkedItemIds,
   onToggleItemChecked,
   formatSelectItem,
@@ -148,6 +165,9 @@ export function TagHubView({
   onItemMenu,
   formatItemMenu,
   selectionBar,
+  formatDay,
+  onToggleTodoStatus,
+  onItemContextMenu,
 }: TagHubViewProps) {
   /*
    * The empty state's "add a tag" button and the rail's add FIELD are the same
@@ -201,6 +221,8 @@ export function TagHubView({
       wide={wide}
       isLoading={isLoading}
       labels={labels}
+      // #2224 — the Desktop bulk bar sits here, above the add row.
+      footer={wide && selected ? selectionBar : undefined}
     />
   );
 
@@ -212,7 +234,7 @@ export function TagHubView({
   }
 
   const detail = (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+    <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
       {selected && (
         <div className="flex flex-shrink-0 items-center gap-2 border-b border-lumen-border px-3 py-2.5">
           {!wide && (
@@ -244,6 +266,19 @@ export function TagHubView({
           <span className="shrink-0 text-xs tabular-nums text-lumen-text-tertiary">
             {formatCount(selected.count)}
           </span>
+          {onToggleSelecting && groups.length > 0 && (
+            // #2224 — the squares hide behind this. Ending the mode drops
+            // whatever was checked (the host does that). The label says the
+            // state ("Select" / "Done selecting"), so no aria-pressed on top.
+            <Button
+              variant={selecting ? "secondary" : "ghost"}
+              size="sm"
+              className={cn("shrink-0", CARD_BTN_TAP, !wide && "min-h-11")}
+              onClick={onToggleSelecting}
+            >
+              {selecting ? labels.selectEnd : labels.select}
+            </Button>
+          )}
           {editable && (
             <IconButton
               icon={<Pencil size={15} />}
@@ -261,7 +296,15 @@ export function TagHubView({
           )}
         </div>
       )}
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3">
+      <div
+        data-taghub-items=""
+        className={cn(
+          "flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 py-3",
+          // Room under the last row for the pinned narrow bar (#2224), so the
+          // bar covers padding rather than the row a thumb is reaching for.
+          !wide && selected !== null && selectionBar != null && "pb-20",
+        )}
+      >
         {isLoading ? (
           <div aria-busy="true" aria-label={labels.loading} role="status">
             <SkeletonList rows={6} />
@@ -316,6 +359,10 @@ export function TagHubView({
                 checkedIds={checkedItemIds}
                 onToggleChecked={onToggleItemChecked}
                 formatSelectItem={formatSelectItem}
+                selecting={selecting}
+                formatDay={formatDay}
+                onToggleTodoStatus={onToggleTodoStatus}
+                onItemContextMenu={onItemContextMenu}
                 activeItemId={activeItemId}
                 onSelectItem={onSelectItem}
                 formatOpenItem={formatOpenItem}
@@ -326,7 +373,11 @@ export function TagHubView({
           </>
         )}
       </div>
-      {selected && selectionBar}
+      {!wide && selected && selectionBar && (
+        // #2224 — pinned over the list's bottom edge rather than laid out
+        // under it, so the rows above are not pushed up when it appears.
+        <div className="absolute inset-x-0 bottom-0 z-10">{selectionBar}</div>
+      )}
     </div>
   );
 

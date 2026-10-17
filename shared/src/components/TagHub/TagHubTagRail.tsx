@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
-import type { RefObject } from "react";
+import type { ReactNode, RefObject } from "react";
 import { ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { Button } from "../Button";
 import { cn } from "../cn";
@@ -83,6 +83,11 @@ export interface TagHubTagRailProps {
   /** True until the host's first reads land — draws the skeleton rows (D16). */
   isLoading?: boolean;
   labels: TagHubLabels;
+  /**
+   * Drawn just above the add row (#2224) — the Desktop bulk bar, so checking
+   * a row never moves the items pane it sits in.
+   */
+  footer?: ReactNode;
 }
 
 export function TagHubTagRail({
@@ -102,6 +107,7 @@ export function TagHubTagRail({
   wide,
   isLoading = false,
   labels,
+  footer,
 }: TagHubTagRailProps) {
   // Collapsed by default: these are the tags you are NOT reading (D4).
   const [showUnused, setShowUnused] = useState(false);
@@ -266,6 +272,8 @@ export function TagHubTagRail({
           </>
         )}
       </div>
+
+      {footer}
 
       {/* The creation row, pinned to the bottom edge (D5). It used to live at
           the top of the retired modal; down here it is out of the way of the

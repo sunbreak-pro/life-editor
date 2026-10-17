@@ -57,3 +57,13 @@ export type NoteBodySaveResult =
   | { status: "saved"; updatedAt: string }
   | { status: "conflict"; current: NoteBodySnapshot }
   | { status: "missing" };
+
+/**
+ * One note's one-line excerpt (#2224) — the first line of text in its body,
+ * for a list that shows it under the title. Only notes that HAVE one are
+ * returned, and a password-locked note never is: its body is not read.
+ */
+export interface NoteExcerpt {
+  id: string;
+  excerpt: string;
+}

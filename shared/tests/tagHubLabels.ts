@@ -57,6 +57,15 @@ export const TAG_HUB_LABELS: TagHubLabels = {
     daily: "Daily",
     unknown: "Other",
   },
+  // #2224
+  noDate: "No date",
+  allDay: "All day",
+  repeats: "Repeats",
+  done: "Done",
+  todoStatus: "Status",
+  todoStatusLabels: { statusNotStarted: "Not started", statusDone: "Done" },
+  select: "Select",
+  selectEnd: "Done selecting",
 };
 
 /** "3 items" — the shape the real catalog interpolates. */

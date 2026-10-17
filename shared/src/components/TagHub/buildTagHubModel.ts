@@ -32,18 +32,25 @@ export interface BuildTagHubModelInput {
 }
 
 /**
- * Newest first inside a kind, falling back to the title so the order is
- * stable when two rows carry the same timestamp (or none). Ties broken by id
- * last, because `Array.prototype.sort` is only stable with respect to the
- * INPUT order, and the input here is whatever order four fetches resolved in.
+ * Oldest day first inside a kind, then by time (#2224) — the order the row's
+ * left edge reads in. An undated row (a todo set for no day) sorts after every
+ * dated one. On one day a row with no time (an all-day event, an untimed
+ * todo) comes before the timed ones, the way a calendar puts its all-day lane
+ * above the hours.
+ *
+ * Then the title, so the order is stable when two rows share a slot, and the
+ * id last, because `Array.prototype.sort` is only stable with respect to the
+ * INPUT order, and the input here is whatever order the fetches resolved in.
  */
-function compareItems(a: TagHubItem, b: TagHubItem): number {
-  if (a.updatedAt !== b.updatedAt) {
-    // Absent sorts last — see the field's note in types.ts.
-    if (!a.updatedAt) return 1;
-    if (!b.updatedAt) return -1;
-    return a.updatedAt < b.updatedAt ? 1 : -1;
+export function compareTagHubItems(a: TagHubItem, b: TagHubItem): number {
+  if (a.dayKey !== b.dayKey) {
+    if (!a.dayKey) return 1;
+    if (!b.dayKey) return -1;
+    return a.dayKey < b.dayKey ? -1 : 1;
   }
+  const aTime = a.allDay ? "" : (a.time ?? "");
+  const bTime = b.allDay ? "" : (b.time ?? "");
+  if (aTime !== bTime) return aTime < bTime ? -1 : 1;
   const byTitle = a.title.localeCompare(b.title);
   return byTitle !== 0 ? byTitle : a.id.localeCompare(b.id);
 }
@@ -63,7 +70,7 @@ function groupByRole(items: readonly TagHubItem[]): TagHubGroup[] {
   for (const role of ITEM_ROLE_ORDER) {
     const bucket = byRole.get(role);
     if (!bucket || bucket.length === 0) continue;
-    groups.push({ role, items: [...bucket].sort(compareItems) });
+    groups.push({ role, items: [...bucket].sort(compareTagHubItems) });
   }
   return groups;
 }

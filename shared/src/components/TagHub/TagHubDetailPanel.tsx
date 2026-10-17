@@ -141,9 +141,12 @@ export function TagHubDetailPanel({
                   >
                     {item.title}
                   </span>
-                  {item.detail && (
+                  {/* An event's day, as before #2224. Not `detail`: that is
+                      the list's second line now (a note's excerpt), which a
+                      one-line, unshrinking slot cannot hold. */}
+                  {item.date && (
                     <span className="shrink-0 text-xs tabular-nums text-lumen-text-tertiary">
-                      {item.detail}
+                      {item.date}
                     </span>
                   )}
                   <ChevronRight

@@ -8,51 +8,19 @@
  *     Legacy plain text is converted line-by-line to paragraphs AT READ TIME
  *     ONLY — the JSON form is persisted lazily, on the user's first edit
  *     (the editor emits JSON on update; an untouched daily is never written).
- *   - dailyContentExcerpt: first non-empty text line for list excerpts,
- *     readable from both forms.
+ *   - the one-line excerpt lives in utils/contentExcerpt.ts as
+ *     `contentExcerpt` (#2224 — shared with the Connect note rows).
  *
  * No React, no DataService — unit-tested in shared/tests/dailyContent.test.ts.
  */
 
-interface TipTapNode {
-  type?: string;
-  text?: string;
-  content?: TipTapNode[];
-}
+import {
+  parseTipTapDoc,
+  type TipTapDoc,
+  type TipTapNode,
+} from "../../utils/contentExcerpt";
 
-export interface TipTapDoc {
-  type: "doc";
-  content: TipTapNode[];
-}
-
-/** Flatten a TipTap node subtree to plain text (same shape as extractBriefing). */
-function textOf(node: TipTapNode): string {
-  if (typeof node.text === "string") return node.text;
-  if (!Array.isArray(node.content)) return "";
-  return node.content.map(textOf).join("");
-}
-
-/**
- * Parse a stored daily body as a TipTap doc. Returns null when the string is
- * not one (legacy plain text, or JSON that isn't a doc — e.g. "123" parses to
- * a number, and an arbitrary object has no `type: "doc"`).
- */
-function parseTipTapDoc(content: string): TipTapDoc | null {
-  try {
-    const parsed: unknown = JSON.parse(content);
-    if (
-      typeof parsed === "object" &&
-      parsed !== null &&
-      (parsed as TipTapNode).type === "doc" &&
-      Array.isArray((parsed as TipTapNode).content)
-    ) {
-      return parsed as TipTapDoc;
-    }
-  } catch {
-    // fall through — legacy plain text
-  }
-  return null;
-}
+export type { TipTapDoc };
 
 /** Build a TipTap doc from plain text: one paragraph per line (empty line = empty paragraph). */
 export function plainTextToTipTapDoc(text: string): TipTapDoc {
@@ -81,26 +49,6 @@ export function dailyContentToEditorContent(
   return JSON.stringify(plainTextToTipTapDoc(content));
 }
 
-/** First non-empty text line of a daily body (plain or TipTap JSON), for one-line excerpts. */
-export function dailyContentExcerpt(
-  content: string | undefined,
-): string | undefined {
-  if (!content) return undefined;
-  const doc = parseTipTapDoc(content);
-  if (doc) {
-    for (const block of doc.content) {
-      const t = textOf(block).trim();
-      if (t !== "") return t;
-    }
-    return undefined;
-  }
-  const line = content
-    .split("\n")
-    .map((s) => s.trim())
-    .find(Boolean);
-  return line || undefined;
-}
-
 /** TipTap node types that carry no text of their own and no children. */
 const STRUCTURAL_TYPES = new Set(["doc", "paragraph", "text"]);
 
@@ -117,7 +65,7 @@ function hasRenderedNode(node: TipTapNode): boolean {
 
 /**
  * Does this body show the user anything? Broader than
- * `dailyContentExcerpt !== undefined`, which only sees TEXT.
+ * `contentExcerpt !== undefined`, which only sees TEXT.
  *
  * The gap this closes (#371 follow-up): a resolved `[[ ]]` link is an inline
  * ATOM — its JSON carries attrs, never a text node — so a brand-new day whose

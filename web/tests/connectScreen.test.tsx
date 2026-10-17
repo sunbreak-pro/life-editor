@@ -90,6 +90,8 @@ function makeDS(over: Partial<Record<keyof DataService, unknown>> = {}) {
     fetchAllRoutines: vi.fn().mockResolvedValue([]),
     // #2094: no table in the base fixture — the table cases supply their own.
     fetchNoteTables: vi.fn().mockResolvedValue([]),
+    // #2224: no excerpt in the base fixture — the excerpt case supplies one.
+    listNoteExcerptsUnified: vi.fn().mockResolvedValue([]),
     listAllWikiTagsUnified: vi.fn().mockResolvedValue(TAGS),
     listAllTagAssignments: vi.fn().mockResolvedValue(ASSIGNMENTS),
     listAllTagConnections: vi.fn().mockResolvedValue([]),
@@ -937,26 +939,90 @@ describe("ConnectScreen — bulk tag operations", () => {
     check("Migration notes");
   };
 
+  /** #2224 — the squares are behind the header's "Select". */
+  const startSelecting = () =>
+    fireEvent.click(screen.getByRole("button", { name: "Select" }));
+
+  const squares = () =>
+    screen
+      .queryAllByRole("checkbox")
+      .filter((box) => box.getAttribute("aria-label")?.startsWith("Select “"));
+
   /*
-   * 2026-09-21 — every row draws its box from the start rather than revealing
-   * it on hover. jsdom has no hover, so what is pinnable here is the class
-   * that used to do the hiding: an `opacity-0` on a row with nothing checked
-   * is exactly the regression.
+   * #2224 DoD — no square until "Select" is pressed, one per row after it, and
+   * "Done selecting" drops whatever was checked. (Until #2224 every row drew
+   * its box from the start; the round completion checkbox on a todo row is a
+   * different control and stays.)
    */
-  it("shows every row's checkbox before anything is checked", async () => {
+  it("draws no square until Select is pressed, and Done selecting clears", async () => {
     await renderScreen();
     openTag("Work: 4 items");
+    expect(squares()).toHaveLength(0);
 
-    for (const title of ["Draft the PR", "Standup", "Migration notes"]) {
-      const box = screen.getByRole("checkbox", { name: `Select “${title}”` });
-      expect(box.className).not.toContain("opacity-0");
-    }
+    startSelecting();
+    expect(squares()).toHaveLength(4);
+    check("Standup");
+    screen.getByText("1 selected");
+
+    fireEvent.click(screen.getByRole("button", { name: "Done selecting" }));
+    expect(squares()).toHaveLength(0);
+    expect(screen.queryByText("1 selected")).toBeNull();
+
+    // Back on: nothing is still checked from before.
+    startSelecting();
+    expect(
+      squares().map((box) => box.getAttribute("aria-checked")),
+    ).toEqual(["false", "false", "false", "false"]);
+  });
+
+  /*
+   * #2224 DoD — on Desktop the bar is in the tag rail, above the add row, so
+   * checking a row does not change the items pane at all: no bar is laid out
+   * under the list, and the rows keep their place. jsdom has no layout, so
+   * "keeps their place" is pinned as "the pane's own children do not change".
+   */
+  it("puts the bar in the rail on Desktop, so the item rows stay put", async () => {
+    await renderScreen();
+    openTag("Work: 4 items");
+    startSelecting();
+
+    const items = document.querySelector("[data-taghub-items]");
+    if (!(items instanceof HTMLElement)) throw new Error("no items pane");
+    const pane = items.parentElement as HTMLElement;
+    const before = [...pane.children];
+
+    check("Standup");
+    const bar = screen.getByRole("toolbar", { name: "Selected items" });
+
+    expect([...pane.children]).toEqual(before);
+    expect(pane.contains(bar)).toBe(false);
+    // In the rail, directly above the add row.
+    const addField = screen.getByLabelText("Enter a tag name");
+    expect(
+      bar.compareDocumentPosition(addField) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const rail = screen.getByRole("list", { name: "Tags" }).closest(
+      ".border-r",
+    );
+    expect(rail?.contains(bar)).toBe(true);
+    expect(bar.getAttribute("data-taghub-selection-bar")).toBe("rail");
+    // Count and clear on top, then add / move / remove stacked.
+    const buttons = within(bar)
+      .getAllByRole("button")
+      .map((b) => b.textContent);
+    expect(buttons).toEqual([
+      "Clear selection",
+      "Add a tag",
+      "Move to another tag",
+      "Remove this tag",
+    ]);
   });
 
   it("adds a picked tag to each of three checked rows", async () => {
     const { ds, writes } = makeWritableDS();
     await renderScreen(ds);
     openTag("Work: 4 items");
+    startSelecting();
     checkThree();
 
     screen.getByText("3 selected");
@@ -985,6 +1051,7 @@ describe("ConnectScreen — bulk tag operations", () => {
     const { ds, writes } = makeWritableDS();
     await renderScreen(ds);
     openTag("Work: 4 items");
+    startSelecting();
     checkThree();
 
     fireEvent.click(screen.getByRole("button", { name: "Add a tag" }));
@@ -1003,6 +1070,7 @@ describe("ConnectScreen — bulk tag operations", () => {
   it("offers no remove or move on the untagged bucket", async () => {
     await renderScreen();
     openTag("Untagged: 1 item");
+    startSelecting();
     check("Untitled");
 
     screen.getByRole("button", { name: "Add a tag" });
@@ -1017,18 +1085,17 @@ describe("ConnectScreen — bulk tag operations", () => {
   it("clears the selection on Esc", async () => {
     await renderScreen();
     openTag("Work: 4 items");
+    startSelecting();
     check("Standup");
     screen.getByText("1 selected");
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByText("1 selected")).toBeNull();
     expect(
-      (
-        screen.getByRole("checkbox", {
-          name: "Select “Standup”",
-        }) as HTMLInputElement
-      ).checked,
-    ).toBe(false);
+      screen
+        .getByRole("checkbox", { name: "Select “Standup”" })
+        .getAttribute("aria-checked"),
+    ).toBe("false");
   });
 
   it("offers edit and delete only — the merge is gone (#1886)", async () => {
@@ -1104,40 +1171,6 @@ describe("ConnectScreen — what writes nothing", () => {
   });
 });
 
-describe("ConnectScreen — the header's totals (D1)", () => {
-  it("reports the live tag and item totals, then clears them on unmount", async () => {
-    const onCountsChange = vi.fn();
-    const { wrapper: SyncWrapper } = createBumpableSync();
-    const ds = makeDS();
-    render(
-      <SyncWrapper>
-        <WikiTagsUnifiedProvider dataService={ds}>
-          <ConnectScreen
-            dataService={ds}
-            onNavigateToItem={vi.fn()}
-            onCountsChange={onCountsChange}
-          />
-        </WikiTagsUnifiedProvider>
-      </SyncWrapper>,
-    );
-    await waitFor(() => screen.getByRole("list", { name: "Tags" }));
-
-    // Both tags, the unused one included — the header counts the master, not
-    // the rail's used run.
-    //
-    // AWAITED, not asserted straight after the rail appears: the report is an
-    // effect, and the rail showing up is a DOM mutation. `waitFor` resolves on
-    // the mutation, so on a loaded machine the assertion can run in the gap
-    // before React has flushed the passive effect that makes the call — which
-    // is exactly how this failed in CI while passing locally every time.
-    await waitFor(() =>
-      expect(onCountsChange).toHaveBeenLastCalledWith({ tags: 2, items: 5 }),
-    );
-
-    cleanup();
-    expect(onCountsChange).toHaveBeenLastCalledWith(null);
-  });
-});
 /*
  * Note tables (#2094, plan Step 5). A table is an item once it was tagged; it
  * is listed under its tags, opens the note it sits in, and stays out of the

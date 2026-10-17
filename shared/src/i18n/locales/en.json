@@ -1368,7 +1368,6 @@
     "editTag": "Edit this tag",
     "deleteConfirm": "Delete the tag “{{name}}”? It is removed from every item carrying it.",
     "unsavedSwitchConfirm": "This tag has unsaved changes. Discard them and open another tag?",
-    "headerCounts": "{{tags}} tags / {{items}} items",
     "edit": {
       "nameLabel": "Name",
       "iconLabel": "Icon",
@@ -1406,7 +1405,16 @@
       "search": "Search or create a tag…",
       "selectItem": "Select “{{title}}”",
       "selected_one": "{{count}} selected",
-      "selected_other": "{{count}} selected"
+      "selected_other": "{{count}} selected",
+      "start": "Select",
+      "end": "Done selecting"
+    },
+    "row": {
+      "noDate": "No date",
+      "allDay": "All day",
+      "repeats": "Repeats",
+      "done": "Done",
+      "statusFailed": "Couldn't save the todo's status. Check your connection."
     },
     "relations": {
       "addLink": "Add a link",

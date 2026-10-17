@@ -12,11 +12,13 @@
  */
 export {
   buildTagHubModel,
+  compareTagHubItems,
   type BuildTagHubModelInput,
 } from "./buildTagHubModel";
 export { TagHubView, type TagHubViewProps } from "./TagHubView";
 export { TagHubTagRail, type TagHubTagRailProps } from "./TagHubTagRail";
 export {
+  LONG_PRESS_MS,
   TagHubItemGroups,
   type TagHubItemGroupsProps,
 } from "./TagHubItemGroups";

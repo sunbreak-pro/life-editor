@@ -162,7 +162,9 @@ describe("TagHub narrow — a long title stays inside the row (#1749)", () => {
       }),
     });
     return {
-      title: screen.getByRole("button", { name: LONG }),
+      // #2224 — the row's day is read after its title; an undated todo's is
+      // "No date".
+      title: screen.getByRole("button", { name: `${LONG}, No date` }),
       menu: screen.getByRole("button", { name: `${LONG}: Item actions` }),
     };
   }

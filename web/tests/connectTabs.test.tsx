@@ -7,8 +7,8 @@ import {
   screen,
 } from "@testing-library/react";
 import type { ReactElement } from "react";
-import { ConnectHeaderCounts } from "../src/connect/ConnectHeaderCounts";
 import { connectTabBand } from "../src/connect/connectTabBand";
+import { ConnectScreen } from "../src/connect/ConnectScreen";
 import { GoalsTodosScreen } from "../src/connect/GoalsTodosScreen";
 import { TabBandHeader } from "../src/MainScreen";
 import { useShellNavigation } from "../src/hooks/useShellNavigation";
@@ -20,11 +20,10 @@ import { stubDataService } from "./helpers";
  * through MainScreen, which needs a session and the whole Provider chain
  * (rules/frontend.md §テスト環境の制約).
  *
- * The risk the plan names: a tab band REPLACES the section header's title row,
- * and the hub's "tags N / items N" was that row's subtitle — so tab-ifying
- * the section would silently drop it. The counts now ride in the band's
- * trailing slot; the second case renders MainScreen's own band builder
- * (connectTabBand) through MainScreen's own header (TabBandHeader).
+ * The second case renders MainScreen's own band builder (connectTabBand)
+ * through MainScreen's own header (TabBandHeader). The hub's "tags N / items
+ * N" used to ride in the band's trailing slot; #2224 took it off, and that
+ * case now pins that nothing is drawn there.
  */
 
 beforeEach(() => {
@@ -38,7 +37,7 @@ describe("Connect tabs (#2108)", () => {
     expect(connect.narrowHeader).toBe("tabs+hamburger");
   });
 
-  it("keeps the hub's counts visible beside the tab band", () => {
+  it("draws the tabs and no tag / item totals beside them (#2224)", () => {
     // The band MainScreen builds, drawn by the header MainScreen draws.
     const onSelect = vi.fn();
     const band = connectTabBand({
@@ -49,18 +48,16 @@ describe("Connect tabs (#2108)", () => {
       active: "tags",
       onSelect,
       label: "Connect views",
-      counts: { tags: 14, items: 150 },
     });
-    render(<TabBandHeader band={band} controls={null} />);
+    const { container } = render(
+      <TabBandHeader band={band} controls={null} />,
+    );
     screen.getByRole("tab", { name: "Tags" });
-    screen.getByText("14 tags / 150 items");
+    expect(band.trailing).toBeUndefined();
+    expect(container.textContent).not.toMatch(/tags \/ \d+ items/);
+    expect(container.textContent).not.toMatch(/\d+ items/);
     fireEvent.click(screen.getByRole("tab", { name: "Goals & Todos" }));
     expect(onSelect).toHaveBeenCalledWith("goals");
-  });
-
-  it("draws no count before the hub has reported one", () => {
-    const { container } = render(<ConnectHeaderCounts counts={null} />);
-    expect(container.textContent).toBe("");
   });
 
   it("mounts the tag hub on Tags and the goal tree on Goals & Todos", () => {
@@ -72,14 +69,13 @@ describe("Connect tabs (#2108)", () => {
         nav,
         narrowTabRow: undefined,
         loadingFallback: null,
-        onConnectCounts: () => undefined,
       }) as ReactElement;
 
-    // Tags: the hub inside its tag Provider, still reporting its counts.
+    // Tags: the hub inside its tag Provider.
     const tags = body(result.current) as ReactElement<{
-      children: ReactElement<{ onCountsChange?: unknown }>;
+      children: ReactElement;
     }>;
-    expect(typeof tags.props.children.props.onCountsChange).toBe("function");
+    expect(tags.props.children.type).toBe(ConnectScreen);
 
     act(() => result.current.setConnectTab("goals"));
     expect(body(result.current).type).toBe(GoalsTodosScreen);
