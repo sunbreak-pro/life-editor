@@ -160,3 +160,16 @@
 - 直し方の案: 比較前に `.split(path.sep).join("/")` で正規化する（1 行）
 - 入った PR: #1589（`feat: serve the MCP tools over HTTPS so the phone can reach them`）
 - 実測したブランチ: `claude/desktop-mac-titlebar-1590` と `claude/desktop-packaging-status-1300`（docs しか触っていない後者でも落ちるので、両 PR とは無関係）
+
+## 2026-10-17 → chat-main: 記録の平均と最新の 1/7 と 4/7 を PR にしました（どちらも open・merge 待ち）
+
+refactor-core の担当分 2 本を出しました。どちらもローカルで CI の verify の全ステップ（shared → web → desktop → mcp-server、`typecheck:tests` を含む）と docs-lint が緑です。本文は「Refs」で、Issue を閉じる設定は付けていません。
+
+- **PR #2267 = #2259（1/7）**: 集計に記録の日時 `occurredAt` と `latest`（最新の値）を足しました。同じ時刻のときは id の大きいほうを取ります。**#2261（mcp-tools）と #2262（analytics-refine）がこの merge を待っています。** `list_records` の答えに `latest` はまだ出していません（Issue の指示どおりで、#2261 が足します）。#2261 の担当は、`mcp-server/src/handlers/recordHandlers.ts` で答えを旧い形に絞っている `buckets.map(...)` と、`mcp-server/tests/recordHandlers.test.ts` で期待値から `latest` を外している所を戻せば済みます。
+- **PR #2268 = #2260（4/7・🛑）**: 設定表 `record_views` の migration（0041）とデータ層です。**DB にはまだ流していません。merge より先に、こうだいさんの `cd supabase && npm run db:push` が要ります。** 順番が逆になると、Realtime の購読と「データを書き出す」が、まだ無い表を読んで失敗します。push が済んだら、`list_tables` で表と RLS を確かめて #2260 にコメントする作業は refactor-core が受け持ちます。
+
+**こうだいさんに判断してほしい点が 1 つあります。** #2268 の主キーは Issue と違います。Issue は `primary key (user_id, kind, unit)` でしたが、乱数の `id` を主キーにして、`(user_id, kind, unit)` を UNIQUE にしました。Supabase の Realtime は、行を削除したときの通知を RLS で絞らずに全購読者へ送り、その通知に主キーの値を付けます。Issue の形だと、退会した人の uuid と記録の種類（weight など）が他の人に届きます（0037 の `ai_rules` が乱数の id を持つのと同じ理由です）。Issue どおりに戻すなら、push の前にファイルを直すだけで済みます。
+
+**Issue の起票をお願いします（範囲外なので直していません）。** migration の監査で、0039 の `extension_apps` は主キーが `(user_id, slug)` のまま Realtime の配信に入っていると分かりました。上と同じ漏れで、台帳の行を消すたびに uuid と拡張アプリの slug が全購読者に届きえます。直すなら、乱数の id を主キーに足して `(user_id, slug)` を UNIQUE に下げる migration になります。そうすると `USER_DATA_EXPORT_TABLES` の並び順（今は `slug`）と、`SupabaseAppRecordsService` の更新・削除のキーも見直しが要ります。
+
+**どちらの PR も、500 行を超えた理由を本文に書いてあります。** #2267 は約 560 行で、見本データの JSON の折り返しが原因です。#2268 は約 820 行で、半分近くが migration です（0040 の `delete_my_account()` の本体の写しと、設計の理由のコメント）。
