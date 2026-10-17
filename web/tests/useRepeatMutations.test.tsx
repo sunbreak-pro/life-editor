@@ -639,6 +639,74 @@ describe("turning a repeat on", () => {
     );
   });
 
+  // #1642 P7 (N-10): the seed keeps its reminder through the in-place attach,
+  // so the series has to be given the same one — both the template and the
+  // node that fills the visible range — or every generated day is silent.
+  it("carries the seed's reminder to the series", async () => {
+    const h = renderRepeat({
+      selected: occurrence({ routineId: null, reminderOffset: 15 }),
+    });
+    act(() =>
+      h.hook.result.current.handleChangeRepeat({ frequencyType: "daily" }),
+    );
+    await waitFor(() => expect(h.convertEventToRoutine).toHaveBeenCalled());
+    expect(h.convertEventToRoutine).toHaveBeenCalledWith(
+      "occ-1",
+      expect.objectContaining({ reminderOffset: 15 }),
+    );
+    await waitFor(() =>
+      expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalled(),
+    );
+    expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalledWith(
+      TODAY,
+      RANGE_END,
+      [expect.objectContaining({ reminderEnabled: true, reminderOffset: 15 })],
+    );
+  });
+
+  // Same press, #870's ordering: the field patch lands after the repeat, so a
+  // reminder set or cleared by this save is read off `fields`, and a cleared
+  // one (null) must win over the reminder `selected` still shows.
+  it("uses a reminder set or cleared by the same save press", async () => {
+    const set = renderRepeat({ selected: occurrence({ routineId: null }) });
+    act(() =>
+      set.hook.result.current.handleChangeRepeat(
+        { frequencyType: "daily" },
+        { reminderOffset: 30 },
+      ),
+    );
+    await waitFor(() => expect(set.convertEventToRoutine).toHaveBeenCalled());
+    expect(set.convertEventToRoutine).toHaveBeenCalledWith(
+      "occ-1",
+      expect.objectContaining({ reminderOffset: 30 }),
+    );
+
+    const cleared = renderRepeat({
+      selected: occurrence({ routineId: null, reminderOffset: 15 }),
+    });
+    act(() =>
+      cleared.hook.result.current.handleChangeRepeat(
+        { frequencyType: "daily" },
+        { reminderOffset: null },
+      ),
+    );
+    await waitFor(() =>
+      expect(cleared.convertEventToRoutine).toHaveBeenCalled(),
+    );
+    expect(cleared.convertEventToRoutine).toHaveBeenCalledWith(
+      "occ-1",
+      expect.objectContaining({ reminderOffset: null }),
+    );
+    await waitFor(() =>
+      expect(cleared.ensureRoutineItemsForDateRange).toHaveBeenCalled(),
+    );
+    expect(cleared.ensureRoutineItemsForDateRange).toHaveBeenCalledWith(
+      TODAY,
+      RANGE_END,
+      [expect.objectContaining({ reminderEnabled: false })],
+    );
+  });
+
   // #2098: a daily / weekdays series begins on the event it was made from.
   // Without a start the generator had no lower bound, and the range fill put
   // occurrences on the days before a future-dated seed.

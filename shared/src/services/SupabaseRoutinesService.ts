@@ -211,9 +211,16 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       frequencyStartDate?: string | null;
       /** #2082: last day of the series, inclusive. Absent / null = no end. */
       frequencyEndDate?: string | null;
+      /** #1642 P7: the seed's reminder. Absent / null = no reminder. */
+      reminderOffset?: number | null;
       sourceDate: string;
     },
   ): Promise<RoutineNode> {
+    // #1642 P7 (N-10): the seed's reminder becomes the template's. This used
+    // to pass `undefined, undefined`, so the routine was created with no
+    // reminder and every generated day after the seed rang never — while the
+    // seed itself, attached in place, kept its own.
+    const reminderOffset = init.reminderOffset ?? undefined;
     const routine = await this.createRoutine(
       routineId,
       init.title,
@@ -223,8 +230,8 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       init.frequencyDays,
       init.frequencyInterval,
       init.frequencyStartDate,
-      undefined,
-      undefined,
+      reminderOffset !== undefined,
+      reminderOffset,
       init.frequencyEndDate,
     );
     try {
