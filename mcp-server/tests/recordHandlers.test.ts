@@ -614,17 +614,12 @@ describe("list_records", () => {
     it.each(fixture.aggregates.map((c) => [c.name, c] as const))(
       "%s",
       async (_name, { groupBy, points, expected }) => {
-        // Each point becomes a record at noon local time on its day, read back
+        // Each point becomes a record with its own id and instant (the
+        // fixture puts every instant on its point's day in JST), read back
         // through list_records the way a user would.
         freshDatabase({
-          app_records: points.map((p, i) =>
-            rec(
-              `r${i}`,
-              new Date(`${p.dateKey}T12:00:00+09:00`).toISOString(),
-              {
-                value: p.value,
-              },
-            ),
+          app_records: points.map((p) =>
+            rec(p.id, new Date(p.occurredAt).toISOString(), { value: p.value }),
           ),
         });
 
@@ -634,7 +629,17 @@ describe("list_records", () => {
         }>("list_records", { group_by: groupBy });
 
         expect(result.group_by).toBe(groupBy);
-        expect(result.buckets).toEqual(expected);
+        // `latest` joins the answer in #2261; until then it is held back.
+        expect(result.buckets).toEqual(
+          expected.map(({ period, count, sum, avg, min, max }) => ({
+            period,
+            count,
+            sum,
+            avg,
+            min,
+            max,
+          })),
+        );
       },
     );
   });

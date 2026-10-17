@@ -10,6 +10,7 @@ import {
   type AppRecordBucket,
   type AppRecordGroupBy,
   type AppRecordPoint,
+  type AppRecordSample,
   type AppRecordStats,
 } from "../src/utils/appRecordAggregation.js";
 import { goalPeriodKey } from "../src/utils/goalAchievement.js";
@@ -35,7 +36,7 @@ interface Fixture {
   periodKeys: { groupBy: AppRecordGroupBy; date: string; key: string }[];
   summaries: {
     name: string;
-    values: number[];
+    samples: AppRecordSample[];
     expected: AppRecordStats | null;
   }[];
   aggregates: {
@@ -78,8 +79,8 @@ describe("appRecordPeriodKey (shared fixture)", () => {
 });
 
 describe("summarizeAppRecordValues (shared fixture)", () => {
-  it.each(fixture.summaries)("$name", ({ values, expected }) => {
-    expect(summarizeAppRecordValues(values)).toEqual(expected);
+  it.each(fixture.summaries)("$name", ({ samples, expected }) => {
+    expect(summarizeAppRecordValues(samples)).toEqual(expected);
   });
 });
 
@@ -93,9 +94,14 @@ describe("appRecordsToPoints", () => {
   it("puts an instant on its LOCAL day (the suite runs in Asia/Tokyo)", () => {
     // 16:30Z is 01:30 JST the NEXT day.
     const [point] = appRecordsToPoints([
-      { occurred_at: "2026-10-04T16:30:00.000Z", value: 450 },
+      { id: "a", occurred_at: "2026-10-04T16:30:00.000Z", value: 450 },
     ]);
-    expect(point).toEqual({ dateKey: "2026-10-05", value: 450 });
+    expect(point).toEqual({
+      dateKey: "2026-10-05",
+      occurredAt: Date.UTC(2026, 9, 4, 16, 30),
+      id: "a",
+      value: 450,
+    });
   });
 });
 

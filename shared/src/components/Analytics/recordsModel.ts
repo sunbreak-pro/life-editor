@@ -13,6 +13,7 @@ import type { AppRecord } from "../../types/appRecord";
 import {
   aggregateAppRecords,
   appRecordPeriodKey,
+  appRecordSample,
   appRecordsToPoints,
   summarizeAppRecordValues,
   type AppRecordGroupBy,
@@ -89,7 +90,10 @@ export interface RecordsSummary {
   aggregable: boolean;
   /** The shared unit while `aggregable`, else null. */
   unit: string | null;
-  /** count / sum / avg / min / max, or null when not aggregable or empty. */
+  /**
+   * count / sum / avg / min / max / latest, or null when not aggregable or
+   * empty.
+   */
   stats: AppRecordStats | null;
 }
 
@@ -105,7 +109,7 @@ export function summarizeRecords(rows: readonly DatedRecord[]): RecordsSummary {
     aggregable,
     unit: aggregable ? (rows[0].record.unit ?? null) : null,
     stats: aggregable
-      ? summarizeAppRecordValues(rows.map((r) => r.record.value))
+      ? summarizeAppRecordValues(rows.map((r) => appRecordSample(r.record)))
       : null,
   };
 }
@@ -222,7 +226,9 @@ export function recentKindTotals(
   }
   const totals: KindTotal[] = [];
   for (const rows of groups.values()) {
-    const stats = summarizeAppRecordValues(rows.map((r) => r.record.value));
+    const stats = summarizeAppRecordValues(
+      rows.map((r) => appRecordSample(r.record)),
+    );
     if (stats === null) continue;
     totals.push({
       kind: rows[0].record.kind,

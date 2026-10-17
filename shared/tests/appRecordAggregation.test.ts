@@ -11,6 +11,7 @@ import {
   type AppRecordBucket,
   type AppRecordGroupBy,
   type AppRecordPoint,
+  type AppRecordSample,
   type AppRecordStats,
 } from "../src/utils/appRecordAggregation";
 import { goalPeriodKey } from "../src/utils/goalAchievement";
@@ -35,7 +36,7 @@ interface Fixture {
   periodKeys: { groupBy: AppRecordGroupBy; date: string; key: string }[];
   summaries: {
     name: string;
-    values: number[];
+    samples: AppRecordSample[];
     expected: AppRecordStats | null;
   }[];
   aggregates: {
@@ -109,8 +110,18 @@ describe("appRecordPeriodKey — the Goals period keys", () => {
 });
 
 describe("summarizeAppRecordValues (shared fixture)", () => {
-  it.each(fixture.summaries)("$name", ({ values, expected }) => {
-    expect(summarizeAppRecordValues(values)).toEqual(expected);
+  it.each(fixture.summaries)("$name", ({ samples, expected }) => {
+    expect(summarizeAppRecordValues(samples)).toEqual(expected);
+  });
+
+  it("has a case where two samples share an instant", () => {
+    expect(
+      fixture.summaries.some(({ samples }) =>
+        samples.some(
+          (a, i) => samples.findIndex((b) => b.occurredAt === a.occurredAt) < i,
+        ),
+      ),
+    ).toBe(true);
   });
 });
 
@@ -132,22 +143,36 @@ describe("aggregateAppRecords — row order does not change the answer", () => {
     [1, 4, 0, 3, 2],
   ];
 
+  // Indices 1 and 3 share an instant, so the latest also rests on the id.
+  const at = [5, 9, 1, 9, 2].map((minute) => Date.UTC(2026, 9, 5, 3, minute));
+
   it("gives bit-identical buckets for every permutation", () => {
     const answers = orders.map((order) =>
       aggregateAppRecords(
-        order.map((i) => ({ dateKey: "2026-10-05", value: values[i] })),
+        order.map((i) => ({
+          dateKey: "2026-10-05",
+          occurredAt: at[i],
+          id: `r${i}`,
+          value: values[i],
+        })),
         "day",
       ),
     );
+    expect(answers[0][0].latest).toBe(values[3]);
     for (const answer of answers.slice(1)) {
       expect(answer).toEqual(answers[0]);
     }
   });
 
-  it("does not modify the caller's values", () => {
-    const input = [3, 1, 2];
+  it("does not modify the caller's samples", () => {
+    const input = [3, 1, 2].map((value, i) => ({
+      value,
+      occurredAt: i,
+      id: `r${i}`,
+    }));
+    const before = structuredClone(input);
     summarizeAppRecordValues(input);
-    expect(input).toEqual([3, 1, 2]);
+    expect(input).toEqual(before);
   });
 });
 
@@ -155,22 +180,32 @@ describe("appRecordsToPoints", () => {
   it("keys each record on the LOCAL day of its instant", () => {
     // Built from local wall-clock parts, so the expectation holds in any zone
     // the suite runs in (a sliced UTC string would not).
-    const lateNight = new Date(2026, 9, 5, 23, 30).toISOString();
-    const earlyMorning = new Date(2026, 9, 6, 0, 30).toISOString();
+    const lateNight = new Date(2026, 9, 5, 23, 30);
+    const earlyMorning = new Date(2026, 9, 6, 0, 30);
     expect(
       appRecordsToPoints([
-        { occurredAt: lateNight, value: 1 },
-        { occurredAt: earlyMorning, value: 2 },
+        { id: "a", occurredAt: lateNight.toISOString(), value: 1 },
+        { id: "b", occurredAt: earlyMorning.toISOString(), value: 2 },
       ]),
     ).toEqual([
-      { dateKey: "2026-10-05", value: 1 },
-      { dateKey: "2026-10-06", value: 2 },
+      {
+        dateKey: "2026-10-05",
+        occurredAt: lateNight.getTime(),
+        id: "a",
+        value: 1,
+      },
+      {
+        dateKey: "2026-10-06",
+        occurredAt: earlyMorning.getTime(),
+        id: "b",
+        value: 2,
+      },
     ]);
   });
 
   it("skips a record whose instant cannot be read", () => {
     expect(
-      appRecordsToPoints([{ occurredAt: "not a date", value: 1 }]),
+      appRecordsToPoints([{ id: "a", occurredAt: "not a date", value: 1 }]),
     ).toEqual([]);
   });
 });

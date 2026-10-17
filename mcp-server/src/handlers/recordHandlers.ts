@@ -7,9 +7,11 @@ import { APP_SLUG_PATTERN, RESERVED_SOURCE_APP } from "../utils/appSlug.js";
 import { fetchAllPages, resolveListLimit } from "../utils/pagination.js";
 import {
   aggregateAppRecords,
+  appRecordSample,
   appRecordsToPoints,
   summarizeAppRecordValues,
   type AppRecordGroupBy,
+  type AppRecordSample,
 } from "../utils/appRecordAggregation.js";
 
 /*
@@ -413,6 +415,7 @@ export async function listRecords(args: {
   const buckets = aggregateAppRecords(
     appRecordsToPoints(
       rows.map((row) => ({
+        id: row.id,
         occurred_at: row.occurred_at,
         value: Number(row.value),
       })),
@@ -423,7 +426,16 @@ export async function listRecords(args: {
     range,
     group_by: groupBy,
     kind: kinds[0] ?? kind,
-    buckets,
+    // The answer keeps its #2163 shape until #2261 adds `latest` to it (and to
+    // the gateway spec and the tool catalog) in one step.
+    buckets: buckets.map(({ period, count, sum, avg, min, max }) => ({
+      period,
+      count,
+      sum,
+      avg,
+      min,
+      max,
+    })),
   };
 }
 
@@ -556,11 +568,13 @@ export async function summarizeRecords(
   endIso: string,
 ): Promise<RecordKindSummary[]> {
   const { client } = await getSupabase();
-  const rows = await fetchAllPages<Pick<RecordRow, "kind" | "unit" | "value">>(
+  const rows = await fetchAllPages<
+    Pick<RecordRow, "id" | "kind" | "occurred_at" | "unit" | "value">
+  >(
     (from, to) =>
       client
         .from("app_records")
-        .select("kind, unit, value")
+        .select("id, kind, occurred_at, unit, value")
         .gte("occurred_at", startIso)
         .lt("occurred_at", endIso)
         .order("occurred_at", { ascending: false })
@@ -571,18 +585,24 @@ export async function summarizeRecords(
 
   const byKind = new Map<
     string,
-    { units: Set<string | null>; values: number[] }
+    { units: Set<string | null>; samples: AppRecordSample[] }
   >();
   for (const row of rows) {
-    const entry = byKind.get(row.kind) ?? { units: new Set(), values: [] };
+    const entry = byKind.get(row.kind) ?? { units: new Set(), samples: [] };
     entry.units.add(row.unit ?? null);
-    entry.values.push(Number(row.value));
+    entry.samples.push(
+      appRecordSample({
+        id: row.id,
+        occurred_at: row.occurred_at,
+        value: Number(row.value),
+      }),
+    );
     byKind.set(row.kind, entry);
   }
   return [...byKind.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([kind, { units, values }]) => {
-      const stats = summarizeAppRecordValues(values);
+    .map(([kind, { units, samples }]) => {
+      const stats = summarizeAppRecordValues(samples);
       return {
         kind,
         unit: units.size === 1 ? ([...units][0] ?? null) : null,

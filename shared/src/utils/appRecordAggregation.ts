@@ -1,8 +1,9 @@
 /*
- * Extension-app record aggregation (#2162) — count / sum / avg / min / max per
- * day, week or month. The Analytics records tab (#2164) and the MCP
- * `list_records` tool (#2163, `group_by`) must give the same answers, so the
- * rule lives here as pure functions (no I/O, no clock, no zone).
+ * Extension-app record aggregation (#2162) — count / sum / avg / min / max /
+ * latest (#2259) per day, week or month. The Analytics records tab (#2164)
+ * and the MCP `list_records` tool (#2163, `group_by`) must give the same
+ * answers, so the rule lives here as pure functions (no I/O, no clock, no
+ * zone).
  *
  * The MCP server does not depend on shared (mcp-server/package.json), so
  * #2163 copies the part below the marker to mcp-server/src/utils/, the same
@@ -27,14 +28,29 @@ import { goalPeriodKey } from "./goalAchievement";
  * helper), which is why it stays above the marker.
  */
 export function appRecordsToPoints(
-  records: readonly Pick<AppRecord, "occurredAt" | "value">[],
+  records: readonly Pick<AppRecord, "id" | "occurredAt" | "value">[],
 ): AppRecordPoint[] {
   const points: AppRecordPoint[] = [];
   for (const record of records) {
     const dateKey = dateKeyOfInstant(record.occurredAt);
-    if (dateKey !== null) points.push({ dateKey, value: record.value });
+    if (dateKey !== null) points.push({ dateKey, ...appRecordSample(record) });
   }
   return points;
+}
+
+/**
+ * What summarizeAppRecordValues reads of one record. The caller has already
+ * dropped records whose instant cannot be read (withDateKeys /
+ * appRecordsToPoints), so the parse here always gives a number.
+ */
+export function appRecordSample(
+  record: Pick<AppRecord, "id" | "occurredAt" | "value">,
+): AppRecordSample {
+  return {
+    value: record.value,
+    occurredAt: new Date(record.occurredAt).getTime(),
+    id: record.id,
+  };
 }
 
 // ── IDENTICAL BELOW THIS LINE in shared/src/utils/appRecordAggregation.ts and
@@ -44,11 +60,22 @@ export function appRecordsToPoints(
 /** `group_by` of the MCP tool, minus `none`. */
 export type AppRecordGroupBy = "day" | "week" | "month";
 
-/** One record reduced to what aggregation reads: its local day and value. */
-export interface AppRecordPoint {
+/**
+ * What a summary reads of one record: its value, and the instant and id that
+ * decide which record is the latest.
+ */
+export interface AppRecordSample {
+  value: number;
+  /** The record's instant in epoch milliseconds (the caller parses it). */
+  occurredAt: number;
+  /** The record's id — breaks a tie on `occurredAt` (the larger id wins). */
+  id: string;
+}
+
+/** One record reduced to what aggregation reads: its local day and sample. */
+export interface AppRecordPoint extends AppRecordSample {
   /** `YYYY-MM-DD` on the user's calendar (the caller resolves the zone). */
   dateKey: string;
-  value: number;
 }
 
 export interface AppRecordStats {
@@ -57,6 +84,11 @@ export interface AppRecordStats {
   avg: number;
   min: number;
   max: number;
+  /**
+   * The value of the newest record — the reading that means something for a
+   * kind like weight, where adding the values up does not (#2231).
+   */
+  latest: number;
 }
 
 export interface AppRecordBucket extends AppRecordStats {
@@ -91,26 +123,43 @@ export function appRecordPeriodKey(
 }
 
 /**
- * count / sum / avg / min / max of `values`, or null when there are none.
+ * True when `a` is the later record: the later instant, or on the same instant
+ * the larger id. The ids compare as plain strings (code units, no locale), so
+ * the answer is the same on every machine.
+ */
+function isLaterAppRecord(a: AppRecordSample, b: AppRecordSample): boolean {
+  if (a.occurredAt !== b.occurredAt) return a.occurredAt > b.occurredAt;
+  return a.id > b.id;
+}
+
+/**
+ * count / sum / avg / min / max / latest of `samples`, or null when there are
+ * none.
  *
- * The values are summed smallest first, so the floating-point result depends
- * only on WHICH values are in the bucket, never on the order the rows came
- * back in — the screen and the MCP server read the same rows in different
- * orders and must still print the same sum.
+ * Neither number depends on the order the rows came back in — the screen and
+ * the MCP server read the same rows in different orders and must still print
+ * the same answer. The values are summed smallest first, so the floating-point
+ * sum depends only on WHICH values are in the bucket; the latest is decided by
+ * instant and then id, never by position.
  */
 export function summarizeAppRecordValues(
-  values: readonly number[],
+  samples: readonly AppRecordSample[],
 ): AppRecordStats | null {
-  if (values.length === 0) return null;
-  const sorted = [...values].sort((a, b) => a - b);
+  if (samples.length === 0) return null;
+  const sorted = samples.map((sample) => sample.value).sort((a, b) => a - b);
   let sum = 0;
   for (const value of sorted) sum += value;
+  let newest = samples[0];
+  for (const sample of samples) {
+    if (isLaterAppRecord(sample, newest)) newest = sample;
+  }
   return {
     count: sorted.length,
     sum,
     avg: sum / sorted.length,
     min: sorted[0],
     max: sorted[sorted.length - 1],
+    latest: newest.value,
   };
 }
 
@@ -126,16 +175,16 @@ export function aggregateAppRecords(
   points: readonly AppRecordPoint[],
   groupBy: AppRecordGroupBy,
 ): AppRecordBucket[] {
-  const valuesByPeriod = new Map<string, number[]>();
+  const pointsByPeriod = new Map<string, AppRecordPoint[]>();
   for (const point of points) {
     const period = appRecordPeriodKey(groupBy, point.dateKey);
-    const values = valuesByPeriod.get(period);
-    if (values) values.push(point.value);
-    else valuesByPeriod.set(period, [point.value]);
+    const inPeriod = pointsByPeriod.get(period);
+    if (inPeriod) inPeriod.push(point);
+    else pointsByPeriod.set(period, [point]);
   }
   const buckets: AppRecordBucket[] = [];
-  for (const [period, values] of valuesByPeriod) {
-    const stats = summarizeAppRecordValues(values);
+  for (const [period, inPeriod] of pointsByPeriod) {
+    const stats = summarizeAppRecordValues(inPeriod);
     if (stats) buckets.push({ period, ...stats });
   }
   // Every key shape here sorts chronologically as a plain string.
