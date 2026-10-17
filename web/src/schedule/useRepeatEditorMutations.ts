@@ -49,12 +49,16 @@ export type RepeatEditorMutationsArgs = Pick<
 
 /**
  * The field edits committed by the same save press as a frequency change
- * (#870). Only the four the routine template is built from: the editor sends
+ * (#870). Only the ones the routine template is built from: the editor sends
  * its whole patch, but `isAllDay` and `memo` describe the one occurrence and
- * have no template field to land on.
+ * have no template field to land on. The reminder does (#1642 P7, N-10): a
+ * reminder set or cleared in the same press is the series' reminder.
  */
 export type RepeatSaveFields = Partial<
-  Pick<ScheduleItem, "title" | "date" | "startTime" | "endTime">
+  Pick<
+    ScheduleItem,
+    "title" | "date" | "startTime" | "endTime" | "reminderOffset"
+  >
 >;
 
 /**
@@ -70,6 +74,9 @@ function definedSeedFields(fields?: RepeatSaveFields): RepeatSaveFields {
   if (fields.date !== undefined) out.date = fields.date;
   if (fields.startTime !== undefined) out.startTime = fields.startTime;
   if (fields.endTime !== undefined) out.endTime = fields.endTime;
+  // null is an edit here (the press cleared the reminder), not "untouched".
+  if (fields.reminderOffset !== undefined)
+    out.reminderOffset = fields.reminderOffset;
   return out;
 }
 
@@ -90,8 +97,10 @@ const UNSEEDED_FREQUENCY = {
  * The routine the range materialiser needs before the store has the real one.
  *
  * Nothing here is invented: #296 attaches the seed row in place, so the seed's
- * own title and times ARE the template, and the frequency is what the
- * conversion just wrote.
+ * own title, times and reminder ARE the template, and the frequency is what
+ * the conversion just wrote. The reminder has to be here too (#1642 P7): this
+ * node is what fills the visible range, so without it the days on screen would
+ * be generated with no reminder.
  */
 function optimisticSeedRoutine(
   id: string,
@@ -116,6 +125,8 @@ function optimisticSeedRoutine(
     deletedAt: null,
     order: 0,
     ...frequency,
+    reminderEnabled: seed.reminderOffset != null,
+    reminderOffset: seed.reminderOffset ?? undefined,
     createdAt: now,
     updatedAt: now,
   };
@@ -295,6 +306,7 @@ export function useRepeatEditorMutations({
               frequencyInterval,
               frequencyStartDate,
               frequencyEndDate,
+              reminderOffset: seed.reminderOffset ?? null,
               sourceDate: seed.date,
             });
           } catch {
@@ -349,6 +361,7 @@ export function useRepeatEditorMutations({
                   startTime: seed.startTime,
                   endTime: seed.endTime,
                   ...frequency,
+                  reminderOffset: seed.reminderOffset ?? null,
                   sourceDate: seed.date,
                 });
                 await materialiseOrThrow(
@@ -601,6 +614,11 @@ export function useRepeatEditorMutations({
         frequencyStartDate: previous.frequencyStartDate,
         frequencyEndDate: previous.frequencyEndDate ?? null,
       };
+      // #1642 P7: the series this undo rebuilds had a reminder of its own, and
+      // the template and the range fill must both get it.
+      const reminderOffset = previous.reminderEnabled
+        ? (previous.reminderOffset ?? null)
+        : null;
       let liveRoutineId = routineId;
       reconvert = {
         undo: async () => {
@@ -609,10 +627,15 @@ export function useRepeatEditorMutations({
             startTime: previous.startTime ?? undefined,
             endTime: previous.endTime ?? undefined,
             ...frequency,
+            reminderOffset,
             sourceDate: survivor.date,
           });
           await materialiseOrThrow(
-            optimisticSeedRoutine(liveRoutineId, survivor, frequency),
+            optimisticSeedRoutine(
+              liveRoutineId,
+              { ...survivor, reminderOffset },
+              frequency,
+            ),
             survivor.date,
           );
         },

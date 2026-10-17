@@ -526,6 +526,8 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         frequencyStartDate?: string | null;
         /** #2082: last day of the series, inclusive. Absent / null = no end. */
         frequencyEndDate?: string | null;
+        /** #1642 P7: the seed's reminder. Absent / null = no reminder. */
+        reminderOffset?: number | null;
         sourceDate: string;
       },
     ): Promise<string> => {
@@ -540,6 +542,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
           frequencyInterval: init.frequencyInterval,
           frequencyStartDate: init.frequencyStartDate,
           frequencyEndDate: init.frequencyEndDate,
+          reminderOffset: init.reminderOffset,
           sourceDate: init.sourceDate,
         });
         setRoutines((prev) =>

@@ -52,10 +52,10 @@ import {
  *   - reminder_at write is intentionally NULL — #1374 moved the reminder
  *     to `reminder_offset_min`, and the retained absolute column is
  *     written by nobody.
- *   - bulkCreate STILL drops reminderOffset on the floor. Routine-
- *     generated occurrences therefore get no reminder; wiring the
- *     template's own offset through the generator is a follow-up, not
- *     part of #1374.
+ *   - bulkCreate writes the template's reminder onto each generated
+ *     occurrence (#1642 P7, N-10). It used to drop `reminderOffset` on
+ *     the floor, so every routine-generated day had no reminder even when
+ *     the event the series was made from had one.
  */
 /**
  * Composite key of the Issue-011 partial UNIQUE (routine_item_id,
@@ -619,8 +619,13 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     const allPairs = items.map((it) => {
       void it.templateId;
       void it.noteId;
-      void it.reminderEnabled;
-      void it.reminderOffset;
+      // #1642 P7: the generator hands over the routine's own pair. A routine
+      // whose reminder is switched off may still hold an old offset, so the
+      // flag decides; the events side has no flag and stores the offset only.
+      const reminderOffset =
+        it.reminderEnabled !== false && it.reminderOffset != null
+          ? it.reminderOffset
+          : undefined;
       const item: ScheduleItem = {
         id: it.id,
         date: it.date,
@@ -637,7 +642,8 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
         isDeleted: false,
         isDismissed: false,
         isAllDay: false,
-        reminderEnabled: false,
+        reminderEnabled: reminderOffset !== undefined,
+        reminderOffset,
         createdAt: now,
         updatedAt: now,
       };

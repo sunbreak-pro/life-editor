@@ -396,6 +396,10 @@ export interface RoutinesDataService {
       frequencyStartDate?: string | null;
       /** #2082: last day of the series, inclusive. Absent / null = no end. */
       frequencyEndDate?: string | null;
+      /** #1642 P7 (N-10): the seed's reminder, minutes before the start.
+       *  Becomes the template's, so the generated days ring like the seed.
+       *  Absent / null = no reminder. */
+      reminderOffset?: number | null;
       /** The seed event's date key — becomes events_payload.source_date so
        *  the (routine, source_date) partial UNIQUE treats the converted seed
        *  as that day's occurrence. */
