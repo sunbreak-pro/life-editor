@@ -6,6 +6,7 @@ import { WIDE_QUERY } from "../constants/breakpoints";
 import { IconButton } from "./IconButton";
 import { Modal } from "./Modal";
 import { NoticePanel } from "./NoticePanel";
+import { SelectCheckbox } from "./SelectCheckbox";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { cn } from "./cn";
 import { CARD_BTN_TAP } from "./styleTokens";
@@ -169,10 +170,11 @@ type PendingDelete =
 /*
  * The selection checkbox (#1294).
  *
- * A real <input type="checkbox"> inside a <label>, not a styled button: the
- * row already carries two buttons, and a third one that toggles state would be
- * announced the same way they are. The label is what gives it the 44px touch
- * target on narrow (mobile-scope) without inflating the row's own height.
+ * The shared square <SelectCheckbox> (#2217) — a `role="checkbox"`, so it is
+ * announced as a checkbox and not as a third button beside the row's two.
+ * The <label> around it is what gives it the 44px touch target on narrow
+ * (mobile-scope) without inflating the row's own height: a click anywhere in
+ * the label is forwarded to the control.
  */
 function SelectBox({
   checked,
@@ -195,18 +197,11 @@ function SelectBox({
         wide ? "h-6 w-6" : "min-h-11 min-w-11",
       )}
     >
-      <input
-        type="checkbox"
+      <SelectCheckbox
         checked={checked}
         disabled={disabled}
         onChange={onChange}
-        aria-label={label}
-        className={cn(
-          "h-4 w-4 cursor-pointer rounded-lumen-sm border border-lumen-border-strong",
-          "accent-lumen-accent",
-          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-          disabled && "cursor-not-allowed",
-        )}
+        label={label}
       />
     </label>
   );

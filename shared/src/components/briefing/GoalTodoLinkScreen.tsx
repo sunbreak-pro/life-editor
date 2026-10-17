@@ -1,8 +1,8 @@
 import { useId, useMemo, useState } from "react";
-import { Check } from "lucide-react";
 import { judgeGoals } from "../../utils/goalAchievement";
 import { Button } from "../Button";
 import { cn } from "../cn";
+import { SelectCheckboxMark } from "../SelectCheckbox";
 import { FIELD, FIELD_LABEL, FOCUS_RING_TIGHT } from "../styleTokens";
 import {
   applyLinkDraft,
@@ -278,17 +278,7 @@ export function GoalTodoLinkScreen({
                     FOCUS_RING_TIGHT,
                   )}
                 >
-                  <span
-                    aria-hidden
-                    className={cn(
-                      "flex size-4 shrink-0 items-center justify-center rounded-sm border",
-                      checked
-                        ? "border-lumen-accent bg-lumen-accent text-lumen-on-accent"
-                        : "border-lumen-border-strong",
-                    )}
-                  >
-                    {checked && <Check className="size-3" />}
-                  </span>
+                  <SelectCheckboxMark checked={checked} />
                   <span
                     className={cn(
                       "min-w-0 flex-1 truncate",

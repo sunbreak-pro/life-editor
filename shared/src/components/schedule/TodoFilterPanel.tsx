@@ -1,5 +1,6 @@
 import { cn } from "../cn";
 import { SegmentedControl, type SegmentedOption } from "../SegmentedControl";
+import { SelectCheckbox } from "../SelectCheckbox";
 import { TagHeadingIcon } from "../TagHeadingIcon";
 
 /*
@@ -107,11 +108,11 @@ export function TodoFilterPanel({
             {tags.map((tag) => (
               <li key={tag.id}>
                 <label className="flex cursor-pointer items-center gap-2 rounded-sm py-1 text-sm text-lumen-text hover:bg-lumen-hover">
-                  <input
-                    type="checkbox"
+                  {/* The square selection box (#2217). The enclosing
+                      <label> names it and forwards a click on the text. */}
+                  <SelectCheckbox
                     checked={selected.has(tag.id)}
                     onChange={() => onToggleTag(tag.id)}
-                    className="size-4 shrink-0 accent-lumen-accent"
                   />
                   <TagHeadingIcon icon={tag.icon} color={tag.color} size={14} />
                   <span className="min-w-0 flex-1 truncate">{tag.name}</span>
