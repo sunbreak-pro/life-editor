@@ -16,14 +16,15 @@ import { cn } from "./cn";
  *
  *  - "card"       — Desktop: a bordered Card, 200px ring, pill main button.
  *  - "fullscreen" — Mobile (#2054, Claude Design plan A): no Card chrome, a
- *                   232px ring, labelled transport buttons (64px main, 52px
- *                   reset / skip), and an optional `todoSlot` (the link row
+ *                   232px ring, the Desktop transport scaled up (a 64px main
+ *                   pill between 52px icon-only reset / skip, the ±5 pills on
+ *                   a row below), and an optional `todoSlot` (the link row
  *                   and the tag row) between a flex-1 spacer and the
  *                   transport. See FullscreenFace below.
  *
  * The Card transport's round buttons are 44px (#881). The fullscreen face
- * bought the room for its larger, labelled buttons back by shrinking the ring
- * from 270px to 232px.
+ * bought the room for its larger buttons back by shrinking the ring from
+ * 270px to 232px.
  *
  * The host (WorkScreen) reads useTimerContext and feeds these. The ring arc
  * encodes the REMAINING fraction: dashoffset = C × progress/100 (progress =
@@ -319,8 +320,12 @@ export function PomodoroTimer({
  *  - the session dots and "today 2 / 4" on ONE line;
  *  - the host's slot (link row + tag row) and the transport pushed into the
  *    lower half, where a thumb reaches;
- *  - every transport button carries its label underneath, always: three
- *    unlabelled circles made "which one is skip" a guess on first use.
+ *  - the transport in the Desktop arrangement (#2054, 2026-10-11 comment,
+ *    which reverses plan A's always-visible labels): a large main pill that
+ *    keeps its word, icon-only reset / skip circles either side, and the ±5
+ *    pills on their own row underneath. That row holds its height while the
+ *    pills are hidden (they show only while paused), so the transport does
+ *    not jump when the timer pauses.
  *
  * Motion is the plan's three and no more: the arc shrinks over 1000ms linear
  * per tick, a changed digit fades in on the fast motion step (tokens.css,
@@ -331,9 +336,8 @@ export function PomodoroTimer({
  * arc's 1000ms is not a motion step: it is one tick of the countdown.
  *
  * Icons sit on the icon steps (sm / md / lg, rem) so they follow the
- * font-size setting with the buttons around them. The one exception is the
- * main button's 28px play / pause: it is larger than lg, and — like the px
- * ring — it is the face's fixed centrepiece rather than a glyph in a row.
+ * font-size setting with the buttons around them — the main pill's play /
+ * pause included, now that it sits beside its word instead of alone in a disc.
  *
  * The phase colours are the existing tokens (accent / mint / long-break
  * amber). The plan proposes three new tokens; #2036 landed without them, and
@@ -457,17 +461,12 @@ function FullscreenFace({
   const pill =
     "inline-flex min-h-11 items-center gap-1 rounded-full border border-lumen-border-strong bg-lumen-bg px-4 text-sm font-semibold text-lumen-text hover:bg-lumen-hover";
 
-  // One column per control: the circle and its label are ONE button, so the
-  // label is part of the target and the column — not just the circle — is
-  // what a thumb has to land on.
-  const column =
-    "group flex flex-col items-center gap-2 rounded-lumen-md disabled:cursor-not-allowed";
+  // Reset and skip are icon-only circles, as on Desktop; their names stay on
+  // aria-label. At 52px they clear the 44px touch minimum on their own.
   const secondaryCircle = cn(
     "flex h-13 w-13 items-center justify-center rounded-full border border-lumen-border-strong bg-lumen-bg text-lumen-text-secondary",
-    "group-enabled:group-hover:bg-lumen-hover group-disabled:opacity-45",
+    "hover:bg-lumen-hover disabled:opacity-45 disabled:cursor-not-allowed disabled:hover:bg-lumen-bg",
   );
-  const secondaryLabel =
-    "text-xs text-lumen-text-secondary group-disabled:opacity-45";
 
   return (
     // The Work body sits in a natural-flow container (not a bounded flex
@@ -485,69 +484,65 @@ function FullscreenFace({
           orientation="inline"
         />
       </div>
-      {isPaused ? (
-        // Text only: the labels already carry their sign ("−5 min"), so a
-        // Minus / Plus glyph in front read as "− −5 min" (#2054 follow-up).
-        // The Card variant keeps its glyphs — Desktop is out of scope.
-        <div className="mt-4 flex items-center gap-3">
-          <button type="button" onClick={() => onAdjust(-5)} className={pill}>
-            {labels.subtractFive}
-          </button>
-          <button type="button" onClick={() => onAdjust(5)} className={pill}>
-            {labels.addFive}
-          </button>
-        </div>
-      ) : null}
       <div className="flex-1" />
       {todoSlot ? (
         <div className="flex w-full flex-col gap-2">{todoSlot}</div>
       ) : null}
-      <div className="mt-6 grid w-full grid-cols-3 items-start">
+      <div className="mt-6 flex items-center justify-center gap-6">
         <button
           type="button"
           onClick={onReset}
           disabled={isIdle}
           aria-label={labels.reset}
-          className={cn(column, "pt-1.5")}
+          className={secondaryCircle}
         >
-          <span className={secondaryCircle}>
-            <RotateCcw aria-hidden="true" className="size-lumen-icon-md" />
-          </span>
-          <span className={secondaryLabel}>{labels.reset}</span>
+          <RotateCcw aria-hidden="true" className="size-lumen-icon-md" />
         </button>
         <button
           type="button"
           onClick={onMain}
-          aria-label={mainLabel}
-          className={column}
+          className={cn(
+            "inline-flex h-16 items-center gap-2 rounded-full px-8 text-base font-semibold shadow-lumen-md",
+            PHASE_BUTTON[phase],
+            PHASE_COLOR_TRANSITION,
+          )}
         >
-          <span
-            className={cn(
-              "flex h-16 w-16 items-center justify-center rounded-full shadow-lumen-md",
-              PHASE_BUTTON[phase],
-              PHASE_COLOR_TRANSITION,
-            )}
-          >
-            {isRunning ? (
-              <Pause size={28} aria-hidden="true" />
-            ) : (
-              <Play size={28} aria-hidden="true" />
-            )}
-          </span>
-          <span className="text-xs font-bold text-lumen-text">{mainLabel}</span>
+          {isRunning ? (
+            <Pause aria-hidden="true" className="size-lumen-icon-lg" />
+          ) : (
+            <Play aria-hidden="true" className="size-lumen-icon-lg" />
+          )}
+          {mainLabel}
         </button>
         {/* Skip stays live while idle — see the Card transport's note (#1854). */}
         <button
           type="button"
           onClick={onSkip}
           aria-label={labels.skip}
-          className={cn(column, "pt-1.5")}
+          className={secondaryCircle}
         >
-          <span className={secondaryCircle}>
-            <SkipForward aria-hidden="true" className="size-lumen-icon-md" />
-          </span>
-          <span className={secondaryLabel}>{labels.skip}</span>
+          <SkipForward aria-hidden="true" className="size-lumen-icon-md" />
         </button>
+      </div>
+      {/* The row keeps its 44px while the pills are away, so pausing and
+          resuming does not shift the transport above it. */}
+      <div
+        data-testid="pomodoro-adjust-row"
+        className="mt-3 flex min-h-11 items-center justify-center gap-3"
+      >
+        {isPaused ? (
+          // Text only: the labels already carry their sign ("−5 min"), so a
+          // Minus / Plus glyph in front read as "− −5 min" (#2054 follow-up).
+          // The Card variant keeps its glyphs — Desktop is out of scope.
+          <>
+            <button type="button" onClick={() => onAdjust(-5)} className={pill}>
+              {labels.subtractFive}
+            </button>
+            <button type="button" onClick={() => onAdjust(5)} className={pill}>
+              {labels.addFive}
+            </button>
+          </>
+        ) : null}
       </div>
     </div>
   );
