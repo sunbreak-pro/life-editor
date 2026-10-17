@@ -19,7 +19,7 @@ import { PHASE_COLOR_TRANSITION } from "../src/components/PhaseBadge";
  * #2054 — the Mobile Work screen rebuilt after Claude Design plan A. Each
  * shared part grew a mobile shape behind a prop (`variant` / `drawer` /
  * `sheet`), so what this pins is the states the plan draws: the timer face's
- * paused readout and labelled transport, the completion modal's chip and
+ * paused readout and Desktop-arranged transport, the completion modal's chip and
  * break fill, the picker's groups / skeleton / empty state, the drawer's
  * steppers and "applied" preset, and the history's flat rows. The Desktop
  * shapes are pinned by their own suites, which this change left untouched.
@@ -118,17 +118,51 @@ describe("PomodoroTimer fullscreen face (#2054)", () => {
     expect(container.querySelectorAll(".rounded-full.px-3").length).toBe(1);
   });
 
-  it("puts every glyph on the icon steps but the main button's (#2036)", () => {
+  it("puts every glyph on the icon steps, the main pill's too (#2036)", () => {
     const { container } = renderFace({ isRunning: false });
-    // Paused: the readout's pause mark, reset and skip, the badge's glyph.
-    const off = iconsOffTheSteps(container);
-    // The one exception is the 28px play / pause in the 64px disc — larger
-    // than the lg step, kept as the face's fixed centrepiece.
-    expect(off).toHaveLength(1);
-    expect(off[0].getAttribute("width")).toBe("28");
+    // Paused: the readout's pause mark, reset and skip, the badge's glyph,
+    // and the play mark beside "Resume".
+    expect(iconsOffTheSteps(container)).toEqual([]);
     expect(
-      screen.getByRole("button", { name: "Resume" }).contains(off[0]),
-    ).toBe(true);
+      screen.getByRole("button", { name: "Resume" }).querySelector("svg"),
+    ).toHaveClass("size-lumen-icon-lg");
+  });
+
+  /*
+   * The 2026-10-11 comment on #2054 reverses plan A's always-visible labels:
+   * the transport takes the Desktop arrangement — main in the middle, icon-only
+   * reset / skip either side, the ±5 pills on a row of their own below.
+   */
+  it("lays the transport out as Desktop: reset · main · skip, then the pills", () => {
+    renderFace({ isRunning: false });
+    const reset = screen.getByRole("button", { name: "Reset" });
+    const main = screen.getByRole("button", { name: "Resume" });
+    const skip = screen.getByRole("button", { name: "Skip" });
+    const upper = main.parentElement;
+    expect(reset.parentElement).toBe(upper);
+    expect(skip.parentElement).toBe(upper);
+    expect(Array.from(upper?.children ?? [])).toEqual([reset, main, skip]);
+    // No visible word on reset / skip; the main pill keeps its own.
+    expect(reset).toHaveTextContent("");
+    expect(skip).toHaveTextContent("");
+    expect(main).toHaveTextContent("Resume");
+
+    const lower = screen.getByTestId("pomodoro-adjust-row");
+    expect(upper?.nextElementSibling).toBe(lower);
+    expect(
+      within(lower)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["-5 min", "+5 min"]);
+  });
+
+  it("keeps the pills' row at 44px while they are hidden", () => {
+    renderFace({ isRunning: true });
+    const lower = screen.getByTestId("pomodoro-adjust-row");
+    // Running: no pills (they show only while paused) …
+    expect(within(lower).queryAllByRole("button")).toHaveLength(0);
+    // … but the row still holds the pills' height, so nothing above it moves.
+    expect(lower).toHaveClass("min-h-11");
   });
 
   it("recolours a phase switch on the motion steps (#2036)", () => {
@@ -140,7 +174,7 @@ describe("PomodoroTimer fullscreen face (#2054)", () => {
     expect(PHASE_COLOR_TRANSITION).not.toMatch(/\d+ms|cubic-bezier/);
   });
 
-  it("fires the transport handlers from the labelled columns", () => {
+  it("fires the transport handlers from their buttons", () => {
     const { props } = renderFace();
     fireEvent.click(screen.getByRole("button", { name: "Pause" }));
     fireEvent.click(screen.getByRole("button", { name: "Reset" }));
