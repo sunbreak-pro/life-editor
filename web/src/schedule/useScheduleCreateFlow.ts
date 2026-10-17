@@ -90,6 +90,15 @@ export interface UseScheduleCreateFlowArgs {
   onAttachError: () => void;
   /** Why every committer runs finishCreatePanel — see the #468 comment below. */
   clearTagLens: () => void;
+  /**
+   * #2220: the panel's staged tags (useCreatePanelTags). Taken at the press
+   * and applied once the row exists, like the note. Omitted, no tags move.
+   * Pass a stable object — every committer depends on it.
+   */
+  tags?: {
+    take: () => string[] | null;
+    apply: (itemId: string, tagIds: readonly string[]) => void;
+  };
 }
 
 /** The seven handlers the JSX asks for. The other three stay private. */
@@ -134,6 +143,7 @@ export function useScheduleCreateFlow({
   attachNoteAlongside,
   onAttachError,
   clearTagLens,
+  tags,
 }: UseScheduleCreateFlowArgs): ScheduleCreateFlowApi {
   // #299 open the creation panel prefilled for a target day + time window.
   const openCreatePanel = useCallback(
@@ -193,9 +203,21 @@ export function useScheduleCreateFlow({
    * (N-07), where this used to say the NOTE could not be attached.
    */
   const noteAlongside = useCallback(
-    (note: ItemCreateNoteDraft | null): CreateCompanion | undefined =>
-      note ? (saved) => attachNoteAlongside(saved.id, note) : undefined,
-    [attachNoteAlongside],
+    (
+      note: ItemCreateNoteDraft | null,
+      tagIds: readonly string[] | null = null,
+    ): CreateCompanion | undefined => {
+      // #2220: the staged tags ride the same companion — it is the one call
+      // that runs once the row exists. They take no part in the create's
+      // undo: undoing it trashes the event, and its tags with it.
+      const withTags = tagIds != null && tagIds.length > 0;
+      if (!note && !withTags) return undefined;
+      return async (saved) => {
+        if (withTags) tags?.apply(saved.id, tagIds);
+        return note ? attachNoteAlongside(saved.id, note) : null;
+      };
+    },
+    [attachNoteAlongside, tags],
   );
 
   // #299 create-panel submit: the panel carries the target day; the fields hand
@@ -212,7 +234,12 @@ export function useScheduleCreateFlow({
       // really there — `wiki_tag_connections` carries an FK to `items_meta`,
       // and the id handleCreate returns is the optimistic one (see the
       // ORDERING note in useCreatePanelNotes).
-      const id = handleCreate(slot, title, undefined, noteAlongside(note));
+      const id = handleCreate(
+        slot,
+        title,
+        undefined,
+        noteAlongside(note, tags?.take() ?? null),
+      );
       finishCreatePanel();
       // Desktop: select without opening anything — a quiet "here it is" that
       // does not interrupt blocking out the next slot. It shows as a ring on
@@ -228,6 +255,7 @@ export function useScheduleCreateFlow({
       createPanel,
       handleCreate,
       noteAlongside,
+      tags,
       isWide,
       // Stable in the host (a useState setter), but an ARG here, so eslint can
       // no longer see that for itself (#889).
@@ -240,7 +268,12 @@ export function useScheduleCreateFlow({
   const handleCreateSubmitAndOpen = useCallback(
     (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
       if (!createPanel) return;
-      const id = handleCreate(slot, title, undefined, noteAlongside(note));
+      const id = handleCreate(
+        slot,
+        title,
+        undefined,
+        noteAlongside(note, tags?.take() ?? null),
+      );
       // Clears the lens too: the overlay hides the grid at first, but closing
       // it would otherwise drop the user back on a grid that does not draw the
       // row their selection still points at.
@@ -254,6 +287,7 @@ export function useScheduleCreateFlow({
       createPanel,
       handleCreate,
       noteAlongside,
+      tags,
       isWide,
       setSelectedId,
       finishCreatePanel,
@@ -282,6 +316,7 @@ export function useScheduleCreateFlow({
     (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
       const placement = scheduleTodoAt(slot);
       if (!placement) return;
+      const tagIds = tags?.take() ?? null;
       // Root-level todo (parentId null), matching every other "quick create"
       // entry — the panel carries no place-in-the-tree control, and the Todos
       // section is where re-parenting belongs.
@@ -291,13 +326,22 @@ export function useScheduleCreateFlow({
         // the tree sync lands, and the guard in useTodoTreeAPI can drop the
         // write entirely (tree not loaded), which reports `null` here.
         onSaved: (saved) => {
-          if (saved) attachNote(saved.id, note);
-          else if (note) onAttachError();
+          if (saved) {
+            attachNote(saved.id, note);
+            if (tagIds && tagIds.length > 0) tags?.apply(saved.id, tagIds);
+          } else if (note) onAttachError();
         },
       });
       finishCreatePanel();
     },
-    [scheduleTodoAt, addNode, attachNote, onAttachError, finishCreatePanel],
+    [
+      scheduleTodoAt,
+      addNode,
+      attachNote,
+      onAttachError,
+      finishCreatePanel,
+      tags,
+    ],
   );
 
   const handlePlaceTodoSubmit = useCallback(
@@ -322,9 +366,13 @@ export function useScheduleCreateFlow({
       // out of a pool that came from the DB, so its `items_meta` row is
       // already there and the link's FK is satisfied right now.
       attachNote(todoId, note);
+      // #2220: the field was seeded with this todo's own tags, so the staged
+      // set is what it should end up wearing — removals included.
+      const tagIds = tags?.take() ?? null;
+      if (tagIds) tags?.apply(todoId, tagIds);
       finishCreatePanel();
     },
-    [createPanel, updateNode, attachNote, finishCreatePanel],
+    [createPanel, updateNode, attachNote, finishCreatePanel, tags],
   );
 
   return {
