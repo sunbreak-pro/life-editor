@@ -5,7 +5,7 @@
 #
 # schtasks /Create では「スリープを解除して実行する」(WakeToRun) を指定できないため、
 # Register-ScheduledTask で登録する（2026-09-26 — 06:03 の digest が 24 日中 22 日スリープで
-# 発火していなかった実測を受けて切り替え）。時刻は夜中を避け、朝に PC を起こす。
+# 発火していなかった実測を受けて切り替え）。時刻は夜を避け、お昼に動かす（2026-10-17 ユーザー決定。それまでは朝 07:13 / 07:43）。
 # 台帳 = routine-ids.md。時刻を変えたら台帳も直す。
 #
 # 編集するときは UTF-8 BOM を保つ。文字列リテラルは ASCII だけにする。
@@ -19,14 +19,14 @@ $Launcher = Join-Path $MainRoot ".claude\automation\run-routine.ps1"
 
 # 監査（night-safe）を先に走らせ、30 分後の digest がその報告を読めるようにする
 $Routines = @(
-  @{ Task = "LifeEditor-NightSafe"; Routine = "night-safe"; At = "07:13" },
-  @{ Task = "LifeEditor-Digest"; Routine = "digest"; At = "07:43" }
+  @{ Task = "LifeEditor-NightSafe"; Routine = "night-safe"; At = "12:13" },
+  @{ Task = "LifeEditor-Digest"; Routine = "digest"; At = "12:43" }
 )
 
 $Principal = New-ScheduledTaskPrincipal -UserId "$env:USERDOMAIN\$env:USERNAME" -LogonType Interactive -RunLevel Limited
-# WakeToRun = スリープ中なら起こして走らせる。StartWhenAvailable = 電源断などで逃した回を次の起動で追う。
+# WakeToRun = スリープ中なら起こして走らせる。StartWhenAvailable は付けない（逃した回を次の起動で追うと夜に走る。2026-10-08 は 21:38 に走った）。
 # 上限 1 時間（旧 72 時間は、1 回固まると最長 3 日分を黙って捨てていた）。
-$Settings = New-ScheduledTaskSettingsSet -WakeToRun -StartWhenAvailable -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
+$Settings = New-ScheduledTaskSettingsSet -WakeToRun -AllowStartIfOnBatteries -DontStopIfGoingOnBatteries `
   -ExecutionTimeLimit (New-TimeSpan -Hours 1) -MultipleInstances IgnoreNew
 
 foreach ($R in $Routines) {
