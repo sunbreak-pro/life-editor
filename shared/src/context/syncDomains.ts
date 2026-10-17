@@ -64,6 +64,9 @@ export const SYNC_DOMAINS = [
   // Apps list. Sharing a counter would re-pull the ledger on every record.
   "appRecords",
   "extensionApps",
+  // #2260: how each kind of record is shown (0041). Its own counter: it moves
+  // only when the owner picks a view, and must not re-pull the records.
+  "recordViews",
 ] as const;
 
 export type SyncDomain = (typeof SYNC_DOMAINS)[number];
@@ -140,6 +143,8 @@ export const TABLE_DOMAIN: Readonly<Record<string, SyncDomain>> = {
   // #2162 (0039)
   app_records: "appRecords",
   extension_apps: "extensionApps",
+  // #2260 (0041)
+  record_views: "recordViews",
 };
 
 /** The `role` column as Realtime delivers it, if the payload carries one. */

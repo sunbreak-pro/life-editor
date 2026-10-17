@@ -195,4 +195,12 @@ describe("export table roster (#1988)", () => {
         ?.orderBy,
     ).toBe("slug");
   });
+
+  it("carries the record views out (#2260)", () => {
+    // Ordered by the random uuid primary key: (kind) alone ties between two
+    // units of one kind, and fetchAllPages needs a unique tiebreaker.
+    expect(
+      USER_DATA_EXPORT_TABLES.find((t) => t.table === "record_views")?.orderBy,
+    ).toBe("id");
+  });
 });

@@ -110,6 +110,8 @@ export const REALTIME_TABLES = [
   // Extension-app records and ledger (0039 / #2162)
   "app_records",
   "extension_apps",
+  // How each kind of record is shown (0041 / #2260)
+  "record_views",
 ] as const;
 
 const DEBOUNCE_MS = 300;
