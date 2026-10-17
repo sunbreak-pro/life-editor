@@ -42,6 +42,7 @@ export {
 export {
   aggregateAppRecords,
   appRecordPeriodKey,
+  appRecordSample,
   appRecordsToPoints,
   summarizeAppRecordValues,
 } from "./utils/appRecordAggregation";
@@ -49,6 +50,7 @@ export type {
   AppRecordBucket,
   AppRecordGroupBy,
   AppRecordPoint,
+  AppRecordSample,
   AppRecordStats,
 } from "./utils/appRecordAggregation";
 // #1988 — the whole-account export: its file shape, name and row count. The

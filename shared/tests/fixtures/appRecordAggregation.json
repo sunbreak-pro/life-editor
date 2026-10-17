@@ -1,5 +1,5 @@
 {
-  "_comment": "Shared cases for the extension-app record aggregation (#2162). Read by shared/tests/appRecordAggregation.test.ts, and by the MCP copy's suite once #2163 adds it, so the Analytics records tab and the list_records tool are held to the same answers. Week keys are the Goals week keys (Sunday start, D-20260816-briefing-1). Values are exactly representable in binary so every sum is exact.",
+  "_comment": "Shared cases for the extension-app record aggregation (#2162). Read by shared/tests/appRecordAggregation.test.ts, and by the MCP copy's suite once #2163 adds it, so the Analytics records tab and the list_records tool are held to the same answers. Week keys are the Goals week keys (Sunday start, D-20260816-briefing-1). Each point carries its instant (occurredAt, epoch ms at or after noon JST on its dateKey, so list_records can store it as is) and an id; latest is the newest instant, the larger id on a tie (#2259). Values are exactly representable in binary so every sum is exact.",
   "periodKeys": [
     { "groupBy": "day", "date": "2026-10-05", "key": "2026-10-05" },
     {
@@ -36,21 +36,63 @@
     { "groupBy": "month", "date": "2026-11-01", "key": "2026-11" }
   ],
   "summaries": [
-    { "name": "no values → null", "values": [], "expected": null },
+    { "name": "no values → null", "samples": [], "expected": null },
     {
       "name": "one value is its own min, max and avg",
-      "values": [450],
-      "expected": { "count": 1, "sum": 450, "avg": 450, "min": 450, "max": 450 }
+      "samples": [{ "value": 450, "occurredAt": 1791169200000, "id": "r0" }],
+      "expected": {
+        "count": 1,
+        "sum": 450,
+        "avg": 450,
+        "min": 450,
+        "max": 450,
+        "latest": 450
+      }
     },
     {
       "name": "negative and fractional values",
-      "values": [2.5, -1, 0.5],
+      "samples": [
+        { "value": 2.5, "occurredAt": 1791169200000, "id": "r0" },
+        { "value": -1, "occurredAt": 1791169260000, "id": "r1" },
+        { "value": 0.5, "occurredAt": 1791169320000, "id": "r2" }
+      ],
       "expected": {
         "count": 3,
         "sum": 2,
         "avg": 0.6666666666666666,
         "min": -1,
-        "max": 2.5
+        "max": 2.5,
+        "latest": 0.5
+      }
+    },
+    {
+      "name": "latest is the newest instant, not the last sample in the list",
+      "samples": [
+        { "value": 62.5, "occurredAt": 1791172800000, "id": "a" },
+        { "value": 61, "occurredAt": 1791169200000, "id": "b" }
+      ],
+      "expected": {
+        "count": 2,
+        "sum": 123.5,
+        "avg": 61.75,
+        "min": 61,
+        "max": 62.5,
+        "latest": 62.5
+      }
+    },
+    {
+      "name": "two samples on the same instant: the larger id is the latest",
+      "samples": [
+        { "value": 61, "occurredAt": 1791169200000, "id": "rec-b" },
+        { "value": 62, "occurredAt": 1791169200000, "id": "rec-a" }
+      ],
+      "expected": {
+        "count": 2,
+        "sum": 123,
+        "avg": 61.5,
+        "min": 61,
+        "max": 62,
+        "latest": 61
       }
     }
   ],
@@ -65,9 +107,24 @@
       "name": "day: one bucket per day that has records, oldest first",
       "groupBy": "day",
       "points": [
-        { "dateKey": "2026-10-05", "value": 450 },
-        { "dateKey": "2026-10-03", "value": 1200 },
-        { "dateKey": "2026-10-05", "value": 300 }
+        {
+          "dateKey": "2026-10-05",
+          "occurredAt": 1791169200000,
+          "id": "r0",
+          "value": 450
+        },
+        {
+          "dateKey": "2026-10-03",
+          "occurredAt": 1790996460000,
+          "id": "r1",
+          "value": 1200
+        },
+        {
+          "dateKey": "2026-10-05",
+          "occurredAt": 1791169320000,
+          "id": "r2",
+          "value": 300
+        }
       ],
       "expected": [
         {
@@ -76,7 +133,8 @@
           "sum": 1200,
           "avg": 1200,
           "min": 1200,
-          "max": 1200
+          "max": 1200,
+          "latest": 1200
         },
         {
           "period": "2026-10-05",
@@ -84,7 +142,8 @@
           "sum": 750,
           "avg": 375,
           "min": 300,
-          "max": 450
+          "max": 450,
+          "latest": 300
         }
       ]
     },
@@ -92,9 +151,24 @@
       "name": "week: Sunday through Saturday share a bucket, the next Sunday starts a new one",
       "groupBy": "week",
       "points": [
-        { "dateKey": "2026-10-04", "value": 62.5 },
-        { "dateKey": "2026-10-10", "value": 61.5 },
-        { "dateKey": "2026-10-11", "value": 61 }
+        {
+          "dateKey": "2026-10-04",
+          "occurredAt": 1791082800000,
+          "id": "r0",
+          "value": 62.5
+        },
+        {
+          "dateKey": "2026-10-10",
+          "occurredAt": 1791601260000,
+          "id": "r1",
+          "value": 61.5
+        },
+        {
+          "dateKey": "2026-10-11",
+          "occurredAt": 1791687720000,
+          "id": "r2",
+          "value": 61
+        }
       ],
       "expected": [
         {
@@ -103,7 +177,8 @@
           "sum": 124,
           "avg": 62,
           "min": 61.5,
-          "max": 62.5
+          "max": 62.5,
+          "latest": 61.5
         },
         {
           "period": "2026-10-11",
@@ -111,7 +186,8 @@
           "sum": 61,
           "avg": 61,
           "min": 61,
-          "max": 61
+          "max": 61,
+          "latest": 61
         }
       ]
     },
@@ -119,8 +195,18 @@
       "name": "week: a week that crosses the new year is one bucket keyed by its Sunday",
       "groupBy": "week",
       "points": [
-        { "dateKey": "2026-12-31", "value": 7 },
-        { "dateKey": "2027-01-02", "value": 8 }
+        {
+          "dateKey": "2026-12-31",
+          "occurredAt": 1798686000000,
+          "id": "r0",
+          "value": 7
+        },
+        {
+          "dateKey": "2027-01-02",
+          "occurredAt": 1798858860000,
+          "id": "r1",
+          "value": 8
+        }
       ],
       "expected": [
         {
@@ -129,7 +215,8 @@
           "sum": 15,
           "avg": 7.5,
           "min": 7,
-          "max": 8
+          "max": 8,
+          "latest": 8
         }
       ]
     },
@@ -137,10 +224,30 @@
       "name": "month: the last and first days of a month land in different buckets",
       "groupBy": "month",
       "points": [
-        { "dateKey": "2026-10-31", "value": 100 },
-        { "dateKey": "2026-11-01", "value": 200 },
-        { "dateKey": "2026-11-30", "value": 50 },
-        { "dateKey": "2026-10-01", "value": -20 }
+        {
+          "dateKey": "2026-10-31",
+          "occurredAt": 1793415600000,
+          "id": "r0",
+          "value": 100
+        },
+        {
+          "dateKey": "2026-11-01",
+          "occurredAt": 1793502060000,
+          "id": "r1",
+          "value": 200
+        },
+        {
+          "dateKey": "2026-11-30",
+          "occurredAt": 1796007720000,
+          "id": "r2",
+          "value": 50
+        },
+        {
+          "dateKey": "2026-10-01",
+          "occurredAt": 1790823780000,
+          "id": "r3",
+          "value": -20
+        }
       ],
       "expected": [
         {
@@ -149,7 +256,8 @@
           "sum": 80,
           "avg": 40,
           "min": -20,
-          "max": 100
+          "max": 100,
+          "latest": 100
         },
         {
           "period": "2026-11",
@@ -157,7 +265,8 @@
           "sum": 250,
           "avg": 125,
           "min": 50,
-          "max": 200
+          "max": 200,
+          "latest": 50
         }
       ]
     },
@@ -165,8 +274,18 @@
       "name": "month: months of different years sort by year first",
       "groupBy": "month",
       "points": [
-        { "dateKey": "2027-01-15", "value": 3 },
-        { "dateKey": "2026-12-15", "value": 4 }
+        {
+          "dateKey": "2027-01-15",
+          "occurredAt": 1799982000000,
+          "id": "r0",
+          "value": 3
+        },
+        {
+          "dateKey": "2026-12-15",
+          "occurredAt": 1797303660000,
+          "id": "r1",
+          "value": 4
+        }
       ],
       "expected": [
         {
@@ -175,7 +294,8 @@
           "sum": 4,
           "avg": 4,
           "min": 4,
-          "max": 4
+          "max": 4,
+          "latest": 4
         },
         {
           "period": "2027-01",
@@ -183,7 +303,58 @@
           "sum": 3,
           "avg": 3,
           "min": 3,
-          "max": 3
+          "max": 3,
+          "latest": 3
+        }
+      ]
+    },
+    {
+      "name": "day: two records on the same instant — the larger id is the latest, whatever order they came in",
+      "groupBy": "day",
+      "points": [
+        {
+          "dateKey": "2026-10-05",
+          "occurredAt": 1791169260000,
+          "id": "rec-a",
+          "value": 62
+        },
+        {
+          "dateKey": "2026-10-05",
+          "occurredAt": 1791165600000,
+          "id": "rec-z",
+          "value": 63
+        },
+        {
+          "dateKey": "2026-10-05",
+          "occurredAt": 1791169260000,
+          "id": "rec-b",
+          "value": 61.5
+        },
+        {
+          "dateKey": "2026-10-06",
+          "occurredAt": 1791255600000,
+          "id": "rec-c",
+          "value": 61
+        }
+      ],
+      "expected": [
+        {
+          "period": "2026-10-05",
+          "count": 3,
+          "sum": 186.5,
+          "avg": 62.166666666666664,
+          "min": 61.5,
+          "max": 63,
+          "latest": 61.5
+        },
+        {
+          "period": "2026-10-06",
+          "count": 1,
+          "sum": 61,
+          "avg": 61,
+          "min": 61,
+          "max": 61,
+          "latest": 61
         }
       ]
     }
