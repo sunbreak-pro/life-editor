@@ -10,8 +10,8 @@
 | ファイル                | 用途                                                               | 状態                          |
 | ----------------------- | ------------------------------------------------------------------ | ----------------------------- |
 | `README.md`             | このファイル。全体構造の入口                                       | 現行                          |
-| `routine-digest.md`     | 朝 07:43 JST — 采配ダイジェスト生成（dev-digest スキルの薄い外枠） | **Phase 1・稼働中**（2026-09-02 登録・2026-09-26 時刻変更） |
-| `routine-night-safe.md` | 朝 07:13 JST — 読み取り中心の安全レーン（docs / Issue / PR 監査）。名前は旧 22:33 枠の名残  | **Phase 1・稼働中**（2026-09-02 登録・2026-09-26 時刻変更） |
+| `routine-digest.md`     | 昼 12:43 JST — 采配ダイジェスト生成（dev-digest スキルの薄い外枠） | **Phase 1・稼働中**（2026-09-02 登録・2026-10-17 時刻変更） |
+| `routine-night-safe.md` | 昼 12:13 JST — 読み取り中心の安全レーン（docs / Issue / PR 監査）。名前は旧 22:33 枠の名残  | **Phase 1・稼働中**（2026-09-02 登録・2026-10-17 時刻変更） |
 | `run-routine.ps1`       | headless 起動スクリプト（Task Scheduler / 手動の共通入口）。専用 worktree で走らせ、報告を日次 PR へ届ける | 現行（2026-09-26 改訂） |
 | `register-routines.ps1` | Task Scheduler への登録（スリープ解除つき・何度流しても同じ状態になる） | 現行（2026-09-26 新設） |
 | `reports/YYYY-MM-DD.md` | 当日の報告。launcher が追記して日次の報告 PR に載せる（merge すると main に残る） | 現行（2026-09-26 新設） |
@@ -28,12 +28,12 @@
 ## 動作モデル（Phase 1）
 
 ```
-朝 07:13 JST（PC をスリープから起こす）: routine-night-safe.md
+昼 12:13 JST（PC をスリープから起こす）: routine-night-safe.md
   → 読み取り中心の監査 4 本（docs 整合 / Issue 台帳 / PR conflict / 検証準備）
   → 検出は修正せず、最終メッセージとして出す
   → launcher が reports/YYYY-MM-DD.md へ追記 → 日次の報告 PR（chore/routine-report-YYYYMMDD）を作成
 
-朝 07:43 JST（同上）: routine-digest.md
+昼 12:43 JST（同上）: routine-digest.md
   → dev-digest スキルの手順で digest 生成
   → 当日の reports/YYYY-MM-DD.md（直前の監査）も収集源に含める
   → launcher が同じ報告 PR に追記し、PR 本文を報告ファイルの全文で更新する
@@ -52,7 +52,7 @@
 
 ### 実行基盤（D-20260804-main-1 = A・2026-09-02 登録済み・2026-09-26 スリープ解除つきで再登録）
 
-採用 = **Windows Task Scheduler + `claude -p`（headless）**。2026-09-02〜25 の実測で、06:03 の digest は 24 日中 22 日、22:33 の night-safe は 14 日が PC のスリープ中で発火していなかった（タスクの WakeToRun が False・電源ログにタイマー復帰 0 件）。claude 本体は起動した回はすべて完走していた。そこで夜中を避けて朝 07:13 / 07:43 に PC を起こす設定へ切り替えた（`register-routines.ps1`）。セッション常駐が不要で、2026-07-16 の朝刊プロトタイプ（`2026-07-16-briefing-headless-claude-prototype.md`）で同型を E2E 検証済み。セッション内の CronCreate（scheduled tasks）は**セッション限定・7 日で期限切れ**（2026-08-04 実測）のため、常駐運用にしない限り使わない。
+採用 = **Windows Task Scheduler + `claude -p`（headless）**。2026-09-02〜25 の実測で、06:03 の digest は 24 日中 22 日、22:33 の night-safe は 14 日が PC のスリープ中で発火していなかった（タスクの WakeToRun が False・電源ログにタイマー復帰 0 件）。claude 本体は起動した回はすべて完走していた。そこで夜中を避けて朝 07:13 / 07:43 に PC を起こす設定へ切り替えた（`register-routines.ps1`）。2026-10-17 に、夜に起動しないよう昼 12:13 / 12:43 へ移し、逃した回を追う設定も外した。セッション常駐が不要で、2026-07-16 の朝刊プロトタイプ（`2026-07-16-briefing-headless-claude-prototype.md`）で同型を E2E 検証済み。セッション内の CronCreate（scheduled tasks）は**セッション限定・7 日で期限切れ**（2026-08-04 実測）のため、常駐運用にしない限り使わない。
 
 ---
 

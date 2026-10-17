@@ -9,10 +9,10 @@
 
 | Routine    | 基盤                   | Schedule       | Task 名                | Status     | Registered |
 | ---------- | ---------------------- | -------------- | ---------------------- | ---------- | ---------- |
-| night-safe | Windows Task Scheduler | 毎日 07:13 JST（スリープ解除） | `LifeEditor-NightSafe` | **ACTIVE** | 2026-09-02（2026-09-26 再登録） |
-| digest | Windows Task Scheduler | 毎日 07:43 JST（スリープ解除） | `LifeEditor-Digest` | **ACTIVE** | 2026-09-02（2026-09-26 再登録） |
+| night-safe | Windows Task Scheduler | 毎日 12:13 JST（スリープ解除） | `LifeEditor-NightSafe` | **ACTIVE** | 2026-09-02（2026-09-26 再登録・2026-10-17 時刻変更） |
+| digest | Windows Task Scheduler | 毎日 12:43 JST（スリープ解除） | `LifeEditor-Digest` | **ACTIVE** | 2026-09-02（2026-09-26 再登録・2026-10-17 時刻変更） |
 
-- 夜中ではなく朝に PC を起こす（2026-09-26 ユーザー決定）。監査を先に走らせ、30 分後の digest がその報告を読む順にしている
+- 夜には起動せず、お昼に動かす（2026-10-17 ユーザー決定。それまでは 2026-09-26 の決定で朝 07:13 / 07:43 に PC を起こしていた）。電源が切れていて逃した回は追わない（StartWhenAvailable なし）。監査を先に走らせ、30 分後の digest がその報告を読む順にしている
 - 発火時刻を 00 分 / 30 分から外しているのは意図的（ジャストの時刻は負荷が集中しやすい・数分の前後はこの用途で問題にならない）
 - 報告は当日の `reports/YYYY-MM-DD.md` に launcher が追記し、日次の報告 PR（`chore/routine-report-YYYYMMDD`）で届く
 - Status 遷移: PENDING（裁定待ち）→ ACTIVE（登録済み）→ PAUSED / RETIRED
