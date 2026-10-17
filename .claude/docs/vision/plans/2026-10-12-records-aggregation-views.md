@@ -117,13 +117,16 @@ CLAUDE.md（§4 に表を足すとき）
 
 ```
 record_views(
-  user_id uuid, kind text, unit text not null default '',  -- unit なしは空文字（主キーに入れるため）
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid, kind text, unit text not null default '',  -- unit なしは空文字（UNIQUE に null を入れないため）
   metric text,  -- 'sum' | 'avg' | 'latest' | 'count'
   chart  text,  -- 'bar' | 'line'
   created_at, updated_at,
-  primary key (user_id, kind, unit)
+  unique (user_id, kind, unit)
 )
 ```
+
+- 主キーは乱数の `id` で、1 人の中のキー（種類 + 単位）は UNIQUE にします（2026-10-17 変更・D-20261017-main-2）。`(user_id, kind, unit)` を主キーにすると、Realtime の削除の通知に、その人の uuid と種類が全購読者へ届くためです（0037 の `ai_rules` と同じ理由）。
 
 - 独立した表で、自分の `updated_at` を持ちます（0018 の `timer_settings` や 0037 の `ai_*` と同じ形。D-20261008-main-1 Q2）。ソフトデリートは持ちません。
 - 触る場所は、DDL・RLS・Realtime の publication・DataService とその routing・同期ドメイン・`REALTIME_TABLES`・書き出し（`USER_DATA_EXPORT_TABLES`）・`delete_my_account()` です。
@@ -221,3 +224,4 @@ AC を満たせない見込みになったら、自己免除せず **P-008** に
 
 - 2026-10-12: こうだいさんの決定（平均と最新を両方出す・種類ごとに表示を選べる）を受けて、計画書を起こした。回答待ちの 3 問を上に置いた。
 - 2026-10-17: こうだいさんが「#2231 の計画書を承認する」と回答し、3 問とも推奨を採った（D-20261017-main-1）。Status を IN PROGRESS にし、Step ごとに Issue を起票した（Step 1 = #2259 / Step 2 = #2261 / Step 3 = #2262 / Step 4 = #2260 / Step 5 = #2263 / Step 6 = #2264 / Step 7・8 = #2265）。この承認の PR が main に入るまで、main 上の Status は Draft のままに見える。
+- 2026-10-17: refactor-core の申し送りを受けて、`record_views` の主キーを `(user_id, kind, unit)` から乱数の `id` + UNIQUE に変えた（#2268 の実装に合わせた。D-20261017-main-2）。同じ漏れが 0039 の `extension_apps` にもあると分かり、#2271 に切り出した（この計画書の Scope の外）。
