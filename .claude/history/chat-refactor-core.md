@@ -1,5 +1,18 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-10-17 - 記録の平均と最新 1/7 と 4/7（PR #2267 / #2268 open）
+
+#### 概要
+
+#2231 の計画書の Step 1（#2259）と Step 4（#2260）を、それぞれ origin/main から切ったブランチで PR にした。どちらも CI の verify の全ステップと docs-lint をローカルで緑にしてから出し、本文は「Refs」で Issue を閉じない。merge はしていない。
+
+#### 変更点
+
+- **#2259 = PR #2267**: `AppRecordPoint` に `occurredAt`（ミリ秒）と `id` を足し（新しい型 `AppRecordSample`）、`AppRecordStats` に `latest` を足した。同じ時刻は id の大きいほう。shared と mcp-server の 2 ファイルは印より下を同じ文面に保った。`recordsModel.ts` と `recordHandlers.ts` も追随。`list_records` の答えは旧い形に絞って返す（#2261 で `latest` を出す）。差分は約 560 行で、超えた分は見本データの JSON の折り返し
+- **#2260 = PR #2268**: `0041_record_views.sql`（冪等・begin/commit・owner-only の 4 ポリシー・Realtime・`delete_my_account()` を 0040 の本体から作り直し）と、型・mapper・`SupabaseRecordViewsService`（一覧と保存の 2 つ）・routing・同期ドメイン `recordViews`・`REALTIME_TABLES`・書き出し。主キーは乱数の id にして `(user_id, kind, unit)` を UNIQUE にした（Issue と違う。理由は PR 本文）。DB には流していない。差分は約 820 行
+- **監査**: migration の規約を見るエージェントの指摘は、適用後に流す確認 SQL の 1 件（SQL Editor は auth.uid() が null で、想定と別のエラーで落ちる）。0039 の G と同じく authenticated に切り替える DO ブロックへ直した。範囲外の指摘として、0039 の `extension_apps` に同じ削除通知の漏れがあることを outbox で chat-main に申し送った
+- **申し送り**: `.claude/comm/outbox/chat-refactor-core.md` に、2 本の PR の状態・push と merge の順番・判断が要る点・`extension_apps` の Issue 起票依頼を書いた
+
 ### 2026-09-13 - #1592 / #1593 shared と mcp の食い違い 2 件（PR #1609 / #1610）
 
 #### 概要
