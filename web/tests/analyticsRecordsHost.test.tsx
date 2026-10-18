@@ -216,7 +216,7 @@ describe("AnalyticsScreen pending records source", () => {
 });
 
 describe("AnalyticsScreen narrow records block", () => {
-  it("totals the last 7 days per kind", async () => {
+  it("shows each kind's average and latest over the last 7 days (#2262)", async () => {
     mockMatchMedia(false);
     renderRecords(
       makeDS({
@@ -231,6 +231,9 @@ describe("AnalyticsScreen narrow records block", () => {
     );
 
     await waitFor(() => screen.getByText("Last 7 days"));
-    expect(screen.getByText(/1,000 JPY/)).toBeTruthy();
+    expect(screen.getByText("500 JPY")).toBeTruthy();
+    // noon(0) is the newest record.
+    expect(screen.getByText("450 JPY")).toBeTruthy();
+    expect(screen.queryByText(/1,000 JPY/)).toBeNull();
   });
 });

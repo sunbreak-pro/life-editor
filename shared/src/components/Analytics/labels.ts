@@ -28,7 +28,9 @@ export interface RecordsLabels {
     count: string;
     sum: string;
     avg: string;
-    /** Why the total and average read "-" while several kinds are mixed. */
+    /** The newest record's value (#2262). */
+    latest: string;
+    /** Why the total, average and latest read "-" while kinds are mixed. */
     needOneKind: string;
   };
   chart: {

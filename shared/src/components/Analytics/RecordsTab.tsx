@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Hash, Receipt, Sigma, TrendingUp } from "lucide-react";
+import { Clock, Hash, Receipt, Sigma, TrendingUp } from "lucide-react";
 import {
   Bar,
   BarChart,
@@ -237,7 +237,7 @@ export function RecordsTab({
         />
       ) : (
         <>
-          <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3">
+          <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-4">
             <AnalyticsStatCard
               icon={<Hash size={16} />}
               label={labels.stats.count}
@@ -263,6 +263,16 @@ export function RecordsTab({
               value={
                 summary.stats
                   ? labels.formatValue(summary.stats.avg, unit)
+                  : "-"
+              }
+              tone="accent"
+            />
+            <AnalyticsStatCard
+              icon={<Clock size={16} />}
+              label={labels.stats.latest}
+              value={
+                summary.stats
+                  ? labels.formatValue(summary.stats.latest, unit)
                   : "-"
               }
               tone="accent"
@@ -424,8 +434,8 @@ function FilterSelect({
 function RecordsSkeleton(): React.JSX.Element {
   return (
     <div className="space-y-4" aria-busy="true">
-      <div className="grid grid-cols-3 gap-3">
-        {Array.from({ length: 3 }).map((_, i) => (
+      <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-4">
+        {Array.from({ length: 4 }).map((_, i) => (
           <div
             key={i}
             className="h-[86px] animate-pulse rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary"

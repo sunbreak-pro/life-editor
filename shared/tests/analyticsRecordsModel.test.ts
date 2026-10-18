@@ -193,10 +193,33 @@ describe("recentKindTotals", () => {
       rec(at(2026, 10, 9), { value: 1, unit: "USD" }),
     ]);
     expect(recentKindTotals(dated, "2026-10-11", 7)).toEqual([
-      { kind: "expense", unit: "JPY", count: 2, sum: 1000 },
-      { kind: "expense", unit: "USD", count: 1, sum: 1 },
-      { kind: "weight", unit: "kg", count: 1, sum: 62.4 },
+      {
+        kind: "expense",
+        unit: "JPY",
+        count: 2,
+        sum: 1000,
+        avg: 500,
+        latest: 450,
+      },
+      { kind: "expense", unit: "USD", count: 1, sum: 1, avg: 1, latest: 1 },
+      {
+        kind: "weight",
+        unit: "kg",
+        count: 1,
+        sum: 62.4,
+        avg: 62.4,
+        latest: 62.4,
+      },
     ]);
+  });
+
+  it("passes the shared aggregation's average and latest through (#2262)", () => {
+    const dated = withDateKeys([
+      rec(at(2026, 10, 10), { kind: "weight", unit: "kg", value: 62 }),
+      rec(at(2026, 10, 8), { kind: "weight", unit: "kg", value: 62.5 }),
+    ]);
+    const [weight] = recentKindTotals(dated, "2026-10-11", 7);
+    expect(weight).toMatchObject({ avg: 62.25, latest: 62 });
   });
 });
 
