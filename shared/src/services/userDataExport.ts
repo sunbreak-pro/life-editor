@@ -63,8 +63,9 @@ export const USER_DATA_EXPORT_TABLES = [
   { table: "ai_rules", orderBy: "id" },
   { table: "ai_memories", orderBy: "id" },
   { table: "ai_skills", orderBy: "id" },
-  // The primary key is (user_id, slug); the read is already fenced to one
-  // user, so slug alone is the unique tiebreaker.
+  // The primary key is a random uuid `id` (0042) and (user_id, slug) is
+  // UNIQUE. The read is already fenced to one user, so slug alone is a unique
+  // tiebreaker — kept over `id` so the file lists the apps by name.
   { table: "extension_apps", orderBy: "slug" },
   { table: "app_records", orderBy: "id" },
   // The key is (user_id, kind, unit); `id` is a random uuid kept as the
