@@ -166,6 +166,7 @@ describe("Records tab states", () => {
     expect(statValue("Records")).toBe("1");
     expect(statValue("Total")).toBe("450 JPY");
     expect(statValue("Average")).toBe("450 JPY");
+    expect(statValue("Latest")).toBe("450 JPY");
     const [row] = listRows();
     expect(row.textContent).toContain("expense");
     expect(row.textContent).toContain("shop: lawson");
@@ -229,6 +230,7 @@ describe("Records tab filters", () => {
     // expense + income + kg: a total would mean nothing.
     expect(statValue("Total")).toBe("-");
     expect(statValue("Average")).toBe("-");
+    expect(statValue("Latest")).toBe("-");
     expect(screen.getByText("Pick one kind")).toBeInTheDocument();
   });
 
@@ -274,6 +276,30 @@ describe("Records tab filters", () => {
     expect(statValue("Records")).toBe("3");
     expect(statValue("Total")).toBe("1010 JPY");
     expect(statValue("Average")).toBe("336.6666666666667 JPY");
+    // noon(1) is the newest expense.
+    expect(statValue("Latest")).toBe("450 JPY");
+  });
+
+  it("puts average and latest beside the total for two weighings in kg (#2262)", () => {
+    render(
+      <AnalyticsView
+        {...props({
+          records: [
+            rec({ occurredAt: noon(1), kind: "weight", unit: "kg", value: 62 }),
+            rec({
+              occurredAt: noon(3),
+              kind: "weight",
+              unit: "kg",
+              value: 62.5,
+            }),
+          ],
+        })}
+      />,
+    );
+    expect(statValue("Records")).toBe("2");
+    expect(statValue("Total")).toBe("124.5 kg");
+    expect(statValue("Average")).toBe("62.25 kg");
+    expect(statValue("Latest")).toBe("62 kg");
   });
 
   it("offers only the kinds the chosen app sent, and resets a kind it never sent", () => {
@@ -393,9 +419,30 @@ describe("narrow Records block", () => {
       .getAllByRole("listitem")
       .map((li) => li.textContent);
     expect(lines).toEqual([
-      "expense · 2 records1000 JPY",
-      "weight · 1 records62.4 kg",
+      "expense · 2 recordsAverage500 JPYLatest450 JPY",
+      "weight · 1 recordsAverage62.4 kgLatest62.4 kg",
     ]);
+  });
+
+  it("shows average and latest, not the sum, for two weighings in kg (#2262)", () => {
+    mockMatchMedia(false);
+    const records = [
+      rec({ occurredAt: noon(1), kind: "weight", unit: "kg", value: 62 }),
+      rec({ occurredAt: noon(3), kind: "weight", unit: "kg", value: 62.5 }),
+    ];
+    render(<AnalyticsView {...props({ records, activeTab: undefined })} />);
+
+    const block = screen.getByText("Last 7 days").closest("div")
+      ?.parentElement as HTMLElement;
+    const [line] = within(block).getAllByRole("listitem");
+    // The #2212 browser check read "weight · 2 records 124.5 kg".
+    expect(line.textContent).not.toContain("124.5");
+    expect(
+      within(line).getByText("Average").nextElementSibling?.textContent,
+    ).toBe("62.25 kg");
+    expect(
+      within(line).getByText("Latest").nextElementSibling?.textContent,
+    ).toBe("62 kg");
   });
 
   it("says there are none, and still shows the block, when the last 7 days are empty", () => {

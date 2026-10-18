@@ -477,6 +477,7 @@ export function AnalyticsScreen({
           count: t("analytics.records.stats.count"),
           sum: t("analytics.records.stats.sum"),
           avg: t("analytics.records.stats.avg"),
+          latest: t("analytics.records.stats.latest"),
           needOneKind: t("analytics.records.stats.needOneKind"),
         },
         chart: {

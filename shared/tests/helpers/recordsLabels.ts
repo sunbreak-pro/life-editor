@@ -15,6 +15,7 @@ export function makeRecordsLabels(): RecordsLabels {
       count: "Records",
       sum: "Total",
       avg: "Average",
+      latest: "Latest",
       needOneKind: "Pick one kind",
     },
     chart: {

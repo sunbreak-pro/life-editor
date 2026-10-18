@@ -204,12 +204,16 @@ export interface KindTotal {
   unit: string | null;
   count: number;
   sum: number;
+  avg: number;
+  /** The newest record's value (#2259) — what a weight line should lead with. */
+  latest: number;
 }
 
 /**
  * Per-kind totals over the last `days` calendar days ending on `todayKey`
  * (the narrow block's "last 7 days"). Rows are grouped by kind AND unit, so a
- * kind that changed its unit is two lines, never one wrong sum.
+ * kind that changed its unit is two lines, never one wrong sum. The numbers
+ * are the shared aggregation's, passed through as they are (#2262).
  */
 export function recentKindTotals(
   dated: readonly DatedRecord[],
@@ -235,6 +239,8 @@ export function recentKindTotals(
       unit: rows[0].record.unit,
       count: stats.count,
       sum: stats.sum,
+      avg: stats.avg,
+      latest: stats.latest,
     });
   }
   return totals.sort(

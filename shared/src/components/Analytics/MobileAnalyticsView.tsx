@@ -422,7 +422,12 @@ export function MobileAnalyticsView(
           </div>
         )}
 
-        {/* Records (#2164): the last 7 days, one line per kind. */}
+        {/*
+         * Records (#2164): the last 7 days, one entry per kind. Average and
+         * latest, not the sum (#2262): two weighings added up read as a
+         * meaningless "124.5 kg", while both of these mean something for any
+         * kind.
+         */}
         <div className="flex flex-col gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary p-4">
           <div className="flex items-baseline justify-between gap-2">
             <span className="text-sm font-semibold text-lumen-text">
@@ -447,7 +452,7 @@ export function MobileAnalyticsView(
               {model.recordTotals.map((total) => (
                 <li
                   key={`${total.kind}|${total.unit ?? ""}`}
-                  className="flex items-baseline justify-between gap-2"
+                  className="flex flex-col gap-0.5"
                 >
                   <span className="min-w-0 truncate text-xs text-lumen-text">
                     {total.kind}
@@ -456,9 +461,19 @@ export function MobileAnalyticsView(
                       {labels.records.mobile.formatCount(total.count)}
                     </span>
                   </span>
-                  <span className="flex-shrink-0 text-sm font-semibold tabular-nums text-lumen-text">
-                    {labels.records.formatValue(total.sum, total.unit)}
-                  </span>
+                  <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5">
+                    <RecordFigure
+                      label={labels.records.stats.avg}
+                      value={labels.records.formatValue(total.avg, total.unit)}
+                    />
+                    <RecordFigure
+                      label={labels.records.stats.latest}
+                      value={labels.records.formatValue(
+                        total.latest,
+                        total.unit,
+                      )}
+                    />
+                  </dl>
                 </li>
               ))}
             </ul>
@@ -510,6 +525,24 @@ function StatBox({
       {subtitle && (
         <span className="text-xs text-lumen-text-tertiary">{subtitle}</span>
       )}
+    </div>
+  );
+}
+
+/** One labelled number on a records line (#2262): "Average 62.25 kg". */
+function RecordFigure({
+  label,
+  value,
+}: {
+  label: string;
+  value: string;
+}): React.JSX.Element {
+  return (
+    <div className="flex items-baseline gap-1">
+      <dt className="text-xs text-lumen-text-tertiary">{label}</dt>
+      <dd className="text-sm font-semibold tabular-nums text-lumen-text">
+        {value}
+      </dd>
     </div>
   );
 }

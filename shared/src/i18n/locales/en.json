@@ -1010,7 +1010,8 @@
         "count": "Records",
         "sum": "Total",
         "avg": "Average",
-        "needOneKind": "Pick one kind to see the total and average."
+        "latest": "Latest",
+        "needOneKind": "Pick one kind to see the total, average and latest."
       },
       "chart": {
         "sumTitle": "Total over time",
