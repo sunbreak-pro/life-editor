@@ -1,5 +1,19 @@
 # HISTORY (chat-refactor-core)
 
+### 2026-10-18 - #2271 extension_apps の主キーを乱数の id に（PR #2274 merged）
+
+#### 概要
+
+0039 の拡張アプリの台帳 `extension_apps` は、主キーが `(user_id, slug)` のまま Realtime の配信に入っていた。Realtime は削除の通知を RLS で絞らず主キーの列を付けて全購読者へ送るので、台帳の行を消した人の uuid と slug が他人に届きうる。0037 の `ai_rules` と 0041 の `record_views` と同じ形に直した。こうだいさんが push と merge を済ませ、push 後の本番の形も確かめた。
+
+#### 変更点
+
+- **migration**: `0042_extension_apps_id_key.sql`。`id uuid` を足して既存行を `gen_random_uuid()` で埋め、既定値と NOT NULL を付ける → `extension_apps_user_slug_uk UNIQUE (user_id, slug)` を足す → 主キーを `(id)` に付け替える。UNIQUE を先に足すので重複を断る制約が途切れない。主キーの判定は名前でなく列（`conkey`）で見るので、2 回流しても壊れない。RLS・publication・`delete_my_account()` は変えていない
+- **コード**: 画面と MCP は id を読まないので、型と列の一覧には足していない。更新と削除は slug のまま（RLS が本人の行に限る）。重複の検出は UNIQUE でも同じ 23505 なので `taken` はそのまま動く。直したのは主キーを名指ししていたコメント 4 箇所と `db-conventions.md` §17 の 1 行。書き出しの並び順は slug のまま（1 人の中で一意で、名前順に並ぶ）
+- **テスト**: `SupabaseAppRecordsService.test.ts` に 4 件。id を持つ行での登録・編集・削除が slug だけで動き id を送らないこと、UNIQUE の 23505 が `taken` になること、0042 の DDL の形（コメントを除いて検査）。CI の verify 全ステップと docs-lint はローカルで緑
+- **監査**: migration の監査エージェントは重大 0 件。軽微 3 件（REPLICA IDENTITY を FULL にしても RLS 有効の表では DELETE の old_record は主キーだけに削られる、という理由の訂正 / 主キー判定の結合を部分問い合わせに / 確認手順に `pg_get_replica_identity_index` を追加）を反映した
+- **push 後の確認**: 本番で主キー `PRIMARY KEY (id)`・`UNIQUE (user_id, slug)`・`id` の既定値と NOT NULL・REPLICA IDENTITY の索引が `extension_apps_pkey`・publication とポリシー 4 本・RLS ゲート PASS を確かめ、#2271 にコメントした。Supabase の MCP は「Unauthorized」で通らなかった。確認手順 D（テスト用の行を一時的に入れて巻き戻す）は流していない
+
 ### 2026-10-17 - 記録の平均と最新 1/7 と 4/7（PR #2267 / #2268 open）
 
 #### 概要
@@ -425,15 +439,3 @@ Windows 向け NSIS ビルドを整備した。win アイコンは electron-buil
 - **shared/components**: `MobileDrawer.tsx` — 独自 document keydown リスナー撤去 → `useDialogA11y({ open, onClose })` の ref をパネルに接続（`tabIndex={-1}` 付与）
 - **shared/tests**: `mobileDrawer.test.tsx` に配線テスト 2 件追加（open 時フォーカス移動 + close 時復帰 / Modal 積層時の「1 Esc = 1 レイヤー」）
 - **備考**: パネルの `onMouseDown` stopPropagation は #470 アンチパターン候補として PR 本文で chat-main へ申し送り（スコープ外）
-
-### 2026-07-30 - Phase B Step 9（MainScreen hooks 切り出し・Issue #465・計画最終実装ステップ）
-
-#### 概要
-
-Phase B（web 画面 hooks 切り出し）の最終弾。MainScreen（951 行）をナビゲーション側 `useShellNavigation`・表示定義側 `useShellChrome` + 表示組み立て専念の画面（約 690 行）に分割した（挙動変更ゼロ・shared/src 無改変）。DataService 分割計画の実装ステップは全完了（残り Step 10 = merge 後の実ブラウザ確認は chat-main 担当）。
-
-#### 変更点
-
-- **web/hooks**: `useShellNavigation.ts` 新設（section switch + Materials/Schedule/Analytics/Briefing タブ state + persistLastSection + nav ショートカット/new-task/「[[」item-nav の pending intent）/ `useShellChrome.tsx` 新設（コマンドパレット項目・registry 派生 nav リスト・タブ帯 defs・shell ラベル・Materials カウントバッジ）。コードは配管以外 verbatim 移動、`MaterialsTab` 型と関連定数も hooks 側へ移設
-- **検証**: shared vitest 1273 pass / shared build / web build すべて exit 0・変更 3 ファイル lint 0 件・session-verifier PASS
-- **計画書**: `2026-07-28-refactor-dataservice-split.md` を Status COMPLETED にして `archive/` へ移動
