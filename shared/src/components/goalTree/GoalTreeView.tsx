@@ -150,8 +150,26 @@ const ROW_BUTTON = cn(
 
 const GROUP_HEADING = "mb-1.5 text-xs font-medium text-lumen-text-tertiary";
 
+/*
+ * The arrow's width is one CSS variable, set on the view's root, and the
+ * hierarchy lines are placed from it (#2282): a line runs through the middle
+ * of its parent's arrow at every depth and on both widths. Both sizes are in
+ * --spacing (rem), so the root font size setting moves the arrow and the line
+ * together; the only px is the half of the 1px line that centres it.
+ */
+const TREE_TOGGLE_SIZE =
+  "[--goal-tree-toggle:calc(var(--spacing)*6)] max-md:[--goal-tree-toggle:calc(var(--spacing)*11)]";
+
 /** The arrow's column, kept on rows without one so titles line up. */
-const BRANCH_TOGGLE = "grid size-6 shrink-0 place-items-center max-md:size-11";
+const BRANCH_TOGGLE =
+  "grid size-(--goal-tree-toggle) shrink-0 place-items-center";
+
+const TREE_LINE =
+  "absolute inset-y-0 left-[calc(var(--goal-tree-toggle)_/_2_-_0.5px)] w-px bg-lumen-border";
+
+/** Past the line by the old gap, so a child's arrow never sits on it. */
+const TREE_INDENT =
+  "pl-[calc(var(--goal-tree-toggle)_/_2_+_var(--spacing)_*_3)]";
 
 type StatusLabels = Pick<
   GoalTreeLabels,
@@ -438,9 +456,9 @@ function GoalBranch({
         )}
       </div>
       {open && (
-        <div className="ml-3 border-l border-lumen-border pl-3">
+        <>
           {node.todos.length > 0 && (
-            <ul aria-label={node.goal.title}>
+            <BranchList kind="todos" label={node.goal.title}>
               {node.todos.map((todo) => (
                 <TodoRow
                   key={todo.id}
@@ -452,10 +470,10 @@ function GoalBranch({
                   labels={labels}
                 />
               ))}
-            </ul>
+            </BranchList>
           )}
           {node.children.length > 0 && (
-            <ul>
+            <BranchList kind="goals">
               {node.children.map((child) => (
                 <GoalBranch
                   key={child.goal.id}
@@ -464,11 +482,36 @@ function GoalBranch({
                   branch={branch}
                 />
               ))}
-            </ul>
+            </BranchList>
           )}
-        </div>
+        </>
       )}
     </li>
+  );
+}
+
+/**
+ * One list under a goal — its todos or its child goals — with its own line
+ * (#2282). The line is the list's full height, so a year's runs on past its
+ * months and their open weeks to the last row drawn under it; the todo list
+ * and the goal list sit flush, so a goal with both reads as one line.
+ */
+function BranchList({
+  kind,
+  label,
+  children,
+}: {
+  kind: "todos" | "goals";
+  label?: string;
+  children: ReactNode;
+}): React.JSX.Element {
+  return (
+    <div className="relative" data-goal-tree-branch={kind}>
+      <span aria-hidden data-goal-tree-line className={TREE_LINE} />
+      <ul aria-label={label} className={TREE_INDENT}>
+        {children}
+      </ul>
+    </div>
   );
 }
 
@@ -655,7 +698,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   );
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className={cn("flex flex-col gap-6", TREE_TOGGLE_SIZE)}>
       <section aria-label={labels.addHeading}>
         <h3 className={GROUP_HEADING}>{labels.addHeading}</h3>
         <div className="flex flex-wrap gap-2">
