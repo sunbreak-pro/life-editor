@@ -189,7 +189,9 @@ describe("export table roster (#1988)", () => {
     const tables = USER_DATA_EXPORT_TABLES.map((t) => t.table);
     expect(tables).toContain("app_records");
     expect(tables).toContain("extension_apps");
-    // extension_apps has no id column — its key is (user_id, slug).
+    // extension_apps keys by slug: its primary key is a random uuid `id`
+    // (0042, #2271) and (user_id, slug) is UNIQUE, so slug is a unique
+    // tiebreaker within one user and lists the apps by name.
     expect(
       USER_DATA_EXPORT_TABLES.find((t) => t.table === "extension_apps")
         ?.orderBy,

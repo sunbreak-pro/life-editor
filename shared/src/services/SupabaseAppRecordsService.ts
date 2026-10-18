@@ -43,7 +43,11 @@ import { fetchMaybeSingleRow, requireSingleRow } from "./postgrestSingle";
  * (0039 — `source_app` is not a FK).
  */
 
-/** Postgres unique_violation — the (user_id, slug) primary key. */
+/**
+ * Postgres unique_violation — the UNIQUE (user_id, slug) of 0042 (the
+ * primary key before it). The code is the same either way, so `taken` holds
+ * whether or not 0042 has been pushed.
+ */
 const UNIQUE_VIOLATION = "23505";
 
 /** The "records in the last 30 days" window of listAppRecordSources. */

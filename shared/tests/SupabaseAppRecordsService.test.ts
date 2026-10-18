@@ -26,7 +26,9 @@ import {
  *   - list reads filter by [from, to), source_app and kind, newest first;
  *   - the source summary counts per app without pulling every record;
  *   - a malformed slug / empty name / non-http URL is refused BEFORE any
- *     request, and a duplicate slug comes back as `taken`, not a raw 23505.
+ *     request, and a duplicate slug comes back as `taken`, not a raw 23505;
+ *   - after 0042 (random uuid `id` primary key, UNIQUE (user_id, slug)) the
+ *     ledger still works by slug and never sends or exposes the id (#2271).
  */
 
 type Row = Record<string, unknown>;
@@ -159,12 +161,24 @@ function makeFake(seed: Record<string, Row[]> = {}) {
           this.table === "extension_apps" &&
           rows.some((r) => r.slug === this.payload.slug)
         ) {
+          // Since 0042 the refusal comes from the UNIQUE (user_id, slug), no
+          // longer the primary key; the SQLSTATE is the same 23505.
           return {
             data: null,
-            error: { message: "duplicate key", code: "23505" },
+            error: {
+              message:
+                'duplicate key value violates unique constraint "extension_apps_user_slug_uk"',
+              code: "23505",
+            },
           };
         }
         const row = {
+          // The 0042 default (gen_random_uuid()) for a ledger row.
+          ...(this.table === "extension_apps"
+            ? {
+                id: `00000000-0000-4000-8000-${String(rows.length).padStart(12, "0")}`,
+              }
+            : {}),
           user_id: UID,
           created_at: stamp,
           updated_at: stamp,
@@ -605,6 +619,105 @@ describe("extension_apps ledger", () => {
         name: "x",
       }),
     ).rejects.toThrow(/updateExtensionApp \(slug=ghost\) failed/);
+  });
+});
+
+describe("extension_apps after 0042 (random id primary key, #2271)", () => {
+  const migration = readFileSync(
+    resolve(
+      dirname(fileURLToPath(import.meta.url)),
+      "../../supabase/migrations/0042_extension_apps_id_key.sql",
+    ),
+    "utf8",
+  );
+  // The SQL without its comments, so the header cannot satisfy a check.
+  const ddl = migration.replace(/--.*$/gm, "");
+
+  it("moves the primary key to a backfilled uuid id and keeps (user_id, slug) UNIQUE", () => {
+    expect(ddl).toMatch(/^\s*begin;/m);
+    expect(ddl).toMatch(/^\s*commit;/m);
+    expect(ddl).toMatch(/add column if not exists id uuid/);
+    expect(ddl).toMatch(/set id = gen_random_uuid\(\)\s+where id is null/);
+    expect(ddl).toMatch(/alter column id set default gen_random_uuid\(\)/);
+    expect(ddl).toMatch(/alter column id set not null/);
+    expect(ddl).toMatch(
+      /add constraint extension_apps_user_slug_uk unique \(user_id, slug\)/,
+    );
+    expect(ddl).toMatch(
+      /add constraint extension_apps_pkey primary key \(id\)/,
+    );
+    // The UNIQUE goes in before the old key comes out, so a duplicate slug is
+    // refused at every step of the swap.
+    expect(ddl.indexOf("extension_apps_user_slug_uk unique")).toBeLessThan(
+      ddl.indexOf("drop constraint"),
+    );
+  });
+
+  it("registers, edits and deletes a ledger row by slug alone", async () => {
+    const { client, db, requests } = makeFake({
+      extension_apps: [{ ...appRow("kakeibo", 0), id: "app-uuid-kakeibo" }],
+    });
+    const service = new SupabaseAppRecordsService(client);
+
+    const created = await service.createExtensionApp({
+      slug: "weight",
+      name: "Weight",
+    });
+    expect(created).toMatchObject({ slug: "weight", sortOrder: 1 });
+    expect(created).not.toHaveProperty("id");
+    const stored = db.extension_apps.find((r) => r.slug === "weight");
+    expect(typeof stored?.id).toBe("string");
+
+    const edited = await service.updateExtensionApp("weight", {
+      name: "Body weight",
+    });
+    expect(edited).toMatchObject({ slug: "weight", name: "Body weight" });
+    expect(db.extension_apps.find((r) => r.slug === "weight")?.id).toBe(
+      stored?.id,
+    );
+
+    await service.deleteExtensionApp("weight");
+    expect(db.extension_apps.map((r) => r.slug)).toEqual(["kakeibo"]);
+    expect(db.extension_apps[0].id).toBe("app-uuid-kakeibo");
+
+    const writes = requests.filter(
+      (r) => r.table === "extension_apps" && r.op !== "select",
+    );
+    expect(writes.map((r) => r.op)).toEqual(["insert", "update", "delete"]);
+    for (const w of writes) {
+      // The id stays the DB's: never sent, never used to find the row.
+      expect(w.payload ?? {}).not.toHaveProperty("id");
+      expect(w.filters.map((f) => f.col)).not.toContain("id");
+    }
+    expect(writes[1].filters).toEqual([
+      { col: "slug", op: "eq", val: "weight" },
+    ]);
+    expect(writes[2].filters).toEqual([
+      { col: "slug", op: "eq", val: "weight" },
+    ]);
+  });
+
+  it("still refuses a duplicate slug as `taken` from the UNIQUE's 23505", async () => {
+    const { client, db } = makeFake({
+      extension_apps: [{ ...appRow("kakeibo", 0), id: "app-uuid-kakeibo" }],
+    });
+    const error = await new SupabaseAppRecordsService(client)
+      .createExtensionApp({ slug: "kakeibo", name: "Again" })
+      .catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ExtensionAppValidationError);
+    expect(error).toMatchObject({ field: "slug", issue: "taken" });
+    expect(db.extension_apps).toHaveLength(1);
+  });
+
+  it("lists rows that carry an id without exposing it", async () => {
+    const { client } = makeFake({
+      extension_apps: [{ ...appRow("kakeibo", 0), id: "app-uuid-kakeibo" }],
+    });
+    const [app] = await new SupabaseAppRecordsService(
+      client,
+    ).listExtensionApps();
+    expect(app.slug).toBe("kakeibo");
+    expect(app).not.toHaveProperty("id");
   });
 });
 

@@ -180,7 +180,7 @@ export interface ExtensionAppProblem {
 /**
  * Every refusal for the fields present in `input` (a create passes all of
  * them, an update only what it changes). `taken` cannot be known here; the
- * service maps the primary-key violation to it.
+ * service maps the UNIQUE (user_id, slug) violation to it.
  */
 export function extensionAppProblems(
   input: Partial<ExtensionAppInput>,
