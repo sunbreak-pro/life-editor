@@ -20,6 +20,16 @@ export {
   BriefingVizPanel,
   type BriefingVizPanelProps,
 } from "./BriefingVizPanel";
+// #2285: the papers' blocks that moved into the detail panel.
+export {
+  BriefingCarryoverPanel,
+  EveningTodosPanel,
+  EveningUpcomingPanel,
+  type BriefingCarryoverPanelProps,
+  type EveningTodosPanelProps,
+  type EveningUpcomingLabels,
+  type EveningUpcomingPanelProps,
+} from "./BriefingSidePanels";
 export {
   EveningReflectionPreview,
   type EveningReflectionPreviewProps,

@@ -2,7 +2,6 @@ import { useId, type ReactNode } from "react";
 import { ArrowRight, CheckCircle2, Star } from "lucide-react";
 import type { TodoStatus } from "../../types/todoTree";
 import { SkeletonList } from "../SkeletonList";
-import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import {
   EveningEventRow,
   EveningTomorrowRow,
@@ -30,11 +29,11 @@ import { IntentionField } from "./IntentionField";
  * morning declaration is no longer read back here (its data stays — the
  * morning paper still edits it).
  *
- * Neither the remaining-todo nor the upcoming-schedule block is ever copied
- * into the daily body (F-6: analysis reads raw data via get_today_context; the
- * body is the user's own reflection). The todo rows are still ACTIONABLE
- * though — closing the day means moving things along, and #796 gave them the
- * same three statuses a Todo has everywhere else in the app.
+ * The remaining-todo and upcoming-schedule blocks left the paper for the
+ * detail panel in #2285 (BriefingSidePanels.tsx). Their row types and copy
+ * stay here, where the host already builds them. Neither was ever copied into
+ * the daily body (F-6: analysis reads raw data via get_today_context; the
+ * body is the user's own reflection).
  */
 
 /** One row of「残りの Todo」(today's unfinished + open carryover). */
@@ -51,7 +50,7 @@ export interface EveningTodoEntry {
   status: TodoStatus;
 }
 
-/** One read-only row of「今後の予定」(rest of today + tomorrow). */
+/** One row of「今後の予定」(rest of today + tomorrow). */
 export interface EveningScheduleEntry {
   id: string;
   title: string;
@@ -60,6 +59,13 @@ export interface EveningScheduleEntry {
   isAllDay: boolean;
   /** True for tomorrow's items — rendered with the tomorrow tag. */
   isTomorrow: boolean;
+  /**
+   * The row's day (YYYY-MM-DD, #2285) — where「この日の予定へ移動」lands and
+   * the day the editor loads to find the row.
+   */
+  date: string;
+  /** Generated from a routine: the row offers「繰り返しを見る」, not「編集」. */
+  isRoutine: boolean;
 }
 
 export interface EveningLabels extends EveningRowLabels {
@@ -132,14 +138,6 @@ export interface EveningViewProps {
   onFocusChange: (text: string) => void;
   /** Blur on the focus field — the host flushes a pending debounced save. */
   onFocusBlur: () => void;
-  todos: EveningTodoEntry[];
-  /**
-   * Move a todo to the next status straight from the paper (#796). The block
-   * used to draw a checkbox-shaped <span> with nothing listening to it, which
-   * both flattened three states into two and left the row unpressable.
-   */
-  onSetTodoStatus: (id: string, status: TodoStatus) => void;
-  schedule: EveningScheduleEntry[];
   /**
    * 「夕刊 第 42 号 · 5 日連続」, host-formatted (#2107). Undefined hides the
    * line — the host passes nothing on a day before the first issue rather
@@ -228,9 +226,6 @@ export function EveningView({
   focusText,
   onFocusChange,
   onFocusBlur,
-  todos,
-  onSetTodoStatus,
-  schedule,
   issueLine,
   goalMoves,
   events,
@@ -442,79 +437,6 @@ export function EveningView({
                 labels={labels}
                 onPlace={onPlaceTomorrow}
               />
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* ── Remaining todos ─────────────────────────────────────────── */}
-      <section
-        aria-labelledby={headId("todos")}
-        className="border-b border-lumen-border py-5"
-      >
-        <BlockHead id={headId("todos")} title={labels.todosTitle} />
-        {todos.length === 0 ? (
-          <p className="text-sm text-lumen-text-secondary">{labels.noTodos}</p>
-        ) : (
-          <ul>
-            {todos.map((todo) => (
-              <li
-                key={todo.id}
-                className="flex items-center gap-1.5 border-b border-dashed border-lumen-border last:border-b-0"
-              >
-                {/* 朱 is the user's own action voice on the paper, so the
-                    control wears it rather than the app accent. */}
-                <TodoStatusCheckbox
-                  status={todo.status}
-                  onChange={(next) => onSetTodoStatus(todo.id, next)}
-                  labels={labels}
-                  label={labels.todoStatus}
-                  accentClassName="text-lumen-briefing-shu"
-                />
-                <span
-                  className={
-                    todo.status === "DONE"
-                      ? "text-sm text-lumen-text-secondary line-through"
-                      : "text-sm text-lumen-text"
-                  }
-                >
-                  {todo.title}
-                </span>
-                {todo.meta !== undefined && (
-                  <span className="text-xs font-bold text-lumen-briefing-shu">
-                    {todo.meta}
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-      </section>
-
-      {/* ── Upcoming schedule (display only) ─────────────────────────── */}
-      <section
-        aria-labelledby={headId("upcoming")}
-        className="border-b border-lumen-border py-5"
-      >
-        <BlockHead id={headId("upcoming")} title={labels.upcomingTitle} />
-        {schedule.length === 0 ? (
-          <p className="text-sm text-lumen-text-secondary">
-            {labels.noUpcoming}
-          </p>
-        ) : (
-          <ul className="space-y-1">
-            {schedule.map((item) => (
-              <li key={item.id} className="flex items-baseline gap-3 py-1">
-                <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-briefing-shu">
-                  {item.isAllDay ? labels.allDay : item.startTime}
-                </span>
-                <span className="text-sm text-lumen-text">{item.title}</span>
-                {item.isTomorrow && (
-                  <span className="rounded-full border border-lumen-briefing-kohaku bg-lumen-briefing-kohaku-subtle px-2 text-xs text-lumen-briefing-kohaku">
-                    {labels.tomorrowTag}
-                  </span>
-                )}
-              </li>
             ))}
           </ul>
         )}

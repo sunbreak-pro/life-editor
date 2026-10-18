@@ -82,7 +82,6 @@ function renderMorning() {
       onToggleTodo={vi.fn()}
       onOpenItem={vi.fn()}
       onAddItem={vi.fn()}
-      onJumpToTodos={vi.fn()}
     />,
   );
 }

@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { useEffect } from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import {
@@ -17,6 +17,7 @@ import {
   type WikiTagUnified,
 } from "@life-editor/shared";
 import { stubDataService } from "./helpers";
+import { createDetailPanel } from "./helpers/detailPanel";
 import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 /*
@@ -31,7 +32,8 @@ import { BriefingScreen } from "../src/briefing/BriefingScreen";
  * that button at all.
  *
  * The carryover rows keep their「編集」jump (#1824): they are past days'
- * todos showing through, and #2223 leaves that block as it was.
+ * todos showing through, and #2223 leaves that block as it was. Since #2285
+ * the block is in the detail panel, so every render here mounts one.
  */
 
 const TODAY = todayDateKey();
@@ -159,6 +161,11 @@ function RequestProbe() {
   return null;
 }
 
+const panels: ReturnType<typeof createDetailPanel>[] = [];
+afterEach(() => {
+  panels.splice(0).forEach((panel) => panel.remove());
+});
+
 function renderScreen(
   over: {
     onNavigate?: () => void;
@@ -168,6 +175,8 @@ function renderScreen(
 ) {
   lastRequest = null;
   const onNavigate = over.onNavigate ?? vi.fn();
+  const panel = createDetailPanel();
+  panels.push(panel);
   const screenEl = (
     <BriefingScreen
       dataService={makeDS()}
@@ -178,17 +187,19 @@ function renderScreen(
   );
   render(
     <SyncContext.Provider value={SYNC}>
-      {withPanel ? (
-        <ItemPanelProvider>
-          {screenEl}
-          <RequestProbe />
-        </ItemPanelProvider>
-      ) : (
-        screenEl
+      {panel.wrap(
+        withPanel ? (
+          <ItemPanelProvider>
+            {screenEl}
+            <RequestProbe />
+          </ItemPanelProvider>
+        ) : (
+          screenEl
+        ),
       )}
     </SyncContext.Provider>,
   );
-  return { onNavigate };
+  return { onNavigate, panelBody: panel.panelBody };
 }
 
 describe("Pressing an item opens its editor in place (#2223)", () => {
@@ -283,8 +294,10 @@ describe("Pressing an item opens its editor in place (#2223)", () => {
 describe("The carryover row's「編集」still opens the todo itself (#1824)", () => {
   it("opens the todo where it lives", async () => {
     const onNavigateToItem = vi.fn();
-    renderScreen({ onNavigateToItem });
+    const { panelBody } = renderScreen({ onNavigateToItem });
     await screen.findByText("Old todo");
+    // In the detail panel since #2285, not on the paper.
+    expect(panelBody.textContent).toContain("Old todo");
     fireEvent.click(
       screen.getByRole("button", { name: "Edit: Open in Todos" }),
     );

@@ -36,6 +36,10 @@ import { BRIEFING_HINT_CLASS } from "./briefingStyles";
  * and three backward-looking charts in the middle of it kept breaking that
  * thread while pushing 持ち越し below the fold. The host still computes the
  * data from the same BriefingData it passes here.
+ *
+ * 持ち越し followed it into the panel in #2285 (BriefingSidePanels.tsx): a
+ * past day's todo showing through is something to look up, not part of the
+ * day the paper prints.
  */
 
 /**
@@ -132,6 +136,10 @@ export interface BriefingData {
   briefing: ExtractedBriefing | null;
   schedule: BriefingScheduleEntry[];
   todos: BriefingTodoEntry[];
+  /**
+   * Not read by this view since #2285 — it feeds <BriefingCarryoverPanel> in
+   * the detail panel, which the same host mounts from this same aggregate.
+   */
   carryover: BriefingCarryoverEntry[];
   /**
    * Timer sessions. Not read by this view since #938 — they feed
@@ -190,6 +198,11 @@ export interface BriefingLabels {
   moreCount: (count: number) => string;
   /** Folds the opened all-day band back to two chips. */
   close: string;
+  /**
+   * The carryover block's copy. The block is drawn by <BriefingCarryoverPanel>
+   * since #2285; the words stay here so the host resolves the paper's copy as
+   * one object and hands the panel the same one.
+   */
   carryoverTitle: string;
   /**
    * Copy for the carryover rows' checkbox (#1368) — `todoStatus` names what
@@ -254,11 +267,6 @@ export interface BriefingViewProps {
    * column on THIS paper's day. The view holds no creation UI of its own.
    */
   onAddItem: (column: BriefingColumn) => void;
-  /**
-   * A carryover row's「編集」— opens that todo where it lives (#1824). The
-   * carryover block is unchanged by #2223.
-   */
-  onJumpToTodos: (id: string) => void;
   /**
    * Minutes since 00:00 of the paper's day (#2223) — past 1440 after midnight
    * on a day that starts late. Drives the current-time line and the events'
@@ -370,7 +378,8 @@ function BlockHeadAddButton({
  *
  * Only the carryover rows draw it since #2223: the schedule table's rows
  * carry no actions (the title opens the editor, deleting is the editor's), so
- * the「編集 / 削除」pair this history below talks about is gone.
+ * the「編集 / 削除」pair this history below talks about is gone. Exported for
+ * those rows, which moved to the detail panel in #2285 (BriefingSidePanels).
  *
  * `ml-auto` pins the cluster to the row's right edge, so the buttons line up
  * in one straight column whatever the titles measure; the old icon-only jump
@@ -402,7 +411,11 @@ function BlockHeadAddButton({
  * item IS the line: the cluster still lands on the right edge, under the
  * actions of the row above, so the straight column survives the wrap.
  */
-function RowActions({ children }: { children: ReactNode }) {
+export function RowActions({
+  children,
+}: {
+  children: ReactNode;
+}): React.JSX.Element {
   return (
     <div className="-my-1 ml-auto flex flex-shrink-0 items-center gap-0.5 self-center max-md:w-full max-md:justify-end">
       {children}
@@ -490,7 +503,7 @@ const ROW_ACTION_ICON = "size-4 shrink-0 md:size-[13px]";
  * Name) — voice control users say what they see. `title` keeps the pointer
  * tooltip; it is not a substitute, since touch never shows it.
  */
-function EditJumpButton({
+export function EditJumpButton({
   onClick,
   label,
   hint,
@@ -498,7 +511,7 @@ function EditJumpButton({
   onClick: () => void;
   label: string;
   hint: string;
-}) {
+}): React.JSX.Element {
   return (
     <button
       type="button"
@@ -1193,7 +1206,6 @@ export function BriefingView({
   onToggleTodo,
   onOpenItem,
   onAddItem,
-  onJumpToTodos,
   nowMinutes,
   narrow = false,
 }: BriefingViewProps): React.JSX.Element {
@@ -1318,75 +1330,6 @@ export function BriefingView({
         onOpenItem={onOpenItem}
         onAddItem={onAddItem}
       />
-
-      {/* ── Carryover ─────────────────────────────────────────────
-          The paper's last section now that「きのうまでの自分」has moved to the
-          detail panel (#938). No border of its own, as before: the rule above
-          it is the previous section's `border-b`, so the ruled rhythm is
-          unchanged by the removal. */}
-      {data.carryover.length > 0 && (
-        <section className="py-5">
-          <BlockHead title={labels.carryoverTitle} />
-          <ul className="space-y-1">
-            {data.carryover.map((item) => (
-              /* `flex-wrap` below `md` for the same reason as the rows above
-                 (#2182): `RowActions` asks for the full width there, and in a
-                 row that cannot wrap the only thing left to give it room was
-                 the title — squeezed to 0px, one character per line, with
-                 編集 pushed past the right edge. `md:flex-nowrap` and the
-                 unchanged `gap-x-3` leave the Desktop row as it was. */
-              <li
-                key={item.id}
-                className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-lumen-text-secondary md:flex-nowrap"
-              >
-                {/* The paper's left rail, held at the width the schedule rows
-                    hold it (#1368). The label is「3日目」on one row and
-                    「12日目」on the next, so a column that sizes itself to its
-                    own text hands each row a different left edge — and the
-                    checkbox after it visibly steps sideways down the list.
-                    tabular-nums keeps the digits themselves from stepping. */}
-                <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-briefing-shu">
-                  {item.daysLabel}
-                </span>
-                {/* The one todo checkbox (#1368). 朱 rather than the app
-                    accent, as on 夕刊: a mark the user made is the paper's own
-                    voice, not the app's. */}
-                <TodoStatusCheckbox
-                  status={item.completed ? "DONE" : "NOT_STARTED"}
-                  onChange={() => onToggleTodo(item.id)}
-                  labels={labels}
-                  label={labels.todoStatus}
-                  accentClassName="text-lumen-briefing-shu"
-                />
-                {/* `max-md:flex-1` (a 0 basis) keeps the title on the first
-                    line beside its checkbox: a title whose natural width is
-                    longer than what the rail and checkbox leave would
-                    otherwise wrap down under「3日目」as an item of its own. */}
-                <button
-                  type="button"
-                  onClick={() => onToggleTodo(item.id)}
-                  className="min-w-0 text-left max-md:flex-1"
-                >
-                  <span className={item.completed ? "line-through" : undefined}>
-                    {item.title}
-                  </span>
-                </button>
-                {/* Carryover keeps the jump alone: #585 scopes the delete to
-                    今日のスケジュール and 今日の Todo, and a carryover row is
-                    a past day's todo showing through — deleting it here would
-                    act on a day the paper is not editing. */}
-                <RowActions>
-                  <EditJumpButton
-                    onClick={() => onJumpToTodos(item.id)}
-                    label={labels.edit}
-                    hint={labels.jumpToTodos}
-                  />
-                </RowActions>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
     </div>
   );
 }

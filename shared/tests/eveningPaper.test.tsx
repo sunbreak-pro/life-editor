@@ -20,9 +20,6 @@ function renderPaper(props: Partial<EveningViewProps> = {}) {
       focusText=""
       onFocusChange={vi.fn()}
       onFocusBlur={vi.fn()}
-      todos={[]}
-      onSetTodoStatus={vi.fn()}
-      schedule={[]}
       labels={EVENING_LABELS}
       {...emptyEveningBlocks()}
       {...props}
@@ -54,11 +51,12 @@ describe("the evening paper with nothing in it (#2107)", () => {
       EVENING_LABELS.noGoals,
       EVENING_LABELS.noEvents,
       EVENING_LABELS.noTomorrow,
-      EVENING_LABELS.noTodos,
-      EVENING_LABELS.noUpcoming,
     ]) {
       expect(screen.getByText(empty)).toBeTruthy();
     }
+    // Remaining todos and upcoming live in the detail panel (#2285).
+    expect(screen.queryByText(EVENING_LABELS.todosTitle)).toBeNull();
+    expect(screen.queryByText(EVENING_LABELS.upcomingTitle)).toBeNull();
   });
 
   it("orders the blocks as the plan does, with 明日の自分へ last", () => {
@@ -75,8 +73,6 @@ describe("the evening paper with nothing in it (#2107)", () => {
       EVENING_LABELS.eventsTitle,
       EVENING_LABELS.reflectionTitle,
       EVENING_LABELS.tomorrowTitle,
-      EVENING_LABELS.todosTitle,
-      EVENING_LABELS.upcomingTitle,
       EVENING_LABELS.focusTitle,
     ]);
   });
