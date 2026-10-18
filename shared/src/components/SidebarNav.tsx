@@ -1,13 +1,17 @@
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import type { ReactNode } from "react";
 import {
   PanelLeftClose,
   PanelLeftOpen,
   LogOut,
+  Settings as SettingsIcon,
   Terminal as TerminalIcon,
 } from "lucide-react";
 import { cn } from "./cn";
 import { NavItem } from "./NavItem";
 import { IconButton } from "./IconButton";
+import { Button } from "./Button";
+import { isImeComposing } from "../utils/imeGuard";
 
 export interface SidebarNavSection {
   id: string;
@@ -45,6 +49,14 @@ export interface SidebarNavLabels {
    * a button only with this AND `onOpenProfile`.
    */
   profile?: string;
+  /**
+   * Sign-out confirmation (#2278): the question ("Sign out?") and the button
+   * that backs out of it. With both, the sign-out control opens a small
+   * confirm panel whose other button reuses `signOut`; without them it signs
+   * out on the first press, as before.
+   */
+  signOutPrompt?: string;
+  cancel?: string;
 }
 
 export interface SidebarNavProps {
@@ -78,8 +90,17 @@ export interface SidebarNavProps {
   /**
    * Opens the profile editor (#1624). With `labels.profile` it turns the
    * account row into a button; the address moves to its tooltip.
+   *
+   * Since #2278 that button is also the way into Settings: it carries the
+   * gear at its right end (the collapsed rail shows the gear alone, above
+   * sign-out), and the host no longer passes a Settings utility row.
    */
   onOpenProfile?: () => void;
+  /**
+   * Highlights the account button (#2278) — the host passes true while the
+   * screen it opens (Settings) is showing, the way the active nav row lights.
+   */
+  accountActive?: boolean;
   onSignOut: () => void;
   labels: SidebarNavLabels;
 }
@@ -104,6 +125,7 @@ export function SidebarNav({
   userEmail,
   userName,
   onOpenProfile,
+  accountActive = false,
   onSignOut,
   labels,
 }: SidebarNavProps) {
@@ -246,12 +268,35 @@ export function SidebarNav({
           </button>
         )}
         {collapsed ? (
-          <IconButton
-            icon={<LogOut size={18} />}
-            label={labels.signOut}
-            onClick={onSignOut}
-            className="mx-auto"
-          />
+          <>
+            {profileLabel && (
+              // The rail has no room for the name, so the gear stands in for
+              // the whole account button, directly above sign-out (#2278).
+              <button
+                type="button"
+                onClick={onOpenProfile}
+                aria-label={profileLabel}
+                aria-current={accountActive ? "page" : undefined}
+                title={profileLabel}
+                className={cn(
+                  "mx-auto flex h-8 w-8 items-center justify-center rounded-md",
+                  "transition-colors focus-visible:outline-none focus-visible:ring-2",
+                  "focus-visible:ring-lumen-accent",
+                  accountActive
+                    ? "bg-lumen-accent-subtle text-lumen-accent"
+                    : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
+                )}
+              >
+                <SettingsIcon size={18} aria-hidden="true" />
+              </button>
+            )}
+            <SignOutControl
+              labels={labels}
+              onSignOut={onSignOut}
+              size="md"
+              className="mx-auto w-fit"
+            />
+          </>
         ) : (
           <div className="flex items-center gap-1.5 px-1">
             {profileLabel ? (
@@ -261,20 +306,34 @@ export function SidebarNav({
                * the "Edit profile" copy rides along for assistive tech so the
                * button says what pressing it does, and the address stays one
                * hover away since the name has taken its place.
+               *
+               * #2278 — the gear at the right end is part of the same button,
+               * which replaced the Settings row: one press target, lit while
+               * Settings is open.
                */
               <button
                 type="button"
                 onClick={onOpenProfile}
                 title={userEmail}
+                aria-current={accountActive ? "page" : undefined}
                 className={cn(
-                  "-mx-1 min-w-0 flex-1 truncate rounded-md px-1 py-0.5 text-left text-xs",
-                  "text-lumen-text-secondary transition-colors hover:bg-lumen-hover",
-                  "hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2",
+                  "-mx-1 flex min-w-0 flex-1 items-center gap-1.5 rounded-md px-1 py-0.5 text-left text-xs",
+                  "transition-colors focus-visible:outline-none focus-visible:ring-2",
                   "focus-visible:ring-lumen-accent",
+                  accountActive
+                    ? "bg-lumen-accent-subtle font-medium text-lumen-accent"
+                    : "text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
                 )}
               >
-                {accountText}
-                <span className="sr-only"> {profileLabel}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {accountText}
+                  <span className="sr-only"> {profileLabel}</span>
+                </span>
+                <SettingsIcon
+                  size={14}
+                  aria-hidden="true"
+                  className="shrink-0"
+                />
               </button>
             ) : (
               <span
@@ -284,15 +343,117 @@ export function SidebarNav({
                 {accountText}
               </span>
             )}
-            <IconButton
-              icon={<LogOut size={16} />}
-              label={labels.signOut}
-              size="sm"
-              onClick={onSignOut}
-            />
+            <SignOutControl labels={labels} onSignOut={onSignOut} size="sm" />
           </div>
         )}
       </div>
     </aside>
+  );
+}
+
+interface SignOutControlProps {
+  labels: SidebarNavLabels;
+  onSignOut: () => void;
+  size: "sm" | "md";
+  className?: string;
+}
+
+/*
+ * The sign-out button and its confirm panel (#2278). Signing out sat one
+ * misclick away from the account row, so the press now opens a small panel
+ * just to the RIGHT of the button ("Sign out?" + Cancel / Sign out), and only
+ * the panel's own Sign out calls `onSignOut`. Cancel, Esc (IME-guarded) and a
+ * pointerdown outside all close it. Not portalled: the wrapper is `relative`
+ * and the panel hangs off its right edge over the content column, opaque
+ * (bg-lumen-bg) like every other popover. The trigger counts as inside, so
+ * pressing it again closes the panel instead of closing-then-reopening it
+ * (the same wiring note as <Menu>).
+ *
+ * Focus goes to Cancel on open — the safe answer is the one Enter picks — and
+ * back to the trigger when the panel closes from the keyboard or a button.
+ * Without the two labels the button signs out at once, as it did before.
+ */
+function SignOutControl({
+  labels,
+  onSignOut,
+  size,
+  className,
+}: SignOutControlProps) {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef<HTMLDivElement | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  const promptId = useId();
+  const prompt = labels.signOutPrompt;
+  const cancel = labels.cancel;
+  const asks = prompt != null && cancel != null;
+
+  const dismiss = useCallback(() => {
+    setOpen(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    cancelRef.current?.focus();
+    const onPointer = (e: PointerEvent) => {
+      // The panel and the trigger share the wrapper, so one check covers both.
+      if (wrapperRef.current?.contains(e.target as Node)) return;
+      // A click elsewhere is going somewhere — leave the focus to it.
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (isImeComposing(e)) return;
+      if (e.key === "Escape") dismiss();
+    };
+    document.addEventListener("pointerdown", onPointer, true);
+    document.addEventListener("keydown", onKey, true);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer, true);
+      document.removeEventListener("keydown", onKey, true);
+    };
+  }, [open, dismiss]);
+
+  return (
+    <div ref={wrapperRef} className={cn("relative", className)}>
+      <IconButton
+        ref={triggerRef}
+        icon={<LogOut size={size === "sm" ? 16 : 18} />}
+        label={labels.signOut}
+        size={size}
+        aria-haspopup={asks ? "dialog" : undefined}
+        aria-expanded={asks ? open : undefined}
+        onClick={() => (asks ? setOpen((v) => !v) : onSignOut())}
+      />
+      {asks && open && (
+        <div
+          role="dialog"
+          aria-labelledby={promptId}
+          className={cn(
+            "absolute bottom-0 left-full z-50 ml-2 w-max",
+            "rounded-lumen-md border border-lumen-border bg-lumen-bg p-3 shadow-lumen-lg",
+          )}
+        >
+          <p id={promptId} className="text-sm font-medium text-lumen-text">
+            {prompt}
+          </p>
+          <div className="mt-3 flex justify-end gap-1.5">
+            <Button ref={cancelRef} variant="ghost" size="sm" onClick={dismiss}>
+              {cancel}
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={() => {
+                setOpen(false);
+                onSignOut();
+              }}
+            >
+              {labels.signOut}
+            </Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }

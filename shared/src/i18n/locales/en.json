@@ -1303,7 +1303,8 @@
     "moreTitle": "More",
     "quickActions": "Quick actions",
     "launchClaude": "Start Claude Code",
-    "profile": "Edit profile"
+    "profile": "Edit profile",
+    "signOutPrompt": "Sign out?"
   },
   "itemRole": {
     "task": "Todo",

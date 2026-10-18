@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { SidebarNav, type SidebarNavSection } from "../src/components";
 
 /*
@@ -149,7 +149,6 @@ describe("SidebarNav utility group", () => {
       screen.getByRole("button", { name: "Schedule" }),
     ).toBeInTheDocument();
   });
-
 });
 
 /*
@@ -197,5 +196,150 @@ describe("SidebarNav section sublabel (#550)", () => {
   it("hides the sublabel in the collapsed icon-only rail", () => {
     renderSidebar({ sections: WITH_SUBLABEL, collapsed: true });
     expect(screen.queryByText("24:31 · My todo")).not.toBeInTheDocument();
+  });
+});
+
+/*
+ * #2278 — the Settings row left the sidebar: the host stops passing the
+ * utility group, and the account button (name + gear) is the way in. The
+ * collapsed rail keeps the gear alone, above sign-out. Sign-out asks first in
+ * a small panel beside the button; only its own Sign out signs out.
+ */
+describe("SidebarNav account button as the Settings entry (#2278)", () => {
+  const WITH_PROFILE = { ...LABELS, profile: "Edit profile" };
+
+  it("carries the gear inside the account button and opens Settings from it", () => {
+    const onOpenProfile = vi.fn();
+    renderSidebar({
+      utilitySections: undefined,
+      userName: "Kodai",
+      onOpenProfile,
+      labels: WITH_PROFILE,
+    });
+    expect(
+      screen.queryByRole("button", { name: "Settings" }),
+    ).not.toBeInTheDocument();
+    const account = screen.getByRole("button", { name: /Kodai.*Edit profile/ });
+    // One press target: the gear is inside the button, not a sibling of it.
+    expect(account.querySelector("svg")).not.toBeNull();
+    fireEvent.click(account);
+    expect(onOpenProfile).toHaveBeenCalledTimes(1);
+  });
+
+  it("lights the account button only while Settings is open", () => {
+    renderSidebar({
+      userName: "Kodai",
+      onOpenProfile: vi.fn(),
+      labels: WITH_PROFILE,
+      accountActive: true,
+    });
+    const account = screen.getByRole("button", { name: /Kodai.*Edit profile/ });
+    expect(account).toHaveAttribute("aria-current", "page");
+    expect(account.className).toContain("bg-lumen-accent-subtle");
+  });
+
+  it("stays unlit by default", () => {
+    renderSidebar({
+      userName: "Kodai",
+      onOpenProfile: vi.fn(),
+      labels: WITH_PROFILE,
+    });
+    const account = screen.getByRole("button", { name: /Kodai.*Edit profile/ });
+    expect(account).not.toHaveAttribute("aria-current");
+    expect(account.className).not.toContain("bg-lumen-accent-subtle");
+  });
+
+  it("puts the gear above sign-out on the collapsed rail", () => {
+    const onOpenProfile = vi.fn();
+    renderSidebar({
+      collapsed: true,
+      onOpenProfile,
+      labels: WITH_PROFILE,
+    });
+    const gear = screen.getByRole("button", { name: "Edit profile" });
+    const signOut = screen.getByRole("button", { name: "Sign out" });
+    expect(
+      gear.compareDocumentPosition(signOut) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.click(gear);
+    expect(onOpenProfile).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("SidebarNav sign-out confirm (#2278)", () => {
+  const WITH_CONFIRM = {
+    ...LABELS,
+    signOutPrompt: "Sign out?",
+    cancel: "Cancel",
+  };
+
+  function openConfirm(collapsed = false) {
+    const onSignOut = vi.fn();
+    renderSidebar({ collapsed, onSignOut, labels: WITH_CONFIRM });
+    const trigger = screen.getByRole("button", { name: "Sign out" });
+    fireEvent.click(trigger);
+    const dialog = screen.getByRole("dialog", { name: "Sign out?" });
+    return { onSignOut, trigger, dialog };
+  }
+
+  it("opens the panel on the first press instead of signing out", () => {
+    const { onSignOut, trigger, dialog } = openConfirm();
+    expect(onSignOut).not.toHaveBeenCalled();
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    // Cancel takes the focus, so a stray Enter backs out.
+    expect(
+      within(dialog).getByRole("button", { name: "Cancel" }),
+    ).toHaveFocus();
+  });
+
+  it("signs out only from the panel's own Sign out", () => {
+    const { onSignOut, dialog } = openConfirm();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Sign out" }));
+    expect(onSignOut).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("asks on the collapsed rail too", () => {
+    const { onSignOut, dialog } = openConfirm(true);
+    expect(onSignOut).not.toHaveBeenCalled();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Sign out" }));
+    expect(onSignOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("closes on Cancel without signing out and hands the focus back", () => {
+    const { onSignOut, trigger, dialog } = openConfirm();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(onSignOut).not.toHaveBeenCalled();
+    expect(trigger).toHaveFocus();
+  });
+
+  it("closes on Esc without signing out", () => {
+    const { onSignOut } = openConfirm();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(onSignOut).not.toHaveBeenCalled();
+  });
+
+  it("closes on a pointerdown outside without signing out", () => {
+    const { onSignOut } = openConfirm();
+    fireEvent.pointerDown(screen.getByRole("button", { name: "Schedule" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(onSignOut).not.toHaveBeenCalled();
+  });
+
+  it("closes again from the trigger instead of reopening", () => {
+    const { trigger } = openConfirm();
+    fireEvent.pointerDown(trigger);
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("signs out at once when the host passes no confirm copy", () => {
+    const onSignOut = vi.fn();
+    renderSidebar({ onSignOut });
+    fireEvent.click(screen.getByRole("button", { name: "Sign out" }));
+    expect(onSignOut).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 });
