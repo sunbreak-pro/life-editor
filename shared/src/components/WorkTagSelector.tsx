@@ -47,6 +47,10 @@ export interface WorkTagOption {
 }
 
 export interface WorkTagSelectorLabels {
+  /**
+   * The field's accessible name (#2284). Not drawn: the add button already
+   * carries the tag glyph and the word, so a visible heading said it twice.
+   */
   heading: string;
   add: string;
   addShort: string;
@@ -246,11 +250,15 @@ export function WorkTagSelector({
    * anywhere on it opens the sheet. Disabled, the strip turns into a dashed
    * outline and the button says WHY in words — the old dimmed field left the
    * reason in a `title` tooltip, which a phone never shows.
+   * The tag glyph sits inside the button, ahead of its text (#2284), the same
+   * shape as the desktop field's button.
    */
   if (sheet) {
     return (
       <div
         ref={containerRef}
+        role="group"
+        aria-label={labels.heading}
         data-testid="work-tag-selector"
         aria-disabled={disabled || undefined}
         className={cn(
@@ -261,7 +269,6 @@ export function WorkTagSelector({
           className,
         )}
       >
-        <TagIcon aria-hidden="true" className="size-lumen-icon-sm shrink-0" />
         {!disabled &&
           selected.map((tag) => (
             <TagPill
@@ -291,10 +298,11 @@ export function WorkTagSelector({
             // min-w-24, not min-w-0: with a zero floor the button never wraps
             // and is squeezed to nothing once three or four pills fill the
             // line. With a floor it drops to the next line instead.
-            "flex min-h-11 min-w-24 flex-1 items-center text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
+            "flex min-h-11 min-w-24 flex-1 items-center gap-2 text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
             disabled ? "cursor-not-allowed text-xs" : "text-sm",
           )}
         >
+          <TagIcon aria-hidden="true" className="size-lumen-icon-sm shrink-0" />
           <span id={rowTextId}>
             {disabled
               ? (labels.disabledRow ?? labels.disabledHint)
@@ -309,6 +317,8 @@ export function WorkTagSelector({
   return (
     <div
       ref={containerRef}
+      role="group"
+      aria-label={labels.heading}
       data-testid="work-tag-selector"
       aria-disabled={disabled || undefined}
       title={disabled ? labels.disabledHint : undefined}
@@ -318,10 +328,6 @@ export function WorkTagSelector({
         className,
       )}
     >
-      <span className="inline-flex items-center gap-1 text-xs text-lumen-text-secondary">
-        <TagIcon size={14} aria-hidden="true" />
-        {labels.heading}
-      </span>
       {selected.map((tag) => (
         <TagPill
           key={tag.id}
@@ -348,7 +354,7 @@ export function WorkTagSelector({
           disabled && "cursor-not-allowed hover:bg-transparent",
         )}
       >
-        <Plus size={14} aria-hidden="true" />
+        <TagIcon size={14} aria-hidden="true" />
         {selected.length === 0 && <span>{labels.addShort}</span>}
       </button>
       {disabled && <span className="sr-only">{labels.disabledHint}</span>}

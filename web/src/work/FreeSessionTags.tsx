@@ -104,7 +104,7 @@ export function FreeSessionTags({
         dialog: t("work.freeSession.tagDialog"),
         disabledHint: t("work.freeSession.tagDisabled"),
         // The narrow row says these in words (#2054); the desktop field keeps
-        // its pill-sized "+ タグ" and the hint as a tooltip.
+        // its pill-sized tag-glyph "タグ" and the hint as a tooltip.
         addRow: t("work.freeSession.tagAddRow"),
         disabledRow: t("work.freeSession.tagDisabledRow"),
       }}
