@@ -7,6 +7,7 @@ import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import type { AppRecord } from "../../types/appRecord";
+import type { RecordView, RecordViewMetric } from "../../types/recordView";
 import type { ExtensionApp } from "../../types/extensionApp";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { HeaderTabs, type HeaderTab } from "../HeaderTabs";
@@ -143,12 +144,27 @@ export interface AnalyticsViewProps {
    */
   pendingRecordsSource?: string | null;
   onRecordsSourceConsumed?: () => void;
+  /**
+   * Which number leads each kind of record (#2263, host: `listRecordViews`),
+   * shared by the Records tab and the narrow block, and the call that saves a
+   * pick (`saveRecordView`). Omit both and every kind leads with the sum and
+   * the tab's selects do nothing.
+   */
+  recordViews?: RecordView[];
+  onChooseRecordMetric?: (
+    kind: string,
+    unit: string | null,
+    metric: RecordViewMetric,
+  ) => void;
+  /** True after a pick could not be saved. */
+  recordViewSaveFailed?: boolean;
   labels: AnalyticsLabels;
 }
 
 // Stable identities for the optional record props: the tab keys memos on them.
 const NO_RECORDS: AppRecord[] = [];
 const NO_APPS: ExtensionApp[] = [];
+const NO_VIEWS: RecordView[] = [];
 const IGNORE: () => void = () => {};
 
 export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
@@ -175,6 +191,7 @@ export function AnalyticsView(props: AnalyticsViewProps): React.JSX.Element {
           records={props.records ?? NO_RECORDS}
           recordsLoading={props.recordsLoading ?? false}
           recordsError={props.recordsError ?? null}
+          recordViews={props.recordViews ?? NO_VIEWS}
           labels={props.labels}
         />
       )}
@@ -205,6 +222,9 @@ function DesktopAnalytics({
   recordsError,
   pendingRecordsSource,
   onRecordsSourceConsumed,
+  recordViews,
+  onChooseRecordMetric,
+  recordViewSaveFailed,
   labels,
 }: AnalyticsViewProps): React.JSX.Element {
   const { dateRange, preset, applyPreset } = useAnalyticsFilter();
@@ -424,6 +444,9 @@ function DesktopAnalytics({
                   error={recordsError ?? null}
                   pendingSource={pendingRecordsSource ?? null}
                   onPendingSourceConsumed={onRecordsSourceConsumed ?? IGNORE}
+                  views={recordViews ?? NO_VIEWS}
+                  onChooseMetric={onChooseRecordMetric ?? IGNORE}
+                  viewSaveFailed={recordViewSaveFailed ?? false}
                   labels={labels.records}
                   axis={labels.axis}
                 />

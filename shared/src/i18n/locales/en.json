@@ -1011,13 +1011,30 @@
         "sum": "Total",
         "avg": "Average",
         "latest": "Latest",
-        "needOneKind": "Pick one kind to see the total, average and latest."
+        "needOneKind": "Pick one kind to see the total, average and latest.",
+        "headline": "Shown first for this kind"
       },
       "chart": {
         "sumTitle": "Total over time",
         "countTitle": "Records over time",
         "sumSeries": "Total",
-        "countSeries": "Records"
+        "countSeries": "Records",
+        "avgTitle": "Average over time",
+        "latestTitle": "Latest in each period",
+        "avgSeries": "Average",
+        "latestSeries": "Latest"
+      },
+      "views": {
+        "title": "How each kind is shown",
+        "description": "Pick the number each kind leads with. The Records block on your phone shows the same one.",
+        "selectLabel": "How to show {{kind}}",
+        "metrics": {
+          "sum": "Total",
+          "avg": "Average",
+          "latest": "Latest",
+          "count": "Count"
+        },
+        "saveFailed": "That choice could not be saved. Try again in a moment."
       },
       "list": {
         "title": "Records",

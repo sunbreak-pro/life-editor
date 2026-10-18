@@ -16,6 +16,10 @@ import {
   type WikiTagAssignmentUnified,
   type AppRecord,
   type ExtensionApp,
+  type RecordView,
+  type RecordViewMetric,
+  RECORD_VIEW_DEFAULT,
+  replaceRecordView,
   formatDateKey,
   todayCalendarKey,
   useDomainLoad,
@@ -371,6 +375,63 @@ export function AnalyticsScreen({
     });
   const recordsLoading = recordsRangeLoading || scheduleRange === null;
 
+  /*
+   * Which number leads each kind of record (#2263, `record_views`). Its own
+   * counter: a pick echoes back through Realtime and must not re-read the
+   * records. A failed read is logged by the hook and every kind falls back to
+   * the sum — the records themselves are still right, only their headline is
+   * the default one.
+   *
+   * A pick is drawn at once and saved behind it. If the save fails, the row
+   * that was there before goes back and the tab says the pick was not kept.
+   */
+  const recordViewsSyncVersion = useSyncDomains("recordViews");
+  const [recordViews, setRecordViews] = useState<RecordView[]>([]);
+  const [recordViewSaveFailed, setRecordViewSaveFailed] = useState(false);
+  useDomainLoad<RecordView[]>({
+    domain: "Analytics record views",
+    dataService: ds,
+    version: recordViewsSyncVersion,
+    load: (service) => service.listRecordViews(),
+    apply: setRecordViews,
+    fallbackMessage: "Failed to load the record views",
+  });
+  const handleChooseRecordMetric = useCallback(
+    (kind: string, unit: string | null, metric: RecordViewMetric) => {
+      const before =
+        recordViews.find((v) => v.kind === kind && v.unit === unit) ?? null;
+      const now = new Date().toISOString();
+      const choice = {
+        metric,
+        chart: before?.chart ?? RECORD_VIEW_DEFAULT.chart,
+      };
+      setRecordViewSaveFailed(false);
+      setRecordViews((views) =>
+        replaceRecordView(views, kind, unit, {
+          kind,
+          unit,
+          ...choice,
+          createdAt: before?.createdAt ?? now,
+          updatedAt: now,
+        }),
+      );
+      ds.saveRecordView(kind, unit, choice).then(
+        (saved) =>
+          setRecordViews((views) =>
+            replaceRecordView(views, kind, unit, saved),
+          ),
+        (e: unknown) => {
+          logServiceError("Analytics", "save record view", e);
+          setRecordViews((views) =>
+            replaceRecordView(views, kind, unit, before),
+          );
+          setRecordViewSaveFailed(true);
+        },
+      );
+    },
+    [ds, recordViews],
+  );
+
   // The range anchor drives `rangeLoading` on its own now, so this only has to
   // record what the user picked.
   const handleScheduleRangeChange = useCallback((range: DateRange) => {
@@ -479,12 +540,17 @@ export function AnalyticsScreen({
           avg: t("analytics.records.stats.avg"),
           latest: t("analytics.records.stats.latest"),
           needOneKind: t("analytics.records.stats.needOneKind"),
+          headline: t("analytics.records.stats.headline"),
         },
         chart: {
           sumTitle: t("analytics.records.chart.sumTitle"),
           countTitle: t("analytics.records.chart.countTitle"),
+          avgTitle: t("analytics.records.chart.avgTitle"),
+          latestTitle: t("analytics.records.chart.latestTitle"),
           sumSeries: t("analytics.records.chart.sumSeries"),
           countSeries: t("analytics.records.chart.countSeries"),
+          avgSeries: t("analytics.records.chart.avgSeries"),
+          latestSeries: t("analytics.records.chart.latestSeries"),
         },
         list: {
           title: t("analytics.records.list.title"),
@@ -499,6 +565,19 @@ export function AnalyticsScreen({
         emptyFiltered: {
           title: t("analytics.records.emptyFiltered.title"),
           description: t("analytics.records.emptyFiltered.description"),
+        },
+        views: {
+          title: t("analytics.records.views.title"),
+          description: t("analytics.records.views.description"),
+          selectLabel: (kind: string) =>
+            t("analytics.records.views.selectLabel", { kind }),
+          metrics: {
+            sum: t("analytics.records.views.metrics.sum"),
+            avg: t("analytics.records.views.metrics.avg"),
+            latest: t("analytics.records.views.metrics.latest"),
+            count: t("analytics.records.views.metrics.count"),
+          },
+          saveFailed: t("analytics.records.views.saveFailed"),
         },
         loadFailed: t("analytics.records.loadFailed"),
         formatValue: (value: number, unit: string | null) => {
@@ -690,6 +769,9 @@ export function AnalyticsScreen({
       recordsError={recordsError}
       pendingRecordsSource={pendingRecordsSource}
       onRecordsSourceConsumed={onRecordsSourceConsumed}
+      recordViews={recordViews}
+      onChooseRecordMetric={handleChooseRecordMetric}
+      recordViewSaveFailed={recordViewSaveFailed}
       labels={labels}
     />
   );

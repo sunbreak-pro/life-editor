@@ -1,3 +1,4 @@
+import type { RecordViewMetric } from "../../types/recordView";
 import type { StagnationBucketId } from "../../utils/analyticsAggregation";
 import type { DatePreset } from "./AnalyticsFilterContext";
 import type { ChartAxisFormat } from "./chartTheme";
@@ -32,14 +33,33 @@ export interface RecordsLabels {
     latest: string;
     /** Why the total, average and latest read "-" while kinds are mixed. */
     needOneKind: string;
+    /** Under the card of the number chosen to lead the kind (#2263). */
+    headline: string;
   };
   chart: {
     sumTitle: string;
     countTitle: string;
+    /** Bars of each period's average / newest value (#2263). */
+    avgTitle: string;
+    latestTitle: string;
     /** Tooltip series name for a bar that adds the values up. */
     sumSeries: string;
     /** Tooltip series name for a bar that counts rows. */
     countSeries: string;
+    avgSeries: string;
+    latestSeries: string;
+  };
+  /** The per-kind "which number leads" card (#2263). */
+  views: {
+    title: string;
+    /** Says the phone's block shows the same choice. */
+    description: string;
+    /** Accessible name of one kind's select: "How to show weight". */
+    selectLabel: (kind: string) => string;
+    /** Option text for each metric, in RECORD_VIEW_METRICS order. */
+    metrics: Record<RecordViewMetric, string>;
+    /** A choice that could not be saved (it is put back on screen). */
+    saveFailed: string;
   };
   list: {
     title: string;

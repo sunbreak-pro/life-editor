@@ -11,6 +11,8 @@ export { AnalyticsView, type AnalyticsViewProps } from "./AnalyticsView";
 // reads it eagerly, the charts stay behind the lazy Analytics chunk (#676).
 export { ANALYTICS_TAB_ORDER, type AnalyticsTab } from "./tabs";
 export type { AnalyticsLabels, RecordsLabels } from "./labels";
+// The host keeps the saved record views and updates them in place on a pick.
+export { replaceRecordView } from "./recordsModel";
 // The date-range shape the host receives via onScheduleRangeChange (per-range
 // fetch). The AnalyticsFilterContext itself stays internal; only this type
 // crosses the host boundary.

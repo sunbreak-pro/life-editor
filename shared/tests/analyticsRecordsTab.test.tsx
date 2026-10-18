@@ -118,9 +118,15 @@ afterEach(() => {
   delete window.matchMedia;
 });
 
-/** A stat card's number: the node right before its label. */
+/**
+ * A stat card's number: the node right before its label. The label is a <p>;
+ * the same word is also an <option> of the per-kind select (#2263).
+ */
 function statValue(label: string): string {
-  return screen.getByText(label).previousElementSibling?.textContent ?? "";
+  return (
+    screen.getByText(label, { selector: "p" }).previousElementSibling
+      ?.textContent ?? ""
+  );
 }
 
 function listRows(): HTMLElement[] {
@@ -418,28 +424,40 @@ describe("narrow Records block", () => {
     const lines = within(block)
       .getAllByRole("listitem")
       .map((li) => li.textContent);
+    // Nothing saved in record_views: every kind leads with its total (#2263).
     expect(lines).toEqual([
-      "expense · 2 recordsAverage500 JPYLatest450 JPY",
-      "weight · 1 recordsAverage62.4 kgLatest62.4 kg",
+      "expense · 2 recordsTotal1000 JPY",
+      "weight · 1 recordsTotal62.4 kg",
     ]);
   });
 
-  it("shows average and latest, not the sum, for two weighings in kg (#2262)", () => {
+  it("leads each kind with the number saved for it (#2263)", () => {
     mockMatchMedia(false);
     const records = [
       rec({ occurredAt: noon(1), kind: "weight", unit: "kg", value: 62 }),
       rec({ occurredAt: noon(3), kind: "weight", unit: "kg", value: 62.5 }),
     ];
-    render(<AnalyticsView {...props({ records, activeTab: undefined })} />);
+    const recordViews = [
+      {
+        kind: "weight",
+        unit: "kg",
+        metric: "latest" as const,
+        chart: "bar" as const,
+        createdAt: noon(1),
+        updatedAt: noon(1),
+      },
+    ];
+    render(
+      <AnalyticsView
+        {...props({ records, recordViews, activeTab: undefined })}
+      />,
+    );
 
     const block = screen.getByText("Last 7 days").closest("div")
       ?.parentElement as HTMLElement;
     const [line] = within(block).getAllByRole("listitem");
     // The #2212 browser check read "weight · 2 records 124.5 kg".
     expect(line.textContent).not.toContain("124.5");
-    expect(
-      within(line).getByText("Average").nextElementSibling?.textContent,
-    ).toBe("62.25 kg");
     expect(
       within(line).getByText("Latest").nextElementSibling?.textContent,
     ).toBe("62 kg");

@@ -6,6 +6,7 @@ import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
 import type { AppRecord } from "../../types/appRecord";
+import type { RecordView } from "../../types/recordView";
 import {
   dateKeyOfInstant,
   formatDateKey,
@@ -23,7 +24,14 @@ import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { NoticePanel } from "../NoticePanel";
 import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
 import type { AnalyticsLabels } from "./labels";
-import { recentKindTotals, withDateKeys } from "./recordsModel";
+import {
+  formatRecordMetric,
+  indexRecordViews,
+  recentKindTotals,
+  recordMetricFor,
+  recordViewKey,
+  withDateKeys,
+} from "./recordsModel";
 
 /*
  * Mobile (<768px) Analytics — a single Consumption scroll (design 1l–1o). No
@@ -60,6 +68,11 @@ interface MobileAnalyticsViewProps {
   recordsLoading?: boolean;
   /** The records read failed: the block says so instead of "none". */
   recordsError?: string | null;
+  /**
+   * Which number leads each kind (#2263) — the same saved rows the wide
+   * Records tab picks. A kind with none leads with the sum.
+   */
+  recordViews?: readonly RecordView[];
   labels: AnalyticsLabels;
 }
 
@@ -96,8 +109,13 @@ export function MobileAnalyticsView(
     records,
     recordsLoading,
     recordsError,
+    recordViews,
     labels,
   } = props;
+  const viewIndex = useMemo(
+    () => indexRecordViews(recordViews ?? []),
+    [recordViews],
+  );
 
   const model = useMemo(() => {
     // Calendar day (#356) — the desktop TodayDashboard's twin. Analytics buckets
@@ -209,15 +227,7 @@ export function MobileAnalyticsView(
       routineRate,
       topRoutines,
     };
-  }, [
-    sessions,
-    nodes,
-    todayItems,
-    scheduleItems,
-    notes,
-    routines,
-    records,
-  ]);
+  }, [sessions, nodes, todayItems, scheduleItems, notes, routines, records]);
 
   if (props.loading) {
     return <MobileSkeleton title={labels.title} />;
@@ -423,10 +433,10 @@ export function MobileAnalyticsView(
         )}
 
         {/*
-         * Records (#2164): the last 7 days, one entry per kind. Average and
-         * latest, not the sum (#2262): two weighings added up read as a
-         * meaningless "124.5 kg", while both of these mean something for any
-         * kind.
+         * Records (#2164): the last 7 days, one entry per kind, led by the
+         * number the owner chose for that kind on the wide Records tab (#2263)
+         * — the latest for a weight, the sum for spending. A kind with no
+         * choice saved leads with the sum (plan 案 C).
          */}
         <div className="flex flex-col gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary p-4">
           <div className="flex items-baseline justify-between gap-2">
@@ -449,33 +459,38 @@ export function MobileAnalyticsView(
             </p>
           ) : (
             <ul className="flex flex-col gap-2.5">
-              {model.recordTotals.map((total) => (
-                <li
-                  key={`${total.kind}|${total.unit ?? ""}`}
-                  className="flex flex-col gap-0.5"
-                >
-                  <span className="min-w-0 truncate text-xs text-lumen-text">
-                    {total.kind}
-                    <span className="text-lumen-text-tertiary">
-                      {" · "}
-                      {labels.records.mobile.formatCount(total.count)}
+              {model.recordTotals.map((total) => {
+                const metric = recordMetricFor(
+                  viewIndex,
+                  total.kind,
+                  total.unit,
+                );
+                return (
+                  <li
+                    key={recordViewKey(total.kind, total.unit)}
+                    className="flex flex-col gap-0.5"
+                  >
+                    <span className="min-w-0 truncate text-xs text-lumen-text">
+                      {total.kind}
+                      <span className="text-lumen-text-tertiary">
+                        {" · "}
+                        {labels.records.mobile.formatCount(total.count)}
+                      </span>
                     </span>
-                  </span>
-                  <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5">
-                    <RecordFigure
-                      label={labels.records.stats.avg}
-                      value={labels.records.formatValue(total.avg, total.unit)}
-                    />
-                    <RecordFigure
-                      label={labels.records.stats.latest}
-                      value={labels.records.formatValue(
-                        total.latest,
-                        total.unit,
-                      )}
-                    />
-                  </dl>
-                </li>
-              ))}
+                    <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5">
+                      <RecordFigure
+                        label={labels.records.views.metrics[metric]}
+                        value={formatRecordMetric(
+                          labels.records,
+                          total,
+                          total.unit,
+                          metric,
+                        )}
+                      />
+                    </dl>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>
@@ -529,7 +544,7 @@ function StatBox({
   );
 }
 
-/** One labelled number on a records line (#2262): "Average 62.25 kg". */
+/** The labelled number on a records line (#2263): "Latest 62.4 kg". */
 function RecordFigure({
   label,
   value,
