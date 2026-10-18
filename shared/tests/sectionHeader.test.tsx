@@ -112,4 +112,35 @@ describe("SectionHeader", () => {
       ?.firstElementChild as HTMLElement;
     expect(titleColumn.className).not.toContain("pt-3");
   });
+
+  /*
+   * #2280 — on Desktop a section title ("Schedule", "Work") read visibly
+   * smaller than the tab labels of the tabbed sections. Both now step up to
+   * base at md and keep sm below it; jsdom loads no stylesheet, so the class
+   * pair is what this can see.
+   */
+  it("sizes the title like the tab labels: sm, base from md (#2280)", () => {
+    const withTitle = render(<SectionHeader title="Work" />);
+    const title = withTitle.getByRole("heading", { name: "Work" });
+    expect(title.className.split(" ")).toEqual(
+      expect.arrayContaining(["text-sm", "md:text-base"]),
+    );
+    withTitle.unmount();
+
+    render(
+      <SectionHeader
+        tabs={
+          <HeaderTabs
+            divider={false}
+            tabs={[{ id: "a", label: "Tab A" }]}
+            activeTab="a"
+            onSelect={() => {}}
+          />
+        }
+      />,
+    );
+    expect(
+      screen.getByRole("tab", { name: "Tab A" }).className.split(" "),
+    ).toEqual(expect.arrayContaining(["text-sm", "md:text-base"]));
+  });
 });

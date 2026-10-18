@@ -108,7 +108,10 @@ export function HeaderTabs({
               onClick={() => onSelect(tab.id)}
               onKeyDown={(e) => handleKeyDown(e, i)}
               className={cn(
-                "-mb-px flex items-center gap-1.5 px-3 py-2 text-sm",
+                // Desktop reads the tabs at base (#2280); the narrow layout
+                // swaps this strip for SegmentedControl, so sm only matters
+                // for an in-body strip below md.
+                "-mb-px flex items-center gap-1.5 px-3 py-2 text-sm md:text-base",
                 "transition-colors focus-visible:outline-none",
                 "focus-visible:ring-2 focus-visible:ring-lumen-accent",
                 active
