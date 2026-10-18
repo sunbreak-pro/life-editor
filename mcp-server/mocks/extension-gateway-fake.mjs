@@ -2,8 +2,8 @@
  * The official fake of the life-editor extension-app gateway (#2145, plan
  * .claude/docs/vision/plans/2026-10-07-extension-app-gateway.md, R2).
  *
- *   Gateway version:    1.3.0
- *   life-editor commit: 872218eb1740579fe229d3104bf2e859ec47c9e5
+ *   Gateway version:    1.4.0
+ *   life-editor commit: 10dda19b30db5482b86741b221e7d4a3abc26f8b
  *
  * Those two lines are the spec this file was written against. They are a
  * promise, not decoration: tests/extensionGatewayFake.test.ts fails when they
@@ -935,16 +935,26 @@ function createTools(state, clock, toolSpecs, { app, extensionApps }) {
     d.setUTCDate(d.getUTCDate() - d.getUTCDay());
     return d.toISOString().slice(0, 10);
   };
-  const summarizeValues = (values) => {
-    const sorted = [...values].sort((a, b) => a - b);
+  // The later record: the later instant, or on the same instant the larger id.
+  const isLaterRecord = (a, b) => {
+    const at = Date.parse(a.occurred_at);
+    const bt = Date.parse(b.occurred_at);
+    if (at !== bt) return at > bt;
+    return a.id > b.id;
+  };
+  const summarizeRecords = (rows) => {
+    const sorted = rows.map((r) => r.value).sort((a, b) => a - b);
     let sum = 0;
     for (const value of sorted) sum += value;
+    let newest = rows[0];
+    for (const r of rows) if (isLaterRecord(r, newest)) newest = r;
     return {
       count: sorted.length,
       sum,
       avg: sum / sorted.length,
       min: sorted[0],
       max: sorted[sorted.length - 1],
+      latest: newest.value,
     };
   };
 
@@ -1644,15 +1654,15 @@ function createTools(state, clock, toolSpecs, { app, extensionApps }) {
           `group_by ${groupBy} needs a kind: the records in this range have kinds ${kinds.join(", ")}`,
         );
       }
-      const valuesByPeriod = new Map();
+      const rowsByPeriod = new Map();
       for (const r of rows) {
         const period = recordPeriodKey(groupBy, clock.dateKeyOf(r.occurred_at));
-        const values = valuesByPeriod.get(period);
-        if (values) values.push(r.value);
-        else valuesByPeriod.set(period, [r.value]);
+        const inPeriod = rowsByPeriod.get(period);
+        if (inPeriod) inPeriod.push(r);
+        else rowsByPeriod.set(period, [r]);
       }
-      const buckets = [...valuesByPeriod.entries()]
-        .map(([period, values]) => ({ period, ...summarizeValues(values) }))
+      const buckets = [...rowsByPeriod.entries()]
+        .map(([period, inPeriod]) => ({ period, ...summarizeRecords(inPeriod) }))
         .sort((a, b) => (a.period < b.period ? -1 : a.period > b.period ? 1 : 0));
       return { range, group_by: groupBy, kind: kinds[0] ?? kind, buckets };
     },

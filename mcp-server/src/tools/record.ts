@@ -67,7 +67,7 @@ export const RECORD_TOOLS: ToolDefinition[] = [
     description:
       "Read recorded numbers, newest first. Filter by kind, source_app and a period. " +
       "Without group_by (or 'none') returns { range, records, hasMore }. " +
-      "With group_by day / week / month returns { range, group_by, kind, buckets }, buckets being { period, count, sum, avg, min, max } oldest first, " +
+      "With group_by day / week / month returns { range, group_by, kind, buckets }, buckets being { period, count, sum, avg, min, max, latest } oldest first (latest = the value of the period's newest record), " +
       "one per period that has records. A week is Sunday-start and its period is its first day (2026-10-04); a month is 2026-10. " +
       "A grouped answer is about one kind, so pass kind when the range holds several (the error names them).",
     inputSchema: {

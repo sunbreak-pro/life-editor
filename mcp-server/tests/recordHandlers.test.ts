@@ -629,17 +629,10 @@ describe("list_records", () => {
         }>("list_records", { group_by: groupBy });
 
         expect(result.group_by).toBe(groupBy);
-        // `latest` joins the answer in #2261; until then it is held back.
-        expect(result.buckets).toEqual(
-          expected.map(({ period, count, sum, avg, min, max }) => ({
-            period,
-            count,
-            sum,
-            avg,
-            min,
-            max,
-          })),
-        );
+        // The whole bucket, `latest` included (#2261): the same answer as
+        // shared's aggregateAppRecords gives the screen for these points.
+        expect(result.buckets).toEqual(expected);
+        expect(result.buckets.every((b) => "latest" in b)).toBe(true);
       },
     );
   });
@@ -669,14 +662,38 @@ describe("list_records", () => {
       group_by: "week",
     });
     expect(weeks.buckets).toEqual([
-      { period: "2026-10-04", count: 2, sum: 3, avg: 1.5, min: 1, max: 2 },
-      { period: "2026-10-11", count: 1, sum: 4, avg: 4, min: 4, max: 4 },
+      {
+        period: "2026-10-04",
+        count: 2,
+        sum: 3,
+        avg: 1.5,
+        min: 1,
+        max: 2,
+        latest: 2,
+      },
+      {
+        period: "2026-10-11",
+        count: 1,
+        sum: 4,
+        avg: 4,
+        min: 4,
+        max: 4,
+        latest: 4,
+      },
     ]);
     const months = await call<{ buckets: AppRecordBucket[] }>("list_records", {
       group_by: "month",
     });
     expect(months.buckets).toEqual([
-      { period: "2026-10", count: 3, sum: 7, avg: 7 / 3, min: 1, max: 4 },
+      {
+        period: "2026-10",
+        count: 3,
+        sum: 7,
+        avg: 7 / 3,
+        min: 1,
+        max: 4,
+        latest: 4,
+      },
     ]);
   });
 

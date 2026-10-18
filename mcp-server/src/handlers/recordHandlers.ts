@@ -426,16 +426,9 @@ export async function listRecords(args: {
     range,
     group_by: groupBy,
     kind: kinds[0] ?? kind,
-    // The answer keeps its #2163 shape until #2261 adds `latest` to it (and to
-    // the gateway spec and the tool catalog) in one step.
-    buckets: buckets.map(({ period, count, sum, avg, min, max }) => ({
-      period,
-      count,
-      sum,
-      avg,
-      min,
-      max,
-    })),
+    // Every number, `latest` included (#2261): which one heads the answer is
+    // the reader's call, not a display setting's (record_views is not read).
+    buckets,
   };
 }
 
@@ -555,13 +548,19 @@ export interface RecordKindSummary {
   unit: string | null;
   count: number;
   sum: number;
+  avg: number;
+  /** The newest record's value — the reading for a kind like weight (#2261). */
+  latest: number;
 }
 
 /**
- * What came in over [startIso, endIso): per kind, how many records and their
- * sum. Empty when there are none, so the caller can always return it as is.
- * This is the `records` of get_today_context / get_week_context — the numbers
- * that sit beside the day's text for whoever writes the paper.
+ * What came in over [startIso, endIso): per kind, how many records, their sum,
+ * their average and the newest one's value. Empty when there are none, so the
+ * caller can always return it as is. This is the `records` of
+ * get_today_context / get_week_context — the numbers that sit beside the day's
+ * text for whoever writes the paper. All of them are returned whatever the
+ * screens show (record_views is not read): adding up two weights means
+ * nothing, and the writer is the one who picks the number that does.
  */
 export async function summarizeRecords(
   startIso: string,
@@ -608,6 +607,8 @@ export async function summarizeRecords(
         unit: units.size === 1 ? ([...units][0] ?? null) : null,
         count: stats?.count ?? 0,
         sum: stats?.sum ?? 0,
+        avg: stats?.avg ?? 0,
+        latest: stats?.latest ?? 0,
       };
     });
 }

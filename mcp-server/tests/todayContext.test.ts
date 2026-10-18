@@ -363,8 +363,22 @@ describe("getTodayContext", () => {
     const context = await getTodayContext({ date: DATE });
 
     expect(context.records).toEqual([
-      { kind: "expense", unit: "JPY", count: 2, sum: 1650 },
-      { kind: "weight", unit: "kg", count: 1, sum: 61.5 },
+      {
+        kind: "expense",
+        unit: "JPY",
+        count: 2,
+        sum: 1650,
+        avg: 825,
+        latest: 1200,
+      },
+      {
+        kind: "weight",
+        unit: "kg",
+        count: 1,
+        sum: 61.5,
+        avg: 61.5,
+        latest: 61.5,
+      },
     ]);
   });
 
@@ -391,7 +405,14 @@ describe("getTodayContext", () => {
     const context = await getTodayContext({ date: DATE });
 
     expect(context.records).toEqual([
-      { kind: "expense", unit: null, count: 2, sum: 105 },
+      {
+        kind: "expense",
+        unit: null,
+        count: 2,
+        sum: 105,
+        avg: 52.5,
+        latest: 5,
+      },
     ]);
   });
 

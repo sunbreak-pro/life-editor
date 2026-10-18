@@ -559,8 +559,51 @@ describe("records (#2163)", () => {
     const week = await getWeekContext({ start_date: MONDAY });
 
     expect(week.records).toEqual([
-      { kind: "expense", unit: "JPY", count: 2, sum: 1650 },
-      { kind: "sleep", unit: "min", count: 1, sum: 400 },
+      {
+        kind: "expense",
+        unit: "JPY",
+        count: 2,
+        sum: 1650,
+        avg: 825,
+        latest: 1200,
+      },
+      { kind: "sleep", unit: "min", count: 1, sum: 400, avg: 400, latest: 400 },
+    ]);
+  });
+
+  it("gives a weight its average and newest reading, not only a sum (#2261)", async () => {
+    install({
+      records: [
+        // The newer reading is listed first and is the smaller one, so neither
+        // the order nor the maximum can pass for "latest".
+        {
+          id: "w2",
+          kind: "weight",
+          value: 61.75,
+          unit: "kg",
+          occurred_at: "2026-08-14T22:30:00.000Z",
+        },
+        {
+          id: "w1",
+          kind: "weight",
+          value: 62.5,
+          unit: "kg",
+          occurred_at: "2026-08-10T22:30:00.000Z",
+        },
+      ],
+    });
+
+    const week = await getWeekContext({ start_date: MONDAY });
+
+    expect(week.records).toEqual([
+      {
+        kind: "weight",
+        unit: "kg",
+        count: 2,
+        sum: 124.25,
+        avg: 62.125,
+        latest: 61.75,
+      },
     ]);
   });
 
