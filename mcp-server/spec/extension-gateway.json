@@ -1,7 +1,7 @@
 {
   "specFormat": 1,
-  "gatewayVersion": "1.3.0",
-  "lifeEditorCommit": "872218eb1740579fe229d3104bf2e859ec47c9e5",
+  "gatewayVersion": "1.4.0",
+  "lifeEditorCommit": "10dda19b30db5482b86741b221e7d4a3abc26f8b",
   "conventions": {
     "required": "inputSchema.required is the unconditional set. A property sent as null counts as not sent; a required one sent as null is an error.",
     "conditionalRequired": "A tool's conditionalRequired rule says: require[] is also required unless args[unless.field] strictly equals unless.equals. message is the failure text.",
@@ -1572,7 +1572,7 @@
     },
     {
       "name": "list_records",
-      "description": "Read recorded numbers, newest first. Filter by kind, source_app and a period. Without group_by (or 'none') returns { range, records, hasMore }. With group_by day / week / month returns { range, group_by, kind, buckets }, buckets being { period, count, sum, avg, min, max } oldest first, one per period that has records. A week is Sunday-start and its period is its first day (2026-10-04); a month is 2026-10. A grouped answer is about one kind, so pass kind when the range holds several (the error names them).",
+      "description": "Read recorded numbers, newest first. Filter by kind, source_app and a period. Without group_by (or 'none') returns { range, records, hasMore }. With group_by day / week / month returns { range, group_by, kind, buckets }, buckets being { period, count, sum, avg, min, max, latest } oldest first (latest = the value of the period's newest record), one per period that has records. A week is Sunday-start and its period is its first day (2026-10-04); a month is 2026-10. A grouped answer is about one kind, so pass kind when the range holds several (the error names them).",
       "access": "read",
       "inputSchema": {
         "type": "object",
@@ -1622,7 +1622,7 @@
             "type": "object"
           }
         },
-        "description": "range is { from, to } as sent (null when absent). Without group_by (or 'none'): records (each a definitions.record, newest first) and hasMore. With group_by day / week / month: group_by, kind and buckets, each { period, count, sum, avg, min, max }, oldest first."
+        "description": "range is { from, to } as sent (null when absent). Without group_by (or 'none'): records (each a definitions.record, newest first) and hasMore. With group_by day / week / month: group_by, kind and buckets, each { period, count, sum, avg, min, max, latest }, oldest first; latest is the value of the period's newest record."
       }
     },
     {

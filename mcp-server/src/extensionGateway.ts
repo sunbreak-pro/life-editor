@@ -40,7 +40,7 @@ import { ERROR_CODES } from "./errorCodes.js";
  * is, and `scripts/dump-gateway-spec.mjs` refuses to write a spec whose
  * version moved less than that.
  */
-export const EXTENSION_GATEWAY_VERSION = "1.3.0";
+export const EXTENSION_GATEWAY_VERSION = "1.4.0";
 
 /** Bumped only if the SHAPE of the spec file itself changes. */
 export const SPEC_FORMAT = 1;
@@ -400,7 +400,7 @@ const RESULTS: Record<ExtensionToolName, ResultShape | { $ref: string }> = {
   list_records: shape(
     { range: "object" },
     "range is { from, to } as sent (null when absent). Without group_by (or 'none'): records (each a definitions.record, newest first) and hasMore. " +
-      "With group_by day / week / month: group_by, kind and buckets, each { period, count, sum, avg, min, max }, oldest first.",
+      "With group_by day / week / month: group_by, kind and buckets, each { period, count, sum, avg, min, max, latest }, oldest first; latest is the value of the period's newest record.",
   ),
   delete_record: shape({ success: "boolean", id: "string" }),
   list_extension_apps: shape(

@@ -39,7 +39,8 @@ import { summarizeRecords } from "./recordHandlers.js";
  *   get_week_context — the same day-shaped material for 7 days at once, for
  *     the weekly review (#782 ③).
  *   Both also carry `records` (#2163): per kind, how many numbers were
- *     recorded in the window and their sum (recordHandlers.ts).
+ *     recorded in the window, their sum and average, and the newest one's
+ *     value (#2261; recordHandlers.ts).
  *   Both also carry `goals` (#2104): the year / month / week goals of the
  *     day (or of the window's first day), judged the way list_goals does.
  *   write_briefing — two writes since #1048 / #1097: the focus goes into
