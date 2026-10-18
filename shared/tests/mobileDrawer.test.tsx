@@ -1,11 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import {
-  render,
-  screen,
-  fireEvent,
-  act,
-  within,
-} from "@testing-library/react";
+import { render, screen, fireEvent, act, within } from "@testing-library/react";
 import { MobileDrawer, Modal, RightSidebarToggle } from "../src/components";
 import { RightSidebarProvider } from "../src/context";
 import {
@@ -64,21 +58,32 @@ describe("MobileDrawer", () => {
   });
 
   /*
-   * #1284 removed the in-panel X from the DESKTOP panel only, and the body
-   * both share (RightSidebarContents) is what draws it — so the one thing
-   * keeping the mobile escape hatch alive is MobileDrawer continuing to pass
-   * closeLabel + onClose. Nothing asserted that before, which means the next
-   * "simplify RightSidebarContents" takes the drawer's only visible way out
-   * with it. The drawer is modal and covers the hamburger that opened it.
+   * #1284 removed the in-panel X from the DESKTOP panel only; the drawer is
+   * modal and covers the hamburger that opened it, so its own × is its only
+   * visible way out. #2279 then dropped the "Details" header row the × sat
+   * in, and the × now floats beside the panel — still inside the dialog, so
+   * the focus trap reaches it and a press on it does not fall through to the
+   * scrim.
    */
   it("keeps its own close button — the drawer covers the toggle (#1284)", () => {
     renderDrawer();
     fireEvent.click(screen.getByRole("button", { name: "Open details" }));
     const dialog = screen.getByRole("dialog");
-    fireEvent.click(
-      within(dialog).getByRole("button", { name: LABELS.close }),
-    );
+    fireEvent.click(within(dialog).getByRole("button", { name: LABELS.close }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("floats a round close button and draws no Details row (#2279)", () => {
+    renderDrawer();
+    fireEvent.click(screen.getByRole("button", { name: "Open details" }));
+    const dialog = screen.getByRole("dialog", { name: "Details" });
+    // The name is the dialog's aria-label only — no visible header text.
+    expect(within(dialog).queryByText("Details")).not.toBeInTheDocument();
+    const close = within(dialog).getByRole("button", { name: LABELS.close });
+    expect(close).toHaveClass("absolute", "left-full", "rounded-full");
+    // Pressing it must not reach the scrim as a second close request.
+    fireEvent.mouseDown(close);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
   });
 
   it("closes on Escape", () => {

@@ -46,7 +46,9 @@ describe("RightSidebarToggle", () => {
       // The aria-label flips to the close action while open.
       expect(btn).toHaveAccessibleName("Hide details");
       // The panel is now visible (shared context).
-      expect(screen.getByText("Details")).toBeInTheDocument();
+      expect(
+        screen.getByRole("complementary", { name: "Details" }),
+      ).toBeInTheDocument();
       // Clicking again toggles it back closed, label back to the open action.
       fireEvent.click(btn);
       expect(btn).toHaveAttribute("aria-expanded", "false");

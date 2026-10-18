@@ -44,10 +44,31 @@ function renderPanel(children?: React.ReactNode) {
 describe("RightSidebar (Desktop panel)", () => {
   it("is hidden while closed and appears once opened", () => {
     renderPanel();
-    // Closed: no title.
-    expect(screen.queryByText("Details")).not.toBeInTheDocument();
+    // Closed: no panel landmark.
+    expect(
+      screen.queryByRole("complementary", { name: "Details" }),
+    ).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Open details" }));
-    expect(screen.getByText("Details")).toBeInTheDocument();
+    expect(
+      screen.getByRole("complementary", { name: "Details" }),
+    ).toBeInTheDocument();
+  });
+
+  /*
+   * #2279 — the panel opened with a "Details" row that said nothing the open
+   * panel did not and pushed each section's first row down. The name stays
+   * for assistive tech (the landmark's aria-label) and the well is the first
+   * thing after the resize handle, 12px on every side.
+   */
+  it("draws no Details header row and starts with the well (#2279)", () => {
+    renderPanel();
+    fireEvent.click(screen.getByRole("button", { name: "Open details" }));
+    const panel = screen.getByRole("complementary", { name: "Details" });
+    expect(screen.queryByText("Details")).not.toBeInTheDocument();
+    const well = screen.getByTestId("right-sidebar-well");
+    // [resize handle, well] — nothing sits between the handle and the well.
+    expect(panel.children[1]).toBe(well);
+    expect(well).toHaveClass("p-3");
   });
 
   it("draws no close button of its own — the header toggle owns closing (#1284)", () => {
@@ -58,7 +79,9 @@ describe("RightSidebar (Desktop panel)", () => {
     // handle is role=separator, so it is not counted here.)
     expect(screen.getAllByRole("button")).toHaveLength(1);
     fireEvent.click(screen.getByRole("button", { name: "Hide details" }));
-    expect(screen.queryByText("Details")).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("complementary", { name: "Details" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the empty state when no content is registered", () => {
