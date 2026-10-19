@@ -31,6 +31,7 @@ const LABELS = {
   roleNote: "Note",
   roleDaily: "Daily",
   roleTodo: "Todo",
+  search: "Search",
 };
 
 /*

@@ -31,6 +31,7 @@ function deps(
       roleNote: "Note",
       roleDaily: "Daily",
       roleTodo: "Todo",
+      search: "Search",
     },
     getOnResolvedInserted: () => undefined,
     getCreateNote: () => vi.fn(async () => ({ id: "note-new" })),

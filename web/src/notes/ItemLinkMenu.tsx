@@ -2,12 +2,14 @@ import {
   forwardRef,
   useEffect,
   useImperativeHandle,
+  useMemo,
   useRef,
   useState,
   type ReactElement,
 } from "react";
 import type { LucideIcon } from "lucide-react";
 import type { Editor, Range } from "@tiptap/core";
+import { cn, FOCUS_RING, isImeComposing } from "@life-editor/shared";
 
 /*
  * itemLink menu (web Notes/Daily editor). The floating panel shown when the
@@ -51,11 +53,16 @@ interface ItemLinkMenuProps {
    * chosen side of the caret (#471). Omitted → the default max height.
    */
   maxHeight?: number;
+  /**
+   * Drawn inside another box (ItemLinkSearchMenu, #2288): no border, shadow
+   * or minimum width of its own, which the outer box already has.
+   */
+  embedded?: boolean;
 }
 
 export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
   function ItemLinkMenu(
-    { items, command, emptyLabel, maxHeight },
+    { items, command, emptyLabel, maxHeight, embedded = false },
     ref,
   ): ReactElement {
     const [selected, setSelected] = useState(0);
@@ -63,8 +70,14 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
     /** Set by ↑/↓ only — see the scroll effect below. */
     const movedByKey = useRef(false);
 
-    // Reset the highlight whenever the filtered set changes (typing narrows it).
-    useEffect(() => setSelected(0), [items]);
+    // Reset the highlight whenever the filtered set changes (typing narrows
+    // it). During render rather than in an effect, which would paint the old
+    // highlight first ("Adjust state during render").
+    const [itemsSeen, setItemsSeen] = useState(items);
+    if (itemsSeen !== items) {
+      setItemsSeen(items);
+      setSelected(0);
+    }
 
     /*
      * Keep the highlighted row inside the scroller (#1902) — SlashMenu next
@@ -104,7 +117,13 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
 
     if (items.length === 0) {
       return (
-        <div className="min-w-[16rem] rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-2 text-sm text-lumen-text-tertiary shadow-lumen-md">
+        <div
+          className={cn(
+            "px-3 py-2 text-sm text-lumen-text-tertiary",
+            !embedded &&
+              "min-w-[16rem] rounded-lumen-md border border-lumen-border bg-lumen-bg shadow-lumen-md",
+          )}
+        >
           {emptyLabel}
         </div>
       );
@@ -117,7 +136,11 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
         // The inline cap (when the placer supplies one) beats the class — style
         // attribute over stylesheet — so the two never have to agree.
         style={{ maxHeight }}
-        className="max-h-72 min-w-[16rem] overflow-y-auto rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-md"
+        className={cn(
+          "max-h-72 overflow-y-auto",
+          !embedded &&
+            "min-w-[16rem] rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-md",
+        )}
       >
         {items.map((item, index) => {
           const isActive = index === selected;
@@ -184,3 +207,84 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
     );
   },
 );
+
+/*
+ * #2288 — the same list under a search field, for the floating bar's link
+ * button. Under "[[" the query is typed into the document; over a selection
+ * there is no such place (typing would replace the selected text), so it is
+ * typed here instead. The field drives the list the way the caret does under
+ * "[[" — ↑ / ↓ / Enter — and Escape closes. A key that belongs to an open IME
+ * conversion is left to the conversion: the Enter that commits kana must not
+ * also pick a row.
+ */
+export interface ItemLinkSearchMenuProps {
+  /** The rows for a query (the pool is already loaded when this mounts). */
+  itemsFor: (query: string) => ItemLinkMenuItem[];
+  command: (item: ItemLinkMenuItem) => void;
+  /** Escape in the field. */
+  onClose: () => void;
+  emptyLabel: string;
+  /** Accessible name and placeholder of the field. */
+  searchLabel: string;
+  /** Room the placer found, in px, for the field and the list together. */
+  maxHeight?: number;
+}
+
+/** The field's height plus the gap under it, taken off the list's room. */
+const SEARCH_FIELD_SPACE = 52;
+
+export function ItemLinkSearchMenu({
+  itemsFor,
+  command,
+  onClose,
+  emptyLabel,
+  searchLabel,
+  maxHeight,
+}: ItemLinkSearchMenuProps): ReactElement {
+  const [query, setQuery] = useState("");
+  const items = useMemo(() => itemsFor(query), [itemsFor, query]);
+  const listRef = useRef<ItemLinkMenuHandle>(null);
+
+  return (
+    <div className="min-w-[16rem] rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-md">
+      <input
+        type="search"
+        // The picker opens on a press of the bar, and the next thing the user
+        // does is type the item's name.
+        autoFocus
+        aria-label={searchLabel}
+        placeholder={searchLabel}
+        value={query}
+        onChange={(event) => setQuery(event.target.value)}
+        onKeyDown={(event) => {
+          if (isImeComposing(event)) return;
+          if (event.key === "Escape") {
+            event.preventDefault();
+            onClose();
+            return;
+          }
+          if (listRef.current?.onKeyDown(event.nativeEvent)) {
+            event.preventDefault();
+          }
+        }}
+        className={cn(
+          "mb-1 w-full rounded-lumen-sm border border-lumen-border bg-lumen-bg-secondary px-2.5 py-1.5 text-sm text-lumen-text placeholder:text-lumen-text-tertiary",
+          "max-md:min-h-11",
+          FOCUS_RING,
+        )}
+      />
+      <ItemLinkMenu
+        ref={listRef}
+        embedded
+        items={items}
+        command={command}
+        emptyLabel={emptyLabel}
+        maxHeight={
+          maxHeight === undefined
+            ? undefined
+            : Math.max(maxHeight - SEARCH_FIELD_SPACE, 0)
+        }
+      />
+    </div>
+  );
+}

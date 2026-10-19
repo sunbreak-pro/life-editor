@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useMemo,
   useSyncExternalStore,
   type ReactElement,
   type ReactNode,
@@ -13,20 +12,22 @@ import {
   Heading1,
   Heading2,
   Italic,
+  Link2,
   Minus,
   Strikethrough,
 } from "lucide-react";
-import {
-  cn,
-  FOCUS_RING,
-  NOTE_STICKY_HEADER_HEIGHT_VAR,
-} from "@life-editor/shared";
+import { cn, FOCUS_RING } from "@life-editor/shared";
+import { FORMAT_BUBBLE_OPTIONS } from "./formatBubbleOptions";
+import { hasItemLinkPicker } from "./itemLinkSuggestion";
 
 /*
  * The note body's formatting buttons (#2060): H1, H2, bold, italic,
- * strikethrough and a divider — exactly those six (the "など" in the Issue was
- * settled as "these six first"; lists, quotes and tables stay with the "/"
- * menu).
+ * strikethrough and a divider — the "など" in the Issue was settled as "these
+ * six first"; lists, quotes and tables stay with the "/" menu. #2288 added a
+ * seventh that is not a format: link the selected text to an item (a note, a
+ * Daily, a Todo). It opens the "[[" extension's picker, so it is drawn only
+ * over a body that has one, and it is off unless the selection is text inside
+ * one paragraph.
  *
  * #2227: they no longer sit in the note header. `FormatBubbleMenu` below
  * floats them over the text the user has selected, and hides them again when
@@ -63,6 +64,8 @@ export interface FormatToolbarLabels {
   italic: string;
   strike: string;
   horizontalRule: string;
+  /** Turn the selected text into a link to an item (#2288). */
+  itemLink: string;
 }
 
 export interface FormatToolbarProps {
@@ -85,55 +88,76 @@ interface FormatAction {
   apply: (chain: Chain) => Chain;
   /** Whether the format is on at the selection. Absent → not a toggle. */
   isActive?: (editor: Editor) => boolean;
+  /** Whether the button exists for this editor at all. Absent → always. */
+  isOffered?: (editor: Editor) => boolean;
+  /** Whether it can run on the selection now. Absent → whenever editable. */
+  canRun?: (editor: Editor) => boolean;
 }
+
+/*
+ * #2288: a little smaller than the first cut (16 / 28px). Below the
+ * breakpoint the box stays at the 44px touch floor (#1512); only the icon in
+ * it shrinks.
+ */
+const ICON_SIZE = 14;
 
 const ACTIONS: readonly FormatAction[] = [
   {
     key: "heading1",
     label: (l) => l.heading1,
-    icon: <Heading1 size={16} />,
+    icon: <Heading1 size={ICON_SIZE} />,
     apply: (chain) => chain.toggleHeading({ level: 1 }),
     isActive: (editor) => editor.isActive("heading", { level: 1 }),
   },
   {
     key: "heading2",
     label: (l) => l.heading2,
-    icon: <Heading2 size={16} />,
+    icon: <Heading2 size={ICON_SIZE} />,
     apply: (chain) => chain.toggleHeading({ level: 2 }),
     isActive: (editor) => editor.isActive("heading", { level: 2 }),
   },
   {
     key: "bold",
     label: (l) => l.bold,
-    icon: <Bold size={16} />,
+    icon: <Bold size={ICON_SIZE} />,
     apply: (chain) => chain.toggleBold(),
     isActive: (editor) => editor.isActive("bold"),
   },
   {
     key: "italic",
     label: (l) => l.italic,
-    icon: <Italic size={16} />,
+    icon: <Italic size={ICON_SIZE} />,
     apply: (chain) => chain.toggleItalic(),
     isActive: (editor) => editor.isActive("italic"),
   },
   {
     key: "strike",
     label: (l) => l.strike,
-    icon: <Strikethrough size={16} />,
+    icon: <Strikethrough size={ICON_SIZE} />,
     apply: (chain) => chain.toggleStrike(),
     isActive: (editor) => editor.isActive("strike"),
   },
   {
     key: "horizontalRule",
     label: (l) => l.horizontalRule,
-    icon: <Minus size={16} />,
+    icon: <Minus size={ICON_SIZE} />,
     apply: (chain) => chain.setHorizontalRule(),
+  },
+  {
+    key: "itemLink",
+    label: (l) => l.itemLink,
+    icon: <Link2 size={ICON_SIZE} />,
+    apply: (chain) => chain.openItemLinkPicker(),
+    isOffered: hasItemLinkPicker,
+    canRun: (editor) =>
+      hasItemLinkPicker(editor) && editor.can().openItemLinkPicker(),
   },
 ];
 
 /**
  * The pressed state of every toggle, packed into one number (bit i = ACTIONS[i]
- * active), plus whether the editor is editable in the bit above them.
+ * active), plus whether the editor is editable in the bit above them, and
+ * above that one bit per action that cannot run on the selection right now.
  *
  * `useSyncExternalStore` for the same reason TableControls uses it: `useEditor`
  * does not re-render anything on a plain selection move, so the state has to
@@ -141,11 +165,15 @@ const ACTIONS: readonly FormatAction[] = [
  * stable by value and cannot loop.
  */
 const EDITABLE_BIT = 1 << ACTIONS.length;
+const blockedBit = (i: number): number => 1 << (ACTIONS.length + 1 + i);
 
 function readState(editor: Editor): number {
   let bits = editor.isEditable ? EDITABLE_BIT : 0;
   ACTIONS.forEach((action, i) => {
     if (action.isActive?.(editor)) bits |= 1 << i;
+    if (action.canRun !== undefined && !action.canRun(editor)) {
+      bits |= blockedBit(i);
+    }
   });
   return bits;
 }
@@ -192,7 +220,11 @@ export function FormatToolbar({
       className="flex items-center gap-1"
     >
       {ACTIONS.map((action, i) => {
+        if (editor && action.isOffered && !action.isOffered(editor)) {
+          return null;
+        }
         const name = action.label(labels);
+        const blocked = off || (state & blockedBit(i)) !== 0;
         const pressed =
           action.isActive !== undefined ? (state & (1 << i)) !== 0 : undefined;
         return (
@@ -203,18 +235,18 @@ export function FormatToolbar({
             aria-label={name}
             title={name}
             aria-pressed={pressed}
-            disabled={off}
+            disabled={blocked}
             onMouseDown={(event) => {
               // Keep the focus (and the selection with it) in the body.
               event.preventDefault();
-              run(action);
+              if (!blocked) run(action);
             }}
             onClick={(event) => {
               // A keyboard press: no mousedown came first.
-              if (event.detail === 0) run(action);
+              if (event.detail === 0 && !blocked) run(action);
             }}
             className={cn(
-              "inline-grid h-7 w-7 place-items-center rounded-lumen-sm transition-colors",
+              "inline-grid h-6 w-6 place-items-center rounded-lumen-sm transition-colors",
               // The 44px touch floor below the app's breakpoint (#1512).
               "max-md:min-h-11 max-md:min-w-11",
               pressed
@@ -245,43 +277,24 @@ export function FormatToolbar({
  * (TableControls) — nor for a selected node such as an image or a divider:
  * neither has text to format.
  *
- * Placement: above the selection on Desktop, below it on narrow, because iOS
- * draws its own copy / paste menu above a selection and the two would
- * overlap. `flip` moves the bar to the other side when there is no room; the
- * room above counts the note's sticky header (#2058) as taken, read off
- * NOTE_STICKY_HEADER_HEIGHT_VAR, so a selection right under the header gets
- * the bar below it instead of behind the header. `shift` keeps the bar inside
- * the screen near its left and right edges. Both sides are measured with
- * getBoundingClientRect — the selection's range and the bar's offset parent —
- * so a pinch-zoomed page still puts the bar at the selection.
+ * Placement: above the selection at every width, below it when there is no
+ * room (#2288; the options and their reasons are in formatBubbleOptions.ts).
+ * Both sides are measured with getBoundingClientRect — the selection's range
+ * and the bar's offset parent — so a pinch-zoomed page still puts the bar at
+ * the selection.
  *
  * The presses go through FormatToolbar, so the focus and IME rules above
  * hold here unchanged.
  */
 
-export interface FormatBubbleMenuProps extends FormatToolbarProps {
-  /** The side of the selection the bar prefers. */
-  placement?: "top" | "bottom";
-}
+export type FormatBubbleMenuProps = FormatToolbarProps;
 
 type ShouldShow = NonNullable<BubbleMenuProps["shouldShow"]>;
-type MenuOptions = NonNullable<BubbleMenuProps["options"]>;
-
-/** Space kept between the bar and the screen's (or the header's) edge. */
-const EDGE_GAP = 8;
-
-function stickyHeaderHeight(el: Element): number {
-  const px = Number.parseFloat(
-    getComputedStyle(el).getPropertyValue(NOTE_STICKY_HEADER_HEIGHT_VAR),
-  );
-  return Number.isFinite(px) ? px : 0;
-}
 
 export function FormatBubbleMenu({
   editor,
   disabled = false,
   labels,
-  placement = "top",
 }: FormatBubbleMenuProps): ReactElement | null {
   const shouldShow = useCallback<ShouldShow>(
     ({ editor: current, element, view, state, from, to }) => {
@@ -295,30 +308,13 @@ export function FormatBubbleMenu({
     },
     [disabled],
   );
-  const options = useMemo<MenuOptions>(
-    () => ({
-      placement,
-      offset: EDGE_GAP,
-      flip: (state) => ({
-        padding: {
-          top: stickyHeaderHeight(state.elements.floating) + EDGE_GAP,
-          bottom: EDGE_GAP,
-          left: EDGE_GAP,
-          right: EDGE_GAP,
-        },
-      }),
-      shift: { padding: EDGE_GAP },
-    }),
-    [placement],
-  );
-
   // BubbleMenu warns when it has no editor; there is nothing to float over.
   if (!editor) return null;
   return (
     <BubbleMenu
       editor={editor}
       shouldShow={shouldShow}
-      options={options}
+      options={FORMAT_BUBBLE_OPTIONS}
       data-format-bubble=""
       className="z-30 rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-lg"
     >

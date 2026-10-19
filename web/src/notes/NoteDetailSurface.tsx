@@ -205,12 +205,10 @@ export function NoteDetailSurface({
               of sitting in the header. Off while the body is behind its
               password or edit-locked — the same two conditions that keep the
               body itself from taking input; the bar also checks the editor's
-              own editable flag. Below the selection on narrow, where iOS puts
-              its own menu above it. */}
+              own editable flag. Above the selection at both widths (#2288). */}
           <FormatBubbleMenu
             editor={bodyEditor}
             disabled={locked || note.isEditLocked === true}
-            placement={variant === "main" ? "top" : "bottom"}
             labels={labels.formatToolbar}
           />
         </LockedBodyGate>

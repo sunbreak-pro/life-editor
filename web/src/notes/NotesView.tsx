@@ -665,6 +665,7 @@ export function NotesView({
       italic: t("materials.notes.formatToolbar.italic"),
       strike: t("materials.notes.formatToolbar.strike"),
       horizontalRule: t("materials.notes.formatToolbar.horizontalRule"),
+      itemLink: t("materials.notes.formatToolbar.itemLink"),
     },
   };
 

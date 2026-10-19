@@ -1,14 +1,16 @@
-import { Extension, type Editor, type Range } from "@tiptap/core";
+import { Extension, posToDOMRect, type Editor, type Range } from "@tiptap/core";
 import Suggestion, { type SuggestionOptions } from "@tiptap/suggestion";
-import { PluginKey } from "@tiptap/pm/state";
+import { NodeSelection, PluginKey, type EditorState } from "@tiptap/pm/state";
 import { ReactRenderer } from "@tiptap/react";
 import { FileText, CalendarDays, CheckSquare, Link2, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { balanceByRole, isImeComposing } from "@life-editor/shared";
 import {
   ItemLinkMenu,
+  ItemLinkSearchMenu,
   type ItemLinkMenuHandle,
   type ItemLinkMenuItem,
+  type ItemLinkSearchMenuProps,
 } from "./ItemLinkMenu";
 import { createSuggestionPopup, type SuggestionPopup } from "./suggestionPopup";
 
@@ -57,6 +59,8 @@ export interface ItemLinkSuggestionLabels {
   roleNote: string;
   roleDaily: string;
   roleTodo: string;
+  /** The search field of the floating bar's link picker (#2288). */
+  search: string;
 }
 
 export interface ItemLinkSuggestionDeps {
@@ -143,6 +147,36 @@ export function stripLinkClosing(query: string): string {
   return query.replace(/]{1,2}$/, "");
 }
 
+/** The candidates for a query: a case-blind title match, capped. */
+function candidatesFor(
+  query: string,
+  targets: ItemLinkTarget[],
+): ItemLinkTarget[] {
+  const q = query.toLowerCase();
+  // balanceByRole, not slice: the pool is concatenated per role (notes →
+  // dailies → todos), so a plain cut handed all 8 slots to notes and the todo
+  // candidates added in #370 never reached the menu on a 8+ note vault.
+  return balanceByRole(
+    q ? targets.filter((t) => t.label.toLowerCase().includes(q)) : targets,
+    MAX_CANDIDATES,
+  );
+}
+
+function candidateItem(
+  target: ItemLinkTarget,
+  labels: ItemLinkSuggestionLabels,
+  command: ItemLinkMenuItem["command"],
+): ItemLinkMenuItem {
+  return {
+    id: target.id,
+    title: target.label,
+    hint: roleHint(target.role, labels),
+    kind: "candidate",
+    Icon: roleIcon(target.role),
+    command,
+  };
+}
+
 export async function buildItems(
   query: string,
   deps: ItemLinkSuggestionDeps,
@@ -154,7 +188,6 @@ export async function buildItems(
   // itself needs no adjustment: the brackets are inside the suggestion's
   // range, so deleting the range takes them with it.
   const typed = stripLinkClosing(query.trim());
-  const q = typed.toLowerCase();
   // @tiptap/suggestion awaits this before calling onStart/onUpdate, so the
   // menu appears already populated — no empty flash on the first "[[".
   // Deleted rows ride along in the pool for LinkPanel's benefit (#1292); the
@@ -166,23 +199,12 @@ export async function buildItems(
   const onResolvedInserted = deps.getOnResolvedInserted();
   const createNote = deps.getCreateNote();
 
-  // balanceByRole, not slice: the pool is concatenated per role (notes →
-  // dailies → todos), so a plain cut handed all 8 slots to notes and the todo
-  // candidates added in #370 never reached the menu on a 8+ note vault.
-  const filtered = balanceByRole(
-    q ? targets.filter((t) => t.label.toLowerCase().includes(q)) : targets,
-    MAX_CANDIDATES,
+  const items: ItemLinkMenuItem[] = candidatesFor(typed, targets).map(
+    (target) =>
+      candidateItem(target, labels, ({ editor, range }) =>
+        insertResolved(editor, range, target, onResolvedInserted),
+      ),
   );
-
-  const items: ItemLinkMenuItem[] = filtered.map((target) => ({
-    id: target.id,
-    title: target.label,
-    hint: roleHint(target.role, labels),
-    kind: "candidate",
-    Icon: roleIcon(target.role),
-    command: ({ editor, range }) =>
-      insertResolved(editor, range, target, onResolvedInserted),
-  }));
 
   const trimmed = typed;
   if (trimmed) {
@@ -258,6 +280,95 @@ export async function buildItems(
   }
 
   return items;
+}
+
+/*
+ * #2288 — link the selected text to an item, from the floating bar.
+ *
+ * The bar's link button runs `openItemLinkPicker`, a command of this
+ * extension, so the bar needs neither the candidate pool nor the edge
+ * callback: both are already here, read through the same getters as "[[".
+ * Without this extension (no `loadLinkTargets`) the command does not exist
+ * and the bar draws no link button.
+ *
+ * What can be linked: characters inside ONE text block, outside a table. A
+ * selection across blocks, a node selection, a cell selection and text in a
+ * table cell are refused (the command answers false, so the button is off).
+ *
+ * The selected text becomes the link's label as it is — the target's title is
+ * not put in its place — and its marks (bold …) go with it, because an
+ * itemLink is one atom. The swap is one transaction, so one Undo brings the
+ * text back. No trailing space is added, unlike "[[": the text after the
+ * selection is already there.
+ */
+
+declare module "@tiptap/core" {
+  interface Commands<ReturnType> {
+    itemLinkPicker: {
+      /** Open the link picker for the selected text (#2288). */
+      openItemLinkPicker: () => ReturnType;
+    };
+  }
+}
+
+export interface SelectionLinkRange {
+  from: number;
+  to: number;
+  /** The selected text: the label the link will carry. */
+  label: string;
+}
+
+/** The selection the link button would replace, or null when it may not. */
+export function selectionLinkRange(
+  state: EditorState,
+): SelectionLinkRange | null {
+  const { selection, doc } = state;
+  if (state.schema.nodes.itemLink === undefined) return null;
+  if (selection.empty || selection instanceof NodeSelection) return null;
+  // prosemirror-tables' CellSelection, without importing the extension.
+  if ("$anchorCell" in selection) return null;
+  const { $from, $to, from, to } = selection;
+  if (!$from.sameParent($to) || !$from.parent.isTextblock) return null;
+  for (let depth = $from.depth; depth > 0; depth -= 1) {
+    const name = $from.node(depth).type.name;
+    if (name === "tableCell" || name === "tableHeader") return null;
+  }
+  const label = doc.textBetween(from, to);
+  if (label.trim() === "") return null;
+  return { from, to, label };
+}
+
+/** Swap the selected text for a link to `target`, if it is still there. */
+function linkSelection(
+  editor: Editor,
+  range: SelectionLinkRange,
+  target: ItemLinkTarget,
+  onResolvedInserted: ((targetId: string) => void) | undefined,
+): void {
+  const { doc } = editor.state;
+  // The body can move while the picker is open (a sync replacing it): link
+  // nothing rather than swap out text the user did not pick.
+  if (range.to > doc.content.size) return;
+  if (doc.textBetween(range.from, range.to) !== range.label) return;
+  editor
+    .chain()
+    .focus()
+    .insertContentAt(
+      { from: range.from, to: range.to },
+      {
+        type: "itemLink",
+        attrs: { targetId: target.id, label: range.label, role: target.role },
+      },
+    )
+    .run();
+  onResolvedInserted?.(target.id);
+}
+
+/** Whether the editor carries the picker (it is part of this extension). */
+export function hasItemLinkPicker(editor: Editor): boolean {
+  return editor.extensionManager.extensions.some(
+    (extension) => extension.name === "itemLinkSuggestion",
+  );
 }
 
 type ItemLinkRender = SuggestionOptions<ItemLinkMenuItem>["render"];
@@ -369,9 +480,97 @@ export function createItemLinkSuggestion(
   // old session's onExit, so the new menu opens on the cached pool. Candidates
   // may be one open old there; the next clean open refreshes.
   let menuOpen = false;
+  // The floating bar's picker (#2288): one at a time per editor.
+  let closePicker: (() => void) | null = null;
+
+  /*
+   * The pool is loaded before anything is drawn, like "[[" (Suggestion awaits
+   * items() before onStart), so the list never flashes empty. It is placed
+   * the way the "[[" menu is (suggestionPopup), against the selected text.
+   * The search field takes the focus, which hides the floating bar; the
+   * editor's selection stays in its state, and Escape gives the focus back.
+   * A press outside the picker closes it and leaves the text as it was.
+   */
+  const openPicker = async (
+    editor: Editor,
+    range: SelectionLinkRange,
+  ): Promise<void> => {
+    closePicker?.();
+    const targets = (await deps.loadTargets({ allowStale: false })).filter(
+      (t) => !t.isDeleted,
+    );
+    if (editor.isDestroyed) return;
+    // A second press while the first one's pool was loading.
+    closePicker?.();
+    const onResolvedInserted = deps.getOnResolvedInserted();
+    const itemsFor = (query: string): ItemLinkMenuItem[] =>
+      candidatesFor(query.trim(), targets).map((target) =>
+        candidateItem(target, deps.labels, ({ editor: current }) =>
+          linkSelection(current, range, target, onResolvedInserted),
+        ),
+      );
+
+    let renderer: ReactRenderer<unknown, ItemLinkSearchMenuProps> | null = null;
+    let popup: SuggestionPopup | null = null;
+    const onPressOutside = (event: MouseEvent) => {
+      if (popup !== null && !popup.el.contains(event.target as Node)) close();
+    };
+    const close = () => {
+      if (closePicker !== close) return;
+      closePicker = null;
+      document.removeEventListener("mousedown", onPressOutside, true);
+      popup?.destroy();
+      popup = null;
+      renderer?.destroy();
+      renderer = null;
+    };
+    closePicker = close;
+    document.addEventListener("mousedown", onPressOutside, true);
+
+    renderer = new ReactRenderer<unknown, ItemLinkSearchMenuProps>(
+      ItemLinkSearchMenu,
+      {
+        editor,
+        props: {
+          itemsFor,
+          command: (item: ItemLinkMenuItem) => {
+            item.command({ editor, range });
+            close();
+          },
+          onClose: () => {
+            close();
+            editor.commands.focus(null, { scrollIntoView: false });
+          },
+          emptyLabel: deps.labels.empty,
+          searchLabel: deps.labels.search,
+        },
+      },
+    );
+    popup = createSuggestionPopup((maxHeight) =>
+      renderer?.updateProps({ maxHeight }),
+    );
+    popup.el.appendChild(renderer.element);
+    popup.position(() => posToDOMRect(editor.view, range.from, range.to));
+  };
 
   return Extension.create({
     name: "itemLinkSuggestion",
+    addCommands() {
+      return {
+        openItemLinkPicker:
+          () =>
+          ({ editor, state, dispatch }) => {
+            if (!editor.isEditable) return false;
+            const range = selectionLinkRange(state);
+            if (range === null) return false;
+            if (dispatch) void openPicker(editor, range);
+            return true;
+          },
+      };
+    },
+    onDestroy() {
+      closePicker?.();
+    },
     addProseMirrorPlugins() {
       return [
         Suggestion<ItemLinkMenuItem>({

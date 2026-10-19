@@ -8,8 +8,10 @@ import {
   waitFor,
 } from "@testing-library/react";
 import { Editor } from "@tiptap/core";
+import { NOTE_STICKY_HEADER_HEIGHT_VAR } from "@life-editor/shared";
 import StarterKit from "@tiptap/starter-kit";
 import { FormatBubbleMenu, FormatToolbar } from "../src/notes/FormatToolbar";
+import { FORMAT_BUBBLE_OPTIONS } from "../src/notes/formatBubbleOptions";
 import { RichTextEditor } from "../src/notes/RichTextEditor";
 
 /*
@@ -31,6 +33,7 @@ const LABELS = {
   italic: "Italic",
   strike: "Strikethrough",
   horizontalRule: "Insert divider",
+  itemLink: "Link to an item",
 };
 
 const editors: Editor[] = [];
@@ -86,7 +89,8 @@ function firstBlock(editor: Editor) {
 }
 
 describe("FormatToolbar (#2060)", () => {
-  it("offers exactly the six buttons, toggles marked as such", () => {
+  // Without the "[[" extension there is no picker, so no link button (#2288).
+  it("offers exactly the six format buttons, toggles marked as such", () => {
     const editor = makeEditor();
     render(<FormatToolbar editor={editor} labels={LABELS} />);
 
@@ -105,11 +109,14 @@ describe("FormatToolbar (#2060)", () => {
     }
     // The divider inserts; it has no on / off state to report.
     expect(button("Insert divider").hasAttribute("aria-pressed")).toBe(false);
-    // 44px touch floor below the breakpoint, Desktop keeps the 28px box.
+    // #2288: a 24px box and a 14px icon on Desktop; below the breakpoint the
+    // box keeps the 44px touch floor (#1512).
     for (const b of buttons) {
       expect(b.classList.contains("max-md:min-h-11")).toBe(true);
       expect(b.classList.contains("max-md:min-w-11")).toBe(true);
-      expect(b.classList.contains("h-7")).toBe(true);
+      expect(b.classList.contains("h-6")).toBe(true);
+      expect(b.classList.contains("w-6")).toBe(true);
+      expect(b.querySelector("svg")?.getAttribute("width")).toBe("14");
     }
   });
 
@@ -460,5 +467,182 @@ describe("RichTextEditor onEditorChange (#2060)", () => {
 
     unmount();
     expect(onEditorChange).toHaveBeenLastCalledWith(null);
+  });
+});
+
+/*
+ * #2288 — the seventh button: link the selected text to an item. The picker
+ * is the "[[" extension's (openItemLinkPicker), so the body is a real
+ * RichTextEditor with a link pool — the only editor that registers it.
+ */
+describe("FormatToolbar — link the selection to an item (#2288)", () => {
+  const zeroRect = () => new DOMRect(0, 0, 0, 0);
+  const emptyRects = () => [] as unknown as DOMRectList;
+  beforeAll(() => {
+    Range.prototype.getBoundingClientRect ??= zeroRect;
+    Range.prototype.getClientRects ??= emptyRects;
+  });
+
+  const TARGETS = [
+    { id: "note-roof", label: "Roof repair", role: "note" },
+    { id: "task-9", label: "Call the roofer", role: "task" },
+    { id: "note-old", label: "Roof (old)", role: "note", isDeleted: true },
+  ];
+  const BODY = JSON.stringify({
+    type: "doc",
+    content: [
+      { type: "paragraph", content: [{ type: "text", text: "hello world" }] },
+      { type: "paragraph", content: [{ type: "text", text: "second" }] },
+    ],
+  });
+
+  function mountBody(onInserted = vi.fn()) {
+    let editor: Editor | null = null;
+    const load = vi.fn(() => Promise.resolve(TARGETS));
+    render(
+      <RichTextEditor
+        noteId="note-1"
+        initialContent={BODY}
+        onUpdate={() => {}}
+        loadLinkTargets={load}
+        onResolvedLinkInserted={onInserted}
+        onEditorChange={(e) => {
+          editor = e;
+        }}
+      />,
+    );
+    if (editor === null) throw new Error("no editor");
+    render(<FormatToolbar editor={editor} labels={LABELS} />);
+    return { editor: editor as Editor, onInserted, load };
+  }
+
+  function picker(): HTMLElement | null {
+    return document.querySelector<HTMLElement>("[data-suggestion-menu]");
+  }
+
+  it("is not drawn for a body without a link pool", () => {
+    render(<FormatToolbar editor={makeEditor()} labels={LABELS} />);
+    expect(screen.queryByRole("button", { name: LABELS.itemLink })).toBeNull();
+  });
+
+  it("swaps the selected text for a link labelled with it, and Undo brings the text back", async () => {
+    const { editor, onInserted } = mountBody();
+    select(editor, 1, 6); // "hello"
+
+    press(button(LABELS.itemLink));
+    const search = await within(
+      await waitFor(() => {
+        const el = picker();
+        if (el === null) throw new Error("no picker yet");
+        return el;
+      }),
+    ).findByRole("searchbox");
+    // The trash stays out of the offer, as under "[[".
+    expect(within(picker()!).queryByText("Roof (old)")).toBeNull();
+
+    fireEvent.change(search, { target: { value: "roof rep" } });
+    const options = within(picker()!).getAllByRole("option");
+    expect(options.map((o) => o.textContent)).toEqual([
+      expect.stringContaining("Roof repair"),
+    ]);
+    fireEvent.mouseDown(options[0]!);
+
+    const first = firstBlock(editor);
+    expect(first.firstChild?.type.name).toBe("itemLink");
+    expect(first.firstChild?.attrs).toMatchObject({
+      targetId: "note-roof",
+      label: "hello",
+      role: "note",
+    });
+    expect(first.textContent).toBe(" world");
+    expect(onInserted).toHaveBeenCalledExactlyOnceWith("note-roof");
+    expect(picker()).toBeNull();
+
+    act(() => {
+      editor.commands.undo();
+    });
+    expect(firstBlock(editor).textContent).toBe("hello world");
+    expect(firstBlock(editor).firstChild?.type.name).toBe("text");
+  });
+
+  it("picks the highlighted row with Enter and closes on Escape", async () => {
+    const { editor, onInserted } = mountBody();
+
+    select(editor, 1, 6);
+    press(button(LABELS.itemLink));
+    let search = await screen.findByRole("searchbox");
+    fireEvent.keyDown(search, { key: "Escape" });
+    expect(picker()).toBeNull();
+    expect(firstBlock(editor).textContent).toBe("hello world");
+
+    select(editor, 7, 12); // "world"
+    press(button(LABELS.itemLink));
+    search = await screen.findByRole("searchbox");
+    fireEvent.change(search, { target: { value: "roofer" } });
+    fireEvent.keyDown(search, { key: "Enter" });
+    expect(firstBlock(editor).lastChild?.attrs).toMatchObject({
+      targetId: "task-9",
+      label: "world",
+    });
+    expect(onInserted).toHaveBeenCalledExactlyOnceWith("task-9");
+  });
+
+  it("ignores an Enter that commits an IME conversion in the search field", async () => {
+    const { editor, onInserted } = mountBody();
+    select(editor, 1, 6);
+    press(button(LABELS.itemLink));
+    const search = await screen.findByRole("searchbox");
+
+    fireEvent.keyDown(search, { key: "Enter", isComposing: true });
+    fireEvent.keyDown(search, { key: "Enter", keyCode: 229 });
+    expect(onInserted).not.toHaveBeenCalled();
+    expect(picker()).not.toBeNull();
+  });
+
+  it("is off for a selection across two paragraphs", () => {
+    const { editor } = mountBody();
+    select(editor, 3, 16);
+    expect(button(LABELS.itemLink).hasAttribute("disabled")).toBe(true);
+    select(editor, 1, 6);
+    expect(button(LABELS.itemLink).hasAttribute("disabled")).toBe(false);
+  });
+
+  it("does nothing while an IME conversion is open", async () => {
+    const { editor, load } = mountBody();
+    select(editor, 1, 6);
+    const composing = vi
+      .spyOn(editor.view, "composing", "get")
+      .mockReturnValue(true);
+    press(button(LABELS.itemLink));
+    composing.mockRestore();
+    // The picker opens only after its pool loads, so the load not starting
+    // is what says the press was ignored.
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(load).not.toHaveBeenCalled();
+    expect(picker()).toBeNull();
+  });
+});
+
+/*
+ * #2288 — the bar floats above the selection at both widths (narrow used to
+ * put it below). Where it lands cannot be measured in jsdom, so what is
+ * pinned is what Floating UI is asked for: "top" first, and a flip below that
+ * counts the note's sticky header as taken room.
+ */
+describe("FormatBubbleMenu placement (#2288)", () => {
+  it("prefers the side above the selection and flips below without room", () => {
+    expect(FORMAT_BUBBLE_OPTIONS.placement).toBe("top");
+    const flip = FORMAT_BUBBLE_OPTIONS.flip;
+    expect(typeof flip).toBe("function");
+    const floating = document.createElement("div");
+    floating.style.setProperty(NOTE_STICKY_HEADER_HEIGHT_VAR, "60px");
+    document.body.appendChild(floating);
+    const options = (flip as (state: unknown) => { padding: { top: number } })({
+      elements: { floating },
+    });
+    floating.remove();
+    expect(options.padding.top).toBe(68);
   });
 });
