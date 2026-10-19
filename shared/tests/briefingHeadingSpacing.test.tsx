@@ -106,7 +106,15 @@ describe("#1826 — the detail panel heading stands apart", () => {
     if (panel === null) throw new Error("no panel section");
     // The well stacks its portals with no gap, so the separation is this
     // block's own: a hairline plus padding wider than its internal gap-3.
-    expect(panel).toHaveClass("mt-4", "pt-4", "border-t", "border-lumen-border");
+    expect(panel).toHaveClass(
+      "mt-4",
+      "pt-4",
+      "border-t",
+      "border-lumen-border",
+    );
+    // #2285: 朝刊's panel opens with this block since the Todo tray left it,
+    // and a rule with nothing above it separates nothing.
+    expect(panel).toHaveClass("first:mt-0", "first:border-t-0", "first:pt-0");
   });
 });
 

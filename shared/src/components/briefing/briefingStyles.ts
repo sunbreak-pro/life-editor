@@ -15,3 +15,13 @@
  */
 export const BRIEFING_HINT_CLASS =
   "text-xs tracking-wider text-lumen-briefing-kohaku";
+
+/**
+ * The rule above a block in the detail panel (#1826), dropped on the well's
+ * first child (#2285). The well stacks its portals in one plain div
+ * (RightSidebarContents), so `first:` is whatever block opens the panel:
+ * 朝刊's「きのうまでの自分」since the Todo tray left the morning panel (#2223).
+ * 夕刊 opens with the tray, which wears no rule, so its blocks keep theirs.
+ */
+export const PANEL_BLOCK_RULE =
+  "mt-4 border-t border-lumen-border pt-4 first:mt-0 first:border-t-0 first:pt-0";

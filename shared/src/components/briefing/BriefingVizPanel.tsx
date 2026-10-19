@@ -9,6 +9,7 @@ import type { TodoCompletionTrendLabels } from "../Analytics/TodoCompletionTrend
 import type { WorkBreakBalanceLabels } from "../Analytics/WorkBreakBalance";
 import { ChartCard } from "../Analytics/ChartCard";
 import { CHART_HEIGHT_MD } from "../Analytics/chartTheme";
+import { PANEL_BLOCK_RULE } from "./briefingStyles";
 
 /*
  * The two recharts-backed widgets load on demand (#991).
@@ -99,7 +100,7 @@ export function BriefingVizPanel({
   balanceLabels,
 }: BriefingVizPanelProps): React.JSX.Element {
   return (
-    <section className="mt-4 flex flex-col gap-3 border-t border-lumen-border pt-4">
+    <section className={`flex flex-col gap-3 ${PANEL_BLOCK_RULE}`}>
       {/* Same heading shape as the tray above it, not the paper's 段標 —
           inside the panel these are two peers, and a 朱 bar here would claim
           the panel is a second front page.
@@ -110,8 +111,10 @@ export function BriefingVizPanel({
           —「きのうまでの自分」looked like the last line of the todo list. The
           4-unit padding is wider than the panel's own `gap-3`, so the heading
           now belongs to what is BELOW it rather than sitting midway between
-          two blocks. 朝刊 mounts this second and never alone, so the rule
-          always has a block above it to separate from. */}
+          two blocks. Since the Todo tray left the morning panel (#2223) this
+          is 朝刊's FIRST block, and `first:` drops the rule and the margin
+          there (#2285) — a rule with nothing above it only pushed the
+          heading down from the panel's top. */}
       <h3 className="text-sm font-semibold text-lumen-text">{title}</h3>
       <div className="flex flex-col gap-3">
         <StreakDisplay sessions={sessions} labels={streakLabels} />

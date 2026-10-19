@@ -114,7 +114,9 @@ describe("#1820 — the schedule table's titles keep their width", () => {
     if (table === null) throw new Error("no schedule table");
     // No 編集 ↗ and no 削除 🗑 on any row: only the title and the checkbox.
     expect(
-      table.querySelectorAll("tbody svg.lucide-arrow-up-right, tbody svg.lucide-trash-2"),
+      table.querySelectorAll(
+        "tbody svg.lucide-arrow-up-right, tbody svg.lucide-trash-2",
+      ),
     ).toHaveLength(0);
   });
 
@@ -165,15 +167,15 @@ describe("#2182 — the narrow carryover row wraps its action too", () => {
     return row;
   }
 
-  it("lets the row wrap on a phone and holds it to one line on Desktop", () => {
+  it("lets the row wrap in a narrow panel and holds it to one line in a wide one", () => {
     renderWithCarryover();
     const row = carryoverRow();
-    expect(row).toHaveClass("flex-wrap", "md:flex-nowrap");
+    expect(row).toHaveClass("flex-wrap", "@md:flex-nowrap");
     expect(row).toHaveClass("gap-x-3", "gap-y-1");
-    // The cluster is the same full-width one the rows above use.
+    // The cluster is the full-width one the narrow rows always used.
     const cluster = clusterOf(`${LABELS.edit}: ${LABELS.jumpToTodos}`);
     expect(cluster.parentElement).toBe(row);
-    expect(cluster).toHaveClass("max-md:w-full");
+    expect(cluster).toHaveClass("@max-md:w-full", "@max-md:justify-end");
   });
 
   it("keeps the title on the first line beside its checkbox", () => {
@@ -182,8 +184,39 @@ describe("#2182 — the narrow carryover row wraps its action too", () => {
       .getByText("長めの繰り越しタスクの題を最後まで読める形で出す")
       .closest("button");
     if (title === null) throw new Error("no title button");
-    // A 0 basis below md: the title cannot wrap down as an item of its own.
-    expect(title).toHaveClass("min-w-0", "max-md:flex-1");
+    // A 0 basis below @md: the title cannot wrap down as an item of its own.
+    expect(title).toHaveClass("min-w-0", "@max-md:flex-1");
     expect(title).not.toHaveClass("flex-1");
+  });
+
+  /*
+   * #2285 follow-up — the 320px Desktop panel kept `md:flex-nowrap`, since a
+   * viewport breakpoint only sees the wide window: the row could not wrap and
+   * the title became a five-line column beside 編集. The rows now measure
+   * their own list, so the panel's width is what decides.
+   */
+  it("measures the panel, not the viewport", () => {
+    renderWithCarryover();
+    const row = carryoverRow();
+    expect(row.parentElement).toHaveClass("@container");
+    const viewportGated = (el: Element): string[] =>
+      [...el.classList].filter((c) => /^(max-)?md:/.test(c));
+    const title = screen
+      .getByText("長めの繰り越しタスクの題を最後まで読める形で出す")
+      .closest("button");
+    if (title === null) throw new Error("no title button");
+    const cluster = clusterOf(`${LABELS.edit}: ${LABELS.jumpToTodos}`);
+    // Layout answers the container. Only the 44px tap floor stays a viewport
+    // rule on the button itself: it is for a finger, not for a narrow panel.
+    expect(viewportGated(row)).toEqual([]);
+    expect(viewportGated(title)).toEqual([]);
+    expect(viewportGated(cluster)).toEqual([]);
+    const button = screen.getByRole("button", {
+      name: `${LABELS.edit}: ${LABELS.jumpToTodos}`,
+    });
+    expect(viewportGated(button)).toEqual([
+      "max-md:min-h-11",
+      "max-md:min-w-11",
+    ]);
   });
 });
