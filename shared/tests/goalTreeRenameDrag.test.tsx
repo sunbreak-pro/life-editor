@@ -111,12 +111,13 @@ function renderTree(
     onRenameGoal?: (goalId: string, title: string) => void;
     drag?: GoalTreeDragHandlers;
     onSelectGoal?: (goalId: string) => void;
+    goals?: Goal[];
   } = {},
 ): ReturnType<typeof render> {
   return render(
     <GoalTreeView
       model={buildGoalTreeModel({
-        goals: GOALS,
+        goals: over.goals ?? GOALS,
         links: LINKS,
         todos: TODOS,
         todayKey: "2026-09-30",
@@ -273,6 +274,58 @@ describe("GoalTreeView — rename in place from the pencil (#2283)", () => {
     fireEvent.keyDown(field, { key: "Enter", keyCode: 229 });
     expect(onRenameGoal).not.toHaveBeenCalled();
     expect(screen.getByRole("textbox", { name: "Goal title" })).toBe(field);
+  });
+
+  it("opens one field for a goal listed both in the tree and under Unconnected", () => {
+    const onRenameGoal = vi.fn();
+    // Nothing connected and a parent: drawn under "Run weekly" and again in
+    // the Unconnected group.
+    renderTree({
+      onRenameGoal,
+      goals: [
+        ...GOALS,
+        goal({ id: "w2", title: "Swim once", parentGoalId: "m1" }),
+      ],
+    });
+    const tree = screen.getByRole("region", { name: "Goals" });
+    const loose = screen.getByRole("region", { name: "Unconnected" });
+    const inTree = within(tree).getByRole("button", {
+      name: "Rename: Swim once",
+    });
+    within(loose).getByRole("button", { name: "Rename: Swim once" });
+
+    fireEvent.click(inTree);
+    const fields = screen.getAllByRole("textbox", { name: "Goal title" });
+    expect(fields).toHaveLength(1);
+    expect(tree.contains(fields[0])).toBe(true);
+    expect(document.activeElement).toBe(fields[0]);
+    // The other row keeps its title and pencil.
+    within(loose).getByRole("button", { name: "Rename: Swim once" });
+
+    fireEvent.change(fields[0], { target: { value: "Swim twice" } });
+    fireEvent.keyDown(fields[0], { key: "Enter" });
+    expect(onRenameGoal).toHaveBeenCalledTimes(1);
+    expect(onRenameGoal).toHaveBeenCalledWith("w2", "Swim twice");
+  });
+
+  it("opens the field on the Unconnected row when that pencil is pressed", () => {
+    renderTree({
+      onRenameGoal: vi.fn(),
+      goals: [
+        ...GOALS,
+        goal({ id: "w2", title: "Swim once", parentGoalId: "m1" }),
+      ],
+    });
+    const tree = screen.getByRole("region", { name: "Goals" });
+    const loose = screen.getByRole("region", { name: "Unconnected" });
+    fireEvent.click(
+      within(loose).getByRole("button", { name: "Rename: Swim once" }),
+    );
+    const fields = screen.getAllByRole("textbox", { name: "Goal title" });
+    expect(fields).toHaveLength(1);
+    expect(loose.contains(fields[0])).toBe(true);
+    expect(document.activeElement).toBe(fields[0]);
+    within(tree).getByRole("button", { name: "Rename: Swim once" });
   });
 
   it("does not drag the row while its name is being edited", () => {
