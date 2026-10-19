@@ -1091,7 +1091,7 @@ describe("Narrow rows fit: icon-only actions, nothing overhanging (#1514)", () =
     expect(printed.length).toBeGreaterThan(0);
     for (const node of printed) {
       expect(node.className).toContain("hidden");
-      expect(node.className).toContain("md:inline");
+      expect(node.className).toContain("@md:inline");
     }
   });
 
@@ -1108,7 +1108,7 @@ describe("Narrow rows fit: icon-only actions, nothing overhanging (#1514)", () =
     expect(icons.length).toBeGreaterThan(0);
     for (const icon of icons) {
       expect(icon.getAttribute("class")).toContain("size-4");
-      expect(icon.getAttribute("class")).toContain("md:size-[13px]");
+      expect(icon.getAttribute("class")).toContain("@md:size-[13px]");
     }
   });
 

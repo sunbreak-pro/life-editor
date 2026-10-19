@@ -111,6 +111,17 @@ describe("持ち越し in the panel (#2285)", () => {
       "pt-4",
     );
   });
+
+  it("drops the rule when it opens the panel", () => {
+    renderCarryover([
+      { id: "c1", title: "Old todo", daysLabel: "day 3", completed: false },
+    ]);
+    expect(screen.getByRole("region", { name: "CARRYOVER" })).toHaveClass(
+      "first:mt-0",
+      "first:border-t-0",
+      "first:pt-0",
+    );
+  });
 });
 
 describe("残りの Todo in the panel (#2285)", () => {

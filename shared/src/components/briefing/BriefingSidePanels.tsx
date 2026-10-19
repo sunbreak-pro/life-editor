@@ -8,6 +8,7 @@ import {
   type BriefingCarryoverEntry,
   type BriefingLabels,
 } from "./BriefingView";
+import { PANEL_BLOCK_RULE } from "./briefingStyles";
 import type {
   EveningLabels,
   EveningScheduleEntry,
@@ -27,7 +28,9 @@ import type { TodoStatus } from "../../types/todoTree";
  *
  * Every block wears BriefingVizPanel's heading and its top rule (#1826): the
  * detail well stacks its portals with no gap, and the rule is what tells one
- * block from the next. A block draws a skeleton while the paper loads. The
+ * block from the next. The well's first block has nothing above it to be told
+ * from, so it drops the rule and its margin (`PANEL_BLOCK_RULE`). A block
+ * draws a skeleton while the paper loads. The
  * paper has no error surface (a failed read lands as an empty slot), so an
  * error reads as the empty state, as it did on the paper.
  *
@@ -47,7 +50,7 @@ function PanelBlock({
   return (
     <section
       aria-labelledby={headId}
-      className="mt-4 flex flex-col gap-3 border-t border-lumen-border pt-4"
+      className={`flex flex-col gap-3 ${PANEL_BLOCK_RULE}`}
     >
       <h3 id={headId} className="text-sm font-semibold text-lumen-text">
         {title}
@@ -86,14 +89,17 @@ export function BriefingCarryoverPanel({
   if (!loading && entries.length === 0) return null;
   return (
     <PanelBlock title={labels.carryoverTitle} loading={loading}>
-      <ul className="space-y-1">
+      {/* The `@container` the rows and `RowActions` measure: the panel is
+          320px on a wide screen too, so a viewport breakpoint held the rows
+          to one line there and left the title a five-line column. */}
+      <ul className="@container space-y-1">
         {entries.map((item) => (
-          /* `flex-wrap` below `md` (#2182): `RowActions` asks for the full
+          /* `flex-wrap` below `@md` (#2182): `RowActions` asks for the full
              width there, and in a row that cannot wrap the title was squeezed
-             to 0px. The drawer is a phone's width, so it still applies. */
+             to 0px. */
           <li
             key={item.id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-lumen-text-secondary md:flex-nowrap"
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-lumen-text-secondary @md:flex-nowrap"
           >
             {/* The left rail at one width (#1368), so「3日目」and「12日目」
                 hand the checkbox after them the same left edge. */}
@@ -110,7 +116,7 @@ export function BriefingCarryoverPanel({
             <button
               type="button"
               onClick={() => onToggleTodo(item.id)}
-              className="min-w-0 text-left max-md:flex-1"
+              className="min-w-0 text-left @max-md:flex-1"
             >
               <span className={item.completed ? "line-through" : undefined}>
                 {item.title}

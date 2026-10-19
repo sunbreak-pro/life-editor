@@ -219,8 +219,8 @@ export interface BriefingLabels {
    * the hover tooltip, so the name says WHERE the jump lands without
    * contradicting the printed text (WCAG 2.5.3 Label in Name).
    *
-   * Printed beside the icon from `md` up; below it the button is icon-only
-   * and this word survives in the name alone (#1514).
+   * Printed beside the icon from the rows' `@md` up; below it the button is
+   * icon-only and this word survives in the name alone (#1514).
    *
    * The schedule table carries no row actions since #2223: a row's title
    * opens its editor in place, and deleting is the editor's.
@@ -410,6 +410,12 @@ function BlockHeadAddButton({
  * `justify-end` rather than the `ml-auto` above, which does nothing once the
  * item IS the line: the cluster still lands on the right edge, under the
  * actions of the row above, so the straight column survives the wrap.
+ *
+ * Both are CONTAINER variants (`@max-md:`) since the rows moved into the
+ * detail panel: the 320px Desktop panel is as narrow as a phone while the
+ * viewport is wide, and a viewport `max-md:` left its title a five-line
+ * column. The rows' list is the `@container`; without one the cluster never
+ * takes the full width.
  */
 export function RowActions({
   children,
@@ -417,7 +423,7 @@ export function RowActions({
   children: ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="-my-1 ml-auto flex flex-shrink-0 items-center gap-0.5 self-center max-md:w-full max-md:justify-end">
+    <div className="-my-1 ml-auto flex flex-shrink-0 items-center gap-0.5 self-center @max-md:w-full @max-md:justify-end">
       {children}
     </div>
   );
@@ -427,14 +433,19 @@ export function RowActions({
  * Shape of the row action (the carryover「編集」— the delete beside it left
  * with the schedule rows' actions in #2223).
  *
- * `md:` — not a prop — because this view is pure presentation and the host
- * hands it no width. Tailwind's `md` is rem-based, so it moves with the
- * Settings font scale: the bigger the type, the wider the screen has to be
+ * `@md:` — a container variant, not a prop — because this view is pure
+ * presentation and the host hands it no width. It answers the rows' list
+ * rather than the viewport since they live in the detail panel (#2285), which
+ * is 320px on a wide screen too. `@md` is rem-based, so it moves with the
+ * Settings font scale: the bigger the type, the wider the panel has to be
  * before the labels are offered. That is the behaviour this rule wants, since
- * what runs out at 390px is room for the words themselves (#1514).
+ * what runs out is room for the words themselves (#1514).
  *
- * `gap-1` is `md:` too: with the label hidden it would be 4px of dead space
+ * `gap-1` is `@md:` too: with the label hidden it would be 4px of dead space
  * between the icon and the button's right padding.
+ *
+ * The 44px floor stays a VIEWPORT rule: it is for a finger, and a narrow panel
+ * on a Desktop is still worked with a pointer.
  *
  * `max-md:min-h-11 max-md:min-w-11` is the 44px floor (#1559), and it grows the
  * BOX rather than hanging an invisible `::after` over it the way the heading's
@@ -447,8 +458,8 @@ export function RowActions({
  * to 90px, and while the cluster shared a line with the title that came
  * straight off the title — 32px on top of what #1514 had just won back, which
  * is what #1820 measured as a five-character title on two lines. The width is
- * still spent, but `RowActions` now wraps below `md`, so it is spent on a line
- * the title does not use. The words stay hidden below `md` regardless: the
+ * still spent, but `RowActions` now wraps below `@md`, so it is spent on a line
+ * the title does not use. The words stay hidden below `@md` regardless: the
  * cluster sits under the row it belongs to, and two labelled buttons there
  * would read as a second row rather than as that row's actions.
  *
@@ -457,7 +468,7 @@ export function RowActions({
  * by call order (rules/frontend.md §Gotchas).
  */
 const ROW_ACTION_BASE =
-  "flex items-center justify-center whitespace-nowrap px-1.5 py-1 text-xs transition-colors max-md:min-h-11 max-md:min-w-11 md:gap-1";
+  "flex items-center justify-center whitespace-nowrap px-1.5 py-1 text-xs transition-colors max-md:min-h-11 max-md:min-w-11 @md:gap-1";
 
 /**
  * The action's word —「編集」/「削除」— printed beside its icon on a screen wide
@@ -468,31 +479,31 @@ const ROW_ACTION_BASE =
  * for one 18-character todo. Hiding the words gives the title back ~77px and
  * gets it onto one line.
  *
- * `hidden md:inline` rather than dropping the text from the tree: the
+ * `hidden @md:inline` rather than dropping the text from the tree: the
  * accessible name is composed from this same label (「編集: スケジュールで開く」),
  * and WCAG 2.5.3 (Label in Name) only binds while the label is VISIBLE — so a
- * narrow screen loses the printed word and keeps every name a screen reader
+ * narrow panel loses the printed word and keeps every name a screen reader
  * and a voice-control user hear.
  */
 function RowActionLabel({ label }: { label: string }) {
-  return <span className="hidden md:inline">{label}</span>;
+  return <span className="hidden @md:inline">{label}</span>;
 }
 
 /*
  * Icon size of a row action. 16px while the word is hidden, back to the 13px
  * #410 chose once it is printed: a 13px arrow alone was the very thing that
- * issue called too small to read as an action, and below `md` it now stands
+ * issue called too small to read as an action, and below `@md` it now stands
  * alone. Set in CSS rather than through lucide's `size` prop so it can answer
  * the breakpoint at all (the prop writes width/height ATTRIBUTES, which any
  * class overrides).
  */
-const ROW_ACTION_ICON = "size-4 shrink-0 md:size-[13px]";
+const ROW_ACTION_ICON = "size-4 shrink-0 @md:size-[13px]";
 
 /**
  * Row jump action —「編集」+ ↗ (#410).
  *
  * The label is printed because a 13px arrow alone was too small to read as an
- * action — and too small to hit. Below `md` there is no room for the word
+ * action — and too small to hit. Below `@md` there is no room for the word
  * next to a todo's title (#1514), so it steps back to the icon and the icon
  * grows to 16px to answer the same objection.
  *

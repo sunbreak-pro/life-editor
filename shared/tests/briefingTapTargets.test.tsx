@@ -175,7 +175,7 @@ describe("#1559 — the briefing papers' own controls meet the 44px floor", () =
     expect(btn).toHaveClass("px-1.5", "py-1", "text-xs");
     expect(btn).not.toHaveClass("min-h-11");
     expect(btn).not.toHaveClass("min-w-11");
-    // #1514: the word stays hidden below `md`.
-    expect(btn.querySelector("span")).toHaveClass("hidden", "md:inline");
+    // #1514: the word stays hidden below the rows' `@md`.
+    expect(btn.querySelector("span")).toHaveClass("hidden", "@md:inline");
   });
 });
