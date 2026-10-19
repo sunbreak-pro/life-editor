@@ -133,8 +133,23 @@ function makeProps(
       // every case that is not about it sees the rows it passes in.
       filter: makeFilter(),
       filterTags: [],
+      // #2281: on today unless a case steps away.
+      day: makeDay(),
       ...over.todo,
     },
+  };
+}
+
+type TodoDayProp = ScheduleSidebarProps["todo"]["day"];
+
+function makeDay(over: Partial<TodoDayProp> = {}): TodoDayProp {
+  return {
+    label: "Tue, Oct 20",
+    heading: null,
+    onPrev: vi.fn(),
+    onNext: vi.fn(),
+    onToday: vi.fn(),
+    ...over,
   };
 }
 
@@ -573,6 +588,92 @@ describe("ScheduleSidebar — the flow tab as narrow's day list (#1148)", () => 
  * reports the count, the panel is a disclosure rather than a second surface,
  * and an empty list caused by a filter never reads as an empty list.
  */
+// #2281 — the Todo tab's own day. The host owns the state; this pins the
+// drawing: the row above the filter, the presses, the heading and empty line.
+describe("ScheduleSidebar — the Todo tab's day (#2281)", () => {
+  it("puts the ‹ day › / today row above the filter button", () => {
+    render(<ScheduleSidebar {...makeProps({ tab: "todo" })} />);
+    const dayRow = document.querySelector("[data-todo-day-row]");
+    const filterRow = document.querySelector("[data-todo-filter-row]");
+    expect(dayRow).not.toBeNull();
+    expect(filterRow).not.toBeNull();
+    expect(
+      dayRow!.compareDocumentPosition(filterRow!) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(dayRow!.textContent).toContain("Tue, Oct 20");
+  });
+
+  it("hands the three presses to the host", () => {
+    const day = makeDay({ heading: "Todos for Wed 10/21" });
+    render(<ScheduleSidebar {...makeProps({ tab: "todo", todo: { day } })} />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.todoDayPrev" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.todoDayNext" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.today" }),
+    );
+    expect(day.onPrev).toHaveBeenCalledTimes(1);
+    expect(day.onNext).toHaveBeenCalledTimes(1);
+    expect(day.onToday).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps today's heading and disables 今日 while on today", () => {
+    render(<ScheduleSidebar {...makeProps({ tab: "todo" })} />);
+    screen.getByText("scheduleScreen.todoTodayHeading");
+    screen.getByText("scheduleScreen.todoEmptyToday");
+    screen.getByRole("button", { name: "scheduleScreen.todoAddTodayCta" });
+    const today = screen.getByRole("button", { name: "scheduleScreen.today" });
+    expect((today as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("names another day in the heading and says it is empty right under it", () => {
+    render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: { day: makeDay({ heading: "10/21（水）の Todo" }) },
+        })}
+      />,
+    );
+    const heading = screen.getByText("10/21（水）の Todo");
+    expect(screen.queryByText("scheduleScreen.todoTodayHeading")).toBeNull();
+    const empty = screen.getByText("scheduleScreen.todoEmptyDay");
+    expect(screen.queryByText("scheduleScreen.todoEmptyToday")).toBeNull();
+    // Directly under the heading: the empty line is the next text the list
+    // prints, before the "その他" heading.
+    const others = screen.getByText("scheduleScreen.todoOthersHeading");
+    expect(
+      heading.compareDocumentPosition(empty) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      empty.compareDocumentPosition(others) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // The pill adds to the day the heading names, and says so.
+    screen.getByRole("button", { name: "scheduleScreen.todoAddDayCta" });
+    const today = screen.getByRole("button", { name: "scheduleScreen.today" });
+    expect((today as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it("floors the day row's buttons on narrow", () => {
+    render(<ScheduleSidebar {...makeProps({ tab: "todo", isWide: false })} />);
+    for (const name of [
+      "scheduleScreen.todoDayPrev",
+      "scheduleScreen.todoDayNext",
+    ]) {
+      const cls = screen.getByRole("button", { name }).className;
+      expect(cls).toContain("max-md:min-h-11");
+      expect(cls).toContain("max-md:min-w-11");
+    }
+    expect(
+      screen.getByRole("button", { name: "scheduleScreen.today" }).className,
+    ).toContain("max-md:min-h-11");
+  });
+});
+
 describe("ScheduleSidebar — the Todo tab's filter (#1641)", () => {
   const rows = {
     placed: [{ id: "task-1", title: "Placed", completed: false }],

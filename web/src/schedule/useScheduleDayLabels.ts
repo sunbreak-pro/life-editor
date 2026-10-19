@@ -6,6 +6,7 @@ import {
 } from "@life-editor/shared";
 import { agendaEmptyKey } from "./agendaEmptyLabel";
 import {
+  formatDayHeadingParts,
   formatFullDay as formatFullDayKey,
   formatPeriodLabel,
   formatShortDate,
@@ -61,6 +62,8 @@ export interface UseScheduleDayLabelsArgs {
   weekEnd: string;
   /** Minutes-from-midnight (useMinuteClock) — the now-line's own caption. */
   nowMinutes: number;
+  /** The Todo tab's own day (#2281) — not the anchor, not always today. */
+  trayDay: string;
 }
 
 export function useScheduleDayLabels({
@@ -71,6 +74,7 @@ export function useScheduleDayLabels({
   weekStart,
   weekEnd,
   nowMinutes,
+  trayDay,
 }: UseScheduleDayLabelsArgs) {
   const { t, i18n } = useTranslation();
 
@@ -110,6 +114,23 @@ export function useScheduleDayLabels({
     [anchorDate, i18n.language],
   );
 
+  // #2281: the Todo tab's day, for the stepper between ‹ and ›.
+  const trayDayLabel = useMemo(
+    () => formatFullDayKey(i18n.language, trayDay),
+    [trayDay, i18n.language],
+  );
+
+  // #2281: the first list's heading on a day that is not today
+  // (「10/21（火）の Todo」). null on today, where the list keeps its own
+  // 「本日分の Todo」 — the sidebar reads the null as "this is today".
+  const trayDayHeading = useMemo(() => {
+    if (trayDay === today) return null;
+    return t(
+      "scheduleScreen.todoDayHeading",
+      formatDayHeadingParts(i18n.language, trayDay),
+    );
+  }, [t, trayDay, today, i18n.language]);
+
   // Month-cell accessible names (MonthGrid falls back to the raw ISO key —
   // a screen reader would announce "2026-07-09").
   const formatFullDay = useCallback(
@@ -146,6 +167,8 @@ export function useScheduleDayLabels({
     periodLabel,
     todayLabel,
     anchorDayLabel,
+    trayDayLabel,
+    trayDayHeading,
     formatFullDay,
     agendaLabels,
     anchorAgendaLabels,

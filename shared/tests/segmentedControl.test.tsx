@@ -182,6 +182,37 @@ describe("SegmentedControl", () => {
     }
   });
 
+  /*
+   * #2281 — the other way out: the track stays on one row and the labels give
+   * way. jsdom has no layout, so the class contract is what is pinned: a
+   * shrinkable segment (min-w-0 — a flex item will not go below its content
+   * without it), a truncating label inside it, and the full label on `title`.
+   */
+  it("keeps one row and truncates the labels under truncateLabels", () => {
+    renderControl({ truncateLabels: true });
+    expect(screen.getByRole("tablist")).not.toHaveClass("flex-wrap");
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveClass("min-w-0");
+      expect(tab).not.toHaveClass("whitespace-nowrap");
+      const label = tab.querySelector("span.truncate");
+      expect(label).not.toBeNull();
+      expect(tab).toHaveAttribute("title", label?.textContent ?? "");
+      // One padding class only (#830): the table, not an appended override.
+      expect(tab).toHaveClass("px-1");
+      expect(tab).not.toHaveClass("px-1.5");
+      expect(tab).not.toHaveClass("px-3");
+    }
+  });
+
+  it("lets truncateLabels win when singleLineLabels is passed as well", () => {
+    renderControl({ truncateLabels: true, singleLineLabels: true });
+    expect(screen.getByRole("tablist")).not.toHaveClass("flex-wrap");
+    for (const tab of screen.getAllByRole("tab")) {
+      expect(tab).toHaveClass("px-1");
+      expect(tab).not.toHaveClass("px-1.5");
+    }
+  });
+
   it("leaves every other track free to wrap its labels", () => {
     // The default: FrequencyEditor's en "Every N days" in a phone-width sheet
     // is a label that should keep breaking rather than overrun its segment.

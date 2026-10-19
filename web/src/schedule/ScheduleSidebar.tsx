@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ListFilter } from "lucide-react";
+import { ChevronLeft, ChevronRight, ListFilter } from "lucide-react";
 import {
   useTranslation,
   cn,
@@ -169,7 +169,36 @@ export interface ScheduleSidebarTodo {
   filter: TodoTabFilter;
   /** Every live tag, already sorted, for the filter panel's checkboxes. */
   filterTags: TodoFilterPanelTag[];
+  /** The day the first list shows, and the row that moves it (#2281). */
+  day: ScheduleSidebarTodoDay;
 }
+
+/**
+ * The Todo tab's day (#2281) — its own, not the flow tab's. The host owns the
+ * state (this body unmounts on a tab switch); this draws the ‹ day › / 今日
+ * row and renames the first list after it.
+ */
+export interface ScheduleSidebarTodoDay {
+  /** Already-formatted day for the stepper (the host owns the locale). */
+  label: string;
+  /**
+   * The first list's heading on a day that is not today
+   * (「10/21（火）の Todo」), or null on today — which is also how this
+   * component knows the day IS today.
+   */
+  heading: string | null;
+  onPrev: () => void;
+  onNext: () => void;
+  onToday: () => void;
+}
+
+/**
+ * The ‹ / › buttons on the Todo tab's day row (#2281): the filter button's
+ * size on Desktop, a 44px box on a phone (rules/frontend.md §Gotchas — the
+ * floor is per call site and narrow-only).
+ */
+const DAY_STEP_BTN =
+  "flex size-8 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:min-w-11";
 
 /**
  * The three tabs, as an id. Named since #1148 because a second file decides
@@ -378,7 +407,8 @@ export function ScheduleSidebar({
    * different one about the grid.
    */
   const [filterOpen, setFilterOpen] = useState(false);
-  const { filter, filterTags } = todo;
+  const { filter, filterTags, day } = todo;
+  const isToday = day.heading == null;
   // The host hands over the rows unfiltered: which of them are on screen is
   // this panel's question, and the grid beside it asks a different one.
   const filtered = filter.apply({
@@ -398,6 +428,44 @@ export function ScheduleSidebar({
       {...tourAnchor(TOUR_ANCHORS.scheduleTodoBoard)}
       className="flex flex-col gap-2"
     >
+      {/*
+       * #2281: the first list's day, above the filter. ‹ and › step a day and
+       * 今日 comes back; the day between them gives way (truncate) before the
+       * buttons do at the panel's minimum width. 今日 is disabled while the
+       * list is already on today, so the press it offers is never a no-op.
+       */}
+      <div data-todo-day-row className="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          aria-label={t("scheduleScreen.todoDayPrev")}
+          onClick={day.onPrev}
+          className={DAY_STEP_BTN}
+        >
+          <ChevronLeft aria-hidden className="size-3.5" />
+        </button>
+        <span
+          aria-live="polite"
+          className="min-w-0 flex-1 truncate text-center text-xs font-medium text-lumen-text"
+        >
+          {day.label}
+        </span>
+        <button
+          type="button"
+          aria-label={t("scheduleScreen.todoDayNext")}
+          onClick={day.onNext}
+          className={DAY_STEP_BTN}
+        >
+          <ChevronRight aria-hidden className="size-3.5" />
+        </button>
+        <button
+          type="button"
+          onClick={day.onToday}
+          disabled={isToday}
+          className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2 py-1 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent max-md:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        >
+          {t("scheduleScreen.today")}
+        </button>
+      </div>
       {/*
        * #1641: the filter button gets a row of its own at the top of the tab.
        * It used to share that row with the create pill — but #1640 moved the
@@ -517,7 +585,11 @@ export function ScheduleSidebar({
           placed: (
             <AddPill
               onClick={todo.onAddToday}
-              label={t("scheduleScreen.todoAddTodayCta")}
+              label={
+                isToday
+                  ? t("scheduleScreen.todoAddTodayCta")
+                  : t("scheduleScreen.todoAddDayCta")
+              }
               className={HEADING_PILL_TAP}
             />
           ),
@@ -531,8 +603,12 @@ export function ScheduleSidebar({
           ),
         }}
         labels={{
-          placedHeading: t("scheduleScreen.todoTodayHeading"),
-          emptyPlaced: t("scheduleScreen.todoEmptyToday"),
+          // #2281: the first list is named after the day it shows; off today
+          // its empty line says "this day", directly under that heading.
+          placedHeading: day.heading ?? t("scheduleScreen.todoTodayHeading"),
+          emptyPlaced: isToday
+            ? t("scheduleScreen.todoEmptyToday")
+            : t("scheduleScreen.todoEmptyDay"),
           allDay: t("scheduleScreen.allDay"),
           addHeading: t("scheduleScreen.todoOthersHeading"),
           addAction: t("scheduleScreen.todoMoveToToday"),

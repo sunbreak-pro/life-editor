@@ -96,6 +96,16 @@ const SINGLE_LINE_SIZE_CLASSES: Record<SegmentedControlSize, string> = {
   sm: `px-1.5 py-1.5 text-xs ${TAP_TARGET_TALL}`,
 };
 
+/*
+ * `truncateLabels` (#2281): one more step of padding given back, since every
+ * pixel of it is one the label loses before the "…". Own table, same `cn`
+ * reason as above.
+ */
+const TRUNCATE_SIZE_CLASSES: Record<SegmentedControlSize, string> = {
+  md: `px-1 py-1.5 text-xs ${MD_TAP_FLOOR}`,
+  sm: `px-1 py-1.5 text-xs ${TAP_TARGET_TALL}`,
+};
+
 export interface SegmentedControlProps {
   options: SegmentedOption[];
   value: string;
@@ -147,6 +157,14 @@ export interface SegmentedControlProps {
    * line and do not pass the flag.
    */
   singleLineLabels?: boolean;
+  /**
+   * Keeps the track on ONE row and lets the LABELS give way instead (#2281):
+   * every segment shrinks to an equal share, and a label that still does not
+   * fit ends in "…" (the full label stays on `title`). The Schedule panel's
+   * wrapped track still pushed 繰り返し past the edge at its 240px minimum.
+   * Wins over `singleLineLabels` when both are passed.
+   */
+  truncateLabels?: boolean;
   className?: string;
 }
 
@@ -170,11 +188,15 @@ export function SegmentedControl({
   disabled = false,
   size = "md",
   singleLineLabels = false,
+  truncateLabels = false,
   className,
 }: SegmentedControlProps) {
-  const sizeClasses = singleLineLabels
-    ? SINGLE_LINE_SIZE_CLASSES[size]
-    : SIZE_CLASSES[size];
+  const wrapTrack = singleLineLabels && !truncateLabels;
+  const sizeClasses = truncateLabels
+    ? TRUNCATE_SIZE_CLASSES[size]
+    : singleLineLabels
+      ? SINGLE_LINE_SIZE_CLASSES[size]
+      : SIZE_CLASSES[size];
   const refs = useRef<(HTMLButtonElement | null)[]>([]);
   // Keeps the tablist keyboard-reachable when value matches no option:
   // the first segment falls back to tabindex 0 (roving-tabindex invariant).
@@ -205,7 +227,7 @@ export function SegmentedControl({
         // What absorbs the overrun once the labels refuse to break: the row
         // splits, not the words (see singleLineLabels). gap-0.5 already
         // spaces both axes, so the second row needs nothing of its own.
-        singleLineLabels && "flex-wrap",
+        wrapTrack && "flex-wrap",
         className,
       )}
     >
@@ -223,6 +245,7 @@ export function SegmentedControl({
             aria-disabled={disabled || undefined}
             tabIndex={active || (activeIndex === -1 && i === 0) ? 0 : -1}
             {...(option.tourId ? tourAnchor(option.tourId) : {})}
+            title={truncateLabels ? option.label : undefined}
             onClick={disabled ? undefined : () => onChange(option.id)}
             onKeyDown={(e) => handleKeyDown(e, i)}
             className={cn(
@@ -235,7 +258,10 @@ export function SegmentedControl({
               // unaffected: the height is still content + padding, and the
               // text was already in the middle of it.
               "flex flex-1 items-center justify-center rounded-lumen-sm text-center",
-              singleLineLabels && "whitespace-nowrap",
+              singleLineLabels && !truncateLabels && "whitespace-nowrap",
+              // min-w-0: a flex item will not shrink below its content
+              // without it, and the label's ellipsis never gets a chance.
+              truncateLabels && "min-w-0",
               sizeClasses,
               "transition-colors focus-visible:outline-none",
               "focus-visible:ring-2 focus-visible:ring-lumen-accent",
@@ -245,7 +271,11 @@ export function SegmentedControl({
                 : "text-lumen-text-secondary",
             )}
           >
-            {option.label}
+            {truncateLabels ? (
+              <span className="min-w-0 truncate">{option.label}</span>
+            ) : (
+              option.label
+            )}
           </button>
         );
       })}
