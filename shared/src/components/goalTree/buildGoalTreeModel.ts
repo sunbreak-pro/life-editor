@@ -78,7 +78,12 @@ export interface GoalTreeTodoSource {
 
 export interface BuildGoalTreeModelInput {
   goals: readonly Goal[];
-  links: readonly GoalTodoLink[];
+  /**
+   * Only who links whom is read, so the goals snapshot's links (no `id` in
+   * their type) fit as well as full rows.
+   */
+  links: readonly (Pick<GoalTodoLink, "goalId" | "todoId" | "isDeleted"> &
+    Partial<Pick<GoalTodoLink, "id">>)[];
   todos: readonly GoalTreeTodoSource[];
   /** `YYYY-MM-DD` — the day whose year / month / week is current. */
   todayKey: string;

@@ -22,7 +22,8 @@ import {
 /*
  * The morning paper's goals (#2106, plan Step 7): the snapshot the goals
  * block, the todo rows' marks and the period-end review read, and the writes
- * they make — this week's new goal and the review's answers.
+ * they make — this week's new goal, the review's answers, and the goals
+ * panel's rename / achieved-by-hand / delete (#2286).
  *
  * The snapshot is the linking screens' own (useGoalLinkSnapshot), handed the
  * paper's live todo tree so the tree is not read twice; only the `goals`
@@ -72,6 +73,12 @@ export interface MorningGoalsState {
   decide: (choice: PeriodEndChoice) => void;
   askLater: () => void;
   createWeekGoal: (title: string) => Promise<boolean>;
+  /** The goals panel's edits (#2286): rename, achieved by hand, re-parent. */
+  updateGoal: (
+    goalId: string,
+    updates: Parameters<DataService["updateGoal"]>[1],
+  ) => Promise<boolean>;
+  deleteGoal: (goalId: string) => Promise<boolean>;
   writeLinks: GoalLinkSnapshot["writeLinks"];
 }
 
@@ -210,6 +217,23 @@ export function useMorningGoals(
 
   const askLater = useCallback(() => setLaterOn(todayKey), [todayKey]);
 
+  const updateGoal = useCallback(
+    (goalId: string, updates: Parameters<DataService["updateGoal"]>[1]) =>
+      write(async (patch) => patch(await ds.updateGoal(goalId, updates))),
+    [ds, write],
+  );
+
+  const deleteGoal = useCallback(
+    (goalId: string) =>
+      write(async (patch) => {
+        await ds.softDeleteGoal(goalId);
+        // Gone from the paper at once, without waiting for the re-read.
+        const goal = state?.goals.find((g) => g.id === goalId);
+        if (goal) patch({ ...goal, isDeleted: true });
+      }),
+    [ds, write, state],
+  );
+
   return {
     state,
     goals,
@@ -219,6 +243,8 @@ export function useMorningGoals(
     decide,
     askLater,
     createWeekGoal,
+    updateGoal,
+    deleteGoal,
     writeLinks,
   };
 }

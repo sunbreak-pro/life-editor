@@ -124,6 +124,10 @@ export {
   type PeriodEndReviewLabels,
 } from "./MorningGoalsBlock";
 export {
+  MorningGoalsPanel,
+  type MorningGoalsPanelProps,
+} from "./MorningGoalsPanel";
+export {
   useGoalLinkSnapshot,
   type GoalLinkLoader,
   type GoalLinkSnapshot,

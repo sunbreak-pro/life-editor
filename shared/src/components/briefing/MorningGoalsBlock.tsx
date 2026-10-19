@@ -1,13 +1,10 @@
-import { useId, useState } from "react";
-import { ArrowUpRight, Link2 } from "lucide-react";
+import { useId } from "react";
+import { ChevronRight, Target } from "lucide-react";
 import type { GoalPeriodKind } from "../../types/goal";
-import { isImeComposing } from "../../utils/imeGuard";
 import { Button } from "../Button";
 import { cn } from "../cn";
-import { Input } from "../Input";
 import { BlockHead } from "./BriefingView";
 import { BRIEFING_HINT_CLASS } from "./briefingStyles";
-import { GOALS_PER_PERIOD_LIMIT } from "./goalNoteMigration";
 import {
   GOAL_CHIP_ACHIEVED,
   GOAL_CHIP_UNACHIEVED,
@@ -17,14 +14,14 @@ import type { GoalProgress } from "./goalLinkPreview";
 import type { MorningGoalLine, MorningGoals } from "./morningGoals";
 
 /*
- * The morning paper's goals (#2106, plan Step 7 — design M1–M8 / P1 / P2 as
- * described in .claude/docs/design/briefs/briefing.md §8 / §10.2 / §11).
+ * The morning paper's goals (#2106 → #2286).
  *
- * This week's goals are the protagonists: one row each with its progress,
- * and the add field under them. This month's and this year's goals ride
- * above as one line per period — the paper offers making only the week's;
- * the rest, and renaming or deleting, live in Connect's "Goals & Todos" tab,
- * which the block links to.
+ * Since #2286 the block is a summary: one line per period — this year, this
+ * month, this week — each with its first goal, 「その他 N」 at the right edge
+ * and the period's progress. Viewing, editing, linking and adding moved to
+ * the goals panel (MorningGoalsPanel.tsx) that the「目標」button opens, so
+ * the paper stays short on a phone. An ended period's unanswered goals are
+ * a one-line notice above the rows; the review itself lives in the panel.
  *
  * Ruled like every other block of the paper, not a stack of cards. Colours
  * are the plan's: achieved = mint, not yet = 朱, unconnected = an outline
@@ -36,9 +33,19 @@ import type { MorningGoalLine, MorningGoals } from "./morningGoals";
 
 export interface MorningGoalsLabels {
   title: string;
-  /** Host-formatted「今週 10/4 – 10/10」per period. */
+  /** 「今年」「今月」「今週」— the summary rows' heads. */
+  periodNames: Record<GoalPeriodKind, string>;
+  /** Host-formatted「今週 10/4 – 10/10」per period — the panel's headings. */
   periods: Record<GoalPeriodKind, string>;
-  /** No goal this week (also what a new week opens on). */
+  /** The block's button that opens the goals panel. */
+  open: string;
+  /** 「その他 2」— the goals a summary row does not name. */
+  more: (count: number) => string;
+  /** A period with no goal yet. */
+  unset: string;
+  /** 「終わった期間の目標が 2 件あります」— the review's one-line notice. */
+  reviewNotice: (count: number) => string;
+  /** No goal this week (also what a new week opens on) — in the panel. */
   prompt: string;
   achieved: string;
   unconnected: string;
@@ -46,6 +53,8 @@ export interface MorningGoalsLabels {
   linkTodos: string;
   /** Its accessible name — the visible text, then the goal's title. */
   linkTodosFor: (title: string) => string;
+  /** A goal title's accessible name in the panel: it opens the goal. */
+  openGoalFor: (title: string) => string;
   addLabel: string;
   addPlaceholder: string;
   add: string;
@@ -58,36 +67,42 @@ export interface MorningGoalsLabels {
 export interface MorningGoalsBlockProps {
   goals: MorningGoals;
   labels: MorningGoalsLabels;
-  onLinkTodos: (goalId: string) => void;
-  /** Resolves true once the goal exists (the field clears), false to keep it. */
-  onCreateWeekGoal: (title: string) => Promise<boolean>;
   /**
-   * Another goal write (a review answer) is in flight: adding waits for it,
-   * so the two cannot both count the same free slot.
+   * Phone width: the rows drop the bar and every count / chip (#2286) — the
+   * panel still shows them per goal.
    */
-  writing?: boolean;
-  /** Omitted → no link to Connect (a host with no navigation). */
-  onOpenGoals?: () => void;
+  compact?: boolean;
+  /** Unanswered goals of ended periods: a one-line notice above the rows. */
+  reviewCount?: number;
+  /** Opens the goals panel — from the button, an unset row or the notice. */
+  onOpen: () => void;
 }
+
+const KINDS: readonly GoalPeriodKind[] = ["year", "month", "week"];
 
 /*
  * The 44px floor below `md` (#1559) on every control here, grown on the box:
  * these rows have no ruled rhythm a taller box would break.
  */
-const QUIET_ACTION =
+export const QUIET_ACTION =
   "inline-flex items-center gap-1 rounded-lumen-sm px-1.5 py-1 text-xs text-lumen-text-secondary transition-colors hover:text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:min-w-11";
 
 const OUTLINE_CHIP =
   "inline-flex items-center rounded-full border border-lumen-border px-2 py-0.5 text-xs text-lumen-text-tertiary";
 
-function WeekGoalStatus({
+/**
+ * A goal's progress (in the panel) or a period's (on a summary row): the bar
+ * and count when anything is linked, otherwise a chip that says so.
+ */
+export function GoalStatusLine({
   title,
   progress,
   labels,
 }: {
+  /** The bar's accessible name — the goal's title or the period's name. */
   title: string;
   progress: GoalProgress;
-  labels: MorningGoalsLabels;
+  labels: Pick<MorningGoalsLabels, "achieved" | "unconnected">;
 }): React.JSX.Element {
   // Nothing linked: no bar to fill. Achieved by hand still reads as achieved.
   if (!progress.connected) {
@@ -140,172 +155,126 @@ function WeekGoalStatus({
   );
 }
 
-/** 「達成」/「1/2」/「未接続」 after a month or year goal's title. */
-function SmallStatus({
-  progress,
-  labels,
-}: {
-  progress: GoalProgress;
-  labels: MorningGoalsLabels;
-}): React.JSX.Element {
-  if (progress.achieved) {
-    return <span className={GOAL_CHIP_ACHIEVED}>{labels.achieved}</span>;
-  }
-  // Its own kind, drawn as the week rows and the review card draw it.
-  if (!progress.connected) {
-    return <span className={OUTLINE_CHIP}>{labels.unconnected}</span>;
-  }
-  return (
-    <span className="text-xs tabular-nums text-lumen-text-tertiary">
-      {goalProgressText(progress, labels)}
-    </span>
+/**
+ * A period's progress, summed over its goals: their linked todos and child
+ * goals counted together, achieved once every goal is, unconnected while
+ * none has anything linked. Each goal's verdict is still `judgeGoals`'.
+ */
+export function periodProgress(
+  lines: readonly MorningGoalLine[],
+): GoalProgress {
+  return lines.reduce<GoalProgress>(
+    (sum, { progress }) => ({
+      done: sum.done + progress.done,
+      total: sum.total + progress.total,
+      achieved: sum.achieved && progress.achieved,
+      connected: sum.connected || progress.connected,
+    }),
+    { done: 0, total: 0, achieved: lines.length > 0, connected: false },
   );
 }
 
-function PeriodLine({
-  label,
+function SummaryRow({
+  kind,
   lines,
   labels,
+  compact,
+  onOpen,
 }: {
-  label: string;
+  kind: GoalPeriodKind;
   lines: readonly MorningGoalLine[];
   labels: MorningGoalsLabels;
-}): React.JSX.Element | null {
-  // No line over a period with nothing in it: the paper asks only for the
-  // week's goals (brief §8), so an empty month would be a frame with no ask.
-  if (lines.length === 0) return null;
+  compact: boolean;
+  onOpen: () => void;
+}): React.JSX.Element {
+  const [first] = lines;
   return (
-    <p className="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-sm text-lumen-text">
-      <span className={BRIEFING_HINT_CLASS}>{label}</span>
-      {lines.map((line, i) => (
-        <span key={line.id} className="inline-flex items-baseline gap-1.5">
-          {i > 0 && (
-            <span aria-hidden="true" className="text-lumen-text-tertiary">
-              ・
+    <li className="flex min-h-9 items-center gap-3 py-1">
+      <span
+        className={cn(BRIEFING_HINT_CLASS, "w-20 shrink-0 whitespace-nowrap")}
+      >
+        {labels.periodNames[kind]}
+      </span>
+      {first === undefined ? (
+        // Unset: the row itself opens the panel, where goals are made.
+        <button
+          type="button"
+          onClick={onOpen}
+          className="min-w-0 flex-1 rounded-lumen-sm text-left text-sm text-lumen-text-tertiary hover:text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11"
+        >
+          {labels.unset}
+        </button>
+      ) : (
+        <>
+          <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
+            {first.title}
+          </span>
+          {lines.length > 1 && (
+            <span className="shrink-0 whitespace-nowrap text-xs text-lumen-text-tertiary">
+              {labels.more(lines.length - 1)}
             </span>
           )}
-          <span>{line.title}</span>
-          <SmallStatus progress={line.progress} labels={labels} />
-        </span>
-      ))}
-    </p>
+          {!compact && (
+            <GoalStatusLine
+              title={labels.periodNames[kind]}
+              progress={periodProgress(lines)}
+              labels={labels}
+            />
+          )}
+        </>
+      )}
+    </li>
   );
 }
 
 export function MorningGoalsBlock({
   goals,
   labels,
-  onLinkTodos,
-  onCreateWeekGoal,
-  writing = false,
-  onOpenGoals,
+  compact = false,
+  reviewCount = 0,
+  onOpen,
 }: MorningGoalsBlockProps): React.JSX.Element {
-  const [draft, setDraft] = useState("");
-  const [busy, setBusy] = useState(false);
-  const full = goals.week.length >= GOALS_PER_PERIOD_LIMIT;
-  // Someone else's write: greyed, not spinning (#1804 — busy ≠ disabled).
-  const waiting = writing && !busy;
-
-  const submit = (): void => {
-    const title = draft.trim();
-    if (!title || busy || waiting) return;
-    setBusy(true);
-    void onCreateWeekGoal(title).then((ok) => {
-      setBusy(false);
-      // A failed write keeps the words: they are the user's only copy.
-      if (ok) setDraft("");
-    });
-  };
-
   return (
     <section className="border-b border-lumen-border py-5">
-      <BlockHead title={labels.title} />
-      <div className="space-y-1.5">
-        <PeriodLine
-          label={labels.periods.year}
-          lines={goals.year}
-          labels={labels}
-        />
-        <PeriodLine
-          label={labels.periods.month}
-          lines={goals.month}
-          labels={labels}
-        />
-      </div>
-
-      <p className={cn(BRIEFING_HINT_CLASS, "mb-1 mt-3")}>
-        {labels.periods.week}
-      </p>
-      {goals.week.length === 0 ? (
-        <p className="py-1 text-sm text-lumen-text-secondary">
-          {labels.prompt}
-        </p>
-      ) : (
-        <ul className="divide-y divide-lumen-border">
-          {goals.week.map((line) => (
-            <li
-              key={line.id}
-              className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 py-1.5"
-            >
-              <span className="min-w-0 flex-1 text-base font-medium text-lumen-text">
-                {line.title}
-              </span>
-              <WeekGoalStatus
-                title={line.title}
-                progress={line.progress}
-                labels={labels}
-              />
-              <button
-                type="button"
-                onClick={() => onLinkTodos(line.id)}
-                aria-label={labels.linkTodosFor(line.title)}
-                className={QUIET_ACTION}
-              >
-                <Link2 size={13} aria-hidden="true" className="shrink-0" />
-                {labels.linkTodos}
-              </button>
-            </li>
-          ))}
-        </ul>
-      )}
-
-      {full ? (
-        <p className="mt-2 text-xs text-lumen-text-tertiary">{labels.limit}</p>
-      ) : (
-        <div className="mt-2 flex items-center gap-2">
-          <Input
-            className="max-md:min-h-11"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if (isImeComposing(e)) return;
-              if (e.key === "Enter") submit();
-            }}
-            placeholder={labels.addPlaceholder}
-            aria-label={labels.addLabel}
-          />
+      <BlockHead
+        title={labels.title}
+        action={
+          // Never two lines (#2213 / #2286): the label keeps its width.
           <Button
             size="sm"
             variant="secondary"
-            onClick={submit}
-            disabled={!draft.trim() || waiting}
-            busy={busy}
-            busyLabel={labels.adding}
+            onClick={onOpen}
+            leadingIcon={<Target size={14} aria-hidden />}
             className="shrink-0 whitespace-nowrap max-md:min-h-11"
           >
-            {labels.add}
+            {labels.open}
           </Button>
-        </div>
+        }
+      />
+      {reviewCount > 0 && (
+        <button
+          type="button"
+          onClick={onOpen}
+          className="mb-2 flex w-full items-center gap-2 rounded-lumen-sm border border-lumen-border bg-lumen-bg-secondary px-3 py-1.5 text-left text-sm text-lumen-text hover:text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11"
+        >
+          <span className="min-w-0 flex-1 truncate">
+            {labels.reviewNotice(reviewCount)}
+          </span>
+          <ChevronRight size={14} aria-hidden className="shrink-0" />
+        </button>
       )}
-
-      {onOpenGoals && (
-        <div className="mt-2 flex justify-end">
-          <button type="button" onClick={onOpenGoals} className={QUIET_ACTION}>
-            <ArrowUpRight size={13} aria-hidden="true" className="shrink-0" />
-            {labels.openInConnect}
-          </button>
-        </div>
-      )}
+      <ul className="divide-y divide-lumen-border">
+        {KINDS.map((kind) => (
+          <SummaryRow
+            key={kind}
+            kind={kind}
+            lines={goals[kind]}
+            labels={labels}
+            compact={compact}
+            onOpen={onOpen}
+          />
+        ))}
+      </ul>
     </section>
   );
 }
@@ -348,9 +317,9 @@ export interface PeriodEndReviewCardProps {
 }
 
 /*
- * One unanswered goal from an ended period, asked on the morning paper. Two
- * by two below `md` so each answer keeps a 44px target on a phone; one row
- * from `md` up.
+ * One unanswered goal from an ended period, asked at the top of the goals
+ * panel (on the paper itself until #2286). Two by two below `md` so each
+ * answer keeps a 44px target on a phone; one row from `md` up.
  */
 export function PeriodEndReviewCard({
   goalTitle,

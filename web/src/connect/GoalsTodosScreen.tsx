@@ -16,7 +16,6 @@ import {
   generateId,
   generateTodoId,
   goalParentOptions,
-  goalPeriodRanges,
   todayDateKey,
   useConfirmDialog,
   useDomainLoad,
@@ -25,21 +24,19 @@ import {
   useSyncDomains,
   useToastOptional,
   useTranslation,
-  WEEK_STARTS_ON,
   WIDE_QUERY,
   type DataService,
   type Goal,
-  type GoalDetailLabels,
   type GoalPeriodKind,
   type GoalTodoLink,
   type GoalTreeArrangeLabels,
   type GoalTreeArrangement,
   type GoalTreeDragHandlers,
-  type GoalTreeLabels,
   type TodoNode,
   type TodoStatus,
   type TranslationKey,
 } from "@life-editor/shared";
+import { useGoalTreeLabels } from "./useGoalTreeLabels";
 
 /*
  * Connect's "Goals & Todos" tab host (#2108, plan Step 9). Same split as the
@@ -83,7 +80,7 @@ export function GoalsTodosScreen({
   dataService,
   onNavigateToItem,
 }: GoalsTodosScreenProps): React.JSX.Element {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
   const syncVersion = useSyncDomains("goals", "todos");
   const [reloadTick, setReloadTick] = useState(0);
@@ -159,76 +156,7 @@ export function GoalsTodosScreen({
   );
   const [arrangeSheetOpen, setArrangeSheetOpen] = useState(false);
 
-  const treeLabels = useMemo<GoalTreeLabels>(() => {
-    const kinds = ["year", "month", "week"] as const;
-    const map = (fn: (kind: GoalPeriodKind) => string) =>
-      Object.fromEntries(kinds.map((k) => [k, fn(k)])) as Record<
-        GoalPeriodKind,
-        string
-      >;
-    const ranges = goalPeriodRanges(
-      todayKey,
-      WEEK_STARTS_ON,
-      i18n.language.startsWith("ja") ? "ja-JP" : "en-US",
-    );
-    return {
-      kinds: map((k) => t(`connect.goals.kinds.${k}`)),
-      periods: map((k) => t(`connect.goals.periods.${k}`)),
-      periodRanges: map((k) => ranges[k]),
-      addHeading: t("connect.goals.addHeading"),
-      addPlaceholder: t("connect.goals.addPlaceholder"),
-      add: t("connect.goals.add"),
-      cancel: t("connect.goals.cancel"),
-      formatLimit: (period) => t("connect.goals.limit", { period }),
-      treeHeading: t("connect.goals.treeHeading"),
-      unconnectedHeading: t("connect.goals.unconnectedHeading"),
-      looseHeading: t("connect.goals.looseHeading"),
-      empty: t("connect.goals.empty"),
-      emptyAction: t("connect.goals.emptyAction"),
-      achieved: t("connect.goals.achieved"),
-      unconnected: t("connect.goals.unconnected"),
-      formatProgress: (done, total) =>
-        t("connect.goals.progress", { done, total }),
-      status: t("todoDetail.status"),
-      statusLabels: {
-        statusNotStarted: t("todoDetail.statusNotStarted"),
-        statusDone: t("todoDetail.statusDone"),
-      },
-      formatOpenTodo: (title) => t("connect.goals.openTodo", { title }),
-      formatExpand: (title) => t("connect.goals.expand", { title }),
-      formatCollapse: (title) => t("connect.goals.collapse", { title }),
-      filteringBy: t("connect.goals.arrange.filteringBy"),
-      resetFilters: t("connect.goals.arrange.reset"),
-      noMatch: t("connect.goals.arrange.noMatch"),
-      addTodo: t("connect.goals.addTodo"),
-      addTodoLabel: t("connect.goals.addTodoLabel"),
-      addTodoPlaceholder: t("connect.goals.addTodoPlaceholder"),
-      dragToMove: t("connect.goals.dragToMove"),
-      loading: t("connect.goals.loading"),
-      loadFailed: t("connect.goals.loadFailed"),
-      retry: t("connect.goals.retry"),
-    };
-  }, [t, i18n.language, todayKey]);
-
-  const detailLabels = useMemo<GoalDetailLabels>(
-    () => ({
-      titleLabel: t("connect.goals.titleLabel"),
-      parentLabel: t("connect.goals.parentLabel"),
-      parentNone: t("connect.goals.parentNone"),
-      todosHeading: t("connect.goals.todosHeading"),
-      todosEmpty: t("connect.goals.todosEmpty"),
-      childrenHeading: t("connect.goals.childrenHeading"),
-      formatEarlierChildren: (count) =>
-        t("connect.goals.earlierChildren", { count }),
-      markAchieved: t("connect.goals.markAchieved"),
-      unmarkAchieved: t("connect.goals.unmarkAchieved"),
-      manualHint: t("connect.goals.manualHint"),
-      deleteGoal: t("connect.goals.deleteGoal"),
-      formatPeriod: (kind, key) => t("connect.goals.period", { kind, key }),
-      tree: treeLabels,
-    }),
-    [t, treeLabels],
-  );
+  const { treeLabels, detailLabels } = useGoalTreeLabels(todayKey);
 
   const arrangeLabels = useMemo<GoalTreeArrangeLabels>(
     () => ({

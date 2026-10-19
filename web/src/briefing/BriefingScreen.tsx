@@ -1,29 +1,36 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import {
   BriefingCarryoverPanel,
   BriefingView,
   BriefingVizPanel,
+  ConfirmDialog,
   EveningReflectionPreview,
   EveningTodosPanel,
   EveningUpcomingPanel,
   EveningView,
+  GoalDetailPanel,
   GoalTodoLinkScreen,
-  ItemDetailOverlay,
   MorningGoalsBlock,
+  MorningGoalsPanel,
   PeriodEndReviewCard,
+  ResponsiveDetailFrame,
   RightSidebarPortal,
   TodayTodoTray,
+  buildGoalTreeModel,
   eveningBodyLines,
   eveningDayCounts,
   eveningEvents,
   getDayStartHour,
   goalMarkTitles,
+  goalParentOptions,
   goalPeriodRanges,
   goalProgressText,
   goalsMovedToday,
   periodStartDateKey,
   todayDateKey,
   tomorrowCandidates,
+  useConfirmDialog,
   useGoalLinkSnapshot,
   useItemPanelOptional,
   useMediaQuery,
@@ -35,6 +42,7 @@ import {
   type DataService,
   type EveningScheduleEntry,
   type EveningUpcomingLabels,
+  type Goal,
   type GoalPeriodKind,
   type GoalTodoLinkScreenLabels,
   type ItemPanelOptions,
@@ -44,6 +52,7 @@ import {
   WEEK_STARTS_ON,
   WIDE_QUERY,
 } from "@life-editor/shared";
+import { useGoalTreeLabels } from "../connect/useGoalTreeLabels";
 import type { NavDestination } from "../hooks/useShellNavigation";
 import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
 import { preloadRichTextEditor } from "../notes/preloadRichTextEditor";
@@ -102,6 +111,12 @@ interface BriefingScreenProps {
 }
 
 const GOAL_KINDS: readonly GoalPeriodKind[] = ["year", "month", "week"];
+
+/** What the goals panel shows (#2286): the list, one goal, or its linking. */
+type GoalsPanelView =
+  | { kind: "list" }
+  | { kind: "detail"; goalId: string }
+  | { kind: "link"; goalId: string };
 
 export function BriefingScreen({
   dataService: ds,
@@ -167,6 +182,8 @@ export function BriefingScreen({
     decide,
     askLater,
     createWeekGoal,
+    updateGoal,
+    deleteGoal,
     writeLinks,
   } = useMorningGoals(ds, todayKey, data.todoNodes, todosRead, goalsMigrated);
 
@@ -254,9 +271,18 @@ export function BriefingScreen({
         `${t(`connect.goals.periods.${kind}`)} ${goalRanges[kind]}`,
       ]),
     ) as Record<GoalPeriodKind, string>;
+    const periodNames = Object.fromEntries(
+      GOAL_KINDS.map((kind) => [kind, t(`connect.goals.periods.${kind}`)]),
+    ) as Record<GoalPeriodKind, string>;
     return {
       title: t("briefing.goalsTitle"),
+      periodNames,
       periods,
+      open: t("briefing.goals.open"),
+      more: (count) => t("briefing.goals.more", { count }),
+      unset: t("briefing.goals.unset"),
+      reviewNotice: (count) => t("briefing.goals.reviewNotice", { count }),
+      openGoalFor: (title) => t("briefing.goals.openGoal", { title }),
       prompt: t("briefing.goals.prompt"),
       achieved: t("goalLink.achieved"),
       unconnected: t("goalLink.unconnected"),
@@ -273,10 +299,11 @@ export function BriefingScreen({
     };
   }, [t, goalRanges]);
   // The linking screen's copy: the same goalLink.* words Connect opens it with.
+  // `periodLabel` is the linked goal's own period, filled in where it opens.
   const goalLinkLabels = useMemo<GoalTodoLinkScreenLabels>(
     () => ({
       heading: t("goalLink.heading"),
-      periodLabel: morningGoalsLabels.periods.week,
+      periodLabel: "",
       search: t("goalLink.search"),
       listLabel: t("goalLink.todoList"),
       empty: t("goalLink.empty"),
@@ -293,8 +320,9 @@ export function BriefingScreen({
       becomesAchieved: t("goalLink.becomesAchieved"),
       losesAchievement: t("goalLink.losesAchievement"),
     }),
-    [t, morningGoalsLabels],
+    [t],
   );
+  const { detailLabels: goalDetailLabels } = useGoalTreeLabels(todayKey);
 
   // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink:
   // the three widgets moved in here — their labels come along unduplicated).
@@ -861,14 +889,15 @@ export function BriefingScreen({
       : attachBriefingTags(withGoals, tagRead.tags, tagRead.assignments);
   }, [data, goalState, tagRead]);
 
-  // Goal-side linking (goal → its todos) opens the shared screen Connect uses
-  // (#2109) in the paper's own overlay — the right panel already holds the
-  // tray and the charts. The overlay's title already says「Todo をつなぐ」, so
-  // the screen drops its own kicker. Saving keeps it open, so the
-  // 「達成が外れました」a save can raise stays on screen; closing is the
-  // reader's.
-  const [linkGoalId, setLinkGoalId] = useState<string | null>(null);
-  const closeLinkScreen = useCallback(() => setLinkGoalId(null), []);
+  // The goals panel (#2286): the block's「目標」button opens it — a centred
+  // dialog on Desktop, a sheet on a phone. One frame, three views: the list
+  // (MorningGoalsPanel), one goal (Connect's GoalDetailPanel) and its
+  // linking (the shared screen Connect uses, #2109) — swapped in place, so
+  // no dialog opens over another. Saving a link keeps the view, so the
+  //「達成が外れました」a save can raise stays on screen.
+  const [panelView, setPanelView] = useState<GoalsPanelView | null>(null);
+  const closePanel = useCallback(() => setPanelView(null), []);
+  const showGoalList = useCallback(() => setPanelView({ kind: "list" }), []);
   const linkTodoOptions = useMemo(
     () =>
       data.todoNodes
@@ -876,44 +905,75 @@ export function BriefingScreen({
         .map((n) => ({ id: n.id, title: n.title, done: n.status === "DONE" })),
     [data.todoNodes],
   );
-  // `fitViewport` (#1728): the screen runs to ~700px once the preview shows,
-  // taller than a phone's viewport — unbounded, Save fell below the fold.
-  // Open only while the goal is live: deleted elsewhere (Connect on another
-  // device, MCP) mid-edit, the screen renders nothing and the dialog would
-  // stand empty around it.
-  const linkGoalLive =
-    linkGoalId !== null &&
-    goalState?.goals.some((g) => g.id === linkGoalId && !g.isDeleted) === true;
-  const goalLinkOverlay = (
-    <ItemDetailOverlay
-      open={linkGoalLive}
-      title={t("goalLink.heading")}
-      onClose={closeLinkScreen}
-      fitViewport
-    >
-      {linkGoalLive && goalState !== null && linkGoalId !== null && (
-        <GoalTodoLinkScreen
-          key={linkGoalId}
-          goalId={linkGoalId}
-          state={goalState}
-          todos={linkTodoOptions}
-          onSave={(diff) =>
-            writeLinks(
-              diff.link.map((todoId) => ({ goalId: linkGoalId, todoId })),
-              diff.unlink.map((todoId) => ({ goalId: linkGoalId, todoId })),
-            )
-          }
-          onClose={closeLinkScreen}
-          labels={goalLinkLabels}
-          headingShown={false}
-        />
-      )}
-    </ItemDetailOverlay>
+  // Connect's tree model, for the one goal the panel opens: its todos, its
+  // children and its progress, judged by the same `judgeGoals`.
+  const goalModel = useMemo(
+    () =>
+      goalState === null
+        ? null
+        : buildGoalTreeModel({
+            goals: goalState.goals,
+            links: goalState.links,
+            todos: data.todoNodes,
+            todayKey,
+            untitled: t("common.untitled"),
+          }),
+    [goalState, data.todoNodes, todayKey, t],
+  );
+  // A goal deleted elsewhere (Connect on another device, MCP) mid-edit falls
+  // back to the list rather than leaving the frame empty.
+  const panelGoal =
+    panelView === null || panelView.kind === "list"
+      ? null
+      : (goalState?.goals.find(
+          (g) => g.id === panelView.goalId && !g.isDeleted,
+        ) ?? null);
+  const panelNode =
+    panelView?.kind === "detail" && panelGoal !== null
+      ? (goalModel?.byId.get(panelGoal.id) ?? null)
+      : null;
+
+  const openTodoFromGoal = useCallback(
+    (todoId: string) => {
+      setPanelView(null);
+      if (onNavigateToItem) onNavigateToItem({ id: todoId, role: "task" });
+      else onNavigate({ section: "schedule" });
+    },
+    [onNavigate, onNavigateToItem],
   );
 
-  // The period-end review (P1 / P2), one goal at a time, above this week's
-  // goals. Its period is printed with the same range formatter as the current
-  // ones, fed a day inside that past period.
+  const confirm = useConfirmDialog();
+  const { ask } = confirm;
+  const removeGoal = useCallback(
+    (goal: Goal) => {
+      void (async () => {
+        const ok = await ask({
+          message: t("connect.goals.deleteConfirm", { title: goal.title }),
+          confirmLabel: t("connect.goals.deleteGoal"),
+          cancelLabel: t("common.cancel"),
+          danger: true,
+        });
+        if (ok && (await deleteGoal(goal.id))) showGoalList();
+      })();
+    },
+    [ask, t, deleteGoal, showGoalList],
+  );
+
+  const backToGoals = (
+    <button
+      type="button"
+      onClick={showGoalList}
+      className="mb-3 inline-flex items-center gap-1 rounded-lumen-sm px-1.5 py-1 text-xs text-lumen-text-secondary hover:text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11"
+    >
+      <ArrowLeft size={13} aria-hidden className="shrink-0" />
+      {t("briefing.goals.back")}
+    </button>
+  );
+
+  // The period-end review (P1 / P2), one goal at a time, at the top of the
+  // goals panel — the paper itself only says how many wait (#2286). Its
+  // period is printed with the same range formatter as the current ones, fed
+  // a day inside that past period.
   const reviewCard =
     review === null ? null : (
       <PeriodEndReviewCard
@@ -962,20 +1022,110 @@ export function BriefingScreen({
       />
     );
 
+  let panelBody: React.ReactNode = null;
+  if (panelView?.kind === "link" && panelGoal !== null && goalState !== null) {
+    const goalId = panelGoal.id;
+    panelBody = (
+      <>
+        {backToGoals}
+        <GoalTodoLinkScreen
+          key={goalId}
+          goalId={goalId}
+          state={goalState}
+          todos={linkTodoOptions}
+          onSave={(diff) =>
+            writeLinks(
+              diff.link.map((todoId) => ({ goalId, todoId })),
+              diff.unlink.map((todoId) => ({ goalId, todoId })),
+            )
+          }
+          onClose={showGoalList}
+          labels={{
+            ...goalLinkLabels,
+            periodLabel: morningGoalsLabels.periods[panelGoal.periodKind],
+          }}
+        />
+      </>
+    );
+  } else if (panelNode !== null && goalState !== null) {
+    const goalId = panelNode.goal.id;
+    panelBody = (
+      <>
+        {backToGoals}
+        <GoalDetailPanel
+          key={goalId}
+          node={panelNode}
+          parentOptions={goalParentOptions(goalState.goals, panelNode.goal)}
+          onRename={(title) => void updateGoal(goalId, { title })}
+          onChangeParent={(parentGoalId) =>
+            void updateGoal(goalId, { parentGoalId })
+          }
+          onSetManualAchieved={(achieved) =>
+            void updateGoal(goalId, {
+              manualAchievedAt: achieved ? new Date().toISOString() : null,
+            })
+          }
+          onDelete={() => removeGoal(panelNode.goal)}
+          onSelectGoal={(id) => setPanelView({ kind: "detail", goalId: id })}
+          onSetTodoStatus={handleSetTodoStatus}
+          onOpenTodo={openTodoFromGoal}
+          labels={goalDetailLabels}
+        />
+      </>
+    );
+  } else if (morningGoals !== null) {
+    panelBody = (
+      <MorningGoalsPanel
+        goals={morningGoals}
+        labels={morningGoalsLabels}
+        onLinkTodos={(goalId) => setPanelView({ kind: "link", goalId })}
+        onSelectGoal={(goalId) => setPanelView({ kind: "detail", goalId })}
+        onCreateWeekGoal={createWeekGoal}
+        writing={goalWriting}
+        onOpenGoals={
+          onOpenGoals &&
+          (() => {
+            setPanelView(null);
+            onOpenGoals();
+          })
+        }
+        review={reviewCard}
+      />
+    );
+  }
+
   // Nothing at all until the goals read lands (or when it fails): an empty
-  // block first would flash「今週の目標を立てましょう」over goals that exist.
+  // block first would flash「未設定」over goals that exist.
   const goalsSlot =
     morningGoals === null ? null : (
       <>
-        {reviewCard}
         <MorningGoalsBlock
           goals={morningGoals}
           labels={morningGoalsLabels}
-          onLinkTodos={setLinkGoalId}
-          onCreateWeekGoal={createWeekGoal}
-          writing={goalWriting}
-          onOpenGoals={onOpenGoals}
+          compact={narrow}
+          reviewCount={review?.remaining ?? 0}
+          onOpen={showGoalList}
         />
+        <ResponsiveDetailFrame
+          wide={!narrow}
+          open={panelView !== null}
+          title={morningGoalsLabels.open}
+          closeLabel={t("common.close")}
+          onClose={closePanel}
+        >
+          {panelBody}
+        </ResponsiveDetailFrame>
+        {confirm.request && (
+          <ConfirmDialog
+            open
+            message={confirm.request.message}
+            confirmLabel={confirm.request.confirmLabel}
+            cancelLabel={confirm.request.cancelLabel}
+            danger={confirm.request.danger}
+            onConfirm={() => confirm.resolve(true)}
+            onCancel={() => confirm.resolve(false)}
+          />
+        )}
       </>
     );
 
@@ -1057,7 +1207,6 @@ export function BriefingScreen({
         nowMinutes={nowMinutes}
         narrow={narrow}
       />
-      {goalLinkOverlay}
     </>
   );
 }
