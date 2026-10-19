@@ -10,11 +10,8 @@ import {
 import { Editor } from "@tiptap/core";
 import { NOTE_STICKY_HEADER_HEIGHT_VAR } from "@life-editor/shared";
 import StarterKit from "@tiptap/starter-kit";
-import {
-  FORMAT_BUBBLE_OPTIONS,
-  FormatBubbleMenu,
-  FormatToolbar,
-} from "../src/notes/FormatToolbar";
+import { FormatBubbleMenu, FormatToolbar } from "../src/notes/FormatToolbar";
+import { FORMAT_BUBBLE_OPTIONS } from "../src/notes/formatBubbleOptions";
 import { RichTextEditor } from "../src/notes/RichTextEditor";
 
 /*

@@ -70,8 +70,14 @@ export const ItemLinkMenu = forwardRef<ItemLinkMenuHandle, ItemLinkMenuProps>(
     /** Set by ↑/↓ only — see the scroll effect below. */
     const movedByKey = useRef(false);
 
-    // Reset the highlight whenever the filtered set changes (typing narrows it).
-    useEffect(() => setSelected(0), [items]);
+    // Reset the highlight whenever the filtered set changes (typing narrows
+    // it). During render rather than in an effect, which would paint the old
+    // highlight first ("Adjust state during render").
+    const [itemsSeen, setItemsSeen] = useState(items);
+    if (itemsSeen !== items) {
+      setItemsSeen(items);
+      setSelected(0);
+    }
 
     /*
      * Keep the highlighted row inside the scroller (#1902) — SlashMenu next
