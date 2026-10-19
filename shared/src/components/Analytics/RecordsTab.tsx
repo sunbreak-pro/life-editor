@@ -12,6 +12,11 @@ import {
 import type { AppRecord } from "../../types/appRecord";
 import { APP_RECORD_SOURCE_CLAUDE } from "../../types/appRecord";
 import type { ExtensionApp } from "../../types/extensionApp";
+import {
+  RECORD_VIEW_METRICS,
+  type RecordView,
+  type RecordViewMetric,
+} from "../../types/recordView";
 import { formatDateKey } from "../../utils/dateKey";
 import { cn } from "../cn";
 import { NoticePanel } from "../NoticePanel";
@@ -33,6 +38,11 @@ import {
   buildRecordBars,
   distinctSorted,
   filterDated,
+  formatRecordMetric,
+  indexRecordViews,
+  kindTotals,
+  recordMetricFor,
+  recordViewKey,
   recordsGroupBy,
   recordsWithinDays,
   summarizeRecords,
@@ -55,6 +65,10 @@ import {
  * tab is on screen. `pendingSource` is the one outside way in — the Apps
  * section's "show records" (#2165) asks for an app, and the tab consumes that
  * once, the same shape as the shell's other pending intents.
+ *
+ * Which number leads each kind (#2263) is NOT local: the host keeps the saved
+ * `record_views` rows and saves a pick through `onChooseMetric`, so the narrow
+ * block on the phone shows the same choice.
  */
 
 /** Rows drawn before "show more": a busy app can send thousands. */
@@ -72,6 +86,16 @@ export interface RecordsTabProps {
   /** An app slug the shell wants filtered, or null (consume-once intent). */
   pendingSource: string | null;
   onPendingSourceConsumed: () => void;
+  /** The saved per-kind choices (#2263). A kind with none leads with the sum. */
+  views: readonly RecordView[];
+  /** Saves which number leads `kind` + `unit`. */
+  onChooseMetric: (
+    kind: string,
+    unit: string | null,
+    metric: RecordViewMetric,
+  ) => void;
+  /** True after a pick could not be saved (the host put the old one back). */
+  viewSaveFailed: boolean;
   labels: RecordsLabels;
   axis: ChartAxisFormat;
 }
@@ -83,6 +107,9 @@ export function RecordsTab({
   error,
   pendingSource,
   onPendingSourceConsumed,
+  views,
+  onChooseMetric,
+  viewSaveFailed,
   labels,
   axis,
 }: RecordsTabProps): React.JSX.Element {
@@ -153,10 +180,16 @@ export function RecordsTab({
     [inRange, source, kind],
   );
   const summary = useMemo(() => summarizeRecords(rows), [rows]);
+  const viewIndex = useMemo(() => indexRecordViews(views), [views]);
+  const totals = useMemo(() => kindTotals(rows), [rows]);
+  // Mixed kinds cannot be added up or averaged, so their bars count rows.
+  const metric: RecordViewMetric = summary.aggregable
+    ? recordMetricFor(viewIndex, rows[0].record.kind, summary.unit)
+    : "count";
   const groupBy = recordsGroupBy(dateRangeDays(dateRange));
   const bars = useMemo(
-    () => buildRecordBars(rows, groupBy, summary, startKey, endKey),
-    [rows, groupBy, summary, startKey, endKey],
+    () => buildRecordBars(rows, groupBy, summary, startKey, endKey, metric),
+    [rows, groupBy, summary, startKey, endKey, metric],
   );
 
   const filtering =
@@ -182,19 +215,39 @@ export function RecordsTab({
   }
 
   const unit = summary.unit;
-  const barsAreSums = summary.aggregable;
-  const seriesName = barsAreSums
-    ? labels.chart.sumSeries
-    : labels.chart.countSeries;
+  const barsInUnit = metric !== "count";
+  const chartTitle = {
+    sum: labels.chart.sumTitle,
+    avg: labels.chart.avgTitle,
+    latest: labels.chart.latestTitle,
+    count: labels.chart.countTitle,
+  }[metric];
+  const seriesName = {
+    sum: labels.chart.sumSeries,
+    avg: labels.chart.avgSeries,
+    latest: labels.chart.latestSeries,
+    count: labels.chart.countSeries,
+  }[metric];
+  // An empty average / latest period has no bar at all (recordsModel).
   const chartData = bars.map((bar) => ({
     label: axis.date(barDateKey(bar.period), groupBy),
-    value: bar.value,
+    value: bar.value ?? undefined,
   }));
+  // The card of the chosen number says it leads; only one kind can have one.
+  const headline = (card: RecordViewMetric): string | undefined =>
+    summary.aggregable && card === metric ? labels.stats.headline : undefined;
 
   return (
     <div className="space-y-4">
       {error !== null ? (
         <NoticePanel tone="warning" role="status" message={labels.loadFailed} />
+      ) : null}
+      {viewSaveFailed ? (
+        <NoticePanel
+          tone="warning"
+          role="status"
+          message={labels.views.saveFailed}
+        />
       ) : null}
 
       <div
@@ -242,6 +295,8 @@ export function RecordsTab({
               icon={<Hash size={16} />}
               label={labels.stats.count}
               value={String(summary.count)}
+              subtitle={headline("count")}
+              selected={headline("count") !== undefined}
               tone="accent"
             />
             <AnalyticsStatCard
@@ -253,8 +308,9 @@ export function RecordsTab({
                   : "-"
               }
               subtitle={
-                summary.aggregable ? undefined : labels.stats.needOneKind
+                summary.aggregable ? headline("sum") : labels.stats.needOneKind
               }
+              selected={headline("sum") !== undefined}
               tone="accent"
             />
             <AnalyticsStatCard
@@ -265,6 +321,8 @@ export function RecordsTab({
                   ? labels.formatValue(summary.stats.avg, unit)
                   : "-"
               }
+              subtitle={headline("avg")}
+              selected={headline("avg") !== undefined}
               tone="accent"
             />
             <AnalyticsStatCard
@@ -275,15 +333,74 @@ export function RecordsTab({
                   ? labels.formatValue(summary.stats.latest, unit)
                   : "-"
               }
+              subtitle={headline("latest")}
+              selected={headline("latest") !== undefined}
               tone="accent"
             />
           </div>
 
           <ChartCard
-            title={
-              barsAreSums ? labels.chart.sumTitle : labels.chart.countTitle
+            title={labels.views.title}
+            legend={
+              <p className="text-xs text-lumen-text-tertiary">
+                {labels.views.description}
+              </p>
             }
           >
+            <ul className="flex flex-col">
+              {totals.map((total) => {
+                const chosen = recordMetricFor(
+                  viewIndex,
+                  total.kind,
+                  total.unit,
+                );
+                return (
+                  <li
+                    key={recordViewKey(total.kind, total.unit)}
+                    className="flex flex-wrap items-center justify-between gap-3 border-t border-lumen-border py-2 first:border-t-0 first:pt-0"
+                  >
+                    <span className="min-w-0 text-sm font-medium text-lumen-text">
+                      {total.kind}
+                      {total.unit ? (
+                        <span className="font-normal text-lumen-text-tertiary">
+                          {" · "}
+                          {total.unit}
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="flex items-center gap-3">
+                      <span className="text-sm font-semibold tabular-nums text-lumen-text">
+                        {formatRecordMetric(labels, total, total.unit, chosen)}
+                      </span>
+                      <select
+                        aria-label={labels.views.selectLabel(total.kind)}
+                        value={chosen}
+                        onChange={(e) =>
+                          onChooseMetric(
+                            total.kind,
+                            total.unit,
+                            e.target.value as RecordViewMetric,
+                          )
+                        }
+                        className={cn(
+                          "rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1 text-xs text-lumen-text",
+                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                        )}
+                      >
+                        {RECORD_VIEW_METRICS.map((option) => (
+                          <option key={option} value={option}>
+                            {labels.views.metrics[option]}
+                          </option>
+                        ))}
+                      </select>
+                    </span>
+                  </li>
+                );
+              })}
+            </ul>
+          </ChartCard>
+
+          <ChartCard title={chartTitle}>
             <ResponsiveContainer
               width="100%"
               height={CHART_HEIGHT_MD}
@@ -305,7 +422,7 @@ export function RecordsTab({
                   tick={CHART_TICK_11}
                   tickLine={false}
                   axisLine={false}
-                  allowDecimals={barsAreSums}
+                  allowDecimals={barsInUnit}
                   width={56}
                   tickFormatter={(v: number) => labels.formatNumber(v)}
                 />
@@ -313,7 +430,7 @@ export function RecordsTab({
                   cursor={{ fill: "var(--color-lumen-hover)" }}
                   contentStyle={CHART_TOOLTIP_STYLE}
                   formatter={(value: number | undefined) => [
-                    barsAreSums
+                    barsInUnit
                       ? labels.formatValue(value ?? 0, unit)
                       : labels.formatNumber(value ?? 0),
                     seriesName,

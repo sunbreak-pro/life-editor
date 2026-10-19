@@ -1,7 +1,19 @@
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import type { AppRecord, DataService } from "@life-editor/shared";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
+import type {
+  AppRecord,
+  DataService,
+  RecordView,
+  RecordViewMetric,
+} from "@life-editor/shared";
 import { AnalyticsScreen } from "../src/analytics/AnalyticsScreen";
 import { createBumpableSync, stubDataService } from "./helpers";
 
@@ -81,6 +93,7 @@ function makeDS(over: Partial<Record<keyof DataService, unknown>> = {}) {
     fetchTimerSettings: vi.fn().mockResolvedValue({ targetSessions: 4 }),
     listAppRecords: vi.fn().mockResolvedValue([rec({})]),
     listExtensionApps: vi.fn().mockResolvedValue([LEDGER_APP]),
+    listRecordViews: vi.fn().mockResolvedValue([]),
     ...over,
   });
 }
@@ -215,8 +228,82 @@ describe("AnalyticsScreen pending records source", () => {
   });
 });
 
-describe("AnalyticsScreen narrow records block", () => {
-  it("shows each kind's average and latest over the last 7 days (#2262)", async () => {
+const WEIGHTS = [
+  rec({ id: "w1", kind: "weight", unit: "kg", value: 62, occurredAt: noon(2) }),
+  rec({ id: "w2", kind: "weight", unit: "kg", value: 63, occurredAt: noon(1) }),
+];
+
+function savedView(metric: RecordViewMetric): RecordView {
+  return {
+    kind: "weight",
+    unit: "kg",
+    metric,
+    chart: "bar",
+    createdAt: noon(1),
+    updatedAt: noon(0),
+  };
+}
+
+describe("AnalyticsScreen record views (#2263)", () => {
+  it("saves a pick and draws the chosen number", async () => {
+    const saveRecordView = vi.fn().mockResolvedValue(savedView("latest"));
+    renderRecords(
+      makeDS({
+        listAppRecords: vi.fn().mockResolvedValue(WEIGHTS),
+        saveRecordView,
+      }),
+    );
+
+    const select = (await waitFor(() =>
+      screen.getByLabelText("How to show weight"),
+    )) as HTMLSelectElement;
+    // Nothing saved yet: the kind leads with its total.
+    expect(select.value).toBe("sum");
+    expect(screen.getAllByText("125 kg").length).toBeGreaterThan(0);
+
+    fireEvent.change(select, { target: { value: "latest" } });
+
+    expect(saveRecordView).toHaveBeenCalledWith("weight", "kg", {
+      metric: "latest",
+      chart: "bar",
+    });
+    await waitFor(() => expect(select.value).toBe("latest"));
+    expect(screen.getByText("Latest in each period")).toBeTruthy();
+    expect(screen.getAllByText("Shown first for this kind")).toHaveLength(1);
+  });
+
+  it("puts the old choice back and says so when the save fails", async () => {
+    renderRecords(
+      makeDS({
+        listAppRecords: vi.fn().mockResolvedValue(WEIGHTS),
+        saveRecordView: vi.fn().mockRejectedValue(new Error("offline")),
+      }),
+    );
+    const select = (await waitFor(() =>
+      screen.getByLabelText("How to show weight"),
+    )) as HTMLSelectElement;
+
+    fireEvent.change(select, { target: { value: "avg" } });
+
+    await waitFor(() => screen.getByText(/That choice could not be saved/));
+    expect(select.value).toBe("sum");
+  });
+
+  it("leads the narrow block with the saved choice", async () => {
+    mockMatchMedia(false);
+    renderRecords(
+      makeDS({
+        listAppRecords: vi.fn().mockResolvedValue(WEIGHTS),
+        listRecordViews: vi.fn().mockResolvedValue([savedView("latest")]),
+      }),
+      { tab: "overview" },
+    );
+
+    await waitFor(() => screen.getByText("63 kg"));
+    expect(screen.queryByText("125 kg")).toBeNull();
+  });
+
+  it("leads the narrow block with the total when nothing is saved", async () => {
     mockMatchMedia(false);
     renderRecords(
       makeDS({
@@ -231,9 +318,7 @@ describe("AnalyticsScreen narrow records block", () => {
     );
 
     await waitFor(() => screen.getByText("Last 7 days"));
-    expect(screen.getByText("500 JPY")).toBeTruthy();
-    // noon(0) is the newest record.
-    expect(screen.getByText("450 JPY")).toBeTruthy();
-    expect(screen.queryByText(/1,000 JPY/)).toBeNull();
+    expect(screen.getByText("1,000 JPY")).toBeTruthy();
+    expect(screen.queryByText("500 JPY")).toBeNull();
   });
 });

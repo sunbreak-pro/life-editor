@@ -1,11 +1,17 @@
 // @vitest-environment node (this suite touches no DOM)
 import { describe, expect, it } from "vitest";
 import type { AppRecord } from "../src/types/appRecord";
+import type { RecordView } from "../src/types/recordView";
+import { makeRecordsLabels } from "./helpers/recordsLabels";
 import {
   barDateKey,
   buildRecordBars,
   distinctSorted,
+  formatRecordMetric,
+  indexRecordViews,
   recentKindTotals,
+  recordMetricFor,
+  replaceRecordView,
   recordsGroupBy,
   summarizeRecords,
   withDateKeys,
@@ -22,10 +28,7 @@ function at(y: number, m: number, d: number): string {
   return new Date(y, m - 1, d, 12).toISOString();
 }
 
-function rec(
-  occurredAt: string,
-  over: Partial<AppRecord> = {},
-): AppRecord {
+function rec(occurredAt: string, over: Partial<AppRecord> = {}): AppRecord {
   return {
     id: `${occurredAt}-${over.kind ?? "expense"}-${over.value ?? 100}`,
     sourceApp: "ledger",
@@ -177,7 +180,13 @@ describe("buildRecordBars", () => {
 
   it("is empty for no rows", () => {
     expect(
-      buildRecordBars([], "day", summarizeRecords([]), "2026-10-01", "2026-10-05"),
+      buildRecordBars(
+        [],
+        "day",
+        summarizeRecords([]),
+        "2026-10-01",
+        "2026-10-05",
+      ),
     ).toEqual([]);
   });
 });
@@ -227,5 +236,85 @@ describe("distinctSorted", () => {
   it("keeps a pending value that has no rows", () => {
     expect(distinctSorted(["b", "a", "b"], "z")).toEqual(["a", "b", "z"]);
     expect(distinctSorted(["b"], "*")).toEqual(["b"]);
+  });
+});
+
+function view(over: Partial<RecordView>): RecordView {
+  return {
+    kind: "weight",
+    unit: "kg",
+    metric: "latest",
+    chart: "bar",
+    createdAt: "2026-10-01T00:00:00Z",
+    updatedAt: "2026-10-01T00:00:00Z",
+    ...over,
+  };
+}
+
+describe("record views (#2263)", () => {
+  it("leads with the saved metric, and with the sum when nothing is saved", () => {
+    const index = indexRecordViews([
+      view({}),
+      view({ kind: "steps", unit: null, metric: "count" }),
+    ]);
+    expect(recordMetricFor(index, "weight", "kg")).toBe("latest");
+    expect(recordMetricFor(index, "steps", null)).toBe("count");
+    // The key is kind AND unit: weight in lb has no choice yet.
+    expect(recordMetricFor(index, "weight", "lb")).toBe("sum");
+    expect(recordMetricFor(index, "expense", "JPY")).toBe("sum");
+  });
+
+  it("replaces one kind's row, and removes it when put back to nothing", () => {
+    const views = [
+      view({}),
+      view({ kind: "expense", unit: "JPY", metric: "sum" }),
+    ];
+    const next = replaceRecordView(
+      views,
+      "weight",
+      "kg",
+      view({ metric: "avg" }),
+    );
+    expect(next.map((v) => `${v.kind}:${v.metric}`)).toEqual([
+      "expense:sum",
+      "weight:avg",
+    ]);
+    expect(
+      replaceRecordView(next, "weight", "kg", null).map((v) => v.kind),
+    ).toEqual(["expense"]);
+  });
+
+  it("prints a count in records and the rest in the unit", () => {
+    const stats = { count: 2, sum: 124.5, avg: 62.25, latest: 62 };
+    const labels = makeRecordsLabels();
+    expect(formatRecordMetric(labels, stats, "kg", "latest")).toBe("62 kg");
+    expect(formatRecordMetric(labels, stats, "kg", "count")).toBe("2 records");
+  });
+
+  it("draws bars of the chosen metric, an empty average day as no bar", () => {
+    const rows = withDateKeys([
+      rec(at(2026, 10, 1), { id: "a", kind: "weight", unit: "kg", value: 62 }),
+      rec(at(2026, 10, 1), { id: "b", kind: "weight", unit: "kg", value: 63 }),
+    ]);
+    const summary = summarizeRecords(rows);
+    expect(
+      buildRecordBars(rows, "day", summary, "2026-10-01", "2026-10-02", "avg"),
+    ).toEqual([
+      { period: "2026-10-01", value: 62.5 },
+      { period: "2026-10-02", value: null },
+    ]);
+    expect(
+      buildRecordBars(
+        rows,
+        "day",
+        summary,
+        "2026-10-01",
+        "2026-10-02",
+        "count",
+      ),
+    ).toEqual([
+      { period: "2026-10-01", value: 2 },
+      { period: "2026-10-02", value: 0 },
+    ]);
   });
 });

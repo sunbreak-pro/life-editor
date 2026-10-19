@@ -39,6 +39,8 @@ interface AnalyticsStatCardProps {
    * that ignores the pills says which window it reads instead.
    */
   scope?: string;
+  /** Outlines the card whose number was chosen to lead (#2263). */
+  selected?: boolean;
 }
 
 export function AnalyticsStatCard({
@@ -48,9 +50,15 @@ export function AnalyticsStatCard({
   tone,
   subtitle,
   scope,
+  selected = false,
 }: AnalyticsStatCardProps): React.JSX.Element {
   return (
-    <div className="flex items-start gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary p-4">
+    <div
+      className={cn(
+        "flex items-start gap-3 rounded-lumen-lg border bg-lumen-bg-secondary p-4",
+        selected ? "border-lumen-accent" : "border-lumen-border",
+      )}
+    >
       <span
         className={cn(
           "grid h-[34px] w-[34px] flex-shrink-0 place-items-center rounded-lumen-md",

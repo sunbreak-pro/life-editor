@@ -1004,13 +1004,30 @@
         "sum": "合計",
         "avg": "平均",
         "latest": "最新",
-        "needOneKind": "種類を 1 つに絞ると、合計・平均・最新が出ます。"
+        "needOneKind": "種類を 1 つに絞ると、合計・平均・最新が出ます。",
+        "headline": "この種類で最初に出す値です"
       },
       "chart": {
         "sumTitle": "期間ごとの合計",
         "countTitle": "期間ごとの件数",
         "sumSeries": "合計",
-        "countSeries": "件数"
+        "countSeries": "件数",
+        "avgTitle": "期間ごとの平均",
+        "latestTitle": "期間ごとの最新",
+        "avgSeries": "平均",
+        "latestSeries": "最新"
+      },
+      "views": {
+        "title": "種類ごとの値の出し方",
+        "description": "種類ごとに、最初に出す値を選べます。スマホの記録ブロックにも同じ値が出ます。",
+        "selectLabel": "{{kind}} の値の出し方",
+        "metrics": {
+          "sum": "合計",
+          "avg": "平均",
+          "latest": "最新",
+          "count": "件数"
+        },
+        "saveFailed": "選んだ内容を保存できませんでした。しばらくしてからもう一度お試しください。"
       },
       "list": {
         "title": "記録の一覧",

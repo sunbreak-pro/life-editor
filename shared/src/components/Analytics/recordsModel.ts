@@ -7,9 +7,18 @@
  * it is the shared aggregation of #2162 (utils/appRecordAggregation), the same
  * rule the MCP `list_records` tool follows, so the screen never has a count of
  * its own. This module only decides which rows go in and how gaps are filled.
+ *
+ * Which of those numbers leads a kind is the owner's choice (#2263, table
+ * `record_views`): `recordMetricFor` reads it, and a kind with no saved row
+ * leads with the sum (plan 案 C).
  */
 
 import type { AppRecord } from "../../types/appRecord";
+import {
+  RECORD_VIEW_DEFAULT,
+  type RecordView,
+  type RecordViewMetric,
+} from "../../types/recordView";
 import {
   aggregateAppRecords,
   appRecordPeriodKey,
@@ -20,6 +29,7 @@ import {
   type AppRecordStats,
 } from "../../utils/appRecordAggregation";
 import { dateKeyOfInstant, formatDateKey } from "../../utils/dateKey";
+import type { RecordsLabels } from "./labels";
 
 /** The select value that means "no narrowing". Cannot collide with a slug. */
 export const RECORDS_FILTER_ALL = "*";
@@ -131,8 +141,74 @@ export function recordsGroupBy(rangeDays: number): AppRecordGroupBy {
 export interface RecordsBar {
   /** Period key as the aggregation names it (day, Sunday, or `YYYY-MM`). */
   period: string;
-  /** The bar's height: the sum while aggregable, else the row count. */
-  value: number;
+  /**
+   * The bar's height: the chosen metric while aggregable, else the row count.
+   * Null for a period with no record when the metric is an average or the
+   * latest value — a day without a weighing did not weigh 0 kg.
+   */
+  value: number | null;
+}
+
+/** How a choice is looked up: kind AND unit, the way the totals are split. */
+export function recordViewKey(kind: string, unit: string | null): string {
+  return `${kind}\u0000${unit ?? ""}`;
+}
+
+/** The saved choices by `recordViewKey`. */
+export function indexRecordViews(
+  views: readonly RecordView[],
+): Map<string, RecordView> {
+  return new Map(
+    views.map((view) => [recordViewKey(view.kind, view.unit), view]),
+  );
+}
+
+/** The metric that leads `kind` + `unit`; the sum when nothing is saved. */
+export function recordMetricFor(
+  index: ReadonlyMap<string, RecordView>,
+  kind: string,
+  unit: string | null,
+): RecordViewMetric {
+  return (
+    index.get(recordViewKey(kind, unit))?.metric ?? RECORD_VIEW_DEFAULT.metric
+  );
+}
+
+/** One number out of the shared stats. */
+export function recordStat(
+  stats: Pick<AppRecordStats, "count" | "sum" | "avg" | "latest">,
+  metric: RecordViewMetric,
+): number {
+  return stats[metric];
+}
+
+/** A metric as the screen prints it: a count in records, the rest in the unit. */
+export function formatRecordMetric(
+  labels: Pick<RecordsLabels, "formatValue" | "mobile">,
+  stats: Pick<AppRecordStats, "count" | "sum" | "avg" | "latest">,
+  unit: string | null,
+  metric: RecordViewMetric,
+): string {
+  return metric === "count"
+    ? labels.mobile.formatCount(stats.count)
+    : labels.formatValue(stats[metric], unit);
+}
+
+/**
+ * `views` with the row for `kind` + `unit` replaced by `next`, or removed when
+ * `next` is null (a failed first save going back to "nothing saved").
+ */
+export function replaceRecordView(
+  views: readonly RecordView[],
+  kind: string,
+  unit: string | null,
+  next: RecordView | null,
+): RecordView[] {
+  const key = recordViewKey(kind, unit);
+  const rest = views.filter(
+    (view) => recordViewKey(view.kind, view.unit) !== key,
+  );
+  return next === null ? rest : [...rest, next];
 }
 
 /** A local date key a number of days later. */
@@ -171,7 +247,8 @@ function periodKeysBetween(
  * The bars for `rows`: one per period, gaps drawn as zero so the axis keeps an
  * even step. Day bars fill the whole window; week and month bars run from the
  * first period that has data to the window's last day (an "all time" window
- * starts in 2020 and would otherwise be years of nothing).
+ * starts in 2020 and would otherwise be years of nothing). An empty period of
+ * an average or a latest value is null instead (RecordsBar.value).
  */
 export function buildRecordBars(
   rows: readonly DatedRecord[],
@@ -179,18 +256,21 @@ export function buildRecordBars(
   summary: RecordsSummary,
   startKey: string,
   endKey: string,
+  metric: RecordViewMetric = RECORD_VIEW_DEFAULT.metric,
 ): RecordsBar[] {
   if (rows.length === 0) return [];
   const points = appRecordsToPoints(rows.map((r) => r.record));
+  const shown: RecordViewMetric = summary.aggregable ? metric : "count";
   const byPeriod = new Map<string, number>();
   for (const bucket of aggregateAppRecords(points, groupBy)) {
-    byPeriod.set(bucket.period, summary.aggregable ? bucket.sum : bucket.count);
+    byPeriod.set(bucket.period, recordStat(bucket, shown));
   }
+  const gap = shown === "avg" || shown === "latest" ? null : 0;
   const first = groupBy === "day" ? startKey : [...byPeriod.keys()].sort()[0];
   const last = appRecordPeriodKey(groupBy, endKey);
   return periodKeysBetween(groupBy, first, last).map((period) => ({
     period,
-    value: byPeriod.get(period) ?? 0,
+    value: byPeriod.get(period) ?? gap,
   }));
 }
 
@@ -221,9 +301,14 @@ export function recentKindTotals(
   days: number,
 ): KindTotal[] {
   const startKey = addDaysKey(todayKey, -(days - 1));
+  return kindTotals(recordsWithinDays(dated, startKey, todayKey));
+}
+
+/** Per-kind totals of `rows` (kind AND unit), sorted by kind then unit. */
+export function kindTotals(rows: readonly DatedRecord[]): KindTotal[] {
   const groups = new Map<string, DatedRecord[]>();
-  for (const row of recordsWithinDays(dated, startKey, todayKey)) {
-    const key = `${row.record.kind}\u0000${row.record.unit ?? ""}`;
+  for (const row of rows) {
+    const key = recordViewKey(row.record.kind, row.record.unit);
     const group = groups.get(key);
     if (group) group.push(row);
     else groups.set(key, [row]);
