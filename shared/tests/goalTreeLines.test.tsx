@@ -158,7 +158,15 @@ describe("GoalTreeView hierarchy lines (#2282)", () => {
     const root = container.firstElementChild as HTMLElement;
     // Defined once on the root, in --spacing (rem) at both widths, so the
     // root font size setting scales the arrow and the line together.
-    expect(root.className).toContain(`[${TOGGLE_VAR}:calc(var(--spacing)*6)]`);
+    // Wide is the icon-only tap floor, which a one-icon arrow is lifted to
+    // anyway: below it, that arrow outgrows the variable and its line misses
+    // the centre (2.25px at an 18px root).
+    expect(root.className).toContain(
+      `[${TOGGLE_VAR}:var(--spacing-lumen-tap-min)]`,
+    );
+    expect(root.className).not.toContain(
+      `[${TOGGLE_VAR}:calc(var(--spacing)*6)]`,
+    );
     expect(root.className).toContain(
       `max-md:[${TOGGLE_VAR}:calc(var(--spacing)*11)]`,
     );

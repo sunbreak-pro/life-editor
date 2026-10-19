@@ -156,9 +156,16 @@ const GROUP_HEADING = "mb-1.5 text-xs font-medium text-lumen-text-tertiary";
  * of its parent's arrow at every depth and on both widths. Both sizes are in
  * --spacing (rem), so the root font size setting moves the arrow and the line
  * together; the only px is the half of the 1px line that centres it.
+ *
+ * Wide is the tap floor itself, not --spacing*6: an arrow button holding one
+ * icon (a year's, or any arrow while dragging is off) matches tokens.css's
+ * icon-only rule and is lifted to --spacing-lumen-tap-min, so a smaller
+ * variable left the line 2.25px off that arrow's centre at an 18px root
+ * while the grip-carrying arrows stayed on it. At the floor every arrow is
+ * the variable's width. Narrow's --spacing*11 is already above the floor.
  */
 const TREE_TOGGLE_SIZE =
-  "[--goal-tree-toggle:calc(var(--spacing)*6)] max-md:[--goal-tree-toggle:calc(var(--spacing)*11)]";
+  "[--goal-tree-toggle:var(--spacing-lumen-tap-min)] max-md:[--goal-tree-toggle:calc(var(--spacing)*11)]";
 
 /** The arrow's column, kept on rows without one so titles line up. */
 const BRANCH_TOGGLE =
