@@ -1292,7 +1292,8 @@
     "moreTitle": "その他",
     "quickActions": "クイック操作",
     "launchClaude": "Claude Code を起動",
-    "profile": "プロフィールを編集"
+    "profile": "プロフィールを編集",
+    "signOutPrompt": "サインアウトしますか？"
   },
   "itemRole": {
     "task": "Todo",

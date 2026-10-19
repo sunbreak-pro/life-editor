@@ -6,7 +6,6 @@ import {
   NavTimerStatus,
   SECTIONS,
   MAIN_SECTIONS,
-  UTILITY_SECTIONS,
   MOBILE_SECTIONS,
   EMPTY_MATERIALS_COUNTS,
   ANALYTICS_TAB_ORDER,
@@ -120,10 +119,6 @@ export function useShellChrome({
       ),
     [toSections],
   );
-  const utilitySections = useMemo(
-    () => toSections(UTILITY_SECTIONS),
-    [toSections],
-  );
   const mobileSections = useMemo(
     () =>
       toSections(MOBILE_SECTIONS).map((s) =>
@@ -207,6 +202,9 @@ export function useShellChrome({
       // Wide only (#1624): names the sidebar's account row, which opens the
       // Profile category of Settings.
       profile: t("nav.profile"),
+      // Wide only (#2278): the sidebar's sign-out asks first in a small panel.
+      signOutPrompt: t("nav.signOutPrompt"),
+      cancel: t("common.cancel"),
       // Narrow-only: names the action group in the bottom bar's More sheet (#472).
       bottomBarActionsTitle: t("nav.quickActions"),
     }),
@@ -217,7 +215,6 @@ export function useShellChrome({
     setMaterialsCounts,
     commands,
     navSections,
-    utilitySections,
     mobileSections,
     materialsTabDefs,
     analyticsTabDefs,

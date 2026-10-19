@@ -54,6 +54,12 @@ export interface AppShellLabels {
    */
   profile?: string;
   /**
+   * Sign-out confirm panel (#2278) — the question and its back-out button.
+   * Wide layout only; see SidebarNavLabels for the two-halves contract.
+   */
+  signOutPrompt?: string;
+  cancel?: string;
+  /**
    * Accessible label for the action group in the narrow "More" sheet (#472) —
    * narrow layout only.
    */
@@ -92,6 +98,11 @@ export interface AppShellProps {
   userName?: string;
   /** Opens the profile editor from the account row (#1624). Wide only. */
   onOpenProfile?: () => void;
+  /**
+   * Lights the account button (#2278) while the screen it opens (Settings)
+   * is showing. Wide only.
+   */
+  accountActive?: boolean;
   onSignOut: () => void;
   labels: AppShellLabels;
   /** Section body, rendered into the main content area. */
@@ -162,6 +173,7 @@ export function AppShell({
   userEmail,
   userName,
   onOpenProfile,
+  accountActive,
   onSignOut,
   labels,
   children,
@@ -208,6 +220,7 @@ export function AppShell({
           userEmail={userEmail}
           userName={userName}
           onOpenProfile={onOpenProfile}
+          accountActive={accountActive}
           onSignOut={onSignOut}
           labels={labels}
         />

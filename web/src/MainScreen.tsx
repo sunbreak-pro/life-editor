@@ -143,7 +143,6 @@ export function MainScreen({ session }: { session: Session }) {
     setMaterialsCounts,
     commands,
     navSections,
-    utilitySections,
     mobileSections,
     materialsTabDefs,
     analyticsTabDefs,
@@ -400,7 +399,6 @@ export function MainScreen({ session }: { session: Session }) {
        */}
       <AppShell
         sections={navSections}
-        utilitySections={utilitySections}
         mobileSections={mobileSections}
         activeSection={section}
         onNavigate={(id) => setSection(id as SectionId)}
@@ -433,6 +431,13 @@ export function MainScreen({ session }: { session: Session }) {
          */
         userName={accountDisplayLabel(session.user)}
         onOpenProfile={nav.openProfile}
+        /*
+         * #2278 — the Settings row left the sidebar (no utilitySections
+         * above); the account button with its gear is the way in now, so it
+         * lights while Settings is open. Mobile still reaches Settings from
+         * the More sheet via mobileSections.
+         */
+        accountActive={section === "settings"}
         onSignOut={() => void signOut()}
         labels={shellLabels}
         detailPanelLabels={detailPanelLabels}
