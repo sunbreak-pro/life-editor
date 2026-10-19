@@ -10,13 +10,15 @@
  *
  * Which of those numbers leads a kind is the owner's choice (#2263, table
  * `record_views`): `recordMetricFor` reads it, and a kind with no saved row
- * leads with the sum (plan 案 C).
+ * leads with the sum (plan 案 C). The chart that draws it is the other half of
+ * the same row (#2264): `recordChartFor`, bars when nothing is saved.
  */
 
 import type { AppRecord } from "../../types/appRecord";
 import {
   RECORD_VIEW_DEFAULT,
   type RecordView,
+  type RecordViewChart,
   type RecordViewMetric,
 } from "../../types/recordView";
 import {
@@ -174,6 +176,17 @@ export function recordMetricFor(
   );
 }
 
+/** The chart that draws `kind` + `unit`; bars when nothing is saved. */
+export function recordChartFor(
+  index: ReadonlyMap<string, RecordView>,
+  kind: string,
+  unit: string | null,
+): RecordViewChart {
+  return (
+    index.get(recordViewKey(kind, unit))?.chart ?? RECORD_VIEW_DEFAULT.chart
+  );
+}
+
 /** One number out of the shared stats. */
 export function recordStat(
   stats: Pick<AppRecordStats, "count" | "sum" | "avg" | "latest">,
@@ -302,6 +315,45 @@ export function recentKindTotals(
 ): KindTotal[] {
   const startKey = addDaysKey(todayKey, -(days - 1));
   return kindTotals(recordsWithinDays(dated, startKey, todayKey));
+}
+
+/**
+ * One value per day for each kind over the same window as `recentKindTotals`,
+ * in the metric chosen for that kind — what the narrow block's small chart
+ * draws (#2264). Keyed by `recordViewKey`; the day rule is `buildRecordBars`'s,
+ * so an empty day of an average or a latest is null, not zero.
+ */
+export function recentKindSeries(
+  dated: readonly DatedRecord[],
+  todayKey: string,
+  days: number,
+  index: ReadonlyMap<string, RecordView>,
+): Map<string, (number | null)[]> {
+  const startKey = addDaysKey(todayKey, -(days - 1));
+  const groups = new Map<string, DatedRecord[]>();
+  for (const row of recordsWithinDays(dated, startKey, todayKey)) {
+    const key = recordViewKey(row.record.kind, row.record.unit);
+    const group = groups.get(key);
+    if (group) group.push(row);
+    else groups.set(key, [row]);
+  }
+  const series = new Map<string, (number | null)[]>();
+  for (const [key, rows] of groups) {
+    const { kind, unit } = rows[0].record;
+    const bars = buildRecordBars(
+      rows,
+      "day",
+      summarizeRecords(rows),
+      startKey,
+      todayKey,
+      recordMetricFor(index, kind, unit),
+    );
+    series.set(
+      key,
+      bars.map((bar) => bar.value),
+    );
+  }
+  return series;
 }
 
 /** Per-kind totals of `rows` (kind AND unit), sorted by kind then unit. */

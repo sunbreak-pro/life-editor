@@ -7,6 +7,7 @@ import {
 } from "../src/components/Analytics/AnalyticsView";
 import type { AppRecord } from "../src/types/appRecord";
 import type { ExtensionApp } from "../src/types/extensionApp";
+import type { RecordView } from "../src/types/recordView";
 import { makeAnalyticsLabels } from "./helpers/analyticsLabels";
 import en from "../src/i18n/locales/en.json";
 import ja from "../src/i18n/locales/ja.json";
@@ -20,7 +21,8 @@ import ja from "../src/i18n/locales/ja.json";
  * own suite — what is pinned here is which rows reach it and what is drawn.
  *
  * recharts is stubbed: jsdom has no layout, so the bars cannot be read anyway
- * (the bar model is covered in analyticsRecordsModel.test.ts).
+ * (the bar model is covered in analyticsRecordsModel.test.ts). The series
+ * stubs say which shape was drawn and whether it animates (#2264).
  */
 
 vi.mock("recharts", () => {
@@ -30,7 +32,16 @@ vi.mock("recharts", () => {
   return {
     ResponsiveContainer: Passthrough,
     BarChart: Passthrough,
-    Bar: () => null,
+    LineChart: Passthrough,
+    Bar: ({ isAnimationActive }: { isAnimationActive?: boolean }) => (
+      <div data-testid="records-bar" data-animate={String(isAnimationActive)} />
+    ),
+    Line: ({ isAnimationActive }: { isAnimationActive?: boolean }) => (
+      <div
+        data-testid="records-line"
+        data-animate={String(isAnimationActive)}
+      />
+    ),
     XAxis: () => null,
     YAxis: () => null,
     CartesianGrid: () => null,
@@ -351,6 +362,86 @@ describe("Records tab filters", () => {
   });
 });
 
+function savedView(
+  kind: string,
+  unit: string | null,
+  over: Partial<RecordView> = {},
+): RecordView {
+  return {
+    kind,
+    unit,
+    metric: "sum",
+    chart: "bar",
+    createdAt: noon(1),
+    updatedAt: noon(1),
+    ...over,
+  };
+}
+
+describe("Records tab chart shapes (#2264)", () => {
+  const weighings = [
+    rec({ occurredAt: noon(1), kind: "weight", unit: "kg", value: 62 }),
+    rec({ occurredAt: noon(3), kind: "weight", unit: "kg", value: 62.5 }),
+  ];
+
+  it("draws bars for a kind with nothing saved", () => {
+    render(<AnalyticsView {...props({ records: weighings })} />);
+    screen.getByTestId("records-bar");
+    expect(screen.queryByTestId("records-line")).toBeNull();
+  });
+
+  it("draws a line for a kind saved as a line", () => {
+    render(
+      <AnalyticsView
+        {...props({
+          records: weighings,
+          recordViews: [savedView("weight", "kg", { chart: "line" })],
+        })}
+      />,
+    );
+    screen.getByTestId("records-line");
+    expect(screen.queryByTestId("records-bar")).toBeNull();
+  });
+
+  it("keeps the count bars for mixed kinds, whatever one of them saved", () => {
+    render(
+      <AnalyticsView
+        {...props({
+          records: [...weighings, rec({ occurredAt: noon(2) })],
+          recordViews: [savedView("weight", "kg", { chart: "line" })],
+        })}
+      />,
+    );
+    screen.getByTestId("records-bar");
+    expect(screen.queryByTestId("records-line")).toBeNull();
+  });
+
+  it("animates the line, and stops it when less motion is asked for", () => {
+    const recordViews = [savedView("weight", "kg", { chart: "line" })];
+    const view = render(
+      <AnalyticsView {...props({ records: weighings, recordViews })} />,
+    );
+    expect(screen.getByTestId("records-line").dataset.animate).toBe("true");
+    view.rerender(
+      <AnalyticsView
+        {...props({ records: weighings, recordViews, reduceMotion: true })}
+      />,
+    );
+    expect(screen.getByTestId("records-line").dataset.animate).toBe("false");
+  });
+
+  it("hands a picked shape to the host, keyed by kind and unit", () => {
+    const onChooseRecordChart = vi.fn();
+    render(
+      <AnalyticsView {...props({ records: weighings, onChooseRecordChart })} />,
+    );
+    const select = screen.getByLabelText("Chart for weight");
+    expect((select as HTMLSelectElement).value).toBe("bar");
+    fireEvent.change(select, { target: { value: "line" } });
+    expect(onChooseRecordChart).toHaveBeenCalledWith("weight", "kg", "line");
+  });
+});
+
 describe("Records tab pending app (the Apps section's entry)", () => {
   const records = [
     rec({ occurredAt: noon(1), sourceApp: "ledger", value: 450 }),
@@ -461,6 +552,32 @@ describe("narrow Records block", () => {
     expect(
       within(line).getByText("Latest").nextElementSibling?.textContent,
     ).toBe("62 kg");
+  });
+
+  it("draws each kind's week in the chart shape saved for it (#2264)", () => {
+    mockMatchMedia(false);
+    const records = [
+      rec({ occurredAt: noon(1), kind: "weight", unit: "kg", value: 62 }),
+      rec({ occurredAt: noon(2), value: 300 }),
+    ];
+    render(
+      <AnalyticsView
+        {...props({
+          records,
+          recordViews: [savedView("weight", "kg", { chart: "line" })],
+          activeTab: undefined,
+        })}
+      />,
+    );
+
+    const block = screen.getByText("Last 7 days").closest("div")
+      ?.parentElement as HTMLElement;
+    const [expense, weight] = within(block).getAllByRole("listitem");
+    const shape = (line: HTMLElement): string | undefined =>
+      line.querySelector<SVGElement>("svg[data-chart]")?.dataset.chart;
+    expect(shape(weight)).toBe("line");
+    // Nothing saved for expense: bars, like the wide tab's default.
+    expect(shape(expense)).toBe("bar");
   });
 
   it("says there are none, and still shows the block, when the last 7 days are empty", () => {

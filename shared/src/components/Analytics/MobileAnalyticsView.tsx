@@ -24,10 +24,13 @@ import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { NoticePanel } from "../NoticePanel";
 import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
 import type { AnalyticsLabels } from "./labels";
+import { RecordSparkline } from "./RecordSparkline";
 import {
   formatRecordMetric,
   indexRecordViews,
+  recentKindSeries,
   recentKindTotals,
+  recordChartFor,
   recordMetricFor,
   recordViewKey,
   withDateKeys,
@@ -115,6 +118,17 @@ export function MobileAnalyticsView(
   const viewIndex = useMemo(
     () => indexRecordViews(recordViews ?? []),
     [recordViews],
+  );
+  // Each kind's seven days in its chosen number, for the small chart (#2264).
+  const recordSeries = useMemo(
+    () =>
+      recentKindSeries(
+        withDateKeys(records ?? []),
+        todayCalendarKey(),
+        RECORDS_WINDOW_DAYS,
+        viewIndex,
+      ),
+    [records, viewIndex],
   );
 
   const model = useMemo(() => {
@@ -436,7 +450,9 @@ export function MobileAnalyticsView(
          * Records (#2164): the last 7 days, one entry per kind, led by the
          * number the owner chose for that kind on the wide Records tab (#2263)
          * — the latest for a weight, the sum for spending. A kind with no
-         * choice saved leads with the sum (plan 案 C).
+         * choice saved leads with the sum (plan 案 C). Beside it, the same
+         * number day by day in the chart shape chosen there (#2264), bars
+         * when nothing is saved.
          */}
         <div className="flex flex-col gap-3 rounded-lumen-lg border border-lumen-border bg-lumen-bg-secondary p-4">
           <div className="flex items-baseline justify-between gap-2">
@@ -465,29 +481,33 @@ export function MobileAnalyticsView(
                   total.kind,
                   total.unit,
                 );
+                const key = recordViewKey(total.kind, total.unit);
                 return (
-                  <li
-                    key={recordViewKey(total.kind, total.unit)}
-                    className="flex flex-col gap-0.5"
-                  >
-                    <span className="min-w-0 truncate text-xs text-lumen-text">
-                      {total.kind}
-                      <span className="text-lumen-text-tertiary">
-                        {" · "}
-                        {labels.records.mobile.formatCount(total.count)}
+                  <li key={key} className="flex items-center gap-3">
+                    <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="min-w-0 truncate text-xs text-lumen-text">
+                        {total.kind}
+                        <span className="text-lumen-text-tertiary">
+                          {" · "}
+                          {labels.records.mobile.formatCount(total.count)}
+                        </span>
                       </span>
-                    </span>
-                    <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5">
-                      <RecordFigure
-                        label={labels.records.views.metrics[metric]}
-                        value={formatRecordMetric(
-                          labels.records,
-                          total,
-                          total.unit,
-                          metric,
-                        )}
-                      />
-                    </dl>
+                      <dl className="flex flex-wrap items-baseline gap-x-4 gap-y-0.5">
+                        <RecordFigure
+                          label={labels.records.views.metrics[metric]}
+                          value={formatRecordMetric(
+                            labels.records,
+                            total,
+                            total.unit,
+                            metric,
+                          )}
+                        />
+                      </dl>
+                    </div>
+                    <RecordSparkline
+                      values={recordSeries.get(key) ?? []}
+                      chart={recordChartFor(viewIndex, total.kind, total.unit)}
+                    />
                   </li>
                 );
               })}
