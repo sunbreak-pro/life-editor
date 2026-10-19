@@ -515,6 +515,7 @@ export function RichTextEditor({
                   roleNote: t("itemLink.roleNote"),
                   roleDaily: t("itemLink.roleDaily"),
                   roleTodo: t("itemLink.roleTodo"),
+                  search: t("itemLink.search"),
                 },
               }),
             ]

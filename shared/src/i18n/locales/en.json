@@ -588,7 +588,8 @@
         "bold": "Bold",
         "italic": "Italic",
         "strike": "Strikethrough",
-        "horizontalRule": "Insert divider"
+        "horizontalRule": "Insert divider",
+        "itemLink": "Link to an item"
       },
       "mainEmpty": "Select a note or create a new one",
       "recentHeading": "Recently opened",
@@ -1577,7 +1578,8 @@
     "createNote": "Create note “{{query}}” and link",
     "roleNote": "Note",
     "roleDaily": "Daily",
-    "roleTodo": "Todo"
+    "roleTodo": "Todo",
+    "search": "Search items to link"
   },
   "auth": {
     "productName": "Life Editor",

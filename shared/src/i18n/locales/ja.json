@@ -587,7 +587,8 @@
         "bold": "太字",
         "italic": "斜体",
         "strike": "取り消し線",
-        "horizontalRule": "区切り線を挿入"
+        "horizontalRule": "区切り線を挿入",
+        "itemLink": "アプリ内リンクにする"
       },
       "mainEmpty": "ノートを選ぶか、新しく作成してください",
       "recentHeading": "最近開いたノート",
@@ -1557,7 +1558,8 @@
     "createNote": "「{{query}}」のノートを作成してリンク",
     "roleNote": "ノート",
     "roleDaily": "デイリー",
-    "roleTodo": "Todo"
+    "roleTodo": "Todo",
+    "search": "リンク先を検索"
   },
   "auth": {
     "productName": "Life Editor",
