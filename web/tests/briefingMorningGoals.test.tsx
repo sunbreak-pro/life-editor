@@ -28,10 +28,12 @@ import { briefingReads, mockOf } from "./helpers/briefingHarness";
 import { BriefingScreen } from "../src/briefing/BriefingScreen";
 
 /*
- * #2106 — the morning paper's goals, through the real host: the goals block
- * reads goal rows (not the old note fields), a todo row names the goals it
- * serves, this week's goal is made from the paper, and the period-end review
- * asks about last period's unanswered goals one at a time.
+ * #2106 → #2286 — the morning paper's goals, through the real host: the goals
+ * block reads goal rows (not the old note fields) as one line per period, a
+ * todo row names the goals it serves, and the「目標」button opens the goals
+ * panel — where this week's goal is made, a goal is renamed or marked by
+ * hand, todos are linked, and the period-end review asks about last period's
+ * unanswered goals one at a time (the paper only says how many wait).
  *
  * The writes are asserted at the DataService, which is where a real failure
  * would come from; the review's answers carry `periodEndDecision` only — the
@@ -159,6 +161,19 @@ function paper(ds: DataService, onOpenGoals?: () => void) {
 
 const reviewCard = () =>
   screen.queryByText("GOALS FROM AN ENDED PERIOD")?.closest("section") ?? null;
+const NOTICE = /waiting for an answer/;
+const reviewNotice = () => screen.queryByRole("button", { name: NOTICE });
+
+/** The block's「目標」button → the goals panel. */
+async function openPanel(): Promise<HTMLElement> {
+  fireEvent.click(await screen.findByRole("button", { name: "Goals" }));
+  return screen.findByRole("dialog");
+}
+/** The one-line notice → the panel, with the review card on top. */
+async function openReview(): Promise<void> {
+  fireEvent.click(await screen.findByRole("button", { name: NOTICE }));
+  await screen.findByText("GOALS FROM AN ENDED PERIOD");
+}
 
 describe("Morning paper goals (#2106)", () => {
   let consoleError: ReturnType<typeof vi.spyOn>;
@@ -172,18 +187,17 @@ describe("Morning paper goals (#2106)", () => {
     consoleWarn.mockRestore();
   });
 
-  it("shows this week's goals with progress, and marks the todo rows", async () => {
+  it("shows this week's line with progress, and marks the todo rows", async () => {
     const ds = makeDS({
       goals: [goal("w-plan", "企画書を通す")],
       links: [linkRow("w-plan", "task-a"), linkRow("w-plan", "task-b")],
     });
     render(paper(ds));
 
-    const bar = await screen.findByRole("progressbar", {
-      name: "企画書を通す",
-    });
+    const bar = await screen.findByRole("progressbar", { name: "This week" });
     expect(bar.getAttribute("aria-valuetext")).toBe("1/2");
     expect(screen.getByText("GOALS AHEAD")).toBeTruthy();
+    expect(screen.getAllByText("Not set")).toHaveLength(2);
 
     const mark = screen.getByText("Goals:").closest("p")!;
     expect(mark.textContent).toContain("企画書を通す");
@@ -192,14 +206,17 @@ describe("Morning paper goals (#2106)", () => {
     ).toBeTruthy();
   });
 
-  it("asks for this week's goals when there are none", async () => {
+  it("asks for this week's goals in the panel when there are none", async () => {
     render(paper(makeDS()));
-    expect(await screen.findByText("Set this week's goals")).toBeTruthy();
+    expect(await screen.findAllByText("Not set")).toHaveLength(3);
+    const dialog = await openPanel();
+    expect(within(dialog).getByText("Set this week's goals")).toBeTruthy();
   });
 
   it("makes this week's goal in this week, after the ones there, and re-reads", async () => {
     const ds = makeDS({ goals: [goal("w-1", "一つ目")] });
     render(paper(ds));
+    await openPanel();
     const field = await screen.findByRole("textbox", { name: "Set a goal" });
     const reads = mockOf(ds, "fetchGoals").mock.calls.length;
 
@@ -221,20 +238,58 @@ describe("Morning paper goals (#2106)", () => {
     );
   });
 
-  it("opens Connect's goals tab from the block when the host can", async () => {
+  it("opens Connect's goals tab from the panel when the host can", async () => {
     const onOpenGoals = vi.fn();
     render(paper(makeDS(), onOpenGoals));
+    await openPanel();
     fireEvent.click(
       await screen.findByRole("button", { name: "Open in Goals & Todos" }),
     );
     expect(onOpenGoals).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("renames a goal and marks it achieved by hand in its own panel", async () => {
+    const ds = makeDS({ goals: [goal("w-plan", "企画書を通す")] });
+    render(paper(ds));
+    const dialog = await openPanel();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Open 企画書を通す" }),
+    );
+
+    const title = await within(dialog).findByRole("textbox", {
+      name: "Goal title",
+    });
+    fireEvent.change(title, { target: { value: "企画書を出す" } });
+    fireEvent.blur(title);
+    await waitFor(() =>
+      expect(mockOf(ds, "updateGoal")).toHaveBeenCalledWith("w-plan", {
+        title: "企画書を出す",
+      }),
+    );
+
+    fireEvent.click(
+      await within(dialog).findByRole("button", { name: "Mark as achieved" }),
+    );
+    await waitFor(() =>
+      expect(mockOf(ds, "updateGoal")).toHaveBeenLastCalledWith("w-plan", {
+        manualAchievedAt: expect.any(String),
+      }),
+    );
+
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Back to goals" }),
+    );
+    expect(
+      await within(dialog).findByRole("textbox", { name: "Set a goal" }),
+    ).toBeTruthy();
   });
 
   describe("period-end review (P1 / P2)", () => {
     it("drops a goal and moves on", async () => {
       const ds = makeDS({ goals: [goal("w-old", "模様替え", LAST_WEEK)] });
       render(paper(ds));
-      await screen.findByText("模様替え");
+      await openReview();
       expect(reviewCard()).not.toBeNull();
 
       fireEvent.click(screen.getByRole("button", { name: "Drop it" }));
@@ -250,6 +305,7 @@ describe("Morning paper goals (#2106)", () => {
     it("carries a goal: the copy first, then the decision", async () => {
       const ds = makeDS({ goals: [goal("w-old", "模様替え", LAST_WEEK)] });
       render(paper(ds));
+      await openReview();
       fireEvent.click(
         await screen.findByRole("button", { name: "Carry over" }),
       );
@@ -281,6 +337,7 @@ describe("Morning paper goals (#2106)", () => {
         ],
       });
       render(paper(ds));
+      await openReview();
       fireEvent.click(
         await screen.findByRole("button", { name: "Carry over" }),
       );
@@ -303,6 +360,7 @@ describe("Morning paper goals (#2106)", () => {
         ],
       });
       render(paper(ds));
+      await openReview();
       const carry = await screen.findByRole("button", { name: "Carry over" });
       expect((carry as HTMLButtonElement).disabled).toBe(true);
     });
@@ -327,6 +385,7 @@ describe("Morning paper goals (#2106)", () => {
         },
       );
       render(paper(ds));
+      await openReview();
       const carry = await screen.findByRole("button", { name: "Carry over" });
       readsFail = true;
       fireEvent.click(carry);
@@ -371,6 +430,7 @@ describe("Morning paper goals (#2106)", () => {
           }),
       );
       render(paper(ds));
+      await openReview();
       const field = await screen.findByRole("textbox", { name: "Set a goal" });
       fireEvent.change(field, { target: { value: "三" } });
       fireEvent.keyDown(field, { key: "Enter" });
@@ -401,6 +461,7 @@ describe("Morning paper goals (#2106)", () => {
         ],
       });
       render(paper(ds));
+      await openReview();
       fireEvent.click(await screen.findByRole("button", { name: "Drop it" }));
 
       await waitFor(() =>
@@ -410,7 +471,9 @@ describe("Morning paper goals (#2106)", () => {
       );
       expect(mockOf(ds, "softDeleteGoal")).not.toHaveBeenCalled();
       expect(mockOf(ds, "createGoal")).not.toHaveBeenCalled();
-      expect(await screen.findByText("模様替え")).toBeTruthy();
+      expect(
+        await within(screen.getByRole("dialog")).findByText("模様替え"),
+      ).toBeTruthy();
     });
 
     // Review fix: with no todo tree read, every link points at a missing todo
@@ -429,7 +492,7 @@ describe("Morning paper goals (#2106)", () => {
         expect(mockOf(ds, "fetchGoalTodoLinks")).toHaveBeenCalled(),
       );
       await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(reviewCard()).toBeNull();
+      expect(reviewNotice()).toBeNull();
       expect(screen.queryByText("GOALS AHEAD")).toBeNull();
     });
 
@@ -458,7 +521,7 @@ describe("Morning paper goals (#2106)", () => {
         { fetchTodoTree },
       );
       const first = render(paper(ds));
-      await screen.findByRole("button", { name: "Drop it" });
+      await screen.findByRole("button", { name: NOTICE });
       first.unmount();
 
       // task-b was finished elsewhere meanwhile. Coming back replays the
@@ -467,30 +530,30 @@ describe("Morning paper goals (#2106)", () => {
       expect(await screen.findByText("資料を作る")).toBeTruthy();
       await waitFor(() => expect(fetchTodoTree).toHaveBeenCalledTimes(2));
       await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(reviewCard()).toBeNull();
+      expect(reviewNotice()).toBeNull();
       expect(screen.queryByText("GOALS AHEAD")).toBeNull();
 
       // The re-read finds task-b done: w-old is achieved, nothing to ask.
       serveTree(TODOS);
       expect(await screen.findByText("GOALS AHEAD")).toBeTruthy();
-      expect(reviewCard()).toBeNull();
+      expect(reviewNotice()).toBeNull();
     });
 
     it("asks later without writing, and asks again on the next open", async () => {
       const ds = makeDS({ goals: [goal("w-old", "模様替え", LAST_WEEK)] });
       const first = render(paper(ds));
+      await openReview();
       fireEvent.click(
         await screen.findByRole("button", { name: "Ask me later" }),
       );
       await waitFor(() => expect(reviewCard()).toBeNull());
+      expect(reviewNotice()).toBeNull();
       expect(mockOf(ds, "updateGoal")).not.toHaveBeenCalled();
       expect(mockOf(ds, "createGoal")).not.toHaveBeenCalled();
       first.unmount();
 
       render(paper(ds));
-      expect(
-        await screen.findByRole("button", { name: "Ask me later" }),
-      ).toBeTruthy();
+      expect(await screen.findByRole("button", { name: NOTICE })).toBeTruthy();
     });
 
     it("says so and keeps the card when the answer cannot be saved", async () => {
@@ -499,6 +562,7 @@ describe("Morning paper goals (#2106)", () => {
         { updateGoal: vi.fn().mockRejectedValue(new Error("network down")) },
       );
       render(paper(ds));
+      await openReview();
       fireEvent.click(await screen.findByRole("button", { name: "Drop it" }));
 
       expect(
@@ -528,19 +592,20 @@ describe("Morning paper goals (#2106)", () => {
     expect(reviewCard()).toBeNull();
   });
 
-  it("links todos from the goal's side in the paper's overlay", async () => {
+  it("links todos from the goal's side inside the goals panel", async () => {
     const ds = makeDS({ goals: [goal("w-plan", "企画書を通す")] });
     render(paper(ds));
+    const dialog = await openPanel();
     fireEvent.click(
-      await screen.findByRole("button", { name: "Link todos: 企画書を通す" }),
+      within(dialog).getByRole("button", { name: "Link todos: 企画書を通す" }),
     );
-    const dialog = await screen.findByRole("dialog");
-    // The overlay's title says it; the screen inside does not say it again,
-    // and names its region after the goal instead.
-    expect(within(dialog).getAllByText("Link todos")).toHaveLength(1);
-    expect(
-      within(dialog).getByRole("region", { name: "企画書を通す" }),
-    ).toBeTruthy();
+    // Swapped in place of the list — no second dialog over the panel. The
+    // frame draws no heading (#2219), so the screen keeps its own.
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    const linking = await within(dialog).findByRole("region", {
+      name: "Link todos",
+    });
+    expect(within(linking).getByText("企画書を通す")).toBeTruthy();
     // Bounded to the viewport with a scrolling body (#1728), so Save stays
     // reachable on a phone once the preview grows the screen.
     expect(dialog.className).toContain("max-h-[calc(100dvh-2rem)]");
@@ -557,11 +622,65 @@ describe("Morning paper goals (#2106)", () => {
     );
   });
 
+  // #2286: a phone gets the bare summary and the panel as a bottom sheet;
+  // Desktop keeps the bar and opens a centred dialog.
+  describe("across widths", () => {
+    const setWide = (wide: boolean) =>
+      Object.defineProperty(window, "matchMedia", {
+        writable: true,
+        configurable: true,
+        value: (query: string) => ({
+          matches: wide,
+          media: query,
+          onchange: null,
+          addEventListener: () => undefined,
+          removeEventListener: () => undefined,
+          addListener: () => undefined,
+          removeListener: () => undefined,
+          dispatchEvent: () => false,
+        }),
+      });
+    afterEach(() => {
+      Reflect.deleteProperty(window, "matchMedia");
+    });
+
+    const seeded = () =>
+      makeDS({
+        goals: [goal("w-plan", "企画書を通す")],
+        links: [linkRow("w-plan", "task-a")],
+      });
+
+    it("opens a centred dialog on Desktop", async () => {
+      setWide(true);
+      render(paper(seeded()));
+      expect(
+        await screen.findByRole("progressbar", { name: "This week" }),
+      ).toBeTruthy();
+      const dialog = await openPanel();
+      expect(dialog.className).toContain("max-h-[calc(100dvh-2rem)]");
+    });
+
+    it("drops the bar and the counts on a phone, and opens a sheet", async () => {
+      setWide(false);
+      render(paper(seeded()));
+      await screen.findByText("GOALS AHEAD");
+      expect(screen.queryByRole("progressbar")).toBeNull();
+      expect(screen.queryByText("0/1")).toBeNull();
+      const sheet = await openPanel();
+      expect(sheet.className).not.toContain("max-h-[calc(100dvh-2rem)]");
+      expect(sheet.parentElement?.className).toMatch(/items-(end|stretch)/);
+      // The panel itself still shows the goal's own progress.
+      expect(
+        within(sheet).getByRole("progressbar", { name: "企画書を通す" }),
+      ).toBeTruthy();
+    });
+  });
+
   // The Issue's DoD: a day with no comment, no goals and no 宣言 still draws
   // no empty frame anywhere on the paper.
   it("draws no empty frame on a day with nothing written", async () => {
     const { container } = render(paper(makeDS({ daily: null })));
-    await screen.findByText("Set this week's goals");
+    await screen.findAllByText("Not set");
     expect(screen.queryByText("A WORD ON YESTERDAY")).toBeNull();
     for (const section of container.querySelectorAll("section")) {
       expect(section.textContent?.trim()).not.toBe("");

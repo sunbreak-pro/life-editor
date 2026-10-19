@@ -1639,6 +1639,12 @@
     "goalMark": "目標:",
     "goals": {
       "prompt": "今週の目標を立てましょう",
+      "open": "目標",
+      "more_other": "その他 {{count}}",
+      "unset": "未設定",
+      "reviewNotice_other": "終わった期間の目標が {{count}} 件あります",
+      "openGoal": "{{title}} を開く",
+      "back": "目標の一覧へ戻る",
       "linkTodos": "Todo をつなぐ: {{title}}",
       "openInConnect": "目標と Todo で開く",
       "migrationOverflow_other": "目標ノートの行を目標に移しました。目標は 1 つの期間に 3 つまでなので、残りの {{count}} 行はノートにそのまま残しています。"
