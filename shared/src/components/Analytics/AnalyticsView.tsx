@@ -7,7 +7,11 @@ import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
 import type { WikiTag, WikiTagAssignment } from "../../types/wikiTagUnified";
 import type { AppRecord } from "../../types/appRecord";
-import type { RecordView, RecordViewMetric } from "../../types/recordView";
+import type {
+  RecordView,
+  RecordViewChart,
+  RecordViewMetric,
+} from "../../types/recordView";
 import type { ExtensionApp } from "../../types/extensionApp";
 import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { HeaderTabs, type HeaderTab } from "../HeaderTabs";
@@ -148,7 +152,7 @@ export interface AnalyticsViewProps {
    * Which number leads each kind of record (#2263, host: `listRecordViews`),
    * shared by the Records tab and the narrow block, and the call that saves a
    * pick (`saveRecordView`). Omit both and every kind leads with the sum and
-   * the tab's selects do nothing.
+   * the tab's selects do nothing. The chart shape (#2264) rides the same row.
    */
   recordViews?: RecordView[];
   onChooseRecordMetric?: (
@@ -156,8 +160,15 @@ export interface AnalyticsViewProps {
     unit: string | null,
     metric: RecordViewMetric,
   ) => void;
+  onChooseRecordChart?: (
+    kind: string,
+    unit: string | null,
+    chart: RecordViewChart,
+  ) => void;
   /** True after a pick could not be saved. */
   recordViewSaveFailed?: boolean;
+  /** Still the Records tab's chart (#2264): the owner asked for less motion. */
+  reduceMotion?: boolean;
   labels: AnalyticsLabels;
 }
 
@@ -224,7 +235,9 @@ function DesktopAnalytics({
   onRecordsSourceConsumed,
   recordViews,
   onChooseRecordMetric,
+  onChooseRecordChart,
   recordViewSaveFailed,
+  reduceMotion,
   labels,
 }: AnalyticsViewProps): React.JSX.Element {
   const { dateRange, preset, applyPreset } = useAnalyticsFilter();
@@ -446,7 +459,9 @@ function DesktopAnalytics({
                   onPendingSourceConsumed={onRecordsSourceConsumed ?? IGNORE}
                   views={recordViews ?? NO_VIEWS}
                   onChooseMetric={onChooseRecordMetric ?? IGNORE}
+                  onChooseChart={onChooseRecordChart ?? IGNORE}
                   viewSaveFailed={recordViewSaveFailed ?? false}
+                  reduceMotion={reduceMotion ?? false}
                   labels={labels.records}
                   axis={labels.axis}
                 />

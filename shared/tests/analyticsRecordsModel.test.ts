@@ -9,8 +9,11 @@ import {
   distinctSorted,
   formatRecordMetric,
   indexRecordViews,
+  recentKindSeries,
   recentKindTotals,
+  recordChartFor,
   recordMetricFor,
+  recordViewKey,
   replaceRecordView,
   recordsGroupBy,
   summarizeRecords,
@@ -316,5 +319,35 @@ describe("record views (#2263)", () => {
       { period: "2026-10-01", value: 2 },
       { period: "2026-10-02", value: 0 },
     ]);
+  });
+});
+describe("record chart shapes (#2264)", () => {
+  it("draws the saved chart, and bars when nothing is saved", () => {
+    const index = indexRecordViews([view({ chart: "line" })]);
+    expect(recordChartFor(index, "weight", "kg")).toBe("line");
+    // The key is kind AND unit, like the metric's.
+    expect(recordChartFor(index, "weight", "lb")).toBe("bar");
+    expect(recordChartFor(index, "expense", "JPY")).toBe("bar");
+  });
+
+  it("gives each kind a value per day in its own metric", () => {
+    const dated = withDateKeys([
+      rec(at(2026, 10, 5), { id: "w1", kind: "weight", unit: "kg", value: 63 }),
+      rec(at(2026, 10, 7), { id: "w2", kind: "weight", unit: "kg", value: 62 }),
+      rec(at(2026, 10, 7), { id: "e1", value: 300 }),
+      rec(at(2026, 10, 7), { id: "e2", value: 200 }),
+      // Outside the three days: left out of both lines.
+      rec(at(2026, 10, 4), { id: "e0", value: 999 }),
+    ]);
+    const series = recentKindSeries(
+      dated,
+      "2026-10-07",
+      3,
+      indexRecordViews([view({ metric: "latest" })]),
+    );
+    // Weight is saved as latest: a day without a weighing is no point at all.
+    expect(series.get(recordViewKey("weight", "kg"))).toEqual([63, null, 62]);
+    // Expense has nothing saved, so it is a sum and an empty day is zero.
+    expect(series.get(recordViewKey("expense", "JPY"))).toEqual([0, 0, 500]);
   });
 });

@@ -39,6 +39,8 @@ export function makeRecordsLabels(): RecordsLabels {
         latest: "Latest",
         count: "Count",
       },
+      chartSelectLabel: (kind) => `Chart for ${kind}`,
+      charts: { bar: "Bars", line: "Line" },
       saveFailed: "That choice could not be saved",
     },
     list: {

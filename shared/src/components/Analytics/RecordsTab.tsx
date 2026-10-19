@@ -4,6 +4,8 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
+  Line,
+  LineChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -13,8 +15,10 @@ import type { AppRecord } from "../../types/appRecord";
 import { APP_RECORD_SOURCE_CLAUDE } from "../../types/appRecord";
 import type { ExtensionApp } from "../../types/extensionApp";
 import {
+  RECORD_VIEW_CHARTS,
   RECORD_VIEW_METRICS,
   type RecordView,
+  type RecordViewChart,
   type RecordViewMetric,
 } from "../../types/recordView";
 import { formatDateKey } from "../../utils/dateKey";
@@ -41,6 +45,7 @@ import {
   formatRecordMetric,
   indexRecordViews,
   kindTotals,
+  recordChartFor,
   recordMetricFor,
   recordViewKey,
   recordsGroupBy,
@@ -68,11 +73,20 @@ import {
  *
  * Which number leads each kind (#2263) is NOT local: the host keeps the saved
  * `record_views` rows and saves a pick through `onChooseMetric`, so the narrow
- * block on the phone shows the same choice.
+ * block on the phone shows the same choice. The chart's shape (#2264) is the
+ * other half of the same row.
  */
 
 /** Rows drawn before "show more": a busy app can send thousands. */
 const PAGE_SIZE = 100;
+
+const CHART_MARGIN = { top: 4, right: 8, left: 0, bottom: 0 };
+
+/** The two per-kind selects on the "how each kind is shown" card. */
+const VIEW_SELECT = cn(
+  "rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1 text-xs text-lumen-text",
+  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+);
 
 export interface RecordsTabProps {
   /** Newest first, covering at least the selected date range. */
@@ -94,8 +108,20 @@ export interface RecordsTabProps {
     unit: string | null,
     metric: RecordViewMetric,
   ) => void;
+  /** Saves which chart draws `kind` + `unit` (#2264). */
+  onChooseChart: (
+    kind: string,
+    unit: string | null,
+    chart: RecordViewChart,
+  ) => void;
   /** True after a pick could not be saved (the host put the old one back). */
   viewSaveFailed: boolean;
+  /**
+   * The owner asked for less motion (the OS setting, or the app's own). recharts
+   * animates in JS, out of reach of the CSS rule in tokens.css that stills
+   * every transition, so the chart is told directly.
+   */
+  reduceMotion: boolean;
   labels: RecordsLabels;
   axis: ChartAxisFormat;
 }
@@ -109,7 +135,9 @@ export function RecordsTab({
   onPendingSourceConsumed,
   views,
   onChooseMetric,
+  onChooseChart,
   viewSaveFailed,
+  reduceMotion,
   labels,
   axis,
 }: RecordsTabProps): React.JSX.Element {
@@ -186,6 +214,10 @@ export function RecordsTab({
   const metric: RecordViewMetric = summary.aggregable
     ? recordMetricFor(viewIndex, rows[0].record.kind, summary.unit)
     : "count";
+  // Mixed kinds keep the bars they always had: a count has no trend to read.
+  const chart: RecordViewChart = summary.aggregable
+    ? recordChartFor(viewIndex, rows[0].record.kind, summary.unit)
+    : "bar";
   const groupBy = recordsGroupBy(dateRangeDays(dateRange));
   const bars = useMemo(
     () => buildRecordBars(rows, groupBy, summary, startKey, endKey, metric),
@@ -233,6 +265,33 @@ export function RecordsTab({
     label: axis.date(barDateKey(bar.period), groupBy),
     value: bar.value ?? undefined,
   }));
+  // Both chart shapes share the grid, the axes and the tooltip's wording.
+  const axes = [
+    <CartesianGrid key="grid" {...CHART_GRID} />,
+    <XAxis
+      key="x"
+      dataKey="label"
+      tick={CHART_TICK_11}
+      tickLine={false}
+      axisLine={false}
+      interval="preserveStartEnd"
+    />,
+    <YAxis
+      key="y"
+      tick={CHART_TICK_11}
+      tickLine={false}
+      axisLine={false}
+      allowDecimals={barsInUnit}
+      width={56}
+      tickFormatter={(v: number) => labels.formatNumber(v)}
+    />,
+  ];
+  const tooltip = (value: number | undefined): [string, string] => [
+    barsInUnit
+      ? labels.formatValue(value ?? 0, unit)
+      : labels.formatNumber(value ?? 0),
+    seriesName,
+  ];
   // The card of the chosen number says it leads; only one kind can have one.
   const headline = (card: RecordViewMetric): string | undefined =>
     summary.aggregable && card === metric ? labels.stats.headline : undefined;
@@ -354,6 +413,7 @@ export function RecordsTab({
                   total.kind,
                   total.unit,
                 );
+                const shape = recordChartFor(viewIndex, total.kind, total.unit);
                 return (
                   <li
                     key={recordViewKey(total.kind, total.unit)}
@@ -382,14 +442,29 @@ export function RecordsTab({
                             e.target.value as RecordViewMetric,
                           )
                         }
-                        className={cn(
-                          "rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1 text-xs text-lumen-text",
-                          "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-                        )}
+                        className={VIEW_SELECT}
                       >
                         {RECORD_VIEW_METRICS.map((option) => (
                           <option key={option} value={option}>
                             {labels.views.metrics[option]}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        aria-label={labels.views.chartSelectLabel(total.kind)}
+                        value={shape}
+                        onChange={(e) =>
+                          onChooseChart(
+                            total.kind,
+                            total.unit,
+                            e.target.value as RecordViewChart,
+                          )
+                        }
+                        className={VIEW_SELECT}
+                      >
+                        {RECORD_VIEW_CHARTS.map((option) => (
+                          <option key={option} value={option}>
+                            {labels.views.charts[option]}
                           </option>
                         ))}
                       </select>
@@ -401,48 +476,62 @@ export function RecordsTab({
           </ChartCard>
 
           <ChartCard title={chartTitle}>
-            <ResponsiveContainer
-              width="100%"
-              height={CHART_HEIGHT_MD}
-              minWidth={0}
+            {/* Says what was drawn: jsdom cannot measure a chart to read it. */}
+            <div
+              data-chart={chart}
+              data-motion={reduceMotion ? "reduced" : "full"}
             >
-              <BarChart
-                data={chartData}
-                margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+              <ResponsiveContainer
+                width="100%"
+                height={CHART_HEIGHT_MD}
+                minWidth={0}
               >
-                <CartesianGrid {...CHART_GRID} />
-                <XAxis
-                  dataKey="label"
-                  tick={CHART_TICK_11}
-                  tickLine={false}
-                  axisLine={false}
-                  interval="preserveStartEnd"
-                />
-                <YAxis
-                  tick={CHART_TICK_11}
-                  tickLine={false}
-                  axisLine={false}
-                  allowDecimals={barsInUnit}
-                  width={56}
-                  tickFormatter={(v: number) => labels.formatNumber(v)}
-                />
-                <Tooltip
-                  cursor={{ fill: "var(--color-lumen-hover)" }}
-                  contentStyle={CHART_TOOLTIP_STYLE}
-                  formatter={(value: number | undefined) => [
-                    barsInUnit
-                      ? labels.formatValue(value ?? 0, unit)
-                      : labels.formatNumber(value ?? 0),
-                    seriesName,
-                  ]}
-                />
-                <Bar
-                  dataKey="value"
-                  fill="var(--color-lumen-accent)"
-                  radius={[4, 4, 0, 0]}
-                />
-              </BarChart>
-            </ResponsiveContainer>
+                {chart === "line" ? (
+                  <LineChart data={chartData} margin={CHART_MARGIN}>
+                    {axes}
+                    <Tooltip
+                      cursor={{ stroke: "var(--color-lumen-border)" }}
+                      contentStyle={CHART_TOOLTIP_STYLE}
+                      formatter={tooltip}
+                    />
+                    {/* A day without a value is stepped over, not dropped to 0. */}
+                    <Line
+                      type="monotone"
+                      dataKey="value"
+                      stroke="var(--color-lumen-accent)"
+                      strokeWidth={2}
+                      dot={{
+                        r: 3,
+                        fill: "var(--color-lumen-accent)",
+                        strokeWidth: 0,
+                      }}
+                      activeDot={{
+                        r: 4,
+                        fill: "var(--color-lumen-accent)",
+                        strokeWidth: 0,
+                      }}
+                      connectNulls
+                      isAnimationActive={!reduceMotion}
+                    />
+                  </LineChart>
+                ) : (
+                  <BarChart data={chartData} margin={CHART_MARGIN}>
+                    {axes}
+                    <Tooltip
+                      cursor={{ fill: "var(--color-lumen-hover)" }}
+                      contentStyle={CHART_TOOLTIP_STYLE}
+                      formatter={tooltip}
+                    />
+                    <Bar
+                      dataKey="value"
+                      fill="var(--color-lumen-accent)"
+                      radius={[4, 4, 0, 0]}
+                      isAnimationActive={!reduceMotion}
+                    />
+                  </BarChart>
+                )}
+              </ResponsiveContainer>
+            </div>
           </ChartCard>
 
           <ChartCard

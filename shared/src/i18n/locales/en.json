@@ -1026,7 +1026,7 @@
       },
       "views": {
         "title": "How each kind is shown",
-        "description": "Pick the number each kind leads with. The Records block on your phone shows the same one.",
+        "description": "Pick the number and the chart each kind is shown with. The Records block on your phone shows the same.",
         "selectLabel": "How to show {{kind}}",
         "metrics": {
           "sum": "Total",
@@ -1034,6 +1034,8 @@
           "latest": "Latest",
           "count": "Count"
         },
+        "chartSelectLabel": "Chart for {{kind}}",
+        "charts": { "bar": "Bars", "line": "Line" },
         "saveFailed": "That choice could not be saved. Try again in a moment."
       },
       "list": {

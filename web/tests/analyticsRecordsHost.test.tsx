@@ -8,11 +8,13 @@ import {
   screen,
   waitFor,
 } from "@testing-library/react";
-import type {
-  AppRecord,
-  DataService,
-  RecordView,
-  RecordViewMetric,
+import {
+  ThemeContext,
+  type AppRecord,
+  type DataService,
+  type ReduceMotion,
+  type RecordView,
+  type RecordViewMetric,
 } from "@life-editor/shared";
 import { AnalyticsScreen } from "../src/analytics/AnalyticsScreen";
 import { createBumpableSync, stubDataService } from "./helpers";
@@ -118,18 +120,30 @@ function listText(): string {
 function renderRecords(
   ds: DataService,
   extra: Partial<Parameters<typeof AnalyticsScreen>[0]> = {},
+  /** The app's own motion setting; omitted = no ThemeProvider at all. */
+  reduceMotion?: ReduceMotion,
 ) {
   const sync = createBumpableSync();
+  const screenEl = (
+    <AnalyticsScreen
+      dataService={ds}
+      tab="records"
+      onTabChange={vi.fn()}
+      preset="30d"
+      onPresetChange={vi.fn()}
+      {...extra}
+    />
+  );
   const view = render(
     <sync.wrapper>
-      <AnalyticsScreen
-        dataService={ds}
-        tab="records"
-        onTabChange={vi.fn()}
-        preset="30d"
-        onPresetChange={vi.fn()}
-        {...extra}
-      />
+      {reduceMotion === undefined ? (
+        screenEl
+      ) : (
+        // Only the field the host reads; the rest of the theme is not used.
+        <ThemeContext.Provider value={{ reduceMotion } as never}>
+          {screenEl}
+        </ThemeContext.Provider>
+      )}
     </sync.wrapper>,
   );
   return { ...view, sync: sync.sync };
@@ -320,5 +334,92 @@ describe("AnalyticsScreen record views (#2263)", () => {
     await waitFor(() => screen.getByText("Last 7 days"));
     expect(screen.getByText("1,000 JPY")).toBeTruthy();
     expect(screen.queryByText("500 JPY")).toBeNull();
+  });
+});
+
+/**
+ * What the Records chart drew, from its wrapper. The recharts stub above does
+ * not reach shared's own import of it, so the real chart mounts at width 0 and
+ * draws nothing to read; the series props are pinned in shared's tab suite.
+ */
+function chartFrame(): HTMLElement {
+  return document.querySelector<HTMLElement>("[data-chart]") as HTMLElement;
+}
+
+/** Wide, with the OS asking for less motion or not. */
+function mockMotion(osReduces: boolean) {
+  // @ts-expect-error — minimal MediaQueryList stub for jsdom, which has none.
+  window.matchMedia = (query: string) => ({
+    matches: query.includes("reduced-motion") ? osReduces : true,
+    media: query,
+    addEventListener: () => {},
+    removeEventListener: () => {},
+  });
+}
+
+describe("AnalyticsScreen record chart shapes (#2264)", () => {
+  const lineView = { ...savedView("latest"), chart: "line" as const };
+
+  it("saves a picked shape and keeps the number already saved", async () => {
+    const saveRecordView = vi.fn().mockResolvedValue(lineView);
+    renderRecords(
+      makeDS({
+        listAppRecords: vi.fn().mockResolvedValue(WEIGHTS),
+        listRecordViews: vi.fn().mockResolvedValue([savedView("latest")]),
+        saveRecordView,
+      }),
+    );
+
+    const select = (await waitFor(() =>
+      screen.getByLabelText("Chart for weight"),
+    )) as HTMLSelectElement;
+    await waitFor(() =>
+      expect(
+        (screen.getByLabelText("How to show weight") as HTMLSelectElement)
+          .value,
+      ).toBe("latest"),
+    );
+    expect(chartFrame().dataset.chart).toBe("bar");
+
+    fireEvent.change(select, { target: { value: "line" } });
+
+    expect(saveRecordView).toHaveBeenCalledWith("weight", "kg", {
+      metric: "latest",
+      chart: "line",
+    });
+    await waitFor(() => expect(chartFrame().dataset.chart).toBe("line"));
+    expect(select.value).toBe("line");
+  });
+
+  it("animates the line unless the OS asks for less motion", async () => {
+    const ds = () =>
+      makeDS({
+        listAppRecords: vi.fn().mockResolvedValue(WEIGHTS),
+        listRecordViews: vi.fn().mockResolvedValue([lineView]),
+      });
+    mockMotion(false);
+    const first = renderRecords(ds());
+    await waitFor(() => expect(chartFrame()?.dataset.motion).toBe("full"));
+    first.unmount();
+
+    mockMotion(true);
+    renderRecords(ds());
+    await waitFor(() => expect(chartFrame()?.dataset.motion).toBe("reduced"));
+  });
+
+  it("lets the app's own motion setting win over the OS", async () => {
+    const ds = () =>
+      makeDS({
+        listAppRecords: vi.fn().mockResolvedValue(WEIGHTS),
+        listRecordViews: vi.fn().mockResolvedValue([lineView]),
+      });
+    mockMotion(false);
+    const first = renderRecords(ds(), {}, "reduce");
+    await waitFor(() => expect(chartFrame()?.dataset.motion).toBe("reduced"));
+    first.unmount();
+
+    mockMotion(true);
+    renderRecords(ds(), {}, "off");
+    await waitFor(() => expect(chartFrame()?.dataset.motion).toBe("full"));
   });
 });

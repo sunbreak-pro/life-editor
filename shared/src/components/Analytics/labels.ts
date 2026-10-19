@@ -1,4 +1,4 @@
-import type { RecordViewMetric } from "../../types/recordView";
+import type { RecordViewChart, RecordViewMetric } from "../../types/recordView";
 import type { StagnationBucketId } from "../../utils/analyticsAggregation";
 import type { DatePreset } from "./AnalyticsFilterContext";
 import type { ChartAxisFormat } from "./chartTheme";
@@ -58,6 +58,10 @@ export interface RecordsLabels {
     selectLabel: (kind: string) => string;
     /** Option text for each metric, in RECORD_VIEW_METRICS order. */
     metrics: Record<RecordViewMetric, string>;
+    /** Accessible name of one kind's chart select: "Chart for weight". */
+    chartSelectLabel: (kind: string) => string;
+    /** Option text for each chart shape, in RECORD_VIEW_CHARTS order. */
+    charts: Record<RecordViewChart, string>;
     /** A choice that could not be saved (it is put back on screen). */
     saveFailed: string;
   };

@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useContext, useMemo, useState } from "react";
 import {
   AnalyticsView,
   useTranslation,
@@ -17,8 +17,12 @@ import {
   type AppRecord,
   type ExtensionApp,
   type RecordView,
+  type RecordViewChart,
+  type RecordViewChoice,
   type RecordViewMetric,
   RECORD_VIEW_DEFAULT,
+  ThemeContext,
+  useMediaQuery,
   replaceRecordView,
   formatDateKey,
   todayCalendarKey,
@@ -384,6 +388,8 @@ export function AnalyticsScreen({
    *
    * A pick is drawn at once and saved behind it. If the save fails, the row
    * that was there before goes back and the tab says the pick was not kept.
+   * The number and the chart shape (#2264) are two halves of one row, so a
+   * pick of one keeps whatever the other already was.
    */
   const recordViewsSyncVersion = useSyncDomains("recordViews");
   const [recordViews, setRecordViews] = useState<RecordView[]>([]);
@@ -396,14 +402,15 @@ export function AnalyticsScreen({
     apply: setRecordViews,
     fallbackMessage: "Failed to load the record views",
   });
-  const handleChooseRecordMetric = useCallback(
-    (kind: string, unit: string | null, metric: RecordViewMetric) => {
+  const saveRecordViewChoice = useCallback(
+    (kind: string, unit: string | null, pick: Partial<RecordViewChoice>) => {
       const before =
         recordViews.find((v) => v.kind === kind && v.unit === unit) ?? null;
       const now = new Date().toISOString();
-      const choice = {
-        metric,
+      const choice: RecordViewChoice = {
+        metric: before?.metric ?? RECORD_VIEW_DEFAULT.metric,
         chart: before?.chart ?? RECORD_VIEW_DEFAULT.chart,
+        ...pick,
       };
       setRecordViewSaveFailed(false);
       setRecordViews((views) =>
@@ -431,6 +438,32 @@ export function AnalyticsScreen({
     },
     [ds, recordViews],
   );
+  const handleChooseRecordMetric = useCallback(
+    (kind: string, unit: string | null, metric: RecordViewMetric) =>
+      saveRecordViewChoice(kind, unit, { metric }),
+    [saveRecordViewChoice],
+  );
+  const handleChooseRecordChart = useCallback(
+    (kind: string, unit: string | null, chart: RecordViewChart) =>
+      saveRecordViewChoice(kind, unit, { chart }),
+    [saveRecordViewChoice],
+  );
+
+  /*
+   * Less motion for the Records chart (#2264): the app's own setting wins, and
+   * "system" defers to the OS — the same three states tokens.css reads from
+   * `data-reduce-motion`. recharts animates in JS, which that CSS rule cannot
+   * still, so the answer is handed to the chart. No ThemeProvider (a test
+   * mount) reads as "system".
+   */
+  const reduceMotionChoice = useContext(ThemeContext)?.reduceMotion ?? "system";
+  const osReducesMotion = useMediaQuery(
+    "(prefers-reduced-motion: reduce)",
+    false,
+  );
+  const reduceMotion =
+    reduceMotionChoice === "reduce" ||
+    (reduceMotionChoice === "system" && osReducesMotion);
 
   // The range anchor drives `rangeLoading` on its own now, so this only has to
   // record what the user picked.
@@ -576,6 +609,12 @@ export function AnalyticsScreen({
             avg: t("analytics.records.views.metrics.avg"),
             latest: t("analytics.records.views.metrics.latest"),
             count: t("analytics.records.views.metrics.count"),
+          },
+          chartSelectLabel: (kind: string) =>
+            t("analytics.records.views.chartSelectLabel", { kind }),
+          charts: {
+            bar: t("analytics.records.views.charts.bar"),
+            line: t("analytics.records.views.charts.line"),
           },
           saveFailed: t("analytics.records.views.saveFailed"),
         },
@@ -771,7 +810,9 @@ export function AnalyticsScreen({
       onRecordsSourceConsumed={onRecordsSourceConsumed}
       recordViews={recordViews}
       onChooseRecordMetric={handleChooseRecordMetric}
+      onChooseRecordChart={handleChooseRecordChart}
       recordViewSaveFailed={recordViewSaveFailed}
+      reduceMotion={reduceMotion}
       labels={labels}
     />
   );
