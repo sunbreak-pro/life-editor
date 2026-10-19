@@ -89,6 +89,8 @@ const LABELS: GoalTreeLabels = {
   addTodoLabel: "Add a todo",
   addTodoPlaceholder: "Todo",
   dragToMove: "Drag to move",
+  formatRename: (title) => `Rename: ${title}`,
+  renameField: "Goal title",
   loading: "Loading",
   loadFailed: "Could not load",
   retry: "Retry",

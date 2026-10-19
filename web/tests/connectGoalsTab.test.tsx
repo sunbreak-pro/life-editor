@@ -439,6 +439,62 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w1"));
   });
 
+  it("renames a goal from the tree's pencil with the panel's write (#2283)", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Rename: Get the proposal approved" }),
+    );
+    const field = screen.getByRole("textbox", { name: "Goal title" });
+    fireEvent.change(field, { target: { value: "Get the proposal signed" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() =>
+      expect(ds.updateGoal).toHaveBeenCalledWith("w1", {
+        title: "Get the proposal signed",
+      }),
+    );
+    expect(ds.updateGoal).toHaveBeenCalledTimes(1);
+  });
+
+  it("refills the open panel's title after a rename from the pencil", async () => {
+    let goals = GOALS;
+    const ds = makeDS({ fetchGoals: vi.fn(async () => goals) });
+    const { panel, sync } = await renderTab(ds);
+    fireEvent.click(goalRow("Get the proposal approved"));
+    const before = panel().getByRole("textbox", { name: "Goal title" });
+    expect((before as HTMLInputElement).value).toBe(
+      "Get the proposal approved",
+    );
+
+    fireEvent.click(
+      screen.getByRole("button", { name: "Rename: Get the proposal approved" }),
+    );
+    const field = within(
+      screen.getByRole("region", { name: "Goal tree" }),
+    ).getByRole("textbox", { name: "Goal title" });
+    fireEvent.change(field, { target: { value: "Get the proposal signed" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => expect(ds.updateGoal).toHaveBeenCalledTimes(1));
+
+    // The write's Realtime echo re-reads the new name.
+    goals = GOALS.map((g) =>
+      g.id === "w1" ? { ...g, title: "Get the proposal signed" } : g,
+    );
+    act(() => sync.bump("goals"));
+    await waitFor(() =>
+      expect(
+        (
+          panel().getByRole("textbox", {
+            name: "Goal title",
+          }) as HTMLInputElement
+        ).value,
+      ).toBe("Get the proposal signed"),
+    );
+    // Leaving the panel's field writes nothing back.
+    fireEvent.blur(panel().getByRole("textbox", { name: "Goal title" }));
+    expect(ds.updateGoal).toHaveBeenCalledTimes(1);
+  });
+
   it("offers the hand mark only on an unconnected goal", async () => {
     const ds = makeDS();
     const { panel } = await renderTab(ds);

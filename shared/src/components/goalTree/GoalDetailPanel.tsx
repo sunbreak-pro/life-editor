@@ -21,8 +21,9 @@ import { GoalStatus, type GoalTreeLabels } from "./GoalTreeView";
  *
  * Linking todos FROM the goal is #2109's screen, not this one.
  *
- * Pure presentation (§6.4). The host mounts it with `key={goal.id}` so the
- * title draft starts over when another goal is picked.
+ * Pure presentation (§6.4). The host mounts it keyed by the goal's id and
+ * title, so the title draft starts over when another goal is picked or the
+ * name changes elsewhere (the tree's pencil, #2283).
  */
 
 export interface GoalDetailLabels {

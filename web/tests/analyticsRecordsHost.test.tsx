@@ -238,6 +238,9 @@ describe("AnalyticsScreen pending records source", () => {
     expect((screen.getByLabelText("App") as HTMLSelectElement).value).toBe(
       "claude",
     );
+    // The tab mounts once the first read lands, outside act, so its consume
+    // effect can run a beat after the list is painted (CI caught the gap).
+    await waitFor(() => expect(consumed).toHaveBeenCalled());
     expect(consumed).toHaveBeenCalledTimes(1);
   });
 });
