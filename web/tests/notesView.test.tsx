@@ -134,12 +134,14 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
 vi.mock("../src/notes/RichTextEditor", async () => {
   const { useEffect } = await import("react");
   // #2060: the body hands its editor up for the formatting bar. A stand-in
-  // with just what FormatToolbar reads — editable, nothing active — and the
-  // plugin hooks the floating bar (#2227) registers through.
+  // with just what FormatToolbar reads — editable, nothing active, no "[["
+  // extension (so no link button, #2288) — and the plugin hooks the floating
+  // bar (#2227) registers through.
   const fakeEditor = {
     isEditable: true,
     isDestroyed: false,
     isActive: () => false,
+    extensionManager: { extensions: [] },
     on: () => {},
     off: () => {},
     registerPlugin: (plugin: unknown) => {
