@@ -1,8 +1,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
+  BriefingCarryoverPanel,
   BriefingView,
   BriefingVizPanel,
   EveningReflectionPreview,
+  EveningTodosPanel,
+  EveningUpcomingPanel,
   EveningView,
   GoalTodoLinkScreen,
   ItemDetailOverlay,
@@ -30,6 +33,8 @@ import {
   type BriefingColumn,
   type BriefingTab,
   type DataService,
+  type EveningScheduleEntry,
+  type EveningUpcomingLabels,
   type GoalPeriodKind,
   type GoalTodoLinkScreenLabels,
   type ItemPanelOptions,
@@ -386,6 +391,18 @@ export function BriefingScreen({
     }),
     [t, eveningSaved, hasEveningToReport, dateLine, goalsFailed],
   );
+  const upcomingLabels = useMemo<EveningUpcomingLabels>(
+    () => ({
+      upcomingTitle: t("briefing.evening.upcomingTitle"),
+      noUpcoming: t("briefing.evening.noUpcoming"),
+      tomorrowTag: t("briefing.evening.tomorrowTag"),
+      allDay: t("briefing.allDay"),
+      goToDay: t("briefing.evening.goToDay"),
+      edit: t("briefing.evening.editEvent"),
+      showRepeat: t("briefing.evening.showRepeat"),
+    }),
+    [t],
+  );
 
   /*
    * A carryover row's「編集」— open the todo where it lives (#1824).
@@ -489,6 +506,37 @@ export function BriefingScreen({
       panelOptions,
     );
   }, [itemPanel, nowMinutes, onNavigate, panelOptions, todayKey]);
+
+  /*
+   * 「今後の予定」's row actions (#2285). 「この日の予定へ移動」is the shell's
+   * item intent with the row's DAY, so Schedule opens on that day with the
+   * row selected. 「編集」and「繰り返しを見る」open the same in-place editor
+   * the table's rows use: for a routine occurrence that editor carries the
+   * repeat settings, which is what the second word promises.
+   */
+  const goToUpcomingDay = useCallback(
+    (entry: EveningScheduleEntry) => {
+      if (onNavigateToItem === undefined) {
+        onNavigate({ section: "schedule" });
+        return;
+      }
+      onNavigateToItem({ id: entry.id, role: "event", date: entry.date });
+    },
+    [onNavigateToItem, onNavigate],
+  );
+  const openUpcomingEditor = useCallback(
+    (entry: EveningScheduleEntry) => {
+      if (itemPanel === null) {
+        goToUpcomingDay(entry);
+        return;
+      }
+      itemPanel.openEdit(
+        { role: "event", id: entry.id, date: entry.date },
+        panelOptions,
+      );
+    },
+    [itemPanel, goToUpcomingDay, panelOptions],
+  );
 
   // Phone layout: the table shows one column at a time (#2223).
   const narrow = !useMediaQuery(WIDE_QUERY, true);
@@ -761,6 +809,39 @@ export function BriefingScreen({
     </RightSidebarPortal>
   );
 
+  // 持ち越し (#2285) — under the charts, in the same detail well (narrow: the
+  // drawer). It was the paper's last block; here it is the panel's last.
+  const carryoverPortal = (
+    <RightSidebarPortal>
+      <BriefingCarryoverPanel
+        loading={loading}
+        entries={data.carryover}
+        labels={labels}
+        onToggleTodo={handleToggleTodo}
+        onJumpToTodos={(id) => openItem(id, "task")}
+      />
+    </RightSidebarPortal>
+  );
+
+  // 夕刊's「残りの Todo」and「今後の予定」(#2285), under the Todo tray.
+  const eveningPanelsPortal = (
+    <RightSidebarPortal>
+      <EveningTodosPanel
+        loading={loading}
+        todos={remainingTodos}
+        labels={eveningLabels}
+        onSetTodoStatus={handleSetTodoStatus}
+      />
+      <EveningUpcomingPanel
+        loading={loading}
+        schedule={upcoming}
+        labels={upcomingLabels}
+        onGoToDay={goToUpcomingDay}
+        onOpenEditor={openUpcomingEditor}
+      />
+    </RightSidebarPortal>
+  );
+
   // ── Goals (#2106) ────────────────────────────────────────────────────
   // The todo rows carry the titles of the goals they serve. Before the goals
   // read lands the rows simply have no marks, as on a host without goals.
@@ -902,6 +983,7 @@ export function BriefingScreen({
     return (
       <>
         {todoTrayPortal}
+        {eveningPanelsPortal}
         <EveningView
           loading={loading || focusLoading}
           dateLine={dateLine}
@@ -941,9 +1023,6 @@ export function BriefingScreen({
           focusText={focusDraft}
           onFocusChange={handleFocusChange}
           onFocusBlur={flushFocus}
-          todos={remainingTodos}
-          onSetTodoStatus={handleSetTodoStatus}
-          schedule={upcoming}
           issueLine={issueLine}
           goalMoves={goalMoves}
           events={eveningRows}
@@ -961,6 +1040,7 @@ export function BriefingScreen({
   return (
     <>
       {vizPortal}
+      {carryoverPortal}
       <BriefingView
         // The focus note is a second async document; the line at the top of
         // the paper is read from it, so the skeleton waits for both. The goals
@@ -974,7 +1054,6 @@ export function BriefingScreen({
         onToggleTodo={handleToggleTodo}
         onOpenItem={openRow}
         onAddItem={openCreate}
-        onJumpToTodos={(id) => openItem(id, "task")}
         nowMinutes={nowMinutes}
         narrow={narrow}
       />

@@ -362,6 +362,8 @@ export function useBriefingAggregation({
       startTime: s.startTime,
       isAllDay: s.isAllDay,
       isTomorrow: false,
+      date: todayKey,
+      isRoutine: s.isRoutine,
     }));
   const tomorrowRows = useMemo<EveningScheduleEntry[]>(() => {
     return tomorrowItems
@@ -378,6 +380,8 @@ export function useBriefingAggregation({
         startTime: s.startTime,
         isAllDay: s.isAllDay === true,
         isTomorrow: true,
+        date: s.date,
+        isRoutine: s.routineId !== null,
       }));
   }, [tomorrowItems]);
   const upcoming = [...todayRest, ...tomorrowRows];

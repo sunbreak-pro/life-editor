@@ -1,8 +1,10 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import {
+  BriefingCarryoverPanel,
   BriefingView,
   BriefingVizPanel,
+  EveningTodosPanel,
   EveningView,
   type BriefingData,
   type BriefingLabels,
@@ -112,23 +114,36 @@ const DATA: BriefingData = {
   todoNodes: [],
 };
 
+/**
+ * The paper and, after it, the carryover block the host mounts in the detail
+ * panel from the same data (#2285) — the two halves a reader of 朝刊 sees.
+ * The paper is the container's first child.
+ */
 function renderView(props?: Partial<Parameters<typeof BriefingView>[0]>) {
   const onToggleTodo = vi.fn();
   const onOpenItem = vi.fn();
   const onAddItem = vi.fn();
   const onJumpToTodos = vi.fn();
   const result = render(
-    <BriefingView
-      loading={false}
-      data={DATA}
-      labels={LABELS}
-      focusText={null}
-      onToggleTodo={onToggleTodo}
-      onOpenItem={onOpenItem}
-      onAddItem={onAddItem}
-      onJumpToTodos={onJumpToTodos}
-      {...props}
-    />,
+    <>
+      <BriefingView
+        loading={false}
+        data={DATA}
+        labels={LABELS}
+        focusText={null}
+        onToggleTodo={onToggleTodo}
+        onOpenItem={onOpenItem}
+        onAddItem={onAddItem}
+        {...props}
+      />
+      <BriefingCarryoverPanel
+        loading={false}
+        entries={(props?.data ?? DATA).carryover}
+        labels={LABELS}
+        onToggleTodo={props?.onToggleTodo ?? onToggleTodo}
+        onJumpToTodos={onJumpToTodos}
+      />
+    </>,
   );
   return {
     ...result,
@@ -813,15 +828,17 @@ describe("Visual zone moved to the detail panel (#938)", () => {
     expect(screen.queryByText("Balance")).toBeNull();
   });
 
-  it("leaves carryover as the paper's last section, unruled", () => {
+  // #2285: carryover followed the widgets into the panel, so the schedule
+  // table closes the paper and no heading is left behind for it.
+  it("ends the paper on the schedule table, with no carryover in it", () => {
     const { container } = renderView();
-    const sections = container.querySelectorAll("section");
-    const last = sections[sections.length - 1]!;
-    expect(last.textContent).toContain("CARRYOVER");
-    // The rule above it is the previous section's border-b — a border of its
-    // own would double the line now that the viz section is gone.
-    expect(last.className).not.toContain("border-t");
-    expect(last.className).not.toContain("border-b");
+    const paper = container.firstElementChild as HTMLElement;
+    const sections = paper.querySelectorAll("section");
+    expect(
+      sections[sections.length - 1]!.querySelector("table"),
+    ).not.toBeNull();
+    expect(paper.textContent).not.toContain("CARRYOVER");
+    expect(paper.textContent).not.toContain("Old todo");
   });
 
   it("renders the three widgets in the panel under one heading", () => {
@@ -898,8 +915,7 @@ describe("AI comment attribution (#1210)", () => {
 });
 
 function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
-  const onSetTodoStatus = vi.fn();
-  const result = render(
+  return render(
     <EveningView
       loading={false}
       dateLine="2026-07-25"
@@ -909,15 +925,11 @@ function renderEvening(props?: Partial<Parameters<typeof EveningView>[0]>) {
       focusText=""
       onFocusChange={vi.fn()}
       onFocusBlur={vi.fn()}
-      todos={[]}
-      onSetTodoStatus={onSetTodoStatus}
-      schedule={[]}
       labels={EVENING_LABELS}
       {...emptyEveningBlocks()}
       {...props}
     />,
   );
-  return { ...result, onSetTodoStatus };
 }
 
 /*
@@ -1009,12 +1021,26 @@ describe("Row edit action (#410)", () => {
  * the status set down to two values, so the control is a checkbox and reports
  * checked / unchecked rather than cycling.
  */
-describe("EveningView remaining todos, status control (#796 / #873)", () => {
+describe("Remaining todos, status control (#796 / #873)", () => {
   const TODOS = [
     { id: "t1", title: "Write the report", status: "NOT_STARTED" as const },
     { id: "t2", title: "Book the room", status: "NOT_STARTED" as const },
     { id: "t3", title: "Send the invite", status: "DONE" as const },
   ];
+
+  // The block lives in the detail panel since #2285; its rows did not change.
+  function renderEvening({ todos }: { todos: typeof TODOS }) {
+    const onSetTodoStatus = vi.fn();
+    render(
+      <EveningTodosPanel
+        loading={false}
+        todos={todos}
+        labels={EVENING_LABELS}
+        onSetTodoStatus={onSetTodoStatus}
+      />,
+    );
+    return { onSetTodoStatus };
+  }
 
   it("names each row's current status", () => {
     renderEvening({ todos: TODOS });

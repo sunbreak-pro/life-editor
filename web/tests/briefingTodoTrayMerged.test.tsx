@@ -113,13 +113,18 @@ describe("Briefing Todo tray copy + merge (#795)", () => {
 
   it("shows a time-less todo on that one list, marked all-day", async () => {
     const panelBody = renderWithPanel();
-    await waitFor(() =>
-      expect(within(panelBody).getByText("Draft the outline")).toBeTruthy(),
+    // Scoped to the tray: since #2285 the panel's「残りの Todo」block lists
+    // the same todo under it.
+    const tray = await waitFor(() =>
+      within(within(panelBody).getByText("Today's Todo").parentElement!),
     );
-    const pill = within(panelBody).getByText("All day");
+    await waitFor(() =>
+      expect(tray.getByText("Draft the outline")).toBeTruthy(),
+    );
+    const pill = tray.getByText("All day");
     // Todo colour, not the neutral face an all-day EVENT wears.
     expect(pill.className).toContain("bg-lumen-chip-task-bg");
     // The unscheduled one is still only an offer in the picker.
-    expect(within(panelBody).getByText("Someday todo")).toBeTruthy();
+    expect(tray.getByText("Someday todo")).toBeTruthy();
   });
 });

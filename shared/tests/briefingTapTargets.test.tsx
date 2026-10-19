@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import {
+  BriefingCarryoverPanel,
   BriefingView,
   EveningView,
   type BriefingData,
@@ -77,21 +78,29 @@ const DATA: BriefingData = {
   todoNodes: [],
 };
 
+// The paper and, beside it, the carryover block it keeps in the panel (#2285).
 function renderMorning() {
   render(
-    <BriefingView
-      loading={false}
-      data={DATA}
-      labels={LABELS}
-      focusText={null}
-      onToggleTodo={vi.fn()}
-      onOpenItem={vi.fn()}
-      onAddItem={vi.fn()}
-      onJumpToTodos={vi.fn()}
-    />,
+    <>
+      <BriefingView
+        loading={false}
+        data={DATA}
+        labels={LABELS}
+        focusText={null}
+        onToggleTodo={vi.fn()}
+        onOpenItem={vi.fn()}
+        onAddItem={vi.fn()}
+      />
+      <BriefingCarryoverPanel
+        loading={false}
+        entries={DATA.carryover}
+        labels={LABELS}
+        onToggleTodo={vi.fn()}
+        onJumpToTodos={vi.fn()}
+      />
+    </>,
   );
 }
-
 
 function renderEvening(mood: number | null) {
   render(
@@ -104,9 +113,6 @@ function renderEvening(mood: number | null) {
       focusText=""
       onFocusChange={vi.fn()}
       onFocusBlur={vi.fn()}
-      todos={[]}
-      onSetTodoStatus={vi.fn()}
-      schedule={[]}
       labels={EVENING_LABELS}
       {...emptyEveningBlocks()}
     />,

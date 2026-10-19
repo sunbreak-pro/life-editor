@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import {
+  BriefingCarryoverPanel,
   BriefingView,
   type BriefingData,
   type BriefingLabels,
@@ -88,7 +89,6 @@ function renderMorning(data: BriefingData = DATA) {
       onToggleTodo={vi.fn()}
       onOpenItem={vi.fn()}
       onAddItem={vi.fn()}
-      onJumpToTodos={vi.fn()}
     />,
   );
 }
@@ -136,20 +136,25 @@ describe("#1820 — the schedule table's titles keep their width", () => {
  * to 0px: one character per line, with 編集 pushed past the right edge.
  */
 describe("#2182 — the narrow carryover row wraps its action too", () => {
+  // In the detail panel since #2285 — the drawer on a phone, so the narrow
+  // rules still apply to it.
   function renderWithCarryover() {
-    renderMorning({
-      ...DATA,
-      schedule: [],
-      todos: [],
-      carryover: [
-        {
-          id: "c1",
-          title: "長めの繰り越しタスクの題を最後まで読める形で出す",
-          daysLabel: "3日目",
-          completed: false,
-        },
-      ],
-    });
+    render(
+      <BriefingCarryoverPanel
+        loading={false}
+        entries={[
+          {
+            id: "c1",
+            title: "長めの繰り越しタスクの題を最後まで読める形で出す",
+            daysLabel: "3日目",
+            completed: false,
+          },
+        ]}
+        labels={LABELS}
+        onToggleTodo={vi.fn()}
+        onJumpToTodos={vi.fn()}
+      />,
+    );
   }
 
   function carryoverRow(): HTMLElement {

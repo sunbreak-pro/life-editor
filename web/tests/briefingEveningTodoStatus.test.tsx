@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { render, screen, waitFor, act, within } from "@testing-library/react";
 import {
   SyncContext,
@@ -11,6 +11,7 @@ import {
 } from "@life-editor/shared";
 import { makeTodo, stubDataService } from "./helpers";
 import { BriefingScreen } from "../src/briefing/BriefingScreen";
+import { createDetailPanel } from "./helpers/detailPanel";
 
 /*
  * Three-status Todos on the evening paper (#796) — the host half.
@@ -82,18 +83,36 @@ function makeDS(updateTodo: DataService["updateTodo"]): DataService {
   });
 }
 
+/*
+ * The block lives in the detail panel since #2285, beside the Todo tray —
+ * which lists the same todo with a control of its own — so every lookup is
+ * scoped to the block's region.
+ */
+let panel: ReturnType<typeof createDetailPanel> | null = null;
+afterEach(() => {
+  panel?.remove();
+  panel = null;
+});
+
+const remaining = () =>
+  within(screen.getByRole("region", { name: "REMAINING TODOS" }));
+
 async function renderEvening(updateTodo: DataService["updateTodo"]) {
+  panel = createDetailPanel();
   const view = render(
     <SyncContext.Provider value={syncValue}>
-      <BriefingScreen
-        dataService={makeDS(updateTodo)}
-        onNavigate={vi.fn()}
-        tab="evening"
-      />
+      {panel.wrap(
+        <BriefingScreen
+          dataService={makeDS(updateTodo)}
+          onNavigate={vi.fn()}
+          tab="evening"
+        />,
+      )}
     </SyncContext.Provider>,
   );
-  // The paper's own row — the tray lives behind a portal not mounted here.
-  await screen.findByLabelText("Status: Not started");
+  await waitFor(() =>
+    expect(remaining().getByLabelText("Status: Not started")).toBeTruthy(),
+  );
   return view;
 }
 
@@ -113,36 +132,39 @@ describe.each([
     // Not started → Done: stamped, which is what keeps the row on today's
     // paper rather than dropping it as a stale carryover.
     await act(async () => {
-      screen.getByLabelText("Status: Not started").click();
+      remaining().getByLabelText("Status: Not started").click();
     });
     expect(updateTodo.mock.calls[0]?.[0]).toBe("t-open");
     expect(updateTodo.mock.calls[0]?.[1]?.status).toBe("DONE");
     expect(typeof updateTodo.mock.calls[0]?.[1]?.completedAt).toBe("string");
-    await screen.findByLabelText("Status: Done");
+    await waitFor(() =>
+      expect(remaining().getByLabelText("Status: Done")).toBeTruthy(),
+    );
 
     // Done → Not started: the stamp comes back off with it.
     await act(async () => {
-      screen.getByLabelText("Status: Done").click();
+      remaining().getByLabelText("Status: Done").click();
     });
     expect(updateTodo.mock.calls[1]?.[1]).toEqual({
       status: "NOT_STARTED",
       completedAt: undefined,
     });
-    await screen.findByLabelText("Status: Not started");
+    await waitFor(() =>
+      expect(remaining().getByLabelText("Status: Not started")).toBeTruthy(),
+    );
 
     // Back to Done — a row that has been checked stays listed, struck through.
     await act(async () => {
-      screen.getByLabelText("Status: Not started").click();
+      remaining().getByLabelText("Status: Not started").click();
     });
 
     // Still listed, struck through — the press has to stay visible. Looked
     // up inside its own block: since #2107 a todo done today is also a row of
     //「今日の出来事」, so the title is printed twice on the paper.
     await waitFor(() =>
-      expect(screen.getByLabelText("Status: Done")).toBeTruthy(),
+      expect(remaining().getByLabelText("Status: Done")).toBeTruthy(),
     );
-    const remaining = screen.getByRole("region", { name: "REMAINING TODOS" });
-    expect(within(remaining).getByText("Write the report").className).toContain(
+    expect(remaining().getByText("Write the report").className).toContain(
       "line-through",
     );
   });
@@ -158,14 +180,14 @@ describe.each([
     await renderEvening(updateTodo);
 
     await act(async () => {
-      screen.getByLabelText("Status: Not started").click();
+      remaining().getByLabelText("Status: Not started").click();
     });
-    expect(screen.getByLabelText("Status: Done")).toBeTruthy();
+    expect(remaining().getByLabelText("Status: Done")).toBeTruthy();
 
     await act(async () => {
       settle();
     });
-    expect(screen.getByLabelText("Status: Done")).toBeTruthy();
+    expect(remaining().getByLabelText("Status: Done")).toBeTruthy();
   });
 
   it("puts the old status back when the write fails", async () => {
@@ -174,12 +196,12 @@ describe.each([
     try {
       await renderEvening(updateTodo as unknown as DataService["updateTodo"]);
       await act(async () => {
-        screen.getByLabelText("Status: Not started").click();
+        remaining().getByLabelText("Status: Not started").click();
       });
       // An optimistic status that survives its own failure is a lie about what
       // is stored.
       await waitFor(() =>
-        expect(screen.getByLabelText("Status: Not started")).toBeTruthy(),
+        expect(remaining().getByLabelText("Status: Not started")).toBeTruthy(),
       );
     } finally {
       spy.mockRestore();
