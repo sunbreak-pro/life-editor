@@ -126,3 +126,49 @@ describe("WorkTagSelector — sheet presentation (#1856)", () => {
     ).not.toHaveClass("min-h-11");
   });
 });
+
+/*
+ * #2284 — the field has no visible "Tags" heading any more; the add button
+ * carries the tag glyph (in place of the old +) and the word. The heading copy
+ * survives as the field's accessible name.
+ */
+describe("WorkTagSelector — tag glyph in the add button (#2284)", () => {
+  const glyphs = (root: Element) =>
+    Array.from(root.querySelectorAll("svg.lucide")).map((icon) =>
+      icon.getAttribute("class"),
+    );
+
+  it("drops the desktop heading and swaps the + for the tag glyph", () => {
+    renderSelector();
+    const field = screen.getByRole("group", { name: "Tags" });
+    expect(field).toBe(screen.getByTestId("work-tag-selector"));
+    expect(within(field).queryByText("Tags")).toBeNull();
+
+    const button = trigger();
+    expect(button).toHaveTextContent("Tag");
+    // One glyph in the whole field, and it is the tag inside the button.
+    expect(glyphs(field)).toHaveLength(1);
+    expect(button.querySelector("svg.lucide-tag")).not.toBeNull();
+    expect(field.querySelector("svg.lucide-plus")).toBeNull();
+  });
+
+  it("moves the sheet row's leading glyph into the button", () => {
+    renderSelector({
+      sheet: { closeLabel: "Close" },
+      labels: { ...LABELS, addRow: "Add tags" },
+    });
+    const field = screen.getByRole("group", { name: "Tags" });
+    const button = screen.getByRole("button", { name: "Add tags" });
+    expect(glyphs(field)).toHaveLength(1);
+    expect(button.querySelector("svg.lucide-tag")).not.toBeNull();
+  });
+
+  it("keeps the glyph in the disabled sheet row too", () => {
+    renderSelector({ sheet: { closeLabel: "Close" }, disabled: true });
+    expect(trigger().querySelector("svg.lucide-tag")).not.toBeNull();
+    expect(screen.getByRole("group", { name: "Tags" })).toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+  });
+});
