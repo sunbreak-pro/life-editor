@@ -118,6 +118,11 @@ function isoDay(offsetDays: number): string {
 // rejects (#670 C3 PR 3).
 const parseIso = dateFromKey;
 
+// How many of one date's emissions are remembered as "ours" (#2289). Each
+// 800ms debounce adds one; an echo older than the last 32 saves is no longer
+// in flight, so dropping it costs nothing.
+const MAX_PENDING_EMITS = 32;
+
 // ---- Editor card (shared between Desktop / Mobile, size via props) --------
 
 /*
@@ -349,11 +354,35 @@ export function DailyView({
   // unmount flush racing a date switch never leaks into the new date's
   // comparisons. "Adjust state during render"
   // (https://react.dev/learn/you-might-not-need-an-effect).
+  //
+  // #2289: "our own" is every emission this editor made, not just the last
+  // one. Realtime echoes save 1 and the refetch it triggers can read the
+  // server before save 2 lands, so save 1's body arrives AFTER save 2's
+  // optimistic update. Against the last emission alone that read as an
+  // outside change, and the remount dropped focus — on Mobile the keyboard
+  // closed mid-sentence. The list is not pruned by what comes back: an
+  // optimistic update matches the newest emission too, and this view cannot
+  // tell it from a refetch, so seeing the newest proves nothing about the
+  // older echoes still in flight. Only the cap drops them.
   const selectedContent = selectedDaily?.content ?? "";
-  const [lastEmitted, setLastEmitted] = useState<{
+  const [emitted, setEmitted] = useState<{
     date: string;
-    json: string;
+    jsons: string[];
   } | null>(null);
+  const lastEmitted = useMemo(
+    () =>
+      emitted === null
+        ? null
+        : { date: emitted.date, json: emitted.jsons[emitted.jsons.length - 1] },
+    [emitted],
+  );
+  const recordEmitted = useCallback((date: string, json: string) => {
+    setEmitted((prev) =>
+      prev !== null && prev.date === date
+        ? { date, jsons: [...prev.jsons, json].slice(-MAX_PENDING_EMITS) }
+        : { date, jsons: [json] },
+    );
+  }, []);
   const [editorGen, setEditorGen] = useState(0);
   /*
    * The keystroke-to-debounce window (#1954), the Daily half of #1822.
@@ -379,20 +408,31 @@ export function DailyView({
   // Postgres jsonb column, which reorders object keys — the refetched echo of
   // our own save comes back byte-different but document-identical, and a
   // byte-exact check here remounted the editor on every save echo (#300).
-  const ownEcho = useMemo(
+  //
+  // Which of this date's emissions the stored body is, or -1 for none. The
+  // last one is the body the editor holds; an earlier one is a stale echo.
+  const echoIndex = useMemo(
     () =>
-      lastEmitted !== null &&
-      lastEmitted.date === selectedDate &&
-      jsonDocEquals(lastEmitted.json, selectedContent),
-    [lastEmitted, selectedDate, selectedContent],
+      emitted === null || emitted.date !== selectedDate
+        ? -1
+        : emitted.jsons.findLastIndex((json) =>
+            jsonDocEquals(json, selectedContent),
+          ),
+    [emitted, selectedDate, selectedContent],
   );
+  const ownEcho = emitted !== null && echoIndex === emitted.jsons.length - 1;
 
   if (
     syncedFrom.date !== selectedDate ||
     syncedFrom.content !== selectedContent
   ) {
-    if (syncedFrom.date === selectedDate && !ownEcho) {
+    if (syncedFrom.date === selectedDate && echoIndex === -1) {
       setEditorGen((g) => g + 1);
+      // The remounted editor starts from the outside body, so the emissions
+      // before it are history; the last one stays for the caption.
+      if (emitted !== null && emitted.jsons.length > 1) {
+        setEmitted({ date: emitted.date, jsons: emitted.jsons.slice(-1) });
+      }
     }
     setSyncedFrom({ date: selectedDate, content: selectedContent });
   }
@@ -441,7 +481,7 @@ export function DailyView({
     const base = getDailyForDate(date)?.content ?? "";
     const full = writeDailyText(base, json);
     if (full === base) return;
-    setLastEmitted({ date, json: full });
+    recordEmitted(date, full);
     void upsertDaily(date, full).then((saved) => {
       flushPendingLinks(date, saved, full);
       // #372: drop inline-origin edges whose "[[ ]]" left the text. Edges the
@@ -484,7 +524,7 @@ export function DailyView({
     const current = getDailyForDate(date)?.content ?? "";
     const full = mergeEveningSection(current, { mood });
     if (full === current) return null;
-    setLastEmitted({ date, json: full });
+    recordEmitted(date, full);
     /*
      * #1750: hand the write back so an undo can wait for it and report its
      * own failure. `upsertDaily` swallows its rejection and resolves `null`
@@ -650,9 +690,7 @@ export function DailyView({
       // Off the one text (#2123): the stored body now opens with the「夕刊」
       // heading (or an old 朝刊 section), which would otherwise be the
       // excerpt of every written day.
-      const excerpt = contentExcerpt(
-        readDailyText(d.content) ?? undefined,
-      );
+      const excerpt = contentExcerpt(readDailyText(d.content) ?? undefined);
       return {
         date: d.date,
         dayLabel,

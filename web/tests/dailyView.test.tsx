@@ -337,6 +337,90 @@ describe("DailyView — the caption while a save is pending (#1954)", () => {
 });
 
 /*
+ * #2289 — the keyboard closed mid-sentence on Mobile. A remount drops the
+ * editor's focus, and the remount fired on our own save: Realtime echoes save
+ * 1, and the refetch it triggers can read the server before save 2 lands, so
+ * save 1's body comes back AFTER save 2's optimistic update. Only the last
+ * emission was recognised as ours, so that stale echo read as an outside edit.
+ */
+describe("DailyView — an older save's echo does not remount the editor (#2289)", () => {
+  /** Put `content` in the context the way an optimistic update or a refetch does. */
+  const store = (content: string) => {
+    state.dailies = (state.dailies as DailyNode[]).map((d) =>
+      d.date === YESTERDAY ? { ...d, content } : d,
+    );
+  };
+  const saved = (n: number) => state.upsertDaily.mock.calls[n]?.[1] as string;
+
+  it("keeps the editor while save 1's body comes back after save 2", async () => {
+    const { rerender } = render(<DailyView />);
+    const editor = await screen.findByTestId("editor");
+
+    fireEvent.click(screen.getByTestId("save-with-link"));
+    store(saved(0));
+    rerender(<DailyView />);
+    fireEvent.click(screen.getByTestId("save-without-link"));
+    store(saved(1));
+    rerender(<DailyView />);
+
+    // The refetch Realtime started for save 1 lands with save 1's body.
+    store(saved(0));
+    rerender(<DailyView />);
+    expect(screen.getByTestId("editor")).toBe(editor);
+    // Save 2 has not come back yet, so the caption must not claim it has.
+    screen.getByText("materials.daily.unsaved");
+
+    // Save 2's own echo follows.
+    store(saved(1));
+    rerender(<DailyView />);
+    expect(screen.getByTestId("editor")).toBe(editor);
+    screen.getByText("materials.daily.saved");
+  });
+
+  it("still remounts on a body this editor never emitted", async () => {
+    const { rerender } = render(<DailyView />);
+    const editor = await screen.findByTestId("editor");
+
+    fireEvent.click(screen.getByTestId("save-with-link"));
+    store(saved(0));
+    rerender(<DailyView />);
+    fireEvent.click(screen.getByTestId("save-without-link"));
+    store(saved(1));
+    rerender(<DailyView />);
+
+    // Another device (or MCP) writes the day.
+    store(
+      writeDailyText(saved(1), JSON.stringify({ type: "doc", content: [] })),
+    );
+    rerender(<DailyView />);
+    expect(screen.getByTestId("editor")).not.toBe(editor);
+  });
+
+  it("forgets the older saves once an outside edit has remounted it", async () => {
+    const { rerender } = render(<DailyView />);
+    await screen.findByTestId("editor");
+
+    fireEvent.click(screen.getByTestId("save-with-link"));
+    store(saved(0));
+    rerender(<DailyView />);
+    fireEvent.click(screen.getByTestId("save-without-link"));
+    store(saved(1));
+    rerender(<DailyView />);
+    store(
+      writeDailyText(saved(1), JSON.stringify({ type: "doc", content: [] })),
+    );
+    rerender(<DailyView />);
+    const remounted = screen.getByTestId("editor");
+
+    // The remounted editor started from the outside body, so save 1's body
+    // showing up now is a change to it, not its echo.
+    store(saved(0));
+    rerender(<DailyView />);
+    expect(screen.getByTestId("editor")).not.toBe(remounted);
+  });
+});
+
+/*
  * #776 — Daily's end of the shared "[[" wiring. Its shape is the one that
  * differs: a day has no items_meta row until its first save lands, so an
  * insertion is PARKED under the date and written by the save that persists the
