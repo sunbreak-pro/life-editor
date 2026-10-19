@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState } from "react";
 import type { Dispatch, SetStateAction } from "react";
 import {
+  addDaysKey,
   isTodoChip,
   pickOtherTodos,
   todosToCalendarChips,
@@ -83,10 +84,20 @@ export interface UseScheduleTodoChipsArgs {
 export interface ScheduleTodoChipsApi {
   /** The visible range's chips, before the #468 calendar lens. */
   rangeTodoChips: TodoCalendarChip[];
-  /** Today's chips — the "今日の流れ" agenda and the tray, outside the lens. */
+  /** Today's chips — the "今日の流れ" agenda, outside the lens. */
   todayTodoChips: TodoCalendarChip[];
+  /** The tray's first list — the chips on `trayDay`, split by time (#2281). */
   todoPlaced: TodayTodoRow[];
   todoUnplaced: TodayTodoRow[];
+  /**
+   * The day the Todo tab's first list is showing (#2281). Today unless the
+   * user stepped away from it, and independent of the flow tab's day.
+   */
+  trayDay: string;
+  /** Move `trayDay` by `delta` days. */
+  stepTrayDay: (delta: number) => void;
+  /** Put `trayDay` back on today. */
+  resetTrayDay: () => void;
   /** The "その他の Todo" list (#1406): every open leaf not on today. */
   todoAddable: TodayTodoAddableRow[];
   /** Resolve a chip id (as the grid spells it) to the chip behind it. */
@@ -173,14 +184,41 @@ export function useScheduleTodoChips({
     [scheduledTodos, today],
   );
 
-  // A-3 (#298) Today's Todo tray groups. Reuse today's chips: a time = placed,
-  // all-day = an unplaced candidate (案 c staging). Since #1406 the tray shows
-  // the two as ONE "today" list (singleList) and, under it, "その他の Todo" —
+  /*
+   * #2281: the Todo tab's own day — null means today, so a tab left on today
+   * stays on today past midnight. Here rather than in the sidebar, whose body
+   * unmounts on every tab switch; leaving the Schedule unmounts this hook and
+   * so resets it. NOT the flow tab's day: moving one must not move the other.
+   */
+  const [pickedTrayDay, setPickedTrayDay] = useState<string | null>(null);
+  const trayDay = pickedTrayDay ?? today;
+  const stepTrayDay = useCallback(
+    (delta: number) => {
+      setPickedTrayDay((prev) => {
+        const next = addDaysKey(prev ?? today, delta);
+        return next === today ? null : next;
+      });
+    },
+    [today],
+  );
+  const resetTrayDay = useCallback(() => setPickedTrayDay(null), []);
+  const trayTodoChips = useMemo(
+    () =>
+      trayDay === today
+        ? todayTodoChips
+        : todosToCalendarChips(scheduledTodos, trayDay, trayDay),
+    [scheduledTodos, today, todayTodoChips, trayDay],
+  );
+
+  // A-3 (#298) Today's Todo tray groups. Reuse the tray day's chips: a time =
+  // placed, all-day = an unplaced candidate (案 c staging). Since #1406 the
+  // tray shows the two as ONE list (singleList) and, under it, "その他の Todo" —
   // every open leaf that is not on today (pickOtherTodos), day-less or parked
-  // on another day, the latter saying where it is.
+  // on another day, the latter saying where it is. "その他" stays on TODAY
+  // whatever day the first list is on (#2281).
   const todoPlaced = useMemo<TodayTodoRow[]>(
     () =>
-      todayTodoChips
+      trayTodoChips
         .filter((c) => !c.isAllDay)
         .map((c) => ({
           id: c.id,
@@ -188,14 +226,14 @@ export function useScheduleTodoChips({
           timeLabel: c.startTime,
           completed: c.completed,
         })),
-    [todayTodoChips],
+    [trayTodoChips],
   );
   const todoUnplaced = useMemo<TodayTodoRow[]>(
     () =>
-      todayTodoChips
+      trayTodoChips
         .filter((c) => c.isAllDay)
         .map((c) => ({ id: c.id, title: c.title, completed: c.completed })),
-    [todayTodoChips],
+    [trayTodoChips],
   );
   const todoAddable = useMemo<TodayTodoAddableRow[]>(
     () =>
@@ -399,6 +437,9 @@ export function useScheduleTodoChips({
     todayTodoChips,
     todoPlaced,
     todoUnplaced,
+    trayDay,
+    stepTrayDay,
+    resetTrayDay,
     todoAddable,
     findTodoChip,
     todoDetailId,

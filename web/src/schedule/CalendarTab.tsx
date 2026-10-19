@@ -201,15 +201,12 @@ export function CalendarTab({
    * down, and a wrapper made after that call would arrive too late for it.
    * The event half follows the mutation layer (see useScheduleTourReporting).
    */
-  const {
-    setTodoStatusReported,
-    toggleTodoStatusReported,
-    reportTodoCreated,
-  } = useTodoTourReporting({
-    todoNodes,
-    setTodoStatus,
-    toggleTodoStatus,
-  });
+  const { setTodoStatusReported, toggleTodoStatusReported, reportTodoCreated } =
+    useTodoTourReporting({
+      todoNodes,
+      setTodoStatus,
+      toggleTodoStatus,
+    });
 
   // #468 / #1173: saved tag groups as a filter lens. A group is a named set
   // of life tags, so the grid needs both halves — the groups (which exist, and
@@ -363,6 +360,9 @@ export function CalendarTab({
     todayTodoChips,
     todoPlaced,
     todoUnplaced,
+    trayDay,
+    stepTrayDay,
+    resetTrayDay,
     todoAddable,
     findTodoChip,
     todoDetailId,
@@ -607,9 +607,10 @@ export function CalendarTab({
 
   // Tutorial tour reporting (#1124), the event half — the two writers the
   // mutation layer just returned, wrapped before anything is handed them.
-  const { handleCreateReported, handleUpdateReported } = useEventTourReporting(
-    { handleCreate, handleUpdate },
-  );
+  const { handleCreateReported, handleUpdateReported } = useEventTourReporting({
+    handleCreate,
+    handleUpdate,
+  });
 
   // #889: the creation panel's four openers and five committers, as one hook.
   // It has to sit here rather than beside the other handlers — `handleCreate`
@@ -688,6 +689,8 @@ export function CalendarTab({
     periodLabel,
     todayLabel,
     anchorDayLabel,
+    trayDayLabel,
+    trayDayHeading,
     formatFullDay,
     agendaLabels,
     anchorAgendaLabels,
@@ -699,6 +702,7 @@ export function CalendarTab({
     weekStart,
     weekEnd,
     nowMinutes,
+    trayDay,
   });
 
   /*
@@ -766,7 +770,8 @@ export function CalendarTab({
     pendingNewTodo,
     addNode,
     updateNode,
-    today,
+    // #2281: the first list's pill adds to the day that list is showing.
+    trayDay,
     setTodoDetailId,
     onCreated: reportTodoCreated,
   });
@@ -952,6 +957,14 @@ export function CalendarTab({
           // the panel narrows them.
           filter: todoTabFilter,
           filterTags: todoFilterTags,
+          // #2281: the first list's own day, apart from the flow tab's.
+          day: {
+            label: trayDayLabel,
+            heading: trayDayHeading,
+            onPrev: () => stepTrayDay(-1),
+            onNext: () => stepTrayDay(1),
+            onToday: resetTrayDay,
+          },
         }}
       />
     </RightSidebarPortal>

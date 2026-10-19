@@ -135,6 +135,14 @@ function makeProps(tab: "flow" | "todo" | "repeats"): ScheduleSidebarProps {
         apply: <T,>(rows: T) => rows,
       },
       filterTags: [],
+      // #2281: the tab's day — on today, which is what the tour reads.
+      day: {
+        label: "Today",
+        heading: null,
+        onPrev: vi.fn(),
+        onNext: vi.fn(),
+        onToday: vi.fn(),
+      },
     },
   };
 }

@@ -62,6 +62,7 @@ function setup(over: Partial<UseScheduleDayLabelsArgs> = {}) {
     weekStart: WEEK_START,
     weekEnd: WEEK_END,
     nowMinutes: 540,
+    trayDay: TODAY,
     ...over,
   };
   return renderHook((a: UseScheduleDayLabelsArgs) => useScheduleDayLabels(a), {
@@ -124,6 +125,7 @@ describe("useScheduleDayLabels — the two agenda bundles (#774)", () => {
       weekStart: WEEK_START,
       weekEnd: WEEK_END,
       nowMinutes: 545,
+      trayDay: TODAY,
     });
     expect(result.current.agendaLabels.nowLabel).toBe("09:05");
   });
@@ -137,6 +139,23 @@ describe("useScheduleDayLabels — which day each caption names", () => {
     expect(result.current.anchorDayLabel).not.toContain("16");
     expect(result.current.todayLabel).toContain("16");
     expect(result.current.todayLabel).not.toContain("20");
+  });
+
+  // #2281: the Todo tab's day is a third one, apart from both of the above.
+  it("names the Todo tab's own day, and heads its list only off today", () => {
+    const onToday = setup();
+    expect(onToday.result.current.trayDayLabel).toContain("16");
+    expect(onToday.result.current.trayDayHeading).toBeNull();
+
+    const away = setup({ trayDay: "2026-08-18" });
+    expect(away.result.current.trayDayLabel).toContain("18");
+    // The anchor (20th) and today (16th) do not leak into it.
+    expect(away.result.current.trayDayLabel).not.toContain("20");
+    expect(away.result.current.trayDayHeading).toBe(
+      "scheduleScreen.todoDayHeading",
+    );
+    expect(away.result.current.todayLabel).toContain("16");
+    expect(away.result.current.anchorDayLabel).toContain("20");
   });
 
   it("leaves the year to the heading above it (#878)", () => {
@@ -162,6 +181,7 @@ describe("useScheduleDayLabels — the memo boundaries", () => {
       weekStart: WEEK_START,
       weekEnd: WEEK_END,
       nowMinutes: 540,
+      trayDay: TODAY,
       ...over,
     });
 

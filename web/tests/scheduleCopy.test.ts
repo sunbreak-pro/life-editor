@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderHook } from "@testing-library/react";
 import {
+  formatDayHeadingParts,
   formatFullDay,
   formatLongDate,
   formatMonthTitle,
@@ -36,6 +37,18 @@ describe("date formatters", () => {
     expect(out).toContain("August");
     expect(out).toContain("12");
     expect(out).not.toContain("2026");
+  });
+
+  // #2281: two parts, so the catalog owns the brackets (ja wants 「（火）」).
+  it("formatDayHeadingParts splits the numeric day from the short weekday", () => {
+    expect(formatDayHeadingParts("ja", "2026-10-21")).toEqual({
+      date: "10/21",
+      weekday: "水",
+    });
+    expect(formatDayHeadingParts("en", "2026-10-21")).toEqual({
+      date: "10/21",
+      weekday: "Wed",
+    });
   });
 
   it("formatLongDate adds the year the creation panel needs (#353)", () => {

@@ -192,6 +192,59 @@ describe("the Todo tray's lists", () => {
   });
 });
 
+// #2281: the first list follows the tab's day; "その他" and the flow tab's
+// today chips do not.
+describe("the tray's day (#2281)", () => {
+  const nodes = () => [
+    timed("today-timed", TODAY, "09:00"),
+    allDay("tomorrow-allday", "2026-08-14"),
+    timed("tomorrow-timed", "2026-08-14", "10:30"),
+    todo("free"),
+  ];
+
+  it("starts on today", () => {
+    const { hook } = renderChips(nodes());
+    expect(hook.result.current.trayDay).toBe(TODAY);
+    expect(hook.result.current.todoPlaced.map((r) => r.id)).toEqual([
+      "today-timed",
+    ]);
+  });
+
+  it("lists the stepped-to day's todos in the first list", () => {
+    const { hook } = renderChips(nodes());
+    act(() => hook.result.current.stepTrayDay(1));
+    expect(hook.result.current.trayDay).toBe("2026-08-14");
+    expect(hook.result.current.todoPlaced.map((r) => r.id)).toEqual([
+      "tomorrow-timed",
+    ]);
+    expect(hook.result.current.todoUnplaced.map((r) => r.id)).toEqual([
+      "tomorrow-allday",
+    ]);
+  });
+
+  it("leaves the flow tab's today chips and the その他 list where they were", () => {
+    const { hook } = renderChips(nodes());
+    const addableBefore = hook.result.current.todoAddable;
+    act(() => hook.result.current.stepTrayDay(1));
+    expect(hook.result.current.todayTodoChips.map((c) => c.id)).toEqual([
+      "today-timed",
+    ]);
+    expect(hook.result.current.todoAddable).toEqual(addableBefore);
+  });
+
+  it("comes back to today from either direction, and on reset", () => {
+    const { hook } = renderChips(nodes());
+    act(() => hook.result.current.stepTrayDay(-1));
+    expect(hook.result.current.trayDay).toBe("2026-08-12");
+    expect(hook.result.current.todoPlaced).toEqual([]);
+    act(() => hook.result.current.stepTrayDay(1));
+    expect(hook.result.current.trayDay).toBe(TODAY);
+    act(() => hook.result.current.stepTrayDay(3));
+    act(() => hook.result.current.resetTrayDay());
+    expect(hook.result.current.trayDay).toBe(TODAY);
+  });
+});
+
 describe("findTodoChip", () => {
   it("answers null for an event id, which shares the same popover", () => {
     const { hook } = renderChips([timed("today-todo", TODAY)]);

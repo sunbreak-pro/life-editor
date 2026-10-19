@@ -31,7 +31,12 @@ export interface UseTodoAddDialogArgs {
   pendingNewTodo: boolean;
   addNode: (type: "task", parentId: null, title: string) => { id: string };
   updateNode: UseScheduleCreateFlowArgs["updateNode"];
-  today: string;
+  /**
+   * The day the tray's first list is showing — today unless the Todo tab was
+   * stepped to another day (#2281). The "today" target writes onto it, so
+   * the pill makes the todo on the day its heading names.
+   */
+  trayDay: string;
   /** Opens the new todo's detail straight after it is made. */
   setTodoDetailId: (id: string | null) => void;
   /** The tour's create step (useTodoTourReporting). */
@@ -47,7 +52,7 @@ export function useTodoAddDialog({
   pendingNewTodo,
   addNode,
   updateNode,
-  today,
+  trayDay,
   setTodoDetailId,
   onCreated,
 }: UseTodoAddDialogArgs): TodoAddDialogApi {
@@ -83,10 +88,11 @@ export function useTodoAddDialog({
     (input: { title: string }) => {
       const node = addNode("task", null, input.title);
       // #1640: the pill that opened the dialog decides the day. "Today" reuses
-      // the tray's own "add to today" write (all-day on today), so a todo made
-      // here and a todo dragged up into the list are the same row.
+      // the tray's own "add to today" write (all-day on the day), so a todo
+      // made here and a todo dragged up into the list are the same row. Since
+      // #2281 that day is the one the first list is showing.
       if (todoAddTarget === "today") {
-        const { patch, options } = todoAddCandidateWrite(today);
+        const { patch, options } = todoAddCandidateWrite(trayDay);
         updateNode(node.id, patch, options);
       }
       setTodoAddTarget(null);
@@ -95,7 +101,7 @@ export function useTodoAddDialog({
       setTodoDetailId(node.id);
       onCreated();
     },
-    [addNode, onCreated, setTodoDetailId, todoAddTarget, today, updateNode],
+    [addNode, onCreated, setTodoDetailId, todoAddTarget, trayDay, updateNode],
   );
 
   const todoAddDialog = (

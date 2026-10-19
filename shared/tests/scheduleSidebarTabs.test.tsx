@@ -39,18 +39,23 @@ function renderTabs(tabs: ScheduleSidebarTab[] = TABS) {
 }
 
 describe("ScheduleSidebarTabs", () => {
-  it("asks the switcher to keep each label on one line (#1343)", () => {
+  it("keeps the three tabs on one row and cuts a label that will not fit (#2281)", () => {
+    // #1343 wrapped the track instead, and at the panel's minimum width
+    // 繰り返し still ran past the edge. One row, equal shares, "…" on overrun.
     renderTabs();
-    expect(screen.getByRole("tablist")).toHaveClass("flex-wrap");
+    expect(screen.getByRole("tablist")).not.toHaveClass("flex-wrap");
     for (const tab of screen.getAllByRole("tab")) {
-      expect(tab).toHaveClass("whitespace-nowrap");
+      expect(tab).toHaveClass("min-w-0");
+      expect(tab.querySelector("span.truncate")).not.toBeNull();
+      expect(tab).toHaveAttribute("title", tab.textContent ?? "");
     }
   });
 
   it("gives the labels the room that takes", () => {
     renderTabs();
     for (const tab of screen.getAllByRole("tab")) {
-      expect(tab).toHaveClass("px-1.5");
+      expect(tab).toHaveClass("px-1");
+      expect(tab).not.toHaveClass("px-1.5");
       expect(tab).toHaveClass("text-xs");
     }
   });

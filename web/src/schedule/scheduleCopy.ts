@@ -40,6 +40,25 @@ export function formatShortDate(language: string, dateKey: string): string {
 }
 
 /**
+ * Numeric month/day and the short weekday, as two strings — the Todo tab's
+ * heading for a day that is not today (#2281). Split rather than formatted in
+ * one go because the catalog owns the punctuation around them: ja wants
+ * full-width brackets (「10/21（火）」) where Intl prints half-width ones.
+ */
+export function formatDayHeadingParts(
+  language: string,
+  dateKey: string,
+): { date: string; weekday: string } {
+  const date = dateFromKey(dateKey);
+  return {
+    date: formatShortDate(language, dateKey),
+    weekday: new Intl.DateTimeFormat(language, { weekday: "short" }).format(
+      date,
+    ),
+  };
+}
+
+/**
  * Month, day and weekday — "today" in the flow panel, and the month cells'
  * accessible names (MonthGrid otherwise falls back to the raw ISO key, which a
  * screen reader announces as "2026-07-09").
