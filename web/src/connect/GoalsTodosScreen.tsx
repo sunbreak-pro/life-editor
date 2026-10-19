@@ -332,6 +332,13 @@ export function GoalsTodosScreen({
     [write, dataService],
   );
 
+  // One write for both the panel's title field and the tree's pencil (#2283).
+  const renameGoal = useCallback(
+    (goalId: string, title: string) =>
+      void write(() => dataService.updateGoal(goalId, { title })),
+    [write, dataService],
+  );
+
   const openTodo = useCallback(
     (todoId: string) => onNavigateToItem({ id: todoId, role: "task" }),
     [onNavigateToItem],
@@ -358,14 +365,12 @@ export function GoalsTodosScreen({
 
   const panel = selectedNode ? (
     <GoalDetailPanel
-      key={selectedNode.goal.id}
+      // The title too: renamed from the tree's pencil (#2283), the panel's
+      // field would keep the old name and write it back on its next blur.
+      key={`${selectedNode.goal.id}:${selectedNode.goal.title}`}
       node={selectedNode}
       parentOptions={goalParentOptions(sources.goals, selectedNode.goal)}
-      onRename={(title) =>
-        void write(() =>
-          dataService.updateGoal(selectedNode.goal.id, { title }),
-        )
-      }
+      onRename={(title) => renameGoal(selectedNode.goal.id, title)}
       onChangeParent={(parentGoalId) =>
         void write(() =>
           dataService.updateGoal(selectedNode.goal.id, { parentGoalId }),
@@ -426,6 +431,7 @@ export function GoalsTodosScreen({
           onSetTodoStatus={setTodoStatus}
           onOpenTodo={openTodo}
           drag={isWide ? drag : undefined}
+          onRenameGoal={renameGoal}
           labels={treeLabels}
         />
       </div>

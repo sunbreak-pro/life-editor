@@ -64,6 +64,8 @@ export function useGoalTreeLabels(todayKey: string): {
       addTodoLabel: t("connect.goals.addTodoLabel"),
       addTodoPlaceholder: t("connect.goals.addTodoPlaceholder"),
       dragToMove: t("connect.goals.dragToMove"),
+      formatRename: (title) => t("connect.goals.rename", { title }),
+      renameField: t("connect.goals.titleLabel"),
       loading: t("connect.goals.loading"),
       loadFailed: t("connect.goals.loadFailed"),
       retry: t("connect.goals.retry"),

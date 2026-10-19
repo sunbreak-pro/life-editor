@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
+  Pencil,
   Plus,
   Target,
 } from "lucide-react";
@@ -47,12 +48,17 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * Desktop drag (#2226), only when the host passes `drag`: a goal's open /
  * close arrow turns into a grip while the row is hovered — press to fold,
  * grab to drag — and a goal with nothing under it shows the grip on hover
- * alone. Year goals have no parent to change, so they keep the arrow. Todo
+ * alone. The title can be grabbed too (#2283). Year goals have no parent to
+ * change, so they keep the arrow and their title only selects. Todo
  * rows get a grip left of the box. While dragging, the goals a drop may land
  * on (goalTreeDrag.ts) get a dashed outline and a "+" square, filled under
  * the pointer. Native HTML5 drag and drop: shared does not carry @dnd-kit,
  * and the target rule is a pure function, so a library would add only the
  * ghost image the browser already draws.
+ *
+ * With `onRenameGoal`, a pencil on the hovered or selected row swaps the
+ * title for a name field in place (#2283); the row stops dragging until the
+ * field closes.
  *
  * Pure presentation (§6.4): the model and every label come from the host
  * (web/src/connect/GoalsTodosScreen.tsx). The state held here — the add
@@ -99,6 +105,10 @@ export interface GoalTreeLabels {
   addTodoPlaceholder: string;
   /** The grip's tooltip. */
   dragToMove: string;
+  /** "Rename: Run 3 times" — the pencil's spoken name and tooltip. */
+  formatRename: (title: string) => string;
+  /** The name field the pencil opens. */
+  renameField: string;
   loading: string;
   /** The first read failed: nothing below would be true, so this replaces it. */
   loadFailed: string;
@@ -128,6 +138,8 @@ export interface GoalTreeViewProps {
   onOpenTodo: (todoId: string) => void;
   /** Desktop only. Absent, no grip is drawn and nothing can be dragged. */
   drag?: GoalTreeDragHandlers;
+  /** A new name from a row's pencil, trimmed and changed. Absent, no pencil. */
+  onRenameGoal?: (goalId: string, title: string) => void;
   labels: GoalTreeLabels;
 }
 
@@ -326,6 +338,50 @@ interface BranchState {
   collapsed: ReadonlySet<string>;
   onToggle: (goalId: string) => void;
   drag: DragState | null;
+  /** The goal whose name is open in a field; one at a time. */
+  editingGoalId: string | null;
+  onEdit: (goalId: string | null) => void;
+}
+
+/*
+ * The name field that stands in for a goal's title (#2283). Enter saves, Esc
+ * drops the edit, and leaving the field saves as the detail panel's does.
+ * One outcome per edit: Esc unmounts the field, and a blur fired on the way
+ * out must not save what Esc threw away.
+ */
+function GoalTitleEditor({
+  goal,
+  label,
+  onDone,
+}: {
+  goal: Goal;
+  label: string;
+  /** The trimmed new name, or null when nothing should be written. */
+  onDone: (title: string | null) => void;
+}): React.JSX.Element {
+  const [draft, setDraft] = useState(goal.title);
+  const settled = useRef(false);
+  const finish = (save: boolean): void => {
+    if (settled.current) return;
+    settled.current = true;
+    const next = draft.trim();
+    onDone(save && next && next !== goal.title ? next : null);
+  };
+  return (
+    <Input
+      autoFocus
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => finish(true)}
+      onKeyDown={(e) => {
+        if (isImeComposing(e)) return;
+        if (e.key === "Enter") finish(true);
+        if (e.key === "Escape") finish(false);
+      }}
+      aria-label={label}
+      className="min-w-0 flex-1 font-medium max-md:text-base"
+    />
+  );
 }
 
 function GoalBranch({
@@ -343,8 +399,11 @@ function GoalBranch({
   const selected = goal.id === props.selectedGoalId;
   const hasBelow = node.todos.length > 0 || node.children.length > 0;
   const open = hasBelow && !branch.collapsed.has(goal.id);
-  // A year goal is the top: there is no parent to drag it under.
-  const draggable = drag !== null && goal.periodKind !== "year";
+  const editing = branch.editingGoalId === goal.id;
+  const onRenameGoal = props.onRenameGoal;
+  // A year goal is the top: there is no parent to drag it under. A row whose
+  // name is being typed holds still, so a press in the field stays in it.
+  const draggable = drag !== null && goal.periodKind !== "year" && !editing;
   const dragged =
     drag?.source?.kind === "goal" && drag.source.goal.id === goal.id;
   const placeable = drag?.source != null && drag.canDrop(goal);
@@ -419,27 +478,60 @@ function GoalBranch({
         ) : (
           <span aria-hidden className={BRANCH_TOGGLE} />
         )}
-        <button
-          type="button"
-          onClick={() => props.onSelectGoal(node.goal.id)}
-          aria-current={selected ? "true" : undefined}
-          // "Week: Run 3 times — 1/3". Spelled out because the chip, the title
-          // and the count are separate spans that a name read off the text
-          // would run together.
-          aria-label={`${labels.kinds[node.goal.periodKind]}: ${node.goal.title} — ${goalStatusText(node, labels)}`}
-          className={cn(
-            ROW_BUTTON,
-            selected && "bg-lumen-accent-subtle hover:bg-lumen-accent-subtle",
-          )}
-        >
-          <span className="shrink-0 text-xs text-lumen-briefing-kohaku">
-            {labels.kinds[node.goal.periodKind]}
-          </span>
-          <span className="min-w-0 flex-1 truncate text-sm font-medium text-lumen-text">
-            {node.goal.title}
-          </span>
-          <GoalStatus node={node} labels={labels} />
-        </button>
+        {editing && onRenameGoal ? (
+          <GoalTitleEditor
+            goal={goal}
+            label={labels.renameField}
+            onDone={(title) => {
+              branch.onEdit(null);
+              if (title !== null) onRenameGoal(goal.id, title);
+            }}
+          />
+        ) : (
+          <button
+            type="button"
+            // The title is a grip too (#2283). A press without a move is
+            // still a click that selects: the browser starts a drag only
+            // once the pointer has travelled a few pixels.
+            {...dragProps}
+            onClick={() => props.onSelectGoal(node.goal.id)}
+            aria-current={selected ? "true" : undefined}
+            // "Week: Run 3 times — 1/3". Spelled out because the chip, the
+            // title and the count are separate spans that a name read off the
+            // text would run together.
+            aria-label={`${labels.kinds[node.goal.periodKind]}: ${node.goal.title} — ${goalStatusText(node, labels)}`}
+            className={cn(
+              ROW_BUTTON,
+              selected && "bg-lumen-accent-subtle hover:bg-lumen-accent-subtle",
+            )}
+          >
+            <span className="shrink-0 text-xs text-lumen-briefing-kohaku">
+              {labels.kinds[node.goal.periodKind]}
+            </span>
+            <span className="min-w-0 flex-1 truncate text-sm font-medium text-lumen-text">
+              {node.goal.title}
+            </span>
+            <GoalStatus node={node} labels={labels} />
+          </button>
+        )}
+        {onRenameGoal && !editing && (
+          // On the hovered or the selected row; a keyboard reaches it while
+          // hidden, and it shows once focused.
+          <button
+            type="button"
+            onClick={() => branch.onEdit(goal.id)}
+            aria-label={labels.formatRename(goal.title)}
+            title={labels.formatRename(goal.title)}
+            className={cn(
+              "ml-0.5 shrink-0 rounded-lumen-sm text-lumen-text-tertiary transition-[color,background-color,opacity] hover:bg-lumen-hover hover:text-lumen-text",
+              "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+              "max-md:min-h-11 max-md:min-w-11",
+              !selected && "opacity-0 group-hover/row:opacity-100",
+            )}
+          >
+            <Pencil size={14} aria-hidden />
+          </button>
+        )}
         {placeable && (
           <span
             aria-hidden
@@ -564,6 +656,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
     null,
   );
   const [overGoalId, setOverGoalId] = useState<string | null>(null);
+  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
 
   if (isLoading) {
     return (
@@ -682,6 +775,8 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
         return next;
       }),
     drag,
+    editingGoalId,
+    onEdit: setEditingGoalId,
   };
 
   // `byId` holds every shown goal whatever the filter; roots and unconnected
