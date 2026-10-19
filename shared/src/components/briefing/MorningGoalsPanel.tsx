@@ -59,30 +59,38 @@ function GoalRow({
   onLinkTodos: (goalId: string) => void;
   onSelectGoal: (goalId: string) => void;
 }): React.JSX.Element {
+  // Below md the title takes the whole first line and the status and the
+  // link drop to a second one (#2310): side by side on a 390px sheet they
+  // left the title about 72px, four characters a line.
   return (
     <li className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 py-1.5">
       <button
         type="button"
         onClick={() => onSelectGoal(line.id)}
         aria-label={labels.openGoalFor(line.title)}
-        className="min-w-0 flex-1 rounded-lumen-sm text-left text-base font-medium text-lumen-text hover:text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11"
+        className="min-w-0 flex-1 rounded-lumen-sm text-left text-base font-medium text-lumen-text hover:text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:basis-full"
       >
         {line.title}
       </button>
-      <GoalStatusLine
-        title={line.title}
-        progress={line.progress}
-        labels={labels}
-      />
-      <button
-        type="button"
-        onClick={() => onLinkTodos(line.id)}
-        aria-label={labels.linkTodosFor(line.title)}
-        className={QUIET_ACTION}
+      <div
+        data-testid="goal-row-actions"
+        className="flex shrink-0 items-center gap-3 max-md:w-full max-md:justify-between"
       >
-        <Link2 size={13} aria-hidden="true" className="shrink-0" />
-        {labels.linkTodos}
-      </button>
+        <GoalStatusLine
+          title={line.title}
+          progress={line.progress}
+          labels={labels}
+        />
+        <button
+          type="button"
+          onClick={() => onLinkTodos(line.id)}
+          aria-label={labels.linkTodosFor(line.title)}
+          className={cn(QUIET_ACTION, "whitespace-nowrap")}
+        >
+          <Link2 size={13} aria-hidden="true" className="shrink-0" />
+          {labels.linkTodos}
+        </button>
+      </div>
     </li>
   );
 }
