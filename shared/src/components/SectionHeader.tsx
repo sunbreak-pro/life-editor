@@ -88,7 +88,9 @@ export function SectionHeader({
       >
         {tabs ?? (
           <div className="flex min-w-0 items-baseline gap-2 self-center py-2">
-            <h2 className="truncate text-sm font-semibold text-lumen-text">
+            {/* Same size as the HeaderTabs labels, so a titled section does
+                not read smaller than a tabbed one (#2280). */}
+            <h2 className="truncate text-sm font-semibold text-lumen-text md:text-base">
               {title}
             </h2>
             {subtitle && (
