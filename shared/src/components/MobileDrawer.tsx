@@ -1,4 +1,5 @@
 import { createPortal } from "react-dom";
+import { X } from "lucide-react";
 import {
   DEFAULT_MOBILE_FONT_SIZE_STEP,
   fontSizeToPx,
@@ -84,9 +85,12 @@ import { RightSidebarContents } from "./RightSidebarContents";
 const DRAWER_WIDTH_PX = 20 * fontSizeToPx(DEFAULT_MOBILE_FONT_SIZE_STEP);
 
 export interface MobileDrawerProps {
-  /** Already-translated panel title ("詳細"). */
+  /**
+   * Already-translated panel name ("詳細"). Since #2279 it is the dialog's
+   * `aria-label` only — the visible header row is gone.
+   */
   title: string;
-  /** Already-translated aria-label for the close button. */
+  /** Already-translated aria-label for the floating close button. */
   closeLabel: string;
   /** Already-translated empty-state copy. */
   emptyLabel: string;
@@ -152,16 +156,33 @@ export function MobileDrawer({
             swipe.offset > 0 ? `translateX(-${swipe.offset}px)` : undefined,
           transition: swipe.dragging ? "none" : undefined,
         }}
-        className="lumen-drawer-in-left flex h-full max-w-[85vw] touch-pan-y flex-col border-r border-lumen-border bg-lumen-bg-subsidebar shadow-lumen-lg pl-[env(safe-area-inset-left)] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] transition-transform duration-200 ease-out"
+        className="lumen-drawer-in-left relative flex h-full max-w-[85vw] touch-pan-y flex-col border-r border-lumen-border bg-lumen-bg-subsidebar shadow-lumen-lg pl-[env(safe-area-inset-left)] pb-[env(safe-area-inset-bottom)] pt-[env(safe-area-inset-top)] transition-transform duration-200 ease-out"
       >
         <RightSidebarContents
-          title={title}
-          closeLabel={closeLabel}
           emptyLabel={emptyLabel}
-          onClose={requestClose}
           contentCount={contentCount}
           setPortalTarget={setPortalTarget}
         />
+        {/*
+         * The drawer's visible way out (#2279). It lived in the "Details"
+         * header row until that row was dropped; it now floats just outside
+         * the panel's right edge, near the top, over the scrim. Kept INSIDE
+         * the panel element on purpose: the panel's mousedown stopper keeps a
+         * press on it from also reaching the scrim, the focus trap still
+         * cycles through it, and it rides along with the swipe transform.
+         *
+         * 44px floor (#1512) and ml-2 fit the 15vw the panel's max-w-[85vw]
+         * always leaves free: 52px of the 54px on a 360px phone. The top
+         * offset clears the notch the same way the panel's own padding does.
+         */}
+        <button
+          type="button"
+          onClick={requestClose}
+          aria-label={closeLabel}
+          className="absolute left-full top-[calc(env(safe-area-inset-top)+0.75rem)] ml-2 grid min-h-11 min-w-11 place-items-center rounded-full border border-lumen-border bg-lumen-bg text-lumen-text-secondary shadow-lumen-md transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        >
+          <X size={18} aria-hidden="true" />
+        </button>
       </div>
     </div>,
     document.body,

@@ -87,8 +87,8 @@ describe("#1512 — shared narrow chrome meets the 44px touch floor", () => {
       </RightSidebarProvider>,
     );
     fireEvent.click(screen.getByRole("button", { name: "Open details" }));
-    // Unconditional: this button only exists when a caller passes closeLabel +
-    // onClose, and since #1284 only <MobileDrawer> does.
+    // Unconditional: MobileDrawer is the only component that draws this button
+    // (#1284 took the Desktop one; #2279 moved it out of the dropped header).
     const close = screen.getByRole("button", { name: "Close details" });
     expect(close).toHaveClass("min-h-11", "min-w-11");
     expect(close).not.toHaveClass("h-7");

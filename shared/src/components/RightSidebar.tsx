@@ -147,6 +147,9 @@ export function RightSidebar({
   return (
     <aside
       ref={asideRef}
+      // The panel's name (#2279): the visible "Details" row is gone, so the
+      // landmark carries it for assistive tech instead.
+      aria-label={title}
       /*
        * `--lumen-panel-w` feeds the open animation (#1050), which slides the
        * panel in from the right by running `margin-right` from -width to 0.
@@ -188,7 +191,6 @@ export function RightSidebar({
           toggle() calls requestClose while open — so #753's unsaved-draft
           question is untouched by dropping the button. */}
       <RightSidebarContents
-        title={title}
         emptyLabel={emptyLabel}
         contentCount={contentCount}
         setPortalTarget={setPortalTarget}

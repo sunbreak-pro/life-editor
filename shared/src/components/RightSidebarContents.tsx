@@ -1,12 +1,19 @@
 import { useEffect, useRef } from "react";
-import { PanelRight, PanelRightClose } from "lucide-react";
+import { PanelRight } from "lucide-react";
 
 /*
  * Internal (NOT barrel-exported) shared body for the detail panel — reused by
  * both the Desktop push-in <RightSidebar> and the Mobile <MobileDrawer> so the
- * 48px "詳細" header + scrollable portal well + empty state stay in lockstep
- * (App Shell Turn 2). Pure presentation: all copy is injected already-
- * translated (§6.4); lumen-* tokens only (§5).
+ * scrollable portal well + empty state stay in lockstep (App Shell Turn 2).
+ * Pure presentation: all copy is injected already-translated (§6.4); lumen-*
+ * tokens only (§5).
+ *
+ * No header row (#2279). The panel used to open with a 48px "Details" row,
+ * which said nothing the open panel did not, and pushed every section's own
+ * first row (Schedule's three tabs, for one) down by its height. The panel's
+ * name now lives only where assistive tech reads it — the `aria-label` on the
+ * Desktop <aside> and on the Mobile dialog — and the drawer's × floats beside
+ * the drawer instead (MobileDrawer).
  *
  * The body div is the portal target: it registers itself via setPortalTarget
  * on mount and clears to null on unmount. Only one of the panel/drawer is ever
@@ -14,32 +21,15 @@ import { PanelRight, PanelRightClose } from "lucide-react";
  * never clobbers a live sibling target.
  */
 export interface RightSidebarContentsProps {
-  /** Already-translated panel title ("詳細" / "Details"). */
-  title: string;
-  /**
-   * Close affordance for the panel header. Optional, and honoured only as a
-   * PAIR — pass neither and the header row is title-only.
-   *
-   * #1284: the Desktop <RightSidebar> passes neither. The SectionHeader's own
-   * <RightSidebarToggle> sits directly above the panel and is unconditional
-   * for every section, so an in-panel × was a second control for one job.
-   * <MobileDrawer> still passes both: it is a modal overlay that covers the
-   * narrow layout's toggle, so without this × there is no visible way out.
-   */
-  closeLabel?: string;
   /** Already-translated empty-state copy (nothing selected). */
   emptyLabel: string;
-  onClose?: () => void;
   /** 0 ⇒ show the empty state; >0 ⇒ portalled content fills the well. */
   contentCount: number;
   setPortalTarget: (el: HTMLElement | null) => void;
 }
 
 export function RightSidebarContents({
-  title,
-  closeLabel,
   emptyLabel,
-  onClose,
   contentCount,
   setPortalTarget,
 }: RightSidebarContentsProps) {
@@ -51,63 +41,31 @@ export function RightSidebarContents({
   }, [setPortalTarget]);
 
   return (
-    <>
-      {/*
-       * 48px header. Deliberately SHORTER than the app's top chrome
-       * (--spacing-lumen-header, 3.5 / 3.75rem) and not tied to it: this row
-       * is not a top-of-screen row. On the wide layout the panel is a sibling of
-       * <main> BELOW <SectionHeader>, so its header starts where the section
-       * divider ends and lines up with nothing above it — it reads as panel
-       * chrome, one step down from the section it belongs to. (It used to
-       * claim parity with the SidebarNav header, which was true only while
-       * that header was wrongly 48px — see #1399.)
-       */}
-      <div className="flex h-12 flex-shrink-0 items-center justify-between border-b border-lumen-border pl-4 pr-3">
-        <span className="text-sm font-semibold text-lumen-text">{title}</span>
-        {onClose && closeLabel && (
-          <button
-            type="button"
-            onClick={onClose}
-            aria-label={closeLabel}
-            /*
-             * Floored to the 44px touch target (#1512), where the audit read
-             * it at 32. Unconditional, with no `max-md:` — this button is
-             * ALREADY mobile-only: it renders only when closeLabel + onClose
-             * are both passed, and since #1284 the Desktop <RightSidebar>
-             * passes neither. <MobileDrawer> is the one caller.
-             *
-             * It costs no room either. The header row above is a fixed h-12
-             * (3rem), so the button grows inside space the drawer had already
-             * reserved — nothing below it moves.
-             */
-            className="grid min-h-11 min-w-11 place-items-center rounded-lumen-sm text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-          >
-            <PanelRightClose size={16} />
-          </button>
-        )}
-      </div>
-      {/* Scrollable well. The portal target div is always mounted so a
-          RightSidebarPortal can attach; the empty state shows over it while
-          no section has registered content.
+    /* Scrollable well, 12px on every side (#2279 — the 16px the header row
+        started its title at is gone with the row). The portal target div is
+        always mounted so a RightSidebarPortal can attach; the empty state
+        shows over it while no section has registered content.
 
-          `touch-pan-y` says what this element actually does: it scrolls
-          vertically and nothing else. Left at the default `auto` it advertised
-          horizontal panning it cannot perform, and inside <MobileDrawer> that
-          was enough for the browser to claim a finger sliding left and cancel
-          the pointer stream — swipe-to-close (#792) never reached its
-          threshold on a real touch (#1204). Harmless in the Desktop
-          <RightSidebar>, which has no horizontal gesture either. */}
-      <div className="min-h-0 flex-1 touch-pan-y overflow-y-auto p-3">
-        {contentCount === 0 && (
-          <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
-            <PanelRight size={24} className="text-lumen-text-tertiary" />
-            <span className="text-sm text-lumen-text-secondary">
-              {emptyLabel}
-            </span>
-          </div>
-        )}
-        <div ref={bodyRef} />
-      </div>
-    </>
+        `touch-pan-y` says what this element actually does: it scrolls
+        vertically and nothing else. Left at the default `auto` it advertised
+        horizontal panning it cannot perform, and inside <MobileDrawer> that
+        was enough for the browser to claim a finger sliding left and cancel
+        the pointer stream — swipe-to-close (#792) never reached its
+        threshold on a real touch (#1204). Harmless in the Desktop
+        <RightSidebar>, which has no horizontal gesture either. */
+    <div
+      data-testid="right-sidebar-well"
+      className="min-h-0 flex-1 touch-pan-y overflow-y-auto p-3"
+    >
+      {contentCount === 0 && (
+        <div className="flex h-full flex-col items-center justify-center gap-2 px-4 text-center">
+          <PanelRight size={24} className="text-lumen-text-tertiary" />
+          <span className="text-sm text-lumen-text-secondary">
+            {emptyLabel}
+          </span>
+        </div>
+      )}
+      <div ref={bodyRef} />
+    </div>
   );
 }
