@@ -636,6 +636,10 @@ export function AnalyticsScreen({
           empty: t("analytics.records.mobile.empty"),
           formatCount: (count: number) =>
             t("analytics.records.mobile.count", { count }),
+          formatFilteredTo: (app: string) =>
+            t("analytics.records.mobile.filteredTo", { app }),
+          clearFilter: t("analytics.records.mobile.clearFilter"),
+          emptyFiltered: t("analytics.records.mobile.emptyFiltered"),
         },
       },
       mobile: {

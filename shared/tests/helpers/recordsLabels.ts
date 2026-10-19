@@ -65,6 +65,9 @@ export function makeRecordsLabels(): RecordsLabels {
       range: "Last 7 days",
       empty: "No records in the last 7 days.",
       formatCount: (count) => `${count} records`,
+      formatFilteredTo: (app) => `Only ${app}`,
+      clearFilter: "Show all apps",
+      emptyFiltered: "This app sent nothing in the last 7 days.",
     },
   };
 }

@@ -649,3 +649,116 @@ describe("narrow Records block", () => {
     expect(document.querySelector("[aria-busy='true']")).toBeNull();
   });
 });
+
+describe("narrow Records block narrowed by the Apps section (#2312)", () => {
+  const records = [
+    rec({ occurredAt: noon(1), sourceApp: "ledger", value: 450 }),
+    rec({
+      occurredAt: noon(2),
+      sourceApp: "claude",
+      kind: "weight",
+      unit: "kg",
+      value: 62.4,
+    }),
+  ];
+
+  function blockLines(): (string | null)[] {
+    const block = screen.getByText("Last 7 days").closest("div")
+      ?.parentElement as HTMLElement;
+    return within(block)
+      .queryAllByRole("listitem")
+      .map((li) => li.textContent);
+  }
+
+  it("shows only the requested app's records, says so, and consumes the request once", () => {
+    mockMatchMedia(false);
+    const consumed = vi.fn();
+    render(
+      <AnalyticsView
+        {...props({
+          records,
+          activeTab: undefined,
+          pendingRecordsSource: "ledger",
+          onRecordsSourceConsumed: consumed,
+        })}
+      />,
+    );
+    // The other app's weight is not in the block.
+    expect(blockLines()).toEqual(["expense · 1 recordsTotal450 JPY"]);
+    expect(screen.getByText("Only Household ledger")).toBeInTheDocument();
+    expect(consumed).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes back to every app's records when the narrowing is cleared", () => {
+    mockMatchMedia(false);
+    render(
+      <AnalyticsView
+        {...props({
+          records,
+          activeTab: undefined,
+          pendingRecordsSource: "ledger",
+        })}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show all apps" }));
+    expect(blockLines()).toEqual([
+      "expense · 1 recordsTotal450 JPY",
+      "weight · 1 recordsTotal62.4 kg",
+    ]);
+    expect(screen.queryByText("Only Household ledger")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show all apps" })).toBeNull();
+  });
+
+  it("keeps the narrowing after the request is consumed", () => {
+    mockMatchMedia(false);
+    const view = render(
+      <AnalyticsView
+        {...props({
+          records,
+          activeTab: undefined,
+          pendingRecordsSource: "claude",
+        })}
+      />,
+    );
+    view.rerender(
+      <AnalyticsView
+        {...props({
+          records,
+          activeTab: undefined,
+          pendingRecordsSource: null,
+        })}
+      />,
+    );
+    expect(blockLines()).toEqual(["weight · 1 recordsTotal62.4 kg"]);
+    expect(screen.getByText("Only Claude")).toBeInTheDocument();
+  });
+
+  it("says the app sent nothing this week, and keeps the way back", () => {
+    mockMatchMedia(false);
+    render(
+      <AnalyticsView
+        {...props({
+          records,
+          activeTab: undefined,
+          pendingRecordsSource: "new-app",
+        })}
+      />,
+    );
+    expect(blockLines()).toEqual([]);
+    expect(
+      screen.getByText("This app sent nothing in the last 7 days."),
+    ).toBeInTheDocument();
+    // An unregistered slug is named by itself.
+    expect(screen.getByText("Only new-app")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show all apps" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows every app's records when nothing was asked for", () => {
+    mockMatchMedia(false);
+    render(<AnalyticsView {...props({ records, activeTab: undefined })} />);
+    expect(blockLines()).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Show all apps" })).toBeNull();
+  });
+});
