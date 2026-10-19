@@ -43,7 +43,13 @@ vi.mock("recharts", () => {
       />
     ),
     XAxis: () => null,
-    YAxis: () => null,
+    // Says which value range the axis was handed (#2311); none = recharts' own.
+    YAxis: ({ domain }: { domain?: [number, number] }) => (
+      <div
+        data-testid="records-y-axis"
+        data-domain={domain ? domain.join(",") : "auto"}
+      />
+    ),
     CartesianGrid: () => null,
     Tooltip: () => null,
   };
@@ -439,6 +445,63 @@ describe("Records tab chart shapes (#2264)", () => {
     expect((select as HTMLSelectElement).value).toBe("bar");
     fireEvent.change(select, { target: { value: "line" } });
     expect(onChooseRecordChart).toHaveBeenCalledWith("weight", "kg", "line");
+  });
+});
+
+describe("Records tab value axis (#2311)", () => {
+  const weighings = [
+    rec({ occurredAt: noon(1), kind: "weight", unit: "kg", value: 68 }),
+    rec({ occurredAt: noon(3), kind: "weight", unit: "kg", value: 67 }),
+  ];
+  const domain = (): string =>
+    screen.getByTestId("records-y-axis").dataset.domain ?? "";
+
+  it("fits a line's axis to the values drawn, with a little room", () => {
+    render(
+      <AnalyticsView
+        {...props({
+          records: weighings,
+          recordViews: [
+            savedView("weight", "kg", { chart: "line", metric: "latest" }),
+          ],
+        })}
+      />,
+    );
+    screen.getByTestId("records-line");
+    // 67–68 kg with a tenth of the spread above and below, not 0–68.
+    expect(domain()).toBe("66.9,68.1");
+  });
+
+  it("keeps the bars standing on zero", () => {
+    render(
+      <AnalyticsView
+        {...props({
+          records: weighings,
+          recordViews: [
+            savedView("weight", "kg", { chart: "bar", metric: "latest" }),
+          ],
+        })}
+      />,
+    );
+    screen.getByTestId("records-bar");
+    expect(domain()).toBe("auto");
+  });
+
+  it("still gives a single weighing an axis to stand in", () => {
+    render(
+      <AnalyticsView
+        {...props({
+          records: [weighings[0]],
+          recordViews: [
+            savedView("weight", "kg", { chart: "line", metric: "latest" }),
+          ],
+        })}
+      />,
+    );
+    screen.getByTestId("records-line");
+    const [lo, hi] = domain().split(",").map(Number);
+    expect(lo).toBeLessThan(68);
+    expect(hi).toBeGreaterThan(68);
   });
 });
 

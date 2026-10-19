@@ -45,6 +45,7 @@ import {
   formatRecordMetric,
   indexRecordViews,
   kindTotals,
+  lineAxisDomain,
   recordChartFor,
   recordMetricFor,
   recordViewKey,
@@ -265,6 +266,12 @@ export function RecordsTab({
     label: axis.date(barDateKey(bar.period), groupBy),
     value: bar.value ?? undefined,
   }));
+  // A line is read for its slope, so its axis spans the values drawn (#2311);
+  // bars stand on zero.
+  const valueDomain =
+    chart === "line"
+      ? (lineAxisDomain(chartData.map((d) => d.value)) ?? undefined)
+      : undefined;
   // Both chart shapes share the grid, the axes and the tooltip's wording.
   const axes = [
     <CartesianGrid key="grid" {...CHART_GRID} />,
@@ -282,6 +289,7 @@ export function RecordsTab({
       tickLine={false}
       axisLine={false}
       allowDecimals={barsInUnit}
+      domain={valueDomain}
       width={56}
       tickFormatter={(v: number) => labels.formatNumber(v)}
     />,
