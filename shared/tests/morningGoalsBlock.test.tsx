@@ -430,6 +430,24 @@ describe("MorningGoalsPanel", () => {
     expect(field().className).toContain("max-md:min-h-11");
   });
 
+  // #2310 — beside the status and the link, the title had about 72px of a
+  // 390px sheet. Below md it takes its own line and the rest goes under it.
+  it("gives the goal's title a line of its own below md", () => {
+    renderPanel(goalsOf({ week: [OPEN] }));
+    const title = screen.getByRole("button", { name: "企画書を通す を開く" });
+    expect(title).toHaveClass("flex-1", "max-md:basis-full");
+    const actions = screen.getByTestId("goal-row-actions");
+    expect(actions).toHaveClass("shrink-0", "max-md:w-full");
+    expect(
+      within(actions).getByRole("progressbar", { name: "企画書を通す" }),
+    ).toBeTruthy();
+    expect(
+      within(actions).getByRole("button", {
+        name: "Todo をつなぐ: 企画書を通す",
+      }),
+    ).toHaveClass("whitespace-nowrap", "max-md:min-h-11");
+  });
+
   // #2213 — the field took the row and squeezed the button until「追加」
   // wrapped onto two lines. jsdom has no layout, so the class is the pin.
   it("keeps the add button from shrinking or wrapping its label", () => {
