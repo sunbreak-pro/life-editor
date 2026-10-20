@@ -117,6 +117,44 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
     [ds],
   );
 
+  /*
+   * #2309 — the writes that wait for a day's first create.
+   *
+   * The id is `daily-<date>`, so a day can be created exactly once. The
+   * service's upsert reads the row and creates it when absent, and on a slow
+   * network the editor's next debounced save reads "absent" too, before the
+   * first create has landed: both inserted, and the second hit duplicate key
+   * (409). The optimistic node below cannot stop that — it is local, the
+   * server row is not there yet.
+   *
+   * So while a create is in flight for a date, every later write for that
+   * date queues behind it, in call order: by the time each one runs the row
+   * exists and its upsert becomes an update. The entry is dropped when the
+   * last queued write settles, and writes for a day that already exists keep
+   * running side by side as before — holding all of them in line would make
+   * a slow network fall further behind with every keystroke.
+   */
+  const createGateRef = useRef(new Map<string, Promise<DailyNode>>());
+
+  const writeDaily = useCallback(
+    (date: string, content: string, creates: boolean): Promise<DailyNode> => {
+      const gates = createGateRef.current;
+      const ahead = gates.get(date);
+      if (!ahead && !creates) return ds.upsertDailyByDateUnified(date, content);
+      const write = ahead
+        ? afterSettled(ahead).then(() =>
+            ds.upsertDailyByDateUnified(date, content),
+          )
+        : ds.upsertDailyByDateUnified(date, content);
+      gates.set(date, write);
+      void afterSettled(write).then(() => {
+        if (gates.get(date) === write) gates.delete(date);
+      });
+      return write;
+    },
+    [ds],
+  );
+
   /**
    * Optimistic write. The local state update is synchronous; the returned
    * promise resolves with the PERSISTED node once the row actually exists
@@ -139,7 +177,7 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
       // Started before the push so the undo closure can hold it (#1682): a
       // delete fired while this upsert is in flight would be re-created by it
       // a moment later, leaving the day back with the undo already spent.
-      const write = ds.upsertDailyByDateUnified(date, content);
+      const write = writeDaily(date, content, !existing);
 
       if (existing) {
         setDailies((prev) =>
@@ -166,7 +204,7 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
             },
             redo: () => {
               setDailies((p) => [newDaily, ...p]);
-              return ds.upsertDailyByDateUnified(date, content).then(() => {});
+              return writeDaily(date, content, true).then(() => {});
             },
           });
         }
@@ -177,7 +215,7 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
         return null;
       });
     },
-    [ds, push, softDeleteDailyByDate],
+    [push, softDeleteDailyByDate, writeDaily],
   );
 
   const deleteDaily = useCallback(
