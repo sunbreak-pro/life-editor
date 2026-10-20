@@ -50,6 +50,42 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
     routinesRef.current = routines;
   }, [routines]);
 
+  /*
+   * #2320: routines a detach has taken off the list and the server has not
+   * yet confirmed gone. detachRoutine writes in steps — unlink the kept rows,
+   * hand over the tags, and only then trash the routine — and each step is a
+   * Realtime bump. A re-read that lands in between still finds the routine
+   * live and used to put it straight back; RoutineScheduleSync then saw a
+   * live routine with no row of its own on the open day (the kept occurrence
+   * had just been unlinked) and made one, which outlived the routine as an
+   * untagged duplicate still pointing at it.
+   *
+   * So a load leaves these out while they are held. The hold ends when a read
+   * that STARTED after the detach settled comes back: that read saw every
+   * step, so whatever it says is the truth — including a restore from the
+   * Trash later on. A read that started earlier can still be in flight when
+   * the detach settles, which is why "settled" alone does not end it. Undo
+   * ends the hold before it puts the routine back; a detach that fails ends
+   * it too.
+   */
+  const retiringRef = useRef(new Map<string, { settled: boolean }>());
+  const loadRoutines = useCallback(async (service: DataService) => {
+    const settledAtStart = [...retiringRef.current].filter(
+      ([, hold]) => hold.settled,
+    );
+    const list = await service.fetchAllRoutines();
+    for (const [id, hold] of settledAtStart) {
+      if (retiringRef.current.get(id) === hold) retiringRef.current.delete(id);
+    }
+    return list;
+  }, []);
+  const applyLoaded = useCallback((list: RoutineNode[]) => {
+    const retiring = retiringRef.current;
+    setRoutines(
+      retiring.size === 0 ? list : list.filter((r) => !retiring.has(r.id)),
+    );
+  }, []);
+
   // Initial load + every syncVersion bump (mirrors notes/daily), through the
   // shared load effect (#672) — which also brings #296's error un-latch, so a
   // transient failure no longer keeps the error latched for the session.
@@ -58,8 +94,8 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
     snapshotKey: "routines",
     dataService: ds,
     version: syncVersion,
-    load: (service) => service.fetchAllRoutines(),
-    apply: setRoutines,
+    load: loadRoutines,
+    apply: applyLoaded,
     fallbackMessage: "Failed to load routines",
   });
 
@@ -413,6 +449,10 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         redo: () => Promise<void>;
       } | null;
     }> => {
+      // #2320: held off the list while the steps land (see retiringRef).
+      const hold = { settled: false };
+      retiringRef.current.set(id, hold);
+
       const target = routinesRef.current.find((r) => r.id === id);
       setRoutines((prev) => prev.filter((r) => r.id !== id));
       let result: { deletedScheduleItemIds: string[] };
@@ -422,6 +462,8 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         });
       } catch (e) {
         logServiceError("Routines", "detach", e);
+        if (retiringRef.current.get(id) === hold)
+          retiringRef.current.delete(id);
         if (target) {
           setRoutines((prev) =>
             prev.some((r) => r.id === id) ? prev : [...prev, target],
@@ -429,6 +471,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         }
         throw e;
       }
+      hold.settled = true;
 
       if (!target || !opts?.reversible) {
         return { ...result, reversal: null };
@@ -453,6 +496,9 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
           // (#708) and the user would get a repeat whose rows are not the ones
           // they split off.
           undo: async () => {
+            // The routine is coming back on purpose: loads may carry it again.
+            retiringRef.current.delete(id);
+
             const { conflictedIds } =
               await ds.bulkRestoreScheduleItems(cascade);
             // Not a failure (#932): the generator already re-made that day
@@ -473,6 +519,9 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
             );
           },
           redo: async () => {
+            const again = { settled: false };
+            retiringRef.current.set(id, again);
+
             setRoutines((prev) => prev.filter((r) => r.id !== id));
             // Re-runs the split against whatever is live now rather than
             // replaying the id list, exactly as redoDelete does — and, like
@@ -481,11 +530,14 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
               await ds.detachRoutine(id, fromDate, { keepItemIds });
             } catch (e) {
               logServiceError("Routines", "redoDetach", e);
+              if (retiringRef.current.get(id) === again)
+                retiringRef.current.delete(id);
               setRoutines((prev) =>
                 prev.some((r) => r.id === id) ? prev : [...prev, target],
               );
               throw e;
             }
+            again.settled = true;
           },
         },
       };
