@@ -2,8 +2,8 @@
  * The official fake of the life-editor extension-app gateway (#2145, plan
  * .claude/docs/vision/plans/2026-10-07-extension-app-gateway.md, R2).
  *
- *   Gateway version:    1.4.0
- *   life-editor commit: 10dda19b30db5482b86741b221e7d4a3abc26f8b
+ *   Gateway version:    2.0.0
+ *   life-editor commit: 79c91c599cc1e7f2003d6d1bce0c27a69a573225
  *
  * Those two lines are the spec this file was written against. They are a
  * promise, not decoration: tests/extensionGatewayFake.test.ts fails when they
@@ -13,13 +13,16 @@
  *
  * WHAT IT IS. A stand-in an extension app is tested against when the loop
  * that builds it holds no life-editor credentials (pdca-harness). It speaks
- * the same HTTP surface as mcp-server/src/worker.ts — token in the path
- * (/mcp/<token>) or `Authorization: Bearer`, 404 with no hint for anything
- * unauthorised, 405 + `allow: POST` for another method, stateless JSON-RPC —
- * and serves exactly the tools in the spec, validated the way the real
- * registry validates them, against an in-memory store. Same inputs, same
- * refusals, same result shapes: tests/extensionGatewayFake.test.ts feeds both
- * this file and the real handlers the same calls and compares.
+ * the same HTTP surface as mcp-server/src/gatewayWorker.ts — the credential in
+ * `Authorization: Bearer` on POST /mcp and nowhere else, an app key (`lek_`)
+ * or a session token (`les_`) from POST /exchange, 404 with no hint for
+ * anything unauthorised, 405 + `allow: POST` for another method, CORS only for
+ * a session token from one of the app's origins, read / write scopes,
+ * stateless JSON-RPC — and serves exactly the tools in the spec, validated the
+ * way the real registry validates them, against an in-memory store. Same
+ * inputs, same refusals, same result shapes: tests/extensionGatewayFake.test.ts
+ * feeds both this file and the real handlers (and the real Worker) the same
+ * calls and compares.
  *
  * STANDALONE ON PURPOSE. Copy this file (and spec/extension-gateway.json) into
  * another repository and it runs: it imports node: built-ins only, and needs
@@ -28,31 +31,43 @@
  * ../spec/extension-gateway.json (where it lives in life-editor).
  *
  * USE.
- *   import { createFakeGateway, listen } from "./extension-gateway-fake.mjs";
- *   const gateway = createFakeGateway({ token: "t" });
- *   const res = await gateway.fetch(new Request("http://x/mcp/t", {...}));
+ *   import { createFakeGateway, generateFakeKey, listen } from "./extension-gateway-fake.mjs";
+ *   const key = generateFakeKey();          // lek_<8 hex>_<64 hex>
+ *   const gateway = createFakeGateway({ key });
+ *   const res = await gateway.fetch(new Request("http://x/mcp", {
+ *     method: "POST", headers: { authorization: `Bearer ${key}` }, body }));
  *   const { port, close } = await listen(gateway, 0);
- * Options besides `token`: `app` (the calling app's slug, default "fake-app"
- * — what create_record stamps as source_app), `extensionApps` (the Apps
- * ledger list_extension_apps reads: { slug, name, url?, icon?, description?,
- * sort_order }[], default none), `allowedOrigins`, `timeZone`, `specPath`.
- * or from a shell:
- *   node mocks/extension-gateway-fake.mjs --port 8787 --token x [--origin http://localhost:5173]
+ * The fake serves ONE app, configured the way an entry of the real
+ * LIFE_EDITOR_GATEWAY_APPS secret is (src/gatewayAuth.ts), and refuses at
+ * creation a configuration the real registry would refuse:
+ *   key        required. The app's key, in the real `lek_` shape.
+ *   app        the app's slug, default "fake-app" — what create_record stamps
+ *              as source_app.
+ *   scopes     ["read"], ["write"] or both (the default).
+ *   origins    browser origins, exactly scheme://host[:port]. Default none.
+ *   browser    whether /exchange may mint session tokens. Needs origins.
+ *   login      the one login JWT /exchange takes as the owner's (see
+ *              KNOWN_DIFFERENCES 12). Default none: every /exchange is a 404.
+ *   extensionApps  the Apps ledger list_extension_apps reads: { slug, name,
+ *              url?, icon?, description?, sort_order }[], default none.
+ *   timeZone, specPath.
+ * Gateway 1.x took `token` and accepted it in the path (/mcp/<token>), as the
+ * phone's Worker does. The real gateway never did; 2.0.0 dropped both.
+ * Or from a shell (prints a key when --key is not given):
+ *   node mocks/extension-gateway-fake.mjs --port 8787 [--key lek_...] [--app x]
+ *     [--scopes read,write] [--browser --origin http://localhost:5173 --login <jwt>]
  *
  * TEST-DOUBLE ROUTES. `listen()` also answers `GET /__calls` (every tools/call
  * received: tool, arguments, ok, error, timestamp) and `POST /__reset` (clears
- * the record AND the in-memory store). They need NO token, which is only
+ * the record AND the in-memory store). They need NO key, which is only
  * acceptable because this is a test double that never holds real data. They
  * live in `listen()` and not in `fetch()`, so `fetch()` stays comparable to
  * the real Worker's and the parity tests never see them.
  *
- * CORS (plan R4). `allowedOrigins` (default: none). An OPTIONS preflight on an
- * /mcp path from an allowed Origin answers 204 with
- * Access-Control-Allow-Origin: <that origin>, -Allow-Methods: POST, OPTIONS,
- * -Allow-Headers: content-type, authorization and Vary: Origin; every other
- * response to an allowed Origin carries Access-Control-Allow-Origin too. A
- * disallowed or absent Origin gets no Access-Control-* header at all. The real
- * Worker has no CORS yet — parity with it is pending #2146.
+ * AUTHENTICATION, /exchange, CORS AND SCOPES (plan R3 / R4) are the spec's
+ * transport.authentication / .exchange / .cors / .scopes, word for word in
+ * behaviour: tests/extensionGatewayFake.test.ts sends the same requests here
+ * and to gatewayWorker.ts and compares status, body and the CORS headers.
  *
  * KNOWN_DIFFERENCES — where the fake keeps the SHAPE but not the full
  * behaviour of the real handlers:
@@ -94,11 +109,31 @@
  *      another source's record cannot be reached here.
  *  11. The Apps ledger (extension_apps) is the `extensionApps` option, fixed
  *      when the fake is created; nothing in the gateway writes it.
+ *  12. /exchange cannot ask Supabase Auth whose login a JWT is, so it takes
+ *      the `login` option as the one JWT of the account the app is bound to
+ *      and compares it as a string. There is no review account (`account`):
+ *      every session is the owner's. The real gateway's other ways for a
+ *      session to die — the app removed from the registry, its browser flag
+ *      cleared, the app moved to another account — cannot happen, because
+ *      the fake's one app is fixed when it is created. For the same reason
+ *      a preflight gets the CORS headers only from this app's origins; the
+ *      real gateway gives them to an origin ANY browser app in the
+ *      deployment registered (the request itself still gets no CORS header
+ *      there unless its session is that origin's app's). Sessions are signed
+ *      with a secret drawn per fake, so a token from one fake (or from the
+ *      real gateway) is a 404 on another, as it is between two deployments.
+ *  13. The key is compared as it is; the real gateway compares SHA-256
+ *      hashes and keeps a list of revoked keys. Either way, any other key is
+ *      the same 404.
+ *  14. Every item the fake holds was made by the serving app, so the real
+ *      gateway's forbidden refusal for a write to an item another app, the
+ *      owner or life-editor made ("Forbidden: <id> was not created by <app>")
+ *      cannot be reached here.
  */
 
 import { existsSync, readFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, createHmac, randomBytes, randomUUID } from "node:crypto";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
@@ -164,6 +199,7 @@ class CodedError extends Error {
 }
 const invalidArguments = (message) => new CodedError("invalid_arguments", message);
 const notFoundError = (message) => new CodedError("not_found", message);
+const forbidden = (message) => new CodedError("forbidden", message);
 const codeOf = (error) => (error instanceof CodedError ? error.code : "failed");
 
 /* ---- argument validation (mirror of src/utils/toolSchema.ts) ------------- */
@@ -1769,12 +1805,15 @@ function rpcError(id, code, message) {
   );
 }
 
-function isMcpPath(pathname) {
-  return pathname === "/mcp" || pathname.startsWith("/mcp/");
-}
-
 function notFound() {
   return new Response("Not found", { status: 404 });
+}
+
+function methodNotAllowed() {
+  return new Response("Method not allowed", {
+    status: 405,
+    headers: { allow: "POST" },
+  });
 }
 
 function secretEquals(a, b) {
@@ -1784,21 +1823,103 @@ function secretEquals(a, b) {
   return diff === 0;
 }
 
-function presentedTokens(url, request) {
-  const tokens = [];
+/* ---- credentials (mirror of src/gatewayAuth.ts) ------------------------- */
+
+const KEY_PREFIX = "lek_";
+const SESSION_PREFIX = "les_";
+const KEY_SHAPE = /^lek_[0-9a-f]{8}_[0-9a-f]{64}$/;
+const SCOPES = ["read", "write"];
+const SESSION_TTL_SECONDS = 3600;
+const ALLOWED_HEADERS = "content-type, authorization, mcp-protocol-version";
+
+/** A fresh key in the real gateway's shape: lek_<8 hex id>_<64 hex secret>. */
+export function generateFakeKey() {
+  const hex = randomBytes(36).toString("hex");
+  return `${KEY_PREFIX}${hex.slice(0, 8)}_${hex.slice(8)}`;
+}
+
+/** An origin as a browser sends it, or null (gatewayAuth.normalizeOrigin). */
+function normalizeOrigin(value) {
+  try {
+    const url = new URL(value);
+    if (url.protocol !== "https:" && url.protocol !== "http:") return null;
+    return url.origin;
+  } catch {
+    return null;
+  }
+}
+
+const sign = (secret, body) =>
+  createHmac("sha256", secret).update(body).digest("base64url");
+
+/** The session token format gatewayAuth.mintSession writes. */
+function mintSession(secret, app, nowMs) {
+  const exp = Math.floor(nowMs / 1000) + SESSION_TTL_SECONDS;
+  const body = Buffer.from(
+    JSON.stringify({ a: app, c: "owner", e: exp }),
+  ).toString("base64url");
+  return {
+    token: `${SESSION_PREFIX}${body}.${sign(secret, body)}`,
+    expiresAt: new Date(exp * 1000).toISOString(),
+  };
+}
+
+/** Header only, as the gateway reads it: a key in the path is never looked at. */
+function bearerOf(request) {
   const auth = request.headers.get("authorization");
-  if (auth?.startsWith("Bearer "))
-    tokens.push(auth.slice("Bearer ".length).trim());
-  const match = /^\/mcp\/(.+)$/.exec(url.pathname);
-  if (match) {
-    try {
-      tokens.push(decodeURIComponent(match[1]));
-    } catch {
-      // The Worker would throw here (a 500 from the platform); a fake that
-      // refuses is the closer thing a test can observe.
+  return auth?.startsWith("Bearer ") ? auth.slice("Bearer ".length).trim() : null;
+}
+
+function corsHeaders(origin) {
+  return { "access-control-allow-origin": origin, vary: "Origin" };
+}
+
+function withHeaders(response, headers) {
+  if (!headers) return response;
+  for (const [name, value] of Object.entries(headers)) {
+    response.headers.set(name, value);
+  }
+  return response;
+}
+
+/** The one app's registry entry, checked the way parseGatewayConfig checks it. */
+function appEntry({ key, app, scopes, origins, browser, login }) {
+  const fail = (message) => {
+    throw new Error(`createFakeGateway: ${message}`);
+  };
+  if (typeof key !== "string" || !KEY_SHAPE.test(key)) {
+    fail(
+      "`key` must be an app key in the real shape, lek_<8 hex>_<64 hex> " +
+        "(generateFakeKey() makes one)",
+    );
+  }
+  if (typeof app !== "string" || app === "claude" || !/^[a-z][a-z0-9-]{1,31}$/.test(app)) {
+    fail('`app` must be an extension_apps.slug (^[a-z][a-z0-9-]{1,31}$), not "claude"');
+  }
+  if (
+    !Array.isArray(scopes) ||
+    scopes.length === 0 ||
+    !scopes.every((s) => SCOPES.includes(s))
+  ) {
+    fail('`scopes` must be a non-empty list of "read" / "write"');
+  }
+  if (!Array.isArray(origins)) fail("`origins` must be a list");
+  for (const origin of origins) {
+    if (typeof origin !== "string" || normalizeOrigin(origin) !== origin) {
+      fail(
+        `\`origins\`: ${JSON.stringify(origin)} is not an origin as a browser ` +
+          "sends it (scheme://host[:port], no trailing slash)",
+      );
     }
   }
-  return tokens;
+  if (typeof browser !== "boolean") fail("`browser` must be a boolean");
+  if (browser && origins.length === 0) {
+    fail("`browser: true` needs at least one origin, as in the real registry");
+  }
+  if (login !== null && (typeof login !== "string" || login === "")) {
+    fail("`login` must be a non-empty string (the login JWT /exchange takes)");
+  }
+  return { key, app, scopes: [...scopes], origins: [...origins], browser, login };
 }
 
 /**
@@ -1808,29 +1929,36 @@ function presentedTokens(url, request) {
  */
 export function createFakeGateway(options = {}) {
   const {
-    token,
+    key,
     specPath,
-    allowedOrigins = [],
+    scopes = SCOPES,
+    origins = [],
+    browser = false,
+    login = null,
     timeZone = null,
     app = "fake-app",
     extensionApps = [],
   } = options;
-  if (typeof token !== "string") {
-    throw new Error("createFakeGateway: `token` (string) is required");
-  }
-  if (typeof app !== "string" || app === "claude" || !/^[a-z][a-z0-9-]{1,31}$/.test(app)) {
+  if ("token" in options || "allowedOrigins" in options) {
     throw new Error(
-      'createFakeGateway: `app` must be an extension_apps.slug (^[a-z][a-z0-9-]{1,31}$), not "claude"',
+      "createFakeGateway: `token` and `allowedOrigins` were gateway 1.x. Since " +
+        "2.0.0 the fake takes `key` (an lek_ key, sent as Authorization: Bearer " +
+        "on POST /mcp — never in the path) and `origins` + `browser` + `login` " +
+        "for the browser path. See this file's header.",
     );
   }
+  const entry = appEntry({ key, app, scopes, origins, browser, login });
   const spec = specPath ? loadSpec(specPath) : DEFAULT_SPEC;
   const toolSpecs = new Map(spec.tools.map((t) => [t.name, t]));
-  const toolList = spec.tools.map((t) => ({
-    name: t.name,
-    description: t.description,
-    inputSchema: t.inputSchema,
-  }));
-  const allowed = new Set(allowedOrigins);
+  // What tools/list shows this key: only the tools its scopes cover.
+  const toolList = spec.tools
+    .filter((t) => entry.scopes.includes(t.access))
+    .map((t) => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: t.inputSchema,
+    }));
+  const sessionSecret = randomBytes(32).toString("hex");
   const clock = makeClock(timeZone);
 
   const state = { store: createStore() };
@@ -1849,6 +1977,13 @@ export function createFakeGateway(options = {}) {
     if (!toolSpec) throw notFoundError(`Unknown tool: ${name}`);
     validateToolArgs(name, toolSpec.inputSchema, args);
     const ignored = unknownArgNames(toolSpec.inputSchema, args);
+    // gatewayGuard.assertMayRun: after validation, before the handler. A tool
+    // hidden from tools/list is still found, and refused here.
+    if (!entry.scopes.includes(toolSpec.access)) {
+      throw forbidden(
+        `Forbidden: this key has no ${toolSpec.access} scope for ${name}`,
+      );
+    }
 
     // The spec's conditional rules. A handler that takes `ctx` applies them
     // at the point the real handler checks them (after its own format
@@ -1936,27 +2071,94 @@ export function createFakeGateway(options = {}) {
     }
   }
 
-  async function serve(request, url) {
-    if (request.method === "GET" && url.pathname === "/health") {
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: JSON_HEADERS,
-      });
+  /** gatewayAuth.authenticate for the one app: "key", "session" or null. */
+  function authenticate(credential) {
+    if (credential.startsWith(KEY_PREFIX)) {
+      return secretEquals(credential, entry.key) ? "key" : null;
+    }
+    if (credential.startsWith(SESSION_PREFIX)) {
+      const rest = credential.slice(SESSION_PREFIX.length);
+      const dot = rest.indexOf(".");
+      if (dot < 1) return null;
+      const body = rest.slice(0, dot);
+      if (!secretEquals(rest.slice(dot + 1), sign(sessionSecret, body))) {
+        return null;
+      }
+      let payload;
+      try {
+        payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8"));
+      } catch {
+        return null;
+      }
+      if (typeof payload?.a !== "string" || typeof payload.e !== "number") {
+        return null;
+      }
+      if (Date.now() >= payload.e * 1000) return null;
+      if (payload.a !== entry.app || !entry.browser || payload.c !== "owner") {
+        return null;
+      }
+      return "session";
+    }
+    // A login JWT, a path-style shared secret, anything else.
+    return null;
+  }
+
+  /** OPTIONS on any path: 204, with the CORS headers only for a registered origin. */
+  function preflight(origin) {
+    if (!origin || !entry.browser || !entry.origins.includes(origin)) {
+      return new Response(null, { status: 204, headers: { vary: "Origin" } });
+    }
+    return new Response(null, {
+      status: 204,
+      headers: {
+        ...corsHeaders(origin),
+        "access-control-allow-methods": "POST, OPTIONS",
+        "access-control-allow-headers": ALLOWED_HEADERS,
+        "access-control-max-age": "600",
+      },
+    });
+  }
+
+  /** POST /exchange — every refusal the same bare 404, as in gatewayWorker.ts. */
+  async function exchange(request, origin) {
+    const auth = request.headers.get("authorization");
+    if (request.method !== "POST" || !origin || !auth) return notFound();
+    if (!auth.startsWith("Bearer ")) return notFound();
+    const jwt = auth.slice("Bearer ".length).trim();
+
+    let appName;
+    try {
+      appName = (await request.json())?.app;
+    } catch {
+      return notFound();
+    }
+    if (
+      appName !== entry.app ||
+      !entry.browser ||
+      !entry.origins.includes(origin)
+    ) {
+      return notFound();
+    }
+    // KNOWN_DIFFERENCES 12: the configured login stands in for Supabase Auth.
+    if (entry.login === null || !secretEquals(jwt, entry.login)) {
+      return notFound();
     }
 
-    const presented = presentedTokens(url, request);
-    const authorized =
-      token !== "" &&
-      isMcpPath(url.pathname) &&
-      presented.some((candidate) => secretEquals(candidate, token));
-    if (!authorized) return notFound();
+    const session = mintSession(sessionSecret, entry.app, Date.now());
+    return withHeaders(
+      new Response(
+        JSON.stringify({
+          token: session.token,
+          expiresAt: session.expiresAt,
+          app: entry.app,
+        }),
+        { headers: { ...JSON_HEADERS, "cache-control": "no-store" } },
+      ),
+      corsHeaders(origin),
+    );
+  }
 
-    if (request.method !== "POST") {
-      return new Response("Method not allowed", {
-        status: 405,
-        headers: { allow: "POST" },
-      });
-    }
-
+  async function readMessage(request) {
     let body;
     try {
       body = await request.json();
@@ -1986,31 +2188,32 @@ export function createFakeGateway(options = {}) {
     async fetch(request) {
       const url = new URL(request.url);
       const origin = request.headers.get("origin");
-      const corsOrigin = origin !== null && allowed.has(origin) ? origin : null;
 
-      // Preflight carries no credentials, so it is answered before the token
-      // check — only for an allowed Origin, and only on the MCP path.
-      if (
-        request.method === "OPTIONS" &&
-        corsOrigin &&
-        isMcpPath(url.pathname)
-      ) {
-        return new Response(null, {
-          status: 204,
-          headers: {
-            "access-control-allow-origin": corsOrigin,
-            "access-control-allow-methods": "POST, OPTIONS",
-            "access-control-allow-headers": "content-type, authorization",
-            vary: "Origin",
-          },
+      if (request.method === "GET" && url.pathname === "/health") {
+        return new Response(JSON.stringify({ ok: true }), {
+          headers: JSON_HEADERS,
         });
       }
+      if (request.method === "OPTIONS") return preflight(origin);
+      if (url.pathname === "/exchange") return exchange(request, origin);
+      // The header only: /mcp/<anything> is a 404, whatever it carries.
+      if (url.pathname !== "/mcp") return notFound();
 
-      const response = await serve(request, url);
-      if (allowed.size > 0) response.headers.append("vary", "Origin");
-      if (corsOrigin)
-        response.headers.set("access-control-allow-origin", corsOrigin);
-      return response;
+      const credential = bearerOf(request);
+      const kind = credential === null ? null : authenticate(credential);
+      if (!kind) return notFound();
+
+      // Only a session token, from one of its app's origins, may be read by a
+      // page; a key gets no CORS header from any origin.
+      const cors =
+        kind === "session" && origin && entry.origins.includes(origin)
+          ? corsHeaders(origin)
+          : null;
+
+      if (request.method !== "POST") {
+        return withHeaders(methodNotAllowed(), cors);
+      }
+      return withHeaders(await readMessage(request), cors);
     },
     calls() {
       return recorded.map((call) => ({ ...call }));
@@ -2034,7 +2237,7 @@ const SKIPPED_REQUEST_HEADERS = new Set([
 
 /**
  * Serve `gateway` on `port` (0 = any free one) at 127.0.0.1. Adds the
- * test-double routes GET /__calls and POST /__reset (no token — see header).
+ * test-double routes GET /__calls and POST /__reset (no key — see header).
  */
 export function listen(gateway, port = 0, host = "127.0.0.1") {
   const server = createServer(async (req, res) => {
@@ -2097,40 +2300,61 @@ export function listen(gateway, port = 0, host = "127.0.0.1") {
 
 /* ---- command line -------------------------------------------------------- */
 
+const USAGE =
+  "usage: node extension-gateway-fake.mjs [--port 8787] [--key lek_<8 hex>_<64 hex>] " +
+  "[--app <slug>] [--scopes read,write] [--origin <origin>]... [--browser] " +
+  "[--login <jwt>] [--spec <path>] [--tz <IANA zone>]";
+
 function parseArgv(argv) {
-  const out = { origins: [] };
+  const out = { origins: [], browser: false };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
     const value = argv[i + 1];
     if (flag === "--port") ((out.port = Number(value)), i++);
-    else if (flag === "--token") ((out.token = value), i++);
+    else if (flag === "--key") ((out.key = value), i++);
+    else if (flag === "--app") ((out.app = value), i++);
+    else if (flag === "--scopes") ((out.scopes = value.split(",")), i++);
     else if (flag === "--origin") (out.origins.push(value), i++);
+    else if (flag === "--browser") out.browser = true;
+    else if (flag === "--login") ((out.login = value), i++);
     else if (flag === "--spec") ((out.spec = value), i++);
     else if (flag === "--tz") ((out.tz = value), i++);
+    else if (flag === "--token") {
+      console.error(
+        "--token was gateway 1.x. Pass --key lek_... (or none, and one is " +
+          "printed) and send it as Authorization: Bearer on POST /mcp.\n" +
+          USAGE,
+      );
+      process.exit(1);
+    }
   }
   return out;
 }
 
 async function main() {
   const argv = parseArgv(process.argv.slice(2));
-  const token = argv.token ?? process.env.FAKE_GATEWAY_TOKEN;
-  if (!token) {
-    console.error(
-      "usage: node extension-gateway-fake.mjs --token <token> [--port 8787] " +
-        "[--origin <allowed origin>]... [--spec <path>] [--tz <IANA zone>]",
-    );
+  const key = argv.key ?? process.env.FAKE_GATEWAY_KEY ?? generateFakeKey();
+  let gateway;
+  try {
+    gateway = createFakeGateway({
+      key,
+      ...(argv.app ? { app: argv.app } : {}),
+      ...(argv.scopes ? { scopes: argv.scopes } : {}),
+      origins: argv.origins,
+      browser: argv.browser,
+      login: argv.login ?? process.env.FAKE_GATEWAY_LOGIN ?? null,
+      specPath: argv.spec,
+      timeZone: argv.tz ?? null,
+    });
+  } catch (error) {
+    console.error(`${error instanceof Error ? error.message : error}\n${USAGE}`);
     process.exit(1);
   }
-  const gateway = createFakeGateway({
-    token,
-    specPath: argv.spec,
-    allowedOrigins: argv.origins,
-    timeZone: argv.tz ?? null,
-  });
   const { url } = await listen(gateway, argv.port ?? 8787);
   console.log(
     `extension-gateway-fake ${GATEWAY_VERSION} (life-editor ${LIFE_EDITOR_COMMIT}) ` +
-      `listening on ${url}/mcp/<token> — GET /__calls, POST /__reset`,
+      `listening on ${url} — POST /mcp with Authorization: Bearer ${key}` +
+      `${argv.browser ? ", POST /exchange" : ""} — GET /__calls, POST /__reset`,
   );
 }
 

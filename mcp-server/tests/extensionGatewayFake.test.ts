@@ -17,10 +17,12 @@ import {
 } from "./supabaseStub.js";
 import {
   createFakeGateway,
+  generateFakeKey,
   listen,
   GATEWAY_VERSION,
   LIFE_EDITOR_COMMIT,
   type FakeGateway,
+  type FakeGatewayOptions,
   type ListeningFake,
 } from "../mocks/extension-gateway-fake.mjs";
 import type {
@@ -28,7 +30,7 @@ import type {
   GatewayToolSpec,
   ResultShape,
 } from "../src/extensionGateway.js";
-import type { WorkerEnv } from "../src/worker.js";
+import type { GatewayEnv } from "../src/gatewayWorker.js";
 
 /*
  * The official fake (mocks/extension-gateway-fake.mjs, #2145) against the
@@ -36,11 +38,12 @@ import type { WorkerEnv } from "../src/worker.js";
  *
  * Every case below runs the same arguments through the fake and through
  * `extensionRegistry.call` — the real validator and the real handlers — and
- * then through the same HTTP requests to `fake.fetch` and the Worker's
- * `fetch`. If the two disagree on whether a call succeeds, on the words of a
- * refusal, on the Note about an undeclared argument, or on the keys a result
- * carries, a test here fails. That is what lets pdca-harness trust a green run
- * against the fake.
+ * then through the same HTTP requests to `fake.fetch` and the gateway Worker's
+ * `fetch` (gatewayWorker.ts: keys, sessions from /exchange, CORS, scopes). If
+ * the two disagree on whether a call succeeds, on the words of a refusal, on
+ * the Note about an undeclared argument, on the keys a result carries, or on
+ * a status or CORS header, a test here fails. That is what lets pdca-harness
+ * trust a green run against the fake.
  *
  * WHAT THE STUB CAN AND CANNOT SAY. The real side runs on tests/supabaseStub.ts,
  * which does not apply writes. Two stubs are used:
@@ -96,7 +99,7 @@ const REAL_ID = ANY_ROW.id;
 let stub: SupabaseStub = createSupabaseStub();
 vi.mock("../src/supabase.js", () => ({
   getSupabase: async () => stub,
-  // worker.ts configures per request; nothing here may reach a network.
+  // The Worker configures per request; nothing here may reach a network.
   configureSupabase: () => {},
   resetSupabaseForTests: () => {},
 }));
@@ -111,7 +114,9 @@ const { extensionRegistry } = await import("../src/extensionGateway.js");
 const { runAs } = await import("../src/callerContext.js");
 const { codeOf } = await import("../src/errorCodes.js");
 const { requestHash } = await import("../src/utils/originKey.js");
-const { default: worker } = await import("../src/worker.js");
+const { default: gatewayWorker } = await import("../src/gatewayWorker.js");
+const { generateKey, mintSession, parseGatewayConfig } =
+  await import("../src/gatewayAuth.js");
 const { configureTimeZone } = await import("../src/utils/localDate.js");
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -125,19 +130,71 @@ const toolSpec = (name: string): GatewayToolSpec => {
   return found;
 };
 
-const TOKEN = "test-token-0123456789abcdef";
-const ENV: WorkerEnv = {
-  LIFE_EDITOR_MCP_TOKEN: TOKEN,
-  LIFE_EDITOR_SUPABASE_URL: "https://example.supabase.co",
-  LIFE_EDITOR_SUPABASE_ANON_KEY: "anon-key",
-  LIFE_EDITOR_SUPABASE_EMAIL: "owner@example.com",
-  LIFE_EDITOR_SUPABASE_PASSWORD: "not-a-real-password",
-  LIFE_EDITOR_TZ: "Asia/Tokyo",
+/*
+ * The credentials. Each fake below is configured like one entry of the real
+ * LIFE_EDITOR_GATEWAY_APPS secret, and `gatewayEnv` writes the same entries
+ * into the real Worker's env: the key's hash, the scopes, the origins, the
+ * browser flag. The login JWT is what /exchange takes; the real side asks
+ * Supabase Auth (a stubbed fetch) whose it is.
+ */
+const ISSUED = await generateKey();
+const KEY = ISSUED.key;
+const READ_ISSUED = await generateKey();
+const WRITE_ISSUED = await generateKey();
+const ORIGIN = "https://parity.example";
+const LOGIN = "login-jwt-of-the-owner";
+const OWNER_EMAIL = "owner@example.com";
+const SESSION_SECRET = "session-secret-0123456789abcdef";
+
+interface AppConfig {
+  issued: { key: string; id: string; hash: string };
+  app: string;
+  scopes?: Array<"read" | "write">;
+  origins?: string[];
+  browser?: boolean;
+}
+
+/** The real Worker's env, registering exactly these apps. */
+function gatewayEnv(apps: AppConfig[]): GatewayEnv {
+  return {
+    LIFE_EDITOR_GATEWAY_APPS: JSON.stringify({
+      apps: apps.map(({ issued, ...entry }) => ({
+        ...entry,
+        keys: [{ id: issued.id, hash: issued.hash }],
+      })),
+    }),
+    LIFE_EDITOR_GATEWAY_SESSION_SECRET: SESSION_SECRET,
+    LIFE_EDITOR_SUPABASE_URL: "https://example.supabase.co",
+    LIFE_EDITOR_SUPABASE_ANON_KEY: "anon-key",
+    LIFE_EDITOR_SUPABASE_EMAIL: OWNER_EMAIL,
+    LIFE_EDITOR_SUPABASE_PASSWORD: "not-a-real-password",
+    LIFE_EDITOR_TZ: "Asia/Tokyo",
+  };
+}
+
+/** The fake for the same app. */
+function fakeFor(
+  config: AppConfig,
+  extra: Partial<FakeGatewayOptions> = {},
+): FakeGateway {
+  const { issued, ...entry } = config;
+  return createFakeGateway({ key: issued.key, ...entry, ...extra });
+}
+
+/** The browser app every HTTP comparison runs as unless it says otherwise. */
+const BROWSER_APP: AppConfig = {
+  issued: ISSUED,
+  app: "parity-app",
+  browser: true,
+  origins: [ORIGIN],
 };
+const ENV = gatewayEnv([BROWSER_APP]);
 
 afterEach(() => {
   // The Worker pins the zone per request; leave none of it behind.
   configureTimeZone(null);
+  vi.unstubAllGlobals();
+  vi.useRealTimers();
 });
 
 /* ---- outcomes ------------------------------------------------------------ */
@@ -220,14 +277,19 @@ async function realOutcome(name: string, args: Args): Promise<Outcome> {
   }
 }
 
+/** One JSON-RPC POST to /mcp, with the browser app's key unless `credential` says otherwise. */
 function rpcRequest(
   method: string,
   params?: Record<string, unknown>,
-  path = `/mcp/${TOKEN}`,
+  { credential = KEY, origin }: { credential?: string; origin?: string } = {},
 ): Request {
-  return new Request(`https://mcp.example.com${path}`, {
+  return new Request("https://mcp.example.com/mcp", {
     method: "POST",
-    headers: { "content-type": "application/json" },
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${credential}`,
+      ...(origin ? { origin } : {}),
+    },
     body: JSON.stringify({ jsonrpc: "2.0", id: 1, method, params }),
   });
 }
@@ -302,7 +364,7 @@ interface Seeded {
 
 /** A fresh fake holding one todo (tagged "seed"), one note, one timed and one all-day event, and one record. */
 async function seededFake(): Promise<Seeded> {
-  const gateway = createFakeGateway({ token: TOKEN, app: APP.app });
+  const gateway = createFakeGateway({ key: KEY, app: APP.app });
   const todo = await fakeResult(gateway, "create_todo", { title: "Renewal" });
   const note = await fakeResult(gateway, "create_note", {
     title: "Renewal plans",
@@ -1258,7 +1320,7 @@ function withNullFilters(tables: StubTables): (call: QueryCall) => unknown {
 
 describe("same state, same answer: the read tools against rows mirrored from the fake", () => {
   async function build() {
-    const gateway = createFakeGateway({ token: TOKEN });
+    const gateway = createFakeGateway({ key: KEY });
     const todos = [
       await fakeResult(gateway, "create_todo", {
         title: "Renewal call",
@@ -1427,7 +1489,7 @@ describe("same records, same answer: list_records and list_extension_apps", () =
 
   async function build() {
     const gateway = createFakeGateway({
-      token: TOKEN,
+      key: KEY,
       app: APP.app,
       extensionApps: LEDGER,
     });
@@ -1531,94 +1593,180 @@ describe("same records, same answer: list_records and list_extension_apps", () =
 
 /* ---- HTTP surface -------------------------------------------------------- */
 
-describe("the HTTP surface matches the Worker's", () => {
-  const fake = createFakeGateway({ token: TOKEN });
+/** The headers a comparison holds the two sides to. */
+const COMPARED_HEADERS = [
+  "allow",
+  "content-type",
+  "www-authenticate",
+  "cache-control",
+  "vary",
+  "access-control-allow-origin",
+  "access-control-allow-methods",
+  "access-control-allow-headers",
+  "access-control-max-age",
+];
 
-  async function both(make: () => Request) {
-    useRealStub("anyRow");
-    const f = await fake.fetch(make());
-    const r = await worker.fetch(make(), ENV);
-    return { f, r };
-  }
+function headersOf(res: Response): Record<string, string | null> {
+  return Object.fromEntries(
+    COMPARED_HEADERS.map((name) => [name, res.headers.get(name)]),
+  );
+}
 
-  async function expectSame(make: () => Request) {
-    const { f, r } = await both(make);
-    expect(f.status).toBe(r.status);
-    expect(f.headers.get("allow")).toBe(r.headers.get("allow"));
-    expect(f.headers.get("content-type")).toBe(r.headers.get("content-type"));
-    expect(f.headers.get("www-authenticate")).toBe(
-      r.headers.get("www-authenticate"),
+/** Every access-control-* header — what a page needs to read a response. */
+const corsNames = (res: Response): string[] =>
+  [...res.headers.keys()].filter((k) => k.startsWith("access-control-")).sort();
+
+/** `make` builds the request once per side: a Request body can be read only once. */
+async function bothSides(
+  fake: FakeGateway,
+  env: GatewayEnv,
+  make: () => Request,
+): Promise<{ f: Response; r: Response }> {
+  useRealStub("anyRow");
+  const f = await fake.fetch(make());
+  const r = await gatewayWorker.fetch(make(), env);
+  return { f, r };
+}
+
+/** Same status, same compared headers, same CORS header names, same body. */
+async function expectSameResponses(
+  f: Response,
+  r: Response,
+): Promise<{ status: number; headers: Record<string, string | null> }> {
+  expect(f.status, "status").toBe(r.status);
+  expect(headersOf(f), "headers").toEqual(headersOf(r));
+  expect(corsNames(f), "access-control-* names").toEqual(corsNames(r));
+  expect(await f.text()).toBe(await r.text());
+  return { status: f.status, headers: headersOf(f) };
+}
+
+async function expectSameResponse(
+  fake: FakeGateway,
+  env: GatewayEnv,
+  make: () => Request,
+): Promise<{ status: number; headers: Record<string, string | null> }> {
+  const { f, r } = await bothSides(fake, env, make);
+  return expectSameResponses(f, r);
+}
+
+const post =
+  (path: string, body: unknown, headers: Record<string, string> = {}) =>
+  () =>
+    new Request(`https://mcp.example.com${path}`, {
+      method: "POST",
+      headers: { "content-type": "application/json", ...headers },
+      body: typeof body === "string" ? body : JSON.stringify(body),
+    });
+const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
+const BEARER = { authorization: `Bearer ${KEY}` };
+
+describe("the HTTP surface matches the gateway Worker's", () => {
+  const fake = fakeFor(BROWSER_APP);
+  const expectSame = (make: () => Request) =>
+    expectSameResponse(fake, ENV, make);
+
+  it("accepts the key as a Bearer header on /mcp", async () => {
+    const { status } = await expectSame(post("/mcp", ping, BEARER));
+    expect(status).toBe(200);
+  });
+
+  it("404s a request with no credential", async () => {
+    expect((await expectSame(post("/mcp", ping))).status).toBe(404);
+  });
+
+  it("404s a wrong key of the right shape", async () => {
+    const wrong = `lek_${"0".repeat(8)}_${"0".repeat(64)}`;
+    const { status } = await expectSame(
+      post("/mcp", ping, { authorization: `Bearer ${wrong}` }),
     );
-    expect(await f.text()).toBe(await r.text());
-  }
+    expect(status).toBe(404);
+  });
 
-  const post =
-    (path: string, body: unknown, headers: Record<string, string> = {}) =>
-    () =>
-      new Request(`https://mcp.example.com${path}`, {
-        method: "POST",
-        headers: { "content-type": "application/json", ...headers },
-        body: typeof body === "string" ? body : JSON.stringify(body),
-      });
-  const ping = { jsonrpc: "2.0", id: 1, method: "ping" };
+  it("404s a malformed key, a bare shared secret and a login JWT", async () => {
+    for (const credential of [
+      `${KEY}0`,
+      "lek_nothex",
+      "test-token-0123456789abcdef",
+      "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiJvd25lciJ9.c2ln",
+    ]) {
+      const { status } = await expectSame(
+        post("/mcp", ping, { authorization: `Bearer ${credential}` }),
+      );
+      expect(status, credential).toBe(404);
+    }
+  });
 
-  it("404s a wrong token", () =>
-    expectSame(post("/mcp/wrong-token-0123456789abcde", ping)));
-  it("404s a missing token", () => expectSame(post("/mcp", ping)));
-  it("404s the neighbouring path /mcp-public/<token>", () =>
-    expectSame(post(`/mcp-public/${TOKEN}`, ping)));
-  it("404s an unrelated path", () => expectSame(post("/elsewhere", ping)));
-  it("404s a wrong Bearer token", () =>
-    expectSame(post("/mcp", ping, { authorization: "Bearer nope" })));
-  it("accepts the Bearer header form", () =>
-    expectSame(post("/mcp", ping, { authorization: `Bearer ${TOKEN}` })));
-  it("accepts a correct path even beside an unrelated Authorization header", () =>
-    expectSame(post(`/mcp/${TOKEN}`, ping, { authorization: "Basic abc" })));
-  it("405s a GET after auth, with allow: POST", () =>
-    expectSame(() => new Request(`https://mcp.example.com/mcp/${TOKEN}`)));
-  it("405s a DELETE after auth", () =>
-    expectSame(
-      () =>
-        new Request(`https://mcp.example.com/mcp/${TOKEN}`, {
-          method: "DELETE",
-        }),
-    ));
-  it("404s a GET without a token (the method is not admitted to first)", () =>
+  it("404s the key sent with another scheme than Bearer", async () => {
+    for (const authorization of [`Basic ${KEY}`, `bearer ${KEY}`, KEY]) {
+      const { status } = await expectSame(
+        post("/mcp", ping, { authorization }),
+      );
+      expect(status, authorization).toBe(404);
+    }
+  });
+
+  it("404s the key in the path, with or without the header beside it", async () => {
+    expect((await expectSame(post(`/mcp/${KEY}`, ping))).status).toBe(404);
+    expect((await expectSame(post(`/mcp/${KEY}`, ping, BEARER))).status).toBe(
+      404,
+    );
+  });
+
+  it("404s the neighbouring path /mcp-public and an unrelated path", async () => {
+    expect((await expectSame(post("/mcp-public", ping, BEARER))).status).toBe(
+      404,
+    );
+    expect((await expectSame(post("/elsewhere", ping, BEARER))).status).toBe(
+      404,
+    );
+  });
+
+  it("405s a GET and a DELETE after auth, with allow: POST", async () => {
+    for (const method of ["GET", "DELETE"]) {
+      const { status, headers } = await expectSame(
+        () =>
+          new Request("https://mcp.example.com/mcp", {
+            method,
+            headers: BEARER,
+          }),
+      );
+      expect(status, method).toBe(405);
+      expect(headers.allow).toBe("POST");
+    }
+  });
+
+  it("404s a GET without a credential (the method is not admitted to first)", () =>
     expectSame(() => new Request("https://mcp.example.com/mcp")));
   it("answers /health", () =>
     expectSame(() => new Request("https://mcp.example.com/health")));
   it("reports invalid JSON as -32700 at HTTP 200", () =>
-    expectSame(post(`/mcp/${TOKEN}`, "{not json")));
+    expectSame(post("/mcp", "{not json", BEARER)));
   it("refuses a batch with -32600", () =>
-    expectSame(post(`/mcp/${TOKEN}`, [ping])));
-  it("refuses a non-object body", () =>
-    expectSame(post(`/mcp/${TOKEN}`, "42")));
-  it("refuses a null body", () => expectSame(post(`/mcp/${TOKEN}`, "null")));
+    expectSame(post("/mcp", [ping], BEARER)));
+  it("refuses a non-object body", () => expectSame(post("/mcp", "42", BEARER)));
+  it("refuses a null body", () => expectSame(post("/mcp", "null", BEARER)));
   it("refuses a message without a method", () =>
-    expectSame(post(`/mcp/${TOKEN}`, { jsonrpc: "2.0", id: 1 })));
+    expectSame(post("/mcp", { jsonrpc: "2.0", id: 1 }, BEARER)));
   it("answers a notification with 202 and no body", () =>
     expectSame(
-      post(`/mcp/${TOKEN}`, {
-        jsonrpc: "2.0",
-        method: "notifications/initialized",
-      }),
+      post(
+        "/mcp",
+        { jsonrpc: "2.0", method: "notifications/initialized" },
+        BEARER,
+      ),
     ));
   it("answers id: null as a notification too", () =>
     expectSame(
-      post(`/mcp/${TOKEN}`, { jsonrpc: "2.0", id: null, method: "ping" }),
+      post("/mcp", { jsonrpc: "2.0", id: null, method: "ping" }, BEARER),
     ));
-  it("answers ping", () => expectSame(post(`/mcp/${TOKEN}`, ping)));
+  it("answers ping", () => expectSame(post("/mcp", ping, BEARER)));
   it("echoes a string id", () =>
     expectSame(
-      post(`/mcp/${TOKEN}`, { jsonrpc: "2.0", id: "abc", method: "ping" }),
+      post("/mcp", { jsonrpc: "2.0", id: "abc", method: "ping" }, BEARER),
     ));
   it("reports an unknown method with -32601", () =>
     expectSame(
-      post(`/mcp/${TOKEN}`, {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "resources/list",
-      }),
+      post("/mcp", { jsonrpc: "2.0", id: 1, method: "resources/list" }, BEARER),
     ));
 
   for (const version of [
@@ -1628,12 +1776,16 @@ describe("the HTTP surface matches the Worker's", () => {
   ]) {
     it(`initialize with protocolVersion ${String(version)}`, () =>
       expectSame(
-        post(`/mcp/${TOKEN}`, {
-          jsonrpc: "2.0",
-          id: 1,
-          method: "initialize",
-          params: version === undefined ? {} : { protocolVersion: version },
-        }),
+        post(
+          "/mcp",
+          {
+            jsonrpc: "2.0",
+            id: 1,
+            method: "initialize",
+            params: version === undefined ? {} : { protocolVersion: version },
+          },
+          BEARER,
+        ),
       ));
   }
 
@@ -1645,7 +1797,8 @@ describe("the HTTP surface matches the Worker's", () => {
     expect(body.result.protocolVersion).toBe(LATEST_PROTOCOL_VERSION);
   });
 
-  it("lists exactly the spec's tools, as the gateway registry publishes them", async () => {
+  it("lists exactly the spec's tools, as the gateway Worker publishes them", async () => {
+    await expectSame(() => rpcRequest("tools/list"));
     const res = await fake.fetch(rpcRequest("tools/list"));
     const body = (await res.json()) as {
       result: { tools: Array<{ name: string }> };
@@ -1654,8 +1807,6 @@ describe("the HTTP surface matches the Worker's", () => {
       committed.tools.map((t) => t.name),
     );
     expect(body.result.tools).toHaveLength(28);
-    // The real Worker lists the whole remote set; the gateway's registry is
-    // the one the fake stands in for.
     expect(body.result.tools).toEqual(
       JSON.parse(JSON.stringify(extensionRegistry.tools)),
     );
@@ -1689,13 +1840,14 @@ describe("the HTTP surface matches the Worker's", () => {
       rpcRequest("tools/call", { name: "list_todos", arguments: "x" }),
     ));
   it("answers a tools/call that reaches a handler with the same envelope", async () => {
-    const { f, r } = await both(() =>
+    const { f, r } = await bothSides(fake, ENV, () =>
       rpcRequest("tools/call", {
         name: "create_todo",
         arguments: { title: "x", memo: "y" },
       }),
     );
     expect(f.status).toBe(r.status);
+    expect(headersOf(f)).toEqual(headersOf(r));
     const fb = (await f.json()) as ToolCallBody & {
       jsonrpc: string;
       id: number;
@@ -1723,7 +1875,7 @@ describe("the HTTP surface matches the Worker's", () => {
 /* ---- over a real socket -------------------------------------------------- */
 
 describe("listen() serves the fake over node:http", () => {
-  const gateway = createFakeGateway({ token: TOKEN });
+  const gateway = createFakeGateway({ key: KEY });
   let server: ListeningFake | undefined;
 
   afterAll(async () => {
@@ -1734,16 +1886,21 @@ describe("listen() serves the fake over node:http", () => {
     server = await listen(gateway, 0);
     expect(server.port).toBeGreaterThan(0);
     const base = `http://127.0.0.1:${server.port}`;
+    const call = (id: number, params: Record<string, unknown>) =>
+      fetch(`${base}/mcp`, {
+        method: "POST",
+        headers: { "content-type": "application/json", ...BEARER },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id,
+          method: "tools/call",
+          params,
+        }),
+      });
 
-    const created = await fetch(`${base}/mcp/${TOKEN}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 7,
-        method: "tools/call",
-        params: { name: "create_todo", arguments: { title: "Over the wire" } },
-      }),
+    const created = await call(7, {
+      name: "create_todo",
+      arguments: { title: "Over the wire" },
     });
     expect(created.status).toBe(200);
     const body = (await created.json()) as ToolCallBody & { id: number };
@@ -1751,16 +1908,7 @@ describe("listen() serves the fake over node:http", () => {
     const todo = JSON.parse(body.result.content[0].text) as { id: string };
     expect(todo.id).toMatch(/^task-/);
 
-    const refused = await fetch(`${base}/mcp/${TOKEN}`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 8,
-        method: "tools/call",
-        params: { name: "get_todo", arguments: {} },
-      }),
-    });
+    const refused = await call(8, { name: "get_todo", arguments: {} });
     expect(((await refused.json()) as ToolCallBody).result.isError).toBe(true);
 
     const calls = (await (await fetch(`${base}/__calls`)).json()) as Array<{
@@ -1780,11 +1928,11 @@ describe("listen() serves the fake over node:http", () => {
     );
     expect(Number.isNaN(Date.parse(calls[0].timestamp))).toBe(false);
 
-    // 404 / 405 travel over the socket unchanged.
-    expect((await fetch(`${base}/mcp/wrong`, { method: "POST" })).status).toBe(
+    // 404 / 405 travel over the socket unchanged, and the path is no way in.
+    expect((await fetch(`${base}/mcp/${KEY}`, { method: "POST" })).status).toBe(
       404,
     );
-    const get = await fetch(`${base}/mcp/${TOKEN}`);
+    const get = await fetch(`${base}/mcp`, { headers: BEARER });
     expect(get.status).toBe(405);
     expect(get.headers.get("allow")).toBe("POST");
 
@@ -1793,22 +1941,15 @@ describe("listen() serves the fake over node:http", () => {
     expect(await (await fetch(`${base}/__calls`)).json()).toEqual([]);
 
     // The store went with it.
-    const after = await fetch(`${base}/mcp/${TOKEN}`, {
-      method: "POST",
-      headers: { authorization: `Bearer ${TOKEN}` },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 9,
-        method: "tools/call",
-        params: { name: "get_todo", arguments: { id: todo.id } },
-      }),
+    const after = await call(9, {
+      name: "get_todo",
+      arguments: { id: todo.id },
     });
     expect(((await after.json()) as ToolCallBody).result.content[0].text).toBe(
       `Error: Todo not found: ${todo.id}`,
     );
   });
 });
-
 /* ---- the header, the version, the imports -------------------------------- */
 
 describe("the fake states which gateway it is", () => {
@@ -1841,88 +1982,467 @@ describe("the fake states which gateway it is", () => {
   });
 });
 
-/* ---- CORS (fake only until #2146) ---------------------------------------- */
+/* ---- the browser path: /exchange, sessions, CORS (plan R4) --------------- */
 
-describe("CORS on the fake (plan R4)", () => {
-  const ORIGIN = "http://localhost:5173";
-  const fake = createFakeGateway({ token: TOKEN, allowedOrigins: [ORIGIN] });
-  const preflight = (origin?: string) =>
-    new Request(`https://mcp.example.com/mcp/${TOKEN}`, {
-      method: "OPTIONS",
+/** Supabase Auth as the real /exchange asks it: LOGIN is the owner's, nothing else is anyone's. */
+function stubSupabaseAuth(): void {
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url: unknown, init?: RequestInit) => {
+      const auth = (init?.headers as Record<string, string> | undefined)
+        ?.authorization;
+      return auth === `Bearer ${LOGIN}`
+        ? new Response(JSON.stringify({ email: OWNER_EMAIL }), { status: 200 })
+        : new Response("no", { status: 401 });
+    }),
+  );
+}
+
+interface ExchangeOptions {
+  authorization?: string | null;
+  origin?: string | null;
+  method?: string;
+  body?: unknown;
+}
+
+const exchangeRequest =
+  ({
+    authorization = `Bearer ${LOGIN}`,
+    origin = ORIGIN,
+    method = "POST",
+    body = { app: BROWSER_APP.app },
+  }: ExchangeOptions = {}) =>
+  () =>
+    new Request("https://mcp.example.com/exchange", {
+      method,
       headers: {
+        "content-type": "application/json",
+        ...(authorization ? { authorization } : {}),
         ...(origin ? { origin } : {}),
-        "access-control-request-method": "POST",
-        "access-control-request-headers": "content-type, authorization",
       },
+      body:
+        method === "GET"
+          ? undefined
+          : typeof body === "string"
+            ? body
+            : JSON.stringify(body),
     });
-  const corsHeaders = (res: Response) =>
-    [...res.headers.keys()].filter((k) => k.startsWith("access-control-"));
 
-  it("answers a preflight from an allowed origin with 204 and the allow headers", async () => {
-    const res = await fake.fetch(preflight(ORIGIN));
-    expect(res.status).toBe(204);
-    expect(res.headers.get("access-control-allow-origin")).toBe(ORIGIN);
-    expect(res.headers.get("access-control-allow-methods")).toBe(
-      "POST, OPTIONS",
-    );
-    expect(res.headers.get("access-control-allow-headers")).toBe(
-      "content-type, authorization",
-    );
-    expect(res.headers.get("vary")).toBe("Origin");
+const preflight = (path: string, origin?: string) => () =>
+  new Request(`https://mcp.example.com${path}`, {
+    method: "OPTIONS",
+    headers: {
+      ...(origin ? { origin } : {}),
+      "access-control-request-method": "POST",
+      "access-control-request-headers": "content-type, authorization",
+    },
   });
 
-  it("puts Access-Control-Allow-Origin on the actual POST from an allowed origin", async () => {
-    const res = await fake.fetch(
-      new Request(`https://mcp.example.com/mcp/${TOKEN}`, {
-        method: "POST",
-        headers: { "content-type": "application/json", origin: ORIGIN },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" }),
+describe("the browser path matches the gateway Worker's: /exchange, sessions, CORS", () => {
+  const fake = fakeFor(BROWSER_APP, { login: LOGIN });
+  const expectSame = (make: () => Request) =>
+    expectSameResponse(fake, ENV, make);
+
+  it("answers a preflight from the app's origin with 204 and the CORS headers, on any path", async () => {
+    for (const path of ["/mcp", "/exchange", "/elsewhere"]) {
+      const { status, headers } = await expectSame(preflight(path, ORIGIN));
+      expect(status, path).toBe(204);
+      expect(headers["access-control-allow-origin"]).toBe(ORIGIN);
+      expect(headers["access-control-allow-headers"]).toContain(
+        "authorization",
+      );
+    }
+  });
+
+  it("answers a preflight from any other origin, or none, with 204 and Vary alone", async () => {
+    for (const origin of [
+      "https://evil.example",
+      "http://parity.example",
+      "https://parity.example:8443",
+      undefined,
+    ]) {
+      const { status, headers } = await expectSame(preflight("/mcp", origin));
+      expect(status, String(origin)).toBe(204);
+      expect(headers["access-control-allow-origin"]).toBeNull();
+      expect(headers.vary).toBe("Origin");
+    }
+  });
+
+  it("gives a key no CORS header, even from the app's own origin", async () => {
+    const { status, headers } = await expectSame(() =>
+      rpcRequest("tools/list", undefined, { origin: ORIGIN }),
+    );
+    expect(status).toBe(200);
+    expect(headers["access-control-allow-origin"]).toBeNull();
+  });
+
+  it("exchanges the owner's login for a one-hour session token", async () => {
+    stubSupabaseAuth();
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-20T03:00:00Z"));
+    const { f, r } = await bothSides(fake, ENV, exchangeRequest());
+    expect(f.status).toBe(200);
+    expect(r.status).toBe(200);
+    expect(headersOf(f)).toEqual(headersOf(r));
+    expect(corsNames(f)).toEqual(corsNames(r));
+    expect(headersOf(f)["access-control-allow-origin"]).toBe(ORIGIN);
+    expect(headersOf(f)["cache-control"]).toBe("no-store");
+
+    type Minted = { token: string; expiresAt: string; app: string };
+    const fb = (await f.json()) as Minted;
+    const rb = (await r.json()) as Minted;
+    expect(Object.keys(fb)).toEqual(Object.keys(rb));
+    expect(fb.app).toBe(rb.app);
+    expect(fb.expiresAt).toBe(rb.expiresAt);
+    expect(fb.expiresAt).toBe("2026-10-20T04:00:00.000Z");
+    const SESSION_SHAPE = /^les_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
+    expect(fb.token).toMatch(SESSION_SHAPE);
+    expect(rb.token).toMatch(SESSION_SHAPE);
+  });
+
+  const REFUSED: Array<[string, ExchangeOptions]> = [
+    ["no Origin", { origin: null }],
+    ["an origin the app did not register", { origin: "https://evil.example" }],
+    ["no login", { authorization: null }],
+    ["another scheme", { authorization: `Basic ${LOGIN}` }],
+    ["a login that is no one's", { authorization: "Bearer someone-elses-jwt" }],
+    ["the app key instead of a login", { authorization: `Bearer ${KEY}` }],
+    ["GET", { method: "GET" }],
+    ["a body that is not JSON", { body: "not json" }],
+    ["an unknown app", { body: { app: "nobody" } }],
+    ["no app", { body: {} }],
+  ];
+  for (const [what, options] of REFUSED) {
+    it(`404s an exchange with ${what}`, async () => {
+      stubSupabaseAuth();
+      const { status } = await expectSame(exchangeRequest(options));
+      expect(status).toBe(404);
+    });
+  }
+
+  it("404s an exchange for an app without the browser flag, and gives its origins no preflight", async () => {
+    stubSupabaseAuth();
+    const serverOnly: AppConfig = {
+      issued: ISSUED,
+      app: "server-only",
+      origins: [ORIGIN],
+    };
+    const serverFake = fakeFor(serverOnly, { login: LOGIN });
+    const serverEnv = gatewayEnv([serverOnly]);
+    const exchanged = await expectSameResponse(
+      serverFake,
+      serverEnv,
+      exchangeRequest({ body: { app: "server-only" } }),
+    );
+    expect(exchanged.status).toBe(404);
+    const pre = await expectSameResponse(
+      serverFake,
+      serverEnv,
+      preflight("/mcp", ORIGIN),
+    );
+    expect(pre.headers["access-control-allow-origin"]).toBeNull();
+  });
+
+  /** One session token from each side, minted now. */
+  async function sessions(): Promise<{ fakeToken: string; realToken: string }> {
+    stubSupabaseAuth();
+    const f = (await (await fake.fetch(exchangeRequest()())).json()) as {
+      token: string;
+    };
+    const r = (await (
+      await gatewayWorker.fetch(exchangeRequest()(), ENV)
+    ).json()) as { token: string };
+    return { fakeToken: f.token, realToken: r.token };
+  }
+
+  /** The same request, each side with its own session token. */
+  async function expectSameWith(
+    tokens: { fakeToken: string; realToken: string },
+    make: (token: string) => Request,
+  ) {
+    useRealStub("anyRow");
+    const f = await fake.fetch(make(tokens.fakeToken));
+    const r = await gatewayWorker.fetch(make(tokens.realToken), ENV);
+    return expectSameResponses(f, r);
+  }
+
+  it("lets a page on the app's origin read a session token's answers", async () => {
+    const tokens = await sessions();
+    const { status, headers } = await expectSameWith(tokens, (token) =>
+      rpcRequest("tools/list", undefined, {
+        credential: token,
+        origin: ORIGIN,
       }),
     );
-    expect(res.status).toBe(200);
-    expect(res.headers.get("access-control-allow-origin")).toBe(ORIGIN);
+    expect(status).toBe(200);
+    expect(headers["access-control-allow-origin"]).toBe(ORIGIN);
+    expect(headers.vary).toBe("Origin");
   });
 
-  it("gives a disallowed origin no Access-Control-* header", async () => {
-    const res = await fake.fetch(preflight("https://evil.example"));
-    // Not a preflight answer: it falls through to the normal path, past the
-    // token, and OPTIONS is not POST.
-    expect(res.status).toBe(405);
-    expect(corsHeaders(res)).toEqual([]);
-    const post = await fake.fetch(
-      new Request(`https://mcp.example.com/mcp/${TOKEN}`, {
-        method: "POST",
-        headers: { origin: "https://evil.example" },
-        body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "ping" }),
-      }),
+  it("gives the same session no CORS header from another origin, or with none", async () => {
+    const tokens = await sessions();
+    for (const origin of ["https://evil.example", undefined]) {
+      const { status, headers } = await expectSameWith(tokens, (token) =>
+        rpcRequest("tools/list", undefined, { credential: token, origin }),
+      );
+      expect(status, String(origin)).toBe(200);
+      expect(headers["access-control-allow-origin"]).toBeNull();
+    }
+  });
+
+  it("puts the CORS header on a session's 405 and JSON-RPC errors too", async () => {
+    const tokens = await sessions();
+    const headersFor = (token: string) => ({
+      authorization: `Bearer ${token}`,
+      origin: ORIGIN,
+    });
+    const got = await expectSameWith(
+      tokens,
+      (token) =>
+        new Request("https://mcp.example.com/mcp", {
+          headers: headersFor(token),
+        }),
     );
-    expect(corsHeaders(post)).toEqual([]);
-  });
-
-  it("gives a request without an Origin no Access-Control-* header", async () => {
-    const res = await fake.fetch(preflight());
-    expect(res.status).toBe(405);
-    expect(corsHeaders(res)).toEqual([]);
-  });
-
-  it("allows no origin at all by default", async () => {
-    const closed = createFakeGateway({ token: TOKEN });
-    const res = await closed.fetch(preflight(ORIGIN));
-    expect(res.status).toBe(405);
-    expect(corsHeaders(res)).toEqual([]);
-  });
-
-  it("still 404s an allowed origin's POST with a wrong token", async () => {
-    const res = await fake.fetch(
-      new Request("https://mcp.example.com/mcp/wrong", {
-        method: "POST",
-        headers: { origin: ORIGIN },
-        body: "{}",
-      }),
+    expect(got.status).toBe(405);
+    expect(got.headers["access-control-allow-origin"]).toBe(ORIGIN);
+    const parse = await expectSameWith(tokens, (token) =>
+      post("/mcp", "{not json", headersFor(token))(),
     );
-    expect(res.status).toBe(404);
-    expect(await res.text()).toBe("Not found");
+    expect(parse.status).toBe(200);
+    expect(parse.headers["access-control-allow-origin"]).toBe(ORIGIN);
   });
 
-  it.todo("CORS parity with the real Worker — enable when #2146 lands");
+  it("404s a session token in the path", async () => {
+    const tokens = await sessions();
+    const { status, headers } = await expectSameWith(tokens, (token) =>
+      post(`/mcp/${token}`, ping, { origin: ORIGIN })(),
+    );
+    expect(status).toBe(404);
+    expect(headers["access-control-allow-origin"]).toBeNull();
+  });
+
+  it("404s a session token after an hour", async () => {
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(new Date("2026-10-20T03:00:00Z"));
+    const tokens = await sessions();
+    const list = (token: string) =>
+      rpcRequest("tools/list", undefined, {
+        credential: token,
+        origin: ORIGIN,
+      });
+
+    vi.setSystemTime(new Date("2026-10-20T03:59:59Z"));
+    expect((await expectSameWith(tokens, list)).status).toBe(200);
+    vi.setSystemTime(new Date("2026-10-20T04:00:00Z"));
+    expect((await expectSameWith(tokens, list)).status).toBe(404);
+  });
+
+  it("404s a tampered session token, and one the other side signed", async () => {
+    const tokens = await sessions();
+    // Change the first character of the payload: the signature no longer fits.
+    const tamper = (token: string) =>
+      `les_${token[4] === "e" ? "f" : "e"}${token.slice(5)}`;
+    const list = (credential: string) =>
+      rpcRequest("tools/list", undefined, { credential, origin: ORIGIN });
+    expect(
+      (await expectSameWith(tokens, (token) => list(tamper(token)))).status,
+    ).toBe(404);
+
+    // Each signs with its own secret, as two deployments would.
+    useRealStub("anyRow");
+    expect((await fake.fetch(list(tokens.realToken))).status).toBe(404);
+    expect(
+      (await gatewayWorker.fetch(list(tokens.fakeToken), ENV)).status,
+    ).toBe(404);
+    const forged = await mintSession(
+      SESSION_SECRET,
+      BROWSER_APP.app,
+      "owner",
+      Date.now(),
+    );
+    expect((await fake.fetch(list(forged.token))).status).toBe(404);
+  });
+});
+
+/* ---- scopes (plan R3) ---------------------------------------------------- */
+
+describe("scopes hide and refuse tools the way the gateway Worker does", () => {
+  const READ_APP: AppConfig = {
+    issued: READ_ISSUED,
+    app: "viewer",
+    scopes: ["read"],
+  };
+  const WRITE_APP: AppConfig = {
+    issued: WRITE_ISSUED,
+    app: "writer",
+    scopes: ["write"],
+  };
+  const env = gatewayEnv([BROWSER_APP, READ_APP, WRITE_APP]);
+
+  const callAs =
+    (config: AppConfig, name: string, args: Args = {}) =>
+    () =>
+      rpcRequest(
+        "tools/call",
+        { name, arguments: args },
+        { credential: config.issued.key },
+      );
+
+  async function codeOfCall(
+    config: AppConfig,
+    name: string,
+    args: Args,
+  ): Promise<string | undefined> {
+    const fake = fakeFor(config);
+    const { f, r } = await bothSides(fake, env, callAs(config, name, args));
+    const fb = (await f.clone().json()) as ToolCallBody;
+    await expectSameResponses(f, r);
+    return fb.result.structuredContent?.code;
+  }
+
+  for (const config of [READ_APP, WRITE_APP]) {
+    const scope = config.scopes![0];
+    it(`lists only the ${scope} tools to a ${scope}-only key`, async () => {
+      const fake = fakeFor(config);
+      const list = () =>
+        rpcRequest("tools/list", undefined, {
+          credential: config.issued.key,
+        });
+      await expectSameResponse(fake, env, list);
+      const res = await fake.fetch(list());
+      const names = (
+        (await res.json()) as { result: { tools: Array<{ name: string }> } }
+      ).result.tools.map((t) => t.name);
+      const expected = committed.tools
+        .filter((t) => t.access === scope)
+        .map((t) => t.name);
+      expect(names).toEqual(expected);
+      expect(names.length).toBeGreaterThan(0);
+      expect(names.length).toBeLessThan(committed.tools.length);
+    });
+  }
+
+  it("refuses a write to a read-only key with forbidden, in the same words", async () => {
+    for (const [name, args] of [
+      ["create_todo", { title: "x" }],
+      ["delete_note", { id: "note-1" }],
+      ["create_record", { kind: "expense", value: 1 }],
+    ] as Array<[string, Args]>) {
+      expect(await codeOfCall(READ_APP, name, args), name).toBe("forbidden");
+    }
+  });
+
+  it("refuses a read to a write-only key with forbidden, in the same words", async () => {
+    for (const [name, args] of [
+      ["list_todos", {}],
+      ["get_note", { id: "note-1" }],
+    ] as Array<[string, Args]>) {
+      expect(await codeOfCall(WRITE_APP, name, args), name).toBe("forbidden");
+    }
+  });
+
+  it("validates the arguments before it looks at the scope", async () => {
+    expect(await codeOfCall(READ_APP, "create_todo", {})).toBe(
+      "invalid_arguments",
+    );
+  });
+
+  it("looks at the scope before a conditional rule (the handler's own check)", async () => {
+    // A timed event with no times breaks create_schedule_item's conditional
+    // rule, which the handler applies; the scope check runs first.
+    expect(
+      await codeOfCall(READ_APP, "create_schedule_item", {
+        title: "x",
+        date: "2026-10-20",
+      }),
+    ).toBe("forbidden");
+  });
+
+  it("calls a tool outside the gateway's set unknown, whatever the scope", async () => {
+    for (const config of [READ_APP, WRITE_APP]) {
+      expect(await codeOfCall(config, "delete_routine", { id: "r" })).toBe(
+        "not_found",
+      );
+    }
+  });
+
+  it("runs a tool the scope covers", async () => {
+    for (const [config, name, args] of [
+      [READ_APP, "list_todos", {}],
+      [WRITE_APP, "create_todo", { title: "x" }],
+    ] as Array<[AppConfig, string, Args]>) {
+      const { f, r } = await bothSides(
+        fakeFor(config),
+        env,
+        callAs(config, name, args),
+      );
+      const fb = (await f.json()) as ToolCallBody;
+      const rb = (await r.json()) as ToolCallBody;
+      expect(fb.result.isError, name).toBeUndefined();
+      expect(rb.result.isError, name).toBeUndefined();
+    }
+  });
+});
+
+/* ---- the fake's configuration -------------------------------------------- */
+
+describe("the fake refuses a configuration the real registry would", () => {
+  const ENTRY_REFUSALS: Array<[string, Record<string, unknown>]> = [
+    ["empty scopes", { scopes: [] }],
+    ["an unknown scope", { scopes: ["admin"] }],
+    [
+      "an origin with a trailing slash",
+      { origins: ["https://parity.example/"] },
+    ],
+    ["an origin with a path", { origins: ["https://parity.example/app"] }],
+    ["the browser flag without origins", { browser: true }],
+    ["the reserved slug", { app: "claude" }],
+  ];
+  for (const [what, entry] of ENTRY_REFUSALS) {
+    it(`refuses ${what}, as parseGatewayConfig does`, () => {
+      expect(() =>
+        createFakeGateway({ key: KEY, ...entry } as FakeGatewayOptions),
+      ).toThrow(/^createFakeGateway: /);
+      const raw = JSON.stringify({
+        apps: [
+          {
+            app: "parity-app",
+            ...entry,
+            keys: [{ id: ISSUED.id, hash: ISSUED.hash }],
+          },
+        ],
+      });
+      expect(parseGatewayConfig(raw)).toBeNull();
+    });
+  }
+
+  it("refuses a key that is not in the real lek_ shape", () => {
+    for (const key of [undefined, "test-token-0123456789abcdef", `${KEY}0`]) {
+      expect(() =>
+        createFakeGateway({ key } as unknown as FakeGatewayOptions),
+      ).toThrow(/lek_<8 hex>_<64 hex>/);
+    }
+  });
+
+  it("names the 1.x options it replaced", () => {
+    for (const old of [
+      { token: "t" },
+      { key: KEY, allowedOrigins: [ORIGIN] },
+    ]) {
+      expect(() =>
+        createFakeGateway(old as unknown as FakeGatewayOptions),
+      ).toThrow(/were gateway 1\.x/);
+    }
+  });
+
+  it("makes keys the real gateway would accept the shape of", async () => {
+    const key = generateFakeKey();
+    expect(key).toMatch(/^lek_[0-9a-f]{8}_[0-9a-f]{64}$/);
+    expect(key).not.toBe(generateFakeKey());
+    const fake = createFakeGateway({ key });
+    expect(
+      (await fake.fetch(rpcRequest("ping", undefined, { credential: key })))
+        .status,
+    ).toBe(200);
+  });
 });

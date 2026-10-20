@@ -40,7 +40,7 @@ import { ERROR_CODES } from "./errorCodes.js";
  * is, and `scripts/dump-gateway-spec.mjs` refuses to write a spec whose
  * version moved less than that.
  */
-export const EXTENSION_GATEWAY_VERSION = "1.4.0";
+export const EXTENSION_GATEWAY_VERSION = "2.0.0";
 
 /** Bumped only if the SHAPE of the spec file itself changes. */
 export const SPEC_FORMAT = 1;
@@ -505,7 +505,8 @@ export const EXAMPLES: Partial<
       },
       {
         args: { kind: "Expense", value: 450 },
-        reason: "kind is lower-case letters, digits and _, starting with a letter",
+        reason:
+          "kind is lower-case letters, digits and _, starting with a letter",
       },
       {
         args: {
@@ -597,10 +598,23 @@ const TRANSPORT = {
     handler:
       "Anything else is the handler's own text, for example 'Schedule item not found: <id>' or the message of a conditional rule.",
   },
-  notYetSpecified: [
-    "authentication and per-app keys (plan R3)",
-    "CORS and the browser path (plan R4)",
-  ],
+  // Plan R3 / R4, as gatewayWorker.ts and gatewayAuth.ts implement them.
+  endpoints: {
+    "POST /mcp":
+      "JSON-RPC, one message per POST, with the credential in the Authorization header (see authentication). A method other than POST or OPTIONS on /mcp, once the credential authenticates, is HTTP 405 with allow: POST.",
+    "POST /exchange":
+      "The browser path: a session token for a login (see exchange).",
+    "OPTIONS <any path>": "The CORS preflight (see cors).",
+    "GET /health": "{ ok: true }, with no credential and no data.",
+  },
+  authentication:
+    "Every request to /mcp carries Authorization: Bearer <credential>, and the header is the only place a credential is read. The credential is either an app key, lek_<8 hex id>_<64 hex secret>, shown once when it is issued (an app may hold several), kept on the app's server side and never put in a page, or a session token, les_<payload>.<signature>, from POST /exchange and good for one hour. A credential in the URL path is never read: /mcp/<anything> is a 404, as is every path other than /mcp, /exchange and /health. OPTIONS is the exception on every path: it is the preflight described under cors. A missing, malformed, wrong, revoked or expired credential, one sent with another scheme than Bearer, a Supabase login JWT, a key whose app was removed and a session whose app stopped allowing the browser or moved to another account all get the same bare HTTP 404 with the body 'Not found'. The response never says which. Such a response is not a JSON-RPC exchange: it has no JSON body and no structuredContent.code.",
+  exchange:
+    "POST /exchange with Authorization: Bearer <the Supabase login JWT of the account the app is bound to>, an Origin header and the body { \"app\": \"<the app's slug>\" }. It answers HTTP 200 { token: 'les_...', expiresAt: '<ISO instant one hour on>', app: '<slug>' } with cache-control: no-store and Access-Control-Allow-Origin: <that Origin>, when the app allows the browser, the Origin is one of the app's registered origins and the JWT is that account's login. Anything else gets the same bare 404: no Origin, no JWT, another scheme, a method other than POST or OPTIONS (OPTIONS is the preflight under cors), a body that is not JSON, an unknown app, an app without the browser flag, an origin it did not register, another account's login. The token works on POST /mcp until expiresAt; there is no refresh, so ask /exchange again.",
+  cors: "An /mcp response carries Access-Control-Allow-Origin: <Origin> and Vary: Origin only when the request authenticated with a session token and its Origin is exactly one of that token's app's registered origins (scheme://host[:port]). This covers the 405 and JSON-RPC errors too. A request with an app key gets no CORS header from any origin, so a page cannot read an answer to a key. OPTIONS on any path answers 204 with no body. From an origin some browser-enabled app registered, it carries Access-Control-Allow-Origin: <Origin>, Access-Control-Allow-Methods: POST, OPTIONS, Access-Control-Allow-Headers: content-type, authorization, mcp-protocol-version, Access-Control-Max-Age: 600 and Vary: Origin. From any other origin, or with no Origin, it carries Vary: Origin alone.",
+  scopes:
+    "Each app has the scopes read, write or both (the default). A tool's access (tools[].access) has to be among them. tools/list shows only the tools the credential's scopes cover, in the spec's order. A tools/call of a tool outside them is still found: its arguments are validated first (a wrong call is invalid_arguments), and then it fails with code forbidden and the message 'Forbidden: this key has no <access> scope for <tool>'. A write that names an existing item the app did not create (the owner's, life-editor's own, another app's), including create_todo's parent_id, fails with code forbidden and 'Forbidden: <id> was not created by <app>'. An id that names nothing is left to the tool's own not_found.",
+  notYetSpecified: [],
 } as const;
 
 /**
