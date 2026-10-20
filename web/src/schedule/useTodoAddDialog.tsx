@@ -65,9 +65,15 @@ export function useTodoAddDialog({
    *
    * A target rather than a second flag so the two can never be open at once,
    * and so the dialog itself stays one mounted surface.
+   *
+   * Starts open when the section MOUNTS with the shell intent already raised
+   * — global:new-task from another section switches to Schedule and raises
+   * the flag in the same update, so there is no later change for the
+   * comparison below to see, and useScheduleShellIntents consumes the flag
+   * straight after (#1642 F3).
    */
   const [todoAddTarget, setTodoAddTarget] = useState<TodoAddTarget | null>(
-    null,
+    () => (pendingNewTodo ? "other" : null),
   );
 
   /*
@@ -76,7 +82,9 @@ export function useTodoAddDialog({
    * move local state. A synchronous setState inside an effect cascades an
    * extra render pass, which is what react-hooks/set-state-in-effect objects
    * to. The parts that are not local state (the tab, the drawer, the consume)
-   * stay in useScheduleShellIntents' effect.
+   * stay in useScheduleShellIntents' effect. This covers the intent arriving
+   * while the section is already on screen; the initial state above covers
+   * the one it mounts with.
    */
   const [prevPendingNewTodo, setPrevPendingNewTodo] = useState(pendingNewTodo);
   if (pendingNewTodo !== prevPendingNewTodo) {
