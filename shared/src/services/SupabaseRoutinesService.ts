@@ -1,5 +1,6 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
-import type { RoutinesDataService } from "./DataService";
+import type { DetachedOccurrence, RoutinesDataService } from "./DataService";
+import { isRoutinePairViolation } from "./scheduleRestoreConflict";
 import type { RoutineNode } from "../types/routine";
 import {
   // DU-C-3: 2-row API (items_meta + routines_payload)
@@ -791,7 +792,10 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     id: string,
     today: string = todayDateKey(),
     opts?: { keepItemIds?: string[] },
-  ): Promise<{ deletedScheduleItemIds: string[] }> {
+  ): Promise<{
+    deletedScheduleItemIds: string[];
+    detachedItems: DetachedOccurrence[];
+  }> {
     const now = new Date().toISOString();
     // #296: ids the caller pins as survivors (the occurrence the user is
     // editing when they turn the repeat off). They move from the delete
@@ -799,17 +803,19 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     const keep = new Set(opts?.keepItemIds ?? []);
 
     // 1. Read ALL live occurrences of this routine (item_id + the two fields
-    //    that decide the partition). Paged so the id list is never silently
-    //    truncated past the max-rows cap.
+    //    that decide the partition, + source_date so an undo can put the
+    //    survivors back as the days they were — #2319). Paged so the id list
+    //    is never silently truncated past the max-rows cap.
     const rows = await fetchAllPages<{
       item_id: string;
       start_at: string;
       done: boolean;
+      source_date?: string | null;
     }>(
       (from, to) =>
         this.client
           .from("events_payload")
-          .select("item_id, start_at, done")
+          .select("item_id, start_at, done, source_date")
           .eq("routine_item_id", id)
           .eq("is_deleted_cache", false)
           .order("item_id")
@@ -826,9 +832,10 @@ export class SupabaseRoutinesService implements RoutinesDataService {
       done: boolean;
     }) => r.start_at >= today && !r.done && !keep.has(r.item_id);
     const deleteIds = rows.filter(isFutureIncomplete).map((r) => r.item_id);
-    const detachIds = rows
+    const detachedItems: DetachedOccurrence[] = rows
       .filter((r) => !isFutureIncomplete(r))
-      .map((r) => r.item_id);
+      .map((r) => ({ id: r.item_id, sourceDate: r.source_date ?? null }));
+    const detachIds = detachedItems.map((r) => r.id);
 
     // 2. Soft-delete the future/incomplete occurrences (items_meta). The
     //    0008 UPDATE-side trigger mirrors is_deleted into events_payload.
@@ -905,7 +912,61 @@ export class SupabaseRoutinesService implements RoutinesDataService {
     if (routineErr)
       throw new Error(`detachRoutine routine: ${routineErr.message}`);
 
-    return { deletedScheduleItemIds: deleteIds };
+    return { deletedScheduleItemIds: deleteIds, detachedItems };
+  }
+
+  /**
+   * Undo half of detachRoutine's step 3 (#2319): link the survivors back to
+   * the routine, each with the `source_date` it had, and bump their meta.
+   *
+   * One UPDATE per row because each row restores its own `source_date`;
+   * PostgREST has no per-row values in a single filtered UPDATE. A row whose
+   * (routine, source_date) pair is already held by a live row hits the
+   * partial UNIQUE and is reported back instead of stopping the rest — the
+   * same contract as bulkRestoreScheduleItems (#932). The caller runs this
+   * before restoreRoutine, so the generator cannot be racing it.
+   *
+   * The tags detachRoutine handed the survivors are not touched: those copies
+   * stay on the rows (see handOverTagAssignments), which is the cost the
+   * scope dialog states before the press.
+   */
+  async reattachRoutineOccurrences(
+    routineId: string,
+    items: DetachedOccurrence[],
+  ): Promise<{ reattachedIds: string[]; conflictedIds: string[] }> {
+    const reattachedIds: string[] = [];
+    const conflictedIds: string[] = [];
+    for (const item of items) {
+      // Only a row that is still unlinked: one the user has since grown into
+      // a repeat of its own is not taken back from it.
+      const { data, error } = await this.client
+        .from("events_payload")
+        .update({ routine_item_id: routineId, source_date: item.sourceDate })
+        .eq("item_id", item.id)
+        .is("routine_item_id", null)
+        .select("item_id");
+      if (!error) {
+        if ((data ?? []).length > 0) reattachedIds.push(item.id);
+      } else if (isRoutinePairViolation(error)) {
+        conflictedIds.push(item.id);
+      } else {
+        throw new Error(`reattachRoutineOccurrences: ${error.message}`);
+      }
+    }
+    if (reattachedIds.length > 0) {
+      const now = new Date().toISOString();
+      await forEachIdChunk(
+        reattachedIds,
+        (chunk) =>
+          this.client
+            .from("items_meta")
+            .update({ updated_at: now })
+            .in("id", chunk)
+            .eq("role", "event"),
+        "reattachRoutineOccurrences meta",
+      );
+    }
+    return { reattachedIds, conflictedIds };
   }
 
   /**
@@ -1066,6 +1127,7 @@ export const PHASE2_ROUTINES_METHOD_NAMES = [
   "deleteRoutine",
   "softDeleteRoutine",
   "detachRoutine",
+  "reattachRoutineOccurrences",
   "restoreRoutine",
   "permanentDeleteRoutine",
 ] as const;

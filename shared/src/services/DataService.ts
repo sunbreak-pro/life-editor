@@ -297,6 +297,13 @@ export interface TagGroupsDataService {
 // Routines — SupabaseRoutinesService
 // ---------------------------------------------------------------------------
 
+/** An occurrence detachRoutine unlinked, as reattachRoutineOccurrences takes it. */
+export interface DetachedOccurrence {
+  id: string;
+  /** events_payload.source_date before the unlink NULLed it. */
+  sourceDate: string | null;
+}
+
 export interface RoutinesDataService {
   fetchAllRoutines(): Promise<RoutineNode[]>;
   createRoutine(
@@ -356,12 +363,36 @@ export interface RoutinesDataService {
    * move onto it — the tag field reads from the seed again once the routine
    * link is gone, so leaving them on the routine would empty it. A detach
    * with no pin has no seed to hand them to and moves nothing.
+   *
+   * `detachedItems` (#2319) are the survivors it unlinked, with the
+   * `source_date` each one had — what reattachRoutineOccurrences needs to put
+   * them back under the routine when the split is undone.
    */
   detachRoutine(
     id: string,
     today?: string,
     opts?: { keepItemIds?: string[] },
-  ): Promise<{ deletedScheduleItemIds: string[] }>;
+  ): Promise<{
+    deletedScheduleItemIds: string[];
+    detachedItems: DetachedOccurrence[];
+  }>;
+  /**
+   * The undo half of detachRoutine's unlink (#2319): link these occurrences
+   * back to the routine, each with the `source_date` it had. Undoing a split
+   * restored the trashed rows and the routine but left the past rows
+   * unlinked, so the generator — which skips a day only where it sees a row
+   * OF THAT ROUTINE — made a second occurrence beside each of them, and
+   * re-made the days the user had dismissed one by one.
+   *
+   * Run it BEFORE restoreRoutine, while the generator cannot fire for the
+   * routine. A row whose (routine, source_date) pair a live row already holds
+   * stays unlinked and comes back in `conflictedIds` rather than failing the
+   * rest.
+   */
+  reattachRoutineOccurrences(
+    routineId: string,
+    items: DetachedOccurrence[],
+  ): Promise<{ reattachedIds: string[]; conflictedIds: string[] }>;
   /**
    * Event→Repeats conversion (#185 / #296): create the routine, then attach
    * the EXISTING seed event to it (events_payload.routine_item_id +
