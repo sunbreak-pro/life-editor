@@ -1,11 +1,15 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Flame, Trophy, BarChart3 } from "lucide-react";
 import type { TimerSession } from "../../types/timer";
 import type { TodoNode } from "../../types/todoTree";
 import type { ScheduleItem } from "../../types/schedule";
 import type { NoteNode } from "../../types/note";
 import type { RoutineNode } from "../../types/routine";
-import type { AppRecord } from "../../types/appRecord";
+import {
+  APP_RECORD_SOURCE_CLAUDE,
+  type AppRecord,
+} from "../../types/appRecord";
+import type { ExtensionApp } from "../../types/extensionApp";
 import type { RecordView } from "../../types/recordView";
 import {
   dateKeyOfInstant,
@@ -76,6 +80,15 @@ interface MobileAnalyticsViewProps {
    * Records tab picks. A kind with none leads with the sum.
    */
   recordViews?: readonly RecordView[];
+  /** The ledger, for the narrowed app's display name (#2312). */
+  recordApps?: readonly Pick<ExtensionApp, "slug" | "name">[];
+  /**
+   * An app slug the Apps section's "show records" asks the block to narrow
+   * to (#2312), consumed once — the wide Records tab's `pendingSource` twin.
+   * The narrowing then lives as long as this view does.
+   */
+  pendingRecordsSource?: string | null;
+  onRecordsSourceConsumed?: () => void;
   labels: AnalyticsLabels;
 }
 
@@ -113,8 +126,43 @@ export function MobileAnalyticsView(
     recordsLoading,
     recordsError,
     recordViews,
+    recordApps,
+    pendingRecordsSource = null,
+    onRecordsSourceConsumed,
     labels,
   } = props;
+
+  /*
+   * The app the block is narrowed to (#2312), or null for every app. Taken
+   * from the pending request while rendering, the RecordsTab way: the first
+   * paint is already narrowed, and `taken` lets the same slug asked for again
+   * later still land.
+   */
+  const [source, setSource] = useState<string | null>(pendingRecordsSource);
+  const [taken, setTaken] = useState<string | null>(pendingRecordsSource);
+  if (pendingRecordsSource !== null && pendingRecordsSource !== taken) {
+    setTaken(pendingRecordsSource);
+    setSource(pendingRecordsSource);
+  } else if (pendingRecordsSource === null && taken !== null) {
+    setTaken(null);
+  }
+  useEffect(() => {
+    if (pendingRecordsSource !== null) onRecordsSourceConsumed?.();
+  }, [pendingRecordsSource, onRecordsSourceConsumed]);
+
+  const shownRecords = useMemo(
+    () =>
+      source === null
+        ? (records ?? [])
+        : (records ?? []).filter((r) => r.sourceApp === source),
+    [records, source],
+  );
+  const sourceName = useMemo(() => {
+    if (source === null) return null;
+    if (source === APP_RECORD_SOURCE_CLAUDE) return labels.records.claudeSource;
+    return recordApps?.find((app) => app.slug === source)?.name ?? source;
+  }, [source, recordApps, labels.records.claudeSource]);
+
   const viewIndex = useMemo(
     () => indexRecordViews(recordViews ?? []),
     [recordViews],
@@ -123,12 +171,12 @@ export function MobileAnalyticsView(
   const recordSeries = useMemo(
     () =>
       recentKindSeries(
-        withDateKeys(records ?? []),
+        withDateKeys(shownRecords),
         todayCalendarKey(),
         RECORDS_WINDOW_DAYS,
         viewIndex,
       ),
-    [records, viewIndex],
+    [shownRecords, viewIndex],
   );
 
   const model = useMemo(() => {
@@ -217,7 +265,7 @@ export function MobileAnalyticsView(
 
     // Last 7 calendar days per kind, through the shared aggregation (#2162).
     const recordTotals = recentKindTotals(
-      withDateKeys(records ?? []),
+      withDateKeys(shownRecords),
       todayStr,
       RECORDS_WINDOW_DAYS,
     );
@@ -241,7 +289,15 @@ export function MobileAnalyticsView(
       routineRate,
       topRoutines,
     };
-  }, [sessions, nodes, todayItems, scheduleItems, notes, routines, records]);
+  }, [
+    sessions,
+    nodes,
+    todayItems,
+    scheduleItems,
+    notes,
+    routines,
+    shownRecords,
+  ]);
 
   if (props.loading) {
     return <MobileSkeleton title={labels.title} />;
@@ -463,6 +519,22 @@ export function MobileAnalyticsView(
               {labels.records.mobile.range}
             </span>
           </div>
+          {/* Narrowed by the Apps section's "show records" (#2312): say to
+              which app, and give the way back to every app. */}
+          {sourceName !== null ? (
+            <div className="flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-xs text-lumen-text-secondary">
+                {labels.records.mobile.formatFilteredTo(sourceName)}
+              </span>
+              <button
+                type="button"
+                onClick={() => setSource(null)}
+                className="min-h-11 flex-shrink-0 rounded-lumen-md px-2 text-xs font-medium text-lumen-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+              >
+                {labels.records.mobile.clearFilter}
+              </button>
+            </div>
+          ) : null}
           {recordsLoading ? (
             <RecordsBlockSkeleton />
           ) : recordsError ? (
@@ -471,7 +543,9 @@ export function MobileAnalyticsView(
             </p>
           ) : model.recordTotals.length === 0 ? (
             <p className="text-xs text-lumen-text-secondary">
-              {labels.records.mobile.empty}
+              {sourceName !== null
+                ? labels.records.mobile.emptyFiltered
+                : labels.records.mobile.empty}
             </p>
           ) : (
             <ul className="flex flex-col gap-2.5">

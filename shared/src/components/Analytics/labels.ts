@@ -89,6 +89,12 @@ export interface RecordsLabels {
     empty: string;
     /** "{count} records" — host interpolates. */
     formatCount: (count: number) => string;
+    /** "Only {app}" — the block narrowed by the Apps section (#2312). */
+    formatFilteredTo: (app: string) => string;
+    /** The button that drops that narrowing again. */
+    clearFilter: string;
+    /** The narrowed app sent nothing in the last 7 days. */
+    emptyFiltered: string;
   };
 }
 
