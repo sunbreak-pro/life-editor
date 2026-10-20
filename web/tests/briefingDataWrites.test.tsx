@@ -892,11 +892,21 @@ describe("useBriefingData — row deletes and their undo (#892)", () => {
         {
           detachRoutine: vi.fn().mockImplementation(() => {
             order.push("detach");
-            return Promise.resolve({ deletedScheduleItemIds: ["s-routine"] });
+            return Promise.resolve({
+              deletedScheduleItemIds: ["s-routine"],
+              detachedItems: [{ id: "s-past", sourceDate: TODAY }],
+            });
           }),
           bulkRestoreScheduleItems: vi.fn().mockImplementation(() => {
             order.push("restore rows");
             return Promise.resolve({ conflictedIds: [] });
+          }),
+          reattachRoutineOccurrences: vi.fn().mockImplementation(() => {
+            order.push("relink survivors");
+            return Promise.resolve({
+              reattachedIds: ["s-past"],
+              conflictedIds: [],
+            });
           }),
           restoreRoutine: vi.fn().mockImplementation(() => {
             order.push("restore routine");
@@ -937,9 +947,15 @@ describe("useBriefingData — row deletes and their undo (#892)", () => {
 
       await act(async () => view.harness.commands[0]?.undo());
 
-      // Rows first: the generator skips only a day it can SEE, so a routine
-      // restored ahead of its rows would mint new ids for them (#708).
-      expect(view.order).toEqual(["detach", "restore rows", "restore routine"]);
+      // Rows first: the generator skips only a day it can SEE as the
+      // routine's, so a routine restored ahead of its rows would mint new ids
+      // for them (#708) — and beside the survivors left unlinked (#2319).
+      expect(view.order).toEqual([
+        "detach",
+        "restore rows",
+        "relink survivors",
+        "restore routine",
+      ]);
       expect(mockOf(view.ds, "bulkRestoreScheduleItems")).toHaveBeenCalledWith([
         "s-routine",
       ]);
@@ -950,10 +966,12 @@ describe("useBriefingData — row deletes and their undo (#892)", () => {
       expect(back?.isRoutine).toBe(true);
     });
 
-    it("leaves the survivor unlinked, and writes no tag on the way back", async () => {
-      // The tags the split handed the survivors stay where it put them; the
-      // series' own rows are not rebuilt. That is the documented cost the
-      // scope dialog states before the press (D-20260919-sched-2 = B).
+    it("links the survivor back, and writes no tag on the way back", async () => {
+      // #2319: an unlinked survivor is a day the generator fills a second
+      // time once the repeat returns, so the undo links it back. The tags the
+      // split handed the survivors stay where it put them; the series' own
+      // rows are not rebuilt. That is the documented cost the scope dialog
+      // states before the press (D-20260919-sched-2 = B).
       const tagWrites = {
         assignTagToItem: vi.fn(),
         unassignTagFromItem: vi.fn(),
@@ -966,7 +984,11 @@ describe("useBriefingData — row deletes and their undo (#892)", () => {
       const past = view.result.current.data.schedule.find(
         (s) => s.id === "s-past",
       );
-      expect(past?.isRoutine).toBe(false);
+      expect(mockOf(view.ds, "reattachRoutineOccurrences")).toHaveBeenCalledWith(
+        "r1",
+        [{ id: "s-past", sourceDate: TODAY }],
+      );
+      expect(past?.isRoutine).toBe(true);
       for (const write of Object.values(tagWrites))
         expect(write).not.toHaveBeenCalled();
     });

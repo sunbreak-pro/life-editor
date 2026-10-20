@@ -36,6 +36,11 @@ import type { UndoCommand } from "../src/utils/undoRedo/UndoRedoManager";
 const { wrapper } = createBumpableSync();
 
 const CASCADE = ["si-4a1c90ee", "si-91b0d7c2"];
+/** The past occurrences the split unlinked rather than trashed (#2319). */
+const SURVIVORS = [
+  { id: "si-past-0921", sourceDate: "2026-09-21" },
+  { id: "si-past-0922", sourceDate: "2026-09-22" },
+];
 const ANCHOR = "2026-09-24";
 
 function routine(
@@ -67,11 +72,18 @@ function makeDS() {
 
   const detachRoutine = vi.fn(async () => {
     calls.push("detachRoutine");
-    return { deletedScheduleItemIds: CASCADE };
+    return { deletedScheduleItemIds: CASCADE, detachedItems: SURVIVORS };
   });
   const bulkRestoreScheduleItems = vi.fn(async () => {
     calls.push("bulkRestoreScheduleItems");
     return { restoredIds: [...CASCADE], conflictedIds: [] as string[] };
+  });
+  const reattachRoutineOccurrences = vi.fn(async () => {
+    calls.push("reattachRoutineOccurrences");
+    return {
+      reattachedIds: SURVIVORS.map((s) => s.id),
+      conflictedIds: [] as string[],
+    };
   });
   const restoreRoutine = vi.fn(async () => {
     calls.push("restoreRoutine");
@@ -90,6 +102,7 @@ function makeDS() {
     fetchDeletedRoutines: vi.fn(async () => []),
     detachRoutine,
     bulkRestoreScheduleItems,
+    reattachRoutineOccurrences,
     restoreRoutine,
     assignTagToItem,
     unassignTagFromItem,
@@ -99,6 +112,7 @@ function makeDS() {
     calls,
     detachRoutine,
     bulkRestoreScheduleItems,
+    reattachRoutineOccurrences,
     restoreRoutine,
     assignTagToItem,
     unassignTagFromItem,
@@ -157,7 +171,7 @@ describe("splitting a series off is undoable (#1801)", () => {
     expect(entries).toHaveLength(0);
   });
 
-  it("restores the trashed occurrences by their original ids, then the repeat", async () => {
+  it("restores the trashed occurrences by their original ids, links the survivors back, then the repeat", async () => {
     const fixture = makeDS();
     const { view, reversal } = await mountAndSplit(fixture.ds);
     expect(view.result.current.routines).toHaveLength(0);
@@ -167,12 +181,21 @@ describe("splitting a series off is undoable (#1801)", () => {
     });
 
     expect(fixture.bulkRestoreScheduleItems).toHaveBeenCalledWith(CASCADE);
+    // #2319: the past rows the split unlinked go back under the routine with
+    // the day each one stood for. Left unlinked, the generator did not count
+    // them as the routine's and made a second occurrence beside each.
+    expect(fixture.reattachRoutineOccurrences).toHaveBeenCalledWith(
+      "routine-1",
+      SURVIVORS,
+    );
     expect(fixture.restoreRoutine).toHaveBeenCalledWith("routine-1");
     // Rows before the routine: the live list is what wakes the generator, and
-    // a still-trashed row is invisible to it (it would mint a fresh id).
+    // a still-trashed or unlinked row is invisible to it (it would mint a
+    // fresh one for that day).
     expect(fixture.calls).toEqual([
       "detachRoutine",
       "bulkRestoreScheduleItems",
+      "reattachRoutineOccurrences",
       "restoreRoutine",
     ]);
     await waitFor(() => expect(view.result.current.routines).toHaveLength(1));

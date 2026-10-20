@@ -19,10 +19,13 @@ import { SupabaseRoutinesService } from "../src/services/SupabaseDataService";
 
 interface EventRow {
   item_id: string;
-  routine_item_id: string;
+  /** Null once a detach has unlinked it (#2319's reattach reads that). */
+  routine_item_id: string | null;
   is_deleted_cache: boolean;
   done: boolean;
   start_at: string; // YYYY-MM-DD
+  /** Omitted by most fixtures — the seed() rows read it as their own day. */
+  source_date?: string | null;
 }
 
 interface UpdateRecord {
@@ -38,7 +41,7 @@ interface InsertRecord {
 }
 
 interface Filter {
-  op: "eq" | "gte" | "in";
+  op: "eq" | "gte" | "in" | "is";
   col: string;
   val: unknown;
 }
@@ -59,6 +62,8 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
   patch: Record<string, unknown> = {};
   filters: Filter[] = [];
   rangeArgs: [number, number] | null = null;
+  /** `update().select()` — PostgREST's "return the rows you changed". */
+  returning = false;
 
   constructor(
     private readonly table: string,
@@ -66,10 +71,17 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
     private readonly updates: UpdateRecord[],
     private readonly assignments: AssignmentRow[],
     private readonly inserts: InsertRecord[],
+    /** Item ids whose reattach UPDATE fails on the (routine, date) UNIQUE. */
+    private readonly pairTaken: ReadonlySet<string> = new Set(),
   ) {}
 
   select(): this {
-    this.mode = "select";
+    if (this.mode === "update") this.returning = true;
+    else this.mode = "select";
+    return this;
+  }
+  is(col: string, val: unknown): this {
+    this.filters.push({ op: "is", col, val });
     return this;
   }
   update(patch: Record<string, unknown>): this {
@@ -150,6 +162,8 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
           item_id: r.item_id,
           start_at: r.start_at,
           done: r.done,
+          source_date:
+            r.source_date === undefined ? r.start_at : r.source_date,
         })),
         error: null,
       };
@@ -160,6 +174,33 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
     }
     // update — record the mutation for assertions.
     const filter = this.filters.find((f) => f.op === "in" || f.op === "eq");
+    if (this.returning) {
+      // #2319's reattach: one row per call, guarded on still being unlinked.
+      const id = this.filters.find((f) => f.col === "item_id")?.val as string;
+      if (this.pairTaken.has(id)) {
+        return {
+          error: {
+            code: "23505",
+            message: "uq_events_payload_routine_date",
+          },
+        };
+      }
+      const matched = this.events.filter(
+        (r) =>
+          r.item_id === id &&
+          this.filters.every(
+            (f) => f.op !== "is" || (r as unknown as Record<string, unknown>)[f.col] === f.val,
+          ),
+      );
+      if (filter && matched.length > 0) {
+        this.updates.push({
+          table: this.table,
+          patch: this.patch,
+          filter: { op: "eq", col: filter.col, val: filter.val },
+        });
+      }
+      return { data: matched.map((r) => ({ item_id: r.item_id })), error: null };
+    }
     if (filter) {
       this.updates.push({
         table: this.table,
@@ -187,12 +228,16 @@ class Builder implements PromiseLike<{ data?: unknown; error: unknown }> {
   }
 }
 
-function makeClient(events: EventRow[], assignments: AssignmentRow[] = []) {
+function makeClient(
+  events: EventRow[],
+  assignments: AssignmentRow[] = [],
+  pairTaken: ReadonlySet<string> = new Set(),
+) {
   const updates: UpdateRecord[] = [];
   const inserts: InsertRecord[] = [];
   const client = {
     from: (table: string) =>
-      new Builder(table, events, updates, assignments, inserts),
+      new Builder(table, events, updates, assignments, inserts, pairTaken),
   } as unknown as SupabaseClient;
   return { client, updates, inserts };
 }
@@ -639,5 +684,109 @@ describe("detachRoutine — tags hand back to the survivors (#1632 / #1770)", ()
 
     expect(copies(inserts)).toHaveLength(0);
     expect(tagWrites(updates)).toHaveLength(0);
+  });
+});
+
+describe("detachRoutine → reattachRoutineOccurrences (#2319)", () => {
+  // Undoing "this and following" restored the trashed rows and the routine
+  // but never linked the survivors back, so the generator made a second
+  // occurrence beside every past one. The detach now reports what it
+  // unlinked, with the day each row stood for, and the undo hands it back.
+  it("reports the survivors it unlinked with their source_date", async () => {
+    const rows = seed();
+    // A row moved off its own day keeps the day it was generated for.
+    rows[0] = { ...rows[0], source_date: "2026-06-30" };
+    const { client } = makeClient(rows);
+    const svc = new SupabaseRoutinesService(client);
+
+    const { detachedItems } = await svc.detachRoutine(ROUTINE, TODAY);
+
+    expect(
+      [...detachedItems].sort((a, b) => (a.id < b.id ? -1 : 1)),
+    ).toEqual([
+      { id: "e-futuredone", sourceDate: "2026-07-25" },
+      { id: "e-past", sourceDate: "2026-06-30" },
+      { id: "e-pastdone", sourceDate: "2026-07-02" },
+    ]);
+  });
+
+  it("links each one back with its own day and bumps their meta", async () => {
+    const rows: EventRow[] = [
+      {
+        item_id: "e-past",
+        routine_item_id: null,
+        is_deleted_cache: false,
+        done: false,
+        start_at: "2026-07-01",
+      },
+      {
+        item_id: "e-pastdone",
+        routine_item_id: null,
+        is_deleted_cache: false,
+        done: true,
+        start_at: "2026-07-02",
+      },
+    ];
+    const { client, updates } = makeClient(rows);
+    const svc = new SupabaseRoutinesService(client);
+
+    const result = await svc.reattachRoutineOccurrences(ROUTINE, [
+      { id: "e-past", sourceDate: "2026-07-01" },
+      { id: "e-pastdone", sourceDate: "2026-07-02" },
+    ]);
+
+    expect(result).toEqual({
+      reattachedIds: ["e-past", "e-pastdone"],
+      conflictedIds: [],
+    });
+    const payload = updates.filter((u) => u.table === "events_payload");
+    expect(payload.map((u) => [u.filter.val, u.patch])).toEqual([
+      ["e-past", { routine_item_id: ROUTINE, source_date: "2026-07-01" }],
+      ["e-pastdone", { routine_item_id: ROUTINE, source_date: "2026-07-02" }],
+    ]);
+    // DB-Q2: the payload edit's LWW signal is the meta bump.
+    const bump = updates.find((u) => u.table === "items_meta");
+    expect(bump?.patch).toEqual({ updated_at: expect.any(String) });
+    expect(bump?.filter.val).toEqual(["e-past", "e-pastdone"]);
+  });
+
+  it("leaves a row that has since joined another repeat where it is", async () => {
+    const rows: EventRow[] = [
+      {
+        item_id: "e-past",
+        routine_item_id: "routine-2",
+        is_deleted_cache: false,
+        done: false,
+        start_at: "2026-07-01",
+      },
+    ];
+    const { client, updates } = makeClient(rows);
+    const svc = new SupabaseRoutinesService(client);
+
+    const result = await svc.reattachRoutineOccurrences(ROUTINE, [
+      { id: "e-past", sourceDate: "2026-07-01" },
+    ]);
+
+    expect(result).toEqual({ reattachedIds: [], conflictedIds: [] });
+    expect(updates).toEqual([]);
+  });
+
+  it("reports a taken (routine, date) pair instead of stopping the rest", async () => {
+    const rows: EventRow[] = ["e-a", "e-b"].map((item_id) => ({
+      item_id,
+      routine_item_id: null,
+      is_deleted_cache: false,
+      done: false,
+      start_at: "2026-07-01",
+    }));
+    const { client } = makeClient(rows, [], new Set(["e-a"]));
+    const svc = new SupabaseRoutinesService(client);
+
+    const result = await svc.reattachRoutineOccurrences(ROUTINE, [
+      { id: "e-a", sourceDate: "2026-07-01" },
+      { id: "e-b", sourceDate: "2026-07-01" },
+    ]);
+
+    expect(result).toEqual({ reattachedIds: ["e-b"], conflictedIds: ["e-a"] });
   });
 });

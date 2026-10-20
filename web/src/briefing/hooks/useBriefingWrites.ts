@@ -498,10 +498,8 @@ export function useBriefingWrites({
           // detach would then erase for good.
           if (!filled) return;
         }
-        const { deletedScheduleItemIds } = await ds.detachRoutine(
-          plan.routineId,
-          plan.anchor,
-        );
+        const { deletedScheduleItemIds, detachedItems } =
+          await ds.detachRoutine(plan.routineId, plan.anchor);
         const split = (ids: string[]) => {
           const removed = new Set(ids);
           setScheduleItems((prev) =>
@@ -526,10 +524,12 @@ export function useBriefingWrites({
          * reversible from one screen and silently not from the other.
          *
          * The inverse is the one useRoutinesAPI.detachRoutine files, in the
-         * same order: the trashed rows first, then the routine. Putting the
-         * routine back wakes the generator, which skips a day only where it
-         * can SEE a live occurrence — a still-trashed row is invisible to it,
-         * so it would mint a fresh id for that day (#708).
+         * same order: the trashed rows first, then the survivors linked back
+         * (#2319), then the routine. Putting the routine back wakes the
+         * generator, which skips a day only where it can SEE a live
+         * occurrence of that routine — a still-trashed row is invisible to
+         * it, so it would mint a fresh id for that day (#708), and so is a
+         * survivor left unlinked, which is how undo doubled the past days.
          *
          * What does NOT come back is the tags. The split handed them to the
          * survivors it unlinked and soft-deleted the series' own rows, and no
@@ -537,9 +537,11 @@ export function useBriefingWrites({
          * press (BriefingScreen passes the same note Schedule does).
          *
          * The paper has no range reload to lean on, so the undo paints the
-         * rows it knows it took — today's share of the cascade — itself.
+         * rows it knows it took — today's share of the cascade, and the
+         * survivors' link — itself.
          */
-        const cascade = deletedScheduleItemIds;
+        let cascade = deletedScheduleItemIds;
+        let survivors = detachedItems;
         const taken = scheduleItems.filter((s) => cascade.includes(s.id));
         push?.("routine", {
           label: "detachRoutine",
@@ -551,23 +553,43 @@ export function useBriefingWrites({
           undo: async () => {
             const { conflictedIds } =
               await ds.bulkRestoreScheduleItems(cascade);
+            const { reattachedIds } = await ds.reattachRoutineOccurrences(
+              plan.routineId,
+              survivors,
+            );
             await ds.restoreRoutine(plan.routineId);
             // A conflicted row stayed in the trash: the generator already
             // re-made that day while the routine was away (#932), and the
             // Realtime bump brings the live one in. Painting the old one too
             // would draw the day twice.
             const stayed = new Set(conflictedIds);
+            const relinked = new Map(
+              survivors
+                .filter((s) => reattachedIds.includes(s.id))
+                .map((s) => [s.id, s.sourceDate]),
+            );
             setScheduleItems((prev) => [
-              ...prev,
+              ...prev.map((s) =>
+                relinked.has(s.id)
+                  ? {
+                      ...s,
+                      routineId: plan.routineId,
+                      sourceDate: relinked.get(s.id) ?? null,
+                    }
+                  : s,
+              ),
               ...taken.filter(
                 (s) => !stayed.has(s.id) && !prev.some((p) => p.id === s.id),
               ),
             ]);
           },
           // Re-runs the split against whatever is live now rather than
-          // replaying the id list, as Schedule's redo does.
+          // replaying the id list, as Schedule's redo does — and keeps its
+          // answer for the next undo.
           redo: async () => {
             const again = await ds.detachRoutine(plan.routineId, plan.anchor);
+            cascade = again.deletedScheduleItemIds;
+            survivors = again.detachedItems;
             split(again.deletedScheduleItemIds);
           },
         });

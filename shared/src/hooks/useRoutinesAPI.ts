@@ -415,7 +415,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
     }> => {
       const target = routinesRef.current.find((r) => r.id === id);
       setRoutines((prev) => prev.filter((r) => r.id !== id));
-      let result: { deletedScheduleItemIds: string[] };
+      let result: Awaited<ReturnType<DataService["detachRoutine"]>>;
       try {
         result = await ds.detachRoutine(id, fromDate, {
           keepItemIds: opts?.keepItemIds,
@@ -434,13 +434,17 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
         return { ...result, reversal: null };
       }
 
-      // The occurrences the detach trashed. The survivors it merely unlinked
-      // are NOT here, and the undo below does not re-link them: nothing in
-      // the service puts a `routine_item_id` back, and the tags the detach
-      // handed them keep their new home (the source rows were soft-deleted
-      // by handOverTagAssignments). So an undo restores the repeat WITHOUT
-      // its tags — the scope dialog says so before the press (#1801).
-      const cascade = result.deletedScheduleItemIds;
+      // The occurrences the detach trashed, and the survivors it unlinked.
+      // #2319: the undo links the survivors back too. Leaving them unlinked
+      // was what doubled the past days — the generator skips a day only where
+      // it sees a row OF THIS ROUTINE, so it made a second one beside each
+      // survivor, and re-made the days the user had dismissed one by one.
+      // The tags the detach handed them keep their new home (the source rows
+      // were soft-deleted by handOverTagAssignments), so an undo restores the
+      // repeat WITHOUT its tags — the scope dialog says so before the press
+      // (#1801). A redo re-runs the split, so both lists follow its answer.
+      let cascade = result.deletedScheduleItemIds;
+      let survivors = result.detachedItems;
       const keepItemIds = opts.keepItemIds;
       return {
         ...result,
@@ -467,6 +471,18 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
                 ),
               );
             }
+            // Still before the routine: a survivor the generator cannot see
+            // as this routine's is a day it fills again (#2319).
+            const relinked = await ds.reattachRoutineOccurrences(id, survivors);
+            if (relinked.conflictedIds.length > 0) {
+              logServiceError(
+                "Routines",
+                "undoDetachRelink",
+                new Error(
+                  `${relinked.conflictedIds.length} occurrence(s) stayed unlinked: a live row already holds their (routine, date) pair`,
+                ),
+              );
+            }
             await ds.restoreRoutine(id);
             setRoutines((prev) =>
               prev.some((r) => r.id === id) ? prev : [...prev, target],
@@ -478,7 +494,11 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
             // replaying the id list, exactly as redoDelete does — and, like
             // it, paints the routine back when the split does not land.
             try {
-              await ds.detachRoutine(id, fromDate, { keepItemIds });
+              const again = await ds.detachRoutine(id, fromDate, {
+                keepItemIds,
+              });
+              cascade = again.deletedScheduleItemIds;
+              survivors = again.detachedItems;
             } catch (e) {
               logServiceError("Routines", "redoDetach", e);
               setRoutines((prev) =>
