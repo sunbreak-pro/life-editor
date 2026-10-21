@@ -143,7 +143,7 @@ interface Harness {
 
 function makeHarness(rows = [row(TODAY), row(YESTERDAY)]): Harness {
   const fns: Record<string, Mock> = {
-    listDailiesUnified: vi.fn(async () => rows.map((r) => ({ ...r }))),
+    listDailySummariesUnified: vi.fn(async () => rows.map((r) => ({ ...r }))),
     getDailyByDateUnified: vi.fn(async (date: string) => {
       const found = rows.find((r) => r.date === date);
       return found ? { ...found } : null;

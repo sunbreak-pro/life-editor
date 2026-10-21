@@ -40,7 +40,7 @@ const SAVED: DailyNode = {
 
 function makeDS(upsert: DataService["upsertDailyByDateUnified"]) {
   return stubDataService({
-    listDailiesUnified: () => Promise.resolve([]),
+    listDailySummariesUnified: () => Promise.resolve([]),
     upsertDailyByDateUnified: upsert,
   });
 }

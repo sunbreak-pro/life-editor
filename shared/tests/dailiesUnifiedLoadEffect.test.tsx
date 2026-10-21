@@ -42,7 +42,7 @@ function makeDS(rounds: Round[]) {
   let defer = false;
   const pending: Array<() => void> = [];
 
-  const listDailiesUnified = vi.fn(() => {
+  const listDailySummariesUnified = vi.fn(() => {
     const round = rounds.shift() ?? { dailies: [] };
     const settle = () =>
       round.dailies instanceof Error
@@ -54,10 +54,10 @@ function makeDS(rounds: Round[]) {
     });
   });
 
-  const ds = stubDataService({ listDailiesUnified });
+  const ds = stubDataService({ listDailySummariesUnified });
   return {
     ds,
-    listDailiesUnified,
+    listDailySummariesUnified,
     deferNextRound: () => {
       defer = true;
     },
@@ -88,22 +88,26 @@ describe("useDailiesUnifiedAPI load effect (#891)", () => {
   });
 
   it("refetches when the dailies domain moves", async () => {
-    const { ds, listDailiesUnified } = makeDS([
+    const { ds, listDailySummariesUnified } = makeDS([
       { dailies: [makeDaily("2026-08-16")] },
       { dailies: [makeDaily("2026-08-16"), makeDaily("2026-08-15")] },
     ]);
     const hook = renderHook(() => useDailiesUnifiedAPI({ dataService: ds }), {
       wrapper,
     });
-    await waitFor(() => expect(listDailiesUnified).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(listDailySummariesUnified).toHaveBeenCalledTimes(1),
+    );
 
     act(() => sync.bump("dailies"));
-    await waitFor(() => expect(listDailiesUnified).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(listDailySummariesUnified).toHaveBeenCalledTimes(2),
+    );
     await waitFor(() => expect(hook.result.current.dailies).toHaveLength(2));
   });
 
   it("keeps the entries on screen while a bump-driven refetch is in flight", async () => {
-    const { ds, listDailiesUnified, deferNextRound, release } = makeDS([
+    const { ds, listDailySummariesUnified, deferNextRound, release } = makeDS([
       { dailies: [makeDaily("2026-08-16")] },
       { dailies: [makeDaily("2026-08-15")] },
     ]);
@@ -117,7 +121,9 @@ describe("useDailiesUnifiedAPI load effect (#891)", () => {
     // data yet" while the echo's re-read is in flight.
     deferNextRound();
     act(() => sync.bump("dailies"));
-    await waitFor(() => expect(listDailiesUnified).toHaveBeenCalledTimes(2));
+    await waitFor(() =>
+      expect(listDailySummariesUnified).toHaveBeenCalledTimes(2),
+    );
     expect(hook.result.current.isLoading).toBe(false);
     expect(hook.result.current.dailies.map((d) => d.date)).toEqual([
       "2026-08-16",
@@ -131,11 +137,13 @@ describe("useDailiesUnifiedAPI load effect (#891)", () => {
   });
 
   it("ignores a bump on a domain it does not read", async () => {
-    const { ds, listDailiesUnified } = makeDS([
+    const { ds, listDailySummariesUnified } = makeDS([
       { dailies: [makeDaily("2026-08-16")] },
     ]);
     renderHook(() => useDailiesUnifiedAPI({ dataService: ds }), { wrapper });
-    await waitFor(() => expect(listDailiesUnified).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(listDailySummariesUnified).toHaveBeenCalledTimes(1),
+    );
 
     // A note edit or an audio-settings edit must not re-pull the daily list
     // (#499).
@@ -144,7 +152,7 @@ describe("useDailiesUnifiedAPI load effect (#891)", () => {
       sync.bump("audio");
     });
     await act(async () => {});
-    expect(listDailiesUnified).toHaveBeenCalledTimes(1);
+    expect(listDailySummariesUnified).toHaveBeenCalledTimes(1);
   });
 
   it("surfaces a failed read instead of showing it as an empty list", async () => {

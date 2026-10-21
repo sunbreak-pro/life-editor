@@ -3,19 +3,48 @@ import type { DailiesUnifiedDataService } from "./DataService";
 import {
   ITEMS_META_DAILY_COLUMNS,
   DAILIES_PAYLOAD_COLUMNS,
+  DAILIES_PAYLOAD_LIGHT_COLUMNS,
   assertDailyDate,
   assertDailyId,
   dailyNodeToRows,
   dailyUpdatesToPatches,
   rowsToDailyNode,
+  rowsToDailyNodeLight,
   type ItemsMetaDailyRow,
   type DailiesPayloadRow,
+  type DailiesPayloadLightRow,
 } from "./dailiesUnifiedMapper";
+import { contentJsonToString, contentStringToJson } from "./contentJson";
+import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
 import type { DailyNode } from "../types/daily";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
 import { ItemLockGate } from "./itemLockGate";
 import { fetchMaybeSingleRow } from "./postgrestSingle";
+
+/** PostgREST / Postgres codes for "there is no such function" (#2325). */
+const MISSING_FUNCTION_CODES = new Set(["PGRST202", "42883"]);
+
+/** One row of `save_daily_content` (0043): meta and payload side by side. */
+interface SaveDailyRow {
+  id: string;
+  user_id: string;
+  role: "daily";
+  title: string;
+  is_deleted: boolean;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+  item_id: string;
+  date: string;
+  content_json: unknown;
+  is_pinned: boolean;
+  is_edit_locked: boolean;
+  has_password: boolean;
+  evening_published_at: string | null;
+  evening_notes: Record<string, string> | null;
+  morning_comment: unknown;
+}
 
 /*
  * SupabaseDailiesUnifiedService (DU-D Step 2).
@@ -33,6 +62,12 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
    * `ItemLockGate` and differ only in the values passed here.
    */
   private readonly lock: ItemLockGate<DailyNode>;
+  /**
+   * Set by the first "no such function" answer from `save_daily_content`
+   * (#2325): until migration 0043 is pushed, saves take the old six-request
+   * path instead of failing.
+   */
+  private saveRpcMissing = false;
 
   constructor(private readonly client: SupabaseClient) {
     this.lock = new ItemLockGate<DailyNode>({
@@ -57,6 +92,60 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
 
   async listDailiesUnified(): Promise<DailyNode[]> {
     return this.listByDeletedBucket(false, "listDailiesUnified");
+  }
+
+  /**
+   * The Daily list without the bodies (#2325) — see rowsToDailyNodeLight.
+   * The Daily screen's list reads this and fetches a body only for the day
+   * it opens; the other readers of every body (the evening issue count, the
+   * palette, Connect, Settings) keep listDailiesUnified.
+   */
+  listDailySummariesUnified(): Promise<DailyNode[]> {
+    return fetchMetaFirstJoin<
+      ItemsMetaDailyRow,
+      DailiesPayloadLightRow,
+      DailyNode
+    >({
+      client: this.client,
+      role: "daily",
+      isDeleted: false,
+      metaColumns: ITEMS_META_DAILY_COLUMNS,
+      metaLabel: "listDailySummariesUnified meta failed",
+      payloadTable: "dailies_payload",
+      payloadColumns: DAILIES_PAYLOAD_LIGHT_COLUMNS,
+      payloadLabel: "listDailySummariesUnified payload failed",
+      toDomain: rowsToDailyNodeLight,
+    });
+  }
+
+  /**
+   * Whole bodies for the given days, by id (#2325). For the light rows whose
+   * head could not be read (a legacy plain-text body), so their excerpt is
+   * still the one the list showed before.
+   */
+  async fetchDailyBodiesUnified(
+    ids: readonly string[],
+  ): Promise<Record<string, string>> {
+    if (ids.length === 0) return {};
+    const rows = await fetchByIdChunks<{
+      item_id: string;
+      content_json: unknown;
+    }>([...ids], (chunk) =>
+      fetchAllPages(
+        (from, to) =>
+          this.client
+            .from("dailies_payload")
+            .select("item_id, content_json")
+            .in("item_id", chunk)
+            .order("item_id")
+            .range(from, to),
+        "fetchDailyBodiesUnified failed",
+      ),
+    );
+    const out: Record<string, string> = {};
+    for (const row of rows)
+      out[row.item_id] = contentJsonToString(row.content_json);
+    return out;
   }
 
   /**
@@ -128,6 +217,20 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
     content: string,
   ): Promise<DailyNode> {
     assertDailyDate(date);
+    if (!this.saveRpcMissing) {
+      // One round trip (#2325, migration 0043): the lookup, the meta bump,
+      // the body write and the read-back used to be six requests.
+      const { data, error } = await this.client.rpc("save_daily_content", {
+        p_date: date,
+        p_content: contentStringToJson(content),
+        p_updated_at: new Date().toISOString(),
+      });
+      if (!error) return this.fromSaveRow(data, date);
+      if (!MISSING_FUNCTION_CODES.has(error.code ?? "")) {
+        throw new Error(`upsertDailyByDateUnified failed: ${error.message}`);
+      }
+      this.saveRpcMissing = true;
+    }
     const existing = await this.getDailyByDateUnified(date);
     if (existing) {
       return this.updateDailyUnified(existing.id, { content });
@@ -141,6 +244,42 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
       updatedAt: now,
     };
     return this.createDailyUnified(node);
+  }
+
+  /** The saved row `save_daily_content` hands back, as a DailyNode. */
+  private fromSaveRow(data: unknown, date: string): DailyNode {
+    const rows = (
+      Array.isArray(data) ? data : data ? [data] : []
+    ) as SaveDailyRow[];
+    const row = rows[0];
+    if (!row)
+      throw new Error(
+        `upsertDailyByDateUnified: no row came back (date="${date}")`,
+      );
+    return rowsToDailyNode(
+      {
+        id: row.id,
+        user_id: row.user_id,
+        role: row.role,
+        title: row.title,
+        is_deleted: row.is_deleted,
+        deleted_at: row.deleted_at,
+        created_at: row.created_at,
+        updated_at: row.updated_at,
+      },
+      {
+        item_id: row.item_id,
+        user_id: row.user_id,
+        date: row.date,
+        content_json: row.content_json,
+        is_pinned: row.is_pinned,
+        is_edit_locked: row.is_edit_locked,
+        has_password: row.has_password,
+        evening_published_at: row.evening_published_at,
+        evening_notes: row.evening_notes,
+        morning_comment: row.morning_comment,
+      },
+    );
   }
 
   // -------------------------------------------------------------------------
@@ -436,6 +575,9 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
 
 export const PHASE2_DAILIES_UNIFIED_METHOD_NAMES = [
   "listDailiesUnified",
+  // #2325
+  "listDailySummariesUnified",
+  "fetchDailyBodiesUnified",
   "countLiveDailies",
   "getDailyByDateUnified",
   "upsertDailyByDateUnified",
