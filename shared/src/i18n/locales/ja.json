@@ -605,8 +605,7 @@
       "closeOtherItems": "他のアイテムを閉じる",
       "backToList": "一覧に戻る",
       "rowActions": "ノートの操作",
-      "renameNote": "名前を変更",
-      "editNote": "ノートを編集"
+      "renameNote": "名前を変更"
     },
     "templates": {
       "menuEntry": "テンプレートとして登録する",

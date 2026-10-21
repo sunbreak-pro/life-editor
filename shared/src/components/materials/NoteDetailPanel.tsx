@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useLayoutEffect,
   useRef,
   useState,
   type CSSProperties,
@@ -17,6 +18,7 @@ import {
 import { cn } from "../cn";
 import { Menu, MenuItem } from "../Menu";
 import { FOCUS_RING } from "../styleTokens";
+import { isImeComposing } from "../../utils/imeGuard";
 
 /*
  * Note detail panel (Materials mini-plan Step 3). The right-hand pane the
@@ -93,6 +95,7 @@ function NoteTitleInput({
 }) {
   const [draft, setDraft] = useState(initialTitle);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const areaRef = useRef<HTMLTextAreaElement | null>(null);
   const timerRef = useRef<number | null>(null);
   const pendingRef = useRef<string | null>(null);
   const onCommitRef = useRef(onCommit);
@@ -150,23 +153,69 @@ function NoteTitleInput({
    */
   useEffect(() => {
     if (!autoFocus) return;
-    inputRef.current?.focus();
-    inputRef.current?.select();
+    const field = inputRef.current ?? areaRef.current;
+    field?.focus();
+    field?.select();
     onAutoFocused?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /*
+   * #2291 — the compact field ("sidebar", which is what narrow renders) is a
+   * textarea that grows to two lines. As a one-line input at 254px a long
+   * title was cut off with no way to read the rest. A title is still one
+   * line of text: Enter does not add a break (an Enter that commits an IME
+   * conversion is left alone), and a pasted break becomes a space. Past two
+   * lines the field scrolls inside its own box.
+   *
+   * The height follows the text: reset to `auto` so the field can shrink,
+   * then set from scrollHeight plus the border, which scrollHeight leaves
+   * out (border-box sizing). The max-height in the class caps it.
+   */
+  useLayoutEffect(() => {
+    const el = areaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight + el.offsetHeight - el.clientHeight}px`;
+  }, [draft]);
+
+  const onChange = (value: string) => {
+    setDraft(value);
+    pendingRef.current = value;
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = window.setTimeout(flush, 300);
+  };
+
+  if (!isMain) {
+    return (
+      <textarea
+        ref={areaRef}
+        rows={1}
+        value={draft}
+        onChange={(e) => onChange(e.target.value.replace(/[\r\n]+/g, " "))}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !isImeComposing(e)) e.preventDefault();
+        }}
+        onBlur={flush}
+        aria-label={label}
+        className={cn(
+          // #2227: the tags share this row, so the title keeps a floor of its
+          // own and the tags wrap under it once both no longer fit.
+          "min-w-40 flex-1 text-lumen-text",
+          "block resize-none overflow-y-auto leading-snug",
+          "max-h-[calc(2lh+0.75rem+2px)]",
+          "rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium",
+          FOCUS_RING,
+        )}
+      />
+    );
+  }
 
   return (
     <input
       ref={inputRef}
       value={draft}
-      onChange={(e) => {
-        const value = e.target.value;
-        setDraft(value);
-        pendingRef.current = value;
-        if (timerRef.current) clearTimeout(timerRef.current);
-        timerRef.current = window.setTimeout(flush, 300);
-      }}
+      onChange={(e) => onChange(e.target.value)}
       onBlur={flush}
       aria-label={label}
       className={cn(
@@ -175,8 +224,8 @@ function NoteTitleInput({
         "min-w-40 flex-1 text-lumen-text",
         // "main" → borderless 28px bold heading (same size/font as the Daily
         // date title, 2026-07-19: the only visual difference between Notes and
-        // Daily should be the tag/link affordances). Compact "sidebar" keeps the
-        // bordered small input.
+        // Daily should be the tag/link affordances). The compact "sidebar"
+        // field is the textarea above.
         //
         // `[--field-font-size:28px]` opts this one field out of the mobile font
         // floor (#1134 / styles/tokens.css). That floor exists to lift fields
@@ -184,9 +233,7 @@ function NoteTitleInput({
         // size when a field has no override — which would quietly flatten this
         // heading to body size on a phone. 28px is already well over the
         // trigger, so the override only has to repeat the size beside it.
-        isMain
-          ? "border-none bg-transparent px-0 py-0.5 text-[28px] [--field-font-size:28px] font-bold leading-tight tracking-tight placeholder:text-lumen-text-tertiary"
-          : "rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium",
+        "border-none bg-transparent px-0 py-0.5 text-[28px] [--field-font-size:28px] font-bold leading-tight tracking-tight placeholder:text-lumen-text-tertiary",
         FOCUS_RING,
       )}
     />
@@ -324,6 +371,15 @@ const STICKY_HEADER_BOX = {
   sidebar: "sticky top-0 z-20 -mx-3 -mt-1 bg-lumen-bg-secondary px-3 pt-1",
 } as const;
 
+/** The nearest ancestor that scrolls vertically; null → the viewport. */
+function scrollParentOf(el: HTMLElement): HTMLElement | null {
+  for (let node = el.parentElement; node; node = node.parentElement) {
+    const { overflowY } = getComputedStyle(node);
+    if (overflowY === "auto" || overflowY === "scroll") return node;
+  }
+  return null;
+}
+
 export function NoteDetailPanel({
   noteId,
   title,
@@ -378,6 +434,33 @@ export function NoteDetailPanel({
     observer.observe(el);
     return () => observer.disconnect();
   }, [stickyHeader]);
+
+  /*
+   * #2291 — whether the header is stuck right now, so it can show where it
+   * ends: at rest it is the card's own colour with a 1.13:1 rule under it, and
+   * once the body slides beneath it the two read as one surface. A 1px
+   * sentinel at the card's top is watched against whatever scrolls the panel;
+   * once it has gone past that box's top edge, the header is pinned. Absent
+   * IntersectionObserver (jsdom) the header simply never reports stuck.
+   */
+  const sentinelRef = useRef<HTMLSpanElement>(null);
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    if (!stickyHeader) return;
+    const el = sentinelRef.current;
+    if (!el || typeof IntersectionObserver === "undefined") return;
+    const root = scrollParentOf(el);
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        const top = entry.rootBounds?.top ?? 0;
+        setStuck(!entry.isIntersecting && entry.boundingClientRect.top < top);
+      },
+      { root },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [stickyHeader]);
+
   const rootStyle =
     stickyHeader && headerHeight != null
       ? ({
@@ -389,6 +472,8 @@ export function NoteDetailPanel({
     <div
       className={cn(
         "flex flex-col border border-lumen-border",
+        // The stuck-header sentinel below is positioned against the card.
+        stickyHeader && "relative",
         isMain
           ? "gap-4 rounded-lumen-lg bg-lumen-bg-secondary p-5 shadow-lumen-sm"
           : "gap-3 rounded-lumen-md bg-lumen-bg-secondary p-3",
@@ -396,6 +481,13 @@ export function NoteDetailPanel({
       )}
       style={rootStyle}
     >
+      {stickyHeader && (
+        <span
+          ref={sentinelRef}
+          aria-hidden
+          className="pointer-events-none absolute inset-x-0 top-0 h-px"
+        />
+      )}
       {/* Header — the title and tag row and the rule under it, as one block so
           it can stick (#2058). Its gap repeats the card's, so with
           `stickyHeader` off the rows sit exactly where they did before the
@@ -403,10 +495,13 @@ export function NoteDetailPanel({
       <div
         ref={headerRef}
         data-testid="note-detail-header"
+        data-stuck={stuck ? "" : undefined}
         className={cn(
           "flex flex-col",
           isMain ? "gap-4" : "gap-3",
           stickyHeader && STICKY_HEADER_BOX[variant],
+          // #2291: stuck, the header casts a shadow onto the body under it.
+          stuck && "shadow-lumen-sm",
         )}
       >
         {/* Title row — title input, then the tags and item links (#884) on the
@@ -432,7 +527,11 @@ export function NoteDetailPanel({
               onAutoFocused={onTitleAutoFocused}
             />
             {hasTagRow && (
-              <div className="flex flex-wrap items-center gap-1.5">
+              // #2291: below the breakpoint the tag / link row is one line of
+              // its own under the title and does not wrap — the tag picker
+              // scrolls its chips sideways instead (TagPicker `singleRow`),
+              // which keeps the stuck header from growing a line per tag.
+              <div className="flex flex-wrap items-center gap-1.5 max-md:w-full max-md:min-w-0 max-md:flex-nowrap">
                 {tagsSlot}
                 {linksSlot}
               </div>
@@ -573,7 +672,11 @@ export function NoteDetailPanel({
         {contentEditor != null && hasTagRow && (
           <hr
             data-testid="note-detail-divider"
-            className="m-0 border-0 border-t border-lumen-border"
+            className={cn(
+              "m-0 border-0 border-t",
+              // #2291: the stronger line while the body slides under it.
+              stuck ? "border-lumen-border-strong" : "border-lumen-border",
+            )}
           />
         )}
       </div>

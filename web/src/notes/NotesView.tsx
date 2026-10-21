@@ -705,7 +705,7 @@ export function NotesView({
       labels={{
         ...listLabels,
         deleteNote: t("materials.notes.deleteNote"),
-        editNote: t("materials.notes.editNote"),
+        rowActions: t("materials.notes.rowActions"),
         assignTagHint: t("materials.notes.assignTagHint"),
         clearTagFilter: t("materials.notes.tagFilterClear"),
         tagFilterSelected: (count) =>
@@ -760,7 +760,16 @@ export function NotesView({
   // present so a new note can be made with nothing selected.
   const mainContent = (
     <>
-      <div className="flex items-center justify-end px-1 pb-3">
+      <div
+        className={cn(
+          "flex items-center justify-end px-1 pb-3",
+          // #2291: the narrow column's top gap lives here, not as the
+          // scroller's padding. A sticky box stops at the scroller's padding
+          // edge, so a `pt-2` there left 9px of scrolled body showing above
+          // the stuck note header.
+          !isWide && "pt-2",
+        )}
+      >
         {/* The tour points at the pill through this wrapper rather than at the
             button itself: AddPill is a shared primitive with a fixed prop list
             and no data-* passthrough, and the wrapper is the same box either
@@ -948,7 +957,7 @@ export function NotesView({
         ref={measureMainColumn}
         className={cn(
           "flex min-h-0 flex-1 flex-col",
-          !isWide && "overflow-y-auto px-4 pt-2",
+          !isWide && "overflow-y-auto px-4",
         )}
       >
         {mainContent}

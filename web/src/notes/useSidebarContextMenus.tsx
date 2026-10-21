@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, type MouseEvent } from "react";
+import { Trash2 } from "lucide-react";
 import {
   BottomSheet,
   ConfirmDialog,
@@ -10,6 +11,8 @@ import {
   useTagEditDrafts,
   useTranslation,
   useWikiTagsUnifiedContext,
+  cn,
+  FOCUS_RING,
   type NoteNode,
   type TagHubTagSummary,
 } from "@life-editor/shared";
@@ -361,8 +364,10 @@ export function useSidebarContextMenus({
         />
       )}
 
-      {/* Narrow note edit (#2032): what the Desktop popover above offers,
-          minus delete (the bin sits beside the pencil that opened this). */}
+      {/* Narrow note edit (#2032): what the Desktop popover above offers.
+          #2291 folded the row's bin into the "…" that opens this sheet, so
+          the delete is here too, last and in the danger tone. It closes the
+          sheet first, so the confirm question does not open over it. */}
       {sheetNote && !enabled && (
         <BottomSheet
           open
@@ -380,6 +385,21 @@ export function useSidebarContextMenus({
               onCommit={(title) => onRenameNote(sheetNote.id, title)}
             />
             <TagPicker itemId={sheetNote.id} />
+            <button
+              type="button"
+              onClick={() => {
+                const id = sheetNote.id;
+                setSheetNoteId(null);
+                onDeleteNote(id);
+              }}
+              className={cn(
+                "flex min-h-11 items-center gap-2 self-start rounded-lumen-md px-3 text-sm text-lumen-danger hover:bg-lumen-hover",
+                FOCUS_RING,
+              )}
+            >
+              <Trash2 size={14} aria-hidden />
+              {t("materials.notes.deleteNote")}
+            </button>
           </div>
         </BottomSheet>
       )}

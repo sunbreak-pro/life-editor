@@ -234,8 +234,27 @@ body {
   vertical-align: top;
   position: relative;
 }
+/*
+ * #2291: on a phone a 2-column table squeezed into the 310px card left the
+ * second column five characters a line. Below the breakpoint every cell keeps
+ * 10rem, so a table wider than the card scrolls sideways in .tableWrapper
+ * (overflow-x: auto above) instead of growing tall. 767px = the app's
+ * breakpoint, as in the field font floor (shared/src/styles/tokens.css).
+ */
+@media (max-width: 767px) {
+  .note-editor .ProseMirror th,
+  .note-editor .ProseMirror td {
+    min-width: 10rem;
+  }
+}
+/*
+ * #2291: the header row, inline code and code blocks sit on the recessed
+ * surface, one step darker than the card they are drawn in. They used to take
+ * the card's own --color-bg-secondary, a 1.00:1 contrast that left them
+ * invisible.
+ */
 .note-editor .ProseMirror th {
-  background-color: var(--color-bg-secondary);
+  background-color: var(--color-surface-sunken);
   font-weight: 600;
   text-align: left;
 }
@@ -257,13 +276,13 @@ body {
   z-index: 2;
 }
 .note-editor .ProseMirror code {
-  background-color: var(--color-bg-secondary);
+  background-color: var(--color-surface-sunken);
   border-radius: 0.25rem;
   padding: 0.1em 0.3em;
   font-size: 0.85em;
 }
 .note-editor .ProseMirror pre {
-  background-color: var(--color-bg-secondary);
+  background-color: var(--color-surface-sunken);
   border-radius: 0.375rem;
   padding: 0.75rem;
   overflow-x: auto;
@@ -492,10 +511,7 @@ body {
 }
 /* Room for the button, so a long path is clipped by the ellipsis below rather
    than sliding underneath it. */
-.note-editor
-  .ProseMirror
-  .note-link-card--removable
-  .note-link-card__link {
+.note-editor .ProseMirror .note-link-card--removable .note-link-card__link {
   padding-right: 2.75rem;
 }
 .note-editor .ProseMirror .note-link-card__link:hover {
