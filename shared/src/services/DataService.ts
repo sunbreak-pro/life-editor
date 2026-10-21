@@ -787,12 +787,29 @@ export interface NotesUnifiedDataService {
 // The legacy Daily method signatures were removed in DU-G G4.
 // ---------------------------------------------------------------------------
 
+/**
+ * Options for a Daily content write (#2290).
+ *
+ * `ownEcho` records the write in the own-write ledger, so its Realtime echo
+ * does not refetch the Daily list. Only a caller whose local state already
+ * holds the written body may pass it — today that is the Daily list's own
+ * optimistic upsert. Any other reader mounted next to the writer would miss
+ * the change, because the echo was what told it.
+ */
+export interface DailyWriteOptions {
+  ownEcho?: boolean;
+}
+
 export interface DailiesUnifiedDataService {
   listDailiesUnified(): Promise<DailyNode[]>;
   /** Live daily count for the badge (#511) — see countUnfinishedTodos. */
   countLiveDailies(): Promise<number>;
   getDailyByDateUnified(date: string): Promise<DailyNode | null>;
-  upsertDailyByDateUnified(date: string, content: string): Promise<DailyNode>;
+  upsertDailyByDateUnified(
+    date: string,
+    content: string,
+    opts?: DailyWriteOptions,
+  ): Promise<DailyNode>;
   createDailyUnified(node: DailyNode): Promise<DailyNode>;
   updateDailyUnified(
     id: string,

@@ -127,7 +127,7 @@ export function AppProviders({
         <UndoRedoHost userId={userId}>
           <ShortcutConfigHost>
             <GlobalShortcuts {...shortcuts} />
-            <AudioProvider dataService={dataService}>
+            <AudioHost dataService={dataService}>
               <TimerHost dataService={dataService}>
                 <RightSidebarProvider>
                   <TourRevealHost
@@ -142,7 +142,7 @@ export function AppProviders({
                   </TourRevealHost>
                 </RightSidebarProvider>
               </TimerHost>
-            </AudioProvider>
+            </AudioHost>
           </ShortcutConfigHost>
         </UndoRedoHost>
       </SyncProvider>
@@ -169,6 +169,32 @@ export function AppProviders({
 function ShortcutConfigHost({ children }: { children: ReactNode }) {
   if (isNativeMobile()) return <>{children}</>;
   return <ShortcutConfigProvider>{children}</ShortcutConfigProvider>;
+}
+
+/*
+ * The AudioProvider, told whether this screen shows the ambient mixer
+ * (#2290). WorkScreen draws the mixer only on the wide layout and never on
+ * the native shells; everywhere else the synced "rain is on" setting used to
+ * start the loop anyway, streaming a sound the user had no control to stop.
+ * The Provider itself stays mounted for the completion chime (see the note
+ * on ShortcutConfigHost above).
+ */
+function AudioHost({
+  dataService,
+  children,
+}: {
+  dataService: DataService;
+  children: ReactNode;
+}) {
+  const isWide = useMediaQuery(WIDE_QUERY, true);
+  return (
+    <AudioProvider
+      dataService={dataService}
+      ambient={isWide && !isNativeMobile()}
+    >
+      {children}
+    </AudioProvider>
+  );
 }
 
 /*

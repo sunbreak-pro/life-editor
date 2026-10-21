@@ -1,5 +1,8 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { DailiesUnifiedDataService } from "./DataService";
+import type {
+  DailiesUnifiedDataService,
+  DailyWriteOptions,
+} from "./DataService";
 import {
   ITEMS_META_DAILY_COLUMNS,
   DAILIES_PAYLOAD_COLUMNS,
@@ -16,6 +19,7 @@ import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
 import { ItemLockGate } from "./itemLockGate";
 import { fetchMaybeSingleRow } from "./postgrestSingle";
+import { noteOwnWrite } from "./ownWriteLedger";
 
 /*
  * SupabaseDailiesUnifiedService (DU-D Step 2).
@@ -126,11 +130,12 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
   async upsertDailyByDateUnified(
     date: string,
     content: string,
+    opts?: DailyWriteOptions,
   ): Promise<DailyNode> {
     assertDailyDate(date);
     const existing = await this.getDailyByDateUnified(date);
     if (existing) {
-      return this.updateDailyUnified(existing.id, { content });
+      return this.updateDaily(existing.id, { content }, opts?.ownEcho === true);
     }
     const now = new Date().toISOString();
     const node: DailyNode = {
@@ -182,6 +187,14 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
     id: string,
     updates: Partial<DailyNode>,
   ): Promise<DailyNode> {
+    return this.updateDaily(id, updates, false);
+  }
+
+  private async updateDaily(
+    id: string,
+    updates: Partial<DailyNode>,
+    ownEcho: boolean,
+  ): Promise<DailyNode> {
     const now = new Date().toISOString();
     const userPlaceholder = "00000000-0000-0000-0000-000000000000";
     const { metaPatch, payloadPatch } = dailyUpdatesToPatches(
@@ -190,6 +203,16 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
       now,
     );
 
+    // The caller's local state already holds this write (DailyWriteOptions),
+    // so its rows coming back over Realtime need no refetch (#2290). Recorded
+    // before the request: the stamp is ours, and the echo may come back
+    // before the answer does. (A create is never recorded — its meta row
+    // takes the column default `now()`, a stamp this client never sees.)
+    if (ownEcho) {
+      noteOwnWrite("items_meta", id, metaPatch.updated_at);
+      if (Object.keys(payloadPatch).length > 0)
+        noteOwnWrite("dailies_payload", id);
+    }
     const { error: metaErr } = await this.client
       .from("items_meta")
       .update(metaPatch)
