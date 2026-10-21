@@ -22,8 +22,16 @@
 //      straight into the first one when the element wraps
 //   3. scale to one RMS target so the five presets sit at the same level
 //      (the gain is lowered instead if a peak would pass -1 dBFS)
-//   4. encode once with LAME at CBR 320 kbps, keeping the LAME tag so
+//   4. encode once with LAME at CBR 128 kbps, keeping the LAME tag so
 //      players that honour it drop the encoder's own priming and padding
+//      (320 kbps until #2290: a 2-minute loop was about 5MB, streamed in full
+//      every time a sound was switched on, which was most of a phone's
+//      daily traffic. 128 kbps gives up the content above 16 kHz)
+//
+// The files are written as `<id>-v<N>.mp3`, the object names in
+// shared/src/constants/sounds.ts. A new build takes a new number, so the
+// bucket can serve each name with a year-long cache and the app moves to the
+// new files only when its code does.
 //
 // Usage:
 //   node supabase/scripts/ambient-loops.mjs build   <srcDir> <outDir> [id...]
@@ -44,7 +52,9 @@ const RATE = 48000;
 const CHANNELS = 2;
 const TARGET_RMS_DB = -28;
 const PEAK_CEILING_DB = -1;
-const BITRATE = "320k";
+const BITRATE = "128k";
+/** Must match the objectName suffix in shared/src/constants/sounds.ts. */
+const ASSET_VERSION = "v2";
 
 const dbOf = (x) => 20 * Math.log10(Math.max(x, 1e-12));
 const gainOf = (db) => 10 ** (db / 20);
@@ -116,7 +126,7 @@ function buildOne(entry, srcDir, outDir) {
   try {
     const raw = join(tmp, `${id}.f32`);
     writeFileSync(raw, Buffer.from(out.buffer));
-    const dest = join(outDir, `${id}.mp3`);
+    const dest = join(outDir, `${id}-${ASSET_VERSION}.mp3`);
     ffmpeg([
       "-y",
       "-f", "f32le", "-ar", String(RATE), "-ac", String(CHANNELS), "-i", raw,

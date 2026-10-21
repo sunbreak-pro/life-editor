@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NoteBodySaveResult, NoteBodySnapshot } from "../types/note";
 import { contentJsonToString, contentStringToJson } from "./contentJson";
+import { noteOwnWrite } from "./ownWriteLedger";
 
 /*
  * The version-checked body save (#2057) — a collaborator of
@@ -59,13 +60,30 @@ export class SupabaseNotesUnifiedBodySave {
         p_content: contentJson,
         p_expected_updated_at: expectedUpdatedAt,
       });
-      if (!error) return this.fromRpc(data);
+      if (!error) return this.landed(id, this.fromRpc(data));
       if (!isMissingFunction(error)) {
         throw new Error(`saveNoteBodyUnified failed: ${error.message}`);
       }
       this.rpcMissing = true;
     }
-    return this.saveWithConditionalUpdate(id, contentJson, expectedUpdatedAt);
+    return this.landed(
+      id,
+      await this.saveWithConditionalUpdate(id, contentJson, expectedUpdatedAt),
+    );
+  }
+
+  /**
+   * A landed save wrote the meta row (with the stamp it returns) and the body,
+   * so both Realtime echoes are this client's own and need no refetch (#2290).
+   * Recorded after the answer, since the stamp comes from the server: an echo
+   * that outruns the answer simply refetches, as every echo did before.
+   */
+  private landed(id: string, result: NoteBodySaveResult): NoteBodySaveResult {
+    if (result.status === "saved") {
+      noteOwnWrite("items_meta", id, result.updatedAt);
+      noteOwnWrite("notes_payload", id);
+    }
+    return result;
   }
 
   /**

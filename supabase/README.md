@@ -416,10 +416,17 @@ node supabase/scripts/ambient-loops.mjs measure /tmp/ambient/out/*.mp3
 ```
 
 A good loop measures: `silenceMs` = `0/0`, `seamRatio` near 1 (the wrap
-step is like any other sample step), `band18to20` well above -60 dB (no
-wall at 16 kHz), `rmsDb` near -28 for all five. Keep the bitrate at CBR
-320 kbps: at 256 kbps and at VBR V0, LAME drops quiet content above 16 kHz
-on its own and the file measures like a low-bitrate re-encode.
+step is like any other sample step), `rmsDb` near -28 for all five. The
+build is CBR 128 kbps since #2290 (320 kbps before): a 2-minute loop went
+from about 5MB to about 2MB, because each switch-on streams the whole file
+and that was most of a phone's daily traffic. At 128 kbps LAME drops quiet
+content above 16 kHz, so `band18to20` now reads low and `wallHz` near
+16 kHz; that is the accepted price, not a sign of a double encode.
+
+The build writes `<id>-v<N>.mp3`. The number is `ASSET_VERSION` in the
+script and must match `objectName` in `shared/src/constants/sounds.ts`.
+A new build takes the next number rather than replacing a file, so every
+object can carry a year-long cache.
 
 `silenceMsNoTag` is what a player that ignores the LAME tag plays: about
 23 ms at the head and up to 16 ms at the tail, from the MP3 format itself.
@@ -432,30 +439,42 @@ outgoing side is already near zero.
 
 ### Upload (owner)
 
-Replacing a public object is done by the owner in the Dashboard, not by
-Claude:
+Uploading to the bucket is done by the owner, not by Claude. The objects
+go up under NEW names, so nothing the app serves today changes until the
+code that names them is deployed — upload first, merge second.
 
-1. **Back up the files in place first**:
-   `for f in rain wind ocean birds fire; do curl -sSO https://<project>.supabase.co/storage/v1/object/public/sounds/$f.mp3; done`
-   and keep them outside the repo.
-2. Dashboard → Storage → `sounds` → upload the five new files under the
-   same names (`<id>.mp3`). If the Dashboard refuses because the name
-   exists, delete that one object and upload it again.
-3. Open each public URL in a browser and check it plays. Browsers and the
-   CDN may keep the old file for up to the object's cache time (1 hour by
-   default), so the app can sound unchanged for that long.
-4. **Measure what the bucket now serves.** `measure` takes the public URLs
-   as they are (ffmpeg reads https), so no download is needed:
+1. Copy the service role key (Dashboard → Project Settings → API) into a
+   shell variable for this session only. Never commit it or paste it into
+   a file in the repo.
+2. Upload each new file with a year-long cache. The Dashboard's upload
+   button always sets one hour, so use the Storage API:
 
    ```bash
-   B=https://<project>.supabase.co/storage/v1/object/public/sounds
-   node supabase/scripts/ambient-loops.mjs measure $B/rain.mp3 $B/wind.mp3 $B/ocean.mp3 $B/birds.mp3 $B/fire.mp3
+   P=https://<project>.supabase.co
+   KEY=<service role key>
+   for f in rain wind ocean birds fire; do
+     curl -fsS -X POST "$P/storage/v1/object/sounds/$f-v2.mp3"        -H "Authorization: Bearer $KEY"        -H "Content-Type: audio/mpeg"        -H "Cache-Control: max-age=31536000"        --data-binary @"out/$f-v2.mp3"
+   done
    ```
 
-   The new files read `silenceMs` `0/0`, `seconds` 110–120 and
-   `band18to20` between -9 and -44. The files uploaded on 2026-06-14 read
-   `band18to20` between -60 and -101 with `wallHz` 16250, `silenceMs`
-   between `20/35` and `36/132`, and wind is 25.8 s long. If a row still
-   matches the old values, the CDN is serving the old object.
+   (The same from supabase-js: `upload(name, file, { cacheControl:
+"31536000", contentType: "audio/mpeg" })`.)
 
-To roll back, upload the backups from step 1 the same way.
+3. Check what the bucket serves: `curl -sI $P/storage/v1/object/public/sounds/rain-v2.mp3`
+   shows `cache-control: max-age=31536000`, and the URL plays in a browser.
+4. **Measure the uploaded files.** `measure` takes the public URLs as they
+   are (ffmpeg reads https), so no download is needed:
+
+   ```bash
+   B=$P/storage/v1/object/public/sounds
+   node supabase/scripts/ambient-loops.mjs measure $B/rain-v2.mp3 $B/wind-v2.mp3 $B/ocean-v2.mp3 $B/birds-v2.mp3 $B/fire-v2.mp3
+   ```
+
+   They read `silenceMs` `0/0` and `seconds` 110–120, like the 320 kbps
+   build did.
+
+5. Merge the PR that moves `objectName` to the new names.
+
+Keep the old `<id>.mp3` objects until the new build has shipped: an app
+still running the old code asks for them. Rolling back is moving
+`objectName` back in the code; the bucket itself needs no change.

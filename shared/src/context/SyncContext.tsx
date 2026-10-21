@@ -9,6 +9,7 @@ import {
 } from "./syncDomains";
 import { createSyncBumpQueue } from "./syncBumpQueue";
 import { getSupabaseClient } from "../services/supabaseClient";
+import { isOwnEcho } from "../services/ownWriteLedger";
 
 /**
  * Web Sync Provider — Supabase Realtime backed (S8, replaces the S1 no-op).
@@ -202,15 +203,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (cancelled) return;
 
       // postgres_changes echoes this tab's OWN writes too, not just other
-      // tabs'. The debounce collapses the resulting burst into one refetch,
-      // so the self-echo is harmless under the coarse full-refetch model.
+      // tabs'. The save paths that record their rows in the own-write ledger
+      // (#2290) are dropped here: the local state already holds what they
+      // wrote, and the refetch only re-downloaded the list it had just
+      // changed. Any other echo still refetches, collapsed by the debounce.
       const ch = supabase.channel("db-changes");
       for (const table of REALTIME_TABLES) {
         ch.on(
           "postgres_changes",
           { event: "*", schema: "public", table },
-          (payload) =>
-            scheduleBump(domainsForChange(table, payload.new, payload.old)),
+          (payload) => {
+            if (isOwnEcho(table, payload.new)) return;
+            scheduleBump(domainsForChange(table, payload.new, payload.old));
+          },
         );
       }
       ch.subscribe();

@@ -140,12 +140,12 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
     (date: string, content: string, creates: boolean): Promise<DailyNode> => {
       const gates = createGateRef.current;
       const ahead = gates.get(date);
-      if (!ahead && !creates) return ds.upsertDailyByDateUnified(date, content);
-      const write = ahead
-        ? afterSettled(ahead).then(() =>
-            ds.upsertDailyByDateUnified(date, content),
-          )
-        : ds.upsertDailyByDateUnified(date, content);
+      // `ownEcho`: the optimistic update in upsertDaily already holds the
+      // body, so its Realtime echo need not refetch the whole list (#2290).
+      const upsert = () =>
+        ds.upsertDailyByDateUnified(date, content, { ownEcho: true });
+      if (!ahead && !creates) return upsert();
+      const write = ahead ? afterSettled(ahead).then(upsert) : upsert();
       gates.set(date, write);
       void afterSettled(write).then(() => {
         if (gates.get(date) === write) gates.delete(date);
