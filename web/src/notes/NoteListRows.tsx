@@ -4,7 +4,7 @@ import {
   ChevronRight,
   ChevronDown,
   Lock,
-  Pencil,
+  MoreHorizontal,
   Pin,
   Trash2,
 } from "lucide-react";
@@ -57,12 +57,13 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
    */
   onContextMenu?: (id: string, event: MouseEvent) => void;
   /**
-   * The pencil left of the bin (#2032). Defined on narrow only, and it is
-   * what turns the row into a touch row: no drag, no text selection, no
-   * platform menu on a hold. Takes the id for the same memo reason as above.
+   * The row's "…" button (#2032, one button since #2291). Defined on narrow
+   * only, and it is what turns the row into a touch row: no drag, no text
+   * selection, no platform menu on a hold, no bin of its own. Takes the id for
+   * the same memo reason as above.
    */
   onEdit?: (id: string) => void;
-  /** Label for the pencil; required whenever `onEdit` is passed. */
+  /** Label for the "…" button; required whenever `onEdit` is passed. */
   editLabel?: string;
   deleteLabel: string;
   dragHintLabel: string;
@@ -128,6 +129,8 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
         // emit order instead of by call order (#830) — and min-height beats
         // height in CSS whichever way that lands.
         "h-[36px] text-sm max-md:min-h-11",
+        // #2291: a touch row grows with a title clamped to two lines.
+        touchRow && "max-md:h-auto max-md:py-1",
         isDragging && "opacity-40",
         selected
           ? "border-lumen-accent bg-lumen-accent-subtle"
@@ -164,12 +167,18 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
           // 22.5 tap target. `self-stretch` fills the floored row; below `md`
           // only, so the Desktop row keeps the content-height box it has had.
           "flex flex-1 items-center gap-1.5 truncate text-left max-md:self-stretch",
+          // #2291: in the 332px drawer one line held about eight characters,
+          // so notes that start alike could not be told apart. Two lines on a
+          // touch row; Desktop keeps the single truncated line.
+          touchRow && "max-md:whitespace-normal",
           FOCUS_RING,
         )}
       >
         <span
           className={cn(
-            "truncate",
+            touchRow
+              ? "truncate max-md:line-clamp-2 max-md:whitespace-normal max-md:break-words"
+              : "truncate",
             node.isPinned ? "font-medium" : "",
             selected ? "text-lumen-accent" : "text-lumen-text",
           )}
@@ -185,10 +194,12 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
         )}
       </button>
 
-      {/* #2032 — the edit a Desktop right-click opens (#1677), as a pencil
-          immediately left of the bin. Only drawn on a touch row, so it is
-          always visible and always thumb-sized, with no hover state to hide
-          behind. */}
+      {/* #2032 — the edit a Desktop right-click opens (#1677). #2291: the
+          pencil and the bin used to sit here side by side, 50px each, and
+          left the title about 129px of a 332px drawer. They are one "…"
+          button now; the sheet it opens has the rename, the tags and the
+          delete. Only drawn on a touch row, so it is always visible and
+          always thumb-sized, with no hover state to hide behind. */}
       {onEdit && (
         <button
           type="button"
@@ -196,46 +207,48 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
             e.stopPropagation();
             onEdit(node.id);
           }}
+          aria-haspopup="dialog"
           aria-label={`${editLabel ?? ""}: ${node.title || "untitled"}`}
           className={cn(
             "flex min-h-11 min-w-11 shrink-0 items-center justify-center text-lumen-text-tertiary hover:text-lumen-accent",
             FOCUS_RING,
           )}
         >
-          <Pencil size={14} aria-hidden />
+          <MoreHorizontal size={16} aria-hidden />
         </button>
       )}
 
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation();
-          onDelete(node.id);
-        }}
-        aria-label={`${deleteLabel}: ${node.title || "untitled"}`}
-        className={cn(
-          "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity",
-          "hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100",
-          /*
-           * #1840 — opacity: 0 hides a button from the eye and from nobody
-           * else. At 390px a tap on the row's right edge landed on this bin
-           * and opened a delete confirm the user had no way to see coming
-           * (measured with elementFromPoint, not inferred).
-           *
-           * It is shown rather than removed: narrow width also turns the row's
-           * context menu off (NotesView passes `enabled: isWide`), so this is
-           * the only way to delete a note from the list there. A finger has no
-           * hover to reveal it with, hence the pointer query as well as the
-           * width one — a desktop browser narrowed to 390px is not a touch
-           * device and would otherwise keep the invisible button.
-           */
-          "max-md:opacity-100 [@media(hover:none)]:opacity-100",
-          "max-md:min-h-11 max-md:min-w-11",
-          FOCUS_RING,
-        )}
-      >
-        <Trash2 size={14} aria-hidden />
-      </button>
+      {!onEdit && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete(node.id);
+          }}
+          aria-label={`${deleteLabel}: ${node.title || "untitled"}`}
+          className={cn(
+            "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity",
+            "hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100",
+            /*
+             * #1840 — opacity: 0 hides a button from the eye and from nobody
+             * else. At 390px a tap on the row's right edge landed on this bin
+             * and opened a delete confirm the user had no way to see coming
+             * (measured with elementFromPoint, not inferred).
+             *
+             * It is shown rather than removed. Since #2291 a touch row (narrow)
+             * has no bin at all — its "…" sheet deletes — so what is left here
+             * is a wide row on a pointer that cannot hover (a tablet), hence the
+             * pointer query; the width one stays for a row drawn wide in a
+             * narrow window.
+             */
+            "max-md:opacity-100 [@media(hover:none)]:opacity-100",
+            "max-md:min-h-11 max-md:min-w-11",
+            FOCUS_RING,
+          )}
+        >
+          <Trash2 size={14} aria-hidden />
+        </button>
+      )}
     </li>
   );
 });

@@ -8,6 +8,7 @@ import {
 } from "react";
 import { Plus, Tag as TagIcon } from "lucide-react";
 import {
+  cn,
   isImeComposing,
   ItemRoleBadge,
   TagHeadingIcon,
@@ -74,6 +75,14 @@ interface TagPickerProps {
    * no wrapper, so the browser's own menu is left alone.
    */
   onTagContextMenu?: (tagId: string, event: ReactMouseEvent) => void;
+  /**
+   * Below the breakpoint, keep the chips on one line that scrolls sideways
+   * instead of wrapping (#2291: two tags made the note's sticky header 157px,
+   * 19% of a phone screen). The "+ Tag" button and its picker stay outside
+   * the scrolling strip, so the picker is not clipped by it. Desktop wraps as
+   * before.
+   */
+  singleRow?: boolean;
 }
 
 export function TagPicker({
@@ -82,6 +91,7 @@ export function TagPicker({
   itemRole,
   size = "sm",
   onTagContextMenu,
+  singleRow = false,
 }: TagPickerProps) {
   const wiki = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
@@ -226,10 +236,47 @@ export function TagPicker({
     }
   };
 
+  const pills = loading
+    ? null
+    : assignments.map((a) => {
+        const tag = tagsById.get(a.tagId);
+        if (!tag) return null;
+        const pill = (
+          <TagPill
+            key={a.id}
+            name={tag.name}
+            color={tag.color}
+            icon={tag.icon}
+            size={size}
+            removeLabel={t("materials.tags.pickerRemove", { name: tag.name })}
+            onRemove={() => void handleUnassign(a.id)}
+            // #2291: the X was 32px and 14px from the "+", and it removes
+            // without asking. A 44px square below the breakpoint.
+            touch="narrow"
+          />
+        );
+        if (!onTagContextMenu) return pill;
+        // A wrapper rather than a TagPill prop: the chip is shared across
+        // hosts, and this is the only one that wants its right-click.
+        return (
+          <span
+            key={a.id}
+            className="inline-flex"
+            data-tag-id={tag.id}
+            onContextMenu={(event) => onTagContextMenu(tag.id, event)}
+          >
+            {pill}
+          </span>
+        );
+      });
+
   return (
     <div
       ref={containerRef}
-      className="relative inline-flex flex-wrap items-center gap-1"
+      className={cn(
+        "relative inline-flex flex-wrap items-center gap-1",
+        singleRow && "max-md:flex max-md:min-w-0 max-md:flex-nowrap",
+      )}
     >
       {showLabel &&
         (itemRole ? (
@@ -241,35 +288,13 @@ export function TagPicker({
           </span>
         ))}
       {loading && <span className="text-xs text-lumen-text-secondary">…</span>}
-      {!loading &&
-        assignments.map((a) => {
-          const tag = tagsById.get(a.tagId);
-          if (!tag) return null;
-          const pill = (
-            <TagPill
-              key={a.id}
-              name={tag.name}
-              color={tag.color}
-              icon={tag.icon}
-              size={size}
-              removeLabel={t("materials.tags.pickerRemove", { name: tag.name })}
-              onRemove={() => void handleUnassign(a.id)}
-            />
-          );
-          if (!onTagContextMenu) return pill;
-          // A wrapper rather than a TagPill prop: the chip is shared across
-          // hosts, and this is the only one that wants its right-click.
-          return (
-            <span
-              key={a.id}
-              className="inline-flex"
-              data-tag-id={tag.id}
-              onContextMenu={(event) => onTagContextMenu(tag.id, event)}
-            >
-              {pill}
-            </span>
-          );
-        })}
+      {singleRow ? (
+        <span className="contents max-md:flex max-md:min-h-11 max-md:min-w-0 max-md:items-center max-md:gap-1 max-md:overflow-x-auto max-md:overflow-y-hidden max-md:whitespace-nowrap max-md:[&>*]:shrink-0">
+          {pills}
+        </span>
+      ) : (
+        pills
+      )}
       <button
         ref={triggerRef}
         type="button"
@@ -328,7 +353,8 @@ export function TagPicker({
                   // closes anything. Same guard TimeRangeField's list uses.
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => void handleAssign(tag.id)}
-                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+                  // #2291: the 44px touch floor below the breakpoint (#1512).
+                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent max-md:min-h-11"
                 >
                   {/* The same glyph the chip above will draw once this tag is
                       assigned, so the candidate and the result are recognisably
@@ -348,7 +374,7 @@ export function TagPicker({
                   // so it unmounts under the pointer. Same guard, same reason.
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => void handleCreateAndAssign()}
-                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-accent hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+                  className="flex w-full items-center gap-1.5 rounded-md px-2 py-1.5 text-left text-sm text-lumen-accent hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent max-md:min-h-11"
                 >
                   <Plus size={14} aria-hidden />
                   <span>

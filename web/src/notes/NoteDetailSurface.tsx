@@ -185,11 +185,17 @@ export function NoteDetailSurface({
         // `inline-flex`, not `contents`: the spotlight reads this
         // element's rect, and a display:contents box measures 0×0.
         // TagPicker's own root is inline-flex, so the row is unchanged.
-        <span {...tourAnchor("materials-note-tag")} className="inline-flex">
+        // #2291: below the breakpoint the chips stay on one sideways-scrolling
+        // line (`singleRow`), so the wrapper may shrink under its content.
+        <span
+          {...tourAnchor("materials-note-tag")}
+          className="inline-flex max-md:min-w-0"
+        >
           <TagPicker
             itemId={note.id}
             size="sm"
             onTagContextMenu={onTagContextMenu}
+            singleRow
           />
         </span>
       }

@@ -43,9 +43,10 @@ export interface TagPillProps {
    * Give the remove X a 44px square (#2054). Only the narrow Work tag row
    * passes it: the default stays the icon-only floor so Desktop pills keep
    * their size. The negative margins let the square overhang the pill instead
-   * of making the pill itself 44px tall.
+   * of making the pill itself 44px tall. `"narrow"` (#2291) gives it the same
+   * square below the app's breakpoint only, for a host drawn at both widths.
    */
-  touch?: boolean;
+  touch?: boolean | "narrow";
 }
 
 export function TagPill({
@@ -94,8 +95,10 @@ export function TagPill({
           aria-label={removeLabel ?? `Remove tag ${name}`}
           className={cn(
             "rounded-lumen-sm text-lumen-text-secondary hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
-            touch &&
+            touch === true &&
               "-my-3 -mr-2.5 inline-flex min-h-11 min-w-11 items-center justify-center",
+            touch === "narrow" &&
+              "max-md:-my-3 max-md:-mr-2.5 max-md:inline-flex max-md:min-h-11 max-md:min-w-11 max-md:items-center max-md:justify-center",
           )}
         >
           <X size={iconSize} aria-hidden />

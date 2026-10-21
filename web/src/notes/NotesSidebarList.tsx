@@ -76,8 +76,8 @@ export interface NotesSidebarListLabels {
   collapseGroup: string;
   expandGroup: string;
   deleteNote: string;
-  /** The pencil left of a row's bin on narrow (#2032). */
-  editNote: string;
+  /** A row's "…" button on narrow (#2032; one button since #2291). */
+  rowActions: string;
   assignTagHint: string;
   /** Drop every tag-filter selection at once (#1288). */
   clearTagFilter: string;
@@ -288,7 +288,7 @@ export function NotesSidebarList({
       onDelete={onDeleteNote}
       onContextMenu={onNoteContextMenu}
       onEdit={onEditNote}
-      editLabel={labels.editNote}
+      editLabel={labels.rowActions}
       deleteLabel={labels.deleteNote}
       dragHintLabel={labels.assignTagHint}
     />
@@ -497,7 +497,7 @@ export function NotesSidebarList({
                             onDelete={onDeleteNote}
                             onContextMenu={onNoteContextMenu}
                             onEdit={onEditNote}
-                            editLabel={labels.editNote}
+                            editLabel={labels.rowActions}
                             deleteLabel={labels.deleteNote}
                             dragHintLabel={labels.assignTagHint}
                           />

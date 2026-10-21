@@ -606,8 +606,7 @@
       "closeOtherItems": "Close other items",
       "backToList": "Back to the list",
       "rowActions": "Note actions",
-      "renameNote": "Rename",
-      "editNote": "Edit note"
+      "renameNote": "Rename"
     },
     "templates": {
       "menuEntry": "Register as template",

@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, act } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  waitFor,
+} from "@testing-library/react";
 import type { ReactNode } from "react";
 import { clearRecentNotes, type NoteNode } from "@life-editor/shared";
 import { NotesView } from "../src/notes/NotesView";
@@ -10,7 +16,8 @@ import { showAllTagGroups } from "./helpers";
  * more, and holding it neither selects its text nor opens the platform menu.
  * The row's edit moved to a pencil just left of the bin, which opens the note
  * panel Desktop reaches by right-click (#1677) as a bottom sheet: the title
- * and the tags.
+ * and the tags. #2291 folded the pencil and the bin into one "…" button, and
+ * the sheet took the delete.
  *
  * Desktop keeps the drag (#312 / #1687): the same press-and-travel there still
  * picks the row up.
@@ -173,23 +180,59 @@ describe("Notes sidebar rows on narrow (#2032)", () => {
     expect(fireEvent.contextMenu(li)).toBe(false);
   });
 
-  it("puts the edit button immediately left of the bin, thumb-sized", () => {
+  // #2291: the pencil and the bin were folded into one "…" button, and the
+  // title gets the width back — two lines of it.
+  it('ends the row in one thumb-sized "…" button and no bin', () => {
     render(<NotesView />);
-    const edit = screen.getByRole("button", {
-      name: "materials.notes.editNote: Alpha",
+    const more = screen.getByRole("button", {
+      name: "materials.notes.rowActions: Alpha",
     });
-    const bin = screen.getByRole("button", {
-      name: "materials.notes.deleteNote: Alpha",
-    });
-    expect(edit.nextElementSibling).toBe(bin);
-    expect(edit.classList.contains("min-h-11")).toBe(true);
-    expect(edit.classList.contains("min-w-11")).toBe(true);
+    expect(more.getAttribute("aria-haspopup")).toBe("dialog");
+    expect(more.classList.contains("min-h-11")).toBe(true);
+    expect(more.classList.contains("min-w-11")).toBe(true);
+    expect(more.nextElementSibling).toBeNull();
+    expect(
+      screen.queryByRole("button", {
+        name: "materials.notes.deleteNote: Alpha",
+      }),
+    ).toBeNull();
+  });
+
+  it("clamps the title to two lines instead of one", () => {
+    render(<NotesView />);
+    const title = screen.getByRole("button", { name: "Alpha" });
+    const text = title.querySelector("span")!;
+    expect(text.classList.contains("max-md:line-clamp-2")).toBe(true);
+    expect(text.classList.contains("max-md:whitespace-normal")).toBe(true);
+    expect(title.classList.contains("max-md:whitespace-normal")).toBe(true);
+    // The row grows with the second line rather than clipping it.
+    expect(row().classList.contains("max-md:h-auto")).toBe(true);
+  });
+
+  it("deletes from the sheet, closing it before the question", async () => {
+    render(<NotesView />);
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.notes.rowActions: Alpha" }),
+    );
+    fireEvent.click(
+      screen.getByRole("button", { name: "materials.notes.deleteNote" }),
+    );
+    expect(screen.queryByRole("dialog", { name: SHEET_NAME })).toBeNull();
+    // The in-app question, then the delete on yes.
+    fireEvent.click(
+      await screen.findByRole("button", {
+        name: "materials.notes.deleteConfirmAction",
+      }),
+    );
+    await waitFor(() =>
+      expect(state.softDeleteNote).toHaveBeenCalledExactlyOnceWith("note-a"),
+    );
   });
 
   it("opens the note's title and tags in a sheet and renames it", () => {
     render(<NotesView />);
     fireEvent.click(
-      screen.getByRole("button", { name: "materials.notes.editNote: Alpha" }),
+      screen.getByRole("button", { name: "materials.notes.rowActions: Alpha" }),
     );
 
     const sheet = screen.getByRole("dialog", { name: SHEET_NAME });
@@ -209,12 +252,25 @@ describe("Notes sidebar rows on narrow (#2032)", () => {
   it("does not commit a rename while an IME conversion is open", () => {
     render(<NotesView />);
     fireEvent.click(
-      screen.getByRole("button", { name: "materials.notes.editNote: Alpha" }),
+      screen.getByRole("button", { name: "materials.notes.rowActions: Alpha" }),
     );
     const field = screen.getByLabelText("materials.notes.renameNote");
     fireEvent.change(field, { target: { value: "あるふぁ" } });
     fireEvent.keyDown(field, { key: "Enter", isComposing: true });
     expect(state.updateNote).not.toHaveBeenCalled();
+  });
+
+  // #2291 item 6: a sticky box stops at its scroller's padding edge, so the
+  // column's top gap must not be that padding, or 9px of body shows above
+  // the stuck note header.
+  it("keeps the narrow column's top gap off the scroller's padding", () => {
+    render(<NotesView />);
+    const add = screen.getByRole("button", { name: "materials.notes.addCta" });
+    const scroller = add.closest(".overflow-y-auto") as HTMLElement;
+    expect(scroller).not.toBeNull();
+    expect(scroller.className.split(" ")).not.toContain("pt-2");
+    const band = add.closest(".justify-end") as HTMLElement;
+    expect(band.className.split(" ")).toContain("pt-2");
   });
 
   it("does not open the sheet from the row's title tap", () => {
@@ -259,7 +315,9 @@ describe("Notes sidebar rows on Desktop (#2032 leaves them alone)", () => {
   it("draws no edit button — right-click is the Desktop door", () => {
     render(<NotesView />);
     expect(
-      screen.queryByRole("button", { name: "materials.notes.editNote: Alpha" }),
+      screen.queryByRole("button", {
+        name: "materials.notes.rowActions: Alpha",
+      }),
     ).toBeNull();
     expect(row().classList.contains("select-none")).toBe(false);
   });
