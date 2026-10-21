@@ -71,15 +71,15 @@ Related:
 
 ### 3. 制約
 
-| 領域                   | 決定                                                                                                                                                                        |
-| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| プラットフォーム       | Web (PC ブラウザ) / Electron Desktop (macOS / Windows / Linux) / iOS Capacitor / Android Capacitor                                                                          |
-| 認証                   | Supabase Auth (Email + Password を Phase 1 から使用 / Apple Sign-in は**完成後・友達 iOS 配布開始時**)                                                                      |
-| **完成までのコスト**   | **$0 厳守**。Supabase 無料枠 / Cloudflare 無料 / GitHub 無料 / Electron 未署名配布 / 無料 Apple ID 7 日署名 のみ                                                            |
-| **完成後のコスト判断** | Phase 5 完了後に必要性を再評価: Apple Developer Program $99/年 (iOS 友達配布)、Supabase Pro $25/月 (無料枠超過時)、Windows 署名証明書 $80-500/年 (SmartScreen 警告消すなら) |
-| オフライン             | **常時オンライン前提**。機内モード/圏外では「オンライン時にご利用ください」グローバルバナー表示。Service Worker 不採用                                                      |
-| AI 連携                | stdio MCP Server（Desktop）+ **Remote MCP = Cloudflare Workers（スマホの Claude アプリ用・2026-09-09 に採用へ転換 = D-20260909-mcp-mobile-1）**。旧記述「terminal-division から起動 / Remote MCP は採用しない」は SUPERSEDE（terminal は 2026-07-05 退役・起動導線は Desktop 殻へ）             |
-| 既存資産               | 現状 React / TS コードの **65-70%** を流用。DataService 抽象化はそのまま維持                                                                                                |
+| 領域                   | 決定                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| プラットフォーム       | Web (PC ブラウザ) / Electron Desktop (macOS / Windows / Linux) / iOS Capacitor / Android Capacitor                                                                                                                                                                                                                                                                                                                                                |
+| 認証                   | Supabase Auth (Email + Password を Phase 1 から使用 / Apple Sign-in は**完成後・友達 iOS 配布開始時**)                                                                                                                                                                                                                                                                                                                                            |
+| **完成までのコスト**   | **$0 厳守**。Supabase 無料枠 / Cloudflare 無料 / GitHub 無料 / Electron 未署名配布 / 無料 Apple ID 7 日署名 のみ                                                                                                                                                                                                                                                                                                                                  |
+| **完成後のコスト判断** | Phase 5 完了後に必要性を再評価: Apple Developer Program $99/年 (iOS 友達配布)、Supabase Pro $25/月 (無料枠超過時)、Windows 署名証明書 $80-500/年 (SmartScreen 警告消すなら)                                                                                                                                                                                                                                                                       |
+| オフライン             | **一部オフライン対応**（2026-10-21 に方針転換 = D-20261021-main-1。旧方針の常時オンライン前提と、Service Worker を使わない決定は SUPERSEDE）。取ったデータを IndexedDB に置き、Service Worker でアプリ本体を端末に置く。圏外では前回までのデータを見られ、Daily・Todo の追加・Note（オフラインで作ったものとピン留めしたものだけ）を書ける。段取りの正本 = [`docs/vision/plans/2026-10-21-offline-cache.md`](./docs/vision/plans/2026-10-21-offline-cache.md) |
+| AI 連携                | stdio MCP Server（Desktop）+ **Remote MCP = Cloudflare Workers（スマホの Claude アプリ用・2026-09-09 に採用へ転換 = D-20260909-mcp-mobile-1）**。旧記述「terminal-division から起動 / Remote MCP は採用しない」は SUPERSEDE（terminal は 2026-07-05 退役・起動導線は Desktop 殻へ）                                                                                                                                                               |
+| 既存資産               | 現状 React / TS コードの **65-70%** を流用。DataService 抽象化はそのまま維持                                                                                                                                                                                                                                                                                                                                                                      |
 
 ### 4. Electron 採用の判断と明示的デメリット
 
@@ -213,13 +213,13 @@ life-editor/
 
 ### 9. Non-goals(今回やらない)
 
-- オフライン編集
+- すべての画面でのオフライン編集（2026-10-21 に範囲を狭めた = D-20261021-main-1。Daily・Todo の追加・Note の一部はオフラインで書けるようにする — §3 表「オフライン」行）
 - マルチテナント（組織・共有・権限管理）/ 大規模スケール — **サインアップ開放そのものは Non-goal ではない**（無料枠の安全圏 10〜20 人への配布 + サインアップ開放 = D-20260829-main-1。旧「認証ありの公開配布スケール」の表現は 2026-09-23 に改訂 = D-20260923-main-1）
 - Tauri / Rust / portable-pty / Cloud D1 / `sync_engine.rs` の維持
 - Database(汎用 DB)機能 — Postgres での動的テーブル生成は難度高、一旦凍結
 - Mac App Store / Microsoft Store 申請
 - Linux ARM ARM64 対応（x86_64 のみ）
-- **Service Worker / オフラインキャッシュ**（2026-08-07 に一部改訂 = #600・計画書 [`docs/vision/plans/2026-08-07-web-mobile-public-url.md`](./archive/2026-08-07-web-mobile-public-url.md)）: 旧「PWA インストール体験」のうち **ホーム画面アイコン + standalone 表示は採用**した（スマホからの主導線を公開 Web URL に置くため）。Service Worker とオフライン閲覧は引き続き不採用 — 上の「オフライン編集」および §3 表の「Service Worker 不採用」と整合
+- **Service Worker / オフラインキャッシュ**（2026-08-07 に一部改訂 = #600・計画書 [`docs/vision/plans/2026-08-07-web-mobile-public-url.md`](./archive/2026-08-07-web-mobile-public-url.md)）: 旧「PWA インストール体験」のうち **ホーム画面アイコン + standalone 表示は採用**した（スマホからの主導線を公開 Web URL に置くため）。Service Worker とオフライン閲覧は、2026-10-21 に採用へ転換した（D-20261021-main-1 → §3 表「オフライン」行）。この項目は Non-goal ではなくなったが、経緯のため残す
 - **学習用 Markdown ログの作成**（旧 `.claude/learning/web-first/` は廃止）
 - **iOS 友達配布**（Phase 1-5 期間は自分用のみ）
 
