@@ -75,7 +75,7 @@ function slowServer(opts: { failFirstCreate?: boolean } = {}) {
   );
 
   const ds = stubDataService({
-    listDailiesUnified: () => Promise.resolve([]),
+    listDailySummariesUnified: () => Promise.resolve([]),
     upsertDailyByDateUnified: upsert,
   });
 

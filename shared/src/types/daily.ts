@@ -25,4 +25,17 @@ export interface DailyNode {
   morningComment?: string[] | null;
   createdAt: string; // ISO datetime
   updatedAt: string; // ISO datetime
+  /**
+   * False on a row from the light list read (#2325): `content` is then ""
+   * and is NOT the day's body, which has not been fetched. Absent or true
+   * means `content` is the body. A writer must never build a save on a row
+   * whose body is not loaded — it would write the emptiness over the day.
+   */
+  bodyLoaded?: boolean;
+  /**
+   * The head of the body on a light row (#2325): the first top-level blocks
+   * as a TipTap doc JSON, enough for the list's excerpt. Undefined when the
+   * head could not be read (a legacy plain-text body, or an empty one).
+   */
+  headContent?: string;
 }

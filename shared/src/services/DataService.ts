@@ -802,6 +802,16 @@ export interface DailyWriteOptions {
 
 export interface DailiesUnifiedDataService {
   listDailiesUnified(): Promise<DailyNode[]>;
+  /**
+   * The Daily list WITHOUT the bodies (#2325): each row has `content: ""`,
+   * `bodyLoaded: false` and the head blocks in `headContent`. Fetch a day's
+   * body with getDailyByDateUnified before editing or saving it.
+   */
+  listDailySummariesUnified(): Promise<DailyNode[]>;
+  /** Whole bodies by daily id, for light rows without a readable head. */
+  fetchDailyBodiesUnified(
+    ids: readonly string[],
+  ): Promise<Record<string, string>>;
   /** Live daily count for the badge (#511) — see countUnfinishedTodos. */
   countLiveDailies(): Promise<number>;
   getDailyByDateUnified(date: string): Promise<DailyNode | null>;

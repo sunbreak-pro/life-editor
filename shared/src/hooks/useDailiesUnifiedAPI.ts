@@ -8,6 +8,11 @@ import { createNoopUndoRedo, type UndoRedoLike } from "./useTodoTreeHistory";
 import { useSyncDomains } from "./useSyncDomains";
 import { useDomainLoad } from "./useDomainLoad";
 import {
+  fillDailyBodies,
+  mergeDailySummaries,
+  rowsWithoutHead,
+} from "./dailyListMerge";
+import {
   getDailySelection,
   setDailySelection,
   clearDailySelection,
@@ -20,6 +25,9 @@ import {
  * same as the todos domain). `useSyncContext` is read directly because it
  * is itself a shared Context (S1) the Provider order guarantees.
  */
+/** Pause before a failed body read of the open day is tried again (#2325). */
+const BODY_RETRY_MS = 3000;
+
 export interface UseDailiesUnifiedAPIOptions {
   dataService: DataService;
   undoRedo?: UndoRedoLike;
@@ -68,6 +76,33 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
   }, []);
   const dailiesRef = useRef(dailies);
   const deletedDailiesRef = useRef(deletedDailies);
+  const selectedDateRef = useRef(selectedDate);
+  useEffect(() => {
+    selectedDateRef.current = selectedDate;
+  }, [selectedDate]);
+  /*
+   * #2325 — bodies. The list holds light rows (`bodyLoaded: false`); the open
+   * day's body is fetched here. `staleDatesRef` names an open day whose row
+   * moved while its body stayed on screen (see mergeDailySummaries), and
+   * `writeGenRef` counts local writes per date, so a body read that a local
+   * write overtook is dropped instead of putting the older text back.
+   */
+  const staleDatesRef = useRef(new Set<string>());
+  const writeGenRef = useRef(new Map<string, number>());
+  const hydratingRef = useRef(new Set<string>());
+  /** Light rows whose whole body was fetched for the excerpt, by updatedAt. */
+  const bodyFetchedAtRef = useRef(new Map<string, string>());
+  // A body read that failed is tried again after a pause rather than leaving
+  // the day behind its skeleton until something else moves (#2325).
+  const [bodyRetry, setBodyRetry] = useState(0);
+  const bodyRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (bodyRetryTimerRef.current !== null)
+        clearTimeout(bodyRetryTimerRef.current);
+    },
+    [],
+  );
   useEffect(() => {
     dailiesRef.current = dailies;
   }, [dailies]);
@@ -99,11 +134,75 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
     snapshotKey: "dailies",
     dataService: ds,
     version: syncVersion,
-    load: (service) => service.listDailiesUnified(),
-    apply: setDailies,
+    // #2325: the list without the bodies. Only the rows whose head cannot be
+    // read (a legacy plain-text body) fetch theirs, for the excerpt.
+    // A row whose body was already fetched at this `updatedAt` is not
+    // fetched again — the merge keeps the body this list already holds.
+    load: async (service) => {
+      const rows = await service.listDailySummariesUnified();
+      const fetchedAt = bodyFetchedAtRef.current;
+      const stampOf = new Map(rows.map((r) => [r.id, r.updatedAt]));
+      const missing = rowsWithoutHead(rows).filter(
+        (id) => fetchedAt.get(id) !== stampOf.get(id),
+      );
+      if (missing.length === 0) return rows;
+      const bodies = await service.fetchDailyBodiesUnified(missing);
+      for (const id of missing) fetchedAt.set(id, stampOf.get(id) ?? "");
+      return fillDailyBodies(rows, bodies);
+    },
+    apply: (rows) =>
+      setDailies((prev) => {
+        const merged = mergeDailySummaries(prev, rows, selectedDateRef.current);
+        for (const date of merged.stale) staleDatesRef.current.add(date);
+        return merged.list;
+      }),
     fallbackMessage: "Failed to load dailies",
     refetchReportsLoading: false,
   });
+
+  /*
+   * #2325 — fetch the open day's body when its row is light, or when the row
+   * moved while the body stayed on screen. The editor waits for it
+   * (DailyView draws a skeleton while `bodyLoaded` is false), so nothing can
+   * save a day over a body this client never had.
+   */
+  useEffect(() => {
+    const date = selectedDate;
+    const row = dailies.find((d) => d.date === date);
+    if (!row) return;
+    if (row.bodyLoaded !== false && !staleDatesRef.current.has(date)) return;
+    if (hydratingRef.current.has(date)) return;
+    hydratingRef.current.add(date);
+    staleDatesRef.current.delete(date);
+    const gen = writeGenRef.current.get(date) ?? 0;
+    void ds
+      .getDailyByDateUnified(date)
+      .then((full) => {
+        if ((writeGenRef.current.get(date) ?? 0) !== gen) return;
+        setDailies((prev) =>
+          prev.map((d) => {
+            if (d.date !== date) return d;
+            // No row on the server any more (deleted elsewhere): there is no
+            // body to protect, so the day opens empty like a day never
+            // written, and a save creates it again.
+            if (!full) return { ...d, content: "", bodyLoaded: true };
+            return { ...full, bodyLoaded: true };
+          }),
+        );
+      })
+      .catch((e) => {
+        logServiceError("Daily", "loadBody", e);
+        if (bodyRetryTimerRef.current !== null)
+          clearTimeout(bodyRetryTimerRef.current);
+        bodyRetryTimerRef.current = setTimeout(() => {
+          bodyRetryTimerRef.current = null;
+          setBodyRetry((n) => n + 1);
+        }, BODY_RETRY_MS);
+      })
+      .finally(() => {
+        hydratingRef.current.delete(date);
+      });
+  }, [ds, selectedDate, dailies, bodyRetry]);
 
   // Soft-delete by date. The retired Bridge resolved date → existing row →
   // softDeleteDailyUnified(id); a missing row is a silent no-op. Inlined
@@ -178,11 +277,36 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
       // delete fired while this upsert is in flight would be re-created by it
       // a moment later, leaving the day back with the undo already spent.
       const write = writeDaily(date, content, !existing);
+      // A body read for this date that is still out is now older (#2325).
+      writeGenRef.current.set(date, (writeGenRef.current.get(date) ?? 0) + 1);
+      // Take the server's stamp once the save lands, while the row still
+      // holds the text it wrote (#2325). The list's re-read then finds the
+      // day unmoved, instead of counting this client's own save as a change
+      // and fetching the open day's body again.
+      void write.then(
+        (saved) =>
+          setDailies((prev) =>
+            prev.map((m) =>
+              m.date === date && m.content === content
+                ? { ...m, updatedAt: saved.updatedAt }
+                : m,
+            ),
+          ),
+        () => {},
+      );
 
       if (existing) {
         setDailies((prev) =>
           prev.map((m) =>
-            m.date === date ? { ...m, content, updatedAt: now } : m,
+            m.date === date
+              ? {
+                  ...m,
+                  content,
+                  updatedAt: now,
+                  // The written text IS the whole body now.
+                  ...(m.bodyLoaded === false ? { bodyLoaded: true } : {}),
+                }
+              : m,
           ),
         );
       } else {

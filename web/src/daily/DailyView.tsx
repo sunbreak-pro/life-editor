@@ -156,6 +156,7 @@ function EditorCard({
   attachments,
   uploadingFile,
   uploadingLabel,
+  bodyPending = false,
 }: {
   dateLabel: string;
   dateClassName: string;
@@ -177,6 +178,12 @@ function EditorCard({
   /** The file uploading right now, or null — drawn above the body (#1674). */
   uploadingFile: string | null;
   uploadingLabel: string;
+  /**
+   * The day's body is still being fetched (#2325). The editor is not mounted
+   * until it lands: an editor opened over the light row's "" would save that
+   * emptiness over the day.
+   */
+  bodyPending?: boolean;
 }) {
   return (
     <div
@@ -209,22 +216,40 @@ function EditorCard({
           unmount/beforeunload, the onBlur-commit equivalent. The key remounts
           the editor on date switch / external content change only — never on
           our own save echo — so typing keeps cursor + IME state. */}
-      <LazyRichTextEditor
-        key={editorKey}
-        noteId={`daily-${date}`}
-        initialContent={initialContent}
-        onUpdate={onUpdate}
-        onDirty={onDirty}
-        placeholder={placeholder}
-        // "[[" wiki-link autocomplete + click navigation (Issue #285). No
-        // create-note row here (Daily has no note-create path) — the daily
-        // editor only links to EXISTING items.
-        loadLinkTargets={loadLinkTargets}
-        onNavigateToItem={onNavigateToItem}
-        onResolvedLinkInserted={onResolvedLinkInserted}
-        attachments={attachments}
-        className="daily-editor min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1"
-      />
+      {bodyPending ? (
+        <div
+          data-testid="daily-body-pending"
+          className="min-h-0 flex-1 px-5 pb-5 pt-1"
+        >
+          {/* Rows in the hover tone: the card itself is bg-secondary, the
+              colour SkeletonList draws its rows in. */}
+          <div aria-hidden="true" className="flex flex-col gap-2">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-5 animate-pulse rounded-lumen-sm bg-lumen-hover"
+              />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <LazyRichTextEditor
+          key={editorKey}
+          noteId={`daily-${date}`}
+          initialContent={initialContent}
+          onUpdate={onUpdate}
+          onDirty={onDirty}
+          placeholder={placeholder}
+          // "[[" wiki-link autocomplete + click navigation (Issue #285). No
+          // create-note row here (Daily has no note-create path) — the daily
+          // editor only links to EXISTING items.
+          loadLinkTargets={loadLinkTargets}
+          onNavigateToItem={onNavigateToItem}
+          onResolvedLinkInserted={onResolvedLinkInserted}
+          attachments={attachments}
+          className="daily-editor min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1"
+        />
+      )}
     </div>
   );
 }
@@ -365,6 +390,9 @@ export function DailyView({
   // tell it from a refetch, so seeing the newest proves nothing about the
   // older echoes still in flight. Only the cap drops them.
   const selectedContent = selectedDaily?.content ?? "";
+  // #2325: the list rows carry no body; the open day's body is on its way.
+  // Nothing may write the day until it lands (the editor and the stars).
+  const bodyPending = selectedDaily?.bodyLoaded === false;
   const [emitted, setEmitted] = useState<{
     date: string;
     jsons: string[];
@@ -478,7 +506,11 @@ export function DailyView({
     // render's content, so a star tap that landed in between is kept. A text
     // that reads the same as what is stored comes back as the very input —
     // then nothing is written (「保存し直すのは編集したときだけ」).
-    const base = getDailyForDate(date)?.content ?? "";
+    const row = getDailyForDate(date);
+    // Never build a save on a body this client does not have (#2325): the
+    // light row's "" would carry the emptiness over the whole day.
+    if (row?.bodyLoaded === false) return;
+    const base = row?.content ?? "";
     const full = writeDailyText(base, json);
     if (full === base) return;
     recordEmitted(date, full);
@@ -517,11 +549,12 @@ export function DailyView({
    * the one the user performed, and a second "createDaily" entry would make
    * one tap take two undos.
    */
-  const writeMood = (
+  /** The mood write over a body known to be the day's whole one. */
+  const writeMoodOver = (
     date: string,
+    current: string,
     mood: number | null,
   ): Promise<void> | null => {
-    const current = getDailyForDate(date)?.content ?? "";
     const full = mergeEveningSection(current, { mood });
     if (full === current) return null;
     recordEmitted(date, full);
@@ -564,9 +597,37 @@ export function DailyView({
     return result;
   };
 
+  const writeMood = (
+    date: string,
+    mood: number | null,
+  ): Promise<void> | null => {
+    const row = getDailyForDate(date);
+    if (row?.bodyLoaded !== false) {
+      return writeMoodOver(date, row?.content ?? "", mood);
+    }
+    // A light row (#2325): an undo / redo for a day the user has left, whose
+    // body went back to the list's light form. Read the body first — the
+    // mood line is merged into the whole of it — rather than write over "".
+    if (dataService === undefined) {
+      const refused = Promise.reject(
+        new Error(`daily mood write: no body for ${date}`),
+      );
+      void refused.catch(() => {});
+      return refused;
+    }
+    const run = dataService
+      .getDailyByDateUnified(date)
+      .then((fresh) => writeMoodOver(date, fresh?.content ?? "", mood))
+      .then(() => {});
+    void run.catch(() => {});
+    return run;
+  };
+
   // Stars: tap a star to set it, tap the lit one again to clear (the evening
   // paper's rule). One tap = one global undo entry.
   const handleSelectMood = (n: number) => {
+    // The mood line is merged into the stored body (#2325: not here yet).
+    if (bodyPending) return;
     const date = selectedDate;
     const prev = storedMood;
     const next = prev === n ? null : n;
@@ -690,7 +751,12 @@ export function DailyView({
       // Off the one text (#2123): the stored body now opens with the「夕刊」
       // heading (or an old 朝刊 section), which would otherwise be the
       // excerpt of every written day.
-      const excerpt = contentExcerpt(readDailyText(d.content) ?? undefined);
+      // A light row (#2325) has no body yet; its head blocks give the same
+      // first line.
+      const excerpt = contentExcerpt(
+        readDailyText(d.bodyLoaded === false ? d.headContent : d.content) ??
+          undefined,
+      );
       return {
         date: d.date,
         dayLabel,
@@ -997,6 +1063,7 @@ export function DailyView({
             editorKey={editorKey}
             date={selectedDate}
             initialContent={editorContent}
+            bodyPending={bodyPending}
             onUpdate={handleEditorUpdate}
             onDirty={markDirty}
             placeholder={t("materials.daily.placeholder")}
@@ -1032,6 +1099,7 @@ export function DailyView({
           editorKey={editorKey}
           date={selectedDate}
           initialContent={editorContent}
+          bodyPending={bodyPending}
           onUpdate={handleEditorUpdate}
           onDirty={markDirty}
           placeholder={t("materials.daily.placeholder")}
