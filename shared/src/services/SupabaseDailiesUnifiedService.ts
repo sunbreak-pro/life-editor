@@ -225,12 +225,31 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
     if (!this.saveRpcMissing) {
       // One round trip (#2325, migration 0043): the lookup, the meta bump,
       // the body write and the read-back used to be six requests.
+      const updatedAt = new Date().toISOString();
+      const conventionalId = `daily-${date}`;
+      // Same ledger entries as updateDaily below, recorded before the request
+      // for the same reason: the function writes our stamp to the meta row
+      // (created or updated), so the echo can be matched before the answer
+      // arrives. The id is the `daily-<date>` convention; a day whose id names
+      // another date (the function looks days up by date) is recorded from the
+      // answer instead.
+      if (opts?.ownEcho === true) {
+        noteOwnWrite("items_meta", conventionalId, updatedAt);
+        noteOwnWrite("dailies_payload", conventionalId);
+      }
       const { data, error } = await this.client.rpc("save_daily_content", {
         p_date: date,
         p_content: contentStringToJson(content),
-        p_updated_at: new Date().toISOString(),
+        p_updated_at: updatedAt,
       });
-      if (!error) return this.fromSaveRow(data, date);
+      if (!error) {
+        const saved = this.fromSaveRow(data, date);
+        if (opts?.ownEcho === true && saved.id !== conventionalId) {
+          noteOwnWrite("items_meta", saved.id, saved.updatedAt);
+          noteOwnWrite("dailies_payload", saved.id);
+        }
+        return saved;
+      }
       if (!MISSING_FUNCTION_CODES.has(error.code ?? "")) {
         throw new Error(`upsertDailyByDateUnified failed: ${error.message}`);
       }
