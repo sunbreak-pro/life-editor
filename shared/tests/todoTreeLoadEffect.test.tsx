@@ -65,6 +65,7 @@ function makeDS(rounds: Round[]) {
   return {
     ds,
     fetchTodoTree,
+    fetchDeletedTodos,
     deferNextRound: () => {
       defer = true;
     },
@@ -81,7 +82,7 @@ afterEach(() => {
 
 describe("useTodoTreeAPI load effect (#891)", () => {
   it("reports loading until the first read lands, then holds the rows", async () => {
-    const { ds } = makeDS([
+    const { ds, fetchDeletedTodos } = makeDS([
       {
         active: [makeTodo({ id: "task-1" })],
         deleted: [makeTodo({ id: "task-2", isDeleted: true })],
@@ -94,9 +95,10 @@ describe("useTodoTreeAPI load effect (#891)", () => {
     expect(hook.result.current.isLoading).toBe(true);
     await waitFor(() => expect(hook.result.current.isLoading).toBe(false));
     expect(hook.result.current.nodes.map((n) => n.id)).toEqual(["task-1"]);
-    expect(hook.result.current.deletedNodes.map((n) => n.id)).toEqual([
-      "task-2",
-    ]);
+    // #2326: trashed todos are no longer read with the tree — the Trash
+    // screen reads its own copy.
+    expect(hook.result.current.deletedNodes).toEqual([]);
+    expect(fetchDeletedTodos).not.toHaveBeenCalled();
     expect(hook.result.current.error).toBeNull();
   });
 

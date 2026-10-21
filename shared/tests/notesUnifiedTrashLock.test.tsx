@@ -125,9 +125,11 @@ describe("Trash trio", () => {
       restoreNoteUnified,
     });
     const hook = await renderLoaded(ds);
-    await waitFor(() =>
-      expect(hook.result.current.deletedNotes).toHaveLength(1),
-    );
+    // The Trash list fills on demand since #2326.
+    await act(async () => {
+      await hook.result.current.loadDeletedNotes();
+    });
+    expect(hook.result.current.deletedNotes).toHaveLength(1);
 
     act(() => hook.result.current.restoreNote("note-gone"));
 
@@ -146,9 +148,11 @@ describe("Trash trio", () => {
       permanentDeleteNoteUnified,
     });
     const hook = await renderLoaded(ds);
-    await waitFor(() =>
-      expect(hook.result.current.deletedNotes).toHaveLength(1),
-    );
+    // The Trash list fills on demand since #2326.
+    await act(async () => {
+      await hook.result.current.loadDeletedNotes();
+    });
+    expect(hook.result.current.deletedNotes).toHaveLength(1);
 
     act(() => hook.result.current.permanentDeleteNote("note-gone"));
 

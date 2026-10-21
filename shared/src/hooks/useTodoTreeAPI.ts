@@ -104,8 +104,11 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
     [persistSelection],
   );
 
-  // Load from DataService on mount and on every todos bump (including
-  // soft-deleted todos), through the shared load effect (#672 / #891). Same
+  // Load from DataService on mount and on every todos bump, through the shared
+  // load effect (#672 / #891). Live todos only since #2326: the trashed ones
+  // were read alongside on every mount for a Trash list that the Trash screen
+  // reads for itself. A todo trashed in THIS session still sits in `nodes`
+  // with `isDeleted`, which is what undo and restoreNode work from. Same
   // three states as the hand-written version it replaces, plus #296's error
   // un-latch, which this hook was missing: one transient failure used to
   // leave the error card up for the rest of the session.
@@ -114,13 +117,11 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
     snapshotKey: "todoTree",
     dataService: ds,
     version: syncVersion,
-    load: (service) =>
-      Promise.all([service.fetchTodoTree(), service.fetchDeletedTodos()]),
-    apply: ([active, deleted]) => {
-      const all = [...active, ...deleted];
-      setNodes(all);
+    load: (service) => service.fetchTodoTree(),
+    apply: (active) => {
+      setNodes(active);
       loadedRef.current = true;
-      restoreSelection(all);
+      restoreSelection(active);
     },
     fallbackMessage: "Failed to load todos",
     // The board (KanbanView) swaps itself for a skeleton while this is true,
@@ -132,11 +133,7 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
 
   const refetch = useCallback(async () => {
     try {
-      const [active, deleted] = await Promise.all([
-        ds.fetchTodoTree(),
-        ds.fetchDeletedTodos(),
-      ]);
-      setNodes([...active, ...deleted]);
+      setNodes(await ds.fetchTodoTree());
     } catch (e) {
       logServiceError("TodoTree", "refetch", e);
     }

@@ -143,9 +143,9 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
    * save and every body snapshot; an open editor compares it with the version
    * its buffer is based on to notice a write from somewhere else.
    */
-  const [serverStamps, setServerStamps] = useState<
-    ReadonlyMap<string, string>
-  >(() => new Map());
+  const [serverStamps, setServerStamps] = useState<ReadonlyMap<string, string>>(
+    () => new Map(),
+  );
   const rememberStamp = useCallback((id: string, stamp: string) => {
     setServerStamps((prev) => {
       if (prev.get(id) === stamp) return prev;
@@ -358,25 +358,9 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
     refetchReportsLoading: false,
   });
 
-  // Trash list is loaded alongside the active tree (same trigger: initial
-  // mount + every syncVersion bump) so the Trash section is populated without
-  // the host having to call loadDeletedNotes(). Kept OUT of the load above on
-  // purpose: it has its own try/catch so a Trash failure never blocks the tree
-  // or raises the tree's error card.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const deleted = await ds.fetchDeletedNotesUnified();
-        if (!cancelled) setDeletedNotes(deleted);
-      } catch (e) {
-        logServiceError("Notes", "fetchDeleted", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ds, syncVersion]);
+  // The trash list is NOT read on mount or on a bump (#2326). It used to be,
+  // for a Trash section that has since moved under Settings and reads its own
+  // copy when it opens. `deletedNotes` fills only through `loadDeletedNotes`.
 
   /*
    * The body half of the search (#1837). The ids come back from the server;
@@ -550,7 +534,14 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       if (result.status === "saved") rememberStamp(id, result.updatedAt);
       return result;
     },
-    [ds, writesSettled, markHydrated, markLocalWrite, trackWrite, rememberStamp],
+    [
+      ds,
+      writesSettled,
+      markHydrated,
+      markLocalWrite,
+      trackWrite,
+      rememberStamp,
+    ],
   );
 
   /*
@@ -612,7 +603,14 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       );
       return run;
     },
-    [ds, markHydrated, markLocalWrite, writesSettled, trackWrite, rememberStamp],
+    [
+      ds,
+      markHydrated,
+      markLocalWrite,
+      writesSettled,
+      trackWrite,
+      rememberStamp,
+    ],
   );
 
   /*
