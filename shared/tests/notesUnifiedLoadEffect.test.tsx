@@ -90,11 +90,14 @@ describe("useNotesUnifiedAPI load effect (#891)", () => {
     expect(hook.result.current.isLoading).toBe(true);
     await waitFor(() => expect(hook.result.current.isLoading).toBe(false));
     expect(hook.result.current.notes.map((n) => n.id)).toEqual(["note-1"]);
-    await waitFor(() =>
-      expect(hook.result.current.deletedNotes.map((n) => n.id)).toEqual([
-        "note-2",
-      ]),
-    );
+    // The trash is not read with the tree (#2326) — only on demand.
+    expect(hook.result.current.deletedNotes).toEqual([]);
+    await act(async () => {
+      await hook.result.current.loadDeletedNotes();
+    });
+    expect(hook.result.current.deletedNotes.map((n) => n.id)).toEqual([
+      "note-2",
+    ]);
     expect(hook.result.current.error).toBeNull();
   });
 
@@ -194,7 +197,10 @@ describe("useNotesUnifiedAPI load effect (#891)", () => {
     });
 
     await waitFor(() => expect(hook.result.current.isLoading).toBe(false));
-    await waitFor(() => expect(fetchDeletedNotesUnified).toHaveBeenCalled());
+    await act(async () => {
+      await hook.result.current.loadDeletedNotes();
+    });
+    expect(fetchDeletedNotesUnified).toHaveBeenCalled();
     expect(hook.result.current.error).toBeNull();
     expect(hook.result.current.notes.map((n) => n.id)).toEqual(["note-1"]);
   });

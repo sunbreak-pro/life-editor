@@ -99,24 +99,9 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
     fallbackMessage: "Failed to load routines",
   });
 
-  // Trash, read on the same cursor but deliberately on its own: a failure here
-  // must not block the active list (nor gate `isLoading` / set `error` — the
-  // trash view has its own empty state and the active list is what the screen
-  // is waiting for).
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const deleted = await ds.fetchDeletedRoutines();
-        if (!cancelled) setDeletedRoutines(deleted);
-      } catch (e) {
-        logServiceError("Routines", "fetchDeleted", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ds, syncVersion]);
+  // The trash list is NOT read on mount or on a bump (#2326): nothing on the
+  // Schedule screen renders it, and the Trash screen reads its own copy when
+  // it opens. `deletedRoutines` fills only through `loadDeletedRoutines`.
 
   // ── Routines ──────────────────────────────────────────────────────
 

@@ -113,26 +113,12 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
     fallbackMessage: "Failed to load schedule items",
   });
 
-  // Trash, read on the same cursor but deliberately on its own: a failure here
-  // must not block the active list (nor gate `isLoading` / set `error` — the
-  // trash view has its own empty state and the active list is what the screen
-  // is waiting for). Unlike the read above it is NOT keyed on `date` — the
-  // trash list is not date-anchored, and TrashView refreshes imperatively
-  // through `loadDeletedScheduleItems` when it opens.
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const deleted = await ds.fetchDeletedScheduleItems();
-        if (!cancelled) setDeletedItems(deleted);
-      } catch (e) {
-        logServiceError("ScheduleItems", "fetchDeleted", e);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [ds, syncVersion]);
+  // The trash list is NOT read here (#2326). It used to be, on every mount
+  // and every schedule bump, and that read walked the whole event history —
+  // the bulk of what switching to the Schedule cost — for a list nothing on
+  // the Schedule screen renders. The Trash screen reads its own copy when it
+  // opens; `deletedItems` fills only when `loadDeletedScheduleItems` is
+  // called.
 
   const loadDate = useCallback(
     async (target: string) => {
