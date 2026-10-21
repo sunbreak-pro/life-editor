@@ -118,6 +118,10 @@ describe("FormatToolbar (#2060)", () => {
       expect(b.classList.contains("w-6")).toBe(true);
       expect(b.querySelector("svg")?.getAttribute("width")).toBe("14");
     }
+    // #2308: no gaps below the breakpoint (seven 49.5px boxes at the default
+    // 18px root fit a 390px screen), and a second row for larger font steps.
+    expect(bar.classList.contains("max-md:gap-0")).toBe(true);
+    expect(bar.classList.contains("max-md:flex-wrap")).toBe(true);
   });
 
   it("turns the caret's line into H1 and back into a paragraph", () => {
@@ -332,6 +336,12 @@ describe("FormatBubbleMenu (#2227)", () => {
 
     select(editor, 1, 6);
     await waitFor(() => expect(shown()).toBe(true));
+    // #2308: capped at the screen less `shift`'s 8px on each side, so the
+    // bar cannot push the body into a sideways scroll at 390px.
+    expect(FORMAT_BUBBLE_OPTIONS.shift).toEqual({ padding: 8 });
+    expect(
+      bubble()!.classList.contains("max-md:max-w-[calc(100vw-16px)]"),
+    ).toBe(true);
     const bar = within(bubble()!).getByRole("toolbar", { name: "Formatting" });
     expect(
       within(bar)
