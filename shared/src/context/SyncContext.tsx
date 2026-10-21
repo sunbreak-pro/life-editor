@@ -8,6 +8,7 @@ import {
   type SyncDomain,
 } from "./syncDomains";
 import { createSyncBumpQueue } from "./syncBumpQueue";
+import { createSyncResume } from "./syncResume";
 import { getSupabaseClient } from "../services/supabaseClient";
 import { isOwnEcho } from "../services/ownWriteLedger";
 
@@ -30,6 +31,11 @@ import { isOwnEcho } from "../services/ownWriteLedger";
  *
  * The debounce collapses bursts (e.g. a multi-row DnD reorder firing many
  * UPDATEs) into a single refetch, remembering which domains the burst spanned.
+ *
+ * A gap in the connection is covered separately (#2329, `syncResume.ts`):
+ * changes made while the socket was down never arrive as messages, so a
+ * re-join, the `online` event and a return to the page after a long time
+ * hidden each re-read every domain once.
  *
  * RLS: Realtime delivers only rows the JWT may read — the same owner-only
  * policies (0008) that guard PostgREST also gate Realtime. We call
@@ -182,6 +188,17 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     const scheduleBump = (domains: readonly SyncDomain[]) =>
       queue.push(domains);
 
+    // #2329: a resume goes through the same queue, so a re-join, `online`
+    // and a return to the page arriving together become one re-read.
+    // The guard covers the CLOSED that removeChannel reports after cleanup.
+    const resume = createSyncResume(() => {
+      if (!cancelled) scheduleBump(SYNC_DOMAINS);
+    });
+    const onOnline = () => resume.online();
+    const onVisibility = () => resume.visibilityChange(document.hidden);
+    window.addEventListener("online", onOnline);
+    document.addEventListener("visibilitychange", onVisibility);
+
     const start = async () => {
       // Attach the current access token so the Realtime socket authorises
       // against owner-only RLS even right after a session restore.
@@ -218,7 +235,7 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           },
         );
       }
-      ch.subscribe();
+      ch.subscribe((status) => resume.channelStatus(status));
       channel = ch;
     };
 
@@ -226,6 +243,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      window.removeEventListener("online", onOnline);
+      document.removeEventListener("visibilitychange", onVisibility);
       queue.cancel();
       if (channel) {
         void supabase.removeChannel(channel);
