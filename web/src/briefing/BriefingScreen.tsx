@@ -31,7 +31,6 @@ import {
   todayDateKey,
   tomorrowCandidates,
   useConfirmDialog,
-  useGoalLinkSnapshot,
   useItemPanelOptional,
   useMediaQuery,
   useMinuteClock,
@@ -185,6 +184,8 @@ export function BriefingScreen({
     updateGoal,
     deleteGoal,
     writeLinks,
+    snapshotState: goalSnapshotState,
+    snapshotFailed: goalSnapshotFailed,
   } = useMorningGoals(ds, todayKey, data.todoNodes, todosRead, goalsMigrated);
 
   // The focus note (#1048) — its own document too: the morning paper READS
@@ -198,13 +199,10 @@ export function BriefingScreen({
   } = useFocusNote(ds, todayKey);
 
   // ── Evening paper data (#2107) ─────────────────────────────────────────
-  // The goals and their links, read only while 夕刊 is open. The live todo
-  // tree goes in so the tree is not read twice (ScheduleTodoDetail's shape).
-  const goalSnapshot = useGoalLinkSnapshot(ds, {
-    active: tab === "evening",
-    todos: data.todoNodes,
-  });
-  const goalsFailed = goalSnapshot.state === null && goalSnapshot.failed;
+  // The goals and their links: the morning paper's snapshot (#2327). The
+  // evening paper used to open a second one of its own, so a launch after 17:00
+  // — when the paper opens on 夕刊 — read the three goal tables twice.
+  const goalsFailed = goalSnapshotState === null && goalSnapshotFailed;
   const eveningIssueNow = useEveningIssue(
     ds,
     todayKey,
@@ -661,9 +659,10 @@ export function BriefingScreen({
   // prints the same numbers — so this only feeds it the day's rows. "Today"
   // runs from the day-start hour (#218), like `todayKey` itself.
   const dayStartHour = getDayStartHour();
-  // Named apart from the morning's `goalState` (useMorningGoals, #2106): that
-  // one waits on the todo read and the note migration, this one on 夕刊.
-  const eveningGoalState = goalSnapshot.state;
+  // Named apart from the morning's `goalState` (useMorningGoals, #2106): both
+  // come from the one goal snapshot (#2327), but that one also waits on the
+  // todo read, and this one only on the note migration.
+  const eveningGoalState = goalSnapshotState;
   // null until the goals and links land: the block then shows nothing rather
   // than「今日進んだ目標はありません」, which would be a false "none" that
   // flips to a real row a moment later. A read that FAILED is not pending,

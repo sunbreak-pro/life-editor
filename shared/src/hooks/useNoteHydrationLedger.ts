@@ -6,7 +6,7 @@ import {
   type MutableRefObject,
   type SetStateAction,
 } from "react";
-import type { NoteNode } from "../types/note";
+import type { NoteBodySnapshot, NoteNode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
 import { forgetNoteBody, readNoteBody } from "../state/noteBodyStore";
@@ -28,6 +28,9 @@ import { forgetNoteBody, readNoteBody } from "../state/noteBodyStore";
  * by one set of rules: the hydrated mark is withheld while the gate is up, and
  * the session's unlocked ids are what let the mark come back.
  */
+
+/** How long an open's own read answers the editor's mount check (#2327). */
+const FRESH_BODY_MS = 5000;
 
 export interface UseNoteHydrationLedgerParams {
   ds: DataService;
@@ -89,12 +92,50 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
    */
   const unlockedIdsRef = useRef<Set<string>>(new Set());
 
-  /** Remember that OUR write is what moved this row's `updatedAt` (#607). */
-  const markLocalWrite = useCallback((id: string) => {
-    if (contentLoadedIdsRef.current.has(id)) {
-      locallyWrittenIdsRef.current.add(id);
-    }
+  /*
+   * The body and version the open just read, per id, for ONE use (#2327).
+   *
+   * Opening a note reads it (`hydrateContent` → getNoteUnified), and the
+   * editor that mounts on it asks the server again at once for the version
+   * it opened on (#2057's mount check) — the same body, a second time, a
+   * moment later. The first read is meta first and body second, the order the
+   * check itself reads in, so its pair is as good an answer.
+   *
+   * Kept only for an OPEN — a read after which an editor mounts and asks. A
+   * reload's re-hydrate of the note already on screen keeps no pair: that
+   * editor is mounted, its mount check is long gone, and its next check is
+   * for a write from elsewhere, which an older pair would hide. Handed out
+   * once, only while young, and never when a local change to the note
+   * (`bumpLocalGen`) happened during or after the read.
+   */
+  const freshPairsRef = useRef<
+    Map<string, { snapshot: NoteBodySnapshot; at: number }>
+  >(new Map());
+  /** Local changes per id — a read that saw one start under it keeps nothing. */
+  const localGenRef = useRef<Map<string, number>>(new Map());
+  const bumpLocalGen = useCallback((id: string) => {
+    freshPairsRef.current.delete(id);
+    localGenRef.current.set(id, (localGenRef.current.get(id) ?? 0) + 1);
   }, []);
+
+  /** The pair `hydrateContent` just read, if still unused and fresh. */
+  const takeFreshBody = useCallback((id: string): NoteBodySnapshot | null => {
+    const entry = freshPairsRef.current.get(id);
+    freshPairsRef.current.delete(id);
+    if (!entry || Date.now() - entry.at > FRESH_BODY_MS) return null;
+    return entry.snapshot;
+  }, []);
+
+  /** Remember that OUR write is what moved this row's `updatedAt` (#607). */
+  const markLocalWrite = useCallback(
+    (id: string) => {
+      bumpLocalGen(id);
+      if (contentLoadedIdsRef.current.has(id)) {
+        locallyWrittenIdsRef.current.add(id);
+      }
+    },
+    [bumpLocalGen],
+  );
 
   /*
    * The tracked writes themselves, per id (#2057). A version-checked body save
@@ -107,6 +148,7 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
   /** Run a write while counting it as unacknowledged (#607 — see the ref). */
   const trackWrite = useCallback(
     (id: string, write: Promise<unknown>): Promise<unknown> => {
+      bumpLocalGen(id);
       const map = unackedWritesRef.current;
       map.set(id, (map.get(id) ?? 0) + 1);
       const tracked = write.finally(() => {
@@ -122,7 +164,7 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
       inFlightRef.current.set(id, set);
       return tracked;
     },
-    [],
+    [bumpLocalGen],
   );
 
   /** Resolves once every write tracked for `id` so far has settled. */
@@ -147,9 +189,15 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
    * optimistically) as hydrated, so a later reselect/reload doesn't drop back
    * to the light "".
    */
-  const markHydrated = useCallback((id: string) => {
-    contentLoadedIdsRef.current.add(id);
-  }, []);
+  const markHydrated = useCallback(
+    (id: string) => {
+      // A body put here locally (a save, an adopted remote body, a create)
+      // is no longer the one an open's pair describes (#2327).
+      bumpLocalGen(id);
+      contentLoadedIdsRef.current.add(id);
+    },
+    [bumpLocalGen],
+  );
 
   /** Put a body into the `notes` array and mark the id hydrated. */
   const applyBody = useCallback(
@@ -199,13 +247,21 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
       unlockedIdsRef.current.delete(id);
       contentLoadedIdsRef.current.delete(id);
       locallyWrittenIdsRef.current.delete(id);
+      bumpLocalGen(id);
       forgetNoteBody(id);
       setNotes((prev) =>
         prev.map((n) => (n.id === id ? { ...n, content: "" } : n)),
       );
     },
-    [setNotes],
+    [setNotes, bumpLocalGen],
   );
+
+  /*
+   * One read per id at a time (#2327): a selection restore, a reload's
+   * re-hydrate and a click can ask for the same note together, and each used
+   * to send its own pair of requests.
+   */
+  const hydratingRef = useRef<Map<string, Promise<boolean>>>(new Map());
 
   /*
    * Hydrate a note's real body into the `notes` array. No-op if already
@@ -218,9 +274,11 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
    * is the only thing that tells a real empty body from a withheld one — mark
    * it and the next save writes the emptiness over the user's text (#471).
    */
-  const hydrateContent = useCallback(
-    async (id: string): Promise<boolean> => {
-      if (contentLoadedIdsRef.current.has(id)) return true;
+  const hydrateContentOnce = useCallback(
+    async (id: string, forOpen: boolean): Promise<boolean> => {
+      // An older pair describes a body from before this read (#2327).
+      freshPairsRef.current.delete(id);
+      const gen = localGenRef.current.get(id) ?? 0;
       // The list row already says whether this note is locked, so the common
       // case costs no request at all. A row we have not seen yet falls through
       // to the read, which is filtered service-side either way.
@@ -240,6 +298,12 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
           return unlockNoteBody(id);
         }
         applyBody(id, full.content);
+        if (forOpen && (localGenRef.current.get(id) ?? 0) === gen) {
+          freshPairsRef.current.set(id, {
+            snapshot: { content: full.content, updatedAt: full.updatedAt },
+            at: Date.now(),
+          });
+        }
         return true;
       } catch (e) {
         logServiceError("Notes", "hydrateContent", e);
@@ -247,6 +311,26 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
       }
     },
     [ds, applyBody, notesRef, unlockNoteBody],
+  );
+
+  /**
+   * `forOpen`: an editor will mount on this note once the read lands (a
+   * selection or its restore), so the pair read here may answer that editor's
+   * mount check. A reload's re-hydrate of the note on screen passes false.
+   */
+  const hydrateContent = useCallback(
+    (id: string, opts?: { forOpen?: boolean }): Promise<boolean> => {
+      if (contentLoadedIdsRef.current.has(id)) return Promise.resolve(true);
+      const running = hydratingRef.current.get(id);
+      if (running) return running;
+      const run = hydrateContentOnce(id, opts?.forOpen === true).finally(() => {
+        if (hydratingRef.current.get(id) === run)
+          hydratingRef.current.delete(id);
+      });
+      hydratingRef.current.set(id, run);
+      return run;
+    },
+    [hydrateContentOnce],
   );
 
   /*
@@ -372,6 +456,7 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
     writesSettled,
     markHydrated,
     hydrateContent,
+    takeFreshBody,
     unlockNoteBody,
     relockNote,
     isContentLoaded,
