@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   useRoutineContext,
   useScheduleItemsContext,
@@ -71,10 +71,28 @@ export function RoutineScheduleSync({
 
   const ensure = generator.ensureRoutineItemsForDate;
 
+  // The routines the last pass ran for, by content (#2327). The list arrives
+  // as a NEW array on every read — the cached copy replayed on mount, the
+  // fetch that follows, and every schedule bump, routines included — so
+  // keying the effect on its identity re-read the day's events up to three
+  // times on one switch to the Schedule. A pass is only owed when the date or
+  // what the routines say has changed.
+  const lastPassRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (!date) return;
     if (routines.length === 0) return;
-    void ensure(date, routines);
+    const key = `${date}\u0000${JSON.stringify(routines)}`;
+    if (lastPassRef.current === key) return;
+    lastPassRef.current = key;
+    // A pass that failed (offline, a refused write) forgets its key, so the
+    // next bump retries it the way every re-render used to.
+    const forget = () => {
+      if (lastPassRef.current === key) lastPassRef.current = null;
+    };
+    void ensure(date, routines).then((ok) => {
+      if (!ok) forget();
+    }, forget);
   }, [date, routines, ensure]);
 
   return null;

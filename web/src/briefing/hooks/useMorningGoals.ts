@@ -65,6 +65,14 @@ export interface MorningReview {
 
 export interface MorningGoalsState {
   state: GoalLinkState | null;
+  /**
+   * The goal snapshot as read, before the morning paper's own gates
+   * (`todosRead`), and whether its last read failed. The evening paper draws
+   * from these instead of reading the three goal tables a second time
+   * (#2327).
+   */
+  snapshotState: GoalLinkState | null;
+  snapshotFailed: boolean;
   goals: MorningGoals | null;
   review: MorningReview | null;
   reviewBusy: PeriodEndChoice | null;
@@ -236,6 +244,8 @@ export function useMorningGoals(
 
   return {
     state,
+    snapshotState: migrated ? snapshot.state : null,
+    snapshotFailed: snapshot.failed,
     goals,
     review,
     reviewBusy,
