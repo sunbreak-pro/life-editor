@@ -342,6 +342,9 @@ describe("FormatBubbleMenu (#2227)", () => {
     expect(
       bubble()!.classList.contains("max-md:max-w-[calc(100vw-16px)]"),
     ).toBe(true);
+    // ...and measured at its real width from the first selection: the plugin
+    // sets `width: max-content` only after it has placed the bar once.
+    expect(bubble()!.classList.contains("w-max")).toBe(true);
     const bar = within(bubble()!).getByRole("toolbar", { name: "Formatting" });
     expect(
       within(bar)
