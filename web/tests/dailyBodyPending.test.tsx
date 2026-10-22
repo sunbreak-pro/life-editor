@@ -294,7 +294,8 @@ describe("DailyView — the open day's body is still loading (#2325)", () => {
 
     // The body is read first, and only the mood line changes on it.
     expect(harness.fns.getDailyByDateUnified).toHaveBeenCalledWith(TODAY);
-    // `ownEcho`: every Daily save skips its own Realtime echo (#2290).
+    // Every Daily write marks its own echo (#2290), so the third argument is
+    // part of the call.
     expect(harness.fns.upsertDailyByDateUnified.mock.calls).toEqual([
       [
         TODAY,

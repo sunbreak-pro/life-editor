@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { DataService } from "../services/DataService";
 import {
+  dropDomainSnapshot,
   readDomainSnapshot,
   writeDomainSnapshot,
   type DomainSnapshotKey,
@@ -193,7 +194,16 @@ export function useDomainLoad<T>(
    */
   useLayoutEffect(() => {
     if (snapshot === null) return;
-    latest.current.apply(snapshot.data);
+    // #2331: a snapshot can now come from IndexedDB, written by an older
+    // build. One this app cannot draw is dropped rather than thrown: the read
+    // below still runs and puts the real list on screen.
+    try {
+      latest.current.apply(snapshot.data);
+    } catch (e) {
+      logServiceError(latest.current.domain, "replay", e);
+      const key = latest.current.snapshotKey;
+      if (key !== undefined) dropDomainSnapshot(key);
+    }
   }, [snapshot]);
 
   useEffect(() => {

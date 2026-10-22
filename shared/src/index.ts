@@ -209,6 +209,8 @@ export {
 } from "./hooks/useDomainLoad";
 export {
   clearDomainSnapshots,
+  forgetDomainSnapshots,
+  hydrateDomainSnapshots,
   writeDomainSnapshot,
   type DomainSnapshotKey,
 } from "./state/domainSnapshotStore";

@@ -387,12 +387,14 @@ describe("Schedule todo-chip writes are undoable (#569)", () => {
   // only checks that the pointer moved). Pushing there would answer Ctrl+Z
   // with a toast and no visible change, and swallow the press meant for the
   // user's previous action.
-  it("a no-op drag writes but does not push", async () => {
+  it("a no-op drag neither writes nor pushes", async () => {
     const { ds, synced } = makeTodoDS();
     await mount(ds);
 
     await click("no-op-drag");
-    expect(synced).toHaveLength(1);
+    // It still goes through the silent persist, but since #2332 a tree write
+    // sends only the rows it changed, and this one changed none.
+    expect(synced).toHaveLength(0);
     expect(canUndo()).toBe("false");
   });
 
