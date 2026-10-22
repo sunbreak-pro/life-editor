@@ -4,6 +4,7 @@ import type {
   Subscription,
 } from "@supabase/supabase-js";
 import { getSupabaseClient } from "./supabaseClient";
+import { forgetDomainSnapshots } from "../state/domainSnapshotStore";
 import {
   DISPLAY_NAME_METADATA_KEY,
   normalizeDisplayName,
@@ -167,7 +168,18 @@ export async function updateDisplayName(
 }
 
 export async function signOut(): Promise<{ error: string | null }> {
-  const { error } = await getSupabaseClient().auth.signOut();
+  const client = getSupabaseClient();
+  // #2331: whose lists to delete from the device. Read first — once signed
+  // out there is no session left to name the user.
+  let userId: string | null = null;
+  try {
+    const { data } = await client.auth.getSession();
+    userId = data.session?.user.id ?? null;
+  } catch {
+    // No session to read: nothing of anyone's is cached under this tab.
+  }
+  const { error } = await client.auth.signOut();
+  if (userId !== null) await forgetDomainSnapshots(userId);
   return { error: error ? error.message : null };
 }
 

@@ -1,6 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
+  forgetDomainSnapshots,
   getSession,
+  hydrateDomainSnapshots,
   onAuthStateChange,
   UnsavedGuardProvider,
   useTranslation,
@@ -77,6 +79,30 @@ function App() {
    * cannot sign in, would never be offered a field to set a new password.
    */
   const [recovering, setRecovering] = useState(readRecoveryMark);
+  /*
+   * #2331 — the lists stored on this device for the signed-in user, loaded
+   * before MainScreen mounts. Every domain reads its first frame from the
+   * snapshot store synchronously (useDomainLoad), so the load has to be done
+   * by then or the reload draws skeletons as before. It gives up after
+   * 300ms (HYDRATE_TIMEOUT_MS), so a slow IndexedDB costs at most that.
+   * A session without a user id (test doubles) skips it.
+   */
+  const userId = session?.user?.id ?? null;
+  const [hydratedFor, setHydratedFor] = useState<string | null>(null);
+  // The user to forget at SIGNED_OUT, when the event's session is already null.
+  const lastUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (userId === null) return;
+    lastUserIdRef.current = userId;
+    let active = true;
+    void hydrateDomainSnapshots(userId).then(() => {
+      if (active) setHydratedFor(userId);
+    });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
 
   useEffect(() => {
     let active = true;
@@ -104,6 +130,11 @@ function App() {
       if (event === "SIGNED_OUT") {
         setRecovering(false);
         writeRecoveryMark(false);
+        // #2331: a sign-out from anywhere (another tab, an expired refresh
+        // token, account deletion) leaves no lists of this user on the device.
+        const previous = lastUserIdRef.current;
+        lastUserIdRef.current = null;
+        if (previous !== null) void forgetDomainSnapshots(previous);
       }
     });
     return () => {
@@ -117,7 +148,8 @@ function App() {
   // may never resolve, so the warning must be reachable on the loading
   // screen as well.
   let body: React.JSX.Element;
-  if (!ready) {
+  const hydrated = userId === null || hydratedFor === userId;
+  if (!ready || (session && !recovering && !hydrated)) {
     body = (
       <div className="min-h-screen bg-lumen-bg text-lumen-text flex items-center justify-center">
         <p className="text-lumen-text-secondary">Loading…</p>

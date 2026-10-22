@@ -1,6 +1,7 @@
 // @vitest-environment node (no DOM — service over the PostgREST stub)
 import { describe, it, expect, beforeEach, vi, afterEach } from "vitest";
 import { SupabaseDailiesUnifiedService } from "../src/services/SupabaseDailiesUnifiedService";
+import { isOwnEcho, resetOwnWriteLedger } from "../src/services/ownWriteLedger";
 import { makeStub, USER } from "./helpers/supabaseNotesStub";
 
 /*
@@ -110,6 +111,7 @@ describe("upsertDailyByDateUnified → save_daily_content (#2325)", () => {
     vi.setSystemTime(new Date(NOW));
     stub = makeStub();
     service = new SupabaseDailiesUnifiedService(stub.client);
+    resetOwnWriteLedger();
   });
 
   afterEach(() => {
@@ -238,5 +240,90 @@ describe("upsertDailyByDateUnified → save_daily_content (#2325)", () => {
       service.upsertDailyByDateUnified("2026/10/20", BODY),
     ).rejects.toThrow(/invalid date/);
     expect(stub.calls).toEqual([]);
+  });
+
+  describe("own echo (#2325 follow-up to #2290)", () => {
+    // Postgres hands the same instant back in its own spelling.
+    const NOW_FROM_PG = "2026-10-20T09:30:00+00:00";
+
+    it("records the meta and payload rows, so their echoes refetch nothing", async () => {
+      stub.stage("save_daily_content", "rpc", {
+        data: [saveRow()],
+        error: null,
+      });
+
+      await service.upsertDailyByDateUnified(DATE, BODY, { ownEcho: true });
+
+      expect(isOwnEcho("items_meta", { id: ID, updated_at: NOW_FROM_PG })).toBe(
+        true,
+      );
+      expect(isOwnEcho("dailies_payload", { item_id: ID })).toBe(true);
+    });
+
+    it("records before the request, so an echo that outruns the answer matches", async () => {
+      let echoBeforeAnswer: boolean | null = null;
+      const rpc = stub.client.rpc.bind(stub.client);
+      vi.spyOn(stub.client, "rpc").mockImplementation(((
+        ...args: Parameters<typeof rpc>
+      ) => {
+        echoBeforeAnswer = isOwnEcho("items_meta", {
+          id: ID,
+          updated_at: NOW,
+        });
+        return rpc(...args);
+      }) as typeof rpc);
+      stub.stage("save_daily_content", "rpc", {
+        data: [saveRow()],
+        error: null,
+      });
+
+      await service.upsertDailyByDateUnified(DATE, BODY, { ownEcho: true });
+
+      expect(echoBeforeAnswer).toBe(true);
+    });
+
+    it("records nothing without ownEcho", async () => {
+      stub.stage("save_daily_content", "rpc", {
+        data: [saveRow()],
+        error: null,
+      });
+
+      await service.upsertDailyByDateUnified(DATE, BODY);
+
+      expect(isOwnEcho("items_meta", { id: ID, updated_at: NOW })).toBe(false);
+      expect(isOwnEcho("dailies_payload", { item_id: ID })).toBe(false);
+    });
+
+    it("does not take another device's later write to the day for ours", async () => {
+      stub.stage("save_daily_content", "rpc", {
+        data: [saveRow()],
+        error: null,
+      });
+
+      await service.upsertDailyByDateUnified(DATE, BODY, { ownEcho: true });
+
+      expect(
+        isOwnEcho("items_meta", {
+          id: ID,
+          updated_at: "2026-10-20T09:30:01.000Z",
+        }),
+      ).toBe(false);
+    });
+
+    it("records a day whose id names another date from the answer", async () => {
+      // The function finds the day by date, so its id need not match the date.
+      const legacy = "daily-2026-10-19";
+      stub.stage("save_daily_content", "rpc", {
+        data: [saveRow({ id: legacy, item_id: legacy })],
+        error: null,
+      });
+
+      await service.upsertDailyByDateUnified(DATE, BODY, { ownEcho: true });
+
+      expect(isOwnEcho("items_meta", { id: legacy, updated_at: NOW })).toBe(
+        true,
+      );
+      expect(isOwnEcho("dailies_payload", { item_id: legacy })).toBe(true);
+    });
   });
 });
