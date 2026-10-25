@@ -322,8 +322,11 @@ export function FormatBubbleMenu({
       data-format-bubble=""
       // #2308: never wider than the screen less the 8px `shift` keeps on
       // either side (formatBubbleOptions.ts), so the body never scrolls
-      // sideways under it.
-      className="z-30 rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-lg max-md:max-w-[calc(100vw-16px)]"
+      // sideways under it. `w-max` is the width the plugin sets only after
+      // its first placement: without it the first selection is measured
+      // narrower (the narrow bar wraps), `shift` keeps that narrower box in,
+      // and the bar then widens past the right edge.
+      className="z-30 w-max rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-lg max-md:max-w-[calc(100vw-16px)]"
     >
       <FormatToolbar editor={editor} disabled={disabled} labels={labels} />
     </BubbleMenu>
