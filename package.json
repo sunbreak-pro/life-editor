@@ -1,7 +1,7 @@
 {
   "name": "life-editor",
   "version": "1.0.0",
-  "description": "Immersive task management app with ambient sounds and pomodoro timer",
+  "description": "Personal life OS where Claude reads and writes todos, schedule, notes, dailies and goals through MCP",
   "private": true,
   "scripts": {
     "dev": "npm --prefix web run dev",
