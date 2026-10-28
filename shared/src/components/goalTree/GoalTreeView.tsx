@@ -164,6 +164,13 @@ const ROW_BUTTON = cn(
 const GROUP_HEADING = "mb-1.5 text-xs font-medium text-lumen-text-tertiary";
 
 /*
+ * A button beside a field or a heading keeps its label on one line (#2364).
+ * Button has neither rule, and an Input is w-full, so a flex row squeezed
+ * the button to one character's width and 「追加」 broke into a column.
+ */
+const KEEP_LABEL = "shrink-0 whitespace-nowrap";
+
+/*
  * The arrow's width is one CSS variable, set on the view's root, and the
  * hierarchy lines are placed from it (#2282): a line runs through the middle
  * of its parent's arrow at every depth and on both widths. Both sizes are in
@@ -834,7 +841,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                 aria-describedby={full ? limitId : undefined}
                 onClick={() => setAdding(adding === kind ? null : kind)}
                 leadingIcon={<Plus size={14} aria-hidden />}
-                className="max-md:min-h-11"
+                className={cn(KEEP_LABEL, "max-md:min-h-11")}
               >
                 {labels.periods[kind]}
                 <span className="tabular-nums text-xs opacity-80">
@@ -864,7 +871,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               }}
               placeholder={`${labels.periods[adding]} ${labels.periodRanges[adding]}: ${labels.addPlaceholder}`}
               aria-label={`${labels.periods[adding]}: ${labels.addPlaceholder}`}
-              className="max-md:text-base"
+              className="min-w-0 max-md:text-base"
             />
             <Button
               size="sm"
@@ -872,7 +879,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               disabled={!draft.trim()}
               busy={busy}
               busyLabel={labels.add}
-              className="max-md:min-h-11"
+              className={cn(KEEP_LABEL, "max-md:min-h-11")}
             >
               {labels.add}
             </Button>
@@ -880,7 +887,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               size="sm"
               variant="ghost"
               onClick={() => setAdding(null)}
-              className="max-md:min-h-11"
+              className={cn(KEEP_LABEL, "max-md:min-h-11")}
             >
               {labels.cancel}
             </Button>
@@ -913,7 +920,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                   size="sm"
                   variant="ghost"
                   onClick={props.onResetFilters}
-                  className="max-md:min-h-11"
+                  className={cn(KEEP_LABEL, "max-md:min-h-11")}
                 >
                   {labels.resetFilters}
                 </Button>
@@ -976,7 +983,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               aria-expanded={addingTodo}
               aria-label={labels.addTodoLabel}
               leadingIcon={<Plus size={14} aria-hidden />}
-              className="max-md:min-h-11"
+              className={cn(KEEP_LABEL, "max-md:min-h-11")}
             >
               {labels.addTodo}
             </Button>
@@ -995,7 +1002,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                 }}
                 placeholder={labels.addTodoPlaceholder}
                 aria-label={labels.addTodoLabel}
-                className="max-md:text-base"
+                className="min-w-0 max-md:text-base"
               />
               <Button
                 size="sm"
@@ -1003,7 +1010,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                 disabled={!todoDraft.trim()}
                 busy={todoBusy}
                 busyLabel={labels.add}
-                className="max-md:min-h-11"
+                className={cn(KEEP_LABEL, "max-md:min-h-11")}
               >
                 {labels.add}
               </Button>
