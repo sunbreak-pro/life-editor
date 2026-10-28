@@ -22,6 +22,7 @@ import {
   GOAL_PERIOD_KINDS,
   GOALS_PER_PERIOD,
   goalProgress,
+  separateCompleted,
   type GoalTreeModel,
   type GoalTreeNode,
   type GoalTreeTodo,
@@ -61,6 +62,11 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * field closes. A goal drawn twice — under its parent and as unconnected —
  * opens the field only on the row whose pencil was pressed.
  *
+ * Completed items (#2368): an achieved goal, with what is under it, and a
+ * done todo leave the tree for a "Completed items" group at the bottom
+ * (separateCompleted). Un-ticking or un-achieving puts them back, because
+ * the host's next model no longer counts them as completed.
+ *
  * Pure presentation (§6.4): the model and every label come from the host
  * (web/src/connect/GoalsTodosScreen.tsx). The state held here — the add
  * fields' drafts, which goals are closed and what is being dragged — is
@@ -99,6 +105,8 @@ export interface GoalTreeLabels {
   resetFilters: string;
   /** A filter left no goal to draw. */
   noMatch: string;
+  /** "Completed items" — the group done todos and achieved goals move to. */
+  completedHeading: string;
   /** "Todo" — the loose group's add button, after a plus. */
   addTodo: string;
   /** The add button's and the field's spoken name. */
@@ -356,7 +364,7 @@ interface BranchState {
  * drawn twice — under its parent and in the unconnected group — so the edit
  * is held per row, not per goal.
  */
-type GoalRowPlace = "tree" | "unconnected";
+type GoalRowPlace = "tree" | "unconnected" | "completed";
 
 interface EditingRow {
   goalId: string;
@@ -661,7 +669,10 @@ function Group({
 }
 
 export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
-  const { model, isLoading, labels } = props;
+  const { isLoading, labels } = props;
+  // The tree without its completed items; those are drawn last (#2368).
+  // The drop rule still reads the whole model.
+  const { model, completed } = separateCompleted(props.model);
   const [adding, setAdding] = useState<GoalPeriodKind | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
@@ -806,11 +817,13 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   };
 
   // `byId` holds every shown goal whatever the filter; roots and unconnected
-  // are what the filter left.
+  // are what the filter left. A goal that only moved to the completed list
+  // still matched, so the check reads the model as passed in.
   const hasGoals = model.byId.size > 0;
   const activeFilters = props.activeFilters ?? [];
   const nothingMatches =
-    model.roots.length === 0 && model.unconnected.length === 0;
+    props.model.roots.length === 0 && props.model.unconnected.length === 0;
+  const hasCompleted = completed.goals.length > 0 || completed.todos.length > 0;
   // Said in text under the buttons, not only in a disabled button's title:
   // a disabled button takes no focus, so the title never reaches a keyboard
   // or screen-reader user.
@@ -1022,6 +1035,39 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               />
             ))}
           </ul>
+        </Group>
+      )}
+
+      {hasCompleted && (
+        <Group heading={labels.completedHeading}>
+          {completed.goals.length > 0 && (
+            <ul>
+              {completed.goals.map((node) => (
+                <GoalBranch
+                  key={node.goal.id}
+                  node={node}
+                  place="completed"
+                  props={props}
+                  branch={branch}
+                />
+              ))}
+            </ul>
+          )}
+          {completed.todos.length > 0 && (
+            <ul>
+              {completed.todos.map(({ todo, fromGoalId }) => (
+                <TodoRow
+                  key={`${fromGoalId ?? ""}:${todo.id}`}
+                  todo={todo}
+                  fromGoalId={fromGoalId}
+                  drag={drag}
+                  onSetTodoStatus={props.onSetTodoStatus}
+                  onOpenTodo={props.onOpenTodo}
+                  labels={labels}
+                />
+              ))}
+            </ul>
+          )}
         </Group>
       )}
     </div>

@@ -60,6 +60,7 @@ export function useGoalTreeLabels(todayKey: string): {
       filteringBy: t("connect.goals.arrange.filteringBy"),
       resetFilters: t("connect.goals.arrange.reset"),
       noMatch: t("connect.goals.arrange.noMatch"),
+      completedHeading: t("connect.goals.completedHeading"),
       addTodo: t("connect.goals.addTodo"),
       addTodoLabel: t("connect.goals.addTodoLabel"),
       addTodoPlaceholder: t("connect.goals.addTodoPlaceholder"),

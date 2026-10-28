@@ -1496,6 +1496,7 @@
       "writeFailed": "目標を保存できませんでした。通信を確認して、もう一度操作してください。",
       "expand": "開く: {{title}}",
       "collapse": "閉じる: {{title}}",
+      "completedHeading": "完了済みのアイテム",
       "addTodo": "Todo",
       "addTodoLabel": "どの目標にもつながらない Todo を追加",
       "addTodoPlaceholder": "やることを書きます",
