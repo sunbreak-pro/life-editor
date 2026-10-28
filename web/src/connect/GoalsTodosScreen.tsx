@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
 import {
   BottomSheet,
@@ -19,6 +19,7 @@ import {
   todayDateKey,
   useConfirmDialog,
   useDomainLoad,
+  useItemPanelOptional,
   useMediaQuery,
   useRightSidebarOptional,
   useSyncDomains,
@@ -32,6 +33,7 @@ import {
   type GoalTreeArrangeLabels,
   type GoalTreeArrangement,
   type GoalTreeDragHandlers,
+  type ItemPanelOptions,
   type TodoNode,
   type TodoStatus,
   type TranslationKey,
@@ -65,7 +67,12 @@ import { useGoalTreeLabels } from "./useGoalTreeLabels";
 
 interface GoalsTodosScreenProps {
   dataService: DataService;
-  onNavigateToItem: (target: { id: string; role: string }) => void;
+  /** A todo with a day goes to that day (the panel's "Open in Schedule"). */
+  onNavigateToItem: (target: {
+    id: string;
+    role: string;
+    date?: string;
+  }) => void;
 }
 
 interface GoalsSources {
@@ -339,10 +346,41 @@ export function GoalsTodosScreen({
     [write, dataService],
   );
 
-  const openTodo = useCallback(
-    (todoId: string) => onNavigateToItem({ id: todoId, role: "task" }),
+  /*
+   * A todo opens the Schedule's todo editor over this tab (#2362, the
+   * ItemPanel of #2218), so editing one does not leave the tree. Its "Open in
+   * Schedule" still goes there. Without an ItemPanel Provider (a standalone
+   * render) the row falls back to the old navigation.
+   */
+  const itemPanel = useItemPanelOptional();
+  const panelOptions = useMemo<ItemPanelOptions>(
+    () => ({
+      onOpenInSchedule: (target) =>
+        onNavigateToItem(
+          target.date === null
+            ? { id: target.id, role: target.role }
+            : { id: target.id, role: target.role, date: target.date },
+        ),
+      onNavigateToItem,
+    }),
     [onNavigateToItem],
   );
+  const openTodo = useCallback(
+    (todoId: string) => {
+      if (itemPanel)
+        itemPanel.openEdit({ role: "task", id: todoId }, panelOptions);
+      else onNavigateToItem({ id: todoId, role: "task" });
+    },
+    [itemPanel, panelOptions, onNavigateToItem],
+  );
+  // The panel writes through its own Providers; re-read once it shuts so the
+  // tree does not wait for the Realtime echo.
+  const panelOpen = itemPanel?.request != null;
+  const wasPanelOpen = useRef(panelOpen);
+  useEffect(() => {
+    if (wasPanelOpen.current && !panelOpen) setReloadTick((n) => n + 1);
+    wasPanelOpen.current = panelOpen;
+  }, [panelOpen]);
 
   const { request, ask, resolve } = useConfirmDialog();
   const deleteGoal = useCallback(
