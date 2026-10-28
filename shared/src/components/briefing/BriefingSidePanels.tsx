@@ -99,11 +99,13 @@ export function BriefingCarryoverPanel({
              to 0px. */
           <li
             key={item.id}
-            className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-lumen-text-secondary @md:flex-nowrap"
+            className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-lumen-text-secondary @max-md:gap-x-2 @md:flex-nowrap"
           >
             {/* The left rail at one width (#1368), so「3日目」and「12日目」
-                hand the checkbox after them the same left edge. */}
-            <span className="w-14 flex-shrink-0 text-xs font-bold tabular-nums text-lumen-briefing-shu">
+                hand the checkbox after them the same left edge. It is 44px
+                (not 56) in a narrow panel: at 277px the title kept 131px and
+                broke over three lines, and 44px still holds「12日目」. */}
+            <span className="w-14 flex-shrink-0 @max-md:w-11 text-xs font-bold tabular-nums text-lumen-briefing-shu">
               {item.daysLabel}
             </span>
             <TodoStatusCheckbox

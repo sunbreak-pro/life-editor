@@ -112,6 +112,15 @@ describe("持ち越し in the panel (#2285)", () => {
     );
   });
 
+  it("narrows the day rail and the gaps in a narrow panel so the title keeps its width", () => {
+    renderCarryover([
+      { id: "c1", title: "Old todo", daysLabel: "day 3", completed: false },
+    ]);
+    const row = screen.getByText("Old todo").closest("li");
+    expect(row).toHaveClass("gap-x-3", "@max-md:gap-x-2");
+    expect(screen.getByText("day 3")).toHaveClass("w-14", "@max-md:w-11");
+  });
+
   it("drops the rule when it opens the panel", () => {
     renderCarryover([
       { id: "c1", title: "Old todo", daysLabel: "day 3", completed: false },
