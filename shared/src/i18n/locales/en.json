@@ -1520,6 +1520,9 @@
       "addTodoLabel": "Add a todo not linked to a goal",
       "addTodoPlaceholder": "What to do",
       "dragToMove": "Drag to move",
+      "startDate": "From",
+      "endDate": "To",
+      "dateRange": "{{start}} – {{end}}",
       "rename": "Rename: {{title}}",
       "moveTodoFailed": "Could not move the todo. Check your connection and try again.",
       "arrange": {

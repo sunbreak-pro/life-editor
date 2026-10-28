@@ -1500,6 +1500,9 @@
       "addTodoLabel": "どの目標にもつながらない Todo を追加",
       "addTodoPlaceholder": "やることを書きます",
       "dragToMove": "ドラッグで移動",
+      "startDate": "開始日",
+      "endDate": "終了日",
+      "dateRange": "{{start}}〜{{end}}",
       "rename": "名前を変える: {{title}}",
       "moveTodoFailed": "Todo を移せませんでした。通信を確認して、もう一度操作してください。",
       "arrange": {

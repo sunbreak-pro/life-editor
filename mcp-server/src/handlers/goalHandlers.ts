@@ -26,7 +26,6 @@ import { notFoundError } from "../errorCodes.js";
  * The app's half is shared/src/services/SupabaseGoalsService.ts; the rules
  * the DB cannot hold are enforced here as well as there:
  *
- *   - at most GOALS_PER_PERIOD live goals per period (create and restore);
  *   - a parent is one level up only: year → month → week;
  *   - the hand mark (`manual_achieved_at`) only on an UNCONNECTED goal — a
  *     connected one is judged by its todos, or closed at period end with
@@ -41,8 +40,6 @@ import { notFoundError } from "../errorCodes.js";
  * A link is a relation row with its own updated_at, like wiki_tag_connections
  * (link_items) — linking does not touch the goal's meta row, same as the app.
  */
-
-export const GOALS_PER_PERIOD = 3;
 
 /** The kind a goal's parent must be (shared goalMapper GOAL_PARENT_KIND). */
 const PARENT_KIND: Readonly<Record<GoalPeriodKind, GoalPeriodKind | null>> = {
@@ -371,23 +368,11 @@ async function periodRoom(
 }
 
 /**
- * Throw when `period` already holds GOALS_PER_PERIOD live goals. Exported for
- * restore_item, which can otherwise bring a fourth one back from the trash.
- * Returns the next free sort order, which is what create_goal appends at.
+ * The sort order a new goal of `period` appends at. There is no limit on how
+ * many goals a period holds any more (#2366).
  */
-export async function assertPeriodHasRoom(
-  period: GoalPeriod,
-  label: string,
-): Promise<number> {
-  const room = await periodRoom(period);
-  if (room.live >= GOALS_PER_PERIOD) {
-    throw new Error(
-      `${label}: the ${period.kind} ${period.key} already has ` +
-        `${GOALS_PER_PERIOD} goals — move one to the trash with delete_goal first ` +
-        "(a goal answered 'dropped' still counts)",
-    );
-  }
-  return room.nextSortOrder;
+async function nextSortOrderIn(period: GoalPeriod): Promise<number> {
+  return (await periodRoom(period)).nextSortOrder;
 }
 
 /** The period a goal of `kind` lives in: an explicit key, else `date`'s. */
@@ -485,7 +470,7 @@ export async function createGoal(args: {
       "create_goal: carried-from goal",
     );
   }
-  const sortOrder = await assertPeriodHasRoom(period, "create_goal");
+  const sortOrder = await nextSortOrderIn(period);
 
   const id = `goal-${randomUUID()}`;
   const payload: Omit<GoalsPayloadRow, "item_id"> = {
@@ -691,17 +676,4 @@ export async function unlinkGoalTodo(args: {
     if (error) throw new Error(`delete goal_todo_links: ${error.message}`);
   }
   return { removed: existing !== null, goal: await readGoal(args.goal_id) };
-}
-
-/**
- * restore_item's goal check: the period of the trashed goal `id` must still
- * have room. A goal whose payload is missing has no period to fill.
- */
-export async function assertGoalRestorable(id: string): Promise<void> {
-  const [payload] = await fetchPayloads("item_id", [id]);
-  if (!payload) return;
-  await assertPeriodHasRoom(
-    { kind: payload.period_kind, key: payload.period_key },
-    "restore_item",
-  );
 }

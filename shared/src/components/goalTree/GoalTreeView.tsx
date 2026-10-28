@@ -15,12 +15,12 @@ import { Input } from "../Input";
 import { SkeletonList } from "../SkeletonList";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
-import type { Goal, GoalPeriodKind } from "../../types/goal";
+import type { Goal, GoalDateRange, GoalPeriodKind } from "../../types/goal";
 import type { TodoStatus } from "../../types/todoTree";
 import { isImeComposing } from "../../utils/imeGuard";
 import {
   GOAL_PERIOD_KINDS,
-  GOALS_PER_PERIOD,
+  goalPeriodBounds,
   goalProgress,
   type GoalTreeModel,
   type GoalTreeNode,
@@ -32,7 +32,8 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * The Connect "Goals & Todos" tab body (#2108, plan Step 9 — design C1–C6
  * as described in .claude/docs/design/briefs/briefing.md §1.5 / §10.4 / §11).
  *
- * Top to bottom: the add row (three goals per period), the year → month →
+ * Top to bottom: the add row (no limit per period, and a start and end date
+ * that may differ from the period's own — #2366), the year → month →
  * week tree with each goal's linked todos under it, the unconnected goals,
  * and the todos no goal holds. A group with nothing in it is not drawn — no
  * heading over an empty frame — and with no goal at all the tree is replaced
@@ -78,8 +79,11 @@ export interface GoalTreeLabels {
   addPlaceholder: string;
   add: string;
   cancel: string;
-  /** "This week: 3 goals already" — the add button's reason when disabled. */
-  formatLimit: (period: string) => string;
+  /** The add field's date inputs (#2366). */
+  startDate: string;
+  endDate: string;
+  /** "10/28 – 11/15" — a goal's own range, on its row and in the panel. */
+  formatDateRange: (startDate: string, endDate: string) => string;
   treeHeading: string;
   unconnectedHeading: string;
   looseHeading: string;
@@ -121,15 +125,21 @@ export interface GoalTreeViewProps {
   isLoading: boolean;
   /**
    * True when the read failed and no data has ever arrived. An empty model
-   * would then claim "no goals" and lift the three-per-period limit, which
-   * only this screen enforces (0034_goals.sql leaves it out of the DB).
+   * would then claim "no goals" when there may be some.
    */
   loadFailed?: boolean;
   onRetry?: () => void;
   selectedGoalId: string | null;
   onSelectGoal: (goalId: string) => void;
-  /** Resolves true once the goal exists, so the field can clear. */
-  onCreateGoal: (kind: GoalPeriodKind, title: string) => Promise<boolean>;
+  /**
+   * Resolves true once the goal exists, so the field can clear. `range` is
+   * null when the dates were left at the period's own (#2366).
+   */
+  onCreateGoal: (
+    kind: GoalPeriodKind,
+    title: string,
+    range: GoalDateRange | null,
+  ) => Promise<boolean>;
   /** A todo linked to no goal. Resolves true once it exists. */
   onCreateLooseTodo: (title: string) => Promise<boolean>;
   /** The active filter as phrases; empty or absent when nothing is filtered. */
@@ -536,6 +546,14 @@ function GoalBranch({
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-lumen-text">
               {node.goal.title}
             </span>
+            {goal.startDate && goal.endDate && (
+              <span
+                data-goal-range
+                className="shrink-0 whitespace-nowrap text-xs tabular-nums text-lumen-text-tertiary"
+              >
+                {labels.formatDateRange(goal.startDate, goal.endDate)}
+              </span>
+            )}
             <GoalStatus node={node} labels={labels} />
           </button>
         )}
@@ -665,7 +683,10 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   const [adding, setAdding] = useState<GoalPeriodKind | null>(null);
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const limitId = useId();
+  // The add field's range, seeded with the period's own when it opens.
+  const [range, setRange] = useState({ start: "", end: "" });
+  const rangeStartId = useId();
+  const rangeEndId = useId();
   const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(
     () => new Set(),
   );
@@ -715,11 +736,23 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
     );
   }
 
+  const openAdd = (kind: GoalPeriodKind | null): void => {
+    setAdding(kind);
+    if (kind) setRange(goalPeriodBounds(kind, model.periodKeys[kind]));
+  };
+  const rangeValid = !!range.start && !!range.end && range.start <= range.end;
+
   const submit = (): void => {
     const title = draft.trim();
-    if (!adding || !title || busy) return;
+    if (!adding || !title || busy || !rangeValid) return;
+    // Left at the period's own, nothing is stored: the goal follows its period.
+    const own = goalPeriodBounds(adding, model.periodKeys[adding]);
+    const picked =
+      range.start === own.start && range.end === own.end
+        ? null
+        : { startDate: range.start, endDate: range.end };
     setBusy(true);
-    void props.onCreateGoal(adding, title).then((ok) => {
+    void props.onCreateGoal(adding, title, picked).then((ok) => {
       setBusy(false);
       if (ok) {
         setDraft("");
@@ -811,46 +844,25 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   const activeFilters = props.activeFilters ?? [];
   const nothingMatches =
     model.roots.length === 0 && model.unconnected.length === 0;
-  // Said in text under the buttons, not only in a disabled button's title:
-  // a disabled button takes no focus, so the title never reaches a keyboard
-  // or screen-reader user.
-  const fullKinds = GOAL_PERIOD_KINDS.filter(
-    (kind) => model.periodCounts[kind] >= GOALS_PER_PERIOD,
-  );
 
   return (
     <div className={cn("flex flex-col gap-6", TREE_TOGGLE_SIZE)}>
       <section aria-label={labels.addHeading}>
         <h3 className={GROUP_HEADING}>{labels.addHeading}</h3>
         <div className="flex flex-wrap gap-2">
-          {GOAL_PERIOD_KINDS.map((kind) => {
-            const full = fullKinds.includes(kind);
-            return (
-              <Button
-                key={kind}
-                variant={adding === kind ? "primary" : "secondary"}
-                size="sm"
-                disabled={full}
-                aria-describedby={full ? limitId : undefined}
-                onClick={() => setAdding(adding === kind ? null : kind)}
-                leadingIcon={<Plus size={14} aria-hidden />}
-                className="max-md:min-h-11"
-              >
-                {labels.periods[kind]}
-                <span className="tabular-nums text-xs opacity-80">
-                  {model.periodCounts[kind]}/{GOALS_PER_PERIOD}
-                </span>
-              </Button>
-            );
-          })}
+          {GOAL_PERIOD_KINDS.map((kind) => (
+            <Button
+              key={kind}
+              variant={adding === kind ? "primary" : "secondary"}
+              size="sm"
+              onClick={() => openAdd(adding === kind ? null : kind)}
+              leadingIcon={<Plus size={14} aria-hidden />}
+              className="max-md:min-h-11"
+            >
+              {labels.periods[kind]}
+            </Button>
+          ))}
         </div>
-        {fullKinds.length > 0 && (
-          <p id={limitId} className="mt-1.5 text-xs text-lumen-text-tertiary">
-            {fullKinds
-              .map((kind) => labels.formatLimit(labels.periods[kind]))
-              .join(" ")}
-          </p>
-        )}
         {adding && (
           <div className="mt-2 flex items-center gap-2">
             <Input
@@ -860,7 +872,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               onKeyDown={(e) => {
                 if (isImeComposing(e)) return;
                 if (e.key === "Enter") submit();
-                if (e.key === "Escape") setAdding(null);
+                if (e.key === "Escape") openAdd(null);
               }}
               placeholder={`${labels.periods[adding]} ${labels.periodRanges[adding]}: ${labels.addPlaceholder}`}
               aria-label={`${labels.periods[adding]}: ${labels.addPlaceholder}`}
@@ -869,7 +881,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
             <Button
               size="sm"
               onClick={submit}
-              disabled={!draft.trim()}
+              disabled={!draft.trim() || !rangeValid}
               busy={busy}
               busyLabel={labels.add}
               className="max-md:min-h-11"
@@ -879,11 +891,38 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
             <Button
               size="sm"
               variant="ghost"
-              onClick={() => setAdding(null)}
+              onClick={() => openAdd(null)}
               className="max-md:min-h-11"
             >
               {labels.cancel}
             </Button>
+          </div>
+        )}
+        {adding && (
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-lumen-text-secondary">
+            <label htmlFor={rangeStartId}>{labels.startDate}</label>
+            <span className="w-40 shrink-0">
+              <Input
+                id={rangeStartId}
+                type="date"
+                value={range.start}
+                invalid={!rangeValid}
+                onChange={(e) => setRange({ ...range, start: e.target.value })}
+                className="max-md:text-base"
+              />
+            </span>
+            <label htmlFor={rangeEndId}>{labels.endDate}</label>
+            <span className="w-40 shrink-0">
+              <Input
+                id={rangeEndId}
+                type="date"
+                value={range.end}
+                min={range.start || undefined}
+                invalid={!rangeValid}
+                onChange={(e) => setRange({ ...range, end: e.target.value })}
+                className="max-md:text-base"
+              />
+            </span>
           </div>
         )}
       </section>
@@ -895,7 +934,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
           cta={
             adding === "week"
               ? undefined
-              : { label: labels.emptyAction, onClick: () => setAdding("week") }
+              : { label: labels.emptyAction, onClick: () => openAdd("week") }
           }
         />
       ) : (
