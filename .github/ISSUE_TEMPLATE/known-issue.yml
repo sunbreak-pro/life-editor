@@ -18,6 +18,12 @@ body:
   - type: textarea
     id: fix
     attributes: { label: Fix / Workaround }
+  - type: input
+    id: depends_on
+    attributes:
+      label: 依存する作業
+      description: 先に origin/main へ入っている必要がある Issue を "#a, #b" の形で書く。無ければ "なし"。本文に直接書くときは 1 行で "依存する作業: #a, #b" と書く。close ではなく PR の着地で判定される（issue-prompter）
+    validations: { required: true }
   - type: textarea
     id: references
     attributes: { label: References }

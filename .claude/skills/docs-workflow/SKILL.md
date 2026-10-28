@@ -51,6 +51,22 @@ Status 語彙は enum のみ: `Draft` / `IN PROGRESS` / `BLOCKED` / `COMPLETED` 
 
 ユーザーが worktree チャットへ直接指示した場合、実装は即着手してよいが、そのチャットは自分で起票せず**自分の outbox に起票依頼を append** する（chat-main が拾って起票）。各 worktree はセッション開始時と作業の区切りに自分宛 open Issue（`section:<id>` + `shared-fix`）を確認して実行 → close まで担う。
 
+## セッション終了時の引き継ぎ表
+
+作業チャットは、セッションの最後のメッセージに次の表を 1 つ出す。ブランチと PR と Issue の状態は書く時点の実測（`gh pr view` / `gh issue view` / `local-ci.mjs` の終了コード表）から写し、記憶では書かない。
+
+```
+| Issue | ブランチ | PR | 検証の結果 | Issue の状態 | 残っている手作業 |
+| ----- | -------- | -- | ---------- | ------------ | ---------------- |
+| #2357 | claude/issue-dependency-by-landing-2357 | #2358 (open) | 9/9 | open | merge（こうだいさん） |
+```
+
+- **Issue**: 1 行に 1 Issue。1 Issue = 1 ブランチ = 1 PR なので、行の数は PR の数に等しい
+- **検証の結果**: `通ったステップ数/全ステップ数`。分母は `node scripts/local-ci.mjs` が出す終了コード表のステップ数で、SKIP は数えない。回していないときは `未実施` と書き、`0/0` にしない
+- **Issue の状態**: `open` / `closed`。PR 本文は `Refs` なので、merge 後もこうだいさんが閉じるまで `open` のまま
+- **残っている手作業**: `db push` / 実ブラウザの確認 / merge / Issue の close のうち残っているものを、誰の手番かつきで書く。無ければ `なし`
+- 表の下に、置いた仮定と判断が要る点を文で書く（グローバル CLAUDE.md の前提 1）
+
 ## 並行チャット通信
 
 `.claude/comm/`（自分の Outbox にのみ append → `comm/README.md`）。
