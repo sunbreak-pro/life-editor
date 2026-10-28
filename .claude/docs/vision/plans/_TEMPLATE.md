@@ -37,6 +37,17 @@ Previous: (任意) 前フェーズ完了計画書パス
 
 ---
 
+## UI / UX の確認（画面が変わる計画のみ・それ以外は本節を削除）
+
+手順の正本 = [`rules/design-first-planning.md`](../../../rules/design-first-planning.md)（D-20261028-main-1）。Steps より前に埋め、こうだいさんの確認が済むまで実装に入らない。
+
+- **デザインシステム**: Life Editor（https://claude.ai/artifact/KPdEWuLhoeL9MdzRRa43Aa）
+- **採った案の Artifact**: <URL>
+- **見せた範囲**: Desktop / Mobile、4 状態（読み込み中・空・エラー・通常）、操作の途中の画面（<追加・編集中など>）
+- **こうだいさんの確認**: <YYYY-MM-DD> <採った案と直したところの要約>
+
+---
+
 ## Worktree 分担（fan-out 計画のみ・単一 worktree の計画では本節を削除）
 
 作業の分配・進捗追跡の正本は **GitHub Issues**（起票 = chat-main に一元化。手順とラベル routing の正本 = `docs-workflow` スキル。起票手順そのものは `issue-dispatch` スキル）。計画書は仕様詳細と分担の全体像だけを持ち、**台帳としての作業オーダー .md は作らない**（2026-07-11〜。旧 orders 台帳 fan-out は retire）。
