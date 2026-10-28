@@ -83,6 +83,14 @@ import {
 export interface AudioProviderProps {
   children: ReactNode;
   dataService: DataService;
+  /**
+   * Whether this screen shows the ambient mixer (#2290). Defaults to true.
+   * When false the ambient loops stay silent whatever the synced settings
+   * say: a sound switched on at the desk would otherwise start streaming on
+   * the phone, where there is no mixer to turn it off — and one minute of
+   * rain is a 5MB download. The completion chime is not affected.
+   */
+  ambient?: boolean;
 }
 
 function buildDefaultSettings(): Record<string, AudioPresetState> {
@@ -99,6 +107,7 @@ function buildDefaultSettings(): Record<string, AudioPresetState> {
 export function AudioProvider({
   children,
   dataService: ds,
+  ambient = true,
 }: AudioProviderProps) {
   const syncVersion = useSyncDomains("audio");
 
@@ -227,7 +236,9 @@ export function AudioProvider({
       // One ramp per element: whatever was in flight is superseded, and with
       // it the pause() a fade-out was heading for (switched back on mid-fade).
       ramps[preset.id]?.cancel();
-      if (state.enabled) {
+      // No mixer on this screen, no playback (#2290): the element is created
+      // with preload "none", so a loop that never plays downloads nothing.
+      if (state.enabled && ambient) {
         if (el.paused) {
           // Start silent and fade in. play() only here: calling it on an
           // element that is already playing did nothing useful and made some
@@ -249,7 +260,7 @@ export function AudioProvider({
         el.volume = target;
       }
     }
-  }, [settings, urls]);
+  }, [settings, urls, ambient]);
 
   // --- pause + drop every element on unmount (no leaked playback) ---
   useEffect(() => {

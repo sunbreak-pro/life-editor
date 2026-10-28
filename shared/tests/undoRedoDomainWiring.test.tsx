@@ -128,7 +128,7 @@ const scheduleDS = {
 } as unknown as DataService;
 
 const dailyDS = {
-  listDailiesUnified: async () => [],
+  listDailySummariesUnified: async () => [],
   fetchDeletedDailiesUnified: async () => [],
   upsertDailyByDateUnified: async () => ({}),
   getDailyByDateUnified: async () => null,

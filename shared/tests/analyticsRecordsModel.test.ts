@@ -9,6 +9,7 @@ import {
   distinctSorted,
   formatRecordMetric,
   indexRecordViews,
+  lineAxisDomain,
   recentKindSeries,
   recentKindTotals,
   recordChartFor,
@@ -349,5 +350,49 @@ describe("record chart shapes (#2264)", () => {
     expect(series.get(recordViewKey("weight", "kg"))).toEqual([63, null, 62]);
     // Expense has nothing saved, so it is a sum and an empty day is zero.
     expect(series.get(recordViewKey("expense", "JPY"))).toEqual([0, 0, 500]);
+  });
+});
+
+describe("lineAxisDomain (#2311)", () => {
+  it("spans the lowest to the highest value with a tenth of the spread around", () => {
+    const [lo, hi] = lineAxisDomain([67.2, 68, 67.6]) ?? [];
+    expect(lo).toBeCloseTo(67.12);
+    expect(hi).toBeCloseTo(68.08);
+  });
+
+  it("steps over empty periods", () => {
+    const [lo, hi] = lineAxisDomain([null, 10, undefined, 20]) ?? [];
+    expect(lo).toBeCloseTo(9);
+    expect(hi).toBeCloseTo(21);
+  });
+
+  it("opens a range around a single value so the axis does not collapse", () => {
+    const [lo, hi] = lineAxisDomain([68]) ?? [NaN, NaN];
+    expect(lo).toBeCloseTo(64.6);
+    expect(hi).toBeCloseTo(71.4);
+    expect(hi - lo).toBeGreaterThan(0);
+  });
+
+  it("does the same when every value is equal", () => {
+    expect(lineAxisDomain([5, 5, 5])).toEqual([4.75, 5.25]);
+  });
+
+  it("gives an all-zero line a range of one around zero, floored at zero", () => {
+    expect(lineAxisDomain([0, 0])).toEqual([0, 1]);
+  });
+
+  it("never pushes the floor below zero for values that are all zero or above", () => {
+    expect(lineAxisDomain([0, 10])).toEqual([0, 11]);
+  });
+
+  it("keeps the room below for values under zero", () => {
+    const [lo, hi] = lineAxisDomain([-10, 0]) ?? [];
+    expect(lo).toBeCloseTo(-11);
+    expect(hi).toBeCloseTo(1);
+  });
+
+  it("leaves the axis to the chart when nothing is drawn", () => {
+    expect(lineAxisDomain([])).toBeNull();
+    expect(lineAxisDomain([null, undefined])).toBeNull();
   });
 });

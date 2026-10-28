@@ -84,6 +84,11 @@ async function renderAPI(ds: DataService, date = TODAY) {
     { wrapper },
   );
   await waitFor(() => expect(hook.result.current.isLoading).toBe(false));
+  // The hook no longer reads the trash on mount (#2326); a Trash view opening
+  // is what fills it, so every case starts from that first read.
+  await act(async () => {
+    await hook.result.current.loadDeletedScheduleItems();
+  });
   return hook;
 }
 
@@ -225,19 +230,16 @@ describe("useScheduleItemsAPI trash surface (#675 split)", () => {
     expect(ds.permanentDeleteScheduleItem).toHaveBeenCalledWith("s-1");
   });
 
-  it("reloads the trash list when the schedule domain moves", async () => {
+  it("does not read the trash when the schedule domain moves (#2326)", async () => {
     const { ds } = makeDS([[item("s-1")], [item("s-1"), item("s-2")]]);
     const hook = await renderAPI(ds);
-    await waitFor(() =>
-      expect(hook.result.current.deletedItems).toHaveLength(1),
-    );
+    expect(hook.result.current.deletedItems).toHaveLength(1);
 
     act(() => sync.bump("schedule"));
     await waitFor(() =>
-      expect(hook.result.current.deletedItems.map((i) => i.id)).toEqual([
-        "s-1",
-        "s-2",
-      ]),
+      expect(ds.fetchScheduleItemsByDateAll).toHaveBeenCalledTimes(2),
     );
+    expect(ds.fetchDeletedScheduleItems).toHaveBeenCalledTimes(1);
+    expect(hook.result.current.deletedItems.map((i) => i.id)).toEqual(["s-1"]);
   });
 });

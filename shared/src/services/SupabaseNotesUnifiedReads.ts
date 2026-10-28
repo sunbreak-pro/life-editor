@@ -15,7 +15,7 @@ import type { NoteExcerpt, NoteNode } from "../types/note";
 import { blocksExcerpt, type TipTapNode } from "../utils/contentExcerpt";
 import { contentJsonToString } from "./contentJson";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
-import { fetchAllPages } from "./postgrestFetchAll";
+import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
 import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
 import { fetchMaybeSingleRow } from "./postgrestSingle";
 
@@ -65,19 +65,51 @@ export class SupabaseNotesUnifiedReads {
    * the same reason notes do — the body is the heavy column and the list does
    * not render it.
    */
-  listNoteTemplatesUnified(): Promise<NoteNode[]> {
-    return fetchMetaFirstJoin<ItemsMetaNoteRow, NotesPayloadListRow, NoteNode>({
-      client: this.client,
-      role: "note",
-      isDeleted: false,
-      metaColumns: ITEMS_META_NOTE_COLUMNS,
-      metaLabel: "listNoteTemplatesUnified meta failed",
-      payloadTable: "notes_payload",
-      payloadColumns: NOTES_PAYLOAD_LIST_COLUMNS,
-      payloadLabel: "listNoteTemplatesUnified payload failed",
-      keep: isNoteTemplateRow,
-      toDomain: rowsToNoteNodeLite,
-    });
+  async listNoteTemplatesUnified(): Promise<NoteNode[]> {
+    // Payload first, filtered by the server (#2327). The meta-first join read
+    // EVERY live note's meta and payload and then kept the templates here — a
+    // second copy of the whole note list each time the library opened. Only
+    // the payload knows `note_type`, so it goes first; the metas are read for
+    // the template ids alone.
+    const payloadRows = await fetchAllPages<NotesPayloadListRow>(
+      (from, to) =>
+        this.client
+          .from("notes_payload")
+          .select(NOTES_PAYLOAD_LIST_COLUMNS)
+          .eq("note_type", "template")
+          .order("item_id")
+          .range(from, to),
+      "listNoteTemplatesUnified payload failed",
+    );
+    if (payloadRows.length === 0) return [];
+
+    const metaRows = await fetchByIdChunks<ItemsMetaNoteRow>(
+      payloadRows.map((p) => p.item_id),
+      (chunk) =>
+        fetchAllPages(
+          (from, to) =>
+            this.client
+              .from("items_meta")
+              .select(ITEMS_META_NOTE_COLUMNS)
+              .eq("role", "note")
+              .eq("is_deleted", false)
+              .in("id", chunk)
+              .order("id")
+              .range(from, to),
+          "listNoteTemplatesUnified meta failed",
+        ),
+    );
+    const payloadById = new Map(payloadRows.map((p) => [p.item_id, p]));
+    const out: NoteNode[] = [];
+    // Meta order (by id), as the meta-first join returned them.
+    for (const meta of [...metaRows].sort((a, b) =>
+      a.id < b.id ? -1 : a.id > b.id ? 1 : 0,
+    )) {
+      const payload = payloadById.get(meta.id);
+      if (!payload || !isNoteTemplateRow(payload)) continue;
+      out.push(rowsToNoteNodeLite(meta, payload));
+    }
+    return out;
   }
 
   /**

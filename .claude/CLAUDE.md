@@ -15,8 +15,8 @@
 
 ## 1. Vision（詳細 → [`docs/vision/core.md`](./docs/vision/core.md)）
 
-- AI と会話しながら生活を設計・記録・運用するパーソナル OS。主ユーザーは作者本人（macOS + iOS）だが、**限定人数（無料枠の安全圏 10〜20 人）への配布 + サインアップ開放**へ方針転換済み（2026-08-29 ユーザー裁定 = D-20260829-main-1。旧「N=1」記述は SUPERSEDE）
-- **Non-Goals**: マルチテナント（組織・共有・権限管理 — 各ユーザーは RLS で分離された個人ワークスペースのみ）/ 特化専用アプリ / Claude API 直課金 / モバイル単独起動
+- AI と会話しながら生活を設計・記録・運用するパーソナル OS です。**作者本人（macOS + iOS）だけが使う個人の道具**で、他人への配布とサインアップの開放はしません（2026-10-22 ユーザー裁定 = D-20261022-main-1。限定人数配布の D-20260829-main-1 を SUPERSEDE）。リポジトリは参考のために公開したままで、ライセンスは All rights reserved（ルートの `LICENSE`）です。配布向けに作った機能（サインアップ・法的ページ・アカウント削除など）はコードに残しますが、配布を目標にはしません
+- **Non-Goals**: 他人への配布 / マルチテナント（組織・共有・権限管理 — 各ユーザーは RLS で分離された個人ワークスペースのみ）/ 特化専用アプリ / Claude API 直課金 / モバイル単独起動
 
 ## 2. Platform
 
@@ -24,7 +24,7 @@
 - **画面別 Mobile スコープの正本 = [`docs/requirements/mobile-scope.md`](./docs/requirements/mobile-scope.md)**（#319 でユーザー確定 = D-20260723-main-1）: 各セクション内機能の Full / Consumption / Quick capture / 省略 と Phase 1/2 の段取り。§2 は大方針のみを持ち、画面別の取捨は同文書が正（数値の非複製原則）
 - **Mobile 省略ガードは配線済み**（#320）: `mobile/` は `web/dist` を包む Capacitor 殻で独自 Provider 構成を持たず、web ホストが `isNativeMobile()` で native mobile 時に ShortcutConfig Provider を省略する。Audio は Provider 維持（完了チャイム = work タイマー Full の一部 — mobile-scope.md #10/#11）で Ambient mixer UI のみ native 省略（ScreenLock / FileExplorer / CalendarTags は Provider ごと撤去済みで対象外）。実装状況とネストの正本 = `web/src/AppProviders.tsx`（#676 で Provider 鎖と `isNativeMobile()` ゲートを移設済み）・規約は [`rules/frontend.md`](./rules/frontend.md) §Provider 順序
 - **スマホからの主導線 = 公開 Web URL**（#600・2026-08-07 ユーザー確定 = D-20260807-main-1）: モバイル UI は画面幅（`useMediaQuery`）で出るため、ブラウザで開けば Capacitor 殻と同じ画面になる。ネイティブ殻は併存。PWA の採用範囲・配布経路 → 移行 SSOT §8 / §9
-- Cloud Sync = サインアップした各ユーザーに有効（RLS owner-only で per-user 分離）。旧「友達ビルドは feature flag で無効」は実装に存在しない記述のため撤回（D-20260829-main-1）。配布・署名 → 移行 SSOT
+- Cloud Sync はログインしたアカウントごとに動きます（RLS owner-only でアカウント単位に分離）。使うのは作者本人だけです（D-20261022-main-1）。旧「友達ビルドは feature flag で無効」は実装に存在しない記述のため撤回（D-20260829-main-1）。ビルドの配布・署名の手順 → 移行 SSOT
 
 ## 3. Architecture（恒久原則のみ。構成図 → 移行 SSOT）
 
@@ -80,7 +80,7 @@
 
 **PR 前に回すゲートの正本は [`.github/workflows/ci.yml`](../.github/workflows/ci.yml)** — `verify` ジョブのステップ列（shared → web → desktop → mcp-server の順）と `docs-lint` ジョブがすべて。**ここにコマンドを列挙しない**（2026-08-16 D-20260816-main-2 = B / #1010）: 手で写した表は必ず CI から遅れ、実際に `typecheck:tests` と mcp-server の 2 系統が漏れて PR #924 / #980 / #842 / #985 の 4 本が「ローカル全緑・CI だけ赤」で落ちた。
 
-回し方 = `verify` ジョブを上から読み、各ステップの `working-directory` へ `cd` して同じ `npm run <script>` を打つ（`docs-lint` は `bash scripts/docs-lint.sh`）。**触ったパッケージだけでなく全部回す** — 依存が shared → web → desktop / mcp-server と一方向に繋がっており、`shared/` の変更だけで下流 3 つが落ちる。CI に無いローカル起動だけ別記: `cd web && npm run dev`（vite）。
+回し方 = **`node scripts/local-ci.mjs`**（#2349）。`ci.yml` を実行時に読み、`docs-lint` と `verify` の全ステップを各 `working-directory` で回してステップごとの終了コード表を出す（コマンドを持たないので CI と食い違わない。`--list` で読み取り結果だけ確認 / `--skip-install` で `npm ci` を飛ばせる）。手で回すなら `verify` ジョブを上から読み、各ステップの `working-directory` へ `cd` して同じ `npm run <script>` を打つ。**触ったパッケージだけでなく全部回す** — 依存が shared → web → desktop / mcp-server と一方向に繋がっており、`shared/` の変更だけで下流 3 つが落ちる。CI に無いローカル起動だけ別記: `cd web && npm run dev`（vite）。
 
 コマンド名からは読み取れない罠:
 
@@ -102,12 +102,16 @@
 
 - **`git-workflow` §0.1.1（PR の自動マージ）は life-editor では適用しない**（2026-08-06 ユーザー確定 D-20260806-main-1 = B）。同スキルは「全プロジェクト共通」と書いているが、本プロジェクトは POLICY **P-001「merge と main への取り込みは常にユーザー」を優先**する。`Bash(gh pr merge*)` は `permissions.ask` に入れて機械側でも担保済み — Claude は条件が揃っても自分で merge しない
 
+- **PR 本文は `Refs #N`。`Closes` / `Fixes` / `Resolves` を使わない**（#2349）: merge で Issue が勝手に close されると、実ブラウザ確認や db push が残っていても完了に見える。close は確認が済んだあとにユーザーか chat-main が手で行う
+- **1 Issue = 1 ブランチ = 1 PR**（#2349）: 複数 Issue を 1 本にまとめず、1 本の PR に別 Issue の変更を混ぜない。ブランチ名に Issue 番号を入れる（`claude/<slug>-<issue>`）
+
 ### 7.3 Plan Gate Convention
 
 新規・大改訂の計画書は [`docs/vision/plans/_TEMPLATE.md`](./docs/vision/plans/_TEMPLATE.md) ベースで以下を必須とする:
 
 - **Scope 宣言**（触ってよいパス）・**Gate 列**（🤖 自律 / 👀 目視 / 🛑 人手 = DDL push・シークレット投入・PR merge・本番デプロイ）・**機械検証可能な Acceptance Criteria**
-- DDL は「ローカルファイル先行 → ユーザー `supabase db push`」（**`apply_migration` MCP 単独使用禁止**）
+- DDL は「ローカルファイル先行 → ユーザー `supabase db push`」（**`apply_migration` MCP 単独使用禁止**）。`Bash(supabase db push*)` は `permissions.ask` に入れて機械側でも担保済み（#2349）
+- **反映済み（db push 済み）のマイグレーションは中身も編集しない。直すときは次の番号で新しいファイルを足す**（#2349）: 反映済みの履歴を書き換えると、本番の実態とファイルが静かに食い違う。空白やコメントの整形も対象。反映済みかどうかは `supabase migration list` で見る。番号の衝突は PR 巡回で `origin/main` と突き合わせる
 - hooks 連動（検査内容の正本 = 各スクリプト。SessionStart / PreToolUse の登録は `.claude/settings.json` が正・全 hook `${CLAUDE_PROJECT_DIR}` 相対で worktree 側の実体が走る）: PreToolUse(Bash) = `hooks/pre-commit-mcp-check.sh`（トークン平文検知）+ `hooks/pre-commit-index-guard.sh`（derived INDEX の commit 混入を自動除外）+ `hooks/pre-commit-tracker-guard.sh`（tracker の更新を実装コミットに混ぜたらブロック = D-20260801-main-1・逃がし道は `[tracker-ok]`）
 
 ### 7.4 Multi-chat Worktree Policy（要約 — 正本は `worktree-policy` スキル）

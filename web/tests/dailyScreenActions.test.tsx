@@ -143,7 +143,7 @@ interface Harness {
 
 function makeHarness(rows = [row(TODAY), row(YESTERDAY)]): Harness {
   const fns: Record<string, Mock> = {
-    listDailiesUnified: vi.fn(async () => rows.map((r) => ({ ...r }))),
+    listDailySummariesUnified: vi.fn(async () => rows.map((r) => ({ ...r }))),
     getDailyByDateUnified: vi.fn(async (date: string) => {
       const found = rows.find((r) => r.date === date);
       return found ? { ...found } : null;
@@ -327,9 +327,12 @@ describe("DailyView — the editor's save", () => {
     // with no row yet is exactly the case it exists for.
     // The emission is the day's whole one text (#2123), stored under the
     //「夕刊」heading in place of the old plain-text entry.
+    // `ownEcho`: the list already holds the body, so the save's Realtime
+    // echo must not refetch it (#2290).
     expectOnlyWrite(harness.fns, "upsertDailyByDateUnified", [
       YESTERDAY,
       writeDailyText(`entry for ${YESTERDAY}`, BODY),
+      { ownEcho: true },
     ]);
   });
 

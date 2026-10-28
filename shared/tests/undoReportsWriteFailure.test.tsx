@@ -101,7 +101,7 @@ describe("daily — the delete's failure reaches the manager", () => {
   it("rejects the undo of a create when the soft delete fails", async () => {
     const { commands, undoRedo } = collector();
     const ds = stubDataService({
-      listDailiesUnified: () => Promise.resolve([]),
+      listDailySummariesUnified: () => Promise.resolve([]),
       upsertDailyByDateUnified: () => Promise.resolve(SAVED),
       // The undo resolves the date to a row first, then deletes it.
       getDailyByDateUnified: () => Promise.resolve(SAVED),

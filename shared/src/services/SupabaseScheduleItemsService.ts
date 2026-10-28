@@ -26,6 +26,7 @@ import {
 } from "./scheduleRestoreConflict";
 import { requireSingleRow, requireRowPair } from "./postgrestSingle";
 import { getAuthedUserId } from "./supabaseServiceHelpers";
+import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import {
   DEFAULT_ROUTINE_START_TIME,
   DEFAULT_ROUTINE_END_TIME,
@@ -175,9 +176,32 @@ export class SupabaseScheduleItemsService implements ScheduleItemsDataService {
     );
   }
 
-  /** Trashed events (Trash UI). */
-  async fetchDeletedScheduleItems(): Promise<ScheduleItem[]> {
-    return this.fetchByPayloadFilter((q) => q, true);
+  /**
+   * Trashed events (Trash UI), in id order as before.
+   *
+   * Meta first (#2326): `is_deleted` lives on items_meta, so the payload-first
+   * join above had no filter to give events_payload and read the WHOLE event
+   * history — every page of it, then every id's meta in chunks — to keep the
+   * handful in the Trash. Reading the trashed metas first touches only their
+   * payload rows, and returns before the payload table when the Trash is
+   * empty.
+   */
+  fetchDeletedScheduleItems(): Promise<ScheduleItem[]> {
+    return fetchMetaFirstJoin<
+      ItemsMetaEventRow,
+      EventsPayloadRow,
+      ScheduleItem
+    >({
+      client: this.client,
+      role: "event",
+      isDeleted: true,
+      metaColumns: ITEMS_META_EVENT_COLUMNS,
+      metaLabel: "fetchDeletedScheduleItems items_meta",
+      payloadTable: "events_payload",
+      payloadColumns: EVENTS_PAYLOAD_COLUMNS,
+      payloadLabel: "fetchDeletedScheduleItems events_payload",
+      toDomain: rowsToScheduleItem,
+    });
   }
 
   /** All live events (no date filter — used by analytics / sync). */

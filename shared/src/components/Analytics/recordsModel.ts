@@ -292,6 +292,38 @@ export function barDateKey(period: string): string {
   return period.length === 7 ? `${period}-01` : period;
 }
 
+/** Room above and below a line's values, as a share of their spread. */
+const LINE_AXIS_PAD = 0.1;
+/** The same room for a line whose values are all one number. */
+const LINE_AXIS_FLAT_PAD = 0.05;
+
+/**
+ * The value axis of a line (#2311): the lowest and the highest value drawn,
+ * with a little room on both sides, so 67–68 kg reads as a slope instead of a
+ * flat line near the top of a 0-based axis. Bars keep the 0-based axis — a
+ * bar's length is its size — so they never call this.
+ *
+ * One value, or every value the same, still gets a non-empty range (a share
+ * of the value, or 1 around zero) so the line sits in the middle. Values that
+ * are all zero or above never push the floor below zero. Null when nothing is
+ * drawn: the chart then keeps its own default.
+ */
+export function lineAxisDomain(
+  values: readonly (number | null | undefined)[],
+): [number, number] | null {
+  const drawn = values.filter(
+    (v): v is number => typeof v === "number" && Number.isFinite(v),
+  );
+  if (drawn.length === 0) return null;
+  const lo = Math.min(...drawn);
+  const hi = Math.max(...drawn);
+  const span = hi - lo;
+  const pad =
+    span > 0 ? span * LINE_AXIS_PAD : Math.abs(hi) * LINE_AXIS_FLAT_PAD || 1;
+  const floor = lo - pad;
+  return [lo >= 0 ? Math.max(0, floor) : floor, hi + pad];
+}
+
 export interface KindTotal {
   kind: string;
   unit: string | null;

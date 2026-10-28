@@ -49,3 +49,12 @@
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://*.supabase.co; media-src 'self' https://*.supabase.co; font-src 'self'; connect-src 'self' https://*.supabase.co wss://*.supabase.co; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'
   Referrer-Policy: no-referrer
+
+# Long cache for the hashed build output (#2290). Vite names every file in
+# assets/ after a hash of its content, so a file at a given URL never
+# changes and the browser need not ask again. Without this rule a warm start
+# still sent 12 revalidation requests. index.html is outside assets/ and keeps
+# the default, so a deploy is picked up on the next load.
+
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

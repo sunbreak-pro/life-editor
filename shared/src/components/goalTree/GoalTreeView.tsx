@@ -58,7 +58,8 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  *
  * With `onRenameGoal`, a pencil on the hovered or selected row swaps the
  * title for a name field in place (#2283); the row stops dragging until the
- * field closes.
+ * field closes. A goal drawn twice — under its parent and as unconnected —
+ * opens the field only on the row whose pencil was pressed.
  *
  * Pure presentation (§6.4): the model and every label come from the host
  * (web/src/connect/GoalsTodosScreen.tsx). The state held here — the add
@@ -345,9 +346,21 @@ interface BranchState {
   collapsed: ReadonlySet<string>;
   onToggle: (goalId: string) => void;
   drag: DragState | null;
-  /** The goal whose name is open in a field; one at a time. */
-  editingGoalId: string | null;
-  onEdit: (goalId: string | null) => void;
+  /** The row whose name is open in a field; one at a time. */
+  editing: EditingRow | null;
+  onEdit: (row: EditingRow | null) => void;
+}
+
+/**
+ * Which group a row is in. A goal with a parent and nothing connected is
+ * drawn twice — under its parent and in the unconnected group — so the edit
+ * is held per row, not per goal.
+ */
+type GoalRowPlace = "tree" | "unconnected";
+
+interface EditingRow {
+  goalId: string;
+  place: GoalRowPlace;
 }
 
 /*
@@ -393,10 +406,12 @@ function GoalTitleEditor({
 
 function GoalBranch({
   node,
+  place,
   props,
   branch,
 }: {
   node: GoalTreeNode;
+  place: GoalRowPlace;
   props: GoalTreeViewProps;
   branch: BranchState;
 }): React.JSX.Element {
@@ -406,7 +421,10 @@ function GoalBranch({
   const selected = goal.id === props.selectedGoalId;
   const hasBelow = node.todos.length > 0 || node.children.length > 0;
   const open = hasBelow && !branch.collapsed.has(goal.id);
-  const editing = branch.editingGoalId === goal.id;
+  // Only this row: two autofocused fields would steal focus from each other,
+  // and the first one's blur would close both.
+  const editing =
+    branch.editing?.goalId === goal.id && branch.editing.place === place;
   const onRenameGoal = props.onRenameGoal;
   // A year goal is the top: there is no parent to drag it under. A row whose
   // name is being typed holds still, so a press in the field stays in it.
@@ -526,7 +544,7 @@ function GoalBranch({
           // hidden, and it shows once focused.
           <button
             type="button"
-            onClick={() => branch.onEdit(goal.id)}
+            onClick={() => branch.onEdit({ goalId: goal.id, place })}
             aria-label={labels.formatRename(goal.title)}
             title={labels.formatRename(goal.title)}
             className={cn(
@@ -577,6 +595,7 @@ function GoalBranch({
                 <GoalBranch
                   key={child.goal.id}
                   node={child}
+                  place={place}
                   props={props}
                   branch={branch}
                 />
@@ -663,7 +682,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
     null,
   );
   const [overGoalId, setOverGoalId] = useState<string | null>(null);
-  const [editingGoalId, setEditingGoalId] = useState<string | null>(null);
+  const [editing, setEditing] = useState<EditingRow | null>(null);
 
   if (isLoading) {
     return (
@@ -782,8 +801,8 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
         return next;
       }),
     drag,
-    editingGoalId,
-    onEdit: setEditingGoalId,
+    editing,
+    onEdit: setEditing,
   };
 
   // `byId` holds every shown goal whatever the filter; roots and unconnected
@@ -919,6 +938,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                   <GoalBranch
                     key={node.goal.id}
                     node={node}
+                    place="tree"
                     props={props}
                     branch={branch}
                   />
@@ -933,6 +953,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                   <GoalBranch
                     key={node.goal.id}
                     node={node}
+                    place="unconnected"
                     props={props}
                     branch={branch}
                   />

@@ -28,9 +28,9 @@ describe("SOUND_PRESETS", () => {
     ]);
   });
 
-  it("derives objectName as <id>.mp3 and a distinct labelKey per preset", () => {
+  it("derives objectName as <id>-v2.mp3 and a distinct labelKey per preset", () => {
     for (const p of SOUND_PRESETS) {
-      expect(p.objectName).toBe(`${p.id}.mp3`);
+      expect(p.objectName).toBe(`${p.id}-v2.mp3`);
       expect(p.labelKey).toBe(`audioMixer.sound.${p.id}`);
     }
   });

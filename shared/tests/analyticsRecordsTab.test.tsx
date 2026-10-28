@@ -43,7 +43,13 @@ vi.mock("recharts", () => {
       />
     ),
     XAxis: () => null,
-    YAxis: () => null,
+    // Says which value range the axis was handed (#2311); none = recharts' own.
+    YAxis: ({ domain }: { domain?: [number, number] }) => (
+      <div
+        data-testid="records-y-axis"
+        data-domain={domain ? domain.join(",") : "auto"}
+      />
+    ),
     CartesianGrid: () => null,
     Tooltip: () => null,
   };
@@ -442,6 +448,63 @@ describe("Records tab chart shapes (#2264)", () => {
   });
 });
 
+describe("Records tab value axis (#2311)", () => {
+  const weighings = [
+    rec({ occurredAt: noon(1), kind: "weight", unit: "kg", value: 68 }),
+    rec({ occurredAt: noon(3), kind: "weight", unit: "kg", value: 67 }),
+  ];
+  const domain = (): string =>
+    screen.getByTestId("records-y-axis").dataset.domain ?? "";
+
+  it("fits a line's axis to the values drawn, with a little room", () => {
+    render(
+      <AnalyticsView
+        {...props({
+          records: weighings,
+          recordViews: [
+            savedView("weight", "kg", { chart: "line", metric: "latest" }),
+          ],
+        })}
+      />,
+    );
+    screen.getByTestId("records-line");
+    // 67–68 kg with a tenth of the spread above and below, not 0–68.
+    expect(domain()).toBe("66.9,68.1");
+  });
+
+  it("keeps the bars standing on zero", () => {
+    render(
+      <AnalyticsView
+        {...props({
+          records: weighings,
+          recordViews: [
+            savedView("weight", "kg", { chart: "bar", metric: "latest" }),
+          ],
+        })}
+      />,
+    );
+    screen.getByTestId("records-bar");
+    expect(domain()).toBe("auto");
+  });
+
+  it("still gives a single weighing an axis to stand in", () => {
+    render(
+      <AnalyticsView
+        {...props({
+          records: [weighings[0]],
+          recordViews: [
+            savedView("weight", "kg", { chart: "line", metric: "latest" }),
+          ],
+        })}
+      />,
+    );
+    screen.getByTestId("records-line");
+    const [lo, hi] = domain().split(",").map(Number);
+    expect(lo).toBeLessThan(68);
+    expect(hi).toBeGreaterThan(68);
+  });
+});
+
 describe("Records tab pending app (the Apps section's entry)", () => {
   const records = [
     rec({ occurredAt: noon(1), sourceApp: "ledger", value: 450 }),
@@ -647,5 +710,118 @@ describe("narrow Records block", () => {
     );
     expect(screen.getByText("Records could not be loaded")).toBeInTheDocument();
     expect(document.querySelector("[aria-busy='true']")).toBeNull();
+  });
+});
+
+describe("narrow Records block narrowed by the Apps section (#2312)", () => {
+  const records = [
+    rec({ occurredAt: noon(1), sourceApp: "ledger", value: 450 }),
+    rec({
+      occurredAt: noon(2),
+      sourceApp: "claude",
+      kind: "weight",
+      unit: "kg",
+      value: 62.4,
+    }),
+  ];
+
+  function blockLines(): (string | null)[] {
+    const block = screen.getByText("Last 7 days").closest("div")
+      ?.parentElement as HTMLElement;
+    return within(block)
+      .queryAllByRole("listitem")
+      .map((li) => li.textContent);
+  }
+
+  it("shows only the requested app's records, says so, and consumes the request once", () => {
+    mockMatchMedia(false);
+    const consumed = vi.fn();
+    render(
+      <AnalyticsView
+        {...props({
+          records,
+          activeTab: undefined,
+          pendingRecordsSource: "ledger",
+          onRecordsSourceConsumed: consumed,
+        })}
+      />,
+    );
+    // The other app's weight is not in the block.
+    expect(blockLines()).toEqual(["expense · 1 recordsTotal450 JPY"]);
+    expect(screen.getByText("Only Household ledger")).toBeInTheDocument();
+    expect(consumed).toHaveBeenCalledTimes(1);
+  });
+
+  it("goes back to every app's records when the narrowing is cleared", () => {
+    mockMatchMedia(false);
+    render(
+      <AnalyticsView
+        {...props({
+          records,
+          activeTab: undefined,
+          pendingRecordsSource: "ledger",
+        })}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Show all apps" }));
+    expect(blockLines()).toEqual([
+      "expense · 1 recordsTotal450 JPY",
+      "weight · 1 recordsTotal62.4 kg",
+    ]);
+    expect(screen.queryByText("Only Household ledger")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Show all apps" })).toBeNull();
+  });
+
+  it("keeps the narrowing after the request is consumed", () => {
+    mockMatchMedia(false);
+    const view = render(
+      <AnalyticsView
+        {...props({
+          records,
+          activeTab: undefined,
+          pendingRecordsSource: "claude",
+        })}
+      />,
+    );
+    view.rerender(
+      <AnalyticsView
+        {...props({
+          records,
+          activeTab: undefined,
+          pendingRecordsSource: null,
+        })}
+      />,
+    );
+    expect(blockLines()).toEqual(["weight · 1 recordsTotal62.4 kg"]);
+    expect(screen.getByText("Only Claude")).toBeInTheDocument();
+  });
+
+  it("says the app sent nothing this week, and keeps the way back", () => {
+    mockMatchMedia(false);
+    render(
+      <AnalyticsView
+        {...props({
+          records,
+          activeTab: undefined,
+          pendingRecordsSource: "new-app",
+        })}
+      />,
+    );
+    expect(blockLines()).toEqual([]);
+    expect(
+      screen.getByText("This app sent nothing in the last 7 days."),
+    ).toBeInTheDocument();
+    // An unregistered slug is named by itself.
+    expect(screen.getByText("Only new-app")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Show all apps" }),
+    ).toBeInTheDocument();
+  });
+
+  it("shows every app's records when nothing was asked for", () => {
+    mockMatchMedia(false);
+    render(<AnalyticsView {...props({ records, activeTab: undefined })} />);
+    expect(blockLines()).toHaveLength(2);
+    expect(screen.queryByRole("button", { name: "Show all apps" })).toBeNull();
   });
 });

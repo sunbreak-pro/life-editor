@@ -606,8 +606,7 @@
       "closeOtherItems": "Close other items",
       "backToList": "Back to the list",
       "rowActions": "Note actions",
-      "renameNote": "Rename",
-      "editNote": "Edit note"
+      "renameNote": "Rename"
     },
     "templates": {
       "menuEntry": "Register as template",
@@ -1063,7 +1062,10 @@
         "range": "Last 7 days",
         "empty": "No records in the last 7 days.",
         "count_one": "{{count}} record",
-        "count_other": "{{count}} records"
+        "count_other": "{{count}} records",
+        "filteredTo": "Only {{app}}",
+        "clearFilter": "Show all apps",
+        "emptyFiltered": "This app sent no records in the last 7 days."
       }
     },
     "workTime": "Work Time",

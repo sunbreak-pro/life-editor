@@ -297,6 +297,13 @@ export interface TagGroupsDataService {
 // Routines — SupabaseRoutinesService
 // ---------------------------------------------------------------------------
 
+/** An occurrence detachRoutine unlinked, as reattachRoutineOccurrences takes it. */
+export interface DetachedOccurrence {
+  id: string;
+  /** events_payload.source_date before the unlink NULLed it. */
+  sourceDate: string | null;
+}
+
 export interface RoutinesDataService {
   fetchAllRoutines(): Promise<RoutineNode[]>;
   createRoutine(
@@ -356,12 +363,36 @@ export interface RoutinesDataService {
    * move onto it — the tag field reads from the seed again once the routine
    * link is gone, so leaving them on the routine would empty it. A detach
    * with no pin has no seed to hand them to and moves nothing.
+   *
+   * `detachedItems` (#2319) are the survivors it unlinked, with the
+   * `source_date` each one had — what reattachRoutineOccurrences needs to put
+   * them back under the routine when the split is undone.
    */
   detachRoutine(
     id: string,
     today?: string,
     opts?: { keepItemIds?: string[] },
-  ): Promise<{ deletedScheduleItemIds: string[] }>;
+  ): Promise<{
+    deletedScheduleItemIds: string[];
+    detachedItems: DetachedOccurrence[];
+  }>;
+  /**
+   * The undo half of detachRoutine's unlink (#2319): link these occurrences
+   * back to the routine, each with the `source_date` it had. Undoing a split
+   * restored the trashed rows and the routine but left the past rows
+   * unlinked, so the generator — which skips a day only where it sees a row
+   * OF THAT ROUTINE — made a second occurrence beside each of them, and
+   * re-made the days the user had dismissed one by one.
+   *
+   * Run it BEFORE restoreRoutine, while the generator cannot fire for the
+   * routine. A row whose (routine, source_date) pair a live row already holds
+   * stays unlinked and comes back in `conflictedIds` rather than failing the
+   * rest.
+   */
+  reattachRoutineOccurrences(
+    routineId: string,
+    items: DetachedOccurrence[],
+  ): Promise<{ reattachedIds: string[]; conflictedIds: string[] }>;
   /**
    * Event→Repeats conversion (#185 / #296): create the routine, then attach
    * the EXISTING seed event to it (events_payload.routine_item_id +
@@ -756,12 +787,39 @@ export interface NotesUnifiedDataService {
 // The legacy Daily method signatures were removed in DU-G G4.
 // ---------------------------------------------------------------------------
 
+/**
+ * Options for a Daily content write (#2290).
+ *
+ * `ownEcho` records the write in the own-write ledger, so its Realtime echo
+ * does not refetch the Daily list. Only a caller whose local state already
+ * holds the written body may pass it — today that is the Daily list's own
+ * optimistic upsert. Any other reader mounted next to the writer would miss
+ * the change, because the echo was what told it.
+ */
+export interface DailyWriteOptions {
+  ownEcho?: boolean;
+}
+
 export interface DailiesUnifiedDataService {
   listDailiesUnified(): Promise<DailyNode[]>;
+  /**
+   * The Daily list WITHOUT the bodies (#2325): each row has `content: ""`,
+   * `bodyLoaded: false` and the head blocks in `headContent`. Fetch a day's
+   * body with getDailyByDateUnified before editing or saving it.
+   */
+  listDailySummariesUnified(): Promise<DailyNode[]>;
+  /** Whole bodies by daily id, for light rows without a readable head. */
+  fetchDailyBodiesUnified(
+    ids: readonly string[],
+  ): Promise<Record<string, string>>;
   /** Live daily count for the badge (#511) — see countUnfinishedTodos. */
   countLiveDailies(): Promise<number>;
   getDailyByDateUnified(date: string): Promise<DailyNode | null>;
-  upsertDailyByDateUnified(date: string, content: string): Promise<DailyNode>;
+  upsertDailyByDateUnified(
+    date: string,
+    content: string,
+    opts?: DailyWriteOptions,
+  ): Promise<DailyNode>;
   createDailyUnified(node: DailyNode): Promise<DailyNode>;
   updateDailyUnified(
     id: string,

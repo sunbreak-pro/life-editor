@@ -121,3 +121,20 @@ describe("the public Web URL ships security response headers (#1005)", () => {
     expect(csp.get("base-uri")).toBe("'self'");
   });
 });
+
+describe("the hashed build output is cached for a year (#2290)", () => {
+  // Vite names everything under assets/ after its content hash, so a URL
+  // there never changes meaning. Without the rule a warm start revalidated
+  // 12 files; dropping it would bring that back silently.
+  it("serves /assets/* as public, immutable, one year", () => {
+    const cacheControl = rulesFor("/assets/*").get("cache-control");
+    expect(cacheControl).toBeDefined();
+    expect(cacheControl).toContain("public");
+    expect(cacheControl).toContain("immutable");
+    expect(cacheControl).toContain("max-age=31536000");
+  });
+
+  it("leaves the catch-all without a long cache, so index.html follows deploys", () => {
+    expect(headers.get("cache-control")).toBeUndefined();
+  });
+});

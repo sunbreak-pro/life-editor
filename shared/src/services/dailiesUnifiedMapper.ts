@@ -108,6 +108,33 @@ export const DAILIES_PAYLOAD_COLUMNS =
   "item_id, user_id, date, content_json, is_pinned, is_edit_locked, " +
   "has_password, evening_published_at, evening_notes, morning_comment";
 
+/**
+ * How many top-level blocks a light list row carries (#2325). The list shows
+ * one excerpt per day — the first block with text once the 朝刊 / 宣言
+ * sections, the「夕刊」heading and the mood line are left out (readDailyText)
+ * — so the head has to reach past an old day's 朝刊 section.
+ */
+export const DAILY_HEAD_BLOCKS = 24;
+
+/**
+ * The LIGHT payload select for the Daily list (#2325): every column but the
+ * body, plus the body's first DAILY_HEAD_BLOCKS blocks through PostgREST's
+ * JSON path (`b0:content_json->content->0`, …). The body stays on the server
+ * until a day is opened — the list used to carry every day's whole body, and
+ * refetched all of them on each save's echo.
+ */
+export const DAILIES_PAYLOAD_LIGHT_COLUMNS =
+  "item_id, user_id, date, is_pinned, is_edit_locked, has_password, " +
+  "evening_published_at, evening_notes, morning_comment, " +
+  Array.from(
+    { length: DAILY_HEAD_BLOCKS },
+    (_, i) => `b${i}:content_json->content->${i}`,
+  ).join(", ");
+
+/** A light payload row: no `content_json`, the head blocks as b0…bN. */
+export type DailiesPayloadLightRow = Omit<DailiesPayloadRow, "content_json"> &
+  Record<string, unknown>;
+
 // ---------------------------------------------------------------------------
 // 3. Id / date validators (defence-in-depth)
 // ---------------------------------------------------------------------------
@@ -161,6 +188,31 @@ export function rowsToDailyNode(
   node.eveningNotes = toEveningNotes(payload.evening_notes);
   node.morningComment = toMorningComment(payload.morning_comment);
 
+  return node;
+}
+
+/**
+ * A light list row (#2325) as a DailyNode whose body is NOT loaded:
+ * `content` is "", `bodyLoaded` is false, and `headContent` holds the head
+ * blocks for the excerpt (undefined when none could be read — a legacy
+ * plain-text body has no `content` key, and an empty doc has no blocks).
+ */
+export function rowsToDailyNodeLight(
+  meta: ItemsMetaDailyRow,
+  payload: DailiesPayloadLightRow,
+): DailyNode {
+  const node = rowsToDailyNode(meta, {
+    ...(payload as Omit<DailiesPayloadRow, "content_json">),
+    content_json: null,
+  });
+  const blocks: unknown[] = [];
+  for (let i = 0; i < DAILY_HEAD_BLOCKS; i++) {
+    const block = payload[`b${i}`];
+    if (block !== null && typeof block === "object") blocks.push(block);
+  }
+  node.bodyLoaded = false;
+  if (blocks.length > 0)
+    node.headContent = JSON.stringify({ type: "doc", content: blocks });
   return node;
 }
 

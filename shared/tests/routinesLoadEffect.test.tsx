@@ -66,8 +66,11 @@ afterEach(() => {
 });
 
 describe("useRoutinesAPI load effect (#672)", () => {
-  it("reports loading until the first read lands, then holds both lists", async () => {
-    const { ds } = makeDS([[routine("routine-1")]], [[routine("routine-9")]]);
+  it("reports loading until the first read lands, and leaves the trash for on demand", async () => {
+    const { ds, fetchDeletedRoutines } = makeDS(
+      [[routine("routine-1")]],
+      [[routine("routine-9")]],
+    );
     const hook = renderHook(() => useRoutinesAPI({ dataService: ds }), {
       wrapper,
     });
@@ -77,11 +80,14 @@ describe("useRoutinesAPI load effect (#672)", () => {
     expect(hook.result.current.routines.map((r) => r.id)).toEqual([
       "routine-1",
     ]);
-    await waitFor(() =>
-      expect(hook.result.current.deletedRoutines.map((r) => r.id)).toEqual([
-        "routine-9",
-      ]),
-    );
+    // #2326: the trash is no longer read with the list.
+    expect(fetchDeletedRoutines).not.toHaveBeenCalled();
+    await act(async () => {
+      await hook.result.current.loadDeletedRoutines();
+    });
+    expect(hook.result.current.deletedRoutines.map((r) => r.id)).toEqual([
+      "routine-9",
+    ]);
     expect(hook.result.current.error).toBeNull();
   });
 

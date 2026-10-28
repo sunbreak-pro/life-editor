@@ -21,6 +21,43 @@ import {
   clearTodoSelection,
 } from "../state/materialsSelectionStore";
 
+/*
+ * #2332 (plan 2026-10-21-offline-cache.md P1b-0) — a tree write sends only
+ * the rows it changed.
+ *
+ * The write paths below hand `syncToDb` the WHOLE list (they are written as
+ * "map the list, persist the result"), and `syncTodoTree` upserts every row
+ * it is given with a fresh `updated_at`. Adding one todo to a tree of a
+ * hundred rewrote a hundred rows, which a delta read keyed on `updated_at`
+ * (P1b) would then download again, and an offline add replayed later (P2a)
+ * would write every other todo back with stale values.
+ *
+ * So `syncToDb` compares the list with what the DB is known to hold and sends
+ * the difference. Known = the last loaded tree, with each landed write laid
+ * over it. A row this hook cannot vouch for — new, failed to write, or taken
+ * out of the DB by `removeFromDb` — is not in that map and is always sent.
+ */
+function sameTodoNode(a: TodoNode, b: TodoNode): boolean {
+  if (a === b) return true;
+  const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+  for (const key of keys) {
+    // Never written by syncTodoTree (the DB stamps it), so not a change.
+    if (key === "updatedAt") continue;
+    if (a[key as keyof TodoNode] !== b[key as keyof TodoNode]) return false;
+  }
+  return true;
+}
+
+function changedTodoNodes(
+  known: ReadonlyMap<string, TodoNode>,
+  nodes: readonly TodoNode[],
+): TodoNode[] {
+  return nodes.filter((n) => {
+    const stored = known.get(n.id);
+    return stored === undefined || !sameTodoNode(stored, n);
+  });
+}
+
 /**
  * Options the host injects. The Tauri version reached into a module
  * singleton (`getDataService()`) and a host UndoRedo Context; the shared hook
@@ -72,6 +109,12 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
     [persistSelection],
   );
   const loadedRef = useRef(false);
+  // What the DB holds as far as this hook knows (#2332 — see changedTodoNodes).
+  // Filled only from a read that reached the DB: a list replayed from the
+  // snapshot store (#1101) may be older than the DB, so until the first read
+  // lands every write sends the whole list, as before #2332.
+  const knownRef = useRef<Map<string, TodoNode>>(new Map());
+  const fetchLandedRef = useRef(false);
   const syncVersion = useSyncDomains("todos");
 
   // One-shot RESTORE (#282): re-select the todo the user had open before the
@@ -104,8 +147,11 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
     [persistSelection],
   );
 
-  // Load from DataService on mount and on every todos bump (including
-  // soft-deleted todos), through the shared load effect (#672 / #891). Same
+  // Load from DataService on mount and on every todos bump, through the shared
+  // load effect (#672 / #891). Live todos only since #2326: the trashed ones
+  // were read alongside on every mount for a Trash list that the Trash screen
+  // reads for itself. A todo trashed in THIS session still sits in `nodes`
+  // with `isDeleted`, which is what undo and restoreNode work from. Same
   // three states as the hand-written version it replaces, plus #296's error
   // un-latch, which this hook was missing: one transient failure used to
   // leave the error card up for the rest of the session.
@@ -114,13 +160,18 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
     snapshotKey: "todoTree",
     dataService: ds,
     version: syncVersion,
-    load: (service) =>
-      Promise.all([service.fetchTodoTree(), service.fetchDeletedTodos()]),
-    apply: ([active, deleted]) => {
-      const all = [...active, ...deleted];
-      setNodes(all);
+    load: async (service) => {
+      const fetched = await service.fetchTodoTree();
+      // Set HERE, not in `apply`: the snapshot replay never runs it.
+      fetchLandedRef.current = true;
+      return fetched;
+    },
+    apply: (active) => {
+      setNodes(active);
+      if (fetchLandedRef.current)
+        knownRef.current = new Map(active.map((n) => [n.id, n]));
       loadedRef.current = true;
-      restoreSelection(all);
+      restoreSelection(active);
     },
     fallbackMessage: "Failed to load todos",
     // The board (KanbanView) swaps itself for a skeleton while this is true,
@@ -132,11 +183,10 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
 
   const refetch = useCallback(async () => {
     try {
-      const [active, deleted] = await Promise.all([
-        ds.fetchTodoTree(),
-        ds.fetchDeletedTodos(),
-      ]);
-      setNodes([...active, ...deleted]);
+      const fetched = await ds.fetchTodoTree();
+      setNodes(fetched);
+      fetchLandedRef.current = true;
+      knownRef.current = new Map(fetched.map((n) => [n.id, n]));
     } catch (e) {
       logServiceError("TodoTree", "refetch", e);
     }
@@ -166,12 +216,23 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
   const syncToDb = useCallback(
     (updated: TodoNode[], onSettled?: PersistSettled): Promise<void> => {
       setPersistError(null);
-      const run = lastSyncRef.current.then(() =>
-        ds.syncTodoTree(updated).then(
+      // The difference is taken when the write's turn comes, not when it is
+      // queued: by then every earlier write has landed (or failed) and the
+      // map says so.
+      const run = lastSyncRef.current.then(() => {
+        const changed = changedTodoNodes(knownRef.current, updated);
+        if (changed.length === 0) {
+          onSettled?.(true);
+          return;
+        }
+        return ds.syncTodoTree(changed).then(
           () => {
+            for (const n of changed) knownRef.current.set(n.id, n);
             onSettled?.(true);
           },
           (e: unknown) => {
+            // Whether any of them landed is unknown: send them all next time.
+            for (const n of changed) knownRef.current.delete(n.id);
             logServiceError("TodoTree", "sync", e);
             setPersistError(
               e instanceof Error ? e.message : "Failed to save todos",
@@ -179,8 +240,8 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
             onSettled?.(false);
             throw e;
           },
-        ),
-      );
+        );
+      });
       lastSyncRef.current = run.catch(() => {});
       return run;
     },
@@ -193,7 +254,13 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
   // same id back with `is_deleted: false`.
   const removeFromDb = useCallback(
     (id: string): Promise<void> => {
-      const run = lastSyncRef.current.then(() => ds.softDeleteTodo(id));
+      // The row in the DB stops matching its node (it is deleted there), so a
+      // redo must send it again (#2332). Forgotten when the turn comes, after
+      // the create's own write has recorded it.
+      const run = lastSyncRef.current.then(() => {
+        knownRef.current.delete(id);
+        return ds.softDeleteTodo(id);
+      });
       lastSyncRef.current = run.then(
         () => {},
         (e: unknown) => logServiceError("TodoTree", "undoCreate", e),

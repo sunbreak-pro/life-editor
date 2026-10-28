@@ -140,7 +140,8 @@ export function useScheduleItemsRoutineSync(
   }, []);
 
   const ensureForDatePass = useCallback(
-    async (date: string, routines: RoutineNode[]) => {
+    /** Resolves false when a write failed, so a host can retry (#2327). */
+    async (date: string, routines: RoutineNode[]): Promise<boolean> => {
       const existing = await ds.fetchScheduleItemsByDate(date);
       const { toCreate } = diffRoutineScheduleItems(existing, routines, date);
 
@@ -169,6 +170,7 @@ export function useScheduleItemsRoutineSync(
       if (bulkCreateOk && toCreate.length > 0) {
         notifyChanged();
       }
+      return bulkCreateOk;
     },
     [ds, notifyChanged],
   );

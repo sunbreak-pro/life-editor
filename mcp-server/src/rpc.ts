@@ -13,7 +13,8 @@ import { errorResult } from "./errorCodes.js";
  * differ in who they let in and which registry they serve, and in nothing else,
  * so the parsing, the method switch and the 404 / 405 shapes live here once.
  * Keeping them in one place is what lets the gateway's stand-in
- * (mocks/extension-gateway-fake.mjs) be checked against both.
+ * (mocks/extension-gateway-fake.mjs) be checked against the gateway's Worker
+ * and trusted for the shapes it shares with the phone's.
  *
  * Moved out of worker.ts unchanged; tests/worker.test.ts is the proof.
  */

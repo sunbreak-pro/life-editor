@@ -106,7 +106,7 @@ function makeTodosDS(all: TodoNode[]): DataService {
 // ---- Daily fixtures ---------------------------------------------------
 
 const dailiesDS = {
-  listDailiesUnified: async () => [],
+  listDailySummariesUnified: async () => [],
 } as unknown as DataService;
 
 describe("Materials selection persistence (#282)", () => {

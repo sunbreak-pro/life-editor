@@ -67,8 +67,11 @@ afterEach(() => {
 });
 
 describe("useScheduleItemsAPI load effect (#672)", () => {
-  it("reports loading until the first read lands, then holds both lists", async () => {
-    const { ds } = makeDS([[item("schedule-1")]], [[item("schedule-9")]]);
+  it("reports loading until the first read lands, and leaves the trash for on demand", async () => {
+    const { ds, fetchDeletedScheduleItems } = makeDS(
+      [[item("schedule-1")]],
+      [[item("schedule-9")]],
+    );
     const hook = renderHook(
       () => useScheduleItemsAPI({ dataService: ds, date: "2026-08-10" }),
       { wrapper },
@@ -77,11 +80,14 @@ describe("useScheduleItemsAPI load effect (#672)", () => {
     expect(hook.result.current.isLoading).toBe(true);
     await waitFor(() => expect(hook.result.current.isLoading).toBe(false));
     expect(hook.result.current.items.map((i) => i.id)).toEqual(["schedule-1"]);
-    await waitFor(() =>
-      expect(hook.result.current.deletedItems.map((i) => i.id)).toEqual([
-        "schedule-9",
-      ]),
-    );
+    // #2326: the trash is no longer read with the list.
+    expect(fetchDeletedScheduleItems).not.toHaveBeenCalled();
+    await act(async () => {
+      await hook.result.current.loadDeletedScheduleItems();
+    });
+    expect(hook.result.current.deletedItems.map((i) => i.id)).toEqual([
+      "schedule-9",
+    ]);
     expect(hook.result.current.error).toBeNull();
   });
 
@@ -140,6 +146,9 @@ describe("useScheduleItemsAPI load effect (#672)", () => {
       ]),
     );
     expect(hook.result.current.isLoading).toBe(false);
+    await act(async () => {
+      await hook.result.current.loadDeletedScheduleItems();
+    });
     // The trash view has its own empty state; a failure there is logged, not
     // surfaced as the section's error.
     expect(hook.result.current.error).toBeNull();

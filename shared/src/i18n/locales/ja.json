@@ -605,8 +605,7 @@
       "closeOtherItems": "他のアイテムを閉じる",
       "backToList": "一覧に戻る",
       "rowActions": "ノートの操作",
-      "renameNote": "名前を変更",
-      "editNote": "ノートを編集"
+      "renameNote": "名前を変更"
     },
     "templates": {
       "menuEntry": "テンプレートとして登録する",
@@ -1055,7 +1054,10 @@
         "title": "記録",
         "range": "直近 7 日",
         "empty": "直近 7 日の記録はありません。",
-        "count_other": "{{count}} 件"
+        "count_other": "{{count}} 件",
+        "filteredTo": "{{app}} の記録だけを表示中",
+        "clearFilter": "すべてのアプリ",
+        "emptyFiltered": "このアプリの直近 7 日の記録はありません。"
       }
     },
     "workTime": "作業時間",

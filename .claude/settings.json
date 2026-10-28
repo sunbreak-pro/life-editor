@@ -40,7 +40,7 @@
     ]
   },
   "permissions": {
-    "ask": ["Bash(gh pr merge*)"],
+    "ask": ["Bash(gh pr merge*)", "Bash(supabase db push*)"],
     "deny": [
       "Bash(git push origin main*)",
       "Bash(git push origin master*)",

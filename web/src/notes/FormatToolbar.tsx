@@ -217,7 +217,11 @@ export function FormatToolbar({
       role="toolbar"
       aria-label={labels.label}
       data-format-toolbar=""
-      className="flex items-center gap-1"
+      // #2308: below the breakpoint the seven 44px boxes sit edge to edge.
+      // With the gaps the bar was 384px at the default 18px root and ran 2px
+      // past a 390px screen; without them it is 357.5px. `flex-wrap` takes a
+      // larger Settings font step onto a second row instead of off the side.
+      className="flex items-center gap-1 max-md:flex-wrap max-md:gap-0"
     >
       {ACTIONS.map((action, i) => {
         if (editor && action.isOffered && !action.isOffered(editor)) {
@@ -316,7 +320,13 @@ export function FormatBubbleMenu({
       shouldShow={shouldShow}
       options={FORMAT_BUBBLE_OPTIONS}
       data-format-bubble=""
-      className="z-30 rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-lg"
+      // #2308: never wider than the screen less the 8px `shift` keeps on
+      // either side (formatBubbleOptions.ts), so the body never scrolls
+      // sideways under it. `w-max` is the width the plugin sets only after
+      // its first placement: without it the first selection is measured
+      // narrower (the narrow bar wraps), `shift` keeps that narrower box in,
+      // and the bar then widens past the right edge.
+      className="z-30 w-max rounded-lumen-md border border-lumen-border bg-lumen-bg p-1 shadow-lumen-lg max-md:max-w-[calc(100vw-16px)]"
     >
       <FormatToolbar editor={editor} disabled={disabled} labels={labels} />
     </BubbleMenu>
