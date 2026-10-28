@@ -6,7 +6,10 @@ import {
   useRef,
   useState,
 } from "react";
-import { SyncContext } from "../context/SyncContextValue";
+import {
+  SyncContext,
+  type WebSyncContextValue,
+} from "../context/SyncContextValue";
 import type { SyncDomain } from "../context/syncDomains";
 import type { DataService } from "../services/DataService";
 import {
@@ -165,6 +168,23 @@ interface SettledLoad {
   anchor: string | number | undefined;
 }
 
+/**
+ * The Sync state a read taken now would be filed under (#2328). Undefined when
+ * the caller did not opt in or the Provider cannot say (a test stub).
+ */
+function freshnessOf(
+  sync: WebSyncContextValue | null,
+  domains: readonly SyncDomain[] | undefined,
+): SnapshotFreshness | undefined {
+  if (
+    domains === undefined ||
+    sync?.epoch === undefined ||
+    sync.getRevision === undefined
+  )
+    return undefined;
+  return { epoch: sync.epoch, revision: sync.getRevision(domains) };
+}
+
 export function useDomainLoad<T>(
   options: UseDomainLoadOptions<T>,
 ): DomainLoadState {
@@ -190,18 +210,6 @@ export function useDomainLoad<T>(
   );
 
   const sync = useContext(SyncContext);
-  // The Sync state a read taken now would be filed under (#2328). Undefined
-  // when the caller did not opt in or the Provider cannot say (a test stub).
-  const currentFreshness = (): SnapshotFreshness | undefined => {
-    const domains = options.skipWhenFresh;
-    if (
-      domains === undefined ||
-      sync?.epoch === undefined ||
-      sync.getRevision === undefined
-    )
-      return undefined;
-    return { epoch: sync.epoch, revision: sync.getRevision(domains) };
-  };
 
   /*
    * Decided once, at mount, like the snapshot itself: the (service, version,
@@ -210,7 +218,7 @@ export function useDomainLoad<T>(
   const [skip] = useState<SettledLoad | null>(() => {
     const filed = snapshot?.fresh;
     if (filed === undefined) return null;
-    const now = currentFreshness();
+    const now = freshnessOf(sync, options.skipWhenFresh);
     if (now === undefined) return null;
     return now.epoch === filed.epoch && now.revision === filed.revision
       ? { dataService, version, anchor }
@@ -238,6 +246,12 @@ export function useDomainLoad<T>(
   const latest = useRef(options);
   useEffect(() => {
     latest.current = options;
+  });
+  // Same mirror for the Sync value: the load effect reads the live store
+  // through it without a dependency that would restart the read.
+  const syncRef = useRef(sync);
+  useEffect(() => {
+    syncRef.current = sync;
   });
 
   /*
@@ -286,7 +300,7 @@ export function useDomainLoad<T>(
     // Taken BEFORE the read starts: a change that lands while it is in flight
     // moves the revision past this one, so the result is never filed as
     // current when it may already be behind.
-    const fresh = currentFreshness();
+    const fresh = freshnessOf(syncRef.current, latest.current.skipWhenFresh);
     let cancelled = false;
     void (async () => {
       try {

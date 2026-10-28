@@ -131,14 +131,22 @@ describe("SyncProvider revision for a remount that skips its read (#2328)", () =
   } {
     const seen: { current: WebSyncContextValue | null } = { current: null };
     const versions: number[] = [];
-    function Grab() {
-      seen.current = useContext(SyncContext);
+    function Grab({
+      onContext,
+    }: {
+      onContext: (v: WebSyncContextValue | null) => void;
+    }) {
+      onContext(useContext(SyncContext));
       return null;
     }
     render(
       <SyncProvider>
         <NotesProbe onVersion={(v) => versions.push(v)} />
-        <Grab />
+        <Grab
+          onContext={(v) => {
+            seen.current = v;
+          }}
+        />
       </SyncProvider>,
     );
     return { seen, versions };
