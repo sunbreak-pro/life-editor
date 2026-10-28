@@ -1494,7 +1494,7 @@
       "achieved": "Achieved",
       "unconnected": "Unconnected",
       "progress": "{{done}}/{{total}}",
-      "openTodo": "Open in Schedule: {{title}}",
+      "openTodo": "Edit: {{title}}",
       "loading": "Loading goals",
       "loadFailed": "Could not load the goals. Check your connection and try again.",
       "retry": "Try again",
