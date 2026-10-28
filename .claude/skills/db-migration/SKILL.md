@@ -84,6 +84,23 @@ LC_ALL=C bash scripts/docs-lint.sh
 
 `life-editor-migration-validator` エージェントを起動して、DDL が規約（2 行分割 / composite FK / 生成列 / 冪等性 / RLS / publication）に合っているか監査させる。同期挙動まで見るなら `life-editor-sync-auditor`。
 
+## Step 5.5: db push の前に、新しいマイグレーションがその作業フォルダにあるかを確かめる
+
+`supabase db push` は、コマンドを打ったフォルダの `supabase/migrations/` だけを見る。DDL を書いたのが worktree で、こうだいさんがリポジトリ直下（main）で打つと、新しいファイルは見えず「最新です」と出て何も流れない。逆に、他のレーンが先に入れた古い番号のファイルを含んだまま流すこともある。
+
+push の前に、**push を打つフォルダで**次の 2 つを見る。
+
+```bash
+ls supabase/migrations | tail -3     # 今回のファイルが最後にあるか
+supabase migration list              # Remote の列が空なのが今回の分だけか
+```
+
+- 今回のファイルが `tail` に出ない: フォルダが違う（worktree と main を取り違えている）。そのフォルダで push しない
+- `migration list` で Remote が空の行が今回の分より多い: 他のレーンの未反映分が混ざっている。何が流れるかを PR 本文に書いてから push する
+- 番号が `origin/main` の最新と重なる: 並行レーンが同じ番号を切っている。次の番号に付け替える（反映前のファイルに限る）
+
+この確認は Claude が行ってよい（読み取りだけ）。push 自体はこうだいさんの手番のまま。
+
 ## Step 6: 引き渡し
 
 PR 本文に **「この migration は未適用。merge 前 / 後に `supabase db push` が要る」**と明記する。書かないと、コードだけ main に入って DB が追いつかない状態が無言で生まれる。
