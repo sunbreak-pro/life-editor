@@ -1,5 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
+import { useContext } from "react";
 import { render, waitFor, act } from "@testing-library/react";
+import {
+  SyncContext,
+  type WebSyncContextValue,
+} from "../src/context/SyncContextValue";
 import { useSyncDomains } from "../src/hooks/useSyncDomains";
 import {
   noteOwnWrite,
@@ -109,5 +114,66 @@ describe("SyncProvider and this client's own writes (#2290)", () => {
     const versions = await mountProbe();
     await fire("notes_payload", { item_id: "note-2" });
     expect(versions.at(-1)).toBe(1);
+  });
+});
+
+describe("SyncProvider revision for a remount that skips its read (#2328)", () => {
+  beforeEach(() => {
+    handlers.clear();
+    resetOwnWriteLedger();
+  });
+
+  // One Provider holds both the version probe and the context grab: the stub
+  // channel keeps only the latest Provider's handlers, so two would split them.
+  function mountContext(): {
+    seen: { current: WebSyncContextValue | null };
+    versions: number[];
+  } {
+    const seen: { current: WebSyncContextValue | null } = { current: null };
+    const versions: number[] = [];
+    function Grab() {
+      seen.current = useContext(SyncContext);
+      return null;
+    }
+    render(
+      <SyncProvider>
+        <NotesProbe onVersion={(v) => versions.push(v)} />
+        <Grab />
+      </SyncProvider>,
+    );
+    return { seen, versions };
+  }
+
+  it("moves the revision for a dropped own echo without bumping the version", async () => {
+    const { seen, versions } = mountContext();
+    await waitFor(() => expect(handlers.size).toBeGreaterThan(0));
+    const before = seen.current!.getRevision!(["notes"]);
+
+    noteOwnWrite("items_meta", "note-1", STAMP);
+    await fire("items_meta", { id: "note-1", role: "note", updated_at: STAMP });
+
+    // No refetch is asked for, yet a section that last read the list before
+    // this write must not be taken for current.
+    expect(versions.at(-1)).toBe(0);
+    expect(seen.current!.getRevision!(["notes"])).toBeGreaterThan(before);
+    expect(seen.current!.getRevision!(["todos"])).toBe(0);
+  });
+
+  it("moves the revision for a change from elsewhere", async () => {
+    const { seen } = mountContext();
+    await waitFor(() => expect(handlers.size).toBeGreaterThan(0));
+    const before = seen.current!.getRevision!(["notes"]);
+
+    await fire("notes_payload", { item_id: "note-2" });
+
+    expect(seen.current!.getRevision!(["notes"])).toBeGreaterThan(before);
+  });
+
+  it("gives every mounted Provider its own epoch", () => {
+    const a = mountContext().seen;
+    const b = mountContext().seen;
+    expect(a.current?.epoch).toBeDefined();
+    expect(b.current?.epoch).toBeDefined();
+    expect(a.current?.epoch).not.toBe(b.current?.epoch);
   });
 });
