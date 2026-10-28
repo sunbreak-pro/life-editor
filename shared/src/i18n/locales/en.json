@@ -1520,7 +1520,10 @@
       "addTodoLabel": "Add a todo not linked to a goal",
       "addTodoPlaceholder": "What to do",
       "dragToMove": "Drag to move",
-      "rename": "Rename: {{title}}",
+      "edit": "Edit goal: {{title}}",
+      "addUnder": "Add under: {{title}}",
+      "delete": "Delete goal: {{title}}",
+      "childGoal": "{{kind}} goal",
       "moveTodoFailed": "Could not move the todo. Check your connection and try again.",
       "arrange": {
         "heading": "Sort & filter",

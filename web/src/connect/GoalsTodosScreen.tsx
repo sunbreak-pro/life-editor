@@ -29,6 +29,7 @@ import {
   type DataService,
   type Goal,
   type GoalPeriodKind,
+  type GoalRowActions,
   type GoalTodoLink,
   type GoalTreeArrangeLabels,
   type GoalTreeArrangement,
@@ -401,6 +402,50 @@ export function GoalsTodosScreen({
     [ask, t, write, dataService],
   );
 
+  /*
+   * The "+" and the bin on each goal row (#2367). A todo added under a goal
+   * is created and linked in one write; a child goal lands in the current
+   * period one level down, under the goal it was added from (the service
+   * checks the parent again).
+   */
+  const rowActions = useMemo<GoalRowActions>(
+    () => ({
+      onAddTodo: (goalId, title) => {
+        const now = new Date().toISOString();
+        const id = generateTodoId("task");
+        return write(async () => {
+          await dataService.createTodo({
+            id,
+            type: "task",
+            title,
+            status: "NOT_STARTED",
+            parentId: null,
+            order: 0,
+            createdAt: now,
+            updatedAt: now,
+          });
+          await dataService.linkGoalTodo(goalId, id);
+        });
+      },
+      onAddChildGoal: (parent, title) => {
+        const kind: GoalPeriodKind =
+          parent.periodKind === "year" ? "month" : "week";
+        return write(() =>
+          dataService.createGoal({
+            id: generateId("goal"),
+            title,
+            periodKind: kind,
+            periodKey: model.periodKeys[kind],
+            sortOrder: model.periodCounts[kind],
+            parentGoalId: parent.id,
+          }),
+        );
+      },
+      onDelete: deleteGoal,
+    }),
+    [write, dataService, model, deleteGoal],
+  );
+
   const panel = selectedNode ? (
     <GoalDetailPanel
       // The title too: renamed from the tree's pencil (#2283), the panel's
@@ -470,6 +515,9 @@ export function GoalsTodosScreen({
           onOpenTodo={openTodo}
           drag={isWide ? drag : undefined}
           onRenameGoal={renameGoal}
+          // Wide: the edit icon also opens the panel for the other fields.
+          onEditGoal={isWide ? selectGoal : undefined}
+          rowActions={rowActions}
           labels={treeLabels}
         />
       </div>

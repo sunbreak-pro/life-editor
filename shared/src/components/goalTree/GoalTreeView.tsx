@@ -4,9 +4,10 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
-  Pencil,
   Plus,
+  SquarePen,
   Target,
+  Trash2,
 } from "lucide-react";
 import { cn } from "../cn";
 import { Button } from "../Button";
@@ -56,10 +57,13 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * and the target rule is a pure function, so a library would add only the
  * ghost image the browser already draws.
  *
- * With `onRenameGoal`, a pencil on the hovered or selected row swaps the
- * title for a name field in place (#2283); the row stops dragging until the
- * field closes. A goal drawn twice — under its parent and as unconnected —
- * opens the field only on the row whose pencil was pressed.
+ * A goal row carries up to three icons on hover or while selected (#2367):
+ * "+" adds a todo linked to the goal, or a goal one level down; edit swaps
+ * the title for a name field in place (the pencil of #2283, folded in) and,
+ * when the host passes `onEditGoal`, also opens the goal's panel for the
+ * rest; the bin deletes, after the host's confirm. The row stops dragging
+ * while its field is open. A goal drawn twice — under its parent and as
+ * unconnected — opens a field only on the row whose icon was pressed.
  *
  * Pure presentation (§6.4): the model and every label come from the host
  * (web/src/connect/GoalsTodosScreen.tsx). The state held here — the add
@@ -106,10 +110,16 @@ export interface GoalTreeLabels {
   addTodoPlaceholder: string;
   /** The grip's tooltip. */
   dragToMove: string;
-  /** "Rename: Run 3 times" — the pencil's spoken name and tooltip. */
-  formatRename: (title: string) => string;
-  /** The name field the pencil opens. */
+  /** "Edit goal: Run 3 times" — the edit icon's spoken name and tooltip. */
+  formatEdit: (title: string) => string;
+  /** The name field the edit icon opens. */
   renameField: string;
+  /** "Add under: Run 3 times" — the "+" on a goal row (#2367). */
+  formatAddUnder: (title: string) => string;
+  /** "Delete goal: Run 3 times" — the bin on a goal row. */
+  formatDelete: (title: string) => string;
+  /** "Month goal" — the "+" choice that adds a goal one level down. */
+  formatChildGoal: (kind: string) => string;
   loading: string;
   /** The first read failed: nothing below would be true, so this replaces it. */
   loadFailed: string;
@@ -139,9 +149,26 @@ export interface GoalTreeViewProps {
   onOpenTodo: (todoId: string) => void;
   /** Desktop only. Absent, no grip is drawn and nothing can be dragged. */
   drag?: GoalTreeDragHandlers;
-  /** A new name from a row's pencil, trimmed and changed. Absent, no pencil. */
+  /** A new name from a row's edit icon, trimmed and changed. Absent, no icon. */
   onRenameGoal?: (goalId: string, title: string) => void;
+  /**
+   * Also called by the edit icon, so the panel opens with the goal's other
+   * fields (#2367). The host passes it on wide only: on a phone the panel is
+   * a sheet that would cover the name field.
+   */
+  onEditGoal?: (goalId: string) => void;
+  /** The "+" and the bin on a goal row (#2367). Absent, neither is drawn. */
+  rowActions?: GoalRowActions;
   labels: GoalTreeLabels;
+}
+
+export interface GoalRowActions {
+  /** A todo linked to the goal. Resolves true once it exists. */
+  onAddTodo: (goalId: string, title: string) => Promise<boolean>;
+  /** A goal one level down, in the current period. Resolves true once it exists. */
+  onAddChildGoal: (parent: Goal, title: string) => Promise<boolean>;
+  /** Fires raw: the host asks before it deletes. */
+  onDelete: (goal: Goal) => void;
 }
 
 export interface GoalTreeDragHandlers {
@@ -349,7 +376,29 @@ interface BranchState {
   /** The row whose name is open in a field; one at a time. */
   editing: EditingRow | null;
   onEdit: (row: EditingRow | null) => void;
+  /** The row whose "+" is open, and at which step; one at a time. */
+  addingUnder: AddingUnder | null;
+  onAddUnder: (row: AddingUnder | null) => void;
 }
+
+/** The kind a "+" adds as a child goal: one level down; none under a week. */
+const CHILD_KIND: Readonly<Record<GoalPeriodKind, GoalPeriodKind | null>> = {
+  year: "month",
+  month: "week",
+  week: null,
+};
+
+interface AddingUnder extends EditingRow {
+  /** "choose" while both a todo and a child goal are on offer. */
+  step: "choose" | "todo" | "goal";
+}
+
+/** The icons at a goal row's right end: on hover, on focus, or selected. */
+const ROW_ICON = cn(
+  "ml-0.5 grid shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-[color,background-color,opacity] hover:bg-lumen-hover hover:text-lumen-text",
+  "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+  "max-md:min-h-11 max-md:min-w-11",
+);
 
 /**
  * Which group a row is in. A goal with a parent and nothing connected is
@@ -404,6 +453,118 @@ function GoalTitleEditor({
   );
 }
 
+/*
+ * What a goal row's "+" opens (#2367): a choice between a todo and a goal
+ * one level down (a week offers only the todo, so it skips the choice), then
+ * one field. Enter or the button adds and closes; Esc closes.
+ */
+function AddUnderGoal({
+  goal,
+  step,
+  actions,
+  labels,
+  onStep,
+  onClose,
+}: {
+  goal: Goal;
+  step: AddingUnder["step"];
+  actions: GoalRowActions;
+  labels: GoalTreeLabels;
+  onStep: (step: "todo" | "goal") => void;
+  onClose: () => void;
+}): React.JSX.Element {
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const childKind = CHILD_KIND[goal.periodKind];
+  const childLabel = childKind
+    ? labels.formatChildGoal(labels.kinds[childKind])
+    : "";
+  if (step === "choose") {
+    return (
+      <div className="flex flex-wrap items-center gap-2 py-1 pl-(--goal-tree-toggle)">
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => onStep("todo")}
+          leadingIcon={<Plus size={14} aria-hidden />}
+          className="shrink-0 whitespace-nowrap max-md:min-h-11"
+        >
+          {labels.addTodo}
+        </Button>
+        <Button
+          size="sm"
+          variant="secondary"
+          onClick={() => onStep("goal")}
+          leadingIcon={<Plus size={14} aria-hidden />}
+          className="shrink-0 whitespace-nowrap max-md:min-h-11"
+        >
+          {childLabel}
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={onClose}
+          className="shrink-0 whitespace-nowrap max-md:min-h-11"
+        >
+          {labels.cancel}
+        </Button>
+      </div>
+    );
+  }
+  const placeholder =
+    step === "todo" ? labels.addTodoPlaceholder : labels.addPlaceholder;
+  const submit = (): void => {
+    const title = draft.trim();
+    if (!title || busy) return;
+    setBusy(true);
+    const run =
+      step === "todo"
+        ? actions.onAddTodo(goal.id, title)
+        : actions.onAddChildGoal(goal, title);
+    void run.then((ok) => {
+      setBusy(false);
+      if (ok) onClose();
+    });
+  };
+  return (
+    <div className="flex items-center gap-2 py-1 pl-(--goal-tree-toggle)">
+      <Input
+        autoFocus
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onKeyDown={(e) => {
+          if (isImeComposing(e)) return;
+          if (e.key === "Enter") submit();
+          if (e.key === "Escape") onClose();
+        }}
+        placeholder={placeholder}
+        aria-label={`${labels.formatAddUnder(goal.title)} — ${
+          step === "todo" ? labels.addTodo : childLabel
+        }`}
+        className="min-w-0 max-md:text-base"
+      />
+      <Button
+        size="sm"
+        onClick={submit}
+        disabled={!draft.trim()}
+        busy={busy}
+        busyLabel={labels.add}
+        className="shrink-0 whitespace-nowrap max-md:min-h-11"
+      >
+        {labels.add}
+      </Button>
+      <Button
+        size="sm"
+        variant="ghost"
+        onClick={onClose}
+        className="shrink-0 whitespace-nowrap max-md:min-h-11"
+      >
+        {labels.cancel}
+      </Button>
+    </div>
+  );
+}
+
 function GoalBranch({
   node,
   place,
@@ -426,6 +587,15 @@ function GoalBranch({
   const editing =
     branch.editing?.goalId === goal.id && branch.editing.place === place;
   const onRenameGoal = props.onRenameGoal;
+  const rowActions = props.rowActions;
+  const addingHere =
+    branch.addingUnder?.goalId === goal.id && branch.addingUnder.place === place
+      ? branch.addingUnder
+      : null;
+  const iconClass = cn(
+    ROW_ICON,
+    !selected && "opacity-0 group-hover/row:opacity-100",
+  );
   // A year goal is the top: there is no parent to drag it under. A row whose
   // name is being typed holds still, so a press in the field stays in it.
   const draggable = drag !== null && goal.periodKind !== "year" && !editing;
@@ -539,22 +709,54 @@ function GoalBranch({
             <GoalStatus node={node} labels={labels} />
           </button>
         )}
-        {onRenameGoal && !editing && (
-          // On the hovered or the selected row; a keyboard reaches it while
-          // hidden, and it shows once focused.
+        {/* On the hovered or the selected row; a keyboard reaches them while
+            hidden, and each shows once focused. */}
+        {rowActions && !editing && (
           <button
             type="button"
-            onClick={() => branch.onEdit({ goalId: goal.id, place })}
-            aria-label={labels.formatRename(goal.title)}
-            title={labels.formatRename(goal.title)}
-            className={cn(
-              "ml-0.5 shrink-0 rounded-lumen-sm text-lumen-text-tertiary transition-[color,background-color,opacity] hover:bg-lumen-hover hover:text-lumen-text",
-              "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-              "max-md:min-h-11 max-md:min-w-11",
-              !selected && "opacity-0 group-hover/row:opacity-100",
-            )}
+            onClick={() =>
+              branch.onAddUnder(
+                addingHere
+                  ? null
+                  : {
+                      goalId: goal.id,
+                      place,
+                      step: CHILD_KIND[goal.periodKind] ? "choose" : "todo",
+                    },
+              )
+            }
+            aria-expanded={addingHere !== null}
+            aria-label={labels.formatAddUnder(goal.title)}
+            title={labels.formatAddUnder(goal.title)}
+            className={iconClass}
           >
-            <Pencil size={14} aria-hidden />
+            <Plus size={14} aria-hidden />
+          </button>
+        )}
+        {onRenameGoal && !editing && (
+          <button
+            type="button"
+            onClick={() => {
+              branch.onAddUnder(null);
+              branch.onEdit({ goalId: goal.id, place });
+              props.onEditGoal?.(goal.id);
+            }}
+            aria-label={labels.formatEdit(goal.title)}
+            title={labels.formatEdit(goal.title)}
+            className={iconClass}
+          >
+            <SquarePen size={14} aria-hidden />
+          </button>
+        )}
+        {rowActions && !editing && (
+          <button
+            type="button"
+            onClick={() => rowActions.onDelete(goal)}
+            aria-label={labels.formatDelete(goal.title)}
+            title={labels.formatDelete(goal.title)}
+            className={iconClass}
+          >
+            <Trash2 size={14} aria-hidden />
           </button>
         )}
         {placeable && (
@@ -572,6 +774,16 @@ function GoalBranch({
           </span>
         )}
       </div>
+      {addingHere && rowActions && (
+        <AddUnderGoal
+          goal={goal}
+          step={addingHere.step}
+          actions={rowActions}
+          labels={labels}
+          onStep={(step) => branch.onAddUnder({ ...addingHere, step })}
+          onClose={() => branch.onAddUnder(null)}
+        />
+      )}
       {open && (
         <>
           {node.todos.length > 0 && (
@@ -683,6 +895,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   );
   const [overGoalId, setOverGoalId] = useState<string | null>(null);
   const [editing, setEditing] = useState<EditingRow | null>(null);
+  const [addingUnder, setAddingUnder] = useState<AddingUnder | null>(null);
 
   if (isLoading) {
     return (
@@ -803,6 +1016,8 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
     drag,
     editing,
     onEdit: setEditing,
+    addingUnder,
+    onAddUnder: setAddingUnder,
   };
 
   // `byId` holds every shown goal whatever the filter; roots and unconnected
