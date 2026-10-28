@@ -42,7 +42,7 @@ Previous: (任意) 前フェーズ完了計画書パス
 手順の正本 = [`rules/design-first-planning.md`](../../../rules/design-first-planning.md)（D-20261028-main-1）。Steps より前に埋め、こうだいさんの確認が済むまで実装に入らない。
 
 - **デザインシステム**: Life Editor（https://claude.ai/artifact/KPdEWuLhoeL9MdzRRa43Aa）
-- **採った案の Artifact**: <URL>
+- **採った案の場所**: <試作の URL> / <ファイル名> / <試作パネルの切り替えの名前>
 - **見せた範囲**: Desktop / Mobile、4 状態（読み込み中・空・エラー・通常）、操作の途中の画面（<追加・編集中など>）
 - **こうだいさんの確認**: <YYYY-MM-DD> <採った案と直したところの要約>
 
