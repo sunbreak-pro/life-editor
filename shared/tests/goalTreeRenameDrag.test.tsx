@@ -98,6 +98,7 @@ const LABELS: GoalTreeLabels = {
   addTodoLabel: "Add a todo",
   addTodoPlaceholder: "Todo",
   dragToMove: "Drag to move",
+  dropHere: "Move here",
   formatRename: (title) => `Rename: ${title}`,
   renameField: "Goal title",
   loading: "Loading",
@@ -338,5 +339,58 @@ describe("GoalTreeView — rename in place from the pencil (#2283)", () => {
     // Other rows keep theirs.
     expect(titleOf("Run 3 times").getAttribute("draggable")).toBe("true");
     within(row).getByRole("button", { name: "Collapse: Run weekly" });
+  });
+});
+
+describe("GoalTreeView — the drag reads as carrying the row (#2365)", () => {
+  /*
+   * jsdom draws nothing, so these pin what the browser is handed and what
+   * the rows say: a lifted copy of the whole row as the drag image, a dashed
+   * hole where the row was, and a "Move here" pill on the target underneath.
+   */
+  const carrying = () => ({ ...transfer(), setDragImage: vi.fn() });
+
+  it("hands the browser a lifted copy of the whole row, then drops it", async () => {
+    renderTree({ drag: dragHandlers() });
+    const dataTransfer = carrying();
+    fireEvent.dragStart(titleOf("Run 3 times"), { dataTransfer });
+    expect(dataTransfer.setDragImage).toHaveBeenCalledTimes(1);
+    const ghost = dataTransfer.setDragImage.mock.calls[0]?.[0] as HTMLElement;
+    expect(ghost.hasAttribute("data-goal-tree-ghost")).toBe(true);
+    expect(ghost.getAttribute("aria-hidden")).toBe("true");
+    expect(ghost.className).toContain("shadow-lumen-lg");
+    expect(ghost.className).toContain("bg-lumen-bg");
+    // The row, not just the grabbed title: the kind chip comes along.
+    expect(ghost.textContent).toContain("Week");
+    expect(ghost.textContent).toContain("Run 3 times");
+    await vi.waitFor(() =>
+      expect(document.querySelector("[data-goal-tree-ghost]")).toBeNull(),
+    );
+  });
+
+  it("lifts a todo by its whole row too", () => {
+    renderTree({ drag: dragHandlers() });
+    const dataTransfer = carrying();
+    const grip = document.querySelector('[data-todo-drag="t3"]') as HTMLElement;
+    fireEvent.dragStart(grip, { dataTransfer });
+    const ghost = dataTransfer.setDragImage.mock.calls[0]?.[0] as HTMLElement;
+    expect(ghost.textContent).toContain("5 km jog");
+  });
+
+  it("leaves a dashed hole and names the target under the pointer", async () => {
+    renderTree({ drag: dragHandlers() });
+    fireEvent.dragStart(titleOf("Run 3 times"), { dataTransfer: carrying() });
+    await vi.waitFor(() =>
+      expect(rowOf("Run 3 times").className).toContain("outline-dashed"),
+    );
+    const target = rowOf("Stretch daily");
+    expect(target.textContent).not.toContain("Move here");
+    fireEvent.dragOver(target, { dataTransfer: transfer() });
+    await vi.waitFor(() =>
+      expect(target.querySelector("[data-drop-target]")?.textContent).toContain(
+        "Move here",
+      ),
+    );
+    expect(target.className).toContain("outline-2");
   });
 });

@@ -56,6 +56,10 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * and the target rule is a pure function, so a library would add only the
  * ghost image the browser already draws.
  *
+ * The drag reads as carrying the row (#2365): the image under the pointer is
+ * a lifted copy of it (liftDragImage), the row it left stays as a dashed
+ * hole, and the goal under the pointer fills in with a "Move here" pill.
+ *
  * With `onRenameGoal`, a pencil on the hovered or selected row swaps the
  * title for a name field in place (#2283); the row stops dragging until the
  * field closes. A goal drawn twice — under its parent and as unconnected —
@@ -106,6 +110,8 @@ export interface GoalTreeLabels {
   addTodoPlaceholder: string;
   /** The grip's tooltip. */
   dragToMove: string;
+  /** "Move here" — on the drop target under the pointer. */
+  dropHere: string;
   /** "Rename: Run 3 times" — the pencil's spoken name and tooltip. */
   formatRename: (title: string) => string;
   /** The name field the pencil opens. */
@@ -263,6 +269,50 @@ const GRIP = "cursor-grab text-lumen-text-tertiary active:cursor-grabbing";
 
 const GOAL_TREE_DRAG_TYPE = "application/x-life-editor-goal-tree";
 
+/** The row a drag starts from: the goal's row, or the todo's item. */
+const ROW_ATTR = "data-goal-tree-row";
+
+/** Opaque, shadowed, outlined and tilted: the row held in the hand. */
+const DRAG_GHOST = cn(
+  "pointer-events-none fixed top-0 -left-[9999px] rotate-1 rounded-lumen-sm",
+  "bg-lumen-bg shadow-lumen-lg ring-1 ring-lumen-accent",
+);
+
+/** The spot a dragged row leaves: kept, faded, outlined as a hole. */
+const DRAG_HOLE =
+  "opacity-40 outline-1 -outline-offset-1 outline-dashed outline-lumen-border-strong";
+
+/*
+ * The drag image (#2365). The browser's own is a faint snapshot of whatever
+ * element was grabbed — a grip, or a title without its row — so a copy of the
+ * whole row is lifted instead and handed to setDragImage, at the spot the
+ * pointer took it. The copy has to be in the document when the browser takes
+ * its picture, so it goes off-screen in <body> and leaves on the next tick.
+ * It carries the arrow column's width with it: that variable is set on the
+ * view's root, which the copy is outside of.
+ */
+function liftDragImage(e: DragEvent): void {
+  const transfer = e.dataTransfer;
+  const row = (e.currentTarget as HTMLElement).closest<HTMLElement>(
+    `[${ROW_ATTR}]`,
+  );
+  if (!transfer || typeof transfer.setDragImage !== "function" || !row) return;
+  const rect = row.getBoundingClientRect();
+  const ghost = row.cloneNode(true) as HTMLElement;
+  ghost.removeAttribute(ROW_ATTR);
+  ghost.setAttribute("data-goal-tree-ghost", "");
+  ghost.setAttribute("aria-hidden", "true");
+  ghost.className = cn(row.className, DRAG_GHOST);
+  ghost.style.width = `${rect.width}px`;
+  ghost.style.setProperty(
+    "--goal-tree-toggle",
+    getComputedStyle(row).getPropertyValue("--goal-tree-toggle"),
+  );
+  document.body.appendChild(ghost);
+  transfer.setDragImage(ghost, e.clientX - rect.left, e.clientY - rect.top);
+  window.setTimeout(() => ghost.remove(), 0);
+}
+
 function TodoRow({
   todo,
   fromGoalId,
@@ -286,9 +336,10 @@ function TodoRow({
     drag.source.fromGoalId === fromGoalId;
   return (
     <li
+      data-goal-tree-row=""
       className={cn(
-        "group/todo flex items-center gap-1",
-        dragged && "opacity-50",
+        "group/todo flex items-center gap-1 rounded-lumen-sm",
+        dragged && DRAG_HOLE,
       )}
     >
       {drag && (
@@ -446,12 +497,15 @@ function GoalBranch({
   return (
     <li>
       <div
+        data-goal-tree-row=""
         className={cn(
-          "group/row flex items-center rounded-lumen-sm",
-          dragged && "opacity-50",
+          "group/row flex items-center rounded-lumen-sm transition-colors",
+          dragged && DRAG_HOLE,
           placeable &&
+            !isOver &&
             "outline-1 -outline-offset-1 outline-dashed outline-lumen-accent",
-          isOver && "bg-lumen-accent-subtle",
+          isOver &&
+            "bg-lumen-accent-subtle outline-2 -outline-offset-2 outline-lumen-accent",
         )}
         onDragOver={drag ? (e) => drag.over(e, goal) : undefined}
         onDragLeave={drag ? (e) => drag.leave(e, goal.id) : undefined}
@@ -562,13 +616,14 @@ function GoalBranch({
             aria-hidden
             data-drop-target={goal.id}
             className={cn(
-              "mx-1 grid size-5 shrink-0 place-items-center rounded-lumen-sm border border-lumen-accent transition-colors",
+              "mx-1 inline-flex h-5 min-w-5 shrink-0 items-center justify-center gap-1 rounded-lumen-sm border border-lumen-accent transition-colors",
               isOver
-                ? "bg-lumen-accent text-lumen-on-accent"
+                ? "bg-lumen-accent px-1.5 text-xs whitespace-nowrap text-lumen-on-accent"
                 : "border-dashed text-lumen-accent",
             )}
           >
             <Plus size={12} />
+            {isOver && labels.dropHere}
           </span>
         )}
       </div>
@@ -759,6 +814,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
             source.kind === "goal" ? source.goal.id : source.todoId,
           );
           if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+          liftDragImage(e);
           dragSource.current = source;
           window.setTimeout(() => {
             if (dragSource.current === source) setShownSource(source);
