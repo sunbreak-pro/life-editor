@@ -54,8 +54,7 @@ export const GOAL_TOOLS: ToolDefinition[] = [
   defineTool({
     name: "create_goal",
     description:
-      "Create a Briefing goal for a period. At most 3 live goals per period — the call fails on a fourth " +
-      "(a goal answered 'dropped' still counts; delete_goal frees the slot). " +
+      "Create a Briefing goal for a period. A period may hold any number of goals. " +
       "A goal's parent is one level up only (a week goal's parent is a month goal, a month goal's a year goal). " +
       "Link todos to it afterwards with link_goal_todo.",
     inputSchema: {

@@ -48,6 +48,9 @@ export interface GoalsPayloadRow {
   decided_at: string | null;
   carried_from_goal_id: string | null;
   legacy_key: string | null;
+  /** 0044 (#2366). Both or neither; absent on a row read before it. */
+  start_date?: string | null;
+  end_date?: string | null;
 }
 
 /** `parent_goal_role` is a generated column (0034) — never written. */
@@ -60,7 +63,7 @@ export const ITEMS_META_GOAL_COLUMNS = ITEMS_META_COLUMNS;
 export const GOALS_PAYLOAD_COLUMNS =
   "item_id, user_id, period_kind, period_key, sort_order, parent_goal_id, " +
   "manual_achieved_at, period_end_decision, decided_at, " +
-  "carried_from_goal_id, legacy_key";
+  "carried_from_goal_id, legacy_key, start_date, end_date";
 
 export interface GoalTodoLinkRow {
   id: string;
@@ -139,6 +142,8 @@ export function rowsToGoal(
     decidedAt: payload.decided_at,
     carriedFromGoalId: payload.carried_from_goal_id,
     legacyKey: payload.legacy_key,
+    startDate: payload.start_date ?? null,
+    endDate: payload.end_date ?? null,
     isDeleted: meta.is_deleted,
     createdAt: meta.created_at,
     updatedAt: meta.updated_at,
@@ -168,6 +173,27 @@ export interface GoalCreateInput {
   parentGoalId?: string | null;
   carriedFromGoalId?: string | null;
   legacyKey?: string | null;
+  /** A range of its own (#2366); both or neither. */
+  startDate?: string | null;
+  endDate?: string | null;
+}
+
+/** Throw unless the range is both-or-neither and does not run backwards. */
+export function assertGoalDateRange(
+  label: string,
+  startDate: string | null | undefined,
+  endDate: string | null | undefined,
+): void {
+  const start = startDate ?? null;
+  const end = endDate ?? null;
+  if ((start === null) !== (end === null)) {
+    throw new Error(`${label}: a date range needs both a start and an end`);
+  }
+  if (start !== null && end !== null && end < start) {
+    throw new Error(
+      `${label}: the range ends (${end}) before it starts (${start})`,
+    );
+  }
 }
 
 export function goalCreateToRows(
@@ -175,6 +201,7 @@ export function goalCreateToRows(
   userId: string,
 ): { meta: ItemsMetaGoalInsertRow; payload: GoalsPayloadRow } {
   assertGoalPeriod("goalCreateToRows", input.periodKind, input.periodKey);
+  assertGoalDateRange("goalCreateToRows", input.startDate, input.endDate);
   return {
     meta: toItemsMetaInsertRow({
       id: input.id,
@@ -194,6 +221,10 @@ export function goalCreateToRows(
       decided_at: null,
       carried_from_goal_id: input.carriedFromGoalId ?? null,
       legacy_key: input.legacyKey ?? null,
+      // Only when set: a goal without a range leaves both columns NULL.
+      ...(input.startDate && input.endDate
+        ? { start_date: input.startDate, end_date: input.endDate }
+        : {}),
     },
   };
 }
@@ -215,6 +246,8 @@ export type GoalUpdates = Partial<
     | "parentGoalId"
     | "manualAchievedAt"
     | "periodEndDecision"
+    | "startDate"
+    | "endDate"
   >
 >;
 
@@ -242,6 +275,16 @@ export function goalUpdatesToPatches(
     payloadPatch.parent_goal_id = updates.parentGoalId;
   if (updates.manualAchievedAt !== undefined)
     payloadPatch.manual_achieved_at = updates.manualAchievedAt;
+  // The range moves as a pair (0044's CHECK): one end alone is refused.
+  if (updates.startDate !== undefined || updates.endDate !== undefined) {
+    assertGoalDateRange(
+      "goalUpdatesToPatches",
+      updates.startDate,
+      updates.endDate,
+    );
+    payloadPatch.start_date = updates.startDate ?? null;
+    payloadPatch.end_date = updates.endDate ?? null;
+  }
   if (updates.periodEndDecision !== undefined) {
     const decision = updates.periodEndDecision;
     payloadPatch.period_end_decision = decision;

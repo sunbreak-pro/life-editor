@@ -32,9 +32,22 @@ export interface Goal {
   carriedFromGoalId: string | null;
   /** The `note-goals` section it was migrated from, so it moves only once. */
   legacyKey: string | null;
+  /**
+   * A date range set by hand (#2366, 0044), both `YYYY-MM-DD` or both null.
+   * Null keeps the period's own range. Optional so the rows and fixtures
+   * written before 0044 still type.
+   */
+  startDate?: string | null;
+  endDate?: string | null;
   isDeleted: boolean;
   createdAt: string;
   updatedAt: string;
+}
+
+/** A goal's own range (#2366): first and last day, both `YYYY-MM-DD`. */
+export interface GoalDateRange {
+  startDate: string;
+  endDate: string;
 }
 
 /** One goal ↔ todo edge (`goal_todo_links`). */
