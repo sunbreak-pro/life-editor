@@ -481,13 +481,17 @@ export function ScheduleOverlays({
         open={tagFilter.open}
         onClose={tagFilter.onClose}
         title={t("scheduleScreen.filterTitle")}
-        size="lg"
+        // #2155: the compact width of the Claude Design proposal — a list of
+        // tag rows and group rows reads best narrow, not as a wide form.
+        size="sm"
         // #2142: on a phone the panel covers most of the screen, so it gets a
         // corner ×, and is held to the viewport with its body scrolling.
         fitViewport
         closeLabel={t("common.close")}
       >
-        <TagFilterPanel {...tagFilter.panel} />
+        {/* The panel also gets the close, for the Close button it draws at
+            its foot on narrow — the corner × is out of the thumb's reach. */}
+        <TagFilterPanel {...tagFilter.panel} onClose={tagFilter.onClose} />
       </Modal>
       {bubble}
       {repeatBubble}
