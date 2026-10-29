@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import type { RealtimeChannel } from "@supabase/supabase-js";
 import { SyncContext, type WebSyncContextValue } from "./SyncContextValue";
 import {
@@ -123,6 +130,9 @@ export const REALTIME_TABLES = [
 
 const DEBOUNCE_MS = 300;
 
+/** Hands each SyncProvider mount its own epoch (#2328). */
+let lastEpoch = 0;
+
 const ZERO_DOMAIN_VERSIONS: Readonly<Record<SyncDomain, number>> =
   Object.freeze(uniformDomainVersions(0));
 
@@ -147,6 +157,16 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     domainVersions: Readonly<Record<SyncDomain, number>>;
   }>({ syncVersion: 0, domainVersions: ZERO_DOMAIN_VERSIONS });
   const listenersRef = useRef(new Set<() => void>());
+  const [epoch] = useState(() => ++lastEpoch);
+  /*
+   * Own-write echoes that were dropped (#2290) per domain. They must not
+   * refetch, so they are NOT in the store above and notify nobody — but the
+   * list a section last read no longer matches what this tab wrote, so
+   * `getRevision` counts them. A plain ref: nothing renders from it.
+   */
+  const ownWritesRef = useRef<Record<SyncDomain, number>>({
+    ...ZERO_DOMAIN_VERSIONS,
+  });
 
   const subscribe = useCallback((onStoreChange: () => void) => {
     const listeners = listenersRef.current;
@@ -230,7 +250,12 @@ export function SyncProvider({ children }: { children: ReactNode }) {
           "postgres_changes",
           { event: "*", schema: "public", table },
           (payload) => {
-            if (isOwnEcho(table, payload.new)) return;
+            if (isOwnEcho(table, payload.new)) {
+              const own = ownWritesRef.current;
+              for (const d of domainsForChange(table, payload.new, payload.old))
+                own[d] += 1;
+              return;
+            }
             scheduleBump(domainsForChange(table, payload.new, payload.old));
           },
         );
@@ -275,11 +300,19 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       },
       subscribe,
       getDomainVersions: () => storeRef.current.domainVersions,
+      epoch,
+      getRevision: (domains: readonly SyncDomain[]) => {
+        const versions = storeRef.current.domainVersions;
+        const own = ownWritesRef.current;
+        let total = 0;
+        for (const d of domains) total += versions[d] + own[d];
+        return total;
+      },
       triggerSync: async () => {
         bumpRef.current(SYNC_DOMAINS);
       },
     }),
-    [subscribe],
+    [subscribe, epoch],
   );
 
   return <SyncContext.Provider value={value}>{children}</SyncContext.Provider>;

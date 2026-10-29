@@ -387,3 +387,37 @@ describe("GoalTreeView — completed items move to their own list (#2368)", () =
     region("Goals").getByRole("button", { name: /^Year: Run 10 km — / });
   });
 });
+
+describe("GoalTreeView — button labels stay on one line (#2364)", () => {
+  /*
+   * jsdom has no layout, so this pins the two rules that keep a label whole:
+   * the button does not shrink, and its text does not wrap. Without them a
+   * w-full field beside it squeezed 「追加」 into a one-character column.
+   */
+  const keepsLabel = (el: HTMLElement): void => {
+    expect(el.className).toContain("shrink-0");
+    expect(el.className).toContain("whitespace-nowrap");
+  };
+
+  it("keeps the add-goal row's buttons whole beside the field", () => {
+    renderTree();
+    const thisWeek = screen.getByRole("button", { name: /^This week/ });
+    keepsLabel(thisWeek);
+    fireEvent.click(thisWeek);
+    const field = screen.getByRole("textbox", { name: "This week: Goal" });
+    expect(field.className).toContain("min-w-0");
+    keepsLabel(screen.getByRole("button", { name: "Add" }));
+    keepsLabel(screen.getByRole("button", { name: "Cancel" }));
+  });
+
+  it("keeps the loose group's add buttons whole", () => {
+    renderTree();
+    const open = screen.getByRole("button", { name: "Add a todo" });
+    keepsLabel(open);
+    fireEvent.click(open);
+    expect(
+      screen.getByRole("textbox", { name: "Add a todo" }).className,
+    ).toContain("min-w-0");
+    keepsLabel(screen.getByRole("button", { name: "Add" }));
+  });
+});
