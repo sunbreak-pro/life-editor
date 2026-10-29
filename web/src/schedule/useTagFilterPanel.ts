@@ -92,6 +92,7 @@ export function useTagFilterPanel({
           tagNames: live.map((id) => tagNameById.get(id) ?? id),
           tagIds: live,
           active: live.length > 0 && [...live].sort().join(" ") === selectedKey,
+          editLabel: t("scheduleScreen.filterGroupEdit", { name: group.name }),
           deleteLabel: t("scheduleScreen.filterGroupDelete", {
             name: group.name,
           }),
@@ -102,29 +103,24 @@ export function useTagFilterPanel({
 
   const labels = useMemo<TagFilterPanelLabels>(
     () => ({
-      tagsHeading: t("scheduleScreen.filterTagsHeading"),
       tagsLabel: t("scheduleScreen.filterTagsLabel"),
       noTags: t("scheduleScreen.filterNoTags"),
       tagsLoading: t("scheduleScreen.filterTagsLoading"),
       clear: t("scheduleScreen.filterClear"),
-      selectedCount: t("scheduleScreen.filterSelectedCount", {
-        count: selectedTagIds.length,
-      }),
+      close: t("common.close"),
       groupsHeading: t("scheduleScreen.filterGroupsHeading"),
       groupsEmpty: t("scheduleScreen.filterGroupsEmpty"),
+      saveCurrent: t("scheduleScreen.filterGroupSaveCurrent"),
       namePlaceholder: t("scheduleScreen.filterGroupNamePlaceholder"),
       save: t("scheduleScreen.filterGroupSave"),
       saveHint: t("scheduleScreen.filterGroupSaveHint"),
-      apply: t("scheduleScreen.filterGroupApply"),
-      release: t("scheduleScreen.filterGroupRelease"),
-      editTags: t("scheduleScreen.filterGroupEditTags"),
       editTagsSave: t("scheduleScreen.filterGroupEditTagsSave"),
-      editTagsCancel: t("scheduleScreen.filterGroupEditTagsCancel"),
+      cancel: t("scheduleScreen.filterGroupEditTagsCancel"),
       editTagsHint: t("scheduleScreen.filterGroupEditTagsHint"),
       renameGroup: t("scheduleScreen.filterGroupRename"),
       groupEmpty: t("scheduleScreen.filterGroupEmpty"),
     }),
-    [t, selectedTagIds.length],
+    [t],
   );
 
   return {

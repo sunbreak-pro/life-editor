@@ -1,9 +1,16 @@
-import { useState } from "react";
-import { Check, Trash2 } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { Check, Layers, Pencil, Plus, Trash2 } from "lucide-react";
 import { cn } from "../cn";
+import { IconButton } from "../IconButton";
+import { SelectCheckbox } from "../SelectCheckbox";
+import { SkeletonList } from "../SkeletonList";
 import { TagHeadingIcon } from "../TagHeadingIcon";
 import { isImeComposing } from "../../utils/imeGuard";
-import { DISABLED_FILLED_BTN, FOCUS_RING_ON_ACCENT } from "../styleTokens";
+import {
+  DISABLED_FILLED_BTN,
+  FOCUS_RING_ON_ACCENT,
+  FOCUS_RING_TIGHT,
+} from "../styleTokens";
 
 /*
  * TagFilterPanel (#1173) — what the Calendar toolbar's filter button opens.
@@ -20,10 +27,18 @@ import { DISABLED_FILLED_BTN, FOCUS_RING_ON_ACCENT } from "../styleTokens";
  * ticks — putting the cause under the effect would make the list read as a
  * separate filter competing with the checkboxes.
  *
+ * #2155 rebuilt the look from the Claude Design proposal: a quiet list, not a
+ * form. A group row is ONE press — the row itself applies the group, and the
+ * applied row (lit, with a check) takes it off again — with a pencil and a bin
+ * beside it. Renaming moved into the pencil's editor, because a name drawn as
+ * an always-open text field made every row look like a form to fill in. Saving
+ * the ticks as a new group is one button that opens the name field only when
+ * it is wanted. The ticks are the square selection box (#2217), not the
+ * browser's own.
+ *
  * Pure presentation (§3.1 / §6.4): copy arrives translated, every action is a
- * callback, lumen-* tokens only (§5). The only state it owns is the two draft
- * text fields, which are typing buffers rather than app state — the same call
- * the retired CalendarView made.
+ * callback, lumen-* tokens only (§5). The only state it owns is drafts —
+ * typing buffers and an editor's ticks — rather than app state.
  */
 
 export interface TagFilterPanelTag {
@@ -55,53 +70,47 @@ export interface TagFilterPanelGroup {
   /** Whether the current tick list is exactly this group. */
   active: boolean;
   /**
-   * Already-interpolated aria-label for this row's delete button (e.g.
-   * "Delete Work"). Per-row rather than one shared label because the visible
-   * name sits in a text INPUT: a screen reader announces an input by its own
-   * label, so a generic "Delete group" here would leave the button as the one
-   * control in the row that never says which group it acts on.
+   * Already-interpolated aria-labels for this row's icon buttons (e.g.
+   * "Edit Work" / "Delete Work"). Per row rather than one shared label: a
+   * column of identical "Delete" buttons would leave a screen reader with no
+   * way to tell which group each one acts on.
    */
+  editLabel: string;
   deleteLabel: string;
 }
 
 export interface TagFilterPanelLabels {
-  /** Heading over the checkbox list. */
-  tagsHeading: string;
   /** Accessible name for the checkbox group. */
   tagsLabel: string;
   /** Shown instead of the list when no tag exists yet. */
   noTags: string;
-  /** Shown instead of the list while the tags are still arriving. */
+  /** Announced while the tags are still arriving (the skeleton is silent). */
   tagsLoading: string;
   /** Button that unticks everything. */
   clear: string;
-  /** Already-interpolated "N selected". */
-  selectedCount: string;
+  /** Narrow-only button that closes the panel from the thumb's end. */
+  close: string;
   /** Heading over the saved-group list. */
   groupsHeading: string;
   /** Shown instead of the group list when none exist yet. */
   groupsEmpty: string;
+  /** Opens the name field that saves the current ticks as a group. */
+  saveCurrent: string;
   /** Placeholder for the new-group name field. */
   namePlaceholder: string;
   /** Button that saves the current ticks as a group. */
   save: string;
-  /** Hint under the save row while no tag is ticked. */
+  /** Hint under the save button while no tag is ticked. */
   saveHint: string;
-  /** Button that applies a saved group. */
-  apply: string;
-  /** Button that takes the applied group off, in the active row (#2142). */
-  release: string;
-  /** Button that opens the group's tag editor (#2142). */
-  editTags: string;
-  /** Saves the tag editor's ticks into the group. */
+  /** Saves the group editor's name and ticks. */
   editTagsSave: string;
-  /** Closes the tag editor without writing. */
-  editTagsCancel: string;
+  /** Closes a draft (the editor, the new-group field) without writing. */
+  cancel: string;
   /** Hint in the tag editor while no tag is ticked (a group needs one). */
   editTagsHint: string;
-  /** aria-label for the per-group rename field. */
+  /** aria-label for the group editor's name field. */
   renameGroup: string;
-  /** Said in place of the tag list of a group whose tags are all gone. */
+  /** Said under the name of a group whose tags are all gone. */
   groupEmpty: string;
 }
 
@@ -119,120 +128,103 @@ export interface TagFilterPanelProps {
   onUpdateGroupTags: (groupId: string, tagIds: string[]) => void;
   onRenameGroup: (groupId: string, name: string) => void;
   onDeleteGroup: (groupId: string) => void;
+  /**
+   * Closes the panel. When given, narrow draws a Close button at the foot of
+   * the panel, next to Clear — the corner × of the frame is out of the
+   * thumb's reach on a phone.
+   */
+  onClose?: () => void;
   /** True until the tag list has landed once (never during a background refetch). */
   tagsLoading?: boolean;
   labels: TagFilterPanelLabels;
   className?: string;
 }
 
-const SECTION_HEADING =
-  "text-xs font-semibold uppercase tracking-wide text-lumen-text-secondary";
+const SECTION_HEADING = "text-xs font-semibold text-lumen-text-secondary";
 
-const GHOST_BUTTON =
-  "rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
-
-/*
- * The row's main action (#2142): Apply, or Release on the applied row. Bigger
- * than GHOST_BUTTON on purpose — it is the reason the row exists — and 44px
- * tall on narrow (#1512), where the panel is used with a thumb.
- */
-const ROW_ACTION =
-  "rounded-lumen-md px-3 py-1.5 text-sm font-medium transition-colors focus-visible:outline-none max-md:min-h-11 max-md:min-w-11";
+/* One line of the panel: a tag to tick, or a tag in a group's editor. */
+const TAG_ROW =
+  "flex cursor-pointer items-center gap-2.5 rounded-lumen-md px-2 py-1.5 text-sm text-lumen-text transition-colors hover:bg-lumen-hover max-md:min-h-11";
 
 const TEXT_FIELD =
-  "min-w-0 flex-1 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+  "min-w-0 flex-1 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11";
 
-/*
- * The rename field, as its own component so the draft is per row.
- *
- * A rename is NOT sent per keystroke, which is what the calendars ledger this
- * replaced did (`updateCalendar(cal.id, { title: e.target.value })` on every
- * `onChange`). That was one PATCH per keystroke, so typing "Work" was four
- * writes for one rename — and every one of them a Realtime echo the section
- * refetches on. It commits on
- * blur and on Enter instead, IME-guarded (§7: WebKit sends the
- * variant-CONFIRMING Enter with `isComposing: false`, so the flag alone lets
- * the one keypress that matters through).
- *
- * The draft re-seeds when `name` changes from outside — the optimistic write
- * lands, then the server's row replaces it — so a rejected write puts the old
- * name back in the field rather than leaving the user's text over data that
- * never took.
- */
-function GroupNameField({
-  name,
-  onCommit,
-  label,
+/* The filled commit of a draft (Save). Its dead state is the recess (#1803). */
+const FILLED_BUTTON = cn(
+  "rounded-lumen-md bg-lumen-accent px-3 py-1.5 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11",
+  FOCUS_RING_ON_ACCENT,
+  DISABLED_FILLED_BTN,
+);
+
+const OUTLINE_BUTTON = cn(
+  "rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover max-md:min-h-11",
+  FOCUS_RING_TIGHT,
+);
+
+/* A row's icon button: 32px on wide, the 44px floor on narrow (#1512). */
+const ROW_ICON = "shrink-0 max-md:size-11";
+
+function TagCheckRow({
+  tag,
+  checked,
+  onToggle,
+  showCount,
 }: {
-  name: string;
-  onCommit: (next: string) => void;
-  label: string;
+  tag: TagFilterPanelTag;
+  checked: boolean;
+  onToggle: () => void;
+  showCount: boolean;
 }) {
-  const [draft, setDraft] = useState(name);
-  // Re-seed when the name changes from outside — adjusted during render (the
-  // React "information from previous renders" pattern, as in ColorPicker) so
-  // the stale value never paints (#586). An effect would be a cascading render
-  // and is what `react-hooks/set-state-in-effect` exists to stop.
-  const [prevName, setPrevName] = useState(name);
-  if (prevName !== name) {
-    setPrevName(name);
-    setDraft(name);
-  }
-
-  const commit = () => {
-    const next = draft.trim();
-    // An empty name would leave a row with nothing to click; the field snaps
-    // back rather than saving a group the user cannot tell apart from another.
-    if (!next || next === name) {
-      setDraft(name);
-      return;
-    }
-    onCommit(next);
-  };
-
   return (
-    <input
-      type="text"
-      value={draft}
-      onChange={(e) => setDraft(e.target.value)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        if (e.key === "Enter" && !isImeComposing(e)) commit();
-        if (e.key === "Escape") setDraft(name);
-      }}
-      aria-label={label}
-      className={cn(TEXT_FIELD, "min-w-[8rem]")}
-    />
+    // The label names the square: its text becomes the checkbox's accessible
+    // name, and a press anywhere on the row presses it.
+    <label className={TAG_ROW}>
+      <SelectCheckbox checked={checked} onChange={onToggle} />
+      {/* The tag's own glyph, not a colour dot (#1291): the same
+          <TagHeadingIcon> the chips and the Tag hub draw, so a tag is
+          recognisable here by the icon it was given rather than only by a
+          tint that half the tags never set. */}
+      <TagHeadingIcon icon={tag.icon} color={tag.color} size={15} />
+      <span className="min-w-0 flex-1 truncate">{tag.name}</span>
+      {showCount && (
+        <span className="tabular-nums text-xs text-lumen-text-tertiary">
+          {tag.count}
+        </span>
+      )}
+    </label>
   );
 }
 
 /*
- * A group's tag editor (#2142), opened under its row.
+ * A group's editor (#2142, #2155), opened under its row by the pencil: the
+ * name and the tags, both as DRAFTS. Nothing is written until Save, so
+ * unticking the last tag on the way to ticking another never leaves a group
+ * that narrows to nothing, and typing a name is one write, not one per
+ * keystroke — the ledger this panel replaced sent a PATCH on every
+ * `onChange`, each one a Realtime echo the section refetches on.
  *
- * The ticks are a DRAFT: nothing is written until Save, so unticking the last
- * tag on the way to ticking another never leaves a group that narrows to
- * nothing. Save stays off while no tag is ticked, for the same reason the
- * new-group save does — an empty group could only ever empty the grid.
+ * Save stays off while no tag is ticked, for the same reason the new-group
+ * save does — an empty group could only ever empty the grid. An emptied name
+ * is not saved either; the group keeps the one it had.
  */
-function GroupTagEditor({
+function GroupEditor({
+  group,
   tags,
-  initial,
-  label,
   labels,
   onSave,
   onCancel,
 }: {
+  group: TagFilterPanelGroup;
   tags: TagFilterPanelTag[];
-  initial: string[];
-  label: string;
   labels: Pick<
     TagFilterPanelLabels,
-    "editTagsSave" | "editTagsCancel" | "editTagsHint"
+    "editTagsSave" | "cancel" | "editTagsHint" | "renameGroup"
   >;
-  onSave: (tagIds: string[]) => void;
+  onSave: (name: string | null, tagIds: string[] | null) => void;
   onCancel: () => void;
 }) {
-  const [draft, setDraft] = useState<Set<string>>(() => new Set(initial));
+  const [name, setName] = useState(group.name);
+  const [draft, setDraft] = useState<Set<string>>(() => new Set(group.tagIds));
   const toggle = (id: string) =>
     setDraft((prev) => {
       const next = new Set(prev);
@@ -241,29 +233,50 @@ function GroupTagEditor({
       return next;
     });
 
+  const save = () => {
+    if (draft.size === 0) return;
+    const nextName = name.trim();
+    // Kept in the order the tags are listed, so the saved group reads the
+    // same way the editor did.
+    const nextTags = tags.map((t) => t.id).filter((id) => draft.has(id));
+    const sameTags =
+      nextTags.length === group.tagIds.length &&
+      nextTags.every((id) => group.tagIds.includes(id));
+    onSave(
+      nextName && nextName !== group.name ? nextName : null,
+      sameTags ? null : nextTags,
+    );
+  };
+
   return (
-    <div className="flex basis-full flex-col gap-2 border-t border-lumen-border pt-2">
+    <div className="flex basis-full flex-col gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary p-2">
+      <input
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          // WebKit sends the variant-CONFIRMING Enter with
+          // `isComposing: false`, so the flag alone lets the one keypress
+          // that matters through (§7).
+          if (e.key === "Enter" && !isImeComposing(e)) save();
+          if (e.key === "Escape") onCancel();
+        }}
+        aria-label={labels.renameGroup}
+        className={TEXT_FIELD}
+      />
       <div
         role="group"
-        aria-label={label}
+        aria-label={group.name}
         className="flex max-h-48 flex-col gap-0.5 overflow-y-auto"
       >
         {tags.map((tag) => (
-          <label
+          <TagCheckRow
             key={tag.id}
-            className="flex cursor-pointer items-center gap-2 rounded-lumen-sm px-1.5 py-1 transition-colors hover:bg-lumen-hover max-md:min-h-11"
-          >
-            <input
-              type="checkbox"
-              checked={draft.has(tag.id)}
-              onChange={() => toggle(tag.id)}
-              className="size-4 shrink-0 accent-lumen-accent"
-            />
-            <TagHeadingIcon icon={tag.icon} color={tag.color} size={14} />
-            <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
-              {tag.name}
-            </span>
-          </label>
+            tag={tag}
+            checked={draft.has(tag.id)}
+            onToggle={() => toggle(tag.id)}
+            showCount={false}
+          />
         ))}
       </div>
       {draft.size === 0 && (
@@ -272,32 +285,71 @@ function GroupTagEditor({
         </p>
       )}
       <div className="flex items-center justify-end gap-2">
-        <button
-          type="button"
-          onClick={onCancel}
-          className={cn(
-            ROW_ACTION,
-            "border border-lumen-border-strong text-lumen-text hover:bg-lumen-hover focus-visible:ring-2 focus-visible:ring-lumen-accent",
-          )}
-        >
-          {labels.editTagsCancel}
+        <button type="button" onClick={onCancel} className={OUTLINE_BUTTON}>
+          {labels.cancel}
         </button>
         <button
           type="button"
-          // Kept in the order the tags are listed, so the saved group reads
-          // the same way the editor did.
-          onClick={() =>
-            onSave(tags.map((t) => t.id).filter((id) => draft.has(id)))
-          }
+          onClick={save}
           disabled={draft.size === 0}
-          className={cn(
-            ROW_ACTION,
-            "bg-lumen-accent text-lumen-on-accent hover:bg-lumen-accent-hover",
-            FOCUS_RING_ON_ACCENT,
-            DISABLED_FILLED_BTN,
-          )}
+          className={FILLED_BUTTON}
         >
           {labels.editTagsSave}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/*
+ * The new-group name field, mounted only once "Save these tags as a group" is
+ * pressed, and focused on arrival so the press goes straight to typing.
+ */
+function NewGroupForm({
+  labels,
+  onSave,
+  onCancel,
+}: {
+  labels: Pick<TagFilterPanelLabels, "namePlaceholder" | "save" | "cancel">;
+  onSave: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState("");
+  const field = useRef<HTMLInputElement>(null);
+  useEffect(() => {
+    field.current?.focus();
+  }, []);
+  const canSave = name.trim().length > 0;
+  const save = () => {
+    if (canSave) onSave(name.trim());
+  };
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <input
+        ref={field}
+        type="text"
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !isImeComposing(e)) save();
+          if (e.key === "Escape") onCancel();
+        }}
+        placeholder={labels.namePlaceholder}
+        aria-label={labels.namePlaceholder}
+        className={cn(TEXT_FIELD, "basis-full")}
+      />
+      <div className="flex flex-1 items-center justify-end gap-2">
+        <button type="button" onClick={onCancel} className={OUTLINE_BUTTON}>
+          {labels.cancel}
+        </button>
+        <button
+          type="button"
+          onClick={save}
+          disabled={!canSave}
+          className={FILLED_BUTTON}
+        >
+          {labels.save}
         </button>
       </div>
     </div>
@@ -316,211 +368,207 @@ export function TagFilterPanel({
   onUpdateGroupTags,
   onRenameGroup,
   onDeleteGroup,
+  onClose,
   tagsLoading = false,
   labels,
   className,
 }: TagFilterPanelProps) {
-  const [draftName, setDraftName] = useState("");
-  // One tag editor open at a time: two open drafts would make it unclear which
+  // One draft open at a time: two open editors would make it unclear which
   // Save the user meant.
   const [editingGroupId, setEditingGroupId] = useState<string | null>(null);
+  const [naming, setNaming] = useState(false);
   const selected = new Set(selectedTagIds);
-  const canSave = selected.size > 0 && draftName.trim().length > 0;
-
-  const handleSave = () => {
-    if (!canSave) return;
-    onSaveGroup(draftName.trim());
-    setDraftName("");
-  };
+  const hasTicks = selected.size > 0;
 
   return (
-    <div className={cn("flex flex-col gap-5", className)}>
-      <section className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-          <h3 className={SECTION_HEADING}>{labels.tagsHeading}</h3>
-          <div className="flex-1" />
-          {selected.size > 0 && (
-            <>
-              <span className="text-xs text-lumen-text-secondary">
-                {labels.selectedCount}
-              </span>
-              <button type="button" onClick={onClear} className={GHOST_BUTTON}>
-                {labels.clear}
-              </button>
-            </>
-          )}
-        </div>
-
-        {tagsLoading ? (
-          <p className="text-sm text-lumen-text-secondary">
+    <div className={cn("flex flex-col gap-3", className)}>
+      {tagsLoading ? (
+        <div>
+          <p role="status" className="sr-only">
             {labels.tagsLoading}
           </p>
-        ) : tags.length === 0 ? (
-          <p className="text-sm text-lumen-text-secondary">{labels.noTags}</p>
-        ) : (
-          <div
-            role="group"
-            aria-label={labels.tagsLabel}
-            className="flex max-h-64 flex-col gap-0.5 overflow-y-auto"
-          >
-            {tags.map((tag) => (
-              <label
-                key={tag.id}
-                className="flex cursor-pointer items-center gap-2 rounded-lumen-sm px-1.5 py-1 transition-colors hover:bg-lumen-hover"
-              >
-                <input
-                  type="checkbox"
-                  checked={selected.has(tag.id)}
-                  onChange={() => onToggleTag(tag.id)}
-                  className="size-4 shrink-0 accent-lumen-accent"
-                />
-                {/* The tag's own glyph, not a colour dot (#1291): the same
-                    <TagHeadingIcon> the chips and the Tag hub draw, so a tag
-                    is recognisable here by the icon it was given rather than
-                    only by a tint that half the tags never set. */}
-                <TagHeadingIcon icon={tag.icon} color={tag.color} size={14} />
-                <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
-                  {tag.name}
-                </span>
-                <span className="tabular-nums text-xs text-lumen-text-tertiary">
-                  {tag.count}
-                </span>
-              </label>
-            ))}
-          </div>
-        )}
+          <SkeletonList rows={4} rowHeight={28} gap={6} />
+        </div>
+      ) : tags.length === 0 ? (
+        <p className="text-sm text-lumen-text-secondary">{labels.noTags}</p>
+      ) : (
+        <div
+          role="group"
+          aria-label={labels.tagsLabel}
+          className="flex max-h-56 flex-col gap-0.5 overflow-y-auto"
+        >
+          {tags.map((tag) => (
+            <TagCheckRow
+              key={tag.id}
+              tag={tag}
+              checked={selected.has(tag.id)}
+              onToggle={() => onToggleTag(tag.id)}
+              showCount
+            />
+          ))}
+        </div>
+      )}
 
-        <div className="flex flex-wrap items-center gap-2">
-          <input
-            type="text"
-            value={draftName}
-            onChange={(e) => setDraftName(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !isImeComposing(e)) handleSave();
-            }}
-            placeholder={labels.namePlaceholder}
-            className={TEXT_FIELD}
-          />
+      {/*
+       * Clear (+ Close on narrow). On wide it sits right under the ticks it
+       * clears; on narrow it moves to the foot of the panel beside Close, where
+       * the thumb already is (the proposal's mobile frame). The move is
+       * `order`, not a second copy, so there is one Clear in the tree.
+       */}
+      <div className="flex items-center gap-2 max-md:order-last max-md:border-t max-md:border-lumen-border max-md:pt-2">
+        <button
+          type="button"
+          onClick={onClear}
+          disabled={!hasTicks}
+          className={cn(
+            "rounded-lumen-sm px-1 py-0.5 text-sm font-medium text-lumen-accent transition-colors hover:text-lumen-accent-hover max-md:min-h-11",
+            "disabled:cursor-not-allowed disabled:text-lumen-text-tertiary",
+            FOCUS_RING_TIGHT,
+          )}
+        >
+          {labels.clear}
+        </button>
+        <div className="flex-1" />
+        {onClose && (
           <button
             type="button"
-            onClick={handleSave}
-            disabled={!canSave}
+            onClick={onClose}
             className={cn(
-              "rounded-lumen-md bg-lumen-accent px-3 py-1 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
-              FOCUS_RING_ON_ACCENT,
-              // Filled, so its dead state is the recess (#1803). With no tag
-              // ticked this button spends most of its life disabled.
-              DISABLED_FILLED_BTN,
+              "md:hidden rounded-lumen-md bg-lumen-bg-secondary px-4 text-sm font-semibold text-lumen-text transition-colors hover:bg-lumen-hover min-h-11",
+              FOCUS_RING_TIGHT,
             )}
           >
-            {labels.save}
+            {labels.close}
           </button>
-        </div>
-        {selected.size === 0 && (
-          <p className="text-xs text-lumen-text-tertiary">{labels.saveHint}</p>
         )}
-      </section>
+      </div>
 
-      <section className="flex flex-col gap-2">
+      <section className="flex flex-col gap-1.5 border-t border-lumen-border pt-3">
         <h3 className={SECTION_HEADING}>{labels.groupsHeading}</h3>
         {groups.length === 0 ? (
           <p className="text-sm text-lumen-text-secondary">
             {labels.groupsEmpty}
           </p>
         ) : (
-          <ul className="flex flex-col gap-2">
-            {groups.map((group) => (
-              <li
-                key={group.id}
-                className={cn(
-                  "flex flex-wrap items-center gap-2 rounded-lumen-md border p-2",
-                  group.active
-                    ? "border-lumen-accent bg-lumen-accent-subtle"
-                    : "border-lumen-border",
-                )}
-              >
-                {group.active && (
-                  <Check
-                    aria-hidden
-                    className="size-3.5 shrink-0 text-lumen-accent"
-                  />
-                )}
-                <GroupNameField
-                  name={group.name}
-                  onCommit={(next) => onRenameGroup(group.id, next)}
-                  label={labels.renameGroup}
-                />
-                <span className="min-w-0 basis-full truncate text-xs text-lumen-text-secondary">
-                  {group.tagNames.length === 0
-                    ? labels.groupEmpty
-                    : group.tagNames.join(" / ")}
-                </span>
-                {group.active ? (
-                  // #2142: the applied row offers the way back out where Apply
-                  // stood. Before, Apply stayed on the lit row and pressing it
-                  // did nothing, so the only exit was unticking every tag.
+          <ul className="flex flex-col gap-0.5">
+            {groups.map((group) => {
+              const empty = group.tagNames.length === 0;
+              const editing = editingGroupId === group.id;
+              return (
+                <li key={group.id} className="flex flex-wrap items-center gap-1">
+                  {/* The row IS the apply: one press narrows the grid to the
+                      group, and the lit row takes it off again (#2142's
+                      Release, folded into the same press). */}
                   <button
                     type="button"
-                    onClick={onReleaseGroup}
+                    aria-pressed={group.active}
+                    onClick={() =>
+                      group.active ? onReleaseGroup() : onApplyGroup(group.id)
+                    }
+                    disabled={empty}
+                    title={empty ? undefined : group.tagNames.join(" / ")}
                     className={cn(
-                      ROW_ACTION,
-                      "border border-lumen-accent bg-lumen-bg text-lumen-accent hover:bg-lumen-hover focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                      "flex min-w-0 flex-1 items-center gap-2.5 rounded-lumen-md px-2 py-1.5 text-left text-sm transition-colors max-md:min-h-11",
+                      FOCUS_RING_TIGHT,
+                      group.active
+                        ? "bg-lumen-accent-subtle font-medium text-lumen-accent"
+                        : "text-lumen-text hover:bg-lumen-hover",
+                      "disabled:cursor-not-allowed disabled:text-lumen-text-tertiary disabled:hover:bg-transparent",
                     )}
                   >
-                    {labels.release}
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => onApplyGroup(group.id)}
-                    disabled={group.tagNames.length === 0}
-                    className={cn(
-                      ROW_ACTION,
-                      "bg-lumen-accent text-lumen-on-accent hover:bg-lumen-accent-hover",
-                      FOCUS_RING_ON_ACCENT,
-                      DISABLED_FILLED_BTN,
+                    <Layers
+                      aria-hidden
+                      className={cn(
+                        "size-4 shrink-0",
+                        group.active ? "text-lumen-accent" : "text-lumen-text-secondary",
+                      )}
+                    />
+                    <span className="min-w-0 flex-1 truncate">{group.name}</span>
+                    {group.active && (
+                      <Check
+                        aria-hidden
+                        strokeWidth={2.5}
+                        className="size-4 shrink-0 text-lumen-accent"
+                      />
                     )}
-                  >
-                    {labels.apply}
                   </button>
-                )}
-                <button
-                  type="button"
-                  onClick={() =>
-                    setEditingGroupId((open) =>
-                      open === group.id ? null : group.id,
-                    )
-                  }
-                  aria-expanded={editingGroupId === group.id}
-                  className={cn(GHOST_BUTTON, "max-md:min-h-11")}
-                >
-                  {labels.editTags}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => onDeleteGroup(group.id)}
-                  aria-label={group.deleteLabel}
-                  className="flex size-6 items-center justify-center rounded-lumen-sm border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
-                >
-                  <Trash2 aria-hidden className="size-3.5" />
-                </button>
-                {editingGroupId === group.id && (
-                  <GroupTagEditor
-                    tags={tags}
-                    initial={group.tagIds}
-                    label={group.name}
-                    labels={labels}
-                    onSave={(tagIds) => {
-                      onUpdateGroupTags(group.id, tagIds);
-                      setEditingGroupId(null);
+                  <IconButton
+                    icon={<Pencil aria-hidden className="size-4" />}
+                    label={group.editLabel}
+                    aria-expanded={editing}
+                    onClick={() => {
+                      setNaming(false);
+                      setEditingGroupId(editing ? null : group.id);
                     }}
-                    onCancel={() => setEditingGroupId(null)}
+                    className={ROW_ICON}
                   />
-                )}
-              </li>
-            ))}
+                  <IconButton
+                    icon={<Trash2 aria-hidden className="size-4" />}
+                    label={group.deleteLabel}
+                    onClick={() => onDeleteGroup(group.id)}
+                    className={ROW_ICON}
+                  />
+                  {empty && (
+                    <p className="basis-full pl-9 text-xs text-lumen-text-tertiary">
+                      {labels.groupEmpty}
+                    </p>
+                  )}
+                  {editing && (
+                    <GroupEditor
+                      group={group}
+                      tags={tags}
+                      labels={labels}
+                      onSave={(name, tagIds) => {
+                        if (name !== null) onRenameGroup(group.id, name);
+                        if (tagIds !== null)
+                          onUpdateGroupTags(group.id, tagIds);
+                        setEditingGroupId(null);
+                      }}
+                      onCancel={() => setEditingGroupId(null)}
+                    />
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
+
+        <div className="mt-1.5">
+          {naming && hasTicks ? (
+            <NewGroupForm
+              labels={labels}
+              onSave={(name) => {
+                onSaveGroup(name);
+                setNaming(false);
+              }}
+              onCancel={() => setNaming(false)}
+            />
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditingGroupId(null);
+                  setNaming(true);
+                }}
+                disabled={!hasTicks}
+                className={cn(
+                  OUTLINE_BUTTON,
+                  "inline-flex items-center gap-1.5 font-normal",
+                  "disabled:cursor-not-allowed disabled:text-lumen-text-tertiary disabled:hover:bg-transparent",
+                )}
+              >
+                <Plus aria-hidden className="size-4 shrink-0" />
+                {labels.saveCurrent}
+              </button>
+              {!hasTicks && (
+                <p className="mt-1 text-xs text-lumen-text-tertiary">
+                  {labels.saveHint}
+                </p>
+              )}
+            </>
+          )}
+        </div>
       </section>
     </div>
   );

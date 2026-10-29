@@ -132,6 +132,7 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
   const { isLoading, error } = useDomainLoad({
     domain: "Daily",
     snapshotKey: "dailies",
+    skipWhenFresh: ["dailies"],
     dataService: ds,
     version: syncVersion,
     // #2325: the list without the bodies. Only the rows whose head cannot be
