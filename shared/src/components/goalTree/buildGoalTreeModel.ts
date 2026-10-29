@@ -305,6 +305,79 @@ export function arrangeGoalTree(
   };
 }
 
+/*
+ * Completed items out of the drawn tree (#2368). An achieved goal leaves the
+ * tree with everything under it, and a done todo leaves the goal it hangs
+ * under (or the loose list); both are listed under "Completed items" instead.
+ * Un-ticking a todo, or taking a goal's achievement back, changes the model
+ * the host passes in, and the item is back in its place on the next build.
+ *
+ * Only what is drawn moves: `byId`, the period keys and counts stay whole,
+ * and every progress number is the one `judgeGoals` already put on the node,
+ * so a parent still counts its achieved child and its done todos.
+ */
+
+/** A done todo in the completed list, with the goal it was under. */
+export interface GoalTreeCompletedTodo {
+  todo: GoalTreeTodo;
+  /** The goal row it hung under; null for a loose todo. */
+  fromGoalId: string | null;
+}
+
+export interface GoalTreeCompleted {
+  /** Achieved goals, each with its subtree as built; one entry per goal. */
+  goals: GoalTreeNode[];
+  /** Done todos not already inside an achieved goal; one per todo and goal. */
+  todos: GoalTreeCompletedTodo[];
+}
+
+export function separateCompleted(model: GoalTreeModel): {
+  model: GoalTreeModel;
+  completed: GoalTreeCompleted;
+} {
+  const goals: GoalTreeNode[] = [];
+  const todos: GoalTreeCompletedTodo[] = [];
+  const seenGoals = new Set<string>();
+  const seenTodos = new Set<string>();
+  const takeTodo = (todo: GoalTreeTodo, fromGoalId: string | null): void => {
+    // A goal drawn twice (tree and unconnected) would list its todo twice.
+    const key = `${fromGoalId ?? ""}:${todo.id}`;
+    if (seenTodos.has(key)) return;
+    seenTodos.add(key);
+    todos.push({ todo, fromGoalId });
+  };
+  const sift = (nodes: readonly GoalTreeNode[]): GoalTreeNode[] => {
+    const out: GoalTreeNode[] = [];
+    for (const node of nodes) {
+      if (node.achievement.achieved) {
+        if (!seenGoals.has(node.goal.id)) {
+          seenGoals.add(node.goal.id);
+          goals.push(node);
+        }
+        continue;
+      }
+      const open: GoalTreeTodo[] = [];
+      for (const todo of node.todos) {
+        if (todo.status === "DONE") takeTodo(todo, node.goal.id);
+        else open.push(todo);
+      }
+      out.push({ ...node, todos: open, children: sift(node.children) });
+    }
+    return out;
+  };
+  const roots = sift(model.roots);
+  const unconnected = sift(model.unconnected);
+  const looseTodos: GoalTreeTodo[] = [];
+  for (const todo of model.looseTodos) {
+    if (todo.status === "DONE") takeTodo(todo, null);
+    else looseTodos.push(todo);
+  }
+  return {
+    model: { ...model, roots, unconnected, looseTodos },
+    completed: { goals, todos },
+  };
+}
+
 /** Progress as one fraction: child goals and direct todos count alike. */
 export function goalProgress(achievement: GoalAchievement): {
   done: number;

@@ -4,6 +4,7 @@ import {
   buildGoalTreeModel,
   DEFAULT_GOAL_TREE_FILTER,
   goalParentOptions,
+  separateCompleted,
   type Goal,
   type GoalTreeArrangement,
 } from "@life-editor/shared";
@@ -221,5 +222,49 @@ describe("goalParentOptions (#2108)", () => {
       goalParentOptions([year, last, month], month).map((g) => g.id),
     ).toEqual(["y"]);
     expect(goalParentOptions([year, last, month], year)).toEqual([]);
+  });
+});
+
+describe("separateCompleted (#2368)", () => {
+  it("lifts achieved goals whole and done todos out, once each", () => {
+    const model = buildGoalTreeModel({
+      goals: [
+        goal({ id: "m", periodKind: "month", periodKey: "2026-09" }),
+        goal({ id: "w-done", parentGoalId: "m" }),
+        goal({ id: "w-open", parentGoalId: "m" }),
+      ],
+      links: [
+        { goalId: "w-done", todoId: "a", isDeleted: false },
+        { goalId: "w-open", todoId: "b", isDeleted: false },
+        { goalId: "w-open", todoId: "c", isDeleted: false },
+      ],
+      todos: [
+        { id: "a", title: "A", status: "DONE" },
+        { id: "b", title: "B", status: "DONE" },
+        { id: "c", title: "C", status: "NOT_STARTED" },
+        {
+          id: "loose-done",
+          title: "L",
+          status: "DONE",
+          completedAt: "2026-09-29T09:00:00Z",
+        },
+        { id: "loose-open", title: "O", status: "NOT_STARTED" },
+      ],
+      todayKey: TODAY,
+      untitled: "Untitled",
+    });
+    const { model: shown, completed } = separateCompleted(model);
+    expect(completed.goals.map((n) => n.goal.id)).toEqual(["w-done"]);
+    expect(completed.todos.map((t) => [t.todo.id, t.fromGoalId])).toEqual([
+      ["b", "w-open"],
+      ["loose-done", null],
+    ]);
+    const month = shown.roots[0];
+    expect(month?.children.map((n) => n.goal.id)).toEqual(["w-open"]);
+    expect(month?.children[0]?.todos.map((t) => t.id)).toEqual(["c"]);
+    expect(shown.looseTodos.map((t) => t.id)).toEqual(["loose-open"]);
+    // The month's progress is the judged one: it still counts both weeks.
+    expect(month?.achievement).toBe(model.roots[0]?.achievement);
+    expect(shown.byId).toBe(model.byId);
   });
 });

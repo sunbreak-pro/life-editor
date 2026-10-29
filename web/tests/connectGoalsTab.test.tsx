@@ -285,13 +285,17 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     loose.getByRole("button", {
       name: "Edit: Pick up the residence certificate",
     });
-    // Completed this week: listed with the done style (brief §11's sample).
-    expect(loose.getByText("Submit expenses").className).toContain(
+    // Completed this week: moved to Completed items, done-styled (#2368).
+    expect(loose.queryByText("Submit expenses")).toBeNull();
+    const done = within(
+      screen.getByRole("region", { name: "Completed items" }),
+    );
+    expect(done.getByText("Submit expenses").className).toContain(
       "line-through",
     );
-    loose.getByRole("checkbox", { name: "Submit expenses — Status: Done" });
-    // Completed long ago: not listed.
-    expect(loose.queryByText("Renew the passport")).toBeNull();
+    done.getByRole("checkbox", { name: "Submit expenses — Status: Done" });
+    // Completed long ago: not listed anywhere.
+    expect(screen.queryByText("Renew the passport")).toBeNull();
     // Held only by last week's (undrawn) goal: listed here rather than lost.
     loose.getByRole("button", { name: "Edit: Pick the curtains" });
     expect(loose.queryByText("Measure the room")).toBeNull();

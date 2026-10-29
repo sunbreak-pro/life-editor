@@ -49,7 +49,8 @@ const GOALS: Goal[] = [
 const TODOS = [
   { id: "ty", title: "Pick a race", status: "NOT_STARTED" as const },
   { id: "tm", title: "Buy shoes", status: "NOT_STARTED" as const },
-  { id: "tw1", title: "5 km jog", status: "DONE" as const },
+  // Open: a done todo leaves the tree for Completed items (#2368).
+  { id: "tw1", title: "5 km jog", status: "NOT_STARTED" as const },
   { id: "tw2", title: "Long run", status: "NOT_STARTED" as const },
 ];
 
@@ -85,6 +86,7 @@ const LABELS: GoalTreeLabels = {
   filteringBy: "Filtering by",
   resetFilters: "Reset",
   noMatch: "Nothing matches",
+  completedHeading: "Completed items",
   addTodo: "Todo",
   addTodoLabel: "Add a todo",
   addTodoPlaceholder: "Todo",

@@ -6,6 +6,7 @@ import {
   type Goal,
   type GoalTreeDragHandlers,
   type GoalTreeLabels,
+  type TodoStatus,
 } from "../src";
 
 /*
@@ -94,6 +95,7 @@ const LABELS: GoalTreeLabels = {
   filteringBy: "Filtering by",
   resetFilters: "Reset",
   noMatch: "Nothing matches",
+  completedHeading: "Completed items",
   addTodo: "Todo",
   addTodoLabel: "Add a todo",
   addTodoPlaceholder: "Todo",
@@ -112,6 +114,8 @@ function renderTree(
     drag?: GoalTreeDragHandlers;
     onSelectGoal?: (goalId: string) => void;
     goals?: Goal[];
+    todos?: typeof TODOS;
+    onSetTodoStatus?: (todoId: string, status: TodoStatus) => void;
   } = {},
 ): ReturnType<typeof render> {
   return render(
@@ -119,7 +123,7 @@ function renderTree(
       model={buildGoalTreeModel({
         goals: over.goals ?? GOALS,
         links: LINKS,
-        todos: TODOS,
+        todos: over.todos ?? TODOS,
         todayKey: "2026-09-30",
         untitled: "Untitled",
       })}
@@ -128,7 +132,7 @@ function renderTree(
       onSelectGoal={over.onSelectGoal ?? vi.fn()}
       onCreateGoal={vi.fn().mockResolvedValue(true)}
       onCreateLooseTodo={vi.fn().mockResolvedValue(true)}
-      onSetTodoStatus={vi.fn()}
+      onSetTodoStatus={over.onSetTodoStatus ?? vi.fn()}
       onOpenTodo={vi.fn()}
       onRenameGoal={over.onRenameGoal}
       drag={over.drag}
@@ -338,6 +342,49 @@ describe("GoalTreeView — rename in place from the pencil (#2283)", () => {
     // Other rows keep theirs.
     expect(titleOf("Run 3 times").getAttribute("draggable")).toBe("true");
     within(row).getByRole("button", { name: "Collapse: Run weekly" });
+  });
+});
+
+describe("GoalTreeView — completed items move to their own list (#2368)", () => {
+  const withStatus = (id: string, status: TodoStatus): typeof TODOS =>
+    TODOS.map((t) => (t.id === id ? { ...t, status } : t)) as typeof TODOS;
+  const region = (name: string) => within(screen.getByRole("region", { name }));
+
+  it("moves a done todo to Completed items, and back when un-ticked", () => {
+    const onSetTodoStatus = vi.fn();
+    const { rerender } = renderTree({
+      todos: withStatus("t4", "DONE"),
+      onSetTodoStatus,
+    });
+    expect(
+      region("Goals").queryByRole("button", { name: "Open Buy shoes" }),
+    ).toBeNull();
+    const done = region("Completed items");
+    done.getByRole("button", { name: "Open Buy shoes" });
+    // Its goal is not achieved (its week is still open), so it stays put.
+    region("Goals").getByRole("button", { name: /^Month: Run weekly — / });
+    fireEvent.click(done.getByRole("checkbox"));
+    expect(onSetTodoStatus).toHaveBeenCalledWith("t4", expect.any(String));
+
+    // The host's next model has it open again.
+    rerender(<></>);
+    renderTree({ todos: TODOS });
+    region("Goals").getByRole("button", { name: "Open Buy shoes" });
+    expect(
+      screen.queryByRole("region", { name: "Completed items" }),
+    ).toBeNull();
+  });
+
+  it("moves an achieved goal with what is under it", () => {
+    renderTree({ todos: withStatus("t2", "DONE") });
+    const done = region("Completed items");
+    done.getByRole("button", { name: /^Month: Stretch daily — Achieved$/ });
+    done.getByRole("button", { name: "Open Stretch" });
+    expect(
+      region("Goals").queryByRole("button", { name: /Stretch daily/ }),
+    ).toBeNull();
+    // The year above still counts it.
+    region("Goals").getByRole("button", { name: /^Year: Run 10 km — / });
   });
 });
 

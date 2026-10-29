@@ -1513,6 +1513,7 @@
       "writeFailed": "Could not save the goal. Check your connection and try again.",
       "expand": "Expand: {{title}}",
       "collapse": "Collapse: {{title}}",
+      "completedHeading": "Completed items",
       "addTodo": "Todo",
       "addTodoLabel": "Add a todo not linked to a goal",
       "addTodoPlaceholder": "What to do",
