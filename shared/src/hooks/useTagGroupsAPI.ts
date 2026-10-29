@@ -44,6 +44,7 @@ export function useTagGroupsAPI(options: UseTagGroupsAPIOptions) {
   const { isLoading, error } = useDomainLoad({
     domain: "TagGroups",
     snapshotKey: "tagGroups",
+    skipWhenFresh: ["tagGroups"],
     dataService: ds,
     version: syncVersion,
     load: (service) => service.fetchTagGroups(),
