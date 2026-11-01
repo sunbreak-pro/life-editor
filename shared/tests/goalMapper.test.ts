@@ -1,6 +1,7 @@
 // @vitest-environment node (#1079 — this suite touches no DOM)
 import { describe, it, expect } from "vitest";
 import {
+  GOAL_PARENT_KINDS,
   assertGoalParentKind,
   goalCreateToRows,
   goalUpdatesToPatches,
@@ -8,6 +9,11 @@ import {
   type GoalsPayloadRow,
   type ItemsMetaGoalRow,
 } from "../src/services/goalMapper";
+import {
+  goalChildKinds,
+  goalParentOptions,
+} from "../src/components/goalTree/buildGoalTreeModel";
+import type { Goal } from "../src/types/goal";
 
 /*
  * goalMapper (#2103) — the 2-row split of a goal (0034) and the two rules the
@@ -237,15 +243,63 @@ describe("goalUpdatesToPatches", () => {
   });
 });
 
-describe("assertGoalParentKind", () => {
-  it("allows only one level up", () => {
+describe("assertGoalParentKind (#2399)", () => {
+  it("allows a parent of any longer period, a week straight under a year too", () => {
     expect(() => assertGoalParentKind("t", "week", "month")).not.toThrow();
+    expect(() => assertGoalParentKind("t", "week", "year")).not.toThrow();
     expect(() => assertGoalParentKind("t", "month", "year")).not.toThrow();
-    expect(() => assertGoalParentKind("t", "week", "year")).toThrow(
-      /expected month/,
+  });
+
+  it("refuses a month or a year under a week, and the same period", () => {
+    expect(() => assertGoalParentKind("t", "month", "week")).toThrow(
+      /expected year/,
+    );
+    expect(() => assertGoalParentKind("t", "year", "week")).toThrow(
+      /has no parent/,
+    );
+    expect(() => assertGoalParentKind("t", "year", "month")).toThrow(
+      /has no parent/,
     );
     expect(() => assertGoalParentKind("t", "year", "year")).toThrow(
       /has no parent/,
     );
+    expect(() => assertGoalParentKind("t", "month", "month")).toThrow(
+      /expected year/,
+    );
+    expect(() => assertGoalParentKind("t", "week", "week")).toThrow(
+      /expected month or year/,
+    );
+  });
+
+  it("agrees with what the tree offers, for every pair of kinds", () => {
+    const KEYS = { year: "2026", month: "2026-10", week: "2026-10-04" };
+    const kinds = ["year", "month", "week"] as const;
+    const asGoal = (id: string, kind: (typeof kinds)[number]): Goal => ({
+      id,
+      title: id,
+      periodKind: kind,
+      periodKey: KEYS[kind],
+      sortOrder: 0,
+      parentGoalId: null,
+      manualAchievedAt: null,
+      periodEndDecision: null,
+      decidedAt: null,
+      carriedFromGoalId: null,
+      legacyKey: null,
+      isDeleted: false,
+      createdAt: NOW,
+      updatedAt: NOW,
+    });
+    for (const child of kinds) {
+      for (const parent of kinds) {
+        const allowed = GOAL_PARENT_KINDS[child].includes(parent);
+        const offered = goalParentOptions(
+          [asGoal("parent", parent)],
+          asGoal("child", child),
+        );
+        expect(offered.length > 0).toBe(allowed);
+        expect(goalChildKinds(parent).includes(child)).toBe(allowed);
+      }
+    }
   });
 });

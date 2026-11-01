@@ -429,25 +429,160 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
     }
   });
 
-  it("offers a todo or a goal one level down from a month's +", async () => {
+  /** The choices a goal's + opens, in order, without the way out. */
+  const choicesOf = (title: string): string[] => {
+    fireEvent.click(
+      screen.getByRole("button", { name: `Add under: ${title}` }),
+    );
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    return within(cancel.parentElement as HTMLElement)
+      .getAllByRole("button")
+      .map((b) => b.textContent ?? "")
+      .filter((text) => text !== "Cancel");
+  };
+
+  it("offers a todo or this week's goal from a month's +", async () => {
     const rowActions = actions();
     renderTree({ rowActions });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Add under: Run weekly" }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Week goal" }));
+    expect(choicesOf("Run weekly")).toEqual(["Todo", "This week goal"]);
+    fireEvent.click(screen.getByRole("button", { name: "This week goal" }));
     const field = screen.getByRole("textbox", {
-      name: "Add under: Run weekly — Week goal",
+      name: "Add under: Run weekly — This week goal",
     });
     fireEvent.change(field, { target: { value: " Long run " } });
     fireEvent.keyDown(field, { key: "Enter" });
     expect(rowActions.onAddChildGoal).toHaveBeenCalledWith(
       expect.objectContaining({ id: "m1" }),
       "Long run",
+      "week",
     );
     await vi.waitFor(() =>
       expect(screen.queryByRole("textbox", { name: /^Add under/ })).toBeNull(),
     );
+  });
+
+  it("offers a todo, this month's goal or this week's goal from a year's + (#2399)", () => {
+    const rowActions = actions();
+    renderTree({ rowActions });
+    expect(choicesOf("Run 10 km")).toEqual([
+      "Todo",
+      "This month goal",
+      "This week goal",
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "This week goal" }));
+    const field = screen.getByRole("textbox", {
+      name: "Add under: Run 10 km — This week goal",
+    });
+    fireEvent.change(field, { target: { value: "Long run" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(rowActions.onAddChildGoal).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "y1" }),
+      "Long run",
+      "week",
+    );
+  });
+
+  it("adds a month from a year's + with its own kind", () => {
+    const rowActions = actions();
+    renderTree({ rowActions });
+    choicesOf("Run 10 km");
+    fireEvent.click(screen.getByRole("button", { name: "This month goal" }));
+    const field = screen.getByRole("textbox", {
+      name: "Add under: Run 10 km — This month goal",
+    });
+    fireEvent.change(field, { target: { value: "Run weekly" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(rowActions.onAddChildGoal).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "y1" }),
+      "Run weekly",
+      "month",
+    );
+  });
+
+  it("names what the field adds, and keeps its add button whole beside it", () => {
+    renderTree({ rowActions: actions() });
+    choicesOf("Run 10 km");
+    fireEvent.click(screen.getByRole("button", { name: "This week goal" }));
+    const row = screen.getByRole("textbox", { name: /^Add under/ })
+      .parentElement as HTMLElement;
+    const badge = row.querySelector("[data-goal-add-badge]") as HTMLElement;
+    expect(badge.textContent).toBe("This week goal");
+    expect(badge.className).toContain("shrink-0");
+    const add = within(row).getByRole("button", { name: "Add" });
+    expect(add.className).toContain("shrink-0");
+    expect(add.className).toContain("whitespace-nowrap");
+  });
+
+  it("drops the field on Esc or the ×, adding nothing", () => {
+    const rowActions = actions();
+    renderTree({ rowActions });
+    const plus = screen.getByRole("button", { name: "Add under: Run 3 times" });
+    fireEvent.click(plus);
+    const field = screen.getByRole("textbox", { name: /^Add under/ });
+    fireEvent.change(field, { target: { value: "Buy gels" } });
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(screen.queryByRole("textbox", { name: /^Add under/ })).toBeNull();
+
+    fireEvent.click(plus);
+    // The × is an icon, so it needs a name; it has a tap target on a phone.
+    const close = screen.getByRole("button", { name: "Cancel" });
+    expect(close.className).toContain("max-md:min-h-11");
+    expect(close.className).toContain("max-md:min-w-11");
+    fireEvent.click(close);
+    expect(screen.queryByRole("textbox", { name: /^Add under/ })).toBeNull();
+    expect(rowActions.onAddTodo).not.toHaveBeenCalled();
+  });
+
+  it("opens a closed goal when something is added under it (#2399)", async () => {
+    const rowActions = actions();
+    renderTree({ rowActions });
+    fireEvent.click(screen.getByRole("button", { name: "Collapse: Run 10 km" }));
+    expect(screen.queryByText("Run weekly")).toBeNull();
+
+    choicesOf("Run 10 km");
+    fireEvent.click(screen.getByRole("button", { name: "Todo" }));
+    const field = screen.getByRole("textbox", {
+      name: "Add under: Run 10 km — Todo",
+    });
+    fireEvent.change(field, { target: { value: "Sign up" } });
+    // Still closed while the field is open: only the add opens it.
+    expect(
+      screen.getByRole("button", { name: "Expand: Run 10 km" }),
+    ).toBeTruthy();
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(rowActions.onAddTodo).toHaveBeenCalledWith("y1", "Sign up");
+    await vi.waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Collapse: Run 10 km" }),
+      ).toBeTruthy(),
+    );
+    titleOf("Run weekly");
+  });
+
+  it("keeps a closed goal closed, and the field open, when the add fails", async () => {
+    const rowActions: GoalRowActions = {
+      ...actions(),
+      onAddTodo: vi.fn().mockResolvedValue(false),
+    };
+    renderTree({ rowActions });
+    fireEvent.click(screen.getByRole("button", { name: "Collapse: Run 10 km" }));
+    choicesOf("Run 10 km");
+    fireEvent.click(screen.getByRole("button", { name: "Todo" }));
+    const field = screen.getByRole("textbox", { name: /^Add under/ });
+    fireEvent.change(field, { target: { value: "Sign up" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await vi.waitFor(() =>
+      expect(rowActions.onAddTodo).toHaveBeenCalledTimes(1),
+    );
+    // Let the rejected add settle before reading the row.
+    await vi.waitFor(() =>
+      expect(
+        (screen.getByRole("button", { name: "Add" }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(false),
+    );
+    expect(screen.getByRole("textbox", { name: /^Add under/ })).toBe(field);
+    screen.getByRole("button", { name: "Expand: Run 10 km" });
   });
 
   it("goes straight to the todo field under a week, and not on an IME Enter", () => {

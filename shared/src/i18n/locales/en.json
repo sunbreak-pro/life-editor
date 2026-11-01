@@ -1544,7 +1544,7 @@
       "loadFailed": "Could not load the goals. Check your connection and try again.",
       "retry": "Try again",
       "titleLabel": "Goal title",
-      "parentLabel": "Goal one level up",
+      "parentLabel": "Goal above",
       "parentNone": "None",
       "todosHeading": "Linked todos",
       "todosEmpty": "No todos are linked to this goal yet.",
@@ -1573,7 +1573,7 @@
       "edit": "Edit goal: {{title}}",
       "addUnder": "Add under: {{title}}",
       "delete": "Delete goal: {{title}}",
-      "childGoal": "{{kind}} goal",
+      "childGoal": "{{kind}}'s goal",
       "moveTodoFailed": "Could not move the todo. Check your connection and try again.",
       "arrange": {
         "heading": "Sort & filter",
