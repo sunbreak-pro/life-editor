@@ -150,6 +150,10 @@ function renderRepeat(
   const dismissOccurrence = vi.fn();
   const onRepeatConvertFailed = vi.fn();
   const reload = vi.fn();
+  // #2406: held so a case can run the updater it was handed.
+  const setRangeItems =
+    vi.fn<(next: (prev: ScheduleItem[]) => ScheduleItem[]) => void>();
+  const patchRange = vi.fn();
   // #1638: the commands this layer records. Held as the raw pushes so a case
   // can run one and watch which service calls come back out.
   const pushed: Array<{
@@ -169,8 +173,8 @@ function renderRepeat(
 
   const hook = renderHook(() =>
     useRepeatMutations({
-      setRangeItems: vi.fn(),
-      patchRange: vi.fn(),
+      setRangeItems: setRangeItems as never,
+      patchRange,
       reload,
       rangeStart: RANGE_START,
       rangeEnd: RANGE_END,
@@ -193,6 +197,8 @@ function renderRepeat(
     dismissOccurrence,
     onRepeatConvertFailed,
     reload,
+    setRangeItems,
+    patchRange,
     push,
     pushed,
   };
@@ -1092,5 +1098,164 @@ describe("a failing undo / redo (#1642 P4)", () => {
     h.ensureRoutineItemsForDateRange.mockResolvedValue(false);
 
     await expectKept(h, manager, "redo");
+  });
+});
+
+/*
+ * #2406: a repeat picked in the creation panel, applied to the row the panel
+ * just saved. Unlike the editor's conversion it records nothing itself — the
+ * reversal it resolves is folded into the create's one command, so one
+ * Ctrl+Z takes the event and its series back together and the two can never
+ * land on the stack in the wrong order.
+ */
+describe("a repeat picked while creating (#2406)", () => {
+  const saved = occurrence({ id: "evt-new", routineId: null });
+  const DAILY = { frequencyType: "daily" as const };
+
+  async function convert(h: ReturnType<typeof renderRepeat>) {
+    const box: {
+      reversal?: { undo: () => Promise<void>; redo: () => Promise<void> } | null;
+    } = {};
+    await act(async () => {
+      box.reversal = await h.hook.result.current.convertSavedToRepeat(
+        saved,
+        DAILY,
+      );
+    });
+    return box.reversal ?? null;
+  }
+
+  it("converts the saved row in place, starting on its own day", async () => {
+    // `selected` is some other row: the saved one is not the selection on
+    // narrow (a plain create selects nothing), and it must not matter.
+    const h = renderRepeat({ selected: occurrence({ id: "occ-other" }) });
+    await convert(h);
+    expect(h.convertEventToRoutine).toHaveBeenCalledWith(
+      "evt-new",
+      expect.objectContaining({
+        frequencyType: "daily",
+        sourceDate: TODAY,
+        frequencyStartDate: TODAY,
+      }),
+    );
+    expect(h.patchRange).toHaveBeenCalledWith("evt-new", {
+      routineId: "routine-new",
+      sourceDate: TODAY,
+    });
+    expect(h.ensureRoutineItemsForDateRange).toHaveBeenCalled();
+    expect(h.reload).toHaveBeenCalled();
+  });
+
+  it("records nothing of its own, and hands the reversal back", async () => {
+    const h = renderRepeat();
+    const reversal = await convert(h);
+    expect(h.push).not.toHaveBeenCalled();
+    expect(reversal).not.toBeNull();
+  });
+
+  it("undoes by detaching with the seed kept, and takes the generated days off the range", async () => {
+    const h = renderRepeat();
+    const reversal = await convert(h);
+    h.reload.mockClear();
+    await act(async () => {
+      await reversal?.undo();
+    });
+    expect(h.detachRoutine).toHaveBeenCalledWith("routine-new", undefined, {
+      keepItemIds: ["evt-new"],
+    });
+    // Re-shaped locally rather than re-read: the create's own undo trashes
+    // the seed right after, and a re-read in between could bring it back.
+    expect(h.reload).not.toHaveBeenCalled();
+    const updater = h.setRangeItems.mock.calls.at(-1)?.[0];
+    const kept = updater?.([
+      occurrence({ id: "evt-new", routineId: "routine-new" }),
+      occurrence({ id: "gen-1", routineId: "routine-new" }),
+      occurrence({ id: "other", routineId: "routine-x" }),
+      occurrence({ id: "manual", routineId: null }),
+    ]);
+    expect(kept?.map((i) => i.id)).toEqual(["evt-new", "other", "manual"]);
+  });
+
+  it("redoes by converting again and re-reading the range", async () => {
+    const h = renderRepeat();
+    const reversal = await convert(h);
+    await act(async () => {
+      await reversal?.undo();
+    });
+    h.reload.mockClear();
+    h.convertEventToRoutine.mockResolvedValueOnce("routine-redo");
+    await act(async () => {
+      await reversal?.redo();
+    });
+    expect(h.convertEventToRoutine).toHaveBeenCalledTimes(2);
+    expect(h.reload).toHaveBeenCalled();
+    // A second undo detaches the routine the redo minted, not the first one.
+    await act(async () => {
+      await reversal?.undo();
+    });
+    expect(h.detachRoutine).toHaveBeenLastCalledWith(
+      "routine-redo",
+      undefined,
+      { keepItemIds: ["evt-new"] },
+    );
+  });
+
+  it("survives a full undo / redo round trip through the manager", async () => {
+    // What the create's companion does with it: one command, series first
+    // on the way back (useScheduleItemsCRUD.pushCreated).
+    const h = renderRepeat();
+    const reversal = await convert(h);
+    const ownUndo = vi.fn(() => Promise.resolve());
+    const ownRedo = vi.fn(() => Promise.resolve());
+    const manager = new UndoRedoManager();
+    manager.push(
+      {
+        label: "createScheduleItem",
+        undo: async () => {
+          await reversal!.undo();
+          await ownUndo();
+        },
+        redo: async () => {
+          await ownRedo();
+          await reversal!.redo();
+        },
+      } as UndoCommand,
+      "scheduleItem",
+    );
+    let outcome: Awaited<ReturnType<UndoRedoManager["undo"]>> = null;
+    await act(async () => {
+      outcome = await manager.undo();
+    });
+    expect(outcome).toMatchObject({ ok: true });
+    expect(h.detachRoutine.mock.invocationCallOrder[0]).toBeLessThan(
+      ownUndo.mock.invocationCallOrder[0],
+    );
+    await act(async () => {
+      outcome = await manager.redo();
+    });
+    expect(outcome).toMatchObject({ ok: true });
+    expect(ownRedo.mock.invocationCallOrder[0]).toBeLessThan(
+      h.convertEventToRoutine.mock.invocationCallOrder[1],
+    );
+    expect(manager.canUndo()).toBe(true);
+  });
+
+  it("says so, and hands back nothing, when the conversion did not land", async () => {
+    const h = renderRepeat();
+    h.convertEventToRoutine.mockRejectedValueOnce(new Error("offline"));
+    const reversal = await convert(h);
+    expect(reversal).toBeNull();
+    expect(h.onRepeatConvertFailed).toHaveBeenCalledWith("attach");
+    expect(h.push).not.toHaveBeenCalled();
+  });
+
+  it("does nothing for a repeat with no type", async () => {
+    const h = renderRepeat();
+    let reversal: unknown = "unset";
+    await act(async () => {
+      reversal = await h.hook.result.current.convertSavedToRepeat(saved, {});
+    });
+    expect(reversal).toBeNull();
+    expect(h.convertEventToRoutine).not.toHaveBeenCalled();
   });
 });

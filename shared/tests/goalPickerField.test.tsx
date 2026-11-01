@@ -224,7 +224,11 @@ describe("ItemCreatePanel — the goal section (#2109)", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Todo" }));
     const trigger = screen.getByRole("button", { name: "目標につなぐ" });
     expect(trigger).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByRole("checkbox")).toBeNull();
+    // Folded up, no goal row is on screen. #2406 put the all-day check on
+    // the todo tab, so it is the one checkbox there is.
+    expect(screen.getAllByRole("checkbox")).toEqual([
+      screen.getByRole("checkbox", { name: "All day" }),
+    ]);
     fireEvent.click(screen.getByRole("radio", { name: "From existing" }));
     expect(screen.queryByRole("button", { name: "目標につなぐ" })).toBeNull();
   });

@@ -134,6 +134,7 @@ export {
   type ItemCreateSource,
   type ItemCreateTagOption,
   type ItemCreateTagPool,
+  type ItemCreateRepeatField,
 } from "./ItemCreatePanel";
 // #2219: 「ノートを添付」 for an item that already exists (the edit panels).
 export {
@@ -141,9 +142,11 @@ export {
   type ItemNoteAttachProps,
   type ItemNoteAttachLabels,
 } from "./ItemNoteAttach";
-// #940: the all-day switch, shared by the creating and the editing side so
-// the control is the same object in both.
+// #940: the all-day switch — the editing side's since #2406.
 export { AllDaySwitch, type AllDaySwitchProps } from "./AllDaySwitch";
+// #2406: the creation panel's round "all day" check (the editor keeps the
+// switch above until #2407).
+export { AllDayCheck, type AllDayCheckProps } from "./AllDayCheck";
 // #468: the calendar lens — the single-select chip row under the toolbar that
 // narrows the grid to one saved tag group (#889 lifted it out of CalendarTab;
 // #1173 re-based its chips off the retired one-tag calendars).

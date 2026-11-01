@@ -7,6 +7,7 @@ import {
   type FrequencyEditorLabels,
   type FrequencyLabelCopy,
   type ItemCreatePanelLabels,
+  type ItemCreateRepeatField,
   type SegmentedOption,
   type TodoScheduleSlot,
 } from "@life-editor/shared";
@@ -187,6 +188,8 @@ export interface ScheduleCopy {
   sidebarTabs: { id: string; label: string; tourId?: string }[];
   repeatLabels: FrequencyEditorLabels;
   createPanelLabels: ItemCreatePanelLabels;
+  /** #2406: the creation panel's repeat field — the editor's own copy. */
+  createRepeatField: ItemCreateRepeatField;
   /** "1時間30分" for a minute count (#553 — the end-time duration suffix). */
   formatDuration: (minutes: number) => string;
   /** "空き 1時間30分" for a gap in the Mobile Dayflow (#691). */
@@ -294,13 +297,19 @@ export function useScheduleCopy({
       allDay: t("scheduleScreen.allDay"),
       startTime: t("scheduleScreen.startTime"),
       endTime: t("scheduleScreen.endTime"),
-      addEvent: t("scheduleScreen.addEvent"),
+      // #2406: the footer reads Cancel / Add and edit / Add on both tabs, as
+      // in the Claude Design proposal — the tab above already says what is
+      // being added, so the submit is the bare verb.
+      addEvent: t("scheduleScreen.addCta"),
       addEventAndOpen: t("scheduleScreen.addEventAndOpen"),
       sourceLabel: t("scheduleScreen.sourceLabel"),
       sourceNew: t("scheduleScreen.sourceNew"),
       sourceExisting: t("scheduleScreen.sourceExisting"),
-      addTodo: t("scheduleScreen.addTodo"),
+      addTodo: t("scheduleScreen.addCta"),
       placeTodo: t("scheduleScreen.placeTodo"),
+      addTodoAndOpen: t("scheduleScreen.addEventAndOpen"),
+      placeTodoAndOpen: t("scheduleScreen.placeTodoAndOpen"),
+      cancel: t("common.cancel"),
       searchTodos: t("scheduleScreen.searchTodos"),
       // Same sentence as the tray's picker, and the same fact ("nothing left
       // to schedule") — one key rather than two that can disagree.
@@ -324,6 +333,11 @@ export function useScheduleCopy({
       clearNote: t("scheduleScreen.clearNote"),
     }),
     [t, notesError],
+  );
+
+  const createRepeatField = useMemo<ItemCreateRepeatField>(
+    () => ({ weekdayLabels, labels: repeatLabels }),
+    [weekdayLabels, repeatLabels],
   );
 
   // #553: duration suffix on the TimeRangeField's end options ("10:30
@@ -356,6 +370,7 @@ export function useScheduleCopy({
     sidebarTabs,
     repeatLabels,
     createPanelLabels,
+    createRepeatField,
     formatDuration,
     formatGapLabel,
   };
