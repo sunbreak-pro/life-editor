@@ -1,8 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  fireEvent,
+  within,
+} from "@testing-library/react";
 import {
   ItemCreatePanel,
   type ItemCreatePanelLabels,
+  type ItemCreateNotePickerPlacement,
   type ItemCreateOption,
   type ItemCreateSlot,
 } from "../src/components";
@@ -20,7 +27,8 @@ import {
  *     carry the panel's times),
  *   - the note contract (#1370: staging only, from a section BOTH tabs carry
  *     — attaching a note never changes what the submit acts on, and folding
- *     the section up never drops the note),
+ *     the section up never drops the note; #2396: any number of notes, as
+ *     an array, `[]` for none),
  *   - the drafts survive a type-tab switch, which is the whole reason the
  *     title/time state lives on the panel rather than per tab.
  */
@@ -53,20 +61,29 @@ const LABELS: ItemCreatePanelLabels = {
   todoPickerNoMatch: "No matching todos",
   attachNote: "Attach a note",
   noteSourceLabel: "Note to link",
+  // #2396: the row's three buttons. Worded apart from the todo source's
+  // "New" / "From existing", so a getByText here proves WHICH one it hit.
   noteSourceNew: "New note",
-  noteSourceExisting: "Existing note",
+  noteSourceExisting: "Choose existing",
+  noteDismiss: "Never mind",
   noteTitleLabel: "Note title",
   notePlaceholder: "Note title placeholder",
+  noteNewConfirm: "Stage note",
   searchNotes: "Search notes",
   notePickerEmpty: "No notes yet",
   notePickerNoMatch: "No matching notes",
+  notePickerTitle: "Choose notes",
+  notePickerClose: "Close the picker",
+  notePickerCount: (n: number) => `${n} selected`,
+  notePickerDone: "Done",
+  noteLocked: "Locked",
   noteLinkHint: "Linked to the item you add below.",
   // Deliberately NOT "Attach a note": the chip heading must not collide with
   // the disclosure trigger, or a getByText here would silently match the wrong
   // element and the real UI would read as two different things called the
   // same word. (Pre-#1370 the collision to avoid was the note TAB.)
-  attachedNote: "Linked note",
-  clearNote: "Remove the note",
+  attachedNote: "Attached notes",
+  removeNote: (title: string) => `Remove ${title}`,
 };
 
 const TODOS: ItemCreateOption[] = [
@@ -78,6 +95,8 @@ const TODOS: ItemCreateOption[] = [
 const NOTES: ItemCreateOption[] = [
   { id: "note-1", title: "Standup minutes" },
   { id: "note-2", title: "Weekly review" },
+  // #2396: a password-protected note — drawn with a lock, still attachable.
+  { id: "note-3", title: "Salary talk", isLocked: true },
 ];
 
 /** The day the host seeds the panel with, unless a case says otherwise. */
@@ -123,6 +142,9 @@ function renderPanel(props?: {
    * twins) — what a host that predates them renders.
    */
   bare?: boolean;
+  /** #2396: where the note picker opens. The panel's default otherwise. */
+  notePicker?: ItemCreateNotePickerPlacement;
+  onNotePickerOpenChange?: (open: boolean) => void;
 }) {
   const onSubmitEvent = vi.fn();
   const onSubmitEventAndOpen = vi.fn();
@@ -157,6 +179,8 @@ function renderPanel(props?: {
           ? { weekdayLabels: WEEKDAYS, labels: REPEAT_LABELS }
           : undefined
       }
+      notePicker={props?.notePicker}
+      onNotePickerOpenChange={props?.onNotePickerOpenChange}
     />,
   );
   return {
@@ -199,13 +223,30 @@ function openTodoTab(source?: "existing") {
   if (source === "existing") fireEvent.click(screen.getByText("From existing"));
 }
 
-/** Stage a brand-new note through the section, then fold it back up. */
+/**
+ * Stage a brand-new note through the row's 新規作成 (#2396), then fold the
+ * row back up.
+ */
 function stageNewNote(title: string) {
   fireEvent.click(screen.getByText("Attach a note"));
+  fireEvent.click(screen.getByText("New note"));
   fireEvent.change(screen.getByLabelText("Note title"), {
     target: { value: title },
   });
+  fireEvent.click(screen.getByText("Stage note"));
   fireEvent.click(screen.getByText("Attach a note"));
+}
+
+/** Open 既存から選ぶ (#2396) from a folded row. */
+function openNotePicker() {
+  fireEvent.click(screen.getByText("Attach a note"));
+  fireEvent.click(screen.getByText("Choose existing"));
+}
+
+/** The note picker's rows by title. */
+function pickerOption(title: string): HTMLElement {
+  const list = screen.getByRole("listbox", { name: "Choose notes" });
+  return within(list).getByRole("option", { name: new RegExp(title) });
 }
 
 describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
@@ -218,7 +259,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Dentist",
       slot({ start: "09:00", end: "10:00" }),
-      null,
+      [],
     );
   });
 
@@ -240,7 +281,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Meeting",
       slot({ start: "14:30", end: "15:30" }),
-      null,
+      [],
     );
   });
 
@@ -256,7 +297,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
     expect(onSubmitEventAndOpen).toHaveBeenCalledWith(
       "Review",
       slot({ start: "14:00", end: "15:00" }),
-      null,
+      [],
     );
     expect(onSubmitEvent).not.toHaveBeenCalled();
   });
@@ -288,7 +329,7 @@ describe("ItemCreatePanel — event tab (inherited #299 / #353 / #354)", () => {
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Standup",
       slot({ start: "09:00", end: "10:00" }),
-      null,
+      [],
     );
   });
 
@@ -326,7 +367,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Dentist",
       slot({ date: "2026-09-01" }),
-      null,
+      [],
     );
   });
 
@@ -341,7 +382,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Write the report",
       slot({ date: "2026-09-02" }),
-      null,
+      [],
     );
 
     fireEvent.click(screen.getByText("From existing"));
@@ -350,7 +391,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     expect(onPlaceTodo).toHaveBeenCalledWith(
       "task-1",
       slot({ date: "2026-09-02" }),
-      null,
+      [],
     );
   });
 
@@ -363,7 +404,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     fireEvent.blur(date);
     expect((date as HTMLInputElement).value).toBe(DATE);
     addEvent("Dentist");
-    expect(onSubmitEvent).toHaveBeenCalledWith("Dentist", slot(), null);
+    expect(onSubmitEvent).toHaveBeenCalledWith("Dentist", slot(), []);
   });
 
   it("turns the times off screen while all-day is on, and submits the flag", () => {
@@ -384,7 +425,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Holiday",
       slot({ isAllDay: true }),
-      null,
+      [],
     );
   });
 
@@ -419,7 +460,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Write the report",
       slot({ isAllDay: true }),
-      null,
+      [],
     );
   });
 
@@ -432,7 +473,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     expect(onPlaceTodo).toHaveBeenCalledWith(
       "task-1",
       slot({ isAllDay: true }),
-      null,
+      [],
     );
   });
 
@@ -477,7 +518,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Ship it",
       slot({ date: "2026-09-03" }),
-      null,
+      [],
     );
   });
 });
@@ -496,7 +537,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Write the report",
       slot({ start: "11:00", end: "11:45" }),
-      null,
+      [],
     );
     expect(onSubmitEvent).not.toHaveBeenCalled();
   });
@@ -510,7 +551,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Groceries",
       slot({ start: "09:00", end: "10:00" }),
-      null,
+      [],
     );
     expect(onSubmitEvent).not.toHaveBeenCalled();
   });
@@ -526,7 +567,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
     expect(onPlaceTodo).toHaveBeenCalledWith(
       "task-2",
       slot({ start: "16:00", end: "17:00" }),
-      null,
+      [],
     );
   });
 
@@ -595,7 +636,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
     expect(onCreateTodoAndOpen).toHaveBeenCalledWith(
       "Write the report",
       slot({ start: "11:00", end: "11:45" }),
-      null,
+      [],
     );
     expect(onCreateTodo).not.toHaveBeenCalled();
   });
@@ -606,7 +647,7 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
     expect(screen.getByText("Place and edit")).toBeDisabled();
     fireEvent.click(screen.getByText("Review PR 376"));
     fireEvent.click(screen.getByText("Place and edit"));
-    expect(onPlaceTodoAndOpen).toHaveBeenCalledWith("task-2", slot(), null);
+    expect(onPlaceTodoAndOpen).toHaveBeenCalledWith("task-2", slot(), []);
     expect(onPlaceTodo).not.toHaveBeenCalled();
   });
 
@@ -710,20 +751,49 @@ describe("ItemCreatePanel — the footer says when it cannot act (#376)", () => 
   });
 });
 
-describe("ItemCreatePanel — the note attachment (#376 Step B / #1370)", () => {
+/*
+ * #2396 rebuilt the note section to the Claude Design proposal: 「ノートを添付」
+ * opens a row of three buttons, 既存から選ぶ is a multi-select picker, and the
+ * staged notes are chips. The submit carries every one of them as an array —
+ * `[]` for none. These cases replace the #1370 ones that pinned a single
+ * draft behind a new / existing toggle.
+ */
+describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
   it("offers the note attachment on the event tab and on the todo tab", () => {
     // The load-bearing change of #1370: the note is the panel's, not a tab's.
     renderPanel();
     fireEvent.click(screen.getByText("Attach a note"));
-    screen.getByLabelText("Note title");
+    screen.getByRole("group", { name: "Note to link" });
     fireEvent.click(screen.getByText("Todo"));
-    screen.getByLabelText("Note title");
+    screen.getByRole("group", { name: "Note to link" });
   });
 
   it("offers two type tabs, and no note tab (#1370)", () => {
     renderPanel();
     const tabs = screen.getAllByRole("tab").map((t) => t.textContent);
     expect(tabs).toEqual(["Event", "Todo"]);
+  });
+
+  it("opens a row of three buttons, and folds it on a second press", () => {
+    renderPanel();
+    const trigger = screen.getByRole("button", { name: "Attach a note" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.queryByRole("group", { name: "Note to link" })).toBeNull();
+
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    const row = screen.getByRole("group", { name: "Note to link" });
+    expect(
+      within(row)
+        .getAllByRole("button")
+        .map((b) => b.textContent),
+    ).toEqual(["New note", "Choose existing", "Never mind"]);
+    // 新規作成 is never a dead button (#2402 will change what it does, not
+    // whether it can be pressed).
+    expect(within(row).getByText("New note")).toBeEnabled();
+
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("group", { name: "Note to link" })).toBeNull();
   });
 
   it("stages a new note and hands it to the event create", () => {
@@ -733,33 +803,187 @@ describe("ItemCreatePanel — the note attachment (#376 Step B / #1370)", () => 
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith(
-      "Kickoff",
-      slot({ start: "09:00", end: "10:00" }),
-      {
-        kind: "new",
-        title: "Minutes",
-      },
-    );
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot(), [
+      { kind: "new", title: "Minutes" },
+    ]);
   });
 
-  it("stages an existing note by id", () => {
+  it("stages a title on Enter, not on the Enter that confirms an IME conversion", () => {
     const { onSubmitEvent } = renderPanel();
     fireEvent.click(screen.getByText("Attach a note"));
-    fireEvent.click(screen.getByText("Existing note"));
-    fireEvent.click(screen.getByText("Weekly review"));
+    fireEvent.click(screen.getByText("New note"));
+    const field = screen.getByLabelText("Note title");
+    fireEvent.change(field, { target: { value: "議事録" } });
+    fireEvent.keyDown(field, { key: "Enter", isComposing: true });
+    fireEvent.keyDown(field, { key: "Enter", keyCode: 229 });
+    expect(screen.queryByText("Attached notes")).toBeNull();
+
+    fireEvent.keyDown(field, { key: "Enter" });
+    // A chip, and the field is cleared for the next one — the panel itself
+    // was not submitted.
+    expect(screen.getByText("Attached notes")).toBeInTheDocument();
+    expect((field as HTMLInputElement).value).toBe("");
+    expect(onSubmitEvent).not.toHaveBeenCalled();
+  });
+
+  it("stages several new notes one after another", () => {
+    const { onSubmitEvent } = renderPanel();
+    fireEvent.click(screen.getByText("Attach a note"));
+    fireEvent.click(screen.getByText("New note"));
+    const field = screen.getByLabelText("Note title");
+    for (const title of ["Agenda", "Minutes"]) {
+      fireEvent.change(field, { target: { value: title } });
+      fireEvent.click(screen.getByText("Stage note"));
+    }
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith(
-      "Kickoff",
-      slot({ start: "09:00", end: "10:00" }),
-      {
-        kind: "existing",
-        id: "note-2",
-      },
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot(), [
+      { kind: "new", title: "Agenda" },
+      { kind: "new", title: "Minutes" },
+    ]);
+  });
+
+  it("picks several existing notes, and the submit carries them all", () => {
+    const { onSubmitEvent } = renderPanel();
+    openNotePicker();
+    const list = screen.getByRole("listbox", { name: "Choose notes" });
+    expect(list.getAttribute("aria-multiselectable")).toBe("true");
+    fireEvent.click(pickerOption("Weekly review"));
+    fireEvent.click(pickerOption("Standup minutes"));
+    expect(pickerOption("Weekly review").getAttribute("aria-selected")).toBe(
+      "true",
     );
+    expect(pickerOption("Standup minutes").getAttribute("aria-selected")).toBe(
+      "true",
+    );
+    fireEvent.click(screen.getByText("Done"));
+    expect(screen.queryByRole("listbox", { name: "Choose notes" })).toBeNull();
+
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Kickoff" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot(), [
+      { kind: "existing", id: "note-2" },
+      { kind: "existing", id: "note-1" },
+    ]);
+  });
+
+  it("counts the picks as 'n selected' and lets a second press take one back", () => {
+    renderPanel();
+    openNotePicker();
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    fireEvent.click(pickerOption("Weekly review"));
+    fireEvent.click(pickerOption("Salary talk"));
+    expect(screen.getByText("2 selected")).toBeInTheDocument();
+    fireEvent.click(pickerOption("Weekly review"));
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+    expect(pickerOption("Weekly review").getAttribute("aria-selected")).toBe(
+      "false",
+    );
+  });
+
+  it("marks a locked note with a lock, and still lets it be attached", () => {
+    const { onSubmitEvent } = renderPanel();
+    openNotePicker();
+    const locked = pickerOption("Salary talk");
+    // The lock is aria-hidden; its words are what a screen reader hears.
+    expect(locked.hasAttribute("data-locked")).toBe(true);
+    expect(locked.textContent).toContain("Locked");
+    expect(pickerOption("Weekly review").hasAttribute("data-locked")).toBe(
+      false,
+    );
+    fireEvent.click(locked);
+    fireEvent.click(screen.getByText("Done"));
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "1on1" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmitEvent).toHaveBeenCalledWith("1on1", slot(), [
+      { kind: "existing", id: "note-3" },
+    ]);
+  });
+
+  it("filters the picker by its search, and says when nothing matches", () => {
+    renderPanel();
+    openNotePicker();
+    fireEvent.change(screen.getByLabelText("Search notes"), {
+      target: { value: "weekly" },
+    });
+    expect(pickerOption("Weekly review")).toBeInTheDocument();
+    expect(screen.queryByText("Standup minutes")).toBeNull();
+    fireEvent.change(screen.getByLabelText("Search notes"), {
+      target: { value: "zzz" },
+    });
+    expect(screen.getByText("No matching notes")).toBeInTheDocument();
+  });
+
+  it("says the note pool is empty regardless of the query", () => {
+    renderPanel({ existingNotes: [] });
+    openNotePicker();
+    expect(screen.getByText("No notes yet")).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText("Search notes"), {
+      target: { value: "zzz" },
+    });
+    expect(screen.getByText("No notes yet")).toBeInTheDocument();
+    expect(screen.queryByText("No matching notes")).toBeNull();
+  });
+
+  it("keeps the staged picks when the picker is closed with × instead of Done", () => {
+    // × is "leave it as it was", Done is "use this" — two exits, two meanings.
+    const { onSubmitEvent } = renderPanel();
+    openNotePicker();
+    fireEvent.click(pickerOption("Weekly review"));
+    fireEvent.click(screen.getByText("Done"));
+
+    fireEvent.click(screen.getByText("Choose existing"));
+    // It reopens on what is staged now.
+    expect(screen.getByText("1 selected")).toBeInTheDocument();
+    fireEvent.click(pickerOption("Standup minutes"));
+    fireEvent.click(screen.getByLabelText("Close the picker"));
+
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Kickoff" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot(), [
+      { kind: "existing", id: "note-2" },
+    ]);
+  });
+
+  it("closes only the picker on Esc", () => {
+    renderPanel();
+    openNotePicker();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("listbox", { name: "Choose notes" })).toBeNull();
+    // The row it was opened from is still there.
+    screen.getByRole("group", { name: "Note to link" });
+  });
+
+  it("shows every staged note as a chip, and × takes one off", () => {
+    const { onSubmitEvent } = renderPanel();
+    stageNewNote("Minutes");
+    openNotePicker();
+    fireEvent.click(pickerOption("Weekly review"));
+    fireEvent.click(screen.getByText("Done"));
+    fireEvent.click(screen.getByText("Attach a note"));
+
+    // Folded, the chips stay: they are where a note is taken off again.
+    expect(screen.getByText("Attached notes")).toBeInTheDocument();
+    expect(screen.getByText("Minutes")).toBeInTheDocument();
+    expect(screen.getByText("Weekly review")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByLabelText("Remove Minutes"));
+    expect(screen.queryByText("Minutes")).toBeNull();
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Kickoff" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot(), [
+      { kind: "existing", id: "note-2" },
+    ]);
   });
 
   it("rides along with the TODO create too", () => {
@@ -770,14 +994,25 @@ describe("ItemCreatePanel — the note attachment (#376 Step B / #1370)", () => 
       target: { value: "Write the deck" },
     });
     fireEvent.click(screen.getByText("Add todo"));
-    expect(onCreateTodo).toHaveBeenCalledWith(
-      "Write the deck",
-      slot({ start: "09:00", end: "10:00" }),
+    expect(onCreateTodo).toHaveBeenCalledWith("Write the deck", slot(), [
       { kind: "new", title: "Prep" },
-    );
+    ]);
   });
 
-  it("leaves the footer and the title field alone while the note section is open", () => {
+  it("rides along when an EXISTING todo is placed", () => {
+    const { onPlaceTodo } = renderPanel();
+    openTodoTab("existing");
+    fireEvent.click(screen.getByText("Draft the invoice"));
+    openNotePicker();
+    fireEvent.click(pickerOption("Weekly review"));
+    fireEvent.click(screen.getByText("Done"));
+    fireEvent.click(screen.getByText("Place"));
+    expect(onPlaceTodo).toHaveBeenCalledWith("task-1", slot(), [
+      { kind: "existing", id: "note-2" },
+    ]);
+  });
+
+  it("leaves the footer and the title field alone while the note row is open", () => {
     const { onCreateTodo } = renderPanel();
     openTodoTab();
     fireEvent.change(screen.getByPlaceholderText("Todo title"), {
@@ -795,103 +1030,143 @@ describe("ItemCreatePanel — the note attachment (#376 Step B / #1370)", () => 
       "Add todo",
     ]);
     fireEvent.click(screen.getByText("Add todo"));
-    expect(onCreateTodo).toHaveBeenCalledWith(
-      "Write the deck",
-      slot({ start: "09:00", end: "10:00" }),
-      null,
-    );
+    expect(onCreateTodo).toHaveBeenCalledWith("Write the deck", slot(), []);
   });
 
-  it("stages nothing when the note section was opened but left blank", () => {
-    // Opening it and changing your mind must not create an "Untitled".
+  it("carries a typed but unconfirmed title, and nothing for a blank one", () => {
     const { onSubmitEvent } = renderPanel();
     fireEvent.click(screen.getByText("Attach a note"));
-    fireEvent.click(screen.getByText("Attach a note"));
+    fireEvent.click(screen.getByText("New note"));
+    // Opening the field and leaving it blank must not create an "Untitled".
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith(
-      "Kickoff",
-      slot({ start: "09:00", end: "10:00" }),
-      null,
-    );
+    expect(onSubmitEvent).toHaveBeenLastCalledWith("Kickoff", slot(), []);
+
+    // What is on screen is what rides along, confirmed or not.
+    fireEvent.change(screen.getByLabelText("Note title"), {
+      target: { value: "  Minutes  " },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    expect(onSubmitEvent).toHaveBeenLastCalledWith("Kickoff", slot(), [
+      { kind: "new", title: "Minutes" },
+    ]);
   });
 
-  it("echoes the staged note once the section folds up, and unstages it on demand", () => {
-    // The controls go off screen when the section closes, so without the echo
-    // the attachment would be invisible at the moment the user commits to it.
+  it("folding the row turns a typed title into a chip", () => {
+    renderPanel();
+    fireEvent.click(screen.getByText("Attach a note"));
+    fireEvent.click(screen.getByText("New note"));
+    fireEvent.change(screen.getByLabelText("Note title"), {
+      target: { value: "Minutes" },
+    });
+    fireEvent.click(screen.getByText("Attach a note"));
+    expect(screen.getByText("Attached notes")).toBeInTheDocument();
+    expect(screen.getByText("Minutes")).toBeInTheDocument();
+  });
+
+  it("'Never mind' closes the row and drops the unconfirmed title, not the chips", () => {
     const { onSubmitEvent } = renderPanel();
     stageNewNote("Minutes");
-    expect(screen.getByText("Linked note")).toBeInTheDocument();
-    expect(screen.getByText("Minutes")).toBeInTheDocument();
-    fireEvent.click(screen.getByLabelText("Remove the note"));
-    expect(screen.queryByText("Linked note")).toBeNull();
+    fireEvent.click(screen.getByText("Attach a note"));
+    fireEvent.click(screen.getByText("New note"));
+    fireEvent.change(screen.getByLabelText("Note title"), {
+      target: { value: "Half typed" },
+    });
+    fireEvent.click(screen.getByText("Never mind"));
+    expect(screen.queryByRole("group", { name: "Note to link" })).toBeNull();
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith(
-      "Kickoff",
-      slot({ start: "09:00", end: "10:00" }),
-      null,
-    );
+    expect(onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot(), [
+      { kind: "new", title: "Minutes" },
+    ]);
   });
 
-  it("keeps a staged note when the note search narrows past it", () => {
-    // The opposite of the todo picker's rule, on purpose: a staged note is
-    // echoed back as a chip once the section folds, so it stays visible after
-    // the query moves on. Dropping it would lose the attachment somewhere
-    // between picking it and submitting.
-    const { onSubmitEvent } = renderPanel();
+  it("starts with nothing staged every time the dialog is opened again", () => {
+    // Both frames unmount the panel on close, so a reopening is a new mount.
+    const first = renderPanel();
+    stageNewNote("Minutes");
+    openNotePicker();
+    fireEvent.click(pickerOption("Weekly review"));
+    fireEvent.click(screen.getByText("Done"));
+    expect(screen.getByText("Attached notes")).toBeInTheDocument();
+    cleanup();
+
+    const again = renderPanel();
+    expect(screen.queryByText("Attached notes")).toBeNull();
     fireEvent.click(screen.getByText("Attach a note"));
-    fireEvent.click(screen.getByText("Existing note"));
-    fireEvent.click(screen.getByText("Weekly review"));
-    fireEvent.change(screen.getByLabelText("Search notes"), {
-      target: { value: "standup" },
-    });
-    fireEvent.click(screen.getByText("Attach a note"));
-    expect(screen.getByText("Linked note")).toBeInTheDocument();
+    fireEvent.click(screen.getByText("Choose existing"));
+    expect(screen.getByText("0 selected")).toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText("Close the picker"));
     fireEvent.change(screen.getByPlaceholderText("Event title"), {
       target: { value: "Kickoff" },
     });
     fireEvent.click(screen.getByText("Add"));
-    expect(onSubmitEvent).toHaveBeenCalledWith(
-      "Kickoff",
-      slot({ start: "09:00", end: "10:00" }),
-      {
-        kind: "existing",
-        id: "note-2",
-      },
-    );
+    expect(again.onSubmitEvent).toHaveBeenCalledWith("Kickoff", slot(), []);
+    expect(first.onSubmitEvent).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #2396 — where the picker opens. Desktop puts a 20rem panel beside the form
+ * and widens its frame for it; Mobile puts a sheet over the create sheet. The
+ * panel itself only places the picker and reports it open; the frame does
+ * the widening (web/tests/scheduleOverlays.test.tsx).
+ */
+describe("ItemCreatePanel — where the note picker opens (#2396)", () => {
+  it("puts the side picker beside the form, 20rem wide", () => {
+    renderPanel({ notePicker: "side" });
+    openNotePicker();
+    const picker = screen.getByRole("region", { name: "Choose notes" });
+    expect(picker.getAttribute("data-note-picker")).toBe("side");
+    expect(picker.className).toContain("w-80");
+    // A sibling of the form column, not inside it.
+    const form = screen.getByPlaceholderText("Event title").closest(
+      ".flex-col",
+    ) as HTMLElement;
+    expect(form.contains(picker)).toBe(false);
+    expect(picker.parentElement).toBe(form.parentElement);
+    // Headed, with its own ×.
+    expect(within(picker).getByText("Choose notes").tagName).toBe("H3");
+    within(picker).getByLabelText("Close the picker");
   });
 
-  it("rides along when an EXISTING todo is placed", () => {
-    const { onPlaceTodo } = renderPanel();
-    openTodoTab("existing");
-    fireEvent.click(screen.getByText("Draft the invoice"));
-    stageNewNote("Prep");
-    fireEvent.click(screen.getByText("Place"));
-    expect(onPlaceTodo).toHaveBeenCalledWith(
-      "task-1",
-      slot({ start: "09:00", end: "10:00" }),
-      {
-        kind: "new",
-        title: "Prep",
-      },
-    );
+  it("reports the picker open and closed, and closed again on unmount", () => {
+    const onOpenChange = vi.fn();
+    renderPanel({ notePicker: "side", onNotePickerOpenChange: onOpenChange });
+    expect(onOpenChange).not.toHaveBeenCalled();
+    openNotePicker();
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    fireEvent.click(screen.getByText("Done"));
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
+
+    fireEvent.click(screen.getByText("Choose existing"));
+    expect(onOpenChange).toHaveBeenLastCalledWith(true);
+    cleanup();
+    expect(onOpenChange).toHaveBeenLastCalledWith(false);
   });
 
-  it("says the note pool is empty regardless of the query", () => {
-    renderPanel({ existingNotes: [] });
-    fireEvent.click(screen.getByText("Attach a note"));
-    fireEvent.click(screen.getByText("Existing note"));
-    expect(screen.getByText("No notes yet")).toBeInTheDocument();
-    fireEvent.change(screen.getByLabelText("Search notes"), {
-      target: { value: "zzz" },
-    });
-    expect(screen.getByText("No notes yet")).toBeInTheDocument();
-    expect(screen.queryByText("No matching notes")).toBeNull();
+  it("opens the Mobile picker as a sheet of its own", () => {
+    renderPanel({ notePicker: "sheet" });
+    openNotePicker();
+    const sheet = screen.getByRole("dialog", { name: "Choose notes" });
+    expect(sheet.getAttribute("aria-modal")).toBe("true");
+    within(sheet).getByRole("listbox", { name: "Choose notes" });
+    within(sheet).getByText("0 selected");
+    // The sheet's own close is its ×.
+    fireEvent.click(within(sheet).getByLabelText("Close the picker"));
+    expect(screen.queryByRole("dialog", { name: "Choose notes" })).toBeNull();
+  });
+
+  it("keeps the inline picker inside the form for a host that says nothing", () => {
+    renderPanel();
+    openNotePicker();
+    const picker = screen.getByRole("region", { name: "Choose notes" });
+    expect(picker.getAttribute("data-note-picker")).toBe("inline");
+    expect(picker.className).not.toContain("w-80");
   });
 });
 
@@ -919,7 +1194,7 @@ describe("ItemCreatePanel — the repeat (#2406)", () => {
       ),
     ).toBe("true");
     addEvent("Standup");
-    expect(onSubmitEvent).toHaveBeenCalledWith("Standup", slot(), null);
+    expect(onSubmitEvent).toHaveBeenCalledWith("Standup", slot(), []);
     expect(onSubmitEvent.mock.calls[0][1]).not.toHaveProperty("repeat");
   });
 
@@ -938,7 +1213,7 @@ describe("ItemCreatePanel — the repeat (#2406)", () => {
           frequencyEndDate: null,
         },
       }),
-      null,
+      [],
     );
   });
 
@@ -1021,7 +1296,7 @@ describe("ItemCreatePanel — shared draft across the type tabs (#376)", () => {
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Dentist",
       slot({ start: "13:00", end: "13:30" }),
-      null,
+      [],
     );
   });
 });

@@ -546,7 +546,9 @@ function ItemPanelSurface({
       noteAttach={{
         notes: noteOptions,
         notesError,
-        onAttach: attachNote,
+        // The edit panel still attaches one note at a time (#2219); the
+        // create panel's attach takes a list since #2396.
+        onAttach: (itemId, draft) => attachNote(itemId, [draft]),
         onOpenChange: setNotePickerOpen,
       }}
     />

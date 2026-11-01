@@ -317,11 +317,22 @@ export function useScheduleCopy({
       todoPickerNoMatch: t("scheduleScreen.todoPickerNoMatch"),
       attachNote: t("scheduleScreen.attachNote"),
       noteSourceLabel: t("scheduleScreen.noteSourceLabel"),
-      noteSourceNew: t("scheduleScreen.noteSourceNew"),
-      noteSourceExisting: t("scheduleScreen.noteSourceExisting"),
+      // #2396: the note row's three buttons, worded as in the proposal.
+      // Keys of their own: the edit panel's toggle still reads「新規ノート /
+      // 既存のノート」from noteSourceNew / noteSourceExisting.
+      noteSourceNew: t("scheduleScreen.noteCreateNew"),
+      noteSourceExisting: t("scheduleScreen.notePickExisting"),
+      noteDismiss: t("scheduleScreen.noteDismiss"),
       noteTitleLabel: t("scheduleScreen.noteTitleLabel"),
       notePlaceholder: t("scheduleScreen.notePlaceholder"),
+      noteNewConfirm: t("scheduleScreen.noteNewConfirm"),
       searchNotes: t("scheduleScreen.searchNotes"),
+      notePickerTitle: t("scheduleScreen.notePickerTitle"),
+      notePickerClose: t("common.close"),
+      notePickerCount: (n: number) =>
+        t("scheduleScreen.notePickerCount", { n }),
+      notePickerDone: t("scheduleScreen.notePickerDone"),
+      noteLocked: t("scheduleScreen.noteLocked"),
       // "No notes yet" is a claim about the user's data, so it must not stand
       // in for a list we simply failed to read.
       notePickerEmpty: notesError
@@ -329,8 +340,9 @@ export function useScheduleCopy({
         : t("scheduleScreen.notePickerEmpty"),
       notePickerNoMatch: t("scheduleScreen.notePickerNoMatch"),
       noteLinkHint: t("scheduleScreen.noteLinkHint"),
-      attachedNote: t("scheduleScreen.attachedNote"),
-      clearNote: t("scheduleScreen.clearNote"),
+      attachedNote: t("scheduleScreen.attachedNotes"),
+      removeNote: (title: string) =>
+        t("scheduleScreen.removeNote", { title }),
     }),
     [t, notesError],
   );

@@ -224,7 +224,14 @@ const CREATE_LABELS: ScheduleOverlaysProps["create"]["labels"] = {
   notePickerNoMatch: "notePickerNoMatch",
   noteLinkHint: "noteLinkHint",
   attachedNote: "attachedNote",
-  clearNote: "clearNote",
+  noteDismiss: "noteDismiss",
+  noteNewConfirm: "noteNewConfirm",
+  notePickerTitle: "notePickerTitle",
+  notePickerClose: "notePickerClose",
+  notePickerCount: (n: number) => `notePickerCount:${n}`,
+  notePickerDone: "notePickerDone",
+  noteLocked: "noteLocked",
+  removeNote: (title: string) => `removeNote:${title}`,
 };
 
 const CONFIRM_REQUEST = {
@@ -610,6 +617,133 @@ describe("ScheduleOverlays — the creation surface picks a frame by width", () 
   ])("mounts no creation panel on %s while it is closed", (_layout, isWide) => {
     renderOverlays({ isWide, create: { panel: null } });
     expect(document.querySelector('input[type="date"]')).toBeNull();
+  });
+});
+
+/*
+ * #2396 — the create panel's note picker, per frame. Desktop sets it beside
+ * the form and widens the overlay for it (a 20rem panel hung off a 512px
+ * dialog runs off a narrow screen); Mobile raises a second sheet over the
+ * full-screen create sheet. jsdom has no layout, so the widening is asserted
+ * on the width class the Modal chose, and the stacking on DOM order.
+ */
+describe("ScheduleOverlays — the create panel's note picker (#2396)", () => {
+  const PANEL = { date: "2026-08-16", start: "09:00", end: "10:00" };
+  const POOLS = {
+    todos: [],
+    notes: [
+      { id: "note-1", title: "議事録" },
+      { id: "note-2", title: "給与の話", isLocked: true },
+    ],
+  };
+  const openPicker = () => {
+    fireEvent.click(screen.getByText("attachNote"));
+    fireEvent.click(screen.getByText("noteSourceExisting"));
+  };
+  const createDialog = () =>
+    screen.getByRole("dialog", { name: "scheduleScreen.addItem" });
+
+  it("widens the Desktop overlay while the side picker is open", () => {
+    renderOverlays({ isWide: true, create: { panel: PANEL, pools: POOLS } });
+    expect(createDialog().className).toContain("max-w-lg");
+
+    openPicker();
+    const picker = screen.getByRole("region", { name: "notePickerTitle" });
+    expect(picker.getAttribute("data-note-picker")).toBe("side");
+    expect(createDialog().contains(picker)).toBe(true);
+    expect(createDialog().className).toContain("max-w-[860px]");
+    expect(createDialog().className).not.toContain("max-w-lg");
+
+    fireEvent.click(screen.getByText("notePickerDone"));
+    expect(createDialog().className).toContain("max-w-lg");
+  });
+
+  it("goes back to the narrow overlay when it closes with the picker open", () => {
+    const view = renderOverlays({
+      isWide: true,
+      create: { panel: PANEL, pools: POOLS },
+    });
+    openPicker();
+    view.rerender(
+      <ScheduleOverlays
+        {...view.props}
+        create={{ ...view.props.create, panel: null }}
+      />,
+    );
+    view.rerender(
+      <ScheduleOverlays
+        {...view.props}
+        create={{ ...view.props.create, panel: PANEL }}
+      />,
+    );
+    expect(createDialog().className).toContain("max-w-lg");
+    expect(screen.queryByRole("region", { name: "notePickerTitle" })).toBeNull();
+  });
+
+  it("raises a second sheet over the Mobile create sheet", () => {
+    renderOverlays({ isWide: false, create: { panel: PANEL, pools: POOLS } });
+    openPicker();
+    const dialogs = screen.getAllByRole("dialog");
+    // The create sheet stays, and the picker sheet is portalled after it —
+    // which is what puts it on top at the same z-index.
+    expect(dialogs.map((d) => d.getAttribute("aria-label"))).toEqual([
+      "scheduleScreen.addItem",
+      "notePickerTitle",
+    ]);
+    const picker = dialogs[1];
+    // A locked note says so in the list.
+    const locked = screen.getByRole("option", { name: /給与の話/ });
+    expect(locked.textContent).toContain("noteLocked");
+
+    fireEvent.click(screen.getByRole("option", { name: /議事録/ }));
+    fireEvent.click(locked);
+    expect(picker.textContent).toContain("notePickerCount:2");
+    fireEvent.click(screen.getByText("notePickerDone"));
+
+    expect(screen.getAllByRole("dialog")).toHaveLength(1);
+    // Both picks are chips on the create sheet now.
+    screen.getByLabelText("removeNote:議事録");
+    screen.getByLabelText("removeNote:給与の話");
+  });
+
+  it("lets Esc close the Mobile picker sheet and leave the create sheet", () => {
+    const view = renderOverlays({
+      isWide: false,
+      create: { panel: PANEL, pools: POOLS },
+    });
+    openPicker();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(
+      screen.queryByRole("dialog", { name: "notePickerTitle" }),
+    ).toBeNull();
+    createDialog();
+    expect(view.props.create.onClose).not.toHaveBeenCalled();
+  });
+
+  it("starts the next opening with no notes staged", () => {
+    const view = renderOverlays({
+      isWide: false,
+      create: { panel: PANEL, pools: POOLS },
+    });
+    openPicker();
+    fireEvent.click(screen.getByRole("option", { name: /議事録/ }));
+    fireEvent.click(screen.getByText("notePickerDone"));
+    screen.getByLabelText("removeNote:議事録");
+
+    view.rerender(
+      <ScheduleOverlays
+        {...view.props}
+        create={{ ...view.props.create, panel: null }}
+      />,
+    );
+    view.rerender(
+      <ScheduleOverlays
+        {...view.props}
+        create={{ ...view.props.create, panel: PANEL }}
+      />,
+    );
+    expect(screen.queryByLabelText("removeNote:議事録")).toBeNull();
+    expect(screen.queryByText("attachedNote")).toBeNull();
   });
 });
 

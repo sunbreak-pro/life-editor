@@ -220,7 +220,14 @@ const CREATE_LABELS: ItemCreatePanelLabels = {
   notePickerNoMatch: "notePickerNoMatch",
   noteLinkHint: "noteLinkHint",
   attachedNote: "attachedNote",
-  clearNote: "clearNote",
+  noteDismiss: "noteDismiss",
+  noteNewConfirm: "noteNewConfirm",
+  notePickerTitle: "notePickerTitle",
+  notePickerClose: "notePickerClose",
+  notePickerCount: (n: number) => `notePickerCount:${n}`,
+  notePickerDone: "notePickerDone",
+  noteLocked: "noteLocked",
+  removeNote: (title: string) => `removeNote:${title}`,
 };
 
 function renderHost(
