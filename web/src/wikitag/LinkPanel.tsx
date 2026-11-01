@@ -13,9 +13,13 @@ import {
   isImeComposing,
   itemLinkVisual,
   NoticePanel,
+  useToastOptional,
   useTranslation,
   useWikiTagsUnifiedContext,
 } from "@life-editor/shared";
+import type { ItemLinkPreviewSource } from "../notes/useItemLinkPreview";
+import { LinkChip } from "./LinkChip";
+import { useLinkChipPopover } from "./useLinkChipPopover";
 
 /*
  * LinkPanel — the item↔item links of a single item, as a chip row.
@@ -92,6 +96,13 @@ import {
  *     left edge. Related stays Desktop only, as it was: the phone row has no
  *     room for a third control the design does not have.
  *
+ * #2392 gave the chip a panel, so the title is on screen again when asked for:
+ * hover or focus opens it, a click or tap pins it, and it is the chip's only
+ * action. Opening the item moved to the panel's bottom row, next to removing the
+ * link, which goes on the Undo stack from here and from the "+" popover alike.
+ * See LinkChip for how the panel hangs and what closes it. The native tooltip
+ * went with it: it would have opened over the panel with the same words.
+ *
  * Copy comes from the catalog through `useTranslation` — the same call the
  * sibling TagPicker makes. (The props-injected-labels rule is for the shared
  * component layer; this is web's own host layer.)
@@ -146,6 +157,11 @@ interface LinkPanelProps {
    * timestamp. Absent → the section is not shown at all.
    */
   relatedDailyDate?: string;
+  /**
+   * What a chip's panel says about its target (#2392), read when a panel opens.
+   * Absent → the panel shows the kind and the title and its two buttons.
+   */
+  previews?: ItemLinkPreviewSource;
 }
 
 /** Keep the popover compact — the pool is balanced across roles, not sliced. */
@@ -183,9 +199,12 @@ export function LinkPanel({
   loadTargets,
   onNavigateToItem,
   relatedDailyDate,
+  previews,
 }: LinkPanelProps) {
   const wiki = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
+  const toast = useToastOptional();
+  const chipPopover = useLinkChipPopover(itemId);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [relatedOpen, setRelatedOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -355,14 +374,19 @@ export function LinkPanel({
     }
   };
 
-  const handleDelete = async (linkIds: string[]) => {
+  /** Both ways out (the chip's panel, the "+" popover) end up here. */
+  const removeLink = async (linkIds: string[], title: string) => {
+    setError(null);
     try {
-      // Sequential, not Promise.all: the Context mutator rewrites the same bulk
-      // cache each time, and two writes landing together can drop one update.
-      for (const linkId of linkIds) await wiki.deleteItemLink(linkId);
+      await wiki.removeItemLinks(linkIds);
+      toast?.showToast("info", t("materials.links.unlinked", { title }));
     } catch (err) {
-      console.error("deleteItemLink failed", err);
+      setError(err instanceof Error ? err.message : String(err));
     }
+  };
+
+  const handleDelete = async (linkIds: string[], title: string) => {
+    await removeLink(linkIds, title);
     // The row that held the focus is gone. Without this it falls to <body>,
     // where Escape no longer closes the popover.
     pickerInputRef.current?.focus();
@@ -463,43 +487,63 @@ export function LinkPanel({
 
   /** One linked item: a square with its kind's icon, named for the title. */
   const renderChip = (entry: { targetId: string; linkIds: string[] }) => {
-    const { targetId } = entry;
+    const { targetId, linkIds } = entry;
     const row = resolveRow(targetId);
-    const role = targetsById.get(targetId)?.role;
+    const target = targetsById.get(targetId);
+    const role = target?.role;
     const { Icon, iconClass } = row.deleted
       ? DELETED_LINK_VISUAL
       : itemLinkVisual(role);
     const title = rowLabel(row);
     const kind = kindOf(role);
     const name = t("materials.links.chipName", { kind, title });
-    const tooltip = row.named ? name : targetId;
-    const openTarget = openTargetFor(targetId, row.deleted);
-    const face = `${LINK_CHIP_BOX} border border-lumen-border bg-lumen-bg`;
-    const glyph = (
-      <Icon aria-hidden className={`${LINK_CHIP_ICON} ${iconClass}`} />
-    );
 
-    return openTarget ? (
-      <button
+    return (
+      <LinkChip
         key={targetId}
-        type="button"
-        title={tooltip}
-        onClick={() => onNavigateToItem?.(openTarget)}
-        aria-label={t("materials.links.openChip", { kind, title })}
-        className={`${face} hover:bg-lumen-hover ${FOCUS_RING}`}
-      >
-        {glyph}
-      </button>
-    ) : (
-      <span
-        key={targetId}
-        role="img"
-        title={tooltip}
-        aria-label={name}
-        className={face}
-      >
-        {glyph}
-      </span>
+        id={targetId}
+        name={name}
+        boxClass={`${LINK_CHIP_BOX} border ${FOCUS_RING}`}
+        closedClass="border-lumen-border bg-lumen-bg hover:bg-lumen-hover"
+        openClass="border-lumen-accent bg-lumen-accent-subtle"
+        glyph={
+          <Icon aria-hidden className={`${LINK_CHIP_ICON} ${iconClass}`} />
+        }
+        popover={chipPopover}
+        previews={previews}
+        panel={() => {
+          const openTarget = openTargetFor(targetId, row.deleted);
+          return {
+            dialogLabel: name,
+            kindLabel: kind,
+            kindIcon: <Icon aria-hidden className={`size-3.5 ${iconClass}`} />,
+            title,
+            // Only part of the id is showing, and nothing else can identify it.
+            titleHint: row.named ? undefined : targetId,
+            struck: row.deleted,
+            previewTarget:
+              target && !row.deleted
+                ? { id: targetId, role: target.role, date: target.date }
+                : null,
+            // A dismissed event, or a kind the pool does not carry (a goal).
+            note: row.named
+              ? undefined
+              : t("materials.links.previewUnavailable"),
+            onOpen: openTarget
+              ? () => {
+                  chipPopover.close();
+                  onNavigateToItem?.(openTarget);
+                }
+              : undefined,
+            onUnlink: () => {
+              chipPopover.close();
+              // The chip that held the focus is about to go.
+              pickerTriggerRef.current?.focus();
+              void removeLink(linkIds, title);
+            },
+          };
+        }}
+      />
     );
   };
 
@@ -536,7 +580,7 @@ export function LinkPanel({
           type="button"
           // Keep the focus in the search field: this row unmounts on removal.
           onMouseDown={(e) => e.preventDefault()}
-          onClick={() => void handleDelete(linkIds)}
+          onClick={() => void handleDelete(linkIds, title)}
           aria-label={t("materials.links.remove", { title })}
           className={`shrink-0 rounded-lumen-sm text-lumen-text-secondary hover:text-lumen-danger max-md:min-h-11 max-md:min-w-11 ${FOCUS_RING}`}
         >
