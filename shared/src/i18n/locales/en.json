@@ -735,7 +735,9 @@
     "displayColorPick": "Use \"{{name}}\" for this item's calendar colour",
     "displayColorDefaultHint": "Default: the tag added first",
     "displayColorFrom": "Shown in the colour of the \"{{name}}\" tag",
-    "displayColorNone": "No tags, so it is shown in the standard colour"
+    "displayColorNone": "No tags, so it is shown in the standard colour",
+    "displayColorByTag": "The colour comes from the tag",
+    "displayColorEditTag": "Change the tag's colour"
   },
   "itemConvert": {
     "toTodo": "Convert to Todo",

@@ -31,9 +31,9 @@ const ITEM: EventEditorItem = {
   isRoutine: false,
 };
 
-describe("EventEditorPane (#2219)", () => {
-  it("shows no saved / unsaved line, only Delete and Save in the footer", () => {
-    const { container } = render(
+describe("EventEditorPane (#2219 / #2407)", () => {
+  function renderPane(onCancel = vi.fn()) {
+    const utils = render(
       <EventEditorPane
         item={ITEM}
         labels={{
@@ -49,15 +49,32 @@ describe("EventEditorPane (#2219)", () => {
           delete: "Delete",
         }}
         handlers={{ onSave: vi.fn(), onDelete: vi.fn() }}
+        cancel={{ label: "Cancel", onCancel }}
       />,
     );
+    return { ...utils, onCancel };
+  }
+
+  // #2407: the prototype's row is Delete / Cancel / Save. Before it the
+  // footer held Delete and Save only.
+  it("shows no saved / unsaved line, and Delete, Cancel, Save in the footer", () => {
+    const { container } = renderPane();
     const save = screen.getByRole("button", { name: "Save" });
     const footer = save.parentElement as HTMLElement;
+    expect(
+      Array.from(footer.children).map((el) => el.textContent?.trim()),
+    ).toEqual(["Delete", "Cancel", "Save"]);
     expect(within(footer).getByRole("button", { name: "Delete" })).toBe(
       footer.firstElementChild,
     );
     expect(footer.querySelector("[aria-live]")).toBeNull();
     expect(container.textContent).not.toMatch(/Saved|Unsaved/);
+  });
+
+  it("hands Cancel to the host, which owns the close and its question", () => {
+    const { onCancel } = renderPane();
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    expect(onCancel).toHaveBeenCalledTimes(1);
   });
 });
 

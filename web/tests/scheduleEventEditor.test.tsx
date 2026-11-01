@@ -72,8 +72,22 @@ vi.mock("../src/wikitag/TagPicker", () => ({
 }));
 
 vi.mock("../src/wikitag/TagColorControls", () => ({
-  TagColorControls: ({ itemId }: { itemId: string }) => (
-    <span>{`colors:${itemId}`}</span>
+  TagColorControls: ({
+    itemId,
+    onOpenTag,
+  }: {
+    itemId: string;
+    onOpenTag?: (tagId: string) => void;
+  }) => (
+    <>
+      <span>{`colors:${itemId}`}</span>
+      {/* #2407: the link is drawn only when the host hands one down. */}
+      {onOpenTag && (
+        <button type="button" onClick={() => onOpenTag("tag-health")}>
+          {`open-tag:${itemId}`}
+        </button>
+      )}
+    </>
   ),
 }));
 
@@ -112,6 +126,8 @@ function renderEditor(
     routineId?: string | null;
     onConvertToTodo?: ScheduleEventEditorProps["onConvertToTodo"];
     noteAttach?: ScheduleEventEditorProps["noteAttach"];
+    onCancel?: ScheduleEventEditorProps["onCancel"];
+    onOpenTag?: ScheduleEventEditorProps["onOpenTag"];
   } = {},
 ) {
   const onConvertToTodo = over.onConvertToTodo ?? vi.fn();
@@ -137,6 +153,8 @@ function renderEditor(
     },
     onConvertToTodo,
     noteAttach: over.noteAttach,
+    onCancel: over.onCancel,
+    onOpenTag: over.onOpenTag,
   };
   const utils = render(<ScheduleEventEditor {...props} />, {
     wrapper: SyncWrapper,
@@ -211,6 +229,41 @@ describe("ScheduleEventEditor — the save footer sticks on both widths (#1728)"
   it.each([true, false])("pins it at isWide=%s", (isWide) => {
     renderEditor({ isWide });
     expect(footer().className).toContain("sticky");
+  });
+});
+
+/*
+ * #2407 — the prototype's Cancel and 「タグの色を変える →」. Both are the host's
+ * presses handed through; this file only sees that the copy and the handler
+ * arrive at the pane and at the colour row.
+ */
+describe("ScheduleEventEditor — Cancel and the tag link (#2407)", () => {
+  it("puts 「キャンセル」 just before Save and hands the press up", () => {
+    const onCancel = vi.fn();
+    renderEditor({ onCancel });
+    const cancel = screen.getByRole("button", { name: "common.cancel" });
+    expect(cancel.nextElementSibling).toBe(
+      screen.getByRole("button", { name: "scheduleScreen.save" }),
+    );
+    fireEvent.click(cancel);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+  });
+
+  it("draws no Cancel when the host passes none", () => {
+    renderEditor();
+    expect(screen.queryByRole("button", { name: "common.cancel" })).toBeNull();
+  });
+
+  it("hands the colour row the tag link, against the row tags are written to", () => {
+    const onOpenTag = vi.fn();
+    renderEditor({ routineId: "routine-1", onOpenTag });
+    fireEvent.click(screen.getByText("open-tag:routine-1"));
+    expect(onOpenTag).toHaveBeenCalledWith("tag-health");
+  });
+
+  it("gives the colour row no link without onOpenTag", () => {
+    renderEditor();
+    expect(screen.queryByText(/^open-tag:/)).toBeNull();
   });
 });
 

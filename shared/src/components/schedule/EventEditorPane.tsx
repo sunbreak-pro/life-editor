@@ -312,6 +312,23 @@ export interface EventEditorDuplicate {
   }>;
 }
 
+/**
+ * The footer's Cancel (#2407 — the prototype's row is Delete / Cancel / Save).
+ * Supplying this object renders the button; omitting it renders none.
+ *
+ * The pane does not close itself. The host owns the close affordances and the
+ * "discard?" question in front of them (see `onDirtyChange`), so `onCancel`
+ * must be the SAME guarded close the frame's × / Escape / backdrop run — a
+ * pane that unmounted itself here would throw an unsaved draft away without
+ * asking. For the same reason the button is never disabled: with nothing
+ * pending it simply closes, and with a draft the host asks first.
+ */
+export interface EventEditorCancel {
+  /** Already-translated — 「キャンセル」 (`common.cancel`). */
+  label: string;
+  onCancel: () => void;
+}
+
 export interface EventEditorPaneProps {
   item: EventEditorItem;
   labels: EventEditorLabels;
@@ -326,6 +343,8 @@ export interface EventEditorPaneProps {
   convert?: EventEditorConvert;
   /** Duplicate entries (#2031). Omit to render none. */
   duplicate?: EventEditorDuplicate;
+  /** The footer's Cancel (#2407). Omit to render none. */
+  cancel?: EventEditorCancel;
   /**
    * Tag affordance for this row (#468). Injected rather than built here: the
    * tag layer talks to WikiTagsUnifiedContext, and this pane is pure
@@ -494,6 +513,16 @@ const SAVE_BTN = cn(
 );
 
 /**
+ * The footer's Cancel (#2407): outlined beside the filled Save, so the commit
+ * stays the one accent on the row. Same padding as Save so the two read as a
+ * pair; the 44px floor is narrow-only, like Delete beside it.
+ */
+const CANCEL_BTN = cn(
+  "rounded-lumen-md border border-lumen-border-strong px-4 py-2 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover max-md:min-h-11 max-md:min-w-11",
+  FOCUS_RING_TIGHT,
+);
+
+/**
  * Secondary full-width action inside the pane (skip-this-day, convert).
  * Outline rather than accent: neither is the pane's primary act — the save
  * button is (#628).
@@ -518,6 +547,7 @@ function EventEditorFields({
   workTime,
   convert,
   duplicate,
+  cancel,
   tagSlot,
   stickyFooter,
 }: Omit<EventEditorPaneProps, "className">) {
@@ -958,7 +988,11 @@ function EventEditorFields({
           above the footer at the end of the fields, so on both widths it was
           below the fold whenever the pane scrolled — the footer is pinned
           (#995 / #1728) and the delete was not. Save stays at the right end;
-          the two ends keep the destructive act and the commit apart. */}
+          the two ends keep the destructive act and the commit apart.
+
+          #2407: Cancel sits just before Save, as in the prototype. It is the
+          host's guarded close (see EventEditorCancel), so it stays enabled
+          whether or not anything is pending. */}
       <div
         className={cn(
           "flex items-center justify-end gap-3 border-t border-lumen-border pt-3",
@@ -991,6 +1025,15 @@ function EventEditorFields({
           >
             <Trash2 aria-hidden className="size-3.5" />
             {labels.delete}
+          </button>
+        )}
+        {cancel && (
+          <button
+            type="button"
+            onClick={cancel.onCancel}
+            className={CANCEL_BTN}
+          >
+            {cancel.label}
           </button>
         )}
         <button

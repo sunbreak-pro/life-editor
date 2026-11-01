@@ -68,6 +68,8 @@ export {
   type EventEditorConvert,
   // #2031: the sheet's Duplicate entries.
   type EventEditorDuplicate,
+  // #2407: the footer's Cancel.
+  type EventEditorCancel,
   // #628: the one patch the save button hands the host.
   type EventEditorPatch,
 } from "./EventEditorPane";

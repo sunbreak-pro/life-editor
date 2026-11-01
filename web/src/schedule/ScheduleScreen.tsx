@@ -40,6 +40,7 @@ export function ScheduleScreen({
   onConsumePendingEvent,
   onNavigateToItem,
   onTodoDetailClose,
+  onOpenTag,
 }: {
   dataService: DataService;
   /** Shell "new todo" intent (global:new-task). */
@@ -65,6 +66,12 @@ export function ScheduleScreen({
    * back to where that todo was opened from, if it was opened as a side trip.
    */
   onTodoDetailClose?: (todoId: string) => void;
+  /**
+   * Open a tag on Connect's tag screen (#2407) — the event editor's 「タグの色
+   * を変える →」. Only the shell can switch sections; omit and the link is not
+   * drawn.
+   */
+  onOpenTag?: (tagId: string) => void;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -83,6 +90,7 @@ export function ScheduleScreen({
         onConsumePendingEvent={onConsumePendingEvent}
         onNavigateToItem={onNavigateToItem}
         onTodoDetailClose={onTodoDetailClose}
+        onOpenTag={onOpenTag}
       />
     </div>
   );

@@ -92,12 +92,13 @@ function makeHarness(
 
 async function renderControls(
   assignments?: Partial<WikiTagAssignmentUnified>[],
+  onOpenTag?: (tagId: string) => void,
 ) {
   const h = makeHarness(assignments);
   render(
     <SyncWrapper>
       <WikiTagsUnifiedProvider dataService={h.ds}>
-        <TagColorControls itemId={ITEM} />
+        <TagColorControls itemId={ITEM} onOpenTag={onOpenTag} />
       </WikiTagsUnifiedProvider>
     </SyncWrapper>,
   );
@@ -212,5 +213,76 @@ describe("#2219 — choosing, not repainting", () => {
       await screen.findByText("itemActions.displayColorNone"),
     ).toBeTruthy();
     expect(screen.queryByRole("radio")).toBeNull();
+  });
+});
+
+/*
+ * #2407 — the prototype's colour row: 「色はタグが決まります」 and a link,
+ * 「タグの色を変える →」, to the tag on Connect. A LINK, not a picker — the
+ * #2219 case above ("draws no colour picker") still holds with it drawn, and
+ * the write it would have made never happens here.
+ *
+ * Opt-in: the todo detail mounts this part too and is out of #2407's scope, so
+ * a host that passes no `onOpenTag` gets the row exactly as before.
+ */
+describe("#2407 — the link to the tag's own colour", () => {
+  const LINK = { name: "itemActions.displayColorEditTag" } as const;
+
+  it("draws neither the sentence nor the link without onOpenTag", async () => {
+    await renderControls();
+    expect(screen.queryByText("itemActions.displayColorByTag")).toBeNull();
+    expect(screen.queryByRole("button", LINK)).toBeNull();
+  });
+
+  it("opens the tag the colour comes from", async () => {
+    const onOpenTag = vi.fn();
+    const { fns } = await renderControls(undefined, onOpenTag);
+    screen.getByText("itemActions.displayColorByTag");
+    fireEvent.click(screen.getByRole("button", LINK));
+    // Work was added first, so it is the tag the line names — and the one the
+    // link has to open.
+    expect(onOpenTag).toHaveBeenCalledWith("tag-work");
+    // Still no picker, and no write from this row.
+    expect(screen.queryByRole("button", { name: /tagColor/ })).toBeNull();
+    expect(fns.updateWikiTagUnified).not.toHaveBeenCalled();
+    expect(fns.setDisplayColorTag).not.toHaveBeenCalled();
+  });
+
+  it("follows the explicit pick", async () => {
+    const onOpenTag = vi.fn();
+    await renderControls(
+      ASSIGNMENTS.map((a) =>
+        a.id === "assign-home" ? { ...a, isDisplayColor: true } : a,
+      ),
+      onOpenTag,
+    );
+    fireEvent.click(screen.getByRole("button", LINK));
+    expect(onOpenTag).toHaveBeenCalledWith("tag-home");
+  });
+
+  it("keeps the chips and the default hint beside it", async () => {
+    await renderControls(undefined, vi.fn());
+    expect(screen.getAllByRole("radio")).toHaveLength(2);
+    screen.getByText("itemActions.displayColorDefaultHint");
+  });
+
+  it("floors the link at 44px on narrow only", async () => {
+    await renderControls(undefined, vi.fn());
+    const cls = screen.getByRole("button", LINK).className.split(" ");
+    expect(cls).toContain("max-md:min-h-11");
+    expect(cls).not.toContain("min-h-11");
+  });
+
+  it("draws no link on an item with no tags", async () => {
+    const h = makeHarness([]);
+    render(
+      <SyncWrapper>
+        <WikiTagsUnifiedProvider dataService={h.ds}>
+          <TagColorControls itemId={ITEM} onOpenTag={vi.fn()} />
+        </WikiTagsUnifiedProvider>
+      </SyncWrapper>,
+    );
+    await screen.findByText("itemActions.displayColorNone");
+    expect(screen.queryByRole("button", LINK)).toBeNull();
   });
 });

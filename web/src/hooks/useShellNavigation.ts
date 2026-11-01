@@ -3,6 +3,9 @@ import {
   resolveInitialSection,
   persistLastSection,
   defaultBriefingTab,
+  getConnectTagSelection,
+  setConnectItemSelection,
+  setConnectTagSelection,
   type BriefingTab,
   type AnalyticsTab,
   type DatePreset,
@@ -283,6 +286,32 @@ export function useShellNavigation({
     [],
   );
 
+  /*
+   * "Open this tag on Connect" (#2407 — the Schedule event editor's 「タグの
+   * 色を変える →」, since the tag's own colour is edited there alone, #2219).
+   * No pending intent is needed: ConnectScreen seeds its open tag from the
+   * module-level store (#1473) on every mount, and the section switch below
+   * mounts it fresh — so writing the store FIRST and switching after lands on
+   * that tag. The row the panel was reading goes, as it does when a tag is
+   * picked on the screen itself (ConnectScreen's commitSelection): it belonged
+   * to the old tag.
+   *
+   * All three moves sit INSIDE the guard like showRecordsForApp: a refused
+   * navigation must not leave Connect re-pointed at a tag the user never got
+   * to.
+   */
+  const openTagInConnect = useCallback(
+    (tagId: string) => {
+      guarded(() => {
+        if (getConnectTagSelection() !== tagId) setConnectItemSelection(null);
+        setConnectTagSelection(tagId);
+        setConnectTab("tags");
+        applyDestination({ section: "connect" });
+      });
+    },
+    [guarded, applyDestination],
+  );
+
   // global:new-task executor. Todo creation lives behind the TodoTree
   // Provider, which only the Schedule section mounts, so the shell can't call
   // the create API directly. Instead it navigates to Schedule and raises a
@@ -448,6 +477,7 @@ export function useShellNavigation({
     pendingRecordsSource,
     consumeRecordsSource,
     showRecordsForApp,
+    openTagInConnect,
     briefingTab,
     setBriefingTab,
     connectTab,

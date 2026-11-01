@@ -733,7 +733,9 @@
     "displayColorPick": "「{{name}}」の色をこのアイテムに使う",
     "displayColorDefaultHint": "既定は最初に付けたタグです",
     "displayColorFrom": "「{{name}}」タグの色で表示",
-    "displayColorNone": "タグが無いので、標準の色で表示します"
+    "displayColorNone": "タグが無いので、標準の色で表示します",
+    "displayColorByTag": "色はタグが決まります",
+    "displayColorEditTag": "タグの色を変える"
   },
   "itemConvert": {
     "toTodo": "Todo に変換",

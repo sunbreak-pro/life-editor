@@ -158,6 +158,69 @@ describe("EventEditorPane — Delete sits in the save row (#2080)", () => {
   });
 });
 
+/*
+ * #2407 — the prototype's footer: Delete / Cancel / Save. The pane never closes
+ * itself; Cancel hands the press to the host, whose close runs the
+ * unsaved-draft question (the guard is pinned in scheduleOverlayHost.test.tsx).
+ */
+describe("EventEditorPane — Cancel in the save row (#2407)", () => {
+  function renderWithCancel(onCancel = vi.fn()) {
+    const onSave = vi.fn();
+    render(
+      <EventEditorPane
+        item={manualItem}
+        labels={LABELS}
+        handlers={{ onSave, onDelete: vi.fn() }}
+        cancel={{ label: "Cancel", onCancel }}
+      />,
+    );
+    return { onCancel, onSave };
+  }
+  const cancelButton = () => screen.getByRole("button", { name: "Cancel" });
+
+  it("sits between Delete and Save", () => {
+    renderWithCancel();
+    const footer = saveButton().parentElement as HTMLElement;
+    expect(cancelButton().parentElement).toBe(footer);
+    expect(cancelButton().previousElementSibling).toBe(
+      screen.getByRole("button", { name: "Delete" }),
+    );
+    expect(cancelButton().nextElementSibling).toBe(saveButton());
+  });
+
+  it("is pressable with nothing pending, and writes nothing", () => {
+    const { onCancel, onSave } = renderWithCancel();
+    // Save is off on a clean draft; Cancel is not — it still closes.
+    expect(saveButton()).toBeDisabled();
+    expect(cancelButton()).not.toBeDisabled();
+    fireEvent.click(cancelButton());
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("does not save a pending draft on the way out", () => {
+    const { onCancel, onSave } = renderWithCancel();
+    fireEvent.change(screen.getByDisplayValue("Dentist"), {
+      target: { value: "Dentist (moved)" },
+    });
+    fireEvent.click(cancelButton());
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+  });
+
+  it("floors Cancel at 44px on narrow only", () => {
+    renderWithCancel();
+    const cls = cancelButton().className.split(" ");
+    expect(cls).toContain("max-md:min-h-11");
+    expect(cls).not.toContain("min-h-11");
+  });
+
+  it("draws no Cancel without the bundle", () => {
+    renderPane(manualItem);
+    expect(screen.queryByRole("button", { name: "Cancel" })).toBeNull();
+  });
+});
+
 describe("EventEditorPane — the body does not name the kind (#1044)", () => {
   it("drops the manual item's 「予定」 chip", () => {
     // It moved to a one-glyph cue in the frame's header. The body saying it a
