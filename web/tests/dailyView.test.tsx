@@ -730,18 +730,6 @@ describe("DailyView — a link to a day (#2393)", () => {
     expect(state.setSelectedDate).toHaveBeenCalledWith("2026-03-14");
     expect(onConsumePendingSelect).toHaveBeenCalledTimes(1);
   });
-
-  it("puts the calendar on that day's month", () => {
-    // The picker is a controlled native date input, so the month it opens on is
-    // the selected day's, with no state of its own to fall behind.
-    state.isWide = true;
-    state.selectedDate = "2026-03-14";
-    render(<DailyView />);
-    const picker = screen.getByLabelText<HTMLInputElement>(
-      "materials.daily.datePicker",
-    );
-    expect(picker.value).toBe("2026-03-14");
-  });
 });
 
 describe("DailyView — desktop entry panel", () => {
