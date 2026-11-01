@@ -131,7 +131,7 @@ const KIND_RANK: Record<GoalPeriodKind, number> = {
   week: 2,
 };
 
-function compareGoals(a: Goal, b: Goal): number {
+export function compareGoals(a: Goal, b: Goal): number {
   return (
     KIND_RANK[a.periodKind] - KIND_RANK[b.periodKind] ||
     a.sortOrder - b.sortOrder ||
