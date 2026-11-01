@@ -175,7 +175,7 @@ function setup(over?: {
         copySuffix: " (copy)",
       };
       const mutations = useScheduleMutations(args);
-      return { history, tags, mutations };
+      return { history, tags, mutations, copyTagsFrom };
     },
     { wrapper },
   );
@@ -324,5 +324,44 @@ describe("duplicating an event with or without its tags (#2005)", () => {
     // The copy itself landed — this is not the duplicate failing.
     expect(h.onDuplicateFailed).not.toHaveBeenCalled();
     expect(tagIdsOn(h, copyId(h.ds))).toHaveLength(1);
+  });
+
+  /*
+   * #2406: the creation panel's copy. The dialog edits the tags before the
+   * press, so the chosen set is carried instead of the source's — and still
+   * rides the one undo entry.
+   */
+  it("carries the set chosen in the creation panel, on one undo", async () => {
+    const h = setup();
+    await ready(h);
+    const source = scheduleRow({});
+
+    act(() => {
+      const current = h.hook.result.current;
+      current.mutations.handleDuplicateOnto(
+        source,
+        "2026-11-02",
+        current.copyTagsFrom(source, ["t-work", "t-added"]),
+      );
+    });
+    await waitFor(() =>
+      expect(h.hook.result.current.history.canUndo("scheduleItem")).toBe(true),
+    );
+    const id = copyId(h.ds);
+    expect(vi.mocked(h.ds.createScheduleItem).mock.calls[0][1]).toBe(
+      "2026-11-02",
+    );
+    expect(tagIdsOn(h, id)).toEqual(["t-added", "t-work"]);
+    // The source keeps its own, the one left behind included.
+    expect(tagIdsOn(h, SOURCE_ID)).toEqual(["t-health", "t-work"]);
+
+    await act(async () => {
+      h.hook.result.current.history.undo("scheduleItem");
+    });
+    await waitFor(() =>
+      expect(h.ds.softDeleteScheduleItem).toHaveBeenCalledWith(id),
+    );
+    expect(tagIdsOn(h, id)).toEqual([]);
+    expect(h.hook.result.current.history.canUndo("scheduleItem")).toBe(false);
   });
 });

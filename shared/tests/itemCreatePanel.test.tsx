@@ -669,6 +669,227 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
   });
 });
 
+/*
+ * #2406: the event tab's 「既存から選ぶ」, as the proposal draws it — a search
+ * field and a list in place of the title, the date line and the repeat. The
+ * panel only says which event; what that writes is the host's (a copy, never
+ * the original — useScheduleCreateFlow.test.tsx).
+ */
+describe("ItemCreatePanel — an existing event (#2406)", () => {
+  const EVENTS: ItemCreateOption[] = [
+    { id: "evt-1", title: "Team sync" },
+    { id: "evt-2", title: "Dentist" },
+  ];
+
+  function renderExisting(over?: {
+    options?: ItemCreateOption[];
+    withoutHandler?: boolean;
+    withoutPool?: boolean;
+    empty?: string;
+  }) {
+    const onCopyEvent = vi.fn();
+    const onCopyEventAndOpen = vi.fn();
+    const onSubmitEvent = vi.fn();
+    const onOpen = vi.fn();
+    const onStagedChange = vi.fn();
+    render(
+      <ItemCreatePanel
+        initial={{ date: DATE }}
+        pools={{
+          todos: TODOS,
+          notes: NOTES,
+          tags: {
+            tags: [
+              { id: "tag-work", name: "Work" },
+              { id: "tag-home", name: "Home" },
+            ],
+            // What the plain field would seed from. The event's own seed below
+            // must win, or a repeat's series tags would go missing.
+            tagsOf: () => ["tag-home"],
+            onStagedChange,
+            labels: {
+              field: "Tags",
+              add: "Add a tag",
+              remove: (name: string) => `Remove ${name}`,
+              empty: "No tags",
+            },
+          },
+          events: over?.withoutPool
+            ? undefined
+            : {
+                options: over?.options ?? EVENTS,
+                tagsOf: (id: string) => (id === "evt-1" ? ["tag-work"] : []),
+                onOpen,
+                labels: {
+                  search: "Search events",
+                  empty: over?.empty ?? "No events",
+                  noMatch: "No matching events",
+                },
+              },
+        }}
+        handlers={{
+          onSubmitEvent,
+          onSubmitEventAndOpen: vi.fn(),
+          onCreateTodo: vi.fn(),
+          onPlaceTodo: vi.fn(),
+          ...(over?.withoutHandler ? {} : { onCopyEvent, onCopyEventAndOpen }),
+        }}
+        labels={LABELS}
+        onCancel={vi.fn()}
+        repeat={{ weekdayLabels: WEEKDAYS, labels: REPEAT_LABELS }}
+      />,
+    );
+    return {
+      onCopyEvent,
+      onCopyEventAndOpen,
+      onSubmitEvent,
+      onOpen,
+      onStagedChange,
+    };
+  }
+
+  const chooseExisting = () =>
+    fireEvent.click(screen.getByRole("radio", { name: "From existing" }));
+  const row = (name: string) => screen.getByRole("option", { name });
+
+  it("offers the source only where both the list and the handler are wired", () => {
+    renderExisting({ withoutPool: true });
+    expect(screen.queryByText("From existing")).toBeNull();
+    cleanup();
+    renderExisting({ withoutHandler: true });
+    expect(screen.queryByText("From existing")).toBeNull();
+    cleanup();
+    renderExisting();
+    expect(screen.getByText("From existing")).toBeInTheDocument();
+  });
+
+  it("swaps the title, the date line and the repeat for the search and the list", () => {
+    const { onOpen } = renderExisting();
+    expect(onOpen).not.toHaveBeenCalled();
+    chooseExisting();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+
+    expect(screen.queryByLabelText("Title")).toBeNull();
+    expect(screen.getByLabelText("Date").closest("[hidden]")).not.toBeNull();
+    expect(screen.queryByText("Daily")).toBeNull();
+    expect(screen.getByLabelText("Search events")).toBeInTheDocument();
+    expect(row("Team sync")).toBeInTheDocument();
+    expect(footerButtons()).toEqual(["Cancel", "Add and edit", "Add"]);
+  });
+
+  it("brings the form back as it was when the source goes back to new", () => {
+    renderExisting();
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Half typed" },
+    });
+    chooseExisting();
+    fireEvent.click(screen.getByRole("radio", { name: "New" }));
+    expect(screen.getByLabelText("Title")).toHaveValue("Half typed");
+    expect(screen.getByLabelText("Date").closest("[hidden]")).toBeNull();
+    expect(screen.getByText("Daily")).toBeInTheDocument();
+  });
+
+  it("does not move the todo tab's source along with it", () => {
+    renderExisting();
+    chooseExisting();
+    fireEvent.click(screen.getByText("Todo"));
+    expect(screen.getByRole("radio", { name: "New" })).toBeChecked();
+    expect(screen.getByLabelText("Title")).toBeInTheDocument();
+  });
+
+  it("keeps both submits off until a row is picked", () => {
+    const { onCopyEvent, onSubmitEvent } = renderExisting();
+    chooseExisting();
+    expect(screen.getByText("Add")).toBeDisabled();
+    expect(screen.getByText("Add and edit")).toBeDisabled();
+    fireEvent.click(row("Dentist"));
+    expect(screen.getByText("Add")).toBeEnabled();
+    expect(screen.getByText("Add and edit")).toBeEnabled();
+    expect(onCopyEvent).not.toHaveBeenCalled();
+    expect(onSubmitEvent).not.toHaveBeenCalled();
+  });
+
+  it("highlights the picked row and shows its tags under the list", () => {
+    const { onStagedChange } = renderExisting();
+    chooseExisting();
+    // No tag row until there is an event for it to speak of.
+    expect(screen.queryByText("Tags")).toBeNull();
+
+    fireEvent.click(row("Team sync"));
+    expect(row("Team sync")).toHaveAttribute("aria-selected", "true");
+    expect(row("Team sync").className).toContain("bg-lumen-accent-subtle");
+    expect(screen.getByText("Work")).toBeInTheDocument();
+    expect(screen.getByText("Add a tag")).toBeInTheDocument();
+    expect(onStagedChange).toHaveBeenLastCalledWith(["tag-work"]);
+  });
+
+  it("starts the tags over from the next event when the pick changes", () => {
+    const { onStagedChange } = renderExisting();
+    chooseExisting();
+    fireEvent.click(row("Team sync"));
+    fireEvent.click(row("Dentist"));
+    expect(screen.queryByText("Work")).toBeNull();
+    expect(onStagedChange).toHaveBeenLastCalledWith([]);
+  });
+
+  it("reports a tag added in the dialog along with the event's own", () => {
+    const { onStagedChange } = renderExisting();
+    chooseExisting();
+    fireEvent.click(row("Team sync"));
+    fireEvent.click(screen.getByText("Add a tag"));
+    fireEvent.click(screen.getByRole("option", { name: "Home" }));
+    expect(onStagedChange).toHaveBeenLastCalledWith(["tag-work", "tag-home"]);
+  });
+
+  it("hands over the picked event, with any note staged, on 追加", () => {
+    const { onCopyEvent, onCopyEventAndOpen, onSubmitEvent } = renderExisting();
+    chooseExisting();
+    fireEvent.click(row("Dentist"));
+    stageNewNote("Questions");
+    fireEvent.click(screen.getByText("Add"));
+    expect(onCopyEvent).toHaveBeenCalledWith("evt-2", [
+      { kind: "new", title: "Questions" },
+    ]);
+    expect(onCopyEventAndOpen).not.toHaveBeenCalled();
+    expect(onSubmitEvent).not.toHaveBeenCalled();
+  });
+
+  it("hands it to the twin on 追加して詳細へ", () => {
+    const { onCopyEvent, onCopyEventAndOpen } = renderExisting();
+    chooseExisting();
+    fireEvent.click(row("Dentist"));
+    fireEvent.click(screen.getByText("Add and edit"));
+    expect(onCopyEventAndOpen).toHaveBeenCalledWith("evt-2", []);
+    expect(onCopyEvent).not.toHaveBeenCalled();
+  });
+
+  it("drops a pick the search has narrowed away", () => {
+    const { onCopyEvent } = renderExisting();
+    chooseExisting();
+    fireEvent.click(row("Team sync"));
+    fireEvent.change(screen.getByLabelText("Search events"), {
+      target: { value: "dentist" },
+    });
+    expect(screen.getByText("Add")).toBeDisabled();
+    fireEvent.click(screen.getByText("Add"));
+    expect(onCopyEvent).not.toHaveBeenCalled();
+    expect(screen.queryByText("Tags")).toBeNull();
+  });
+
+  it("says what the host says about an empty list, apart from no match", () => {
+    renderExisting({ options: [], empty: "Could not read them" });
+    chooseExisting();
+    expect(screen.getByText("Could not read them")).toBeInTheDocument();
+    cleanup();
+    renderExisting();
+    chooseExisting();
+    fireEvent.change(screen.getByLabelText("Search events"), {
+      target: { value: "zzz" },
+    });
+    expect(screen.getByText("No matching events")).toBeInTheDocument();
+  });
+});
+
 describe("ItemCreatePanel — the footer says when it cannot act (#376)", () => {
   it("disables both event buttons until the title has something in it", () => {
     renderPanel();
