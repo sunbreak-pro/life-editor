@@ -258,6 +258,63 @@ describe("an edit of a row that landed but was not re-read", () => {
     expect(await box()).toEqual([]);
   });
 
+  describe("after a reload replays the stored list", () => {
+    const SOURCE = "previous-page";
+    const stored = () =>
+      readDomainSnapshot<TodoNode[]>("todoTree", SOURCE, undefined)?.data ?? [];
+    const sendAll = () =>
+      createOutboxSender(
+        { createTodoIfAbsent: vi.fn().mockResolvedValue(undefined) },
+        owner,
+      ).run(vi.fn());
+
+    const queueThenSend = async (): Promise<TodoNode> => {
+      writeDomainSnapshot("todoTree", SOURCE, undefined, []);
+      await wrap().syncTodoTree([added("x")]);
+      expect(stored()[0].updatedAt).toBeUndefined();
+      await sendAll();
+      return stored()[0];
+    };
+
+    it("rejects an edit of a row the sender sent", async () => {
+      const row = await queueThenSend();
+      await expect(
+        wrap().syncTodoTree([{ ...row, status: "DONE" }]),
+      ).rejects.toThrow(NETWORK);
+      expect(await box()).toEqual([]);
+    });
+
+    it("rejects a delete of a row the sender sent", async () => {
+      const row = await queueThenSend();
+      await expect(
+        wrap().syncTodoTree([{ ...row, isDeleted: true }]),
+      ).rejects.toThrow(NETWORK);
+    });
+
+    it("keeps the version a read already gave the row", async () => {
+      writeDomainSnapshot("todoTree", SOURCE, undefined, [
+        todo("x", { updatedAt: "2026-10-02T00:00:00.000Z" }),
+      ]);
+      await enqueueTodoCreate(user, added("x"));
+      await sendAll();
+      expect(stored()[0].updatedAt).toBe("2026-10-02T00:00:00.000Z");
+    });
+
+    it("leaves a row that still waits looking new", async () => {
+      writeDomainSnapshot("todoTree", SOURCE, undefined, []);
+      await wrap().syncTodoTree([added("x")]);
+      await createOutboxSender(
+        {
+          createTodoIfAbsent: vi
+            .fn()
+            .mockRejectedValue(new OutboxSendError("down", 503)),
+        },
+        owner,
+      ).run(vi.fn());
+      expect(stored()[0].updatedAt).toBeUndefined();
+    });
+  });
+
   it("still queues a truly new row beside it", async () => {
     const ds = wrap({ syncTodoTree: offlineAfterOne() });
     await ds.syncTodoTree([added("x")]);

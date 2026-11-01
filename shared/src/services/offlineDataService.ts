@@ -42,6 +42,7 @@ import {
  * node after the write lands, until a re-read replaces it. `LandedTodos` holds
  * the ids this page saw reach the server, so an edit of one is rejected like any
  * other edit instead of being queued as a create that would then send nothing.
+ * The stored list carries the same fact across a reload (`markSentInSnapshot`).
  *
  * Deleting a row that waits takes the entry out, as an undo does. Any other edit
  * of one is rejected, and the banner says so.
@@ -99,6 +100,22 @@ function isOpenSibling(row: TodoNode, node: TodoNode): boolean {
 function addToSnapshot(node: TodoNode): void {
   patchDomainSnapshot<TodoNode[]>("todoTree", (rows) =>
     rows.some((n) => n.id === node.id) ? rows : [...rows, node],
+  );
+}
+
+/**
+ * A sent row stops looking new in the stored list. `landed` dies with the page,
+ * and a reload offline replays this list; a row there with no `updatedAt` would
+ * read as never sent, and an edit of it would be swallowed. `createdAt` only
+ * stands in until the next read gives the row its real version.
+ */
+function markSentInSnapshot(id: string): void {
+  patchDomainSnapshot<TodoNode[]>("todoTree", (rows) =>
+    rows.map((n) =>
+      n.id === id && n.updatedAt === undefined
+        ? { ...n, updatedAt: n.createdAt }
+        : n,
+    ),
   );
 }
 
@@ -376,6 +393,7 @@ export function createOutboxSender(
         }
       }
       landed.add(entry.itemId);
+      markSentInSnapshot(entry.itemId);
       await removeOutboxEntry(userId, entry.opId);
       changed += 1;
     }
