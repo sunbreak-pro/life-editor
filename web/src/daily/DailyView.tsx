@@ -2,8 +2,10 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useReducer,
   useRef,
   useState,
+  type FocusEvent,
   type ReactNode,
 } from "react";
 import { Calendar, MoreHorizontal, Pin, Trash2 } from "lucide-react";
@@ -123,6 +125,16 @@ const parseIso = dateFromKey;
 // in flight, so dropping it costs nothing.
 const MAX_PENDING_EMITS = 32;
 
+/*
+ * Whether the caret is in the body editor (#2289). Read off the DOM at the
+ * moment the remount is decided rather than mirrored in state: an editor that
+ * leaves the tree (a date switch, the skeleton) takes the focus with it and
+ * fires no blur, and a mirrored flag would stay true and hold the next change
+ * for no one.
+ */
+const editorHasFocus = (): boolean =>
+  document.activeElement?.closest("[data-daily-editor-slot]") != null;
+
 // ---- Editor card (shared between Desktop / Mobile, size via props) --------
 
 /*
@@ -157,6 +169,7 @@ function EditorCard({
   uploadingFile,
   uploadingLabel,
   bodyPending = false,
+  onEditorBlur,
 }: {
   dateLabel: string;
   dateClassName: string;
@@ -184,6 +197,8 @@ function EditorCard({
    * emptiness over the day.
    */
   bodyPending?: boolean;
+  /** The caret left the body: a change held back for it can land now (#2289). */
+  onEditorBlur?: (event: FocusEvent<HTMLDivElement>) => void;
 }) {
   return (
     <div
@@ -233,22 +248,26 @@ function EditorCard({
           </div>
         </div>
       ) : (
-        <LazyRichTextEditor
-          key={editorKey}
-          noteId={`daily-${date}`}
-          initialContent={initialContent}
-          onUpdate={onUpdate}
-          onDirty={onDirty}
-          placeholder={placeholder}
-          // "[[" wiki-link autocomplete + click navigation (Issue #285). No
-          // create-note row here (Daily has no note-create path) — the daily
-          // editor only links to EXISTING items.
-          loadLinkTargets={loadLinkTargets}
-          onNavigateToItem={onNavigateToItem}
-          onResolvedLinkInserted={onResolvedLinkInserted}
-          attachments={attachments}
-          className="daily-editor min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1"
-        />
+        // `contents`: no box of its own, so the editor stays the card's flex
+        // child. It is here to say where the body's focus begins and ends.
+        <div className="contents" data-daily-editor-slot onBlur={onEditorBlur}>
+          <LazyRichTextEditor
+            key={editorKey}
+            noteId={`daily-${date}`}
+            initialContent={initialContent}
+            onUpdate={onUpdate}
+            onDirty={onDirty}
+            placeholder={placeholder}
+            // "[[" wiki-link autocomplete + click navigation (Issue #285). No
+            // create-note row here (Daily has no note-create path) — the daily
+            // editor only links to EXISTING items.
+            loadLinkTargets={loadLinkTargets}
+            onNavigateToItem={onNavigateToItem}
+            onResolvedLinkInserted={onResolvedLinkInserted}
+            attachments={attachments}
+            className="daily-editor min-h-0 flex-1 overflow-y-auto px-5 pb-5 pt-1"
+          />
+        </div>
       )}
     </div>
   );
@@ -273,6 +292,7 @@ export function DailyView({
 }: DailyViewProps = {}) {
   const {
     dailies,
+    isLoading,
     selectedDate,
     setSelectedDate,
     selectedDaily,
@@ -389,10 +409,28 @@ export function DailyView({
   // optimistic update matches the newest emission too, and this view cannot
   // tell it from a refetch, so seeing the newest proves nothing about the
   // older echoes still in flight. Only the cap drops them.
+  //
+  // The body stored when this editor first wrote counts as ours too: a read
+  // that reached the server before that save comes back with it, later than
+  // the save's optimistic update. The empty body of a day with no row is not
+  // recorded, because a day being deleted or undone comes back to "" and that
+  // one has to clear the editor.
+  //
+  // A body that really is new does not take the editor from under the caret
+  // either. It is held until the caret leaves and the typing has been saved;
+  // saved first, the stored body is our own emission and nothing is left to
+  // swap. Typing on through a write from elsewhere therefore replaces the
+  // day's text (not its 朝刊 / 宣言 / mood, see writeDailyText), as the last
+  // writer always has on this screen.
   const selectedContent = selectedDaily?.content ?? "";
   // #2325: the list rows carry no body; the open day's body is on its way.
   // Nothing may write the day until it lands (the editor and the stars).
-  const bodyPending = selectedDaily?.bodyLoaded === false;
+  // #2289: the same before the first list read lands, when no row does not
+  // yet mean the day is empty. A caret put in an editor opened there lost its
+  // focus to the skeleton as soon as the row arrived.
+  const bodyPending =
+    selectedDaily?.bodyLoaded === false ||
+    (selectedDaily === undefined && isLoading);
   const [emitted, setEmitted] = useState<{
     date: string;
     jsons: string[];
@@ -404,14 +442,33 @@ export function DailyView({
         : { date: emitted.date, json: emitted.jsons[emitted.jsons.length - 1] },
     [emitted],
   );
-  const recordEmitted = useCallback((date: string, json: string) => {
-    setEmitted((prev) =>
-      prev !== null && prev.date === date
-        ? { date, jsons: [...prev.jsons, json].slice(-MAX_PENDING_EMITS) }
-        : { date, jsons: [json] },
-    );
-  }, []);
+  const recordEmitted = useCallback(
+    (date: string, json: string, base: string) => {
+      setEmitted((prev) => {
+        const known = prev !== null && prev.date === date ? prev.jsons : [];
+        const seed =
+          base !== "" && base !== known[known.length - 1] ? [base] : [];
+        return {
+          date,
+          jsons: [...known, ...seed, json].slice(-MAX_PENDING_EMITS),
+        };
+      });
+    },
+    [],
+  );
   const [editorGen, setEditorGen] = useState(0);
+  // Renders again once the caret has left the body, to read it afresh below.
+  const [, recheckAfterBlur] = useReducer((n: number) => n + 1, 0);
+  const handleEditorBlur = (event: FocusEvent<HTMLDivElement>) => {
+    // A move inside the body (a table's own buttons) did not leave it.
+    if (
+      event.relatedTarget instanceof Node &&
+      event.currentTarget.contains(event.relatedTarget)
+    ) {
+      return;
+    }
+    recheckAfterBlur();
+  };
   /*
    * The keystroke-to-debounce window (#1954), the Daily half of #1822.
    *
@@ -450,11 +507,22 @@ export function DailyView({
   );
   const ownEcho = emitted !== null && echoIndex === emitted.jsons.length - 1;
 
+  const outsideBody =
+    syncedFrom.date === selectedDate &&
+    syncedFrom.content !== selectedContent &&
+    echoIndex === -1 &&
+    // The same document in another key order (see above) with no emission to
+    // match it against: the editor already shows it.
+    !jsonDocEquals(syncedFrom.content, selectedContent);
+  // Left out of sync on purpose: this is read again on every render, so the
+  // body lands at the blur, or an emission that overtakes it settles it.
+  const holdOutsideBody = outsideBody && (dirty || editorHasFocus());
+
   if (
-    syncedFrom.date !== selectedDate ||
-    syncedFrom.content !== selectedContent
+    !holdOutsideBody &&
+    (syncedFrom.date !== selectedDate || syncedFrom.content !== selectedContent)
   ) {
-    if (syncedFrom.date === selectedDate && echoIndex === -1) {
+    if (outsideBody) {
       setEditorGen((g) => g + 1);
       // The remounted editor starts from the outside body, so the emissions
       // before it are history; the last one stays for the caption.
@@ -513,7 +581,7 @@ export function DailyView({
     const base = row?.content ?? "";
     const full = writeDailyText(base, json);
     if (full === base) return;
-    recordEmitted(date, full);
+    recordEmitted(date, full, base);
     void upsertDaily(date, full).then((saved) => {
       flushPendingLinks(date, saved, full);
       // #372: drop inline-origin edges whose "[[ ]]" left the text. Edges the
@@ -557,7 +625,7 @@ export function DailyView({
   ): Promise<void> | null => {
     const full = mergeEveningSection(current, { mood });
     if (full === current) return null;
-    recordEmitted(date, full);
+    recordEmitted(date, full, current);
     /*
      * #1750: hand the write back so an undo can wait for it and report its
      * own failure. `upsertDaily` swallows its rejection and resolves `null`
@@ -834,7 +902,12 @@ export function DailyView({
       cancelLabel: t("common.cancel"),
       danger: true,
     }).then((confirmed) => {
-      if (confirmed) deleteDaily(selectedDate);
+      if (!confirmed) return;
+      // Asked for here, so nothing is held for the caret: the dialog may hand
+      // the focus back to the body, and it must not keep showing a deleted day.
+      setEditorGen((g) => g + 1);
+      setSyncedFrom({ date: selectedDate, content: "" });
+      deleteDaily(selectedDate);
     });
   };
 
@@ -1064,6 +1137,7 @@ export function DailyView({
             date={selectedDate}
             initialContent={editorContent}
             bodyPending={bodyPending}
+            onEditorBlur={handleEditorBlur}
             onUpdate={handleEditorUpdate}
             onDirty={markDirty}
             placeholder={t("materials.daily.placeholder")}
@@ -1100,6 +1174,7 @@ export function DailyView({
           date={selectedDate}
           initialContent={editorContent}
           bodyPending={bodyPending}
+          onEditorBlur={handleEditorBlur}
           onUpdate={handleEditorUpdate}
           onDirty={markDirty}
           placeholder={t("materials.daily.placeholder")}

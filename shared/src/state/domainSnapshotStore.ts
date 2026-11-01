@@ -5,6 +5,7 @@ import {
   writePersistedSnapshots,
   type PersistedSnapshot,
 } from "./persistentCache";
+import type { ChangeCursor } from "../services/itemChanges";
 
 /**
  * Module-level in-memory snapshot store for the domain load effect (#1101).
@@ -110,6 +111,8 @@ interface DomainSnapshot {
   fresh?: SnapshotFreshness;
   /** The user the data belongs to; set on every slot read off the device. */
   owner?: string;
+  /** Where `data` stands for a delta read (#2333). Lives and dies with it. */
+  cursor?: ChangeCursor;
 }
 
 const snapshots = new Map<DomainSnapshotKey, DomainSnapshot>();
@@ -131,7 +134,7 @@ export function readDomainSnapshot<T>(
   key: DomainSnapshotKey,
   dataService: unknown,
   anchor: string | number | undefined,
-): { data: T; fresh?: SnapshotFreshness } | null {
+): { data: T; fresh?: SnapshotFreshness; cursor?: ChangeCursor } | null {
   const entry = snapshots.get(key);
   if (entry === undefined) return null;
   const sameSource =
@@ -140,7 +143,7 @@ export function readDomainSnapshot<T>(
       : entry.dataService === dataService;
   if (!sameSource) return null;
   if (entry.anchor !== anchor) return null;
-  return { data: entry.data as T, fresh: entry.fresh };
+  return { data: entry.data as T, fresh: entry.fresh, cursor: entry.cursor };
 }
 
 /** Record the result of a successful read, replacing any earlier one. */
@@ -150,10 +153,11 @@ export function writeDomainSnapshot<T>(
   anchor: string | number | undefined,
   data: T,
   fresh?: SnapshotFreshness,
+  cursor?: ChangeCursor,
 ): void {
-  snapshots.set(key, { dataService, anchor, data, fresh });
+  snapshots.set(key, { dataService, anchor, data, fresh, cursor });
   if (owner === null || !PERSISTED_KEYS.has(key)) return;
-  pendingWrites.set(key, { key, anchor, data: forDevice(key, data) });
+  pendingWrites.set(key, { key, anchor, data: forDevice(key, data), cursor });
   if (writeTimer === null) {
     writeTimer = setTimeout(flushPendingWrites, PERSIST_DEBOUNCE_MS);
   }
@@ -244,7 +248,20 @@ function restore(userId: string, row: PersistedSnapshot): void {
     anchor: row.anchor,
     data: row.data,
     owner: userId,
+    cursor: isChangeCursor(row.cursor) ? row.cursor : undefined,
   });
+}
+
+/** A stored cursor this app cannot read only costs one full read. */
+function isChangeCursor(value: ChangeCursor | undefined): boolean {
+  return (
+    typeof value?.at === "string" &&
+    typeof value.readAt === "number" &&
+    typeof value.seen === "object" &&
+    value.seen !== null &&
+    typeof value.settling === "object" &&
+    value.settling !== null
+  );
 }
 
 /**

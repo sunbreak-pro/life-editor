@@ -97,13 +97,12 @@ describe("restoreItem", () => {
     expect(stub.writes()[0].filters).toEqual({ id: "goal-1", role: "goal" });
   });
 
-  it("refuses a goal whose period already has 3 live goals (#2104)", async () => {
+  it("restores a goal into a period that already has 3 live goals (#2366)", async () => {
     stub = createSupabaseStub(goalTables(3));
 
-    await expect(restoreItem({ id: "goal-1" })).rejects.toThrow(
-      /week 2026-10-04 already has 3 goals/,
-    );
-    expect(stub.writes()).toEqual([]);
+    const result = await restoreItem({ id: "goal-1" });
+
+    expect(result).toMatchObject({ role: "goal", restored: true });
   });
 
   it("writes nothing for an item that is already live", async () => {

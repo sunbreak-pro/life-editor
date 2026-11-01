@@ -224,6 +224,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     handleScopeChoose,
     handleChangeRepeat,
     handleDetachRepeat,
+    convertSavedToRepeat,
     repeatConverting,
   } = useRepeatMutations({
     setRangeItems,
@@ -557,6 +558,8 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     // Repeat section (#185 Step 3 / #279 → useRepeatMutations)
     handleChangeRepeat,
     handleDetachRepeat,
+    // #2406: the creation panel's repeat (→ useRepeatEditorMutations)
+    convertSavedToRepeat,
     repeatConverting,
   };
 }

@@ -109,7 +109,11 @@ interface NotesViewProps {
    */
   dataService?: DataService;
   /** Navigate to a link target (MainScreen owns section + tab switching). */
-  onNavigateToItem?: (target: { id: string; role: string }) => void;
+  onNavigateToItem?: (target: {
+    id: string;
+    role: string;
+    date?: string;
+  }) => void;
   /** A pending note id to select (arrived via a link click from another tab). */
   pendingSelectNoteId?: string | null;
   /** Clear the pending selection once consumed. */
@@ -833,11 +837,11 @@ export function NotesView({
           // Undefined on narrow, by the hook's own Desktop gate.
           onTagContextMenu={sidebarMenus.onTagContextMenu}
           // The note's item links, beside the tags (#884 — they were a
-          // rightSidebar disclosure until that Issue). Wide only, which is
-          // where #884 put them; narrow has never had a Links affordance, and
-          // #876 is about the layout rather than that scope call.
+          // rightSidebar disclosure until that Issue), at both widths since
+          // #2391. A locked note shows none: which items it links to is part
+          // of what the password covers, and the chips would name them.
           linksSlot={
-            isWide ? (
+            bodyGated ? undefined : (
               <LinkPanel
                 itemId={selected.id}
                 resolveTitle={linking.resolveTitle}
@@ -858,7 +862,7 @@ export function NotesView({
                   dateKeyOfInstant(selected.createdAt) ?? undefined
                 }
               />
-            ) : undefined
+            )
           }
           contentEditor={
             bodyGated ? (

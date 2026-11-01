@@ -99,6 +99,29 @@ describe("the [[ menu's rows (#1688)", () => {
 
     expect(items).toEqual([]);
   });
+
+  it("leaves events to the note header's picker (#2391)", async () => {
+    // The pool carries them now, but an itemLink node stores no date, and the
+    // Schedule cannot select an event without one.
+    const items = await buildItems(
+      "delivery",
+      deps({
+        loadTargets: () => [
+          {
+            id: "event-1",
+            label: "Tile delivery",
+            role: "event",
+            date: "2026-08-20",
+          },
+          { id: "note-9", label: "Delivery notes", role: "note" },
+        ],
+        getCreateNote: () => undefined,
+      }),
+      false,
+    );
+
+    expect(items.map((i) => i.id)).toEqual(["note-9"]);
+  });
 });
 
 /*

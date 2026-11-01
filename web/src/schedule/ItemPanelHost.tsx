@@ -272,6 +272,7 @@ function ItemPanelSurface({
     handleDuplicate,
     handleChangeRepeat,
     handleDetachRepeat,
+    convertSavedToRepeat,
     repeatConverting,
   } = useScheduleMutations({
     rangeItems,
@@ -313,6 +314,8 @@ function ItemPanelSurface({
     handleCreateSubmitAndOpen,
     handleCreateTodoSubmit,
     handlePlaceTodoSubmit,
+    handleCreateTodoSubmitAndOpen,
+    handlePlaceTodoSubmitAndOpen,
   } = useScheduleCreateFlow({
     createPanel,
     setCreatePanel,
@@ -330,6 +333,10 @@ function ItemPanelSurface({
     // There is no calendar lens here to clear.
     clearTagLens: NOOP,
     tags: createTags,
+    // #2406: the same two as CalendarTab's — without them the paper's「＋」
+    // would draw no todo "and open" and drop a picked repeat.
+    openTodoDetail: setTodoDetailId,
+    convertToRepeat: convertSavedToRepeat,
   });
 
   const {
@@ -337,6 +344,7 @@ function ItemPanelSurface({
     freqCopy,
     repeatLabels,
     createPanelLabels,
+    createRepeatField,
     formatDuration,
   } = useScheduleCopy({ isWide, notesError, selectedTagCount: 0 });
 
@@ -514,9 +522,12 @@ function ItemPanelSurface({
           onSubmitEventAndOpen: handleCreateSubmitAndOpen,
           onCreateTodo: handleCreateTodoSubmit,
           onPlaceTodo: handlePlaceTodoSubmit,
+          onCreateTodoAndOpen: handleCreateTodoSubmitAndOpen,
+          onPlaceTodoAndOpen: handlePlaceTodoSubmitAndOpen,
         },
         formatDuration,
         labels: createPanelLabels,
+        repeat: createRepeatField,
       }}
       repeatPanel={{
         state: null,

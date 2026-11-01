@@ -617,12 +617,13 @@ describe("ConnectScreen — the save button routes each field to its own patch",
     openTag("Work: 4 items");
     openEditor();
 
-    fireEvent.click(screen.getByRole("button", { name: "Icon" }));
-    // The glyphs are `option`s, not bare buttons, since #1701 put a search
-    // field on the panel: they are the listbox that field drives. Asking for
-    // buttons here would hand back the "Default icon" row underneath.
+    // #2389 — the icons are a one-row strip; the whole list is in the panel
+    // that "Show more" opens. The glyphs there are `option`s, not bare buttons,
+    // since #1701 put a search field on the panel: they are the listbox that
+    // field drives. Asking for buttons would hand back the "Default icon" row.
+    fireEvent.click(screen.getByRole("button", { name: "Show more" }));
     const choice = within(
-      screen.getByRole("group", { name: "Icon" }),
+      screen.getByRole("dialog", { name: "Icon" }),
     ).getAllByRole("option")[0];
     const icon = choice.getAttribute("aria-label");
     fireEvent.click(choice);
@@ -778,10 +779,10 @@ describe("ConnectScreen — the row's right-click menu", () => {
     const hex = swatch.getAttribute("aria-label");
     fireEvent.click(swatch);
 
-    fireEvent.click(screen.getByRole("button", { name: "Icon" }));
-    // `option`, not `button` — see the note in the save-button suite (#1701).
+    // Through the panel, as above — see the note in the save-button suite.
+    fireEvent.click(screen.getByRole("button", { name: "Show more" }));
     const choice = within(
-      screen.getByRole("group", { name: "Icon" }),
+      screen.getByRole("dialog", { name: "Icon" }),
     ).getAllByRole("option")[0];
     const icon = choice.getAttribute("aria-label");
     fireEvent.click(choice);
