@@ -1,4 +1,5 @@
 import type { DataService } from "@life-editor/shared";
+import type { ScheduleLinkTarget } from "../hooks/useShellNavigation";
 import { RoutineScheduleSync } from "./RoutineScheduleSync";
 import { CalendarTab } from "./CalendarTab";
 
@@ -38,8 +39,11 @@ export function ScheduleScreen({
   onConsumePendingSelect,
   pendingSelectEvent,
   onConsumePendingEvent,
+  pendingLinkFocus,
+  onConsumeLinkFocus,
   onNavigateToItem,
   onTodoDetailClose,
+  onOpenTag,
 }: {
   dataService: DataService;
   /** Shell "new todo" intent (global:new-task). */
@@ -54,6 +58,9 @@ export function ScheduleScreen({
   /** An event to open, arrived from a palette search hit (#503). */
   pendingSelectEvent?: { id: string; date: string } | null;
   onConsumePendingEvent?: () => void;
+  /** A todo or event to show from a link: marked, and in the panel (#2393). */
+  pendingLinkFocus?: ScheduleLinkTarget | null;
+  onConsumeLinkFocus?: () => void;
   /**
    * Navigate to a "[[" link target from a todo body (#507) — the detail needs
    * it for the same reason Notes and Daily do: only MainScreen knows how to
@@ -65,6 +72,12 @@ export function ScheduleScreen({
    * back to where that todo was opened from, if it was opened as a side trip.
    */
   onTodoDetailClose?: (todoId: string) => void;
+  /**
+   * Open a tag on Connect's tag screen (#2407) — the event editor's 「タグの色
+   * を変える →」. Only the shell can switch sections; omit and the link is not
+   * drawn.
+   */
+  onOpenTag?: (tagId: string) => void;
 }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -81,8 +94,11 @@ export function ScheduleScreen({
         onConsumePendingSelect={onConsumePendingSelect}
         pendingSelectEvent={pendingSelectEvent}
         onConsumePendingEvent={onConsumePendingEvent}
+        pendingLinkFocus={pendingLinkFocus}
+        onConsumeLinkFocus={onConsumeLinkFocus}
         onNavigateToItem={onNavigateToItem}
         onTodoDetailClose={onTodoDetailClose}
+        onOpenTag={onOpenTag}
       />
     </div>
   );

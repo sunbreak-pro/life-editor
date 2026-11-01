@@ -68,6 +68,8 @@ export {
   type EventEditorConvert,
   // #2031: the sheet's Duplicate entries.
   type EventEditorDuplicate,
+  // #2407: the footer's Cancel.
+  type EventEditorCancel,
   // #628: the one patch the save button hands the host.
   type EventEditorPatch,
 } from "./EventEditorPane";
@@ -129,6 +131,7 @@ export {
   type ItemCreatePanelHandlers,
   type ItemCreateOption,
   type ItemCreateNoteDraft,
+  type ItemCreateNotePickerPlacement,
   type ItemCreateSlot,
   type ItemCreateType,
   type ItemCreateSource,
@@ -171,6 +174,13 @@ export {
   type TodoFilterPanelLabels,
   type TodoFilterPanelTag,
 } from "./TodoFilterPanel";
+// #2393: the todo a link pointed at, at the top of the Todo tab.
+export {
+  TodoFocusCard,
+  type TodoFocusCardProps,
+  type TodoFocusCardLabels,
+  type TodoFocusCardTodo,
+} from "./TodoFocusCard";
 // #296: the calendar's status surfaces — the loading card, the "could not
 // load" card, and the quiet banner for a failed range fetch that still has
 // rows under it (#889 lifted them out of CalendarTab).

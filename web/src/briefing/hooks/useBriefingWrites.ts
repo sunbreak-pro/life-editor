@@ -197,44 +197,47 @@ export function useBriefingWrites({
    * attachment must not roll the event back.
    */
   const attachNote = useCallback(
-    (itemId: string, draft: ItemCreateNoteDraft | null) => {
-      if (draft === null) return;
-      void (async () => {
-        try {
-          let noteId = draft.kind === "existing" ? draft.id : null;
-          if (draft.kind === "new") {
-            const now = new Date().toISOString();
-            const id = generateId("note");
-            await ds.createNoteUnified({
-              id,
-              type: "note",
-              title: draft.title,
-              content: "",
-              parentId: null,
-              order: 0,
-              isPinned: false,
-              isDeleted: false,
-              createdAt: now,
-              updatedAt: now,
-            });
-            noteId = id;
+    (itemId: string, drafts: readonly ItemCreateNoteDraft[]) => {
+      // #2396: the panel stages several notes now; each is its own create
+      // and link, and one failing leaves the others standing.
+      for (const draft of drafts) {
+        void (async () => {
+          try {
+            let noteId = draft.kind === "existing" ? draft.id : null;
+            if (draft.kind === "new") {
+              const now = new Date().toISOString();
+              const id = generateId("note");
+              await ds.createNoteUnified({
+                id,
+                type: "note",
+                title: draft.title,
+                content: "",
+                parentId: null,
+                order: 0,
+                isPinned: false,
+                isDeleted: false,
+                createdAt: now,
+                updatedAt: now,
+              });
+              noteId = id;
+            }
+            // Direction is item → note, matching DailyView and Schedule's own
+            // attachment: the thing with the date owns the link, and the note
+            // sees it as a backlink. The created row is folded into the link
+            // state so a todo's「その目的」chip appears with it.
+            if (noteId !== null) {
+              const link = await ds.createItemLink(
+                generateId("link"),
+                itemId,
+                noteId,
+              );
+              setConnections((prev) => [...prev, link]);
+            }
+          } catch (err) {
+            console.error("[BriefingScreen] attaching the note failed", err);
           }
-          // Direction is item → note, matching DailyView and Schedule's own
-          // attachment: the thing with the date owns the link, and the note
-          // sees it as a backlink. The created row is folded into the link
-          // state so a todo's「その目的」chip appears with it.
-          if (noteId !== null) {
-            const link = await ds.createItemLink(
-              generateId("link"),
-              itemId,
-              noteId,
-            );
-            setConnections((prev) => [...prev, link]);
-          }
-        } catch (err) {
-          console.error("[BriefingScreen] attaching the note failed", err);
-        }
-      })();
+        })();
+      }
     },
     [ds, setConnections],
   );
@@ -245,7 +248,11 @@ export function useBriefingWrites({
   // to follow what the user picked, and the paper only shows back the rows
   // that really do belong to today.
   const handleCreateEvent = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+    (
+      title: string,
+      slot: ItemCreateSlot,
+      notes: readonly ItemCreateNoteDraft[],
+    ) => {
       // #1950: the Settings default, resolved by the same rule Schedule's own
       // create uses. Calling the DataService directly used to skip it, so an
       // event booked from the paper was the one event that never reminded.
@@ -270,7 +277,7 @@ export function useBriefingWrites({
           if (saved.date === todayKey) {
             setScheduleItems((prev) => [...prev, saved]);
           }
-          attachNote(saved.id, note);
+          attachNote(saved.id, notes);
           /*
            * #1768: the history entry is owed only once the row EXISTS, and it
            * names the saved row rather than the optimistic one — the same two
@@ -307,7 +314,11 @@ export function useBriefingWrites({
   );
 
   const handleCreateTodo = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+    (
+      title: string,
+      slot: ItemCreateSlot,
+      notes: readonly ItemCreateNoteDraft[],
+    ) => {
       const now = new Date().toISOString();
       // Root-level (parentId null), like every other quick-create entry: the
       // panel carries no place-in-the-tree control and re-parenting belongs to
@@ -333,7 +344,7 @@ export function useBriefingWrites({
           if (slot.date === todayKey) {
             setTodoNodes((prev) => [...prev, saved]);
           }
-          attachNote(saved.id, note);
+          attachNote(saved.id, notes);
         })
         .catch((err) => {
           console.error("[BriefingScreen] todo create failed", err);
@@ -346,7 +357,7 @@ export function useBriefingWrites({
     (
       todoId: string,
       slot: ItemCreateSlot,
-      note: ItemCreateNoteDraft | null,
+      notes: readonly ItemCreateNoteDraft[],
     ) => {
       // `isAllDay: false` rides along because a todo given a concrete window
       // is by definition not an all-day candidate — leaving the flag alone is
@@ -365,7 +376,7 @@ export function useBriefingWrites({
               ? prev.map((n) => (n.id === updated.id ? updated : n))
               : prev.filter((n) => n.id !== updated.id),
           );
-          attachNote(updated.id, note);
+          attachNote(updated.id, notes);
         })
         .catch((err) => {
           console.error("[BriefingScreen] todo placement failed", err);

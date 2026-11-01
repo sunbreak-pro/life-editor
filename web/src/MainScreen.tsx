@@ -201,9 +201,11 @@ export function MainScreen({ session }: { session: Session }) {
   // Detail-panel (rightSidebar) toggle, injected already-translated (§6.4).
   // Desktop = PanelRight at the header-tab row's right end; Mobile = a bordered
   // hamburger at the left of the segment row that opens the left drawer. The
-  // toggle flips its own aria-label between the two (open ↔ close action).
-  const detailOpenLabel = t("detailPanel.open");
-  const detailCloseLabel = t("detailPanel.close");
+  // toggle flips its own aria-label between the two (open ↔ close action). A
+  // section can rename the pair for what its panel holds (#2390), both widths.
+  const toggleKeys = descriptor.panelToggleLabelKeys?.(nav);
+  const detailOpenLabel = t(toggleKeys?.open ?? "detailPanel.open");
+  const detailCloseLabel = t(toggleKeys?.close ?? "detailPanel.close");
 
   // Standard header controls (v2 §1). Left→right: the command-palette search
   // field (#306), app-level Undo/Redo (#304), then the rightSidebar toggle:

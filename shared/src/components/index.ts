@@ -415,11 +415,6 @@ export {
   type ItemLinkKind,
   type ItemLinkVisual,
 } from "./items/itemLinkKind";
-export {
-  ItemLinkPreviewCard,
-  type ItemLinkPreviewCardOpenAction,
-  type ItemLinkPreviewCardProps,
-} from "./items/ItemLinkPreviewCard";
 export { TagHeadingIcon, type TagHeadingIconProps } from "./TagHeadingIcon";
 export { TagPill, type TagPillProps } from "./TagPill";
 export {

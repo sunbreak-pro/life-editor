@@ -108,6 +108,12 @@ export interface ScheduleOverlayHostProps {
      * asked here first, as for every other way out of the editor.
      */
     onOpenInSchedule?: () => void;
+    /**
+     * #2407: given, the colour row offers 「タグの色を変える →」, which opens
+     * that tag on Connect's tag screen. UNGUARDED — leaving the Schedule takes
+     * the draft with it, so the unsaved-draft question is asked here first.
+     */
+    onOpenTag?: (tagId: string) => void;
   };
   /** Straight through to <ScheduleTodoDetail>; only the width is ours. */
   todoDetail: Omit<ScheduleTodoDetailProps, "isWide" | "noteAttach">;
@@ -156,6 +162,23 @@ export function ScheduleOverlayHost({
   const { onDirtyChange, requestClose, requestDiscardKeepingFlag } =
     useEditorCloseGuard(editor.askConfirm);
 
+  /*
+   * What "closed" means for this layout, behind the guard (#628 / #889). One
+   * const because two controls run it: the frame's own exits (×, Escape, the
+   * backdrop) and the pane's 「キャンセル」 (#2407). Handing the pane anything
+   * that skipped `requestClose` would let Cancel throw a draft away unasked.
+   */
+  const surface = selectionSurface(isWide);
+  const closeEditor = () => {
+    void requestClose(() =>
+      surface.closeEditor({
+        closeOverlay: editor.onCloseOverlay,
+        clearSelection: editor.onClearSelection,
+      }),
+    );
+  };
+  const openTag = editor.onOpenTag;
+
   const editorPane = (
     <ScheduleEventEditor
       item={editor.item}
@@ -190,6 +213,17 @@ export function ScheduleOverlayHost({
       }
       duplicateTagCount={editor.duplicateTagCount}
       noteAttach={noteAttach}
+      onCancel={closeEditor}
+      // #2407: the tag link leaves the Schedule, and the section switch tears
+      // the pane and its draft down with it — so it asks first, the way 「予定
+      // の画面で開く」 does below.
+      onOpenTag={
+        openTag
+          ? (tagId) => {
+              void requestClose(() => openTag(tagId));
+            }
+          : undefined
+      }
     />
   );
 
@@ -216,8 +250,7 @@ export function ScheduleOverlayHost({
   // the same close guard in each. What differs is only what "closed" MEANS:
   // Desktop drops the overlay flag, Mobile clears the selection, because on
   // Mobile the selection IS the sheet. That rule is spelled once, in
-  // selectionSurface (#1642 P10, M-06).
-  const surface = selectionSurface(isWide);
+  // selectionSurface (#1642 P10, M-06) — `surface` and `closeEditor` above.
   const detailFrameEl = (
     <ResponsiveDetailFrame
       wide={isWide}
@@ -235,15 +268,9 @@ export function ScheduleOverlayHost({
       title={t("scheduleScreen.detailTitle")}
       closeLabel={t("common.close")}
       // #628: Escape, the backdrop and the close button all land here, so the
-      // one guard covers every exit on either layout.
-      onClose={() => {
-        void requestClose(() =>
-          surface.closeEditor({
-            closeOverlay: editor.onCloseOverlay,
-            clearSelection: editor.onClearSelection,
-          }),
-        );
-      }}
+      // one guard covers every exit on either layout. The pane's Cancel
+      // (#2407) runs the same `closeEditor`.
+      onClose={closeEditor}
     >
       {editorPane}
       {/* #2218: below the pane rather than beside its Delete — that footer

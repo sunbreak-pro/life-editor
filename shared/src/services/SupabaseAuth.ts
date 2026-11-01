@@ -5,6 +5,7 @@ import type {
 } from "@supabase/supabase-js";
 import { getSupabaseClient } from "./supabaseClient";
 import { forgetDomainSnapshots } from "../state/domainSnapshotStore";
+import { deleteOutbox } from "../state/outbox";
 import {
   DISPLAY_NAME_METADATA_KEY,
   normalizeDisplayName,
@@ -167,17 +168,23 @@ export async function updateDisplayName(
   return { error: error ? error.message : null };
 }
 
-export async function signOut(): Promise<{ error: string | null }> {
-  const client = getSupabaseClient();
-  // #2331: whose lists to delete from the device. Read first — once signed
-  // out there is no session left to name the user.
-  let userId: string | null = null;
+/** Whose data is on this device. Read first: signing out removes the answer. */
+async function sessionUserId(
+  client: ReturnType<typeof getSupabaseClient>,
+): Promise<string | null> {
   try {
     const { data } = await client.auth.getSession();
-    userId = data.session?.user.id ?? null;
+    return data.session?.user.id ?? null;
   } catch {
     // No session to read: nothing of anyone's is cached under this tab.
+    return null;
   }
+}
+
+export async function signOut(): Promise<{ error: string | null }> {
+  const client = getSupabaseClient();
+  // #2331: whose lists to delete from the device.
+  const userId = await sessionUserId(client);
   const { error } = await client.auth.signOut();
   if (userId !== null) await forgetDomainSnapshots(userId);
   return { error: error ? error.message : null };
@@ -206,9 +213,14 @@ export const DELETE_ACCOUNT_FUNCTION = "delete-account";
  * this module. The delete either happened in full or not at all: the SQL
  * function re-scans for leftovers and rolls its whole transaction back, so a
  * failure never leaves a half-erased account.
+ *
+ * #2335: the outbox survives a sign-out on purpose, for the same account to send
+ * later. There is no later here, so the Todo text it holds is erased with the
+ * account. After the sign-out, so that no send can open the database again.
  */
 export async function deleteAccount(): Promise<{ error: string | null }> {
   const client = getSupabaseClient();
+  const userId = await sessionUserId(client);
   const { error } = await client.functions.invoke(DELETE_ACCOUNT_FUNCTION, {
     method: "POST",
   });
@@ -221,6 +233,11 @@ export async function deleteAccount(): Promise<{ error: string | null }> {
     await client.auth.signOut({ scope: "local" });
   } catch (e: unknown) {
     console.error("[auth] local sign-out after deletion", e);
+  }
+  if (userId !== null) {
+    await deleteOutbox(userId).catch((e: unknown) => {
+      console.error("[auth] outbox after deletion", e);
+    });
   }
   return { error: null };
 }

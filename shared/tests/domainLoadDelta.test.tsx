@@ -14,6 +14,7 @@ import {
   forgetDomainSnapshots,
   hydrateDomainSnapshots,
   readDomainSnapshot,
+  patchDomainSnapshot,
   writeDomainSnapshot,
 } from "../src/state/domainSnapshotStore";
 import { readPersistedSnapshots } from "../src/state/persistentCache";
@@ -212,5 +213,27 @@ describe("the list and its cursor on the device", () => {
     const back = readDomainSnapshot("notes", ds, undefined);
     expect(back?.data).toEqual([{ id: "a" }]);
     expect(back?.cursor?.at).toBe(AT);
+  });
+
+  it("stay together when the list is patched without a read (#2335)", async () => {
+    const ds = stubDataService();
+    await hydrateDomainSnapshots(USER);
+    writeDomainSnapshot(
+      "notes",
+      ds,
+      undefined,
+      [{ id: "a" }],
+      undefined,
+      cursor(),
+    );
+    patchDomainSnapshot<{ id: string }[]>("notes", (rows) => [
+      ...rows,
+      { id: "b" },
+    ]);
+    await new Promise((r) => setTimeout(r, PERSIST_DEBOUNCE_MS + 50));
+    expect((await readPersistedSnapshots(USER))[0]).toMatchObject({
+      data: [{ id: "a" }, { id: "b" }],
+      cursor: { at: AT },
+    });
   });
 });

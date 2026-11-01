@@ -1,6 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { CalendarDays, FileText, type LucideIcon } from "lucide-react";
 import {
+  getOutboxCounts,
+  subscribeOutbox,
   useTranslation,
   NavTimerDot,
   NavTimerStatus,
@@ -55,6 +57,10 @@ export function useShellChrome({
   setMaterialsTab: (tab: MaterialsTab) => void;
 }) {
   const { t } = useTranslation();
+  const outboxPending = useSyncExternalStore(
+    subscribeOutbox,
+    () => getOutboxCounts().pending,
+  );
 
   // Materials tab count badges, fed by the headless MaterialsCountsBridge
   // (mounted inside SyncProvider so it can refetch on Realtime changes).
@@ -203,12 +209,16 @@ export function useShellChrome({
       // Profile category of Settings.
       profile: t("nav.profile"),
       // Wide only (#2278): the sidebar's sign-out asks first in a small panel.
-      signOutPrompt: t("nav.signOutPrompt"),
+      // #2335: and says what is still waiting to be sent.
+      signOutPrompt:
+        outboxPending > 0
+          ? t("nav.signOutPromptPending", { n: outboxPending })
+          : t("nav.signOutPrompt"),
       cancel: t("common.cancel"),
       // Narrow-only: names the action group in the bottom bar's More sheet (#472).
       bottomBarActionsTitle: t("nav.quickActions"),
     }),
-    [t],
+    [t, outboxPending],
   );
 
   return {

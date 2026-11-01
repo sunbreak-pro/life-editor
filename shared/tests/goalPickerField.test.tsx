@@ -185,7 +185,14 @@ const CREATE_LABELS = {
   notePickerNoMatch: "No matching notes",
   noteLinkHint: "Linked to the item you add below.",
   attachedNote: "Linked note",
-  clearNote: "Remove the note",
+  noteDismiss: "Never mind",
+  noteNewConfirm: "Stage note",
+  notePickerTitle: "Choose notes",
+  notePickerClose: "Close the picker",
+  notePickerCount: (n: number) => `${n} selected`,
+  notePickerDone: "Done",
+  noteLocked: "Locked",
+  removeNote: (title: string) => `Remove ${title}`,
 };
 
 function renderCreate(goals: ItemCreatePanelPools["goals"]) {

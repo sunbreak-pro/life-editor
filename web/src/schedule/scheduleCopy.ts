@@ -60,6 +60,27 @@ export function formatDayHeadingParts(
 }
 
 /**
+ * The day an event bubble names (#2397), as parts for the catalog to arrange:
+ * ja reads 「10月10日（土）」, which needs the month and day as bare numbers
+ * and full-width brackets that Intl does not print (see above). en takes the
+ * short month name instead ("Sat, Oct 10").
+ */
+export function formatDayParts(
+  language: string,
+  dateKey: string,
+): { month: string; day: string; monthName: string; weekday: string } {
+  const date = dateFromKey(dateKey);
+  return {
+    month: String(date.getMonth() + 1),
+    day: String(date.getDate()),
+    monthName: new Intl.DateTimeFormat(language, { month: "short" }).format(
+      date,
+    ),
+    weekday: formatDayHeadingParts(language, dateKey).weekday,
+  };
+}
+
+/**
  * Month, day and weekday — "today" in the flow panel, and the month cells'
  * accessible names (MonthGrid otherwise falls back to the raw ISO key, which a
  * screen reader announces as "2026-07-09").
@@ -317,11 +338,22 @@ export function useScheduleCopy({
       todoPickerNoMatch: t("scheduleScreen.todoPickerNoMatch"),
       attachNote: t("scheduleScreen.attachNote"),
       noteSourceLabel: t("scheduleScreen.noteSourceLabel"),
-      noteSourceNew: t("scheduleScreen.noteSourceNew"),
-      noteSourceExisting: t("scheduleScreen.noteSourceExisting"),
+      // #2396: the note row's three buttons, worded as in the proposal.
+      // Keys of their own: the edit panel's toggle still reads「新規ノート /
+      // 既存のノート」from noteSourceNew / noteSourceExisting.
+      noteSourceNew: t("scheduleScreen.noteCreateNew"),
+      noteSourceExisting: t("scheduleScreen.notePickExisting"),
+      noteDismiss: t("scheduleScreen.noteDismiss"),
       noteTitleLabel: t("scheduleScreen.noteTitleLabel"),
       notePlaceholder: t("scheduleScreen.notePlaceholder"),
+      noteNewConfirm: t("scheduleScreen.noteNewConfirm"),
       searchNotes: t("scheduleScreen.searchNotes"),
+      notePickerTitle: t("scheduleScreen.notePickerTitle"),
+      notePickerClose: t("common.close"),
+      notePickerCount: (n: number) =>
+        t("scheduleScreen.notePickerCount", { n }),
+      notePickerDone: t("scheduleScreen.notePickerDone"),
+      noteLocked: t("scheduleScreen.noteLocked"),
       // "No notes yet" is a claim about the user's data, so it must not stand
       // in for a list we simply failed to read.
       notePickerEmpty: notesError
@@ -329,8 +361,9 @@ export function useScheduleCopy({
         : t("scheduleScreen.notePickerEmpty"),
       notePickerNoMatch: t("scheduleScreen.notePickerNoMatch"),
       noteLinkHint: t("scheduleScreen.noteLinkHint"),
-      attachedNote: t("scheduleScreen.attachedNote"),
-      clearNote: t("scheduleScreen.clearNote"),
+      attachedNote: t("scheduleScreen.attachedNotes"),
+      removeNote: (title: string) =>
+        t("scheduleScreen.removeNote", { title }),
     }),
     [t, notesError],
   );

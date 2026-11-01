@@ -65,7 +65,8 @@ import type { ScheduleTodoDetailProps } from "../src/schedule/ScheduleTodoDetail
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@life-editor/shared")>()),
-  useTranslation: () => ({ t: (key: string) => key }),
+  // `i18n.language`: the event bubble names its day (#2397).
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),
 }));
 
 vi.mock("../src/schedule/ScheduleTodoDetail", () => ({
@@ -101,6 +102,8 @@ vi.mock("../src/schedule/ScheduleEventEditor", () => ({
     repeat,
     onDuplicate,
     duplicateTagCount,
+    onCancel,
+    onOpenTag,
   }: ScheduleEventEditorProps) => (
     <div>
       <span>{`pane:${item ? item.id : "none"}`}</span>
@@ -128,6 +131,17 @@ vi.mock("../src/schedule/ScheduleEventEditor", () => ({
           onClick={() => item && onDuplicate(item.id, { withTags: true })}
         >
           press-duplicate
+        </button>
+      )}
+      {/* #2407: the footer's Cancel and the colour row's tag link. */}
+      {onCancel && (
+        <button type="button" onClick={onCancel}>
+          press-cancel
+        </button>
+      )}
+      {onOpenTag && (
+        <button type="button" onClick={() => onOpenTag("tag-health")}>
+          press-open-tag
         </button>
       )}
     </div>
@@ -220,7 +234,14 @@ const CREATE_LABELS: ItemCreatePanelLabels = {
   notePickerNoMatch: "notePickerNoMatch",
   noteLinkHint: "noteLinkHint",
   attachedNote: "attachedNote",
-  clearNote: "clearNote",
+  noteDismiss: "noteDismiss",
+  noteNewConfirm: "noteNewConfirm",
+  notePickerTitle: "notePickerTitle",
+  notePickerClose: "notePickerClose",
+  notePickerCount: (n: number) => `notePickerCount:${n}`,
+  notePickerDone: "notePickerDone",
+  noteLocked: "noteLocked",
+  removeNote: (title: string) => `removeNote:${title}`,
 };
 
 function renderHost(
@@ -784,6 +805,89 @@ describe("ScheduleOverlayHost — the sheet's Duplicate (#2031)", () => {
     await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
     await act(async () => {});
     expect(onDuplicate).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #2407 — the pane's 「キャンセル」. It must be the frame's own close, guard
+ * and all: a Cancel wired to the raw close would throw a draft away unasked,
+ * and one wired to the wrong layout's close would leave the surface open.
+ */
+describe("ScheduleOverlayHost — the pane's Cancel (#2407)", () => {
+  const pressCancel = () => fireEvent.click(screen.getByText("press-cancel"));
+
+  it.each([
+    ["Desktop", true],
+    ["Mobile", false],
+  ])(
+    "%s: closes the way the frame's own exits do",
+    async (_layout, isWide) => {
+      const { onCloseOverlay, onClearSelection, askConfirm } = renderHost({
+        isWide,
+      });
+      pressCancel();
+      const [ran, silent] = isWide
+        ? [onCloseOverlay, onClearSelection]
+        : [onClearSelection, onCloseOverlay];
+      await waitFor(() => expect(ran).toHaveBeenCalledTimes(1));
+      expect(silent).not.toHaveBeenCalled();
+      // Nothing pending, nothing to ask.
+      expect(askConfirm).not.toHaveBeenCalled();
+    },
+  );
+
+  it("asks about a pending draft first, and stays open on no", async () => {
+    const { askConfirm, onCloseOverlay } = renderHost({ answer: false });
+    makeDirty();
+    pressCancel();
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(onCloseOverlay).not.toHaveBeenCalled();
+  });
+
+  it("closes after an agreed discard and disarms the guard, like Escape", async () => {
+    const { askConfirm, onCloseOverlay } = renderHost();
+    makeDirty();
+    pressCancel();
+    await waitFor(() => expect(onCloseOverlay).toHaveBeenCalledTimes(1));
+    pressEscape();
+    await waitFor(() => expect(onCloseOverlay).toHaveBeenCalledTimes(2));
+    expect(askConfirm).toHaveBeenCalledTimes(1);
+  });
+});
+
+/*
+ * #2407 — 「タグの色を変える →」. The link leaves the Schedule, and the section
+ * switch tears the pane down with its draft, so the host asks first.
+ */
+describe("ScheduleOverlayHost — the colour row's tag link (#2407)", () => {
+  const pressOpenTag = () =>
+    fireEvent.click(screen.getByText("press-open-tag"));
+
+  it("gives the pane no link when the host passes no handler", () => {
+    renderHost();
+    expect(screen.queryByText("press-open-tag")).toBeNull();
+  });
+
+  it("hands the tag id over when there is no draft to lose", async () => {
+    const onOpenTag = vi.fn();
+    const { askConfirm } = renderHost({ editor: { onOpenTag } });
+    pressOpenTag();
+    await waitFor(() => expect(onOpenTag).toHaveBeenCalledWith("tag-health"));
+    expect(askConfirm).not.toHaveBeenCalled();
+  });
+
+  it("asks about a pending draft first, and stays put on no", async () => {
+    const onOpenTag = vi.fn();
+    const { askConfirm } = renderHost({
+      editor: { onOpenTag },
+      answer: false,
+    });
+    makeDirty();
+    pressOpenTag();
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(onOpenTag).not.toHaveBeenCalled();
   });
 });
 

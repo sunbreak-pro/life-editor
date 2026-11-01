@@ -10,7 +10,7 @@ import type { ReactNode } from "react";
 import type { NoteNode } from "@life-editor/shared";
 import { clearRecentNotes, recordNoteOpened } from "@life-editor/shared";
 import { NotesView } from "../src/notes/NotesView";
-import { showAllTagGroups } from "./helpers";
+import { showAllTagGroups, stubDataService } from "./helpers";
 
 /*
  * #588 — the Notes screen's host behaviour, pinned BEFORE the file was split
@@ -27,7 +27,8 @@ import { showAllTagGroups } from "./helpers";
  *   - RightSidebarPortal: without a RightSidebar Provider it renders null by
  *     design, which would hide the whole desktop side list from this suite.
  *     Rendering children in place keeps the list assertable; where the nodes
- *     land in the DOM is the panel's business, not this view's.
+ *     land in the DOM is the panel's business, not this view's. The test id
+ *     marks what this view hands to the panel, which is its business (#2390).
  *   - RichTextEditor / TagPicker / LinkPanel: TipTap and the tag master pull in
  *     a ProseMirror instance and more contexts. The editor's own behaviour is
  *     covered by itemLinkClick / itemLinkMenu; here only its PRESENCE matters
@@ -126,7 +127,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     // host without TourProvider still renders. Spied on here.
     useTourContextOptional: () => ({ notifyAction: state.notifyAction }),
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
-      <>{children}</>
+      <div data-testid="right-sidebar-portal">{children}</div>
     ),
   };
 });
@@ -585,6 +586,87 @@ describe("NotesView — desktop (wide)", () => {
 
     screen.getByRole("alert");
     screen.getByText("load failed");
+  });
+});
+
+/*
+ * #2390 — the list belongs to the right sidebar. jsdom has no layout, so this
+ * pins what the view hands to the panel and what it keeps for its own column;
+ * that the panel sits right of the body is AppShell's markup (<main>, then
+ * <RightSidebar>).
+ */
+describe("NotesView — what goes in the right sidebar (#2390)", () => {
+  it("holds search, sort, tag filter, pinned-first rows and folded templates", async () => {
+    state.notes = [ALPHA, { ...BETA, isPinned: true }];
+    render(
+      <NotesView
+        dataService={stubDataService({
+          listNoteTemplatesUnified: async () => [
+            note({ id: "note-t1", type: "template", title: "Weekly" }),
+          ],
+        })}
+      />,
+    );
+
+    const panel = within(screen.getByTestId("right-sidebar-portal"));
+    panel.getByLabelText("materials.notes.searchPlaceholder");
+    panel.getByLabelText("materials.sidebar.sort");
+    panel.getByRole("button", { name: /^materials\.notes\.tagFilterLabel/ });
+    expect(
+      panel
+        .getAllByRole("listitem")
+        .map((li) => li.querySelector("button")?.textContent),
+    ).toEqual(["Beta", "Alpha"]);
+
+    const templates = await panel.findByRole("button", {
+      name: /^materials\.templates\.sidebarHeading.*1/,
+    });
+    expect(templates.getAttribute("aria-expanded")).toBe("false");
+    expect(panel.queryByText("Weekly")).toBeNull();
+  });
+
+  it("leaves none of the list in the column beside the panel", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    const panel = screen.getByTestId("right-sidebar-portal");
+    for (const el of [
+      ...screen.getAllByRole("listitem"),
+      ...screen.getAllByText("Beta"),
+      ...screen.getAllByLabelText("materials.notes.searchPlaceholder"),
+      ...screen.getAllByLabelText("materials.sidebar.sort"),
+    ]) {
+      expect(panel.contains(el)).toBe(true);
+    }
+  });
+
+  /*
+   * The spec behind #2390 lists "create a note" among the things in the panel,
+   * and the Issue's build list does not ask to move it. So the pill stays where
+   * #302 and #1372 put it, and this pins that as the current state: when the
+   * panel is closed, on a phone above all, it is the way to make a note. If the
+   * pill is ever moved, this is the test to change.
+   */
+  it("keeps the create pill in the body column, not in the panel", () => {
+    render(<NotesView />);
+
+    const pill = screen.getByRole("button", {
+      name: "materials.notes.addCta",
+    });
+    expect(screen.getByTestId("right-sidebar-portal").contains(pill)).toBe(
+      false,
+    );
+  });
+
+  it("offers create inside the panel only while there are no notes", () => {
+    state.notes = [];
+    render(<NotesView />);
+
+    const panel = within(screen.getByTestId("right-sidebar-portal"));
+    panel.getByRole("button", { name: "materials.notes.addCta" });
+    expect(
+      screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
+    ).toBe(2);
   });
 });
 

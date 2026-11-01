@@ -1,7 +1,9 @@
 import { describe, it, expect } from "vitest";
 import { renderHook } from "@testing-library/react";
+import { i18n } from "@life-editor/shared";
 import {
   formatDayHeadingParts,
+  formatDayParts,
   formatFullDay,
   formatLongDate,
   formatMonthTitle,
@@ -49,6 +51,37 @@ describe("date formatters", () => {
       date: "10/21",
       weekday: "Wed",
     });
+  });
+
+  // #2397: the event bubble's day. The catalog owns the shape, so the parts
+  // are pinned here and the two finished strings below.
+  it("formatDayParts gives bare numbers, the short month and the weekday", () => {
+    expect(formatDayParts("ja", "2026-10-10")).toEqual({
+      month: "10",
+      day: "10",
+      monthName: "10月",
+      weekday: "土",
+    });
+    expect(formatDayParts("en", "2026-01-03")).toEqual({
+      month: "1",
+      day: "3",
+      monthName: "Jan",
+      weekday: "Sat",
+    });
+  });
+
+  it.each([
+    ["ja", "16:00–17:00", "10月10日（土）・16:00–17:00"],
+    ["ja", "終日", "10月10日（土）・終日"],
+    ["en", "16:00–17:00", "Sat, Oct 10 · 16:00–17:00"],
+  ])("the %s catalog arranges the bubble's day as %s → %s", (lang, time, out) => {
+    const t = i18n.getFixedT(lang);
+    expect(
+      t("scheduleScreen.bubbleWhen", {
+        ...formatDayParts(lang, "2026-10-10"),
+        time,
+      }),
+    ).toBe(out);
   });
 
   it("formatLongDate adds the year the creation panel needs (#353)", () => {

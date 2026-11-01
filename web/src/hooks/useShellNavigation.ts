@@ -3,6 +3,9 @@ import {
   resolveInitialSection,
   persistLastSection,
   defaultBriefingTab,
+  getConnectTagSelection,
+  setConnectItemSelection,
+  setConnectTagSelection,
   type BriefingTab,
   type AnalyticsTab,
   type DatePreset,
@@ -91,6 +94,14 @@ const ITEM_NAV_TARGET: Record<string, NavDestination | undefined> = {
   // this route is reached from the palette only, for now.
   event: { section: "schedule" },
 };
+
+/** A todo or event a link asks Schedule to show (#2393). */
+export interface ScheduleLinkTarget {
+  id: string;
+  role: "task" | "event";
+  /** The day, when the caller knows it. Schedule resolves it otherwise. */
+  date?: string;
+}
 
 /**
  * The navigation half's public surface. Section descriptors take the whole
@@ -283,6 +294,32 @@ export function useShellNavigation({
     [],
   );
 
+  /*
+   * "Open this tag on Connect" (#2407 — the Schedule event editor's 「タグの
+   * 色を変える →」, since the tag's own colour is edited there alone, #2219).
+   * No pending intent is needed: ConnectScreen seeds its open tag from the
+   * module-level store (#1473) on every mount, and the section switch below
+   * mounts it fresh — so writing the store FIRST and switching after lands on
+   * that tag. The row the panel was reading goes, as it does when a tag is
+   * picked on the screen itself (ConnectScreen's commitSelection): it belonged
+   * to the old tag.
+   *
+   * All three moves sit INSIDE the guard like showRecordsForApp: a refused
+   * navigation must not leave Connect re-pointed at a tag the user never got
+   * to.
+   */
+  const openTagInConnect = useCallback(
+    (tagId: string) => {
+      guarded(() => {
+        if (getConnectTagSelection() !== tagId) setConnectItemSelection(null);
+        setConnectTagSelection(tagId);
+        setConnectTab("tags");
+        applyDestination({ section: "connect" });
+      });
+    },
+    [guarded, applyDestination],
+  );
+
   // global:new-task executor. Todo creation lives behind the TodoTree
   // Provider, which only the Schedule section mounts, so the shell can't call
   // the create API directly. Instead it navigates to Schedule and raises a
@@ -339,10 +376,14 @@ export function useShellNavigation({
   // lands on Schedule and opens the todo DETAIL overlay rather than a tab (the
   // tab is retired). Any other role has no selectable surface yet, so it
   // no-ops.
+  //
+  // `viaLink` (#2393) says which of the two Schedule destinations this is: see
+  // `navigateToLinkedItem` below.
   const [pendingItemNav, setPendingItemNav] = useState<{
     id: string;
     role: string;
     date?: string;
+    viaLink?: boolean;
   } | null>(null);
   const navigateToItem = useCallback(
     (target: { id: string; role: string; date?: string }) => {
@@ -353,6 +394,33 @@ export function useShellNavigation({
       guarded(() => {
         applyDestination(dest);
         setPendingItemNav(target);
+      });
+    },
+    [guarded, applyDestination],
+  );
+  /*
+   * The jump a LINK makes (#2393: the "[[" in a body, and the note header's
+   * link panel). A note or a daily lands exactly as above. A todo or an event
+   * lands differently: on the week its day is in, with a mark on it and the todo
+   * in the right panel, rather than in the todo detail overlay.
+   *
+   * A second entry point rather than a new default, because the other callers
+   * asked for something else. Connect's side trip (#2143 below) is built around
+   * that overlay: closing it is what takes the user back. The Briefing and the
+   * palette have not been asked about. So the descriptors say which one each
+   * section gets.
+   *
+   * `date` is optional. The inline "[[" click only knows the id and the role, so
+   * Schedule resolves the day itself (useScheduleLinkFocus).
+   */
+  const navigateToLinkedItem = useCallback(
+    (target: { id: string; role: string; date?: string }) => {
+      const dest = ITEM_NAV_TARGET[target.role];
+      if (!dest) return;
+      // Inside the guard, like navigateToItem.
+      guarded(() => {
+        applyDestination(dest);
+        setPendingItemNav({ ...target, viaLink: true });
       });
     },
     [guarded, applyDestination],
@@ -409,8 +477,11 @@ export function useShellNavigation({
     pendingItemNav?.role === "daily"
       ? pendingItemNav.id.replace(/^daily-/, "")
       : null;
+  // Not for a link (#2393): this is the intent that opens the todo overlay.
   const pendingTodoSelect =
-    pendingItemNav?.role === "task" ? pendingItemNav.id : null;
+    pendingItemNav?.role === "task" && !pendingItemNav.viaLink
+      ? pendingItemNav.id
+      : null;
   /*
    * An event carries its DATE alongside its id (#503), unlike the other three.
    * The Calendar shows one window at a time and its navigation does not fetch
@@ -424,11 +495,20 @@ export function useShellNavigation({
   // re-fire that effect for as long as the intent is up.
   const pendingEventSelect = useMemo(
     () =>
-      pendingItemNav?.role === "event" && pendingItemNav.date
+      pendingItemNav?.role === "event" &&
+      pendingItemNav.date &&
+      !pendingItemNav.viaLink
         ? { id: pendingItemNav.id, date: pendingItemNav.date }
         : null,
     [pendingItemNav],
   );
+  // What a link asks of Schedule (#2393). Memoised for the same reason.
+  const pendingLinkFocus = useMemo<ScheduleLinkTarget | null>(() => {
+    if (!pendingItemNav?.viaLink) return null;
+    const { id, role, date } = pendingItemNav;
+    if (role !== "task" && role !== "event") return null;
+    return date ? { id, role, date } : { id, role };
+  }, [pendingItemNav]);
 
   return {
     section,
@@ -448,6 +528,7 @@ export function useShellNavigation({
     pendingRecordsSource,
     consumeRecordsSource,
     showRecordsForApp,
+    openTagInConnect,
     briefingTab,
     setBriefingTab,
     connectTab,
@@ -458,6 +539,7 @@ export function useShellNavigation({
     handleNavigate,
     handleNewTodo,
     navigateToItem,
+    navigateToLinkedItem,
     navigateToItemWithReturn,
     returnFromItem,
     consumeItemNav,
@@ -465,5 +547,6 @@ export function useShellNavigation({
     pendingDailySelect,
     pendingTodoSelect,
     pendingEventSelect,
+    pendingLinkFocus,
   };
 }

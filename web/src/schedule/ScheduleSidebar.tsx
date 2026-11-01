@@ -10,7 +10,9 @@ import {
   ScheduleSidebarTabs,
   TodayTodoTray,
   TodoFilterPanel,
+  TodoFocusCard,
   type TodoFilterPanelTag,
+  type TodoFocusCardTodo,
   tourAnchor,
   useTourAction,
   TOUR_ACTIONS,
@@ -171,6 +173,19 @@ export interface ScheduleSidebarTodo {
   filterTags: TodoFilterPanelTag[];
   /** The day the first list shows, and the row that moves it (#2281). */
   day: ScheduleSidebarTodoDay;
+  /**
+   * The todo a link pointed at (#2393), drawn above the lists because the tab's
+   * own filter can hide its row, or null.
+   */
+  focus?: ScheduleSidebarTodoFocus | null;
+}
+
+/** The todo a link pointed at, and the two things its card can do (#2393). */
+export interface ScheduleSidebarTodoFocus {
+  todo: TodoFocusCardTodo;
+  /** Open the full detail. */
+  onOpen: () => void;
+  onDismiss: () => void;
 }
 
 /**
@@ -428,6 +443,18 @@ export function ScheduleSidebar({
       {...tourAnchor(TOUR_ANCHORS.scheduleTodoBoard)}
       className="flex flex-col gap-2"
     >
+      {todo.focus && (
+        <TodoFocusCard
+          todo={todo.focus.todo}
+          onOpen={todo.focus.onOpen}
+          onDismiss={todo.focus.onDismiss}
+          labels={{
+            heading: t("materials.todos.detailTitle"),
+            open: t("scheduleScreen.todoOpenDetail"),
+            dismiss: t("common.close"),
+          }}
+        />
+      )}
       {/*
        * #2281: the first list's day, above the filter. ‹ and › step a day and
        * 今日 comes back; the day between them gives way (truncate) before the

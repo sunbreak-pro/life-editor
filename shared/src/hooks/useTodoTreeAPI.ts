@@ -242,9 +242,16 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
           return;
         }
         return ds.syncTodoTree(changed).then(
-          () => {
-            for (const n of changed) knownRef.current.set(n.id, n);
-            onSettled?.(true);
+          (outcome) => {
+            // Held in the outbox (#2335), a sibling's shift was dropped: the map
+            // keeps the server's order, so the next write carries the shift.
+            for (const n of changed) {
+              if (outcome !== "queued" || !knownRef.current.has(n.id))
+                knownRef.current.set(n.id, n);
+            }
+            // Queued is not landed: a write with an FK to this row would fail,
+            // so it hears what it hears for a failed sync.
+            onSettled?.(outcome !== "queued");
           },
           (e: unknown) => {
             // Whether any of them landed is unknown: send them all next time.

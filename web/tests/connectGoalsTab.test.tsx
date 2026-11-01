@@ -285,13 +285,17 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     loose.getByRole("button", {
       name: "Edit: Pick up the residence certificate",
     });
-    // Completed this week: listed with the done style (brief §11's sample).
-    expect(loose.getByText("Submit expenses").className).toContain(
+    // Completed this week: moved to Completed items, done-styled (#2368).
+    expect(loose.queryByText("Submit expenses")).toBeNull();
+    const done = within(
+      screen.getByRole("region", { name: "Completed items" }),
+    );
+    expect(done.getByText("Submit expenses").className).toContain(
       "line-through",
     );
-    loose.getByRole("checkbox", { name: "Submit expenses — Status: Done" });
-    // Completed long ago: not listed.
-    expect(loose.queryByText("Renew the passport")).toBeNull();
+    done.getByRole("checkbox", { name: "Submit expenses — Status: Done" });
+    // Completed long ago: not listed anywhere.
+    expect(screen.queryByText("Renew the passport")).toBeNull();
     // Held only by last week's (undrawn) goal: listed here rather than lost.
     loose.getByRole("button", { name: "Edit: Pick the curtains" });
     expect(loose.queryByText("Measure the room")).toBeNull();
@@ -500,13 +504,22 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w1"));
   });
 
-  it("renames a goal from the tree's pencil with the panel's write (#2283)", async () => {
+  it("renames a goal from the tree's edit icon with the panel's write (#2283 / #2367)", async () => {
     const ds = makeDS();
-    await renderTab(ds);
+    const { panel } = await renderTab(ds);
     fireEvent.click(
-      screen.getByRole("button", { name: "Rename: Get the proposal approved" }),
+      screen.getByRole("button", {
+        name: "Edit goal: Get the proposal approved",
+      }),
     );
-    const field = screen.getByRole("textbox", { name: "Goal title" });
+    // Wide: the panel opens too, with the goal's other fields.
+    expect(
+      (panel().getByRole("textbox", { name: "Goal title" }) as HTMLInputElement)
+        .value,
+    ).toBe("Get the proposal approved");
+    const field = within(
+      screen.getByRole("region", { name: "Goal tree" }),
+    ).getByRole("textbox", { name: "Goal title" });
     fireEvent.change(field, { target: { value: "Get the proposal signed" } });
     fireEvent.keyDown(field, { key: "Enter" });
     await waitFor(() =>
@@ -528,7 +541,9 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     );
 
     fireEvent.click(
-      screen.getByRole("button", { name: "Rename: Get the proposal approved" }),
+      screen.getByRole("button", {
+        name: "Edit goal: Get the proposal approved",
+      }),
     );
     const field = within(
       screen.getByRole("region", { name: "Goal tree" }),
@@ -554,6 +569,41 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     // Leaving the panel's field writes nothing back.
     fireEvent.blur(panel().getByRole("textbox", { name: "Goal title" }));
     expect(ds.updateGoal).toHaveBeenCalledTimes(1);
+  });
+
+  it("adds a linked todo from a goal's + and deletes from its bin (#2367)", async () => {
+    const createTodo = vi.fn().mockResolvedValue(TODOS[0]);
+    const linkGoalTodo = vi.fn().mockResolvedValue(undefined);
+    const ds = makeDS({ createTodo, linkGoalTodo });
+    await renderTab(ds);
+    const tree = within(screen.getByRole("region", { name: "Goal tree" }));
+    // A week goal has nothing one level down, so the + opens the todo field.
+    fireEvent.click(
+      tree.getByRole("button", {
+        name: "Add under: Get the proposal approved",
+      }),
+    );
+    const field = tree.getByRole("textbox", {
+      name: "Add under: Get the proposal approved — Todo",
+    });
+    fireEvent.change(field, { target: { value: "Send the draft" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => expect(linkGoalTodo).toHaveBeenCalledTimes(1));
+    const created = createTodo.mock.calls[0]?.[0] as { id: string };
+    expect(created).toMatchObject({ title: "Send the draft", type: "task" });
+    expect(linkGoalTodo).toHaveBeenCalledWith("w1", created.id);
+
+    fireEvent.click(
+      tree.getByRole("button", {
+        name: "Delete goal: Get the proposal approved",
+      }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete goal",
+      }),
+    );
+    await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w1"));
   });
 
   it("offers the hand mark only on an unconnected goal", async () => {

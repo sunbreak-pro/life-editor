@@ -16,6 +16,10 @@ import { useEffect } from "react";
  *
  * The one piece of local state an intent moves — the create dialog opening on
  * global:new-task — is not here: useTodoAddDialog adjusts it while rendering.
+ *
+ * A LINK's arrival is not one of these four either (#2393): it has its own
+ * intent and its own destination, in useScheduleLinkFocus. "Open this todo"
+ * below is still what the Briefing, the palette and Connect ask for.
  */
 
 export interface ScheduleShellIntents {

@@ -59,7 +59,9 @@ export function QuickCaptureSheet({
        */
       fullScreen
     >
-      <ItemCreatePanel {...panel} />
+      {/* #2396: on a phone the note picker is a sheet of its own, over this
+          one — there is no room beside the form. */}
+      <ItemCreatePanel {...panel} notePicker={panel.notePicker ?? "sheet"} />
     </BottomSheet>
   );
 }

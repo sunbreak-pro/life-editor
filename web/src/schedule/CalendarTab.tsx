@@ -59,6 +59,8 @@ import {
   useTodoTourReporting,
 } from "./useScheduleTourReporting";
 import { useScheduleShellIntents } from "./useScheduleShellIntents";
+import { useScheduleLinkFocus } from "./useScheduleLinkFocus";
+import type { ScheduleLinkTarget } from "../hooks/useShellNavigation";
 import { useTodoAddDialog } from "./useTodoAddDialog";
 
 /*
@@ -101,8 +103,11 @@ export function CalendarTab({
   onConsumePendingSelect,
   pendingTodoTray = false,
   onConsumeTodoTray,
+  pendingLinkFocus = null,
+  onConsumeLinkFocus,
   onNavigateToItem,
   onTodoDetailClose,
+  onOpenTag,
 }: {
   dataService: DataService;
   /**
@@ -129,10 +134,15 @@ export function CalendarTab({
   /** nav:tasks — just show the tray. */
   pendingTodoTray?: boolean;
   onConsumeTodoTray?: () => void;
+  /** A todo or event a link asks to show (#2393 → useScheduleLinkFocus). */
+  pendingLinkFocus?: ScheduleLinkTarget | null;
+  onConsumeLinkFocus?: () => void;
   /** Where a "[[" link inside a todo body goes (#507). */
   onNavigateToItem?: (target: { id: string; role: string }) => void;
   /** The user closed the todo detail (#2143) — see ScheduleScreen. */
   onTodoDetailClose?: (todoId: string) => void;
+  /** 「タグの色を変える →」 in the event editor (#2407) — see ScheduleScreen. */
+  onOpenTag?: (tagId: string) => void;
 }) {
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
@@ -186,6 +196,7 @@ export function CalendarTab({
   // around to it. The conversion asks for the truth directly.
   const {
     nodes: todoNodes,
+    isLoading: todosLoading,
     addNode,
     updateNode,
     setTodoStatus,
@@ -318,7 +329,7 @@ export function CalendarTab({
     handleCreateError,
   } = useScheduleWriteErrors(showToast);
   // #2005: the tags a duplicate can carry, on the create's one undo entry.
-  const { tagCountOf, copyTagsFrom } = useDuplicateTagCopy(
+  const { tagCountOf, tagsOf, copyTagsFrom } = useDuplicateTagCopy(
     handleDuplicateTagsError,
   );
 
@@ -550,6 +561,27 @@ export function CalendarTab({
       setTodoDetailId,
     },
   );
+
+  // A link's destination (#2393): the week, the mark, the panel, the toast.
+  const { markedId, todoFocus } = useScheduleLinkFocus({
+    target: pendingLinkFocus,
+    onConsume: onConsumeLinkFocus,
+    isWide,
+    todoNodes,
+    todosLoading,
+    rangeItems,
+    dataService,
+    showToast,
+    revealOnGrid,
+    setAnchorDate,
+    setView,
+    setSelectedId,
+    setSidebarTab,
+    openSidebar,
+    setPopover,
+    setOverlayOpen,
+    setTodoDetailId,
+  });
 
   // Mutation layer (#280 → useScheduleMutations): every write path plus the
   // #279 repeat/scope machinery (#299 retired the #278 pending-draft guard).
@@ -964,6 +996,8 @@ export function CalendarTab({
           // the panel narrows them.
           filter: todoTabFilter,
           filterTags: todoFilterTags,
+          // #2393: the todo a link pointed at, above the lists.
+          focus: todoFocus,
           // #2281: the first list's own day, apart from the flow tab's.
           day: {
             label: trayDayLabel,
@@ -1026,6 +1060,8 @@ export function CalendarTab({
         // the same tag choice (#2005).
         onDuplicate: handleDuplicate,
         duplicateTagCount: selected ? tagCountOf(selected) : 0,
+        // #2407: the colour row's link to the tag on Connect.
+        onOpenTag,
       }}
       todoDetail={{
         todoId: todoDetailId,
@@ -1050,6 +1086,8 @@ export function CalendarTab({
         state: popover,
         selected,
         selectedTagCount: selected ? tagCountOf(selected) : 0,
+        // #2397: the same tags as chips, for the bubble's summary.
+        selectedTags: selected ? tagsOf(selected) : undefined,
         findTodoChip,
         onClose: closePopover,
         onOpenDetail: handleItemOpenDetail,
@@ -1115,7 +1153,9 @@ export function CalendarTab({
       noteAttach={{
         notes: noteOptions,
         notesError,
-        onAttach: attachNote,
+        // The edit panel still attaches one note at a time (#2219); the
+        // create panel's attach takes a list since #2396.
+        onAttach: (itemId, draft) => attachNote(itemId, [draft]),
         onOpenChange: setNotePickerOpen,
       }}
     />
@@ -1181,6 +1221,7 @@ export function CalendarTab({
             monthItems,
             gridItems,
             selectedId,
+            markedId,
             nowMinutes,
           }}
           labels={{ weekdays: weekdayLabels }}

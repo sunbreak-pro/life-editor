@@ -718,6 +718,20 @@ describe("DailyView — the entry list says which day is open (#1839)", () => {
   });
 });
 
+describe("DailyView — a link to a day (#2393)", () => {
+  it("opens that day once, and consumes the intent", () => {
+    const onConsumePendingSelect = vi.fn();
+    render(
+      <DailyView
+        pendingSelectDate="2026-03-14"
+        onConsumePendingSelect={onConsumePendingSelect}
+      />,
+    );
+    expect(state.setSelectedDate).toHaveBeenCalledWith("2026-03-14");
+    expect(onConsumePendingSelect).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("DailyView — desktop entry panel", () => {
   it("counts the entries it lists and selects one on click", () => {
     render(<DailyView />);

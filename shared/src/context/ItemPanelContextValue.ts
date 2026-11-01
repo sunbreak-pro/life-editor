@@ -36,7 +36,7 @@ export interface ItemPanelScheduleTarget {
 
 export interface ItemPanelOptions {
   /**
-   * Given, the panel shows 「予定の画面で開く」. The panel closes first (after
+   * Given, the panel shows 「予定で見る」. The panel closes first (after
    * the unsaved-draft question) and then this is called, so the caller decides
    * how to get there — the shell's navigation is web's, not this context's.
    */
