@@ -1508,7 +1508,10 @@
       "endDate": "終了日",
       "dateRange": "{{start}}〜{{end}}",
       "dropHere": "ここへ移す",
-      "rename": "名前を変える: {{title}}",
+      "edit": "目標を編集: {{title}}",
+      "addUnder": "下に追加: {{title}}",
+      "delete": "目標を削除: {{title}}",
+      "childGoal": "{{kind}}の目標",
       "moveTodoFailed": "Todo を移せませんでした。通信を確認して、もう一度操作してください。",
       "arrange": {
         "heading": "並び替え・絞り込み",

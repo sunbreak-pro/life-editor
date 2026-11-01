@@ -42,6 +42,7 @@ export {
 } from "./GoalTreeArrangePanel";
 export {
   GoalTreeView,
+  type GoalRowActions,
   type GoalTreeDragHandlers,
   type GoalTreeLabels,
   type GoalTreeViewProps,

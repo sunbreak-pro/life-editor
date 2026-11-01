@@ -4,6 +4,7 @@ import {
   GoalTreeView,
   buildGoalTreeModel,
   type Goal,
+  type GoalRowActions,
   type GoalTreeDragHandlers,
   type GoalTreeLabels,
   type TodoStatus,
@@ -103,7 +104,10 @@ const LABELS: GoalTreeLabels = {
   addTodoPlaceholder: "Todo",
   dragToMove: "Drag to move",
   dropHere: "Move here",
-  formatRename: (title) => `Rename: ${title}`,
+  formatEdit: (title) => `Edit goal: ${title}`,
+  formatAddUnder: (title) => `Add under: ${title}`,
+  formatDelete: (title) => `Delete goal: ${title}`,
+  formatChildGoal: (kind) => `${kind} goal`,
   renameField: "Goal title",
   loading: "Loading",
   loadFailed: "Could not load",
@@ -114,6 +118,8 @@ function renderTree(
   over: {
     selectedGoalId?: string | null;
     onRenameGoal?: (goalId: string, title: string) => void;
+    onEditGoal?: (goalId: string) => void;
+    rowActions?: GoalRowActions;
     drag?: GoalTreeDragHandlers;
     onSelectGoal?: (goalId: string) => void;
     goals?: Goal[];
@@ -138,6 +144,8 @@ function renderTree(
       onSetTodoStatus={over.onSetTodoStatus ?? vi.fn()}
       onOpenTodo={vi.fn()}
       onRenameGoal={over.onRenameGoal}
+      onEditGoal={over.onEditGoal}
+      rowActions={over.rowActions}
       drag={over.drag}
       labels={LABELS}
     />,
@@ -201,20 +209,22 @@ describe("GoalTreeView — grab a goal by its title (#2283)", () => {
   });
 });
 
-describe("GoalTreeView — rename in place from the pencil (#2283)", () => {
-  it("draws no pencil when the host cannot rename", () => {
+describe("GoalTreeView — rename in place from the edit icon (#2283 / #2367)", () => {
+  it("draws no edit icon when the host cannot rename", () => {
     renderTree();
-    expect(screen.queryByRole("button", { name: /^Rename: / })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Edit goal: / })).toBeNull();
   });
 
-  it("shows the pencil on hover and keeps it shown on the selected row", () => {
+  it("shows the edit icon on hover and keeps it shown on the selected row", () => {
     renderTree({ onRenameGoal: vi.fn(), selectedGoalId: "m1" });
-    const idle = screen.getByRole("button", { name: "Rename: Run 3 times" });
+    const idle = screen.getByRole("button", { name: "Edit goal: Run 3 times" });
     expect(idle.className).toContain("opacity-0");
     expect(idle.className).toContain("group-hover/row:opacity-100");
     // Reachable by keyboard while hidden.
     expect(idle.className).toContain("focus-visible:opacity-100");
-    const picked = screen.getByRole("button", { name: "Rename: Run weekly" });
+    const picked = screen.getByRole("button", {
+      name: "Edit goal: Run weekly",
+    });
     expect(picked.className).not.toContain("opacity-0");
   });
 
@@ -222,7 +232,7 @@ describe("GoalTreeView — rename in place from the pencil (#2283)", () => {
     const onRenameGoal = vi.fn();
     renderTree({ onRenameGoal });
     fireEvent.click(
-      screen.getByRole("button", { name: "Rename: Run 3 times" }),
+      screen.getByRole("button", { name: "Edit goal: Run 3 times" }),
     );
     const field = screen.getByRole("textbox", { name: "Goal title" });
     expect((field as HTMLInputElement).value).toBe("Run 3 times");
@@ -239,7 +249,7 @@ describe("GoalTreeView — rename in place from the pencil (#2283)", () => {
     const onRenameGoal = vi.fn();
     renderTree({ onRenameGoal });
     fireEvent.click(
-      screen.getByRole("button", { name: "Rename: Run 3 times" }),
+      screen.getByRole("button", { name: "Edit goal: Run 3 times" }),
     );
     const field = screen.getByRole("textbox", { name: "Goal title" });
     fireEvent.change(field, { target: { value: "Run 4 times" } });
@@ -254,7 +264,7 @@ describe("GoalTreeView — rename in place from the pencil (#2283)", () => {
     const onRenameGoal = vi.fn();
     renderTree({ onRenameGoal });
     const pencil = () =>
-      screen.getByRole("button", { name: "Rename: Run 3 times" });
+      screen.getByRole("button", { name: "Edit goal: Run 3 times" });
     fireEvent.click(pencil());
     fireEvent.change(screen.getByRole("textbox", { name: "Goal title" }), {
       target: { value: "   " },
@@ -273,7 +283,7 @@ describe("GoalTreeView — rename in place from the pencil (#2283)", () => {
     const onRenameGoal = vi.fn();
     renderTree({ onRenameGoal });
     fireEvent.click(
-      screen.getByRole("button", { name: "Rename: Run 3 times" }),
+      screen.getByRole("button", { name: "Edit goal: Run 3 times" }),
     );
     const field = screen.getByRole("textbox", { name: "Goal title" });
     fireEvent.change(field, { target: { value: "週 4 回走る" } });
@@ -297,9 +307,9 @@ describe("GoalTreeView — rename in place from the pencil (#2283)", () => {
     const tree = screen.getByRole("region", { name: "Goals" });
     const loose = screen.getByRole("region", { name: "Unconnected" });
     const inTree = within(tree).getByRole("button", {
-      name: "Rename: Swim once",
+      name: "Edit goal: Swim once",
     });
-    within(loose).getByRole("button", { name: "Rename: Swim once" });
+    within(loose).getByRole("button", { name: "Edit goal: Swim once" });
 
     fireEvent.click(inTree);
     const fields = screen.getAllByRole("textbox", { name: "Goal title" });
@@ -307,7 +317,7 @@ describe("GoalTreeView — rename in place from the pencil (#2283)", () => {
     expect(tree.contains(fields[0])).toBe(true);
     expect(document.activeElement).toBe(fields[0]);
     // The other row keeps its title and pencil.
-    within(loose).getByRole("button", { name: "Rename: Swim once" });
+    within(loose).getByRole("button", { name: "Edit goal: Swim once" });
 
     fireEvent.change(fields[0], { target: { value: "Swim twice" } });
     fireEvent.keyDown(fields[0], { key: "Enter" });
@@ -326,18 +336,20 @@ describe("GoalTreeView — rename in place from the pencil (#2283)", () => {
     const tree = screen.getByRole("region", { name: "Goals" });
     const loose = screen.getByRole("region", { name: "Unconnected" });
     fireEvent.click(
-      within(loose).getByRole("button", { name: "Rename: Swim once" }),
+      within(loose).getByRole("button", { name: "Edit goal: Swim once" }),
     );
     const fields = screen.getAllByRole("textbox", { name: "Goal title" });
     expect(fields).toHaveLength(1);
     expect(loose.contains(fields[0])).toBe(true);
     expect(document.activeElement).toBe(fields[0]);
-    within(tree).getByRole("button", { name: "Rename: Swim once" });
+    within(tree).getByRole("button", { name: "Edit goal: Swim once" });
   });
 
   it("does not drag the row while its name is being edited", () => {
     renderTree({ onRenameGoal: vi.fn(), drag: dragHandlers() });
-    fireEvent.click(screen.getByRole("button", { name: "Rename: Run weekly" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit goal: Run weekly" }),
+    );
     const field = screen.getByRole("textbox", { name: "Goal title" });
     const row = field.parentElement as HTMLElement;
     expect(row.querySelector("[draggable]")).toBeNull();
@@ -388,6 +400,96 @@ describe("GoalTreeView — completed items move to their own list (#2368)", () =
     ).toBeNull();
     // The year above still counts it.
     region("Goals").getByRole("button", { name: /^Year: Run 10 km — / });
+  });
+});
+
+describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
+  const actions = (): GoalRowActions => ({
+    onAddTodo: vi.fn().mockResolvedValue(true),
+    onAddChildGoal: vi.fn().mockResolvedValue(true),
+    onDelete: vi.fn(),
+  });
+
+  it("draws the three icons in order, shown on hover or when selected", () => {
+    renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
+    const row = rowOf("Run 3 times");
+    const names = within(row)
+      .getAllByRole("button")
+      .map((b) => b.getAttribute("aria-label"))
+      .filter((n) => n && /^(Add under|Edit goal|Delete goal): /.test(n));
+    expect(names).toEqual([
+      "Add under: Run 3 times",
+      "Edit goal: Run 3 times",
+      "Delete goal: Run 3 times",
+    ]);
+    for (const name of names) {
+      const icon = within(row).getByRole("button", { name: name as string });
+      expect(icon.className).toContain("opacity-0");
+      expect(icon.className).toContain("focus-visible:opacity-100");
+    }
+  });
+
+  it("offers a todo or a goal one level down from a month's +", async () => {
+    const rowActions = actions();
+    renderTree({ rowActions });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add under: Run weekly" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Week goal" }));
+    const field = screen.getByRole("textbox", {
+      name: "Add under: Run weekly — Week goal",
+    });
+    fireEvent.change(field, { target: { value: " Long run " } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(rowActions.onAddChildGoal).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "m1" }),
+      "Long run",
+    );
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("textbox", { name: /^Add under/ })).toBeNull(),
+    );
+  });
+
+  it("goes straight to the todo field under a week, and not on an IME Enter", () => {
+    const rowActions = actions();
+    renderTree({ rowActions });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Add under: Run 3 times" }),
+    );
+    const field = screen.getByRole("textbox", {
+      name: "Add under: Run 3 times — Todo",
+    });
+    fireEvent.change(field, { target: { value: "Buy gels" } });
+    fireEvent.keyDown(field, { key: "Enter", keyCode: 229 });
+    expect(rowActions.onAddTodo).not.toHaveBeenCalled();
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(rowActions.onAddTodo).toHaveBeenCalledWith("w1", "Buy gels");
+  });
+
+  it("opens the name field and the panel from edit, and deletes from the bin", () => {
+    const rowActions = actions();
+    const onEditGoal = vi.fn();
+    renderTree({ onRenameGoal: vi.fn(), onEditGoal, rowActions });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit goal: Run 3 times" }),
+    );
+    expect(screen.getByRole("textbox", { name: "Goal title" })).toBeTruthy();
+    expect(onEditGoal).toHaveBeenCalledWith("w1");
+    fireEvent.keyDown(screen.getByRole("textbox", { name: "Goal title" }), {
+      key: "Escape",
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete goal: Run 3 times" }),
+    );
+    expect(rowActions.onDelete).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "w1" }),
+    );
+  });
+
+  it("draws no + or bin without row actions", () => {
+    renderTree({ onRenameGoal: vi.fn() });
+    expect(screen.queryByRole("button", { name: /^Add under: / })).toBeNull();
+    expect(screen.queryByRole("button", { name: /^Delete goal: / })).toBeNull();
   });
 });
 

@@ -1528,7 +1528,10 @@
       "endDate": "To",
       "dateRange": "{{start}} – {{end}}",
       "dropHere": "Move here",
-      "rename": "Rename: {{title}}",
+      "edit": "Edit goal: {{title}}",
+      "addUnder": "Add under: {{title}}",
+      "delete": "Delete goal: {{title}}",
+      "childGoal": "{{kind}} goal",
       "moveTodoFailed": "Could not move the todo. Check your connection and try again.",
       "arrange": {
         "heading": "Sort & filter",
