@@ -68,6 +68,8 @@ export const CHANGE_OVERLAP_MS = 60_000;
 export const SETTLE_MS = 15_000;
 /** Rows the cursor query may name in `seen`; any beyond it are read once more. */
 const CURSOR_ROWS = 100;
+/** A full read waits on the cursor, so a stalled request must not hold it up. */
+export const CURSOR_TIMEOUT_MS = 5_000;
 export const FULL_READ_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
 export const FULL_READ_EVERY_STARTS = 20;
 const START_COUNT_KEY = "life-editor:app-start-count";
@@ -170,13 +172,17 @@ function isLater(a: string, b: string): boolean {
 /**
  * Sort the overlap's rows into applied and still settling. `now` must be taken
  * before the payload read it describes: a row only counts as settled when that
- * read started SETTLE_MS after the row was first observed.
+ * read started SETTLE_MS after the row was first observed. A row in `awaiting`
+ * had no payload yet, so it keeps being read for as long as the overlap holds
+ * it: its payload write does not move `changed_at`, and a row taken as read
+ * here would stay off the list until the next full read.
  */
 function settle(
   rows: ReadonlyArray<{ id: string; changed_at: string }>,
   at: string,
   now: number,
   previous: ChangeCursor | undefined,
+  awaiting: ReadonlySet<string> | undefined,
 ): Pick<ChangeCursor, "seen" | "settling"> {
   const from = Date.parse(at) - CHANGE_OVERLAP_MS;
   const seen: ChangeCursor["seen"] = {};
@@ -190,7 +196,10 @@ function settle(
       known?.changedAt === changedAt && known.firstAt <= now
         ? known.firstAt
         : now;
-    if (previous?.seen[id] === changedAt || now - firstAt >= SETTLE_MS) {
+    if (
+      previous?.seen[id] === changedAt ||
+      (now - firstAt >= SETTLE_MS && !awaiting?.has(id))
+    ) {
       seen[id] = changedAt;
     } else {
       settling[id] = { changedAt, firstAt };
@@ -211,6 +220,7 @@ export function cursorFrom(
   deleted: ReadonlyArray<{ deleted_at: string }>,
   now: number,
   previous?: ChangeCursor,
+  awaiting?: ReadonlySet<string>,
 ): ChangeCursor | null {
   let at = previous?.at ?? null;
   for (const stamp of [
@@ -222,7 +232,7 @@ export function cursorFrom(
   if (at === null) return null;
   return {
     at,
-    ...settle(rows, at, now, previous),
+    ...settle(rows, at, now, previous, awaiting),
     readAt: previous?.readAt ?? now,
   };
 }
@@ -319,11 +329,25 @@ export function readChangeCursor(
   if (unapplied.has(client)) return Promise.resolve(null);
   const running = cursorReads.get(client);
   if (running !== undefined) return running;
-  const read = askChangeCursor(client).finally(() => {
+  const read = withinCursorTimeout(askChangeCursor(client)).finally(() => {
     cursorReads.delete(client);
   });
   cursorReads.set(client, read);
   return read;
+}
+
+/*
+ * Every full read waits on this answer and shares it, so one request stalled on
+ * a dead socket would stop all three lists from revalidating. Null is the
+ * existing "no cursor, read in full" path.
+ */
+function withinCursorTimeout(
+  read: Promise<ChangeCursor | null>,
+): Promise<ChangeCursor | null> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => resolve(null), CURSOR_TIMEOUT_MS);
+    read.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
 }
 
 async function askChangeCursor(
@@ -373,39 +397,40 @@ export async function fetchItemChanges<
     Date.parse(cursor.at) - CHANGE_OVERLAP_MS,
   ).toISOString();
   let missing = false;
-  const watched = <R extends { error: { code?: string } | null }>(
-    query: PromiseLike<R>,
-  ): PromiseLike<R> =>
-    query.then((result) => {
-      if (isUnapplied(result.error)) missing = true;
-      return result;
-    });
+  const firstPage = async <Row>(
+    query: PromiseLike<{
+      data: unknown;
+      error: { code?: string; message: string } | null;
+    }>,
+    label: string,
+  ): Promise<Row[]> => {
+    const { data, error } = await query;
+    if (error) {
+      if (isUnapplied(error)) missing = true;
+      throw new Error(`${label}: ${error.message}`);
+    }
+    return (data as Row[] | null) ?? [];
+  };
 
   let changes: ItemChanges;
   try {
     const [metas, tombstones] = await Promise.all([
-      fetchAllPages<ChangedMeta>(
-        (from, to) =>
-          watched(
-            client
-              .from("items_meta")
-              .select(`${ITEMS_META_COLUMNS}, changed_at`)
-              .gt("changed_at", since)
-              .order("id")
-              .range(from, to),
-          ),
+      firstPage<ChangedMeta>(
+        client
+          .from("items_meta")
+          .select(`${ITEMS_META_COLUMNS}, changed_at`)
+          .gt("changed_at", since)
+          .order("id")
+          .range(0, POSTGREST_PAGE_SIZE - 1),
         "fetchItemChanges items_meta",
       ),
-      fetchAllPages<Tombstone>(
-        (from, to) =>
-          watched(
-            client
-              .from("items_meta_tombstones")
-              .select("id, deleted_at")
-              .gt("deleted_at", since)
-              .order("id")
-              .range(from, to),
-          ),
+      firstPage<Tombstone>(
+        client
+          .from("items_meta_tombstones")
+          .select("id, deleted_at")
+          .gt("deleted_at", since)
+          .order("id")
+          .range(0, POSTGREST_PAGE_SIZE - 1),
         "fetchItemChanges items_meta_tombstones",
       ),
     ]);
@@ -416,9 +441,9 @@ export async function fetchItemChanges<
     return null;
   }
 
-  // Pages are offsets, so a write during the pull can shift a row past the page
-  // boundary. A full read heals on the next read, but here the cursor would move
-  // past the lost row for good.
+  // A delta is one page. Pages are offsets, so a write during a longer pull can
+  // shift a row past the page boundary. A full read heals on the next read, but
+  // here the cursor would move past the lost row for good.
   if (
     changes.metas.length >= POSTGREST_PAGE_SIZE ||
     changes.tombstones.length >= POSTGREST_PAGE_SIZE
@@ -452,10 +477,13 @@ export async function fetchItemChanges<
       `fetchItemChanges ${domain.payloadTable}`,
     ),
   );
+  const arrived = new Set(payloads.map((p) => p.item_id));
+  const awaiting = new Set(ids.filter((id) => !arrived.has(id)));
   return {
     data: applyItemChanges(domain, base, changes, payloads, cursor.seen),
     cursor:
-      cursorFrom(changes.metas, changes.tombstones, now, cursor) ?? cursor,
+      cursorFrom(changes.metas, changes.tombstones, now, cursor, awaiting) ??
+      cursor,
   };
 }
 
@@ -481,7 +509,9 @@ function isFullReadStart(): boolean {
 }
 
 export function isFullReadDue(key: string, cursor: ChangeCursor): boolean {
-  if (Date.now() - cursor.readAt > FULL_READ_MAX_AGE_MS) return true;
+  // A readAt in the future (taken under a clock set ahead) would never age.
+  const age = Date.now() - cursor.readAt;
+  if (age < 0 || age > FULL_READ_MAX_AGE_MS) return true;
   return isFullReadStart() && !fullReadDone.has(key);
 }
 

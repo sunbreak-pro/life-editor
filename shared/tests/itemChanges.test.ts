@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  CURSOR_TIMEOUT_MS,
   DAILY_CHANGES,
   FULL_READ_EVERY_STARTS,
   FULL_READ_MAX_AGE_MS,
@@ -711,6 +712,82 @@ describe("applying the changes", () => {
   });
 });
 
+describe("a request that never answers", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("gives up on the shared cursor read, and the next caller asks again", async () => {
+    vi.useFakeTimers();
+    const from = vi.fn(() => {
+      const builder = {
+        select: () => builder,
+        order: () => builder,
+        limit: () => builder,
+        then: () => undefined, // Never settles, like a request on a dead socket.
+      };
+      return builder;
+    });
+    const client = { from } as unknown as SupabaseClient;
+
+    const first = readChangeCursor(client);
+    const joined = readChangeCursor(client);
+    expect(from).toHaveBeenCalledTimes(2);
+    await vi.advanceTimersByTimeAsync(CURSOR_TIMEOUT_MS);
+    await expect(first).resolves.toBeNull();
+    await expect(joined).resolves.toBeNull();
+
+    void readChangeCursor(client);
+    expect(from).toHaveBeenCalledTimes(4);
+    await vi.advanceTimersByTimeAsync(CURSOR_TIMEOUT_MS);
+  });
+});
+
+describe("a meta whose payload has not arrived", () => {
+  it("is read again past the settle span, and shows up once the payload lands", async () => {
+    const answers: Record<string, Answer> = {
+      items_meta: { rows: [meta("task-late", T2)] },
+      tasks_payload: { rows: [] },
+    };
+    const { client, count } = fakeClient(answers);
+    const device = Date.parse(T2);
+    const read = async (
+      position: ChangeCursor,
+      at: number,
+      list: TodoNode[],
+    ) => {
+      vi.spyOn(Date, "now").mockReturnValue(at);
+      const result = await fetchItemChanges(
+        client,
+        TODO_CHANGES,
+        position,
+        list,
+      );
+      if (result === null) throw new Error("expected a delta");
+      return result;
+    };
+
+    const first = await read(cursor(T1), device, []);
+    const second = await read(first.cursor, device + SETTLE_MS, first.data);
+    expect(second.data).toEqual([]);
+    expect(second.cursor.seen).toEqual({});
+    expect(second.cursor.settling["task-late"]?.firstAt).toBe(device);
+
+    answers.tasks_payload = { rows: [payload("task-late")] };
+    const third = await read(
+      second.cursor,
+      device + 2 * SETTLE_MS,
+      second.data,
+    );
+    expect(idsOf(third.data)).toEqual(["task-late"]);
+    expect(third.cursor.seen).toEqual({ "task-late": T2 });
+
+    const fourth = await read(third.cursor, device + 3 * SETTLE_MS, third.data);
+    expect(idsOf(fourth.data)).toEqual(["task-late"]);
+    expect(count.tasks_payload).toBe(3);
+  });
+});
+
 describe("the safety net", () => {
   beforeEach(() => {
     resetFullReadPolicy();
@@ -727,6 +804,11 @@ describe("the safety net", () => {
     expect(isFullReadDue("notes", recent())).toBe(false);
     const old = { ...cursor(), readAt: Date.now() - FULL_READ_MAX_AGE_MS - 1 };
     expect(isFullReadDue("notes", old)).toBe(true);
+  });
+
+  it("asks for a full read when the last full read is in the future", () => {
+    const ahead = { ...cursor(), readAt: Date.now() + 30 * 86_400_000 };
+    expect(isFullReadDue("notes", ahead)).toBe(true);
   });
 
   it("asks once per domain on every 20th start", () => {

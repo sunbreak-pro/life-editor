@@ -287,6 +287,7 @@ commit;
 --        values ('task-tombstone-check', 'task', 'check');
 --      select changed_at, updated_at into c0, u0
 --        from public.items_meta where id = 'task-tombstone-check';
+--      perform pg_sleep(0.001);
 --      update public.items_meta set title = 'check 2'
 --        where id = 'task-tombstone-check';
 --      select changed_at, updated_at into c1, u1
