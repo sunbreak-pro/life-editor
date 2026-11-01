@@ -590,12 +590,6 @@ describe("NotesView — desktop (wide)", () => {
 });
 
 /*
- * #1125 — the tutorial tour's Materials steps. Two halves, and the second is
- * the one worth having: WHERE each step points (`data-tour-id`, resolved by
- * attribute because jsdom has no layout — CLAUDE.md §7.1), and WHAT counts as
- * having done the thing, IME included.
- */
-/*
  * #2390 — the list belongs to the right sidebar. jsdom has no layout, so this
  * pins what the view hands to the panel and what it keeps for its own column;
  * that the panel sits right of the body is AppShell's markup (<main>, then
@@ -645,8 +639,43 @@ describe("NotesView — what goes in the right sidebar (#2390)", () => {
       expect(panel.contains(el)).toBe(true);
     }
   });
+
+  /*
+   * The spec behind #2390 lists "create a note" among the things in the panel,
+   * and the Issue's build list does not ask to move it. So the pill stays where
+   * #302 and #1372 put it, and this pins that as the current state: when the
+   * panel is closed, on a phone above all, it is the way to make a note. If the
+   * pill is ever moved, this is the test to change.
+   */
+  it("keeps the create pill in the body column, not in the panel", () => {
+    render(<NotesView />);
+
+    const pill = screen.getByRole("button", {
+      name: "materials.notes.addCta",
+    });
+    expect(screen.getByTestId("right-sidebar-portal").contains(pill)).toBe(
+      false,
+    );
+  });
+
+  it("offers create inside the panel only while there are no notes", () => {
+    state.notes = [];
+    render(<NotesView />);
+
+    const panel = within(screen.getByTestId("right-sidebar-portal"));
+    panel.getByRole("button", { name: "materials.notes.addCta" });
+    expect(
+      screen.getAllByRole("button", { name: "materials.notes.addCta" }).length,
+    ).toBe(2);
+  });
 });
 
+/*
+ * #1125 — the tutorial tour's Materials steps. Two halves, and the second is
+ * the one worth having: WHERE each step points (`data-tour-id`, resolved by
+ * attribute because jsdom has no layout — CLAUDE.md §7.1), and WHAT counts as
+ * having done the thing, IME included.
+ */
 describe("NotesView — tour wiring (#1125)", () => {
   function anchor(id: string): HTMLElement {
     const el = document.querySelector<HTMLElement>(`[data-tour-id="${id}"]`);
