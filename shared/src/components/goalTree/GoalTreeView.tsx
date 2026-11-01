@@ -8,6 +8,7 @@ import {
   SquarePen,
   Target,
   Trash2,
+  X,
 } from "lucide-react";
 import { cn } from "../cn";
 import { Button } from "../Button";
@@ -21,6 +22,7 @@ import type { TodoStatus } from "../../types/todoTree";
 import { isImeComposing } from "../../utils/imeGuard";
 import {
   GOAL_PERIOD_KINDS,
+  goalChildKinds,
   goalPeriodBounds,
   goalProgress,
   separateCompleted,
@@ -64,7 +66,8 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * hole, and the goal under the pointer fills in with a "Move here" pill.
  *
  * A goal row carries up to three icons on hover or while selected (#2367):
- * "+" adds a todo linked to the goal, or a goal one level down; edit swaps
+ * "+" adds a todo linked to the goal, or a goal of any shorter period (#2399:
+ * a year offers its month and its week); edit swaps
  * the title for a name field in place (the pencil of #2283, folded in) and,
  * when the host passes `onEditGoal`, also opens the goal's panel for the
  * rest; the bin deletes, after the host's confirm. The row stops dragging
@@ -136,7 +139,10 @@ export interface GoalTreeLabels {
   formatAddUnder: (title: string) => string;
   /** "Delete goal: Run 3 times" — the bin on a goal row. */
   formatDelete: (title: string) => string;
-  /** "Month goal" — the "+" choice that adds a goal one level down. */
+  /**
+   * "This month's goal" — a "+" choice and the add field's badge. Given the
+   * period's name (`periods`), since the goal lands in the current period.
+   */
   formatChildGoal: (kind: string) => string;
   loading: string;
   /** The first read failed: nothing below would be true, so this replaces it. */
@@ -189,14 +195,21 @@ export interface GoalTreeViewProps {
 export interface GoalRowActions {
   /** A todo linked to the goal. Resolves true once it exists. */
   onAddTodo: (goalId: string, title: string) => Promise<boolean>;
-  /** A goal one level down, in the current period. Resolves true once it exists. */
-  onAddChildGoal: (parent: Goal, title: string) => Promise<boolean>;
+  /**
+   * A goal of the chosen shorter `kind`, in the current period, under `parent`.
+   * Resolves true once it exists.
+   */
+  onAddChildGoal: (
+    parent: Goal,
+    title: string,
+    kind: GoalPeriodKind,
+  ) => Promise<boolean>;
   /** Fires raw: the host asks before it deletes. */
   onDelete: (goal: Goal) => void;
 }
 
 export interface GoalTreeDragHandlers {
-  /** A goal dropped on a goal one period up. */
+  /** A goal dropped on a goal of a longer period. */
   onMoveGoal: (goalId: string, parentGoalId: string) => void;
   /** A todo dropped on a goal; `fromGoalId` is null for a loose todo. */
   onMoveTodo: (
@@ -455,18 +468,16 @@ interface BranchState {
   /** The row whose "+" is open, and at which step; one at a time. */
   addingUnder: AddingUnder | null;
   onAddUnder: (row: AddingUnder | null) => void;
+  /** Open a goal something was just added under, if it was closed. */
+  onExpand: (goalId: string) => void;
 }
 
-/** The kind a "+" adds as a child goal: one level down; none under a week. */
-const CHILD_KIND: Readonly<Record<GoalPeriodKind, GoalPeriodKind | null>> = {
-  year: "month",
-  month: "week",
-  week: null,
-};
-
 interface AddingUnder extends EditingRow {
-  /** "choose" while both a todo and a child goal are on offer. */
-  step: "choose" | "todo" | "goal";
+  /**
+   * "choose" while a todo and a child goal are on offer; then the field, for a
+   * todo or for a goal of that kind.
+   */
+  step: "choose" | "todo" | GoalPeriodKind;
 }
 
 /** The icons at a goal row's right end: on hover, on focus, or selected. */
@@ -530,9 +541,10 @@ function GoalTitleEditor({
 }
 
 /*
- * What a goal row's "+" opens (#2367): a choice between a todo and a goal
- * one level down (a week offers only the todo, so it skips the choice), then
- * one field. Enter or the button adds and closes; Esc closes.
+ * What a goal row's "+" opens (#2367, #2399): a choice between a todo and a
+ * goal of each shorter period (a week offers only the todo, so it skips the
+ * choice), then one field with a badge saying what it adds. Enter or the
+ * button adds and closes, opening the goal if it was closed; Esc or the × closes.
  */
 function AddUnderGoal({
   goal,
@@ -540,21 +552,21 @@ function AddUnderGoal({
   actions,
   labels,
   onStep,
+  onAdded,
   onClose,
 }: {
   goal: Goal;
   step: AddingUnder["step"];
   actions: GoalRowActions;
   labels: GoalTreeLabels;
-  onStep: (step: "todo" | "goal") => void;
+  onStep: (step: "todo" | GoalPeriodKind) => void;
+  onAdded: () => void;
   onClose: () => void;
 }): React.JSX.Element {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
-  const childKind = CHILD_KIND[goal.periodKind];
-  const childLabel = childKind
-    ? labels.formatChildGoal(labels.kinds[childKind])
-    : "";
+  const childLabel = (kind: GoalPeriodKind): string =>
+    labels.formatChildGoal(labels.periods[kind]);
   if (step === "choose") {
     return (
       <div className="flex flex-wrap items-center gap-2 py-1 pl-(--goal-tree-toggle)">
@@ -567,15 +579,18 @@ function AddUnderGoal({
         >
           {labels.addTodo}
         </Button>
-        <Button
-          size="sm"
-          variant="secondary"
-          onClick={() => onStep("goal")}
-          leadingIcon={<Plus size={14} aria-hidden />}
-          className="shrink-0 whitespace-nowrap max-md:min-h-11"
-        >
-          {childLabel}
-        </Button>
+        {goalChildKinds(goal.periodKind).map((kind) => (
+          <Button
+            key={kind}
+            size="sm"
+            variant="secondary"
+            onClick={() => onStep(kind)}
+            leadingIcon={<Plus size={14} aria-hidden />}
+            className="shrink-0 whitespace-nowrap max-md:min-h-11"
+          >
+            {childLabel(kind)}
+          </Button>
+        ))}
         <Button
           size="sm"
           variant="ghost"
@@ -589,6 +604,7 @@ function AddUnderGoal({
   }
   const placeholder =
     step === "todo" ? labels.addTodoPlaceholder : labels.addPlaceholder;
+  const badge = step === "todo" ? labels.addTodo : childLabel(step);
   const submit = (): void => {
     const title = draft.trim();
     if (!title || busy) return;
@@ -596,14 +612,22 @@ function AddUnderGoal({
     const run =
       step === "todo"
         ? actions.onAddTodo(goal.id, title)
-        : actions.onAddChildGoal(goal, title);
+        : actions.onAddChildGoal(goal, title, step);
     void run.then((ok) => {
       setBusy(false);
-      if (ok) onClose();
+      if (!ok) return;
+      onAdded();
+      onClose();
     });
   };
   return (
     <div className="flex items-center gap-2 py-1 pl-(--goal-tree-toggle)">
+      <span
+        data-goal-add-badge
+        className="shrink-0 whitespace-nowrap rounded-full border border-lumen-border px-2 py-0.5 text-xs text-lumen-briefing-kohaku"
+      >
+        {badge}
+      </span>
       <Input
         autoFocus
         value={draft}
@@ -614,9 +638,7 @@ function AddUnderGoal({
           if (e.key === "Escape") onClose();
         }}
         placeholder={placeholder}
-        aria-label={`${labels.formatAddUnder(goal.title)} — ${
-          step === "todo" ? labels.addTodo : childLabel
-        }`}
+        aria-label={`${labels.formatAddUnder(goal.title)} — ${badge}`}
         className="min-w-0 max-md:text-base"
       />
       <Button
@@ -629,14 +651,15 @@ function AddUnderGoal({
       >
         {labels.add}
       </Button>
-      <Button
-        size="sm"
-        variant="ghost"
+      <button
+        type="button"
         onClick={onClose}
-        className="shrink-0 whitespace-nowrap max-md:min-h-11"
+        aria-label={labels.cancel}
+        title={labels.cancel}
+        className={ROW_ICON}
       >
-        {labels.cancel}
-      </Button>
+        <X size={14} aria-hidden />
+      </button>
     </div>
   );
 }
@@ -808,7 +831,10 @@ function GoalBranch({
                   : {
                       goalId: goal.id,
                       place,
-                      step: CHILD_KIND[goal.periodKind] ? "choose" : "todo",
+                      step:
+                        goalChildKinds(goal.periodKind).length > 0
+                          ? "choose"
+                          : "todo",
                     },
               )
             }
@@ -869,6 +895,7 @@ function GoalBranch({
           actions={rowActions}
           labels={labels}
           onStep={(step) => branch.onAddUnder({ ...addingHere, step })}
+          onAdded={() => branch.onExpand(goal.id)}
           onClose={() => branch.onAddUnder(null)}
         />
       )}
@@ -1125,6 +1152,13 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
     onEdit: setEditing,
     addingUnder,
     onAddUnder: setAddingUnder,
+    onExpand: (goalId) =>
+      setCollapsed((prev) => {
+        if (!prev.has(goalId)) return prev;
+        const next = new Set(prev);
+        next.delete(goalId);
+        return next;
+      }),
   };
 
   // `byId` holds every shown goal whatever the filter; roots and unconnected

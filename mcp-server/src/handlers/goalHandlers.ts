@@ -26,7 +26,7 @@ import { notFoundError } from "../errorCodes.js";
  * The app's half is shared/src/services/SupabaseGoalsService.ts; the rules
  * the DB cannot hold are enforced here as well as there:
  *
- *   - a parent is one level up only: year → month → week;
+ *   - a parent is a longer period: a week's month or year, a month's year;
  *   - the hand mark (`manual_achieved_at`) only on an UNCONNECTED goal — a
  *     connected one is judged by its todos, or closed at period end with
  *     `period_end_decision = achieved`.
@@ -41,11 +41,13 @@ import { notFoundError } from "../errorCodes.js";
  * (link_items) — linking does not touch the goal's meta row, same as the app.
  */
 
-/** The kind a goal's parent must be (shared goalMapper GOAL_PARENT_KIND). */
-const PARENT_KIND: Readonly<Record<GoalPeriodKind, GoalPeriodKind | null>> = {
-  week: "month",
-  month: "year",
-  year: null,
+/** The kinds a goal's parent may be (shared goalMapper GOAL_PARENT_KINDS). */
+const PARENT_KINDS: Readonly<
+  Record<GoalPeriodKind, readonly GoalPeriodKind[]>
+> = {
+  week: ["month", "year"],
+  month: ["year"],
+  year: [],
 };
 
 const PERIOD_KINDS: readonly GoalPeriodKind[] = ["year", "month", "week"];
@@ -156,7 +158,7 @@ async function fetchMetas(
 
 /**
  * Judge `roots` with everything their answer depends on: every descendant
- * goal (a year needs its months, a month its weeks — in any period), the live
+ * goal (a year needs its months and weeks, a month its weeks — in any period), the live
  * links of all of them, and the linked todos. The descendant walk stops on a
  * cycle too, because an id already loaded is never asked for again.
  */
@@ -393,7 +395,7 @@ function resolvePeriod(
   return { kind, key: resolved };
 }
 
-/** The parent must be a live goal exactly one level up. */
+/** The parent must be a live goal of a longer period. */
 async function assertParent(
   label: string,
   childKind: GoalPeriodKind,
@@ -401,12 +403,12 @@ async function assertParent(
 ): Promise<void> {
   await requireMeta(parentId, "goal", `${label}: parent goal`);
   const [parent] = await fetchPayloads("item_id", [parentId]);
-  const expected = PARENT_KIND[childKind];
-  if (!parent || parent.period_kind !== expected) {
+  const allowed = PARENT_KINDS[childKind];
+  if (!parent || !allowed.includes(parent.period_kind)) {
     throw new Error(
       `${label}: a ${childKind} goal ` +
-        (expected
-          ? `takes a ${expected} goal as its parent`
+        (allowed.length > 0
+          ? `takes a ${allowed.join(" or ")} goal as its parent`
           : "has no parent") +
         (parent ? ` (${parentId} is a ${parent.period_kind} goal)` : ""),
     );
