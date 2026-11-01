@@ -213,13 +213,13 @@ function AppForm({
             current={values.icon}
             color={null}
             onPick={(next) => set("icon", next)}
-            triggerLabel={labels.icon.change}
-            triggerClassName={CARD_BTN_TAP}
             labels={{
               iconLabel: labels.icon.iconLabel,
               clearIconLabel: labels.icon.clearIconLabel,
               searchLabel: labels.icon.searchLabel,
               noMatchLabel: labels.icon.noMatchLabel,
+              moreLabel: labels.icon.moreLabel,
+              countLabel: labels.icon.countLabel,
             }}
           />
         </div>

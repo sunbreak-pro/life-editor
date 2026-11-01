@@ -83,7 +83,10 @@ export interface AppRegisterDialogLabels {
     clearIconLabel: string;
     searchLabel: string;
     noMatchLabel: string;
-    change: string;
+    /** The button under the icon strip that opens the centre panel (#2389). */
+    moreLabel: string;
+    /** Match count above the panel's grid; one `{count}` slot (#2389). */
+    countLabel: string;
   };
   save: string;
   cancel: string;
