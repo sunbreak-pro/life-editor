@@ -35,7 +35,7 @@ import {
   type FrequencyEditorValue,
 } from "./FrequencyEditor";
 import { isImeComposing } from "../../utils/imeGuard";
-import { seedFrequencyPatch } from "../../utils/routineFrequency";
+import { dayOfWeek } from "../../utils/scheduleGridLayout";
 
 /*
  * ItemCreatePanel (#376) — the unified "add something to this day" panel behind
@@ -462,8 +462,8 @@ export interface ItemCreatePanelProps {
 
 /**
  * What the repeat field starts from once a type is picked — only the type is
- * ever shown from it, and the pick seeds the rest (`seedFrequencyPatch`, as
- * EventEditorPane's section does).
+ * ever shown from it. The rest stays blank until the user edits it, and
+ * `repeatOnDate` fills the gaps from the date being added.
  */
 const BLANK_REPEAT: FrequencyEditorValue = {
   frequencyType: "daily",
@@ -472,6 +472,76 @@ const BLANK_REPEAT: FrequencyEditorValue = {
   frequencyStartDate: null,
   frequencyEndDate: null,
 };
+
+/**
+ * #2426: the repeat as the user edited it. A day or start date seeded when the
+ * rhythm was picked used to be stored here too, and then outlived a change of
+ * date — the event landed on a weekday its series did not fire on, or before
+ * its start. So only hand edits are stored, and what is shown and sent is
+ * worked out from them on every render (a keyboard-typed date reports each
+ * intermediate value, so applying a change to the state would leave a trail).
+ */
+interface RepeatDraft {
+  rhythm: FrequencyEditorValue;
+  /** The date the weekday chips were last pressed on. Null: never pressed. */
+  daysPickedOn: string | null;
+}
+
+/**
+ * The weekdays for the date being added. Untouched chips (or chips pressed back
+ * to the one weekday a seed would draw) follow the date. Hand-picked ones are
+ * never taken away: a date moved since gets its weekday added to them, so the
+ * event stays in its own series. A set emptied by hand stays empty, which is
+ * the user's own "fires never" (see `seedFrequencyPatch`).
+ */
+function weekdaysOnDate(
+  picked: number[],
+  pickedOn: string | null,
+  date: string,
+): number[] {
+  const weekday = dayOfWeek(date);
+  if (
+    pickedOn === null ||
+    (picked.length === 1 && picked[0] === dayOfWeek(pickedOn))
+  ) {
+    return [weekday];
+  }
+  if (pickedOn === date || picked.length === 0 || picked.includes(weekday)) {
+    return picked;
+  }
+  return [...picked, weekday].sort((a, b) => a - b);
+}
+
+/**
+ * The repeat to show and send for the date being added, the same self-consistent
+ * shape `seedFrequencyPatch` gives the editor's section. Only the fields the
+ * rhythm reads are filled: the host honours a start date on ANY rhythm, so one
+ * left over from "every N days" would begin a daily series on a stale day. A
+ * start date typed by hand stays as typed, wherever the date goes.
+ */
+function repeatOnDate(
+  { rhythm, daysPickedOn }: RepeatDraft,
+  date: string,
+): FrequencyEditorValue {
+  const filled: FrequencyEditorValue = {
+    ...rhythm,
+    frequencyDays: [],
+    frequencyInterval: null,
+    frequencyStartDate: null,
+  };
+  if (rhythm.frequencyType === "weekdays") {
+    filled.frequencyDays = weekdaysOnDate(
+      rhythm.frequencyDays,
+      daysPickedOn,
+      date,
+    );
+  }
+  if (rhythm.frequencyType === "interval") {
+    filled.frequencyInterval = rhythm.frequencyInterval ?? 1;
+    filled.frequencyStartDate = rhythm.frequencyStartDate ?? date;
+  }
+  return filled;
+}
 
 // `disabled:` states matter more here than on a normal form: the note tab hides
 // the field the submit depends on, so a dead-but-lit button would give the user
@@ -986,9 +1056,7 @@ export function ItemCreatePanel({
   const [end, setEnd] = useState(initialEnd);
   const [allDay, setAllDay] = useState(false);
   // #2406: the repeat draft — null is "no repeat", the field's first choice.
-  const [repeatDraft, setRepeatDraft] = useState<FrequencyEditorValue | null>(
-    null,
-  );
+  const [repeatDraft, setRepeatDraft] = useState<RepeatDraft | null>(null);
 
   const [todoSource, setTodoSource] = useState<ItemCreateSource>("new");
   const [todoQuery, setTodoQuery] = useState("");
@@ -1159,20 +1227,20 @@ export function ItemCreatePanel({
   const isAllDay = allDay;
   // The repeat, by contrast, is the event's alone: a todo has no repeat to
   // hold. Kept as a draft across a tab switch, but never sent with a todo.
-  const repeat = type === "event" && repeatField ? repeatDraft : null;
+  // A cleared date input reports "" until blur restores the opening day.
+  const repeatDate = date || initialDate;
+  const repeatValue = repeatDraft && repeatOnDate(repeatDraft, repeatDate);
+  const repeat = type === "event" && repeatField ? repeatValue : null;
   const slot: ItemCreateSlot = repeat
     ? { date, start, end, isAllDay, repeat }
     : { date, start, end, isAllDay };
-  /*
-   * Seed the type-specific fields at the moment the TYPE is picked, the way
-   * EventEditorPane's section does (#712): a bare "weekdays" with no day, or
-   * "interval" with no interval, would read as "fires never".
-   */
   const editRepeat = (patch: Partial<FrequencyEditorValue>) =>
-    setRepeatDraft((prev) => {
-      const base = prev ?? BLANK_REPEAT;
-      return { ...base, ...seedFrequencyPatch(patch, base, date) };
-    });
+    setRepeatDraft((prev) => ({
+      rhythm: { ...(prev?.rhythm ?? BLANK_REPEAT), ...patch },
+      daysPickedOn: patch.frequencyDays
+        ? repeatDate
+        : (prev?.daysPickedOn ?? null),
+    }));
 
   const submitTitled = (
     handler: (
@@ -1348,7 +1416,7 @@ export function ItemCreatePanel({
             repeat" comes first and is where the field starts. */}
         {type === "event" && repeatField && (
           <FrequencyEditor
-            value={repeatDraft}
+            value={repeatValue}
             onChange={editRepeat}
             onSelectNone={() => setRepeatDraft(null)}
             weekdayLabels={repeatField.weekdayLabels}
