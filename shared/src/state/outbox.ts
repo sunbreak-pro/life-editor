@@ -1,4 +1,5 @@
 import type { TodoNode } from "../types/todoTree";
+import { blockText, docBlocks, mergeDocBlocks } from "../utils/blockMerge";
 import { committed, factory, settle } from "./persistentCache";
 
 /*
@@ -25,24 +26,38 @@ const IDB_VERSION = 1;
 const PENDING_STORE = "outbox";
 const FAILED_STORE = "failed";
 
-export interface OutboxEntry {
+interface OutboxEntryBase {
   opId: string;
-  /** Only the Todo create so far; #2336 and #2337 add their kinds here. */
-  kind: "todo.create";
   itemId: string;
   /** The version the edit was based on. A create has none. */
   baseUpdatedAt: string | null;
   baseContent?: string;
-  payload: { node: TodoNode };
   createdAt: string;
   attempts: number;
   schemaVersion: number;
 }
 
-export interface FailedOutboxEntry extends OutboxEntry {
+export interface TodoCreateEntry extends OutboxEntryBase {
+  kind: "todo.create";
+  payload: { node: TodoNode };
+}
+
+/**
+ * A day's body (#2336). One per date. A new kind needs no version bump: an older
+ * tab's `isSendable` looks at the kind, so it leaves this entry where it is.
+ */
+export interface DailyUpsertEntry extends OutboxEntryBase {
+  kind: "daily.upsert";
+  payload: { date: string; content: string };
+}
+
+/** #2337 adds its kind here. */
+export type OutboxEntry = TodoCreateEntry | DailyUpsertEntry;
+
+export type FailedOutboxEntry = OutboxEntry & {
   error: string;
   failedAt: string;
-}
+};
 
 export interface OutboxCounts {
   pending: number;
@@ -140,15 +155,16 @@ export async function readOutbox(userId: string): Promise<OutboxEntry[]> {
 /** The entries this version of the app knows how to read and send. */
 export function isSendable(entry: OutboxEntry): boolean {
   return (
-    entry.schemaVersion <= OUTBOX_SCHEMA_VERSION && entry.kind === "todo.create"
+    entry.schemaVersion <= OUTBOX_SCHEMA_VERSION &&
+    (entry.kind === "todo.create" || entry.kind === "daily.upsert")
   );
 }
 
 export async function enqueueTodoCreate(
   userId: string,
   node: TodoNode,
-): Promise<OutboxEntry> {
-  const entry: OutboxEntry = {
+): Promise<TodoCreateEntry> {
+  const entry: TodoCreateEntry = {
     opId: newOpId(),
     kind: "todo.create",
     itemId: node.id,
@@ -168,6 +184,99 @@ export async function enqueueTodoCreate(
 }
 
 /**
+ * Hold a day's body. One transaction, so it cannot race a send settling the same
+ * entry: a date that already waits keeps its first base and takes this content.
+ */
+export async function enqueueDailyUpsert(
+  userId: string,
+  date: string,
+  content: string,
+  base: { updatedAt: string; content: string } | null,
+): Promise<DailyUpsertEntry> {
+  const db = await open(userId);
+  const tx = db.transaction(PENDING_STORE, "readwrite");
+  const done = committed(tx);
+  const store = tx.objectStore(PENDING_STORE);
+  const rows = (await settle(store.getAll())) as OutboxEntry[];
+  const held = rows.find(
+    (row): row is DailyUpsertEntry =>
+      row.kind === "daily.upsert" && row.payload.date === date,
+  );
+  const entry: DailyUpsertEntry = held
+    ? { ...held, payload: { date, content } }
+    : {
+        opId: newOpId(),
+        kind: "daily.upsert",
+        itemId: `daily-${date}`,
+        baseUpdatedAt: base?.updatedAt ?? null,
+        ...(base ? { baseContent: base.content } : {}),
+        payload: { date, content },
+        createdAt: new Date().toISOString(),
+        attempts: 0,
+        schemaVersion: OUTBOX_SCHEMA_VERSION,
+      };
+  store.put(entry);
+  await done;
+  await refreshOutboxCounts(userId);
+  return entry;
+}
+
+/** What reached the server for a day's entry, to settle that entry against. */
+export interface DailyLanding {
+  /** The content the entry held when its send began. */
+  sent: string;
+  /** The body now on the server: `sent`, or `sent` merged with theirs. */
+  body: string;
+  updatedAt: string;
+  hasPassword: boolean;
+}
+
+/**
+ * Clear the entry only if nothing was typed during the send. An edit made in
+ * that time descends from `sent` and has not been sent, so the entry stays and
+ * is rebased onto what landed. The check and the write share a transaction, so
+ * an edit lands either before it (seen here) or after it (a new entry).
+ *
+ * A row behind a password keeps no merged text on this device: its entry stays
+ * as it was, and the next send merges against the server's body again.
+ */
+export async function settleDailyEntry(
+  userId: string,
+  opId: string,
+  landing: DailyLanding,
+): Promise<"cleared" | "kept"> {
+  const { sent, body, updatedAt, hasPassword } = landing;
+  const db = await open(userId);
+  const tx = db.transaction(PENDING_STORE, "readwrite");
+  const done = committed(tx);
+  const store = tx.objectStore(PENDING_STORE);
+  const row = (await settle(store.get(opId))) as OutboxEntry | undefined;
+  let result: "cleared" | "kept" = "cleared";
+  if (row?.kind === "daily.upsert") {
+    if (row.payload.content === sent) {
+      store.delete(opId);
+    } else {
+      result = "kept";
+      const merged = body !== sent;
+      if (!(merged && hasPassword)) {
+        const content = merged
+          ? mergeDocBlocks(sent, row.payload.content, body).merged
+          : row.payload.content;
+        store.put({
+          ...row,
+          baseUpdatedAt: updatedAt,
+          baseContent: body,
+          payload: { ...row.payload, content },
+        });
+      }
+    }
+  }
+  await done;
+  await refreshOutboxCounts(userId);
+  return result;
+}
+
+/**
  * Count one more attempt, in one transaction so it cannot put back an entry an
  * undo has just removed. Null when the entry is gone.
  */
@@ -180,7 +289,10 @@ export async function claimOutboxEntry(
   const done = committed(tx);
   const store = tx.objectStore(PENDING_STORE);
   const entry = (await settle(store.get(opId))) as OutboxEntry | undefined;
-  const claimed = entry && { ...entry, attempts: entry.attempts + 1 };
+  const claimed: OutboxEntry | undefined = entry && {
+    ...entry,
+    attempts: entry.attempts + 1,
+  };
   if (claimed) store.put(claimed);
   await done;
   return claimed ?? null;
@@ -199,7 +311,10 @@ export async function removeOutboxEntry(
   await refreshOutboxCounts(userId);
 }
 
-/** Move a refused entry to the failed box, so its text stays reachable. */
+/**
+ * Move a refused entry to the failed box, so its text stays reachable. The
+ * stored row is the one kept: a day's edit made during the send is in it.
+ */
 export async function failOutboxEntry(
   userId: string,
   entry: OutboxEntry,
@@ -208,13 +323,17 @@ export async function failOutboxEntry(
   const db = await open(userId);
   const tx = db.transaction([PENDING_STORE, FAILED_STORE], "readwrite");
   const done = committed(tx);
+  const pending = tx.objectStore(PENDING_STORE);
+  const stored = (await settle(pending.get(entry.opId))) as
+    | OutboxEntry
+    | undefined;
   const failed: FailedOutboxEntry = {
-    ...entry,
+    ...(stored ?? entry),
     error,
     failedAt: new Date().toISOString(),
   };
   tx.objectStore(FAILED_STORE).put(failed);
-  tx.objectStore(PENDING_STORE).delete(entry.opId);
+  pending.delete(entry.opId);
   await done;
   await refreshOutboxCounts(userId);
 }
@@ -289,7 +408,7 @@ export async function deleteOutbox(userId: string): Promise<void> {
 }
 
 export interface FailedOutboxCopy {
-  /** The refused Todos' text, one block per entry, for the clipboard. */
+  /** The refused entries' text, one block per entry, for the clipboard. */
   text: string;
   /** Exactly the entries in `text`: only these may be removed afterwards. */
   opIds: string[];
@@ -305,13 +424,20 @@ export async function readFailedOutboxCopy(): Promise<FailedOutboxCopy> {
   // Another tab may have moved the box: the band compares this read to the count.
   await refreshOutboxCounts(countsOwner);
   return {
-    text: rows
-      .map(({ payload: { node } }) =>
-        [node.title, node.content].filter(Boolean).join("\n"),
-      )
-      .join("\n\n"),
+    text: rows.map(failedEntryText).join("\n\n"),
     opIds: rows.map((row) => row.opId),
   };
+}
+
+function failedEntryText(row: FailedOutboxEntry): string {
+  if (row.kind === "daily.upsert") {
+    const { date, content } = row.payload;
+    return [date, ...docBlocks(content).map(blockText)]
+      .filter(Boolean)
+      .join("\n");
+  }
+  const { title, content } = row.payload.node;
+  return [title, content].filter(Boolean).join("\n");
 }
 
 /** By id: an entry refused after the copy was read has not been copied. */
@@ -348,6 +474,15 @@ export function isOfflineFailure(e: unknown): boolean {
   );
 }
 
+/** The function a send calls is not on the database yet (db push still to come). */
+const MISSING_FUNCTION_CODES = new Set(["PGRST202", "42883"]);
+
+export function isMissingFunction(e: unknown): boolean {
+  return (
+    e instanceof OutboxSendError && MISSING_FUNCTION_CODES.has(e.code ?? "")
+  );
+}
+
 /** A send failure with what PostgREST reported, for `classifySendFailure`. */
 export class OutboxSendError extends Error {
   readonly status?: number;
@@ -364,7 +499,8 @@ export class OutboxSendError extends Error {
 /**
  * - `retry`: nothing is wrong with the entry. Network, 5xx and auth problems,
  *   so a token that expired offline never pushes anything into the failed box.
- *   408 and 429 count too, since they say "not now" rather than "not this".
+ *   408 and 429 count too, since they say "not now" rather than "not this", and
+ *   so does a function the database does not have yet.
  * - `sent`: a conflict saying the row is already there. Only 23505: a foreign
  *   key violation is also HTTP 409, and that one is a real refusal.
  * - `failed`: every other refusal.
@@ -373,7 +509,7 @@ export function classifySendFailure(e: unknown): "retry" | "sent" | "failed" {
   const sendError = e instanceof OutboxSendError ? e : null;
   const status = sendError?.status;
   const code = sendError?.code;
-  if (isOfflineFailure(e)) return "retry";
+  if (isOfflineFailure(e) || isMissingFunction(e)) return "retry";
   if (messageOf(e).startsWith("getUserId failed")) return "retry";
   if (/\bJWT\b/i.test(messageOf(e)) || code?.startsWith("PGRST30"))
     return "retry";

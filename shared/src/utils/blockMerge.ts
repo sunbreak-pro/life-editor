@@ -69,6 +69,10 @@ export function docBlocks(content: string): DocBlock[] {
     // A legacy plain-text body: one paragraph holding the text.
     return [{ type: "paragraph", content: [{ type: "text", text: content }] }];
   }
+  // A plain-text body that happens to parse ("2026"): text, not an empty doc.
+  if (typeof parsed !== "object") {
+    return [{ type: "paragraph", content: [{ type: "text", text: content }] }];
+  }
   if (
     typeof parsed === "object" &&
     parsed !== null &&

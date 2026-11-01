@@ -23,6 +23,7 @@ import {
   DailyView,
   DAILY_EDITOR_CARD_MIN_HEIGHT,
 } from "../src/daily/DailyView";
+import { publishDailyMerge } from "../../shared/src/state/dailyMerges";
 
 /*
  * #588 — the Daily screen. Its two surfaces navigate the same selection by
@@ -46,6 +47,7 @@ const state = vi.hoisted(() => {
   const doc = (content: unknown[]) => JSON.stringify({ type: "doc", content });
   return {
     isWide: true,
+    lastMerge: null as unknown,
     dailies: [] as unknown[],
     selectedDate: "",
     setSelectedDate: vi.fn(),
@@ -102,6 +104,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
         (state.dailies as DailyNode[]).find(
           (d) => d.date === state.selectedDate,
         ) ?? null,
+      lastMerge: state.lastMerge,
       upsertDaily: state.upsertDaily,
       deleteDaily: state.deleteDaily,
       togglePin: state.togglePin,
@@ -228,6 +231,7 @@ function daily(date: string, over: Partial<DailyNode> = {}): DailyNode {
 beforeEach(() => {
   localStorage.clear();
   state.isWide = true;
+  state.lastMerge = null;
   state.selectedDate = YESTERDAY;
   state.dailies = [daily(TODAY), daily(YESTERDAY), daily(LAST_WEEK)];
   state.setSelectedDate.mockClear();
@@ -289,6 +293,71 @@ describe("DailyView — the open day", () => {
  * over text that was not saved yet. The editor reports the keystroke itself
  * through `onDirty`; the stub above fires it and then emits 800ms later.
  */
+describe("DailyView — a merge from the outbox (#2336)", () => {
+  const paragraph = (text: string) => ({
+    type: "paragraph",
+    content: [{ type: "text", text }],
+  });
+  const bodyOf = (...lines: string[]) =>
+    JSON.stringify({ type: "doc", content: lines.map(paragraph) });
+  const MERGED = bodyOf("mine", "theirs");
+
+  /** What the hook does when a merge is published: both in one render. */
+  const land = () => {
+    publishDailyMerge({
+      date: YESTERDAY,
+      body: MERGED,
+      updatedAt: "2026-11-02T00:00:00.000Z",
+      settled: true,
+    });
+    state.dailies = [daily(YESTERDAY, { content: MERGED })];
+    state.lastMerge = {
+      seq: Number.MAX_SAFE_INTEGER,
+      date: YESTERDAY,
+      body: MERGED,
+    };
+  };
+
+  afterEach(() => vi.useRealTimers());
+
+  it("starts the editor from the merged body even with the caret in it", async () => {
+    state.dailies = [daily(YESTERDAY, { content: bodyOf("mine") })];
+    const { rerender } = render(<DailyView />);
+    (await screen.findByTestId("pick-link")).focus();
+
+    land();
+    rerender(<DailyView />);
+
+    const editor = await screen.findByTestId("editor");
+    expect(editor.dataset.initialContent).toContain("theirs");
+    expect(state.upsertDaily).not.toHaveBeenCalled();
+  });
+
+  it("puts a change from the old editor's debounce on top of the merge", async () => {
+    state.dailies = [daily(YESTERDAY, { content: bodyOf("mine") })];
+    const { rerender } = render(<DailyView />);
+    const type = await screen.findByTestId("type");
+
+    vi.useFakeTimers();
+    fireEvent.click(type);
+    land();
+    rerender(<DailyView />);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(800);
+    });
+
+    expect(state.upsertDaily).toHaveBeenCalledTimes(1);
+    const [date, written] = state.upsertDaily.mock.calls[0] as unknown as [
+      string,
+      string,
+    ];
+    expect(date).toBe(YESTERDAY);
+    // The typed text is there, and so is what the other side wrote.
+    expect(written).toContain("see");
+    expect(written).toContain("theirs");
+  });
+});
+
 describe("DailyView — the caption while a save is pending (#1954)", () => {
   afterEach(() => {
     vi.useRealTimers();

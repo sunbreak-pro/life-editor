@@ -12,6 +12,7 @@ import {
   mergeDailySummaries,
   rowsWithoutHead,
 } from "./dailyListMerge";
+import { subscribeDailyMerges, type DailyMerge } from "../state/dailyMerges";
 import {
   getDailySelection,
   setDailySelection,
@@ -218,6 +219,30 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
         hydratingRef.current.delete(date);
       });
   }, [ds, selectedDate, dailies, bodyRetry]);
+
+  /*
+   * #2336 — a send merged this day with what the server held. The merged body
+   * is the day now, so it is taken at once, and a body read already out is
+   * older than it. `lastMerge` tells the editor to start from it.
+   */
+  const [lastMerge, setLastMerge] = useState<DailyMerge | null>(null);
+  useEffect(
+    () =>
+      subscribeDailyMerges((merge) => {
+        const { date, body, updatedAt } = merge;
+        writeGenRef.current.set(date, (writeGenRef.current.get(date) ?? 0) + 1);
+        staleDatesRef.current.delete(date);
+        setDailies((prev) =>
+          prev.map((d) =>
+            d.date === date
+              ? { ...d, content: body, updatedAt, bodyLoaded: true }
+              : d,
+          ),
+        );
+        setLastMerge(merge);
+      }),
+    [],
+  );
 
   // Soft-delete by date. The retired Bridge resolved date → existing row →
   // softDeleteDailyUnified(id); a missing row is a silent no-op. Inlined
@@ -559,6 +584,7 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
       selectedDate,
       setSelectedDate,
       selectedDaily,
+      lastMerge,
       upsertDaily,
       deleteDaily,
       togglePin,
@@ -579,6 +605,7 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
       selectedDate,
       setSelectedDate,
       selectedDaily,
+      lastMerge,
       upsertDaily,
       deleteDaily,
       togglePin,

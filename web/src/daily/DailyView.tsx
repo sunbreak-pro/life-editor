@@ -11,6 +11,10 @@ import {
 import { Calendar, MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import {
   useDailiesUnifiedContext,
+  currentDailyMergeSeq,
+  dailyMergeSince,
+  mergeDocBlocks,
+  sameDocContent,
   useLocalStorage,
   useMediaQuery,
   useRightSidebarOptional,
@@ -296,6 +300,7 @@ export function DailyView({
     selectedDate,
     setSelectedDate,
     selectedDaily,
+    lastMerge,
     upsertDaily,
     deleteDaily,
     togglePin,
@@ -457,6 +462,14 @@ export function DailyView({
     [],
   );
   const [editorGen, setEditorGen] = useState(0);
+  /*
+   * #2336: the merges this screen has taken. A send that merged the day is not
+   * an outside body to hold for the caret: typing on over it would write the
+   * editor's text, without the other side's, over the merge. So the editor
+   * restarts from it even under the caret. See handleEditorUpdate for a change
+   * still in the old editor's debounce.
+   */
+  const [seenMergeSeq, setSeenMergeSeq] = useState(currentDailyMergeSeq);
   // Renders again once the caret has left the body, to read it afresh below.
   const [, recheckAfterBlur] = useReducer((n: number) => n + 1, 0);
   const handleEditorBlur = (event: FocusEvent<HTMLDivElement>) => {
@@ -518,7 +531,15 @@ export function DailyView({
   // body lands at the blur, or an emission that overtakes it settles it.
   const holdOutsideBody = outsideBody && (dirty || editorHasFocus());
 
-  if (
+  if (lastMerge && lastMerge.seq > seenMergeSeq) {
+    setSeenMergeSeq(lastMerge.seq);
+    if (lastMerge.date === selectedDate) {
+      setEditorGen((g) => g + 1);
+      setEmitted(null);
+      setDirtyDate(null);
+      setSyncedFrom({ date: selectedDate, content: selectedContent });
+    }
+  } else if (
     !holdOutsideBody &&
     (syncedFrom.date !== selectedDate || syncedFrom.content !== selectedContent)
   ) {
@@ -568,6 +589,20 @@ export function DailyView({
     // (`key={editorKey}`), so an unmount flush fires the PREVIOUS instance's
     // callback — the one still holding the date it was rendered for.
     const date = selectedDate;
+    // #2336: this editor has not seen a merge that landed. Its text goes on top
+    // of the merge instead of replacing it. Not recorded as an emission, so the
+    // result reads as an outside body and the new editor picks it up.
+    const merge = dailyMergeSince(date, seenMergeSeq);
+    if (merge !== null) {
+      const from =
+        lastEmitted?.date === date ? lastEmitted.json : syncedFrom.content;
+      const edited = writeDailyText(from, json);
+      const onMerge = mergeDocBlocks(from, edited, merge.body).merged;
+      if (edited !== from && !sameDocContent(onMerge, merge.body)) {
+        void upsertDaily(date, onMerge);
+      }
+      return;
+    }
     // The editor emitted the one text only (#2123): writeDailyText puts it
     // back under the「夕刊」heading and keeps the 朝刊 / 宣言 sections and the
     // mood line exactly as stored. The base is a ref read rather than this

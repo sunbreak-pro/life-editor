@@ -22,7 +22,7 @@ import {
 } from "../src/state/outbox";
 import {
   createOfflineDataService,
-  createOutboxSender,
+  createOutboxSender as realOutboxSender,
   sessionOwner,
 } from "../src/services/offlineDataService";
 import type { DataService } from "../src/services/DataService";
@@ -70,7 +70,18 @@ afterEach(() => {
   delete (navigator as { locks?: unknown }).locks;
 });
 
-const box = async () => (await readOutbox(user)).map((e) => e.payload.node);
+const box = async () =>
+  (await readOutbox(user)).flatMap((e) =>
+    e.kind === "todo.create" ? [e.payload.node] : [],
+  );
+
+/** These suites send Todos only: the Daily half is in offlineDaily.test.tsx. */
+const createOutboxSender = (
+  inner: Parameters<typeof stubDataService>[0],
+  ...rest: Parameters<typeof realOutboxSender> extends [unknown, ...infer R]
+    ? R
+    : never
+) => realOutboxSender(stubDataService(inner), ...rest);
 
 function wrap(over: Record<string, unknown> = {}) {
   return createOfflineDataService(

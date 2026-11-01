@@ -217,8 +217,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     // itself, send what the outbox holds. No threshold on the return: an empty
     // box costs one IndexedDB read.
     const flushOutbox = () => {
-      void sendOutbox(() => {
-        if (!cancelled) scheduleBump(["todos"]);
+      void sendOutbox((domains) => {
+        if (!cancelled) scheduleBump(domains);
       }).catch((e: unknown) => console.warn("[sync] outbox", e));
     };
     const resume = createSyncResume(() => {

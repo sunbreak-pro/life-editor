@@ -152,3 +152,42 @@ describe("stampsEqual", () => {
     expect(stampsEqual(null, "2026-10-01T09:12:00Z")).toBe(false);
   });
 });
+
+describe("mergeDocBlocks keeps both sides (#2336)", () => {
+  const body = (...lines: string[]) =>
+    JSON.stringify({
+      type: "doc",
+      content: lines.map((text) => ({
+        type: "paragraph",
+        content: [{ type: "text", text }],
+      })),
+    });
+
+  it("keeps a block edited on one side and deleted on the other", () => {
+    const base = body("a", "b", "c");
+    const edited = body("a", "b2", "c");
+    const deleted = body("a", "c");
+    const expected = ["a", "b2", "c"];
+    expect(texts(mergeDocBlocks(base, edited, deleted).merged)).toEqual(
+      expected,
+    );
+    expect(texts(mergeDocBlocks(base, deleted, edited).merged)).toEqual(
+      expected,
+    );
+  });
+
+  it("keeps both days written from nothing, mine first", () => {
+    const { merged, hasConflict } = mergeDocBlocks(
+      "",
+      body("mine"),
+      body("theirs"),
+    );
+    expect(hasConflict).toBe(true);
+    expect(texts(merged)).toEqual(["mine", "theirs"]);
+  });
+
+  it("does not lose a plain-text body that happens to parse as JSON", () => {
+    const { merged } = mergeDocBlocks("", body("mine"), "2026");
+    expect(texts(merged)).toEqual(["mine", "2026"]);
+  });
+});

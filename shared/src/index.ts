@@ -111,6 +111,13 @@ export {
   type FailedOutboxCopy,
   type OutboxCounts,
 } from "./state/outbox";
+// #2336 — a day's merge after a send, for the open editor and the notice.
+export {
+  currentDailyMergeSeq,
+  dailyMergeSince,
+  subscribeDailyMerges,
+  type DailyMerge,
+} from "./state/dailyMerges";
 export {
   signUp,
   signIn,
