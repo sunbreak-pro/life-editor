@@ -644,7 +644,10 @@
       "searchPlaceholder": "Search by title…",
       "noCandidates": "No items match",
       "selfLink": "An item cannot link to itself.",
-      "pickerLabelShort": "Link",
+      "countLabel": "Links: {{total}}",
+      "linkedHeading": "Linked",
+      "chipName": "{{kind}}: {{title}}",
+      "openChip": "Open {{kind}}: {{title}}",
       "open": "Open {{title}}",
       "remove": "Remove link with {{title}}",
       "deletedTarget": "{{title}} (deleted)"

@@ -334,6 +334,20 @@ describe("NotesView — desktop (wide)", () => {
    * nobody on this screen can see (#471). The title stays editable: the gate
    * has always covered the body only (#526).
    */
+  it.each([
+    ["wide", true],
+    ["narrow", false],
+  ])("shows no links on a password-locked note on %s (#2391)", (_, isWide) => {
+    state.isWide = isWide;
+    state.notes = [
+      note({ id: "note-locked", title: "Sealed", hasPassword: true }),
+    ];
+    state.selectedId = "note-locked";
+    render(<NotesView />);
+
+    expect(screen.queryByTestId("link-panel")).toBeNull();
+  });
+
   it("does not mount the body editor over a password-locked note", () => {
     state.notes = [
       note({ id: "note-locked", title: "Sealed", hasPassword: true }),
@@ -807,11 +821,13 @@ describe("NotesView — mobile (narrow)", () => {
     expect(field.selectionEnd).toBe(field.value.length);
   });
 
-  it("keeps the Links panel to Desktop, where #884 put it", () => {
+  it("shows the Links panel on Mobile too, in the header (#2391)", () => {
     state.selectedId = "note-a";
     render(<NotesView />);
 
-    expect(screen.queryByTestId("link-panel")).toBeNull();
+    within(screen.getByTestId("note-detail-title-row")).getByTestId(
+      "link-panel",
+    );
   });
 });
 
@@ -1567,6 +1583,8 @@ describe("NotesView — sticky note header (#2058)", () => {
 
     const header = screen.getByTestId("note-detail-header");
     within(header).getByTestId("link-panel");
+    // The header is its only home: the note's foot carries no second list.
+    expect(screen.getAllByTestId("link-panel")).toHaveLength(1);
   });
 });
 
