@@ -486,8 +486,11 @@ describe("Connect Goals & Todos tab (#2108)", () => {
       }),
     );
 
-    // A week's parents are its month's goals.
-    const parent = panel().getByRole("combobox", { name: "Goal one level up" });
+    // A week's parents are the goals of its month and of its year, each named
+    // with its kind so the two read apart (#2399).
+    const parent = panel().getByRole("combobox", { name: "Goal above" });
+    within(parent).getByRole("option", { name: "Year: Run 10 km in 60 min" });
+    within(parent).getByRole("option", { name: "Month: Run three times a week" });
     fireEvent.change(parent, { target: { value: "m2" } });
     await waitFor(() =>
       expect(ds.updateGoal).toHaveBeenCalledWith("w1", { parentGoalId: "m2" }),
@@ -577,7 +580,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     const ds = makeDS({ createTodo, linkGoalTodo });
     await renderTab(ds);
     const tree = within(screen.getByRole("region", { name: "Goal tree" }));
-    // A week goal has nothing one level down, so the + opens the todo field.
+    // Nothing goes under a week but a todo, so the + opens the todo field.
     fireEvent.click(
       tree.getByRole("button", {
         name: "Add under: Get the proposal approved",
@@ -604,6 +607,86 @@ describe("Connect Goals & Todos tab (#2108)", () => {
       }),
     );
     await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w1"));
+  });
+
+  it("adds this week's goal straight under a year from its + (#2399)", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    const tree = within(screen.getByRole("region", { name: "Goal tree" }));
+    fireEvent.click(
+      tree.getByRole("button", { name: "Add under: Run 10 km in 60 min" }),
+    );
+    fireEvent.click(tree.getByRole("button", { name: "This week's goal" }));
+    const field = tree.getByRole("textbox", {
+      name: "Add under: Run 10 km in 60 min — This week's goal",
+    });
+    fireEvent.change(field, { target: { value: "Long run on Sunday" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => expect(ds.createGoal).toHaveBeenCalledTimes(1));
+    expect(ds.createGoal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Long run on Sunday",
+        periodKind: "week",
+        periodKey: "2026-09-27",
+        // Three weeks in this period already: it lands last.
+        sortOrder: 3,
+        parentGoalId: "y1",
+      }),
+    );
+    await waitFor(() =>
+      expect(tree.queryByRole("textbox", { name: /^Add under/ })).toBeNull(),
+    );
+  });
+
+  it("adds this month's goal from a year's +, and only a week from a month's", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    const tree = within(screen.getByRole("region", { name: "Goal tree" }));
+    fireEvent.click(
+      tree.getByRole("button", { name: "Add under: Run three times a week" }),
+    );
+    tree.getByRole("button", { name: "This week's goal" });
+    expect(tree.queryByRole("button", { name: "This month's goal" })).toBeNull();
+
+    fireEvent.click(
+      tree.getByRole("button", { name: "Add under: Run 10 km in 60 min" }),
+    );
+    fireEvent.click(tree.getByRole("button", { name: "This month's goal" }));
+    const field = tree.getByRole("textbox", {
+      name: "Add under: Run 10 km in 60 min — This month's goal",
+    });
+    fireEvent.change(field, { target: { value: "Join a club" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => expect(ds.createGoal).toHaveBeenCalledTimes(1));
+    expect(ds.createGoal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Join a club",
+        periodKind: "month",
+        periodKey: "2026-09",
+        parentGoalId: "y1",
+      }),
+    );
+  });
+
+  it("links a todo to the year it was added under", async () => {
+    const createTodo = vi.fn().mockResolvedValue(TODOS[0]);
+    const linkGoalTodo = vi.fn().mockResolvedValue(undefined);
+    const ds = makeDS({ createTodo, linkGoalTodo });
+    await renderTab(ds);
+    const tree = within(screen.getByRole("region", { name: "Goal tree" }));
+    fireEvent.click(
+      tree.getByRole("button", { name: "Add under: Run 10 km in 60 min" }),
+    );
+    fireEvent.click(tree.getByRole("button", { name: "Todo" }));
+    const field = tree.getByRole("textbox", {
+      name: "Add under: Run 10 km in 60 min — Todo",
+    });
+    fireEvent.change(field, { target: { value: "Pick a race" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => expect(linkGoalTodo).toHaveBeenCalledTimes(1));
+    const created = createTodo.mock.calls[0]?.[0] as { id: string };
+    expect(linkGoalTodo).toHaveBeenCalledWith("y1", created.id);
+    expect(ds.createGoal).not.toHaveBeenCalled();
   });
 
   it("offers the hand mark only on an unconnected goal", async () => {
@@ -787,7 +870,7 @@ describe("Connect Goals & Todos tab — drag (#2226)", () => {
     fireEvent.drop(row, { dataTransfer: transfer() });
   }
 
-  it("lights only the months that may hold a week, and re-parents it with one write", async () => {
+  it("lights only the longer periods that may hold a week, and re-parents it with one write", async () => {
     const ds = makeDS();
     await renderTab(ds);
     // The open / close arrow is the grip; a year goal's arrow is not.
@@ -801,16 +884,17 @@ describe("Connect Goals & Todos tab — drag (#2226)", () => {
 
     await startDrag(grip);
     expect(isTarget("Win an autumn project")).toBe(true);
-    // Its own month, the years (two up) and the weeks (same period) stay dark.
+    // A year may hold a week directly (#2399).
+    expect(isTarget("Run 10 km in 60 min")).toBe(true);
+    // Its own month and the weeks (same period) stay dark.
     expect(isTarget("Run three times a week")).toBe(false);
-    expect(isTarget("Run 10 km in 60 min")).toBe(false);
     expect(isTarget("Get the proposal approved")).toBe(false);
     expect(isTarget("Finish one book")).toBe(false);
 
-    // A browser drops only where dragover was cancelled: the year row lets
-    // it pass, the month row takes it.
+    // A browser drops only where dragover was cancelled: another week's row
+    // lets it pass, the month row takes it.
     expect(
-      fireEvent.dragOver(rowOf("Run 10 km in 60 min"), {
+      fireEvent.dragOver(rowOf("Get the proposal approved"), {
         dataTransfer: transfer(),
       }),
     ).toBe(true);
@@ -820,7 +904,7 @@ describe("Connect Goals & Todos tab — drag (#2226)", () => {
       }),
     ).toBe(false);
     // jsdom fires drop regardless; the handler still writes nothing there.
-    dropOn("Run 10 km in 60 min");
+    dropOn("Get the proposal approved");
     expect(ds.updateGoal).not.toHaveBeenCalled();
 
     await startDrag(grip);
@@ -828,6 +912,16 @@ describe("Connect Goals & Todos tab — drag (#2226)", () => {
     await waitFor(() => expect(ds.updateGoal).toHaveBeenCalledTimes(1));
     expect(ds.updateGoal).toHaveBeenCalledWith("w2", { parentGoalId: "m1" });
     expect(document.querySelector("[data-drop-target]")).toBeNull();
+  });
+
+  it("re-parents a week straight onto a year (#2399)", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    await startDrag(screen.getByRole("button", { name: "Collapse: Run 3 times" }));
+    dropOn("Run 10 km in 60 min");
+    await waitFor(() =>
+      expect(ds.updateGoal).toHaveBeenCalledWith("w2", { parentGoalId: "y1" }),
+    );
   });
 
   it("gives a goal with nothing under it a grip of its own", async () => {

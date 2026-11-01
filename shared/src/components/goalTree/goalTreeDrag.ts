@@ -6,7 +6,7 @@ import { goalParentOptions, type GoalTreeModel } from "./buildGoalTreeModel";
  * is pinned without a drag in jsdom.
  *
  * A goal lands only where the detail panel's parent field would offer it:
- * one level up, in the period that holds it (`goalParentOptions`). The same
+ * a longer period that holds it (`goalParentOptions`, #2399). The same
  * rule is enforced again by `SupabaseGoalsService.assertParent`; this one only
  * decides which rows light up. Dropping on the parent it already has is not
  * offered, since nothing would change.
