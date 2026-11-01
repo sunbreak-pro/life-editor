@@ -1498,7 +1498,6 @@
       "addPlaceholder": "届きたいところを書きます",
       "add": "追加",
       "cancel": "やめる",
-      "limit": "{{period}}の目標は 3 つまでです。",
       "treeHeading": "目標の木",
       "unconnectedHeading": "未接続の目標",
       "looseHeading": "どの目標にもつながらない Todo",
@@ -1692,7 +1691,7 @@
       "back": "目標の一覧へ戻る",
       "linkTodos": "Todo をつなぐ: {{title}}",
       "openInConnect": "目標と Todo で開く",
-      "migrationOverflow_other": "目標ノートの行を目標に移しました。目標は 1 つの期間に 3 つまでなので、残りの {{count}} 行はノートにそのまま残しています。"
+      "migrationOverflow_other": "目標ノートの行を目標に移しました。この移行で入れるのは 1 つの期間に 3 つまでなので、残りの {{count}} 行はノートにそのまま残しています。"
     },
     "review": {
       "title": "終わった期間の目標",

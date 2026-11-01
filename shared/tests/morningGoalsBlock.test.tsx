@@ -26,8 +26,8 @@ import type {
  * its linking and the way into its own panel, and holds this week's add
  * field. Pinned here: states say themselves in words as well as colour, a
  * phone drops the bar and the counts, the add field is IME-safe and keeps
- * the words when the write fails, the limit replaces the field, and the
- * review's four answers reach the host.
+ * the words when the write fails, the field stays however many goals the
+ * week holds (#2366), and the review's four answers reach the host.
  */
 
 const LABELS: MorningGoalsLabels = {
@@ -52,7 +52,6 @@ const LABELS: MorningGoalsLabels = {
   addPlaceholder: "届きたいところを書きます",
   add: "追加",
   adding: "保存中…",
-  limit: "今週の目標は 3 つまでです。",
   openInConnect: "目標と Todo で開く",
 };
 
@@ -144,6 +143,28 @@ describe("MorningGoalsBlock", () => {
     expect(within(month).getByText("秋の新規案件を受注する")).toBeTruthy();
     expect(within(month).queryByText(/その他/)).toBeNull();
   });
+
+  // #2366: however many goals a week holds, the summary stays one row a period
+  // on both widths, so a fourth goal does not lengthen the paper.
+  it.each([false, true])(
+    "keeps a long week to one row with its count (compact: %s)",
+    (compact) => {
+      renderBlock(
+        goalsOf({
+          week: [OPEN, ACHIEVED, LOOSE, line("w-four", "四つ目の目標")],
+        }),
+        { compact },
+      );
+      expect(screen.getAllByRole("listitem")).toHaveLength(3);
+      const week = row("今週");
+      expect(within(week).getByText("企画書を通す")).toHaveClass("truncate");
+      expect(within(week).getByText("その他 3")).toHaveClass(
+        "shrink-0",
+        "whitespace-nowrap",
+      );
+      expect(within(week).queryByText("四つ目の目標")).toBeNull();
+    },
+  );
 
   it("says「未設定」for a period with no goal, and opens the panel from it", () => {
     const { onOpen } = renderBlock(goalsOf({ week: [OPEN] }));
@@ -362,10 +383,20 @@ describe("MorningGoalsPanel", () => {
     expect(onCreateWeekGoal).not.toHaveBeenCalled();
   });
 
-  it("swaps the add field for the limit once the week is full", () => {
-    renderPanel(goalsOf({ week: [ACHIEVED, OPEN, LOOSE] }));
-    expect(screen.queryByRole("textbox")).toBeNull();
-    expect(screen.getByText(LABELS.limit)).toBeInTheDocument();
+  // #2366: no limit per period. The panel lists every goal of the week and
+  // still offers the add field past three.
+  it("keeps the add field and every row past three goals", async () => {
+    const fourth = line("w-four", "四つ目の目標");
+    const { onCreateWeekGoal } = renderPanel(
+      goalsOf({ week: [ACHIEVED, OPEN, LOOSE, fourth] }),
+    );
+    for (const { title } of [ACHIEVED, OPEN, LOOSE, fourth]) {
+      expect(screen.getByText(title)).toBeInTheDocument();
+    }
+    fireEvent.change(field(), { target: { value: "五つ目の目標" } });
+    fireEvent.keyDown(field(), { key: "Enter" });
+    expect(onCreateWeekGoal).toHaveBeenCalledWith("五つ目の目標");
+    await waitFor(() => expect((field() as HTMLInputElement).value).toBe(""));
   });
 
   it("does not submit while the IME is composing", () => {
@@ -466,13 +497,11 @@ const REVIEW_LABELS: PeriodEndReviewLabels = {
   drop: "やめる",
   achieve: "達成にする",
   later: "あとで聞く",
-  carryBlocked: "今週の目標は 3 つまでです。",
   saving: "保存中…",
 };
 
 function renderCard(
   over: Partial<{
-    canCarry: boolean;
     connected: boolean;
     busy: "carried" | "dropped" | "achieved" | null;
   }> = {},
@@ -483,7 +512,6 @@ function renderCard(
     <PeriodEndReviewCard
       goalTitle="部屋の模様替えを決める"
       connected={over.connected ?? false}
-      canCarry={over.canCarry ?? true}
       busy={over.busy ?? null}
       labels={REVIEW_LABELS}
       onDecide={onDecide}
@@ -512,16 +540,6 @@ describe("PeriodEndReviewCard", () => {
     expect(onLater).toHaveBeenCalledTimes(1);
   });
 
-  it("says why carrying is off when the period is full", () => {
-    renderCard({ canCarry: false });
-    const carry = screen.getByRole("button", { name: REVIEW_LABELS.carry });
-    expect(carry).toBeDisabled();
-    const reason = document.getElementById(
-      carry.getAttribute("aria-describedby") ?? "",
-    );
-    expect(reason?.textContent).toBe(REVIEW_LABELS.carryBlocked);
-  });
-
   it("keeps「未接続」its own kind — 朱 only for a connected goal left short", () => {
     renderCard({ connected: false });
     expect(screen.getByText(REVIEW_LABELS.progress).className).not.toBe(
@@ -534,7 +552,6 @@ describe("PeriodEndReviewCard", () => {
       <PeriodEndReviewCard
         goalTitle="企画書を通す"
         connected
-        canCarry
         busy={null}
         labels={{ ...REVIEW_LABELS, progress: "1/2" }}
         onDecide={vi.fn()}
@@ -557,7 +574,6 @@ describe("PeriodEndReviewCard", () => {
       <PeriodEndReviewCard
         goalTitle="部屋の模様替えを決める"
         connected={false}
-        canCarry
         busy={null}
         locked
         labels={REVIEW_LABELS}

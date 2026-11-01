@@ -210,18 +210,17 @@ describe("carryPlan", () => {
   const old = (): Goal =>
     sampleState().goals.find((g) => g.id === "w-old") as Goal;
 
-  it("reports a full week: no room, the next sort slot", () => {
+  it("puts a copy after a week that already holds three goals (#2366)", () => {
     const plan = carryPlan(sampleState(), old(), TODAY);
     expect(plan).toEqual({
       periodKey: "2026-09-27",
       existingId: null,
-      hasRoom: false,
       sortOrder: 3,
       parentGoalId: null,
     });
   });
 
-  it("has room once a current goal is gone", () => {
+  it("does not count a deleted goal toward the next sort slot", () => {
     const state = sampleState();
     const plan = carryPlan(
       {
@@ -233,7 +232,6 @@ describe("carryPlan", () => {
       old(),
       TODAY,
     );
-    expect(plan.hasRoom).toBe(true);
     expect(plan.sortOrder).toBe(2);
   });
 

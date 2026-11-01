@@ -6,7 +6,6 @@ import { Button } from "../Button";
 import { cn } from "../cn";
 import { Input } from "../Input";
 import { BRIEFING_HINT_CLASS } from "./briefingStyles";
-import { GOALS_PER_PERIOD_LIMIT } from "./goalNoteMigration";
 import {
   GoalStatusLine,
   QUIET_ACTION,
@@ -37,7 +36,7 @@ export interface MorningGoalsPanelProps {
   onCreateWeekGoal: (title: string) => Promise<boolean>;
   /**
    * Another goal write (a review answer) is in flight: adding waits for it,
-   * so the two cannot both count the same free slot.
+   * so the two cannot take the same place in the week's order.
    */
   writing?: boolean;
   /** Omitted → no link to Connect (a host with no navigation). */
@@ -185,18 +184,13 @@ export function MorningGoalsPanel({
                 ))}
               </ul>
             )}
-            {kind === "week" &&
-              (lines.length >= GOALS_PER_PERIOD_LIMIT ? (
-                <p className="mt-2 text-xs text-lumen-text-tertiary">
-                  {labels.limit}
-                </p>
-              ) : (
-                <AddWeekGoal
-                  labels={labels}
-                  writing={writing}
-                  onCreateWeekGoal={onCreateWeekGoal}
-                />
-              ))}
+            {kind === "week" && (
+              <AddWeekGoal
+                labels={labels}
+                writing={writing}
+                onCreateWeekGoal={onCreateWeekGoal}
+              />
+            )}
           </section>
         );
       })}

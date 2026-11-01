@@ -238,6 +238,36 @@ describe("Morning paper goals (#2106)", () => {
     );
   });
 
+  // #2366: three goals is no limit any more; the fourth goes after them.
+  it("makes a fourth week goal after the three already there", async () => {
+    const ds = makeDS({
+      goals: [
+        goal("w-1", "一つ目"),
+        goal("w-2", "二つ目", KEYS.week, { sortOrder: 1 }),
+        goal("w-3", "三つ目", KEYS.week, { sortOrder: 2 }),
+      ],
+    });
+    render(paper(ds));
+    const dialog = await openPanel();
+    const field = await screen.findByRole("textbox", { name: "Set a goal" });
+
+    fireEvent.change(field, { target: { value: "四つ目" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(mockOf(ds, "createGoal")).toHaveBeenCalledWith(
+        expect.objectContaining({
+          title: "四つ目",
+          periodKind: "week",
+          periodKey: KEYS.week,
+          sortOrder: 3,
+        }),
+      ),
+    );
+    expect(await within(dialog).findByText("四つ目")).toBeTruthy();
+    expect(screen.getByRole("textbox", { name: "Set a goal" })).toBeTruthy();
+  });
+
   it("opens Connect's goals tab from the panel when the host can", async () => {
     const onOpenGoals = vi.fn();
     render(paper(makeDS(), onOpenGoals));
@@ -350,7 +380,8 @@ describe("Morning paper goals (#2106)", () => {
       expect(mockOf(ds, "createGoal")).not.toHaveBeenCalled();
     });
 
-    it("cannot carry into a full week", async () => {
+    // #2366: the number of goals never stops a carry.
+    it("carries into a week that already holds three goals", async () => {
       const ds = makeDS({
         goals: [
           goal("w-old", "模様替え", LAST_WEEK),
@@ -361,13 +392,27 @@ describe("Morning paper goals (#2106)", () => {
       });
       render(paper(ds));
       await openReview();
-      const carry = await screen.findByRole("button", { name: "Carry over" });
-      expect((carry as HTMLButtonElement).disabled).toBe(true);
+      fireEvent.click(
+        await screen.findByRole("button", { name: "Carry over" }),
+      );
+
+      await waitFor(() =>
+        expect(mockOf(ds, "updateGoal")).toHaveBeenCalledWith("w-old", {
+          periodEndDecision: "carried",
+        }),
+      );
+      expect(mockOf(ds, "createGoal")).toHaveBeenCalledWith(
+        expect.objectContaining({
+          periodKey: KEYS.week,
+          sortOrder: 3,
+          carriedFromGoalId: "w-old",
+        }),
+      );
     });
 
     // Review fix: the copy a「持ち越す」makes is patched in before the next
     // card shows, so that card counts it even when the re-read never lands.
-    it("counts a goal just carried: the next card cannot overfill the week", async () => {
+    it("counts a goal just carried: the next card's copy goes after it", async () => {
       const seed = [
         goal("w-old1", "模様替え", LAST_WEEK),
         goal("w-old2", "本を読む", LAST_WEEK, { sortOrder: 1 }),
@@ -391,6 +436,8 @@ describe("Morning paper goals (#2106)", () => {
       fireEvent.click(carry);
 
       await screen.findByText("本を読む");
+      const create = mockOf(ds, "createGoal");
+      expect(create).toHaveBeenCalledTimes(1);
       await waitFor(() =>
         expect(
           (
@@ -398,19 +445,24 @@ describe("Morning paper goals (#2106)", () => {
               name: "Carry over",
             }) as HTMLButtonElement
           ).disabled,
-        ).toBe(true),
+        ).toBe(false),
       );
-      expect(
-        screen
-          .getByRole("button", { name: "Carry over" })
-          .getAttribute("aria-describedby"),
-      ).not.toBeNull();
-      expect(mockOf(ds, "createGoal")).toHaveBeenCalledTimes(1);
+      fireEvent.click(screen.getByRole("button", { name: "Carry over" }));
+
+      await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+      expect(create).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          title: "本を読む",
+          sortOrder: 3,
+          carriedFromGoalId: "w-old2",
+        }),
+      );
     });
 
     // Review fix: the snapshot counts a new goal only once its create lands,
-    // so an add still in flight and a「持ち越す」would both see room. One
-    // goal write at a time: the review waits for the add, then counts it.
+    // so an add still in flight and a「持ち越す」would take the same place in
+    // the order. One goal write at a time: the review waits for the add, then
+    // counts it.
     it("holds the review while an add is out, then counts the added goal", async () => {
       let landCreate: () => void = () => {};
       const ds = makeDS({
@@ -442,12 +494,19 @@ describe("Morning paper goals (#2106)", () => {
       expect(create).toHaveBeenCalledTimes(1);
 
       landCreate();
-      // The week is full now: carrying stays off for want of room.
-      await waitFor(() =>
-        expect(carry().getAttribute("aria-describedby")).not.toBeNull(),
-      );
-      expect(carry().disabled).toBe(true);
+      // The add has landed: carrying opens again, and its copy goes after it.
+      await waitFor(() => expect(carry().disabled).toBe(false));
       expect(create).toHaveBeenCalledTimes(1);
+      fireEvent.click(carry());
+
+      await waitFor(() => expect(create).toHaveBeenCalledTimes(2));
+      expect(create).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          title: "模様替え",
+          sortOrder: 3,
+          carriedFromGoalId: "w-old",
+        }),
+      );
     });
 
     // Review fix: a「持ち越す」whose decision write failed leaves its copy in
