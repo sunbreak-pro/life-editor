@@ -129,6 +129,7 @@ export {
   type ItemCreatePanelHandlers,
   type ItemCreateOption,
   type ItemCreateNoteDraft,
+  type ItemCreateNotePickerPlacement,
   type ItemCreateSlot,
   type ItemCreateType,
   type ItemCreateSource,

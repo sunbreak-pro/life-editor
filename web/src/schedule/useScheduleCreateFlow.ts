@@ -87,11 +87,14 @@ export interface UseScheduleCreateFlowArgs {
     options?: UpdateNodeOptions,
   ) => void;
   /** From useCreatePanelNotes — the FK-ordering contract lives in its header. */
-  attachNote: (itemId: string, draft: ItemCreateNoteDraft | null) => void;
+  attachNote: (
+    itemId: string,
+    drafts: readonly ItemCreateNoteDraft[],
+  ) => void;
   /** The same attach, handed back to the event create's one undo (N-08). */
   attachNoteAlongside: (
     itemId: string,
-    draft: ItemCreateNoteDraft | null,
+    drafts: readonly ItemCreateNoteDraft[],
   ) => ReturnType<CreateCompanion>;
   /** Reports a note that could not be attached because the row never landed. */
   onAttachError: () => void;
@@ -127,33 +130,33 @@ export interface ScheduleCreateFlowApi {
   handleCreateSubmit: (
     title: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
   handleCreateSubmitAndOpen: (
     title: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
   handleCreateTodoSubmit: (
     title: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
   handlePlaceTodoSubmit: (
     todoId: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
   /** #2406: the todo tab's "and open" twins of the two above. */
   handleCreateTodoSubmitAndOpen: (
     title: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
   handlePlaceTodoSubmitAndOpen: (
     todoId: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
 }
 
@@ -235,7 +238,7 @@ export function useScheduleCreateFlow({
    */
   const noteAlongside = useCallback(
     (
-      note: ItemCreateNoteDraft | null,
+      notes: readonly ItemCreateNoteDraft[],
       tagIds: readonly string[] | null = null,
       repeat: ItemCreateSlot["repeat"] = undefined,
     ): CreateCompanion | undefined => {
@@ -250,14 +253,15 @@ export function useScheduleCreateFlow({
         repeat && convertToRepeat
           ? (saved: ScheduleItem) => convertToRepeat(saved, repeat)
           : null;
-      if (!note && !withTags && !toRepeat) return undefined;
+      if (notes.length === 0 && !withTags && !toRepeat) return undefined;
       return async (saved) => {
         if (withTags) tags?.apply(saved.id, tagIds);
         // A note that threw counts as one that did not land — what the
         // create did with a rejected companion — so the repeat still runs.
-        const noteReversal = note
-          ? await attachNoteAlongside(saved.id, note).catch(() => null)
-          : null;
+        const noteReversal =
+          notes.length > 0
+            ? await attachNoteAlongside(saved.id, notes).catch(() => null)
+            : null;
         const repeatReversal = toRepeat ? await toRepeat(saved) : null;
         if (!noteReversal || !repeatReversal)
           return noteReversal ?? repeatReversal;
@@ -286,7 +290,11 @@ export function useScheduleCreateFlow({
   // (which live in the detail editor, not this panel) were unreachable without
   // hunting for the item on the grid. The panel now offers both intents.
   const handleCreateSubmit = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+    (
+      title: string,
+      slot: ItemCreateSlot,
+      notes: readonly ItemCreateNoteDraft[],
+    ) => {
       if (!createPanel) return;
       // #376: the note rides along with the create, but only once the row is
       // really there — `wiki_tag_connections` carries an FK to `items_meta`,
@@ -296,7 +304,7 @@ export function useScheduleCreateFlow({
         slot,
         title,
         undefined,
-        noteAlongside(note, tags?.take() ?? null, slot.repeat),
+        noteAlongside(notes, tags?.take() ?? null, slot.repeat),
       );
       finishCreatePanel();
       // Desktop: select without opening anything — a quiet "here it is" that
@@ -324,13 +332,17 @@ export function useScheduleCreateFlow({
 
   // #354 secondary action: create, then land in the detail editor.
   const handleCreateSubmitAndOpen = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+    (
+      title: string,
+      slot: ItemCreateSlot,
+      notes: readonly ItemCreateNoteDraft[],
+    ) => {
       if (!createPanel) return;
       const id = handleCreate(
         slot,
         title,
         undefined,
-        noteAlongside(note, tags?.take() ?? null, slot.repeat),
+        noteAlongside(notes, tags?.take() ?? null, slot.repeat),
       );
       // Clears the lens too: the overlay hides the grid at first, but closing
       // it would otherwise drop the user back on a grid that does not draw the
@@ -380,7 +392,7 @@ export function useScheduleCreateFlow({
     (
       title: string,
       slot: ItemCreateSlot,
-      note: ItemCreateNoteDraft | null,
+      notes: readonly ItemCreateNoteDraft[],
     ): TodoNode | null => {
       const placement = scheduleTodoAt(slot);
       if (!placement) return null;
@@ -395,9 +407,9 @@ export function useScheduleCreateFlow({
         // write entirely (tree not loaded), which reports `null` here.
         onSaved: (saved) => {
           if (saved) {
-            attachNote(saved.id, note);
+            attachNote(saved.id, notes);
             if (tagIds && tagIds.length > 0) tags?.apply(saved.id, tagIds);
-          } else if (note) onAttachError();
+          } else if (notes.length > 0) onAttachError();
         },
       });
       finishCreatePanel();
@@ -414,8 +426,12 @@ export function useScheduleCreateFlow({
   );
 
   const handleCreateTodoSubmit = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
-      createTodo(title, slot, note);
+    (
+      title: string,
+      slot: ItemCreateSlot,
+      notes: readonly ItemCreateNoteDraft[],
+    ) => {
+      createTodo(title, slot, notes);
     },
     [createTodo],
   );
@@ -424,8 +440,12 @@ export function useScheduleCreateFlow({
   // detail panel, by the optimistic id (the TodoAddDialog does the same:
   // useTodoAddDialog). The panel reads the tree, which already holds the node.
   const handleCreateTodoSubmitAndOpen = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
-      const node = createTodo(title, slot, note);
+    (
+      title: string,
+      slot: ItemCreateSlot,
+      notes: readonly ItemCreateNoteDraft[],
+    ) => {
+      const node = createTodo(title, slot, notes);
       if (node) openTodoDetail?.(node.id);
     },
     [createTodo, openTodoDetail],
@@ -436,7 +456,7 @@ export function useScheduleCreateFlow({
     (
       todoId: string,
       slot: ItemCreateSlot,
-      note: ItemCreateNoteDraft | null,
+      notes: readonly ItemCreateNoteDraft[],
     ): boolean => {
       if (!createPanel) return false;
       // Undoable only when no note rides along (#569): a note attaches a
@@ -447,14 +467,14 @@ export function useScheduleCreateFlow({
         slot.date,
         slot.start,
         slot.end,
-        note != null,
+        notes.length > 0,
         slot.isAllDay,
       );
       updateNode(todoId, patch, options);
       // No onSaved wait here, unlike the create paths: this todo was picked
       // out of a pool that came from the DB, so its `items_meta` row is
       // already there and the link's FK is satisfied right now.
-      attachNote(todoId, note);
+      attachNote(todoId, notes);
       // #2220: the field was seeded with this todo's own tags, so the staged
       // set is what it should end up wearing — removals included.
       const tagIds = tags?.take() ?? null;
@@ -469,9 +489,9 @@ export function useScheduleCreateFlow({
     (
       todoId: string,
       slot: ItemCreateSlot,
-      note: ItemCreateNoteDraft | null,
+      notes: readonly ItemCreateNoteDraft[],
     ) => {
-      placeTodo(todoId, slot, note);
+      placeTodo(todoId, slot, notes);
     },
     [placeTodo],
   );
@@ -481,9 +501,9 @@ export function useScheduleCreateFlow({
     (
       todoId: string,
       slot: ItemCreateSlot,
-      note: ItemCreateNoteDraft | null,
+      notes: readonly ItemCreateNoteDraft[],
     ) => {
-      if (placeTodo(todoId, slot, note)) openTodoDetail?.(todoId);
+      if (placeTodo(todoId, slot, notes)) openTodoDetail?.(todoId);
     },
     [placeTodo, openTodoDetail],
   );

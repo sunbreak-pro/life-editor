@@ -41,10 +41,11 @@ const slot = (over: Partial<ItemCreateSlot> = {}): ItemCreateSlot =>
     ...over,
   }) as ItemCreateSlot;
 
-const NOTE: ItemCreateNoteDraft = {
-  kind: "new",
-  title: "notes",
-} as unknown as ItemCreateNoteDraft;
+/** #2396: the panel hands over every staged note — here a new one and a pick. */
+const NOTES: readonly ItemCreateNoteDraft[] = [
+  { kind: "new", title: "notes" },
+  { kind: "existing", id: "note-picked" },
+];
 
 function setup(over?: {
   createPanel?: typeof PANEL | null;
@@ -82,7 +83,7 @@ function setup(over?: {
     attachNoteAlongside: vi.fn<
       (
         itemId: string,
-        draft: ItemCreateNoteDraft | null,
+        drafts: readonly ItemCreateNoteDraft[],
       ) => Promise<Reversal | null>
     >(() => Promise.resolve(null)),
     onAttachError: vi.fn(),
@@ -174,12 +175,12 @@ describe("useScheduleCreateFlow — a submit with the panel closed", () => {
   it("writes nothing at all", () => {
     const h = setup({ createPanel: null });
     act(() => {
-      api(h).handleCreateSubmit("Dentist", slot(), null);
-      api(h).handleCreateSubmitAndOpen("Dentist", slot(), null);
-      api(h).handleCreateTodoSubmit("Report", slot(), null);
-      api(h).handlePlaceTodoSubmit("task-7", slot(), null);
-      api(h).handleCreateTodoSubmitAndOpen("Report", slot(), null);
-      api(h).handlePlaceTodoSubmitAndOpen("task-7", slot(), null);
+      api(h).handleCreateSubmit("Dentist", slot(), []);
+      api(h).handleCreateSubmitAndOpen("Dentist", slot(), []);
+      api(h).handleCreateTodoSubmit("Report", slot(), []);
+      api(h).handlePlaceTodoSubmit("task-7", slot(), []);
+      api(h).handleCreateTodoSubmitAndOpen("Report", slot(), []);
+      api(h).handlePlaceTodoSubmitAndOpen("task-7", slot(), []);
     });
     expect(h.handleCreate).not.toHaveBeenCalled();
     expect(h.addNode).not.toHaveBeenCalled();
@@ -206,11 +207,11 @@ describe("useScheduleCreateFlow — the note waits for the row", () => {
       // handleCreate returns is optimistic — attaching against it would write
       // a link to a row that does not exist yet.
       const h = setup();
-      act(() => api(h)[submit]("Dentist", slot(), NOTE));
+      act(() => api(h)[submit]("Dentist", slot(), NOTES));
       expect(h.attachNoteAlongside).not.toHaveBeenCalled();
 
       act(() => void h.captured.alongside?.({ id: "evt-saved" }));
-      expect(h.attachNoteAlongside).toHaveBeenCalledWith("evt-saved", NOTE);
+      expect(h.attachNoteAlongside).toHaveBeenCalledWith("evt-saved", NOTES);
       // Not as a command of its own: the create records both (N-08).
       expect(h.attachNote).not.toHaveBeenCalled();
     },
@@ -223,7 +224,7 @@ describe("useScheduleCreateFlow — the note waits for the row", () => {
    */
   it("leaves a failed create to the create's own report", () => {
     const h = setup();
-    act(() => api(h).handleCreateSubmit("Dentist", slot(), NOTE));
+    act(() => api(h).handleCreateSubmit("Dentist", slot(), NOTES));
     act(() => h.captured.onSaved?.(null));
     expect(h.onAttachError).not.toHaveBeenCalled();
     expect(h.attachNoteAlongside).not.toHaveBeenCalled();
@@ -231,8 +232,63 @@ describe("useScheduleCreateFlow — the note waits for the row", () => {
 
   it("hands over no companion when there is no note", () => {
     const h = setup();
-    act(() => api(h).handleCreateSubmit("Dentist", slot(), null));
+    act(() => api(h).handleCreateSubmit("Dentist", slot(), []));
     expect(h.captured.alongside).toBeUndefined();
+    expect(h.onAttachError).not.toHaveBeenCalled();
+  });
+
+  /*
+   * #2396: a note that will not attach must not take the event with it. The
+   * companion settles either way — the create only rolls back on a throw
+   * from its own write — and the note attach owns the one report.
+   */
+  it.each([
+    ["every note failed", () => Promise.resolve(null)],
+    ["the attach threw", () => Promise.reject(new Error("offline"))],
+  ])("keeps the event when %s", async (_name, outcome) => {
+    const h = setup();
+    h.attachNoteAlongside.mockImplementationOnce(outcome);
+    act(() => api(h).handleCreateSubmit("Dentist", slot(), NOTES));
+    let companion: unknown = "unset";
+    await act(async () => {
+      companion = await h.captured.alongside?.({ id: "evt-saved" });
+    });
+    expect(companion).toBeNull();
+    expect(h.attachNoteAlongside).toHaveBeenCalledWith("evt-saved", NOTES);
+  });
+});
+
+describe("useScheduleCreateFlow — a new todo's notes (#2396)", () => {
+  it("attaches every staged note once the todo's row exists", () => {
+    const h = setup();
+    act(() => api(h).handleCreateTodoSubmit("Report", slot(), NOTES));
+    expect(h.attachNote).not.toHaveBeenCalled();
+    const options = h.addNode.mock.calls[0][3] as {
+      onSaved: (saved: { id: string } | null) => void;
+    };
+    act(() => options.onSaved({ id: "task-saved" }));
+    expect(h.attachNote).toHaveBeenCalledWith("task-saved", NOTES);
+    expect(h.onAttachError).not.toHaveBeenCalled();
+  });
+
+  it("reports once when the todo never landed and notes were staged", () => {
+    const h = setup();
+    act(() => api(h).handleCreateTodoSubmit("Report", slot(), NOTES));
+    const options = h.addNode.mock.calls[0][3] as {
+      onSaved: (saved: { id: string } | null) => void;
+    };
+    act(() => options.onSaved(null));
+    expect(h.onAttachError).toHaveBeenCalledTimes(1);
+    expect(h.attachNote).not.toHaveBeenCalled();
+  });
+
+  it("says nothing about notes when none were staged", () => {
+    const h = setup();
+    act(() => api(h).handleCreateTodoSubmit("Report", slot(), []));
+    const options = h.addNode.mock.calls[0][3] as {
+      onSaved: (saved: { id: string } | null) => void;
+    };
+    act(() => options.onSaved(null));
     expect(h.onAttachError).not.toHaveBeenCalled();
   });
 });
@@ -242,32 +298,32 @@ describe("useScheduleCreateFlow — every submit closes the panel and the lens",
     [
       "create",
       (h: ReturnType<typeof setup>) =>
-        api(h).handleCreateSubmit("Dentist", slot(), null),
+        api(h).handleCreateSubmit("Dentist", slot(), []),
     ],
     [
       "create-and-open",
       (h: ReturnType<typeof setup>) =>
-        api(h).handleCreateSubmitAndOpen("Dentist", slot(), null),
+        api(h).handleCreateSubmitAndOpen("Dentist", slot(), []),
     ],
     [
       "create todo",
       (h: ReturnType<typeof setup>) =>
-        api(h).handleCreateTodoSubmit("Report", slot(), null),
+        api(h).handleCreateTodoSubmit("Report", slot(), []),
     ],
     [
       "place todo",
       (h: ReturnType<typeof setup>) =>
-        api(h).handlePlaceTodoSubmit("task-7", slot(), null),
+        api(h).handlePlaceTodoSubmit("task-7", slot(), []),
     ],
     [
       "create todo and open",
       (h: ReturnType<typeof setup>) =>
-        api(h).handleCreateTodoSubmitAndOpen("Report", slot(), null),
+        api(h).handleCreateTodoSubmitAndOpen("Report", slot(), []),
     ],
     [
       "place todo and open",
       (h: ReturnType<typeof setup>) =>
-        api(h).handlePlaceTodoSubmitAndOpen("task-7", slot(), null),
+        api(h).handlePlaceTodoSubmitAndOpen("task-7", slot(), []),
     ],
   ])("%s", (_name, submit) => {
     // #468: a brand-new row carries no tag, so while a calendar lens is on it
@@ -282,7 +338,7 @@ describe("useScheduleCreateFlow — every submit closes the panel and the lens",
 describe("useScheduleCreateFlow — which layout selects what", () => {
   it("selects the new row on Desktop and opens nothing", () => {
     const h = setup({ isWide: true });
-    act(() => api(h).handleCreateSubmit("Dentist", slot(), null));
+    act(() => api(h).handleCreateSubmit("Dentist", slot(), []));
     expect(h.setSelectedId).toHaveBeenCalledWith("evt-new");
     expect(h.setOverlayOpen).not.toHaveBeenCalled();
   });
@@ -291,7 +347,7 @@ describe("useScheduleCreateFlow — which layout selects what", () => {
     // Selecting there would silently turn the plain create into the other
     // button.
     const h = setup({ isWide: false });
-    act(() => api(h).handleCreateSubmit("Dentist", slot(), null));
+    act(() => api(h).handleCreateSubmit("Dentist", slot(), []));
     expect(h.setSelectedId).not.toHaveBeenCalled();
     expect(h.setOverlayOpen).not.toHaveBeenCalled();
   });
@@ -301,7 +357,7 @@ describe("useScheduleCreateFlow — which layout selects what", () => {
     ["narrow", false],
   ])("create-and-open selects on %s", (_name, isWide) => {
     const h = setup({ isWide });
-    act(() => api(h).handleCreateSubmitAndOpen("Dentist", slot(), null));
+    act(() => api(h).handleCreateSubmitAndOpen("Dentist", slot(), []));
     expect(h.setSelectedId).toHaveBeenCalledWith("evt-new");
     // Only Desktop has an overlay to raise; narrow's sheet follows the
     // selection on its own.
@@ -318,7 +374,7 @@ describe("useScheduleCreateFlow — the todo paths read the SLOT's day", () => {
       api(h).handleCreateTodoSubmit(
         "Report",
         slot({ date: "2026-08-25", start: "13:00", end: "14:00" }),
-        null,
+        [],
       ),
     );
     expect(h.addNode).toHaveBeenCalledTimes(1);
@@ -341,13 +397,13 @@ describe("useScheduleCreateFlow — the todo paths read the SLOT's day", () => {
     // an undo would move the todo back and leave the note on it — a half
     // reversal the toast claims was whole.
     const bare = setup();
-    act(() => api(bare).handlePlaceTodoSubmit("task-7", slot(), null));
+    act(() => api(bare).handlePlaceTodoSubmit("task-7", slot(), []));
     expect(bare.updateNode.mock.calls[0][2]).toEqual({
       undoLabel: "todoChipPlace",
     });
 
     const withNote = setup();
-    act(() => api(withNote).handlePlaceTodoSubmit("task-7", slot(), NOTE));
+    act(() => api(withNote).handlePlaceTodoSubmit("task-7", slot(), NOTES));
     expect(withNote.updateNode.mock.calls[0][2]).toBeUndefined();
   });
 
@@ -355,8 +411,8 @@ describe("useScheduleCreateFlow — the todo paths read the SLOT's day", () => {
     // Unlike the create paths: this todo came out of a pool read from the DB,
     // so its items_meta row is already there and the link's FK is satisfied.
     const h = setup();
-    act(() => api(h).handlePlaceTodoSubmit("task-7", slot(), NOTE));
-    expect(h.attachNote).toHaveBeenCalledWith("task-7", NOTE);
+    act(() => api(h).handlePlaceTodoSubmit("task-7", slot(), NOTES));
+    expect(h.attachNote).toHaveBeenCalledWith("task-7", NOTES);
     expect(h.attachNote.mock.invocationCallOrder[0]).toBeLessThan(
       h.setCreatePanel.mock.invocationCallOrder[0],
     );
@@ -373,7 +429,7 @@ describe("useScheduleCreateFlow — the todo paths read the SLOT's day", () => {
       api(h).handleCreateTodoSubmit(
         "Report",
         slot({ date: "2026-08-25", isAllDay: true }),
-        null,
+        [],
       ),
     );
     const options = h.addNode.mock.calls[0][3] as {
@@ -397,7 +453,7 @@ describe("useScheduleCreateFlow — the todo paths read the SLOT's day", () => {
       api(h).handlePlaceTodoSubmit(
         "task-7",
         slot({ date: "2026-08-25", isAllDay: true }),
-        null,
+        [],
       ),
     );
     const patch = h.updateNode.mock.calls[0][1] as {
@@ -419,7 +475,7 @@ describe("useScheduleCreateFlow — a todo's 'add and edit'", () => {
   it("creates the todo, then opens its detail by the new node's id", () => {
     const h = setup();
     act(() =>
-      api(h).handleCreateTodoSubmitAndOpen("Report", slot(), null),
+      api(h).handleCreateTodoSubmitAndOpen("Report", slot(), []),
     );
     expect(h.addNode).toHaveBeenCalledTimes(1);
     expect(h.addNode.mock.calls[0][2]).toBe("Report");
@@ -436,7 +492,7 @@ describe("useScheduleCreateFlow — a todo's 'add and edit'", () => {
   it("places the picked todo, then opens its detail", () => {
     const h = setup();
     act(() =>
-      api(h).handlePlaceTodoSubmitAndOpen("task-7", slot(), null),
+      api(h).handlePlaceTodoSubmitAndOpen("task-7", slot(), []),
     );
     expect(h.updateNode).toHaveBeenCalledTimes(1);
     expect(h.updateNode.mock.calls[0][0]).toBe("task-7");
@@ -446,8 +502,8 @@ describe("useScheduleCreateFlow — a todo's 'add and edit'", () => {
   it("leaves the plain todo buttons opening nothing", () => {
     const h = setup();
     act(() => {
-      api(h).handleCreateTodoSubmit("Report", slot(), null);
-      api(h).handlePlaceTodoSubmit("task-7", slot(), null);
+      api(h).handleCreateTodoSubmit("Report", slot(), []);
+      api(h).handlePlaceTodoSubmit("task-7", slot(), []);
     });
     expect(h.openTodoDetail).not.toHaveBeenCalled();
   });
@@ -484,7 +540,7 @@ describe("useScheduleCreateFlow — a repeat picked while creating", () => {
     "%s converts the SAVED row once it exists",
     async (_name, submit) => {
       const h = setup();
-      act(() => api(h)[submit]("Standup", slot({ repeat: DAILY }), null));
+      act(() => api(h)[submit]("Standup", slot({ repeat: DAILY }), []));
       expect(h.convertToRepeat).not.toHaveBeenCalled();
       await act(async () => {
         await h.captured.alongside?.(saved);
@@ -499,7 +555,7 @@ describe("useScheduleCreateFlow — a repeat picked while creating", () => {
     const series = reversal(log, "series");
     h.convertToRepeat.mockResolvedValueOnce(series);
     act(() =>
-      api(h).handleCreateSubmit("Standup", slot({ repeat: DAILY }), null),
+      api(h).handleCreateSubmit("Standup", slot({ repeat: DAILY }), []),
     );
     let companion: unknown;
     await act(async () => {
@@ -514,7 +570,7 @@ describe("useScheduleCreateFlow — a repeat picked while creating", () => {
     h.attachNoteAlongside.mockResolvedValueOnce(reversal(log, "note"));
     h.convertToRepeat.mockResolvedValueOnce(reversal(log, "series"));
     act(() =>
-      api(h).handleCreateSubmit("Standup", slot({ repeat: DAILY }), NOTE),
+      api(h).handleCreateSubmit("Standup", slot({ repeat: DAILY }), NOTES),
     );
     const box: { companion?: Reversal } = {};
     await act(async () => {
@@ -537,7 +593,7 @@ describe("useScheduleCreateFlow — a repeat picked while creating", () => {
     const h = setup();
     h.attachNoteAlongside.mockRejectedValueOnce(new Error("offline"));
     act(() =>
-      api(h).handleCreateSubmit("Standup", slot({ repeat: DAILY }), NOTE),
+      api(h).handleCreateSubmit("Standup", slot({ repeat: DAILY }), NOTES),
     );
     await act(async () => {
       await h.captured.alongside?.(saved);
@@ -547,7 +603,7 @@ describe("useScheduleCreateFlow — a repeat picked while creating", () => {
 
   it("converts nothing when no repeat was picked", async () => {
     const h = setup();
-    act(() => api(h).handleCreateSubmit("Standup", slot(), NOTE));
+    act(() => api(h).handleCreateSubmit("Standup", slot(), NOTES));
     await act(async () => {
       await h.captured.alongside?.(saved);
     });

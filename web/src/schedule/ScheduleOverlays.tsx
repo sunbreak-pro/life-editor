@@ -1,4 +1,4 @@
-import type { ComponentProps, ReactNode } from "react";
+import { useState, type ComponentProps, type ReactNode } from "react";
 import {
   ConfirmDialog,
   ItemActionPopover,
@@ -182,6 +182,10 @@ export function ScheduleOverlays({
   confirm,
 }: ScheduleOverlaysProps) {
   const { t } = useTranslation();
+  // #2396: the create panel's note picker, open beside the form. The panel
+  // reports it (and `false` again when it unmounts), and the Desktop overlay
+  // widens while it is open — see `createFrame`.
+  const [notePickerOpen, setNotePickerOpen] = useState(false);
 
   // #2222: the in-place edit's copy, the same for both variants.
   const quickEditLabels = {
@@ -450,11 +454,20 @@ export function ScheduleOverlays({
     onCancel: create.onClose,
     repeat: create.repeat,
   };
+  /*
+   * #2396: the note picker opens as a 20rem panel BESIDE the form. Hung off
+   * the 512px overlay's right edge it would run off any screen narrower than
+   * about 1176px, so instead the overlay itself widens to the 860px "panel"
+   * size while the picker is open and holds the form and the picker as one
+   * centred pair — on a 768px screen the Modal's own gutter still keeps both
+   * on it, with the form giving up the width.
+   */
   const createFrame = isWide ? (
     <ItemDetailOverlay
       open={!!create.panel}
       title={t("scheduleScreen.addItem")}
       onClose={create.onClose}
+      size={notePickerOpen && create.panel ? "panel" : "lg"}
     >
       {create.panel && (
         <ItemCreatePanel
@@ -467,6 +480,8 @@ export function ScheduleOverlays({
             end: create.panel.end,
           }}
           {...panelProps}
+          notePicker="side"
+          onNotePickerOpenChange={setNotePickerOpen}
         />
       )}
     </ItemDetailOverlay>

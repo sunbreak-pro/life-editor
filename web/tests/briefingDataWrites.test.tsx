@@ -263,7 +263,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), null),
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), []),
     );
 
     expect(mockOf(ds, "createScheduleItem")).toHaveBeenCalledWith(
@@ -299,7 +299,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
       result.current.handleCreateEvent(
         "Coffee",
         slot("13:00", "14:00", { date: other, isAllDay: true }),
-        null,
+        [],
       ),
     );
 
@@ -328,7 +328,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), null),
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), []),
     );
     await waitFor(() => expect(harness.commands).toHaveLength(1));
 
@@ -357,7 +357,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), null),
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), []),
     );
 
     expect(harness.commands).toEqual([]);
@@ -393,7 +393,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
         result.current.handleCreateEvent(
           "Coffee",
           slot("13:00", "14:00"),
-          null,
+          [],
         ),
       );
 
@@ -426,7 +426,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
         result.current.handleCreateEvent(
           "Coffee",
           slot("00:00", "23:59", { isAllDay: true }),
-          null,
+          [],
         ),
       );
 
@@ -455,7 +455,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
         result.current.handleCreateEvent(
           "Coffee",
           slot("13:00", "14:00"),
-          null,
+          [],
         ),
       );
 
@@ -481,7 +481,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handleCreateTodo("Draft", slot("13:00", "14:00"), null),
+      result.current.handleCreateTodo("Draft", slot("13:00", "14:00"), []),
     );
 
     expect(mockOf(ds, "createTodo")).toHaveBeenCalledWith(
@@ -515,7 +515,7 @@ describe("useBriefingData — schedule writes (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handlePlaceTodo("t-loose", slot("13:00", "14:00"), null),
+      result.current.handlePlaceTodo("t-loose", slot("13:00", "14:00"), []),
     );
 
     // A todo given a window is by definition not an all-day candidate —
@@ -547,10 +547,10 @@ describe("useBriefingData — attaching a note to a create (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     act(() =>
-      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), {
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), [{
         kind: "existing",
         id: "n1",
-      }),
+      }]),
     );
 
     // `wiki_tag_connections.from_item_id` is an FK re-checked by the RLS insert
@@ -588,10 +588,10 @@ describe("useBriefingData — attaching a note to a create (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), {
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), [{
         kind: "new",
         title: "Why this meeting",
-      }),
+      }]),
     );
 
     await waitFor(() =>
@@ -626,10 +626,10 @@ describe("useBriefingData — attaching a note to a create (#892)", () => {
     await waitFor(() => expect(result.current.loading).toBe(false));
 
     await act(async () =>
-      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), {
+      result.current.handleCreateEvent("Coffee", slot("13:00", "14:00"), [{
         kind: "existing",
         id: "n1",
-      }),
+      }]),
     );
 
     // Fire and forget: a lost attachment must not roll the event back.

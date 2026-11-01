@@ -210,7 +210,7 @@ describe("useScheduleCreateFlow — the staged tags (#2220)", () => {
 
   it("tags the new event once its row exists", async () => {
     const h = setup(["tag-work"]);
-    act(() => h.view.result.current.handleCreateSubmit("Meeting", SLOT, null));
+    act(() => h.view.result.current.handleCreateSubmit("Meeting", SLOT, []));
     // Nothing is written against the optimistic id.
     expect(h.apply).not.toHaveBeenCalled();
     await act(async () => {
@@ -222,7 +222,7 @@ describe("useScheduleCreateFlow — the staged tags (#2220)", () => {
   it("tags a new todo from its onSaved", () => {
     const h = setup(["tag-home"]);
     act(() =>
-      h.view.result.current.handleCreateTodoSubmit("Write", SLOT, null),
+      h.view.result.current.handleCreateTodoSubmit("Write", SLOT, []),
     );
     act(() => h.captured.onSaved?.({ id: "task-saved" }));
     expect(h.apply).toHaveBeenCalledWith("task-saved", ["tag-home"]);
@@ -231,14 +231,14 @@ describe("useScheduleCreateFlow — the staged tags (#2220)", () => {
   it("hands a placed todo its whole staged set, even an empty one", () => {
     const h = setup([]);
     act(() =>
-      h.view.result.current.handlePlaceTodoSubmit("task-old", SLOT, null),
+      h.view.result.current.handlePlaceTodoSubmit("task-old", SLOT, []),
     );
     expect(h.apply).toHaveBeenCalledWith("task-old", []);
   });
 
   it("adds no companion when there is neither a note nor a tag", () => {
     const h = setup(null);
-    act(() => h.view.result.current.handleCreateSubmit("Meeting", SLOT, null));
+    act(() => h.view.result.current.handleCreateSubmit("Meeting", SLOT, []));
     expect(h.captured.alongside).toBeUndefined();
   });
 });
