@@ -365,10 +365,24 @@ describe("applying the changes", () => {
       expect(idsOf(out)).toEqual([id]);
     });
 
-    it("compares with the list when the row is outside the changed set", () => {
+    it("lets the tombstone win when the row is outside the changed set", () => {
       const tombstones = [{ id, deleted_at: T1 }];
-      expect(idsOf(apply([node(id, T2)], [], tombstones))).toEqual([id]);
+      // T2 is what a device with a fast clock wrote: later than the delete.
+      expect(apply([node(id, T2)], [], tombstones)).toEqual([]);
       expect(apply([node(id, T0)], [], tombstones)).toEqual([]);
+    });
+
+    it("takes a row out on a delta read even if its updatedAt is ahead of the delete", async () => {
+      const { client, count } = fakeClient({
+        items_meta_tombstones: { rows: [{ id, deleted_at: T1 }] },
+      });
+      const read = await fetchItemChanges(client, TODO_CHANGES, cursor(), [
+        node(id, T2),
+        node("task-1"),
+      ]);
+      expect(idsOf(read?.data ?? [])).toEqual(["task-1"]);
+      expect(read?.cursor.at).toBe(T1);
+      expect(count.tasks_payload).toBeUndefined();
     });
 
     it("does not fetch a payload for a row the tombstone takes", async () => {

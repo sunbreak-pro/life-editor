@@ -90,7 +90,7 @@ export interface ItemChanges {
 export interface ChangeDomain<
   TMeta,
   TPayload extends { item_id: string },
-  TNode extends { id: string; updatedAt?: string },
+  TNode extends { id: string },
 > {
   role: string;
   payloadTable: string;
@@ -177,24 +177,23 @@ export function cursorFrom(
   return at === null ? null : { at, seen: seenIn(rows, at, now), readAt: now };
 }
 
-/** Which ids the tombstones take out of `list`. */
-function tombstonedIds<TNode extends { id: string; updatedAt?: string }>(
-  list: readonly TNode[],
+/** Which ids the tombstones take out of a list. */
+function tombstonedIds(
   { metas, tombstones }: ItemChanges,
   seen: Readonly<Record<string, string>>,
 ): Set<string> {
   const dead = new Set<string>();
   if (tombstones.length === 0) return dead;
   const metaById = new Map(metas.map((m) => [m.id, m]));
-  const nodeById = new Map(list.map((n) => [n.id, n]));
   for (const t of tombstones) {
     // A row re-created under the same id (daily-YYYY-MM-DD) leaves a tombstone
     // beside a live row, and the overlap delivers an old tombstone again later.
-    // The row wins when what is known of it is newer than the delete.
-    const known =
-      metaById.get(t.id)?.changed_at ??
-      seen[t.id] ??
-      nodeById.get(t.id)?.updatedAt;
+    // The row wins when its changed_at is newer than the delete. Re-creating it
+    // stamps a changed_at after deleted_at, inside the same window, so a row
+    // missing from the changes does not exist now. A list's updatedAt must not
+    // decide this: it is the device's clock, and one running fast would keep a
+    // deleted row on the list.
+    const known = metaById.get(t.id)?.changed_at ?? seen[t.id];
     if (known === undefined || !isLater(known, t.deleted_at)) dead.add(t.id);
   }
   return dead;
@@ -209,7 +208,7 @@ function tombstonedIds<TNode extends { id: string; updatedAt?: string }>(
 export function applyItemChanges<
   TMeta,
   TPayload extends { item_id: string },
-  TNode extends { id: string; updatedAt?: string },
+  TNode extends { id: string },
 >(
   domain: ChangeDomain<TMeta, TPayload, TNode>,
   list: readonly TNode[],
@@ -218,7 +217,7 @@ export function applyItemChanges<
   seen: Readonly<Record<string, string>> = {},
 ): TNode[] {
   const next = new Map(list.map((n) => [n.id, n]));
-  const dead = tombstonedIds(list, changes, seen);
+  const dead = tombstonedIds(changes, seen);
   for (const id of dead) next.delete(id);
   const payloadById = new Map(payloads.map((p) => [p.item_id, p]));
   for (const meta of changes.metas) {
@@ -288,7 +287,7 @@ export async function readChangeCursor(
 export async function fetchItemChanges<
   TMeta,
   TPayload extends { item_id: string },
-  TNode extends { id: string; updatedAt?: string },
+  TNode extends { id: string },
 >(
   client: SupabaseClient,
   domain: ChangeDomain<TMeta, TPayload, TNode>,
@@ -343,7 +342,7 @@ export async function fetchItemChanges<
     return null;
   }
 
-  const dead = tombstonedIds(base, changes, cursor.seen);
+  const dead = tombstonedIds(changes, cursor.seen);
   const ids = changes.metas
     .filter(
       (m) =>
