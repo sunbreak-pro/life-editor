@@ -238,3 +238,16 @@ Layout Standard v2 §5 全幅統一の materials adoption 方針が決まった�
 - **方針（ユーザー決定 2026-07-11）**: materials も「素の全幅」。エディタ本文・タグ一覧を画面幅いっぱいに広げる（内部 reading カラムで絞らない）。
 - **要望**: #203 で `pageWidth = ownsFullBleed ? "fluid" : "full"` に単純化する際、**notes / daily も `ownsFullBleed` に含めて fluid 化を検討してほしい**。理由: これらは `h-full` のエディタ fill 構造で、`full`（PageContainer が py で content 高さのラッパーを作る）だとエディタが縦に fill せず content 高さで止まる。`fluid` なら横全幅 + 縦全高 fill になり、素の全幅方針と噛み合う。tags は content-height なので `full` で可。
 - materials 側 adoption Issue: section:materials で **#207** 起票済み。#203 merge 後に各サブタブの全幅表示確認 + コメント確定を行う。**shell（MainScreen / SectionHeader / PageContainer）は触りません**（単一書込者 = layout-standard を尊重）。
+
+---
+
+## 2026-11-01 → @chat-main
+
+実ブラウザ確認の依頼と、起票の依頼です。
+
+- **実ブラウザ確認**: #2415（#2289。390x844・遅い回線の Daily と Note のシート）、#2417（#2391）、#2421（#2393）、#2423（#2392）、#2429（#2394）、#2430（#2390）。項目は各 PR の本文にあります。
+- **#2423 の base**: `claude/link-chips-2391` は merge 済みなので、merge の前に base を main へ変える必要があります。#2429 は #2423 のあとです。
+- **起票の依頼 1（type:bug）**: `shared/src/hooks/dailyListMerge.ts` の `mergeDailySummaries` は、保存より前に読まれた一覧が届くと新しい日の楽観更新の行を落とします。本文から離れると空のエディタが開き、次の入力でサーバーの本文を上書きするおそれがあります。#2415 の範囲外です。
+- **起票の依頼 2（type:bug）**: `shared/src/hooks/useDailiesUnifiedAPI.ts` の本文の読み直しは、保存中に始めた読み取りの古い本文を検知しません。その間に星を押すと古い本文を土台に書きます。
+- **起票の依頼 3（type:bug）**: #2331 のキャッシュに今日の行がなくサーバーにある起動で、空のエディタが一瞬開き、そこに置いたカーソルが外れます。
+- **起票の依頼 4**: Connect の関連パネルの `removeLink`（`web/src/connect/ConnectScreen.tsx`）は取り消しが効きません。ノート側は #2423 で効くようになります。
