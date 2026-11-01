@@ -1,5 +1,12 @@
 import { describe, it, expect, vi } from "vitest";
 import { render } from "@testing-library/react";
+import { createElement } from "react";
+import {
+  ITEM_LINK_KINDS,
+  UNKNOWN_ITEM_LINK_VISUAL,
+  itemLinkVisual,
+  type ItemLinkVisual,
+} from "@life-editor/shared";
 import { RichTextEditor } from "../src/notes/RichTextEditor";
 import { resolveItemLinkTarget } from "../src/notes/itemLinkNode";
 
@@ -276,6 +283,160 @@ describe("itemLink click navigation", () => {
       id: "note-2",
       role: "note",
     });
+  });
+});
+
+/*
+ * #2394 — the link draws as a chip with its kind's icon. The node builds that
+ * icon out of lucide's internals (iconNodeOf), so the shapes are compared with
+ * what the real React icon draws: a lucide bump that moves them goes red here.
+ */
+describe("itemLink chip", () => {
+  /** The shapes one lucide icon draws, as React renders it. */
+  function shapesOf({ Icon }: ItemLinkVisual): string[] {
+    const { container } = render(createElement(Icon));
+    const svg = container.querySelector("svg") as SVGSVGElement;
+    return Array.from(svg.children).map((shape) => shape.outerHTML);
+  }
+
+  const chipIcon = (el: Element) =>
+    el.querySelector(".item-link__icon") as SVGSVGElement;
+  const shapesIn = (svg: SVGSVGElement) =>
+    Array.from(svg.children).map((shape) => shape.outerHTML);
+
+  it.each([...ITEM_LINK_KINDS])("draws the %s kind's own icon", (role) => {
+    const { container } = renderEditor({
+      content: docWithLink({ targetId: "item-1", label: "Target", role }),
+    });
+
+    const icon = chipIcon(link(container));
+
+    expect(shapesIn(icon).length).toBeGreaterThan(0);
+    expect(shapesIn(icon)).toEqual(shapesOf(itemLinkVisual(role)));
+  });
+
+  it("gives each of the four kinds a different icon", () => {
+    const drawn = ITEM_LINK_KINDS.map((role) =>
+      shapesOf(itemLinkVisual(role)).join(""),
+    );
+    expect(new Set(drawn).size).toBe(ITEM_LINK_KINDS.length);
+  });
+
+  // A goal or a table can be linked, and a stored role may be one this build
+  // does not know: a link that cannot say its kind is still a link.
+  it.each(["goal", "table", "something-new"])(
+    "falls back to the neutral icon for the %s role",
+    (role) => {
+      const { container } = renderEditor({
+        content: docWithLink({ targetId: "item-1", label: "Target", role }),
+      });
+
+      expect(shapesIn(chipIcon(link(container)))).toEqual(
+        shapesOf(UNKNOWN_ITEM_LINK_VISUAL),
+      );
+    },
+  );
+
+  // Even with a role on it: there is nothing on the other end to be a kind of.
+  it.each([null, "note"])(
+    "draws an unresolved link with the neutral icon (role %s)",
+    (role) => {
+      const { container } = renderEditor({
+        content: docWithLink({ targetId: null, label: "Nothing yet", role }),
+      });
+      const el = link(container);
+
+      expect(el.className).toContain("item-link--unresolved");
+      expect(shapesIn(chipIcon(el))).toEqual(
+        shapesOf(UNKNOWN_ITEM_LINK_VISUAL),
+      );
+    },
+  );
+
+  it("makes the icon a real SVG element that a reader skips", () => {
+    const { container } = renderEditor({ content: NOTE_LINK });
+
+    const icon = chipIcon(link(container));
+
+    const svgNs = "http://www.w3.org/2000/svg";
+    expect(icon.namespaceURI).toBe(svgNs);
+    expect(icon.firstElementChild?.namespaceURI).toBe(svgNs);
+    expect(icon.getAttribute("viewBox")).toBe("0 0 24 24");
+    expect(icon.getAttribute("aria-hidden")).toBe("true");
+    // React's key is not an attribute of the drawn shape.
+    expect(icon.firstElementChild?.hasAttribute("key")).toBe(false);
+  });
+
+  it("keeps the attributes the click handler and other selectors read", () => {
+    const { container } = renderEditor({ content: NOTE_LINK });
+
+    const el = link(container);
+
+    expect(el.tagName).toBe("SPAN");
+    expect(el.classList.contains("item-link")).toBe(true);
+    expect(el.getAttribute("data-target-id")).toBe("note-2");
+    expect(el.getAttribute("data-role")).toBe("note");
+    expect(el.getAttribute("data-label")).toBe("Other note");
+    // ProseMirror writes this on every leaf through the property, and jsdom
+    // does not reflect that property onto the attribute.
+    expect(el.contentEditable).toBe("false");
+  });
+
+  it("keeps the title readable beside the icon", () => {
+    const { container } = renderEditor({ content: NOTE_LINK });
+
+    const el = link(container);
+
+    expect(el.querySelector(".item-link__label")?.textContent).toBe(
+      "Other note",
+    );
+    // The icon adds no text, so anything reading the chip's text gets the title.
+    expect(el.textContent).toBe("Other note");
+    expect(el.getAttribute("title")).toBe("Other note");
+    // The icon comes first, the way the header's chip and its row do it.
+    expect(el.firstElementChild).toBe(chipIcon(el));
+  });
+
+  // The pointer lands on a <path> or the <svg> as often as on the title, and
+  // those are not HTMLElements. The handler must still find the chip from them.
+  it.each([
+    ["the icon", (el: Element) => chipIcon(el)],
+    [
+      "a shape inside the icon",
+      (el: Element) => chipIcon(el).firstElementChild!,
+    ],
+    ["the title", (el: Element) => el.querySelector(".item-link__label")!],
+  ])("navigates from a click on %s", (_name, pick) => {
+    const onNavigateToItem = vi.fn();
+    const { container } = renderEditor({
+      content: NOTE_LINK,
+      onNavigateToItem,
+    });
+
+    const { defaultPrevented } = click(pick(link(container)));
+
+    expect(onNavigateToItem).toHaveBeenCalledWith({
+      id: "note-2",
+      role: "note",
+    });
+    expect(defaultPrevented).toBe(true);
+  });
+
+  it("leaves a click on an unresolved chip's icon inert", () => {
+    const onNavigateToItem = vi.fn();
+    const { container } = renderEditor({
+      content: docWithLink({
+        targetId: null,
+        label: "Nothing yet",
+        role: null,
+      }),
+      onNavigateToItem,
+    });
+
+    const { defaultPrevented } = click(chipIcon(link(container)));
+
+    expect(onNavigateToItem).not.toHaveBeenCalled();
+    expect(defaultPrevented).toBe(false);
   });
 });
 
