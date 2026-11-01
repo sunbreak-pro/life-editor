@@ -261,12 +261,14 @@ describe("FrequencyEditor's weekday chips (#2427)", () => {
     const chips = renderWeekdays();
     expect(chips).toHaveLength(7);
     for (const chip of chips) {
-      // 34px + 5px either side.
+      // ::after measures from the padding box: 34px less the 1px border is
+      // 32px, and 6px either side makes 44px.
       expect(chip).toHaveClass(
         "size-[34px]",
+        "border",
         "max-md:relative",
         "max-md:after:absolute",
-        "max-md:after:inset-[-5px]",
+        "max-md:after:inset-[-6px]",
       );
       expect(chip).not.toHaveClass("after:absolute");
     }

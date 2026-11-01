@@ -84,12 +84,14 @@ const NONE_ID = "none";
  * #2427: the weekday chips' 44px on a phone. Seven real 44px boxes would break
  * the row at the default root (size-11 is rem: 7 x 49.5px + gaps > 343px), so
  * the chip keeps its 34px and a transparent ::after reaches 5px past each side.
- * The 10px gap makes the pitch exactly 44px, so neighbours' areas meet without
- * overlapping. All px on purpose: rem would drift with the font-size setting.
+ * The inset says -6px because ::after measures from the padding box, which the
+ * 1px border leaves at 32px: 32 + 12 = 44. The 10px gap makes the pitch exactly
+ * 44px, so neighbours' areas meet without overlapping. All px on purpose: rem
+ * would drift with the font-size setting.
  */
 const WEEKDAY_ROW_GAP = "gap-1.5 max-md:gap-[10px]";
 const WEEKDAY_TAP_AREA =
-  "max-md:relative max-md:after:absolute max-md:after:inset-[-5px] max-md:after:content-['']";
+  "max-md:relative max-md:after:absolute max-md:after:inset-[-6px] max-md:after:content-['']";
 
 export function FrequencyEditor({
   value,
