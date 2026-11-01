@@ -37,9 +37,11 @@ export const CACHE_SCHEMA_VERSION = 2;
 
 const DB_PREFIX = "life-editor-cache:";
 /** The IndexedDB version: the object stores below, not the data's shape. */
-const IDB_VERSION = 1;
+const IDB_VERSION = 2;
 const META_STORE = "meta";
 const SNAPSHOT_STORE = "snapshots";
+/** Pinned notes' bodies (#2334, `noteBodyStore.ts`). */
+const NOTE_BODY_STORE = "noteBodies";
 const SCHEMA_KEY = "schemaVersion";
 
 /** One stored slot. `key` is a `DomainSnapshotKey`. */
@@ -49,6 +51,13 @@ export interface PersistedSnapshot {
   data: unknown;
   /** Where `data` stands for a delta read (#2333), stored in the same row. */
   cursor?: ChangeCursor;
+}
+
+/** One pinned note's body, under the list stamp it was read for. */
+export interface PersistedNoteBody {
+  id: string;
+  updatedAt: string;
+  content: string;
 }
 
 export function cacheDbName(userId: string): string {
@@ -93,6 +102,8 @@ async function openFresh(userId: string): Promise<IDBDatabase> {
         upgrading.createObjectStore(META_STORE);
       if (!upgrading.objectStoreNames.contains(SNAPSHOT_STORE))
         upgrading.createObjectStore(SNAPSHOT_STORE, { keyPath: "key" });
+      if (!upgrading.objectStoreNames.contains(NOTE_BODY_STORE))
+        upgrading.createObjectStore(NOTE_BODY_STORE, { keyPath: "id" });
     };
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
@@ -106,11 +117,15 @@ async function openFresh(userId: string): Promise<IDBDatabase> {
   };
 
   // Written under another shape: empty it before anyone reads it.
-  const tx = db.transaction([META_STORE, SNAPSHOT_STORE], "readwrite");
+  const tx = db.transaction(
+    [META_STORE, SNAPSHOT_STORE, NOTE_BODY_STORE],
+    "readwrite",
+  );
   const done = committed(tx);
   const version = await settle(tx.objectStore(META_STORE).get(SCHEMA_KEY));
   if (version !== CACHE_SCHEMA_VERSION) {
     tx.objectStore(SNAPSHOT_STORE).clear();
+    tx.objectStore(NOTE_BODY_STORE).clear();
     tx.objectStore(META_STORE).put(CACHE_SCHEMA_VERSION, SCHEMA_KEY);
   }
   await done;
@@ -162,6 +177,59 @@ export async function deletePersistedSnapshot(
   const done = committed(tx);
   tx.objectStore(SNAPSHOT_STORE).delete(key);
   await done;
+}
+
+/** Is any list stored for `userId`? Decides the offline entry (#2334). */
+export async function hasPersistedSnapshots(userId: string): Promise<boolean> {
+  const db = await open(userId);
+  const tx = db.transaction(SNAPSHOT_STORE, "readonly");
+  return (await settle(tx.objectStore(SNAPSHOT_STORE).count())) > 0;
+}
+
+/** Every pinned body stored for `userId`. */
+export async function readPersistedNoteBodies(
+  userId: string,
+): Promise<PersistedNoteBody[]> {
+  const db = await open(userId);
+  const tx = db.transaction(NOTE_BODY_STORE, "readonly");
+  const rows = await settle(tx.objectStore(NOTE_BODY_STORE).getAll());
+  return rows as PersistedNoteBody[];
+}
+
+export async function writePersistedNoteBody(
+  userId: string,
+  body: PersistedNoteBody,
+): Promise<void> {
+  const db = await open(userId);
+  const tx = db.transaction(NOTE_BODY_STORE, "readwrite");
+  const done = committed(tx);
+  tx.objectStore(NOTE_BODY_STORE).put(body);
+  await done;
+}
+
+export async function deletePersistedNoteBodies(
+  userId: string,
+  ids: readonly string[],
+): Promise<void> {
+  if (ids.length === 0) return;
+  const db = await open(userId);
+  const tx = db.transaction(NOTE_BODY_STORE, "readwrite");
+  const done = committed(tx);
+  const store = tx.objectStore(NOTE_BODY_STORE);
+  for (const id of ids) store.delete(id);
+  await done;
+}
+
+/**
+ * Ask the browser not to evict this site's storage under pressure (#2334). The
+ * browser may refuse, and then nothing changes.
+ */
+export async function requestPersistentStorage(): Promise<void> {
+  try {
+    await navigator.storage?.persist?.();
+  } catch {
+    // Refused or unavailable: the copy is still there until the browser needs it.
+  }
 }
 
 /** Delete the user's whole database (sign-out). */

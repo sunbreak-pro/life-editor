@@ -123,3 +123,16 @@ describe("useNoteBodySearch (#1837)", () => {
     expect(result.current.bodySearchFailed).toBe(false);
   });
 });
+
+describe("useNoteBodySearch offline (#2334)", () => {
+  it("sends no request and reports the bodies as not searched", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    const searchNotesUnified = vi.fn();
+    const ds = { searchNotesUnified } as unknown as DataService;
+    const { result } = renderHook(() => useNoteBodySearch(ds, "word"));
+    await waitFor(() => expect(result.current.bodySearchFailed).toBe(true));
+    expect(result.current.isSearching).toBe(false);
+    expect(searchNotesUnified).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+});

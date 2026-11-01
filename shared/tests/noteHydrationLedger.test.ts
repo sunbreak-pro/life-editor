@@ -1,8 +1,9 @@
 import { describe, it, expect, afterEach, vi } from "vitest";
-import { renderHook } from "@testing-library/react";
+import { act, renderHook } from "@testing-library/react";
 import type { Dispatch, MutableRefObject, SetStateAction } from "react";
 import { useNoteHydrationLedger } from "../src/hooks/useNoteHydrationLedger";
 import type { DataService } from "../src/services/DataService";
+import { clearNoteBodies, rememberNoteBody } from "../src/state/noteBodyStore";
 import type { NoteNode } from "../src/types/note";
 import { makeNote } from "./helpers/nodeFixtures";
 
@@ -69,6 +70,7 @@ function makeLedger(
     get ledger() {
       return hook.result.current;
     },
+    ds,
     getNoteUnified,
     getNoteBodyUnified,
     notes: () => notes,
@@ -479,5 +481,38 @@ describe("the password gate (#1763)", () => {
       makeNote("n1", { hasPassword: true }),
     ]);
     expect(merged[0]?.content).toBe("body of n1");
+  });
+});
+
+describe("useNoteHydrationLedger offline (#2334)", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    clearNoteBodies();
+  });
+
+  it("opens a stored body with no request", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    const h = makeLedger([makeNote("n1")]);
+    rememberNoteBody(h.ds, "n1", makeNote("n1").updatedAt, "stored body");
+    let opened = false;
+    await act(async () => {
+      opened = await h.ledger.hydrateContent("n1", { forOpen: true });
+    });
+    expect(opened).toBe(true);
+    expect(h.getNoteUnified).not.toHaveBeenCalled();
+    expect(h.ledger.isContentLoaded("n1")).toBe(true);
+    expect(h.notes()[0].content).toBe("stored body");
+  });
+
+  it("refuses to open a note with no stored body, so no editor opens empty", async () => {
+    vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+    const h = makeLedger([makeNote("n1")]);
+    let opened = true;
+    await act(async () => {
+      opened = await h.ledger.hydrateContent("n1", { forOpen: true });
+    });
+    expect(opened).toBe(false);
+    expect(h.getNoteUnified).not.toHaveBeenCalled();
+    expect(h.ledger.isContentLoaded("n1")).toBe(false);
   });
 });

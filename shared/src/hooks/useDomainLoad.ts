@@ -5,6 +5,7 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import {
   SyncContext,
@@ -12,6 +13,7 @@ import {
 } from "../context/SyncContextValue";
 import type { SyncDomain } from "../context/syncDomains";
 import type { DataService } from "../services/DataService";
+import { isOffline, subscribeConnectivity } from "../state/connectivity";
 import {
   dropDomainSnapshot,
   readDomainSnapshot,
@@ -195,6 +197,14 @@ interface SettledLoad {
  * The Sync state a read taken now would be filed under (#2328). Undefined when
  * the caller did not opt in or the Provider cannot say (a test stub).
  */
+/**
+ * How long a read owed from the offline time waits after the connection is back
+ * (#2334). SyncProvider's resume (#2329) moves `version` within its 300ms queue,
+ * which restarts the load, so that re-read is the one that runs. This covers a
+ * load with no such bump, and it is what keeps a reconnect to one read.
+ */
+export const OWED_READ_DELAY_MS = 500;
+
 function freshnessOf(
   sync: WebSyncContextValue | null,
   domains: readonly SyncDomain[] | undefined,
@@ -264,6 +274,18 @@ export function useDomainLoad<T>(
   const sync = useContext(SyncContext);
 
   /*
+   * OFFLINE (#2334, plan P1c step 4). No read starts, and no error is reported:
+   * a request that cannot arrive says nothing about the data, and what was stored
+   * stays on screen. `isLoading` and `error` below are derived from this, so the
+   * skeleton and the error card cannot appear for this reason. Nothing is written
+   * while offline, so the snapshot and its delta cursor (#2333) stay where the
+   * last real read left them, and the next read picks up from there.
+   */
+  const offline = useSyncExternalStore(subscribeConnectivity, isOffline);
+  /** A read was skipped for being offline, and is owed once the line is back. */
+  const owedRef = useRef(false);
+
+  /*
    * Decided once, at mount, like the snapshot itself: the (service, version,
    * anchor) whose read this mount may skip. Null means read as usual.
    */
@@ -326,7 +348,9 @@ export function useDomainLoad<T>(
     // below still runs and puts the real list on screen.
     try {
       latest.current.apply(snapshot.data);
-      if (skip !== null) latest.current.onFresh?.(snapshot.data);
+      // Offline no read will land either, and this is the list on screen.
+      if (skip !== null || isOffline())
+        latest.current.onFresh?.(snapshot.data);
     } catch (e) {
       logServiceError(latest.current.domain, "replay", e);
       const key = latest.current.snapshotKey;
@@ -335,6 +359,13 @@ export function useDomainLoad<T>(
   }, [snapshot, skip]);
 
   useEffect(() => {
+    if (offline) {
+      // A reconnect always reads: the allowance below describes the connection
+      // this mount started on, and the gap has outdated it.
+      owedRef.current = true;
+      skipRef.current = null;
+      return;
+    }
     // #2328: the one load this mount was allowed to skip. The ref keeps the
     // allowance through StrictMode's second run of the same effect, and the
     // first change of (service, version, anchor) spends it for good, so a
@@ -354,7 +385,9 @@ export function useDomainLoad<T>(
     // current when it may already be behind.
     const fresh = freshnessOf(syncRef.current, latest.current.skipWhenFresh);
     let cancelled = false;
-    void (async () => {
+    const owed = owedRef.current;
+    owedRef.current = false;
+    const read = async (): Promise<void> => {
       try {
         const { data, cursor } = await readDomain(
           latest.current,
@@ -382,18 +415,28 @@ export function useDomainLoad<T>(
         // claiming "no data yet" or the screen sits on a skeleton forever.
         if (!cancelled) setSettled({ dataService, version, anchor });
       }
-    })();
+    };
+    const delayed = owed
+      ? setTimeout(() => void read(), OWED_READ_DELAY_MS)
+      : null;
+    if (delayed === null) void read();
     return () => {
       cancelled = true;
+      if (delayed !== null) clearTimeout(delayed);
     };
-  }, [dataService, version, anchor]);
+  }, [dataService, version, anchor, offline]);
 
   const isLoading =
-    settled === null ||
-    (refetchReportsLoading &&
-      (settled.dataService !== dataService ||
-        settled.version !== version ||
-        settled.anchor !== anchor));
+    !offline &&
+    (settled === null ||
+      (refetchReportsLoading &&
+        (settled.dataService !== dataService ||
+          settled.version !== version ||
+          settled.anchor !== anchor)));
+  const shownError = offline ? null : error;
 
-  return useMemo(() => ({ isLoading, error, setError }), [isLoading, error]);
+  return useMemo(
+    () => ({ isLoading, error: shownError, setError }),
+    [isLoading, shownError],
+  );
 }
