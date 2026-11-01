@@ -194,10 +194,6 @@ interface SettledLoad {
 }
 
 /**
- * The Sync state a read taken now would be filed under (#2328). Undefined when
- * the caller did not opt in or the Provider cannot say (a test stub).
- */
-/**
  * How long a read owed from the offline time waits after the connection is back
  * (#2334). SyncProvider's resume (#2329) moves `version` within its 300ms queue,
  * which restarts the load, so that re-read is the one that runs. This covers a
@@ -205,6 +201,10 @@ interface SettledLoad {
  */
 export const OWED_READ_DELAY_MS = 500;
 
+/**
+ * The Sync state a read taken now would be filed under (#2328). Undefined when
+ * the caller did not opt in or the Provider cannot say (a test stub).
+ */
 function freshnessOf(
   sync: WebSyncContextValue | null,
   domains: readonly SyncDomain[] | undefined,

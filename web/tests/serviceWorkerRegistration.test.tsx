@@ -171,9 +171,64 @@ describe("a new version", () => {
     expect(reload).toHaveBeenCalledTimes(1);
   });
 
-  it("leaves this page alone when another tab applies the version", async () => {
+  it("offers a version that was installing before the page started listening", async () => {
+    const installing = worker("installing");
+    registration.installing = installing;
     await mounted();
-    container.dispatchEvent(new Event("controllerchange"));
-    expect(reload).not.toHaveBeenCalled();
+    expect(screen.queryByRole("status")).toBeNull();
+
+    registration.installing = null;
+    registration.waiting = installing;
+    installing.state = "installed";
+    act(() => {
+      installing.dispatchEvent(new Event("statechange"));
+    });
+    expect(screen.getByRole("status")).toBeTruthy();
+  });
+
+  it("takes the band down when the waiting version goes away", async () => {
+    const waiting = worker("installed");
+    registration.waiting = waiting;
+    await mounted();
+    expect(screen.getByRole("status")).toBeTruthy();
+
+    waiting.state = "redundant";
+    act(() => {
+      waiting.dispatchEvent(new Event("statechange"));
+    });
+    expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  describe("when another tab applies the version", () => {
+    it("does not reload by itself, and keeps a band that works", async () => {
+      const waiting = worker("installed");
+      registration.waiting = waiting;
+      await mounted();
+
+      waiting.state = "activated";
+      registration.waiting = null;
+      act(() => {
+        container.dispatchEvent(new Event("controllerchange"));
+      });
+      expect(reload).not.toHaveBeenCalled();
+
+      // No second controllerchange is coming, so the press has to reload itself.
+      fireEvent.click(screen.getByRole("button", { name: "appUpdate.reload" }));
+      expect(reload).toHaveBeenCalledTimes(1);
+      expect(waiting.postMessage).not.toHaveBeenCalled();
+    });
+
+    it("offers the reload to a page that had not seen the new version", async () => {
+      await mounted();
+      expect(screen.queryByRole("status")).toBeNull();
+
+      act(() => {
+        container.dispatchEvent(new Event("controllerchange"));
+      });
+      expect(reload).not.toHaveBeenCalled();
+      expect(screen.getByRole("status").textContent).toContain(
+        "appUpdate.message",
+      );
+    });
   });
 });

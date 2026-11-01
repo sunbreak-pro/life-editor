@@ -1,5 +1,8 @@
 import type { Session } from "@supabase/supabase-js";
-import { hasPersistedSnapshots } from "../state/persistentCache";
+import {
+  hasPersistedSnapshots,
+  OFFLINE_READ_TIMEOUT_MS,
+} from "../state/persistentCache";
 import { resolveAuthStorage } from "./supabaseAuthStorage";
 import { authStorageKey, getSupabaseClient } from "./supabaseClient";
 
@@ -24,8 +27,6 @@ import { authStorageKey, getSupabaseClient } from "./supabaseClient";
 /** How long the gate waits for `getSession()` before it looks at storage. */
 export const SESSION_GATE_OFFLINE_MS = 1_000;
 export const SESSION_GATE_ONLINE_MS = 8_000;
-/** How long "is anything stored for this user" may take. */
-const DATA_CHECK_TIMEOUT_MS = 1_000;
 
 export interface SessionRead {
   session: Session | null;
@@ -85,7 +86,7 @@ export async function readStoredOwnerId(): Promise<string | null> {
 async function hasStoredData(userId: string): Promise<boolean> {
   let timer: ReturnType<typeof setTimeout> | null = null;
   const timeout = new Promise<boolean>((resolve) => {
-    timer = setTimeout(() => resolve(false), DATA_CHECK_TIMEOUT_MS);
+    timer = setTimeout(() => resolve(false), OFFLINE_READ_TIMEOUT_MS);
   });
   try {
     return await Promise.race([hasPersistedSnapshots(userId), timeout]);

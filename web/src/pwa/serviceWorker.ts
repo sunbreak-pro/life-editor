@@ -10,8 +10,10 @@ import { isNativeMobile } from "@life-editor/shared";
  *
  * WHEN A NEW VERSION IS FOUND it waits (`registerType: "prompt"`) and the app
  * shows a band. Only the press applies it, so nothing reloads under someone's
- * typing. A tab that did not press keeps running on the files it has, even when
- * another tab's press activates the new worker.
+ * typing. A press in another tab activates the new worker for this page too, and
+ * that worker drops the old hashed files from the device, so a lazy screen this
+ * page has not opened yet can no longer load. This page still does not reload by
+ * itself: the band stays up, and its press has only the reload left to do.
  */
 
 const SW_URL = "/sw.js";
@@ -19,12 +21,20 @@ const SW_URL = "/sw.js";
 const UPDATE_CHECK_MS = 60 * 60 * 1000;
 
 let waiting: ServiceWorker | null = null;
+/** Another tab's press activated a newer version under this page. */
+let replaced = false;
+/** This page's own press is waiting for the new worker to take over. */
+let applying = false;
 const listeners = new Set<() => void>();
+
+function notify(): void {
+  for (const listener of listeners) listener();
+}
 
 function setWaiting(next: ServiceWorker | null): void {
   if (waiting === next) return;
   waiting = next;
-  for (const listener of listeners) listener();
+  notify();
 }
 
 export function subscribeAppUpdate(onChange: () => void): () => void {
@@ -33,17 +43,17 @@ export function subscribeAppUpdate(onChange: () => void): () => void {
 }
 
 export function isAppUpdateWaiting(): boolean {
-  return waiting !== null;
+  return waiting !== null || replaced;
 }
 
 /** Hand over to the waiting version. The page reloads once it has taken over. */
 export function applyAppUpdate(): void {
+  if (replaced) {
+    window.location.reload();
+    return;
+  }
   if (waiting === null) return;
-  navigator.serviceWorker.addEventListener(
-    "controllerchange",
-    () => window.location.reload(),
-    { once: true },
-  );
+  applying = true;
   waiting.postMessage({ type: "SKIP_WAITING" });
 }
 
@@ -65,16 +75,34 @@ export function shouldRegisterServiceWorker(isProduction: boolean): boolean {
 function watch(registration: ServiceWorkerRegistration): void {
   // With no controller this is the first install, and there is nothing to replace.
   const offer = (): void => {
-    if (registration.waiting && navigator.serviceWorker.controller) {
-      setWaiting(registration.waiting);
-    }
+    const found = registration.waiting;
+    if (found === null || !navigator.serviceWorker.controller) return;
+    // Replaced by a newer build, or the worker was removed: nothing to apply.
+    found.addEventListener("statechange", () => {
+      if (found.state === "redundant" && waiting === found) setWaiting(null);
+    });
+    setWaiting(found);
+  };
+  const track = (worker: ServiceWorker | null): void => {
+    worker?.addEventListener("statechange", () => {
+      if (worker.state === "installed") offer();
+    });
   };
   offer();
-  registration.addEventListener("updatefound", () => {
-    const installing = registration.installing;
-    installing?.addEventListener("statechange", () => {
-      if (installing.state === "installed") offer();
-    });
+  // The update check a page load starts can be running before this listens.
+  track(registration.installing);
+  registration.addEventListener("updatefound", () =>
+    track(registration.installing),
+  );
+
+  navigator.serviceWorker.addEventListener("controllerchange", () => {
+    if (applying) {
+      window.location.reload();
+      return;
+    }
+    waiting = null;
+    replaced = true;
+    notify();
   });
 
   let lastCheck = Date.now();

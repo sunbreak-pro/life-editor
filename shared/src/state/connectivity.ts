@@ -15,9 +15,13 @@
 let sessionUnreachable = false;
 const listeners = new Set<() => void>();
 
-export function isOffline(): boolean {
-  if (sessionUnreachable) return true;
+/** The browser's own reading, without the session gate's finding. */
+export function isBrowserOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
+}
+
+export function isOffline(): boolean {
+  return sessionUnreachable || isBrowserOffline();
 }
 
 export function setSessionUnreachable(next: boolean): void {

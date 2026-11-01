@@ -33,8 +33,9 @@
  *
  * PINNED NOTES ON THE DEVICE (#2334, plan 2026-10-21-offline-cache.md P1c step
  * 5). What the user pinned must be readable offline, so `syncPinnedNoteBodies`
- * reads those bodies while connected and keeps them in the user's IndexedDB
- * database (`persistentCache.ts`), up to `PINNED_BODY_LIMIT` notes or
+ * reads those bodies while connected (from every Notes list read, and from
+ * `PinnedNotesReadAhead` when the Notes tab is never opened) and keeps them in the
+ * user's IndexedDB database (`persistentCache.ts`), up to `PINNED_BODY_LIMIT` notes or
  * `PINNED_BODY_BYTE_LIMIT`. They follow the snapshot rules: per user, matched on
  * the OWNER instead of on identity, gone at sign-out with the database, emptied
  * when `CACHE_SCHEMA_VERSION` moves. `readNoteBody` serves them under the same
@@ -45,6 +46,7 @@
 import {
   deletePersistedNoteBodies,
   readPersistedNoteBodies,
+  readPersistedNoteBodyIds,
   writePersistedNoteBody,
   type PersistedNoteBody,
 } from "./persistentCache";
@@ -76,6 +78,14 @@ const bodies = new Map<string, CachedNoteBody>();
 let deviceOwner: string | null = null;
 /** That user's stored bodies, loaded into memory: a read here is synchronous. */
 const deviceBodies = new Map<string, PersistedNoteBody>();
+let running: Promise<void> | null = null;
+let queued: { rows: readonly PinnableNote[]; readFull: NoteFullRead } | null =
+  null;
+/**
+ * Ids forgotten while a sync runs. A read already in flight for one of them holds
+ * what the note said before it was locked or purged, and must not be stored.
+ */
+const forgottenDuringSync = new Set<string>();
 
 /**
  * The cached body for `id`, or null when there is none for this
@@ -136,8 +146,12 @@ export function rememberNoteBody(
  */
 export function forgetNoteBody(id: string): void {
   bodies.delete(id);
-  if (!deviceBodies.delete(id) || deviceOwner === null) return;
-  void deletePersistedNoteBodies(deviceOwner, [id]).catch(warn);
+  deviceBodies.delete(id);
+  if (running !== null) forgottenDuringSync.add(id);
+  // Whether or not memory has it: a hydrate that failed leaves rows only memory
+  // does not know about, and a password must not leave a copy behind.
+  if (deviceOwner !== null)
+    void deletePersistedNoteBodies(deviceOwner, [id]).catch(warn);
 }
 
 /** Drop every cached body. Primarily for test isolation (beforeEach). */
@@ -217,21 +231,30 @@ async function syncOnce(
     .slice(0, PINNED_BODY_LIMIT);
   const stampOf = new Map(wanted.map((n) => [n.id, n.updatedAt]));
 
-  // Unpinned, locked, deleted, pushed past the limit, or written since.
+  // Unpinned, locked, deleted, pushed past the limit, or written since. Asks the
+  // database as well as memory: a failed hydrate leaves rows only the database
+  // has. One of those that is still wanted is overwritten by the loop below.
+  const onDisk = await readPersistedNoteBodyIds(userId);
+  if (deviceOwner !== userId) return;
   await dropStored(
     userId,
-    [...deviceBodies.values()]
-      .filter((b) => stampOf.get(b.id) !== b.updatedAt)
-      .map((b) => b.id),
+    [...new Set([...deviceBodies.keys(), ...onDisk])].filter((id) => {
+      const held = deviceBodies.get(id);
+      return held === undefined
+        ? !stampOf.has(id)
+        : stampOf.get(id) !== held.updatedAt;
+    }),
   );
 
   // Newest first, so when the bytes run out it is the oldest that goes without.
   for (const [index, note] of wanted.entries()) {
     if (deviceOwner !== userId) return;
     if (deviceBodies.has(note.id)) continue;
+    forgottenDuringSync.delete(note.id);
     const full = await readFull(note.id);
     if (full === null || full.hasPassword === true) continue;
     if (deviceOwner !== userId) return;
+    if (forgottenDuringSync.has(note.id)) continue;
 
     let total = byteSize(full.content);
     for (const stored of deviceBodies.values()) total += byteSize(stored.content);
@@ -255,13 +278,11 @@ async function syncOnce(
     };
     await writePersistedNoteBody(userId, body);
     if (deviceOwner !== userId) return;
+    // Its delete was queued behind this write, so memory is all that is left.
+    if (forgottenDuringSync.has(note.id)) continue;
     deviceBodies.set(note.id, body);
   }
 }
-
-let running: Promise<void> | null = null;
-let queued: { rows: readonly PinnableNote[]; readFull: NoteFullRead } | null =
-  null;
 
 /**
  * Bring the stored bodies in line with a list just read from the server. Only
@@ -284,6 +305,7 @@ export function syncPinnedNoteBodies(
     .catch(warn)
     .finally(() => {
       running = null;
+      forgottenDuringSync.clear();
     });
   return running;
 }

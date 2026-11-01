@@ -170,11 +170,24 @@ describe("readOfflineEntry", () => {
 
 describe("signOut with no connection", () => {
   it("makes no attempt and keeps the session's lists", async () => {
-    setSessionUnreachable(true);
+    const onLine = vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
     const { error } = await signOut();
+    onLine.mockRestore();
     expect(error).not.toBeNull();
     expect(client.auth.signOut).not.toHaveBeenCalled();
     expect(forget).not.toHaveBeenCalled();
+  });
+
+  it("tries when only the session gate says unreachable, since the network may be back", async () => {
+    setSessionUnreachable(true);
+    client.auth.getSession.mockResolvedValue({
+      data: { session: stored("u") },
+      error: null,
+    });
+    client.auth.signOut.mockResolvedValue({ error: null });
+    expect((await signOut()).error).toBeNull();
+    expect(client.auth.signOut).toHaveBeenCalledTimes(1);
+    expect(forget).toHaveBeenCalledWith("u");
   });
 
   it("keeps the lists when the server call fails", async () => {

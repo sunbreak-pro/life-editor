@@ -36,13 +36,26 @@ import type { ChangeCursor } from "../services/itemChanges";
 export const CACHE_SCHEMA_VERSION = 2;
 
 const DB_PREFIX = "life-editor-cache:";
-/** The IndexedDB version: the object stores below, not the data's shape. */
+/**
+ * The IndexedDB version: the object stores below, not the data's shape. A tab
+ * still running an older build closes its connection when a newer one opens this
+ * (`onversionchange`), then fails to reopen with a VersionError. That tab loses
+ * its stored writes until it reloads, and the update band is already asking it to.
+ */
 const IDB_VERSION = 2;
 const META_STORE = "meta";
 const SNAPSHOT_STORE = "snapshots";
 /** Pinned notes' bodies (#2334, `noteBodyStore.ts`). */
 const NOTE_BODY_STORE = "noteBodies";
 const SCHEMA_KEY = "schemaVersion";
+
+/**
+ * How long a read of this database may take while offline (#2334). Online a slow
+ * one is covered by the network read that follows. Offline this is the only
+ * source, and giving up shows empty lists or the sign-in screen, so it gets far
+ * longer than the online limit. A cold open on a phone has not been measured.
+ */
+export const OFFLINE_READ_TIMEOUT_MS = 5_000;
 
 /** One stored slot. `key` is a `DomainSnapshotKey`. */
 export interface PersistedSnapshot {
@@ -194,6 +207,16 @@ export async function readPersistedNoteBodies(
   const tx = db.transaction(NOTE_BODY_STORE, "readonly");
   const rows = await settle(tx.objectStore(NOTE_BODY_STORE).getAll());
   return rows as PersistedNoteBody[];
+}
+
+/** The ids stored, without their bodies: a sync's clean-up needs no more. */
+export async function readPersistedNoteBodyIds(
+  userId: string,
+): Promise<string[]> {
+  const db = await open(userId);
+  const tx = db.transaction(NOTE_BODY_STORE, "readonly");
+  const keys = await settle(tx.objectStore(NOTE_BODY_STORE).getAllKeys());
+  return keys as string[];
 }
 
 export async function writePersistedNoteBody(

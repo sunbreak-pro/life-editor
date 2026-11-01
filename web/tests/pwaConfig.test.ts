@@ -53,6 +53,21 @@ describe("the Service Worker build", () => {
   });
 });
 
+describe("the web build", () => {
+  it("runs these options through the plugin", () => {
+    expect(read("vite.config.ts")).toMatch(/\bVitePWA\(pwaOptions\)/);
+  });
+
+  it("is checked before it deploys: the worker exists and lists every chunk", () => {
+    const deploy = readFileSync(
+      resolve(webRoot, "../.github/workflows/deploy-web.yml"),
+      "utf8",
+    );
+    expect(deploy).toContain("test -f web/dist/sw.js");
+    expect(deploy).toContain('grep -qF "assets/$(basename "$chunk")" web/dist/sw.js');
+  });
+});
+
 describe("what the shells build", () => {
   it("keeps the plugin's virtual module out of the bundle Desktop builds too", () => {
     const uses = sourceFiles(join(webRoot, "src")).filter((path) =>

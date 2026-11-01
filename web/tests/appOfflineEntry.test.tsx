@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
   listener: null as ((event: string, s: Session | null) => void) | null,
   unreachable: false,
   forget: vi.fn(),
+  hydrateLimits: [] as (number | undefined)[],
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
@@ -39,7 +40,9 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
     h.listener = cb;
     return { unsubscribe: () => {} };
   },
-  hydrateDomainSnapshots: async () => {},
+  hydrateDomainSnapshots: async (_userId: string, limit?: number) => {
+    h.hydrateLimits.push(limit);
+  },
   forgetDomainSnapshots: async (userId: string) => h.forget(userId),
   requestPersistentStorage: async () => {},
   UnsavedGuardProvider: ({ children }: { children?: React.ReactNode }) => (
@@ -64,7 +67,7 @@ vi.mock("../src/components/AppUpdateBanner", () => ({
 }));
 
 const App = (await import("../src/App")).default;
-const { SESSION_GATE_OFFLINE_MS, SESSION_GATE_ONLINE_MS } =
+const { OFFLINE_READ_TIMEOUT_MS, SESSION_GATE_OFFLINE_MS, SESSION_GATE_ONLINE_MS } =
   await vi.importActual<typeof import("@life-editor/shared")>(
     "@life-editor/shared",
   );
@@ -99,6 +102,7 @@ describe("App — opening with no network (#2334)", () => {
     h.listener = null;
     h.unreachable = false;
     h.forget.mockClear();
+    h.hydrateLimits = [];
   });
 
   afterEach(() => {
@@ -136,6 +140,49 @@ describe("App — opening with no network (#2334)", () => {
     await flush(SESSION_GATE_OFFLINE_MS);
     expect(screen.getByTestId("auth")).toBeTruthy();
     expect(h.unreachable).toBe(false);
+  });
+
+  it("looks at storage again while offline, when the first look found nothing", async () => {
+    setOnline(false);
+    render(<App />);
+    await flush(SESSION_GATE_OFFLINE_MS);
+    expect(screen.getByTestId("auth")).toBeTruthy();
+
+    // The check ran out of time on a cold database, which has opened by now. The
+    // first getSession is still out, so only this retry can bring the app up.
+    h.entry = STORED;
+    await flush(30_000);
+    expect(screen.getByTestId("main")).toBeTruthy();
+    expect(h.unreachable).toBe(true);
+  });
+
+  it("does not look again once the app is open, so a slow check cannot close it", async () => {
+    setOnline(false);
+    h.entry = STORED;
+    render(<App />);
+    await answer(UNREACHABLE);
+    await flush();
+    expect(h.entryArgs).toHaveLength(1);
+
+    h.entry = null;
+    await flush(30_000);
+    expect(h.entryArgs).toHaveLength(1);
+    expect(screen.getByTestId("main")).toBeTruthy();
+  });
+
+  it("waits longer for the stored lists offline, since no read follows", async () => {
+    setOnline(false);
+    h.entry = STORED;
+    render(<App />);
+    await flush(SESSION_GATE_OFFLINE_MS);
+    expect(h.hydrateLimits).toEqual([OFFLINE_READ_TIMEOUT_MS]);
+  });
+
+  it("keeps the short wait online, where a read covers a miss", async () => {
+    setOnline(true);
+    render(<App />);
+    await answer({ session: LIVE, unreachable: false });
+    expect(h.hydrateLimits).toEqual([undefined]);
   });
 
   it("gives a slow online start longer before it looks at storage", async () => {

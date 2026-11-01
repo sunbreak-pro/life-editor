@@ -593,7 +593,7 @@
         "itemLink": "Link to an item"
       },
       "mainEmpty": "Select a note or create a new one",
-      "offlineEmpty": "Only pinned notes can be opened offline, and none are pinned.",
+      "offlineEmpty": "Only pinned notes saved on this device can be opened offline. There are none here yet.",
       "recentHeading": "Recently opened",
       "untagged": "No tag",
       "collapseGroup": "Collapse group",
@@ -1354,6 +1354,7 @@
     "launchClaude": "Start Claude Code",
     "profile": "Edit profile",
     "signOutPrompt": "Sign out?",
+    "signOutFailed": "Could not sign out, so this device is still signed in. Check the connection and try again.",
     "signOutPromptPending": "Todos waiting to be sent: {{n}}. They stay on this device and are sent when this account signs in again. Another account cannot see them. Sign out?"
   },
   "appUpdate": {

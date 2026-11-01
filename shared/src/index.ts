@@ -240,7 +240,11 @@ export {
   setSessionUnreachable,
   subscribeConnectivity,
 } from "./state/connectivity";
-export { requestPersistentStorage } from "./state/persistentCache";
+export {
+  OFFLINE_READ_TIMEOUT_MS,
+  requestPersistentStorage,
+} from "./state/persistentCache";
+export { PinnedNotesReadAhead } from "./components/PinnedNotesReadAhead";
 export {
   readOfflineEntry,
   readSession,

@@ -3,6 +3,7 @@ import {
   forgetDomainSnapshots,
   hydrateDomainSnapshots,
   isOffline,
+  OFFLINE_READ_TIMEOUT_MS,
   onAuthStateChange,
   readOfflineEntry,
   readSession,
@@ -103,6 +104,9 @@ function App() {
    * snapshot store synchronously (useDomainLoad), so the load has to be done
    * by then or the reload draws skeletons as before. It gives up after
    * 300ms (HYDRATE_TIMEOUT_MS), so a slow IndexedDB costs at most that.
+   * Offline (#2334) it gets OFFLINE_READ_TIMEOUT_MS: no read follows to cover a
+   * miss, and a domain looks up its snapshot only once, so giving up early would
+   * leave its list empty until the line is back.
    * A session without a user id (test doubles) skips it.
    */
   const userId = session?.user?.id ?? null;
@@ -115,7 +119,10 @@ function App() {
     lastUserIdRef.current = userId;
     void requestPersistentStorage();
     let active = true;
-    void hydrateDomainSnapshots(userId).then(() => {
+    void hydrateDomainSnapshots(
+      userId,
+      isOffline() ? OFFLINE_READ_TIMEOUT_MS : undefined,
+    ).then(() => {
       if (active) setHydratedFor(userId);
     });
     return () => {
@@ -132,6 +139,8 @@ function App() {
      */
     let signOuts = 0;
     let liveSession = false;
+    /** MainScreen is open on the stored session, and a look at storage is done. */
+    let offlineEntered = false;
     let retry: ReturnType<typeof setTimeout> | null = null;
 
     const clearRecovery = (): void => {
@@ -140,15 +149,23 @@ function App() {
     };
 
     const enterOffline = async (): Promise<void> => {
+      // A second look could only say less: one slow check must not sign the
+      // user out of the screen they are reading.
+      if (offlineEntered) return;
       const startedAt = signOuts;
       // The reset card reads no stored data, so a pending reset needs none.
       const entry = await readOfflineEntry(!readRecoveryMark());
       if (!active || startedAt !== signOuts) return;
       setReady(true);
       if (liveSession) return;
+      offlineEntered = entry !== null;
       setSessionUnreachable(entry !== null);
       // With no session stored, a recovery mark has nothing behind it either.
-      if (entry === null) clearRecovery();
+      if (entry === null) {
+        clearRecovery();
+        // The check may only have run out of time, so it gets another turn.
+        scheduleRetry();
+      }
       setSession(entry);
     };
 
@@ -164,6 +181,7 @@ function App() {
         return;
       }
       liveSession = read.session !== null;
+      offlineEntered = false;
       setSessionUnreachable(false);
       if (!read.session) clearRecovery();
       setSession(read.session);
@@ -173,11 +191,13 @@ function App() {
     /** Offline there is nothing to ask: `online` below starts the next try. */
     let asking = false;
     const ask = async (): Promise<void> => {
-      if (asking) return;
       if (navigator.onLine === false) {
+        // Storage does not need the first read to finish, which can take 50s.
+        if (signOuts === 0 && !liveSession) void enterOffline();
         scheduleRetry();
         return;
       }
+      if (asking) return;
       asking = true;
       const startedAt = signOuts;
       const read = await readSession();
@@ -216,6 +236,7 @@ function App() {
       setSession(s);
       if (s) {
         liveSession = true;
+        offlineEntered = false;
         setSessionUnreachable(false);
       }
       if (event === "PASSWORD_RECOVERY") {
@@ -227,6 +248,7 @@ function App() {
       if (event === "SIGNED_OUT") {
         signOuts += 1;
         liveSession = false;
+        offlineEntered = false;
         setSessionUnreachable(false);
         clearRecovery();
         // #2331: a sign-out from anywhere (another tab, an expired refresh

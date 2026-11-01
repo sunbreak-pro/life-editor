@@ -19,6 +19,7 @@ import {
 import {
   cacheDbName,
   readPersistedNoteBodies,
+  writePersistedNoteBody,
 } from "../src/state/persistentCache";
 
 /*
@@ -215,6 +216,64 @@ describe("pinned bodies on the device (#2334)", () => {
     expect(readNoteBody(ds, "mine", T1)).toBeNull();
     expect(await readPersistedNoteBodies(OTHER)).toEqual([]);
     expect(cacheDbName(USER)).not.toBe(cacheDbName(OTHER));
+  });
+
+  it("does not serve one user's bodies once another's are loaded", async () => {
+    await syncPinnedNoteBodies([pinned("mine")], reader());
+    expect(readNoteBody(ds, "mine", T1)).toBe("body of mine");
+    // No clearNoteBodies here: this guard is all that stands between the two.
+    await hydrateDomainSnapshots(OTHER);
+    expect(readNoteBody(ds, "mine", T1)).toBeNull();
+  });
+
+  it("keeps the bodies when another user's sign-out comes through", async () => {
+    await syncPinnedNoteBodies([pinned("mine")], reader());
+    await forgetDomainSnapshots(OTHER);
+    expect(readNoteBody(ds, "mine", T1)).toBe("body of mine");
+  });
+
+  it("does not store a body read before the note gained a password", async () => {
+    const noop = () => {};
+    let finish: (v: { content: string; updatedAt: string }) => void = noop;
+    const run = syncPinnedNoteBodies(
+      [pinned("n1")],
+      vi.fn<NoteFullRead>(
+        () =>
+          new Promise((resolve) => {
+            finish = resolve;
+          }),
+      ),
+    );
+    await vi.waitFor(() => expect(finish).not.toBe(noop));
+    forgetNoteBody("n1");
+    finish({ content: "before the lock", updatedAt: T1 });
+    await run;
+    expect(await readPersistedNoteBodies(USER)).toEqual([]);
+    expect(readNoteBody(ds, "n1", T1)).toBeNull();
+  });
+
+  it("deletes the stored copy of a forgotten note memory does not hold", async () => {
+    await writePersistedNoteBody(USER, {
+      id: "n1",
+      updatedAt: T1,
+      content: "only on disk",
+    });
+    forgetNoteBody("n1");
+    await vi.waitFor(async () =>
+      expect(await readPersistedNoteBodies(USER)).toEqual([]),
+    );
+  });
+
+  it("drops stored rows memory never loaded, as after a failed hydrate", async () => {
+    await writePersistedNoteBody(USER, {
+      id: "unpinned-since",
+      updatedAt: T1,
+      content: "only on disk",
+    });
+    await syncPinnedNoteBodies([pinned("n1")], reader());
+    expect((await readPersistedNoteBodies(USER)).map((b) => b.id)).toEqual([
+      "n1",
+    ]);
   });
 
   it("removes the user's bodies at sign-out", async () => {
