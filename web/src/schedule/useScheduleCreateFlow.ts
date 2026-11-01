@@ -9,9 +9,14 @@ import {
   type TodoNodeType,
   type UpdateNodeOptions,
 } from "@life-editor/shared";
-import { timedPlacement, placeTodoWrite } from "./todoChipUndoWiring";
+import {
+  allDayPlacement,
+  timedPlacement,
+  placeTodoWrite,
+} from "./todoChipUndoWiring";
 import type { ScheduleCreatePanel } from "./useScheduleOverlays";
 import type { CreateCompanion } from "./useScheduleMutations";
+import type { ConvertSavedToRepeat } from "./useRepeatMutations";
 import { selectionSurface } from "./scheduleSelectionSurface";
 
 /*
@@ -27,7 +32,8 @@ import { selectionSurface } from "./scheduleSelectionSurface";
  * Three of the nine never leave this file: `openCreatePanel`,
  * `finishCreatePanel` and `scheduleTodoAt` had no call site outside the block
  * even while it lived in CalendarTab, so the hook returns the seven the JSX
- * actually asks for and keeps the rest private.
+ * actually asks for and keeps the rest private. (#2406 added two committers,
+ * the todo tab's "and open" twins, which go through the same close.)
  *
  * None of this was reachable from a test before. CalendarTab needs the whole
  * Provider chain plus real layout to render (rules/frontend.md §テスト環境の制約,
@@ -68,12 +74,13 @@ export interface UseScheduleCreateFlowArgs {
     onSaved?: (saved: ScheduleItem | null) => void,
     alongside?: CreateCompanion,
   ) => string;
+  /** Returns the optimistic node — #2406's "and open" reads its id. */
   addNode: (
     type: TodoNodeType,
     parentId: string | null,
     title: string,
     options?: AddNodeOptions,
-  ) => void;
+  ) => TodoNode;
   updateNode: (
     id: string,
     updates: Partial<TodoNode>,
@@ -99,9 +106,20 @@ export interface UseScheduleCreateFlowArgs {
     take: () => string[] | null;
     apply: (itemId: string, tagIds: readonly string[]) => void;
   };
+  /**
+   * #2406: opens a todo's detail panel — the todo tab's "and open" twins land
+   * there. Omitted, those two handlers still write and just open nothing.
+   */
+  openTodoDetail?: (todoId: string) => void;
+  /**
+   * #2406: turns the saved row into a series when the panel picked a repeat
+   * (useRepeatEditorMutations.convertSavedToRepeat). Omitted, a picked repeat
+   * is dropped and the event is created on its own.
+   */
+  convertToRepeat?: ConvertSavedToRepeat;
 }
 
-/** The seven handlers the JSX asks for. The other three stay private. */
+/** The handlers the JSX asks for. The other three stay private. */
 export interface ScheduleCreateFlowApi {
   handleToolbarAdd: () => void;
   handleGridCreateAt: (dateISO: string, minutes: number) => void;
@@ -126,6 +144,17 @@ export interface ScheduleCreateFlowApi {
     slot: ItemCreateSlot,
     note: ItemCreateNoteDraft | null,
   ) => void;
+  /** #2406: the todo tab's "and open" twins of the two above. */
+  handleCreateTodoSubmitAndOpen: (
+    title: string,
+    slot: ItemCreateSlot,
+    note: ItemCreateNoteDraft | null,
+  ) => void;
+  handlePlaceTodoSubmitAndOpen: (
+    todoId: string,
+    slot: ItemCreateSlot,
+    note: ItemCreateNoteDraft | null,
+  ) => void;
 }
 
 export function useScheduleCreateFlow({
@@ -144,6 +173,8 @@ export function useScheduleCreateFlow({
   onAttachError,
   clearTagLens,
   tags,
+  openTodoDetail,
+  convertToRepeat,
 }: UseScheduleCreateFlowArgs): ScheduleCreateFlowApi {
   // #299 open the creation panel prefilled for a target day + time window.
   const openCreatePanel = useCallback(
@@ -206,18 +237,45 @@ export function useScheduleCreateFlow({
     (
       note: ItemCreateNoteDraft | null,
       tagIds: readonly string[] | null = null,
+      repeat: ItemCreateSlot["repeat"] = undefined,
     ): CreateCompanion | undefined => {
       // #2220: the staged tags ride the same companion — it is the one call
       // that runs once the row exists. They take no part in the create's
       // undo: undoing it trashes the event, and its tags with it.
       const withTags = tagIds != null && tagIds.length > 0;
-      if (!note && !withTags) return undefined;
+      // #2406: so does the picked repeat, and its reversal joins the create's
+      // one undo command — see convertSavedToRepeat for why it is not an
+      // entry of its own.
+      const toRepeat =
+        repeat && convertToRepeat
+          ? (saved: ScheduleItem) => convertToRepeat(saved, repeat)
+          : null;
+      if (!note && !withTags && !toRepeat) return undefined;
       return async (saved) => {
         if (withTags) tags?.apply(saved.id, tagIds);
-        return note ? attachNoteAlongside(saved.id, note) : null;
+        // A note that threw counts as one that did not land — what the
+        // create did with a rejected companion — so the repeat still runs.
+        const noteReversal = note
+          ? await attachNoteAlongside(saved.id, note).catch(() => null)
+          : null;
+        const repeatReversal = toRepeat ? await toRepeat(saved) : null;
+        if (!noteReversal || !repeatReversal)
+          return noteReversal ?? repeatReversal;
+        // Last on, first off: the series goes before the note on the way
+        // back, and comes after it on the way forward.
+        return {
+          undo: async () => {
+            await repeatReversal.undo();
+            await noteReversal.undo();
+          },
+          redo: async () => {
+            await noteReversal.redo();
+            await repeatReversal.redo();
+          },
+        };
       };
     },
-    [attachNoteAlongside, tags],
+    [attachNoteAlongside, tags, convertToRepeat],
   );
 
   // #299 create-panel submit: the panel carries the target day; the fields hand
@@ -238,7 +296,7 @@ export function useScheduleCreateFlow({
         slot,
         title,
         undefined,
-        noteAlongside(note, tags?.take() ?? null),
+        noteAlongside(note, tags?.take() ?? null, slot.repeat),
       );
       finishCreatePanel();
       // Desktop: select without opening anything — a quiet "here it is" that
@@ -272,7 +330,7 @@ export function useScheduleCreateFlow({
         slot,
         title,
         undefined,
-        noteAlongside(note, tags?.take() ?? null),
+        noteAlongside(note, tags?.take() ?? null, slot.repeat),
       );
       // Clears the lens too: the overlay hides the grid at first, but closing
       // it would otherwise drop the user back on a grid that does not draw the
@@ -304,23 +362,33 @@ export function useScheduleCreateFlow({
   // field is what the user last said, and the gesture that opened it is only
   // the seed. `createPanel` still gates the call — a submit with the panel
   // closed is not a thing — but it no longer decides the day.
+  //
+  // #2406: the todo tab has the all-day check now. An all-day todo is written
+  // in the tray's staging shape (allDayPlacement) — the day with no time.
   const scheduleTodoAt = useCallback(
     (slot: ItemCreateSlot) => {
       if (!createPanel) return null;
-      return timedPlacement(slot.date, slot.start, slot.end);
+      return slot.isAllDay
+        ? allDayPlacement(slot.date)
+        : timedPlacement(slot.date, slot.start, slot.end);
     },
     [createPanel],
   );
 
-  const handleCreateTodoSubmit = useCallback(
-    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+  /** The todo create both buttons share; returns the new node, or null. */
+  const createTodo = useCallback(
+    (
+      title: string,
+      slot: ItemCreateSlot,
+      note: ItemCreateNoteDraft | null,
+    ): TodoNode | null => {
       const placement = scheduleTodoAt(slot);
-      if (!placement) return;
+      if (!placement) return null;
       const tagIds = tags?.take() ?? null;
       // Root-level todo (parentId null), matching every other "quick create"
       // entry — the panel carries no place-in-the-tree control, and the Todos
       // section is where re-parenting belongs.
-      addNode("task", null, title, {
+      const node = addNode("task", null, title, {
         ...placement,
         // Same ordering rule as the event path: the node is optimistic until
         // the tree sync lands, and the guard in useTodoTreeAPI can drop the
@@ -333,6 +401,7 @@ export function useScheduleCreateFlow({
         },
       });
       finishCreatePanel();
+      return node;
     },
     [
       scheduleTodoAt,
@@ -344,13 +413,32 @@ export function useScheduleCreateFlow({
     ],
   );
 
-  const handlePlaceTodoSubmit = useCallback(
+  const handleCreateTodoSubmit = useCallback(
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+      createTodo(title, slot, note);
+    },
+    [createTodo],
+  );
+
+  // #2406: the todo tab's "and open" — the same create, then the todo's
+  // detail panel, by the optimistic id (the TodoAddDialog does the same:
+  // useTodoAddDialog). The panel reads the tree, which already holds the node.
+  const handleCreateTodoSubmitAndOpen = useCallback(
+    (title: string, slot: ItemCreateSlot, note: ItemCreateNoteDraft | null) => {
+      const node = createTodo(title, slot, note);
+      if (node) openTodoDetail?.(node.id);
+    },
+    [createTodo, openTodoDetail],
+  );
+
+  /** The placement both buttons share; false when the panel was closed. */
+  const placeTodo = useCallback(
     (
       todoId: string,
       slot: ItemCreateSlot,
       note: ItemCreateNoteDraft | null,
-    ) => {
-      if (!createPanel) return;
+    ): boolean => {
+      if (!createPanel) return false;
       // Undoable only when no note rides along (#569): a note attaches a
       // separate link row this panel has no un-write for, and an undo that
       // moved the todo back while leaving the note on it would be a half
@@ -360,6 +448,7 @@ export function useScheduleCreateFlow({
         slot.start,
         slot.end,
         note != null,
+        slot.isAllDay,
       );
       updateNode(todoId, patch, options);
       // No onSaved wait here, unlike the create paths: this todo was picked
@@ -371,8 +460,32 @@ export function useScheduleCreateFlow({
       const tagIds = tags?.take() ?? null;
       if (tagIds) tags?.apply(todoId, tagIds);
       finishCreatePanel();
+      return true;
     },
     [createPanel, updateNode, attachNote, finishCreatePanel, tags],
+  );
+
+  const handlePlaceTodoSubmit = useCallback(
+    (
+      todoId: string,
+      slot: ItemCreateSlot,
+      note: ItemCreateNoteDraft | null,
+    ) => {
+      placeTodo(todoId, slot, note);
+    },
+    [placeTodo],
+  );
+
+  // #2406: place the picked todo, then open its detail panel.
+  const handlePlaceTodoSubmitAndOpen = useCallback(
+    (
+      todoId: string,
+      slot: ItemCreateSlot,
+      note: ItemCreateNoteDraft | null,
+    ) => {
+      if (placeTodo(todoId, slot, note)) openTodoDetail?.(todoId);
+    },
+    [placeTodo, openTodoDetail],
   );
 
   return {
@@ -383,5 +496,7 @@ export function useScheduleCreateFlow({
     handleCreateSubmitAndOpen,
     handleCreateTodoSubmit,
     handlePlaceTodoSubmit,
+    handleCreateTodoSubmitAndOpen,
+    handlePlaceTodoSubmitAndOpen,
   };
 }

@@ -6,25 +6,21 @@ import { render, screen, fireEvent } from "@testing-library/react";
 import { TAG_ICON_CHOICES, TagIconPicker } from "../src/components";
 
 /*
- * #1289 — opening the tag icon picker broke the row and the popover's surface
- * read as transparent.
+ * #1289 / #552 / #1366 guarded the old popover: an absolutely positioned box
+ * that shrink-to-fit into its 32px trigger and read as transparent. #2389
+ * replaced that box with a one-row strip and a Modal panel in the middle of the
+ * screen, so what is left to pin is the new pair's surface:
  *
- * The surface was never a missing token. The popover is ABSOLUTELY positioned,
- * so its containing block is the 32px trigger button, and an auto width there
- * shrink-to-fits: `min(max(min-content, 32px), max-content)`. Tailwind's
- * `grid-cols-6` is `repeat(6, minmax(0, 1fr))` — min-content 0 — so the floor
- * was the five 4px gaps and the panel painted ~32px wide while its 28px icon
- * buttons spilled out of their zero-width tracks over the name field. An opaque
- * background a sixth of the width of the content on top of it is exactly what
- * "the background is transparent" looks like from the outside.
+ *  - the strip is a clipped single row, not a grid that grows with the set,
+ *  - the panel is a Modal, i.e. an opaque `bg-lumen-bg` surface on its own
+ *    backdrop (§5 transparency policy), and it still draws every curated icon,
+ *  - every lumen-* class either of them paints with is a token tokens.css
+ *    declares. An undefined `bg-lumen-*` falls transparent with no warning
+ *    anywhere in the toolchain (tokens.css §Transparency policy), which is the
+ *    one failure jsdom CAN see without layout.
  *
- * jsdom has no layout (CLAUDE.md §7.1), so no test here can measure the 204px.
- * Both halves of the bug ARE visible without layout, though, and that is what
- * these pin: the popover must declare an intrinsic width rather than inherit
- * the anchor's, and every lumen-* class it paints with must be a token that
- * tokens.css actually declares — in BOTH theme scopes, since an undefined
- * `bg-lumen-*` falls transparent with no warning (tokens.css §Transparency
- * policy).
+ * jsdom has no layout (CLAUDE.md §7.1), so no test here measures a width; the
+ * assertions are about the classes that decide one.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -35,9 +31,11 @@ const LABELS = {
   clearIconLabel: "Default icon",
   searchLabel: "Search icons",
   noMatchLabel: "No icon matches that.",
+  moreLabel: "Show more",
+  countLabel: "{count} icons",
 };
 
-function openPicker(): HTMLElement {
+function renderPicker(): void {
   render(
     <TagIconPicker
       current={null}
@@ -46,16 +44,20 @@ function openPicker(): HTMLElement {
       labels={LABELS}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: LABELS.iconLabel }));
-  return screen.getByRole("group", { name: LABELS.iconLabel });
 }
 
-/** Tailwind width utilities that give a box a width of its own. */
-const OWN_WIDTH = /^(?:w-|min-w-)/;
+function openPanel(): HTMLElement {
+  renderPicker();
+  fireEvent.click(screen.getByRole("button", { name: LABELS.moreLabel }));
+  return screen.getByRole("dialog", { name: LABELS.iconLabel });
+}
+
+const strip = (): HTMLElement =>
+  screen.getByRole("group", { name: LABELS.iconLabel });
 
 /**
  * The custom property a lumen-* utility resolves through, or null for classes
- * that carry no token (`border`, `ring-2`, `grid-cols-6`, …). Variants are
+ * that carry no token (`border`, `ring-2`, `grid-cols-…`, …). Variants are
  * stripped first so `hover:bg-lumen-hover` is checked like the base class.
  */
 function tokenFor(className: string): string | null {
@@ -69,7 +71,7 @@ function tokenFor(className: string): string | null {
   return null;
 }
 
-/** Every token the popover and its contents paint with, deduplicated. */
+/** Every token a surface and its contents paint with, deduplicated. */
 function tokensPaintedBy(root: HTMLElement): string[] {
   const seen = new Set<string>();
   for (const el of [root, ...root.querySelectorAll<HTMLElement>("*")]) {
@@ -81,81 +83,78 @@ function tokensPaintedBy(root: HTMLElement): string[] {
   return [...seen].sort();
 }
 
-describe("tag icon picker — the popover is sized by itself (#1289)", () => {
-  it("declares its own width instead of inheriting the 32px trigger's", () => {
-    const popover = openPicker();
-    const classes = popover.className.split(/\s+/);
+describe("tag icon picker — the strip is one clipped row (#2389)", () => {
+  it("clips to a single fixed-height row", () => {
+    renderPicker();
+    const classes = strip().className.split(/\s+/);
 
-    // Drop this and the panel shrink-to-fits into the anchor again: the icons
-    // stay on screen (they overflow) but the surface under them does not.
-    expect(classes.filter((c) => OWN_WIDTH.test(c))).not.toEqual([]);
+    // flex-wrap + a fixed height + overflow-hidden is the whole "one row at any
+    // width" mechanism: whatever does not fit wraps to a line that is cut off.
+    // Drop any one and the strip either grows a second row or overruns a sheet.
+    expect(classes).toContain("flex-wrap");
+    expect(classes).toContain("overflow-hidden");
+    expect(classes.some((c) => /^h-\d/.test(c))).toBe(true);
   });
 
-  it("still draws every curated choice plus the clear row", () => {
-    const popover = openPicker();
+  it("draws a handful of glyphs, not the whole curated set", () => {
+    renderPicker();
 
-    // The width fix must not have cost the grid any of its contents.
-    expect(popover.querySelectorAll("button")).toHaveLength(
-      TAG_ICON_CHOICES.length + 1,
-    );
+    // 146 buttons in a clipped row would be 146 invisible tab stops.
+    const drawn = strip().children.length;
+    expect(drawn).toBeGreaterThan(1);
+    expect(drawn).toBeLessThan(TAG_ICON_CHOICES.length / 4);
+  });
+});
+
+describe("tag icon picker — the panel's surface (#2389)", () => {
+  it("is a dialog on an opaque panel, not a bare utility", () => {
+    const panel = openPanel();
+
+    // Modal paints its panel with bg-lumen-bg and the backdrop with the one
+    // allowed translucent exception; the picker adds no surface of its own.
+    expect(panel).toHaveClass("bg-lumen-bg");
+    expect(panel.getAttribute("aria-modal")).toBe("true");
+  });
+
+  it("draws every curated choice plus the clear row", () => {
+    const panel = openPanel();
+
+    expect(screen.getAllByRole("option")).toHaveLength(TAG_ICON_CHOICES.length);
+    expect(
+      panel.querySelector("button:not([role='option'])"),
+    ).not.toBeNull();
     expect(
       screen.getByRole("button", { name: LABELS.clearIconLabel }),
     ).toBeTruthy();
   });
-});
-
-describe("tag icon picker — its surface tokens exist (#1289 / #552)", () => {
-  it("paints on an opaque background token, not a bare utility", () => {
-    const popover = openPicker();
-
-    // bg-lumen-bg is the surface the picker is drawn ON, so painting the
-    // popover with it would leave no step at all; it sits one up (#552).
-    expect(popover).toHaveClass("bg-lumen-bg-secondary");
-  });
 
   it("uses only lumen-* classes that tokens.css declares", () => {
-    const popover = openPicker();
+    const panel = openPanel();
+    const surfaces = [strip(), panel];
 
-    // An undefined bg-lumen-*/border-lumen-* is not an error anywhere in the
-    // toolchain — it just paints nothing. This is the gate that would catch it.
-    for (const token of tokensPaintedBy(popover)) {
-      expect(
-        css,
-        `${token} is used by the picker but never declared`,
-      ).toContain(`${token}:`);
+    for (const surface of surfaces) {
+      for (const token of tokensPaintedBy(surface)) {
+        expect(
+          css,
+          `${token} is used by the picker but never declared`,
+        ).toContain(`${token}:`);
+      }
     }
-  });
-
-  it.each([
-    ["--color-bg-secondary"],
-    ["--color-border-strong"],
-    ["--shadow-elevation-lg"],
-  ])("declares %s in both theme scopes", (source) => {
-    const light = /:root,\s*\[data-theme="light"\]\s*\{([\s\S]*?)\n\}/.exec(
-      css,
-    );
-    const dark = /\[data-theme="dark"\]\s*\{([\s\S]*?)\n\}/.exec(css);
-
-    // "readable in dark and light" (the #1289 DoD) starts here: a source value
-    // declared in one scope only leaves the other inheriting the wrong theme.
-    expect(light![1]).toContain(`${source}:`);
-    expect(dark![1]).toContain(`${source}:`);
   });
 });
 
-describe("tag icon picker — the grid is capped, not as tall as the list (#1366)", () => {
-  it("puts the choices in a bounded, scrollable frame", () => {
-    const popover = openPicker();
-    const grid = popover.querySelector<HTMLElement>(".grid");
-    const frame = grid?.parentElement;
+describe("tag icon picker — the grid grows with the panel, not the list (#1366)", () => {
+  it("lets the panel's body scroll instead of capping the grid itself", () => {
+    const panel = openPanel();
+    const grid = screen.getByRole("listbox");
 
-    // The set grew 26 → 56, and a grid with no cap grows a row per 8 icons —
-    // the popover would hang past the bottom of the modal and get worse with
-    // every icon added. jsdom has no layout to measure the cap with (see the
-    // note at the top), so what is checkable is that the frame declares one.
-    expect(frame, "the grid should sit inside a scroll frame").toBeTruthy();
-    const classes = frame!.className.split(/\s+/);
-    expect(classes.some((c) => c.startsWith("max-h-"))).toBe(true);
-    expect(classes).toContain("overflow-y-auto");
+    // The old popover capped its grid at ~5 rows. The panel is bounded by the
+    // viewport instead (Modal fitViewport), so the cap lives on the panel and
+    // the grid itself must stay uncapped — a second inner scroller would put a
+    // scrollbar inside a scrollbar.
+    expect(panel.className).toContain("max-h-[calc(100dvh-2rem)]");
+    expect(grid.className.split(/\s+/).some((c) => c.startsWith("max-h-"))).toBe(
+      false,
+    );
   });
 });

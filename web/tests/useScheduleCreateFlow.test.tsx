@@ -1,7 +1,19 @@
 import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
-import type { ItemCreateNoteDraft, ItemCreateSlot } from "@life-editor/shared";
+import type {
+  FrequencyEditorValue,
+  ItemCreateNoteDraft,
+  ItemCreateSlot,
+  ScheduleItem,
+  TodoNode,
+} from "@life-editor/shared";
 import { useScheduleCreateFlow } from "../src/schedule/useScheduleCreateFlow";
+
+/** A companion's reversal, as the note attach and the repeat both resolve. */
+interface Reversal {
+  undo: () => Promise<void>;
+  redo: () => Promise<void>;
+}
 
 /*
  * #889 — the creation panel's flow, now that it is a hook.
@@ -61,12 +73,29 @@ function setup(over?: {
     setPopover: vi.fn(),
     setSelectedId: vi.fn(),
     setOverlayOpen: vi.fn(),
-    addNode: vi.fn(),
+    // #2406: returns the optimistic node, whose id the "and open" twin reads.
+    addNode: vi.fn<(...args: unknown[]) => TodoNode>(
+      () => ({ id: "task-new" }) as TodoNode,
+    ),
     updateNode: vi.fn(),
     attachNote: vi.fn(),
-    attachNoteAlongside: vi.fn(() => Promise.resolve(null)),
+    attachNoteAlongside: vi.fn<
+      (
+        itemId: string,
+        draft: ItemCreateNoteDraft | null,
+      ) => Promise<Reversal | null>
+    >(() => Promise.resolve(null)),
     onAttachError: vi.fn(),
     clearTagLens: vi.fn(),
+    openTodoDetail: vi.fn(),
+    convertToRepeat: vi.fn<
+      (
+        saved: ScheduleItem,
+        repeat: Partial<FrequencyEditorValue>,
+      ) => Promise<
+        Reversal | null
+      >
+    >(() => Promise.resolve(null)),
   };
   const view = renderHook(() =>
     useScheduleCreateFlow({
@@ -149,12 +178,16 @@ describe("useScheduleCreateFlow — a submit with the panel closed", () => {
       api(h).handleCreateSubmitAndOpen("Dentist", slot(), null);
       api(h).handleCreateTodoSubmit("Report", slot(), null);
       api(h).handlePlaceTodoSubmit("task-7", slot(), null);
+      api(h).handleCreateTodoSubmitAndOpen("Report", slot(), null);
+      api(h).handlePlaceTodoSubmitAndOpen("task-7", slot(), null);
     });
     expect(h.handleCreate).not.toHaveBeenCalled();
     expect(h.addNode).not.toHaveBeenCalled();
     expect(h.updateNode).not.toHaveBeenCalled();
     expect(h.attachNote).not.toHaveBeenCalled();
     expect(h.setCreatePanel).not.toHaveBeenCalled();
+    // #2406: nothing was written, so there is no detail to open either.
+    expect(h.openTodoDetail).not.toHaveBeenCalled();
   });
 });
 
@@ -225,6 +258,16 @@ describe("useScheduleCreateFlow — every submit closes the panel and the lens",
       "place todo",
       (h: ReturnType<typeof setup>) =>
         api(h).handlePlaceTodoSubmit("task-7", slot(), null),
+    ],
+    [
+      "create todo and open",
+      (h: ReturnType<typeof setup>) =>
+        api(h).handleCreateTodoSubmitAndOpen("Report", slot(), null),
+    ],
+    [
+      "place todo and open",
+      (h: ReturnType<typeof setup>) =>
+        api(h).handlePlaceTodoSubmitAndOpen("task-7", slot(), null),
     ],
   ])("%s", (_name, submit) => {
     // #468: a brand-new row carries no tag, so while a calendar lens is on it
@@ -317,5 +360,197 @@ describe("useScheduleCreateFlow — the todo paths read the SLOT's day", () => {
     expect(h.attachNote.mock.invocationCallOrder[0]).toBeLessThan(
       h.setCreatePanel.mock.invocationCallOrder[0],
     );
+  });
+
+  /*
+   * #2406: the panel's all-day check reaches the todo tab. An all-day todo is
+   * the tray's staging shape — the day at 00:00 plus the flag — not a timed
+   * window with the flag set beside it.
+   */
+  it("writes a new all-day todo as the day with no time", () => {
+    const h = setup();
+    act(() =>
+      api(h).handleCreateTodoSubmit(
+        "Report",
+        slot({ date: "2026-08-25", isAllDay: true }),
+        null,
+      ),
+    );
+    const options = h.addNode.mock.calls[0][3] as {
+      scheduledAt: string;
+      scheduledEndAt?: string;
+      isAllDay: boolean;
+    };
+    expect(options.isAllDay).toBe(true);
+    // Read back in local time, so the case does not pin the runner's offset.
+    const at = new Date(options.scheduledAt);
+    expect([at.getFullYear(), at.getMonth() + 1, at.getDate()]).toEqual([
+      2026, 8, 25,
+    ]);
+    expect([at.getHours(), at.getMinutes()]).toEqual([0, 0]);
+    expect(options.scheduledEndAt).toBeUndefined();
+  });
+
+  it("places an existing todo all-day when the slot says so", () => {
+    const h = setup();
+    act(() =>
+      api(h).handlePlaceTodoSubmit(
+        "task-7",
+        slot({ date: "2026-08-25", isAllDay: true }),
+        null,
+      ),
+    );
+    const patch = h.updateNode.mock.calls[0][1] as {
+      scheduledAt: string;
+      isAllDay: boolean;
+    };
+    expect(patch.isAllDay).toBe(true);
+    expect(new Date(patch.scheduledAt).getHours()).toBe(0);
+  });
+});
+
+/*
+ * #2406: "Add and edit" on the todo tab. It used to be the event's alone —
+ * the Schedule had no todo editor (#297) until #626 put the todo detail panel
+ * in it. The twin writes exactly what the plain button writes, then opens that
+ * panel on the todo.
+ */
+describe("useScheduleCreateFlow — a todo's 'add and edit'", () => {
+  it("creates the todo, then opens its detail by the new node's id", () => {
+    const h = setup();
+    act(() =>
+      api(h).handleCreateTodoSubmitAndOpen("Report", slot(), null),
+    );
+    expect(h.addNode).toHaveBeenCalledTimes(1);
+    expect(h.addNode.mock.calls[0][2]).toBe("Report");
+    expect(h.openTodoDetail).toHaveBeenCalledWith("task-new");
+    // The panel closes first: the detail and the creation surface are never
+    // open together (ScheduleOverlays' ordering note).
+    expect(h.setCreatePanel.mock.invocationCallOrder[0]).toBeLessThan(
+      h.openTodoDetail.mock.invocationCallOrder[0],
+    );
+    // Nothing is selected on the grid — the todo has its own panel.
+    expect(h.setSelectedId).not.toHaveBeenCalled();
+  });
+
+  it("places the picked todo, then opens its detail", () => {
+    const h = setup();
+    act(() =>
+      api(h).handlePlaceTodoSubmitAndOpen("task-7", slot(), null),
+    );
+    expect(h.updateNode).toHaveBeenCalledTimes(1);
+    expect(h.updateNode.mock.calls[0][0]).toBe("task-7");
+    expect(h.openTodoDetail).toHaveBeenCalledWith("task-7");
+  });
+
+  it("leaves the plain todo buttons opening nothing", () => {
+    const h = setup();
+    act(() => {
+      api(h).handleCreateTodoSubmit("Report", slot(), null);
+      api(h).handlePlaceTodoSubmit("task-7", slot(), null);
+    });
+    expect(h.openTodoDetail).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #2406: a repeat picked in the panel. It rides the create's companion — the
+ * one call the provider makes once the row exists — so the conversion gets
+ * the SAVED row, and its reversal joins the create's one undo command.
+ */
+describe("useScheduleCreateFlow — a repeat picked while creating", () => {
+  const DAILY: FrequencyEditorValue = {
+    frequencyType: "daily",
+    frequencyDays: [],
+    frequencyInterval: null,
+    frequencyStartDate: null,
+    frequencyEndDate: null,
+  };
+  const saved = { id: "evt-saved" } as ScheduleItem;
+
+  const reversal = (log: string[], name: string): Reversal => ({
+    undo: vi.fn(async () => {
+      log.push(`undo ${name}`);
+    }),
+    redo: vi.fn(async () => {
+      log.push(`redo ${name}`);
+    }),
+  });
+
+  it.each([
+    ["create", "handleCreateSubmit"],
+    ["create-and-open", "handleCreateSubmitAndOpen"],
+  ] as const)(
+    "%s converts the SAVED row once it exists",
+    async (_name, submit) => {
+      const h = setup();
+      act(() => api(h)[submit]("Standup", slot({ repeat: DAILY }), null));
+      expect(h.convertToRepeat).not.toHaveBeenCalled();
+      await act(async () => {
+        await h.captured.alongside?.(saved);
+      });
+      expect(h.convertToRepeat).toHaveBeenCalledWith(saved, DAILY);
+    },
+  );
+
+  it("hands back the series' reversal as the companion's", async () => {
+    const h = setup();
+    const log: string[] = [];
+    const series = reversal(log, "series");
+    h.convertToRepeat.mockResolvedValueOnce(series);
+    act(() =>
+      api(h).handleCreateSubmit("Standup", slot({ repeat: DAILY }), null),
+    );
+    let companion: unknown;
+    await act(async () => {
+      companion = await h.captured.alongside?.(saved);
+    });
+    expect(companion).toBe(series);
+  });
+
+  it("folds the note and the series into one reversal, series off first", async () => {
+    const h = setup();
+    const log: string[] = [];
+    h.attachNoteAlongside.mockResolvedValueOnce(reversal(log, "note"));
+    h.convertToRepeat.mockResolvedValueOnce(reversal(log, "series"));
+    act(() =>
+      api(h).handleCreateSubmit("Standup", slot({ repeat: DAILY }), NOTE),
+    );
+    const box: { companion?: Reversal } = {};
+    await act(async () => {
+      box.companion = (await h.captured.alongside?.(saved)) as Reversal;
+    });
+    await act(async () => {
+      await box.companion?.undo();
+      await box.companion?.redo();
+    });
+    // Last on, first off — and back on in the order they went on.
+    expect(log).toEqual([
+      "undo series",
+      "undo note",
+      "redo note",
+      "redo series",
+    ]);
+  });
+
+  it("still converts when the note attach threw", async () => {
+    const h = setup();
+    h.attachNoteAlongside.mockRejectedValueOnce(new Error("offline"));
+    act(() =>
+      api(h).handleCreateSubmit("Standup", slot({ repeat: DAILY }), NOTE),
+    );
+    await act(async () => {
+      await h.captured.alongside?.(saved);
+    });
+    expect(h.convertToRepeat).toHaveBeenCalledWith(saved, DAILY);
+  });
+
+  it("converts nothing when no repeat was picked", async () => {
+    const h = setup();
+    act(() => api(h).handleCreateSubmit("Standup", slot(), NOTE));
+    await act(async () => {
+      await h.captured.alongside?.(saved);
+    });
+    expect(h.convertToRepeat).not.toHaveBeenCalled();
   });
 });

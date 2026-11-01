@@ -286,3 +286,6 @@ supabase/migrations/<番号>_items_meta_changed_at_tombstones.sql
 ## Worklog
 
 （実装時に追記します。終わったら、計画と実際のずれを 3 行で書きます）
+
+- 2026-11-01 P1b（#2333）: migration は `0045`（0044 は PR #2380 が使用）。計画とのずれは次のとおりです。`items_meta_tombstones` に持ち主の delete ポリシーを足し、`delete_my_account()` を作り直しました。`user_id` を持つ表に行が残ると退会が必ず失敗するためです。Todo の反映は生きている一覧だけです（#2326 で `useTodoTreeAPI` が削除済みの半分を読まなくなったため）。重なりの除外には、基準時刻に `seen`（読んだ id と `changed_at`）を持たせました。
+- 2026-11-01 P1b の監査の反映（#2333）: 計画とのずれは次のとおりです。`changed_at` の列の既定値は `clock_timestamp()` ではなく `now()` にしました。volatile な既定値だと `add column` が表を書き直すためです（トリガーは `clock_timestamp()` のままです）。7 日の起点は基準時刻ではなく前回の全件読み出しの時刻です。差分を読むたびに起点が進むと、毎日使う端末で安全網が働かないためです。読み直しの 15 秒は、端末がその行を初めて見た時刻から数えます（基準時刻の `settling`）。差分が 1 ページに収まらないときは全件を読みます。

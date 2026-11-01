@@ -1,4 +1,5 @@
 import type { TodoNode } from "../types/todoTree";
+import type { ChangeCursor, ChangesRead } from "./itemChanges";
 import type {
   TimerSettings,
   TimerSession,
@@ -84,6 +85,17 @@ export interface TodosDataService {
    * paying for the whole tree. `null` = no such live todo.
    */
   getTodoById(id: string): Promise<TodoNode | null>;
+  /**
+   * Where a full read starting now will stand (#2333 — services/itemChanges).
+   * Covers every role; it sits here because a method needs one owning domain.
+   * Null when there is no answer: the next read is a full one.
+   */
+  readItemChangeCursor(): Promise<ChangeCursor | null>;
+  /** The rows changed since `cursor`, over `base`. Null: read in full instead. */
+  fetchTodoChanges(
+    cursor: ChangeCursor,
+    base: readonly TodoNode[],
+  ): Promise<ChangesRead<TodoNode[]> | null>;
   /**
    * Live, unfinished todo count for the badge (#511) — a number, not a
    * list, so the read carries no row bodies. Meaning of the number:
@@ -704,6 +716,11 @@ export interface WikiTagsUnifiedDataService {
 
 export interface NotesUnifiedDataService {
   listNotesUnified(): Promise<NoteNode[]>;
+  /** The list rows changed since `cursor` (#2333) — see fetchTodoChanges. */
+  fetchNoteChanges(
+    cursor: ChangeCursor,
+    base: readonly NoteNode[],
+  ): Promise<ChangesRead<NoteNode[]> | null>;
   /**
    * The note TEMPLATES (#1047) — `notes_payload.note_type = 'template'`.
    *
@@ -807,6 +824,11 @@ export interface DailyWriteOptions {
 
 export interface DailiesUnifiedDataService {
   listDailiesUnified(): Promise<DailyNode[]>;
+  /** The light rows changed since `cursor` (#2333) — see fetchTodoChanges. */
+  fetchDailyChanges(
+    cursor: ChangeCursor,
+    base: readonly DailyNode[],
+  ): Promise<ChangesRead<DailyNode[]> | null>;
   /**
    * The Daily list WITHOUT the bodies (#2325): each row has `content: ""`,
    * `bodyLoaded: false` and the head blocks in `headContent`. Fetch a day's

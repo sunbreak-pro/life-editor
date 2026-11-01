@@ -2,15 +2,15 @@ import { cn } from "../cn";
 import { FOCUS_RING_TIGHT } from "../styleTokens";
 
 /*
- * The "all day" switch, shared by the two places a schedule item's time span
- * can be taken away: EventEditorPane (#469, editing an existing row) and
- * ItemCreatePanel (#940, creating one).
+ * The "all day" switch of EventEditorPane (#469, editing an existing row).
+ * ItemCreatePanel shared it from #940 until #2406 gave the creating side the
+ * round <AllDayCheck> of the Claude Design proposal; the editor keeps this
+ * one until #2407 brings the edit panel to the same proposal.
  *
  * A `role="switch"` button rather than a checkbox because it reads as one
  * state, not a form value to submit, and because it has to sit on the same
- * baseline as the date field beside it. Both callers place it that way — a
- * `flex items-end` row with the date input taking the remaining width — so the
- * two screens agree on where the control is, not just on what it looks like.
+ * baseline as the date field beside it: the editor places it in a
+ * `flex items-end` row with the date input taking the remaining width.
  *
  * Pure presentation: the label arrives already translated (§6.4) and the
  * checked state lives in the caller's draft.

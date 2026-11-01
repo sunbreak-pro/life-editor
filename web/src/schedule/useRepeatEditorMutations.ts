@@ -9,6 +9,12 @@ import {
 import type { UseRepeatMutationsArgs } from "./useRepeatMutations";
 import { detachRepeatSeries, type SeriesReversal } from "./repeatSeriesWrites";
 
+/** #2406: turn a just-saved row into a series; resolves its reversal. */
+export type ConvertSavedToRepeat = (
+  saved: ScheduleItem,
+  repeat: Partial<FrequencyEditorValue>,
+) => Promise<SeriesReversal | null>;
+
 /*
  * The event editor's repeat field (#1642 P3, split out of useRepeatMutations):
  * turn a manual event INTO a repeat (a conversion, #296), change an existing
@@ -260,16 +266,22 @@ export function useRepeatEditorMutations({
    * a plain manual event. The old delete-then-recreate flow soft-deleted the
    * seed BEFORE the replacement was durable, so any failure in the chain
    * vanished the event beyond a reload.
+   *
+   * The writes and their reversal, without the guard, the history entry or
+   * the closing reload — the two callers below wrap those differently (#2406).
+   * Resolves the reversal once the conversion landed, null when it did not
+   * (the failure has been reported by then).
    */
-  const runRepeatConversion = useCallback(
-    (
+  const convertSeed = useCallback(
+    async (
       seed: ScheduleItem,
       type: NonNullable<FrequencyEditorValue["frequencyType"]>,
       patch: Partial<FrequencyEditorValue>,
-    ) => {
-      // #407: one conversion per seed at a time. Check-and-claim is a single
-      // call so the two cannot drift apart (#434).
-      if (!beginConversion(seed.id)) return;
+    ): Promise<{
+      /** The routine the seed belongs to now — a redo replaces it. */
+      liveRoutineId: () => string;
+      reversal: SeriesReversal;
+    } | null> => {
       // #712: the patch may carry the type-specific fields too — the editor
       // drafts the whole repeat and hands it over in ONE press, so a weekday the
       // user picked before saving arrives here rather than in a follow-up click.
@@ -289,85 +301,120 @@ export function useRepeatEditorMutations({
       // #2082: picked in the same draft as the rhythm, so it rides the
       // conversion rather than a follow-up write.
       const frequencyEndDate = seeded.frequencyEndDate ?? null;
+      let routineId: string;
+      try {
+        routineId = await convertEventToRoutine(seed.id, {
+          title: seed.title,
+          startTime: seed.startTime,
+          endTime: seed.endTime,
+          frequencyType: type,
+          frequencyDays,
+          frequencyInterval,
+          frequencyStartDate,
+          frequencyEndDate,
+          reminderOffset: seed.reminderOffset ?? null,
+          sourceDate: seed.date,
+        });
+      } catch {
+        // Conversion did not land — the seed is untouched server-side (or
+        // already owned by a routine: the #407 conditional attach). Say so
+        // (#434): the snap-back the caller's reload() causes is
+        // indistinguishable from "the click did nothing".
+        onRepeatConvertFailed("attach");
+        return null;
+      }
+      patchRange(seed.id, { routineId, sourceDate: seed.date });
+      const frequency = {
+        frequencyType: type,
+        frequencyDays,
+        frequencyInterval,
+        frequencyStartDate,
+        frequencyEndDate,
+      };
+      const filled = await materialiseNewSeries(
+        optimisticSeedRoutine(routineId, seed, frequency),
+        seed.date,
+      );
+      if (!filled) onRepeatConvertFailed("materialise");
+      /*
+       * #1638 (A-03): turning a repeat ON is undoable. The inverse is the one
+       * the editor already offers as "なし" — detach with the seed pinned,
+       * which trashes the generated days and leaves the row the user started
+       * from (useRoutinesAPI.detachRoutine's own doc-comment names this as the
+       * inverse).
+       *
+       * A redo mints a NEW routine (a conversion always does), so the id is
+       * kept in a closure rather than captured once — otherwise a second undo
+       * would detach a routine that no longer exists.
+       */
+      let liveRoutineId = routineId;
+      return {
+        liveRoutineId: () => liveRoutineId,
+        reversal: {
+          undo: async () => {
+            await detachRoutine(liveRoutineId, undefined, {
+              keepItemIds: [seed.id],
+            });
+          },
+          redo: async () => {
+            liveRoutineId = await convertEventToRoutine(seed.id, {
+              title: seed.title,
+              startTime: seed.startTime,
+              endTime: seed.endTime,
+              ...frequency,
+              reminderOffset: seed.reminderOffset ?? null,
+              sourceDate: seed.date,
+            });
+            await materialiseOrThrow(
+              optimisticSeedRoutine(liveRoutineId, seed, frequency),
+              seed.date,
+            );
+          },
+        },
+      };
+    },
+    [
+      convertEventToRoutine,
+      detachRoutine,
+      patchRange,
+      materialiseNewSeries,
+      materialiseOrThrow,
+      onRepeatConvertFailed,
+    ],
+  );
+
+  /** The editor's conversion: its own history entry, re-read after each. */
+  const runRepeatConversion = useCallback(
+    (
+      seed: ScheduleItem,
+      type: NonNullable<FrequencyEditorValue["frequencyType"]>,
+      patch: Partial<FrequencyEditorValue>,
+    ) => {
+      // #407: one conversion per seed at a time. Check-and-claim is a single
+      // call so the two cannot drift apart (#434).
+      if (!beginConversion(seed.id)) return;
       void (async () => {
         // Single release point for the #407 guard: the whole chain runs inside
         // this try so no exit path — success, failed conversion, or a future
         // throw slipped into the tail — can leave the seed locked for the rest
         // of the session.
         try {
-          let routineId: string;
-          try {
-            routineId = await convertEventToRoutine(seed.id, {
-              title: seed.title,
-              startTime: seed.startTime,
-              endTime: seed.endTime,
-              frequencyType: type,
-              frequencyDays,
-              frequencyInterval,
-              frequencyStartDate,
-              frequencyEndDate,
-              reminderOffset: seed.reminderOffset ?? null,
-              sourceDate: seed.date,
-            });
-          } catch {
-            // Conversion did not land — the seed is untouched server-side (or
-            // already owned by a routine: the #407 conditional attach). Say so
-            // (#434): the snap-back the finally's reload() causes is
-            // indistinguishable from "the click did nothing".
-            onRepeatConvertFailed("attach");
-            return;
-          }
-          patchRange(seed.id, { routineId, sourceDate: seed.date });
-          const frequency = {
-            frequencyType: type,
-            frequencyDays,
-            frequencyInterval,
-            frequencyStartDate,
-            frequencyEndDate,
-          };
-          const filled = await materialiseNewSeries(
-            optimisticSeedRoutine(routineId, seed, frequency),
-            seed.date,
-          );
-          if (!filled) onRepeatConvertFailed("materialise");
-          /*
-           * #1638 (A-03): turning a repeat ON is undoable now. The inverse is
-           * the one the editor already offers as "なし" — detach with the seed
-           * pinned, which trashes the generated days and leaves the row the
-           * user started from (useRoutinesAPI.detachRoutine's own doc-comment
-           * names this as the inverse).
-           *
-           * A redo mints a NEW routine (a conversion always does), so the id
-           * is kept in a closure rather than captured once — otherwise a
-           * second undo would detach a routine that no longer exists.
-           */
-          let liveRoutineId = routineId;
+          const converted = await convertSeed(seed, type, patch);
+          if (!converted) return;
+          const { reversal } = converted;
           push?.("routine", {
             label: "createRoutine",
             confirm: { kind: "repeat", scope: "all" },
             undo: async () => {
               try {
-                await detachRoutine(liveRoutineId, undefined, {
-                  keepItemIds: [seed.id],
-                });
+                await reversal.undo();
               } finally {
                 reload();
               }
             },
             redo: async () => {
               try {
-                liveRoutineId = await convertEventToRoutine(seed.id, {
-                  title: seed.title,
-                  startTime: seed.startTime,
-                  endTime: seed.endTime,
-                  ...frequency,
-                  reminderOffset: seed.reminderOffset ?? null,
-                  sourceDate: seed.date,
-                });
-                await materialiseOrThrow(
-                  optimisticSeedRoutine(liveRoutineId, seed, frequency),
-                  seed.date,
-                );
+                await reversal.redo();
               } finally {
                 reload();
               }
@@ -385,18 +432,62 @@ export function useRepeatEditorMutations({
         }
       })();
     },
-    [
-      beginConversion,
-      endConversion,
-      convertEventToRoutine,
-      detachRoutine,
-      patchRange,
-      materialiseNewSeries,
-      materialiseOrThrow,
-      onRepeatConvertFailed,
-      push,
-      reload,
-    ],
+    [beginConversion, endConversion, convertSeed, push, reload],
+  );
+
+  /**
+   * #2406: a repeat picked in the creation panel, applied to the row that
+   * panel just saved. It cannot go through `handleChangeRepeat` — that one
+   * acts on the SELECTION, and a plain create selects nothing on narrow (and
+   * the row is not in `selected` yet on Desktop either).
+   *
+   * Pushes no history entry of its own: it resolves the reversal, and the
+   * caller folds it into the create's ONE command (the companion of
+   * createScheduleItem, N-08). One press made "an event that repeats", so one
+   * Ctrl+Z takes both back — and the order is fixed, where two entries pushed
+   * from two async chains could land either way round.
+   *
+   * The undo half re-shapes the range itself instead of re-reading it: the
+   * create's own undo trashes the seed right after, and a re-read started in
+   * between could bring the seed back on screen. The redo half re-reads, as
+   * the editor's does — it runs after the create's redo has restored the seed.
+   */
+  const convertSavedToRepeat = useCallback<ConvertSavedToRepeat>(
+    async (saved, repeat) => {
+      const type = repeat.frequencyType;
+      if (!type) return null;
+      if (!beginConversion(saved.id)) return null;
+      try {
+        const converted = await convertSeed(saved, type, repeat);
+        if (!converted) return null;
+        const { reversal, liveRoutineId } = converted;
+        return {
+          undo: async () => {
+            // Read before the detach: a redo mints a new routine, so the id
+            // the generated days carry is the one live right now.
+            const routineId = liveRoutineId();
+            await reversal.undo();
+            // The detach trashed the generated days; take them off the range.
+            setRangeItems((prev) =>
+              prev.filter(
+                (i) => i.id === saved.id || i.routineId !== routineId,
+              ),
+            );
+          },
+          redo: async () => {
+            try {
+              await reversal.redo();
+            } finally {
+              reload();
+            }
+          },
+        };
+      } finally {
+        reload();
+        endConversion(saved.id);
+      }
+    },
+    [beginConversion, endConversion, convertSeed, setRangeItems, reload],
   );
 
   /**
@@ -671,6 +762,7 @@ export function useRepeatEditorMutations({
   return {
     handleChangeRepeat,
     handleDetachRepeat,
+    convertSavedToRepeat,
     // #434: the selected item's Event→Repeats conversion is still in flight,
     // so the repeat editor should read as busy rather than swallow clicks.
     repeatConverting:

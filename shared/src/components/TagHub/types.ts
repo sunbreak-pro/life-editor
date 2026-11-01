@@ -240,8 +240,10 @@ export interface TagHubEditLabels {
   nameLabel: string;
   iconLabel: string;
   colorLabel: string;
-  /** The button beside the current glyph that opens the icon grid. */
-  iconChange: string;
+  /** The button under the icon strip that opens the centre panel (#2389). */
+  iconMore: string;
+  /** Match count above the panel's grid; one `{count}` slot (#2389). */
+  iconCount: string;
   /** "Default / no icon" inside that grid. */
   iconClear: string;
   /** Placeholder in that grid's search field, and its empty result (#1701). */

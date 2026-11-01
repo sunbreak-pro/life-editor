@@ -46,6 +46,19 @@ export function timedPlacement(
 }
 
 /**
+ * A day with no time (#2406): the creation panel's all-day check on the todo
+ * tab. The shape the tray's "add to today" and the all-day lane drop write —
+ * the day at 00:00 plus the flag — so a todo made all-day here is the same row
+ * as one staged there. `scheduledEndAt` is left out, as those two leave it.
+ */
+export function allDayPlacement(dateKey: string): Partial<TodoNode> {
+  return {
+    scheduledAt: localDateTimeToISO(dateKey, "00:00"),
+    isAllDay: true,
+  };
+}
+
+/**
  * Grid drag of a todo chip (A-2 / #297). The grid routes "place" (an all-day
  * chip dragged into the time body — A-3 / #298) and "move" (a timed block
  * dragged elsewhere) through the SAME callback, but the undo toast has to tell
@@ -193,15 +206,21 @@ export function todoMoveOutWrite(): TodoChipWrite {
  * attached to it — a half-reversal made worse by the toast claiming the whole
  * thing was undone. With no note there is no second row and nothing to be left
  * behind, so the placement is undoable exactly as the drag is.
+ *
+ * #2406: `isAllDay` is the panel's all-day check, which the todo tab offers
+ * now too. It places the todo on the day with no time (`allDayPlacement`).
  */
 export function placeTodoWrite(
   dateKey: string,
   start: string,
   end: string,
   hasNote: boolean,
+  isAllDay = false,
 ): TodoChipWrite {
   return {
-    patch: timedPlacement(dateKey, start, end),
+    patch: isAllDay
+      ? allDayPlacement(dateKey)
+      : timedPlacement(dateKey, start, end),
     options: hasNote ? undefined : { undoLabel: "todoChipPlace" },
   };
 }
