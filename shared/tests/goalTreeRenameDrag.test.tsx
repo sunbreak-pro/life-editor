@@ -93,6 +93,9 @@ const LABELS: GoalTreeLabels = {
   status: "Status",
   statusLabels: { statusNotStarted: "Not started", statusDone: "Done" },
   formatOpenTodo: (title) => `Open ${title}`,
+  formatMarkTodoDone: (title) => `Done: ${title}`,
+  formatMarkTodoOpen: (title) => `Not done: ${title}`,
+  formatDeleteTodo: (title) => `Delete todo: ${title}`,
   formatExpand: (title) => `Expand: ${title}`,
   formatCollapse: (title) => `Collapse: ${title}`,
   filteringBy: "Filtering by",
@@ -125,6 +128,8 @@ function renderTree(
     goals?: Goal[];
     todos?: typeof TODOS;
     onSetTodoStatus?: (todoId: string, status: TodoStatus) => void;
+    onOpenTodo?: (todoId: string) => void;
+    onDeleteTodo?: (todoId: string) => void;
   } = {},
 ): ReturnType<typeof render> {
   return render(
@@ -142,7 +147,8 @@ function renderTree(
       onCreateGoal={vi.fn().mockResolvedValue(true)}
       onCreateLooseTodo={vi.fn().mockResolvedValue(true)}
       onSetTodoStatus={over.onSetTodoStatus ?? vi.fn()}
-      onOpenTodo={vi.fn()}
+      onOpenTodo={over.onOpenTodo ?? vi.fn()}
+      onDeleteTodo={over.onDeleteTodo}
       onRenameGoal={over.onRenameGoal}
       onEditGoal={over.onEditGoal}
       rowActions={over.rowActions}
@@ -625,6 +631,137 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
     renderTree({ onRenameGoal: vi.fn() });
     expect(screen.queryByRole("button", { name: /^Add under: / })).toBeNull();
     expect(screen.queryByRole("button", { name: /^Delete goal: / })).toBeNull();
+  });
+});
+
+describe("GoalTreeView — a todo row's name, pencil and bin (#2388)", () => {
+  const withStatus = (id: string, status: TodoStatus): typeof TODOS =>
+    TODOS.map((t) => (t.id === id ? { ...t, status } : t)) as typeof TODOS;
+  const region = (name: string) => within(screen.getByRole("region", { name }));
+
+  it("ticks an open todo from its name, and does not open the editor", () => {
+    const onSetTodoStatus = vi.fn();
+    const onOpenTodo = vi.fn();
+    renderTree({ onSetTodoStatus, onOpenTodo });
+    fireEvent.click(screen.getByRole("button", { name: "Done: 5 km jog" }));
+    expect(onSetTodoStatus).toHaveBeenCalledWith("t3", "DONE");
+    expect(onOpenTodo).not.toHaveBeenCalled();
+  });
+
+  it("un-ticks a done todo from its name in Completed items", () => {
+    const onSetTodoStatus = vi.fn();
+    renderTree({ todos: withStatus("t4", "DONE"), onSetTodoStatus });
+    fireEvent.click(
+      region("Completed items").getByRole("button", {
+        name: "Not done: Buy shoes",
+      }),
+    );
+    expect(onSetTodoStatus).toHaveBeenCalledWith("t4", "NOT_STARTED");
+  });
+
+  it("opens the editor from the pencil, and only there", () => {
+    const onSetTodoStatus = vi.fn();
+    const onOpenTodo = vi.fn();
+    renderTree({ onSetTodoStatus, onOpenTodo });
+    fireEvent.click(screen.getByRole("button", { name: "Open 5 km jog" }));
+    expect(onOpenTodo).toHaveBeenCalledWith("t3");
+    expect(onSetTodoStatus).not.toHaveBeenCalled();
+  });
+
+  it("fires the bin raw, and draws none when the host passes no handler", () => {
+    const onDeleteTodo = vi.fn();
+    const { unmount } = renderTree({ onDeleteTodo });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete todo: 5 km jog" }),
+    );
+    expect(onDeleteTodo).toHaveBeenCalledWith("t3");
+    unmount();
+
+    renderTree();
+    expect(screen.queryByRole("button", { name: /^Delete todo: / })).toBeNull();
+    screen.getByRole("button", { name: "Open 5 km jog" });
+  });
+
+  it("offers all three on a tree row and in Completed items", () => {
+    renderTree({ todos: withStatus("t4", "DONE"), onDeleteTodo: vi.fn() });
+    for (const [where, name, verb] of [
+      ["Goals", "5 km jog", "Done"],
+      ["Completed items", "Buy shoes", "Not done"],
+    ] as const) {
+      const scope = region(where);
+      scope.getByRole("button", { name: `${verb}: ${name}` });
+      scope.getByRole("button", { name: `Open ${name}` });
+      scope.getByRole("button", { name: `Delete todo: ${name}` });
+    }
+  });
+
+  it("offers all three in the group of todos no goal holds", () => {
+    renderTree({
+      todos: [
+        ...TODOS,
+        { id: "t9", title: "Call home", status: "NOT_STARTED" as const },
+      ],
+      onDeleteTodo: vi.fn(),
+    });
+    const loose = region("Todos without a goal");
+    loose.getByRole("button", { name: "Done: Call home" });
+    loose.getByRole("button", { name: "Open Call home" });
+    loose.getByRole("button", { name: "Delete todo: Call home" });
+  });
+
+  it("reaches the box, name, pencil and bin by keyboard, in that order", () => {
+    renderTree({ onDeleteTodo: vi.fn() });
+    const name = screen.getByRole("button", { name: "Done: 5 km jog" });
+    const row = name.closest("[data-goal-tree-row]") as HTMLElement;
+    const stops = Array.from(row.querySelectorAll("button"));
+    expect(stops.map((el) => el.getAttribute("aria-label"))).toEqual([
+      "5 km jog — Status: Not started",
+      "Done: 5 km jog",
+      "Open 5 km jog",
+      "Delete todo: 5 km jog",
+    ]);
+    // Hidden by opacity only, so a Tab still lands on them.
+    for (const stop of stops) expect(stop.tabIndex).toBe(0);
+  });
+
+  it("shows the icons on hover or focus on desktop, and always on a phone", () => {
+    renderTree({ onDeleteTodo: vi.fn() });
+    for (const name of ["Open 5 km jog", "Delete todo: 5 km jog"]) {
+      const { className } = screen.getByRole("button", { name });
+      expect(className).toContain("opacity-0");
+      expect(className).toContain("group-hover/todo:opacity-100");
+      expect(className).toContain("group-focus-within/todo:opacity-100");
+      expect(className).toContain("max-md:opacity-100");
+      expect(className).toContain("max-md:min-h-11");
+      expect(className).toContain("max-md:min-w-11");
+    }
+  });
+
+  it("paints the hover on the row, with the colour of a goal's title", () => {
+    renderTree();
+    const name = screen.getByRole("button", { name: "Done: 5 km jog" });
+    const row = name.closest("[data-goal-tree-row]") as HTMLElement;
+    expect(row.className).toContain("hover:bg-lumen-hover");
+    expect(titleOf("Run 3 times").className).toContain("hover:bg-lumen-hover");
+    // On the row alone, so the colour is not laid twice over the name.
+    expect(name.className).not.toContain("hover:bg-lumen-hover");
+    expect(name.className).toContain("cursor-pointer");
+  });
+
+  it("drags from the grip with the icons on the row, not from the name", () => {
+    const onSetTodoStatus = vi.fn();
+    renderTree({
+      drag: dragHandlers(),
+      onDeleteTodo: vi.fn(),
+      onSetTodoStatus,
+    });
+    const name = screen.getByRole("button", { name: "Done: 5 km jog" });
+    expect(name.hasAttribute("draggable")).toBe(false);
+    const grip = document.querySelector('[data-todo-drag="t3"]') as HTMLElement;
+    expect(grip.getAttribute("draggable")).toBe("true");
+    fireEvent.dragStart(grip, { dataTransfer: transfer() });
+    fireEvent.dragEnd(grip);
+    expect(onSetTodoStatus).not.toHaveBeenCalled();
   });
 });
 
