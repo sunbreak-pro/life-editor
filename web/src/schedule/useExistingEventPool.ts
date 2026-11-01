@@ -20,9 +20,10 @@ import {
  *
  * `fetchEvents` has no date bound and pages through the whole event history, so
  * it runs once the user asks for this source, not on every opening of the panel
- * (the note list next door is a far smaller read). The DataService is injected
- * (§3.1), and a list that could not be read says so rather than claiming there
- * are no events.
+ * (the note list next door is a far smaller read). The ask lasts one opening,
+ * since the panel starts each opening back on 新規作成. The DataService is
+ * injected (§3.1), and a list that could not be read says so rather than
+ * claiming there are no events.
  */
 
 export interface ExistingEventPoolApi {
@@ -62,6 +63,8 @@ export function useExistingEventPool({
   const { t } = useTranslation();
   const syncVersion = useSyncDomains("schedule");
   const [wanted, setWanted] = useState(false);
+  // Adjusted while rendering, as the panel's staged tags are.
+  if (wanted && !panelOpen) setWanted(false);
   // null: not read yet. Kept across closes, like the note list.
   const [events, setEvents] = useState<ScheduleItem[] | null>(null);
   const [failed, setFailed] = useState(false);

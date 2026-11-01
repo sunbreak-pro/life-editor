@@ -74,13 +74,23 @@ describe("useExistingEventPool", () => {
     expect(h.ds.fetchEvents).toHaveBeenCalledTimes(1);
   });
 
-  it("reads nothing with the panel shut, and again when it reopens", async () => {
-    const h = setup(async () => [event({ id: "a" })], false);
+  it("asks again each opening, and keeps the last list meanwhile", async () => {
+    const h = setup(async () => [event({ id: "a" })]);
     act(() => h.view.result.current.eventPool.onOpen());
-    expect(h.ds.fetchEvents).not.toHaveBeenCalled();
-
-    h.view.rerender({ open: true });
     await waitFor(() => expect(h.ds.fetchEvents).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(h.view.result.current.eventPool.options).toHaveLength(1),
+    );
+
+    // A plain 新規作成 opening does not walk the history again.
+    h.view.rerender({ open: false });
+    h.view.rerender({ open: true });
+    await act(async () => {});
+    expect(h.ds.fetchEvents).toHaveBeenCalledTimes(1);
+    expect(h.view.result.current.eventPool.options).toHaveLength(1);
+
+    act(() => h.view.result.current.eventPool.onOpen());
+    await waitFor(() => expect(h.ds.fetchEvents).toHaveBeenCalledTimes(2));
   });
 
   it("finds the listed event, and seeds the tags from what it shows", async () => {
