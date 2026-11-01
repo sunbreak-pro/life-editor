@@ -51,6 +51,13 @@ import {
 /** Ids seen on the server by this page, shared with the sender. */
 export type LandedTodos = Set<string>;
 
+/**
+ * Ids this page took out of the box unsent: undone, deleted or refused. A
+ * changed-rows read that began before that still has the row in its base, and
+ * no change on the server will ever take it out. Shared with the sender.
+ */
+export type DroppedTodos = Set<string>;
+
 /** Resolves the signed-in user without the network. */
 export type OwnerResolver = () => Promise<string | null>;
 
@@ -141,6 +148,7 @@ export function createOfflineDataService(
   inner: DataService,
   owner: OwnerResolver,
   landed: LandedTodos = new Set(),
+  dropped: DroppedTodos = new Set(),
 ): DataService {
   /** The row of each write that failed, until a write of that id lands. */
   const failedRows = new Map<string, TodoNode>();
@@ -154,20 +162,20 @@ export function createOfflineDataService(
 
   /**
    * Undoing a queued add writes the siblings back to their earlier order. The
-   * server never saw them move, so there is nothing to write. Any other batch
-   * of existing rows is a real write that failed.
+   * server never saw them move, so there is nothing to write. The hook also
+   * resends a dropped shift with its next write, which is just as empty. Any
+   * other batch of existing rows is a real write that failed.
    */
   const absorbShiftBack = (nodes: TodoNode[]): boolean => {
-    const undoesShift = (row: TodoNode): boolean => {
+    const moves = (row: TodoNode): number | null => {
       const seen = shifted.get(row.id);
-      return (
-        seen !== undefined &&
-        row.order === seen.row.order - 1 &&
-        sameExceptOrder(seen.row, row)
-      );
+      if (seen === undefined || !sameExceptOrder(seen.row, row)) return null;
+      const by = seen.row.order - row.order;
+      return by === 0 || by === 1 ? by : null;
     };
-    if (!nodes.every(undoesShift)) return false;
+    if (!nodes.every((row) => moves(row) !== null)) return false;
     for (const row of nodes) {
+      if (moves(row) === 0) continue;
       const depth = shifted.get(row.id)!.depth - 1;
       if (depth > 0) shifted.set(row.id, { row, depth });
       else shifted.delete(row.id);
@@ -185,6 +193,7 @@ export function createOfflineDataService(
   ): Promise<void> => {
     await removeOutboxEntry(userId, entry.opId);
     failedRows.delete(entry.itemId);
+    dropped.add(entry.itemId);
     dropFromSnapshot(entry.itemId);
     if (entry.attempts === 0) return;
     void (async () => {
@@ -221,7 +230,10 @@ export function createOfflineDataService(
       neverLanded(n) && !pending.has(n.id);
     const fresh = rows.filter(isNew);
     if (fresh.length === 0) {
-      return { unheld: absorbShiftBack(rows) ? [] : rows, queued: false };
+      // Absorbed is reported as queued: the server did not get these rows.
+      return absorbShiftBack(rows)
+        ? { unheld: [], queued: true }
+        : { unheld: rows, queued: false };
     }
 
     const rest = rows.filter((n) => !isNew(n));
@@ -237,6 +249,7 @@ export function createOfflineDataService(
         order: orders.length > 0 ? Math.min(...orders) - 1 : node.order,
       };
       await enqueueTodoCreate(userId, queued);
+      dropped.delete(node.id);
       pending.set(node.id, queued);
       failedRows.delete(node.id);
       addToSnapshot(queued);
@@ -281,13 +294,22 @@ export function createOfflineDataService(
     /**
      * `base` is the stored list, so its siblings hold server orders, as after a
      * full read. Another tab's stored list may not know a waiting Todo. A row
-     * from `base` may not be on the server, so this one does not fill `landed`.
+     * from `base` may not be on the server, so this one does not fill `landed`;
+     * it only drops what left the box unsent and re-marks what was sent, either
+     * of which the read may have started too early to see.
      */
     async fetchTodoChanges(cursor, base) {
       const read = await inner.fetchTodoChanges(cursor, base);
       if (read === null) return null;
       shifted.clear();
-      return { ...read, data: await withWaiting(read.data) };
+      const rows = read.data
+        .filter((n) => n.updatedAt !== undefined || !dropped.has(n.id))
+        .map((n) =>
+          n.updatedAt === undefined && landed.has(n.id)
+            ? { ...n, updatedAt: n.createdAt }
+            : n,
+        );
+      return { ...read, data: await withWaiting(rows) };
     },
 
     /**
@@ -299,6 +321,7 @@ export function createOfflineDataService(
       try {
         const created = await inner.createTodo(node);
         landed.add(created.id);
+        dropped.delete(created.id);
         return created;
       } catch (error) {
         if (!isOfflineFailure(error)) throw error;
@@ -314,6 +337,7 @@ export function createOfflineDataService(
             .map((p) => p.order - 1);
           const queued = { ...node, order: Math.min(node.order, ...below) };
           await enqueueTodoCreate(userId, queued);
+          dropped.delete(queued.id);
           addToSnapshot(queued);
           return queued;
         } catch {
@@ -327,6 +351,7 @@ export function createOfflineDataService(
         await inner.syncTodoTree(nodes);
         for (const n of nodes) {
           landed.add(n.id);
+          dropped.delete(n.id);
           failedRows.delete(n.id);
           shifted.delete(n.id);
         }
@@ -388,6 +413,7 @@ export function createOutboxSender(
   inner: Pick<DataService, "createTodoIfAbsent">,
   owner: OwnerResolver,
   landed: LandedTodos = new Set(),
+  dropped: DroppedTodos = new Set(),
 ): OutboxSender {
   let running: Promise<void> | null = null;
 
@@ -410,6 +436,7 @@ export function createOutboxSender(
           await failOutboxEntry(userId, entry, String(e));
           // A changed-rows read lays changes over the stored list, and the
           // server has none for a row it refused, so only this takes it out.
+          dropped.add(entry.itemId);
           dropFromSnapshot(entry.itemId);
           changed += 1;
           continue;

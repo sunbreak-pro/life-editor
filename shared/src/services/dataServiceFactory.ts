@@ -38,8 +38,14 @@ export function getDataService(): DataService {
     const inner = createSupabaseDataService();
     const owner = sessionOwner(getSupabaseClient().auth);
     const landed = new Set<string>();
-    dataServiceSingleton = createOfflineDataService(inner, owner, landed);
-    outboxSender = createOutboxSender(inner, owner, landed);
+    const dropped = new Set<string>();
+    dataServiceSingleton = createOfflineDataService(
+      inner,
+      owner,
+      landed,
+      dropped,
+    );
+    outboxSender = createOutboxSender(inner, owner, landed, dropped);
   }
   return dataServiceSingleton;
 }
