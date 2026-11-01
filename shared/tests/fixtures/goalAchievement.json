@@ -569,6 +569,66 @@
       }
     },
     {
+      "name": "a week straight under a year (#2399): the year counts it like a month, and a month beside it",
+      "goals": [
+        {
+          "id": "y",
+          "periodKind": "year",
+          "parentGoalId": null,
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "w-direct",
+          "periodKind": "week",
+          "parentGoalId": "y",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        },
+        {
+          "id": "m",
+          "periodKind": "month",
+          "parentGoalId": "y",
+          "manualAchievedAt": null,
+          "periodEndDecision": null,
+          "isDeleted": false
+        }
+      ],
+      "todos": [
+        { "id": "t1", "done": true, "isDeleted": false },
+        { "id": "t2", "done": false, "isDeleted": false }
+      ],
+      "links": [
+        { "goalId": "w-direct", "todoId": "t1", "isDeleted": false },
+        { "goalId": "m", "todoId": "t2", "isDeleted": false }
+      ],
+      "expected": {
+        "y": {
+          "achieved": false,
+          "via": null,
+          "connected": true,
+          "todos": { "done": 0, "total": 0 },
+          "children": { "achieved": 1, "total": 2 }
+        },
+        "w-direct": {
+          "achieved": true,
+          "via": "links",
+          "connected": true,
+          "todos": { "done": 1, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        },
+        "m": {
+          "achieved": false,
+          "via": null,
+          "connected": true,
+          "todos": { "done": 0, "total": 1 },
+          "children": { "achieved": 0, "total": 0 }
+        }
+      }
+    },
+    {
       "name": "a week's child goals (bad data) are not counted",
       "goals": [
         {

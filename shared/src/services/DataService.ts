@@ -899,7 +899,7 @@ export interface GoalsDataService {
   fetchGoalsInPeriod(kind: GoalPeriodKind, periodKey: string): Promise<Goal[]>;
   /** The year, month and week goals of the periods `dateKey` falls in. */
   fetchGoalsForDate(dateKey: string): Promise<Goal[]>;
-  /** Rejects a malformed period key and a parent that is not one level up. */
+  /** Rejects a malformed period key and a parent whose period is not longer. */
   createGoal(input: GoalCreateInput): Promise<Goal>;
   updateGoal(id: string, updates: GoalUpdates): Promise<Goal>;
   softDeleteGoal(id: string): Promise<void>;

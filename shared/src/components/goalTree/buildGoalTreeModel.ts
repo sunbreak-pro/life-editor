@@ -425,27 +425,45 @@ export function goalProgress(achievement: GoalAchievement): {
   };
 }
 
+/** Each kind's keys among the longer periods that hold `goal`. */
+function holdingPeriodKeys(
+  goal: Goal,
+): Readonly<Record<GoalPeriodKind, readonly string[]>> {
+  if (goal.periodKind === "year") return { year: [], month: [], week: [] };
+  if (goal.periodKind === "month") {
+    return { year: [goal.periodKey.slice(0, 4)], month: [], week: [] };
+  }
+  const days = [goal.periodKey, addDaysKey(goal.periodKey, 6)];
+  return {
+    year: days.map((day) => day.slice(0, 4)),
+    month: days.map((day) => day.slice(0, 7)),
+    week: [],
+  };
+}
+
 /**
- * The goals `goal` may hang under: one level up, in the period that holds it
- * — a month's year; a week's month, or either month when the week straddles
- * two (a week is filed under its Sunday's month, but its Saturday may already
- * be in the next). Empty for a year, which is the top.
+ * The goals `goal` may hang under: any longer period that holds it (#2399) —
+ * a month's year; a week's month or year, or either of two when the week
+ * straddles them (a week is filed under its Sunday, but its Saturday may
+ * already be in the next month or year). Longest first, and empty for a year,
+ * which is the top. The writes check the kinds again (assertGoalParentKind).
  */
 export function goalParentOptions(goals: readonly Goal[], goal: Goal): Goal[] {
-  if (goal.periodKind === "year") return [];
-  const parentKind: GoalPeriodKind =
-    goal.periodKind === "week" ? "month" : "year";
-  const keys =
-    goal.periodKind === "week"
-      ? [goal.periodKey.slice(0, 7), addDaysKey(goal.periodKey, 6).slice(0, 7)]
-      : [goal.periodKey.slice(0, 4)];
+  const holding = holdingPeriodKeys(goal);
   return goals
     .filter(
       (g) =>
         !g.isDeleted &&
         g.id !== goal.id &&
-        g.periodKind === parentKind &&
-        keys.includes(g.periodKey),
+        holding[g.periodKind].includes(g.periodKey),
     )
     .sort(compareGoals);
+}
+
+/**
+ * The kinds that may hang under a `kind` goal, longest first: what a goal
+ * row's "+" offers. Empty under a week, where the hierarchy stops.
+ */
+export function goalChildKinds(kind: GoalPeriodKind): GoalPeriodKind[] {
+  return GOAL_PERIOD_KINDS.slice(GOAL_PERIOD_KINDS.indexOf(kind) + 1);
 }
