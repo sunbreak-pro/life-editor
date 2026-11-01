@@ -18,6 +18,8 @@ import { createSyncBumpQueue } from "./syncBumpQueue";
 import { createSyncResume } from "./syncResume";
 import { getSupabaseClient } from "../services/supabaseClient";
 import { isOwnEcho } from "../services/ownWriteLedger";
+import { sendOutbox } from "../services/dataServiceFactory";
+import { refreshOutboxCounts } from "../state/outbox";
 
 /**
  * Web Sync Provider — Supabase Realtime backed (S8, replaces the S1 no-op).
@@ -211,11 +213,25 @@ export function SyncProvider({ children }: { children: ReactNode }) {
     // #2329: a resume goes through the same queue, so a re-join, `online`
     // and a return to the page arriving together become one re-read.
     // The guard covers the CLOSED that removeChannel reports after cleanup.
+    // #2335: the same moments, plus every return to the page and the mount
+    // itself, send what the outbox holds. No threshold on the return: an empty
+    // box costs one IndexedDB read.
+    const flushOutbox = () => {
+      void sendOutbox(() => {
+        if (!cancelled) scheduleBump(["todos"]);
+      }).catch((e: unknown) => console.warn("[sync] outbox", e));
+    };
     const resume = createSyncResume(() => {
-      if (!cancelled) scheduleBump(SYNC_DOMAINS);
+      if (cancelled) return;
+      scheduleBump(SYNC_DOMAINS);
+      flushOutbox();
     });
     const onOnline = () => resume.online();
-    const onVisibility = () => resume.visibilityChange(document.hidden);
+    const onVisibility = () => {
+      resume.visibilityChange(document.hidden);
+      if (!document.hidden) flushOutbox();
+    };
+    flushOutbox();
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibility);
 
@@ -271,6 +287,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
       queue.cancel();
+      // Signing out takes this Provider down: the box stays, its counts go.
+      void refreshOutboxCounts(null);
       if (channel) {
         void supabase.removeChannel(channel);
         channel = null;

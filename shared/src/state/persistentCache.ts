@@ -52,7 +52,7 @@ export function cacheDbName(userId: string): string {
   return `${DB_PREFIX}${userId}`;
 }
 
-function factory(): IDBFactory | null {
+export function factory(): IDBFactory | null {
   try {
     return typeof indexedDB === "undefined" ? null : indexedDB;
   } catch {
@@ -61,14 +61,14 @@ function factory(): IDBFactory | null {
   }
 }
 
-function settle<T>(req: IDBRequest<T>): Promise<T> {
+export function settle<T>(req: IDBRequest<T>): Promise<T> {
   return new Promise((resolve, reject) => {
     req.onsuccess = () => resolve(req.result);
     req.onerror = () => reject(req.error);
   });
 }
 
-function committed(tx: IDBTransaction): Promise<void> {
+export function committed(tx: IDBTransaction): Promise<void> {
   return new Promise((resolve, reject) => {
     tx.oncomplete = () => resolve();
     tx.onerror = () => reject(tx.error);

@@ -87,6 +87,15 @@ export interface TodosDataService {
   countUnfinishedTodos(): Promise<number>;
   fetchDeletedTodos(): Promise<TodoNode[]>;
   createTodo(node: TodoNode): Promise<TodoNode>;
+  /**
+   * The outbox's create (#2335): safe to send twice, and never overwrites or
+   * resurrects a row that is already there. `retried` says an earlier attempt
+   * may have stopped short of reporting a repair (see the implementation).
+   */
+  createTodoIfAbsent(
+    node: TodoNode,
+    options?: { retried?: boolean },
+  ): Promise<void>;
   updateTodo(id: string, updates: Partial<TodoNode>): Promise<TodoNode>;
   syncTodoTree(nodes: TodoNode[]): Promise<void>;
   softDeleteTodo(id: string): Promise<void>;

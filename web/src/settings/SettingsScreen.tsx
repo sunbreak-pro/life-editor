@@ -58,6 +58,7 @@ import {
   useMediaQuery,
   useTranslation,
   getDataService,
+  getOutboxCounts,
   isMac,
   isNativeMobile,
   lastBriefingDate,
@@ -475,6 +476,24 @@ export function SettingsScreen({
       if (ok) resetAllShortcuts?.();
     });
   };
+  /*
+   * #2335: this button asks only when Todos wait to be sent, and says how many,
+   * as the sidebar's panel does. Not `danger`: the box survives the sign-out.
+   */
+  const handleSignOut = () => {
+    const { pending } = getOutboxCounts();
+    if (pending === 0) {
+      void signOut();
+      return;
+    }
+    void askConfirm({
+      message: t("nav.signOutPromptPending", { n: pending }),
+      confirmLabel: t("settings.account.signOut.button"),
+      cancelLabel: t("common.cancel"),
+    }).then((ok) => {
+      if (ok) void signOut();
+    });
+  };
 
   /*
    * Account card (#919). The address is read from the session rather than
@@ -867,7 +886,7 @@ export function SettingsScreen({
                 deleteDescription: t("settings.account.delete.description"),
                 deleteButton: t("settings.account.delete.button"),
               }}
-              onSignOut={() => void signOut()}
+              onSignOut={handleSignOut}
               onDeleteAccount={openDelete}
             />
           </div>

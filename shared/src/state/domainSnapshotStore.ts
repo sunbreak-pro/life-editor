@@ -160,6 +160,30 @@ export function writeDomainSnapshot<T>(
 }
 
 /**
+ * Rewrite a stored list without a read (#2335). An offline add produces no
+ * Realtime echo, so the revision does not move and the next mount would replay
+ * the list from before the add (#2328) unless the slot learns about it here.
+ */
+export function patchDomainSnapshot<T>(
+  key: DomainSnapshotKey,
+  patch: (data: T) => T,
+): void {
+  const entry = snapshots.get(key);
+  if (entry === undefined) return;
+  const data = patch(entry.data as T);
+  snapshots.set(key, { ...entry, data });
+  if (owner === null || !PERSISTED_KEYS.has(key)) return;
+  pendingWrites.set(key, {
+    key,
+    anchor: entry.anchor,
+    data: forDevice(key, data),
+  });
+  if (writeTimer === null) {
+    writeTimer = setTimeout(flushPendingWrites, PERSIST_DEBOUNCE_MS);
+  }
+}
+
+/**
  * Forget one slot, in memory and on the device. For a replay that threw: the
  * value is not something this app can draw, and keeping it would throw again
  * at every mount until a read happened to overwrite it.

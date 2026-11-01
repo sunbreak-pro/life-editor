@@ -23,6 +23,7 @@ import {
   livePayloadInnerJoin,
 } from "./supabaseServiceHelpers";
 import { requireSingleRow, requireRowPair } from "./postgrestSingle";
+import { OutboxSendError, classifySendFailure } from "../state/outbox";
 
 /*
  * Todos domain (DU-B-3). Full 9-method rewrite over the items_meta
@@ -264,6 +265,80 @@ export class SupabaseTodosService implements TodosDataService {
   }
 
   /**
+   * The send behind the outbox (#2335). The same pair of inserts as createTodo,
+   * made repeatable: `ignoreDuplicates` turns a row that exists into a no-op,
+   * so a second send adds nothing and a row soft-deleted or edited elsewhere
+   * keeps its state. `.select()` then returns only rows really inserted, which
+   * is how each step knows what this send did.
+   *
+   * Unlike createTodo, a retryable payload failure keeps the meta row: the next
+   * send completes the pair. A refusal removes it (R2), and only if this send
+   * created it. When the payload lands under a meta row that already existed
+   * (a repaired orphan), a real UPDATE follows, because the delta read keys on
+   * a trigger on items_meta and a payload write alone would not move it. If
+   * that UPDATE is lost the payload is already there next time, so `retried`
+   * asks for it again.
+   */
+  async createTodoIfAbsent(
+    node: TodoNode,
+    options?: { retried?: boolean },
+  ): Promise<void> {
+    const userId = await getAuthedUserId(this.client);
+    const { meta, payload } = todoNodeToRows(node, userId);
+    const fail = (
+      label: string,
+      status: number,
+      error: { message: string; code?: string },
+    ): OutboxSendError =>
+      new OutboxSendError(
+        `createTodoIfAbsent ${label}: ${error.message}`,
+        status,
+        error.code,
+      );
+
+    // created_at too: the user made it then, not when the network came back.
+    const metaRes = await this.client
+      .from("items_meta")
+      .upsert(
+        { ...meta, created_at: node.createdAt },
+        { onConflict: "id", ignoreDuplicates: true },
+      )
+      .select("id");
+    if (metaRes.error) throw fail("items_meta", metaRes.status, metaRes.error);
+    const metaCreated = (metaRes.data ?? []).length > 0;
+
+    const payloadRes = await this.client
+      .from("tasks_payload")
+      .upsert(payload, { onConflict: "item_id", ignoreDuplicates: true })
+      .select("item_id");
+    if (payloadRes.error) {
+      const failure = fail(
+        "tasks_payload",
+        payloadRes.status,
+        payloadRes.error,
+      );
+      if (metaCreated && classifySendFailure(failure) === "failed") {
+        await this.client
+          .from("items_meta")
+          .delete()
+          .eq("id", meta.id)
+          .eq("role", "task");
+      }
+      throw failure;
+    }
+
+    const repaired = (payloadRes.data ?? []).length > 0 || options?.retried;
+    if (!metaCreated && repaired) {
+      const { error, status } = await this.client
+        .from("items_meta")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", meta.id)
+        .eq("role", "task");
+      if (error) throw fail("items_meta bump", status, error);
+    }
+  }
+
+  /**
    * Mapper-driven dual UPDATE. metaPatch ALWAYS carries updated_at
    * (DB-Q2 enforcement is in todoUpdatesToPatches, not here). payload
    * UPDATE is skipped when payloadPatch is empty so a metadata-only
@@ -456,6 +531,7 @@ export const PHASE2_TODOS_METHOD_NAMES = [
   "countUnfinishedTodos",
   "fetchDeletedTodos",
   "createTodo",
+  "createTodoIfAbsent",
   "updateTodo",
   "syncTodoTree",
   "softDeleteTodo",

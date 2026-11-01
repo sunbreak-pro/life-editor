@@ -102,6 +102,14 @@ export {
   type McpToolCatalogEntry,
 } from "./generated";
 export { getDataService } from "./services/dataServiceFactory";
+// #2335 — what the banner and the sign-out prompts read about the send-later box.
+export {
+  clearFailedOutbox,
+  getOutboxCounts,
+  readFailedOutboxText,
+  subscribeOutbox,
+  type OutboxCounts,
+} from "./state/outbox";
 export {
   signUp,
   signIn,

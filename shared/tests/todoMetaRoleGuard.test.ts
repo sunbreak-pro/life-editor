@@ -836,7 +836,11 @@ describe("census — every items_meta write in SupabaseTodosService names its ro
   it("the DELETE surface is exactly the pinned set (#1139)", () => {
     expect(
       deletes.map((c) => `${c.method} → ${roleOf(c) ?? "UNGUARDED"}`).sort(),
-    ).toEqual(["createTodo → task", "permanentDeleteTodo → task"]);
+    ).toEqual([
+      "createTodo → task",
+      "createTodoIfAbsent → task",
+      "permanentDeleteTodo → task",
+    ]);
   });
 
   it("the UPDATE surface is exactly the pinned set (#1099)", () => {
@@ -846,13 +850,14 @@ describe("census — every items_meta write in SupabaseTodosService names its ro
       updates.map((c) => `${c.method} → ${roleOf(c) ?? "UNGUARDED"}`).sort(),
     ).toEqual([
       "bumpItemsMetaUpdatedAt → task",
+      "createTodoIfAbsent → task",
       "restoreTodo → task",
       "softDeleteTodo → task",
       "updateTodo → task",
     ]);
   });
 
-  it("the only unfiltered writes are the two with no WHERE clause to put a role in", () => {
+  it("the only unfiltered writes are the ones with no WHERE clause to put a role in", () => {
     /*
      * INSERT and UPSERT carry the role in the ROW BODY (`todoNodeToRows` sets
      * `role: "task"` on every meta row it builds), not in a filter, so `roleOf`
@@ -870,6 +875,7 @@ describe("census — every items_meta write in SupabaseTodosService names its ro
       .sort();
     expect(unfiltered).toEqual([
       "createTodo → insert",
+      "createTodoIfAbsent → upsert",
       "syncTodoTree → upsert",
     ]);
   });

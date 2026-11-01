@@ -1317,7 +1317,16 @@
     "quickActions": "クイック操作",
     "launchClaude": "Claude Code を起動",
     "profile": "プロフィールを編集",
-    "signOutPrompt": "サインアウトしますか？"
+    "signOutPrompt": "サインアウトしますか？",
+    "signOutPromptPending": "送信待ちの Todo が {{n}} 件あります。この端末に残り、同じアカウントで再びサインインすると送信します。別のアカウントからは見えません。サインアウトしますか？"
+  },
+  "offline": {
+    "message": "オフラインです。新しい Todo はこの端末に残し、回線が戻ると送信します。ほかの変更は保存されません。",
+    "pending": "送信待ちの Todo が {{n}} 件あります。",
+    "failed": "送信できなかった Todo が {{n}} 件あります。本文をコピーして残してください。",
+    "failedCopied": "送信できなかった Todo {{n}} 件の本文をコピーしました。この端末から削除できます。",
+    "copy": "本文をコピー",
+    "remove": "この端末から削除"
   },
   "itemRole": {
     "task": "Todo",
