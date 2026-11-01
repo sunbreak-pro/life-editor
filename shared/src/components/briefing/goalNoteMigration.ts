@@ -10,9 +10,10 @@
  * What stays where it is:
  *   - The note. Nothing here writes to it, so past periods' sections remain
  *     as history and the moved lines are still readable in Notes.
- *   - Lines past the per-period limit. Only a section's first three lines can
- *     ever move; the rest, and any of those three that find the period
- *     already full, are reported back as `leftInNote` so the host can say so.
+ *   - Lines past the move's per-period limit. Only a section's first three
+ *     lines can ever move; the rest, and any of those three that find the
+ *     period already holding three goals, are reported back as `leftInNote`
+ *     so the host can say so.
  *
  * "Once" is carried by `legacy_key`, one per moved line
  * (`note-goals:<period>:<key>:<line index>`), and decided per line:
@@ -27,7 +28,7 @@
  *     return live rows only), so a trashed line costs one refused create per
  *     open until its period ends.
  *
- * A period that is already full of goals made elsewhere (the MCP tools) moves
+ * A period that already holds three goals made elsewhere (the MCP tools) moves
  * nothing and reports nothing: there is no row to remember "told the user"
  * on, and a toast on every open would teach the user to dismiss it.
  */
@@ -38,7 +39,11 @@ import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { goalPeriodKeys } from "./goalPeriods";
 import { GOAL_PERIODS, GOALS_NOTE_ID, extractGoals } from "./goalSections";
 
-/** Goals per period (plan: 1 期間 3 つまで). The MCP tools (#2104) keep it too. */
+/**
+ * How far this one-time move fills a period. Only the move: since #2366 a
+ * period holds any number of goals, and changing this would change what an old
+ * note imports.
+ */
 export const GOALS_PER_PERIOD_LIMIT = 3;
 
 /** One goal the host should create. Fields match `GoalCreateInput`. */

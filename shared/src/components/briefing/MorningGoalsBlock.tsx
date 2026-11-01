@@ -1,4 +1,3 @@
-import { useId } from "react";
 import { ChevronRight, Target } from "lucide-react";
 import type { GoalPeriodKind } from "../../types/goal";
 import { Button } from "../Button";
@@ -59,8 +58,6 @@ export interface MorningGoalsLabels {
   addPlaceholder: string;
   add: string;
   adding: string;
-  /** This week is full — said in place of the add field. */
-  limit: string;
   openInConnect: string;
 }
 
@@ -296,8 +293,6 @@ export interface PeriodEndReviewLabels {
   drop: string;
   achieve: string;
   later: string;
-  /** Why「持ち越す」is off — the current period is full. */
-  carryBlocked?: string;
   saving: string;
 }
 
@@ -305,7 +300,6 @@ export interface PeriodEndReviewCardProps {
   goalTitle: string;
   /** Any todo linked — false draws「未接続」as its own kind, not as 朱. */
   connected: boolean;
-  canCarry: boolean;
   /** The answer being written, or null — only that button spins. */
   busy: PeriodEndChoice | null;
   /** Another goal write (the add field's) is in flight: the answers wait. */
@@ -324,26 +318,19 @@ export interface PeriodEndReviewCardProps {
 export function PeriodEndReviewCard({
   goalTitle,
   connected,
-  canCarry,
   busy,
   locked = false,
   labels,
   onDecide,
   onLater,
 }: PeriodEndReviewCardProps): React.JSX.Element {
-  const blockedId = useId();
   const writing = busy !== null || locked;
   const answer = (choice: PeriodEndChoice, text: string) => (
     <Button
       type="button"
       variant="secondary"
       size="sm"
-      disabled={writing || (choice === "carried" && !canCarry)}
-      aria-describedby={
-        choice === "carried" && !canCarry && labels.carryBlocked
-          ? blockedId
-          : undefined
-      }
+      disabled={writing}
       busy={busy === choice}
       busyLabel={labels.saving}
       onClick={() => onDecide(choice)}
@@ -385,11 +372,6 @@ export function PeriodEndReviewCard({
             {labels.later}
           </Button>
         </div>
-        {!canCarry && labels.carryBlocked && (
-          <p id={blockedId} className="mt-2 text-xs text-lumen-text-tertiary">
-            {labels.carryBlocked}
-          </p>
-        )}
       </div>
     </section>
   );

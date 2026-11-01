@@ -216,12 +216,12 @@ describe("LinkPanel over the real pool (#1334)", () => {
     const label = i18n.t("materials.links.deletedTarget", {
       title: "Return the extra tiles",
     });
-    const chip = await screen.findByRole("img", {
+    const chip = await screen.findByRole("button", {
       name: i18n.t("materials.links.chipName", {
         kind: i18n.t("itemRole.task"),
         title: label,
       }),
     });
-    expect(chip.getAttribute("title")).not.toContain("task-1786544440797");
+    expect(chip.getAttribute("aria-label")).not.toContain("1786544440797");
   });
 });

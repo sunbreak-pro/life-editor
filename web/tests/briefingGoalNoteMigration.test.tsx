@@ -208,7 +208,7 @@ describe("goals note → goals (#2105)", () => {
 
     expect(
       await screen.findByText(
-        "Your goals note became goals. A period holds up to 3 goals, so 1 more line stays in the note as it was.",
+        "Your goals note became goals. This move fills each period up to 3 goals, so 1 more line stays in the note as it was.",
       ),
     ).toBeTruthy();
     const week = store.live().filter((g) => g.periodKind === "week");

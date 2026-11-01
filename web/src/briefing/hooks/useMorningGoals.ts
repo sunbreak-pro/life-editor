@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useRef, useState } from "react";
 import {
-  GOALS_PER_PERIOD_LIMIT,
   buildMorningGoals,
   carryPlan,
   generateId,
@@ -38,8 +37,8 @@ import {
  *
  * The goals themselves are read only once the goals note's move into goal
  * rows has settled (`migrated`, #2105): a read taken mid-move would show an
- * empty week over goals that exist, and its count is what the add field's
- * 3-per-period check trusts.
+ * empty week over goals that exist, and its count is where the add field puts
+ * the next goal.
  *
  * The review asks about one goal at a time. Each write patches the goals it
  * returns into the snapshot before the busy state clears, so the next card's
@@ -51,9 +50,8 @@ import {
  *
  * Only one goal write runs at a time — the add field's or a review answer's.
  * The snapshot counts a new goal only once its create has landed, so an add
- * and a「持ち越す」sent together would both see room and make a fourth goal
- * (the DB leaves the limit to the screens — 0034). `writing` greys the other
- * control while one is out.
+ * and a「持ち越す」sent together would take the same place in the week's order.
+ * `writing` greys the other control while one is out.
  */
 
 export interface MorningReview {
@@ -164,11 +162,7 @@ export function useMorningGoals(
 
   const createWeekGoal = useCallback(
     async (title: string): Promise<boolean> => {
-      // Checked here as well as by the hidden field: a double submit must not
-      // make a fourth goal (the DB leaves the limit to the screens — 0034).
-      if (goals === null || goals.week.length >= GOALS_PER_PERIOD_LIMIT) {
-        return false;
-      }
+      if (goals === null) return false;
       return write(async (patch) => {
         patch(
           await ds.createGoal({
@@ -197,7 +191,6 @@ export function useMorningGoals(
       void (async () => {
         const ok = await write(async (patch) => {
           if (choice === "carried" && carry.existingId === null) {
-            if (!carry.hasRoom) throw new Error("carry: the period is full");
             // The copy first: if the decision write then fails, the next
             // answer finds this copy (carryPlan.existingId) and only writes
             // the decision, instead of making a second one.

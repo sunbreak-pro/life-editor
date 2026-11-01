@@ -133,7 +133,6 @@ export {
   type GoalLinkSnapshot,
 } from "./useGoalLinkSnapshot";
 export {
-  GOALS_PER_PERIOD_LIMIT,
   currentNoteGoalLines,
   noteGoalLegacyKey,
   planNoteGoalMigration,
