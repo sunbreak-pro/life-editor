@@ -878,6 +878,7 @@
     "detailPanelLabel": "詳細パネル",
     "editDetail": "詳細を編集",
     "itemActionsLabel": "予定の操作",
+    "bubbleWhen": "{{month}}月{{day}}日（{{weekday}}）・{{time}}",
     "todoActionsLabel": "Todo の操作",
     "tabTodo": "Todo",
     "todoTodayHeading": "本日分の Todo",

@@ -60,6 +60,27 @@ export function formatDayHeadingParts(
 }
 
 /**
+ * The day an event bubble names (#2397), as parts for the catalog to arrange:
+ * ja reads 「10月10日（土）」, which needs the month and day as bare numbers
+ * and full-width brackets that Intl does not print (see above). en takes the
+ * short month name instead ("Sat, Oct 10").
+ */
+export function formatDayParts(
+  language: string,
+  dateKey: string,
+): { month: string; day: string; monthName: string; weekday: string } {
+  const date = dateFromKey(dateKey);
+  return {
+    month: String(date.getMonth() + 1),
+    day: String(date.getDate()),
+    monthName: new Intl.DateTimeFormat(language, { month: "short" }).format(
+      date,
+    ),
+    weekday: formatDayHeadingParts(language, dateKey).weekday,
+  };
+}
+
+/**
  * Month, day and weekday — "today" in the flow panel, and the month cells'
  * accessible names (MonthGrid otherwise falls back to the raw ISO key, which a
  * screen reader announces as "2026-07-09").

@@ -329,7 +329,7 @@ export function CalendarTab({
     handleCreateError,
   } = useScheduleWriteErrors(showToast);
   // #2005: the tags a duplicate can carry, on the create's one undo entry.
-  const { tagCountOf, copyTagsFrom } = useDuplicateTagCopy(
+  const { tagCountOf, tagsOf, copyTagsFrom } = useDuplicateTagCopy(
     handleDuplicateTagsError,
   );
 
@@ -1086,6 +1086,8 @@ export function CalendarTab({
         state: popover,
         selected,
         selectedTagCount: selected ? tagCountOf(selected) : 0,
+        // #2397: the same tags as chips, for the bubble's summary.
+        selectedTags: selected ? tagsOf(selected) : undefined,
         findTodoChip,
         onClose: closePopover,
         onOpenDetail: handleItemOpenDetail,

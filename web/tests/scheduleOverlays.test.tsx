@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import type { ScheduleItem, TodoCalendarChip } from "@life-editor/shared";
 import { ScheduleOverlays } from "../src/schedule/ScheduleOverlays";
 import { SCHEDULE_ITEM_PANEL_WIDTH } from "../src/schedule/todoChipPanel";
@@ -31,7 +31,14 @@ import type { ScheduleOverlaysProps } from "../src/schedule/ScheduleOverlays";
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@life-editor/shared")>()),
-  useTranslation: () => ({ t: (key: string) => key }),
+  useTranslation: () => ({
+    // #2397: interpolation values are appended as JSON, so the bubble's
+    // day-and-time line can be read back part by part. No other call in the
+    // overlays passes any.
+    t: (key: string, opts?: Record<string, unknown>) =>
+      opts ? `${key} ${JSON.stringify(opts)}` : key,
+    i18n: { language: "ja" },
+  }),
 }));
 
 const ITEM: ScheduleItem = {
@@ -587,6 +594,109 @@ describe("ScheduleOverlays — the single-click bubble", () => {
       popover: { state: { ...POPOVER, id: "event-other" }, selected: ITEM },
     });
     expect(screen.queryByText(ITEM.title)).toBeNull();
+  });
+});
+
+/*
+ * #2397 — the event bubble's summary as the Claude Design proposal draws it:
+ * the kind badge, the title, the day with its time, the tag chips and the
+ * memo's first line. Rows with nothing in them are not drawn at all, so a bare
+ * event's bubble closes up. The todo bubble only gains the badge.
+ */
+describe("ScheduleOverlays — the event bubble's summary (#2397)", () => {
+  const POPOVER = { id: ITEM.id, x: 10, y: 20 };
+  const TAGS = [
+    { id: "t-work", name: "仕事", color: "#3366ff", icon: null },
+    { id: "t-health", name: "健康", color: null, icon: "Heart" },
+  ];
+
+  const eventPanel = () =>
+    screen.getByRole("dialog", { name: "scheduleScreen.itemActionsLabel" });
+
+  /** The interpolation the day-and-time line was built from. */
+  function whenParts(): Record<string, string> {
+    const line = within(eventPanel()).getByText(
+      /^scheduleScreen\.bubbleWhen /,
+    );
+    return JSON.parse(
+      (line.textContent ?? "").slice("scheduleScreen.bubbleWhen ".length),
+    ) as Record<string, string>;
+  }
+
+  it("leads with the event badge and names the day with the time", () => {
+    renderOverlays({ popover: { state: POPOVER, selected: ITEM } });
+    expect(within(eventPanel()).getByText("scheduleScreen.typeEvent")).toBeTruthy();
+    expect(within(eventPanel()).getByText(ITEM.title)).toBeTruthy();
+    // 2026-08-16 is a Sunday. The catalog arranges the parts (ja:
+    // 「8月16日（日）・10:00–11:00」 — pinned in scheduleCopy.test.ts).
+    expect(whenParts()).toEqual({
+      month: "8",
+      day: "16",
+      monthName: "8月",
+      weekday: "日",
+      time: "10:00–11:00",
+    });
+  });
+
+  it("says all-day in place of the time, still with the day", () => {
+    renderOverlays({
+      popover: { state: POPOVER, selected: { ...ITEM, isAllDay: true } },
+    });
+    expect(whenParts()).toMatchObject({
+      month: "8",
+      day: "16",
+      time: "scheduleScreen.allDay",
+    });
+  });
+
+  it("draws every tag as a chip, and the memo as one line", () => {
+    renderOverlays({
+      popover: {
+        state: POPOVER,
+        selected: { ...ITEM, memo: "\n  議事録を\n共有する  \n" },
+        selectedTags: TAGS,
+      },
+    });
+    const panel = eventPanel();
+    const tagRow = panel.querySelector("[data-bubble-tags]") as HTMLElement;
+    expect(within(tagRow).getByText("仕事")).toBeTruthy();
+    expect(within(tagRow).getByText("健康")).toBeTruthy();
+    expect(tagRow.className).toContain("flex-wrap");
+
+    const memo = panel.querySelector("[data-bubble-memo]") as HTMLElement;
+    expect(memo.textContent).toBe("議事録を 共有する");
+    expect(memo.className).toContain("truncate");
+  });
+
+  it("closes up when the event has neither tags nor a memo", () => {
+    renderOverlays({
+      popover: { state: POPOVER, selected: ITEM, selectedTags: [] },
+    });
+    const panel = eventPanel();
+    expect(panel.querySelector("[data-bubble-tags]")).toBeNull();
+    expect(panel.querySelector("[data-bubble-memo]")).toBeNull();
+    // Badge, title, day-and-time — and no empty row after them.
+    const summary = within(panel).getByText(ITEM.title).parentElement!;
+    expect(summary.children).toHaveLength(3);
+  });
+
+  it("draws no memo row for a memo of only spaces and line breaks", () => {
+    renderOverlays({
+      popover: { state: POPOVER, selected: { ...ITEM, memo: " \n\t \n" } },
+    });
+    expect(eventPanel().querySelector("[data-bubble-memo]")).toBeNull();
+  });
+
+  it("gives the todo bubble the Todo badge and nothing else new", () => {
+    renderOverlays({
+      popover: { state: { ...POPOVER, id: CHIP.id }, todoChip: CHIP },
+    });
+    const panel = screen.getByRole("dialog", {
+      name: "scheduleScreen.todoActionsLabel",
+    });
+    expect(within(panel).getByText("scheduleScreen.typeTodo")).toBeTruthy();
+    expect(within(panel).queryByText("scheduleScreen.typeEvent")).toBeNull();
+    expect(within(panel).queryByText(/^scheduleScreen\.bubbleWhen/)).toBeNull();
   });
 });
 

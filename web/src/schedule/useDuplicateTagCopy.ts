@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef } from "react";
 import {
   useWikiTagsUnifiedContext,
   type ScheduleItem,
+  type WikiTagUnified,
 } from "@life-editor/shared";
 import type { CreateCompanion } from "./useScheduleMutations";
 
@@ -23,6 +24,11 @@ export interface DuplicateTagCopy {
   /** How many tags `item` shows — the choice is only offered when > 0. */
   tagCountOf: (item: ScheduleItem) => number;
   /**
+   * #2397: the tags `item` shows, as the tags themselves — the bubble draws
+   * them as chips. Same owners as the count; a tag in the trash is left out.
+   */
+  tagsOf: (item: ScheduleItem) => WikiTagUnified[];
+  /**
    * The companion that puts `source`'s tags on the saved copy. Resolves the
    * pair that reverses them, or null when no tag landed (the create is then
    * recorded on its own).
@@ -34,7 +40,7 @@ export function useDuplicateTagCopy(
   /** Some tags could not be put on the copy (the copy itself landed). */
   onCopyFailed: () => void,
 ): DuplicateTagCopy {
-  const { getTagsForItem, bulkAssign, bulkUnassign } =
+  const { allTags, getTagsForItem, bulkAssign, bulkUnassign } =
     useWikiTagsUnifiedContext();
 
   /*
@@ -69,6 +75,20 @@ export function useDuplicateTagCopy(
   const tagCountOf = useCallback(
     (item: ScheduleItem) => tagIdsOf(item).length,
     [tagIdsOf],
+  );
+
+  const tagsById = useMemo(
+    () => new Map(allTags.map((tag) => [tag.id, tag])),
+    [allTags],
+  );
+
+  const tagsOf = useCallback(
+    (item: ScheduleItem): WikiTagUnified[] =>
+      tagIdsOf(item).flatMap((id) => {
+        const tag = tagsById.get(id);
+        return tag && !tag.isDeleted ? [tag] : [];
+      }),
+    [tagIdsOf, tagsById],
   );
 
   const copyTagsFrom = useCallback(
@@ -114,5 +134,5 @@ export function useDuplicateTagCopy(
     [tagIdsOf, onCopyFailed],
   );
 
-  return { tagCountOf, copyTagsFrom };
+  return { tagCountOf, tagsOf, copyTagsFrom };
 }
