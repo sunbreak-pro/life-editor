@@ -28,8 +28,20 @@ import {
  * A choice is shown even for a single tag, and deliberately: with one tag it
  * is the sentence "this tag is what colours this item", which is the fact a
  * reader of a one-tag item is missing.
+ *
+ * #2407 adds the way to the tag's own colour back as a LINK, not a picker:
+ * 「色はタグが決まります」 and 「タグの色を変える →」, which opens the tag on
+ * Connect's tag screen. Drawn only when the host passes `onOpenTag` — the
+ * Schedule's event editor does, the todo detail does not.
  */
-export function TagColorControls({ itemId }: { itemId: string }) {
+export function TagColorControls({
+  itemId,
+  onOpenTag,
+}: {
+  itemId: string;
+  /** Open this tag on Connect's tag screen (#2407). Omit to draw no link. */
+  onOpenTag?: (tagId: string) => void;
+}) {
   const wiki = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
 
@@ -88,6 +100,26 @@ export function TagColorControls({ itemId }: { itemId: string }) {
           />
           {t("itemActions.displayColorFrom", { name: displayTag.name })}
         </p>
+      )}
+      {/* #2407: the sentence says why there is no colour picker here, and
+          the link goes where the tag's colour IS edited. */}
+      {displayTag && onOpenTag && (
+        <div
+          data-display-color-source=""
+          className="flex items-center justify-between gap-3"
+        >
+          <p className="text-xs text-lumen-text-secondary">
+            {t("itemActions.displayColorByTag")}
+          </p>
+          <button
+            type="button"
+            onClick={() => onOpenTag(displayTag.id)}
+            className="inline-flex shrink-0 items-center gap-1 rounded-sm text-xs font-medium text-lumen-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11"
+          >
+            {t("itemActions.displayColorEditTag")}
+            <span aria-hidden>→</span>
+          </button>
+        </div>
       )}
       <div className="flex flex-wrap items-center gap-1.5">
         {assignments.map((a) => {

@@ -77,6 +77,18 @@ export interface ScheduleEventEditorProps {
   duplicateTagCount?: number;
   /** #2219: 「ノートを添付」 at the right end of the tag row. */
   noteAttach?: ScheduleNoteAttach;
+  /**
+   * #2407: the footer's 「キャンセル」. The host hands in the SAME guarded
+   * close its frame runs on ×, Escape and the backdrop — the pane never closes
+   * itself, so an unsaved draft still gets the discard question.
+   */
+  onCancel?: () => void;
+  /**
+   * #2407: 「タグの色を変える →」 on the colour row — opens that tag on
+   * Connect's tag screen. Already guarded by the host. Omit and the colour row
+   * draws no link.
+   */
+  onOpenTag?: (tagId: string) => void;
 }
 
 export function ScheduleEventEditor({
@@ -90,6 +102,8 @@ export function ScheduleEventEditor({
   onDuplicate,
   duplicateTagCount = 0,
   noteAttach,
+  onCancel,
+  onOpenTag,
 }: ScheduleEventEditorProps) {
   const { t } = useTranslation();
   const noteAttachLabels = useNoteAttachLabels(noteAttach?.notesError);
@@ -247,6 +261,10 @@ export function ScheduleEventEditor({
             }
           : undefined
       }
+      // #2407: Delete / Cancel / Save, as in the prototype.
+      cancel={
+        onCancel ? { label: t("common.cancel"), onCancel } : undefined
+      }
       tagSlot={
         // #468: tagging is what files a row into a calendar, so without this
         // the lens above would have nothing to find. A routine occurrence is
@@ -306,7 +324,9 @@ export function ScheduleEventEditor({
               />
             )}
           </div>
-          <TagColorControls itemId={tagTargetId} />
+          {/* #2407: the link to the tag's own colour, which #2219 moved to
+              Connect's tag editor. */}
+          <TagColorControls itemId={tagTargetId} onOpenTag={onOpenTag} />
         </div>
       }
     />
