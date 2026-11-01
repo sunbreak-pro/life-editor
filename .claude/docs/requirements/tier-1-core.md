@@ -501,6 +501,10 @@ Claude Code に対し life-editor データを CRUD させるための MCP イ�
 **Supports Value Prop**: V2
 **Stack** (2026-05-24 並立期): Cloudflare Workers + D1 (`cloud/`) → Supabase Realtime + RLS (`shared/` + `supabase/`, 移行 SSOT Phase 2 完了 — `cloud/` は Phase 5 で削除予定)
 
+### 差分の読み出し（#2333 — Supabase 側の現行）
+
+Daily・Notes・Todo の再読み込みは、前回から変わった行だけを取ります（`shared/src/services/itemChanges.ts`）。基準はサーバーの時計で書く `items_meta.changed_at` と、物理削除の記録 `items_meta_tombstones` です。60 秒さかのぼって読み、変更がなければ payload へのリクエストは 0 本です。前回の取得が 7 日より古いときと、起動 20 回に 1 回は全件を取ります。migration が未適用の環境でも全件の取得に戻ります。予定・タグ・タイマーは対象外です。規約は `db-conventions.md` §10.9 にあります。
+
 ### Purpose
 
 Desktop（primary creation device）↔ iOS（consumption + quick capture）間で同じ SQLite 状態を保つための双方向同期層。オフライン完全動作を維持しつつ、ネット復帰時に差分を Cloudflare Workers + D1 経由でマージする。バックアップは副次効果であり主眼ではない。

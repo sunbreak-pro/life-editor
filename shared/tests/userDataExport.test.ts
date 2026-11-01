@@ -178,6 +178,10 @@ describe("export table roster (#1988)", () => {
       }
     }
 
+    // Erased with the account but not carried out: sync bookkeeping (#2333),
+    // written by a trigger and of no use to an importer.
+    deleted.delete("items_meta_tombstones");
+
     expect([...USER_DATA_EXPORT_TABLES.map((t) => t.table)].sort()).toEqual(
       [...deleted].sort(),
     );

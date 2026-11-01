@@ -98,6 +98,18 @@ partial UNIQUE 制約 (`uq_events_payload_routine_date` 等) を持つ relation/
 - ⚠️ レース窓: 事前 SELECT と INSERT の間に別パスが同じペアを入れると partial UNIQUE が 23505 を投げる → R2 cleanup（書いたばかりの items_meta を hard delete）にフォールバックする。**silent skip は throw しない**ので cleanup 対象外
 - R2 cleanup: payload INSERT が例外 (NW / RLS / 23505) で throw した場合のみ、INSERT 済 items_meta 群を `.in("id", ids)` で hard delete (孤児防止)
 
+### 10.9 差分の読み出し: `changed_at` と `items_meta_tombstones`（0045・#2333）
+
+`items_meta.changed_at` は BEFORE INSERT OR UPDATE のトリガーが `clock_timestamp()` で書きます。`updated_at` は端末の時計で書かれるので、差分の基準にしません（LWW と版の比較は今までどおり `updated_at` です）。物理削除は AFTER DELETE のトリガーが `items_meta_tombstones` に残します。読み手は `shared/src/services/itemChanges.ts` で、対象は Daily・Notes・Todo です。
+
+- **全件の読み出しは `changed_at` を選ばない**: web は merge で自動配布されるので、`db push` 前の本番でも一覧が動く必要があります。基準時刻は別の小さなクエリで取り、失敗したら全件読み出しのままにします。
+- **基準時刻と一覧は同じ snapshot の枠に入れる**: 別々に保存すると、基準時刻だけが一覧より新しくなり、その間の変更を失います。基準時刻は全件読み出しの**前**に取り、行と削除記録の新しいほうを取ります。
+- **payload だけを書くと `changed_at` は動かない**: §10.2 の bump を守っても、meta → payload の順の 2 リクエストのあいだに読むと古い payload を掴みます。そのため、端末の時計で 15 秒たつまでの行は読み直します。§10.2 に反する経路は、7 日より古いときと起動 20 回に 1 回の全件読み出しで回収します。
+- **同じ id の作り直し**は、削除記録と生きている行を並べます。`changed_at` が `deleted_at` より新しければ行が勝ちます。
+- **`user_id` を持つ表なので `delete_my_account()` の消す対象に入ります**: `items_meta` を消すと記録が書かれるので、順番は `items_meta` の後です。書き出しファイルには載せません（同期の帳簿のため）。
+
+---
+
 ## 11. PostgREST list read のページ分割規約（#172）
 
 PostgREST は全 SELECT をサーバ側 `max-rows`（Supabase 既定 1000）で**無音切り捨て**する（known-issue 012 と同型の failure shape）。全件系の list read は `shared/src/services/postgrestFetchAll.ts` の helper 経由で書く。
