@@ -65,7 +65,8 @@ import type { ScheduleTodoDetailProps } from "../src/schedule/ScheduleTodoDetail
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@life-editor/shared")>()),
-  useTranslation: () => ({ t: (key: string) => key }),
+  // `i18n.language`: the event bubble names its day (#2397).
+  useTranslation: () => ({ t: (key: string) => key, i18n: { language: "en" } }),
 }));
 
 vi.mock("../src/schedule/ScheduleTodoDetail", () => ({

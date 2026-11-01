@@ -4,19 +4,24 @@ import {
   ItemActionPopover,
   ItemCreatePanel,
   ItemDetailOverlay,
+  ItemRoleBadge,
   Modal,
   QuickCaptureSheet,
   RepeatScopeDialog,
   TagFilterPanel,
+  TagPill,
   useTranslation,
   type ConfirmRequest,
   type ItemCreatePanelHandlers,
   type ItemCreatePanelLabels,
   type ItemCreatePanelPools,
+  type ItemRoleLabels,
   type ScheduleItem,
   type TagFilterPanelProps,
   type TodoCalendarChip,
+  type WikiTagUnified,
 } from "@life-editor/shared";
+import { formatDayParts } from "./scheduleCopy";
 import {
   SCHEDULE_ITEM_PANEL_WIDTH,
   eventQuickEditPatch,
@@ -82,6 +87,12 @@ export interface ScheduleItemPopoverActions {
   onDelete: (id: string) => void;
 }
 
+/** One tag chip in the event bubble's summary (#2397). */
+export type ScheduleBubbleTag = Pick<
+  WikiTagUnified,
+  "id" | "name" | "color" | "icon"
+>;
+
 /** The todo-chip variant of the same bubble (#564 / #626 / #625). */
 export interface ScheduleTodoPopoverActions {
   onRename: (id: string, title: string) => void;
@@ -114,6 +125,69 @@ export interface ScheduleRepeatPanel {
   onDelete?: (id: string) => void;
 }
 
+/*
+ * #2397: what the event bubble says about its item — the kind, the title, the
+ * day with its time, the tags and the memo's first line, as in the Claude
+ * Design proposal. The tag and memo rows are left out entirely when there is
+ * nothing to put in them, so a bare event's bubble closes up instead of
+ * keeping two empty rows.
+ *
+ * The bubble grows with the tag row, which is fine: ItemActionPopover measures
+ * what it drew and holds the panel inside the viewport (clampToViewport), and
+ * a panel taller than that scrolls inside itself.
+ */
+function EventBubbleSummary({
+  item,
+  title,
+  when,
+  tags,
+  roleLabels,
+}: {
+  item: ScheduleItem;
+  title: string;
+  when: string;
+  tags: readonly ScheduleBubbleTag[];
+  roleLabels: ItemRoleLabels;
+}) {
+  // One line: a memo written over several lines reads as one run of words,
+  // and a memo of nothing but spaces and line breaks is no memo.
+  const memo = (item.memo ?? "").replace(/\s+/g, " ").trim();
+  return (
+    <div className="flex flex-col gap-0.5">
+      <ItemRoleBadge
+        role="event"
+        labels={roleLabels}
+        className="mb-0.5 self-start"
+      />
+      <p className="line-clamp-2 break-words font-semibold text-lumen-text">
+        {title}
+      </p>
+      <p className="text-lumen-text-secondary">{when}</p>
+      {tags.length > 0 && (
+        <div data-bubble-tags="" className="mt-1 flex flex-wrap gap-1">
+          {tags.map((tag) => (
+            <TagPill
+              key={tag.id}
+              name={tag.name}
+              color={tag.color}
+              icon={tag.icon}
+            />
+          ))}
+        </div>
+      )}
+      {memo && (
+        <p
+          data-bubble-memo=""
+          title={memo}
+          className="mt-1 truncate text-lumen-text-secondary"
+        >
+          {memo}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export interface ScheduleOverlaysProps {
   isWide: boolean;
   /**
@@ -132,6 +206,12 @@ export interface ScheduleOverlaysProps {
      * none.
      */
     selectedTagCount?: number;
+    /**
+     * #2397: the tags `selected` shows (its own and, on a repeat's occurrence,
+     * the series'), drawn as chips in the bubble's summary. Left out reads as
+     * none.
+     */
+    selectedTags?: readonly ScheduleBubbleTag[];
     /** The todo chip behind the bubble, when the bubble belongs to one. */
     todoChip: TodoCalendarChip | null;
     onClose: () => void;
@@ -178,7 +258,18 @@ export function ScheduleOverlays({
   scope,
   confirm,
 }: ScheduleOverlaysProps) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+
+  // #2397: the kind badge at the head of both bubbles. The Schedule's own
+  // words (「予定」/「Todo」, the ones the add dialog's type switch uses), not
+  // itemRole's 「イベント」; the other roles never reach this bubble.
+  const roleLabels = {
+    event: t("scheduleScreen.typeEvent"),
+    task: t("scheduleScreen.typeTodo"),
+    note: t("itemRole.note"),
+    daily: t("itemRole.daily"),
+    unknown: t("itemRole.unknown"),
+  };
 
   // #2222: the in-place edit's copy, the same for both variants.
   const quickEditLabels = {
@@ -234,6 +325,11 @@ export function ScheduleOverlays({
         autoFocus={popover.state.focus}
         summary={
           <div className="flex flex-col gap-0.5">
+            <ItemRoleBadge
+              role="task"
+              labels={roleLabels}
+              className="mb-0.5 self-start"
+            />
             <p className="line-clamp-2 break-words font-semibold text-lumen-text">
               {todoChipPanel.title}
             </p>
@@ -269,16 +365,18 @@ export function ScheduleOverlays({
         position={{ x: popover.state.x, y: popover.state.y }}
         autoFocus={popover.state.focus}
         summary={
-          <div className="flex flex-col gap-0.5">
-            <p className="line-clamp-2 break-words font-semibold text-lumen-text">
-              {popover.selected.title || t("scheduleCalendar.newEvent")}
-            </p>
-            <p className="text-lumen-text-secondary">
-              {popover.selected.isAllDay
+          <EventBubbleSummary
+            item={popover.selected}
+            title={popover.selected.title || t("scheduleCalendar.newEvent")}
+            when={t("scheduleScreen.bubbleWhen", {
+              ...formatDayParts(i18n.language, popover.selected.date),
+              time: popover.selected.isAllDay
                 ? t("scheduleScreen.allDay")
-                : `${popover.selected.startTime}–${popover.selected.endTime}`}
-            </p>
-          </div>
+                : `${popover.selected.startTime}–${popover.selected.endTime}`,
+            })}
+            tags={popover.selectedTags ?? []}
+            roleLabels={roleLabels}
+          />
         }
         // #2222: the title, day and time are edited where they are printed
         // (double-click, or Enter on the focused summary) — the "Rename" and
