@@ -25,6 +25,7 @@
  * IndexedDB (jsdom, a locked-down browser, Electron's file://) only means the
  * app starts the way it did before.
  */
+import type { ChangeCursor } from "../services/itemChanges";
 
 /**
  * The shape of what is stored. Bump it whenever a stored value changes shape:
@@ -32,7 +33,7 @@
  * else. `persistentCacheShape.test.ts` fails when the mapper output moves
  * without a bump.
  */
-export const CACHE_SCHEMA_VERSION = 1;
+export const CACHE_SCHEMA_VERSION = 2;
 
 const DB_PREFIX = "life-editor-cache:";
 /** The IndexedDB version: the object stores below, not the data's shape. */
@@ -46,6 +47,8 @@ export interface PersistedSnapshot {
   key: string;
   anchor: string | number | undefined;
   data: unknown;
+  /** Where `data` stands for a delta read (#2333), stored in the same row. */
+  cursor?: ChangeCursor;
 }
 
 export function cacheDbName(userId: string): string {

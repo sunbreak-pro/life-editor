@@ -21,6 +21,12 @@ import { contentJsonToString, contentStringToJson } from "./contentJson";
 import { fetchAllPages, fetchByIdChunks } from "./postgrestFetchAll";
 import type { DailyNode } from "../types/daily";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
+import {
+  DAILY_CHANGES,
+  fetchItemChanges,
+  type ChangeCursor,
+  type ChangesRead,
+} from "./itemChanges";
 import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
 import { ItemLockGate } from "./itemLockGate";
 import { fetchMaybeSingleRow } from "./postgrestSingle";
@@ -120,6 +126,13 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
       payloadLabel: "listDailySummariesUnified payload failed",
       toDomain: rowsToDailyNodeLight,
     });
+  }
+
+  fetchDailyChanges(
+    cursor: ChangeCursor,
+    base: readonly DailyNode[],
+  ): Promise<ChangesRead<DailyNode[]> | null> {
+    return fetchItemChanges(this.client, DAILY_CHANGES, cursor, base);
   }
 
   /**
@@ -617,6 +630,7 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
 
 export const PHASE2_DAILIES_UNIFIED_METHOD_NAMES = [
   "listDailiesUnified",
+  "fetchDailyChanges", // #2333
   // #2325
   "listDailySummariesUnified",
   "fetchDailyBodiesUnified",

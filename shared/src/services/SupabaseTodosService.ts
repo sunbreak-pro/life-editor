@@ -19,6 +19,13 @@ import { collectDescendantIds } from "../utils/getDescendantTodos";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import {
+  TODO_CHANGES,
+  fetchItemChanges,
+  readChangeCursor,
+  type ChangeCursor,
+  type ChangesRead,
+} from "./itemChanges";
+import {
   getAuthedUserId,
   livePayloadInnerJoin,
 } from "./supabaseServiceHelpers";
@@ -135,6 +142,17 @@ export class SupabaseTodosService implements TodosDataService {
       keep: (p) => !isLegacyFolderRow(p), // S3: exclude legacy folder rows
       toDomain: rowsToTodoNode,
     });
+  }
+
+  readItemChangeCursor(): Promise<ChangeCursor | null> {
+    return readChangeCursor(this.client);
+  }
+
+  fetchTodoChanges(
+    cursor: ChangeCursor,
+    base: readonly TodoNode[],
+  ): Promise<ChangesRead<TodoNode[]> | null> {
+    return fetchItemChanges(this.client, TODO_CHANGES, cursor, base);
   }
 
   /**
@@ -453,6 +471,8 @@ export class SupabaseTodosService implements TodosDataService {
 
 export const PHASE2_TODOS_METHOD_NAMES = [
   "fetchTodoTree",
+  "readItemChangeCursor", // #2333
+  "fetchTodoChanges", // #2333
   "countUnfinishedTodos",
   "fetchDeletedTodos",
   "createTodo",

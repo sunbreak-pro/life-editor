@@ -174,6 +174,14 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
       fetchLandedRef.current = true;
       return fetched;
     },
+    delta: {
+      readCursor: (service) => service.readItemChangeCursor(),
+      read: async (service, cursor, base) => {
+        const read = await service.fetchTodoChanges(cursor, base);
+        if (read !== null) fetchLandedRef.current = true;
+        return read;
+      },
+    },
     apply: (active) => {
       setNodes(active);
       if (fetchLandedRef.current)

@@ -12,6 +12,10 @@ import { TAG_ICON_CHOICES, TagIconPicker } from "../src/components";
  * which is where the two failure modes live: filtering that waits for the
  * commit shows a stale list, and an Enter/Escape acted on before the commit
  * picks an icon the user never chose.
+ *
+ * #2389 moved the field into the centre panel that "Show more" opens, so every
+ * case starts by opening it. The panel is a dialog now, which is why the
+ * closed-after-pick checks look for the dialog rather than a popover group.
  */
 
 const LABELS = {
@@ -19,6 +23,8 @@ const LABELS = {
   clearIconLabel: "Default icon",
   searchLabel: "Search icons",
   noMatchLabel: "No icon matches that.",
+  moreLabel: "Show more",
+  countLabel: "{count} icons",
 };
 
 function openPicker(onPick = vi.fn()) {
@@ -30,11 +36,11 @@ function openPicker(onPick = vi.fn()) {
       labels={LABELS}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: LABELS.iconLabel }));
+  fireEvent.click(screen.getByRole("button", { name: LABELS.moreLabel }));
   return {
     onPick,
     search: screen.getByRole("combobox", { name: LABELS.searchLabel }),
-    popover: screen.getByRole("group", { name: LABELS.iconLabel }),
+    panel: screen.getByRole("dialog", { name: LABELS.iconLabel }),
   };
 }
 
@@ -168,7 +174,7 @@ describe("tag icon search — the keyboard", () => {
     fireEvent.keyDown(search, { key: "Enter" });
 
     expect(onPick).toHaveBeenCalledWith("PiggyBank");
-    expect(screen.queryByRole("group", { name: LABELS.iconLabel })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: LABELS.iconLabel })).toBeNull();
   });
 
   it("does nothing on Enter while no icon is highlighted", () => {
@@ -179,7 +185,7 @@ describe("tag icon search — the keyboard", () => {
     fireEvent.keyDown(search, { key: "Enter" });
 
     expect(onPick).not.toHaveBeenCalled();
-    expect(screen.getByRole("group", { name: LABELS.iconLabel })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: LABELS.iconLabel })).toBeTruthy();
   });
 
   it("reaches the last icon with ArrowUp from an untouched panel", () => {
@@ -203,7 +209,7 @@ describe("tag icon search — the IME is not interrupted (§frontend gotcha)", (
     fireEvent.keyDown(search, { key: "Enter", isComposing: true });
 
     expect(onPick).not.toHaveBeenCalled();
-    expect(screen.getByRole("group", { name: LABELS.iconLabel })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: LABELS.iconLabel })).toBeTruthy();
   });
 
   it("does not pick an icon on WebKit's keyCode 229 Enter", () => {
@@ -239,7 +245,7 @@ describe("tag icon search — the IME is not interrupted (§frontend gotcha)", (
 
     fireEvent.keyDown(document, { key: "Escape", isComposing: true });
 
-    expect(screen.getByRole("group", { name: LABELS.iconLabel })).toBeTruthy();
+    expect(screen.getByRole("dialog", { name: LABELS.iconLabel })).toBeTruthy();
   });
 
   it("still closes the panel on a plain Escape", () => {
@@ -247,6 +253,6 @@ describe("tag icon search — the IME is not interrupted (§frontend gotcha)", (
 
     fireEvent.keyDown(document, { key: "Escape" });
 
-    expect(screen.queryByRole("group", { name: LABELS.iconLabel })).toBeNull();
+    expect(screen.queryByRole("dialog", { name: LABELS.iconLabel })).toBeNull();
   });
 });
