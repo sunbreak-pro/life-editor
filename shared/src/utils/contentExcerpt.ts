@@ -83,3 +83,13 @@ export function blocksExcerpt(
   }
   return undefined;
 }
+
+/**
+ * Cut a one-line excerpt to `max` characters, marking the cut with an ellipsis.
+ * Counted in code points, so the cut never lands inside an emoji's surrogate
+ * pair (#2392).
+ */
+export function clipExcerpt(text: string, max: number): string {
+  const chars = Array.from(text);
+  return chars.length <= max ? text : `${chars.slice(0, max).join("")}…`;
+}

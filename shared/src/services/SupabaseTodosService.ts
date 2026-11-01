@@ -19,10 +19,21 @@ import { collectDescendantIds } from "../utils/getDescendantTodos";
 import { sortByDepthDesc } from "../utils/sortByDepthDesc";
 import { fetchMetaFirstJoin } from "./itemsMetaJoin";
 import {
+  TODO_CHANGES,
+  fetchItemChanges,
+  readChangeCursor,
+  type ChangeCursor,
+  type ChangesRead,
+} from "./itemChanges";
+import {
   getAuthedUserId,
   livePayloadInnerJoin,
 } from "./supabaseServiceHelpers";
-import { requireSingleRow, requireRowPair } from "./postgrestSingle";
+import {
+  fetchMaybeSingleRow,
+  requireSingleRow,
+  requireRowPair,
+} from "./postgrestSingle";
 
 /*
  * Todos domain (DU-B-3). Full 9-method rewrite over the items_meta
@@ -107,6 +118,35 @@ export class SupabaseTodosService implements TodosDataService {
   }
 
   /**
+   * One live todo (#2392). The same two rows fetchTodoTree joins and the same
+   * folder rule, for the link panel, which shows one todo at a time. A missing
+   * payload row is an orphan and reads as no todo, as it does in the tree.
+   */
+  async getTodoById(id: string): Promise<TodoNode | null> {
+    const meta = await fetchMaybeSingleRow<ItemsMetaRow>(
+      this.client
+        .from("items_meta")
+        .select(ITEMS_META_TASK_COLUMNS)
+        .eq("id", id)
+        .eq("role", "task")
+        .eq("is_deleted", false)
+        .maybeSingle(),
+      "getTodoById items_meta failed",
+    );
+    if (!meta) return null;
+    const payload = await fetchMaybeSingleRow<TasksPayloadRow>(
+      this.client
+        .from("tasks_payload")
+        .select(TASKS_PAYLOAD_COLUMNS)
+        .eq("item_id", id)
+        .maybeSingle(),
+      "getTodoById tasks_payload failed",
+    );
+    if (!payload || isLegacyFolderRow(payload)) return null;
+    return rowsToTodoNode(meta, payload);
+  }
+
+  /**
    * Read all live todos. Two SELECTs (items_meta then tasks_payload)
    * joined in-app: the role=todo filter and the explicit shape match
    * keep query intent reviewable, and a missing payload row (R2
@@ -135,6 +175,17 @@ export class SupabaseTodosService implements TodosDataService {
       keep: (p) => !isLegacyFolderRow(p), // S3: exclude legacy folder rows
       toDomain: rowsToTodoNode,
     });
+  }
+
+  readItemChangeCursor(): Promise<ChangeCursor | null> {
+    return readChangeCursor(this.client);
+  }
+
+  fetchTodoChanges(
+    cursor: ChangeCursor,
+    base: readonly TodoNode[],
+  ): Promise<ChangesRead<TodoNode[]> | null> {
+    return fetchItemChanges(this.client, TODO_CHANGES, cursor, base);
   }
 
   /**
@@ -453,6 +504,9 @@ export class SupabaseTodosService implements TodosDataService {
 
 export const PHASE2_TODOS_METHOD_NAMES = [
   "fetchTodoTree",
+  "getTodoById",
+  "readItemChangeCursor", // #2333
+  "fetchTodoChanges", // #2333
   "countUnfinishedTodos",
   "fetchDeletedTodos",
   "createTodo",

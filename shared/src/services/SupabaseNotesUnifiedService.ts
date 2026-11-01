@@ -1,6 +1,12 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { NotesUnifiedDataService } from "./DataService";
 import { noteNodeToRows, noteUpdatesToPatches } from "./notesUnifiedMapper";
+import {
+  NOTE_CHANGES,
+  fetchItemChanges,
+  type ChangeCursor,
+  type ChangesRead,
+} from "./itemChanges";
 import type {
   NoteBodySaveResult,
   NoteBodySnapshot,
@@ -62,6 +68,13 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
 
   listNotesUnified(): Promise<NoteNode[]> {
     return this.reads.listNotesUnified();
+  }
+
+  fetchNoteChanges(
+    cursor: ChangeCursor,
+    base: readonly NoteNode[],
+  ): Promise<ChangesRead<NoteNode[]> | null> {
+    return fetchItemChanges(this.client, NOTE_CHANGES, cursor, base);
   }
 
   listNoteTemplatesUnified(): Promise<NoteNode[]> {
@@ -331,6 +344,7 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
 
 export const PHASE2_NOTES_UNIFIED_METHOD_NAMES = [
   "listNotesUnified",
+  "fetchNoteChanges", // #2333
   "listNoteTemplatesUnified", // #1047
   "listNoteExcerptsUnified", // #2224
   "countLiveNotes",

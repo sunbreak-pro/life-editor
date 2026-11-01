@@ -19,7 +19,9 @@ import { addDaysKey } from "../../utils/scheduleGridLayout";
  *
  * What is shown is narrower: the goals of this year, this month and this week
  * (Sunday start — D-20260816-briefing-1), plus their ancestors, so a week goal
- * filed under last month's goal is still drawn under it. A shown goal whose
+ * filed under last month's goal is still drawn under it. A goal with a range
+ * of its own (#2366) is also shown on every day inside that range, so one set
+ * to run past its period's end stays on the tree until its end date. A shown goal whose
  * parent is not shown is a root. Every shown goal with nothing connected is
  * listed in the "unconnected" group (brief §1.5 — 未接続 is a classification);
  * one that has a shown parent also stays under it, where the parent's
@@ -38,9 +40,6 @@ export const GOAL_PERIOD_KINDS: readonly GoalPeriodKind[] = [
   "month",
   "week",
 ];
-
-/** Three goals per period at most (brief §1.2). */
-export const GOALS_PER_PERIOD = 3;
 
 export interface GoalTreeTodo {
   id: string;
@@ -63,7 +62,10 @@ export interface GoalTreeModel {
   /** Every shown goal by id — the panel's lookup. */
   byId: ReadonlyMap<string, GoalTreeNode>;
   periodKeys: Readonly<Record<GoalPeriodKind, string>>;
-  /** Live goals in each current period — the add buttons' limit. */
+  /**
+   * Live goals in each current period. There is no limit any more (#2366);
+   * a new goal takes the count as its sort order, so it lands last.
+   */
   periodCounts: Readonly<Record<GoalPeriodKind, number>>;
 }
 
@@ -88,6 +90,39 @@ export interface BuildGoalTreeModelInput {
   /** `YYYY-MM-DD` — the day whose year / month / week is current. */
   todayKey: string;
   untitled: string;
+}
+
+/** The goal has a range of its own and `dayKey` falls inside it. */
+function rangeHolds(goal: Goal, dayKey: string): boolean {
+  return (
+    !!goal.startDate &&
+    !!goal.endDate &&
+    goal.startDate <= dayKey &&
+    dayKey <= goal.endDate
+  );
+}
+
+/**
+ * The first and last day of a period (#2366) — what a goal with no range of
+ * its own covers, and what the add field offers before it is changed.
+ */
+export function goalPeriodBounds(
+  kind: GoalPeriodKind,
+  periodKey: string,
+): { start: string; end: string } {
+  if (kind === "week") {
+    return { start: periodKey, end: addDaysKey(periodKey, 6) };
+  }
+  if (kind === "year") {
+    return { start: `${periodKey}-01-01`, end: `${periodKey}-12-31` };
+  }
+  const [y, m] = periodKey.split("-").map(Number);
+  // Day 0 of the next month is this month's last day.
+  const last = new Date(Date.UTC(y ?? 1970, m ?? 1, 0)).getUTCDate();
+  return {
+    start: `${periodKey}-01`,
+    end: `${periodKey}-${String(last).padStart(2, "0")}`,
+  };
 }
 
 const KIND_RANK: Record<GoalPeriodKind, number> = {
@@ -132,8 +167,9 @@ export function buildGoalTreeModel({
   const goalById = new Map(liveGoals.map((g) => [g.id, g]));
   const shown = new Set<string>();
   for (const goal of liveGoals) {
-    if (goal.periodKey !== periodKeys[goal.periodKind]) continue;
-    periodCounts[goal.periodKind] += 1;
+    const inCurrentPeriod = goal.periodKey === periodKeys[goal.periodKind];
+    if (inCurrentPeriod) periodCounts[goal.periodKind] += 1;
+    if (!inCurrentPeriod && !rangeHolds(goal, todayKey)) continue;
     // The goal and its ancestors; the guard stops on a (bad-data) cycle.
     let cursor: Goal | undefined = goal;
     while (cursor && !shown.has(cursor.id)) {

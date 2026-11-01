@@ -331,6 +331,14 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       fetchLandedRef.current = true;
       return rows;
     },
+    delta: {
+      readCursor: (service) => service.readItemChangeCursor(),
+      read: async (service, cursor, base) => {
+        const read = await service.fetchNoteChanges(cursor, base);
+        if (read !== null) fetchLandedRef.current = true;
+        return read;
+      },
+    },
     apply: (loaded) => {
       // #301/#607: the merge and both ledger updates live in
       // useNoteHydrationLedger.mergeLoadedList — see the rationale there.
