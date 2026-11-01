@@ -69,6 +69,21 @@ describe("TagPill — the chip carries the tag's own icon (#1291)", () => {
     expect(screen.getAllByRole("button")).toHaveLength(1);
   });
 
+  it("is a round pill on the neutral face, its colour on the glyph (#2391)", () => {
+    const { container } = render(
+      <TagPill name="work" color="#336699" icon="Star" />,
+    );
+
+    const pill = container.firstElementChild as HTMLElement;
+    expect(pill.className).toContain("rounded-lumen-full");
+    expect(pill.className).toContain("bg-lumen-bg-secondary");
+    // The link chips beside it are the squares in a kind's colour; the pill's
+    // own face stays out of that language.
+    expect(pill.style.backgroundColor).toBe("");
+    expect(pill.style.borderColor).toBe("");
+    expect(container.querySelector("svg")).toHaveStyle({ color: "#336699" });
+  });
+
   it("still reads as one tag: no leftover colour dot beside the glyph", () => {
     const { container } = render(
       <TagPill name="work" color="#336699" icon="Star" />,

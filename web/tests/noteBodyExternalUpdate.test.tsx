@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { beforeAll, describe, it, expect, vi } from "vitest";
 import {
   render,
   screen,
@@ -217,6 +217,75 @@ describe("NOTE-SYNC-2 — our own save's echo", () => {
 
     expect(h.fetchNoteBodySnapshot.mock.calls.length).toBe(readsBefore);
     expect(paragraphs(h.editor())).toEqual(["intro?", "line"]);
+  });
+});
+
+/*
+ * #2289 — the keyboard closes with the focus, and PR #2301 could only read this
+ * off the code for the Note body (the Mobile sheet mounts this same component).
+ * None of these goes through a remount: the session answers from the version,
+ * or swaps the text inside the live editor.
+ */
+describe("the caret stays in the body while the server moves (#2289)", () => {
+  // A focused editor scrolls to its selection, and jsdom has no layout to
+  // measure a Range with (rules/frontend.md). Left in place for the file: the
+  // selection change that asks for it can outlive the test that caused it.
+  beforeAll(() => {
+    const noBox = { top: 0, bottom: 0, left: 0, right: 0, width: 0, height: 0 };
+    Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
+    Range.prototype.getBoundingClientRect = () => noBox as DOMRect;
+  });
+
+  function focused(h: ReturnType<typeof harness>) {
+    const view = h.editor().view.dom;
+    // The DOM's own focus: TipTap's command waits for an animation frame.
+    act(() => view.focus());
+    expect(document.activeElement).toBe(view);
+    return view;
+  }
+  const expectKept = (h: ReturnType<typeof harness>, view: Element) => {
+    expect(h.editor().view.dom).toBe(view);
+    expect(document.activeElement).toBe(view);
+    expect(h.editor().isDestroyed).toBe(false);
+  };
+
+  it("through our own save's echo", async () => {
+    const h = harness(doc("intro", "line"));
+    const view = focused(h);
+    typeInFirstLine(h.editor(), "?");
+    await waitFor(() => expect(h.server.updatedAt).toBe(V2), { timeout: 3000 });
+
+    act(() => h.control.announce(V2));
+    await act(async () => {});
+    expectKept(h, view);
+    expect(paragraphs(h.editor())).toEqual(["intro?", "line"]);
+  });
+
+  it("through a list reload that still reports the version before that save", async () => {
+    const h = harness(doc("intro", "line"));
+    const view = focused(h);
+    typeInFirstLine(h.editor(), "?");
+    await waitFor(() => expect(h.server.updatedAt).toBe(V2), { timeout: 3000 });
+
+    act(() => h.control.announce(V1));
+    await act(async () => {});
+    act(() => h.control.announce(V0));
+    await act(async () => {});
+    expectKept(h, view);
+    expect(paragraphs(h.editor())).toEqual(["intro?", "line"]);
+    expect(screen.queryByTestId("note-conflict-banner")).toBeNull();
+  });
+
+  it("through a write from elsewhere, replaced inside the live editor", async () => {
+    const h = harness(doc("intro", "line"));
+    await act(async () => {});
+    const view = focused(h);
+
+    h.writeElsewhere(doc("intro", "line ticked by MCP"));
+    await waitFor(() =>
+      expect(paragraphs(h.editor())).toEqual(["intro", "line ticked by MCP"]),
+    );
+    expectKept(h, view);
   });
 });
 

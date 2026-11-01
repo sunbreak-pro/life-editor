@@ -531,7 +531,9 @@ export function NoteDetailPanel({
               // its own under the title and does not wrap — the tag picker
               // scrolls its chips sideways instead (TagPicker `singleRow`),
               // which keeps the stuck header from growing a line per tag.
-              <div className="flex flex-wrap items-center gap-1.5 max-md:w-full max-md:min-w-0 max-md:flex-nowrap">
+              // `relative` (#2391): the link picker hangs from this row below
+              // the breakpoint, so it spans the phone instead of its "+".
+              <div className="flex flex-wrap items-center gap-1.5 max-md:relative max-md:w-full max-md:min-w-0 max-md:flex-nowrap">
                 {tagsSlot}
                 {linksSlot}
               </div>

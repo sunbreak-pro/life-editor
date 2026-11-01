@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import {
+  BottomSheet,
   TagHubEditBlock,
   TagIconPicker,
   type TagHubTagSummary,
@@ -8,23 +9,20 @@ import {
 import { TAG_HUB_LABELS } from "./tagHubLabels";
 
 /*
- * #2051 — at 390px, opening the icon list in the tag edit sheet (Materials'
- * sidebar, and Connect's narrow edit panel, which draw the same block) scrolled
- * the sheet sideways: the list's panel was `w-max`, so it grew to the frame's
- * 17rem wherever the trigger sat, and with the trigger ~105px in from the
- * sheet's edge its right side hung ~30px past it. "Delete tag" was cut off on
- * the left and a horizontal scrollbar appeared.
+ * #2051 — at 390px, the tag edit sheet scrolled sideways when the icon list
+ * opened: the list's popover was `w-max` and hung ~30px past the sheet.
+ * #2389 removed the popover. The icons the sheet shows are now a clipped
+ * one-row strip, and the full list lives in a Modal that portals out of the
+ * sheet, so the sheet has nothing left that can be wider than it.
  *
- * jsdom has no layout (CLAUDE.md §7.1), so the scrollWidth itself cannot be
- * measured here. What CAN be pinned is the chain of classes that keeps the
- * panel inside the room it is given:
- *   1. the picker's root (the panel's containing block) takes the host row's
- *      remaining width instead of the trigger's,
- *   2. the panel and its scroll frame are capped at 100% of that,
- *   3. the grid wraps to as many columns as fit, each at least one button wide,
- *      instead of squeezing a fixed 8 tracks under the buttons.
- * Drop any link and the panel either overruns the sheet again or paints
- * narrower than the icons sitting on it (#1289).
+ * jsdom has no layout (CLAUDE.md §7.1), so scrollWidth cannot be measured here.
+ * What CAN be pinned is the chain of classes that keeps the sheet's content
+ * inside the room it is given:
+ *   1. the picker's root takes the host row's remaining width (min-w-0),
+ *   2. the strip clips instead of growing a second row,
+ *   3. nothing in the edit block carries an intrinsic or fixed width without a
+ *      cap — with the panel closed AND open,
+ *   4. the panel is not a descendant of the sheet at all.
  */
 
 const LABELS = TAG_HUB_LABELS.edit;
@@ -41,26 +39,25 @@ const WORK: TagHubTagSummary = {
 const classesOf = (el: Element): string[] =>
   el.getAttribute("class")?.split(/\s+/).filter(Boolean) ?? [];
 
-function openStandalonePicker(): HTMLElement {
+function renderStandalonePicker(): void {
   render(
     <TagIconPicker
       current={null}
       color={null}
       onPick={vi.fn()}
-      triggerLabel={LABELS.iconChange}
       labels={{
         iconLabel: LABELS.iconLabel,
         clearIconLabel: LABELS.iconClear,
         searchLabel: LABELS.iconSearch,
         noMatchLabel: LABELS.iconNoMatch,
+        moreLabel: LABELS.iconMore,
+        countLabel: LABELS.iconCount,
       }}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: LABELS.iconLabel }));
-  return screen.getByRole("group", { name: LABELS.iconLabel });
 }
 
-function openPickerInEditBlock(): { block: HTMLElement; popover: HTMLElement } {
+function renderEditBlock(): HTMLElement {
   const { container } = render(
     <TagHubEditBlock
       tag={WORK}
@@ -73,68 +70,41 @@ function openPickerInEditBlock(): { block: HTMLElement; popover: HTMLElement } {
       labels={LABELS}
     />,
   );
-  fireEvent.click(screen.getByRole("button", { name: LABELS.iconLabel }));
-  return {
-    block: container.firstElementChild as HTMLElement,
-    popover: screen.getByRole("group", { name: LABELS.iconLabel }),
-  };
+  return container.firstElementChild as HTMLElement;
 }
+
+const strip = (): HTMLElement =>
+  screen.getByRole("group", { name: LABELS.iconLabel });
 
 beforeEach(cleanup);
 
-describe("tag icon picker — the panel stays inside the room it is given (#2051)", () => {
-  it("caps the panel's intrinsic width at its containing block", () => {
-    const popover = openStandalonePicker();
-    const classes = classesOf(popover);
+describe("tag icon picker — the strip stays inside the room it is given (#2389)", () => {
+  it("takes the host row's width and may shrink below its content", () => {
+    renderStandalonePicker();
+    const root = strip().parentElement!;
 
-    // `w-max` stays (#1289: without it the panel shrinks to the trigger), but
-    // only with a cap beside it; alone it is what overran the sheet.
-    expect(classes).toContain("w-max");
-    expect(classes).toContain("max-w-full");
-    expect(classes).toContain("absolute");
+    // min-w-0 is what lets a flex item be narrower than its widest child; the
+    // strip's own clip does the rest.
+    expect(classesOf(root)).toContain("min-w-0");
+    expect(classesOf(root)).toContain("flex-1");
   });
 
-  it("gives the panel the host row's width to be capped at, not the trigger's", () => {
-    const popover = openStandalonePicker();
-    const root = popover.parentElement!;
-    const rootClasses = classesOf(root);
+  it("clips to one row instead of wrapping past the sheet", () => {
+    renderStandalonePicker();
+    const classes = classesOf(strip());
 
-    // The root is the panel's containing block. Sized by the trigger
-    // (`shrink-0`), 100% of it would be the trigger's ~80px again.
-    expect(rootClasses).toContain("relative");
-    expect(rootClasses).toContain("flex-1");
-    expect(rootClasses).toContain("min-w-0");
-    expect(rootClasses).not.toContain("shrink-0");
-
-    // The trigger keeps its own size inside the wider root rather than
-    // stretching into a full-row bar.
-    const trigger = screen.getByRole("button", { name: LABELS.iconLabel });
-    expect(classesOf(trigger)).toContain("w-fit");
+    expect(classes).toContain("flex-wrap");
+    expect(classes).toContain("overflow-hidden");
   });
 
-  it("lets the scroll frame give way when the panel is capped", () => {
-    const popover = openStandalonePicker();
-    const frame = popover.querySelector('[role="listbox"]')!.parentElement!;
+  it("gives every glyph its own width, so it never squeezes under another", () => {
+    renderStandalonePicker();
 
-    expect(classesOf(frame)).toContain("max-w-full");
-  });
-
-  it("wraps the grid to the columns that fit, each at least one button wide", () => {
-    const popover = openStandalonePicker();
-    const grid = popover.querySelector<HTMLElement>('[role="listbox"]')!;
-    const gridClasses = classesOf(grid);
-
-    // A fixed count is `repeat(n, minmax(0, 1fr))`: its tracks shrink to 0
-    // and the 28px buttons spill out of them sideways.
-    expect(gridClasses.filter((c) => /^grid-cols-\d+$/.test(c))).toEqual([]);
-    expect(gridClasses).toContain(
-      "grid-cols-[repeat(auto-fill,minmax(1.75rem,1fr))]",
-    );
-
-    // The track floor (1.75rem = 28px) is the button's width, so a track can
-    // never be narrower than what sits in it.
-    const option = screen.getAllByRole("option")[0];
-    expect(classesOf(option)).toContain("w-7");
+    // shrink-0 on the cells: without it a flex row compresses the buttons
+    // instead of wrapping them, and the "one row" becomes a row of slivers.
+    for (const cell of strip().children) {
+      expect(classesOf(cell)).toContain("shrink-0");
+    }
   });
 });
 
@@ -142,10 +112,8 @@ describe("tag edit block — nothing in it sizes itself past the sheet (#2051)",
   /** Widths that ignore the container: max-content, or a fixed arbitrary size. */
   const INTRINSIC_WIDTH = /^(?:min-)?w-(?:max|\[[^\]]+\])$/;
 
-  it("caps every intrinsic or fixed width with the picker open", () => {
-    const { block } = openPickerInEditBlock();
+  function offendersIn(block: HTMLElement): string[] {
     const offenders: string[] = [];
-
     for (const el of [block, ...block.querySelectorAll("*")]) {
       const classes = classesOf(el);
       const intrinsic = classes.filter((c) => INTRINSIC_WIDTH.test(c));
@@ -154,23 +122,59 @@ describe("tag edit block — nothing in it sizes itself past the sheet (#2051)",
         offenders.push(`<${el.tagName.toLowerCase()}> ${intrinsic.join(" ")}`);
       }
     }
+    return offenders;
+  }
+
+  it("caps every intrinsic or fixed width, panel closed and open", () => {
+    const block = renderEditBlock();
+    expect(offendersIn(block)).toEqual([]);
+
+    fireEvent.click(screen.getByRole("button", { name: LABELS.iconMore }));
 
     // Any one of these, uncapped, is wide enough at 390px to push the sheet's
     // scrollWidth past its clientWidth and cut "Delete tag" off.
-    expect(offenders).toEqual([]);
+    expect(offendersIn(block)).toEqual([]);
   });
 
   it("puts the picker in the icon row as a growing flex item", () => {
-    const { popover } = openPickerInEditBlock();
-    const root = popover.parentElement!;
+    renderEditBlock();
+    const root = strip().parentElement!;
     const row = root.parentElement!;
 
     // flex-1 only takes the row's remaining width when the row is a flex box.
     expect(classesOf(row)).toContain("flex");
     expect(classesOf(root)).toContain("flex-1");
-    // And the footer the bug clipped is still drawn beside it.
+    // And the footer the old bug clipped is still drawn beside it.
     expect(
       screen.getByRole("button", { name: LABELS.deleteTag }),
     ).toBeInTheDocument();
+  });
+});
+
+describe("tag icon picker inside a BottomSheet (#2389)", () => {
+  it("opens the panel outside the sheet, so the sheet cannot clip it", () => {
+    render(
+      <BottomSheet open onClose={vi.fn()} title="Tag" closeLabel="Close">
+        <TagHubEditBlock
+          tag={WORK}
+          edits={{}}
+          dirty={false}
+          onEdit={vi.fn()}
+          onDropEdit={vi.fn()}
+          onSave={vi.fn()}
+          onDelete={vi.fn()}
+          labels={LABELS}
+        />
+      </BottomSheet>,
+    );
+    const sheet = screen.getByRole("dialog", { name: "Tag" });
+
+    fireEvent.click(screen.getByRole("button", { name: LABELS.iconMore }));
+    const panel = screen.getByRole("dialog", { name: LABELS.iconLabel });
+
+    // A descendant of the sheet would be cut off by the sheet's own overflow
+    // and sit inside its stacking context; a portal child of <body> is neither.
+    expect(sheet.contains(panel)).toBe(false);
+    expect(panel.parentElement?.parentElement).toBe(document.body);
   });
 });

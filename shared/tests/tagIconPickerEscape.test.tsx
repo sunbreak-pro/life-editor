@@ -27,14 +27,23 @@ const LABELS = {
   clearIconLabel: "Default icon",
   searchLabel: "Search icons",
   noMatchLabel: "No icon matches that.",
+  moreLabel: "Show more",
+  countLabel: "{count} icons",
 };
 
-/** The picker's trigger and its grid share the one label, so they are told
- *  apart by role — button for the trigger, group for the popover. */
+/*
+ * #2389 swapped the picker's popover for a Modal panel. Escape ownership moved
+ * from the picker's own layer to Modal's, but it is the same layer stack, so
+ * the guarantee these cases pin is unchanged and they only needed new handles.
+ *
+ * The button under the strip opens the panel; the panel is a dialog named with
+ * the picker's label, which is what tells it apart from the host dialog
+ * ("Tags") while both are on screen.
+ */
 const iconTrigger = (): HTMLElement =>
-  screen.getByRole("button", { name: LABELS.iconLabel });
+  screen.getByRole("button", { name: LABELS.moreLabel });
 const pickerIsOpen = (): boolean =>
-  screen.queryByRole("group", { name: LABELS.iconLabel }) !== null;
+  screen.queryByRole("dialog", { name: LABELS.iconLabel }) !== null;
 
 const pressEscape = (over: Record<string, unknown> = {}): void => {
   fireEvent.keyDown(document, { key: "Escape", ...over });

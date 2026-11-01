@@ -42,7 +42,8 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
   };
 });
 
-const { i18n } = await import("@life-editor/shared");
+const { i18n, holidaysInYear, HOLIDAY_ITEM_PREFIX } =
+  await import("@life-editor/shared");
 const { useItemLinkTargets } = await import("../src/notes/useItemLinkTargets");
 const { LinkPanel } = await import("../src/wikitag/LinkPanel");
 
@@ -57,11 +58,28 @@ const DAILIES = [
 ];
 const TODOS = [
   { id: "task-9", title: "Order the tiles", isDeleted: false },
-  { id: "task-1786544440797", title: "Return the extra tiles", isDeleted: true },
+  {
+    id: "task-1786544440797",
+    title: "Return the extra tiles",
+    isDeleted: true,
+  },
 ];
 
-const bucket = <T extends { isDeleted: boolean }>(rows: T[], deleted: boolean) =>
-  rows.filter((r) => r.isDeleted === deleted);
+const EVENTS = [
+  // On a public holiday on purpose: the event is the user's, the holiday is not.
+  {
+    id: "event-1",
+    title: "Tile delivery",
+    date: "2026-01-01",
+    isDeleted: false,
+  },
+  { id: "event-2", title: "Old viewing", date: "2026-02-03", isDeleted: true },
+];
+
+const bucket = <T extends { isDeleted: boolean }>(
+  rows: T[],
+  deleted: boolean,
+) => rows.filter((r) => r.isDeleted === deleted);
 
 const reads = {
   listNotesUnified: vi.fn(async () => bucket(NOTES, false)),
@@ -70,6 +88,8 @@ const reads = {
   fetchDeletedDailiesUnified: vi.fn(async () => bucket(DAILIES, true)),
   fetchTodoTree: vi.fn(async () => bucket(TODOS, false)),
   fetchDeletedTodos: vi.fn(async () => bucket(TODOS, true)),
+  fetchEvents: vi.fn(async () => bucket(EVENTS, false)),
+  fetchDeletedScheduleItems: vi.fn(async () => bucket(EVENTS, true)),
 };
 const dataService = reads as unknown as DataService;
 
@@ -127,6 +147,47 @@ describe("useItemLinkTargets — soft-deleted targets (#1334)", () => {
   });
 });
 
+describe("useItemLinkTargets — events (#2391)", () => {
+  it("offers a live event with its date, and flags a trashed one", async () => {
+    const pool = await loadPool();
+
+    expect(pool).toContainEqual({
+      id: "event-1",
+      label: "Tile delivery",
+      role: "event",
+      date: "2026-01-01",
+      isDeleted: false,
+    });
+    expect(pool).toContainEqual({
+      id: "event-2",
+      label: "Old viewing",
+      role: "event",
+      date: "2026-02-03",
+      isDeleted: true,
+    });
+  });
+
+  it("keeps holidays out, even on a date that has an event", async () => {
+    const pool = await loadPool();
+    const newYear = holidaysInYear(2026).find((h) => h.date === "2026-01-01");
+
+    // The fixture is only worth something if that date really is a holiday.
+    expect(newYear).toBeDefined();
+    const labels = pool.map((t) => t.label);
+    expect(labels).not.toContain(newYear?.name);
+    expect(pool.some((t) => t.id.startsWith(HOLIDAY_ITEM_PREFIX))).toBe(false);
+    expect(pool.filter((t) => t.date === "2026-01-01")).toHaveLength(1);
+  });
+
+  it("carries no date on the other kinds", async () => {
+    const pool = await loadPool();
+
+    expect(pool.filter((t) => t.role !== "event").some((t) => t.date)).toBe(
+      false,
+    );
+  });
+});
+
 /*
  * The reported symptom, end to end: the same hook feeding the same panel that
  * printed `…44440797` for a link to a trashed todo. Nothing hands the pool over
@@ -155,7 +216,12 @@ describe("LinkPanel over the real pool (#1334)", () => {
     const label = i18n.t("materials.links.deletedTarget", {
       title: "Return the extra tiles",
     });
-    expect(await screen.findByText(label)).toBeTruthy();
-    expect(screen.queryByText("…44440797")).toBeNull();
+    const chip = await screen.findByRole("img", {
+      name: i18n.t("materials.links.chipName", {
+        kind: i18n.t("itemRole.task"),
+        title: label,
+      }),
+    });
+    expect(chip.getAttribute("title")).not.toContain("task-1786544440797");
   });
 });

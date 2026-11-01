@@ -4,6 +4,7 @@ import {
   buildGoalTreeModel,
   DEFAULT_GOAL_TREE_FILTER,
   goalParentOptions,
+  goalPeriodBounds,
   type Goal,
   type GoalTreeArrangement,
 } from "@life-editor/shared";
@@ -221,5 +222,54 @@ describe("goalParentOptions (#2108)", () => {
       goalParentOptions([year, last, month], month).map((g) => g.id),
     ).toEqual(["y"]);
     expect(goalParentOptions([year, last, month], year)).toEqual([]);
+  });
+});
+
+describe("a goal's own date range (#2366)", () => {
+  it("keeps a goal on the tree past its period while its range holds", () => {
+    const model = build([
+      // Last week's goal, set to run to 10/5.
+      goal({
+        id: "ranged",
+        periodKey: "2026-09-20",
+        startDate: "2026-09-20",
+        endDate: "2026-10-05",
+      }),
+      // Last week's goal with the week's own range: gone, as before.
+      goal({ id: "plain", periodKey: "2026-09-20" }),
+      // A range that ended yesterday.
+      goal({
+        id: "ended",
+        periodKey: "2026-09-20",
+        startDate: "2026-09-20",
+        endDate: "2026-09-29",
+      }),
+    ]);
+    expect([...model.byId.keys()]).toEqual(["ranged"]);
+    // The count orders new goals; a carried-in range is not this week's.
+    expect(model.periodCounts.week).toBe(0);
+  });
+
+  it("still shows a goal of the current period whose range starts later", () => {
+    const model = build([
+      goal({ id: "later", startDate: "2026-10-10", endDate: "2026-10-20" }),
+    ]);
+    expect(model.byId.has("later")).toBe(true);
+  });
+
+  it("gives each period's own first and last day", () => {
+    expect(goalPeriodBounds("week", "2026-09-27")).toEqual({
+      start: "2026-09-27",
+      end: "2026-10-03",
+    });
+    expect(goalPeriodBounds("month", "2026-02")).toEqual({
+      start: "2026-02-01",
+      end: "2026-02-28",
+    });
+    expect(goalPeriodBounds("month", "2028-02").end).toBe("2028-02-29");
+    expect(goalPeriodBounds("year", "2026")).toEqual({
+      start: "2026-01-01",
+      end: "2026-12-31",
+    });
   });
 });
