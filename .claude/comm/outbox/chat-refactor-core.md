@@ -180,4 +180,5 @@ refactor-core の担当分 2 本を出しました。どちらもローカルで
 - **実機の確認（#2424 / #2335）**: 開いたままのタブで機内モードにして Todo を足し、回線を戻すと別の端末に出ることを見てください。バナーと確認パネルの見た目（light / dark）と 44px のタップ目標も見てください。#2334 が未着地なので、圏外からの新規起動はまだできません。
 - **Issue の起票 1（mcp-server）**: `mcp-server/src/utils/items.ts:194` の `updatePayload` などは payload を書いてから `bumpMeta` します。その間で通信が切れると `changed_at` が動かず、#2333 の差分読み出しでは次の全件読み出しまで回収されません。
 - **Issue の起票 2（web）**: `web/src/briefing/hooks/useBriefingWrites.ts:336` と `web/src/work/WorkScreen.tsx:417-420` は、圏外で `createTodo` が箱に積んだ行へノートのリンクとタグを書こうとして失敗し、ログだけが残ります。`createTodo` が積んだことを呼び出し側へ伝える必要があります。
-- **判断の待ち**: D-20261101-refactor-1 と D-20261101-refactor-2 を `decisions/chat-refactor-core.md` に書きました。この tracker PR の merge までは main から見えないので、最終報告でもこうだいさんに伝えています。
+- **Issue の起票 3（schedule）**: `web/src/schedule/useScheduleCreateFlow.ts:328-333` で、圏外で Todo を足すと選んだタグが通知なしで消えます。タグが付かなかったことをトーストで伝える修正です（D-20261101-refactor-2 の回答 A）。
+- **`ANSWERS.md` への転記**: こうだいさんが 2026-11-01 に会話で回答しました。D-20261101-refactor-1 は A（PR #2424 は ±500 行を超えたまま 1 本で通す）、D-20261101-refactor-2 は A（別 Issue で通知を足す）です。`ANSWERS.md` の書き手ではないので、転記をお願いします。台帳への昇格は転記のあとに chat-refactor-core が行います。
