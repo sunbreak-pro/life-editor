@@ -8,6 +8,7 @@ import {
 } from "@testing-library/react";
 import {
   ItemCreatePanel,
+  type ItemCreatePanelHandlers,
   type ItemCreatePanelLabels,
   type ItemCreateNotePickerPlacement,
   type ItemCreateOption,
@@ -145,6 +146,8 @@ function renderPanel(props?: {
   /** #2396: where the note picker opens. The panel's default otherwise. */
   notePicker?: ItemCreateNotePickerPlacement;
   onNotePickerOpenChange?: (open: boolean) => void;
+  /** #2402: the handler that makes 新規作成 act at once. */
+  onCreateMemoNote?: ItemCreatePanelHandlers["onCreateMemoNote"];
 }) {
   const onSubmitEvent = vi.fn();
   const onSubmitEventAndOpen = vi.fn();
@@ -171,6 +174,7 @@ function renderPanel(props?: {
         onCreateTodo,
         onPlaceTodo,
         ...(props?.bare ? {} : { onCreateTodoAndOpen, onPlaceTodoAndOpen }),
+        onCreateMemoNote: props?.onCreateMemoNote,
       }}
       labels={LABELS}
       onCancel={props?.bare ? undefined : onCancel}
@@ -1116,6 +1120,104 @@ describe("ItemCreatePanel — the note attachment (#1370 / #2396)", () => {
  * panel itself only places the picker and reports it open; the frame does
  * the widening (web/tests/scheduleOverlays.test.tsx).
  */
+describe("ItemCreatePanel — 新規作成 with the host's handler (#2402)", () => {
+  const openRow = () =>
+    fireEvent.click(screen.getByRole("button", { name: LABELS.attachNote }));
+  const newButton = () =>
+    screen.getByRole<HTMLButtonElement>("button", {
+      name: LABELS.noteSourceNew,
+    });
+
+  it("acts at once on an event, with the form as it stands", () => {
+    const onCreateMemoNote = vi.fn();
+    renderPanel({ onCreateMemoNote, initialTitle: "  Dentist  " });
+    openRow();
+    fireEvent.click(newButton());
+    expect(onCreateMemoNote).toHaveBeenCalledExactlyOnceWith(
+      {
+        kind: "event",
+        title: "Dentist",
+        slot: { date: DATE, start: "09:00", end: "10:00", isAllDay: false },
+      },
+      [],
+    );
+    // It opened no title field: there is nothing to type.
+    expect(screen.queryByLabelText(LABELS.noteTitleLabel)).toBeNull();
+    expect(newButton().hasAttribute("aria-expanded")).toBe(false);
+  });
+
+  it("takes an empty title, which the footer does not", () => {
+    const onCreateMemoNote = vi.fn();
+    renderPanel({ onCreateMemoNote });
+    openRow();
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", { name: LABELS.addEvent })
+        .disabled,
+    ).toBe(true);
+    fireEvent.click(newButton());
+    expect(onCreateMemoNote.mock.calls[0][0]).toMatchObject({
+      kind: "event",
+      title: "",
+    });
+  });
+
+  it("acts on the todo tab as a new todo", () => {
+    const onCreateMemoNote = vi.fn();
+    renderPanel({ onCreateMemoNote, initialTitle: "Write" });
+    fireEvent.click(screen.getByRole("tab", { name: LABELS.typeTodo }));
+    openRow();
+    fireEvent.click(newButton());
+    expect(onCreateMemoNote.mock.calls[0][0]).toMatchObject({
+      kind: "task",
+      title: "Write",
+    });
+  });
+
+  it("is disabled under 既存から選ぶ until a todo is picked, then names it", () => {
+    const onCreateMemoNote = vi.fn();
+    renderPanel({ onCreateMemoNote });
+    fireEvent.click(screen.getByRole("tab", { name: LABELS.typeTodo }));
+    fireEvent.click(screen.getByRole("radio", { name: LABELS.sourceExisting }));
+    openRow();
+    expect(newButton().disabled).toBe(true);
+    fireEvent.click(newButton());
+    expect(onCreateMemoNote).not.toHaveBeenCalled();
+
+    const [todo] = TODOS;
+    fireEvent.click(screen.getByRole("option", { name: todo.title }));
+    expect(newButton().disabled).toBe(false);
+    fireEvent.click(newButton());
+    expect(onCreateMemoNote).toHaveBeenCalledExactlyOnceWith(
+      { kind: "picked", todoId: todo.id, title: todo.title },
+      [],
+    );
+  });
+
+  it("carries the notes already picked as chips", () => {
+    const onCreateMemoNote = vi.fn();
+    renderPanel({ onCreateMemoNote, notePicker: "inline" });
+    openRow();
+    fireEvent.click(
+      screen.getByRole("button", { name: LABELS.noteSourceExisting }),
+    );
+    const [note] = NOTES;
+    fireEvent.click(screen.getByRole("option", { name: note.title }));
+    fireEvent.click(screen.getByRole("button", { name: LABELS.notePickerDone }));
+    fireEvent.click(newButton());
+    expect(onCreateMemoNote.mock.calls[0][1]).toEqual([
+      { kind: "existing", id: note.id },
+    ]);
+  });
+
+  it("keeps staging on a host without the handler", () => {
+    renderPanel();
+    openRow();
+    expect(newButton().getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(newButton());
+    screen.getByLabelText(LABELS.noteTitleLabel);
+  });
+});
+
 describe("ItemCreatePanel — where the note picker opens (#2396)", () => {
   it("puts the side picker beside the form, 20rem wide", () => {
     renderPanel({ notePicker: "side" });

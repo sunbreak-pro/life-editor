@@ -27,6 +27,7 @@ import { CalendarDesktopLayout } from "./CalendarDesktopLayout";
 import { CalendarNarrowLayout } from "./CalendarNarrowLayout";
 import { ScheduleOverlayHost } from "./ScheduleOverlayHost";
 import { useCreatePanelNotes } from "./useCreatePanelNotes";
+import { useCreatePanelMemoNote } from "./useCreatePanelMemoNote";
 import { useCreatePanelTags } from "./useCreatePanelTags";
 import { useCalendarNav } from "./useCalendarNav";
 import { useTagFilterPanel } from "./useTagFilterPanel";
@@ -341,6 +342,7 @@ export function CalendarTab({
     notesError,
     attachNote,
     attachNoteAlongside,
+    attachMemoNote,
   } = useCreatePanelNotes({
     dataService,
     active: !!createPanel || notePickerOpen,
@@ -348,6 +350,16 @@ export function CalendarTab({
     // #1638 (A-08): the note + link the panel attaches is its own history
     // entry, so the item's create undo stops leaving an orphan note behind.
     push: undoRedo?.push,
+  });
+  // #2402: 新規作成 in the creation panel. A note lands the same through
+  // whichever jump the shell handed this host.
+  const memoNote = useCreatePanelMemoNote({
+    dataService,
+    attachMemoNote,
+    refetchTodos,
+    push: undoRedo?.push,
+    onOpenNote: onNavigateToItem,
+    showToast,
   });
   // #2220: the create panel's tag field — staged there, written here once
   // the new row exists.
@@ -659,6 +671,7 @@ export function CalendarTab({
     handlePlaceTodoSubmit,
     handleCreateTodoSubmitAndOpen,
     handlePlaceTodoSubmitAndOpen,
+    handleCreateMemoNote,
   } = useScheduleCreateFlow({
     createPanel,
     setCreatePanel,
@@ -678,6 +691,7 @@ export function CalendarTab({
     // #2406: the todo tab's "and open" lands in the in-Schedule todo detail.
     openTodoDetail: setTodoDetailId,
     convertToRepeat: convertSavedToRepeat,
+    memoNote,
   });
 
   // #355 → #1608: drop the bubble the moment anything else opens (the hook
@@ -1124,6 +1138,7 @@ export function CalendarTab({
           onPlaceTodo: handlePlaceTodoSubmit,
           onCreateTodoAndOpen: handleCreateTodoSubmitAndOpen,
           onPlaceTodoAndOpen: handlePlaceTodoSubmitAndOpen,
+          onCreateMemoNote: handleCreateMemoNote,
         },
         formatDuration,
         labels: createPanelLabels,

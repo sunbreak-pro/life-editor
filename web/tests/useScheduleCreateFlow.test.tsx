@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type {
   FrequencyEditorValue,
+  ItemCreateMemoTarget,
   ItemCreateNoteDraft,
   ItemCreateSlot,
   ScheduleItem,
@@ -608,5 +609,258 @@ describe("useScheduleCreateFlow — a repeat picked while creating", () => {
       await h.captured.alongside?.(saved);
     });
     expect(h.convertToRepeat).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #2402 — 新規作成: the form is saved as it stands, then the memo note. The
+ * writes and the copy are the host's (useCreatePanelMemoNote), so what these
+ * pin is the order and what each path is handed.
+ */
+describe("useScheduleCreateFlow — 新規作成 (#2402)", () => {
+  const ATTACHED = { noteId: "note-memo", ok: true, reversal: null };
+
+  function setupMemo(over?: { createPanel?: typeof PANEL | null }) {
+    const order: string[] = [];
+    const memoNote = {
+      untitled: vi.fn((kind: string) => `untitled:${kind}`),
+      attach: vi.fn<
+        (...args: unknown[]) => Promise<
+          typeof ATTACHED | Record<string, unknown>
+        >
+      >(async () => {
+        order.push("attach");
+        return ATTACHED;
+      }),
+      fold: vi.fn((parts: readonly (Reversal | null)[]) => parts[0] ?? null),
+      pushTodoUndo: vi.fn<(...args: unknown[]) => void>(() => {
+        order.push("push");
+      }),
+      land: vi.fn<(...args: unknown[]) => void>(() => {
+        order.push("land");
+      }),
+      fail: vi.fn(),
+    };
+    const captured: {
+      alongside?: (saved: { id: string }) => Promise<unknown>;
+      options?: {
+        skipUndo?: boolean;
+        onSaved?: (saved: { id: string } | null) => void;
+      };
+    } = {};
+    const handleCreate = vi.fn(
+      (
+        _slot: unknown,
+        _title: string,
+        _onSaved: unknown,
+        alongside?: (saved: never) => Promise<unknown>,
+      ) => {
+        captured.alongside = alongside as never;
+        return "evt-new";
+      },
+    );
+    const spies = {
+      setCreatePanel: vi.fn(),
+      setPopover: vi.fn(),
+      setSelectedId: vi.fn(),
+      setOverlayOpen: vi.fn(),
+      updateNode: vi.fn(),
+      attachNote: vi.fn(),
+      attachNoteAlongside: vi.fn(() => Promise.resolve(null)),
+      onAttachError: vi.fn(),
+      clearTagLens: vi.fn(),
+      convertToRepeat: vi.fn(async (): Promise<Reversal | null> => {
+        order.push("repeat");
+        return null;
+      }),
+    };
+    const addNode = vi.fn(
+      (
+        _type: unknown,
+        _parent: unknown,
+        _title: string,
+        options?: typeof captured.options,
+      ) => {
+        captured.options = options;
+        return { id: "task-new" } as TodoNode;
+      },
+    );
+    const tags = { take: vi.fn(() => ["tag-work"]), apply: vi.fn() };
+    const view = renderHook(() =>
+      useScheduleCreateFlow({
+        createPanel: over?.createPanel === undefined ? PANEL : over.createPanel,
+        anchorDate: "2026-08-20",
+        isWide: true,
+        handleCreate: handleCreate as never,
+        addNode: addNode as never,
+        memoNote: memoNote as never,
+        tags,
+        ...spies,
+      }),
+    );
+    return {
+      view,
+      memoNote,
+      captured,
+      handleCreate,
+      addNode,
+      tags,
+      order,
+      ...spies,
+    };
+  }
+  const press = (
+    h: ReturnType<typeof setupMemo>,
+    target: ItemCreateMemoTarget,
+    notes: readonly ItemCreateNoteDraft[] = [],
+  ) => act(() => h.view.result.current.handleCreateMemoNote?.(target, notes));
+
+  it("offers no handler to a host without memoNote", () => {
+    const h = setup();
+    expect(api(h).handleCreateMemoNote).toBeUndefined();
+  });
+
+  it("does nothing while the panel is closed", () => {
+    const h = setupMemo({ createPanel: null });
+    press(h, { kind: "event", title: "x", slot: slot() });
+    expect(h.handleCreate).not.toHaveBeenCalled();
+    expect(h.tags.take).not.toHaveBeenCalled();
+  });
+
+  describe("an event", () => {
+    it("saves under the title, closes, and writes only once the row exists", async () => {
+      const h = setupMemo();
+      press(h, { kind: "event", title: "Dentist", slot: slot() }, NOTES);
+      expect(h.handleCreate.mock.calls[0].slice(0, 2)).toEqual([
+        slot(),
+        "Dentist",
+      ]);
+      expect(h.setCreatePanel).toHaveBeenCalledWith(null);
+      expect(h.clearTagLens).toHaveBeenCalledTimes(1);
+      expect(h.memoNote.attach).not.toHaveBeenCalled();
+      // The screen is about to be left, and on Mobile this raises a sheet.
+      expect(h.setSelectedId).not.toHaveBeenCalled();
+
+      await act(async () => {
+        await h.captured.alongside?.({ id: "evt-saved" });
+      });
+      expect(h.memoNote.attach).toHaveBeenCalledExactlyOnceWith(
+        "evt-saved",
+        "Dentist",
+        { notes: NOTES, noteTagIds: ["tag-work"], itemTagIds: ["tag-work"] },
+      );
+      expect(h.memoNote.land).toHaveBeenCalledExactlyOnceWith(
+        "event",
+        "Dentist",
+        ATTACHED,
+      );
+      // The applyTags path pushes a history entry per tag.
+      expect(h.tags.apply).not.toHaveBeenCalled();
+    });
+
+    it("names an empty title", () => {
+      const h = setupMemo();
+      press(h, { kind: "event", title: "", slot: slot() });
+      expect(h.memoNote.untitled).toHaveBeenCalledWith("event");
+      expect(h.handleCreate.mock.calls[0][1]).toBe("untitled:event");
+    });
+
+    it("hands the reversal back to the create, for its one undo", async () => {
+      const h = setupMemo();
+      const reversal: Reversal = {
+        undo: async () => {},
+        redo: async () => {},
+      };
+      h.memoNote.attach.mockResolvedValueOnce({ ...ATTACHED, reversal });
+      press(h, { kind: "event", title: "Dentist", slot: slot() });
+      let handed: unknown;
+      await act(async () => {
+        handed = await h.captured.alongside?.({ id: "evt-saved" });
+      });
+      expect(handed).toBe(reversal);
+      expect(h.memoNote.pushTodoUndo).not.toHaveBeenCalled();
+    });
+
+    it("runs a picked repeat before the jump leaves the section", async () => {
+      const h = setupMemo();
+      const repeat = { frequencyType: "daily" } as FrequencyEditorValue;
+      press(h, { kind: "event", title: "Standup", slot: slot({ repeat }) });
+      await act(async () => {
+        await h.captured.alongside?.({ id: "evt-saved" });
+      });
+      expect(h.order).toEqual(["attach", "repeat", "land"]);
+    });
+  });
+
+  describe("a new todo", () => {
+    it("is created without the tree's own undo, which dies on the jump", () => {
+      const h = setupMemo();
+      press(h, { kind: "task", title: "", slot: slot() });
+      expect(h.addNode).toHaveBeenCalledTimes(1);
+      expect(h.addNode.mock.calls[0][2]).toBe("untitled:task");
+      expect(h.captured.options?.skipUndo).toBe(true);
+      expect(h.setCreatePanel).toHaveBeenCalledWith(null);
+      expect(h.memoNote.attach).not.toHaveBeenCalled();
+    });
+
+    it("attaches once saved, then records the one undo, then lands", async () => {
+      const h = setupMemo();
+      press(h, { kind: "task", title: "Write", slot: slot() }, NOTES);
+      await act(async () => {
+        h.captured.options?.onSaved?.({ id: "task-saved" });
+      });
+      // Staged goals ride attachNote, which is given no notes to double up.
+      expect(h.attachNote).toHaveBeenCalledExactlyOnceWith("task-saved", []);
+      expect(h.memoNote.attach).toHaveBeenCalledExactlyOnceWith(
+        "task-saved",
+        "Write",
+        { notes: NOTES, noteTagIds: ["tag-work"], itemTagIds: ["tag-work"] },
+      );
+      expect(h.memoNote.pushTodoUndo).toHaveBeenCalledExactlyOnceWith(
+        ATTACHED,
+        "task-saved",
+      );
+      expect(h.order).toEqual(["attach", "push", "land"]);
+    });
+
+    it("says it failed, once, when the todo's row did not land", () => {
+      const h = setupMemo();
+      press(h, { kind: "task", title: "Write", slot: slot() });
+      act(() => h.captured.options?.onSaved?.(null));
+      expect(h.memoNote.fail).toHaveBeenCalledTimes(1);
+      expect(h.memoNote.attach).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a todo picked under 既存から選ぶ", () => {
+    const PICKED = {
+      kind: "picked" as const,
+      todoId: "task-old",
+      title: "Old",
+    };
+
+    it("creates and moves nothing, and links the memo to the picked todo", async () => {
+      const h = setupMemo();
+      await act(async () => {
+        h.view.result.current.handleCreateMemoNote?.(PICKED, NOTES);
+      });
+      expect(h.addNode).not.toHaveBeenCalled();
+      expect(h.updateNode).not.toHaveBeenCalled();
+      expect(h.memoNote.attach).toHaveBeenCalledExactlyOnceWith(
+        "task-old",
+        "Old",
+        { notes: NOTES, noteTagIds: ["tag-work"], itemTagIds: [] },
+      );
+      expect(h.memoNote.pushTodoUndo).toHaveBeenCalledExactlyOnceWith(
+        ATTACHED,
+        null,
+      );
+      expect(h.memoNote.land).toHaveBeenCalledExactlyOnceWith(
+        "task",
+        "Old",
+        ATTACHED,
+      );
+      expect(h.setCreatePanel).toHaveBeenCalledWith(null);
+    });
   });
 });
