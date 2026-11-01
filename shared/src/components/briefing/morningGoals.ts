@@ -6,7 +6,6 @@ import {
   type GoalLinkState,
   type GoalProgress,
 } from "./goalLinkPreview";
-import { GOALS_PER_PERIOD_LIMIT } from "./goalNoteMigration";
 
 /*
  * What the morning paper reads off the goals (#2106, plan Step 7) — pure, so
@@ -58,9 +57,8 @@ const NOT_JUDGED: GoalProgress = {
 };
 
 /**
- * The current week / month / year goals with their progress. Not cut to the
- * limit: the limit is kept where goals are made, and cutting here would only
- * hide a fourth goal another device managed to write.
+ * The current week / month / year goals with their progress, however many a
+ * period holds (#2366).
  */
 export function buildMorningGoals(
   state: GoalLinkState,
@@ -159,8 +157,6 @@ export interface CarryPlan {
   periodKey: string;
   /** A live goal already carried from this one — re-used, not made twice. */
   existingId: string | null;
-  /** The current period still has room under the limit. */
-  hasRoom: boolean;
   /** Where a new goal goes: after the current period's live goals. */
   sortOrder: number;
   /** The parent, kept only when it is live and in ITS current period. */
@@ -193,7 +189,6 @@ export function carryPlan(
   return {
     periodKey,
     existingId: existing?.id ?? null,
-    hasRoom: current.length < GOALS_PER_PERIOD_LIMIT,
     sortOrder: current.length,
     parentGoalId:
       parent && parent.periodKey === periodKeys[parent.periodKind]
