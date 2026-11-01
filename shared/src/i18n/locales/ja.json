@@ -604,6 +604,8 @@
       "otherItems": "他のアイテム（{{count}}）",
       "closeOtherItems": "他のアイテムを閉じる",
       "backToList": "一覧に戻る",
+      "openList": "ノート一覧を開く",
+      "closeList": "ノート一覧を閉じる",
       "rowActions": "ノートの操作",
       "renameNote": "名前を変更"
     },

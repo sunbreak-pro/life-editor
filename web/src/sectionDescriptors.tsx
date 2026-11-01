@@ -9,6 +9,7 @@ import {
   type DataService,
   type PageContainerWidth,
   type SectionId,
+  type TranslationKey,
 } from "@life-editor/shared";
 import { ConnectScreen } from "./connect/ConnectScreen";
 import { GoalsTodosScreen } from "./connect/GoalsTodosScreen";
@@ -40,6 +41,7 @@ import type { ShellNavigation } from "./hooks/useShellNavigation";
  *   - `width`      → the PageContainer variant (scroll ownership)
  *   - `tabBand`    → which lifted tab band the standard SectionHeader renders
  *   - `narrowHeader` → the narrow-layout row above the body
+ *   - `panelToggleLabelKeys` → what the rightSidebar toggle is called here
  *   - `body`       → the section body plus its own Provider nesting (§6.2)
  *
  * The table is a `Record<SectionId, …>`, so adding a section to the registry
@@ -72,6 +74,12 @@ export type TabBandId = "materials" | "analytics" | "briefing" | "connect";
  *  - `tabs+hamburger`  — hamburger at the left edge, tabs filling the rest
  */
 export type NarrowHeader = "none" | "hamburger" | "tabs" | "tabs+hamburger";
+
+/** Catalog keys for the rightSidebar toggle's two accessible names. */
+export interface PanelToggleLabelKeys {
+  readonly open: TranslationKey;
+  readonly close: TranslationKey;
+}
 
 /** Everything a section body needs from the host, injected (§6.4). */
 export interface SectionBodyContext {
@@ -117,6 +125,15 @@ export interface SectionDescriptor {
    * the band above the masthead — #318 / #609 / #879); no section sets it now.
    */
   readonly narrowHeaderInBody?: boolean;
+  /**
+   * Names the rightSidebar toggle after what this screen keeps in the panel
+   * (#2390). A function of `nav` because a section with tabs can hold different
+   * things per tab. Omitted, or `undefined` from the call, = the generic
+   * `detailPanel.open` / `detailPanel.close`.
+   */
+  readonly panelToggleLabelKeys?: (
+    nav: ShellNavigation,
+  ) => PanelToggleLabelKeys | undefined;
   readonly body: (ctx: SectionBodyContext) => ReactNode;
 }
 
@@ -229,6 +246,15 @@ export const SECTION_DESCRIPTORS: Readonly<
     narrowWidth: "fluid",
     tabBand: "materials",
     narrowHeader: "tabs+hamburger",
+    // The Notes panel holds the note list (#876), so "details" names the wrong
+    // thing. Daily keeps the generic name.
+    panelToggleLabelKeys: (nav) =>
+      nav.materialsTab === "notes"
+        ? {
+            open: "materials.notes.openList",
+            close: "materials.notes.closeList",
+          }
+        : undefined,
     body: ({ ds, nav, loadingFallback }) => (
       <>
         {nav.materialsTab === "notes" && (

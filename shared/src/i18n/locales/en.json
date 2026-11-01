@@ -605,6 +605,8 @@
       "otherItems": "Other items ({{count}})",
       "closeOtherItems": "Close other items",
       "backToList": "Back to the list",
+      "openList": "Open note list",
+      "closeList": "Close note list",
       "rowActions": "Note actions",
       "renameNote": "Rename"
     },
