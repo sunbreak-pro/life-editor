@@ -44,6 +44,11 @@ export interface ItemLinkTarget {
   label: string;
   role: string;
   /**
+   * The event's day (#2391). Only events have one: the Schedule cannot select
+   * an event without its date, and a recurring title needs it to read apart.
+   */
+  date?: string;
+  /**
    * Soft-deleted (#1292). The pool carries these rows so a SURFACE THAT ALREADY
    * HOLDS THE ID can still name it — a stored `item_links` edge outlives its
    * target, and without the row the only thing left to draw was the id. Nothing
@@ -99,6 +104,19 @@ function roleHint(role: string, labels: ItemLinkSuggestionLabels): string {
   if (role === "daily") return labels.roleDaily;
   if (role === "task") return labels.roleTodo;
   return role;
+}
+
+/*
+ * What the body's two menus may offer from the pool.
+ *
+ * Deleted rows ride along for LinkPanel's benefit (#1292); nothing that OFFERS a
+ * target may name one that is in the trash. Events joined the pool for the note
+ * header's picker (#2391) and stay out of here: an itemLink node stores no date,
+ * and the Schedule cannot select an event without one, so a body link to an
+ * event would land on the calendar with nothing selected.
+ */
+function offeredInBody(targets: ItemLinkTarget[]): ItemLinkTarget[] {
+  return targets.filter((t) => !t.isDeleted && t.role !== "event");
 }
 
 /** Insert a resolved link node + a trailing space, then notify the host. */
@@ -190,12 +208,7 @@ export async function buildItems(
   const typed = stripLinkClosing(query.trim());
   // @tiptap/suggestion awaits this before calling onStart/onUpdate, so the
   // menu appears already populated — no empty flash on the first "[[".
-  // Deleted rows ride along in the pool for LinkPanel's benefit (#1292); the
-  // menu wants live items only, so they come off here — nothing that OFFERS a
-  // target may name one that is in the trash.
-  const targets = (await deps.loadTargets({ allowStale })).filter(
-    (t) => !t.isDeleted,
-  );
+  const targets = offeredInBody(await deps.loadTargets({ allowStale }));
   const onResolvedInserted = deps.getOnResolvedInserted();
   const createNote = deps.getCreateNote();
 
@@ -496,8 +509,8 @@ export function createItemLinkSuggestion(
     range: SelectionLinkRange,
   ): Promise<void> => {
     closePicker?.();
-    const targets = (await deps.loadTargets({ allowStale: false })).filter(
-      (t) => !t.isDeleted,
+    const targets = offeredInBody(
+      await deps.loadTargets({ allowStale: false }),
     );
     if (editor.isDestroyed) return;
     // A second press while the first one's pool was loading.

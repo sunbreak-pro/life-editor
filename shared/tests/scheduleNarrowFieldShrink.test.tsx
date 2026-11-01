@@ -191,9 +191,11 @@ describe("ItemCreatePanel date row", () => {
   it("lets the date column shrink on every tab that shows it", () => {
     renderCreatePanel();
 
-    expect(screen.getByRole("switch", { name: "All day" }).className).toContain(
-      "shrink-0",
-    );
+    // #2406: the creation panel's all-day is a round check (the editor above
+    // keeps its switch); it holds its seat the same way.
+    expect(
+      screen.getByRole("checkbox", { name: "All day" }).className,
+    ).toContain("shrink-0");
     expect(columnOf(screen.getByLabelText("Date"))?.className).toContain(
       "min-w-0",
     );
@@ -210,5 +212,22 @@ describe("ItemCreatePanel date row", () => {
     expect(
       columnOf(screen.getByRole("combobox", { name: "End" }))?.className,
     ).toContain("min-w-0");
+  });
+
+  /*
+   * #2406: the times joined the date's line. On a phone the line wraps rather
+   * than overflowing, and the time pair — a flex item of that line now —
+   * needs its own release from the automatic minimum, or it would floor at
+   * its two inputs' intrinsic width just as the columns inside it did.
+   */
+  it("wraps the one-line day and time row instead of overflowing", () => {
+    renderCreatePanel();
+    const row = columnOf(screen.getByLabelText("Date"))?.parentElement;
+    expect(row?.className).toContain("flex-wrap");
+    const pair = columnOf(
+      screen.getByRole("combobox", { name: "Start" }),
+    )?.parentElement;
+    expect(pair?.parentElement).toBe(row);
+    expect(pair?.className).toContain("min-w-0");
   });
 });

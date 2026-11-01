@@ -567,6 +567,7 @@ export function CalendarTab({
     handleDuplicate,
     handleChangeRepeat,
     handleDetachRepeat,
+    convertSavedToRepeat,
     repeatConverting,
   } = useScheduleMutations({
     rangeItems,
@@ -624,6 +625,8 @@ export function CalendarTab({
     handleCreateSubmitAndOpen,
     handleCreateTodoSubmit,
     handlePlaceTodoSubmit,
+    handleCreateTodoSubmitAndOpen,
+    handlePlaceTodoSubmitAndOpen,
   } = useScheduleCreateFlow({
     createPanel,
     setCreatePanel,
@@ -640,6 +643,9 @@ export function CalendarTab({
     onAttachError: handleAttachError,
     clearTagLens,
     tags: createTags,
+    // #2406: the todo tab's "and open" lands in the in-Schedule todo detail.
+    openTodoDetail: setTodoDetailId,
+    convertToRepeat: convertSavedToRepeat,
   });
 
   // #355 → #1608: drop the bubble the moment anything else opens (the hook
@@ -666,6 +672,7 @@ export function CalendarTab({
     sidebarTabs,
     repeatLabels,
     createPanelLabels,
+    createRepeatField,
     formatDuration,
     formatGapLabel,
   } = useScheduleCopy({
@@ -1077,9 +1084,12 @@ export function CalendarTab({
           onSubmitEventAndOpen: handleCreateSubmitAndOpen,
           onCreateTodo: handleCreateTodoSubmit,
           onPlaceTodo: handlePlaceTodoSubmit,
+          onCreateTodoAndOpen: handleCreateTodoSubmitAndOpen,
+          onPlaceTodoAndOpen: handlePlaceTodoSubmitAndOpen,
         },
         formatDuration,
         labels: createPanelLabels,
+        repeat: createRepeatField,
       }}
       repeatPanel={{
         state: repeatPanel,

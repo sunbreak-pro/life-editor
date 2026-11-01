@@ -6,21 +6,12 @@ import {
   useState,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
-import {
-  CalendarDays,
-  CheckSquare,
-  FileText,
-  Link2,
-  Network,
-  Plus,
-  Trash2,
-  X,
-  type LucideIcon,
-} from "lucide-react";
+import { Link2, Network, Plus, Trash2, X } from "lucide-react";
 import {
   balanceByRole,
   buildItemRelations,
   isImeComposing,
+  itemLinkVisual,
   NoticePanel,
   useTranslation,
   useWikiTagsUnifiedContext,
@@ -85,6 +76,22 @@ import {
  * an item the pool cannot name is left out rather than shown as an id: a
  * "related" list is for following, and a row with no role has nowhere to go.
  *
+ * #2391 made each link a SQUARE CHIP with only its kind's icon, in a row headed
+ * by a rule and a `Link2` + count: square here against the tag's round pill, so
+ * the two read apart beside each other. The title is no longer on screen, so it
+ * lives in the chip's accessible name and tooltip. Two consequences:
+ *
+ *   - The chip's X had no room left, so REMOVING moved into the "+" popover,
+ *     under the candidates. One place that works for a mouse, a thumb, a
+ *     keyboard and a screen reader, and for a dead link that has no button.
+ *     #2392's panel adds a second way out from the chip itself.
+ *   - The row reaches Mobile. Below the breakpoint the chips are 2.25rem with a
+ *     44px hit area (the `::after` in LINK_CHIP_BOX), and they scroll sideways
+ *     so the row stays one line, as the tag chips do. The popover hangs from the
+ *     header row there, because right-aligned to the "+" it could run off the
+ *     left edge. Related stays Desktop only, as it was: the phone row has no
+ *     room for a third control the design does not have.
+ *
  * Copy comes from the catalog through `useTranslation` — the same call the
  * sibling TagPicker makes. (The props-injected-labels rule is for the shared
  * component layer; this is web's own host layer.)
@@ -95,6 +102,11 @@ export interface LinkPanelTarget {
   id: string;
   label: string;
   role: string;
+  /**
+   * The event's day (#2391). The Schedule cannot select an event without it,
+   * and it tells apart the occurrences of a repeating title in the picker.
+   */
+  date?: string;
   /**
    * Soft-deleted (#1292). Present so an EXISTING link can still name its
    * target; every list that offers a NEW one filters these out.
@@ -110,7 +122,7 @@ interface LinkPanelProps {
    */
   resolveTitle?: (itemId: string) => string | undefined;
   /**
-   * Cross-role candidate pool loader (notes / dailies / todos). Lazy by
+   * Cross-role candidate pool loader (notes / dailies / events / todos). Lazy by
    * contract — the panel sits behind a disclosure, so mounting is the "someone
    * actually asked" signal. Absent → the picker has no candidates and titles
    * fall back to `resolveTitle`.
@@ -122,7 +134,11 @@ interface LinkPanelProps {
    * Open a link target. The host owns the section + tab switch, so without it
    * the rows stay non-interactive rather than pretending to be clickable.
    */
-  onNavigateToItem?: (target: { id: string; role: string }) => void;
+  onNavigateToItem?: (target: {
+    id: string;
+    role: string;
+    date?: string;
+  }) => void;
   /**
    * `YYYY-MM-DD` for the "that day's daily" relation (#1172). Supplied by the
    * host because only it knows which of the item's dates counts as "its" day —
@@ -138,15 +154,28 @@ const MAX_CANDIDATES = 8;
 /** Rows per related section. The heading carries the true count (#1172). */
 const MAX_RELATED_ROWS = 8;
 
-const ROLE_ICON: Record<string, LucideIcon> = {
-  note: FileText,
-  daily: CalendarDays,
-  task: CheckSquare,
+/** A link whose target is in the trash: its kind no longer matters. */
+const DELETED_LINK_VISUAL = {
+  Icon: Trash2,
+  iconClass: "text-lumen-text-tertiary",
 };
 
-function roleIcon(role: string | undefined): LucideIcon {
-  return (role && ROLE_ICON[role]) || Link2;
-}
+/*
+ * The square both the chips and the "+" are drawn on: 1.5rem, or 2.25rem with a
+ * 44px hit area below the breakpoint.
+ *
+ * The hit area is an `::after` rather than a bigger box so a row of them keeps
+ * the design's size; the strip's narrow gap is what keeps two neighbours' areas
+ * from overlapping. `min-h-0 min-w-0` undo the 1.75rem floor tokens.css gives
+ * every icon-only button, which would otherwise win over the 1.5rem here.
+ */
+const LINK_CHIP_BOX =
+  "relative inline-flex size-6 min-h-0 min-w-0 shrink-0 items-center justify-center rounded-lumen-sm max-md:size-9 max-md:after:absolute max-md:after:left-1/2 max-md:after:top-1/2 max-md:after:size-11 max-md:after:-translate-x-1/2 max-md:after:-translate-y-1/2 max-md:after:content-['']";
+
+const LINK_CHIP_ICON = "size-lumen-icon-sm max-md:size-lumen-icon-md";
+
+const FOCUS_RING =
+  "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent";
 
 export function LinkPanel({
   itemId,
@@ -164,6 +193,8 @@ export function LinkPanel({
   const [targets, setTargets] = useState<LinkPanelTarget[]>([]);
   const [error, setError] = useState<string | null>(null);
   const pickerRef = useRef<HTMLDivElement | null>(null);
+  const pickerTriggerRef = useRef<HTMLButtonElement | null>(null);
+  const pickerInputRef = useRef<HTMLInputElement | null>(null);
   const relatedRef = useRef<HTMLDivElement | null>(null);
   // Last-write-wins for the pool: an open racing the mount load must not let
   // the older answer overwrite the newer one.
@@ -273,7 +304,11 @@ export function LinkPanel({
         // named. Offering one as a NEW link would mint an edge into the trash.
         !target.isDeleted &&
         !linkedIds.has(target.id) &&
-        (q ? target.label.toLowerCase().includes(q) : true),
+        // An event is often remembered by its day, and a repeating one has
+        // nothing else to tell its rows apart (same rule as the palette).
+        (q
+          ? target.label.toLowerCase().includes(q) || target.date?.includes(q)
+          : true),
     );
     // balanceByRole, not slice: the pool is concatenated per role, so a plain
     // cut would hand all 8 slots to notes and never surface a todo (#370).
@@ -328,6 +363,28 @@ export function LinkPanel({
     } catch (err) {
       console.error("deleteItemLink failed", err);
     }
+    // The row that held the focus is gone. Without this it falls to <body>,
+    // where Escape no longer closes the popover.
+    pickerInputRef.current?.focus();
+  };
+
+  /** The name a kind goes by; a target the pool cannot place is "other". */
+  const kindOf = (role: string | undefined): string =>
+    (role && roleLabels[role]) || t("itemRole.unknown");
+
+  /*
+   * Where a row opens. It opens only when BOTH halves are known: the host has a
+   * navigator, and the pool told us the target's role (the route keys off it).
+   * An id whose item is gone from the pool stays a plain label, and so does a
+   * DELETED one (#1292): its role still resolves, but there is nothing left to
+   * open. An event carries its date, because the Schedule selects by it.
+   */
+  const openTargetFor = (id: string, deleted: boolean) => {
+    const target = targetsById.get(id);
+    if (!onNavigateToItem || !target || deleted) return null;
+    return target.date
+      ? { id, role: target.role, date: target.date }
+      : { id, role: target.role };
   };
 
   /*
@@ -340,22 +397,27 @@ export function LinkPanel({
    * with and mark it deleted instead.
    *
    * The id fragment survives as the third case only, for a target no side can
-   * name at all — a role outside the pool (an event), or a row not yet loaded.
+   * name at all — a role outside the pool (a goal), or a row not yet loaded.
    * That is genuinely "unknown", not "deleted", and claiming otherwise would be
    * the same lie in the other direction.
    */
-  const resolveRow = (id: string): { title: string; deleted: boolean } => {
+  const resolveRow = (
+    id: string,
+  ): { title: string; deleted: boolean; named: boolean } => {
     const fromResolver = resolveTitle?.(id);
-    if (fromResolver) return { title: fromResolver, deleted: false };
+    if (fromResolver) {
+      return { title: fromResolver, deleted: false, named: true };
+    }
     const pooled = targetsById.get(id);
     if (pooled?.label) {
-      return { title: pooled.label, deleted: !!pooled.isDeleted };
+      return { title: pooled.label, deleted: !!pooled.isDeleted, named: true };
     }
-    // The full id stays in the row's `title` attribute either way, so a link
+    // A row with no name shows its full id in the `title` attribute, so a link
     // nothing can name is still identifiable on hover.
     return {
       title: id.length > 12 ? `…${id.slice(-8)}` : id,
       deleted: false,
+      named: false,
     };
   };
 
@@ -399,64 +461,88 @@ export function LinkPanel({
     }
   };
 
-  /** One linked item, as a chip sitting beside the tag pills. */
+  /** One linked item: a square with its kind's icon, named for the title. */
   const renderChip = (entry: { targetId: string; linkIds: string[] }) => {
-    const { targetId, linkIds } = entry;
+    const { targetId } = entry;
     const row = resolveRow(targetId);
     const role = targetsById.get(targetId)?.role;
-    const Icon = row.deleted ? Trash2 : roleIcon(role);
+    const { Icon, iconClass } = row.deleted
+      ? DELETED_LINK_VISUAL
+      : itemLinkVisual(role);
     const title = rowLabel(row);
-    // A chip opens only when BOTH halves are known: the host has a navigator,
-    // and the pool told us the target's role (the route keys off it). An id
-    // whose item is gone from the pool stays a plain, honest label — and so
-    // does a DELETED one (#1292): its role still resolves, but there is nothing
-    // left to open, and the remove button beside it is the useful action.
-    const openTarget =
-      onNavigateToItem && role && !row.deleted ? { id: targetId, role } : null;
+    const kind = kindOf(role);
+    const name = t("materials.links.chipName", { kind, title });
+    const tooltip = row.named ? name : targetId;
+    const openTarget = openTargetFor(targetId, row.deleted);
+    const face = `${LINK_CHIP_BOX} border border-lumen-border bg-lumen-bg`;
+    const glyph = (
+      <Icon aria-hidden className={`${LINK_CHIP_ICON} ${iconClass}`} />
+    );
 
-    const body = (
-      <>
-        <Icon size={12} aria-hidden className="shrink-0" />
+    return openTarget ? (
+      <button
+        key={targetId}
+        type="button"
+        title={tooltip}
+        onClick={() => onNavigateToItem?.(openTarget)}
+        aria-label={t("materials.links.openChip", { kind, title })}
+        className={`${face} hover:bg-lumen-hover ${FOCUS_RING}`}
+      >
+        {glyph}
+      </button>
+    ) : (
+      <span
+        key={targetId}
+        role="img"
+        title={tooltip}
+        aria-label={name}
+        className={face}
+      >
+        {glyph}
+      </span>
+    );
+  };
+
+  /** A kind's glyph on the small tile the popover rows lead with. */
+  const renderRowTile = (role: string | undefined, deleted: boolean) => {
+    const { Icon, iconClass } = deleted
+      ? DELETED_LINK_VISUAL
+      : itemLinkVisual(role);
+    return (
+      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-lumen-sm border border-lumen-border bg-lumen-bg">
+        <Icon size={12} aria-hidden className={iconClass} />
+      </span>
+    );
+  };
+
+  /** One existing link in the "+" popover: where a link is removed from. */
+  const renderLinkedRow = (entry: { targetId: string; linkIds: string[] }) => {
+    const { targetId, linkIds } = entry;
+    const row = resolveRow(targetId);
+    const title = rowLabel(row);
+    return (
+      <li
+        key={targetId}
+        className="flex items-center gap-2 px-1.5 py-1 text-xs font-normal text-lumen-text-secondary"
+      >
+        {renderRowTile(targetsById.get(targetId)?.role, row.deleted)}
         <span
-          className={`max-w-[12rem] truncate text-left${row.deleted ? " line-through" : ""}`}
+          title={row.named ? title : targetId}
+          className={`min-w-0 flex-1 truncate${row.deleted ? " line-through" : ""}`}
         >
           {title}
         </span>
-      </>
-    );
-
-    return (
-      <span
-        key={targetId}
-        className={`inline-flex items-center gap-0.5 rounded-md border border-lumen-border bg-lumen-bg px-1.5 py-1 text-xs ${row.deleted ? "text-lumen-text-tertiary" : "text-lumen-text"}`}
-      >
-        {openTarget ? (
-          <button
-            type="button"
-            title={targetId}
-            onClick={() => onNavigateToItem?.(openTarget)}
-            aria-label={t("materials.links.open", { title })}
-            className="inline-flex min-w-0 items-center gap-1.5 rounded-lumen-sm px-0.5 text-lumen-text hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
-          >
-            {body}
-          </button>
-        ) : (
-          <span
-            title={targetId}
-            className="inline-flex min-w-0 items-center gap-1.5 px-0.5"
-          >
-            {body}
-          </span>
-        )}
         <button
           type="button"
+          // Keep the focus in the search field: this row unmounts on removal.
+          onMouseDown={(e) => e.preventDefault()}
           onClick={() => void handleDelete(linkIds)}
           aria-label={t("materials.links.remove", { title })}
-          className="shrink-0 rounded-lumen-sm p-0.5 text-lumen-text-secondary hover:text-lumen-danger focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+          className={`shrink-0 rounded-lumen-sm text-lumen-text-secondary hover:text-lumen-danger max-md:min-h-11 max-md:min-w-11 ${FOCUS_RING}`}
         >
-          <X size={10} aria-hidden />
+          <X size={12} aria-hidden />
         </button>
-      </span>
+      </li>
     );
   };
 
@@ -464,14 +550,11 @@ export function LinkPanel({
   const renderRelatedRow = (id: string) => {
     const row = resolveRow(id);
     const role = targetsById.get(id)?.role;
-    const Icon = row.deleted ? Trash2 : roleIcon(role);
     const title = rowLabel(row);
-    const open = onNavigateToItem && role && !row.deleted ? { id, role } : null;
+    const open = openTargetFor(id, row.deleted);
     const body = (
       <>
-        <span className="grid h-5 w-5 shrink-0 place-items-center rounded-lumen-sm border border-lumen-border bg-lumen-bg text-lumen-text-secondary">
-          <Icon size={12} aria-hidden />
-        </span>
+        {renderRowTile(role, row.deleted)}
         <span
           className={`min-w-0 flex-1 truncate text-left${row.deleted ? " line-through" : ""}`}
         >
@@ -531,12 +614,29 @@ export function LinkPanel({
     <div
       role="group"
       aria-label={t("materials.links.panelLabel")}
-      className="inline-flex flex-wrap items-center gap-1.5"
+      className="inline-flex flex-wrap items-center gap-1.5 max-md:min-w-0 max-md:flex-nowrap"
     >
-      {/* The chips below stay the LINK row — add, read, remove. The related
-          pill after them opens everything else this item sits next to. */}
-      {loading && <span className="text-xs text-lumen-text-secondary">…</span>}
-      {!loading && linked.map(renderChip)}
+      {/* The rule closes the tag row off; the chips below are the LINK row. */}
+      <span
+        role="separator"
+        aria-orientation="vertical"
+        className="h-4 w-px shrink-0 bg-lumen-border-strong"
+      />
+      <span
+        role="img"
+        aria-label={t("materials.links.countLabel", { total: linked.length })}
+        className="inline-flex shrink-0 items-center gap-1 text-xs text-lumen-text-secondary"
+      >
+        <Link2 size={12} aria-hidden />
+        <span aria-hidden>{loading ? "…" : linked.length}</span>
+      </span>
+
+      {/* Same strip as the tag chips (TagPicker `singleRow`): nothing of its
+          own at Desktop, one sideways-scrolling line below the breakpoint. The
+          popovers stay outside it, where its overflow cannot clip them. */}
+      <span className="contents max-md:flex max-md:min-h-11 max-md:min-w-0 max-md:items-center max-md:gap-2 max-md:overflow-x-auto max-md:overflow-y-hidden max-md:px-1">
+        {!loading && linked.map(renderChip)}
+      </span>
 
       {error && (
         // Text variant at the row's own xs size (#1278): this sits inline
@@ -544,31 +644,35 @@ export function LinkPanel({
         <NoticePanel variant="text" size="xs" tone="danger" message={error} />
       )}
 
-      {/* The "+ link" pill mirrors the sibling "+ tag" pill it sits next to:
-          same dashed outline, and the word only while there is nothing yet to
-          read the row by. */}
-      <div ref={pickerRef} className="relative">
+      {/* The "+" closes the row as one more square, dashed because it holds
+          nothing yet. `max-md:static` hands the popover to the header row. */}
+      <div ref={pickerRef} className="relative shrink-0 max-md:static">
         <button
+          ref={pickerTriggerRef}
           type="button"
           onClick={() => (pickerOpen ? closePicker() : openPicker())}
           aria-label={t("materials.links.add")}
+          title={t("materials.links.add")}
           aria-expanded={pickerOpen}
-          className="inline-flex items-center gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent"
+          className={`${LINK_CHIP_BOX} border border-dashed border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover ${FOCUS_RING}`}
         >
-          <Link2 size={12} aria-hidden />
-          <Plus size={12} aria-hidden />
-          {linked.length === 0 && !loading && (
-            <span>{t("materials.links.pickerLabelShort")}</span>
-          )}
+          <Plus aria-hidden className={LINK_CHIP_ICON} />
         </button>
 
         {pickerOpen && (
           <div
             role="dialog"
             aria-label={t("materials.links.pickerDialog")}
-            className="absolute right-0 top-full z-20 mt-1 w-60 max-w-[calc(100vw-2rem)] rounded-lumen-md border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md"
+            onKeyDown={(e) => {
+              // Reaches here from the input and from a linked row's X alike.
+              if (e.key !== "Escape" || isImeComposing(e)) return;
+              closePicker();
+              pickerTriggerRef.current?.focus();
+            }}
+            className="absolute right-0 top-full z-20 mt-1 w-60 max-w-[calc(100vw-2rem)] rounded-lumen-md border border-lumen-border bg-lumen-bg p-2 shadow-lumen-md max-md:left-0 max-md:w-auto"
           >
             <input
+              ref={pickerInputRef}
               type="text"
               autoFocus
               role="combobox"
@@ -599,7 +703,6 @@ export function LinkPanel({
               >
                 {candidates.map((target, index) => {
                   const isActive = index === activeIndex;
-                  const Icon = roleIcon(target.role);
                   return (
                     <button
                       key={target.id}
@@ -609,34 +712,43 @@ export function LinkPanel({
                       onMouseEnter={() => setHighlightIndex(index)}
                       onClick={() => void handleAdd(target)}
                       className={[
-                        "flex w-full items-center gap-2 rounded-lumen-sm px-1.5 py-1.5 text-left text-xs font-normal",
+                        "flex w-full items-center gap-2 rounded-lumen-sm px-1.5 py-1.5 text-left text-xs font-normal max-md:min-h-11",
                         isActive
                           ? "bg-lumen-accent-subtle text-lumen-text"
                           : "text-lumen-text-secondary hover:bg-lumen-hover",
                       ].join(" ")}
                     >
-                      <span className="grid h-5 w-5 shrink-0 place-items-center rounded-lumen-sm border border-lumen-border bg-lumen-bg text-lumen-text-secondary">
-                        <Icon size={12} aria-hidden />
-                      </span>
+                      {renderRowTile(target.role, false)}
                       <span className="min-w-0 flex-1 truncate">
                         {target.label}
                       </span>
                       <span className="shrink-0 text-[0.6875rem] text-lumen-text-tertiary">
                         {roleLabels[target.role] ?? target.role}
+                        {target.date ? ` ${target.date}` : ""}
                       </span>
                     </button>
                   );
                 })}
               </div>
             )}
+            {linked.length > 0 && (
+              <div className="mt-2 border-t border-lumen-border pt-1">
+                <p className="px-1.5 pt-1 text-[0.6875rem] uppercase tracking-wide text-lumen-text-tertiary">
+                  {t("materials.links.linkedHeading")}
+                </p>
+                <ul className="max-h-40 overflow-y-auto">
+                  {linked.map(renderLinkedRow)}
+                </ul>
+              </div>
+            )}
           </div>
         )}
       </div>
 
-      {/* Related (#1172) — the same pill shape as its two neighbours, carrying
-          the count rather than a word, because it is the third control on a row
-          that already spells out what it is. */}
-      <div ref={relatedRef} className="relative">
+      {/* Related (#1172) — a pill carrying the count rather than a word, because
+          it is the third control on a row that already spells out what it is.
+          Desktop only (see the header note on #2391). */}
+      <div ref={relatedRef} className="relative max-md:hidden">
         <button
           type="button"
           onClick={() => setRelatedOpen((v) => !v)}

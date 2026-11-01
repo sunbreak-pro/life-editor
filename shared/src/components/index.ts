@@ -407,6 +407,14 @@ export {
   type ItemRole,
   type ItemRoleLabels,
 } from "./items/itemRole";
+export {
+  ITEM_LINK_KINDS,
+  ITEM_LINK_VISUAL,
+  UNKNOWN_ITEM_LINK_VISUAL,
+  itemLinkVisual,
+  type ItemLinkKind,
+  type ItemLinkVisual,
+} from "./items/itemLinkKind";
 export { TagHeadingIcon, type TagHeadingIconProps } from "./TagHeadingIcon";
 export { TagPill, type TagPillProps } from "./TagPill";
 export {

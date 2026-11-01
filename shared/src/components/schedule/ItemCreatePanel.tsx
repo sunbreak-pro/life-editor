@@ -17,8 +17,14 @@ import {
 import { SegmentedControl } from "../SegmentedControl";
 import { SegmentedToggle } from "../SegmentedToggle";
 import { TimeRangeField } from "../TimeRangeField";
-import { AllDaySwitch } from "./AllDaySwitch";
+import { AllDayCheck } from "./AllDayCheck";
+import {
+  FrequencyEditor,
+  type FrequencyEditorLabels,
+  type FrequencyEditorValue,
+} from "./FrequencyEditor";
 import { isImeComposing } from "../../utils/imeGuard";
+import { seedFrequencyPatch } from "../../utils/routineFrequency";
 
 /*
  * ItemCreatePanel (#376) — the unified "add something to this day" panel behind
@@ -63,6 +69,14 @@ import { isImeComposing } from "../../utils/imeGuard";
  * field over. Optional: a host that passes no `pools.tags` (Briefing) gets no
  * field and the layout it had.
  *
+ * #2406 brought the panel to the Claude Design proposal: the day, the two
+ * times and "all day" share one line (all day is a round check now, and a
+ * todo can be all-day too), an event can be given a repeat on the spot, and
+ * the footer reads Cancel / Add and edit / Add on both tabs. A todo has no
+ * repeat to give — neither the type nor the table carries one — so the
+ * repeat field is the event tab's alone. The new pieces are optional props:
+ * a host that does not wire them gets the panel it had.
+ *
  * Both host frames (Modal / BottomSheet) unmount their children when closed, so
  * the local draft state re-seeds from the initial props on every open. When a
  * host keeps the panel open but changes the prefill (e.g. a different empty
@@ -102,7 +116,7 @@ export interface ItemCreatePanelLabels {
   todoPlaceholder: string;
   /** Field label of the target-day input. */
   date: string;
-  /** Label and accessible name of the all-day switch (#940). */
+  /** Label and accessible name of the all-day check (#940 / #2406). */
   allDay: string;
   startTime: string;
   endTime: string;
@@ -112,6 +126,14 @@ export interface ItemCreatePanelLabels {
   /** Todo submit — one label per source, because the acts differ. */
   addTodo: string;
   placeTodo: string;
+  /**
+   * #2406: the todo tab's "and open" twins. Optional, falling back to
+   * `addEventAndOpen` — the words are the same act's on the other tab.
+   */
+  addTodoAndOpen?: string;
+  placeTodoAndOpen?: string;
+  /** #2406: the footer's Cancel. Drawn only with `onCancel` beside it. */
+  cancel?: string;
   /** Accessible name for the new / existing radiogroup (todo tab). */
   sourceLabel: string;
   sourceNew: string;
@@ -187,11 +209,30 @@ export interface ItemCreateSlot {
   start: string;
   end: string;
   /**
-   * True only on the event target — a todo has no all-day notion here, and
-   * the switch is not rendered for it. When true the time fields are off
-   * screen and `start` / `end` are stale draft values the host must ignore.
+   * The all-day check, on either tab (#2406 — it used to be the event's
+   * alone, #940). A todo stores it the way the tray's "add to today" does:
+   * the day at 00:00 with its own all-day flag. When true the time fields
+   * are off screen and `start` / `end` are stale draft values the host must
+   * ignore.
    */
   isAllDay: boolean;
+  /**
+   * #2406: the repeat picked for a new EVENT. Absent for "no repeat", and
+   * always absent on the todo tab — a todo has no repeat to hold. The host
+   * turns the saved row into a series once it exists.
+   */
+  repeat?: FrequencyEditorValue;
+}
+
+/**
+ * #2406: what the repeat field needs to draw itself — the same copy the
+ * editor's repeat section takes. Omitted, the panel offers no repeat.
+ */
+export interface ItemCreateRepeatField {
+  /** Already-translated weekday labels indexed 0 (Sun) – 6 (Sat). */
+  weekdayLabels: string[];
+  /** Must carry `frequencyNone`: "no repeat" is the starting choice. */
+  labels: FrequencyEditorLabels;
 }
 
 /** The two "pick an existing one" pools the panel offers. */
@@ -311,12 +352,24 @@ export interface ItemCreatePanelHandlers {
     slot: ItemCreateSlot,
     note: ItemCreateNoteDraft | null,
   ) => void;
-  /**
-   * Give an EXISTING todo the target day + window. No "and open" twin: the
-   * Schedule section has no todo detail editor (todo chips stay read-only
-   * there — #297), so the follow-up the event pair offers has no counterpart.
-   */
+  /** Give an EXISTING todo the target day + window. */
   onPlaceTodo: (
+    todoId: string,
+    slot: ItemCreateSlot,
+    note: ItemCreateNoteDraft | null,
+  ) => void;
+  /**
+   * #2406: the todo tab's "and open" twins — the same writes as the two
+   * above, followed by the todo's detail panel (the one #626 put in the
+   * Schedule). Optional, unlike the four above: a host without them draws
+   * the todo footer without the button rather than one that does nothing.
+   */
+  onCreateTodoAndOpen?: (
+    title: string,
+    slot: ItemCreateSlot,
+    note: ItemCreateNoteDraft | null,
+  ) => void;
+  onPlaceTodoAndOpen?: (
     todoId: string,
     slot: ItemCreateSlot,
     note: ItemCreateNoteDraft | null,
@@ -341,7 +394,27 @@ export interface ItemCreatePanelProps {
   /** Formats the duration suffix on the end-time options (#553). */
   formatDuration?: (minutes: number) => string;
   labels: ItemCreatePanelLabels;
+  /**
+   * #2406: the footer's Cancel — closes without writing anything. Drawn
+   * together with `labels.cancel`; the frame's own × stays as well.
+   */
+  onCancel?: () => void;
+  /** #2406: the event tab's repeat field. Omitted, no repeat is offered. */
+  repeat?: ItemCreateRepeatField;
 }
+
+/**
+ * What the repeat field starts from once a type is picked — only the type is
+ * ever shown from it, and the pick seeds the rest (`seedFrequencyPatch`, as
+ * EventEditorPane's section does).
+ */
+const BLANK_REPEAT: FrequencyEditorValue = {
+  frequencyType: "daily",
+  frequencyDays: [],
+  frequencyInterval: null,
+  frequencyStartDate: null,
+  frequencyEndDate: null,
+};
 
 // `disabled:` states matter more here than on a normal form: the note tab hides
 // the field the submit depends on, so a dead-but-lit button would give the user
@@ -352,8 +425,14 @@ export interface ItemCreatePanelProps {
 // that says "press me". The outline button beside it keeps the opacity: it has
 // no fill to mislead anyone with, and greying it would invent a box.
 const DISABLED_OUTLINE_BTN = "disabled:cursor-not-allowed disabled:opacity-50";
-const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover ${FOCUS_RING_ON_ACCENT} ${DISABLED_FILLED_BTN}`;
-const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent ${DISABLED_OUTLINE_BTN}`;
+//
+// #2406: `max-md:min-h-11` gives all three footer buttons the 44px floor on a
+// phone (rules/frontend.md §Gotchas); Desktop keeps the `py-2` height.
+const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11 ${FOCUS_RING_ON_ACCENT} ${DISABLED_FILLED_BTN}`;
+const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 ${DISABLED_OUTLINE_BTN}`;
+// Cancel writes nothing, so it takes neither the fill nor the outline — only
+// its own width, at the far end from the submit.
+const CANCEL_BTN = `shrink-0 rounded-lumen-md px-3 py-2 text-center text-sm font-medium text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11 ${FOCUS_RING_TIGHT}`;
 const HINT = "py-3 text-center text-xs text-lumen-text-secondary";
 
 /**
@@ -617,6 +696,8 @@ export function ItemCreatePanel({
   handlers,
   formatDuration,
   labels,
+  onCancel,
+  repeat: repeatField,
 }: ItemCreatePanelProps) {
   // Unpacked back into the flat names the body has always used, so the bundles
   // (#893) stay a wire-format change and nothing below has to know about them.
@@ -632,14 +713,24 @@ export function ItemCreatePanel({
     goals: goalPool,
     tags: tagPool,
   } = pools;
-  const { onSubmitEvent, onSubmitEventAndOpen, onCreateTodo, onPlaceTodo } =
-    handlers;
+  const {
+    onSubmitEvent,
+    onSubmitEventAndOpen,
+    onCreateTodo,
+    onPlaceTodo,
+    onCreateTodoAndOpen,
+    onPlaceTodoAndOpen,
+  } = handlers;
   const [type, setType] = useState<ItemCreateType>("event");
   const [title, setTitle] = useState(initialTitle);
   const [date, setDate] = useState(initialDate);
   const [start, setStart] = useState(initialStart);
   const [end, setEnd] = useState(initialEnd);
   const [allDay, setAllDay] = useState(false);
+  // #2406: the repeat draft — null is "no repeat", the field's first choice.
+  const [repeatDraft, setRepeatDraft] = useState<FrequencyEditorValue | null>(
+    null,
+  );
 
   const [todoSource, setTodoSource] = useState<ItemCreateSource>("new");
   const [todoQuery, setTodoQuery] = useState("");
@@ -716,12 +807,27 @@ export function ItemCreatePanel({
     else setPickedNoteId(null);
   };
 
-  // All-day belongs to the event target alone (#940), so the switch is only
-  // rendered there — and the slot spells the same rule, or turning it on and
-  // then switching to the todo tab would smuggle it into a todo that has no
-  // way to show it.
-  const isAllDay = type === "event" && allDay;
-  const slot: ItemCreateSlot = { date, start, end, isAllDay };
+  // #2406: all-day is on both tabs now. #940 kept it to the event, on the
+  // reading that a todo had no way to show it — but the tray's "add to today"
+  // has written all-day todos all along (todoAddCandidateWrite), and the
+  // calendar draws them in the all-day lane. One draft, like the times.
+  const isAllDay = allDay;
+  // The repeat, by contrast, is the event's alone: a todo has no repeat to
+  // hold. Kept as a draft across a tab switch, but never sent with a todo.
+  const repeat = type === "event" && repeatField ? repeatDraft : null;
+  const slot: ItemCreateSlot = repeat
+    ? { date, start, end, isAllDay, repeat }
+    : { date, start, end, isAllDay };
+  /*
+   * Seed the type-specific fields at the moment the TYPE is picked, the way
+   * EventEditorPane's section does (#712): a bare "weekdays" with no day, or
+   * "interval" with no interval, would read as "fires never".
+   */
+  const editRepeat = (patch: Partial<FrequencyEditorValue>) =>
+    setRepeatDraft((prev) => {
+      const base = prev ?? BLANK_REPEAT;
+      return { ...base, ...seedFrequencyPatch(patch, base, date) };
+    });
 
   const submitTitled = (
     handler: (
@@ -742,6 +848,33 @@ export function ItemCreatePanel({
     }
     submitTitled(type === "event" ? onSubmitEvent : onCreateTodo);
   };
+  // #2406: the "and open" twin of whatever the primary does. Null when the
+  // host wired no twin for this tab, and then the footer draws no button.
+  const submitAndOpen: (() => void) | null =
+    type === "event"
+      ? () => submitTitled(onSubmitEventAndOpen)
+      : placing
+        ? onPlaceTodoAndOpen
+          ? () => {
+              if (!pickedTodo) return;
+              onPlaceTodoAndOpen(pickedTodo.id, slot, stagedNote);
+            }
+          : null
+        : onCreateTodoAndOpen
+          ? () => submitTitled(onCreateTodoAndOpen)
+          : null;
+  const andOpenLabel =
+    type === "event"
+      ? labels.addEventAndOpen
+      : placing
+        ? (labels.placeTodoAndOpen ?? labels.addEventAndOpen)
+        : (labels.addTodoAndOpen ?? labels.addEventAndOpen);
+  const primaryLabel =
+    type === "event"
+      ? labels.addEvent
+      : placing
+        ? labels.placeTodo
+        : labels.addTodo;
   // What the footer needs before it can act.
   const canSubmit = placing ? !!pickedTodo : !!title.trim();
 
@@ -792,20 +925,22 @@ export function ItemCreatePanel({
           className={FIELD}
         />
       )}
-      {/* Date + all-day (#940), laid out and worded exactly like the editing
-          side (EventEditorPane): same row, same switch, so "all day" does not
-          become two different controls depending on whether the row exists
-          yet. The date input keeps its own draft — changing it here books the
-          item elsewhere without moving the calendar the panel was opened
-          from. Clearing it back to blank restores the day the panel opened
-          on, since a create with no date is not a thing the user can mean. */}
-      <div className="flex items-end gap-3">
-        {/* `min-w-0` matches EventEditorPane's row (#1036) — without it the
-            date input's intrinsic width floors the flex item and the row
-            resolves by overflowing to the right, taking the all-day switch
-            with it. `appearance-none` + `min-w-0` on the input and the wider
-            `gap-3` are #1403's half of the same fix (see the note there). */}
-        <label className="flex min-w-0 flex-1 flex-col gap-1.5">
+      {/* Date, start, end and all-day on one line (#2406, the Claude Design
+          proposal; #940 had the times on a row of their own). The date input
+          keeps its own draft — changing it here books the item elsewhere
+          without moving the calendar the panel was opened from. Clearing it
+          back to blank restores the day the panel opened on, since a create
+          with no date is not a thing the user can mean.
+          On a narrow sheet the line wraps instead of overflowing: the bases
+          below are where a field gives its seat up to the next line (8rem +
+          11rem + the check + two gaps fit the 512px Modal's body, so Desktop
+          keeps one line; a phone puts the times on a second one), and
+          `min-w-0` on every column (#1036) is what keeps a column that stays
+          from flooring at the input's intrinsic width. */}
+      <div className="flex flex-wrap items-end gap-3">
+        {/* `appearance-none` + `min-w-0` on the input and the wider `gap-3`
+            are #1403's half of the same fix (see EventEditorPane). */}
+        <label className="flex min-w-0 flex-1 basis-32 flex-col gap-1.5">
           <span className={FIELD_LABEL}>{labels.date}</span>
           <input
             type="date"
@@ -821,30 +956,40 @@ export function ItemCreatePanel({
             className={cn(FIELD, "min-w-0 appearance-none tabular-nums")}
           />
         </label>
-        {type === "event" && (
-          <AllDaySwitch
-            checked={allDay}
-            onToggle={() => setAllDay((v) => !v)}
-            label={labels.allDay}
+        {/* #553: the shared TimeRangeField replaces the native time pair —
+            typed entry + snapped lists, and the range invariant lives there.
+            Hidden rather than disabled while all-day is on, matching
+            EventEditorPane: the check that hides them keeps the focus, and a
+            locked pair would leave the times looking authoritative while
+            nothing reads them. */}
+        {!isAllDay && (
+          <TimeRangeField
+            start={start}
+            end={end}
+            onChange={(next) => {
+              setStart(next.start);
+              setEnd(next.end);
+            }}
+            labels={{ start: labels.startTime, end: labels.endTime }}
+            formatDuration={formatDuration}
+            className="min-w-0 flex-[2] basis-44"
           />
         )}
+        <AllDayCheck
+          checked={allDay}
+          onToggle={() => setAllDay((v) => !v)}
+          label={labels.allDay}
+        />
       </div>
-      {/* #553: the shared TimeRangeField replaces the native time pair —
-          typed entry + snapped lists, and the range invariant lives there.
-          Hidden rather than disabled while all-day is on, matching
-          EventEditorPane: the switch that hides them keeps the focus, and a
-          locked pair would leave the times looking authoritative while
-          nothing reads them. */}
-      {!isAllDay && (
-        <TimeRangeField
-          start={start}
-          end={end}
-          onChange={(next) => {
-            setStart(next.start);
-            setEnd(next.end);
-          }}
-          labels={{ start: labels.startTime, end: labels.endTime }}
-          formatDuration={formatDuration}
+      {/* #2406: the repeat, for a new event only (see the header). "No
+          repeat" comes first and is where the field starts. */}
+      {type === "event" && repeatField && (
+        <FrequencyEditor
+          value={repeatDraft}
+          onChange={editRepeat}
+          onSelectNone={() => setRepeatDraft(null)}
+          weekdayLabels={repeatField.weekdayLabels}
+          labels={repeatField.labels}
         />
       )}
       {/* Goals (#2109) — the same disclosure as the note below it, collapsed
@@ -994,37 +1139,32 @@ export function ItemCreatePanel({
         )}
       </div>
       {/* The footer acts on the active tab; opening the note section leaves it
-          alone. */}
-      <div className="flex gap-2">
-        {type === "event" ? (
-          <>
-            <button
-              type="button"
-              disabled={!canSubmit}
-              onClick={() => submitTitled(onSubmitEvent)}
-              className={PRIMARY_BTN}
-            >
-              {labels.addEvent}
-            </button>
-            <button
-              type="button"
-              disabled={!canSubmit}
-              onClick={() => submitTitled(onSubmitEventAndOpen)}
-              className={SECONDARY_BTN}
-            >
-              {labels.addEventAndOpen}
-            </button>
-          </>
-        ) : (
+          alone. #2406: Cancel / Add and edit / Add, in the proposal's order,
+          on both tabs — the submit at the end the eye finishes on. */}
+      <div className="flex items-center gap-2">
+        {onCancel && labels.cancel && (
+          <button type="button" onClick={onCancel} className={CANCEL_BTN}>
+            {labels.cancel}
+          </button>
+        )}
+        {submitAndOpen && (
           <button
             type="button"
             disabled={!canSubmit}
-            onClick={submitPrimary}
-            className={PRIMARY_BTN}
+            onClick={submitAndOpen}
+            className={SECONDARY_BTN}
           >
-            {placing ? labels.placeTodo : labels.addTodo}
+            {andOpenLabel}
           </button>
         )}
+        <button
+          type="button"
+          disabled={!canSubmit}
+          onClick={submitPrimary}
+          className={PRIMARY_BTN}
+        >
+          {primaryLabel}
+        </button>
       </div>
     </div>
   );

@@ -57,6 +57,9 @@ describe("rowsToGoal", () => {
       decidedAt: "2026-10-10T20:00:00.000Z",
       carriedFromGoalId: "goal-0",
       legacyKey: "week:2026-10-04:0",
+      // A row read before 0044 has neither column (#2366).
+      startDate: null,
+      endDate: null,
       isDeleted: false,
       createdAt: "2026-10-04T00:00:00.000Z",
       updatedAt: "2026-10-05T00:00:00.000Z",
@@ -116,6 +119,72 @@ describe("goalCreateToRows", () => {
         "u1",
       ),
     ).toThrow(/period key/);
+  });
+});
+
+describe("a goal's own date range (#2366)", () => {
+  it("reads the 0044 columns", () => {
+    const goal = rowsToGoal(meta, {
+      ...payload,
+      start_date: "2026-10-04",
+      end_date: "2026-10-20",
+    });
+    expect(goal).toMatchObject({
+      startDate: "2026-10-04",
+      endDate: "2026-10-20",
+    });
+  });
+
+  it("writes the range only when one is given", () => {
+    const base = {
+      id: "g",
+      title: "t",
+      periodKind: "week" as const,
+      periodKey: "2026-10-04",
+    };
+    expect(goalCreateToRows(base, "u1").payload).not.toHaveProperty(
+      "start_date",
+    );
+    expect(
+      goalCreateToRows(
+        { ...base, startDate: "2026-10-04", endDate: "2026-10-20" },
+        "u1",
+      ).payload,
+    ).toMatchObject({ start_date: "2026-10-04", end_date: "2026-10-20" });
+  });
+
+  it("refuses half a range and one that runs backwards", () => {
+    const base = {
+      id: "g",
+      title: "t",
+      periodKind: "week" as const,
+      periodKey: "2026-10-04",
+    };
+    expect(() =>
+      goalCreateToRows({ ...base, startDate: "2026-10-04" }, "u1"),
+    ).toThrow(/both a start and an end/);
+    expect(() =>
+      goalCreateToRows(
+        { ...base, startDate: "2026-10-20", endDate: "2026-10-04" },
+        "u1",
+      ),
+    ).toThrow(/before it starts/);
+  });
+
+  it("moves the range as a pair and still bumps the meta row", () => {
+    const { metaPatch, payloadPatch } = goalUpdatesToPatches(
+      { startDate: "2026-10-04", endDate: "2026-10-20" },
+      "2026-10-05T00:00:00.000Z",
+    );
+    expect(metaPatch).toEqual({ updated_at: "2026-10-05T00:00:00.000Z" });
+    expect(payloadPatch).toEqual({
+      start_date: "2026-10-04",
+      end_date: "2026-10-20",
+    });
+    expect(
+      goalUpdatesToPatches({ startDate: null, endDate: null }, "x")
+        .payloadPatch,
+    ).toEqual({ start_date: null, end_date: null });
   });
 });
 

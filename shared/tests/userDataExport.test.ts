@@ -159,12 +159,29 @@ describe("export table roster (#1988)", () => {
     );
   }
 
-  it("matches the delete list of delete_my_account() minus dropped tables", () => {
+  /** The migration holding the definition of delete_my_account() in force. */
+  function latestDeleteFile(): string {
     const deleteFile = files.filter((f) =>
       read(f).includes("function public.delete_my_account()"),
     );
     expect(deleteFile.length).toBeGreaterThan(0);
-    const latest = deleteFile[deleteFile.length - 1];
+    return deleteFile[deleteFile.length - 1];
+  }
+
+  // The roster below takes this table out of the comparison, so it would not
+  // notice a later migration rebuilding the function from a body without it.
+  // The function's leftover check would then fail every account deletion.
+  it("erases the tombstones in the latest delete_my_account() (#2333)", () => {
+    const code = read(latestDeleteFile()).replace(/--.*$/gm, "");
+    const start = code.indexOf("function public.delete_my_account()");
+    const body = code.slice(start, code.indexOf("$$;", start));
+    expect(body).toMatch(
+      /delete from public\.items_meta_tombstones\s+where user_id = caller/,
+    );
+  });
+
+  it("matches the delete list of delete_my_account() minus dropped tables", () => {
+    const latest = latestDeleteFile();
     const deleted = new Set(
       [...read(latest).matchAll(/delete from public\.([a-z_]+)/g)].map(
         (m) => m[1],
@@ -177,6 +194,10 @@ describe("export table roster (#1988)", () => {
         deleted.delete(m[1]);
       }
     }
+
+    // Erased with the account but not carried out: sync bookkeeping (#2333),
+    // written by a trigger and of no use to an importer.
+    deleted.delete("items_meta_tombstones");
 
     expect([...USER_DATA_EXPORT_TABLES.map((t) => t.table)].sort()).toEqual(
       [...deleted].sort(),

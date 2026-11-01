@@ -366,10 +366,18 @@ describe("#1562 — the tag editor, now inside the Connect hub (#1643)", () => {
     ).toHaveClass("max-md:min-h-11");
   });
 
-  it("floors the icon trigger, which is a 32px box", () => {
+  it("floors the icon strip's glyphs and the Show more button (#2389)", () => {
     renderHub();
+    // The strip's glyphs are 32px boxes and the button under them is a text
+    // row, so both carry the floor explicitly (the old single trigger did too).
+    const strip = screen.getByRole("group", {
+      name: TAG_HUB_LABELS.edit.iconLabel,
+    });
+    for (const cell of strip.children) {
+      expect(cell).toHaveClass("max-md:h-11", "max-md:w-11");
+    }
     expect(
-      screen.getByRole("button", { name: TAG_HUB_LABELS.edit.iconLabel }),
+      screen.getByRole("button", { name: TAG_HUB_LABELS.edit.iconMore }),
     ).toHaveClass("max-md:min-h-11");
   });
 

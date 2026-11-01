@@ -28,6 +28,7 @@ import {
   WIDE_QUERY,
   type DataService,
   type Goal,
+  type GoalDateRange,
   type GoalPeriodKind,
   type GoalTodoLink,
   type GoalTreeArrangeLabels,
@@ -243,7 +244,11 @@ export function GoalsTodosScreen({
   );
 
   const createGoal = useCallback(
-    async (kind: GoalPeriodKind, title: string): Promise<boolean> => {
+    async (
+      kind: GoalPeriodKind,
+      title: string,
+      range: GoalDateRange | null,
+    ): Promise<boolean> => {
       const id = generateId("goal");
       const ok = await write(() =>
         dataService.createGoal({
@@ -251,7 +256,9 @@ export function GoalsTodosScreen({
           title,
           periodKind: kind,
           periodKey: model.periodKeys[kind],
+          // No limit per period any more (#2366): the count only orders it.
           sortOrder: model.periodCounts[kind],
+          ...(range ?? {}),
         }),
       );
       // Picked straight away: the panel is where it gets its parent.
