@@ -185,6 +185,16 @@ describe("an offline batch", () => {
     expect(await box()).toEqual([]);
   });
 
+  it("says it was queued, and says nothing when nothing went in", async () => {
+    const ds = wrap();
+    await expect(
+      ds.syncTodoTree([added("t"), todo("a", { order: 1 })]),
+    ).resolves.toBe("queued");
+    await expect(
+      ds.syncTodoTree([todo("a", { order: 0 })]),
+    ).resolves.toBeUndefined();
+  });
+
   it("rejects an edit aimed at a waiting Todo, and keeps the entry as it was", async () => {
     const ds = wrap();
     await ds.syncTodoTree([added("t")]);
@@ -202,6 +212,143 @@ describe("an offline batch", () => {
     expect((await box())[0]?.order).toBe(0);
     expect(second.order).toBe(-1);
     expect(third.order).toBe(5);
+  });
+});
+
+/** The hook keeps its optimistic node, with no `updatedAt`, after it lands. */
+describe("an edit of a row that landed but was not re-read", () => {
+  const offlineAfterOne = () =>
+    vi.fn().mockResolvedValueOnce(undefined).mockRejectedValue(new Error(NETWORK));
+
+  it("rejects after a tree write landed, instead of queueing a create", async () => {
+    const ds = wrap({ syncTodoTree: offlineAfterOne() });
+    await ds.syncTodoTree([added("x")]);
+    await expect(
+      ds.syncTodoTree([added("x", { status: "DONE" })]),
+    ).rejects.toThrow(NETWORK);
+    expect(await box()).toEqual([]);
+  });
+
+  it("rejects after a direct create landed", async () => {
+    const ds = wrap({ createTodo: vi.fn().mockResolvedValue(added("x")) });
+    await ds.createTodo(added("x"));
+    await expect(
+      ds.syncTodoTree([added("x", { status: "DONE" })]),
+    ).rejects.toThrow(NETWORK);
+    expect(await box()).toEqual([]);
+  });
+
+  it("rejects after the sender sent it", async () => {
+    const landed = new Set<string>();
+    const ds = createOfflineDataService(
+      stubDataService({ syncTodoTree: failing(NETWORK) }),
+      owner,
+      landed,
+    );
+    const sender = createOutboxSender(
+      { createTodoIfAbsent: vi.fn().mockResolvedValue(undefined) },
+      owner,
+      landed,
+    );
+    await ds.syncTodoTree([added("x")]);
+    await sender.run(vi.fn());
+    await expect(
+      ds.syncTodoTree([added("x", { status: "DONE" })]),
+    ).rejects.toThrow(NETWORK);
+    expect(await box()).toEqual([]);
+  });
+
+  it("still queues a truly new row beside it", async () => {
+    const ds = wrap({ syncTodoTree: offlineAfterOne() });
+    await ds.syncTodoTree([added("x")]);
+    await ds.syncTodoTree([added("new"), added("x", { order: 1 })]);
+    expect((await box()).map((t) => [t.id, t.order])).toEqual([["new", -1]]);
+  });
+});
+
+describe("deleting a Todo that waits", () => {
+  it("takes the entry out, from the box and the stored list", async () => {
+    const ds = wrap();
+    writeDomainSnapshot("todoTree", ds, undefined, [todo("a")]);
+    await ds.syncTodoTree([added("t"), todo("a", { order: 1 })]);
+    await expect(
+      ds.syncTodoTree([added("t", { isDeleted: true })]),
+    ).resolves.toBeUndefined();
+    expect(await box()).toEqual([]);
+    expect(
+      readDomainSnapshot<TodoNode[]>("todoTree", ds, undefined)?.data.map(
+        (row) => row.id,
+      ),
+    ).toEqual(["a"]);
+  });
+
+  it("queues it again when the delete is undone", async () => {
+    const ds = wrap();
+    await ds.syncTodoTree([added("t")]);
+    await ds.syncTodoTree([added("t", { isDeleted: true })]);
+    await expect(ds.syncTodoTree([added("t")])).resolves.toBe("queued");
+    expect((await box()).map((t) => t.id)).toEqual(["t"]);
+  });
+
+  it("still rejects for a landed row in the same delete, and a resend stays quiet", async () => {
+    const ds = wrap();
+    await ds.syncTodoTree([added("t")]);
+    const batch = [
+      added("t", { isDeleted: true }),
+      todo("child", { isDeleted: true }),
+    ];
+    await expect(ds.syncTodoTree(batch)).rejects.toThrow(NETWORK);
+    expect(await box()).toEqual([]);
+    await expect(ds.syncTodoTree(batch)).rejects.toThrow(NETWORK);
+    expect(await box()).toEqual([]);
+  });
+
+  it.each([
+    ["a delete", (ds: DataService) => ds.syncTodoTree([added("t", { isDeleted: true })])],
+    ["an undo", (ds: DataService) => ds.softDeleteTodo("t")],
+  ])("tidies what a part-way send left, on %s", async (_label, drop) => {
+    const removeTodoMetaIfOrphan = vi.fn().mockResolvedValue(undefined);
+    const ds = wrap({ removeTodoMetaIfOrphan });
+    await ds.syncTodoTree([added("t")]);
+    await createOutboxSender(
+      {
+        createTodoIfAbsent: vi
+          .fn()
+          .mockRejectedValue(new OutboxSendError("down", 503)),
+      },
+      owner,
+    ).run(vi.fn());
+    await drop(ds);
+    expect(await box()).toEqual([]);
+    expect(removeTodoMetaIfOrphan).toHaveBeenCalledWith("t");
+  });
+
+  it("does not touch the server when no send was ever tried", async () => {
+    const removeTodoMetaIfOrphan = vi.fn().mockResolvedValue(undefined);
+    const ds = wrap({ removeTodoMetaIfOrphan });
+    await ds.syncTodoTree([added("t")]);
+    await ds.softDeleteTodo("t");
+    expect(removeTodoMetaIfOrphan).not.toHaveBeenCalled();
+  });
+});
+
+describe("a box that hangs", () => {
+  const hang = () => vi.stubGlobal("indexedDB", { open: () => ({}) });
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("does not stop the list loading", async () => {
+    const ds = wrap({ fetchTodoTree: vi.fn().mockResolvedValue([todo("a")]) });
+    hang();
+    const rows = await ds.fetchTodoTree();
+    expect(rows.map((t) => t.id)).toEqual(["a"]);
+  });
+
+  it("does not stop an undo reaching the service", async () => {
+    const softDeleteTodo = vi.fn().mockResolvedValue(undefined);
+    const ds = wrap({ softDeleteTodo });
+    hang();
+    await ds.softDeleteTodo("t");
+    expect(softDeleteTodo).toHaveBeenCalledWith("t");
   });
 });
 
@@ -280,16 +427,70 @@ describe("with useTodoTreeAPI", () => {
     return { hook, syncTodoTree, stack };
   }
 
-  it("an add resolves, queues one row, and reports saved", async () => {
+  it("an add resolves and queues one row, but does not report it as on the server", async () => {
     const { hook } = await mount();
     const onSaved = vi.fn();
     act(() => {
       hook.result.current.addNode("task", null, "new", { onSaved });
     });
     await waitFor(() => expect(onSaved).toHaveBeenCalled());
-    expect(onSaved.mock.calls[0]?.[0]?.title).toBe("new");
+    // A note link or a tag written now would fail on the foreign key.
+    expect(onSaved).toHaveBeenCalledWith(null);
     expect((await box()).map((t) => t.order)).toEqual([-1]);
     expect(hook.result.current.persistError).toBeNull();
+    expect(hook.result.current.nodes.some((t) => t.title === "new")).toBe(true);
+  });
+
+  it("reports saved when the add really landed", async () => {
+    const { hook, syncTodoTree } = await mount();
+    syncTodoTree.mockReset();
+    syncTodoTree.mockResolvedValue(undefined);
+    const onSaved = vi.fn();
+    act(() => {
+      hook.result.current.addNode("task", null, "new", { onSaved });
+    });
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(onSaved.mock.calls[0]?.[0]?.title).toBe("new");
+    expect(await box()).toEqual([]);
+  });
+
+  it("an edit of a row that landed online stays an error, and nothing is queued", async () => {
+    const { hook, syncTodoTree } = await mount();
+    syncTodoTree.mockReset();
+    syncTodoTree.mockResolvedValueOnce(undefined);
+    syncTodoTree.mockRejectedValue(new Error(NETWORK));
+    const onSaved = vi.fn();
+    let id = "";
+    act(() => {
+      id = hook.result.current.addNode("task", null, "new", { onSaved }).id;
+    });
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+
+    act(() => hook.result.current.updateNode(id, { title: "edited" }));
+    await waitFor(() =>
+      expect(hook.result.current.persistError).toContain("Failed to fetch"),
+    );
+    expect(await box()).toEqual([]);
+  });
+
+  it("deleting a queued add empties the box, and it does not come back", async () => {
+    const { hook } = await mount();
+    const onSaved = vi.fn();
+    let id = "";
+    act(() => {
+      id = hook.result.current.addNode("task", null, "new", { onSaved }).id;
+    });
+    await waitFor(() => expect(onSaved).toHaveBeenCalled());
+    expect(await box()).toHaveLength(1);
+
+    act(() => hook.result.current.softDelete(id));
+    await waitFor(async () => expect(await box()).toEqual([]));
+    expect(hook.result.current.persistError).toBeNull();
+
+    await act(async () => {
+      await hook.result.current.refetch();
+    });
+    expect(hook.result.current.nodes.map((t) => t.id)).toEqual(["a", "b"]);
   });
 
   it("undoing a queued add succeeds and empties the box", async () => {
@@ -429,6 +630,32 @@ describe("the sender", () => {
     await run();
     expect(await readOutbox(user)).toHaveLength(1);
     expect(getOutboxCounts().failed).toBe(0);
+  });
+
+  it("reads the list again when the only entry is refused", async () => {
+    await enqueueTodoCreate(user, added("refused"));
+    send.mockRejectedValueOnce(new OutboxSendError("rls", 403, "42501"));
+    const onSent = await run();
+    expect(await box()).toEqual([]);
+    expect(getOutboxCounts()).toEqual({ pending: 0, failed: 1 });
+    expect(onSent).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the box's owner on every send", async () => {
+    await enqueueTodoCreate(user, added("t"));
+    await run();
+    expect(send.mock.calls[0]?.[1]).toMatchObject({ ownerId: user });
+  });
+
+  it("stops and keeps the entry when the account changed during the run", async () => {
+    await enqueueTodoCreate(user, added("t"));
+    await enqueueTodoCreate(user, added("u"));
+    send.mockRejectedValueOnce(new Error("getUserId failed: account changed"));
+    const onSent = await run();
+    expect(send).toHaveBeenCalledTimes(1);
+    expect((await box()).map((t) => t.id)).toEqual(["t", "u"]);
+    expect(getOutboxCounts().failed).toBe(0);
+    expect(onSent).not.toHaveBeenCalled();
   });
 
   it("moves a refused entry aside and carries on", async () => {

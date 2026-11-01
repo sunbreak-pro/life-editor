@@ -840,6 +840,7 @@ describe("census — every items_meta write in SupabaseTodosService names its ro
       "createTodo → task",
       "createTodoIfAbsent → task",
       "permanentDeleteTodo → task",
+      "removeTodoMetaIfOrphan → task",
     ]);
   });
 

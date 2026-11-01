@@ -13,8 +13,8 @@ import { useShellChrome } from "../src/hooks/useShellChrome";
 
 const state = vi.hoisted(() => ({
   counts: { pending: 0, failed: 0 },
-  readFailedOutboxText: vi.fn(),
-  clearFailedOutbox: vi.fn(),
+  readFailedOutboxCopy: vi.fn(),
+  removeFailedOutboxEntries: vi.fn(),
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
@@ -27,8 +27,8 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     }),
     getOutboxCounts: () => state.counts,
     subscribeOutbox: () => () => {},
-    readFailedOutboxText: state.readFailedOutboxText,
-    clearFailedOutbox: state.clearFailedOutbox,
+    readFailedOutboxCopy: state.readFailedOutboxCopy,
+    removeFailedOutboxEntries: state.removeFailedOutboxEntries,
   };
 });
 
@@ -39,8 +39,12 @@ const writeText = vi.fn();
 
 beforeEach(() => {
   state.counts = { pending: 0, failed: 0 };
-  state.readFailedOutboxText.mockResolvedValue("title a\n\ntitle b");
-  state.clearFailedOutbox.mockResolvedValue(undefined);
+  state.readFailedOutboxCopy.mockResolvedValue({
+    text: "title a\n\ntitle b",
+    opIds: ["op-a", "op-b"],
+  });
+  state.removeFailedOutboxEntries.mockReset();
+  state.removeFailedOutboxEntries.mockResolvedValue(undefined);
   writeText.mockReset();
   writeText.mockResolvedValue(undefined);
   Object.defineProperty(navigator, "clipboard", {
@@ -88,16 +92,56 @@ describe("OfflineBanner", () => {
     expect(writeText).toHaveBeenCalledWith("title a\n\ntitle b");
 
     await press("offline.remove");
-    expect(state.clearFailedOutbox).toHaveBeenCalledTimes(1);
+    expect(state.removeFailedOutboxEntries).toHaveBeenCalledTimes(1);
+    expect(state.removeFailedOutboxEntries).toHaveBeenCalledWith([
+      "op-a",
+      "op-b",
+    ]);
   });
 
-  it("shows the text when the clipboard refuses", async () => {
+  it("asks for a new copy when another Todo is refused after the first", async () => {
     setOnline(true);
-    state.counts = { pending: 0, failed: 1 };
+    state.counts = { pending: 0, failed: 2 };
+    const { rerender } = render(<OfflineBanner />);
+    await press("offline.copy");
+    screen.getByRole("button", { name: "offline.remove" });
+
+    state.counts = { pending: 0, failed: 3 };
+    rerender(<OfflineBanner />);
+    expect(screen.queryByRole("button", { name: "offline.remove" })).toBeNull();
+    screen.getByRole("button", { name: "offline.copy" });
+    expect(state.removeFailedOutboxEntries).not.toHaveBeenCalled();
+  });
+
+  it("does not claim a copy the clipboard refused, and holds Remove back", async () => {
+    setOnline(true);
+    state.counts = { pending: 0, failed: 2 };
     writeText.mockRejectedValue(new Error("denied"));
     render(<OfflineBanner />);
     await press("offline.copy");
-    expect(screen.getByText(/title a/)).toBeTruthy();
+
+    const text = screen.getByText(/title a/);
+    const band = screen.getByRole("status").textContent ?? "";
+    expect(band).toContain("offline.failedCopyManual|2");
+    expect(band).not.toContain("offline.failedCopied");
+    expect(screen.queryByRole("button", { name: "offline.remove" })).toBeNull();
+
+    // The hand copy is the user acting: now it may go.
+    fireEvent.copy(text);
+    await press("offline.remove");
+    expect(state.removeFailedOutboxEntries).toHaveBeenCalledWith([
+      "op-a",
+      "op-b",
+    ]);
+  });
+
+  it("gives its button a 44px target on narrow widths", async () => {
+    setOnline(true);
+    state.counts = { pending: 0, failed: 1 };
+    render(<OfflineBanner />);
+    const copy = screen.getByRole("button", { name: "offline.copy" });
+    expect(copy.className).toContain("max-md:min-h-11");
+    expect(copy.className).toContain("max-md:min-w-11");
   });
 
   it("promises no more than a Todo add, in both catalogs", () => {

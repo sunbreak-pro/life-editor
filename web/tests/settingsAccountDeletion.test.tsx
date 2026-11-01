@@ -159,6 +159,19 @@ describe("SettingsScreen — deleting the account (#1200)", () => {
     expect(state.deleteAccount).not.toHaveBeenCalled();
   });
 
+  // #2335: the text of unsent Todos exists nowhere else and goes with the account.
+  it("says how many unsent Todos go with it, only when there are any", async () => {
+    await renderSettings();
+    press("settings.account.delete.button");
+    const key = "settings.account.delete.consequences.outbox";
+    expect(screen.getByRole("dialog").textContent).not.toContain(key);
+    press("common.cancel");
+
+    state.outboxPending = 3;
+    press("settings.account.delete.button");
+    expect(screen.getByRole("dialog").textContent).toContain(`${key}|3`);
+  });
+
   it("keeps the confirm inert until the address is typed back", async () => {
     await renderSettings();
     press("settings.account.delete.button");

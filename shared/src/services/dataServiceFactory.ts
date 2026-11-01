@@ -37,8 +37,9 @@ export function getDataService(): DataService {
   if (!dataServiceSingleton) {
     const inner = createSupabaseDataService();
     const owner = sessionOwner(getSupabaseClient().auth);
-    dataServiceSingleton = createOfflineDataService(inner, owner);
-    outboxSender = createOutboxSender(inner, owner);
+    const landed = new Set<string>();
+    dataServiceSingleton = createOfflineDataService(inner, owner, landed);
+    outboxSender = createOutboxSender(inner, owner, landed);
   }
   return dataServiceSingleton;
 }

@@ -8,15 +8,18 @@ import {
   failOutboxEntry,
   isOfflineFailure,
   isSendable,
+  OUTBOX_READ_TIMEOUT_MS,
   readOutbox,
   refreshOutboxCounts,
   removeOutboxEntry,
+  withTimeout,
   type OutboxEntry,
 } from "../state/outbox";
 
 /*
  * DataService with an outbox behind the Todo create (#2335 — plan
- * 2026-10-21-offline-cache.md P2a). Hooks are unchanged and never know.
+ * 2026-10-21-offline-cache.md P2a). Hooks learn one thing: `syncTodoTree` says
+ * `"queued"`, because a queued row must not be reported as being on the server.
  *
  * Both write paths are covered, because the main one is not `createTodo`: the
  * Todo screen's `addNode` persists through `syncTodoTree` with the new node and
@@ -34,7 +37,18 @@ import {
  * There may be no server copy to compare against (#2328's fresh mounts skip the
  * read), so a real edit is recognised by what this layer saw: `failedRows`,
  * the rows whose last write it watched fail.
+ *
+ * A row with no `updatedAt` is not necessarily new: the hook keeps its optimistic
+ * node after the write lands, until a re-read replaces it. `LandedTodos` holds
+ * the ids this page saw reach the server, so an edit of one is rejected like any
+ * other edit instead of being queued as a create that would then send nothing.
+ *
+ * Deleting a row that waits takes the entry out, as an undo does. Any other edit
+ * of one is rejected, and the banner says so.
  */
+
+/** Ids seen on the server by this page, shared with the sender. */
+export type LandedTodos = Set<string>;
 
 /** Resolves the signed-in user without the network. */
 export type OwnerResolver = () => Promise<string | null>;
@@ -92,9 +106,18 @@ async function readTodoCreates(userId: string): Promise<OutboxEntry[]> {
   return (await readOutbox(userId)).filter(isSendable);
 }
 
+/**
+ * For the paths that also run online: a box that hangs must not stop the list
+ * loading or an undo completing. The callers fall back to the plain service.
+ */
+function readTodoCreatesOnline(userId: string): Promise<OutboxEntry[]> {
+  return withTimeout(readTodoCreates(userId), OUTBOX_READ_TIMEOUT_MS);
+}
+
 export function createOfflineDataService(
   inner: DataService,
   owner: OwnerResolver,
+  landed: LandedTodos = new Set(),
 ): DataService {
   /** The row of each write that failed, until a write of that id lands. */
   const failedRows = new Map<string, TodoNode>();
@@ -129,19 +152,58 @@ export function createOfflineDataService(
     return true;
   };
 
-  /** The rows not held, which make the write reject; empty means all held. */
-  const absorbBatch = async (nodes: TodoNode[]): Promise<TodoNode[]> => {
-    const userId = await owner();
-    if (userId === null) return nodes;
-    const pending = new Map(
-      (await readTodoCreates(userId)).map((e) => [e.itemId, e.payload.node]),
+  /**
+   * The entry goes and the list follows. If a send already got part-way, the
+   * meta row it left is tidied when the network allows; offline, it stays.
+   */
+  const dropEntry = async (
+    userId: string,
+    entry: OutboxEntry,
+  ): Promise<void> => {
+    await removeOutboxEntry(userId, entry.opId);
+    failedRows.delete(entry.itemId);
+    patchDomainSnapshot<TodoNode[]>("todoTree", (rows) =>
+      rows.filter((n) => n.id !== entry.itemId),
     );
-    const isNew = (n: TodoNode): boolean =>
-      n.updatedAt === undefined && !pending.has(n.id);
-    const fresh = nodes.filter(isNew);
-    if (fresh.length === 0) return absorbShiftBack(nodes) ? [] : nodes;
+    if (entry.attempts === 0) return;
+    void (async () => {
+      await inner.removeTodoMetaIfOrphan(entry.itemId);
+    })().catch((e: unknown) => console.warn("[outbox] tidy", e));
+  };
 
-    const rest = nodes.filter((n) => !isNew(n));
+  /**
+   * `unheld`: the rows not held, which make the write reject; empty means all
+   * held. `queued`: a row went into the box.
+   */
+  const absorbBatch = async (
+    nodes: TodoNode[],
+  ): Promise<{ unheld: TodoNode[]; queued: boolean }> => {
+    const userId = await owner();
+    if (userId === null) return { unheld: nodes, queued: false };
+    const entries = await readTodoCreates(userId);
+    const pending = new Map(entries.map((e) => [e.itemId, e.payload.node]));
+    const neverLanded = (n: TodoNode): boolean =>
+      n.updatedAt === undefined && !landed.has(n.id);
+
+    const gone = new Set<string>();
+    for (const n of nodes) {
+      if (!n.isDeleted || !(pending.has(n.id) || neverLanded(n))) continue;
+      gone.add(n.id);
+      const entry = entries.find((e) => e.itemId === n.id);
+      if (entry !== undefined) await dropEntry(userId, entry);
+      pending.delete(n.id);
+    }
+    const rows = nodes.filter((n) => !gone.has(n.id));
+    if (rows.length === 0) return { unheld: [], queued: false };
+
+    const isNew = (n: TodoNode): boolean =>
+      neverLanded(n) && !pending.has(n.id);
+    const fresh = rows.filter(isNew);
+    if (fresh.length === 0) {
+      return { unheld: absorbShiftBack(rows) ? [] : rows, queued: false };
+    }
+
+    const rest = rows.filter((n) => !isNew(n));
     for (const node of fresh) {
       const orders = [
         ...rest.filter((r) => isOpenSibling(r, node)).map((r) => r.order - 1),
@@ -165,11 +227,11 @@ export function createOfflineDataService(
       const failed = failedRows.get(row.id);
       return failed !== undefined && sameExceptOrder(failed, row);
     });
-    if (realEdits.length > 0) return realEdits;
+    if (realEdits.length > 0) return { unheld: realEdits, queued: true };
     for (const row of rest) {
       if (fresh.some((node) => isOpenSibling(row, node))) recordShift(row);
     }
-    return [];
+    return { unheld: [], queued: true };
   };
 
   const overrides: Partial<DataService> = {
@@ -177,11 +239,12 @@ export function createOfflineDataService(
     async fetchTodoTree() {
       const rows = await inner.fetchTodoTree();
       shifted.clear();
+      for (const row of rows) landed.add(row.id);
       const userId = await owner();
       if (userId === null) return rows;
       const known = new Set(rows.map((n) => n.id));
       try {
-        const waiting = (await readTodoCreates(userId))
+        const waiting = (await readTodoCreatesOnline(userId))
           .map((e) => e.payload.node)
           .filter((n) => !known.has(n.id));
         return waiting.length > 0 ? [...rows, ...waiting] : rows;
@@ -197,7 +260,9 @@ export function createOfflineDataService(
      */
     async createTodo(node) {
       try {
-        return await inner.createTodo(node);
+        const created = await inner.createTodo(node);
+        landed.add(created.id);
+        return created;
       } catch (error) {
         if (!isOfflineFailure(error)) throw error;
         try {
@@ -224,14 +289,18 @@ export function createOfflineDataService(
       try {
         await inner.syncTodoTree(nodes);
         for (const n of nodes) {
+          landed.add(n.id);
           failedRows.delete(n.id);
           shifted.delete(n.id);
         }
       } catch (error) {
-        const unheld = isOfflineFailure(error)
-          ? await absorbBatch(nodes).catch(() => nodes)
-          : nodes;
-        if (unheld.length === 0) return;
+        const { unheld, queued } = isOfflineFailure(error)
+          ? await absorbBatch(nodes).catch(() => ({
+              unheld: nodes,
+              queued: false,
+            }))
+          : { unheld: nodes, queued: false };
+        if (unheld.length === 0) return queued ? "queued" : undefined;
         for (const n of unheld) failedRows.set(n.id, n);
         throw error;
       }
@@ -243,16 +312,13 @@ export function createOfflineDataService(
       const entry =
         userId === null
           ? undefined
-          : await readTodoCreates(userId).then(
+          : await readTodoCreatesOnline(userId).then(
               (entries) => entries.find((e) => e.itemId === id),
               () => undefined,
             );
       if (userId === null || entry === undefined)
         return inner.softDeleteTodo(id);
-      await removeOutboxEntry(userId, entry.opId);
-      patchDomainSnapshot<TodoNode[]>("todoTree", (rows) =>
-        rows.filter((n) => n.id !== id),
-      );
+      await dropEntry(userId, entry);
     },
   };
 
@@ -269,7 +335,7 @@ export function createOfflineDataService(
 }
 
 export interface OutboxSender {
-  /** Send what waits, then call `onSent` if any went out. Never rejects. */
+  /** Send what waits, then call `onSent` if any left the box. Never rejects. */
   run(onSent: () => void): Promise<void>;
 }
 
@@ -278,35 +344,40 @@ export interface OutboxSender {
  * it exists, and otherwise the in-tab guard alone, with the idempotent send as
  * the backstop. The list is re-read for each entry, so an add made during a run
  * goes out with it and an undo made during a run is honoured. A retryable
- * failure stops the run, so a child never goes before its parent.
+ * failure stops the run, so a child never goes before its parent. A refused entry
+ * counts as a change too: the list still shows it until it is read again.
  */
 export function createOutboxSender(
   inner: Pick<DataService, "createTodoIfAbsent">,
   owner: OwnerResolver,
+  landed: LandedTodos = new Set(),
 ): OutboxSender {
   let running: Promise<void> | null = null;
 
   const drain = async (userId: string): Promise<number> => {
-    let sent = 0;
+    let changed = 0;
     for (;;) {
       const next = (await readOutbox(userId)).find(isSendable);
-      if (next === undefined) return sent;
+      if (next === undefined) return changed;
       const entry = await claimOutboxEntry(userId, next.opId);
       if (entry === null) continue;
       try {
         await inner.createTodoIfAbsent(entry.payload.node, {
+          ownerId: userId,
           retried: entry.attempts > 1,
         });
       } catch (e) {
         const verdict = classifySendFailure(e);
-        if (verdict === "retry") return sent;
+        if (verdict === "retry") return changed;
         if (verdict === "failed") {
           await failOutboxEntry(userId, entry, String(e));
+          changed += 1;
           continue;
         }
       }
+      landed.add(entry.itemId);
       await removeOutboxEntry(userId, entry.opId);
-      sent += 1;
+      changed += 1;
     }
   };
 
@@ -315,10 +386,10 @@ export function createOutboxSender(
     await refreshOutboxCounts(userId);
     if (userId === null || navigator.onLine === false) return;
     const locks: LockManager | undefined = navigator.locks;
-    const sent = locks
+    const changed = locks
       ? await locks.request("le-outbox", () => drain(userId))
       : await drain(userId);
-    if (sent > 0) onSent();
+    if (changed > 0) onSent();
     await refreshOutboxCounts(await owner());
   };
 

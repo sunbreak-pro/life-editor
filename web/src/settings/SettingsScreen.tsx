@@ -640,8 +640,14 @@ export function SettingsScreen({
       });
   };
 
+  // #2335: unsent Todos exist nowhere else, and deleting erases them too.
+  const unsent = getOutboxCounts();
+  const unsentCount = unsent.pending + unsent.failed;
   const deleteConsequences = [
     t("settings.account.delete.consequences.data"),
+    ...(unsentCount > 0
+      ? [t("settings.account.delete.consequences.outbox", { n: unsentCount })]
+      : []),
     t("settings.account.delete.consequences.login"),
     t("settings.account.delete.consequences.irreversible"),
   ];

@@ -20,6 +20,7 @@ function fake() {
     tasks_payload: new Map(),
   };
   const fails: Record<string, Failure | undefined> = {};
+  const readFails: Record<string, string | undefined> = {};
   const updates: Array<{ patch: Row; filters: Row }> = [];
   const deletes: Row[] = [];
   const writes = (done: (filters: Row) => void) => {
@@ -39,6 +40,14 @@ function fake() {
   const client = {
     auth: { getUser: async () => ({ data: { user: { id: "u" } }, error: null }) },
     from: (table: string) => ({
+      select: () => ({
+        eq: (_column: string, value: string) => ({
+          maybeSingle: async () =>
+            readFails[table]
+              ? { data: null, error: { message: readFails[table] } }
+              : { data: tables[table]!.get(value) ?? null, error: null },
+        }),
+      }),
       upsert: (row: Row, opts: { ignoreDuplicates?: boolean }) => ({
         select: async () => {
           const failure = fails[table];
@@ -64,6 +73,7 @@ function fake() {
     service: new SupabaseTodosService(client),
     tables,
     fails,
+    readFails,
     updates,
     deletes,
   };
@@ -78,11 +88,14 @@ const node: TodoNode = {
   createdAt: "2026-11-01T00:00:00.000Z",
 };
 
+const sending = { ownerId: "u" };
+const retrying = { ownerId: "u", retried: true };
+
 describe("createTodoIfAbsent (#2335)", () => {
   it("gives one row when sent twice, with the user's created_at", async () => {
     const { service, tables, updates } = fake();
-    await service.createTodoIfAbsent(node);
-    await service.createTodoIfAbsent(node);
+    await service.createTodoIfAbsent(node, sending);
+    await service.createTodoIfAbsent(node, sending);
     expect(tables.items_meta!.size).toBe(1);
     expect(tables.tasks_payload!.size).toBe(1);
     expect(tables.items_meta!.get("task-1")?.created_at).toBe(node.createdAt);
@@ -94,7 +107,7 @@ describe("createTodoIfAbsent (#2335)", () => {
     const trashed = { id: "task-1", title: "edited", is_deleted: true };
     tables.items_meta!.set("task-1", trashed);
     tables.tasks_payload!.set("task-1", { item_id: "task-1", sort_order: 9 });
-    await service.createTodoIfAbsent(node);
+    await service.createTodoIfAbsent(node, sending);
     expect(tables.items_meta!.get("task-1")).toBe(trashed);
     expect(tables.tasks_payload!.get("task-1")?.sort_order).toBe(9);
     expect(updates).toEqual([]);
@@ -106,13 +119,15 @@ describe("createTodoIfAbsent (#2335)", () => {
       status: 0,
       error: { message: "TypeError: Failed to fetch", code: "" },
     };
-    const error = await service.createTodoIfAbsent(node).catch((e) => e);
+    const error = await service
+      .createTodoIfAbsent(node, sending)
+      .catch((e) => e);
     expect(classifySendFailure(error)).toBe("retry");
     expect(deletes).toEqual([]);
     expect(tables.items_meta!.size).toBe(1);
 
     fails.tasks_payload = undefined;
-    await service.createTodoIfAbsent(node);
+    await service.createTodoIfAbsent(node, retrying);
     expect(tables.tasks_payload!.size).toBe(1);
   });
 
@@ -122,27 +137,89 @@ describe("createTodoIfAbsent (#2335)", () => {
       status: 409,
       error: { message: "fk", code: "23503" },
     };
-    const error = await service.createTodoIfAbsent(node).catch((e) => e);
+    const error = await service
+      .createTodoIfAbsent(node, sending)
+      .catch((e) => e);
     expect(classifySendFailure(error)).toBe("failed");
     expect(deletes).toEqual([{ id: "task-1", role: "task" }]);
     expect(tables.items_meta!.size).toBe(0);
   });
 
-  it("leaves a meta row it did not create on a refusal", async () => {
+  it("leaves a meta row it did not create on a first attempt's refusal", async () => {
     const { service, tables, fails, deletes } = fake();
     tables.items_meta!.set("task-1", { id: "task-1" });
     fails.tasks_payload = {
       status: 409,
       error: { message: "fk", code: "23503" },
     };
-    await expect(service.createTodoIfAbsent(node)).rejects.toThrow("fk");
+    await expect(service.createTodoIfAbsent(node, sending)).rejects.toThrow(
+      "fk",
+    );
     expect(deletes).toEqual([]);
+  });
+
+  it("removes the meta an earlier attempt left, when a later one is refused", async () => {
+    const { service, tables, fails, deletes } = fake();
+    fails.tasks_payload = {
+      status: 0,
+      error: { message: "TypeError: Failed to fetch", code: "" },
+    };
+    await service.createTodoIfAbsent(node, sending).catch(() => {});
+    expect(tables.items_meta!.size).toBe(1);
+
+    fails.tasks_payload = {
+      status: 409,
+      error: { message: "fk", code: "23503" },
+    };
+    await expect(service.createTodoIfAbsent(node, retrying)).rejects.toThrow(
+      "fk",
+    );
+    expect(deletes).toEqual([{ id: "task-1", role: "task" }]);
+    expect(tables.items_meta!.size).toBe(0);
+  });
+
+  it("keeps the meta on a retried refusal when a payload stands under it", async () => {
+    const { service, tables, fails, deletes } = fake();
+    tables.items_meta!.set("task-1", { id: "task-1" });
+    tables.tasks_payload!.set("task-1", { item_id: "task-1" });
+    fails.tasks_payload = {
+      status: 403,
+      error: { message: "rls", code: "42501" },
+    };
+    await expect(service.createTodoIfAbsent(node, retrying)).rejects.toThrow(
+      "rls",
+    );
+    expect(deletes).toEqual([]);
+  });
+
+  it("keeps the meta when it cannot tell whether a payload exists", async () => {
+    const { service, tables, fails, readFails, deletes } = fake();
+    tables.items_meta!.set("task-1", { id: "task-1" });
+    fails.tasks_payload = {
+      status: 409,
+      error: { message: "fk", code: "23503" },
+    };
+    readFails.tasks_payload = "read failed";
+    await expect(service.createTodoIfAbsent(node, retrying)).rejects.toThrow(
+      "fk",
+    );
+    expect(deletes).toEqual([]);
+  });
+
+  it("writes nothing under another account, and the entry may retry", async () => {
+    const { service, tables } = fake();
+    const error = await service
+      .createTodoIfAbsent(node, { ownerId: "someone-else" })
+      .catch((e) => e);
+    expect(classifySendFailure(error)).toBe("retry");
+    expect(tables.items_meta!.size).toBe(0);
+    expect(tables.tasks_payload!.size).toBe(0);
   });
 
   it("moves the meta row when the payload repairs an orphan", async () => {
     const { service, tables, updates } = fake();
     tables.items_meta!.set("task-1", { id: "task-1" });
-    await service.createTodoIfAbsent(node);
+    await service.createTodoIfAbsent(node, sending);
     expect(updates).toHaveLength(1);
     expect(updates[0]?.filters).toEqual({ id: "task-1", role: "task" });
     expect(updates[0]?.patch.updated_at).toEqual(expect.any(String));
@@ -152,7 +229,7 @@ describe("createTodoIfAbsent (#2335)", () => {
     const { service, tables, updates } = fake();
     tables.items_meta!.set("task-1", { id: "task-1" });
     tables.tasks_payload!.set("task-1", { item_id: "task-1" });
-    await service.createTodoIfAbsent(node, { retried: true });
+    await service.createTodoIfAbsent(node, retrying);
     expect(updates).toHaveLength(1);
   });
 });

@@ -272,18 +272,26 @@ export class SupabaseTodosService implements TodosDataService {
    * is how each step knows what this send did.
    *
    * Unlike createTodo, a retryable payload failure keeps the meta row: the next
-   * send completes the pair. A refusal removes it (R2), and only if this send
-   * created it. When the payload lands under a meta row that already existed
+   * send completes the pair. A refusal removes it (R2) if this send created it,
+   * or if an earlier attempt may have and no payload stands under it; a first
+   * attempt leaves a row it did not make. When the payload lands under a meta row that already existed
    * (a repaired orphan), a real UPDATE follows, because the delta read keys on
    * a trigger on items_meta and a payload write alone would not move it. If
    * that UPDATE is lost the payload is already there next time, so `retried`
    * asks for it again.
+   *
+   * The account is checked here because this is where `user_id` is stamped: a
+   * switch during a run must not write one account's Todo into another's. The
+   * `getUserId failed` prefix is what classifies it as retryable.
    */
   async createTodoIfAbsent(
     node: TodoNode,
-    options?: { retried?: boolean },
+    options: { ownerId: string; retried?: boolean },
   ): Promise<void> {
     const userId = await getAuthedUserId(this.client);
+    if (userId !== options.ownerId) {
+      throw new Error("getUserId failed: account changed");
+    }
     const { meta, payload } = todoNodeToRows(node, userId);
     const fail = (
       label: string,
@@ -317,17 +325,22 @@ export class SupabaseTodosService implements TodosDataService {
         payloadRes.status,
         payloadRes.error,
       );
-      if (metaCreated && classifySendFailure(failure) === "failed") {
-        await this.client
-          .from("items_meta")
-          .delete()
-          .eq("id", meta.id)
-          .eq("role", "task");
+      if (classifySendFailure(failure) === "failed") {
+        if (metaCreated) {
+          await this.client
+            .from("items_meta")
+            .delete()
+            .eq("id", meta.id)
+            .eq("role", "task");
+        } else if (options.retried) {
+          // Best-effort: the refusal is what the caller must hear about.
+          await this.removeTodoMetaIfOrphan(meta.id).catch(() => {});
+        }
       }
       throw failure;
     }
 
-    const repaired = (payloadRes.data ?? []).length > 0 || options?.retried;
+    const repaired = (payloadRes.data ?? []).length > 0 || options.retried;
     if (!metaCreated && repaired) {
       const { error, status } = await this.client
         .from("items_meta")
@@ -336,6 +349,25 @@ export class SupabaseTodosService implements TodosDataService {
         .eq("role", "task");
       if (error) throw fail("items_meta bump", status, error);
     }
+  }
+
+  /**
+   * Only a confirmed absence removes anything: a failed read, or a payload
+   * standing under the row, leaves it. The role filter keeps a row converted
+   * to another role out of reach (#1139).
+   */
+  async removeTodoMetaIfOrphan(id: string): Promise<void> {
+    const { data, error } = await this.client
+      .from("tasks_payload")
+      .select("item_id")
+      .eq("item_id", id)
+      .maybeSingle();
+    if (error || data) return;
+    await this.client
+      .from("items_meta")
+      .delete()
+      .eq("id", id)
+      .eq("role", "task");
   }
 
   /**
@@ -532,6 +564,7 @@ export const PHASE2_TODOS_METHOD_NAMES = [
   "fetchDeletedTodos",
   "createTodo",
   "createTodoIfAbsent",
+  "removeTodoMetaIfOrphan",
   "updateTodo",
   "syncTodoTree",
   "softDeleteTodo",

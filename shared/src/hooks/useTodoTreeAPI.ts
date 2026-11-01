@@ -234,9 +234,11 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
           return;
         }
         return ds.syncTodoTree(changed).then(
-          () => {
+          (outcome) => {
             for (const n of changed) knownRef.current.set(n.id, n);
-            onSettled?.(true);
+            // Queued (#2335) is not landed: a write with an FK to this row
+            // would fail, so it hears what it hears for a failed sync.
+            onSettled?.(outcome !== "queued");
           },
           (e: unknown) => {
             // Whether any of them landed is unknown: send them all next time.

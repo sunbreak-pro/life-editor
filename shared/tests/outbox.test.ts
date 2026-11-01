@@ -8,16 +8,17 @@ import {
   OUTBOX_SCHEMA_VERSION,
   OutboxSendError,
   classifySendFailure,
-  clearFailedOutbox,
+  deleteOutbox,
   enqueueTodoCreate,
   failOutboxEntry,
   getOutboxCounts,
   isOfflineFailure,
   isSendable,
   outboxDbName,
-  readFailedOutboxText,
+  readFailedOutboxCopy,
   readOutbox,
   refreshOutboxCounts,
+  removeFailedOutboxEntries,
 } from "../src/state/outbox";
 import type { TodoNode } from "../src/types/todoTree";
 
@@ -92,9 +93,70 @@ describe("outbox store", () => {
     const entry = await enqueueTodoCreate(user, node("a"));
     await failOutboxEntry(user, entry, "refused");
     expect(getOutboxCounts()).toEqual({ pending: 0, failed: 1 });
-    expect(await readFailedOutboxText()).toBe("title a");
-    await clearFailedOutbox();
+    const copy = await readFailedOutboxCopy();
+    expect(copy).toEqual({ text: "title a", opIds: [entry.opId] });
+    await removeFailedOutboxEntries(copy.opIds);
     expect(getOutboxCounts()).toEqual({ pending: 0, failed: 0 });
+  });
+
+  it("removes only what the copy read, not an entry refused after it", async () => {
+    const first = await enqueueTodoCreate(user, node("a"));
+    await failOutboxEntry(user, first, "refused");
+    const copy = await readFailedOutboxCopy();
+
+    const later = await enqueueTodoCreate(user, node("b"));
+    await failOutboxEntry(user, later, "refused");
+    await removeFailedOutboxEntries(copy.opIds);
+
+    expect(getOutboxCounts().failed).toBe(1);
+    expect((await readFailedOutboxCopy()).text).toBe("title b");
+  });
+
+  it("deleteOutbox erases both stores of that account and no other's", async () => {
+    const other = `${user}-other`;
+    await enqueueTodoCreate(other, node("kept"));
+    await enqueueTodoCreate(user, node("waiting"));
+    const refused = await enqueueTodoCreate(user, node("refused"));
+    await failOutboxEntry(user, refused, "refused");
+
+    await deleteOutbox(user);
+
+    expect(getOutboxCounts()).toEqual({ pending: 0, failed: 0 });
+    const names = (await indexedDB.databases()).map((db) => db.name);
+    expect(names).not.toContain(outboxDbName(user));
+    expect(await readOutbox(other)).toHaveLength(1);
+  });
+
+  it("gives up on an open that never answers, tries again, and closes a late one", async () => {
+    vi.useFakeTimers();
+    const requests: Array<Record<string, unknown>> = [];
+    vi.stubGlobal("indexedDB", {
+      open: () => {
+        const req: Record<string, unknown> = {};
+        requests.push(req);
+        return req;
+      },
+    });
+    try {
+      const read = readOutbox(user);
+      const rejected = expect(read).rejects.toThrow("timed out");
+      await vi.advanceTimersByTimeAsync(2000);
+      await rejected;
+
+      const close = vi.fn();
+      const late = requests[0]!;
+      late.result = { close };
+      (late.onsuccess as () => void)();
+      expect(close).toHaveBeenCalledTimes(1);
+
+      const again = readOutbox(user).catch(() => {});
+      expect(requests).toHaveLength(2);
+      await vi.advanceTimersByTimeAsync(2000);
+      await again;
+    } finally {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    }
   });
 });
 

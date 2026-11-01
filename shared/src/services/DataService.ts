@@ -89,15 +89,25 @@ export interface TodosDataService {
   createTodo(node: TodoNode): Promise<TodoNode>;
   /**
    * The outbox's create (#2335): safe to send twice, and never overwrites or
-   * resurrects a row that is already there. `retried` says an earlier attempt
-   * may have stopped short of reporting a repair (see the implementation).
+   * resurrects a row that is already there. `ownerId` is whose box the entry
+   * came from: under any other session the send refuses to write. `retried`
+   * says an earlier attempt may have stopped short (see the implementation).
    */
   createTodoIfAbsent(
     node: TodoNode,
-    options?: { retried?: boolean },
+    options: { ownerId: string; retried?: boolean },
   ): Promise<void>;
+  /**
+   * Removes a Todo's meta row only if it has no payload (R2): what an entry
+   * leaves behind when its send stopped between the two writes.
+   */
+  removeTodoMetaIfOrphan(id: string): Promise<void>;
   updateTodo(id: string, updates: Partial<TodoNode>): Promise<TodoNode>;
-  syncTodoTree(nodes: TodoNode[]): Promise<void>;
+  /**
+   * `"queued"` (#2335): accepted into the outbox, so the row is NOT on the
+   * server yet and nothing may reference it. Everything else means it landed.
+   */
+  syncTodoTree(nodes: TodoNode[]): Promise<void | "queued">;
   softDeleteTodo(id: string): Promise<void>;
   restoreTodo(id: string): Promise<void>;
   permanentDeleteTodo(id: string): Promise<void>;

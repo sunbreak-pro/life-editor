@@ -55,6 +55,24 @@ export function outboxDbName(userId: string): string {
 
 const connections = new Map<string, Promise<IDBDatabase>>();
 
+/**
+ * A hung `indexedDB.open` fires nothing at all (the Safari hang
+ * `hydrateDomainSnapshots` guards too). Longer than
+ * `OUTBOX_READ_TIMEOUT_MS`: a queued write gives up on this, so a slow cold
+ * open must still get through.
+ */
+const OPEN_TIMEOUT_MS = 2000;
+
+/** How long the online paths wait on the box before going on without it. */
+export const OUTBOX_READ_TIMEOUT_MS = 300;
+
+export function withTimeout<T>(work: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("outbox: timed out")), ms);
+    work.then(resolve, reject).finally(() => clearTimeout(timer));
+  });
+}
+
 function open(userId: string): Promise<IDBDatabase> {
   let pending = connections.get(userId);
   if (pending !== undefined) return pending;
@@ -62,6 +80,16 @@ function open(userId: string): Promise<IDBDatabase> {
     const idb = factory();
     if (idb === null) throw new Error("IndexedDB is not available");
     const req = idb.open(outboxDbName(userId), IDB_VERSION);
+    let abandoned = false;
+    const abandon = (reason: Error): void => {
+      abandoned = true;
+      clearTimeout(timer);
+      reject(reason);
+    };
+    const timer = setTimeout(
+      () => abandon(new Error("IndexedDB open timed out")),
+      OPEN_TIMEOUT_MS,
+    );
     req.onupgradeneeded = () => {
       const db = req.result;
       for (const name of [PENDING_STORE, FAILED_STORE])
@@ -69,14 +97,23 @@ function open(userId: string): Promise<IDBDatabase> {
           db.createObjectStore(name, { keyPath: "opId" });
     };
     req.onsuccess = () => {
+      // Too late for the callers it failed, and nobody else would close it.
+      if (abandoned) {
+        req.result.close();
+        return;
+      }
+      clearTimeout(timer);
       req.result.onversionchange = () => {
         req.result.close();
         connections.delete(userId);
       };
       resolve(req.result);
     };
-    req.onerror = () => reject(req.error);
-    req.onblocked = () => reject(new Error("IndexedDB open blocked"));
+    req.onerror = () => {
+      clearTimeout(timer);
+      reject(req.error);
+    };
+    req.onblocked = () => abandon(new Error("IndexedDB open blocked"));
   });
   // A failed open is not cached: the next call tries again.
   pending.catch(() => connections.delete(userId));
@@ -227,27 +264,66 @@ export async function refreshOutboxCounts(
   for (const listener of listeners) listener();
 }
 
-/** The refused Todos' text, one block per entry, for the clipboard. */
-export async function readFailedOutboxText(): Promise<string> {
-  if (countsOwner === null) return "";
+/**
+ * The account is gone, so nothing here can ever be sent or seen (#2335). Counts
+ * go first: a refresh after the delete would create the database again.
+ */
+export async function deleteOutbox(userId: string): Promise<void> {
+  await refreshOutboxCounts(null);
+  const idb = factory();
+  if (idb === null) return;
+  const held = connections.get(userId);
+  connections.delete(userId);
+  await held?.then(
+    (db) => db.close(),
+    () => {},
+  );
+  await withTimeout(
+    new Promise<void>((resolve, reject) => {
+      const req = idb.deleteDatabase(outboxDbName(userId));
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    }),
+    OPEN_TIMEOUT_MS,
+  );
+}
+
+export interface FailedOutboxCopy {
+  /** The refused Todos' text, one block per entry, for the clipboard. */
+  text: string;
+  /** Exactly the entries in `text`: only these may be removed afterwards. */
+  opIds: string[];
+}
+
+export async function readFailedOutboxCopy(): Promise<FailedOutboxCopy> {
+  if (countsOwner === null) return { text: "", opIds: [] };
   const db = await open(countsOwner);
   const tx = db.transaction(FAILED_STORE, "readonly");
   const rows = (await settle(
     tx.objectStore(FAILED_STORE).getAll(),
   )) as FailedOutboxEntry[];
-  return rows
-    .map(({ payload: { node } }) =>
-      [node.title, node.content].filter(Boolean).join("\n"),
-    )
-    .join("\n\n");
+  // Another tab may have moved the box: the band compares this read to the count.
+  await refreshOutboxCounts(countsOwner);
+  return {
+    text: rows
+      .map(({ payload: { node } }) =>
+        [node.title, node.content].filter(Boolean).join("\n"),
+      )
+      .join("\n\n"),
+    opIds: rows.map((row) => row.opId),
+  };
 }
 
-export async function clearFailedOutbox(): Promise<void> {
+/** By id: an entry refused after the copy was read has not been copied. */
+export async function removeFailedOutboxEntries(
+  opIds: readonly string[],
+): Promise<void> {
   if (countsOwner === null) return;
   const db = await open(countsOwner);
   const tx = db.transaction(FAILED_STORE, "readwrite");
   const done = committed(tx);
-  tx.objectStore(FAILED_STORE).clear();
+  const store = tx.objectStore(FAILED_STORE);
+  for (const opId of opIds) store.delete(opId);
   await done;
   await refreshOutboxCounts(countsOwner);
 }
