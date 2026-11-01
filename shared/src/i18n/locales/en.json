@@ -1453,7 +1453,9 @@
       "unsaved": "Unsaved",
       "save": "Save",
       "duplicateName": "A tag with this name already exists.",
-      "saveFailed": "Couldn't save the tag. Try again."
+      "saveFailed": "Couldn't save the tag. Try again.",
+      "saving": "Saving…",
+      "openInTags": "Open on the tags screen"
     },
     "detail": {
       "breakdownHeading": "By kind",

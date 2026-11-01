@@ -30,6 +30,7 @@ import {
 import { useNoteTagDnd, planTagMove, type NoteTagMove } from "./useNoteTagDnd";
 import { useAttachmentUpload } from "./useAttachmentUpload";
 import { useSidebarContextMenus } from "./useSidebarContextMenus";
+import { useHeaderTagEdit } from "./useHeaderTagEdit";
 import { AttachmentUploadStatus } from "./AttachmentUploadStatus";
 import { NoteBodyEditor } from "./NoteBodyEditor";
 import { NotePasswordDialog } from "./NotePasswordDialog";
@@ -118,6 +119,8 @@ interface NotesViewProps {
   pendingSelectNoteId?: string | null;
   /** Clear the pending selection once consumed. */
   onConsumePendingSelect?: () => void;
+  /** Open a tag on Connect's tag screen (#2395). Absent → no such button. */
+  onOpenTag?: (tagId: string) => void;
 }
 
 export function NotesView({
@@ -125,6 +128,7 @@ export function NotesView({
   onNavigateToItem,
   pendingSelectNoteId,
   onConsumePendingSelect,
+  onOpenTag,
 }: NotesViewProps = {}) {
   const notes = useNotesUnifiedContext();
   // #409 moved tag MUTATION (create / rename / delete / color / icon) out of
@@ -576,6 +580,8 @@ export function NotesView({
     onRenameNote: renameNote,
     onDeleteNote: handleDeleteNote,
   });
+  // #2395: the chips under the title. Right-click on Desktop, a hold on narrow.
+  const headerTagEdit = useHeaderTagEdit({ enabled: isWide, onOpenTag });
 
   // #1255: what the apply confirm says depends on whether there is anything to
   // discard. The copy call is the host's (§6.4), so the branch lives here.
@@ -833,9 +839,8 @@ export function NotesView({
           // asks for the current password before anything changes.
           onSetPassword={password.requestSet}
           onRemovePassword={password.requestRemove}
-          // #2007: the chips under the title open the sidebar's tag menu.
-          // Undefined on narrow, by the hook's own Desktop gate.
-          onTagContextMenu={sidebarMenus.onTagContextMenu}
+          onTagContextMenu={headerTagEdit.onTagContextMenu}
+          onTagLongPress={headerTagEdit.onTagLongPress}
           // The note's item links, beside the tags (#884 — they were a
           // rightSidebar disclosure until that Issue), at both widths since
           // #2391. A locked note shows none: which items it links to is part
@@ -1038,6 +1043,7 @@ export function NotesView({
           the portal: on narrow that portal is the drawer, and a panel mounted
           in it would be unmounted with the drawer. */}
       {sidebarMenus.menus}
+      {headerTagEdit.panel}
 
       {/* #1248's question. Mounted last so it portals ABOVE the sidebar the
           bin was pressed in — and it holds no place in the tree while nothing

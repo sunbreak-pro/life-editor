@@ -1440,7 +1440,9 @@
       "unsaved": "未保存",
       "save": "保存",
       "duplicateName": "同じ名前のタグがあります。",
-      "saveFailed": "タグを保存できませんでした。もう一度お試しください。"
+      "saveFailed": "タグを保存できませんでした。もう一度お試しください。",
+      "saving": "保存中…",
+      "openInTags": "タグの画面で開く"
     },
     "detail": {
       "breakdownHeading": "種類別",

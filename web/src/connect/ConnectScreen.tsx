@@ -50,6 +50,7 @@ import {
   type TodoNode,
   type TodoStatus,
 } from "@life-editor/shared";
+import { useConnectTagIntent } from "./useConnectTagIntent";
 
 /*
  * Connect host shell (#1171) — the tag hub.
@@ -131,6 +132,9 @@ interface ConnectScreenProps {
     role: string;
     date?: string;
   }) => void;
+  /** A tag the shell asks this screen to show (#2395). Consumed once. */
+  pendingSelectTagId?: string | null;
+  onConsumePendingTag?: () => void;
 }
 
 /** The reads, kept raw so the labelling below can depend on `t`. */
@@ -201,6 +205,8 @@ function pickSeriesOccurrence(
 export function ConnectScreen({
   dataService,
   onNavigateToItem,
+  pendingSelectTagId = null,
+  onConsumePendingTag,
 }: ConnectScreenProps) {
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
@@ -564,6 +570,14 @@ export function ConnectScreen({
     },
     [selectedTagId, drafts, commitSelection],
   );
+
+  useConnectTagIntent({
+    pendingTagId: pendingSelectTagId,
+    onConsume: onConsumePendingTag,
+    selectedTagId,
+    selectedItemId,
+    selectTag,
+  });
 
   const confirmSwitch = useCallback(() => {
     // Discard means discard: the draft the user chose to abandon must not be
