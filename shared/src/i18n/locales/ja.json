@@ -1533,6 +1533,7 @@
       "deleteGoal": "目標を削除",
       "deleteConfirm": "目標「{{title}}」を削除しますか？つないだ Todo は残ります。",
       "period": "{{kind}} · {{key}}",
+      "pickHint": "目標を選ぶと、ここに詳細が出ます",
       "sheetTitle": "目標: {{title}}",
       "writeFailed": "目標を保存できませんでした。通信を確認して、もう一度操作してください。",
       "expand": "開く: {{title}}",

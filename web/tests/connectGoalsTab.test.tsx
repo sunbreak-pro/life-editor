@@ -472,6 +472,19 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     panel().getByRole("button", { name: /Get the proposal approved/ });
   });
 
+  it("shows a hint under the controls until a goal is picked, then the details (#2398)", async () => {
+    const hint = "Pick a goal to see its details here";
+    const { panel } = await renderTab();
+
+    panel().getByRole("region", { name: "Sort & filter" });
+    panel().getByText(hint);
+    expect(panel().queryByRole("textbox", { name: "Goal title" })).toBeNull();
+
+    fireEvent.click(goalRow("Get the proposal approved"));
+    panel().getByRole("textbox", { name: "Goal title" });
+    expect(panel().queryByText(hint)).toBeNull();
+  });
+
   it("opens the picked goal in the right panel, where it can be renamed, re-parented and deleted", async () => {
     const ds = makeDS();
     const { panel } = await renderTab(ds);
@@ -731,6 +744,16 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(ds.createGoal).not.toHaveBeenCalled();
     // Ready for the next one.
     await waitFor(() => expect((field as HTMLInputElement).value).toBe(""));
+  });
+
+  it("keeps the pick-a-goal hint out of the phone's sort and filter sheet (#2398)", async () => {
+    setNarrow();
+    await renderTab();
+    fireEvent.click(screen.getByRole("button", { name: "Sort & filter" }));
+    screen.getByRole("dialog", { name: "Sort & filter" });
+    expect(
+      screen.queryByText("Pick a goal to see its details here"),
+    ).toBeNull();
   });
 
   it("opens sort and filter in a bottom sheet on a phone", async () => {
