@@ -34,9 +34,19 @@ export const FOCUS_RING_TIGHT =
 export const FOCUS_RING_ON_ACCENT =
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-lumen-text";
 
-/** Standard form-field shell (schedule editors). */
-export const FIELD =
+/**
+ * A multi-line field that sets its own `min-h-*` (#2427). Everything FIELD is
+ * except the phone floor: `cn` is a plain join, so a second `min-height` would
+ * lose to the `max-md:` one on a phone whatever order they were passed in.
+ */
+export const FIELD_MULTILINE =
   "w-full rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-2 text-sm text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+
+/**
+ * Standard form-field shell (schedule editors). `max-md:min-h-11` is the 44px
+ * floor on a phone (#2427); it adds height only, so no row gets wider for it.
+ */
+export const FIELD = `${FIELD_MULTILINE} max-md:min-h-11`;
 
 /** Caption label above a FIELD input. */
 export const FIELD_LABEL = "text-xs text-lumen-text-secondary";

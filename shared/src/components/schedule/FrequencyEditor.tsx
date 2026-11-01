@@ -80,6 +80,17 @@ export interface FrequencyEditorProps {
 /** Sentinel id for the "no repeat" segment (not a FrequencyType). */
 const NONE_ID = "none";
 
+/*
+ * #2427: the weekday chips' 44px on a phone. Seven real 44px boxes would break
+ * the row at the default root (size-11 is rem: 7 x 49.5px + gaps > 343px), so
+ * the chip keeps its 34px and a transparent ::after reaches 5px past each side.
+ * The 10px gap makes the pitch exactly 44px, so neighbours' areas meet without
+ * overlapping. All px on purpose: rem would drift with the font-size setting.
+ */
+const WEEKDAY_ROW_GAP = "gap-1.5 max-md:gap-[10px]";
+const WEEKDAY_TAP_AREA =
+  "max-md:relative max-md:after:absolute max-md:after:inset-[-5px] max-md:after:content-['']";
+
 export function FrequencyEditor({
   value,
   onChange,
@@ -157,7 +168,7 @@ export function FrequencyEditor({
 
       {/* Weekday chips */}
       {value?.frequencyType === "weekdays" && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className={cn("flex flex-wrap", WEEKDAY_ROW_GAP)}>
           {Array.from({ length: 7 }, (_, d) => {
             const active = value.frequencyDays.includes(d);
             return (
@@ -170,6 +181,7 @@ export function FrequencyEditor({
                 onClick={pending ? undefined : () => toggleDay(d)}
                 className={cn(
                   "flex size-[34px] items-center justify-center rounded-full border text-xs font-medium transition-colors",
+                  WEEKDAY_TAP_AREA,
                   CHIP_FOCUS,
                   pending && "cursor-not-allowed opacity-60",
                   active

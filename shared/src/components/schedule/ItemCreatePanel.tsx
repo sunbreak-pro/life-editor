@@ -485,8 +485,10 @@ const DISABLED_OUTLINE_BTN = "disabled:cursor-not-allowed disabled:opacity-50";
 //
 // #2406: `max-md:min-h-11` gives all three footer buttons the 44px floor on a
 // phone (rules/frontend.md §Gotchas); Desktop keeps the `py-2` height.
-const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11 ${FOCUS_RING_ON_ACCENT} ${DISABLED_FILLED_BTN}`;
-const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 ${DISABLED_OUTLINE_BTN}`;
+// #2427: `max-md:basis-auto` shares out only the room left after the labels. An
+// equal split gives each 103px at 375px, and 「追加して詳細へ」 needs 110px.
+const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11 max-md:basis-auto ${FOCUS_RING_ON_ACCENT} ${DISABLED_FILLED_BTN}`;
+const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:basis-auto ${DISABLED_OUTLINE_BTN}`;
 // Cancel writes nothing, so it takes neither the fill nor the outline — only
 // its own width, at the far end from the submit.
 const CANCEL_BTN = `shrink-0 rounded-lumen-md px-3 py-2 text-center text-sm font-medium text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11 ${FOCUS_RING_TIGHT}`;
@@ -844,7 +846,7 @@ function TagField({
               aria-label={pool.labels.remove(tag.name)}
               onClick={() => toggle(id)}
               className={cn(
-                "flex size-5 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                "flex size-5 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:size-11",
                 FOCUS_RING_TIGHT,
               )}
             >
@@ -1365,7 +1367,7 @@ export function ItemCreatePanel({
               aria-expanded={goalOpen}
               aria-controls={goalSectionId}
               className={cn(
-                "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
                 FOCUS_RING_TIGHT,
               )}
             >
@@ -1417,7 +1419,7 @@ export function ItemCreatePanel({
               aria-expanded={noteOpen}
               aria-controls={noteSectionId}
               className={cn(
-                "flex items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                "flex items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
                 // Alone on its line it spans it, as before; beside the tags it
                 // keeps to its own width at the right end.
                 tagPool ? "shrink-0" : "w-full",
