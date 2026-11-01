@@ -29,7 +29,11 @@ import {
   getAuthedUserId,
   livePayloadInnerJoin,
 } from "./supabaseServiceHelpers";
-import { requireSingleRow, requireRowPair } from "./postgrestSingle";
+import {
+  fetchMaybeSingleRow,
+  requireSingleRow,
+  requireRowPair,
+} from "./postgrestSingle";
 import { OutboxSendError, classifySendFailure } from "../state/outbox";
 
 /*
@@ -112,6 +116,35 @@ export class SupabaseTodosService implements TodosDataService {
       .eq("role", "task");
     if (error)
       throw new Error(`bumpItemsMetaUpdatedAt failed: ${error.message}`);
+  }
+
+  /**
+   * One live todo (#2392). The same two rows fetchTodoTree joins and the same
+   * folder rule, for the link panel, which shows one todo at a time. A missing
+   * payload row is an orphan and reads as no todo, as it does in the tree.
+   */
+  async getTodoById(id: string): Promise<TodoNode | null> {
+    const meta = await fetchMaybeSingleRow<ItemsMetaRow>(
+      this.client
+        .from("items_meta")
+        .select(ITEMS_META_TASK_COLUMNS)
+        .eq("id", id)
+        .eq("role", "task")
+        .eq("is_deleted", false)
+        .maybeSingle(),
+      "getTodoById items_meta failed",
+    );
+    if (!meta) return null;
+    const payload = await fetchMaybeSingleRow<TasksPayloadRow>(
+      this.client
+        .from("tasks_payload")
+        .select(TASKS_PAYLOAD_COLUMNS)
+        .eq("item_id", id)
+        .maybeSingle(),
+      "getTodoById tasks_payload failed",
+    );
+    if (!payload || isLegacyFolderRow(payload)) return null;
+    return rowsToTodoNode(meta, payload);
   }
 
   /**
@@ -580,6 +613,7 @@ export const PHASE2_TODOS_METHOD_NAMES = [
   "fetchTodoTree",
   "readItemChangeCursor", // #2333
   "fetchTodoChanges", // #2333
+  "getTodoById",
   "countUnfinishedTodos",
   "fetchDeletedTodos",
   "createTodo",

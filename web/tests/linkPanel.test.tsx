@@ -22,6 +22,10 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
  * jsdom has no layout, so what the design measures (the sizes, the 44px hit
  * area) is pinned as the classes that produce it.
  *
+ * #2392 made the chip open a panel instead of the item, so a link is followed
+ * from the panel's button here. What the panel itself does is
+ * linkChipPopover.test.tsx.
+ *
  * Only the wiki-tag context is faked (the real one needs a Provider, a
  * DataService and a network). i18next stays real: the panel reads its copy from
  * the catalog, and asserting through `i18n.t` keeps a hardcoded English string
@@ -37,10 +41,8 @@ const state = vi.hoisted(() => ({
   tagsForItem: [] as unknown[],
   loading: false,
   createItemLink: vi.fn(() => Promise.resolve()),
-  // Typed signature, not a bare `vi.fn(() => …)`: the #884 suite reads
-  // `mock.calls[n][0]` to assert WHICH link rows a chip removal deleted, and an
-  // argument-less mock types its calls as the empty tuple.
-  deleteItemLink: vi.fn<(linkId: string) => Promise<void>>(() =>
+  // The rows of one removal arrive together (#884): one press, one Undo (#2392).
+  removeItemLinks: vi.fn<(linkIds: readonly string[]) => Promise<void>>(() =>
     Promise.resolve(),
   ),
 }));
@@ -58,7 +60,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
         incoming: state.incoming,
       }),
       createItemLink: state.createItemLink,
-      deleteItemLink: state.deleteItemLink,
+      removeItemLinks: state.removeItemLinks,
     }),
   };
 });
@@ -85,15 +87,7 @@ function kindName(role: string): string {
   return names[role];
 }
 
-/** A live chip's accessible name: the kind AND the title it no longer shows. */
-function openName(role: string, title: string): string {
-  return i18n.t("materials.links.openChip", {
-    kind: kindName(role),
-    title,
-  });
-}
-
-/** Same, for a chip that cannot be opened. */
+/** A chip's accessible name: the kind AND the title it no longer shows. */
 function chipName(role: string, title: string): string {
   return i18n.t("materials.links.chipName", {
     kind: kindName(role),
@@ -118,6 +112,14 @@ function link(over: { id: string; from?: string; to?: string }) {
   };
 }
 
+/** Pins a chip's panel, then follows the link from the panel's button. */
+async function follow(role: string, title: string, buttonLabel: string) {
+  fireEvent.click(
+    await screen.findByRole("button", { name: chipName(role, title) }),
+  );
+  fireEvent.click(await screen.findByRole("button", { name: buttonLabel }));
+}
+
 /** Opens the picker and waits for the (async) candidate pool to land. */
 async function openPicker(): Promise<HTMLElement> {
   fireEvent.click(
@@ -133,7 +135,7 @@ beforeEach(() => {
   state.tagsForItem = [];
   state.loading = false;
   state.createItemLink.mockClear();
-  state.deleteItemLink.mockClear();
+  state.removeItemLinks.mockClear();
   loadTargets.mockClear();
 });
 
@@ -219,10 +221,11 @@ describe("LinkPanel — rows open their target (#749)", () => {
     );
 
     // The row's name resolves through the pool, so it appears once loaded.
-    const row = await screen.findByRole("button", {
-      name: openName("task", "Order the tiles"),
-    });
-    fireEvent.click(row);
+    await follow(
+      "task",
+      "Order the tiles",
+      i18n.t("scheduleScreen.openInSchedule"),
+    );
 
     expect(onNavigateToItem).toHaveBeenCalledExactlyOnceWith({
       id: "task-9",
@@ -241,10 +244,10 @@ describe("LinkPanel — rows open their target (#749)", () => {
       />,
     );
 
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: openName("note", "Kitchen rebuild"),
-      }),
+    await follow(
+      "note",
+      "Kitchen rebuild",
+      i18n.t("materials.links.openAction"),
     );
 
     expect(onNavigateToItem).toHaveBeenCalledExactlyOnceWith({
@@ -264,10 +267,10 @@ describe("LinkPanel — rows open their target (#749)", () => {
       />,
     );
 
-    fireEvent.click(
-      await screen.findByRole("button", {
-        name: openName("event", "Tile delivery"),
-      }),
+    await follow(
+      "event",
+      "Tile delivery",
+      i18n.t("scheduleScreen.openInSchedule"),
     );
 
     expect(onNavigateToItem).toHaveBeenCalledExactlyOnceWith({
@@ -288,7 +291,7 @@ describe("LinkPanel — rows open their target (#749)", () => {
       }),
     );
 
-    expect(state.deleteItemLink).toHaveBeenCalledExactlyOnceWith("l1");
+    expect(state.removeItemLinks).toHaveBeenCalledExactlyOnceWith(["l1"]);
   });
 });
 
@@ -306,11 +309,7 @@ describe("LinkPanel — direction is not part of the vocabulary (#884)", () => {
 
     fireEvent.click(remove[0]);
 
-    await waitFor(() => expect(state.deleteItemLink).toHaveBeenCalledTimes(2));
-    expect(state.deleteItemLink.mock.calls.map((c) => c[0])).toEqual([
-      "l1",
-      "l2",
-    ]);
+    expect(state.removeItemLinks).toHaveBeenCalledExactlyOnceWith(["l1", "l2"]);
   });
 
   it("offers a remove action on a backlink too", async () => {
@@ -324,7 +323,7 @@ describe("LinkPanel — direction is not part of the vocabulary (#884)", () => {
       }),
     );
 
-    expect(state.deleteItemLink).toHaveBeenCalledExactlyOnceWith("l2");
+    expect(state.removeItemLinks).toHaveBeenCalledExactlyOnceWith(["l2"]);
   });
 
   it("keeps an item already linked only inbound out of the picker", async () => {
@@ -347,7 +346,7 @@ describe("LinkPanel — title resolution (#749)", () => {
     render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
 
     expect(
-      await screen.findByRole("img", {
+      await screen.findByRole("button", {
         name: chipName("daily", "2026-08-12"),
       }),
     ).toBeTruthy();
@@ -369,16 +368,20 @@ describe("LinkPanel — title resolution (#749)", () => {
     );
 
     expect(
-      await screen.findByRole("img", {
+      await screen.findByRole("button", {
         name: chipName("note", "Renamed just now"),
       }),
     ).toBeTruthy();
     // A target the pool cannot name: the fragment for the name, and the whole
-    // id on hover, since nothing else can identify it.
-    const unnamed = screen.getByRole("img", {
-      name: chipName("unknown", "…12345678"),
-    });
-    expect(unnamed.getAttribute("title")).toBe("event-abcdef12345678");
+    // id on the panel's title, since nothing else can identify it.
+    fireEvent.click(
+      screen.getByRole("button", {
+        name: chipName("unknown", "…12345678"),
+      }),
+    );
+    expect(screen.getByText("…12345678").getAttribute("title")).toBe(
+      "event-abcdef12345678",
+    );
   });
 });
 
@@ -444,10 +447,9 @@ describe("LinkPanel — deleted link target (#1292)", () => {
     const label = i18n.t("materials.links.deletedTarget", {
       title: "Return the extra tiles",
     });
-    const chip = await screen.findByRole("img", {
+    const chip = await screen.findByRole("button", {
       name: chipName("task", label),
     });
-    expect(chip.getAttribute("title")).toBe(chipName("task", label));
     // A deleted target wears the trash, not its kind's icon.
     expect(glyphOf(chip)).toContain("lucide-trash");
   });
@@ -466,13 +468,22 @@ describe("LinkPanel — deleted link target (#1292)", () => {
     const label = i18n.t("materials.links.deletedTarget", {
       title: "Return the extra tiles",
     });
-    const chip = await screen.findByRole("img", {
+    const chip = await screen.findByRole("button", {
       name: chipName("task", label),
     });
-    // A live chip is a button; a dead one must not be, so there is nothing to
-    // click that leads nowhere.
-    expect(chip.closest("button")).toBeNull();
+    // The chip still opens its panel, which is where the link comes off. The
+    // panel has nothing that leads nowhere: no button to the item.
     fireEvent.click(chip);
+    expect(
+      await screen.findByRole("button", {
+        name: i18n.t("materials.links.unlink"),
+      }),
+    ).toBeTruthy();
+    expect(
+      screen.queryByRole("button", {
+        name: i18n.t("scheduleScreen.openInSchedule"),
+      }),
+    ).toBeNull();
     expect(onNavigateToItem).not.toHaveBeenCalled();
   });
 
@@ -491,7 +502,7 @@ describe("LinkPanel — deleted link target (#1292)", () => {
       }),
     );
 
-    expect(state.deleteItemLink).toHaveBeenCalledExactlyOnceWith("l1");
+    expect(state.removeItemLinks).toHaveBeenCalledExactlyOnceWith(["l1"]);
   });
 
   it("keeps a deleted item out of the picker's candidates", async () => {
@@ -531,7 +542,7 @@ describe("LinkPanel — icon-only chips (#2391)", () => {
       />,
     );
     return await screen.findByRole("button", {
-      name: openName("event", "Tile delivery"),
+      name: chipName("event", "Tile delivery"),
     });
   }
 
@@ -550,7 +561,7 @@ describe("LinkPanel — icon-only chips (#2391)", () => {
     expect(glyphOf(count)).toContain("lucide-link-2");
 
     const chip = screen.getByRole("button", {
-      name: openName("note", "Kitchen rebuild"),
+      name: chipName("note", "Kitchen rebuild"),
     });
     const add = screen.getByRole("button", {
       name: i18n.t("materials.links.add"),
@@ -595,28 +606,29 @@ describe("LinkPanel — icon-only chips (#2391)", () => {
       await renderRow();
 
       const glyph = glyphOf(
-        screen.getByRole("button", { name: openName(role, title) }),
+        screen.getByRole("button", { name: chipName(role, title) }),
       );
       expect(`${glyph} `).toContain(icon);
       expect(glyph).toContain(tint);
     },
   );
 
-  it("keeps the title out of the text and in the name and tooltip", async () => {
+  it("keeps the title out of the text and in the name", async () => {
     const chip = await renderRow();
 
     expect(chip.textContent).toBe("");
-    expect(chip.getAttribute("title")).toBe(chipName("event", "Tile delivery"));
     expect(chip.getAttribute("aria-label")).toBe(
-      openName("event", "Tile delivery"),
+      chipName("event", "Tile delivery"),
     );
+    // #2392: the panel says it now. A native tooltip would open over it.
+    expect(chip.hasAttribute("title")).toBe(false);
   });
 
   it("falls back to the neutral link glyph for a kind outside the four", async () => {
     state.outgoing = [link({ id: "l1", to: "goal-abcdef12345678" })];
     render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
 
-    const chip = await screen.findByRole("img", {
+    const chip = await screen.findByRole("button", {
       name: chipName("unknown", "…12345678"),
     });
     expect(glyphOf(chip)).toContain("lucide-link-2");
@@ -648,7 +660,8 @@ describe("LinkPanel — icon-only chips (#2391)", () => {
       name: i18n.t("materials.links.add"),
     });
 
-    const strip = chip.parentElement as HTMLElement;
+    // The chip's own box sits between it and the strip (#2392).
+    const strip = chip.parentElement?.parentElement as HTMLElement;
     expect(strip.className).toContain("max-md:overflow-x-auto");
     expect(strip.contains(add)).toBe(false);
   });
