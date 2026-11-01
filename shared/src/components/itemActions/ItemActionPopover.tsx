@@ -1,5 +1,6 @@
 import {
   useCallback,
+  useEffect,
   useId,
   useLayoutEffect,
   useRef,
@@ -139,11 +140,12 @@ export interface ItemActionPopoverProps {
   quickEdit?: ItemQuickEdit;
   /**
    * The summary opens Modals of its own (#2395: TagIconPicker's panel of every
-   * icon). Two things then have to change, and both are this one fact: the
-   * panel sits under the Modal (z-40 against the Modal's z-50, where the
-   * default z-[60] would draw it on top of its own child), and a press inside
-   * that Modal is not "outside". The Modal portals to <body>, so without this
-   * the press that picks an icon would close the panel and the picker with it.
+   * icon, and the host's question before a delete). Two things then have to
+   * change, and both are this one fact: the panel sits under the Modal (z-40
+   * against the Modal's z-50, where the default z-[60] would draw it on top of
+   * its own child), and a press in that Modal is not "outside". The Modal portals
+   * to <body>, so without this the press that picks an icon would close the panel
+   * and the picker with it.
    */
   hostsDialogs?: boolean;
 }
@@ -183,8 +185,28 @@ export function ItemActionPopover({
   // #2222: the in-place form's draft; null while the summary is showing.
   const [editDraft, setEditDraft] = useState<ItemQuickEditValue | null>(null);
   const [measuredHeight, setMeasuredHeight] = useState<number | null>(null);
+  /*
+   * Read when the press or the key STARTS, not when it reaches the dismiss
+   * listener. A press on a Modal's backdrop closes that Modal from <body>, and
+   * the browser commits the close in the microtask before the event goes on to
+   * document, so a read there finds no layer and takes this panel down with the
+   * Modal it only meant to close.
+   */
+  const dialogOpenAtEventStart = useRef(false);
+  useEffect(() => {
+    if (!hostsDialogs) return;
+    const note = () => {
+      dialogOpenAtEventStart.current = hasOpenDialogLayer();
+    };
+    document.addEventListener("mousedown", note, true);
+    document.addEventListener("keydown", note, true);
+    return () => {
+      document.removeEventListener("mousedown", note, true);
+      document.removeEventListener("keydown", note, true);
+    };
+  }, [hostsDialogs]);
   const dismiss = useCallback(() => {
-    if (hostsDialogs && hasOpenDialogLayer()) return;
+    if (hostsDialogs && dialogOpenAtEventStart.current) return;
     onClose();
   }, [hostsDialogs, onClose]);
   useFloatingDismiss(panelRef, dismiss);

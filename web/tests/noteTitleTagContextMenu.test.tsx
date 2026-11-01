@@ -8,7 +8,13 @@ import {
   within,
 } from "@testing-library/react";
 import type { ReactNode } from "react";
-import { clearRecentNotes, type NoteNode } from "@life-editor/shared";
+import { flushSync } from "react-dom";
+import {
+  clearRecentNotes,
+  TagQuickEditPopover,
+  type NoteNode,
+  type TagQuickEditLabels,
+} from "@life-editor/shared";
 import { NotesView } from "../src/notes/NotesView";
 import { LONG_PRESS_MS } from "../src/notes/useLongPress";
 
@@ -196,6 +202,262 @@ async function pressSave() {
   });
 }
 
+const QUESTION = "connect.deleteConfirm|Work";
+
+const deleteButton = (panel: HTMLElement) =>
+  within(panel).getByRole<HTMLButtonElement>("button", {
+    name: "connect.deleteTag",
+  });
+const question = () => screen.getByRole("dialog", { name: QUESTION });
+const expectNoQuestion = () =>
+  expect(screen.queryByRole("dialog", { name: QUESTION })).toBeNull();
+
+/** Settles the question's promise, which is what the write waits for. */
+async function answer(name: "connect.deleteTag" | "common.cancel") {
+  const button = within(question()).getByRole("button", { name });
+  await act(async () => {
+    fireEvent.click(button);
+  });
+}
+
+describe("Note title tags — deleting from the edit panel (#2395)", () => {
+  it("asks first, in the sidebar menu's words, and writes nothing yet", () => {
+    const panel = openPanel();
+
+    fireEvent.click(deleteButton(panel));
+
+    within(question()).getByRole("button", { name: "common.cancel" });
+    within(question()).getByRole("button", { name: "connect.deleteTag" });
+    expect(state.deleteTag).not.toHaveBeenCalled();
+  });
+
+  it("draws the panel under the question, still open", () => {
+    const panel = openPanel();
+
+    fireEvent.click(deleteButton(panel));
+
+    expect(panel.className).toContain("z-40");
+    expect(question().parentElement?.className).toContain("z-50");
+    screen.getByRole("dialog", { name: PANEL });
+  });
+
+  it("returns to the panel on no, with the name draft and the focus inside", async () => {
+    const panel = openPanel();
+    fireEvent.change(nameField(), { target: { value: "Work log" } });
+    fireEvent.click(deleteButton(panel));
+
+    await answer("common.cancel");
+
+    expectNoQuestion();
+    expect(state.deleteTag).not.toHaveBeenCalled();
+    screen.getByRole("dialog", { name: PANEL });
+    expect(nameField().value).toBe("Work log");
+    expect(panel.contains(document.activeElement)).toBe(true);
+  });
+
+  it("returns the focus to the panel where a click does not focus a button", async () => {
+    const panel = openPanel();
+    // WebKit's shape: the press took the focus off the field and gave it to
+    // nothing, so the question would find only <body> to return it to.
+    nameField().blur();
+    expect(document.activeElement).toBe(document.body);
+
+    fireEvent.click(deleteButton(panel));
+    await answer("common.cancel");
+
+    expect(document.activeElement).toBe(deleteButton(panel));
+  });
+
+  it("closes the panel and deletes the tag once on yes", async () => {
+    const panel = openPanel();
+    fireEvent.click(deleteButton(panel));
+
+    await answer("connect.deleteTag");
+
+    expect(state.deleteTag).toHaveBeenCalledExactlyOnceWith("tag-work");
+    expectNoQuestion();
+    expect(screen.queryByRole("dialog", { name: PANEL })).toBeNull();
+  });
+
+  it("does not write the unsaved draft on the way out", async () => {
+    const panel = openPanel();
+    fireEvent.change(nameField(), { target: { value: "Work log" } });
+    fireEvent.click(deleteButton(panel));
+
+    await answer("connect.deleteTag");
+
+    expect(state.setTagName).not.toHaveBeenCalled();
+  });
+
+  it("closes only the question on Escape", () => {
+    const panel = openPanel();
+    fireEvent.change(nameField(), { target: { value: "Work log" } });
+    fireEvent.click(deleteButton(panel));
+
+    fireEvent.keyDown(question(), { key: "Escape" });
+
+    expectNoQuestion();
+    expect(state.deleteTag).not.toHaveBeenCalled();
+    screen.getByRole("dialog", { name: PANEL });
+    expect(nameField().value).toBe("Work log");
+  });
+
+  it("closes the panel on the next Escape", () => {
+    const panel = openPanel();
+    fireEvent.click(deleteButton(panel));
+    fireEvent.keyDown(question(), { key: "Escape" });
+
+    fireEvent.keyDown(nameField(), { key: "Escape" });
+
+    expect(screen.queryByRole("dialog", { name: PANEL })).toBeNull();
+  });
+
+  /*
+   * A browser runs microtasks between one listener and the next. React's handler
+   * for the backdrop sits on <body> and the panel's outside-press listener on
+   * document, so the question has already left the page, and taken its layer
+   * with it, by the time the panel's listener reads it. A scripted dispatch runs
+   * no microtasks there and would hide that, hence the flush between the two.
+   */
+  function pressBackdropLikeABrowser(backdrop: Element) {
+    const betweenListeners = () => flushSync(() => {});
+    document.body.addEventListener("mousedown", betweenListeners);
+    act(() => {
+      backdrop.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
+    });
+    document.body.removeEventListener("mousedown", betweenListeners);
+  }
+
+  it("answers no on a press beside the question, and the panel stays", () => {
+    const panel = openPanel();
+    fireEvent.change(nameField(), { target: { value: "Work log" } });
+    fireEvent.click(deleteButton(panel));
+    const backdrop = question().parentElement;
+    if (!backdrop) throw new Error("the question has no backdrop");
+
+    pressBackdropLikeABrowser(backdrop);
+
+    expectNoQuestion();
+    expect(state.deleteTag).not.toHaveBeenCalled();
+    screen.getByRole("dialog", { name: PANEL });
+    expect(nameField().value).toBe("Work log");
+  });
+
+  it("does not close the panel on a press inside the question", () => {
+    const panel = openPanel();
+    fireEvent.click(deleteButton(panel));
+
+    fireEvent.mouseDown(question());
+
+    question();
+    screen.getByRole("dialog", { name: PANEL });
+  });
+
+  it("still closes on a press outside once the question is answered", async () => {
+    const panel = openPanel();
+    fireEvent.click(deleteButton(panel));
+    await answer("common.cancel");
+
+    fireEvent.mouseDown(document.body);
+
+    expect(screen.queryByRole("dialog", { name: PANEL })).toBeNull();
+  });
+
+  it("asks once on a second press, and deletes once", async () => {
+    const panel = openPanel();
+
+    fireEvent.click(deleteButton(panel));
+    fireEvent.click(deleteButton(panel));
+
+    expect(screen.getAllByRole("dialog", { name: QUESTION })).toHaveLength(1);
+    await answer("connect.deleteTag");
+    expect(state.deleteTag).toHaveBeenCalledExactlyOnceWith("tag-work");
+  });
+
+  it("turns delete off while a save is running", async () => {
+    let finish = () => {};
+    state.setTagName.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finish = resolve;
+        }),
+    );
+    const panel = openPanel();
+    const del = deleteButton(panel);
+    fireEvent.change(nameField(), { target: { value: "Work log" } });
+    expect(del.disabled).toBe(false);
+
+    await pressSave();
+
+    expect(del.disabled).toBe(true);
+    fireEvent.click(del);
+    expectNoQuestion();
+    expect(state.deleteTag).not.toHaveBeenCalled();
+
+    await act(async () => {
+      finish();
+    });
+  });
+
+  it("keeps the question up when the tag goes elsewhere, and writes nothing on yes", async () => {
+    const view = render(<NotesView />);
+    rightClick(titleChip("Work"));
+    fireEvent.click(deleteButton(screen.getByRole("dialog", { name: PANEL })));
+
+    state.tags = [];
+    state.assignments = {};
+    view.rerender(<NotesView />);
+
+    expect(screen.queryByRole("dialog", { name: PANEL })).toBeNull();
+    question();
+
+    await answer("connect.deleteTag");
+
+    expectNoQuestion();
+    expect(state.deleteTag).not.toHaveBeenCalled();
+  });
+
+  it("can ask again after a question outlived its tag", async () => {
+    const view = render(<NotesView />);
+    rightClick(titleChip("Work"));
+    fireEvent.click(deleteButton(screen.getByRole("dialog", { name: PANEL })));
+    state.tags = [];
+    view.rerender(<NotesView />);
+    await answer("common.cancel");
+
+    state.tags = [WORK_TAG];
+    view.rerender(<NotesView />);
+    rightClick(titleChip("Work"));
+    fireEvent.click(deleteButton(screen.getByRole("dialog", { name: PANEL })));
+
+    question();
+  });
+
+  it("draws no delete button when the host passes no handler", () => {
+    render(
+      <TagQuickEditPopover
+        tag={WORK_TAG}
+        tags={[WORK_TAG]}
+        writers={{
+          setTagName: state.setTagName,
+          setTagIcon: state.setTagIcon,
+          setTagColor: state.setTagColor,
+        }}
+        position={{ x: 0, y: 0 }}
+        anchor={null}
+        label={PANEL}
+        labels={
+          new Proxy({}, { get: (_, key) => String(key) }) as TagQuickEditLabels
+        }
+        onClose={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "deleteTag" })).toBeNull();
+    screen.getByRole("button", { name: "cancel" });
+  });
+});
+
 describe("Note title tags — the edit panel (#2395)", () => {
   it("opens straight on right-click, with no menu in front of it", () => {
     render(<NotesView />);
@@ -223,15 +485,20 @@ describe("Note title tags — the edit panel (#2395)", () => {
     expect(panel.style.top).toBe("124px");
   });
 
-  it("offers the footer the design has, and no delete", () => {
+  it("offers delete and the tag screen first, then cancel and save", () => {
     const panel = openPanel(vi.fn());
 
-    within(panel).getByRole("button", { name: "connect.edit.openInTags" });
-    within(panel).getByRole("button", { name: "common.cancel" });
-    within(panel).getByRole("button", { name: "connect.edit.save" });
     expect(
-      within(panel).queryByRole("button", { name: "connect.deleteTag" }),
-    ).toBeNull();
+      within(panel)
+        .getAllByRole("button")
+        .slice(-4)
+        .map((button) => button.textContent),
+    ).toEqual([
+      "connect.deleteTag",
+      "connect.edit.openInTags",
+      "common.cancel",
+      "connect.edit.save",
+    ]);
   });
 
   it("moves the focus to the name field, selected, on open", () => {
@@ -475,6 +742,7 @@ describe("Note title tags — a hold on narrow (#2395)", () => {
     hold(titleChip("Work"));
 
     for (const name of [
+      "connect.deleteTag",
       "connect.edit.openInTags",
       "common.cancel",
       "connect.edit.save",

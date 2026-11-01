@@ -1,4 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Trash2 } from "lucide-react";
 import { Button } from "../Button";
 import { cn } from "../cn";
 import { ITEM_COLOR_PRESETS } from "../colorPresets";
@@ -15,12 +16,14 @@ import {
 
 /*
  * The small tag editor that opens under a tag chip (#2395, the note header).
- * Name, icon and colour, then 「タグの画面で開く」「キャンセル」「保存」.
+ * Name, icon and colour, then 「タグを削除」「タグの画面で開く」 on the left of the
+ * footer and 「キャンセル」「保存」 on the right.
  *
  * It rides ItemActionPopover for the portal, the viewport clamp and the Escape +
  * outside-press dismissal. The host works out the point under the tag row and
  * passes it as `position`, so nothing about that placement needed a panel of its
- * own. `hostsDialogs` is what lets the icon picker's Modal open on top of it.
+ * own. `hostsDialogs` is what lets the icon picker's Modal, and the host's
+ * question before a delete, open on top of it.
  *
  * ONE COMMIT (#715). The drafts are useTagEditDrafts' overlay, and they live and
  * die with this component: closing it any way but 保存 forgets them. The hub keeps
@@ -32,9 +35,14 @@ import {
  * button away. Only when no tag has a colour yet do the presets stand in, because
  * an empty row would leave the first colour impossible to give from here.
  *
- * It is not TagHubEditBlock. That block carries delete, and the design for this
- * panel has none. Its save button is also off until something changes and the
- * footer states saved / unsaved, where here 保存 is off only for an empty name.
+ * DELETE is the same contract as TagHubEditBlock and TagActionsMenu: the button
+ * only reports the press, and the host asks first. The design had no delete, and
+ * こうだいさん asked for one on 2026-11-02. It is off while a save is running,
+ * because the two writes would otherwise race over the same tag.
+ *
+ * It is not TagHubEditBlock. That block's save button is off until something
+ * changes and its footer states saved / unsaved, where here 保存 is off only for
+ * an empty name.
  *
  * Pure presentation (§6.4): copy and writers are injected, lumen-* tokens only,
  * opaque surface (§5). The swatch hexes are user data, applied inline.
@@ -51,6 +59,7 @@ export type TagQuickEditLabels = Pick<
   | "iconSearch"
   | "iconNoMatch"
   | "colorDefault"
+  | "deleteTag"
   | "save"
   | "duplicateName"
   | "saveFailed"
@@ -79,6 +88,12 @@ export interface TagQuickEditPopoverProps {
   onClose: () => void;
   /** Open this tag on the tag screen. Omit and the button is not drawn. */
   onOpenInTags?: (tagId: string) => void;
+  /**
+   * The delete button was pressed. Omit and the button is not drawn. Nothing is
+   * written from here: the host owns the question and the write, and the panel
+   * stays up under the question until the host closes it.
+   */
+  onDelete?: (tagId: string) => void;
 }
 
 const WIDTH = 360;
@@ -108,6 +123,7 @@ export function TagQuickEditPopover({
   labels,
   onClose,
   onOpenInTags,
+  onDelete,
 }: TagQuickEditPopoverProps) {
   const drafts = useTagEditDrafts(tags, writers);
   const [saving, setSaving] = useState(false);
@@ -283,23 +299,50 @@ export function TagQuickEditPopover({
           )}
 
           <div className="flex flex-wrap items-center justify-between gap-2 border-t border-lumen-border pt-2">
-            {onOpenInTags && (
-              <button
-                type="button"
-                onClick={() => {
-                  // Closed first: the move can be refused by the leave guard,
-                  // and the panel must not be left standing over that question.
-                  onClose();
-                  onOpenInTags(tag.id);
-                }}
-                className={cn(
-                  "rounded-lumen-sm px-1 py-1 text-xs font-medium text-lumen-accent hover:underline",
-                  FOCUS_RING_TIGHT,
-                  CARD_BTN_TAP,
+            {(onDelete || onOpenInTags) && (
+              <div className="flex flex-wrap items-center gap-2">
+                {onDelete && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={(e) => {
+                      // WebKit does not focus a button on a click, and the
+                      // question reads the focus to know where to return it.
+                      // Without this, a "no" would leave it on <body> there.
+                      e.currentTarget.focus({ preventScroll: true });
+                      onDelete(tag.id);
+                    }}
+                    className={cn(
+                      "flex items-center gap-1.5 rounded-lumen-sm px-1.5 py-1 text-xs font-medium text-lumen-danger",
+                      "transition-colors enabled:hover:bg-lumen-danger-subtle",
+                      "disabled:cursor-not-allowed disabled:opacity-50",
+                      FOCUS_RING_TIGHT,
+                      CARD_BTN_TAP,
+                    )}
+                  >
+                    <Trash2 size={14} aria-hidden />
+                    {labels.deleteTag}
+                  </button>
                 )}
-              >
-                {labels.openInTags}
-              </button>
+                {onOpenInTags && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      // Closed first: the move can be refused by the leave guard,
+                      // and the panel must not be left standing over that question.
+                      onClose();
+                      onOpenInTags(tag.id);
+                    }}
+                    className={cn(
+                      "rounded-lumen-sm px-1 py-1 text-xs font-medium text-lumen-accent hover:underline",
+                      FOCUS_RING_TIGHT,
+                      CARD_BTN_TAP,
+                    )}
+                  >
+                    {labels.openInTags}
+                  </button>
+                )}
+              </div>
             )}
             <div className="ml-auto flex items-center gap-2">
               <Button

@@ -18,8 +18,8 @@ import { TagPicker } from "../src/wikitag/TagPicker";
 import { useHeaderTagEdit } from "../src/notes/useHeaderTagEdit";
 
 /*
- * #2395 — a save in the header's tag panel reaches everything drawn from the
- * tag, not just the panel's own idea of it.
+ * #2395 — a save or a delete in the header's tag panel reaches everything drawn
+ * from the tag, not just the panel's own idea of it.
  *
  * The real WikiTagsUnifiedProvider is mounted, so the write travels the path a
  * real one does: panel -> drafts -> context -> DataService, and back through the
@@ -60,6 +60,7 @@ async function renderHost() {
       ...patch,
     }),
   );
+  const softDeleteWikiTagUnified = vi.fn(async () => {});
   const ds = stubDataService({
     listAllWikiTagsUnified: async () => [{ ...TAG }],
     listAllTagConnections: async () => [],
@@ -67,6 +68,7 @@ async function renderHost() {
       { id: "asg-1", itemId: "note-a", tagId: TAG.id, isDeleted: false },
     ],
     updateWikiTagUnified,
+    softDeleteWikiTagUnified,
   }) as DataService;
   const { wrapper: SyncWrapper } = createBumpableSync();
   render(
@@ -81,8 +83,44 @@ async function renderHost() {
       throw new Error("the chip has not landed yet");
     }
   });
-  return { updateWikiTagUnified };
+  return { updateWikiTagUnified, softDeleteWikiTagUnified };
 }
+
+describe("The header tag panel — what a delete reaches (#2395)", () => {
+  it("takes the chip and the sidebar's row away, with no error from the gone chip", async () => {
+    const consoleError = vi.spyOn(console, "error");
+    const { softDeleteWikiTagUnified } = await renderHost();
+    const chip = document.querySelector<HTMLElement>(
+      '[data-tag-id="tag-work"]',
+    );
+    if (!chip) throw new Error("no chip");
+
+    fireEvent(chip, createEvent.contextMenu(chip));
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete tag",
+      }),
+    );
+    // The panel first, the question on top of it.
+    const question = screen.getAllByRole("dialog")[1];
+    await act(async () => {
+      fireEvent.click(
+        within(question).getByRole("button", { name: "Delete tag" }),
+      );
+    });
+
+    expect(softDeleteWikiTagUnified).toHaveBeenCalledExactlyOnceWith(
+      "tag-work",
+    );
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.querySelector('[data-tag-id="tag-work"]')).toBeNull();
+    expect(
+      within(screen.getByRole("list", { name: "sidebar" })).queryByText("Work"),
+    ).toBeNull();
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+});
 
 describe("The header tag panel — what a save reaches (#2395)", () => {
   it("renames the chip and the sidebar's row with one write", async () => {

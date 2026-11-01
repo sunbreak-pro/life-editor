@@ -1,6 +1,8 @@
 import { useCallback, useMemo, useState, type MouseEvent } from "react";
 import {
+  ConfirmDialog,
   TagQuickEditPopover,
+  useConfirmDialog,
   useTranslation,
   useWikiTagsUnifiedContext,
 } from "@life-editor/shared";
@@ -8,8 +10,12 @@ import {
 /*
  * The edit panel under a tag chip in the note header (#2395). It replaces, for
  * these chips only, the four-item menu and the second step it led to (#2007).
- * The sidebar's tag rows keep that menu (useSidebarContextMenus), which is also
- * where delete stays: this panel has none.
+ * The sidebar's tag rows keep that menu (useSidebarContextMenus).
+ *
+ * Delete asks first, in the same words as that menu. The panel stays up under the
+ * question, so a "no" returns to it with the unsaved drafts intact, and a "yes"
+ * closes it and then deletes. The question is drawn inside `panel`, so the host
+ * mounts nothing new.
  *
  * Right-click on Desktop, a hold on narrow, decided by `enabled` the way the
  * sidebar's hook decides it. The panel is drawn once at the host, from a hook
@@ -74,6 +80,31 @@ export function useHeaderTagEdit({
 
   const close = useCallback(() => setOpen(null), []);
 
+  const {
+    request: confirmRequest,
+    ask: askConfirm,
+    resolve: resolveConfirm,
+  } = useConfirmDialog();
+
+  const { allTags, deleteTag } = wiki;
+  const requestDelete = useCallback(
+    (tagId: string) => {
+      const name = allTags.find((row) => row.id === tagId)?.name ?? "";
+      void (async () => {
+        const ok = await askConfirm({
+          message: t("connect.deleteConfirm", { name }),
+          confirmLabel: t("connect.deleteTag"),
+          cancelLabel: t("common.cancel"),
+          danger: true,
+        });
+        if (!ok) return;
+        close();
+        void deleteTag(tagId);
+      })();
+    },
+    [allTags, askConfirm, close, deleteTag, t],
+  );
+
   const labels = useMemo(
     () => ({
       nameLabel: t("connect.edit.nameLabel"),
@@ -85,6 +116,7 @@ export function useHeaderTagEdit({
       iconSearch: t("connect.edit.iconSearch"),
       iconNoMatch: t("connect.edit.iconNoMatch"),
       colorDefault: t("connect.edit.colorDefault"),
+      deleteTag: t("connect.deleteTag"),
       save: t("connect.edit.save"),
       saving: t("connect.edit.saving"),
       cancel: t("common.cancel"),
@@ -98,28 +130,49 @@ export function useHeaderTagEdit({
   // Looked up live, so a rename arriving from sync shows under an untouched
   // field (#628), and a tag deleted elsewhere takes the panel with it.
   const tag = open
-    ? (wiki.allTags.find((row) => row.id === open.tagId) ?? null)
+    ? (allTags.find((row) => row.id === open.tagId) ?? null)
     : null;
 
   return {
     onTagContextMenu: enabled ? onTagContextMenu : undefined,
     onTagLongPress: enabled ? undefined : openUnder,
     panel:
-      open && tag ? (
-        <TagQuickEditPopover
-          // A second tag starts from its own stored values, with no drafts left
-          // over from the first.
-          key={tag.id}
-          tag={tag}
-          tags={wiki.allTags}
-          writers={wiki}
-          position={open.position}
-          anchor={open.chip}
-          label={`${tag.name}: ${t("connect.editTag")}`}
-          labels={labels}
-          onClose={close}
-          onOpenInTags={onOpenTag}
-        />
+      (open && tag) || confirmRequest ? (
+        <>
+          {open && tag ? (
+            <TagQuickEditPopover
+              // A second tag starts from its own stored values, with no drafts
+              // left over from the first.
+              key={tag.id}
+              tag={tag}
+              tags={allTags}
+              writers={wiki}
+              position={open.position}
+              anchor={open.chip}
+              label={`${tag.name}: ${t("connect.editTag")}`}
+              labels={labels}
+              onClose={close}
+              onOpenInTags={onOpenTag}
+              onDelete={requestDelete}
+            />
+          ) : null}
+          {/* Outside the tag check: a tag deleted elsewhere takes the panel
+              with it, and dropping the question too would leave its promise
+              pending, so every later question would be refused. It stays up to
+              be answered, and with no tag left its "yes" has nothing to delete,
+              so it answers no. */}
+          {confirmRequest && (
+            <ConfirmDialog
+              open
+              message={confirmRequest.message}
+              confirmLabel={confirmRequest.confirmLabel}
+              cancelLabel={confirmRequest.cancelLabel}
+              danger={confirmRequest.danger}
+              onConfirm={() => resolveConfirm(tag !== null)}
+              onCancel={() => resolveConfirm(false)}
+            />
+          )}
+        </>
       ) : null,
   };
 }
