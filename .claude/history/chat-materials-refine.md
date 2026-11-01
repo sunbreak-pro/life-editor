@@ -1,5 +1,22 @@
 # HISTORY (chat-materials-refine)
 
+### 2026-11-02 - main に届いていなかった #2392 / #2394 を載せ直し、#2395 を実装（#2434 / #2437 / #2439）
+
+#### 概要
+
+`/goal` で渡された 7 件のうち、実際に残っていたのは 3 件でした。#2392 と #2394 は PR が行き止まりの枝へ merge されていて main に届いていなかったので載せ直し、未着手の #2395 を実装しました。書いた時点の実測で #2434 と #2437 は merged、#2439 は open です。
+
+#### 変更点
+
+- **#2392（PR #2434）**: #2423 のコミット `754642b1` を origin/main へ cherry-pick しました。衝突は `DataService.ts` と `SupabaseTodosService.ts` の 2 ファイルで、#2333 の行と両方残しました。`itemOpenAction.ts` は #2421 で main に同じ内容が入っていたので差分から消えました。
+- **#2392 の着地の経路**: こうだいさんが同じ時間帯に `claude/link-chips-2391` を #2432 で merge しました（`dc09ba15`。題は #2391 ですが中身は #2392 の 22 ファイルです）。18 秒後に merge された #2434 の squash `f6b3862c` は空のコミットです。
+- **#2394（PR #2437）**: #2429 のコミット `f1ccc10d` を main へ載せ直しました。patch-id が元のコミットと一致します。#2392 には依存しません。
+- **#2395（PR #2439）**: ヘッダーのタグの右クリック（Mobile は長押し）で、タグの並びの下に編集パネルが開きます。部品は `TagQuickEditPopover` と `useHeaderTagEdit` で、つながりへの移動は #2407 の `openTagInConnect` を使いました。サイドバーの行のメニューは変えていません。
+- **#2395 で置いた判断**: Issue の案どおりヘッダーから「削除」を外しました。色は `TagColorControls` が「アイテムの色をどのタグから取るか」を決める部品でタグ自体の色を変えられないため、既存タグの色を並べる欄を別に作りました。
+- **#2395 に残した minor**: キーボード（Ctrl+K のパレット）でノートを切り替えると、パネルが古い位置に残ります。データは壊れません。PR 本文に書きました。merge が早く来るので後追い push はしていません。
+- **新しい PR を出していないもの**: #2391（#2417）、#2390（#2430）、#2289（#2301 / #2415）、#2308（#2330 / #2346）は修正が main にあることを内容で確かめました。#2308 にはこうだいさんの保留（#2373 の計画待ち）もかかっています。
+- **検証**: `node scripts/local-ci.mjs` を #2434（`4426a865`）、#2437（`9eb5877c`）、#2439（`59556dca`）で回し、それぞれ 19/19 です。実ブラウザの確認は chat-main へ依頼しました。
+
 ### 2026-11-01 - 素材の案のリンクまわりと Daily の 6 本を PR に（#2415 / #2417 / #2421 / #2423 / #2429 / #2430）
 
 #### 概要
@@ -231,20 +248,3 @@ dev server は chat-main 専有（§7.4）なので、**ビルド済み `web/dis
 #### 検証
 
 両ブランチで CI verify のステップ列（shared → web → desktop → mcp-server）+ `bash scripts/docs-lint.sh` をローカル実行。上記 `mcp-server — test` の 1 件を除いて全て exit 0。テストは #1606 が web 7 件（`attachmentDelete.test.tsx`）、#1607 が web 14 件（`linkCardNode.test.tsx`）。
-
-### 2026-09-09 - #1579 エディタに table 系ノードを教えた（PR #1587）
-
-#### 概要
-
-MCP の `generate_content` が書く表（`table` / `tableRow` / `tableHeader` / `tableCell`）を web エディタのスキーマが知らず、表入りノートは開いた瞬間に本文全体が捨てられて空の autosave に上書きされていた。#1521（callout・PR #1555）と同型で、その PR 本文が兄弟として名指ししていた残りの片方。`@tiptap/extension-table` を現行 core / pm と同じ 3.23.4 で入れ、4 ノードを無条件登録した。
-
-#### 変更点
-
-- **方針は #1521 に揃えた**（Issue の指示どおり）: MCP の生成をやめず、エディタ側にノードを足す。既存データがそのまま守れて MCP の機能も削らずに済む
-- **ただし手書きの `Node.create` にはしなかった**: callout は属性 2 つの div なので手書きで足りたが、表はセルが colspan / rowspan / colwidth を持ち、編集中に表が壊れないための挙動（セル選択・Tab 移動・修復）は prosemirror-tables の `tableEditing` プラグイン側にある。それは各ノード仕様の `tableRole` を要求し、`tableRole` は `@tiptap/core` がこのパッケージのためだけに宣言しているフィールド。手書きだと「開くけれど編集すると崩れる」= バグの再演になる。旧 Tauri 版も同じパッケージ群だったので、当時のノートも同じノードとして読める
-- **バージョンは 3.23.4 にピン**: このパッケージは peer で core / pm を**完全一致**で要求するため、最新（3.31.3）を取るとバグ修正 PR でエディタ基盤ごと動く。3.23.4 なら peer が現行と一致し、lockfile の増分は 1 パッケージ 15 行
-- **`resizable: false` はどの node view が走るかも決めている**: リサイズ off だと素の `TableView` が使われ、表を `div.tableWrapper` で包む。CSS の `overflow-x: auto` はそこに掛けた。セルに 4rem の下限を置いたので、ノート幅より広い表は列を潰さずスクロールする
-- **mcp-server は触っていない**: Issue の Scope は MCP 側も挙げていたが、突き合わせたらずれが無かった。ビルダーの出力（`table` > `tableRow` > `tableHeader` | `tableCell` > `paragraph`）は公式スキーマにそのまま収まり、空セルの `paragraph()` も `inline*` なので有効。`markdownToTiptap` は表を作らないため経路は `generate_content` だけ
-- **テストは 5 本**（`web/tests/tableNodes.test.tsx`・実 `RichTextEditor` を jsdom で）。登録を外すと 5 本とも落ちることを実測した。開いたときのセル本文と周囲の段落、`th` 2 / `td` 4 と `.tableWrapper`、保存後もヘッダー行がヘッダーのままであること、merged cell の colspan / rowspan が残ること、セルが複数段落を持てること
-- **エディタから表を作る導線は足していない**（slash メニュー項目・input rule なし）。#1521 と同じ判断で DoD の範囲外・i18n カタログ 2 本への追加を伴うため。読み込みと round-trip 専用
-- **検証**: CI verify のステップ列 14 本（shared → web → desktop → mcp-server）+ `docs-lint` をローカル全緑。lockfile を触ったので `npm ls @tiptap/extension-table` でツリーの整合も確認。実ブラウザ確認は worktree では回さない規約なので merge 後に chat-main
