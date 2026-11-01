@@ -255,7 +255,7 @@ export class SupabaseGoalsService implements GoalsDataService {
     return rowsToGoal(metaRow, payloadRow);
   }
 
-  /** The parent must be a live goal one level up (year → month → week). */
+  /** The parent must be a live goal of a longer period (GOAL_PARENT_KINDS). */
   private async assertParent(
     label: string,
     childKind: GoalPeriodKind,

@@ -22,7 +22,7 @@ export interface Goal {
   periodKind: GoalPeriodKind;
   periodKey: string;
   sortOrder: number;
-  /** One level up: a week's month, a month's year. Null at the top. */
+  /** A longer period: a week's month or year, a month's year. Null at the top. */
   parentGoalId: string | null;
   /** Set by hand, and only honoured while the goal is unconnected. */
   manualAchievedAt: string | null;

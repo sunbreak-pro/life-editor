@@ -851,6 +851,7 @@ export function NotesView({
                 // both pickers offer the same items — and the panel can name a
                 // Todo / Daily target instead of an id fragment (#749).
                 loadTargets={linking.loadLinkTargets}
+                previews={linking.linkPreviews}
                 // Chip clicks reuse the "[[" navigation route (#475): the shell
                 // switches section + tab and hands the target id to the view.
                 onNavigateToItem={onNavigateToItem}
