@@ -766,6 +766,7 @@
     "todoPickerNoMatch": "該当する Todo がありません",
     "addTodo": "Todo を追加",
     "placeTodo": "この時間に配置",
+    "placeTodoAndOpen": "配置して詳細へ",
     "attachNote": "ノートを添付",
     "createTagField": "タグ",
     "createTagAdd": "タグを追加",

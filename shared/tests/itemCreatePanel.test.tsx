@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import {
   ItemCreatePanel,
   type ItemCreatePanelLabels,
@@ -40,6 +40,11 @@ const LABELS: ItemCreatePanelLabels = {
   addEventAndOpen: "Add and edit",
   addTodo: "Add todo",
   placeTodo: "Place",
+  // #2406: worded apart from the event's "Add and edit" so a getByText here
+  // proves WHICH twin the footer drew.
+  addTodoAndOpen: "Add todo and edit",
+  placeTodoAndOpen: "Place and edit",
+  cancel: "Cancel",
   sourceLabel: "How to add",
   sourceNew: "New",
   sourceExisting: "From existing",
@@ -111,11 +116,21 @@ function renderPanel(props?: {
   initialTitle?: string;
   existingTodos?: ItemCreateOption[];
   existingNotes?: ItemCreateOption[];
+  /** #2406: draw the event tab's repeat field. Off by default. */
+  withRepeat?: boolean;
+  /**
+   * #2406: leave out the optional pieces (Cancel, the todo "and open"
+   * twins) — what a host that predates them renders.
+   */
+  bare?: boolean;
 }) {
   const onSubmitEvent = vi.fn();
   const onSubmitEventAndOpen = vi.fn();
   const onCreateTodo = vi.fn();
   const onPlaceTodo = vi.fn();
+  const onCreateTodoAndOpen = vi.fn();
+  const onPlaceTodoAndOpen = vi.fn();
+  const onCancel = vi.fn();
   render(
     <ItemCreatePanel
       initial={{
@@ -133,11 +148,49 @@ function renderPanel(props?: {
         onSubmitEventAndOpen,
         onCreateTodo,
         onPlaceTodo,
+        ...(props?.bare ? {} : { onCreateTodoAndOpen, onPlaceTodoAndOpen }),
       }}
       labels={LABELS}
+      onCancel={props?.bare ? undefined : onCancel}
+      repeat={
+        props?.withRepeat
+          ? { weekdayLabels: WEEKDAYS, labels: REPEAT_LABELS }
+          : undefined
+      }
     />,
   );
-  return { onSubmitEvent, onSubmitEventAndOpen, onCreateTodo, onPlaceTodo };
+  return {
+    onSubmitEvent,
+    onSubmitEventAndOpen,
+    onCreateTodo,
+    onPlaceTodo,
+    onCreateTodoAndOpen,
+    onPlaceTodoAndOpen,
+    onCancel,
+  };
+}
+
+const WEEKDAYS = ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"];
+const REPEAT_LABELS = {
+  frequency: "Repeat",
+  frequencyNone: "None",
+  frequencyDaily: "Daily",
+  frequencyWeekdays: "Weekdays",
+  frequencyInterval: "Every N days",
+  intervalEvery: "Every",
+  intervalDays: "days",
+  startDate: "Starts",
+  endDate: "Ends",
+};
+
+/** The footer's buttons, left to right, by their text. */
+function footerButtons(): string[] {
+  const add = screen
+    .getAllByRole("button")
+    .find((b) => /^(Add|Add todo|Place)$/.test(b.textContent ?? ""));
+  return Array.from(add?.parentElement?.children ?? []).map(
+    (b) => b.textContent ?? "",
+  );
 }
 
 /** Switch to the todo tab (and, optionally, to the existing-todo source). */
@@ -315,7 +368,8 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
 
   it("turns the times off screen while all-day is on, and submits the flag", () => {
     const { onSubmitEvent } = renderPanel();
-    const toggle = screen.getByRole("switch", { name: "All day" });
+    // #2406: a round check now, not the editor's switch.
+    const toggle = screen.getByRole("checkbox", { name: "All day" });
     expect(toggle.getAttribute("aria-checked")).toBe("false");
 
     fireEvent.click(toggle);
@@ -336,7 +390,7 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
 
   it("brings the times back when all-day is switched off again", () => {
     renderPanel();
-    const toggle = screen.getByRole("switch", { name: "All day" });
+    const toggle = screen.getByRole("checkbox", { name: "All day" });
     fireEvent.click(toggle);
     fireEvent.click(toggle);
     expect((screen.getByLabelText("Start") as HTMLInputElement).value).toBe(
@@ -344,15 +398,19 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     );
   });
 
-  it("offers all-day on the event tab only, and cannot leak it into a todo", () => {
-    // The switch is an event notion here (a todo has nowhere to show it), so
-    // leaving it on and switching tabs must not smuggle the flag across.
+  /*
+   * #2406 reverses #940's "event only". A todo can be all-day — the tray's
+   * "add to today" has always written that shape — so the check stays on
+   * screen on the todo tab, keeps its state across the switch like the
+   * times do, and reaches both todo paths.
+   */
+  it("offers all-day on the todo tab too, and carries it into a new todo", () => {
     const { onCreateTodo } = renderPanel();
-    fireEvent.click(screen.getByRole("switch", { name: "All day" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "All day" }));
     openTodoTab();
-    expect(screen.queryByRole("switch", { name: "All day" })).toBeNull();
-    // The times are back, because the todo is timed whatever the event said.
-    screen.getByLabelText("Start");
+    const toggle = screen.getByRole("checkbox", { name: "All day" });
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    expect(screen.queryByLabelText("Start")).toBeNull();
 
     fireEvent.change(screen.getByPlaceholderText("Todo title"), {
       target: { value: "Write the report" },
@@ -360,9 +418,49 @@ describe("ItemCreatePanel — date and all-day (#940)", () => {
     fireEvent.click(screen.getByText("Add todo"));
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Write the report",
-      slot({ isAllDay: false }),
+      slot({ isAllDay: true }),
       null,
     );
+  });
+
+  it("places an existing todo all-day when the check is on", () => {
+    const { onPlaceTodo } = renderPanel();
+    openTodoTab("existing");
+    fireEvent.click(screen.getByRole("checkbox", { name: "All day" }));
+    fireEvent.click(screen.getByText("Draft the invoice"));
+    fireEvent.click(screen.getByText("Place"));
+    expect(onPlaceTodo).toHaveBeenCalledWith(
+      "task-1",
+      slot({ isAllDay: true }),
+      null,
+    );
+  });
+
+  it("draws all-day as a round check that Space toggles once", () => {
+    renderPanel();
+    const toggle = screen.getByRole("checkbox", { name: "All day" });
+    // jsdom has no layout, so "round" is asserted on its lever (#2217: round
+    // marks a state, square picks things).
+    expect(toggle.querySelector("span")?.className).toContain("rounded-full");
+    // A <button> turns Space into a click on keyup as well; one press must
+    // still toggle exactly once.
+    fireEvent.keyDown(toggle, { key: " " });
+    fireEvent.keyUp(toggle, { key: " " });
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("puts the day, the two times and all-day on one line (#2406)", () => {
+    renderPanel();
+    const row = screen
+      .getByLabelText("Date")
+      .closest("label")?.parentElement as HTMLElement;
+    expect(row.contains(screen.getByLabelText("Start"))).toBe(true);
+    expect(row.contains(screen.getByLabelText("End"))).toBe(true);
+    expect(
+      row.contains(screen.getByRole("checkbox", { name: "All day" })),
+    ).toBe(true);
+    // Narrow sheets wrap the line instead of pushing it off the right edge.
+    expect(row.className).toContain("flex-wrap");
   });
 
   it("keeps the date across a type-tab switch, like the title and times", () => {
@@ -479,9 +577,53 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
     expect(screen.queryByText("No unscheduled todos")).toBeNull();
   });
 
-  it("offers no 'add and open' twin on the todo tab (Schedule has no todo editor — #297)", () => {
-    renderPanel();
+  /*
+   * #2406: the todo tab has its "and open" twin now. #297's reason for
+   * leaving it out — no todo editor in the Schedule — went away with #626's
+   * in-Schedule todo detail.
+   */
+  it("routes the todo tab's second button to onCreateTodoAndOpen (#2406)", () => {
+    const { onCreateTodo, onCreateTodoAndOpen } = renderPanel({
+      initialStart: "11:00",
+      initialEnd: "11:45",
+    });
     openTodoTab();
+    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+      target: { value: "  Write the report  " },
+    });
+    fireEvent.click(screen.getByText("Add todo and edit"));
+    expect(onCreateTodoAndOpen).toHaveBeenCalledWith(
+      "Write the report",
+      slot({ start: "11:00", end: "11:45" }),
+      null,
+    );
+    expect(onCreateTodo).not.toHaveBeenCalled();
+  });
+
+  it("places the picked todo and opens it from the existing source (#2406)", () => {
+    const { onPlaceTodo, onPlaceTodoAndOpen } = renderPanel();
+    openTodoTab("existing");
+    expect(screen.getByText("Place and edit")).toBeDisabled();
+    fireEvent.click(screen.getByText("Review PR 376"));
+    fireEvent.click(screen.getByText("Place and edit"));
+    expect(onPlaceTodoAndOpen).toHaveBeenCalledWith("task-2", slot(), null);
+    expect(onPlaceTodo).not.toHaveBeenCalled();
+  });
+
+  it("keeps Enter on the plain todo create, as on the event tab", () => {
+    const { onCreateTodo, onCreateTodoAndOpen } = renderPanel();
+    openTodoTab();
+    const input = screen.getByPlaceholderText("Todo title");
+    fireEvent.change(input, { target: { value: "Groceries" } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(onCreateTodo).toHaveBeenCalledTimes(1);
+    expect(onCreateTodoAndOpen).not.toHaveBeenCalled();
+  });
+
+  it("draws no todo twin for a host that wired none", () => {
+    renderPanel({ bare: true });
+    openTodoTab();
+    expect(screen.queryByText("Add todo and edit")).toBeNull();
     expect(screen.queryByText("Add and edit")).toBeNull();
   });
 });
@@ -524,6 +666,37 @@ describe("ItemCreatePanel — the footer says when it cannot act (#376)", () => 
     expect(screen.getByText("Place")).toBeDisabled();
     fireEvent.click(screen.getByText("Draft the invoice"));
     expect(screen.getByText("Place")).toBeEnabled();
+  });
+
+  it("reads Cancel / Add and edit / Add on every tab and source (#2406)", () => {
+    renderPanel();
+    expect(footerButtons()).toEqual(["Cancel", "Add and edit", "Add"]);
+    openTodoTab();
+    expect(footerButtons()).toEqual([
+      "Cancel",
+      "Add todo and edit",
+      "Add todo",
+    ]);
+    fireEvent.click(screen.getByText("From existing"));
+    expect(footerButtons()).toEqual(["Cancel", "Place and edit", "Place"]);
+  });
+
+  it("cancels without writing anything, whatever was typed (#2406)", () => {
+    const h = renderPanel();
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Kickoff" },
+    });
+    fireEvent.click(screen.getByText("Cancel"));
+    expect(h.onCancel).toHaveBeenCalledTimes(1);
+    expect(h.onSubmitEvent).not.toHaveBeenCalled();
+    expect(h.onSubmitEventAndOpen).not.toHaveBeenCalled();
+    // Cancel is never disabled: closing needs nothing filled in.
+    expect(screen.getByText("Cancel")).toBeEnabled();
+  });
+
+  it("draws no Cancel for a host that passes no onCancel", () => {
+    renderPanel({ bare: true });
+    expect(screen.queryByText("Cancel")).toBeNull();
   });
 
   it("stays disabled while the note section covers the missing field", () => {
@@ -616,8 +789,11 @@ describe("ItemCreatePanel — the note attachment (#376 Step B / #1370)", () => 
     expect(
       (screen.getByPlaceholderText("Todo title") as HTMLInputElement).value,
     ).toBe("Write the deck");
-    expect(screen.getByText("Add todo")).toBeInTheDocument();
-    expect(screen.queryByText("Add and edit")).toBeNull();
+    expect(footerButtons()).toEqual([
+      "Cancel",
+      "Add todo and edit",
+      "Add todo",
+    ]);
     fireEvent.click(screen.getByText("Add todo"));
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Write the deck",
@@ -716,6 +892,109 @@ describe("ItemCreatePanel — the note attachment (#376 Step B / #1370)", () => 
     });
     expect(screen.getByText("No notes yet")).toBeInTheDocument();
     expect(screen.queryByText("No matching notes")).toBeNull();
+  });
+});
+
+/*
+ * #2406 — a repeat picked while the event is created. The panel only holds
+ * the choice; the host turns the saved row into a series. A todo has no repeat
+ * (neither the type nor the table carries one), so the todo tab has no field
+ * and never sends one.
+ */
+describe("ItemCreatePanel — the repeat (#2406)", () => {
+  const repeatTabs = () =>
+    within(screen.getByRole("tablist", { name: "Repeat" }));
+  const addEvent = (title: string) => {
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: title },
+    });
+    fireEvent.click(screen.getByText("Add"));
+  };
+
+  it("starts on 'None' and sends no repeat", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    expect(
+      repeatTabs().getByRole("tab", { name: "None" }).getAttribute(
+        "aria-selected",
+      ),
+    ).toBe("true");
+    addEvent("Standup");
+    expect(onSubmitEvent).toHaveBeenCalledWith("Standup", slot(), null);
+    expect(onSubmitEvent.mock.calls[0][1]).not.toHaveProperty("repeat");
+  });
+
+  it("carries the picked rhythm on the slot", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    fireEvent.click(repeatTabs().getByRole("tab", { name: "Daily" }));
+    addEvent("Standup");
+    expect(onSubmitEvent).toHaveBeenCalledWith(
+      "Standup",
+      slot({
+        repeat: {
+          frequencyType: "daily",
+          frequencyDays: [],
+          frequencyInterval: null,
+          frequencyStartDate: null,
+          frequencyEndDate: null,
+        },
+      }),
+      null,
+    );
+  });
+
+  it("seeds weekdays with the item's own day, so the series fires", () => {
+    // 2026-08-20 is a Thursday (4). A bare "weekdays" would fire never.
+    const { onSubmitEventAndOpen } = renderPanel({ withRepeat: true });
+    fireEvent.click(repeatTabs().getByRole("tab", { name: "Weekdays" }));
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Gym" },
+    });
+    fireEvent.click(screen.getByText("Add and edit"));
+    expect(onSubmitEventAndOpen.mock.calls[0][1].repeat).toMatchObject({
+      frequencyType: "weekdays",
+      frequencyDays: [4],
+    });
+  });
+
+  it("drops the repeat again when 'None' is picked", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    fireEvent.click(repeatTabs().getByRole("tab", { name: "Daily" }));
+    fireEvent.click(repeatTabs().getByRole("tab", { name: "None" }));
+    addEvent("Standup");
+    expect(onSubmitEvent.mock.calls[0][1]).not.toHaveProperty("repeat");
+  });
+
+  it("offers no repeat on the todo tab, and never sends one with a todo", () => {
+    const { onCreateTodo, onPlaceTodo } = renderPanel({ withRepeat: true });
+    fireEvent.click(repeatTabs().getByRole("tab", { name: "Daily" }));
+    openTodoTab();
+    expect(screen.queryByRole("tablist", { name: "Repeat" })).toBeNull();
+    fireEvent.change(screen.getByPlaceholderText("Todo title"), {
+      target: { value: "Write the report" },
+    });
+    fireEvent.click(screen.getByText("Add todo"));
+    expect(onCreateTodo.mock.calls[0][1]).not.toHaveProperty("repeat");
+
+    fireEvent.click(screen.getByText("From existing"));
+    fireEvent.click(screen.getByText("Draft the invoice"));
+    fireEvent.click(screen.getByText("Place"));
+    expect(onPlaceTodo.mock.calls[0][1]).not.toHaveProperty("repeat");
+  });
+
+  it("keeps the picked rhythm across a round trip through the todo tab", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    fireEvent.click(repeatTabs().getByRole("tab", { name: "Daily" }));
+    openTodoTab();
+    fireEvent.click(screen.getByText("Event"));
+    addEvent("Standup");
+    expect(onSubmitEvent.mock.calls[0][1].repeat).toMatchObject({
+      frequencyType: "daily",
+    });
+  });
+
+  it("draws no repeat field for a host that passes none", () => {
+    renderPanel();
+    expect(screen.queryByRole("tablist", { name: "Repeat" })).toBeNull();
   });
 });
 

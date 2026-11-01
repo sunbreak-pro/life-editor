@@ -769,6 +769,7 @@
     "todoPickerNoMatch": "No matching todos",
     "addTodo": "Add todo",
     "placeTodo": "Place at this time",
+    "placeTodoAndOpen": "Place and edit",
     "attachNote": "Attach a note",
     "createTagField": "Tags",
     "createTagAdd": "Add a tag",
