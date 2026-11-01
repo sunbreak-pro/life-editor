@@ -26,11 +26,20 @@ export function useGoalTreeLabels(todayKey: string): {
         GoalPeriodKind,
         string
       >;
-    const ranges = goalPeriodRanges(
-      todayKey,
-      WEEK_STARTS_ON,
-      i18n.language.startsWith("ja") ? "ja-JP" : "en-US",
-    );
+    const locale = i18n.language.startsWith("ja") ? "ja-JP" : "en-US";
+    const ranges = goalPeriodRanges(todayKey, WEEK_STARTS_ON, locale);
+    // "10/28", or "2027/1/5" for a day outside this year (#2366).
+    const formatDay = (dayKey: string): string => {
+      const [y, m, d] = dayKey.split("-").map(Number);
+      if (!y || !m || !d) return dayKey;
+      return new Date(y, m - 1, d).toLocaleDateString(locale, {
+        ...(dayKey.slice(0, 4) === todayKey.slice(0, 4)
+          ? {}
+          : { year: "numeric" }),
+        month: "numeric",
+        day: "numeric",
+      });
+    };
     return {
       kinds: map((k) => t(`connect.goals.kinds.${k}`)),
       periods: map((k) => t(`connect.goals.periods.${k}`)),
@@ -39,7 +48,13 @@ export function useGoalTreeLabels(todayKey: string): {
       addPlaceholder: t("connect.goals.addPlaceholder"),
       add: t("connect.goals.add"),
       cancel: t("connect.goals.cancel"),
-      formatLimit: (period) => t("connect.goals.limit", { period }),
+      startDate: t("connect.goals.startDate"),
+      endDate: t("connect.goals.endDate"),
+      formatDateRange: (startDate, endDate) =>
+        t("connect.goals.dateRange", {
+          start: formatDay(startDate),
+          end: formatDay(endDate),
+        }),
       treeHeading: t("connect.goals.treeHeading"),
       unconnectedHeading: t("connect.goals.unconnectedHeading"),
       looseHeading: t("connect.goals.looseHeading"),
