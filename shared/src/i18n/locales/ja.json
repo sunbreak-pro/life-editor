@@ -643,7 +643,10 @@
       "searchPlaceholder": "タイトルで検索…",
       "noCandidates": "該当するアイテムがありません",
       "selfLink": "自分自身にはリンクできません。",
-      "pickerLabelShort": "リンク",
+      "countLabel": "リンク {{total}} 件",
+      "linkedHeading": "リンク済み",
+      "chipName": "{{kind}}「{{title}}」",
+      "openChip": "{{kind}}「{{title}}」を開く",
       "open": "{{title}} を開く",
       "remove": "{{title}} とのリンクを削除",
       "deletedTarget": "{{title}}（削除済み）"

@@ -21,11 +21,11 @@ import { TagHeadingIcon } from "./TagHeadingIcon";
  * still gets the generic Tag glyph rather than nothing — the same fallback the
  * master list has always shown.
  *
- * Colour handling: each tag carries an optional hex color (`color`). When
- * present we render a tinted background + matching border; when absent we fall
- * back to `lumen-bg-secondary` (neutral pill). The text color stays lumen-text
- * — Tailwind's content tokens already meet contrast against both light and
- * dark surfaces.
+ * Shape and colour (#2391): a round pill on `lumen-bg-secondary`, with the tag's
+ * colour on its glyph alone. The tinted face it used to wear is gone because a
+ * note's links now sit in the same row as squares in their kind's colour, and
+ * the two have to read apart at a glance: round is a tag, square is a link. The
+ * text color stays lumen-text, which meets contrast on both themes.
  *
  * The remove handler is optional so the pill is reusable in read-only surfaces
  * (row-end summary) and in the editable TagPicker (with X).
@@ -68,23 +68,14 @@ export function TagPill({
   // than as a second control.
   const glyphSize = size === "sm" ? 12 : 14;
 
-  const style = color
-    ? {
-        backgroundColor: `${color}22`,
-        borderColor: `${color}66`,
-      }
-    : undefined;
-
   return (
     <span
       className={cn(
-        "inline-flex items-center gap-1 rounded-md border",
+        "inline-flex items-center gap-1 rounded-lumen-full border border-lumen-border bg-lumen-bg-secondary",
         padding,
         fontSize,
         "text-lumen-text",
-        color ? null : "border-lumen-border bg-lumen-bg-secondary",
       )}
-      style={style}
     >
       <TagHeadingIcon icon={icon} color={color} size={glyphSize} />
       <span>{name}</span>
