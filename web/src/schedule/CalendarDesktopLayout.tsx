@@ -104,6 +104,8 @@ export interface CalendarDesktopData {
   monthItems: MonthGridItem[];
   gridItems: WeekTimeGridItem[];
   selectedId: string | null;
+  /** The block a link is pointing at, for its few seconds (#2393). */
+  markedId?: string | null;
   nowMinutes: number;
 }
 
@@ -336,6 +338,7 @@ export function CalendarDesktopLayout({
               days: 7,
               items: data.gridItems,
               selectedId: data.selectedId,
+              markedId: data.markedId,
               todayKey: data.today,
               nowMinutes: data.nowMinutes,
             }}

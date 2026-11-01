@@ -1,4 +1,5 @@
 import type { DataService } from "@life-editor/shared";
+import type { ScheduleLinkTarget } from "../hooks/useShellNavigation";
 import { RoutineScheduleSync } from "./RoutineScheduleSync";
 import { CalendarTab } from "./CalendarTab";
 
@@ -38,6 +39,8 @@ export function ScheduleScreen({
   onConsumePendingSelect,
   pendingSelectEvent,
   onConsumePendingEvent,
+  pendingLinkFocus,
+  onConsumeLinkFocus,
   onNavigateToItem,
   onTodoDetailClose,
 }: {
@@ -54,6 +57,9 @@ export function ScheduleScreen({
   /** An event to open, arrived from a palette search hit (#503). */
   pendingSelectEvent?: { id: string; date: string } | null;
   onConsumePendingEvent?: () => void;
+  /** A todo or event to show from a link: marked, and in the panel (#2393). */
+  pendingLinkFocus?: ScheduleLinkTarget | null;
+  onConsumeLinkFocus?: () => void;
   /**
    * Navigate to a "[[" link target from a todo body (#507) — the detail needs
    * it for the same reason Notes and Daily do: only MainScreen knows how to
@@ -81,6 +87,8 @@ export function ScheduleScreen({
         onConsumePendingSelect={onConsumePendingSelect}
         pendingSelectEvent={pendingSelectEvent}
         onConsumePendingEvent={onConsumePendingEvent}
+        pendingLinkFocus={pendingLinkFocus}
+        onConsumeLinkFocus={onConsumeLinkFocus}
         onNavigateToItem={onNavigateToItem}
         onTodoDetailClose={onTodoDetailClose}
       />

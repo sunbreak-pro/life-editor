@@ -109,6 +109,13 @@ export interface WeekTimeGridData {
   days?: number;
   items: WeekTimeGridItem[];
   selectedId?: string | null;
+  /**
+   * The block a link is pointing at (#2393): an accent frame and a ring that
+   * spreads three times (`.le-focus-mark`), and the grid scrolls it into view.
+   * The host decides how long it stays. Apart from the selection on purpose: a
+   * todo chip can be marked, and selecting one would open its surfaces.
+   */
+  markedId?: string | null;
   /** Date key (YYYY-MM-DD) to highlight as "today", or null. */
   todayKey?: string | null;
   /**
@@ -315,7 +322,15 @@ export function WeekTimeGrid({
   // Unpacked back into the flat names the body has always used, so the #893
   // bundles stay a wire-format change and nothing below has to know about
   // them. Defaults live here, exactly where they used to.
-  const { weekStart, days = 7, items, selectedId, todayKey, nowMinutes } = data;
+  const {
+    weekStart,
+    days = 7,
+    items,
+    selectedId,
+    markedId,
+    todayKey,
+    nowMinutes,
+  } = data;
   const {
     onSelectItem,
     onItemActivate,
@@ -409,13 +424,11 @@ export function WeekTimeGrid({
    * Keyed on the SELECTION alone. A re-render that keeps the same selection
    * must not pull the scroll back from wherever the user has since taken it.
    */
-  useEffect(() => {
+  const revealStart = (startTime: string) => {
     const el = scrollBodyRef.current;
-    if (!el || !selectedId) return;
-    const target = items.find((i) => i.id === selectedId);
-    if (!target || target.isAllDay) return;
+    if (!el) return;
     const minutes = Math.min(
-      Math.max(minutesFromMidnight(target.startTime), startHour * 60),
+      Math.max(minutesFromMidnight(startTime), startHour * 60),
       endHour * 60,
     );
     const next = revealScrollTop({
@@ -425,8 +438,26 @@ export function WeekTimeGrid({
       hourHeight,
     });
     if (next != null) el.scrollTop = next;
+  };
+  useEffect(() => {
+    if (!selectedId) return;
+    const target = items.find((i) => i.id === selectedId);
+    if (!target || target.isAllDay) return;
+    revealStart(target.startTime);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedId]);
+
+  /*
+   * #2393 — the same reveal for the mark. Keyed on the marked block's start as
+   * well as its id, because a block can turn up a render after the mark was set
+   * (the week view mounts, the rows land), and it still has to come into view.
+   */
+  const markedStart =
+    items.find((i) => i.id === markedId && !i.isAllDay)?.startTime ?? null;
+  useEffect(() => {
+    if (markedStart != null) revealStart(markedStart);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [markedId, markedStart]);
 
   // ── Drag-to-move / resize (native pointer events → useWeekTimeGridDrag) ───
   // The two refs come back out because they are DOM measurements the hook needs
@@ -475,8 +506,16 @@ export function WeekTimeGrid({
     dateKey: string;
     anchor: HTMLElement;
   } | null>(null);
-  const allDayOf = (dateKey: string): WeekTimeGridItem[] =>
-    (byDay.get(dateKey) ?? []).filter((i) => i.isAllDay);
+  // A marked chip goes first (#2393): behind "他 N 件" nobody would see the mark.
+  const allDayOf = (dateKey: string): WeekTimeGridItem[] => {
+    const allDay = (byDay.get(dateKey) ?? []).filter((i) => i.isAllDay);
+    return allDay.some((i) => i.id === markedId)
+      ? [
+          ...allDay.filter((i) => i.id === markedId),
+          ...allDay.filter((i) => i.id !== markedId),
+        ]
+      : allDay;
+  };
   const moreAllDay = more ? allDayOf(more.dateKey) : [];
   const foldsAllDay = (count: number): boolean =>
     !!formatAllDayMore && count >= ALL_DAY_FOLD_AT;
@@ -702,6 +741,7 @@ export function WeekTimeGrid({
                       <button
                         key={it.id}
                         type="button"
+                        data-focus-mark={it.id === markedId || undefined}
                         onPointerDown={
                           placeable
                             ? (e) => beginDrag(e, it, "place")
@@ -741,6 +781,7 @@ export function WeekTimeGrid({
                             ? "flex items-center gap-1"
                             : "block truncate",
                           selected && "ring-2 ring-lumen-accent",
+                          it.id === markedId && "le-focus-mark",
                           placeable && "cursor-grab",
                           it.variant === "task" &&
                             it.completed &&
@@ -774,7 +815,9 @@ export function WeekTimeGrid({
                         // Same button again = close. A button from another
                         // week is a different element, so it opens afresh.
                         setMore((m) =>
-                          m?.anchor === anchor ? null : { dateKey: key, anchor },
+                          m?.anchor === anchor
+                            ? null
+                            : { dateKey: key, anchor },
                         );
                       }}
                       className={cn(
@@ -859,7 +902,10 @@ export function WeekTimeGrid({
                   const variant = it.variant ?? "event";
                   // #2221: a later block is painted over the one it overlaps.
                   // Capped below the now-line (z-30) and the focus lift (z-20).
-                  const blockZ = 1 + Math.min(p.stackOrder, 18);
+                  // #2393: a marked block goes on top of its stack, at that cap:
+                  // a mark under another block would point at nothing.
+                  const marked = it.id === markedId;
+                  const blockZ = marked ? 19 : 1 + Math.min(p.stackOrder, 18);
                   // #1835: the block's height in px, which is what decides how
                   // many lines its title may use. `heightPct` is a share of
                   // the day body, and the body's px height is known here.
@@ -920,6 +966,7 @@ export function WeekTimeGrid({
                         // The selection keeps its place in the stack: lifting
                         // it would bury a shorter block that starts inside it.
                         selected && "ring-2 ring-lumen-accent",
+                        marked && "le-focus-mark",
                         // Gated on the variant (#1373): the MCP tool still
                         // writes `completed` for events, and an event struck
                         // through with no control to clear it would be worse
@@ -940,6 +987,7 @@ export function WeekTimeGrid({
                         } as CSSProperties
                       }
                       data-week-grid-depth={p.depth}
+                      data-focus-mark={marked || undefined}
                     >
                       {/* Routine provenance: inner left band (藍) */}
                       {variant === "routine" && (
