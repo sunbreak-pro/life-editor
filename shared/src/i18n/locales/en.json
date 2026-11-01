@@ -651,10 +651,19 @@
       "countLabel": "Links: {{total}}",
       "linkedHeading": "Linked",
       "chipName": "{{kind}}: {{title}}",
-      "openChip": "Open {{kind}}: {{title}}",
       "open": "Open {{title}}",
       "remove": "Remove link with {{title}}",
-      "deletedTarget": "{{title}} (deleted)"
+      "deletedTarget": "{{title}} (deleted)",
+      "unlink": "Remove link",
+      "unlinked": "Removed the link with “{{title}}”. Undo in the header brings it back.",
+      "previewLoading": "Loading…",
+      "previewFailed": "Couldn't load the details.",
+      "previewUnavailable": "This item can't be opened from here.",
+      "noteUpdated": "Updated {{when}}",
+      "dailyMood": "{{date}} · Mood {{mood}}/5",
+      "todoDone": "Done",
+      "todoNotStarted": "Not started",
+      "todoWhen": "{{status}} · {{when}}"
     },
     "related": {
       "open": "Show related",
@@ -1256,6 +1265,7 @@
       "softDeleteNote": "note deletion",
       "assignTag": "adding a tag",
       "unassignTag": "removing a tag",
+      "removeItemLink": "removing a link",
       "workCreateTodo": "adding a Todo from the work name",
       "workPendingEvent": "filing the work name as an event"
     }
@@ -1517,7 +1527,6 @@
       "addPlaceholder": "What do you want to reach?",
       "add": "Add",
       "cancel": "Cancel",
-      "limit": "{{period}} already has 3 goals.",
       "treeHeading": "Goal tree",
       "unconnectedHeading": "Unconnected goals",
       "looseHeading": "Todos not linked to a goal",
@@ -1531,7 +1540,7 @@
       "loadFailed": "Could not load the goals. Check your connection and try again.",
       "retry": "Try again",
       "titleLabel": "Goal title",
-      "parentLabel": "Goal one level up",
+      "parentLabel": "Goal above",
       "parentNone": "None",
       "todosHeading": "Linked todos",
       "todosEmpty": "No todos are linked to this goal yet.",
@@ -1560,7 +1569,7 @@
       "edit": "Edit goal: {{title}}",
       "addUnder": "Add under: {{title}}",
       "delete": "Delete goal: {{title}}",
-      "childGoal": "{{kind}} goal",
+      "childGoal": "{{kind}}'s goal",
       "moveTodoFailed": "Could not move the todo. Check your connection and try again.",
       "arrange": {
         "heading": "Sort & filter",
@@ -1714,8 +1723,8 @@
       "back": "Back to goals",
       "linkTodos": "Link todos: {{title}}",
       "openInConnect": "Open in Goals & Todos",
-      "migrationOverflow_one": "Your goals note became goals. A period holds up to 3 goals, so {{count}} more line stays in the note as it was.",
-      "migrationOverflow_other": "Your goals note became goals. A period holds up to 3 goals, so {{count}} more lines stay in the note as they were."
+      "migrationOverflow_one": "Your goals note became goals. This move fills each period up to 3 goals, so {{count}} more line stays in the note as it was.",
+      "migrationOverflow_other": "Your goals note became goals. This move fills each period up to 3 goals, so {{count}} more lines stay in the note as they were."
     },
     "review": {
       "title": "GOALS FROM AN ENDED PERIOD",

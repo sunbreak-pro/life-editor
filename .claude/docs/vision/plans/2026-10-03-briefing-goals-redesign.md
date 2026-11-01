@@ -70,7 +70,7 @@ Parent: .claude/docs/vision/plans/2026-07-15-briefing-loop.md
   - `period_kind`: `year` / `month` / `week`
   - `period_key`: `YYYY` / `YYYY-MM` / 週の初日の `YYYY-MM-DD`（週は日曜始まり = D-20260816-briefing-1）
   - `title` と `sort_order`
-  - `parent_goal_id`: 上の階層の目標です。1 つの目標の親は 1 つだけで、年 → 月 → 週の順だけを許します。
+  - `parent_goal_id`: 上の階層の目標です。1 つの目標の親は 1 つだけで、自分より長い期間の目標だけを許します（年の直下に週も置けます。#2399 でゆるめました）。
   - `manual_achieved_at`: 手で達成にした時刻です。手で付けられるのは、未接続のときか、期間末のふり返りで「達成にする」を選んだときだけです。
   - `period_end_decision`: `carried` / `dropped` / `achieved`。`decided_at` も持ちます。
   - `carried_from_goal_id`: 持ち越した元の目標です。

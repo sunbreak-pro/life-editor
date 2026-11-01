@@ -1,6 +1,12 @@
 import { Node, mergeAttributes } from "@tiptap/core";
+import type { DOMOutputSpec } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import type { EditorView } from "@tiptap/pm/view";
+import {
+  UNKNOWN_ITEM_LINK_VISUAL,
+  itemLinkVisual,
+  type ItemLinkVisual,
+} from "@life-editor/shared";
 
 /*
  * itemLink — inline atom node for `[[…]]` wiki-style item links (web Notes/
@@ -45,6 +51,13 @@ import type { EditorView } from "@tiptap/pm/view";
  * leave the atom selected, and where the editor survives the navigation a
  * following keystroke would replace the link.
  *
+ * #2394 — the link draws as a chip: its kind's icon, then the title. The icon
+ * comes from the table the note header's chips read (itemLinkKind.ts), and its
+ * tint from the same tokens through `[data-role]` selectors in index.css. An
+ * UNRESOLVED link has no kind to announce, so it always wears the neutral icon.
+ * This is rendering only: the title stays in `attrs.label`, and getJSON(),
+ * renderText and the `data-*` attributes above do not see the icon.
+ *
  * lumen-* only — the visual treatment lives in web/src/index.css.
  */
 
@@ -70,6 +83,57 @@ export interface ItemLinkOptions {
 }
 
 const itemLinkClickKey = new PluginKey("itemLinkClick");
+
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+type IconNode = ReadonlyArray<readonly [string, Record<string, string>]>;
+
+/**
+ * The shapes a lucide icon draws. renderHTML has to answer with a plain DOM
+ * spec, so it cannot mount the React component, and the package's root entry
+ * exports only components. A lucide icon is a forwardRef whose render function
+ * makes one element carrying its `iconNode`, and calling it runs no hooks.
+ *
+ * That is lucide's internal shape, so `itemLinkClick.test.tsx` compares the
+ * result against the real React icon and goes red on a bump that moves it. The
+ * empty answer keeps such a bump from throwing inside renderHTML, which would
+ * leave the note's whole body unable to open.
+ */
+function iconNodeOf(Icon: ItemLinkVisual["Icon"]): IconNode {
+  const { render } = Icon as unknown as {
+    render?: (
+      props: object,
+      ref: null,
+    ) => { props?: { iconNode?: IconNode } } | null;
+  };
+  return render?.({}, null)?.props?.iconNode ?? [];
+}
+
+/** The icon as a DOM spec; the size attributes are for a surface with no CSS. */
+function iconSpec(Icon: ItemLinkVisual["Icon"]): DOMOutputSpec {
+  return [
+    `${SVG_NS} svg`,
+    {
+      class: "item-link__icon",
+      viewBox: "0 0 24 24",
+      width: "1em",
+      height: "1em",
+      fill: "none",
+      stroke: "currentColor",
+      "stroke-width": "2",
+      "stroke-linecap": "round",
+      "stroke-linejoin": "round",
+      "aria-hidden": "true",
+    },
+    ...iconNodeOf(Icon).map(([tag, attrs]): DOMOutputSpec => [
+      tag,
+      // `key` is React's, not an SVG attribute.
+      Object.fromEntries(
+        Object.entries(attrs).filter(([name]) => name !== "key"),
+      ),
+    ]),
+  ];
+}
 
 /**
  * The navigation target of a clicked `[[…]]` link, or null when the click was
@@ -137,13 +201,20 @@ const ItemLink = Node.create<ItemLinkOptions>({
 
   renderHTML({ node, HTMLAttributes }) {
     const resolved = !!node.attrs.targetId;
+    const label = node.attrs.label || "";
+    const { Icon } = resolved
+      ? itemLinkVisual(node.attrs.role)
+      : UNKNOWN_ITEM_LINK_VISUAL;
     return [
       "span",
       mergeAttributes(HTMLAttributes, {
         "data-item-link": "",
         class: resolved ? "item-link" : "item-link item-link--unresolved",
+        // A title wider than the column is cut off by index.css.
+        title: label,
       }),
-      node.attrs.label || "",
+      iconSpec(Icon),
+      ["span", { class: "item-link__label" }, label],
     ];
   },
 

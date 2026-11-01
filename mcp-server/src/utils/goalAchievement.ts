@@ -158,8 +158,8 @@ export interface GoalAchievement {
 
 /**
  * Judge every live goal in `input.goals`. Soft-deleted goals get no entry.
- * Child goals are judged first (memoised), so a year sees its months' answers
- * and a month its weeks'. A parent cycle — impossible through the app, but
+ * Child goals are judged first (memoised), so a year sees the answers of its
+ * months and of any week directly under it, and a month its weeks'. A parent cycle — impossible through the app, but
  * nothing in the DB forbids it — counts the goal on the cycle as not achieved
  * instead of recursing forever.
  */

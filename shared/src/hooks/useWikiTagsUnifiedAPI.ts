@@ -433,6 +433,73 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
     [ds],
   );
 
+  // What the cache held when removeItemLinks ran. A ref for the same reason as
+  // assignmentsRef: the mutators must not re-create on every link change.
+  const connectionsRef = useRef(allConnections);
+  useEffect(() => {
+    connectionsRef.current = allConnections;
+  });
+
+  /*
+   * Take the link with one item off, on the global Undo stack (#2392).
+   *
+   * One press may cover two rows (a pair linked from both sides is one chip,
+   * #884), and it is one thing the user did, so it is one command. The rows are
+   * written one at a time for the reason LinkPanel's old loop gave: two writes
+   * landing together can drop one cache update. If a write fails part-way, the
+   * rows already removed still get their command, so Undo can bring them back.
+   *
+   * deleteItemLink stays history-free: undo and redo replay it, and the other
+   * callers have not asked for history.
+   */
+  const removeItemLinks = useCallback(
+    async (linkIds: readonly string[]): Promise<void> => {
+      const removed: WikiTagConnection[] = [];
+      try {
+        for (const linkId of linkIds) {
+          const row = connectionsRef.current.find((c) => c.id === linkId);
+          await deleteItemLink(linkId);
+          // A row the cache never saw has no pair to put back.
+          if (row) removed.push(row);
+        }
+      } finally {
+        if (removed.length > 0) {
+          let currentIds = removed.map((row) => row.id);
+          undoRedoRef.current?.push("tags", {
+            label: "removeItemLink",
+            undo: async () => {
+              const restored: string[] = [];
+              for (const row of removed) {
+                // The pair may be live again by now: a save re-adds an inline
+                // edge whose "[[ ]]" is still in the text (#1690), and the
+                // unique index allows one live row per pair.
+                const live = connectionsRef.current.find(
+                  (c) =>
+                    c.fromItemId === row.fromItemId &&
+                    c.toItemId === row.toItemId &&
+                    !c.isDeleted,
+                );
+                const back =
+                  live ??
+                  (await createItemLink(
+                    row.fromItemId,
+                    row.toItemId,
+                    row.origin,
+                  ));
+                restored.push(back.id);
+              }
+              currentIds = restored;
+            },
+            redo: async () => {
+              for (const linkId of currentIds) await deleteItemLink(linkId);
+            },
+          });
+        }
+      }
+    },
+    [createItemLink, deleteItemLink],
+  );
+
   /*
    * Reconcile the link graph against the body a save just stored (#372, made
    * two-way by #1690). Both directions, because the text is the record:
@@ -627,6 +694,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       listLinksToItem,
       createItemLink,
       deleteItemLink,
+      removeItemLinks,
       syncInlineLinks,
       getTagsForItem,
       getLinksForItem,
@@ -655,6 +723,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
       listLinksToItem,
       createItemLink,
       deleteItemLink,
+      removeItemLinks,
       syncInlineLinks,
       getTagsForItem,
       getLinksForItem,

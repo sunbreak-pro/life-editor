@@ -83,13 +83,16 @@ export const GOAL_TODO_LINK_COLUMNS =
 // Rules the DB cannot hold (0034 header: "DB で守らないこと")
 // ---------------------------------------------------------------------------
 
-/** The kind a goal's parent must be: week → month → year → none. */
-export const GOAL_PARENT_KIND: Readonly<
-  Record<GoalPeriodKind, GoalPeriodKind | null>
+/**
+ * The kinds a goal's parent may be: always a longer period (#2399). A week may
+ * sit under a month or directly under a year; a year is the top.
+ */
+export const GOAL_PARENT_KINDS: Readonly<
+  Record<GoalPeriodKind, readonly GoalPeriodKind[]>
 > = {
-  week: "month",
-  month: "year",
-  year: null,
+  week: ["month", "year"],
+  month: ["year"],
+  year: [],
 };
 
 /**
@@ -112,11 +115,13 @@ export function assertGoalParentKind(
   childKind: GoalPeriodKind,
   parentKind: GoalPeriodKind,
 ): void {
-  const expected = GOAL_PARENT_KIND[childKind];
-  if (expected !== parentKind) {
+  const allowed = GOAL_PARENT_KINDS[childKind];
+  if (!allowed.includes(parentKind)) {
     throw new Error(
       `${label}: a ${childKind} goal cannot have a ${parentKind} parent` +
-        (expected ? ` (expected ${expected})` : " (it has no parent)"),
+        (allowed.length > 0
+          ? ` (expected ${allowed.join(" or ")})`
+          : " (it has no parent)"),
     );
   }
 }

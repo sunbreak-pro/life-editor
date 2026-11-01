@@ -290,9 +290,6 @@ export function BriefingScreen({
       addPlaceholder: t("connect.goals.addPlaceholder"),
       add: t("connect.goals.add"),
       adding: t("goalLink.saving"),
-      limit: t("connect.goals.limit", {
-        period: t("connect.goals.periods.week"),
-      }),
       openInConnect: t("briefing.goals.openInConnect"),
     };
   }, [t, goalRanges]);
@@ -979,7 +976,6 @@ export function BriefingScreen({
         key={review.item.goal.id}
         goalTitle={review.item.goal.title}
         connected={review.item.progress.connected}
-        canCarry={review.carry.existingId !== null || review.carry.hasRoom}
         busy={reviewBusy}
         locked={goalWriting}
         labels={{
@@ -1006,14 +1002,6 @@ export function BriefingScreen({
           drop: t("briefing.review.drop"),
           achieve: t("briefing.review.achieve"),
           later: t("briefing.review.later"),
-          carryBlocked:
-            review.carry.existingId === null && !review.carry.hasRoom
-              ? t("connect.goals.limit", {
-                  period: t(
-                    `connect.goals.periods.${review.item.goal.periodKind}`,
-                  ),
-                })
-              : undefined,
           saving: t("goalLink.saving"),
         }}
         onDecide={decide}

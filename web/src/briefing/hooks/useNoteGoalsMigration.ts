@@ -139,7 +139,7 @@ function runOnce(
  * True once this day's run has settled (moved, found nothing, or failed).
  * The paper reads its goals only after that (#2106): a read that lands while
  * the run is still creating would show「今週の目標を立てましょう」over goals
- * that now exist, and let a 4th week goal through the limit check.
+ * that now exist, and give the next goal a place already taken.
  */
 export function useNoteGoalsMigration(
   ds: DataService,
