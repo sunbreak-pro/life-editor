@@ -97,6 +97,12 @@ function isOpenSibling(row: TodoNode, node: TodoNode): boolean {
   );
 }
 
+function dropFromSnapshot(id: string): void {
+  patchDomainSnapshot<TodoNode[]>("todoTree", (rows) =>
+    rows.filter((n) => n.id !== id),
+  );
+}
+
 function addToSnapshot(node: TodoNode): void {
   patchDomainSnapshot<TodoNode[]>("todoTree", (rows) =>
     rows.some((n) => n.id === node.id) ? rows : [...rows, node],
@@ -179,9 +185,7 @@ export function createOfflineDataService(
   ): Promise<void> => {
     await removeOutboxEntry(userId, entry.opId);
     failedRows.delete(entry.itemId);
-    patchDomainSnapshot<TodoNode[]>("todoTree", (rows) =>
-      rows.filter((n) => n.id !== entry.itemId),
-    );
+    dropFromSnapshot(entry.itemId);
     if (entry.attempts === 0) return;
     void (async () => {
       await inner.removeTodoMetaIfOrphan(entry.itemId);
@@ -251,23 +255,39 @@ export function createOfflineDataService(
     return { unheld: [], queued: true };
   };
 
+  /** A read must not make a waiting Todo vanish from the list. */
+  const withWaiting = async (rows: TodoNode[]): Promise<TodoNode[]> => {
+    const userId = await owner();
+    if (userId === null) return rows;
+    const known = new Set(rows.map((n) => n.id));
+    try {
+      const waiting = (await readTodoCreatesOnline(userId))
+        .map((e) => e.payload.node)
+        .filter((n) => !known.has(n.id));
+      return waiting.length > 0 ? [...rows, ...waiting] : rows;
+    } catch {
+      return rows;
+    }
+  };
+
   const overrides: Partial<DataService> = {
-    /** A refetch must not make a waiting Todo vanish from the list. */
     async fetchTodoTree() {
       const rows = await inner.fetchTodoTree();
       shifted.clear();
       for (const row of rows) landed.add(row.id);
-      const userId = await owner();
-      if (userId === null) return rows;
-      const known = new Set(rows.map((n) => n.id));
-      try {
-        const waiting = (await readTodoCreatesOnline(userId))
-          .map((e) => e.payload.node)
-          .filter((n) => !known.has(n.id));
-        return waiting.length > 0 ? [...rows, ...waiting] : rows;
-      } catch {
-        return rows;
-      }
+      return withWaiting(rows);
+    },
+
+    /**
+     * `base` is the stored list, so its siblings hold server orders, as after a
+     * full read. Another tab's stored list may not know a waiting Todo. A row
+     * from `base` may not be on the server, so this one does not fill `landed`.
+     */
+    async fetchTodoChanges(cursor, base) {
+      const read = await inner.fetchTodoChanges(cursor, base);
+      if (read === null) return null;
+      shifted.clear();
+      return { ...read, data: await withWaiting(read.data) };
     },
 
     /**
@@ -388,6 +408,9 @@ export function createOutboxSender(
         if (verdict === "retry") return changed;
         if (verdict === "failed") {
           await failOutboxEntry(userId, entry, String(e));
+          // A changed-rows read lays changes over the stored list, and the
+          // server has none for a row it refused, so only this takes it out.
+          dropFromSnapshot(entry.itemId);
           changed += 1;
           continue;
         }

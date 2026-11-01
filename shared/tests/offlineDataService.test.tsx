@@ -420,6 +420,53 @@ describe("while an entry waits", () => {
     expect(rows.map((t) => t.title)).toEqual(["a", "landed"]);
   });
 
+  describe("a changed-rows read", () => {
+    const cursor = {
+      at: "2026-11-01T00:00:00.000Z",
+      seen: {},
+      settling: {},
+      readAt: 0,
+    };
+
+    it("lays waiting creates over it, deduped by id", async () => {
+      const fetchTodoChanges = vi.fn(
+        async (next: typeof cursor, base: readonly TodoNode[]) => ({
+          data: [...base],
+          cursor: next,
+        }),
+      );
+      const ds = wrap({ fetchTodoChanges });
+      await ds.syncTodoTree([added("t")]);
+      const rows = await ds.fetchTodoChanges(cursor, [todo("a")]);
+      expect(rows?.data.map((row) => row.id)).toEqual(["a", "t"]);
+      const landed = await ds.fetchTodoChanges(cursor, [
+        todo("a"),
+        todo("t", { title: "landed" }),
+      ]);
+      expect(landed?.data.map((row) => row.title)).toEqual(["a", "landed"]);
+      expect(landed?.cursor).toBe(cursor);
+    });
+
+    it("still says to read in full", async () => {
+      const ds = wrap({ fetchTodoChanges: vi.fn().mockResolvedValue(null) });
+      await ds.syncTodoTree([added("t")]);
+      await expect(ds.fetchTodoChanges(cursor, [])).resolves.toBeNull();
+    });
+
+    it("keeps what it read when the box hangs", async () => {
+      const data = [todo("a")];
+      const ds = wrap({
+        fetchTodoChanges: vi.fn().mockResolvedValue({ data, cursor }),
+      });
+      vi.stubGlobal("indexedDB", { open: () => ({}) });
+      try {
+        expect((await ds.fetchTodoChanges(cursor, data))?.data).toEqual(data);
+      } finally {
+        vi.unstubAllGlobals();
+      }
+    });
+  });
+
   it("undo removes the entry instead of failing", async () => {
     const softDeleteTodo = failing("softDeleteTodo: TypeError: Failed to fetch");
     const ds = wrap({ softDeleteTodo });
@@ -687,6 +734,19 @@ describe("the sender", () => {
     await run();
     expect(await readOutbox(user)).toHaveLength(1);
     expect(getOutboxCounts().failed).toBe(0);
+  });
+
+  it("takes a refused Todo out of the stored list a changed-rows read builds on", async () => {
+    const ds = wrap();
+    writeDomainSnapshot("todoTree", ds, undefined, [todo("a"), added("refused")]);
+    await enqueueTodoCreate(user, added("refused"));
+    send.mockRejectedValueOnce(new OutboxSendError("rls", 403, "42501"));
+    await run();
+    expect(
+      readDomainSnapshot<TodoNode[]>("todoTree", ds, undefined)?.data.map(
+        (row) => row.id,
+      ),
+    ).toEqual(["a"]);
   });
 
   it("reads the list again when the only entry is refused", async () => {

@@ -181,6 +181,7 @@ export function patchDomainSnapshot<T>(
     key,
     anchor: entry.anchor,
     data: forDevice(key, data),
+    cursor: entry.cursor,
   });
   if (writeTimer === null) {
     writeTimer = setTimeout(flushPendingWrites, PERSIST_DEBOUNCE_MS);
