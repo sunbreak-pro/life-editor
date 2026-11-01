@@ -810,6 +810,39 @@
 }
 
 /*
+ * The mark a link leaves on a calendar block (#2393, Claude Design's B4): an
+ * accent frame, and a ring that spreads out from it three times. The host takes
+ * the class off after about six seconds, so the ring (1.2s a spread, which is
+ * three of the slow step) is over and the frame stands alone for the last
+ * stretch.
+ *
+ * An outline rather than a border, because a border would change the block's
+ * box and move its title. Unlayered, so it beats the `outline-lumen-bg` utility
+ * a block laid over another one carries (#2221). The ring is a box-shadow, which
+ * covers the selection's `ring-2` only while it runs.
+ *
+ * Reduced motion needs nothing here, like `.lumen-section-in`: the block below
+ * cuts the animation to nothing, which leaves no ring, and the frame is not
+ * animated, so it stays.
+ */
+@keyframes le-focus-ring {
+  from {
+    box-shadow: 0 0 0 0
+      color-mix(in srgb, var(--color-lumen-accent) 60%, transparent);
+  }
+  to {
+    box-shadow: 0 0 0 10px
+      color-mix(in srgb, var(--color-lumen-accent) 0%, transparent);
+  }
+}
+
+.le-focus-mark {
+  outline: 2px solid var(--color-lumen-accent);
+  animation: le-focus-ring calc(var(--duration-lumen-slow) * 3)
+    var(--ease-lumen-out) 3;
+}
+
+/*
  * Reduce-motion — three-state control (§216 lightweight prefs). The user
  * preference is reflected on <html> as data-reduce-motion:
  *   - attribute ABSENT → "system": follow the OS prefers-reduced-motion. The

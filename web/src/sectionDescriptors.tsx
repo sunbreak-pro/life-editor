@@ -204,7 +204,10 @@ export const SECTION_DESCRIPTORS: Readonly<
                   onConsumePendingSelect={nav.consumeItemNav}
                   pendingSelectEvent={nav.pendingEventSelect}
                   onConsumePendingEvent={nav.consumeItemNav}
-                  onNavigateToItem={nav.navigateToItem}
+                  pendingLinkFocus={nav.pendingLinkFocus}
+                  onConsumeLinkFocus={nav.consumeItemNav}
+                  // A "[[" in a todo body is a link like any other (#2393).
+                  onNavigateToItem={nav.navigateToLinkedItem}
                   onTodoDetailClose={nav.returnFromItem}
                   onOpenTag={nav.openTagInConnect}
                 />
@@ -238,7 +241,7 @@ export const SECTION_DESCRIPTORS: Readonly<
               <Suspense fallback={loadingFallback}>
                 <NotesView
                   dataService={ds}
-                  onNavigateToItem={nav.navigateToItem}
+                  onNavigateToItem={nav.navigateToLinkedItem}
                   pendingSelectNoteId={nav.pendingNoteSelect}
                   onConsumePendingSelect={nav.consumeItemNav}
                 />
@@ -251,7 +254,7 @@ export const SECTION_DESCRIPTORS: Readonly<
             <DailiesUnifiedProvider dataService={ds}>
               <DailyView
                 dataService={ds}
-                onNavigateToItem={nav.navigateToItem}
+                onNavigateToItem={nav.navigateToLinkedItem}
                 pendingSelectDate={nav.pendingDailySelect}
                 onConsumePendingSelect={nav.consumeItemNav}
               />

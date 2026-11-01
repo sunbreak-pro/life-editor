@@ -638,6 +638,7 @@
       "save": "Save"
     },
     "links": {
+      "openAction": "Open",
       "panelLabel": "Links",
       "add": "Add link",
       "pickerDialog": "Link picker",
@@ -871,7 +872,10 @@
     "monthCreateOn": "Add on {{date}}",
     "monthShowAllOn": "Show the rest of {{date}}",
     "monthMoreTitle": "The rest of {{date}}",
-    "openInSchedule": "Open in Schedule",
+    "openInSchedule": "View in schedule",
+    "linkFocusTodoMarked": "Outlined the todo \"{{title}}\"",
+    "linkFocusEventMarked": "Outlined the event \"{{title}}\"",
+    "linkFocusTodoInPanel": "The todo \"{{title}}\" is in the right panel",
     "quickAddPlaceholder": "Enter an event…",
     "detailTitle": "Event details",
     "detailPanelLabel": "Detail panel",

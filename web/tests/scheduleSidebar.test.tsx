@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, within } from "@testing-library/react";
 import { agendaRowHeightPx, type AgendaItem } from "@life-editor/shared";
 import { ScheduleSidebar } from "../src/schedule/ScheduleSidebar";
 import type { ScheduleSidebarProps } from "../src/schedule/ScheduleSidebar";
@@ -332,6 +332,57 @@ describe("ScheduleSidebar — todo tab", () => {
     expect(screen.getByText("tag:t1")).toBeTruthy();
     fireEvent.click(screen.getByLabelText("todoDetail.todoDelete"));
     expect(onDelete).toHaveBeenCalledWith("t1");
+  });
+
+  // #2393: a link's todo shows here, whichever row the tab's filter left.
+  it("shows the todo a link pointed at above the lists", () => {
+    const onOpen = vi.fn();
+    const onDismiss = vi.fn();
+    const { container } = render(
+      <ScheduleSidebar
+        {...makeProps({
+          tab: "todo",
+          todo: {
+            focus: {
+              todo: {
+                title: "Someday",
+                statusText: "Not started",
+                scheduleText: "No day",
+              },
+              onOpen,
+              onDismiss,
+            },
+            filter: makeFilter({
+              apply: () => ({ placed: [], unplaced: [], addable: [] }),
+            }),
+          },
+        })}
+      />,
+    );
+    const card = container.querySelector<HTMLElement>(
+      "[data-todo-focus-card]",
+    )!;
+    expect(card.textContent).toContain("Someday");
+    const day = container.querySelector("[data-todo-day-row]")!;
+    expect(
+      card.compareDocumentPosition(day) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+
+    fireEvent.click(
+      within(card).getByRole("button", {
+        name: "scheduleScreen.todoOpenDetail",
+      }),
+    );
+    expect(onOpen).toHaveBeenCalledTimes(1);
+    fireEvent.click(within(card).getByRole("button", { name: "common.close" }));
+    expect(onDismiss).toHaveBeenCalledTimes(1);
+  });
+
+  it("draws no card when no link pointed anywhere", () => {
+    const { container } = render(
+      <ScheduleSidebar {...makeProps({ tab: "todo" })} />,
+    );
+    expect(container.querySelector("[data-todo-focus-card]")).toBeNull();
   });
 });
 

@@ -59,6 +59,8 @@ import {
   useTodoTourReporting,
 } from "./useScheduleTourReporting";
 import { useScheduleShellIntents } from "./useScheduleShellIntents";
+import { useScheduleLinkFocus } from "./useScheduleLinkFocus";
+import type { ScheduleLinkTarget } from "../hooks/useShellNavigation";
 import { useTodoAddDialog } from "./useTodoAddDialog";
 
 /*
@@ -101,6 +103,8 @@ export function CalendarTab({
   onConsumePendingSelect,
   pendingTodoTray = false,
   onConsumeTodoTray,
+  pendingLinkFocus = null,
+  onConsumeLinkFocus,
   onNavigateToItem,
   onTodoDetailClose,
   onOpenTag,
@@ -130,6 +134,9 @@ export function CalendarTab({
   /** nav:tasks — just show the tray. */
   pendingTodoTray?: boolean;
   onConsumeTodoTray?: () => void;
+  /** A todo or event a link asks to show (#2393 → useScheduleLinkFocus). */
+  pendingLinkFocus?: ScheduleLinkTarget | null;
+  onConsumeLinkFocus?: () => void;
   /** Where a "[[" link inside a todo body goes (#507). */
   onNavigateToItem?: (target: { id: string; role: string }) => void;
   /** The user closed the todo detail (#2143) — see ScheduleScreen. */
@@ -189,6 +196,7 @@ export function CalendarTab({
   // around to it. The conversion asks for the truth directly.
   const {
     nodes: todoNodes,
+    isLoading: todosLoading,
     addNode,
     updateNode,
     setTodoStatus,
@@ -553,6 +561,27 @@ export function CalendarTab({
       setTodoDetailId,
     },
   );
+
+  // A link's destination (#2393): the week, the mark, the panel, the toast.
+  const { markedId, todoFocus } = useScheduleLinkFocus({
+    target: pendingLinkFocus,
+    onConsume: onConsumeLinkFocus,
+    isWide,
+    todoNodes,
+    todosLoading,
+    rangeItems,
+    dataService,
+    showToast,
+    revealOnGrid,
+    setAnchorDate,
+    setView,
+    setSelectedId,
+    setSidebarTab,
+    openSidebar,
+    setPopover,
+    setOverlayOpen,
+    setTodoDetailId,
+  });
 
   // Mutation layer (#280 → useScheduleMutations): every write path plus the
   // #279 repeat/scope machinery (#299 retired the #278 pending-draft guard).
@@ -967,6 +996,8 @@ export function CalendarTab({
           // the panel narrows them.
           filter: todoTabFilter,
           filterTags: todoFilterTags,
+          // #2393: the todo a link pointed at, above the lists.
+          focus: todoFocus,
           // #2281: the first list's own day, apart from the flow tab's.
           day: {
             label: trayDayLabel,
@@ -1188,6 +1219,7 @@ export function CalendarTab({
             monthItems,
             gridItems,
             selectedId,
+            markedId,
             nowMinutes,
           }}
           labels={{ weekdays: weekdayLabels }}

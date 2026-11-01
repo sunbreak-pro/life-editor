@@ -95,6 +95,14 @@ const ITEM_NAV_TARGET: Record<string, NavDestination | undefined> = {
   event: { section: "schedule" },
 };
 
+/** A todo or event a link asks Schedule to show (#2393). */
+export interface ScheduleLinkTarget {
+  id: string;
+  role: "task" | "event";
+  /** The day, when the caller knows it. Schedule resolves it otherwise. */
+  date?: string;
+}
+
 /**
  * The navigation half's public surface. Section descriptors take the whole
  * object (`SectionBodyContext.nav`) rather than a dozen individually-drilled
@@ -368,10 +376,14 @@ export function useShellNavigation({
   // lands on Schedule and opens the todo DETAIL overlay rather than a tab (the
   // tab is retired). Any other role has no selectable surface yet, so it
   // no-ops.
+  //
+  // `viaLink` (#2393) says which of the two Schedule destinations this is: see
+  // `navigateToLinkedItem` below.
   const [pendingItemNav, setPendingItemNav] = useState<{
     id: string;
     role: string;
     date?: string;
+    viaLink?: boolean;
   } | null>(null);
   const navigateToItem = useCallback(
     (target: { id: string; role: string; date?: string }) => {
@@ -382,6 +394,33 @@ export function useShellNavigation({
       guarded(() => {
         applyDestination(dest);
         setPendingItemNav(target);
+      });
+    },
+    [guarded, applyDestination],
+  );
+  /*
+   * The jump a LINK makes (#2393: the "[[" in a body, and the note header's
+   * link panel). A note or a daily lands exactly as above. A todo or an event
+   * lands differently: on the week its day is in, with a mark on it and the todo
+   * in the right panel, rather than in the todo detail overlay.
+   *
+   * A second entry point rather than a new default, because the other callers
+   * asked for something else. Connect's side trip (#2143 below) is built around
+   * that overlay: closing it is what takes the user back. The Briefing and the
+   * palette have not been asked about. So the descriptors say which one each
+   * section gets.
+   *
+   * `date` is optional. The inline "[[" click only knows the id and the role, so
+   * Schedule resolves the day itself (useScheduleLinkFocus).
+   */
+  const navigateToLinkedItem = useCallback(
+    (target: { id: string; role: string; date?: string }) => {
+      const dest = ITEM_NAV_TARGET[target.role];
+      if (!dest) return;
+      // Inside the guard, like navigateToItem.
+      guarded(() => {
+        applyDestination(dest);
+        setPendingItemNav({ ...target, viaLink: true });
       });
     },
     [guarded, applyDestination],
@@ -438,8 +477,11 @@ export function useShellNavigation({
     pendingItemNav?.role === "daily"
       ? pendingItemNav.id.replace(/^daily-/, "")
       : null;
+  // Not for a link (#2393): this is the intent that opens the todo overlay.
   const pendingTodoSelect =
-    pendingItemNav?.role === "task" ? pendingItemNav.id : null;
+    pendingItemNav?.role === "task" && !pendingItemNav.viaLink
+      ? pendingItemNav.id
+      : null;
   /*
    * An event carries its DATE alongside its id (#503), unlike the other three.
    * The Calendar shows one window at a time and its navigation does not fetch
@@ -453,11 +495,20 @@ export function useShellNavigation({
   // re-fire that effect for as long as the intent is up.
   const pendingEventSelect = useMemo(
     () =>
-      pendingItemNav?.role === "event" && pendingItemNav.date
+      pendingItemNav?.role === "event" &&
+      pendingItemNav.date &&
+      !pendingItemNav.viaLink
         ? { id: pendingItemNav.id, date: pendingItemNav.date }
         : null,
     [pendingItemNav],
   );
+  // What a link asks of Schedule (#2393). Memoised for the same reason.
+  const pendingLinkFocus = useMemo<ScheduleLinkTarget | null>(() => {
+    if (!pendingItemNav?.viaLink) return null;
+    const { id, role, date } = pendingItemNav;
+    if (role !== "task" && role !== "event") return null;
+    return date ? { id, role, date } : { id, role };
+  }, [pendingItemNav]);
 
   return {
     section,
@@ -488,6 +539,7 @@ export function useShellNavigation({
     handleNavigate,
     handleNewTodo,
     navigateToItem,
+    navigateToLinkedItem,
     navigateToItemWithReturn,
     returnFromItem,
     consumeItemNav,
@@ -495,5 +547,6 @@ export function useShellNavigation({
     pendingDailySelect,
     pendingTodoSelect,
     pendingEventSelect,
+    pendingLinkFocus,
   };
 }

@@ -16,6 +16,7 @@ import {
 } from "@life-editor/shared";
 import { stubDataService, createBumpableSync } from "./helpers";
 import { DailyView } from "../src/daily/DailyView";
+import { useShellNavigation } from "../src/hooks/useShellNavigation";
 
 /*
  * #1012 — the Daily screen, driven through its buttons' ARGUMENTS.
@@ -408,5 +409,83 @@ describe("DailyView — what writes nothing at all", () => {
     for (const method of WRITE_METHODS) {
       expect(harness.fns[method]).not.toHaveBeenCalled();
     }
+  });
+});
+
+/*
+ * #2393 — a link to a day, and the calendar that has to follow it.
+ *
+ * The month the panel's calendar opens on is the native date input's value, so
+ * following means that value moves. Pinned from the link down: the shell's own
+ * navigation, then the real Provider, then the input. The stubbed context in
+ * dailyView.test.tsx cannot see this, because nothing there changes the
+ * selection after the first render.
+ */
+describe("DailyView — the calendar follows a link to a day (#2393)", () => {
+  // Further back than any month is long, so it is never in today's month.
+  const LINKED = isoDay(-40);
+
+  /** The Materials half of sectionDescriptors, with a link to press beside it. */
+  function LinkHost({ harness }: { harness: Harness }) {
+    const nav = useShellNavigation();
+    return (
+      <SyncWrapper>
+        <button
+          type="button"
+          data-testid="follow-link"
+          onClick={() =>
+            nav.navigateToLinkedItem({ id: `daily-${LINKED}`, role: "daily" })
+          }
+        />
+        {nav.materialsTab === "daily" && (
+          <WikiTagsUnifiedProvider dataService={harness.ds}>
+            <DailiesUnifiedProvider dataService={harness.ds}>
+              <DailyView
+                dataService={harness.ds}
+                pendingSelectDate={nav.pendingDailySelect}
+                onConsumePendingSelect={nav.consumeItemNav}
+              />
+            </DailiesUnifiedProvider>
+          </WikiTagsUnifiedProvider>
+        )}
+      </SyncWrapper>
+    );
+  }
+
+  const followLink = () => fireEvent.click(screen.getByTestId("follow-link"));
+  const findPicker = () =>
+    screen.findByLabelText<HTMLInputElement>("materials.daily.datePicker");
+
+  it("opens the tab on the linked day, with the calendar on that day", async () => {
+    render(<LinkHost harness={makeHarness()} />);
+    expect(screen.queryByLabelText("materials.daily.datePicker")).toBeNull();
+
+    followLink();
+
+    const picker = await findPicker();
+    await waitFor(() => expect(picker.value).toBe(LINKED));
+    screen.getByText(LINKED.replaceAll("-", "/"));
+    expect((await screen.findByTestId("editor")).textContent).toBe(
+      `daily-${LINKED}`,
+    );
+  });
+
+  it("moves a calendar that is already open on another day", async () => {
+    render(<LinkHost harness={makeHarness()} />);
+    followLink();
+    const picker = await findPicker();
+    await waitFor(() => expect(picker.value).toBe(LINKED));
+
+    // Walk away through the calendar itself, so the input has been touched.
+    fireEvent.change(picker, { target: { value: TODAY } });
+    await waitFor(() =>
+      expect(screen.getByTestId("editor").textContent).toBe(`daily-${TODAY}`),
+    );
+    expect(picker.value).toBe(TODAY);
+
+    followLink();
+
+    await waitFor(() => expect(picker.value).toBe(LINKED));
+    screen.getByText(LINKED.replaceAll("-", "/"));
   });
 });

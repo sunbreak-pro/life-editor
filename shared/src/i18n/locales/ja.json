@@ -637,6 +637,7 @@
       "save": "保存"
     },
     "links": {
+      "openAction": "開く",
       "panelLabel": "リンク",
       "add": "リンクを追加",
       "pickerDialog": "リンク先を選ぶ",
@@ -866,7 +867,10 @@
     "monthCreateOn": "{{date}} に追加",
     "monthShowAllOn": "{{date}} の残りの予定を表示",
     "monthMoreTitle": "{{date}} の残りの予定",
-    "openInSchedule": "予定の画面で開く",
+    "openInSchedule": "予定で見る",
+    "linkFocusTodoMarked": "Todo『{{title}}』を枠で示しています",
+    "linkFocusEventMarked": "予定『{{title}}』を枠で示しています",
+    "linkFocusTodoInPanel": "Todo『{{title}}』を右のパネルに出しています",
     "quickAddPlaceholder": "予定を入力…",
     "detailTitle": "予定の詳細",
     "detailPanelLabel": "詳細パネル",
