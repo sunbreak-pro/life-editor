@@ -19,6 +19,12 @@ import {
   type DomainSnapshotKey,
   type SnapshotFreshness,
 } from "../state/domainSnapshotStore";
+import {
+  isFullReadDue,
+  noteFullRead,
+  type ChangeCursor,
+  type ChangesRead,
+} from "../services/itemChanges";
 import { logServiceError } from "../utils/logError";
 
 /*
@@ -147,6 +153,23 @@ export interface UseDomainLoadOptions<T> {
    * lands (the Todo tree's diff baseline).
    */
   onFresh?: (data: T) => void;
+  /**
+   * Read only what changed since the last read (#2333). Needs `snapshotKey`:
+   * the list and its cursor live in that slot. `read` gets that slot's list as
+   * `base`, and a failure or a null answer falls back to `load` with no error
+   * shown, so a database without migration 0045 just keeps reading in full.
+   */
+  delta?: DomainDelta<T>;
+}
+
+export interface DomainDelta<T> {
+  /** Runs before `load`, so a change landing during the read is not skipped. */
+  readCursor: (dataService: DataService) => Promise<ChangeCursor | null>;
+  read: (
+    dataService: DataService,
+    cursor: ChangeCursor,
+    base: T,
+  ) => Promise<ChangesRead<T> | null>;
 }
 
 export interface DomainLoadState {
@@ -183,6 +206,35 @@ function freshnessOf(
   )
     return undefined;
   return { epoch: sync.epoch, revision: sync.getRevision(domains) };
+}
+
+/** One read: the delta when the snapshot allows it, otherwise the full one. */
+async function readDomain<T>(
+  { domain, load, delta, snapshotKey }: UseDomainLoadOptions<T>,
+  dataService: DataService,
+  anchor: string | number | undefined,
+): Promise<{ data: T; cursor?: ChangeCursor }> {
+  if (delta === undefined || snapshotKey === undefined) {
+    return { data: await load(dataService) };
+  }
+  const last = readDomainSnapshot<T>(snapshotKey, dataService, anchor);
+  if (last?.cursor !== undefined && !isFullReadDue(snapshotKey, last.cursor)) {
+    try {
+      const changed = await delta.read(dataService, last.cursor, last.data);
+      if (changed !== null) return changed;
+    } catch (e) {
+      logServiceError(domain, "delta", e);
+    }
+  }
+  let cursor: ChangeCursor | null = null;
+  try {
+    cursor = await delta.readCursor(dataService);
+  } catch {
+    // No cursor only means another full read next time.
+  }
+  const data = await load(dataService);
+  noteFullRead(snapshotKey);
+  return { data, cursor: cursor ?? undefined };
 }
 
 export function useDomainLoad<T>(
@@ -296,7 +348,7 @@ export function useDomainLoad<T>(
     )
       return;
     skipRef.current = null;
-    const { domain, load, apply, fallbackMessage } = latest.current;
+    const { domain, apply, fallbackMessage } = latest.current;
     // Taken BEFORE the read starts: a change that lands while it is in flight
     // moves the revision past this one, so the result is never filed as
     // current when it may already be behind.
@@ -304,7 +356,11 @@ export function useDomainLoad<T>(
     let cancelled = false;
     void (async () => {
       try {
-        const data = await load(dataService);
+        const { data, cursor } = await readDomain(
+          latest.current,
+          dataService,
+          anchor,
+        );
         if (cancelled) return;
         apply(data);
         // #1101: remember it for the next mount. Deliberately after the
@@ -312,7 +368,7 @@ export function useDomainLoad<T>(
         // and storing it would hand the older list back at the next mount.
         const key = latest.current.snapshotKey;
         if (key !== undefined) {
-          writeDomainSnapshot(key, dataService, anchor, data, fresh);
+          writeDomainSnapshot(key, dataService, anchor, data, fresh, cursor);
         }
         // #296: un-latch. Without this one transient failure kept the error
         // card up for the rest of the session.

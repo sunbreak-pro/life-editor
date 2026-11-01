@@ -1,6 +1,7 @@
 // @vitest-environment node (no DOM — pure mappers)
 import { describe, it, expect } from "vitest";
 import { CACHE_SCHEMA_VERSION } from "../src/state/persistentCache";
+import { cursorFrom, type ChangeCursor } from "../src/services/itemChanges";
 import {
   rowsToDailyNodeLight,
   type DailiesPayloadLightRow,
@@ -292,6 +293,17 @@ function wikiTagConnectionShape(): object {
 }
 
 /** The sorted key list of each stored list's node, by cache slot. */
+/** A row inside the overlap, so `settling` holds an entry to take the keys of. */
+function cursorShape(): ChangeCursor {
+  const cursor = cursorFrom(
+    [{ id: "task-1", changed_at: UPDATED }],
+    [{ deleted_at: UPDATED }],
+    0,
+  );
+  if (cursor === null) throw new Error("expected a cursor");
+  return cursor;
+}
+
 function currentShapes(): Record<string, string[]> {
   const keys = (node: object): string[] => Object.keys(node).sort();
   return {
@@ -304,6 +316,8 @@ function currentShapes(): Record<string, string[]> {
     "wikiTags.tags": keys(wikiTagShape()),
     "wikiTags.assignments": keys(wikiTagAssignmentShape()),
     "wikiTags.connections": keys(wikiTagConnectionShape()),
+    cursor: keys(cursorShape()),
+    "cursor.settling": keys(Object.values(cursorShape().settling)[0]),
   };
 }
 
@@ -446,6 +460,12 @@ const SHAPES_BY_VERSION: Record<number, Record<string, string[]>> = {
       "updatedAt",
     ],
   },
+};
+// #2333: each slot gained its delta cursor; the nodes kept their shape.
+SHAPES_BY_VERSION[2] = {
+  ...SHAPES_BY_VERSION[1],
+  cursor: ["at", "readAt", "seen", "settling"],
+  "cursor.settling": ["changedAt", "firstAt"],
 };
 
 describe("persistent cache — stored node shapes (#2331)", () => {
