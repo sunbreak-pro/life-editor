@@ -1520,6 +1520,7 @@
       "startDate": "From",
       "endDate": "To",
       "dateRange": "{{start}} – {{end}}",
+      "dropHere": "Move here",
       "rename": "Rename: {{title}}",
       "moveTodoFailed": "Could not move the todo. Check your connection and try again.",
       "arrange": {

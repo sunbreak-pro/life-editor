@@ -1500,6 +1500,7 @@
       "startDate": "開始日",
       "endDate": "終了日",
       "dateRange": "{{start}}〜{{end}}",
+      "dropHere": "ここへ移す",
       "rename": "名前を変える: {{title}}",
       "moveTodoFailed": "Todo を移せませんでした。通信を確認して、もう一度操作してください。",
       "arrange": {
