@@ -1497,6 +1497,7 @@
       "addTodoLabel": "どの目標にもつながらない Todo を追加",
       "addTodoPlaceholder": "やることを書きます",
       "dragToMove": "ドラッグで移動",
+      "dropHere": "ここへ移す",
       "rename": "名前を変える: {{title}}",
       "moveTodoFailed": "Todo を移せませんでした。通信を確認して、もう一度操作してください。",
       "arrange": {
