@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>目標と Todo の操作モック</title>
+<style>
+  :root {
+    --bg: #f7f6f3;
+    --panel: #ffffff;
+    --fg: #24231f;
+    --fg-2: #57544c;
+    --fg-3: #6f6b62;
+    --line: #e2dfd8;
+    --hover: #f0eee9;
+    --accent: #2f6f8f;
+    --accent-ink: #ffffff;
+    --accent-soft: #e3eef3;
+    --kohaku: #8a5a12;
+    --danger: #b3261e;
+    --danger-soft: #fbe9e7;
+    --mint-bg: #e3f3ea;
+    --mint-fg: #1d6b43;
+    --warn-bg: #fff4d6;
+    --warn-fg: #7a5600;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.06), 0 4px 12px rgb(0 0 0 / 0.05);
+    --radius: 8px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #1b1a18;
+      --panel: #252421;
+      --fg: #ecebe7;
+      --fg-2: #c5c2ba;
+      --fg-3: #a29f96;
+      --line: #3a3833;
+      --hover: #2f2d29;
+      --accent: #7cc0de;
+      --accent-ink: #0f1d24;
+      --accent-soft: #1f3540;
+      --kohaku: #e0b66a;
+      --danger: #f2a39c;
+      --danger-soft: #3d2220;
+      --mint-bg: #1e3a2b;
+      --mint-fg: #9fdcb8;
+      --warn-bg: #3b3115;
+      --warn-fg: #f1d37e;
+      --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #1b1a18;
+    --panel: #252421;
+    --fg: #ecebe7;
+    --fg-2: #c5c2ba;
+    --fg-3: #a29f96;
+    --line: #3a3833;
+    --hover: #2f2d29;
+    --accent: #7cc0de;
+    --accent-ink: #0f1d24;
+    --accent-soft: #1f3540;
+    --kohaku: #e0b66a;
+    --danger: #f2a39c;
+    --danger-soft: #3d2220;
+    --mint-bg: #1e3a2b;
+    --mint-fg: #9fdcb8;
+    --warn-bg: #3b3115;
+    --warn-fg: #f1d37e;
+    --shadow: 0 1px 2px rgb(0 0 0 / 0.4), 0 4px 12px rgb(0 0 0 / 0.3);
+    color-scheme: dark;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--fg);
+    font: 15px/1.7 "BIZ UDPGothic", "Hiragino Sans", "Yu Gothic UI", system-ui, sans-serif;
+  }
+  .page { max-width: 1040px; margin: 0 auto; padding: 32px 24px 64px; }
+  h1 { font-size: 24px; line-height: 1.4; margin: 0 0 8px; }
+  h2 { font-size: 18px; margin: 48px 0 8px; }
+  p { margin: 0 0 12px; color: var(--fg-2); }
+  .lede { font-size: 15px; max-width: 46em; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; margin-top: 16px; }
+  @media (max-width: 860px) { .layout { grid-template-columns: minmax(0, 1fr); } }
+  @media (max-width: 599px) { .page { padding: 20px 16px 48px; } }
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 20px;
+    min-width: 0;
+  }
+  .heading { font-size: 13px; color: var(--fg-3); margin: 0 0 6px; }
+  ul.tree, ul.tree ul { list-style: none; margin: 0; padding: 0; }
+  ul.tree ul { padding-left: 22px; border-left: 1px solid var(--line); margin-left: 10px; }
+  .row {
+    display: flex; align-items: center; gap: 6px;
+    min-height: 40px; padding: 2px 4px; border-radius: 6px;
+  }
+  .row:hover, .row:focus-within { background: var(--hover); }
+  .row.flash { animation: flash 1.4s ease-out; }
+  @keyframes flash { from { background: var(--mint-bg); } to { background: transparent; } }
+  @media (prefers-reduced-motion: reduce) { .row.flash { animation: none; background: var(--mint-bg); } }
+  .kind { font-size: 13px; color: var(--kohaku); flex: none; }
+  .title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; font-size: 14px; }
+  .todo .title { font-weight: 400; }
+  .done .title { color: var(--fg-3); text-decoration: line-through; }
+  .count { font-size: 13px; color: var(--fg-2); font-variant-numeric: tabular-nums; flex: none; }
+  .chip { font-size: 13px; padding: 0 8px; border-radius: 999px; flex: none; }
+  .chip.ok { background: var(--mint-bg); color: var(--mint-fg); }
+  .chip.draft { background: var(--warn-bg); color: var(--warn-fg); }
+  .icons { display: flex; gap: 2px; flex: none; opacity: 0; transition: opacity 0.12s; }
+  .row:hover .icons, .row:focus-within .icons, .static .icons { opacity: 1; }
+  @media (hover: none) { .icons { opacity: 1; } }
+  button { font: inherit; color: inherit; }
+  .icon {
+    display: grid; place-items: center; width: 32px; height: 32px;
+    border: 0; border-radius: 6px; background: transparent; color: var(--fg-3); cursor: pointer;
+  }
+  .icon:hover { background: var(--panel); color: var(--fg); }
+  .icon.del:hover { color: var(--danger); }
+  .icon:focus-visible, .btn:focus-visible, input:focus-visible, .check:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .check {
+    width: 18px; height: 18px; border-radius: 50%; border: 1.5px solid var(--fg-3);
+    background: transparent; flex: none; cursor: pointer; padding: 0; display: grid; place-items: center;
+  }
+  .done .check { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  input[type="text"] {
+    flex: 1; min-width: 0; font: inherit; font-size: 14px; color: var(--fg);
+    background: var(--panel); border: 1px solid var(--accent); border-radius: 6px; padding: 5px 8px;
+  }
+  .btn {
+    flex: none; white-space: nowrap; border-radius: 6px; padding: 5px 12px; font-size: 13px; cursor: pointer;
+    border: 1px solid var(--line); background: var(--panel);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.danger { background: var(--danger); color: var(--panel); border-color: var(--danger); }
+  .btn:disabled { opacity: 0.45; cursor: default; }
+  .choose { display: flex; flex-wrap: wrap; gap: 6px; padding: 4px 0 6px 30px; }
+  .group + .group { margin-top: 20px; }
+  .log { margin: 0; padding-left: 18px; font-size: 13px; color: var(--fg-2); }
+  .log li + li { margin-top: 6px; }
+  .log:empty::before { content: "まだ操作していません。"; color: var(--fg-3); margin-left: -18px; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+  .dialog-back {
+    position: fixed; inset: 0; background: rgb(0 0 0 / 0.35); display: grid; place-items: center; padding: 16px; z-index: 10;
+  }
+  .dialog { max-width: 360px; width: 100%; }
+  .dialog .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .pairs { display: grid; gap: 24px; margin-top: 16px; }
+  .pair { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 720px) { .pair { grid-template-columns: 1fr; } }
+  .frame-label { font-size: 13px; font-weight: 600; margin: 0 0 8px; color: var(--fg); }
+  .note { font-size: 13px; color: var(--fg-3); margin: 8px 0 0; }
+  .static { pointer-events: none; }
+  .static .dialog-inline { border: 1px solid var(--line); border-radius: var(--radius); padding: 12px; margin-top: 10px; background: var(--panel); box-shadow: var(--shadow); font-size: 13px; }
+  .static .dialog-inline .actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 10px; }
+  .sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>目標と Todo の追加・編集・削除を試せるモック</h1>
+  <p class="lede">
+    実データを使わずに、「目標と Todo」の画面で追加・編集・削除をしたときの変わり方を確かめるためのページです。
+    データはこのページの中だけにあり、再読み込みすると元に戻ります。目標の行にある ＋・鉛筆・ごみ箱の 3 つのアイコンは #2367 の案で、
+    鉛筆は名前を直す「編集」です。Todo の行を押したときにその場で編集が開く動きは #2362 の案を写しています。
+  </p>
+
+  <h2>行のアイコンを押して、画面がどう変わるかを試せます</h2>
+  <p>行にカーソルを乗せるか、行の中にフォーカスを移すとアイコンが出ます。タッチの画面では常に出ます。</p>
+  <div class="layout">
+    <div class="card" id="live"></div>
+    <div class="card">
+      <p class="heading">操作の記録</p>
+      <ol class="log" id="log" aria-live="polite"></ol>
+      <div class="toolbar">
+        <button class="btn" type="button" id="reset">最初の状態に戻す</button>
+      </div>
+    </div>
+  </div>
+
+  <h2>操作の前と後を並べて見比べられます</h2>
+  <p>同じサンプルのデータから、操作ごとに前と後の画面を描いています。左が前、右が後です。</p>
+  <div class="pairs" id="pairs"></div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var ICON = {
+    plus: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>',
+    edit: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',
+    trash: '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/></svg>',
+    check: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>'
+  };
+  var KIND = { year: "年", month: "月", week: "週" };
+  var CHILD = { year: "month", month: "week" };
+
+  // Sample data only. Nothing here is read from or written to the app.
+  function seed() {
+    return {
+      goals: [
+        { id: "g1", kind: "year", title: "フルマラソンを走りきる", parent: null },
+        { id: "g2", kind: "month", title: "月に 100 km 走る", parent: "g1" },
+        { id: "g3", kind: "week", title: "週 3 回走る", parent: "g2" },
+        { id: "g4", kind: "week", title: "部屋のカーテンを替える", parent: null }
+      ],
+      todos: [
+        { id: "t1", title: "火曜の朝に 5 km", goal: "g3", done: true },
+        { id: "t2", title: "木曜の夜に 8 km", goal: "g3", done: false },
+        { id: "t3", title: "土曜にロング走 15 km", goal: "g3", done: false },
+        { id: "t4", title: "大会のエントリーを確かめる", goal: "g1", done: false },
+        { id: "t5", title: "窓の寸法を測る", goal: null, done: false }
+      ],
+      seq: 10
+    };
+  }
+
+  function esc(s) {
+    return String(s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+  function clone(o) { return JSON.parse(JSON.stringify(o)); }
+
+  function progress(state, goalId) {
+    var done = 0, total = 0;
+    (function walk(id) {
+      state.todos.forEach(function (t) { if (t.goal === id) { total++; if (t.done) done++; } });
+      state.goals.forEach(function (g) { if (g.parent === id) walk(g.id); });
+    })(goalId);
+    return { done: done, total: total };
+  }
+
+  /*
+   * ui: { editing: {type,id}, draft, adding: {goalId, kind?}, addDraft, confirm: {type,id}, flash }
+   * Draws the tree, the unconnected goals and the loose todos.
+   */
+  function render(state, ui, opts) {
+    opts = opts || {};
+    var html = "";
+    var roots = state.goals.filter(function (g) { return !g.parent || !byId(state, g.parent); });
+    var tree = roots.filter(function (g) { return hasBelow(state, g.id); });
+    var unconnected = roots.filter(function (g) { return !hasBelow(state, g.id); });
+    if (tree.length) html += group("目標の木", '<ul class="tree">' + tree.map(function (g) { return goalItem(state, ui, g); }).join("") + "</ul>");
+    if (unconnected.length) html += group("未接続の目標", '<ul class="tree">' + unconnected.map(function (g) { return goalItem(state, ui, g); }).join("") + "</ul>");
+    var loose = state.todos.filter(function (t) { return !t.goal; });
+    html += group("どの目標にもつながらない Todo", '<ul class="tree">' + (loose.length ? loose.map(function (t) { return todoItem(ui, t); }).join("") : '<li class="note">ありません。</li>') + "</ul>");
+    if (ui.confirm && opts.inlineDialog) html += confirmBox(state, ui.confirm, true);
+    return html;
+  }
+  function byId(state, id) { return state.goals.filter(function (g) { return g.id === id; })[0]; }
+  function hasBelow(state, id) {
+    return state.todos.some(function (t) { return t.goal === id; }) || state.goals.some(function (g) { return g.parent === id; });
+  }
+  function group(h, body) { return '<section class="group" aria-label="' + esc(h) + '"><p class="heading">' + esc(h) + "</p>" + body + "</section>"; }
+
+  function editRow(ui, label) {
+    var dirty = ui.draft !== ui.editing.original;
+    return '<div class="row">' +
+      '<input type="text" data-field="edit" aria-label="' + esc(label) + '" value="' + esc(ui.draft) + '">' +
+      (dirty ? '<span class="chip draft">未保存</span>' : "") +
+      '<button class="btn primary" type="button" data-act="save"' + (dirty && ui.draft.trim() ? "" : " disabled") + ">保存</button>" +
+      '<button class="btn" type="button" data-act="cancel">やめる</button></div>';
+  }
+
+  function goalItem(state, ui, g) {
+    var editing = ui.editing && ui.editing.type === "goal" && ui.editing.id === g.id;
+    var p = progress(state, g.id);
+    var status = p.total === 0 ? '<span class="chip" style="border:1px solid var(--line);color:var(--fg-3)">未接続</span>'
+      : p.done === p.total ? '<span class="chip ok">達成</span>'
+      : '<span class="count">' + p.done + "/" + p.total + "</span>";
+    var row = editing ? editRow(ui, "目標の名前") :
+      '<div class="row' + (ui.flash === g.id ? " flash" : "") + '">' +
+      '<span class="kind">' + KIND[g.kind] + "</span>" +
+      '<span class="title">' + esc(g.title) + "</span>" + status +
+      '<span class="icons">' +
+      '<button class="icon" type="button" data-act="add" data-id="' + g.id + '" aria-label="追加: ' + esc(g.title) + '" title="追加">' + ICON.plus + "</button>" +
+      '<button class="icon" type="button" data-act="edit-goal" data-id="' + g.id + '" aria-label="編集: ' + esc(g.title) + '" title="編集">' + ICON.edit + "</button>" +
+      '<button class="icon del" type="button" data-act="del-goal" data-id="' + g.id + '" aria-label="削除: ' + esc(g.title) + '" title="削除">' + ICON.trash + "</button>" +
+      "</span></div>";
+    var adding = ui.adding && ui.adding.goalId === g.id;
+    var addUi = "";
+    if (adding && !ui.adding.kind) {
+      addUi = '<div class="choose"><button class="btn" type="button" data-act="add-kind" data-kind="todo">Todo を足す</button>' +
+        (CHILD[g.kind] ? '<button class="btn" type="button" data-act="add-kind" data-kind="' + CHILD[g.kind] + '">' + KIND[CHILD[g.kind]] + "の目標を足す</button>" : "") +
+        '<button class="btn" type="button" data-act="add-cancel">やめる</button></div>';
+    } else if (adding) {
+      var what = ui.adding.kind === "todo" ? "やることを書きます" : "届きたいところを書きます";
+      addUi = '<div class="row" style="padding-left:30px"><input type="text" data-field="add" aria-label="' + what + '" placeholder="' + what + '" value="' + esc(ui.addDraft || "") + '">' +
+        '<button class="btn primary" type="button" data-act="add-save"' + ((ui.addDraft || "").trim() ? "" : " disabled") + ">追加</button>" +
+        '<button class="btn" type="button" data-act="add-cancel">やめる</button></div>';
+    }
+    var todos = state.todos.filter(function (t) { return t.goal === g.id; });
+    var kids = state.goals.filter(function (c) { return c.parent === g.id; });
+    var below = todos.map(function (t) { return todoItem(ui, t); }).join("") + kids.map(function (c) { return goalItem(state, ui, c); }).join("");
+    return "<li>" + row + addUi + (below ? "<ul>" + below + "</ul>" : "") + "</li>";
+  }
+
+  function todoItem(ui, t) {
+    var editing = ui.editing && ui.editing.type === "todo" && ui.editing.id === t.id;
+    if (editing) return "<li class=\"todo\">" + editRow(ui, "Todo の名前") + "</li>";
+    return '<li class="todo' + (t.done ? " done" : "") + '"><div class="row' + (ui.flash === t.id ? " flash" : "") + '">' +
+      '<button class="check" type="button" data-act="toggle" data-id="' + t.id + '" aria-pressed="' + t.done + '" aria-label="完了: ' + esc(t.title) + '">' + (t.done ? ICON.check : "") + "</button>" +
+      '<span class="title">' + esc(t.title) + "</span>" +
+      '<span class="icons">' +
+      '<button class="icon" type="button" data-act="edit-todo" data-id="' + t.id + '" aria-label="編集: ' + esc(t.title) + '" title="編集">' + ICON.edit + "</button>" +
+      '<button class="icon del" type="button" data-act="del-todo" data-id="' + t.id + '" aria-label="削除: ' + esc(t.title) + '" title="削除">' + ICON.trash + "</button>" +
+      "</span></div></li>";
+  }
+
+  function confirmText(state, c) {
+    if (c.type === "goal") return "目標「" + byId(state, c.id).title + "」を削除しますか？つないだ Todo は残ります。";
+    var t = state.todos.filter(function (x) { return x.id === c.id; })[0];
+    return "Todo「" + t.title + "」を削除しますか？ゴミ箱から戻せます。";
+  }
+  function confirmBox(state, c, inline) {
+    var body = "<p style=\"color:var(--fg)\">" + esc(confirmText(state, c)) + "</p>" +
+      '<div class="actions"><button class="btn" type="button" data-act="confirm-no">やめる</button>' +
+      '<button class="btn danger" type="button" data-act="confirm-yes">削除する</button></div>';
+    return inline ? '<div class="dialog-inline">' + body + "</div>"
+      : '<div class="dialog-back"><div class="card dialog" role="alertdialog" aria-modal="true" aria-label="削除の確認">' + body + "</div></div>";
+  }
+
+  // --- Pure state changes, shared by the live mock and the comparison pairs.
+  function deleteGoal(state, id) {
+    var g = byId(state, id);
+    state.goals = state.goals.filter(function (x) { return x.id !== id; });
+    state.goals.forEach(function (c) { if (c.parent === id) c.parent = null; });
+    state.todos.forEach(function (t) { if (t.goal === id) t.goal = null; });
+    return "目標「" + g.title + "」を削除しました。つないでいた Todo は「どの目標にもつながらない Todo」へ、下の目標は「未接続の目標」へ移りました。";
+  }
+  function deleteTodo(state, id) {
+    var t = state.todos.filter(function (x) { return x.id === id; })[0];
+    state.todos = state.todos.filter(function (x) { return x.id !== id; });
+    return "Todo「" + t.title + "」を削除しました。";
+  }
+  function addUnder(state, goalId, kind, title) {
+    var id = (kind === "todo" ? "t" : "g") + ++state.seq;
+    if (kind === "todo") state.todos.push({ id: id, title: title, goal: goalId, done: false });
+    else state.goals.push({ id: id, kind: kind, title: title, parent: goalId });
+    return id;
+  }
+
+  // --- Live mock
+  var live = document.getElementById("live");
+  var logEl = document.getElementById("log");
+  var state = seed();
+  var ui = {};
+  function log(msg) {
+    var li = document.createElement("li");
+    li.textContent = msg;
+    logEl.appendChild(li);
+  }
+  function draw(focusSel) {
+    live.innerHTML = render(state, ui) + (ui.confirm ? confirmBox(state, ui.confirm, false) : "");
+    var target = focusSel && live.querySelector(focusSel);
+    if (target) { target.focus(); if (target.select && focusSel.indexOf("edit") >= 0) target.select(); }
+  }
+  function find(type, id) {
+    return type === "goal" ? byId(state, id) : state.todos.filter(function (t) { return t.id === id; })[0];
+  }
+  function saveEdit() {
+    var e = ui.editing, next = ui.draft.trim();
+    if (!next || next === e.original) return;
+    find(e.type, e.id).title = next;
+    log((e.type === "goal" ? "目標" : "Todo") + "の名前を「" + e.original + "」から「" + next + "」に直しました。");
+    ui = { flash: e.id };
+    draw();
+  }
+  live.addEventListener("click", function (ev) {
+    var b = ev.target.closest("[data-act]");
+    if (!b) return;
+    var act = b.getAttribute("data-act"), id = b.getAttribute("data-id");
+    if (act === "add") { ui = { adding: { goalId: id } }; draw('[data-act="add-kind"]'); }
+    else if (act === "add-kind") { ui.adding.kind = b.getAttribute("data-kind"); ui.addDraft = ""; draw('[data-field="add"]'); }
+    else if (act === "add-cancel") { ui = {}; draw(); }
+    else if (act === "add-save") {
+      var title = (ui.addDraft || "").trim();
+      if (!title) return;
+      var parent = byId(state, ui.adding.goalId), kind = ui.adding.kind;
+      var nid = addUnder(state, parent.id, kind, title);
+      log((kind === "todo" ? "Todo" : KIND[kind] + "の目標") + "「" + title + "」を「" + parent.title + "」の下に足しました。");
+      ui = { flash: nid }; draw();
+    }
+    else if (act === "edit-goal" || act === "edit-todo") {
+      var type = act === "edit-goal" ? "goal" : "todo", item = find(type, id);
+      ui = { editing: { type: type, id: id, original: item.title }, draft: item.title };
+      draw('[data-field="edit"]');
+    }
+    else if (act === "save") saveEdit();
+    else if (act === "cancel") { ui = {}; draw(); }
+    else if (act === "del-goal" || act === "del-todo") { ui = { confirm: { type: act === "del-goal" ? "goal" : "todo", id: id } }; draw('[data-act="confirm-no"]'); }
+    else if (act === "confirm-no") { ui = {}; draw(); }
+    else if (act === "confirm-yes") {
+      var c = ui.confirm;
+      log(c.type === "goal" ? deleteGoal(state, c.id) : deleteTodo(state, c.id));
+      ui = {}; draw();
+    }
+    else if (act === "toggle") {
+      var t = find("todo", id); t.done = !t.done;
+      log("Todo「" + t.title + "」を" + (t.done ? "完了にしました。" : "未完了に戻しました。"));
+      ui = {}; draw('[data-act="toggle"][data-id="' + id + '"]');
+    }
+  });
+  live.addEventListener("input", function (ev) {
+    var f = ev.target.getAttribute("data-field");
+    if (f === "edit") { ui.draft = ev.target.value; refreshEditRow(ev.target); }
+    if (f === "add") { ui.addDraft = ev.target.value; var s = live.querySelector('[data-act="add-save"]'); if (s) s.disabled = !ui.addDraft.trim(); }
+  });
+  // Redraw only the badge and the button, so typing keeps the caret.
+  function refreshEditRow(input) {
+    var row = input.parentNode, dirty = ui.draft !== ui.editing.original;
+    var chip = row.querySelector(".chip.draft");
+    if (dirty && !chip) { chip = document.createElement("span"); chip.className = "chip draft"; chip.textContent = "未保存"; row.insertBefore(chip, input.nextSibling); }
+    if (!dirty && chip) chip.remove();
+    row.querySelector('[data-act="save"]').disabled = !(dirty && ui.draft.trim());
+  }
+  live.addEventListener("keydown", function (ev) {
+    if (ev.isComposing || ev.keyCode === 229) return;
+    var f = ev.target.getAttribute && ev.target.getAttribute("data-field");
+    if (ev.key === "Escape" && (ui.editing || ui.adding || ui.confirm)) { ui = {}; draw(); return; }
+    if (ev.key === "Enter" && f === "edit") saveEdit();
+    if (ev.key === "Enter" && f === "add") live.querySelector('[data-act="add-save"]').click();
+  });
+  document.getElementById("reset").addEventListener("click", function () {
+    state = seed(); ui = {}; logEl.innerHTML = ""; draw();
+  });
+  draw();
+
+  // --- Before / after pairs, drawn from the same seed and the same changes.
+  var pairs = [];
+  (function () {
+    var s = seed();
+    var after = clone(s); var nid = addUnder(after, "g3", "todo", "日曜に 3 km の回復走");
+    pairs.push({ title: "Todo を足す（週の目標の ＋ から）", before: [s, { adding: { goalId: "g3", kind: "todo" }, addDraft: "日曜に 3 km の回復走" }], after: [after, { flash: nid }],
+      note: "足した Todo は目標の下にすぐ並び、進み具合が 1/3 から 1/4 に変わります。" });
+    pairs.push({ title: "目標の名前を直す（鉛筆から）", before: [s, { editing: { type: "goal", id: "g2", original: "月に 100 km 走る" }, draft: "月に 120 km 走る" }], after: [(function () { var a = clone(s); a.goals[1].title = "月に 120 km 走る"; return a; })(), { flash: "g2" }],
+      note: "保存する前は「未保存」の印が出ます。保存すると行がもとの見た目に戻り、名前だけが変わります。" });
+    var del = clone(s); deleteGoal(del, "g3");
+    pairs.push({ title: "目標を削除する（ごみ箱から）", before: [s, { confirm: { type: "goal", id: "g3" } }], after: [del, {}],
+      note: "削除の前に確認を出します。削除しても Todo は消えず、「どの目標にもつながらない Todo」へ移ります。" });
+  })();
+  document.getElementById("pairs").innerHTML = pairs.map(function (p) {
+    return '<div class="card"><p class="frame-label">' + esc(p.title) + '</p><div class="pair">' +
+      '<div><p class="heading">前</p><div class="static" inert>' + render(p.before[0], p.before[1], { inlineDialog: true }) + "</div></div>" +
+      '<div><p class="heading">後</p><div class="static" inert>' + render(p.after[0], p.after[1], { inlineDialog: true }) + "</div></div>" +
+      '</div><p class="note">' + esc(p.note) + "</p></div>";
+  }).join("");
+})();
+</script>
+</body>
+</html>

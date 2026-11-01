@@ -7,7 +7,12 @@
  * barrel does not export them yet (the goal groundwork, #2101–#2103, kept
  * them package-internal).
  */
-export type { Goal, GoalPeriodKind, GoalTodoLink } from "../../types/goal";
+export type {
+  Goal,
+  GoalDateRange,
+  GoalPeriodKind,
+  GoalTodoLink,
+} from "../../types/goal";
 export {
   arrangeGoalTree,
   buildGoalTreeModel,
@@ -16,7 +21,7 @@ export {
   DEFAULT_GOAL_TREE_ARRANGEMENT,
   DEFAULT_GOAL_TREE_FILTER,
   GOAL_PERIOD_KINDS,
-  GOALS_PER_PERIOD,
+  goalPeriodBounds,
   type BuildGoalTreeModelInput,
   type GoalTreeArrangement,
   type GoalTreeFilter,

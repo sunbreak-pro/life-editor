@@ -105,6 +105,7 @@ export function useScheduleItemsAPI(options: UseScheduleItemsAPIOptions) {
     // read date is served back. Leaving a section and returning hits it;
     // stepping to another day is a miss, i.e. exactly today's behaviour.
     snapshotKey: "scheduleItems",
+    skipWhenFresh: ["schedule"],
     dataService: ds,
     version: syncVersion,
     anchor: date,

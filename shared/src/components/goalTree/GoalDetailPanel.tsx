@@ -97,7 +97,10 @@ export function GoalDetailPanel({
         <span className="text-xs text-lumen-briefing-kohaku">
           {labels.formatPeriod(
             labels.tree.kinds[goal.periodKind],
-            goal.periodKey,
+            // A range of its own (#2366) says more than the period's key.
+            goal.startDate && goal.endDate
+              ? labels.tree.formatDateRange(goal.startDate, goal.endDate)
+              : goal.periodKey,
           )}
         </span>
         <Input

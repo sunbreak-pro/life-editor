@@ -13,6 +13,7 @@ import {
   type ItemCreatePanelHandlers,
   type ItemCreatePanelLabels,
   type ItemCreatePanelPools,
+  type ItemCreateRepeatField,
   type ScheduleItem,
   type TagFilterPanelProps,
   type TodoCalendarChip,
@@ -150,6 +151,8 @@ export interface ScheduleOverlaysProps {
     handlers: ItemCreatePanelHandlers;
     formatDuration: (minutes: number) => string;
     labels: ItemCreatePanelLabels;
+    /** #2406: the event tab's repeat field. Omitted, no repeat is offered. */
+    repeat?: ItemCreateRepeatField;
   };
   /** #1173 — the tag-filter panel the toolbar's filter button opens. */
   tagFilter: {
@@ -434,11 +437,18 @@ export function ScheduleOverlays({
    * it is never the day a user sees, because a sheet only ever opens with a
    * panel behind it.
    */
+  /*
+   * #2406: the footer's Cancel is the frame's own close, on both frames. It
+   * deliberately is not a committer (useScheduleCreateFlow's
+   * finishCreatePanel): nothing new is on the grid, so the lens stays put.
+   */
   const panelProps = {
     pools: create.pools,
     handlers: create.handlers,
     formatDuration: create.formatDuration,
     labels: create.labels,
+    onCancel: create.onClose,
+    repeat: create.repeat,
   };
   const createFrame = isWide ? (
     <ItemDetailOverlay
@@ -481,13 +491,17 @@ export function ScheduleOverlays({
         open={tagFilter.open}
         onClose={tagFilter.onClose}
         title={t("scheduleScreen.filterTitle")}
-        size="lg"
+        // #2155: the compact width of the Claude Design proposal — a list of
+        // tag rows and group rows reads best narrow, not as a wide form.
+        size="sm"
         // #2142: on a phone the panel covers most of the screen, so it gets a
         // corner ×, and is held to the viewport with its body scrolling.
         fitViewport
         closeLabel={t("common.close")}
       >
-        <TagFilterPanel {...tagFilter.panel} />
+        {/* The panel also gets the close, for the Close button it draws at
+            its foot on narrow — the corner × is out of the thumb's reach. */}
+        <TagFilterPanel {...tagFilter.panel} onClose={tagFilter.onClose} />
       </Modal>
       {bubble}
       {repeatBubble}

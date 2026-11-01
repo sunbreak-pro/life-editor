@@ -112,6 +112,7 @@ export function useWikiTagsUnifiedAPI(options: UseWikiTagsUnifiedAPIOptions) {
   const { isLoading: attemptInFlight, error } = useDomainLoad({
     domain: "WikiTags",
     snapshotKey: "wikiTags",
+    skipWhenFresh: ["tags"],
     dataService: ds,
     version: syncVersion,
     load: loadAll,

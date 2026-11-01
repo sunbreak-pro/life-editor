@@ -158,6 +158,14 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
   const { isLoading, error } = useDomainLoad({
     domain: "TodoTree",
     snapshotKey: "todoTree",
+    skipWhenFresh: ["todos"],
+    // A skipped read never reaches `load`, so the diff baseline the writes
+    // compare against is set from the replayed tree (#2328). It is the
+    // result of a real read that nothing has changed since.
+    onFresh: (active: TodoNode[]) => {
+      fetchLandedRef.current = true;
+      knownRef.current = new Map(active.map((n) => [n.id, n]));
+    },
     dataService: ds,
     version: syncVersion,
     load: async (service) => {
@@ -165,6 +173,14 @@ export function useTodoTreeAPI(options: UseTodoTreeAPIOptions) {
       // Set HERE, not in `apply`: the snapshot replay never runs it.
       fetchLandedRef.current = true;
       return fetched;
+    },
+    delta: {
+      readCursor: (service) => service.readItemChangeCursor(),
+      read: async (service, cursor, base) => {
+        const read = await service.fetchTodoChanges(cursor, base);
+        if (read !== null) fetchLandedRef.current = true;
+        return read;
+      },
     },
     apply: (active) => {
       setNodes(active);

@@ -59,6 +59,23 @@ export interface WebSyncContextValue {
   subscribe?: (onStoreChange: () => void) => () => void;
   /** Current counters, read imperatively. Pairs with `subscribe`. */
   getDomainVersions?: () => Readonly<Record<SyncDomain, number>>;
+  /**
+   * Identifies this Provider instance (#2328). Every mount gets a new one, so
+   * a revision taken under an earlier mount can never be mistaken for one from
+   * this mount — the counters restart at 0 each time.
+   *
+   * OPTIONAL for the same reason as `subscribe`: a stub Provider has no
+   * epoch, and `useDomainLoad` then never skips a fetch.
+   */
+  epoch?: number;
+  /**
+   * One number that moves whenever anything a read of `domains` could depend
+   * on has moved: the Realtime bumps AND the own-write echoes that were
+   * dropped without a bump. Equal numbers under the same `epoch` mean "no
+   * change has been reported since", which is what lets a remount reuse the
+   * last result instead of reading again (#2328).
+   */
+  getRevision?: (domains: readonly SyncDomain[]) => number;
 }
 
 export const SyncContext = createContext<WebSyncContextValue | null>(null);

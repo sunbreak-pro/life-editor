@@ -92,6 +92,7 @@ export function useRoutinesAPI(options: UseRoutinesAPIOptions) {
   const { isLoading, error } = useDomainLoad({
     domain: "Routines",
     snapshotKey: "routines",
+    skipWhenFresh: ["schedule"],
     dataService: ds,
     version: syncVersion,
     load: loadRoutines,

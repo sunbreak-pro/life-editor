@@ -5,6 +5,7 @@ import {
   writePersistedSnapshots,
   type PersistedSnapshot,
 } from "./persistentCache";
+import type { ChangeCursor } from "../services/itemChanges";
 
 /**
  * Module-level in-memory snapshot store for the domain load effect (#1101).
@@ -90,14 +91,28 @@ export const HYDRATE_TIMEOUT_MS = 300;
 /** Marks a snapshot that came from IndexedDB rather than from a read. */
 const FROM_DEVICE = Symbol("fromDevice");
 
+/**
+ * Which state of the Sync counters a snapshot was read under (#2328). Equal
+ * to the current one means nothing has been reported as changed since, so the
+ * next mount may use the snapshot without reading again.
+ */
+export interface SnapshotFreshness {
+  epoch: number;
+  revision: number;
+}
+
 interface DomainSnapshot {
   /** The DataService instance the data came from, or FROM_DEVICE. */
   dataService: unknown;
   /** The caller's `anchor` at read time (the Schedule view's date). */
   anchor: string | number | undefined;
   data: unknown;
+  /** Absent on a slot read off the device: that one is always revalidated. */
+  fresh?: SnapshotFreshness;
   /** The user the data belongs to; set on every slot read off the device. */
   owner?: string;
+  /** Where `data` stands for a delta read (#2333). Lives and dies with it. */
+  cursor?: ChangeCursor;
 }
 
 const snapshots = new Map<DomainSnapshotKey, DomainSnapshot>();
@@ -119,7 +134,7 @@ export function readDomainSnapshot<T>(
   key: DomainSnapshotKey,
   dataService: unknown,
   anchor: string | number | undefined,
-): { data: T } | null {
+): { data: T; fresh?: SnapshotFreshness; cursor?: ChangeCursor } | null {
   const entry = snapshots.get(key);
   if (entry === undefined) return null;
   const sameSource =
@@ -128,7 +143,7 @@ export function readDomainSnapshot<T>(
       : entry.dataService === dataService;
   if (!sameSource) return null;
   if (entry.anchor !== anchor) return null;
-  return { data: entry.data as T };
+  return { data: entry.data as T, fresh: entry.fresh, cursor: entry.cursor };
 }
 
 /** Record the result of a successful read, replacing any earlier one. */
@@ -137,10 +152,12 @@ export function writeDomainSnapshot<T>(
   dataService: unknown,
   anchor: string | number | undefined,
   data: T,
+  fresh?: SnapshotFreshness,
+  cursor?: ChangeCursor,
 ): void {
-  snapshots.set(key, { dataService, anchor, data });
+  snapshots.set(key, { dataService, anchor, data, fresh, cursor });
   if (owner === null || !PERSISTED_KEYS.has(key)) return;
-  pendingWrites.set(key, { key, anchor, data: forDevice(key, data) });
+  pendingWrites.set(key, { key, anchor, data: forDevice(key, data), cursor });
   if (writeTimer === null) {
     writeTimer = setTimeout(flushPendingWrites, PERSIST_DEBOUNCE_MS);
   }
@@ -231,7 +248,20 @@ function restore(userId: string, row: PersistedSnapshot): void {
     anchor: row.anchor,
     data: row.data,
     owner: userId,
+    cursor: isChangeCursor(row.cursor) ? row.cursor : undefined,
   });
+}
+
+/** A stored cursor this app cannot read only costs one full read. */
+function isChangeCursor(value: ChangeCursor | undefined): boolean {
+  return (
+    typeof value?.at === "string" &&
+    typeof value.readAt === "number" &&
+    typeof value.seen === "object" &&
+    value.seen !== null &&
+    typeof value.settling === "object" &&
+    value.settling !== null
+  );
 }
 
 /**

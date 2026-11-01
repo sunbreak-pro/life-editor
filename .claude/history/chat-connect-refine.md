@@ -1,5 +1,21 @@
 # HISTORY (chat-connect-refine)
 
+### 2026-10-28 - 「目標と Todo」の 7 Issue を 1 Issue 1 PR で出した（#2362〜#2368）
+
+#### 概要
+
+/goal の指示で、目標と Todo の画面の Issue を順に 1 本ずつ、origin/main から切ったブランチで実装し、CI の verify 全ステップと docs-lint を緑にして PR を出した。#2283 は既存ブランチの PR #2316 が merge 済みで、実ブラウザ確認も合格していたため新しい PR は出していない。
+
+#### 変更点
+
+- **#2362 → PR #2370（merged）**: Todo を押すと Schedule へ移らず、ItemPanel（#2218）で編集パネルをその画面の上に開く。閉じたら読み直す
+- **#2363 → PR #2375**: 追加・編集・削除を試せる HTML のモックを `.claude/docs/reports/2026-10-28-goal-tree-crud-mockup.html` に置き、Artifact でも発行。CSS 変数 `--ink-*` が docs-lint の古いトークン名検査に当たったので `--fg-*` に改名
+- **#2364 → PR #2377**: `Button` に縮まない・折り返さない指定が無く、`w-full` の入力欄の横で「追加」が 1 字幅に縮んでいた。目標の木のボタンにだけ `shrink-0 whitespace-nowrap` を付けた
+- **#2365 → PR #2378**: 行全体の写しに影と傾きを付けて `setDragImage` に渡し、元の行は点線の穴、置き先は「ここへ移す」の札にした
+- **#2366 → PR #2380**: 1 期間 3 件の上限を画面と MCP から外し、migration 0044 で `goals_payload.start_date` / `end_date` を足した（ファイルのみ・db push はユーザー）。migration-validator の指摘 3 件を反映。朝刊の欄が `connect.goals.limit` を使っていたので文言は残した
+- **#2367 → PR #2381**: 目標の行に ＋（Todo か 1 段下の目標）・編集（鉛筆を統合、wide はパネルも開く）・削除（既存の確認）を置いた
+- **#2368 → PR #2382**: 純粋な関数 `separateCompleted` で、達成した目標を子ごと、完了した Todo を元の場所から「完了済みのアイテム」へ移す。既存テスト 2 本が完了 Todo を木に残す前提だったので直した
+
 ### 2026-09-21 - Step 12 の設計差分 3 件（#1734）と、チェックボックスの常時表示（ユーザー直依頼）
 
 #### 概要

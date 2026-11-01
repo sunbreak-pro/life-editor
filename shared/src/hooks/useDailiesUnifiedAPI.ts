@@ -110,6 +110,25 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
     deletedDailiesRef.current = deletedDailies;
   }, [deletedDailies]);
 
+  // #2325: the list without the bodies. Only the rows whose head cannot be
+  // read (a legacy plain-text body) fetch theirs, for the excerpt.
+  // A row whose body was already fetched at this `updatedAt` is not
+  // fetched again — the merge keeps the body this list already holds.
+  const withExcerptBodies = async (
+    service: DataService,
+    rows: DailyNode[],
+  ): Promise<DailyNode[]> => {
+    const fetchedAt = bodyFetchedAtRef.current;
+    const stampOf = new Map(rows.map((r) => [r.id, r.updatedAt]));
+    const missing = rowsWithoutHead(rows).filter(
+      (id) => fetchedAt.get(id) !== stampOf.get(id),
+    );
+    if (missing.length === 0) return rows;
+    const bodies = await service.fetchDailyBodiesUnified(missing);
+    for (const id of missing) fetchedAt.set(id, stampOf.get(id) ?? "");
+    return fillDailyBodies(rows, bodies);
+  };
+
   /*
    * Load on mount and on every dailies bump, through the shared load effect
    * (#672 / #891). The hand-written effect this replaces logged a failure and
@@ -132,23 +151,19 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
   const { isLoading, error } = useDomainLoad({
     domain: "Daily",
     snapshotKey: "dailies",
+    skipWhenFresh: ["dailies"],
     dataService: ds,
     version: syncVersion,
-    // #2325: the list without the bodies. Only the rows whose head cannot be
-    // read (a legacy plain-text body) fetch theirs, for the excerpt.
-    // A row whose body was already fetched at this `updatedAt` is not
-    // fetched again — the merge keeps the body this list already holds.
-    load: async (service) => {
-      const rows = await service.listDailySummariesUnified();
-      const fetchedAt = bodyFetchedAtRef.current;
-      const stampOf = new Map(rows.map((r) => [r.id, r.updatedAt]));
-      const missing = rowsWithoutHead(rows).filter(
-        (id) => fetchedAt.get(id) !== stampOf.get(id),
-      );
-      if (missing.length === 0) return rows;
-      const bodies = await service.fetchDailyBodiesUnified(missing);
-      for (const id of missing) fetchedAt.set(id, stampOf.get(id) ?? "");
-      return fillDailyBodies(rows, bodies);
+    load: async (service) =>
+      withExcerptBodies(service, await service.listDailySummariesUnified()),
+    // #2333: a row kept from the snapshot still has the body it was given.
+    delta: {
+      readCursor: (service) => service.readItemChangeCursor(),
+      read: async (service, cursor, base) => {
+        const read = await service.fetchDailyChanges(cursor, base);
+        if (read === null) return null;
+        return { ...read, data: await withExcerptBodies(service, read.data) };
+      },
     },
     apply: (rows) =>
       setDailies((prev) => {

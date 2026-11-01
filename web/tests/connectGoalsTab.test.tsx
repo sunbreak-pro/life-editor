@@ -9,7 +9,9 @@ import {
 } from "@testing-library/react";
 import { useEffect, useRef } from "react";
 import {
+  ItemPanelProvider,
   RightSidebarProvider,
+  useItemPanelContext,
   useRightSidebarContext,
   type DataService,
   type Goal,
@@ -156,21 +158,44 @@ function PanelWell() {
   return <aside aria-label="Details" ref={ref} />;
 }
 
+/** Prints the item panel's open request and closes it, as the shell's host would. */
+function PanelRequestProbe() {
+  const { request, close } = useItemPanelContext();
+  return (
+    <>
+      <output aria-label="Panel request">
+        {request?.mode === "edit" ? JSON.stringify(request.target) : ""}
+      </output>
+      <button type="button" onClick={close}>
+        Close panel
+      </button>
+    </>
+  );
+}
+
 async function renderTab(
   ds: DataService = makeDS(),
   ready: string | (() => unknown) = "Goal tree",
+  { itemPanel = false }: { itemPanel?: boolean } = {},
 ) {
   const onNavigateToItem = vi.fn();
   const { wrapper: SyncWrapper, sync } = createBumpableSync();
+  const tab = (
+    <RightSidebarProvider>
+      <GoalsTodosScreen dataService={ds} onNavigateToItem={onNavigateToItem} />
+      <PanelWell />
+    </RightSidebarProvider>
+  );
   render(
     <SyncWrapper>
-      <RightSidebarProvider>
-        <GoalsTodosScreen
-          dataService={ds}
-          onNavigateToItem={onNavigateToItem}
-        />
-        <PanelWell />
-      </RightSidebarProvider>
+      {itemPanel ? (
+        <ItemPanelProvider>
+          {tab}
+          <PanelRequestProbe />
+        </ItemPanelProvider>
+      ) : (
+        tab
+      )}
     </SyncWrapper>,
   );
   await waitFor(
@@ -239,7 +264,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     // Linked todos hang under their goal.
     within(
       tree.getByRole("list", { name: "Get the proposal approved" }),
-    ).getByRole("button", { name: "Open in Schedule: Write the estimate" });
+    ).getByRole("button", { name: "Edit: Write the estimate" });
   });
 
   it("files nothing-connected goals under Unconnected, and lists the todos no shown goal holds", async () => {
@@ -258,7 +283,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
       screen.getByRole("region", { name: "Todos not linked to a goal" }),
     );
     loose.getByRole("button", {
-      name: "Open in Schedule: Pick up the residence certificate",
+      name: "Edit: Pick up the residence certificate",
     });
     // Completed this week: listed with the done style (brief §11's sample).
     expect(loose.getByText("Submit expenses").className).toContain(
@@ -268,7 +293,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     // Completed long ago: not listed.
     expect(loose.queryByText("Renew the passport")).toBeNull();
     // Held only by last week's (undrawn) goal: listed here rather than lost.
-    loose.getByRole("button", { name: "Open in Schedule: Pick the curtains" });
+    loose.getByRole("button", { name: "Edit: Pick the curtains" });
     expect(loose.queryByText("Measure the room")).toBeNull();
   });
 
@@ -285,16 +310,6 @@ describe("Connect Goals & Todos tab (#2108)", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => screen.getByRole("region", { name: "Goal tree" }));
-  });
-
-  it("says in text why an add button is held", async () => {
-    await renderTab();
-    const week = screen.getByRole("button", { name: /This week/ });
-    const reasonId = week.getAttribute("aria-describedby");
-    expect(reasonId).toBeTruthy();
-    expect(document.getElementById(reasonId as string)?.textContent).toBe(
-      "This week already has 3 goals.",
-    );
   });
 
   it("shows only the guidance when there are no goals — no empty group frames", async () => {
@@ -340,10 +355,56 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     );
   });
 
-  it("holds the add button at three goals per period", async () => {
-    await renderTab();
+  it("adds a fourth goal to a period that has three (#2366)", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
     const week = screen.getByRole("button", { name: /This week/ });
-    expect((week as HTMLButtonElement).disabled).toBe(true);
+    expect((week as HTMLButtonElement).disabled).toBe(false);
+    expect(screen.queryByText(/already has 3 goals/)).toBeNull();
+    fireEvent.click(week);
+    const field = screen.getByRole("textbox", { name: /This week/ });
+    fireEvent.change(field, { target: { value: "Sleep by 23:00" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await waitFor(() => expect(ds.createGoal).toHaveBeenCalledTimes(1));
+    const input = vi.mocked(ds.createGoal).mock.calls[0]?.[0];
+    expect(input).toMatchObject({
+      periodKind: "week",
+      periodKey: "2026-09-27",
+    });
+    // Left at the week's own dates, no range is stored.
+    expect(input).not.toHaveProperty("startDate");
+  });
+
+  it("creates a goal with a start and end date of its own (#2366)", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    fireEvent.click(screen.getByRole("button", { name: /This week/ }));
+    const from = screen.getByLabelText("From") as HTMLInputElement;
+    const to = screen.getByLabelText("To") as HTMLInputElement;
+    // Seeded with the week's own first and last day.
+    expect(from.value).toBe("2026-09-27");
+    expect(to.value).toBe("2026-10-03");
+    fireEvent.change(screen.getByRole("textbox", { name: /This week/ }), {
+      target: { value: "Read two books" },
+    });
+    // A range that runs backwards cannot be added.
+    fireEvent.change(to, { target: { value: "2026-09-20" } });
+    expect(
+      (screen.getByRole("button", { name: "Add" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    fireEvent.change(to, { target: { value: "2026-10-15" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    await waitFor(() => expect(ds.createGoal).toHaveBeenCalledTimes(1));
+    expect(ds.createGoal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "Read two books",
+        periodKind: "week",
+        periodKey: "2026-09-27",
+        startDate: "2026-09-27",
+        endDate: "2026-10-15",
+      }),
+    );
   });
 
   it("ticking the last open todo flips the week goal to Achieved and writes the todo", async () => {
@@ -428,7 +489,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
       expect(ds.updateGoal).toHaveBeenCalledWith("w1", { parentGoalId: "m2" }),
     );
 
-    panel().getByRole("button", { name: "Open in Schedule: Book the review" });
+    panel().getByRole("button", { name: "Edit: Book the review" });
 
     fireEvent.click(panel().getByRole("button", { name: "Delete goal" }));
     fireEvent.click(
@@ -512,11 +573,30 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     ).toBeNull();
   });
 
-  it("sends a todo row to Schedule", async () => {
-    const { onNavigateToItem } = await renderTab();
-    fireEvent.click(
-      screen.getByRole("button", { name: "Open in Schedule: Long run" }),
+  it("edits a todo over the tab instead of leaving for Schedule (#2362)", async () => {
+    const ds = makeDS();
+    const { onNavigateToItem } = await renderTab(ds, "Goal tree", {
+      itemPanel: true,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Edit: Long run" }));
+    expect(screen.getByLabelText("Panel request").textContent).toBe(
+      JSON.stringify({ role: "task", id: "t7" }),
     );
+    expect(onNavigateToItem).not.toHaveBeenCalled();
+    // The tab stays and re-reads once the panel shuts.
+    const reads = vi.mocked(ds.fetchTodoTree).mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Close panel" }));
+    await waitFor(() =>
+      expect(vi.mocked(ds.fetchTodoTree).mock.calls.length).toBeGreaterThan(
+        reads,
+      ),
+    );
+    expect(screen.getByRole("region", { name: "Goal tree" })).toBeTruthy();
+  });
+
+  it("falls back to Schedule without an item panel", async () => {
+    const { onNavigateToItem } = await renderTab();
+    fireEvent.click(screen.getByRole("button", { name: "Edit: Long run" }));
     expect(onNavigateToItem).toHaveBeenCalledWith({ id: "t7", role: "task" });
   });
 

@@ -1,11 +1,30 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import {
+  SyncContext,
+  type WebSyncContextValue,
+} from "../context/SyncContextValue";
+import type { SyncDomain } from "../context/syncDomains";
 import type { DataService } from "../services/DataService";
 import {
   dropDomainSnapshot,
   readDomainSnapshot,
   writeDomainSnapshot,
   type DomainSnapshotKey,
+  type SnapshotFreshness,
 } from "../state/domainSnapshotStore";
+import {
+  isFullReadDue,
+  noteFullRead,
+  type ChangeCursor,
+  type ChangesRead,
+} from "../services/itemChanges";
 import { logServiceError } from "../utils/logError";
 
 /*
@@ -112,6 +131,45 @@ export interface UseDomainLoadOptions<T> {
    *   which every caller already is, since a Sync bump re-applies too.
    */
   snapshotKey?: DomainSnapshotKey;
+  /**
+   * Skip the read at mount when the snapshot is still current (#2328). Needs
+   * `snapshotKey`. List the Sync domains the read depends on — the same ones
+   * passed to `useSyncDomains` for `version`.
+   *
+   * A snapshot is current when the Provider is the same instance that was
+   * there when it was read and nothing it reported has moved those domains
+   * since (a Realtime bump, a dropped own-write echo). Realtime keeps a
+   * mounted section up to date, so a section the user left and came back to
+   * has no news to fetch. SyncProvider covers the gaps in the connection
+   * (#2329) by moving every domain, so a snapshot cannot outlive one.
+   *
+   * Leave it out where the caller needs the read to LAND — a restored
+   * selection or a goal list that waits on the fetch cannot run on a replay.
+   */
+  skipWhenFresh?: readonly SyncDomain[];
+  /**
+   * Called with the replayed data when the mount skipped its read, right
+   * after `apply`. For the state a caller otherwise only sets when a read
+   * lands (the Todo tree's diff baseline).
+   */
+  onFresh?: (data: T) => void;
+  /**
+   * Read only what changed since the last read (#2333). Needs `snapshotKey`:
+   * the list and its cursor live in that slot. `read` gets that slot's list as
+   * `base`, and a failure or a null answer falls back to `load` with no error
+   * shown, so a database without migration 0045 just keeps reading in full.
+   */
+  delta?: DomainDelta<T>;
+}
+
+export interface DomainDelta<T> {
+  /** Runs before `load`, so a change landing during the read is not skipped. */
+  readCursor: (dataService: DataService) => Promise<ChangeCursor | null>;
+  read: (
+    dataService: DataService,
+    cursor: ChangeCursor,
+    base: T,
+  ) => Promise<ChangesRead<T> | null>;
 }
 
 export interface DomainLoadState {
@@ -131,6 +189,52 @@ interface SettledLoad {
   dataService: DataService;
   version: number;
   anchor: string | number | undefined;
+}
+
+/**
+ * The Sync state a read taken now would be filed under (#2328). Undefined when
+ * the caller did not opt in or the Provider cannot say (a test stub).
+ */
+function freshnessOf(
+  sync: WebSyncContextValue | null,
+  domains: readonly SyncDomain[] | undefined,
+): SnapshotFreshness | undefined {
+  if (
+    domains === undefined ||
+    sync?.epoch === undefined ||
+    sync.getRevision === undefined
+  )
+    return undefined;
+  return { epoch: sync.epoch, revision: sync.getRevision(domains) };
+}
+
+/** One read: the delta when the snapshot allows it, otherwise the full one. */
+async function readDomain<T>(
+  { domain, load, delta, snapshotKey }: UseDomainLoadOptions<T>,
+  dataService: DataService,
+  anchor: string | number | undefined,
+): Promise<{ data: T; cursor?: ChangeCursor }> {
+  if (delta === undefined || snapshotKey === undefined) {
+    return { data: await load(dataService) };
+  }
+  const last = readDomainSnapshot<T>(snapshotKey, dataService, anchor);
+  if (last?.cursor !== undefined && !isFullReadDue(snapshotKey, last.cursor)) {
+    try {
+      const changed = await delta.read(dataService, last.cursor, last.data);
+      if (changed !== null) return changed;
+    } catch (e) {
+      logServiceError(domain, "delta", e);
+    }
+  }
+  let cursor: ChangeCursor | null = null;
+  try {
+    cursor = await delta.readCursor(dataService);
+  } catch {
+    // No cursor only means another full read next time.
+  }
+  const data = await load(dataService);
+  noteFullRead(snapshotKey);
+  return { data, cursor: cursor ?? undefined };
 }
 
 export function useDomainLoad<T>(
@@ -157,6 +261,23 @@ export function useDomainLoad<T>(
       : readDomainSnapshot<T>(snapshotKey, dataService, anchor),
   );
 
+  const sync = useContext(SyncContext);
+
+  /*
+   * Decided once, at mount, like the snapshot itself: the (service, version,
+   * anchor) whose read this mount may skip. Null means read as usual.
+   */
+  const [skip] = useState<SettledLoad | null>(() => {
+    const filed = snapshot?.fresh;
+    if (filed === undefined) return null;
+    const now = freshnessOf(sync, options.skipWhenFresh);
+    if (now === undefined) return null;
+    return now.epoch === filed.epoch && now.revision === filed.revision
+      ? { dataService, version, anchor }
+      : null;
+  });
+  const skipRef = useRef(skip);
+
   /*
    * A mount that found a snapshot counts as already settled for the load it is
    * about to fire. That single line is the behaviour change: `isLoading` is
@@ -177,6 +298,12 @@ export function useDomainLoad<T>(
   const latest = useRef(options);
   useEffect(() => {
     latest.current = options;
+  });
+  // Same mirror for the Sync value: the load effect reads the live store
+  // through it without a dependency that would restart the read.
+  const syncRef = useRef(sync);
+  useEffect(() => {
+    syncRef.current = sync;
   });
 
   /*
@@ -199,19 +326,41 @@ export function useDomainLoad<T>(
     // below still runs and puts the real list on screen.
     try {
       latest.current.apply(snapshot.data);
+      if (skip !== null) latest.current.onFresh?.(snapshot.data);
     } catch (e) {
       logServiceError(latest.current.domain, "replay", e);
       const key = latest.current.snapshotKey;
       if (key !== undefined) dropDomainSnapshot(key);
     }
-  }, [snapshot]);
+  }, [snapshot, skip]);
 
   useEffect(() => {
-    const { domain, load, apply, fallbackMessage } = latest.current;
+    // #2328: the one load this mount was allowed to skip. The ref keeps the
+    // allowance through StrictMode's second run of the same effect, and the
+    // first change of (service, version, anchor) spends it for good, so a
+    // date stepped away from and back to is read like any other.
+    const skipped = skipRef.current;
+    if (
+      skipped !== null &&
+      skipped.dataService === dataService &&
+      skipped.version === version &&
+      skipped.anchor === anchor
+    )
+      return;
+    skipRef.current = null;
+    const { domain, apply, fallbackMessage } = latest.current;
+    // Taken BEFORE the read starts: a change that lands while it is in flight
+    // moves the revision past this one, so the result is never filed as
+    // current when it may already be behind.
+    const fresh = freshnessOf(syncRef.current, latest.current.skipWhenFresh);
     let cancelled = false;
     void (async () => {
       try {
-        const data = await load(dataService);
+        const { data, cursor } = await readDomain(
+          latest.current,
+          dataService,
+          anchor,
+        );
         if (cancelled) return;
         apply(data);
         // #1101: remember it for the next mount. Deliberately after the
@@ -219,7 +368,7 @@ export function useDomainLoad<T>(
         // and storing it would hand the older list back at the next mount.
         const key = latest.current.snapshotKey;
         if (key !== undefined) {
-          writeDomainSnapshot(key, dataService, anchor, data);
+          writeDomainSnapshot(key, dataService, anchor, data, fresh, cursor);
         }
         // #296: un-latch. Without this one transient failure kept the error
         // card up for the rest of the session.
