@@ -34,6 +34,7 @@ const NEXT = "2026-10-21T11:00:00.000000+00:00";
 const cursor = (at = AT): ChangeCursor => ({
   at,
   seen: {},
+  settling: {},
   readAt: Date.now(),
 });
 
@@ -141,7 +142,7 @@ describe("useDomainLoad delta", () => {
     expect(delta.read).not.toHaveBeenCalled();
   });
 
-  it("reads in full when the last read is over a week old", async () => {
+  it("reads in full when the last full read is over a week old", async () => {
     const { ds, apply, delta, options } = setup();
     const stale = { ...cursor(), readAt: Date.now() - 8 * 86_400_000 };
     writeDomainSnapshot("notes", ds, undefined, ["base"], undefined, stale);

@@ -452,7 +452,7 @@ const SHAPES_BY_VERSION: Record<number, Record<string, string[]>> = {
 // #2333: each slot gained its delta cursor; the nodes kept their shape.
 SHAPES_BY_VERSION[2] = {
   ...SHAPES_BY_VERSION[1],
-  cursor: ["at", "readAt", "seen"],
+  cursor: ["at", "readAt", "seen", "settling"],
 };
 
 describe("persistent cache — stored node shapes (#2331)", () => {

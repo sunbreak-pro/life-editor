@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   DAILY_CHANGES,
   FULL_READ_EVERY_STARTS,
@@ -21,6 +21,7 @@ import {
   type ChangeCursor,
 } from "../src/services/itemChanges";
 import { ITEMS_META_COLUMNS } from "../src/services/itemsMeta";
+import { POSTGREST_PAGE_SIZE } from "../src/services/postgrestFetchAll";
 import type { TasksPayloadRow } from "../src/services/todoMapper";
 import type { TodoNode } from "../src/types/todoTree";
 
@@ -29,6 +30,10 @@ import type { TodoNode } from "../src/types/todoTree";
  * as a PostgREST-like string and counts `.from()` by table, because "no change
  * means no request to a payload table" is the line the Issue is judged on.
  */
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 const USER = "00000000-0000-0000-0000-000000000000";
 const OLD = "2026-10-21T00:00:00.000Z";
@@ -45,13 +50,14 @@ function fakeClient(answers: Record<string, Answer>) {
     count[table] = (count[table] ?? 0) + 1;
     const parts: string[] = [];
     let ids: string[] | null = null;
+    let page: [number, number] | null = null;
     const builder = {
       select: (columns: string) => (parts.push(`select=${columns}`), builder),
       gt: (c: string, v: string) => (parts.push(`${c}=gt.${v}`), builder),
       in: (_: string, chunk: string[]) => ((ids = chunk), builder),
       order: () => builder,
       limit: () => builder,
-      range: () => builder,
+      range: (lo: number, hi: number) => ((page = [lo, hi]), builder),
       then: (done: (r: unknown) => unknown) => {
         queries.push(`${table}?${parts.join("&")}`);
         const { rows = [], error = null } = answers[table] ?? {};
@@ -60,7 +66,10 @@ function fakeClient(answers: Record<string, Answer>) {
               ids?.includes((r as { item_id: string }).item_id),
             )
           : rows;
-        return Promise.resolve({ data: error ? null : data, error }).then(done);
+        const paged = page ? data.slice(page[0], page[1] + 1) : data;
+        return Promise.resolve({ data: error ? null : paged, error }).then(
+          done,
+        );
       },
     };
     return builder;
@@ -103,6 +112,7 @@ function node(id: string, updatedAt = OLD): TodoNode {
 const cursor = (at = T0, seen: Record<string, string> = {}): ChangeCursor => ({
   at,
   seen,
+  settling: {},
   readAt: 0,
 });
 
@@ -175,32 +185,11 @@ describe("the delta query", () => {
     expect(idsOf(read?.data ?? [])).toEqual(["task-1"]);
   });
 
-  it("re-reads a row until it has settled, as its payload write may still follow", async () => {
-    const young = new Date(Date.now() - SETTLE_MS + 5_000).toISOString();
-    const { client, count } = fakeClient({
-      items_meta: { rows: [meta("task-1", young)] },
-      tasks_payload: { rows: [payload("task-1")] },
-    });
-    const first = await fetchItemChanges(
-      client,
-      TODO_CHANGES,
-      cursor(young),
-      [],
-    );
-    expect(first?.cursor.seen).toEqual({});
-    await fetchItemChanges(
-      client,
-      TODO_CHANGES,
-      first?.cursor as ChangeCursor,
-      [],
-    );
-    expect(count.tasks_payload).toBe(2);
-  });
-
   it.each([
     ["42703", "items_meta"],
-    ["PGRST205", "items_meta_tombstones"],
     ["42P01", "items_meta_tombstones"],
+    ["PGRST204", "items_meta"],
+    ["PGRST205", "items_meta_tombstones"],
   ])(
     "answers null on %s from %s, and does not ask again",
     async (code, table) => {
@@ -219,13 +208,271 @@ describe("the delta query", () => {
     },
   );
 
-  it("throws on any other failure, so the hook can report and fall back", async () => {
+  it.each(["42703", "42P01", "PGRST204", "PGRST205"])(
+    "remembers %s from the cursor read too",
+    async (code) => {
+      const { client, queries } = fakeClient({
+        items_meta_tombstones: { error: { code, message: "missing" } },
+      });
+      expect(await readChangeCursor(client)).toBeNull();
+      const asked = queries.length;
+      expect(await readChangeCursor(client)).toBeNull();
+      expect(
+        await fetchItemChanges(client, TODO_CHANGES, cursor(), []),
+      ).toBeNull();
+      expect(queries).toHaveLength(asked);
+    },
+  );
+
+  // PGRST301 is an expired JWT: nothing about the schema, and gone by the next
+  // read. Remembering it would keep the delta off until a reload.
+  it.each(["PGRST301", "500"])(
+    "answers null on %s for this read only",
+    async (code) => {
+      const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+      const answers: Record<string, Answer> = {
+        items_meta: { error: { code, message: "boom" } },
+      };
+      const { client, count } = fakeClient(answers);
+      expect(
+        await fetchItemChanges(client, TODO_CHANGES, cursor(), []),
+      ).toBeNull();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("boom"));
+      expect(count.tasks_payload).toBeUndefined();
+
+      answers.items_meta = { rows: [meta("task-1", T1)] };
+      answers.tasks_payload = { rows: [payload("task-1")] };
+      const next = await fetchItemChanges(client, TODO_CHANGES, cursor(), []);
+      expect(idsOf(next?.data ?? [])).toEqual(["task-1"]);
+    },
+  );
+
+  it.each(["PGRST301", "500"])(
+    "lets the cursor read ask again after %s",
+    async (code) => {
+      const answers: Record<string, Answer> = {
+        items_meta_tombstones: { error: { code, message: "boom" } },
+      };
+      const { client } = fakeClient(answers);
+      expect(await readChangeCursor(client)).toBeNull();
+
+      answers.items_meta_tombstones = {};
+      answers.items_meta = { rows: [{ id: "a", changed_at: T1 }] };
+      expect((await readChangeCursor(client))?.at).toBe(T1);
+    },
+  );
+
+  it("throws when the payload read fails, so the hook can report and fall back", async () => {
     const { client } = fakeClient({
-      items_meta: { error: { code: "500", message: "boom" } },
+      items_meta: { rows: [meta("task-1", T1)] },
+      tasks_payload: { error: { code: "500", message: "boom" } },
     });
     await expect(
       fetchItemChanges(client, TODO_CHANGES, cursor(), []),
     ).rejects.toThrow(/boom/);
+  });
+
+  // A concurrent write can shift an offset, and the cursor would then move past
+  // the row it lost.
+  describe("when the changes do not fit one page", () => {
+    const manyMetas = (n: number) =>
+      Array.from({ length: n }, (_, i) =>
+        meta(`note-${i}`, T1, { role: "note" }),
+      );
+    const manyTombstones = (n: number) =>
+      Array.from({ length: n }, (_, i) => ({
+        id: `gone-${i}`,
+        deleted_at: T1,
+      }));
+
+    it.each([
+      ["items_meta", () => manyMetas(POSTGREST_PAGE_SIZE)],
+      ["items_meta", () => manyMetas(POSTGREST_PAGE_SIZE + 5)],
+      ["items_meta_tombstones", () => manyTombstones(POSTGREST_PAGE_SIZE)],
+      ["items_meta_tombstones", () => manyTombstones(POSTGREST_PAGE_SIZE + 5)],
+    ])("falls back to a full read on %s", async (table, rows) => {
+      const answers: Record<string, Answer> = { [table]: { rows: rows() } };
+      const { client, count } = fakeClient(answers);
+      expect(
+        await fetchItemChanges(client, TODO_CHANGES, cursor(), []),
+      ).toBeNull();
+      expect(count.tasks_payload).toBeUndefined();
+
+      // Only this read: the delta is not switched off.
+      answers[table] = {};
+      expect(
+        await fetchItemChanges(client, TODO_CHANGES, cursor(), []),
+      ).not.toBeNull();
+    });
+
+    it("still reads a delta one row short of a page", async () => {
+      const { client } = fakeClient({
+        items_meta: { rows: manyMetas(POSTGREST_PAGE_SIZE - 1) },
+        items_meta_tombstones: {
+          rows: manyTombstones(POSTGREST_PAGE_SIZE - 1),
+        },
+      });
+      expect(
+        await fetchItemChanges(client, TODO_CHANGES, cursor(), []),
+      ).not.toBeNull();
+    });
+  });
+});
+
+/*
+ * How long a row is read again is measured on this device alone, so it cannot
+ * depend on how far the device's clock is from the server's.
+ */
+describe("settling a row", () => {
+  function reader(
+    client: SupabaseClient,
+    start: ChangeCursor = cursor(T1),
+  ): {
+    at: (ms: number) => Promise<void>;
+    list: () => TodoNode[];
+    position: () => ChangeCursor;
+  } {
+    let list: TodoNode[] = [];
+    let position = start;
+    return {
+      at: async (ms) => {
+        vi.spyOn(Date, "now").mockReturnValue(ms);
+        const read = await fetchItemChanges(
+          client,
+          TODO_CHANGES,
+          position,
+          list,
+        );
+        if (read === null) throw new Error("expected a delta");
+        list = read.data;
+        position = read.cursor;
+      },
+      list: () => list,
+      position: () => position,
+    };
+  }
+
+  it.each([
+    ["20 seconds ahead of", 20_000],
+    ["an hour behind", -3_600_000],
+  ])(
+    "does not pin a stale payload on a device clock %s the server stamps",
+    async (_, skew) => {
+      const device = Date.parse(T2) + skew;
+      const answers: Record<string, Answer> = {
+        items_meta: { rows: [meta("task-1", T2)] },
+        tasks_payload: { rows: [payload("task-1", { sort_order: 1 })] },
+      };
+      const { client, count } = fakeClient(answers);
+      const read = reader(client);
+
+      // Read between the meta write and the payload write.
+      await read.at(device);
+      expect(read.list()[0].order).toBe(1);
+      expect(read.position().seen).toEqual({});
+      expect(read.position().settling).toEqual({
+        "task-1": { changedAt: T2, firstAt: device },
+      });
+
+      // The payload write lands, and does not move changed_at.
+      answers.tasks_payload = { rows: [payload("task-1", { sort_order: 2 })] };
+      await read.at(device + 5_000);
+      expect(read.list()[0].order).toBe(2);
+      expect(count.tasks_payload).toBe(2);
+
+      // Read once more at the end of the span, and only then taken as read.
+      await read.at(device + SETTLE_MS - 1);
+      expect(count.tasks_payload).toBe(3);
+      expect(read.position().seen).toEqual({});
+      await read.at(device + SETTLE_MS);
+      expect(count.tasks_payload).toBe(4);
+      expect(read.position().seen).toEqual({ "task-1": T2 });
+      expect(read.position().settling).toEqual({});
+
+      // Settled: no change, no payload request.
+      await read.at(device + 10 * SETTLE_MS);
+      expect(count.tasks_payload).toBe(4);
+      expect(read.list()[0].order).toBe(2);
+    },
+  );
+
+  it("reads a settling row after a long pause, rather than taking it as read", async () => {
+    const answers: Record<string, Answer> = {
+      items_meta: { rows: [meta("task-1", T2)] },
+      tasks_payload: { rows: [payload("task-1", { sort_order: 1 })] },
+    };
+    const { client } = fakeClient(answers);
+    const read = reader(client);
+    await read.at(1_000_000);
+    answers.tasks_payload = { rows: [payload("task-1", { sort_order: 2 })] };
+    await read.at(1_000_000 + 3_600_000);
+    expect(read.list()[0].order).toBe(2);
+    expect(read.position().seen).toEqual({ "task-1": T2 });
+  });
+
+  it("starts over when the row's changed_at moves", async () => {
+    const later = "2026-10-21T11:00:10.000000+00:00";
+    const answers: Record<string, Answer> = {
+      items_meta: { rows: [meta("task-1", T2)] },
+      tasks_payload: { rows: [payload("task-1")] },
+    };
+    const { client, count } = fakeClient(answers);
+    const read = reader(client);
+    await read.at(0);
+    await read.at(SETTLE_MS);
+    expect(read.position().seen).toEqual({ "task-1": T2 });
+
+    answers.items_meta = { rows: [meta("task-1", later)] };
+    await read.at(SETTLE_MS + 1);
+    expect(count.tasks_payload).toBe(3);
+    expect(read.position().seen).toEqual({});
+    expect(read.position().settling).toEqual({
+      "task-1": { changedAt: later, firstAt: SETTLE_MS + 1 },
+    });
+  });
+
+  it("starts over when the device clock was set back", async () => {
+    const { client, count } = fakeClient({
+      items_meta: { rows: [meta("task-1", T2)] },
+      tasks_payload: { rows: [payload("task-1")] },
+    });
+    const read = reader(client);
+    await read.at(1_000_000);
+    await read.at(5_000);
+    expect(read.position().settling["task-1"].firstAt).toBe(5_000);
+    await read.at(5_000 + SETTLE_MS);
+    expect(read.position().seen).toEqual({ "task-1": T2 });
+    expect(count.tasks_payload).toBe(3);
+  });
+
+  it("does not hold a row a much newer stamp has put outside the overlap", async () => {
+    const { client } = fakeClient({
+      items_meta: { rows: [meta("task-1", T1), meta("task-2", T2)] },
+      tasks_payload: { rows: [payload("task-1"), payload("task-2")] },
+    });
+    const read = reader(client, cursor(T0));
+    await read.at(0);
+    // T1 is 30 minutes older than T2, so this very read has its final payload.
+    expect(Object.keys(read.position().settling)).toEqual(["task-2"]);
+  });
+
+  it("settles what a full read's cursor named, then reads no payload", async () => {
+    const answers: Record<string, Answer> = {
+      items_meta: { rows: [meta("task-1", T2)] },
+      tasks_payload: { rows: [payload("task-1")] },
+    };
+    const { client, count } = fakeClient(answers);
+    vi.spyOn(Date, "now").mockReturnValue(0);
+    const first = await readChangeCursor(client);
+    expect(first?.settling).toEqual({
+      "task-1": { changedAt: T2, firstAt: 0 },
+    });
+
+    const read = reader(client, first as ChangeCursor);
+    await read.at(SETTLE_MS);
+    expect(count.tasks_payload).toBe(1);
+    await read.at(SETTLE_MS + 1);
+    expect(count.tasks_payload).toBe(1);
   });
 });
 
@@ -237,15 +484,17 @@ describe("the cursor", () => {
   });
 
   it("does not move backwards on an empty or older delta", () => {
-    expect(cursorFrom([], [], 0, T1)?.at).toBe(T1);
-    expect(cursorFrom([{ id: "a", changed_at: T0 }], [], 0, T1)?.at).toBe(T1);
+    expect(cursorFrom([], [], 0, cursor(T1))?.at).toBe(T1);
+    expect(
+      cursorFrom([{ id: "a", changed_at: T0 }], [], 0, cursor(T1))?.at,
+    ).toBe(T1);
   });
 
   it("tells microseconds apart", () => {
     const later = "2026-10-21T10:00:00.1239+00:00"; // same millisecond as T0
-    expect(cursorFrom([{ id: "a", changed_at: later }], [], 0, T0)?.at).toBe(
-      later,
-    );
+    expect(
+      cursorFrom([{ id: "a", changed_at: later }], [], 0, cursor(T0))?.at,
+    ).toBe(later);
   });
 
   it("is null for an empty table, and for an error", async () => {
@@ -257,7 +506,8 @@ describe("the cursor", () => {
     expect(await readChangeCursor(failed.client)).toBeNull();
   });
 
-  it("names the settled rows of the overlap, so the next read skips them", async () => {
+  it("holds the overlap's rows as settling, whatever the device clock says", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(Date.parse(T2) + 3_600_000);
     const { client } = fakeClient({
       items_meta: {
         rows: [
@@ -269,7 +519,54 @@ describe("the cursor", () => {
     });
     const read = await readChangeCursor(client);
     expect(read?.at).toBe(T2);
-    expect(Object.keys(read?.seen ?? {}).sort()).toEqual(["a", "b"]);
+    expect(read?.seen).toEqual({});
+    expect(Object.keys(read?.settling ?? {}).sort()).toEqual(["a", "b"]);
+  });
+
+  // The safety net is about the last full read. A delta on every day of the
+  // week must not keep pushing it back.
+  it("starts readAt at a full read and carries it through a delta", async () => {
+    vi.spyOn(Date, "now").mockReturnValue(5_000);
+    const { client } = fakeClient({
+      items_meta: { rows: [meta("task-1", T2)] },
+      tasks_payload: { rows: [payload("task-1")] },
+    });
+    const full = (await readChangeCursor(client)) as ChangeCursor;
+    expect(full.readAt).toBe(5_000);
+
+    vi.spyOn(Date, "now").mockReturnValue(9_000_000);
+    const delta = await fetchItemChanges(client, TODO_CHANGES, full, []);
+    expect(delta?.cursor.readAt).toBe(5_000);
+    expect(cursorFrom([], [], 9_000_000, full)?.readAt).toBe(5_000);
+  });
+
+  it("shares one request between callers that overlap", async () => {
+    const { client, count } = fakeClient({
+      items_meta: { rows: [{ id: "a", changed_at: T2 }] },
+    });
+    const [a, b, c] = await Promise.all([
+      readChangeCursor(client),
+      readChangeCursor(client),
+      readChangeCursor(client),
+    ]);
+    expect(count).toEqual({ items_meta: 1, items_meta_tombstones: 1 });
+    expect(a?.at).toBe(T2);
+    expect(b).toBe(a);
+    expect(c).toBe(a);
+
+    await readChangeCursor(client);
+    expect(count).toEqual({ items_meta: 2, items_meta_tombstones: 2 });
+  });
+
+  it("does not share a request between clients", async () => {
+    const one = fakeClient({});
+    const two = fakeClient({});
+    await Promise.all([
+      readChangeCursor(one.client),
+      readChangeCursor(two.client),
+    ]);
+    expect(one.count.items_meta).toBe(1);
+    expect(two.count.items_meta).toBe(1);
   });
 
   it("is not part of what the full reads select", () => {
@@ -365,6 +662,20 @@ describe("applying the changes", () => {
       expect(idsOf(out)).toEqual([id]);
     });
 
+    it("lets seen keep the row when it is newer than the delete", () => {
+      const out = apply([node(id)], [], [{ id, deleted_at: T1 }], [], {
+        [id]: T2,
+      });
+      expect(idsOf(out)).toEqual([id]);
+    });
+
+    it("lets the tombstone win when seen is older than the delete", () => {
+      const out = apply([node(id)], [], [{ id, deleted_at: T1 }], [], {
+        [id]: T0,
+      });
+      expect(out).toEqual([]);
+    });
+
     it("lets the tombstone win when the row is outside the changed set", () => {
       const tombstones = [{ id, deleted_at: T1 }];
       // T2 is what a device with a fast clock wrote: later than the delete.
@@ -412,7 +723,7 @@ describe("the safety net", () => {
 
   const recent = (): ChangeCursor => ({ ...cursor(), readAt: Date.now() });
 
-  it("asks for a full read when the last read is over a week old", () => {
+  it("asks for a full read when the last full read is over a week old", () => {
     expect(isFullReadDue("notes", recent())).toBe(false);
     const old = { ...cursor(), readAt: Date.now() - FULL_READ_MAX_AGE_MS - 1 };
     expect(isFullReadDue("notes", old)).toBe(true);
@@ -439,6 +750,13 @@ describe("migration 0045", () => {
     ),
     "utf8",
   ).replace(/\r\n/g, "\n");
+
+  // A volatile default would make add column rewrite the whole table.
+  it("defaults changed_at to a stable now(), and stamps it from the clock", () => {
+    const code = sql.replace(/--.*$/gm, "");
+    expect(code).toMatch(/changed_at timestamptz not null default now\(\)/);
+    expect(code).toContain("new.changed_at := clock_timestamp();");
+  });
 
   it("gives the tombstones no foreign key", () => {
     const table = sql.match(/create table[^;]+items_meta_tombstones[^;]+;/);

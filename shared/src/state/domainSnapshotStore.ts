@@ -258,7 +258,9 @@ function isChangeCursor(value: ChangeCursor | undefined): boolean {
     typeof value?.at === "string" &&
     typeof value.readAt === "number" &&
     typeof value.seen === "object" &&
-    value.seen !== null
+    value.seen !== null &&
+    typeof value.settling === "object" &&
+    value.settling !== null
   );
 }
 

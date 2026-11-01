@@ -9,8 +9,10 @@
 --   - items_meta.changed_at。BEFORE INSERT OR UPDATE のトリガーが
 --     clock_timestamp() を書くので、クライアントの値は上書きされる。
 --     updated_at には触れない（LWW と版の比較 #607 / #2057 を変えないため）。
---     既存の行は列の既定値で埋まる。既定値が volatile なので add column は
---     表を書き直す。
+--     既存の行は列の既定値 now() で埋まり、push の時刻で揃う。既定値を
+--     clock_timestamp() にしないのは、volatile な既定値だと add column が表を
+--     書き直すため。now() は stable なので書き直さない。以後の書き込みでは
+--     トリガーが clock_timestamp() を書く。
 --   - items_meta_tombstones。物理削除された行の id / role / 時刻だけを持つ。
 --     同じ id の 2 回目の削除は行を上書きする。user_id と role も書き直すのは、
 --     同じ id が別の role で作り直されたあとの削除でも、持ち主の RLS で正しく
@@ -61,7 +63,7 @@
 begin;
 
 alter table public.items_meta
-  add column if not exists changed_at timestamptz not null default clock_timestamp();
+  add column if not exists changed_at timestamptz not null default now();
 
 create index if not exists idx_items_meta_user_changed_at
   on public.items_meta (user_id, changed_at);
@@ -242,3 +244,66 @@ revoke all on function public.delete_my_account() from anon;
 grant execute on function public.delete_my_account() to authenticated;
 
 commit;
+
+-- ===========================================================================
+-- POST-APPLY VERIFICATION (push の後に流す。期待値つき):
+-- ===========================================================================
+-- A. 列の既定値が stable で、トリガーが 2 本ある
+--    select column_default from information_schema.columns
+--     where table_schema = 'public' and table_name = 'items_meta'
+--       and column_name = 'changed_at';
+--    -- expect: now()
+--    select tgname from pg_trigger
+--     where tgrelid = 'public.items_meta'::regclass
+--       and tgname in ('trg_items_meta_changed_at', 'trg_items_meta_record_tombstone')
+--     order by tgname;
+--    -- expect: 2 rows
+--
+-- B. 削除記録の表のポリシー（持ち主の select と delete の 2 本。insert / update
+--    は無い。書くのは SECURITY DEFINER のトリガーだけ）
+--    select policyname, cmd, qual like '%( SELECT auth.uid()%' as initplan
+--      from pg_policies
+--     where schemaname = 'public' and tablename = 'items_meta_tombstones'
+--     order by policyname;
+--    -- expect: 2 rows
+--    --   items_meta_tombstones_delete_own | DELETE | true
+--    --   items_meta_tombstones_select_own | SELECT | true
+--
+-- C. updated_at を書かない更新で changed_at だけが進み、authenticated が消すと
+--    記録が残り、他人には見えない。SQL Editor は postgres ロールで動くので、
+--    0041 の E と同じく authenticated に切り替えた 1 つの DO ブロックにまとめ、
+--    結果を詰めた例外で全体を巻き戻す（rollback は不要。A / B は実在しない
+--    uuid でよい — items_meta に auth.users への FK は無い）。トランザクションの
+--    中でも clock_timestamp() は進むので、同じブロックで比べられる。
+--    do $$
+--    declare
+--      c0 timestamptz; c1 timestamptz; u0 timestamptz; u1 timestamptz;
+--      own bigint; other bigint;
+--    begin
+--      set local role authenticated;
+--      perform set_config('request.jwt.claims',
+--        '{"sub":"00000000-0000-0000-0000-00000000000a","role":"authenticated"}', true);
+--      insert into public.items_meta (id, role, title)
+--        values ('task-tombstone-check', 'task', 'check');
+--      select changed_at, updated_at into c0, u0
+--        from public.items_meta where id = 'task-tombstone-check';
+--      update public.items_meta set title = 'check 2'
+--        where id = 'task-tombstone-check';
+--      select changed_at, updated_at into c1, u1
+--        from public.items_meta where id = 'task-tombstone-check';
+--      delete from public.items_meta where id = 'task-tombstone-check';
+--      select count(*) into own from public.items_meta_tombstones
+--        where id = 'task-tombstone-check';
+--      perform set_config('request.jwt.claims',
+--        '{"sub":"00000000-0000-0000-0000-00000000000b","role":"authenticated"}', true);
+--      select count(*) into other from public.items_meta_tombstones
+--        where id = 'task-tombstone-check';
+--      raise exception 'tombstone check (rolled back): moved=% kept=% own=% other=%',
+--        c1 > c0, u1 = u0, own, other;
+--    end $$;
+--    -- expect: ERROR P0001: tombstone check (rolled back): moved=t kept=t own=1 other=0
+--
+-- D. 退会の関数が新しい本体になっている
+--    select prosrc like '%items_meta_tombstones%' from pg_proc
+--     where proname = 'delete_my_account';
+--    -- expect: true
