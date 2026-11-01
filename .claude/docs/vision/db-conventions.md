@@ -98,6 +98,20 @@ partial UNIQUE 制約 (`uq_events_payload_routine_date` 等) を持つ relation/
 - ⚠️ レース窓: 事前 SELECT と INSERT の間に別パスが同じペアを入れると partial UNIQUE が 23505 を投げる → R2 cleanup（書いたばかりの items_meta を hard delete）にフォールバックする。**silent skip は throw しない**ので cleanup 対象外
 - R2 cleanup: payload INSERT が例外 (NW / RLS / 23505) で throw した場合のみ、INSERT 済 items_meta 群を `.in("id", ids)` で hard delete (孤児防止)
 
+### 10.9 差分の読み出し: `changed_at` と `items_meta_tombstones`（0045・#2333）
+
+`items_meta.changed_at` は BEFORE INSERT OR UPDATE のトリガーが `clock_timestamp()` で書きます。`updated_at` は端末の時計で書かれるので、差分の基準にしません（LWW と版の比較は今までどおり `updated_at` です）。物理削除は AFTER DELETE のトリガーが `items_meta_tombstones` に残します。読み手は `shared/src/services/itemChanges.ts` で、対象は Daily・Notes・Todo です。
+
+- **全件の読み出しは `changed_at` を選ばない**: web は merge で自動配布されるので、`db push` 前の本番でも一覧が動く必要があります。基準時刻は別の小さなクエリで取り、失敗したら全件読み出しのままにします。
+- **基準時刻と一覧は同じ snapshot の枠に入れる**: 別々に保存すると、基準時刻だけが一覧より新しくなり、その間の変更を失います。基準時刻は全件読み出しの**前**に取り、行と削除記録の新しいほうを取ります。
+- **payload だけを書くと `changed_at` は動かない**: §10.2 の bump を守っても、meta → payload の順の 2 リクエストのあいだに読むと古い payload を掴みます。そのため、この端末がその行の `changed_at` を初めて見てから、端末の時計で 15 秒たつまで読み直します。測るのは端末の時計どうしの差で、サーバーの時刻とは比べないので、端末の時計がずれていても長さは変わりません。payload がまだ無い行は、15 秒を過ぎても読み直しを続けます。§10.2 に反する経路は、前回の全件読み出しから 7 日たったときと起動 20 回に 1 回の全件読み出しで回収します。差分の読み出しではこの 7 日の起点が動かないので、毎日使う端末でも 7 日に 1 回は全件を読みます。
+- **差分が 1 ページに収まらなければ全件を読む**: ページ送りは位置（offset）で進むので、読むあいだの書き込みで行がページの境目を越えると取りこぼします。基準時刻はその行より先へ進み、取り戻せません。行か削除記録が `POSTGREST_PAGE_SIZE` 件以上あるときは、その回を全件読み出しにします。
+- **migration が無いと判断するのは 4 つのコードだけ**: `42703`・`42P01`・`PGRST204`・`PGRST205` のときだけ、そのセッションの差分を止めます。JWT の期限切れ（`PGRST301`）などは、その回だけ全件読み出しにします。
+- **同じ id の作り直し**は、削除記録と生きている行を並べます。`changed_at` が `deleted_at` より新しければ行が勝ちます。作り直された行の `changed_at` は必ず同じ読み出しの範囲に入るので、変更の中に無い id は記録が勝ちます。端末の時計で書かれた一覧の `updatedAt` とは比べません。
+- **`user_id` を持つ表なので `delete_my_account()` の消す対象に入ります**: `items_meta` を消すと記録が書かれるので、順番は `items_meta` の後です。書き出しファイルには載せません（同期の帳簿のため）。
+
+---
+
 ## 11. PostgREST list read のページ分割規約（#172）
 
 PostgREST は全 SELECT をサーバ側 `max-rows`（Supabase 既定 1000）で**無音切り捨て**する（known-issue 012 と同型の failure shape）。全件系の list read は `shared/src/services/postgrestFetchAll.ts` の helper 経由で書く。
@@ -178,6 +192,7 @@ Briefing の作り直し（計画書 = `docs/vision/plans/2026-10-03-briefing-go
 - **role の CHECK は名前付きになった**: 0008 の `check (role in (...))` は名前の無いインライン制約でした。0034 は `pg_constraint` から role を見る CHECK を引いて落とし、`items_meta_role_check` として張り直しています。次に role を足す migration は、この名前を落として張り直すだけで済みます
 - **`goals_payload` は §10.1 の 2 行分割に従う**: `updated_at` とソフトデリートの列は持たず、どちらも `items_meta` 側が持ちます（DB-Q2 の bump は `goalMapper.ts` の責務）。親の目標は `(parent_goal_id, parent_goal_role)` → `items_meta(id, role)` の複合 FK（`ON DELETE NO ACTION` = §10.4 と同じ）で、親は `goal` に限られます
 - **`carried_from_goal_id` だけは単一列の FK（`ON DELETE SET NULL`）**: 生成列を足して複合 FK にすると SET NULL が使えず（known-issue 021）、持ち越し元の目標を消せなくなるためです
+- **目標の期間は `start_date` / `end_date` で自由に決められる（0044・#2366）**: 2 列は両方あるか両方無く、終了日は開始日より前になりません（CHECK `goals_payload_date_range`）。無い目標は今までどおり `period_kind` / `period_key` の期間に従います。期間の種類と鍵は親子の段と達成の判定に使うので残し、範囲は「今日その目標を木に出すか」だけを変えます。1 期間 3 件の上限は DB に元から無く、#2366 で画面と MCP の側からも外しました
 - **`legacy_key` は部分 UNIQUE**（`(user_id, legacy_key) WHERE legacy_key IS NOT NULL`）: `note-goals` の文章を目標へ移すときに、同じ節を二重に移さないための印です
 - **`goal_todo_links` は関係の表なので `updated_at` とソフトデリートを自分で持つ**（`wiki_tag_connections` / `routine_group_assignments` と同じ形）。両端は `(goal_id, 'goal')` と `(todo_id, 'task')` の生成列つき複合 FK で、目標と Todo を取り違えた行を DB が拒否します。生きている行だけに部分 UNIQUE（`(goal_id, todo_id) WHERE is_deleted = false`）を張るので、外したつながりを後からつなぎ直せます。アイテム間リンクの `wiki_tag_connections` には入れません（入れると Connect のリンク一覧にノートのリンクと同じチップとして混ざるためです）
 - **`dailies_payload` に足した 3 列**: `evening_published_at`（夕刊を★で発行した時刻）と `evening_notes`（出来事の行に足した一言。jsonb のオブジェクト = 行の鍵 → 文）が 0034、`morning_comment`（Claude の朝刊の講評。jsonb の配列）が 0035 です。どれも型を CHECK で縛っています。講評は Daily の本文に書かず列に書き、列が無い古い日だけ本文の「朝刊」の節を読みます（D-20261007-briefing-1）

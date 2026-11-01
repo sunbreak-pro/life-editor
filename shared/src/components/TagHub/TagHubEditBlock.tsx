@@ -147,13 +147,13 @@ export function TagHubEditBlock({
               current={icon}
               color={color}
               onPick={(next) => onEdit({ icon: next })}
-              triggerLabel={labels.iconChange}
-              triggerClassName={CARD_BTN_TAP}
               labels={{
                 iconLabel: labels.iconLabel,
                 clearIconLabel: labels.iconClear,
                 searchLabel: labels.iconSearch,
                 noMatchLabel: labels.iconNoMatch,
+                moreLabel: labels.iconMore,
+                countLabel: labels.iconCount,
               }}
             />
           </div>

@@ -19,7 +19,10 @@ import {
 } from "./repeatSeriesWrites";
 import type { RepeatFailureReason } from "./useScheduleWriteErrors";
 
-export type { RepeatSaveFields } from "./useRepeatEditorMutations";
+export type {
+  RepeatSaveFields,
+  ConvertSavedToRepeat,
+} from "./useRepeatEditorMutations";
 
 /*
  * Schedule's repeat / scope machinery (#675, extracted from
@@ -223,8 +226,13 @@ export function useRepeatMutations(args: UseRepeatMutationsArgs) {
   } | null>(null);
 
   // The editor's repeat field (turn on / rhythm / turn off) — #1642 P3.
-  const { handleChangeRepeat, handleDetachRepeat, repeatConverting } =
-    useRepeatEditorMutations(args);
+  // #2406: and the creation panel's repeat, applied to the row it saved.
+  const {
+    handleChangeRepeat,
+    handleDetachRepeat,
+    convertSavedToRepeat,
+    repeatConverting,
+  } = useRepeatEditorMutations(args);
 
   /*
    * #279: apply the scope the user picked in the RepeatScopeDialog.
@@ -565,6 +573,7 @@ export function useRepeatMutations(args: UseRepeatMutationsArgs) {
     handleScopeChoose,
     handleChangeRepeat,
     handleDetachRepeat,
+    convertSavedToRepeat,
     repeatConverting,
   };
 }

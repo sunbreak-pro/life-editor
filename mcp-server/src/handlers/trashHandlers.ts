@@ -1,6 +1,5 @@
 import { getSupabase } from "../supabase.js";
 import { bumpMeta, type ItemRole } from "../utils/items.js";
-import { assertGoalRestorable } from "./goalHandlers.js";
 import { notFoundError } from "../errorCodes.js";
 
 /*
@@ -130,11 +129,6 @@ export async function restoreItem(args: { id: string }) {
       alreadyLive: true,
     };
   }
-
-  // A goal comes back only into a period with room: three live goals per
-  // period is the rule create_goal keeps (#2104), and the trash is the other
-  // way a fourth could appear.
-  if (meta.role === "goal") await assertGoalRestorable(meta.id);
 
   await bumpMeta(meta.id, meta.role, { is_deleted: false, deleted_at: null });
   return { id: meta.id, role: meta.role, title: meta.title, restored: true };

@@ -251,17 +251,12 @@ describe("create_goal", () => {
     expect(goal.id).toMatch(/^goal-/);
   });
 
-  it("refuses a fourth live goal in a period; a trashed one does not count", async () => {
-    install([{ id: "w1" }, { id: "w2" }, { id: "w-trashed", deleted: true }]);
-    await expect(
-      createGoal({ title: "third", period_kind: "week", date: DATE }),
-    ).resolves.toMatchObject({ periodKey: "2026-10-04" });
-
+  it("creates a fourth live goal in a period: there is no limit (#2366)", async () => {
     install([{ id: "w1" }, { id: "w2" }, { id: "w3" }]);
     await expect(
       createGoal({ title: "fourth", period_kind: "week", date: DATE }),
-    ).rejects.toThrow(/week 2026-10-04 already has 3 goals/);
-    expect(stub.writes()).toEqual([]);
+    ).resolves.toMatchObject({ periodKey: "2026-10-04" });
+    expect(stub.writes().some((w) => w.table === "goals_payload")).toBe(true);
   });
 
   it("only takes a parent one level up", async () => {

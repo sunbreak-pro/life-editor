@@ -31,9 +31,17 @@ import type { ItemLinkTarget } from "./itemLinkSuggestion";
  * that is actually about "[[": which lists make up the pool, and the shape the
  * suggestion menu reads.
  *
- * Note the deliberate difference from the palette's pool: EVENTS are absent.
- * A "[[" link opens through ITEM_NAV_TARGET, which has no event route, so
- * offering one would insert a link whose click does nothing.
+ * #2391 — EVENTS ARE IN THE POOL. They used to be left out because a link to one
+ * had nowhere to open, but the Schedule route has existed since #503 and the
+ * note header's "+" offers four kinds now. The row carries its `date` because
+ * that route cannot select an event without one. The body's "[[" menus still
+ * leave events out at their own edge (`offeredInBody`), since an itemLink node
+ * has no date to hand over.
+ *
+ * Holidays are not in it and cannot be: `japaneseHolidays` computes them for the
+ * calendar to draw, they have no `items_meta` row, and `item_links` can only
+ * point at a row. `fetchEvents` also skips dismissed occurrences, so a link that
+ * already points at one stays an unnamed chip.
  *
  * #1292 — SOFT-DELETED ROWS ARE IN THE POOL, flagged rather than dropped. The
  * pool used to skip them, which is correct for the two surfaces that OFFER a
@@ -69,19 +77,29 @@ const EMPTY: ItemLinkTarget[] = [];
 export function useItemLinkTargets(
   dataService: DataService | undefined,
 ): LoadItemLinkTargets {
-  const syncVersion = useSyncDomains("notes", "dailies", "todos");
+  const syncVersion = useSyncDomains("notes", "dailies", "todos", "schedule");
 
   const fetchPool = useCallback(async (): Promise<ItemLinkTarget[]> => {
     if (!dataService) return EMPTY;
-    const [notes, deletedNotes, dailies, deletedDailies, todos, deletedTodos] =
-      await Promise.all([
-        dataService.listNotesUnified(),
-        dataService.fetchDeletedNotesUnified(),
-        dataService.listDailiesUnified(),
-        dataService.fetchDeletedDailiesUnified(),
-        dataService.fetchTodoTree(),
-        dataService.fetchDeletedTodos(),
-      ]);
+    const [
+      notes,
+      deletedNotes,
+      dailies,
+      deletedDailies,
+      todos,
+      deletedTodos,
+      events,
+      deletedEvents,
+    ] = await Promise.all([
+      dataService.listNotesUnified(),
+      dataService.fetchDeletedNotesUnified(),
+      dataService.listDailiesUnified(),
+      dataService.fetchDeletedDailiesUnified(),
+      dataService.fetchTodoTree(),
+      dataService.fetchDeletedTodos(),
+      dataService.fetchEvents(),
+      dataService.fetchDeletedScheduleItems(),
+    ]);
     const next: ItemLinkTarget[] = [];
     for (const n of [...notes, ...deletedNotes]) {
       next.push({
@@ -105,6 +123,15 @@ export function useItemLinkTargets(
         label: todo.title || "(untitled)",
         role: "task",
         isDeleted: !!todo.isDeleted,
+      });
+    }
+    for (const event of [...events, ...deletedEvents]) {
+      next.push({
+        id: event.id,
+        label: event.title || "(untitled)",
+        role: "event",
+        date: event.date,
+        isDeleted: !!event.isDeleted,
       });
     }
     return next;
