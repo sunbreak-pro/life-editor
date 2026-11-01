@@ -1,5 +1,12 @@
 import type { DataService } from "./DataService";
 import { createSupabaseDataService } from "./SupabaseDataService";
+import {
+  createOfflineDataService,
+  createOutboxSender,
+  sessionOwner,
+  type OutboxSender,
+} from "./offlineDataService";
+import { getSupabaseClient } from "./supabaseClient";
 
 /*
  * Single source for the web/Electron/Capacitor DataService singleton.
@@ -18,13 +25,33 @@ import { createSupabaseDataService } from "./SupabaseDataService";
  * even in the suites — they build a typed fake with `stubDataService` /
  * `makeDS` and hand it to the unit under test, which is the same DI the hooks
  * already take.
+ *
+ * #2335: what hosts get is wrapped once with the outbox, so `useDomainLoad`'s
+ * identity check keeps seeing one object. The sender uses the unwrapped service.
  */
 
 let dataServiceSingleton: DataService | null = null;
+let outboxSender: OutboxSender | null = null;
 
 export function getDataService(): DataService {
   if (!dataServiceSingleton) {
-    dataServiceSingleton = createSupabaseDataService();
+    const inner = createSupabaseDataService();
+    const owner = sessionOwner(getSupabaseClient().auth);
+    const landed = new Set<string>();
+    const dropped = new Set<string>();
+    dataServiceSingleton = createOfflineDataService(
+      inner,
+      owner,
+      landed,
+      dropped,
+    );
+    outboxSender = createOutboxSender(inner, owner, landed, dropped);
   }
   return dataServiceSingleton;
+}
+
+/** Send what waits in the outbox. Resolves either way; `onSent` if any went. */
+export async function sendOutbox(onSent: () => void): Promise<void> {
+  getDataService();
+  await outboxSender?.run(onSent);
 }

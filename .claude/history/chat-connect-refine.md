@@ -1,5 +1,20 @@
 # HISTORY (chat-connect-refine)
 
+### 2026-11-01 - open PR の衝突を解消した（#2381 / #2382 / #2411 / #2418）
+
+#### 概要
+
+10-31 から 11-01 にかけて PR がまとめて merge され、open の PR が main と衝突した。自分の 2 本と、どの worktree も持っていない 2 本に main を取り込んだ。force push はしていない。
+
+#### 変更点
+
+- **#2382**: `GoalTreeView.tsx` で #2366 が消した 3 件の上限の変数を落とし、`hasCompleted` を残した。`goalTreeModel.test.ts` は両方の describe を残した。
+- **#2381**: #2367 が改名の鉛筆を編集アイコンに畳んだので、main に残っていた `formatRename` と `rename` の文言を落とし、#2365 の `dropHere` と #2366 の日付の文言を残した（en / ja / ラベル / テスト 2 本）。
+- **#2411**: `issue-prompter` の衝突を解いた。main との差分はモデル判定の 17 行の追加だけになった。
+- **#2418**: #2414 の squash 前のコミットの上に積まれていたため、4 ファイルが衝突して見えた。#2396 のコミットだけを main に載せ直し、2 親の merge commit にした。差分の統計は元のコミットと同じ（24 files / +1884 -664）。
+- **#2419**: schedule-refine が占有中なので触っていない。連絡は permission mode の違いで届かなかった。
+- **検証**: #2381 / #2382 / #2418 は CI の verify 全ステップと docs-lint がすべて exit 0。#2411 は docs-lint だけ回した（Markdown 1 ファイルの変更のため）。
+
 ### 2026-10-28 - 「目標と Todo」の 7 Issue を 1 Issue 1 PR で出した（#2362〜#2368）
 
 #### 概要

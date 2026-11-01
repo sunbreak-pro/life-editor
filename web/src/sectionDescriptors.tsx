@@ -206,6 +206,7 @@ export const SECTION_DESCRIPTORS: Readonly<
                   onConsumePendingEvent={nav.consumeItemNav}
                   onNavigateToItem={nav.navigateToItem}
                   onTodoDetailClose={nav.returnFromItem}
+                  onOpenTag={nav.openTagInConnect}
                 />
               </ScheduleItemsProvider>
             </RoutineProvider>

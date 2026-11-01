@@ -18,6 +18,9 @@ export {
   buildGoalTreeModel,
   goalProgress,
   goalParentOptions,
+  separateCompleted,
+  type GoalTreeCompleted,
+  type GoalTreeCompletedTodo,
   DEFAULT_GOAL_TREE_ARRANGEMENT,
   DEFAULT_GOAL_TREE_FILTER,
   GOAL_PERIOD_KINDS,
@@ -39,6 +42,7 @@ export {
 } from "./GoalTreeArrangePanel";
 export {
   GoalTreeView,
+  type GoalRowActions,
   type GoalTreeDragHandlers,
   type GoalTreeLabels,
   type GoalTreeViewProps,

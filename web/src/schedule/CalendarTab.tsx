@@ -103,6 +103,7 @@ export function CalendarTab({
   onConsumeTodoTray,
   onNavigateToItem,
   onTodoDetailClose,
+  onOpenTag,
 }: {
   dataService: DataService;
   /**
@@ -133,6 +134,8 @@ export function CalendarTab({
   onNavigateToItem?: (target: { id: string; role: string }) => void;
   /** The user closed the todo detail (#2143) — see ScheduleScreen. */
   onTodoDetailClose?: (todoId: string) => void;
+  /** 「タグの色を変える →」 in the event editor (#2407) — see ScheduleScreen. */
+  onOpenTag?: (tagId: string) => void;
 }) {
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
@@ -1026,6 +1029,8 @@ export function CalendarTab({
         // the same tag choice (#2005).
         onDuplicate: handleDuplicate,
         duplicateTagCount: selected ? tagCountOf(selected) : 0,
+        // #2407: the colour row's link to the tag on Connect.
+        onOpenTag,
       }}
       todoDetail={{
         todoId: todoDetailId,
@@ -1117,7 +1122,9 @@ export function CalendarTab({
       noteAttach={{
         notes: noteOptions,
         notesError,
-        onAttach: attachNote,
+        // The edit panel still attaches one note at a time (#2219); the
+        // create panel's attach takes a list since #2396.
+        onAttach: (itemId, draft) => attachNote(itemId, [draft]),
         onOpenChange: setNotePickerOpen,
       }}
     />

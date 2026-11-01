@@ -124,7 +124,8 @@
         "consequences": {
           "data": "Todo・ノート・デイリー・スケジュール・タグ・タイマー・サウンドをサーバーから削除します。",
           "login": "このメールアドレスでは二度とログインできなくなります。",
-          "irreversible": "ゴミ箱には入りません。取り消しも復元もできません。"
+          "irreversible": "ゴミ箱には入りません。取り消しも復元もできません。",
+          "outbox": "この端末に、送信していない Todo が {{n}} 件あります。アカウントと一緒に消えます。"
         },
         "typePrompt": "確認のため {{email}} と入力してください",
         "inputLabel": "メールアドレスの確認入力",
@@ -732,7 +733,9 @@
     "displayColorPick": "「{{name}}」の色をこのアイテムに使う",
     "displayColorDefaultHint": "既定は最初に付けたタグです",
     "displayColorFrom": "「{{name}}」タグの色で表示",
-    "displayColorNone": "タグが無いので、標準の色で表示します"
+    "displayColorNone": "タグが無いので、標準の色で表示します",
+    "displayColorByTag": "色はタグが決まります",
+    "displayColorEditTag": "タグの色を変える"
   },
   "itemConvert": {
     "toTodo": "Todo に変換",
@@ -786,7 +789,16 @@
     "notePickerNoMatch": "該当するノートがありません",
     "noteLinkHint": "下で追加・配置するアイテムにリンクします。",
     "attachedNote": "紐づけるノート",
-    "clearNote": "ノートを外す",
+    "noteCreateNew": "新規作成",
+    "notePickExisting": "既存から選ぶ",
+    "noteDismiss": "やめる",
+    "noteNewConfirm": "追加",
+    "notePickerTitle": "ノートを選ぶ",
+    "notePickerCount": "{{n}} 件を選択中",
+    "notePickerDone": "できた",
+    "noteLocked": "ロック中",
+    "attachedNotes": "添付したノート",
+    "removeNote": "「{{title}}」を外す",
     "noteAttachFailed": "ノートを紐づけられませんでした。いま追加したアイテムにはリンクされていません。",
     "title": "タイトル",
     "date": "日付",
@@ -1323,7 +1335,17 @@
     "quickActions": "クイック操作",
     "launchClaude": "Claude Code を起動",
     "profile": "プロフィールを編集",
-    "signOutPrompt": "サインアウトしますか？"
+    "signOutPrompt": "サインアウトしますか？",
+    "signOutPromptPending": "送信待ちの Todo が {{n}} 件あります。この端末に残り、同じアカウントで再びサインインすると送信します。別のアカウントからは見えません。サインアウトしますか？"
+  },
+  "offline": {
+    "message": "オフラインです。新しい Todo はこの端末に残し、回線が戻ると送信します。ほかの変更は保存されません。",
+    "pending": "送信待ちの Todo が {{n}} 件あります。",
+    "failed": "送信できなかった Todo が {{n}} 件あります。本文をコピーして残してください。",
+    "failedCopyManual": "送信できなかった Todo {{n}} 件の本文を自動でコピーできませんでした。下の本文を選んで手でコピーしてください。コピーすると、この端末から削除できます。",
+    "failedCopied": "送信できなかった Todo {{n}} 件の本文をコピーしました。この端末から削除できます。",
+    "copy": "本文をコピー",
+    "remove": "この端末から削除"
   },
   "itemRole": {
     "task": "Todo",
@@ -1500,6 +1522,7 @@
       "writeFailed": "目標を保存できませんでした。通信を確認して、もう一度操作してください。",
       "expand": "開く: {{title}}",
       "collapse": "閉じる: {{title}}",
+      "completedHeading": "完了済みのアイテム",
       "addTodo": "Todo",
       "addTodoLabel": "どの目標にもつながらない Todo を追加",
       "addTodoPlaceholder": "やることを書きます",
@@ -1508,7 +1531,10 @@
       "endDate": "終了日",
       "dateRange": "{{start}}〜{{end}}",
       "dropHere": "ここへ移す",
-      "rename": "名前を変える: {{title}}",
+      "edit": "目標を編集: {{title}}",
+      "addUnder": "下に追加: {{title}}",
+      "delete": "目標を削除: {{title}}",
+      "childGoal": "{{kind}}の目標",
       "moveTodoFailed": "Todo を移せませんでした。通信を確認して、もう一度操作してください。",
       "arrange": {
         "heading": "並び替え・絞り込み",

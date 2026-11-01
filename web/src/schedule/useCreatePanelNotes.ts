@@ -92,12 +92,69 @@ export interface UseCreatePanelNotesOptions {
  * never "linked to the wrong goal".
  */
 
-/** Notes offered by the picker: live notes, newest-touched first. */
+/**
+ * Notes offered by the picker: live notes, newest-touched first. #2396: a
+ * password-protected one carries `isLocked`, the same `hasPassword` the note
+ * list draws its lock from (NoteListRows), so the two agree on which notes
+ * are locked.
+ */
 function toOptions(notes: NoteNode[]): ItemCreateOption[] {
   return notes
     .filter((n) => !n.isDeleted)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .map((n) => ({ id: n.id, title: n.title }));
+    .map((n) =>
+      n.hasPassword
+        ? { id: n.id, title: n.title, isLocked: true }
+        : { id: n.id, title: n.title },
+    );
+}
+
+/** What reverses one attachment (or several, folded into one). */
+interface NoteReversal {
+  undo: () => Promise<void>;
+  redo: () => Promise<void>;
+}
+
+/**
+ * #2396: several notes' reversals as ONE command — the create's one undo
+ * takes every note it brought along. Each part remembers whether it is
+ * undone, so a reversal that half fails is safe to press again: the retry
+ * runs only the parts still standing, and none twice. Every part is tried
+ * before the first error is re-thrown (the manager keeps a throwing command
+ * where it was, #1668), so one bad link does not strand the others.
+ */
+export function foldNoteReversals(
+  parts: readonly NoteReversal[],
+): NoteReversal | null {
+  if (parts.length === 0) return null;
+  if (parts.length === 1) return parts[0];
+  const undone = parts.map(() => false);
+  const run = async (
+    order: number[],
+    wantUndone: boolean,
+    step: (part: NoteReversal) => Promise<void>,
+  ): Promise<void> => {
+    let failed = false;
+    let firstError: unknown = null;
+    for (const i of order) {
+      if (undone[i] === wantUndone) continue;
+      try {
+        await step(parts[i]);
+        undone[i] = wantUndone;
+      } catch (e) {
+        if (!failed) firstError = e;
+        failed = true;
+      }
+    }
+    if (failed) throw firstError;
+  };
+  const forward = parts.map((_, i) => i);
+  const backward = [...forward].reverse();
+  return {
+    // Last on, first off.
+    undo: () => run(backward, true, (p) => p.undo()),
+    redo: () => run(forward, false, (p) => p.redo()),
+  };
 }
 
 export function useCreatePanelNotes({
@@ -170,24 +227,16 @@ export function useCreatePanelNotes({
   }, [dataService, active, syncVersion]);
 
   /**
-   * Create the staged note if it is new, then link it to `itemId`, and hand
-   * back the pair that reverses both — or null when nothing is left to
-   * reverse (no draft, or the write failed and has been reported).
-   *
-   * CALL ONLY ONCE `itemId`'s ROW EXISTS (the create's `onSaved` / its
-   * `alongside`, not its return value) — see the ORDERING note at the top of
-   * this file. A failed attachment must not roll the item back, so it reports
-   * through `onAttachError` instead of throwing.
+   * Create ONE staged note if it is new, then link it to `itemId`, and hand
+   * back the pair that reverses both — or `"failed"` once the write failed
+   * (and a note this panel made has been trashed again). Says nothing itself:
+   * `linkNote` reports once for the whole set.
    */
-  const linkNote = useCallback(
+  const linkOne = useCallback(
     async (
       itemId: string,
-      draft: ItemCreateNoteDraft | null,
-    ): Promise<{
-      undo: () => Promise<void>;
-      redo: () => Promise<void>;
-    } | null> => {
-      if (!draft) return null;
+      draft: ItemCreateNoteDraft,
+    ): Promise<NoteReversal | "failed"> => {
       let createdNoteId: string | null = null;
       try {
         let noteId = draft.kind === "existing" ? draft.id : null;
@@ -209,7 +258,7 @@ export function useCreatePanelNotes({
           noteId = id;
           createdNoteId = id;
         }
-        if (!noteId) return null;
+        if (!noteId) return "failed";
         const linkedNoteId = noteId;
         const link = await createItemLink(itemId, linkedNoteId);
         /*
@@ -275,20 +324,53 @@ export function useCreatePanelNotes({
               ),
             );
         }
-        onAttachError();
-        return null;
+        return "failed";
       }
     },
-    [dataService, createItemLink, deleteItemLink, onAttachError],
+    [dataService, createItemLink, deleteItemLink],
   );
 
   /**
-   * Attach the staged note as its OWN history entry. For a write that is not
-   * a create — placing an existing todo — or a create whose layer cannot fold
-   * a companion in (the todo tree's).
+   * Create each staged note that is new, link every one of them to `itemId`,
+   * and hand back ONE pair that reverses them all — or null when nothing is
+   * left to reverse (none staged, or every write failed).
+   *
+   * CALL ONLY ONCE `itemId`'s ROW EXISTS (the create's `onSaved` / its
+   * `alongside`, not its return value) — see the ORDERING note at the top of
+   * this file. A failed attachment must not roll the item back, so it reports
+   * through `onAttachError` instead of throwing — and only once however many
+   * of the notes failed (#2396): the notes that did land stay linked, and a
+   * toast per note would stack up for one press.
+   *
+   * One after another rather than all at once, so the links land in the
+   * order the chips showed them.
+   */
+  const linkNote = useCallback(
+    async (
+      itemId: string,
+      drafts: readonly ItemCreateNoteDraft[],
+    ): Promise<NoteReversal | null> => {
+      if (drafts.length === 0) return null;
+      const reversals: NoteReversal[] = [];
+      let failed = false;
+      for (const draft of drafts) {
+        const result = await linkOne(itemId, draft);
+        if (result === "failed") failed = true;
+        else reversals.push(result);
+      }
+      if (failed) onAttachError();
+      return foldNoteReversals(reversals);
+    },
+    [linkOne, onAttachError],
+  );
+
+  /**
+   * Attach the staged notes as their OWN history entry. For a write that is
+   * not a create — placing an existing todo — or a create whose layer cannot
+   * fold a companion in (the todo tree's).
    */
   const attachNote = useCallback(
-    (itemId: string, draft: ItemCreateNoteDraft | null) => {
+    (itemId: string, drafts: readonly ItemCreateNoteDraft[]) => {
       // #2109: the staged goals ride the same call (todo paths only — the
       // event create goes through `attachNoteAlongside`, which never links
       // goals). No undo entry of their own: undoing the create trashes the
@@ -306,8 +388,10 @@ export function useCreatePanelNotes({
           toast?.showToast("danger", t("goalLink.createLinkFailed"));
         });
       }
-      if (!draft) return;
-      void linkNote(itemId, draft).then((reversal) => {
+      // AFTER the goal links on purpose: a todo can be made with goals and
+      // no note, and returning before them would drop the goals in silence.
+      if (drafts.length === 0) return;
+      void linkNote(itemId, drafts).then((reversal) => {
         if (reversal)
           push?.("scheduleItem", { label: "createScheduleItem", ...reversal });
       });
@@ -317,13 +401,13 @@ export function useCreatePanelNotes({
 
   /**
    * The same attach as the event create's companion (#1642 P6, N-08): the
-   * reversal goes back to the create, which records the event and its note as
-   * ONE command. As a second command it made the first Ctrl+Z take only the
-   * note off while the toast said the event's creation had been undone.
+   * reversal goes back to the create, which records the event and its notes
+   * as ONE command. As a second command it made the first Ctrl+Z take only
+   * the note off while the toast said the event's creation had been undone.
    */
   const attachNoteAlongside = useCallback(
-    (itemId: string, draft: ItemCreateNoteDraft | null) =>
-      linkNote(itemId, draft),
+    (itemId: string, drafts: readonly ItemCreateNoteDraft[]) =>
+      linkNote(itemId, drafts),
     [linkNote],
   );
 

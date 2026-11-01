@@ -9,7 +9,8 @@ export interface AddNodeOptions {
   skipUndo?: boolean;
   /**
    * Called once the write has settled: the new node when its row reached the
-   * DB, `null` when the sync failed or the guard dropped it (#376). `addNode`
+   * DB, `null` when the sync failed, the guard dropped it (#376) or it only went
+   * into the outbox and is not on the server yet (#2335). `addNode`
    * returns the optimistic node synchronously, and a caller that has to write
    * something referencing that row (an item link — `wiki_tag_connections`
    * carries an FK to `items_meta`) must wait for this instead.

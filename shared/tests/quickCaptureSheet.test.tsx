@@ -50,7 +50,14 @@ const LABELS: QuickCaptureLabels = {
   notePickerNoMatch: "No matching notes",
   noteLinkHint: "Linked to the item you add below.",
   attachedNote: "Note:",
-  clearNote: "Remove the note",
+  noteDismiss: "Never mind",
+  noteNewConfirm: "Stage note",
+  notePickerTitle: "Choose notes",
+  notePickerClose: "Close the picker",
+  notePickerCount: (n: number) => `${n} selected`,
+  notePickerDone: "Done",
+  noteLocked: "Locked",
+  removeNote: (title: string) => `Remove ${title}`,
 };
 
 /**
@@ -126,7 +133,7 @@ describe("QuickCaptureSheet", () => {
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Dentist",
       slot({ start: "09:00", end: "10:00" }),
-      null,
+      [],
     );
   });
 
@@ -142,7 +149,7 @@ describe("QuickCaptureSheet", () => {
     expect(onSubmitEvent).toHaveBeenCalledWith(
       "Gym",
       slot({ start: "19:00", end: "20:30" }),
-      null,
+      [],
     );
   });
 
@@ -156,7 +163,7 @@ describe("QuickCaptureSheet", () => {
     expect(onCreateTodo).toHaveBeenCalledWith(
       "Groceries",
       slot({ start: "09:00", end: "10:00" }),
-      null,
+      [],
     );
   });
 

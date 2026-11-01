@@ -174,7 +174,14 @@ const CREATE_LABELS: ScheduleOverlaysProps["create"]["labels"] = {
   notePickerNoMatch: "notePickerNoMatch",
   noteLinkHint: "noteLinkHint",
   attachedNote: "attachedNote",
-  clearNote: "clearNote",
+  noteDismiss: "noteDismiss",
+  noteNewConfirm: "noteNewConfirm",
+  notePickerTitle: "notePickerTitle",
+  notePickerClose: "notePickerClose",
+  notePickerCount: (n: number) => `notePickerCount:${n}`,
+  notePickerDone: "notePickerDone",
+  noteLocked: "noteLocked",
+  removeNote: (title: string) => `removeNote:${title}`,
 };
 
 const TAG_FILTER_PANEL: ScheduleOverlaysProps["tagFilter"]["panel"] = {

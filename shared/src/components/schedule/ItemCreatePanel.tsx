@@ -1,6 +1,17 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Check, ChevronDown, ChevronRight, Plus, X } from "lucide-react";
+import {
+  Check,
+  ChevronDown,
+  ChevronRight,
+  FilePlus,
+  FileSearch,
+  Lock,
+  Plus,
+  X,
+} from "lucide-react";
 import type { Goal } from "../../types/goal";
+import { useEscapeLayer } from "../../hooks/useDialogA11y";
+import { BottomSheet } from "../BottomSheet";
 import {
   GoalPickerField,
   type GoalPickerLabels,
@@ -77,6 +88,13 @@ import { seedFrequencyPatch } from "../../utils/routineFrequency";
  * repeat field is the event tab's alone. The new pieces are optional props:
  * a host that does not wire them gets the panel it had.
  *
+ * #2396 rebuilt the note section to the same proposal. 「ノートを添付」 opens
+ * a row of three buttons — 新規作成 (a title field, each confirmed title
+ * staged as a chip), 既存から選ぶ (a multi-select picker beside the dialog on
+ * Desktop, a sheet of its own on Mobile) and やめる — and every staged note
+ * shows as a chip under 「添付したノート」 with its own ×. The submit carries
+ * them all, as an array: `[]` is "attach nothing".
+ *
  * Both host frames (Modal / BottomSheet) unmount their children when closed, so
  * the local draft state re-seeds from the initial props on every open. When a
  * host keeps the panel open but changes the prefill (e.g. a different empty
@@ -94,15 +112,31 @@ export interface ItemCreateOption {
   /** Source TodoNode / NoteNode id. */
   id: string;
   title: string;
+  /**
+   * #2396: a password-protected note (`NoteNode.hasPassword`), drawn with a
+   * lock in the note picker — the same rule the note list follows. It can
+   * still be attached: the attachment is a link, and reads no body.
+   */
+  isLocked?: boolean;
 }
 
 /**
- * The note the panel will link to the item it creates. `new` still needs
+ * One note the panel will link to the item it creates. `new` still needs
  * creating (the host owns the write); `existing` is already an item id.
- * `null` at submit time means the user staged nothing.
+ * The submit carries them as an array since #2396 — `[]` means the user
+ * staged nothing.
  */
 export type ItemCreateNoteDraft =
   { kind: "new"; title: string } | { kind: "existing"; id: string };
+
+/**
+ * #2396: where 「既存から選ぶ」 opens the note picker. `side` is a 20rem
+ * panel beside the form (the host widens its frame while it is open — see
+ * `onNotePickerOpenChange`), `sheet` a BottomSheet over the Mobile sheet,
+ * and `inline` (the default, for a host that says nothing) a panel under the
+ * button row, inside the form's own width.
+ */
+export type ItemCreateNotePickerPlacement = "side" | "sheet" | "inline";
 
 export interface ItemCreatePanelLabels {
   /** Already-translated accessible name for the item-type tablist. */
@@ -148,26 +182,37 @@ export interface ItemCreatePanelLabels {
   /** Trigger label of that section, e.g. "Attach a note". */
   attachNote: string;
   /**
-   * Accessible name for the note section's new / existing radiogroup, and its
-   * two segment labels. Deliberately NOT `sourceLabel` / `sourceNew` /
-   * `sourceExisting`: on the todo tab both radiogroups are on screen at once,
-   * and two groups reading "How to add: New / From existing" would be one
-   * ambiguous control as far as a screen reader is concerned.
+   * #2396: accessible name of the note section's button row, and the texts
+   * of its 新規作成 / 既存から選ぶ / やめる buttons. Separate fields from
+   * `sourceLabel` / `sourceNew` / `sourceExisting` even when the words match:
+   * the row is its own named group, so on the todo tab a screen reader hears
+   * which of the two "new / existing" choices it is in.
    */
   noteSourceLabel: string;
   noteSourceNew: string;
   noteSourceExisting: string;
+  noteDismiss: string;
   noteTitleLabel: string;
   notePlaceholder: string;
+  /** The button beside the new-note title that stages it as a chip. */
+  noteNewConfirm: string;
   searchNotes: string;
   notePickerEmpty: string;
   notePickerNoMatch: string;
+  /** #2396: the note picker's heading, its ×, the count and the done. */
+  notePickerTitle: string;
+  notePickerClose: string;
+  /** "n 件を選択中" — the picker's running count. */
+  notePickerCount: (count: number) => string;
+  notePickerDone: string;
+  /** Spoken for the lock on a password-protected note. */
+  noteLocked: string;
   /** Explains that the note rides along with the event / todo being created. */
   noteLinkHint: string;
-  /** Heading of the staged-note row echoed once the section folds up. */
+  /** Caption of the staged notes' chips, 「添付したノート」. */
   attachedNote: string;
-  /** Accessible name for the button that unstages the note. */
-  clearNote: string;
+  /** Accessible name of a chip's ×, e.g. 「『議事録』を外す」. */
+  removeNote: (title: string) => string;
 }
 
 /**
@@ -325,11 +370,14 @@ const NEW_TODO = { id: "\u0000new-todo", done: false, isDeleted: false };
  * required-object shape makes that a compile error instead.
  */
 export interface ItemCreatePanelHandlers {
-  /** Fired with the trimmed (non-empty) title, the slot, and the staged note. */
+  /**
+   * Fired with the trimmed (non-empty) title, the slot, and the staged notes
+   * (#2396: every one of them, `[]` for none).
+   */
   onSubmitEvent: (
     title: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
   /**
    * Same payload as `onSubmitEvent`, but the host should follow the write by
@@ -344,19 +392,19 @@ export interface ItemCreatePanelHandlers {
   onSubmitEventAndOpen: (
     title: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
   /** Create a new todo scheduled into the chosen day + window. */
   onCreateTodo: (
     title: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
   /** Give an EXISTING todo the target day + window. */
   onPlaceTodo: (
     todoId: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
   /**
    * #2406: the todo tab's "and open" twins — the same writes as the two
@@ -367,12 +415,12 @@ export interface ItemCreatePanelHandlers {
   onCreateTodoAndOpen?: (
     title: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
   onPlaceTodoAndOpen?: (
     todoId: string,
     slot: ItemCreateSlot,
-    note: ItemCreateNoteDraft | null,
+    notes: readonly ItemCreateNoteDraft[],
   ) => void;
 }
 
@@ -401,6 +449,15 @@ export interface ItemCreatePanelProps {
   onCancel?: () => void;
   /** #2406: the event tab's repeat field. Omitted, no repeat is offered. */
   repeat?: ItemCreateRepeatField;
+  /** #2396: where the note picker opens. Default `inline`. */
+  notePicker?: ItemCreateNotePickerPlacement;
+  /**
+   * #2396: told when the note picker opens and closes (and `false` once more
+   * if the panel unmounts with it open). The Desktop frame widens itself
+   * while it is `true`, so the 20rem `side` panel sits beside the form
+   * instead of running off a narrow screen.
+   */
+  onNotePickerOpenChange?: (open: boolean) => void;
 }
 
 /**
@@ -436,38 +493,60 @@ const CANCEL_BTN = `shrink-0 rounded-lumen-md px-3 py-2 text-center text-sm font
 const HINT = "py-3 text-center text-xs text-lumen-text-secondary";
 
 /**
- * Search field + single-select list, shared by the todo and note pickers.
- * Capped height with its own scroll: a pool is the whole backlog, and letting
- * it grow would push the times and the submit button out of a Mobile sheet.
+ * Search field + list, shared by the todo and note pickers. Capped height
+ * with its own scroll: a pool is the whole backlog, and letting it grow would
+ * push the times and the submit button out of a Mobile sheet.
+ *
+ * Single-select by default (the todo picker: the picked todo IS what the
+ * submit acts on). #2396: `multi` turns it into the note picker's list — a
+ * check box on every row, `aria-multiselectable`, and a lock on a
+ * password-protected note.
  */
 function PickerList({
   options,
   query,
   onQueryChange,
-  pickedId,
+  isPicked,
   onPick,
   searchLabel,
   emptyLabel,
   noMatchLabel,
+  multi,
 }: {
   options: ItemCreateOption[];
   query: string;
   onQueryChange: (value: string) => void;
-  pickedId: string | null;
+  isPicked: (id: string) => boolean;
   onPick: (id: string) => void;
   searchLabel: string;
   emptyLabel: string;
   noMatchLabel: string;
+  multi?: {
+    /** The listbox's name. */
+    label: string;
+    /** Spoken for the lock on a locked row. */
+    lockedLabel: string;
+    /** Focus the search field on mount (the picker just opened). */
+    focusSearch?: boolean;
+    /** The list's height cap, which differs by where the picker sits. */
+    listClassName?: string;
+  };
 }) {
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return options;
     return options.filter((o) => o.title.toLowerCase().includes(q));
   }, [options, query]);
+  const searchRef = useRef<HTMLInputElement | null>(null);
+  const focusSearch = multi?.focusSearch ?? false;
+  useEffect(() => {
+    if (focusSearch) searchRef.current?.focus();
+  }, [focusSearch]);
 
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex min-h-0 flex-col gap-2">
       <input
+        ref={searchRef}
         value={query}
         onChange={(e) => onQueryChange(e.target.value)}
         placeholder={searchLabel}
@@ -481,33 +560,210 @@ function PickerList({
       ) : (
         <ul
           role="listbox"
-          className="max-h-44 overflow-y-auto rounded-lumen-md border border-lumen-border"
+          aria-label={multi?.label}
+          aria-multiselectable={multi ? true : undefined}
+          className={cn(
+            "overflow-y-auto rounded-lumen-md border border-lumen-border",
+            multi?.listClassName ?? "max-h-44",
+          )}
         >
-          {matches.map((option) => (
-            // `presentation` on the <li> so the button is the listbox's
-            // effective child: single-select semantics, not a row of toggles.
-            <li key={option.id} role="presentation">
-              <button
-                type="button"
-                role="option"
-                aria-selected={pickedId === option.id}
-                onClick={() => onPick(option.id)}
-                className={cn(
-                  "flex w-full items-center border-b border-lumen-border px-2.5 py-2 text-left text-sm transition-colors last:border-b-0",
-                  pickedId === option.id
-                    ? "bg-lumen-accent-subtle text-lumen-accent"
-                    : "text-lumen-text hover:bg-lumen-hover",
-                  FOCUS_RING_TIGHT,
-                )}
-              >
-                <span className="min-w-0 flex-1 truncate">{option.title}</span>
-              </button>
-            </li>
-          ))}
+          {matches.map((option) => {
+            const picked = isPicked(option.id);
+            return (
+              // `presentation` on the <li> so the button is the listbox's
+              // effective child: options of one list, not a row of toggles.
+              <li key={option.id} role="presentation">
+                <button
+                  type="button"
+                  role="option"
+                  aria-selected={picked}
+                  onClick={() => onPick(option.id)}
+                  data-locked={option.isLocked ? "" : undefined}
+                  className={cn(
+                    "flex w-full items-center gap-2 border-b border-lumen-border px-2.5 py-2 text-left text-sm transition-colors last:border-b-0",
+                    // A row of a multi list is a tap target of its own on a
+                    // phone (rules/frontend.md §Gotchas).
+                    multi && "max-md:min-h-11",
+                    picked && !multi
+                      ? "bg-lumen-accent-subtle text-lumen-accent"
+                      : "text-lumen-text hover:bg-lumen-hover",
+                    FOCUS_RING_TIGHT,
+                  )}
+                >
+                  {multi && (
+                    // Square, because it picks things (#2217: round marks a
+                    // state, square picks).
+                    <span
+                      aria-hidden
+                      className={cn(
+                        "flex size-4 shrink-0 items-center justify-center rounded-sm border",
+                        picked
+                          ? "border-lumen-accent bg-lumen-accent text-lumen-on-accent"
+                          : "border-lumen-border-strong bg-lumen-bg",
+                      )}
+                    >
+                      {picked && <Check className="size-3" />}
+                    </span>
+                  )}
+                  <span className="min-w-0 flex-1 truncate">
+                    {option.title}
+                  </span>
+                  {multi && option.isLocked && (
+                    <>
+                      <Lock
+                        aria-hidden
+                        className="size-3.5 shrink-0 text-lumen-text-secondary"
+                      />
+                      <span className="sr-only">{multi.lockedLabel}</span>
+                    </>
+                  )}
+                </button>
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>
   );
+}
+
+/**
+ * #2396: the note picker — search, a multi-select list, and a foot with the
+ * running count and 「できた」. The choice is a draft until 「できた」: the
+ * × (and Esc, and a Mobile backdrop press) closes it with the staged notes
+ * as they were, so the two exits mean two different things.
+ *
+ * The draft is seeded at mount, and the picker mounts on each opening, so it
+ * always starts from what is staged now.
+ */
+function NotePicker({
+  placement,
+  options,
+  initialIds,
+  labels,
+  onDone,
+  onClose,
+}: {
+  placement: ItemCreateNotePickerPlacement;
+  options: ItemCreateOption[];
+  initialIds: readonly string[];
+  labels: ItemCreatePanelLabels;
+  onDone: (ids: string[]) => void;
+  onClose: () => void;
+}) {
+  const [draft, setDraft] = useState<string[]>(() => [...initialIds]);
+  const [query, setQuery] = useState("");
+  const toggle = (id: string) =>
+    setDraft((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    );
+  // The sheet is a dialog of its own and takes Esc through its own layer;
+  // the side / inline panel borrows one, so Esc closes it and not the
+  // dialog around it.
+  useEscapeLayer({ open: placement !== "sheet", onEscape: onClose });
+
+  const body = (
+    <>
+      <PickerList
+        options={options}
+        query={query}
+        onQueryChange={setQuery}
+        isPicked={(id) => draft.includes(id)}
+        onPick={toggle}
+        searchLabel={labels.searchNotes}
+        emptyLabel={labels.notePickerEmpty}
+        noMatchLabel={labels.notePickerNoMatch}
+        multi={{
+          label: labels.notePickerTitle,
+          lockedLabel: labels.noteLocked,
+          // The sheet focuses its first control itself (useDialogA11y).
+          focusSearch: placement !== "sheet",
+          listClassName: placement === "inline" ? "max-h-44" : "max-h-72",
+        }}
+      />
+      <div className="flex items-center justify-between gap-2 border-t border-lumen-border pt-2">
+        <span
+          aria-live="polite"
+          className="text-xs tabular-nums text-lumen-text-secondary"
+        >
+          {labels.notePickerCount(draft.length)}
+        </span>
+        <button
+          type="button"
+          onClick={() => onDone(draft)}
+          className={cn(
+            "shrink-0 rounded-lumen-md bg-lumen-accent px-3 py-1.5 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11",
+            FOCUS_RING_ON_ACCENT,
+          )}
+        >
+          {labels.notePickerDone}
+        </button>
+      </div>
+    </>
+  );
+
+  if (placement === "sheet") {
+    // Over the full-screen create sheet: a second BottomSheet portals after
+    // the first, so it sits on top, and its backdrop press reaches only its
+    // own `onClose` (the first checks that the press landed on itself).
+    return (
+      <BottomSheet
+        open
+        onClose={onClose}
+        title={labels.notePickerTitle}
+        closeLabel={labels.notePickerClose}
+      >
+        <div className="flex flex-col gap-3" data-note-picker="sheet">
+          {body}
+        </div>
+      </BottomSheet>
+    );
+  }
+
+  return (
+    <section
+      aria-label={labels.notePickerTitle}
+      data-note-picker={placement}
+      className={cn(
+        "flex flex-col gap-3 rounded-lumen-md border border-lumen-border bg-lumen-bg p-3",
+        // 20rem beside the form, as in the proposal. The frame makes room.
+        placement === "side" && "w-80 shrink-0",
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <h3 className="text-sm font-semibold text-lumen-text">
+          {labels.notePickerTitle}
+        </h3>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={labels.notePickerClose}
+          className={cn(
+            "flex size-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:size-11",
+            FOCUS_RING_TIGHT,
+          )}
+        >
+          <X aria-hidden className="size-4" />
+        </button>
+      </div>
+      {body}
+    </section>
+  );
+}
+
+/** The three buttons of the note row (#2396), sized as one family. */
+const NOTE_ROW_BTN = `inline-flex items-center gap-1.5 rounded-lumen-md border border-lumen-border px-2.5 py-1 text-xs text-lumen-text transition-colors hover:bg-lumen-hover max-md:min-h-11 ${FOCUS_RING_TIGHT}`;
+
+/** One staged note, keyed for its chip. */
+interface StagedNote {
+  key: string;
+  draft: ItemCreateNoteDraft;
+}
+
+/** A staged note as its chip draws it. */
+interface NoteChip extends StagedNote {
+  title: string;
+  locked: boolean;
 }
 
 /**
@@ -674,7 +930,7 @@ function TagField({
  * IS what the submit acts on, and acting on something the user can no longer
  * see would be a silent surprise.
  *
- * The note picker deliberately does NOT go through this (see `pickedNote`): a
+ * The note picker deliberately does NOT go through this (see `noteChips`): a
  * staged note is carried across tabs and shown back as a chip, so it stays
  * visible after the query moves on.
  */
@@ -698,6 +954,8 @@ export function ItemCreatePanel({
   labels,
   onCancel,
   repeat: repeatField,
+  notePicker = "inline",
+  onNotePickerOpenChange,
 }: ItemCreatePanelProps) {
   // Unpacked back into the flat names the body has always used, so the bundles
   // (#893) stay a wire-format change and nothing below has to know about them.
@@ -736,23 +994,20 @@ export function ItemCreatePanel({
   const [todoQuery, setTodoQuery] = useState("");
   const [pickedTodoId, setPickedTodoId] = useState<string | null>(null);
 
-  // Collapsed by default (#1370) — see the header. The staged-note state below
-  // is independent of it, so folding the section up never drops the note.
+  // Collapsed by default (#1370) — see the header. The staged notes below are
+  // independent of it, so folding the row up never drops a note.
   const [noteOpen, setNoteOpen] = useState(false);
-  const [noteSource, setNoteSource] = useState<ItemCreateSource>("new");
+  // #2396: the new-note title field (新規作成) and the picker (既存から選ぶ).
+  const [newNoteOpen, setNewNoteOpen] = useState(false);
   const [noteTitle, setNoteTitle] = useState("");
-  const [noteQuery, setNoteQuery] = useState("");
-  const [pickedNoteId, setPickedNoteId] = useState<string | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  // Every staged note, in the order it was staged — the chips' order too.
+  const [stagedNotes, setStagedNotes] = useState<StagedNote[]>([]);
+  const newNoteKeyRef = useRef(0);
+  const existingNoteButtonRef = useRef<HTMLButtonElement | null>(null);
   const noteSectionId = useId();
 
   const pickedTodo = resolvePicked(existingTodos, todoQuery, pickedTodoId);
-  // By id alone, unlike the todo above: the note is staged, then the section
-  // folds up and the user submits the event / todo. Dropping it because the
-  // search box it was picked in still holds a narrower query would throw the
-  // attachment away between picking it and using it.
-  const pickedNote = pickedNoteId
-    ? (existingNotes.find((o) => o.id === pickedNoteId) ?? null)
-    : null;
   const placing = type === "task" && todoSource === "existing";
 
   // #2109: goals for a NEW todo only. Kept across tab switches like the other
@@ -790,22 +1045,112 @@ export function ItemCreatePanel({
     onStagedTagChange?.(stagedTagKey ? stagedTagKey.split("\n") : []);
   }, [onStagedTagChange, stagedTagKey]);
 
-  // What rides along with the create. A blank new-note title stages nothing —
-  // opening the section and changing your mind must not create an untitled item.
-  const stagedNoteTitle =
-    noteSource === "new" ? noteTitle.trim() : (pickedNote?.title ?? "");
-  const stagedNote: ItemCreateNoteDraft | null =
-    noteSource === "new"
-      ? stagedNoteTitle
-        ? { kind: "new", title: stagedNoteTitle }
-        : null
-      : pickedNote
-        ? { kind: "existing", id: pickedNote.id }
-        : null;
-  const clearNote = () => {
-    if (noteSource === "new") setNoteTitle("");
-    else setPickedNoteId(null);
+  /*
+   * #2396: what rides along with the create — every staged note. An existing
+   * one is resolved by id against the live pool (not through the picker's
+   * query: a staged note shows as a chip whatever the search said), and one
+   * the pool no longer holds is dropped rather than linked blind.
+   */
+  const notesById = useMemo(
+    () => new Map(existingNotes.map((o) => [o.id, o])),
+    [existingNotes],
+  );
+  const noteChips = stagedNotes.flatMap((s): NoteChip[] => {
+    if (s.draft.kind === "new")
+      return [
+        { key: s.key, title: s.draft.title, locked: false, draft: s.draft },
+      ];
+    const option = notesById.get(s.draft.id);
+    return option
+      ? [
+          {
+            key: s.key,
+            title: option.title,
+            locked: option.isLocked === true,
+            draft: s.draft,
+          },
+        ]
+      : [];
+  });
+  // A title typed in the open field but not yet confirmed still rides along,
+  // as the single draft did — the submit must not lose what is on screen. A
+  // blank one stages nothing: opening the field and changing your mind must
+  // not create an untitled note.
+  const pendingNoteTitle = noteOpen && newNoteOpen ? noteTitle.trim() : "";
+  const stagedDrafts: ItemCreateNoteDraft[] = [
+    ...noteChips.map((c) => c.draft),
+    ...(pendingNoteTitle
+      ? [{ kind: "new" as const, title: pendingNoteTitle }]
+      : []),
+  ];
+  const stagedExistingIds = noteChips.flatMap((c) =>
+    c.draft.kind === "existing" ? [c.draft.id] : [],
+  );
+
+  const stageNewNote = () => {
+    const trimmed = noteTitle.trim();
+    if (!trimmed) return;
+    newNoteKeyRef.current += 1;
+    const key = `new-${newNoteKeyRef.current}`;
+    setStagedNotes((prev) => [
+      ...prev,
+      { key, draft: { kind: "new", title: trimmed } },
+    ]);
+    // The field stays open for the next one.
+    setNoteTitle("");
   };
+  const unstageNote = (key: string) =>
+    setStagedNotes((prev) => prev.filter((s) => s.key !== key));
+  // 「できた」: the picked set becomes the staged existing notes — kept ones
+  // keep their place, new ones join at the end.
+  const commitPicked = (ids: readonly string[]) => {
+    setStagedNotes((prev) => {
+      const kept = prev.filter(
+        (s) => s.draft.kind === "new" || ids.includes(s.draft.id),
+      );
+      const have = new Set(
+        kept.flatMap((s) => (s.draft.kind === "existing" ? [s.draft.id] : [])),
+      );
+      return [
+        ...kept,
+        ...ids
+          .filter((id) => !have.has(id))
+          .map((id) => ({ key: id, draft: { kind: "existing" as const, id } })),
+      ];
+    });
+  };
+  const closePicker = () => {
+    setPickerOpen(false);
+    // Back to the button that opened it — the side panel leaves the page
+    // with the focus inside it. (The sheet restores its own opener too.)
+    existingNoteButtonRef.current?.focus();
+  };
+  // The note row's toggle. Folding it up confirms a typed title, so what was
+  // on screen becomes a chip rather than vanishing with the field.
+  const toggleNoteRow = () => {
+    if (noteOpen) {
+      if (newNoteOpen) stageNewNote();
+      setNewNoteOpen(false);
+      setPickerOpen(false);
+    }
+    setNoteOpen((v) => !v);
+  };
+  // 「やめる」: the row, the field and the picker close, and an unconfirmed
+  // title is dropped. The chips stay — each has its own ×.
+  const dismissNoteRow = () => {
+    setNoteOpen(false);
+    setNewNoteOpen(false);
+    setNoteTitle("");
+    setPickerOpen(false);
+  };
+
+  // #2396: tell the frame while the picker is open (so the Desktop overlay
+  // can widen for the side panel), and that it closed when the panel goes.
+  useEffect(() => {
+    if (!pickerOpen || !onNotePickerOpenChange) return;
+    onNotePickerOpenChange(true);
+    return () => onNotePickerOpenChange(false);
+  }, [pickerOpen, onNotePickerOpenChange]);
 
   // #2406: all-day is on both tabs now. #940 kept it to the event, on the
   // reading that a todo had no way to show it — but the tray's "add to today"
@@ -833,17 +1178,17 @@ export function ItemCreatePanel({
     handler: (
       t: string,
       s: ItemCreateSlot,
-      n: ItemCreateNoteDraft | null,
+      n: readonly ItemCreateNoteDraft[],
     ) => void,
   ) => {
     const trimmed = title.trim();
     if (!trimmed) return;
-    handler(trimmed, slot, stagedNote);
+    handler(trimmed, slot, stagedDrafts);
   };
   const submitPrimary = () => {
     if (placing) {
       if (!pickedTodo) return;
-      onPlaceTodo(pickedTodo.id, slot, stagedNote);
+      onPlaceTodo(pickedTodo.id, slot, stagedDrafts);
       return;
     }
     submitTitled(type === "event" ? onSubmitEvent : onCreateTodo);
@@ -857,7 +1202,7 @@ export function ItemCreatePanel({
         ? onPlaceTodoAndOpen
           ? () => {
               if (!pickedTodo) return;
-              onPlaceTodoAndOpen(pickedTodo.id, slot, stagedNote);
+              onPlaceTodoAndOpen(pickedTodo.id, slot, stagedDrafts);
             }
           : null
         : onCreateTodoAndOpen
@@ -878,294 +1223,369 @@ export function ItemCreatePanel({
   // What the footer needs before it can act.
   const canSubmit = placing ? !!pickedTodo : !!title.trim();
 
+  const picker = pickerOpen ? (
+    <NotePicker
+      placement={notePicker}
+      options={existingNotes}
+      initialIds={stagedExistingIds}
+      labels={labels}
+      onDone={(ids) => {
+        commitPicked(ids);
+        closePicker();
+      }}
+      onClose={closePicker}
+    />
+  ) : null;
+
+  // #2396: an outer row, always drawn, so the side picker can join the form
+  // without remounting it (a remount would drop the time field's own draft).
+  // Without the side picker the form is its only child and fills it.
   return (
-    <div className="flex flex-col gap-3">
-      <SegmentedControl
-        options={[
-          { id: "event", label: labels.typeEvent },
-          { id: "task", label: labels.typeTodo },
-        ]}
-        value={type}
-        onChange={(id) => setType(id as ItemCreateType)}
-        label={labels.typeLabel}
-      />
-      {type === "task" && (
-        <SegmentedToggle
+    <div className="flex items-start gap-4">
+      <div className="flex min-w-0 flex-1 flex-col gap-3">
+        <SegmentedControl
           options={[
-            { value: "new" as const, label: labels.sourceNew },
-            { value: "existing" as const, label: labels.sourceExisting },
+            { id: "event", label: labels.typeEvent },
+            { id: "task", label: labels.typeTodo },
           ]}
-          value={todoSource}
-          onChange={setTodoSource}
-          label={labels.sourceLabel}
+          value={type}
+          onChange={(id) => setType(id as ItemCreateType)}
+          label={labels.typeLabel}
         />
-      )}
-      {placing ? (
-        <PickerList
-          options={existingTodos}
-          query={todoQuery}
-          onQueryChange={setTodoQuery}
-          pickedId={pickedTodo?.id ?? null}
-          onPick={setPickedTodoId}
-          searchLabel={labels.searchTodos}
-          emptyLabel={labels.todoPickerEmpty}
-          noMatchLabel={labels.todoPickerNoMatch}
-        />
-      ) : (
-        <input
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
-          }}
-          placeholder={
-            type === "event" ? labels.eventPlaceholder : labels.todoPlaceholder
-          }
-          aria-label={labels.title}
-          className={FIELD}
-        />
-      )}
-      {/* Date, start, end and all-day on one line (#2406, the Claude Design
-          proposal; #940 had the times on a row of their own). The date input
-          keeps its own draft — changing it here books the item elsewhere
-          without moving the calendar the panel was opened from. Clearing it
-          back to blank restores the day the panel opened on, since a create
-          with no date is not a thing the user can mean.
-          On a narrow sheet the line wraps instead of overflowing: the bases
-          below are where a field gives its seat up to the next line (8rem +
-          11rem + the check + two gaps fit the 512px Modal's body, so Desktop
-          keeps one line; a phone puts the times on a second one), and
-          `min-w-0` on every column (#1036) is what keeps a column that stays
-          from flooring at the input's intrinsic width. */}
-      <div className="flex flex-wrap items-end gap-3">
-        {/* `appearance-none` + `min-w-0` on the input and the wider `gap-3`
-            are #1403's half of the same fix (see EventEditorPane). */}
-        <label className="flex min-w-0 flex-1 basis-32 flex-col gap-1.5">
-          <span className={FIELD_LABEL}>{labels.date}</span>
+        {type === "task" && (
+          <SegmentedToggle
+            options={[
+              { value: "new" as const, label: labels.sourceNew },
+              { value: "existing" as const, label: labels.sourceExisting },
+            ]}
+            value={todoSource}
+            onChange={setTodoSource}
+            label={labels.sourceLabel}
+          />
+        )}
+        {placing ? (
+          <PickerList
+            options={existingTodos}
+            query={todoQuery}
+            onQueryChange={setTodoQuery}
+            isPicked={(id) => pickedTodo?.id === id}
+            onPick={setPickedTodoId}
+            searchLabel={labels.searchTodos}
+            emptyLabel={labels.todoPickerEmpty}
+            noMatchLabel={labels.todoPickerNoMatch}
+          />
+        ) : (
           <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            onBlur={() => {
-              if (!date) setDate(initialDate);
-            }}
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
             }}
-            aria-label={labels.date}
-            className={cn(FIELD, "min-w-0 appearance-none tabular-nums")}
-          />
-        </label>
-        {/* #553: the shared TimeRangeField replaces the native time pair —
-            typed entry + snapped lists, and the range invariant lives there.
-            Hidden rather than disabled while all-day is on, matching
-            EventEditorPane: the check that hides them keeps the focus, and a
-            locked pair would leave the times looking authoritative while
-            nothing reads them. */}
-        {!isAllDay && (
-          <TimeRangeField
-            start={start}
-            end={end}
-            onChange={(next) => {
-              setStart(next.start);
-              setEnd(next.end);
-            }}
-            labels={{ start: labels.startTime, end: labels.endTime }}
-            formatDuration={formatDuration}
-            className="min-w-0 flex-[2] basis-44"
+            placeholder={
+              type === "event" ? labels.eventPlaceholder : labels.todoPlaceholder
+            }
+            aria-label={labels.title}
+            className={FIELD}
           />
         )}
-        <AllDayCheck
-          checked={allDay}
-          onToggle={() => setAllDay((v) => !v)}
-          label={labels.allDay}
-        />
-      </div>
-      {/* #2406: the repeat, for a new event only (see the header). "No
-          repeat" comes first and is where the field starts. */}
-      {type === "event" && repeatField && (
-        <FrequencyEditor
-          value={repeatDraft}
-          onChange={editRepeat}
-          onSelectNone={() => setRepeatDraft(null)}
-          weekdayLabels={repeatField.weekdayLabels}
-          labels={repeatField.labels}
-        />
-      )}
-      {/* Goals (#2109) — the same disclosure as the note below it, collapsed
-          by default for the same reason: most todos serve no goal. */}
-      {offersGoals && goalPool && (
-        <div className="flex flex-col gap-2 border-t border-lumen-border pt-2">
-          <button
-            type="button"
-            onClick={() => setGoalOpen((v) => !v)}
-            aria-expanded={goalOpen}
-            aria-controls={goalSectionId}
-            className={cn(
-              "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
-              FOCUS_RING_TIGHT,
-            )}
-          >
-            {goalOpen ? (
-              <ChevronDown aria-hidden className="size-3.5 shrink-0" />
-            ) : (
-              <ChevronRight aria-hidden className="size-3.5 shrink-0" />
-            )}
-            <span className="truncate">{goalPool.labels.attach}</span>
-          </button>
-          {goalOpen ? (
-            <div id={goalSectionId}>
-              <GoalPickerField
-                goals={goalPool.goals}
-                snapshot={goalPool.state}
-                todo={NEW_TODO}
-                baselineIds={[]}
-                selectedIds={goalIds}
-                onChange={setGoalIds}
-                labels={goalPool.labels}
-              />
-            </div>
-          ) : (
-            goalIds.length > 0 && (
-              <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2.5 py-1.5 text-sm text-lumen-text">
-                <span className={FIELD_LABEL}>{goalPool.labels.attached}</span>
-                {goalPool.goals
-                  .filter((g) => goalIds.includes(g.id))
-                  .map((g) => (
-                    <span key={g.id}>{g.title}</span>
-                  ))}
-              </p>
-            )
-          )}
-        </div>
-      )}
-      {/* Note attachment (#1370) — was a third tab; see the header. Placed
-          last because it is the optional extra: the fields the submit needs
-          stay at the top whether or not this is open. */}
-      <div className="flex flex-col gap-2 border-t border-lumen-border pt-2">
-        {/* #2220: tags on the left, the note trigger on the right, one line. */}
-        <div className="flex items-start gap-2">
-          {tagPool && (
-            <TagField pool={tagPool} selected={tagIds} onChange={setTagIds} />
-          )}
-          <button
-            type="button"
-            onClick={() => setNoteOpen((v) => !v)}
-            aria-expanded={noteOpen}
-            aria-controls={noteSectionId}
-            className={cn(
-              "flex items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
-              // Alone on its line it spans it, as before; beside the tags it
-              // keeps to its own width at the right end.
-              tagPool ? "shrink-0" : "w-full",
-              FOCUS_RING_TIGHT,
-            )}
-          >
-            {noteOpen ? (
-              <ChevronDown aria-hidden className="size-3.5 shrink-0" />
-            ) : (
-              <ChevronRight aria-hidden className="size-3.5 shrink-0" />
-            )}
-            <span className="truncate">{labels.attachNote}</span>
-          </button>
-        </div>
-        {noteOpen && (
-          <div id={noteSectionId} className="flex flex-col gap-2">
-            <SegmentedToggle
-              options={[
-                { value: "new" as const, label: labels.noteSourceNew },
-                {
-                  value: "existing" as const,
-                  label: labels.noteSourceExisting,
-                },
-              ]}
-              value={noteSource}
-              onChange={setNoteSource}
-              label={labels.noteSourceLabel}
+        {/* Date, start, end and all-day on one line (#2406, the Claude Design
+            proposal; #940 had the times on a row of their own). The date input
+            keeps its own draft — changing it here books the item elsewhere
+            without moving the calendar the panel was opened from. Clearing it
+            back to blank restores the day the panel opened on, since a create
+            with no date is not a thing the user can mean.
+            On a narrow sheet the line wraps instead of overflowing: the bases
+            below are where a field gives its seat up to the next line (8rem +
+            11rem + the check + two gaps fit the 512px Modal's body, so Desktop
+            keeps one line; a phone puts the times on a second one), and
+            `min-w-0` on every column (#1036) is what keeps a column that stays
+            from flooring at the input's intrinsic width. */}
+        <div className="flex flex-wrap items-end gap-3">
+          {/* `appearance-none` + `min-w-0` on the input and the wider `gap-3`
+              are #1403's half of the same fix (see EventEditorPane). */}
+          <label className="flex min-w-0 flex-1 basis-32 flex-col gap-1.5">
+            <span className={FIELD_LABEL}>{labels.date}</span>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              onBlur={() => {
+                if (!date) setDate(initialDate);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
+              }}
+              aria-label={labels.date}
+              className={cn(FIELD, "min-w-0 appearance-none tabular-nums")}
             />
-            {noteSource === "new" ? (
-              <input
-                value={noteTitle}
-                onChange={(e) => setNoteTitle(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !isImeComposing(e)) submitPrimary();
-                }}
-                placeholder={labels.notePlaceholder}
-                aria-label={labels.noteTitleLabel}
-                className={FIELD}
-              />
-            ) : (
-              <PickerList
-                options={existingNotes}
-                query={noteQuery}
-                onQueryChange={setNoteQuery}
-                pickedId={pickedNote?.id ?? null}
-                onPick={setPickedNoteId}
-                searchLabel={labels.searchNotes}
-                emptyLabel={labels.notePickerEmpty}
-                noMatchLabel={labels.notePickerNoMatch}
-              />
-            )}
-            {/* The note is an attachment, not a target — say so, or the submit
-                button below ("Add event") reads like a mistake. */}
-            <p className="text-xs text-lumen-text-secondary">
-              {labels.noteLinkHint}
-            </p>
-          </div>
+          </label>
+          {/* #553: the shared TimeRangeField replaces the native time pair —
+              typed entry + snapped lists, and the range invariant lives there.
+              Hidden rather than disabled while all-day is on, matching
+              EventEditorPane: the check that hides them keeps the focus, and a
+              locked pair would leave the times looking authoritative while
+              nothing reads them. */}
+          {!isAllDay && (
+            <TimeRangeField
+              start={start}
+              end={end}
+              onChange={(next) => {
+                setStart(next.start);
+                setEnd(next.end);
+              }}
+              labels={{ start: labels.startTime, end: labels.endTime }}
+              formatDuration={formatDuration}
+              className="min-w-0 flex-[2] basis-44"
+            />
+          )}
+          <AllDayCheck
+            checked={allDay}
+            onToggle={() => setAllDay((v) => !v)}
+            label={labels.allDay}
+          />
+        </div>
+        {/* #2406: the repeat, for a new event only (see the header). "No
+            repeat" comes first and is where the field starts. */}
+        {type === "event" && repeatField && (
+          <FrequencyEditor
+            value={repeatDraft}
+            onChange={editRepeat}
+            onSelectNone={() => setRepeatDraft(null)}
+            weekdayLabels={repeatField.weekdayLabels}
+            labels={repeatField.labels}
+          />
         )}
-        {/* Echoed exactly when the controls are off screen — the same rule the
-            tab layout used, and what keeps "clear the selection" reachable
-            after the section folds up. */}
-        {stagedNote && !noteOpen && (
-          <div className="flex items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2.5 py-1.5">
-            <span className={cn("shrink-0", FIELD_LABEL)}>
-              {labels.attachedNote}
-            </span>
-            <span className="min-w-0 flex-1 truncate text-sm text-lumen-text">
-              {stagedNoteTitle}
-            </span>
+        {/* Goals (#2109) — the same disclosure as the note below it, collapsed
+            by default for the same reason: most todos serve no goal. */}
+        {offersGoals && goalPool && (
+          <div className="flex flex-col gap-2 border-t border-lumen-border pt-2">
             <button
               type="button"
-              aria-label={labels.clearNote}
-              onClick={clearNote}
+              onClick={() => setGoalOpen((v) => !v)}
+              aria-expanded={goalOpen}
+              aria-controls={goalSectionId}
               className={cn(
-                "flex size-6 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
                 FOCUS_RING_TIGHT,
               )}
             >
-              <X aria-hidden className="size-4" />
+              {goalOpen ? (
+                <ChevronDown aria-hidden className="size-3.5 shrink-0" />
+              ) : (
+                <ChevronRight aria-hidden className="size-3.5 shrink-0" />
+              )}
+              <span className="truncate">{goalPool.labels.attach}</span>
             </button>
+            {goalOpen ? (
+              <div id={goalSectionId}>
+                <GoalPickerField
+                  goals={goalPool.goals}
+                  snapshot={goalPool.state}
+                  todo={NEW_TODO}
+                  baselineIds={[]}
+                  selectedIds={goalIds}
+                  onChange={setGoalIds}
+                  labels={goalPool.labels}
+                />
+              </div>
+            ) : (
+              goalIds.length > 0 && (
+                <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2.5 py-1.5 text-sm text-lumen-text">
+                  <span className={FIELD_LABEL}>{goalPool.labels.attached}</span>
+                  {goalPool.goals
+                    .filter((g) => goalIds.includes(g.id))
+                    .map((g) => (
+                      <span key={g.id}>{g.title}</span>
+                    ))}
+                </p>
+              )
+            )}
           </div>
         )}
-      </div>
-      {/* The footer acts on the active tab; opening the note section leaves it
-          alone. #2406: Cancel / Add and edit / Add, in the proposal's order,
-          on both tabs — the submit at the end the eye finishes on. */}
-      <div className="flex items-center gap-2">
-        {onCancel && labels.cancel && (
-          <button type="button" onClick={onCancel} className={CANCEL_BTN}>
-            {labels.cancel}
-          </button>
-        )}
-        {submitAndOpen && (
+        {/* Note attachment (#1370) — was a third tab; see the header. Placed
+            last because it is the optional extra: the fields the submit needs
+            stay at the top whether or not this is open. */}
+        <div className="flex flex-col gap-2 border-t border-lumen-border pt-2">
+          {/* #2220: tags on the left, the note trigger on the right, one line. */}
+          <div className="flex items-start gap-2">
+            {tagPool && (
+              <TagField pool={tagPool} selected={tagIds} onChange={setTagIds} />
+            )}
+            <button
+              type="button"
+              onClick={toggleNoteRow}
+              aria-expanded={noteOpen}
+              aria-controls={noteSectionId}
+              className={cn(
+                "flex items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                // Alone on its line it spans it, as before; beside the tags it
+                // keeps to its own width at the right end.
+                tagPool ? "shrink-0" : "w-full",
+                FOCUS_RING_TIGHT,
+              )}
+            >
+              {noteOpen ? (
+                <ChevronDown aria-hidden className="size-3.5 shrink-0" />
+              ) : (
+                <ChevronRight aria-hidden className="size-3.5 shrink-0" />
+              )}
+              <span className="truncate">{labels.attachNote}</span>
+            </button>
+          </div>
+          {/* #2396: the row of three — 新規作成 / 既存から選ぶ / やめる. The
+              trigger above opens and folds it. */}
+          {noteOpen && (
+            <div id={noteSectionId} className="flex flex-col gap-2">
+              <div
+                role="group"
+                aria-label={labels.noteSourceLabel}
+                className="flex flex-wrap items-center gap-2"
+              >
+                <button
+                  type="button"
+                  onClick={() => setNewNoteOpen((v) => !v)}
+                  aria-expanded={newNoteOpen}
+                  className={cn(
+                    NOTE_ROW_BTN,
+                    newNoteOpen && "border-lumen-accent text-lumen-accent",
+                  )}
+                >
+                  <FilePlus aria-hidden className="size-3.5 shrink-0" />
+                  {labels.noteSourceNew}
+                </button>
+                <button
+                  ref={existingNoteButtonRef}
+                  type="button"
+                  onClick={() => setPickerOpen((v) => !v)}
+                  aria-expanded={pickerOpen}
+                  aria-haspopup={notePicker === "sheet" ? "dialog" : undefined}
+                  className={cn(
+                    NOTE_ROW_BTN,
+                    pickerOpen && "border-lumen-accent text-lumen-accent",
+                  )}
+                >
+                  <FileSearch aria-hidden className="size-3.5 shrink-0" />
+                  {labels.noteSourceExisting}
+                </button>
+                <button
+                  type="button"
+                  onClick={dismissNoteRow}
+                  className={cn(
+                    "inline-flex items-center rounded-lumen-md px-2.5 py-1 text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
+                    FOCUS_RING_TIGHT,
+                  )}
+                >
+                  {labels.noteDismiss}
+                </button>
+              </div>
+              {newNoteOpen && (
+                <div className="flex items-center gap-2">
+                  <input
+                    value={noteTitle}
+                    onChange={(e) => setNoteTitle(e.target.value)}
+                    onKeyDown={(e) => {
+                      // #2396: Enter stages this title as a chip — it no longer
+                      // submits the panel, since several can be staged in a row.
+                      // Never the Enter that confirms an IME conversion.
+                      if (e.key === "Enter" && !isImeComposing(e)) {
+                        e.preventDefault();
+                        stageNewNote();
+                      }
+                    }}
+                    placeholder={labels.notePlaceholder}
+                    aria-label={labels.noteTitleLabel}
+                    className={cn(FIELD, "min-w-0 flex-1")}
+                  />
+                  <button
+                    type="button"
+                    onClick={stageNewNote}
+                    disabled={!noteTitle.trim()}
+                    className={cn(
+                      "shrink-0 rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm text-lumen-text transition-colors hover:bg-lumen-hover max-md:min-h-11",
+                      FOCUS_RING_TIGHT,
+                      DISABLED_OUTLINE_BTN,
+                    )}
+                  >
+                    {labels.noteNewConfirm}
+                  </button>
+                </div>
+              )}
+              {notePicker !== "side" && picker}
+              {/* The note is an attachment, not a target — say so, or the submit
+                  button below ("Add event") reads like a mistake. */}
+              <p className="text-xs text-lumen-text-secondary">
+                {labels.noteLinkHint}
+              </p>
+            </div>
+          )}
+          {/* #2396: every staged note as a chip, whether the row is open or
+              not — the chips are where a note is taken off again. */}
+          {noteChips.length > 0 && (
+            <div
+              data-attached-notes=""
+              className="flex flex-wrap items-center gap-1.5"
+            >
+              <span className={cn("shrink-0", FIELD_LABEL)}>
+                {labels.attachedNote}
+              </span>
+              {noteChips.map((chip) => (
+                <span
+                  key={chip.key}
+                  className="inline-flex min-w-0 max-w-full items-center gap-1 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary py-0.5 pl-2 pr-0.5 text-xs text-lumen-text"
+                >
+                  {chip.locked && (
+                    <Lock
+                      aria-hidden
+                      className="size-3 shrink-0 text-lumen-text-secondary"
+                    />
+                  )}
+                  <span className="min-w-0 truncate">{chip.title}</span>
+                  <button
+                    type="button"
+                    aria-label={labels.removeNote(chip.title)}
+                    onClick={() => unstageNote(chip.key)}
+                    className={cn(
+                      "flex size-5 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:size-11",
+                      FOCUS_RING_TIGHT,
+                    )}
+                  >
+                    <X aria-hidden className="size-3" />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+        {/* The footer acts on the active tab; opening the note section leaves it
+            alone. #2406: Cancel / Add and edit / Add, in the proposal's order,
+            on both tabs — the submit at the end the eye finishes on. */}
+        <div className="flex items-center gap-2">
+          {onCancel && labels.cancel && (
+            <button type="button" onClick={onCancel} className={CANCEL_BTN}>
+              {labels.cancel}
+            </button>
+          )}
+          {submitAndOpen && (
+            <button
+              type="button"
+              disabled={!canSubmit}
+              onClick={submitAndOpen}
+              className={SECONDARY_BTN}
+            >
+              {andOpenLabel}
+            </button>
+          )}
           <button
             type="button"
             disabled={!canSubmit}
-            onClick={submitAndOpen}
-            className={SECONDARY_BTN}
+            onClick={submitPrimary}
+            className={PRIMARY_BTN}
           >
-            {andOpenLabel}
+            {primaryLabel}
           </button>
-        )}
-        <button
-          type="button"
-          disabled={!canSubmit}
-          onClick={submitPrimary}
-          className={PRIMARY_BTN}
-        >
-          {primaryLabel}
-        </button>
+        </div>
       </div>
+      {notePicker === "side" && picker}
     </div>
   );
 }

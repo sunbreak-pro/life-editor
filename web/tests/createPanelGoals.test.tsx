@@ -91,7 +91,7 @@ describe("the creation panel's goal field (host)", () => {
 
     act(() => pool.onStagedChange(["w-plan", "w-book"]));
     await act(async () => {
-      h.hook.result.current.attachNote("task-new", null);
+      h.hook.result.current.attachNote("task-new", []);
     });
     expect(h.linkGoalTodo.mock.calls).toEqual([
       ["w-plan", "task-new"],
@@ -100,7 +100,7 @@ describe("the creation panel's goal field (host)", () => {
 
     // Consumed: a second todo created in the same opening links nothing.
     await act(async () => {
-      h.hook.result.current.attachNote("task-other", null);
+      h.hook.result.current.attachNote("task-other", []);
     });
     expect(h.linkGoalTodo).toHaveBeenCalledTimes(2);
   });
@@ -110,7 +110,7 @@ describe("the creation panel's goal field (host)", () => {
     await waitFor(() => expect(h.hook.result.current.goalPool).toBeDefined());
     act(() => h.hook.result.current.goalPool!.onStagedChange(["w-plan"]));
     await act(async () => {
-      h.hook.result.current.attachNote("task-new", null);
+      h.hook.result.current.attachNote("task-new", []);
     });
     await waitFor(() =>
       expect(h.showToast).toHaveBeenCalledWith(
@@ -139,7 +139,7 @@ describe("the creation panel's goal field (host)", () => {
     await waitFor(() => expect(h.hook.result.current.goalPool).toBeDefined());
     act(() => h.hook.result.current.goalPool!.onStagedChange(["w-plan"]));
     await act(async () => {
-      await h.hook.result.current.attachNoteAlongside("evt-1", null);
+      await h.hook.result.current.attachNoteAlongside("evt-1", []);
     });
     expect(h.linkGoalTodo).not.toHaveBeenCalled();
   });

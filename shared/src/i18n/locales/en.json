@@ -124,7 +124,8 @@
         "consequences": {
           "data": "Todos, notes, dailies, schedule, tags, timers and sounds are deleted from the server.",
           "login": "You will not be able to sign in with this address again.",
-          "irreversible": "Nothing goes to Trash. This cannot be undone or restored."
+          "irreversible": "Nothing goes to Trash. This cannot be undone or restored.",
+          "outbox": "Todos on this device that were never sent: {{n}}. They are erased with the account."
         },
         "typePrompt": "Type {{email}} to confirm",
         "inputLabel": "Email address confirmation",
@@ -734,7 +735,9 @@
     "displayColorPick": "Use \"{{name}}\" for this item's calendar colour",
     "displayColorDefaultHint": "Default: the tag added first",
     "displayColorFrom": "Shown in the colour of the \"{{name}}\" tag",
-    "displayColorNone": "No tags, so it is shown in the standard colour"
+    "displayColorNone": "No tags, so it is shown in the standard colour",
+    "displayColorByTag": "The colour comes from the tag",
+    "displayColorEditTag": "Change the tag's colour"
   },
   "itemConvert": {
     "toTodo": "Convert to Todo",
@@ -789,7 +792,16 @@
     "notePickerNoMatch": "No matching notes",
     "noteLinkHint": "Linked to whatever you add or place below.",
     "attachedNote": "Linked note",
-    "clearNote": "Remove the note",
+    "noteCreateNew": "New",
+    "notePickExisting": "Choose existing",
+    "noteDismiss": "Never mind",
+    "noteNewConfirm": "Add",
+    "notePickerTitle": "Choose notes",
+    "notePickerCount": "{{n}} selected",
+    "notePickerDone": "Done",
+    "noteLocked": "Locked",
+    "attachedNotes": "Attached notes",
+    "removeNote": "Remove \"{{title}}\"",
     "noteAttachFailed": "Couldn't link the note. It is not attached to what you just added.",
     "title": "Title",
     "date": "Date",
@@ -1334,7 +1346,17 @@
     "quickActions": "Quick actions",
     "launchClaude": "Start Claude Code",
     "profile": "Edit profile",
-    "signOutPrompt": "Sign out?"
+    "signOutPrompt": "Sign out?",
+    "signOutPromptPending": "Todos waiting to be sent: {{n}}. They stay on this device and are sent when this account signs in again. Another account cannot see them. Sign out?"
+  },
+  "offline": {
+    "message": "You are offline. A new Todo is kept on this device and sent when you are back online. Other changes are not saved.",
+    "pending": "Todos waiting to be sent: {{n}}.",
+    "failed": "Todos that could not be sent: {{n}}. Copy the text to keep it.",
+    "failedCopyManual": "The text of {{n}} Todos that could not be sent was not copied automatically. Select it below and copy it by hand. You can then remove them from this device.",
+    "failedCopied": "Copied the text of the Todos that could not be sent: {{n}}. You can now remove them from this device.",
+    "copy": "Copy text",
+    "remove": "Remove from this device"
   },
   "itemRole": {
     "task": "Todo",
@@ -1520,6 +1542,7 @@
       "writeFailed": "Could not save the goal. Check your connection and try again.",
       "expand": "Expand: {{title}}",
       "collapse": "Collapse: {{title}}",
+      "completedHeading": "Completed items",
       "addTodo": "Todo",
       "addTodoLabel": "Add a todo not linked to a goal",
       "addTodoPlaceholder": "What to do",
@@ -1528,7 +1551,10 @@
       "endDate": "To",
       "dateRange": "{{start}} – {{end}}",
       "dropHere": "Move here",
-      "rename": "Rename: {{title}}",
+      "edit": "Edit goal: {{title}}",
+      "addUnder": "Add under: {{title}}",
+      "delete": "Delete goal: {{title}}",
+      "childGoal": "{{kind}} goal",
       "moveTodoFailed": "Could not move the todo. Check your connection and try again.",
       "arrange": {
         "heading": "Sort & filter",
