@@ -5,6 +5,7 @@ import {
   screen,
   fireEvent,
   waitFor,
+  within,
 } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { SettingsScreen } from "../src/settings/SettingsScreen";
@@ -34,6 +35,7 @@ const EMAIL = "me@example.com";
 
 const state = vi.hoisted(() => ({
   signOut: vi.fn(),
+  outboxPending: 0,
   deleteAccount: vi.fn(),
   getSession: vi.fn(),
 }));
@@ -68,6 +70,7 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
     useTourContext: () => ({ restart: vi.fn() }),
     getSession: state.getSession,
     signOut: state.signOut,
+    getOutboxCounts: () => ({ pending: state.outboxPending, failed: 0 }),
     deleteAccount: state.deleteAccount,
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
       <>{children}</>
@@ -99,6 +102,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.getSession.mockResolvedValue({ user: { email: EMAIL } });
   state.signOut.mockResolvedValue({ error: null });
+  state.outboxPending = 0;
   state.deleteAccount.mockResolvedValue({ error: null });
 });
 
@@ -110,6 +114,35 @@ describe("SettingsScreen — signing out (#1200)", () => {
 
     expect(state.signOut).toHaveBeenCalledTimes(1);
     expect(state.deleteAccount).not.toHaveBeenCalled();
+  });
+
+  // #2335: nothing is lost by signing out, but the Todos stop going out.
+  it("says the count first when Todos wait to be sent", async () => {
+    state.outboxPending = 2;
+    await renderSettings();
+
+    press("settings.account.signOut.button");
+    expect(state.signOut).not.toHaveBeenCalled();
+    const dialog = await screen.findByRole("dialog");
+    expect(dialog.textContent).toContain("nav.signOutPromptPending|2");
+
+    fireEvent.click(
+      within(dialog).getByRole("button", {
+        name: "settings.account.signOut.button",
+      }),
+    );
+    await waitFor(() => expect(state.signOut).toHaveBeenCalledTimes(1));
+  });
+
+  it("stays signed in when that question is cancelled", async () => {
+    state.outboxPending = 1;
+    await renderSettings();
+
+    press("settings.account.signOut.button");
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "common.cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(state.signOut).not.toHaveBeenCalled();
   });
 });
 
@@ -124,6 +157,19 @@ describe("SettingsScreen — deleting the account (#1200)", () => {
     // The card's button OPENS the question. It must never be the thing that
     // answers it.
     expect(state.deleteAccount).not.toHaveBeenCalled();
+  });
+
+  // #2335: the text of unsent Todos exists nowhere else and goes with the account.
+  it("says how many unsent Todos go with it, only when there are any", async () => {
+    await renderSettings();
+    press("settings.account.delete.button");
+    const key = "settings.account.delete.consequences.outbox";
+    expect(screen.getByRole("dialog").textContent).not.toContain(key);
+    press("common.cancel");
+
+    state.outboxPending = 3;
+    press("settings.account.delete.button");
+    expect(screen.getByRole("dialog").textContent).toContain(`${key}|3`);
   });
 
   it("keeps the confirm inert until the address is typed back", async () => {

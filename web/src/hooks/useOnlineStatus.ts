@@ -1,10 +1,9 @@
 import { useSyncExternalStore } from "react";
 
 /*
- * Tracks the browser's online/offline connectivity (S7, migration SSOT:
- * "常時オンライン前提" — no Service Worker, no offline editing). The web
- * build assumes connectivity; this hook is the single source the global
- * OfflineBanner reads to decide whether to warn the user.
+ * Tracks the browser's online/offline connectivity (S7). This hook is the
+ * single source the global OfflineBanner reads to decide whether to warn the
+ * user.
  *
  * `navigator.onLine` + the `online`/`offline` window events form an
  * external store, so `useSyncExternalStore` is the canonical fit: React

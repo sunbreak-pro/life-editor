@@ -430,7 +430,8 @@ function SignOutControl({
           role="dialog"
           aria-labelledby={promptId}
           className={cn(
-            "absolute bottom-0 left-full z-50 ml-2 w-max",
+            // The prompt grows to a paragraph when Todos wait to be sent (#2335).
+            "absolute bottom-0 left-full z-50 ml-2 w-max max-w-xs",
             "rounded-lumen-md border border-lumen-border bg-lumen-bg p-3 shadow-lumen-lg",
           )}
         >
