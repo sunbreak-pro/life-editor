@@ -6,9 +6,9 @@
 
 ## 直近の完了
 
+- **#2335 圏外での Todo の追加（送信待ちの箱）— PR #2424 open** ✅（2026-11-01）: head `3ff0b83a`、local-ci 19/19。merge していない。#2334 は未着地なので対象は開いたままのタブだけ。実機の確認は chat-main。差分 +3131 / −63 で計画全体の ±500 行を超えており、判断は D-20261101-refactor-1 へ。#2336 / #2337 はこの merge 待ち
+- **#2333 変わった行だけ読む（0045）— PR #2416 merged** ✅（2026-11-01）: merge は 2026-11-01T09:27:22Z（`gh pr view` で確認）。0045 の db push はこうだいさんの作業で、Network の実ブラウザ確認は chat-main
 - **#2271 extension_apps の主キーを乱数の id に — PR #2274 merged・0042 push 済み** ✅（2026-10-18）: 0042 で `id uuid` を足して埋め、`(user_id, slug)` を UNIQUE に下げてから主キーを付け替えた。コードは id を読まず slug のまま。push 後に本番で主キー・UNIQUE・REPLICA IDENTITY の索引・RLS ゲートを読み取りで確かめ、#2271 にコメントした（Issue は close 済み）。Supabase の MCP はトークンが無く通らないので、確認は `supabase/.env` の接続先を使う `supabase db query --output csv --agent no` で引いた
-- **#2260 設定表 record_views とデータ層 — PR #2268 merged・0041 push 済み** ✅（2026-10-17）: 主キーは乱数の `id`、`(user_id, kind, unit)` は UNIQUE（D-20261017-main-2 で確定）。0041 の push 結果の確認コメントは 2026-10-18 に #2260 へ付いている
-- **#2259 集計に occurredAt と latest — PR #2267 merged** ✅（2026-10-17）: #2261（mcp-tools）と #2262（analytics-refine）の前提が着地した
 
 ## 予定
 
