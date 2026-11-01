@@ -637,6 +637,7 @@
       "save": "Save"
     },
     "links": {
+      "openAction": "Open",
       "panelLabel": "Links",
       "add": "Add link",
       "pickerDialog": "Link picker",
@@ -647,10 +648,19 @@
       "countLabel": "Links: {{total}}",
       "linkedHeading": "Linked",
       "chipName": "{{kind}}: {{title}}",
-      "openChip": "Open {{kind}}: {{title}}",
       "open": "Open {{title}}",
       "remove": "Remove link with {{title}}",
-      "deletedTarget": "{{title}} (deleted)"
+      "deletedTarget": "{{title}} (deleted)",
+      "unlink": "Remove link",
+      "unlinked": "Removed the link with “{{title}}”. Undo in the header brings it back.",
+      "previewLoading": "Loading…",
+      "previewFailed": "Couldn't load the details.",
+      "previewUnavailable": "This item can't be opened from here.",
+      "noteUpdated": "Updated {{when}}",
+      "dailyMood": "{{date}} · Mood {{mood}}/5",
+      "todoDone": "Done",
+      "todoNotStarted": "Not started",
+      "todoWhen": "{{status}} · {{when}}"
     },
     "related": {
       "open": "Show related",
@@ -858,7 +868,10 @@
     "monthCreateOn": "Add on {{date}}",
     "monthShowAllOn": "Show the rest of {{date}}",
     "monthMoreTitle": "The rest of {{date}}",
-    "openInSchedule": "Open in Schedule",
+    "openInSchedule": "View in schedule",
+    "linkFocusTodoMarked": "Outlined the todo \"{{title}}\"",
+    "linkFocusEventMarked": "Outlined the event \"{{title}}\"",
+    "linkFocusTodoInPanel": "The todo \"{{title}}\" is in the right panel",
     "quickAddPlaceholder": "Enter an event…",
     "detailTitle": "Event details",
     "detailPanelLabel": "Detail panel",
@@ -1236,6 +1249,7 @@
       "softDeleteNote": "note deletion",
       "assignTag": "adding a tag",
       "unassignTag": "removing a tag",
+      "removeItemLink": "removing a link",
       "workCreateTodo": "adding a Todo from the work name",
       "workPendingEvent": "filing the work name as an event"
     }

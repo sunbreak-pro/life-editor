@@ -636,6 +636,7 @@
       "save": "保存"
     },
     "links": {
+      "openAction": "開く",
       "panelLabel": "リンク",
       "add": "リンクを追加",
       "pickerDialog": "リンク先を選ぶ",
@@ -646,10 +647,19 @@
       "countLabel": "リンク {{total}} 件",
       "linkedHeading": "リンク済み",
       "chipName": "{{kind}}「{{title}}」",
-      "openChip": "{{kind}}「{{title}}」を開く",
       "open": "{{title}} を開く",
       "remove": "{{title}} とのリンクを削除",
-      "deletedTarget": "{{title}}（削除済み）"
+      "deletedTarget": "{{title}}（削除済み）",
+      "unlink": "リンクを外す",
+      "unlinked": "「{{title}}」とのリンクを外しました。ヘッダーの「元に戻す」で戻せます。",
+      "previewLoading": "読み込み中…",
+      "previewFailed": "詳細を読み込めませんでした。",
+      "previewUnavailable": "このアイテムはここから開けません。",
+      "noteUpdated": "{{when}} 更新",
+      "dailyMood": "{{date}}・気分 {{mood}}/5",
+      "todoDone": "完了",
+      "todoNotStarted": "未着手",
+      "todoWhen": "{{status}}・{{when}}"
     },
     "related": {
       "open": "関連を開く",
@@ -853,7 +863,10 @@
     "monthCreateOn": "{{date}} に追加",
     "monthShowAllOn": "{{date}} の残りの予定を表示",
     "monthMoreTitle": "{{date}} の残りの予定",
-    "openInSchedule": "予定の画面で開く",
+    "openInSchedule": "予定で見る",
+    "linkFocusTodoMarked": "Todo『{{title}}』を枠で示しています",
+    "linkFocusEventMarked": "予定『{{title}}』を枠で示しています",
+    "linkFocusTodoInPanel": "Todo『{{title}}』を右のパネルに出しています",
     "quickAddPlaceholder": "予定を入力…",
     "detailTitle": "予定の詳細",
     "detailPanelLabel": "詳細パネル",
@@ -1227,6 +1240,7 @@
       "softDeleteNote": "ノートの削除",
       "assignTag": "タグの追加",
       "unassignTag": "タグの削除",
+      "removeItemLink": "リンクの解除",
       "workCreateTodo": "作業名から Todo を追加",
       "workPendingEvent": "作業名を予定として記録"
     }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from "react";
 import { useNotesUnifiedContext, type DataService } from "@life-editor/shared";
 import { useItemLinkTargets } from "../useItemLinkTargets";
+import { useItemLinkPreview } from "../useItemLinkPreview";
 import { useInlineItemLinks } from "../../hooks/useInlineItemLinks";
 
 /*
@@ -47,6 +48,8 @@ export function useNoteLinking({
   // is why a Note→Todo link can now be made and read by title. A loader, not a
   // list: nothing is fetched until a surface actually opens (#430).
   const loadLinkTargets = useItemLinkTargets(dataService);
+  // What a link chip's panel shows, read one item at a time (#2392).
+  const linkPreviews = useItemLinkPreview(dataService);
 
   /*
    * A link click from another tab lands here with a pending note id — select
@@ -81,6 +84,7 @@ export function useNoteLinking({
   return {
     resolveTitle,
     loadLinkTargets,
+    linkPreviews,
     handleResolvedLinkInserted: mirrorInlineLink,
     handleBodySaved: syncSavedBody,
     handleCreateNoteForLink,

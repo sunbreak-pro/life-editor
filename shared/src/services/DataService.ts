@@ -80,6 +80,11 @@ import type {
 export interface TodosDataService {
   fetchTodoTree(): Promise<TodoNode[]>;
   /**
+   * One live todo by id (#2392), for a surface that wants a single row without
+   * paying for the whole tree. `null` = no such live todo.
+   */
+  getTodoById(id: string): Promise<TodoNode | null>;
+  /**
    * Live, unfinished todo count for the badge (#511) — a number, not a
    * list, so the read carries no row bodies. Meaning of the number:
    * materials/materialsCounts.ts.
