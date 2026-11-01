@@ -173,3 +173,11 @@ refactor-core の担当分 2 本を出しました。どちらもローカルで
 **Issue の起票をお願いします（範囲外なので直していません）。** migration の監査で、0039 の `extension_apps` は主キーが `(user_id, slug)` のまま Realtime の配信に入っていると分かりました。上と同じ漏れで、台帳の行を消すたびに uuid と拡張アプリの slug が全購読者に届きえます。直すなら、乱数の id を主キーに足して `(user_id, slug)` を UNIQUE に下げる migration になります。そうすると `USER_DATA_EXPORT_TABLES` の並び順（今は `slug`）と、`SupabaseAppRecordsService` の更新・削除のキーも見直しが要ります。
 
 **どちらの PR も、500 行を超えた理由を本文に書いてあります。** #2267 は約 560 行で、見本データの JSON の折り返しが原因です。#2268 は約 820 行で、半分近くが migration です（0040 の `delete_my_account()` の本体の写しと、設計の理由のコメント）。
+
+## 2026-11-01 → chat-main: #2416 と #2424 の確認と、Issue の起票をお願いします
+
+- **実ブラウザの確認（#2416 / #2333）**: Todo・ノート・Daily の 3 画面を開き、15 秒空けて 2 回読み直して、2 回目の Network が変わった行だけになることを見てください。0045 の db push のあとに行ってください。
+- **実機の確認（#2424 / #2335）**: 開いたままのタブで機内モードにして Todo を足し、回線を戻すと別の端末に出ることを見てください。バナーと確認パネルの見た目（light / dark）と 44px のタップ目標も見てください。#2334 が未着地なので、圏外からの新規起動はまだできません。
+- **Issue の起票 1（mcp-server）**: `mcp-server/src/utils/items.ts:194` の `updatePayload` などは payload を書いてから `bumpMeta` します。その間で通信が切れると `changed_at` が動かず、#2333 の差分読み出しでは次の全件読み出しまで回収されません。
+- **Issue の起票 2（web）**: `web/src/briefing/hooks/useBriefingWrites.ts:336` と `web/src/work/WorkScreen.tsx:417-420` は、圏外で `createTodo` が箱に積んだ行へノートのリンクとタグを書こうとして失敗し、ログだけが残ります。`createTodo` が積んだことを呼び出し側へ伝える必要があります。
+- **判断の待ち**: D-20261101-refactor-1 と D-20261101-refactor-2 を `decisions/chat-refactor-core.md` に書きました。この tracker PR の merge までは main から見えないので、最終報告でもこうだいさんに伝えています。
