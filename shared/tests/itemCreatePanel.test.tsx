@@ -1273,6 +1273,163 @@ describe("ItemCreatePanel — the repeat (#2406)", () => {
   });
 });
 
+/*
+ * #2426 — the repeat follows the date being added. It used to be seeded once,
+ * when the rhythm was picked, so a date changed afterwards booked the event on
+ * a weekday its own series did not fire on, or before its own start date.
+ *
+ * DATE (2026-08-20) is a Thursday (4); 08-24 is a Monday (1), 08-25 a Tuesday.
+ */
+describe("ItemCreatePanel — the repeat follows the date (#2426)", () => {
+  const pickRepeat = (name: string) =>
+    fireEvent.click(
+      within(screen.getByRole("tablist", { name: "Repeat" })).getByRole("tab", {
+        name,
+      }),
+    );
+  const changeDate = (value: string) =>
+    fireEvent.change(screen.getByLabelText("Date"), { target: { value } });
+  const toggleWeekday = (name: string) =>
+    fireEvent.click(screen.getByRole("button", { name }));
+  const pressedWeekdays = () =>
+    ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].filter(
+      (name) =>
+        screen.getByRole("button", { name }).getAttribute("aria-pressed") ===
+        "true",
+    );
+  const startField = () => screen.getByLabelText("Starts") as HTMLInputElement;
+  /** What the "Add" press hands the host. */
+  const addedRepeat = (onSubmitEvent: ReturnType<typeof vi.fn>) => {
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Gym" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    return onSubmitEvent.mock.calls[0][1].repeat;
+  };
+
+  it("moves a seeded weekday to the new date's weekday", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    expect(pressedWeekdays()).toEqual(["Th"]);
+    changeDate("2026-08-24");
+    expect(pressedWeekdays()).toEqual(["Mo"]);
+    expect(addedRepeat(onSubmitEvent)).toMatchObject({
+      frequencyType: "weekdays",
+      frequencyDays: [1],
+    });
+  });
+
+  it("moves a seeded start date to the new date", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Every N days");
+    expect(startField().value).toBe(DATE);
+    changeDate("2026-08-24");
+    expect(startField().value).toBe("2026-08-24");
+    expect(addedRepeat(onSubmitEvent)).toMatchObject({
+      frequencyType: "interval",
+      frequencyInterval: 1,
+      frequencyStartDate: "2026-08-24",
+    });
+    expect(onSubmitEvent.mock.calls[0][1].date).toBe("2026-08-24");
+  });
+
+  it("keeps weekdays picked by hand and adds the new date's weekday", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    toggleWeekday("Sa");
+    changeDate("2026-08-24");
+    expect(pressedWeekdays()).toEqual(["Mo", "Th", "Sa"]);
+    expect(addedRepeat(onSubmitEvent).frequencyDays).toEqual([1, 4, 6]);
+  });
+
+  it("does not pile up the weekdays of dates passed through on the way", () => {
+    // A date input typed by keyboard reports every intermediate date.
+    renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    toggleWeekday("Sa");
+    changeDate("2026-08-24");
+    changeDate("2026-08-25");
+    expect(pressedWeekdays()).toEqual(["Tu", "Th", "Sa"]);
+    changeDate(DATE);
+    expect(pressedWeekdays()).toEqual(["Th", "Sa"]);
+  });
+
+  it("leaves a hand-picked set alone while the date stays put", () => {
+    // Taking the date's own weekday out is the user's call (no date changed).
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    toggleWeekday("Sa");
+    toggleWeekday("Th");
+    expect(pressedWeekdays()).toEqual(["Sa"]);
+    expect(addedRepeat(onSubmitEvent).frequencyDays).toEqual([6]);
+  });
+
+  it("follows the date again once the set is back to the seeded weekday", () => {
+    renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    toggleWeekday("Sa");
+    toggleWeekday("Sa");
+    changeDate("2026-08-24");
+    expect(pressedWeekdays()).toEqual(["Mo"]);
+  });
+
+  it("keeps zero weekdays at zero when the date changes", () => {
+    // Adding with no weekday is the editor's existing spec (out of #2426).
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    toggleWeekday("Th");
+    changeDate("2026-08-24");
+    expect(pressedWeekdays()).toEqual([]);
+    expect(addedRepeat(onSubmitEvent).frequencyDays).toEqual([]);
+  });
+
+  it("keeps a start date typed by hand when the date changes", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Every N days");
+    fireEvent.change(startField(), { target: { value: "2026-08-10" } });
+    changeDate("2026-08-24");
+    expect(startField().value).toBe("2026-08-10");
+    expect(addedRepeat(onSubmitEvent).frequencyStartDate).toBe("2026-08-10");
+  });
+
+  it("does not carry a start date into a rhythm that has no start field", () => {
+    // The host reads a start on ANY rhythm, so a hidden one would begin the
+    // daily series on the old date, before the event being added.
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Every N days");
+    pickRepeat("Daily");
+    changeDate("2026-08-24");
+    expect(addedRepeat(onSubmitEvent)).toMatchObject({
+      frequencyType: "daily",
+      frequencyStartDate: null,
+    });
+  });
+
+  it("seeds from the current date after a detour through another rhythm", () => {
+    renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    pickRepeat("Every N days");
+    changeDate("2026-08-24");
+    expect(startField().value).toBe("2026-08-24");
+    pickRepeat("Weekdays");
+    expect(pressedWeekdays()).toEqual(["Mo"]);
+    pickRepeat("Daily");
+    changeDate("2026-08-25");
+    pickRepeat("Every N days");
+    expect(startField().value).toBe("2026-08-25");
+  });
+
+  it("reads a cleared date as the day blur will restore", () => {
+    // A cleared date input reports "" until blur puts the opening day back.
+    renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    changeDate("");
+    expect(pressedWeekdays()).toEqual(["Th"]);
+    fireEvent.blur(screen.getByLabelText("Date"));
+    expect(pressedWeekdays()).toEqual(["Th"]);
+  });
+});
+
 describe("ItemCreatePanel — shared draft across the type tabs (#376)", () => {
   it("keeps the typed title and the edited times when the type changes", () => {
     // Realising halfway through that this is a todo, not an event, must not

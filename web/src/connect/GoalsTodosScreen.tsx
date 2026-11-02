@@ -3,6 +3,7 @@ import { SlidersHorizontal } from "lucide-react";
 import {
   BottomSheet,
   Button,
+  ConfirmDialog,
   DEFAULT_GOAL_TREE_ARRANGEMENT,
   DEFAULT_GOAL_TREE_FILTER,
   GoalDeleteDialog,
@@ -13,12 +14,14 @@ import {
   arrangeGoalTree,
   buildGoalDeleteTree,
   buildGoalTreeModel,
+  collectDescendantIds,
   describeGoalTreeFilter,
   generateId,
   generateTodoId,
   goalParentOptions,
   planGoalDelete,
   todayDateKey,
+  useConfirmDialog,
   useDomainLoad,
   useItemPanelOptional,
   useMediaQuery,
@@ -43,6 +46,7 @@ import {
   type TodoStatus,
   type TranslationKey,
 } from "@life-editor/shared";
+import { confirmTodoDetailDelete } from "../shared/todoTrayDeleteGuard";
 import { useGoalTreeLabels } from "./useGoalTreeLabels";
 
 /*
@@ -364,10 +368,10 @@ export function GoalsTodosScreen({
   );
 
   /*
-   * A todo opens the Schedule's todo editor over this tab (#2362, the
-   * ItemPanel of #2218), so editing one does not leave the tree. Its "Open in
-   * Schedule" still goes there. Without an ItemPanel Provider (a standalone
-   * render) the row falls back to the old navigation.
+   * A todo's pencil (#2388) opens the Schedule's todo editor over this tab
+   * (#2362, the ItemPanel of #2218), so editing one does not leave the tree.
+   * Its "Open in Schedule" still goes there. Without an ItemPanel Provider (a
+   * standalone render) the pencil falls back to the old navigation.
    */
   const itemPanel = useItemPanelOptional();
   const panelOptions = useMemo<ItemPanelOptions>(
@@ -499,6 +503,43 @@ export function GoalsTodosScreen({
     [t, treeLabels, detailLabels],
   );
 
+  const { request, ask, resolve } = useConfirmDialog();
+
+  /*
+   * The bin on a todo row (#2388). This tab has no TodoTreeProvider, so the
+   * write is the service's soft delete, over the same subtree the Provider's
+   * softDelete takes: a child left behind would have no parent to hang under.
+   * The question is the todo detail's, which names how many go along. Restored
+   * from the trash, not by undo: nothing on this tab holds an undo entry.
+   *
+   * One write at a time, children first, stopping at the first failure: a
+   * failure then leaves the parent alive with fewer children, never live
+   * children under a parent in the trash. `collectDescendantIds` adds a node
+   * only after its parent, so the reversed list reads children before parents.
+   */
+  const deleteTodo = useCallback(
+    (todoId: string) => {
+      void (async () => {
+        const ok = await confirmTodoDetailDelete(sources.todos, todoId, ask, {
+          confirm: (name) => t("todoDetail.todoDeleteConfirm", { name }),
+          cascadeConfirm: (name, count) =>
+            t("todoDetail.todoDeleteCascadeConfirm", { name, count }),
+          untitled: t("common.untitled"),
+          confirmLabel: t("todoDetail.todoDelete"),
+          cancelLabel: t("common.cancel"),
+        });
+        if (!ok) return;
+        const subtree = [
+          ...collectDescendantIds(todoId, sources.todos),
+        ].reverse();
+        await write(async () => {
+          for (const id of subtree) await dataService.softDeleteTodo(id);
+        }, "connect.goals.deleteTodoFailed");
+      })();
+    },
+    [sources.todos, ask, t, write, dataService],
+  );
+
   /*
    * The "+" and the bin on each goal row (#2367). A todo added under a goal
    * is created and linked in one write; a child goal lands in the current
@@ -574,8 +615,12 @@ export function GoalsTodosScreen({
         <RightSidebarPortal>
           <div className="flex flex-col gap-5">
             {arrangePanel}
-            {panel && (
+            {panel ? (
               <div className="border-t border-lumen-border pt-4">{panel}</div>
+            ) : (
+              <p className="text-xs text-lumen-text-tertiary">
+                {t("connect.goals.pickHint")}
+              </p>
             )}
           </div>
         </RightSidebarPortal>
@@ -607,6 +652,7 @@ export function GoalsTodosScreen({
           onCreateGoal={createGoal}
           onSetTodoStatus={setTodoStatus}
           onOpenTodo={openTodo}
+          onDeleteTodo={deleteTodo}
           drag={isWide ? drag : undefined}
           onRenameGoal={renameGoal}
           // Wide: the edit icon also opens the panel for the other fields.
@@ -644,6 +690,17 @@ export function GoalsTodosScreen({
           onConfirm={confirmDelete}
           onCancel={closeDeleteDialog}
           labels={deleteLabels}
+        />
+      )}
+      {request && (
+        <ConfirmDialog
+          open
+          message={request.message}
+          confirmLabel={request.confirmLabel}
+          cancelLabel={request.cancelLabel}
+          danger={request.danger}
+          onConfirm={() => resolve(true)}
+          onCancel={() => resolve(false)}
         />
       )}
     </>
