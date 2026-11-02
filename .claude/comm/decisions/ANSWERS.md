@@ -193,3 +193,6 @@
 - D-20261102-connect-2: **A**（Todo の編集中に目標の行を押したら、閉じるだけでよいか → 閉じるだけ。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
 - D-20261102-connect-3: **A**（残した下の目標に Todo などがつながっているとき、どこに出すか → 今の分類のまま木の一番上に出し、Issue の文を実態に合わせる。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
 - D-20261102-connect-4: **B**（持ち越した週・やめた週を、上の目標の達成判定に数えるか → 今のまま全部数える。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
+- D-20261102-connect-5: **B**（右パネルの「つないだ Todo」の名前を押したときの動きを木にそろえるか → 右パネルも完了の切り替えにする。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
+- D-20261102-connect-6: **A**（タグ画面の event の呼び名を「予定」と「イベント」のどちらにそろえるか → 今の PR のままにして、別 Issue で全画面の呼び名をそろえる。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
+- D-20261102-connect-7: **A**（削除ダイアログの注記で、つながっているのが下の Todo だと書き分けるか → 同じ文のまま。2026-11-02 チャットの AskUserQuestion で回答・connect-refine が転記 / 昇格）
