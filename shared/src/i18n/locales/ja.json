@@ -1443,7 +1443,8 @@
       "saveFailed": "タグを保存できませんでした。もう一度お試しください。"
     },
     "detail": {
-      "breakdownHeading": "種類別",
+      "breakdownHeading": "種類別の内訳（{{name}}）",
+      "kindEvent": "予定",
       "recentHeading": "最近タグを付けたもの",
       "recentUntaggedHeading": "最近更新したもの",
       "recentEmpty": "このタグが付いたアイテムはまだありません。"

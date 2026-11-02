@@ -1456,7 +1456,8 @@
       "saveFailed": "Couldn't save the tag. Try again."
     },
     "detail": {
-      "breakdownHeading": "By kind",
+      "breakdownHeading": "Breakdown by kind ({{name}})",
+      "kindEvent": "Event",
       "recentHeading": "Recently tagged",
       "recentUntaggedHeading": "Recently updated",
       "recentEmpty": "Nothing is filed under this tag yet."

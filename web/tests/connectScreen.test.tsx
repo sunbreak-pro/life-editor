@@ -296,11 +296,10 @@ describe("ConnectScreen", () => {
     expect(panel().queryByRole("heading")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Work: 4 items" }));
+    // #2409 — the name moved into the breakdown's heading.
+    expect(panel().queryByRole("heading", { level: 2 })).toBeNull();
     expect(
-      panel().getByRole("heading", { level: 2, name: "Work" }),
-    ).toBeTruthy();
-    expect(
-      within(panel().getByRole("region", { name: "By kind" }))
+      within(panel().getByRole("region", { name: "Breakdown by kind (Work)" }))
         .getAllByRole("listitem")
         .map((li) => li.textContent),
     ).toEqual(["Todo1 item", "Event1 item", "Note1 item", "Daily1 item"]);
@@ -924,7 +923,7 @@ describe("ConnectScreen — the relations panel", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Standup/ }));
     fireEvent.click(panel().getByRole("button", { name: "Back to this tag" }));
 
-    panel().getByRole("region", { name: "By kind" });
+    panel().getByRole("region", { name: "Breakdown by kind (Work)" });
   });
 });
 

@@ -1,8 +1,11 @@
 import { ChevronRight } from "lucide-react";
 import { cn } from "../cn";
 import { ItemRoleBadge } from "../items/ItemRoleBadge";
-import type { ItemRoleLabels } from "../items/itemRole";
-import { TagHeadingIcon } from "../TagHeadingIcon";
+import {
+  ITEM_ROLE_ORDER,
+  type ItemRole,
+  type ItemRoleLabels,
+} from "../items/itemRole";
 import type { TagHubGroup, TagHubItem, TagHubTagSummary } from "./types";
 
 /*
@@ -14,8 +17,9 @@ import type { TagHubGroup, TagHubItem, TagHubTagSummary } from "./types";
  * Settings categories), and the hub's selected thing is a tag. What a tag has
  * to say about itself that the main pane does not already list:
  *
- *   - its size, by kind, at a glance — the main pane shows the kinds one
- *     after another and you scroll to learn the shape of the topic;
+ *   - its size, by kind, at a glance (bars since #2409) — the main pane shows
+ *     the kinds one after another and you scroll to learn the shape of the
+ *     topic;
  *   - what was FILED here lately — the main pane orders by the item's own
  *     change date, this one by when the tag was attached (see
  *     recentTaggedItems.ts), which is the "what did I put here" reading.
@@ -24,12 +28,17 @@ import type { TagHubGroup, TagHubItem, TagHubTagSummary } from "./types";
  * to the shell's item-nav route. No editing of the tag here — that is the tag
  * editor's job (#409), one panel away.
  *
+ * No heading of its own (#2409): the main pane beside it already draws the
+ * glyph, the name and the total. The breakdown's heading carries the name, so
+ * the panel still says which tag it is about when it opens alone in the narrow
+ * drawer — which is why the breakdown is drawn for an empty tag too.
+ *
  * Pure presentation: data and copy injected (§6.4), lumen-* tokens only,
  * opaque surfaces (§5).
  */
 
 export interface TagHubDetailLabels {
-  /** Heading over the per-kind counts. */
+  /** Heading over the per-kind bars, already naming the tag (#2409). */
   breakdownHeading: string;
   /** Heading over the recently-filed rows, for a real tag. */
   recentHeading: string;
@@ -54,6 +63,24 @@ export interface TagHubDetailPanelProps {
   labels: TagHubDetailLabels;
 }
 
+/**
+ * The breakdown's rows, in ITEM_ROLE_ORDER (#2409). Every kind gets a row even
+ * at zero, so the same bars stand in the same places from tag to tag. A note
+ * table (#2094) is the exception: most tags hold none and a permanent fifth
+ * bar would say nothing, but when one is filed here it has to be counted, or
+ * the bars would not add up to the tag's total.
+ */
+function breakdownRows(
+  groups: readonly TagHubGroup[],
+): readonly { role: ItemRole; count: number }[] {
+  const counts = new Map(
+    groups.map((group) => [group.role, group.items.length]),
+  );
+  return ITEM_ROLE_ORDER.filter(
+    (role) => role !== "table" || counts.has(role),
+  ).map((role) => ({ role, count: counts.get(role) ?? 0 }));
+}
+
 export function TagHubDetailPanel({
   tag,
   groups,
@@ -65,46 +92,55 @@ export function TagHubDetailPanel({
   const recentHeading = tag.isUntagged
     ? labels.recentUntaggedHeading
     : labels.recentHeading;
+  const rows = breakdownRows(groups);
+  const maxCount = Math.max(0, ...rows.map((row) => row.count));
 
   return (
     <div className="flex flex-col gap-5">
-      {/* The tag itself — the same glyph + name + count the rail row and the
-          main pane's heading draw, so the three read as one thing. */}
-      <div className="flex items-center gap-2">
-        <TagHeadingIcon icon={tag.icon} color={tag.color} size={18} />
-        <h2
-          className={cn(
-            "min-w-0 flex-1 truncate text-sm font-semibold",
-            tag.isUntagged ? "text-lumen-text-secondary" : "text-lumen-text",
-          )}
-        >
-          {tag.name}
-        </h2>
-        <span className="shrink-0 text-xs tabular-nums text-lumen-text-tertiary">
-          {formatCount(tag.count)}
-        </span>
-      </div>
-
-      {groups.length > 0 && (
-        <section aria-label={labels.breakdownHeading}>
-          <h3 className="mb-1.5 text-xs font-medium text-lumen-text-tertiary">
-            {labels.breakdownHeading}
-          </h3>
-          <ul className="flex flex-col gap-1">
-            {groups.map((group) => (
-              <li
-                key={group.role}
-                className="flex items-center justify-between gap-2"
+      <section aria-label={labels.breakdownHeading}>
+        <h3 className="mb-1.5 text-xs font-medium text-lumen-text-tertiary">
+          {labels.breakdownHeading}
+        </h3>
+        <ul className="flex flex-col gap-1.5">
+          {rows.map(({ role, count }) => (
+            <li
+              key={role}
+              // Fixed outer columns, so every bar starts and ends in the same
+              // place and the lengths can be compared by eye.
+              className="grid grid-cols-[5.5rem_minmax(0,1fr)_3.5rem] items-center gap-2"
+            >
+              <span className="min-w-0">
+                <ItemRoleBadge role={role} labels={labels.roles} />
+              </span>
+              {/* Decorative: the count beside it says the same thing in words.
+                  One colour for every kind, because length is the only thing
+                  the bar encodes and the badge already names the kind. The
+                  track is the border token because `bg-secondary` is the
+                  panel's own colour in the dark theme, and a zero bar is
+                  nothing but its track. */}
+              <span
+                aria-hidden
+                data-kind-bar={role}
+                className="h-1.5 overflow-hidden rounded-full bg-lumen-border"
               >
-                <ItemRoleBadge role={group.role} labels={labels.roles} />
-                <span className="text-xs tabular-nums text-lumen-text-secondary">
-                  {formatCount(group.items.length)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        </section>
-      )}
+                <span
+                  className={cn(
+                    "block h-full rounded-full bg-lumen-accent",
+                    // A count of 1 beside a count of 500 is still there.
+                    count > 0 && "min-w-1",
+                  )}
+                  style={{
+                    width: `${maxCount === 0 ? 0 : (count / maxCount) * 100}%`,
+                  }}
+                />
+              </span>
+              <span className="whitespace-nowrap text-right text-xs tabular-nums text-lumen-text-secondary">
+                {formatCount(count)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
 
       <section aria-label={recentHeading}>
         <h3 className="mb-1.5 text-xs font-medium text-lumen-text-tertiary">
@@ -125,6 +161,8 @@ export function TagHubDetailPanel({
                     "group flex w-full items-center gap-2 rounded-lumen-sm px-2 py-1.5 text-left",
                     "transition-colors hover:bg-lumen-hover",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                    // The panel opens as a drawer under 768px (#2409).
+                    "max-md:min-h-11",
                   )}
                 >
                   {/* Compact: the rows are mixed kinds and the column is
