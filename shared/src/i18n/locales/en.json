@@ -1553,6 +1553,7 @@
       "deleteGoal": "Delete goal",
       "deleteConfirm": "Delete the goal \"{{title}}\"? The todos linked to it stay.",
       "period": "{{kind}} · {{key}}",
+      "pickHint": "Pick a goal to see its details here",
       "sheetTitle": "Goal: {{title}}",
       "writeFailed": "Could not save the goal. Check your connection and try again.",
       "expand": "Expand: {{title}}",

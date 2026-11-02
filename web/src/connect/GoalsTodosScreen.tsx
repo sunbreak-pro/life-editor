@@ -484,8 +484,12 @@ export function GoalsTodosScreen({
         <RightSidebarPortal>
           <div className="flex flex-col gap-5">
             {arrangePanel}
-            {panel && (
+            {panel ? (
               <div className="border-t border-lumen-border pt-4">{panel}</div>
+            ) : (
+              <p className="text-xs text-lumen-text-tertiary">
+                {t("connect.goals.pickHint")}
+              </p>
             )}
           </div>
         </RightSidebarPortal>
