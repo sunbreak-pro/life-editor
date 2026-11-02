@@ -140,6 +140,8 @@ export function NotesView({
   // the title, the pin and the delete are off on every surface below.
   const online = useOnlineStatus();
   const offlineReason = online ? undefined : t("materials.notes.offlineLocked");
+  // A note still in the outbox has no row to rename until its send lands.
+  const unsentReason = t("materials.notes.unsentLocked");
 
   // On wide entry, open the shared rightSidebar so the note list (the panel's
   // content = this tab's nav) is visible. isOpen is non-persisted and starts
@@ -581,6 +583,7 @@ export function NotesView({
     onRenameNote: renameNote,
     onDeleteNote: handleDeleteNote,
     offlineReason,
+    unsentReason,
   });
 
   // #1255: what the apply confirm says depends on whether there is anything to
@@ -724,6 +727,8 @@ export function NotesView({
         otherItems: (count) => t("materials.notes.otherItems", { count }),
         closeOtherItems: t("materials.notes.closeOtherItems"),
         backToList: t("materials.notes.backToList"),
+        createdOffline: t("materials.notes.createdOffline"),
+        unsentLocked: unsentReason,
       }}
       error={notes.error}
       selectedNoteId={selected?.id ?? null}
@@ -817,7 +822,9 @@ export function NotesView({
           onTitleAutoFocused={() => setFocusTitleNoteId(null)}
           onTogglePin={notes.togglePin}
           onDelete={handleDeleteNote}
-          offlineReason={offlineReason}
+          offlineReason={
+            offlineReason ?? (selected.createdOffline ? unsentReason : undefined)
+          }
           // #1179: the kebab entry, wired only when there is a DataService to
           // write templates through — the same condition the "[[" pool has.
           //

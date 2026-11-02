@@ -7,6 +7,8 @@ import {
 import type { NoteNode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import {
+  noteWriteBlock,
+  NoteWriteBlockedError,
   notesWritesBlockedOffline,
   reportNoteWriteError,
   type NoteWriteErrorHandler,
@@ -55,15 +57,15 @@ export interface UseNotesUnifiedCRUDParams {
   untitledTitle: string;
 }
 
-const OFFLINE = "offline: this change needs a connection";
-
 /** An undo or redo of a rename, pin or delete waits for the connection (#2337). */
 function pushNeedingConnection(
   push: UndoRedoLike["push"],
   command: UndoCommand,
 ): void {
   const guarded = (run: () => void | Promise<void>) => () =>
-    notesWritesBlockedOffline() ? Promise.reject(new Error(OFFLINE)) : run();
+    notesWritesBlockedOffline()
+      ? Promise.reject(new NoteWriteBlockedError("offline"))
+      : run();
   push("note", {
     ...command,
     undo: guarded(command.undo),
@@ -217,8 +219,11 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
       const isContentOnly =
         Object.keys(updates).length === 1 && "content" in updates;
 
-      if (!isContentOnly && notesWritesBlockedOffline()) {
-        reportNoteWriteError("update", new Error(OFFLINE), onWriteError);
+      const blocked = isContentOnly
+        ? null
+        : noteWriteBlock(notesRef.current.find((n) => n.id === id));
+      if (blocked) {
+        reportNoteWriteError("update", blocked, onWriteError);
         return;
       }
 
@@ -299,8 +304,9 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
 
   const softDeleteNote = useCallback(
     (id: string, opts?: { skipUndo?: boolean }) => {
-      if (notesWritesBlockedOffline()) {
-        reportNoteWriteError("delete", new Error(OFFLINE), onWriteError);
+      const blocked = noteWriteBlock(notesRef.current.find((n) => n.id === id));
+      if (blocked) {
+        reportNoteWriteError("delete", blocked, onWriteError);
         return;
       }
       // `ds.softDeleteNoteUnified` only flips is_deleted on the single row.
@@ -381,11 +387,12 @@ export function useNotesUnifiedCRUD(params: UseNotesUnifiedCRUDParams) {
 
   const togglePin = useCallback(
     (id: string) => {
-      if (notesWritesBlockedOffline()) {
-        reportNoteWriteError("pin", new Error(OFFLINE), onWriteError);
+      const note = notesRef.current.find((n) => n.id === id);
+      const blocked = noteWriteBlock(note);
+      if (blocked) {
+        reportNoteWriteError("pin", blocked, onWriteError);
         return;
       }
-      const note = notesRef.current.find((n) => n.id === id);
       if (!note) return;
       const newPinned = !note.isPinned;
       const prevPinned = note.isPinned;

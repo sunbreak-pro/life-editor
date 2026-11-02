@@ -109,7 +109,12 @@ function NoteTitleInput({
     onCommitRef.current = onCommit;
   });
 
-  const flush = () => {
+  const readOnlyRef = useRef(readOnly);
+  useEffect(() => {
+    readOnlyRef.current = readOnly;
+  });
+
+  const commitPending = () => {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
@@ -120,10 +125,30 @@ function NoteTitleInput({
     }
   };
 
+  /*
+   * #2337 — a title typed just before the connection dropped. A commit now would
+   * be refused and leave the draft showing a name nothing holds, so it waits for
+   * the field to be editable again. The effect below runs after the ref above.
+   */
+  const flush = () => {
+    if (readOnlyRef.current) {
+      if (timerRef.current) clearTimeout(timerRef.current);
+      timerRef.current = null;
+      return;
+    }
+    commitPending();
+  };
+
   useEffect(() => {
-    // flush only touches refs (stable for this component lifetime), so an
-    // empty dep array is correct — same as NoteTitleInput / RichTextEditor.
-    return () => flush();
+    if (!readOnly) flush();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [readOnly]);
+
+  useEffect(() => {
+    // commitPending only touches refs (stable for this component lifetime), so
+    // an empty dep array is correct — same as RichTextEditor. Going away is the
+    // last chance: a refusal here reaches the host, which says so.
+    return () => commitPending();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -156,12 +181,18 @@ function NoteTitleInput({
    * effect, not a layout one: on narrow widths the create also closes the
    * drawer, whose own cleanup hands the focus back to the button that opened
    * it — a layout effect would run first and lose.
+   *
+   * #2337: a read-only field takes no focus, and still reports back. The host
+   * would otherwise keep asking, and the title would grab the focus when the note
+   * is reopened later, online, by someone who came to read it.
    */
   useEffect(() => {
     if (!autoFocus) return;
-    const field = inputRef.current ?? areaRef.current;
-    field?.focus();
-    field?.select();
+    if (!readOnly) {
+      const field = inputRef.current ?? areaRef.current;
+      field?.focus();
+      field?.select();
+    }
     onAutoFocused?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -264,8 +295,9 @@ export interface NoteDetailPanelProps {
   /** Soft-delete the note (host injects the mutation). */
   onDelete: (id: string) => void;
   /**
-   * Set while offline, already translated (#2337): the title is read-only, pin
-   * and delete are off, and this line under the title says why.
+   * Set while offline or while this note waits to be sent, already translated
+   * (#2337): the title is read-only, pin and delete are off, and this line under
+   * the title says why.
    */
   offlineReason?: string;
   /** Already-translated aria-label for the title input (§6.4). */
@@ -541,7 +573,7 @@ export function NoteDetailPanel({
               label={titleLabel}
               onCommit={onTitleCommit}
               isMain={isMain}
-              autoFocus={autoFocusTitle && !offline}
+              autoFocus={autoFocusTitle}
               onAutoFocused={onTitleAutoFocused}
               readOnly={offline}
               describedBy={offline ? offlineReasonId : undefined}

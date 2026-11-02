@@ -91,6 +91,10 @@ export interface NotesSidebarListLabels {
   closeOtherItems: string;
   /** Leaves the narrow "Other items" view for the list (#2061). */
   backToList: string;
+  /** The mark on a note still waiting to be sent (#2337). */
+  createdOffline: string;
+  /** Why a note still waiting to be sent cannot be deleted (#2337). */
+  unsentLocked: string;
 }
 
 export interface NotesSidebarListProps {
@@ -279,6 +283,9 @@ export function NotesSidebarList({
       }
     : undefined;
 
+  const deleteLockOf = (node: NoteNode): string | undefined =>
+    offlineReason ?? (node.createdOffline ? labels.unsentLocked : undefined);
+
   /** A row of the default list or of "Other items" — never a drag source. */
   const flatRow = (node: NoteNode, onSelect: (id: string) => void) => (
     <DesktopNoteRow
@@ -294,7 +301,8 @@ export function NotesSidebarList({
       editLabel={labels.rowActions}
       deleteLabel={labels.deleteNote}
       dragHintLabel={labels.assignTagHint}
-      deleteDisabledReason={offlineReason}
+      deleteDisabledReason={deleteLockOf(node)}
+      createdOfflineLabel={labels.createdOffline}
     />
   );
 
@@ -504,7 +512,8 @@ export function NotesSidebarList({
                             editLabel={labels.rowActions}
                             deleteLabel={labels.deleteNote}
                             dragHintLabel={labels.assignTagHint}
-                            deleteDisabledReason={offlineReason}
+                            deleteDisabledReason={deleteLockOf(node)}
+                            createdOfflineLabel={labels.createdOffline}
                           />
                         ))}
                       </ul>

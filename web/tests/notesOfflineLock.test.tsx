@@ -10,12 +10,15 @@ import {
 import type { ReactNode } from "react";
 import {
   clearRecentNotes,
+  NoteWriteBlockedError,
   reportNoteSeparated,
+  type DataService,
   type NoteNode,
 } from "@life-editor/shared";
 import en from "../../shared/src/i18n/locales/en.json";
 import ja from "../../shared/src/i18n/locales/ja.json";
 import { NotesView } from "../src/notes/NotesView";
+import { NotesUnifiedHost } from "../src/notes/NotesUnifiedHost";
 import { NoteBodyEditor, type NoteBodySync } from "../src/notes/NoteBodyEditor";
 import { OutboxNoticeHost } from "../src/components/OutboxNoticeHost";
 import type { NoteLinking } from "../src/notes/hooks/useNoteLinking";
@@ -39,6 +42,7 @@ const state = vi.hoisted(() => ({
   softDeleteNote: vi.fn(),
   togglePin: vi.fn(),
   showToast: vi.fn(),
+  onWriteError: null as null | ((operation: string, error: unknown) => void),
 }));
 
 vi.mock("@life-editor/shared", async (importOriginal) => {
@@ -88,6 +92,16 @@ vi.mock("@life-editor/shared", async (importOriginal) => {
       getTagsForItem: () => [],
       assignTagToItem: vi.fn(),
     }),
+    NotesUnifiedProvider: ({
+      onWriteError,
+      children,
+    }: {
+      onWriteError: (operation: string, error: unknown) => void;
+      children: ReactNode;
+    }) => {
+      state.onWriteError = onWriteError;
+      return <>{children}</>;
+    },
     useRightSidebarContext: () => ({ open: vi.fn(), close: vi.fn() }),
     useTourContextOptional: () => ({ notifyAction: vi.fn() }),
     RightSidebarPortal: ({ children }: { children: ReactNode }) => (
@@ -167,6 +181,139 @@ describe("the list row", () => {
       window.dispatchEvent(new Event("offline"));
     });
     expect(rowDelete().disabled).toBe(true);
+  });
+
+  it("does not look like a live bin while it is off", () => {
+    render(<NotesView />);
+    expect(rowDelete().className).toContain("disabled:cursor-not-allowed");
+    expect(rowDelete().className).toContain(
+      "disabled:hover:text-lumen-text-tertiary",
+    );
+  });
+});
+
+describe("a note still waiting to be sent, online", () => {
+  const MARK = "materials.notes.createdOffline";
+  const UNSENT = "materials.notes.unsentLocked";
+
+  beforeEach(() => {
+    state.online = true;
+    state.notes = [
+      note({ id: "note-a", createdOffline: true }),
+      note({ id: "note-b", title: "Beta" }),
+    ];
+  });
+
+  it("carries the mark on its row, and only its row", () => {
+    render(<NotesView />);
+    const mark = screen.getByText(MARK);
+    expect(mark.closest("li")?.textContent).toContain("Alpha");
+    expect(screen.getAllByText(MARK)).toHaveLength(1);
+  });
+
+  it("carries it on a narrow row too", () => {
+    state.isWide = false;
+    render(<NotesView />);
+    expect(screen.getByText(MARK).closest("li")?.textContent).toContain(
+      "Alpha",
+    );
+  });
+
+  it("loses the mark once a read gives the row back without it", () => {
+    const view = render(<NotesView />);
+    state.notes = [note({ id: "note-a" }), note({ id: "note-b", title: "Beta" })];
+    view.rerender(<NotesView />);
+    expect(screen.queryByText(MARK)).toBeNull();
+  });
+
+  it("turns its bin off and says why, and leaves the others on", () => {
+    render(<NotesView />);
+    expect(rowDelete().disabled).toBe(true);
+    expect(rowDelete().title).toBe(UNSENT);
+    const other = screen.getByRole("button", {
+      name: "materials.notes.deleteNote: Beta",
+    }) as HTMLButtonElement;
+    expect(other.disabled).toBe(false);
+  });
+
+  it("makes its title read-only and says why", () => {
+    state.selectedId = "note-a";
+    render(<NotesView />);
+    const title = screen.getByLabelText(
+      "notesView.detailTitle",
+    ) as HTMLInputElement;
+    expect(title.readOnly).toBe(true);
+    expect(screen.getByText(UNSENT)).toBeTruthy();
+  });
+
+  it("turns rename and delete off in its context menu", () => {
+    render(<NotesView />);
+    const row = screen.getByText(MARK).closest("li") as HTMLElement;
+    fireEvent(row, createEvent.contextMenu(row, { clientX: 1, clientY: 1 }));
+    expect(
+      (
+        screen.getByRole("menuitem", {
+          name: "materials.notes.deleteNote",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
+    expect(screen.getByText(UNSENT)).toBeTruthy();
+  });
+});
+
+describe("a title typed as the connection drops", () => {
+  const titleField = () =>
+    screen.getByLabelText("notesView.detailTitle") as HTMLInputElement;
+  const go = (online: boolean) => {
+    state.online = online;
+    act(() => {
+      window.dispatchEvent(new Event(online ? "online" : "offline"));
+    });
+  };
+
+  it("waits, and is written when the field can be edited again", async () => {
+    state.online = true;
+    state.selectedId = "note-a";
+    render(<NotesView />);
+
+    fireEvent.change(titleField(), { target: { value: "Typed" } });
+    go(false);
+    await act(async () => {
+      await new Promise((r) => setTimeout(r, 350));
+    });
+    expect(state.updateNote).not.toHaveBeenCalled();
+    expect(titleField().value).toBe("Typed");
+
+    go(true);
+    expect(state.updateNote).toHaveBeenCalledTimes(1);
+    expect(state.updateNote).toHaveBeenCalledWith("note-a", { title: "Typed" });
+  });
+});
+
+describe("a write that did not run", () => {
+  const report = (operation: string, error: unknown) => {
+    render(
+      <NotesUnifiedHost dataService={{} as DataService}>
+        <div />
+      </NotesUnifiedHost>,
+    );
+    state.onWriteError?.(operation, error);
+  };
+
+  it.each([
+    ["offline", REASON],
+    ["unsent", "materials.notes.unsentLocked"],
+  ] as const)("names the reason when it is %s", (block, copy) => {
+    report("update", new NoteWriteBlockedError(block));
+    expect(state.showToast).toHaveBeenCalledWith("danger", copy);
+  });
+
+  it("keeps the per-operation copy for a write that failed", () => {
+    report("pin", new Error("Failed to fetch"));
+    expect(state.showToast).toHaveBeenCalledWith(
+      "danger",
+      "notesView.writeFailed.pin",
+    );
   });
 });
 
@@ -316,6 +463,8 @@ describe("telling the user about a separate note", () => {
       expect(catalog.offline.separateNoteConflict).toContain("{{title}}");
       expect(catalog.offline.separateNoteGone).toContain("{{title}}");
       expect(catalog.materials.notes.offlineLocked).not.toBe("");
+      expect(catalog.materials.notes.unsentLocked).not.toBe("");
+      expect(catalog.materials.notes.createdOffline).not.toBe("");
     }
   });
 });

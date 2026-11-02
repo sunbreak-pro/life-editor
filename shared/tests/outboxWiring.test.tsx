@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, waitFor } from "@testing-library/react";
 import { useSyncDomains } from "../src/hooks/useSyncDomains";
 import { SYNC_DOMAINS, type SyncDomain } from "../src/context/syncDomains";
+import { requestOutboxSend } from "../src/state/outbox";
 
 /*
  * #2335 — where the outbox plugs in: one wrapped DataService for the whole page,
@@ -49,9 +50,10 @@ describe("getDataService", () => {
 });
 
 describe("SyncProvider sends the outbox", () => {
-  const versions: Record<string, number[]> = { todos: [], all: [] };
+  const versions: Record<string, number[]> = { todos: [], notes: [], all: [] };
   function Probe() {
     versions.todos!.push(useSyncDomains("todos"));
+    versions.notes!.push(useSyncDomains("notes"));
     versions.all!.push(useSyncDomains(...SYNC_DOMAINS));
     return null;
   }
@@ -60,6 +62,7 @@ describe("SyncProvider sends the outbox", () => {
     sendOutbox.mockReset();
     sendOutbox.mockResolvedValue(undefined);
     versions.todos = [];
+    versions.notes = [];
     versions.all = [];
     status = null;
     render(
@@ -97,6 +100,7 @@ describe("SyncProvider sends the outbox", () => {
       await new Promise((r) => setTimeout(r, 320));
     });
     expect(versions.todos!.at(-1)).toBe(1);
+    expect(versions.notes!.at(-1)).toBe(0);
     expect(versions.all!.at(-1)).toBe(1);
 
     // #2337: a note's send moves notes, which the Todo list does not read.
@@ -105,6 +109,20 @@ describe("SyncProvider sends the outbox", () => {
       await new Promise((r) => setTimeout(r, 320));
     });
     expect(versions.todos!.at(-1)).toBe(1);
+    expect(versions.notes!.at(-1)).toBe(1);
     expect(versions.all!.at(-1)).toBe(2);
+  });
+
+  // #2337: the app-start send may have failed, and nothing else would fire.
+  it("once, soon after saves are held online, however many there are", async () => {
+    expect(sendOutbox).toHaveBeenCalledTimes(1);
+    requestOutboxSend();
+    requestOutboxSend();
+    expect(sendOutbox).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(sendOutbox).toHaveBeenCalledTimes(2), {
+      timeout: 1500,
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    expect(sendOutbox).toHaveBeenCalledTimes(2);
   });
 });

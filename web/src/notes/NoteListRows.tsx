@@ -45,6 +45,7 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   dragHintLabel,
   draggable = true,
   deleteDisabledReason,
+  createdOfflineLabel,
 }: {
   node: NoteNode;
   dragId: string;
@@ -77,6 +78,8 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   draggable?: boolean;
   /** While offline: the bin is off, and this says why (#2337). */
   deleteDisabledReason?: string;
+  /** The mark on a note still waiting to be sent (#2337). */
+  createdOfflineLabel?: string;
 }) {
   // #2032: on a phone a hold that drifted a few px picked the row up, and the
   // hold itself selected the title. The drag (#312) is a pointer gesture for
@@ -195,6 +198,12 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
             className="shrink-0 text-lumen-text-tertiary"
           />
         )}
+        {/* The unsent text exists only on this device until the mark goes. */}
+        {node.createdOffline && createdOfflineLabel && (
+          <span className="shrink-0 rounded-lumen-sm border border-lumen-border px-1 text-xs text-lumen-text-secondary">
+            {createdOfflineLabel}
+          </span>
+        )}
       </button>
 
       {/* #2032 — the edit a Desktop right-click opens (#1677). #2291: the
@@ -234,6 +243,7 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
           className={cn(
             "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity",
             "hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100",
+            "disabled:cursor-not-allowed disabled:hover:text-lumen-text-tertiary disabled:group-hover:opacity-50",
             /*
              * #1840 — opacity: 0 hides a button from the eye and from nobody
              * else. At 390px a tap on the row's right edge landed on this bin

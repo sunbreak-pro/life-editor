@@ -51,13 +51,18 @@ export interface TodoOutboxEntry extends OutboxEntryBase {
 /**
  * One note's waiting writes (#2337). `node.content` is the latest body, the base
  * stays the one from the first edit, and `rev` moves with every later save, so a
- * send can tell whether the entry changed while it was on the wire. On a
- * `note.create`, `baseContent` is the body the last attempt may have written.
+ * send can tell whether the entry changed while it was on the wire.
  */
 export interface NoteOutboxEntry extends OutboxEntryBase {
   kind: "note.create" | "note.body";
   payload: { node: NoteNode };
   rev: number;
+  /**
+   * On a `note.create`: every body an attempt may have written. An answer can
+   * be lost on any attempt, so a row found on the server holding one of these
+   * is this device's own earlier write, not somebody else's.
+   */
+  triedBodies?: string[];
 }
 
 export type OutboxEntry = TodoOutboxEntry | NoteOutboxEntry;
@@ -84,7 +89,7 @@ const connections = new Map<string, Promise<IDBDatabase>>();
  * `OUTBOX_READ_TIMEOUT_MS`: a queued write gives up on this, so a slow cold
  * open must still get through.
  */
-const OPEN_TIMEOUT_MS = 2000;
+export const OUTBOX_OPEN_TIMEOUT_MS = 2000;
 
 /** How long the online paths wait on the box before going on without it. */
 export const OUTBOX_READ_TIMEOUT_MS = 300;
@@ -111,7 +116,7 @@ function open(userId: string): Promise<IDBDatabase> {
     };
     const timer = setTimeout(
       () => abandon(new Error("IndexedDB open timed out")),
-      OPEN_TIMEOUT_MS,
+      OUTBOX_OPEN_TIMEOUT_MS,
     );
     req.onupgradeneeded = () => {
       const db = req.result;
@@ -254,6 +259,8 @@ export async function queueNote(
     itemId: node.id,
     baseUpdatedAt: base.updatedAt,
     baseContent: base.content,
+    // The write that failed and put this here may have landed all the same.
+    ...(kind === "note.create" && { triedBodies: [node.content] }),
     payload: { node },
     createdAt: new Date().toISOString(),
     attempts: 0,
@@ -282,15 +289,21 @@ export async function settleSentNote(
     | undefined;
   if (now !== undefined && now.rev === sent.rev) store.delete(sent.opId);
   else if (now !== undefined) {
-    store.put({
+    const next: NoteOutboxEntry = {
       ...now,
       kind: "note.body",
       baseUpdatedAt: base.updatedAt,
       baseContent: base.content,
-    });
+    };
+    delete next.triedBodies;
+    store.put(next);
   }
   await done;
   await refreshOutboxCounts(userId);
+}
+
+function withBody(bodies: string[] = [], body: string): string[] {
+  return bodies.includes(body) ? bodies : [...bodies, body];
 }
 
 /**
@@ -308,10 +321,16 @@ export async function claimOutboxEntry(
   const entry = (await settle(store.get(opId))) as OutboxEntry | undefined;
   const claimed = entry && { ...entry, attempts: entry.attempts + 1 };
   if (claimed) {
-    // The caller reads the body the last attempt sent; the box holds this one's.
+    // The caller reads what earlier attempts tried; the box also holds this one's.
     store.put(
       claimed.kind === "note.create"
-        ? { ...claimed, baseContent: claimed.payload.node.content }
+        ? {
+            ...claimed,
+            triedBodies: withBody(
+              claimed.triedBodies,
+              claimed.payload.node.content,
+            ),
+          }
         : claimed,
     );
   }
@@ -378,6 +397,25 @@ export function subscribeOutbox(listener: () => void): () => void {
   };
 }
 
+const sendRequests = new Set<() => void>();
+
+/**
+ * Something was held while the network may be up. The moments `SyncProvider`
+ * sends at can all be behind us (a first send failed on a 503, say), and the
+ * text would then sit on this device while the editor says it is saved.
+ */
+export function requestOutboxSend(): void {
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+  for (const listener of sendRequests) listener();
+}
+
+export function subscribeOutboxSendRequests(listener: () => void): () => void {
+  sendRequests.add(listener);
+  return () => {
+    sendRequests.delete(listener);
+  };
+}
+
 export async function refreshOutboxCounts(
   userId: string | null,
 ): Promise<void> {
@@ -422,7 +460,7 @@ export async function deleteOutbox(userId: string): Promise<void> {
       req.onsuccess = () => resolve();
       req.onerror = () => reject(req.error);
     }),
-    OPEN_TIMEOUT_MS,
+    OUTBOX_OPEN_TIMEOUT_MS,
   );
 }
 

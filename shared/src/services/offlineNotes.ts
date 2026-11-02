@@ -13,10 +13,12 @@ import {
 import {
   coalesceNoteBody,
   isOfflineFailure,
+  OUTBOX_OPEN_TIMEOUT_MS,
   OUTBOX_READ_TIMEOUT_MS,
   queueNote,
   readNoteEntries,
   removeOutboxEntry,
+  requestOutboxSend,
   settleSentNote,
   withTimeout,
   type NoteOutboxEntry,
@@ -34,7 +36,13 @@ import { mergeDocBlocks, sameDocContent } from "../utils/blockMerge";
  * `noteOverrides` is the write and read half, and `sendNoteEntry` is the sender's.
  * While an entry waits, it IS the note on this device: reads answer from it, and
  * a later save goes into it even with the network back, because a save sent past
- * it would then be overwritten by the older body in the box.
+ * it would then be overwritten by the older body in the box. A note cannot take a
+ * password while an entry waits: its text would stay on the device.
+ *
+ * Reading one note waits for a cold box (`heldEntry`). Answering from the server
+ * instead would open the older body, and the next save would replace the entry
+ * with it, past every version check. A box that has already failed to answer gets
+ * the short budget, so it costs one slow read and not one per note.
  *
  * The base comes from `noteBodyStore`, under the version the editor names, and it
  * has to be read before anything awaits: the hook's own effect replaces that slot
@@ -101,18 +109,31 @@ export function noteOverrides(
   dropped: DroppedTodos,
   self: () => DataService | null,
 ): Partial<DataService> {
+  let boxFailed = false;
   /** The online paths must not hang on a box that does not answer. */
-  const readEntries = async (): Promise<NoteOutboxEntry[] | null> => {
+  const readEntries = async (
+    budgetMs: number = OUTBOX_READ_TIMEOUT_MS,
+  ): Promise<NoteOutboxEntry[] | null> => {
     const userId = await owner();
     if (userId === null) return null;
     try {
-      return await withTimeout(readNoteEntries(userId), OUTBOX_READ_TIMEOUT_MS);
+      const rows = await withTimeout(readNoteEntries(userId), budgetMs);
+      boxFailed = false;
+      return rows;
     } catch {
+      if (budgetMs > OUTBOX_READ_TIMEOUT_MS) boxFailed = true;
       return null;
     }
   };
+  /** Past the open's own limit: see the file header. */
   const heldEntry = async (id: string): Promise<NoteOutboxEntry | undefined> =>
-    (await readEntries())?.find((e) => e.itemId === id);
+    (
+      await readEntries(
+        boxFailed
+          ? OUTBOX_READ_TIMEOUT_MS
+          : OUTBOX_OPEN_TIMEOUT_MS + OUTBOX_READ_TIMEOUT_MS,
+      )
+    )?.find((e) => e.itemId === id);
 
   /** The stored list row: the one fact source that survives an offline reload. */
   const listRow = (id: string): NoteNode | undefined =>
@@ -175,6 +196,19 @@ export function noteOverrides(
       return { content, updatedAt };
     },
 
+    /** The read after a password is checked: the waiting body is the newer one. */
+    async getNoteBodyUnified(id) {
+      const held = await heldEntry(id);
+      return held ? held.payload.node.content : inner.getNoteBodyUnified(id);
+    },
+
+    async setNotePasswordUnified(id, password) {
+      if (await heldEntry(id)) {
+        throw new Error("setNotePasswordUnified: the note waits in the outbox");
+      }
+      return inner.setNotePasswordUnified(id, password);
+    },
+
     async createNoteUnified(node) {
       try {
         const created = await inner.createNoteUnified(node);
@@ -189,10 +223,8 @@ export function noteOverrides(
           throw error;
         const userId = await owner();
         if (userId === null) throw error;
-        // The body stands as `baseContent` in case this very write did land.
         const entry = await queueNote(userId, "note.create", node, {
           updatedAt: null,
-          content: node.content,
         }).catch(() => {
           throw error;
         });
@@ -201,6 +233,7 @@ export function noteOverrides(
         patchDomainSnapshot<NoteNode[]>("notes", (rows) =>
           rows.some((n) => n.id === node.id) ? rows : [row, ...rows],
         );
+        requestOutboxSend();
         return heldNode(entry);
       }
     },
@@ -208,15 +241,19 @@ export function noteOverrides(
     async saveNoteBodyUnified(id, content, expected) {
       // Before any await: see the file header.
       const base = expected === null ? null : readNoteBody(self(), id, expected);
+      const row = listRow(id);
       const userId = await owner();
-      if (userId !== null) {
+      // A password from another device: its text stays off this one.
+      if (userId !== null && row?.hasPassword !== true) {
         const held = await withTimeout(
           coalesceNoteBody(userId, id, content),
           OUTBOX_READ_TIMEOUT_MS,
         ).catch(() => null);
-        if (held) return savedAs(held, expected);
+        if (held) {
+          requestOutboxSend();
+          return savedAs(held, expected);
+        }
       }
-      const row = listRow(id);
       try {
         const result = await inner.saveNoteBodyUnified(id, content, expected);
         if (result.status === "saved" && row?.hasPassword !== true) {
@@ -240,6 +277,7 @@ export function noteOverrides(
         ).catch(() => {
           throw error;
         });
+        requestOutboxSend();
         return savedAs(entry, expected);
       }
     },
@@ -259,7 +297,12 @@ export function noteOverrides(
           userId === null
             ? null
             : await coalesceNoteBody(userId, id, updates.content ?? "");
-        return heldNode(next ?? held);
+        if (next) {
+          requestOutboxSend();
+          return heldNode(next);
+        }
+        // The send finished between the read and now: the note is on the server.
+        return inner.updateNoteUnified(id, updates);
       }
       if (held?.kind === "note.create") {
         throw new Error("updateNoteUnified: the note waits in the outbox");
@@ -427,11 +470,10 @@ export async function sendNoteEntry(
     // The row was there: an earlier attempt landed, its answer lost.
     if (
       current !== null &&
-      entry.baseContent !== undefined &&
       !sameDocContent(current.content, mine) &&
-      sameDocContent(current.content, entry.baseContent)
+      entry.triedBodies?.some((body) => sameDocContent(current.content, body))
     ) {
-      return sendBody(entry.baseContent, current.updatedAt);
+      return sendBody(current.content, current.updatedAt);
     }
     return compareOnly(current);
   }

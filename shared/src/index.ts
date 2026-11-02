@@ -610,9 +610,11 @@ export {
   type NoteSortDirection,
 } from "./hooks/useNotesUnifiedAPI";
 // #1761 — the host needs the operation names to translate a failed write.
-export type {
-  NoteWriteOp,
-  NoteWriteErrorHandler,
+export {
+  NoteWriteBlockedError,
+  type NoteWriteBlock,
+  type NoteWriteOp,
+  type NoteWriteErrorHandler,
 } from "./hooks/notesWriteError";
 
 // Routine domain — context (Pattern A) + hook (DI: dataService/undoRedo).

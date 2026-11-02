@@ -53,6 +53,9 @@ vi.mock("../src/MaterialsCountsBridge", () => ({
 vi.mock("../src/ScheduleReminderBridge", () => ({
   ScheduleReminderBridge: () => <div data-testid="reminders" />,
 }));
+vi.mock("../src/components/OutboxNoticeHost", () => ({
+  OutboxNoticeHost: () => <div data-testid="outbox-notices" />,
+}));
 
 const { AppProviders } = await import("../src/AppProviders");
 
@@ -133,6 +136,10 @@ describe("AppProviders", () => {
     const reminders = providersAround(screen.getByTestId("reminders"));
     expect(reminders).toContain("Sync");
     expect(reminders).toContain("Toast");
+    // #2337: a note kept apart by the sender is told through a toast.
+    expect(providersAround(screen.getByTestId("outbox-notices"))).toContain(
+      "Toast",
+    );
     expect(providersAround(screen.getByTestId("shortcuts"))).toContain(
       "ShortcutConfig",
     );

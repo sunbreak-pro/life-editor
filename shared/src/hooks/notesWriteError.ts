@@ -49,3 +49,31 @@ export function reportNoteWriteError(
 export function notesWritesBlockedOffline(): boolean {
   return typeof navigator !== "undefined" && navigator.onLine === false;
 }
+
+/** `offline`: no connection. `unsent`: this note is not on the server yet. */
+export type NoteWriteBlock = "offline" | "unsent";
+
+/** A write that did not run at all, so the host can name the real reason. */
+export class NoteWriteBlockedError extends Error {
+  readonly block: NoteWriteBlock;
+
+  constructor(block: NoteWriteBlock) {
+    super(
+      block === "offline"
+        ? "offline: this change needs a connection"
+        : "unsent: this note is still waiting to be sent",
+    );
+    this.name = "NoteWriteBlockedError";
+    this.block = block;
+  }
+}
+
+/** Why a rename, a pin or a delete of this note cannot run now, if it cannot. */
+export function noteWriteBlock(
+  note: { createdOffline?: boolean } | undefined,
+): NoteWriteBlockedError | null {
+  if (notesWritesBlockedOffline()) return new NoteWriteBlockedError("offline");
+  return note?.createdOffline === true
+    ? new NoteWriteBlockedError("unsent")
+    : null;
+}

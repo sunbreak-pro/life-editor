@@ -21,6 +21,8 @@ import {
   readNoteEntries,
   readOutbox,
   refreshOutboxCounts,
+  removeOutboxEntry,
+  subscribeOutboxSendRequests,
   type NoteOutboxEntry,
 } from "../src/state/outbox";
 import {
@@ -44,6 +46,28 @@ import { stubDataService } from "./helpers/dataServiceStub";
  * the version it was based on. The server here is a small stand-in that behaves
  * like update_note_content (0032) and the idempotent create.
  */
+
+/** Runs once around the wrapper's next read of the box: a slow box, or a race. */
+const box = vi.hoisted(() => ({
+  beforeNextRead: null as null | (() => Promise<void>),
+  afterNextRead: null as null | (() => Promise<void>),
+}));
+vi.mock("../src/state/outbox", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../src/state/outbox")>();
+  return {
+    ...actual,
+    readNoteEntries: async (userId: string) => {
+      const before = box.beforeNextRead;
+      box.beforeNextRead = null;
+      await before?.();
+      const rows = await actual.readNoteEntries(userId);
+      const after = box.afterNextRead;
+      box.afterNextRead = null;
+      await after?.();
+      return rows;
+    },
+  };
+});
 
 const NETWORK = "saveNoteBodyUnified failed: TypeError: Failed to fetch";
 const V0 = "2026-10-01T09:00:00.000Z";
@@ -310,6 +334,66 @@ describe("creating a note offline", () => {
     expect(texts(target.table.get("n9")!.content)).toEqual(["one", "typed"]);
     expect(target.table.size).toBe(1);
     expect(await entries()).toEqual([]);
+  });
+
+  describe("when the attempt after a lost answer fails as well", () => {
+    /** The first write lands, its answer is lost, and the user types on. */
+    const landedThenEdited = async () => {
+      const ds = offlineDs([]);
+      await ds.createNoteUnified(note("n9", { content: doc("one") }));
+      const target = server();
+      target.createNoteIfAbsent.mockImplementationOnce(async (node) => {
+        target.table.set(node.id, {
+          content: node.content,
+          updatedAt: V1,
+          title: node.title,
+        });
+        throw new Error("createNoteIfAbsent: Failed to fetch");
+      });
+      await send(target);
+      await ds.saveNoteBodyUnified("n9", doc("one", "two"), V0);
+      return target;
+    };
+
+    const expectOneNoteWithTheEdit = async (
+      target: ReturnType<typeof server>,
+    ) => {
+      expect(await entries()).toHaveLength(1);
+      await send(target);
+      expect(await entries()).toEqual([]);
+      expect(target.table.size).toBe(1);
+      expect(texts(target.table.get("n9")!.content)).toEqual(["one", "two"]);
+    };
+
+    it("still sends the edit to that row, if the body send failed", async () => {
+      const target = await landedThenEdited();
+      target.sendNoteBody.mockRejectedValueOnce(new Error(NETWORK));
+      await send(target);
+      await expectOneNoteWithTheEdit(target);
+    });
+
+    it("still sends the edit to that row, if the create failed", async () => {
+      const target = await landedThenEdited();
+      target.createNoteIfAbsent.mockRejectedValueOnce(
+        new Error("createNoteIfAbsent: Failed to fetch"),
+      );
+      await send(target);
+      await expectOneNoteWithTheEdit(target);
+    });
+  });
+
+  it("keeps a body whose entry was sent just before it joined", async () => {
+    const updateNoteUnified = vi.fn().mockResolvedValue(note("n9"));
+    const ds = offlineDs([], { updateNoteUnified });
+    await ds.createNoteUnified(note("n9"));
+    const [entry] = await entries();
+    box.afterNextRead = () => removeOutboxEntry(user, entry!.opId);
+
+    await ds.updateNoteUnified("n9", { content: doc("late") });
+
+    expect(updateNoteUnified).toHaveBeenCalledWith("n9", {
+      content: doc("late"),
+    });
   });
 
   it("drops the entry on the undo of the create", async () => {
@@ -851,6 +935,140 @@ describe("sending a body edit", () => {
     );
     expect(session.result.current.conflict).toBeNull();
   });
+});
+
+describe("while an entry waits, online", () => {
+  it("opens the waiting body even from a cold, slow box", async () => {
+    const getNoteUnified = vi
+      .fn()
+      .mockResolvedValue(note("n1", { content: doc("base") }));
+    const getNoteBodySnapshotUnified = vi
+      .fn()
+      .mockResolvedValue({ content: doc("base"), updatedAt: V0 });
+    const ds = offlineDs([note("n1")], {
+      getNoteUnified,
+      getNoteBodySnapshotUnified,
+    });
+    await editOffline(ds, "n1", doc("base"), doc("base", "OFFLINE"));
+    const slow = () => new Promise<void>((r) => setTimeout(r, 450));
+
+    box.beforeNextRead = slow;
+    expect((await ds.getNoteUnified("n1"))?.content).toBe(
+      doc("base", "OFFLINE"),
+    );
+    box.beforeNextRead = slow;
+    expect((await ds.getNoteBodySnapshotUnified("n1"))?.content).toBe(
+      doc("base", "OFFLINE"),
+    );
+    expect(getNoteUnified).not.toHaveBeenCalled();
+    expect(getNoteBodySnapshotUnified).not.toHaveBeenCalled();
+  });
+
+  it("asks for a send when a save is held, unless the device is offline", async () => {
+    const wanted = vi.fn();
+    const stop = subscribeOutboxSendRequests(wanted);
+    try {
+      const ds = offlineDs();
+      await editOffline(ds, "n1", doc("base"), doc("a"));
+      expect(wanted).toHaveBeenCalledTimes(1);
+      await ds.saveNoteBodyUnified("n1", doc("a", "b"), V0);
+      expect(wanted).toHaveBeenCalledTimes(2);
+      await ds.updateNoteUnified("n1", { content: doc("a", "b", "c") });
+      expect(wanted).toHaveBeenCalledTimes(3);
+
+      vi.spyOn(navigator, "onLine", "get").mockReturnValue(false);
+      await ds.saveNoteBodyUnified("n1", doc("a", "b", "c", "d"), V0);
+      expect(wanted).toHaveBeenCalledTimes(3);
+    } finally {
+      stop();
+    }
+  });
+
+  it("refuses a password, so the text does not stay on a locked note's device", async () => {
+    const setNotePasswordUnified = vi.fn().mockResolvedValue(note("n1"));
+    const ds = offlineDs([note("n1")], { setNotePasswordUnified });
+    await editOffline(ds, "n1", doc("base"), doc("mine"));
+
+    await expect(ds.setNotePasswordUnified("n1", "pw")).rejects.toThrow(
+      "waits in the outbox",
+    );
+    expect(setNotePasswordUnified).not.toHaveBeenCalled();
+
+    await ds.setNotePasswordUnified("other", "pw");
+    expect(setNotePasswordUnified).toHaveBeenCalledWith("other", "pw");
+  });
+
+  it("answers the read after an unlock with the waiting body", async () => {
+    const getNoteBodyUnified = vi.fn().mockResolvedValue(doc("base"));
+    const ds = offlineDs([note("n1")], { getNoteBodyUnified });
+    await editOffline(ds, "n1", doc("base"), doc("mine"));
+
+    expect(await ds.getNoteBodyUnified("n1")).toBe(doc("mine"));
+    expect(getNoteBodyUnified).not.toHaveBeenCalled();
+    expect(await ds.getNoteBodyUnified("other")).toBe(doc("base"));
+  });
+
+  it("does not write a note locked elsewhere into its waiting entry", async () => {
+    const saveNoteBodyUnified = vi
+      .fn()
+      .mockRejectedValueOnce(new Error(NETWORK))
+      .mockResolvedValue({ status: "saved", updatedAt: V1 });
+    const ds = offlineDs([note("n1")], { saveNoteBodyUnified });
+    await editOffline(ds, "n1", doc("base"), doc("mine"));
+    writeDomainSnapshot("notes", ds, undefined, [
+      note("n1", { hasPassword: true }),
+    ]);
+
+    await ds.saveNoteBodyUnified("n1", doc("secret"), V0);
+
+    expect(saveNoteBodyUnified).toHaveBeenLastCalledWith(
+      "n1",
+      doc("secret"),
+      V0,
+    );
+    expect((await entries())[0]?.payload.node.content).toBe(doc("mine"));
+  });
+
+  it("passes an online create through, and queues nothing", async () => {
+    const createNoteUnified = vi.fn(async (node: NoteNode) => node);
+    const ds = offlineDs([], { createNoteUnified });
+    const created = await ds.createNoteUnified(note("n9"));
+    expect(created.createdOffline).toBeUndefined();
+    expect(createNoteUnified).toHaveBeenCalledTimes(1);
+    expect(await entries()).toEqual([]);
+  });
+});
+
+describe("a box that hangs", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("costs one slow read, and every online path still reaches the service", async () => {
+    const row = note("n1", { content: doc("server") });
+    const ds = offlineDs([note("n1")], {
+      getNoteUnified: vi.fn().mockResolvedValue(row),
+      getNoteBodySnapshotUnified: vi
+        .fn()
+        .mockResolvedValue({ content: doc("server"), updatedAt: V0 }),
+      listNotesUnified: vi.fn().mockResolvedValue([note("n1")]),
+      saveNoteBodyUnified: vi
+        .fn()
+        .mockResolvedValue({ status: "saved", updatedAt: V1 }),
+    });
+    vi.stubGlobal("indexedDB", { open: () => ({}) });
+
+    expect((await ds.getNoteUnified("n1"))?.content).toBe(doc("server"));
+
+    const after = Date.now();
+    expect((await ds.getNoteBodySnapshotUnified("n1"))?.content).toBe(
+      doc("server"),
+    );
+    expect((await ds.listNotesUnified()).map((n) => n.id)).toEqual(["n1"]);
+    expect(await ds.saveNoteBodyUnified("n1", doc("x"), V0)).toEqual({
+      status: "saved",
+      updatedAt: V1,
+    });
+    expect(Date.now() - after).toBeLessThan(1800);
+  }, 10_000);
 });
 
 describe("what an older tab meets in the box", () => {

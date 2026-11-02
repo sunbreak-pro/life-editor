@@ -687,6 +687,70 @@ describe("while offline", () => {
 });
 
 /*
+ * #2337 — online, but the note is not on the server yet. The wrapper would refuse
+ * these writes after the list had already changed, and the list never rolled back.
+ */
+describe("a note still waiting to be sent", () => {
+  const unsent = expect.objectContaining({ block: "unsent" });
+  beforeEach(() => {
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(console, "error").mockImplementation(() => {});
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("is not renamed, and the reason is reported", () => {
+    const h = makeHarness([
+      makeNote("n1", { title: "Old", createdOffline: true }),
+    ]);
+    h.crud.updateNote("n1", { title: "New" });
+
+    expect(h.notes()[0]?.title).toBe("Old");
+    expect(h.ds.updateNoteUnified).not.toHaveBeenCalled();
+    expect(h.push).not.toHaveBeenCalled();
+    expect(h.onWriteError).toHaveBeenCalledWith("update", unsent);
+  });
+
+  it("is not pinned, and the reason is reported", () => {
+    const h = makeHarness([makeNote("n1", { createdOffline: true })]);
+    h.crud.togglePin("n1");
+
+    expect(h.notes()[0]?.isPinned).toBe(false);
+    expect(h.ds.updateNoteUnified).not.toHaveBeenCalled();
+    expect(h.onWriteError).toHaveBeenCalledWith("pin", unsent);
+  });
+
+  it("is not deleted, and the reason is reported", () => {
+    const h = makeHarness([makeNote("n1", { createdOffline: true })]);
+    h.crud.softDeleteNote("n1");
+
+    expect(h.notes()).toHaveLength(1);
+    expect(h.ds.softDeleteNoteUnified).not.toHaveBeenCalled();
+    expect(h.onWriteError).toHaveBeenCalledWith("delete", unsent);
+  });
+
+  it("still takes a body", () => {
+    const h = makeHarness([makeNote("n1", { createdOffline: true })]);
+    h.crud.updateNote("n1", { content: "body" });
+    expect(h.ds.updateNoteUnified).toHaveBeenCalledWith("n1", {
+      content: "body",
+    });
+  });
+
+  it("leaves other notes free", () => {
+    const h = makeHarness([
+      makeNote("n1", { createdOffline: true }),
+      makeNote("n2"),
+    ]);
+    h.crud.togglePin("n2");
+    expect(h.ds.updateNoteUnified).toHaveBeenCalledWith("n2", {
+      isPinned: true,
+    });
+  });
+});
+
+/*
  * #1761 — every write here is optimistic: the list changes first and the
  * request follows. A refusal used to reach `console.warn` and nothing else, so
  * a delete killed by a dropped connection looked like a button that did

@@ -19,7 +19,13 @@ import { createSyncResume } from "./syncResume";
 import { getSupabaseClient } from "../services/supabaseClient";
 import { isOwnEcho } from "../services/ownWriteLedger";
 import { sendOutbox } from "../services/dataServiceFactory";
-import { refreshOutboxCounts } from "../state/outbox";
+import {
+  refreshOutboxCounts,
+  subscribeOutboxSendRequests,
+} from "../state/outbox";
+
+/** A save held while online goes out this soon, however fast the next arrives. */
+const OUTBOX_SEND_REQUEST_DELAY_MS = 1000;
 
 /**
  * Web Sync Provider — Supabase Realtime backed (S8, replaces the S1 no-op).
@@ -232,6 +238,15 @@ export function SyncProvider({ children }: { children: ReactNode }) {
       if (!document.hidden) flushOutbox();
     };
     flushOutbox();
+    // #2337: a later save held while online. One send per delay, not one per
+    // save, and never pushed back by the next save, so typing cannot starve it.
+    let sendRequest: ReturnType<typeof setTimeout> | null = null;
+    const stopSendRequests = subscribeOutboxSendRequests(() => {
+      sendRequest ??= setTimeout(() => {
+        sendRequest = null;
+        flushOutbox();
+      }, OUTBOX_SEND_REQUEST_DELAY_MS);
+    });
     window.addEventListener("online", onOnline);
     document.addEventListener("visibilitychange", onVisibility);
 
@@ -284,6 +299,8 @@ export function SyncProvider({ children }: { children: ReactNode }) {
 
     return () => {
       cancelled = true;
+      stopSendRequests();
+      if (sendRequest !== null) clearTimeout(sendRequest);
       window.removeEventListener("online", onOnline);
       document.removeEventListener("visibilitychange", onVisibility);
       queue.cancel();
