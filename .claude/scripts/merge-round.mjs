@@ -33,6 +33,8 @@ const AUTOFIX_PREFIX = "autofix-";
 const PLAN_TTL_MS = 30 * 60 * 1000;
 
 // ---------- 小道具 ----------
+// 日本語のファイル名を引用符で包ませない（包まれると拡張子の判定と git show が外れる）
+process.env.GIT_CONFIG_PARAMETERS = "'core.quotepath=false'";
 function run(cmd, args) {
   return execFileSync(cmd, args, {
     encoding: "utf8",
@@ -158,8 +160,15 @@ function worktrees() {
   return { main, lanes, all: out };
 }
 
-// ブランチがどこかの worktree で開かれているか（開いているなら、書き手はそのレーン）
-const checkedOut = (all, branch) => all.some((wt) => wt.branch === branch);
+// ブランチがどこかの worktree で開かれているか（開いているなら、書き手はそのレーン）。
+// 先頭の commit を detached で開いている場合も、開いているとみなす
+const checkedOut = (all, branch, head) => all.some((wt) => wt.branch === branch || (head && wt.head === head));
+
+function prNumber(arg) {
+  const n = Number(arg);
+  if (!Number.isInteger(n) || n <= 0) die(`PR 番号が正しくない: ${arg}`);
+  return n;
+}
 
 // chat-main が直してよい衝突か: 文書・lockfile・翻訳ファイルだけ
 const mechanical = (files) => files.length > 0 && files.every((f) => /\.md$/i.test(f) || LOCKFILE.test(f) || LOCALE.test(f));
@@ -358,7 +367,7 @@ function start() {
 
 function check(nArg) {
   requireChatMain();
-  const n = Number(nArg);
+  const n = prNumber(nArg);
   const a = readJson(ACTIVE);
   if (!a) die("進行中の回が無い。");
   if (!a.prs.includes(n)) die(`#${n} は今回の一覧に無い。`, 6);
@@ -449,7 +458,7 @@ function fixes() {
     const lane = laneFor(pr, lanes, issues);
     const entry = { number: pr.number, branch: pr.headRefName, head: pr.headRefOid, conflicts, ci: c.state === "fail" ? c.failing : null };
     // 文書・lockfile・翻訳ファイルだけの衝突で、どのレーンもそのブランチを開いていなければ chat-main が直す
-    if (!entry.ci && mechanical(conflicts) && !checkedOut(all, pr.headRefName) && failed[pr.number] !== pr.headRefOid) auto.push(entry);
+    if (!entry.ci && mechanical(conflicts) && !checkedOut(all, pr.headRefName, pr.headRefOid) && failed[pr.number] !== pr.headRefOid) auto.push(entry);
     else if (!lane) unrouted.push(entry);
     else {
       if (!groups.has(lane.slug)) groups.set(lane.slug, { lane, entries: [] });
@@ -519,15 +528,14 @@ const MARKER = (file) => (/\.md$/i.test(file) ? /^(<{7}|>{7})( |$)/m : /^(<{7}|=
 
 function autofixStart(nArg) {
   requireChatMain();
-  const n = Number(nArg);
-  if (!n) die("使い方: autofix-start <PR 番号>");
+  const n = prNumber(nArg);
   if (existsSync(autofixState(n))) die(`#${n} の autofix は始まっている。autofix-push か autofix-abort で閉じる。`);
   git("fetch", "origin", "--prune", "--quiet");
   const pr = ghJson("pr", "view", String(n), "-R", REPO, "--json", "state,isDraft,baseRefName,headRefName,headRefOid,labels");
   if (pr.state !== "OPEN" || pr.isDraft || pr.baseRefName !== "main" || pr.labels.some((l) => l.name === HOLD_LABEL))
     die(`#${n} は open の main 宛てで、下書きでも ${HOLD_LABEL} でもない PR に限る。`);
   const { all } = worktrees();
-  if (checkedOut(all, pr.headRefName)) die(`${pr.headRefName} はレーンが開いている。レーンへの /goal に回す。`);
+  if (checkedOut(all, pr.headRefName, pr.headRefOid)) die(`${pr.headRefName} はレーンが開いている。レーンへの /goal に回す。`);
   if (touchesMigration(pr.headRefOid)) die(`#${n} はマイグレーションを含むので直さない。`);
   const conflicts = conflictFiles(pr.headRefOid);
   if (!mechanical(conflicts)) die(`#${n} の衝突は文書・lockfile・翻訳ファイルだけではない（${conflicts.join(", ") || "衝突なし"}）。`);
@@ -558,7 +566,7 @@ function autofixPrompt(n, branch, path, files) {
     `作業場所は ${path} です（git worktree、detached HEAD、merge の途中）。このフォルダの外のファイルには触りません。git は必ず \`git -C ${path} ...\` の形で打ちます。`,
     `衝突しているファイル: ${files.join(", ")}`,
     "",
-    "解き方は ~/.claude/skills/git-conflict-resolver/SKILL.md の §2（docs）と §3（lockfile）に従います。",
+    "解き方は ~/.claude/skills/git-conflict-resolver/SKILL.md の §2（docs）と §3（lockfile）を参考にします。同じスキルの §5（commit と push）には従いません。手順は下の 1〜4 だけです。",
     "- Markdown: 両側が足しただけなら両方を残し、日付や番号の順に並べます。同じ行を両側が書き換えていたら main 側の事実を残し、PR 側が新しい事実を足していればそれを加えます。",
     "- lockfile: 手で直さず、main 側を取ってから、その lockfile があるフォルダで `npm install --package-lock-only` を打って作り直します。",
     "- 翻訳ファイル（i18n/locales/*.json）: 両側が足したキーを両方残します。同じキーを両側が違う値に変えていたら、直さずに止めます。",
@@ -578,7 +586,7 @@ function autofixPrompt(n, branch, path, files) {
 
 function autofixPush(nArg) {
   requireChatMain();
-  const n = Number(nArg);
+  const n = prNumber(nArg);
   const s = readJson(autofixState(n));
   if (!s) die(`#${n} の autofix は始まっていない。`);
   const g = (...args) => tryRun("git", ["-C", s.path, ...args]);
@@ -587,14 +595,22 @@ function autofixPush(nArg) {
   const parents = g("rev-list", "--parents", "-n", "1", "HEAD").out.split(" ").slice(1);
   if (parents[0] !== s.head || parents[1] !== s.main) die("HEAD が「PR の先頭に main を merge した commit」になっていない。");
 
-  // 自動 merge の結果と比べ、変わってよいのは衝突したファイルだけ
+  // 自動 merge の結果と比べ、変わってよいのは衝突したファイルだけ（確かめられなければ止める）
   const auto = tryRun("git", ["merge-tree", "--write-tree", "--no-messages", s.main, s.head]).out.split(/\r?\n/)[0];
-  const changed = g("diff", "--name-only", auto, "HEAD").out.split(/\r?\n/).filter(Boolean);
+  if (!/^[0-9a-f]{40}([0-9a-f]{24})?$/.test(auto)) die("自動 merge の結果を作れず、変わったファイルを確かめられない。");
+  const diff = g("diff", "--no-renames", "--name-only", auto, "HEAD");
+  if (diff.code !== 0) die("自動 merge の結果との差分を取れず、変わったファイルを確かめられない。");
+  const changed = diff.out.split(/\r?\n/).filter(Boolean);
   const outside = changed.filter((f) => !s.conflicts.includes(f));
   if (outside.length) die(`衝突していないファイルまで変わっている: ${outside.join(", ")}`);
+  const exists = (rev, f) => tryRun("git", ["cat-file", "-e", `${rev}:${f}`]).code === 0;
   for (const f of s.conflicts) {
     const body = g("show", `HEAD:${f}`);
-    if (body.code !== 0) continue; // 片側で消えたファイル
+    if (body.code !== 0) {
+      // 消してよいのは、片側が消していたファイル（modify/delete の衝突）だけ
+      if (exists(s.main, f) && exists(s.head, f)) die(`${f} が消えている。両側にあるファイルは消さない。`);
+      continue;
+    }
     if (MARKER(f).test(body.out)) die(`${f} に衝突の印が残っている。`);
     if (f.endsWith(".json")) {
       try {
@@ -607,7 +623,7 @@ function autofixPush(nArg) {
 
   const remote = tryRun("git", ["ls-remote", "origin", `refs/heads/${s.branch}`]).out.split(/\s/)[0];
   if (remote !== s.head) die(`${s.branch} は autofix の間に push された。上書きしないので autofix-abort ${n} で片付ける。`);
-  if (checkedOut(worktrees().all.filter((wt) => wt.path !== s.path), s.branch)) die(`${s.branch} をレーンが開いた。autofix-abort ${n} で片付ける。`);
+  if (checkedOut(worktrees().all.filter((wt) => wt.path !== s.path), s.branch, s.head)) die(`${s.branch} をレーンが開いた。autofix-abort ${n} で片付ける。`);
 
   const push = g("push", "origin", `HEAD:refs/heads/${s.branch}`);
   if (push.code !== 0) die(`push に失敗した（fast-forward でない可能性）。autofix-abort ${n} で片付ける。`);
@@ -617,7 +633,7 @@ function autofixPush(nArg) {
 
 function autofixAbort(nArg) {
   requireChatMain();
-  const n = Number(nArg);
+  const n = prNumber(nArg);
   const s = readJson(autofixState(n)) ?? { path: autofixPath(n) };
   if (existsSync(s.path)) tryRun("git", ["-C", s.path, "merge", "--abort"]);
   // 同じ先頭のあいだは、fixes がこの PR をレーンへの指示文に回す
@@ -629,7 +645,8 @@ function autofixAbort(nArg) {
 function cleanupAutofix(n, s) {
   if (existsSync(s.path)) {
     // 消すのは autofix が作った一時 worktree だけ。中身は push 済みか、捨てると決めたもの
-    if (!basename(s.path).startsWith(AUTOFIX_PREFIX)) die(`${s.path} は autofix の一時 worktree ではないので消さない。`);
+    if (resolve(s.path).toLowerCase() !== resolve(autofixPath(n)).toLowerCase())
+      die(`${s.path} は autofix の一時 worktree ではないので消さない。`);
     const r = tryRun("git", ["worktree", "remove", "--force", s.path]);
     if (r.code !== 0) console.log(`一時 worktree を消せなかった: ${s.path}（worktree-policy の「Windows での worktree 削除」で手で消す）`);
   }
