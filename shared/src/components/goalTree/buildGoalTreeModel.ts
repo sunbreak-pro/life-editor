@@ -251,8 +251,11 @@ export function buildGoalTreeModel({
 /** "standard" is the build order: year → month → week, then `sortOrder`. */
 export type GoalTreeSort = "standard" | "progress" | "name";
 
-/** A goal's state as the row's chip shows it. */
-export type GoalTreeStatus = "inProgress" | "achieved" | "unconnected";
+/**
+ * What the status filter picks from (#2410). A goal with nothing connected is
+ * neither: it has its own "unconnected" group, seen with the filter on "all".
+ */
+export type GoalTreeStatus = "inProgress" | "achieved";
 
 export interface GoalTreeFilter {
   period: GoalPeriodKind | "all";
@@ -276,9 +279,9 @@ export const DEFAULT_GOAL_TREE_ARRANGEMENT: GoalTreeArrangement = {
   filter: DEFAULT_GOAL_TREE_FILTER,
 };
 
-function goalTreeStatus(node: GoalTreeNode): GoalTreeStatus {
+function goalTreeStatus(node: GoalTreeNode): GoalTreeStatus | null {
   if (node.achievement.achieved) return "achieved";
-  return node.achievement.connected ? "inProgress" : "unconnected";
+  return node.achievement.connected ? "inProgress" : null;
 }
 
 /** Achieved reads as 1 whatever its count says; nothing connected, as -1. */

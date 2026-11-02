@@ -66,6 +66,7 @@ export {
   type GoalDeleteTodoRow,
 } from "./goalDeleteTree";
 export {
+  formatGoalPeriod,
   GoalDetailPanel,
   type GoalDetailLabels,
   type GoalDetailPanelProps,

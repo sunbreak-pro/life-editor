@@ -96,6 +96,7 @@ const todo = (
 ) => ({
   id,
   title,
+  type: "task",
   status: done ? "DONE" : "NOT_STARTED",
   completedAt,
 });
@@ -313,8 +314,8 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     await renderTab(makeDS({ fetchGoals }), () => screen.getByRole("alert"));
     expect(screen.queryByText(/No goals yet/)).toBeNull();
-    // No add row: an empty model would read every period as 0/3.
-    expect(screen.queryByRole("button", { name: /This week/ })).toBeNull();
+    // No add button: an empty model says nothing true about the periods.
+    expect(screen.queryByRole("button", { name: "Set a goal" })).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Try again" }));
     await waitFor(() => screen.getByRole("region", { name: "Goal tree" }));
@@ -344,10 +345,89 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     screen.getByRole("textbox", { name: /This week/ });
   });
 
+  it("offers one add button, which opens the period, the title and the dates (#2410)", async () => {
+    await renderTab();
+    const add = screen.getByRole("region", { name: "Set a goal" });
+    expect(within(add).getAllByRole("button").map((b) => b.textContent)).toEqual(
+      ["Set a goal"],
+    );
+    expect(screen.queryByRole("textbox", { name: /This week/ })).toBeNull();
+
+    const open = within(add).getByRole("button", { name: "Set a goal" });
+    expect(open.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(open);
+    expect(open.getAttribute("aria-expanded")).toBe("true");
+    expect(
+      within(add)
+        .getAllByRole("radio")
+        .map((r) => r.textContent),
+    ).toEqual(["This year", "This month", "This week"]);
+    screen.getByRole("textbox", { name: /This week/ });
+    screen.getByLabelText("From");
+
+    // Another period moves the seeded dates with it, and keeps the draft.
+    fireEvent.change(screen.getByRole("textbox", { name: /This week/ }), {
+      target: { value: "Keep this" },
+    });
+    fireEvent.click(within(add).getByRole("radio", { name: "This year" }));
+    expect(
+      (screen.getByRole("textbox", { name: /This year/ }) as HTMLInputElement)
+        .value,
+    ).toBe("Keep this");
+    expect((screen.getByLabelText("From") as HTMLInputElement).value).toBe(
+      "2026-01-01",
+    );
+
+    fireEvent.click(open);
+    expect(screen.queryByRole("textbox", { name: /This year/ })).toBeNull();
+  });
+
+  it("badges a goal of the current period, and leaves the plain kind where that would be false (#2410)", async () => {
+    const lastMonth = goal({
+      id: "m-past",
+      title: "Last month's frame",
+      periodKind: "month",
+      periodKey: "2026-08",
+    });
+    await renderTab(
+      makeDS({
+        fetchGoals: vi.fn().mockResolvedValue([
+          ...GOALS,
+          lastMonth,
+          goal({ id: "w-under", title: "Under the old frame", parentGoalId: "m-past" }),
+          goal({
+            id: "w-range",
+            title: "Runs past its week",
+            startDate: "2026-09-27",
+            endDate: "2026-10-15",
+          }),
+        ]),
+        fetchGoalTodoLinks: vi
+          .fn()
+          .mockResolvedValue([
+            ...LINKS,
+            link("w-under", "l1"),
+            link("w-range", "p2"),
+          ]),
+      }),
+    );
+    const period = (title: string) =>
+      goalRow(title).querySelector("[data-goal-period-badge]")?.textContent;
+    expect(period("Run 10 km in 60 min")).toBe("This year");
+    expect(period("Run three times a week")).toBe("This month");
+    expect(period("Run 3 times")).toBe("This week");
+
+    expect(period("Runs past its week")).toBeUndefined();
+    expect(within(goalRow("Runs past its week")).getByText("Week")).toBeTruthy();
+    expect(period("Last month's frame")).toBeUndefined();
+    expect(within(goalRow("Last month's frame")).getByText("Month")).toBeTruthy();
+  });
+
   it("creates a goal in the current period from the add row", async () => {
     const ds = makeDS();
     await renderTab(ds);
-    fireEvent.click(screen.getByRole("button", { name: /This month/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Set a goal" }));
+    fireEvent.click(screen.getByRole("radio", { name: "This month" }));
     const field = screen.getByRole("textbox", { name: /This month/ });
     fireEvent.change(field, { target: { value: "Ship the redesign" } });
     fireEvent.keyDown(field, { key: "Enter" });
@@ -366,10 +446,10 @@ describe("Connect Goals & Todos tab (#2108)", () => {
   it("adds a fourth goal to a period that has three (#2366)", async () => {
     const ds = makeDS();
     await renderTab(ds);
-    const week = screen.getByRole("button", { name: /This week/ });
-    expect((week as HTMLButtonElement).disabled).toBe(false);
+    const open = screen.getByRole("button", { name: "Set a goal" });
+    expect((open as HTMLButtonElement).disabled).toBe(false);
     expect(screen.queryByText(/already has 3 goals/)).toBeNull();
-    fireEvent.click(week);
+    fireEvent.click(open);
     const field = screen.getByRole("textbox", { name: /This week/ });
     fireEvent.change(field, { target: { value: "Sleep by 23:00" } });
     fireEvent.keyDown(field, { key: "Enter" });
@@ -386,7 +466,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
   it("creates a goal with a start and end date of its own (#2366)", async () => {
     const ds = makeDS();
     await renderTab(ds);
-    fireEvent.click(screen.getByRole("button", { name: /This week/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Set a goal" }));
     const from = screen.getByLabelText("From") as HTMLInputElement;
     const to = screen.getByLabelText("To") as HTMLInputElement;
     // Seeded with the week's own first and last day.
@@ -489,7 +569,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(panel().queryByText(hint)).toBeNull();
   });
 
-  it("opens the picked goal in the right panel, where it can be renamed, re-parented and deleted", async () => {
+  it("opens the picked goal in the right panel, where it can be renamed and deleted", async () => {
     const ds = makeDS();
     const { panel } = await renderTab(ds);
     fireEvent.click(goalRow("Get the proposal approved"));
@@ -501,16 +581,6 @@ describe("Connect Goals & Todos tab (#2108)", () => {
       expect(ds.updateGoal).toHaveBeenCalledWith("w1", {
         title: "Get the proposal signed",
       }),
-    );
-
-    // A week's parents are the goals of its month and of its year, each named
-    // with its kind so the two read apart (#2399).
-    const parent = panel().getByRole("combobox", { name: "Goal above" });
-    within(parent).getByRole("option", { name: "Year: Run 10 km in 60 min" });
-    within(parent).getByRole("option", { name: "Month: Run three times a week" });
-    fireEvent.change(parent, { target: { value: "m2" } });
-    await waitFor(() =>
-      expect(ds.updateGoal).toHaveBeenCalledWith("w1", { parentGoalId: "m2" }),
     );
 
     panel().getByRole("button", { name: "Edit: Book the review" });
@@ -530,6 +600,242 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     await waitFor(() =>
       expect(panel().queryByRole("textbox", { name: "Goal title" })).toBeNull(),
     );
+  });
+
+  it("shows the goal above as a link that picks it, with no select on a wide screen (#2410)", async () => {
+    const { panel } = await renderTab();
+    fireEvent.click(goalRow("Get the proposal approved"));
+    expect(panel().queryByRole("combobox")).toBeNull();
+
+    fireEvent.click(panel().getByRole("button", { name: "Win an autumn project" }));
+    expect(
+      (panel().getByRole("textbox", { name: "Goal title" }) as HTMLInputElement)
+        .value,
+    ).toBe("Win an autumn project");
+    // A goal with no goal above says so, and has nothing to press.
+    panel().getByText("None");
+    // A year is the top: it has no such line at all.
+    fireEvent.click(goalRow("Run 10 km in 60 min"));
+    expect(panel().queryByText("Goal above")).toBeNull();
+  });
+
+  it("links to a goal above that is no longer on offer as a parent (#2410)", async () => {
+    const { panel } = await renderTab(
+      makeDS({
+        fetchGoals: vi.fn().mockResolvedValue([
+          ...GOALS,
+          goal({
+            id: "m-past",
+            title: "Last month's frame",
+            periodKind: "month",
+            periodKey: "2026-07",
+          }),
+          goal({ id: "w-under", title: "Under the old frame", parentGoalId: "m-past" }),
+        ]),
+        // Connected, so the row is not also drawn in the unconnected group.
+        fetchGoalTodoLinks: vi
+          .fn()
+          .mockResolvedValue([...LINKS, link("w-under", "l1")]),
+      }),
+    );
+    fireEvent.click(goalRow("Under the old frame"));
+    panel().getByRole("button", { name: "Last month's frame" });
+  });
+
+  it("keeps the parent select on a phone, the only way to change it there (#2410)", async () => {
+    setNarrow();
+    const ds = makeDS();
+    await renderTab(ds);
+    fireEvent.click(goalRow("Get the proposal approved"));
+    const sheet = within(
+      screen.getByRole("dialog", { name: "Goal: Get the proposal approved" }),
+    );
+    // A week's parents are the goals of its month and of its year, each named
+    // with its kind so the two read apart (#2399).
+    const parent = sheet.getByRole("combobox", { name: "Goal above" });
+    within(parent).getByRole("option", { name: "Year: Run 10 km in 60 min" });
+    within(parent).getByRole("option", { name: "Month: Run three times a week" });
+    fireEvent.change(parent, { target: { value: "m2" } });
+    await waitFor(() =>
+      expect(ds.updateGoal).toHaveBeenCalledWith("w1", { parentGoalId: "m2" }),
+    );
+    // The link is there too, and picks the goal above in the same sheet.
+    fireEvent.click(sheet.getByRole("button", { name: "Win an autumn project" }));
+    screen.getByRole("dialog", { name: "Goal: Win an autumn project" });
+  });
+
+  it("counts the linked todos beside their heading (#2410)", async () => {
+    const { panel } = await renderTab();
+    fireEvent.click(goalRow("Get the proposal approved"));
+    const todos = within(
+      panel().getByRole("region", { name: "Linked todos" }),
+    );
+    expect(
+      todos.getByRole("heading", { name: "Linked todos 4" }),
+    ).toBeTruthy();
+    fireEvent.click(goalRow("Finish one book"));
+    panel().getByRole("heading", { name: "Linked todos 0" });
+  });
+
+  it("links a todo from the goal's panel and goes back to the panel (#2410)", async () => {
+    const linkGoalTodo = vi.fn(async (goalId: string, todoId: string) =>
+      link(goalId, todoId),
+    );
+    const unlinkGoalTodo = vi.fn().mockResolvedValue(undefined);
+    const ds = makeDS({ linkGoalTodo, unlinkGoalTodo });
+    const { panel } = await renderTab(ds);
+    fireEvent.click(goalRow("Finish one book"));
+    fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
+
+    const screenRegion = within(panel().getByRole("region", { name: "Link todos" }));
+    expect(screenRegion.queryByRole("textbox", { name: "Goal title" })).toBeNull();
+    fireEvent.click(
+      screenRegion.getByRole("checkbox", {
+        name: /Pick up the residence certificate/,
+      }),
+    );
+    fireEvent.click(screenRegion.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(linkGoalTodo).toHaveBeenCalledWith("w3", "l1"),
+    );
+    expect(unlinkGoalTodo).not.toHaveBeenCalled();
+
+    // The draft dropped and the link stayed: it reads from the patched links.
+    await waitFor(() =>
+      expect(
+        screenRegion
+          .getByRole("checkbox", { name: /Pick up the residence certificate/ })
+          .getAttribute("aria-checked"),
+      ).toBe("true"),
+    );
+    await waitFor(() =>
+      expect(
+        (screenRegion.getByRole("button", { name: "Save" }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true),
+    );
+
+    fireEvent.click(screenRegion.getByRole("button", { name: "Cancel" }));
+    panel().getByRole("textbox", { name: "Goal title" });
+  });
+
+  it("keeps what a link save patched in over a read older than the save (#2410)", async () => {
+    const saved = [link("w3", "l1"), link("w3", "p2")];
+    let releaseStale: () => void = () => undefined;
+    let releaseFresh: () => void = () => undefined;
+    let finishSecondLink: () => void = () => undefined;
+    const fetchGoalTodoLinks = vi
+      .fn()
+      .mockResolvedValueOnce(LINKS)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseStale = () => resolve(LINKS);
+          }),
+      )
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseFresh = () => resolve([...LINKS, ...saved]);
+          }),
+      );
+    const linkGoalTodo = vi
+      .fn()
+      .mockResolvedValueOnce(saved[0])
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishSecondLink = () => resolve(saved[1]);
+          }),
+      );
+    const { panel, sync } = await renderTab(
+      makeDS({ fetchGoalTodoLinks, linkGoalTodo }),
+    );
+    fireEvent.click(goalRow("Finish one book"));
+    fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
+    const region = within(panel().getByRole("region", { name: "Link todos" }));
+    const checked = (name: RegExp) =>
+      region.getByRole("checkbox", { name }).getAttribute("aria-checked");
+    fireEvent.click(
+      region.getByRole("checkbox", {
+        name: /Pick up the residence certificate/,
+      }),
+    );
+    fireEvent.click(region.getByRole("checkbox", { name: /Pick the curtains/ }));
+
+    // A Realtime echo starts a read, which is still out when the first link
+    // lands, and comes back with neither link while the save is under way.
+    act(() => sync.bump("goals"));
+    await waitFor(() => expect(fetchGoalTodoLinks).toHaveBeenCalledTimes(2));
+    fireEvent.click(region.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(linkGoalTodo).toHaveBeenCalledTimes(2));
+    await act(async () => releaseStale());
+
+    // The save ends and its draft goes. The re-read is still out, so the ticks
+    // can only come from the links the save patched in.
+    await act(async () => finishSecondLink());
+    await waitFor(() => expect(fetchGoalTodoLinks).toHaveBeenCalledTimes(3));
+    await waitFor(() =>
+      expect(
+        (region.getByRole("button", { name: "Save" }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true),
+    );
+    expect(checked(/Pick up the residence certificate/)).toBe("true");
+    expect(checked(/Pick the curtains/)).toBe("true");
+
+    await act(async () => releaseFresh());
+    expect(checked(/Pick up the residence certificate/)).toBe("true");
+    expect(checked(/Pick the curtains/)).toBe("true");
+  });
+
+  it("takes a todo off from the same screen", async () => {
+    const unlinkGoalTodo = vi.fn().mockResolvedValue(undefined);
+    const { panel } = await renderTab(makeDS({ unlinkGoalTodo }));
+    fireEvent.click(goalRow("Run 3 times"));
+    fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
+    const region = within(panel().getByRole("region", { name: "Link todos" }));
+    fireEvent.click(region.getByRole("checkbox", { name: /Long run/ }));
+    fireEvent.click(region.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(unlinkGoalTodo).toHaveBeenCalledWith("w2", "t7"),
+    );
+  });
+
+  it("says a failed link on the screen and keeps the picks", async () => {
+    const linkGoalTodo = vi.fn().mockRejectedValue(new Error("offline"));
+    const { panel } = await renderTab(makeDS({ linkGoalTodo }));
+    fireEvent.click(goalRow("Finish one book"));
+    fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
+    const region = within(panel().getByRole("region", { name: "Link todos" }));
+    const row = () =>
+      region.getByRole("checkbox", {
+        name: /Pick up the residence certificate/,
+      });
+    fireEvent.click(row());
+    fireEvent.click(region.getByRole("button", { name: "Save" }));
+    await waitFor(() => region.getByRole("alert"));
+    expect(row().getAttribute("aria-checked")).toBe("true");
+  });
+
+  it("leaves the linking screen when another goal is picked", async () => {
+    const { panel } = await renderTab();
+    fireEvent.click(goalRow("Finish one book"));
+    fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
+    fireEvent.click(goalRow("Run 3 times"));
+    expect(panel().queryByRole("region", { name: "Link todos" })).toBeNull();
+    panel().getByRole("textbox", { name: "Goal title" });
+  });
+
+  it("opens the linking screen in the sheet on a phone", async () => {
+    setNarrow();
+    await renderTab();
+    fireEvent.click(goalRow("Finish one book"));
+    const sheet = within(
+      screen.getByRole("dialog", { name: "Goal: Finish one book" }),
+    );
+    fireEvent.click(sheet.getByRole("button", { name: "Link todos" }));
+    sheet.getByRole("region", { name: "Link todos" });
   });
 
   it("renames a goal from the tree's edit icon with the panel's write (#2283 / #2367)", async () => {
@@ -967,11 +1273,11 @@ describe("Connect Goals & Todos tab (#2108)", () => {
   it("filters the tree from the right panel, says so over the tree, and resets", async () => {
     const { panel } = await renderTab();
     // The controls are there before any goal is picked.
-    const period = within(panel().getByRole("tablist", { name: "Period" }));
-    fireEvent.click(period.getByRole("tab", { name: "Week" }));
+    const period = within(panel().getByRole("group", { name: "Period" }));
+    fireEvent.click(period.getByRole("button", { name: "This week" }));
 
     const line = screen.getByRole("status");
-    expect(line.textContent).toContain("Filtering by: Week");
+    expect(line.textContent).toContain("Filtering by: This week");
     expect(screen.queryByText("Run 10 km in 60 min")).toBeNull();
     // The week goals stand on their own, out of their month frames.
     goalRow("Run 3 times");
@@ -982,10 +1288,39 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(screen.queryByText(/Filtering by/)).toBeNull();
   });
 
+  it("clears the period by pressing the picked chip again (#2410)", async () => {
+    const { panel } = await renderTab();
+    const period = within(panel().getByRole("group", { name: "Period" }));
+    fireEvent.click(period.getByRole("button", { name: "This year" }));
+    expect(screen.getByRole("status").textContent).toContain(
+      "Filtering by: This year",
+    );
+    fireEvent.click(period.getByRole("button", { name: "This year" }));
+    expect(screen.queryByText(/Filtering by/)).toBeNull();
+    goalRow("Run 3 times");
+  });
+
+  it("offers three statuses, and still lists the unconnected goals under the tree (#2410)", async () => {
+    const { panel } = await renderTab();
+    const status = within(panel().getByRole("tablist", { name: "Status" }));
+    expect(status.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "All",
+      "In progress",
+      "Achieved",
+    ]);
+    within(screen.getByRole("region", { name: "Unconnected goals" })).getByRole(
+      "button",
+      { name: "Week: Finish one book — Unconnected" },
+    );
+  });
+
   it("hides done todos and keeps the goal details under the controls", async () => {
     const { panel } = await renderTab();
     fireEvent.click(goalRow("Get the proposal approved"));
-    fireEvent.click(panel().getByRole("checkbox", { name: "Hide done todos" }));
+    const hide = panel().getByRole("switch", { name: "Hide done todos" });
+    expect(hide.getAttribute("aria-checked")).toBe("false");
+    fireEvent.click(hide);
+    expect(hide.getAttribute("aria-checked")).toBe("true");
 
     const tree = within(screen.getByRole("region", { name: "Goal tree" }));
     expect(tree.queryByText("Draft the proposal")).toBeNull();
