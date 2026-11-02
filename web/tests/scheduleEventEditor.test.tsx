@@ -5,6 +5,8 @@ import {
   type EventEditorItem,
   type TimerSession,
 } from "@life-editor/shared";
+import en from "../../shared/src/i18n/locales/en.json";
+import ja from "../../shared/src/i18n/locales/ja.json";
 import { ScheduleEventEditor } from "../src/schedule/ScheduleEventEditor";
 import type { ScheduleEventEditorProps } from "../src/schedule/ScheduleEventEditor";
 import { createBumpableSync } from "./helpers";
@@ -484,6 +486,12 @@ describe("ScheduleEventEditor — logged work time (#1375 / #2407)", () => {
     expect(pushUndo).toHaveBeenCalledTimes(1);
     const [domain, command] = pushUndo.mock.calls[0];
     expect(domain).toBe("scheduleItem");
+    // The label is a key the undo toast looks up, and a missing entry prints the
+    // raw key instead of failing.
+    const enLabels = en.undoRedo.labels as Record<string, string | undefined>;
+    const jaLabels = ja.undoRedo.labels as Record<string, string | undefined>;
+    expect(enLabels[command.label]).toBeTruthy();
+    expect(jaLabels[command.label]).toBeTruthy();
 
     saveEventWorkTotal.mockClear();
     await command.undo();

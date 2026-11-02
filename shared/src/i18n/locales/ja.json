@@ -1243,6 +1243,7 @@
       "deleteTodo": "Todo の削除",
       "createScheduleItem": "予定の作成",
       "updateScheduleItem": "予定の変更",
+      "saveEventWorkTotal": "実績時間の変更",
       "toggleScheduleItemComplete": "予定の完了切替",
       "dismissScheduleItem": "予定の非表示",
       "undismissScheduleItem": "スキップの取り消し",

@@ -436,7 +436,8 @@ export function aggregateByTodo(
       map.set(tid, bucket);
     }
     bucket.totalMinutes += (s.duration ?? 0) / 60;
-    bucket.sessionCount += 1;
+    // #2407: the bar's tooltip prints this count; nobody sat a typed amount.
+    if (!isManualSession(s)) bucket.sessionCount += 1;
   }
 
   return Array.from(map.values())

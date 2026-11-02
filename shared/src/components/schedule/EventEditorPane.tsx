@@ -724,7 +724,9 @@ function EventEditorFields({
     }
     /*
      * #2407: before the field patch, which can stop on the scope dialog (#279).
-     * The time belongs to this one occurrence whatever the dialog answers.
+     * The time belongs to this one occurrence, so this/future/all all leave it
+     * right. Known limit: cancelling that dialog keeps this write too, so a row
+     * moved here stays on the new day until the next save re-anchors it.
      *
      * A press that only moves the event still writes, or the hand-entered row
      * would go on counting toward the day the event left.

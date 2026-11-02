@@ -165,6 +165,16 @@ describe("a hand-entered row in the aggregates (#2407)", () => {
     expect(summary.totalSessions).toBe(0);
   });
 
+  it("adds to its bar's minutes and not to the bar's session count", () => {
+    const [bucket] = aggregateByTodo(
+      [{ ...typed(), todoId: null }],
+      new Map(),
+    );
+    expect(bucket.todoId).toBe("__none__");
+    expect(bucket.totalMinutes).toBe(30);
+    expect(bucket.sessionCount).toBe(0);
+  });
+
   it("is not a pomodoro", () => {
     const buckets = aggregatePomodoroRate([typed()], 4, 1);
     expect(buckets[0].actual).toBe(0);
