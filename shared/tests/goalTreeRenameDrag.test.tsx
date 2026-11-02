@@ -641,9 +641,9 @@ describe("GoalTreeView — button labels stay on one line (#2364)", () => {
 
   it("keeps the add-goal row's buttons whole beside the field", () => {
     renderTree();
-    const thisWeek = screen.getByRole("button", { name: /^This week/ });
-    keepsLabel(thisWeek);
-    fireEvent.click(thisWeek);
+    const open = screen.getByRole("button", { name: "Add a goal" });
+    keepsLabel(open);
+    fireEvent.click(open);
     const field = screen.getByRole("textbox", { name: "This week: Goal" });
     expect(field.className).toContain("min-w-0");
     keepsLabel(screen.getByRole("button", { name: "Add" }));
@@ -680,8 +680,8 @@ describe("GoalTreeView — the drag reads as carrying the row (#2365)", () => {
     expect(ghost.getAttribute("aria-hidden")).toBe("true");
     expect(ghost.className).toContain("shadow-lumen-lg");
     expect(ghost.className).toContain("bg-lumen-bg");
-    // The row, not just the grabbed title: the kind chip comes along.
-    expect(ghost.textContent).toContain("Week");
+    // The row, not just the grabbed title: the period badge comes along.
+    expect(ghost.textContent).toContain("This week");
     expect(ghost.textContent).toContain("Run 3 times");
     await vi.waitFor(() =>
       expect(document.querySelector("[data-goal-tree-ghost]")).toBeNull(),

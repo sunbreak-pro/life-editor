@@ -43,7 +43,6 @@ import {
   type EveningUpcomingLabels,
   type Goal,
   type GoalPeriodKind,
-  type GoalTodoLinkScreenLabels,
   type ItemPanelOptions,
   type MorningGoalsLabels,
   type WikiTagAssignmentUnified,
@@ -293,31 +292,8 @@ export function BriefingScreen({
       openInConnect: t("briefing.goals.openInConnect"),
     };
   }, [t, goalRanges]);
-  // The linking screen's copy: the same goalLink.* words Connect opens it with.
-  // `periodLabel` is the linked goal's own period, filled in where it opens.
-  const goalLinkLabels = useMemo<GoalTodoLinkScreenLabels>(
-    () => ({
-      heading: t("goalLink.heading"),
-      periodLabel: "",
-      search: t("goalLink.search"),
-      listLabel: t("goalLink.todoList"),
-      empty: t("goalLink.empty"),
-      noMatch: t("goalLink.noMatch"),
-      done: t("goalLink.done"),
-      previewHeading: t("goalLink.previewHeading"),
-      achievementLost: t("goalLink.achievementLost"),
-      save: t("goalLink.save"),
-      saving: t("goalLink.saving"),
-      cancel: t("goalLink.cancel"),
-      saveFailed: t("goalLink.saveFailed"),
-      unconnected: t("goalLink.unconnected"),
-      achieved: t("goalLink.achieved"),
-      becomesAchieved: t("goalLink.becomesAchieved"),
-      losesAchievement: t("goalLink.losesAchievement"),
-    }),
-    [t],
-  );
-  const { detailLabels: goalDetailLabels } = useGoalTreeLabels(todayKey);
+  const { detailLabels: goalDetailLabels, linkLabels: goalLinkLabels } =
+    useGoalTreeLabels(todayKey);
 
   // Widget copy re-uses the EXISTING analytics.* keys (Analytics shrink:
   // the three widgets moved in here — their labels come along unduplicated).
@@ -1043,6 +1019,14 @@ export function BriefingScreen({
           key={goalId}
           node={panelNode}
           parentOptions={goalParentOptions(goalState.goals, panelNode.goal)}
+          parentGoal={
+            panelNode.goal.parentGoalId
+              ? (goalModel?.byId.get(panelNode.goal.parentGoalId)?.goal ?? null)
+              : null
+          }
+          // No drag on this panel, and none in Connect's tree on a phone.
+          parentSelect={narrow}
+          onLinkTodos={() => setPanelView({ kind: "link", goalId })}
           onRename={(title) => void updateGoal(goalId, { title })}
           onChangeParent={(parentGoalId) =>
             void updateGoal(goalId, { parentGoalId })

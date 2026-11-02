@@ -184,14 +184,15 @@ describe("arrangeGoalTree (#2225)", () => {
     expect(ids(achieved.roots)).toEqual(["w2"]);
     expect(achieved.unconnected).toEqual([]);
 
-    const unconnected = arrange("standard", { status: "unconnected" });
-    expect(unconnected.roots).toEqual([]);
-    expect(ids(unconnected.unconnected)).toEqual(["w3"]);
-
     // In progress: the year and the month are not achieved either.
     const inProgress = arrange("standard", { status: "inProgress" });
     expect(ids(inProgress.roots)).toEqual(["y"]);
     expect(ids(inProgress.roots[0].children[0].children)).toEqual(["w1"]);
+    // Nothing connected is neither state: its group shows on "all" (#2410).
+    expect(inProgress.unconnected).toEqual([]);
+    expect(ids(arrange("standard", { status: "all" }).unconnected)).toEqual([
+      "w3",
+    ]);
   });
 
   it("hides done todos without touching the progress or the panel's lookup", () => {

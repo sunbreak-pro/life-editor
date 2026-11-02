@@ -53,6 +53,7 @@ export {
   type GoalTreeDragSource,
 } from "./goalTreeDrag";
 export {
+  formatGoalPeriod,
   GoalDetailPanel,
   type GoalDetailLabels,
   type GoalDetailPanelProps,

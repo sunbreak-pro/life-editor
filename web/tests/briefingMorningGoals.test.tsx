@@ -315,6 +315,45 @@ describe("Morning paper goals (#2106)", () => {
     ).toBeTruthy();
   });
 
+  it("goes to the goal above and to the linking screen from a goal's own panel (#2410)", async () => {
+    const ds = makeDS({
+      goals: [
+        goal("y-plan", "今年の目標", KEYS.year, { periodKind: "year" }),
+        goal("w-plan", "企画書を通す", KEYS.week, { parentGoalId: "y-plan" }),
+      ],
+    });
+    render(paper(ds));
+    const dialog = await openPanel();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Open 企画書を通す" }),
+    );
+    await within(dialog).findByRole("textbox", { name: "Goal title" });
+    // Desktop: the link alone. The select stays for a phone.
+    expect(within(dialog).queryByRole("combobox")).toBeNull();
+
+    fireEvent.click(within(dialog).getByRole("button", { name: "Link todos" }));
+    await within(dialog).findByRole("region", { name: "Link todos" });
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Back to goals" }),
+    );
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Open 企画書を通す" }),
+    );
+
+    fireEvent.click(
+      await within(dialog).findByRole("button", { name: "今年の目標" }),
+    );
+    await waitFor(() =>
+      expect(
+        (
+          within(dialog).getByRole("textbox", {
+            name: "Goal title",
+          }) as HTMLInputElement
+        ).value,
+      ).toBe("今年の目標"),
+    );
+  });
+
   describe("period-end review (P1 / P2)", () => {
     it("drops a goal and moves on", async () => {
       const ds = makeDS({ goals: [goal("w-old", "模様替え", LAST_WEEK)] });
