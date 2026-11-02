@@ -71,8 +71,8 @@ export interface SidebarContextMenusOptions {
 
 export interface SidebarContextMenus {
   /**
-   * `contextmenu` on a tag row, or on a tag chip under the note title
-   * (#2007). Undefined on narrow.
+   * `contextmenu` on a tag row. Undefined on narrow. The chips under the note
+   * title have their own panel since #2395 (useHeaderTagEdit).
    */
   onTagContextMenu?: (tagId: string, event: MouseEvent) => void;
   /** `contextmenu` on a note row. Undefined on narrow. */

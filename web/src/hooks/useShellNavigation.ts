@@ -160,6 +160,10 @@ export function useShellNavigation({
   // Connect's タグ / 目標と Todo tab (#2108), lifted for the same reason.
   // Opens on Tags — the tab the section had before it had tabs.
   const [connectTab, setConnectTab] = useState<ConnectTab>("tags");
+  // The tag Connect should show (#2395), consumed once by ConnectScreen.
+  const [pendingConnectTag, setPendingConnectTag] = useState<string | null>(
+    null,
+  );
   // global:new-task intent, consumed once by the Schedule section (see
   // handleNewTodo). A boolean "pending" flag — not a nonce — so returning to
   // the section later never re-opens the add dialog.
@@ -296,15 +300,18 @@ export function useShellNavigation({
 
   /*
    * "Open this tag on Connect" (#2407 — the Schedule event editor's 「タグの
-   * 色を変える →」, since the tag's own colour is edited there alone, #2219).
-   * No pending intent is needed: ConnectScreen seeds its open tag from the
-   * module-level store (#1473) on every mount, and the section switch below
+   * 色を変える →」, since the tag's own colour is edited there alone, #2219;
+   * #2395 — the note header's tag panel). ConnectScreen seeds its open tag from
+   * the module-level store (#1473) on every mount, and the section switch below
    * mounts it fresh — so writing the store FIRST and switching after lands on
    * that tag. The row the panel was reading goes, as it does when a tag is
    * picked on the screen itself (ConnectScreen's commitSelection): it belonged
    * to the old tag.
    *
-   * All three moves sit INSIDE the guard like showRecordsForApp: a refused
+   * The seed cannot reach a screen that is already up, so the same move also
+   * raises `pendingConnectTag` (#2395), which ConnectScreen consumes either way.
+   *
+   * All the moves sit INSIDE the guard like showRecordsForApp: a refused
    * navigation must not leave Connect re-pointed at a tag the user never got
    * to.
    */
@@ -314,11 +321,13 @@ export function useShellNavigation({
         if (getConnectTagSelection() !== tagId) setConnectItemSelection(null);
         setConnectTagSelection(tagId);
         setConnectTab("tags");
+        setPendingConnectTag(tagId);
         applyDestination({ section: "connect" });
       });
     },
     [guarded, applyDestination],
   );
+  const consumeConnectTag = useCallback(() => setPendingConnectTag(null), []);
 
   // global:new-task executor. Todo creation lives behind the TodoTree
   // Provider, which only the Schedule section mounts, so the shell can't call
@@ -529,6 +538,8 @@ export function useShellNavigation({
     consumeRecordsSource,
     showRecordsForApp,
     openTagInConnect,
+    pendingConnectTag,
+    consumeConnectTag,
     briefingTab,
     setBriefingTab,
     connectTab,
