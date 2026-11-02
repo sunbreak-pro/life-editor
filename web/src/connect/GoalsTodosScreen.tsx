@@ -478,6 +478,13 @@ export function GoalsTodosScreen({
     wasPanelOpen.current = panelOpen;
   }, [panelOpen]);
 
+  // #2401: the todo the panel is editing, marked in the tree behind it.
+  const panelRequest = itemPanel?.request;
+  const editingTodoId =
+    panelRequest?.mode === "edit" && panelRequest.target.role === "task"
+      ? panelRequest.target.id
+      : null;
+
   /*
    * Deleting a goal (#2405): the panel's button and the row's bin both land
    * here. The list is fixed when the dialog opens, so the writes are exactly
@@ -748,6 +755,7 @@ export function GoalsTodosScreen({
           onCreateGoal={createGoal}
           onSetTodoStatus={setTodoStatus}
           onOpenTodo={openTodo}
+          editingTodoId={editingTodoId}
           onDeleteTodo={deleteTodo}
           drag={isWide ? drag : undefined}
           onRenameGoal={renameGoal}

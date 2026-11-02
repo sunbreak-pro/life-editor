@@ -89,6 +89,10 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * pencil at the right end is the way into the editor, and the bin goes through
  * the host's confirm. A press on the name never starts a drag: the grip does.
  *
+ * The todo open in the editor (#2401, `editingTodoId`) wears the accent wash on
+ * its row, in every group it is drawn in, so the row being changed stays
+ * findable behind the panel. Its pencil carries `aria-current`.
+ *
  * Pure presentation (§6.4): the model and every label come from the host
  * (web/src/connect/GoalsTodosScreen.tsx). The state held here — the add
  * fields' drafts, which goals are closed and what is being dragged — is
@@ -193,6 +197,8 @@ export interface GoalTreeViewProps {
   onResetFilters?: () => void;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
   onOpenTodo: (todoId: string) => void;
+  /** The todo open in the editor, whose row is marked (#2401). */
+  editingTodoId?: string | null;
   /** The bin on a todo row. Fires raw: the host asks. Absent, no bin. */
   onDeleteTodo?: (todoId: string) => void;
   /** Desktop only. Absent, no grip is drawn and nothing can be dragged. */
@@ -415,6 +421,7 @@ function TodoRow({
   todo,
   fromGoalId,
   drag,
+  editing,
   onSetTodoStatus,
   onOpenTodo,
   onDeleteTodo,
@@ -424,6 +431,7 @@ function TodoRow({
   /** The goal row this todo hangs under; null in the loose group. */
   fromGoalId: string | null;
   drag: DragState | null;
+  editing: boolean;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
   onOpenTodo: (todoId: string) => void;
   onDeleteTodo?: (todoId: string) => void;
@@ -439,6 +447,7 @@ function TodoRow({
       data-goal-tree-row=""
       className={cn(
         "group/todo flex items-center gap-1 rounded-lumen-sm transition-colors hover:bg-lumen-hover",
+        editing && "bg-lumen-accent-subtle",
         dragged && DRAG_HOLE,
       )}
     >
@@ -492,6 +501,7 @@ function TodoRow({
         onClick={() => onOpenTodo(todo.id)}
         aria-label={labels.formatOpenTodo(todo.title)}
         title={labels.formatOpenTodo(todo.title)}
+        aria-current={editing ? "true" : undefined}
         className={TODO_ROW_ICON}
       >
         <Pencil size={14} aria-hidden />
@@ -977,6 +987,7 @@ function GoalBranch({
                   todo={todo}
                   fromGoalId={goal.id}
                   drag={drag}
+                  editing={todo.id === props.editingTodoId}
                   onSetTodoStatus={props.onSetTodoStatus}
                   onOpenTodo={props.onOpenTodo}
                   onDeleteTodo={props.onDeleteTodo}
@@ -1457,6 +1468,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                 todo={todo}
                 fromGoalId={null}
                 drag={drag}
+                editing={todo.id === props.editingTodoId}
                 onSetTodoStatus={props.onSetTodoStatus}
                 onOpenTodo={props.onOpenTodo}
                 onDeleteTodo={props.onDeleteTodo}
@@ -1490,6 +1502,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                   todo={todo}
                   fromGoalId={fromGoalId}
                   drag={drag}
+                  editing={todo.id === props.editingTodoId}
                   onSetTodoStatus={props.onSetTodoStatus}
                   onOpenTodo={props.onOpenTodo}
                   onDeleteTodo={props.onDeleteTodo}

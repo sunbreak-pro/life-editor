@@ -11,12 +11,17 @@ import {
  * option pick, arrow stepping) the value arrives by.
  */
 
-function renderField(props?: { start?: string; end?: string }) {
+function renderField(props?: {
+  start?: string;
+  end?: string;
+  allowOvernight?: boolean;
+}) {
   const onChange = vi.fn();
   render(
     <TimeRangeField
       start={props?.start ?? "09:00"}
       end={props?.end ?? "10:00"}
+      allowOvernight={props?.allowOvernight}
       onChange={onChange}
       labels={{ start: "Start", end: "End" }}
       formatDuration={(min) => `${min}m`}
@@ -160,6 +165,65 @@ describe("TimeRangeField", () => {
     fireEvent.click(within(list).getByText("10:00"));
     // 10:00 is not before the 10:00 end, so the end rides along (60m kept).
     expect(onChange).toHaveBeenCalledWith({ start: "10:00", end: "11:00" });
+  });
+
+  /*
+   * #2401: a host that can store an end on the next day (a todo) gets the real
+   * length of a range whose end is at or before its start. The grid writes
+   * 22:00 to next-day 00:00, which reaches this field as start 22:00, end 00:00.
+   */
+  describe("allowOvernight", () => {
+    const moveStart = (
+      props: { start: string; end: string; allowOvernight?: boolean },
+      value: string,
+    ) => {
+      const { onChange, startInput } = renderField(props);
+      fireEvent.change(startInput, { target: { value } });
+      fireEvent.keyDown(startInput, { key: "Enter" });
+      return onChange;
+    };
+    const OVERNIGHT = { start: "22:00", end: "00:00", allowOvernight: true };
+
+    it("keeps the length when the start moves earlier, ending the same day", () => {
+      expect(moveStart(OVERNIGHT, "21:00")).toHaveBeenCalledWith({
+        start: "21:00",
+        end: "23:00",
+      });
+    });
+
+    it("carries the end past midnight when the start moves later", () => {
+      expect(moveStart(OVERNIGHT, "23:00")).toHaveBeenCalledWith({
+        start: "23:00",
+        end: "01:00",
+      });
+    });
+
+    it("steps an overnight start with the length intact", () => {
+      const { onChange, startInput } = renderField(OVERNIGHT);
+      fireEvent.keyDown(startInput, { key: "ArrowDown" });
+      expect(onChange).toHaveBeenCalledWith({ start: "21:45", end: "23:45" });
+    });
+
+    it("does not fire when the start is typed back to what it was", () => {
+      expect(moveStart(OVERNIGHT, "2200")).not.toHaveBeenCalled();
+    });
+
+    it("leaves a same-day range capped at 23:59", () => {
+      expect(
+        moveStart(
+          { start: "09:00", end: "10:00", allowOvernight: true },
+          "23:30",
+        ),
+      ).toHaveBeenCalledWith({ start: "23:30", end: "23:59" });
+    });
+
+    // The event model has no overnight span, so its editor must never be handed
+    // an end before the start: an inverted row still heals to one step.
+    it("is off by default, so an event's inverted row still heals", () => {
+      expect(
+        moveStart({ start: "22:00", end: "00:00" }, "21:00"),
+      ).toHaveBeenCalledWith({ start: "21:00", end: "21:15" });
+    });
   });
 
   it("offers end options only after the start, annotated with the duration", () => {

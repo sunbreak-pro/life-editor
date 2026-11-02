@@ -139,10 +139,15 @@ afterEach(() => {
 const goalRow = (name: string) =>
   screen.getByRole("checkbox", { name: new RegExp(`^${name}`) });
 
+/** #2401: the rows sit folded behind "+ Link to a goal" until asked for. */
+const openGoalRows = async () =>
+  fireEvent.click(await screen.findByRole("button", { name: "Link to a goal" }));
+
 describe("ScheduleTodoDetail — the goal row (#2109)", () => {
   it("previews, then writes the links on the panel's save press", async () => {
     const h = setup("t-free");
-    fireEvent.click(await screen.findByRole("checkbox", { name: /^3 回走る/ }));
+    await openGoalRows();
+    fireEvent.click(goalRow("3 回走る"));
     // Before saving: the week, its month and its year would lose it.
     expect(screen.getByText("What saving changes")).toBeTruthy();
     expect(screen.getAllByText("Will no longer be achieved")).toHaveLength(3);
@@ -161,7 +166,7 @@ describe("ScheduleTodoDetail — the goal row (#2109)", () => {
 
   it("says, in this panel, when un-completing a todo takes an achievement off", async () => {
     const h = setup("t-run1");
-    await screen.findByRole("checkbox", { name: /^3 回走る/ });
+    await screen.findByRole("button", { name: "Link to a goal" });
     fireEvent.click(screen.getByRole("checkbox", { name: /^Status/ }));
     expect(h.toggleStatus).toHaveBeenCalledWith("t-run1");
     h.setNodes([FREE, { ...RUN1, status: "NOT_STARTED" }, RUN2]);
@@ -177,7 +182,8 @@ describe("ScheduleTodoDetail — the goal row (#2109)", () => {
 
   it("keeps a link another device added while the draft was open", async () => {
     const h = setup("t-free");
-    fireEvent.click(await screen.findByRole("checkbox", { name: /^3 回走る/ }));
+    await openGoalRows();
+    fireEvent.click(goalRow("3 回走る"));
     // Meanwhile, elsewhere: t-free gets linked to 企画書を通す, and the
     // goals bump refetches the links under the open draft.
     links.current = [...links.current, link("w-plan", "t-free")];
@@ -200,9 +206,8 @@ describe("ScheduleTodoDetail — the goal row (#2109)", () => {
     vi.setSystemTime(new Date("2026-10-04T01:00:00"));
     try {
       setup("t-free");
-      expect(
-        await screen.findByRole("checkbox", { name: /^企画書を通す/ }),
-      ).toBeTruthy();
+      await openGoalRows();
+      expect(goalRow("企画書を通す")).toBeTruthy();
     } finally {
       localStorage.removeItem(DAY_START_HOUR_STORAGE_KEY);
     }
@@ -213,7 +218,40 @@ describe("ScheduleTodoDetail — the goal row (#2109)", () => {
     await waitFor(() => expect(h.fetchGoals).toHaveBeenCalled());
     await act(async () => {});
     expect(screen.getByTestId("tag-picker")).toBeTruthy();
-    expect(screen.queryByText("Goals")).toBeNull();
+    expect(screen.queryByText("Connected goals")).toBeNull();
     expect(screen.queryByRole("status")).toBeNull();
+  });
+
+  // #2401: the chips, in the design's "{period}・{name}" form.
+  it("draws a linked goal as a chip, and its × unlinks on the save press", async () => {
+    const h = setup("t-run1");
+    await screen.findByText("Connected goals");
+    screen.getByText("Week · 3 回走る");
+    const save = screen.getByRole("button", { name: "Save" });
+    expect((save as HTMLButtonElement).disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Remove goal: 3 回走る" }));
+    expect(screen.queryByText("Week · 3 回走る")).toBeNull();
+    // A draft like the rest: nothing written until the press.
+    expect(h.unlinkGoalTodo).not.toHaveBeenCalled();
+    expect((save as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(save);
+    await waitFor(() =>
+      expect(h.unlinkGoalTodo).toHaveBeenCalledWith("w-run", "t-run1"),
+    );
+  });
+
+  it("links a second goal, keeping the first", async () => {
+    const h = setup("t-run1");
+    await openGoalRows();
+    fireEvent.click(goalRow("企画書を通す"));
+    await screen.findByText("Week · 企画書を通す");
+    screen.getByText("Week · 3 回走る");
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    await waitFor(() =>
+      expect(h.linkGoalTodo).toHaveBeenCalledWith("w-plan", "t-run1"),
+    );
+    expect(h.unlinkGoalTodo).not.toHaveBeenCalled();
   });
 });

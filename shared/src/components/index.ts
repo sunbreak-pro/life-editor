@@ -121,6 +121,7 @@ export {
   TodoDetailPanel,
   type TodoDetailPanelProps,
   type TodoDetailPatch,
+  type TodoScheduleLabels,
 } from "./TodoDetailPanel";
 export {
   TodoStatusChoices,
