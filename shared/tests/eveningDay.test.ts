@@ -12,6 +12,7 @@ import {
 } from "../src/components/briefing/eveningDay";
 import type { ScheduleItem } from "../src/types/schedule";
 import type { TimerSession } from "../src/types/timer";
+import { MANUAL_SESSION_LABEL } from "../src/utils/timerSessions";
 import type { TodoNode } from "../src/types/todoTree";
 import { goal } from "./fixtures/goalLinkState";
 import { makeTodo } from "./helpers/nodeFixtures";
@@ -164,6 +165,26 @@ describe("eveningEvents", () => {
       now: new Date(at(15)),
     }).map((r) => r.key);
     expect(keys).toEqual(["event:now"]);
+  });
+
+  // #2407: the event may have moved off the day, leaving only the label to
+  // name the row, and that label is an identifier.
+  it("never prints a hand-entered row's label", () => {
+    const rows = eveningEvents({
+      dateKey: DAY,
+      dayStartHour: 0,
+      scheduleItems,
+      todos,
+      sessions: [
+        session({
+          id: 4,
+          eventId: "moved-away",
+          label: MANUAL_SESSION_LABEL,
+          startedAt: new Date(at(11)),
+        }),
+      ],
+    });
+    expect(rows.find((r) => r.key === "session:4")?.title).toBeNull();
   });
 
   it("names a session after its todo, then its event, then its label, else null", () => {

@@ -62,7 +62,7 @@ export {
   type EventEditorRepeat,
   // #1374: the per-event reminder field.
   type EventEditorReminder,
-  // #1375: the read-only logged-work-time row.
+  // #1375 / #2407: the logged-work-time field.
   type EventEditorWorkTime,
   // #998: the narrow sheet's Event → Todo entry.
   type EventEditorConvert,

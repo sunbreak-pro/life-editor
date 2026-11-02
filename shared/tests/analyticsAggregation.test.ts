@@ -11,6 +11,7 @@ import {
   aggregateByDay,
   aggregateByTodo,
   aggregateDailyTimeline,
+  aggregatePomodoroRate,
   aggregateWorkBreakBalance,
   computeSummary,
   aggregateWorkTimeByTag,
@@ -19,6 +20,7 @@ import {
   aggregateTagUsage,
   type TagUsageItem,
 } from "../src/utils/analyticsAggregation";
+import { MANUAL_SESSION_LABEL } from "../src/utils/timerSessions";
 
 function makeSession(overrides: Partial<TimerSession> = {}): TimerSession {
   return {
@@ -140,6 +142,32 @@ describe("aggregateByTodo", () => {
     );
     const result = aggregateByTodo(sessions, nameMap);
     expect(result.length).toBeLessThanOrEqual(10);
+  });
+});
+
+/*
+ * #2407: a hand-entered row adds to the minutes, but nobody sat a session, so
+ * the counts leave it out.
+ */
+describe("a hand-entered row in the aggregates (#2407)", () => {
+  const typed = (): TimerSession =>
+    makeSession({
+      id: 90,
+      startedAt: new Date(),
+      completed: true,
+      duration: 1800,
+      label: MANUAL_SESSION_LABEL,
+    });
+
+  it("adds to the summary's minutes and not to its session count", () => {
+    const summary = computeSummary([typed()]);
+    expect(summary.totalMinutes).toBe(30);
+    expect(summary.totalSessions).toBe(0);
+  });
+
+  it("is not a pomodoro", () => {
+    const buckets = aggregatePomodoroRate([typed()], 4, 1);
+    expect(buckets[0].actual).toBe(0);
   });
 });
 

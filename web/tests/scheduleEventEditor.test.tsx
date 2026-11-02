@@ -1,6 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
-import type { EventEditorItem, TimerSession } from "@life-editor/shared";
+import {
+  MANUAL_SESSION_LABEL,
+  type EventEditorItem,
+  type TimerSession,
+} from "@life-editor/shared";
 import { ScheduleEventEditor } from "../src/schedule/ScheduleEventEditor";
 import type { ScheduleEventEditorProps } from "../src/schedule/ScheduleEventEditor";
 import { createBumpableSync } from "./helpers";
@@ -40,15 +44,18 @@ import { createBumpableSync } from "./helpers";
  * exercise; both echo the id and role they were pointed at, which is the whole
  * fact under test.
  *
- * #1375 adds a fifth: the logged-time row is COMPOSED here (the pane holds no
- * copy and no formatter), so which of the four duration sentences a number
- * turns into is only decidable in this file.
+ * #1375 adds a fifth: the logged-time field is fed here (the pane holds no copy
+ * and no data access), so what a saved total becomes, and how the read's three
+ * states reach the field, is only decidable in this file (#2407).
  *
  * No jest-dom in web/: presence comes from getBy* throwing, absence from
  * queryBy* being null (same convention as scheduleSidebar.test.tsx).
  */
 
 const fetchSessionsByEventId = vi.fn(async (): Promise<TimerSession[]> => []);
+const saveEventWorkTotal = vi.fn(async (): Promise<void> => undefined);
+const pushUndo = vi.fn();
+const showToast = vi.fn();
 
 vi.mock("@life-editor/shared", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@life-editor/shared")>()),
@@ -62,7 +69,9 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   // which throws synchronously when the app has no Supabase config — the hook
   // would swallow that and every assertion below would pass for the wrong
   // reason.
-  getDataService: () => ({ fetchSessionsByEventId }),
+  getDataService: () => ({ fetchSessionsByEventId, saveEventWorkTotal }),
+  useUndoRedoOptional: () => ({ push: pushUndo }),
+  useToastOptional: () => ({ showToast }),
 }));
 
 vi.mock("../src/wikitag/TagPicker", () => ({
@@ -327,21 +336,50 @@ describe("ScheduleEventEditor — the tag scope on a repeat (#1663)", () => {
 });
 
 /*
- * The logged-time row (#1375). The pane renders whatever string it is handed,
- * so the only thing that can be wrong here is the composition: which sentence a
- * given number picks, and that "never measured" does not read as "0 min".
+ * The logged-time field (#1375, typed since #2407). The field holds the total,
+ * so what can be wrong here is which number it is seeded with, that a read which
+ * has not landed cannot be typed over, and what a save hands the DataService.
  */
-describe("ScheduleEventEditor — logged work time (#1375)", () => {
+describe("ScheduleEventEditor — logged work time (#1375 / #2407)", () => {
+  const field = () =>
+    screen.getByLabelText("scheduleScreen.workTime") as HTMLInputElement;
+  const ready = () =>
+    waitFor(() => expect(field().disabled).toBe(false));
+  const save = () =>
+    fireEvent.click(screen.getByRole("button", { name: "scheduleScreen.save" }));
+
   beforeEach(() => {
     fetchSessionsByEventId.mockReset();
     fetchSessionsByEventId.mockResolvedValue([]);
+    saveEventWorkTotal.mockReset();
+    saveEventWorkTotal.mockResolvedValue(undefined);
+    pushUndo.mockReset();
+    showToast.mockReset();
   });
 
-  it("says nothing was logged when the timer never ran on this event", async () => {
+  it("is empty with the example when the timer never ran on this event", async () => {
+    renderEditor();
+    await ready();
+    expect(field().value).toBe("");
+    expect(field().placeholder).toBe("scheduleScreen.workTimePlaceholder");
+  });
+
+  it("is locked while the read is in flight", () => {
+    fetchSessionsByEventId.mockReturnValue(new Promise(() => {}));
+    renderEditor();
+    expect(field().disabled).toBe(true);
+    expect(field().placeholder).toBe("common.loading");
+  });
+
+  it("stays locked and says why when the read fails", async () => {
+    fetchSessionsByEventId.mockRejectedValue(new Error("boom"));
     renderEditor();
     await waitFor(() =>
-      expect(screen.getByText("scheduleScreen.workTimeNone")).toBeTruthy(),
+      expect(screen.getByRole("alert").textContent).toBe(
+        "scheduleScreen.workTimeLoadFailed",
+      ),
     );
+    expect(field().disabled).toBe(true);
   });
 
   it("reads the log for THIS event's id", async () => {
@@ -351,20 +389,11 @@ describe("ScheduleEventEditor — logged work time (#1375)", () => {
     );
   });
 
-  it("renders sub-hour time in minutes", async () => {
-    fetchSessionsByEventId.mockResolvedValue([workSession(1, 45)]);
+  it("rounds the seconds a session stores to whole minutes", async () => {
+    fetchSessionsByEventId.mockResolvedValue([workSession(1, 44.7)]);
     renderEditor();
-    await waitFor(() =>
-      expect(screen.getByText("scheduleScreen.durationMin|45")).toBeTruthy(),
-    );
-  });
-
-  it("drops the minutes half on a whole number of hours", async () => {
-    fetchSessionsByEventId.mockResolvedValue([workSession(1, 120)]);
-    renderEditor();
-    await waitFor(() =>
-      expect(screen.getByText("scheduleScreen.durationHour|2")).toBeTruthy(),
-    );
+    await ready();
+    expect(field().value).toBe("45");
   });
 
   // Two sessions, summed — the number is derived from the log every time, which
@@ -375,11 +404,115 @@ describe("ScheduleEventEditor — logged work time (#1375)", () => {
       workSession(2, 40),
     ]);
     renderEditor();
+    await ready();
+    expect(field().value).toBe("90");
+  });
+
+  it("saves the total with the event's place, and reads the log back", async () => {
+    fetchSessionsByEventId.mockResolvedValue([workSession(1, 30)]);
+    renderEditor();
+    await ready();
+    fetchSessionsByEventId.mockClear();
+    fireEvent.change(field(), { target: { value: "45" } });
+    save();
+    expect(saveEventWorkTotal).toHaveBeenCalledExactlyOnceWith({
+      eventId: ITEM.id,
+      anchor: { date: ITEM.date, startTime: "10:00", isAllDay: false },
+      totalMinutes: 45,
+    });
+    // Settled in the same press, without waiting for the Realtime echo.
+    expect(field().value).toBe("45");
+    expect(
+      (
+        screen.getByRole("button", {
+          name: "scheduleScreen.save",
+        }) as HTMLButtonElement
+      ).disabled,
+    ).toBe(true);
     await waitFor(() =>
-      expect(
-        screen.getByText("scheduleScreen.durationHourMin|1,30"),
-      ).toBeTruthy(),
+      expect(fetchSessionsByEventId).toHaveBeenCalledWith(ITEM.id),
     );
+  });
+
+  it("saves an emptied field as null, which drops the hand-entered row", async () => {
+    fetchSessionsByEventId.mockResolvedValue([
+      workSession(1, 30),
+      { ...workSession(2, 15), label: MANUAL_SESSION_LABEL },
+    ]);
+    renderEditor();
+    await waitFor(() => expect(field().value).toBe("45"));
+    fireEvent.change(field(), { target: { value: "" } });
+    save();
+    expect(saveEventWorkTotal.mock.calls[0]).toEqual([
+      expect.objectContaining({ totalMinutes: null }),
+    ]);
+    // Back to what the timer measured.
+    expect(field().value).toBe("30");
+  });
+
+  it("refuses less than the timer measured, naming the number, and writes nothing", async () => {
+    fetchSessionsByEventId.mockResolvedValue([workSession(1, 30)]);
+    renderEditor();
+    await ready();
+    fireEvent.change(field(), { target: { value: "29" } });
+    expect(screen.getByRole("alert").textContent).toBe(
+      "scheduleScreen.workTimeBelowTimer|30",
+    );
+    save();
+    fireEvent.keyDown(field(), { key: "Enter" });
+    expect(saveEventWorkTotal).not.toHaveBeenCalled();
+  });
+
+  it("hands the unsaved draft to the host's dirty guard", async () => {
+    const onDirtyChange = vi.fn();
+    const { props, rerender } = renderEditor();
+    rerender({
+      ...props,
+      handlers: { ...props.handlers, onDirtyChange },
+    });
+    await ready();
+    fireEvent.change(field(), { target: { value: "45" } });
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
+  });
+
+  it("pushes an undo entry that restores what was there", async () => {
+    fetchSessionsByEventId.mockResolvedValue([workSession(1, 30)]);
+    renderEditor();
+    await ready();
+    fireEvent.change(field(), { target: { value: "45" } });
+    save();
+    expect(pushUndo).toHaveBeenCalledTimes(1);
+    const [domain, command] = pushUndo.mock.calls[0];
+    expect(domain).toBe("scheduleItem");
+
+    saveEventWorkTotal.mockClear();
+    await command.undo();
+    // Nothing was hand-entered before, so undo removes the row outright.
+    expect(saveEventWorkTotal).toHaveBeenLastCalledWith({
+      eventId: ITEM.id,
+      anchor: { date: ITEM.date, startTime: "10:00", isAllDay: false },
+      totalMinutes: null,
+    });
+    await command.redo();
+    expect(saveEventWorkTotal).toHaveBeenLastCalledWith(
+      expect.objectContaining({ totalMinutes: 45 }),
+    );
+  });
+
+  it("says so when the write fails, and puts the read's number back", async () => {
+    fetchSessionsByEventId.mockResolvedValue([workSession(1, 30)]);
+    saveEventWorkTotal.mockRejectedValue(new Error("boom"));
+    renderEditor();
+    await ready();
+    fireEvent.change(field(), { target: { value: "45" } });
+    save();
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith(
+        "danger",
+        "scheduleScreen.workTimeSaveFailed",
+      ),
+    );
+    await waitFor(() => expect(field().value).toBe("30"));
   });
 });
 
