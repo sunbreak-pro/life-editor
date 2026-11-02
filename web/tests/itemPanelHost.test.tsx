@@ -215,6 +215,44 @@ describe("ItemPanelHost — the same writes as the Schedule screen", () => {
   });
 });
 
+describe("新規作成 saving at once (#2402)", () => {
+  const handlers = () => overlays().create.handlers;
+
+  it("stays staging on the panel a caller opens without asking", () => {
+    mountPanel();
+    act(() => panel!.openCreate({ date: "2026-10-20" }));
+    expect(handlers().onCreateMemoNote).toBeUndefined();
+  });
+
+  it("is what ItemPanelHost offers a caller that names the jump", () => {
+    mountPanel();
+    act(() =>
+      panel!.openCreate({ date: "2026-10-20" }, { onOpenMemoNote: vi.fn() }),
+    );
+    expect(handlers().onCreateMemoNote).toBeTypeOf("function");
+  });
+
+  it("does not come from the [[ link's jump alone, which the paper passes", () => {
+    mountPanel();
+    act(() =>
+      panel!.openCreate({ date: "2026-10-20" }, { onNavigateToItem: vi.fn() }),
+    );
+    expect(handlers().onCreateMemoNote).toBeUndefined();
+  });
+
+  it("is what the Schedule offers once the shell hands it a jump", () => {
+    render(
+      <CalendarTab dataService={stubDataService()} onNavigateToItem={vi.fn()} />,
+    );
+    expect(handlers().onCreateMemoNote).toBeTypeOf("function");
+  });
+
+  it("stays staging on a Schedule with no jump", () => {
+    render(<CalendarTab dataService={stubDataService()} />);
+    expect(handlers().onCreateMemoNote).toBeUndefined();
+  });
+});
+
 describe("ItemPanelHost — 「予定の画面で開く」", () => {
   it("is offered only when the caller asks for it", () => {
     mountPanel();

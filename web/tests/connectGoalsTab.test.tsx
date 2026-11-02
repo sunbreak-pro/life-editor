@@ -1641,7 +1641,6 @@ describe("Editing a todo over the tab (#2401)", () => {
       todos: TODOS.map(
         (t) =>
           ({
-            type: "task",
             parentId: null,
             order: 0,
             createdAt: "2026-09-27T00:00:00Z",

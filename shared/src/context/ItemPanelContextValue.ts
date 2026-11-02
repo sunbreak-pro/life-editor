@@ -43,6 +43,13 @@ export interface ItemPanelOptions {
   onOpenInSchedule?: (target: ItemPanelScheduleTarget) => void;
   /** Where a "[[" link inside a todo body goes. Absent = clicks are inert. */
   onNavigateToItem?: (target: { id: string; role: string }) => void;
+  /**
+   * #2402: given, 新規作成 in the creation panel saves at once and lands on a
+   * new memo note through this. Absent, it stages a note chip as before — the
+   * paper's「+」, the one caller of `openCreate` today, leaves it out because
+   * #2402 keeps that panel out of scope.
+   */
+  onOpenMemoNote?: (target: { id: string; role: string }) => void;
 }
 
 /** Seeds the creation panel. Times default to the panel's own 09:00–10:00. */

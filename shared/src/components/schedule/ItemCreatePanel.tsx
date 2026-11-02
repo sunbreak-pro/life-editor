@@ -95,6 +95,11 @@ import { dayOfWeek } from "../../utils/scheduleGridLayout";
  * shows as a chip under 「添付したノート」 with its own ×. The submit carries
  * them all, as an array: `[]` is "attach nothing".
  *
+ * #2402: a host that wires `handlers.onCreateMemoNote` makes 新規作成 act at
+ * once instead: the form is saved as it stands and the host goes on to the
+ * memo note, so that host never opens the title field. A host without the
+ * handler keeps the staging above.
+ *
  * #2406's event half of 「既存から選ぶ」: on the event tab it swaps the title,
  * the date line and the repeat for a search field and a list of existing
  * events. Picking one seeds the tag field with what that event wears, and the
@@ -135,6 +140,16 @@ export interface ItemCreateOption {
  */
 export type ItemCreateNoteDraft =
   { kind: "new"; title: string } | { kind: "existing"; id: string };
+
+/**
+ * #2402: what 新規作成 acts on. `event` / `task` are saved from the form, with
+ * `title` trimmed and possibly empty (the host names an untitled item).
+ * `picked` is the todo chosen under 既存から選ぶ, which is not written at all:
+ * the memo note is only linked to it.
+ */
+export type ItemCreateMemoTarget =
+  | { kind: ItemCreateType; title: string; slot: ItemCreateSlot }
+  | { kind: "picked"; todoId: string; title: string };
 
 /**
  * #2396: where 「既存から選ぶ」 opens the note picker. `side` is a 20rem
@@ -461,6 +476,15 @@ export interface ItemCreatePanelHandlers {
   /** The same, followed by the copy's editor. */
   onCopyEventAndOpen?: (
     eventId: string,
+    notes: readonly ItemCreateNoteDraft[],
+  ) => void;
+  /**
+   * #2402: 新規作成 saves at once and goes to a new memo note. Optional: a host
+   * without it keeps 新規作成 as the title field that stages a chip. `notes`
+   * are the chips staged so far, which ride along.
+   */
+  onCreateMemoNote?: (
+    target: ItemCreateMemoTarget,
     notes: readonly ItemCreateNoteDraft[],
   ) => void;
 }
@@ -1094,6 +1118,7 @@ export function ItemCreatePanel({
     onPlaceTodoAndOpen,
     onCopyEvent,
     onCopyEventAndOpen,
+    onCreateMemoNote,
   } = handlers;
   const [type, setType] = useState<ItemCreateType>("event");
   const [title, setTitle] = useState(initialTitle);
@@ -1368,6 +1393,22 @@ export function ItemCreatePanel({
     : placing
       ? !!pickedTodo
       : !!title.trim();
+  // #2402: unlike the footer, 新規作成 takes an empty title (the host names the
+  // item) — only placing needs its todo picked first.
+  const createMemoNote = () => {
+    if (!onCreateMemoNote) return;
+    if (!placing) {
+      onCreateMemoNote({ kind: type, title: title.trim(), slot }, stagedDrafts);
+    } else if (pickedTodo) {
+      onCreateMemoNote(
+        { kind: "picked", todoId: pickedTodo.id, title: pickedTodo.title },
+        stagedDrafts,
+      );
+    }
+  };
+  // Copying an existing event (#2406) keeps the staging row: its submit is the
+  // host's copy, and a memo note made at once would write a blank new event.
+  const memoNoteAtOnce = !!onCreateMemoNote && !copying;
 
   const picker = pickerOpen ? (
     <NotePicker
@@ -1618,10 +1659,17 @@ export function ItemCreatePanel({
               >
                 <button
                   type="button"
-                  onClick={() => setNewNoteOpen((v) => !v)}
-                  aria-expanded={newNoteOpen}
+                  onClick={
+                    memoNoteAtOnce
+                      ? createMemoNote
+                      : () => setNewNoteOpen((v) => !v)
+                  }
+                  // #2402: with the handler it acts at once and opens nothing.
+                  aria-expanded={memoNoteAtOnce ? undefined : newNoteOpen}
+                  disabled={memoNoteAtOnce && placing && !pickedTodo}
                   className={cn(
                     NOTE_ROW_BTN,
+                    DISABLED_OUTLINE_BTN,
                     newNoteOpen && "border-lumen-accent text-lumen-accent",
                   )}
                 >

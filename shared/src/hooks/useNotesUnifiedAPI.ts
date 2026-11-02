@@ -279,6 +279,11 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       restoredRef.current = true;
       if (storedId === null) return;
       if (selectedNoteIdRef.current !== null) return; // user already selected
+      // #2402: a select that came first and is still reading its body outranks
+      // the remembered note too. Only `selectNote` has moved the token by here.
+      // A link's jump to a brand-new note races this very read, and taking a
+      // token below would throw that select away and open the older note.
+      if (selectTokenRef.current > 0) return;
       if (!node) {
         clearNotesSelection(); // stale id — item gone since last session tab
         return;

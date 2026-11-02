@@ -115,6 +115,16 @@ interface NoteReversal {
   redo: () => Promise<void>;
 }
 
+/** #2402: what `attachMemoNote` leaves behind. */
+export interface MemoNoteAttach {
+  /** The memo note, or null when it could not be made and linked. */
+  noteId: string | null;
+  /** False when any part of the attach failed. Nothing has reported that yet. */
+  ok: boolean;
+  /** Reverses the notes and links that landed, as one (null when none did). */
+  reversal: NoteReversal | null;
+}
+
 /**
  * #2396: several notes' reversals as ONE command — the create's one undo
  * takes every note it brought along. Each part remembers whether it is
@@ -196,7 +206,8 @@ export function useCreatePanelNotes({
       },
     };
   }, [goalState, onStagedChange, t]);
-  const { createItemLink, deleteItemLink } = useWikiTagsUnifiedContext();
+  const { createItemLink, deleteItemLink, bulkAssign } =
+    useWikiTagsUnifiedContext();
   // Kept across closes so re-opening the panel shows the last list at once;
   // the effect below refreshes it behind that.
   const [notes, setNotes] = useState<ItemCreateOption[]>([]);
@@ -236,7 +247,7 @@ export function useCreatePanelNotes({
     async (
       itemId: string,
       draft: ItemCreateNoteDraft,
-    ): Promise<NoteReversal | "failed"> => {
+    ): Promise<(NoteReversal & { noteId: string }) | "failed"> => {
       let createdNoteId: string | null = null;
       try {
         let noteId = draft.kind === "existing" ? draft.id : null;
@@ -284,6 +295,7 @@ export function useCreatePanelNotes({
         const trashOnUndo = createdNoteId;
         let liveLinkId = link.id;
         return {
+          noteId: linkedNoteId,
           undo: async () => {
             try {
               await deleteItemLink(liveLinkId);
@@ -411,5 +423,70 @@ export function useCreatePanelNotes({
     [linkNote],
   );
 
-  return { notes, notesError, goalPool, attachNote, attachNoteAlongside };
+  /**
+   * #2402: the writes behind 新規作成, once `itemId`'s row exists (the ORDERING
+   * note above): the staged tags on the item, a new note titled `title` with
+   * `noteTagIds` linked to it, then every staged chip. Never throws and says
+   * nothing: the caller reports the whole press once, and the item stays
+   * whatever failed here.
+   *
+   * `bulkAssign` rather than `assignTagToItem`, which pushes a history entry
+   * per tag and would split the one undo (the same reason useDuplicateTagCopy
+   * gives). No tag write is reversed: undoing trashes the note (and a created
+   * item), a trashed item drops out of every tag view, and a redo restores it
+   * still wearing them, as useCreatePanelTags' header says.
+   */
+  const attachMemoNote = useCallback(
+    async (
+      itemId: string,
+      {
+        title,
+        notes: drafts,
+        noteTagIds,
+        itemTagIds,
+      }: {
+        title: string;
+        notes: readonly ItemCreateNoteDraft[];
+        noteTagIds: readonly string[];
+        itemTagIds: readonly string[];
+      },
+    ): Promise<MemoNoteAttach> => {
+      let ok = true;
+      const assignTags = async (id: string, tagIds: readonly string[]) => {
+        for (const tagId of tagIds) {
+          const { failed } = await bulkAssign([id], tagId);
+          if (failed > 0) ok = false;
+        }
+      };
+      await assignTags(itemId, itemTagIds);
+      const memo = await linkOne(itemId, { kind: "new", title });
+      const reversals: NoteReversal[] = [];
+      if (memo === "failed") {
+        ok = false;
+      } else {
+        reversals.push(memo);
+        await assignTags(memo.noteId, noteTagIds);
+      }
+      for (const draft of drafts) {
+        const result = await linkOne(itemId, draft);
+        if (result === "failed") ok = false;
+        else reversals.push(result);
+      }
+      return {
+        noteId: memo === "failed" ? null : memo.noteId,
+        ok,
+        reversal: foldNoteReversals(reversals),
+      };
+    },
+    [bulkAssign, linkOne],
+  );
+
+  return {
+    notes,
+    notesError,
+    goalPool,
+    attachNote,
+    attachNoteAlongside,
+    attachMemoNote,
+  };
 }
