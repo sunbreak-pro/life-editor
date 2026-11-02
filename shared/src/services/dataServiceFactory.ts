@@ -6,6 +6,7 @@ import {
   sessionOwner,
   type OutboxSender,
 } from "./offlineDataService";
+import { readStoredOwnerId } from "./offlineSession";
 import { getSupabaseClient } from "./supabaseClient";
 
 /*
@@ -36,7 +37,7 @@ let outboxSender: OutboxSender | null = null;
 export function getDataService(): DataService {
   if (!dataServiceSingleton) {
     const inner = createSupabaseDataService();
-    const owner = sessionOwner(getSupabaseClient().auth);
+    const owner = sessionOwner(getSupabaseClient().auth, readStoredOwnerId);
     const landed = new Set<string>();
     const dropped = new Set<string>();
     dataServiceSingleton = createOfflineDataService(

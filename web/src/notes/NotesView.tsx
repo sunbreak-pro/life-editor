@@ -193,6 +193,8 @@ export function NotesView({
     showTagFilter,
     handleSearchChange,
     hasNotes,
+    listNotes,
+    offline,
     searchEmpty,
     searchBusy,
     searchFailed,
@@ -409,7 +411,7 @@ export function NotesView({
   // longer resolves simply does not appear. Cheap enough to leave unmemoised:
   // it walks at most RECENT_NOTES_LIMIT ids and only the empty state reads it.
   const recentNoteIds = useRecentNoteIds();
-  const recentNotes = resolveRecentNotes(recentNoteIds, notes.notes);
+  const recentNotes = resolveRecentNotes(recentNoteIds, listNotes);
 
   // Picking from the list fills the MAIN editor. On wide the list is a pinned
   // column and stays put; on narrow it is the modal drawer, so choosing a note
@@ -614,7 +616,7 @@ export function NotesView({
     sort: t("materials.sidebar.sort"),
     toggleDirection: t("materials.sidebar.toggleDirection"),
     tagFilter: t("materials.notes.tagFilterLabel"),
-    empty: t("materials.notes.empty"),
+    empty: t(offline ? "materials.notes.offlineEmpty" : "materials.notes.empty"),
     searchEmpty: t("materials.notes.searchEmpty"),
     bodySearchFailed: t("materials.notes.bodySearchFailed"),
     addCta: t("materials.notes.addCta"),
@@ -927,7 +929,11 @@ export function NotesView({
                    that word. */
                 hasNotes
                   ? t("materials.notes.mainEmpty")
-                  : t("materials.notes.empty")
+                  : t(
+                      offline
+                        ? "materials.notes.offlineEmpty"
+                        : "materials.notes.empty",
+                    )
               }
             />
             {recentNotes.length > 0 && (

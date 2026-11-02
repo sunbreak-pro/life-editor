@@ -594,6 +594,7 @@
         "itemLink": "Link to an item"
       },
       "mainEmpty": "Select a note or create a new one",
+      "offlineEmpty": "Only pinned notes saved on this device can be opened offline. There are none here yet.",
       "recentHeading": "Recently opened",
       "untagged": "No tag",
       "collapseGroup": "Collapse group",
@@ -1379,10 +1380,15 @@
     "launchClaude": "Start Claude Code",
     "profile": "Edit profile",
     "signOutPrompt": "Sign out?",
+    "signOutFailed": "Could not sign out, so this device is still signed in. Check the connection and try again.",
     "signOutPromptPending": "Todos waiting to be sent: {{n}}. They stay on this device and are sent when this account signs in again. Another account cannot see them. Sign out?"
   },
+  "appUpdate": {
+    "message": "A new version is available. Reload when you are ready.",
+    "reload": "Reload"
+  },
   "offline": {
-    "message": "You are offline. A new Todo is kept on this device and sent when you are back online. Other changes are not saved.",
+    "message": "Offline — view only. New Todos are the one exception: they stay on this device and are sent when you are back online. Other changes are not saved.",
     "pending": "Todos waiting to be sent: {{n}}.",
     "failed": "Todos that could not be sent: {{n}}. Copy the text to keep it.",
     "failedCopyManual": "The text of {{n}} Todos that could not be sent was not copied automatically. Select it below and copy it by hand. You can then remove them from this device.",

@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { act, render, renderHook, screen, fireEvent } from "@testing-library/react";
 import en from "../../shared/src/i18n/locales/en.json";
 import ja from "../../shared/src/i18n/locales/ja.json";
+import { setSessionUnreachable } from "@life-editor/shared";
 import { OfflineBanner } from "../src/components/OfflineBanner";
 import { useShellChrome } from "../src/hooks/useShellChrome";
 
@@ -64,6 +65,18 @@ describe("OfflineBanner", () => {
     setOnline(true);
     const { container } = render(<OfflineBanner />);
     expect(container.innerHTML).toBe("");
+  });
+
+  it("follows the session gate while the browser says online", () => {
+    setOnline(true);
+    render(<OfflineBanner />);
+    expect(screen.queryByRole("status")).toBeNull();
+
+    act(() => setSessionUnreachable(true));
+    expect(screen.getByRole("status").textContent).toBe("offline.message");
+
+    act(() => setSessionUnreachable(false));
+    expect(screen.queryByRole("status")).toBeNull();
   });
 
   it("says offline, with the count when Todos wait", () => {
