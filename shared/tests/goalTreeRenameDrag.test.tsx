@@ -513,6 +513,48 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
     expect(add.className).toContain("whitespace-nowrap");
   });
 
+  it("gives the field its own line below 768px, and only there (#2399)", () => {
+    /*
+     * jsdom has no layout, so this cannot measure the field's width. It pins
+     * the classes that give it one: on one line at 375px the badge and the
+     * buttons left the field about 40px. Every wrap class carries max-md:, so
+     * Desktop keeps its one line, and the phone's 44px targets stay.
+     */
+    renderTree({ rowActions: actions() });
+    choicesOf("Run 10 km");
+    fireEvent.click(screen.getByRole("button", { name: "This month goal" }));
+    const field = screen.getByRole("textbox", { name: /^Add under/ });
+    const row = field.parentElement as HTMLElement;
+    const classesOf = (el: Element): string[] => el.className.split(/\s+/);
+
+    expect(classesOf(row)).toContain("max-md:flex-wrap");
+    expect(classesOf(row)).not.toContain("flex-wrap");
+    expect(classesOf(field)).toContain("max-md:basis-full");
+    expect(classesOf(field)).not.toContain("basis-full");
+
+    // The badge and the buttons stay whole on the lines around it.
+    const badge = row.querySelector("[data-goal-add-badge]") as HTMLElement;
+    const add = within(row).getByRole("button", { name: "Add" });
+    const close = within(row).getByRole("button", { name: "Cancel" });
+    expect(classesOf(badge)).toEqual(
+      expect.arrayContaining(["shrink-0", "whitespace-nowrap"]),
+    );
+    expect(classesOf(add)).toEqual(
+      expect.arrayContaining([
+        "shrink-0",
+        "whitespace-nowrap",
+        "max-md:min-h-11",
+      ]),
+    );
+    expect(classesOf(close)).toEqual(
+      expect.arrayContaining([
+        "shrink-0",
+        "max-md:min-h-11",
+        "max-md:min-w-11",
+      ]),
+    );
+  });
+
   it("drops the field on Esc or the ×, adding nothing", () => {
     const rowActions = actions();
     renderTree({ rowActions });
