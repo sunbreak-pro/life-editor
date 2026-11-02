@@ -188,3 +188,4 @@
 - D-20261028-main-1: **A**（画面が変わる新機能・改修は、実装前に Life Editor デザインシステムと Artifact で UI / UX の案を作り、こうだいさんの確認を経てから計画書を確定する。`rules/design-first-planning.md` を新設し、計画書の型に「UI / UX の確認」節を足す。#2372。2026-10-28 チャットで直接指示・chat-main が転記 / 昇格）
 - D-20261101-materials-1: **A**（「ノートを作る」は今の位置を保ち、#2390 の完了条件を実態に合わせて直す。2026-11-01 チャットの AskUserQuestion で回答・materials-refine が転記 / 昇格）
 - D-20261102-materials-1: **B**（ヘッダーのタグの編集パネルに「タグを削除」を足す。試作とはここだけ違う形になる。2026-11-02 チャットの AskUserQuestion で回答・materials-refine が転記 / 昇格）
+- D-20261102-main-1: **merge-round を足し、P-001 を改定する**（chat-main で `merge-round` スキルを起動したら、事前確認を通った PR の `gh pr merge <n> -R sunbreak-pro/life-editor --squash` を確認なしで通す。作業レーンからの merge は hook で止める。衝突した PR はレーンごとの `/goal` にする。2026-11-02 チャットで直接依頼・dotfiles のセッションが転記。この PR の merge をもって承認とする）
