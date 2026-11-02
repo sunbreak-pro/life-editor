@@ -186,6 +186,23 @@ describe("mergeDocBlocks keeps both sides (#2336)", () => {
     expect(texts(merged)).toEqual(["mine", "theirs"]);
   });
 
+  it.each(["2026", "true", '"x"', "null", "[]", "{}", "[1,2]"])(
+    "reads the plain-text body %s as text",
+    (plain) => {
+      expect(docBlocks(plain).map(blockText)).toEqual([plain]);
+      expect(sameDocContent(plain, "")).toBe(false);
+      expect(texts(mergeDocBlocks("", body("mine"), plain).merged)).toEqual([
+        "mine",
+        plain,
+      ]);
+    },
+  );
+
+  it("reads a doc with no content as empty", () => {
+    expect(docBlocks('{"type":"doc"}')).toEqual([]);
+    expect(docBlocks('{"type":"doc","content":[]}')).toEqual([]);
+  });
+
   it("does not lose a plain-text body that happens to parse as JSON", () => {
     const { merged } = mergeDocBlocks("", body("mine"), "2026");
     expect(texts(merged)).toEqual(["mine", "2026"]);

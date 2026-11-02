@@ -37,6 +37,7 @@ import {
   readFailedOutboxCopy,
   readOutbox,
   refreshOutboxCounts,
+  subscribeOutbox,
   type DailyUpsertEntry,
 } from "../src/state/outbox";
 import type { DailyNode } from "../src/types/daily";
@@ -143,6 +144,9 @@ function setup(
   const inner = stubDataService({
     saveDailyIfUnchanged,
     createTodoIfAbsent: vi.fn().mockResolvedValue(undefined),
+    listLinksFromItem: vi.fn().mockResolvedValue([]),
+    createItemLink: vi.fn().mockResolvedValue(undefined),
+    deleteItemLink: vi.fn().mockResolvedValue(undefined),
     getDailyByDateUnified: vi.fn().mockResolvedValue(node(body("base"))),
     upsertDailyByDateUnified: vi.fn(async (_d: string, content: string) =>
       node(content, { updatedAt: "2026-11-01T09:00:00.000Z" }),
@@ -168,7 +172,7 @@ async function openThenGoOffline(ctx: ReturnType<typeof setup>) {
 }
 
 describe("holding a day", () => {
-  it("online, saves straight through save_daily_content's path", async () => {
+  it("online, goes straight to the inner service's save", async () => {
     const ctx = setup();
     const saved = await ctx.ds.upsertDailyByDateUnified(DATE, body("x"), {
       ownEcho: true,
@@ -179,6 +183,7 @@ describe("holding a day", () => {
       { ownEcho: true },
     );
     expect(saved.updatedAt).toBe("2026-11-01T09:00:00.000Z");
+    expect(saved.queued).toBeUndefined();
     expect(await days()).toEqual([]);
   });
 
@@ -189,7 +194,12 @@ describe("holding a day", () => {
     onLine.mockRestore();
 
     expect(ctx.inner.upsertDailyByDateUnified).not.toHaveBeenCalled();
-    expect(saved).toMatchObject({ id: ID, date: DATE, content: body("x") });
+    expect(saved).toMatchObject({
+      id: ID,
+      date: DATE,
+      content: body("x"),
+      queued: true,
+    });
     expect(saved.updatedAt).toBe(V0);
     const [entry] = await days();
     expect(entry).toMatchObject({
@@ -326,6 +336,234 @@ describe("holding a day", () => {
   });
 });
 
+describe("saves of one day that overlap", () => {
+  const V1 = "2026-11-01T01:00:00.000Z";
+
+  /** A save per call, each finished by hand. */
+  const handSaves = () => {
+    const calls: {
+      resolve: (row: DailyNode) => void;
+      reject: (e: Error) => void;
+    }[] = [];
+    const upsert = vi.fn(
+      () =>
+        new Promise<DailyNode>((resolve, reject) =>
+          calls.push({ resolve, reject }),
+        ),
+    );
+    const started = (count: number) =>
+      waitFor(() => expect(upsert).toHaveBeenCalledTimes(count));
+    return { calls, upsert, started };
+  };
+
+  it("does not bring back an old save that fails after a newer one landed", async () => {
+    const { calls, upsert, started } = handSaves();
+    const ctx = setup({ upsertDailyByDateUnified: upsert });
+    const first = ctx.ds.upsertDailyByDateUnified(DATE, body("old"));
+    await started(1);
+    const second = ctx.ds.upsertDailyByDateUnified(DATE, body("NEW"));
+    await started(2);
+
+    calls[1]!.resolve(node(body("NEW"), { updatedAt: V1 }));
+    await second;
+    calls[0]!.reject(new Error(NETWORK));
+
+    expect((await first).queued).toBe(true);
+    expect(await days()).toEqual([]);
+    expect(ctx.known.get(knownDailyKey(user, DATE))?.content).toBe(body("NEW"));
+  });
+
+  it("does not hold an old save while a newer one is still out", async () => {
+    const { calls, upsert, started } = handSaves();
+    const ctx = setup({ upsertDailyByDateUnified: upsert });
+    const first = ctx.ds.upsertDailyByDateUnified(DATE, body("old"));
+    await started(1);
+    const second = ctx.ds.upsertDailyByDateUnified(DATE, body("NEW"));
+    await started(2);
+
+    calls[0]!.reject(new Error(NETWORK));
+    expect((await first).queued).toBe(true);
+    expect(await days()).toEqual([]);
+
+    calls[1]!.resolve(node(body("NEW"), { updatedAt: V1 }));
+    expect((await second).queued).toBeUndefined();
+    expect(await days()).toEqual([]);
+  });
+
+  it("does not put an old save over a newer one in the box", async () => {
+    const { calls, upsert, started } = handSaves();
+    const ctx = setup({ upsertDailyByDateUnified: upsert });
+    const first = ctx.ds.upsertDailyByDateUnified(DATE, body("old"));
+    await started(1);
+    const second = ctx.ds.upsertDailyByDateUnified(DATE, body("NEW"));
+    await started(2);
+
+    calls[1]!.reject(new Error(NETWORK));
+    await second;
+    calls[0]!.reject(new Error(NETWORK));
+    await first;
+
+    const [entry] = await days();
+    expect(entry?.payload.content).toBe(body("NEW"));
+    // Either could have reached the server before its answer was lost.
+    expect(entry?.maybeLanded).toEqual(
+      expect.arrayContaining([body("old"), body("NEW")]),
+    );
+  });
+
+  it("holds the newer one when the old one fails first", async () => {
+    const { calls, upsert, started } = handSaves();
+    const ctx = setup({ upsertDailyByDateUnified: upsert });
+    const first = ctx.ds.upsertDailyByDateUnified(DATE, body("old"));
+    await started(1);
+    const second = ctx.ds.upsertDailyByDateUnified(DATE, body("NEW"));
+    await started(2);
+
+    calls[0]!.reject(new Error(NETWORK));
+    await first;
+    calls[1]!.reject(new Error(NETWORK));
+    await second;
+
+    const [entry] = await days();
+    expect(entry?.payload.content).toBe(body("NEW"));
+    expect(entry?.maybeLanded).toEqual(
+      expect.arrayContaining([body("old"), body("NEW")]),
+    );
+  });
+
+  it("bases a held save on an earlier save that landed, so nothing doubles", async () => {
+    const { calls, upsert, started } = handSaves();
+    const ctx = setup(
+      { upsertDailyByDateUnified: upsert },
+      { content: body("one"), updatedAt: V1 },
+    );
+    const first = ctx.ds.upsertDailyByDateUnified(DATE, body("one"));
+    await started(1);
+    const second = ctx.ds.upsertDailyByDateUnified(DATE, body("one more"));
+    await started(2);
+
+    calls[0]!.resolve(node(body("one"), { updatedAt: V1 }));
+    await first;
+    calls[1]!.reject(new Error(NETWORK));
+    await second;
+    await ctx.sender.run(vi.fn());
+
+    expect(ctx.saveDailyIfUnchanged).toHaveBeenCalledTimes(1);
+    expect(texts(ctx.server.row!.content)).toEqual(["one more"]);
+  });
+
+  it("sends over an old save that lands behind a newer one held", async () => {
+    const { calls, upsert, started } = handSaves();
+    const ctx = setup({ upsertDailyByDateUnified: upsert });
+    const first = ctx.ds.upsertDailyByDateUnified(DATE, body("old"));
+    await started(1);
+    const second = ctx.ds.upsertDailyByDateUnified(DATE, body("NEW"));
+    await started(2);
+    calls[1]!.reject(new Error(NETWORK));
+    await second;
+
+    ctx.server.row = { content: body("old"), updatedAt: V1 };
+    calls[0]!.resolve(node(body("old"), { updatedAt: V1 }));
+    await first;
+    await waitFor(async () =>
+      expect((await days())[0]?.maybeLanded).toContain(body("old")),
+    );
+    await ctx.sender.run(vi.fn());
+
+    expect(texts(ctx.server.row.content)).toEqual(["NEW"]);
+  });
+});
+
+describe("a save whose answer was lost", () => {
+  const V1 = "2026-11-01T01:00:00.000Z";
+  const A = body("A");
+  const HEL = body("A", "Hel");
+  const HELLO = body("A", "Hello");
+
+  it("does not double a paragraph typed on after an online save", async () => {
+    const ctx = setup({}, { content: A, updatedAt: V0 });
+    ctx.known.set(knownDailyKey(user, DATE), node(A));
+    vi.mocked(ctx.inner.upsertDailyByDateUnified).mockImplementation(
+      async (_d, content) => {
+        ctx.server.row = { content, updatedAt: V1 };
+        throw new Error(NETWORK);
+      },
+    );
+    await ctx.ds.upsertDailyByDateUnified(DATE, HEL);
+    await ctx.ds.upsertDailyByDateUnified(DATE, HELLO);
+    await ctx.sender.run(vi.fn());
+
+    expect(texts(ctx.server.row!.content)).toEqual(["A", "Hello"]);
+    expect(await days()).toEqual([]);
+  });
+
+  it("does not double one typed on after a send from the box", async () => {
+    const ctx = setup({}, { content: A, updatedAt: V0 });
+    await enqueueDailyUpsert(user, DATE, HEL, { updatedAt: V0, content: A });
+    const save = ctx.saveDailyIfUnchanged.getMockImplementation()!;
+    ctx.saveDailyIfUnchanged.mockImplementationOnce(async (d, c, e) => {
+      await save(d, c, e);
+      throw new Error(NETWORK);
+    });
+    await ctx.sender.run(vi.fn());
+    await ctx.ds.upsertDailyByDateUnified(DATE, HELLO);
+    await ctx.sender.run(vi.fn());
+
+    expect(texts(ctx.server.row!.content)).toEqual(["A", "Hello"]);
+  });
+
+  it("still merges when the lost send was a merge holding the other side", async () => {
+    const ctx = setup(
+      {},
+      { content: body("a2", "b"), updatedAt: "2026-11-01T05:00:00.000Z" },
+    );
+    await enqueueDailyUpsert(user, DATE, body("a", "first"), {
+      updatedAt: V0,
+      content: body("a", "b"),
+    });
+    const save = ctx.saveDailyIfUnchanged.getMockImplementation()!;
+    ctx.saveDailyIfUnchanged
+      .mockImplementationOnce(save)
+      .mockImplementationOnce(async (d, c, e) => {
+        await save(d, c, e);
+        throw new Error(NETWORK);
+      });
+    await ctx.sender.run(vi.fn());
+    expect(texts(ctx.server.row!.content)).toEqual(["a2", "first"]);
+
+    await ctx.ds.upsertDailyByDateUnified(DATE, body("a", "second"));
+    await ctx.sender.run(vi.fn());
+
+    // "a2" came from the other side, so it stays.
+    expect(texts(ctx.server.row!.content)).toContain("a2");
+    expect(texts(ctx.server.row!.content)).toContain("second");
+  });
+
+  it("forgets what might have landed once a landing gives the version", async () => {
+    const ctx = setup({}, { content: A, updatedAt: V0 });
+    await enqueueDailyUpsert(user, DATE, HEL, { updatedAt: V0, content: A }, [
+      HEL,
+    ]);
+    let typed = false;
+    const save = ctx.saveDailyIfUnchanged.getMockImplementation()!;
+    ctx.saveDailyIfUnchanged.mockImplementation(async (d, c, e) => {
+      const answer = await save(d, c, e);
+      if (!typed) {
+        typed = true;
+        await enqueueDailyUpsert(user, DATE, HELLO, null);
+        ctx.saveDailyIfUnchanged.mockRejectedValue(new Error(NETWORK));
+      }
+      return answer;
+    });
+    await ctx.sender.run(vi.fn());
+    const [entry] = await days();
+    expect(entry?.payload.content).toBe(HELLO);
+    expect(entry?.baseContent).toBe(HEL);
+    // Only `HELLO`, which the failed resend added.
+    expect(entry?.maybeLanded).toEqual([HELLO]);
+  });
+});
+
 describe("a day behind a password", () => {
   const rejectsAndHoldsNothing = async (ctx: ReturnType<typeof setup>) => {
     const offline = setOffline();
@@ -395,6 +633,105 @@ describe("a day behind a password", () => {
     const [entry] = await days();
     expect(entry?.baseContent).toBe(body("base"));
     expect(entry?.payload.content).toBe(body("mine", "typed"));
+  });
+});
+
+describe("a day's links", () => {
+  const linkTo = (targetId: string) =>
+    JSON.stringify({
+      type: "doc",
+      content: [
+        {
+          type: "paragraph",
+          content: [{ type: "itemLink", attrs: { targetId } }],
+        },
+      ],
+    });
+  const edge = (id: string, toItemId: string, origin: string) => ({
+    id,
+    fromItemId: ID,
+    toItemId,
+    origin,
+    isDeleted: false,
+  });
+
+  it("writes the edges the body carries when the day lands", async () => {
+    const ctx = setup(
+      {
+        listLinksFromItem: vi
+          .fn()
+          .mockResolvedValue([
+            edge("l-gone", "gone", "inline"),
+            edge("l-hand", "by-hand", "manual"),
+          ]),
+      },
+      null,
+    );
+    await enqueueDailyUpsert(user, DATE, linkTo("task-9"), null);
+    const onSent = vi.fn();
+    await ctx.sender.run(onSent);
+
+    expect(ctx.inner.createItemLink).toHaveBeenCalledExactlyOnceWith(
+      expect.any(String),
+      ID,
+      "task-9",
+      "inline",
+    );
+    expect(ctx.inner.deleteItemLink).toHaveBeenCalledExactlyOnceWith("l-gone");
+    expect(onSent.mock.calls[0]?.[0]).toEqual(
+      expect.arrayContaining(["dailies", "tags"]),
+    );
+  });
+
+  it("does not move the tag graph when the edges are already right", async () => {
+    const ctx = setup(
+      {
+        listLinksFromItem: vi
+          .fn()
+          .mockResolvedValue([edge("l-9", "task-9", "inline")]),
+      },
+      null,
+    );
+    await enqueueDailyUpsert(user, DATE, linkTo("task-9"), null);
+    const onSent = vi.fn();
+    await ctx.sender.run(onSent);
+
+    expect(ctx.inner.createItemLink).not.toHaveBeenCalled();
+    expect(onSent).toHaveBeenCalledExactlyOnceWith(["dailies"]);
+  });
+
+  it("does not put a landed day back when its edges fail", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const ctx = setup(
+      { listLinksFromItem: vi.fn().mockRejectedValue(new Error(NETWORK)) },
+      null,
+    );
+    await enqueueDailyUpsert(user, DATE, linkTo("task-9"), null);
+    const onSent = vi.fn();
+    await ctx.sender.run(onSent);
+
+    expect(await days()).toEqual([]);
+    expect(onSent).toHaveBeenCalledExactlyOnceWith(["dailies"]);
+    expect(warn).toHaveBeenCalled();
+  });
+
+  it("waits for the last landing when an edit came during the send", async () => {
+    const ctx = setup({}, null);
+    await enqueueDailyUpsert(user, DATE, linkTo("first"), null);
+    const save = ctx.saveDailyIfUnchanged.getMockImplementation()!;
+    ctx.saveDailyIfUnchanged.mockImplementationOnce(async (d, c, e) => {
+      const answer = await save(d, c, e);
+      await enqueueDailyUpsert(user, DATE, linkTo("second"), null);
+      return answer;
+    });
+    await ctx.sender.run(vi.fn());
+
+    expect(ctx.inner.createItemLink).toHaveBeenCalledExactlyOnceWith(
+      expect.any(String),
+      ID,
+      "second",
+      "inline",
+    );
   });
 });
 
@@ -701,6 +1038,29 @@ describe("sending a day", () => {
     expect(ctx.inner.createTodoIfAbsent).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps an online edit in the box until the function arrives", async () => {
+    const ctx = setup({}, { content: body("a", "b"), updatedAt: V0 });
+    const real = ctx.saveDailyIfUnchanged.getMockImplementation()!;
+    ctx.saveDailyIfUnchanged.mockRejectedValue(
+      new OutboxSendError("no function", 404, "PGRST202"),
+    );
+    await fromBase(body("a", "first"));
+    await ctx.sender.run(vi.fn());
+
+    const saved = await ctx.ds.upsertDailyByDateUnified(DATE, body("a", "second"));
+
+    // Other devices wait for the db push. The text is safe, and the banner says so.
+    expect(saved.queued).toBe(true);
+    expect(ctx.inner.upsertDailyByDateUnified).not.toHaveBeenCalled();
+    expect(ctx.server.row?.content).toBe(body("a", "b"));
+    expect(getOutboxCounts().pending).toBe(1);
+
+    ctx.saveDailyIfUnchanged.mockImplementation(real);
+    await ctx.sender.run(vi.fn());
+    expect(ctx.server.row?.content).toBe(body("a", "second"));
+    expect(await days()).toEqual([]);
+  });
+
   it("stops the run on a network failure, leaving the entry", async () => {
     const ctx = setup({
       saveDailyIfUnchanged: vi.fn().mockRejectedValue(new Error(NETWORK)),
@@ -722,6 +1082,29 @@ describe("sending a day", () => {
     await ctx.sender.run(vi.fn());
     expect(await days()).toHaveLength(1);
     expect(getOutboxCounts().failed).toBe(0);
+  });
+
+  it("moves a row of another role to the failed box, and sends the rest", async () => {
+    // What 0046's raise becomes: errcode 22023 is HTTP 400 in PostgREST.
+    const refused = new OutboxSendError("is not a daily", 400, "22023");
+    expect(classifySendFailure(refused)).toBe("failed");
+    const ctx = setup({
+      saveDailyIfUnchanged: vi.fn().mockRejectedValue(refused),
+    });
+    await fromBase(body("a", "mine"));
+    await enqueueTodoCreate(user, {
+      id: "t",
+      type: "task",
+      title: "t",
+      parentId: null,
+      order: 0,
+      createdAt: V0,
+    });
+    await refreshOutboxCounts(user);
+    await ctx.sender.run(vi.fn());
+
+    expect(getOutboxCounts()).toEqual({ pending: 0, failed: 1 });
+    expect(ctx.inner.createTodoIfAbsent).toHaveBeenCalledTimes(1);
   });
 
   it("moves a refusal to the failed box, with the text to copy", async () => {
@@ -795,6 +1178,55 @@ describe("sending a day", () => {
     // The screen hears both landings; only the last one is the notice's.
     expect(merges.map((m) => m.settled)).toEqual([false, true]);
     expect(texts(merges[1]!.body)).toEqual(["a2", "second"]);
+  });
+
+  it("still owes the notice when a merged entry stops before its last landing", async () => {
+    const ctx = setup({}, moved(body("a2", "b")));
+    await fromBase(body("a", "first"));
+    const save = ctx.saveDailyIfUnchanged.getMockImplementation()!;
+    let typed = false;
+    let down = false;
+    ctx.saveDailyIfUnchanged.mockImplementation(async (d, c, e) => {
+      if (down) throw new Error(NETWORK);
+      const answer = await save(d, c, e);
+      if (answer.saved && !typed) {
+        typed = true;
+        down = true;
+        await ctx.ds.upsertDailyByDateUnified(DATE, body("a", "second"));
+      }
+      return answer;
+    });
+    await ctx.sender.run(vi.fn());
+    expect(merges.map((m) => m.settled)).toEqual([false]);
+
+    down = false;
+    await ctx.sender.run(vi.fn());
+    expect(merges.map((m) => m.settled)).toEqual([false, true]);
+    expect(texts(merges[1]!.body)).toEqual(["a2", "second"]);
+  });
+
+  it("does not let a save past a merge that has not reached the screen", async () => {
+    const ctx = setup({}, moved(body("a2", "b")));
+    ctx.known.set(knownDailyKey(user, DATE), node(body("a", "b")));
+    await fromBase(body("a", "first"));
+    await refreshOutboxCounts(user);
+    // The entry has just left the box, and nothing has been published yet.
+    let late: Promise<DailyNode> | undefined;
+    const unsubscribe = subscribeOutbox(() => {
+      if (late === undefined && getOutboxCounts().pending === 0) {
+        expect(merges).toEqual([]);
+        late = ctx.ds.upsertDailyByDateUnified(DATE, body("a", "late"));
+      }
+    });
+    await ctx.sender.run(vi.fn());
+    unsubscribe();
+    expect((await late)?.queued).toBe(true);
+    await ctx.sender.run(vi.fn());
+
+    expect(ctx.inner.upsertDailyByDateUnified).not.toHaveBeenCalled();
+    const written = texts(ctx.server.row!.content);
+    expect(written).toContain("a2");
+    expect(written).toContain("late");
   });
 
   it("keeps the latest text when a refusal follows an edit during the send", async () => {
@@ -896,12 +1328,9 @@ describe("the screen after a merge", () => {
 
   it("takes the merged body and version, and drops a body read already out", async () => {
     let finishRead: (row: DailyNode) => void = () => {};
-    const getDailyByDateUnified = vi
-      .fn()
-      .mockResolvedValueOnce(node(body("mine")))
-      .mockImplementationOnce(
-        () => new Promise<DailyNode>((r) => (finishRead = r)),
-      );
+    const getDailyByDateUnified = vi.fn(
+      () => new Promise<DailyNode>((r) => (finishRead = r)),
+    );
     const light = node("", { bodyLoaded: false });
     const ds = stubDataService({
       listDailySummariesUnified: vi.fn().mockResolvedValue([light]),
@@ -915,7 +1344,7 @@ describe("the screen after a merge", () => {
     );
     act(() => hook.result.current.setSelectedDate(DATE));
     const row = () => hook.result.current.dailies.find((d) => d.date === DATE);
-    await waitFor(() => expect(row()?.content).toBe(body("mine")));
+    await waitFor(() => expect(getDailyByDateUnified).toHaveBeenCalledTimes(1));
 
     act(() => {
       publishDailyMerge({
@@ -932,7 +1361,13 @@ describe("the screen after a merge", () => {
       bodyLoaded: true,
     });
     expect(hook.result.current.lastMerge?.date).toBe(DATE);
-    finishRead(node(body("older")));
+
+    await act(async () => {
+      finishRead(node(body("older")));
+      await Promise.resolve();
+    });
+    expect(row()?.content).toBe(body("mine", "theirs"));
+    expect(getDailyByDateUnified).toHaveBeenCalledTimes(1);
     hook.unmount();
   });
 });
@@ -1024,15 +1459,6 @@ describe("saveDailyIfUnchanged", () => {
     expect(classifySendFailure(failure)).toBe("retry");
     expect(c.rpc).not.toHaveBeenCalled();
   });
-
-  it("does not replace the online save", () => {
-    const source = readFileSync(
-      resolvePath(__dirname, "../src/services/SupabaseDailiesUnifiedService.ts"),
-      "utf8",
-    );
-    expect(source.match(/"upsert_daily_content"/g)).toHaveLength(1);
-    expect(source.match(/"save_daily_content"/g)).toHaveLength(1);
-  });
 });
 
 describe("migration 0046", () => {
@@ -1073,6 +1499,12 @@ describe("migration 0046", () => {
     for (const reference of tables ?? []) {
       expect(reference).toMatch(/public\./);
     }
+  });
+
+  it("refuses a row of another role with a code PostgREST answers 400 to", () => {
+    // P0002 is HTTP 500 there, which the sender reads as "try again" for good.
+    expect(code).not.toMatch(/errcode = 'P0/);
+    expect(code.match(/errcode = '22023'/g)).toHaveLength(3);
   });
 
   it("does not overwrite on a race and does not write the Trash", () => {

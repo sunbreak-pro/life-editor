@@ -33,7 +33,10 @@
 --   直列になり、後の 1 本は進んだ updated_at と比べて断られる（0032 と同じ）。
 --
 -- role: `daily-` で始まる id が別の role の行だったら例外を投げ、トランザクション
---   ごと戻す（0043 と同じ。db-conventions §10.5）。
+--   ごと戻す（db-conventions §10.5）。errcode は 0043 の P0002 ではなく 22023 に
+--   する。PostgREST は P0001 以外の P0 系を HTTP 500 にするので、送信側が「あとで
+--   再送」と読み、この 1 件が箱の残りを止め続けるため。22023 は HTTP 400 になり、
+--   送信側は本文を「送れなかった変更」の箱に移す。
 --
 -- 0045 との関係: `items_meta.changed_at` は BEFORE INSERT OR UPDATE のトリガーが
 --   書くので、この関数の meta の INSERT / UPDATE でそのまま進む。payload だけを
@@ -64,7 +67,8 @@
 -- `cd supabase && npm run db:push`。`apply_migration` MCP 単独使用は禁止
 -- （本ファイルはローカルに置くだけ・エージェントは DB へ適用しない）。
 -- PR の merge は db push のあと。先に merge しても送信待ちは消えない（関数が無い
--- 答えのあいだは箱に残り、push のあとで送る）。
+-- 答えのあいだは箱に残り、push のあとで送る）。ただしそのあいだは、箱に入った日の
+-- 保存が回線のあるときも箱に入るので、その日の本文は push まで他の端末へ届かない。
 -- ─────────────────────────────────────────────────────────────────────────
 --
 -- ATOMICITY: begin/commit でアトミック化。`create or replace function` なので
@@ -123,7 +127,7 @@ begin
        where m.id = v_id;
       if v_role is distinct from 'daily' then
         raise exception 'upsert_daily_content: % is not a daily', v_id
-          using errcode = 'P0002';
+          using errcode = '22023';
       end if;
       if v_deleted then
         return query select false, v_updated_at, null::jsonb, true, false;
@@ -176,7 +180,7 @@ begin
        and m.role = 'daily';
   if not found then
     raise exception 'upsert_daily_content: % is not a daily', v_id
-      using errcode = 'P0002';
+      using errcode = '22023';
   end if;
 end;
 $$;
@@ -222,7 +226,7 @@ commit;
 --      begin
 --        perform public.upsert_daily_content('1999-01-03', body, null);
 --        other_role := 'wrote';
---      exception when sqlstate 'P0002' then other_role := 'raised';
+--      exception when sqlstate '22023' then other_role := 'raised';
 --      end;
 --      raise exception 'daily check (rolled back): new=% nobase=% stale=% match=% moved=% deleted=%/% role=%',
 --        r1.saved, r2.saved, r3.saved, r4.saved, r4.updated_at > r2.updated_at,

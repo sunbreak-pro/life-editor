@@ -521,6 +521,32 @@ describe("DailyView — inline links", () => {
     );
   });
 
+  it("keeps the parked edge through a held save, for the next real one", async () => {
+    // #2336: a held save resolves, and its row may not be on the server.
+    state.upsertDaily.mockResolvedValueOnce({
+      ...daily(YESTERDAY),
+      queued: true,
+    });
+    render(<DailyView />);
+
+    fireEvent.click(screen.getByTestId("pick-link"));
+    fireEvent.click(screen.getByTestId("save-with-link"));
+    await act(async () => {
+      await state.upsertDaily.mock.results[0]?.value;
+    });
+    expect(state.createItemLink).not.toHaveBeenCalled();
+    expect(state.syncInlineLinks).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByTestId("save-with-link"));
+    await vi.waitFor(() =>
+      expect(state.createItemLink).toHaveBeenCalledExactlyOnceWith(
+        `daily-${YESTERDAY}`,
+        state.linkTarget,
+        "inline",
+      ),
+    );
+  });
+
   it("drops a parked edge the user removed again before the save", async () => {
     render(<DailyView />);
 

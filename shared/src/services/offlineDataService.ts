@@ -443,7 +443,14 @@ export interface OutboxSender {
  * for this run: Todos must not stay unsent until a db push adds the Daily RPC.
  */
 export function createOutboxSender(
-  inner: Pick<DataService, "createTodoIfAbsent" | "saveDailyIfUnchanged">,
+  inner: Pick<
+    DataService,
+    | "createTodoIfAbsent"
+    | "saveDailyIfUnchanged"
+    | "listLinksFromItem"
+    | "createItemLink"
+    | "deleteItemLink"
+  >,
   owner: OwnerResolver,
   landed: LandedTodos = new Set(),
   dropped: DroppedTodos = new Set(),
@@ -455,7 +462,6 @@ export function createOutboxSender(
   const drain = async (userId: string): Promise<Set<SyncDomain>> => {
     const changed = new Set<SyncDomain>();
     const later = new Set<string>();
-    const mergedOps = new Set<string>();
     for (;;) {
       const next = (await readOutbox(userId)).find(
         (e) => isSendable(e) && !later.has(e.opId),
@@ -469,7 +475,7 @@ export function createOutboxSender(
           userId,
           entry,
           known,
-          mergedOps,
+          changed,
         );
         if (step === "stop") return changed;
         if (step === "later") later.add(entry.opId);

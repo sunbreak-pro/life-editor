@@ -38,4 +38,10 @@ export interface DailyNode {
    * head could not be read (a legacy plain-text body, or an empty one).
    */
   headContent?: string;
+  /**
+   * True only on the answer of a save that went into the send-later box (#2336):
+   * this text is not known to be on the server, and the row may not exist there.
+   * Work that needs the row waits. The sender does the `[[ ]]` edges at landing.
+   */
+  queued?: true;
 }

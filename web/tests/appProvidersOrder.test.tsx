@@ -53,6 +53,9 @@ vi.mock("../src/MaterialsCountsBridge", () => ({
 vi.mock("../src/ScheduleReminderBridge", () => ({
   ScheduleReminderBridge: () => <div data-testid="reminders" />,
 }));
+vi.mock("../src/components/DailyMergeNotice", () => ({
+  DailyMergeNotice: () => <div data-testid="merge-notice" />,
+}));
 
 const { AppProviders } = await import("../src/AppProviders");
 
@@ -133,6 +136,11 @@ describe("AppProviders", () => {
     const reminders = providersAround(screen.getByTestId("reminders"));
     expect(reminders).toContain("Sync");
     expect(reminders).toContain("Toast");
+    // The merge notice is a toast, and it has to be up before a send can land.
+    expect(providersAround(screen.getByTestId("merge-notice"))).toEqual([
+      "Toast",
+      "Sync",
+    ]);
     expect(providersAround(screen.getByTestId("shortcuts"))).toContain(
       "ShortcutConfig",
     );

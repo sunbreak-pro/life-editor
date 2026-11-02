@@ -362,13 +362,15 @@ export function DailyView({
   );
 
   // Drain one date's parked edges once its row is known to exist. A failed
-  // save resolves to null — leave the queue alone so the next save retries.
+  // save resolves to null, and a held one is `queued` (#2336): leave the queue
+  // alone so the next save retries. If no save follows, the sender writes the
+  // edges from the body when the entry lands.
   // `bodyJson` is the body that save persisted: a queued target the user
   // already removed again (insert → delete within one debounce window) is
   // dropped instead of minting an edge its text no longer carries (#372).
   const flushPendingLinks = useCallback(
     (date: string, saved: DailyNode | null, bodyJson: string) => {
-      if (!saved) return;
+      if (!saved || saved.queued) return;
       const present = extractItemLinkTargets(bodyJson);
       for (const targetId of takePendingItemLinks(
         pendingLinksRef.current,
@@ -623,7 +625,7 @@ export function DailyView({
       // flush just created are not candidates — their targets are in `full`
       // (the 朝刊 / 宣言 sections can carry links of their own, so the fold
       // must see the whole stored body, not just the editor's text).
-      if (saved) syncSavedBody(saved.id, full);
+      if (saved && !saved.queued) syncSavedBody(saved.id, full);
     });
   };
 
@@ -669,7 +671,7 @@ export function DailyView({
      */
     const landed = upsertDaily(date, full, { skipUndo: true }).then((saved) => {
       if (!saved) throw new Error(`daily mood write failed (${date})`);
-      syncSavedBody(saved.id, full);
+      if (!saved.queued) syncSavedBody(saved.id, full);
       return saved;
     });
     // The stamp's failure is its own: the mood line DID save, so it does not
@@ -677,7 +679,8 @@ export function DailyView({
     // `stamped` is read off the row that write returns.
     void landed
       .then(async (saved) => {
-        if (dataService === undefined) return;
+        // A held write has no row to stamp yet. The next tap heals it (see below).
+        if (dataService === undefined || saved.queued) return;
         const stamped = (saved.eveningPublishedAt ?? null) !== null;
         if (mood !== null && !stamped) {
           await dataService.updateDailyUnified(saved.id, {

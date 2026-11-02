@@ -297,7 +297,8 @@ export function useDailiesUnifiedAPI(options: UseDailiesUnifiedAPIOptions) {
   /**
    * Optimistic write. The local state update is synchronous; the returned
    * promise resolves with the PERSISTED node once the row actually exists
-   * (or null if the write failed — it is already logged).
+   * (or null if the write failed — it is already logged). A node with `queued`
+   * went into the send-later box instead (#2336), so the row is not proven yet.
    *
    * Callers may keep ignoring the promise (fire-and-forget is still the
    * default shape). It exists for work that must not run before the row is

@@ -43,12 +43,23 @@ export interface TodoCreateEntry extends OutboxEntryBase {
 }
 
 /**
- * A day's body (#2336). One per date. A new kind needs no version bump: an older
- * tab's `isSendable` looks at the kind, so it leaves this entry where it is.
+ * A day's body (#2336). One per date. A new kind needs no version bump for
+ * sending: an older tab's `isSendable` looks at the kind, so it leaves this entry
+ * where it is. The failed box has no such check. A tab still on the #2335 code
+ * throws when it copies a refused day, because it reads `payload.node` on every
+ * row, and it counts the day as a Todo. Reloading that tab cures both.
  */
 export interface DailyUpsertEntry extends OutboxEntryBase {
   kind: "daily.upsert";
   payload: { date: string; content: string };
+  /**
+   * Text of this device's own saves that may be on the server: the network
+   * failed on the way back, or the save landed behind a newer one. A body equal
+   * to one of these holds nothing from elsewhere, so there is nothing to merge.
+   */
+  maybeLanded?: string[];
+  /** A landing already merged this entry, so the last landing owes a notice. */
+  merged?: true;
 }
 
 /** #2337 adds its kind here. */
@@ -183,6 +194,28 @@ export async function enqueueTodoCreate(
   return entry;
 }
 
+/** Each one is a whole body, and only the latest few can still be on the server. */
+export const MAX_MAYBE_LANDED = 5;
+
+function withMaybeLanded(
+  entry: DailyUpsertEntry,
+  texts: readonly string[],
+): DailyUpsertEntry {
+  if (texts.length === 0) return entry;
+  const all = [...new Set([...(entry.maybeLanded ?? []), ...texts])];
+  return { ...entry, maybeLanded: all.slice(-MAX_MAYBE_LANDED) };
+}
+
+function findDailyEntry(
+  rows: OutboxEntry[],
+  date: string,
+): DailyUpsertEntry | undefined {
+  return rows.find(
+    (row): row is DailyUpsertEntry =>
+      row.kind === "daily.upsert" && row.payload.date === date,
+  );
+}
+
 /**
  * Hold a day's body. One transaction, so it cannot race a send settling the same
  * entry: a date that already waits keeps its first base and takes this content.
@@ -192,33 +225,51 @@ export async function enqueueDailyUpsert(
   date: string,
   content: string,
   base: { updatedAt: string; content: string } | null,
+  maybeLanded: readonly string[] = [],
 ): Promise<DailyUpsertEntry> {
   const db = await open(userId);
   const tx = db.transaction(PENDING_STORE, "readwrite");
   const done = committed(tx);
   const store = tx.objectStore(PENDING_STORE);
   const rows = (await settle(store.getAll())) as OutboxEntry[];
-  const held = rows.find(
-    (row): row is DailyUpsertEntry =>
-      row.kind === "daily.upsert" && row.payload.date === date,
+  const held = findDailyEntry(rows, date);
+  const entry = withMaybeLanded(
+    held
+      ? { ...held, payload: { date, content } }
+      : {
+          opId: newOpId(),
+          kind: "daily.upsert",
+          itemId: `daily-${date}`,
+          baseUpdatedAt: base?.updatedAt ?? null,
+          ...(base ? { baseContent: base.content } : {}),
+          payload: { date, content },
+          createdAt: new Date().toISOString(),
+          attempts: 0,
+          schemaVersion: OUTBOX_SCHEMA_VERSION,
+        },
+    maybeLanded,
   );
-  const entry: DailyUpsertEntry = held
-    ? { ...held, payload: { date, content } }
-    : {
-        opId: newOpId(),
-        kind: "daily.upsert",
-        itemId: `daily-${date}`,
-        baseUpdatedAt: base?.updatedAt ?? null,
-        ...(base ? { baseContent: base.content } : {}),
-        payload: { date, content },
-        createdAt: new Date().toISOString(),
-        attempts: 0,
-        schemaVersion: OUTBOX_SCHEMA_VERSION,
-      };
   store.put(entry);
   await done;
   await refreshOutboxCounts(userId);
   return entry;
+}
+
+/** Record on the waiting entry what `maybeLanded` names. False if none waits. */
+export async function noteDailyMaybeLanded(
+  userId: string,
+  date: string,
+  texts: readonly string[],
+): Promise<boolean> {
+  const db = await open(userId);
+  const tx = db.transaction(PENDING_STORE, "readwrite");
+  const done = committed(tx);
+  const store = tx.objectStore(PENDING_STORE);
+  const rows = (await settle(store.getAll())) as OutboxEntry[];
+  const held = findDailyEntry(rows, date);
+  if (held) store.put(withMaybeLanded(held, texts));
+  await done;
+  return held !== undefined;
 }
 
 /** What reached the server for a day's entry, to settle that entry against. */
@@ -262,12 +313,16 @@ export async function settleDailyEntry(
         const content = merged
           ? mergeDocBlocks(sent, row.payload.content, body).merged
           : row.payload.content;
-        store.put({
+        // The version is known now, so what might have landed no longer matters.
+        const rebased: DailyUpsertEntry = {
           ...row,
           baseUpdatedAt: updatedAt,
           baseContent: body,
           payload: { ...row.payload, content },
-        });
+        };
+        delete rebased.maybeLanded;
+        if (merged) rebased.merged = true;
+        store.put(rebased);
       }
     }
   }
