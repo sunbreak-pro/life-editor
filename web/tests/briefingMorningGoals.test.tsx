@@ -328,8 +328,8 @@ describe("Morning paper goals (#2106)", () => {
       within(dialog).getByRole("button", { name: "Open 企画書を通す" }),
     );
     await within(dialog).findByRole("textbox", { name: "Goal title" });
-    // Desktop: the link alone. The select stays for a phone.
-    expect(within(dialog).queryByRole("combobox")).toBeNull();
+    // No drag on this panel at any width: the select stays beside the link.
+    within(dialog).getByRole("combobox", { name: "Goal above" });
 
     fireEvent.click(within(dialog).getByRole("button", { name: "Link todos" }));
     await within(dialog).findByRole("region", { name: "Link todos" });
@@ -352,6 +352,71 @@ describe("Morning paper goals (#2106)", () => {
         ).value,
       ).toBe("今年の目標"),
     );
+  });
+
+  it("re-parents and detaches a goal from its own panel at Desktop width (#2410)", async () => {
+    const ds = makeDS({
+      goals: [
+        goal("y-plan", "今年の目標", KEYS.year, { periodKind: "year" }),
+        goal("y-other", "別の目標", KEYS.year, {
+          periodKind: "year",
+          sortOrder: 1,
+        }),
+        goal("w-plan", "企画書を通す", KEYS.week, { parentGoalId: "y-plan" }),
+      ],
+    });
+    render(paper(ds));
+    const dialog = await openPanel();
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Open 企画書を通す" }),
+    );
+
+    fireEvent.change(
+      await within(dialog).findByRole("combobox", { name: "Goal above" }),
+      { target: { value: "y-other" } },
+    );
+    await waitFor(() =>
+      expect(mockOf(ds, "updateGoal")).toHaveBeenLastCalledWith("w-plan", {
+        parentGoalId: "y-other",
+      }),
+    );
+
+    fireEvent.change(within(dialog).getByRole("combobox"), {
+      target: { value: "" },
+    });
+    await waitFor(() =>
+      expect(mockOf(ds, "updateGoal")).toHaveBeenLastCalledWith("w-plan", {
+        parentGoalId: null,
+      }),
+    );
+  });
+
+  it("cancels the linking screen back to where it was opened from (#2410)", async () => {
+    const ds = makeDS({ goals: [goal("w-plan", "企画書を通す")] });
+    render(paper(ds));
+    const dialog = await openPanel();
+
+    // From the list: back to the list.
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Link todos: 企画書を通す" }),
+    );
+    await within(dialog).findByRole("region", { name: "Link todos" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    await within(dialog).findByRole("textbox", { name: "Set a goal" });
+
+    // From the goal's own panel: back to that goal.
+    fireEvent.click(
+      within(dialog).getByRole("button", { name: "Open 企画書を通す" }),
+    );
+    fireEvent.click(
+      await within(dialog).findByRole("button", { name: "Link todos" }),
+    );
+    await within(dialog).findByRole("region", { name: "Link todos" });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }));
+    const title = await within(dialog).findByRole("textbox", {
+      name: "Goal title",
+    });
+    expect((title as HTMLInputElement).value).toBe("企画書を通す");
   });
 
   describe("period-end review (P1 / P2)", () => {

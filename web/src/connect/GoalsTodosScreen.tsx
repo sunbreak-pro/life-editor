@@ -93,6 +93,12 @@ interface GoalsSources {
 
 const EMPTY_SOURCES: GoalsSources = { goals: [], links: [], todos: [] };
 
+/** One read, with the link-save fence it started under. */
+interface GoalsRead {
+  sources: GoalsSources;
+  fence: number;
+}
+
 export function GoalsTodosScreen({
   dataService,
   onNavigateToItem,
@@ -125,13 +131,23 @@ export function GoalsTodosScreen({
     };
   }, []);
 
-  const { isLoading, error } = useDomainLoad<GoalsSources>({
+  /*
+   * The link save's write fence, as in useGoalLinkSnapshot (#2109). A read that
+   * started before or during a save returns the links from before part of it,
+   * and landing that would wipe what the save has patched in. So the save moves
+   * the fence at its start and its end, a read lands only if the fence did not
+   * move under it, and the end of the save asks for one fresh read.
+   */
+  const linkWriteFence = useRef(0);
+
+  const { isLoading, error } = useDomainLoad<GoalsRead>({
     domain: "Connect goals",
     dataService,
     version: syncVersion,
     anchor: reloadTick,
     refetchReportsLoading: false,
     load: async (service) => {
+      const fence = linkWriteFence.current;
       const [goals, todos] = await Promise.all([
         service.fetchGoals(),
         service.fetchTodoTree(),
@@ -140,10 +156,10 @@ export function GoalsTodosScreen({
         goals.length > 0
           ? await service.fetchGoalTodoLinks(goals.map((g) => g.id))
           : [];
-      return { goals, links, todos };
+      return { sources: { goals, links, todos }, fence };
     },
-    apply: (next) => {
-      setSources(overlayTicks(next));
+    apply: ({ sources: next, fence }) => {
+      if (fence === linkWriteFence.current) setSources(overlayTicks(next));
       setHasLoaded(true);
     },
     fallbackMessage: "Failed to load the goals",
@@ -360,12 +376,14 @@ export function GoalsTodosScreen({
   /*
    * The linking screen's save. Not through `write`: the screen says a failure
    * itself, so it needs the rejection, and it drops its draft on resolve, so
-   * each link is patched in as it lands rather than after the re-read.
+   * each link is patched in as it lands rather than after the re-read, behind
+   * the fence (linkWriteFence) so a read older than the save cannot undo that.
    */
   const saveLinks = useCallback(
     async (goalId: string, diff: GoalLinkDiff): Promise<void> => {
       const without = (links: GoalTodoLink[], todoId: string): GoalTodoLink[] =>
         links.filter((l) => l.goalId !== goalId || l.todoId !== todoId);
+      linkWriteFence.current += 1;
       try {
         for (const todoId of diff.link) {
           const row = await dataService.linkGoalTodo(goalId, todoId);
@@ -382,6 +400,7 @@ export function GoalsTodosScreen({
           }));
         }
       } finally {
+        linkWriteFence.current += 1;
         setReloadTick((n) => n + 1);
       }
     },

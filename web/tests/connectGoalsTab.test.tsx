@@ -694,6 +694,76 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     panel().getByRole("textbox", { name: "Goal title" });
   });
 
+  it("keeps what a link save patched in over a read older than the save (#2410)", async () => {
+    const saved = [link("w3", "l1"), link("w3", "p2")];
+    let releaseStale: () => void = () => undefined;
+    let releaseFresh: () => void = () => undefined;
+    let finishSecondLink: () => void = () => undefined;
+    const fetchGoalTodoLinks = vi
+      .fn()
+      .mockResolvedValueOnce(LINKS)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            releaseStale = () => resolve(LINKS);
+          }),
+      )
+      .mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            releaseFresh = () => resolve([...LINKS, ...saved]);
+          }),
+      );
+    const linkGoalTodo = vi
+      .fn()
+      .mockResolvedValueOnce(saved[0])
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            finishSecondLink = () => resolve(saved[1]);
+          }),
+      );
+    const { panel, sync } = await renderTab(
+      makeDS({ fetchGoalTodoLinks, linkGoalTodo }),
+    );
+    fireEvent.click(goalRow("Finish one book"));
+    fireEvent.click(panel().getByRole("button", { name: "Link todos" }));
+    const region = within(panel().getByRole("region", { name: "Link todos" }));
+    const checked = (name: RegExp) =>
+      region.getByRole("checkbox", { name }).getAttribute("aria-checked");
+    fireEvent.click(
+      region.getByRole("checkbox", {
+        name: /Pick up the residence certificate/,
+      }),
+    );
+    fireEvent.click(region.getByRole("checkbox", { name: /Pick the curtains/ }));
+
+    // A Realtime echo starts a read, which is still out when the first link
+    // lands, and comes back with neither link while the save is under way.
+    act(() => sync.bump("goals"));
+    await waitFor(() => expect(fetchGoalTodoLinks).toHaveBeenCalledTimes(2));
+    fireEvent.click(region.getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(linkGoalTodo).toHaveBeenCalledTimes(2));
+    await act(async () => releaseStale());
+
+    // The save ends and its draft goes. The re-read is still out, so the ticks
+    // can only come from the links the save patched in.
+    await act(async () => finishSecondLink());
+    await waitFor(() => expect(fetchGoalTodoLinks).toHaveBeenCalledTimes(3));
+    await waitFor(() =>
+      expect(
+        (region.getByRole("button", { name: "Save" }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(true),
+    );
+    expect(checked(/Pick up the residence certificate/)).toBe("true");
+    expect(checked(/Pick the curtains/)).toBe("true");
+
+    await act(async () => releaseFresh());
+    expect(checked(/Pick up the residence certificate/)).toBe("true");
+    expect(checked(/Pick the curtains/)).toBe("true");
+  });
+
   it("takes a todo off from the same screen", async () => {
     const unlinkGoalTodo = vi.fn().mockResolvedValue(undefined);
     const { panel } = await renderTab(makeDS({ unlinkGoalTodo }));

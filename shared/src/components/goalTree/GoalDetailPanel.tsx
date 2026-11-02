@@ -20,8 +20,9 @@ import { GoalStatus, type GoalTreeLabels } from "./GoalTreeView";
  * counts too) are given as a number.
  *
  * The goal above is a link that picks it (#2410). Changing it is a drag on the
- * tree where the tree can be dragged; where it cannot (a phone), the host also
- * asks for the old select with `parentSelect`, the only way there.
+ * tree where the tree can be dragged; where it cannot (a phone, the Briefing
+ * goals panel), the host also asks for the old select with `parentSelect`, the
+ * only way there.
  *
  * Linking todos FROM the goal is #2109's screen, not this one: the button only
  * tells the host to swap it in (`onLinkTodos`).

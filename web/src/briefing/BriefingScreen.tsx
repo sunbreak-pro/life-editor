@@ -114,7 +114,8 @@ const GOAL_KINDS: readonly GoalPeriodKind[] = ["year", "month", "week"];
 type GoalsPanelView =
   | { kind: "list" }
   | { kind: "detail"; goalId: string }
-  | { kind: "link"; goalId: string };
+  /** `from`: where the linking screen's cancel goes back to (#2410). */
+  | { kind: "link"; goalId: string; from: "list" | "detail" };
 
 export function BriefingScreen({
   dataService: ds,
@@ -1002,7 +1003,11 @@ export function BriefingScreen({
               diff.unlink.map((todoId) => ({ goalId, todoId })),
             )
           }
-          onClose={showGoalList}
+          onClose={
+            panelView.from === "detail"
+              ? () => setPanelView({ kind: "detail", goalId })
+              : showGoalList
+          }
           labels={{
             ...goalLinkLabels,
             periodLabel: morningGoalsLabels.periods[panelGoal.periodKind],
@@ -1024,9 +1029,12 @@ export function BriefingScreen({
               ? (goalModel?.byId.get(panelNode.goal.parentGoalId)?.goal ?? null)
               : null
           }
-          // No drag on this panel, and none in Connect's tree on a phone.
-          parentSelect={narrow}
-          onLinkTodos={() => setPanelView({ kind: "link", goalId })}
+          // No drag on this panel at any width: the select is the only way
+          // to re-parent or detach a goal from here.
+          parentSelect
+          onLinkTodos={() =>
+            setPanelView({ kind: "link", goalId, from: "detail" })
+          }
           onRename={(title) => void updateGoal(goalId, { title })}
           onChangeParent={(parentGoalId) =>
             void updateGoal(goalId, { parentGoalId })
@@ -1049,7 +1057,9 @@ export function BriefingScreen({
       <MorningGoalsPanel
         goals={morningGoals}
         labels={morningGoalsLabels}
-        onLinkTodos={(goalId) => setPanelView({ kind: "link", goalId })}
+        onLinkTodos={(goalId) =>
+          setPanelView({ kind: "link", goalId, from: "list" })
+        }
         onSelectGoal={(goalId) => setPanelView({ kind: "detail", goalId })}
         onCreateWeekGoal={createWeekGoal}
         writing={goalWriting}
