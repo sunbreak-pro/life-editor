@@ -1273,14 +1273,8 @@ describe("Deleting a goal and choosing what goes with it (#2405)", () => {
     dialog.getByRole("checkbox", { name: "Todo: Draft the proposal" });
   });
 
-  it("stops at the first failed write and says so, with the goal still there", async () => {
-    vi.spyOn(console, "error").mockImplementation(() => undefined);
-    const ds = makeDS({
-      softDeleteTodo: vi
-        .fn()
-        .mockResolvedValueOnce(undefined)
-        .mockRejectedValue(new Error("offline")),
-    });
+  /** With a toast host, unlike renderTab, for the failure copy. */
+  async function renderWithToast(ds: DataService) {
     const { wrapper: SyncWrapper } = createBumpableSync();
     render(
       <SyncWrapper>
@@ -1292,15 +1286,60 @@ describe("Deleting a goal and choosing what goes with it (#2405)", () => {
       </SyncWrapper>,
     );
     await screen.findByRole("region", { name: "Goal tree" });
+  }
+  const PARTWAY =
+    "The delete stopped partway. Check your connection, look at what is left, and try again.";
+  const NOTHING_DELETED =
+    "Nothing was deleted. Check your connection and try again.";
+
+  it("stops at the first failed write and says so, with the goal still there", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const ds = makeDS({
+      softDeleteTodo: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValue(new Error("offline")),
+    });
+    await renderWithToast(ds);
     const dialog = openDelete("Get the proposal approved");
     confirm(dialog);
 
-    await screen.findByText(
-      "The delete stopped partway. Check your connection, look at what is left, and try again.",
-    );
+    await screen.findByText(PARTWAY);
+    expect(screen.queryByText(NOTHING_DELETED)).toBeNull();
     expect(ds.softDeleteTodo).toHaveBeenCalledTimes(2);
     expect(ds.softDeleteGoal).not.toHaveBeenCalled();
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("says nothing was deleted when the very first write fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const ds = makeDS({
+      softDeleteTodo: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+    await renderWithToast(ds);
+    confirm(openDelete("Get the proposal approved"));
+
+    await screen.findByText(NOTHING_DELETED);
+    expect(screen.queryByText(PARTWAY)).toBeNull();
+    expect(ds.softDeleteTodo).toHaveBeenCalledTimes(1);
+    expect(ds.softDeleteGoal).not.toHaveBeenCalled();
+  });
+
+  it("still says partway when only a detach landed before the failure", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const ds = makeDS({
+      softDeleteTodo: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+    await renderWithToast(ds);
+    const dialog = openDelete("Win an autumn project");
+    fireEvent.click(
+      dialog.getByRole("checkbox", { name: "Week: Get the proposal approved" }),
+    );
+    confirm(dialog);
+
+    await screen.findByText(PARTWAY);
+    expect(ds.updateGoal).toHaveBeenCalledWith("w1", { parentGoalId: null });
+    expect(ds.softDeleteGoal).not.toHaveBeenCalled();
   });
 
   it("holds the dialog open and frozen while the writes run", async () => {

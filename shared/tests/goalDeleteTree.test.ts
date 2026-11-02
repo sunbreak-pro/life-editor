@@ -171,6 +171,50 @@ describe("buildGoalDeleteTree (#2405)", () => {
     ]);
   });
 
+  it("marks a row whose nested todo a live goal outside the subtree holds", () => {
+    const rowOf = (
+      links: ReturnType<typeof link>[],
+      goals: readonly Goal[] = [WEEK, ELSEWHERE],
+    ) =>
+      buildGoalDeleteTree({
+        ...INPUT,
+        goal: WEEK,
+        goals,
+        links: [link("w", "parent"), ...links],
+        todos: [
+          todo("parent"),
+          todo("child", { parentId: "parent" }),
+          todo("grandchild", { parentId: "child" }),
+        ],
+      }).todos[0];
+
+    expect(rowOf([])).toMatchObject({ id: "parent", alsoLinked: false });
+    expect(rowOf([link("other", "child")])?.alsoLinked).toBe(true);
+    // However deep it sits.
+    expect(rowOf([link("other", "grandchild")])?.alsoLinked).toBe(true);
+    // A deleted link, or a link to a deleted goal, holds nothing any more.
+    expect(rowOf([link("other", "child", true)])?.alsoLinked).toBe(false);
+    expect(
+      rowOf(
+        [link("other", "child")],
+        [WEEK, { ...ELSEWHERE, isDeleted: true }],
+      )?.alsoLinked,
+    ).toBe(false);
+  });
+
+  it("leaves the note to a nested todo's own row when a goal here holds it", () => {
+    const tree = buildGoalDeleteTree({
+      ...INPUT,
+      goal: WEEK,
+      links: [link("w", "parent"), link("w", "child")],
+      todos: [todo("parent"), todo("child", { parentId: "parent" })],
+    });
+    expect(tree.todos.map((t) => [t.id, t.alsoLinked])).toEqual([
+      ["parent", false],
+      ["child", false],
+    ]);
+  });
+
   it("survives a cycle in the goals and in the todos", () => {
     const tree = buildGoalDeleteTree({
       ...INPUT,

@@ -1564,7 +1564,8 @@
         "goalRow": "{{kind}}: {{title}}",
         "todoRow": "Todo: {{title}}",
         "deleting": "Deleting",
-        "failed": "The delete stopped partway. Check your connection, look at what is left, and try again."
+        "failed": "The delete stopped partway. Check your connection, look at what is left, and try again.",
+        "failedNothingDeleted": "Nothing was deleted. Check your connection and try again."
       },
       "period": "{{kind}} · {{key}}",
       "sheetTitle": "Goal: {{title}}",

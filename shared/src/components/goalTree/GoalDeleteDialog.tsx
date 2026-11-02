@@ -20,10 +20,11 @@ import {
  * the plain question and no list.
  *
  * Same frame and same order of answers as ConfirmDialog: the message names the
- * dialog, and Cancel comes first in the DOM so the initial focus never lands
- * on the destructive answer. The list is the one part that scrolls, so the
- * question and the answers stay on screen however long the tree is. `Modal`'s
- * `fitViewport` would scroll them away with it.
+ * dialog, and Cancel comes before the destructive answer in the DOM. With no
+ * list, Cancel takes the first focus. With a list, the first box takes it, and
+ * Enter there only flips that box. The list is the one part that scrolls, so
+ * the question and the answers stay on screen however long the tree is.
+ * `Modal`'s `fitViewport` would scroll them away with it.
  *
  * Holds only its boxes (§6.4): the copy comes in translated, the answer goes
  * out as the ids left unticked, and the writes are the host's.

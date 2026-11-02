@@ -231,14 +231,20 @@ export function GoalsTodosScreen({
   const write = useCallback(
     async (
       run: () => Promise<unknown>,
-      failedKey: TranslationKey = "connect.goals.writeFailed",
+      // A function when the copy depends on how far `run` got.
+      failedKey:
+        | TranslationKey
+        | (() => TranslationKey) = "connect.goals.writeFailed",
     ): Promise<boolean> => {
       try {
         await run();
         return true;
       } catch (err) {
         console.error("[GoalsTodosScreen] write failed", err);
-        toast?.showToast("danger", t(failedKey));
+        toast?.showToast(
+          "danger",
+          t(typeof failedKey === "function" ? failedKey() : failedKey),
+        );
         return false;
       } finally {
         setReloadTick((n) => n + 1);
@@ -427,20 +433,35 @@ export function GoalsTodosScreen({
          * leaves that goal on the tree. The re-read then shows what is left,
          * and asking again lists only that.
          */
-        const ok = await write(async () => {
-          for (const id of plan.detachGoalIds) {
-            await dataService.updateGoal(id, { parentGoalId: null });
-          }
-          for (const { goalId, todoId } of plan.unlinks) {
-            await dataService.unlinkGoalTodo(goalId, todoId);
-          }
-          for (const id of plan.deleteTodoIds) {
-            await dataService.softDeleteTodo(id);
-          }
-          for (const id of plan.deleteGoalIds) {
-            await dataService.softDeleteGoal(id);
-          }
-        }, "connect.goals.deleteDialog.failed");
+        const writes: (() => Promise<unknown>)[] = [
+          ...plan.detachGoalIds.map(
+            (id) => () => dataService.updateGoal(id, { parentGoalId: null }),
+          ),
+          ...plan.unlinks.map(
+            ({ goalId, todoId }) =>
+              () =>
+                dataService.unlinkGoalTodo(goalId, todoId),
+          ),
+          ...plan.deleteTodoIds.map(
+            (id) => () => dataService.softDeleteTodo(id),
+          ),
+          ...plan.deleteGoalIds.map(
+            (id) => () => dataService.softDeleteGoal(id),
+          ),
+        ];
+        let landed = false;
+        const ok = await write(
+          async () => {
+            for (const run of writes) {
+              await run();
+              landed = true;
+            }
+          },
+          () =>
+            landed
+              ? "connect.goals.deleteDialog.failed"
+              : "connect.goals.deleteDialog.failedNothingDeleted",
+        );
         deleteClaimed.current = false;
         setDeleting(false);
         setDeleteTree(null);

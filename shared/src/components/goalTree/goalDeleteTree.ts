@@ -17,8 +17,9 @@ export interface GoalDeleteTodoRow {
   title: string;
   done: boolean;
   /**
-   * Linked to more than one live goal, so deleting it takes it off the others
-   * too. Worked out over every live goal, not only this subtree.
+   * Deleting it reaches a goal outside this choice: it is linked to more than
+   * one live goal, or a nested todo that goes with it is linked to one. Worked
+   * out over every live goal, not only this subtree.
    */
   alsoLinked: boolean;
   /**
@@ -146,12 +147,17 @@ export function buildGoalDeleteTree({
       drawnTodos.add(todoId);
       const todo = todoById.get(todoId);
       if (!todo) continue;
+      const nestedTodoIds = nestedUnder(todoId);
       rows.push({
         id: todo.id,
         title: todo.title || untitled,
         done: todo.status === "DONE",
-        alsoLinked: (goalsOfTodo.get(todoId)?.size ?? 0) > 1,
-        nestedTodoIds: nestedUnder(todoId),
+        alsoLinked:
+          (goalsOfTodo.get(todoId)?.size ?? 0) > 1 ||
+          // A nested todo linked to a goal here has a row of its own, so any
+          // live link one of these holds is to a goal outside the subtree.
+          nestedTodoIds.some((id) => goalsOfTodo.has(id)),
+        nestedTodoIds,
       });
     }
     const children = (childGoals.get(current.id) ?? [])

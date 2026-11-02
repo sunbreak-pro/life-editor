@@ -1543,7 +1543,8 @@
         "goalRow": "{{kind}}: {{title}}",
         "todoRow": "Todo: {{title}}",
         "deleting": "削除しています",
-        "failed": "削除を途中で止めました。通信を確認してから、残った項目を見てもう一度操作してください。"
+        "failed": "削除を途中で止めました。通信を確認してから、残った項目を見てもう一度操作してください。",
+        "failedNothingDeleted": "何も削除していません。通信を確認して、もう一度操作してください。"
       },
       "period": "{{kind}} · {{key}}",
       "sheetTitle": "目標: {{title}}",
