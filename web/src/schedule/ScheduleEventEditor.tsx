@@ -17,6 +17,7 @@ import { TagPicker } from "../wikitag/TagPicker";
 import { useNoteAttachLabels, type ScheduleNoteAttach } from "./noteAttach";
 import { TagColorControls } from "../wikitag/TagColorControls";
 import { useEventWorkTime } from "./useEventWorkTime";
+import { useEventTagDraft } from "./useEventTagDraft";
 import type { DuplicateOptions } from "./useScheduleMutations";
 
 /*
@@ -119,15 +120,23 @@ export function ScheduleEventEditor({
    * render pass, which is what react-hooks/set-state-in-effect objects to.
    */
   const [tagScope, setTagScope] = useState<"all" | "this">("all");
+  const toast = useToastOptional();
+  // #2447: the tag picks wait for 「保存」 like every other field, so a
+  // cancelled edit throws them away too.
+  const tagDraft = useEventTagDraft(() =>
+    toast?.showToast("danger", t("materials.tags.assignFailed")),
+  );
   const selectedId = item?.id ?? null;
   const [prevSelectedId, setPrevSelectedId] = useState(selectedId);
   if (selectedId !== prevSelectedId) {
     setPrevSelectedId(selectedId);
     setTagScope("all");
+    // Staged against the row the panel just left, so it goes with it — the
+    // pane drops its own draft on the same change (it is keyed by the id).
+    tagDraft.reset();
   }
   // Before the early return — hooks cannot be called conditionally, and the
   // hook already treats a null id as "nothing to read".
-  const toast = useToastOptional();
   const { read: workRead, save: saveWorkTotal } = useEventWorkTime(
     item?.id ?? null,
     // #2407: the press has moved on by the time the write fails, so a toast is
@@ -273,6 +282,8 @@ export function ScheduleEventEditor({
       cancel={
         onCancel ? { label: t("common.cancel"), onCancel } : undefined
       }
+      // #2447: staged picks ride the save press and the discard question.
+      tagDraft={{ dirty: tagDraft.dirty, onSave: tagDraft.save }}
       tagSlot={
         // #468: tagging is what files a row into a calendar, so without this
         // the lens above would have nothing to find. A routine occurrence is
@@ -321,7 +332,11 @@ export function ScheduleEventEditor({
               a note is about the day, not the series. */}
           <div className="flex items-start gap-2">
             <div className="min-w-0 flex-1">
-              <TagPicker itemId={tagTargetId} itemRole={tagTargetRole} />
+              <TagPicker
+                itemId={tagTargetId}
+                itemRole={tagTargetRole}
+                staged={tagDraft.stagedFor(tagTargetId)}
+              />
             </div>
             {noteAttach && (
               <ItemNoteAttach

@@ -98,6 +98,17 @@ interface TagPickerProps {
    * short word while nothing is assigned, the plus alone after that.
    */
   addLabel?: string;
+  /**
+   * Stage instead of write (#2447). Given, the chips are these tag ids and a
+   * pick or a removal only reports the next list; the host writes it from its
+   * own save press, so a cancelled edit throws the tag changes away with the
+   * rest. Creating a new tag still creates it, because the tag itself is not
+   * part of the item's draft — only putting it on the item is.
+   */
+  staged?: {
+    tagIds: readonly string[];
+    onChange: (tagIds: string[]) => void;
+  };
 }
 
 /**
@@ -165,6 +176,7 @@ export function TagPicker({
   onTagLongPress,
   singleRow = false,
   addLabel,
+  staged,
 }: TagPickerProps) {
   const wiki = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
@@ -178,8 +190,18 @@ export function TagPicker({
   // Assignments for this row come from the Context's bulk cache (one
   // query for the whole list, bucketed by itemId). `loading` follows the
   // Context's initial bulk load.
-  const assignments = wiki.getTagsForItem(itemId);
+  const liveAssignments = wiki.getTagsForItem(itemId);
   const loading = wiki.loading;
+  // #2447: a staged list draws as the chips would once it is saved. The
+  // assignment id is the tag id, which is unique per item all the same.
+  const stagedIds = staged?.tagIds;
+  const assignments = useMemo(
+    () =>
+      stagedIds
+        ? stagedIds.map((tagId) => ({ id: tagId, tagId }))
+        : liveAssignments,
+    [stagedIds, liveAssignments],
+  );
 
   // Close picker on click-outside (keeps the picker self-contained — no
   // global click listener registry).
@@ -277,6 +299,12 @@ export function TagPicker({
   }, [wiki.allTags, query]);
 
   const handleAssign = async (tagId: string) => {
+    if (staged) {
+      if (!staged.tagIds.includes(tagId))
+        staged.onChange([...staged.tagIds, tagId]);
+      setQuery("");
+      return;
+    }
     try {
       // The Context mutator updates the bulk cache, so the pills here
       // re-render without a local copy.
@@ -289,6 +317,11 @@ export function TagPicker({
   };
 
   const handleUnassign = async (assignmentId: string) => {
+    if (staged) {
+      // In a staged list the assignment id IS the tag id (see `assignments`).
+      staged.onChange(staged.tagIds.filter((id) => id !== assignmentId));
+      return;
+    }
     try {
       await wiki.unassignTagFromItem(assignmentId);
     } catch (err) {
