@@ -44,7 +44,6 @@
     ]
   },
   "permissions": {
-    "allow": ["Bash(gh pr merge * --squash)"],
     "ask": ["Bash(supabase db push*)"],
     "deny": [
       "Bash(git push origin main*)",

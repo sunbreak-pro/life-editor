@@ -33,7 +33,7 @@ node .claude/scripts/merge-round.mjs plan
 
 順番は、依存の前後を守ったうえで、実装と revert を先に、記録（`chore/tracker-*` など）を後にする。同じ回の中では、他の PR と同じファイルを触る数が少ない PR から、古い PR から並べる。衝突しない PR を先に積み、衝突しうる PR を後ろに寄せるためです。
 
-終了コード 3 は「main の CI が赤い」を表す。その場合は回を始めず、下の「main が赤いとき」に進む。
+終了コード 3 は「main の CI が赤い」を表す。そのときは revert の PR（`revert/` で始まるブランチ）だけが「merge」になり、ほかは見送りになる。下の「main が赤いとき」に進む。
 
 ### 2. 回を始める
 
@@ -41,7 +41,7 @@ node .claude/scripts/merge-round.mjs plan
 node .claude/scripts/merge-round.mjs start
 ```
 
-plan の「merge」の PR を今回の一覧として `.git/merge-round/active.json` に書き、戻る地点（この回の前の main の commit）を表示する。plan が 30 分より古いと断るので、plan からやり直す。
+plan の「merge」の PR を今回の一覧として `.git/merge-round/active.json` に書き、戻る地点（この回の前の main の commit）を表示する。plan が 30 分より古いときと、plan の後に main が進んだときは断るので、plan からやり直す。
 
 ### 3. 1 本ずつ merge する
 
@@ -52,7 +52,7 @@ node .claude/scripts/merge-round.mjs check <n>
 gh pr merge <n> -R sunbreak-pro/life-editor --squash
 ```
 
-`gh pr merge` はこの形で、単独で打つ。`&&` でつなぐ、`--admin` を付ける、`--delete-branch` を付けると hook が確認を出す。ブランチを消さないのは、レーンがそのブランチを開いたままのことがあるからです。
+`gh pr merge` はこの形で、`check` の直後に単独で打つ。`&&` でつなぐ、`--admin` を付ける、`--delete-branch` を付けると hook が確認を出す。ブランチを消さないのは、レーンがそのブランチを開いたままのことがあるからです。
 
 `check` の終了コードで次を決める。
 
@@ -62,9 +62,10 @@ gh pr merge <n> -R sunbreak-pro/life-editor --squash
 | 3          | 前の merge で main と衝突した       | 飛ばす。手順 4 で指示文になる |
 | 4          | mergeable が 60 秒たっても決まらない | 飛ばす                       |
 | 5          | plan の後に push された              | 飛ばす。次の回で確認し直す   |
-| 7 / 8 / 10 | close 済み / `merge:hold` / merge 済み | 飛ばす                       |
+| 11         | CI が通っていない（再実行で赤くなった等） | 飛ばす。手順 4 で指示文になる |
+| それ以外   | close 済み・`merge:hold`・下書き・merge 済み・スクリプトの失敗 | 飛ばす。理由を報告に書く     |
 
-`gh pr merge` が失敗したら、その出力を報告に書いて次の PR に進む。
+0 以外はすべて飛ばす。hook は `check` が 0 を返した PR しか確認なしで通さないので、`check` を省いて merge すると確認ダイアログが出る。`gh pr merge` が失敗したら、その出力を報告に書いて次の PR に進む。
 
 ### 4. 直してもらう分を指示文にする
 
@@ -123,8 +124,9 @@ main を書き換えない（`reset --hard` と force push は deny 済み）。
    gh pr create -R sunbreak-pro/life-editor --title "revert: <元の題> (#<n>)" --body "Reverts #<n>. Refs #<Issue>"
    ```
 
-3. chat-main に戻り、`plan --only <revert PR>` → `start` → `check` → `gh pr merge` → `finish` で merge する。
-4. 元の Issue は `Refs` なので open のまま残る。戻した理由を Issue にコメントし、直した PR を出し直すレーンへ `issue-prompter` で配り直す。
+3. chat-main に戻り、revert の PR の CI が通ってから `plan --only <revert PR>` → `start` → `check` → `gh pr merge` → `finish` で merge する。
+4. 回ごと戻したときは、`git fetch origin` のあと `git diff <戻る地点> origin/main --stat` を打ち、差分が空か、戻した回より後に merge した PR の分だけになっているかを確かめる。
+5. 元の Issue は `Refs` なので open のまま残る。戻した理由を Issue にコメントし、直した PR を出し直すレーンへ `issue-prompter` で配り直す。
 
 マイグレーションを含む PR は revert しない。反映済みのマイグレーションは中身を変えず、次の番号で戻すマイグレーションを足す（CLAUDE.md §7.3）。db push はこうだいさんの作業のままです。
 
@@ -143,4 +145,5 @@ main を書き換えない（`reset --hard` と force push は deny 済み）。
 
 - GitHub の `mergeable` は merge の直後しばらく `UNKNOWN` になる。plan と fixes は手元の `git merge-tree` で衝突を決め、`check` だけが GitHub の値を最大 60 秒待つ。
 - squash merge したブランチは `git log` や `git cherry` で未マージに見える。merge 済みの判定は `gh pr view` の state で行う（`worktree-policy`）。
-- 状態は `.git/merge-round/` にあり、commit されない。回は 6 時間で切れ、切れた後の merge は hook が確認を出す。
+- 状態は `.git/merge-round/` にあり、commit されない。回は 2 時間で切れ、切れた後の merge は hook が確認を出す。
+- settings.json には `gh pr merge` の allow も ask も置かない。ask を置くと hook の allow が効かず（Claude Code の仕様）、allow を置くと hook が落ちたときに素通りするためです。

@@ -176,6 +176,21 @@ function conflictFiles(headOid) {
   return ["(merge-tree が失敗したので手で確かめる)"];
 }
 
+// gh の files は件数に上限があるので、マイグレーションの有無は git で決める
+function touchesMigration(headOid) {
+  const r = tryRun("git", ["diff", "--name-only", `origin/main...${headOid}`]);
+  if (r.code !== 0) return true;
+  return r.out.split(/\r?\n/).some((f) => MIGRATION.test(f));
+}
+
+// merge の回は chat-main（リポジトリ直下の checkout・main ブランチ）だけで動かす
+function requireChatMain() {
+  const gitDir = resolve(git("rev-parse", "--path-format=absolute", "--git-dir")).toLowerCase();
+  if (gitDir !== COMMON.toLowerCase()) die("作業レーン（worktree）では回を動かさない。chat-main で打つ。");
+  const branch = git("branch", "--show-current");
+  if (branch !== "main") die(`chat-main が main にいない（いま ${branch || "detached"}）。`);
+}
+
 function mainCi() {
   const runs = ghJson(
     "run", "list", "-R", REPO, "--branch", "main", "--workflow", "ci.yml", "--limit", "1", "--json", "status,conclusion,headSha,url",
@@ -216,8 +231,10 @@ function plan(onlyArg) {
     if (pr.baseRefName !== "main") return hold(`宛先が main でない（${pr.baseRefName}）`);
     if (pr.isDraft) return hold("下書きの PR");
     if (labels.includes(HOLD_LABEL)) return hold(`${HOLD_LABEL} ラベルで止めてある`);
-    if (files.some((f) => MIGRATION.test(f))) return hold("マイグレーションを含む。db push との順番をこうだいさんが決める");
+    if (touchesMigration(pr.headRefOid)) return hold("マイグレーションを含む。db push との順番をこうだいさんが決める");
     if (kind === "impl" && refs.length === 0) return hold("Refs #番号 が無く、依頼した Issue を確かめられない");
+    const unreadable = refs.filter((_, i) => !issues[i]);
+    if (unreadable.length) return hold(`Issue ${unreadable.map((n) => `#${n}`).join(" ")} を読めず、依存と凍結を確かめられない`);
     const frozen = issues.find((i) => i?.labels?.some((l) => l.name === "status:frozen"));
     if (frozen) return hold(`Issue #${frozen.number} が status:frozen`);
     if (conflicts.length) return fix(`main と衝突（${conflicts.join(", ")}）`);
@@ -256,6 +273,12 @@ function plan(onlyArg) {
     }
   }
 
+  // main が赤いときは、戻すための revert の PR だけを merge する
+  if (mainRed)
+    for (const it of items)
+      if (it.verdict === "merge" && it.kind !== "revert")
+        Object.assign(it, { verdict: "hold", reason: "main の CI が赤いので、revert 以外は見送り" });
+
   // 順番: 依存の前後 → 実装・revert を先、記録を後 → 他の PR と同じファイルを触る数が少ない順 → 古い順
   const ready = items.filter((i) => i.verdict === "merge");
   const overlap = (it) => ready.filter((o) => o !== it && o.files.some((f) => it.files.includes(f))).length;
@@ -279,7 +302,8 @@ function plan(onlyArg) {
   const result = { createdAt: new Date().toISOString(), base, mainCi: ci, mainRed, items, order: order.map((o) => o.number) };
   writeJson(PLAN, result);
   printPlan(result);
-  if (mainRed) die(`main の CI が赤い（${ci.url}）。SKILL.md の「main が赤いとき」を先に済ませる。`, 3);
+  if (mainRed)
+    die(`main の CI が赤い（${ci.url}）。revert の PR だけを merge できる。SKILL.md の「main が赤いとき」を先に済ませる。`, 3);
 }
 
 function printPlan(p) {
@@ -298,33 +322,45 @@ function printPlan(p) {
 
 // ---------- start / check / finish ----------
 function start() {
+  requireChatMain();
   const p = readJson(PLAN);
   if (!p) die("plan.json が無い。先に plan を回す。");
   if (Date.now() - Date.parse(p.createdAt) > PLAN_TTL_MS) die("plan が 30 分より古い。plan を回し直す。");
-  if (p.mainRed) die("main の CI が赤いので始めない。");
   const prev = readJson(ACTIVE);
   if (prev) die(`回 ${prev.id} が閉じていない。finish してから始める。`);
   if (!p.order.length) die("merge できる PR が 0 本。fixes で直してもらう分の指示文だけ出す。", 0);
+  if (p.mainRed && p.items.some((i) => p.order.includes(i.number) && i.kind !== "revert"))
+    die("main の CI が赤いので、revert 以外の PR では始めない。");
+  git("fetch", "origin", "--prune", "--quiet");
+  if (git("rev-parse", "origin/main") !== p.base) die("plan の後に main が進んだ。戻る地点がずれるので plan を回し直す。");
   const id = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
   const heads = Object.fromEntries(p.items.filter((i) => p.order.includes(i.number)).map((i) => [i.number, i.headOid]));
-  writeJson(ACTIVE, { id, startedAt: new Date().toISOString(), base: p.base, prs: p.order, heads });
+  writeJson(ACTIVE, { id, startedAt: new Date().toISOString(), base: p.base, prs: p.order, heads, checked: {} });
   console.log(`回 ${id} を始めた。戻る地点（この回の前の main）= ${p.base}`);
   console.log(`merge する順番: ${p.order.map((n) => `#${n}`).join(" → ")}`);
 }
 
 function check(nArg) {
+  requireChatMain();
   const n = Number(nArg);
   const a = readJson(ACTIVE);
   if (!a) die("進行中の回が無い。");
   if (!a.prs.includes(n)) die(`#${n} は今回の一覧に無い。`, 6);
   for (let i = 0; i < 20; i++) {
-    const pr = ghJson("pr", "view", String(n), "-R", REPO, "--json", "state,mergeable,mergeStateStatus,headRefOid,labels");
+    const pr = ghJson(
+      "pr", "view", String(n), "-R", REPO, "--json", "state,mergeable,mergeStateStatus,headRefOid,labels,isDraft,baseRefName,statusCheckRollup",
+    );
     if (pr.state === "MERGED") return die(`#${n} は merge 済み。`, 10);
     if (pr.state !== "OPEN") return die(`#${n} は ${pr.state}。`, 7);
     if (pr.labels.some((l) => l.name === HOLD_LABEL)) return die(`#${n} に ${HOLD_LABEL} が付いた。飛ばす。`, 8);
+    if (pr.isDraft || pr.baseRefName !== "main") return die(`#${n} が下書きになったか、宛先が main でなくなった。飛ばす。`, 9);
     if (pr.headRefOid !== a.heads[String(n)]) return die(`#${n} は plan の後に push された。今回は飛ばす。`, 5);
+    const c = ciState(pr.statusCheckRollup);
+    if (c.state !== "pass") return die(`#${n} の CI が通っていない（${c.state}）。飛ばす。`, 11);
     if (pr.mergeable === "CONFLICTING") return die(`#${n} は前の merge で main と衝突した。fixes に回す。`, 3);
     if (pr.mergeable === "MERGEABLE") {
+      // hook は、この印がある PR の、この head だけを通す
+      writeJson(ACTIVE, { ...a, checked: { ...(a.checked ?? {}), [n]: pr.headRefOid } });
       console.log(`#${n} は merge できる（${pr.mergeStateStatus}）。`);
       return;
     }
@@ -334,6 +370,7 @@ function check(nArg) {
 }
 
 function finish() {
+  requireChatMain();
   const a = readJson(ACTIVE);
   if (!a) die("進行中の回が無い。");
   git("fetch", "origin", "--prune", "--quiet");
@@ -387,7 +424,10 @@ function fixes() {
     const conflicts = conflictFiles(pr.headRefOid);
     const c = ciState(pr.statusCheckRollup);
     if (!conflicts.length && c.state !== "fail") continue;
+    // plan で見送りになる PR（マイグレーション入り・凍結中）にはレーンへの指示を出さない
+    if (touchesMigration(pr.headRefOid)) continue;
     const issues = issueRefs(pr).map(issue);
+    if (issues.some((i) => i?.labels?.some((l) => l.name === "status:frozen"))) continue;
     const lane = laneFor(pr, lanes, issues);
     const entry = { number: pr.number, branch: pr.headRefName, head: pr.headRefOid, conflicts, ci: c.state === "fail" ? c.failing : null };
     if (!lane) unrouted.push(entry);
@@ -423,6 +463,8 @@ function fixes() {
       `and end with the hand-off table defined in the "セッション終了時の引き継ぎ表" section of .claude/skills/docs-workflow/SKILL.md.`;
     console.log(`### ${slug}  ← ${entries.length} 件（${entries.map((e) => `#${e.number}`).join(" ")}）${again ? "  ※前回と同じ指示（まだ直っていない）" : ""}`);
     console.log(goal);
+    if (goal.length > 4000)
+      console.log(`注意: この /goal は ${goal.length} 字で、上限の 4,000 字を超える。PR を 2 つに分けて、1 本目が終わってから 2 本目を貼る。`);
     console.log(`モデル: ${name}（${why}）。貼る前に /model ${id}`);
     if (lane.dirty && !entries.some((e) => e.branch === lane.branch))
       console.log(`注意: ${slug} は別のブランチ（${lane.branch}）で作業中。いまの /goal が終わってから貼る（後から貼ると前の /goal が消える）。`);
