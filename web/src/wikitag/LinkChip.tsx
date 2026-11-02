@@ -17,6 +17,7 @@ import type {
 } from "../notes/useItemLinkPreview";
 import { itemOpenAction } from "../schedule/itemOpenAction";
 import { describeLinkPreview } from "./linkPreviewCopy";
+import { shiftIntoBounds, visibleBoundsOf } from "./panelEdgeShift";
 import type { LinkChipPopover } from "./useLinkChipPopover";
 
 /*
@@ -37,7 +38,7 @@ import type { LinkChipPopover } from "./useLinkChipPopover";
  * reveal during the hover a tap imitates can cost iOS Safari that click.
  */
 
-/** Space kept to the viewport's edge when a Desktop panel would run past it. */
+/** Space kept to the clipping edge when a Desktop panel would run past it. */
 const EDGE_GAP_PX = 8;
 
 const PANEL_PLACEMENT =
@@ -187,14 +188,18 @@ function OpenPanel({
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, [boxRef, onClose]);
 
-  // A chip near the right edge would hang its 17rem past the window. Below the
-  // breakpoint the panel spans the row, so this never applies there.
+  // A chip near the right edge would hang its 17rem past the window, or past
+  // the scrolling column it sits in when something is open beside it (#2446).
+  // Below the breakpoint the panel spans the row, so this never applies there.
   useLayoutEffect(() => {
     const panel = panelRef.current;
     if (!panel) return;
-    const past =
-      panel.getBoundingClientRect().right - (window.innerWidth - EDGE_GAP_PX);
-    if (past > 0) panel.style.transform = `translateX(${-past}px)`;
+    const shift = shiftIntoBounds(
+      panel.getBoundingClientRect(),
+      visibleBoundsOf(panel),
+      EDGE_GAP_PX,
+    );
+    if (shift !== 0) panel.style.transform = `translateX(${shift}px)`;
   }, []);
 
   const targetId = previewTarget?.id;
