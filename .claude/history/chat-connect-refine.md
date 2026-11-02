@@ -4,7 +4,7 @@
 
 #### 概要
 
-/goal の指示で、13 Issue それぞれに origin/main からのブランチ、CI の verify の緑、`Refs #n` の PR を揃えた。7 Issue に新しい PR を出し、残りの 5 Issue はコードが merge 済みと監査で確かめた。#2366 と #2399 の PR はこうだいさんが merge した。こちらからは 1 本も merge していない。
+/goal の指示で、13 Issue それぞれに origin/main からのブランチ、CI の verify の緑、`Refs #n` の PR を揃えた。8 Issue に新しい PR を 9 本出し、残りの 5 Issue はコードが merge 済みと監査で確かめた。#2366 と #2399 の PR はこうだいさんが merge した。こちらからは 1 本も merge していない。
 
 #### 変更点
 
