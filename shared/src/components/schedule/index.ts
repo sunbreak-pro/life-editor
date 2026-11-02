@@ -102,6 +102,7 @@ export {
   TodayTodoTray,
   type TodayTodoTrayProps,
   type TodayTodoTrayLabels,
+  type TodayTodoRowActions,
   type TodayTodoRow,
   type TodayTodoAddableRow,
 } from "./TodayTodoTray";
