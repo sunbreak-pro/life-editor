@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from "vitest";
 import { useEffect, useRef, useState } from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import { BottomSheet, CommandPalette, Modal } from "../src/components";
+import { useEscapeLayer } from "../src/hooks/useDialogA11y";
 
 /*
  * Dialog focus behaviour (#508). BottomSheet declared aria-modal from day one
@@ -186,6 +187,74 @@ describe("dialog focus (BottomSheet + Modal)", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onCloseSheet).toHaveBeenCalledTimes(1);
     expect(onCloseModal).toHaveBeenCalledTimes(1);
+  });
+
+  /*
+   * #2396: a popover inside a dialog borrows Escape and nothing else. While it
+   * held the top of the stack the dialog's Tab trap stood down too, so Tab from
+   * the last control walked out of an aria-modal panel onto the page behind.
+   */
+  function EscapePopover({ onEscape }: { onEscape: () => void }) {
+    useEscapeLayer({ open: true, onEscape });
+    return <button type="button">popover button</button>;
+  }
+
+  it("keeps the Tab trap while a popover inside the dialog holds Escape", async () => {
+    const onCloseModal = vi.fn();
+    const onEscape = vi.fn();
+    // Opened after the dialog, as a popover is: effects run child first, so one
+    // mounted with the dialog would take the layer BELOW it.
+    const dialog = (popover: boolean) => (
+      <Modal open onClose={onCloseModal} title="Modal">
+        <button type="button">first</button>
+        {popover && <EscapePopover onEscape={onEscape} />}
+      </Modal>
+    );
+    const { rerender } = render(dialog(false));
+    await afterFrame();
+    rerender(dialog(true));
+    const first = screen.getByRole("button", { name: "first" });
+    const last = screen.getByRole("button", { name: "popover button" });
+
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(first, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(last);
+
+    // Loose on the page, it is pulled back in as usual.
+    last.blur();
+    fireEvent.keyDown(document.body, { key: "Tab" });
+    expect(document.activeElement).toBe(first);
+
+    // Escape is still the popover's, and only the popover's.
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(onEscape).toHaveBeenCalledTimes(1);
+    expect(onCloseModal).not.toHaveBeenCalled();
+  });
+
+  it("gives Tab to the newest dialog when a popover sits on top of two", async () => {
+    const stack = (popover: boolean) => (
+      <>
+        <BottomSheet open onClose={vi.fn()} title="Sheet" closeLabel="Close">
+          <button type="button">sheet button</button>
+        </BottomSheet>
+        <Modal open onClose={vi.fn()} title="Modal">
+          <button type="button">first</button>
+          {popover && <EscapePopover onEscape={vi.fn()} />}
+        </Modal>
+      </>
+    );
+    const { rerender } = render(stack(false));
+    await afterFrame();
+    rerender(stack(true));
+    const last = screen.getByRole("button", { name: "popover button" });
+
+    last.focus();
+    fireEvent.keyDown(last, { key: "Tab" });
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "first" }),
+    );
   });
 });
 
