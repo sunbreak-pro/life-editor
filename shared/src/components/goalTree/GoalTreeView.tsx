@@ -4,6 +4,7 @@ import {
   ChevronDown,
   ChevronRight,
   GripVertical,
+  Pencil,
   Plus,
   SquarePen,
   Target,
@@ -15,7 +16,7 @@ import { Button } from "../Button";
 import { EmptyState } from "../EmptyState";
 import { Input } from "../Input";
 import { SkeletonList } from "../SkeletonList";
-import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
+import { TodoStatusCheckbox, toggledTodoStatus } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
 import type { Goal, GoalDateRange, GoalPeriodKind } from "../../types/goal";
 import type { TodoStatus } from "../../types/todoTree";
@@ -79,9 +80,13 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * (separateCompleted). Un-ticking or un-achieving puts them back, because
  * the host's next model no longer counts them as completed.
  *
+ * A todo row (#2388): the name ticks and un-ticks like the box beside it, the
+ * pencil at the right end is the way into the editor, and the bin goes through
+ * the host's confirm. A press on the name never starts a drag: the grip does.
+ *
  * The todo open in the editor (#2401, `editingTodoId`) wears the accent wash on
  * its row, in every group it is drawn in, so the row being changed stays
- * findable behind the panel.
+ * findable behind the panel. Its pencil carries `aria-current`.
  *
  * Pure presentation (§6.4): the model and every label come from the host
  * (web/src/connect/GoalsTodosScreen.tsx). The state held here — the add
@@ -116,6 +121,12 @@ export interface GoalTreeLabels {
   status: string;
   statusLabels: StatusLabelSet;
   formatOpenTodo: (title: string) => string;
+  /** "Mark as done: Long run" — a todo's name, while it is open. */
+  formatMarkTodoDone: (title: string) => string;
+  /** "Mark as not done: Long run" — a todo's name, once it is done. */
+  formatMarkTodoOpen: (title: string) => string;
+  /** "Delete todo: Long run" — the bin on a todo row. */
+  formatDeleteTodo: (title: string) => string;
   /** "Expand: Run 3 times" / "Collapse: Run 3 times" — the branch arrow. */
   formatExpand: (title: string) => string;
   formatCollapse: (title: string) => string;
@@ -183,6 +194,8 @@ export interface GoalTreeViewProps {
   onOpenTodo: (todoId: string) => void;
   /** The todo open in the editor, whose row is marked (#2401). */
   editingTodoId?: string | null;
+  /** The bin on a todo row. Fires raw: the host asks. Absent, no bin. */
+  onDeleteTodo?: (todoId: string) => void;
   /** Desktop only. Absent, no grip is drawn and nothing can be dragged. */
   drag?: GoalTreeDragHandlers;
   /** A new name from a row's edit icon, trimmed and changed. Absent, no icon. */
@@ -225,11 +238,13 @@ export interface GoalTreeDragHandlers {
   ) => void;
 }
 
-const ROW_BUTTON = cn(
+const ROW_BUTTON_SHAPE = cn(
   "flex min-w-0 flex-1 items-center gap-2 rounded-lumen-sm px-2 py-1.5 text-left",
-  "transition-colors hover:bg-lumen-hover max-md:min-h-11",
+  "transition-colors max-md:min-h-11",
   "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
 );
+
+const ROW_BUTTON = cn(ROW_BUTTON_SHAPE, "hover:bg-lumen-hover");
 
 const GROUP_HEADING = "mb-1.5 text-xs font-medium text-lumen-text-tertiary";
 
@@ -391,6 +406,7 @@ function TodoRow({
   editing,
   onSetTodoStatus,
   onOpenTodo,
+  onDeleteTodo,
   labels,
 }: {
   todo: GoalTreeTodo;
@@ -400,6 +416,7 @@ function TodoRow({
   editing: boolean;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
   onOpenTodo: (todoId: string) => void;
+  onDeleteTodo?: (todoId: string) => void;
   labels: GoalTreeLabels;
 }): React.JSX.Element {
   const done = todo.status === "DONE";
@@ -411,7 +428,7 @@ function TodoRow({
     <li
       data-goal-tree-row=""
       className={cn(
-        "group/todo flex items-center gap-1 rounded-lumen-sm",
+        "group/todo flex items-center gap-1 rounded-lumen-sm transition-colors hover:bg-lumen-hover",
         editing && "bg-lumen-accent-subtle",
         dragged && DRAG_HOLE,
       )}
@@ -445,10 +462,12 @@ function TodoRow({
       />
       <button
         type="button"
-        onClick={() => onOpenTodo(todo.id)}
-        aria-label={labels.formatOpenTodo(todo.title)}
-        aria-current={editing ? "true" : undefined}
-        className={cn(ROW_BUTTON, "group")}
+        onClick={() => onSetTodoStatus(todo.id, toggledTodoStatus(todo.status))}
+        aria-label={(done
+          ? labels.formatMarkTodoOpen
+          : labels.formatMarkTodoDone)(todo.title)}
+        // The whole row carries the hover, so the name adds none of its own.
+        className={cn(ROW_BUTTON_SHAPE, "cursor-pointer")}
       >
         <span
           className={cn(
@@ -458,12 +477,28 @@ function TodoRow({
         >
           {todo.title}
         </span>
-        <ChevronRight
-          size={14}
-          aria-hidden
-          className="shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity group-hover:opacity-100"
-        />
       </button>
+      <button
+        type="button"
+        onClick={() => onOpenTodo(todo.id)}
+        aria-label={labels.formatOpenTodo(todo.title)}
+        title={labels.formatOpenTodo(todo.title)}
+        aria-current={editing ? "true" : undefined}
+        className={TODO_ROW_ICON}
+      >
+        <Pencil size={14} aria-hidden />
+      </button>
+      {onDeleteTodo && (
+        <button
+          type="button"
+          onClick={() => onDeleteTodo(todo.id)}
+          aria-label={labels.formatDeleteTodo(todo.title)}
+          title={labels.formatDeleteTodo(todo.title)}
+          className={TODO_ROW_ICON}
+        >
+          <Trash2 size={14} aria-hidden />
+        </button>
+      )}
     </li>
   );
 }
@@ -495,6 +530,12 @@ const ROW_ICON = cn(
   "ml-0.5 grid shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-[color,background-color,opacity] hover:bg-lumen-hover hover:text-lumen-text",
   "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
   "max-md:min-h-11 max-md:min-w-11",
+);
+
+/** A todo row's icons: on hover or focus on desktop, always on a phone. */
+const TODO_ROW_ICON = cn(
+  ROW_ICON,
+  "opacity-0 group-hover/todo:opacity-100 group-focus-within/todo:opacity-100 max-md:opacity-100",
 );
 
 /**
@@ -631,7 +672,7 @@ function AddUnderGoal({
     });
   };
   return (
-    <div className="flex items-center gap-2 py-1 pl-(--goal-tree-toggle)">
+    <div className="flex items-center gap-2 py-1 pl-(--goal-tree-toggle) max-md:flex-wrap">
       <span
         data-goal-add-badge
         className="shrink-0 whitespace-nowrap rounded-full border border-lumen-border px-2 py-0.5 text-xs text-lumen-briefing-kohaku"
@@ -649,7 +690,7 @@ function AddUnderGoal({
         }}
         placeholder={placeholder}
         aria-label={`${labels.formatAddUnder(goal.title)} — ${badge}`}
-        className="min-w-0 max-md:text-base"
+        className="min-w-0 max-md:basis-full max-md:text-base"
       />
       <Button
         size="sm"
@@ -922,6 +963,7 @@ function GoalBranch({
                   editing={todo.id === props.editingTodoId}
                   onSetTodoStatus={props.onSetTodoStatus}
                   onOpenTodo={props.onOpenTodo}
+                  onDeleteTodo={props.onDeleteTodo}
                   labels={labels}
                 />
               ))}
@@ -1394,6 +1436,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                 editing={todo.id === props.editingTodoId}
                 onSetTodoStatus={props.onSetTodoStatus}
                 onOpenTodo={props.onOpenTodo}
+                onDeleteTodo={props.onDeleteTodo}
                 labels={labels}
               />
             ))}
@@ -1427,6 +1470,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                   editing={todo.id === props.editingTodoId}
                   onSetTodoStatus={props.onSetTodoStatus}
                   onOpenTodo={props.onOpenTodo}
+                  onDeleteTodo={props.onDeleteTodo}
                   labels={labels}
                 />
               ))}

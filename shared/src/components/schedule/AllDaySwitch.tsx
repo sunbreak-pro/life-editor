@@ -30,7 +30,8 @@ export function AllDaySwitch({ checked, onToggle, label }: AllDaySwitchProps) {
       aria-checked={checked}
       onClick={onToggle}
       className={cn(
-        "flex shrink-0 items-center gap-2 rounded-lumen-md border px-2.5 py-2 text-sm font-medium transition-colors",
+        // The floor keeps it level with the date FIELD beside it (#2427).
+        "flex shrink-0 items-center gap-2 rounded-lumen-md border px-2.5 py-2 text-sm font-medium transition-colors max-md:min-h-11",
         FOCUS_RING_TIGHT,
         checked
           ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
