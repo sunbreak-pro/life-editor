@@ -1,7 +1,11 @@
-import { useId } from "react";
+import { Check } from "lucide-react";
+import { cn } from "../cn";
+import { StatusFilterChips } from "../materials/StatusFilterChips";
 import { SegmentedControl } from "../SegmentedControl";
+import { FOCUS_RING_TIGHT } from "../styleTokens";
 import type { GoalPeriodKind } from "../../types/goal";
 import {
+  GOAL_PERIOD_KINDS,
   type GoalTreeArrangement,
   type GoalTreeFilter,
   type GoalTreeSort,
@@ -14,6 +18,11 @@ import {
  * phone, in a bottom sheet behind the "Sort & filter" button. The choice
  * lives in the host because the tree and this panel render apart.
  *
+ * The form follows the Claude Design proposal (#2410): the period is three
+ * chips, pressed again to clear; the status is three choices, since a goal with
+ * nothing connected has its own group under the tree; hiding done todos is a
+ * switch.
+ *
  * Pure presentation (§6.4): the arrangement and every label come from the
  * host (web/src/connect/GoalsTodosScreen.tsx).
  */
@@ -23,10 +32,10 @@ export interface GoalTreeArrangeLabels {
   sortLabel: string;
   sorts: Record<GoalTreeSort, string>;
   periodLabel: string;
-  /** "All" — the period and status filters' "no filter" choice. */
+  /** "All" — the status filter's "no filter" choice. */
   all: string;
-  /** "Year" / "Month" / "Week". */
-  kinds: Record<GoalPeriodKind, string>;
+  /** "This year" / "This month" / "This week" — the period chips. */
+  periods: Record<GoalPeriodKind, string>;
   statusLabel: string;
   statuses: Record<GoalTreeStatus, string>;
   hideDoneTodos: string;
@@ -39,23 +48,16 @@ export interface GoalTreeArrangePanelProps {
 }
 
 const SORTS: readonly GoalTreeSort[] = ["standard", "progress", "name"];
-const PERIODS: readonly (GoalPeriodKind | "all")[] = [
-  "all",
-  "year",
-  "month",
-  "week",
-];
 const STATUSES: readonly (GoalTreeStatus | "all")[] = [
   "all",
   "inProgress",
   "achieved",
-  "unconnected",
 ];
 
 const FIELD_LABEL = "text-xs font-medium text-lumen-text-tertiary";
 
 /**
- * The active filter as short phrases — "Week", "Achieved", "Done todos
+ * The active filter as short phrases — "This week", "Achieved", "Done todos
  * hidden" — for the line the tree shows over itself while filtered. Empty
  * when nothing is filtered.
  */
@@ -64,7 +66,7 @@ export function describeGoalTreeFilter(
   labels: GoalTreeArrangeLabels,
 ): string[] {
   const parts: string[] = [];
-  if (filter.period !== "all") parts.push(labels.kinds[filter.period]);
+  if (filter.period !== "all") parts.push(labels.periods[filter.period]);
   if (filter.status !== "all") parts.push(labels.statuses[filter.status]);
   if (filter.hideDoneTodos) parts.push(labels.hideDoneTodos);
   return parts;
@@ -76,7 +78,6 @@ export function GoalTreeArrangePanel({
   labels,
 }: GoalTreeArrangePanelProps): React.JSX.Element {
   const { sort, filter } = arrangement;
-  const hideId = useId();
   const setFilter = (patch: Partial<GoalTreeFilter>): void =>
     onChange({
       sort,
@@ -97,17 +98,19 @@ export function GoalTreeArrangePanel({
       </div>
       <div className="flex flex-col gap-1.5">
         <span className={FIELD_LABEL}>{labels.periodLabel}</span>
-        <SegmentedControl
-          options={PERIODS.map((id) => ({
+        <StatusFilterChips
+          chips={GOAL_PERIOD_KINDS.map((id) => ({
             id,
-            label: id === "all" ? labels.all : labels.kinds[id],
+            label: labels.periods[id],
+            icon:
+              filter.period === id ? <Check size={14} aria-hidden /> : undefined,
           }))}
-          value={filter.period}
+          value={filter.period === "all" ? null : filter.period}
           onChange={(id) =>
-            setFilter({ period: id as GoalTreeFilter["period"] })
+            setFilter({ period: (id ?? "all") as GoalTreeFilter["period"] })
           }
           label={labels.periodLabel}
-          singleLineLabels
+          className="max-md:[&>button]:min-h-11"
         />
       </div>
       <div className="flex flex-col gap-1.5">
@@ -125,19 +128,33 @@ export function GoalTreeArrangePanel({
           singleLineLabels
         />
       </div>
-      <label
-        htmlFor={hideId}
-        className="flex items-center gap-2 text-[13px] text-lumen-text max-md:min-h-11"
+      {/* The whole row is the switch, so the target is the row. */}
+      <button
+        type="button"
+        role="switch"
+        aria-checked={filter.hideDoneTodos}
+        onClick={() => setFilter({ hideDoneTodos: !filter.hideDoneTodos })}
+        className={cn(
+          "flex items-center justify-between gap-2 rounded-lumen-sm text-left text-[13px] text-lumen-text max-md:min-h-11",
+          FOCUS_RING_TIGHT,
+        )}
       >
-        <input
-          id={hideId}
-          type="checkbox"
-          checked={filter.hideDoneTodos}
-          onChange={(e) => setFilter({ hideDoneTodos: e.target.checked })}
-          className="size-4 accent-lumen-accent"
-        />
-        {labels.hideDoneTodos}
-      </label>
+        <span className="min-w-0">{labels.hideDoneTodos}</span>
+        <span
+          aria-hidden
+          className={cn(
+            "relative h-5 w-9 shrink-0 rounded-full transition-colors",
+            filter.hideDoneTodos ? "bg-lumen-accent" : "bg-lumen-border-strong",
+          )}
+        >
+          <span
+            className={cn(
+              "absolute top-0.5 h-4 w-4 rounded-full bg-lumen-on-accent transition-all",
+              filter.hideDoneTodos ? "right-0.5" : "left-0.5",
+            )}
+          />
+        </span>
+      </button>
     </section>
   );
 }

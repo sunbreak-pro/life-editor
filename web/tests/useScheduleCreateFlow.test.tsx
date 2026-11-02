@@ -52,6 +52,8 @@ function setup(over?: {
   createPanel?: typeof PANEL | null;
   anchorDate?: string;
   isWide?: boolean;
+  /** #2406: the event 「既存から選ぶ」 wiring. */
+  extras?: Partial<Parameters<typeof useScheduleCreateFlow>[0]>;
 }) {
   /** Lets a case settle the optimistic save by hand. */
   const captured: {
@@ -106,6 +108,7 @@ function setup(over?: {
       isWide: over?.isWide ?? true,
       handleCreate: handleCreate as never,
       ...spies,
+      ...over?.extras,
     }),
   );
   return { view, handleCreate, captured, ...spies };
@@ -507,6 +510,187 @@ describe("useScheduleCreateFlow — a todo's 'add and edit'", () => {
       api(h).handlePlaceTodoSubmit("task-7", slot(), []);
     });
     expect(h.openTodoDetail).not.toHaveBeenCalled();
+  });
+});
+
+/*
+ * #2406: the event 「既存から選ぶ」 adds a COPY to the day the panel was opened
+ * for. That is an assumption, because the prototype's grid does not change on
+ * the press; the PR body states it. This pins the flow; the copy's write itself
+ * is pinned in useScheduleMutations.test.tsx and duplicateWithTags.test.tsx.
+ */
+describe("useScheduleCreateFlow — copying an existing event", () => {
+  const SOURCE = {
+    id: "evt-old",
+    date: "2026-03-01",
+    title: "Dentist",
+    startTime: "14:00",
+    endTime: "15:00",
+  } as ScheduleItem;
+
+  function setupCopy(over?: {
+    isWide?: boolean;
+    staged?: string[] | null;
+    withoutTags?: boolean;
+  }) {
+    const tagCompanion = vi.fn<
+      (saved: { id: string }) => Promise<Reversal | null>
+    >(() => Promise.resolve(null));
+    const copyEvent = {
+      find: vi.fn((id: string) => (id === SOURCE.id ? SOURCE : undefined)),
+      write: vi.fn<
+        (
+          source: ScheduleItem,
+          date: string,
+          alongside?: (saved: never) => Promise<unknown>,
+        ) => string
+      >(() => "evt-copy"),
+      copyTags: vi.fn<
+        (source: ScheduleItem, chosen?: readonly string[]) => typeof tagCompanion
+      >(() => tagCompanion),
+    };
+    const tags = over?.withoutTags
+      ? undefined
+      : {
+          take: vi.fn(() =>
+            over?.staged === undefined ? ["tag-a"] : over.staged,
+          ),
+          apply: vi.fn(),
+        };
+    const h = setup({
+      isWide: over?.isWide,
+      extras: { copyEvent: copyEvent as never, tags },
+    });
+    return { h, copyEvent, tags, tagCompanion };
+  }
+
+  it("writes the copy on the panel's day and closes the way a create does", () => {
+    const { h, copyEvent } = setupCopy();
+    act(() => api(h).handleCopyEventSubmit(SOURCE.id, []));
+    expect(copyEvent.write).toHaveBeenCalledTimes(1);
+    expect(copyEvent.write.mock.calls[0][0]).toBe(SOURCE);
+    // PANEL's day, not the source's.
+    expect(copyEvent.write.mock.calls[0][1]).toBe("2026-08-20");
+    expect(h.setCreatePanel).toHaveBeenCalledWith(null);
+    expect(h.clearTagLens).toHaveBeenCalledTimes(1);
+    // Nothing else writes: this is not a create, and not an edit of the source.
+    expect(h.handleCreate).not.toHaveBeenCalled();
+    expect(h.updateNode).not.toHaveBeenCalled();
+  });
+
+  it("selects the copy on Desktop and nothing on narrow", () => {
+    const wide = setupCopy({ isWide: true });
+    act(() => api(wide.h).handleCopyEventSubmit(SOURCE.id, []));
+    expect(wide.h.setSelectedId).toHaveBeenCalledWith("evt-copy");
+    expect(wide.h.setOverlayOpen).not.toHaveBeenCalled();
+
+    const narrow = setupCopy({ isWide: false });
+    act(() => api(narrow.h).handleCopyEventSubmit(SOURCE.id, []));
+    // On a phone, selection IS the detail sheet (see handleCreateSubmit).
+    expect(narrow.h.setSelectedId).not.toHaveBeenCalled();
+  });
+
+  it("opens the COPY's editor from 追加して詳細へ", () => {
+    const wide = setupCopy({ isWide: true });
+    act(() => api(wide.h).handleCopyEventSubmitAndOpen(SOURCE.id, []));
+    expect(wide.h.setSelectedId).toHaveBeenCalledWith("evt-copy");
+    expect(wide.h.setOverlayOpen).toHaveBeenCalledWith(true);
+
+    const narrow = setupCopy({ isWide: false });
+    act(() => api(narrow.h).handleCopyEventSubmitAndOpen(SOURCE.id, []));
+    expect(narrow.h.setSelectedId).toHaveBeenCalledWith("evt-copy");
+    expect(narrow.h.setOverlayOpen).not.toHaveBeenCalled();
+  });
+
+  it("puts exactly the staged tags on the copy, on the duplicate's companion", () => {
+    const { h, copyEvent, tags, tagCompanion } = setupCopy({
+      staged: ["tag-a", "tag-added"],
+    });
+    act(() => api(h).handleCopyEventSubmit(SOURCE.id, []));
+    expect(copyEvent.copyTags).toHaveBeenCalledWith(SOURCE, [
+      "tag-a",
+      "tag-added",
+    ]);
+    // The very companion: one Ctrl+Z takes the copy and its tags off together.
+    expect(copyEvent.write.mock.calls[0][2]).toBe(tagCompanion);
+    // And never the plain tag write, which would be undone apart.
+    expect(tags?.apply).not.toHaveBeenCalled();
+  });
+
+  it("carries none when the user took them all off", () => {
+    const { h, copyEvent } = setupCopy({ staged: [] });
+    act(() => api(h).handleCopyEventSubmit(SOURCE.id, []));
+    expect(copyEvent.copyTags).toHaveBeenCalledWith(SOURCE, []);
+  });
+
+  it("carries the source's own tags when there is no tag field", () => {
+    const { h, copyEvent } = setupCopy({ withoutTags: true });
+    act(() => api(h).handleCopyEventSubmit(SOURCE.id, []));
+    expect(copyEvent.copyTags).toHaveBeenCalledWith(SOURCE, undefined);
+  });
+
+  it("folds a staged note and the tags into the copy's one undo", async () => {
+    const order: string[] = [];
+    const reversal = (name: string): Reversal => ({
+      undo: async () => {
+        order.push(`undo:${name}`);
+      },
+      redo: async () => {
+        order.push(`redo:${name}`);
+      },
+    });
+    const { h, copyEvent, tagCompanion } = setupCopy();
+    tagCompanion.mockResolvedValue(reversal("tags"));
+    h.attachNoteAlongside.mockResolvedValue(reversal("note"));
+
+    act(() => api(h).handleCopyEventSubmit(SOURCE.id, NOTES));
+    const alongside = copyEvent.write.mock.calls[0][2] as unknown as (saved: {
+      id: string;
+    }) => Promise<Reversal | null>;
+    const folded = await alongside({ id: "evt-copy" });
+
+    expect(tagCompanion).toHaveBeenCalledWith({ id: "evt-copy" });
+    expect(h.attachNoteAlongside).toHaveBeenCalledWith("evt-copy", NOTES);
+    await folded?.undo();
+    await folded?.redo();
+    expect(order).toEqual(["undo:note", "undo:tags", "redo:tags", "redo:note"]);
+  });
+
+  it("still attaches the note when the tags threw", async () => {
+    const note: Reversal = {
+      undo: () => Promise.resolve(),
+      redo: () => Promise.resolve(),
+    };
+    const { h, copyEvent, tagCompanion } = setupCopy();
+    tagCompanion.mockRejectedValue(new Error("no"));
+    h.attachNoteAlongside.mockResolvedValue(note);
+    act(() => api(h).handleCopyEventSubmit(SOURCE.id, NOTES));
+    const alongside = copyEvent.write.mock.calls[0][2] as unknown as (saved: {
+      id: string;
+    }) => Promise<Reversal | null>;
+    await expect(alongside({ id: "evt-copy" })).resolves.toBe(note);
+  });
+
+  it("writes nothing for a pick the list no longer holds, and stays open", () => {
+    const { h, copyEvent } = setupCopy();
+    act(() => api(h).handleCopyEventSubmit("evt-gone", []));
+    expect(copyEvent.write).not.toHaveBeenCalled();
+    expect(h.setCreatePanel).not.toHaveBeenCalled();
+    expect(h.setSelectedId).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing with the panel closed", () => {
+    const copyEvent = { find: vi.fn(), write: vi.fn(), copyTags: vi.fn() };
+    const h = setup({ createPanel: null, extras: { copyEvent } });
+    act(() => api(h).handleCopyEventSubmitAndOpen(SOURCE.id, []));
+    expect(copyEvent.write).not.toHaveBeenCalled();
+    expect(h.setOverlayOpen).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing for a host that wired no copy", () => {
+    const h = setup();
+    act(() => api(h).handleCopyEventSubmit(SOURCE.id, []));
+    expect(h.setCreatePanel).not.toHaveBeenCalled();
   });
 });
 

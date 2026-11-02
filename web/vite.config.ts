@@ -2,10 +2,12 @@ import { defineConfig } from "vite";
 import { fileURLToPath, URL } from "node:url";
 import react from "@vitejs/plugin-react";
 import tailwindcss from "@tailwindcss/vite";
+import { VitePWA } from "vite-plugin-pwa";
+import { pwaOptions } from "./pwa.config";
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react(), tailwindcss(), VitePWA(pwaOptions)],
   resolve: {
     // react / react-dom / react-i18next / i18next exist in BOTH
     // web/node_modules and shared/node_modules (shared keeps its own copies for

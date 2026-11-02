@@ -35,7 +35,7 @@ import {
   type FrequencyEditorValue,
 } from "./FrequencyEditor";
 import { isImeComposing } from "../../utils/imeGuard";
-import { seedFrequencyPatch } from "../../utils/routineFrequency";
+import { dayOfWeek } from "../../utils/scheduleGridLayout";
 
 /*
  * ItemCreatePanel (#376) — the unified "add something to this day" panel behind
@@ -99,6 +99,13 @@ import { seedFrequencyPatch } from "../../utils/routineFrequency";
  * once instead: the form is saved as it stands and the host goes on to the
  * memo note, so that host never opens the title field. A host without the
  * handler keeps the staging above.
+ *
+ * #2406's event half of 「既存から選ぶ」: on the event tab it swaps the title,
+ * the date line and the repeat for a search field and a list of existing
+ * events. Picking one seeds the tag field with what that event wears, and the
+ * submit hands the host the event's id — the host adds a COPY to the day the
+ * panel was opened for and never touches the original. Optional like the rest:
+ * a host that wires no `pools.events` and `onCopyEvent` gets no toggle.
  *
  * Both host frames (Modal / BottomSheet) unmount their children when closed, so
  * the local draft state re-seeds from the initial props on every open. When a
@@ -313,6 +320,26 @@ export interface ItemCreatePanelPools {
   goals?: ItemCreateGoalPool;
   /** The tag field (#2220). Omitted, the panel draws none. */
   tags?: ItemCreateTagPool;
+  /**
+   * #2406: the existing events the event tab can add a copy of. Omitted (or
+   * with no `onCopyEvent` beside it), the event tab offers no such source.
+   */
+  events?: ItemCreateEventPool;
+}
+
+/** #2406: the event tab's 「既存から選ぶ」 list. */
+export interface ItemCreateEventPool {
+  options: ItemCreateOption[];
+  /** The tags the event shows — the seed of the tag field when it is picked. */
+  tagsOf: (eventId: string) => string[];
+  /** The source was chosen: the list is read from here on, not before. */
+  onOpen: () => void;
+  labels: {
+    search: string;
+    /** Shown while `options` is empty. The host says why (loading, error…). */
+    empty: string;
+    noMatch: string;
+  };
 }
 
 /**
@@ -438,6 +465,20 @@ export interface ItemCreatePanelHandlers {
     notes: readonly ItemCreateNoteDraft[],
   ) => void;
   /**
+   * #2406: add a copy of an existing event to the day the panel was opened
+   * for. No slot: the date and the times are off screen on this source, and
+   * the copy keeps the source's time of day.
+   */
+  onCopyEvent?: (
+    eventId: string,
+    notes: readonly ItemCreateNoteDraft[],
+  ) => void;
+  /** The same, followed by the copy's editor. */
+  onCopyEventAndOpen?: (
+    eventId: string,
+    notes: readonly ItemCreateNoteDraft[],
+  ) => void;
+  /**
    * #2402: 新規作成 saves at once and goes to a new memo note. Optional: a host
    * without it keeps 新規作成 as the title field that stages a chip. `notes`
    * are the chips staged so far, which ride along.
@@ -486,8 +527,8 @@ export interface ItemCreatePanelProps {
 
 /**
  * What the repeat field starts from once a type is picked — only the type is
- * ever shown from it, and the pick seeds the rest (`seedFrequencyPatch`, as
- * EventEditorPane's section does).
+ * ever shown from it. The rest stays blank until the user edits it, and
+ * `repeatOnDate` fills the gaps from the date being added.
  */
 const BLANK_REPEAT: FrequencyEditorValue = {
   frequencyType: "daily",
@@ -496,6 +537,76 @@ const BLANK_REPEAT: FrequencyEditorValue = {
   frequencyStartDate: null,
   frequencyEndDate: null,
 };
+
+/**
+ * #2426: the repeat as the user edited it. A day or start date seeded when the
+ * rhythm was picked used to be stored here too, and then outlived a change of
+ * date — the event landed on a weekday its series did not fire on, or before
+ * its start. So only hand edits are stored, and what is shown and sent is
+ * worked out from them on every render (a keyboard-typed date reports each
+ * intermediate value, so applying a change to the state would leave a trail).
+ */
+interface RepeatDraft {
+  rhythm: FrequencyEditorValue;
+  /** The date the weekday chips were last pressed on. Null: never pressed. */
+  daysPickedOn: string | null;
+}
+
+/**
+ * The weekdays for the date being added. Untouched chips (or chips pressed back
+ * to the one weekday a seed would draw) follow the date. Hand-picked ones are
+ * never taken away: a date moved since gets its weekday added to them, so the
+ * event stays in its own series. A set emptied by hand stays empty, which is
+ * the user's own "fires never" (see `seedFrequencyPatch`).
+ */
+function weekdaysOnDate(
+  picked: number[],
+  pickedOn: string | null,
+  date: string,
+): number[] {
+  const weekday = dayOfWeek(date);
+  if (
+    pickedOn === null ||
+    (picked.length === 1 && picked[0] === dayOfWeek(pickedOn))
+  ) {
+    return [weekday];
+  }
+  if (pickedOn === date || picked.length === 0 || picked.includes(weekday)) {
+    return picked;
+  }
+  return [...picked, weekday].sort((a, b) => a - b);
+}
+
+/**
+ * The repeat to show and send for the date being added, the same self-consistent
+ * shape `seedFrequencyPatch` gives the editor's section. Only the fields the
+ * rhythm reads are filled: the host honours a start date on ANY rhythm, so one
+ * left over from "every N days" would begin a daily series on a stale day. A
+ * start date typed by hand stays as typed, wherever the date goes.
+ */
+function repeatOnDate(
+  { rhythm, daysPickedOn }: RepeatDraft,
+  date: string,
+): FrequencyEditorValue {
+  const filled: FrequencyEditorValue = {
+    ...rhythm,
+    frequencyDays: [],
+    frequencyInterval: null,
+    frequencyStartDate: null,
+  };
+  if (rhythm.frequencyType === "weekdays") {
+    filled.frequencyDays = weekdaysOnDate(
+      rhythm.frequencyDays,
+      daysPickedOn,
+      date,
+    );
+  }
+  if (rhythm.frequencyType === "interval") {
+    filled.frequencyInterval = rhythm.frequencyInterval ?? 1;
+    filled.frequencyStartDate = rhythm.frequencyStartDate ?? date;
+  }
+  return filled;
+}
 
 // `disabled:` states matter more here than on a normal form: the note tab hides
 // the field the submit depends on, so a dead-but-lit button would give the user
@@ -509,8 +620,10 @@ const DISABLED_OUTLINE_BTN = "disabled:cursor-not-allowed disabled:opacity-50";
 //
 // #2406: `max-md:min-h-11` gives all three footer buttons the 44px floor on a
 // phone (rules/frontend.md §Gotchas); Desktop keeps the `py-2` height.
-const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11 ${FOCUS_RING_ON_ACCENT} ${DISABLED_FILLED_BTN}`;
-const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 ${DISABLED_OUTLINE_BTN}`;
+// #2427: `max-md:basis-auto` shares out only the room left after the labels. An
+// equal split gives each 103px at 375px, and 「追加して詳細へ」 needs 110px.
+const PRIMARY_BTN = `flex-1 rounded-lumen-md bg-lumen-accent py-2 text-center text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11 max-md:basis-auto ${FOCUS_RING_ON_ACCENT} ${DISABLED_FILLED_BTN}`;
+const SECONDARY_BTN = `flex-1 rounded-lumen-md border border-lumen-border-strong py-2 text-center text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:basis-auto ${DISABLED_OUTLINE_BTN}`;
 // Cancel writes nothing, so it takes neither the fill nor the outline — only
 // its own width, at the far end from the submit.
 const CANCEL_BTN = `shrink-0 rounded-lumen-md px-3 py-2 text-center text-sm font-medium text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11 ${FOCUS_RING_TIGHT}`;
@@ -605,9 +718,9 @@ function PickerList({
                   data-locked={option.isLocked ? "" : undefined}
                   className={cn(
                     "flex w-full items-center gap-2 border-b border-lumen-border px-2.5 py-2 text-left text-sm transition-colors last:border-b-0",
-                    // A row of a multi list is a tap target of its own on a
-                    // phone (rules/frontend.md §Gotchas).
-                    multi && "max-md:min-h-11",
+                    // A row is a tap target of its own on a phone
+                    // (rules/frontend.md §Gotchas).
+                    "max-md:min-h-11",
                     picked && !multi
                       ? "bg-lumen-accent-subtle text-lumen-accent"
                       : "text-lumen-text hover:bg-lumen-hover",
@@ -868,7 +981,7 @@ function TagField({
               aria-label={pool.labels.remove(tag.name)}
               onClick={() => toggle(id)}
               className={cn(
-                "flex size-5 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                "flex size-5 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:size-11",
                 FOCUS_RING_TIGHT,
               )}
             >
@@ -994,6 +1107,7 @@ export function ItemCreatePanel({
     notes: existingNotes,
     goals: goalPool,
     tags: tagPool,
+    events: eventPool,
   } = pools;
   const {
     onSubmitEvent,
@@ -1002,6 +1116,8 @@ export function ItemCreatePanel({
     onPlaceTodo,
     onCreateTodoAndOpen,
     onPlaceTodoAndOpen,
+    onCopyEvent,
+    onCopyEventAndOpen,
     onCreateMemoNote,
   } = handlers;
   const [type, setType] = useState<ItemCreateType>("event");
@@ -1011,9 +1127,7 @@ export function ItemCreatePanel({
   const [end, setEnd] = useState(initialEnd);
   const [allDay, setAllDay] = useState(false);
   // #2406: the repeat draft — null is "no repeat", the field's first choice.
-  const [repeatDraft, setRepeatDraft] = useState<FrequencyEditorValue | null>(
-    null,
-  );
+  const [repeatDraft, setRepeatDraft] = useState<RepeatDraft | null>(null);
 
   const [todoSource, setTodoSource] = useState<ItemCreateSource>("new");
   const [todoQuery, setTodoQuery] = useState("");
@@ -1035,6 +1149,19 @@ export function ItemCreatePanel({
   const pickedTodo = resolvePicked(existingTodos, todoQuery, pickedTodoId);
   const placing = type === "task" && todoSource === "existing";
 
+  // #2406: the event tab's own source, kept apart from the todo tab's so the
+  // two tabs do not flip each other. The pick goes through the query as the
+  // todo's does: the submit never acts on a row narrowed out of sight.
+  const offersExistingEvents = !!eventPool && !!onCopyEvent;
+  const [eventSource, setEventSource] = useState<ItemCreateSource>("new");
+  const [eventQuery, setEventQuery] = useState("");
+  const [pickedEventId, setPickedEventId] = useState<string | null>(null);
+  const copying =
+    type === "event" && offersExistingEvents && eventSource === "existing";
+  const pickedEvent = copying
+    ? resolvePicked(eventPool?.options ?? [], eventQuery, pickedEventId)
+    : null;
+
   // #2109: goals for a NEW todo only. Kept across tab switches like the other
   // drafts, but reported as [] whenever the submit would not create a todo.
   const [goalOpen, setGoalOpen] = useState(false);
@@ -1055,9 +1182,13 @@ export function ItemCreatePanel({
    * rather than from an effect (React's pattern for state derived from a
    * prop, as ScheduleEventEditor's tag scope does).
    */
-  const tagSeedKey = `${type}|${todoSource}|${placing ? (pickedTodo?.id ?? "") : ""}`;
+  const tagSeedKey = `${type}|${todoSource}|${eventSource}|${placing ? (pickedTodo?.id ?? "") : (pickedEvent?.id ?? "")}`;
   const seedTags = () =>
-    placing && pickedTodo && tagPool ? tagPool.tagsOf(pickedTodo.id) : [];
+    pickedEvent && eventPool
+      ? eventPool.tagsOf(pickedEvent.id)
+      : placing && pickedTodo && tagPool
+        ? tagPool.tagsOf(pickedTodo.id)
+        : [];
   const [tagIds, setTagIds] = useState<string[]>(seedTags);
   const [tagKey, setTagKey] = useState(tagSeedKey);
   if (tagKey !== tagSeedKey) {
@@ -1184,20 +1315,20 @@ export function ItemCreatePanel({
   const isAllDay = allDay;
   // The repeat, by contrast, is the event's alone: a todo has no repeat to
   // hold. Kept as a draft across a tab switch, but never sent with a todo.
-  const repeat = type === "event" && repeatField ? repeatDraft : null;
+  // A cleared date input reports "" until blur restores the opening day.
+  const repeatDate = date || initialDate;
+  const repeatValue = repeatDraft && repeatOnDate(repeatDraft, repeatDate);
+  const repeat = type === "event" && repeatField ? repeatValue : null;
   const slot: ItemCreateSlot = repeat
     ? { date, start, end, isAllDay, repeat }
     : { date, start, end, isAllDay };
-  /*
-   * Seed the type-specific fields at the moment the TYPE is picked, the way
-   * EventEditorPane's section does (#712): a bare "weekdays" with no day, or
-   * "interval" with no interval, would read as "fires never".
-   */
   const editRepeat = (patch: Partial<FrequencyEditorValue>) =>
-    setRepeatDraft((prev) => {
-      const base = prev ?? BLANK_REPEAT;
-      return { ...base, ...seedFrequencyPatch(patch, base, date) };
-    });
+    setRepeatDraft((prev) => ({
+      rhythm: { ...(prev?.rhythm ?? BLANK_REPEAT), ...patch },
+      daysPickedOn: patch.frequencyDays
+        ? repeatDate
+        : (prev?.daysPickedOn ?? null),
+    }));
 
   const submitTitled = (
     handler: (
@@ -1211,6 +1342,10 @@ export function ItemCreatePanel({
     handler(trimmed, slot, stagedDrafts);
   };
   const submitPrimary = () => {
+    if (copying) {
+      if (pickedEvent) onCopyEvent?.(pickedEvent.id, stagedDrafts);
+      return;
+    }
     if (placing) {
       if (!pickedTodo) return;
       onPlaceTodo(pickedTodo.id, slot, stagedDrafts);
@@ -1218,11 +1353,18 @@ export function ItemCreatePanel({
     }
     submitTitled(type === "event" ? onSubmitEvent : onCreateTodo);
   };
+  const copyAndOpen = onCopyEventAndOpen
+    ? () => {
+        if (pickedEvent) onCopyEventAndOpen(pickedEvent.id, stagedDrafts);
+      }
+    : null;
   // #2406: the "and open" twin of whatever the primary does. Null when the
   // host wired no twin for this tab, and then the footer draws no button.
   const submitAndOpen: (() => void) | null =
     type === "event"
-      ? () => submitTitled(onSubmitEventAndOpen)
+      ? copying
+        ? copyAndOpen
+        : () => submitTitled(onSubmitEventAndOpen)
       : placing
         ? onPlaceTodoAndOpen
           ? () => {
@@ -1246,7 +1388,11 @@ export function ItemCreatePanel({
         ? labels.placeTodo
         : labels.addTodo;
   // What the footer needs before it can act.
-  const canSubmit = placing ? !!pickedTodo : !!title.trim();
+  const canSubmit = copying
+    ? !!pickedEvent
+    : placing
+      ? !!pickedTodo
+      : !!title.trim();
   // #2402: unlike the footer, 新規作成 takes an empty title (the host names the
   // item) — only placing needs its todo picked first.
   const createMemoNote = () => {
@@ -1260,6 +1406,9 @@ export function ItemCreatePanel({
       );
     }
   };
+  // Copying an existing event (#2406) keeps the staging row: its submit is the
+  // host's copy, and a memo note made at once would write a blank new event.
+  const memoNoteAtOnce = !!onCreateMemoNote && !copying;
 
   const picker = pickerOpen ? (
     <NotePicker
@@ -1301,7 +1450,32 @@ export function ItemCreatePanel({
             label={labels.sourceLabel}
           />
         )}
-        {placing ? (
+        {type === "event" && offersExistingEvents && (
+          <SegmentedToggle
+            options={[
+              { value: "new" as const, label: labels.sourceNew },
+              { value: "existing" as const, label: labels.sourceExisting },
+            ]}
+            value={eventSource}
+            onChange={(source) => {
+              setEventSource(source);
+              if (source === "existing") eventPool?.onOpen();
+            }}
+            label={labels.sourceLabel}
+          />
+        )}
+        {copying && eventPool ? (
+          <PickerList
+            options={eventPool.options}
+            query={eventQuery}
+            onQueryChange={setEventQuery}
+            isPicked={(id) => pickedEvent?.id === id}
+            onPick={setPickedEventId}
+            searchLabel={eventPool.labels.search}
+            emptyLabel={eventPool.labels.empty}
+            noMatchLabel={eventPool.labels.noMatch}
+          />
+        ) : placing ? (
           <PickerList
             options={existingTodos}
             query={todoQuery}
@@ -1337,8 +1511,10 @@ export function ItemCreatePanel({
             11rem + the check + two gaps fit the 512px Modal's body, so Desktop
             keeps one line; a phone puts the times on a second one), and
             `min-w-0` on every column (#1036) is what keeps a column that stays
-            from flooring at the input's intrinsic width. */}
-        <div className="flex flex-wrap items-end gap-3">
+            from flooring at the input's intrinsic width.
+            #2406: hidden, not unmounted, while copying an existing event, so a
+            half-typed time survives a trip to that source and back. */}
+        <div hidden={copying} className="flex flex-wrap items-end gap-3">
           {/* `appearance-none` + `min-w-0` on the input and the wider `gap-3`
               are #1403's half of the same fix (see EventEditorPane). */}
           <label className="flex min-w-0 flex-1 basis-32 flex-col gap-1.5">
@@ -1384,9 +1560,9 @@ export function ItemCreatePanel({
         </div>
         {/* #2406: the repeat, for a new event only (see the header). "No
             repeat" comes first and is where the field starts. */}
-        {type === "event" && repeatField && (
+        {type === "event" && !copying && repeatField && (
           <FrequencyEditor
-            value={repeatDraft}
+            value={repeatValue}
             onChange={editRepeat}
             onSelectNone={() => setRepeatDraft(null)}
             weekdayLabels={repeatField.weekdayLabels}
@@ -1403,7 +1579,7 @@ export function ItemCreatePanel({
               aria-expanded={goalOpen}
               aria-controls={goalSectionId}
               className={cn(
-                "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                "flex w-full items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
                 FOCUS_RING_TIGHT,
               )}
             >
@@ -1446,7 +1622,9 @@ export function ItemCreatePanel({
         <div className="flex flex-col gap-2 border-t border-lumen-border pt-2">
           {/* #2220: tags on the left, the note trigger on the right, one line. */}
           <div className="flex items-start gap-2">
-            {tagPool && (
+            {/* #2406: on the existing-event source the tags are the picked
+                event's, so there is no field until one is picked. */}
+            {tagPool && (!copying || pickedEvent) && (
               <TagField pool={tagPool} selected={tagIds} onChange={setTagIds} />
             )}
             <button
@@ -1455,10 +1633,10 @@ export function ItemCreatePanel({
               aria-expanded={noteOpen}
               aria-controls={noteSectionId}
               className={cn(
-                "flex items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+                "flex items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
                 // Alone on its line it spans it, as before; beside the tags it
                 // keeps to its own width at the right end.
-                tagPool ? "shrink-0" : "w-full",
+                tagPool ? "ml-auto shrink-0" : "w-full",
                 FOCUS_RING_TIGHT,
               )}
             >
@@ -1482,13 +1660,13 @@ export function ItemCreatePanel({
                 <button
                   type="button"
                   onClick={
-                    onCreateMemoNote
+                    memoNoteAtOnce
                       ? createMemoNote
                       : () => setNewNoteOpen((v) => !v)
                   }
                   // #2402: with the handler it acts at once and opens nothing.
-                  aria-expanded={onCreateMemoNote ? undefined : newNoteOpen}
-                  disabled={!!onCreateMemoNote && placing && !pickedTodo}
+                  aria-expanded={memoNoteAtOnce ? undefined : newNoteOpen}
+                  disabled={memoNoteAtOnce && placing && !pickedTodo}
                   className={cn(
                     NOTE_ROW_BTN,
                     DISABLED_OUTLINE_BTN,

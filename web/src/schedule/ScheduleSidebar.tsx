@@ -23,7 +23,7 @@ import {
   type TodayTodoAddableRow,
   type TodayTodoRow,
 } from "@life-editor/shared";
-import { TagPicker } from "../wikitag/TagPicker";
+import { TagDotNames } from "../wikitag/TagDotNames";
 import type { TodoTabFilter } from "./useTodoTabFilter";
 
 /*
@@ -400,8 +400,8 @@ export function ScheduleSidebar({
 
   /*
    * A-3 (#298): the "本日の Todo" tray. #555: rows also soft-delete
-   * (softDeleteTodo → Trash) and carry the same <TagPicker> the todo detail
-   * uses, so tags attach without leaving the tray.
+   * (softDeleteTodo → Trash). #2408: a row reads its tags beside its time, at
+   * both widths, and the tags are edited in the todo's panel.
    *
    * #1406: TWO lists rather than the three groups #298 drew. "本日分の Todo"
    * is the old placed / unplaced pair merged (`singleList`, the shape Briefing
@@ -600,7 +600,21 @@ export function ScheduleSidebar({
         // no grid next to the drawer, so the rows stay put there.
         addableControls
         draggableAddable={isWide}
-        renderRowExtra={(row) => <TagPicker itemId={row.id} />}
+        // #2408: the three icons on Desktop. Narrow leaves this off and keeps
+        // the buttons it had: hover cannot reveal or explain anything on a phone.
+        rowActions={
+          isWide
+            ? {
+                edit: t("scheduleScreen.todoRowEdit"),
+                moveOutHint: t("scheduleScreen.todoRowMoveToOthersHint"),
+                moveToTodayHint: t("scheduleScreen.todoRowMoveToTodayHint"),
+                editHint: t("scheduleScreen.todoRowEditHint"),
+                deleteHint: t("scheduleScreen.todoRowDeleteHint"),
+              }
+            : undefined
+        }
+        metaLine
+        renderRowExtra={(row) => <TagDotNames itemId={row.id} />}
         /*
          * #1640: a pill per heading, so each list is added to from where it is
          * read. The one over "その他" makes a todo with no day (what the single

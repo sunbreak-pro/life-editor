@@ -9,6 +9,7 @@ import {
 import type { NoteBodySnapshot, NoteNode } from "../types/note";
 import type { DataService } from "../services/DataService";
 import { logServiceError } from "../utils/logError";
+import { isOffline } from "../state/connectivity";
 import { forgetNoteBody, readNoteBody } from "../state/noteBodyStore";
 
 /**
@@ -286,6 +287,14 @@ export function useNoteHydrationLedger(params: UseNoteHydrationLedgerParams) {
       if (row?.hasPassword === true) {
         if (!unlockedIdsRef.current.has(id)) return true;
         return unlockNoteBody(id);
+      }
+      // #2334: offline the only source is a stored body under this row's stamp.
+      // No body means no editor, the same rule as a failed read below.
+      if (isOffline()) {
+        const stored = row ? readNoteBody(ds, id, row.updatedAt) : null;
+        if (stored === null) return false;
+        applyBody(id, stored);
+        return true;
       }
       try {
         const full = await ds.getNoteUnified(id);

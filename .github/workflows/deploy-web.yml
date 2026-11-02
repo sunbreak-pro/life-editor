@@ -84,6 +84,14 @@ jobs:
             echo "::error::index.html still has the placeholder <title>web</title>"
             exit 1
           fi
+          # A screen missing from this list does not open offline (#2334).
+          test -f web/dist/sw.js
+          for chunk in web/dist/assets/*.js; do
+            if ! grep -qF "assets/$(basename "$chunk")" web/dist/sw.js; then
+              echo "::error::sw.js does not list $chunk"
+              exit 1
+            fi
+          done
 
       # web/wrangler.jsonc を読ませるため workingDirectory を web に置く。
       # assets.directory = ./dist/ がそこからの相対で web/dist を指す。

@@ -459,11 +459,16 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
   //
   // #2005: `withTags` hands the source's tags to the create as its companion,
   // on the same one undo entry as the copy (see `copyTagsFrom`).
-  const handleDuplicate = useCallback(
-    (id: string, options?: DuplicateOptions) => {
-      const src = scheduleItemById(id, rangeItems, contextItems);
-      if (!src) return;
-      const title = `${src.title}${copySuffix}`;
+  //
+  // #2406: the write itself is shared with `handleDuplicateOnto` below, so a
+  // copy made from the creation panel undoes and fails as this one does.
+  const writeDuplicate = useCallback(
+    (
+      src: ScheduleItem,
+      date: string,
+      title: string,
+      alongside?: CreateCompanion,
+    ): string => {
       // createScheduleItem folds date/title/times + isAllDay/content/noteId/
       // memo into a single INSERT (#223 → QA fix): memo used to be patched with
       // a follow-up updateScheduleItem, but that UPDATE could race ahead of the
@@ -471,7 +476,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
       // the create arg makes the memo write atomic AND keeps duplicate on one
       // undo entry (the create's own undo), so Ctrl+Z removes the copy once.
       const newId = createScheduleItem(
-        src.date,
+        date,
         title,
         src.startTime,
         src.endTime,
@@ -503,7 +508,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
             setSelectedId((current) => (current === newId ? null : current));
             onDuplicateFailed();
           },
-          ...(options?.withTags ? { alongside: copyTagsFrom(src) } : {}),
+          ...(alongside ? { alongside } : {}),
         },
       );
       setRangeItems((prev) => [
@@ -511,7 +516,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
         {
           ...makeOptimisticScheduleItem(
             newId,
-            src.date,
+            date,
             title,
             src.startTime,
             src.endTime,
@@ -523,19 +528,45 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
           reminderOffset: src.reminderOffset,
         },
       ]);
+      return newId;
+    },
+    [createScheduleItem, setRangeItems, setSelectedId, onDuplicateFailed],
+  );
+
+  const handleDuplicate = useCallback(
+    (id: string, options?: DuplicateOptions) => {
+      const src = scheduleItemById(id, rangeItems, contextItems);
+      if (!src) return;
+      const newId = writeDuplicate(
+        src,
+        src.date,
+        `${src.title}${copySuffix}`,
+        options?.withTags ? copyTagsFrom(src) : undefined,
+      );
       onSelectItem(newId);
     },
     [
       rangeItems,
       contextItems,
-      createScheduleItem,
-      setRangeItems,
-      setSelectedId,
+      writeDuplicate,
       onSelectItem,
-      onDuplicateFailed,
       copyTagsFrom,
       copySuffix,
     ],
+  );
+
+  /*
+   * #2406: the creation panel's 「既存から選ぶ」 — a copy of `src` on `date`,
+   * at the same time of day. The original is only read. The title stays as it
+   * is: the suffix tells a copy from its source side by side on one day, and
+   * this one is what the user asked to have on another. The caller chooses
+   * what the selection does, and `src` arrives whole because the panel's list
+   * reaches beyond the visible range the lookup above reads.
+   */
+  const handleDuplicateOnto = useCallback(
+    (src: ScheduleItem, date: string, alongside?: CreateCompanion): string =>
+      writeDuplicate(src, date, src.title, alongside),
+    [writeDuplicate],
   );
 
   // Unchanged shape (#675): the repeat half is re-exported straight through,
@@ -555,6 +586,7 @@ export function useScheduleMutations(args: UseScheduleMutationsArgs) {
     handleDelete,
     handleRename,
     handleDuplicate,
+    handleDuplicateOnto,
     // Repeat section (#185 Step 3 / #279 → useRepeatMutations)
     handleChangeRepeat,
     handleDetachRepeat,

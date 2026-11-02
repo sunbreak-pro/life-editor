@@ -54,6 +54,32 @@ import { selectionSurface } from "./scheduleSelectionSurface";
 // Default duration (minutes) prefilled when creating from an empty-slot click.
 const CREATE_DURATION_MIN = 60;
 
+/**
+ * #2406: two writes on one create, as one undo: the first's reversal runs last.
+ * A write that threw counts as one that did not land, as in `noteAlongside`, so
+ * the other still runs.
+ */
+function bothAlongside(
+  first: CreateCompanion,
+  second: CreateCompanion,
+): CreateCompanion {
+  return async (saved) => {
+    const a = await first(saved).catch(() => null);
+    const b = await second(saved).catch(() => null);
+    if (!a || !b) return a ?? b;
+    return {
+      undo: async () => {
+        await b.undo();
+        await a.undo();
+      },
+      redo: async () => {
+        await a.redo();
+        await b.redo();
+      },
+    };
+  };
+}
+
 export interface UseScheduleCreateFlowArgs {
   /** null = the panel is closed. Gates every committer. */
   createPanel: ScheduleCreatePanel | null;
@@ -123,6 +149,24 @@ export interface UseScheduleCreateFlowArgs {
    */
   convertToRepeat?: ConvertSavedToRepeat;
   /**
+   * #2406: the event 「既存から選ぶ」 — find the picked event, write its copy
+   * (useScheduleMutations.handleDuplicateOnto) and put the chosen tags on it
+   * (useDuplicateTagCopy.copyTagsFrom). Omitted, those committers write
+   * nothing. Pass a stable object.
+   */
+  copyEvent?: {
+    find: (id: string) => ScheduleItem | undefined;
+    write: (
+      source: ScheduleItem,
+      date: string,
+      alongside?: CreateCompanion,
+    ) => string;
+    copyTags: (
+      source: ScheduleItem,
+      chosen?: readonly string[],
+    ) => CreateCompanion;
+  };
+  /**
    * #2402: what 新規作成 needs from the host (useCreatePanelMemoNote). Null or
    * omitted, `handleCreateMemoNote` is undefined and the panel keeps staging.
    */
@@ -165,6 +209,15 @@ export interface ScheduleCreateFlowApi {
     slot: ItemCreateSlot,
     notes: readonly ItemCreateNoteDraft[],
   ) => void;
+  /** #2406: a copy of a picked event on the panel's day, and its twin. */
+  handleCopyEventSubmit: (
+    eventId: string,
+    notes: readonly ItemCreateNoteDraft[],
+  ) => void;
+  handleCopyEventSubmitAndOpen: (
+    eventId: string,
+    notes: readonly ItemCreateNoteDraft[],
+  ) => void;
   /** #2402: undefined on a host that wired no `memoNote`. */
   handleCreateMemoNote?: (
     target: ItemCreateMemoTarget,
@@ -190,6 +243,7 @@ export function useScheduleCreateFlow({
   tags,
   openTodoDetail,
   convertToRepeat,
+  copyEvent,
   memoNote,
 }: UseScheduleCreateFlowArgs): ScheduleCreateFlowApi {
   // #299 open the creation panel prefilled for a target day + time window.
@@ -522,6 +576,56 @@ export function useScheduleCreateFlow({
   );
 
   /*
+   * #2406: the event 「既存から選ぶ」. The day is the one the panel was opened
+   * for, read off `createPanel` rather than a slot: this source has no date
+   * field, so a date typed before switching to it is off screen and must not
+   * decide where the copy lands. Returns the copy's id, or null for a pick the
+   * list no longer holds — nothing is written then and the panel stays open.
+   *
+   * The tags ride as the duplicate's own companion, so the copy and they come
+   * off with one Ctrl+Z. With no tag field the source's own tags are carried.
+   */
+  const copyPickedEvent = useCallback(
+    (
+      eventId: string,
+      notes: readonly ItemCreateNoteDraft[],
+    ): string | null => {
+      if (!createPanel || !copyEvent) return null;
+      const source = copyEvent.find(eventId);
+      if (!source) return null;
+      const copyTags = copyEvent.copyTags(source, tags?.take() ?? undefined);
+      const withNotes = noteAlongside(notes);
+      const id = copyEvent.write(
+        source,
+        createPanel.date,
+        withNotes ? bothAlongside(copyTags, withNotes) : copyTags,
+      );
+      finishCreatePanel();
+      return id;
+    },
+    [createPanel, copyEvent, tags, noteAlongside, finishCreatePanel],
+  );
+
+  const handleCopyEventSubmit = useCallback(
+    (eventId: string, notes: readonly ItemCreateNoteDraft[]) => {
+      const id = copyPickedEvent(eventId, notes);
+      // The same quiet "here it is" as a plain create — see handleCreateSubmit.
+      if (id && selectionSurface(isWide).createSelects) setSelectedId(id);
+    },
+    [copyPickedEvent, isWide, setSelectedId],
+  );
+
+  const handleCopyEventSubmitAndOpen = useCallback(
+    (eventId: string, notes: readonly ItemCreateNoteDraft[]) => {
+      const id = copyPickedEvent(eventId, notes);
+      if (!id) return;
+      setSelectedId(id);
+      if (selectionSurface(isWide).openNeedsOverlay) setOverlayOpen(true);
+    },
+    [copyPickedEvent, isWide, setSelectedId, setOverlayOpen],
+  );
+
+  /*
    * #2402: 新規作成 — save the form as it stands, then make the memo note, link
    * it, and go there. Nothing here selects the new row: the screen is about to
    * be left, and on Mobile a selection would raise the detail sheet.
@@ -615,6 +719,8 @@ export function useScheduleCreateFlow({
     handlePlaceTodoSubmit,
     handleCreateTodoSubmitAndOpen,
     handlePlaceTodoSubmitAndOpen,
+    handleCopyEventSubmit,
+    handleCopyEventSubmitAndOpen,
     handleCreateMemoNote: memoNote ? createMemoNote : undefined,
   };
 }

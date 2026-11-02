@@ -3,6 +3,7 @@ import { render, screen } from "@testing-library/react";
 import { TodayDashboard } from "../src/components/Analytics/TodayDashboard";
 import type { TimerSession } from "../src/types/timer";
 import { DAY_START_HOUR_STORAGE_KEY } from "../src/utils/dateKey";
+import { MANUAL_SESSION_LABEL } from "../src/utils/timerSessions";
 
 /*
  * #356 decision pin: Analytics' "today" is the wall CALENDAR day and stays
@@ -64,6 +65,23 @@ describe("Analytics 'today' boundary (#356)", () => {
     );
 
     expect(screen.getByText("30m")).toBeInTheDocument();
+  });
+
+  // #2407: typed time adds to the minutes, but no pomodoro ran.
+  it("adds a hand-entered row to the work time and not to the pomodoros", () => {
+    render(
+      <TodayDashboard
+        sessions={[
+          session("2026-07-11T01:00:00"),
+          { ...session("2026-07-11T01:30:00"), label: MANUAL_SESSION_LABEL },
+        ]}
+        nodes={[]}
+        labels={LABELS}
+      />,
+    );
+
+    expect(screen.getByText("60m")).toBeInTheDocument();
+    expect(screen.getByText("Pomodoros").parentElement).toHaveTextContent("1");
   });
 
   it("excludes the previous calendar day's late session", () => {

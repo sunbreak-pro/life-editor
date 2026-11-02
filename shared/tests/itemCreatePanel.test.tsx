@@ -673,6 +673,227 @@ describe("ItemCreatePanel — todo tab (#376)", () => {
   });
 });
 
+/*
+ * #2406: the event tab's 「既存から選ぶ」, as the proposal draws it — a search
+ * field and a list in place of the title, the date line and the repeat. The
+ * panel only says which event; what that writes is the host's (a copy, never
+ * the original — useScheduleCreateFlow.test.tsx).
+ */
+describe("ItemCreatePanel — an existing event (#2406)", () => {
+  const EVENTS: ItemCreateOption[] = [
+    { id: "evt-1", title: "Team sync" },
+    { id: "evt-2", title: "Dentist" },
+  ];
+
+  function renderExisting(over?: {
+    options?: ItemCreateOption[];
+    withoutHandler?: boolean;
+    withoutPool?: boolean;
+    empty?: string;
+  }) {
+    const onCopyEvent = vi.fn();
+    const onCopyEventAndOpen = vi.fn();
+    const onSubmitEvent = vi.fn();
+    const onOpen = vi.fn();
+    const onStagedChange = vi.fn();
+    render(
+      <ItemCreatePanel
+        initial={{ date: DATE }}
+        pools={{
+          todos: TODOS,
+          notes: NOTES,
+          tags: {
+            tags: [
+              { id: "tag-work", name: "Work" },
+              { id: "tag-home", name: "Home" },
+            ],
+            // What the plain field would seed from. The event's own seed below
+            // must win, or a repeat's series tags would go missing.
+            tagsOf: () => ["tag-home"],
+            onStagedChange,
+            labels: {
+              field: "Tags",
+              add: "Add a tag",
+              remove: (name: string) => `Remove ${name}`,
+              empty: "No tags",
+            },
+          },
+          events: over?.withoutPool
+            ? undefined
+            : {
+                options: over?.options ?? EVENTS,
+                tagsOf: (id: string) => (id === "evt-1" ? ["tag-work"] : []),
+                onOpen,
+                labels: {
+                  search: "Search events",
+                  empty: over?.empty ?? "No events",
+                  noMatch: "No matching events",
+                },
+              },
+        }}
+        handlers={{
+          onSubmitEvent,
+          onSubmitEventAndOpen: vi.fn(),
+          onCreateTodo: vi.fn(),
+          onPlaceTodo: vi.fn(),
+          ...(over?.withoutHandler ? {} : { onCopyEvent, onCopyEventAndOpen }),
+        }}
+        labels={LABELS}
+        onCancel={vi.fn()}
+        repeat={{ weekdayLabels: WEEKDAYS, labels: REPEAT_LABELS }}
+      />,
+    );
+    return {
+      onCopyEvent,
+      onCopyEventAndOpen,
+      onSubmitEvent,
+      onOpen,
+      onStagedChange,
+    };
+  }
+
+  const chooseExisting = () =>
+    fireEvent.click(screen.getByRole("radio", { name: "From existing" }));
+  const row = (name: string) => screen.getByRole("option", { name });
+
+  it("offers the source only where both the list and the handler are wired", () => {
+    renderExisting({ withoutPool: true });
+    expect(screen.queryByText("From existing")).toBeNull();
+    cleanup();
+    renderExisting({ withoutHandler: true });
+    expect(screen.queryByText("From existing")).toBeNull();
+    cleanup();
+    renderExisting();
+    expect(screen.getByText("From existing")).toBeInTheDocument();
+  });
+
+  it("swaps the title, the date line and the repeat for the search and the list", () => {
+    const { onOpen } = renderExisting();
+    expect(onOpen).not.toHaveBeenCalled();
+    chooseExisting();
+    expect(onOpen).toHaveBeenCalledTimes(1);
+
+    expect(screen.queryByLabelText("Title")).toBeNull();
+    expect(screen.getByLabelText("Date").closest("[hidden]")).not.toBeNull();
+    expect(screen.queryByText("Daily")).toBeNull();
+    expect(screen.getByLabelText("Search events")).toBeInTheDocument();
+    expect(row("Team sync")).toBeInTheDocument();
+    expect(footerButtons()).toEqual(["Cancel", "Add and edit", "Add"]);
+  });
+
+  it("brings the form back as it was when the source goes back to new", () => {
+    renderExisting();
+    fireEvent.change(screen.getByLabelText("Title"), {
+      target: { value: "Half typed" },
+    });
+    chooseExisting();
+    fireEvent.click(screen.getByRole("radio", { name: "New" }));
+    expect(screen.getByLabelText("Title")).toHaveValue("Half typed");
+    expect(screen.getByLabelText("Date").closest("[hidden]")).toBeNull();
+    expect(screen.getByText("Daily")).toBeInTheDocument();
+  });
+
+  it("does not move the todo tab's source along with it", () => {
+    renderExisting();
+    chooseExisting();
+    fireEvent.click(screen.getByText("Todo"));
+    expect(screen.getByRole("radio", { name: "New" })).toBeChecked();
+    expect(screen.getByLabelText("Title")).toBeInTheDocument();
+  });
+
+  it("keeps both submits off until a row is picked", () => {
+    const { onCopyEvent, onSubmitEvent } = renderExisting();
+    chooseExisting();
+    expect(screen.getByText("Add")).toBeDisabled();
+    expect(screen.getByText("Add and edit")).toBeDisabled();
+    fireEvent.click(row("Dentist"));
+    expect(screen.getByText("Add")).toBeEnabled();
+    expect(screen.getByText("Add and edit")).toBeEnabled();
+    expect(onCopyEvent).not.toHaveBeenCalled();
+    expect(onSubmitEvent).not.toHaveBeenCalled();
+  });
+
+  it("highlights the picked row and shows its tags under the list", () => {
+    const { onStagedChange } = renderExisting();
+    chooseExisting();
+    // No tag row until there is an event for it to speak of.
+    expect(screen.queryByText("Tags")).toBeNull();
+
+    fireEvent.click(row("Team sync"));
+    expect(row("Team sync")).toHaveAttribute("aria-selected", "true");
+    expect(row("Team sync").className).toContain("bg-lumen-accent-subtle");
+    expect(screen.getByText("Work")).toBeInTheDocument();
+    expect(screen.getByText("Add a tag")).toBeInTheDocument();
+    expect(onStagedChange).toHaveBeenLastCalledWith(["tag-work"]);
+  });
+
+  it("starts the tags over from the next event when the pick changes", () => {
+    const { onStagedChange } = renderExisting();
+    chooseExisting();
+    fireEvent.click(row("Team sync"));
+    fireEvent.click(row("Dentist"));
+    expect(screen.queryByText("Work")).toBeNull();
+    expect(onStagedChange).toHaveBeenLastCalledWith([]);
+  });
+
+  it("reports a tag added in the dialog along with the event's own", () => {
+    const { onStagedChange } = renderExisting();
+    chooseExisting();
+    fireEvent.click(row("Team sync"));
+    fireEvent.click(screen.getByText("Add a tag"));
+    fireEvent.click(screen.getByRole("option", { name: "Home" }));
+    expect(onStagedChange).toHaveBeenLastCalledWith(["tag-work", "tag-home"]);
+  });
+
+  it("hands over the picked event, with any note staged, on 追加", () => {
+    const { onCopyEvent, onCopyEventAndOpen, onSubmitEvent } = renderExisting();
+    chooseExisting();
+    fireEvent.click(row("Dentist"));
+    stageNewNote("Questions");
+    fireEvent.click(screen.getByText("Add"));
+    expect(onCopyEvent).toHaveBeenCalledWith("evt-2", [
+      { kind: "new", title: "Questions" },
+    ]);
+    expect(onCopyEventAndOpen).not.toHaveBeenCalled();
+    expect(onSubmitEvent).not.toHaveBeenCalled();
+  });
+
+  it("hands it to the twin on 追加して詳細へ", () => {
+    const { onCopyEvent, onCopyEventAndOpen } = renderExisting();
+    chooseExisting();
+    fireEvent.click(row("Dentist"));
+    fireEvent.click(screen.getByText("Add and edit"));
+    expect(onCopyEventAndOpen).toHaveBeenCalledWith("evt-2", []);
+    expect(onCopyEvent).not.toHaveBeenCalled();
+  });
+
+  it("drops a pick the search has narrowed away", () => {
+    const { onCopyEvent } = renderExisting();
+    chooseExisting();
+    fireEvent.click(row("Team sync"));
+    fireEvent.change(screen.getByLabelText("Search events"), {
+      target: { value: "dentist" },
+    });
+    expect(screen.getByText("Add")).toBeDisabled();
+    fireEvent.click(screen.getByText("Add"));
+    expect(onCopyEvent).not.toHaveBeenCalled();
+    expect(screen.queryByText("Tags")).toBeNull();
+  });
+
+  it("says what the host says about an empty list, apart from no match", () => {
+    renderExisting({ options: [], empty: "Could not read them" });
+    chooseExisting();
+    expect(screen.getByText("Could not read them")).toBeInTheDocument();
+    cleanup();
+    renderExisting();
+    chooseExisting();
+    fireEvent.change(screen.getByLabelText("Search events"), {
+      target: { value: "zzz" },
+    });
+    expect(screen.getByText("No matching events")).toBeInTheDocument();
+  });
+});
+
 describe("ItemCreatePanel — the footer says when it cannot act (#376)", () => {
   it("disables both event buttons until the title has something in it", () => {
     renderPanel();
@@ -1372,6 +1593,163 @@ describe("ItemCreatePanel — the repeat (#2406)", () => {
   it("draws no repeat field for a host that passes none", () => {
     renderPanel();
     expect(screen.queryByRole("tablist", { name: "Repeat" })).toBeNull();
+  });
+});
+
+/*
+ * #2426 — the repeat follows the date being added. It used to be seeded once,
+ * when the rhythm was picked, so a date changed afterwards booked the event on
+ * a weekday its own series did not fire on, or before its own start date.
+ *
+ * DATE (2026-08-20) is a Thursday (4); 08-24 is a Monday (1), 08-25 a Tuesday.
+ */
+describe("ItemCreatePanel — the repeat follows the date (#2426)", () => {
+  const pickRepeat = (name: string) =>
+    fireEvent.click(
+      within(screen.getByRole("tablist", { name: "Repeat" })).getByRole("tab", {
+        name,
+      }),
+    );
+  const changeDate = (value: string) =>
+    fireEvent.change(screen.getByLabelText("Date"), { target: { value } });
+  const toggleWeekday = (name: string) =>
+    fireEvent.click(screen.getByRole("button", { name }));
+  const pressedWeekdays = () =>
+    ["Su", "Mo", "Tu", "We", "Th", "Fr", "Sa"].filter(
+      (name) =>
+        screen.getByRole("button", { name }).getAttribute("aria-pressed") ===
+        "true",
+    );
+  const startField = () => screen.getByLabelText("Starts") as HTMLInputElement;
+  /** What the "Add" press hands the host. */
+  const addedRepeat = (onSubmitEvent: ReturnType<typeof vi.fn>) => {
+    fireEvent.change(screen.getByPlaceholderText("Event title"), {
+      target: { value: "Gym" },
+    });
+    fireEvent.click(screen.getByText("Add"));
+    return onSubmitEvent.mock.calls[0][1].repeat;
+  };
+
+  it("moves a seeded weekday to the new date's weekday", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    expect(pressedWeekdays()).toEqual(["Th"]);
+    changeDate("2026-08-24");
+    expect(pressedWeekdays()).toEqual(["Mo"]);
+    expect(addedRepeat(onSubmitEvent)).toMatchObject({
+      frequencyType: "weekdays",
+      frequencyDays: [1],
+    });
+  });
+
+  it("moves a seeded start date to the new date", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Every N days");
+    expect(startField().value).toBe(DATE);
+    changeDate("2026-08-24");
+    expect(startField().value).toBe("2026-08-24");
+    expect(addedRepeat(onSubmitEvent)).toMatchObject({
+      frequencyType: "interval",
+      frequencyInterval: 1,
+      frequencyStartDate: "2026-08-24",
+    });
+    expect(onSubmitEvent.mock.calls[0][1].date).toBe("2026-08-24");
+  });
+
+  it("keeps weekdays picked by hand and adds the new date's weekday", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    toggleWeekday("Sa");
+    changeDate("2026-08-24");
+    expect(pressedWeekdays()).toEqual(["Mo", "Th", "Sa"]);
+    expect(addedRepeat(onSubmitEvent).frequencyDays).toEqual([1, 4, 6]);
+  });
+
+  it("does not pile up the weekdays of dates passed through on the way", () => {
+    // A date input typed by keyboard reports every intermediate date.
+    renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    toggleWeekday("Sa");
+    changeDate("2026-08-24");
+    changeDate("2026-08-25");
+    expect(pressedWeekdays()).toEqual(["Tu", "Th", "Sa"]);
+    changeDate(DATE);
+    expect(pressedWeekdays()).toEqual(["Th", "Sa"]);
+  });
+
+  it("leaves a hand-picked set alone while the date stays put", () => {
+    // Taking the date's own weekday out is the user's call (no date changed).
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    toggleWeekday("Sa");
+    toggleWeekday("Th");
+    expect(pressedWeekdays()).toEqual(["Sa"]);
+    expect(addedRepeat(onSubmitEvent).frequencyDays).toEqual([6]);
+  });
+
+  it("follows the date again once the set is back to the seeded weekday", () => {
+    renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    toggleWeekday("Sa");
+    toggleWeekday("Sa");
+    changeDate("2026-08-24");
+    expect(pressedWeekdays()).toEqual(["Mo"]);
+  });
+
+  it("keeps zero weekdays at zero when the date changes", () => {
+    // Adding with no weekday is the editor's existing spec (out of #2426).
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    toggleWeekday("Th");
+    changeDate("2026-08-24");
+    expect(pressedWeekdays()).toEqual([]);
+    expect(addedRepeat(onSubmitEvent).frequencyDays).toEqual([]);
+  });
+
+  it("keeps a start date typed by hand when the date changes", () => {
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Every N days");
+    fireEvent.change(startField(), { target: { value: "2026-08-10" } });
+    changeDate("2026-08-24");
+    expect(startField().value).toBe("2026-08-10");
+    expect(addedRepeat(onSubmitEvent).frequencyStartDate).toBe("2026-08-10");
+  });
+
+  it("does not carry a start date into a rhythm that has no start field", () => {
+    // The host reads a start on ANY rhythm, so a hidden one would begin the
+    // daily series on the old date, before the event being added.
+    const { onSubmitEvent } = renderPanel({ withRepeat: true });
+    pickRepeat("Every N days");
+    pickRepeat("Daily");
+    changeDate("2026-08-24");
+    expect(addedRepeat(onSubmitEvent)).toMatchObject({
+      frequencyType: "daily",
+      frequencyStartDate: null,
+    });
+  });
+
+  it("seeds from the current date after a detour through another rhythm", () => {
+    renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    pickRepeat("Every N days");
+    changeDate("2026-08-24");
+    expect(startField().value).toBe("2026-08-24");
+    pickRepeat("Weekdays");
+    expect(pressedWeekdays()).toEqual(["Mo"]);
+    pickRepeat("Daily");
+    changeDate("2026-08-25");
+    pickRepeat("Every N days");
+    expect(startField().value).toBe("2026-08-25");
+  });
+
+  it("reads a cleared date as the day blur will restore", () => {
+    // A cleared date input reports "" until blur puts the opening day back.
+    renderPanel({ withRepeat: true });
+    pickRepeat("Weekdays");
+    changeDate("");
+    expect(pressedWeekdays()).toEqual(["Th"]);
+    fireEvent.blur(screen.getByLabelText("Date"));
+    expect(pressedWeekdays()).toEqual(["Th"]);
   });
 });
 

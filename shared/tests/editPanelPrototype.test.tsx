@@ -78,6 +78,46 @@ describe("EventEditorPane (#2219 / #2407)", () => {
   });
 });
 
+describe("EventEditorPane — 実績時間 (#2407)", () => {
+  it("is an input with the prototype's placeholder, saved by the footer's Save", () => {
+    const onSave = vi.fn();
+    render(
+      <EventEditorPane
+        item={ITEM}
+        labels={{
+          title: "Title",
+          date: "Date",
+          allDay: "All-day",
+          startTime: "Start",
+          endTime: "End",
+          memo: "Memo",
+          save: "Save",
+          originRoutine: "Generated from routine",
+          skipThisDay: "Skip this day",
+          delete: "Delete",
+        }}
+        handlers={{ onSave: vi.fn() }}
+        workTime={{
+          label: "実績時間",
+          placeholder: "例: 45 分",
+          unit: "分",
+          totalMinutes: 0,
+          timerMinutes: 0,
+          belowTimerMessage: "below",
+          notWholeMessage: "whole",
+          onSave,
+        }}
+      />,
+    );
+    const input = screen.getByLabelText("実績時間") as HTMLInputElement;
+    expect(input.placeholder).toBe("例: 45 分");
+    fireEvent.change(input, { target: { value: "45" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save" }));
+    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave.mock.calls[0][0]).toBe(45);
+  });
+});
+
 describe("TodoDetailPanel (#2219)", () => {
   function renderPanel(onDelete = vi.fn()) {
     render(

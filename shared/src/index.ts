@@ -231,7 +231,27 @@ export {
   clearNoteBodies,
   forgetNoteBody,
   NOTE_BODY_CACHE_LIMIT,
+  PINNED_BODY_BYTE_LIMIT,
+  PINNED_BODY_LIMIT,
 } from "./state/noteBodyStore";
+// #2334 — opening the app with no network, and what counts as having none.
+export {
+  isOffline,
+  setSessionUnreachable,
+  subscribeConnectivity,
+} from "./state/connectivity";
+export {
+  OFFLINE_READ_TIMEOUT_MS,
+  requestPersistentStorage,
+} from "./state/persistentCache";
+export { PinnedNotesReadAhead } from "./components/PinnedNotesReadAhead";
+export {
+  readOfflineEntry,
+  readSession,
+  SESSION_GATE_OFFLINE_MS,
+  SESSION_GATE_ONLINE_MS,
+  type SessionRead,
+} from "./services/offlineSession";
 // #1404 — editor attachment limits + the MIME/size helpers the picker, the
 // upload hook and the document node all have to agree on.
 export {
@@ -943,7 +963,10 @@ export {
 // The notes a search query keeps (#1837) — the title here and now, the body
 // from the ids the server answered with. The web list filtered by title inline
 // before this; one predicate, so the two layers cannot drift apart.
-export { filterNotesBySearch } from "./hooks/notesUnifiedHelpers";
+export {
+  filterNotesBySearch,
+  isNoteKeptOffline,
+} from "./hooks/notesUnifiedHelpers";
 // Sidebar position hold for the note being edited (#366) — pairs with the
 // `frozen` argument of sortNotesForList.
 export { useFrozenNoteSortKey } from "./hooks/useFrozenNoteSortKey";
@@ -984,6 +1007,11 @@ export { stampsEqual } from "./utils/updatedAtStamp";
 export {
   sessionTargetId,
   totalWorkMinutesForItem,
+  // #2407: time typed into an event's editor.
+  MANUAL_SESSION_LABEL,
+  isManualSession,
+  eventWorkBreakdown,
+  type EventWorkAnchor,
   // #1666: the day the Work sidebar's history tab reads back.
   pickWorkHistoryDay,
   // #2054: the two days (today, yesterday) the Mobile drawer reads back.
