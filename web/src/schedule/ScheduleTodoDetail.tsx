@@ -1,6 +1,5 @@
 import {
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
@@ -32,7 +31,6 @@ import {
   type GoalLinkSnapshot,
   type GoalPickerChipLabels,
   type GoalPickerLabels,
-  type ItemPanelCloseGuard,
   type LinkDraft,
   type TodoNode,
   type TodoStatus,
@@ -245,11 +243,6 @@ export interface ScheduleTodoDetailProps {
   onOpenInSchedule?: (id: string) => void;
   /** #2219: 「ノートを添付」 at the right end of the tag row. */
   noteAttach?: ScheduleNoteAttach;
-  /**
-   * #2401: hands over the guarded close, so a screen beside the panel can ask
-   * it to shut (ItemPanelContext's `requestClose`).
-   */
-  registerCloseGuard?: (guard: ItemPanelCloseGuard | null) => void;
 }
 
 export function ScheduleTodoDetail({
@@ -264,7 +257,6 @@ export function ScheduleTodoDetail({
   askConfirm,
   onOpenInSchedule,
   noteAttach,
-  registerCloseGuard,
 }: ScheduleTodoDetailProps) {
   const { t } = useTranslation();
   const formatDuration = useFormatDuration();
@@ -314,17 +306,6 @@ export function ScheduleTodoDetail({
     },
     [askConfirm, t],
   );
-
-  useEffect(() => {
-    if (!registerCloseGuard || todoId == null) return;
-    registerCloseGuard((then) => {
-      void requestClose(() => {
-        onClose();
-        then?.();
-      });
-    });
-    return () => registerCloseGuard(null);
-  }, [registerCloseGuard, todoId, requestClose, onClose]);
 
   const body = todo && (
     <div className="flex flex-col gap-3">

@@ -708,6 +708,32 @@ describe("TodoDetailPanel — the date and time row (#2401)", () => {
     expect(saveButton()).toBeDisabled();
   });
 
+  describe("an overnight todo, 22:00 to next-day 00:00", () => {
+    const OVERNIGHT = { ...TIMED, startTime: "22:00", endTime: "00:00" };
+
+    it("restores the span after all-day on and off, with nothing to save", () => {
+      renderRow(OVERNIGHT);
+      fireEvent.click(allDay() as HTMLElement);
+      expect(saveButton()).toBeEnabled();
+      fireEvent.click(allDay() as HTMLElement);
+      expect(startField()?.value).toBe("22:00");
+      expect(endField()?.value).toBe("00:00");
+      expect(saveButton()).toBeDisabled();
+    });
+
+    it("keeps the two hours when the start moves", () => {
+      const onSave = vi.fn();
+      renderRow(OVERNIGHT, onSave);
+      const start = startField() as HTMLInputElement;
+      fireEvent.change(start, { target: { value: "21:00" } });
+      fireEvent.blur(start);
+      fireEvent.click(saveButton());
+      expect(onSave).toHaveBeenCalledExactlyOnceWith("task-a", {
+        schedule: { ...OVERNIGHT, startTime: "21:00", endTime: "23:00" },
+      });
+    });
+  });
+
   it("takes the todo off the calendar when the date is emptied", () => {
     const onSave = vi.fn();
     renderRow(TIMED, onSave);
@@ -720,7 +746,10 @@ describe("TodoDetailPanel — the date and time row (#2401)", () => {
     });
   });
 
-  it("saves on Enter in the date field, and reports the draft as pending", () => {
+  // A half-typed date is a live draft: a cleared month segment reads "" (off the
+  // calendar) and a one-digit year reads 1902. Only the name field and the
+  // button save.
+  it("does not save on Enter in the date field, and reports the draft as pending", () => {
     const onSave = vi.fn();
     const onDirtyChange = vi.fn();
     render(
@@ -738,7 +767,13 @@ describe("TodoDetailPanel — the date and time row (#2401)", () => {
     fireEvent.change(dateField(), { target: { value: "2026-08-20" } });
     expect(onDirtyChange).toHaveBeenLastCalledWith(true);
     fireEvent.keyDown(dateField(), { key: "Enter" });
-    expect(onSave).toHaveBeenCalledTimes(1);
+    expect(onSave).not.toHaveBeenCalled();
+
+    // The half-typed case itself: an emptied date stays a draft on Enter.
+    fireEvent.change(dateField(), { target: { value: "" } });
+    fireEvent.keyDown(dateField(), { key: "Enter" });
+    expect(onSave).not.toHaveBeenCalled();
+    expect(onDirtyChange).toHaveBeenLastCalledWith(true);
   });
 
   it("follows the live todo until the row is touched", () => {

@@ -181,7 +181,6 @@ export { TourContext, type TourContextValue } from "./TourContextValue";
 export { ItemPanelProvider, type ItemPanelProviderProps } from "./ItemPanelContext";
 export {
   ItemPanelContext,
-  type ItemPanelCloseGuard,
   type ItemPanelContextValue,
   type ItemPanelCreateInitial,
   type ItemPanelEditTarget,

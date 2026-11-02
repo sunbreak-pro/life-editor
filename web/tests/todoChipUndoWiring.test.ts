@@ -282,6 +282,21 @@ describe("todoScheduleWrite (#2401)", () => {
     expect(todoScheduleWrite(null)).toEqual(todoMoveOutWrite().patch);
   });
 
+  it("puts a 00:00 end on the next day, not on the start's own day", () => {
+    expect(
+      todoScheduleWrite({
+        date: "2026-08-15",
+        startTime: "22:00",
+        endTime: "00:00",
+        isAllDay: false,
+      }),
+    ).toEqual({
+      scheduledAt: AT(15, 22),
+      scheduledEndAt: AT(16, 0),
+      isAllDay: false,
+    });
+  });
+
   it("keeps an overnight todo overnight when only its date changed", () => {
     expect(
       todoScheduleWrite({

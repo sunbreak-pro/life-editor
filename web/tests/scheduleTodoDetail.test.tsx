@@ -618,6 +618,69 @@ describe("ScheduleTodoDetail — the date and time (#2401)", () => {
     await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(onClose).toHaveBeenCalled());
   });
+
+  /*
+   * 22:00 to next-day 00:00, as the grid writes a block dragged to the bottom
+   * of the day. The slot reads it as a start after its end, and it has to stay
+   * two hours long on the way back through the save.
+   */
+  describe("an overnight todo", () => {
+    const OVERNIGHT: TodoNode = {
+      ...TODO,
+      scheduledAt: new Date(2026, 7, 15, 22, 0).toISOString(),
+      scheduledEndAt: new Date(2026, 7, 16, 0, 0).toISOString(),
+      isAllDay: false,
+    };
+    const startField = () =>
+      screen.getByRole("combobox", {
+        name: "scheduleScreen.startTime",
+      }) as HTMLInputElement;
+    const moveStart = (value: string) => {
+      fireEvent.change(startField(), { target: { value } });
+      fireEvent.blur(startField());
+      fireEvent.click(screen.getByText("todoDetail.save"));
+    };
+
+    it("keeps its two hours when the start moves earlier, ending the same day", () => {
+      const { updateNode } = renderDetail({ todoNodes: [OVERNIGHT] });
+      moveStart("21:00");
+      expect(updateNode.mock.calls[0][1]).toEqual({
+        scheduledAt: new Date(2026, 7, 15, 21, 0).toISOString(),
+        scheduledEndAt: new Date(2026, 7, 15, 23, 0).toISOString(),
+        isAllDay: false,
+      });
+    });
+
+    it("stays overnight when the start moves later, so it does not turn all-day", () => {
+      const { updateNode } = renderDetail({ todoNodes: [OVERNIGHT] });
+      moveStart("23:00");
+      expect(updateNode.mock.calls[0][1]).toEqual({
+        scheduledAt: new Date(2026, 7, 15, 23, 0).toISOString(),
+        scheduledEndAt: new Date(2026, 7, 16, 1, 0).toISOString(),
+        isAllDay: false,
+      });
+    });
+
+    it("has nothing to save after all-day on and off", () => {
+      const { updateNode } = renderDetail({ todoNodes: [OVERNIGHT] });
+      const allDay = () =>
+        screen.getByRole("checkbox", { name: "scheduleScreen.allDay" });
+      fireEvent.click(allDay());
+      fireEvent.click(allDay());
+      expect(startField().value).toBe("22:00");
+      expect(
+        (
+          screen.getByRole("combobox", {
+            name: "scheduleScreen.endTime",
+          }) as HTMLInputElement
+        ).value,
+      ).toBe("00:00");
+      const save = screen.getByText("todoDetail.save") as HTMLButtonElement;
+      expect(save.disabled).toBe(true);
+      fireEvent.click(save);
+      expect(updateNode).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("ScheduleTodoDetail — the name field's keys (#2401)", () => {
@@ -666,7 +729,7 @@ describe("ScheduleTodoDetail — the name field's keys (#2401)", () => {
   });
 });
 
-describe("ScheduleTodoDetail — Cancel, and the close from outside (#2401)", () => {
+describe("ScheduleTodoDetail — Cancel (#2401)", () => {
   it("closes straight away from a clean panel", async () => {
     const { askConfirm, onClose } = renderDetail();
     fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
@@ -682,47 +745,6 @@ describe("ScheduleTodoDetail — Cancel, and the close from outside (#2401)", ()
     await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
     await act(async () => {});
     expect(onClose).not.toHaveBeenCalled();
-  });
-
-  function guardOf(registerCloseGuard: ReturnType<typeof vi.fn>) {
-    const guard = registerCloseGuard.mock.calls.at(-1)?.[0] as
-      | ((then?: () => void) => void)
-      | null;
-    if (!guard) throw new Error("no guard was registered");
-    return guard;
-  }
-
-  it("hands over a close that closes, then runs what comes next", async () => {
-    const registerCloseGuard = vi.fn();
-    const { onClose } = renderDetail({ registerCloseGuard });
-    const then = vi.fn();
-    guardOf(registerCloseGuard)(then);
-    await waitFor(() => expect(then).toHaveBeenCalledTimes(1));
-    expect(onClose).toHaveBeenCalledTimes(1);
-  });
-
-  it("does neither when the draft's question is answered no", async () => {
-    const registerCloseGuard = vi.fn();
-    const { askConfirm, onClose } = renderDetail({ registerCloseGuard });
-    askConfirm.mockResolvedValue(false);
-    makeDirty();
-    const then = vi.fn();
-    guardOf(registerCloseGuard)(then);
-    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
-    await act(async () => {});
-    expect(onClose).not.toHaveBeenCalled();
-    expect(then).not.toHaveBeenCalled();
-  });
-
-  it("takes the guard back when it unmounts, and offers none while closed", () => {
-    const registerCloseGuard = vi.fn();
-    const { unmount } = renderDetail({ registerCloseGuard });
-    unmount();
-    expect(registerCloseGuard).toHaveBeenLastCalledWith(null);
-
-    const closed = vi.fn();
-    renderDetail({ registerCloseGuard: closed, todoId: null });
-    expect(closed).not.toHaveBeenCalled();
   });
 });
 

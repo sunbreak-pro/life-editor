@@ -214,21 +214,13 @@ export function GoalsTodosScreen({
     ? (model.byId.get(selectedGoalId) ?? null)
     : null;
   const rightSidebar = useRightSidebarOptional();
-  const itemPanel = useItemPanelOptional();
-  const panelOpen = itemPanel?.request != null;
   const selectGoal = useCallback(
     (goalId: string) => {
-      const pick = (): void => {
-        setSelectedGoalId(goalId);
-        // Picking a goal with the panel shut would look like nothing happened.
-        if (isWide && !rightSidebar?.isOpen) rightSidebar?.open();
-      };
-      // #2401: a goal row shuts the todo editor and goes back to the goal. Its
-      // own question comes first, and a "no" keeps the todo open.
-      if (panelOpen) itemPanel?.requestClose(pick);
-      else pick();
+      setSelectedGoalId(goalId);
+      // Picking a goal with the panel shut would look like nothing happened.
+      if (isWide && !rightSidebar?.isOpen) rightSidebar?.open();
     },
-    [isWide, rightSidebar, itemPanel, panelOpen],
+    [isWide, rightSidebar],
   );
 
   const toast = useToastOptional();
@@ -368,6 +360,7 @@ export function GoalsTodosScreen({
    * Schedule" still goes there. Without an ItemPanel Provider (a standalone
    * render) the row falls back to the old navigation.
    */
+  const itemPanel = useItemPanelOptional();
   const panelOptions = useMemo<ItemPanelOptions>(
     () => ({
       onOpenInSchedule: (target) =>
@@ -390,6 +383,7 @@ export function GoalsTodosScreen({
   );
   // The panel writes through its own Providers; re-read once it shuts so the
   // tree does not wait for the Realtime echo.
+  const panelOpen = itemPanel?.request != null;
   const wasPanelOpen = useRef(panelOpen);
   useEffect(() => {
     if (wasPanelOpen.current && !panelOpen) setReloadTick((n) => n + 1);

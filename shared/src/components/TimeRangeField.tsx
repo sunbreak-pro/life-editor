@@ -28,6 +28,12 @@ import { isImeComposing } from "../utils/imeGuard";
  * writes per-field would otherwise fire two writes (and, on a routine
  * occurrence, two scope dialogs) for a single gesture.
  *
+ * #2401: `allowOvernight` is the one exception. A todo can end on the next day,
+ * so a range arriving with its end at or before its start is a real overnight
+ * span there, and moving its start keeps its real length. An event cannot
+ * (`scheduleGridLayout` draws an inverted row as a band), so its editor leaves
+ * the prop off and such a row still heals to one step.
+ *
  * Pure presentation (§3.1/§6.4): labels + the duration formatter arrive from
  * the host already translated; lumen-* tokens only; the option lists are
  * DOM-event driven (no coordinate math), so jsdom can exercise every path.
@@ -36,7 +42,10 @@ import { isImeComposing } from "../utils/imeGuard";
 export interface TimeRangeValue {
   /** HH:MM (24h). */
   start: string;
-  /** HH:MM (24h), always after `start`. */
+  /**
+   * HH:MM (24h), after `start`. At or before it only under `allowOvernight`,
+   * where it means that time on the next day.
+   */
   end: string;
 }
 
@@ -50,9 +59,14 @@ export interface TimeRangeFieldLabels {
 export interface TimeRangeFieldProps {
   start: string;
   end: string;
-  /** One combined commit; the field guarantees start < end. */
+  /** One combined commit; the field guarantees start < end (see `allowOvernight`). */
   onChange: (next: TimeRangeValue) => void;
   labels: TimeRangeFieldLabels;
+  /**
+   * The host stores an end at or before the start on the next day (#2401, a
+   * todo). A same-day range behaves the same with or without it.
+   */
+  allowOvernight?: boolean;
   /** Snap grid for the option lists and ↑/↓ stepping. Default 15. */
   stepMinutes?: number;
   /**
@@ -63,6 +77,7 @@ export interface TimeRangeFieldProps {
   className?: string;
 }
 
+const DAY_MINUTES = 24 * 60;
 const DAY_MAX = 23 * 60 + 59; // 23:59 — the latest same-day end we can write.
 
 /** Full-width digits / colon → ASCII, so an IME-entered "１４：３０" parses. */
@@ -231,6 +246,7 @@ export function TimeRangeField({
   end,
   onChange,
   labels,
+  allowOvernight = false,
   stepMinutes = 15,
   formatDuration,
   className,
@@ -250,6 +266,18 @@ export function TimeRangeField({
    * kept it.
    */
   const commitStart = (nextStart: number) => {
+    // #2401: 22:00 to next-day 00:00 is two hours, not -22. The end wraps past
+    // midnight when the start moves late enough, and the host stores that end
+    // on the next day.
+    if (allowOvernight && endMin <= startMin) {
+      if (nextStart === startMin) return;
+      const length = endMin + DAY_MINUTES - startMin;
+      onChange({
+        start: fmt(nextStart),
+        end: fmt((nextStart + length) % DAY_MINUTES),
+      });
+      return;
+    }
     const duration = Math.max(endMin - startMin, stepMinutes);
     const nextEnd = Math.min(nextStart + duration, DAY_MAX);
     // A start so late that no same-day end fits (23:59) is invalid input —

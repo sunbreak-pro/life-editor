@@ -185,18 +185,8 @@ function PanelWell() {
 }
 
 /** Prints the item panel's open request and closes it, as the shell's host would. */
-function PanelRequestProbe({ guardAnswer }: { guardAnswer?: boolean }) {
-  const { request, close, registerCloseGuard } = useItemPanelContext();
-  // Stands in for the todo detail's guard, without the panel it lives in.
-  useEffect(() => {
-    if (guardAnswer === undefined) return;
-    registerCloseGuard((then) => {
-      if (!guardAnswer) return;
-      close();
-      then?.();
-    });
-    return () => registerCloseGuard(null);
-  }, [guardAnswer, close, registerCloseGuard]);
+function PanelRequestProbe() {
+  const { request, close } = useItemPanelContext();
   return (
     <>
       <output aria-label="Panel request">
@@ -212,10 +202,7 @@ function PanelRequestProbe({ guardAnswer }: { guardAnswer?: boolean }) {
 async function renderTab(
   ds: DataService = makeDS(),
   ready: string | (() => unknown) = "Goal tree",
-  {
-    itemPanel = false,
-    guardAnswer,
-  }: { itemPanel?: boolean; guardAnswer?: boolean } = {},
+  { itemPanel = false }: { itemPanel?: boolean } = {},
 ) {
   const onNavigateToItem = vi.fn();
   const { wrapper: SyncWrapper, sync } = createBumpableSync();
@@ -230,7 +217,7 @@ async function renderTab(
       {itemPanel ? (
         <ItemPanelProvider>
           {tab}
-          <PanelRequestProbe guardAnswer={guardAnswer} />
+          <PanelRequestProbe />
         </ItemPanelProvider>
       ) : (
         tab
@@ -792,43 +779,6 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(row().className).not.toContain("bg-lumen-accent-subtle");
   });
 
-  it("shuts the todo editor when a goal row is pressed, and goes to the goal (#2401)", async () => {
-    const { panel } = await renderTab(makeDS(), "Goal tree", {
-      itemPanel: true,
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Edit: Long run" }));
-    fireEvent.click(goalRow("Run 3 times"));
-    expect(screen.getByLabelText("Panel request").textContent).toBe("");
-    expect(
-      (panel().getByRole("textbox", { name: "Goal title" }) as HTMLInputElement)
-        .value,
-    ).toBe("Run 3 times");
-  });
-
-  it("goes through the panel's guard, and stays on a no (#2401)", async () => {
-    const { panel } = await renderTab(makeDS(), "Goal tree", {
-      itemPanel: true,
-      guardAnswer: false,
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Edit: Long run" }));
-    fireEvent.click(goalRow("Run 3 times"));
-    expect(screen.getByLabelText("Panel request").textContent).toBe(
-      JSON.stringify({ role: "task", id: "t7" }),
-    );
-    expect(panel().queryByRole("textbox", { name: "Goal title" })).toBeNull();
-  });
-
-  it("selects the goal after the guard agrees (#2401)", async () => {
-    const { panel } = await renderTab(makeDS(), "Goal tree", {
-      itemPanel: true,
-      guardAnswer: true,
-    });
-    fireEvent.click(screen.getByRole("button", { name: "Edit: Long run" }));
-    fireEvent.click(goalRow("Run 3 times"));
-    expect(screen.getByLabelText("Panel request").textContent).toBe("");
-    panel().getByRole("textbox", { name: "Goal title" });
-  });
-
   it("falls back to Schedule without an item panel", async () => {
     const { onNavigateToItem } = await renderTab();
     fireEvent.click(screen.getByRole("button", { name: "Edit: Long run" }));
@@ -1290,5 +1240,50 @@ describe("Editing a todo over the tab (#2401)", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Discard" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(ds.syncTodoTree).not.toHaveBeenCalled();
+  });
+
+  /*
+   * The way out a pointer really has. The overlay's backdrop covers the whole
+   * window, so a press aimed at a goal row lands on the backdrop: it closes the
+   * panel and selects nothing (a second press on the row does that).
+   */
+  describe("the backdrop", () => {
+    const backdropOf = (editor: HTMLElement) =>
+      editor.parentElement as HTMLElement;
+    const goalPanelField = () =>
+      screen.queryByRole("textbox", { name: "Goal title" });
+
+    it("closes a clean panel without asking, and selects no goal", async () => {
+      const { ds } = storeDS();
+      const editor = await openEditor(ds, "Pick up the residence certificate");
+      fireEvent.mouseDown(backdropOf(editor));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(screen.queryByRole("button", { name: "Discard" })).toBeNull();
+      expect(goalPanelField()).toBeNull();
+    });
+
+    it("asks with a draft, keeps it on a no, and closes on a discard", async () => {
+      const { ds } = storeDS();
+      const editor = await openEditor(ds, "Pick up the residence certificate");
+      const name = within(editor).getByLabelText("Todo title");
+      fireEvent.change(name, { target: { value: "Renamed" } });
+
+      fireEvent.mouseDown(backdropOf(editor));
+      await screen.findByRole("button", { name: "Discard" });
+      // The question's own Cancel, drawn after the panel's.
+      fireEvent.click(screen.getAllByRole("button", { name: "Cancel" }).at(-1)!);
+      await waitFor(() =>
+        expect(screen.queryByRole("button", { name: "Discard" })).toBeNull(),
+      );
+      expect(
+        (within(editor).getByLabelText("Todo title") as HTMLInputElement).value,
+      ).toBe("Renamed");
+
+      fireEvent.mouseDown(backdropOf(editor));
+      fireEvent.click(await screen.findByRole("button", { name: "Discard" }));
+      await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+      expect(ds.syncTodoTree).not.toHaveBeenCalled();
+      expect(goalPanelField()).toBeNull();
+    });
   });
 });

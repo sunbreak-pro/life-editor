@@ -69,10 +69,10 @@ export function allDayPlacement(dateKey: string): Partial<TodoNode> {
  * 00:00, timed a day and a window. No undo options here: the row rides the
  * panel's one save press, which carries its own label.
  *
- * An end at or before the start can only be an overnight todo whose date alone
- * was changed, since the time field keeps its own range the right way round.
- * It lands on the next day, or the slot would read it as degenerate and turn
- * the todo all-day (#562).
+ * An end at or before the start is an overnight todo: its date alone changed,
+ * or its start moved and the time field carried the end past midnight
+ * (`allowOvernight`). It lands on the next day, or the slot would read it as
+ * degenerate and turn the todo all-day (#562).
  */
 export function todoScheduleWrite(
   slot: TodoScheduleSlot | null,

@@ -366,10 +366,21 @@ function TodoDetailFields({
       editSchedule({ isAllDay: true });
       return;
     }
-    editSchedule({
-      isAllDay: false,
-      ...timedSpanForAllDayOff(draftSchedule.startTime, draftSchedule.endTime),
-    });
+    // Times still in the draft are the span all-day was turned on over, and an
+    // end before its start is an overnight todo. Handing them to the helper
+    // would cut that to an hour, so on and off would read as a change. Only a
+    // draft with no times (a saved all-day, a first date) asks it for a span.
+    editSchedule(
+      draftSchedule.startTime && draftSchedule.endTime
+        ? { isAllDay: false }
+        : {
+            isAllDay: false,
+            ...timedSpanForAllDayOff(
+              draftSchedule.startTime,
+              draftSchedule.endTime,
+            ),
+          },
+    );
   };
 
   const saveOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -448,13 +459,15 @@ function TodoDetailFields({
             {scheduleLabels.caption}
           </span>
           {/* `min-w-0` + `appearance-none` on the input: WebKit otherwise holds
-              a date input at its own width, under the check beside it (#1403). */}
+              a date input at its own width, under the check beside it (#1403).
+              No Enter-to-save here: a half-typed date is a live draft, so a
+              cleared month reads "" (off the calendar) and a one-digit year
+              reads 1902. */}
           <div className="flex items-center gap-3">
             <input
               type="date"
               value={draftSchedule.date}
               onChange={(e) => editSchedule({ date: e.target.value })}
-              onKeyDown={saveOnEnter}
               aria-label={scheduleLabels.date}
               className={cn(
                 FIELD,
@@ -478,6 +491,7 @@ function TodoDetailFields({
               }
               labels={{ start: scheduleLabels.start, end: scheduleLabels.end }}
               formatDuration={formatDuration}
+              allowOvernight
             />
           )}
         </div>
