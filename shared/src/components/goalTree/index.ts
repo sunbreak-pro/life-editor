@@ -53,6 +53,19 @@ export {
   type GoalTreeDragSource,
 } from "./goalTreeDrag";
 export {
+  GoalDeleteDialog,
+  type GoalDeleteDialogLabels,
+  type GoalDeleteDialogProps,
+} from "./GoalDeleteDialog";
+export {
+  buildGoalDeleteTree,
+  planGoalDelete,
+  type BuildGoalDeleteTreeInput,
+  type GoalDeleteGoalRow,
+  type GoalDeletePlan,
+  type GoalDeleteTodoRow,
+} from "./goalDeleteTree";
+export {
   formatGoalPeriod,
   GoalDetailPanel,
   type GoalDetailLabels,

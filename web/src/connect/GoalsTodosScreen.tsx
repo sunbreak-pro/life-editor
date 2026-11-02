@@ -7,18 +7,21 @@ import {
   DEFAULT_GOAL_TREE_ARRANGEMENT,
   DEFAULT_GOAL_TREE_FILTER,
   formatGoalPeriod,
+  GoalDeleteDialog,
   GoalDetailPanel,
   GoalTodoLinkScreen,
   GoalTreeArrangePanel,
   GoalTreeView,
   RightSidebarPortal,
   arrangeGoalTree,
+  buildGoalDeleteTree,
   buildGoalTreeModel,
   collectDescendantIds,
   describeGoalTreeFilter,
   generateId,
   generateTodoId,
   goalParentOptions,
+  planGoalDelete,
   toGoalLinkState,
   todayDateKey,
   useConfirmDialog,
@@ -33,6 +36,8 @@ import {
   type DataService,
   type Goal,
   type GoalDateRange,
+  type GoalDeleteDialogLabels,
+  type GoalDeleteGoalRow,
   type GoalLinkDiff,
   type GoalPeriodKind,
   type GoalRowActions,
@@ -256,14 +261,20 @@ export function GoalsTodosScreen({
   const write = useCallback(
     async (
       run: () => Promise<unknown>,
-      failedKey: TranslationKey = "connect.goals.writeFailed",
+      // A function when the copy depends on how far `run` got.
+      failedKey:
+        | TranslationKey
+        | (() => TranslationKey) = "connect.goals.writeFailed",
     ): Promise<boolean> => {
       try {
         await run();
         return true;
       } catch (err) {
         console.error("[GoalsTodosScreen] write failed", err);
-        toast?.showToast("danger", t(failedKey));
+        toast?.showToast(
+          "danger",
+          t(typeof failedKey === "function" ? failedKey() : failedKey),
+        );
         return false;
       } finally {
         setReloadTick((n) => n + 1);
@@ -467,24 +478,107 @@ export function GoalsTodosScreen({
     wasPanelOpen.current = panelOpen;
   }, [panelOpen]);
 
-  const { request, ask, resolve } = useConfirmDialog();
+  /*
+   * Deleting a goal (#2405): the panel's button and the row's bin both land
+   * here. The list is fixed when the dialog opens, so the writes are exactly
+   * what was shown, whatever a Realtime echo does meanwhile.
+   */
+  const [deleteTree, setDeleteTree] = useState<GoalDeleteGoalRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const deleteClaimed = useRef(false);
+  const closeDeleteDialog = (): void => setDeleteTree(null);
   const deleteGoal = useCallback(
     (goal: Goal) => {
+      setDeleteTree(
+        buildGoalDeleteTree({
+          goal,
+          ...sources,
+          untitled: t("common.untitled"),
+        }),
+      );
+    },
+    [sources, t],
+  );
+  const confirmDelete = useCallback(
+    (keptIds: ReadonlySet<string>) => {
+      if (!deleteTree || deleteClaimed.current) return;
+      deleteClaimed.current = true;
+      setDeleting(true);
+      const plan = planGoalDelete(deleteTree, keptIds);
       void (async () => {
-        const ok = await ask({
-          message: t("connect.goals.deleteConfirm", { title: goal.title }),
-          confirmLabel: t("connect.goals.deleteGoal"),
-          cancelLabel: t("common.cancel"),
-          danger: true,
-        });
-        if (!ok) return;
-        if (await write(() => dataService.softDeleteGoal(goal.id))) {
-          setSelectedGoalId(null);
+        /*
+         * One at a time and in this order: what stays is taken off first, and
+         * the goal asked about goes last, so a write that fails stops here and
+         * leaves that goal on the tree. The re-read then shows what is left,
+         * and asking again lists only that.
+         */
+        const writes: (() => Promise<unknown>)[] = [
+          ...plan.detachGoalIds.map(
+            (id) => () => dataService.updateGoal(id, { parentGoalId: null }),
+          ),
+          ...plan.unlinks.map(
+            ({ goalId, todoId }) =>
+              () =>
+                dataService.unlinkGoalTodo(goalId, todoId),
+          ),
+          ...plan.deleteTodoIds.map(
+            (id) => () => dataService.softDeleteTodo(id),
+          ),
+          ...plan.deleteGoalIds.map(
+            (id) => () => dataService.softDeleteGoal(id),
+          ),
+        ];
+        let landed = false;
+        const ok = await write(
+          async () => {
+            for (const run of writes) {
+              await run();
+              landed = true;
+            }
+          },
+          () =>
+            landed
+              ? "connect.goals.deleteDialog.failed"
+              : "connect.goals.deleteDialog.failedNothingDeleted",
+        );
+        deleteClaimed.current = false;
+        setDeleting(false);
+        setDeleteTree(null);
+        if (ok) {
+          setSelectedGoalId((current) =>
+            current && plan.deleteGoalIds.includes(current) ? null : current,
+          );
         }
       })();
     },
-    [ask, t, write, dataService],
+    [deleteTree, write, dataService],
   );
+  const deleteLabels = useMemo<GoalDeleteDialogLabels>(
+    () => ({
+      kinds: treeLabels.kinds,
+      formatMessage: (title) =>
+        t("connect.goals.deleteDialog.message", { title }),
+      chooseHint: t("connect.goals.deleteDialog.chooseHint"),
+      keepNote: t("connect.goals.deleteDialog.keepNote"),
+      listLabel: t("connect.goals.deleteDialog.listLabel"),
+      alwaysDeleted: t("connect.goals.deleteDialog.alwaysDeleted"),
+      alsoLinked: t("connect.goals.deleteDialog.alsoLinked"),
+      formatNestedTodos: (count) =>
+        t("connect.goals.deleteDialog.nestedTodos", { count }),
+      formatGoalRow: (kind, title) =>
+        t("connect.goals.deleteDialog.goalRow", { kind, title }),
+      formatTodoRow: (title) =>
+        t("connect.goals.deleteDialog.todoRow", { title }),
+      formatPeriod: detailLabels.formatPeriod,
+      formatDateRange: treeLabels.formatDateRange,
+      confirm: t("connect.goals.deleteGoal"),
+      deleting: t("connect.goals.deleteDialog.deleting"),
+      cancel: t("common.cancel"),
+    }),
+    [t, treeLabels, detailLabels],
+  );
+
+  const { request, ask, resolve } = useConfirmDialog();
 
   /*
    * The bin on a todo row (#2388). This tab has no TodoTreeProvider, so the
@@ -687,6 +781,15 @@ export function GoalsTodosScreen({
         >
           {arrangePanel}
         </BottomSheet>
+      )}
+      {deleteTree && (
+        <GoalDeleteDialog
+          tree={deleteTree}
+          busy={deleting}
+          onConfirm={confirmDelete}
+          onCancel={closeDeleteDialog}
+          labels={deleteLabels}
+        />
       )}
       {request && (
         <ConfirmDialog
