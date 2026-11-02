@@ -11,6 +11,7 @@ import { useEffect, useRef } from "react";
 import {
   ItemPanelProvider,
   RightSidebarProvider,
+  ToastContext,
   useItemPanelContext,
   useRightSidebarContext,
   type DataService,
@@ -143,6 +144,7 @@ function makeDS(over: Partial<Record<keyof DataService, unknown>> = {}) {
     updateGoal: vi.fn().mockResolvedValue(GOALS[0]),
     softDeleteGoal: vi.fn().mockResolvedValue(undefined),
     updateTodo: vi.fn().mockResolvedValue(TODOS[0]),
+    softDeleteTodo: vi.fn().mockResolvedValue(undefined),
     ...over,
   });
 }
@@ -719,7 +721,214 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     ).toBeNull();
   });
 
-  it("edits a todo over the tab instead of leaving for Schedule (#2362)", async () => {
+  it("ticks a todo from its name, with no editor opened (#2388)", async () => {
+    const ds = makeDS();
+    const { onNavigateToItem } = await renderTab(ds, "Goal tree", {
+      itemPanel: true,
+    });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark as done: Long run" }),
+    );
+    await waitFor(() =>
+      expect(ds.updateTodo).toHaveBeenCalledWith(
+        "t7",
+        expect.objectContaining({ status: "DONE" }),
+      ),
+    );
+    expect(screen.getByLabelText("Panel request").textContent).toBe("");
+    expect(onNavigateToItem).not.toHaveBeenCalled();
+  });
+
+  it("un-ticks a done todo from its name (#2388)", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Mark as not done: 5 km jog" }),
+    );
+    await waitFor(() =>
+      expect(ds.updateTodo).toHaveBeenCalledWith(
+        "t5",
+        expect.objectContaining({ status: "NOT_STARTED" }),
+      ),
+    );
+  });
+
+  it("deletes a todo from its bin only after the confirm says yes (#2388)", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    const reads = vi.mocked(ds.fetchTodoTree).mock.calls.length;
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete todo: Long run" }),
+    );
+    const dialog = within(screen.getByRole("dialog"));
+    dialog.getByText(
+      'Delete "Long run"? It goes to the trash, so you can restore it later.',
+    );
+    expect(ds.softDeleteTodo).not.toHaveBeenCalled();
+
+    fireEvent.click(dialog.getByRole("button", { name: "Delete todo" }));
+    await waitFor(() => expect(ds.softDeleteTodo).toHaveBeenCalledWith("t7"));
+    expect(ds.softDeleteTodo).toHaveBeenCalledTimes(1);
+    // The tree re-reads rather than waiting for the Realtime echo.
+    await waitFor(() =>
+      expect(vi.mocked(ds.fetchTodoTree).mock.calls.length).toBeGreaterThan(
+        reads,
+      ),
+    );
+  });
+
+  it("leaves the todo alone when the confirm is cancelled (#2388)", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete todo: Long run" }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Cancel",
+      }),
+    );
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(ds.softDeleteTodo).not.toHaveBeenCalled();
+  });
+
+  it("names and takes the children along, as the Todo tree's delete does (#2388)", async () => {
+    const ds = makeDS({
+      fetchTodoTree: vi
+        .fn()
+        .mockResolvedValue([
+          ...TODOS,
+          { ...todo("c1", "Warm up"), parentId: "t7" },
+          { ...todo("c2", "Cool down"), parentId: "c1" },
+        ]),
+    });
+    await renderTab(ds);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete todo: Long run" }),
+    );
+    const dialog = within(screen.getByRole("dialog"));
+    dialog.getByText(
+      'Deleting "Long run" also deletes its 2 child todos. Delete anyway?',
+    );
+    fireEvent.click(dialog.getByRole("button", { name: "Delete todo" }));
+    await waitFor(() => expect(ds.softDeleteTodo).toHaveBeenCalledTimes(3));
+    for (const id of ["t7", "c1", "c2"]) {
+      expect(ds.softDeleteTodo).toHaveBeenCalledWith(id);
+    }
+  });
+
+  it("trashes every child before its parent, the pressed todo last (#2388)", async () => {
+    const ds = makeDS({
+      fetchTodoTree: vi
+        .fn()
+        .mockResolvedValue([
+          ...TODOS,
+          { ...todo("c1", "Warm up"), parentId: "t7" },
+          { ...todo("c2", "Stretch"), parentId: "c1" },
+          { ...todo("c3", "Cool down"), parentId: "t7" },
+        ]),
+    });
+    await renderTab(ds);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete todo: Long run" }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete todo",
+      }),
+    );
+    await waitFor(() => expect(ds.softDeleteTodo).toHaveBeenCalledTimes(4));
+    const order = vi.mocked(ds.softDeleteTodo).mock.calls.map(([id]) => id);
+    expect(order.at(-1)).toBe("t7");
+    expect(order.indexOf("c2")).toBeLessThan(order.indexOf("c1"));
+  });
+
+  it("stops at a failed write, so the parent stays alive with fewer children (#2388)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const ds = makeDS({
+      fetchTodoTree: vi
+        .fn()
+        .mockResolvedValue([
+          ...TODOS,
+          { ...todo("c1", "Warm up"), parentId: "t7" },
+          { ...todo("c2", "Cool down"), parentId: "c1" },
+        ]),
+      softDeleteTodo: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("offline")),
+    });
+    const showToast = vi.fn();
+    const { wrapper: SyncWrapper } = createBumpableSync();
+    render(
+      <SyncWrapper>
+        <ToastContext.Provider value={{ showToast }}>
+          <RightSidebarProvider>
+            <GoalsTodosScreen dataService={ds} onNavigateToItem={vi.fn()} />
+          </RightSidebarProvider>
+        </ToastContext.Provider>
+      </SyncWrapper>,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Delete todo: Long run" }),
+    );
+    const reads = vi.mocked(ds.fetchTodoTree).mock.calls.length;
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete todo",
+      }),
+    );
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith(
+        "danger",
+        "Could not delete the todo. Check your connection and try again.",
+      ),
+    );
+    expect(vi.mocked(ds.softDeleteTodo).mock.calls.map(([id]) => id)).toEqual([
+      "c2",
+      "c1",
+    ]);
+    // What did land leaves the tree without waiting for the Realtime echo.
+    await waitFor(() =>
+      expect(vi.mocked(ds.fetchTodoTree).mock.calls.length).toBeGreaterThan(
+        reads,
+      ),
+    );
+  });
+
+  it("says so when a todo's delete fails, in words about the todo (#2388)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const ds = makeDS({
+      softDeleteTodo: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+    const showToast = vi.fn();
+    const { wrapper: SyncWrapper } = createBumpableSync();
+    render(
+      <SyncWrapper>
+        <ToastContext.Provider value={{ showToast }}>
+          <RightSidebarProvider>
+            <GoalsTodosScreen dataService={ds} onNavigateToItem={vi.fn()} />
+          </RightSidebarProvider>
+        </ToastContext.Provider>
+      </SyncWrapper>,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Delete todo: Long run" }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete todo",
+      }),
+    );
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith(
+        "danger",
+        "Could not delete the todo. Check your connection and try again.",
+      ),
+    );
+  });
+
+  it("edits a todo from its pencil, over the tab instead of leaving for Schedule (#2362 / #2388)", async () => {
     const ds = makeDS();
     const { onNavigateToItem } = await renderTab(ds, "Goal tree", {
       itemPanel: true,
@@ -740,7 +949,7 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(screen.getByRole("region", { name: "Goal tree" })).toBeTruthy();
   });
 
-  it("falls back to Schedule without an item panel", async () => {
+  it("falls back to Schedule from the pencil without an item panel", async () => {
     const { onNavigateToItem } = await renderTab();
     fireEvent.click(screen.getByRole("button", { name: "Edit: Long run" }));
     expect(onNavigateToItem).toHaveBeenCalledWith({ id: "t7", role: "task" });
