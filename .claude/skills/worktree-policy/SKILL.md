@@ -53,6 +53,22 @@ echo <new-branch> > .claude/comm/.session-branch   # 省略禁止
 
 feature ブランチでは (2) を `pull --ff-only` で代替できない（fast-forward 不成立で必ず失敗する）。コンフリクトは細心の注意で手動解消 — 判断に迷う衝突は自動解消せず停止して chat-main / ユーザーに報告。chat-main（main ブランチ）だけは `git pull --ff-only` のみで良い。
 
+## 着手前と PR 前に、ほかの作業とのファイルの重なりを調べる
+
+並列で出した PR の衝突は、同じファイルを動いている別の PR や別の worktree が触っていることから起きます。レーンが違っても、同じレーンの別ブランチでも同じです。重なりは、ファイルの重なりを調べるスクリプト `.claude/scripts/scope-overlap.mjs` で確かめます。このスクリプトは open PR の変更ファイル、他の worktree の未コミット変更、PR のないブランチの commit 済みの変更と突き合わせます。
+
+着手前は、Issue の Scope に書かれた glob を渡して `node .claude/scripts/scope-overlap.mjs --paths "<glob>,<glob>"` を打ちます。exit 1 のときは着手しません。先行する PR の merge を待つか、chat-main に outbox で知らせます。
+
+最初の push と PR の前は、引数なしで `node .claude/scripts/scope-overlap.mjs` を打ちます。結果の要約を PR 本文に 1 行書きます。BLOCK が残るなら、直列にする理由と順番を書きます。計画書がある作業は `--scope-plan <計画書>` を足し、Scope 外の変更を出しません。
+
+- **同じファイルを触る変更は、1 度に 1 本だけ動かします。** 同じレーンの兄弟ブランチも同じです。後ろのブランチは、前の PR の merge 後に origin/main から切ります。積み上げるときは、前の PR が squash された時点で差分だけを載せ直します。
+- **同じ計画書の Phase 同士は、触るファイルが交わるなら依存に入れて直列にします。** 互いに独立に見えても、同じ土台のファイルを書き換える Phase を並列に配ると、全部が同じ場所で衝突します。
+- **担当レーンが動いている間に、同じ section の `fix-<番号>` 臨時 worktree を並列に立てません。** 立てる前に scope-overlap で同じファイルがないかを確かめます。
+
+i18n の en / ja と barrel の index.ts のような追記型の共有ファイルは、別の場所への追記なら自動で合流するので BLOCK になりません。作り直す生成物（mcpToolCatalog.json など）は、手で合流させず merge 後に作り直します。どのファイルがどの分類に入るかと、どのレーンがどのパスを持つかは、担当表 [`lane-ownership.json`](../../scripts/lane-ownership.json) が唯一の元になる文書です。このスキルにはパスを写しません。
+
+検査が 3（未確認）で返ったときは、重なりなしとは読みません。gh の認証かネットワークを直して再実行します。
+
 ## tracker の更新は実装ブランチに載せない
 
 （2026-08-01 ユーザー確定 D-20260801-main-1）1 レーンが複数ブランチを並行させると、各ブランチが同じファイル（`memory/` + `history/`）の同じ位置へ別々の追記をするため**必ず衝突する**（2026-08-01 に schedule-refine の 4 本が全滅し、1 本 merge するたびに次が再衝突した。コードは全部 auto-merge できていた）。

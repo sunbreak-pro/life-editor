@@ -70,7 +70,8 @@ gh issue create -R sunbreak-pro/life-editor \
 body 必須要素:
 
 - **現象 / 動機**（1〜3 行・再現手順があれば併記）
-- **Scope**（触ってよいパス — one writer per artifact: 同一ファイルを 2 レーンに触らせない）
+- **Scope**（触ってよいパス。glob を 1 行 1 本、``` で囲んで書く。例 `web/src/wikitag/TagPicker.tsx`。one writer per artifact: 同じファイルを 2 本の変更に触らせない。起票前に `node .claude/scripts/scope-overlap.mjs --paths "<glob>,..."` を打ち、動いている PR・worktree と交わらないか確かめる。i18n の en/ja と barrel の index.ts は書かなくてよい。担当表 = [`lane-ownership.json`](../../scripts/lane-ownership.json)）
+- **依存する作業**: 同じ計画書の兄弟 Issue は、Scope が交わるなら前の Issue を入れて直列にする（offline-cache の P2b と P2c のように、互いに独立に見えても同じ土台ファイルを書き換える Issue を並列に配らないため）
 - **DoD**（機械検証可能: `cd shared && npm run build` exit 0 / vitest 緑 / 実測値 等）
 - **参照**（レポート・計画書・コード file:line）
 - **Gate**: DDL push / シークレット投入 / PR merge / 本番デプロイ等の 🛑 人手工程が

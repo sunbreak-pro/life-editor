@@ -1,0 +1,208 @@
+{
+  "_doc": "Single source of which worktree lane owns which paths; read by scope-overlap.mjs, and skills or rules link to this file instead of copying its globs.",
+  "lanes": {
+    "briefing-refine": {
+      "label": "section:briefing",
+      "paths": [
+        "shared/src/components/briefing/**",
+        "web/src/briefing/**",
+        "web/tests/briefing*",
+        "shared/tests/briefing*",
+        "shared/tests/evening*",
+        "shared/tests/morning*"
+      ]
+    },
+    "schedule-refine": {
+      "label": "section:schedule",
+      "paths": [
+        "shared/src/components/schedule/**",
+        "shared/src/components/itemActions/**",
+        "shared/src/components/TodoDetailPanel.tsx",
+        "shared/src/components/TodoAddDialog.tsx",
+        "shared/src/hooks/schedule*",
+        "shared/src/hooks/useSchedule*",
+        "shared/src/hooks/useRoutine*",
+        "shared/src/context/ScheduleItems*",
+        "shared/src/context/Routine*",
+        "web/src/schedule/**",
+        "web/src/ScheduleReminderBridge.tsx",
+        "web/tests/schedule*",
+        "web/tests/useSchedule*",
+        "shared/tests/schedule*",
+        "shared/tests/routine*",
+        "shared/tests/itemCreatePanel*",
+        "shared/tests/itemActionPopover*",
+        "shared/tests/todoDetailPanel*"
+      ],
+      "note": "Item detail surfaces shared with connect (TodoDetailPanel, itemActions) are owned here; connect asks through an Issue."
+    },
+    "materials-refine": {
+      "label": "section:materials",
+      "paths": [
+        "shared/src/components/materials/**",
+        "shared/src/components/notes/**",
+        "shared/src/hooks/useNotesUnified*",
+        "shared/src/hooks/useDailiesUnified*",
+        "shared/src/context/NotesUnified*",
+        "shared/src/context/DailiesUnified*",
+        "shared/src/state/materialsSelectionStore.ts",
+        "shared/src/state/noteBodyStore.ts",
+        "shared/src/state/recentNotesStore.ts",
+        "web/src/notes/**",
+        "web/src/daily/**",
+        "web/tests/note*",
+        "web/tests/daily*",
+        "web/tests/materials*",
+        "shared/tests/note*",
+        "shared/tests/daily*",
+        "shared/tests/dailies*",
+        "shared/tests/materials*"
+      ]
+    },
+    "connect-refine": {
+      "label": "section:connect",
+      "paths": [
+        "shared/src/components/goalTree/**",
+        "shared/src/components/TagHub/**",
+        "shared/src/state/connectSelectionStore.ts",
+        "web/src/connect/**",
+        "web/tests/connect*",
+        "web/tests/goalTree*",
+        "shared/tests/goalTree*",
+        "shared/tests/tagHub*",
+        "shared/tests/tagRail*"
+      ],
+      "exclude": ["shared/src/components/TagHub/TagIconPicker.tsx"]
+    },
+    "tags": {
+      "label": "section:tags",
+      "holder": "connect-refine",
+      "paths": [
+        "web/src/wikitag/**",
+        "shared/src/components/TagPill.tsx",
+        "shared/src/components/TagHeadingIcon.tsx",
+        "shared/src/components/TagHub/TagIconPicker.tsx",
+        "shared/src/components/items/ItemLinkPreviewCard.tsx",
+        "web/tests/tagPicker*",
+        "web/tests/linkPanel*",
+        "web/tests/linkChip*",
+        "shared/tests/tagIconPicker*"
+      ],
+      "note": "No worktree of its own; the holder lane takes these files (provisional, see the scope-guard report)."
+    },
+    "analytics-refine": {
+      "label": "section:analytics",
+      "paths": [
+        "shared/src/components/Analytics/**",
+        "shared/src/components/Apps/**",
+        "web/src/analytics/**",
+        "web/src/apps/**",
+        "web/tests/analytics*",
+        "web/tests/apps*",
+        "shared/tests/analytics*",
+        "shared/tests/apps*",
+        "shared/tests/appRecord*"
+      ]
+    },
+    "work-refine": {
+      "label": "section:work",
+      "paths": [
+        "shared/src/components/Pomodoro*",
+        "shared/src/components/SessionCompletionModal.tsx",
+        "shared/src/components/SessionDots.tsx",
+        "shared/src/components/AudioMixer.tsx",
+        "shared/src/components/NavTimerStatus.tsx",
+        "shared/src/components/WorkHistoryList.tsx",
+        "shared/src/components/WorkLoadFailed.tsx",
+        "shared/src/components/WorkTagSelector.tsx",
+        "shared/src/context/Timer*",
+        "shared/src/context/timerReducer.ts",
+        "shared/src/context/Audio*",
+        "web/src/work/**",
+        "web/src/TimerHost.tsx",
+        "web/tests/work*",
+        "web/tests/timerHost*",
+        "shared/tests/pomodoro*",
+        "shared/tests/timer*",
+        "shared/tests/work*",
+        "shared/tests/audioMixer*",
+        "shared/tests/sessionCompletion*",
+        "shared/tests/navTimer*"
+      ]
+    },
+    "settings": {
+      "label": "section:settings",
+      "paths": [
+        "shared/src/components/Settings*.tsx",
+        "web/src/settings/**",
+        "web/src/legal/**",
+        "web/src/AuthScreen.tsx",
+        "web/tests/settings*",
+        "web/tests/authScreen*",
+        "shared/tests/settings*"
+      ],
+      "note": "No standing worktree; whichever lane takes a section:settings issue edits these."
+    },
+    "mcp-tools": {
+      "label": "shared-fix",
+      "paths": ["mcp-server/**", "shared/src/generated/**"]
+    },
+    "refactor-core": {
+      "label": "shared-fix",
+      "paths": [
+        "shared/src/services/**",
+        "shared/src/state/outbox.ts",
+        "shared/src/state/persistentCache.ts",
+        "shared/src/state/domainSnapshotStore.ts",
+        "shared/src/state/connectivity.ts",
+        "shared/src/context/Sync*",
+        "shared/src/context/sync*",
+        "shared/src/hooks/useDomainLoad.ts",
+        "shared/src/hooks/useSync*",
+        "web/src/AppProviders.tsx",
+        "web/src/components/OfflineBanner.tsx",
+        "supabase/migrations/**",
+        "web/tests/offlineBanner*",
+        "web/tests/appProvidersOrder*",
+        "shared/tests/offline*",
+        "shared/tests/outbox*",
+        "shared/tests/sync*",
+        "shared/tests/domainLoad*",
+        "shared/tests/persistentCache*",
+        "shared/tests/dataServiceRouting*"
+      ],
+      "note": "Migrations follow the db-migration skill; other lanes may add one but must run the duplicate-number check first."
+    }
+  },
+  "hubs": [
+    {
+      "kind": "append",
+      "paths": [
+        "shared/src/i18n/locales/*.json",
+        "shared/src/index.ts",
+        "shared/src/components/index.ts",
+        "shared/src/components/*/index.ts"
+      ],
+      "how": "別の場所への追記なら自動で合流する。同じ名前空間を書き換えたときだけ衝突する。"
+    },
+    {
+      "kind": "generated",
+      "paths": [
+        "shared/src/generated/mcpToolCatalog.json",
+        "mcp-server/spec/extension-gateway.json",
+        "mcp-server/mocks/extension-gateway-fake.mjs"
+      ],
+      "how": "手で合流させず、merge 後に cd mcp-server && npm run catalog（窓口の仕様は npm run gateway-spec）で作り直す。"
+    },
+    {
+      "kind": "owner-only",
+      "owner": "chat-main",
+      "paths": [".claude/comm/decisions/ANSWERS.md"],
+      "how": "書き手は chat-main かこうだいさんだけ。"
+    }
+  ],
+  "serialRules": {
+    "migrationDir": "supabase/migrations",
+    "migrationPattern": "^(\\d{4})_"
+  }
+}
