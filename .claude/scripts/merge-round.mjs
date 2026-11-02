@@ -12,6 +12,9 @@
 //   node .claude/scripts/merge-round.mjs fixes                      衝突・CI 赤の PR をレーンごとの /goal にする
 //   node .claude/scripts/merge-round.mjs finish                     回を閉じ、merge した commit を記録する
 //   node .claude/scripts/merge-round.mjs status                     進行中の回を表示する
+//   node .claude/scripts/merge-round.mjs autofix-start <n>          文書・lockfile・翻訳だけの衝突を一時 worktree に出す
+//   node .claude/scripts/merge-round.mjs autofix-push <n>           解いた結果を確かめて PR のブランチへ push する
+//   node .claude/scripts/merge-round.mjs autofix-abort <n>          一時 worktree を片付ける
 //
 // 状態は git の共通ディレクトリ（.git/merge-round/）に置く。commit されず、worktree からも同じ場所を指す。
 import { execFileSync } from "node:child_process";
@@ -26,6 +29,7 @@ const LOCKFILE = /(^|\/)(package-lock\.json|yarn\.lock|pnpm-lock\.yaml|Cargo\.lo
 const LOCALE = /\/i18n\/locales\/[^/]+\.json$/;
 const TEST = /(^|\/)tests?\//;
 const HOLD_LABEL = "merge:hold";
+const AUTOFIX_PREFIX = "autofix-";
 const PLAN_TTL_MS = 30 * 60 * 1000;
 
 // ---------- 小道具 ----------
@@ -43,7 +47,11 @@ function tryRun(cmd, args) {
     return { code: e.status ?? 1, out: String(e.stdout ?? "").trim() };
   }
 }
-const ghJson = (...args) => JSON.parse(run("gh", args) || "null");
+// 試験では MERGE_ROUND_FAKE_GH に node スクリプトを指定し、gh の代わりに走らせる
+const ghJson = (...args) =>
+  JSON.parse(
+    (process.env.MERGE_ROUND_FAKE_GH ? run(process.execPath, [process.env.MERGE_ROUND_FAKE_GH, ...args]) : run("gh", args)) || "null",
+  );
 const git = (...args) => run("git", args);
 const sleep = (ms) => Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 const die = (msg, code = 2) => {
@@ -140,13 +148,21 @@ function worktrees() {
     else if (line.startsWith("HEAD ")) cur.head = line.slice(5);
     else if (line.startsWith("branch ")) cur.branch = line.slice(7).replace(/^refs\/heads\//, "");
   }
-  const [main, ...lanes] = out;
+  const [main, ...rest] = out;
+  // chat-main が衝突を直すために作る一時 worktree（autofix-<n>）はレーンに数えない
+  const lanes = rest.filter((wt) => !basename(wt.path).startsWith(AUTOFIX_PREFIX));
   for (const wt of lanes) {
     wt.slug = basename(wt.path);
     wt.dirty = tryRun("git", ["-C", wt.path, "status", "--porcelain", "--untracked-files=no"]).out !== "";
   }
-  return { main, lanes };
+  return { main, lanes, all: out };
 }
+
+// ブランチがどこかの worktree で開かれているか（開いているなら、書き手はそのレーン）
+const checkedOut = (all, branch) => all.some((wt) => wt.branch === branch);
+
+// chat-main が直してよい衝突か: 文書・lockfile・翻訳ファイルだけ
+const mechanical = (files) => files.length > 0 && files.every((f) => /\.md$/i.test(f) || LOCKFILE.test(f) || LOCALE.test(f));
 
 function laneFor(pr, lanes, issues) {
   const onBranch = lanes.find((wt) => wt.branch === pr.headRefName);
@@ -415,10 +431,12 @@ function modelFor(entries) {
 
 function fixes() {
   git("fetch", "origin", "--prune", "--quiet");
-  const { lanes } = worktrees();
+  const { lanes, all } = worktrees();
   const prompted = readJson(PROMPTED, {});
+  const failed = readJson(join(STATE, "autofix-failed.json"), {});
   const groups = new Map();
   const unrouted = [];
+  const auto = [];
   for (const pr of openPrs()) {
     if (pr.isDraft || pr.baseRefName !== "main" || pr.labels.some((l) => l.name === HOLD_LABEL)) continue;
     const conflicts = conflictFiles(pr.headRefOid);
@@ -430,16 +448,24 @@ function fixes() {
     if (issues.some((i) => i?.labels?.some((l) => l.name === "status:frozen"))) continue;
     const lane = laneFor(pr, lanes, issues);
     const entry = { number: pr.number, branch: pr.headRefName, head: pr.headRefOid, conflicts, ci: c.state === "fail" ? c.failing : null };
-    if (!lane) unrouted.push(entry);
+    // 文書・lockfile・翻訳ファイルだけの衝突で、どのレーンもそのブランチを開いていなければ chat-main が直す
+    if (!entry.ci && mechanical(conflicts) && !checkedOut(all, pr.headRefName) && failed[pr.number] !== pr.headRefOid) auto.push(entry);
+    else if (!lane) unrouted.push(entry);
     else {
       if (!groups.has(lane.slug)) groups.set(lane.slug, { lane, entries: [] });
       groups.get(lane.slug).entries.push(entry);
     }
   }
-  if (!groups.size && !unrouted.length) {
+  if (!groups.size && !unrouted.length && !auto.length) {
     console.log("直してもらう PR は無い。");
     return;
   }
+  if (auto.length) {
+    console.log("## chat-main が直す（文書・lockfile・翻訳ファイルだけの衝突）\n");
+    for (const e of auto) console.log(`- #${e.number} ${e.branch}（${e.conflicts.join(", ")}）→ node .claude/scripts/merge-round.mjs autofix-start ${e.number}`);
+    console.log("");
+  }
+  if (!groups.size && !unrouted.length) return;
   console.log("## 直してもらう\n");
   const next = {};
   for (const [slug, { lane, entries }] of groups) {
@@ -478,6 +504,138 @@ function fixes() {
   writeJson(PROMPTED, { ...prompted, ...next });
 }
 
+// ---------- autofix: 機械的な衝突を chat-main が一時 worktree で直す ----------
+// 書き手が 2 人にならないよう、どのレーンも開いていないブランチだけを扱う。
+// 解くのはサブエージェント（Sonnet）。push は autofix-push が確かめてから fast-forward だけで行う。
+const AUTOFIX_DIR = join(STATE, "autofix");
+const AUTOFIX_FAILED = join(STATE, "autofix-failed.json");
+const autofixState = (n) => join(AUTOFIX_DIR, `${n}.json`);
+function autofixPath(n) {
+  // worktree-policy: <repos-parent>/workspaces/life-editor/<slug>（絶対パス）
+  const mainPath = worktrees().main.path;
+  return resolve(mainPath, "..", "workspaces", "life-editor", `${AUTOFIX_PREFIX}${n}`).replace(/\\/g, "/");
+}
+const MARKER = (file) => (/\.md$/i.test(file) ? /^(<{7}|>{7})( |$)/m : /^(<{7}|={7}|>{7})( |$)/m);
+
+function autofixStart(nArg) {
+  requireChatMain();
+  const n = Number(nArg);
+  if (!n) die("使い方: autofix-start <PR 番号>");
+  if (existsSync(autofixState(n))) die(`#${n} の autofix は始まっている。autofix-push か autofix-abort で閉じる。`);
+  git("fetch", "origin", "--prune", "--quiet");
+  const pr = ghJson("pr", "view", String(n), "-R", REPO, "--json", "state,isDraft,baseRefName,headRefName,headRefOid,labels");
+  if (pr.state !== "OPEN" || pr.isDraft || pr.baseRefName !== "main" || pr.labels.some((l) => l.name === HOLD_LABEL))
+    die(`#${n} は open の main 宛てで、下書きでも ${HOLD_LABEL} でもない PR に限る。`);
+  const { all } = worktrees();
+  if (checkedOut(all, pr.headRefName)) die(`${pr.headRefName} はレーンが開いている。レーンへの /goal に回す。`);
+  if (touchesMigration(pr.headRefOid)) die(`#${n} はマイグレーションを含むので直さない。`);
+  const conflicts = conflictFiles(pr.headRefOid);
+  if (!mechanical(conflicts)) die(`#${n} の衝突は文書・lockfile・翻訳ファイルだけではない（${conflicts.join(", ") || "衝突なし"}）。`);
+
+  const path = autofixPath(n);
+  if (existsSync(path)) die(`${path} が既にある。前の autofix の残りなら autofix-abort ${n} で片付ける。`);
+  const mainOid = git("rev-parse", "origin/main");
+  git("worktree", "add", "--detach", path, pr.headRefOid);
+  mkdirSync(join(path, ".claude", "comm"), { recursive: true });
+  writeFileSync(join(path, ".claude", "comm", ".session-branch"), `${pr.headRefName}\n`);
+  tryRun("git", ["-C", path, "merge", "--no-ff", "-m", `Merge origin/main into ${pr.headRefName} (merge-round autofix)`, mainOid]);
+  const unmerged = tryRun("git", ["-C", path, "diff", "--name-only", "--diff-filter=U"]).out.split(/\r?\n/).filter(Boolean);
+  mkdirSync(AUTOFIX_DIR, { recursive: true });
+  writeJson(autofixState(n), {
+    number: n, branch: pr.headRefName, head: pr.headRefOid, main: mainOid, path, conflicts: unmerged, startedAt: new Date().toISOString(),
+  });
+  if (!mechanical(unmerged)) {
+    console.log(`手元の merge で衝突したファイルが想定と違う（${unmerged.join(", ") || "衝突なし"}）。autofix-abort ${n} で片付けて、レーンへの /goal に回す。`);
+    process.exit(4);
+  }
+  console.log(`#${n} の一時 worktree を作り、main を merge した。衝突: ${unmerged.join(", ")}`);
+  console.log(`\n--- サブエージェント（model: sonnet）への指示 ---\n${autofixPrompt(n, pr.headRefName, path, unmerged)}\n---`);
+}
+
+function autofixPrompt(n, branch, path, files) {
+  return [
+    `life-editor の PR #${n}（ブランチ ${branch}）に main を merge した途中の衝突を解いてください。`,
+    `作業場所は ${path} です（git worktree、detached HEAD、merge の途中）。このフォルダの外のファイルには触りません。git は必ず \`git -C ${path} ...\` の形で打ちます。`,
+    `衝突しているファイル: ${files.join(", ")}`,
+    "",
+    "解き方は ~/.claude/skills/git-conflict-resolver/SKILL.md の §2（docs）と §3（lockfile）に従います。",
+    "- Markdown: 両側が足しただけなら両方を残し、日付や番号の順に並べます。同じ行を両側が書き換えていたら main 側の事実を残し、PR 側が新しい事実を足していればそれを加えます。",
+    "- lockfile: 手で直さず、main 側を取ってから、その lockfile があるフォルダで `npm install --package-lock-only` を打って作り直します。",
+    "- 翻訳ファイル（i18n/locales/*.json）: 両側が足したキーを両方残します。同じキーを両側が違う値に変えていたら、直さずに止めます。",
+    "- 衝突しているファイル以外は編集しません。",
+    "",
+    "終わったら次を順に打ちます。",
+    `1. \`git -C ${path} add <解いたファイル>\``,
+    `2. \`git -C ${path} grep -n -E "^(<<<<<<<|>>>>>>>)( |$)" -- <解いたファイル>\` が何も出さないことを確かめる`,
+    `3. JSON は \`node -e "JSON.parse(require('fs').readFileSync(process.argv[1],'utf8'))" <ファイル>\` で読めることを確かめる`,
+    `4. \`git -C ${path} -c core.editor=true merge --continue\``,
+    "",
+    "push・PR の merge・worktree の削除・merge --abort はしません。chat-main が確かめてから行います。",
+    "どちらが新しいか読み取れない衝突があれば、そのファイルを解かずに止め、ファイル名と理由を報告します。",
+    "報告は 5 行以内で、解いたファイルごとに、どちらを残したかを 1 行で書きます。",
+  ].join("\n");
+}
+
+function autofixPush(nArg) {
+  requireChatMain();
+  const n = Number(nArg);
+  const s = readJson(autofixState(n));
+  if (!s) die(`#${n} の autofix は始まっていない。`);
+  const g = (...args) => tryRun("git", ["-C", s.path, ...args]);
+  if (g("rev-parse", "-q", "--verify", "MERGE_HEAD").code === 0) die("merge がまだ終わっていない（merge --continue の前）。");
+  if (g("status", "--porcelain", "--untracked-files=no").out) die("一時 worktree に commit していない変更が残っている。");
+  const parents = g("rev-list", "--parents", "-n", "1", "HEAD").out.split(" ").slice(1);
+  if (parents[0] !== s.head || parents[1] !== s.main) die("HEAD が「PR の先頭に main を merge した commit」になっていない。");
+
+  // 自動 merge の結果と比べ、変わってよいのは衝突したファイルだけ
+  const auto = tryRun("git", ["merge-tree", "--write-tree", "--no-messages", s.main, s.head]).out.split(/\r?\n/)[0];
+  const changed = g("diff", "--name-only", auto, "HEAD").out.split(/\r?\n/).filter(Boolean);
+  const outside = changed.filter((f) => !s.conflicts.includes(f));
+  if (outside.length) die(`衝突していないファイルまで変わっている: ${outside.join(", ")}`);
+  for (const f of s.conflicts) {
+    const body = g("show", `HEAD:${f}`);
+    if (body.code !== 0) continue; // 片側で消えたファイル
+    if (MARKER(f).test(body.out)) die(`${f} に衝突の印が残っている。`);
+    if (f.endsWith(".json")) {
+      try {
+        JSON.parse(body.out);
+      } catch {
+        die(`${f} が JSON として読めない。`);
+      }
+    }
+  }
+
+  const remote = tryRun("git", ["ls-remote", "origin", `refs/heads/${s.branch}`]).out.split(/\s/)[0];
+  if (remote !== s.head) die(`${s.branch} は autofix の間に push された。上書きしないので autofix-abort ${n} で片付ける。`);
+  if (checkedOut(worktrees().all.filter((wt) => wt.path !== s.path), s.branch)) die(`${s.branch} をレーンが開いた。autofix-abort ${n} で片付ける。`);
+
+  const push = g("push", "origin", `HEAD:refs/heads/${s.branch}`);
+  if (push.code !== 0) die(`push に失敗した（fast-forward でない可能性）。autofix-abort ${n} で片付ける。`);
+  console.log(`#${n} を直して push した（${s.branch} → ${g("rev-parse", "--short", "HEAD").out}）。CI が通れば次の回で merge できる。`);
+  cleanupAutofix(n, s);
+}
+
+function autofixAbort(nArg) {
+  requireChatMain();
+  const n = Number(nArg);
+  const s = readJson(autofixState(n)) ?? { path: autofixPath(n) };
+  if (existsSync(s.path)) tryRun("git", ["-C", s.path, "merge", "--abort"]);
+  // 同じ先頭のあいだは、fixes がこの PR をレーンへの指示文に回す
+  if (s.head) writeJson(AUTOFIX_FAILED, { ...readJson(AUTOFIX_FAILED, {}), [n]: s.head });
+  cleanupAutofix(n, s);
+  console.log(`#${n} の autofix を片付けた。レーンへの /goal に回す。`);
+}
+
+function cleanupAutofix(n, s) {
+  if (existsSync(s.path)) {
+    // 消すのは autofix が作った一時 worktree だけ。中身は push 済みか、捨てると決めたもの
+    if (!basename(s.path).startsWith(AUTOFIX_PREFIX)) die(`${s.path} は autofix の一時 worktree ではないので消さない。`);
+    const r = tryRun("git", ["worktree", "remove", "--force", s.path]);
+    if (r.code !== 0) console.log(`一時 worktree を消せなかった: ${s.path}（worktree-policy の「Windows での worktree 削除」で手で消す）`);
+  }
+  if (existsSync(autofixState(n))) rmSync(autofixState(n));
+}
+
 // ---------- 入口 ----------
 const [cmd, ...rest] = process.argv.slice(2);
 const flag = (name) => {
@@ -491,6 +649,9 @@ switch (cmd) {
   case "fixes": fixes(); break;
   case "finish": finish(); break;
   case "status": status(); break;
+  case "autofix-start": autofixStart(rest[0]); break;
+  case "autofix-push": autofixPush(rest[0]); break;
+  case "autofix-abort": autofixAbort(rest[0]); break;
   default:
-    die("使い方: merge-round.mjs plan [--only 1,2] | start | check <n> | fixes | finish | status");
+    die("使い方: merge-round.mjs plan [--only 1,2] | start | check <n> | fixes | finish | status | autofix-start|autofix-push|autofix-abort <n>");
 }
