@@ -18,6 +18,8 @@ import {
   newTimerSessionInsert,
   closeTimerSessionPatch,
   timerSessionTargetPatch,
+  manualTimerSessionInsert,
+  manualTimerSessionPatch,
   pomodoroPresetToInsert,
   pomodoroPresetUpdatesToPatch,
   type TimerSettingsRow,
@@ -26,6 +28,11 @@ import {
 } from "./timerMapper";
 import { fetchAllPages } from "./postgrestFetchAll";
 import { requireSingleRow, fetchMaybeSingleRow } from "./postgrestSingle";
+import {
+  manualSessionStart,
+  planManualSession,
+  type EventWorkAnchor,
+} from "../utils/timerSessions";
 
 /*
  * SupabaseTimerService (W3-A). I/O layer over the independent timer tables
@@ -303,6 +310,67 @@ export class SupabaseTimerService implements TimerDataService {
     return rows.map(rowToTimerSession);
   }
 
+  /**
+   * Make an Event's logged time add up to `totalMinutes` (#2407), by writing
+   * its one hand-entered row. Null empties the field, which takes that row away.
+   *
+   * It reads the log itself rather than trusting the numbers the panel opened
+   * with: a timer on another device may have closed a row since, and the floor
+   * and the row's seconds both depend on that.
+   */
+  async saveEventWorkTotal(input: {
+    eventId: string;
+    anchor: EventWorkAnchor;
+    totalMinutes: number | null;
+  }): Promise<void> {
+    const { eventId, anchor, totalMinutes } = input;
+    if (
+      totalMinutes !== null &&
+      (!Number.isInteger(totalMinutes) || totalMinutes < 0)
+    ) {
+      throw new Error(
+        `saveEventWorkTotal: ${totalMinutes} is not a whole number of minutes`,
+      );
+    }
+    const sessions = await this.fetchSessionsByEventId(eventId);
+    const plan = planManualSession(sessions, eventId, totalMinutes);
+    if (plan.kind === "refused") {
+      throw new Error(
+        `saveEventWorkTotal: ${totalMinutes} min is below the ${plan.timerMinutes} min the timer measured`,
+      );
+    }
+    if (plan.seconds > 0) {
+      const startedAt = manualSessionStart(anchor);
+      const { error } =
+        plan.keepId === null
+          ? await this.client
+              .from("timer_sessions")
+              .insert(
+                manualTimerSessionInsert(eventId, startedAt, plan.seconds),
+              )
+          : await this.client
+              .from("timer_sessions")
+              .update(
+                manualTimerSessionPatch(
+                  startedAt,
+                  plan.seconds,
+                  new Date().toISOString(),
+                ),
+              )
+              .eq("id", plan.keepId);
+      if (error)
+        throw new Error(`saveEventWorkTotal write failed: ${error.message}`);
+    }
+    if (plan.deleteIds.length > 0) {
+      const { error } = await this.client
+        .from("timer_sessions")
+        .delete()
+        .in("id", plan.deleteIds);
+      if (error)
+        throw new Error(`saveEventWorkTotal delete failed: ${error.message}`);
+    }
+  }
+
   // -------------------------------------------------------------------------
   // Pomodoro presets
   // -------------------------------------------------------------------------
@@ -378,6 +446,7 @@ export const PHASE2_TIMER_METHOD_NAMES = [
   "fetchTimerSessions",
   "fetchSessionsByTodoId",
   "fetchSessionsByEventId",
+  "saveEventWorkTotal",
   "fetchPomodoroPresets",
   "createPomodoroPreset",
   "updatePomodoroPreset",
