@@ -5,6 +5,7 @@ import type {
   SessionType,
   WorkTarget,
 } from "../types/timer";
+import { MANUAL_SESSION_LABEL } from "../utils/timerSessions";
 
 /*
  * Pure Row <-> domain mappers for the W3-A independent timer tables
@@ -227,7 +228,49 @@ export function newTimerSessionInsert(
   };
 }
 
+/** INSERT for a hand-entered amount (#2407): closed from the moment it exists. */
+export interface ManualTimerSessionInsertRow extends TimerSessionInsertRow {
+  ended_at: string;
+  duration: number;
+  completed: true;
+  label: string;
+}
+
+/** `started_at` to `ended_at` is the amount itself, so `duration` always agrees. */
+function manualSessionSpan(startedAt: Date, seconds: number) {
+  return {
+    started_at: startedAt.toISOString(),
+    ended_at: new Date(startedAt.getTime() + seconds * 1000).toISOString(),
+    duration: seconds,
+  };
+}
+
+export function manualTimerSessionInsert(
+  eventId: string,
+  startedAt: Date,
+  seconds: number,
+): ManualTimerSessionInsertRow {
+  return {
+    session_type: "WORK",
+    task_id: null,
+    event_id: eventId,
+    ...manualSessionSpan(startedAt, seconds),
+    completed: true,
+    label: MANUAL_SESSION_LABEL,
+  };
+}
+
+/** DB-Q2: `updated_at` ALWAYS set. `now` injected (pure). */
+export function manualTimerSessionPatch(
+  startedAt: Date,
+  seconds: number,
+  now: string,
+): TimerSessionUpdatePatch {
+  return { ...manualSessionSpan(startedAt, seconds), updated_at: now };
+}
+
 export type TimerSessionUpdatePatch = Partial<{
+  started_at: string;
   ended_at: string | null;
   duration: number | null;
   completed: boolean;

@@ -380,7 +380,7 @@ function TagHubRailRow({
       // where there is a menu: anywhere else the native menu is left intact.
       onContextMenu={hasMenu && wide ? menu.openAtPointer : undefined}
       className={cn(
-        "group relative",
+        "relative",
         // The rule above the untagged bucket. Applied to the <li> rather than
         // drawn as a separate element so the list stays one row per tag for a
         // screen reader.
@@ -428,16 +428,17 @@ function TagHubRailRow({
           >
             {tag.name}
           </span>
+          {/* aria-hidden: the button's label above already says it. */}
           <span
             aria-hidden
-            className="shrink-0 rounded-full bg-lumen-bg-secondary px-2 py-0.5 text-xs font-medium tabular-nums text-lumen-text-secondary"
+            className="shrink-0 whitespace-nowrap rounded-full bg-lumen-bg-secondary px-2 py-0.5 text-xs font-medium tabular-nums text-lumen-text-secondary"
           >
-            {tag.count}
+            {countText}
           </span>
         </button>
 
-        {/* The slot is reserved whether or not the "…" is painted, so a row
-            does not reflow under the pointer as it is hovered. */}
+        {/* The slot is reserved on a row with no "…" too (the untagged
+            bucket), so its count lines up with the others. */}
         <div className={cn("relative flex shrink-0", wide ? "w-7" : "w-11")}>
           {hasMenu && (
             <>
@@ -452,17 +453,8 @@ function TagHubRailRow({
                   "flex w-full items-center justify-center rounded-lumen-sm text-lumen-text-secondary",
                   "transition-colors hover:text-lumen-text",
                   FOCUS_RING_TIGHT,
-                  wide
-                    ? // Desktop reveals it on hover (D2). `focus-visible` keeps
-                      // it reachable by keyboard, where there is no hover at
-                      // all, and an open menu holds it up while the pointer is
-                      // over the menu rather than the row.
-                      cn(
-                        "h-7 opacity-0 group-hover:opacity-100 focus-visible:opacity-100",
-                        menu.open && "opacity-100",
-                      )
-                    : // Narrow has no hover to reveal it with (M2).
-                      "h-11",
+                  // Always painted (#2409, which retired D2's reveal on hover).
+                  wide ? "h-7" : "h-11",
                 )}
               >
                 <MoreHorizontal size={16} aria-hidden />

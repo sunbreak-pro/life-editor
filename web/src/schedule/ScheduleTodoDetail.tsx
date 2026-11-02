@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   GoalPickerField,
   ItemNoteAttach,
@@ -23,6 +29,7 @@ import {
   type ConfirmRequest,
   type GoalLinkLoader,
   type GoalLinkSnapshot,
+  type GoalPickerChipLabels,
   type GoalPickerLabels,
   type LinkDraft,
   type TodoNode,
@@ -33,7 +40,8 @@ import { TagPicker } from "../wikitag/TagPicker";
 import { TagColorControls } from "../wikitag/TagColorControls";
 import { LazyRichTextEditor } from "../notes/LazyRichTextEditor";
 import { decideUnsavedClose } from "./unsavedCloseGuard";
-import { formatTodoSchedule } from "./scheduleCopy";
+import { useFormatDuration } from "./scheduleCopy";
+import { todoScheduleWrite } from "./todoChipUndoWiring";
 import { TodoBodyDraft } from "./TodoBodyDraft";
 import { OpenInScheduleButton } from "./OpenInScheduleButton";
 import { type useTodoLinking } from "./useTodoLinking";
@@ -106,11 +114,13 @@ function TodoGoalDraft({
   todo,
   goals,
   labels,
+  chips,
   children,
 }: {
   todo: TodoNode;
   goals: GoalLinkSnapshot;
   labels: GoalPickerLabels;
+  chips: GoalPickerChipLabels;
   children: (api: TodoGoalDraftApi) => ReactNode;
 }) {
   // What the user changed, re-applied to the latest saved links (LinkDraft):
@@ -186,6 +196,7 @@ function TodoGoalDraft({
         lostTitles={lostTitles}
         failed={failed}
         labels={labels}
+        chips={chips}
       />
     ) : undefined;
 
@@ -247,7 +258,8 @@ export function ScheduleTodoDetail({
   onOpenInSchedule,
   noteAttach,
 }: ScheduleTodoDetailProps) {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
+  const formatDuration = useFormatDuration();
   const noteAttachLabels = useNoteAttachLabels(noteAttach?.notesError);
   const todo =
     todoId != null ? (todoNodes.find((n) => n.id === todoId) ?? null) : null;
@@ -258,6 +270,17 @@ export function ScheduleTodoDetail({
     todos: todoNodes,
   });
   const goalLabels = useMemo(() => goalPickerLabels((k) => t(k)), [t]);
+  // The period by its kind (「週・…」), not 「今週」: a chip can be an old link
+  // from a week that has passed.
+  const goalChips = useMemo<GoalPickerChipLabels>(
+    () => ({
+      add: t("goalLink.attach"),
+      formatChip: (kind, title) =>
+        t("goalLink.chip", { kind: t(`connect.goals.kinds.${kind}`), title }),
+      formatRemove: (title) => t("goalLink.removeChip", { title }),
+    }),
+    [t],
+  );
 
   /*
    * The flag is NOT cleared on an agreed discard (unlike the event editor):
@@ -293,9 +316,11 @@ export function ScheduleTodoDetail({
           remember to clear anything. */}
       <TodoBodyDraft
         key={todo.id}
-        onSave={(id, patch, content) => {
+        onSave={(id, { schedule, ...fields }, content) => {
           const updates = {
-            ...patch,
+            ...fields,
+            // #2401: one press, one write, as the title and the body are.
+            ...(schedule !== undefined ? todoScheduleWrite(schedule) : {}),
             ...(content !== undefined ? { content } : {}),
           };
           // The panel's contract allows an empty patch, and writing one would
@@ -308,7 +333,12 @@ export function ScheduleTodoDetail({
         }}
       >
         {(draft) => (
-          <TodoGoalDraft todo={todo} goals={goals} labels={goalLabels}>
+          <TodoGoalDraft
+            todo={todo}
+            goals={goals}
+            labels={goalLabels}
+            chips={goalChips}
+          >
             {(goal) => (
               <TodoDetailPanel
                 // #1728: both widths now — the Desktop overlay grew the scroller
@@ -326,7 +356,7 @@ export function ScheduleTodoDetail({
                 // guard below covers typing in either half.
                 contentDirty={draft.dirty}
                 goalsDirty={goal.dirty}
-                goalsLabel={t("goalLink.field")}
+                goalsLabel={t("goalLink.connected")}
                 goalsSlot={goal.field}
                 onToggleStatus={(id) => {
                   goal.onStatusChange(todo.status !== "DONE");
@@ -364,23 +394,23 @@ export function ScheduleTodoDetail({
                 contentLabel={t("todoDetail.content")}
                 saveLabel={t("todoDetail.save")}
                 deleteLabel={t("todoDetail.todoDelete")}
-                // #877: which day the todo is set for. This sheet names the title,
-                // the status and the tags; without this it stayed silent about the
-                // one field that decides where the row appears, so a todo pulled up
-                // from a list could not answer "is this today's?". Read from the
-                // same helper the chips are built from (todoScheduleSlot), so the
-                // row and the chip cannot disagree.
-                // #1040: folded unless this todo actually has one.
-                scheduleSet={todoScheduleSlot(todo) != null}
-                scheduleLabel={t("todoDetail.schedule")}
-                scheduleText={formatTodoSchedule(
-                  i18n.language,
-                  todoScheduleSlot(todo),
-                  {
-                    allDay: t("scheduleScreen.allDay"),
-                    unscheduled: t("todoDetail.scheduleNone"),
-                  },
-                )}
+                // #2401: every exit asks first, Cancel included.
+                onCancel={() => {
+                  void requestClose(onClose);
+                }}
+                cancelLabel={t("common.cancel")}
+                // #877: which day the todo is set for, read from the same helper
+                // the chips are built from (todoScheduleSlot), so the row and the
+                // chip cannot disagree. #2401 made it editable.
+                schedule={todoScheduleSlot(todo)}
+                scheduleLabels={{
+                  caption: t("todoDetail.schedule"),
+                  date: t("scheduleScreen.date"),
+                  allDay: t("scheduleScreen.allDay"),
+                  start: t("scheduleScreen.startTime"),
+                  end: t("scheduleScreen.endTime"),
+                }}
+                formatDuration={formatDuration}
                 // #736: the panel reports its pending state here; the exits below
                 // read the flag before they tear the panel down. A ref rather than
                 // state — nothing on screen depends on it, and re-rendering on
@@ -390,7 +420,14 @@ export function ScheduleTodoDetail({
                 }}
                 // #1044: the kind is named ONCE, by the glyph in the frame's
                 // header, so the tag row goes back to captioning itself 「タグ」.
-                tagsSlot={<TagPicker itemId={todo.id} showLabel size="sm" />}
+                tagsSlot={
+                  <TagPicker
+                    itemId={todo.id}
+                    showLabel
+                    size="sm"
+                    addLabel={t("todoDetail.addTag")}
+                  />
+                }
                 // #2219: the same two rows the event editor has — a note
                 // attached from here, and which tag colours the todo.
                 tagsTrailing={
@@ -438,7 +475,7 @@ export function ScheduleTodoDetail({
         onClick={() => {
           void requestClose(() => onConvertToEvent(todo.id));
         }}
-        className="self-start rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        className="self-start rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11"
       >
         {t("itemConvert.toEvent")}
       </button>

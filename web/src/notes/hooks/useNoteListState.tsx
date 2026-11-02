@@ -7,12 +7,14 @@ import {
   tagGroupKey as groupKey,
   filterTagGroups,
   filterNotesBySearch,
+  isNoteKeptOffline,
   sortNotesForList,
   buildDefaultNoteList,
   DEFAULT_NOTE_LIST_LIMIT,
   useFrozenNoteSortKey,
   TagHeadingIcon,
 } from "@life-editor/shared";
+import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 
 /*
  * List half of the Notes host (extracted from NotesView.tsx — hooks split,
@@ -82,6 +84,18 @@ export function useNoteListState() {
   }, []);
 
   /*
+   * #2334: offline the list holds what can actually be opened: pinned notes,
+   * whose bodies are stored on the device, and notes created offline (#2337).
+   * Everything downstream reads this, so every list and count agrees. The
+   * Provider keeps the whole list, and a reconnect brings the rest back.
+   */
+  const offline = !useOnlineStatus();
+  const listNotes = useMemo(
+    () => (offline ? notes.notes.filter(isNoteKeptOffline) : notes.notes),
+    [offline, notes.notes],
+  );
+
+  /*
    * The search filter, applied before grouping so a query narrows every tag
    * heading at once.
    *
@@ -95,8 +109,8 @@ export function useNoteListState() {
    */
   const searchedNotes = useMemo(
     () =>
-      filterNotesBySearch(notes.notes, notes.searchQuery, notes.bodyMatchIds),
-    [notes.notes, notes.searchQuery, notes.bodyMatchIds],
+      filterNotesBySearch(listNotes, notes.searchQuery, notes.bodyMatchIds),
+    [listNotes, notes.searchQuery, notes.bodyMatchIds],
   );
 
   // Flat assignment pool for the notes in view. getTagsForItem reads the
@@ -126,7 +140,7 @@ export function useNoteListState() {
    * between "No notes yet" (+ its create button) and the nothing-matched copy,
    * and no query should be able to make the app claim the vault is empty.
    */
-  const hasNotes = notes.notes.some((n) => !n.isDeleted);
+  const hasNotes = listNotes.some((n) => !n.isDeleted);
 
   /*
    * #1470 — the query is on and NOTHING came back. Worth its own name because
@@ -235,12 +249,12 @@ export function useNoteListState() {
   const vaultGroups = useMemo(() => {
     if (!searchEmpty) return [];
     return buildTagGroups({
-      notes: notes.notes,
+      notes: listNotes,
       tags: allTags,
-      assignments: notes.notes.flatMap((n) => getTagsForItem(n.id)),
+      assignments: listNotes.flatMap((n) => getTagsForItem(n.id)),
       untaggedLabel: t("materials.notes.untagged"),
     });
-  }, [searchEmpty, notes.notes, allTags, getTagsForItem, t]);
+  }, [searchEmpty, listNotes, allTags, getTagsForItem, t]);
 
   const optionGroups = searchEmpty ? vaultGroups : sortedGroups;
 
@@ -356,6 +370,8 @@ export function useNoteListState() {
     showTagFilter,
     handleSearchChange,
     hasNotes,
+    listNotes,
+    offline,
     searchActive,
     searchEmpty,
     /*

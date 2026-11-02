@@ -27,6 +27,7 @@ import { CalendarDesktopLayout } from "./CalendarDesktopLayout";
 import { CalendarNarrowLayout } from "./CalendarNarrowLayout";
 import { ScheduleOverlayHost } from "./ScheduleOverlayHost";
 import { useCreatePanelNotes } from "./useCreatePanelNotes";
+import { useCreatePanelMemoNote } from "./useCreatePanelMemoNote";
 import { useCreatePanelTags } from "./useCreatePanelTags";
 import { useCalendarNav } from "./useCalendarNav";
 import { useTagFilterPanel } from "./useTagFilterPanel";
@@ -43,6 +44,7 @@ import { useScheduleTodoChips } from "./useScheduleTodoChips";
 import { useTodoFilterTags, useTodoTabFilter } from "./useTodoTabFilter";
 import { useScheduleRepeats } from "./useScheduleRepeats";
 import { useScheduleGridFilters } from "./useScheduleGridFilters";
+import { useExistingEventPool } from "./useExistingEventPool";
 import { useScheduleCreateFlow } from "./useScheduleCreateFlow";
 import { useScheduleSelection } from "./useScheduleSelection";
 import { useScheduleDayLabels } from "./useScheduleDayLabels";
@@ -329,9 +331,14 @@ export function CalendarTab({
     handleCreateError,
   } = useScheduleWriteErrors(showToast);
   // #2005: the tags a duplicate can carry, on the create's one undo entry.
-  const { tagCountOf, tagsOf, copyTagsFrom } = useDuplicateTagCopy(
-    handleDuplicateTagsError,
-  );
+  const { tagCountOf, tagsOf, liveTagIdsOf, copyTagsFrom } =
+    useDuplicateTagCopy(handleDuplicateTagsError);
+  // #2406: what the create panel's event 「既存から選ぶ」 lists.
+  const { eventPool, findEvent } = useExistingEventPool({
+    dataService,
+    panelOpen: !!createPanel,
+    tagIdsOf: liveTagIdsOf,
+  });
 
   // #2219: the edit panels' 「ノートを添付」 reads the same note list, but
   // only while its picker is open — the create panel's rule, extended.
@@ -341,6 +348,7 @@ export function CalendarTab({
     notesError,
     attachNote,
     attachNoteAlongside,
+    attachMemoNote,
   } = useCreatePanelNotes({
     dataService,
     active: !!createPanel || notePickerOpen,
@@ -348,6 +356,16 @@ export function CalendarTab({
     // #1638 (A-08): the note + link the panel attaches is its own history
     // entry, so the item's create undo stops leaving an orphan note behind.
     push: undoRedo?.push,
+  });
+  // #2402: 新規作成 in the creation panel. A note lands the same through
+  // whichever jump the shell handed this host.
+  const memoNote = useCreatePanelMemoNote({
+    dataService,
+    attachMemoNote,
+    refetchTodos,
+    push: undoRedo?.push,
+    onOpenNote: onNavigateToItem,
+    showToast,
   });
   // #2220: the create panel's tag field — staged there, written here once
   // the new row exists.
@@ -597,6 +615,7 @@ export function CalendarTab({
     handleDismiss,
     handleDelete,
     handleDuplicate,
+    handleDuplicateOnto,
     handleChangeRepeat,
     handleDetachRepeat,
     convertSavedToRepeat,
@@ -645,6 +664,16 @@ export function CalendarTab({
     handleUpdate,
   });
 
+  // #2406: the three halves of copying an existing event from the create panel.
+  const createCopyEvent = useMemo(
+    () => ({
+      find: findEvent,
+      write: handleDuplicateOnto,
+      copyTags: copyTagsFrom,
+    }),
+    [findEvent, handleDuplicateOnto, copyTagsFrom],
+  );
+
   // #889: the creation panel's four openers and five committers, as one hook.
   // It has to sit here rather than beside the other handlers — `handleCreate`
   // comes out of the call above, and its own outputs are only read from the
@@ -659,6 +688,9 @@ export function CalendarTab({
     handlePlaceTodoSubmit,
     handleCreateTodoSubmitAndOpen,
     handlePlaceTodoSubmitAndOpen,
+    handleCopyEventSubmit,
+    handleCopyEventSubmitAndOpen,
+    handleCreateMemoNote,
   } = useScheduleCreateFlow({
     createPanel,
     setCreatePanel,
@@ -678,6 +710,8 @@ export function CalendarTab({
     // #2406: the todo tab's "and open" lands in the in-Schedule todo detail.
     openTodoDetail: setTodoDetailId,
     convertToRepeat: convertSavedToRepeat,
+    copyEvent: createCopyEvent,
+    memoNote,
   });
 
   // #355 → #1608: drop the bubble the moment anything else opens (the hook
@@ -1116,7 +1150,12 @@ export function CalendarTab({
         panel: createPanel,
         anchorDate,
         onClose: () => setCreatePanel(null),
-        pools: { todos: todoAddable, notes: noteOptions, tags: tagPool },
+        pools: {
+          todos: todoAddable,
+          notes: noteOptions,
+          tags: tagPool,
+          events: eventPool,
+        },
         handlers: {
           onSubmitEvent: handleCreateSubmit,
           onSubmitEventAndOpen: handleCreateSubmitAndOpen,
@@ -1124,6 +1163,9 @@ export function CalendarTab({
           onPlaceTodo: handlePlaceTodoSubmit,
           onCreateTodoAndOpen: handleCreateTodoSubmitAndOpen,
           onPlaceTodoAndOpen: handlePlaceTodoSubmitAndOpen,
+          onCopyEvent: handleCopyEventSubmit,
+          onCopyEventAndOpen: handleCopyEventSubmitAndOpen,
+          onCreateMemoNote: handleCreateMemoNote,
         },
         formatDuration,
         labels: createPanelLabels,

@@ -211,6 +211,71 @@ describe("Materials selection persistence (#282)", () => {
     m2.unmount();
   });
 
+  /*
+   * #2402: a jump to a note made a moment ago. The select arrives on mount and
+   * reads its body while the list read is in flight. When the list lands first
+   * it must not spend the restore on the remembered note: the older note's
+   * token used to throw the jump away, and the wrong note opened.
+   */
+  it("Notes: a select in flight outranks the remembered note when the list lands first", async () => {
+    setNotesSelection("note-old");
+    let resolveNew!: (n: NoteNode | null) => void;
+    const fresh = makeNote("note-new", "");
+    const { ds, getNoteUnified } = makeNotesDS(
+      [makeNote("note-old", "old body"), fresh],
+      (id) =>
+        id === "note-new"
+          ? new Promise((r) => {
+              resolveNew = r;
+            })
+          : Promise.resolve(makeNote(id, "old body")),
+    );
+    const { result } = renderHook(
+      () => useNotesUnifiedAPI({ dataService: ds }),
+      { wrapper: syncWrapper },
+    );
+    act(() => result.current.setSelectedNoteId("note-new"));
+    await waitFor(() =>
+      expect(result.current.notes.map((n) => n.id)).toContain("note-new"),
+    );
+
+    await act(async () => {
+      resolveNew(fresh);
+    });
+    await waitFor(() => expect(result.current.selectedNoteId).toBe("note-new"));
+    expect(result.current.selectedNote?.id).toBe("note-new");
+    expect(getNotesSelection()).toBe("note-new");
+    expect(getNoteUnified).not.toHaveBeenCalledWith("note-old");
+  });
+
+  /*
+   * #2402: the same jump after coming back to Notes. The replayed snapshot is
+   * older than the note, and the read that always follows it has the note.
+   */
+  it("Notes: opens a note the replayed snapshot does not hold yet", async () => {
+    const old = makeNote("note-old", "");
+    const rows = [old];
+    const fresh = makeNote("note-new", "");
+    const { ds } = makeNotesDS(rows, async (id) =>
+      id === "note-new" ? fresh : old,
+    );
+    const m1 = renderHook(() => useNotesUnifiedAPI({ dataService: ds }), {
+      wrapper: syncWrapper,
+    });
+    await waitFor(() => expect(m1.result.current.notes).toHaveLength(1));
+    m1.unmount();
+
+    rows.push(fresh);
+    const m2 = renderHook(() => useNotesUnifiedAPI({ dataService: ds }), {
+      wrapper: syncWrapper,
+    });
+    act(() => m2.result.current.setSelectedNoteId("note-new"));
+    await waitFor(() =>
+      expect(m2.result.current.selectedNote?.id).toBe("note-new"),
+    );
+    m2.unmount();
+  });
+
   it("Notes: a stored id absent from the loaded list stays unselected and clears the store", async () => {
     setNotesSelection("ghost-note"); // a prior-session id that no longer exists
     const full = makeNote("note-1", "body");

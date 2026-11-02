@@ -13,7 +13,9 @@ import {
   RightSidebarProvider,
   useRightSidebarContext,
   WikiTagsUnifiedProvider,
+  getConnectTagSelection,
   resetConnectSelection,
+  setConnectTagSelection,
   type DataService,
 } from "@life-editor/shared";
 import { ConnectScreen } from "../src/connect/ConnectScreen";
@@ -296,11 +298,10 @@ describe("ConnectScreen", () => {
     expect(panel().queryByRole("heading")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Work: 4 items" }));
+    // #2409 — the name moved into the breakdown's heading.
+    expect(panel().queryByRole("heading", { level: 2 })).toBeNull();
     expect(
-      panel().getByRole("heading", { level: 2, name: "Work" }),
-    ).toBeTruthy();
-    expect(
-      within(panel().getByRole("region", { name: "By kind" }))
+      within(panel().getByRole("region", { name: "Breakdown by kind (Work)" }))
         .getAllByRole("listitem")
         .map((li) => li.textContent),
     ).toEqual(["Todo1 item", "Event1 item", "Note1 item", "Daily1 item"]);
@@ -924,7 +925,7 @@ describe("ConnectScreen — the relations panel", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Standup/ }));
     fireEvent.click(panel().getByRole("button", { name: "Back to this tag" }));
 
-    panel().getByRole("region", { name: "By kind" });
+    panel().getByRole("region", { name: "Breakdown by kind (Work)" });
   });
 });
 
@@ -1169,6 +1170,88 @@ describe("ConnectScreen — what writes nothing", () => {
     for (const method of WRITE_METHODS) {
       expect(writes[method]).not.toHaveBeenCalled();
     }
+  });
+});
+
+/*
+ * "Open this tag" from outside (#2395: the note header's panel, through the
+ * shell's openTagInConnect). The shell writes the store and raises the intent
+ * together, so these cases do the same before handing the intent over.
+ */
+describe("ConnectScreen — a tag asked for from outside (#2395)", () => {
+  function renderAsked(ds: DataService, pending: string | null) {
+    const onConsume = vi.fn();
+    const { wrapper: SyncWrapper } = createBumpableSync();
+    const tree = (pendingTag: string | null) => (
+      <SyncWrapper>
+        <WikiTagsUnifiedProvider dataService={ds}>
+          <ConnectScreen
+            dataService={ds}
+            onNavigateToItem={vi.fn()}
+            pendingSelectTagId={pendingTag}
+            onConsumePendingTag={onConsume}
+          />
+        </WikiTagsUnifiedProvider>
+      </SyncWrapper>
+    );
+    const { rerender } = render(tree(pending));
+    return {
+      onConsume,
+      // What the shell does: raise it, then clear it once consumed.
+      ask: (tagId: string) => {
+        setConnectTagSelection(tagId);
+        rerender(tree(tagId));
+        rerender(tree(null));
+      },
+    };
+  }
+
+  const railReady = () =>
+    waitFor(() => screen.getByRole("list", { name: "Tags" }));
+
+  it("opens on it when the section switch mounts the screen fresh", async () => {
+    setConnectTagSelection("t-work");
+    const { onConsume } = renderAsked(makeDS(), "t-work");
+    await railReady();
+
+    screen.getByRole("heading", { level: 2, name: "Work" });
+    expect(onConsume).toHaveBeenCalled();
+  });
+
+  it("moves to it on a screen that is already up", async () => {
+    const { onConsume, ask } = renderAsked(makeDS(), null);
+    await railReady();
+    expect(screen.queryByRole("heading", { level: 2, name: "Work" })).toBeNull();
+
+    ask("t-work");
+
+    screen.getByRole("heading", { level: 2, name: "Work" });
+    expect(onConsume).toHaveBeenCalled();
+    expect(getConnectTagSelection()).toBe("t-work");
+  });
+
+  it("asks before a pending draft goes, and leaves everything if refused", async () => {
+    const { ds } = makeWritableDS();
+    const { ask } = renderAsked(ds, null);
+    await railReady();
+    openTag("Work: 4 items");
+    openEditor();
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Work log" },
+    });
+
+    ask("t-idle");
+
+    // Asked, not moved, and the store the shell wrote ahead is back in step.
+    screen.getByRole("heading", { level: 2, name: "Work" });
+    expect(getConnectTagSelection()).toBe("t-work");
+    fireEvent.click(
+      within(await screen.findByRole("dialog")).getByRole("button", {
+        name: "Discard",
+      }),
+    );
+    screen.getByRole("heading", { level: 2, name: "Idle" });
+    expect(getConnectTagSelection()).toBe("t-idle");
   });
 });
 

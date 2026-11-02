@@ -34,7 +34,7 @@ import {
   clearNotesSelection,
 } from "../state/materialsSelectionStore";
 import { recordNoteOpened } from "../state/recentNotesStore";
-import { rememberNoteBody } from "../state/noteBodyStore";
+import { rememberNoteBody, syncPinnedNoteBodies } from "../state/noteBodyStore";
 
 /**
  * DU-G G4: behaviour-preserving port of the former legacy Notes hook, with the
@@ -279,6 +279,11 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       restoredRef.current = true;
       if (storedId === null) return;
       if (selectedNoteIdRef.current !== null) return; // user already selected
+      // #2402: a select that came first and is still reading its body outranks
+      // the remembered note too. Only `selectNote` has moved the token by here.
+      // A link's jump to a brand-new note races this very read, and taking a
+      // token below would throw that select away and open the older note.
+      if (selectTokenRef.current > 0) return;
       if (!node) {
         clearNotesSelection(); // stale id — item gone since last session tab
         return;
@@ -351,6 +356,10 @@ export function useNotesUnifiedAPI(options: UseNotesUnifiedAPIOptions) {
       // fetch may hydrate; the replay may only take a body the merge above
       // already had (#1407 — see restoreSelection's header).
       restoreSelection(merged, fetchLandedRef.current);
+      // #2334: a real read says what is pinned now, so the bodies to keep on
+      // the device for offline follow it. The replay learns nothing new.
+      if (fetchLandedRef.current)
+        void syncPinnedNoteBodies(loaded, (id) => ds.getNoteUnified(id));
       // Keep the currently-open note's body correct after a sync-triggered
       // reload (the editor is keyed by note id so it won't remount; this just
       // refills `notes[id].content` so a later read of `selectedNote.content`

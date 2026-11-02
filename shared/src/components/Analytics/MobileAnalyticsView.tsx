@@ -24,6 +24,7 @@ import {
   createdWithinRange,
   getWorkSessions,
 } from "../../utils/analyticsAggregation";
+import { isPomodoroSession } from "../../utils/timerSessions";
 import { WEEK_STARTS_ON } from "../../utils/scheduleGridLayout";
 import { NoticePanel } from "../NoticePanel";
 import { AnalyticsEmptyState } from "./AnalyticsEmptyState";
@@ -193,9 +194,7 @@ export function MobileAnalyticsView(
       (sum, s) => sum + (s.duration ?? 0) / 60,
       0,
     );
-    const pomodoroCount = todaySessions.filter(
-      (s) => s.sessionType === "WORK" && s.completed,
-    ).length;
+    const pomodoroCount = todaySessions.filter(isPomodoroSession).length;
     const completedToday = nodes.filter(
       (n) =>
         n.type === "task" &&

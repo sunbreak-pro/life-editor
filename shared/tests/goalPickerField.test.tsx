@@ -267,3 +267,74 @@ describe("ItemCreatePanel — the goal section (#2109)", () => {
     expect(screen.queryByRole("button", { name: "目標につなぐ" })).toBeNull();
   });
 });
+
+/*
+ * #2401 — the chip form the todo detail asks for: one chip per pick with an ×,
+ * and the rows folded behind "+ Link to a goal". The create panel passes no
+ * `chips`, so the suites above still describe it.
+ */
+describe("GoalPickerField — the chip form (#2401)", () => {
+  const CHIPS = {
+    add: "目標につなぐ",
+    formatChip: (kind: string, title: string) => `${kind}・${title}`,
+    formatRemove: (title: string) => `「${title}」を外す`,
+  };
+
+  function renderChips(selectedIds: string[], onChange = vi.fn()) {
+    render(
+      <GoalPickerField
+        goals={OFFERED}
+        snapshot={sampleState()}
+        todo={FREE}
+        baselineIds={[]}
+        selectedIds={selectedIds}
+        onChange={onChange}
+        labels={LABELS}
+        chips={CHIPS}
+      />,
+    );
+    return { onChange };
+  }
+
+  it("draws one chip per pick and folds the rows", () => {
+    renderChips(["w-book"]);
+    expect(screen.getByText("week・本を 1 冊読み切る")).toBeInTheDocument();
+    expect(screen.queryByRole("group", { name: "今週" })).toBeNull();
+    expect(screen.queryByRole("checkbox")).toBeNull();
+  });
+
+  it("takes a pick off with the ×, and keeps the focus in the field", () => {
+    const { onChange } = renderChips(["w-book", "w-run"]);
+    fireEvent.click(
+      screen.getByRole("button", { name: "「本を 1 冊読み切る」を外す" }),
+    );
+    expect(onChange).toHaveBeenCalledWith(["w-run"]);
+    expect(document.activeElement).toBe(
+      screen.getByRole("button", { name: "目標につなぐ" }),
+    );
+  });
+
+  it("opens the rows from the add button", () => {
+    const { onChange } = renderChips([]);
+    const add = screen.getByRole("button", { name: "目標につなぐ" });
+    expect(add).toHaveAttribute("aria-expanded", "false");
+    fireEvent.click(add);
+    expect(add).toHaveAttribute("aria-expanded", "true");
+    fireEvent.click(goalRow("本を 1 冊読み切る"));
+    expect(onChange).toHaveBeenCalledWith(["w-book"]);
+  });
+
+  it("keeps the numbers on screen with the rows folded", () => {
+    renderChips(["w-book"]);
+    expect(screen.getByText(LABELS.previewHeading)).toBeInTheDocument();
+  });
+
+  it("gives the × and the add button a 44px floor below the breakpoint", () => {
+    renderChips(["w-book"]);
+    for (const name of ["「本を 1 冊読み切る」を外す", "目標につなぐ"]) {
+      expect(screen.getByRole("button", { name }).className).toContain(
+        "max-md:min-h-11",
+      );
+    }
+  });
+});

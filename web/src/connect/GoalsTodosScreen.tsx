@@ -6,17 +6,23 @@ import {
   ConfirmDialog,
   DEFAULT_GOAL_TREE_ARRANGEMENT,
   DEFAULT_GOAL_TREE_FILTER,
+  formatGoalPeriod,
+  GoalDeleteDialog,
   GoalDetailPanel,
+  GoalTodoLinkScreen,
   GoalTreeArrangePanel,
   GoalTreeView,
   RightSidebarPortal,
   arrangeGoalTree,
+  buildGoalDeleteTree,
   buildGoalTreeModel,
   collectDescendantIds,
   describeGoalTreeFilter,
   generateId,
   generateTodoId,
   goalParentOptions,
+  planGoalDelete,
+  toGoalLinkState,
   todayDateKey,
   useConfirmDialog,
   useDomainLoad,
@@ -30,6 +36,9 @@ import {
   type DataService,
   type Goal,
   type GoalDateRange,
+  type GoalDeleteDialogLabels,
+  type GoalDeleteGoalRow,
+  type GoalLinkDiff,
   type GoalPeriodKind,
   type GoalRowActions,
   type GoalTodoLink,
@@ -66,7 +75,11 @@ import { useGoalTreeLabels } from "./useGoalTreeLabels";
  * them in their own bottom sheet.
  *
  * Drag to re-parent a goal or move a todo between goals (#2226) is wide only:
- * on a phone the tree draws no grip, and the panel's parent field remains.
+ * on a phone the tree draws no grip, so the panel keeps its parent select there
+ * (#2410); wide, the panel's goal above is only a link.
+ *
+ * "Link todos" in the panel swaps it for the shared linking screen (#2109), in
+ * the same right panel or sheet, until its cancel button or another goal.
  */
 
 interface GoalsTodosScreenProps {
@@ -86,6 +99,12 @@ interface GoalsSources {
 }
 
 const EMPTY_SOURCES: GoalsSources = { goals: [], links: [], todos: [] };
+
+/** One read, with the link-save fence it started under. */
+interface GoalsRead {
+  sources: GoalsSources;
+  fence: number;
+}
 
 export function GoalsTodosScreen({
   dataService,
@@ -119,13 +138,23 @@ export function GoalsTodosScreen({
     };
   }, []);
 
-  const { isLoading, error } = useDomainLoad<GoalsSources>({
+  /*
+   * The link save's write fence, as in useGoalLinkSnapshot (#2109). A read that
+   * started before or during a save returns the links from before part of it,
+   * and landing that would wipe what the save has patched in. So the save moves
+   * the fence at its start and its end, a read lands only if the fence did not
+   * move under it, and the end of the save asks for one fresh read.
+   */
+  const linkWriteFence = useRef(0);
+
+  const { isLoading, error } = useDomainLoad<GoalsRead>({
     domain: "Connect goals",
     dataService,
     version: syncVersion,
     anchor: reloadTick,
     refetchReportsLoading: false,
     load: async (service) => {
+      const fence = linkWriteFence.current;
       const [goals, todos] = await Promise.all([
         service.fetchGoals(),
         service.fetchTodoTree(),
@@ -134,10 +163,10 @@ export function GoalsTodosScreen({
         goals.length > 0
           ? await service.fetchGoalTodoLinks(goals.map((g) => g.id))
           : [];
-      return { goals, links, todos };
+      return { sources: { goals, links, todos }, fence };
     },
-    apply: (next) => {
-      setSources(overlayTicks(next));
+    apply: ({ sources: next, fence }) => {
+      if (fence === linkWriteFence.current) setSources(overlayTicks(next));
       setHasLoaded(true);
     },
     fallbackMessage: "Failed to load the goals",
@@ -167,7 +196,7 @@ export function GoalsTodosScreen({
   );
   const [arrangeSheetOpen, setArrangeSheetOpen] = useState(false);
 
-  const { treeLabels, detailLabels } = useGoalTreeLabels(todayKey);
+  const { treeLabels, detailLabels, linkLabels } = useGoalTreeLabels(todayKey);
 
   const arrangeLabels = useMemo<GoalTreeArrangeLabels>(
     () => ({
@@ -180,12 +209,11 @@ export function GoalsTodosScreen({
       },
       periodLabel: t("connect.goals.arrange.period"),
       all: t("connect.goals.arrange.all"),
-      kinds: treeLabels.kinds,
+      periods: treeLabels.periods,
       statusLabel: t("connect.goals.arrange.status"),
       statuses: {
         inProgress: t("connect.goals.arrange.inProgress"),
         achieved: t("connect.goals.achieved"),
-        unconnected: t("connect.goals.unconnected"),
       },
       hideDoneTodos: t("connect.goals.arrange.hideDoneTodos"),
     }),
@@ -215,14 +243,17 @@ export function GoalsTodosScreen({
   const selectedNode = selectedGoalId
     ? (model.byId.get(selectedGoalId) ?? null)
     : null;
+  // The goal whose panel is showing the linking screen instead.
+  const [linkingGoalId, setLinkingGoalId] = useState<string | null>(null);
   const rightSidebar = useRightSidebarOptional();
   const selectGoal = useCallback(
     (goalId: string) => {
       setSelectedGoalId(goalId);
+      setLinkingGoalId(null);
       // Picking a goal with the panel shut would look like nothing happened.
       if (isWide && !rightSidebar?.isOpen) rightSidebar?.open();
     },
-    [isWide, rightSidebar],
+    [isWide, rightSidebar, setLinkingGoalId],
   );
 
   const toast = useToastOptional();
@@ -230,14 +261,20 @@ export function GoalsTodosScreen({
   const write = useCallback(
     async (
       run: () => Promise<unknown>,
-      failedKey: TranslationKey = "connect.goals.writeFailed",
+      // A function when the copy depends on how far `run` got.
+      failedKey:
+        | TranslationKey
+        | (() => TranslationKey) = "connect.goals.writeFailed",
     ): Promise<boolean> => {
       try {
         await run();
         return true;
       } catch (err) {
         console.error("[GoalsTodosScreen] write failed", err);
-        toast?.showToast("danger", t(failedKey));
+        toast?.showToast(
+          "danger",
+          t(typeof failedKey === "function" ? failedKey() : failedKey),
+        );
         return false;
       } finally {
         setReloadTick((n) => n + 1);
@@ -349,6 +386,55 @@ export function GoalsTodosScreen({
     [write, dataService],
   );
 
+  /*
+   * The linking screen's save. Not through `write`: the screen says a failure
+   * itself, so it needs the rejection, and it drops its draft on resolve, so
+   * each link is patched in as it lands rather than after the re-read, behind
+   * the fence (linkWriteFence) so a read older than the save cannot undo that.
+   */
+  const saveLinks = useCallback(
+    async (goalId: string, diff: GoalLinkDiff): Promise<void> => {
+      const without = (links: GoalTodoLink[], todoId: string): GoalTodoLink[] =>
+        links.filter((l) => l.goalId !== goalId || l.todoId !== todoId);
+      linkWriteFence.current += 1;
+      try {
+        for (const todoId of diff.link) {
+          const row = await dataService.linkGoalTodo(goalId, todoId);
+          setSources((prev) => ({
+            ...prev,
+            links: [...without(prev.links, todoId), row],
+          }));
+        }
+        for (const todoId of diff.unlink) {
+          await dataService.unlinkGoalTodo(goalId, todoId);
+          setSources((prev) => ({
+            ...prev,
+            links: without(prev.links, todoId),
+          }));
+        }
+      } finally {
+        linkWriteFence.current += 1;
+        setReloadTick((n) => n + 1);
+      }
+    },
+    [dataService],
+  );
+  const linkState = useMemo(
+    () => toGoalLinkState(sources.goals, sources.links, sources.todos),
+    [sources],
+  );
+  const linkTodoOptions = useMemo(
+    () =>
+      sources.todos
+        .filter((n) => n.type === "task" && !n.isDeleted)
+        .map((n) => ({
+          id: n.id,
+          title: n.title || t("common.untitled"),
+          done: n.status === "DONE",
+        })),
+    [sources.todos, t],
+  );
+
   // One write for both the panel's title field and the tree's pencil (#2283).
   const renameGoal = useCallback(
     (goalId: string, title: string) =>
@@ -392,24 +478,114 @@ export function GoalsTodosScreen({
     wasPanelOpen.current = panelOpen;
   }, [panelOpen]);
 
-  const { request, ask, resolve } = useConfirmDialog();
+  // #2401: the todo the panel is editing, marked in the tree behind it.
+  const panelRequest = itemPanel?.request;
+  const editingTodoId =
+    panelRequest?.mode === "edit" && panelRequest.target.role === "task"
+      ? panelRequest.target.id
+      : null;
+
+  /*
+   * Deleting a goal (#2405): the panel's button and the row's bin both land
+   * here. The list is fixed when the dialog opens, so the writes are exactly
+   * what was shown, whatever a Realtime echo does meanwhile.
+   */
+  const [deleteTree, setDeleteTree] = useState<GoalDeleteGoalRow | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const deleteClaimed = useRef(false);
+  const closeDeleteDialog = (): void => setDeleteTree(null);
   const deleteGoal = useCallback(
     (goal: Goal) => {
+      setDeleteTree(
+        buildGoalDeleteTree({
+          goal,
+          ...sources,
+          untitled: t("common.untitled"),
+        }),
+      );
+    },
+    [sources, t],
+  );
+  const confirmDelete = useCallback(
+    (keptIds: ReadonlySet<string>) => {
+      if (!deleteTree || deleteClaimed.current) return;
+      deleteClaimed.current = true;
+      setDeleting(true);
+      const plan = planGoalDelete(deleteTree, keptIds);
       void (async () => {
-        const ok = await ask({
-          message: t("connect.goals.deleteConfirm", { title: goal.title }),
-          confirmLabel: t("connect.goals.deleteGoal"),
-          cancelLabel: t("common.cancel"),
-          danger: true,
-        });
-        if (!ok) return;
-        if (await write(() => dataService.softDeleteGoal(goal.id))) {
-          setSelectedGoalId(null);
+        /*
+         * One at a time and in this order: what stays is taken off first, and
+         * the goal asked about goes last, so a write that fails stops here and
+         * leaves that goal on the tree. The re-read then shows what is left,
+         * and asking again lists only that.
+         */
+        const writes: (() => Promise<unknown>)[] = [
+          ...plan.detachGoalIds.map(
+            (id) => () => dataService.updateGoal(id, { parentGoalId: null }),
+          ),
+          ...plan.unlinks.map(
+            ({ goalId, todoId }) =>
+              () =>
+                dataService.unlinkGoalTodo(goalId, todoId),
+          ),
+          ...plan.deleteTodoIds.map(
+            (id) => () => dataService.softDeleteTodo(id),
+          ),
+          ...plan.deleteGoalIds.map(
+            (id) => () => dataService.softDeleteGoal(id),
+          ),
+        ];
+        let landed = false;
+        const ok = await write(
+          async () => {
+            for (const run of writes) {
+              await run();
+              landed = true;
+            }
+          },
+          () =>
+            landed
+              ? "connect.goals.deleteDialog.failed"
+              : "connect.goals.deleteDialog.failedNothingDeleted",
+        );
+        deleteClaimed.current = false;
+        setDeleting(false);
+        setDeleteTree(null);
+        if (ok) {
+          setSelectedGoalId((current) =>
+            current && plan.deleteGoalIds.includes(current) ? null : current,
+          );
         }
       })();
     },
-    [ask, t, write, dataService],
+    [deleteTree, write, dataService],
   );
+  const deleteLabels = useMemo<GoalDeleteDialogLabels>(
+    () => ({
+      kinds: treeLabels.kinds,
+      formatMessage: (title) =>
+        t("connect.goals.deleteDialog.message", { title }),
+      chooseHint: t("connect.goals.deleteDialog.chooseHint"),
+      keepNote: t("connect.goals.deleteDialog.keepNote"),
+      listLabel: t("connect.goals.deleteDialog.listLabel"),
+      alwaysDeleted: t("connect.goals.deleteDialog.alwaysDeleted"),
+      alsoLinked: t("connect.goals.deleteDialog.alsoLinked"),
+      formatNestedTodos: (count) =>
+        t("connect.goals.deleteDialog.nestedTodos", { count }),
+      formatGoalRow: (kind, title) =>
+        t("connect.goals.deleteDialog.goalRow", { kind, title }),
+      formatTodoRow: (title) =>
+        t("connect.goals.deleteDialog.todoRow", { title }),
+      formatPeriod: detailLabels.formatPeriod,
+      formatDateRange: treeLabels.formatDateRange,
+      confirm: t("connect.goals.deleteGoal"),
+      deleting: t("connect.goals.deleteDialog.deleting"),
+      cancel: t("common.cancel"),
+    }),
+    [t, treeLabels, detailLabels],
+  );
+
+  const { request, ask, resolve } = useConfirmDialog();
 
   /*
    * The bin on a todo row (#2388). This tab has no TodoTreeProvider, so the
@@ -487,13 +663,34 @@ export function GoalsTodosScreen({
     [write, dataService, model, deleteGoal],
   );
 
-  const panel = selectedNode ? (
+  const panel = !selectedNode ? null : linkingGoalId ===
+    selectedNode.goal.id ? (
+    <GoalTodoLinkScreen
+      key={selectedNode.goal.id}
+      goalId={selectedNode.goal.id}
+      state={linkState}
+      todos={linkTodoOptions}
+      onSave={(diff) => saveLinks(selectedNode.goal.id, diff)}
+      onClose={() => setLinkingGoalId(null)}
+      labels={{
+        ...linkLabels,
+        periodLabel: formatGoalPeriod(selectedNode.goal, detailLabels),
+      }}
+    />
+  ) : (
     <GoalDetailPanel
       // The title too: renamed from the tree's pencil (#2283), the panel's
       // field would keep the old name and write it back on its next blur.
       key={`${selectedNode.goal.id}:${selectedNode.goal.title}`}
       node={selectedNode}
       parentOptions={goalParentOptions(sources.goals, selectedNode.goal)}
+      parentGoal={
+        selectedNode.goal.parentGoalId
+          ? (model.byId.get(selectedNode.goal.parentGoalId)?.goal ?? null)
+          : null
+      }
+      parentSelect={!isWide}
+      onLinkTodos={() => setLinkingGoalId(selectedNode.goal.id)}
       onRename={(title) => renameGoal(selectedNode.goal.id, title)}
       onChangeParent={(parentGoalId) =>
         void write(() =>
@@ -513,7 +710,7 @@ export function GoalsTodosScreen({
       onOpenTodo={openTodo}
       labels={detailLabels}
     />
-  ) : null;
+  );
 
   return (
     <>
@@ -558,6 +755,7 @@ export function GoalsTodosScreen({
           onCreateGoal={createGoal}
           onSetTodoStatus={setTodoStatus}
           onOpenTodo={openTodo}
+          editingTodoId={editingTodoId}
           onDeleteTodo={deleteTodo}
           drag={isWide ? drag : undefined}
           onRenameGoal={renameGoal}
@@ -570,7 +768,10 @@ export function GoalsTodosScreen({
       {!isWide && panel && selectedNode && (
         <BottomSheet
           open
-          onClose={() => setSelectedGoalId(null)}
+          onClose={() => {
+            setSelectedGoalId(null);
+            setLinkingGoalId(null);
+          }}
           title={t("connect.goals.sheetTitle", {
             title: selectedNode.goal.title,
           })}
@@ -588,6 +789,15 @@ export function GoalsTodosScreen({
         >
           {arrangePanel}
         </BottomSheet>
+      )}
+      {deleteTree && (
+        <GoalDeleteDialog
+          tree={deleteTree}
+          busy={deleting}
+          onConfirm={confirmDelete}
+          onCancel={closeDeleteDialog}
+          labels={deleteLabels}
+        />
       )}
       {request && (
         <ConfirmDialog

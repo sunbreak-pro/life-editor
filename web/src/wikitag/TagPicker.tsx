@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
+  type ReactNode,
 } from "react";
 import { Plus, Tag as TagIcon } from "lucide-react";
 import {
@@ -20,6 +21,7 @@ import {
   useWikiTagsUnifiedContext,
   type WikiTagUnified,
 } from "@life-editor/shared";
+import { useLongPress } from "../notes/useLongPress";
 
 /*
  * TagPicker — reusable Tag UI for a single items_meta row (DU-F Step 6).
@@ -54,10 +56,11 @@ import {
  * Failures (#1667): a write that throws raises an error toast. Logging alone
  * left the picker looking as if nothing had been clicked.
  *
- * Right-click (#2007): `onTagContextMenu` is opt-in. Only the note header
- * passes it, handing each chip to the same tag menu the Notes sidebar opens.
- * The Todo detail and the Schedule sidebar pass nothing, so their chips keep
- * the browser's own menu and their markup is unchanged.
+ * Right-click and long-press (#2007, #2395): `onTagContextMenu` and
+ * `onTagLongPress` are opt-in. Only the note header passes them, one per width,
+ * and it opens its tag edit panel from them. The Todo detail and the Schedule
+ * sidebar pass nothing, so their chips keep the browser's own menu and their
+ * markup is unchanged.
  */
 interface TagPickerProps {
   itemId: string;
@@ -76,6 +79,12 @@ interface TagPickerProps {
    */
   onTagContextMenu?: (tagId: string, event: ReactMouseEvent) => void;
   /**
+   * A hold on an assigned tag's chip (#2395), the touch stand-in for the
+   * right-click. Hands over the chip's frame, which is what the panel hangs
+   * under and gives the focus back to.
+   */
+  onTagLongPress?: (tagId: string, chip: HTMLElement) => void;
+  /**
    * Below the breakpoint, keep the chips on one line that scrolls sideways
    * instead of wrapping (#2291: two tags made the note's sticky header 157px,
    * 19% of a phone screen). The "+ Tag" button and its picker stay outside
@@ -83,6 +92,68 @@ interface TagPickerProps {
    * before.
    */
   singleRow?: boolean;
+  /**
+   * The add button's words, always shown and its spoken name too (#2401: the
+   * todo detail's 「＋ タグを付ける」). Absent, the button keeps its own: the
+   * short word while nothing is assigned, the plus alone after that.
+   */
+  addLabel?: string;
+}
+
+/**
+ * The frame around a chip whose host asked for its right-click or its hold. A
+ * wrapper rather than a TagPill prop: the chip is shared across hosts, and only
+ * one wants these. A component because the hold is a hook per chip.
+ *
+ * `tabIndex={-1}` because the focus comes back here when the panel closes
+ * (#2395), and the chip has nothing else to hold it but its remove button, where
+ * the next Enter would take the tag off. It stays out of the Tab order: a
+ * keyboard reaches the panel from that button with the menu key, whose
+ * `contextmenu` bubbles up to this frame.
+ */
+function ChipFrame({
+  tagId,
+  onTagContextMenu,
+  onTagLongPress,
+  children,
+}: {
+  tagId: string;
+  onTagContextMenu?: (tagId: string, event: ReactMouseEvent) => void;
+  onTagLongPress?: (tagId: string, chip: HTMLElement) => void;
+  children: ReactNode;
+}) {
+  const frameRef = useRef<HTMLSpanElement | null>(null);
+  const handleHold = useCallback(
+    (id: string) => {
+      if (frameRef.current) onTagLongPress?.(id, frameRef.current);
+    },
+    [onTagLongPress],
+  );
+  const longPress = useLongPress(onTagLongPress ? handleHold : undefined, tagId);
+  return (
+    <span
+      ref={frameRef}
+      tabIndex={-1}
+      className={cn(
+        "inline-flex rounded-lumen-full focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent",
+        // The whole chip is the hold's target, at the 44px touch floor, and the
+        // hold must not select the label or raise iOS's callout (as #2032 found
+        // on the sidebar rows).
+        longPress &&
+          "items-center select-none [-webkit-touch-callout:none] max-md:min-h-11",
+      )}
+      data-tag-id={tagId}
+      {...longPress}
+      onContextMenu={
+        onTagContextMenu
+          ? (event) => onTagContextMenu(tagId, event)
+          : // Android also fires `contextmenu` on the hold; iOS does not.
+            (event) => event.preventDefault()
+      }
+    >
+      {children}
+    </span>
+  );
 }
 
 export function TagPicker({
@@ -91,7 +162,9 @@ export function TagPicker({
   itemRole,
   size = "sm",
   onTagContextMenu,
+  onTagLongPress,
   singleRow = false,
+  addLabel,
 }: TagPickerProps) {
   const wiki = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
@@ -255,24 +328,25 @@ export function TagPicker({
             touch="narrow"
           />
         );
-        if (!onTagContextMenu) return pill;
-        // A wrapper rather than a TagPill prop: the chip is shared across
-        // hosts, and this is the only one that wants its right-click.
+        if (!onTagContextMenu && !onTagLongPress) return pill;
         return (
-          <span
+          <ChipFrame
             key={a.id}
-            className="inline-flex"
-            data-tag-id={tag.id}
-            onContextMenu={(event) => onTagContextMenu(tag.id, event)}
+            tagId={tag.id}
+            onTagContextMenu={onTagContextMenu}
+            onTagLongPress={onTagLongPress}
           >
             {pill}
-          </span>
+          </ChipFrame>
         );
       });
 
   return (
     <div
       ref={containerRef}
+      // What the edit panel opens under (#2395): this row's bottom edge, whichever
+      // line of a wrapped row the chip itself is on.
+      data-tag-row={onTagContextMenu || onTagLongPress ? "" : undefined}
       className={cn(
         "relative inline-flex flex-wrap items-center gap-1",
         singleRow && "max-md:flex max-md:min-w-0 max-md:flex-nowrap",
@@ -299,7 +373,7 @@ export function TagPicker({
         ref={triggerRef}
         type="button"
         onClick={() => setPickerOpen((v) => !v)}
-        aria-label={t("materials.tags.pickerAdd")}
+        aria-label={addLabel ?? t("materials.tags.pickerAdd")}
         aria-expanded={pickerOpen}
         // TAP_TARGET is 1.75rem, which is 31.5px — the app's icon floor, not
         // a thumb's (#1840). The narrow-width floor is added here rather than
@@ -307,8 +381,11 @@ export function TagPicker({
         className={`${TAP_TARGET} max-md:min-h-11 max-md:min-w-11 gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent`}
       >
         <Plus size={14} aria-hidden />
-        {assignments.length === 0 && !loading && (
-          <span>{t("materials.tags.pickerLabelShort")}</span>
+        {addLabel ? (
+          <span>{addLabel}</span>
+        ) : (
+          assignments.length === 0 &&
+          !loading && <span>{t("materials.tags.pickerLabelShort")}</span>
         )}
       </button>
 

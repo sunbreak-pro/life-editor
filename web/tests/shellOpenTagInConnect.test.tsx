@@ -36,6 +36,27 @@ describe("useShellNavigation — openTagInConnect (#2407)", () => {
     expect(getConnectTagSelection()).toBe("tag-health");
   });
 
+  it("raises the intent a mounted ConnectScreen consumes, once (#2395)", () => {
+    const { result } = renderHook(() => useShellNavigation());
+    expect(result.current.pendingConnectTag).toBeNull();
+
+    act(() => result.current.openTagInConnect("tag-health"));
+    expect(result.current.pendingConnectTag).toBe("tag-health");
+
+    act(() => result.current.consumeConnectTag());
+    expect(result.current.pendingConnectTag).toBeNull();
+  });
+
+  it("raises no intent on a refusal (#2395)", async () => {
+    const { result } = renderHook(() =>
+      useShellNavigation({ confirmLeave: async () => false }),
+    );
+
+    await act(async () => result.current.openTagInConnect("tag-health"));
+
+    expect(result.current.pendingConnectTag).toBeNull();
+  });
+
   it("drops the row the panel was reading under another tag", () => {
     setConnectTagSelection("tag-work");
     setConnectItemSelection("note-1");

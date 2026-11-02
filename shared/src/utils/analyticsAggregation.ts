@@ -1,5 +1,10 @@
 import type { TimerSession } from "../types/timer";
-import { isCountedSession, sessionTargetId } from "./timerSessions";
+import {
+  isCountedSession,
+  isManualSession,
+  isPomodoroSession,
+  sessionTargetId,
+} from "./timerSessions";
 import type { TodoNode } from "../types/todoTree";
 import type { ScheduleItem } from "../types/schedule";
 import type { RoutineNode } from "../types/routine";
@@ -431,7 +436,8 @@ export function aggregateByTodo(
       map.set(tid, bucket);
     }
     bucket.totalMinutes += (s.duration ?? 0) / 60;
-    bucket.sessionCount += 1;
+    // #2407: the bar's tooltip prints this count; nobody sat a typed amount.
+    if (!isManualSession(s)) bucket.sessionCount += 1;
   }
 
   return Array.from(map.values())
@@ -442,7 +448,8 @@ export function aggregateByTodo(
 export function computeSummary(sessions: TimerSession[]) {
   const work = getWorkSessions(sessions);
   const totalMinutes = work.reduce((sum, s) => sum + (s.duration ?? 0) / 60, 0);
-  const totalSessions = work.length;
+  // #2407: a hand-entered amount adds to the minutes, but nobody sat a session.
+  const totalSessions = work.filter((s) => !isManualSession(s)).length;
 
   const uniqueDays = new Set(work.map((s) => toDateStr(new Date(s.startedAt))))
     .size;
@@ -502,7 +509,7 @@ export function aggregatePomodoroRate(
 
   // Count completed WORK sessions per day
   for (const s of sessions) {
-    if (s.sessionType !== "WORK" || !s.completed) continue;
+    if (!isPomodoroSession(s)) continue;
     const key = toDateStr(new Date(s.startedAt));
     const bucket = map.get(key);
     if (bucket) {

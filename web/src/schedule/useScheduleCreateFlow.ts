@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import {
   minutesToTime,
   type AddNodeOptions,
+  type ItemCreateMemoTarget,
   type ItemCreateNoteDraft,
   type ItemCreateSlot,
   type ScheduleItem,
@@ -17,6 +18,7 @@ import {
 import type { ScheduleCreatePanel } from "./useScheduleOverlays";
 import type { CreateCompanion } from "./useScheduleMutations";
 import type { ConvertSavedToRepeat } from "./useRepeatMutations";
+import type { CreateFlowMemoNote } from "./useCreatePanelMemoNote";
 import { selectionSurface } from "./scheduleSelectionSurface";
 
 /*
@@ -51,6 +53,32 @@ import { selectionSurface } from "./scheduleSelectionSurface";
 
 // Default duration (minutes) prefilled when creating from an empty-slot click.
 const CREATE_DURATION_MIN = 60;
+
+/**
+ * #2406: two writes on one create, as one undo: the first's reversal runs last.
+ * A write that threw counts as one that did not land, as in `noteAlongside`, so
+ * the other still runs.
+ */
+function bothAlongside(
+  first: CreateCompanion,
+  second: CreateCompanion,
+): CreateCompanion {
+  return async (saved) => {
+    const a = await first(saved).catch(() => null);
+    const b = await second(saved).catch(() => null);
+    if (!a || !b) return a ?? b;
+    return {
+      undo: async () => {
+        await b.undo();
+        await a.undo();
+      },
+      redo: async () => {
+        await a.redo();
+        await b.redo();
+      },
+    };
+  };
+}
 
 export interface UseScheduleCreateFlowArgs {
   /** null = the panel is closed. Gates every committer. */
@@ -120,6 +148,29 @@ export interface UseScheduleCreateFlowArgs {
    * is dropped and the event is created on its own.
    */
   convertToRepeat?: ConvertSavedToRepeat;
+  /**
+   * #2406: the event 「既存から選ぶ」 — find the picked event, write its copy
+   * (useScheduleMutations.handleDuplicateOnto) and put the chosen tags on it
+   * (useDuplicateTagCopy.copyTagsFrom). Omitted, those committers write
+   * nothing. Pass a stable object.
+   */
+  copyEvent?: {
+    find: (id: string) => ScheduleItem | undefined;
+    write: (
+      source: ScheduleItem,
+      date: string,
+      alongside?: CreateCompanion,
+    ) => string;
+    copyTags: (
+      source: ScheduleItem,
+      chosen?: readonly string[],
+    ) => CreateCompanion;
+  };
+  /**
+   * #2402: what 新規作成 needs from the host (useCreatePanelMemoNote). Null or
+   * omitted, `handleCreateMemoNote` is undefined and the panel keeps staging.
+   */
+  memoNote?: CreateFlowMemoNote | null;
 }
 
 /** The handlers the JSX asks for. The other three stay private. */
@@ -158,6 +209,20 @@ export interface ScheduleCreateFlowApi {
     slot: ItemCreateSlot,
     notes: readonly ItemCreateNoteDraft[],
   ) => void;
+  /** #2406: a copy of a picked event on the panel's day, and its twin. */
+  handleCopyEventSubmit: (
+    eventId: string,
+    notes: readonly ItemCreateNoteDraft[],
+  ) => void;
+  handleCopyEventSubmitAndOpen: (
+    eventId: string,
+    notes: readonly ItemCreateNoteDraft[],
+  ) => void;
+  /** #2402: undefined on a host that wired no `memoNote`. */
+  handleCreateMemoNote?: (
+    target: ItemCreateMemoTarget,
+    notes: readonly ItemCreateNoteDraft[],
+  ) => void;
 }
 
 export function useScheduleCreateFlow({
@@ -178,6 +243,8 @@ export function useScheduleCreateFlow({
   tags,
   openTodoDetail,
   convertToRepeat,
+  copyEvent,
+  memoNote,
 }: UseScheduleCreateFlowArgs): ScheduleCreateFlowApi {
   // #299 open the creation panel prefilled for a target day + time window.
   const openCreatePanel = useCallback(
@@ -508,6 +575,140 @@ export function useScheduleCreateFlow({
     [placeTodo, openTodoDetail],
   );
 
+  /*
+   * #2406: the event 「既存から選ぶ」. The day is the one the panel was opened
+   * for, read off `createPanel` rather than a slot: this source has no date
+   * field, so a date typed before switching to it is off screen and must not
+   * decide where the copy lands. Returns the copy's id, or null for a pick the
+   * list no longer holds — nothing is written then and the panel stays open.
+   *
+   * The tags ride as the duplicate's own companion, so the copy and they come
+   * off with one Ctrl+Z. With no tag field the source's own tags are carried.
+   */
+  const copyPickedEvent = useCallback(
+    (
+      eventId: string,
+      notes: readonly ItemCreateNoteDraft[],
+    ): string | null => {
+      if (!createPanel || !copyEvent) return null;
+      const source = copyEvent.find(eventId);
+      if (!source) return null;
+      const copyTags = copyEvent.copyTags(source, tags?.take() ?? undefined);
+      const withNotes = noteAlongside(notes);
+      const id = copyEvent.write(
+        source,
+        createPanel.date,
+        withNotes ? bothAlongside(copyTags, withNotes) : copyTags,
+      );
+      finishCreatePanel();
+      return id;
+    },
+    [createPanel, copyEvent, tags, noteAlongside, finishCreatePanel],
+  );
+
+  const handleCopyEventSubmit = useCallback(
+    (eventId: string, notes: readonly ItemCreateNoteDraft[]) => {
+      const id = copyPickedEvent(eventId, notes);
+      // The same quiet "here it is" as a plain create — see handleCreateSubmit.
+      if (id && selectionSurface(isWide).createSelects) setSelectedId(id);
+    },
+    [copyPickedEvent, isWide, setSelectedId],
+  );
+
+  const handleCopyEventSubmitAndOpen = useCallback(
+    (eventId: string, notes: readonly ItemCreateNoteDraft[]) => {
+      const id = copyPickedEvent(eventId, notes);
+      if (!id) return;
+      setSelectedId(id);
+      if (selectionSurface(isWide).openNeedsOverlay) setOverlayOpen(true);
+    },
+    [copyPickedEvent, isWide, setSelectedId, setOverlayOpen],
+  );
+
+  /*
+   * #2402: 新規作成 — save the form as it stands, then make the memo note, link
+   * it, and go there. Nothing here selects the new row: the screen is about to
+   * be left, and on Mobile a selection would raise the detail sheet.
+   *
+   * The event's reversal goes back to the create, which records one command
+   * (N-08). The todo tree cannot fold a companion in, so the todo path pushes
+   * the whole press as one command of its own (useCreatePanelMemoNote).
+   */
+  const createMemoNote = useCallback(
+    (target: ItemCreateMemoTarget, notes: readonly ItemCreateNoteDraft[]) => {
+      if (!createPanel || !memoNote) return;
+      const tagIds = tags?.take() ?? [];
+
+      if (target.kind === "picked") {
+        // No write to the todo: no placement, and the staged tags go on the
+        // note only. What the user asked for here is a memo beside it.
+        const title = target.title || memoNote.untitled("task");
+        void memoNote
+          .attach(target.todoId, title, {
+            notes,
+            noteTagIds: tagIds,
+            itemTagIds: [],
+          })
+          .then((attached) => {
+            memoNote.pushTodoUndo(attached, null);
+            memoNote.land("task", title, attached);
+          });
+        finishCreatePanel();
+        return;
+      }
+
+      const input = { notes, noteTagIds: tagIds, itemTagIds: tagIds };
+      const title = target.title || memoNote.untitled(target.kind);
+      if (target.kind === "event") {
+        const { slot } = target;
+        handleCreate(slot, title, undefined, async (saved) => {
+          const attached = await memoNote.attach(saved.id, title, input);
+          // The picked repeat still applies, and before the jump: it writes
+          // through this section's providers.
+          const repeatReversal =
+            slot.repeat && convertToRepeat
+              ? await convertToRepeat(saved, slot.repeat).catch(() => null)
+              : null;
+          memoNote.land("event", title, attached);
+          return memoNote.fold([attached.reversal, repeatReversal]);
+        });
+        finishCreatePanel();
+        return;
+      }
+
+      const placement = scheduleTodoAt(target.slot);
+      if (!placement) return;
+      addNode("task", null, title, {
+        ...placement,
+        skipUndo: true,
+        onSaved: (saved) => {
+          if (!saved) {
+            memoNote.fail();
+            return;
+          }
+          // Staged goals only (#2109): the notes go through the attach below.
+          attachNote(saved.id, []);
+          void memoNote.attach(saved.id, title, input).then((attached) => {
+            memoNote.pushTodoUndo(attached, saved.id);
+            memoNote.land("task", title, attached);
+          });
+        },
+      });
+      finishCreatePanel();
+    },
+    [
+      createPanel,
+      memoNote,
+      tags,
+      finishCreatePanel,
+      handleCreate,
+      convertToRepeat,
+      scheduleTodoAt,
+      addNode,
+      attachNote,
+    ],
+  );
+
   return {
     handleToolbarAdd,
     handleGridCreateAt,
@@ -518,5 +719,8 @@ export function useScheduleCreateFlow({
     handlePlaceTodoSubmit,
     handleCreateTodoSubmitAndOpen,
     handlePlaceTodoSubmitAndOpen,
+    handleCopyEventSubmit,
+    handleCopyEventSubmitAndOpen,
+    handleCreateMemoNote: memoNote ? createMemoNote : undefined,
   };
 }

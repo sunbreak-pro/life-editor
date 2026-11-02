@@ -95,6 +95,18 @@ import { dayOfWeek } from "../../utils/scheduleGridLayout";
  * shows as a chip under 「添付したノート」 with its own ×. The submit carries
  * them all, as an array: `[]` is "attach nothing".
  *
+ * #2402: a host that wires `handlers.onCreateMemoNote` makes 新規作成 act at
+ * once instead: the form is saved as it stands and the host goes on to the
+ * memo note, so that host never opens the title field. A host without the
+ * handler keeps the staging above.
+ *
+ * #2406's event half of 「既存から選ぶ」: on the event tab it swaps the title,
+ * the date line and the repeat for a search field and a list of existing
+ * events. Picking one seeds the tag field with what that event wears, and the
+ * submit hands the host the event's id — the host adds a COPY to the day the
+ * panel was opened for and never touches the original. Optional like the rest:
+ * a host that wires no `pools.events` and `onCopyEvent` gets no toggle.
+ *
  * Both host frames (Modal / BottomSheet) unmount their children when closed, so
  * the local draft state re-seeds from the initial props on every open. When a
  * host keeps the panel open but changes the prefill (e.g. a different empty
@@ -128,6 +140,16 @@ export interface ItemCreateOption {
  */
 export type ItemCreateNoteDraft =
   { kind: "new"; title: string } | { kind: "existing"; id: string };
+
+/**
+ * #2402: what 新規作成 acts on. `event` / `task` are saved from the form, with
+ * `title` trimmed and possibly empty (the host names an untitled item).
+ * `picked` is the todo chosen under 既存から選ぶ, which is not written at all:
+ * the memo note is only linked to it.
+ */
+export type ItemCreateMemoTarget =
+  | { kind: ItemCreateType; title: string; slot: ItemCreateSlot }
+  | { kind: "picked"; todoId: string; title: string };
 
 /**
  * #2396: where 「既存から選ぶ」 opens the note picker. `side` is a 20rem
@@ -298,6 +320,26 @@ export interface ItemCreatePanelPools {
   goals?: ItemCreateGoalPool;
   /** The tag field (#2220). Omitted, the panel draws none. */
   tags?: ItemCreateTagPool;
+  /**
+   * #2406: the existing events the event tab can add a copy of. Omitted (or
+   * with no `onCopyEvent` beside it), the event tab offers no such source.
+   */
+  events?: ItemCreateEventPool;
+}
+
+/** #2406: the event tab's 「既存から選ぶ」 list. */
+export interface ItemCreateEventPool {
+  options: ItemCreateOption[];
+  /** The tags the event shows — the seed of the tag field when it is picked. */
+  tagsOf: (eventId: string) => string[];
+  /** The source was chosen: the list is read from here on, not before. */
+  onOpen: () => void;
+  labels: {
+    search: string;
+    /** Shown while `options` is empty. The host says why (loading, error…). */
+    empty: string;
+    noMatch: string;
+  };
 }
 
 /**
@@ -420,6 +462,29 @@ export interface ItemCreatePanelHandlers {
   onPlaceTodoAndOpen?: (
     todoId: string,
     slot: ItemCreateSlot,
+    notes: readonly ItemCreateNoteDraft[],
+  ) => void;
+  /**
+   * #2406: add a copy of an existing event to the day the panel was opened
+   * for. No slot: the date and the times are off screen on this source, and
+   * the copy keeps the source's time of day.
+   */
+  onCopyEvent?: (
+    eventId: string,
+    notes: readonly ItemCreateNoteDraft[],
+  ) => void;
+  /** The same, followed by the copy's editor. */
+  onCopyEventAndOpen?: (
+    eventId: string,
+    notes: readonly ItemCreateNoteDraft[],
+  ) => void;
+  /**
+   * #2402: 新規作成 saves at once and goes to a new memo note. Optional: a host
+   * without it keeps 新規作成 as the title field that stages a chip. `notes`
+   * are the chips staged so far, which ride along.
+   */
+  onCreateMemoNote?: (
+    target: ItemCreateMemoTarget,
     notes: readonly ItemCreateNoteDraft[],
   ) => void;
 }
@@ -653,9 +718,9 @@ function PickerList({
                   data-locked={option.isLocked ? "" : undefined}
                   className={cn(
                     "flex w-full items-center gap-2 border-b border-lumen-border px-2.5 py-2 text-left text-sm transition-colors last:border-b-0",
-                    // A row of a multi list is a tap target of its own on a
-                    // phone (rules/frontend.md §Gotchas).
-                    multi && "max-md:min-h-11",
+                    // A row is a tap target of its own on a phone
+                    // (rules/frontend.md §Gotchas).
+                    "max-md:min-h-11",
                     picked && !multi
                       ? "bg-lumen-accent-subtle text-lumen-accent"
                       : "text-lumen-text hover:bg-lumen-hover",
@@ -1042,6 +1107,7 @@ export function ItemCreatePanel({
     notes: existingNotes,
     goals: goalPool,
     tags: tagPool,
+    events: eventPool,
   } = pools;
   const {
     onSubmitEvent,
@@ -1050,6 +1116,9 @@ export function ItemCreatePanel({
     onPlaceTodo,
     onCreateTodoAndOpen,
     onPlaceTodoAndOpen,
+    onCopyEvent,
+    onCopyEventAndOpen,
+    onCreateMemoNote,
   } = handlers;
   const [type, setType] = useState<ItemCreateType>("event");
   const [title, setTitle] = useState(initialTitle);
@@ -1080,6 +1149,19 @@ export function ItemCreatePanel({
   const pickedTodo = resolvePicked(existingTodos, todoQuery, pickedTodoId);
   const placing = type === "task" && todoSource === "existing";
 
+  // #2406: the event tab's own source, kept apart from the todo tab's so the
+  // two tabs do not flip each other. The pick goes through the query as the
+  // todo's does: the submit never acts on a row narrowed out of sight.
+  const offersExistingEvents = !!eventPool && !!onCopyEvent;
+  const [eventSource, setEventSource] = useState<ItemCreateSource>("new");
+  const [eventQuery, setEventQuery] = useState("");
+  const [pickedEventId, setPickedEventId] = useState<string | null>(null);
+  const copying =
+    type === "event" && offersExistingEvents && eventSource === "existing";
+  const pickedEvent = copying
+    ? resolvePicked(eventPool?.options ?? [], eventQuery, pickedEventId)
+    : null;
+
   // #2109: goals for a NEW todo only. Kept across tab switches like the other
   // drafts, but reported as [] whenever the submit would not create a todo.
   const [goalOpen, setGoalOpen] = useState(false);
@@ -1100,9 +1182,13 @@ export function ItemCreatePanel({
    * rather than from an effect (React's pattern for state derived from a
    * prop, as ScheduleEventEditor's tag scope does).
    */
-  const tagSeedKey = `${type}|${todoSource}|${placing ? (pickedTodo?.id ?? "") : ""}`;
+  const tagSeedKey = `${type}|${todoSource}|${eventSource}|${placing ? (pickedTodo?.id ?? "") : (pickedEvent?.id ?? "")}`;
   const seedTags = () =>
-    placing && pickedTodo && tagPool ? tagPool.tagsOf(pickedTodo.id) : [];
+    pickedEvent && eventPool
+      ? eventPool.tagsOf(pickedEvent.id)
+      : placing && pickedTodo && tagPool
+        ? tagPool.tagsOf(pickedTodo.id)
+        : [];
   const [tagIds, setTagIds] = useState<string[]>(seedTags);
   const [tagKey, setTagKey] = useState(tagSeedKey);
   if (tagKey !== tagSeedKey) {
@@ -1256,6 +1342,10 @@ export function ItemCreatePanel({
     handler(trimmed, slot, stagedDrafts);
   };
   const submitPrimary = () => {
+    if (copying) {
+      if (pickedEvent) onCopyEvent?.(pickedEvent.id, stagedDrafts);
+      return;
+    }
     if (placing) {
       if (!pickedTodo) return;
       onPlaceTodo(pickedTodo.id, slot, stagedDrafts);
@@ -1263,11 +1353,18 @@ export function ItemCreatePanel({
     }
     submitTitled(type === "event" ? onSubmitEvent : onCreateTodo);
   };
+  const copyAndOpen = onCopyEventAndOpen
+    ? () => {
+        if (pickedEvent) onCopyEventAndOpen(pickedEvent.id, stagedDrafts);
+      }
+    : null;
   // #2406: the "and open" twin of whatever the primary does. Null when the
   // host wired no twin for this tab, and then the footer draws no button.
   const submitAndOpen: (() => void) | null =
     type === "event"
-      ? () => submitTitled(onSubmitEventAndOpen)
+      ? copying
+        ? copyAndOpen
+        : () => submitTitled(onSubmitEventAndOpen)
       : placing
         ? onPlaceTodoAndOpen
           ? () => {
@@ -1291,7 +1388,27 @@ export function ItemCreatePanel({
         ? labels.placeTodo
         : labels.addTodo;
   // What the footer needs before it can act.
-  const canSubmit = placing ? !!pickedTodo : !!title.trim();
+  const canSubmit = copying
+    ? !!pickedEvent
+    : placing
+      ? !!pickedTodo
+      : !!title.trim();
+  // #2402: unlike the footer, 新規作成 takes an empty title (the host names the
+  // item) — only placing needs its todo picked first.
+  const createMemoNote = () => {
+    if (!onCreateMemoNote) return;
+    if (!placing) {
+      onCreateMemoNote({ kind: type, title: title.trim(), slot }, stagedDrafts);
+    } else if (pickedTodo) {
+      onCreateMemoNote(
+        { kind: "picked", todoId: pickedTodo.id, title: pickedTodo.title },
+        stagedDrafts,
+      );
+    }
+  };
+  // Copying an existing event (#2406) keeps the staging row: its submit is the
+  // host's copy, and a memo note made at once would write a blank new event.
+  const memoNoteAtOnce = !!onCreateMemoNote && !copying;
 
   const picker = pickerOpen ? (
     <NotePicker
@@ -1333,7 +1450,32 @@ export function ItemCreatePanel({
             label={labels.sourceLabel}
           />
         )}
-        {placing ? (
+        {type === "event" && offersExistingEvents && (
+          <SegmentedToggle
+            options={[
+              { value: "new" as const, label: labels.sourceNew },
+              { value: "existing" as const, label: labels.sourceExisting },
+            ]}
+            value={eventSource}
+            onChange={(source) => {
+              setEventSource(source);
+              if (source === "existing") eventPool?.onOpen();
+            }}
+            label={labels.sourceLabel}
+          />
+        )}
+        {copying && eventPool ? (
+          <PickerList
+            options={eventPool.options}
+            query={eventQuery}
+            onQueryChange={setEventQuery}
+            isPicked={(id) => pickedEvent?.id === id}
+            onPick={setPickedEventId}
+            searchLabel={eventPool.labels.search}
+            emptyLabel={eventPool.labels.empty}
+            noMatchLabel={eventPool.labels.noMatch}
+          />
+        ) : placing ? (
           <PickerList
             options={existingTodos}
             query={todoQuery}
@@ -1369,8 +1511,10 @@ export function ItemCreatePanel({
             11rem + the check + two gaps fit the 512px Modal's body, so Desktop
             keeps one line; a phone puts the times on a second one), and
             `min-w-0` on every column (#1036) is what keeps a column that stays
-            from flooring at the input's intrinsic width. */}
-        <div className="flex flex-wrap items-end gap-3">
+            from flooring at the input's intrinsic width.
+            #2406: hidden, not unmounted, while copying an existing event, so a
+            half-typed time survives a trip to that source and back. */}
+        <div hidden={copying} className="flex flex-wrap items-end gap-3">
           {/* `appearance-none` + `min-w-0` on the input and the wider `gap-3`
               are #1403's half of the same fix (see EventEditorPane). */}
           <label className="flex min-w-0 flex-1 basis-32 flex-col gap-1.5">
@@ -1416,7 +1560,7 @@ export function ItemCreatePanel({
         </div>
         {/* #2406: the repeat, for a new event only (see the header). "No
             repeat" comes first and is where the field starts. */}
-        {type === "event" && repeatField && (
+        {type === "event" && !copying && repeatField && (
           <FrequencyEditor
             value={repeatValue}
             onChange={editRepeat}
@@ -1478,7 +1622,9 @@ export function ItemCreatePanel({
         <div className="flex flex-col gap-2 border-t border-lumen-border pt-2">
           {/* #2220: tags on the left, the note trigger on the right, one line. */}
           <div className="flex items-start gap-2">
-            {tagPool && (
+            {/* #2406: on the existing-event source the tags are the picked
+                event's, so there is no field until one is picked. */}
+            {tagPool && (!copying || pickedEvent) && (
               <TagField pool={tagPool} selected={tagIds} onChange={setTagIds} />
             )}
             <button
@@ -1490,7 +1636,7 @@ export function ItemCreatePanel({
                 "flex items-center gap-1.5 rounded-lumen-md px-1 py-1 text-left text-xs text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text max-md:min-h-11",
                 // Alone on its line it spans it, as before; beside the tags it
                 // keeps to its own width at the right end.
-                tagPool ? "shrink-0" : "w-full",
+                tagPool ? "ml-auto shrink-0" : "w-full",
                 FOCUS_RING_TIGHT,
               )}
             >
@@ -1513,10 +1659,17 @@ export function ItemCreatePanel({
               >
                 <button
                   type="button"
-                  onClick={() => setNewNoteOpen((v) => !v)}
-                  aria-expanded={newNoteOpen}
+                  onClick={
+                    memoNoteAtOnce
+                      ? createMemoNote
+                      : () => setNewNoteOpen((v) => !v)
+                  }
+                  // #2402: with the handler it acts at once and opens nothing.
+                  aria-expanded={memoNoteAtOnce ? undefined : newNoteOpen}
+                  disabled={memoNoteAtOnce && placing && !pickedTodo}
                   className={cn(
                     NOTE_ROW_BTN,
+                    DISABLED_OUTLINE_BTN,
                     newNoteOpen && "border-lumen-accent text-lumen-accent",
                   )}
                 >

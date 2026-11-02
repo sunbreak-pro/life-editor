@@ -15,6 +15,7 @@ import { cn } from "../cn";
 import { Button } from "../Button";
 import { EmptyState } from "../EmptyState";
 import { Input } from "../Input";
+import { SegmentedToggle } from "../SegmentedToggle";
 import { SkeletonList } from "../SkeletonList";
 import { TodoStatusCheckbox, toggledTodoStatus } from "../TodoStatusCheckbox";
 import type { StatusLabelSet } from "../todoStatusVisuals";
@@ -37,8 +38,9 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * The Connect "Goals & Todos" tab body (#2108, plan Step 9 — design C1–C6
  * as described in .claude/docs/design/briefs/briefing.md §1.5 / §10.4 / §11).
  *
- * Top to bottom: the add row (no limit per period, and a start and end date
- * that may differ from the period's own — #2366), the year → month →
+ * Top to bottom: the add button, which opens the period, title and dates
+ * (#2410; no limit per period, and a start and end date that may differ from
+ * the period's own — #2366), the year → month →
  * week tree with each goal's linked todos under it, the unconnected goals,
  * and the todos no goal holds. A group with nothing in it is not drawn — no
  * heading over an empty frame — and with no goal at all the tree is replaced
@@ -75,6 +77,9 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * while its field is open. A goal drawn twice — under its parent and as
  * unconnected — opens a field only on the row whose icon was pressed.
  *
+ * A goal row says "This month" as a badge only while that is true of the goal
+ * (#2410, showsPeriodBadge); otherwise it keeps the plain "Month".
+ *
  * Completed items (#2368): an achieved goal, with what is under it, and a
  * done todo leave the tree for a "Completed items" group at the bottom
  * (separateCompleted). Un-ticking or un-achieving puts them back, because
@@ -84,6 +89,10 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * pencil at the right end is the way into the editor, and the bin goes through
  * the host's confirm. A press on the name never starts a drag: the grip does.
  *
+ * The todo open in the editor (#2401, `editingTodoId`) wears the accent wash on
+ * its row, in every group it is drawn in, so the row being changed stays
+ * findable behind the panel. Its pencil carries `aria-current`.
+ *
  * Pure presentation (§6.4): the model and every label come from the host
  * (web/src/connect/GoalsTodosScreen.tsx). The state held here — the add
  * fields' drafts, which goals are closed and what is being dragged — is
@@ -91,9 +100,9 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  */
 
 export interface GoalTreeLabels {
-  /** "Year" / "Month" / "Week" — the chip on every goal row. */
+  /** "Year" / "Month" / "Week" — a row's spoken name, its text past a period. */
   kinds: Record<GoalPeriodKind, string>;
-  /** "This year" / "This month" / "This week" — the add buttons. */
+  /** "This year" / "This month" / "This week" — the add choices, a row's badge. */
   periods: Record<GoalPeriodKind, string>;
   /** "2026" / "October" / "10/4 – 10/10" — beside the period name. */
   periodRanges: Record<GoalPeriodKind, string>;
@@ -188,6 +197,8 @@ export interface GoalTreeViewProps {
   onResetFilters?: () => void;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
   onOpenTodo: (todoId: string) => void;
+  /** The todo open in the editor, whose row is marked (#2401). */
+  editingTodoId?: string | null;
   /** The bin on a todo row. Fires raw: the host asks. Absent, no bin. */
   onDeleteTodo?: (todoId: string) => void;
   /** Desktop only. Absent, no grip is drawn and nothing can be dragged. */
@@ -281,6 +292,19 @@ type StatusLabels = Pick<
   GoalTreeLabels,
   "achieved" | "unconnected" | "formatProgress"
 >;
+
+/**
+ * "This month" holds only for a goal that follows the current period. One with
+ * dates of its own may run past it (#2366), and one drawn as the parent of a
+ * current goal may be last month's.
+ */
+function showsPeriodBadge(
+  goal: Goal,
+  periodKeys: GoalTreeModel["periodKeys"],
+): boolean {
+  if (goal.startDate && goal.endDate) return false;
+  return goal.periodKey === periodKeys[goal.periodKind];
+}
 
 /** What GoalStatus shows, as text — the row's spoken name ends with it. */
 function goalStatusText(node: GoalTreeNode, labels: StatusLabels): string {
@@ -397,6 +421,7 @@ function TodoRow({
   todo,
   fromGoalId,
   drag,
+  editing,
   onSetTodoStatus,
   onOpenTodo,
   onDeleteTodo,
@@ -406,6 +431,7 @@ function TodoRow({
   /** The goal row this todo hangs under; null in the loose group. */
   fromGoalId: string | null;
   drag: DragState | null;
+  editing: boolean;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
   onOpenTodo: (todoId: string) => void;
   onDeleteTodo?: (todoId: string) => void;
@@ -421,6 +447,7 @@ function TodoRow({
       data-goal-tree-row=""
       className={cn(
         "group/todo flex items-center gap-1 rounded-lumen-sm transition-colors hover:bg-lumen-hover",
+        editing && "bg-lumen-accent-subtle",
         dragged && DRAG_HOLE,
       )}
     >
@@ -474,6 +501,7 @@ function TodoRow({
         onClick={() => onOpenTodo(todo.id)}
         aria-label={labels.formatOpenTodo(todo.title)}
         title={labels.formatOpenTodo(todo.title)}
+        aria-current={editing ? "true" : undefined}
         className={TODO_ROW_ICON}
       >
         <Pencil size={14} aria-hidden />
@@ -843,9 +871,18 @@ function GoalBranch({
               selected && "bg-lumen-accent-subtle hover:bg-lumen-accent-subtle",
             )}
           >
-            <span className="shrink-0 text-xs text-lumen-briefing-kohaku">
-              {labels.kinds[node.goal.periodKind]}
-            </span>
+            {showsPeriodBadge(goal, props.model.periodKeys) ? (
+              <span
+                data-goal-period-badge
+                className="shrink-0 whitespace-nowrap rounded-full border border-lumen-border px-2 py-0.5 text-xs text-lumen-briefing-kohaku"
+              >
+                {labels.periods[goal.periodKind]}
+              </span>
+            ) : (
+              <span className="shrink-0 text-xs text-lumen-briefing-kohaku">
+                {labels.kinds[goal.periodKind]}
+              </span>
+            )}
             <span className="min-w-0 flex-1 truncate text-sm font-medium text-lumen-text">
               {node.goal.title}
             </span>
@@ -950,6 +987,7 @@ function GoalBranch({
                   todo={todo}
                   fromGoalId={goal.id}
                   drag={drag}
+                  editing={todo.id === props.editingTodoId}
                   onSetTodoStatus={props.onSetTodoStatus}
                   onOpenTodo={props.onOpenTodo}
                   onDeleteTodo={props.onDeleteTodo}
@@ -1215,21 +1253,29 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
   return (
     <div className={cn("flex flex-col gap-6", TREE_TOGGLE_SIZE)}>
       <section aria-label={labels.addHeading}>
-        <h3 className={GROUP_HEADING}>{labels.addHeading}</h3>
-        <div className="flex flex-wrap gap-2">
-          {GOAL_PERIOD_KINDS.map((kind) => (
-            <Button
-              key={kind}
-              variant={adding === kind ? "primary" : "secondary"}
-              size="sm"
-              onClick={() => openAdd(adding === kind ? null : kind)}
-              leadingIcon={<Plus size={14} aria-hidden />}
-              className={cn(KEEP_LABEL, "max-md:min-h-11")}
-            >
-              {labels.periods[kind]}
-            </Button>
-          ))}
-        </div>
+        <Button
+          variant={adding ? "primary" : "secondary"}
+          size="sm"
+          // Opens on this week, the period the empty state's button sets too.
+          onClick={() => openAdd(adding ? null : "week")}
+          aria-expanded={adding !== null}
+          leadingIcon={<Plus size={14} aria-hidden />}
+          className={cn(KEEP_LABEL, "max-md:min-h-11")}
+        >
+          {labels.addHeading}
+        </Button>
+        {adding && (
+          <SegmentedToggle
+            options={GOAL_PERIOD_KINDS.map((kind) => ({
+              value: kind,
+              label: labels.periods[kind],
+            }))}
+            value={adding}
+            onChange={openAdd}
+            label={labels.addHeading}
+            className="mt-2 max-w-sm"
+          />
+        )}
         {adding && (
           <div className="mt-2 flex items-center gap-2">
             <Input
@@ -1299,7 +1345,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
           icon={<Target />}
           message={labels.empty}
           cta={
-            adding === "week"
+            adding
               ? undefined
               : { label: labels.emptyAction, onClick: () => openAdd("week") }
           }
@@ -1422,6 +1468,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                 todo={todo}
                 fromGoalId={null}
                 drag={drag}
+                editing={todo.id === props.editingTodoId}
                 onSetTodoStatus={props.onSetTodoStatus}
                 onOpenTodo={props.onOpenTodo}
                 onDeleteTodo={props.onDeleteTodo}
@@ -1455,6 +1502,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                   todo={todo}
                   fromGoalId={fromGoalId}
                   drag={drag}
+                  editing={todo.id === props.editingTodoId}
                   onSetTodoStatus={props.onSetTodoStatus}
                   onOpenTodo={props.onOpenTodo}
                   onDeleteTodo={props.onDeleteTodo}

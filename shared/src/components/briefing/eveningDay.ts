@@ -9,7 +9,7 @@ import {
   type GoalAchievementLink,
 } from "../../utils/goalAchievement";
 import { addDaysKey } from "../../utils/scheduleGridLayout";
-import { isCountedSession } from "../../utils/timerSessions";
+import { isCountedSession, isManualSession } from "../../utils/timerSessions";
 import { extractEveningSection } from "./eveningSection";
 import {
   applyGoalLinkEdit,
@@ -164,7 +164,10 @@ export function eveningEvents(
       (s.eventId != null
         ? scheduleItems.find((e) => e.id === s.eventId)?.title
         : null) ??
-      (s.label !== null && s.label.trim() !== "" ? s.label : null);
+      // #2407: a hand-entered row's label is an identifier, not a name.
+      (s.label !== null && s.label.trim() !== "" && !isManualSession(s)
+        ? s.label
+        : null);
     add(new Date(s.startedAt).getTime(), {
       key: `session:${s.id}`,
       kind: "session",
