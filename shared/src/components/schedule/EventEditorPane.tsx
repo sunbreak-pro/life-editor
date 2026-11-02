@@ -20,6 +20,7 @@ import { isImeComposing } from "../../utils/imeGuard";
 import {
   DISABLED_FILLED_BTN,
   FIELD,
+  FIELD_MULTILINE,
   FIELD_LABEL,
   FOCUS_RING_ON_ACCENT,
   FOCUS_RING_TIGHT,
@@ -852,7 +853,7 @@ function EventEditorFields({
           onChange={(e) => edit({ memo: e.target.value })}
           placeholder={labels.memoPlaceholder}
           aria-label={labels.memo}
-          className={cn(FIELD, "min-h-[72px] resize-y")}
+          className={cn(FIELD_MULTILINE, "min-h-[72px] resize-y")}
         />
       </label>
 
