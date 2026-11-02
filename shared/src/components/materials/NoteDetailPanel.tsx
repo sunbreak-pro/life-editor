@@ -1,5 +1,6 @@
 import {
   useEffect,
+  useId,
   useLayoutEffect,
   useRef,
   useState,
@@ -81,6 +82,8 @@ function NoteTitleInput({
   isMain,
   autoFocus = false,
   onAutoFocused,
+  readOnly = false,
+  describedBy,
 }: {
   noteId: string;
   initialTitle: string;
@@ -92,6 +95,9 @@ function NoteTitleInput({
   autoFocus?: boolean;
   /** Fired once the focus has been taken, so the host can stop asking. */
   onAutoFocused?: () => void;
+  /** No renaming right now (#2337); `describedBy` is the line that says why. */
+  readOnly?: boolean;
+  describedBy?: string;
 }) {
   const [draft, setDraft] = useState(initialTitle);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -198,6 +204,8 @@ function NoteTitleInput({
         }}
         onBlur={flush}
         aria-label={label}
+        readOnly={readOnly}
+        aria-describedby={describedBy}
         className={cn(
           // #2227: the tags share this row, so the title keeps a floor of its
           // own and the tags wrap under it once both no longer fit.
@@ -218,6 +226,8 @@ function NoteTitleInput({
       onChange={(e) => onChange(e.target.value)}
       onBlur={flush}
       aria-label={label}
+      readOnly={readOnly}
+      aria-describedby={describedBy}
       className={cn(
         // #2227: the tags share this row, so the title keeps a floor of its
         // own and the tags wrap under it once both no longer fit.
@@ -253,6 +263,11 @@ export interface NoteDetailPanelProps {
   onTogglePin: (id: string) => void;
   /** Soft-delete the note (host injects the mutation). */
   onDelete: (id: string) => void;
+  /**
+   * Set while offline, already translated (#2337): the title is read-only, pin
+   * and delete are off, and this line under the title says why.
+   */
+  offlineReason?: string;
   /** Already-translated aria-label for the title input (§6.4). */
   titleLabel: string;
   /** Open with the title focused and selected (#1842 — a fresh note). */
@@ -387,6 +402,7 @@ export function NoteDetailPanel({
   onTitleCommit,
   onTogglePin,
   onDelete,
+  offlineReason,
   titleLabel,
   autoFocusTitle = false,
   onTitleAutoFocused,
@@ -414,6 +430,8 @@ export function NoteDetailPanel({
   const hasTagRow = tagsSlot != null || linksSlot != null;
   const [menuOpen, setMenuOpen] = useState(false);
   const menuTriggerRef = useRef<HTMLButtonElement>(null);
+  const offlineReasonId = useId();
+  const offline = offlineReason !== undefined;
 
   /*
    * #2058 — publish the sticky header's height for the body's own sticky
@@ -523,8 +541,10 @@ export function NoteDetailPanel({
               label={titleLabel}
               onCommit={onTitleCommit}
               isMain={isMain}
-              autoFocus={autoFocusTitle}
+              autoFocus={autoFocusTitle && !offline}
               onAutoFocused={onTitleAutoFocused}
+              readOnly={offline}
+              describedBy={offline ? offlineReasonId : undefined}
             />
             {hasTagRow && (
               // #2291: below the breakpoint the tag / link row is one line of
@@ -583,6 +603,7 @@ export function NoteDetailPanel({
               <MenuItem
                 className={MENU_ITEM_TAP_FLOOR}
                 icon={<Pin size={14} aria-hidden />}
+                disabled={offline}
                 onSelect={() => {
                   onTogglePin(noteId);
                   setMenuOpen(false);
@@ -654,6 +675,7 @@ export function NoteDetailPanel({
                 className={MENU_ITEM_TAP_FLOOR}
                 icon={<Trash2 size={14} aria-hidden />}
                 variant="danger"
+                disabled={offline}
                 onSelect={() => {
                   onDelete(noteId);
                   setMenuOpen(false);
@@ -664,6 +686,15 @@ export function NoteDetailPanel({
             </Menu>
           </div>
         </div>
+
+        {offline && (
+          <p
+            id={offlineReasonId}
+            className="m-0 text-xs text-lumen-text-secondary"
+          >
+            {offlineReason}
+          </p>
+        )}
 
         {/* One full-width rule between the header and the body (#2033), the
           same at both widths — it replaced the "内容" caption the mobile sheet

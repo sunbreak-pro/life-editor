@@ -110,6 +110,8 @@ export interface NoteDetailSurfaceProps {
    * attaches no listener.
    */
   onTagContextMenu?: (tagId: string, event: MouseEvent) => void;
+  /** While offline: why the title, pin and delete are off (#2337). */
+  offlineReason?: string;
 }
 
 export function NoteDetailSurface({
@@ -131,6 +133,7 @@ export function NoteDetailSurface({
   autoFocusTitle,
   onTitleAutoFocused,
   onTagContextMenu,
+  offlineReason,
 }: NoteDetailSurfaceProps) {
   const hasPassword = note.hasPassword === true;
   return (
@@ -148,6 +151,7 @@ export function NoteDetailSurface({
       onTitleCommit={onTitleCommit}
       onTogglePin={onTogglePin}
       onDelete={onDelete}
+      offlineReason={offlineReason}
       titleLabel={labels.title}
       pinLabel={labels.pin}
       unpinLabel={labels.unpin}

@@ -7,6 +7,7 @@ import {
   type OutboxSender,
 } from "./offlineDataService";
 import { getSupabaseClient } from "./supabaseClient";
+import type { SyncDomain } from "../context/syncDomains";
 
 /*
  * Single source for the web/Electron/Capacitor DataService singleton.
@@ -51,7 +52,9 @@ export function getDataService(): DataService {
 }
 
 /** Send what waits in the outbox. Resolves either way; `onSent` if any went. */
-export async function sendOutbox(onSent: () => void): Promise<void> {
+export async function sendOutbox(
+  onSent: (domains: SyncDomain[]) => void,
+): Promise<void> {
   getDataService();
   await outboxSender?.run(onSent);
 }

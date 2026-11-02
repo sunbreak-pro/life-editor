@@ -13,11 +13,12 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
 /*
  * Global connectivity band (S7), and since #2335 the send-later box's too.
- * While offline only a Todo add is held for later, and the copy must not promise
- * more. Hidden when online with an empty box (no layout cost in the common case).
+ * While offline only a Todo add, a new note and a pinned note's body are held for
+ * later (#2337), and the copy must not promise more. Hidden when online with an
+ * empty box (no layout cost in the common case).
  *
  * <NoticePanel variant="banner"> (#1184): `warning` while offline because
- * nothing has failed, `info` for Todos merely waiting, `danger` for ones the
+ * nothing has failed, `info` for changes merely waiting, `danger` for ones the
  * server refused, whose text exists nowhere else, so the band offers to copy it.
  * Only after that can they be removed, so the band does not stay up for good and
  * the text is never one press from gone. If the clipboard refuses, the text is

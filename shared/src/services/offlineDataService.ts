@@ -1,6 +1,13 @@
 import type { DataService } from "./DataService";
+import type { SyncDomain } from "../context/syncDomains";
 import type { TodoNode } from "../types/todoTree";
 import { patchDomainSnapshot } from "../state/domainSnapshotStore";
+import {
+  dropNoteFromSnapshot,
+  noteOverrides,
+  sendNoteEntry,
+  type NoteSendTarget,
+} from "./offlineNotes";
 import {
   claimOutboxEntry,
   classifySendFailure,
@@ -9,11 +16,13 @@ import {
   isOfflineFailure,
   isSendable,
   OUTBOX_READ_TIMEOUT_MS,
+  isNoteEntry,
   readOutbox,
   refreshOutboxCounts,
   removeOutboxEntry,
   withTimeout,
   type OutboxEntry,
+  type TodoOutboxEntry,
 } from "../state/outbox";
 
 /*
@@ -46,6 +55,8 @@ import {
  *
  * Deleting a row that waits takes the entry out, as an undo does. Any other edit
  * of one is rejected, and the banner says so.
+ *
+ * Notes keep their half next door (`offlineNotes.ts`, #2337).
  */
 
 /** Ids seen on the server by this page, shared with the sender. */
@@ -132,15 +143,17 @@ function markSentInSnapshot(id: string): void {
   );
 }
 
-async function readTodoCreates(userId: string): Promise<OutboxEntry[]> {
-  return (await readOutbox(userId)).filter(isSendable);
+async function readTodoCreates(userId: string): Promise<TodoOutboxEntry[]> {
+  return (await readOutbox(userId)).filter(
+    (e): e is TodoOutboxEntry => isSendable(e) && e.kind === "todo.create",
+  );
 }
 
 /**
  * For the paths that also run online: a box that hangs must not stop the list
  * loading or an undo completing. The callers fall back to the plain service.
  */
-function readTodoCreatesOnline(userId: string): Promise<OutboxEntry[]> {
+function readTodoCreatesOnline(userId: string): Promise<TodoOutboxEntry[]> {
   return withTimeout(readTodoCreates(userId), OUTBOX_READ_TIMEOUT_MS);
 }
 
@@ -283,7 +296,10 @@ export function createOfflineDataService(
     }
   };
 
+  let wrapped: DataService | null = null;
   const overrides: Partial<DataService> = {
+    ...noteOverrides(inner, owner, dropped, () => wrapped),
+
     async fetchTodoTree() {
       const rows = await inner.fetchTodoTree();
       shifted.clear();
@@ -386,7 +402,7 @@ export function createOfflineDataService(
 
   // A Proxy cannot lose a method: anything not overridden above reaches
   // `inner`, whether the interface has a hundred members or a hundred and one.
-  return new Proxy(inner, {
+  wrapped = new Proxy(inner, {
     get(target, prop, receiver) {
       if (typeof prop === "string" && Object.hasOwn(overrides, prop))
         return Reflect.get(overrides, prop, receiver);
@@ -394,11 +410,15 @@ export function createOfflineDataService(
       return typeof value === "function" ? value.bind(target) : value;
     },
   });
+  return wrapped;
 }
 
 export interface OutboxSender {
-  /** Send what waits, then call `onSent` if any left the box. Never rejects. */
-  run(onSent: () => void): Promise<void>;
+  /**
+   * Send what waits, then tell `onSent` which domains' rows moved, if any left
+   * the box. Never rejects.
+   */
+  run(onSent: (domains: SyncDomain[]) => void): Promise<void>;
 }
 
 /*
@@ -410,21 +430,26 @@ export interface OutboxSender {
  * counts as a change too: the list still shows it until it is read again.
  */
 export function createOutboxSender(
-  inner: Pick<DataService, "createTodoIfAbsent">,
+  inner: Pick<DataService, "createTodoIfAbsent"> & NoteSendTarget,
   owner: OwnerResolver,
   landed: LandedTodos = new Set(),
   dropped: DroppedTodos = new Set(),
 ): OutboxSender {
   let running: Promise<void> | null = null;
 
-  const drain = async (userId: string): Promise<number> => {
-    let changed = 0;
+  const drain = async (userId: string): Promise<Set<SyncDomain>> => {
+    const changed = new Set<SyncDomain>();
     for (;;) {
       const next = (await readOutbox(userId)).find(isSendable);
       if (next === undefined) return changed;
       const entry = await claimOutboxEntry(userId, next.opId);
       if (entry === null) continue;
       try {
+        if (isNoteEntry(entry)) {
+          await sendNoteEntry(inner, userId, entry);
+          changed.add("notes");
+          continue;
+        }
         await inner.createTodoIfAbsent(entry.payload.node, {
           ownerId: userId,
           retried: entry.attempts > 1,
@@ -432,24 +457,30 @@ export function createOutboxSender(
       } catch (e) {
         const verdict = classifySendFailure(e);
         if (verdict === "retry") return changed;
-        if (verdict === "failed") {
+        // A note entry has no "already there" reading: its text would be gone.
+        if (verdict === "failed" || isNoteEntry(entry)) {
           await failOutboxEntry(userId, entry, String(e));
+          changed.add(isNoteEntry(entry) ? "notes" : "todos");
+          // An existing note keeps its row: only the edit was refused.
+          if (entry.kind === "note.body") continue;
           // A changed-rows read lays changes over the stored list, and the
           // server has none for a row it refused, so only this takes it out.
           dropped.add(entry.itemId);
-          dropFromSnapshot(entry.itemId);
-          changed += 1;
+          if (isNoteEntry(entry)) dropNoteFromSnapshot(entry.itemId);
+          else dropFromSnapshot(entry.itemId);
           continue;
         }
       }
       landed.add(entry.itemId);
       markSentInSnapshot(entry.itemId);
       await removeOutboxEntry(userId, entry.opId);
-      changed += 1;
+      changed.add("todos");
     }
   };
 
-  const once = async (onSent: () => void): Promise<void> => {
+  const once = async (
+    onSent: (domains: SyncDomain[]) => void,
+  ): Promise<void> => {
     const userId = await owner();
     await refreshOutboxCounts(userId);
     if (userId === null || navigator.onLine === false) return;
@@ -457,7 +488,7 @@ export function createOutboxSender(
     const changed = locks
       ? await locks.request("le-outbox", () => drain(userId))
       : await drain(userId);
-    if (changed > 0) onSent();
+    if (changed.size > 0) onSent([...changed]);
     await refreshOutboxCounts(await owner());
   };
 

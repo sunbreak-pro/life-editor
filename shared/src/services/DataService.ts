@@ -801,6 +801,23 @@ export interface NotesUnifiedDataService {
    * `null` = no such live note.
    */
   getNoteBodySnapshotUnified(id: string): Promise<NoteBodySnapshot | null>;
+  /**
+   * The outbox's create (#2337): safe to send twice, and never overwrites or
+   * resurrects a row that is already there. `created` says this send wrote the
+   * payload; `current` is what stands now, null when the note is gone or in the
+   * Trash. The owner check and `retried` work as in `createTodoIfAbsent`.
+   */
+  createNoteIfAbsent(
+    node: NoteNode,
+    options: { ownerId: string; retried?: boolean },
+  ): Promise<{ created: boolean; current: NoteBodySnapshot | null }>;
+  /** The outbox's body save: `saveNoteBodyUnified` under the owner check. */
+  sendNoteBody(
+    id: string,
+    content: string,
+    expectedUpdatedAt: string,
+    options: { ownerId: string },
+  ): Promise<NoteBodySaveResult>;
   softDeleteNoteUnified(id: string): Promise<void>;
   moveNoteUnified(
     id: string,

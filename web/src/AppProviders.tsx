@@ -20,6 +20,7 @@ import {
 import { GlobalShortcuts } from "./GlobalShortcuts";
 import { ItemPanelHost } from "./schedule/ItemPanelHost";
 import { MaterialsCountsBridge } from "./MaterialsCountsBridge";
+import { OutboxNoticeHost } from "./components/OutboxNoticeHost";
 import { ScheduleReminderBridge } from "./ScheduleReminderBridge";
 import { TimerHost } from "./TimerHost";
 import { UndoRedoHost } from "./UndoRedoHost";
@@ -119,6 +120,7 @@ export function AppProviders({
   return (
     <ToastProvider dismissLabel={t("common.close")}>
       <SyncProvider>
+        <OutboxNoticeHost />
         <MaterialsCountsBridge
           dataService={dataService}
           onCounts={onMaterialsCounts}

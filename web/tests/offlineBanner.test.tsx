@@ -144,9 +144,19 @@ describe("OfflineBanner", () => {
     expect(copy.className).toContain("max-md:min-w-11");
   });
 
-  it("promises no more than a Todo add, in both catalogs", () => {
+  it("promises what is held and no more, in both catalogs", () => {
     expect(en.offline.message).toContain("Todo");
+    expect(en.offline.message).toContain("pinned notes");
     expect(ja.offline.message).toContain("Todo");
+    expect(ja.offline.message).toContain("ピン留めしたノート");
+    // #2337: other changes need a connection; they are not "never saved".
+    expect(en.offline.message).not.toContain("not saved");
+    expect(ja.offline.message).not.toContain("保存されません");
+    // The box holds notes as well, so its copy does not say Todo.
+    for (const key of ["pending", "failed", "failedCopied"] as const) {
+      expect(en.offline[key]).not.toContain("Todo");
+      expect(ja.offline[key]).not.toContain("Todo");
+    }
     expect(Object.keys(ja.offline)).toEqual(Object.keys(en.offline));
     expect(en.nav.signOutPromptPending).toContain("{{n}}");
     expect(ja.nav.signOutPromptPending).toContain("{{n}}");

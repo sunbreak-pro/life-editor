@@ -166,6 +166,8 @@ export interface NotesSidebarListProps {
    * answers nothing.
    */
   onEditNote?: (noteId: string) => void;
+  /** While offline: why a row cannot be deleted (#2337). */
+  offlineReason?: string;
   onCreateNote: () => void;
   dnd: NoteTagDnd;
 
@@ -211,6 +213,7 @@ export function NotesSidebarList({
   onNoteContextMenu,
   onTagLongPress,
   onEditNote,
+  offlineReason,
   onCreateNote,
   dnd,
   templatesSlot,
@@ -291,6 +294,7 @@ export function NotesSidebarList({
       editLabel={labels.rowActions}
       deleteLabel={labels.deleteNote}
       dragHintLabel={labels.assignTagHint}
+      deleteDisabledReason={offlineReason}
     />
   );
 
@@ -500,6 +504,7 @@ export function NotesSidebarList({
                             editLabel={labels.rowActions}
                             deleteLabel={labels.deleteNote}
                             dragHintLabel={labels.assignTagHint}
+                            deleteDisabledReason={offlineReason}
                           />
                         ))}
                       </ul>

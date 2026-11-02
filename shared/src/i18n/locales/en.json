@@ -125,7 +125,7 @@
           "data": "Todos, notes, dailies, schedule, tags, timers and sounds are deleted from the server.",
           "login": "You will not be able to sign in with this address again.",
           "irreversible": "Nothing goes to Trash. This cannot be undone or restored.",
-          "outbox": "Todos on this device that were never sent: {{n}}. They are erased with the account."
+          "outbox": "Changes on this device that were never sent: {{n}}. They are erased with the account."
         },
         "typePrompt": "Type {{email}} to confirm",
         "inputLabel": "Email address confirmation",
@@ -525,6 +525,7 @@
       "bodyPlaceholder": "Write your note…",
       "untitled": "(untitled)",
       "lockedHint": "This note is locked",
+      "offlineLocked": "You are offline, so renaming, pinning and deleting notes are off until you reconnect.",
       "bodySearchFailed": "Could not search note bodies. Showing title matches only.",
       "password": {
         "setTitle": "Set note password",
@@ -1363,14 +1364,16 @@
     "launchClaude": "Start Claude Code",
     "profile": "Edit profile",
     "signOutPrompt": "Sign out?",
-    "signOutPromptPending": "Todos waiting to be sent: {{n}}. They stay on this device and are sent when this account signs in again. Another account cannot see them. Sign out?"
+    "signOutPromptPending": "Changes waiting to be sent: {{n}}. They stay on this device and are sent when this account signs in again. Another account cannot see them. Sign out?"
   },
   "offline": {
-    "message": "You are offline. A new Todo is kept on this device and sent when you are back online. Other changes are not saved.",
-    "pending": "Todos waiting to be sent: {{n}}.",
-    "failed": "Todos that could not be sent: {{n}}. Copy the text to keep it.",
-    "failedCopyManual": "The text of {{n}} Todos that could not be sent was not copied automatically. Select it below and copy it by hand. You can then remove them from this device.",
-    "failedCopied": "Copied the text of the Todos that could not be sent: {{n}}. You can now remove them from this device.",
+    "message": "You are offline. New Todos, new notes and edits to pinned notes stay on this device and are sent when you are back online. Other changes need a connection.",
+    "pending": "Changes waiting to be sent: {{n}}.",
+    "failed": "Changes that could not be sent: {{n}}. Copy the text to keep it.",
+    "failedCopyManual": "The text of {{n}} changes that could not be sent was not copied automatically. Select it below and copy it by hand. You can then remove them from this device.",
+    "failedCopied": "Copied the text of the changes that could not be sent: {{n}}. You can now remove them from this device.",
+    "separateNoteConflict": "This note changed elsewhere while you were offline, so your edit was kept as a separate note: {{title}}",
+    "separateNoteGone": "This note was deleted elsewhere while you were offline, so your edit was kept as a separate note: {{title}}",
     "copy": "Copy text",
     "remove": "Remove from this device"
   },

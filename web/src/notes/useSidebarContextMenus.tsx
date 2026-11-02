@@ -67,6 +67,8 @@ export interface SidebarContextMenusOptions {
   onRenameNote: (id: string, title: string) => void;
   /** The host's delete flow, confirmation and all. */
   onDeleteNote: (id: string) => void;
+  /** While offline: why rename and delete are off (#2337). */
+  offlineReason?: string;
 }
 
 export interface SidebarContextMenus {
@@ -93,10 +95,12 @@ export function useSidebarContextMenus({
   notes,
   onRenameNote,
   onDeleteNote,
+  offlineReason,
 }: SidebarContextMenusOptions): SidebarContextMenus {
   const { t } = useTranslation();
   const wiki = useWikiTagsUnifiedContext();
   const { allTags } = wiki;
+  const offline = offlineReason !== undefined;
 
   // ---- Tag menu + editor ------------------------------------------------
 
@@ -334,12 +338,18 @@ export function useSidebarContextMenus({
                   it reads and writes assignments through the tags context on
                   its own, so adding and removing here needs no second path. */}
               <TagPicker itemId={menuNote.id} size="sm" />
+              {offline && (
+                <p className="text-xs text-lumen-text-secondary">
+                  {offlineReason}
+                </p>
+              )}
             </div>
           }
           actions={[
             {
               id: "rename",
               label: t("materials.notes.renameNote"),
+              disabled: offline,
               // The popover's inline input is IME-safe (#551) — Enter while a
               // conversion is open does not commit.
               inlineInput: {
@@ -355,6 +365,7 @@ export function useSidebarContextMenus({
               id: "delete",
               label: t("materials.notes.deleteNote"),
               danger: true,
+              disabled: offline,
               onSelect: () => {
                 onDeleteNote(menuNote.id);
                 setNoteMenu(null);
@@ -384,17 +395,24 @@ export function useSidebarContextMenus({
               value={sheetNote.title}
               label={t("materials.notes.renameNote")}
               onCommit={(title) => onRenameNote(sheetNote.id, title)}
+              disabled={offline}
             />
             <TagPicker itemId={sheetNote.id} />
+            {offline && (
+              <p className="text-xs text-lumen-text-secondary">
+                {offlineReason}
+              </p>
+            )}
             <button
               type="button"
+              disabled={offline}
               onClick={() => {
                 const id = sheetNote.id;
                 setSheetNoteId(null);
                 onDeleteNote(id);
               }}
               className={cn(
-                "flex min-h-11 items-center gap-2 self-start rounded-lumen-md px-3 text-sm text-lumen-danger hover:bg-lumen-hover",
+                "flex min-h-11 items-center gap-2 self-start rounded-lumen-md px-3 text-sm text-lumen-danger hover:bg-lumen-hover disabled:opacity-50",
                 FOCUS_RING,
               )}
             >

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, waitFor } from "@testing-library/react";
 import { useSyncDomains } from "../src/hooks/useSyncDomains";
-import { SYNC_DOMAINS } from "../src/context/syncDomains";
+import { SYNC_DOMAINS, type SyncDomain } from "../src/context/syncDomains";
 
 /*
  * #2335 — where the outbox plugs in: one wrapped DataService for the whole page,
@@ -31,9 +31,10 @@ const factory = await vi.importActual<
   typeof import("../src/services/dataServiceFactory")
 >("../src/services/dataServiceFactory");
 
-const sendOutbox = vi.fn<(onSent: () => void) => Promise<void>>();
+type OnSent = (domains: SyncDomain[]) => void;
+const sendOutbox = vi.fn<(onSent: OnSent) => Promise<void>>();
 vi.mock("../src/services/dataServiceFactory", () => ({
-  sendOutbox: (onSent: () => void) => sendOutbox(onSent),
+  sendOutbox: (onSent: OnSent) => sendOutbox(onSent),
 }));
 
 const { SyncProvider } = await import("../src/context/SyncContext");
@@ -89,13 +90,21 @@ describe("SyncProvider sends the outbox", () => {
     hidden.mockRestore();
   });
 
-  it("bumps only the todos domain after a run that sent something", async () => {
+  it("bumps only the domains the run says moved", async () => {
     const onSent = sendOutbox.mock.calls[0]![0];
     await act(async () => {
-      onSent();
+      onSent(["todos"]);
       await new Promise((r) => setTimeout(r, 320));
     });
     expect(versions.todos!.at(-1)).toBe(1);
     expect(versions.all!.at(-1)).toBe(1);
+
+    // #2337: a note's send moves notes, which the Todo list does not read.
+    await act(async () => {
+      onSent(["notes"]);
+      await new Promise((r) => setTimeout(r, 320));
+    });
+    expect(versions.todos!.at(-1)).toBe(1);
+    expect(versions.all!.at(-1)).toBe(2);
   });
 });

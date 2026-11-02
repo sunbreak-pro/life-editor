@@ -44,6 +44,7 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
   deleteLabel,
   dragHintLabel,
   draggable = true,
+  deleteDisabledReason,
 }: {
   node: NoteNode;
   dragId: string;
@@ -74,6 +75,8 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
    * stays in the tag-grouped list, where the headings are.
    */
   draggable?: boolean;
+  /** While offline: the bin is off, and this says why (#2337). */
+  deleteDisabledReason?: string;
 }) {
   // #2032: on a phone a hold that drifted a few px picked the row up, and the
   // hold itself selected the title. The drag (#312) is a pointer gesture for
@@ -226,6 +229,8 @@ export const DesktopNoteRow = memo(function DesktopNoteRow({
             onDelete(node.id);
           }}
           aria-label={`${deleteLabel}: ${node.title || "untitled"}`}
+          disabled={deleteDisabledReason !== undefined}
+          title={deleteDisabledReason}
           className={cn(
             "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity",
             "hover:text-lumen-danger focus-visible:opacity-100 group-hover:opacity-100",

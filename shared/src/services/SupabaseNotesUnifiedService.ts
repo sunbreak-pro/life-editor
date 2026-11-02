@@ -19,6 +19,8 @@ import { SupabaseNotesUnifiedLock } from "./SupabaseNotesUnifiedLock";
 import { SupabaseNotesUnifiedBodySave } from "./SupabaseNotesUnifiedBodySave";
 import { orderNotePurge } from "./notesUnifiedPurgeOrder";
 import { purgeNoteTablesOf } from "./SupabaseNoteTablesService";
+import { getAuthedUserId } from "./supabaseServiceHelpers";
+import { OutboxSendError, classifySendFailure } from "../state/outbox";
 
 /*
  * SupabaseNotesUnifiedService (DU-D Step 2).
@@ -143,6 +145,95 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
     return created;
   }
 
+  /**
+   * The send behind the outbox (#2337). The same pair of inserts as
+   * createNoteUnified, made repeatable the way `createTodoIfAbsent` is (its
+   * comment gives the reasoning): `ignoreDuplicates` makes an existing row a
+   * no-op, a retryable payload failure keeps the meta row for the next send, and
+   * a refusal removes an orphan (R2).
+   */
+  async createNoteIfAbsent(
+    node: NoteNode,
+    options: { ownerId: string; retried?: boolean },
+  ): Promise<{ created: boolean; current: NoteBodySnapshot | null }> {
+    const userId = await getAuthedUserId(this.client);
+    if (userId !== options.ownerId) {
+      throw new Error("getUserId failed: account changed");
+    }
+    const { meta, payload } = noteNodeToRows(node, userId);
+    const fail = (
+      label: string,
+      status: number,
+      error: { message: string; code?: string },
+    ): OutboxSendError =>
+      new OutboxSendError(
+        `createNoteIfAbsent ${label}: ${error.message}`,
+        status,
+        error.code,
+      );
+
+    const metaRes = await this.client
+      .from("items_meta")
+      .upsert(
+        { ...meta, created_at: node.createdAt },
+        { onConflict: "id", ignoreDuplicates: true },
+      )
+      .select("id");
+    if (metaRes.error) throw fail("items_meta", metaRes.status, metaRes.error);
+    const metaCreated = (metaRes.data ?? []).length > 0;
+
+    const payloadRes = await this.client
+      .from("notes_payload")
+      .upsert(payload, { onConflict: "item_id", ignoreDuplicates: true })
+      .select("item_id");
+    if (payloadRes.error) {
+      const failure = fail(
+        "notes_payload",
+        payloadRes.status,
+        payloadRes.error,
+      );
+      if (classifySendFailure(failure) === "failed") {
+        if (metaCreated) {
+          await this.deleteNoteMeta(node.id);
+        } else if (options.retried) {
+          // Best-effort: the refusal is what the caller must hear about.
+          await this.removeNoteMetaIfOrphan(node.id).catch(() => {});
+        }
+      }
+      throw failure;
+    }
+    const created = (payloadRes.data ?? []).length > 0;
+
+    if (!metaCreated && (created || options.retried)) {
+      const { error, status } = await this.client
+        .from("items_meta")
+        .update({ updated_at: new Date().toISOString() })
+        .eq("id", node.id)
+        .eq("role", "note");
+      if (error) throw fail("items_meta bump", status, error);
+    }
+    return { created, current: await this.getNoteBodySnapshotUnified(node.id) };
+  }
+
+  private async deleteNoteMeta(id: string): Promise<void> {
+    await this.client
+      .from("items_meta")
+      .delete()
+      .eq("id", id)
+      .eq("role", "note");
+  }
+
+  /** Only a confirmed absence removes anything, as for a Todo. */
+  private async removeNoteMetaIfOrphan(id: string): Promise<void> {
+    const { data, error } = await this.client
+      .from("notes_payload")
+      .select("item_id")
+      .eq("item_id", id)
+      .maybeSingle();
+    if (error || data) return;
+    await this.deleteNoteMeta(id);
+  }
+
   // -------------------------------------------------------------------------
   // Update
   // -------------------------------------------------------------------------
@@ -201,6 +292,20 @@ export class SupabaseNotesUnifiedService implements NotesUnifiedDataService {
 
   getNoteBodySnapshotUnified(id: string): Promise<NoteBodySnapshot | null> {
     return this.bodySave.getNoteBodySnapshotUnified(id);
+  }
+
+  /** A session switch during a run must not write into another account. */
+  async sendNoteBody(
+    id: string,
+    content: string,
+    expectedUpdatedAt: string,
+    options: { ownerId: string },
+  ): Promise<NoteBodySaveResult> {
+    const userId = await getAuthedUserId(this.client);
+    if (userId !== options.ownerId) {
+      throw new Error("getUserId failed: account changed");
+    }
+    return this.bodySave.saveNoteBodyUnified(id, content, expectedUpdatedAt);
   }
 
   // -------------------------------------------------------------------------
@@ -351,6 +456,8 @@ export const PHASE2_NOTES_UNIFIED_METHOD_NAMES = [
   "getNoteUnified",
   "getNoteBodyUnified", // #1763
   "createNoteUnified",
+  "createNoteIfAbsent", // #2337
+  "sendNoteBody", // #2337
   "updateNoteUnified",
   "saveNoteBodyUnified", // #2057
   "getNoteBodySnapshotUnified", // #2057

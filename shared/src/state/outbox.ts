@@ -1,4 +1,6 @@
+import type { NoteNode } from "../types/note";
 import type { TodoNode } from "../types/todoTree";
+import { blockText, docBlocks } from "../utils/blockMerge";
 import { committed, factory, settle } from "./persistentCache";
 
 /*
@@ -15,6 +17,11 @@ import { committed, factory, settle } from "./persistentCache";
  * Two stores: `outbox` waits to be sent and `failed` was refused by the server,
  * kept so its text can be copied. Keys sort by creation time (see `newOpId`),
  * so reading a store gives the oldest entry first.
+ *
+ * #2337 adds the note kinds without moving the version: an app that only knows
+ * `todo.create` already leaves any other kind in the box (`isSendable`), and a
+ * note entry keeps `payload.node.title` and `.content`, so that app can also
+ * copy one out of the failed box.
  */
 
 /** The shape of a stored entry, independent of `CACHE_SCHEMA_VERSION`. */
@@ -25,24 +32,40 @@ const IDB_VERSION = 1;
 const PENDING_STORE = "outbox";
 const FAILED_STORE = "failed";
 
-export interface OutboxEntry {
+interface OutboxEntryBase {
   opId: string;
-  /** Only the Todo create so far; #2336 and #2337 add their kinds here. */
-  kind: "todo.create";
   itemId: string;
   /** The version the edit was based on. A create has none. */
   baseUpdatedAt: string | null;
   baseContent?: string;
-  payload: { node: TodoNode };
   createdAt: string;
   attempts: number;
   schemaVersion: number;
 }
 
-export interface FailedOutboxEntry extends OutboxEntry {
+export interface TodoOutboxEntry extends OutboxEntryBase {
+  kind: "todo.create";
+  payload: { node: TodoNode };
+}
+
+/**
+ * One note's waiting writes (#2337). `node.content` is the latest body, the base
+ * stays the one from the first edit, and `rev` moves with every later save, so a
+ * send can tell whether the entry changed while it was on the wire. On a
+ * `note.create`, `baseContent` is the body the last attempt may have written.
+ */
+export interface NoteOutboxEntry extends OutboxEntryBase {
+  kind: "note.create" | "note.body";
+  payload: { node: NoteNode };
+  rev: number;
+}
+
+export type OutboxEntry = TodoOutboxEntry | NoteOutboxEntry;
+
+export type FailedOutboxEntry = OutboxEntry & {
   error: string;
   failedAt: string;
-}
+};
 
 export interface OutboxCounts {
   pending: number;
@@ -140,15 +163,20 @@ export async function readOutbox(userId: string): Promise<OutboxEntry[]> {
 /** The entries this version of the app knows how to read and send. */
 export function isSendable(entry: OutboxEntry): boolean {
   return (
-    entry.schemaVersion <= OUTBOX_SCHEMA_VERSION && entry.kind === "todo.create"
+    entry.schemaVersion <= OUTBOX_SCHEMA_VERSION &&
+    (entry.kind === "todo.create" || isNoteEntry(entry))
   );
+}
+
+export function isNoteEntry(entry: OutboxEntry): entry is NoteOutboxEntry {
+  return entry.kind === "note.create" || entry.kind === "note.body";
 }
 
 export async function enqueueTodoCreate(
   userId: string,
   node: TodoNode,
-): Promise<OutboxEntry> {
-  const entry: OutboxEntry = {
+): Promise<TodoOutboxEntry> {
+  const entry: TodoOutboxEntry = {
     opId: newOpId(),
     kind: "todo.create",
     itemId: node.id,
@@ -167,6 +195,104 @@ export async function enqueueTodoCreate(
   return entry;
 }
 
+export async function readNoteEntries(
+  userId: string,
+): Promise<NoteOutboxEntry[]> {
+  return (await readOutbox(userId)).filter(isNoteEntry).filter(isSendable);
+}
+
+/**
+ * One transaction per note, so two tabs' saves line up: the first writes `fresh`,
+ * and any later one only replaces the body.
+ */
+async function amendNoteEntry(
+  userId: string,
+  itemId: string,
+  content: string,
+  fresh?: () => NoteOutboxEntry,
+): Promise<NoteOutboxEntry | null> {
+  const db = await open(userId);
+  const tx = db.transaction(PENDING_STORE, "readwrite");
+  const done = committed(tx);
+  const store = tx.objectStore(PENDING_STORE);
+  const rows = (await settle(store.getAll())) as OutboxEntry[];
+  const held = rows
+    .filter(isNoteEntry)
+    .find((e) => e.itemId === itemId && isSendable(e));
+  const next: NoteOutboxEntry | null = held
+    ? {
+        ...held,
+        rev: held.rev + 1,
+        payload: { node: { ...held.payload.node, content } },
+      }
+    : (fresh?.() ?? null);
+  if (next !== null) store.put(next);
+  await done;
+  if (!held && next !== null) await refreshOutboxCounts(userId);
+  return next;
+}
+
+/** Keeps the entry's first base and takes the latest body. Null: none waits. */
+export function coalesceNoteBody(
+  userId: string,
+  itemId: string,
+  content: string,
+): Promise<NoteOutboxEntry | null> {
+  return amendNoteEntry(userId, itemId, content);
+}
+
+/** `node.content` is the body to send, and the node carries the note's title. */
+export async function queueNote(
+  userId: string,
+  kind: NoteOutboxEntry["kind"],
+  node: NoteNode,
+  base: { updatedAt: string | null; content?: string },
+): Promise<NoteOutboxEntry> {
+  const entry = await amendNoteEntry(userId, node.id, node.content, () => ({
+    opId: newOpId(),
+    kind,
+    itemId: node.id,
+    baseUpdatedAt: base.updatedAt,
+    baseContent: base.content,
+    payload: { node },
+    createdAt: new Date().toISOString(),
+    attempts: 0,
+    rev: 0,
+    schemaVersion: OUTBOX_SCHEMA_VERSION,
+  }));
+  return entry as NoteOutboxEntry;
+}
+
+/**
+ * A send of `sent` is over. An edit that arrived meanwhile keeps the entry, with
+ * `base` as what the next send compares against, so it is neither lost nor taken
+ * for sent. It waits as a body edit, since the note now exists on the server.
+ */
+export async function settleSentNote(
+  userId: string,
+  sent: NoteOutboxEntry,
+  base: { updatedAt: string | null; content?: string },
+): Promise<void> {
+  const db = await open(userId);
+  const tx = db.transaction(PENDING_STORE, "readwrite");
+  const done = committed(tx);
+  const store = tx.objectStore(PENDING_STORE);
+  const now = (await settle(store.get(sent.opId))) as
+    | NoteOutboxEntry
+    | undefined;
+  if (now !== undefined && now.rev === sent.rev) store.delete(sent.opId);
+  else if (now !== undefined) {
+    store.put({
+      ...now,
+      kind: "note.body",
+      baseUpdatedAt: base.updatedAt,
+      baseContent: base.content,
+    });
+  }
+  await done;
+  await refreshOutboxCounts(userId);
+}
+
 /**
  * Count one more attempt, in one transaction so it cannot put back an entry an
  * undo has just removed. Null when the entry is gone.
@@ -181,7 +307,14 @@ export async function claimOutboxEntry(
   const store = tx.objectStore(PENDING_STORE);
   const entry = (await settle(store.get(opId))) as OutboxEntry | undefined;
   const claimed = entry && { ...entry, attempts: entry.attempts + 1 };
-  if (claimed) store.put(claimed);
+  if (claimed) {
+    // The caller reads the body the last attempt sent; the box holds this one's.
+    store.put(
+      claimed.kind === "note.create"
+        ? { ...claimed, baseContent: claimed.payload.node.content }
+        : claimed,
+    );
+  }
   await done;
   return claimed ?? null;
 }
@@ -208,13 +341,18 @@ export async function failOutboxEntry(
   const db = await open(userId);
   const tx = db.transaction([PENDING_STORE, FAILED_STORE], "readwrite");
   const done = committed(tx);
+  const pending = tx.objectStore(PENDING_STORE);
+  // The box's copy: a note may have taken a newer body while this one was sent.
+  const latest = (await settle(pending.get(entry.opId))) as
+    | OutboxEntry
+    | undefined;
   const failed: FailedOutboxEntry = {
-    ...entry,
+    ...(latest ?? entry),
     error,
     failedAt: new Date().toISOString(),
   };
   tx.objectStore(FAILED_STORE).put(failed);
-  tx.objectStore(PENDING_STORE).delete(entry.opId);
+  pending.delete(entry.opId);
   await done;
   await refreshOutboxCounts(userId);
 }
@@ -289,10 +427,18 @@ export async function deleteOutbox(userId: string): Promise<void> {
 }
 
 export interface FailedOutboxCopy {
-  /** The refused Todos' text, one block per entry, for the clipboard. */
+  /** The refused entries' text, one block per entry, for the clipboard. */
   text: string;
   /** Exactly the entries in `text`: only these may be removed afterwards. */
   opIds: string[];
+}
+
+/** A note's body is stored as a document: the clipboard gets its text. */
+function failedText(entry: FailedOutboxEntry): string {
+  const body = isNoteEntry(entry)
+    ? docBlocks(entry.payload.node.content).map(blockText).join("\n")
+    : entry.payload.node.content;
+  return [entry.payload.node.title, body].filter(Boolean).join("\n");
 }
 
 export async function readFailedOutboxCopy(): Promise<FailedOutboxCopy> {
@@ -305,11 +451,7 @@ export async function readFailedOutboxCopy(): Promise<FailedOutboxCopy> {
   // Another tab may have moved the box: the band compares this read to the count.
   await refreshOutboxCounts(countsOwner);
   return {
-    text: rows
-      .map(({ payload: { node } }) =>
-        [node.title, node.content].filter(Boolean).join("\n"),
-      )
-      .join("\n\n"),
+    text: rows.map(failedText).join("\n\n"),
     opIds: rows.map((row) => row.opId),
   };
 }

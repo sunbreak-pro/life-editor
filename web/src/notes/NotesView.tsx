@@ -48,6 +48,7 @@ import {
 } from "./hooks/useNoteTemplateApply";
 import { TemplateEditHost } from "./TemplateEditHost";
 import { useElementWidth } from "./hooks/useElementWidth";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
 /*
  * Web Notes tab (life-tags unification S1). The former folder tree is gone:
@@ -135,6 +136,10 @@ export function NotesView({
   const { t } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
   const rightSidebar = useRightSidebarContext();
+  // #2337: while offline only the body of a note can change, so these say why
+  // the title, the pin and the delete are off on every surface below.
+  const online = useOnlineStatus();
+  const offlineReason = online ? undefined : t("materials.notes.offlineLocked");
 
   // On wide entry, open the shared rightSidebar so the note list (the panel's
   // content = this tab's nav) is visible. isOpen is non-persisted and starts
@@ -575,6 +580,7 @@ export function NotesView({
     notes: noteRows,
     onRenameNote: renameNote,
     onDeleteNote: handleDeleteNote,
+    offlineReason,
   });
 
   // #1255: what the apply confirm says depends on whether there is anything to
@@ -727,6 +733,7 @@ export function NotesView({
       onNoteContextMenu={sidebarMenus.onNoteContextMenu}
       onTagLongPress={sidebarMenus.onTagLongPress}
       onEditNote={sidebarMenus.onNoteEdit}
+      offlineReason={offlineReason}
       onCreateNote={handleAddNote}
       dnd={dnd}
       // #1180 — only with a DataService, which is what templates are read and
@@ -810,6 +817,7 @@ export function NotesView({
           onTitleAutoFocused={() => setFocusTitleNoteId(null)}
           onTogglePin={notes.togglePin}
           onDelete={handleDeleteNote}
+          offlineReason={offlineReason}
           // #1179: the kebab entry, wired only when there is a DataService to
           // write templates through — the same condition the "[[" pool has.
           //

@@ -112,6 +112,13 @@ export {
   type OutboxCounts,
 } from "./state/outbox";
 export {
+  reportNoteSeparated,
+  subscribeNoteConflicts,
+  subscribeNoteSeparated,
+  type NoteSendConflict,
+  type NoteSeparatedNotice,
+} from "./state/noteSendEvents";
+export {
   signUp,
   signIn,
   signOut,
