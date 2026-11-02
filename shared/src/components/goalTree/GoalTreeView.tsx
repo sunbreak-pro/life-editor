@@ -550,6 +550,18 @@ const ROW_ICON = cn(
   "max-md:min-h-11 max-md:min-w-11",
 );
 
+/*
+ * Below 768px a goal row's three icons take a line of their own (#2487). On
+ * one line at 390px they held 150px and the badge and the count took the
+ * rest, so the title's span was 0px wide. Desktop keeps its one line: there
+ * the box is display: contents, and the icons sit in the row as before.
+ */
+const GOAL_ROW_ICONS =
+  "md:contents max-md:flex max-md:basis-full max-md:justify-end";
+
+/** Below 768px the title keeps room for a few characters before it ellipses. */
+const GOAL_TITLE_FLOOR = "max-md:min-w-20";
+
 /** A todo row's icons: on hover or focus on desktop, always on a phone. */
 const TODO_ROW_ICON = cn(
   ROW_ICON,
@@ -786,7 +798,7 @@ function GoalBranch({
       <div
         data-goal-tree-row=""
         className={cn(
-          "group/row flex items-center rounded-lumen-sm transition-colors",
+          "group/row flex items-center rounded-lumen-sm transition-colors max-md:flex-wrap",
           dragged && DRAG_HOLE,
           placeable &&
             !isOver &&
@@ -868,6 +880,9 @@ function GoalBranch({
             aria-label={`${labels.kinds[node.goal.periodKind]}: ${node.goal.title} — ${goalStatusText(node, labels)}`}
             className={cn(
               ROW_BUTTON,
+              // A badge, a range and a count that leave no room for the title
+              // wrap below it rather than squeeze it (#2487).
+              "max-md:flex-wrap",
               selected && "bg-lumen-accent-subtle hover:bg-lumen-accent-subtle",
             )}
           >
@@ -883,7 +898,13 @@ function GoalBranch({
                 {labels.kinds[goal.periodKind]}
               </span>
             )}
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-lumen-text">
+            <span
+              data-goal-title
+              className={cn(
+                "min-w-0 flex-1 truncate text-sm font-medium text-lumen-text",
+                GOAL_TITLE_FLOOR,
+              )}
+            >
               {node.goal.title}
             </span>
             {goal.startDate && goal.endDate && (
@@ -899,56 +920,60 @@ function GoalBranch({
         )}
         {/* On the hovered or the selected row; a keyboard reaches them while
             hidden, and each shows once focused. */}
-        {rowActions && !editing && (
-          <button
-            type="button"
-            onClick={() =>
-              branch.onAddUnder(
-                addingHere
-                  ? null
-                  : {
-                      goalId: goal.id,
-                      place,
-                      step:
-                        goalChildKinds(goal.periodKind).length > 0
-                          ? "choose"
-                          : "todo",
-                    },
-              )
-            }
-            aria-expanded={addingHere !== null}
-            aria-label={labels.formatAddUnder(goal.title)}
-            title={labels.formatAddUnder(goal.title)}
-            className={iconClass}
-          >
-            <Plus size={14} aria-hidden />
-          </button>
-        )}
-        {onRenameGoal && !editing && (
-          <button
-            type="button"
-            onClick={() => {
-              branch.onAddUnder(null);
-              branch.onEdit({ goalId: goal.id, place });
-              props.onEditGoal?.(goal.id);
-            }}
-            aria-label={labels.formatEdit(goal.title)}
-            title={labels.formatEdit(goal.title)}
-            className={iconClass}
-          >
-            <SquarePen size={14} aria-hidden />
-          </button>
-        )}
-        {rowActions && !editing && (
-          <button
-            type="button"
-            onClick={() => rowActions.onDelete(goal)}
-            aria-label={labels.formatDelete(goal.title)}
-            title={labels.formatDelete(goal.title)}
-            className={iconClass}
-          >
-            <Trash2 size={14} aria-hidden />
-          </button>
+        {(rowActions || onRenameGoal) && !editing && (
+          <div data-goal-row-icons="" className={GOAL_ROW_ICONS}>
+            {rowActions && (
+              <button
+                type="button"
+                onClick={() =>
+                  branch.onAddUnder(
+                    addingHere
+                      ? null
+                      : {
+                          goalId: goal.id,
+                          place,
+                          step:
+                            goalChildKinds(goal.periodKind).length > 0
+                              ? "choose"
+                              : "todo",
+                        },
+                  )
+                }
+                aria-expanded={addingHere !== null}
+                aria-label={labels.formatAddUnder(goal.title)}
+                title={labels.formatAddUnder(goal.title)}
+                className={iconClass}
+              >
+                <Plus size={14} aria-hidden />
+              </button>
+            )}
+            {onRenameGoal && (
+              <button
+                type="button"
+                onClick={() => {
+                  branch.onAddUnder(null);
+                  branch.onEdit({ goalId: goal.id, place });
+                  props.onEditGoal?.(goal.id);
+                }}
+                aria-label={labels.formatEdit(goal.title)}
+                title={labels.formatEdit(goal.title)}
+                className={iconClass}
+              >
+                <SquarePen size={14} aria-hidden />
+              </button>
+            )}
+            {rowActions && (
+              <button
+                type="button"
+                onClick={() => rowActions.onDelete(goal)}
+                aria-label={labels.formatDelete(goal.title)}
+                title={labels.formatDelete(goal.title)}
+                className={iconClass}
+              >
+                <Trash2 size={14} aria-hidden />
+              </button>
+            )}
+          </div>
         )}
         {placeable && (
           <span

@@ -584,7 +584,9 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
   it("opens a closed goal when something is added under it (#2399)", async () => {
     const rowActions = actions();
     renderTree({ rowActions });
-    fireEvent.click(screen.getByRole("button", { name: "Collapse: Run 10 km" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse: Run 10 km" }),
+    );
     expect(screen.queryByText("Run weekly")).toBeNull();
 
     choicesOf("Run 10 km");
@@ -613,7 +615,9 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
       onAddTodo: vi.fn().mockResolvedValue(false),
     };
     renderTree({ rowActions });
-    fireEvent.click(screen.getByRole("button", { name: "Collapse: Run 10 km" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse: Run 10 km" }),
+    );
     choicesOf("Run 10 km");
     fireEvent.click(screen.getByRole("button", { name: "Todo" }));
     const field = screen.getByRole("textbox", { name: /^Add under/ });
@@ -891,5 +895,71 @@ describe("GoalTreeView — the drag reads as carrying the row (#2365)", () => {
       ),
     );
     expect(target.className).toContain("outline-2");
+  });
+});
+
+describe("GoalTreeView — a goal's title keeps its room on a phone (#2487)", () => {
+  /*
+   * jsdom has no layout, so this cannot measure the title. It pins the
+   * classes that give it room: at 390px the three icons took 150px of the
+   * row and the badge and the count took the rest, leaving the title 0px.
+   * Every class here carries max-md: (or md: for Desktop's own), so the
+   * wide row stays on one line as it was.
+   */
+  const classesOf = (el: Element): string[] => el.className.split(/\s+/);
+  const actions = (): GoalRowActions => ({
+    onAddTodo: vi.fn().mockResolvedValue(true),
+    onAddChildGoal: vi.fn().mockResolvedValue(true),
+    onDelete: vi.fn(),
+  });
+
+  it("gives the title a floor and lets the badge and count wrap below it", () => {
+    renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
+    const button = titleOf("Run 3 times");
+    const title = button.querySelector("[data-goal-title]") as HTMLElement;
+    expect(title.textContent).toBe("Run 3 times");
+    expect(classesOf(title)).toContain("max-md:min-w-20");
+    expect(classesOf(title)).toContain("truncate");
+    expect(classesOf(button)).toContain("max-md:flex-wrap");
+    expect(classesOf(button)).not.toContain("flex-wrap");
+  });
+
+  it("puts the three icons on a line of their own below 768px only", () => {
+    renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
+    const row = rowOf("Run 3 times");
+    expect(classesOf(row)).toContain("max-md:flex-wrap");
+    expect(classesOf(row)).not.toContain("flex-wrap");
+
+    const icons = row.querySelector("[data-goal-row-icons]") as HTMLElement;
+    expect(
+      within(icons)
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("aria-label")),
+    ).toEqual([
+      "Add under: Run 3 times",
+      "Edit goal: Run 3 times",
+      "Delete goal: Run 3 times",
+    ]);
+    // Desktop: the box is not drawn, so the icons stay in the row's line.
+    expect(classesOf(icons)).toContain("md:contents");
+    expect(classesOf(icons)).toContain("max-md:basis-full");
+    expect(classesOf(icons)).not.toContain("basis-full");
+    // The title is not on the icons' line.
+    expect(icons.contains(titleOf("Run 3 times"))).toBe(false);
+    // The tap floor stays 44px.
+    for (const icon of within(icons).getAllByRole("button")) {
+      expect(classesOf(icon)).toContain("max-md:min-h-11");
+      expect(classesOf(icon)).toContain("max-md:min-w-11");
+    }
+  });
+
+  it("draws no icon line on a row whose name is being typed", () => {
+    renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit goal: Run weekly" }),
+    );
+    const field = screen.getByRole("textbox", { name: "Goal title" });
+    const row = field.parentElement as HTMLElement;
+    expect(row.querySelector("[data-goal-row-icons]")).toBeNull();
   });
 });
