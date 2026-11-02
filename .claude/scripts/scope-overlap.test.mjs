@@ -7,7 +7,7 @@ import { mkdtempSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { classify, globToRegExp, loadMap } from "./scope-overlap.mjs";
+import { classify, globToRegExp, issuePairs, loadMap, parsePorcelainZ } from "./scope-overlap.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./scope-overlap.mjs", import.meta.url));
 const map = loadMap();
@@ -18,7 +18,10 @@ function cli(fixture, args = []) {
   const path = join(dir, `fx-${seq++}.json`);
   writeFileSync(path, JSON.stringify(fixture));
   try {
-    const out = execFileSync(process.execPath, [SCRIPT, "--fixture", path, ...args], { encoding: "utf8" });
+    const out = execFileSync(process.execPath, [SCRIPT, "--fixture", path, ...args], {
+      encoding: "utf8",
+      stdio: ["ignore", "pipe", "pipe"],
+    });
     return { code: 0, out };
   } catch (e) {
     return { code: e.status, out: String(e.stdout) + String(e.stderr) };
@@ -107,14 +110,24 @@ test("generated hub is INFO only", () => {
   assert.equal(json(r).findings[0].kind, "generated");
 });
 
-test("ANSWERS.md is owner-only", () => {
+test("ANSWERS.md is owner-only, except on record branches", () => {
   const self = { files: [".claude/comm/decisions/ANSWERS.md"] };
   const others = [{ with: "PR #2465", type: "pr", strength: "strong", headRefName: "x", files: self.files }];
-  const lane = classify({ self: { ...self, lane: "connect-refine" }, others, map });
+  const lane = classify({ self: { ...self, lane: "connect-refine", branch: "claude/x-1" }, others, map });
   assert.ok(lane.blocked);
   assert.ok(lane.findings.every((f) => f.kind === "owner-only"));
   const owner = classify({ self: { ...self, lane: "chat-main" }, others, map });
   assert.equal(owner.blocked, false);
+  const record = classify({
+    self: { ...self, lane: "connect-refine", branch: "origin/chore/tracker-connect-refine-20261102-2" },
+    others,
+    map,
+  });
+  assert.equal(record.blocked, false);
+  assert.deepEqual(
+    record.findings.map((f) => [f.level, f.kind]),
+    [["INFO", "owner-only"]],
+  );
 });
 
 test("the same migration number in another PR blocks", () => {
@@ -152,4 +165,103 @@ test("an unavailable PR list exits 3 and never claims no overlap", () => {
     assert.equal(r.code, 3);
     assert.ok(!r.out.includes("重なりなし"));
   }
+});
+
+test("git status -z keeps the leading space of an unstaged first entry", () => {
+  assert.deepEqual(parsePorcelainZ(" M a/b.ts\0?? c.ts\0"), ["a/b.ts", "c.ts"]);
+  assert.deepEqual(parsePorcelainZ("R  new.ts\0old.ts\0 M .claude/comm/x.md\0"), ["new.ts"]);
+});
+
+test("a PR's own conflicts with main are not blamed on self", () => {
+  const r = cli(
+    {
+      selfBranch: "claude/fix-2474",
+      selfFiles: ["shared/src/components/materials/NoteDetailPanel.tsx"],
+      prs: [
+        {
+          number: 2460,
+          headRefName: "claude/offline-notes-2337",
+          files: ["shared/src/components/materials/NoteDetailPanel.tsx", "shared/src/i18n/locales/en.json"],
+        },
+      ],
+      worktrees: [],
+      mergeTree: { "claude/offline-notes-2337": ["shared/src/i18n/locales/en.json", "web/src/notes/NoteDetailSurface.tsx"] },
+      prBaseConflicts: {
+        "claude/offline-notes-2337": ["shared/src/i18n/locales/en.json", "web/src/notes/NoteDetailSurface.tsx"],
+      },
+    },
+    ["--json"],
+  );
+  assert.equal(r.code, 1);
+  assert.deepEqual(
+    blocks(r).map((f) => [f.kind, f.file]),
+    [["same-file", "shared/src/components/materials/NoteDetailPanel.tsx"]],
+  );
+  assert.ok(json(r).findings.some((f) => f.kind === "stale-pr" && f.level === "INFO"));
+  // A file self touches too still counts, even when the other PR also conflicts with main on it.
+  const both = cli(
+    {
+      selfBranch: "claude/offline-notes-2337",
+      selfFiles: ["shared/src/services/dataServiceFactory.ts"],
+      prs: [{ number: 2454, headRefName: "claude/offline-daily-2336", files: ["shared/src/services/dataServiceFactory.ts"] }],
+      worktrees: [],
+      mergeTree: { "claude/offline-daily-2336": ["shared/src/services/dataServiceFactory.ts"] },
+      prBaseConflicts: { "claude/offline-daily-2336": ["shared/src/services/dataServiceFactory.ts"] },
+    },
+    ["--json"],
+  );
+  assert.deepEqual(
+    blocks(both).map((f) => [f.kind, f.with]),
+    [["CONFLICT", "PR #2454"]],
+  );
+});
+
+test("without merge-tree an append hub overlap is WARN and does not block", () => {
+  const r = cli(
+    {
+      tree: ["shared/src/i18n/locales/en.json"],
+      prs: [{ number: 12, headRefName: "o", files: ["shared/src/i18n/locales/en.json"] }],
+      worktrees: [],
+    },
+    ["--paths", "shared/src/i18n/locales/en.json"],
+  );
+  assert.equal(r.code, 0);
+  assert.match(r.out, /WARN append/);
+  assert.ok(!r.out.includes("結論: 重なりなし"));
+  const pairs = issuePairs(
+    { "#1": ["shared/src/i18n/locales/en.json"], "#2": ["shared/src/i18n/locales/en.json"] },
+    ["shared/src/i18n/locales/en.json"],
+    map,
+  );
+  assert.equal(pairs[0].level, "WARN");
+});
+
+test("--branch takes the lane of the worktree holding that branch", () => {
+  const r = cli(
+    {
+      selfPath: "/w/materials-refine",
+      selfFiles: ["shared/src/components/goalTree/GoalDetailPanel.tsx", "web/src/wikitag/TagPicker.tsx"],
+      prs: [],
+      worktrees: [
+        { name: "materials-refine", path: "/w/materials-refine", branch: "claude/m-1" },
+        { name: "schedule-refine", path: "/w/schedule-refine", branch: "claude/s-2" },
+      ],
+    },
+    ["--branch", "claude/s-2", "--json"],
+  );
+  assert.equal(r.code, 0);
+  const out = json(r);
+  assert.equal(out.self.lane, "schedule-refine");
+  // goalTree belongs to connect-refine; tag files are open to every lane.
+  assert.deepEqual(
+    out.findings.map((f) => [f.kind, f.file]),
+    [["off-lane", "shared/src/components/goalTree/GoalDetailPanel.tsx"]],
+  );
+});
+
+test("an unexpected error exits 3, not the BLOCK code 1", () => {
+  const r = cli({ prs: "not-a-list", worktrees: [], selfFiles: ["a.ts"] }, []);
+  assert.equal(r.code, 3);
+  assert.match(r.out, /未確認/);
+  assert.ok(!r.out.includes("重なりなし"));
 });

@@ -14,7 +14,8 @@
 //   options: --lane <slug> --scope-plan <plan.md> --base origin/main --json --no-merge-tree --strict-lane
 //            --fixture <file.json> (replaces every gh / git call; used by scope-overlap.test.mjs)
 //
-// Exit codes: 0 = no BLOCK, 1 = at least one BLOCK, 2 = usage error, 3 = PR or worktree list unavailable.
+// Exit codes: 0 = no BLOCK (WARN rows may remain), 1 = at least one BLOCK, 2 = usage error,
+//             3 = unconfirmed (PR or worktree list unavailable, or any unexpected error).
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { basename, resolve } from "node:path";
@@ -27,8 +28,9 @@ const RUNTIME_PATH = /^\.claude\/(comm|memory|history)\//;
 const MAP_PATH = fileURLToPath(new URL("./lane-ownership.json", import.meta.url));
 
 // ---------- helpers (copied from merge-round.mjs so this script stands alone) ----------
-function run(cmd, args, opts = {}) {
-  return execFileSync(cmd, args, {
+// `trim: false` keeps leading spaces, which `git status --porcelain` uses as the "unchanged in index" column.
+function run(cmd, args, { trim = true, ...opts } = {}) {
+  const out = execFileSync(cmd, args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
     maxBuffer: 64 * 1024 * 1024,
@@ -36,7 +38,8 @@ function run(cmd, args, opts = {}) {
     env: { ...process.env, GIT_TERMINAL_PROMPT: "0", GCM_INTERACTIVE: "never" },
     timeout: 120_000,
     ...opts,
-  }).trim();
+  });
+  return trim ? out.trim() : out;
 }
 function tryRun(cmd, args, opts) {
   try {
@@ -45,6 +48,13 @@ function tryRun(cmd, args, opts) {
     return { code: e.status ?? 1, out: String(e.stdout ?? "").trim(), err: String(e.stderr ?? "").trim() };
   }
 }
+const parseJson = (text) => {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return null;
+  }
+};
 const git = (...args) => run("git", args);
 class UsageError extends Error {}
 const die = (msg, code = 2) => {
@@ -95,14 +105,22 @@ function hubOf(map, file) {
   for (const hub of map.hubs ?? []) if (matcher(hub.paths)(file)) return hub;
   return null;
 }
+const hubOwners = (hub) => hub.owners ?? (hub.owner ? [hub.owner] : []);
+// The fallback lane only takes what no named lane claims, so it never counts as a second owner.
 function ownerLanes(map, file) {
-  return laneMatchers(map)
+  const named = laneMatchers(map)
     .filter((l) => l.test(file))
     .map((l) => l.name);
+  if (named.length) return named;
+  const fb = map.fallbackLane;
+  return fb && matcher(fb.paths)(file) ? [fb.name] : [];
 }
+const isCrossCutting = (map, lane) => (map.crossCutting?.lanes ?? []).includes(lane);
+// A worktree directory is a lane only when it owns paths of its own or is listed as cross-cutting.
+const laneOfDir = (map, name) =>
+  (map.lanes?.[name] && !map.lanes[name].anyLane) || isCrossCutting(map, name) ? name : null;
 function laneLabel(map, name) {
-  const holder = map.lanes?.[name]?.holder;
-  return holder ? `${name}（${holder} が兼任）` : name;
+  return isCrossCutting(map, name) ? `${name}（横断。持ち分なし）` : name;
 }
 function migrationNumber(map, file) {
   const dir = map.serialRules?.migrationDir;
@@ -115,54 +133,86 @@ function migrationNumber(map, file) {
 
 // ---------- classification (pure; exported for the test) ----------
 // input: {
-//   self: { files: string[], globs?: string[], lane?: string|null, hasRef?: boolean },
+//   self: { files: string[], globs?: string[], lane?: string|null, branch?: string|null },
 //   others: [{ with: "PR #n" | "worktree <name>", type: "pr"|"worktree", strength: "strong"|"weak",
 //              headRefName?: string, files: string[] }],
-//   mergeTree?: { [headRefName]: string[] }   conflicted files per PR; a missing key means merge-tree did not run
-//   mainTree?: string[]                       base tree, for the migration-number check
-//   map, strictLane?, scopeGlobs?: string[] | null
+//   mergeTree?: { [headRefName]: string[] }        self-vs-PR conflicts; a missing key means merge-tree did not run
+//   prBaseConflicts?: { [headRefName]: string[] }  the PR's own conflicts with base
+//   baseConflicts?: string[]                       self's own conflicts with base
+//   mainTree?: string[]                            base tree, for the migration-number check
+//   map, strictLane?, scopeGlobs?: string[] | null, baseName?: string
 // }
+// Levels: BLOCK fails the check; WARN is an overlap the check could not settle (no merge-tree); INFO is fine.
 export function classify(input) {
-  const { self, others = [], mergeTree = {}, mainTree = [], map, strictLane = false, scopeGlobs = null } = input;
+  const {
+    self,
+    others = [],
+    mergeTree = {},
+    prBaseConflicts = {},
+    mainTree = [],
+    map,
+    strictLane = false,
+    scopeGlobs = null,
+    baseName = "origin/main",
+  } = input;
   const baseConflicts = new Set((input.baseConflicts ?? []).map(norm));
   const findings = [];
   const add = (level, kind, file, withWho, detail) => findings.push({ level, kind, file, with: withWho, detail });
   // Two branches cut from different main commits also "conflict" on what main changed in between,
   // so conflicts with main itself are reported apart from the PR-to-PR ones.
   for (const f of baseConflicts)
-    add("BLOCK", "CONFLICT", f, "origin/main", "main と衝突している。先に origin/main を取り込んで解く");
+    add("BLOCK", "CONFLICT", f, baseName, `main と衝突している。先に ${baseName} を取り込んで解く`);
   const prConflictDetail = (f) =>
     baseConflicts.has(f)
-      ? "中身が衝突する（main とも衝突しているので、先に origin/main を取り込む）"
+      ? `中身が衝突する（main とも衝突しているので、先に ${baseName} を取り込む）`
       : "中身が衝突する。先行の PR の merge 後に取り込んで解く";
   const selfFiles = [...new Set((self.files ?? []).map(norm))];
   const selfGlobMatch = self.globs?.length ? matcher(self.globs) : null;
   const selfSet = new Set(selfFiles);
   const selfHas = (f) => selfSet.has(norm(f)) || (selfGlobMatch ? selfGlobMatch(f) : false);
   const lane = self.lane ?? null;
+  // Record branches (tracker / outbox / routine) are where decisions get transcribed, whoever opens them.
+  const recordBranch = RECORD_BRANCH.test(String(self.branch ?? "").replace(/^origin\//, ""));
+  const ownerOnly = (hub, f, withWho) => {
+    const owners = hubOwners(hub);
+    if (owners.includes(lane) || (recordBranch && hub.recordBranches)) {
+      if (withWho) add("INFO", "owner-only", f, withWho, `同じファイルに別の書き手がいる。${hub.how}`);
+      return;
+    }
+    add("BLOCK", "owner-only", f, withWho ?? "—", `${owners.join(" / ")} 専用。${hub.how}`);
+  };
 
-  // owner-only hubs block whoever is not the owner, whether or not someone else is on the file.
   for (const f of selfFiles) {
     const hub = hubOf(map, f);
-    if (hub?.kind === "owner-only" && lane !== hub.owner)
-      add("BLOCK", "owner-only", f, "—", `${hub.owner} 専用。${hub.how}`);
+    if (hub?.kind === "owner-only") ownerOnly(hub, f, null);
   }
 
   for (const o of others) {
     const shared = [...new Set((o.files ?? []).map(norm))].filter(selfHas);
     const conflicts = o.headRefName != null ? mergeTree[o.headRefName] : undefined;
     const ran = Array.isArray(conflicts);
+    // A PR that already conflicts with main brings those conflicts into any merge-tree run against it, so
+    // they count against self only on files self touches too.
+    const theirs = new Set((o.headRefName != null ? (prBaseConflicts[o.headRefName] ?? []) : []).map(norm));
     const conflictSet = new Set((conflicts ?? []).map(norm));
     const withWho = o.strength === "weak" ? `${o.with}（weak）` : o.with;
+    if (shared.length && theirs.size)
+      add(
+        "INFO",
+        "stale-pr",
+        [...theirs].sort().join(", "),
+        withWho,
+        `${o.with} は ${baseName} とすでに衝突している。この分は相手の PR が直すので、こちらの衝突には数えない`,
+      );
     for (const f of shared) {
       const hub = hubOf(map, f);
       if (conflictSet.has(f)) {
-        add("BLOCK", "CONFLICT", f, withWho, prConflictDetail(f));
+        const detail = theirs.has(f) ? `${prConflictDetail(f)}（相手の PR も main と衝突している）` : prConflictDetail(f);
+        add("BLOCK", "CONFLICT", f, withWho, detail);
         continue;
       }
       if (hub?.kind === "owner-only") {
-        if (lane !== hub.owner) add("BLOCK", "owner-only", f, withWho, `${hub.owner} 専用。${hub.how}`);
-        else add("INFO", "owner-only", f, withWho, "同じファイルに別の書き手がいる。先に merge するほうを決める");
+        ownerOnly(hub, f, withWho);
         continue;
       }
       if (hub?.kind === "generated") {
@@ -170,7 +220,8 @@ export function classify(input) {
         continue;
       }
       if (hub?.kind === "append") {
-        add("INFO", "append", f, withWho, hub.how);
+        if (ran) add("INFO", "append", f, withWho, `merge-tree では衝突しない。${hub.how}`);
+        else add("WARN", "append", f, withWho, `merge-tree を回していないので、衝突するかは未確認。${hub.how}`);
         continue;
       }
       const hint =
@@ -182,7 +233,8 @@ export function classify(input) {
     // merge-tree can report conflicts on files the name lists do not share (renames, deletes).
     for (const f of conflictSet)
       // A file the PR does not touch that also conflicts with main came in through the PR's newer base.
-      if (!shared.includes(f) && !baseConflicts.has(f)) add("BLOCK", "CONFLICT", f, withWho, prConflictDetail(f));
+      if (!shared.includes(f) && !baseConflicts.has(f) && !theirs.has(f))
+        add("BLOCK", "CONFLICT", f, withWho, prConflictDetail(f));
   }
 
   // Migration numbers: the same NNNN twice breaks `supabase db push` even when git merges cleanly.
@@ -192,14 +244,14 @@ export function classify(input) {
     if (!n) continue;
     for (const m of mainTree)
       if (migrationNumber(map, m) === n && norm(m) !== f && !mainSet.has(f))
-        add("BLOCK", "migration-number", f, `origin/main ${m}`, `番号 ${n} は main で使用済み。次の番号に取り直す`);
+        add("BLOCK", "migration-number", f, `${baseName} ${m}`, `番号 ${n} は main で使用済み。次の番号に取り直す`);
     for (const o of others)
       for (const of of o.files ?? [])
         if (migrationNumber(map, of) === n && norm(of) !== f)
           add("BLOCK", "migration-number", f, `${o.with} ${norm(of)}`, `番号 ${n} が重なる。後から出すほうが番号を取り直す`);
   }
 
-  // Plan Scope: hub files that merge on their own (i18n, barrels) are not required in a Scope list.
+  // Plan Scope: shared hub files (i18n, barrels, generated) are not required in a Scope list.
   if (scopeGlobs) {
     const inScope = matcher(scopeGlobs);
     for (const f of selfFiles) {
@@ -210,24 +262,29 @@ export function classify(input) {
     }
   }
 
-  // Lane report: a file outside the lane is a hint to route it to its owner, not a conflict by itself.
+  // Lane report: only files another standing lane owns are worth routing; shared areas are open to all.
   const laneEntry = lane ? map.lanes?.[lane] : null;
-  if (laneEntry) {
-    const mine = laneMatchers(map).filter((l) => l.name === lane || l.lane.holder === lane);
+  if (laneEntry && !laneEntry.anyLane) {
+    const mine = laneMatchers(map).filter((l) => l.name === lane);
     for (const f of selfFiles) {
       if (f.startsWith(".claude/") || mine.some((l) => l.test(f))) continue;
       const hub = hubOf(map, f);
       if (hub && (hub.kind === "append" || hub.kind === "generated")) continue;
-      const owners = ownerLanes(map, f);
-      const who = owners.length ? owners.map((n) => laneLabel(map, n)).join(" / ") : "なし";
-      add(strictLane ? "BLOCK" : "INFO", "off-lane", f, "—", `レーン外 ${f} (担当 ${who})`);
+      const owned = ownerLanes(map, f).filter((n) => map.lanes?.[n] && !map.lanes[n].anyLane);
+      if (!owned.length) continue;
+      add(strictLane ? "BLOCK" : "INFO", "off-lane", f, "—", `レーン外 ${f} (担当 ${owned.join(" / ")})`);
     }
   }
 
-  return { findings, blocked: findings.some((x) => x.level === "BLOCK") };
+  return {
+    findings,
+    blocked: findings.some((x) => x.level === "BLOCK"),
+    warned: findings.some((x) => x.level === "WARN"),
+  };
 }
 
-// Pairs of Issues whose Scope globs reach the same file.
+// Pairs of Issues whose Scope globs reach the same file. Without commits there is no merge-tree, so a
+// pair that shares only append hubs (i18n, barrels) is WARN: such files often merge but not always.
 export function issuePairs(issues, tree, map) {
   const entries = Object.entries(issues).filter(([, g]) => Array.isArray(g) && g.length);
   const files = new Map(entries.map(([id, g]) => [id, expand(g, tree)]));
@@ -241,11 +298,13 @@ export function issuePairs(issues, tree, map) {
       const shared = new Set([...files.get(a).filter(mb), ...files.get(b).filter(ma)]);
       if (!shared.size) continue;
       const list = [...shared].sort();
-      const blocking = list.some((f) => {
-        const hub = hubOf(map, f);
-        return !hub || hub.kind === "owner-only";
-      });
-      pairs.push({ a, b, files: list, blocking });
+      const kinds = list.map((f) => hubOf(map, f)?.kind ?? "normal");
+      const level = kinds.some((k) => k === "normal" || k === "owner-only")
+        ? "BLOCK"
+        : kinds.includes("append")
+          ? "WARN"
+          : "INFO";
+      pairs.push({ a, b, files: list, level, blocking: level === "BLOCK" });
     }
   return pairs;
 }
@@ -260,19 +319,19 @@ function expand(globs, tree) {
 
 export function checkMap(map, tree) {
   const problems = [];
-  for (const [name, lane] of Object.entries(map.lanes ?? {})) {
-    for (const g of [...(lane.paths ?? []), ...(lane.exclude ?? [])]) {
-      const r = globToRegExp(g);
-      if (!tree.some((f) => r.test(f))) problems.push(`一致するファイルがない: lanes.${name} ${g}`);
-    }
-  }
+  const unmatched = (where, g) => {
+    const r = globToRegExp(g);
+    if (!tree.some((f) => r.test(f))) problems.push(`一致するファイルがない: ${where} ${g}`);
+  };
+  for (const [name, lane] of Object.entries(map.lanes ?? {}))
+    for (const g of [...(lane.paths ?? []), ...(lane.exclude ?? [])]) unmatched(`lanes.${name}`, g);
+  for (const g of map.fallbackLane?.paths ?? []) unmatched("fallbackLane", g);
   for (const hub of map.hubs ?? []) {
     if (hub.kind === "owner-only") continue;
-    for (const g of hub.paths ?? []) {
-      const r = globToRegExp(g);
-      if (!tree.some((f) => r.test(f))) problems.push(`一致するファイルがない: hubs(${hub.kind}) ${g}`);
-    }
+    for (const g of hub.paths ?? []) unmatched(`hubs(${hub.kind})`, g);
   }
+  for (const name of map.crossCutting?.lanes ?? [])
+    if (map.lanes?.[name]) problems.push(`横断レーンが持ち分も持っている: ${name}`);
   const lanes = laneMatchers(map);
   for (const f of tree) {
     const owners = lanes.filter((l) => l.test(f)).map((l) => l.name);
@@ -329,10 +388,9 @@ function samePath(a, b) {
   return process.platform === "win32" ? n(a).toLowerCase() === n(b).toLowerCase() : n(a) === n(b);
 }
 
-function statusFiles(dir) {
-  const r = tryRun("git", ["-C", dir, "-c", "core.quotepath=false", "status", "--porcelain", "-z", "-uall"]);
-  if (r.code !== 0) return null;
-  const parts = r.out.split("\0");
+// Input is the raw `git status --porcelain -z` output; it must not be trimmed (see run()).
+export function parsePorcelainZ(text) {
+  const parts = String(text).split("\0");
   const files = [];
   for (let i = 0; i < parts.length; i++) {
     const e = parts[i];
@@ -342,6 +400,13 @@ function statusFiles(dir) {
     if (/[RC]/.test(xy)) i++; // the next entry is the rename source
   }
   return files.map(norm).filter((f) => !RUNTIME_PATH.test(f));
+}
+
+function statusFiles(dir) {
+  const r = tryRun("git", ["-C", dir, "-c", "core.quotepath=false", "status", "--porcelain", "-z", "-uall"], {
+    trim: false,
+  });
+  return r.code === 0 ? parsePorcelainZ(r.out) : null;
 }
 
 function parseWorktrees(text) {
@@ -392,7 +457,8 @@ function realSource(opts) {
         "--json", "number,title,headRefName,headRefOid,isDraft,files",
       ]);
       if (r.code !== 0) return null;
-      const prs = JSON.parse(r.out || "[]");
+      const prs = parseJson(r.out || "[]");
+      if (!Array.isArray(prs)) return null;
       for (const pr of prs) {
         pr.files = (pr.files ?? []).map((f) => f.path);
         // gh pr list stops at 100 files per PR.
@@ -421,6 +487,10 @@ function realSource(opts) {
       const r = tryRun("git", ["-c", "core.quotepath=false", "diff", "--name-only", `${opts.base}...${ref}`]);
       if (r.code !== 0) throw new UsageError(`${opts.base}...${ref} の差分を取れない`);
       return r.out ? r.out.split(/\r?\n/).map(norm) : [];
+    },
+    // The PR's own conflicts with base. Without them, a stale PR's conflicts would be blamed on self.
+    prBaseConflicts(headRefName) {
+      return this.mergeTree(opts.base, headRefName);
     },
     mergeTree(selfRef, headRefName, otherRef) {
       const other = otherRef ?? `origin/${headRefName}`;
@@ -451,6 +521,7 @@ function fixtureSource(fx) {
     diffFiles: () => fx.selfFiles ?? [],
     mergeTree: (_self, head, otherRef) =>
       otherRef ? (fx.baseConflicts ?? []) : fx.mergeTree === undefined ? undefined : (fx.mergeTree[head] ?? []),
+    prBaseConflicts: (head) => fx.prBaseConflicts?.[head] ?? [],
   };
 }
 
@@ -482,12 +553,17 @@ function collectOthers(src, { selfBranch, selfPath }) {
   return { others, openPrs, worktrees: wts, weakUsed };
 }
 
-function resolveLane(opts, wts, selfPath, map) {
+// With --branch, the lane is that of the worktree holding the branch, not of the directory the command runs in.
+function resolveLane(opts, wts, selfPath, selfBranch, map) {
   if (opts.lane) return opts.lane;
-  const holder = (wts ?? []).find((w) => samePath(w.path, selfPath));
-  if (holder?.main) return "chat-main";
-  const name = basename(selfPath);
-  return map.lanes?.[name] ? name : null;
+  const list = wts ?? [];
+  const holder =
+    opts.branch !== undefined
+      ? list.find((w) => w.branch && w.branch === selfBranch)
+      : list.find((w) => samePath(w.path, selfPath));
+  if (!holder) return null;
+  if (holder.main) return "chat-main";
+  return laneOfDir(map, holder.name ?? basename(holder.path));
 }
 
 function formatTable(findings) {
@@ -497,151 +573,164 @@ function formatTable(findings) {
   return ["| 区分 | ファイル | 相手 | 対処 |", "| --- | --- | --- | --- |", ...rows].join("\n");
 }
 
+function readJsonFile(path, what) {
+  if (!existsSync(path)) throw new UsageError(`${what}が見つからない: ${path}`);
+  const v = parseJson(readFileSync(path, "utf8"));
+  if (v === null) throw new UsageError(`${what}が JSON として読めない: ${path}`);
+  return v;
+}
+
 function main() {
-  let opts;
-  try {
-    opts = parseArgs(process.argv.slice(2));
-  } catch (e) {
-    if (e instanceof UsageError) die(e.message);
-    throw e;
-  }
+  const opts = parseArgs(process.argv.slice(2));
   if (opts.help) {
-    console.log(readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1, 17).join("\n"));
+    console.log(readFileSync(fileURLToPath(import.meta.url), "utf8").split("\n").slice(1, 18).join("\n"));
     return;
   }
   const map = loadMap();
-  try {
-    const fx = opts.fixture ? JSON.parse(readFileSync(opts.fixture, "utf8")) : null;
-    const src = fx ? fixtureSource(fx) : null;
+  const fx = opts.fixture ? readJsonFile(opts.fixture, "fixture ") : null;
+  const src = fx ? fixtureSource(fx) : null;
 
-    if (opts.checkMap) {
-      const tree = src ? src.tree() : runTree(opts.base);
-      const problems = checkMap(map, tree);
-      if (opts.json) console.log(JSON.stringify({ ok: !problems.length, problems }, null, 2));
-      else if (problems.length) console.log(problems.join("\n"));
-      else console.log(`lane-ownership.json は ${opts.base} の tree と合っている（${tree.length} ファイル）`);
-      process.exit(problems.length ? 1 : 0);
-    }
-
-    const s = src ?? realSource(opts);
-    const tree = s.tree();
-    const scopeGlobs = opts.scopePlan ? parseScopePlan(opts.scopePlan) : null;
-    const unchecked = [];
-    let self;
-    let selfRef = null;
-    let selfBranch;
-    let issueBatch = null;
-
-    if (opts.issues) {
-      if (!existsSync(opts.issues)) throw new UsageError(`見つからない: ${opts.issues}`);
-      issueBatch = JSON.parse(readFileSync(opts.issues, "utf8"));
-      selfBranch = null;
-    } else if (opts.paths) {
-      selfBranch = null;
-      for (const g of opts.paths) if (isGlob(g) && !expand([g], tree).length) unchecked.push(`${g}（一致するファイルがない）`);
-      self = { files: expand(opts.paths, tree), globs: opts.paths };
-    } else {
-      selfRef = opts.branch !== undefined ? s.resolveRef(opts.branch) : "HEAD";
-      selfBranch = (opts.branch ?? s.currentBranch()).replace(/^origin\//, "");
-      self = { files: fx ? (fx.selfFiles ?? []) : s.diffFiles(selfRef) };
-    }
-
-    const collected = collectOthers(s, { selfBranch, selfPath: s.top });
-    if (!collected) {
-      const msg = "未確認: open PR か worktree の一覧を取得できなかった。gh の認証かネットワークを直して再実行する";
-      if (opts.json) console.log(JSON.stringify({ error: msg, blocked: null }, null, 2));
-      else console.log(msg);
-      process.exit(3);
-    }
-    const { others, openPrs, worktrees, weakUsed } = collected;
-
-    // The branch's own worktree adds its uncommitted edits to the self side.
-    if (self && !opts.paths) {
-      const own = worktrees.find((w) => w.branch && w.branch === selfBranch);
-      const dirty = own ? s.dirty(own) : opts.branch === undefined && !fx ? statusFiles(s.top) : null;
-      if (dirty?.length) self.files = [...new Set([...self.files, ...dirty])];
-    }
-
-    const lane = fx?.lane ?? resolveLane(opts, worktrees, s.top, map);
-    const mainTree = tree;
-    const run1 = (selfSide, ref) => {
-      const mt = {};
-      let baseConflicts = [];
-      // A path set (--paths / --issues) has no commit to merge, so merge-tree only runs for a branch.
-      if (opts.mergeTree && ref) {
-        const selfSet = new Set(selfSide.files);
-        for (const p of openPrs)
-          if (p.files.some((f) => selfSet.has(norm(f)))) mt[p.headRefName] = s.mergeTree(ref, p.headRefName);
-        baseConflicts = s.mergeTree(ref, null, opts.base) ?? [];
-      }
-      for (const k of Object.keys(mt)) if (mt[k] === undefined) delete mt[k];
-      return classify({
-        self: { ...selfSide, lane },
-        others,
-        mergeTree: mt,
-        baseConflicts,
-        mainTree,
-        map,
-        strictLane: opts.strictLane,
-        scopeGlobs,
-      });
-    };
-
-    let findings = [];
-    let pairLines = [];
-    if (issueBatch) {
-      const pairs = issuePairs(issueBatch, tree, map);
-      for (const p of pairs) {
-        pairLines.push(`${p.a} × ${p.b}: ${p.files.join(", ")}`);
-        for (const f of p.files)
-          findings.push({
-            level: p.blocking ? "BLOCK" : "INFO",
-            kind: "issue-pair",
-            file: f,
-            with: `Issue ${p.a} × ${p.b}`,
-            detail: p.blocking ? "片方を止まっているに回し、先に配るほうの番号を書く" : "共有ファイルの追記だけ",
-          });
-      }
-      for (const [id, globs] of Object.entries(issueBatch)) {
-        if (!Array.isArray(globs) || !globs.length) {
-          unchecked.push(`${id}（Scope なし）`);
-          continue;
-        }
-        const r = run1({ files: expand(globs, tree), globs }, null);
-        for (const f of r.findings) findings.push({ ...f, issue: id });
-      }
-    } else {
-      findings = run1(self, selfRef).findings;
-    }
-
-    const blocked = findings.some((f) => f.level === "BLOCK");
-    const nBlock = findings.filter((f) => f.level === "BLOCK").length;
-    if (opts.json) {
-      console.log(
-        JSON.stringify(
-          { self: { branch: selfBranch, lane, files: self?.files ?? [] }, findings, unchecked, notes: s.notes, blocked },
-          null,
-          2,
-        ),
-      );
-    } else {
-      const head = issueBatch
-        ? `Issue ${Object.keys(issueBatch).length} 本 / レーン ${lane ?? "なし"}`
-        : `${selfBranch ?? "(--paths)"} / レーン ${lane ? laneLabel(map, lane) : "なし"} / ${self.files.length} ファイル`;
-      console.log(head);
-      for (const n of s.notes) console.log(n);
-      if (pairLines.length) console.log(["Issue 同士の重なり:", ...pairLines.map((l) => `  ${l}`)].join("\n"));
-      if (findings.length) console.log(formatTable(findings));
-      if (weakUsed && findings.some((f) => String(f.with).includes("（weak）")))
-        console.log("weak = PR のないブランチの commit 済みの変更。squash 済みの枝では見かけのファイルが出ることがある");
-      if (unchecked.length) console.log(`未検査: ${unchecked.join(", ")}`);
-      console.log(blocked ? `結論: 重なりあり (BLOCK ${nBlock} 件)` : "結論: 重なりなし");
-    }
-    process.exit(blocked ? 1 : 0);
-  } catch (e) {
-    if (e instanceof UsageError) die(e.message);
-    throw e;
+  if (opts.checkMap) {
+    const tree = src ? src.tree() : runTree(opts.base);
+    const problems = checkMap(map, tree);
+    if (opts.json) console.log(JSON.stringify({ ok: !problems.length, problems }, null, 2));
+    else if (problems.length) console.log(problems.join("\n"));
+    else console.log(`lane-ownership.json は ${opts.base} の tree と合っている（${tree.length} ファイル）`);
+    process.exit(problems.length ? 1 : 0);
   }
+
+  const s = src ?? realSource(opts);
+  const tree = s.tree();
+  const scopeGlobs = opts.scopePlan ? parseScopePlan(opts.scopePlan) : null;
+  const unchecked = [];
+  let self;
+  let selfRef = null;
+  let selfBranch;
+  let issueBatch = null;
+
+  if (opts.issues) {
+    issueBatch = readJsonFile(opts.issues, "Issue の Scope ファイル");
+    selfBranch = null;
+  } else if (opts.paths) {
+    selfBranch = null;
+    for (const g of opts.paths) if (isGlob(g) && !expand([g], tree).length) unchecked.push(`${g}（一致するファイルがない）`);
+    self = { files: expand(opts.paths, tree), globs: opts.paths };
+  } else {
+    selfRef = opts.branch !== undefined ? s.resolveRef(opts.branch) : "HEAD";
+    selfBranch = (opts.branch ?? s.currentBranch()).replace(/^origin\//, "");
+    self = { files: fx ? (fx.selfFiles ?? []) : s.diffFiles(selfRef) };
+  }
+
+  const collected = collectOthers(s, { selfBranch, selfPath: s.top });
+  if (!collected) {
+    const msg = "未確認: open PR か worktree の一覧を取得できなかった。gh の認証かネットワークを直して再実行する";
+    if (opts.json) console.log(JSON.stringify({ error: msg, blocked: null }, null, 2));
+    else console.log(msg);
+    process.exit(3);
+  }
+  const { others, openPrs, worktrees, weakUsed } = collected;
+
+  // The branch's own worktree adds its uncommitted edits to the self side.
+  if (self && !opts.paths) {
+    const own = worktrees.find((w) => w.branch && w.branch === selfBranch);
+    const dirty = own ? s.dirty(own) : opts.branch === undefined && !fx ? statusFiles(s.top) : null;
+    if (dirty?.length) self.files = [...new Set([...self.files, ...dirty])];
+  }
+
+  const lane = fx?.lane ?? resolveLane(opts, worktrees, s.top, selfBranch, map);
+  const mainTree = tree;
+  const run1 = (selfSide, ref) => {
+    const mt = {};
+    const theirs = {};
+    let baseConflicts = [];
+    // A path set (--paths / --issues) has no commit to merge, so merge-tree only runs for a branch.
+    if (opts.mergeTree && ref) {
+      const selfSet = new Set(selfSide.files);
+      for (const p of openPrs) {
+        if (!p.files.some((f) => selfSet.has(norm(f)))) continue;
+        const c = s.mergeTree(ref, p.headRefName);
+        if (c === undefined) continue;
+        mt[p.headRefName] = c;
+        if (c.length) theirs[p.headRefName] = s.prBaseConflicts(p.headRefName) ?? [];
+      }
+      baseConflicts = s.mergeTree(ref, null, opts.base) ?? [];
+    }
+    return classify({
+      self: { ...selfSide, lane, branch: selfBranch },
+      others,
+      mergeTree: mt,
+      prBaseConflicts: theirs,
+      baseConflicts,
+      mainTree,
+      map,
+      strictLane: opts.strictLane,
+      scopeGlobs,
+      baseName: opts.base,
+    });
+  };
+
+  let findings = [];
+  const pairLines = [];
+  if (issueBatch) {
+    const pairs = issuePairs(issueBatch, tree, map);
+    const pairDetail = {
+      BLOCK: "片方を止まっているに回し、先に配るほうの番号を書く",
+      WARN: "i18n などの追記型ファイルが重なる。merge-tree なしでは衝突するか分からないので、同じ時期に配らない",
+      INFO: "作り直す生成物だけが重なる",
+    };
+    for (const p of pairs) {
+      pairLines.push(`${p.a} × ${p.b}: ${p.files.join(", ")}`);
+      for (const f of p.files)
+        findings.push({ level: p.level, kind: "issue-pair", file: f, with: `Issue ${p.a} × ${p.b}`, detail: pairDetail[p.level] });
+    }
+    for (const [id, globs] of Object.entries(issueBatch)) {
+      if (!Array.isArray(globs) || !globs.length) {
+        unchecked.push(`${id}（Scope なし）`);
+        continue;
+      }
+      const r = run1({ files: expand(globs, tree), globs }, null);
+      for (const f of r.findings) findings.push({ ...f, issue: id });
+    }
+  } else {
+    findings = run1(self, selfRef).findings;
+  }
+
+  const count = (level) => findings.filter((f) => f.level === level).length;
+  const nBlock = count("BLOCK");
+  const nWarn = count("WARN");
+  const blocked = nBlock > 0;
+  if (opts.json) {
+    console.log(
+      JSON.stringify(
+        {
+          self: { branch: selfBranch, lane, files: self?.files ?? [] },
+          findings,
+          unchecked,
+          notes: s.notes,
+          blocked,
+          warned: nWarn > 0,
+        },
+        null,
+        2,
+      ),
+    );
+  } else {
+    const head = issueBatch
+      ? `Issue ${Object.keys(issueBatch).length} 本 / レーン ${lane ? laneLabel(map, lane) : "なし"}`
+      : `${selfBranch ?? "(--paths)"} / レーン ${lane ? laneLabel(map, lane) : "なし"} / ${self.files.length} ファイル`;
+    console.log(head);
+    for (const n of s.notes) console.log(n);
+    if (pairLines.length) console.log(["Issue 同士の重なり:", ...pairLines.map((l) => `  ${l}`)].join("\n"));
+    if (findings.length) console.log(formatTable(findings));
+    if (weakUsed && findings.some((f) => String(f.with).includes("（weak）")))
+      console.log("weak = PR のないブランチの commit 済みの変更。squash 済みの枝では見かけのファイルが出ることがある");
+    if (unchecked.length) console.log(`未検査: ${unchecked.join(", ")}`);
+    if (blocked) console.log(`結論: 重なりあり (BLOCK ${nBlock} 件)`);
+    else if (nWarn)
+      console.log(`結論: BLOCK はない。WARN ${nWarn} 件は未確認なので、PR の前にブランチを指定して検査し直す`);
+    else console.log("結論: 重なりなし");
+  }
+  process.exit(blocked ? 1 : 0);
 }
 
 function runTree(base) {
@@ -650,4 +739,15 @@ function runTree(base) {
   return r.out.split(/\r?\n/).filter(Boolean);
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) main();
+// Exit 1 means "overlap found", so a crash must not exit 1: anything unexpected is reported as unconfirmed (3).
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
+  try {
+    main();
+  } catch (e) {
+    if (e instanceof UsageError) die(e.message);
+    const msg = `未確認: ${String(e?.message ?? e).split(/\r?\n/)[0]}`;
+    if (process.argv.includes("--json")) console.log(JSON.stringify({ error: msg, blocked: null }, null, 2));
+    console.error(`[scope-overlap] ${msg}`);
+    process.exit(3);
+  }
+}

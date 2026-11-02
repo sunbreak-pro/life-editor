@@ -2,7 +2,6 @@
   "_doc": "Single source of which worktree lane owns which paths; read by scope-overlap.mjs, and skills or rules link to this file instead of copying its globs.",
   "lanes": {
     "briefing-refine": {
-      "label": "section:briefing",
       "paths": [
         "shared/src/components/briefing/**",
         "web/src/briefing/**",
@@ -13,7 +12,6 @@
       ]
     },
     "schedule-refine": {
-      "label": "section:schedule",
       "paths": [
         "shared/src/components/schedule/**",
         "shared/src/components/itemActions/**",
@@ -37,7 +35,6 @@
       "note": "Item detail surfaces shared with connect (TodoDetailPanel, itemActions) are owned here; connect asks through an Issue."
     },
     "materials-refine": {
-      "label": "section:materials",
       "paths": [
         "shared/src/components/materials/**",
         "shared/src/components/notes/**",
@@ -60,7 +57,6 @@
       ]
     },
     "connect-refine": {
-      "label": "section:connect",
       "paths": [
         "shared/src/components/goalTree/**",
         "shared/src/components/TagHub/**",
@@ -72,11 +68,12 @@
         "shared/tests/tagHub*",
         "shared/tests/tagRail*"
       ],
-      "exclude": ["shared/src/components/TagHub/TagIconPicker.tsx"]
+      "exclude": [
+        "shared/src/components/TagHub/TagIconPicker.tsx"
+      ]
     },
     "tags": {
-      "label": "section:tags",
-      "holder": "connect-refine",
+      "anyLane": true,
       "paths": [
         "web/src/wikitag/**",
         "shared/src/components/TagPill.tsx",
@@ -88,10 +85,9 @@
         "web/tests/linkChip*",
         "shared/tests/tagIconPicker*"
       ],
-      "note": "No worktree of its own; the holder lane takes these files (provisional, see the scope-guard report)."
+      "note": "No worktree of its own and no holder lane: whichever lane takes the Issue edits these files, and scope-overlap blocks two in-flight changes on the same file (TagPicker.tsx was edited by two schedule PRs at once)."
     },
     "analytics-refine": {
-      "label": "section:analytics",
       "paths": [
         "shared/src/components/Analytics/**",
         "shared/src/components/Apps/**",
@@ -105,7 +101,6 @@
       ]
     },
     "work-refine": {
-      "label": "section:work",
       "paths": [
         "shared/src/components/Pomodoro*",
         "shared/src/components/SessionCompletionModal.tsx",
@@ -131,7 +126,7 @@
       ]
     },
     "settings": {
-      "label": "section:settings",
+      "anyLane": true,
       "paths": [
         "shared/src/components/Settings*.tsx",
         "web/src/settings/**",
@@ -141,14 +136,15 @@
         "web/tests/authScreen*",
         "shared/tests/settings*"
       ],
-      "note": "No standing worktree; whichever lane takes a section:settings issue edits these."
+      "note": "No worktree of its own: whichever lane takes a section:settings Issue edits these files."
     },
     "mcp-tools": {
-      "label": "shared-fix",
-      "paths": ["mcp-server/**", "shared/src/generated/**"]
+      "paths": [
+        "mcp-server/**",
+        "shared/src/generated/**"
+      ]
     },
     "refactor-core": {
-      "label": "shared-fix",
       "paths": [
         "shared/src/services/**",
         "shared/src/state/outbox.ts",
@@ -174,6 +170,27 @@
       "note": "Migrations follow the db-migration skill; other lanes may add one but must run the duplicate-number check first."
     }
   },
+  "fallbackLane": {
+    "name": "core",
+    "paths": [
+      "shared/src/**",
+      "web/src/**",
+      "shared/tests/**",
+      "web/tests/**",
+      "desktop/**",
+      "mobile/**"
+    ],
+    "note": "Everything under app code that no lane above claims (shell registration such as MainScreen.tsx, sectionDescriptors.tsx, lazySections.ts, sections.ts, context/index.ts; the todo tree; tour; trash; undo; utils). No worktree owns it: any lane may edit, one in-flight change per file."
+  },
+  "crossCutting": {
+    "lanes": [
+      "mobile-refine",
+      "shared-fix",
+      "merge-round",
+      "ui-verify"
+    ],
+    "note": "Worktrees that own no paths and work across lanes. The off-lane report is skipped for them; the same-file check is their only guard, so they run scope-overlap before starting and before every PR."
+  },
   "hubs": [
     {
       "kind": "append",
@@ -183,7 +200,7 @@
         "shared/src/components/index.ts",
         "shared/src/components/*/index.ts"
       ],
-      "how": "別の場所への追記なら自動で合流する。同じ名前空間を書き換えたときだけ衝突する。"
+      "how": "別の場所への追記なら多くは自動で合流する。ただし隣り合う追記と、オブジェクトの末尾への追記（直前の行のカンマが変わる）は衝突するので、PR の前にブランチを指定して検査し直す。en / ja の既存のキーを書き換える PR は、同時に 1 本だけにする。"
     },
     {
       "kind": "generated",
@@ -196,9 +213,15 @@
     },
     {
       "kind": "owner-only",
-      "owner": "chat-main",
-      "paths": [".claude/comm/decisions/ANSWERS.md"],
-      "how": "書き手は chat-main かこうだいさんだけ。"
+      "owners": [
+        "chat-main",
+        "digest"
+      ],
+      "recordBranches": true,
+      "paths": [
+        ".claude/comm/decisions/ANSWERS.md"
+      ],
+      "how": "書き手はこうだいさんと、転記を任された chat-main・digest セッションだけ（.claude/comm/decisions/README.md と同じ）。実装ブランチには載せず、記録用の chore/tracker-* などのブランチで追記する。末尾への追記が重なると衝突するので、1 本ずつ merge する。"
     }
   ],
   "serialRules": {

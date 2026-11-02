@@ -23,7 +23,7 @@ description: open GitHub Issue を宛先ラベルで worktree レーンごとに
 ### 1. 収集（並列）
 
 ```bash
-gh issue list -R sunbreak-pro/life-editor --state open --limit 200 --json number,title,labels,url
+gh issue list -R sunbreak-pro/life-editor --state open --limit 200 --json number,title,labels,url,body
 gh pr list -R sunbreak-pro/life-editor --state open --json number,title,headRefName,body,files
 gh pr list -R sunbreak-pro/life-editor --state merged --limit 300 --json number,headRefName,body,mergeCommit
 git fetch origin
@@ -75,11 +75,19 @@ open PR が既に紐づく Issue は**除外**する（本文・ブランチ名�
 
 #### 重なりの判定
 
-Issue 本文の Scope 欄（glob を 1 行 1 本で書いた fenced block）を読み、`{"#<n>": [glob, ...]}` の JSON を scratch に作って `node .claude/scripts/scope-overlap.mjs --issues <file>` を実行する。出力は次のように読む。
+Issue ごとに Scope の glob を集め、`{"#<n>": [glob, ...]}` の JSON を scratch に作って `node .claude/scripts/scope-overlap.mjs --issues <file>` を実行する。glob の取り方は次の順にする。
 
-- **配る候補の 2 本の Scope が交わるとき**: 番号の小さいほう（または依存先）を配る。もう一方は「止まっている」に「Scope が他の Issue と重なる」で載せ、止めている Issue 列に先に配る Issue の番号を書く。同じレーン宛でも同じ扱いにする。同じレーンに兄弟を並べて配ると、1 つの作業コピーで 2 本のブランチが走り、同じファイルを直すためです。
-- **Scope が open PR か他 worktree の未コミット変更と交わるとき**: 「Scope が open PR と重なる」で止め、止めている Issue 列にその PR 番号を書く。
-- **Scope 欄が空か、glob で書かれていない Issue**: 検査できないので配る。出力の最後に「未検査」として番号を列挙し、chat-main が Scope を書き足すよう促す。
+1. 本文の Scope 欄（glob を 1 行 1 本で書いた fenced block）があれば、それを使う。
+2. Scope 欄がなければ、本文から repo の相対パスを拾う。正規表現は `(shared|web|mcp-server|supabase|desktop|mobile)/[\w./-]+` で、末尾の `:<行番号>` と句読点は落とす。拾ったパスは「本文から推定」と出力に添える。
+3. どちらでも 1 本も取れない Issue は配らない。「止まっている」に「Scope 未記載」で載せ、chat-main が Scope を書き足すよう促す。
+
+出力は次のように読む。
+
+- **配る候補の 2 本が BLOCK で交わるとき**: 番号の小さいほう（または依存先）を配る。もう一方は「止まっている」に「Scope が他の Issue と重なる」で載せ、止めている Issue 列に先に配る Issue の番号を書く。同じレーン宛でも同じ扱いにする。同じレーンに 2 本を並べて配ると、1 つの作業コピーで 2 本のブランチが走り、同じファイルを直すためです。
+- **2 本が WARN だけで交わるとき**: 重なるのが i18n の en / ja や barrel の index.ts のような追記型の共有ファイルだけの組です。両方を配ってよい。追記の位置しだいで衝突するので、各レーンは PR の前にブランチを指定して scope-overlap を打ち直す（worktree-policy）。
+- **Scope が open PR か他 worktree の未コミット変更と BLOCK で交わるとき**: 「Scope が open PR と重なる」で止め、止めている Issue 列にその PR 番号を書く。
+
+配る前の検査は、Issue に書いた範囲しか見ない。実際に触ったファイルで判定する最後の関門は、各レーンが PR の前に打つ scope-overlap（worktree-policy）です。
 
 ### 3. `/goal` 条件の組み立て
 
@@ -143,7 +151,7 @@ S1〜S3 を満たすブロックは、`モデル: Sonnet 5.5（どの本文に�
 | #2337 | Scope が他の Issue と重なる  | #2336            |
 ```
 
-理由は「依存先の PR が open / 依存先に PR なし / 依存先は close 済みだが着地した PR が見つからない / 着手済み（open PR）/ 着手済み（ブランチあり）/ 着地済み（PR #x が origin/main に入った・Issue は確認待ち）/ status:frozen / 宛先が決まらない / `[all]` は配らない / Scope が他の Issue と重なる / Scope が open PR と重なる」のどれかから選ぶ。「着地済み」の行は、残っている作業が実ブラウザの確認と close だけなので、こうだいさんか chat-main の手番として読む。
+理由は「依存先の PR が open / 依存先に PR なし / 依存先は close 済みだが着地した PR が見つからない / 着手済み（open PR）/ 着手済み（ブランチあり）/ 着地済み（PR #x が origin/main に入った・Issue は確認待ち）/ status:frozen / 宛先が決まらない / `[all]` は配らない / Scope が他の Issue と重なる / Scope が open PR と重なる / Scope 未記載」のどれかから選ぶ。「着地済み」の行は、残っている作業が実ブラウザの確認と close だけなので、こうだいさんか chat-main の手番として読む。
 
 ## 安全則
 
