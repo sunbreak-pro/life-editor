@@ -510,11 +510,24 @@ export function NoteDetailPanel({
           delete) right-anchored just beneath it. Collapsing the per-action
           icons behind one affordance declutters the header (#284). The title
           and the tags wrap inside their own box, so many tags drop under the
-          title while the kebab stays at the row's end. */}
-        <div className="flex items-center gap-1.5">
+          title while the kebab stays at the row's end.
+
+          #2467: below the breakpoint the tag row always takes a line of its
+          own, and centring the pin and kebab on that two-line box left them
+          floating between the title and the tags. There the title row's box
+          dissolves (`contents`), so the title, pin and kebab become items of
+          THIS row's first line and the tag row (`order-last`, full width)
+          wraps to the second. `items-center` then centres each line on its
+          own, which puts the pin and kebab beside the title. The DOM is the
+          same at both widths, and only `max-md:` classes were added, so
+          Desktop draws exactly as before. */}
+        <div
+          data-testid="note-detail-header-row"
+          className="flex items-center gap-1.5 max-md:flex-wrap"
+        >
           <div
             data-testid="note-detail-title-row"
-            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5"
+            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5 max-md:contents"
           >
             <NoteTitleInput
               key={noteId}
@@ -533,7 +546,12 @@ export function NoteDetailPanel({
               // which keeps the stuck header from growing a line per tag.
               // `relative` (#2391): the link picker hangs from this row below
               // the breakpoint, so it spans the phone instead of its "+".
-              <div className="flex flex-wrap items-center gap-1.5 max-md:relative max-md:w-full max-md:min-w-0 max-md:flex-nowrap">
+              // `order-last` (#2467): after the pin and kebab, so it is the
+              // line under the title rather than the one beside it.
+              <div
+                data-testid="note-detail-tag-row"
+                className="flex flex-wrap items-center gap-1.5 max-md:relative max-md:order-last max-md:w-full max-md:min-w-0 max-md:flex-nowrap"
+              >
                 {tagsSlot}
                 {linksSlot}
               </div>
