@@ -804,6 +804,85 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     }
   });
 
+  it("trashes every child before its parent, the pressed todo last (#2388)", async () => {
+    const ds = makeDS({
+      fetchTodoTree: vi
+        .fn()
+        .mockResolvedValue([
+          ...TODOS,
+          { ...todo("c1", "Warm up"), parentId: "t7" },
+          { ...todo("c2", "Stretch"), parentId: "c1" },
+          { ...todo("c3", "Cool down"), parentId: "t7" },
+        ]),
+    });
+    await renderTab(ds);
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete todo: Long run" }),
+    );
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete todo",
+      }),
+    );
+    await waitFor(() => expect(ds.softDeleteTodo).toHaveBeenCalledTimes(4));
+    const order = vi.mocked(ds.softDeleteTodo).mock.calls.map(([id]) => id);
+    expect(order.at(-1)).toBe("t7");
+    expect(order.indexOf("c2")).toBeLessThan(order.indexOf("c1"));
+  });
+
+  it("stops at a failed write, so the parent stays alive with fewer children (#2388)", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const ds = makeDS({
+      fetchTodoTree: vi
+        .fn()
+        .mockResolvedValue([
+          ...TODOS,
+          { ...todo("c1", "Warm up"), parentId: "t7" },
+          { ...todo("c2", "Cool down"), parentId: "c1" },
+        ]),
+      softDeleteTodo: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("offline")),
+    });
+    const showToast = vi.fn();
+    const { wrapper: SyncWrapper } = createBumpableSync();
+    render(
+      <SyncWrapper>
+        <ToastContext.Provider value={{ showToast }}>
+          <RightSidebarProvider>
+            <GoalsTodosScreen dataService={ds} onNavigateToItem={vi.fn()} />
+          </RightSidebarProvider>
+        </ToastContext.Provider>
+      </SyncWrapper>,
+    );
+    fireEvent.click(
+      await screen.findByRole("button", { name: "Delete todo: Long run" }),
+    );
+    const reads = vi.mocked(ds.fetchTodoTree).mock.calls.length;
+    fireEvent.click(
+      within(screen.getByRole("dialog")).getByRole("button", {
+        name: "Delete todo",
+      }),
+    );
+    await waitFor(() =>
+      expect(showToast).toHaveBeenCalledWith(
+        "danger",
+        "Could not delete the todo. Check your connection and try again.",
+      ),
+    );
+    expect(vi.mocked(ds.softDeleteTodo).mock.calls.map(([id]) => id)).toEqual([
+      "c2",
+      "c1",
+    ]);
+    // What did land leaves the tree without waiting for the Realtime echo.
+    await waitFor(() =>
+      expect(vi.mocked(ds.fetchTodoTree).mock.calls.length).toBeGreaterThan(
+        reads,
+      ),
+    );
+  });
+
   it("says so when a todo's delete fails, in words about the todo (#2388)", async () => {
     vi.spyOn(console, "error").mockImplementation(() => undefined);
     const ds = makeDS({

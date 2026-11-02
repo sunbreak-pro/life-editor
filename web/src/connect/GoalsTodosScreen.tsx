@@ -417,6 +417,11 @@ export function GoalsTodosScreen({
    * softDelete takes: a child left behind would have no parent to hang under.
    * The question is the todo detail's, which names how many go along. Restored
    * from the trash, not by undo: nothing on this tab holds an undo entry.
+   *
+   * One write at a time, children first, stopping at the first failure: a
+   * failure then leaves the parent alive with fewer children, never live
+   * children under a parent in the trash. `collectDescendantIds` adds a node
+   * only after its parent, so the reversed list reads children before parents.
    */
   const deleteTodo = useCallback(
     (todoId: string) => {
@@ -430,12 +435,12 @@ export function GoalsTodosScreen({
           cancelLabel: t("common.cancel"),
         });
         if (!ok) return;
-        const subtree = [...collectDescendantIds(todoId, sources.todos)];
-        await write(
-          () =>
-            Promise.all(subtree.map((id) => dataService.softDeleteTodo(id))),
-          "connect.goals.deleteTodoFailed",
-        );
+        const subtree = [
+          ...collectDescendantIds(todoId, sources.todos),
+        ].reverse();
+        await write(async () => {
+          for (const id of subtree) await dataService.softDeleteTodo(id);
+        }, "connect.goals.deleteTodoFailed");
       })();
     },
     [sources.todos, ask, t, write, dataService],
