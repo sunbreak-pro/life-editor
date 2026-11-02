@@ -9,12 +9,17 @@ import {
 import "./index.css";
 import App from "./App.tsx";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
+import { registerAppServiceWorker } from "./pwa/serviceWorker";
 
 // #718: carry the three legacy un-prefixed Notes keys over to their
 // `life-editor:` names. Must run before the first render — the owning hooks
 // read localStorage in a `useState` initializer. Idempotent, so the second and
 // every later start is a no-op.
 migrateLegacyPreferenceKeys();
+
+// #2334: public web only. The check is inside, as the same bundle runs in the
+// iOS shell and in Desktop. Waits for nothing, so it costs the first frame nothing.
+registerAppServiceWorker();
 
 // I18nProvider wraps the app so every screen can call useTranslation against
 // the shared en/ja catalog (W0-4). Importing `i18n` from shared also runs its

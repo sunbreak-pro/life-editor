@@ -50,6 +50,7 @@ import {
   type TodoNode,
   type TodoStatus,
 } from "@life-editor/shared";
+import { useConnectTagIntent } from "./useConnectTagIntent";
 
 /*
  * Connect host shell (#1171) — the tag hub.
@@ -131,6 +132,9 @@ interface ConnectScreenProps {
     role: string;
     date?: string;
   }) => void;
+  /** A tag the shell asks this screen to show (#2395). Consumed once. */
+  pendingSelectTagId?: string | null;
+  onConsumePendingTag?: () => void;
 }
 
 /** The reads, kept raw so the labelling below can depend on `t`. */
@@ -201,6 +205,8 @@ function pickSeriesOccurrence(
 export function ConnectScreen({
   dataService,
   onNavigateToItem,
+  pendingSelectTagId = null,
+  onConsumePendingTag,
 }: ConnectScreenProps) {
   const { t, i18n } = useTranslation();
   const isWide = useMediaQuery(WIDE_QUERY, true);
@@ -565,6 +571,14 @@ export function ConnectScreen({
     [selectedTagId, drafts, commitSelection],
   );
 
+  useConnectTagIntent({
+    pendingTagId: pendingSelectTagId,
+    onConsume: onConsumePendingTag,
+    selectedTagId,
+    selectedItemId,
+    selectTag,
+  });
+
   const confirmSwitch = useCallback(() => {
     // Discard means discard: the draft the user chose to abandon must not be
     // waiting for them when they come back to the tag.
@@ -762,13 +776,17 @@ export function ConnectScreen({
 
   const detailLabels = useMemo<TagHubDetailLabels>(
     () => ({
-      breakdownHeading: t("connect.detail.breakdownHeading"),
+      breakdownHeading: t("connect.detail.breakdownHeading", {
+        name: selectedTag?.name ?? "",
+      }),
       recentHeading: t("connect.detail.recentHeading"),
       recentUntaggedHeading: t("connect.detail.recentUntaggedHeading"),
       recentEmpty: t("connect.detail.recentEmpty"),
-      roles: labels.roles,
+      // The panel says 「予定」 as the Schedule section does (#2409), where
+      // `itemRole.event` is 「イベント」. In `en` the two are the same word.
+      roles: { ...labels.roles, event: t("connect.detail.kindEvent") },
     }),
-    [t, labels.roles],
+    [t, labels.roles, selectedTag?.name],
   );
 
   // Every live tag, for the bulk choosers — unused ones

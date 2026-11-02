@@ -5,6 +5,7 @@ import {
   useSyncDomains,
   useTranslation,
   formatDateKey,
+  isManualSession,
   pickWorkHistoryDay,
   pickWorkHistoryDays,
   todayCalendarKey,
@@ -154,7 +155,11 @@ export function WorkHistoryPanel({
         : undefined;
       return {
         id: String(s.id),
-        timeRange: `${clockTime(s.startedAt)}–${clockTime(end)}`,
+        // #2407: a typed amount has a place on the day but no clock it ran
+        // against, so the row says where it came from instead of a range.
+        timeRange: isManualSession(s)
+          ? t("work.history.manualEntry")
+          : `${clockTime(s.startedAt)}–${clockTime(end)}`,
         durationLabel: t("work.history.minutes", {
           minutes: Math.max(1, Math.round(s.duration / 60)),
         }),

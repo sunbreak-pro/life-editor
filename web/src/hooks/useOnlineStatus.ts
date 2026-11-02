@@ -1,33 +1,20 @@
 import { useSyncExternalStore } from "react";
+import { isOffline, subscribeConnectivity } from "@life-editor/shared";
 
 /*
- * Tracks the browser's online/offline connectivity (S7). This hook is the
- * single source the global OfflineBanner reads to decide whether to warn the
- * user.
+ * Tracks whether the app can reach the server (S7). This hook is what the
+ * global OfflineBanner and the Notes list read to decide what to show.
  *
- * `navigator.onLine` + the `online`/`offline` window events form an
- * external store, so `useSyncExternalStore` is the canonical fit: React
- * subscribes/unsubscribes the listener for us (cleanup handled by the
- * returned unsubscribe), and there is no in-effect setState — it reads the
- * live value through `getSnapshot` on every render that matters. The web
- * build has no SSR, so `getServerSnapshot` is omitted (direct
- * `navigator.onLine` access is always safe here).
+ * The answer lives in shared's connectivity store (#2334), which useDomainLoad
+ * also reads: `navigator.onLine` with its `online` / `offline` window events,
+ * plus the session gate's finding that the session could not be refreshed.
  *
- * Returns `true` when the browser believes it is online.
+ * Returns `true` when the app believes it is online.
  */
-function subscribe(onStoreChange: () => void): () => void {
-  window.addEventListener("online", onStoreChange);
-  window.addEventListener("offline", onStoreChange);
-  return () => {
-    window.removeEventListener("online", onStoreChange);
-    window.removeEventListener("offline", onStoreChange);
-  };
-}
-
 function getSnapshot(): boolean {
-  return navigator.onLine;
+  return !isOffline();
 }
 
 export function useOnlineStatus(): boolean {
-  return useSyncExternalStore(subscribe, getSnapshot);
+  return useSyncExternalStore(subscribeConnectivity, getSnapshot);
 }

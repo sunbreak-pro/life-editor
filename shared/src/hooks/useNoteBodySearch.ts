@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { DataService } from "../services/DataService";
+import { isOffline } from "../state/connectivity";
 import { logServiceError } from "../utils/logError";
 
 /** How long typing has to stop before the body search is worth a round trip. */
@@ -63,6 +64,12 @@ export function useNoteBodySearch(
     let cancelled = false;
     const timer = setTimeout(() => {
       void (async () => {
+        // #2334: offline the title layer answers alone, and the list says the
+        // bodies were not searched, with no request left to wait on.
+        if (isOffline()) {
+          if (!cancelled) setAnswer({ query: current, ids: null });
+          return;
+        }
         try {
           const hits = await ds.searchNotesUnified(current);
           // `content_json` is jsonb and the match is an ILIKE over its text

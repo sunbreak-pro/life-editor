@@ -67,7 +67,7 @@ CLAUDE.md は今、事実・手順・禁止・経緯が混ざっている。**�
 | CLAUDE.md の禁止                           | 機械の実体                                     | 状態        |
 | ------------------------------------------ | ---------------------------------------------- | ----------- |
 | main / master への push                    | `settings.json` `permissions.deny` 27 項目     | ✅ 実体あり |
-| `gh pr merge` を Claude がしない（P-001）  | `settings.json` `permissions.ask`              | ✅ 実体あり |
+| `gh pr merge` は merge-round の中だけ（P-001） | `hooks/merge-gate.mjs`（2026-11-02 に ask から置換） | ✅ 実体あり |
 | `.mcp.json` のトークン平文展開             | `hooks/pre-commit-mcp-check.sh`                | ✅ 実体あり |
 | 音源ファイルのコミット                     | `.gitignore`（`public/sounds/`）               | ✅ 実体あり |
 | 派生 INDEX のコミット混入                  | `hooks/pre-commit-index-guard.sh`              | ✅ 実体あり |

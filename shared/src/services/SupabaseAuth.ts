@@ -4,6 +4,7 @@ import type {
   Subscription,
 } from "@supabase/supabase-js";
 import { getSupabaseClient } from "./supabaseClient";
+import { isBrowserOffline } from "../state/connectivity";
 import { forgetDomainSnapshots } from "../state/domainSnapshotStore";
 import { deleteOutbox } from "../state/outbox";
 import {
@@ -181,13 +182,26 @@ async function sessionUserId(
   }
 }
 
+/*
+ * #2334: with no network supabase-js keeps the session and reports an error, and
+ * can spend 50 seconds retrying first, so the attempt is not made. A session that
+ * is still there keeps its lists: deleting them would leave the user signed in
+ * with nothing to read the next time they open the app offline.
+ *
+ * Only the browser's own "no network" skips the attempt. A session marked
+ * unreachable can outlast the outage by a whole retry, so that case tries: the
+ * network may be back, and a refusal comes back as an error all the same. The
+ * text is for logs: the buttons show their own translated notice.
+ */
 export async function signOut(): Promise<{ error: string | null }> {
+  if (isBrowserOffline()) return { error: "Signing out needs a connection." };
   const client = getSupabaseClient();
   // #2331: whose lists to delete from the device.
   const userId = await sessionUserId(client);
   const { error } = await client.auth.signOut();
+  if (error) return { error: error.message };
   if (userId !== null) await forgetDomainSnapshots(userId);
-  return { error: error ? error.message : null };
+  return { error: null };
 }
 
 /** Name of the Edge Function that owns the privileged half of deletion. */

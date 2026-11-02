@@ -100,7 +100,7 @@
 
 - **本文の行頭 `#` は git に無警告で捨てられる**（`core.commentChar` 既定 = `#`）。Issue 番号で行を始めず、`git commit -F` には `--cleanup=verbatim` を付ける（[known-issues 032](./docs/known-issues/032-git-commit-message-hash-line-dropped.md)）
 
-- **`git-workflow` §0.1.1（PR の自動マージ）は life-editor では適用しない**（2026-08-06 ユーザー確定 D-20260806-main-1 = B）。同スキルは「全プロジェクト共通」と書いているが、本プロジェクトは POLICY **P-001「merge と main への取り込みは常にユーザー」を優先**する。`Bash(gh pr merge*)` は `permissions.ask` に入れて機械側でも担保済み — Claude は条件が揃っても自分で merge しない
+- **`git-workflow` §0.1.1（PR の自動マージ）は life-editor では適用しない**（2026-08-06 ユーザー確定 D-20260806-main-1 = B）。本プロジェクトは POLICY **P-001** を優先する。2026-11-02 の改定（D-20261102-main-1）で、merge はこうだいさんが打つか、こうだいさんが chat-main で **`merge-round` スキル**を起動したときだけ行う。スキルは事前確認を通った PR だけを `gh pr merge <n> -R sunbreak-pro/life-editor --squash` で 1 本ずつ merge し、作業レーン（worktree）は merge しない。機械側の担保は `hooks/merge-gate.mjs`（レーンからは deny、回の外は確認）
 
 - **PR 本文は `Refs #N`。`Closes` / `Fixes` / `Resolves` を使わない**（#2349）: merge で Issue が勝手に close されると、実ブラウザ確認や db push が残っていても完了に見える。close は確認が済んだあとにユーザーか chat-main が手で行う
 - **1 Issue = 1 ブランチ = 1 PR**（#2349）: 複数 Issue を 1 本にまとめず、1 本の PR に別 Issue の変更を混ぜない。ブランチ名に Issue 番号を入れる（`claude/<slug>-<issue>`）

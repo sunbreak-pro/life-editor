@@ -7,7 +7,6 @@ import {
 } from "react";
 import {
   getDataService,
-  signOut,
   accountDisplayLabel,
   AppShell,
   PageContainer,
@@ -23,6 +22,7 @@ import {
   CommandPalette,
   useTranslation,
   useUnsavedGuardOptional,
+  PinnedNotesReadAhead,
   type DataService,
   type SectionId,
   type Session,
@@ -41,6 +41,8 @@ import { TourHost } from "./TourHost";
 import { useShellChrome } from "./hooks/useShellChrome";
 import { usePaletteItemSearch } from "./hooks/usePaletteItemSearch";
 import { AppErrorBoundary } from "./components/AppErrorBoundary";
+import { SignOutFailureNotice } from "./components/SignOutFailureNotice";
+import { signOutWithNotice } from "./hooks/signOutWithNotice";
 
 /*
  * Phase 2 S1+S2 host shell — target-IA wiring (App Shell).
@@ -440,7 +442,7 @@ export function MainScreen({ session }: { session: Session }) {
          * the More sheet via mobileSections.
          */
         accountActive={section === "settings"}
-        onSignOut={() => void signOut()}
+        onSignOut={signOutWithNotice}
         labels={shellLabels}
         detailPanelLabels={detailPanelLabels}
         header={sectionHeader}
@@ -516,6 +518,10 @@ export function MainScreen({ session }: { session: Session }) {
        * attributes.
        */}
       <TourHost />
+      {/* This component sits above the ToastProvider, so its child shows the notice. */}
+      <SignOutFailureNotice />
+      {/* #2334: pinned notes open offline even if the Notes tab never opened here. */}
+      <PinnedNotesReadAhead dataService={ds} />
     </AppProviders>
   );
 }

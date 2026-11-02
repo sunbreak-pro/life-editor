@@ -105,11 +105,12 @@ export interface NoteDetailSurfaceProps {
   /** Fired once that focus has been taken, so the host can stop asking. */
   onTitleAutoFocused?: () => void;
   /**
-   * Right-click on a tag chip under the title (#2007): the Notes sidebar's
-   * own tag menu. The host passes it on Desktop only, so the narrow surface
-   * attaches no listener.
+   * Right-click on a tag chip under the title (#2007): since #2395 it opens the
+   * edit panel under the tag row. The host passes it on Desktop only.
    */
   onTagContextMenu?: (tagId: string, event: MouseEvent) => void;
+  /** The same panel from a hold on the chip (#2395). Narrow only. */
+  onTagLongPress?: (tagId: string, chip: HTMLElement) => void;
 }
 
 export function NoteDetailSurface({
@@ -131,6 +132,7 @@ export function NoteDetailSurface({
   autoFocusTitle,
   onTitleAutoFocused,
   onTagContextMenu,
+  onTagLongPress,
 }: NoteDetailSurfaceProps) {
   const hasPassword = note.hasPassword === true;
   return (
@@ -195,6 +197,7 @@ export function NoteDetailSurface({
             itemId={note.id}
             size="sm"
             onTagContextMenu={onTagContextMenu}
+            onTagLongPress={onTagLongPress}
             singleRow
           />
         </span>

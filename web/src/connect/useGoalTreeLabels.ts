@@ -5,17 +5,20 @@ import {
   WEEK_STARTS_ON,
   type GoalDetailLabels,
   type GoalPeriodKind,
+  type GoalTodoLinkScreenLabels,
   type GoalTreeLabels,
 } from "@life-editor/shared";
 
 /*
  * The goal tree's and the goal panel's copy (#2108), resolved once for both
  * hosts that show `GoalDetailPanel`: Connect's "Goals & Todos" tab and the
- * morning paper's goals panel (#2286).
+ * morning paper's goals panel (#2286). Both open the linking screen too, whose
+ * `periodLabel` is the linked goal's own, filled in where it opens.
  */
 export function useGoalTreeLabels(todayKey: string): {
   treeLabels: GoalTreeLabels;
   detailLabels: GoalDetailLabels;
+  linkLabels: GoalTodoLinkScreenLabels;
 } {
   const { t, i18n } = useTranslation();
 
@@ -70,6 +73,9 @@ export function useGoalTreeLabels(todayKey: string): {
         statusDone: t("todoDetail.statusDone"),
       },
       formatOpenTodo: (title) => t("connect.goals.openTodo", { title }),
+      formatMarkTodoDone: (title) => t("connect.goals.markTodoDone", { title }),
+      formatMarkTodoOpen: (title) => t("connect.goals.markTodoOpen", { title }),
+      formatDeleteTodo: (title) => t("connect.goals.deleteTodo", { title }),
       formatExpand: (title) => t("connect.goals.expand", { title }),
       formatCollapse: (title) => t("connect.goals.collapse", { title }),
       filteringBy: t("connect.goals.arrange.filteringBy"),
@@ -99,6 +105,7 @@ export function useGoalTreeLabels(todayKey: string): {
       parentNone: t("connect.goals.parentNone"),
       todosHeading: t("connect.goals.todosHeading"),
       todosEmpty: t("connect.goals.todosEmpty"),
+      linkTodos: t("goalLink.heading"),
       childrenHeading: t("connect.goals.childrenHeading"),
       formatEarlierChildren: (count) =>
         t("connect.goals.earlierChildren", { count }),
@@ -112,5 +119,28 @@ export function useGoalTreeLabels(todayKey: string): {
     [t, treeLabels],
   );
 
-  return { treeLabels, detailLabels };
+  const linkLabels = useMemo<GoalTodoLinkScreenLabels>(
+    () => ({
+      heading: t("goalLink.heading"),
+      periodLabel: "",
+      search: t("goalLink.search"),
+      listLabel: t("goalLink.todoList"),
+      empty: t("goalLink.empty"),
+      noMatch: t("goalLink.noMatch"),
+      done: t("goalLink.done"),
+      previewHeading: t("goalLink.previewHeading"),
+      achievementLost: t("goalLink.achievementLost"),
+      save: t("goalLink.save"),
+      saving: t("goalLink.saving"),
+      cancel: t("goalLink.cancel"),
+      saveFailed: t("goalLink.saveFailed"),
+      unconnected: t("goalLink.unconnected"),
+      achieved: t("goalLink.achieved"),
+      becomesAchieved: t("goalLink.becomesAchieved"),
+      losesAchievement: t("goalLink.losesAchievement"),
+    }),
+    [t],
+  );
+
+  return { treeLabels, detailLabels, linkLabels };
 }

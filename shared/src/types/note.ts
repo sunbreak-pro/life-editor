@@ -23,6 +23,7 @@ export interface NoteNode {
   parentId: string | null;
   order: number;
   isPinned: boolean;
+  createdOffline?: boolean;
   hasPassword?: boolean;
   isEditLocked?: boolean;
   isDeleted: boolean;
