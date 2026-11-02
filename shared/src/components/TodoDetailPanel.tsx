@@ -237,10 +237,17 @@ export interface TodoDetailPanelProps {
   className?: string;
 }
 
+// #2476: on a phone the footer is tighter than its three labels, and a flex
+// item that may shrink folds its own text ("キャンセ / ル"). Each footer button
+// keeps its label on one line and the ROW wraps instead (`max-md:flex-wrap` on
+// the footer). Narrow-only, so the Desktop footer is untouched.
+const NARROW_NO_FOLD = "max-md:shrink-0 max-md:whitespace-nowrap";
+
 // Disabled whenever there is nothing to save, which is most of the time the
 // panel is open — so the filled recess (#1803), not a faded accent.
 const SAVE_BTN = cn(
   "rounded-md bg-lumen-accent px-3 py-1.5 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11",
+  NARROW_NO_FOLD,
   FOCUS_RING_ON_ACCENT,
   DISABLED_FILLED_BTN,
 );
@@ -248,6 +255,7 @@ const SAVE_BTN = cn(
 // Outlined beside the filled Save, as on the event pane (#2407).
 const CANCEL_BTN = cn(
   "rounded-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover max-md:min-h-11",
+  NARROW_NO_FOLD,
   FOCUS_RING_TIGHT,
 );
 
@@ -540,7 +548,7 @@ function TodoDetailFields({
           end, as on the event pane. */}
       <div
         className={cn(
-          "flex items-center justify-end gap-3 border-t border-lumen-border pt-3",
+          "flex items-center justify-end gap-3 border-t border-lumen-border pt-3 max-md:flex-wrap",
           // Opaque, and the CARD's own token, so the fields scroll UNDER the
           // pinned row rather than showing through it (§5 bans transparency on
           // a primary surface anyway).
@@ -565,6 +573,7 @@ function TodoDetailFields({
             onClick={() => onDelete(todoId)}
             className={cn(
               "mr-auto flex min-h-lumen-tap-min items-center gap-1.5 rounded-sm text-sm font-medium text-lumen-danger max-md:min-h-11",
+              NARROW_NO_FOLD,
               FOCUS_RING,
             )}
           >
