@@ -13,6 +13,7 @@ import {
   minutesToTime,
   revealScrollTop,
   blockTitleLines,
+  blockTitleFit,
   MAX_BLOCK_TITLE_LINES,
   MAX_STACK_DEPTH,
   STACK_OFFSET_PCT,
@@ -338,6 +339,67 @@ describe("blockTitleLines", () => {
     for (let px = 0; px <= 400; px += 8) {
       const lines = blockTitleLines(px);
       expect(lines).toBeGreaterThanOrEqual(prev);
+      prev = lines;
+    }
+  });
+});
+
+/*
+ * #2478 — the block's WIDTH also decides the title's lines.
+ *
+ * Desktop 1280px with the right sidebar open leaves a day column about 50px,
+ * and a tall block there wrapped its title a character per line ("仕 / 事").
+ * A block too narrow for three full-width characters a line goes back to one
+ * truncated line, and the provenance glyph gives way before the title does.
+ * The px figures are estimates at the default font size, so what is pinned
+ * is the decision at clearly wide and clearly narrow widths.
+ */
+describe("blockTitleFit", () => {
+  const TALL = 96; // two hours at 48px an hour
+
+  it("keeps the height-only rule when the width is unknown (#1835)", () => {
+    expect(blockTitleFit(TALL, null, true)).toEqual({
+      lines: blockTitleLines(TALL),
+      showGlyph: true,
+    });
+    expect(blockTitleFit(24, null, false)).toEqual({
+      lines: 1,
+      showGlyph: false,
+    });
+  });
+
+  it("lets a tall block in a wide column wrap with its glyph", () => {
+    const fit = blockTitleFit(TALL, 200, true);
+    expect(fit.lines).toBe(blockTitleLines(TALL));
+    expect(fit.lines).toBeGreaterThan(1);
+    expect(fit.showGlyph).toBe(true);
+  });
+
+  it("drops the glyph before the title in a ~50px column", () => {
+    // A 50px day column, minus the block's 1px gap on each side.
+    const fit = blockTitleFit(TALL, 48, true);
+    expect(fit.showGlyph).toBe(false);
+  });
+
+  it("truncates to one line when three characters do not fit a line", () => {
+    for (const width of [6, 14, 22, 30]) {
+      expect(blockTitleFit(TALL, width, true)).toEqual({
+        lines: 1,
+        showGlyph: false,
+      });
+      expect(blockTitleFit(TALL, width, false).lines).toBe(1);
+    }
+  });
+
+  it("never draws a glyph for a variant that has none", () => {
+    expect(blockTitleFit(TALL, 400, false).showGlyph).toBe(false);
+  });
+
+  it("only ever narrows: a smaller width never gives more lines", () => {
+    let prev = Infinity;
+    for (let w = 400; w >= 0; w -= 2) {
+      const { lines } = blockTitleFit(TALL, w, true);
+      expect(lines).toBeLessThanOrEqual(prev);
       prev = lines;
     }
   });

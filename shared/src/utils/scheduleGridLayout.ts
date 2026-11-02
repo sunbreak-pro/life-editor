@@ -237,6 +237,61 @@ export function blockTitleLines(heightPx: number): number {
   return Math.min(MAX_BLOCK_TITLE_LINES, Math.max(1, room));
 }
 
+/*
+ * How a week block fits its title into its WIDTH as well as its height (#2478).
+ *
+ * `blockTitleLines` only looks at the height, so a tall block in a narrow
+ * column (Desktop 1280px with the right sidebar open leaves a day about 50px)
+ * wrapped its title a character or two per line: "仕 / 事". Below a width
+ * where three full-width characters fit on a line, wrapping stops helping and
+ * the title goes back to one truncated line, which ends in an ellipsis instead.
+ *
+ * The provenance glyph (the routine's Repeat, the todo's CheckSquare) gives
+ * way first, because it takes the width the title needs and the block keeps
+ * other cues: the routine's left band and the todo's face colour.
+ *
+ * Like the height figures above these are ESTIMATES at the default font size
+ * (text-xs = 12px). `widthPx` null means the width is not known — jsdom, or
+ * the first render before the grid is measured — and the block keeps the
+ * height-only behaviour of #1835.
+ */
+/** One full-width character at text-xs. */
+const TITLE_CHAR_PX = 12;
+/** The title needs at least this many characters on a line to wrap. */
+const MIN_TITLE_CHARS_PER_LINE = 3;
+/** The block's horizontal padding (px-1) and the 1px gap on each side. */
+const BLOCK_INLINE_CHROME_PX = 10;
+/** The glyph (size-3) and the gap after it (gap-1). */
+const TITLE_GLYPH_PX = 16;
+const MIN_TITLE_LINE_PX = TITLE_CHAR_PX * MIN_TITLE_CHARS_PER_LINE;
+
+export interface BlockTitleFit {
+  /** Lines the title may use (1 = a single truncated line). */
+  lines: number;
+  /** Whether the provenance glyph is drawn before the title. */
+  showGlyph: boolean;
+}
+
+/**
+ * Lines and glyph for a block `heightPx` tall and `widthPx` wide. `hasGlyph`
+ * says whether the block's variant draws a glyph at all.
+ */
+export function blockTitleFit(
+  heightPx: number,
+  widthPx: number | null,
+  hasGlyph: boolean,
+): BlockTitleFit {
+  const byHeight = blockTitleLines(heightPx);
+  if (widthPx == null) return { lines: byHeight, showGlyph: hasGlyph };
+  const textRoom = widthPx - BLOCK_INLINE_CHROME_PX;
+  const showGlyph = hasGlyph && textRoom - TITLE_GLYPH_PX >= MIN_TITLE_LINE_PX;
+  const titleRoom = showGlyph ? textRoom - TITLE_GLYPH_PX : textRoom;
+  return {
+    lines: titleRoom >= MIN_TITLE_LINE_PX ? byHeight : 1,
+    showGlyph,
+  };
+}
+
 /**
  * What the grid knew when the pointer went down. Everything here is captured
  * once at drag start — the geometry that can only be read from the DOM

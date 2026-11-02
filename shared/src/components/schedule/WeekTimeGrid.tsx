@@ -10,7 +10,7 @@ import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
 import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import {
-  blockTitleLines,
+  blockTitleFit,
   dayOfWeek,
   minutesFromMidnight,
   parseDateKey,
@@ -485,6 +485,28 @@ export function WeekTimeGrid({
     onItemActivate,
   });
 
+  /*
+   * #2478: the px width of one day column, which decides (with the block's
+   * height) how many lines a block title may use. A narrow column would
+   * otherwise wrap a tall block's title a character per line. The columns are
+   * equal `1fr` shares of the time grid, so watching the grid is enough; null
+   * until measured (and in jsdom), which keeps the height-only rule (#1835).
+   */
+  const [colWidthPx, setColWidthPx] = useState<number | null>(null);
+  useEffect(() => {
+    const grid = timeGridRef.current;
+    if (!grid || typeof ResizeObserver === "undefined") return;
+    const measure = (): void => {
+      const col = grid.querySelector<HTMLElement>("[data-week-grid-day]");
+      const w = col ? Math.round(col.getBoundingClientRect().width) : 0;
+      setColWidthPx(w > 0 ? w : null);
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(grid);
+    measure();
+    return () => ro.disconnect();
+  }, [timeGridRef, days]);
+
   // Bucket items per day key once.
   const byDay = useMemo(() => {
     const map = new Map<string, WeekTimeGridItem[]>();
@@ -909,8 +931,15 @@ export function WeekTimeGrid({
                   // #1835: the block's height in px, which is what decides how
                   // many lines its title may use. `heightPct` is a share of
                   // the day body, and the body's px height is known here.
-                  const titleLines = blockTitleLines(
+                  // #2478: and its width, so a narrow column truncates one
+                  // line (dropping the glyph first) instead of wrapping a
+                  // character per line.
+                  const { lines: titleLines, showGlyph } = blockTitleFit(
                     (p.heightPct / 100) * bodyHeight,
+                    colWidthPx == null
+                      ? null
+                      : (colWidthPx * p.widthPct) / 100 - 2,
+                    variant === "routine" || variant === "task",
                   );
                   // A-1 made todo chips read-only; A-2 (#297) opts them back in
                   // via `todoInteractive` so a drag writes scheduledAt. Events/
@@ -1014,7 +1043,7 @@ export function WeekTimeGrid({
                           titleLines === 1 ? "items-center" : "items-start",
                         )}
                       >
-                        {variant === "routine" && (
+                        {showGlyph && variant === "routine" && (
                           <Repeat
                             aria-hidden
                             className="size-3 shrink-0"
@@ -1025,7 +1054,7 @@ export function WeekTimeGrid({
                             Todos mark — as the todo counterpart of the
                             routine's Repeat. Static (not a completion state:
                             done already reads via line-through). */}
-                        {variant === "task" && (
+                        {showGlyph && variant === "task" && (
                           <CheckSquare
                             aria-hidden
                             className="size-3 shrink-0"
