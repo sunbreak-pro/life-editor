@@ -841,6 +841,70 @@ describe("GoalTreeView — button labels stay on one line (#2364)", () => {
   });
 });
 
+describe("GoalTreeView — the add-goal form on a phone (#2490)", () => {
+  /*
+   * jsdom has no layout, so this pins the structure and the classes that
+   * place things. At 390px the end label sat at the end of one line and its
+   * date field fell to the next, because both were loose children of one
+   * flex-wrap row. Every phone-only class carries max-md:, so Desktop keeps
+   * its one line.
+   */
+  const classesOf = (el: Element): string[] => el.className.split(/\s+/);
+
+  function openForm(): void {
+    renderTree();
+    fireEvent.click(screen.getByRole("button", { name: "Add a goal" }));
+  }
+
+  it("keeps each date label in one pair with its own field", () => {
+    openForm();
+    for (const name of ["From", "To"]) {
+      const field = screen.getByLabelText(name);
+      const pair = field.closest("[data-goal-range-pair]") as HTMLElement;
+      expect(pair).not.toBeNull();
+      const label = within(pair).getByText(name);
+      expect(label.tagName).toBe("LABEL");
+      expect(label.parentElement).toBe(pair);
+      expect(classesOf(label)).toEqual(
+        expect.arrayContaining(["shrink-0", "whitespace-nowrap"]),
+      );
+    }
+    const pairs = document.querySelectorAll("[data-goal-range-pair]");
+    expect(pairs).toHaveLength(2);
+    // The row wraps pair by pair, and stacks them below 768px only.
+    const row = pairs[0]?.parentElement as HTMLElement;
+    expect(pairs[1]?.parentElement).toBe(row);
+    expect(classesOf(row)).toEqual(
+      expect.arrayContaining(["flex-wrap", "max-md:flex-col"]),
+    );
+    expect(classesOf(row)).not.toContain("flex-col");
+  });
+
+  it("gives the title and date fields 44px on a phone, and the title its own line", () => {
+    openForm();
+    const title = screen.getByRole("textbox", { name: "This week: Goal" });
+    expect(classesOf(title)).toEqual(
+      expect.arrayContaining(["max-md:min-h-11", "max-md:basis-full"]),
+    );
+    expect(classesOf(title)).not.toContain("basis-full");
+    expect(classesOf(title.parentElement as HTMLElement)).toContain(
+      "max-md:flex-wrap",
+    );
+    expect(
+      classesOf(title.parentElement as HTMLElement),
+    ).not.toContain("flex-wrap");
+    for (const name of ["From", "To"]) {
+      const field = screen.getByLabelText(name);
+      expect(classesOf(field)).toContain("max-md:min-h-11");
+      // The field fills the pair on a phone and keeps its 10rem on Desktop.
+      const box = field.parentElement as HTMLElement;
+      expect(classesOf(box)).toEqual(
+        expect.arrayContaining(["w-40", "max-md:flex-1", "max-md:w-auto"]),
+      );
+    }
+  });
+});
+
 describe("GoalTreeView — the drag reads as carrying the row (#2365)", () => {
   /*
    * jsdom draws nothing, so these pin what the browser is handed and what

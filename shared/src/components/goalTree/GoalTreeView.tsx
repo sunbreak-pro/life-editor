@@ -1277,7 +1277,9 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
           />
         )}
         {adding && (
-          <div className="mt-2 flex items-center gap-2">
+          // Below 768px the field takes its own line, so the placeholder is
+          // not cut down to a few characters beside the two buttons (#2490).
+          <div className="mt-2 flex items-center gap-2 max-md:flex-wrap">
             <Input
               autoFocus
               value={draft}
@@ -1289,7 +1291,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               }}
               placeholder={`${labels.periods[adding]} ${labels.periodRanges[adding]}: ${labels.addPlaceholder}`}
               aria-label={`${labels.periods[adding]}: ${labels.addPlaceholder}`}
-              className="min-w-0 max-md:text-base"
+              className="min-w-0 max-md:min-h-11 max-md:basis-full max-md:text-base"
             />
             <Button
               size="sm"
@@ -1312,30 +1314,49 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
           </div>
         )}
         {adding && (
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-lumen-text-secondary">
-            <label htmlFor={rangeStartId}>{labels.startDate}</label>
-            <span className="w-40 shrink-0">
-              <Input
-                id={rangeStartId}
-                type="date"
-                value={range.start}
-                invalid={!rangeValid}
-                onChange={(e) => setRange({ ...range, start: e.target.value })}
-                className="max-md:text-base"
-              />
-            </span>
-            <label htmlFor={rangeEndId}>{labels.endDate}</label>
-            <span className="w-40 shrink-0">
-              <Input
-                id={rangeEndId}
-                type="date"
-                value={range.end}
-                min={range.start || undefined}
-                invalid={!rangeValid}
-                onChange={(e) => setRange({ ...range, end: e.target.value })}
-                className="max-md:text-base"
-              />
-            </span>
+          // Each label and its date field form one pair, so a wrap never
+          // leaves a label at the end of one line and its field on the next.
+          // Below 768px the pairs stack and the fields fill the width (#2490).
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-lumen-text-secondary max-md:flex-col max-md:items-stretch">
+            <div data-goal-range-pair className="flex items-center gap-2">
+              <label
+                htmlFor={rangeStartId}
+                className="shrink-0 whitespace-nowrap"
+              >
+                {labels.startDate}
+              </label>
+              <span className="w-40 shrink-0 max-md:w-auto max-md:min-w-0 max-md:flex-1">
+                <Input
+                  id={rangeStartId}
+                  type="date"
+                  value={range.start}
+                  invalid={!rangeValid}
+                  onChange={(e) =>
+                    setRange({ ...range, start: e.target.value })
+                  }
+                  className="max-md:min-h-11 max-md:text-base"
+                />
+              </span>
+            </div>
+            <div data-goal-range-pair className="flex items-center gap-2">
+              <label
+                htmlFor={rangeEndId}
+                className="shrink-0 whitespace-nowrap"
+              >
+                {labels.endDate}
+              </label>
+              <span className="w-40 shrink-0 max-md:w-auto max-md:min-w-0 max-md:flex-1">
+                <Input
+                  id={rangeEndId}
+                  type="date"
+                  value={range.end}
+                  min={range.start || undefined}
+                  invalid={!rangeValid}
+                  onChange={(e) => setRange({ ...range, end: e.target.value })}
+                  className="max-md:min-h-11 max-md:text-base"
+                />
+              </span>
+            </div>
           </div>
         )}
       </section>
