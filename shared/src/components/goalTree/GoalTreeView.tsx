@@ -621,7 +621,7 @@ function AddUnderGoal({
     });
   };
   return (
-    <div className="flex items-center gap-2 py-1 pl-(--goal-tree-toggle)">
+    <div className="flex items-center gap-2 py-1 pl-(--goal-tree-toggle) max-md:flex-wrap">
       <span
         data-goal-add-badge
         className="shrink-0 whitespace-nowrap rounded-full border border-lumen-border px-2 py-0.5 text-xs text-lumen-briefing-kohaku"
@@ -639,7 +639,7 @@ function AddUnderGoal({
         }}
         placeholder={placeholder}
         aria-label={`${labels.formatAddUnder(goal.title)} — ${badge}`}
-        className="min-w-0 max-md:text-base"
+        className="min-w-0 max-md:basis-full max-md:text-base"
       />
       <Button
         size="sm"
