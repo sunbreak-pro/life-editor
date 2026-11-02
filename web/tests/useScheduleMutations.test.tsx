@@ -716,3 +716,75 @@ describe("handleDuplicate", () => {
     expect(h.rows()).toHaveLength(1);
   });
 });
+
+/*
+ * #2406: the creation panel's 「既存から選ぶ」 — the duplicate write, onto
+ * another day. The refused-INSERT rollback is the same code as above; one case
+ * here proves this entry point goes through it.
+ */
+describe("handleDuplicateOnto", () => {
+  const SOURCE = item({
+    id: "s-old",
+    date: "2026-03-01",
+    startTime: "14:00",
+    endTime: "15:30",
+    memo: "memo",
+    reminderOffset: 30,
+    routineId: "r-1",
+  });
+
+  it("writes a copy on the given day, same time and title, leaving the source", () => {
+    const h = setup({ rangeItems: [] });
+    let id = "";
+    act(() => {
+      id = h.view.result.current.handleDuplicateOnto(SOURCE, "2026-09-18");
+    });
+    expect(id).toBe(NEW_ID);
+    expect(h.createScheduleItem).toHaveBeenCalledWith(
+      "2026-09-18",
+      "Dentist",
+      "14:00",
+      "15:30",
+      expect.objectContaining({ memo: "memo", reminderOffset: 30 }),
+    );
+    expect(h.rows()).toEqual([
+      expect.objectContaining({
+        id: NEW_ID,
+        date: "2026-09-18",
+        title: "Dentist",
+      }),
+    ]);
+    expect(h.updateScheduleItem).not.toHaveBeenCalled();
+    expect(h.deleteScheduleItem).not.toHaveBeenCalled();
+    expect(h.patchRange).not.toHaveBeenCalled();
+    // The caller decides what the selection does; the scope dialog stays out
+    // of it although the source belongs to a series.
+    expect(h.onSelectItem).not.toHaveBeenCalled();
+    expect(h.view.result.current.scopeRequest).toBeNull();
+  });
+
+  it("hands the companion to the create", () => {
+    const h = setup();
+    const alongside = vi.fn(async () => null);
+    act(() => {
+      h.view.result.current.handleDuplicateOnto(
+        SOURCE,
+        "2026-09-18",
+        alongside,
+      );
+    });
+    expect(h.createOpts()?.alongside).toBe(alongside);
+    expect(h.copyTagsFrom).not.toHaveBeenCalled();
+  });
+
+  it("fails the way a duplicate fails", () => {
+    const h = setup();
+    act(() => {
+      h.view.result.current.handleDuplicateOnto(SOURCE, "2026-09-18");
+    });
+    act(() => h.createOpts()?.onSaved?.(null));
+    expect(h.rows()).toEqual([]);
+    expect(h.onDuplicateFailed).toHaveBeenCalledTimes(1);
+    expect(h.onCreateFailed).not.toHaveBeenCalled();
+  });
+});

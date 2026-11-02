@@ -79,6 +79,14 @@ export function saveSortMode(mode: NoteSortMode): void {
 }
 
 /**
+ * The notes the list keeps while offline (#2334): the pinned ones, whose bodies
+ * are stored on the device, and the ones created offline (#2337).
+ */
+export function isNoteKeptOffline(note: NoteNode): boolean {
+  return note.isPinned || note.createdOffline === true;
+}
+
+/**
  * Build a fresh NoteNode for `createNoteUnified`. This mirrors the node
  * the retired Notes Bridge createNote constructed (content always "",
  * order 0, unpinned, not deleted), so the Unified write path is

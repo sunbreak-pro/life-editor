@@ -8,9 +8,9 @@ import {
 
 /*
  * Where a drag in Connect's Goals & Todos tree may land (#2226). A goal goes
- * only under a goal one period up, in the period that holds it — the rule
- * SupabaseGoalsService.assertParent enforces, left unchanged. Today is
- * Wednesday 2026-09-30, so the week 9/27 – 10/3 straddles two months.
+ * only under a longer period that holds it (#2399) — the kinds are what
+ * SupabaseGoalsService.assertParent enforces too. Today is Wednesday
+ * 2026-09-30, so the week 9/27 – 10/3 straddles two months.
  */
 
 function goal(over: Partial<Goal> & Pick<Goal, "id">): Goal {
@@ -47,9 +47,18 @@ describe("canDropGoalOn (#2226)", () => {
     expect(canDropGoalOn(week, aug)).toBe(false);
   });
 
-  it("refuses the same period, a shorter one and two periods up", () => {
+  it("lets a week go straight under the year that holds it (#2399)", () => {
+    expect(canDropGoalOn(week, year)).toBe(true);
+    expect(canDropGoalOn(week, lastYear)).toBe(false);
+    // The week 12/27 – 1/2 is in two years, as another straddles two months.
+    const newYearsWeek = goal({ id: "w3", periodKey: "2026-12-27" });
+    const nextYear = goal({ id: "y2", periodKind: "year", periodKey: "2027" });
+    expect(canDropGoalOn(newYearsWeek, year)).toBe(true);
+    expect(canDropGoalOn(newYearsWeek, nextYear)).toBe(true);
+  });
+
+  it("refuses the same period and a shorter one", () => {
     expect(canDropGoalOn(week, otherWeek)).toBe(false);
-    expect(canDropGoalOn(week, year)).toBe(false);
     expect(canDropGoalOn(sept, week)).toBe(false);
     expect(canDropGoalOn(sept, oct)).toBe(false);
     expect(canDropGoalOn(year, sept)).toBe(false);
@@ -65,6 +74,7 @@ describe("canDropGoalOn (#2226)", () => {
     expect(canDropGoalOn({ ...week, parentGoalId: "m9" }, sept)).toBe(false);
     expect(canDropGoalOn({ ...week, parentGoalId: "m9" }, oct)).toBe(true);
     expect(canDropGoalOn(sept, sept)).toBe(false);
+    expect(canDropGoalOn({ ...week, parentGoalId: "y" }, year)).toBe(false);
   });
 });
 

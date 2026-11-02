@@ -150,6 +150,27 @@ describe("list_goals answers like shared (fixture #2102)", () => {
 });
 
 describe("list_goals", () => {
+  it("judges a year by a week straight under it (#2399)", async () => {
+    install(
+      [
+        { id: "y", kind: "year" },
+        { id: "w", kind: "week", parent: "y" },
+      ],
+      [{ id: "t1", done: true }],
+      [{ goalId: "w", todoId: "t1" }],
+    );
+
+    const { periods } = await listGoals({
+      period_kind: "year",
+      period_key: "2026",
+    });
+
+    expect(periods[0].goals[0].achievement).toMatchObject({
+      achieved: true,
+      children: { achieved: 1, total: 1 },
+    });
+  });
+
   it("judges a month by its weeks even when they sit in another period", async () => {
     // The month is listed alone; its child week is outside the asked period
     // but must still be loaded for the month's answer.
@@ -259,11 +280,28 @@ describe("create_goal", () => {
     expect(stub.writes().some((w) => w.table === "goals_payload")).toBe(true);
   });
 
-  it("only takes a parent one level up", async () => {
+  it("takes a year straight above a week (#2399)", async () => {
     install([{ id: "y", kind: "year" }]);
     await expect(
-      createGoal({ title: "x", period_kind: "week", parent_id: "y" }),
-    ).rejects.toThrow(/a week goal takes a month goal as its parent/);
+      createGoal({
+        title: "x",
+        period_kind: "week",
+        date: DATE,
+        parent_id: "y",
+      }),
+    ).resolves.toMatchObject({ periodKind: "week", parentGoalId: "y" });
+  });
+
+  it("only takes a parent of a longer period", async () => {
+    install([{ id: "w2", kind: "week" }]);
+    await expect(
+      createGoal({ title: "x", period_kind: "week", parent_id: "w2" }),
+    ).rejects.toThrow(/a week goal takes a month or year goal as its parent/);
+
+    install([{ id: "w2", kind: "week" }]);
+    await expect(
+      createGoal({ title: "x", period_kind: "month", parent_id: "w2" }),
+    ).rejects.toThrow(/a month goal takes a year goal as its parent/);
 
     install([{ id: "m", kind: "month" }]);
     await expect(

@@ -77,6 +77,35 @@ describe("#1558 — the tray's row buttons meet the 44px floor on narrow only", 
   });
 });
 
+describe("#2408 — the Desktop cluster's buttons carry the same floor", () => {
+  it.each([["delete todo"], ["move out of today"], ["edit todo"]])(
+    "floors %s in both directions",
+    (name) => {
+      render(
+        <TodayTodoTray
+          {...rows}
+          onToggleComplete={noop}
+          onOpenTodo={noop}
+          onAddCandidate={noop}
+          onDelete={noop}
+          onMoveOut={noop}
+          rowActions={{
+            edit: "edit todo",
+            moveOutHint: "hint",
+            moveToTodayHint: "hint",
+            editHint: "hint",
+            deleteHint: "hint",
+          }}
+          labels={labels}
+        />,
+      );
+      const btn = screen.getByLabelText(name);
+      expect(btn).toHaveClass("max-md:min-h-11", "max-md:min-w-11", "size-6");
+      expect(btn).not.toHaveClass("min-h-11");
+    },
+  );
+});
+
 describe("#1515 — the title button is allowed to shrink", () => {
   it("gives the flexible column min-w-0", () => {
     renderTray();

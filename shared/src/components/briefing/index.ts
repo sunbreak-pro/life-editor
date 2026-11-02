@@ -89,6 +89,7 @@ export {
 export {
   GoalPickerField,
   goalPickerLabels,
+  type GoalPickerChipLabels,
   type GoalPickerFieldProps,
   type GoalPickerLabelKey,
   type GoalPickerLabels,

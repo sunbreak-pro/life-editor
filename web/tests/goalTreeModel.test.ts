@@ -184,14 +184,15 @@ describe("arrangeGoalTree (#2225)", () => {
     expect(ids(achieved.roots)).toEqual(["w2"]);
     expect(achieved.unconnected).toEqual([]);
 
-    const unconnected = arrange("standard", { status: "unconnected" });
-    expect(unconnected.roots).toEqual([]);
-    expect(ids(unconnected.unconnected)).toEqual(["w3"]);
-
     // In progress: the year and the month are not achieved either.
     const inProgress = arrange("standard", { status: "inProgress" });
     expect(ids(inProgress.roots)).toEqual(["y"]);
     expect(ids(inProgress.roots[0].children[0].children)).toEqual(["w1"]);
+    // Nothing connected is neither state: its group shows on "all" (#2410).
+    expect(inProgress.unconnected).toEqual([]);
+    expect(ids(arrange("standard", { status: "all" }).unconnected)).toEqual([
+      "w3",
+    ]);
   });
 
   it("hides done todos without touching the progress or the panel's lookup", () => {
@@ -204,7 +205,42 @@ describe("arrangeGoalTree (#2225)", () => {
   });
 });
 
-describe("goalParentOptions (#2108)", () => {
+describe("buildGoalTreeModel — a week straight under a year (#2399)", () => {
+  const model = buildGoalTreeModel({
+    goals: [
+      goal({ id: "y", periodKind: "year", periodKey: "2026" }),
+      goal({ id: "w", parentGoalId: "y" }),
+      goal({
+        id: "m",
+        periodKind: "month",
+        periodKey: "2026-09",
+        parentGoalId: "y",
+      }),
+    ],
+    links: [{ goalId: "w", todoId: "t", isDeleted: false }],
+    todos: [{ id: "t", title: "t", status: "DONE" }],
+    todayKey: TODAY,
+    untitled: "Untitled",
+  });
+
+  it("draws it as the year's child, after the months", () => {
+    expect(model.roots.map((n) => n.goal.id)).toEqual(["y"]);
+    expect(model.byId.get("y")?.children.map((n) => n.goal.id)).toEqual([
+      "m",
+      "w",
+    ]);
+  });
+
+  it("counts it toward the year's progress with no month between", () => {
+    expect(model.byId.get("y")?.achievement.children).toEqual({
+      achieved: 1,
+      total: 2,
+    });
+    expect(model.byId.get("w")?.achievement.achieved).toBe(true);
+  });
+});
+
+describe("goalParentOptions (#2108, #2399)", () => {
   it("offers both months to a week that straddles them", () => {
     const sep = goal({ id: "sep", periodKind: "month", periodKey: "2026-09" });
     const oct = goal({ id: "oct", periodKind: "month", periodKey: "2026-10" });
@@ -213,6 +249,33 @@ describe("goalParentOptions (#2108)", () => {
     expect(
       goalParentOptions([sep, oct, nov, week], week).map((g) => g.id),
     ).toEqual(["oct", "sep"].sort());
+  });
+
+  it("offers a week the years that hold it too, longest first", () => {
+    const year = goal({ id: "y", periodKind: "year", periodKey: "2026" });
+    const last = goal({ id: "y0", periodKind: "year", periodKey: "2025" });
+    const sep = goal({ id: "sep", periodKind: "month", periodKey: "2026-09" });
+    const other = goal({ id: "w2" });
+    const week = goal({ id: "w" });
+    expect(
+      goalParentOptions([sep, other, last, year, week], week).map((g) => g.id),
+    ).toEqual(["y", "sep"]);
+  });
+
+  it("offers both years to a week across New Year", () => {
+    const y26 = goal({ id: "y26", periodKind: "year", periodKey: "2026" });
+    const y27 = goal({ id: "y27", periodKind: "year", periodKey: "2027" });
+    const week = goal({ id: "w", periodKey: "2026-12-27" });
+    expect(goalParentOptions([y26, y27], week).map((g) => g.id)).toEqual([
+      "y26",
+      "y27",
+    ]);
+  });
+
+  it("offers a month no week", () => {
+    const week = goal({ id: "w" });
+    const month = goal({ id: "m", periodKind: "month", periodKey: "2026-09" });
+    expect(goalParentOptions([week], month)).toEqual([]);
   });
 
   it("offers a month its year, and a year nothing", () => {

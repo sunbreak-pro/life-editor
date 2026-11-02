@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, within, fireEvent } from "@testing-library/react";
-import type { DataService } from "@life-editor/shared";
+import { MANUAL_SESSION_LABEL, type DataService } from "@life-editor/shared";
 import { stubDataService, createBumpableSync } from "./helpers";
 import { WorkHistoryPanel } from "../src/work/WorkHistoryPanel";
 
@@ -94,6 +94,33 @@ describe("WorkHistoryPanel days (#2054)", () => {
     expect(screen.getAllByTestId("work-history-row")).toHaveLength(1);
     screen.getByText("work.history.today");
     expect(screen.queryByText("work.history.yesterday")).toBeNull();
+  });
+});
+
+/*
+ * #2407: a typed amount sits on the event's day, but it has no clock it ran
+ * against, and its label is an identifier that must never reach the screen.
+ */
+describe("WorkHistoryPanel hand-entered row (#2407)", () => {
+  it("says where it came from instead of a time range or the raw label", async () => {
+    const ds = stubDataService({
+      fetchTimerSessions: vi.fn(async () => [
+        { ...work(1, at(0, 9)), label: MANUAL_SESSION_LABEL },
+      ]),
+      fetchTodoTree: vi.fn(async () => []),
+      fetchScheduleItemsByDateRange: vi.fn(async () => []),
+      listAllWikiTagsUnified: vi.fn(async () => []),
+      listAllTagAssignments: vi.fn(async () => []),
+    }) as DataService;
+    render(
+      <SyncWrapper>
+        <WorkHistoryPanel dataService={ds} />
+      </SyncWrapper>,
+    );
+    const row = await screen.findByTestId("work-history-row");
+    expect(row.textContent).toContain("work.history.manualEntry");
+    expect(row.textContent).not.toContain("09:00");
+    expect(row.textContent).not.toContain(MANUAL_SESSION_LABEL);
   });
 });
 

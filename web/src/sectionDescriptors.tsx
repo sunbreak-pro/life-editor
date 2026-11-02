@@ -270,6 +270,7 @@ export const SECTION_DESCRIPTORS: Readonly<
                   onNavigateToItem={nav.navigateToLinkedItem}
                   pendingSelectNoteId={nav.pendingNoteSelect}
                   onConsumePendingSelect={nav.consumeItemNav}
+                  onOpenTag={nav.openTagInConnect}
                 />
               </Suspense>
             </NotesUnifiedHost>
@@ -326,6 +327,8 @@ export const SECTION_DESCRIPTORS: Readonly<
           <ConnectScreen
             dataService={ds}
             onNavigateToItem={nav.navigateToItemWithReturn}
+            pendingSelectTagId={nav.pendingConnectTag}
+            onConsumePendingTag={nav.consumeConnectTag}
           />
         </WikiTagsUnifiedProvider>
       ),

@@ -83,6 +83,9 @@ const LABELS: GoalTreeLabels = {
   status: "Status",
   statusLabels: { statusNotStarted: "Not started", statusDone: "Done" },
   formatOpenTodo: (title) => `Open ${title}`,
+  formatMarkTodoDone: (title) => `Done: ${title}`,
+  formatMarkTodoOpen: (title) => `Not done: ${title}`,
+  formatDeleteTodo: (title) => `Delete todo: ${title}`,
   formatExpand: (title) => `Expand: ${title}`,
   formatCollapse: (title) => `Collapse: ${title}`,
   filteringBy: "Filtering by",
@@ -104,9 +107,9 @@ const LABELS: GoalTreeLabels = {
   retry: "Retry",
 };
 
-function model(): GoalTreeModel {
+function model(goals: Goal[] = GOALS): GoalTreeModel {
   return buildGoalTreeModel({
-    goals: GOALS,
+    goals,
     links: LINKS,
     todos: TODOS,
     todayKey: "2026-09-30",
@@ -114,10 +117,10 @@ function model(): GoalTreeModel {
   });
 }
 
-function renderTree(): ReturnType<typeof render> {
+function renderTree(goals?: Goal[]): ReturnType<typeof render> {
   return render(
     <GoalTreeView
-      model={model()}
+      model={model(goals)}
       isLoading={false}
       selectedGoalId={null}
       onSelectGoal={vi.fn()}
@@ -234,6 +237,26 @@ describe("GoalTreeView hierarchy lines (#2282)", () => {
     const rows = within(year).getAllByRole("button", { name: /^Open / });
     expect(rows.at(-1)?.getAttribute("aria-label")).toBe("Open Long run");
     expect(yearGoals.contains(rows.at(-1) ?? null)).toBe(true);
+  });
+
+  it("draws a week straight under a year one step in, on the year's line (#2399)", () => {
+    renderTree([
+      ...GOALS,
+      goal({ id: "w2", title: "Swim once", parentGoalId: "y1" }),
+    ]);
+    const yearGoals = branchOf(goalItem("Year", "Run 10 km"), "goals");
+    // Nothing connected, so it is listed under Unconnected as well.
+    const week = within(yearGoals)
+      .getByRole("button", { name: /^Week: Swim once — / })
+      .closest("li") as HTMLElement;
+    // Its list is the year's own, beside the month, with no branch between.
+    expect(week.closest("[data-goal-tree-branch]")).toBe(yearGoals);
+    expect(goalItem("Month", "Run weekly").parentElement).toBe(
+      week.parentElement,
+    );
+    expect(
+      yearGoals.querySelectorAll(":scope > [data-goal-tree-line]"),
+    ).toHaveLength(1);
   });
 
   it("gives the todo list under a goal a line of its own", () => {

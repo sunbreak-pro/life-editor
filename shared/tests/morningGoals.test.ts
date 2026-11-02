@@ -111,6 +111,29 @@ describe("buildMorningGoals", () => {
   });
 });
 
+describe("buildMorningGoals — a week straight under a year (#2399)", () => {
+  it("lists each period's goals as before, the year counting the week", () => {
+    const state = withGoals(
+      sampleState(),
+      [
+        goal("y-direct", "直下に週を持つ年", "year", "2026"),
+        goal("w-direct", "年の直下の週", "week", "2026-09-27", "y-direct"),
+      ],
+      [["w-direct", "t-direct"]],
+      [["t-direct", true]],
+    );
+    const goals = buildMorningGoals(state, TODAY);
+    const line = (list: typeof goals.year, id: string) =>
+      list.find((l) => l.id === id)?.progress;
+    expect(line(goals.week, "w-direct")).toMatchObject({ achieved: true });
+    expect(line(goals.year, "y-direct")).toMatchObject({
+      done: 1,
+      total: 1,
+      achieved: true,
+    });
+  });
+});
+
 describe("goalMarkTitles", () => {
   it("names the live goals a todo serves, week → month → year", () => {
     const state = withGoals(
@@ -255,6 +278,15 @@ describe("carryPlan", () => {
     ]);
     expect(carryPlan(state, current, TODAY).parentGoalId).toBe("m-run");
     expect(carryPlan(state, past, TODAY).parentGoalId).toBeNull();
+  });
+
+  it("keeps a year parent a week hangs straight under (#2399)", () => {
+    const week = goal("w-c", "年の直下", "week", "2026-09-20", "y-direct");
+    const state = withGoals(sampleState(), [
+      week,
+      goal("y-direct", "今年", "year", "2026"),
+    ]);
+    expect(carryPlan(state, week, TODAY).parentGoalId).toBe("y-direct");
   });
 });
 

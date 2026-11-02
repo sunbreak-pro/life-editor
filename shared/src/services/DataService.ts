@@ -7,6 +7,7 @@ import type {
   SessionType,
   PomodoroPreset,
 } from "../types/timer";
+import type { EventWorkAnchor } from "../utils/timerSessions";
 import type { SoundSettings } from "../types/sound";
 import type { DailyNode } from "../types/daily";
 import type {
@@ -190,6 +191,16 @@ export interface TimerDataService {
   fetchSessionsByTodoId(todoId: string): Promise<TimerSession[]>;
   /** Sessions measured against one Event (#1375) — the event's logged time. */
   fetchSessionsByEventId(eventId: string): Promise<TimerSession[]>;
+  /**
+   * Make an Event's logged time add up to `totalMinutes` by writing its one
+   * hand-entered row (#2407). Null removes that row. Timer rows are never
+   * touched, so a total below them rejects.
+   */
+  saveEventWorkTotal(input: {
+    eventId: string;
+    anchor: EventWorkAnchor;
+    totalMinutes: number | null;
+  }): Promise<void>;
 
   // Pomodoro Presets
   fetchPomodoroPresets(): Promise<PomodoroPreset[]>;
@@ -899,7 +910,7 @@ export interface GoalsDataService {
   fetchGoalsInPeriod(kind: GoalPeriodKind, periodKey: string): Promise<Goal[]>;
   /** The year, month and week goals of the periods `dateKey` falls in. */
   fetchGoalsForDate(dateKey: string): Promise<Goal[]>;
-  /** Rejects a malformed period key and a parent that is not one level up. */
+  /** Rejects a malformed period key and a parent whose period is not longer. */
   createGoal(input: GoalCreateInput): Promise<Goal>;
   updateGoal(id: string, updates: GoalUpdates): Promise<Goal>;
   softDeleteGoal(id: string): Promise<void>;

@@ -217,6 +217,25 @@ export interface ScheduleCopy {
   formatGapLabel: (minutes: number) => string;
 }
 
+/**
+ * #553: duration suffix on the TimeRangeField's end options ("10:30
+ * (1時間30分)"). Hour/minute composition happens here so the words stay in the
+ * catalogs — the shared field never builds copy.
+ */
+export function useFormatDuration(): (minutes: number) => string {
+  const { t } = useTranslation();
+  return useCallback(
+    (minutes: number) => {
+      const h = Math.floor(minutes / 60);
+      const m = minutes % 60;
+      if (h === 0) return t("scheduleScreen.durationMin", { m });
+      if (m === 0) return t("scheduleScreen.durationHour", { h });
+      return t("scheduleScreen.durationHourMin", { h, m });
+    },
+    [t],
+  );
+}
+
 export function useScheduleCopy({
   notesError,
   selectedTagCount,
@@ -373,19 +392,7 @@ export function useScheduleCopy({
     [weekdayLabels, repeatLabels],
   );
 
-  // #553: duration suffix on the TimeRangeField's end options ("10:30
-  // (1時間30分)"). Hour/minute composition happens here so the words stay in
-  // the catalogs — the shared field never builds copy.
-  const formatDuration = useCallback(
-    (minutes: number) => {
-      const h = Math.floor(minutes / 60);
-      const m = minutes % 60;
-      if (h === 0) return t("scheduleScreen.durationMin", { m });
-      if (m === 0) return t("scheduleScreen.durationHour", { h });
-      return t("scheduleScreen.durationHourMin", { h, m });
-    },
-    [t],
-  );
+  const formatDuration = useFormatDuration();
 
   // #691: the Mobile Dayflow calls out stretches with nothing in them. The
   // words stay in the catalogs; AgendaList only receives the finished string.

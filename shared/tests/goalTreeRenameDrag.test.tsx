@@ -93,6 +93,9 @@ const LABELS: GoalTreeLabels = {
   status: "Status",
   statusLabels: { statusNotStarted: "Not started", statusDone: "Done" },
   formatOpenTodo: (title) => `Open ${title}`,
+  formatMarkTodoDone: (title) => `Done: ${title}`,
+  formatMarkTodoOpen: (title) => `Not done: ${title}`,
+  formatDeleteTodo: (title) => `Delete todo: ${title}`,
   formatExpand: (title) => `Expand: ${title}`,
   formatCollapse: (title) => `Collapse: ${title}`,
   filteringBy: "Filtering by",
@@ -125,6 +128,8 @@ function renderTree(
     goals?: Goal[];
     todos?: typeof TODOS;
     onSetTodoStatus?: (todoId: string, status: TodoStatus) => void;
+    onOpenTodo?: (todoId: string) => void;
+    onDeleteTodo?: (todoId: string) => void;
   } = {},
 ): ReturnType<typeof render> {
   return render(
@@ -142,7 +147,8 @@ function renderTree(
       onCreateGoal={vi.fn().mockResolvedValue(true)}
       onCreateLooseTodo={vi.fn().mockResolvedValue(true)}
       onSetTodoStatus={over.onSetTodoStatus ?? vi.fn()}
-      onOpenTodo={vi.fn()}
+      onOpenTodo={over.onOpenTodo ?? vi.fn()}
+      onDeleteTodo={over.onDeleteTodo}
       onRenameGoal={over.onRenameGoal}
       onEditGoal={over.onEditGoal}
       rowActions={over.rowActions}
@@ -429,25 +435,202 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
     }
   });
 
-  it("offers a todo or a goal one level down from a month's +", async () => {
+  /** The choices a goal's + opens, in order, without the way out. */
+  const choicesOf = (title: string): string[] => {
+    fireEvent.click(
+      screen.getByRole("button", { name: `Add under: ${title}` }),
+    );
+    const cancel = screen.getByRole("button", { name: "Cancel" });
+    return within(cancel.parentElement as HTMLElement)
+      .getAllByRole("button")
+      .map((b) => b.textContent ?? "")
+      .filter((text) => text !== "Cancel");
+  };
+
+  it("offers a todo or this week's goal from a month's +", async () => {
     const rowActions = actions();
     renderTree({ rowActions });
-    fireEvent.click(
-      screen.getByRole("button", { name: "Add under: Run weekly" }),
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Week goal" }));
+    expect(choicesOf("Run weekly")).toEqual(["Todo", "This week goal"]);
+    fireEvent.click(screen.getByRole("button", { name: "This week goal" }));
     const field = screen.getByRole("textbox", {
-      name: "Add under: Run weekly — Week goal",
+      name: "Add under: Run weekly — This week goal",
     });
     fireEvent.change(field, { target: { value: " Long run " } });
     fireEvent.keyDown(field, { key: "Enter" });
     expect(rowActions.onAddChildGoal).toHaveBeenCalledWith(
       expect.objectContaining({ id: "m1" }),
       "Long run",
+      "week",
     );
     await vi.waitFor(() =>
       expect(screen.queryByRole("textbox", { name: /^Add under/ })).toBeNull(),
     );
+  });
+
+  it("offers a todo, this month's goal or this week's goal from a year's + (#2399)", () => {
+    const rowActions = actions();
+    renderTree({ rowActions });
+    expect(choicesOf("Run 10 km")).toEqual([
+      "Todo",
+      "This month goal",
+      "This week goal",
+    ]);
+    fireEvent.click(screen.getByRole("button", { name: "This week goal" }));
+    const field = screen.getByRole("textbox", {
+      name: "Add under: Run 10 km — This week goal",
+    });
+    fireEvent.change(field, { target: { value: "Long run" } });
+    fireEvent.click(screen.getByRole("button", { name: "Add" }));
+    expect(rowActions.onAddChildGoal).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "y1" }),
+      "Long run",
+      "week",
+    );
+  });
+
+  it("adds a month from a year's + with its own kind", () => {
+    const rowActions = actions();
+    renderTree({ rowActions });
+    choicesOf("Run 10 km");
+    fireEvent.click(screen.getByRole("button", { name: "This month goal" }));
+    const field = screen.getByRole("textbox", {
+      name: "Add under: Run 10 km — This month goal",
+    });
+    fireEvent.change(field, { target: { value: "Run weekly" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(rowActions.onAddChildGoal).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "y1" }),
+      "Run weekly",
+      "month",
+    );
+  });
+
+  it("names what the field adds, and keeps its add button whole beside it", () => {
+    renderTree({ rowActions: actions() });
+    choicesOf("Run 10 km");
+    fireEvent.click(screen.getByRole("button", { name: "This week goal" }));
+    const row = screen.getByRole("textbox", { name: /^Add under/ })
+      .parentElement as HTMLElement;
+    const badge = row.querySelector("[data-goal-add-badge]") as HTMLElement;
+    expect(badge.textContent).toBe("This week goal");
+    expect(badge.className).toContain("shrink-0");
+    const add = within(row).getByRole("button", { name: "Add" });
+    expect(add.className).toContain("shrink-0");
+    expect(add.className).toContain("whitespace-nowrap");
+  });
+
+  it("gives the field its own line below 768px, and only there (#2399)", () => {
+    /*
+     * jsdom has no layout, so this cannot measure the field's width. It pins
+     * the classes that give it one: on one line at 375px the badge and the
+     * buttons left the field about 40px. Every wrap class carries max-md:, so
+     * Desktop keeps its one line, and the phone's 44px targets stay.
+     */
+    renderTree({ rowActions: actions() });
+    choicesOf("Run 10 km");
+    fireEvent.click(screen.getByRole("button", { name: "This month goal" }));
+    const field = screen.getByRole("textbox", { name: /^Add under/ });
+    const row = field.parentElement as HTMLElement;
+    const classesOf = (el: Element): string[] => el.className.split(/\s+/);
+
+    expect(classesOf(row)).toContain("max-md:flex-wrap");
+    expect(classesOf(row)).not.toContain("flex-wrap");
+    expect(classesOf(field)).toContain("max-md:basis-full");
+    expect(classesOf(field)).not.toContain("basis-full");
+
+    // The badge and the buttons stay whole on the lines around it.
+    const badge = row.querySelector("[data-goal-add-badge]") as HTMLElement;
+    const add = within(row).getByRole("button", { name: "Add" });
+    const close = within(row).getByRole("button", { name: "Cancel" });
+    expect(classesOf(badge)).toEqual(
+      expect.arrayContaining(["shrink-0", "whitespace-nowrap"]),
+    );
+    expect(classesOf(add)).toEqual(
+      expect.arrayContaining([
+        "shrink-0",
+        "whitespace-nowrap",
+        "max-md:min-h-11",
+      ]),
+    );
+    expect(classesOf(close)).toEqual(
+      expect.arrayContaining([
+        "shrink-0",
+        "max-md:min-h-11",
+        "max-md:min-w-11",
+      ]),
+    );
+  });
+
+  it("drops the field on Esc or the ×, adding nothing", () => {
+    const rowActions = actions();
+    renderTree({ rowActions });
+    const plus = screen.getByRole("button", { name: "Add under: Run 3 times" });
+    fireEvent.click(plus);
+    const field = screen.getByRole("textbox", { name: /^Add under/ });
+    fireEvent.change(field, { target: { value: "Buy gels" } });
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(screen.queryByRole("textbox", { name: /^Add under/ })).toBeNull();
+
+    fireEvent.click(plus);
+    // The × is an icon, so it needs a name; it has a tap target on a phone.
+    const close = screen.getByRole("button", { name: "Cancel" });
+    expect(close.className).toContain("max-md:min-h-11");
+    expect(close.className).toContain("max-md:min-w-11");
+    fireEvent.click(close);
+    expect(screen.queryByRole("textbox", { name: /^Add under/ })).toBeNull();
+    expect(rowActions.onAddTodo).not.toHaveBeenCalled();
+  });
+
+  it("opens a closed goal when something is added under it (#2399)", async () => {
+    const rowActions = actions();
+    renderTree({ rowActions });
+    fireEvent.click(screen.getByRole("button", { name: "Collapse: Run 10 km" }));
+    expect(screen.queryByText("Run weekly")).toBeNull();
+
+    choicesOf("Run 10 km");
+    fireEvent.click(screen.getByRole("button", { name: "Todo" }));
+    const field = screen.getByRole("textbox", {
+      name: "Add under: Run 10 km — Todo",
+    });
+    fireEvent.change(field, { target: { value: "Sign up" } });
+    // Still closed while the field is open: only the add opens it.
+    expect(
+      screen.getByRole("button", { name: "Expand: Run 10 km" }),
+    ).toBeTruthy();
+    fireEvent.keyDown(field, { key: "Enter" });
+    expect(rowActions.onAddTodo).toHaveBeenCalledWith("y1", "Sign up");
+    await vi.waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Collapse: Run 10 km" }),
+      ).toBeTruthy(),
+    );
+    titleOf("Run weekly");
+  });
+
+  it("keeps a closed goal closed, and the field open, when the add fails", async () => {
+    const rowActions: GoalRowActions = {
+      ...actions(),
+      onAddTodo: vi.fn().mockResolvedValue(false),
+    };
+    renderTree({ rowActions });
+    fireEvent.click(screen.getByRole("button", { name: "Collapse: Run 10 km" }));
+    choicesOf("Run 10 km");
+    fireEvent.click(screen.getByRole("button", { name: "Todo" }));
+    const field = screen.getByRole("textbox", { name: /^Add under/ });
+    fireEvent.change(field, { target: { value: "Sign up" } });
+    fireEvent.keyDown(field, { key: "Enter" });
+    await vi.waitFor(() =>
+      expect(rowActions.onAddTodo).toHaveBeenCalledTimes(1),
+    );
+    // Let the rejected add settle before reading the row.
+    await vi.waitFor(() =>
+      expect(
+        (screen.getByRole("button", { name: "Add" }) as HTMLButtonElement)
+          .disabled,
+      ).toBe(false),
+    );
+    expect(screen.getByRole("textbox", { name: /^Add under/ })).toBe(field);
+    screen.getByRole("button", { name: "Expand: Run 10 km" });
   });
 
   it("goes straight to the todo field under a week, and not on an IME Enter", () => {
@@ -493,6 +676,137 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
   });
 });
 
+describe("GoalTreeView — a todo row's name, pencil and bin (#2388)", () => {
+  const withStatus = (id: string, status: TodoStatus): typeof TODOS =>
+    TODOS.map((t) => (t.id === id ? { ...t, status } : t)) as typeof TODOS;
+  const region = (name: string) => within(screen.getByRole("region", { name }));
+
+  it("ticks an open todo from its name, and does not open the editor", () => {
+    const onSetTodoStatus = vi.fn();
+    const onOpenTodo = vi.fn();
+    renderTree({ onSetTodoStatus, onOpenTodo });
+    fireEvent.click(screen.getByRole("button", { name: "Done: 5 km jog" }));
+    expect(onSetTodoStatus).toHaveBeenCalledWith("t3", "DONE");
+    expect(onOpenTodo).not.toHaveBeenCalled();
+  });
+
+  it("un-ticks a done todo from its name in Completed items", () => {
+    const onSetTodoStatus = vi.fn();
+    renderTree({ todos: withStatus("t4", "DONE"), onSetTodoStatus });
+    fireEvent.click(
+      region("Completed items").getByRole("button", {
+        name: "Not done: Buy shoes",
+      }),
+    );
+    expect(onSetTodoStatus).toHaveBeenCalledWith("t4", "NOT_STARTED");
+  });
+
+  it("opens the editor from the pencil, and only there", () => {
+    const onSetTodoStatus = vi.fn();
+    const onOpenTodo = vi.fn();
+    renderTree({ onSetTodoStatus, onOpenTodo });
+    fireEvent.click(screen.getByRole("button", { name: "Open 5 km jog" }));
+    expect(onOpenTodo).toHaveBeenCalledWith("t3");
+    expect(onSetTodoStatus).not.toHaveBeenCalled();
+  });
+
+  it("fires the bin raw, and draws none when the host passes no handler", () => {
+    const onDeleteTodo = vi.fn();
+    const { unmount } = renderTree({ onDeleteTodo });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Delete todo: 5 km jog" }),
+    );
+    expect(onDeleteTodo).toHaveBeenCalledWith("t3");
+    unmount();
+
+    renderTree();
+    expect(screen.queryByRole("button", { name: /^Delete todo: / })).toBeNull();
+    screen.getByRole("button", { name: "Open 5 km jog" });
+  });
+
+  it("offers all three on a tree row and in Completed items", () => {
+    renderTree({ todos: withStatus("t4", "DONE"), onDeleteTodo: vi.fn() });
+    for (const [where, name, verb] of [
+      ["Goals", "5 km jog", "Done"],
+      ["Completed items", "Buy shoes", "Not done"],
+    ] as const) {
+      const scope = region(where);
+      scope.getByRole("button", { name: `${verb}: ${name}` });
+      scope.getByRole("button", { name: `Open ${name}` });
+      scope.getByRole("button", { name: `Delete todo: ${name}` });
+    }
+  });
+
+  it("offers all three in the group of todos no goal holds", () => {
+    renderTree({
+      todos: [
+        ...TODOS,
+        { id: "t9", title: "Call home", status: "NOT_STARTED" as const },
+      ],
+      onDeleteTodo: vi.fn(),
+    });
+    const loose = region("Todos without a goal");
+    loose.getByRole("button", { name: "Done: Call home" });
+    loose.getByRole("button", { name: "Open Call home" });
+    loose.getByRole("button", { name: "Delete todo: Call home" });
+  });
+
+  it("reaches the box, name, pencil and bin by keyboard, in that order", () => {
+    renderTree({ onDeleteTodo: vi.fn() });
+    const name = screen.getByRole("button", { name: "Done: 5 km jog" });
+    const row = name.closest("[data-goal-tree-row]") as HTMLElement;
+    const stops = Array.from(row.querySelectorAll("button"));
+    expect(stops.map((el) => el.getAttribute("aria-label"))).toEqual([
+      "5 km jog — Status: Not started",
+      "Done: 5 km jog",
+      "Open 5 km jog",
+      "Delete todo: 5 km jog",
+    ]);
+    // Hidden by opacity only, so a Tab still lands on them.
+    for (const stop of stops) expect(stop.tabIndex).toBe(0);
+  });
+
+  it("shows the icons on hover or focus on desktop, and always on a phone", () => {
+    renderTree({ onDeleteTodo: vi.fn() });
+    for (const name of ["Open 5 km jog", "Delete todo: 5 km jog"]) {
+      const { className } = screen.getByRole("button", { name });
+      expect(className).toContain("opacity-0");
+      expect(className).toContain("group-hover/todo:opacity-100");
+      expect(className).toContain("group-focus-within/todo:opacity-100");
+      expect(className).toContain("max-md:opacity-100");
+      expect(className).toContain("max-md:min-h-11");
+      expect(className).toContain("max-md:min-w-11");
+    }
+  });
+
+  it("paints the hover on the row, with the colour of a goal's title", () => {
+    renderTree();
+    const name = screen.getByRole("button", { name: "Done: 5 km jog" });
+    const row = name.closest("[data-goal-tree-row]") as HTMLElement;
+    expect(row.className).toContain("hover:bg-lumen-hover");
+    expect(titleOf("Run 3 times").className).toContain("hover:bg-lumen-hover");
+    // On the row alone, so the colour is not laid twice over the name.
+    expect(name.className).not.toContain("hover:bg-lumen-hover");
+    expect(name.className).toContain("cursor-pointer");
+  });
+
+  it("drags from the grip with the icons on the row, not from the name", () => {
+    const onSetTodoStatus = vi.fn();
+    renderTree({
+      drag: dragHandlers(),
+      onDeleteTodo: vi.fn(),
+      onSetTodoStatus,
+    });
+    const name = screen.getByRole("button", { name: "Done: 5 km jog" });
+    expect(name.hasAttribute("draggable")).toBe(false);
+    const grip = document.querySelector('[data-todo-drag="t3"]') as HTMLElement;
+    expect(grip.getAttribute("draggable")).toBe("true");
+    fireEvent.dragStart(grip, { dataTransfer: transfer() });
+    fireEvent.dragEnd(grip);
+    expect(onSetTodoStatus).not.toHaveBeenCalled();
+  });
+});
+
 describe("GoalTreeView — button labels stay on one line (#2364)", () => {
   /*
    * jsdom has no layout, so this pins the two rules that keep a label whole:
@@ -506,9 +820,9 @@ describe("GoalTreeView — button labels stay on one line (#2364)", () => {
 
   it("keeps the add-goal row's buttons whole beside the field", () => {
     renderTree();
-    const thisWeek = screen.getByRole("button", { name: /^This week/ });
-    keepsLabel(thisWeek);
-    fireEvent.click(thisWeek);
+    const open = screen.getByRole("button", { name: "Add a goal" });
+    keepsLabel(open);
+    fireEvent.click(open);
     const field = screen.getByRole("textbox", { name: "This week: Goal" });
     expect(field.className).toContain("min-w-0");
     keepsLabel(screen.getByRole("button", { name: "Add" }));
@@ -545,8 +859,8 @@ describe("GoalTreeView — the drag reads as carrying the row (#2365)", () => {
     expect(ghost.getAttribute("aria-hidden")).toBe("true");
     expect(ghost.className).toContain("shadow-lumen-lg");
     expect(ghost.className).toContain("bg-lumen-bg");
-    // The row, not just the grabbed title: the kind chip comes along.
-    expect(ghost.textContent).toContain("Week");
+    // The row, not just the grabbed title: the period badge comes along.
+    expect(ghost.textContent).toContain("This week");
     expect(ghost.textContent).toContain("Run 3 times");
     await vi.waitFor(() =>
       expect(document.querySelector("[data-goal-tree-ghost]")).toBeNull(),

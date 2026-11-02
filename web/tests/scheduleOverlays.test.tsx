@@ -768,6 +768,25 @@ describe("ScheduleOverlays — the create panel's note picker (#2396)", () => {
     expect(createDialog().className).toContain("max-w-lg");
   });
 
+  it("keeps Tab inside the Desktop overlay while the side picker is open", () => {
+    renderOverlays({ isWide: true, create: { panel: PANEL, pools: POOLS } });
+    openPicker();
+    // The picker's 「できた」 is the last control of the dialog.
+    const done = screen.getByText("notePickerDone");
+    done.focus();
+    fireEvent.keyDown(done, { key: "Tab" });
+    const active = document.activeElement as HTMLElement;
+    expect(active).not.toBe(done);
+    expect(createDialog().contains(active)).toBe(true);
+    // And back the other way, from the first control to 「できた」.
+    fireEvent.keyDown(active, { key: "Tab", shiftKey: true });
+    expect(document.activeElement).toBe(done);
+    // Esc is still the picker's: the dialog stays.
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("region", { name: "notePickerTitle" })).toBeNull();
+    createDialog();
+  });
+
   it("goes back to the narrow overlay when it closes with the picker open", () => {
     const view = renderOverlays({
       isWide: true,
