@@ -12,6 +12,7 @@ import {
   ItemPanelProvider,
   RightSidebarProvider,
   ToastContext,
+  ToastProvider,
   useItemPanelContext,
   useRightSidebarContext,
   type DataService,
@@ -143,8 +144,9 @@ function makeDS(over: Partial<Record<keyof DataService, unknown>> = {}) {
     createGoal: vi.fn().mockResolvedValue(GOALS[0]),
     updateGoal: vi.fn().mockResolvedValue(GOALS[0]),
     softDeleteGoal: vi.fn().mockResolvedValue(undefined),
-    updateTodo: vi.fn().mockResolvedValue(TODOS[0]),
     softDeleteTodo: vi.fn().mockResolvedValue(undefined),
+    unlinkGoalTodo: vi.fn().mockResolvedValue(undefined),
+    updateTodo: vi.fn().mockResolvedValue(TODOS[0]),
     ...over,
   });
 }
@@ -514,12 +516,20 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     panel().getByRole("button", { name: "Edit: Book the review" });
 
     fireEvent.click(panel().getByRole("button", { name: "Delete goal" }));
-    fireEvent.click(
-      within(screen.getByRole("dialog")).getByRole("button", {
-        name: "Delete goal",
-      }),
-    );
+    const dialog = within(screen.getByRole("dialog"));
+    expect(dialog.getAllByRole("checkbox")).toHaveLength(4);
+    fireEvent.click(dialog.getByRole("button", { name: "Delete goal" }));
     await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w1"));
+    // Its todos went with it (#2405), and the panel shut with the goal.
+    expect(vi.mocked(ds.softDeleteTodo).mock.calls.map(([id]) => id)).toEqual([
+      "t1",
+      "t2",
+      "t3",
+      "t4",
+    ]);
+    await waitFor(() =>
+      expect(panel().queryByRole("textbox", { name: "Goal title" })).toBeNull(),
+    );
   });
 
   it("renames a goal from the tree's edit icon with the panel's write (#2283 / #2367)", async () => {
@@ -616,12 +626,11 @@ describe("Connect Goals & Todos tab (#2108)", () => {
         name: "Delete goal: Get the proposal approved",
       }),
     );
-    fireEvent.click(
-      within(screen.getByRole("dialog")).getByRole("button", {
-        name: "Delete goal",
-      }),
-    );
+    const dialog = within(screen.getByRole("dialog"));
+    expect(dialog.getAllByRole("checkbox")).toHaveLength(4);
+    fireEvent.click(dialog.getByRole("button", { name: "Delete goal" }));
     await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w1"));
+    expect(ds.softDeleteTodo).toHaveBeenCalledTimes(4);
   });
 
   it("adds this week's goal straight under a year from its + (#2399)", async () => {
@@ -1232,5 +1241,387 @@ describe("Connect Goals & Todos tab — drag (#2226)", () => {
     expect(
       document.querySelector("[data-goal-drag], [data-todo-drag], [draggable]"),
     ).toBeNull();
+  });
+});
+
+describe("Deleting a goal and choosing what goes with it (#2405)", () => {
+  const openDelete = (title: string) => {
+    fireEvent.click(
+      screen.getByRole("button", { name: `Delete goal: ${title}` }),
+    );
+    return within(screen.getByRole("dialog"));
+  };
+  const confirm = (dialog: ReturnType<typeof within>) =>
+    fireEvent.click(dialog.getByRole("button", { name: "Delete goal" }));
+  /** The order the service heard about them in. */
+  const order = (fn: unknown, call = 0): number =>
+    vi.mocked(fn as () => unknown).mock.invocationCallOrder[call] ?? Infinity;
+
+  /** A service that remembers, so the re-read shows where things went. */
+  function makeLiveDS() {
+    let goals = [...GOALS];
+    let links = [...LINKS];
+    let todos = [...TODOS];
+    return makeDS({
+      fetchGoals: vi.fn(async () => goals),
+      fetchTodoTree: vi.fn(async () => todos),
+      fetchGoalTodoLinks: vi.fn(async () => links),
+      updateGoal: vi.fn(async (id: string, updates: Partial<Goal>) => {
+        goals = goals.map((g) => (g.id === id ? { ...g, ...updates } : g));
+      }),
+      unlinkGoalTodo: vi.fn(async (goalId: string, todoId: string) => {
+        links = links.filter(
+          (l) => !(l.goalId === goalId && l.todoId === todoId),
+        );
+      }),
+      softDeleteTodo: vi.fn(async (id: string) => {
+        todos = todos.filter((t) => t.id !== id);
+      }),
+      softDeleteGoal: vi.fn(async (id: string) => {
+        goals = goals.filter((g) => g.id !== id);
+      }),
+    });
+  }
+
+  it("lists the subtree ticked, past periods included, and confirming takes it all", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    const dialog = openDelete("Win an autumn project");
+
+    // The goal asked about has no box; the rest all start ticked.
+    expect(
+      dialog.queryByRole("checkbox", { name: /Win an autumn project/ }),
+    ).toBeNull();
+    const boxes = dialog.getAllByRole("checkbox");
+    expect(boxes).toHaveLength(8);
+    for (const item of boxes) {
+      expect(item.getAttribute("aria-checked")).toBe("true");
+    }
+    // Last week's goal is not on the tree, but it is under this month's.
+    dialog.getByRole("checkbox", { name: "Week: Decide the room layout" });
+    dialog.getByRole("checkbox", { name: "Todo: Pick the curtains" });
+
+    confirm(dialog);
+    await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledTimes(3));
+    expect(vi.mocked(ds.softDeleteGoal).mock.calls.map(([id]) => id)).toEqual([
+      "pw1",
+      "w1",
+      "m1",
+    ]);
+    expect(
+      vi.mocked(ds.softDeleteTodo).mock.calls.map(([id]) => id).sort(),
+    ).toEqual(["p1", "p2", "t1", "t2", "t3", "t4"]);
+    expect(ds.updateGoal).not.toHaveBeenCalled();
+    expect(ds.unlinkGoalTodo).not.toHaveBeenCalled();
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("leaves unticked items in place: detached and unlinked first, deleted last", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    const dialog = openDelete("Win an autumn project");
+    fireEvent.click(
+      dialog.getByRole("checkbox", { name: "Week: Get the proposal approved" }),
+    );
+    fireEvent.click(
+      dialog.getByRole("checkbox", { name: "Todo: Pick the curtains" }),
+    );
+    confirm(dialog);
+
+    await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledTimes(2));
+    // The kept week loses its parent, the month that is going.
+    expect(ds.updateGoal).toHaveBeenCalledTimes(1);
+    expect(ds.updateGoal).toHaveBeenCalledWith("w1", { parentGoalId: null });
+    // The kept todo loses the goal that is going, and that link only.
+    expect(ds.unlinkGoalTodo).toHaveBeenCalledTimes(1);
+    expect(ds.unlinkGoalTodo).toHaveBeenCalledWith("pw1", "p2");
+    // Each box is its own: the kept week's todos stayed ticked, so they go.
+    expect(
+      vi.mocked(ds.softDeleteTodo).mock.calls.map(([id]) => id).sort(),
+    ).toEqual(["p1", "t1", "t2", "t3", "t4"]);
+    expect(vi.mocked(ds.softDeleteGoal).mock.calls.map(([id]) => id)).toEqual([
+      "pw1",
+      "m1",
+    ]);
+
+    expect(order(ds.updateGoal)).toBeLessThan(order(ds.unlinkGoalTodo));
+    expect(order(ds.unlinkGoalTodo)).toBeLessThan(order(ds.softDeleteTodo));
+    expect(order(ds.softDeleteTodo, 4)).toBeLessThan(order(ds.softDeleteGoal));
+  });
+
+  it("moves a kept goal to Unconnected and a kept todo to the unlinked list", async () => {
+    await renderTab(makeLiveDS());
+    const dialog = openDelete("Win an autumn project");
+    fireEvent.click(
+      dialog.getByRole("checkbox", { name: "Week: Get the proposal approved" }),
+    );
+    fireEvent.click(
+      dialog.getByRole("checkbox", { name: "Todo: Pick the curtains" }),
+    );
+    confirm(dialog);
+
+    await waitFor(() =>
+      within(screen.getByRole("region", { name: "Unconnected goals" })).getByRole(
+        "button",
+        { name: "Week: Get the proposal approved — Unconnected" },
+      ),
+    );
+    expect(
+      screen.queryByRole("button", { name: /Win an autumn project/ }),
+    ).toBeNull();
+    within(
+      screen.getByRole("region", { name: "Todos not linked to a goal" }),
+    ).getByRole("button", { name: "Edit: Pick the curtains" });
+  });
+
+  it("keeps a kept goal's own kept todos on it", async () => {
+    const ds = makeLiveDS();
+    await renderTab(ds);
+    const dialog = openDelete("Run 10 km in 60 min");
+    fireEvent.click(
+      dialog.getByRole("checkbox", { name: "Week: Run 3 times" }),
+    );
+    fireEvent.click(
+      dialog.getByRole("checkbox", { name: "Todo: Interval run" }),
+    );
+    confirm(dialog);
+
+    await waitFor(() =>
+      expect(ds.softDeleteGoal).toHaveBeenCalledWith("y1"),
+    );
+    expect(ds.updateGoal).toHaveBeenCalledWith("w2", { parentGoalId: null });
+    // The link to a goal that stays is not touched.
+    expect(ds.unlinkGoalTodo).not.toHaveBeenCalled();
+    // Still connected, so it stands on the tree by itself, not under Unconnected.
+    await waitFor(() =>
+      within(
+        screen.getByRole("list", { name: "Run 3 times" }),
+      ).getByRole("button", { name: "Edit: Interval run" }),
+    );
+    expect(
+      within(screen.getByRole("region", { name: "Unconnected goals" })).queryByRole(
+        "button",
+        { name: /Run 3 times/ },
+      ),
+    ).toBeNull();
+  });
+
+  it("notes a todo another goal holds, and still deletes it when left ticked", async () => {
+    const ds = makeDS({
+      fetchGoalTodoLinks: vi
+        .fn()
+        .mockResolvedValue([...LINKS, link("w3", "t6")]),
+    });
+    await renderTab(ds);
+    const dialog = openDelete("Run 3 times");
+    dialog.getByRole("checkbox", {
+      name: "Todo: Interval run — Also linked to another goal",
+    });
+    dialog.getByText("Also linked to another goal");
+    // One note, on the one todo with a second goal.
+    dialog.getByRole("checkbox", { name: "Todo: Long run" });
+
+    confirm(dialog);
+    await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w2"));
+    expect(ds.softDeleteTodo).toHaveBeenCalledWith("t6");
+    expect(ds.unlinkGoalTodo).not.toHaveBeenCalled();
+  });
+
+  it("takes a kept todo off the goal that goes and leaves its other goal", async () => {
+    const ds = makeDS({
+      fetchGoalTodoLinks: vi
+        .fn()
+        .mockResolvedValue([...LINKS, link("w3", "t6")]),
+    });
+    await renderTab(ds);
+    const dialog = openDelete("Run 3 times");
+    fireEvent.click(dialog.getByRole("checkbox", { name: /Interval run/ }));
+    confirm(dialog);
+    await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w2"));
+    expect(ds.unlinkGoalTodo).toHaveBeenCalledTimes(1);
+    expect(ds.unlinkGoalTodo).toHaveBeenCalledWith("w2", "t6");
+    expect(ds.softDeleteTodo).not.toHaveBeenCalledWith("t6");
+  });
+
+  it("takes nested todos with a ticked row, as the todo list's own delete does", async () => {
+    const ds = makeDS({
+      fetchTodoTree: vi.fn().mockResolvedValue([
+        ...TODOS,
+        { ...todo("t6a", "Warm up"), parentId: "t6" },
+      ]),
+    });
+    await renderTab(ds);
+    const dialog = openDelete("Run 3 times");
+    dialog.getByRole("checkbox", {
+      name: "Todo: Interval run — 1 todo under this one is deleted with it",
+    });
+    confirm(dialog);
+    await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w2"));
+    expect(ds.softDeleteTodo).toHaveBeenCalledWith("t6a");
+  });
+
+  it("asks plainly about a goal with nothing under it, and deletes it", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    const dialog = openDelete("Finish one book");
+    expect(dialog.queryAllByRole("checkbox")).toHaveLength(0);
+    screen.getByRole("dialog", {
+      name: 'Delete the goal "Finish one book"? It goes to the trash.',
+    });
+    confirm(dialog);
+    await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledWith("w3"));
+    expect(ds.softDeleteGoal).toHaveBeenCalledTimes(1);
+    expect(ds.softDeleteTodo).not.toHaveBeenCalled();
+  });
+
+  it("writes nothing when cancelled", async () => {
+    const ds = makeDS();
+    await renderTab(ds);
+    const dialog = openDelete("Win an autumn project");
+    fireEvent.click(dialog.getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(ds.softDeleteGoal).not.toHaveBeenCalled();
+    expect(ds.softDeleteTodo).not.toHaveBeenCalled();
+    expect(ds.updateGoal).not.toHaveBeenCalled();
+  });
+
+  it("starts ticked again the next time, after a cancel", async () => {
+    await renderTab();
+    const first = openDelete("Win an autumn project");
+    fireEvent.click(first.getByRole("checkbox", { name: "Todo: Book the review" }));
+    fireEvent.click(first.getByRole("button", { name: "Cancel" }));
+    const second = openDelete("Win an autumn project");
+    expect(
+      second
+        .getByRole("checkbox", { name: "Todo: Book the review" })
+        .getAttribute("aria-checked"),
+    ).toBe("true");
+  });
+
+  it("lists a done todo too, though the tree draws it under Completed items", async () => {
+    await renderTab();
+    const dialog = openDelete("Get the proposal approved");
+    dialog.getByRole("checkbox", { name: "Todo: Draft the proposal" });
+  });
+
+  /** With a toast host, unlike renderTab, for the failure copy. */
+  async function renderWithToast(ds: DataService) {
+    const { wrapper: SyncWrapper } = createBumpableSync();
+    render(
+      <SyncWrapper>
+        <ToastProvider>
+          <RightSidebarProvider>
+            <GoalsTodosScreen dataService={ds} onNavigateToItem={vi.fn()} />
+          </RightSidebarProvider>
+        </ToastProvider>
+      </SyncWrapper>,
+    );
+    await screen.findByRole("region", { name: "Goal tree" });
+  }
+  const PARTWAY =
+    "The delete stopped partway. Check your connection, look at what is left, and try again.";
+  const NOTHING_DELETED =
+    "Nothing was deleted. Check your connection and try again.";
+
+  it("stops at the first failed write and says so, with the goal still there", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const ds = makeDS({
+      softDeleteTodo: vi
+        .fn()
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValue(new Error("offline")),
+    });
+    await renderWithToast(ds);
+    const dialog = openDelete("Get the proposal approved");
+    confirm(dialog);
+
+    await screen.findByText(PARTWAY);
+    expect(screen.queryByText(NOTHING_DELETED)).toBeNull();
+    expect(ds.softDeleteTodo).toHaveBeenCalledTimes(2);
+    expect(ds.softDeleteGoal).not.toHaveBeenCalled();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("says nothing was deleted when the very first write fails", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const ds = makeDS({
+      softDeleteTodo: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+    await renderWithToast(ds);
+    confirm(openDelete("Get the proposal approved"));
+
+    await screen.findByText(NOTHING_DELETED);
+    expect(screen.queryByText(PARTWAY)).toBeNull();
+    expect(ds.softDeleteTodo).toHaveBeenCalledTimes(1);
+    expect(ds.softDeleteGoal).not.toHaveBeenCalled();
+  });
+
+  it("still says partway when only a detach landed before the failure", async () => {
+    vi.spyOn(console, "error").mockImplementation(() => undefined);
+    const ds = makeDS({
+      softDeleteTodo: vi.fn().mockRejectedValue(new Error("offline")),
+    });
+    await renderWithToast(ds);
+    const dialog = openDelete("Win an autumn project");
+    fireEvent.click(
+      dialog.getByRole("checkbox", { name: "Week: Get the proposal approved" }),
+    );
+    confirm(dialog);
+
+    await screen.findByText(PARTWAY);
+    expect(ds.updateGoal).toHaveBeenCalledWith("w1", { parentGoalId: null });
+    expect(ds.softDeleteGoal).not.toHaveBeenCalled();
+  });
+
+  it("holds the dialog open and frozen while the writes run", async () => {
+    let finish: () => void = () => undefined;
+    const ds = makeDS({
+      softDeleteGoal: vi.fn(
+        () =>
+          new Promise<void>((resolve) => {
+            finish = resolve;
+          }),
+      ),
+    });
+    await renderTab(ds);
+    const dialog = openDelete("Finish one book");
+    confirm(dialog);
+    const busy = (await dialog.findByRole("button", {
+      name: "Deleting",
+    })) as HTMLButtonElement;
+    expect(busy.disabled).toBe(true);
+    await waitFor(() => expect(ds.softDeleteGoal).toHaveBeenCalledTimes(1));
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(screen.getByRole("dialog")).toBeTruthy();
+
+    await act(async () => {
+      finish();
+      await Promise.resolve();
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("keeps the panel open on a goal that stayed", async () => {
+    const { panel } = await renderTab(makeLiveDS());
+    fireEvent.click(goalRow("Get the proposal approved"));
+    panel().getByRole("textbox", { name: "Goal title" });
+
+    const dialog = openDelete("Win an autumn project");
+    fireEvent.click(
+      dialog.getByRole("checkbox", { name: "Week: Get the proposal approved" }),
+    );
+    confirm(dialog);
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(
+      (panel().getByRole("textbox", { name: "Goal title" }) as HTMLInputElement)
+        .value,
+    ).toBe("Get the proposal approved");
+  });
+
+  it("uses the full width on a phone", async () => {
+    setNarrow();
+    await renderTab();
+    openDelete("Win an autumn project");
+    expect(screen.getByRole("dialog").className).toContain("max-w-none");
   });
 });
