@@ -435,6 +435,28 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
     }
   });
 
+  it("always shows the three icons of an unselected row on a phone (#2488)", () => {
+    renderTree({
+      onRenameGoal: vi.fn(),
+      rowActions: actions(),
+      selectedGoalId: "m1",
+    });
+    const row = rowOf("Run 3 times");
+    for (const verb of ["Add under", "Edit goal", "Delete goal"]) {
+      const { className } = within(row).getByRole("button", {
+        name: `${verb}: Run 3 times`,
+      });
+      // Desktop: hidden until hover, focus or selection.
+      expect(className).toContain("opacity-0");
+      expect(className).toContain("group-hover/row:opacity-100");
+      expect(className).toContain("focus-visible:opacity-100");
+      // A phone has no hover: shown, with a 44px target.
+      expect(className).toContain("max-md:opacity-100");
+      expect(className).toContain("max-md:min-h-11");
+      expect(className).toContain("max-md:min-w-11");
+    }
+  });
+
   /** The choices a goal's + opens, in order, without the way out. */
   const choicesOf = (title: string): string[] => {
     fireEvent.click(
