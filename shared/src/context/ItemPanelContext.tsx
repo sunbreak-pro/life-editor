@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   ItemPanelContext,
+  type ItemPanelCloseGuard,
   type ItemPanelContextValue,
   type ItemPanelCreateInitial,
   type ItemPanelEditTarget,
@@ -38,9 +39,34 @@ export function ItemPanelProvider({ children }: ItemPanelProviderProps) {
   );
   const close = useCallback(() => setRequest(null), []);
 
+  // A ref: the guard closes over the panel's draft and changes with its host's
+  // renders, and nothing on screen reads it.
+  const closeGuard = useRef<ItemPanelCloseGuard | null>(null);
+  const registerCloseGuard = useCallback(
+    (guard: ItemPanelCloseGuard | null) => {
+      closeGuard.current = guard;
+    },
+    [],
+  );
+  const requestClose = useCallback<ItemPanelCloseGuard>((then) => {
+    if (closeGuard.current) {
+      closeGuard.current(then);
+      return;
+    }
+    setRequest(null);
+    then?.();
+  }, []);
+
   const value = useMemo<ItemPanelContextValue>(
-    () => ({ request, openEdit, openCreate, close }),
-    [request, openEdit, openCreate, close],
+    () => ({
+      request,
+      openEdit,
+      openCreate,
+      close,
+      requestClose,
+      registerCloseGuard,
+    }),
+    [request, openEdit, openCreate, close, requestClose, registerCloseGuard],
   );
   return (
     <ItemPanelContext.Provider value={value}>

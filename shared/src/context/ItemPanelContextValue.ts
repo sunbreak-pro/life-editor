@@ -70,6 +70,13 @@ export type ItemPanelRequest =
       seq: number;
     };
 
+/**
+ * The open panel's own way out (#2401): it asks about an unsaved draft, closes
+ * if that is agreed, and only then runs `then`. A refusal leaves everything as
+ * it was and `then` is not called.
+ */
+export type ItemPanelCloseGuard = (then?: () => void) => void;
+
 export interface ItemPanelContextValue {
   /** The open request, or null when no panel is up. */
   request: ItemPanelRequest | null;
@@ -82,6 +89,14 @@ export interface ItemPanelContextValue {
   ) => void;
   /** Drop the request. The host calls it once every panel it drew is shut. */
   close: () => void;
+  /**
+   * Ask the panel to shut from OUTSIDE it (#2401: a goal row pressed while a
+   * todo is open), through its guard when it registered one, and straight away
+   * when it did not. `then` runs after an agreed close.
+   */
+  requestClose: ItemPanelCloseGuard;
+  /** The host's half of `requestClose`: set while a guarded panel is up. */
+  registerCloseGuard: (guard: ItemPanelCloseGuard | null) => void;
 }
 
 export const ItemPanelContext = createContext<ItemPanelContextValue | null>(

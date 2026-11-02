@@ -481,9 +481,13 @@
     "statusNotStarted": "Not started",
     "statusDone": "Done",
     "content": "Notes",
-    "save": "Save"
+    "save": "Save",
+    "addTag": "Add tag"
   },
   "goalLink": {
+    "connected": "Connected goals",
+    "chip": "{{kind}} · {{title}}",
+    "removeChip": "Remove goal: {{title}}",
     "field": "Goals",
     "listLabel": "Goals this todo serves",
     "periodWeek": "This week",

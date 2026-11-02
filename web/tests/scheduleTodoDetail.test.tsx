@@ -85,8 +85,20 @@ vi.mock("../src/wikitag/TagPicker", () => ({
   // glyph. #1000's 「タグの付け外し」 clause reads the same element from the
   // other end — it asks whether the tag surface is THERE and pointed at this
   // row, which is itemId, not itemRole.
-  TagPicker: ({ itemId, itemRole }: { itemId: string; itemRole?: string }) => (
-    <div data-testid="tag-picker" data-item-role={itemRole ?? "none"}>
+  TagPicker: ({
+    itemId,
+    itemRole,
+    addLabel,
+  }: {
+    itemId: string;
+    itemRole?: string;
+    addLabel?: string;
+  }) => (
+    <div
+      data-testid="tag-picker"
+      data-item-role={itemRole ?? "none"}
+      data-add-label={addLabel}
+    >
       {itemId}
     </div>
   ),
@@ -527,5 +539,198 @@ describe("ScheduleTodoDetail — the prototype's tag rows (#2219)", () => {
     expect(
       screen.queryByRole("button", { name: "scheduleScreen.attachNote" }),
     ).toBeNull();
+  });
+});
+
+/*
+ * #2401 — the panel edits everything, so the date and time reach the write here:
+ * same press, same single write, same guard as the title and the body.
+ */
+describe("ScheduleTodoDetail — the date and time (#2401)", () => {
+  const TIMED: TodoNode = {
+    ...TODO,
+    scheduledAt: new Date(2026, 7, 15, 13, 0).toISOString(),
+    scheduledEndAt: new Date(2026, 7, 15, 14, 0).toISOString(),
+    isAllDay: false,
+  };
+  const dateField = () =>
+    screen.getByLabelText("scheduleScreen.date") as HTMLInputElement;
+
+  it.each([
+    ["Desktop", true],
+    ["Mobile", false],
+  ])("reads the row from the todo's slot on %s", (_name, isWide) => {
+    renderDetail({ todoNodes: [TIMED], isWide });
+    screen.getByText("todoDetail.schedule");
+    expect(dateField().value).toBe("2026-08-15");
+    expect(
+      (
+        screen.getByRole("combobox", {
+          name: "scheduleScreen.startTime",
+        }) as HTMLInputElement
+      ).value,
+    ).toBe("13:00");
+  });
+
+  it("writes a changed date and title in ONE write, under the tree's undo label", () => {
+    const { updateNode } = renderDetail({ todoNodes: [TIMED] });
+    makeDirty();
+    fireEvent.change(dateField(), { target: { value: "2026-08-20" } });
+    fireEvent.click(screen.getByText("todoDetail.save"));
+    expect(updateNode).toHaveBeenCalledTimes(1);
+    expect(updateNode).toHaveBeenCalledWith(
+      TODO.id,
+      {
+        title: "書き換えた",
+        scheduledAt: new Date(2026, 7, 20, 13, 0).toISOString(),
+        scheduledEndAt: new Date(2026, 7, 20, 14, 0).toISOString(),
+        isAllDay: false,
+      },
+      { undoLabel: "todoTreeChange" },
+    );
+  });
+
+  it("gives a dateless todo its first day, all day", () => {
+    const { updateNode } = renderDetail();
+    fireEvent.change(dateField(), { target: { value: "2026-08-20" } });
+    fireEvent.click(screen.getByText("todoDetail.save"));
+    expect(updateNode.mock.calls[0][1]).toEqual({
+      scheduledAt: new Date(2026, 7, 20).toISOString(),
+      isAllDay: true,
+    });
+  });
+
+  it("takes the todo off the calendar when the date is emptied", () => {
+    const { updateNode } = renderDetail({ todoNodes: [TIMED] });
+    fireEvent.change(dateField(), { target: { value: "" } });
+    fireEvent.click(screen.getByText("todoDetail.save"));
+    expect(updateNode.mock.calls[0][1]).toEqual({
+      scheduledAt: undefined,
+      scheduledEndAt: undefined,
+      isAllDay: false,
+    });
+  });
+
+  it("asks before a close throws a pending date away", async () => {
+    const { askConfirm, onClose } = renderDetail({ todoNodes: [TIMED] });
+    fireEvent.change(dateField(), { target: { value: "2026-08-20" } });
+    fireEvent.keyDown(document, { key: "Escape" });
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(onClose).toHaveBeenCalled());
+  });
+});
+
+describe("ScheduleTodoDetail — the name field's keys (#2401)", () => {
+  const nameField = () => screen.getByLabelText("todoDetail.titleLabel");
+
+  it("closes on Esc without asking while nothing is pending", async () => {
+    const { askConfirm, onClose } = renderDetail();
+    fireEvent.keyDown(nameField(), { key: "Escape" });
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(askConfirm).not.toHaveBeenCalled();
+  });
+
+  it("asks on Esc with a draft, and stays on no", async () => {
+    const { askConfirm, onClose } = renderDetail();
+    askConfirm.mockResolvedValue(false);
+    makeDirty();
+    fireEvent.keyDown(nameField(), { key: "Escape" });
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("leaves the Esc that cancels an IME conversion alone", async () => {
+    const { onClose } = renderDetail();
+    fireEvent.keyDown(nameField(), { key: "Escape", isComposing: true });
+    fireEvent.keyDown(nameField(), { key: "Escape", keyCode: 229 });
+    await act(async () => {});
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it("saves on Enter, not on the Enter that confirms an IME conversion", () => {
+    const { updateNode } = renderDetail();
+    makeDirty();
+    fireEvent.keyDown(nameField(), { key: "Enter", keyCode: 229 });
+    expect(updateNode).not.toHaveBeenCalled();
+    fireEvent.keyDown(nameField(), { key: "Enter" });
+    expect(updateNode).toHaveBeenCalledTimes(1);
+  });
+
+  it("will not save an empty name", () => {
+    const { updateNode } = renderDetail();
+    fireEvent.change(nameField(), { target: { value: "" } });
+    fireEvent.keyDown(nameField(), { key: "Enter" });
+    fireEvent.click(screen.getByText("todoDetail.save"));
+    expect(updateNode).not.toHaveBeenCalled();
+  });
+});
+
+describe("ScheduleTodoDetail — Cancel, and the close from outside (#2401)", () => {
+  it("closes straight away from a clean panel", async () => {
+    const { askConfirm, onClose } = renderDetail();
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+    await waitFor(() => expect(onClose).toHaveBeenCalledTimes(1));
+    expect(askConfirm).not.toHaveBeenCalled();
+  });
+
+  it("asks first with a draft", async () => {
+    const { askConfirm, onClose } = renderDetail();
+    askConfirm.mockResolvedValue(false);
+    makeDirty();
+    fireEvent.click(screen.getByRole("button", { name: "common.cancel" }));
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  function guardOf(registerCloseGuard: ReturnType<typeof vi.fn>) {
+    const guard = registerCloseGuard.mock.calls.at(-1)?.[0] as
+      | ((then?: () => void) => void)
+      | null;
+    if (!guard) throw new Error("no guard was registered");
+    return guard;
+  }
+
+  it("hands over a close that closes, then runs what comes next", async () => {
+    const registerCloseGuard = vi.fn();
+    const { onClose } = renderDetail({ registerCloseGuard });
+    const then = vi.fn();
+    guardOf(registerCloseGuard)(then);
+    await waitFor(() => expect(then).toHaveBeenCalledTimes(1));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it("does neither when the draft's question is answered no", async () => {
+    const registerCloseGuard = vi.fn();
+    const { askConfirm, onClose } = renderDetail({ registerCloseGuard });
+    askConfirm.mockResolvedValue(false);
+    makeDirty();
+    const then = vi.fn();
+    guardOf(registerCloseGuard)(then);
+    await waitFor(() => expect(askConfirm).toHaveBeenCalledTimes(1));
+    await act(async () => {});
+    expect(onClose).not.toHaveBeenCalled();
+    expect(then).not.toHaveBeenCalled();
+  });
+
+  it("takes the guard back when it unmounts, and offers none while closed", () => {
+    const registerCloseGuard = vi.fn();
+    const { unmount } = renderDetail({ registerCloseGuard });
+    unmount();
+    expect(registerCloseGuard).toHaveBeenLastCalledWith(null);
+
+    const closed = vi.fn();
+    renderDetail({ registerCloseGuard: closed, todoId: null });
+    expect(closed).not.toHaveBeenCalled();
+  });
+});
+
+describe("ScheduleTodoDetail — the tag row's words (#2401)", () => {
+  it("names the add button", () => {
+    renderDetail();
+    expect(
+      screen.getByTestId("tag-picker").getAttribute("data-add-label"),
+    ).toBe("todoDetail.addTag");
   });
 });

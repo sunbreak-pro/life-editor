@@ -181,7 +181,7 @@ function TimeCombo({
           setOpen(false);
         }}
         onKeyDown={handleKeyDown}
-        className={cn(FIELD, "w-full tabular-nums")}
+        className={cn(FIELD, "w-full tabular-nums max-md:min-h-11")}
       />
       {open && (
         <ul
@@ -209,7 +209,7 @@ function TimeCombo({
                     onPick(min);
                   }}
                   className={cn(
-                    "w-full whitespace-nowrap px-2.5 py-1.5 text-left text-sm tabular-nums transition-colors",
+                    "w-full whitespace-nowrap px-2.5 py-1.5 text-left text-sm tabular-nums transition-colors max-md:min-h-11",
                     active
                       ? "bg-lumen-accent-subtle text-lumen-accent"
                       : "text-lumen-text hover:bg-lumen-hover",

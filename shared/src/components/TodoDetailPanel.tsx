@@ -5,16 +5,22 @@ import {
   type KeyboardEvent,
   type ReactNode,
 } from "react";
-import { ChevronRight, Trash2 } from "lucide-react";
+import { Trash2 } from "lucide-react";
 import type { TodoStatus } from "../types/todoTree";
+import { AllDayCheck } from "./schedule/AllDayCheck";
+import { TimeRangeField } from "./TimeRangeField";
 import { TodoStatusCheckbox } from "./TodoStatusCheckbox";
 import type { StatusLabelSet } from "./todoStatusVisuals";
 import { isImeComposing } from "../utils/imeGuard";
+import { timedSpanForAllDayOff } from "../utils/scheduleAllDay";
+import type { TodoScheduleSlot } from "../utils/todoCalendarChips";
 import { cn } from "./cn";
 import {
   DISABLED_FILLED_BTN,
+  FIELD,
   FOCUS_RING,
   FOCUS_RING_ON_ACCENT,
+  FOCUS_RING_TIGHT,
 } from "./styleTokens";
 
 /*
@@ -63,19 +69,38 @@ import {
  * is the only side that knows what the delete drags along (the subtree cascade)
  * and how to put the question on screen (#707's in-app <ConfirmDialog>).
  *
- * Minimal scope (W7): title edit, status toggle, content edit. Heavier todo
- * fields (priority / schedule / reminders / tags) are out of scope. The status
- * toggle is NOT drafted (#713 対象外): it is a discrete act, not a field that
- * can be half-typed.
+ * The status toggle is NOT drafted (#713 対象外): it is a discrete act, not a
+ * field that can be half-typed.
  *
  * #2219: the toggle is the app's round <TodoStatusCheckbox> (#2217 gives every
  * todo completion that one shape). It used to be a ○ / ● glyph in a bordered
  * button — the one todo checkbox that looked like none of the others.
+ *
+ * #2401: everything about a todo can be edited here, in the order the design
+ * lists it: name, status, date and time, goals, tags, memo, then Delete, Cancel
+ * and Save. The date and time are a draft like the title, so the same press
+ * writes them and the unsaved guard covers them. A name left empty cannot be
+ * saved, whichever half of the panel is pending.
  */
 
 /** What one press of the save button changes (#713). */
 export interface TodoDetailPatch {
   title?: string;
+  /**
+   * The new day and time (#2401); null takes the todo off the calendar. Absent
+   * when the row did not move. On an all-day slot the two times mean nothing.
+   */
+  schedule?: TodoScheduleSlot | null;
+}
+
+/** Already-translated words of the date and time row (§6.4, #2401). */
+export interface TodoScheduleLabels {
+  /** The row's caption, 「日時」. */
+  caption: string;
+  date: string;
+  allDay: string;
+  start: string;
+  end: string;
 }
 
 export interface TodoDetailPanelProps {
@@ -143,35 +168,25 @@ export interface TodoDetailPanelProps {
    *  `onDelete`; when either is absent the delete row is omitted. */
   deleteLabel?: string;
   /**
-   * Read-only "when is this todo" row (#877). Both halves arrive already
-   * translated and already formatted (§6.4): the host owns the locale, and it
-   * is also the only side that knows the todo's schedule fields — the panel
-   * receives a title and a status, not a TodoNode.
-   *
-   * Read-only on purpose. Placing a todo is a drag on the calendar (and the
-   * tray's "add to today"), so an editor here would be a second way to write
-   * the same field, on the one surface that cannot show where the result
-   * lands. What was missing was never the editing — it was that on Mobile this
-   * sheet is the ONLY way into a todo, and it did not say which day the todo
-   * was set for at all.
-   *
-   * Paired like the rows around it: the row renders only when both are given,
-   * so a host cannot ship a caption with nothing under it.
+   * The footer's Cancel (#2401). Fires raw: the host closes the panel, and asks
+   * first when something is pending. Rendered only with `cancelLabel`.
    */
-  scheduleLabel?: string;
-  scheduleText?: string;
+  onCancel?: () => void;
+  cancelLabel?: string;
   /**
-   * Does this todo actually carry a date (#1040)? Dating a todo is a side
-   * feature — most todos never get one — so the row above is folded away by
-   * default and the caption becomes a disclosure the user opens when they want
-   * to know. A todo that HAS a date is the case the row was added for (#877),
-   * so it opens already expanded and reads exactly as it did before.
+   * Where the todo sits on the calendar (#2401), or null when it has no day.
+   * The host reads it with `todoScheduleSlot`, the helper the chips are built
+   * from, so this row and the chip cannot disagree.
    *
-   * A separate flag rather than sniffing `scheduleText`, because the "no date"
-   * wording is the host's ("未設定" / "Not scheduled" / …) and the panel is not
-   * the side that knows the locale.
+   * The row used to be read-only (#877), on the argument that placing a todo is
+   * a drag on the calendar. The Goals & Todos screen edits a todo with no
+   * calendar in sight, so that left the day and the time out of reach there.
    */
-  scheduleSet?: boolean;
+  schedule?: TodoScheduleSlot | null;
+  /** The row's words. Drawn only when given, so a host opts in as a pair. */
+  scheduleLabels?: TodoScheduleLabels;
+  /** Formats the duration beside the end times (TimeRangeField). */
+  formatDuration?: (minutes: number) => string;
   /** Already-translated caption preceding the tag row (§6.4). Paired with
    *  `tagsSlot`; when either is absent the tag row is omitted. */
   tagsLabel?: string;
@@ -225,10 +240,44 @@ export interface TodoDetailPanelProps {
 // Disabled whenever there is nothing to save, which is most of the time the
 // panel is open — so the filled recess (#1803), not a faded accent.
 const SAVE_BTN = cn(
-  "rounded-md bg-lumen-accent px-3 py-1.5 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover",
+  "rounded-md bg-lumen-accent px-3 py-1.5 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover max-md:min-h-11",
   FOCUS_RING_ON_ACCENT,
   DISABLED_FILLED_BTN,
 );
+
+// Outlined beside the filled Save, as on the event pane (#2407).
+const CANCEL_BTN = cn(
+  "rounded-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover max-md:min-h-11",
+  FOCUS_RING_TIGHT,
+);
+
+/*
+ * The date row's draft. A todo with no day starts as "all day" once a date is
+ * picked: a date alone says nothing about a time, and it is the shape the
+ * tray's "add to today" writes. The empty times make the all-day check hand
+ * back the 09:00–10:00 default rather than the slot's "00:00" placeholders.
+ */
+const NO_SCHEDULE: TodoScheduleSlot = {
+  date: "",
+  startTime: "",
+  endTime: "",
+  isAllDay: true,
+};
+
+function scheduleDraftOf(
+  slot: TodoScheduleSlot | null | undefined,
+): TodoScheduleSlot {
+  if (!slot) return NO_SCHEDULE;
+  return slot.isAllDay ? { ...slot, startTime: "", endTime: "" } : slot;
+}
+
+/** Same day and time? An empty date has no time, an all-day slot neither. */
+function sameSchedule(a: TodoScheduleSlot, b: TodoScheduleSlot): boolean {
+  if (a.date !== b.date) return false;
+  if (!a.date) return true;
+  if (a.isAllDay !== b.isAllDay) return false;
+  return a.isAllDay || (a.startTime === b.startTime && a.endTime === b.endTime);
+}
 
 /** Inner fields, keyed by todoId from the panel so a todo switch drops the
  *  pending edits cleanly (same arrangement as EventEditorPane). */
@@ -250,9 +299,11 @@ function TodoDetailFields({
   contentLabel,
   saveLabel,
   deleteLabel,
-  scheduleLabel,
-  scheduleText,
-  scheduleSet = false,
+  onCancel,
+  cancelLabel,
+  schedule,
+  scheduleLabels,
+  formatDuration,
   tagsLabel,
   tagsSlot,
   tagsTrailing,
@@ -262,24 +313,25 @@ function TodoDetailFields({
   goalsDirty = false,
   stickyFooter,
 }: Omit<TodoDetailPanelProps, "className">) {
-  // #1040: folded unless the todo already has a date. `undefined` = the user
-  // has not touched the disclosure, so it keeps following `scheduleSet` — the
-  // same "untouched fields track the live todo" idiom as `titleEdit` below.
-  // That matters while the panel is open: dropping the todo onto the calendar
-  // gives it a date, and the row should be showing it by the time the user
-  // looks back, not waiting for a press that answers a question they no longer
-  // have.
-  const [scheduleToggled, setScheduleToggled] = useState<boolean | undefined>(
-    undefined,
-  );
-  const scheduleOpen = scheduleToggled ?? scheduleSet;
   // `undefined` = untouched, so the field keeps following the live todo and a
   // rename made elsewhere still lands in front of the user instead of being
   // quietly pushed back by a stale draft (EventEditorEdits, same reasoning).
   const [titleEdit, setTitleEdit] = useState<string | undefined>(undefined);
   const draftTitle = titleEdit ?? title;
   const titleDirty = titleEdit !== undefined && titleEdit !== title;
-  const dirty = titleDirty || contentDirty || goalsDirty;
+  // Same idiom: dropping the todo onto the calendar while the panel is open
+  // moves an untouched row with it.
+  const [scheduleEdit, setScheduleEdit] = useState<
+    TodoScheduleSlot | undefined
+  >(undefined);
+  const savedSchedule = scheduleDraftOf(schedule);
+  const draftSchedule = scheduleEdit ?? savedSchedule;
+  const scheduleDirty =
+    scheduleEdit !== undefined && !sameSchedule(scheduleEdit, savedSchedule);
+  const dirty = titleDirty || contentDirty || goalsDirty || scheduleDirty;
+  // Still dirty, so the guard asks; only the press is held back.
+  const nameEmpty = draftTitle.trim() === "";
+  const canSave = dirty && !nameEmpty;
   const resolvedStatus = status ?? "NOT_STARTED";
 
   // Same ref dance as EventEditorPane: the unmount report must not pin a stale
@@ -295,10 +347,29 @@ function TodoDetailFields({
   useEffect(() => () => onDirtyChangeRef.current?.(false), []);
 
   const save = () => {
-    if (!dirty) return;
+    if (!canSave) return;
     // The host is told even when only the BODY moved: it is the one holding
     // that draft, and the press is the only signal it gets.
-    onSave(todoId, titleDirty ? { title: draftTitle } : {});
+    const patch: TodoDetailPatch = {};
+    if (titleDirty) patch.title = draftTitle;
+    if (scheduleDirty) patch.schedule = draftSchedule.date ? draftSchedule : null;
+    onSave(todoId, patch);
+    // Back to following the live todo, which the write has just moved.
+    setScheduleEdit(undefined);
+  };
+
+  const editSchedule = (patch: Partial<TodoScheduleSlot>) =>
+    setScheduleEdit({ ...draftSchedule, ...patch });
+
+  const toggleAllDay = () => {
+    if (!draftSchedule.isAllDay) {
+      editSchedule({ isAllDay: true });
+      return;
+    }
+    editSchedule({
+      isAllDay: false,
+      ...timedSpanForAllDayOff(draftSchedule.startTime, draftSchedule.endTime),
+    });
   };
 
   const saveOnEnter = (e: KeyboardEvent<HTMLInputElement>) => {
@@ -318,8 +389,9 @@ function TodoDetailFields({
         onChange={(e) => setTitleEdit(e.target.value)}
         onKeyDown={saveOnEnter}
         aria-label={titleLabel}
+        aria-invalid={nameEmpty || undefined}
         className={cn(
-          "w-full rounded-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium text-lumen-text",
+          "w-full rounded-md border border-lumen-border bg-lumen-bg px-2 py-1.5 text-sm font-medium text-lumen-text max-md:min-h-11 max-md:text-base",
           FOCUS_RING,
         )}
       />
@@ -364,46 +436,61 @@ function TodoDetailFields({
         )}
       </div>
 
-      {/* #877: the schedule row. Same caption treatment as the status above it
-          — this is another fact ABOUT the todo, not another control — and it
-          sits directly under status because the two answer the pair of
-          questions a day list raises: how far along is it, and when is it. */}
-      {/* #1040: folded by default. A date is a side feature of a todo, so the
-          caption became the disclosure that opens the row rather than a
-          permanent line reading "日時 未設定" on the majority of todos that
-          never get one. A todo that HAS a date opens expanded (`scheduleSet`),
-          which is the case #877 added the row for. */}
-      {scheduleLabel && scheduleText && (
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setScheduleToggled(!scheduleOpen)}
-            aria-expanded={scheduleOpen}
-            className={cn(
-              "inline-flex items-center gap-1 rounded-lumen-md px-1 py-0.5 text-xs uppercase tracking-wide text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
-              FOCUS_RING,
-            )}
-          >
-            {/* #1834: the caption wears STATUS's and NOTES's treatment, so
-                without a glyph nothing said this one opens — it read as a
-                static label that happened to answer a press. The chevron
-                turns with the row rather than swapping for a second icon, so
-                the control keeps one identity. */}
-            <ChevronRight
-              aria-hidden
+      {/* #2401: the schedule row, a draft like the title. Same caption treatment
+          as the status above it, and directly under it, because the two answer
+          the pair of questions a list raises: how far along, and when. The times
+          and the all-day check wait for a date, since neither means anything
+          without one. An emptied date is a real answer here (the todo goes back
+          to having no day), unlike the event pane, whose row must keep one. */}
+      {scheduleLabels && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
+            {scheduleLabels.caption}
+          </span>
+          {/* `min-w-0` + `appearance-none` on the input: WebKit otherwise holds
+              a date input at its own width, under the check beside it (#1403). */}
+          <div className="flex items-center gap-3">
+            <input
+              type="date"
+              value={draftSchedule.date}
+              onChange={(e) => editSchedule({ date: e.target.value })}
+              onKeyDown={saveOnEnter}
+              aria-label={scheduleLabels.date}
               className={cn(
-                "size-3 shrink-0 transition-transform",
-                scheduleOpen && "rotate-90",
+                FIELD,
+                "min-w-0 flex-1 appearance-none tabular-nums max-md:min-h-11 max-md:text-base",
               )}
-              strokeWidth={2.5}
             />
-            {scheduleLabel}
-          </button>
-          {scheduleOpen && (
-            <span className="min-w-0 text-sm text-lumen-text">
-              {scheduleText}
-            </span>
+            {draftSchedule.date && (
+              <AllDayCheck
+                checked={draftSchedule.isAllDay}
+                onToggle={toggleAllDay}
+                label={scheduleLabels.allDay}
+              />
+            )}
+          </div>
+          {draftSchedule.date && !draftSchedule.isAllDay && (
+            <TimeRangeField
+              start={draftSchedule.startTime}
+              end={draftSchedule.endTime}
+              onChange={(next) =>
+                editSchedule({ startTime: next.start, endTime: next.end })
+              }
+              labels={{ start: scheduleLabels.start, end: scheduleLabels.end }}
+              formatDuration={formatDuration}
+            />
           )}
+        </div>
+      )}
+
+      {/* #2109: stacked, caption above — the field is a list, not a chip
+          row, and needs the panel's full width on a phone. */}
+      {goalsLabel && goalsSlot != null && (
+        <div className="flex flex-col gap-1.5">
+          <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
+            {goalsLabel}
+          </span>
+          {goalsSlot}
         </div>
       )}
 
@@ -421,17 +508,6 @@ function TodoDetailFields({
         </div>
       )}
       {tagsSlot != null && colorSlot}
-
-      {/* #2109: stacked, caption above — the field is a list, not a chip
-          row, and needs the panel's full width on a phone. */}
-      {goalsLabel && goalsSlot != null && (
-        <div className="flex flex-col gap-1.5">
-          <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
-            {goalsLabel}
-          </span>
-          {goalsSlot}
-        </div>
-      )}
 
       {contentEditor && (
         <div className="space-y-1">
@@ -474,7 +550,7 @@ function TodoDetailFields({
             type="button"
             onClick={() => onDelete(todoId)}
             className={cn(
-              "mr-auto flex min-h-lumen-tap-min items-center gap-1.5 rounded-sm text-sm font-medium text-lumen-danger",
+              "mr-auto flex min-h-lumen-tap-min items-center gap-1.5 rounded-sm text-sm font-medium text-lumen-danger max-md:min-h-11",
               FOCUS_RING,
             )}
           >
@@ -482,10 +558,15 @@ function TodoDetailFields({
             {deleteLabel}
           </button>
         )}
+        {onCancel && cancelLabel && (
+          <button type="button" onClick={onCancel} className={CANCEL_BTN}>
+            {cancelLabel}
+          </button>
+        )}
         <button
           type="button"
           onClick={save}
-          disabled={!dirty}
+          disabled={!canSave}
           className={SAVE_BTN}
         >
           {saveLabel}

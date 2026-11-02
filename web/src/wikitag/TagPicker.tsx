@@ -83,6 +83,12 @@ interface TagPickerProps {
    * before.
    */
   singleRow?: boolean;
+  /**
+   * The add button's words, always shown and its spoken name too (#2401: the
+   * todo detail's 「＋ タグを付ける」). Absent, the button keeps its own: the
+   * short word while nothing is assigned, the plus alone after that.
+   */
+  addLabel?: string;
 }
 
 export function TagPicker({
@@ -92,6 +98,7 @@ export function TagPicker({
   size = "sm",
   onTagContextMenu,
   singleRow = false,
+  addLabel,
 }: TagPickerProps) {
   const wiki = useWikiTagsUnifiedContext();
   const { t } = useTranslation();
@@ -299,7 +306,7 @@ export function TagPicker({
         ref={triggerRef}
         type="button"
         onClick={() => setPickerOpen((v) => !v)}
-        aria-label={t("materials.tags.pickerAdd")}
+        aria-label={addLabel ?? t("materials.tags.pickerAdd")}
         aria-expanded={pickerOpen}
         // TAP_TARGET is 1.75rem, which is 31.5px — the app's icon floor, not
         // a thumb's (#1840). The narrow-width floor is added here rather than
@@ -307,8 +314,11 @@ export function TagPicker({
         className={`${TAP_TARGET} max-md:min-h-11 max-md:min-w-11 gap-1 rounded-md border border-dashed border-lumen-border px-2 py-1 text-xs text-lumen-text-secondary hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent`}
       >
         <Plus size={14} aria-hidden />
-        {assignments.length === 0 && !loading && (
-          <span>{t("materials.tags.pickerLabelShort")}</span>
+        {addLabel ? (
+          <span>{addLabel}</span>
+        ) : (
+          assignments.length === 0 &&
+          !loading && <span>{t("materials.tags.pickerLabelShort")}</span>
         )}
       </button>
 

@@ -9,6 +9,7 @@ import {
   todoAddCandidateWrite,
   todoMoveToTodayWrite,
   todoMoveOutWrite,
+  todoScheduleWrite,
   placeTodoWrite,
 } from "../src/schedule/todoChipUndoWiring";
 
@@ -243,6 +244,56 @@ describe("todoMoveOutWrite (#1406)", () => {
         isAllDay: false,
       },
       options: { undoLabel: "todoRemoveFromToday" },
+    });
+  });
+});
+
+describe("todoScheduleWrite (#2401)", () => {
+  const AT = (d: number, h: number, m = 0) =>
+    new Date(2026, 7, d, h, m).toISOString();
+
+  it("writes a timed slot as a day and a window", () => {
+    expect(
+      todoScheduleWrite({
+        date: "2026-08-15",
+        startTime: "13:00",
+        endTime: "14:30",
+        isAllDay: false,
+      }),
+    ).toEqual({
+      scheduledAt: AT(15, 13),
+      scheduledEndAt: AT(15, 14, 30),
+      isAllDay: false,
+    });
+  });
+
+  it("writes an all-day slot as the day at 00:00, whatever its times say", () => {
+    expect(
+      todoScheduleWrite({
+        date: "2026-08-15",
+        startTime: "",
+        endTime: "",
+        isAllDay: true,
+      }),
+    ).toEqual({ scheduledAt: AT(15, 0), isAllDay: true });
+  });
+
+  it("clears all three fields for no day, as the tray's take-off does", () => {
+    expect(todoScheduleWrite(null)).toEqual(todoMoveOutWrite().patch);
+  });
+
+  it("keeps an overnight todo overnight when only its date changed", () => {
+    expect(
+      todoScheduleWrite({
+        date: "2026-08-15",
+        startTime: "23:00",
+        endTime: "01:00",
+        isAllDay: false,
+      }),
+    ).toEqual({
+      scheduledAt: AT(15, 23),
+      scheduledEndAt: AT(16, 1),
+      isAllDay: false,
     });
   });
 });

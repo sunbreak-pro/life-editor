@@ -22,6 +22,7 @@ import {
   type DataService,
   type EventEditorItem,
   type FrequencyEditorValue,
+  type ItemPanelContextValue,
   type ItemPanelRequest,
 } from "@life-editor/shared";
 import { ScheduleOverlayHost } from "./ScheduleOverlayHost";
@@ -89,6 +90,7 @@ export function ItemPanelHost({ dataService }: { dataService: DataService }) {
                 key={panel.request.seq}
                 request={panel.request}
                 onClose={panel.close}
+                registerCloseGuard={panel.registerCloseGuard}
                 dataService={dataService}
               />
             </ScheduleItemsProvider>
@@ -102,10 +104,12 @@ export function ItemPanelHost({ dataService }: { dataService: DataService }) {
 function ItemPanelSurface({
   request,
   onClose,
+  registerCloseGuard,
   dataService,
 }: {
   request: ItemPanelRequest;
   onClose: () => void;
+  registerCloseGuard: ItemPanelContextValue["registerCloseGuard"];
   dataService: DataService;
 }) {
   const { t } = useTranslation();
@@ -490,6 +494,7 @@ function ItemPanelSurface({
         onNavigateToItem,
         askConfirm,
         onOpenInSchedule: onOpenInSchedule ? openTodoInSchedule : undefined,
+        registerCloseGuard,
       }}
       popover={{
         state: null,

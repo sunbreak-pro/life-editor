@@ -272,3 +272,45 @@ describe("ItemPanelHost — 「予定の画面で開く」", () => {
     });
   });
 });
+
+/*
+ * #2401 — a screen beside the panel asks it to shut through `requestClose`. The
+ * panel's own question lives in ScheduleTodoDetail, so what this host owes is
+ * handing it the Provider's slot.
+ */
+describe("ItemPanelHost — the close from outside (#2401)", () => {
+  it("hands the todo detail the Provider's guard slot", () => {
+    mountPanel();
+    harness.todoTree.nodes = [makeTodo({ id: "task-7", title: "資料" })];
+    act(() => panel!.openEdit({ role: "task", id: "task-7" }));
+    expect(overlays().todoDetail.registerCloseGuard).toBe(
+      panel!.registerCloseGuard,
+    );
+  });
+
+  it("closes straight away with no guard, and runs what comes next", () => {
+    mountPanel();
+    act(() =>
+      panel!.openEdit({ role: "event", id: EVENT.id, date: EVENT.date }),
+    );
+    const then = vi.fn();
+    act(() => panel!.requestClose(then));
+    expect(callerSays()).toBe("closed");
+    expect(then).toHaveBeenCalledTimes(1);
+  });
+
+  it("leaves the close to a registered guard", () => {
+    mountPanel();
+    act(() =>
+      panel!.openEdit({ role: "event", id: EVENT.id, date: EVENT.date }),
+    );
+    const guard = vi.fn();
+    act(() => panel!.registerCloseGuard(guard));
+    const then = vi.fn();
+    act(() => panel!.requestClose(then));
+    expect(guard).toHaveBeenCalledWith(then);
+    expect(callerSays()).toBe("open:edit");
+    expect(then).not.toHaveBeenCalled();
+    act(() => panel!.registerCloseGuard(null));
+  });
+});

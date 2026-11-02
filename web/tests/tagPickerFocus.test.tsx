@@ -133,3 +133,41 @@ describe("TagPicker focus (#1841)", () => {
     expect(document.activeElement).toBe(elsewhere);
   });
 });
+
+/*
+ * #2401 — the todo detail's 「＋ タグを付ける」. The other hosts pass no words,
+ * and their "+" keeps its own: the short word only while nothing is assigned.
+ */
+describe("TagPicker — the add button's words (#2401)", () => {
+  function renderWords(addLabel?: string) {
+    const ds = stubDataService({
+      listAllWikiTagsUnified: async () => [TAG],
+      listAllTagConnections: async () => [],
+      listAllTagAssignments: async () => [
+        { id: "a1", itemId: ITEM, tagId: TAG.id },
+      ],
+    }) as DataService;
+    render(
+      <SyncWrapper>
+        <ToastProvider>
+          <WikiTagsUnifiedProvider dataService={ds}>
+            <TagPicker itemId={ITEM} addLabel={addLabel} />
+          </WikiTagsUnifiedProvider>
+        </ToastProvider>
+      </SyncWrapper>,
+    );
+  }
+
+  it("shows them beside the chips, as its spoken name too", async () => {
+    renderWords("Tag it");
+    const button = await screen.findByRole("button", { name: "Tag it" });
+    await waitFor(() => screen.getByText("Work"));
+    expect(button.textContent).toBe("Tag it");
+  });
+
+  it("keeps the plus alone once a tag is on, without them", async () => {
+    renderWords();
+    await waitFor(() => screen.getByText("Work"));
+    expect(screen.getByRole("button", { name: "Add tag" }).textContent).toBe("");
+  });
+});

@@ -79,6 +79,10 @@ import { canDropOn, type GoalTreeDragSource } from "./goalTreeDrag";
  * (separateCompleted). Un-ticking or un-achieving puts them back, because
  * the host's next model no longer counts them as completed.
  *
+ * The todo open in the editor (#2401, `editingTodoId`) wears the accent wash on
+ * its row, in every group it is drawn in, so the row being changed stays
+ * findable behind the panel.
+ *
  * Pure presentation (§6.4): the model and every label come from the host
  * (web/src/connect/GoalsTodosScreen.tsx). The state held here — the add
  * fields' drafts, which goals are closed and what is being dragged — is
@@ -177,6 +181,8 @@ export interface GoalTreeViewProps {
   onResetFilters?: () => void;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
   onOpenTodo: (todoId: string) => void;
+  /** The todo open in the editor, whose row is marked (#2401). */
+  editingTodoId?: string | null;
   /** Desktop only. Absent, no grip is drawn and nothing can be dragged. */
   drag?: GoalTreeDragHandlers;
   /** A new name from a row's edit icon, trimmed and changed. Absent, no icon. */
@@ -382,6 +388,7 @@ function TodoRow({
   todo,
   fromGoalId,
   drag,
+  editing,
   onSetTodoStatus,
   onOpenTodo,
   labels,
@@ -390,6 +397,7 @@ function TodoRow({
   /** The goal row this todo hangs under; null in the loose group. */
   fromGoalId: string | null;
   drag: DragState | null;
+  editing: boolean;
   onSetTodoStatus: (todoId: string, status: TodoStatus) => void;
   onOpenTodo: (todoId: string) => void;
   labels: GoalTreeLabels;
@@ -404,6 +412,7 @@ function TodoRow({
       data-goal-tree-row=""
       className={cn(
         "group/todo flex items-center gap-1 rounded-lumen-sm",
+        editing && "bg-lumen-accent-subtle",
         dragged && DRAG_HOLE,
       )}
     >
@@ -438,6 +447,7 @@ function TodoRow({
         type="button"
         onClick={() => onOpenTodo(todo.id)}
         aria-label={labels.formatOpenTodo(todo.title)}
+        aria-current={editing ? "true" : undefined}
         className={cn(ROW_BUTTON, "group")}
       >
         <span
@@ -909,6 +919,7 @@ function GoalBranch({
                   todo={todo}
                   fromGoalId={goal.id}
                   drag={drag}
+                  editing={todo.id === props.editingTodoId}
                   onSetTodoStatus={props.onSetTodoStatus}
                   onOpenTodo={props.onOpenTodo}
                   labels={labels}
@@ -1380,6 +1391,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                 todo={todo}
                 fromGoalId={null}
                 drag={drag}
+                editing={todo.id === props.editingTodoId}
                 onSetTodoStatus={props.onSetTodoStatus}
                 onOpenTodo={props.onOpenTodo}
                 labels={labels}
@@ -1412,6 +1424,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                   todo={todo}
                   fromGoalId={fromGoalId}
                   drag={drag}
+                  editing={todo.id === props.editingTodoId}
                   onSetTodoStatus={props.onSetTodoStatus}
                   onOpenTodo={props.onOpenTodo}
                   labels={labels}

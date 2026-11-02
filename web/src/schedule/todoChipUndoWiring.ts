@@ -1,7 +1,12 @@
-import { localDateTimeToISO, todoScheduleSlot } from "@life-editor/shared";
+import {
+  addDaysKey,
+  localDateTimeToISO,
+  todoScheduleSlot,
+} from "@life-editor/shared";
 import type {
   TodoCalendarDrop,
   TodoNode,
+  TodoScheduleSlot,
   UpdateNodeOptions,
 } from "@life-editor/shared";
 
@@ -56,6 +61,34 @@ export function allDayPlacement(dateKey: string): Partial<TodoNode> {
     scheduledAt: localDateTimeToISO(dateKey, "00:00"),
     isAllDay: true,
   };
+}
+
+/**
+ * What the detail panel's date and time row writes (#2401), in the shapes the
+ * gestures above write: null is the tray's "take off today", all-day the day at
+ * 00:00, timed a day and a window. No undo options here: the row rides the
+ * panel's one save press, which carries its own label.
+ *
+ * An end at or before the start can only be an overnight todo whose date alone
+ * was changed, since the time field keeps its own range the right way round.
+ * It lands on the next day, or the slot would read it as degenerate and turn
+ * the todo all-day (#562).
+ */
+export function todoScheduleWrite(
+  slot: TodoScheduleSlot | null,
+): Partial<TodoNode> {
+  if (slot === null) return todoMoveOutWrite().patch;
+  if (slot.isAllDay) return allDayPlacement(slot.date);
+  const placed = timedPlacement(slot.date, slot.startTime, slot.endTime);
+  return slot.endTime > slot.startTime
+    ? placed
+    : {
+        ...placed,
+        scheduledEndAt: localDateTimeToISO(
+          addDaysKey(slot.date, 1),
+          slot.endTime,
+        ),
+      };
 }
 
 /**

@@ -1063,6 +1063,7 @@ export {
   ItemPanelProvider,
   type ItemPanelProviderProps,
   ItemPanelContext,
+  type ItemPanelCloseGuard,
   type ItemPanelContextValue,
   type ItemPanelCreateInitial,
   type ItemPanelEditTarget,

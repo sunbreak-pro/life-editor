@@ -11,13 +11,39 @@ import { useEffect, useRef } from "react";
 import {
   ItemPanelProvider,
   RightSidebarProvider,
+  ToastProvider,
   useItemPanelContext,
   useRightSidebarContext,
   type DataService,
   type Goal,
+  type TodoNode,
 } from "@life-editor/shared";
 import { GoalsTodosScreen } from "../src/connect/GoalsTodosScreen";
+import { ItemPanelHost } from "../src/schedule/ItemPanelHost";
 import { createBumpableSync, stubDataService } from "./helpers";
+
+// #2401: the real item panel over the tab, for the cases that save through it.
+// The todo detail reads the goals through the guarded singleton, and its editor
+// is TipTap; the stub hands the memo over the draft channel instead.
+const panelDs = vi.hoisted(() => ({ current: null as unknown }));
+vi.mock("@life-editor/shared", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@life-editor/shared")>()),
+  getDataService: () => panelDs.current,
+}));
+vi.mock("../src/notes/LazyRichTextEditor", () => ({
+  LazyRichTextEditor: ({
+    onDraftChange,
+  }: {
+    onDraftChange?: (content: string) => void;
+  }) => (
+    <button type="button" onClick={() => onDraftChange?.("<p>New memo</p>")}>
+      Type the memo
+    </button>
+  ),
+}));
+vi.mock("../src/wikitag/TagColorControls", () => ({
+  TagColorControls: () => null,
+}));
 
 /*
  * Connect's Goals & Todos tab (#2108, plan Step 9). The fixture is the brief's
@@ -159,8 +185,18 @@ function PanelWell() {
 }
 
 /** Prints the item panel's open request and closes it, as the shell's host would. */
-function PanelRequestProbe() {
-  const { request, close } = useItemPanelContext();
+function PanelRequestProbe({ guardAnswer }: { guardAnswer?: boolean }) {
+  const { request, close, registerCloseGuard } = useItemPanelContext();
+  // Stands in for the todo detail's guard, without the panel it lives in.
+  useEffect(() => {
+    if (guardAnswer === undefined) return;
+    registerCloseGuard((then) => {
+      if (!guardAnswer) return;
+      close();
+      then?.();
+    });
+    return () => registerCloseGuard(null);
+  }, [guardAnswer, close, registerCloseGuard]);
   return (
     <>
       <output aria-label="Panel request">
@@ -176,7 +212,10 @@ function PanelRequestProbe() {
 async function renderTab(
   ds: DataService = makeDS(),
   ready: string | (() => unknown) = "Goal tree",
-  { itemPanel = false }: { itemPanel?: boolean } = {},
+  {
+    itemPanel = false,
+    guardAnswer,
+  }: { itemPanel?: boolean; guardAnswer?: boolean } = {},
 ) {
   const onNavigateToItem = vi.fn();
   const { wrapper: SyncWrapper, sync } = createBumpableSync();
@@ -191,7 +230,7 @@ async function renderTab(
       {itemPanel ? (
         <ItemPanelProvider>
           {tab}
-          <PanelRequestProbe />
+          <PanelRequestProbe guardAnswer={guardAnswer} />
         </ItemPanelProvider>
       ) : (
         tab
@@ -727,6 +766,69 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(screen.getByRole("region", { name: "Goal tree" })).toBeTruthy();
   });
 
+  it("marks the row being edited, wherever it is drawn, until the panel shuts (#2401)", async () => {
+    await renderTab(makeDS(), "Goal tree", { itemPanel: true });
+    const row = () =>
+      screen
+        .getByRole("button", { name: "Edit: Long run" })
+        .closest("li") as HTMLElement;
+    const open = () => screen.getByRole("button", { name: "Edit: Long run" });
+    expect(row().className).not.toContain("bg-lumen-accent-subtle");
+    expect(open().getAttribute("aria-current")).toBeNull();
+
+    fireEvent.click(open());
+    expect(row().className).toContain("bg-lumen-accent-subtle");
+    expect(open().getAttribute("aria-current")).toBe("true");
+    // Only that row.
+    expect(
+      (
+        screen
+          .getByRole("button", { name: "Edit: Interval run" })
+          .closest("li") as HTMLElement
+      ).className,
+    ).not.toContain("bg-lumen-accent-subtle");
+
+    fireEvent.click(screen.getByRole("button", { name: "Close panel" }));
+    expect(row().className).not.toContain("bg-lumen-accent-subtle");
+  });
+
+  it("shuts the todo editor when a goal row is pressed, and goes to the goal (#2401)", async () => {
+    const { panel } = await renderTab(makeDS(), "Goal tree", {
+      itemPanel: true,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Edit: Long run" }));
+    fireEvent.click(goalRow("Run 3 times"));
+    expect(screen.getByLabelText("Panel request").textContent).toBe("");
+    expect(
+      (panel().getByRole("textbox", { name: "Goal title" }) as HTMLInputElement)
+        .value,
+    ).toBe("Run 3 times");
+  });
+
+  it("goes through the panel's guard, and stays on a no (#2401)", async () => {
+    const { panel } = await renderTab(makeDS(), "Goal tree", {
+      itemPanel: true,
+      guardAnswer: false,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Edit: Long run" }));
+    fireEvent.click(goalRow("Run 3 times"));
+    expect(screen.getByLabelText("Panel request").textContent).toBe(
+      JSON.stringify({ role: "task", id: "t7" }),
+    );
+    expect(panel().queryByRole("textbox", { name: "Goal title" })).toBeNull();
+  });
+
+  it("selects the goal after the guard agrees (#2401)", async () => {
+    const { panel } = await renderTab(makeDS(), "Goal tree", {
+      itemPanel: true,
+      guardAnswer: true,
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Edit: Long run" }));
+    fireEvent.click(goalRow("Run 3 times"));
+    expect(screen.getByLabelText("Panel request").textContent).toBe("");
+    panel().getByRole("textbox", { name: "Goal title" });
+  });
+
   it("falls back to Schedule without an item panel", async () => {
     const { onNavigateToItem } = await renderTab();
     fireEvent.click(screen.getByRole("button", { name: "Edit: Long run" }));
@@ -1000,5 +1102,193 @@ describe("Connect Goals & Todos tab — drag (#2226)", () => {
     expect(
       document.querySelector("[data-goal-drag], [data-todo-drag], [draggable]"),
     ).toBeNull();
+  });
+});
+
+/*
+ * #2401's completion condition, end to end: the real panel over the real tab,
+ * through the real Providers. What the panel writes lands in the fake store, the
+ * tab re-reads it when the panel shuts, and the tree shows it.
+ */
+describe("Editing a todo over the tab (#2401)", () => {
+  function storeDS() {
+    const store = {
+      todos: TODOS.map(
+        (t) =>
+          ({
+            type: "task",
+            parentId: null,
+            order: 0,
+            createdAt: "2026-09-27T00:00:00Z",
+            ...t,
+          }) as TodoNode,
+      ),
+      links: [...LINKS],
+      assigned: [] as { id: string; itemId: string; tagId: string }[],
+    };
+    const known: Partial<Record<keyof DataService, unknown>> = {
+      fetchGoals: vi.fn(async () => GOALS),
+      fetchTodoTree: vi.fn(async () => store.todos),
+      fetchDeletedTodos: vi.fn(async () => []),
+      fetchGoalTodoLinks: vi.fn(async () => store.links),
+      syncTodoTree: vi.fn(async (changed: TodoNode[]) => {
+        store.todos = store.todos.map(
+          (t) => changed.find((c) => c.id === t.id) ?? t,
+        );
+      }),
+      linkGoalTodo: vi.fn(async (goalId: string, todoId: string) => {
+        const made = link(goalId, todoId);
+        store.links = [...store.links, made];
+        return made;
+      }),
+      unlinkGoalTodo: vi.fn(async (goalId: string, todoId: string) => {
+        store.links = store.links.filter(
+          (l) => l.goalId !== goalId || l.todoId !== todoId,
+        );
+      }),
+      listAllWikiTagsUnified: vi.fn(async () => [
+        { id: "tag-work", name: "Work", color: null, icon: null },
+      ]),
+      assignTagToItem: vi.fn(
+        async (id: string, itemId: string, tagId: string) => {
+          const made = { id, itemId, tagId };
+          store.assigned = [...store.assigned, made];
+          return made;
+        },
+      ),
+    };
+    // The Schedule's Providers read a good deal this case has no opinion on;
+    // an empty answer is the honest one for all of it.
+    const ds = new Proxy(stubDataService(known), {
+      get: (target, key) =>
+        Reflect.get(target, key) ?? (async () => []),
+    });
+    panelDs.current = ds;
+    return { ds, store };
+  }
+
+  async function openEditor(ds: DataService, name: string) {
+    const { wrapper: SyncWrapper } = createBumpableSync();
+    render(
+      <SyncWrapper>
+        <ToastProvider>
+          <ItemPanelProvider>
+            <RightSidebarProvider>
+              <GoalsTodosScreen
+                dataService={ds}
+                onNavigateToItem={vi.fn()}
+              />
+              <PanelWell />
+            </RightSidebarProvider>
+            <ItemPanelHost dataService={ds} />
+          </ItemPanelProvider>
+        </ToastProvider>
+      </SyncWrapper>,
+    );
+    fireEvent.click(await screen.findByRole("button", { name: `Edit: ${name}` }));
+    const editor = await screen.findByRole("dialog");
+    // The lookup can land between the commit and the effects, and the dialog
+    // listens for Escape from an effect.
+    await act(async () => {});
+    return editor;
+  }
+
+  const pressSave = (editor: HTMLElement) =>
+    fireEvent.click(within(editor).getByRole("button", { name: "Save" }));
+
+  it("saves every field and shows the result in the tree", async () => {
+    const { ds, store } = storeDS();
+    const editor = await openEditor(ds, "Pick up the residence certificate");
+    const panel = within(editor);
+
+    // Name.
+    fireEvent.change(panel.getByLabelText("Todo title"), {
+      target: { value: "Pick up the new certificate" },
+    });
+    // Date, then time: a first date is all-day until unticked.
+    fireEvent.change(panel.getByLabelText("Date"), {
+      target: { value: "2026-10-02" },
+    });
+    fireEvent.click(panel.getByRole("checkbox", { name: "All-day" }));
+    const start = panel.getByRole("combobox", { name: "Start" });
+    fireEvent.change(start, { target: { value: "11:00" } });
+    fireEvent.blur(start);
+    // Goal: opened from "+ Link to a goal".
+    fireEvent.click(
+      await panel.findByRole("button", { name: "Link to a goal" }),
+    );
+    fireEvent.click(
+      panel.getByRole("checkbox", { name: /^Finish one book/ }),
+    );
+    panel.getByText("Week · Finish one book");
+    // Tag: written at once, as tags always are.
+    fireEvent.click(await panel.findByRole("button", { name: "Add tag" }));
+    fireEvent.click(await panel.findByRole("button", { name: "Work" }));
+    await waitFor(() =>
+      expect(store.assigned).toMatchObject([
+        { itemId: "l1", tagId: "tag-work" },
+      ]),
+    );
+    await panel.findByRole("button", { name: /Work/ });
+    // Memo.
+    fireEvent.click(panel.getByRole("button", { name: "Type the memo" }));
+
+    pressSave(editor);
+    await waitFor(() => expect(ds.syncTodoTree).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(ds.linkGoalTodo).toHaveBeenCalledWith("w3", "l1"),
+    );
+    expect(store.todos.find((t) => t.id === "l1")).toMatchObject({
+      title: "Pick up the new certificate",
+      content: "<p>New memo</p>",
+      scheduledAt: new Date(2026, 9, 2, 11, 0).toISOString(),
+      scheduledEndAt: new Date(2026, 9, 2, 12, 0).toISOString(),
+      isAllDay: false,
+    });
+
+    fireEvent.click(panel.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+    // The renamed todo now hangs under the goal it was linked to.
+    await waitFor(() =>
+      within(
+        screen.getByRole("list", { name: "Finish one book" }),
+      ).getByRole("button", { name: "Edit: Pick up the new certificate" }),
+    );
+  });
+
+  it("holds the save back on an empty name, and writes nothing", async () => {
+    const { ds } = storeDS();
+    const editor = await openEditor(ds, "Pick up the residence certificate");
+    const panel = within(editor);
+    const name = panel.getByLabelText("Todo title");
+    fireEvent.change(name, { target: { value: "" } });
+    expect(
+      (panel.getByRole("button", { name: "Save" }) as HTMLButtonElement)
+        .disabled,
+    ).toBe(true);
+    fireEvent.keyDown(name, { key: "Enter" });
+    await act(async () => {});
+    expect(ds.syncTodoTree).not.toHaveBeenCalled();
+  });
+
+  it("closes on Esc from a clean panel without asking", async () => {
+    const { ds } = storeDS();
+    const editor = await openEditor(ds, "Pick up the residence certificate");
+    fireEvent.keyDown(within(editor).getByLabelText("Todo title"), {
+      key: "Escape",
+    });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("asks on Esc with a draft, and closes once it is discarded", async () => {
+    const { ds } = storeDS();
+    const editor = await openEditor(ds, "Pick up the residence certificate");
+    const name = within(editor).getByLabelText("Todo title");
+    fireEvent.change(name, { target: { value: "Renamed" } });
+    fireEvent.keyDown(name, { key: "Escape" });
+    fireEvent.click(await screen.findByRole("button", { name: "Discard" }));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(ds.syncTodoTree).not.toHaveBeenCalled();
   });
 });

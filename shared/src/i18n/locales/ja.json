@@ -480,9 +480,13 @@
     "statusNotStarted": "未着手",
     "statusDone": "完了",
     "content": "メモ",
-    "save": "保存"
+    "save": "保存",
+    "addTag": "タグを付ける"
   },
   "goalLink": {
+    "connected": "つながる目標",
+    "chip": "{{kind}}・{{title}}",
+    "removeChip": "目標「{{title}}」を外す",
     "field": "目標",
     "listLabel": "この Todo がつながる目標",
     "periodWeek": "今週",
