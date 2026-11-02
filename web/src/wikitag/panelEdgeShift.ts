@@ -29,31 +29,46 @@ export function visibleBoundsOf(el: Element): HorizontalBounds {
   let left = 0;
   let right = view ? view.innerWidth : Number.POSITIVE_INFINITY;
   if (!view) return { left, right };
-  const root = el.ownerDocument.documentElement;
+  const doc = el.ownerDocument;
   // An absolute box is clipped only by its containing block and the boxes
   // around that, not by an ancestor in between. Below the breakpoint the chip
   // strip scrolls sideways between the panel and the header row it hangs
   // from, and it does not cut the panel off.
-  const start =
-    (el instanceof HTMLElement ? el.offsetParent : null) ?? el.parentElement;
-  for (
-    let node = start;
-    node && node !== root;
-    node = node.parentElement
-  ) {
+  let node = containingBoxOf(el);
+  while (node && node !== doc.documentElement) {
     const style = view.getComputedStyle(node);
-    // `overflow-y: auto` alone turns a `visible` x into `auto` as well, which
-    // is how the Notes column clips. Browsers report that computed value, but
-    // a reader that does not still has to treat the box as clipping.
-    if (!CLIPPING.has(style.overflowX) && !SCROLLING.has(style.overflowY)) {
-      continue;
+    // The body's overflow goes to the window while the root's is visible.
+    if (clipsSideways(style) && node !== doc.body) {
+      const box = node.getBoundingClientRect();
+      const innerLeft = box.left + node.clientLeft;
+      left = Math.max(left, innerLeft);
+      right = Math.min(right, innerLeft + node.clientWidth);
     }
-    const box = node.getBoundingClientRect();
-    const innerLeft = box.left + node.clientLeft;
-    left = Math.max(left, innerLeft);
-    right = Math.min(right, innerLeft + node.clientWidth);
+    // A fixed box is laid out against the window, so nothing above it clips
+    // what is inside it. An absolute one skips to its own containing block.
+    if (style.position === "fixed") break;
+    node =
+      style.position === "absolute"
+        ? containingBoxOf(node)
+        : node.parentElement;
   }
   return { left, right };
+}
+
+function containingBoxOf(el: Element): Element | null {
+  return (
+    (el instanceof HTMLElement ? el.offsetParent : null) ?? el.parentElement
+  );
+}
+
+function clipsSideways(style: CSSStyleDeclaration): boolean {
+  // `display: contents` has no box, and an inline box does not clip: their
+  // client width reads 0, which would squeeze the bounds shut.
+  if (style.display === "contents" || style.display === "inline") return false;
+  // `overflow-y: auto` alone turns a `visible` x into `auto` as well, which is
+  // how the Notes column clips. Browsers report that computed value, but a
+  // reader that does not still has to treat the box as clipping.
+  return CLIPPING.has(style.overflowX) || SCROLLING.has(style.overflowY);
 }
 
 /**

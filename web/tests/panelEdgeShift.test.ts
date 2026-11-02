@@ -100,6 +100,45 @@ describe("the edge a panel keeps to (#2446)", () => {
 
     expect(visibleBoundsOf(panel)).toEqual({ left: 16, right: 374 });
   });
+
+  it("stops at a fixed box: nothing above it clips what is inside", () => {
+    const outer = document.createElement("div");
+    outer.style.overflowX = "hidden";
+    const dialog = document.createElement("div");
+    dialog.style.position = "fixed";
+    dialog.style.overflowY = "auto";
+    const panel = document.createElement("div");
+    dialog.append(panel);
+    outer.append(dialog);
+    document.body.append(outer);
+    box(outer, 300, 200);
+    box(dialog, 100, 600);
+
+    expect(visibleBoundsOf(panel)).toEqual({ left: 100, right: 700 });
+  });
+
+  it("skips boxes that do not clip: contents, inline, and the body", () => {
+    document.body.style.overflowX = "hidden";
+    box(document.body, 40, 100);
+    const contents = document.createElement("div");
+    contents.style.display = "contents";
+    contents.style.overflowX = "auto";
+    const inline = document.createElement("span");
+    inline.style.display = "inline";
+    inline.style.overflowX = "hidden";
+    const panel = document.createElement("div");
+    inline.append(panel);
+    contents.append(inline);
+    document.body.append(contents);
+    box(contents, 0, 0);
+    box(inline, 0, 0);
+
+    expect(visibleBoundsOf(panel)).toEqual({
+      left: 0,
+      right: window.innerWidth,
+    });
+    document.body.style.overflowX = "";
+  });
 });
 
 describe("how far a panel moves (#2446)", () => {
