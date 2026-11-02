@@ -137,6 +137,7 @@ export {
   type ItemCreateSource,
   type ItemCreateTagOption,
   type ItemCreateTagPool,
+  type ItemCreateEventPool,
   type ItemCreateRepeatField,
 } from "./ItemCreatePanel";
 // #2219: 「ノートを添付」 for an item that already exists (the edit panels).
