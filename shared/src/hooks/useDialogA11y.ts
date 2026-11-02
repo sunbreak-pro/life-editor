@@ -6,8 +6,9 @@ const FOCUSABLE =
   'button, [href], input, textarea, select, [contenteditable="true"], [tabindex]:not([tabindex="-1"])';
 
 /*
- * Open dialog layers, oldest first. Escape and the Tab trap belong to the LAST
- * one only.
+ * Open dialog layers, oldest first. Escape belongs to the LAST one only, and the
+ * Tab trap to the last `modal` one: a popover on top borrows Escape, but the
+ * dialog around it is still the thing Tab must not walk out of (#2396).
  *
  * Without this stack the winner was decided by listener registration order:
  * every dialog listens on document, so the FIRST one registered — the oldest,
@@ -27,6 +28,11 @@ interface KeyboardLayer {
 }
 
 const layers: KeyboardLayer[] = [];
+
+function topModalLayer(): KeyboardLayer | undefined {
+  const modals = layers.filter((layer) => layer.modal);
+  return modals[modals.length - 1];
+}
 
 /*
  * Layout-aware visibility. In a browser a control inside a collapsed region has
@@ -145,8 +151,9 @@ export interface EscapeLayerOptions {
  * dialog (mounted first) ahead of it (#1342 — Escape over the tag icon picker
  * tore the tag edit modal down with it, losing the unsaved name).
  *
- * The surface is not `aria-modal`, so it takes no focus trap and does not count
- * as an open dialog for `hasOpenDialogLayer`.
+ * The surface is not `aria-modal`, so it takes no focus trap of its own (the
+ * dialog underneath keeps its trap, which is why it must render inside that
+ * dialog's panel) and does not count as an open dialog for `hasOpenDialogLayer`.
  */
 export function useEscapeLayer({ open, onEscape }: EscapeLayerOptions): void {
   const layerRef = useKeyboardLayer(open, false);
@@ -221,8 +228,8 @@ export function useDialogA11y<T extends HTMLElement>({
       // Escape there cancels a conversion; closing the dialog under the user's
       // hands would throw away what they were typing.
       if (isImeComposing(e)) return;
-      if (layerRef.current !== layers[layers.length - 1]) return;
       if (e.key === "Escape") {
+        if (layerRef.current !== layers[layers.length - 1]) return;
         // One Escape = one layer: dialogs below, and plain document listeners
         // like MobileDrawer's, must not close on the same keypress.
         e.stopPropagation();
@@ -230,6 +237,7 @@ export function useDialogA11y<T extends HTMLElement>({
         return;
       }
       if (e.key !== "Tab") return;
+      if (layerRef.current !== topModalLayer()) return;
       const panel = panelRef.current;
       if (!panel) return;
       const focusable = focusablesIn(panel);
