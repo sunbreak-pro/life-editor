@@ -4,6 +4,7 @@ import { cn } from "../cn";
 import { Button } from "../Button";
 import { Input } from "../Input";
 import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
+import type { GoalPeriodKind } from "../../types/goal";
 import type { TodoStatus } from "../../types/todoTree";
 import { isImeComposing } from "../../utils/imeGuard";
 import { goalProgress, type GoalTreeNode } from "./buildGoalTreeModel";
@@ -12,8 +13,8 @@ import { GoalStatus, type GoalTreeLabels } from "./GoalTreeView";
 /*
  * The right panel for the goal picked in the tree (#2108 — design C4; on a
  * phone the host puts the same panel in a bottom sheet). Everything a goal
- * can be told from here: its title, its place in the tree (the parent one
- * level up — how the tree is rearranged, brief §1.5), the hand mark that only
+ * can be told from here: its title, its place in the tree (a parent of a
+ * longer period — how the tree is rearranged, brief §1.5), the hand mark that only
  * an unconnected goal may carry (brief §1.2), and delete. Its todos and child
  * goals are listed so the progress number can be read back to its parts: the
  * tree only draws this period's children, so the ones from earlier periods
@@ -47,11 +48,13 @@ export interface GoalDetailLabels {
 export interface GoalParentOption {
   id: string;
   title: string;
+  /** Named in the option: a week's parents can be months and years alike. */
+  periodKind?: GoalPeriodKind;
 }
 
 export interface GoalDetailPanelProps {
   node: GoalTreeNode;
-  /** The goals one level up this one may hang under; empty for a year. */
+  /** The longer-period goals this one may hang under; empty for a year. */
   parentOptions: readonly GoalParentOption[];
   onRename: (title: string) => void;
   onChangeParent: (parentGoalId: string | null) => void;
@@ -140,7 +143,9 @@ export function GoalDetailPanel({
             <option value="">{labels.parentNone}</option>
             {parentOptions.map((option) => (
               <option key={option.id} value={option.id}>
-                {option.title}
+                {option.periodKind
+                  ? `${labels.tree.kinds[option.periodKind]}: ${option.title}`
+                  : option.title}
               </option>
             ))}
           </select>

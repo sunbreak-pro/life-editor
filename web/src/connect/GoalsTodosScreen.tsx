@@ -412,8 +412,8 @@ export function GoalsTodosScreen({
   /*
    * The "+" and the bin on each goal row (#2367). A todo added under a goal
    * is created and linked in one write; a child goal lands in the current
-   * period one level down, under the goal it was added from (the service
-   * checks the parent again).
+   * period of the kind picked at the "+", under the goal it was added from
+   * (the service checks the parent again).
    */
   const rowActions = useMemo<GoalRowActions>(
     () => ({
@@ -434,10 +434,8 @@ export function GoalsTodosScreen({
           await dataService.linkGoalTodo(goalId, id);
         });
       },
-      onAddChildGoal: (parent, title) => {
-        const kind: GoalPeriodKind =
-          parent.periodKind === "year" ? "month" : "week";
-        return write(() =>
+      onAddChildGoal: (parent, title, kind) =>
+        write(() =>
           dataService.createGoal({
             id: generateId("goal"),
             title,
@@ -446,8 +444,7 @@ export function GoalsTodosScreen({
             sortOrder: model.periodCounts[kind],
             parentGoalId: parent.id,
           }),
-        );
-      },
+        ),
       onDelete: deleteGoal,
     }),
     [write, dataService, model, deleteGoal],

@@ -278,11 +278,12 @@ describe("SupabaseGoalsService — reads", () => {
 });
 
 describe("SupabaseGoalsService — writes", () => {
-  it("createGoal writes both rows and checks the parent is one level up", async () => {
+  it("createGoal writes both rows and checks the parent's period is longer", async () => {
     const { client, db } = makeFake(
       seed(
         goalRows("g-year", "year", "2026"),
         goalRows("g-m", "month", "2026-10"),
+        goalRows("g-w", "week", "2026-10-04"),
       ),
     );
     const service = new SupabaseGoalsService(client);
@@ -296,16 +297,47 @@ describe("SupabaseGoalsService — writes", () => {
     expect(goal).toMatchObject({ id: "g-new", parentGoalId: "g-m" });
     expect(db.goals_payload.some((p) => p.item_id === "g-new")).toBe(true);
 
+    // A week may sit straight under a year (#2399).
     await expect(
       service.createGoal({
-        id: "g-bad",
-        title: "Skips a level",
+        id: "g-direct",
+        title: "Skips the month",
         periodKind: "week",
         periodKey: "2026-10-04",
         parentGoalId: "g-year",
       }),
-    ).rejects.toThrow(/expected month/);
+    ).resolves.toMatchObject({ parentGoalId: "g-year" });
+
+    await expect(
+      service.createGoal({
+        id: "g-bad",
+        title: "A month under a week",
+        periodKind: "month",
+        periodKey: "2026-10",
+        parentGoalId: "g-w",
+      }),
+    ).rejects.toThrow(/expected year/);
     expect(db.items_meta.some((m) => m.id === "g-bad")).toBe(false);
+  });
+
+  it("updateGoal moves a week straight under a year, and not a month under a week (#2399)", async () => {
+    const { client, db } = makeFake(
+      seed(
+        goalRows("g-year", "year", "2026"),
+        goalRows("g-m", "month", "2026-10"),
+        goalRows("g-w", "week", "2026-10-04"),
+      ),
+    );
+    const service = new SupabaseGoalsService(client);
+    await expect(
+      service.updateGoal("g-w", { parentGoalId: "g-year" }),
+    ).resolves.toMatchObject({ parentGoalId: "g-year" });
+    await expect(
+      service.updateGoal("g-m", { parentGoalId: "g-w" }),
+    ).rejects.toThrow(/expected year/);
+    expect(
+      db.goals_payload.find((p) => p.item_id === "g-m")?.parent_goal_id,
+    ).toBeNull();
   });
 
   it("createGoal hard-deletes the meta row when the payload INSERT fails (R2)", async () => {

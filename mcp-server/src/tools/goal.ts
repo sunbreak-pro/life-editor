@@ -55,7 +55,7 @@ export const GOAL_TOOLS: ToolDefinition[] = [
     name: "create_goal",
     description:
       "Create a Briefing goal for a period. A period may hold any number of goals. " +
-      "A goal's parent is one level up only (a week goal's parent is a month goal, a month goal's a year goal). " +
+      "A goal's parent has a longer period (a week goal's parent is a month or year goal, a month goal's a year goal; a year goal has none). " +
       "Link todos to it afterwards with link_goal_todo.",
     inputSchema: {
       type: "object" as const,
@@ -73,7 +73,7 @@ export const GOAL_TOOLS: ToolDefinition[] = [
         },
         parent_id: {
           type: "string",
-          description: "Parent goal ID, one level up (optional)",
+          description: "Parent goal ID, of a longer period (optional)",
         },
         carried_from_id: {
           type: "string",
@@ -101,7 +101,8 @@ export const GOAL_TOOLS: ToolDefinition[] = [
         title: { type: "string", description: "New title" },
         parent_id: {
           type: "string",
-          description: "New parent goal ID, one level up. Pass null to clear.",
+          description:
+            "New parent goal ID, of a longer period. Pass null to clear.",
         },
         sort_order: {
           type: "number",
