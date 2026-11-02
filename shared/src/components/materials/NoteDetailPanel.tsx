@@ -527,13 +527,20 @@ export function NoteDetailPanel({
               onAutoFocused={onTitleAutoFocused}
             />
             {hasTagRow && (
-              // #2291: below the breakpoint the tag / link row is one line of
-              // its own under the title and does not wrap — the tag picker
-              // scrolls its chips sideways instead (TagPicker `singleRow`),
-              // which keeps the stuck header from growing a line per tag.
+              // #2291: below the breakpoint the tag / link row sits under the
+              // title, and the tag picker scrolls its chips sideways instead of
+              // wrapping them (TagPicker `singleRow`), which keeps the stuck
+              // header from growing a line per tag.
+              // #2474: the row itself still wraps, so the tags and the links
+              // each take a line of their own when one line cannot hold both.
+              // Kept on one line, the two strips squeezed each other until the
+              // tag's X slid under the "+" and only one link chip showed.
               // `relative` (#2391): the link picker hangs from this row below
               // the breakpoint, so it spans the phone instead of its "+".
-              <div className="flex flex-wrap items-center gap-1.5 max-md:relative max-md:w-full max-md:min-w-0 max-md:flex-nowrap">
+              <div
+                data-testid="note-detail-tag-row"
+                className="flex flex-wrap items-center gap-1.5 max-md:relative max-md:w-full max-md:min-w-0"
+              >
                 {tagsSlot}
                 {linksSlot}
               </div>
