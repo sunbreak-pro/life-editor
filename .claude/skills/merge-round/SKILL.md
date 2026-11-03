@@ -1,6 +1,6 @@
 ---
 name: merge-round
-description: chat-main 専用。open PR を事前確認してから順番に squash merge し、衝突した PR と CI が赤い PR をレーンごとの /goal 指示文にまとめ、回を閉じて戻す地点を記録する。merge 後に戻す手順も持つ。作業レーンでの merge・db push・Issue の close には使わない。Triggers include "merge して", "まとめて merge", "PR を片付けて", "merge-round", "マージの回", "revert したい", "merge を戻したい".
+description: chat-main 専用。open PR を事前確認してから順番に squash merge し、文書・lockfile・翻訳だけの衝突は chat-main が一時 worktree で直し、残りの衝突と CI の赤はレーンごとの /goal 指示文にまとめ、回を閉じて戻す地点を記録する。merge 後に戻す手順も持つ。作業レーンでの merge・db push・Issue の close には使わない。Triggers include "merge して", "まとめて merge", "PR を片付けて", "merge-round", "マージの回", "revert したい", "merge を戻したい".
 ---
 
 # merge-round — chat-main の merge を 1 回ぶんまとめる
@@ -67,13 +67,49 @@ gh pr merge <n> -R sunbreak-pro/life-editor --squash
 
 0 以外はすべて飛ばす。hook は `check` が 0 を返した PR しか確認なしで通さないので、`check` を省いて merge すると確認ダイアログが出る。`gh pr merge` が失敗したら、その出力を報告に書いて次の PR に進む。
 
-### 4. 直してもらう分を指示文にする
+### 4. 衝突と CI の赤を振り分ける
 
 ```bash
 node .claude/scripts/merge-round.mjs fixes
 ```
 
-最新の main に対して全 open PR を `git merge-tree` で確かめ、衝突した PR と CI が赤い PR を、PR のブランチを開いているレーン（無ければ Issue のラベルから決めたレーン）ごとに 1 本の `/goal` にまとめる。出力はそのまま報告に貼る。モデルは衝突したファイルで決める。
+最新の main に対して全 open PR を `git merge-tree` で確かめ、衝突した PR と CI が赤い PR を 2 つに分ける。
+
+- **chat-main が直す**: 衝突が文書（`.md`）・lockfile・翻訳ファイル（`i18n/locales/*.json`）だけで、CI は赤くなく、どのレーンもそのブランチを開いていない PR。手順 4a で直す。
+- **レーンに直してもらう**: それ以外。手順 4b の指示文になる。
+
+レーンがブランチを開いている PR を chat-main が直さないのは、同じブランチに書き手が 2 人いると、レーンの手元と push がずれるからです（one writer per artifact）。
+
+#### 4a. chat-main が直す
+
+PR ごとに一時 worktree を作り、main を merge して衝突を出す。
+
+```bash
+node .claude/scripts/merge-round.mjs autofix-start <n>
+```
+
+出力の「サブエージェントへの指示」をそのまま Agent ツールに渡し、`model: sonnet` で起動する。複数あれば 1 メッセージで並べて起動する（同時 5 体まで）。サブエージェントは衝突を解いて merge の commit まで作り、push はしない。
+
+サブエージェントが終わったら、PR ごとに確かめて push する。
+
+```bash
+node .claude/scripts/merge-round.mjs autofix-push <n>
+```
+
+`autofix-push` は次をすべて確かめてから、PR のブランチへ fast-forward で push し、一時 worktree を消す。1 つでも外れたら push せずに止まる。
+
+- HEAD が「PR の先頭に、そのときの main を merge した commit」になっている
+- 自動の merge の結果と比べて、変わったのが衝突したファイルだけ
+- 衝突の印が残っておらず、JSON が読める
+- 作業の間にレーンが push しておらず、ブランチを開いてもいない
+
+止まったときと、サブエージェントが「判断できない」と返したときは、`autofix-abort <n>` で片付けて、もう一度 `fixes` を打つ。`autofix-abort` はその PR の先頭を覚えておくので、同じ先頭のあいだ `fixes` はその PR をレーンへの指示文に回す。
+
+push した PR は CI が走り直すので、次の回の plan で merge できる。レーンがあとでそのブランチを開くときは、`worktree-policy` のとおり `git pull --ff-only` で取り込む。
+
+#### 4b. レーンに直してもらう
+
+PR のブランチを開いているレーン（無ければ Issue のラベルから決めたレーン）ごとに 1 本の `/goal` にまとめる。出力はそのまま報告に貼る。モデルは衝突したファイルで決める。
 
 - Haiku 5.5: 衝突が文書（`.md`）と lockfile だけ
 - Sonnet 5.5: 衝突が翻訳ファイル（`i18n/locales/*.json`）とテストに収まる
@@ -94,9 +130,10 @@ merge した PR と merge commit を新しい順に表示し、`.git/merge-round
 次の順で書く。
 
 1. merge した PR の表（PR・題・merge commit の先頭 8 文字）と、戻る地点の commit
-2. `fixes` の出力（レーンごとの `/goal`、モデル、停止条件）
-3. 見送った PR と理由
-4. merge 後に残る作業: 実ブラウザでの確認と Issue の close（chat-main とこうだいさんの作業）、マイグレーションを含む PR の db push の順番
+2. chat-main が直して push した PR（解いたファイルと、どちらを残したか）と、直せずにレーンへ回した PR
+3. `fixes` のレーン宛ての出力（レーンごとの `/goal`、モデル、停止条件）
+4. 見送った PR と理由
+5. merge 後に残る作業: 実ブラウザでの確認と Issue の close（chat-main とこうだいさんの作業）、マイグレーションを含む PR の db push の順番
 
 レーンが直し終えたら、こうだいさんがもう一度このスキルを起動する。2 回目以降も手順は同じです。
 
@@ -140,6 +177,7 @@ main を書き換えない（`reset --hard` と force push は deny 済み）。
 - 人の起動なしに回を始めない（定時実行・無人ループに載せない。POLICY P-001）。
 - `supabase db push` と Issue の close はこのスキルで行わない。
 - 回の一覧にない PR を merge したくなったら、plan からやり直して一覧に入れる。hook の確認ダイアログで押し通さない。
+- chat-main がレーンの PR のブランチへ push するのは `autofix-push` だけにする。fast-forward だけで、force push はしない。レーンが開いているブランチには push しない。
 
 ## Gotchas
 
