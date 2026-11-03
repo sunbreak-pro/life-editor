@@ -45,7 +45,7 @@ import {
   formatRecordMetric,
   indexRecordViews,
   kindTotals,
-  lineAxisDomain,
+  lineAxisTicks,
   recordChartFor,
   recordMetricFor,
   recordViewKey,
@@ -221,8 +221,9 @@ export function RecordsTab({
     : "bar";
   const groupBy = recordsGroupBy(dateRangeDays(dateRange));
   const bars = useMemo(
-    () => buildRecordBars(rows, groupBy, summary, startKey, endKey, metric),
-    [rows, groupBy, summary, startKey, endKey, metric],
+    () =>
+      buildRecordBars(rows, groupBy, summary, startKey, endKey, metric, chart),
+    [rows, groupBy, summary, startKey, endKey, metric, chart],
   );
 
   const filtering =
@@ -261,17 +262,22 @@ export function RecordsTab({
     latest: labels.chart.latestSeries,
     count: labels.chart.countSeries,
   }[metric];
-  // An empty average / latest period has no bar at all (recordsModel).
+  // An empty average / latest period, and any empty period of a line, has no
+  // point at all (recordsModel).
   const chartData = bars.map((bar) => ({
     label: axis.date(barDateKey(bar.period), groupBy),
     value: bar.value ?? undefined,
   }));
-  // A line is read for its slope, so its axis spans the values drawn (#2311);
-  // bars stand on zero.
-  const valueDomain =
+  // A line is read for its slope, so its axis spans the values drawn (#2311)
+  // in round, evenly printed steps (#2513); bars stand on zero and keep
+  // recharts' own ticks.
+  const lineAxis =
     chart === "line"
-      ? (lineAxisDomain(chartData.map((d) => d.value)) ?? undefined)
-      : undefined;
+      ? lineAxisTicks(
+          chartData.map((d) => d.value),
+          { integer: !barsInUnit },
+        )
+      : null;
   // Both chart shapes share the grid, the axes and the tooltip's wording.
   const axes = [
     <CartesianGrid key="grid" {...CHART_GRID} />,
@@ -289,9 +295,12 @@ export function RecordsTab({
       tickLine={false}
       axisLine={false}
       allowDecimals={barsInUnit}
-      domain={valueDomain}
+      domain={lineAxis?.domain}
+      ticks={lineAxis?.ticks}
       width={56}
-      tickFormatter={(v: number) => labels.formatNumber(v)}
+      tickFormatter={(v: number) =>
+        labels.formatNumber(v, lineAxis?.fractionDigits)
+      }
     />,
   ];
   const tooltip = (value: number | undefined): [string, string] => [
