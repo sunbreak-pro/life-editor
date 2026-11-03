@@ -58,7 +58,8 @@ export function makeRecordsLabels(): RecordsLabels {
     },
     loadFailed: "Records could not be loaded",
     formatValue: (value, unit) => (unit ? `${value} ${unit}` : String(value)),
-    formatNumber: (value) => String(value),
+    formatNumber: (value, fractionDigits) =>
+      fractionDigits === undefined ? String(value) : value.toFixed(fractionDigits),
     formatDateTime: (iso) => iso,
     mobile: {
       title: "Records",

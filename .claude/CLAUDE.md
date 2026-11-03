@@ -121,6 +121,7 @@
 知らないと事故る禁止事項だけここに残す:
 
 - **メイン（リポジトリ直下）は chat-main 専有・`main` のみ。`git checkout <feature>` 禁止** — feature 作業は worktree から
+- **着手前と PR 前に `node .claude/scripts/scope-overlap.mjs` を打つ** — 同じファイルを動いている別の PR・別の worktree が触っていると、並列の PR は必ず衝突する。BLOCK が出たら直列にする。担当表の唯一の正本 = [`.claude/scripts/lane-ownership.json`](./scripts/lane-ownership.json)、手順 = `worktree-policy` スキル
 - **worktree はリポジトリの外**（`<repos-parent>/workspaces/life-editor/<slug>/`）に**絶対パスで**作る — 相対パスは cwd 基準で解決され、リポジトリ内にネストした worktree ができる
 - **`.claude/comm/.session-branch` はブランチを切り替えるたびに書き換える** — 抜けると hook が無音スキップし、監査が「宣言と実態の不一致」と誤判定する
 - **tracker（`memory/` + `history/`）の更新を実装ブランチに載せない**（2026-08-01 D-20260801-main-1）— 並行ブランチが必ず衝突する。PR 本文側に要約を書き、tracker は専用ブランチ `chore/tracker-<chat>-YYYYMMDD` に分ける。**実行は `session-verifier` が緑になった直後**で、実装 PR の merge を待たない（2026-08-10 D-20260810-main-1）。**`.claude/comm/outbox/` も同じ扱い**（実装 PR に載せず別枠 = 2026-08-12 D-20260802-sched-1）
