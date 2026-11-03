@@ -1119,7 +1119,14 @@ function ScheduleTable({
           onOpenItem={onOpenItem}
         />
       )}
-      <table data-briefing-table="" className="w-full border-collapse">
+      {/* `relative` keeps the table's sr-only labels (`position: absolute`)
+          inside the page's scroll area: without it their containing block
+          sits outside, and on a phone the now-line's label, at the table's
+          foot, stretched the root and scrolled the whole screen (#2504). */}
+      <table
+        data-briefing-table=""
+        className="relative w-full border-collapse"
+      >
         <thead>
           <tr>
             <th

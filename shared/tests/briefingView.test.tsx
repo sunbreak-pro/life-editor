@@ -603,6 +603,24 @@ describe("Today's schedule as a time table (#2223)", () => {
       expect(phaseOf("Open")).toBe("ongoing");
     });
 
+    it("anchors the line's hidden label inside the table (#2504)", () => {
+      // jsdom has no layout, so pin the structure: the nearest positioned
+      // ancestor of the sr-only label is the table itself, not something
+      // outside the page's scroll area.
+      renderView({ data: DAY, nowMinutes: 22 * 60 });
+      const label = document.querySelector(
+        "tr[data-briefing-now-line] .sr-only",
+      )!;
+      let box = label.parentElement;
+      while (
+        box !== null &&
+        !/(^|\s)(relative|absolute|fixed|sticky)(\s|$)/.test(box.className)
+      ) {
+        box = box.parentElement;
+      }
+      expect(box).toBe(document.querySelector("table[data-briefing-table]"));
+    });
+
     it("draws no line without a clock", () => {
       renderView({ data: DAY });
       expect(document.querySelector("tr[data-briefing-now-line]")).toBeNull();
