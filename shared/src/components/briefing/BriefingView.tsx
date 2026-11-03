@@ -172,6 +172,11 @@ export interface BriefingLabels {
   scheduleTitle: string;
   /** Empty state of the block — shown only when neither column has a row. */
   noSchedule: string;
+  /**
+   * Empty state while the todos column is the only one on screen (#2507) —
+   *「今日の Todo はありません」. With the events column up, `noSchedule` stays.
+   */
+  noTodos: string;
   routineTag: string;
   /** The all-day band's label —「終日」. */
   allDay: string;
@@ -1201,7 +1206,7 @@ function ScheduleTable({
       </table>
       {empty && (
         <p className="pt-3 text-sm text-lumen-text-secondary">
-          {labels.noSchedule}
+          {showEvents ? labels.noSchedule : labels.noTodos}
         </p>
       )}
     </section>

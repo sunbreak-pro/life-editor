@@ -1779,7 +1779,8 @@
       "now": "現在時刻",
       "columns": "表示する列",
       "addEvent": "予定を追加",
-      "addTodo": "Todo を追加"
+      "addTodo": "Todo を追加",
+      "noTodos": "今日の Todo はありません"
     },
     "vizTitle": "きのうまでの自分",
     "carryoverTitle": "持ち越し",

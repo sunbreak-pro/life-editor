@@ -28,6 +28,7 @@ const LABELS: BriefingLabels = {
   goalMark: "Goals:",
   scheduleTitle: "PROMISES",
   noSchedule: "Nothing scheduled",
+  noTodos: "No todos today",
   routineTag: "Routine",
   allDay: "All day",
   timeColumn: "Time",
@@ -805,6 +806,45 @@ describe("Today's schedule as a time table (#2223)", () => {
       expect(switchButton("Events").getAttribute("aria-pressed")).toBe("false");
       // Both buttons stay pressable — switching is the whole control here.
       expect(switchButton("Events")).not.toBeDisabled();
+    });
+
+    // #2507 — the empty line names the column that is actually on screen.
+    describe("the empty line follows the column on screen", () => {
+      const NO_TODOS = { ...TABLE_DATA, todos: [] };
+      const NOTHING = { ...TABLE_DATA, schedule: [], todos: [] };
+
+      it("on a phone, says there are no todos under the todos tab", () => {
+        renderView({ data: NO_TODOS, narrow: true });
+        // The events tab has rows, so no empty line yet.
+        expect(screen.queryByText("Nothing scheduled")).toBeNull();
+        fireEvent.click(switchButton("Todos"));
+        expect(screen.getByText("No todos today")).toBeTruthy();
+        expect(screen.queryByText("Nothing scheduled")).toBeNull();
+      });
+
+      it("on Desktop, says so once the events column is hidden", () => {
+        renderView({ data: NO_TODOS });
+        fireEvent.click(switchButton("Events"));
+        expect(headings()).toEqual(["Time", "Todos"]);
+        expect(screen.getByText("No todos today")).toBeTruthy();
+        expect(screen.queryByText("Nothing scheduled")).toBeNull();
+      });
+
+      it("keeps the schedule line with both columns, or events alone", () => {
+        renderView({ data: NOTHING });
+        expect(screen.getByText("Nothing scheduled")).toBeTruthy();
+        expect(screen.queryByText("No todos today")).toBeNull();
+        fireEvent.click(switchButton("Todos"));
+        expect(headings()).toEqual(["Time", "Events"]);
+        expect(screen.getByText("Nothing scheduled")).toBeTruthy();
+        expect(screen.queryByText("No todos today")).toBeNull();
+      });
+
+      it("keeps the schedule line under the events tab on a phone", () => {
+        renderView({ data: NOTHING, narrow: true });
+        expect(screen.getByText("Nothing scheduled")).toBeTruthy();
+        expect(screen.queryByText("No todos today")).toBeNull();
+      });
     });
   });
 
