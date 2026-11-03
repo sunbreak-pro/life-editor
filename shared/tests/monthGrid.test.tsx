@@ -321,11 +321,51 @@ describe("MonthGrid", () => {
     expect(chip.className).toContain("bg-lumen-chip-task-bg");
     expect(chip.className).toContain("text-lumen-chip-task-fg");
     // #593: same todo mark as the week grid, so the cue survives the month view.
-    expect(chip.querySelector("svg")).not.toBeNull();
-    // Event chips stay glyph-free (face color only — #593 touches todo only).
-    expect(
-      screen.getByRole("button", { name: "Dentist" }).querySelector("svg"),
-    ).toBeNull();
+    expect(chip.querySelector("svg")?.getAttribute("data-chip-kind")).toBe(
+      "task",
+    );
+  });
+
+  /*
+   * #2551: every kind carries its own mark, so an event and a routine tell
+   * apart without their colours — #593 had given only todos one.
+   */
+  it("marks each chip with its kind and names the mark when given labels", () => {
+    renderGrid({
+      chipKindLabels: { event: "Event", task: "Todo", routine: "Repeating" },
+    });
+    const kinds: Array<[string, string, string]> = [
+      ["Dentist", "event", "Event"],
+      ["Gym", "routine", "Repeating"],
+      ["Write report", "task", "Todo"],
+    ];
+    for (const [title, kind, label] of kinds) {
+      const chip = screen.getByRole("button", { name: `${label} ${title}` });
+      const mark = chip.querySelector("svg");
+      expect(mark?.getAttribute("data-chip-kind")).toBe(kind);
+      expect(mark?.getAttribute("role")).toBe("img");
+      expect(mark?.getAttribute("aria-label")).toBe(label);
+      expect(chip.className).toContain("flex");
+    }
+    // The three marks are three different glyphs, not one icon three times.
+    const glyphs = kinds.map(
+      ([title, , label]) =>
+        screen
+          .getByRole("button", { name: `${label} ${title}` })
+          .querySelector("svg")
+          ?.getAttribute("class") ?? "",
+    );
+    expect(new Set(glyphs).size).toBe(3);
+    // Still no time on a month chip (#2551 keeps the prototype's rule).
+    expect(screen.queryByText(/\d{1,2}:\d{2}/)).toBeNull();
+  });
+
+  it("keeps the kind marks decorative when no labels are given", () => {
+    renderGrid();
+    const chip = screen.getByRole("button", { name: "Dentist" });
+    const mark = chip.querySelector("svg");
+    expect(mark?.getAttribute("data-chip-kind")).toBe("event");
+    expect(mark?.getAttribute("aria-hidden")).toBe("true");
   });
 
   it("paints a todo title in the todo chip colours in compact mode", () => {

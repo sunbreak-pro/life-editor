@@ -6,12 +6,17 @@ import {
   type KeyboardEvent,
 } from "react";
 import { createPortal } from "react-dom";
-import { CheckSquare, X } from "lucide-react";
+import { X } from "lucide-react";
 import { cn } from "../cn";
 import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import { isImeComposing } from "../../utils/imeGuard";
 import { clampToViewport } from "../itemActions/floating";
-import { CELL_FOCUS, chipFaceClasses } from "./MonthGridParts";
+import {
+  CELL_FOCUS,
+  MonthChipKindIcon,
+  chipFaceClasses,
+  type MonthChipKindLabels,
+} from "./MonthGridParts";
 import type { MonthGridItem } from "./MonthGrid";
 
 /*
@@ -97,6 +102,11 @@ export interface MonthMorePanelProps {
   /** Already-translated accessible name for the close button. */
   closeLabel: string;
   /**
+   * Names for the kind marks (#2551), the same ones the month chips use.
+   * Omitted, the marks are decorative.
+   */
+  kindLabels?: MonthChipKindLabels;
+  /**
    * An item was pressed. `pos` is in viewport coordinates, for the bubble the
    * host opens there; `focus` asks that bubble to take focus (keyboard press).
    */
@@ -115,6 +125,7 @@ export function MonthMorePanel({
   items,
   title,
   closeLabel,
+  kindLabels,
   onItemActivate,
   onClose,
   width = PANEL_WIDTH,
@@ -269,10 +280,7 @@ export function MonthMorePanel({
                 }}
                 style={tagFaceStyle(it.tagColor)}
                 className={cn(
-                  "w-full min-w-0 cursor-pointer rounded px-1.5 py-1 text-left text-xs font-medium",
-                  it.variant === "task"
-                    ? "flex items-center gap-1"
-                    : "block truncate",
+                  "flex w-full min-w-0 cursor-pointer items-center gap-1 rounded px-1.5 py-1 text-left text-xs font-medium",
                   CELL_FOCUS,
                   !it.tagColor && chipFaceClasses(it.variant ?? "event"),
                   it.variant === "task" &&
@@ -280,18 +288,11 @@ export function MonthMorePanel({
                     "line-through opacity-55",
                 )}
               >
-                {it.variant === "task" ? (
-                  <>
-                    <CheckSquare
-                      aria-hidden
-                      className="size-3 shrink-0"
-                      strokeWidth={2.5}
-                    />
-                    <span className="truncate">{it.title || " "}</span>
-                  </>
-                ) : (
-                  it.title || " "
-                )}
+                <MonthChipKindIcon
+                  variant={it.variant ?? "event"}
+                  labels={kindLabels}
+                />
+                <span className="truncate">{it.title || " "}</span>
               </button>
             )}
           </li>
