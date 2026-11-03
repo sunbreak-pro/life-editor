@@ -49,6 +49,7 @@ export function useGoalTreeLabels(todayKey: string): {
       periodRanges: map((k) => ranges[k]),
       addHeading: t("connect.goals.addHeading"),
       addPlaceholder: t("connect.goals.addPlaceholder"),
+      addNoParentHint: t("connect.goals.addNoParentHint"),
       add: t("connect.goals.add"),
       cancel: t("connect.goals.cancel"),
       startDate: t("connect.goals.startDate"),

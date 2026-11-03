@@ -51,6 +51,7 @@ const TREE: GoalTreeLabels = {
   periodRanges: { year: "2026", month: "September", week: "9/27 – 10/3" },
   addHeading: "Add a goal",
   addPlaceholder: "Goal",
+  addNoParentHint: " (no parent needed)",
   add: "Add",
   cancel: "Cancel",
   startDate: "From",

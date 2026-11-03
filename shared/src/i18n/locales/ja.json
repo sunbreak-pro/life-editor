@@ -1543,6 +1543,7 @@
       "periods": { "year": "今年", "month": "今月", "week": "今週" },
       "addHeading": "目標を立てる",
       "addPlaceholder": "届きたいところを書きます",
+      "addNoParentHint": "。上の目標がなくても立てられます",
       "add": "追加",
       "cancel": "やめる",
       "treeHeading": "目標の木",

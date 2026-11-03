@@ -108,6 +108,11 @@ export interface GoalTreeLabels {
   periodRanges: Record<GoalPeriodKind, string>;
   addHeading: string;
   addPlaceholder: string;
+  /**
+   * Appended to the placeholder for a month or week goal only: a goal with no
+   * goal above it is a valid start there (#2400). Carries its own separator.
+   */
+  addNoParentHint: string;
   add: string;
   cancel: string;
   /** The add field's date inputs (#2366). */
@@ -1318,7 +1323,11 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
                 if (e.key === "Enter") submit();
                 if (e.key === "Escape") openAdd(null);
               }}
-              placeholder={`${labels.periods[adding]} ${labels.periodRanges[adding]}: ${labels.addPlaceholder}`}
+              placeholder={`${labels.periods[adding]} ${labels.periodRanges[adding]}: ${labels.addPlaceholder}${
+                adding === "month" || adding === "week"
+                  ? labels.addNoParentHint
+                  : ""
+              }`}
               aria-label={`${labels.periods[adding]}: ${labels.addPlaceholder}`}
               className="min-w-0 max-md:min-h-11 max-md:basis-full max-md:text-base"
             />

@@ -488,6 +488,68 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(input).not.toHaveProperty("startDate");
   });
 
+  it("ends the placeholder with the no-parent hint for a month or week goal only (#2400)", async () => {
+    await renderTab();
+    fireEvent.click(screen.getByRole("button", { name: "Set a goal" }));
+    const hint = "You can set one without a higher goal.";
+    const placeholder = (name: RegExp): string | null =>
+      screen.getByRole("textbox", { name }).getAttribute("placeholder");
+
+    expect(placeholder(/This week/)).toMatch(/What do you want to reach\? /);
+    expect(placeholder(/This week/)?.endsWith(hint)).toBe(true);
+    fireEvent.click(screen.getByRole("radio", { name: "This month" }));
+    expect(placeholder(/This month/)?.endsWith(hint)).toBe(true);
+    // A year goal has nothing above it to leave out.
+    fireEvent.click(screen.getByRole("radio", { name: "This year" }));
+    expect(placeholder(/This year/)).toBe(
+      "This year 2026: What do you want to reach?",
+    );
+  });
+
+  it("creates a month and a week goal with no goal above them when no year goal exists (#2400)", async () => {
+    const ds = makeDS({
+      fetchGoals: vi.fn().mockResolvedValue([
+        goal({
+          id: "w9",
+          title: "Tidy the desk",
+          parentGoalId: null,
+        }),
+      ]),
+      fetchTodoTree: vi.fn().mockResolvedValue([]),
+    });
+    // Without a year goal the only shown frame is the unconnected one.
+    await renderTab(ds, "Unconnected goals");
+    fireEvent.click(screen.getByRole("button", { name: "Set a goal" }));
+
+    fireEvent.click(screen.getByRole("radio", { name: "This month" }));
+    const month = screen.getByRole("textbox", { name: /This month/ });
+    fireEvent.change(month, { target: { value: "Finish the draft" } });
+    fireEvent.keyDown(month, { key: "Enter" });
+    await waitFor(() => expect(ds.createGoal).toHaveBeenCalledTimes(1));
+
+    // A saved goal closes the add field; it reopens on this week.
+    await waitFor(() =>
+      expect(screen.queryByRole("textbox", { name: /This month/ })).toBeNull(),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Set a goal" }));
+    const week = screen.getByRole("textbox", { name: /This week/ });
+    fireEvent.change(week, { target: { value: "Outline chapter 1" } });
+    fireEvent.keyDown(week, { key: "Enter" });
+    await waitFor(() => expect(ds.createGoal).toHaveBeenCalledTimes(2));
+
+    const [first, second] = vi
+      .mocked(ds.createGoal)
+      .mock.calls.map((call) => call[0]);
+    expect(first).toMatchObject({ periodKind: "month", periodKey: "2026-09" });
+    expect(second).toMatchObject({
+      periodKind: "week",
+      periodKey: "2026-09-27",
+    });
+    // Neither names a parent: the goal tree attaches them later by drag.
+    expect(first?.parentGoalId ?? null).toBeNull();
+    expect(second?.parentGoalId ?? null).toBeNull();
+  });
+
   it("creates a goal with a start and end date of its own (#2366)", async () => {
     const ds = makeDS();
     await renderTab(ds);
