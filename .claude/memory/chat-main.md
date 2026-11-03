@@ -73,12 +73,11 @@
 
 ## 直近の完了
 
+- [chat-main] **worktree の片付け・並列 PR の重なり検査（#2492）・PR 46 本の merge・main の CI 修理** ✅（2026-11-03）— 衝突の主な原因は、着手前と PR 前にファイルの重なりを見る手順がなかったこと。担当表 `lane-ownership.json` と検査 `scope-overlap.mjs` を PR #2492 で入れた。open PR は下書きの #2454 / #2460 だけになった。merge した 46 本ぶんの実ブラウザでの確認と Issue の close は未着手。詳細 = history 2026-11-03
+
 - [chat-main] **アプリ内 Note「Issue報告」の 4 項目を回収して 8 本起票** ✅（2026-10-08）— #2141（本文のフォーカスが外れるとヘッダーの Undo / Redo が disabled になる・`[shared-fix]`）/ #2142（タグフィルタのグループに解除・タグ編集・Mobile の閉じるボタン・schedule）/ #2143（Connect の目標と Todo から開いた Todo を閉じると Schedule に着く・connect）/ #2156 親 + #2152〜#2155 子（Claude Design で今の画面を再現 → 微調整 → 実装へ戻す流れ。子 4 はフィルタパネルの作り直し）。Note は消していない（今回は指示なし）。詳細 = history 2026-10-08
 
 - [chat-main] **スマホの Claude アプリから life-editor MCP を使えるようにした（Remote MCP の本番化）** ✅（2026-09-26）— コードは #1589 で着地済みで、未デプロイだったのが欠けていた。公式ドキュメントで Claude 側の条件を裏取りして **#1994** を起票し、ユーザーのデプロイ・シークレット 5 本の投入・claude.ai へのコネクタ登録を経て、スマホからツールが動くことを実機で確認した。コネクタは **Authentication = No sign-in** で登録しないと OAuth の登録に進んで止まる（`wrangler tail` で実測）。計画書の archive と参照の張り替え = **PR #1997 open**（Closes #1994）。🛑 残り = 8 文字のトークンを 64 文字に替えるかどうかのユーザー判断。詳細 = history 2026-09-26
-
-- [chat-main] **棚卸し 3 本（デッドコード / 未完了 / 製品基準）→ 報告書 + 裁定 4 件を実行** ✅（2026-09-23）— 3 並列サブエージェント + 自分で Supabase の migration 台帳を CLI 実測。**0030（タグ表示色）が本番未適用**が最大の発見（push は auto mode で止まり 🛑 ユーザー手番 = `cd supabase && npm run db:push`）。デッドコード = 完全孤立 0 / 退役残骸 0 / 消して安全 約 500 行 → **#1985 + PR**（worktree `main-deadcode`）。製品基準 = 認証・RLS・法務・テストは水準、欠けは配布 4 点 → **#1986（SMTP）→ #1987（Electron 44）→ #1988（JSON エクスポート）→ #1989（ヘルプ導線）**の順（D-20260923-main-2）。**移行 SSOT の Phase 5 完成条件を書き換え = PR #1990**（自動更新は完成後 / MCP 条件は Desktop 起動導線 + Remote MCP / Phase 4 除外 = D-20260923-main-1）。報告書 = `docs/reports/2026-09-23-product-audit.html`（Artifact https://claude.ai/artifact/6uBiKGVjaDjeHWN98iUdy3）。詳細 = history 2026-09-23
-
 ## 予定
 
 ### 🆕 2026-08-10 /goal バッチの残件（分配済み — chat-main は巡回と判断回収）
