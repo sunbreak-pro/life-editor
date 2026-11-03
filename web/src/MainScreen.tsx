@@ -23,6 +23,7 @@ import {
   useTranslation,
   useUnsavedGuardOptional,
   PinnedNotesReadAhead,
+  SECTION_ICONS,
   type DataService,
   type SectionId,
   type Session,
@@ -319,6 +320,7 @@ export function MainScreen({ session }: { session: Session }) {
   ) : (
     <SectionHeader
       title={t(`section.${section}`, { defaultValue: section })}
+      icon={SECTION_ICONS[section]}
       search={headerSearch}
       controls={headerControls}
     />

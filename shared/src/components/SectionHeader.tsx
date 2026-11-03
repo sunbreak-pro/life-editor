@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import type { LucideIcon } from "lucide-react";
 import { cn } from "./cn";
 
 export interface SectionHeaderProps {
@@ -7,6 +8,13 @@ export interface SectionHeaderProps {
    * `tabs` is set (a tab band doubles as the title — v2 §1).
    */
   title?: string;
+  /**
+   * The section's sidebar icon (#2552), drawn before `title` at the sidebar's
+   * 18px so the header alone tells which section is open. Decorative: the
+   * heading text is the name, so it is hidden from assistive tech. Ignored
+   * when `tabs` is set, like `title`.
+   */
+  icon?: LucideIcon;
   /**
    * Already-translated supplementary text beside the title (#1643), in the
    * tertiary tone — Connect's "tags 14 / items 150". Ignored when `tabs` is
@@ -84,6 +92,7 @@ export interface SectionHeaderProps {
  */
 export function SectionHeader({
   title,
+  icon: Icon,
   subtitle,
   tabs,
   search,
@@ -109,17 +118,30 @@ export function SectionHeader({
         )}
       >
         {tabs ?? (
-          <div className="flex min-w-0 items-baseline gap-2 self-center py-2">
-            {/* Same size as the HeaderTabs labels, so a titled section does
-                not read smaller than a tabbed one (#2280). */}
-            <h2 className="truncate text-sm font-semibold text-lumen-text md:text-base">
-              {title}
-            </h2>
-            {subtitle && (
-              <span className="truncate text-xs tabular-nums text-lumen-text-tertiary">
-                {subtitle}
-              </span>
+          // The icon centres on the title line from an outer row: an svg in
+          // the baseline row below would sit on the text baseline and ride
+          // high. The 18px icon is shorter than the title's line box, so the
+          // row's height does not change (#1399).
+          <div className="flex min-w-0 items-center gap-2 self-center py-2">
+            {Icon && (
+              <Icon
+                size={18}
+                aria-hidden="true"
+                className="shrink-0 text-lumen-text-secondary"
+              />
             )}
+            <div className="flex min-w-0 items-baseline gap-2">
+              {/* Same size as the HeaderTabs labels, so a titled section does
+                  not read smaller than a tabbed one (#2280). */}
+              <h2 className="truncate text-sm font-semibold text-lumen-text md:text-base">
+                {title}
+              </h2>
+              {subtitle && (
+                <span className="truncate text-xs tabular-nums text-lumen-text-tertiary">
+                  {subtitle}
+                </span>
+              )}
+            </div>
           </div>
         )}
       </div>
