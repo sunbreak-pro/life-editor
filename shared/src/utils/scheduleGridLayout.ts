@@ -250,20 +250,52 @@ export function blockTitleLines(heightPx: number): number {
  * way first, because it takes the width the title needs and the block keeps
  * other cues: the routine's left band and the todo's face colour.
  *
- * Like the height figures above these are ESTIMATES at the default font size
- * (text-xs = 12px). `widthPx` null means the width is not known — jsdom, or
- * the first render before the grid is measured — and the block keeps the
+ * The figures follow the real type. Every length in the block is rem-based
+ * and the Settings font-size step moves the root from 12px to 25px, so a
+ * fixed px guess is wrong at most steps: a 12px character judged at the 18px
+ * root (text-xs = 14.625px) let a 54px block "fit" three characters it could
+ * only hold two of, and the title still broke two characters a line. The grid
+ * therefore measures one title character and the root size and passes them in
+ * as `metrics`; until it has (jsdom, the first paint) the defaults below stand.
+ * `widthPx` null means the width is not known, and the block keeps the
  * height-only behaviour of #1835.
  */
-/** One full-width character at text-xs. */
-const TITLE_CHAR_PX = 12;
 /** The title needs at least this many characters on a line to wrap. */
 const MIN_TITLE_CHARS_PER_LINE = 3;
-/** The block's horizontal padding (px-1) and the 1px gap on each side. */
-const BLOCK_INLINE_CHROME_PX = 10;
-/** The glyph (size-3) and the gap after it (gap-1). */
-const TITLE_GLYPH_PX = 16;
-const MIN_TITLE_LINE_PX = TITLE_CHAR_PX * MIN_TITLE_CHARS_PER_LINE;
+/** The block's left and right padding (px-1 each), in rem. */
+const BLOCK_PADDING_REM = 0.5;
+/** What the routine's band adds to the left padding (pl-1.5 over px-1). */
+const BAND_EXTRA_PADDING_REM = 0.125;
+/** The event face's 1px border on each side. */
+const BLOCK_BORDER_PX = 2;
+/** The glyph (size-3) and the gap after it (gap-1), in rem. */
+const TITLE_GLYPH_REM = 1;
+/** Sub-pixel rounding of the column and the text, kept on the safe side. */
+const TITLE_SLACK_PX = 1;
+
+/** The measured type a block title is judged with. */
+export interface BlockTitleMetrics {
+  /** The px width of one full-width character in the title's font. */
+  charPx: number;
+  /** The root font size (1rem) in px. */
+  remPx: number;
+}
+
+/** text-xs (0.8125rem in tokens.css) at the default 16px root. */
+export const DEFAULT_BLOCK_TITLE_METRICS: BlockTitleMetrics = {
+  charPx: 13,
+  remPx: 16,
+};
+
+/** What the block draws beside its title, which takes from the title's width. */
+export interface BlockTitleChrome {
+  /** The variant draws a provenance glyph (routine, todo). */
+  glyph: boolean;
+  /** The routine's left band, which widens the left padding. */
+  band: boolean;
+  /** The event face's border (a tag-coloured face has none). */
+  border: boolean;
+}
 
 export interface BlockTitleFit {
   /** Lines the title may use (1 = a single truncated line). */
@@ -273,21 +305,31 @@ export interface BlockTitleFit {
 }
 
 /**
- * Lines and glyph for a block `heightPx` tall and `widthPx` wide. `hasGlyph`
- * says whether the block's variant draws a glyph at all.
+ * Lines and glyph for a block `heightPx` tall and `widthPx` wide (the block's
+ * own box, the 1px gaps beside it already taken off).
  */
 export function blockTitleFit(
   heightPx: number,
   widthPx: number | null,
-  hasGlyph: boolean,
+  chrome: BlockTitleChrome,
+  metrics: BlockTitleMetrics = DEFAULT_BLOCK_TITLE_METRICS,
 ): BlockTitleFit {
   const byHeight = blockTitleLines(heightPx);
-  if (widthPx == null) return { lines: byHeight, showGlyph: hasGlyph };
-  const textRoom = widthPx - BLOCK_INLINE_CHROME_PX;
-  const showGlyph = hasGlyph && textRoom - TITLE_GLYPH_PX >= MIN_TITLE_LINE_PX;
-  const titleRoom = showGlyph ? textRoom - TITLE_GLYPH_PX : textRoom;
+  if (widthPx == null) return { lines: byHeight, showGlyph: chrome.glyph };
+  const { charPx, remPx } = metrics;
+  const paddingPx =
+    (BLOCK_PADDING_REM + (chrome.band ? BAND_EXTRA_PADDING_REM : 0)) * remPx;
+  const textRoom =
+    widthPx -
+    paddingPx -
+    (chrome.border ? BLOCK_BORDER_PX : 0) -
+    TITLE_SLACK_PX;
+  const minLinePx = charPx * MIN_TITLE_CHARS_PER_LINE;
+  const glyphPx = TITLE_GLYPH_REM * remPx;
+  const showGlyph = chrome.glyph && textRoom - glyphPx >= minLinePx;
+  const titleRoom = showGlyph ? textRoom - glyphPx : textRoom;
   return {
-    lines: titleRoom >= MIN_TITLE_LINE_PX ? byHeight : 1,
+    lines: titleRoom >= minLinePx ? byHeight : 1,
     showGlyph,
   };
 }

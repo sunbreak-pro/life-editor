@@ -24,7 +24,7 @@ const WORK: WeekTimeGridItem = {
   variant: "routine",
 };
 
-function stubColumnWidth(width: number): void {
+function stubColumnWidth(width: number, charPx = 0): void {
   vi.stubGlobal(
     "ResizeObserver",
     class {
@@ -37,6 +37,10 @@ function stubColumnWidth(width: number): void {
     function (this: HTMLElement) {
       if (this.hasAttribute("data-week-grid-day")) {
         return { width, height: 0, top: 0, left: 0 } as DOMRect;
+      }
+      // The hidden one-character probe the grid reads the title's type from.
+      if (charPx > 0 && this.hasAttribute("data-week-grid-char-probe")) {
+        return { width: charPx, height: 0, top: 0, left: 0 } as DOMRect;
       }
       return original.call(this);
     },
@@ -61,6 +65,7 @@ function titleSpan(block: HTMLElement): HTMLElement {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
+  document.documentElement.style.fontSize = "";
 });
 
 describe("WeekTimeGrid — title in a narrow column (#2478)", () => {
@@ -79,6 +84,38 @@ describe("WeekTimeGrid — title in a narrow column (#2478)", () => {
     const block = screen.getByTitle("09:00–12:00 仕事");
     expect(titleSpan(block).className).toContain("break-words");
     expect(block.querySelector("svg")).not.toBeNull();
+  });
+
+  it("judges the width with the measured type at a larger font step", () => {
+    // A 56px column holds three 13px characters at the default 16px root, so
+    // the unmeasured defaults let the title wrap there.
+    stubColumnWidth(56);
+    const first = renderGrid();
+    const wide = screen.getByTitle("09:00–12:00 仕事");
+    expect(titleSpan(wide).className).toContain("break-words");
+    first.unmount();
+
+    // At the 18px step one character is 14.625px and the paddings grow with
+    // the root, so the same column no longer holds three: one line (PR #2485).
+    document.documentElement.style.fontSize = "18px";
+    stubColumnWidth(56, 14.625);
+    renderGrid();
+    const block = screen.getByTitle("09:00–12:00 仕事");
+    expect(titleSpan(block).className).toContain("truncate");
+    expect(titleSpan(block).className).not.toContain("break-words");
+  });
+
+  it("draws the type probe out of sight and out of the a11y tree", () => {
+    const { container } = renderGrid();
+    const probe = container.querySelector<HTMLElement>(
+      "[data-week-grid-char-probe]",
+    );
+    expect(probe).not.toBeNull();
+    expect(probe!.getAttribute("aria-hidden")).toBe("true");
+    expect(probe!.className).toContain("invisible");
+    // The title's own type, so its width is one title character.
+    expect(probe!.className).toContain("text-xs");
+    expect(probe!.className).toContain("font-medium");
   });
 
   it("keeps the height-only rule while the width is unmeasured", () => {
