@@ -87,6 +87,8 @@ export interface AppRegisterDialogLabels {
     moreLabel: string;
     /** Match count above the panel's grid; one `{count}` slot (#2389). */
     countLabel: string;
+    /** Close (×) on that panel, for a phone with no Esc key (#2500). */
+    closeLabel: string;
   };
   save: string;
   cancel: string;

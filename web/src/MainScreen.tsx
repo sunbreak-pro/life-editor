@@ -120,6 +120,41 @@ export function TabBandHeader({
   );
 }
 
+/**
+ * The narrow (Mobile) twin of TabBandHeader: the same band drawn as the
+ * segmented control in the narrow header row. Exported for the same reason —
+ * web/tests/connectTabs.test.tsx renders the band the shell draws.
+ *
+ * `singleLineLabels` (#2489): at 390px Connect's 目標と Todo broke into
+ * 「目標と」+「Todo」 beside a one-line タグ, so the two tabs stopped sharing a
+ * baseline and the band grew to 53px. Every narrow band holds two short tabs
+ * (Briefing / Materials / Connect), so the labels' min-content fits the track
+ * with room to spare: flex-1 segments keep an equal share until a label needs
+ * more, and only then does the longer one take it — the track's flex-wrap
+ * never comes into play. The type and the 44px TAP_TARGET_TALL hit area are
+ * the "sm" row's as before.
+ */
+export function NarrowTabBand({
+  band,
+}: {
+  band: TabBand;
+}): React.JSX.Element {
+  return (
+    <SegmentedControl
+      // The section tab band is the one segmented control whose height every
+      // narrow screen pays for, so it runs a step tighter than the in-panel
+      // ones (#1039). The 44px touch target rides along inside "sm".
+      size="sm"
+      singleLineLabels
+      className="flex-1"
+      options={band.defs}
+      value={band.active}
+      onChange={band.onSelect}
+      label={band.label}
+    />
+  );
+}
+
 export function MainScreen({ session }: { session: Session }) {
   const { t } = useTranslation();
   const ds = useMemo(() => getDataService(), []);
@@ -299,19 +334,7 @@ export function MainScreen({ session }: { session: Session }) {
   // `flex-1` on every shape now, not just tabs+hamburger: the band shares the
   // row with the actions at the right end, so it has to claim the space
   // between them or they drift together.
-  const narrowTabs = band ? (
-    <SegmentedControl
-      // The section tab band is the one segmented control whose height every
-      // narrow screen pays for, so it runs a step tighter than the in-panel
-      // ones (#1039). The 44px touch target rides along inside "sm".
-      size="sm"
-      className="flex-1"
-      options={band.defs}
-      value={band.active}
-      onChange={band.onSelect}
-      label={band.label}
-    />
-  ) : undefined;
+  const narrowTabs = band ? <NarrowTabBand band={band} /> : undefined;
   const narrowRow = isWide ? undefined : (
     <NarrowHeaderRow
       shape={descriptor.narrowHeader}

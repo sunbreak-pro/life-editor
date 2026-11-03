@@ -27,15 +27,15 @@
 ### Boundary
 
 - やる:
-  - **紙面表示（Step 1 出荷済み）**: 今日の約束（= ScheduleItem）・今日のタスク（= TodoNode）・持ち越し・フォーカス・AI 講評の各ブロック（列挙の出典 = briefing-loop §1。実装上の全ブロック構成は `BriefingView.tsx` が正 — Analytics 3 ウィジェットを移入した視覚ゾーンを含む）
+  - **紙面表示（Step 1 出荷済み）**: 今日の約束（= ScheduleItem）・今日のタスク（= TodoNode）・持ち越し・フォーカス・AI 講評の各ブロック（列挙の出典 = briefing-loop §1。実装上の全ブロック構成は `BriefingView.tsx` が正 — Analytics 3 ウィジェットを移入した視覚ゾーンを含む）。2026-10 から、今日の約束と今日のタスクは時刻ごとに並べる 1 つの表になり（#2223）、持ち越しは右の詳細パネルの「きのうまでの自分」の下へ移った（#2285・`shared/src/components/briefing/BriefingSidePanels.tsx`）
   - **朝刊の講評の読み方（2026-10〜）**: 列 `dailies_payload.morning_comment` を先に読み、列が無い日だけ下の本文の規約で読む。読む関数は `shared/src/components/briefing/dailyMorning.ts` の `readMorningRecord`（講評と、古い日の宣言の文章を返す）。MCP の `write_briefing` も列に書き、本文には書かない（D-20261007-briefing-1）
-  - **朝刊の目標（#2106）**: 今週の目標を進み具合つきで主役にし、今月・今年は 1 行ずつ添える。今週の目標はその場で足せる（`shared/src/components/briefing/MorningGoalsBlock.tsx`）。今日の Todo の行には、つながった目標の印が出る。いちばん上には前の晩の「明日の自分へ」が出る。期間が終わって未達の目標は、次の期間の最初の朝刊で「持ち越す / やめる / 達成にする」を 1 つずつ聞く。1 期間の件数に上限はない（#2366。ノートから移す 1 回きりの処理だけが `goalNoteMigration.ts` の 3 件を使う）。保存先・達成の判定は計画書 §設計 が正
+  - **朝刊の目標（#2106 → #2286）**: 紙面のブロックは今年・今月・今週を 1 行ずつ並べる要約で、各行に最初の目標・「その他 N」・期間の進み具合を出す（`shared/src/components/briefing/MorningGoalsBlock.tsx`）。見る・足す・Todo をつなぐ・直すは、ブロックの「目標」ボタンから開くパネルで行う（`MorningGoalsPanel.tsx`。Desktop は中央のダイアログ、Mobile は下からのシート）。今日の Todo の行には、つながった目標の印が出る。いちばん上には前の晩の「明日の自分へ」が出る。期間が終わって未達の目標は、紙面に「終わった期間の目標が N 件あります」の 1 行を出し、パネルの先頭のカードで「持ち越す / やめる / 達成にする」を 1 つずつ聞く。1 期間の件数に上限はない（#2366。ノートから移す 1 回きりの処理だけが `goalNoteMigration.ts` の 3 件を使う）。保存先・達成の判定は計画書 §設計 が正
   - **朝刊の保存規約（`extractBriefing`。2026-10 からは列の無い古い日の読み口）**: TipTap JSON の `heading` ノード（レベル不問）でテキストが「朝刊」/「Briefing」（大文字小文字不問・trim 後完全一致）のセクションを抽出。段落 1 = フォーカス行・段落 2 以降 = AI 講評。次の heading（テキスト不問）でセクション終了。content が欠落・パース不能・セクション無しは `null` → 紙面は空状態表示
   - **夕刊規約（Step 3・決定録 1 + 6）**: Daily 内「夕刊」見出しセクション（英 alias: Evening）・朝刊と同じ規約・DDL ゼロ。**1 行でも成立**（書くハードルを上げない）。気分（五段階）はテキスト規約「気分: n/5」で夕刊セクション内に保存。入力 UI = Briefing 内ヘッダータブ（朝刊 / 夕刊）の専用ページ（loop-friction-fixes F-6 — 保存先は Daily のまま・Daily 側から直接書いても同じ場所に落ちる）
   - **夕刊の作り直し（#2107）**: ★を付けると発行済みになり、`dailies_payload.evening_published_at` に時刻が入る。号数は「気分: n/5」の行がある Daily の数で、連続した日数を添える。ほかに、今日進んだ目標・時間順の今日の出来事（行ごとの一言 = `evening_notes`）・目標から明日の予定に置く Todo・「明日の自分へ」（旧「明日のフォーカス」。保存先は予約ノート `note-focus` の翌日の節のまま）・「Daily に移動」を持つ。一日の締めくくりの欄は、Daily と同じ「1 本の文章」を編集する（`shared/src/components/briefing/dailyText.ts` の `readDailyText` / `writeDailyText`。定義は計画書 §Daily と夕刊の文章を 1 本にする）
   - ~~**宣言規約（Step 4・DDL ゼロ）**~~ → **退役（2026-10・#2106 / #2107）**: 朝刊・夕刊から入力欄を外し、目標につながった Todo が宣言の代わりになった（D-20260928-briefing-4）。古い日の本文に残る「宣言」の節は消さず、`readMorningRecord` が読み返す。以下は当時の規約の記録: Daily 内「宣言」見出しセクション（英 alias: Intention / Intentions）。朝刊紙面の「今日の宣言」欄で編集（保存 = 行ごと段落のセクション差し替えマージ — 朝刊・夕刊セクションを壊さない）・夕刊タブは同セクションを再掲するが、wide は「今朝の宣言」として表示専用・narrow（<768px）は「今日の宣言」の編集欄（#391 — モバイルの取捨の正本は `docs/requirements/mobile-scope.md` #3）。講評は翌朝刊の朝刊セクションが担う（`get_today_context` は Daily 本文を素で読むため MCP 変更なし）
-  - 約束行の名称タップ = 完了トグル（現行）。タスク行への同型追加 + 各行からの移動ボタンは loop-friction-fixes F-2
-  - **rightSidebar「今日の Todo」トレイ（#413）**: 詳細パネルに配置済み / 未配置の 2 群 + 「タスクから追加」ピッカーを出し、残っているタスクをその場で今日の候補へ配置する。部品は Schedule の `TodayTodoTray`（#298）を**流用**（複製しない）・追加の書き込みは Schedule と同じ「`scheduledAt` = 今日 0:00 + 終日」。「今日」は Briefing 側の `todayDateKey()`（日付変更時刻 #373 準拠）で、紙面の「今日の Todo」と同じ基準（#413 で紙面側の日付判定を UTC 文字列スライスから `dateKeyOfInstant()` = ローカル日付に修正。JST では終日タスクが常に前日扱いになり持ち越しへ落ちていた）。ただし Schedule 側トレイは `todayCalendarKey()`（暦日）のままなので、日付変更時刻を 0 以外にすると深夜〜設定時刻の窓だけ両者の「今日」がずれる。wide 限定（narrow は Briefing に詳細パネルの開閉導線が無い — mobile-scope.md #1 の Consumption 維持）
+  - ~~約束行の名称タップ = 完了トグル~~ → 予定から完了が無くなり、#1373 で約束行の完了の印を外した。今は表の予定と Todo のタイトルを押すと、その場で編集パネルが開く（#2223）。Todo の完了は行の先頭の丸で切り替える。タスク行への同型追加 + 各行からの移動ボタンは loop-friction-fixes F-2
+  - **rightSidebar「今日の Todo」トレイ（#413）**: **#2223 から夕刊の右パネルだけに出る**。朝刊は表が今日の Todo を持つため、朝刊の右パネルは「きのうまでの自分」と「持ち越し」になった（`web/src/briefing/BriefingScreen.tsx` の `todoTrayPortal`）。夕刊ではトレイの下に「残りの Todo」「今後の予定」が並ぶ（#2285）。以下はトレイ自体の規約: 詳細パネルに配置済み / 未配置の 2 群 + 「タスクから追加」ピッカーを出し、残っているタスクをその場で今日の候補へ配置する。部品は Schedule の `TodayTodoTray`（#298）を**流用**（複製しない）・追加の書き込みは Schedule と同じ「`scheduledAt` = 今日 0:00 + 終日」。「今日」は Briefing 側の `todayDateKey()`（日付変更時刻 #373 準拠）で、紙面の「今日の Todo」と同じ基準（#413 で紙面側の日付判定を UTC 文字列スライスから `dateKeyOfInstant()` = ローカル日付に修正。JST では終日タスクが常に前日扱いになり持ち越しへ落ちていた）。ただし Schedule 側トレイは `todayCalendarKey()`（暦日）のままなので、日付変更時刻を 0 以外にすると深夜〜設定時刻の窓だけ両者の「今日」がずれる。~~wide 限定（narrow は Briefing に詳細パネルの開閉導線が無い）~~ → #609 から narrow でも帯の左端のハンバーガーからドロワーで開ける（mobile-scope.md #1）
 - やらない:
   - Claude API 直課金の生成経路（$0 制約 — briefing-loop Context。定時自動化 Step 5 もサブスク範囲内の経路で選定）
   - ~~朝刊・夕刊のための新テーブル / DDL~~ → 2026-10 の作り直しで撤回。目標の表（`goals_payload` / `goal_todo_links`）と `dailies_payload` の 3 列を足した（0034 / 0035・規約 = `docs/vision/db-conventions.md` §15）
@@ -49,7 +49,7 @@
 
 - [ ] AC1: アプリ起動時のデフォルトセクションが Briefing で、紙面ブロック（今日の約束・タスク・持ち越し・フォーカス・AI 講評 — 構成の正 = `BriefingView.tsx`）が表示される
 - [ ] AC2: 当日 DailyNode content に「朝刊」（or Briefing）見出し + 段落があると、段落 1 がフォーカス行・段落 2 以降が AI 講評として紙面に出る。セクションが無い / パース不能な日は空状態が出てクラッシュしない
-- [ ] AC3: 約束行の名称タップで完了トグル（取り消し線）が働き、Schedule 側と同じ完了状態を共有する
+- [ ] ~~AC3: 約束行の名称タップで完了トグル（取り消し線）が働き、Schedule 側と同じ完了状態を共有する~~ → 予定の完了の印を外した #1373 で対象外。Todo の完了は Schedule と同じ状態を共有する
 - [ ] AC4: （Step 3 実装後）夕刊タブで書いた内容が Daily の「夕刊」見出しセクションとして保存され、Daily 側でも読める。1 行だけでも成立し、「気分: n/5」行が規約どおり記録される
 - [ ] AC5: （Step 2 実装後）MCP `write_briefing` で当日 Daily に朝刊セクションを書き込むと、次回表示時に紙面へ反映される
 - [ ] ~~AC6: （Step 4 実装後）朝刊の宣言欄で書いた内容が Daily の「宣言」見出しセクションとして保存され、夕刊タブに「今朝の宣言」として表示される。宣言の保存で朝刊・夕刊セクションが壊れない~~ → 宣言の退役（2026-10）で対象外。作り直し後の AC は計画書 §Acceptance Criteria が正

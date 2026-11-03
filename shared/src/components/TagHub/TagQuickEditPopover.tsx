@@ -55,6 +55,7 @@ export type TagQuickEditLabels = Pick<
   | "colorLabel"
   | "iconMore"
   | "iconCount"
+  | "iconClose"
   | "iconClear"
   | "iconSearch"
   | "iconNoMatch"
@@ -244,6 +245,7 @@ export function TagQuickEditPopover({
                 noMatchLabel: labels.iconNoMatch,
                 moreLabel: labels.iconMore,
                 countLabel: labels.iconCount,
+                closeLabel: labels.iconClose,
               }}
             />
           </div>

@@ -270,6 +270,25 @@ const HOVER_REVEAL =
 const NARROW_TAP_FLOOR = "max-md:min-h-11 max-md:min-w-11";
 
 /*
+ * The title on a phone (#2477): two lines instead of one, and the button
+ * around it is 44px tall.
+ *
+ * The drawer leaves the title what the leading checkbox and the two 44px
+ * buttons after it do not take, which measured 113px at 390px — five or six
+ * characters before the ellipsis, and ONE on an "other" row whose "9/5 14:00"
+ * sat on the same line. None of the three can shrink below the touch floor,
+ * so the title gets a second line rather than more width: two lines of that
+ * column are twice the characters, and a short title still takes one.
+ *
+ * `max-md:` because the Desktop sidebar keeps its one truncated line (the
+ * same reason as NARROW_TAP_FLOOR above). `whitespace-normal` undoes the
+ * `truncate` beside it, and `break-words` lets a long Latin word wrap rather
+ * than push past the box.
+ */
+const NARROW_TITLE_WRAP =
+  "max-md:line-clamp-2 max-md:whitespace-normal max-md:break-words";
+
+/*
  * One button of the #2408 cluster, with its tooltip above it.
  *
  * The tooltip is portalled and fixed because the sidebar's scroller clips: the
@@ -460,13 +479,15 @@ function TodoRow({
             // horizontal scrollbar under the narrow drawer's Todo tab. The
             // `truncate` on the title span inside cannot help while the box
             // around it is the thing that will not give.
-            "flex min-h-[38px] min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left",
+            // #2477: `max-md:min-h-11` — 38px is a mouse size.
+            "flex min-h-[38px] min-w-0 flex-1 items-center gap-2 rounded-sm py-1 text-left max-md:min-h-11",
             FOCUS,
           )}
         >
           <span
             className={cn(
               "min-w-0 flex-1 truncate text-sm",
+              NARROW_TITLE_WRAP,
               done
                 ? "text-lumen-text-secondary line-through"
                 : "text-lumen-text",
@@ -741,33 +762,54 @@ export function TodayTodoTray({
                       label={labels.status}
                     />
                   )}
-                  {onOpenAddable ? (
-                    // #1153: the same title, as the way in. A button only when
-                    // the host has somewhere to open — a dead one would be worse
-                    // than the plain text it replaces.
-                    <button
-                      type="button"
-                      title={labels.openAddable}
-                      onClick={() => onOpenAddable(a.id)}
-                      className={cn(
-                        "min-w-0 flex-1 truncate py-1.5 text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent",
-                        FOCUS,
-                      )}
-                    >
-                      {a.title}
-                    </button>
-                  ) : (
-                    <span className="min-w-0 flex-1 truncate py-1.5 text-sm text-lumen-text">
-                      {a.title}
-                    </span>
-                  )}
-                  {/* #1406: where the row is now — a row on some other day says
-                    so, in the slot today's rows use for their clock. */}
-                  {a.meta && (
-                    <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
-                      {a.meta}
-                    </span>
-                  )}
+                  {/* #2477: the title and the "where it is now" share one box,
+                    side by side on Desktop (the row's own gap-2, as before) and
+                    stacked on a phone, where the meta on the title's line left
+                    the title one character. */}
+                  <div
+                    data-addable-title
+                    className="flex min-w-0 flex-1 items-center gap-2 max-md:flex-col max-md:items-stretch max-md:gap-0 max-md:py-0.5"
+                  >
+                    {onOpenAddable ? (
+                      // #1153: the same title, as the way in. A button only when
+                      // the host has somewhere to open — a dead one would be worse
+                      // than the plain text it replaces.
+                      <button
+                        type="button"
+                        title={labels.openAddable}
+                        onClick={() => onOpenAddable(a.id)}
+                        className={cn(
+                          "flex min-w-0 flex-1 items-center py-1.5 text-left text-sm text-lumen-text transition-colors hover:text-lumen-accent max-md:min-h-11",
+                          FOCUS,
+                        )}
+                      >
+                        <span
+                          className={cn(
+                            "min-w-0 flex-1 truncate",
+                            NARROW_TITLE_WRAP,
+                          )}
+                        >
+                          {a.title}
+                        </span>
+                      </button>
+                    ) : (
+                      <span
+                        className={cn(
+                          "min-w-0 flex-1 truncate py-1.5 text-sm text-lumen-text",
+                          NARROW_TITLE_WRAP,
+                        )}
+                      >
+                        {a.title}
+                      </span>
+                    )}
+                    {/* #1406: where the row is now — a row on some other day
+                      says so, in the slot today's rows use for their clock. */}
+                    {a.meta && (
+                      <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
+                        {a.meta}
+                      </span>
+                    )}
+                  </div>
                   {rowActions && (
                     <div className="flex shrink-0 items-center gap-0.5">
                       <RowActionButton
