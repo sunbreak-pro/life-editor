@@ -146,11 +146,18 @@ export function AppsView({
       {/* Not while loading: the read may come back empty, and the empty state
           carries its own button — showing this one first made it blink away. */}
       {canManage && !loading && !isEmpty && (
-        <div className="flex justify-end">
+        <div className="flex items-start justify-between gap-4">
+          {/* Beside the button it explains, not under the list (#2512). */}
+          <p
+            data-apps-key-guide=""
+            className="min-w-0 flex-1 text-xs leading-relaxed text-lumen-text-tertiary"
+          >
+            {labels.keyGuide}
+          </p>
           <Button
             variant="primary"
             size="sm"
-            className={CARD_BTN_TAP}
+            className={`${CARD_BTN_TAP} shrink-0`}
             leadingIcon={<Plus size={14} />}
             onClick={() => openRegister()}
           >
@@ -192,19 +199,26 @@ export function AppsView({
             {labels.emptyIntro}
           </p>
           {canManage && (
-            <Button
-              variant="primary"
-              size="sm"
-              className={CARD_BTN_TAP}
-              leadingIcon={<Plus size={14} />}
-              onClick={() => openRegister()}
-            >
-              {labels.register}
-            </Button>
+            <>
+              <Button
+                variant="primary"
+                size="sm"
+                className={CARD_BTN_TAP}
+                leadingIcon={<Plus size={14} />}
+                onClick={() => openRegister()}
+              >
+                {labels.register}
+              </Button>
+              {/* The narrow layout cannot register, so a key procedure there
+                  is a step nobody on that screen can take (#2512). */}
+              <p
+                data-apps-key-guide=""
+                className="text-xs leading-relaxed text-lumen-text-tertiary"
+              >
+                {labels.keyGuide}
+              </p>
+            </>
           )}
-          <p className="text-xs leading-relaxed text-lumen-text-tertiary">
-            {labels.keyGuide}
-          </p>
         </div>
       )}
 
@@ -268,12 +282,6 @@ export function AppsView({
             ))}
           </ul>
         </section>
-      )}
-
-      {!isEmpty && !loading && (
-        <p className="text-xs leading-relaxed text-lumen-text-tertiary">
-          {labels.keyGuide}
-        </p>
       )}
 
       {dialog && (
