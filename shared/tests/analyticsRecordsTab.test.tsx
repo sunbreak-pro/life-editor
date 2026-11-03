@@ -43,11 +43,25 @@ vi.mock("recharts", () => {
       />
     ),
     XAxis: () => null,
-    // Says which value range the axis was handed (#2311); none = recharts' own.
-    YAxis: ({ domain }: { domain?: [number, number] }) => (
+    // Says which value range and ticks the axis was handed (#2311 / #2513),
+    // the ticks as the axis prints them; none = recharts' own.
+    YAxis: ({
+      domain,
+      ticks,
+      tickFormatter,
+    }: {
+      domain?: [number, number];
+      ticks?: number[];
+      tickFormatter?: (v: number) => string;
+    }) => (
       <div
         data-testid="records-y-axis"
         data-domain={domain ? domain.join(",") : "auto"}
+        data-ticks={
+          ticks
+            ? ticks.map((t) => (tickFormatter ? tickFormatter(t) : t)).join("|")
+            : "auto"
+        }
       />
     ),
     CartesianGrid: () => null,
@@ -455,6 +469,8 @@ describe("Records tab value axis (#2311)", () => {
   ];
   const domain = (): string =>
     screen.getByTestId("records-y-axis").dataset.domain ?? "";
+  const ticks = (): string =>
+    screen.getByTestId("records-y-axis").dataset.ticks ?? "";
 
   it("fits a line's axis to the values drawn, with a little room", () => {
     render(
@@ -468,8 +484,45 @@ describe("Records tab value axis (#2311)", () => {
       />,
     );
     screen.getByTestId("records-line");
-    // 67–68 kg with a tenth of the spread above and below, not 0–68.
-    expect(domain()).toBe("66.9,68.1");
+    // 67–68 kg with a little room, widened to half-kilo steps (#2513): not
+    // 0–68, and no odd end such as 68.1 printed as a tick of its own.
+    expect(domain()).toBe("66.5,68.5");
+    expect(ticks()).toBe("66.5|67.0|67.5|68.0|68.5");
+  });
+
+  it("fits a sum line to its values, not to the zero of the empty days (#2513)", () => {
+    render(
+      <AnalyticsView
+        {...props({
+          records: [
+            rec({ occurredAt: noon(1), kind: "weight", unit: "kg", value: 67.5 }),
+            rec({ occurredAt: noon(3), kind: "weight", unit: "kg", value: 67.8 }),
+            rec({ occurredAt: noon(5), kind: "weight", unit: "kg", value: 67.2 }),
+          ],
+          recordViews: [
+            savedView("weight", "kg", { chart: "line", metric: "sum" }),
+          ],
+        })}
+      />,
+    );
+    screen.getByTestId("records-line");
+    expect(domain()).toBe("67,68");
+    expect(ticks()).toBe("67.0|67.2|67.4|67.6|67.8|68.0");
+  });
+
+  it("steps a count line by whole records", () => {
+    render(
+      <AnalyticsView
+        {...props({
+          records: weighings,
+          recordViews: [
+            savedView("weight", "kg", { chart: "line", metric: "count" }),
+          ],
+        })}
+      />,
+    );
+    // One weighing on each of two days: a step of 1, never 0.2 of a record.
+    expect(ticks()).toBe("0|1|2");
   });
 
   it("keeps the bars standing on zero", () => {
@@ -485,6 +538,7 @@ describe("Records tab value axis (#2311)", () => {
     );
     screen.getByTestId("records-bar");
     expect(domain()).toBe("auto");
+    expect(ticks()).toBe("auto");
   });
 
   it("still gives a single weighing an axis to stand in", () => {
@@ -641,6 +695,33 @@ describe("narrow Records block", () => {
     expect(shape(weight)).toBe("line");
     // Nothing saved for expense: bars, like the wide tab's default.
     expect(shape(expense)).toBe("bar");
+  });
+
+  it("draws a sum line's week from its days with a value only (#2513)", () => {
+    mockMatchMedia(false);
+    const records = [
+      rec({ occurredAt: noon(1), kind: "weight", unit: "kg", value: 62 }),
+      rec({ occurredAt: noon(2), value: 300 }),
+    ];
+    render(
+      <AnalyticsView
+        {...props({
+          records,
+          recordViews: [
+            savedView("weight", "kg", { chart: "line", metric: "sum" }),
+          ],
+          activeTab: undefined,
+        })}
+      />,
+    );
+
+    const block = screen.getByText("Last 7 days").closest("div")
+      ?.parentElement as HTMLElement;
+    const [expense, weight] = within(block).getAllByRole("listitem");
+    // One point for the one weighing, not six more on a floor of 0 kg.
+    expect(weight.querySelectorAll("svg[data-chart] circle")).toHaveLength(1);
+    // The bars keep a stub for each of the seven days.
+    expect(expense.querySelectorAll("svg[data-chart] rect")).toHaveLength(7);
   });
 
   it("says there are none, and still shows the block, when the last 7 days are empty", () => {
