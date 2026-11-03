@@ -1808,7 +1808,8 @@
       "now": "Current time",
       "columns": "Columns shown",
       "addEvent": "Add an event",
-      "addTodo": "Add a todo"
+      "addTodo": "Add a todo",
+      "noTodos": "No todos today"
     },
     "vizTitle": "YOU, UP TO YESTERDAY",
     "carryoverTitle": "CARRYOVER",
