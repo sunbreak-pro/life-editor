@@ -109,6 +109,9 @@ export function SettingsProfile({
             maxLength={maxLength}
             disabled={busy}
             aria-describedby={helperId}
+            // Input's own h-9 serves every Desktop form; min-height outranks
+            // height, so the floor applies here without touching it (#2517).
+            className={CARD_BTN_TAP}
             onChange={(e) => onDisplayNameChange(e.target.value)}
             onKeyDown={handleKeyDown}
           />
