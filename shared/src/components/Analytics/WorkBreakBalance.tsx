@@ -18,6 +18,7 @@ import {
   CHART_TICK,
   CHART_TOOLTIP_STYLE,
   evenDateTicks,
+  MAX_DATE_TICKS,
   DURATION_AXIS_WIDTH,
   FALLBACK_AXIS_FORMAT,
   type ChartAxisFormat,
@@ -40,6 +41,12 @@ interface WorkBreakBalanceProps {
    * its own — without it the chart prints what it printed before.
    */
   axis?: ChartAxisFormat;
+  /**
+   * Most date labels the X axis may print (#2505). Defaults to
+   * MAX_DATE_TICKS, which is what Analytics draws; the Briefing drawer passes
+   * NARROW_MAX_DATE_TICKS on a phone, where seven labels do not fit.
+   */
+  maxDateTicks?: number;
 }
 
 export function WorkBreakBalance({
@@ -47,6 +54,7 @@ export function WorkBreakBalance({
   days,
   labels,
   axis = FALLBACK_AXIS_FORMAT,
+  maxDateTicks = MAX_DATE_TICKS,
 }: WorkBreakBalanceProps): React.JSX.Element {
   const data = useMemo(
     () =>
@@ -61,8 +69,12 @@ export function WorkBreakBalance({
 
   // Even stride counted back from today (#1866) — see `evenDateTicks`.
   const dateTicks = useMemo(
-    () => evenDateTicks(data.map((d) => d.date)),
-    [data],
+    () =>
+      evenDateTicks(
+        data.map((d) => d.date),
+        maxDateTicks,
+      ),
+    [data, maxDateTicks],
   );
 
   return (

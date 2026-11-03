@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import {
@@ -106,9 +107,18 @@ export function MobileDrawer({
   // panel the Desktop sidebar does, and closing it unmounts the draft inside.
   const { isOpen, open, requestClose, contentCount, setPortalTarget } =
     useRightSidebarContext();
+  /*
+   * Open ON the close button (#2505). The drawer's content is whatever the
+   * section portalled in, so "the first focusable control" was nobody's choice:
+   * on the morning paper it was a recharts svg (tabindex=0), which opened in a
+   * white focus ring with its tooltip up. The close button is the one control
+   * every drawer has, and it is the drawer's own.
+   */
+  const closeRef = useRef<HTMLButtonElement | null>(null);
   const panelRef = useDialogA11y<HTMLDivElement>({
     open: isOpen,
     onClose: requestClose,
+    initialFocus: () => closeRef.current,
   });
   // Swipe goes through requestClose for the same reason the scrim and the ×
   // do: it is the user asking, so the unsaved-draft guard gets its say (#753).
@@ -176,6 +186,7 @@ export function MobileDrawer({
          * offset clears the notch the same way the panel's own padding does.
          */}
         <button
+          ref={closeRef}
           type="button"
           onClick={requestClose}
           aria-label={closeLabel}
