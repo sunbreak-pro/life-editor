@@ -763,12 +763,20 @@ export function LinkPanel({
                       ].join(" ")}
                     >
                       {renderRowTile(target.role, false)}
-                      <span className="min-w-0 flex-1 truncate">
-                        {target.label}
-                      </span>
-                      <span className="shrink-0 text-[0.6875rem] text-lumen-text-tertiary">
-                        {roleLabels[target.role] ?? target.role}
-                        {target.date ? ` ${target.date}` : ""}
+                      {/* #2474: below the breakpoint the kind and the day drop
+                          under the title, which then has the row's whole width.
+                          Beside it, they took so much of a phone-width list
+                          that an event's title was cut to one letter. On
+                          Desktop this box is `contents`, so the row is the same
+                          three items it always was. */}
+                      <span className="contents max-md:flex max-md:min-w-0 max-md:flex-1 max-md:flex-col max-md:items-start">
+                        <span className="min-w-0 flex-1 truncate max-md:w-full max-md:flex-none">
+                          {target.label}
+                        </span>
+                        <span className="shrink-0 text-[0.6875rem] text-lumen-text-tertiary max-md:max-w-full max-md:truncate">
+                          {roleLabels[target.role] ?? target.role}
+                          {target.date ? ` ${target.date}` : ""}
+                        </span>
                       </span>
                     </button>
                   );
