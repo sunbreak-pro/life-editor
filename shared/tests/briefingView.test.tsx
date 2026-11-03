@@ -808,6 +808,94 @@ describe("Today's schedule as a time table (#2223)", () => {
     });
   });
 
+  /*
+   * #2502 — on a phone the heading and its「予定 / Todo」switch, and each
+   * row's time and title, sat on different middles. jsdom has no layout, so
+   * these pin the structure that lines them up; the positions are measured in
+   * a real browser.
+   */
+  describe("phone alignment (#2502)", () => {
+    function scheduleHead(): HTMLElement {
+      const group = document.querySelector("[data-briefing-column-switch]");
+      const head = group?.closest("[data-briefing-block-head]");
+      if (!(head instanceof HTMLElement)) throw new Error("no schedule head");
+      return head;
+    }
+    function timeBox(time: string): HTMLElement {
+      const box = rowAt(time).querySelector("th [data-briefing-row-time]");
+      if (!(box instanceof HTMLElement)) throw new Error(`no time at ${time}`);
+      return box;
+    }
+
+    it("centres the schedule heading on its switch below md only", () => {
+      renderView({ data: TABLE_DATA, narrow: true });
+      const head = scheduleHead();
+      expect(head.className).toContain("max-md:items-center");
+      // Desktop keeps the baseline row it always had.
+      expect(head.className).toContain("items-baseline");
+      expect(head.className).not.toMatch(/(^|\s)items-center/);
+    });
+
+    it("keeps a hint-only heading on the baseline", () => {
+      renderView({ data: TABLE_DATA });
+      const heads = document.querySelectorAll("[data-briefing-block-head]");
+      const hintOnly = Array.from(heads).filter(
+        (head) => head.querySelector("[data-briefing-column-switch]") === null,
+      );
+      for (const head of hintOnly) {
+        expect(head.className).not.toContain("max-md:items-center");
+      }
+    });
+
+    it("gives each row's time the 44px box its title sits in", () => {
+      renderView({ data: TABLE_DATA, narrow: true });
+      for (const time of ["09:00", "12:00"]) {
+        const box = timeBox(time);
+        expect(box.textContent).toBe(time);
+        for (const cls of [
+          "max-md:flex",
+          "max-md:min-h-11",
+          "max-md:items-center",
+        ]) {
+          expect(box.className).toContain(cls);
+        }
+        // Desktop: no unprefixed layout class, so the label stays inline.
+        expect(
+          box.className.split(/\s+/).every((c) => c.startsWith("max-md:")),
+        ).toBe(true);
+      }
+    });
+
+    it("pads the time like the event li above its head box", () => {
+      renderView({ data: TABLE_DATA, narrow: true });
+      const th = rowAt("09:00").querySelector("th") as HTMLElement;
+      const li = rowAt("09:00").querySelector("[data-briefing-event]");
+      expect(li?.className).toContain("py-1");
+      expect(th.className).toContain("max-md:pt-1");
+      expect(th.className).toContain("max-md:pb-0");
+      // Desktop padding is untouched.
+      expect(th.className).toContain("py-2");
+      expect(th.className).toContain("align-top");
+    });
+
+    it("pads the time like the todo li once the phone shows todos", () => {
+      renderView({ data: TABLE_DATA, narrow: true });
+      fireEvent.click(
+        within(
+          document.querySelector(
+            "[data-briefing-column-switch]",
+          ) as HTMLElement,
+        ).getByRole("button", { name: /Todos/ }),
+      );
+      const th = rowAt("09:00").querySelector("th") as HTMLElement;
+      const li = rowAt("09:00").querySelector("[data-briefing-todo]");
+      expect(li?.className).toContain("py-0.5");
+      expect(th.className).toContain("max-md:pt-0.5");
+      expect(th.className).not.toContain("max-md:pt-1");
+      expect(timeBox("untimed").textContent).toBe("No time");
+    });
+  });
+
   it("never nests a button inside another button", () => {
     const { container } = renderView({ data: TABLE_DATA, nowMinutes: 600 });
     expect(container.querySelectorAll("button button").length).toBe(0);
