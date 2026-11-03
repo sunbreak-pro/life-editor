@@ -93,6 +93,97 @@ describe("HeaderTabs", () => {
     expect(noDivider.container.querySelector(".border-b-2")).not.toBeNull();
   });
 
+  /*
+   * #2508 — Analytics' five tabs wrapped 「概 / 要」 at 1280px and stacked one
+   * character per line at 768px, running under the header's search field.
+   * jsdom has no layout, so the classes that keep a label on one line and
+   * scroll the overflow sideways are what this can pin; the positions are
+   * checked in a real browser.
+   */
+  describe("overflow (#2508)", () => {
+    const FIVE: HeaderTab[] = [
+      { id: "overview", label: "概要" },
+      { id: "tasks", label: "Todo" },
+      { id: "work", label: "作業" },
+      { id: "schedule", label: "スケジュール" },
+      { id: "records", label: "記録" },
+    ];
+
+    function classesOf(el: Element | null | undefined): string[] {
+      return (el?.getAttribute("class") ?? "").split(/\s+/);
+    }
+
+    it("keeps every tab label on one line and lets no tab shrink", () => {
+      render(
+        <HeaderTabs
+          tabs={FIVE}
+          activeTab="overview"
+          onSelect={vi.fn()}
+          divider={false}
+        />,
+      );
+      for (const tab of screen.getAllByRole("tab")) {
+        expect(classesOf(tab)).toEqual(
+          expect.arrayContaining(["whitespace-nowrap", "shrink-0"]),
+        );
+      }
+    });
+
+    it("scrolls the tablist sideways and lets the row shrink below the tabs' width", () => {
+      const { container } = render(
+        <HeaderTabs
+          tabs={FIVE}
+          activeTab="overview"
+          onSelect={vi.fn()}
+          divider={false}
+        />,
+      );
+      const tablist = screen.getByRole("tablist");
+      expect(classesOf(tablist)).toEqual(
+        expect.arrayContaining(["overflow-x-auto", "min-w-0"]),
+      );
+      // The row is a flex item of SectionHeader's left column: without
+      // min-w-0 it keeps the tabs' full width and runs under the controls.
+      expect(container.firstElementChild).toBe(tablist.parentElement);
+      expect(classesOf(container.firstElementChild)).toContain("min-w-0");
+    });
+
+    it("gives the scroll container the pixel the active underline hangs below it", () => {
+      render(
+        <HeaderTabs
+          tabs={FIVE}
+          activeTab="overview"
+          onSelect={vi.fn()}
+          divider={false}
+        />,
+      );
+      // Each tab sits -mb-px so its underline overlaps the divider; a scroll
+      // container would clip that pixel unless it pads it in (pb-px) and
+      // hangs by the same pixel itself (-mb-px).
+      expect(classesOf(screen.getByRole("tablist"))).toEqual(
+        expect.arrayContaining(["-mb-px", "pb-px"]),
+      );
+      expect(classesOf(screen.getByRole("tab", { name: "概要" }))).toContain(
+        "-mb-px",
+      );
+    });
+
+    it("still roams all five tabs with the arrow keys", () => {
+      const onSelect = vi.fn();
+      render(
+        <HeaderTabs tabs={FIVE} activeTab="records" onSelect={onSelect} />,
+      );
+      fireEvent.keyDown(screen.getByRole("tab", { name: "記録" }), {
+        key: "ArrowRight",
+      });
+      expect(onSelect).toHaveBeenLastCalledWith("overview");
+      fireEvent.keyDown(screen.getByRole("tab", { name: "記録" }), {
+        key: "ArrowLeft",
+      });
+      expect(onSelect).toHaveBeenLastCalledWith("schedule");
+    });
+  });
+
   it("renders a trailing node outside the tablist (Turn 2 rightSidebar toggle slot)", () => {
     renderTabs({ trailing: <button type="button">panel</button> });
     // The tablist still exposes exactly the declared tabs (trailing is NOT a tab).

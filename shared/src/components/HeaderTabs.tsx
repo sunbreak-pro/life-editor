@@ -83,15 +83,38 @@ export function HeaderTabs({
     onSelect(nextTab.id);
   };
 
+  /*
+   * OVERFLOW (#2508): a band wider than its column scrolls sideways instead of
+   * squeezing the labels. Analytics' five tabs used to wrap 「概 / 要」 at
+   * 1280px and stack one character per line at 768px, and the strip then ran
+   * under the header's search field. Three pieces hold that together:
+   * - `min-w-0` on the row and the tablist lets them shrink below the tabs'
+   *   natural width, so the strip stops at the controls instead of under them.
+   * - `whitespace-nowrap shrink-0` on each tab keeps the label on one line.
+   * - `overflow-x-auto` scrolls the rest into reach (trackpad / shift+wheel,
+   *   and ←/→ focus scrolls the next tab into view). The scrollbar is hidden
+   *   because a classic one would add its own height to the band.
+   * `pb-px -mb-px` keeps the active underline on the SectionHeader divider:
+   * each tab hangs 1px below the list (`-mb-px`), and a scroll container
+   * would clip that pixel, so the list grows by the same pixel inside and
+   * gives it back outside.
+   */
   return (
     <div
       className={cn(
-        "flex",
+        "flex min-w-0",
         divider && "border-b border-lumen-border",
         className,
       )}
     >
-      <div role="tablist" aria-label={label} className="flex gap-2">
+      <div
+        role="tablist"
+        aria-label={label}
+        className={cn(
+          "-mb-px flex min-w-0 gap-2 overflow-x-auto pb-px",
+          "[scrollbar-width:none] [&::-webkit-scrollbar]:hidden",
+        )}
+      >
         {tabs.map((tab, i) => {
           const active = tab.id === activeTab;
           return (
@@ -111,7 +134,7 @@ export function HeaderTabs({
                 // Desktop reads the tabs at base (#2280); the narrow layout
                 // swaps this strip for SegmentedControl, so sm only matters
                 // for an in-body strip below md.
-                "-mb-px flex items-center gap-1.5 px-3 py-2 text-sm md:text-base",
+                "-mb-px flex shrink-0 items-center gap-1.5 whitespace-nowrap px-3 py-2 text-sm md:text-base",
                 "transition-colors focus-visible:outline-none",
                 "focus-visible:ring-2 focus-visible:ring-lumen-accent",
                 active
