@@ -189,7 +189,10 @@ export function EveningTomorrowRow({
     .join(" ");
   return (
     <li className="flex flex-wrap items-center gap-x-2 gap-y-1 border-b border-dashed border-lumen-border py-2 last:border-b-0">
-      <span className="min-w-0 flex-1 text-sm text-lumen-text">
+      {/* #2503 — beside the fixed-width time field and button, the title had
+          about 125px of a 390px sheet. Below md it takes its own line and the
+          controls wrap under it; Desktop keeps the one-line row. */}
+      <span className="min-w-0 flex-1 text-sm text-lumen-text max-md:basis-full">
         {entry.title}
         {entry.goalTitle !== null && (
           <span className="ml-2 text-xs text-lumen-text-tertiary">

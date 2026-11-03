@@ -543,12 +543,27 @@ interface AddingUnder extends EditingRow {
   step: "choose" | "todo" | GoalPeriodKind;
 }
 
-/** The icons at a goal row's right end: on hover, on focus, or selected. */
+/**
+ * The icons at a goal row's right end: on hover, on focus, or selected on
+ * desktop, and always on a phone.
+ */
 const ROW_ICON = cn(
   "ml-0.5 grid shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-[color,background-color,opacity] hover:bg-lumen-hover hover:text-lumen-text",
   "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
   "max-md:min-h-11 max-md:min-w-11",
 );
+
+/*
+ * Below 768px a goal row's three icons take a line of their own (#2487). On
+ * one line at 390px they held 150px and the badge and the count took the
+ * rest, so the title's span was 0px wide. Desktop keeps its one line: there
+ * the box is display: contents, and the icons sit in the row as before.
+ */
+const GOAL_ROW_ICONS =
+  "md:contents max-md:flex max-md:basis-full max-md:justify-end";
+
+/** Below 768px the title keeps room for a few characters before it ellipses. */
+const GOAL_TITLE_FLOOR = "max-md:min-w-20";
 
 /** A todo row's icons: on hover or focus on desktop, always on a phone. */
 const TODO_ROW_ICON = cn(
@@ -760,9 +775,10 @@ function GoalBranch({
     branch.addingUnder?.goalId === goal.id && branch.addingUnder.place === place
       ? branch.addingUnder
       : null;
+  // A phone has no hover, so the icons stay shown there, as on a todo row.
   const iconClass = cn(
     ROW_ICON,
-    !selected && "opacity-0 group-hover/row:opacity-100",
+    !selected && "opacity-0 group-hover/row:opacity-100 max-md:opacity-100",
   );
   // A year goal is the top: there is no parent to drag it under. A row whose
   // name is being typed holds still, so a press in the field stays in it.
@@ -786,7 +802,7 @@ function GoalBranch({
       <div
         data-goal-tree-row=""
         className={cn(
-          "group/row flex items-center rounded-lumen-sm transition-colors",
+          "group/row flex items-center rounded-lumen-sm transition-colors max-md:flex-wrap",
           dragged && DRAG_HOLE,
           placeable &&
             !isOver &&
@@ -868,6 +884,9 @@ function GoalBranch({
             aria-label={`${labels.kinds[node.goal.periodKind]}: ${node.goal.title} — ${goalStatusText(node, labels)}`}
             className={cn(
               ROW_BUTTON,
+              // A badge, a range and a count that leave no room for the title
+              // wrap below it rather than squeeze it (#2487).
+              "max-md:flex-wrap",
               selected && "bg-lumen-accent-subtle hover:bg-lumen-accent-subtle",
             )}
           >
@@ -883,7 +902,13 @@ function GoalBranch({
                 {labels.kinds[goal.periodKind]}
               </span>
             )}
-            <span className="min-w-0 flex-1 truncate text-sm font-medium text-lumen-text">
+            <span
+              data-goal-title
+              className={cn(
+                "min-w-0 flex-1 truncate text-sm font-medium text-lumen-text",
+                GOAL_TITLE_FLOOR,
+              )}
+            >
               {node.goal.title}
             </span>
             {goal.startDate && goal.endDate && (
@@ -899,56 +924,60 @@ function GoalBranch({
         )}
         {/* On the hovered or the selected row; a keyboard reaches them while
             hidden, and each shows once focused. */}
-        {rowActions && !editing && (
-          <button
-            type="button"
-            onClick={() =>
-              branch.onAddUnder(
-                addingHere
-                  ? null
-                  : {
-                      goalId: goal.id,
-                      place,
-                      step:
-                        goalChildKinds(goal.periodKind).length > 0
-                          ? "choose"
-                          : "todo",
-                    },
-              )
-            }
-            aria-expanded={addingHere !== null}
-            aria-label={labels.formatAddUnder(goal.title)}
-            title={labels.formatAddUnder(goal.title)}
-            className={iconClass}
-          >
-            <Plus size={14} aria-hidden />
-          </button>
-        )}
-        {onRenameGoal && !editing && (
-          <button
-            type="button"
-            onClick={() => {
-              branch.onAddUnder(null);
-              branch.onEdit({ goalId: goal.id, place });
-              props.onEditGoal?.(goal.id);
-            }}
-            aria-label={labels.formatEdit(goal.title)}
-            title={labels.formatEdit(goal.title)}
-            className={iconClass}
-          >
-            <SquarePen size={14} aria-hidden />
-          </button>
-        )}
-        {rowActions && !editing && (
-          <button
-            type="button"
-            onClick={() => rowActions.onDelete(goal)}
-            aria-label={labels.formatDelete(goal.title)}
-            title={labels.formatDelete(goal.title)}
-            className={iconClass}
-          >
-            <Trash2 size={14} aria-hidden />
-          </button>
+        {(rowActions || onRenameGoal) && !editing && (
+          <div data-goal-row-icons="" className={GOAL_ROW_ICONS}>
+            {rowActions && (
+              <button
+                type="button"
+                onClick={() =>
+                  branch.onAddUnder(
+                    addingHere
+                      ? null
+                      : {
+                          goalId: goal.id,
+                          place,
+                          step:
+                            goalChildKinds(goal.periodKind).length > 0
+                              ? "choose"
+                              : "todo",
+                        },
+                  )
+                }
+                aria-expanded={addingHere !== null}
+                aria-label={labels.formatAddUnder(goal.title)}
+                title={labels.formatAddUnder(goal.title)}
+                className={iconClass}
+              >
+                <Plus size={14} aria-hidden />
+              </button>
+            )}
+            {onRenameGoal && (
+              <button
+                type="button"
+                onClick={() => {
+                  branch.onAddUnder(null);
+                  branch.onEdit({ goalId: goal.id, place });
+                  props.onEditGoal?.(goal.id);
+                }}
+                aria-label={labels.formatEdit(goal.title)}
+                title={labels.formatEdit(goal.title)}
+                className={iconClass}
+              >
+                <SquarePen size={14} aria-hidden />
+              </button>
+            )}
+            {rowActions && (
+              <button
+                type="button"
+                onClick={() => rowActions.onDelete(goal)}
+                aria-label={labels.formatDelete(goal.title)}
+                title={labels.formatDelete(goal.title)}
+                className={iconClass}
+              >
+                <Trash2 size={14} aria-hidden />
+              </button>
+            )}
+          </div>
         )}
         {placeable && (
           <span
@@ -1277,7 +1306,9 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
           />
         )}
         {adding && (
-          <div className="mt-2 flex items-center gap-2">
+          // Below 768px the field takes its own line, so the placeholder is
+          // not cut down to a few characters beside the two buttons (#2490).
+          <div className="mt-2 flex items-center gap-2 max-md:flex-wrap">
             <Input
               autoFocus
               value={draft}
@@ -1289,7 +1320,7 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
               }}
               placeholder={`${labels.periods[adding]} ${labels.periodRanges[adding]}: ${labels.addPlaceholder}`}
               aria-label={`${labels.periods[adding]}: ${labels.addPlaceholder}`}
-              className="min-w-0 max-md:text-base"
+              className="min-w-0 max-md:min-h-11 max-md:basis-full max-md:text-base"
             />
             <Button
               size="sm"
@@ -1312,30 +1343,49 @@ export function GoalTreeView(props: GoalTreeViewProps): React.JSX.Element {
           </div>
         )}
         {adding && (
-          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-lumen-text-secondary">
-            <label htmlFor={rangeStartId}>{labels.startDate}</label>
-            <span className="w-40 shrink-0">
-              <Input
-                id={rangeStartId}
-                type="date"
-                value={range.start}
-                invalid={!rangeValid}
-                onChange={(e) => setRange({ ...range, start: e.target.value })}
-                className="max-md:text-base"
-              />
-            </span>
-            <label htmlFor={rangeEndId}>{labels.endDate}</label>
-            <span className="w-40 shrink-0">
-              <Input
-                id={rangeEndId}
-                type="date"
-                value={range.end}
-                min={range.start || undefined}
-                invalid={!rangeValid}
-                onChange={(e) => setRange({ ...range, end: e.target.value })}
-                className="max-md:text-base"
-              />
-            </span>
+          // Each label and its date field form one pair, so a wrap never
+          // leaves a label at the end of one line and its field on the next.
+          // Below 768px the pairs stack and the fields fill the width (#2490).
+          <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-lumen-text-secondary max-md:flex-col max-md:items-stretch">
+            <div data-goal-range-pair className="flex items-center gap-2">
+              <label
+                htmlFor={rangeStartId}
+                className="shrink-0 whitespace-nowrap"
+              >
+                {labels.startDate}
+              </label>
+              <span className="w-40 shrink-0 max-md:w-auto max-md:min-w-0 max-md:flex-1">
+                <Input
+                  id={rangeStartId}
+                  type="date"
+                  value={range.start}
+                  invalid={!rangeValid}
+                  onChange={(e) =>
+                    setRange({ ...range, start: e.target.value })
+                  }
+                  className="max-md:min-h-11 max-md:text-base"
+                />
+              </span>
+            </div>
+            <div data-goal-range-pair className="flex items-center gap-2">
+              <label
+                htmlFor={rangeEndId}
+                className="shrink-0 whitespace-nowrap"
+              >
+                {labels.endDate}
+              </label>
+              <span className="w-40 shrink-0 max-md:w-auto max-md:min-w-0 max-md:flex-1">
+                <Input
+                  id={rangeEndId}
+                  type="date"
+                  value={range.end}
+                  min={range.start || undefined}
+                  invalid={!rangeValid}
+                  onChange={(e) => setRange({ ...range, end: e.target.value })}
+                  className="max-md:min-h-11 max-md:text-base"
+                />
+              </span>
+            </div>
           </div>
         )}
       </section>

@@ -396,6 +396,19 @@ export interface EventEditorCancel {
   onCancel: () => void;
 }
 
+/**
+ * The tag slot's pending edit (#2447). The slot stages its picks rather than
+ * writing them, so 「キャンセル」 and the discard answer throw tag changes away
+ * with the rest of the draft — the way the create panel's tag field (#2220)
+ * already stages its own. The pane only folds `dirty` into its own flag and
+ * runs `onSave` from the one save press; what is staged, and how it is
+ * written, stays with the host that owns the tag layer.
+ */
+export interface EventEditorTagDraft {
+  dirty: boolean;
+  onSave: () => void;
+}
+
 export interface EventEditorPaneProps {
   item: EventEditorItem;
   labels: EventEditorLabels;
@@ -422,6 +435,8 @@ export interface EventEditorPaneProps {
    * nothing for the lens to find.
    */
   tagSlot?: ReactNode;
+  /** The tag slot's staged edit (#2447). Omit when the slot writes on its own. */
+  tagDraft?: EventEditorTagDraft;
   /**
    * Pin the save footer to the bottom of the frame's scroller (#995).
    *
@@ -616,6 +631,7 @@ function EventEditorFields({
   duplicate,
   cancel,
   tagSlot,
+  tagDraft,
   stickyFooter,
 }: Omit<EventEditorPaneProps, "className">) {
   // Unpacked back into the flat names the body has always used, so the #893
@@ -651,7 +667,9 @@ function EventEditorFields({
     ? readWorkTimeDraft(workTime, workTimeEdit)
     : null;
   const workTimeProblem = workTimeDraft?.problem ?? null;
-  const dirty = fieldsDirty || repeatDirty || workTimeDraft?.dirty === true;
+  const tagsDirty = tagDraft?.dirty === true;
+  const dirty =
+    fieldsDirty || repeatDirty || workTimeDraft?.dirty === true || tagsDirty;
 
   // Tell the host about the pending draft so its close affordances can confirm
   // first. The ref keeps the unmount report from pinning a stale callback (and
@@ -750,6 +768,10 @@ function EventEditorFields({
       }
       setWorkTimeEdit(undefined);
     }
+    // #2447: the staged tags, before the field patch for the same reason the
+    // logged time goes first — the scope dialog (#279) is about the row's
+    // fields, and tags are written against their own target.
+    if (tagsDirty) tagDraft?.onSave();
     // Last, and skipped when only the repeat moved: an empty patch would still
     // raise the this/future/all scope dialog (#279) on a routine occurrence,
     // asking about an edit that does not exist.

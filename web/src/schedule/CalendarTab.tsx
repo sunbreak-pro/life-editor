@@ -576,6 +576,8 @@ export function CalendarTab({
       setSelectedId,
       setSidebarTab,
       openSidebar,
+      closeSidebar,
+      isWide,
       setTodoDetailId,
     },
   );

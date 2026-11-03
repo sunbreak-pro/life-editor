@@ -68,7 +68,12 @@ export function AnalyticsStatCard({
         {icon}
       </span>
       <div className="min-w-0">
-        <p className="truncate text-2xl font-semibold tabular-nums text-lumen-text">
+        {/* The ellipsis is the last resort; the title keeps a clipped number
+            readable on hover (#2509). */}
+        <p
+          className="truncate text-2xl font-semibold tabular-nums text-lumen-text"
+          title={String(value)}
+        >
           {value}
         </p>
         <p className="text-xs leading-snug text-lumen-text-secondary">

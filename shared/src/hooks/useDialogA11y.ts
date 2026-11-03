@@ -192,6 +192,15 @@ export interface DialogA11yOptions {
    * <body> and the next Tab restarts from the top of the page.
    */
   fallbackFocus?: () => HTMLElement | null;
+  /**
+   * Where the focus lands on open, in place of the first focusable control
+   * (#2505). Read inside the open frame. Returning null falls back to the
+   * default. MobileDrawer points it at its close button: the drawer holds
+   * whatever the section portalled into it, and on the morning paper the first
+   * focusable thing was a recharts `svg` (tabindex=0), which opened drawn in a
+   * focus ring with its tooltip already up.
+   */
+  initialFocus?: () => HTMLElement | null;
 }
 
 /**
@@ -210,6 +219,7 @@ export function useDialogA11y<T extends HTMLElement>({
   onClose,
   lockScroll = false,
   fallbackFocus,
+  initialFocus,
 }: DialogA11yOptions): RefObject<T | null> {
   const panelRef = useRef<T | null>(null);
   const layerRef = useKeyboardLayer(open, true);
@@ -220,6 +230,11 @@ export function useDialogA11y<T extends HTMLElement>({
   useEffect(() => {
     fallbackRef.current = fallbackFocus;
   }, [fallbackFocus]);
+  // Same reason as fallbackRef: a fresh identity must not re-run the open effect.
+  const initialRef = useRef(initialFocus);
+  useEffect(() => {
+    initialRef.current = initialFocus;
+  }, [initialFocus]);
 
   useEffect(() => {
     if (!open) return;
@@ -274,7 +289,11 @@ export function useDialogA11y<T extends HTMLElement>({
       // Leave it: overriding it is the "double focus" the sheets were
       // reported for.
       if (panel.contains(document.activeElement)) return;
-      (initialFocusIn(panel) ?? panel).focus();
+      const chosen = initialRef.current?.();
+      (chosen && panel.contains(chosen)
+        ? chosen
+        : (initialFocusIn(panel) ?? panel)
+      ).focus();
     });
     return () => {
       cancelAnimationFrame(raf);
