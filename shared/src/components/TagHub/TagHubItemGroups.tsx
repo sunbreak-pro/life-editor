@@ -43,6 +43,25 @@ import type { TagHubGroup, TagHubItem, TagHubLabels } from "./types";
  * Pure presentation: copy injected (§6.4), lumen-* tokens only.
  */
 
+/*
+ * #2496 — a cramped Desktop frame. The detail column shrinks with the right
+ * panel, and a frame under 20rem left the title 3–4 characters between the
+ * 4.5rem day column and the Done chip, with the chip pushed onto the frame's
+ * clipped edge. Under that width the row turns into two lines: the title takes
+ * the whole first line, and the day (now inline with its time) and the chip
+ * follow on the second. Order only — the DOM, and so the button's name, stays.
+ *
+ * Wide only, measured on the frame (`@container`): the phone keeps the row it
+ * has, and the standard Desktop panel (~24rem frames) is above the line.
+ */
+const NARROW = {
+  button: "@max-[20rem]:flex-wrap @max-[20rem]:gap-y-0.5",
+  when: "@max-[20rem]:order-2 @max-[20rem]:w-auto @max-[20rem]:flex-row @max-[20rem]:items-center @max-[20rem]:gap-1.5",
+  title: "@max-[20rem]:basis-full",
+  done: "@max-[20rem]:order-3",
+  chevron: "@max-[20rem]:order-4 @max-[20rem]:ml-auto",
+} as const;
+
 /** How long a touch has to rest on a row before it counts as a long press. */
 export const LONG_PRESS_MS = 500;
 /** How far a held finger may drift before the hold is read as a scroll. */
@@ -226,7 +245,11 @@ export function TagHubItemGroups({
         <section
           key={group.role}
           data-taghub-group={group.role}
-          className="overflow-hidden rounded-lumen-md border border-lumen-border bg-lumen-bg"
+          className={cn(
+            "overflow-hidden rounded-lumen-md border border-lumen-border bg-lumen-bg",
+            // #2496 — the frame is what the rows measure (see NARROW below).
+            wide && "@container",
+          )}
         >
           {/*
            * aria-label rather than the concatenated content: the badge already
@@ -330,13 +353,17 @@ export function TagHubItemGroups({
                       // #1561 — 44px touch floor on narrow only. `min-h-*`,
                       // never `h-*`: `cn` is a plain string join.
                       !wide && "min-h-11",
+                      wide && NARROW.button,
                     )}
                   >
                     {/* The left edge — read through the button's name above. */}
                     <span
                       aria-hidden
                       data-taghub-when=""
-                      className="flex w-[4.5rem] shrink-0 flex-col leading-tight"
+                      className={cn(
+                        "flex w-[4.5rem] shrink-0 flex-col leading-tight",
+                        wide && NARROW.when,
+                      )}
                     >
                       <span
                         className={cn(
@@ -365,7 +392,13 @@ export function TagHubItemGroups({
                         </span>
                       )}
                     </span>
-                    <span className="flex min-w-0 flex-1 flex-col">
+                    <span
+                      data-taghub-title=""
+                      className={cn(
+                        "flex min-w-0 flex-1 flex-col",
+                        wide && NARROW.title,
+                      )}
+                    >
                       <span
                         className={cn(
                           "min-w-0 truncate text-sm",
@@ -387,7 +420,13 @@ export function TagHubItemGroups({
                       )}
                     </span>
                     {done && (
-                      <span className="shrink-0 rounded-lumen-sm border border-lumen-border px-1.5 py-0.5 text-[11px] text-lumen-text-secondary">
+                      <span
+                        data-taghub-done=""
+                        className={cn(
+                          "shrink-0 whitespace-nowrap rounded-lumen-sm border border-lumen-border px-1.5 py-0.5 text-[11px] text-lumen-text-secondary",
+                          wide && NARROW.done,
+                        )}
+                      >
                         {labels.done}
                       </span>
                     )}
@@ -397,7 +436,10 @@ export function TagHubItemGroups({
                       <ChevronRight
                         size={14}
                         aria-hidden
-                        className="shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity group-hover/row:opacity-100"
+                        className={cn(
+                          "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity group-hover/row:opacity-100",
+                          wide && NARROW.chevron,
+                        )}
                       />
                     )}
                   </button>

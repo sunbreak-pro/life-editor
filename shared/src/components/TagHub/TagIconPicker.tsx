@@ -145,7 +145,9 @@ export function TagIconPicker({
         aria-expanded={open}
         onClick={() => setOpen(true)}
         className={cn(
-          "mt-1 flex items-center gap-1 rounded-lumen-sm px-1.5 py-1 text-sm text-lumen-text-secondary max-md:min-h-11",
+          // `whitespace-nowrap` (#2496): squeezed beside a label column the
+          // button broke "Show more" over three lines instead of moving.
+          "mt-1 flex items-center gap-1 whitespace-nowrap rounded-lumen-sm px-1.5 py-1 text-sm text-lumen-text-secondary max-md:min-h-11",
           "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
           "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
         )}
