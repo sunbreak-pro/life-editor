@@ -1093,6 +1093,29 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     );
   });
 
+  it("ticks a linked todo from its name in the goal's panel, and edits it from the pencil there (#2388)", async () => {
+    const ds = makeDS();
+    const { panel } = await renderTab(ds, "Goal tree", { itemPanel: true });
+    fireEvent.click(goalRow("Get the proposal approved"));
+    fireEvent.click(
+      panel().getByRole("button", { name: "Mark as done: Book the review" }),
+    );
+    await waitFor(() =>
+      expect(ds.updateTodo).toHaveBeenCalledWith(
+        "t4",
+        expect.objectContaining({ status: "DONE" }),
+      ),
+    );
+    expect(screen.getByLabelText("Panel request").textContent).toBe("");
+
+    fireEvent.click(
+      panel().getByRole("button", { name: "Edit: Write the estimate" }),
+    );
+    expect(screen.getByLabelText("Panel request").textContent).toBe(
+      JSON.stringify({ role: "task", id: "t3" }),
+    );
+  });
+
   it("deletes a todo from its bin only after the confirm says yes (#2388)", async () => {
     const ds = makeDS();
     await renderTab(ds);
