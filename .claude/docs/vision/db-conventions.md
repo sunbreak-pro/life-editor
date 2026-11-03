@@ -187,7 +187,7 @@ MCP の検証ツール（`seed_verification_state` / `read_verification_state` /
 
 ## 15. 目標の表と、日ごとの朝刊・夕刊の列（0034 / 0035・#2101 / #2107）
 
-Briefing の作り直し（計画書 = `docs/vision/plans/2026-10-03-briefing-goals-redesign.md`）で足した DDL の規約です。目標は新しい role `goal` のアイテムで、Todo とのつながりは専用の関係の表に持ちます。
+Briefing の作り直し（計画書 = `archive/2026-10-03-briefing-goals-redesign.md`）で足した DDL の規約です。目標は新しい role `goal` のアイテムで、Todo とのつながりは専用の関係の表に持ちます。
 
 - **role の CHECK は名前付きになった**: 0008 の `check (role in (...))` は名前の無いインライン制約でした。0034 は `pg_constraint` から role を見る CHECK を引いて落とし、`items_meta_role_check` として張り直しています。次に role を足す migration は、この名前を落として張り直すだけで済みます
 - **`goals_payload` は §10.1 の 2 行分割に従う**: `updated_at` とソフトデリートの列は持たず、どちらも `items_meta` 側が持ちます（DB-Q2 の bump は `goalMapper.ts` の責務）。親の目標は `(parent_goal_id, parent_goal_role)` → `items_meta(id, role)` の複合 FK（`ON DELETE NO ACTION` = §10.4 と同じ）で、親は `goal` に限られます

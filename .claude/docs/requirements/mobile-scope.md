@@ -17,7 +17,7 @@
 > **2026-08-31 突き合わせ（Epic #716 の DoD「mobile-scope.md と実装が食い違っていない」・chat-main）**: 表の**挙動記述と実装の食い違いは無し**。壊れていたのは file:line 参照のほうで、`CalendarTab.tsx` の分割（wide 側 = `CalendarDesktopLayout.tsx` へ抽出 / 詳細シート = #889 で `ScheduleOverlayHost.tsx` に Desktop overlay と統合 / FAB = `ScheduleOverlays.tsx` / 完了トグル = `AgendaList.tsx`）と `sections.ts` / `AppShell.tsx` / `SettingsScreen.tsx` / `useShellNavigation.ts` の行ズレを #4 / #14 / §3 に反映した。旧引用のうち `CalendarTab.tsx:2022` / `:2262` / `:2244` / `:2220` の 4 本は**ファイル長（現在 1271 行）を超えており参照ごと死んでいた**。
 > 2026-10-12（#2168）: 拡張アプリの記録と Apps セクション（計画書 = `docs/vision/plans/2026-10-08-extension-app-records-and-apps-section.md`）を反映した。#12 に narrow の「記録」ブロックを書き足し、Apps を #22 として足した。計画書と Issue は Apps を「行 21」と書いていたが、#2110 が先に #21（目標の管理）を足していたため #22 にした。
 > 2026-10-19（#2312）: #22 の「記録を見る」を幅ごとの行き先に書き直した。narrow では直近 7 日の「記録」ブロックがそのアプリに絞られる。#12 の「タップ可能要素ゼロ」は、絞り込みを解除するボタンが加わったため書き直した。
-> 2026-10-10（#2110）: Briefing の作り直し（計画書 = `docs/vision/plans/2026-10-03-briefing-goals-redesign.md`）を反映した。#3（宣言）は退役、#18 は目標のブロックの作り直し、#20 は★が発行を兼ねる形に直し、目標の管理を #21 として足した。
+> 2026-10-10（#2110）: Briefing の作り直し（計画書 = `archive/2026-10-03-briefing-goals-redesign.md`）を反映した。#3（宣言）は退役、#18 は目標のブロックの作り直し、#20 は★が発行を兼ねる形に直し、目標の管理を #21 として足した。
 > 2026-11-02（#2110）: Step 11 のあとに変わった朝刊を反映した。#18 は目標のブロックが要約とパネルに分かれた形（#2286）、#19 は予定の完了の印が外れたこと（#1373）と持ち越しが右パネルへ移ったこと（#2285）、#1 は右パネルの中身（#2223 / #2285）に直し、#20 の file:line を測り直した。
 
 ## 1. 分類の定義
