@@ -1309,7 +1309,7 @@
     "heading": "登録したアプリ",
     "register": "アプリを登録",
     "emptyIntro": "拡張アプリは、家計簿・体重の記録・睡眠の記録のように、数値を life-editor へ送る自分用の小さなアプリです。ここで登録すると、名前とリンクを付けられます。最後に記録が届いた日を確かめたり、そのアプリの記録を分析で開いたりもできます。",
-    "keyGuide": "アプリは窓口の鍵を使って記録を送ります。mcp-server で `npm run gateway-key -- issue --app <slug>` を実行して鍵を発行してください。slug はここで登録するものと同じにします（手順の全体は PR #2194 にあります）。",
+    "keyGuide": "アプリは窓口の鍵を使って記録を送ります。鍵は作者本人が手元の mcp-server で `npm run gateway-key -- issue --app <slug>` を実行して発行します。slug はここで登録するものと同じにします。手順の全体は `mcp-server/scripts/gateway-key.mjs` の冒頭にあります。",
     "unregisteredHeading": "記録だけ届いているアプリ",
     "unregisteredIntro": "記録には届いているのに、まだ登録していない名前です。登録すると名前とリンクを付けられます。",
     "registerSource": "登録",

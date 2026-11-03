@@ -1318,7 +1318,7 @@
     "heading": "Registered apps",
     "register": "Register an app",
     "emptyIntro": "Extension apps are small apps of your own — a household ledger, a weight log, a sleep tracker — that send numbers into life-editor. Register one here to give it a name and a link, see when it last sent a record, and open its records in Analytics.",
-    "keyGuide": "An app sends records with a gateway key. Issue one with `npm run gateway-key -- issue --app <slug>` in mcp-server, using the same slug you register here (the full steps are in PR #2194).",
+    "keyGuide": "An app sends records with a gateway key. The author issues it on their own machine by running `npm run gateway-key -- issue --app <slug>` in mcp-server, with the same slug you register here. The full steps are at the top of `mcp-server/scripts/gateway-key.mjs`.",
     "unregisteredHeading": "Apps that only sent records",
     "unregisteredIntro": "These names arrived on records but are not registered yet. Register one to give it a name and a link.",
     "registerSource": "Register",
