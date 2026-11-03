@@ -543,7 +543,10 @@ interface AddingUnder extends EditingRow {
   step: "choose" | "todo" | GoalPeriodKind;
 }
 
-/** The icons at a goal row's right end: on hover, on focus, or selected. */
+/**
+ * The icons at a goal row's right end: on hover, on focus, or selected on
+ * desktop, and always on a phone.
+ */
 const ROW_ICON = cn(
   "ml-0.5 grid shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-[color,background-color,opacity] hover:bg-lumen-hover hover:text-lumen-text",
   "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
@@ -760,9 +763,10 @@ function GoalBranch({
     branch.addingUnder?.goalId === goal.id && branch.addingUnder.place === place
       ? branch.addingUnder
       : null;
+  // A phone has no hover, so the icons stay shown there, as on a todo row.
   const iconClass = cn(
     ROW_ICON,
-    !selected && "opacity-0 group-hover/row:opacity-100",
+    !selected && "opacity-0 group-hover/row:opacity-100 max-md:opacity-100",
   );
   // A year goal is the top: there is no parent to drag it under. A row whose
   // name is being typed holds still, so a press in the field stays in it.
