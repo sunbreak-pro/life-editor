@@ -9,8 +9,9 @@ import { RightSidebarContents } from "./RightSidebarContents";
  * Rendered as a flex sibling of <main> inside AppShell's wide layout, so it
  * PUSHES the main area (main shrinks) rather than overlaying it — no `fixed`,
  * per brief §3 (overlay 禁止). Opaque subsidebar surface + left border (§5).
- * A left-edge handle resizes the width (clamped 240–560px) via pointer capture
- * and ←/→ keys. Pure presentation: copy injected already-translated (§6.4).
+ * A left-edge handle resizes the width (clamped 240–560px, and never past the
+ * point where <main> would drop under 520px — #2496) via pointer capture and
+ * ←/→ keys. Pure presentation: copy injected already-translated (§6.4).
  *
  * Opening slides it in from the right (#1050) instead of the layout jumping.
  * The panel unmounts when closed, so the animation replays on each open and
@@ -32,6 +33,22 @@ export interface RightSidebarProps {
 const MIN_WIDTH = 240;
 const MAX_WIDTH = 560;
 const KEY_STEP = 16;
+
+/*
+ * #2496 — the floor under <main>. The 240–560 clamp is about the panel alone,
+ * so on a 1280px window a 560px panel left <main> ~430px, and a section with a
+ * rail of its own (Connect's 260px tag list) was left a ~170px column in which
+ * every label folded. The panel now stops where <main> would drop under this.
+ *
+ * CSS rather than a measurement: the parent row holds only <main> and this
+ * panel, so `100%` is exactly their sum, and the cap follows a window resize
+ * or a collapsed nav with no observer. `max(MIN_WIDTH, …)` keeps the panel's
+ * own floor — on a small window <main> gives way, as it did before. The stored
+ * width is left alone, so widening the window brings the panel back to it.
+ * The floor is 520px and the panel's own floor 240px (= MIN_WIDTH), both
+ * spelled out in the class because Tailwind only sees literal strings.
+ */
+const CAP_CLASS = "max-w-[max(240px,calc(100%_-_520px))]";
 
 function clampWidth(w: number): number {
   return Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, Math.round(w)));
@@ -167,7 +184,7 @@ export function RightSidebar({
           "--lumen-panel-w": `${renderWidth}px`,
         } as CSSProperties
       }
-      className="lumen-panel-in-right relative flex flex-shrink-0 flex-col border-l border-lumen-border bg-lumen-bg-subsidebar"
+      className={`lumen-panel-in-right relative flex flex-shrink-0 flex-col border-l border-lumen-border bg-lumen-bg-subsidebar ${CAP_CLASS}`}
     >
       {/* Left-edge resize handle. role=separator + arrow keys for a11y. */}
       <div

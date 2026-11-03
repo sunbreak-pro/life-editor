@@ -98,9 +98,11 @@ export interface TabBand {
  */
 export function TabBandHeader({
   band,
+  search,
   controls,
 }: {
   band: TabBand;
+  search?: ReactNode;
   controls: ReactNode;
 }): React.JSX.Element {
   return (
@@ -115,7 +117,43 @@ export function TabBandHeader({
           trailing={band.trailing}
         />
       }
+      search={search}
       controls={controls}
+    />
+  );
+}
+
+/**
+ * The narrow (Mobile) twin of TabBandHeader: the same band drawn as the
+ * segmented control in the narrow header row. Exported for the same reason —
+ * web/tests/connectTabs.test.tsx renders the band the shell draws.
+ *
+ * `singleLineLabels` (#2489): at 390px Connect's 目標と Todo broke into
+ * 「目標と」+「Todo」 beside a one-line タグ, so the two tabs stopped sharing a
+ * baseline and the band grew to 53px. Every narrow band holds two short tabs
+ * (Briefing / Materials / Connect), so the labels' min-content fits the track
+ * with room to spare: flex-1 segments keep an equal share until a label needs
+ * more, and only then does the longer one take it — the track's flex-wrap
+ * never comes into play. The type and the 44px TAP_TARGET_TALL hit area are
+ * the "sm" row's as before.
+ */
+export function NarrowTabBand({
+  band,
+}: {
+  band: TabBand;
+}): React.JSX.Element {
+  return (
+    <SegmentedControl
+      // The section tab band is the one segmented control whose height every
+      // narrow screen pays for, so it runs a step tighter than the in-panel
+      // ones (#1039). The 44px touch target rides along inside "sm".
+      size="sm"
+      singleLineLabels
+      className="flex-1"
+      options={band.defs}
+      value={band.active}
+      onChange={band.onSelect}
+      label={band.label}
     />
   );
 }
@@ -213,15 +251,19 @@ export function MainScreen({ session }: { session: Session }) {
   // field (#306), app-level Undo/Redo (#304), then the rightSidebar toggle:
   // [search][Undo][Redo][rightSidebar]. The rightSidebar toggle is
   // UNCONDITIONAL for all sections (v2 §3); the v2 §5 width tab was retired
-  // 2026-07-11 (all sections wide).
+  // 2026-07-11 (all sections wide). The search field goes in SectionHeader's
+  // own `search` slot, which narrows it before the tab band when the row is
+  // short (#2508).
+  const headerSearch = (
+    <CommandSearchField
+      onOpen={() => setPaletteOpen(true)}
+      placeholder={t("commandPalette.trigger")}
+      label={t("nav.commandPalette")}
+      shortcutHint={isMac ? "⌘K" : "Ctrl K"}
+    />
+  );
   const headerControls = (
     <>
-      <CommandSearchField
-        onOpen={() => setPaletteOpen(true)}
-        placeholder={t("commandPalette.trigger")}
-        label={t("nav.commandPalette")}
-        shortcutHint={isMac ? "⌘K" : "Ctrl K"}
-      />
       <HeaderUndoRedo />
       <RightSidebarToggle
         variant="panel"
@@ -269,10 +311,15 @@ export function MainScreen({ session }: { session: Session }) {
   // band shows it as its title (divider={false}: the SectionHeader owns the
   // line); every other section shows its translated title.
   const sectionHeader = band ? (
-    <TabBandHeader band={band} controls={headerControls} />
+    <TabBandHeader
+      band={band}
+      search={headerSearch}
+      controls={headerControls}
+    />
   ) : (
     <SectionHeader
       title={t(`section.${section}`, { defaultValue: section })}
+      search={headerSearch}
       controls={headerControls}
     />
   );
@@ -299,19 +346,7 @@ export function MainScreen({ session }: { session: Session }) {
   // `flex-1` on every shape now, not just tabs+hamburger: the band shares the
   // row with the actions at the right end, so it has to claim the space
   // between them or they drift together.
-  const narrowTabs = band ? (
-    <SegmentedControl
-      // The section tab band is the one segmented control whose height every
-      // narrow screen pays for, so it runs a step tighter than the in-panel
-      // ones (#1039). The 44px touch target rides along inside "sm".
-      size="sm"
-      className="flex-1"
-      options={band.defs}
-      value={band.active}
-      onChange={band.onSelect}
-      label={band.label}
-    />
-  ) : undefined;
+  const narrowTabs = band ? <NarrowTabBand band={band} /> : undefined;
   const narrowRow = isWide ? undefined : (
     <NarrowHeaderRow
       shape={descriptor.narrowHeader}

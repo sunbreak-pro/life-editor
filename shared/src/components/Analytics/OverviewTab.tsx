@@ -163,8 +163,10 @@ export function OverviewTab({
           window (#1859): all time, today, or the current state. Three across
           only once the DATA COLUMN is wide enough (#1480) — with the detail
           panel open it is ~612px, where a third of it leaves 「0時間33分」
-          nowhere to go. */}
-      <div className="grid grid-cols-2 gap-3 @2xl:grid-cols-3">
+          nowhere to go. Below @lg (512px) it is one tile per row (#2509): at a
+          768px window the column is ~300px, and two across clipped the work
+          total to 「1時間34…」. */}
+      <div className="grid grid-cols-1 gap-3 @lg:grid-cols-2 @2xl:grid-cols-3">
         <AnalyticsStatCard
           icon={<BarChart3 size={16} />}
           label={labels.todos}
@@ -215,8 +217,11 @@ export function OverviewTab({
         />
       </div>
 
-      {/* Today / Weekly / Streak — 3-col ChartCard row */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Today / Weekly / Streak. Three across only from @2xl, like the tiles
+          above (#2509): the row used to be a fixed grid-cols-3, so at a 768px
+          window each card was ~90px and 「作業時間」 / 「0時間0分」 broke onto
+          two lines. Stacked below that, each row gets the whole column. */}
+      <div className="grid grid-cols-1 gap-3 @2xl:grid-cols-3">
         <TodayDashboard
           sessions={sessions}
           nodes={nodes}

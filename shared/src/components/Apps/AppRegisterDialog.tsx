@@ -220,6 +220,7 @@ function AppForm({
               noMatchLabel: labels.icon.noMatchLabel,
               moreLabel: labels.icon.moreLabel,
               countLabel: labels.icon.countLabel,
+              closeLabel: labels.icon.closeLabel,
             }}
           />
         </div>

@@ -78,8 +78,11 @@ export interface RecordsLabels {
   loadFailed: string;
   /** A number with its unit ("450 JPY"), grouped for the host's language. */
   formatValue: (value: number, unit: string | null) => string;
-  /** A bare number for an axis tick. */
-  formatNumber: (value: number) => string;
+  /**
+   * A bare number for an axis tick. With `fractionDigits`, exactly that many
+   * decimals (67.0, not 67, beside 67.5) so a line's ticks line up (#2513).
+   */
+  formatNumber: (value: number, fractionDigits?: number) => string;
   /** A record's instant, date and time. */
   formatDateTime: (iso: string) => string;
   mobile: {

@@ -1,0 +1,231 @@
+{
+  "_doc": "Single source of which worktree lane owns which paths; read by scope-overlap.mjs, and skills or rules link to this file instead of copying its globs.",
+  "lanes": {
+    "briefing-refine": {
+      "paths": [
+        "shared/src/components/briefing/**",
+        "web/src/briefing/**",
+        "web/tests/briefing*",
+        "shared/tests/briefing*",
+        "shared/tests/evening*",
+        "shared/tests/morning*"
+      ]
+    },
+    "schedule-refine": {
+      "paths": [
+        "shared/src/components/schedule/**",
+        "shared/src/components/itemActions/**",
+        "shared/src/components/TodoDetailPanel.tsx",
+        "shared/src/components/TodoAddDialog.tsx",
+        "shared/src/hooks/schedule*",
+        "shared/src/hooks/useSchedule*",
+        "shared/src/hooks/useRoutine*",
+        "shared/src/context/ScheduleItems*",
+        "shared/src/context/Routine*",
+        "web/src/schedule/**",
+        "web/src/ScheduleReminderBridge.tsx",
+        "web/tests/schedule*",
+        "web/tests/useSchedule*",
+        "shared/tests/schedule*",
+        "shared/tests/routine*",
+        "shared/tests/itemCreatePanel*",
+        "shared/tests/itemActionPopover*",
+        "shared/tests/todoDetailPanel*"
+      ],
+      "note": "Item detail surfaces shared with connect (TodoDetailPanel, itemActions) are owned here; connect asks through an Issue."
+    },
+    "materials-refine": {
+      "paths": [
+        "shared/src/components/materials/**",
+        "shared/src/components/notes/**",
+        "shared/src/hooks/useNotesUnified*",
+        "shared/src/hooks/useDailiesUnified*",
+        "shared/src/context/NotesUnified*",
+        "shared/src/context/DailiesUnified*",
+        "shared/src/state/materialsSelectionStore.ts",
+        "shared/src/state/noteBodyStore.ts",
+        "shared/src/state/recentNotesStore.ts",
+        "web/src/notes/**",
+        "web/src/daily/**",
+        "web/tests/note*",
+        "web/tests/daily*",
+        "web/tests/materials*",
+        "shared/tests/note*",
+        "shared/tests/daily*",
+        "shared/tests/dailies*",
+        "shared/tests/materials*"
+      ]
+    },
+    "connect-refine": {
+      "paths": [
+        "shared/src/components/goalTree/**",
+        "shared/src/components/TagHub/**",
+        "shared/src/state/connectSelectionStore.ts",
+        "web/src/connect/**",
+        "web/tests/connect*",
+        "web/tests/goalTree*",
+        "shared/tests/goalTree*",
+        "shared/tests/tagHub*",
+        "shared/tests/tagRail*"
+      ],
+      "exclude": [
+        "shared/src/components/TagHub/TagIconPicker.tsx"
+      ]
+    },
+    "tags": {
+      "anyLane": true,
+      "paths": [
+        "web/src/wikitag/**",
+        "shared/src/components/TagPill.tsx",
+        "shared/src/components/TagHeadingIcon.tsx",
+        "shared/src/components/TagHub/TagIconPicker.tsx",
+        "shared/src/components/items/ItemLinkPreviewCard.tsx",
+        "web/tests/tagPicker*",
+        "web/tests/linkPanel*",
+        "web/tests/linkChip*",
+        "shared/tests/tagIconPicker*"
+      ],
+      "note": "No worktree of its own and no holder lane: whichever lane takes the Issue edits these files, and scope-overlap blocks two in-flight changes on the same file (TagPicker.tsx was edited by two schedule PRs at once)."
+    },
+    "analytics-refine": {
+      "paths": [
+        "shared/src/components/Analytics/**",
+        "shared/src/components/Apps/**",
+        "web/src/analytics/**",
+        "web/src/apps/**",
+        "web/tests/analytics*",
+        "web/tests/apps*",
+        "shared/tests/analytics*",
+        "shared/tests/apps*",
+        "shared/tests/appRecord*"
+      ]
+    },
+    "work-refine": {
+      "paths": [
+        "shared/src/components/Pomodoro*",
+        "shared/src/components/SessionCompletionModal.tsx",
+        "shared/src/components/SessionDots.tsx",
+        "shared/src/components/AudioMixer.tsx",
+        "shared/src/components/NavTimerStatus.tsx",
+        "shared/src/components/WorkHistoryList.tsx",
+        "shared/src/components/WorkLoadFailed.tsx",
+        "shared/src/components/WorkTagSelector.tsx",
+        "shared/src/context/Timer*",
+        "shared/src/context/timerReducer.ts",
+        "shared/src/context/Audio*",
+        "web/src/work/**",
+        "web/src/TimerHost.tsx",
+        "web/tests/work*",
+        "web/tests/timerHost*",
+        "shared/tests/pomodoro*",
+        "shared/tests/timer*",
+        "shared/tests/work*",
+        "shared/tests/audioMixer*",
+        "shared/tests/sessionCompletion*",
+        "shared/tests/navTimer*"
+      ]
+    },
+    "settings": {
+      "anyLane": true,
+      "paths": [
+        "shared/src/components/Settings*.tsx",
+        "web/src/settings/**",
+        "web/src/legal/**",
+        "web/src/AuthScreen.tsx",
+        "web/tests/settings*",
+        "web/tests/authScreen*",
+        "shared/tests/settings*"
+      ],
+      "note": "No worktree of its own: whichever lane takes a section:settings Issue edits these files."
+    },
+    "mcp-tools": {
+      "paths": [
+        "mcp-server/**",
+        "shared/src/generated/**"
+      ]
+    },
+    "refactor-core": {
+      "paths": [
+        "shared/src/services/**",
+        "shared/src/state/outbox.ts",
+        "shared/src/state/persistentCache.ts",
+        "shared/src/state/domainSnapshotStore.ts",
+        "shared/src/state/connectivity.ts",
+        "shared/src/context/Sync*",
+        "shared/src/context/sync*",
+        "shared/src/hooks/useDomainLoad.ts",
+        "shared/src/hooks/useSync*",
+        "web/src/AppProviders.tsx",
+        "web/src/components/OfflineBanner.tsx",
+        "supabase/migrations/**",
+        "web/tests/offlineBanner*",
+        "web/tests/appProvidersOrder*",
+        "shared/tests/offline*",
+        "shared/tests/outbox*",
+        "shared/tests/sync*",
+        "shared/tests/domainLoad*",
+        "shared/tests/persistentCache*",
+        "shared/tests/dataServiceRouting*"
+      ],
+      "note": "Migrations follow the db-migration skill; other lanes may add one but must run the duplicate-number check first."
+    }
+  },
+  "fallbackLane": {
+    "name": "core",
+    "paths": [
+      "shared/src/**",
+      "web/src/**",
+      "shared/tests/**",
+      "web/tests/**",
+      "desktop/**",
+      "mobile/**"
+    ],
+    "note": "Everything under app code that no lane above claims (shell registration such as MainScreen.tsx, sectionDescriptors.tsx, lazySections.ts, sections.ts, context/index.ts; the todo tree; tour; trash; undo; utils). No worktree owns it: any lane may edit, one in-flight change per file."
+  },
+  "crossCutting": {
+    "lanes": [
+      "mobile-refine",
+      "shared-fix",
+      "merge-round",
+      "ui-verify"
+    ],
+    "note": "Worktrees that own no paths and work across lanes. The off-lane report is skipped for them; the same-file check is their only guard, so they run scope-overlap before starting and before every PR."
+  },
+  "hubs": [
+    {
+      "kind": "append",
+      "paths": [
+        "shared/src/i18n/locales/*.json",
+        "shared/src/index.ts",
+        "shared/src/components/index.ts",
+        "shared/src/components/*/index.ts"
+      ],
+      "how": "別の場所への追記なら多くは自動で合流する。ただし隣り合う追記と、オブジェクトの末尾への追記（直前の行のカンマが変わる）は衝突するので、PR の前にブランチを指定して検査し直す。en / ja の既存のキーを書き換える PR は、同時に 1 本だけにする。"
+    },
+    {
+      "kind": "generated",
+      "paths": [
+        "shared/src/generated/mcpToolCatalog.json",
+        "mcp-server/spec/extension-gateway.json",
+        "mcp-server/mocks/extension-gateway-fake.mjs"
+      ],
+      "how": "手で合流させず、merge 後に cd mcp-server && npm run catalog（窓口の仕様は npm run gateway-spec）で作り直す。"
+    },
+    {
+      "kind": "owner-only",
+      "owners": [
+        "chat-main",
+        "digest"
+      ],
+      "recordBranches": true,
+      "paths": [
+        ".claude/comm/decisions/ANSWERS.md"
+      ],
+      "how": "書き手はこうだいさんと、転記を任された chat-main・digest セッションだけ（.claude/comm/decisions/README.md と同じ）。実装ブランチには載せず、記録用の chore/tracker-* などのブランチで追記する。末尾への追記が重なると衝突するので、1 本ずつ merge する。"
+    }
+  ],
+  "serialRules": {
+    "migrationDir": "supabase/migrations",
+    "migrationPattern": "^(\\d{4})_"
+  }
+}

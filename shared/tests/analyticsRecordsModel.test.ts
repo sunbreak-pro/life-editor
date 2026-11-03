@@ -10,6 +10,7 @@ import {
   formatRecordMetric,
   indexRecordViews,
   lineAxisDomain,
+  lineAxisTicks,
   recentKindSeries,
   recentKindTotals,
   recordChartFor,
@@ -351,6 +352,73 @@ describe("record chart shapes (#2264)", () => {
     // Expense has nothing saved, so it is a sum and an empty day is zero.
     expect(series.get(recordViewKey("expense", "JPY"))).toEqual([0, 0, 500]);
   });
+
+  it("leaves a line kind's empty days out of its week, even for a sum (#2513)", () => {
+    const dated = withDateKeys([
+      rec(at(2026, 10, 5), { id: "w1", kind: "weight", unit: "kg", value: 63 }),
+      rec(at(2026, 10, 7), { id: "e1", value: 300 }),
+    ]);
+    const series = recentKindSeries(
+      dated,
+      "2026-10-07",
+      3,
+      indexRecordViews([
+        view({ metric: "sum", chart: "line" }),
+        view({ kind: "expense", unit: "JPY", metric: "sum", chart: "line" }),
+      ]),
+    );
+    expect(series.get(recordViewKey("weight", "kg"))).toEqual([63, null, null]);
+    expect(series.get(recordViewKey("expense", "JPY"))).toEqual([
+      null,
+      null,
+      300,
+    ]);
+  });
+});
+
+describe("line gaps (#2513)", () => {
+  const weighings = withDateKeys([
+    rec(at(2026, 10, 2), { id: "a", kind: "weight", unit: "kg", value: 67.2 }),
+    rec(at(2026, 10, 4), { id: "b", kind: "weight", unit: "kg", value: 67.8 }),
+  ]);
+  const summary = summarizeRecords(weighings);
+  const values = (
+    metric: "sum" | "count",
+    chart: "bar" | "line",
+  ): (number | null)[] =>
+    buildRecordBars(
+      weighings,
+      "day",
+      summary,
+      "2026-10-01",
+      "2026-10-05",
+      metric,
+      chart,
+    ).map((bar) => bar.value);
+
+  it("draws an empty day of a sum or a count line as no point, not zero", () => {
+    expect(values("sum", "line")).toEqual([null, 67.2, null, 67.8, null]);
+    expect(values("count", "line")).toEqual([null, 1, null, 1, null]);
+  });
+
+  it("keeps the zero days of the bars", () => {
+    expect(values("sum", "bar")).toEqual([0, 67.2, 0, 67.8, 0]);
+    expect(values("count", "bar")).toEqual([0, 1, 0, 1, 0]);
+  });
+
+  it("does the same for week periods", () => {
+    const bars = buildRecordBars(
+      weighings,
+      "week",
+      summary,
+      "2026-09-01",
+      "2026-10-20",
+      "sum",
+      "line",
+    );
+    // Weeks of Sep 27 and Oct 4 hold a weighing; Oct 11 and Oct 18 are empty.
+    expect(bars.map((b) => b.value)).toEqual([67.2, 67.8, null, null]);
+  });
 });
 
 describe("lineAxisDomain (#2311)", () => {
@@ -394,5 +462,58 @@ describe("lineAxisDomain (#2311)", () => {
   it("leaves the axis to the chart when nothing is drawn", () => {
     expect(lineAxisDomain([])).toBeNull();
     expect(lineAxisDomain([null, undefined])).toBeNull();
+  });
+});
+
+describe("lineAxisTicks (#2513)", () => {
+  it("fits three weighings in round steps with one decimal each", () => {
+    // The issue's 30-day sum line: 27 empty days must not pull the floor to 0.
+    expect(lineAxisTicks([null, 67.2, null, 67.8, 67.5, null])).toEqual({
+      domain: [67, 68],
+      ticks: [67, 67.2, 67.4, 67.6, 67.8, 68],
+      fractionDigits: 1,
+    });
+  });
+
+  it("prints every tick with the same decimals", () => {
+    const axis = lineAxisTicks([67, 68]);
+    const labels = axis?.ticks.map((t) => t.toFixed(axis.fractionDigits));
+    expect(labels).toEqual(["66.5", "67.0", "67.5", "68.0", "68.5"]);
+  });
+
+  it("does not collapse around a single value", () => {
+    expect(lineAxisTicks([null, 68, null])).toEqual({
+      domain: [64, 72],
+      ticks: [64, 66, 68, 70, 72],
+      fractionDigits: 0,
+    });
+    expect(lineAxisTicks([0])).toEqual({
+      domain: [0, 1],
+      ticks: [0, 0.5, 1],
+      fractionDigits: 1,
+    });
+  });
+
+  it("steps a count by whole records", () => {
+    expect(lineAxisTicks([3], { integer: true })).toEqual({
+      domain: [2, 4],
+      ticks: [2, 3, 4],
+      fractionDigits: 0,
+    });
+  });
+
+  it("keeps a floor of zero for values at or above zero, and room below zero", () => {
+    expect(lineAxisTicks([1200, 54000])?.ticks).toEqual([
+      0, 20000, 40000, 60000,
+    ]);
+    expect(lineAxisTicks([-10, 0])?.ticks).toEqual([-15, -10, -5, 0, 5]);
+  });
+
+  it("rounds away float noise in the tick values", () => {
+    expect(lineAxisTicks([0.1, 0.3])?.ticks).toEqual([0, 0.1, 0.2, 0.3, 0.4]);
+  });
+
+  it("leaves the axis to the chart when nothing is drawn", () => {
+    expect(lineAxisTicks([null, undefined])).toBeNull();
   });
 });

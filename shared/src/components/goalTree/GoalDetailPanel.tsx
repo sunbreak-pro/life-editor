@@ -1,9 +1,9 @@
 import { useState } from "react";
-import { Link2, Trash2 } from "lucide-react";
+import { Link2, Pencil, Trash2 } from "lucide-react";
 import { cn } from "../cn";
 import { Button } from "../Button";
 import { Input } from "../Input";
-import { TodoStatusCheckbox } from "../TodoStatusCheckbox";
+import { TodoStatusCheckbox, toggledTodoStatus } from "../TodoStatusCheckbox";
 import type { Goal, GoalPeriodKind } from "../../types/goal";
 import type { TodoStatus } from "../../types/todoTree";
 import { isImeComposing } from "../../utils/imeGuard";
@@ -17,12 +17,14 @@ import { GoalStatus, type GoalTreeLabels } from "./GoalTreeView";
  * goal may carry (brief §1.2), and delete. Its todos and child goals are listed
  * so the progress number can be read back to its parts: the tree only draws
  * this period's children, so the ones from earlier periods (which the progress
- * counts too) are given as a number.
+ * counts too) are given as a number. A todo's name ticks it and its pencil
+ * opens it, as on the tree's todo rows (#2388); no bin here yet.
  *
  * The goal above is a link that picks it (#2410). Changing it is a drag on the
  * tree where the tree can be dragged; where it cannot (a phone, the Briefing
  * goals panel), the host also asks for the old select with `parentSelect`, the
- * only way there.
+ * only way there. Without the select, a "Remove" button beside the link is how
+ * the goal goes back to having none: a drag only moves it under another goal.
  *
  * Linking todos FROM the goal is #2109's screen, not this one: the button only
  * tells the host to swap it in (`onLinkTodos`).
@@ -36,6 +38,10 @@ export interface GoalDetailLabels {
   titleLabel: string;
   parentLabel: string;
   parentNone: string;
+  /** The button beside the link that takes the goal above off (#2410). */
+  unlinkParent: string;
+  /** Its name for a screen reader, naming the goal it is taken off. */
+  formatUnlinkParent: (parentTitle: string) => string;
   todosHeading: string;
   todosEmpty: string;
   /** The button that opens the linking screen. */
@@ -96,6 +102,19 @@ export interface GoalDetailPanelProps {
 }
 
 const SUB_HEADING = "mb-1.5 text-xs font-medium text-lumen-text-tertiary";
+
+/**
+ * A linked todo's pencil, drawn as the tree's todo-row icons are
+ * (GoalTreeView's TODO_ROW_ICON): on hover or focus on desktop, always on a
+ * phone, with a 44px target there. Copied, not imported, because a component
+ * module may export only components (react-refresh).
+ */
+const TODO_ROW_ICON = cn(
+  "ml-0.5 grid shrink-0 place-items-center rounded-lumen-sm text-lumen-text-tertiary transition-[color,background-color,opacity] hover:bg-lumen-hover hover:text-lumen-text",
+  "focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+  "max-md:min-h-11 max-md:min-w-11",
+  "opacity-0 group-hover/todo:opacity-100 group-focus-within/todo:opacity-100 max-md:opacity-100",
+);
 
 export function GoalDetailPanel({
   node,
@@ -159,16 +178,31 @@ export function GoalDetailPanel({
             {labels.parentLabel}
           </span>
           {parentGoal !== null ? (
-            <button
-              type="button"
-              onClick={() => onSelectGoal(parentGoal.id)}
-              className={cn(
-                "max-w-full truncate rounded-lumen-sm text-left text-[13px] text-lumen-accent hover:underline max-md:min-h-11",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+            <div className="flex max-w-full items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onSelectGoal(parentGoal.id)}
+                className={cn(
+                  "min-w-0 max-w-full truncate rounded-lumen-sm text-left text-[13px] text-lumen-accent hover:underline max-md:min-h-11",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                )}
+              >
+                {parentGoal.title}
+              </button>
+              {/* The link alone cannot take a goal back to none (#2410,
+                  D-20261102-connect-1 = A): the select's "None", without it. */}
+              {!parentSelect && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onChangeParent(null)}
+                  aria-label={labels.formatUnlinkParent(parentGoal.title)}
+                  className="shrink-0 max-md:min-h-11"
+                >
+                  {labels.unlinkParent}
+                </Button>
               )}
-            >
-              {parentGoal.title}
-            </button>
+            </div>
           ) : (
             !parentSelect && (
               <span className="text-[13px] text-lumen-text-secondary">
@@ -213,7 +247,10 @@ export function GoalDetailPanel({
         ) : (
           <ul className="flex flex-col">
             {node.todos.map((todo) => (
-              <li key={todo.id} className="flex items-center gap-1">
+              <li
+                key={todo.id}
+                className="group/todo flex items-center gap-1 rounded-lumen-sm transition-colors hover:bg-lumen-hover"
+              >
                 <TodoStatusCheckbox
                   status={todo.status}
                   onChange={(next) => onSetTodoStatus(todo.id, next)}
@@ -221,12 +258,18 @@ export function GoalDetailPanel({
                   label={labels.tree.status}
                   itemName={todo.title}
                 />
+                {/* The name ticks the todo, as on the tree's rows (#2388). */}
                 <button
                   type="button"
-                  onClick={() => onOpenTodo(todo.id)}
-                  aria-label={labels.tree.formatOpenTodo(todo.title)}
+                  onClick={() =>
+                    onSetTodoStatus(todo.id, toggledTodoStatus(todo.status))
+                  }
+                  aria-label={(todo.status === "DONE"
+                    ? labels.tree.formatMarkTodoOpen
+                    : labels.tree.formatMarkTodoDone)(todo.title)}
+                  // The whole row carries the hover, so the name adds none.
                   className={cn(
-                    "min-w-0 flex-1 truncate rounded-lumen-sm px-2 py-1.5 text-left text-[13px] hover:bg-lumen-hover max-md:min-h-11",
+                    "min-w-0 flex-1 cursor-pointer truncate rounded-lumen-sm px-2 py-1.5 text-left text-[13px] max-md:min-h-11",
                     "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
                     todo.status === "DONE"
                       ? "text-lumen-text-tertiary line-through"
@@ -234,6 +277,15 @@ export function GoalDetailPanel({
                   )}
                 >
                   {todo.title}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => onOpenTodo(todo.id)}
+                  aria-label={labels.tree.formatOpenTodo(todo.title)}
+                  title={labels.tree.formatOpenTodo(todo.title)}
+                  className={TODO_ROW_ICON}
+                >
+                  <Pencil size={14} aria-hidden />
                 </button>
               </li>
             ))}

@@ -87,6 +87,8 @@ export interface AppRegisterDialogLabels {
     moreLabel: string;
     /** Match count above the panel's grid; one `{count}` slot (#2389). */
     countLabel: string;
+    /** Close (×) on that panel, for a phone with no Esc key (#2500). */
+    closeLabel: string;
   };
   save: string;
   cancel: string;
@@ -102,8 +104,10 @@ export interface AppsViewLabels {
   /** The empty state's paragraph on what this section is for. */
   emptyIntro: string;
   /**
-   * How an app gets a key to send records (the procedure lives in PR #2194's
-   * description). Shown in the empty state and under the list.
+   * How an app gets a key to send records (the procedure lives in the header
+   * of mcp-server/scripts/gateway-key.mjs). Issuing a key is the author's own
+   * step, so it shows only beside the register button — never on the narrow
+   * layout, which cannot register (#2512).
    */
   keyGuide: string;
   unregisteredHeading: string;

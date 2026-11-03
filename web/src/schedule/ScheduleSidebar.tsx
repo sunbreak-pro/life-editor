@@ -488,7 +488,8 @@ export function ScheduleSidebar({
           type="button"
           onClick={day.onToday}
           disabled={isToday}
-          className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2 py-1 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent max-md:min-h-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          // #2477: `max-md:min-w-11` too — the word alone is 35px wide.
+          className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2 py-1 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent max-md:min-h-11 max-md:min-w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
         >
           {t("scheduleScreen.today")}
         </button>
@@ -522,7 +523,9 @@ export function ScheduleSidebar({
           aria-pressed={filter.activeCount > 0}
           onClick={() => setFilterOpen((open) => !open)}
           className={cn(
-            "relative flex size-8 items-center justify-center rounded-lumen-md border transition-colors",
+            // #2477: the day row's 44px floor (DAY_STEP_BTN) — 36px on a
+            // phone before. Desktop keeps `size-8`.
+            "relative flex size-8 items-center justify-center rounded-lumen-md border transition-colors max-md:min-h-11 max-md:min-w-11",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             filter.activeCount > 0
               ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"

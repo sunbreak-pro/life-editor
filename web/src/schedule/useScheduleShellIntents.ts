@@ -49,6 +49,13 @@ export interface ScheduleShellIntentTargets {
   setSidebarTab: (tab: "flow" | "todo" | "repeats") => void;
   /** Undefined outside the shell's RightSidebar Provider. */
   openSidebar: (() => void) | undefined;
+  /**
+   * The programmatic close (no unsaved-draft question). Undefined outside the
+   * shell's RightSidebar Provider. Only called on narrow (#2506).
+   */
+  closeSidebar: (() => void) | undefined;
+  /** Desktop's push-in panel vs. narrow's drawer that covers the screen. */
+  isWide: boolean;
   setTodoDetailId: (id: string | null) => void;
 }
 
@@ -69,6 +76,8 @@ export function useScheduleShellIntents(
     setSelectedId,
     setSidebarTab,
     openSidebar,
+    closeSidebar,
+    isWide,
     setTodoDetailId,
   }: ScheduleShellIntentTargets,
 ): void {
@@ -84,6 +93,14 @@ export function useScheduleShellIntents(
    * it read, so the anchor is now the only day either layout draws from —
    * moving it is the whole job.
    *
+   * #2506: on narrow the right sidebar is a drawer that covers the screen, and
+   * its open state lives in the shell, not in a section. An intent arriving
+   * from another section (the evening paper's「この日の予定へ移動」, pressed
+   * with that drawer open) would otherwise land on the Schedule with the
+   * drawer still over it. Closing it is part of putting the day on screen —
+   * the same move a repeat's jump makes (#467). Desktop's panel is pushed in
+   * beside the grid, so it is left alone there.
+   *
    * `setSelectedId` is in the deps and is inert: it is React's own useState
    * dispatch, handed straight out of a hook, so it never changes identity —
    * exhaustive-deps simply cannot prove that through a custom hook.
@@ -93,9 +110,12 @@ export function useScheduleShellIntents(
     revealOnGrid();
     setAnchorDate(pendingSelectEvent.date);
     setSelectedId(pendingSelectEvent.id);
+    if (!isWide) closeSidebar?.();
     onConsumePendingEvent?.();
   }, [
     pendingSelectEvent,
+    isWide,
+    closeSidebar,
     setAnchorDate,
     onConsumePendingEvent,
     revealOnGrid,

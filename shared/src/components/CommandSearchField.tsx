@@ -8,6 +8,11 @@ import { cn } from "./cn";
  * overlay (this field never renders inline results). Below `md` it collapses to
  * an icon-only button so the affordance survives on narrow widths.
  *
+ * WIDTH (#2508): the wide field fills whatever box it is put in. Its width
+ * used to live here (`md:w-72 xl:w-96`), which made it a fixed minimum of the
+ * header's controls group and left a five-tab band no room at 768px.
+ * SectionHeader's `search` slot now owns the width and lets it narrow first.
+ *
  * Focus does NOT open the palette: the overlay restores focus to this button on
  * close, so an onFocus-opens would reopen in a loop. Click / keyboard activate
  * is the trigger.
@@ -43,7 +48,7 @@ export function CommandSearchField({
         onClick={onOpen}
         aria-label={label}
         className={cn(
-          "hidden w-52 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2.5 py-1.5 text-left text-xs text-lumen-text-secondary transition-colors hover:border-lumen-border-strong hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent md:flex md:w-72 xl:w-96",
+          "hidden min-w-0 flex-1 items-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary px-2.5 py-1.5 text-left text-xs text-lumen-text-secondary transition-colors hover:border-lumen-border-strong hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent md:flex",
           className,
         )}
       >

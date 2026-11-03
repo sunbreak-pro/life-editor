@@ -29,6 +29,7 @@ const LABELS = {
   noMatchLabel: "No icon matches that.",
   moreLabel: "Show more",
   countLabel: "{count} icons",
+  closeLabel: "Close the icon list",
 };
 
 /*
