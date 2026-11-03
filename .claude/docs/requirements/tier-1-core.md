@@ -14,7 +14,7 @@
 ## Feature: Briefing（朝刊 — ホーム面）
 
 **Tier**: 1
-**Status**: △Step 1（読む面）出荷済み（#249）— ループ全体は進行中。**テーマ正本 = [`2026-07-15-briefing-loop.md`](../vision/plans/2026-07-15-briefing-loop.md)**（Steps 索引・決定録・完成判定 = 同書 §Acceptance「ループが平日 5 日連続で回る」）。**2026-10 に目標と Todo をつなぐ朝刊・夕刊へ作り直した**（D-20260928-briefing-4・計画書 = [`2026-10-03-briefing-goals-redesign.md`](../vision/plans/2026-10-03-briefing-goals-redesign.md)。朝刊 = #2106、夕刊 = #2107、Daily = #2123）
+**Status**: △Step 1（読む面）出荷済み（#249）— ループ全体は進行中。**テーマ正本 = [`2026-07-15-briefing-loop.md`](../vision/plans/2026-07-15-briefing-loop.md)**（Steps 索引・決定録・完成判定 = 同書 §Acceptance「ループが平日 5 日連続で回る」）。**2026-10 に目標と Todo をつなぐ朝刊・夕刊へ作り直した**（D-20260928-briefing-4・計画書 = [`2026-10-03-briefing-goals-redesign.md`](../../archive/2026-10-03-briefing-goals-redesign.md)。朝刊 = #2106、夕刊 = #2107、Daily = #2123）
 **Owner Provider/Module**: `shared/src/components/briefing/`（`BriefingView` / `extractBriefing`）+ `web/src/briefing/BriefingScreen.tsx`（ホスト = fetch / i18n 解決）。セクション定義・デフォルト起動 = `shared/src/sections.ts`
 **MCP Coverage**: あり（`get_today_context` / `get_week_context` / `write_briefing` 実装済み — 一覧はコード `mcp-server/src/tools.ts` が正）
 **Supports Value Prop**: V1
@@ -75,7 +75,7 @@
 ### Related Plans
 
 - ACTIVE: `docs/vision/plans/2026-07-15-briefing-loop.md`(テーマ正本)
-- IN PROGRESS: `docs/vision/plans/2026-10-03-briefing-goals-redesign.md`（目標と Todo をつなぐ作り直し。残りは実画面の確認 = Step 12）
+- COMPLETED: `archive/2026-10-03-briefing-goals-redesign.md`（目標と Todo をつなぐ作り直し。2026-11-03 に実画面の確認 = Step 12 が済んで archive 移動）
 - COMPLETED: `archive/2026-07-14-schedule-redesign.md`（2026-08-10 #591 で archive 移動）
 - COMPLETED: `archive/2026-07-16-loop-friction-fixes.md`（2026-07-19 archive 移動）
 - REFERENCE: `docs/vision/plans/2026-07-16-briefing-headless-claude-prototype.md`（ボタン起動の技術検証記録）
