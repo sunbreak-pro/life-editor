@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { KeyboardEvent, ReactNode } from "react";
 import { cn } from "./cn";
 import { tourAnchor } from "./tour/anchor";
@@ -68,6 +68,22 @@ export function HeaderTabs({
   // the first tab falls back to tabindex 0 (roving-tabindex invariant).
   const activeIndex = tabs.findIndex((t) => t.id === activeTab);
 
+  /*
+   * Bring the selected tab into the strip's view (#2508). Focusing a tab that
+   * is only partly clipped does not scroll the strip in Chrome, so ← / → onto
+   * 「記録」 left it 23px cut off, and a band opened on a clipped tab started
+   * that way too. Runs after commit for every way the selection changes
+   * (keys, click, palette). `nearest` on both axes keeps the page itself
+   * still. Optional call: jsdom has no scrollIntoView.
+   */
+  useEffect(() => {
+    if (activeIndex < 0) return;
+    refs.current[activeIndex]?.scrollIntoView?.({
+      block: "nearest",
+      inline: "nearest",
+    });
+  }, [activeIndex]);
+
   const handleKeyDown = (
     e: KeyboardEvent<HTMLButtonElement>,
     index: number,
@@ -92,8 +108,8 @@ export function HeaderTabs({
    *   natural width, so the strip stops at the controls instead of under them.
    * - `whitespace-nowrap shrink-0` on each tab keeps the label on one line.
    * - `overflow-x-auto` scrolls the rest into reach (trackpad / shift+wheel,
-   *   and ←/→ focus scrolls the next tab into view). The scrollbar is hidden
-   *   because a classic one would add its own height to the band.
+   *   and the effect above brings the selected tab into view). The scrollbar
+   *   is hidden because a classic one would add its own height to the band.
    * `pb-px -mb-px` keeps the active underline on the SectionHeader divider:
    * each tab hangs 1px below the list (`-mb-px`), and a scroll container
    * would clip that pixel, so the list grows by the same pixel inside and
