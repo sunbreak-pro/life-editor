@@ -98,9 +98,11 @@ export interface TabBand {
  */
 export function TabBandHeader({
   band,
+  search,
   controls,
 }: {
   band: TabBand;
+  search?: ReactNode;
   controls: ReactNode;
 }): React.JSX.Element {
   return (
@@ -115,6 +117,7 @@ export function TabBandHeader({
           trailing={band.trailing}
         />
       }
+      search={search}
       controls={controls}
     />
   );
@@ -248,15 +251,19 @@ export function MainScreen({ session }: { session: Session }) {
   // field (#306), app-level Undo/Redo (#304), then the rightSidebar toggle:
   // [search][Undo][Redo][rightSidebar]. The rightSidebar toggle is
   // UNCONDITIONAL for all sections (v2 §3); the v2 §5 width tab was retired
-  // 2026-07-11 (all sections wide).
+  // 2026-07-11 (all sections wide). The search field goes in SectionHeader's
+  // own `search` slot, which narrows it before the tab band when the row is
+  // short (#2508).
+  const headerSearch = (
+    <CommandSearchField
+      onOpen={() => setPaletteOpen(true)}
+      placeholder={t("commandPalette.trigger")}
+      label={t("nav.commandPalette")}
+      shortcutHint={isMac ? "⌘K" : "Ctrl K"}
+    />
+  );
   const headerControls = (
     <>
-      <CommandSearchField
-        onOpen={() => setPaletteOpen(true)}
-        placeholder={t("commandPalette.trigger")}
-        label={t("nav.commandPalette")}
-        shortcutHint={isMac ? "⌘K" : "Ctrl K"}
-      />
       <HeaderUndoRedo />
       <RightSidebarToggle
         variant="panel"
@@ -304,10 +311,15 @@ export function MainScreen({ session }: { session: Session }) {
   // band shows it as its title (divider={false}: the SectionHeader owns the
   // line); every other section shows its translated title.
   const sectionHeader = band ? (
-    <TabBandHeader band={band} controls={headerControls} />
+    <TabBandHeader
+      band={band}
+      search={headerSearch}
+      controls={headerControls}
+    />
   ) : (
     <SectionHeader
       title={t(`section.${section}`, { defaultValue: section })}
+      search={headerSearch}
       controls={headerControls}
     />
   );
