@@ -1562,6 +1562,8 @@
       "titleLabel": "目標の名前",
       "parentLabel": "上の目標",
       "parentNone": "なし",
+      "unlinkParent": "外す",
+      "unlinkParentLabel": "上の目標「{{title}}」から外す",
       "todosHeading": "つないだ Todo",
       "todosEmpty": "この目標につないだ Todo はまだありません。",
       "childrenHeading": "下の目標",

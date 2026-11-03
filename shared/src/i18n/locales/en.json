@@ -1581,6 +1581,8 @@
       "titleLabel": "Goal title",
       "parentLabel": "Goal above",
       "parentNone": "None",
+      "unlinkParent": "Remove",
+      "unlinkParentLabel": "Remove from the goal above: {{title}}",
       "todosHeading": "Linked todos",
       "todosEmpty": "No todos are linked to this goal yet.",
       "childrenHeading": "Goals under this one",

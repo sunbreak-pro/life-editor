@@ -23,7 +23,8 @@ import { GoalStatus, type GoalTreeLabels } from "./GoalTreeView";
  * The goal above is a link that picks it (#2410). Changing it is a drag on the
  * tree where the tree can be dragged; where it cannot (a phone, the Briefing
  * goals panel), the host also asks for the old select with `parentSelect`, the
- * only way there.
+ * only way there. Without the select, a "Remove" button beside the link is how
+ * the goal goes back to having none: a drag only moves it under another goal.
  *
  * Linking todos FROM the goal is #2109's screen, not this one: the button only
  * tells the host to swap it in (`onLinkTodos`).
@@ -37,6 +38,10 @@ export interface GoalDetailLabels {
   titleLabel: string;
   parentLabel: string;
   parentNone: string;
+  /** The button beside the link that takes the goal above off (#2410). */
+  unlinkParent: string;
+  /** Its name for a screen reader, naming the goal it is taken off. */
+  formatUnlinkParent: (parentTitle: string) => string;
   todosHeading: string;
   todosEmpty: string;
   /** The button that opens the linking screen. */
@@ -173,16 +178,31 @@ export function GoalDetailPanel({
             {labels.parentLabel}
           </span>
           {parentGoal !== null ? (
-            <button
-              type="button"
-              onClick={() => onSelectGoal(parentGoal.id)}
-              className={cn(
-                "max-w-full truncate rounded-lumen-sm text-left text-[13px] text-lumen-accent hover:underline max-md:min-h-11",
-                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+            <div className="flex max-w-full items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onSelectGoal(parentGoal.id)}
+                className={cn(
+                  "min-w-0 max-w-full truncate rounded-lumen-sm text-left text-[13px] text-lumen-accent hover:underline max-md:min-h-11",
+                  "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                )}
+              >
+                {parentGoal.title}
+              </button>
+              {/* The link alone cannot take a goal back to none (#2410,
+                  D-20261102-connect-1 = A): the select's "None", without it. */}
+              {!parentSelect && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => onChangeParent(null)}
+                  aria-label={labels.formatUnlinkParent(parentGoal.title)}
+                  className="shrink-0 max-md:min-h-11"
+                >
+                  {labels.unlinkParent}
+                </Button>
               )}
-            >
-              {parentGoal.title}
-            </button>
+            </div>
           ) : (
             !parentSelect && (
               <span className="text-[13px] text-lumen-text-secondary">

@@ -103,6 +103,9 @@ export function useGoalTreeLabels(todayKey: string): {
       titleLabel: t("connect.goals.titleLabel"),
       parentLabel: t("connect.goals.parentLabel"),
       parentNone: t("connect.goals.parentNone"),
+      unlinkParent: t("connect.goals.unlinkParent"),
+      formatUnlinkParent: (title) =>
+        t("connect.goals.unlinkParentLabel", { title }),
       todosHeading: t("connect.goals.todosHeading"),
       todosEmpty: t("connect.goals.todosEmpty"),
       linkTodos: t("goalLink.heading"),

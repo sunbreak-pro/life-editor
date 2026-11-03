@@ -644,6 +644,22 @@ describe("Connect Goals & Todos tab (#2108)", () => {
     expect(panel().queryByText("Goal above")).toBeNull();
   });
 
+  it("takes the goal above off with Remove on a wide screen (#2410, D-20261102-connect-1)", async () => {
+    const ds = makeDS();
+    const { panel } = await renderTab(ds);
+    fireEvent.click(goalRow("Get the proposal approved"));
+    expect(panel().queryByRole("combobox")).toBeNull();
+
+    const unlink = panel().getByRole("button", {
+      name: "Remove from the goal above: Win an autumn project",
+    });
+    expect(unlink.textContent).toBe("Remove");
+    fireEvent.click(unlink);
+    await waitFor(() =>
+      expect(ds.updateGoal).toHaveBeenCalledWith("w1", { parentGoalId: null }),
+    );
+  });
+
   it("links to a goal above that is no longer on offer as a parent (#2410)", async () => {
     const { panel } = await renderTab(
       makeDS({
