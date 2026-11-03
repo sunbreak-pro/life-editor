@@ -111,6 +111,25 @@ export const TAP_TARGET_TALL =
   "relative after:absolute after:inset-x-0 after:top-1/2 after:h-11 after:-translate-y-1/2 after:content-['']";
 
 /**
+ * Narrow-only 44px hit area for a small toggle TRACK (#2517).
+ *
+ * The settings switches are a 36x20 track with a sliding thumb: growing the box
+ * would redraw the control, and Desktop must not move at all. So the track
+ * keeps its size and a transparent `::after` hangs a 44x44 square centred on
+ * it, on BOTH axes — unlike TAP_TARGET_TALL, whose `inset-x-0` keeps the
+ * control's own width, which here is the 36px that falls short.
+ *
+ * px rather than rem on purpose: the floor is a finger, not text, and the
+ * Settings font-size step would otherwise move it (FrequencyEditor's weekday
+ * chips made the same call). The caller must already be `relative` — the
+ * track is, because the thumb is positioned inside it. It overhangs ~12px
+ * above and below, so it is only safe where the neighbours sit further away
+ * than that (the settings rows use `gap-3` and nothing tappable beside).
+ */
+export const SWITCH_TAP_NARROW =
+  "max-md:after:absolute max-md:after:left-1/2 max-md:after:top-1/2 max-md:after:h-[44px] max-md:after:w-[44px] max-md:after:-translate-x-1/2 max-md:after:-translate-y-1/2 max-md:after:content-['']";
+
+/**
  * Disabled treatment for accent-FILLED buttons (#1474).
  *
  * `disabled:opacity-50` was the wrong lever. Opacity only composites the fill
