@@ -146,7 +146,9 @@ export interface RecordsBar {
   /**
    * The bar's height: the chosen metric while aggregable, else the row count.
    * Null for a period with no record when the metric is an average or the
-   * latest value — a day without a weighing did not weigh 0 kg.
+   * latest value — a day without a weighing did not weigh 0 kg — and for any
+   * empty period of a line (#2513), whose axis would otherwise reach down to
+   * the zero of every day nothing was sent.
    */
   value: number | null;
 }
@@ -261,7 +263,12 @@ function periodKeysBetween(
  * even step. Day bars fill the whole window; week and month bars run from the
  * first period that has data to the window's last day (an "all time" window
  * starts in 2020 and would otherwise be years of nothing). An empty period of
- * an average or a latest value is null instead (RecordsBar.value).
+ * an average or a latest value, and of any line, is null instead
+ * (RecordsBar.value).
+ *
+ * A line leaves every empty period out whatever the kind (#2513, chat-main's
+ * call): a sum line of three weighings drew 27 zero days and an axis from 0,
+ * and a spending line still reads its trend from the days that have a value.
  */
 export function buildRecordBars(
   rows: readonly DatedRecord[],
@@ -270,6 +277,7 @@ export function buildRecordBars(
   startKey: string,
   endKey: string,
   metric: RecordViewMetric = RECORD_VIEW_DEFAULT.metric,
+  chart: RecordViewChart = RECORD_VIEW_DEFAULT.chart,
 ): RecordsBar[] {
   if (rows.length === 0) return [];
   const points = appRecordsToPoints(rows.map((r) => r.record));
@@ -278,7 +286,8 @@ export function buildRecordBars(
   for (const bucket of aggregateAppRecords(points, groupBy)) {
     byPeriod.set(bucket.period, recordStat(bucket, shown));
   }
-  const gap = shown === "avg" || shown === "latest" ? null : 0;
+  const gap =
+    chart === "line" || shown === "avg" || shown === "latest" ? null : 0;
   const first = groupBy === "day" ? startKey : [...byPeriod.keys()].sort()[0];
   const last = appRecordPeriodKey(groupBy, endKey);
   return periodKeysBetween(groupBy, first, last).map((period) => ({
@@ -324,6 +333,58 @@ export function lineAxisDomain(
   return [lo >= 0 ? Math.max(0, floor) : floor, hi + pad];
 }
 
+/** Gaps between ticks recharts aims for by default (its tickCount of 5). */
+const LINE_AXIS_INTERVALS = 4;
+
+export interface LineAxis {
+  /** The axis range, snapped out to the first and the last tick. */
+  domain: [number, number];
+  /** Evenly spaced tick values, lowest first. */
+  ticks: number[];
+  /** Decimals every tick is printed with, so 67.0 / 67.5 / 68.0 line up. */
+  fractionDigits: number;
+}
+
+/** 1, 2 or 5 times a power of ten, the nearest at or above `raw`. */
+function niceStep(raw: number): number {
+  const magnitude = 10 ** Math.floor(Math.log10(raw));
+  const norm = raw / magnitude;
+  const factor = norm <= 1 ? 1 : norm <= 2 ? 2 : norm <= 5 ? 5 : 10;
+  return factor * magnitude;
+}
+
+/**
+ * The ticks of a line's value axis (#2513): `lineAxisDomain`'s range widened
+ * to round steps, every label with the same decimals. Handing recharts only
+ * the raw range put its odd end on the axis as a label of its own (74.58 over
+ * 60 / 40 / 20). `integer` keeps a count's step at 1 or more — there is no
+ * half a record. Null when nothing is drawn, like `lineAxisDomain`.
+ */
+export function lineAxisTicks(
+  values: readonly (number | null | undefined)[],
+  { integer = false }: { integer?: boolean } = {},
+): LineAxis | null {
+  const range = lineAxisDomain(values);
+  if (range === null) return null;
+  const [lo, hi] = range;
+  const raw = niceStep((hi - lo) / LINE_AXIS_INTERVALS);
+  const step = integer ? Math.max(raw, 1) : raw;
+  const fractionDigits = Math.max(0, -Math.floor(Math.log10(step)));
+  // The epsilon keeps 67.0 / 0.2 = 334.999… on its own tick, not one below.
+  const first = Math.floor(lo / step + 1e-9);
+  const last = Math.max(Math.ceil(hi / step - 1e-9), first + 1);
+  const ticks: number[] = [];
+  for (let n = first; n <= last; n++) {
+    // Rounded to the printed decimals so 0.1 * 3 does not end in …0004.
+    ticks.push(Number((n * step).toFixed(fractionDigits)));
+  }
+  return {
+    domain: [ticks[0], ticks[ticks.length - 1]],
+    ticks,
+    fractionDigits,
+  };
+}
+
 export interface KindTotal {
   kind: string;
   unit: string | null;
@@ -353,7 +414,7 @@ export function recentKindTotals(
  * One value per day for each kind over the same window as `recentKindTotals`,
  * in the metric chosen for that kind — what the narrow block's small chart
  * draws (#2264). Keyed by `recordViewKey`; the day rule is `buildRecordBars`'s,
- * so an empty day of an average or a latest is null, not zero.
+ * so an empty day of an average, a latest or a line is null, not zero.
  */
 export function recentKindSeries(
   dated: readonly DatedRecord[],
@@ -379,6 +440,7 @@ export function recentKindSeries(
       startKey,
       todayKey,
       recordMetricFor(index, kind, unit),
+      recordChartFor(index, kind, unit),
     );
     series.set(
       key,

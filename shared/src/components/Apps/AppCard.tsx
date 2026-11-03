@@ -72,7 +72,11 @@ export function AppCard({
               target="_blank"
               rel="noopener noreferrer"
               aria-label={labels.openUrl(app.name)}
-              className="mt-1 inline-flex max-w-full items-center gap-1 text-xs text-lumen-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+              // CARD_BTN_TAP floors the link's own box at 44px on a phone
+              // (#2510) — `text-xs` alone made it 20px tall. `items-center`
+              // keeps the line centred in the taller box; Desktop keeps the
+              // text-height link, so the card does not grow there.
+              className={`mt-1 inline-flex max-w-full items-center gap-1 text-xs text-lumen-accent hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent ${CARD_BTN_TAP}`}
             >
               <span className="truncate">{app.url}</span>
               <ExternalLink size={12} aria-hidden="true" className="shrink-0" />

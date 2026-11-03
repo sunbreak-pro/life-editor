@@ -95,6 +95,8 @@ const LABELS: GoalDetailLabels = {
   titleLabel: "Goal title",
   parentLabel: "Goal above",
   parentNone: "None",
+  unlinkParent: "Remove",
+  formatUnlinkParent: (title) => `Remove from the goal above: ${title}`,
   todosHeading: "Linked todos",
   todosEmpty: "No todos yet",
   linkTodos: "Link todos",
