@@ -8,7 +8,9 @@ import { TAG_HUB_LABELS, formatCount, formatUnusedTags } from "./tagHubLabels";
  * colour itself is the user's and is not corrected; the selected row alone lays
  * a page-coloured disc under the glyph. jsdom has no layout or paint, so this
  * pins the structure: the disc is there on the selected row, under the glyph,
- * drawn with a lumen-* token, and absent from every other row.
+ * drawn with a lumen-* token, and absent from every other row. The disc alone
+ * left four light colours under 3:1, so the selected glyph also carries a 1px
+ * outline in the text token; that too is pinned by its class.
  */
 
 const DEV: TagHubTagSummary = {
@@ -109,6 +111,33 @@ describe("TagHubTagRail — the selected row's icon disc (#2501)", () => {
     expect(rowButton(HOME).firstElementChild?.tagName.toLowerCase()).toBe(
       "svg",
     );
+  });
+
+  it("outlines the selected glyph in the text token, and only the glyph", () => {
+    renderRail(DEV.id);
+    const wrapper = discIn(DEV)!;
+    const outline = within(wrapper).getByTestId("tag-rail-icon-outline");
+    // The filter sits on the glyph's own span, not on the wrapper that also
+    // holds the disc, so the disc is not outlined with it.
+    expect(outline.querySelector("svg")).not.toBeNull();
+    expect(wrapper.className).not.toMatch(/filter/);
+    const filter = outline.className.match(/\[filter:([^\]]+)\]/)?.[1] ?? "";
+    const shadows = filter.match(/drop-shadow\([^)]*\)\)/g) ?? [];
+    expect(shadows).toHaveLength(4);
+    for (const shadow of shadows) {
+      expect(shadow).toContain("var(--color-lumen-text)");
+    }
+    expect(filter).not.toMatch(/#[0-9a-f]{3,8}|rgb/i);
+    expect(outline.getAttribute("style")).toBeNull();
+  });
+
+  it("leaves rows that are not selected without an outline", () => {
+    renderRail(DEV.id);
+    for (const tag of [HOME, UNTAGGED]) {
+      const row = rowButton(tag);
+      expect(within(row).queryByTestId("tag-rail-icon-outline")).toBeNull();
+      expect(row.innerHTML).not.toMatch(/drop-shadow/);
+    }
   });
 
   it("draws no disc when nothing is selected", () => {

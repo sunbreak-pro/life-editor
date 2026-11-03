@@ -337,6 +337,12 @@ export function TagHubTagRail({
   );
 }
 
+// #2501: four 1px drop-shadows, one per side, trace lucide's strokes in the
+// text token (an outline, since a stroked glyph has no fill to border). Written
+// out in full so Tailwind's scanner sees the literal class.
+const SELECTED_ICON_OUTLINE =
+  "[filter:drop-shadow(1px_0_0_var(--color-lumen-text))_drop-shadow(-1px_0_0_var(--color-lumen-text))_drop-shadow(0_1px_0_var(--color-lumen-text))_drop-shadow(0_-1px_0_var(--color-lumen-text))]";
+
 interface TagHubRailRowProps {
   tag: TagHubTagSummary;
   active: boolean;
@@ -426,6 +432,10 @@ function TagHubRailRow({
             // disc is absolute so the glyph keeps its 15px footprint and the
             // name does not shift by a few px when a row is picked; `isolate`
             // + `-z-10` keep it under the glyph rather than painted over it.
+            // The page colour is itself light, so amber / orange / teal / sky
+            // still sat under 3:1 on it; the glyph's strokes also get a 1px
+            // outline in the text colour. The filter is on its own span: on the
+            // wrapper it would outline the disc too.
             <span
               data-testid="tag-rail-icon-disc"
               className="relative isolate inline-flex shrink-0"
@@ -434,7 +444,12 @@ function TagHubRailRow({
                 aria-hidden
                 className="absolute -inset-1 -z-10 rounded-full bg-lumen-bg"
               />
-              <TagHeadingIcon icon={tag.icon} color={tag.color} />
+              <span
+                data-testid="tag-rail-icon-outline"
+                className={cn("inline-flex", SELECTED_ICON_OUTLINE)}
+              >
+                <TagHeadingIcon icon={tag.icon} color={tag.color} />
+              </span>
             </span>
           ) : (
             <TagHeadingIcon icon={tag.icon} color={tag.color} />
