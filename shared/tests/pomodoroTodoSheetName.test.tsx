@@ -159,3 +159,30 @@ describe("PomodoroTodoSheet — adding a new Todo or Event (#2229)", () => {
     expect(screen.queryByRole("button", { name: /As a/ })).toBeNull();
   });
 });
+
+/*
+ * #2515 — at 390px the submit button beside the field left the field 161px,
+ * cutting the placeholder off. The field and the button now share a column,
+ * each on its own full-width row. jsdom has no layout, so this pins the
+ * structure; the widths are checked in a real browser.
+ */
+describe("PomodoroTodoSheet — the name field's row (#2515)", () => {
+  it("puts the submit button on its own row under the field", () => {
+    renderSheet("");
+    const button = screen.getByRole("button", { name: labels.nameSubmit });
+    const row = field().parentElement;
+    expect(button.parentElement).toBe(row);
+    expect(row?.classList.contains("flex-col")).toBe(true);
+    expect(row?.firstElementChild).toBe(field());
+    expect(row?.lastElementChild).toBe(button);
+  });
+
+  it("lets the button fill the row and keeps its 44px touch box", () => {
+    renderSheet("");
+    const button = screen.getByRole("button", { name: labels.nameSubmit });
+    expect(button.classList.contains("w-full")).toBe(true);
+    expect(button.classList.contains("shrink-0")).toBe(false);
+    expect(button.classList.contains("min-h-11")).toBe(true);
+    expect(field().classList.contains("min-h-11")).toBe(true);
+  });
+});
