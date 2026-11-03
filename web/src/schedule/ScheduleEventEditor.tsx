@@ -279,9 +279,7 @@ export function ScheduleEventEditor({
           : undefined
       }
       // #2407: Delete / Cancel / Save, as in the prototype.
-      cancel={
-        onCancel ? { label: t("common.cancel"), onCancel } : undefined
-      }
+      cancel={onCancel ? { label: t("common.cancel"), onCancel } : undefined}
       // #2447: staged picks ride the save press and the discard question.
       tagDraft={{ dirty: tagDraft.dirty, onSave: tagDraft.save }}
       tagSlot={
@@ -329,9 +327,20 @@ export function ScheduleEventEditor({
           )}
           {/* #2219: 「ノートを添付」 at the right end of the tag row. The note
               links to this occurrence's own row, as the create panel's does —
-              a note is about the day, not the series. */}
-          <div className="flex items-start gap-2">
-            <div className="min-w-0 flex-1">
+              a note is about the day, not the series.
+              #2479: below the breakpoint the picker takes the whole first
+              line and 「ノートを添付」 drops to the next one, kept at the
+              right end (its panel opens leftward from there). Sharing a
+              390px line, a one-tag picker was left ~165px and its 「＋」
+              wrapped onto a line of its own. */}
+          <div
+            data-event-tag-row=""
+            className="flex items-start gap-2 max-md:flex-wrap"
+          >
+            <div
+              data-event-tag-picker=""
+              className="min-w-0 flex-1 max-md:basis-full"
+            >
               <TagPicker
                 itemId={tagTargetId}
                 itemRole={tagTargetRole}
@@ -339,12 +348,17 @@ export function ScheduleEventEditor({
               />
             </div>
             {noteAttach && (
-              <ItemNoteAttach
-                notes={noteAttach.notes}
-                onAttach={(draft) => noteAttach.onAttach(item.id, draft)}
-                onOpenChange={noteAttach.onOpenChange}
-                labels={noteAttachLabels}
-              />
+              <div
+                data-event-note-attach=""
+                className="shrink-0 max-md:ml-auto"
+              >
+                <ItemNoteAttach
+                  notes={noteAttach.notes}
+                  onAttach={(draft) => noteAttach.onAttach(item.id, draft)}
+                  onOpenChange={noteAttach.onOpenChange}
+                  labels={noteAttachLabels}
+                />
+              </div>
             )}
           </div>
           {/* #2407: the link to the tag's own colour, which #2219 moved to

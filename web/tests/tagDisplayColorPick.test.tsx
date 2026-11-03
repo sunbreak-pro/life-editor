@@ -273,6 +273,27 @@ describe("#2407 — the link to the tag's own colour", () => {
     expect(cls).not.toContain("min-h-11");
   });
 
+  /*
+   * #2479: side by side on a 390px sheet, the shrink-0 link left the sentence
+   * 145px and 「色はタグが決まります」 broke inside a word. Below the
+   * breakpoint the two stack — sentence above, link below — and wide keeps
+   * them on one line. jsdom has no layout, so this pins the classes.
+   */
+  it("stacks the sentence above the link on narrow only", async () => {
+    await renderControls(undefined, vi.fn());
+    const band = document.querySelector("[data-display-color-source]");
+    expect(band).not.toBeNull();
+    const cls = (band?.getAttribute("class") ?? "").split(" ");
+    expect(cls).toContain("max-md:flex-col");
+    expect(cls).not.toContain("flex-col");
+    // Wide is untouched: one line, sentence left, link right.
+    expect(cls).toContain("justify-between");
+    // Sentence first, link second, in the one band.
+    const [first, second] = Array.from(band?.children ?? []);
+    expect(first?.textContent).toBe("itemActions.displayColorByTag");
+    expect(second?.tagName).toBe("BUTTON");
+  });
+
   it("draws no link on an item with no tags", async () => {
     const h = makeHarness([]);
     render(

@@ -8,7 +8,13 @@ import {
 import type { TodoCompletionTrendLabels } from "../Analytics/TodoCompletionTrend";
 import type { WorkBreakBalanceLabels } from "../Analytics/WorkBreakBalance";
 import { ChartCard } from "../Analytics/ChartCard";
-import { CHART_HEIGHT_MD } from "../Analytics/chartTheme";
+import {
+  CHART_HEIGHT_MD,
+  MAX_DATE_TICKS,
+  NARROW_MAX_DATE_TICKS,
+} from "../Analytics/chartTheme";
+import { WIDE_QUERY } from "../../constants/breakpoints";
+import { useMediaQuery } from "../../hooks/useMediaQuery";
 import { PANEL_BLOCK_RULE } from "./briefingStyles";
 
 /*
@@ -77,6 +83,11 @@ function ChartPlaceholder({ title }: { title: string }) {
  * ~320px wide (RightSidebarContext DEFAULT_WIDTH) and two columns there would
  * squeeze each chart below the width its axis labels need.
  *
+ * On a phone the panel is the MobileDrawer (~316px on a 390px screen), and the
+ * two 7-day axes print every other day there (#2505) — seven labels touched and
+ * read as one run of digits. The wide panel (~478px) keeps all seven, and
+ * Analytics, which mounts the same charts, is not touched: the count is a prop.
+ *
  * Pure presentation (§6.4): no DataService, no useTranslation.
  */
 export interface BriefingVizPanelProps {
@@ -99,6 +110,10 @@ export function BriefingVizPanel({
   trendLabels,
   balanceLabels,
 }: BriefingVizPanelProps): React.JSX.Element {
+  // Fallback true (wide): jsdom has no matchMedia, and wide is what the panel
+  // drew before #2505.
+  const wide = useMediaQuery(WIDE_QUERY, true);
+  const maxDateTicks = wide ? MAX_DATE_TICKS : NARROW_MAX_DATE_TICKS;
   return (
     <section className={`flex flex-col gap-3 ${PANEL_BLOCK_RULE}`}>
       {/* Same heading shape as the tray above it, not the paper's 段標 —
@@ -133,11 +148,13 @@ export function BriefingVizPanel({
             nodes={todoNodes}
             days={7}
             labels={trendLabels}
+            maxDateTicks={maxDateTicks}
           />
           <WorkBreakBalance
             sessions={sessions}
             days={7}
             labels={balanceLabels}
+            maxDateTicks={maxDateTicks}
           />
         </Suspense>
       </div>

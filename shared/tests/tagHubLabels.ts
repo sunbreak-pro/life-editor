@@ -39,6 +39,7 @@ export const TAG_HUB_LABELS: TagHubLabels = {
     colorLabel: "Color",
     iconMore: "Show more",
     iconCount: "{count} icons",
+    iconClose: "Close the icon list",
     iconClear: "Default icon",
     iconSearch: "Search icons",
     iconNoMatch: "No icon matches that.",
