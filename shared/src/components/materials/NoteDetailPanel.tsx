@@ -52,6 +52,21 @@ import { isImeComposing } from "../../utils/imeGuard";
 const MENU_ITEM_TAP_FLOOR = "max-md:min-h-11";
 
 /*
+ * #2467 — the floor of the box that holds the pin and the kebab: one title
+ * line, written from the title field's own classes in NoteTitleInput. "main"
+ * is `text-[28px] leading-tight py-0.5` (35px + 0.25rem); "sidebar" is
+ * `text-sm leading-snug py-1.5` plus a 1px border (0.875rem x 1.375 + 0.75rem
+ * + 2px). The header row aligns to the top from md up, so the actions centre
+ * on the title's first line even when the tags wrap under it. Keep these in
+ * step with the title classes. It is a floor, not a height: below the
+ * breakpoint the 44px kebab hit box (#1840) is taller and wins.
+ */
+const ACTIONS_LINE_BOX = {
+  main: "min-h-[calc(35px+0.25rem)]",
+  sidebar: "min-h-[calc(1.203125rem+0.75rem+2px)]",
+} as const;
+
+/*
  * #2058 — the CSS custom property the panel publishes on its root while the
  * header is sticky: the header's current height in px.
  *
@@ -510,11 +525,32 @@ export function NoteDetailPanel({
           delete) right-anchored just beneath it. Collapsing the per-action
           icons behind one affordance declutters the header (#284). The title
           and the tags wrap inside their own box, so many tags drop under the
-          title while the kebab stays at the row's end. */}
-        <div className="flex items-center gap-1.5">
+          title while the kebab stays at the row's end.
+
+          #2467: below the breakpoint the tag row always takes a line of its
+          own, and centring the pin and kebab on that two-line box left them
+          floating between the title and the tags. There the title row's box
+          dissolves (`contents`), so the title, pin and kebab become items of
+          THIS row's first line and the tag row (`order-last`, full width)
+          wraps to the second. `items-center` then centres each line on its
+          own, which puts the pin and kebab beside the title.
+
+          At md and above the tags share the title's line while they fit
+          (#2227), so the title row keeps its box there — but a narrow Desktop
+          pane wraps the tags under the title just the same, and centring the
+          actions on that two-line box floated them as on a phone. So this row
+          aligns to the top from md up, and the actions sit in a box at least
+          one title line tall (see ACTIONS_LINE_BOX), centred inside it. With
+          one line the box and the title row are the same height, so the
+          unwrapped header draws as before; with two the actions stay on the
+          first line, beside the title. */}
+        <div
+          data-testid="note-detail-header-row"
+          className="flex items-center gap-1.5 max-md:flex-wrap md:items-start"
+        >
           <div
             data-testid="note-detail-title-row"
-            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5"
+            className="flex min-w-0 flex-1 flex-wrap items-center gap-x-3 gap-y-1.5 max-md:contents"
           >
             <NoteTitleInput
               key={noteId}
@@ -533,7 +569,12 @@ export function NoteDetailPanel({
               // which keeps the stuck header from growing a line per tag.
               // `relative` (#2391): the link picker hangs from this row below
               // the breakpoint, so it spans the phone instead of its "+".
-              <div className="flex flex-wrap items-center gap-1.5 max-md:relative max-md:w-full max-md:min-w-0 max-md:flex-nowrap">
+              // `order-last` (#2467): after the pin and kebab, so it is the
+              // line under the title rather than the one beside it.
+              <div
+                data-testid="note-detail-tag-row"
+                className="flex flex-wrap items-center gap-1.5 max-md:relative max-md:order-last max-md:w-full max-md:min-w-0 max-md:flex-nowrap"
+              >
                 {tagsSlot}
                 {linksSlot}
               </div>
@@ -544,124 +585,132 @@ export function NoteDetailPanel({
             button: unpinning stays the menu's job, and a second control on the
             same act would be two ways to do one thing. Same place at both
             widths, because both host this panel. */}
-          {isPinned && (
-            <Pin
-              size={14}
-              {...(pinnedLabel
-                ? { role: "img", "aria-label": pinnedLabel }
-                : { "aria-hidden": true })}
-              className="shrink-0 fill-current text-lumen-accent"
-            />
-          )}
-          <div className="relative shrink-0">
-            <button
-              ref={menuTriggerRef}
-              type="button"
-              onClick={() => setMenuOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={menuOpen}
-              aria-label={moreActionsLabel}
-              className={cn(
-                "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md text-lumen-text-secondary",
-                "hover:bg-lumen-hover hover:text-lumen-text",
-                // #1840: 26px draws at 32 with the icon-only floor, which is a
-                // mouse target. The drawn box stays as it is and the HIT box
-                // grows, so the header does not change shape on Desktop.
-                "max-md:min-h-11 max-md:min-w-11",
-                FOCUS_RING,
-              )}
-            >
-              <MoreHorizontal size={16} aria-hidden />
-            </button>
-            <Menu
-              open={menuOpen}
-              onClose={() => setMenuOpen(false)}
-              anchorRef={menuTriggerRef}
-              align="end"
-              label={moreActionsLabel}
-            >
-              <MenuItem
-                className={MENU_ITEM_TAP_FLOOR}
-                icon={<Pin size={14} aria-hidden />}
-                onSelect={() => {
-                  onTogglePin(noteId);
-                  setMenuOpen(false);
-                }}
+          <div
+            data-testid="note-detail-actions"
+            className={cn(
+              "flex shrink-0 items-center gap-1.5",
+              ACTIONS_LINE_BOX[variant],
+            )}
+          >
+            {isPinned && (
+              <Pin
+                size={14}
+                {...(pinnedLabel
+                  ? { role: "img", "aria-label": pinnedLabel }
+                  : { "aria-hidden": true })}
+                className="shrink-0 fill-current text-lumen-accent"
+              />
+            )}
+            <div className="relative shrink-0">
+              <button
+                ref={menuTriggerRef}
+                type="button"
+                onClick={() => setMenuOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                aria-label={moreActionsLabel}
+                className={cn(
+                  "grid h-[26px] w-[26px] shrink-0 place-items-center rounded-lumen-md text-lumen-text-secondary",
+                  "hover:bg-lumen-hover hover:text-lumen-text",
+                  // #1840: 26px draws at 32 with the icon-only floor, which is a
+                  // mouse target. The drawn box stays as it is and the HIT box
+                  // grows, so the header does not change shape on Desktop.
+                  "max-md:min-h-11 max-md:min-w-11",
+                  FOCUS_RING,
+                )}
               >
-                {isPinned ? pinLabel : unpinLabel}
-              </MenuItem>
-              {/* #1179 — above the delete, below the pin: it files a COPY of
-                this note somewhere else rather than changing or destroying it,
-                so it does not belong next to the destructive row. */}
-              {onRegisterTemplate && registerTemplateLabel && (
+                <MoreHorizontal size={16} aria-hidden />
+              </button>
+              <Menu
+                open={menuOpen}
+                onClose={() => setMenuOpen(false)}
+                anchorRef={menuTriggerRef}
+                align="end"
+                label={moreActionsLabel}
+              >
                 <MenuItem
                   className={MENU_ITEM_TAP_FLOOR}
-                  icon={<FileStack size={14} aria-hidden />}
+                  icon={<Pin size={14} aria-hidden />}
                   onSelect={() => {
-                    onRegisterTemplate();
+                    onTogglePin(noteId);
                     setMenuOpen(false);
                   }}
                 >
-                  {registerTemplateLabel}
+                  {isPinned ? pinLabel : unpinLabel}
                 </MenuItem>
-              )}
-              {/* #1181 — directly under the entry that files a template, because
+                {/* #1179 — above the delete, below the pin: it files a COPY of
+                this note somewhere else rather than changing or destroying it,
+                so it does not belong next to the destructive row. */}
+                {onRegisterTemplate && registerTemplateLabel && (
+                  <MenuItem
+                    className={MENU_ITEM_TAP_FLOOR}
+                    icon={<FileStack size={14} aria-hidden />}
+                    onSelect={() => {
+                      onRegisterTemplate();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    {registerTemplateLabel}
+                  </MenuItem>
+                )}
+                {/* #1181 — directly under the entry that files a template, because
                 the two are the same subject read in opposite directions. It
                 stays above the delete: applying is destructive to the BODY,
                 not to the note, and grouping it with the row that removes the
                 note would overstate it. */}
-              {onApplyTemplate && applyTemplateLabel && (
-                <MenuItem
-                  className={MENU_ITEM_TAP_FLOOR}
-                  icon={<FileDown size={14} aria-hidden />}
-                  onSelect={() => {
-                    onApplyTemplate();
-                    setMenuOpen(false);
-                  }}
-                >
-                  {applyTemplateLabel}
-                </MenuItem>
-              )}
-              {/* #1843 — the lock sits just above the delete: it changes who can
+                {onApplyTemplate && applyTemplateLabel && (
+                  <MenuItem
+                    className={MENU_ITEM_TAP_FLOOR}
+                    icon={<FileDown size={14} aria-hidden />}
+                    onSelect={() => {
+                      onApplyTemplate();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    {applyTemplateLabel}
+                  </MenuItem>
+                )}
+                {/* #1843 — the lock sits just above the delete: it changes who can
                 read the body, which is heavier than the template rows and
                 lighter than removing the note. Only one of the pair is ever
                 passed, so the row reads as the one thing that can be done. */}
-              {onSetPassword && setPasswordLabel && (
+                {onSetPassword && setPasswordLabel && (
+                  <MenuItem
+                    className={MENU_ITEM_TAP_FLOOR}
+                    icon={<Lock size={14} aria-hidden />}
+                    onSelect={() => {
+                      onSetPassword();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    {setPasswordLabel}
+                  </MenuItem>
+                )}
+                {onRemovePassword && removePasswordLabel && (
+                  <MenuItem
+                    className={MENU_ITEM_TAP_FLOOR}
+                    icon={<LockOpen size={14} aria-hidden />}
+                    onSelect={() => {
+                      onRemovePassword();
+                      setMenuOpen(false);
+                    }}
+                  >
+                    {removePasswordLabel}
+                  </MenuItem>
+                )}
                 <MenuItem
                   className={MENU_ITEM_TAP_FLOOR}
-                  icon={<Lock size={14} aria-hidden />}
+                  icon={<Trash2 size={14} aria-hidden />}
+                  variant="danger"
                   onSelect={() => {
-                    onSetPassword();
+                    onDelete(noteId);
                     setMenuOpen(false);
                   }}
                 >
-                  {setPasswordLabel}
+                  {deleteLabel}
                 </MenuItem>
-              )}
-              {onRemovePassword && removePasswordLabel && (
-                <MenuItem
-                  className={MENU_ITEM_TAP_FLOOR}
-                  icon={<LockOpen size={14} aria-hidden />}
-                  onSelect={() => {
-                    onRemovePassword();
-                    setMenuOpen(false);
-                  }}
-                >
-                  {removePasswordLabel}
-                </MenuItem>
-              )}
-              <MenuItem
-                className={MENU_ITEM_TAP_FLOOR}
-                icon={<Trash2 size={14} aria-hidden />}
-                variant="danger"
-                onSelect={() => {
-                  onDelete(noteId);
-                  setMenuOpen(false);
-                }}
-              >
-                {deleteLabel}
-              </MenuItem>
-            </Menu>
+              </Menu>
+            </div>
           </div>
         </div>
 
