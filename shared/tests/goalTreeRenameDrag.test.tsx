@@ -435,6 +435,28 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
     }
   });
 
+  it("always shows the three icons of an unselected row on a phone (#2488)", () => {
+    renderTree({
+      onRenameGoal: vi.fn(),
+      rowActions: actions(),
+      selectedGoalId: "m1",
+    });
+    const row = rowOf("Run 3 times");
+    for (const verb of ["Add under", "Edit goal", "Delete goal"]) {
+      const { className } = within(row).getByRole("button", {
+        name: `${verb}: Run 3 times`,
+      });
+      // Desktop: hidden until hover, focus or selection.
+      expect(className).toContain("opacity-0");
+      expect(className).toContain("group-hover/row:opacity-100");
+      expect(className).toContain("focus-visible:opacity-100");
+      // A phone has no hover: shown, with a 44px target.
+      expect(className).toContain("max-md:opacity-100");
+      expect(className).toContain("max-md:min-h-11");
+      expect(className).toContain("max-md:min-w-11");
+    }
+  });
+
   /** The choices a goal's + opens, in order, without the way out. */
   const choicesOf = (title: string): string[] => {
     fireEvent.click(
@@ -584,7 +606,9 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
   it("opens a closed goal when something is added under it (#2399)", async () => {
     const rowActions = actions();
     renderTree({ rowActions });
-    fireEvent.click(screen.getByRole("button", { name: "Collapse: Run 10 km" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse: Run 10 km" }),
+    );
     expect(screen.queryByText("Run weekly")).toBeNull();
 
     choicesOf("Run 10 km");
@@ -613,7 +637,9 @@ describe("GoalTreeView — +, edit and delete on a goal row (#2367)", () => {
       onAddTodo: vi.fn().mockResolvedValue(false),
     };
     renderTree({ rowActions });
-    fireEvent.click(screen.getByRole("button", { name: "Collapse: Run 10 km" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Collapse: Run 10 km" }),
+    );
     choicesOf("Run 10 km");
     fireEvent.click(screen.getByRole("button", { name: "Todo" }));
     const field = screen.getByRole("textbox", { name: /^Add under/ });
@@ -841,6 +867,70 @@ describe("GoalTreeView — button labels stay on one line (#2364)", () => {
   });
 });
 
+describe("GoalTreeView — the add-goal form on a phone (#2490)", () => {
+  /*
+   * jsdom has no layout, so this pins the structure and the classes that
+   * place things. At 390px the end label sat at the end of one line and its
+   * date field fell to the next, because both were loose children of one
+   * flex-wrap row. Every phone-only class carries max-md:, so Desktop keeps
+   * its one line.
+   */
+  const classesOf = (el: Element): string[] => el.className.split(/\s+/);
+
+  function openForm(): void {
+    renderTree();
+    fireEvent.click(screen.getByRole("button", { name: "Add a goal" }));
+  }
+
+  it("keeps each date label in one pair with its own field", () => {
+    openForm();
+    for (const name of ["From", "To"]) {
+      const field = screen.getByLabelText(name);
+      const pair = field.closest("[data-goal-range-pair]") as HTMLElement;
+      expect(pair).not.toBeNull();
+      const label = within(pair).getByText(name);
+      expect(label.tagName).toBe("LABEL");
+      expect(label.parentElement).toBe(pair);
+      expect(classesOf(label)).toEqual(
+        expect.arrayContaining(["shrink-0", "whitespace-nowrap"]),
+      );
+    }
+    const pairs = document.querySelectorAll("[data-goal-range-pair]");
+    expect(pairs).toHaveLength(2);
+    // The row wraps pair by pair, and stacks them below 768px only.
+    const row = pairs[0]?.parentElement as HTMLElement;
+    expect(pairs[1]?.parentElement).toBe(row);
+    expect(classesOf(row)).toEqual(
+      expect.arrayContaining(["flex-wrap", "max-md:flex-col"]),
+    );
+    expect(classesOf(row)).not.toContain("flex-col");
+  });
+
+  it("gives the title and date fields 44px on a phone, and the title its own line", () => {
+    openForm();
+    const title = screen.getByRole("textbox", { name: "This week: Goal" });
+    expect(classesOf(title)).toEqual(
+      expect.arrayContaining(["max-md:min-h-11", "max-md:basis-full"]),
+    );
+    expect(classesOf(title)).not.toContain("basis-full");
+    expect(classesOf(title.parentElement as HTMLElement)).toContain(
+      "max-md:flex-wrap",
+    );
+    expect(
+      classesOf(title.parentElement as HTMLElement),
+    ).not.toContain("flex-wrap");
+    for (const name of ["From", "To"]) {
+      const field = screen.getByLabelText(name);
+      expect(classesOf(field)).toContain("max-md:min-h-11");
+      // The field fills the pair on a phone and keeps its 10rem on Desktop.
+      const box = field.parentElement as HTMLElement;
+      expect(classesOf(box)).toEqual(
+        expect.arrayContaining(["w-40", "max-md:flex-1", "max-md:w-auto"]),
+      );
+    }
+  });
+});
+
 describe("GoalTreeView — the drag reads as carrying the row (#2365)", () => {
   /*
    * jsdom draws nothing, so these pin what the browser is handed and what
@@ -891,5 +981,71 @@ describe("GoalTreeView — the drag reads as carrying the row (#2365)", () => {
       ),
     );
     expect(target.className).toContain("outline-2");
+  });
+});
+
+describe("GoalTreeView — a goal's title keeps its room on a phone (#2487)", () => {
+  /*
+   * jsdom has no layout, so this cannot measure the title. It pins the
+   * classes that give it room: at 390px the three icons took 150px of the
+   * row and the badge and the count took the rest, leaving the title 0px.
+   * Every class here carries max-md: (or md: for Desktop's own), so the
+   * wide row stays on one line as it was.
+   */
+  const classesOf = (el: Element): string[] => el.className.split(/\s+/);
+  const actions = (): GoalRowActions => ({
+    onAddTodo: vi.fn().mockResolvedValue(true),
+    onAddChildGoal: vi.fn().mockResolvedValue(true),
+    onDelete: vi.fn(),
+  });
+
+  it("gives the title a floor and lets the badge and count wrap below it", () => {
+    renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
+    const button = titleOf("Run 3 times");
+    const title = button.querySelector("[data-goal-title]") as HTMLElement;
+    expect(title.textContent).toBe("Run 3 times");
+    expect(classesOf(title)).toContain("max-md:min-w-20");
+    expect(classesOf(title)).toContain("truncate");
+    expect(classesOf(button)).toContain("max-md:flex-wrap");
+    expect(classesOf(button)).not.toContain("flex-wrap");
+  });
+
+  it("puts the three icons on a line of their own below 768px only", () => {
+    renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
+    const row = rowOf("Run 3 times");
+    expect(classesOf(row)).toContain("max-md:flex-wrap");
+    expect(classesOf(row)).not.toContain("flex-wrap");
+
+    const icons = row.querySelector("[data-goal-row-icons]") as HTMLElement;
+    expect(
+      within(icons)
+        .getAllByRole("button")
+        .map((b) => b.getAttribute("aria-label")),
+    ).toEqual([
+      "Add under: Run 3 times",
+      "Edit goal: Run 3 times",
+      "Delete goal: Run 3 times",
+    ]);
+    // Desktop: the box is not drawn, so the icons stay in the row's line.
+    expect(classesOf(icons)).toContain("md:contents");
+    expect(classesOf(icons)).toContain("max-md:basis-full");
+    expect(classesOf(icons)).not.toContain("basis-full");
+    // The title is not on the icons' line.
+    expect(icons.contains(titleOf("Run 3 times"))).toBe(false);
+    // The tap floor stays 44px.
+    for (const icon of within(icons).getAllByRole("button")) {
+      expect(classesOf(icon)).toContain("max-md:min-h-11");
+      expect(classesOf(icon)).toContain("max-md:min-w-11");
+    }
+  });
+
+  it("draws no icon line on a row whose name is being typed", () => {
+    renderTree({ onRenameGoal: vi.fn(), rowActions: actions() });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Edit goal: Run weekly" }),
+    );
+    const field = screen.getByRole("textbox", { name: "Goal title" });
+    const row = field.parentElement as HTMLElement;
+    expect(row.querySelector("[data-goal-row-icons]")).toBeNull();
   });
 });

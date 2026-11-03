@@ -28,6 +28,7 @@ const LABELS: BriefingLabels = {
   goalMark: "Goals:",
   scheduleTitle: "PROMISES",
   noSchedule: "Nothing scheduled",
+  noTodos: "No todos today",
   routineTag: "Routine",
   allDay: "All day",
   timeColumn: "Time",
@@ -603,6 +604,24 @@ describe("Today's schedule as a time table (#2223)", () => {
       expect(phaseOf("Open")).toBe("ongoing");
     });
 
+    it("anchors the line's hidden label inside the table (#2504)", () => {
+      // jsdom has no layout, so pin the structure: the nearest positioned
+      // ancestor of the sr-only label is the table itself, not something
+      // outside the page's scroll area.
+      renderView({ data: DAY, nowMinutes: 22 * 60 });
+      const label = document.querySelector(
+        "tr[data-briefing-now-line] .sr-only",
+      )!;
+      let box = label.parentElement;
+      while (
+        box !== null &&
+        !/(^|\s)(relative|absolute|fixed|sticky)(\s|$)/.test(box.className)
+      ) {
+        box = box.parentElement;
+      }
+      expect(box).toBe(document.querySelector("table[data-briefing-table]"));
+    });
+
     it("draws no line without a clock", () => {
       renderView({ data: DAY });
       expect(document.querySelector("tr[data-briefing-now-line]")).toBeNull();
@@ -805,6 +824,133 @@ describe("Today's schedule as a time table (#2223)", () => {
       expect(switchButton("Events").getAttribute("aria-pressed")).toBe("false");
       // Both buttons stay pressable — switching is the whole control here.
       expect(switchButton("Events")).not.toBeDisabled();
+    });
+
+    // #2507 — the empty line names the column that is actually on screen.
+    describe("the empty line follows the column on screen", () => {
+      const NO_TODOS = { ...TABLE_DATA, todos: [] };
+      const NOTHING = { ...TABLE_DATA, schedule: [], todos: [] };
+
+      it("on a phone, says there are no todos under the todos tab", () => {
+        renderView({ data: NO_TODOS, narrow: true });
+        // The events tab has rows, so no empty line yet.
+        expect(screen.queryByText("Nothing scheduled")).toBeNull();
+        fireEvent.click(switchButton("Todos"));
+        expect(screen.getByText("No todos today")).toBeTruthy();
+        expect(screen.queryByText("Nothing scheduled")).toBeNull();
+      });
+
+      it("on Desktop, says so once the events column is hidden", () => {
+        renderView({ data: NO_TODOS });
+        fireEvent.click(switchButton("Events"));
+        expect(headings()).toEqual(["Time", "Todos"]);
+        expect(screen.getByText("No todos today")).toBeTruthy();
+        expect(screen.queryByText("Nothing scheduled")).toBeNull();
+      });
+
+      it("keeps the schedule line with both columns, or events alone", () => {
+        renderView({ data: NOTHING });
+        expect(screen.getByText("Nothing scheduled")).toBeTruthy();
+        expect(screen.queryByText("No todos today")).toBeNull();
+        fireEvent.click(switchButton("Todos"));
+        expect(headings()).toEqual(["Time", "Events"]);
+        expect(screen.getByText("Nothing scheduled")).toBeTruthy();
+        expect(screen.queryByText("No todos today")).toBeNull();
+      });
+
+      it("keeps the schedule line under the events tab on a phone", () => {
+        renderView({ data: NOTHING, narrow: true });
+        expect(screen.getByText("Nothing scheduled")).toBeTruthy();
+        expect(screen.queryByText("No todos today")).toBeNull();
+      });
+    });
+  });
+
+  /*
+   * #2502 — on a phone the heading and its「予定 / Todo」switch, and each
+   * row's time and title, sat on different middles. jsdom has no layout, so
+   * these pin the structure that lines them up; the positions are measured in
+   * a real browser.
+   */
+  describe("phone alignment (#2502)", () => {
+    function scheduleHead(): HTMLElement {
+      const group = document.querySelector("[data-briefing-column-switch]");
+      const head = group?.closest("[data-briefing-block-head]");
+      if (!(head instanceof HTMLElement)) throw new Error("no schedule head");
+      return head;
+    }
+    function timeBox(time: string): HTMLElement {
+      const box = rowAt(time).querySelector("th [data-briefing-row-time]");
+      if (!(box instanceof HTMLElement)) throw new Error(`no time at ${time}`);
+      return box;
+    }
+
+    it("centres the schedule heading on its switch below md only", () => {
+      renderView({ data: TABLE_DATA, narrow: true });
+      const head = scheduleHead();
+      expect(head.className).toContain("max-md:items-center");
+      // Desktop keeps the baseline row it always had.
+      expect(head.className).toContain("items-baseline");
+      expect(head.className).not.toMatch(/(^|\s)items-center/);
+    });
+
+    it("keeps a hint-only heading on the baseline", () => {
+      renderView({ data: TABLE_DATA });
+      const heads = document.querySelectorAll("[data-briefing-block-head]");
+      const hintOnly = Array.from(heads).filter(
+        (head) => head.querySelector("[data-briefing-column-switch]") === null,
+      );
+      for (const head of hintOnly) {
+        expect(head.className).not.toContain("max-md:items-center");
+      }
+    });
+
+    it("gives each row's time the 44px box its title sits in", () => {
+      renderView({ data: TABLE_DATA, narrow: true });
+      for (const time of ["09:00", "12:00"]) {
+        const box = timeBox(time);
+        expect(box.textContent).toBe(time);
+        for (const cls of [
+          "max-md:flex",
+          "max-md:min-h-11",
+          "max-md:items-center",
+        ]) {
+          expect(box.className).toContain(cls);
+        }
+        // Desktop: no unprefixed layout class, so the label stays inline.
+        expect(
+          box.className.split(/\s+/).every((c) => c.startsWith("max-md:")),
+        ).toBe(true);
+      }
+    });
+
+    it("pads the time like the event li above its head box", () => {
+      renderView({ data: TABLE_DATA, narrow: true });
+      const th = rowAt("09:00").querySelector("th") as HTMLElement;
+      const li = rowAt("09:00").querySelector("[data-briefing-event]");
+      expect(li?.className).toContain("py-1");
+      expect(th.className).toContain("max-md:pt-1");
+      expect(th.className).toContain("max-md:pb-0");
+      // Desktop padding is untouched.
+      expect(th.className).toContain("py-2");
+      expect(th.className).toContain("align-top");
+    });
+
+    it("pads the time like the todo li once the phone shows todos", () => {
+      renderView({ data: TABLE_DATA, narrow: true });
+      fireEvent.click(
+        within(
+          document.querySelector(
+            "[data-briefing-column-switch]",
+          ) as HTMLElement,
+        ).getByRole("button", { name: /Todos/ }),
+      );
+      const th = rowAt("09:00").querySelector("th") as HTMLElement;
+      const li = rowAt("09:00").querySelector("[data-briefing-todo]");
+      expect(li?.className).toContain("py-0.5");
+      expect(th.className).toContain("max-md:pt-0.5");
+      expect(th.className).not.toContain("max-md:pt-1");
+      expect(timeBox("untimed").textContent).toBe("No time");
     });
   });
 

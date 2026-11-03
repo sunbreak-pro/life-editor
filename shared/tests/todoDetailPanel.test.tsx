@@ -299,6 +299,44 @@ describe("TodoDetailPanel (W7)", () => {
     expect(onSave).not.toHaveBeenCalled();
   });
 
+  // #2476: on a phone the three footer buttons folded their own labels
+  // ("キャンセ / ル"). jsdom has no layout, so the fix is pinned by structure:
+  // each button refuses to shrink or wrap on narrow, and the row wraps
+  // instead. Every guard is `max-md:`-scoped so the Desktop footer is as it was.
+  it("keeps each footer label on one line on narrow and lets the row wrap (#2476)", () => {
+    render(
+      <TodoDetailPanel
+        todoId="task-a"
+        title="Write the plan"
+        onSave={() => {}}
+        onDelete={() => {}}
+        deleteLabel="Delete todo"
+        onCancel={() => {}}
+        cancelLabel="Cancel"
+        {...LABELS}
+      />,
+    );
+    const buttons = [
+      screen.getByRole("button", { name: "Delete todo" }),
+      screen.getByRole("button", { name: "Cancel" }),
+      saveButton(),
+    ];
+    for (const button of buttons) {
+      expect(button).toHaveClass(
+        "max-md:shrink-0",
+        "max-md:whitespace-nowrap",
+        "max-md:min-h-11",
+      );
+      expect(button.className).not.toMatch(
+        /(^|\s)(shrink-0|whitespace-nowrap)(\s|$)/,
+      );
+    }
+    const footer = saveButton().parentElement!;
+    expect(footer).toContainElement(buttons[0]);
+    expect(footer).toHaveClass("max-md:flex-wrap");
+    expect(footer.className).not.toMatch(/(^|\s)flex-wrap(\s|$)/);
+  });
+
   it("stays pressable while a title draft is pending, and commits nothing", () => {
     // The save button disables itself when there is nothing to write; delete
     // is the opposite kind of act, so an untouched panel must still offer it —

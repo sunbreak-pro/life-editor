@@ -220,6 +220,7 @@ export function useSidebarContextMenus({
       colorLabel: t("connect.edit.colorLabel"),
       iconMore: t("connect.edit.iconMore"),
       iconCount: t("connect.edit.iconCount"),
+      iconClose: t("connect.edit.iconClose"),
       iconClear: t("connect.edit.iconClear"),
       iconSearch: t("connect.edit.iconSearch"),
       iconNoMatch: t("connect.edit.iconNoMatch"),

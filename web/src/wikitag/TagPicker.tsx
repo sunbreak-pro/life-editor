@@ -183,6 +183,14 @@ export function TagPicker({
 
   // Close picker on click-outside (keeps the picker self-contained — no
   // global click listener registry).
+  //
+  // In the CAPTURE phase (#2448). <Modal>'s panel stops `mousedown` so a press
+  // inside it does not reach the backdrop's close, and React dispatches portal
+  // events from document.body — so in the Desktop event editor a bubble-phase
+  // listener here never heard a press at all, and the menu stayed open.
+  // Capture on `document` runs before the event gets to body. Fixed here
+  // rather than in <Modal> (the way BottomSheet did for #470): there, every
+  // popover that opens a Modal would start closing when the Modal is clicked.
   useEffect(() => {
     if (!pickerOpen) return;
     const onDocClick = (e: MouseEvent) => {
@@ -193,8 +201,8 @@ export function TagPicker({
         setPickerOpen(false);
       }
     };
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    document.addEventListener("mousedown", onDocClick, true);
+    return () => document.removeEventListener("mousedown", onDocClick, true);
   }, [pickerOpen]);
 
   /*

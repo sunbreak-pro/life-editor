@@ -170,6 +170,8 @@ describe("the callers that keep the overlay (#2393)", () => {
           setSelectedId: vi.fn(),
           setSidebarTab,
           openSidebar: vi.fn(),
+          closeSidebar: vi.fn(),
+          isWide: true,
           setTodoDetailId,
         },
       ),

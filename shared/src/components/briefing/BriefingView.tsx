@@ -172,6 +172,11 @@ export interface BriefingLabels {
   scheduleTitle: string;
   /** Empty state of the block — shown only when neither column has a row. */
   noSchedule: string;
+  /**
+   * Empty state while the todos column is the only one on screen (#2507) —
+   *「今日の Todo はありません」. With the events column up, `noSchedule` stays.
+   */
+  noTodos: string;
   routineTag: string;
   /** The all-day band's label —「終日」. */
   allDay: string;
@@ -291,6 +296,15 @@ export interface BriefingViewProps {
  * the schedule section's「+」). It shares that edge with `hint`, which is
  * annotation rather than a control, so the two never collide: no section
  * carries both.
+ *
+ * Below `md` a heading with an `action` centres instead of sharing a baseline
+ * (#2502). The phone's controls carry a 44px box (`max-md:min-h-11`), and a
+ * baseline row with one text item and one `self-center` control left the h3
+ * pinned to the top of that box — the schedule's「予定 / Todo」switch sat
+ * 11px below its own heading at 390px. Centring puts the kicker on the
+ * control's middle; a `hint` row keeps the baseline, since a hint is text that
+ * should read on the heading's line. Desktop controls are no taller than the
+ * h3, so the wide row is left exactly as it was.
  */
 export function BlockHead({
   title,
@@ -304,7 +318,12 @@ export function BlockHead({
   action?: ReactNode;
 }): React.JSX.Element {
   return (
-    <div className="mb-3 flex items-baseline justify-between">
+    <div
+      data-briefing-block-head=""
+      className={`mb-3 flex items-baseline justify-between ${
+        action !== undefined ? "max-md:items-center" : ""
+      }`}
+    >
       <h3 className="flex items-center gap-2.5 text-xs font-bold tracking-[0.25em] text-lumen-text-secondary">
         <span
           aria-hidden="true"
@@ -1105,7 +1124,14 @@ function ScheduleTable({
           onOpenItem={onOpenItem}
         />
       )}
-      <table data-briefing-table="" className="w-full border-collapse">
+      {/* `relative` keeps the table's sr-only labels (`position: absolute`)
+          inside the page's scroll area: without it their containing block
+          sits outside, and on a phone the now-line's label, at the table's
+          foot, stretched the root and scrolled the whole screen (#2504). */}
+      <table
+        data-briefing-table=""
+        className="relative w-full border-collapse"
+      >
         <thead>
           <tr>
             <th
@@ -1140,15 +1166,29 @@ function ScheduleTable({
                 data-briefing-row={row.time === "" ? "untimed" : row.time}
                 className="border-b border-lumen-border last:border-b-0"
               >
+                {/* Below `md` the time copies the first item's head box
+                    (#2502): the same top padding as its `li`, then a 44px box
+                    with the label centred, so the time and the title share a
+                    middle whatever the root font step. The phone shows one
+                    column, hence one padding: the event `li` is `py-1`, the
+                    todo `li` `py-0.5`. Desktop keeps its `py-2` and an inline
+                    label, untouched. */}
                 <th
                   scope="row"
-                  className={`w-px whitespace-nowrap py-2 pr-2 text-left align-top text-xs font-bold tabular-nums ${
+                  className={`w-px whitespace-nowrap py-2 pr-2 text-left align-top text-xs font-bold tabular-nums max-md:pb-0 ${
+                    showEvents ? "max-md:pt-1" : "max-md:pt-0.5"
+                  } ${
                     row.time === ""
                       ? "text-lumen-text-secondary"
                       : "text-lumen-briefing-shu"
                   }`}
                 >
-                  {row.time === "" ? labels.untimed : row.time}
+                  <span
+                    data-briefing-row-time=""
+                    className="max-md:flex max-md:min-h-11 max-md:items-center"
+                  >
+                    {row.time === "" ? labels.untimed : row.time}
+                  </span>
                 </th>
                 {showEvents && (
                   <td className="pl-2 align-top">
@@ -1201,7 +1241,7 @@ function ScheduleTable({
       </table>
       {empty && (
         <p className="pt-3 text-sm text-lumen-text-secondary">
-          {labels.noSchedule}
+          {showEvents ? labels.noSchedule : labels.noTodos}
         </p>
       )}
     </section>

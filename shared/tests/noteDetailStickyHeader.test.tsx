@@ -165,3 +165,117 @@ describe("NoteDetailPanel sticky header (#2058)", () => {
     );
   });
 });
+
+/*
+ * #2467 — below the breakpoint the tag row is always a line of its own, and
+ * the pin and kebab used to be centred on the two-line title box, so they
+ * floated between the title and the tags. jsdom cannot measure where they
+ * land, so this pins the structure that puts them beside the title: on narrow
+ * the title row's box dissolves (`max-md:contents`), which makes the title,
+ * pin and kebab items of one wrapping, centred header row, and the tag row
+ * goes last on a full-width line. From md up the tags still share the
+ * title's line while they fit (#2227), but a narrow Desktop pane wraps them
+ * just the same, so there the row aligns to the top and the pin and kebab sit
+ * in a box one title line tall: they stay beside the title's first line
+ * whether the tags wrap or not. Positions are checked in a real browser.
+ */
+describe("NoteDetailPanel narrow title row (#2467)", () => {
+  function parts() {
+    const row = screen.getByTestId("note-detail-header-row");
+    const titleRow = within(row).getByTestId("note-detail-title-row");
+    const tagRow = within(titleRow).getByTestId("note-detail-tag-row");
+    const actions = within(row).getByTestId("note-detail-actions");
+    const kebab = within(actions).getByRole("button", {
+      name: "More actions",
+    });
+    return { row, titleRow, tagRow, actions, kebab };
+  }
+
+  const classes = (el: Element) => el.className.split(/\s+/);
+
+  it.each([
+    ["pinned", true],
+    ["not pinned", false],
+  ])("puts the pin and kebab on the title's line when %s", (_, isPinned) => {
+    renderPanel({ variant: "sidebar", stickyHeader: true, isPinned });
+    const { row, titleRow, tagRow, actions, kebab } = parts();
+
+    // The header row wraps and centres each line on narrow.
+    expect(classes(row)).toEqual(
+      expect.arrayContaining(["flex", "items-center", "max-md:flex-wrap"]),
+    );
+    // The title row's own box dissolves there, so the title is an item of
+    // the header row, on the same line as the pin and kebab.
+    expect(classes(titleRow)).toContain("max-md:contents");
+    expect(titleRow.contains(screen.getByLabelText("Note title"))).toBe(true);
+    // The actions box (pin when shown, then the kebab's wrapper) is a direct
+    // item of that row, after the title row, never inside the tag row.
+    expect(actions.parentElement).toBe(row);
+    expect(kebab.parentElement?.parentElement).toBe(actions);
+    expect(row.firstElementChild).toBe(titleRow);
+    expect(tagRow.contains(kebab)).toBe(false);
+    const pin = screen.queryByRole("img", { name: "Pinned" });
+    if (isPinned) {
+      expect(pin?.parentElement).toBe(actions);
+    } else {
+      expect(pin).toBeNull();
+    }
+    // The tag row goes last, on a full-width line of its own.
+    expect(classes(tagRow)).toEqual(
+      expect.arrayContaining(["max-md:order-last", "max-md:w-full"]),
+    );
+    // The kebab keeps its 44px hit box on narrow (#1840).
+    expect(classes(kebab)).toEqual(
+      expect.arrayContaining(["max-md:min-h-11", "max-md:min-w-11"]),
+    );
+  });
+
+  it.each([
+    ["main", "main" as const, "min-h-[calc(35px+0.25rem)]"],
+    ["sidebar", "sidebar" as const, "min-h-[calc(1.203125rem+0.75rem+2px)]"],
+  ])(
+    "keeps the pin and kebab on the title's first line from md up (%s)",
+    (_, variant, lineFloor) => {
+      renderPanel({ variant, stickyHeader: true, isPinned: true });
+      const { row, actions } = parts();
+
+      // From md up the row aligns to the top instead of centring on the
+      // title row, which is two lines tall once the tags wrap.
+      expect(classes(row)).toContain("md:items-start");
+      // The actions box is at least one title line tall and centres the pin
+      // and kebab inside it, so they sit beside the title's first line.
+      expect(classes(actions)).toEqual(
+        expect.arrayContaining(["flex", "items-center", lineFloor]),
+      );
+    },
+  );
+
+  it("leaves the other Desktop classes of the row as they were", () => {
+    renderPanel({ variant: "main", stickyHeader: true, isPinned: true });
+    const { row, titleRow, tagRow } = parts();
+    const wide = (el: Element) =>
+      classes(el).filter((c) => !c.startsWith("max-md:"));
+
+    expect(wide(row)).toEqual([
+      "flex",
+      "items-center",
+      "gap-1.5",
+      "md:items-start",
+    ]);
+    expect(wide(titleRow)).toEqual([
+      "flex",
+      "min-w-0",
+      "flex-1",
+      "flex-wrap",
+      "items-center",
+      "gap-x-3",
+      "gap-y-1.5",
+    ]);
+    expect(wide(tagRow)).toEqual([
+      "flex",
+      "flex-wrap",
+      "items-center",
+      "gap-1.5",
+    ]);
+  });
+});
