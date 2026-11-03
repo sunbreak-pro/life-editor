@@ -36,6 +36,13 @@ import { type TagHubEditLabels, type TagHubTagSummary } from "./types";
  * no-hardcoded-colour rule is about theme chrome.
  */
 
+/**
+ * Room above the 2nd and 3rd labels while the fields are stacked (#2496), so a
+ * label reads as the head of the field under it rather than the tail of the
+ * one above. The two-column layout already separates rows by its row gap.
+ */
+const STACKED_LABEL_GAP = "@max-[16rem]:mt-2";
+
 /*
  * Phone layout (#2499). The rows are not one height: the icon strip and the
  * swatch grid are taller than a line of text, and `items-center` parked each
@@ -116,12 +123,29 @@ export function TagHubEditBlock({
 
   return (
     <div
+      data-taghub-edit=""
       className={cn(
-        "flex flex-shrink-0 flex-col gap-3.5 rounded-lumen-md border border-lumen-border-strong",
+        // #2496 — the block measures ITSELF (`@container`), not the window.
+        // On Desktop the detail column shrinks with the right panel, so a
+        // viewport breakpoint cannot tell a wide window with a wide panel
+        // from a wide window with a narrow one.
+        "@container flex flex-shrink-0 flex-col gap-3.5 rounded-lumen-md border border-lumen-border-strong",
         "bg-lumen-bg-secondary p-4",
       )}
     >
-      <div className="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 text-sm text-lumen-text-secondary max-md:items-start">
+      <div
+        className={cn(
+          "grid items-center gap-x-4 text-sm text-lumen-text-secondary",
+          // #2496 — under 16rem the label column alone ate the row and the
+          // fields beside it folded letter by letter, so each label moves
+          // above its field instead. 16rem is under the narrowest phone
+          // (320px leaves ~262px here), so Mobile and the standard Desktop
+          // panel keep the two columns.
+          "grid-cols-1 gap-y-1.5 @min-[16rem]:grid-cols-[auto_1fr] @min-[16rem]:gap-y-3",
+          // #2499 — see NARROW_LABEL.
+          "max-md:items-start",
+        )}
+      >
         <>
           <label
             htmlFor={`taghub-name-${tag.id}`}
@@ -162,7 +186,9 @@ export function TagHubEditBlock({
 
         <>
           {/* The strip TagIconPicker draws first is 48px tall on narrow. */}
-          <span className={cn(NARROW_LABEL, "max-md:min-h-12")}>
+          <span
+            className={cn(NARROW_LABEL, "max-md:min-h-12", STACKED_LABEL_GAP)}
+          >
             {labels.iconLabel}
           </span>
           <div className="flex items-center gap-2">
@@ -184,7 +210,9 @@ export function TagHubEditBlock({
         </>
 
         <>
-          <span className={cn(NARROW_LABEL, "max-md:min-h-11")}>
+          <span
+            className={cn(NARROW_LABEL, "max-md:min-h-11", STACKED_LABEL_GAP)}
+          >
             {labels.colorLabel}
           </span>
           {/*
@@ -241,7 +269,7 @@ export function TagHubEditBlock({
                 type="button"
                 onClick={() => onEdit({ color: null })}
                 className={cn(
-                  "rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-2.5 py-1 text-xs text-lumen-text-secondary",
+                  "whitespace-nowrap rounded-lumen-md border border-lumen-border-strong bg-lumen-bg px-2.5 py-1 text-xs text-lumen-text-secondary",
                   "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
                   FOCUS_RING_TIGHT,
                   CARD_BTN_TAP,
@@ -254,7 +282,7 @@ export function TagHubEditBlock({
                 stays out of the row's rhythm. */}
               <label
                 className={cn(
-                  "flex cursor-pointer items-center gap-1.5 rounded-lumen-md border border-lumen-border-strong bg-lumen-bg",
+                  "flex cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-lumen-md border border-lumen-border-strong bg-lumen-bg",
                   "px-2.5 py-1 text-xs text-lumen-text-secondary",
                   "transition-colors hover:bg-lumen-hover hover:text-lumen-text",
                   CARD_BTN_TAP,
@@ -283,12 +311,18 @@ export function TagHubEditBlock({
       {/* Footer (#681's arrangement, kept): delete on the left, state text and
           save on the right, both always in the same place — only the save
           button's enabled state moves, with the reason spelled out beside it. */}
-      <div className="flex items-center justify-between gap-3 border-t border-lumen-border pt-3">
+      {/* #2496 — the row wraps instead of squeezing: on a narrow block the
+          state text and save drop under delete (kept right by `ml-auto`),
+          and no label inside it ever breaks. One line wherever it fits. */}
+      <div
+        data-taghub-edit-footer=""
+        className="flex flex-wrap items-center justify-between gap-3 border-t border-lumen-border pt-3"
+      >
         <button
           type="button"
           onClick={onDelete}
           className={cn(
-            "flex items-center gap-1.5 rounded-lumen-sm px-1.5 py-1 text-sm font-medium text-lumen-danger",
+            "flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-lumen-sm px-1.5 py-1 text-sm font-medium text-lumen-danger",
             "transition-colors hover:bg-lumen-danger-subtle",
             FOCUS_RING_TIGHT,
             CARD_BTN_TAP,
@@ -298,11 +332,11 @@ export function TagHubEditBlock({
           {labels.deleteTag}
         </button>
 
-        <div className="flex items-center gap-3">
+        <div className="ml-auto flex shrink-0 items-center gap-3">
           <span
             aria-live="polite"
             className={cn(
-              "flex items-center gap-1.5 text-xs",
+              "flex items-center gap-1.5 whitespace-nowrap text-xs",
               dirty ? "text-lumen-text-secondary" : "text-lumen-text-tertiary",
             )}
           >
@@ -317,7 +351,7 @@ export function TagHubEditBlock({
           <Button
             variant="primary"
             size="sm"
-            className={CARD_BTN_TAP}
+            className={cn("whitespace-nowrap", CARD_BTN_TAP)}
             leadingIcon={<Check size={13} aria-hidden />}
             onClick={onSave}
             disabled={!dirty}

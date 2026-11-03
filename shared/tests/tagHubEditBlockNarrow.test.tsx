@@ -144,7 +144,13 @@ describe("tag edit block — labels beside their control's first line (#2499)", 
       LABELS.colorLabel,
     ]) {
       const classes = labelCell(text).className.split(/\s+/).filter(Boolean);
-      expect(classes.every((c) => c.startsWith("max-md:"))).toBe(true);
+      // `@max-[16rem]:` is #2496's cramped-frame stacking, measured on the
+      // block rather than the window; it leaves the standard panel alone.
+      expect(
+        classes.every(
+          (c) => c.startsWith("max-md:") || c.startsWith("@max-[16rem]:"),
+        ),
+      ).toBe(true);
     }
   });
 
