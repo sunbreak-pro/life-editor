@@ -1,5 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  within,
+} from "@testing-library/react";
 
 /*
  * LinkPanel's #749 rewrite: the two things the old panel could not do.
@@ -704,5 +710,32 @@ describe("LinkPanel — icon-only chips (#2391)", () => {
 
     fireEvent.keyDown(input, { key: "Escape" });
     expect(screen.queryByRole("combobox")).toBeNull();
+  });
+});
+
+describe("LinkPanel — candidate rows on narrow (#2474)", () => {
+  it("drops the kind and the day under the title, and leaves Desktop's three items", async () => {
+    render(<LinkPanel itemId="note-1" loadTargets={loadTargets} />);
+    const input = await openPicker();
+    fireEvent.change(input, { target: { value: "Tile delivery" } });
+
+    const [option] = await screen.findAllByRole("option");
+    const title = within(option).getByText("Tile delivery");
+    const meta = within(option).getByText(`${kindName("event")} 2026-08-20`);
+
+    // One box holds the title over the meta; it is `contents` at Desktop, so
+    // the row there is still tile, title, meta side by side.
+    const stack = title.parentElement as HTMLElement;
+    expect(meta.parentElement).toBe(stack);
+    expect(stack.parentElement).toBe(option);
+    const classes = stack.className.split(" ");
+    expect(classes).toContain("contents");
+    expect(classes).toContain("max-md:flex-col");
+    // The title has the row's whole width on narrow, and still truncates.
+    expect(title.className).toContain("max-md:w-full");
+    expect(title.className).toContain("truncate");
+    expect(
+      stack.className.split(" ").filter((c) => !c.startsWith("max-md:")),
+    ).toEqual(["contents"]);
   });
 });
