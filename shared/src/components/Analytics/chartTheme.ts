@@ -66,6 +66,17 @@ export const CHART_TOOLTIP_STYLE = {
  */
 export const MAX_DATE_TICKS = 7;
 
+/*
+ * Tick budget for a day axis drawn in a phone's detail drawer (#2505).
+ *
+ * The Briefing drawer is ~316px wide on a 390px phone, which leaves the plot
+ * about 200px after the card padding and the Y axis gutter: seven "10-27"
+ * labels at 10px (~31px each) touched and read as one run of digits. Four
+ * ticks on a 7-day axis is a stride of 2 counted back from today, i.e. every
+ * other day — each label then has two day-slots (~57px) to itself.
+ */
+export const NARROW_MAX_DATE_TICKS = 4;
+
 export function evenDateTicks(
   labels: readonly string[],
   maxTicks: number = MAX_DATE_TICKS,

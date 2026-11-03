@@ -138,15 +138,6 @@ describe("TagHubTagRail — right-click opens the row menu (#1676)", () => {
     expect(menu.style.top).toBe("96px");
   });
 
-  it("keeps the … opening below its trigger", () => {
-    renderRail();
-    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
-
-    const menu = screen.getByRole("menu", { name: "Work: Tag actions" });
-    expect(menu.className).toContain("top-full");
-    expect(menu.style.left).toBe("");
-  });
-
   it("reports each item exactly as the … menu does", () => {
     const { onEditTag, onDeleteTag } = renderRail();
 
@@ -177,6 +168,86 @@ describe("TagHubTagRail — right-click opens the row menu (#1676)", () => {
 
     expect(prevented).toBe(false);
     expect(screen.queryByRole("menu")).toBeNull();
+  });
+});
+
+/*
+ * The "…" on the rail's last row (#2497). The menu sat `absolute` under the
+ * trigger inside the rail's scrolling box, which clipped "Delete tag" to 7px.
+ * It now opens `fixed` at the trigger's corner, out of that clip.
+ *
+ * jsdom has no layout (CLAUDE.md §7.1), so the trigger's and the panel's boxes
+ * are stubbed: what is pinned is which box the menu hangs from and which way
+ * it opens, never a measured position on screen.
+ */
+describe("TagHubTagRail — the … menu escapes the rail's scroll box (#2497)", () => {
+  const box = (left: number, top: number, width: number, height: number) =>
+    ({
+      left,
+      top,
+      width,
+      height,
+      right: left + width,
+      bottom: top + height,
+      x: left,
+      y: top,
+      toJSON: () => ({}),
+    }) as DOMRect;
+
+  /** Stubs the "…" at `trigger` and gives the menu panel a 176×80 box. */
+  function stubBoxes(trigger: DOMRect) {
+    const button = screen.getByRole("button", { name: "Work: Tag actions" });
+    return vi
+      .spyOn(HTMLElement.prototype, "getBoundingClientRect")
+      .mockImplementation(function (this: HTMLElement) {
+        if (this === button) return trigger;
+        if (this.getAttribute("role") === "menu") return box(0, 0, 176, 80);
+        return box(0, 0, 0, 0);
+      });
+  }
+
+  it("opens fixed under the … rather than at a pointer, where there is room", () => {
+    renderRail();
+    const spy = stubBoxes(box(272, 100, 28, 28));
+    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
+
+    const menu = screen.getByRole("menu", { name: "Work: Tag actions" });
+    expect(menu.className).toContain("fixed");
+    expect(menu.className).not.toContain("absolute");
+    // The in-flow placement's own corner: right edge on the trigger's right
+    // edge (300 − 176), top 4px below the trigger's bottom (128 + 4).
+    expect(menu.style.left).toBe("124px");
+    expect(menu.style.top).toBe("132px");
+    spy.mockRestore();
+  });
+
+  it("opens upward above the … when the last row has no room below", () => {
+    renderRail();
+    // jsdom's viewport is 768px tall; a row at 720–748 leaves 20px under it.
+    const spy = stubBoxes(box(272, 720, 28, 28));
+    fireEvent.click(screen.getByRole("button", { name: "Work: Tag actions" }));
+
+    const menu = screen.getByRole("menu", { name: "Work: Tag actions" });
+    // Bottom 4px above the trigger's top: 720 − 4 − 80.
+    expect(menu.style.top).toBe("636px");
+    expect(menu.style.left).toBe("124px");
+    expect(
+      within(menu)
+        .getAllByRole("menuitem")
+        .map((item) => item.textContent),
+    ).toEqual(["Edit tag", "Delete tag"]);
+    spy.mockRestore();
+  });
+
+  it("still closes when the … is pressed again", () => {
+    renderRail();
+    const trigger = screen.getByRole("button", { name: "Work: Tag actions" });
+    fireEvent.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+
+    fireEvent.click(trigger);
+    expect(screen.queryByRole("menu")).toBeNull();
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
   });
 });
 
@@ -235,6 +306,48 @@ describe("TagActionsMenu — usable outside the hub (#1676)", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("menu")).toBeNull();
 
+    const more = screen.getByRole("button", { name: "more" });
+    // jsdom has no layout: give the trigger a box at 300–340 × 200–228.
+    vi.spyOn(more, "getBoundingClientRect").mockReturnValue({
+      left: 300,
+      top: 200,
+      right: 340,
+      bottom: 228,
+      width: 40,
+      height: 28,
+      x: 300,
+      y: 200,
+      toJSON: () => ({}),
+    } as DOMRect);
+    fireEvent.click(more);
+    // Back at the trigger's corner (right edge, 4px below), not at the
+    // right-click's (120, 80).
+    const menu = screen.getByRole("menu");
+    expect(menu.style.left).toBe("340px");
+    expect(menu.style.top).toBe("232px");
+  });
+
+  it("falls back to the in-flow placement when toggled without the click", () => {
+    function Bare() {
+      const menu = useTagActionsMenu();
+      return (
+        <div className="relative">
+          <button type="button" onClick={() => menu.toggleFromTrigger()}>
+            more
+          </button>
+          <TagActionsMenu
+            open={menu.open}
+            onClose={menu.close}
+            tagName="Recipes"
+            anchorPoint={menu.anchorPoint}
+            onEdit={vi.fn()}
+            onDelete={vi.fn()}
+            labels={LABELS}
+          />
+        </div>
+      );
+    }
+    render(<Bare />);
     fireEvent.click(screen.getByRole("button", { name: "more" }));
     expect(screen.getByRole("menu").className).toContain("top-full");
   });

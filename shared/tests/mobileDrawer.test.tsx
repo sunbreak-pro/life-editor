@@ -1,6 +1,11 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { render, screen, fireEvent, act, within } from "@testing-library/react";
-import { MobileDrawer, Modal, RightSidebarToggle } from "../src/components";
+import {
+  MobileDrawer,
+  Modal,
+  RightSidebarPortal,
+  RightSidebarToggle,
+} from "../src/components";
 import { RightSidebarProvider } from "../src/context";
 import {
   MOBILE_FONT_SIZE_STEPS,
@@ -122,6 +127,49 @@ describe("MobileDrawer", () => {
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(document.activeElement).toBe(toggle);
+  });
+
+  /*
+   * #2505: the morning paper's drawer opened with the focus on a recharts
+   * `svg` (tabindex=0) — the first focusable thing the section portalled in —
+   * so it came up in a focus ring with its tooltip showing. The drawer now
+   * opens on its own close button, whatever the content leads with.
+   */
+  it("opens on its close button, not on the first control in the content (#2505)", async () => {
+    render(
+      <RightSidebarProvider>
+        <RightSidebarToggle
+          variant="hamburger"
+          openLabel="Open details"
+          closeLabel="Hide details"
+        />
+        <RightSidebarPortal>
+          <svg role="application" tabIndex={0} aria-label="Chart" />
+          <button type="button">Row action</button>
+        </RightSidebarPortal>
+        <MobileDrawer
+          title={LABELS.title}
+          closeLabel={LABELS.close}
+          emptyLabel={LABELS.empty}
+        />
+      </RightSidebarProvider>,
+    );
+    const toggle = screen.getByRole("button", { name: "Open details" });
+    toggle.focus();
+    fireEvent.click(toggle);
+    await afterFrame();
+
+    const dialog = screen.getByRole("dialog", { name: "Details" });
+    // The content really is inside the drawer — otherwise this proves nothing.
+    expect(
+      within(dialog).getByRole("application", { name: "Chart" }),
+    ).toBeTruthy();
+    expect(document.activeElement).toBe(
+      within(dialog).getByRole("button", { name: LABELS.close }),
+    );
+
+    fireEvent.keyDown(document, { key: "Escape" });
     expect(document.activeElement).toBe(toggle);
   });
 

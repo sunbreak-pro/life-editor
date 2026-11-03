@@ -31,6 +31,7 @@ const LABELS: BriefingLabels = {
   goalMark: "Goals:",
   scheduleTitle: "PROMISES",
   noSchedule: "Nothing scheduled",
+  noTodos: "No todos today",
   routineTag: "Routine",
   allDay: "All day",
   timeColumn: "Time",

@@ -52,6 +52,7 @@ function renderStandalonePicker(): void {
         noMatchLabel: LABELS.iconNoMatch,
         moreLabel: LABELS.iconMore,
         countLabel: LABELS.iconCount,
+        closeLabel: LABELS.iconClose,
       }}
     />,
   );

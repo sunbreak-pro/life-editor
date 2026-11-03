@@ -14,6 +14,19 @@ export type MenuItemVariant = "default" | "danger";
 export interface MenuAnchorPoint {
   x: number;
   y: number;
+  /**
+   * Which edge of the panel sits on `x`. "start" (the default, a right-click)
+   * puts its left edge there; "end" its right edge, for a trigger the panel
+   * hangs from by its right side (#2497).
+   */
+  edge?: "start" | "end";
+  /**
+   * Where the panel's bottom goes when it would run past the viewport's bottom
+   * from `y` — a trigger's top edge, so the panel opens upward above it
+   * instead of being pushed up over the trigger (#2497). Omitted, the panel is
+   * only nudged back inside.
+   */
+  flipY?: number;
 }
 
 export interface MenuProps {
@@ -34,7 +47,8 @@ export interface MenuProps {
    * Viewport coordinates to open at instead of below the trigger — a
    * right-click menu passes the event's `clientX` / `clientY` (#1676). The
    * panel is then `position: fixed` at that point (nudged back inside the
-   * viewport when it would overflow), and `align` is ignored. `anchorRef` can
+   * viewport when it would overflow), and `align` is ignored — the point's own
+   * `edge` says which side of the panel sits on it. `anchorRef` can
    * still be passed alongside it so the toggle trigger keeps counting as inside.
    */
   anchorPoint?: MenuAnchorPoint | null;
@@ -93,6 +107,8 @@ export function Menu({
   const closedByTab = useRef(false);
   const pointX = anchorPoint?.x;
   const pointY = anchorPoint?.y;
+  const pointEdge = anchorPoint?.edge ?? "start";
+  const pointFlipY = anchorPoint?.flipY;
 
   // A right-click near the right or bottom edge would push the panel off
   // screen, so it measures itself and shifts back in before paint. Written to
@@ -104,17 +120,20 @@ export function Menu({
     if (!open || !el || pointX === undefined || pointY === undefined) return;
     const rect = el.getBoundingClientRect();
     const margin = 8;
+    const left = pointEdge === "end" ? pointX - rect.width : pointX;
+    const bottomLimit = window.innerHeight - margin;
+    const top =
+      pointFlipY !== undefined && pointY + rect.height > bottomLimit
+        ? pointFlipY - rect.height
+        : pointY;
     const x = Math.max(
       margin,
-      Math.min(pointX, window.innerWidth - rect.width - margin),
+      Math.min(left, window.innerWidth - rect.width - margin),
     );
-    const y = Math.max(
-      margin,
-      Math.min(pointY, window.innerHeight - rect.height - margin),
-    );
+    const y = Math.max(margin, Math.min(top, bottomLimit - rect.height));
     el.style.left = `${x}px`;
     el.style.top = `${y}px`;
-  }, [open, pointX, pointY]);
+  }, [open, pointX, pointY, pointEdge, pointFlipY]);
 
   // Outside-click + Esc close while open.
   useEffect(() => {

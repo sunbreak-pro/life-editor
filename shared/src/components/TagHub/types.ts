@@ -244,6 +244,8 @@ export interface TagHubEditLabels {
   iconMore: string;
   /** Match count above the panel's grid; one `{count}` slot (#2389). */
   iconCount: string;
+  /** Close (×) on that panel, for a phone with no Esc key (#2500). */
+  iconClose: string;
   /** "Default / no icon" inside that grid. */
   iconClear: string;
   /** Placeholder in that grid's search field, and its empty result (#1701). */
