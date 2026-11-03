@@ -47,8 +47,15 @@ export interface ItemLinkPreviewCardProps {
   className?: string;
 }
 
+/*
+ * Below the breakpoint (#2474) the two buttons share the footer: each grows
+ * from its own width, so they split one line when both fit and each takes the
+ * full width when they stack. The `ml-auto` that pushes "remove" right on
+ * Desktop is dropped there, because on a stacked footer it left "remove" alone
+ * in the bottom-right corner under a full-width gap.
+ */
 const FOOT_BUTTON =
-  "inline-flex items-center gap-1.5 rounded-lumen-sm px-2 py-1 text-xs font-medium hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent max-md:min-h-11";
+  "inline-flex items-center gap-1.5 rounded-lumen-sm px-2 py-1 text-xs font-medium hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:grow max-md:justify-center max-md:whitespace-nowrap";
 
 export function ItemLinkPreviewCard({
   dialogLabel,
@@ -115,7 +122,10 @@ export function ItemLinkPreviewCard({
         <button
           type="button"
           onClick={onUnlink}
-          className={cn(FOOT_BUTTON, "ml-auto text-lumen-text-secondary")}
+          className={cn(
+            FOOT_BUTTON,
+            "ml-auto text-lumen-text-secondary max-md:ml-0",
+          )}
         >
           <Unlink aria-hidden className="size-3.5 shrink-0" />
           {unlinkLabel}
