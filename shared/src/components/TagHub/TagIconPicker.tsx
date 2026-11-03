@@ -38,6 +38,12 @@ export interface TagIconPickerLabels {
    * i18next (its own interpolation is `{{…}}`).
    */
   countLabel: string;
+  /**
+   * Accessible name of the panel's close (×) button (#2500). The panel fills
+   * most of a phone screen, where the backdrop strip left to tap is a few px
+   * wide and there is no Esc key, so the panel owes an exit of its own.
+   */
+  closeLabel: string;
 }
 
 export interface TagIconPickerProps {
@@ -160,11 +166,15 @@ export function TagIconPicker({
           146 glyphs never push the panel past the edge. Esc, the backdrop and
           focus-return all come from Modal; its layer stack is what makes one
           Escape close this panel and leave the sheet or dialog underneath
-          standing (#1342's guarantee, kept by a different mechanism). */}
+          standing (#1342's guarantee, kept by a different mechanism).
+          `closeLabel` draws Modal's corner × beside the heading (44px under
+          768px), outside the scrolling body, so it stays in reach while the
+          grid scrolls (#2500). */}
       <Modal
         open={open}
         onClose={() => setOpen(false)}
         title={labels.iconLabel}
+        closeLabel={labels.closeLabel}
         fitViewport
       >
         <IconPanel current={current} labels={labels} onPick={pick} />

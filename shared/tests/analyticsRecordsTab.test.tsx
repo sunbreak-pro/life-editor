@@ -824,4 +824,33 @@ describe("narrow Records block narrowed by the Apps section (#2312)", () => {
     expect(blockLines()).toHaveLength(2);
     expect(screen.queryByRole("button", { name: "Show all apps" })).toBeNull();
   });
+
+  /*
+   * #2511: at 390px the one-line `truncate` cut "Only <app>" to "Only <ap…",
+   * so a long app name hid that the block is narrowed at all. jsdom has no
+   * layout, so the wrapping is pinned by structure: the sentence may wrap and
+   * is never truncated, the row wraps so the button can drop below it, and the
+   * button keeps its 44px hit box on the right.
+   */
+  it("lets the narrowing sentence wrap instead of cutting it to one line (#2511)", () => {
+    mockMatchMedia(false);
+    render(
+      <AnalyticsView
+        {...props({
+          records,
+          activeTab: undefined,
+          pendingRecordsSource: "ledger",
+        })}
+      />,
+    );
+    const sentence = screen.getByText("Only Household ledger");
+    expect(sentence).not.toHaveClass("truncate");
+    expect(sentence).toHaveClass("min-w-0", "break-words");
+
+    const button = screen.getByRole("button", { name: "Show all apps" });
+    const row = button.parentElement as HTMLElement;
+    expect(row).toBe(sentence.parentElement);
+    expect(row).toHaveClass("flex", "flex-wrap");
+    expect(button).toHaveClass("min-h-11", "flex-shrink-0", "ml-auto");
+  });
 });

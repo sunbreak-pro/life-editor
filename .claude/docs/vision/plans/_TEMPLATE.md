@@ -65,8 +65,7 @@ Previous: (任意) 前フェーズ完了計画書パス
 
 ## Scope (Touchable Paths)
 
-このプランで変更してよいパスを宣言する。git diff の範囲と照合して宣言外パスへの変更を scope drift
-として警告する仕組みは **未実装（将来・#173 で機械化予定）**。現状は人手で Scope を守る前提で使う。
+このプランで変更してよいパスを宣言する。コードブロックは 1 行 1 glob で書く。照合は `node .claude/scripts/scope-overlap.mjs --scope-plan <この計画書>` で行い、宣言外のパスと、動いている PR・他 worktree との重なりを報告する（exit 1 なら着手と PR の前に直す）。Phase を複数の Issue に分ける計画は、Scope を Issue ごとに分けて書き、2 つの Phase が同じファイルを書き換えるなら、後ろの Phase を前の Phase への依存に入れる。
 
 ```
 frontend/src/services/tasks/**

@@ -182,6 +182,7 @@ describe("item rows — a cramped Desktop frame goes to two lines (#2496)", () =
     for (const el of [frame, button, when, title, done]) {
       expect(classesOf(el).filter((c) => c.startsWith("@"))).toEqual([]);
     }
-    expect(classesOf(when)).toContain("w-[4.5rem]");
+    // The phone already reads the day under the title (#2498).
+    expect(when.closest("[data-taghub-meta]")).not.toBeNull();
   });
 });

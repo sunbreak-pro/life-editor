@@ -102,11 +102,14 @@ export function TagColorControls({
         </p>
       )}
       {/* #2407: the sentence says why there is no colour picker here, and
-          the link goes where the tag's colour IS edited. */}
+          the link goes where the tag's colour IS edited.
+          #2479: below the breakpoint the two stack, sentence above and link
+          below. Side by side on a 390px sheet the link (shrink-0) left the
+          sentence 145px, and 「色はタグが決まります」 broke inside a word. */}
       {displayTag && onOpenTag && (
         <div
           data-display-color-source=""
-          className="flex items-center justify-between gap-3"
+          className="flex items-center justify-between gap-3 max-md:flex-col max-md:items-start max-md:justify-start max-md:gap-0"
         >
           <p className="text-xs text-lumen-text-secondary">
             {t("itemActions.displayColorByTag")}

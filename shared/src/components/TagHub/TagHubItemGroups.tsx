@@ -281,6 +281,52 @@ export function TagHubItemGroups({
                   ? labels.noDate
                   : null;
               const timeText = item.allDay ? labels.allDay : item.time;
+              const whenText = Boolean(dayText || timeText || item.repeats);
+              /*
+               * The day and the time under (wide) or after (narrow) it. Wide
+               * gives them a fixed column at the left edge; narrow lays them
+               * on one line under the title (#2498), where a 4.5rem column
+               * left a 390px phone three letters of title.
+               */
+              const whenParts = (
+                <>
+                  <span
+                    className={cn(
+                      "flex items-center gap-1 text-xs tabular-nums",
+                      item.dayKey
+                        ? "font-semibold text-lumen-text"
+                        : "text-lumen-text-tertiary",
+                    )}
+                  >
+                    {item.role === "daily" && (
+                      <CalendarDays
+                        size={12}
+                        className="shrink-0 text-lumen-warning"
+                      />
+                    )}
+                    <span className="truncate">{dayText}</span>
+                  </span>
+                  {(timeText || item.repeats) && (
+                    <span className="flex items-center gap-1 text-[11px] tabular-nums text-lumen-text-tertiary">
+                      {timeText && <span className="truncate">{timeText}</span>}
+                      {item.repeats && (
+                        <Repeat size={11} className="shrink-0" />
+                      )}
+                    </span>
+                  )}
+                </>
+              );
+              const doneChip = (extra?: string) => (
+                <span
+                  data-taghub-done=""
+                  className={cn(
+                    "shrink-0 whitespace-nowrap rounded-lumen-sm border border-lumen-border px-1.5 py-0.5 text-[11px] text-lumen-text-secondary",
+                    extra,
+                  )}
+                >
+                  {labels.done}
+                </span>
+              );
               /*
                * The row's name, spelled out: title first (a list walked by
                * ear is scanned by name), then the left edge, then the second
@@ -356,42 +402,20 @@ export function TagHubItemGroups({
                       wide && NARROW.button,
                     )}
                   >
-                    {/* The left edge — read through the button's name above. */}
-                    <span
-                      aria-hidden
-                      data-taghub-when=""
-                      className={cn(
-                        "flex w-[4.5rem] shrink-0 flex-col leading-tight",
-                        wide && NARROW.when,
-                      )}
-                    >
+                    {/* The left edge — read through the button's name above.
+                        Wide only: narrow moves it under the title (#2498). */}
+                    {wide && (
                       <span
+                        aria-hidden
+                        data-taghub-when=""
                         className={cn(
-                          "flex items-center gap-1 text-xs tabular-nums",
-                          item.dayKey
-                            ? "font-semibold text-lumen-text"
-                            : "text-lumen-text-tertiary",
+                          "flex w-[4.5rem] shrink-0 flex-col leading-tight",
+                          NARROW.when,
                         )}
                       >
-                        {item.role === "daily" && (
-                          <CalendarDays
-                            size={12}
-                            className="shrink-0 text-lumen-warning"
-                          />
-                        )}
-                        <span className="truncate">{dayText}</span>
+                        {whenParts}
                       </span>
-                      {(timeText || item.repeats) && (
-                        <span className="flex items-center gap-1 text-[11px] tabular-nums text-lumen-text-tertiary">
-                          {timeText && (
-                            <span className="truncate">{timeText}</span>
-                          )}
-                          {item.repeats && (
-                            <Repeat size={11} className="shrink-0" />
-                          )}
-                        </span>
-                      )}
-                    </span>
+                    )}
                     <span
                       data-taghub-title=""
                       className={cn(
@@ -410,6 +434,25 @@ export function TagHubItemGroups({
                       >
                         {item.title}
                       </span>
+                      {/* #2498 — narrow reads the day and the Done chip under
+                          the title, so the title keeps the row's width. */}
+                      {!wide && (whenText || done) && (
+                        <span
+                          data-taghub-meta=""
+                          className="flex min-w-0 items-center gap-1.5"
+                        >
+                          {whenText && (
+                            <span
+                              aria-hidden
+                              data-taghub-when=""
+                              className="flex min-w-0 items-center gap-1.5 leading-tight"
+                            >
+                              {whenParts}
+                            </span>
+                          )}
+                          {done && doneChip()}
+                        </span>
+                      )}
                       {item.detail && (
                         <span
                           className="truncate text-xs text-lumen-text-tertiary"
@@ -419,27 +462,23 @@ export function TagHubItemGroups({
                         </span>
                       )}
                     </span>
-                    {done && (
-                      <span
-                        data-taghub-done=""
-                        className={cn(
-                          "shrink-0 whitespace-nowrap rounded-lumen-sm border border-lumen-border px-1.5 py-0.5 text-[11px] text-lumen-text-secondary",
-                          wide && NARROW.done,
-                        )}
-                      >
-                        {labels.done}
-                      </span>
-                    )}
+                    {wide && done && doneChip(NARROW.done)}
                     {/* Decorative while the row itself opens the item; the
                         button below takes over when it does not. */}
                     {!onSelectItem && (
                       <ChevronRight
                         size={14}
                         aria-hidden
-                        className={cn(
-                          "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity group-hover/row:opacity-100",
-                          wide && NARROW.chevron,
-                        )}
+                        className={
+                          wide
+                            ? cn(
+                                "shrink-0 text-lumen-text-tertiary opacity-0 transition-opacity group-hover/row:opacity-100",
+                                NARROW.chevron,
+                              )
+                            : // #2498 — a phone has no hover, so the cue
+                              // that the row opens is drawn outright.
+                              "shrink-0 text-lumen-text-tertiary"
+                        }
                       />
                     )}
                   </button>

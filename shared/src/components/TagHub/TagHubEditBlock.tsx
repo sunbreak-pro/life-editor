@@ -43,6 +43,19 @@ import { type TagHubEditLabels, type TagHubTagSummary } from "./types";
  */
 const STACKED_LABEL_GAP = "@max-[16rem]:mt-2";
 
+/*
+ * Phone layout (#2499). The rows are not one height: the icon strip and the
+ * swatch grid are taller than a line of text, and `items-center` parked each
+ * label halfway down its row instead of beside the row's first line. On narrow
+ * the grid aligns to the top and every label is given the height of its
+ * control's FIRST line (the name field's 44px floor, the 48px icon strip, one
+ * 44px swatch row), so the label sits level with what it names.
+ *
+ * Desktop keeps `items-center` and its painted sizes — every change here is a
+ * `max-md:` class.
+ */
+const NARROW_LABEL = "max-md:flex max-md:items-center";
+
 export interface TagHubEditBlockProps {
   /** The live tag being edited (the rail's own row, counts and all). */
   tag: TagHubTagSummary;
@@ -129,10 +142,17 @@ export function TagHubEditBlock({
           // (320px leaves ~262px here), so Mobile and the standard Desktop
           // panel keep the two columns.
           "grid-cols-1 gap-y-1.5 @min-[16rem]:grid-cols-[auto_1fr] @min-[16rem]:gap-y-3",
+          // #2499 — see NARROW_LABEL.
+          "max-md:items-start",
         )}
       >
         <>
-          <label htmlFor={`taghub-name-${tag.id}`}>{labels.nameLabel}</label>
+          <label
+            htmlFor={`taghub-name-${tag.id}`}
+            className={cn(NARROW_LABEL, "max-md:min-h-11")}
+          >
+            {labels.nameLabel}
+          </label>
           <input
             id={`taghub-name-${tag.id}`}
             ref={nameRef}
@@ -154,6 +174,8 @@ export function TagHubEditBlock({
             }}
             className={cn(
               "min-w-0 rounded-lumen-md border border-lumen-border bg-lumen-bg px-2.5 py-1.5 text-sm text-lumen-text",
+              // 44px on a phone (#1561); height only, so the row is no wider.
+              "max-md:min-h-11",
               FOCUS_RING_TIGHT,
               // An unsaved field says so on itself, not only through the
               // footer's state text.
@@ -163,7 +185,12 @@ export function TagHubEditBlock({
         </>
 
         <>
-          <span className={STACKED_LABEL_GAP}>{labels.iconLabel}</span>
+          {/* The strip TagIconPicker draws first is 48px tall on narrow. */}
+          <span
+            className={cn(NARROW_LABEL, "max-md:min-h-12", STACKED_LABEL_GAP)}
+          >
+            {labels.iconLabel}
+          </span>
           <div className="flex items-center gap-2">
             <TagIconPicker
               current={icon}
@@ -176,24 +203,36 @@ export function TagHubEditBlock({
                 noMatchLabel: labels.iconNoMatch,
                 moreLabel: labels.iconMore,
                 countLabel: labels.iconCount,
+                closeLabel: labels.iconClose,
               }}
             />
           </div>
         </>
 
         <>
-          <span className={STACKED_LABEL_GAP}>{labels.colorLabel}</span>
+          <span
+            className={cn(NARROW_LABEL, "max-md:min-h-11", STACKED_LABEL_GAP)}
+          >
+            {labels.colorLabel}
+          </span>
           {/*
            * The swatches are laid out INLINE rather than behind the shared
            * ColorPicker's trigger (D7): the block is already the disclosure — you
            * opened it to change this tag — so a second one would put the twelve
            * colours two clicks away from the pencil that exists to reach them.
            */}
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-4 max-md:items-start">
+            {/*
+             * On narrow each swatch is a 44px button around the same 24px dot
+             * (#2499): the dot stays the size it is, the hit area reaches the
+             * touch floor. Six 44px cells are wider than the sheet's field
+             * column at 390px, so the grid drops to four columns and closes
+             * its gap — the cells' own padding is the gap between the dots.
+             */}
             <div
               role="group"
               aria-label={labels.colorLabel}
-              className="grid grid-cols-6 gap-2"
+              className="grid grid-cols-6 gap-2 max-md:grid-cols-4 max-md:gap-0"
             >
               {ITEM_COLOR_PRESETS.map((preset) => {
                 const active = color?.toLowerCase() === preset.toLowerCase();
@@ -206,13 +245,22 @@ export function TagHubEditBlock({
                     title={preset}
                     onClick={() => onEdit({ color: preset })}
                     className={cn(
-                      "h-6 w-6 rounded-full",
+                      "flex h-6 w-6 items-center justify-center rounded-full",
+                      "max-md:h-11 max-md:w-11",
                       FOCUS_RING_TIGHT,
-                      active &&
-                        "ring-2 ring-lumen-text ring-offset-2 ring-offset-lumen-bg-secondary",
                     )}
-                    style={{ backgroundColor: preset }}
-                  />
+                  >
+                    <span
+                      aria-hidden
+                      data-swatch-dot=""
+                      className={cn(
+                        "h-6 w-6 shrink-0 rounded-full",
+                        active &&
+                          "ring-2 ring-lumen-text ring-offset-2 ring-offset-lumen-bg-secondary",
+                      )}
+                      style={{ backgroundColor: preset }}
+                    />
+                  </button>
                 );
               })}
             </div>

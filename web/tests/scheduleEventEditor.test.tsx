@@ -345,10 +345,11 @@ describe("ScheduleEventEditor — the tag scope on a repeat (#1663)", () => {
 describe("ScheduleEventEditor — logged work time (#1375 / #2407)", () => {
   const field = () =>
     screen.getByLabelText("scheduleScreen.workTime") as HTMLInputElement;
-  const ready = () =>
-    waitFor(() => expect(field().disabled).toBe(false));
+  const ready = () => waitFor(() => expect(field().disabled).toBe(false));
   const save = () =>
-    fireEvent.click(screen.getByRole("button", { name: "scheduleScreen.save" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "scheduleScreen.save" }),
+    );
 
   beforeEach(() => {
     fetchSessionsByEventId.mockReset();
@@ -544,5 +545,53 @@ describe("ScheduleEventEditor — 「ノートを添付」 on the tag row (#2219
       kind: "existing",
       id: "note-1",
     });
+  });
+});
+
+/*
+ * #2479 — on a 390px sheet the picker shared its line with 「ノートを添付」,
+ * so a one-tag picker was ~165px wide and its 「＋」 wrapped onto a line of
+ * its own. Below the breakpoint the picker now takes the whole first line and
+ * the attach button drops to the next one, at the right end. jsdom has no
+ * layout, so this pins the structure; the positions are checked in a browser.
+ */
+describe("ScheduleEventEditor — the tag row on narrow (#2479)", () => {
+  const classesOf = (el: Element | null) =>
+    (el?.getAttribute("class") ?? "").split(" ");
+
+  function renderRow() {
+    const utils = renderEditor({
+      isWide: false,
+      noteAttach: { notes: [], onAttach: vi.fn() },
+    });
+    const row = utils.container.querySelector("[data-event-tag-row]");
+    const picker = row?.querySelector("[data-event-tag-picker]") ?? null;
+    const attach = row?.querySelector("[data-event-note-attach]") ?? null;
+    return { row, picker, attach };
+  }
+
+  it("keeps the picker and 「ノートを添付」 in the one row", () => {
+    const { row, picker, attach } = renderRow();
+    expect(row).not.toBeNull();
+    // The picker's own 「＋」 lives inside the picker's box.
+    expect(picker?.textContent).toContain(`picker:`);
+    expect(picker?.textContent).toContain(ITEM.id);
+    expect(attach?.querySelector("button")?.textContent).toContain(
+      "scheduleScreen.attachNote",
+    );
+  });
+
+  it("wraps the row and gives the picker the whole first line, on narrow only", () => {
+    const { row, picker } = renderRow();
+    expect(classesOf(row)).toContain("max-md:flex-wrap");
+    expect(classesOf(row)).not.toContain("flex-wrap");
+    expect(classesOf(picker)).toContain("max-md:basis-full");
+    expect(classesOf(picker)).not.toContain("basis-full");
+  });
+
+  it("sends 「ノートを添付」 to the right end of the next line", () => {
+    const { attach } = renderRow();
+    expect(classesOf(attach)).toContain("max-md:ml-auto");
+    expect(classesOf(attach)).not.toContain("ml-auto");
   });
 });

@@ -10,7 +10,8 @@ import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
 import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import {
-  blockTitleLines,
+  blockTitleFit,
+  DEFAULT_BLOCK_TITLE_METRICS,
   dayOfWeek,
   minutesFromMidnight,
   parseDateKey,
@@ -22,6 +23,7 @@ import {
   minutesToTime,
   snapMinutes,
   DEFAULT_SNAP_MINUTES,
+  type BlockTitleMetrics,
   type HourRange,
 } from "../../utils/scheduleGridLayout";
 import { useWeekTimeGridDrag } from "./useWeekTimeGridDrag";
@@ -485,6 +487,56 @@ export function WeekTimeGrid({
     onItemActivate,
   });
 
+  /*
+   * #2478: the px width of one day column, which decides (with the block's
+   * height) how many lines a block title may use. A narrow column would
+   * otherwise wrap a tall block's title a character per line. The columns are
+   * equal `1fr` shares of the time grid, so watching the grid is enough; null
+   * until measured (and in jsdom), which keeps the height-only rule (#1835).
+   *
+   * The width is judged against the real type: one title character measured
+   * from a hidden probe in the title's own classes, and the root font size
+   * the rem paddings follow. Both move with the Settings font-size step, and
+   * the probe is observed too, so a step change re-measures without a resize.
+   * A probe that reads 0 (jsdom) keeps the default metrics.
+   */
+  const [colWidthPx, setColWidthPx] = useState<number | null>(null);
+  const [titleMetrics, setTitleMetrics] = useState<BlockTitleMetrics>(
+    DEFAULT_BLOCK_TITLE_METRICS,
+  );
+  const charProbeRef = useRef<HTMLSpanElement | null>(null);
+  useEffect(() => {
+    const grid = timeGridRef.current;
+    if (!grid || typeof ResizeObserver === "undefined") return;
+    const measure = (): void => {
+      const col = grid.querySelector<HTMLElement>("[data-week-grid-day]");
+      const w = col ? col.getBoundingClientRect().width : 0;
+      setColWidthPx(w > 0 ? w : null);
+      const charPx = charProbeRef.current?.getBoundingClientRect().width ?? 0;
+      const remPx = parseFloat(
+        getComputedStyle(document.documentElement).fontSize,
+      );
+      const next: BlockTitleMetrics =
+        charPx > 0
+          ? {
+              charPx,
+              remPx:
+                Number.isFinite(remPx) && remPx > 0
+                  ? remPx
+                  : DEFAULT_BLOCK_TITLE_METRICS.remPx,
+            }
+          : DEFAULT_BLOCK_TITLE_METRICS;
+      setTitleMetrics((prev) =>
+        prev.charPx === next.charPx && prev.remPx === next.remPx ? prev : next,
+      );
+    };
+    const ro = new ResizeObserver(measure);
+    ro.observe(grid);
+    if (charProbeRef.current) ro.observe(charProbeRef.current);
+    measure();
+    return () => ro.disconnect();
+  }, [timeGridRef, days]);
+
   // Bucket items per day key once.
   const byDay = useMemo(() => {
     const map = new Map<string, WeekTimeGridItem[]>();
@@ -843,6 +895,16 @@ export function WeekTimeGrid({
         >
           {/* Hour axis */}
           <div className="relative border-r border-lumen-border">
+            {/* #2478: one title character in the block title's own type,
+                measured to judge whether a title can wrap. Never seen. */}
+            <span
+              ref={charProbeRef}
+              aria-hidden
+              data-week-grid-char-probe
+              className="pointer-events-none invisible absolute left-0 top-0 whitespace-nowrap text-xs font-medium"
+            >
+              あ
+            </span>
             {hours.map((h) => (
               <div key={h} style={{ height: hourHeight }} className="relative">
                 <span className="absolute -top-1.5 right-1 text-xs tabular-nums text-lumen-text-secondary">
@@ -909,8 +971,25 @@ export function WeekTimeGrid({
                   // #1835: the block's height in px, which is what decides how
                   // many lines its title may use. `heightPct` is a share of
                   // the day body, and the body's px height is known here.
-                  const titleLines = blockTitleLines(
+                  // #2478: and its width, so a narrow column truncates one
+                  // line (dropping the glyph first) instead of wrapping a
+                  // character per line.
+                  const { lines: titleLines, showGlyph } = blockTitleFit(
                     (p.heightPct / 100) * bodyHeight,
+                    colWidthPx == null
+                      ? null
+                      : (colWidthPx * p.widthPct) / 100 - 2,
+                    {
+                      glyph: variant === "routine" || variant === "task",
+                      band: variant === "routine",
+                      // variantBlockClasses: only the untinted event face
+                      // (its default branch) draws a border.
+                      border:
+                        !it.tagColor &&
+                        variant !== "routine" &&
+                        variant !== "task",
+                    },
+                    titleMetrics,
                   );
                   // A-1 made todo chips read-only; A-2 (#297) opts them back in
                   // via `todoInteractive` so a drag writes scheduledAt. Events/
@@ -1014,7 +1093,7 @@ export function WeekTimeGrid({
                           titleLines === 1 ? "items-center" : "items-start",
                         )}
                       >
-                        {variant === "routine" && (
+                        {showGlyph && variant === "routine" && (
                           <Repeat
                             aria-hidden
                             className="size-3 shrink-0"
@@ -1025,7 +1104,7 @@ export function WeekTimeGrid({
                             Todos mark — as the todo counterpart of the
                             routine's Repeat. Static (not a completion state:
                             done already reads via line-through). */}
-                        {variant === "task" && (
+                        {showGlyph && variant === "task" && (
                           <CheckSquare
                             aria-hidden
                             className="size-3 shrink-0"
