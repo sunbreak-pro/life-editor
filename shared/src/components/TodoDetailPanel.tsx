@@ -8,12 +8,19 @@ import {
 import { Trash2 } from "lucide-react";
 import type { TodoStatus } from "../types/todoTree";
 import { AllDayCheck } from "./schedule/AllDayCheck";
+import {
+  WorkTimeField,
+  hasHandEnteredTime,
+  readWorkTimeDraft,
+  type WorkTimeModel,
+} from "./schedule/WorkTimeField";
 import { TimeRangeField } from "./TimeRangeField";
 import { TodoStatusCheckbox } from "./TodoStatusCheckbox";
 import type { StatusLabelSet } from "./todoStatusVisuals";
 import { isImeComposing } from "../utils/imeGuard";
 import { timedSpanForAllDayOff } from "../utils/scheduleAllDay";
 import type { TodoScheduleSlot } from "../utils/todoCalendarChips";
+import type { EventWorkAnchor } from "../utils/timerSessions";
 import { cn } from "./cn";
 import {
   DISABLED_FILLED_BTN,
@@ -81,6 +88,14 @@ import {
  * and Save. The date and time are a draft like the title, so the same press
  * writes them and the unsaved guard covers them. A name left empty cannot be
  * saved, whichever half of the panel is pending.
+ *
+ * #2553: the same two columns as the event editor on Desktop (#1664), so a
+ * todo and an event opened from the same day put the same things in the same
+ * places — what the todo IS (name, day and time) on the left, what is attached
+ * to it (tags, colour, memo, goals, status, logged time) on the right. The
+ * convert / open actions and the footer run full width under both. The status
+ * takes the two-choice row on both widths, and the todo gains the event's
+ * logged-time field (`workTime`), written to the same timer log.
  */
 
 /** What one press of the save button changes (#713). */
@@ -234,6 +249,24 @@ export interface TodoDetailPanelProps {
    * ancestor must not.
    */
   stickyFooter?: boolean;
+  /**
+   * Lay the fields out in TWO columns (#2553), as the event editor does on
+   * Desktop (#1664). A prop for the reason `twoColumn` is one there: the host
+   * knows which frame it is mounting, and the sheet is too narrow for two.
+   */
+  twoColumn?: boolean;
+  /**
+   * Logged work time (#2553) — the event editor's field, against the todo.
+   * Omitted, no field. The anchor handed to `onSave` carries an empty date
+   * for a todo with no day; the host decides which day the row sits on then.
+   */
+  workTime?: WorkTimeModel;
+  /**
+   * Full-width actions between the fields and the footer (#2553) — 「予定に変換」
+   * and 「予定の画面で開く」. Inside the panel so they sit above the footer's rule,
+   * where the event editor keeps its convert.
+   */
+  actions?: ReactNode;
   className?: string;
 }
 
@@ -251,6 +284,16 @@ const SAVE_BTN = cn(
   FOCUS_RING_ON_ACCENT,
   DISABLED_FILLED_BTN,
 );
+
+/*
+ * #2553: an accent ring while the press would write something — the
+ * prototype's cue that the panel holds changes. A ring (box-shadow) rather than
+ * a border so nothing reflows when it comes and goes, offset onto the card's
+ * own token so the gap matches the surface (FOCUS_RING_ON_ACCENT is an outline,
+ * so the focus cue still draws on top of it).
+ */
+const SAVE_READY =
+  "ring-2 ring-lumen-accent ring-offset-2 ring-offset-lumen-bg-secondary";
 
 // Outlined beside the filled Save, as on the event pane (#2407).
 const CANCEL_BTN = cn(
@@ -320,6 +363,9 @@ function TodoDetailFields({
   goalsSlot,
   goalsDirty = false,
   stickyFooter,
+  twoColumn = false,
+  workTime,
+  actions,
 }: Omit<TodoDetailPanelProps, "className">) {
   // `undefined` = untouched, so the field keeps following the live todo and a
   // rename made elsewhere still lands in front of the user instead of being
@@ -336,10 +382,20 @@ function TodoDetailFields({
   const draftSchedule = scheduleEdit ?? savedSchedule;
   const scheduleDirty =
     scheduleEdit !== undefined && !sameSchedule(scheduleEdit, savedSchedule);
-  const dirty = titleDirty || contentDirty || goalsDirty || scheduleDirty;
+  // The logged time (#2553), a draft like the rest. Kept apart from the patch
+  // because it goes to the timer log, not to the todo's row.
+  const [workTimeEdit, setWorkTimeEdit] = useState<string | undefined>(
+    undefined,
+  );
+  const workTimeDraft = workTime
+    ? readWorkTimeDraft(workTime, workTimeEdit)
+    : null;
+  const workTimeDirty = workTimeDraft?.dirty === true;
+  const dirty =
+    titleDirty || contentDirty || goalsDirty || scheduleDirty || workTimeDirty;
   // Still dirty, so the guard asks; only the press is held back.
   const nameEmpty = draftTitle.trim() === "";
-  const canSave = dirty && !nameEmpty;
+  const canSave = dirty && !nameEmpty && !workTimeDraft?.problem;
   const resolvedStatus = status ?? "NOT_STARTED";
 
   // Same ref dance as EventEditorPane: the unmount report must not pin a stale
@@ -361,6 +417,23 @@ function TodoDetailFields({
     const patch: TodoDetailPatch = {};
     if (titleDirty) patch.title = draftTitle;
     if (scheduleDirty) patch.schedule = draftSchedule.date ? draftSchedule : null;
+    // #2553: before the patch, as on the event editor (#2407). A press that
+    // only moves the todo still writes, or the hand-entered row would go on
+    // counting toward the day the todo left.
+    if (workTime && workTimeDraft) {
+      if (
+        workTimeDraft.dirty ||
+        (scheduleDirty && hasHandEnteredTime(workTime))
+      ) {
+        const anchor: EventWorkAnchor = {
+          date: draftSchedule.date,
+          startTime: draftSchedule.isAllDay ? "" : draftSchedule.startTime,
+          isAllDay: draftSchedule.isAllDay,
+        };
+        workTime.onSave(workTimeDraft.totalMinutes, anchor);
+      }
+      setWorkTimeEdit(undefined);
+    }
     onSave(todoId, patch);
     // Back to following the live todo, which the write has just moved.
     setScheduleEdit(undefined);
@@ -401,7 +474,7 @@ function TodoDetailFields({
     }
   };
 
-  return (
+  const titleField = (
     <>
       <input
         value={draftTitle}
@@ -414,7 +487,10 @@ function TodoDetailFields({
           FOCUS_RING,
         )}
       />
-
+    </>
+  );
+  const statusRow = (
+    <>
       <div
         className={cn(
           "flex",
@@ -454,23 +530,26 @@ function TodoDetailFields({
           </span>
         )}
       </div>
-
+    </>
+  );
+  const scheduleRow = (
+    <>
       {/* #2401: the schedule row, a draft like the title. Same caption treatment
-          as the status above it, and directly under it, because the two answer
-          the pair of questions a list raises: how far along, and when. The times
-          and the all-day check wait for a date, since neither means anything
-          without one. An emptied date is a real answer here (the todo goes back
-          to having no day), unlike the event pane, whose row must keep one. */}
+            as the status above it, and directly under it, because the two answer
+            the pair of questions a list raises: how far along, and when. The times
+            and the all-day check wait for a date, since neither means anything
+            without one. An emptied date is a real answer here (the todo goes back
+            to having no day), unlike the event pane, whose row must keep one. */}
       {scheduleLabels && (
         <div className="flex flex-col gap-1.5">
           <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
             {scheduleLabels.caption}
           </span>
           {/* `min-w-0` + `appearance-none` on the input: WebKit otherwise holds
-              a date input at its own width, under the check beside it (#1403).
-              No Enter-to-save here: a half-typed date is a live draft, so a
-              cleared month reads "" (off the calendar) and a one-digit year
-              reads 1902. */}
+                a date input at its own width, under the check beside it (#1403).
+                No Enter-to-save here: a half-typed date is a live draft, so a
+                cleared month reads "" (off the calendar) and a one-digit year
+                reads 1902. */}
           <div className="flex items-center gap-3">
             <input
               type="date"
@@ -504,9 +583,12 @@ function TodoDetailFields({
           )}
         </div>
       )}
-
+    </>
+  );
+  const goalsRow = (
+    <>
       {/* #2109: stacked, caption above — the field is a list, not a chip
-          row, and needs the panel's full width on a phone. */}
+            row, and needs the panel's full width on a phone. */}
       {goalsLabel && goalsSlot != null && (
         <div className="flex flex-col gap-1.5">
           <span className="text-xs uppercase tracking-wide text-lumen-text-secondary">
@@ -515,7 +597,10 @@ function TodoDetailFields({
           {goalsSlot}
         </div>
       )}
-
+    </>
+  );
+  const tagRows = (
+    <>
       {tagsSlot != null && (
         <div className="flex items-start gap-2">
           {tagsLabel && (
@@ -530,7 +615,10 @@ function TodoDetailFields({
         </div>
       )}
       {tagsSlot != null && colorSlot}
-
+    </>
+  );
+  const memoRow = (
+    <>
       {contentEditor && (
         <div className="space-y-1">
           {contentLabel && (
@@ -541,6 +629,62 @@ function TodoDetailFields({
           {contentEditor}
         </div>
       )}
+    </>
+  );
+  const workTimeRow = workTime && workTimeDraft && (
+    <WorkTimeField
+      workTime={workTime}
+      draft={workTimeDraft}
+      onEdit={setWorkTimeEdit}
+      onKeyDown={saveOnEnter}
+    />
+  );
+
+  /*
+   * #2553: on Desktop, the event editor's two columns (#1664) — what the todo
+   * IS on the left, what is attached to it on the right, with the goals kept
+   * just above the status as the Issue placed them. On the sheet, the #2401
+   * order, with the logged time after the memo.
+   */
+  return (
+    <>
+      {twoColumn ? (
+        <div className="flex items-start gap-4">
+          {/* Named in the DOM so a suite can ask which column a field landed
+              in — jsdom has no layout (same attribute as the event editor). */}
+          <div
+            data-editor-column="identity"
+            className="flex min-w-0 flex-1 flex-col gap-3"
+          >
+            {titleField}
+            {scheduleRow}
+          </div>
+          <div
+            data-editor-column="attachments"
+            className="flex min-w-0 flex-1 flex-col gap-3"
+          >
+            {tagRows}
+            {memoRow}
+            {goalsRow}
+            {statusRow}
+            {workTimeRow}
+          </div>
+        </div>
+      ) : (
+        <>
+          {titleField}
+          {statusRow}
+          {scheduleRow}
+          {goalsRow}
+          {tagRows}
+          {memoRow}
+          {workTimeRow}
+        </>
+      )}
+
+      {/* Full width under both columns: they act on the whole todo, and in a
+          column they would read as belonging to that column's fields. */}
+      {actions != null && <div className="flex flex-col gap-2">{actions}</div>}
 
       {/* Save footer (#713) — the only commit. Disabled while there is nothing
           to write (#434 S-1). #2219: the 「保存済み / 未保存」 line beside it is
@@ -590,7 +734,7 @@ function TodoDetailFields({
           type="button"
           onClick={save}
           disabled={!canSave}
-          className={SAVE_BTN}
+          className={cn(SAVE_BTN, canSave && SAVE_READY)}
         >
           {saveLabel}
         </button>

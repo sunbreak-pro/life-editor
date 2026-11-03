@@ -84,6 +84,7 @@ function setup(todoId: string, goals = SAMPLE_GOALS) {
   });
   const updateNode = vi.fn();
   const toggleStatus = vi.fn();
+  const setStatus = vi.fn();
   const props: ScheduleTodoDetailProps = {
     todoId,
     todoNodes: [FREE, RUN1, RUN2],
@@ -92,7 +93,7 @@ function setup(todoId: string, goals = SAMPLE_GOALS) {
     writes: {
       updateNode,
       toggleStatus,
-      setStatus: vi.fn(),
+      setStatus,
       onDelete: vi.fn(),
     },
     onConvertToEvent: vi.fn(),
@@ -122,6 +123,7 @@ function setup(todoId: string, goals = SAMPLE_GOALS) {
     unlinkGoalTodo,
     updateNode,
     toggleStatus,
+    setStatus,
     setNodes,
     bump: (domain: SyncDomain) => sync.bump(domain),
   };
@@ -167,8 +169,9 @@ describe("ScheduleTodoDetail — the goal row (#2109)", () => {
   it("says, in this panel, when un-completing a todo takes an achievement off", async () => {
     const h = setup("t-run1");
     await screen.findByRole("button", { name: "Link to a goal" });
-    fireEvent.click(screen.getByRole("checkbox", { name: /^Status/ }));
-    expect(h.toggleStatus).toHaveBeenCalledWith("t-run1");
+    // #2553: Desktop takes the two-choice row too, so the press names a value.
+    fireEvent.click(screen.getByRole("button", { name: "Not started" }));
+    expect(h.setStatus).toHaveBeenCalledWith("t-run1", "NOT_STARTED");
     h.setNodes([FREE, { ...RUN1, status: "NOT_STARTED" }, RUN2]);
     expect((await screen.findByRole("status")).textContent).toContain(
       "No longer achieved",

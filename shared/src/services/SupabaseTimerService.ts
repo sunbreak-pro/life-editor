@@ -324,19 +324,51 @@ export class SupabaseTimerService implements TimerDataService {
     totalMinutes: number | null;
   }): Promise<void> {
     const { eventId, anchor, totalMinutes } = input;
+    await this.saveWorkTotal(
+      { kind: "event", id: eventId },
+      anchor,
+      totalMinutes,
+      "saveEventWorkTotal",
+    );
+  }
+
+  /** The todo twin (#2553): the same row, filed under `task_id`. */
+  async saveTodoWorkTotal(input: {
+    todoId: string;
+    anchor: EventWorkAnchor;
+    totalMinutes: number | null;
+  }): Promise<void> {
+    const { todoId, anchor, totalMinutes } = input;
+    await this.saveWorkTotal(
+      { kind: "todo", id: todoId },
+      anchor,
+      totalMinutes,
+      "saveTodoWorkTotal",
+    );
+  }
+
+  private async saveWorkTotal(
+    target: WorkTarget,
+    anchor: EventWorkAnchor,
+    totalMinutes: number | null,
+    name: string,
+  ): Promise<void> {
     if (
       totalMinutes !== null &&
       (!Number.isInteger(totalMinutes) || totalMinutes < 0)
     ) {
       throw new Error(
-        `saveEventWorkTotal: ${totalMinutes} is not a whole number of minutes`,
+        `${name}: ${totalMinutes} is not a whole number of minutes`,
       );
     }
-    const sessions = await this.fetchSessionsByEventId(eventId);
-    const plan = planManualSession(sessions, eventId, totalMinutes);
+    const sessions =
+      target.kind === "todo"
+        ? await this.fetchSessionsByTodoId(target.id)
+        : await this.fetchSessionsByEventId(target.id);
+    const plan = planManualSession(sessions, target.id, totalMinutes);
     if (plan.kind === "refused") {
       throw new Error(
-        `saveEventWorkTotal: ${totalMinutes} min is below the ${plan.timerMinutes} min the timer measured`,
+        `${name}: ${totalMinutes} min is below the ${plan.timerMinutes} min the timer measured`,
       );
     }
     if (plan.seconds > 0) {
@@ -345,9 +377,7 @@ export class SupabaseTimerService implements TimerDataService {
         plan.keepId === null
           ? await this.client
               .from("timer_sessions")
-              .insert(
-                manualTimerSessionInsert(eventId, startedAt, plan.seconds),
-              )
+              .insert(manualTimerSessionInsert(target, startedAt, plan.seconds))
           : await this.client
               .from("timer_sessions")
               .update(
@@ -358,16 +388,14 @@ export class SupabaseTimerService implements TimerDataService {
                 ),
               )
               .eq("id", plan.keepId);
-      if (error)
-        throw new Error(`saveEventWorkTotal write failed: ${error.message}`);
+      if (error) throw new Error(`${name} write failed: ${error.message}`);
     }
     if (plan.deleteIds.length > 0) {
       const { error } = await this.client
         .from("timer_sessions")
         .delete()
         .in("id", plan.deleteIds);
-      if (error)
-        throw new Error(`saveEventWorkTotal delete failed: ${error.message}`);
+      if (error) throw new Error(`${name} delete failed: ${error.message}`);
     }
   }
 
@@ -447,6 +475,7 @@ export const PHASE2_TIMER_METHOD_NAMES = [
   "fetchSessionsByTodoId",
   "fetchSessionsByEventId",
   "saveEventWorkTotal",
+  "saveTodoWorkTotal",
   "fetchPomodoroPresets",
   "createPomodoroPreset",
   "updatePomodoroPreset",

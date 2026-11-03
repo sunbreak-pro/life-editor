@@ -40,6 +40,9 @@ vi.mock("@life-editor/shared", async (importOriginal) => ({
   // #2109: the goal row's data. No goals here — its own suite
   // (scheduleTodoDetailGoals.test.tsx) drives it with a Sync provider.
   useGoalLinkSnapshot: () => ({ state: null, writeLinks: async () => {} }),
+  // #2553: the logged-time read follows the `sessions` Sync domain; no
+  // Provider here, and no write lands from this suite.
+  useSyncDomains: () => 0,
 }));
 
 /*
@@ -459,17 +462,17 @@ describe("ScheduleTodoDetail — the body it inherited (#1153)", () => {
     );
   });
 
-  it("gives narrow the touch status row and Desktop the cycle button", () => {
-    // #470's split, kept: on narrow this sheet is the only way into a todo,
-    // and a cycle button is a poor target for a thumb.
-    const narrow = renderDetail({ isWide: false });
-    fireEvent.click(screen.getByText("todoDetail.statusDone"));
-    expect(narrow.setStatus).toHaveBeenCalledWith(TODO.id, "DONE");
-    narrow.unmount();
-
-    const wide = renderDetail({ isWide: true });
-    expect(screen.queryByText("todoDetail.statusDone")).toBeNull();
-    expect(wide.setStatus).not.toHaveBeenCalled();
+  it("gives both widths the two-choice status row (#2553)", () => {
+    // #470 gave it to narrow, where a cycle button is a poor target for a
+    // thumb. #2553 gives it to Desktop too: the prototype draws 「未着手 | 完了」
+    // on both, the same way the event editor's fields match across widths.
+    for (const isWide of [false, true]) {
+      const view = renderDetail({ isWide });
+      fireEvent.click(screen.getByText("todoDetail.statusDone"));
+      expect(view.setStatus).toHaveBeenCalledWith(TODO.id, "DONE");
+      expect(view.toggleStatus).not.toHaveBeenCalled();
+      view.unmount();
+    }
   });
 });
 
