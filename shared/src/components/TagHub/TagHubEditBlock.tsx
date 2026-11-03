@@ -177,6 +177,7 @@ export function TagHubEditBlock({
                 noMatchLabel: labels.iconNoMatch,
                 moreLabel: labels.iconMore,
                 countLabel: labels.iconCount,
+                closeLabel: labels.iconClose,
               }}
             />
           </div>
