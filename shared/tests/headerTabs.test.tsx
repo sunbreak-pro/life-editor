@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent } from "@testing-library/react";
 import { HeaderTabs, type HeaderTab } from "../src/components";
 
@@ -181,6 +181,76 @@ describe("HeaderTabs", () => {
         key: "ArrowLeft",
       });
       expect(onSelect).toHaveBeenLastCalledWith("schedule");
+    });
+
+    /*
+     * Review of PR #2529: at 1280px 「記録」 started 23px clipped, and selecting
+     * it with → left the strip's scrollLeft at 0. jsdom has no scrollIntoView,
+     * so a stub records which tab was asked to come into view and how.
+     */
+    describe("brings the selected tab into view", () => {
+      const original = Element.prototype.scrollIntoView;
+      afterEach(() => {
+        Element.prototype.scrollIntoView = original;
+      });
+
+      function stubScroll(): ReturnType<typeof vi.fn> {
+        const spy = vi.fn();
+        Element.prototype.scrollIntoView = spy;
+        return spy;
+      }
+
+      it("on mount, so a band opened on a clipped tab starts with it visible", () => {
+        const spy = stubScroll();
+        render(
+          <HeaderTabs tabs={FIVE} activeTab="records" onSelect={vi.fn()} />,
+        );
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy.mock.contexts[0]).toBe(
+          screen.getByRole("tab", { name: "記録" }),
+        );
+        // nearest on both axes: scroll the strip only as far as needed and
+        // leave the page's vertical position alone.
+        expect(spy).toHaveBeenCalledWith({
+          block: "nearest",
+          inline: "nearest",
+        });
+      });
+
+      it("when the selection moves (arrow key → parent re-renders)", () => {
+        const spy = stubScroll();
+        const { rerender } = render(
+          <HeaderTabs tabs={FIVE} activeTab="schedule" onSelect={vi.fn()} />,
+        );
+        spy.mockClear();
+        rerender(
+          <HeaderTabs tabs={FIVE} activeTab="records" onSelect={vi.fn()} />,
+        );
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy.mock.contexts[0]).toBe(
+          screen.getByRole("tab", { name: "記録" }),
+        );
+      });
+
+      it("not on a re-render that keeps the same tab", () => {
+        const spy = stubScroll();
+        const { rerender } = render(
+          <HeaderTabs tabs={FIVE} activeTab="records" onSelect={vi.fn()} />,
+        );
+        spy.mockClear();
+        rerender(
+          <HeaderTabs tabs={FIVE} activeTab="records" onSelect={vi.fn()} />,
+        );
+        expect(spy).not.toHaveBeenCalled();
+      });
+
+      it("does nothing when no tab matches activeTab", () => {
+        const spy = stubScroll();
+        render(
+          <HeaderTabs tabs={FIVE} activeTab="missing" onSelect={vi.fn()} />,
+        );
+        expect(spy).not.toHaveBeenCalled();
+      });
     });
   });
 
