@@ -419,7 +419,26 @@ function TagHubRailRow({
             "text-lumen-text",
           )}
         >
-          <TagHeadingIcon icon={tag.icon} color={tag.color} />
+          {active ? (
+            // #2501: the tag's colour is the user's and is drawn unchanged, so
+            // a light one (amber, orange) melted into the selected row's wash.
+            // The selected row alone lays the page colour under the glyph. The
+            // disc is absolute so the glyph keeps its 15px footprint and the
+            // name does not shift by a few px when a row is picked; `isolate`
+            // + `-z-10` keep it under the glyph rather than painted over it.
+            <span
+              data-testid="tag-rail-icon-disc"
+              className="relative isolate inline-flex shrink-0"
+            >
+              <span
+                aria-hidden
+                className="absolute -inset-1 -z-10 rounded-full bg-lumen-bg"
+              />
+              <TagHeadingIcon icon={tag.icon} color={tag.color} />
+            </span>
+          ) : (
+            <TagHeadingIcon icon={tag.icon} color={tag.color} />
+          )}
           <span
             className={cn(
               "min-w-0 flex-1 truncate text-sm",
