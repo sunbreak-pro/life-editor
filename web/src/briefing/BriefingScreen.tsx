@@ -227,6 +227,7 @@ export function BriefingScreen({
       goalMark: t("briefing.goalMark"),
       scheduleTitle: t("briefing.scheduleTitle"),
       noSchedule: t("briefing.noSchedule"),
+      noTodos: t("briefing.table.noTodos"),
       routineTag: t("briefing.routineTag"),
       allDay: t("briefing.allDay"),
       timeColumn: t("briefing.table.time"),

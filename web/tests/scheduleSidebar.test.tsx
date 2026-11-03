@@ -845,6 +845,22 @@ describe("ScheduleSidebar — the Todo tab's day (#2281)", () => {
       screen.getByRole("button", { name: "scheduleScreen.today" }).className,
     ).toContain("max-md:min-h-11");
   });
+
+  // #2477: 今日 was 35px wide and the filter button 36x36 on a phone.
+  it("floors 今日 and the filter button in both directions on narrow", () => {
+    render(<ScheduleSidebar {...makeProps({ tab: "todo", isWide: false })} />);
+    for (const name of [
+      "scheduleScreen.today",
+      "scheduleScreen.todoFilterOpen",
+    ]) {
+      const cls = screen.getByRole("button", { name }).className.split(/\s+/);
+      expect(cls).toContain("max-md:min-h-11");
+      expect(cls).toContain("max-md:min-w-11");
+      // Unprefixed floors would grow the Desktop sidebar's controls too.
+      expect(cls).not.toContain("min-h-11");
+      expect(cls).not.toContain("min-w-11");
+    }
+  });
 });
 
 describe("ScheduleSidebar — the Todo tab's filter (#1641)", () => {

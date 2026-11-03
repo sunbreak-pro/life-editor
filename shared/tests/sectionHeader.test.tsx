@@ -88,6 +88,44 @@ describe("SectionHeader", () => {
     ).toEqual([]);
   });
 
+  /*
+   * #2508 — the tab band has to stop at the controls. The band sits in the
+   * shrinkable left column (flex-1 min-w-0), the controls in their own
+   * non-shrinking column beside it, and the band's tablist is the one that
+   * scrolls; if the band ever moved into the controls column or lost the
+   * column's min-w-0, Analytics' tabs would run under the search field again.
+   */
+  it("keeps the tab band in the shrinkable column beside the controls (#2508)", () => {
+    const { container } = render(
+      <SectionHeader
+        tabs={
+          <HeaderTabs
+            divider={false}
+            tabs={[
+              { id: "a", label: "概要" },
+              { id: "b", label: "スケジュール" },
+            ]}
+            activeTab="a"
+            onSelect={() => {}}
+          />
+        }
+        controls={<button type="button">search</button>}
+      />,
+    );
+    const row = container.firstElementChild as HTMLElement;
+    const [tabColumn, controlsColumn] = Array.from(row.children);
+    const tablist = screen.getByRole("tablist");
+
+    expect(tabColumn?.contains(tablist)).toBe(true);
+    expect(controlsColumn?.contains(tablist)).toBe(false);
+    expect(controlsColumn?.contains(screen.getByText("search"))).toBe(true);
+    expect(tabColumn?.className.split(" ")).toEqual(
+      expect.arrayContaining(["flex-1", "min-w-0"]),
+    );
+    expect(controlsColumn?.className.split(" ")).toContain("shrink-0");
+    expect(tablist.className.split(" ")).toContain("overflow-x-auto");
+  });
+
   it("keeps the tab band bottom-glued and leaves a title unpadded (#1283)", () => {
     const withTabs = render(
       <SectionHeader

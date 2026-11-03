@@ -70,6 +70,8 @@ export {
   type EventEditorDuplicate,
   // #2407: the footer's Cancel.
   type EventEditorCancel,
+  // #2447: the tag slot's staged edit.
+  type EventEditorTagDraft,
   // #628: the one patch the save button hands the host.
   type EventEditorPatch,
 } from "./EventEditorPane";
