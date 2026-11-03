@@ -156,6 +156,28 @@ describe("PomodoroTimer fullscreen face (#2054)", () => {
     ).toEqual(["-5 min", "+5 min"]);
   });
 
+  /*
+   * #2514: the main pill sized to its label, so "一時停止" made it ~35px wider
+   * than "開始" and reset / skip moved under the thumb. jsdom has no layout,
+   * so the guard is the shared fixed-width class in all three states.
+   */
+  it("keeps the main pill one width across idle, running and paused", () => {
+    const states: Array<[Partial<PomodoroTimerProps>, string]> = [
+      [{ isRunning: false, progress: 0 }, "Start"],
+      [{ isRunning: true }, "Pause"],
+      [{ isRunning: false }, "Resume"],
+    ];
+    const classLists = states.map(([overrides, name]) => {
+      const { unmount } = renderFace(overrides);
+      const main = screen.getByRole("button", { name });
+      expect(main).toHaveClass("min-w-40", "justify-center", "whitespace-nowrap");
+      const cls = main.className;
+      unmount();
+      return cls;
+    });
+    expect(new Set(classLists).size).toBe(1);
+  });
+
   it("keeps the pills' row at 44px while they are hidden", () => {
     renderFace({ isRunning: true });
     const lower = screen.getByTestId("pomodoro-adjust-row");
