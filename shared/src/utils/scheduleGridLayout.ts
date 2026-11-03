@@ -237,6 +237,103 @@ export function blockTitleLines(heightPx: number): number {
   return Math.min(MAX_BLOCK_TITLE_LINES, Math.max(1, room));
 }
 
+/*
+ * How a week block fits its title into its WIDTH as well as its height (#2478).
+ *
+ * `blockTitleLines` only looks at the height, so a tall block in a narrow
+ * column (Desktop 1280px with the right sidebar open leaves a day about 50px)
+ * wrapped its title a character or two per line: "仕 / 事". Below a width
+ * where three full-width characters fit on a line, wrapping stops helping and
+ * the title goes back to one truncated line, which ends in an ellipsis instead.
+ *
+ * The provenance glyph (the routine's Repeat, the todo's CheckSquare) gives
+ * way first, because it takes the width the title needs and the block keeps
+ * other cues: the routine's left band and the todo's face colour.
+ *
+ * The figures follow the real type. Every length in the block is rem-based
+ * and the Settings font-size step moves the root from 12px to 25px, so a
+ * fixed px guess is wrong at most steps: a 12px character judged at the 18px
+ * root (text-xs = 14.625px) let a 54px block "fit" three characters it could
+ * only hold two of, and the title still broke two characters a line. The grid
+ * therefore measures one title character and the root size and passes them in
+ * as `metrics`; until it has (jsdom, the first paint) the defaults below stand.
+ * `widthPx` null means the width is not known, and the block keeps the
+ * height-only behaviour of #1835.
+ */
+/** The title needs at least this many characters on a line to wrap. */
+const MIN_TITLE_CHARS_PER_LINE = 3;
+/** The block's left and right padding (px-1 each), in rem. */
+const BLOCK_PADDING_REM = 0.5;
+/** What the routine's band adds to the left padding (pl-1.5 over px-1). */
+const BAND_EXTRA_PADDING_REM = 0.125;
+/** The event face's 1px border on each side. */
+const BLOCK_BORDER_PX = 2;
+/** The glyph (size-3) and the gap after it (gap-1), in rem. */
+const TITLE_GLYPH_REM = 1;
+/** Sub-pixel rounding of the column and the text, kept on the safe side. */
+const TITLE_SLACK_PX = 1;
+
+/** The measured type a block title is judged with. */
+export interface BlockTitleMetrics {
+  /** The px width of one full-width character in the title's font. */
+  charPx: number;
+  /** The root font size (1rem) in px. */
+  remPx: number;
+}
+
+/** text-xs (0.8125rem in tokens.css) at the default 16px root. */
+export const DEFAULT_BLOCK_TITLE_METRICS: BlockTitleMetrics = {
+  charPx: 13,
+  remPx: 16,
+};
+
+/** What the block draws beside its title, which takes from the title's width. */
+export interface BlockTitleChrome {
+  /** The variant draws a provenance glyph (routine, todo). */
+  glyph: boolean;
+  /** The routine's left band, which widens the left padding. */
+  band: boolean;
+  /** The event face's border (a tag-coloured face has none). */
+  border: boolean;
+}
+
+export interface BlockTitleFit {
+  /** Lines the title may use (1 = a single truncated line). */
+  lines: number;
+  /** Whether the provenance glyph is drawn before the title. */
+  showGlyph: boolean;
+}
+
+/**
+ * Lines and glyph for a block `heightPx` tall and `widthPx` wide (the block's
+ * own box, the 1px gaps beside it already taken off).
+ */
+export function blockTitleFit(
+  heightPx: number,
+  widthPx: number | null,
+  chrome: BlockTitleChrome,
+  metrics: BlockTitleMetrics = DEFAULT_BLOCK_TITLE_METRICS,
+): BlockTitleFit {
+  const byHeight = blockTitleLines(heightPx);
+  if (widthPx == null) return { lines: byHeight, showGlyph: chrome.glyph };
+  const { charPx, remPx } = metrics;
+  const paddingPx =
+    (BLOCK_PADDING_REM + (chrome.band ? BAND_EXTRA_PADDING_REM : 0)) * remPx;
+  const textRoom =
+    widthPx -
+    paddingPx -
+    (chrome.border ? BLOCK_BORDER_PX : 0) -
+    TITLE_SLACK_PX;
+  const minLinePx = charPx * MIN_TITLE_CHARS_PER_LINE;
+  const glyphPx = TITLE_GLYPH_REM * remPx;
+  const showGlyph = chrome.glyph && textRoom - glyphPx >= minLinePx;
+  const titleRoom = showGlyph ? textRoom - glyphPx : textRoom;
+  return {
+    lines: titleRoom >= minLinePx ? byHeight : 1,
+    showGlyph,
+  };
+}
+
 /**
  * What the grid knew when the pointer went down. Everything here is captured
  * once at drag start — the geometry that can only be read from the DOM

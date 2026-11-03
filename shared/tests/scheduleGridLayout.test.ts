@@ -13,6 +13,8 @@ import {
   minutesToTime,
   revealScrollTop,
   blockTitleLines,
+  blockTitleFit,
+  DEFAULT_BLOCK_TITLE_METRICS,
   MAX_BLOCK_TITLE_LINES,
   MAX_STACK_DEPTH,
   STACK_OFFSET_PCT,
@@ -339,6 +341,115 @@ describe("blockTitleLines", () => {
       const lines = blockTitleLines(px);
       expect(lines).toBeGreaterThanOrEqual(prev);
       prev = lines;
+    }
+  });
+});
+
+/*
+ * #2478 — the block's WIDTH also decides the title's lines.
+ *
+ * Desktop 1280px with the right sidebar open leaves a day column about 50px,
+ * and a tall block there wrapped its title a character per line ("仕 / 事").
+ * A block too narrow for three full-width characters a line goes back to one
+ * truncated line, and the provenance glyph gives way before the title does.
+ * The judgement follows the measured type (`metrics`), because the Settings
+ * font-size step moves every rem length in the block.
+ */
+describe("blockTitleFit", () => {
+  const TALL = 96; // two hours at 48px an hour
+  const ROUTINE = { glyph: true, band: true, border: false };
+  const EVENT = { glyph: false, band: false, border: true };
+  const PLAIN = { glyph: false, band: false, border: false };
+  /** The 18px root step: text-xs = 0.8125rem = 14.625px. */
+  const STEP_18 = { charPx: 14.625, remPx: 18 };
+
+  it("keeps the height-only rule when the width is unknown (#1835)", () => {
+    expect(blockTitleFit(TALL, null, ROUTINE)).toEqual({
+      lines: blockTitleLines(TALL),
+      showGlyph: true,
+    });
+    expect(blockTitleFit(24, null, EVENT)).toEqual({
+      lines: 1,
+      showGlyph: false,
+    });
+  });
+
+  it("lets a tall block in a wide column wrap with its glyph", () => {
+    const fit = blockTitleFit(TALL, 200, ROUTINE);
+    expect(fit.lines).toBe(blockTitleLines(TALL));
+    expect(fit.lines).toBeGreaterThan(1);
+    expect(fit.showGlyph).toBe(true);
+  });
+
+  it("drops the glyph before the title in a ~50px column", () => {
+    // A 50px day column, minus the block's 1px gap on each side.
+    const fit = blockTitleFit(TALL, 48, ROUTINE);
+    expect(fit.showGlyph).toBe(false);
+  });
+
+  it("truncates to one line when three characters do not fit a line", () => {
+    for (const width of [6, 14, 22, 30]) {
+      expect(blockTitleFit(TALL, width, ROUTINE)).toEqual({
+        lines: 1,
+        showGlyph: false,
+      });
+      expect(blockTitleFit(TALL, width, EVENT).lines).toBe(1);
+    }
+  });
+
+  it("truncates the blocks measured at the 18px step (review of PR #2485)", () => {
+    // Saturday, alone in its column: a 54.1px event block had 43.8px for its
+    // title, under the 43.875px three characters need, and broke 2 a line.
+    expect(blockTitleFit(TALL, 54.1, EVENT, STEP_18).lines).toBe(1);
+    // Thursday / Friday, laid over another block: 45.7px wide.
+    expect(blockTitleFit(TALL, 45.7, EVENT, STEP_18).lines).toBe(1);
+    expect(blockTitleFit(TALL, 45.7, ROUTINE, STEP_18)).toEqual({
+      lines: 1,
+      showGlyph: false,
+    });
+  });
+
+  it("judges by the measured type, not a fixed character width", () => {
+    // 55px holds three 13px characters at the default 16px root, but not
+    // three 14.625px ones once the paddings have grown with the root.
+    expect(blockTitleFit(TALL, 55, EVENT).lines).toBe(blockTitleLines(TALL));
+    expect(blockTitleFit(TALL, 55, EVENT, STEP_18).lines).toBe(1);
+    // The default is what an unmeasured grid uses.
+    expect(blockTitleFit(TALL, 55, EVENT)).toEqual(
+      blockTitleFit(TALL, 55, EVENT, DEFAULT_BLOCK_TITLE_METRICS),
+    );
+  });
+
+  it("wraps once the room clears three measured characters", () => {
+    // 3 × 14.625 = 43.875 of title, plus 9px padding, 2px border, 1px slack.
+    expect(blockTitleFit(TALL, 55.9, EVENT, STEP_18).lines).toBe(
+      blockTitleLines(TALL),
+    );
+    expect(blockTitleFit(TALL, 55.8, EVENT, STEP_18).lines).toBe(1);
+  });
+
+  it("counts the event border and the routine band against the room", () => {
+    // 3 × 13 + 8px padding + 1px slack = 48 with nothing else drawn.
+    expect(blockTitleFit(TALL, 48, PLAIN).lines).toBe(blockTitleLines(TALL));
+    expect(blockTitleFit(TALL, 48, EVENT).lines).toBe(1);
+    expect(
+      blockTitleFit(TALL, 48, { glyph: false, band: true, border: false })
+        .lines,
+    ).toBe(1);
+  });
+
+  it("never draws a glyph for a variant that has none", () => {
+    expect(blockTitleFit(TALL, 400, EVENT).showGlyph).toBe(false);
+  });
+
+  it("only ever narrows: a smaller width never gives more lines", () => {
+    for (const metrics of [DEFAULT_BLOCK_TITLE_METRICS, STEP_18]) {
+      let prev = Infinity;
+      for (let w = 400; w >= 0; w -= 2) {
+        const { lines } = blockTitleFit(TALL, w, ROUTINE, metrics);
+        expect(lines).toBeLessThanOrEqual(prev);
+        prev = lines;
+      }
     }
   });
 });
