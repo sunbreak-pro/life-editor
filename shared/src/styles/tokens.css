@@ -763,14 +763,20 @@
  * PageContainer root, so the tab band rises with the body rather than sitting
  * still above moving content.
  *
- * `to { transform: none }` rather than `translateY(0)`: with fill-mode `both`
- * the final keyframe stays applied, and a lingering transform — even an
- * identity one — makes the element a containing block for any `position:
- * fixed` descendant for the rest of the session. `none` computes away.
+ * Fill-mode is `backwards`, never `both` / `forwards` (#2497): a forwards fill
+ * keeps the final keyframe applied for as long as the class stays on, and
+ * Chrome resolves even `to { transform: none }` to a held identity matrix
+ * while it does. Any transform on the section root makes it the containing
+ * block for every `position: fixed` descendant, so on the first visit to a
+ * section a fixed menu landed offset by the section's own origin (measured
+ * 270px right and 67.5px down on Connect) until the user switched away and
+ * back. `backwards` still shows the `from` frame from the first paint, and
+ * once the animation ends the element falls back to its own styles — which
+ * are the `to` frame anyway, so nothing visibly snaps.
  *
  * Reduced motion needs nothing here: the block below neutralises every
- * animation app-wide, and `both` means the element lands on the `to` state
- * immediately rather than being left mid-fade.
+ * animation app-wide, the 0.001ms run ends at once, and the element is left
+ * on its own (finished) styles rather than mid-fade.
  */
 @keyframes lumen-section-in {
   from {
@@ -785,7 +791,7 @@
 
 .lumen-section-in {
   animation: lumen-section-in var(--duration-lumen-normal) var(--ease-lumen-out)
-    both;
+    backwards;
 }
 
 /*

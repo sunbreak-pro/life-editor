@@ -14,12 +14,16 @@ import { describe, expect, it } from "vitest";
  *  - the duration, which is the normal motion step since #2036 (the Issue's
  *    0.3s snapped to 250ms — the step's VALUE is pinned by
  *    tokensMotionSteps.test.ts, so only the reference is checked here),
- *  - `both`, so a reduced-motion user lands on the finished state instead of
- *    being left mid-fade at 0.001ms (the app-wide block below only neutralises
- *    the DURATION),
- *  - `transform: none` as the final frame rather than translateY(0) — an
- *    identity transform still makes the element a containing block for every
- *    `position: fixed` descendant, for the rest of the session.
+ *  - the `backwards` fill (#2497). A `both` / `forwards` fill holds the last
+ *    keyframe for as long as the class stays on, and Chrome holds it as an
+ *    identity matrix even when the frame says `transform: none` — which makes
+ *    the section root the containing block for every `position: fixed`
+ *    descendant, so a fixed menu opened on the first visit to a section landed
+ *    offset by the section's origin. Reduced motion still lands on the
+ *    finished state: once the 0.001ms run ends, the element shows its own
+ *    styles, which equal the `to` frame,
+ *  - `transform: none` as the final frame rather than translateY(0), so the
+ *    `to` frame and the element's own styles stay the same thing.
  */
 
 const here = dirname(fileURLToPath(import.meta.url));
@@ -38,8 +42,18 @@ describe("section entrance motion", () => {
     expect(rule?.[1]).toMatch(/var\(--duration-lumen-normal\)/);
   });
 
-  it("fills both ways so reduced motion lands on the finished state", () => {
-    expect(rule?.[1]).toMatch(/\bboth\b/);
+  it("fills backwards only, so no transform outlives the animation", () => {
+    expect(rule?.[1]).toMatch(/\bbackwards\b/);
+    expect(rule?.[1]).not.toMatch(/\b(both|forwards)\b/);
+  });
+
+  it("leaves the element's own styles equal to the final frame", () => {
+    // Without a forwards fill the element drops back to its own styles when
+    // the animation ends; if the rule set opacity or transform itself, the
+    // section would snap away from the `to` frame at that moment.
+    const own = (rule?.[1] ?? "").replace(/animation:[^;]*;/, "");
+    expect(own).not.toMatch(/\b(opacity|transform)\s*:/);
+    expect(keyframes?.[1]).toMatch(/to\s*\{[^}]*opacity:\s*1/);
   });
 
   it("ends on transform: none, not an identity translate", () => {
