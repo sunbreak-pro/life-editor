@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { TodoAddDialog, type TodoAddDialogLabels } from "../src/components";
+import ja from "../src/i18n/locales/ja.json";
 
 /*
  * Kanban "add a todo" overlay (#586 pins). The behavior under guard is the
@@ -44,6 +45,12 @@ describe("TodoAddDialog", () => {
     expect(
       screen.getByRole("heading", { name: "Add a Todo" }),
     ).toBeInTheDocument();
+  });
+
+  it("words the ja heading as \"Todo の追加\" (#2572)", () => {
+    // useTodoAddDialog feeds labels.title from this key; the wiring itself
+    // lives in web/ and is left to the real-browser check.
+    expect(ja.scheduleScreen.todoAddDialogHeading).toBe("Todo の追加");
   });
 
   it("closes from the top-right × (#2572)", () => {
