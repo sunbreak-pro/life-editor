@@ -8,13 +8,13 @@ import {
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { cn } from "../cn";
-import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import { isImeComposing } from "../../utils/imeGuard";
 import { clampToViewport } from "../itemActions/floating";
 import {
   CELL_FOCUS,
   MonthChipKindIcon,
-  chipFaceClasses,
+  chipFace,
+  holidayFace,
   type MonthChipKindLabels,
 } from "./MonthGridParts";
 import type { MonthGridItem } from "./MonthGrid";
@@ -256,8 +256,11 @@ export function MonthMorePanel({
               // #1626: drawn, not operated — the same span the cell uses.
               <span
                 title={it.title}
-                style={tagFaceStyle(it.tagColor)}
-                className="block w-full truncate rounded px-1.5 py-1 text-xs font-medium"
+                style={holidayFace(it.tagColor).style}
+                className={cn(
+                  "block w-full truncate rounded px-1.5 py-1 text-xs font-medium",
+                  holidayFace(it.tagColor).className,
+                )}
               >
                 {it.title}
               </span>
@@ -278,11 +281,12 @@ export function MonthMorePanel({
                   onClose();
                   onItemActivate(it.id, pos, { focus: keyboard });
                 }}
-                style={tagFaceStyle(it.tagColor)}
+                // #2623: the same face-and-line rule as the cell's chips.
+                style={chipFace(it.variant ?? "event", it.tagColor).style}
                 className={cn(
                   "flex w-full min-w-0 cursor-pointer items-center gap-1 rounded px-1.5 py-1 text-left text-xs font-medium",
                   CELL_FOCUS,
-                  !it.tagColor && chipFaceClasses(it.variant ?? "event"),
+                  chipFace(it.variant ?? "event", it.tagColor).className,
                   it.variant === "task" &&
                     it.completed &&
                     "line-through opacity-55",

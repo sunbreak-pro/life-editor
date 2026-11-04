@@ -8,7 +8,6 @@ import {
 } from "react";
 import { CheckSquare, Repeat } from "lucide-react";
 import { cn } from "../cn";
-import { tagFaceStyle } from "../../utils/scheduleTagColor";
 import {
   blockTitleFit,
   DEFAULT_BLOCK_TITLE_METRICS,
@@ -28,6 +27,11 @@ import {
 } from "../../utils/scheduleGridLayout";
 import { useWeekTimeGridDrag } from "./useWeekTimeGridDrag";
 import { MonthMorePanel } from "./MonthMorePanel";
+import {
+  SCHEDULE_SELECTED_RING,
+  holidayFace,
+  scheduleLine,
+} from "./MonthGridParts";
 import {
   hasTodoDragData,
   readTodoDragData,
@@ -91,8 +95,10 @@ export interface WeekTimeGridItem {
    */
   variant?: ScheduleItemVariant;
   /**
-   * The colour of the tag that speaks for this item (#1580), or undefined to
-   * keep the variant colours. A hex, because it is the user's own value off
+   * The colour of the tag that speaks for this item (#1580), drawn as the
+   * left line since #2623, or undefined to draw that line in the kind's
+   * colour (a holiday: the Settings colour, #1626). A hex, because it is the
+   * user's own value off
    * `wiki_tags.color` — the host resolves WHICH tag (buildItemTagColors) and
    * this is only the answer.
    */
@@ -296,10 +302,10 @@ function defaultFormatDayDate(dateKey: string): string {
 }
 
 /**
- * Face classes for a timed block by provenance (W8). Routine = 藍 face (an
- * inner left band is rendered separately); event (default) = 紫 face + border;
- * todo = blue face (a CheckSquare glyph is rendered separately, #593). Every
- * variant carries a non-hue cue — band / border / glyph — so provenance never
+ * Light face and ink for a timed block by provenance (W8): routine = 藍,
+ * event (default) = 紫, todo = blue. Since #2623 every block wears it, tagged
+ * or not, and the left line (`scheduleLine`) carries the tag colour. The
+ * glyphs (Repeat, CheckSquare #593) stay the non-hue cue, so provenance never
  * relies on hue alone.
  */
 function variantBlockClasses(variant: ScheduleItemVariant): string {
@@ -309,7 +315,7 @@ function variantBlockClasses(variant: ScheduleItemVariant): string {
     case "task":
       return "bg-lumen-schedule-task-bg text-lumen-chip-task-fg";
     default:
-      return "border border-lumen-schedule-event-border bg-lumen-schedule-event-bg text-lumen-chip-event-fg";
+      return "bg-lumen-schedule-event-bg text-lumen-chip-event-fg";
   }
 }
 
@@ -776,8 +782,13 @@ export function WeekTimeGrid({
                           key={it.id}
                           title={it.title}
                           data-holiday-chip={it.date}
-                          style={tagFaceStyle(it.tagColor)}
-                          className="block w-full truncate rounded px-1 py-0.5 text-left text-xs font-medium"
+                          // #2623: the Settings colour as a light face and a
+                          // line, the same form as the month's holiday chip.
+                          style={holidayFace(it.tagColor).style}
+                          className={cn(
+                            "block w-full truncate rounded px-1 py-0.5 text-left text-xs font-medium",
+                            holidayFace(it.tagColor).className,
+                          )}
                         >
                           {it.title}
                         </span>
@@ -968,6 +979,9 @@ export function WeekTimeGrid({
                   // a mark under another block would point at nothing.
                   const marked = it.id === markedId;
                   const blockZ = marked ? 19 : 1 + Math.min(p.stackOrder, 18);
+                  // #2623: every block draws the 3px left line, in the tag's
+                  // colour or else the kind's.
+                  const line = scheduleLine(variant, it.tagColor);
                   // #1835: the block's height in px, which is what decides how
                   // many lines its title may use. `heightPct` is a share of
                   // the day body, and the body's px height is known here.
@@ -981,13 +995,11 @@ export function WeekTimeGrid({
                       : (colWidthPx * p.widthPct) / 100 - 2,
                     {
                       glyph: variant === "routine" || variant === "task",
-                      band: variant === "routine",
-                      // variantBlockClasses: only the untinted event face
-                      // (its default branch) draws a border.
-                      border:
-                        !it.tagColor &&
-                        variant !== "routine" &&
-                        variant !== "task",
+                      // #2623: the 3px left line on every block. band (2px)
+                      // plus border (2px) over-counts it by a pixel, which
+                      // keeps the fit on the safe side of a wrap.
+                      band: true,
+                      border: true,
                     },
                     titleMetrics,
                   );
@@ -1028,14 +1040,11 @@ export function WeekTimeGrid({
                         // raising the one under the pointer would cover the
                         // block above it until the pointer left the stack.
                         "absolute z-(--block-z) overflow-hidden rounded px-1 py-0.5 text-left text-xs leading-tight focus-visible:z-20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
-                        // #1580: the tag's colour REPLACES the variant face
-                        // — "which tag" beats "where it came from" once the
-                        // user has coloured a tag. The provenance GLYPHS (the
-                        // Repeat, the CheckSquare) and the routine's left band
-                        // stay, so nothing about where a block came from is
-                        // lost, only which channel says it.
-                        !it.tagColor && variantBlockClasses(variant),
-                        variant === "routine" && "pl-1.5",
+                        // #2623: the kind's light face always, and the tag's
+                        // colour (#1580) only on the left line — a filled tag
+                        // face turned a busy week into one saturated block.
+                        variantBlockClasses(variant),
+                        line.className,
                         // #2221: a block laid over another gets an edge in the
                         // grid's own colour and a light shadow, so the line
                         // between the two reads even when they share a tag.
@@ -1044,7 +1053,7 @@ export function WeekTimeGrid({
                         movable && "cursor-move",
                         // The selection keeps its place in the stack: lifting
                         // it would bury a shorter block that starts inside it.
-                        selected && "ring-2 ring-lumen-accent",
+                        selected && SCHEDULE_SELECTED_RING,
                         marked && "le-focus-mark",
                         // Gated on the variant (#1373): the MCP tool still
                         // writes `completed` for events, and an event struck
@@ -1056,7 +1065,7 @@ export function WeekTimeGrid({
                       )}
                       style={
                         {
-                          ...tagFaceStyle(it.tagColor),
+                          ...line.style,
                           top: `${p.topPct}%`,
                           height: `${p.heightPct}%`,
                           left: `calc(${p.offsetPct}% + 1px)`,
@@ -1068,23 +1077,6 @@ export function WeekTimeGrid({
                       data-week-grid-depth={p.depth}
                       data-focus-mark={marked || undefined}
                     >
-                      {/* Routine provenance: inner left band (藍) */}
-                      {variant === "routine" && (
-                        <span
-                          aria-hidden
-                          className={cn(
-                            "absolute inset-y-0 left-0 w-[3px]",
-                            // #1580: on a tag-coloured block the fixed band
-                            // token can land within a shade of the fill and
-                            // disappear. `currentColor` is the ink the fill
-                            // was already contrast-checked against, so the
-                            // band is guaranteed visible on any tag colour.
-                            it.tagColor
-                              ? "bg-current opacity-60"
-                              : "bg-lumen-chip-routine-dot",
-                          )}
-                        />
-                      )}
                       <span
                         className={cn(
                           "flex gap-1 font-medium",
