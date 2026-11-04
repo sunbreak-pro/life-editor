@@ -88,6 +88,7 @@ describe("AgendaList", () => {
     expect(label.className).not.toContain("border-lumen-border-strong");
     // Same column as the timed rows' start time, so the titles line up.
     expect(label.className).toContain("w-11");
+    expect(label.className).toContain("whitespace-nowrap");
   });
 
   it("draws no rule between rows (#2570)", () => {

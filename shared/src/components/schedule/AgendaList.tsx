@@ -201,8 +201,9 @@ export function AgendaList({
           {it.isAllDay ? (
             // Plain words in the time column (#2570), so an all-day title
             // lines up with the timed titles below it instead of sitting after
-            // a framed badge of its own width.
-            <span className="w-11 shrink-0 text-xs leading-tight text-lumen-text-secondary">
+            // a framed badge of its own width. No wrapping: "All-day" nearly
+            // fills the column and would otherwise break at its hyphen.
+            <span className="w-11 shrink-0 whitespace-nowrap text-xs leading-tight text-lumen-text-secondary">
               {labels.allDay}
             </span>
           ) : (
