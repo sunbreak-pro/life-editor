@@ -39,7 +39,7 @@ import type { TagHubItem } from "./types";
  */
 
 export interface RelationPanelLabels {
-  /** "← Back to this tag's breakdown". */
+  /** "Back to this tag's breakdown" (the ArrowLeft icon is drawn beside it). */
   back: string;
   /** "Open in its section". */
   openItem: string;
