@@ -62,6 +62,11 @@ import { setTodoDragData } from "./todoCalendarDrag";
  * A phone has no hover to reveal them or to show a tooltip with, so a host
  * leaves the prop off there and keeps the buttons it had. `metaLine` moves the
  * clock under the title, beside what `renderRowExtra` draws.
+ *
+ * #2568 turns that line into the prototype's: the clock, the all-day marker
+ * and an "other" row's date all wear one outlined round pill, and the "other"
+ * rows get the same second line (date + tags) instead of the date at the
+ * title's right end.
  */
 
 export interface TodayTodoRow {
@@ -88,6 +93,9 @@ export interface TodayTodoAddableRow {
    */
   meta?: string;
 }
+
+/** What `renderRowExtra` is handed, from either list. */
+export type TodayTodoExtraRow = Pick<TodayTodoRow, "id" | "title">;
 
 /** Already-translated copy of the `rowActions` cluster (#2408). */
 export interface TodayTodoRowActions {
@@ -197,13 +205,24 @@ export interface TodayTodoTrayProps {
    */
   rowActions?: TodayTodoRowActions;
   /**
-   * Draw the clock or the all-day pill on a line under the title, in front of
-   * `renderRowExtra`, instead of at the title's right end (#2408). Today's rows
-   * only: an "other" row has no such line.
+   * Draw the clock or the all-day marker on a line under the title, in front
+   * of `renderRowExtra`, instead of at the title's right end (#2408). Since
+   * #2568 both wear the same outlined round pill, and an "other" row gets the
+   * same line: its date (`meta`) in that pill, then `renderRowExtra`.
    */
   metaLine?: boolean;
-  /** Extra content under the title row (#555 — the host's tag surface). */
-  renderRowExtra?: (row: TodayTodoRow) => ReactNode;
+  /**
+   * Extra content under the title row (#555 — the host's tag surface). Only
+   * the id and title are passed because an "other" row (with `metaLine`) has
+   * no time or completion to hand over.
+   */
+  renderRowExtra?: (row: TodayTodoExtraRow) => ReactNode;
+  /**
+   * Bold, primary-coloured group headings (#2568) instead of the muted
+   * semibold ones. Opt-in so Briefing, which titles its tray itself, keeps
+   * the quieter headings under that title.
+   */
+  strongHeadings?: boolean;
   /**
    * A control to sit at the right end of a group's heading (#1640) — Schedule
    * puts its "+ Todo" pill in both, so each list can be added to from where it
@@ -287,6 +306,19 @@ const NARROW_TAP_FLOOR = "max-md:min-h-11 max-md:min-w-11";
  */
 const NARROW_TITLE_WRAP =
   "max-md:line-clamp-2 max-md:whitespace-normal max-md:break-words";
+
+/*
+ * The pill on the `metaLine` (#2568). One shape for a clock, for 終日 and for
+ * an "other" row's date, so the second line reads the same in both lists.
+ */
+const META_PILL =
+  "inline-flex shrink-0 items-center rounded-full border border-lumen-border-strong px-2 py-px text-xs tabular-nums text-lumen-text-secondary";
+
+function groupHeadingClass(strong?: boolean): string {
+  return strong
+    ? "text-xs font-bold text-lumen-text"
+    : "text-xs font-semibold text-lumen-text-secondary";
+}
 
 /*
  * One button of the #2408 cluster, with its tooltip above it.
@@ -441,7 +473,16 @@ function TodoRow({
     (onSetStatus ? row.status : undefined) ??
     (row.completed ? "DONE" : "NOT_STARTED");
   const done = status === "DONE";
-  const time = row.timeLabel ? (
+  const time = metaLine ? (
+    // #2568: the all-day marker leaves the chip-todo tint for the clock's
+    // pill — on this line it sits where a time would, beside the tags, and
+    // the row's checkbox already says it is a todo rather than an event.
+    (row.timeLabel || allDayLabel) && (
+      <span data-todo-time-pill className={META_PILL}>
+        {row.timeLabel || allDayLabel}
+      </span>
+    )
+  ) : row.timeLabel ? (
     <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
       {row.timeLabel}
     </span>
@@ -574,6 +615,7 @@ function TodoRow({
 function Group({
   heading,
   headingAction,
+  strongHeading,
   rows,
   empty,
   onToggleComplete,
@@ -594,6 +636,7 @@ function Group({
 }: {
   heading: string;
   headingAction?: ReactNode;
+  strongHeading?: boolean;
   rows: TodayTodoRow[];
   empty: string;
   onToggleComplete: (id: string) => void;
@@ -604,7 +647,7 @@ function Group({
   hoverActions?: boolean;
   rowActions?: TodayTodoRowActions;
   metaLine?: boolean;
-  renderRowExtra?: (row: TodayTodoRow) => ReactNode;
+  renderRowExtra?: (row: TodayTodoExtraRow) => ReactNode;
   openLabel: string;
   deleteLabel?: string;
   moveOutLabel?: string;
@@ -618,9 +661,7 @@ function Group({
           a list can be added to from where it is read (#1640). `min-h` holds
           the row's height steady whether or not this group has an action. */}
       <div className="flex min-h-7 items-center justify-between gap-2">
-        <h4 className="text-xs font-semibold text-lumen-text-secondary">
-          {heading}
-        </h4>
+        <h4 className={groupHeadingClass(strongHeading)}>{heading}</h4>
         {headingAction}
       </div>
       {rows.length === 0 ? (
@@ -673,6 +714,7 @@ export function TodayTodoTray({
   rowActions,
   metaLine,
   renderRowExtra,
+  strongHeadings,
   singleList,
   headingActions,
   hideToday,
@@ -695,6 +737,7 @@ export function TodayTodoTray({
     moveOutLabel: labels.moveOut,
     statusLabel: labels.status,
     statusLabels: labels.statusLabels,
+    strongHeading: strongHeadings,
   };
   return (
     <div className={cn("flex flex-col gap-4", className)}>
@@ -721,7 +764,7 @@ export function TodayTodoTray({
       {!hideOther && (
         <div className="flex flex-col gap-1.5">
           <div className="flex min-h-7 items-center justify-between gap-2">
-            <h4 className="text-xs font-semibold text-lumen-text-secondary">
+            <h4 className={groupHeadingClass(strongHeadings)}>
               {labels.addHeading}
             </h4>
             {headingActions?.addable}
@@ -768,7 +811,12 @@ export function TodayTodoTray({
                     the title one character. */}
                   <div
                     data-addable-title
-                    className="flex min-w-0 flex-1 items-center gap-2 max-md:flex-col max-md:items-stretch max-md:gap-0 max-md:py-0.5"
+                    className={cn(
+                      "flex min-w-0 flex-1 items-center max-md:flex-col max-md:items-stretch max-md:gap-0 max-md:py-0.5",
+                      // #2568: the second line wraps under the title on
+                      // Desktop too, so only the column gap stays.
+                      metaLine ? "flex-wrap gap-x-2" : "gap-2",
+                    )}
                   >
                     {onOpenAddable ? (
                       // #1153: the same title, as the way in. A button only when
@@ -803,12 +851,35 @@ export function TodayTodoTray({
                       </span>
                     )}
                     {/* #1406: where the row is now — a row on some other day
-                      says so, in the slot today's rows use for their clock. */}
-                    {a.meta && (
-                      <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
-                        {a.meta}
-                      </span>
-                    )}
+                      says so, in the slot today's rows use for their clock.
+                      #2568: with `metaLine` that slot is the second line,
+                      as on today's rows. `w-full` makes it wrap there. */}
+                    {metaLine
+                      ? (() => {
+                          const extra = renderRowExtra?.(a);
+                          if (!a.meta && !extra) return null;
+                          return (
+                            <div
+                              data-addable-meta-line
+                              className="flex w-full flex-wrap items-center gap-x-2 gap-y-0.5 pb-1.5"
+                            >
+                              {a.meta && (
+                                <span
+                                  data-todo-time-pill
+                                  className={META_PILL}
+                                >
+                                  {a.meta}
+                                </span>
+                              )}
+                              {extra}
+                            </div>
+                          );
+                        })()
+                      : a.meta && (
+                          <span className="shrink-0 text-xs tabular-nums text-lumen-text-secondary">
+                            {a.meta}
+                          </span>
+                        )}
                   </div>
                   {rowActions && (
                     <div className="flex shrink-0 items-center gap-0.5">

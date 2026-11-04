@@ -48,8 +48,8 @@ import type { TodoTabFilter } from "./useTodoTabFilter";
  */
 
 /**
- * The Todo tab's heading pills on narrow: a 44px hit area, a 35px pill
- * (#2010).
+ * The Todo tab's heading buttons on narrow: a 44px hit area around a small
+ * button (#2010; the button lost its accent fill in #2568).
  *
  * #1832 floored the pill's BOX to 44px (`max-md:min-h-11`), which made each
  * heading row a 44px band around a small "+" label — the padding the user
@@ -62,6 +62,36 @@ import type { TodoTabFilter } from "./useTodoTabFilter";
  */
 const HEADING_PILL_TAP =
   "max-md:relative max-md:after:absolute max-md:after:inset-x-0 max-md:after:top-1/2 max-md:after:h-11 max-md:after:-translate-y-1/2 max-md:after:content-['']";
+
+/*
+ * #2568: the heading's add action is quiet text (「＋ 本日分に追加」) rather
+ * than the accent AddPill. Two filled pills stacked down one panel competed
+ * with the rows for attention, and the prototype draws them as plain links.
+ */
+function HeadingAddButton({
+  label,
+  onClick,
+  tourId,
+}: {
+  label: string;
+  onClick: () => void;
+  tourId?: string;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      {...(tourId ? tourAnchor(tourId) : {})}
+      className={cn(
+        "inline-flex shrink-0 items-center rounded-lumen-md px-1.5 py-0.5 text-xs font-medium text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text",
+        "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+        HEADING_PILL_TAP,
+      )}
+    >
+      {label}
+    </button>
+  );
+}
 
 /**
  * "今日の流れ" — the agenda and the skipped-item restore list. #2222 took the
@@ -208,12 +238,18 @@ export interface ScheduleSidebarTodoDay {
 }
 
 /**
- * The ‹ / › buttons on the Todo tab's day row (#2281): the filter button's
- * size on Desktop, a 44px box on a phone (rules/frontend.md §Gotchas — the
- * floor is per call site and narrow-only).
+ * The ‹ / › buttons on the Todo tab's day row (#2281): a 1.75rem box on
+ * Desktop, a 44px box on a phone (rules/frontend.md §Gotchas — the floor is
+ * per call site and narrow-only).
+ *
+ * #2568 outlines them. The border is painted on DAY_STEP_FACE inside rather
+ * than on the button, for #2010's reason: on a phone the button grows to
+ * 44px, and a border on THAT box would be a 44px frame around a small arrow.
  */
 const DAY_STEP_BTN =
-  "flex size-8 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:min-w-11";
+  "group/step flex size-7 shrink-0 items-center justify-center rounded-lumen-md text-lumen-text-secondary transition-colors hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent max-md:min-h-11 max-md:min-w-11";
+const DAY_STEP_FACE =
+  "flex size-7 items-center justify-center rounded-lumen-md border border-lumen-border-strong transition-colors group-hover/step:bg-lumen-hover";
 
 /**
  * The three tabs, as an id. Named since #1148 because a second file decides
@@ -460,6 +496,9 @@ export function ScheduleSidebar({
        * 今日 comes back; the day between them gives way (truncate) before the
        * buttons do at the panel's minimum width. 今日 is disabled while the
        * list is already on today, so the press it offers is never a no-op.
+       *
+       * #2568: the day says "· 今日" while it is today. The disabled 今日
+       * button alone did not read as "you are on today" — it only greyed out.
        */}
       <div data-todo-day-row className="flex shrink-0 items-center gap-1">
         <button
@@ -468,13 +507,21 @@ export function ScheduleSidebar({
           onClick={day.onPrev}
           className={DAY_STEP_BTN}
         >
-          <ChevronLeft aria-hidden className="size-3.5" />
+          <span className={DAY_STEP_FACE}>
+            <ChevronLeft aria-hidden className="size-3.5" />
+          </span>
         </button>
         <span
           aria-live="polite"
           className="min-w-0 flex-1 truncate text-center text-xs font-medium text-lumen-text"
         >
           {day.label}
+          {isToday && (
+            <span data-todo-day-today className="text-lumen-text-secondary">
+              {" "}
+              {t("scheduleScreen.todoDayTodayMark")}
+            </span>
+          )}
         </span>
         <button
           type="button"
@@ -482,14 +529,16 @@ export function ScheduleSidebar({
           onClick={day.onNext}
           className={DAY_STEP_BTN}
         >
-          <ChevronRight aria-hidden className="size-3.5" />
+          <span className={DAY_STEP_FACE}>
+            <ChevronRight aria-hidden className="size-3.5" />
+          </span>
         </button>
         <button
           type="button"
           onClick={day.onToday}
           disabled={isToday}
           // #2477: `max-md:min-w-11` too — the word alone is 35px wide.
-          className="shrink-0 rounded-lumen-md border border-lumen-border-strong px-2 py-1 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover disabled:cursor-default disabled:opacity-50 disabled:hover:bg-transparent max-md:min-h-11 max-md:min-w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          className="flex h-7 shrink-0 items-center rounded-lumen-md border border-lumen-border-strong px-2 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover disabled:cursor-default disabled:text-lumen-text-secondary disabled:opacity-60 disabled:hover:bg-transparent max-md:min-h-11 max-md:min-w-11 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
         >
           {t("scheduleScreen.today")}
         </button>
@@ -505,11 +554,13 @@ export function ScheduleSidebar({
        * The count on it is the number of things narrowing the list (a chosen
        * list counts as one, plus one per ticked tag) — the same reading the
        * calendar's badge carries (#1639).
+       *
+       * #2568: a full-width, left-aligned button with the word 絞り込み, and
+       * the count after the word instead of over the icon's corner. The
+       * accessible name stays the sentence it was, which also carries the
+       * count; the visible word is the short form of it.
        */}
-      <div
-        data-todo-filter-row
-        className="flex shrink-0 items-center justify-end gap-2"
-      >
+      <div data-todo-filter-row className="flex shrink-0 items-center">
         <button
           type="button"
           aria-label={
@@ -523,21 +574,21 @@ export function ScheduleSidebar({
           aria-pressed={filter.activeCount > 0}
           onClick={() => setFilterOpen((open) => !open)}
           className={cn(
-            // #2477: the day row's 44px floor (DAY_STEP_BTN) — 36px on a
-            // phone before. Desktop keeps `size-8`.
-            "relative flex size-8 items-center justify-center rounded-lumen-md border transition-colors max-md:min-h-11 max-md:min-w-11",
+            // #2477: the day row's 44px floor (DAY_STEP_BTN) on a phone.
+            "flex h-7 w-full items-center justify-start gap-1.5 rounded-lumen-md border px-2 text-xs font-medium transition-colors max-md:min-h-11 max-md:min-w-11",
             "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             filter.activeCount > 0
               ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
               : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
           )}
         >
-          <ListFilter aria-hidden className="size-3.5" />
+          <ListFilter aria-hidden className="size-3.5 shrink-0" />
+          <span>{t("scheduleScreen.todoFilterButton")}</span>
           {filter.activeCount > 0 && (
             <span
               aria-hidden
               data-todo-filter-count={filter.activeCount}
-              className="absolute -bottom-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-lumen-accent px-1 text-[0.625rem] font-semibold leading-none text-lumen-on-accent tabular-nums"
+              className="flex h-4 min-w-4 items-center justify-center rounded-full bg-lumen-accent px-1 text-[0.625rem] font-semibold leading-none text-lumen-on-accent tabular-nums"
             >
               {filter.activeCount}
             </span>
@@ -617,32 +668,33 @@ export function ScheduleSidebar({
             : undefined
         }
         metaLine
+        // #2568: the "その他" rows read their tags too, on the same second
+        // line as their date.
         renderRowExtra={(row) => <TagDotNames itemId={row.id} />}
+        strongHeadings
         /*
-         * #1640: a pill per heading, so each list is added to from where it is
-         * read. The one over "その他" makes a todo with no day (what the single
-         * pill above the tray did until now, tour anchor included — the tour's
-         * create step still points at the control that MAKES one); the one over
-         * "今日の Todo" makes it on today.
+         * #1640: an add action per heading, so each list is added to from
+         * where it is read. The one over "その他" makes a todo with no day (what
+         * the single pill above the tray did until now, tour anchor included —
+         * the tour's create step still points at the control that MAKES one);
+         * the one over "今日の Todo" makes it on today.
          */
         headingActions={{
           placed: (
-            <AddPill
+            <HeadingAddButton
               onClick={todo.onAddToday}
               label={
                 isToday
-                  ? t("scheduleScreen.todoAddTodayCta")
-                  : t("scheduleScreen.todoAddDayCta")
+                  ? t("scheduleScreen.todoAddTodayLink")
+                  : t("scheduleScreen.todoAddDayLink")
               }
-              className={HEADING_PILL_TAP}
             />
           ),
           addable: (
-            <AddPill
+            <HeadingAddButton
               onClick={todo.onAdd}
-              label={t("scheduleScreen.todoAddCta")}
+              label={t("scheduleScreen.todoAddLink")}
               tourId={TOUR_ANCHORS.scheduleTodoAdd}
-              className={HEADING_PILL_TAP}
             />
           ),
         }}

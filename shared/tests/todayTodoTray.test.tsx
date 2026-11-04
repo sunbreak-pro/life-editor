@@ -642,6 +642,80 @@ describe("TodayTodoTray metaLine (#2408)", () => {
     );
   });
 
+  // #2568: the second line's clock and 終日 wear the same outlined round pill.
+  it("draws the clock and the all-day marker as the same pill on the second line", () => {
+    render(
+      <TodayTodoTray
+        placed={timed}
+        unplaced={untimed}
+        addable={[]}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        singleList
+        metaLine
+        labels={{ ...labels, allDay: "All-day" }}
+      />,
+    );
+    const clock = screen.getByText("09:00");
+    const allDay = screen.getByText("All-day");
+    for (const pill of [clock, allDay]) {
+      expect(pill.hasAttribute("data-todo-time-pill")).toBe(true);
+      expect(pill.className.split(" ")).toEqual(
+        expect.arrayContaining([
+          "rounded-full",
+          "border",
+          "border-lumen-border-strong",
+        ]),
+      );
+      // Under the title, not inside its button.
+      expect(pill.closest("button")).toBeNull();
+    }
+    expect(allDay.className).toBe(clock.className);
+    expect(allDay.className).not.toContain("chip-task");
+  });
+
+  it("moves an 'other' row's date to a second line beside its extra", () => {
+    render(
+      <TodayTodoTray
+        placed={[]}
+        unplaced={[]}
+        addable={[{ id: "task-3", title: "Later", meta: "11/8" }]}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onOpenAddable={noop}
+        onAddCandidate={noop}
+        metaLine
+        renderRowExtra={(row) => <span>{`extra-${row.id}`}</span>}
+        labels={labels}
+      />,
+    );
+    const date = screen.getByText("11/8");
+    expect(date.hasAttribute("data-todo-time-pill")).toBe(true);
+    expect(date.closest("button")).toBeNull();
+    expect(date.parentElement).toBe(
+      screen.getByText("extra-task-3").parentElement,
+    );
+    expect(date.parentElement?.className).toContain("w-full");
+  });
+
+  it("keeps the bare date on an 'other' row without metaLine", () => {
+    render(
+      <TodayTodoTray
+        placed={[]}
+        unplaced={[]}
+        addable={[{ id: "task-3", title: "Later", meta: "11/8" }]}
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        labels={labels}
+      />,
+    );
+    expect(screen.getByText("11/8").hasAttribute("data-todo-time-pill")).toBe(
+      false,
+    );
+  });
+
   it("keeps the clock at the title's end for a host that does not opt in", () => {
     render(
       <TodayTodoTray
@@ -700,6 +774,44 @@ describe("TodayTodoTray heading actions", () => {
     expect(
       addHeading.parentElement?.contains(screen.getByText("add elsewhere")),
     ).toBe(true);
+  });
+
+  // #2568: Schedule's headings are bold and primary; Briefing keeps the muted.
+  it("draws strong headings only for a host that asks", () => {
+    const { rerender } = render(
+      <TodayTodoTray
+        {...rows}
+        singleList
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        labels={labels}
+      />,
+    );
+    for (const text of ["placed", "add"]) {
+      expect(screen.getByText(text).className).toContain(
+        "text-lumen-text-secondary",
+      );
+    }
+
+    rerender(
+      <TodayTodoTray
+        {...rows}
+        singleList
+        strongHeadings
+        onToggleComplete={noop}
+        onOpenTodo={noop}
+        onAddCandidate={noop}
+        labels={labels}
+      />,
+    );
+    for (const text of ["placed", "add"]) {
+      const cls = screen.getByText(text).className.split(" ");
+      expect(cls).toEqual(
+        expect.arrayContaining(["font-bold", "text-lumen-text"]),
+      );
+      expect(cls).not.toContain("text-lumen-text-secondary");
+    }
   });
 });
 
