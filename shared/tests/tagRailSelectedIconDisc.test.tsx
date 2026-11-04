@@ -151,3 +151,27 @@ describe("TagHubTagRail — the selected row's icon disc (#2501)", () => {
     expect(discIn(DEV)).toBeNull();
   });
 });
+
+describe("TagHubTagRail — the selected row's bar and title (#2600)", () => {
+  it("draws a 3px accent bar beside the selected row only", () => {
+    renderRail(DEV.id);
+    const bars = screen.getAllByTestId("tag-rail-selection-bar");
+    expect(bars).toHaveLength(1);
+    expect(bars[0]).toHaveClass("w-[3px]", "bg-lumen-accent");
+    expect(bars[0].closest("li")?.contains(rowButton(DEV))).toBe(true);
+  });
+
+  it("sets the selected title in the accent, semibold", () => {
+    renderRail(DEV.id);
+    const title = within(rowButton(DEV)).getByText(DEV.name);
+    expect(title).toHaveClass("font-semibold", "text-lumen-accent");
+    const other = within(rowButton(HOME)).getByText(HOME.name);
+    expect(other).not.toHaveClass("font-semibold");
+    expect(other).not.toHaveClass("text-lumen-accent");
+  });
+
+  it("keeps the disc while the title takes the accent", () => {
+    renderRail(DEV.id);
+    expect(discIn(DEV)).not.toBeNull();
+  });
+});
