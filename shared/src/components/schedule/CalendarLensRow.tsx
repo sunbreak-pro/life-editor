@@ -27,7 +27,10 @@ import {
  */
 
 export interface CalendarLensRowLabels {
-  /** Accessible name for the chip group. */
+  /**
+   * Accessible name for the chip group, also drawn as the row's heading
+   * while there are chips to head (#2562).
+   */
   filterLabel: string;
   /** Already-interpolated "N rows hidden" line. */
   hidden: string;
@@ -63,6 +66,19 @@ export function CalendarLensRow({
   if (chips.length === 0 && !narrowed) return null;
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2">
+      {/* aria-hidden: the chip group already carries the same words as its
+          accessible name, so a reader would otherwise hear them twice. No
+          heading over an ad-hoc tick list with no chips — there is no group
+          on the row for it to name. */}
+      {chips.length > 0 && (
+        <span
+          aria-hidden
+          data-lens-heading
+          className="text-xs text-lumen-text-tertiary"
+        >
+          {labels.filterLabel}
+        </span>
+      )}
       <StatusFilterChips
         chips={chips}
         value={activeId}
@@ -75,10 +91,13 @@ export function CalendarLensRow({
           <span className="text-xs text-lumen-text-secondary">
             {labels.hidden}
           </span>
+          {/* #2562: a text link rather than a bordered button, so the way
+              back reads as part of the "N hidden" sentence beside it instead
+              of as one more chip. */}
           <button
             type="button"
             onClick={() => (onClear ? onClear() : onChange(null))}
-            className="rounded-lumen-md border border-lumen-border-strong px-2 py-0.5 text-xs font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+            className="rounded-lumen-sm text-xs font-medium text-lumen-accent underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
           >
             {labels.showAll}
           </button>
