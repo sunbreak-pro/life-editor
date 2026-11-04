@@ -1,7 +1,6 @@
 import { useEffect, useId, useRef, useState } from "react";
 import type { ReactNode, RefObject } from "react";
-import { ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
-import { Button } from "../Button";
+import { ChevronDown, ChevronRight, MoreHorizontal } from "lucide-react";
 import { cn } from "../cn";
 import { SkeletonList } from "../SkeletonList";
 import { TagHeadingIcon } from "../TagHeadingIcon";
@@ -228,7 +227,14 @@ export function TagHubTagRail({
             {labels.empty}
           </p>
         ) : visibleTags.length === 0 && visibleUnusedTags.length === 0 ? (
-          <p className="px-1 py-6 text-center text-sm text-lumen-text-tertiary">
+          // Left on narrow (#2600): the rule and the add row follow it at the
+          // left edge, so a centred line floated apart from both.
+          <p
+            className={cn(
+              "py-6 text-sm text-lumen-text-tertiary",
+              wide ? "px-1 text-center" : "px-2 text-left",
+            )}
+          >
             {labels.filterEmpty}
           </p>
         ) : (
@@ -281,11 +287,6 @@ export function TagHubTagRail({
       {onCreateTag && (
         <div className="flex flex-shrink-0 flex-col gap-1.5 border-t border-lumen-border px-3 py-2.5">
           <div className="flex items-center gap-2">
-            <Plus
-              size={16}
-              aria-hidden
-              className="shrink-0 text-lumen-text-tertiary"
-            />
             <input
               ref={addFieldRef}
               value={draft}
@@ -312,15 +313,25 @@ export function TagHubTagRail({
                 !wide && "min-h-11",
               )}
             />
-            <Button
-              variant="secondary"
-              size="sm"
-              className={CARD_BTN_TAP}
+            {/* A plain button, not <Button variant="primary"> (#2600): the
+                house disabled fill swaps the accent for the sunken grey, while
+                this row keeps the accent and only fades it, so the button
+                reads as the row's action before anything is typed. The box
+                matches Button's "sm" size. */}
+            <button
+              type="button"
               onClick={submitDraft}
               disabled={!draft.trim()}
+              className={cn(
+                "inline-flex h-7 shrink-0 items-center justify-center gap-1 rounded-md px-2.5 text-xs font-medium",
+                "bg-lumen-accent text-lumen-on-accent transition-opacity hover:opacity-90",
+                "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:opacity-50",
+                "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+                CARD_BTN_TAP,
+              )}
             >
               {labels.addButton}
-            </Button>
+            </button>
           </div>
           {addError && (
             <p
@@ -395,11 +406,12 @@ function TagHubRailRow({
     >
       {/* The selection bar (D3). On the wrapper rather than inside the row
           button so it spans the "…" too, and absolute so it does not shift the
-          glyph by its own 2px when a row is picked. */}
+          glyph by its own 3px when a row is picked. */}
       {active && (
         <span
           aria-hidden
-          className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-lumen-accent"
+          data-testid="tag-rail-selection-bar"
+          className="absolute inset-y-1.5 left-0 w-[3px] rounded-full bg-lumen-accent"
         />
       )}
       <div
@@ -457,15 +469,19 @@ function TagHubRailRow({
           <span
             className={cn(
               "min-w-0 flex-1 truncate text-sm",
-              tag.isUntagged && "text-lumen-text-secondary",
+              active
+                ? "font-semibold text-lumen-accent"
+                : tag.isUntagged && "text-lumen-text-secondary",
             )}
           >
             {tag.name}
           </span>
-          {/* aria-hidden: the button's label above already says it. */}
+          {/* aria-hidden: the button's label above already says it. Plain
+              text, no pill (#2600): the words "9 items" (#2409) already mark
+              it as a count, so a box around it only competed with the name. */}
           <span
             aria-hidden
-            className="shrink-0 whitespace-nowrap rounded-full bg-lumen-bg-secondary px-2 py-0.5 text-xs font-medium tabular-nums text-lumen-text-secondary"
+            className="shrink-0 whitespace-nowrap text-xs font-normal tabular-nums text-lumen-text-tertiary"
           >
             {countText}
           </span>

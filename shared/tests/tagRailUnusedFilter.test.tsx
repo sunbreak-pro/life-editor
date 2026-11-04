@@ -29,9 +29,11 @@ const READING = tag("t-reading", "Reading", 0);
 function renderRail({
   query = "",
   selectedId = null,
+  wide = true,
 }: {
   query?: string;
   selectedId?: string | null;
+  wide?: boolean;
 } = {}) {
   const needle = query.trim().toLowerCase();
   const visibleTags = [WORK].filter((t) =>
@@ -46,7 +48,7 @@ function renderRail({
     onQueryChange: vi.fn(),
     formatCount,
     formatUnusedTags,
-    wide: true,
+    wide,
     labels: TAG_HUB_LABELS,
   };
   const view = render(<TagHubTagRail {...props} selectedId={selectedId} />);
@@ -99,6 +101,19 @@ describe("TagHubTagRail — the filter reaches unused tags (#1848)", () => {
     renderRail({ query: "zzz" });
     screen.getByText(TAG_HUB_LABELS.filterEmpty);
     expect(screen.queryByRole("button", { name: /Unused tags/ })).toBeNull();
+  });
+
+  it("aligns the no-match copy left on narrow and keeps it centred on Desktop (#2600)", () => {
+    renderRail({ query: "zzz", wide: false });
+    const narrow = screen.getByText(TAG_HUB_LABELS.filterEmpty);
+    expect(narrow).toHaveClass("text-left");
+    expect(narrow).not.toHaveClass("text-center");
+    cleanup();
+
+    renderRail({ query: "zzz" });
+    expect(screen.getByText(TAG_HUB_LABELS.filterEmpty)).toHaveClass(
+      "text-center",
+    );
   });
 
   it("lists every unused tag again once the query is cleared", () => {
