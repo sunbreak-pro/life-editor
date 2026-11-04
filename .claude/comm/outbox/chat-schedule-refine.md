@@ -702,3 +702,14 @@ PR #929（#897）の独立監査（role-qa + life-editor-sync-auditor）で、**
 - **CI は緑**: ランナーが ubuntu なので気付けない。**ローカル側だけの問題**
 - **実害**: 小さいが毎回効く。CI の `verify` をローカルで全部回すたびに 15 本中 1 本が赤になり、その都度「これは既存か、自分の変更か」を判定する手間がかかる。今回の 4 PR すべての本文に「既存・無関係」と書く必要があった
 - **直し方**: 比較の直前に `.split(path.sep).join("/")` を通すか、`toContain` を `path.join("utils", "verification.ts")` に変える。1 行。同じ形の比較が同ファイルの `offenders` 側（`${file.slice(srcDir.length + 1)} imports ...`）にもあるので、あちらも合わせて直すと将来同じ落ち方をしない
+
+## 2026-11-04 — 起票依頼 1 件（#2568 の続き・chat-main へ）
+
+こうだいさんが 2026-11-04 に「続きの Issue を起票する」を選びました。#2568（PR #2653）で入れられなかった残りです。
+
+### 右パネル Todo タブの日付の書式を「11/4（水）」にそろえる（`section:schedule` / `type:feature`）
+
+- **残った理由**: 日付の送りの真ん中の文字は `web/src/schedule/useScheduleDayLabels.ts`（と `scheduleCopy.ts`）が作ります。どちらも #2568 の Scope の外だったので、PR #2653 は「· 今日」の印だけを入れ、書式は「11月4日(水)」のまま残しました。
+- **作るもの**: 真ん中の日付を試作の「10/10（土）」の形（全角のかっこ）にする。同じラベルを使うほかの画面に波及しないかを、着手時に grep で確かめる。
+- **あわせて片付けるもの**: #2568 で使われなくなった i18n のキー 4 つ（`todoAddCta` / `todoAddTodayCta` / `todoAddDayCta` / `todoFilterOpen`）の削除。#2568 は「既存の値を書き換えない」決まりで残しています。削除の前に呼び出し元がゼロか grep で確かめます。
+- **依存**: PR #2653 の merge 後に origin/main から切ります。ja.json / en.json を触るので、PR #2460 の扱いが決まっていなければ scope-overlap が BLOCK を出します（#2564・#2568・#2572 と同じ見かけの衝突）。
