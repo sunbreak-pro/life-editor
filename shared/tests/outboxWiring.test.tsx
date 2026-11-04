@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { act, render, waitFor } from "@testing-library/react";
 import { useSyncDomains } from "../src/hooks/useSyncDomains";
-import { SYNC_DOMAINS } from "../src/context/syncDomains";
+import { SYNC_DOMAINS, type SyncDomain } from "../src/context/syncDomains";
 
 /*
  * #2335 — where the outbox plugs in: one wrapped DataService for the whole page,
@@ -31,7 +31,7 @@ const factory = await vi.importActual<
   typeof import("../src/services/dataServiceFactory")
 >("../src/services/dataServiceFactory");
 
-const sendOutbox = vi.fn<(onSent: () => void) => Promise<void>>();
+const sendOutbox = vi.fn<(onSent: (d: SyncDomain[]) => void) => Promise<void>>();
 vi.mock("../src/services/dataServiceFactory", () => ({
   sendOutbox: (onSent: () => void) => sendOutbox(onSent),
 }));
@@ -48,9 +48,10 @@ describe("getDataService", () => {
 });
 
 describe("SyncProvider sends the outbox", () => {
-  const versions: Record<string, number[]> = { todos: [], all: [] };
+  const versions: Record<string, number[]> = { todos: [], dailies: [], all: [] };
   function Probe() {
     versions.todos!.push(useSyncDomains("todos"));
+    versions.dailies!.push(useSyncDomains("dailies"));
     versions.all!.push(useSyncDomains(...SYNC_DOMAINS));
     return null;
   }
@@ -59,6 +60,7 @@ describe("SyncProvider sends the outbox", () => {
     sendOutbox.mockReset();
     sendOutbox.mockResolvedValue(undefined);
     versions.todos = [];
+    versions.dailies = [];
     versions.all = [];
     status = null;
     render(
@@ -89,13 +91,21 @@ describe("SyncProvider sends the outbox", () => {
     hidden.mockRestore();
   });
 
-  it("bumps only the todos domain after a run that sent something", async () => {
+  it("bumps only the domains the run changed", async () => {
     const onSent = sendOutbox.mock.calls[0]![0];
     await act(async () => {
-      onSent();
+      onSent(["todos"]);
       await new Promise((r) => setTimeout(r, 320));
     });
     expect(versions.todos!.at(-1)).toBe(1);
+    expect(versions.dailies!.at(-1)).toBe(0);
     expect(versions.all!.at(-1)).toBe(1);
+
+    await act(async () => {
+      onSent(["dailies"]);
+      await new Promise((r) => setTimeout(r, 320));
+    });
+    expect(versions.todos!.at(-1)).toBe(1);
+    expect(versions.dailies!.at(-1)).toBe(1);
   });
 });

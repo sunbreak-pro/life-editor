@@ -11,6 +11,10 @@ import {
 import { Calendar, MoreHorizontal, Pin, Trash2 } from "lucide-react";
 import {
   useDailiesUnifiedContext,
+  currentDailyMergeSeq,
+  dailyMergeSince,
+  mergeDocBlocks,
+  sameDocContent,
   useLocalStorage,
   useMediaQuery,
   useRightSidebarOptional,
@@ -296,6 +300,7 @@ export function DailyView({
     selectedDate,
     setSelectedDate,
     selectedDaily,
+    lastMerge,
     upsertDaily,
     deleteDaily,
     togglePin,
@@ -357,13 +362,15 @@ export function DailyView({
   );
 
   // Drain one date's parked edges once its row is known to exist. A failed
-  // save resolves to null — leave the queue alone so the next save retries.
+  // save resolves to null, and a held one is `queued` (#2336): leave the queue
+  // alone so the next save retries. If no save follows, the sender writes the
+  // edges from the body when the entry lands.
   // `bodyJson` is the body that save persisted: a queued target the user
   // already removed again (insert → delete within one debounce window) is
   // dropped instead of minting an edge its text no longer carries (#372).
   const flushPendingLinks = useCallback(
     (date: string, saved: DailyNode | null, bodyJson: string) => {
-      if (!saved) return;
+      if (!saved || saved.queued) return;
       const present = extractItemLinkTargets(bodyJson);
       for (const targetId of takePendingItemLinks(
         pendingLinksRef.current,
@@ -457,6 +464,14 @@ export function DailyView({
     [],
   );
   const [editorGen, setEditorGen] = useState(0);
+  /*
+   * #2336: the merges this screen has taken. A send that merged the day is not
+   * an outside body to hold for the caret: typing on over it would write the
+   * editor's text, without the other side's, over the merge. So the editor
+   * restarts from it even under the caret. See handleEditorUpdate for a change
+   * still in the old editor's debounce.
+   */
+  const [seenMergeSeq, setSeenMergeSeq] = useState(currentDailyMergeSeq);
   // Renders again once the caret has left the body, to read it afresh below.
   const [, recheckAfterBlur] = useReducer((n: number) => n + 1, 0);
   const handleEditorBlur = (event: FocusEvent<HTMLDivElement>) => {
@@ -518,7 +533,15 @@ export function DailyView({
   // body lands at the blur, or an emission that overtakes it settles it.
   const holdOutsideBody = outsideBody && (dirty || editorHasFocus());
 
-  if (
+  if (lastMerge && lastMerge.seq > seenMergeSeq) {
+    setSeenMergeSeq(lastMerge.seq);
+    if (lastMerge.date === selectedDate) {
+      setEditorGen((g) => g + 1);
+      setEmitted(null);
+      setDirtyDate(null);
+      setSyncedFrom({ date: selectedDate, content: selectedContent });
+    }
+  } else if (
     !holdOutsideBody &&
     (syncedFrom.date !== selectedDate || syncedFrom.content !== selectedContent)
   ) {
@@ -568,6 +591,20 @@ export function DailyView({
     // (`key={editorKey}`), so an unmount flush fires the PREVIOUS instance's
     // callback — the one still holding the date it was rendered for.
     const date = selectedDate;
+    // #2336: this editor has not seen a merge that landed. Its text goes on top
+    // of the merge instead of replacing it. Not recorded as an emission, so the
+    // result reads as an outside body and the new editor picks it up.
+    const merge = dailyMergeSince(date, seenMergeSeq);
+    if (merge !== null) {
+      const from =
+        lastEmitted?.date === date ? lastEmitted.json : syncedFrom.content;
+      const edited = writeDailyText(from, json);
+      const onMerge = mergeDocBlocks(from, edited, merge.body).merged;
+      if (edited !== from && !sameDocContent(onMerge, merge.body)) {
+        void upsertDaily(date, onMerge);
+      }
+      return;
+    }
     // The editor emitted the one text only (#2123): writeDailyText puts it
     // back under the「夕刊」heading and keeps the 朝刊 / 宣言 sections and the
     // mood line exactly as stored. The base is a ref read rather than this
@@ -588,7 +625,7 @@ export function DailyView({
       // flush just created are not candidates — their targets are in `full`
       // (the 朝刊 / 宣言 sections can carry links of their own, so the fold
       // must see the whole stored body, not just the editor's text).
-      if (saved) syncSavedBody(saved.id, full);
+      if (saved && !saved.queued) syncSavedBody(saved.id, full);
     });
   };
 
@@ -634,7 +671,7 @@ export function DailyView({
      */
     const landed = upsertDaily(date, full, { skipUndo: true }).then((saved) => {
       if (!saved) throw new Error(`daily mood write failed (${date})`);
-      syncSavedBody(saved.id, full);
+      if (!saved.queued) syncSavedBody(saved.id, full);
       return saved;
     });
     // The stamp's failure is its own: the mood line DID save, so it does not
@@ -642,7 +679,8 @@ export function DailyView({
     // `stamped` is read off the row that write returns.
     void landed
       .then(async (saved) => {
-        if (dataService === undefined) return;
+        // A held write has no row to stamp yet. The next tap heals it (see below).
+        if (dataService === undefined || saved.queued) return;
         const stamped = (saved.eveningPublishedAt ?? null) !== null;
         if (mood !== null && !stamped) {
           await dataService.updateDailyUnified(saved.id, {

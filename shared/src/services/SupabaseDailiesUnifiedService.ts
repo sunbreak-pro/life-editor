@@ -1,6 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type {
   DailiesUnifiedDataService,
+  DailySaveAnswer,
   DailyWriteOptions,
 } from "./DataService";
 import {
@@ -27,10 +28,14 @@ import {
   type ChangeCursor,
   type ChangesRead,
 } from "./itemChanges";
-import { livePayloadInnerJoin } from "./supabaseServiceHelpers";
+import {
+  getAuthedUserId,
+  livePayloadInnerJoin,
+} from "./supabaseServiceHelpers";
 import { ItemLockGate } from "./itemLockGate";
 import { fetchMaybeSingleRow } from "./postgrestSingle";
 import { noteOwnWrite } from "./ownWriteLedger";
+import { OutboxSendError } from "../state/outbox";
 
 /** PostgREST / Postgres codes for "there is no such function" (#2325). */
 const MISSING_FUNCTION_CODES = new Set(["PGRST202", "42883"]);
@@ -317,6 +322,55 @@ export class SupabaseDailiesUnifiedService implements DailiesUnifiedDataService 
         morning_comment: row.morning_comment,
       },
     );
+  }
+
+  /**
+   * The outbox's save (#2336, migration 0046). Only the sender calls this; a
+   * save made while online stays on save_daily_content above. Failures carry
+   * PostgREST's status and code for classifySendFailure, so a database without
+   * 0046 keeps the entry queued instead of refusing it.
+   */
+  async saveDailyIfUnchanged(
+    date: string,
+    content: string,
+    expectedUpdatedAt: string | null,
+    options: { ownerId: string },
+  ): Promise<DailySaveAnswer> {
+    assertDailyDate(date);
+    const userId = await getAuthedUserId(this.client);
+    if (userId !== options.ownerId) {
+      throw new Error("getUserId failed: account changed");
+    }
+    const { data, error, status } = await this.client.rpc(
+      "upsert_daily_content",
+      {
+        p_date: date,
+        p_content: contentStringToJson(content),
+        p_expected_updated_at: expectedUpdatedAt,
+      },
+    );
+    if (error) {
+      throw new OutboxSendError(
+        `saveDailyIfUnchanged: ${error.message}`,
+        status,
+        error.code,
+      );
+    }
+    const row = (Array.isArray(data) ? data[0] : data) as {
+      saved: boolean;
+      updated_at: string;
+      content_json: unknown;
+      is_deleted: boolean;
+      has_password: boolean;
+    } | null;
+    if (!row) throw new OutboxSendError("saveDailyIfUnchanged: no row", 500);
+    return {
+      saved: row.saved,
+      updatedAt: row.updated_at,
+      content: contentJsonToString(row.content_json),
+      isDeleted: row.is_deleted,
+      hasPassword: row.has_password,
+    };
   }
 
   // -------------------------------------------------------------------------
@@ -637,6 +691,7 @@ export const PHASE2_DAILIES_UNIFIED_METHOD_NAMES = [
   "countLiveDailies",
   "getDailyByDateUnified",
   "upsertDailyByDateUnified",
+  "saveDailyIfUnchanged", // #2336
   "createDailyUnified",
   "updateDailyUnified",
   "softDeleteDailyUnified",

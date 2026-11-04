@@ -157,9 +157,25 @@ describe("OfflineBanner", () => {
     expect(copy.className).toContain("max-md:min-w-11");
   });
 
-  it("promises no more than a Todo add, in both catalogs", () => {
+  it("names what is kept and what is not, in both catalogs", () => {
     expect(en.offline.message).toContain("Todo");
+    expect(en.offline.message).toContain("Daily");
     expect(ja.offline.message).toContain("Todo");
+    expect(ja.offline.message).toContain("デイリー");
+    // Daily entries wait in the same box, so the counts do not say "Todo".
+    for (const key of [
+      "pending",
+      "failed",
+      "failedCopyManual",
+      "failedCopied",
+    ] as const) {
+      expect(en.offline[key]).not.toContain("Todo");
+      expect(ja.offline[key]).not.toContain("Todo");
+    }
+    expect(en.nav.signOutPromptPending).not.toContain("Todo");
+    expect(ja.nav.signOutPromptPending).not.toContain("Todo");
+    expect(en.offline.dailyMerged).toContain("{{date}}");
+    expect(ja.offline.dailyMerged).toContain("{{date}}");
     expect(Object.keys(ja.offline)).toEqual(Object.keys(en.offline));
     expect(en.nav.signOutPromptPending).toContain("{{n}}");
     expect(ja.nav.signOutPromptPending).toContain("{{n}}");
