@@ -66,10 +66,11 @@ export interface MonthGridItem {
   completed?: boolean;
   isAllDay?: boolean;
   /**
-   * The colour of the tag that speaks for this item (#1580), or undefined to
-   * keep the variant colours. A hex, because it is the user's own value off
-   * `wiki_tags.color` — the host resolves WHICH tag (buildItemTagColors) and
-   * this is only the answer.
+   * The colour of the tag that speaks for this item (#1580), drawn as the
+   * left line since #2623, or undefined to draw that line in the kind's
+   * colour (a holiday: the Settings colour, #1626). A hex, because it is the
+   * user's own value off `wiki_tags.color` — the host resolves WHICH tag
+   * (buildItemTagColors) and this is only the answer.
    */
   tagColor?: string | null;
 }

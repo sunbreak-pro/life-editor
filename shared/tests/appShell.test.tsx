@@ -231,7 +231,7 @@ describe("AppShell (narrow) — safe-area insets", () => {
     expect(owners[0].tagName).toBe("NAV");
   });
 
-  it("takes its height from the shared shell token, not a literal viewport unit", () => {
+  it("takes its height from the shared shell token, capped by its host's frame", () => {
     mockMatchMedia(false);
     renderShell();
 
@@ -240,6 +240,30 @@ describe("AppShell (narrow) — safe-area insets", () => {
     // bottom edge and leaves a blank band under the tab bar. The token carries
     // that correction (tokens.css) and the host's `body { min-height }` reads
     // the same one — inlining either side back to `100svh` re-splits them.
-    expect(shellRoot().className).toContain("h-[var(--app-shell-height)]");
+    //
+    // #2622: the host stacks the offline / new-version banners above the
+    // shell inside a frame of the same token (web/src/App.tsx). Without the
+    // cap, a banner pushed the bottom tab bar a banner's height off screen.
+    const cls = shellRoot().className.split(/\s+/);
+    expect(cls).toContain("h-[var(--app-shell-height)]");
+    expect(cls).toContain("max-h-full");
+    expect(cls).not.toContain("h-screen");
+  });
+});
+
+/*
+ * #2622 on the wide shell: it fills the host's frame outright. The Desktop
+ * root was `h-screen`, which under a banner made the page taller than the
+ * window and cut off the bottom of every section.
+ */
+describe("AppShell (wide) — height", () => {
+  it("fills its host's frame instead of sizing itself to the screen", () => {
+    mockMatchMedia(true);
+    renderShell();
+    const root = document.body.firstElementChild?.firstElementChild;
+    if (!root) throw new Error("wide shell root not found");
+    const cls = root.className.split(/\s+/);
+    expect(cls).toContain("h-full");
+    expect(cls).not.toContain("h-screen");
   });
 });

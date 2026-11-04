@@ -263,3 +263,32 @@ describe("MonthMorePanel", () => {
     expect(screen.getByRole("button", { name: "Standup" })).toHaveFocus();
   });
 });
+
+/*
+ * #2623 — the rows wear the cell chips' colour rule: the kind's light face, the
+ * tag colour on the 3px left line (the kind's colour without one), and a
+ * holiday in its Settings colour as a light face and a line.
+ */
+describe("MonthMorePanel — the face and the left line (#2623)", () => {
+  it("draws a row's tag colour on its line and keeps the kind's face", () => {
+    renderPanel([
+      { ...ITEMS[0]!, tagColor: "#1e3a8a" },
+      ITEMS[1]!,
+      { ...ITEMS[2]!, tagColor: "#e03e3e" },
+    ]);
+    const tagged = screen.getByRole("button", { name: "Standup" });
+    expect(tagged.style.borderLeftColor).toBe("rgb(30, 58, 138)");
+    expect(tagged.style.backgroundColor).toBe("");
+    expect(tagged.className).toContain("border-l-[3px]");
+    expect(tagged.className).toContain("bg-lumen-chip-event-bg");
+
+    const plain = screen.getByRole("button", { name: "Write report" });
+    expect(plain.style.borderLeftColor).toBe("");
+    expect(plain.className).toContain("border-l-lumen-chip-task-dot");
+
+    const holiday = screen.getByText("Marine Day");
+    expect(holiday.style.borderLeftColor).toBe("rgb(224, 62, 62)");
+    expect(holiday.className).toContain("border-l-[3px]");
+    expect(holiday.className).toContain("text-lumen-text");
+  });
+});

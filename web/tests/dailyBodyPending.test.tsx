@@ -6,12 +6,13 @@ import {
   waitFor,
   act,
 } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import type { Mock } from "vitest";
 import {
   DailiesUnifiedProvider,
   WikiTagsUnifiedProvider,
   mergeEveningSection,
+  useDailiesUnifiedContext,
   type DataService,
   type DailyNode,
 } from "@life-editor/shared";
@@ -171,12 +172,41 @@ function makeHarness(): Harness {
 
 const { sync, wrapper: SyncWrapper } = createBumpableSync();
 
+/*
+ * A star's write and its undo read the day through `getDailyForDate`, a ref
+ * the provider updates in an effect. The screen can already draw a new row
+ * while that effect is still pending: on a slow runner it is still pending
+ * when the next line runs (CI on PR #2454). The tests wait on this ref, not
+ * on the screen, before they press a star or run an undo.
+ */
+const rowRead = {
+  current: null as ((date: string) => DailyNode | undefined) | null,
+};
+
+function RowReadProbe() {
+  const { getDailyForDate } = useDailiesUnifiedContext();
+  useEffect(() => {
+    rowRead.current = getDailyForDate;
+  }, [getDailyForDate]);
+  return null;
+}
+
+/* A row the ref does not hold yet is neither loaded nor light. */
+async function waitForRowRead(date: string, bodyLoaded: boolean) {
+  await waitFor(() => {
+    const row = rowRead.current?.(date);
+    expect(row).toBeDefined();
+    expect(row?.bodyLoaded !== false).toBe(bodyLoaded);
+  });
+}
+
 function renderDaily(harness: Harness) {
   render(
     <SyncWrapper>
       <WikiTagsUnifiedProvider dataService={harness.ds}>
         <DailiesUnifiedProvider dataService={harness.ds}>
           <DailyView dataService={harness.ds} />
+          <RowReadProbe />
         </DailiesUnifiedProvider>
       </WikiTagsUnifiedProvider>
     </SyncWrapper>,
@@ -233,6 +263,7 @@ describe("DailyView — the open day's body is still loading (#2325)", () => {
     // Control: once the body is here, the same tap writes the open day.
     await harness.releaseBody();
     await screen.findByTestId("editor");
+    await waitForRowRead(TODAY, true);
     fireEvent.click(star(4));
     await waitFor(() =>
       expect(harness.fns.upsertDailyByDateUnified).toHaveBeenCalledTimes(1),
@@ -259,6 +290,7 @@ describe("DailyView — the open day's body is still loading (#2325)", () => {
     renderDaily(harness);
     await harness.releaseBody();
     await screen.findByTestId("editor");
+    await waitForRowRead(TODAY, true);
 
     // A star on the open day, with its body loaded: one undo entry.
     fireEvent.click(star(4));
@@ -277,6 +309,7 @@ describe("DailyView — the open day's body is still loading (#2325)", () => {
     ]);
     act(() => sync.bump("dailies"));
     await screen.findByText(`head of ${TODAY}`);
+    await waitForRowRead(TODAY, false);
 
     // The server's body has moved on since (edited elsewhere, mood 4 kept).
     const serverBody = mergeEveningSection(doc("edited elsewhere"), {
