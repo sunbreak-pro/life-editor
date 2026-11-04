@@ -650,7 +650,7 @@
       "add": "リンクを追加",
       "pickerDialog": "リンク先を選ぶ",
       "searchLabel": "リンクするアイテムを検索",
-      "searchPlaceholder": "タイトルで検索…",
+      "searchPlaceholder": "ノート・デイリー・予定・Todo を検索",
       "noCandidates": "該当するアイテムがありません",
       "selfLink": "自分自身にはリンクできません。",
       "countLabel": "リンク {{total}} 件",
