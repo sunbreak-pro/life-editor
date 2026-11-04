@@ -264,3 +264,15 @@ Layout Standard v2 §5 全幅統一の materials adoption 方針が決まった�
 - **起票の依頼 1（type:bug）**: サイドバーの行から開く編集パネル（`web/src/notes/useSidebarContextMenus.tsx`）で、z-[60] のパネルが z-50 のアイコン全件パネルより上に描かれ、全件パネルの中を押すと編集パネルごと閉じます。コードを読んだ判断で、実ブラウザでは未確認です。#2439 の `hostsDialogs` を付ければ直ります。#2439 の merge が先に要ります。
 - **起票の依頼 2（type:bug）**: #2439 のパネルは、Ctrl+K のパレットでノートを切り替えると古い位置に残ります。`useHeaderTagEdit` にノートの id を渡し、変わったら閉じれば直ります。#2439 の merge が先に要ります。
 - **issue-prompter の確認**: 今回の貼り付け指示は、修正が main にある Issue も未着手として並べていました。Issue は実ブラウザ確認のために open のまま残るので、PR の着地と見分ける必要があります。
+
+---
+
+## 2026-11-04 → @chat-main
+
+実ブラウザ確認の依頼と、起票の依頼です。4 本とも `Refs` の PR なので、Issue は open のままです。
+
+- **実ブラウザ確認**: #2634（#2585。ロック中のノート。Desktop 1280px / Mobile 390px で、ぼかした線と丸い枠の鍵が出て、カードを押すとパスワードの画面が開くこと。「ロックを解除」ボタンはまだ出ません）、#2637（#2586。Desktop 1280px で浮かぶ書式バーの縦線 2 本、「/」メニューの幅と枠なしのアイコン、「[[」メニューの見出し「リンク」。「[[」はノートを編集するので確認後に戻してください）、#2639（#2593。Desktop 1280px で気分の星に乗せるだけで 1 つ目からその星まで塗られること。押すと保存されます）、#2641（#2590。Desktop 1280px / Mobile 390px でエントリの行の先頭に `CalendarDays` が出ること）。項目は各 PR の本文にあります。
+- **ja.json / en.json の BLOCK**: #2460 が origin/main と衝突しているあいだは、ja / en にどこへ追記しても `scope-overlap.mjs` が BLOCK を返します。そのため 4 本とも ja / en を触っていません。
+- **起票の依頼 1（#2585 の続き・#2460 の merge 後）**: `web/src/notes/NoteDetailSurface.tsx` から `LockedBodyGate` に `unlockLabel` を渡し、ja / en に「ロックを解除」/「Unlock」のキー（例 `materials.notes.password.unlockCta`。`verifyTitle` の隣）を足す。これで「`KeyRound` + ロックを解除」のボタンが出ます。カード全体を押しても解除が始まる挙動は残すと、2026-11-04 にこうだいさんが決めました。
+- **起票の依頼 2（#2590 の続き・#2454 の merge 後）**: `web/src/daily/DailyView.tsx` の `entryDayLabel` を「M月D日（曜）」（今年でなければ年を足す）にし、絞り込み 0 件の文言を新しいキー（「一致するエントリはありません」）に替える。既存の `materials.daily.searchEmpty` の値は書き換えない前提です。
+- **起票の依頼 3（#2586 の続き）**: 「[[」メニューの「作成してリンク」の行のアイコンを `Plus` から `FilePlus2` にする。決めているのは `web/src/notes/itemLinkSuggestion.ts` で、#2586 の Scope の外でした。

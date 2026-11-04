@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Star } from "lucide-react";
 import { cn } from "../cn";
 import { FOCUS_RING_TIGHT } from "../styleTokens";
@@ -10,8 +11,15 @@ import { FOCUS_RING_TIGHT } from "../styleTokens";
  * Daily body became the day's ONE text, which already holds the reflection.
  *
  * The stars are the evening paper's: tap one to set it, tap the lit one to
- * clear (the host decides that and publishes the day). The figures arrive as
- * ready-made strings, so the counting and the units stay with the host.
+ * clear (the host decides that and publishes the day). #2593: pointing at a
+ * star lights every star up to it, the way a press would leave them, so the
+ * result shows before the press saves it. Only a mouse or pen drives that: a
+ * touch has no hover to preview, and lighting the stars on a tap would only
+ * flash them. A press ends the preview, so clearing the lit star shows the
+ * row go dark under the pointer instead of staying lit until it leaves.
+ *
+ * The figures arrive as ready-made strings, so the counting and the units
+ * stay with the host.
  *
  * Pure presentation (§6.4): no DataService, no useTranslation. lumen-* tokens
  * only, opaque surface; 朱 (lumen-briefing-shu) marks the lit stars as on the
@@ -45,7 +53,7 @@ export interface DailyDayFooterProps {
 }
 
 const MOOD_STAR_BUTTON =
-  "inline-flex items-center justify-center rounded-lumen-sm p-0.5 transition-colors max-md:min-h-11 max-md:min-w-11";
+  "inline-flex items-center justify-center rounded-lumen-sm p-0.5 transition-colors duration-150 max-md:min-h-11 max-md:min-w-11";
 
 export function DailyDayFooter({
   mood,
@@ -54,6 +62,10 @@ export function DailyDayFooter({
   labels,
   className,
 }: DailyDayFooterProps): React.JSX.Element {
+  /** The star under the mouse, 1–5; null when none is. */
+  const [hovered, setHovered] = useState<number | null>(null);
+  const lit = hovered ?? mood;
+
   return (
     <section
       data-testid="daily-day-footer"
@@ -67,23 +79,30 @@ export function DailyDayFooter({
       <div
         role="group"
         aria-label={labels.moodGroup}
+        // On the group, not each star: crossing the 2px gap between two stars
+        // must not drop the preview back to the stored mood for a frame.
+        onPointerLeave={() => setHovered(null)}
         className="flex flex-wrap items-center gap-0.5"
       >
         {[1, 2, 3, 4, 5].map((n) => {
-          const filled = mood !== null && n <= mood;
+          const filled = lit !== null && n <= lit;
           return (
             <button
               key={n}
               type="button"
-              onClick={() => onSelectMood(n)}
+              onPointerEnter={(event) => {
+                if (event.pointerType !== "touch") setHovered(n);
+              }}
+              onClick={() => {
+                setHovered(null);
+                onSelectMood(n);
+              }}
               aria-label={labels.moodStars[n - 1]}
               aria-pressed={mood === n}
               className={cn(
                 MOOD_STAR_BUTTON,
                 FOCUS_RING_TIGHT,
-                filled
-                  ? "text-lumen-briefing-shu"
-                  : "text-lumen-text-tertiary hover:text-lumen-briefing-shu",
+                filled ? "text-lumen-briefing-shu" : "text-lumen-text-tertiary",
               )}
             >
               <Star

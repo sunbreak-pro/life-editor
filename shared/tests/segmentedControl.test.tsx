@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { cleanup, render, screen, fireEvent } from "@testing-library/react";
 import { SegmentedControl, type SegmentedOption } from "../src/components";
 
 /*
@@ -131,6 +131,29 @@ describe("SegmentedControl", () => {
       expect(tab).toHaveClass("px-2.5");
       expect(tab).not.toHaveClass("text-sm");
     }
+  });
+
+  it('draws the selected segment in semibold at size="sm" only (#2619)', () => {
+    // sm = the narrow layout's section tab strip, which follows the header
+    // tabs to 600; md lives inside panels and keeps 500.
+    renderControl({ size: "sm" });
+    let active = screen
+      .getAllByRole("tab")
+      .find((tab) => tab.getAttribute("aria-selected") === "true");
+    expect(active).toHaveClass("font-semibold");
+    expect(active).not.toHaveClass("font-medium");
+    for (const tab of screen.getAllByRole("tab")) {
+      if (tab === active) continue;
+      expect(tab).not.toHaveClass("font-semibold");
+    }
+    cleanup();
+
+    renderControl();
+    active = screen
+      .getAllByRole("tab")
+      .find((tab) => tab.getAttribute("aria-selected") === "true");
+    expect(active).toHaveClass("font-medium");
+    expect(active).not.toHaveClass("font-semibold");
   });
 
   it('hangs a 44px hit area over the smaller pill at size="sm"', () => {

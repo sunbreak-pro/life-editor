@@ -76,6 +76,13 @@ export interface ScheduleToolbarProps {
   /** Whether repeat-generated items are currently folded out of the grid. */
   repeatsHidden?: boolean;
   /**
+   * How many rows the repeat filter dropped (#2562). When given, the notice
+   * folds to this bare number in a narrow pane instead of keeping its full
+   * sentence, which is what pushed the add button onto a second row with the
+   * detail panel open. Omitted, the notice keeps its sentence at every width.
+   */
+  hiddenRepeatCount?: number;
+  /**
    * Holiday filter toggle (#1626), offered beside the repeat one. Hidden when
    * omitted — Mobile leaves both out.
    */
@@ -104,8 +111,13 @@ export interface ScheduleToolbarProps {
   className?: string;
 }
 
+/*
+ * #2562: every box on the row is the same 2.0833rem (37.5px at the default
+ * 18px root), the height the prototype gives them, so icon and text buttons
+ * line up.
+ */
 const ICON_BTN =
-  "flex size-7 items-center justify-center rounded-lumen-sm border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
+  "flex size-[2.0833rem] items-center justify-center rounded-lumen-sm border border-lumen-border-strong text-lumen-text-secondary transition-colors hover:bg-lumen-hover hover:text-lumen-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent";
 
 export function ScheduleToolbar({
   periodLabel,
@@ -117,6 +129,7 @@ export function ScheduleToolbar({
   onChangeView,
   onToggleRepeats,
   repeatsHidden = false,
+  hiddenRepeatCount,
   onToggleHolidays,
   holidaysHidden = false,
   onOpenFilter,
@@ -150,7 +163,7 @@ export function ScheduleToolbar({
       <button
         type="button"
         onClick={onToday}
-        className="rounded-lumen-md border border-lumen-border-strong px-3 py-1.5 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+        className="flex h-[2.0833rem] items-center rounded-lumen-md border border-lumen-border-strong px-3 text-sm font-medium text-lumen-text transition-colors hover:bg-lumen-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
       >
         {labels.today}
       </button>
@@ -161,7 +174,7 @@ export function ScheduleToolbar({
           onClick={onPrev}
           className={ICON_BTN}
         >
-          <ChevronLeft aria-hidden className="size-3.5" />
+          <ChevronLeft aria-hidden className="size-5" />
         </button>
         <button
           type="button"
@@ -169,7 +182,7 @@ export function ScheduleToolbar({
           onClick={onNext}
           className={ICON_BTN}
         >
-          <ChevronRight aria-hidden className="size-3.5" />
+          <ChevronRight aria-hidden className="size-5" />
         </button>
       </div>
       {/* min-w-0 + truncate: the label gives way before anything wraps. */}
@@ -188,11 +201,11 @@ export function ScheduleToolbar({
          * one is (below), and it comes FIRST so the two read as one pair with
          * the always-on filters on the right of them.
          *
-         * Icon-only on every width. The repeat button's label is load-bearing
-         * because it carries a count that a user can otherwise mistake for
-         * free time; a holiday is a fact about the day rather than something
-         * on it, so its count has no such reading — it rides the accessible
-         * name only, and the toolbar keeps the room for the one that needs it.
+         * Icon-only until the pane is wide (#2562). The repeat button gets
+         * its words first, at 48rem, because its count is the one a user can
+         * mistake for free time; a holiday is a fact about the day rather
+         * than something on it, so its words wait for a pane with room to
+         * spare — 55.5rem, the prototype's 1000px at the default 18px root.
          */
         <button
           type="button"
@@ -205,11 +218,15 @@ export function ScheduleToolbar({
           data-holiday-filter={holidaysHidden ? "hidden" : "shown"}
           className={cn(
             ICON_BTN,
+            "gap-1.5 text-sm font-medium @min-[55.5rem]:w-auto @min-[55.5rem]:px-2.5",
             holidaysHidden &&
               "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent hover:text-lumen-accent",
           )}
         >
-          <Flag aria-hidden className="size-3.5" />
+          <Flag aria-hidden className="size-4" />
+          <span data-holiday-label className="hidden @min-[55.5rem]:inline">
+            {holidaysHidden ? labels.holidaysHidden : labels.hideHolidays}
+          </span>
         </button>
       )}
 
@@ -224,20 +241,35 @@ export function ScheduleToolbar({
           aria-label={repeatsHidden ? labels.repeatsHidden : labels.hideRepeats}
           title={repeatsHidden ? labels.repeatsHidden : labels.hideRepeats}
           className={cn(
-            "flex items-center gap-1.5 rounded-lumen-md border px-2.5 py-[7px] text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+            "flex h-[2.0833rem] items-center gap-1.5 rounded-lumen-md border px-2.5 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
             repeatsHidden
               ? "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent"
               : "border-lumen-border-strong text-lumen-text-secondary hover:bg-lumen-hover hover:text-lumen-text",
           )}
         >
-          <Repeat aria-hidden className="size-3.5" />
+          <Repeat aria-hidden className="size-4" />
           {/* #1469: the ACTION ("hide repeats") folds to the icon in a narrow
-              pane; the NOTICE ("N hidden") never does — the count is the #466
-              point of the button, an empty slot on a filtered grid would
-              otherwise read as free time. */}
-          <span className={cn(!repeatsHidden && "@max-3xl:hidden")}>
+              pane; the NOTICE ("N hidden") never folds away — the count is the
+              #466 point of the button, an empty slot on a filtered grid would
+              otherwise read as free time. #2562 lets the notice shrink to the
+              bare count there, so the add button stays on the first row. */}
+          <span
+            className={cn(
+              (!repeatsHidden || hiddenRepeatCount !== undefined) &&
+                "@max-3xl:hidden",
+            )}
+          >
             {repeatsHidden ? labels.repeatsHidden : labels.hideRepeats}
           </span>
+          {repeatsHidden && hiddenRepeatCount !== undefined && (
+            <span
+              aria-hidden
+              data-repeat-count={hiddenRepeatCount}
+              className="hidden tabular-nums @max-3xl:inline"
+            >
+              {hiddenRepeatCount}
+            </span>
+          )}
         </button>
       )}
 
@@ -246,7 +278,7 @@ export function ScheduleToolbar({
         value={view}
         onChange={onChangeView}
         label={labels.view}
-        className="w-auto"
+        className="h-[2.0833rem] w-auto"
       />
       {onOpenFilter && (
         <button
@@ -267,7 +299,7 @@ export function ScheduleToolbar({
               "border-lumen-accent bg-lumen-accent-subtle text-lumen-accent hover:text-lumen-accent",
           )}
         >
-          <ListFilter aria-hidden className="size-3.5" />
+          <ListFilter aria-hidden className="size-4" />
           {filterCount > 0 && (
             <span
               aria-hidden
@@ -300,7 +332,7 @@ export function ScheduleToolbar({
           aria-label={addEventLabel}
           title={addEventLabel}
           className={cn(
-            "flex items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 py-[7px] text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover @max-3xl:px-2",
+            "flex h-[2.0833rem] items-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3.5 text-sm font-medium text-lumen-on-accent transition-colors hover:bg-lumen-accent-hover @max-3xl:px-2",
             FOCUS_RING_ON_ACCENT,
           )}
         >

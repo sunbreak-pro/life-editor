@@ -266,6 +266,69 @@ describe("TagHubView — the selected tag", () => {
   });
 });
 
+/*
+ * #2599 — the header's "Select" button and the wide frame, matched to the
+ * prototype. jsdom has no layout, so the frame is pinned by its class contract.
+ */
+describe("TagHubView — the Select button and the frame", () => {
+  it("offers Select even on a tag with nothing filed under it", () => {
+    renderHub({ selectedTagId: "t-health", onToggleSelecting: vi.fn() });
+    expect(screen.getByRole("button", { name: "Select" })).toBeTruthy();
+  });
+
+  it("names the button for ending the mode while selecting, in the accent", () => {
+    const onToggleSelecting = vi.fn();
+    renderHub({
+      selectedTagId: "t-work",
+      selecting: true,
+      onToggleSelecting,
+    });
+    expect(screen.queryByRole("button", { name: "Select" })).toBeNull();
+    const done = screen.getByRole("button", { name: "Done selecting" });
+    expect(done).toHaveClass(
+      "border-lumen-accent",
+      "bg-lumen-accent-subtle",
+      "text-lumen-accent",
+    );
+    fireEvent.click(done);
+    expect(onToggleSelecting).toHaveBeenCalledTimes(1);
+  });
+
+  it("draws Select with a border and a leading icon outside the mode", () => {
+    renderHub({ selectedTagId: "t-work", onToggleSelecting: vi.fn() });
+    const select = screen.getByRole("button", { name: "Select" });
+    expect(select).toHaveClass("border", "border-lumen-border");
+    expect(select).not.toHaveClass("bg-lumen-accent-subtle");
+    expect(select.querySelector("svg")).not.toBeNull();
+  });
+
+  it("keeps the 44px floor on the narrow Select", () => {
+    renderHub({
+      wide: false,
+      selectedTagId: "t-work",
+      onToggleSelecting: vi.fn(),
+    });
+    expect(screen.getByRole("button", { name: "Select" })).toHaveClass(
+      "min-h-11",
+    );
+  });
+
+  it("puts both wide panes in one bordered, rounded frame", () => {
+    renderHub({ selectedTagId: "t-work" });
+    const frame = screen
+      .getByRole("list", { name: "Tags" })
+      .closest("[data-taghub-frame]");
+    expect(frame).not.toBeNull();
+    expect(frame).toHaveClass("border", "rounded-lg", "min-h-[32rem]");
+    expect(frame?.querySelector("[data-taghub-items]")).not.toBeNull();
+  });
+
+  it("draws no frame on narrow", () => {
+    renderHub({ wide: false, selectedTagId: "t-work" });
+    expect(document.querySelector("[data-taghub-frame]")).toBeNull();
+  });
+});
+
 describe("TagHubView — narrow layout", () => {
   it("shows the tag list alone until a tag is picked", () => {
     renderHub({ wide: false });
