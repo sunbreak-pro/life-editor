@@ -134,7 +134,7 @@ describe("TagHubTagRail — the add row (#2600)", () => {
   it("drops the leading plus glyph", () => {
     renderWithAdd();
     const row = addField().parentElement as HTMLElement;
-    expect(row.querySelector("svg.lucide-plus")).toBeNull();
+    expect(row.querySelector("svg")).toBeNull();
     expect(row.firstElementChild).toBe(addField());
   });
 
