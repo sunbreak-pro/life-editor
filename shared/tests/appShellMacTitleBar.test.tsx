@@ -88,6 +88,11 @@ describe("AppShell macOS title-bar band (#1590)", () => {
     // The shell still renders everything it did before.
     expect(screen.getByText("body")).toBeDefined();
     expect(screen.getByText("Todos")).toBeDefined();
+    // #2622: the mac root fills the host's frame like the other shells, so a
+    // banner above it does not push the window's content past the bottom.
+    const rootClasses = (el?.parentElement?.className ?? "").split(/\s+/);
+    expect(rootClasses).toContain("h-full");
+    expect(rootClasses).not.toContain("h-screen");
   });
 
   it("leaves the Web layout alone when there is no desktop bridge", () => {
