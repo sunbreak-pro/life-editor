@@ -81,6 +81,41 @@ describe("AgendaList", () => {
     expect(screen.getByText("Project review")).toBeInTheDocument();
   });
 
+  it("shows all-day as plain words in the time column, with no frame (#2570)", () => {
+    renderList();
+    const label = screen.getByText("All-day");
+    expect(label.className).not.toMatch(/\bborder\b|\brounded\b/);
+    expect(label.className).not.toContain("border-lumen-border-strong");
+    // Same column as the timed rows' start time, so the titles line up.
+    expect(label.className).toContain("w-11");
+  });
+
+  it("draws no rule between rows (#2570)", () => {
+    renderList();
+    for (const title of [
+      "Trash day",
+      "Stretch",
+      "Project review",
+      "Write report",
+    ]) {
+      const row = screen.getByText(title).closest("li");
+      expect(row?.className.split(/\s+/)).not.toContain("border-b");
+    }
+  });
+
+  it("keeps the row-end kind icons and the todo checkbox (#2570)", () => {
+    renderList();
+    const routineRow = screen.getByText("Stretch").closest("li");
+    const todoRow = screen.getByText("Write report").closest("li");
+    expect(routineRow?.querySelector("svg.lucide-repeat")).not.toBeNull();
+    expect(
+      todoRow?.querySelector(
+        "svg.lucide-square-check-big, svg.lucide-check-square",
+      ),
+    ).not.toBeNull();
+    expect(todoRow?.querySelector('[role="checkbox"]')).not.toBeNull();
+  });
+
   it("places the now-line divider between past and upcoming rows", () => {
     renderList({ nowMinutes: 14 * 60 + 30 }); // 14:30
     const past = screen.getByText("Stretch"); // 07:00 → above the line
