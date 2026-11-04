@@ -1,4 +1,10 @@
-import { Calendar, ChevronDown, Pin, Search } from "lucide-react";
+import {
+  Calendar,
+  CalendarDays,
+  ChevronDown,
+  Pin,
+  Search,
+} from "lucide-react";
 import { cn } from "../cn";
 import { EmptyState } from "../EmptyState";
 import { ExcerptListItem } from "./ExcerptListItem";
@@ -119,20 +125,30 @@ export function DailyEntriesPanel({
           />
         ) : (
           entries.map((entry) => (
-          <ExcerptListItem
-            key={entry.date}
-            title={entry.dayLabel}
-            excerpt={entry.excerpt}
-            selected={entry.selected}
-            meta={
-              entry.isPinned ? (
-                <Pin
-                  size={12}
-                  aria-label={pinnedLabel}
-                  className="text-lumen-accent"
+            <ExcerptListItem
+              key={entry.date}
+              // #2590: a day glyph in front of each row, so the list reads as
+              // days at a glance. ExcerptListItem keeps the glyph decorative
+              // (aria-hidden); the day label is still the row's name.
+              leading={
+                <CalendarDays
+                  size={14}
+                  data-testid="daily-entry-icon"
+                  aria-hidden
                 />
-              ) : undefined
-            }
+              }
+              title={entry.dayLabel}
+              excerpt={entry.excerpt}
+              selected={entry.selected}
+              meta={
+                entry.isPinned ? (
+                  <Pin
+                    size={12}
+                    aria-label={pinnedLabel}
+                    className="text-lumen-accent"
+                  />
+                ) : undefined
+              }
               onClick={() => onSelectEntry(entry.date)}
             />
           ))

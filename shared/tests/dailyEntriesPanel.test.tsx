@@ -120,4 +120,32 @@ describe("DailyEntriesPanel", () => {
     expect(screen.queryByText("No entries yet")).toBeNull();
     expect(screen.getByText("7/4（金）")).toBeInTheDocument();
   });
+
+  /*
+   * #2590 — every row opens with a CalendarDays glyph. It is decoration: the
+   * row's name stays the day label alone, so a screen reader hears the day,
+   * not "calendar" before it.
+   */
+  it("leads every row with a decorative CalendarDays glyph", () => {
+    renderPanel();
+    const rows = screen.getAllByRole("button", { name: /（/ });
+    expect(rows).toHaveLength(ENTRIES.length);
+    for (const row of rows) {
+      const icon = row.querySelector('[data-testid="daily-entry-icon"]');
+      expect(icon).not.toBeNull();
+      expect(icon).toHaveClass("lucide-calendar-days");
+      expect(icon?.closest('[aria-hidden="true"]')).not.toBeNull();
+    }
+    // Nothing from the glyph is read before the day.
+    expect(rows[0]).toHaveAccessibleName(/^7\/4（金）/);
+  });
+
+  it("keeps the selected row on the accent border", () => {
+    renderPanel({
+      entries: [{ ...ENTRIES[0]!, selected: true }, ENTRIES[1]!],
+    });
+    const [selected, other] = screen.getAllByRole("button", { name: /（/ });
+    expect(selected).toHaveClass("border-lumen-accent");
+    expect(other).not.toHaveClass("border-lumen-accent");
+  });
 });
