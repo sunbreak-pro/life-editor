@@ -122,9 +122,10 @@ export interface ItemActionPopoverProps {
   /**
    * How the three blocks are arranged (#1625). "stack" (default) puts summary,
    * actions and the edit-detail button in one column — what the tour and every
-   * other caller keep. "columns" puts the summary and the edit-detail button
-   * on the left and the actions on the right, so a wide panel spends its width
-   * instead of its height. A prop rather than a className override because
+   * other caller keep. "columns" puts the summary on the left and the actions
+   * on the right, with the edit-detail button across both underneath (#2564),
+   * so a wide panel spends its width instead of its height. A prop rather
+   * than a className override because
    * `cn` is a plain join, not tailwind-merge (rules/frontend.md §Gotchas).
    */
   layout?: "stack" | "columns";
@@ -240,8 +241,8 @@ export function ItemActionPopover({
 
   // #2049: once, on open. Hosts rebuild `actions` every render, so keying this
   // on them would pull focus back to the top mid-navigation. The action rows
-  // are looked for first: in "columns" the edit-detail button comes before
-  // them in the DOM, and landing on it would skip the whole list.
+  // are looked for first: the summary can hold buttons of its own (#2395's
+  // icon picker), and landing on one of those would skip the whole list.
   useLayoutEffect(() => {
     if (!autoFocus) return;
     const panel = panelRef.current;
@@ -493,16 +494,30 @@ export function ItemActionPopover({
     ) : null;
 
   // Hidden while the inline input is up, so Enter has exactly one meaning.
+  // #2564: in columns it is the outlined full-width row under both columns,
+  // as the Claude Design proposal draws the schedule bubble. The stacked
+  // panel keeps the filled accent button the tour and the other callers use.
   const editDetailBlock =
     onEditDetail && !inlineBlock && !inlineTimeBlock && !editing ? (
-      <div className={cn(columns ? "mt-auto" : blockRule, "p-2")}>
+      <div
+        data-item-panel-edit-detail=""
+        className={cn(
+          "border-t border-lumen-border",
+          columns ? "px-3 py-2" : "p-2",
+        )}
+      >
         <button
           type="button"
           onClick={() => {
             onEditDetail();
             onClose();
           }}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lumen-md bg-lumen-accent px-3 py-1.5 text-xs font-medium text-lumen-on-accent transition-opacity hover:opacity-90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent"
+          className={cn(
+            "flex w-full items-center justify-center gap-1.5 rounded-lumen-md px-3 py-1.5 text-xs font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-lumen-accent",
+            columns
+              ? "border border-lumen-border bg-lumen-bg text-lumen-text transition-colors hover:bg-lumen-hover"
+              : "bg-lumen-accent text-lumen-on-accent transition-opacity hover:opacity-90",
+          )}
         >
           <Pencil aria-hidden className="size-3.5 shrink-0" />
           {editDetailLabel}
@@ -531,25 +546,29 @@ export function ItemActionPopover({
       }}
     >
       {columns ? (
-        // #1625: what the item IS on the left (summary, then the hand-off to
-        // its detail pinned to the bottom), what you can DO on the right. The
-        // panel's height becomes the taller column instead of the sum of all
-        // three blocks.
-        <div className="flex">
-          <div
-            data-item-panel-column="summary"
-            className="flex w-1/2 min-w-0 flex-col"
-          >
-            {summaryBlock}
-            {editDetailBlock}
+        // #1625: what the item IS on the left, what you can DO on the right.
+        // The panel's height becomes the taller column instead of the sum of
+        // all three blocks. #2564: the left column gets the larger share
+        // (1.2 : 1, the proposal's split) because the summary carries the
+        // title, the tags and the memo, and the hand-off to the detail spans
+        // both columns underneath.
+        <>
+          <div className="grid grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]">
+            <div
+              data-item-panel-column="summary"
+              className="flex min-w-0 flex-col"
+            >
+              {summaryBlock}
+            </div>
+            <div
+              data-item-panel-column="actions"
+              className="min-w-0 border-l border-lumen-border"
+            >
+              {inlineBlock ?? inlineTimeBlock ?? actionsBlock}
+            </div>
           </div>
-          <div
-            data-item-panel-column="actions"
-            className="w-1/2 min-w-0 border-l border-lumen-border"
-          >
-            {inlineBlock ?? inlineTimeBlock ?? actionsBlock}
-          </div>
-        </div>
+          {editDetailBlock}
+        </>
       ) : (
         <>
           {summaryBlock}

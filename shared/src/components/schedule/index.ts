@@ -7,6 +7,13 @@
 // #893 step 3: the one piece of rendering the calendar surfaces genuinely
 // shared verbatim, plus the provenance union all three item types name.
 export type { ScheduleItemVariant } from "./scheduleVariantVisuals";
+// #2564: the click bubble's filled kind capsule (ItemRoleBadge stays the tag
+// hub's outlined chip).
+export {
+  BubbleKindBadge,
+  type BubbleKindBadgeProps,
+  type BubbleKind,
+} from "./BubbleKindBadge";
 export { WeekTimeGrid } from "./WeekTimeGrid";
 // #1627: the sidebar → calendar todo drag payload.
 export {

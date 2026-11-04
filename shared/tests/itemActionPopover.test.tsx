@@ -154,19 +154,57 @@ describe("ItemActionPopover columns layout (#1625)", () => {
     return el as HTMLElement;
   }
 
-  it("puts the summary and edit-detail left and the actions right", () => {
+  it("puts the summary left and the actions right", () => {
     renderPopover({ layout: "columns" });
     const summary = column("summary");
     const actions = column("actions");
     expect(summary).toHaveTextContent("Gym · 09:00–10:00");
-    expect(
-      summary.querySelector("button")?.textContent,
-    ).toContain("Edit detail");
     for (const name of ["Rename", "Duplicate", "Delete"]) {
-      expect(actions).toContainElement(
-        screen.getByRole("menuitem", { name }),
-      );
+      expect(actions).toContainElement(screen.getByRole("menuitem", { name }));
     }
+  });
+
+  /*
+   * #2564: the proposal's frame — the hand-off to the detail is an outlined
+   * button across both columns underneath, and the summary column is the
+   * wider one (1.2 : 1).
+   */
+  it("puts edit-detail under both columns as an outlined full-width button", () => {
+    const { onEditDetail } = renderPopover({ layout: "columns" });
+    const button = screen.getByRole("button", { name: "Edit detail" });
+    expect(column("summary")).not.toContainElement(button);
+    expect(column("actions")).not.toContainElement(button);
+
+    const row = button.closest("[data-item-panel-edit-detail]") as HTMLElement;
+    expect(row).not.toBeNull();
+    // A sibling of the two-column grid, so it comes after both and spans them.
+    const grid = column("summary").parentElement as HTMLElement;
+    expect(row.parentElement).toBe(grid.parentElement);
+    expect(
+      grid.compareDocumentPosition(row) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(button.className).toContain("w-full");
+    expect(button.className).toContain("border-lumen-border");
+    expect(button.className).not.toContain("bg-lumen-accent");
+
+    fireEvent.click(button);
+    expect(onEditDetail).toHaveBeenCalledTimes(1);
+  });
+
+  it("gives the summary column the larger share, 1.2 : 1", () => {
+    renderPopover({ layout: "columns" });
+    const grid = column("summary").parentElement as HTMLElement;
+    expect(grid.className).toContain(
+      "grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)]",
+    );
+    expect(column("actions").parentElement).toBe(grid);
+  });
+
+  it("keeps the filled edit-detail button in the stacked default", () => {
+    renderPopover();
+    expect(
+      screen.getByRole("button", { name: "Edit detail" }).className,
+    ).toContain("bg-lumen-accent");
   });
 
   it("keeps the rename input in the actions column and hides edit-detail", () => {
@@ -202,7 +240,7 @@ describe("ItemActionPopover autoFocus (#2049)", () => {
   });
 
   it("lands on the first action in columns too, not on edit-detail", () => {
-    // "columns" puts the edit-detail button BEFORE the actions in the DOM.
+    // Not just the first button in the panel: a summary can hold buttons too.
     renderPopover({ autoFocus: true, layout: "columns" });
     expect(screen.getByRole("menuitem", { name: "Rename" })).toHaveFocus();
   });
@@ -246,9 +284,9 @@ describe("ItemActionPopover — in-place edit of the summary (#2222)", () => {
 
   it("carries the hint on the target and hides the edit-detail button while editing", () => {
     renderEditable();
-    const target = screen.getByText("Gym").closest(
-      "[data-item-quick-edit-target]",
-    ) as HTMLElement;
+    const target = screen
+      .getByText("Gym")
+      .closest("[data-item-quick-edit-target]") as HTMLElement;
     expect(target.getAttribute("title")).toBe(LABELS.hint);
     expect(screen.getByText("Edit detail")).toBeTruthy();
 

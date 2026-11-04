@@ -1,10 +1,18 @@
 import { useState, type ComponentProps, type ReactNode } from "react";
 import {
+  CalendarPlus,
+  CalendarSearch,
+  Copy,
+  CopyMinus,
+  SquareCheck,
+  Trash2,
+} from "lucide-react";
+import {
+  BubbleKindBadge,
   ConfirmDialog,
   ItemActionPopover,
   ItemCreatePanel,
   ItemDetailOverlay,
-  ItemRoleBadge,
   Modal,
   QuickCaptureSheet,
   RepeatScopeDialog,
@@ -15,8 +23,8 @@ import {
   type ItemCreatePanelHandlers,
   type ItemCreatePanelLabels,
   type ItemCreatePanelPools,
+  type ItemAction,
   type ItemCreateRepeatField,
-  type ItemRoleLabels,
   type ScheduleItem,
   type TagFilterPanelProps,
   type TodoCalendarChip,
@@ -142,22 +150,22 @@ function EventBubbleSummary({
   title,
   when,
   tags,
-  roleLabels,
+  kindLabel,
 }: {
   item: ScheduleItem;
   title: string;
   when: string;
   tags: readonly ScheduleBubbleTag[];
-  roleLabels: ItemRoleLabels;
+  kindLabel: string;
 }) {
   // One line: a memo written over several lines reads as one run of words,
   // and a memo of nothing but spaces and line breaks is no memo.
   const memo = (item.memo ?? "").replace(/\s+/g, " ").trim();
   return (
     <div className="flex flex-col gap-0.5">
-      <ItemRoleBadge
-        role="event"
-        labels={roleLabels}
+      <BubbleKindBadge
+        kind="event"
+        label={kindLabel}
         className="mb-0.5 self-start"
       />
       <p className="line-clamp-2 break-words font-semibold text-lumen-text">
@@ -269,14 +277,24 @@ export function ScheduleOverlays({
 
   // #2397: the kind badge at the head of both bubbles. The Schedule's own
   // words (「予定」/「Todo」, the ones the add dialog's type switch uses), not
-  // itemRole's 「イベント」; the other roles never reach this bubble.
-  const roleLabels = {
+  // itemRole's 「イベント」.
+  const kindLabels = {
     event: t("scheduleScreen.typeEvent"),
     task: t("scheduleScreen.typeTodo"),
-    note: t("itemRole.note"),
-    daily: t("itemRole.daily"),
-    unknown: t("itemRole.unknown"),
   };
+
+  // #2564: the todo rows come from todoChipPanelModel, which stays free of
+  // React nodes; the icons are a look this bubble adds, so they are put on
+  // here by id.
+  const todoActionIcons: Record<string, ReactNode> = {
+    convertToEvent: <CalendarPlus aria-hidden />,
+    delete: <Trash2 aria-hidden />,
+  };
+  const withTodoIcons = (actions: ItemAction[]): ItemAction[] =>
+    actions.map((action) => ({
+      ...action,
+      icon: action.icon ?? todoActionIcons[action.id],
+    }));
 
   // #2222: the in-place edit's copy, the same for both variants.
   const quickEditLabels = {
@@ -332,9 +350,9 @@ export function ScheduleOverlays({
         autoFocus={popover.state.focus}
         summary={
           <div className="flex flex-col gap-0.5">
-            <ItemRoleBadge
-              role="task"
-              labels={roleLabels}
+            <BubbleKindBadge
+              kind="task"
+              label={kindLabels.task}
               className="mb-0.5 self-start"
             />
             <p className="line-clamp-2 break-words font-semibold text-lumen-text">
@@ -345,7 +363,7 @@ export function ScheduleOverlays({
             </p>
           </div>
         }
-        actions={todoChipPanel.actions}
+        actions={withTodoIcons(todoChipPanel.actions)}
         quickEdit={{
           value: todoChipPanel.quickEditValue,
           labels: quickEditLabels,
@@ -382,7 +400,7 @@ export function ScheduleOverlays({
                 : `${popover.selected.startTime}–${popover.selected.endTime}`,
             })}
             tags={popover.selectedTags ?? []}
-            roleLabels={roleLabels}
+            kindLabel={kindLabels.event}
           />
         }
         // #2222: the title, day and time are edited where they are printed
@@ -414,7 +432,10 @@ export function ScheduleOverlays({
             ? [
                 {
                   id: "duplicateWithTags",
-                  label: t("scheduleScreen.duplicateWithTags"),
+                  // #2564: the proposal's 「複製（タグごと）」. New keys, because
+                  // the editor's Duplicate menu keeps the old wording.
+                  label: t("scheduleScreen.bubbleDuplicateWithTags"),
+                  icon: <Copy aria-hidden />,
                   onSelect: () =>
                     popover.itemActions.onDuplicate(popover.state!.id, {
                       withTags: true,
@@ -422,7 +443,8 @@ export function ScheduleOverlays({
                 },
                 {
                   id: "duplicateWithoutTags",
-                  label: t("scheduleScreen.duplicateWithoutTags"),
+                  label: t("scheduleScreen.bubbleDuplicateWithoutTags"),
+                  icon: <CopyMinus aria-hidden />,
                   onSelect: () =>
                     popover.itemActions.onDuplicate(popover.state!.id, {
                       withTags: false,
@@ -433,6 +455,7 @@ export function ScheduleOverlays({
                 {
                   id: "duplicate",
                   label: t("scheduleScreen.duplicate"),
+                  icon: <Copy aria-hidden />,
                   onSelect: () =>
                     popover.itemActions.onDuplicate(popover.state!.id),
                 },
@@ -443,12 +466,14 @@ export function ScheduleOverlays({
           {
             id: "convertToTodo",
             label: t("itemConvert.toTodo"),
+            icon: <SquareCheck aria-hidden />,
             onSelect: () =>
               popover.itemActions.onConvertToTodo(popover.state!.id),
           },
           {
             id: "delete",
             label: t("scheduleScreen.delete"),
+            icon: <Trash2 aria-hidden />,
             danger: true,
             onSelect: () => popover.itemActions.onDelete(popover.state!.id),
           },
@@ -495,6 +520,7 @@ export function ScheduleOverlays({
           {
             id: "showNext",
             label: t("scheduleScreen.repeatShowNext"),
+            icon: <CalendarSearch aria-hidden />,
             disabled: repeatPanel.row.nextLabel == null,
             onSelect: () => repeatPanel.onShowNext(repeatPanel.state!.id),
           },
@@ -503,6 +529,7 @@ export function ScheduleOverlays({
                 {
                   id: "deleteSeries",
                   label: t("scheduleScreen.delete"),
+                  icon: <Trash2 aria-hidden />,
                   danger: true,
                   onSelect: () => repeatPanel.onDelete?.(repeatPanel.state!.id),
                 },

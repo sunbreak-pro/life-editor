@@ -964,6 +964,8 @@
     "duplicate": "Duplicate",
     "duplicateWithTags": "Duplicate with tags",
     "duplicateWithoutTags": "Duplicate without tags",
+    "bubbleDuplicateWithTags": "Duplicate (with tags)",
+    "bubbleDuplicateWithoutTags": "Duplicate (without tags)",
     "copySuffix": " (copy)",
     "tagScopeLabel": "Tags apply to",
     "tagScopeAll": "Every occurrence",

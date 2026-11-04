@@ -318,12 +318,14 @@ describe("ScheduleOverlays — the single-click bubble", () => {
     });
     expect(screen.queryByText("scheduleScreen.duplicate")).toBeNull();
 
-    fireEvent.click(screen.getByText("scheduleScreen.duplicateWithTags"));
+    fireEvent.click(screen.getByText("scheduleScreen.bubbleDuplicateWithTags"));
     expect(itemActions.onDuplicate).toHaveBeenLastCalledWith(ITEM.id, {
       withTags: true,
     });
 
-    fireEvent.click(screen.getByText("scheduleScreen.duplicateWithoutTags"));
+    fireEvent.click(
+      screen.getByText("scheduleScreen.bubbleDuplicateWithoutTags"),
+    );
     expect(itemActions.onDuplicate).toHaveBeenLastCalledWith(ITEM.id, {
       withTags: false,
     });
@@ -334,7 +336,9 @@ describe("ScheduleOverlays — the single-click bubble", () => {
       popover: { state: POPOVER, selected: ITEM, selectedTagCount: 0 },
     });
     expect(screen.getByText("scheduleScreen.duplicate")).toBeTruthy();
-    expect(screen.queryByText("scheduleScreen.duplicateWithTags")).toBeNull();
+    expect(
+      screen.queryByText("scheduleScreen.bubbleDuplicateWithTags"),
+    ).toBeNull();
   });
 
   it("offers the item action set and carries the popover's id", () => {
@@ -615,9 +619,7 @@ describe("ScheduleOverlays — the event bubble's summary (#2397)", () => {
 
   /** The interpolation the day-and-time line was built from. */
   function whenParts(): Record<string, string> {
-    const line = within(eventPanel()).getByText(
-      /^scheduleScreen\.bubbleWhen /,
-    );
+    const line = within(eventPanel()).getByText(/^scheduleScreen\.bubbleWhen /);
     return JSON.parse(
       (line.textContent ?? "").slice("scheduleScreen.bubbleWhen ".length),
     ) as Record<string, string>;
@@ -625,7 +627,9 @@ describe("ScheduleOverlays — the event bubble's summary (#2397)", () => {
 
   it("leads with the event badge and names the day with the time", () => {
     renderOverlays({ popover: { state: POPOVER, selected: ITEM } });
-    expect(within(eventPanel()).getByText("scheduleScreen.typeEvent")).toBeTruthy();
+    expect(
+      within(eventPanel()).getByText("scheduleScreen.typeEvent"),
+    ).toBeTruthy();
     expect(within(eventPanel()).getByText(ITEM.title)).toBeTruthy();
     // 2026-08-16 is a Sunday. The catalog arranges the parts (ja:
     // 「8月16日（日）・10:00–11:00」 — pinned in scheduleCopy.test.ts).
@@ -697,6 +701,124 @@ describe("ScheduleOverlays — the event bubble's summary (#2397)", () => {
     expect(within(panel).getByText("scheduleScreen.typeTodo")).toBeTruthy();
     expect(within(panel).queryByText("scheduleScreen.typeEvent")).toBeNull();
     expect(within(panel).queryByText(/^scheduleScreen\.bubbleWhen/)).toBeNull();
+  });
+});
+
+/*
+ * #2564 — the bubble's frame as the Claude Design proposal draws it: a filled
+ * kind capsule with no icon, an icon at the head of every action row, and
+ * the hand-off to the detail as a full-width row under both columns.
+ */
+describe("ScheduleOverlays — the bubble's frame (#2564)", () => {
+  const POPOVER = { id: ITEM.id, x: 10, y: 20 };
+
+  function badge(panel: HTMLElement, kind: string): HTMLElement {
+    const el = panel.querySelector(`[data-bubble-kind="${kind}"]`);
+    expect(el).not.toBeNull();
+    return el as HTMLElement;
+  }
+
+  /** Every action row in the panel, each with its leading icon or not. */
+  function rowsWithIcons(panel: HTMLElement): Record<string, boolean> {
+    return Object.fromEntries(
+      within(panel)
+        .getAllByRole("menuitem")
+        .map((row) => [
+          row.textContent ?? "",
+          row.querySelector("svg") != null,
+        ]),
+    );
+  }
+
+  it("gives the event bubble a filled event badge with no icon", () => {
+    renderOverlays({ popover: { state: POPOVER, selected: ITEM } });
+    const panel = screen.getByRole("dialog", {
+      name: "scheduleScreen.itemActionsLabel",
+    });
+    const el = badge(panel, "event");
+    expect(el.textContent).toBe("scheduleScreen.typeEvent");
+    expect(el.className).toContain("bg-lumen-chip-event-bg");
+    expect(el.querySelector("svg")).toBeNull();
+  });
+
+  it("gives the todo bubble a filled todo badge with no icon", () => {
+    renderOverlays({
+      popover: { state: { ...POPOVER, id: CHIP.id }, todoChip: CHIP },
+    });
+    const panel = screen.getByRole("dialog", {
+      name: "scheduleScreen.todoActionsLabel",
+    });
+    const el = badge(panel, "task");
+    expect(el.textContent).toBe("scheduleScreen.typeTodo");
+    expect(el.className).toContain("bg-lumen-chip-task-bg");
+    expect(el.querySelector("svg")).toBeNull();
+  });
+
+  it("leads every event action with an icon, with the proposal's wording", () => {
+    renderOverlays({
+      popover: { state: POPOVER, selected: ITEM, selectedTagCount: 1 },
+    });
+    const panel = screen.getByRole("dialog", {
+      name: "scheduleScreen.itemActionsLabel",
+    });
+    expect(rowsWithIcons(panel)).toEqual({
+      "scheduleScreen.bubbleDuplicateWithTags": true,
+      "scheduleScreen.bubbleDuplicateWithoutTags": true,
+      "itemConvert.toTodo": true,
+      "scheduleScreen.delete": true,
+    });
+  });
+
+  it("leads the single Duplicate of a tagless event with an icon too", () => {
+    renderOverlays({
+      popover: { state: POPOVER, selected: ITEM, selectedTagCount: 0 },
+    });
+    const row = screen.getByRole("menuitem", {
+      name: "scheduleScreen.duplicate",
+    });
+    expect(row.querySelector("svg")).not.toBeNull();
+  });
+
+  it("leads every todo action with an icon", () => {
+    renderOverlays({
+      popover: { state: { ...POPOVER, id: CHIP.id }, todoChip: CHIP },
+    });
+    const panel = screen.getByRole("dialog", {
+      name: "scheduleScreen.todoActionsLabel",
+    });
+    expect(rowsWithIcons(panel)).toEqual({
+      "itemConvert.toEvent": true,
+      "todoDetail.todoDelete": true,
+    });
+  });
+
+  it("leads the repeat row panel's actions with an icon", () => {
+    renderOverlays({
+      repeatPanel: {
+        state: { id: "r-1", x: 10, y: 20 },
+        row: { title: "Morning run", frequencyLabel: "Daily", nextLabel: "x" },
+      },
+    });
+    const panel = screen.getByRole("dialog", {
+      name: "scheduleScreen.repeatPanelLabel",
+    });
+    expect(rowsWithIcons(panel)).toEqual({
+      "scheduleScreen.repeatShowNext": true,
+      "scheduleScreen.delete": true,
+    });
+  });
+
+  it("puts 詳細を編集 under both columns, outlined", () => {
+    renderOverlays({ popover: { state: POPOVER, selected: ITEM } });
+    const panel = screen.getByRole("dialog", {
+      name: "scheduleScreen.itemActionsLabel",
+    });
+    const button = within(panel).getByRole("button", {
+      name: "scheduleScreen.editDetail",
+    });
+    expect(button.closest("[data-item-panel-column]")).toBeNull();
+    expect(button.closest("[data-item-panel-edit-detail]")).not.toBeNull();
+    expect(button.className).not.toContain("bg-lumen-accent");
   });
 });
 
@@ -783,7 +905,9 @@ describe("ScheduleOverlays — the create panel's note picker (#2396)", () => {
     expect(document.activeElement).toBe(done);
     // Esc is still the picker's: the dialog stays.
     fireEvent.keyDown(document, { key: "Escape" });
-    expect(screen.queryByRole("region", { name: "notePickerTitle" })).toBeNull();
+    expect(
+      screen.queryByRole("region", { name: "notePickerTitle" }),
+    ).toBeNull();
     createDialog();
   });
 
@@ -806,7 +930,9 @@ describe("ScheduleOverlays — the create panel's note picker (#2396)", () => {
       />,
     );
     expect(createDialog().className).toContain("max-w-lg");
-    expect(screen.queryByRole("region", { name: "notePickerTitle" })).toBeNull();
+    expect(
+      screen.queryByRole("region", { name: "notePickerTitle" }),
+    ).toBeNull();
   });
 
   it("raises a second sheet over the Mobile create sheet", () => {

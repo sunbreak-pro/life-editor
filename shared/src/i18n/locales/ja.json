@@ -958,6 +958,8 @@
     "duplicate": "複製",
     "duplicateWithTags": "タグごと複製",
     "duplicateWithoutTags": "タグなしで複製",
+    "bubbleDuplicateWithTags": "複製（タグごと）",
+    "bubbleDuplicateWithoutTags": "複製（タグなし）",
     "copySuffix": "（コピー）",
     "tagScopeLabel": "タグを付ける範囲",
     "tagScopeAll": "すべての回",
