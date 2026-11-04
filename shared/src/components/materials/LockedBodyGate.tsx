@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Lock } from "lucide-react";
+import { KeyRound, Lock } from "lucide-react";
 import { cn } from "../cn";
 import { FOCUS_RING } from "../styleTokens";
 
@@ -8,6 +8,12 @@ export interface LockedBodyGateProps {
   locked: boolean;
   /** Already-translated line inside the CTA (§6.4). */
   hint: string;
+  /**
+   * Already-translated label of the "unlock" button drawn under the hint
+   * (#2585 —「ロックを解除」). Omitted → no separate button, and the whole
+   * cover is the button instead, which is how the gate worked before #2585.
+   */
+  unlockLabel?: string;
   /** Ask for the password — the host owns the dialog. */
   onUnlock: () => void;
   /**
@@ -16,6 +22,15 @@ export interface LockedBodyGateProps {
    */
   children: ReactNode;
 }
+
+/*
+ * Widths of the stand-in lines under the cover (#2585). The gate draws its own
+ * "body" because the host's is a blank spacer since #1763 — a blurred blank
+ * reads as an empty note, not a hidden one. They are bars, not words: there is
+ * no real text to blur (the body is never fetched while locked), and filler
+ * copy would be one more string to translate for something no one can read.
+ */
+const PLACEHOLDER_LINES = ["92%", "78%", "86%", "64%", "88%", "52%"];
 
 /*
  * The password lock on a note's BODY (#526). Desktop has always worked this
@@ -41,13 +56,58 @@ export interface LockedBodyGateProps {
  *
  * The CTA sits OVER the children rather than replacing them so the box keeps
  * its place in the layout.
+ *
+ * #2585: a bare box with a lock and one line did not say what to press. The
+ * cover now shows blurred stand-in lines with the lock, the line and an
+ * explicit "unlock" button over them. A press anywhere on the cover still
+ * starts the unlock, as it did when the whole cover was the button — the
+ * button is the keyboard's way in and the eye's answer to "what do I press".
  */
 export function LockedBodyGate({
   locked,
   hint,
+  unlockLabel,
   onUnlock,
   children,
 }: LockedBodyGateProps) {
+  const coverClass =
+    "absolute inset-0 overflow-hidden rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary text-lumen-text";
+
+  // A span rather than a div: in the label-less form it sits inside a
+  // <button>, which may only hold phrasing content.
+  const placeholder = (
+    <span
+      data-testid="locked-body-placeholder"
+      aria-hidden="true"
+      className="pointer-events-none absolute inset-0 flex select-none flex-col gap-3 px-6 py-5 blur-[6px]"
+    >
+      {PLACEHOLDER_LINES.map((width, i) => (
+        <span
+          key={i}
+          // text-tertiary, not border: border is a few levels off the cover's
+          // bg-secondary in both themes, and the blur would erase it.
+          className="block h-3 shrink-0 rounded-full bg-lumen-text-tertiary"
+          style={{ width }}
+        />
+      ))}
+    </span>
+  );
+
+  const badge = (
+    <>
+      <span
+        aria-hidden="true"
+        className="grid h-10 w-10 place-items-center rounded-full border border-lumen-border bg-lumen-bg text-lumen-text-secondary"
+      >
+        <Lock size={18} />
+      </span>
+      <span className="text-sm text-lumen-text-secondary">{hint}</span>
+    </>
+  );
+
+  const content =
+    "relative flex h-full flex-col items-center justify-center gap-3 p-6";
+
   return (
     <div className="relative">
       <div
@@ -61,19 +121,43 @@ export function LockedBodyGate({
       >
         {children}
       </div>
-      {locked && (
-        <button
-          type="button"
-          onClick={onUnlock}
-          className={cn(
-            "absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lumen-md border border-lumen-border bg-lumen-bg-secondary text-lumen-text",
-            FOCUS_RING,
-          )}
-        >
-          <Lock size={20} aria-hidden />
-          <span className="text-sm">{hint}</span>
-        </button>
-      )}
+      {locked &&
+        (unlockLabel ? (
+          // The cover's own click is the mouse-only shortcut kept from the
+          // whole-cover button; the inner button is what the keyboard and
+          // screen readers reach, so the div needs no role of its own.
+          <div className={cn(coverClass, "cursor-pointer")} onClick={onUnlock}>
+            {placeholder}
+            <div className={content}>
+              {badge}
+              <button
+                type="button"
+                onClick={(event) => {
+                  // The cover would run onUnlock a second time on the bubble.
+                  event.stopPropagation();
+                  onUnlock();
+                }}
+                className={cn(
+                  "inline-flex items-center gap-1.5 rounded-lumen-md border border-lumen-border bg-lumen-bg px-3 py-1.5 text-sm font-medium text-lumen-text shadow-lumen-sm hover:bg-lumen-hover",
+                  "max-md:min-h-11 max-md:px-4",
+                  FOCUS_RING,
+                )}
+              >
+                <KeyRound size={14} aria-hidden="true" />
+                {unlockLabel}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={onUnlock}
+            className={cn(coverClass, FOCUS_RING)}
+          >
+            {placeholder}
+            <span className={content}>{badge}</span>
+          </button>
+        ))}
     </div>
   );
 }
