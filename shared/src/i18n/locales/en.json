@@ -1309,6 +1309,7 @@
     "redo": "Redo",
     "untitled": "Untitled",
     "loading": "Loading…",
+    "retry": "Retry",
     "unsavedCloseConfirm": "You have unsaved changes. Discard them and close?"
   },
   "commandPalette": {
