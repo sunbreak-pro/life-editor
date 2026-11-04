@@ -1562,6 +1562,7 @@
       },
       "addHeading": "Set a goal",
       "addPlaceholder": "What do you want to reach?",
+      "addNoParentHint": " You can set one without a higher goal.",
       "add": "Add",
       "cancel": "Cancel",
       "treeHeading": "Goal tree",
